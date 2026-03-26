@@ -178,8 +178,9 @@
  *    possibly reducing the number of inputs, uniforms, and UBOs by 1.
  *
  *    Such code motion can be performed for any expression sourcing only
- *    inputs, constants, and uniforms except for fragment shaders, which can
- *    also do it but with the following limitations:
+ *    inputs, constants, uniforms, and primitive-convergent system values
+ *    except for fragment shaders, which can also do it but with
+ *    the following limitations:
  *    * Only these transformations can be perfomed with interpolated inputs
  *      and any composition of these transformations (such as lerp), which can
  *      all be proven mathematically:
@@ -203,7 +204,7 @@
  *      the removed non-convergent inputs that should all have the same (i, j).
  *      If there are no non-convergent inputs, then the new input is declared
  *      as flat (for simplicity; we can't choose the barycentric coordinates
- *      at random because AMD doesn't like when there are multiple sets of
+ *      at random because AMD performs worse when there are multiple sets of
  *      barycentric coordinates in the same shader unnecessarily).
  *    * Inf values break code motion across interpolation. See the section
  *      discussing how we handle it near the end.
@@ -2278,15 +2279,28 @@ clone_ssa_impl(struct linkage_info *linkage, nir_builder *b, nir_def *ssa)
          break;
       }
 
-      default:
+      default: {
+         gl_system_value sysval =
+            nir_system_value_from_intrinsic(intr->intrinsic);
+
+         if (sysval != SYSTEM_VALUE_MAX) {
+            clone = nir_load_system_value(b, intr->intrinsic,
+                                          intr->const_index[0],
+                                          intr->def.num_components,
+                                          intr->def.bit_size);
+            break;
+         }
+
          UNREACHABLE("unexpected intrinsic");
+      }
       }
       break;
    }
 
    case nir_instr_type_deref: {
       nir_deref_instr *deref = nir_def_as_deref(ssa);
-      assert(nir_deref_mode_is_one_of(deref, nir_var_uniform | nir_var_mem_ubo));
+      assert(nir_deref_mode_is_one_of(deref, nir_var_uniform | nir_var_mem_ubo |
+                                      nir_var_system_value));
 
       /* Get the uniform from the original shader. */
       nir_variable *var = nir_deref_instr_get_variable(deref);
@@ -3153,6 +3167,26 @@ can_move_alu_across_interp(struct linkage_info *linkage, nir_alu_instr *alu)
    }
 }
 
+static bool
+is_sysval_movable(struct linkage_info *linkage, nir_instr *instr)
+{
+   /* System values that are convergent within a primitive and are available
+    * in both shader stages should be listed here.
+    *
+    * LAYER could be listed too. Note that expressions with VARYING_SLOT_LAYER
+    * are already moved by this pass, but not if it's a sysval.
+    *
+    * PRIMITIVE_ID and FRONT_FACE could also be listed if the driver supports
+    * them in the producer such as VS. (AMD supports both in the VS)
+    */
+   switch (nir_system_value_from_instr(instr)) {
+   case SYSTEM_VALUE_VIEW_INDEX:
+      return true;
+   default:
+      return false;
+   }
+}
+
 /* Determine whether an instruction is movable from the consumer to
  * the producer. Also determine which interpolation modes each ALU instruction
  * should use if its value was promoted to a new input.
@@ -3237,6 +3271,11 @@ update_movable_flags(struct linkage_info *linkage, nir_instr *instr)
    }
 
    case nir_instr_type_intrinsic: {
+      if (is_sysval_movable(linkage, instr)) {
+         instr->pass_flags |= FLAG_MOVABLE;
+         return;
+      }
+
       /* Movable input loads already have FLAG_MOVABLE on them.
        * Unmovable input loads skipped by initialization get UNMOVABLE here.
        * (e.g. colors, texcoords)
@@ -3341,7 +3380,7 @@ update_movable_flags(struct linkage_info *linkage, nir_instr *instr)
 
 /* Gather the input loads used by the post-dominator using DFS. */
 static void
-gather_used_input_loads(nir_instr *instr,
+gather_used_input_loads(struct linkage_info *linkage, nir_instr *instr,
                         nir_intrinsic_instr *loads[NUM_SCALAR_SLOTS],
                         unsigned *num_loads)
 {
@@ -3355,7 +3394,7 @@ gather_used_input_loads(nir_instr *instr,
       unsigned num_srcs = nir_op_infos[alu->op].num_inputs;
 
       for (unsigned i = 0; i < num_srcs; i++) {
-         gather_used_input_loads(nir_def_instr(alu->src[i].src.ssa),
+         gather_used_input_loads(linkage, nir_def_instr(alu->src[i].src.ssa),
                                  loads, num_loads);
       }
       return;
@@ -3369,7 +3408,7 @@ gather_used_input_loads(nir_instr *instr,
          return;
 
       case nir_intrinsic_load_deref:
-         gather_used_input_loads(nir_def_instr(intr->src[0].ssa),
+         gather_used_input_loads(linkage, nir_def_instr(intr->src[0].ssa),
                                  loads, num_loads);
          return;
 
@@ -3384,6 +3423,9 @@ gather_used_input_loads(nir_instr *instr,
          return;
 
       default:
+         if (is_sysval_movable(linkage, instr))
+            return;
+
          printf("%u\n", intr->intrinsic);
          UNREACHABLE("unexpected intrinsic");
       }
@@ -3394,7 +3436,7 @@ gather_used_input_loads(nir_instr *instr,
       nir_deref_instr *parent = nir_deref_instr_parent(deref);
 
       if (parent)
-         gather_used_input_loads(&parent->instr, loads, num_loads);
+         gather_used_input_loads(linkage, &parent->instr, loads, num_loads);
 
       switch (deref->deref_type) {
       case nir_deref_type_var:
@@ -3402,7 +3444,7 @@ gather_used_input_loads(nir_instr *instr,
          return;
 
       case nir_deref_type_array:
-         gather_used_input_loads(nir_def_instr(deref->arr.index.ssa),
+         gather_used_input_loads(linkage, nir_def_instr(deref->arr.index.ssa),
                                  loads, num_loads);
          return;
 
@@ -3437,7 +3479,7 @@ try_move_postdominator(struct linkage_info *linkage,
    /* Gather the input loads used by the post-dominator using DFS. */
    nir_intrinsic_instr *loads[NUM_SCALAR_SLOTS * 8];
    unsigned num_loads = 0;
-   gather_used_input_loads(postdom, loads, &num_loads);
+   gather_used_input_loads(linkage, postdom, loads, &num_loads);
    assert(num_loads && "no loads were gathered");
 
    /* Clear the flag set by gather_used_input_loads. */
