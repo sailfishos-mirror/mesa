@@ -240,7 +240,7 @@ radv_probe_video_decode(struct radv_physical_device *pdev)
    /* WRITE_MEMORY is needed for SetEvent and is required to pass CTS */
    pdev->video_decode_enabled = radv_video_write_memory_supported(pdev);
 
-   if (instance->perftest_flags & RADV_PERFTEST_VIDEO_DECODE) {
+   if (instance->experimental_flags & RADV_EXPERIMENTAL_VIDEO_DECODE) {
       pdev->video_decode_enabled = true;
    }
 }

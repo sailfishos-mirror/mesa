@@ -78,6 +78,9 @@ enum {
                              RADV_DEBUG_DUMP_NIR | RADV_DEBUG_DUMP_ASM | RADV_DEBUG_DUMP_BACKEND_IR,
 };
 
+/* emulate_rt, video_decode, transfer_queue, video_encode, hic, sparse and bfloat16 are deprecated,
+ * use RADV_EXPERIMENTAL instead.
+ */
 enum {
    RADV_PERFTEST_LOCAL_BOS = 1u << 0,
    RADV_PERFTEST_DCC_MSAA = 1u << 1,
@@ -101,6 +104,16 @@ enum {
    RADV_PERFTEST_BFLOAT16 = 1u << 19,
    RADV_PERFTEST_LOWLATENCYDEC = 1u << 20,
    RADV_PERFTEST_LOWLATENCYENC = 1u << 21,
+};
+
+enum {
+   RADV_EXPERIMENTAL_EMULATE_RT = 1u << 0,
+   RADV_EXPERIMENTAL_VIDEO_DECODE = 1u << 1,
+   RADV_EXPERIMENTAL_TRANSFER_QUEUE = 1u << 2,
+   RADV_EXPERIMENTAL_VIDEO_ENCODE = 1u << 3,
+   RADV_EXPERIMENTAL_HIC = 1u << 4,
+   RADV_EXPERIMENTAL_SPARSE = 1u << 5,
+   RADV_EXPERIMENTAL_BFLOAT16 = 1u << 6,
 };
 
 enum {

@@ -89,8 +89,7 @@ radv_sparse_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
-   return pdev->info.has_sparse ||
-          (instance->perftest_flags & RADV_PERFTEST_SPARSE);
+   return pdev->info.has_sparse || (instance->experimental_flags & RADV_EXPERIMENTAL_SPARSE);
 }
 
 bool
@@ -100,7 +99,7 @@ radv_transfer_queue_enabled(const struct radv_physical_device *pdev)
 
    /* Check if the GPU has SDMA support and transfer queues are allowed. */
    if (pdev->info.sdma_ip_version == SDMA_UNKNOWN || !pdev->info.ip[AMD_IP_SDMA].num_queues ||
-       !(instance->perftest_flags & RADV_PERFTEST_TRANSFER_QUEUE))
+       !(instance->experimental_flags & RADV_EXPERIMENTAL_TRANSFER_QUEUE))
       return false;
 
    if (!pdev->info.has_gang_submit || !radv_compute_queue_enabled(pdev))
@@ -187,7 +186,7 @@ radv_bfloat16_enabled(const struct radv_physical_device *pdev)
       return false;
 
    /* GFX11-11.5 has precision issues. */
-   return (instance->perftest_flags & RADV_PERFTEST_BFLOAT16) || pdev->info.gfx_level >= GFX12;
+   return (instance->experimental_flags & RADV_EXPERIMENTAL_BFLOAT16) || pdev->info.gfx_level >= GFX12;
 }
 
 static bool
@@ -206,7 +205,7 @@ bool
 radv_host_image_copy_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   return pdev->info.gfx_level >= GFX10 && (instance->perftest_flags & RADV_PERFTEST_HIC);
+   return pdev->info.gfx_level >= GFX10 && (instance->experimental_flags & RADV_EXPERIMENTAL_HIC);
 }
 
 bool
@@ -225,7 +224,7 @@ bool
 radv_emulate_rt(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   if (instance->perftest_flags & RADV_PERFTEST_EMULATE_RT)
+   if (instance->experimental_flags & RADV_EXPERIMENTAL_EMULATE_RT)
       return true;
 
    /* Do not force emulated RT on GPUs that have native support. */

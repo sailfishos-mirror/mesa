@@ -1557,21 +1557,14 @@ RADV driver environment variables
 
    a comma-separated list of named flags, which do various things:
 
-   ``bfloat16``
-      enable bfloat16 cooperative matrix support on GFX11-11.5
    ``cswave32``
       enable wave32 for compute shaders (GFX10+)
    ``dccmsaa``
       enable DCC for MSAA images
    ``dmashaders``
       upload shaders to invisible VRAM (might be useful for non-resizable BAR systems)
-   ``emulate_rt``
-      forces ray-tracing to be emulated in software on GFX10_3+ and enables
-      rt extensions with older hardware.
    ``gewave32``
       enable wave32 for vertex/tess/geometry shaders (GFX10+)
-   ``hic``
-      enable experimental implementation of VK_EXT_host_image_copy (GFX10+)
    ``localbos``
       enable local BOs
    ``lowlatencydec``
@@ -1594,6 +1587,22 @@ RADV driver environment variables
       enable wave64 for ray tracing shaders (GFX10+)
    ``sam``
       enable optimizations to move more driver internal objects to VRAM.
+
+   Note that bfloat16, emulate_rt, hic, sparse, transfer_queue, video_decode
+   and video_encode are deprecated and RADV_EXPERIMENTAL should be
+   used instead.
+
+.. envvar:: RADV_EXPERIMENTAL
+
+   a comma-separated list of named flags, which do various things:
+
+   ``bfloat16``
+      enable bfloat16 cooperative matrix support on GFX11-11.5
+   ``emulate_rt``
+      forces ray-tracing to be emulated in software on GFX10_3+ and enables
+      rt extensions with older hardware.
+   ``hic``
+      enable experimental implementation of VK_EXT_host_image_copy (GFX10+)
    ``sparse``
       enable experimental sparse binding and sparse residency on GPUs where we don't support it by default (pre Polaris)
    ``transfer_queue``
