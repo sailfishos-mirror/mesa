@@ -82,6 +82,8 @@ enum { PAN_VERTEX_ID = 16, PAN_INSTANCE_ID = 17, PAN_MAX_ATTRIBUTE };
  */
 #define PAN_MAX_PUSH 128
 
+#define PAN_MAX_MULTIVIEW_VIEW_COUNT 8
+
 /* Architectural invariants (Midgard and Bifrost): UBO must be <= 2^16 bytes so
  * an offset to a word must be < 2^16. There are less than 2^8 UBOs */
 

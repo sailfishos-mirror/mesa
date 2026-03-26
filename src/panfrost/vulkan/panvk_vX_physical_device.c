@@ -917,7 +917,7 @@ panvk_per_arch(get_physical_device_properties)(
          VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT,
       .subgroupQuadOperationsInAllStages = false,
       .pointClippingBehavior = VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES,
-      .maxMultiviewViewCount = 8,
+      .maxMultiviewViewCount = PAN_MAX_MULTIVIEW_VIEW_COUNT,
       .maxMultiviewInstanceIndex = UINT32_MAX,
       .protectedNoFault = false,
       .maxPerSetDescriptors = UINT16_MAX,
