@@ -3924,12 +3924,19 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
                          struct isl_swizzle view_swizzle,
                          union isl_color_value clear_color)
 {
-   if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR))
+   if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR)) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "DEBUG_NO_FAST_CLEAR. Slow clearing.");
       return false;
+   }
 
    /* We only have fast-clears implemented for the render engine. */
-   if (cmd_buffer->queue_family->engine_class != INTEL_ENGINE_CLASS_RENDER)
+   if (cmd_buffer->queue_family->engine_class != INTEL_ENGINE_CLASS_RENDER) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "queue engine class unsupported for fast clear. "
+                    "Slow clearing.");
       return false;
+   }
 
    /* Start by getting the fast clear type.  We use the first subpass
     * layout here because we don't want to fast-clear if the first subpass
@@ -3941,6 +3948,8 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
                                     cmd_buffer->queue_family->queueFlags);
    switch (fast_clear_type) {
    case ANV_FAST_CLEAR_NONE:
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "layout does not support fast clear. Slow clearing.");
       return false;
    case ANV_FAST_CLEAR_DEFAULT_VALUE: {
       uint32_t view_pixel[4] = {};
@@ -3967,8 +3976,12 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
    if (clear_rect->rect.offset.x != 0 ||
        clear_rect->rect.offset.y != 0 ||
        clear_rect->rect.extent.width != image->vk.extent.width ||
-       clear_rect->rect.extent.height != image->vk.extent.height)
+       clear_rect->rect.extent.height != image->vk.extent.height) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "partial clear rect unsupported for fast clear. "
+                    "Slow clearing.");
       return false;
+    }
 
    /* When a CLEAR state is possible for an aux-usage, guarantee that there is
     * only one clear color at any given time. The heuristic chosen is tuned to
@@ -4003,8 +4016,12 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
    if (intel_needs_workaround(cmd_buffer->device->info, 18020603990)) {
       if (isl_format_get_layout(anv_surf->isl.format)->bpb <= 32 &&
           anv_surf->isl.logical_level0_px.w <= 256 &&
-          anv_surf->isl.logical_level0_px.h <= 256)
+          anv_surf->isl.logical_level0_px.h <= 256) {
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Wa_18020603990: small 32bpp surface. "
+                       "Slow clearing.");
          return false;
+      }
    }
 
    /* BSpec 46969 (r45602) tells us that we get no fast-clears for 3D:
@@ -4041,6 +4058,8 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
    if (intel_needs_workaround(cmd_buffer->device->info, 16021232440) &&
        (image->vk.extent.height == 16 * 1024 ||
         image->vk.extent.width == 16 * 1024)) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "Wa_16021232440: 16k dimension. Slow clearing.");
       return false;
    }
 
