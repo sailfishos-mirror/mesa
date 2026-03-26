@@ -1331,6 +1331,13 @@ struct pipe_ml_device {
     */
    void (*ml_subgraph_destroy)(struct pipe_ml_device *device,
                                struct pipe_ml_subgraph *subgraph);
+
+   /**
+    * Destroy the device and free all associated resources.
+    *
+    * \param device      pipe_ml_device to destroy
+    */
+   void (*ml_device_destroy)(struct pipe_ml_device *device);
 };
 
 struct pipe_compute_state
