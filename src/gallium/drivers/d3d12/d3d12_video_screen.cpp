@@ -2245,8 +2245,6 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *pscreen,
             flush internally on end frame for decode
          */
          return 0;
-      case PIPE_VIDEO_CAP_NPOT_TEXTURES:
-         return 1;
       case PIPE_VIDEO_CAP_MAX_WIDTH:
       case PIPE_VIDEO_CAP_MAX_HEIGHT:
       case PIPE_VIDEO_CAP_MAX_LEVEL:
@@ -2315,8 +2313,6 @@ d3d12_screen_get_video_param_postproc(struct pipe_screen *pscreen,
 {
    switch (param) {
       case PIPE_VIDEO_CAP_REQUIRES_FLUSH_ON_END_FRAME:
-         return 1;
-      case PIPE_VIDEO_CAP_NPOT_TEXTURES:
          return 1;
       case PIPE_VIDEO_CAP_MAX_WIDTH:
       case PIPE_VIDEO_CAP_MAX_HEIGHT:
@@ -2460,8 +2456,6 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
    uint32_t readableReconstructedPictureSupport = 0u;
    switch (param) {
       case PIPE_VIDEO_CAP_REQUIRES_FLUSH_ON_END_FRAME:
-         return 1;
-      case PIPE_VIDEO_CAP_NPOT_TEXTURES:
          return 1;
       case PIPE_VIDEO_CAP_MAX_TEMPORAL_LAYERS:
       {

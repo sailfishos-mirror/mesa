@@ -451,8 +451,6 @@ nouveau_vp3_screen_get_video_param(struct pipe_screen *pscreen,
          profile >= PIPE_VIDEO_PROFILE_MPEG1 &&
          profile < PIPE_VIDEO_PROFILE_HEVC_MAIN &&
          firmware_present(pscreen, profile);
-   case PIPE_VIDEO_CAP_NPOT_TEXTURES:
-      return 1;
    case PIPE_VIDEO_CAP_MAX_WIDTH:
       switch (codec) {
       case PIPE_VIDEO_FORMAT_MPEG12:

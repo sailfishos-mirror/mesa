@@ -204,8 +204,6 @@ int rvid_get_video_param(struct pipe_screen *screen,
 		case PIPE_VIDEO_CAP_SUPPORTED:
 			return codec == PIPE_VIDEO_FORMAT_MPEG4_AVC &&
 				rvce_is_fw_version_supported(rscreen);
-		case PIPE_VIDEO_CAP_NPOT_TEXTURES:
-			return 1;
 		case PIPE_VIDEO_CAP_MAX_WIDTH:
 			return 2048;
 		case PIPE_VIDEO_CAP_MAX_HEIGHT:
@@ -237,8 +235,6 @@ int rvid_get_video_param(struct pipe_screen *screen,
 		default:
 			return false;
 		}
-	case PIPE_VIDEO_CAP_NPOT_TEXTURES:
-		return 1;
 	case PIPE_VIDEO_CAP_MAX_WIDTH:
 		return 2048;
 	case PIPE_VIDEO_CAP_MAX_HEIGHT:

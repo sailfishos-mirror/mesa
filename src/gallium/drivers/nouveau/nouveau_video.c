@@ -832,8 +832,6 @@ nouveau_screen_get_video_param(struct pipe_screen *pscreen,
    case PIPE_VIDEO_CAP_SUPPORTED:
       return entrypoint >= PIPE_VIDEO_ENTRYPOINT_IDCT &&
          u_reduce_video_profile(profile) == PIPE_VIDEO_FORMAT_MPEG12;
-   case PIPE_VIDEO_CAP_NPOT_TEXTURES:
-      return 1;
    case PIPE_VIDEO_CAP_MAX_WIDTH:
    case PIPE_VIDEO_CAP_MAX_HEIGHT:
       return vl_video_buffer_max_size(pscreen);
