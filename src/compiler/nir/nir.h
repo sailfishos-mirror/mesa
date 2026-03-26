@@ -6780,6 +6780,7 @@ void nir_sweep(nir_shader *shader);
 
 nir_intrinsic_op nir_intrinsic_from_system_value(gl_system_value val);
 gl_system_value nir_system_value_from_intrinsic(nir_intrinsic_op intrin);
+gl_system_value nir_system_value_from_instr(nir_instr *instr);
 
 static inline bool
 nir_variable_is_in_ubo(const nir_variable *var)

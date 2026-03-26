@@ -1043,22 +1043,7 @@ build_convert_inf_to_nan(nir_builder *b, nir_def *x)
 static bool
 is_sysval(nir_instr *instr, gl_system_value sysval)
 {
-   if (instr->type == nir_instr_type_intrinsic) {
-      nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
-
-      if (intr->intrinsic == nir_intrinsic_from_system_value(sysval))
-         return true;
-
-      if (intr->intrinsic == nir_intrinsic_load_deref) {
-         nir_deref_instr *deref =
-            nir_def_as_deref(intr->src[0].ssa);
-
-         return nir_deref_mode_is_one_of(deref, nir_var_system_value) &&
-                nir_deref_instr_get_variable(deref)->data.location == sysval;
-      }
-   }
-
-   return false;
+   return nir_system_value_from_instr(instr) == sysval;
 }
 
 /******************************************************************
