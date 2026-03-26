@@ -51,3 +51,4 @@ fullDrawIndexUint32 on pvr
 multiDrawIndirect on pvr
 depthBiasClamp on pvr
 wideLines on pvr
+VK_EXT_rgba10x6_formats on panvk

@@ -187,6 +187,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_primitive_topology_list_restart = true,
       .EXT_provoking_vertex = true,
       .EXT_queue_family_foreign = true,
+      .EXT_rgba10x6_formats = PAN_ARCH >= 11,
       .EXT_robustness2 = PAN_ARCH >= 10,
       .EXT_sampler_filter_minmax = PAN_ARCH >= 10,
       .EXT_scalar_block_layout = true,
@@ -589,6 +590,9 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_texel_buffer_alignment */
       .texelBufferAlignment = true,
+
+      /* VK_EXT_rgba10x6_formats */
+      .formatRgba10x6WithoutYCbCrSampler = PAN_ARCH >= 11,
 
       /* VK_EXT_ycbcr_2plane_444_formats */
       .ycbcr2plane444Formats = PAN_ARCH >= 10,
