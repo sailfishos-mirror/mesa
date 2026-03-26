@@ -451,6 +451,16 @@ init_subqueue(struct panvk_gpu_queue *queue, enum panvk_subqueue_id subqueue)
             .pos = 0,
          };
       }
+
+      if (subqueue == PANVK_SUBQUEUE_FRAGMENT) {
+         /* The tiler OOM exception handler is registered to the fragment
+          * queue, so the scratch FBD buffer is only needed there. We leave
+          * it to NULL on other queues to make sure any attempt to access it
+          * results in a NULL deref that can be caught.
+          */
+         cs_ctx->tiler_oom_ctx.ir_scratch_fbd_ptr =
+            panvk_priv_mem_dev_addr(queue->tiler_heap.oom_fbd);
+      }
    }
 
    /* We use the geometry buffer for our temporary CS buffer. */
@@ -706,6 +716,15 @@ init_tiler(struct panvk_gpu_queue *queue)
 
    tiler_heap->chunk_size = phys_dev->csf.tiler.chunk_size;
 
+   alloc_info.size = get_fbd_size(true, MAX_RTS);
+   alloc_info.alignment = pan_alignment(FRAMEBUFFER);
+   tiler_heap->oom_fbd = panvk_pool_alloc_mem(&dev->mempools.rw, alloc_info);
+   if (!panvk_priv_mem_check_alloc(tiler_heap->oom_fbd)) {
+      result = panvk_errorf(dev, VK_ERROR_OUT_OF_DEVICE_MEMORY,
+                            "Failed to create a scratch FBD");
+      goto err_free_desc;
+   }
+
    struct drm_panthor_tiler_heap_create thc = {
       .vm_id = pan_kmod_vm_handle(dev->kmod.vm),
       .chunk_size = tiler_heap->chunk_size,
@@ -736,6 +755,7 @@ init_tiler(struct panvk_gpu_queue *queue)
 
 err_free_desc:
    panvk_pool_free_mem(&tiler_heap->desc);
+   panvk_pool_free_mem(&tiler_heap->oom_fbd);
    return result;
 }
 
@@ -752,6 +772,7 @@ cleanup_tiler(struct panvk_gpu_queue *queue)
    assert(!ret);
 
    panvk_pool_free_mem(&tiler_heap->desc);
+   panvk_pool_free_mem(&tiler_heap->oom_fbd);
 }
 
 struct panvk_queue_submit {
