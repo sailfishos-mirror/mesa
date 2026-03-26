@@ -177,12 +177,15 @@ can_move_intrinsic_after_discard(nir_intrinsic_instr *intrin)
    case nir_intrinsic_image_deref_load:
    case nir_intrinsic_image_load:
    case nir_intrinsic_bindless_image_load:
+   case nir_intrinsic_image_heap_load:
    case nir_intrinsic_image_deref_sparse_load:
    case nir_intrinsic_image_sparse_load:
    case nir_intrinsic_bindless_image_sparse_load:
+   case nir_intrinsic_image_heap_sparse_load:
    case nir_intrinsic_image_deref_samples_identical:
    case nir_intrinsic_image_samples_identical:
    case nir_intrinsic_bindless_image_samples_identical:
+   case nir_intrinsic_image_heap_samples_identical:
    case nir_intrinsic_load_ssbo:
    case nir_intrinsic_load_output:
    case nir_intrinsic_load_shared:
