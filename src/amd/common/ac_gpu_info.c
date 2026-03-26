@@ -521,6 +521,251 @@ ac_fill_memory_info(struct radeon_info *info, const struct drm_amdgpu_info_devic
    info->memory_bus_width = device_info->vram_bit_width;
 }
 
+bool
+ac_identify_chip(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)
+{
+   /* Set chip identification. */
+   info->pci_id = device_info->device_id;
+   info->pci_rev_id = device_info->pci_rev;
+   info->vce_harvest_config = device_info->vce_harvest_config;
+
+   info->family = CHIP_UNKNOWN;
+
+#define identify_chip2(asic, chipname)                                                             \
+   if (ASICREV_IS(device_info->external_rev, asic)) {                                             \
+      info->family = CHIP_##chipname;                                                              \
+   }
+#define identify_chip(chipname) identify_chip2(chipname, chipname)
+
+   switch (device_info->family) {
+      case FAMILY_SI:
+         identify_chip(TAHITI);
+         identify_chip(PITCAIRN);
+         identify_chip2(CAPEVERDE, VERDE);
+         identify_chip(OLAND);
+         identify_chip(HAINAN);
+         break;
+      case FAMILY_CI:
+         identify_chip(BONAIRE);
+         identify_chip(HAWAII);
+         break;
+      case FAMILY_KV:
+         identify_chip2(SPECTRE, KAVERI);
+         identify_chip2(SPOOKY, KAVERI);
+         identify_chip2(KALINDI, KABINI);
+         identify_chip2(GODAVARI, KABINI);
+         break;
+      case FAMILY_VI:
+         identify_chip(ICELAND);
+         identify_chip(TONGA);
+         identify_chip(FIJI);
+         identify_chip(POLARIS10);
+         identify_chip(POLARIS11);
+         identify_chip(POLARIS12);
+         identify_chip(VEGAM);
+         break;
+      case FAMILY_CZ:
+         identify_chip(CARRIZO);
+         identify_chip(STONEY);
+         break;
+      case FAMILY_AI:
+         identify_chip(VEGA10);
+         identify_chip(VEGA12);
+         identify_chip(VEGA20);
+         identify_chip(MI100);
+         identify_chip(MI200);
+         identify_chip(GFX940);
+         break;
+      case FAMILY_RV:
+         identify_chip(RAVEN);
+         identify_chip(RAVEN2);
+         identify_chip(RENOIR);
+         break;
+      case FAMILY_NV:
+         identify_chip(NAVI10);
+         identify_chip(NAVI12);
+         identify_chip(NAVI14);
+         identify_chip(GFX1013);
+         identify_chip(NAVI21);
+         identify_chip(NAVI22);
+         identify_chip(NAVI23);
+         identify_chip(NAVI24);
+         break;
+      case FAMILY_VGH:
+         identify_chip(VANGOGH);
+         break;
+      case FAMILY_RMB:
+         identify_chip(REMBRANDT);
+         break;
+      case FAMILY_RPL:
+         identify_chip2(RAPHAEL, RAPHAEL_MENDOCINO);
+         break;
+      case FAMILY_MDN:
+         identify_chip2(MENDOCINO, RAPHAEL_MENDOCINO);
+         break;
+      case FAMILY_NV3:
+         identify_chip(NAVI31);
+         identify_chip(NAVI32);
+         identify_chip(NAVI33);
+         break;
+      case FAMILY_PHX:
+         identify_chip2(PHOENIX1, PHOENIX);
+         identify_chip(PHOENIX2);
+         identify_chip2(HAWK_POINT1, PHOENIX);
+         identify_chip2(HAWK_POINT2, PHOENIX2);
+         break;
+      case FAMILY_STX:
+         identify_chip(STRIX1);
+         identify_chip(STRIX_HALO);
+         identify_chip(KRACKAN1);
+         identify_chip(GFX1153);
+         break;
+      case FAMILY_NV4:
+         identify_chip(GFX1200);
+         identify_chip(GFX1201);
+         break;
+   }
+
+   if (info->family == CHIP_UNKNOWN) {
+      fprintf(stderr, "amdgpu: unknown (family_id, chip_external_rev): (%u, %u)\n",
+            device_info->family, device_info->external_rev);
+      return false;
+   }
+
+   if (info->ip[AMD_IP_GFX].ver_major == 12 && info->ip[AMD_IP_GFX].ver_minor == 0)
+      info->gfx_level = GFX12;
+   else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 5)
+      info->gfx_level = GFX11_5;
+   else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 0)
+      info->gfx_level = GFX11;
+   else if (info->ip[AMD_IP_GFX].ver_major == 10 && info->ip[AMD_IP_GFX].ver_minor == 3)
+      info->gfx_level = GFX10_3;
+   else if (info->ip[AMD_IP_GFX].ver_major == 10 && info->ip[AMD_IP_GFX].ver_minor == 1)
+      info->gfx_level = GFX10;
+   else if (info->ip[AMD_IP_GFX].ver_major == 9 || info->ip[AMD_IP_COMPUTE].ver_major == 9)
+      info->gfx_level = GFX9;
+   else if (info->ip[AMD_IP_GFX].ver_major == 8)
+      info->gfx_level = GFX8;
+   else if (info->ip[AMD_IP_GFX].ver_major == 7)
+      info->gfx_level = GFX7;
+   else if (info->ip[AMD_IP_GFX].ver_major == 6)
+      info->gfx_level = GFX6;
+   else {
+      fprintf(stderr, "amdgpu: Unknown gfx version: %u.%u\n",
+               info->ip[AMD_IP_GFX].ver_major, info->ip[AMD_IP_GFX].ver_minor);
+      return false;
+   }
+
+
+#define VCN_IP_VERSION(mj, mn, rv) (((mj) << 16) | ((mn) << 8) | (rv))
+
+   for (unsigned i = AMD_IP_VCN_DEC; i <= AMD_IP_VCN_JPEG; ++i) {
+      if (!info->ip[i].num_queues)
+         continue;
+
+      switch(VCN_IP_VERSION(info->ip[i].ver_major,
+                            info->ip[i].ver_minor,
+                            info->ip[i].ver_rev)) {
+      case VCN_IP_VERSION(1, 0, 0):
+         info->vcn_ip_version = VCN_1_0_0;
+         break;
+      case VCN_IP_VERSION(1, 0, 1):
+         info->vcn_ip_version = VCN_1_0_1;
+         break;
+      case VCN_IP_VERSION(2, 0, 0):
+         info->vcn_ip_version = VCN_2_0_0;
+         break;
+      case VCN_IP_VERSION(2, 0, 2):
+         info->vcn_ip_version = VCN_2_0_2;
+         break;
+      case VCN_IP_VERSION(2, 0, 3):
+         info->vcn_ip_version = VCN_2_0_3;
+         break;
+      case VCN_IP_VERSION(2, 2, 0):
+         info->vcn_ip_version = VCN_2_2_0;
+         break;
+      case VCN_IP_VERSION(2, 5, 0):
+         info->vcn_ip_version = VCN_2_5_0;
+         break;
+      case VCN_IP_VERSION(2, 6, 0):
+         info->vcn_ip_version = VCN_2_6_0;
+         break;
+      case VCN_IP_VERSION(3, 0, 0):
+         /* Navi24 version need to be revised if it fallbacks to the older way
+	  * with default version as 3.0.0, since Navi24 has different feature
+	  * sets from other VCN3 family */
+         info->vcn_ip_version = (info->family != CHIP_NAVI24) ? VCN_3_0_0 : VCN_3_0_33;
+         break;
+      case VCN_IP_VERSION(3, 0, 2):
+         info->vcn_ip_version = VCN_3_0_2;
+         break;
+      case VCN_IP_VERSION(3, 0, 16):
+         info->vcn_ip_version = VCN_3_0_16;
+         break;
+      case VCN_IP_VERSION(3, 0, 33):
+         info->vcn_ip_version = VCN_3_0_33;
+         break;
+      case VCN_IP_VERSION(3, 1, 1):
+         info->vcn_ip_version = VCN_3_1_1;
+         break;
+      case VCN_IP_VERSION(3, 1, 2):
+         info->vcn_ip_version = VCN_3_1_2;
+         break;
+      case VCN_IP_VERSION(4, 0, 0):
+         info->vcn_ip_version = VCN_4_0_0;
+         break;
+      case VCN_IP_VERSION(4, 0, 2):
+         info->vcn_ip_version = VCN_4_0_2;
+         break;
+      case VCN_IP_VERSION(4, 0, 3):
+         info->vcn_ip_version = VCN_4_0_3;
+         break;
+      case VCN_IP_VERSION(4, 0, 4):
+         info->vcn_ip_version = VCN_4_0_4;
+         break;
+      case VCN_IP_VERSION(4, 0, 5):
+         info->vcn_ip_version = VCN_4_0_5;
+         break;
+      case VCN_IP_VERSION(4, 0, 6):
+         info->vcn_ip_version = VCN_4_0_6;
+         break;
+      case VCN_IP_VERSION(5, 0, 0):
+         info->vcn_ip_version = VCN_5_0_0;
+         break;
+      case VCN_IP_VERSION(5, 0, 1):
+         info->vcn_ip_version = VCN_5_0_1;
+         break;
+      default:
+         info->vcn_ip_version = VCN_UNKNOWN;
+      }
+      break;
+   }
+
+    if (info->ip[AMD_IP_VPE].num_queues)
+      info->vpe_ip_version = (enum vpe_version)VPE_VERSION_VALUE(
+                                                info->ip[AMD_IP_VPE].ver_major,
+                                                info->ip[AMD_IP_VPE].ver_minor,
+                                                info->ip[AMD_IP_VPE].ver_rev);
+
+   /* Convert the SDMA version in the current GPU to an enum. */
+   info->sdma_ip_version =
+      (enum sdma_version)SDMA_VERSION_VALUE(info->ip[AMD_IP_SDMA].ver_major,
+                                            info->ip[AMD_IP_SDMA].ver_minor);
+
+   if (info->gfx_level >= GFX12)
+      info->rt_ip_version = RT_3_1;
+   else if (info->gfx_level >= GFX11)
+      info->rt_ip_version = RT_2_0;
+   else if (info->gfx_level >= GFX10_3 || info->family == CHIP_GFX1013)
+      info->rt_ip_version = RT_1_1;
+
+   info->family_id = device_info->family;
+   info->chip_external_rev = device_info->external_rev;
+   info->chip_rev = device_info->chip_rev;
+
+   return true;
+}
+
 enum ac_query_gpu_info_result
 ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                   bool require_pci_bus_info)
@@ -676,233 +921,11 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    ac_drm_query_video_caps_info(dev, AMDGPU_INFO_VIDEO_CAPS_ENCODE,
                                 sizeof(info->enc_caps), &(info->enc_caps));
 
-   /* Set chip identification. */
-   info->pci_id = device_info.device_id;
-   info->pci_rev_id = device_info.pci_rev;
-   info->vce_harvest_config = device_info.vce_harvest_config;
-
-   info->family = CHIP_UNKNOWN;
-
-#define identify_chip2(asic, chipname)                                                             \
-   if (ASICREV_IS(device_info.external_rev, asic)) {                                             \
-      info->family = CHIP_##chipname;                                                              \
-   }
-#define identify_chip(chipname) identify_chip2(chipname, chipname)
-
-   switch (device_info.family) {
-      case FAMILY_SI:
-         identify_chip(TAHITI);
-         identify_chip(PITCAIRN);
-         identify_chip2(CAPEVERDE, VERDE);
-         identify_chip(OLAND);
-         identify_chip(HAINAN);
-         break;
-      case FAMILY_CI:
-         identify_chip(BONAIRE);
-         identify_chip(HAWAII);
-         break;
-      case FAMILY_KV:
-         identify_chip2(SPECTRE, KAVERI);
-         identify_chip2(SPOOKY, KAVERI);
-         identify_chip2(KALINDI, KABINI);
-         identify_chip2(GODAVARI, KABINI);
-         break;
-      case FAMILY_VI:
-         identify_chip(ICELAND);
-         identify_chip(TONGA);
-         identify_chip(FIJI);
-         identify_chip(POLARIS10);
-         identify_chip(POLARIS11);
-         identify_chip(POLARIS12);
-         identify_chip(VEGAM);
-         break;
-      case FAMILY_CZ:
-         identify_chip(CARRIZO);
-         identify_chip(STONEY);
-         break;
-      case FAMILY_AI:
-         identify_chip(VEGA10);
-         identify_chip(VEGA12);
-         identify_chip(VEGA20);
-         identify_chip(MI100);
-         identify_chip(MI200);
-         identify_chip(GFX940);
-         break;
-      case FAMILY_RV:
-         identify_chip(RAVEN);
-         identify_chip(RAVEN2);
-         identify_chip(RENOIR);
-         break;
-      case FAMILY_NV:
-         identify_chip(NAVI10);
-         identify_chip(NAVI12);
-         identify_chip(NAVI14);
-         identify_chip(GFX1013);
-         identify_chip(NAVI21);
-         identify_chip(NAVI22);
-         identify_chip(NAVI23);
-         identify_chip(NAVI24);
-         break;
-      case FAMILY_VGH:
-         identify_chip(VANGOGH);
-         break;
-      case FAMILY_RMB:
-         identify_chip(REMBRANDT);
-         break;
-      case FAMILY_RPL:
-         identify_chip2(RAPHAEL, RAPHAEL_MENDOCINO);
-         break;
-      case FAMILY_MDN:
-         identify_chip2(MENDOCINO, RAPHAEL_MENDOCINO);
-         break;
-      case FAMILY_NV3:
-         identify_chip(NAVI31);
-         identify_chip(NAVI32);
-         identify_chip(NAVI33);
-         break;
-      case FAMILY_PHX:
-         identify_chip2(PHOENIX1, PHOENIX);
-         identify_chip(PHOENIX2);
-         identify_chip2(HAWK_POINT1, PHOENIX);
-         identify_chip2(HAWK_POINT2, PHOENIX2);
-         break;
-      case FAMILY_STX:
-         identify_chip(STRIX1);
-         identify_chip(STRIX_HALO);
-         identify_chip(KRACKAN1);
-         identify_chip(GFX1153);
-         break;
-      case FAMILY_NV4:
-         identify_chip(GFX1200);
-         identify_chip(GFX1201);
-         break;
-   }
-
-   if (info->family == CHIP_UNKNOWN) {
-      fprintf(stderr, "amdgpu: unknown (family_id, chip_external_rev): (%u, %u)\n",
-            device_info.family, device_info.external_rev);
+   if (!ac_identify_chip(info, &device_info))
       return AC_QUERY_GPU_INFO_UNIMPLEMENTED_HW;
-   }
 
-   if (info->ip[AMD_IP_GFX].ver_major == 12 && info->ip[AMD_IP_GFX].ver_minor == 0)
-      info->gfx_level = GFX12;
-   else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 5)
-      info->gfx_level = GFX11_5;
-   else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 0)
-      info->gfx_level = GFX11;
-   else if (info->ip[AMD_IP_GFX].ver_major == 10 && info->ip[AMD_IP_GFX].ver_minor == 3)
-      info->gfx_level = GFX10_3;
-   else if (info->ip[AMD_IP_GFX].ver_major == 10 && info->ip[AMD_IP_GFX].ver_minor == 1)
-      info->gfx_level = GFX10;
-   else if (info->ip[AMD_IP_GFX].ver_major == 9 || info->ip[AMD_IP_COMPUTE].ver_major == 9)
-      info->gfx_level = GFX9;
-   else if (info->ip[AMD_IP_GFX].ver_major == 8)
-      info->gfx_level = GFX8;
-   else if (info->ip[AMD_IP_GFX].ver_major == 7)
-      info->gfx_level = GFX7;
-   else if (info->ip[AMD_IP_GFX].ver_major == 6)
-      info->gfx_level = GFX6;
-   else {
-      fprintf(stderr, "amdgpu: Unknown gfx version: %u.%u\n",
-               info->ip[AMD_IP_GFX].ver_major, info->ip[AMD_IP_GFX].ver_minor);
-      return AC_QUERY_GPU_INFO_UNIMPLEMENTED_HW;
-   }
-
-   info->family_id = device_info.family;
-   info->chip_external_rev = device_info.external_rev;
-   info->chip_rev = device_info.chip_rev;
    const char *marketing_name = ac_drm_get_marketing_name(dev);
    strncpy(info->marketing_name, marketing_name ? marketing_name : "AMD Unknown", sizeof(info->marketing_name));
-
-#define VCN_IP_VERSION(mj, mn, rv) (((mj) << 16) | ((mn) << 8) | (rv))
-
-   for (unsigned i = AMD_IP_VCN_DEC; i <= AMD_IP_VCN_JPEG; ++i) {
-      if (!info->ip[i].num_queues)
-         continue;
-
-      switch(VCN_IP_VERSION(info->ip[i].ver_major,
-                            info->ip[i].ver_minor,
-                            info->ip[i].ver_rev)) {
-      case VCN_IP_VERSION(1, 0, 0):
-         info->vcn_ip_version = VCN_1_0_0;
-         break;
-      case VCN_IP_VERSION(1, 0, 1):
-         info->vcn_ip_version = VCN_1_0_1;
-         break;
-      case VCN_IP_VERSION(2, 0, 0):
-         info->vcn_ip_version = VCN_2_0_0;
-         break;
-      case VCN_IP_VERSION(2, 0, 2):
-         info->vcn_ip_version = VCN_2_0_2;
-         break;
-      case VCN_IP_VERSION(2, 0, 3):
-         info->vcn_ip_version = VCN_2_0_3;
-         break;
-      case VCN_IP_VERSION(2, 2, 0):
-         info->vcn_ip_version = VCN_2_2_0;
-         break;
-      case VCN_IP_VERSION(2, 5, 0):
-         info->vcn_ip_version = VCN_2_5_0;
-         break;
-      case VCN_IP_VERSION(2, 6, 0):
-         info->vcn_ip_version = VCN_2_6_0;
-         break;
-      case VCN_IP_VERSION(3, 0, 0):
-         /* Navi24 version need to be revised if it fallbacks to the older way
-	  * with default version as 3.0.0, since Navi24 has different feature
-	  * sets from other VCN3 family */
-         info->vcn_ip_version = (info->family != CHIP_NAVI24) ? VCN_3_0_0 : VCN_3_0_33;
-         break;
-      case VCN_IP_VERSION(3, 0, 2):
-         info->vcn_ip_version = VCN_3_0_2;
-         break;
-      case VCN_IP_VERSION(3, 0, 16):
-         info->vcn_ip_version = VCN_3_0_16;
-         break;
-      case VCN_IP_VERSION(3, 0, 33):
-         info->vcn_ip_version = VCN_3_0_33;
-         break;
-      case VCN_IP_VERSION(3, 1, 1):
-         info->vcn_ip_version = VCN_3_1_1;
-         break;
-      case VCN_IP_VERSION(3, 1, 2):
-         info->vcn_ip_version = VCN_3_1_2;
-         break;
-      case VCN_IP_VERSION(4, 0, 0):
-         info->vcn_ip_version = VCN_4_0_0;
-         break;
-      case VCN_IP_VERSION(4, 0, 2):
-         info->vcn_ip_version = VCN_4_0_2;
-         break;
-      case VCN_IP_VERSION(4, 0, 3):
-         info->vcn_ip_version = VCN_4_0_3;
-         break;
-      case VCN_IP_VERSION(4, 0, 4):
-         info->vcn_ip_version = VCN_4_0_4;
-         break;
-      case VCN_IP_VERSION(4, 0, 5):
-         info->vcn_ip_version = VCN_4_0_5;
-         break;
-      case VCN_IP_VERSION(4, 0, 6):
-         info->vcn_ip_version = VCN_4_0_6;
-         break;
-      case VCN_IP_VERSION(5, 0, 0):
-         info->vcn_ip_version = VCN_5_0_0;
-         break;
-      case VCN_IP_VERSION(5, 0, 1):
-         info->vcn_ip_version = VCN_5_0_1;
-         break;
-      default:
-         info->vcn_ip_version = VCN_UNKNOWN;
-      }
-      break;
-   }
-
-    if (info->ip[AMD_IP_VPE].num_queues)
-      info->vpe_ip_version = (enum vpe_version)VPE_VERSION_VALUE(
-                                                info->ip[AMD_IP_VPE].ver_major,
-                                                info->ip[AMD_IP_VPE].ver_minor,
-                                                info->ip[AMD_IP_VPE].ver_rev);
 
    /* Set which chips have uncached device memory. */
    info->has_l2_uncached = info->gfx_level >= GFX9;
@@ -1226,11 +1249,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
     * in the nir -> llvm backend.
     */
    info->needs_llvm_wait_wa = info->gfx_level == GFX11;
-
-   /* Convert the SDMA version in the current GPU to an enum. */
-   info->sdma_ip_version =
-      (enum sdma_version)SDMA_VERSION_VALUE(info->ip[AMD_IP_SDMA].ver_major,
-                                            info->ip[AMD_IP_SDMA].ver_minor);
 
    /* SDMA v1.0-3.x (GFX6-8) can't ignore page faults on unmapped sparse resources. */
    info->sdma_supports_sparse = info->sdma_ip_version >= SDMA_4_0;
@@ -1670,13 +1688,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       info->has_set_context_pairs_packed = true;
       info->has_set_sh_pairs_packed = info->has_kernelq_reg_shadowing;
    }
-
-   if (info->gfx_level >= GFX12)
-      info->rt_ip_version = RT_3_1;
-   else if (info->gfx_level >= GFX11)
-      info->rt_ip_version = RT_2_0;
-   else if (info->compiler_info.has_image_bvh_intersect_ray)
-      info->rt_ip_version = RT_1_1;
 
    set_custom_cu_en_mask(info);
 
