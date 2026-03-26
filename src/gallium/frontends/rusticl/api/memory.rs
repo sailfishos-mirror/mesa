@@ -1780,13 +1780,14 @@ fn enqueue_fill_buffer(
     // `slice::from_raw_parts()`. The caller is responsible for providing a
     // pointer to appropriately-sized, initialized memory.
     let pattern = unsafe { cl_slice::from_raw_parts(pattern.cast(), pattern_size)? }.to_vec();
+    let dev = q.device;
     create_and_queue(
         q,
         CL_COMMAND_FILL_BUFFER,
         evs,
         event,
         false,
-        Box::new(move |_, ctx| b.fill(ctx, &pattern, offset, size)),
+        b.fill(dev, pattern, offset, size)?,
     )
 
     // TODO
@@ -2859,7 +2860,7 @@ fn enqueue_svm_mem_fill_impl(
             let pattern = unsafe { pattern_ptr.read_unaligned() };
             let svm_ptr = svm_ptr as usize;
 
-            Box::new(move |cl_ctx, ctx| cl_ctx.clear_svm(ctx, svm_ptr, size, pattern.0))
+            q.context.clear_svm(q.device, svm_ptr, size, pattern.0)?
         }};
     }
 

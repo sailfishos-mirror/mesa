@@ -1428,21 +1428,31 @@ impl Buffer {
     }
 
     pub fn fill(
-        &self,
-        ctx: &QueueContext,
-        pattern: &[u8],
+        self: &Arc<Self>,
+        dev: &Device,
+        pattern: Vec<u8>,
         offset: usize,
         size: usize,
-    ) -> CLResult<()> {
-        let offset = self.apply_offset(offset)?;
-        let res = self.get_res_for_access(ctx, RWFlags::WR)?;
-        ctx.clear_buffer(
-            res,
-            pattern,
-            offset.try_into_with_err(CL_OUT_OF_HOST_MEMORY)?,
-            size.try_into_with_err(CL_OUT_OF_HOST_MEMORY)?,
-        );
-        Ok(())
+    ) -> CLResult<EventSig> {
+        match dev.optimize_buffer_fill(&pattern, self.offset() + offset, size) {
+            DeviceFillBuffer::Meta(pattern) => Platform::get()
+                .meta
+                .clear_buffer(dev, self, pattern, offset, size),
+            DeviceFillBuffer::Clear(pattern) => {
+                let b = Arc::clone(self);
+                Ok(Box::new(move |_, ctx| {
+                    let offset = b.apply_offset(offset)?;
+                    let res = b.get_res_for_access(ctx, RWFlags::WR)?;
+                    ctx.clear_buffer(
+                        res,
+                        &pattern,
+                        offset.try_into_with_err(CL_OUT_OF_HOST_MEMORY)?,
+                        size.try_into_with_err(CL_OUT_OF_HOST_MEMORY)?,
+                    );
+                    Ok(())
+                }))
+            }
+        }
     }
 
     fn is_mapped_ptr(&self, ptr: *mut c_void) -> bool {
