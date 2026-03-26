@@ -1023,9 +1023,8 @@ v3d_check_compiled_shaders(struct v3d_context *v3d)
                 return true;
 
         if (!warned[failed_stage]) {
-                fprintf(stderr,
-                        "%s shader failed to compile. Expect corruption.\n",
-                        _mesa_shader_stage_to_string(failed_stage));
+                mesa_loge("%s shader failed to compile. Expect corruption.",
+                          _mesa_shader_stage_to_string(failed_stage));
                 warned[failed_stage] = true;
         }
         return false;
@@ -1426,13 +1425,8 @@ v3d_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
         v3d_update_compiled_cs(v3d);
 
         if (!v3d->prog.compute->resource) {
-                static bool warned = false;
-                if (!warned) {
-                        fprintf(stderr,
-                                "Compute shader failed to compile.  "
-                                "Expect corruption.\n");
-                        warned = true;
-                }
+                mesa_loge_once("Compute shader failed to compile.  "
+                               "Expect corruption.");
                 return;
         }
 
@@ -1577,12 +1571,10 @@ v3d_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
         if (!V3D_DBG(NORAST)) {
                 int ret = v3d_ioctl(screen->fd, DRM_IOCTL_V3D_SUBMIT_CSD,
                                     &submit);
-                static bool warned = false;
-                if (ret && !warned) {
-                        fprintf(stderr, "CSD submit call returned %s.  "
-                                "Expect corruption.\n", strerror(errno));
-                        warned = true;
-                } else if (!ret) {
+                if (ret) {
+                        mesa_loge_once("CSD submit call returned %s. Expect corruption.",
+                                       strerror(errno));
+                } else {
                         if (v3d->active_perfmon)
                                 v3d->active_perfmon->job_submitted = true;
                         if (V3D_DBG(SYNC)) {

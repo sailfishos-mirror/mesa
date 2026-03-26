@@ -62,19 +62,17 @@ fail_instr(struct v3d_qpu_validate_state *state, const char *msg)
 {
         struct v3d_compile *c = state->c;
 
-        fprintf(stderr, "v3d_qpu_validate at ip %d: %s:\n", state->ip, msg);
+        mesa_loge("v3d_qpu_validate at ip %d: %s:\n", state->ip, msg);
 
         int dump_ip = 0;
         vir_for_each_inst_inorder(inst, c) {
-                v3d_qpu_dump(c->devinfo, &inst->qpu);
-
-                if (dump_ip++ == state->ip)
-                        fprintf(stderr, " *** ERROR ***");
-
-                fprintf(stderr, "\n");
+                const char *str = v3d_qpu_decode(c->devinfo, &inst->qpu);
+                mesa_loge("%s%s",
+                          str,
+                          dump_ip++ == state->ip ? " *** ERROR ***" : "");
+                ralloc_free((void *)str);
         }
 
-        fprintf(stderr, "\n");
         abort();
 }
 

@@ -382,14 +382,14 @@ vir_dump_inst(struct v3d_compile *c, struct qinst *inst)
         return dump_inst;
 }
 
-void
-vir_dump(struct v3d_compile *c)
+static void
+vir_dump(struct log_stream *stream, struct v3d_compile *c)
 {
         int ip = 0;
         int pressure = 0;
 
         vir_for_each_block(block, c) {
-                fprintf(stderr, "BLOCK %d:\n", block->index);
+                mesa_log_stream_printf(stream, "BLOCK %d:\n", block->index);
                 vir_for_each_inst(inst, block) {
                         if (c->live_intervals_valid) {
                                 for (int i = 0; i < c->num_temps; i++) {
@@ -397,7 +397,7 @@ vir_dump(struct v3d_compile *c)
                                                 pressure++;
                                 }
 
-                                fprintf(stderr, "P%4d ", pressure);
+                                mesa_log_stream_printf(stream, "P%4d ", pressure);
 
                                 bool first = true;
 
@@ -408,18 +408,18 @@ vir_dump(struct v3d_compile *c)
                                         if (first) {
                                                 first = false;
                                         } else {
-                                                fprintf(stderr, ", ");
+                                                mesa_log_stream_printf(stream, ", ");
                                         }
                                         if (BITSET_TEST(c->spillable, i))
-                                                fprintf(stderr, "S%4d", i);
+                                                mesa_log_stream_printf(stream, "S%4d", i);
                                         else
-                                                fprintf(stderr, "U%4d", i);
+                                                mesa_log_stream_printf(stream, "U%4d", i);
                                 }
 
                                 if (first)
-                                        fprintf(stderr, "      ");
+                                        mesa_log_stream_printf(stream, "      ");
                                 else
-                                        fprintf(stderr, " ");
+                                        mesa_log_stream_printf(stream, " ");
                         }
 
                         if (c->live_intervals_valid) {
@@ -432,29 +432,46 @@ vir_dump(struct v3d_compile *c)
                                         if (first) {
                                                 first = false;
                                         } else {
-                                                fprintf(stderr, ", ");
+                                                mesa_log_stream_printf(stream, ", ");
                                         }
-                                        fprintf(stderr, "E%4d", i);
+                                        mesa_log_stream_printf(stream, "E%4d", i);
                                         pressure--;
                                 }
 
                                 if (first)
-                                        fprintf(stderr, "      ");
+                                        mesa_log_stream_printf(stream, "      ");
                                 else
-                                        fprintf(stderr, " ");
+                                        mesa_log_stream_printf(stream, " ");
                         }
 
                         char *dump_inst = vir_dump_inst(c, inst);
-                        fprintf(stderr, "%s\n", dump_inst);
+                        mesa_log_stream_printf(stream, "%s\n", dump_inst);
                         ip++;
                 }
                 if (block->successors[1]) {
-                        fprintf(stderr, "-> BLOCK %d, %d\n",
-                                block->successors[0]->index,
-                                block->successors[1]->index);
+                        mesa_log_stream_printf(stream, "-> BLOCK %d, %d\n",
+                                               block->successors[0]->index,
+                                               block->successors[1]->index);
                 } else if (block->successors[0]) {
-                        fprintf(stderr, "-> BLOCK %d\n",
-                                block->successors[0]->index);
+                        mesa_log_stream_printf(stream, "-> BLOCK %d\n",
+                                               block->successors[0]->index);
                 }
         }
+        mesa_log_stream_printf(stream, "\n");
+}
+
+void
+vir_dumpi(struct v3d_compile *c)
+{
+        struct log_stream *stream = mesa_log_streami();
+        vir_dump(stream, c);
+        mesa_log_stream_destroy(stream);
+}
+
+void
+vir_dumpe(struct v3d_compile *c)
+{
+        struct log_stream *stream = mesa_log_streame();
+        vir_dump(stream, c);
+        mesa_log_stream_destroy(stream);
 }

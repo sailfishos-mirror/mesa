@@ -496,9 +496,9 @@ v3d_clif_dump(struct v3d_context *v3d, struct v3d_job *job)
               V3D_DBG(CL_NO_BIN) ||
               V3D_DBG(CLIF)))
                 return;
-
+        struct log_stream *stream = mesa_log_streami();
         struct clif_dump *clif = clif_dump_init(&v3d->screen->devinfo,
-                                                stderr,
+                                                stream,
                                                 V3D_DBG(CL) ||
                                                 V3D_DBG(CL_NO_BIN),
                                                 V3D_DBG(CL_NO_BIN));
@@ -517,6 +517,7 @@ v3d_clif_dump(struct v3d_context *v3d, struct v3d_job *job)
         clif_dump(clif, &job->submit);
 
         clif_dump_destroy(clif);
+        mesa_log_stream_destroy(stream);
 }
 
 static void
@@ -673,7 +674,7 @@ v3d_job_submit(struct v3d_context *v3d, struct v3d_job *job)
                 /* pipe_caps.native_fence */
                 if (drmSyncobjImportSyncFile(v3d->fd, v3d->in_syncobj,
                                              v3d->in_fence_fd)) {
-                   fprintf(stderr, "Failed to import native fence.\n");
+                   mesa_loge("Failed to import native fence.");
                 } else {
                    job->submit.in_sync_bcl = v3d->in_syncobj;
                 }
@@ -728,12 +729,10 @@ v3d_job_submit(struct v3d_context *v3d, struct v3d_job *job)
         if (!V3D_DBG(NORAST)) {
                 int ret;
                 ret = v3d_ioctl(v3d->fd, DRM_IOCTL_V3D_SUBMIT_CL, &job->submit);
-                static bool warned = false;
-                if (ret && !warned) {
-                        fprintf(stderr, "Draw call returned %s.  "
-                                        "Expect corruption.\n", strerror(errno));
-                        warned = true;
-                } else if (!ret) {
+                if (ret) {
+                        mesa_loge_once("Draw call returned %s.  Expect corruption.",
+                                       strerror(errno));
+                } else {
                         if (v3d->active_perfmon)
                                 v3d->active_perfmon->job_submitted = true;
                         if (V3D_DBG(SYNC)) {
