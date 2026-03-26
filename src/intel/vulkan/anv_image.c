@@ -4078,8 +4078,11 @@ anv_can_hiz_clear_image(struct anv_cmd_buffer *cmd_buffer,
    const struct anv_device *device = cmd_buffer->device;
    const VkQueueFlagBits queue_flags = cmd_buffer->queue_family->queueFlags;
 
-   if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR))
+   if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR)) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "DEBUG_NO_FAST_CLEAR. Slow depth clearing.");
       return false;
+   }
 
    const enum isl_aux_usage clear_aux_usage =
       anv_layout_to_aux_usage(device->info, image,
@@ -4102,8 +4105,12 @@ anv_can_hiz_clear_image(struct anv_cmd_buffer *cmd_buffer,
     * is set on DG2 and MTL.
     */
    if (clear_aux_usage == ISL_AUX_USAGE_HIZ_CCS_WT &&
-       image->vk.samples > 1 && device->info->ver < 20)
+       image->vk.samples > 1 && device->info->ver < 20) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                  "HiZ CCS WT + MSAA unsupported before Xe2. "
+                  "Slow depth clearing.");
       return false;
+      }
 
    /* If we're just clearing stencil, we can always HiZ clear */
    if (!(clear_aspects & VK_IMAGE_ASPECT_DEPTH_BIT))
@@ -4113,8 +4120,12 @@ anv_can_hiz_clear_image(struct anv_cmd_buffer *cmd_buffer,
       anv_image_aspect_to_plane(image, VK_IMAGE_ASPECT_DEPTH_BIT);
    const struct isl_surf *surf = &image->planes[plane].primary_surface.isl;
 
-   if (!isl_aux_usage_has_fast_clears(clear_aux_usage))
+   if (!isl_aux_usage_has_fast_clears(clear_aux_usage)) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "aux usage does not support fast depth clear. "
+                    "Slow clearing.");
       return false;
+   }
 
    if (isl_aux_usage_has_ccs(clear_aux_usage)) {
       /* From the TGL PRM, Vol 9, "Compressed Depth Buffers" (under the
@@ -4133,6 +4144,9 @@ anv_can_hiz_clear_image(struct anv_cmd_buffer *cmd_buffer,
           u_minify(image->vk.extent.width, level) ||
           render_area.extent.height !=
           u_minify(image->vk.extent.height, level)) {
+          anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                        "partial depth clear rect unsupported for "
+                        "fast clear. Slow clearing.");
          return false;
       }
 
@@ -4148,13 +4162,19 @@ anv_can_hiz_clear_image(struct anv_cmd_buffer *cmd_buffer,
           level >= 1 &&
           (image->vk.extent.width % 32 != 0 ||
            surf->image_alignment_el.h % 8 != 0)) {
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "upper-LOD HiZ CCS WT alignment unsupported. "
+                       "Slow depth clearing.");
          return false;
       }
    }
 
    if (device->info->ver <= 12 &&
-       depth_clear_value != anv_image_hiz_clear_value(image).f32[0])
-     return false;
+       depth_clear_value != anv_image_hiz_clear_value(image).f32[0]) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "depth clear value mismatch. Slow depth clearing.");
+      return false;
+   }
 
    /* If we got here, then we can fast clear */
    return true;

@@ -2062,8 +2062,11 @@ can_hiz_clear_att(struct anv_cmd_buffer *cmd_buffer,
                   const VkClearAttachment *attachment,
                   uint32_t rectCount, const VkClearRect *pRects)
 {
-   if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR))
+   if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR)) {
+      anv_perf_warn(VK_LOG_OBJS(&cmd_buffer->device->vk.base),
+                    "Fast depth/stencil clear rejected: DEBUG_NO_FAST_CLEAR");
       return false;
+   }
 
    /* From Bspec's section MI_PREDICATE:
     *
@@ -2081,12 +2084,16 @@ can_hiz_clear_att(struct anv_cmd_buffer *cmd_buffer,
     * back to the slow depth clear path when the BLORP_BATCH_PREDICATE_ENABLE
     * flag is set.
     */
-   if (batch->flags & BLORP_BATCH_PREDICATE_ENABLE)
+   if (batch->flags & BLORP_BATCH_PREDICATE_ENABLE) {
+      anv_perf_warn(VK_LOG_OBJS(&cmd_buffer->device->vk.base),
+                    "Fast depth/stencil clear rejected: predication enabled");
       return false;
+   }
 
    if (rectCount > 1) {
       anv_perf_warn(VK_LOG_OBJS(&cmd_buffer->device->vk.base),
-                    "Fast clears for vkCmdClearAttachments supported only for rectCount == 1");
+                    "Fast clears for vkCmdClearAttachments supported only "
+                    "for rectCount == 1");
       return false;
    }
 
@@ -2095,8 +2102,11 @@ can_hiz_clear_att(struct anv_cmd_buffer *cmd_buffer,
     */
    assert(batch->flags & BLORP_BATCH_NO_EMIT_DEPTH_STENCIL);
    if (cmd_buffer->state.gfx.view_mask > 1 ||
-       pRects[0].layerCount > 1 || pRects[0].baseArrayLayer > 0)
+       pRects[0].layerCount > 1 || pRects[0].baseArrayLayer > 0) {
+      anv_perf_warn(VK_LOG_OBJS(&cmd_buffer->device->vk.base),
+                    "Fast depth/stencil clear rejected: view/layer range unsupported");
       return false;
+   }
 
    return anv_can_hiz_clear_image(cmd_buffer, ds_att->iview->image,
                                   ds_att->layout,
@@ -2121,15 +2131,24 @@ clear_depth_stencil_attachment(struct anv_cmd_buffer *cmd_buffer,
       return;
 
    const struct anv_attachment *ds_att = d_att->iview ? d_att : s_att;
-   if (ds_att->iview &&
-       can_hiz_clear_att(cmd_buffer, batch, ds_att, attachment, rectCount, pRects)) {
+   if (!ds_att->iview) {
+      anv_perf_warn(VK_LOG_OBJS(&cmd_buffer->device->vk.base),
+                    "Fast depth/stencil clear rejected: missing image view");
+   } else if (can_hiz_clear_att(cmd_buffer, batch, ds_att, attachment,
+                                rectCount, pRects)) {
       anv_fast_clear_depth_stencil(cmd_buffer, batch, ds_att->iview->image,
-                                   attachment->aspectMask, d_att->layout, s_att->layout,
+                                   attachment->aspectMask,
+                                   d_att->layout, s_att->layout,
                                    ds_att->iview->planes[0].isl.base_level,
-                                   ds_att->iview->planes[0].isl.base_array_layer,
+                                   ds_att->iview->planes[0].
+                                   isl.base_array_layer,
                                    pRects[0].layerCount, pRects->rect,
                                    &attachment->clearValue.depthStencil);
       return;
+   } else {
+      anv_perf_warn(VK_LOG_OBJS(&cmd_buffer->device->vk.base),
+                    "Falling back to slow depth clear path in "
+                    "vkCmdClearAttachments");
    }
 
    bool clear_depth = attachment->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -2157,7 +2176,8 @@ clear_depth_stencil_attachment(struct anv_cmd_buffer *cmd_buffer,
          for (uint32_t r = 0; r < rectCount; ++r) {
             const VkOffset2D offset = pRects[r].rect.offset;
             const VkExtent2D extent = pRects[r].rect.extent;
-            VkClearDepthStencilValue value = attachment->clearValue.depthStencil;
+            VkClearDepthStencilValue value =
+               attachment->clearValue.depthStencil;
             blorp_clear_attachments(batch, binding_table,
                                     depth_format,
                                     gfx->samples,
@@ -2184,7 +2204,8 @@ clear_depth_stencil_attachment(struct anv_cmd_buffer *cmd_buffer,
                               pRects[r].baseArrayLayer,
                               pRects[r].layerCount,
                               offset.x, offset.y,
-                              offset.x + extent.width, offset.y + extent.height,
+                              offset.x + extent.width,
+                              offset.y + extent.height,
                               false, color_value,
                               clear_depth, value.depth,
                               clear_stencil ? 0xff : 0, value.stencil);
