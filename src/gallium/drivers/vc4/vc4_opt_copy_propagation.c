@@ -132,19 +132,10 @@ try_copy_prop(struct vc4_compile *c, struct qinst *inst, struct qinst **movs)
                         unpack = inst->src[i].pack;
                 }
 
-                if (debug) {
-                        char *dump_inst = qir_dump_inst(c, inst);
-                        fprintf(stderr, "Copy propagate: %s\n", dump_inst);
+                LOG_INST_OPT("Copy propagate", c, inst) {
+                        inst->src[i] = mov->src[0];
+                        inst->src[i].pack = unpack;
                 }
-
-                inst->src[i] = mov->src[0];
-                inst->src[i].pack = unpack;
-
-                if (debug) {
-                        char *dump_inst = qir_dump_inst(c, inst);
-                        fprintf(stderr, "to: %s\n", dump_inst);
-                }
-
                 progress = true;
         }
 

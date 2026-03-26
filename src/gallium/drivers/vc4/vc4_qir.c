@@ -490,19 +490,19 @@ qir_dump_inst(struct vc4_compile *c, struct qinst *inst)
         return dump_inst;
 }
 
-void
-qir_dump(struct vc4_compile *c)
+static void
+qir_dump(struct log_stream *stream, struct vc4_compile *c)
 {
         int ip = 0;
         int pressure = 0;
 
         qir_for_each_block(block, c) {
-                fprintf(stderr, "BLOCK %d:\n", block->index);
+                mesa_log_stream_printf(stream, "BLOCK %d:\n", block->index);
                 qir_for_each_inst(inst, block) {
                         if (c->temp_start) {
                                 bool first = true;
 
-                                fprintf(stderr, "%3d ", pressure);
+                                mesa_log_stream_printf(stream, "%3d ", pressure);
 
                                 for (int i = 0; i < c->num_temps; i++) {
                                         if (c->temp_start[i] != ip)
@@ -511,16 +511,16 @@ qir_dump(struct vc4_compile *c)
                                         if (first) {
                                                 first = false;
                                         } else {
-                                                fprintf(stderr, ", ");
+                                                mesa_log_stream_printf(stream,", ");
                                         }
-                                        fprintf(stderr, "S%4d", i);
+                                        mesa_log_stream_printf(stream, "S%4d", i);
                                         pressure++;
                                 }
 
                                 if (first)
-                                        fprintf(stderr, "      ");
+                                        mesa_log_stream_printf(stream, "      ");
                                 else
-                                        fprintf(stderr, " ");
+                                        mesa_log_stream_printf(stream, " ");
                         }
 
                         if (c->temp_end) {
@@ -533,31 +533,46 @@ qir_dump(struct vc4_compile *c)
                                         if (first) {
                                                 first = false;
                                         } else {
-                                                fprintf(stderr, ", ");
+                                                mesa_log_stream_printf(stream, ", ");
                                         }
-                                        fprintf(stderr, "E%4d", i);
+                                        mesa_log_stream_printf(stream, "E%4d", i);
                                         pressure--;
                                 }
 
                                 if (first)
-                                        fprintf(stderr, "      ");
+                                        mesa_log_stream_printf(stream, "      ");
                                 else
-                                        fprintf(stderr, " ");
+                                        mesa_log_stream_printf(stream, " ");
                         }
 
                         char *dump_inst = qir_dump_inst(c, inst);
-                        fprintf(stderr, "%s\n", dump_inst);
+                        mesa_log_stream_printf(stream, "%s\n", dump_inst);
                         ip++;
                 }
                 if (block->successors[1]) {
-                        fprintf(stderr, "-> BLOCK %d, %d\n",
-                                block->successors[0]->index,
-                                block->successors[1]->index);
+                        mesa_log_stream_printf(stream, "-> BLOCK %d, %d\n",
+                                               block->successors[0]->index,
+                                               block->successors[1]->index);
                 } else if (block->successors[0]) {
-                        fprintf(stderr, "-> BLOCK %d\n",
-                                block->successors[0]->index);
+                        mesa_log_stream_printf(stream, "-> BLOCK %d\n",
+                                               block->successors[0]->index);
                 }
         }
+        mesa_log_stream_printf(stream, "\n");
+}
+
+void
+qir_dumpi(struct vc4_compile *c) {
+        struct log_stream *stream = mesa_log_streami();
+        qir_dump(stream, c);
+        mesa_log_stream_destroy(stream);
+}
+
+void
+qir_dumpe(struct vc4_compile *c) {
+        struct log_stream *stream = mesa_log_streame();
+        qir_dump(stream, c);
+        mesa_log_stream_destroy(stream);
 }
 
 struct qreg
@@ -814,9 +829,8 @@ qir_SF(struct vc4_compile *c, struct qreg src)
                 if (stage_progress) {                                   \
                         progress = true;                                \
                         if (print_opt_debug) {                          \
-                                fprintf(stderr,                         \
-                                        "QIR opt pass %2d: %s progress\n", \
-                                        pass, #func);                   \
+                                mesa_logi("QIR opt pass %2d: %s progress\n", \
+                                          pass, #func);                 \
                         }                                               \
                         qir_validate(c);                                \
                 }                                                       \

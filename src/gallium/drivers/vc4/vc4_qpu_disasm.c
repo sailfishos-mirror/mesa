@@ -292,7 +292,7 @@ vc4_qpu_disasm_cond_branch(uint32_t cond)
 }
 
 static void
-print_alu_dst(uint64_t inst, bool is_mul)
+print_alu_dst(struct log_stream *stream, uint64_t inst, bool is_mul)
 {
         bool is_a = is_mul == ((inst & QPU_WS) != 0);
         uint32_t waddr = (is_mul ?
@@ -302,21 +302,21 @@ print_alu_dst(uint64_t inst, bool is_mul)
         uint32_t pack = QPU_GET_FIELD(inst, QPU_PACK);
 
         if (waddr <= 31)
-                fprintf(stderr, "r%s%d", file, waddr);
+                mesa_log_stream_printf(stream, "r%s%d", file, waddr);
         else if (get_special_write_desc(waddr, is_a))
-                fprintf(stderr, "%s", get_special_write_desc(waddr, is_a));
+                mesa_log_stream_printf(stream, "%s", get_special_write_desc(waddr, is_a));
         else
-                fprintf(stderr, "%s%d?", file, waddr);
+                mesa_log_stream_printf(stream, "%s%d?", file, waddr);
 
         if (is_mul && (inst & QPU_PM)) {
-                fprintf(stderr, "%s", vc4_qpu_disasm_pack_mul(pack));
+                mesa_log_stream_printf(stream, "%s", vc4_qpu_disasm_pack_mul(pack));
         } else if (is_a && !(inst & QPU_PM)) {
-                fprintf(stderr, "%s", vc4_qpu_disasm_pack_a(pack));
+                mesa_log_stream_printf(stream, "%s", vc4_qpu_disasm_pack_a(pack));
         }
 }
 
 static void
-print_alu_src(uint64_t inst, uint32_t mux, bool is_mul)
+print_alu_src(struct log_stream *stream, uint64_t inst, uint32_t mux, bool is_mul)
 {
         bool is_a = mux != QPU_MUX_B;
         const char *file = is_a ? "a" : "b";
@@ -328,37 +328,36 @@ print_alu_src(uint64_t inst, uint32_t mux, bool is_mul)
         uint32_t si = QPU_GET_FIELD(inst, QPU_SMALL_IMM);
 
         if (mux <= QPU_MUX_R5) {
-                fprintf(stderr, "r%d", mux);
+                mesa_log_stream_printf(stream, "r%d", mux);
                 if (has_si && is_mul && si >= QPU_SMALL_IMM_MUL_ROT + 1)
-                        fprintf(stderr, "+%d", si - QPU_SMALL_IMM_MUL_ROT);
+                        mesa_log_stream_printf(stream, "+%d", si - QPU_SMALL_IMM_MUL_ROT);
         } else if (!is_a && has_si) {
                 if (si <= 15)
-                        fprintf(stderr, "%d", si);
+                        mesa_log_stream_printf(stream, "%d", si);
                 else if (si <= 31)
-                        fprintf(stderr, "%d", -16 + (si - 16));
+                        mesa_log_stream_printf(stream, "%d", -16 + (si - 16));
                 else if (si <= 39)
-                        fprintf(stderr, "%.1f", (float)(1 << (si - 32)));
+                        mesa_log_stream_printf(stream, "%.1f", (float)(1 << (si - 32)));
                 else if (si <= 47)
-                        fprintf(stderr, "%f", 1.0f / (1 << (48 - si)));
+                        mesa_log_stream_printf(stream, "%f", 1.0f / (1 << (48 - si)));
                 else
-                        fprintf(stderr, "<bad imm %d>", si);
+                        mesa_log_stream_printf(stream, "<bad imm %d>", si);
         } else if (raddr <= 31)
-                fprintf(stderr, "r%s%d", file, raddr);
+                mesa_log_stream_printf(stream, "r%s%d", file, raddr);
         else {
-                if (is_a)
-                        fprintf(stderr, "%s", DESC(special_read_a, raddr - 32));
-                else
-                        fprintf(stderr, "%s", DESC(special_read_b, raddr - 32));
+                mesa_log_stream_printf(stream, "%s",
+                                       is_a ? DESC(special_read_a, raddr - 32) :
+                                              DESC(special_read_b, raddr - 32));
         }
 
         if (((mux == QPU_MUX_A && !(inst & QPU_PM)) ||
              (mux == QPU_MUX_R4 && (inst & QPU_PM)))) {
-                fprintf(stderr, "%s", vc4_qpu_disasm_unpack(unpack));
+                mesa_log_stream_printf(stream, "%s", vc4_qpu_disasm_unpack(unpack));
         }
 }
 
 static void
-print_add_op(uint64_t inst)
+print_add_op(struct log_stream *stream, uint64_t inst)
 {
         uint32_t op_add = QPU_GET_FIELD(inst, QPU_OP_ADD);
         uint32_t cond = QPU_GET_FIELD(inst, QPU_COND_ADD);
@@ -366,32 +365,28 @@ print_add_op(uint64_t inst)
                        QPU_GET_FIELD(inst, QPU_ADD_A) ==
                        QPU_GET_FIELD(inst, QPU_ADD_B));
 
-        if (is_mov)
-                fprintf(stderr, "mov");
-        else
-                fprintf(stderr, "%s", DESC(qpu_add_opcodes, op_add));
+        mesa_log_stream_printf(stream, "%s", is_mov ? "mov" : DESC(qpu_add_opcodes, op_add));
 
         if ((inst & QPU_SF) && op_add != QPU_A_NOP)
-                fprintf(stderr, ".sf");
+                mesa_log_stream_printf(stream, ".sf");
 
         if (op_add != QPU_A_NOP)
-                fprintf(stderr, "%s", vc4_qpu_disasm_cond(cond));
+                mesa_log_stream_printf(stream, "%s", vc4_qpu_disasm_cond(cond));
 
-        fprintf(stderr, " ");
-        print_alu_dst(inst, false);
-        fprintf(stderr, ", ");
+        mesa_log_stream_printf(stream, " ");
+        print_alu_dst(stream, inst, false);
+        mesa_log_stream_printf(stream, ", ");
 
-        print_alu_src(inst, QPU_GET_FIELD(inst, QPU_ADD_A), false);
+        print_alu_src(stream, inst, QPU_GET_FIELD(inst, QPU_ADD_A), false);
 
         if (!is_mov) {
-                fprintf(stderr, ", ");
-
-                print_alu_src(inst, QPU_GET_FIELD(inst, QPU_ADD_B), false);
+                mesa_log_stream_printf(stream, ", ");
+                print_alu_src(stream, inst, QPU_GET_FIELD(inst, QPU_ADD_B), false);
         }
 }
 
 static void
-print_mul_op(uint64_t inst)
+print_mul_op(struct log_stream *stream, uint64_t inst)
 {
         uint32_t op_add = QPU_GET_FIELD(inst, QPU_OP_ADD);
         uint32_t op_mul = QPU_GET_FIELD(inst, QPU_OP_MUL);
@@ -400,31 +395,28 @@ print_mul_op(uint64_t inst)
                        QPU_GET_FIELD(inst, QPU_MUL_A) ==
                        QPU_GET_FIELD(inst, QPU_MUL_B));
 
-        if (is_mov)
-                fprintf(stderr, "mov");
-        else
-                fprintf(stderr, "%s", DESC(qpu_mul_opcodes, op_mul));
+        mesa_log_stream_printf(stream, "%s", is_mov ? "mov" : DESC(qpu_mul_opcodes, op_mul));
 
         if ((inst & QPU_SF) && op_add == QPU_A_NOP)
-                fprintf(stderr, ".sf");
+                mesa_log_stream_printf(stream, ".sf");
 
         if (op_mul != QPU_M_NOP)
-                fprintf(stderr, "%s", vc4_qpu_disasm_cond(cond));
+                mesa_log_stream_printf(stream, "%s", vc4_qpu_disasm_cond(cond));
 
-        fprintf(stderr, " ");
-        print_alu_dst(inst, true);
-        fprintf(stderr, ", ");
+        mesa_log_stream_printf(stream, " ");
+        print_alu_dst(stream, inst, true);
+        mesa_log_stream_printf(stream, ", ");
 
-        print_alu_src(inst, QPU_GET_FIELD(inst, QPU_MUL_A), true);
+        print_alu_src(stream, inst, QPU_GET_FIELD(inst, QPU_MUL_A), true);
 
         if (!is_mov) {
-                fprintf(stderr, ", ");
-                print_alu_src(inst, QPU_GET_FIELD(inst, QPU_MUL_B), true);
+                mesa_log_stream_printf(stream, ", ");
+                print_alu_src(stream, inst, QPU_GET_FIELD(inst, QPU_MUL_B), true);
         }
 }
 
 static void
-print_load_imm(uint64_t inst)
+print_load_imm(struct log_stream *stream, uint64_t inst)
 {
         uint32_t imm = inst;
         uint32_t waddr_add = QPU_GET_FIELD(inst, QPU_WADDR_ADD);
@@ -432,23 +424,22 @@ print_load_imm(uint64_t inst)
         uint32_t cond_add = QPU_GET_FIELD(inst, QPU_COND_ADD);
         uint32_t cond_mul = QPU_GET_FIELD(inst, QPU_COND_MUL);
 
-        fprintf(stderr, "load_imm ");
+        mesa_log_stream_printf(stream, "load_imm ");
 
-        print_alu_dst(inst, false);
+        print_alu_dst(stream, inst, false);
         if (waddr_add != QPU_W_NOP)
-                fprintf(stderr, "%s", vc4_qpu_disasm_cond(cond_add));
-        fprintf(stderr, ", ");
+                mesa_log_stream_printf(stream, "%s", vc4_qpu_disasm_cond(cond_add));
+        mesa_log_stream_printf(stream, ", ");
 
-        print_alu_dst(inst, true);
+        print_alu_dst(stream, inst, true);
         if (waddr_mul != QPU_W_NOP)
-                fprintf(stderr, "%s", vc4_qpu_disasm_cond(cond_mul));;
-        fprintf(stderr, ", ");
+                mesa_log_stream_printf(stream, "%s", vc4_qpu_disasm_cond(cond_mul));
 
-        fprintf(stderr, "0x%08x (%f)", imm, uif(imm));
+        mesa_log_stream_printf(stream, ", 0x%08x (%f)", imm, uif(imm));
 }
 
 void
-vc4_qpu_disasm(const uint64_t *instructions, int num_instructions)
+vc4_qpu_disasm(struct log_stream *stream, const uint64_t *instructions, int num_instructions)
 {
         for (int i = 0; i < num_instructions; i++) {
                 uint64_t inst = instructions[i];
@@ -456,26 +447,41 @@ vc4_qpu_disasm(const uint64_t *instructions, int num_instructions)
 
                 switch (sig) {
                 case QPU_SIG_BRANCH:
-                        fprintf(stderr, "branch%s",
-                                vc4_qpu_disasm_cond_branch(QPU_GET_FIELD(inst,
-                                                                         QPU_BRANCH_COND)));
-
-                        fprintf(stderr, " %d", (uint32_t)inst);
+                        mesa_log_stream_printf(stream, "branch%s %d",
+                                               vc4_qpu_disasm_cond_branch(QPU_GET_FIELD(inst,
+                                                                                        QPU_BRANCH_COND)),
+                                               (uint32_t)inst);
                         break;
 
                 case QPU_SIG_LOAD_IMM:
-                        print_load_imm(inst);
+                        print_load_imm(stream, inst);
                         break;
                 default:
                         if (sig != QPU_SIG_NONE)
-                                fprintf(stderr, "%s ", DESC(qpu_sig, sig));
-                        print_add_op(inst);
-                        fprintf(stderr, " ; ");
-                        print_mul_op(inst);
+                                mesa_log_stream_printf(stream, "%s ", DESC(qpu_sig, sig));
+                        print_add_op(stream, inst);
+                        mesa_log_stream_printf(stream, " ; ");
+                        print_mul_op(stream, inst);
                         break;
                 }
 
                 if (num_instructions != 1)
-                        fprintf(stderr, "\n");
+                        mesa_log_stream_printf(stream, "\n");
         }
+}
+
+void
+vc4_qpu_disasmi(const uint64_t *instructions, int num_instructions)
+{
+        struct log_stream *stream = mesa_log_streami();
+        vc4_qpu_disasm(stream, instructions, num_instructions);
+        mesa_log_stream_destroy(stream);
+}
+
+void
+vc4_qpu_disasme(const uint64_t *instructions, int num_instructions)
+{
+        struct log_stream *stream = mesa_log_streame();
+        vc4_qpu_disasm(stream, instructions, num_instructions);
+        mesa_log_stream_destroy(stream);
 }

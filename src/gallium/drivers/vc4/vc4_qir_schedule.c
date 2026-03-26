@@ -530,15 +530,14 @@ dump_state(struct vc4_compile *c, struct schedule_state *state)
         list_for_each_entry(struct schedule_node, n, &state->dag->heads,
                             dag.link) {
                 char *dump_inst = qir_dump_inst(c, n->inst);
-                fprintf(stderr, "%3d: %s (%d cost)\n", i++, dump_inst,
-                        get_register_pressure_cost(state, n->inst));
+                mesa_logi("%3d: %s (%d cost)", i++, dump_inst,
+                          get_register_pressure_cost(state, n->inst));
 
                 util_dynarray_foreach(&n->dag.edges, struct dag_edge, edge) {
                         struct schedule_node *child =
                                 (struct schedule_node *)edge->child;
-                        char *dump_inst = qir_dump_inst(c, child->inst);
-                        fprintf(stderr, "   - %s (%d parents)\n", dump_inst,
-                                child->dag.parent_count);
+                        dump_inst = qir_dump_inst(c, child->inst);
+                        mesa_logi("   - %s (%d parents)", dump_inst, child->dag.parent_count);
                 }
         }
 }
@@ -613,7 +612,7 @@ schedule_instructions(struct vc4_compile *c,
                       struct qblock *block, struct schedule_state *state)
 {
         if (debug) {
-                fprintf(stderr, "initial deps:\n");
+                mesa_logi("initial deps:");
                 dump_state(c, state);
         }
 
@@ -623,12 +622,11 @@ schedule_instructions(struct vc4_compile *c,
                 struct qinst *inst = chosen->inst;
 
                 if (debug) {
-                        fprintf(stderr, "current list:\n");
+                        mesa_logi("current list:");
                         dump_state(c, state);
                         char *dump_inst = qir_dump_inst(c, inst);
-                        fprintf(stderr, "chose: %s (%d cost)\n",
-                                dump_inst,
-                                get_register_pressure_cost(state, inst));
+                        mesa_logi("chose: %s (%d cost)", dump_inst,
+                                  get_register_pressure_cost(state, inst));
                 }
 
                 state->time = MAX2(state->time, chosen->unblocked_time);
@@ -712,15 +710,15 @@ qir_schedule_instructions(struct vc4_compile *c)
 {
 
         if (debug) {
-                fprintf(stderr, "Pre-schedule instructions\n");
-                qir_dump(c);
+                mesa_logi("Pre-schedule instructions");
+                qir_dumpi(c);
         }
 
         qir_for_each_block(block, c)
                 qir_schedule_instructions_block(c, block);
 
         if (debug) {
-                fprintf(stderr, "Post-schedule instructions\n");
-                qir_dump(c);
+                mesa_logi("Post-schedule instructions");
+                qir_dumpi(c);
         }
 }

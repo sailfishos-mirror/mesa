@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "util/log.h"
 #include "util/u_math.h"
 
 #include "vc4_qpu_defines.h"
@@ -225,7 +226,13 @@ M_ALU2(V8ADDS)
 M_ALU2(V8SUBS)
 
 void
-vc4_qpu_disasm(const uint64_t *instructions, int num_instructions);
+vc4_qpu_disasm(struct log_stream *stream, const uint64_t *instructions, int num_instructions);
+
+void
+vc4_qpu_disasmi(const uint64_t *instructions, int num_instructions);
+
+void
+vc4_qpu_disasme(const uint64_t *instructions, int num_instructions);
 
 const char *
 vc4_qpu_disasm_pack_mul(uint32_t pack);

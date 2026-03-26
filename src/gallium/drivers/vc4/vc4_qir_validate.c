@@ -27,8 +27,8 @@
 static void
 fail_instr(struct vc4_compile *c, struct qinst *inst, const char *msg)
 {
-        char *dump_inst = qir_dump_inst(c, inst);
-        fprintf(stderr, "qir_validate: %s: %s\n", msg, dump_inst);
+        char *dump = qir_dump_inst(c, inst);
+        mesa_loge("qir_validate: %s: %s", msg, dump);
         abort();
 }
 

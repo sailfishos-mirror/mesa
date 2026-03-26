@@ -37,26 +37,6 @@
 
 static bool debug;
 
-static void
-dump_from(struct vc4_compile *c, struct qinst *inst)
-{
-        if (!debug)
-                return;
-
-        char *dump_inst = qir_dump_inst(c, inst);
-        fprintf(stderr, "optimizing: %s\n", dump_inst);
-}
-
-static void
-dump_to(struct vc4_compile *c, struct qinst *inst)
-{
-        if (!debug)
-                return;
-
-        char *dump_inst = qir_dump_inst(c, inst);
-        fprintf(stderr, "to: %s", dump_inst);
-}
-
 static bool
 is_constant_value(struct vc4_compile *c, struct qreg reg,
                   uint32_t val)
@@ -91,19 +71,18 @@ is_1f(struct vc4_compile *c, struct qreg reg)
 static void
 replace_with_mov(struct vc4_compile *c, struct qinst *inst, struct qreg arg)
 {
-        dump_from(c, inst);
+        LOG_INST_OPT("Optimizing", c, inst) {
+                inst->src[0] = arg;
+                if (qir_has_implicit_tex_uniform(inst))
+                        inst->src[1] = inst->src[qir_get_tex_uniform_src(inst)];
 
-        inst->src[0] = arg;
-        if (qir_has_implicit_tex_uniform(inst))
-                inst->src[1] = inst->src[qir_get_tex_uniform_src(inst)];
-
-        if (qir_is_mul(inst))
-                inst->op = QOP_MMOV;
-        else if (qir_is_float_input(inst))
-                inst->op = QOP_FMOV;
-        else
-                inst->op = QOP_MOV;
-        dump_to(c, inst);
+                if (qir_is_mul(inst))
+                        inst->op = QOP_MMOV;
+                else if (qir_is_float_input(inst))
+                        inst->op = QOP_FMOV;
+                else
+                        inst->op = QOP_MOV;
+        }
 }
 
 static bool
@@ -197,11 +176,11 @@ qir_opt_algebraic(struct vc4_compile *c)
                             c->defs[inst->src[1].index]->op == QOP_FSUB) {
                                 struct qinst *fsub = c->defs[inst->src[1].index];
                                 if (is_zero(c, fsub->src[0])) {
-                                        dump_from(c, inst);
-                                        inst->op = QOP_FSUB;
-                                        inst->src[1] = fsub->src[1];
+                                        LOG_INST_OPT("Optimizing", c, inst) {
+                                                inst->op = QOP_FSUB;
+                                                inst->src[1] = fsub->src[1];
+                                        }
                                         progress = true;
-                                        dump_to(c, inst);
                                         break;
                                 }
                         }
@@ -212,11 +191,11 @@ qir_opt_algebraic(struct vc4_compile *c)
                             c->defs[inst->src[0].index]->op == QOP_FSUB) {
                                 struct qinst *fsub = c->defs[inst->src[0].index];
                                 if (is_zero(c, fsub->src[0])) {
-                                        dump_from(c, inst);
-                                        inst->op = QOP_FSUB;
-                                        inst->src[0] = inst->src[1];
-                                        inst->src[1] = fsub->src[1];
-                                        dump_to(c, inst);
+                                        LOG_INST_OPT("Optimizing", c, inst) {
+                                                inst->op = QOP_FSUB;
+                                                inst->src[0] = inst->src[1];
+                                                inst->src[1] = fsub->src[1];
+                                        }
                                         progress = true;
                                         break;
                                 }
