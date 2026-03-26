@@ -89,6 +89,7 @@ extern "C" {
 
 struct amdgpu_gpu_info;
 struct drm_amdgpu_info_device;
+struct drm_amdgpu_memory_info;
 
 struct amd_ip_info {
    uint8_t ver_major;
@@ -488,6 +489,8 @@ enum ac_query_gpu_info_result ac_query_gpu_info(int fd, void *dev_p, struct rade
                                                 bool require_pci_bus_info);
 void ac_fill_compiler_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_info);
 void ac_fill_tiling_info(struct radeon_info *info, const struct amdgpu_gpu_info *amdinfo);
+void ac_fill_memory_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info,
+                         const struct drm_amdgpu_memory_info *meminfo);
 
 void ac_compute_driver_uuid(char *uuid, size_t size);
 

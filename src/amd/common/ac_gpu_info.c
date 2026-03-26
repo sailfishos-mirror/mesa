@@ -424,6 +424,32 @@ ac_fill_tiling_info(struct radeon_info *info, const struct amdgpu_gpu_info *amdi
           sizeof(amdinfo->gb_macro_tile_mode));
 }
 
+void
+ac_fill_memory_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info,
+                    const struct drm_amdgpu_memory_info *meminfo)
+{
+   /* Note: usable_heap_size values can be random and can't be relied on. */
+   info->gart_size_kb = DIV_ROUND_UP(meminfo->gtt.total_heap_size, 1024);
+   info->vram_size_kb = DIV_ROUND_UP(fix_vram_size(meminfo->vram.total_heap_size), 1024);
+   info->vram_vis_size_kb = DIV_ROUND_UP(meminfo->cpu_accessible_vram.total_heap_size, 1024);
+   /* Add some margin of error, though this shouldn't be needed in theory. */
+   info->all_vram_visible = info->vram_size_kb * 0.9 < info->vram_vis_size_kb;
+
+   info->virtual_address_max = device_info->virtual_address_max;
+   /* Set which chips have dedicated VRAM. */
+   info->has_dedicated_vram = !(device_info->ids_flags & AMDGPU_IDS_FLAGS_FUSION);
+   /* The kernel can split large buffers in VRAM but not in GTT, so large
+    * allocations can fail or cause buffer movement failures in the kernel.
+    */
+   if (info->has_dedicated_vram)
+      info->max_heap_size_kb = info->vram_size_kb;
+   else
+      info->max_heap_size_kb = info->gart_size_kb;
+
+   info->vram_type = device_info->vram_type;
+   info->memory_bus_width = device_info->vram_bit_width;
+}
+
 enum ac_query_gpu_info_result
 ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                   bool require_pci_bus_info)
@@ -630,21 +656,12 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       fprintf(stderr, "amdgpu: ac_drm_query_info(memory) failed.\n");
       return AC_QUERY_GPU_INFO_FAIL;
    }
-
-   /* Note: usable_heap_size values can be random and can't be relied on. */
-   info->gart_size_kb = DIV_ROUND_UP(meminfo.gtt.total_heap_size, 1024);
-   info->vram_size_kb = DIV_ROUND_UP(fix_vram_size(meminfo.vram.total_heap_size), 1024);
-   info->vram_vis_size_kb = DIV_ROUND_UP(meminfo.cpu_accessible_vram.total_heap_size, 1024);
+   ac_fill_memory_info(info, &device_info, &meminfo);
 
    ac_drm_query_video_caps_info(dev, AMDGPU_INFO_VIDEO_CAPS_DECODE,
                                 sizeof(info->dec_caps), &(info->dec_caps));
    ac_drm_query_video_caps_info(dev, AMDGPU_INFO_VIDEO_CAPS_ENCODE,
                                 sizeof(info->enc_caps), &(info->enc_caps));
-
-   /* Add some margin of error, though this shouldn't be needed in theory. */
-   info->all_vram_visible = info->vram_size_kb * 0.9 < info->vram_vis_size_kb;
-
-   info->virtual_address_max = device_info.virtual_address_max;
 
    /* Set chip identification. */
    info->pci_id = device_info.device_id;
@@ -873,20 +890,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                                                 info->ip[AMD_IP_VPE].ver_major,
                                                 info->ip[AMD_IP_VPE].ver_minor,
                                                 info->ip[AMD_IP_VPE].ver_rev);
-
-   /* Set which chips have dedicated VRAM. */
-   info->has_dedicated_vram = !(device_info.ids_flags & AMDGPU_IDS_FLAGS_FUSION);
-
-   /* The kernel can split large buffers in VRAM but not in GTT, so large
-    * allocations can fail or cause buffer movement failures in the kernel.
-    */
-   if (info->has_dedicated_vram)
-      info->max_heap_size_kb = info->vram_size_kb;
-   else
-      info->max_heap_size_kb = info->gart_size_kb;
-
-   info->vram_type = device_info.vram_type;
-   info->memory_bus_width = device_info.vram_bit_width;
 
    /* Set which chips have uncached device memory. */
    info->has_l2_uncached = info->gfx_level >= GFX9;
