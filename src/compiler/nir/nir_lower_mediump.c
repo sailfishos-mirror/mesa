@@ -826,6 +826,7 @@ opt_16bit_tex_image(nir_builder *b, nir_instr *instr, void *params)
       nir_intrinsic_instr *intrinsic = nir_instr_as_intrinsic(instr);
 
       switch (intrinsic->intrinsic) {
+      case nir_intrinsic_image_heap_store:
       case nir_intrinsic_bindless_image_store:
       case nir_intrinsic_image_deref_store:
       case nir_intrinsic_image_store:
@@ -834,6 +835,7 @@ opt_16bit_tex_image(nir_builder *b, nir_instr *instr, void *params)
          if (options->opt_image_srcs)
             progress |= opt_16bit_image_srcs(b, intrinsic, 4);
          break;
+      case nir_intrinsic_image_heap_load:
       case nir_intrinsic_bindless_image_load:
       case nir_intrinsic_image_deref_load:
       case nir_intrinsic_image_load:
@@ -842,12 +844,15 @@ opt_16bit_tex_image(nir_builder *b, nir_instr *instr, void *params)
          if (options->opt_image_srcs)
             progress |= opt_16bit_image_srcs(b, intrinsic, 3);
          break;
+      case nir_intrinsic_image_heap_sparse_load:
       case nir_intrinsic_bindless_image_sparse_load:
       case nir_intrinsic_image_deref_sparse_load:
       case nir_intrinsic_image_sparse_load:
          if (options->opt_image_srcs)
             progress |= opt_16bit_image_srcs(b, intrinsic, 3);
          break;
+      case nir_intrinsic_image_heap_atomic:
+      case nir_intrinsic_image_heap_atomic_swap:
       case nir_intrinsic_bindless_image_atomic:
       case nir_intrinsic_bindless_image_atomic_swap:
       case nir_intrinsic_image_deref_atomic:
