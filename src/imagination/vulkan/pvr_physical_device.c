@@ -189,6 +189,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_index_type_uint8 = false,
       .EXT_line_rasterization = true,
       .EXT_map_memory_placed = true,
+      .EXT_non_seamless_cube_map = true,
       .EXT_physical_device_drm = true,
       .EXT_private_data = true,
       .EXT_provoking_vertex = true,
@@ -410,6 +411,9 @@ static void pvr_physical_device_get_supported_features(
       .memoryMapPlaced = true,
       .memoryMapRangePlaced = false,
       .memoryUnmapReserve = true,
+
+      /* VK_EXT_non_seamless_cube_map */
+      .nonSeamlessCubeMap = true,
 
       /* Vulkan 1.3 / VK_EXT_private_data */
       .privateData = true,

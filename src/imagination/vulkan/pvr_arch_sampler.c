@@ -198,7 +198,10 @@ VkResult PVR_PER_ARCH(CreateSampler)(VkDevice _device,
       }
    }
 
-   pvr_csb_pack (&sampler->descriptor.words[1], TEXSTATE_SAMPLER_WORD1, word) {}
+   pvr_csb_pack (&sampler->descriptor.words[1], TEXSTATE_SAMPLER_WORD1, word) {
+      word.cemedge_dontfilter =
+         (pCreateInfo->flags & VK_SAMPLER_CREATE_NON_SEAMLESS_CUBE_MAP_BIT_EXT);
+   }
 
 #ifndef NDEBUG
    /* YUV plane addresses are stored in the sampler on rogue. We need to add
