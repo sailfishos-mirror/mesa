@@ -250,12 +250,19 @@ set_device_arch(struct ethosu_ml_device *device, bool is_u65)
 }
 
 static void
+ethosu_ml_device_destroy(struct pipe_ml_device *pdev)
+{
+   ralloc_free(pdev);
+}
+
+static void
 set_device_callbacks(struct ethosu_ml_device *device)
 {
    device->base.ml_operation_supported = ethosu_ml_operation_supported;
    device->base.ml_subgraph_create = ethosu_ml_subgraph_create;
    device->base.ml_subgraph_serialize = ethosu_ml_subgraph_serialize;
    device->base.ml_subgraph_destroy = ethosu_ml_subgraph_destroy;
+   device->base.ml_device_destroy = ethosu_ml_device_destroy;
 }
 
 struct pipe_screen *
