@@ -761,7 +761,7 @@ impl Program {
     }
 
     pub fn build(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         devices: Vec<&'static Device>,
         options: CompileOptions,
         callback: Option<ProgramCB>,
@@ -773,7 +773,7 @@ impl Program {
             Platform::get()
                 .worker_queue
                 .add_job_sync(create_build_closure(
-                    Arc::clone(&self),
+                    Arc::clone(self),
                     devices.clone(),
                     options,
                     callback,
@@ -789,7 +789,7 @@ impl Program {
             }
         } else {
             Platform::get().worker_queue.add_job(create_build_closure(
-                Arc::clone(&self),
+                Arc::clone(self),
                 devices,
                 options,
                 callback,
