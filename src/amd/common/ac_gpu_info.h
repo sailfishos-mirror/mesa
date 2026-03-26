@@ -496,6 +496,7 @@ ac_fill_hw_ip_info(struct radeon_info *info, const struct drm_amdgpu_info_device
                    unsigned ip_type, const struct drm_amdgpu_info_hw_ip *ip_info);
 bool
 ac_identify_chip(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info);
+void ac_fill_bug_info(struct radeon_info *info);
 
 void ac_compute_driver_uuid(char *uuid, size_t size);
 

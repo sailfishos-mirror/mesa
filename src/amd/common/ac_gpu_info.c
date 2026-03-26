@@ -840,6 +840,143 @@ ac_identify_chip(struct radeon_info *info, const struct drm_amdgpu_info_device *
    return true;
 }
 
+void ac_fill_bug_info(struct radeon_info *info)
+{
+   info->has_sqtt_rb_harvest_bug = (info->family == CHIP_NAVI23 ||
+                                    info->family == CHIP_NAVI24 ||
+                                    info->family == CHIP_REMBRANDT ||
+                                    info->family == CHIP_VANGOGH) &&
+                                   util_bitcount64(info->enabled_rb_mask) !=
+                                   info->max_render_backends;
+
+   /* On GFX10.3, the polarity of AUTO_FLUSH_MODE is inverted. */
+   info->has_sqtt_auto_flush_mode_bug = info->gfx_level == GFX10_3;
+
+   info->has_gfx9_scissor_bug = info->family == CHIP_VEGA10 || info->family == CHIP_RAVEN;
+
+   /* Stencil texturing with HTILE doesn't work with mipmapping on Navi10-14. */
+   info->has_htile_stencil_mipmap_bug = info->gfx_level == GFX10;
+
+   /* When drawing, if all samples covered in a cleared tile in HTILE are discarded (by the fragment
+    * shader, alpha to coverage, etc.), the tile stays cleared, but on the chips with this bug, the
+    * Z range in the tile still gets expanded by the depth test, and that may flip the upper bit of
+    * the HTILE encoding (of the maximum Z without stencil, or the base Z with stencil), inverting
+    * the clear value that texture reads will use for the tile.
+    *
+    * has_htile_tc_z_clear_bug_without/with_stencil indicate whether the TILE_STENCIL_DISABLE =
+    * 1 and 0 HTILE encodings respectively are subject to this bug.
+    *
+    * One possible workaround is to use the depth/stencil HTILE that encodes the Z range as base and
+    * delta, setting ZRANGE_PRECISION to 0 (base Z is min Z) when the depth is cleared to 0, and to
+    * 1 (base Z is max Z) when it's cleared to 1, so the Z delta gets expanded, but the base Z,
+    * which contains the TC clear value bit, stays the same.
+    * See DepthStencilView::UpdateZRangePrecision in PAL.
+    *
+    * Affects dEQP-VK.dynamic_state.*.discard.depth on has_htile_tc_z_clear_bug_without_stencil = 1
+    * chips as of the CTS commit 698abf5f6b7073562cc951617a58e5803c7ead3f (clearing a depth-only
+    * image to 0, drawing geometry with Z = 1 to it discarding all fragments in the shader, then
+    * reading it in vkCmdCopyImageToBuffer fetching 1 where 0 is supposed to be).
+    */
+   info->has_htile_tc_z_clear_bug_without_stencil = info->gfx_level == GFX8 ||
+                                                    info->family == CHIP_GFX1013;
+   info->has_htile_tc_z_clear_bug_with_stencil = info->has_htile_tc_z_clear_bug_without_stencil ||
+                                                 info->gfx_level == GFX9;
+
+   info->has_small_prim_filter_sample_loc_bug =
+      (info->family >= CHIP_POLARIS10 && info->family <= CHIP_POLARIS12) ||
+      info->family == CHIP_VEGA10 || info->family == CHIP_RAVEN;
+
+   /* DB_DFSM_CONTROL.POPS_DRAIN_PS_ON_OVERLAP must be enabled for 8 or more coverage or
+    * depth/stencil samples with POPS (PAL waMiscPopsMissedOverlap).
+    */
+   info->has_pops_missed_overlap_bug = info->family == CHIP_VEGA10 || info->family == CHIP_RAVEN;
+
+   /* Whether FORCE_STENCIL_VALID must be forced to 1 when a MSAA
+    * depth/stencil image is bound and that ZPASS/ZFAIL differs.
+    */
+   info->has_db_force_stencil_valid_bug = info->gfx_level == GFX12;
+
+   /* GFX6 hw bug when the IBO addr is 0 which causes invalid clamping (underflow).
+    * Setting the IB addr to 2 or higher solves this issue.
+    * See waMiscNullIb in PAL.
+    *
+    * Drawing from 0-sized index buffers causes hangs on gfx10.
+    */
+   info->has_zero_index_buffer_bug = info->gfx_level == GFX6 || info->gfx_level == GFX10;
+
+   /* DB has a bug when ITERATE_256 is set to 1 that can cause a hang. The
+    * workaround is to set DECOMPRESS_ON_Z_PLANES to 2 for 4X MSAA D/S images.
+    */
+   info->has_two_planes_iterate256_bug = info->gfx_level == GFX10;
+
+   /* GFX10+Navi21: NGG->legacy transitions require VGT_FLUSH. */
+   info->has_vgt_flush_ngg_legacy_bug = info->gfx_level == GFX10 ||
+                                        info->family == CHIP_NAVI21;
+
+   /* GFX10-GFX10.3 (tested on NAVI10, NAVI21 and NAVI24 but likely all) are
+    * affected by a hw bug when primitive restart is updated and no context
+    * registers are written between draws. One workaround is to emit
+    * SQ_NON_EVENT(0) which is a NOP packet that adds a small delay and seems
+    * to fix it reliably.
+    */
+   info->has_prim_restart_sync_bug = info->gfx_level == GFX10 ||
+                                     info->gfx_level == GFX10_3;
+
+   /* First Navi2x chips have a hw bug that doesn't allow to write
+    * depth/stencil from a FS for multi-pixel fragments.
+    */
+   info->has_vrs_ds_export_bug = info->family == CHIP_NAVI21 ||
+                                 info->family == CHIP_NAVI22 ||
+                                 info->family == CHIP_VANGOGH;
+
+   /* GFX12 is affected by random GPU hangs when VRS rates are exported by the
+    * last VGT stage under some conditions that are unclear. One possible
+    * workaround is to emit BOP events after every draw that exports VRS
+    * rates.
+    */
+   info->has_vrs_export_bug = info->gfx_level == GFX12;
+
+   /* HW bug workaround when CS threadgroups > 256 threads and async compute
+    * isn't used, i.e. only one compute job can run at a time.  If async
+    * compute is possible, the threadgroup size must be limited to 256 threads
+    * on all queues to avoid the bug.
+    * Only GFX6 and certain GFX7 chips are affected.
+    */
+   info->has_cs_regalloc_hang_bug = info->gfx_level == GFX6 ||
+                                    info->family == CHIP_BONAIRE ||
+                                    info->family == CHIP_KABINI;
+
+   /* HW bug workaround with async compute dispatches when threadgroup > 4096.
+    * The workaround is to change the "threadgroup" dimension mode to "thread"
+    * dimension mode.
+    */
+   info->has_async_compute_threadgroup_bug = info->family == CHIP_ICELAND ||
+                                             info->family == CHIP_TONGA;
+
+   /* GFX7 CP requires 32 bytes alignment for the indirect buffer arguments on
+    * the compute queue.
+    */
+   info->has_async_compute_align32_bug = info->gfx_level == GFX7;
+
+   /* Firmware bug with DISPATCH_TASKMESH_INDIRECT_MULTI_ACE packets.
+    * On old MEC FW versions, it hangs the GPU when indirect count is zero.
+    */
+   info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 &&
+                                      info->mec_fw_version < 100;
+
+   info->has_export_conflict_bug = info->gfx_level == GFX11;
+
+   /* When LLVM is fixed to handle multiparts shaders, this value will depend
+    * on the known good versions of LLVM. Until then, enable the equivalent WA
+    * in the nir -> llvm backend.
+    */
+   info->needs_llvm_wait_wa = info->gfx_level == GFX11;
+
+   info->never_stop_sq_perf_counters = info->gfx_level == GFX10 ||
+                                       info->gfx_level == GFX10_3;
+   info->never_send_perfcounter_stop = info->gfx_level == GFX11;
+}
+
 enum ac_query_gpu_info_result
 ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                   bool require_pci_bus_info)
@@ -1119,112 +1256,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    info->cpdma_prefetch_writes_memory = info->gfx_level <= GFX8;
 
-   info->has_gfx9_scissor_bug = info->family == CHIP_VEGA10 || info->family == CHIP_RAVEN;
-
-   /* Stencil texturing with HTILE doesn't work with mipmapping on Navi10-14. */
-   info->has_htile_stencil_mipmap_bug = info->gfx_level == GFX10;
-
-   /* When drawing, if all samples covered in a cleared tile in HTILE are discarded (by the fragment
-    * shader, alpha to coverage, etc.), the tile stays cleared, but on the chips with this bug, the
-    * Z range in the tile still gets expanded by the depth test, and that may flip the upper bit of
-    * the HTILE encoding (of the maximum Z without stencil, or the base Z with stencil), inverting
-    * the clear value that texture reads will use for the tile.
-    *
-    * has_htile_tc_z_clear_bug_without/with_stencil indicate whether the TILE_STENCIL_DISABLE =
-    * 1 and 0 HTILE encodings respectively are subject to this bug.
-    *
-    * One possible workaround is to use the depth/stencil HTILE that encodes the Z range as base and
-    * delta, setting ZRANGE_PRECISION to 0 (base Z is min Z) when the depth is cleared to 0, and to
-    * 1 (base Z is max Z) when it's cleared to 1, so the Z delta gets expanded, but the base Z,
-    * which contains the TC clear value bit, stays the same.
-    * See DepthStencilView::UpdateZRangePrecision in PAL.
-    *
-    * Affects dEQP-VK.dynamic_state.*.discard.depth on has_htile_tc_z_clear_bug_without_stencil = 1
-    * chips as of the CTS commit 698abf5f6b7073562cc951617a58e5803c7ead3f (clearing a depth-only
-    * image to 0, drawing geometry with Z = 1 to it discarding all fragments in the shader, then
-    * reading it in vkCmdCopyImageToBuffer fetching 1 where 0 is supposed to be).
-    */
-   info->has_htile_tc_z_clear_bug_without_stencil = info->gfx_level == GFX8 ||
-                                                    info->family == CHIP_GFX1013;
-   info->has_htile_tc_z_clear_bug_with_stencil = info->has_htile_tc_z_clear_bug_without_stencil ||
-                                                 info->gfx_level == GFX9;
-
-   info->has_small_prim_filter_sample_loc_bug =
-      (info->family >= CHIP_POLARIS10 && info->family <= CHIP_POLARIS12) ||
-      info->family == CHIP_VEGA10 || info->family == CHIP_RAVEN;
-
-   /* DB_DFSM_CONTROL.POPS_DRAIN_PS_ON_OVERLAP must be enabled for 8 or more coverage or
-    * depth/stencil samples with POPS (PAL waMiscPopsMissedOverlap).
-    */
-   info->has_pops_missed_overlap_bug = info->family == CHIP_VEGA10 || info->family == CHIP_RAVEN;
-
-   /* Whether FORCE_STENCIL_VALID must be forced to 1 when a MSAA
-    * depth/stencil image is bound and that ZPASS/ZFAIL differs.
-    */
-   info->has_db_force_stencil_valid_bug = info->gfx_level == GFX12;
-
-   /* GFX6 hw bug when the IBO addr is 0 which causes invalid clamping (underflow).
-    * Setting the IB addr to 2 or higher solves this issue.
-    * See waMiscNullIb in PAL.
-    *
-    * Drawing from 0-sized index buffers causes hangs on gfx10.
-    */
-   info->has_zero_index_buffer_bug = info->gfx_level == GFX6 || info->gfx_level == GFX10;
-
-   /* DB has a bug when ITERATE_256 is set to 1 that can cause a hang. The
-    * workaround is to set DECOMPRESS_ON_Z_PLANES to 2 for 4X MSAA D/S images.
-    */
-   info->has_two_planes_iterate256_bug = info->gfx_level == GFX10;
-
-   /* GFX10+Navi21: NGG->legacy transitions require VGT_FLUSH. */
-   info->has_vgt_flush_ngg_legacy_bug = info->gfx_level == GFX10 ||
-                                        info->family == CHIP_NAVI21;
-
-   /* GFX10-GFX10.3 (tested on NAVI10, NAVI21 and NAVI24 but likely all) are
-    * affected by a hw bug when primitive restart is updated and no context
-    * registers are written between draws. One workaround is to emit
-    * SQ_NON_EVENT(0) which is a NOP packet that adds a small delay and seems
-    * to fix it reliably.
-    */
-   info->has_prim_restart_sync_bug = info->gfx_level == GFX10 ||
-                                     info->gfx_level == GFX10_3;
-
-   /* First Navi2x chips have a hw bug that doesn't allow to write
-    * depth/stencil from a FS for multi-pixel fragments.
-    */
-   info->has_vrs_ds_export_bug = info->family == CHIP_NAVI21 ||
-                                 info->family == CHIP_NAVI22 ||
-                                 info->family == CHIP_VANGOGH;
-
-   /* GFX12 is affected by random GPU hangs when VRS rates are exported by the
-    * last VGT stage under some conditions that are unclear. One possible
-    * workaround is to emit BOP events after every draw that exports VRS
-    * rates.
-    */
-   info->has_vrs_export_bug = info->gfx_level == GFX12;
-
-   /* HW bug workaround when CS threadgroups > 256 threads and async compute
-    * isn't used, i.e. only one compute job can run at a time.  If async
-    * compute is possible, the threadgroup size must be limited to 256 threads
-    * on all queues to avoid the bug.
-    * Only GFX6 and certain GFX7 chips are affected.
-    */
-   info->has_cs_regalloc_hang_bug = info->gfx_level == GFX6 ||
-                                    info->family == CHIP_BONAIRE ||
-                                    info->family == CHIP_KABINI;
-
-   /* HW bug workaround with async compute dispatches when threadgroup > 4096.
-    * The workaround is to change the "threadgroup" dimension mode to "thread"
-    * dimension mode.
-    */
-   info->has_async_compute_threadgroup_bug = info->family == CHIP_ICELAND ||
-                                             info->family == CHIP_TONGA;
-
-   /* GFX7 CP requires 32 bytes alignment for the indirect buffer arguments on
-    * the compute queue.
-    */
-   info->has_async_compute_align32_bug = info->gfx_level == GFX7;
-
    /* Support for GFX10.3 was added with F32_ME_FEATURE_VERSION_31 but the
     * feature version wasn't bumped.
     */
@@ -1234,24 +1265,10 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                                  (info->gfx_level == GFX9 &&
                                   info->me_fw_feature >= 52);
 
-   /* Firmware bug with DISPATCH_TASKMESH_INDIRECT_MULTI_ACE packets.
-    * On old MEC FW versions, it hangs the GPU when indirect count is zero.
-    */
-   info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 &&
-                                      info->mec_fw_version < 100;
-
-   info->has_export_conflict_bug = info->gfx_level == GFX11;
-
    /* On GFX8-9, CP DMA doesn't support NULL PRT pages:
     * it doesn't read 0 and doesn't discard writes, causing GPU hangs.
     */
    info->cp_dma_supports_sparse = info->gfx_level >= GFX10;
-
-   /* When LLVM is fixed to handle multiparts shaders, this value will depend
-    * on the known good versions of LLVM. Until then, enable the equivalent WA
-    * in the nir -> llvm backend.
-    */
-   info->needs_llvm_wait_wa = info->gfx_level == GFX11;
 
    /* SDMA v1.0-3.x (GFX6-8) can't ignore page faults on unmapped sparse resources. */
    info->sdma_supports_sparse = info->sdma_ip_version >= SDMA_4_0;
@@ -1286,6 +1303,8 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
          info->num_cu += util_bitcount(info->cu_mask[i][j]);
       }
    }
+
+   ac_fill_bug_info(info);
 
    if (info->gfx_level >= GFX10_3 && info->max_se > 1) {
       uint32_t enabled_se_mask = 0;
@@ -1419,18 +1438,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    info->has_image_opcodes = debug_get_bool_option("AMD_IMAGE_OPCODES",
                                                    info->has_graphics || info->family < CHIP_GFX940);
-   info->never_stop_sq_perf_counters = info->gfx_level == GFX10 ||
-                                       info->gfx_level == GFX10_3;
-   info->never_send_perfcounter_stop = info->gfx_level == GFX11;
-   info->has_sqtt_rb_harvest_bug = (info->family == CHIP_NAVI23 ||
-                                    info->family == CHIP_NAVI24 ||
-                                    info->family == CHIP_REMBRANDT ||
-                                    info->family == CHIP_VANGOGH) &&
-                                   util_bitcount64(info->enabled_rb_mask) !=
-                                   info->max_render_backends;
-
-   /* On GFX10.3, the polarity of AUTO_FLUSH_MODE is inverted. */
-   info->has_sqtt_auto_flush_mode_bug = info->gfx_level == GFX10_3;
 
    info->mesh_fast_launch_2 = info->gfx_level >= GFX11;
 
