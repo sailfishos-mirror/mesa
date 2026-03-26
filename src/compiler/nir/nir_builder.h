@@ -2198,6 +2198,7 @@ struct nir_tex_builder {
    nir_def *coord, *ms_index, *lod, *bias, *comparator;
    unsigned texture_index, sampler_index;
    nir_def *texture_offset, *sampler_offset;
+   nir_def *texture_heap_offset, *sampler_heap_offset;
    nir_def *texture_handle, *sampler_handle;
    nir_deref_instr *texture_deref, *sampler_deref;
    enum glsl_sampler_dim dim;

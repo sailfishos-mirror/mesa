@@ -243,19 +243,19 @@ nir_dim_has_lod(enum glsl_sampler_dim dim)
 nir_def *
 nir_build_tex_struct(nir_builder *build, nir_texop op, struct nir_tex_builder f)
 {
-   assert(((f.texture_index || f.texture_offset != NULL) +
+   assert(((f.texture_index || f.texture_offset != NULL || f.texture_heap_offset != NULL) +
            (f.texture_handle != NULL) + (f.texture_deref != NULL)) <= 1 &&
           "one type of texture");
 
-   assert(((f.sampler_index || f.sampler_offset != NULL) +
+   assert(((f.sampler_index || f.sampler_offset != NULL || f.sampler_heap_offset != NULL) +
            (f.sampler_handle != NULL) + (f.sampler_deref != NULL)) <= 1 &&
           "one type of sampler");
 
    bool has_texture_src =
-      f.texture_offset || f.texture_handle || f.texture_deref;
+      f.texture_offset || f.texture_heap_offset || f.texture_handle || f.texture_deref;
 
    bool has_sampler_src =
-      f.sampler_offset || f.sampler_handle || f.sampler_deref;
+      f.sampler_offset || f.sampler_heap_offset || f.sampler_handle || f.sampler_deref;
 
    nir_def *lod = f.lod;
    enum glsl_sampler_dim dim = f.dim;
@@ -336,6 +336,9 @@ nir_build_tex_struct(nir_builder *build, nir_texop op, struct nir_tex_builder f)
    } else if (f.texture_offset) {
       tex->src[i++] =
          nir_tex_src_for_ssa(nir_tex_src_texture_offset, f.texture_offset);
+   } else if (f.texture_heap_offset) {
+      tex->src[i++] =
+         nir_tex_src_for_ssa(nir_tex_src_texture_heap_offset, f.texture_heap_offset);
    }
 
    if (f.sampler_deref) {
@@ -348,6 +351,9 @@ nir_build_tex_struct(nir_builder *build, nir_texop op, struct nir_tex_builder f)
    } else if (f.sampler_offset) {
       tex->src[i++] =
          nir_tex_src_for_ssa(nir_tex_src_sampler_offset, f.sampler_offset);
+   } else if (f.sampler_heap_offset) {
+      tex->src[i++] =
+         nir_tex_src_for_ssa(nir_tex_src_sampler_heap_offset, f.sampler_heap_offset);
    }
 
    if (f.coord) {
