@@ -2449,6 +2449,7 @@ dep_executorch = null_dep
 if with_torx
   py_mod = import('python')
   py = py_mod.find_installation(prog_python.full_path(), pure: false)
+  dep_executorch = dependency('executorch', required : with_torx)
 endif
 
 with_gpuvis = get_option('gpuvis')

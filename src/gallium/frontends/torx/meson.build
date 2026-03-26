@@ -14,3 +14,16 @@ py.install_sources(
   torx_py_sources,
   subdir: 'torx',
 )
+
+libtorx_files = files(
+    'TorxBackend.cpp',
+    'torx_backend.c',
+)
+
+libtorx_st = static_library(
+  'torx_st',
+  [libtorx_files, sha1_h],
+  gnu_symbol_visibility : 'hidden',
+  include_directories : [ inc_include, inc_src, inc_util, inc_gallium, inc_gallium_aux ],
+  dependencies : [ dep_executorch.partial_dependency(compile_args: true, includes: true) ],
+)
