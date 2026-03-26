@@ -242,7 +242,7 @@ if with_tests and not with_platform_windows
     'ac_surface_modifier_test',
     executable(
       'ac_surface_modifier_test',
-      ['ac_surface_modifier_test.c'],
+      ['ac_surface_modifier_test.c', 'amdgpu_devices.c'],
       link_with: [libamd_common, libamdgpu_addrlib],
       include_directories : [
         inc_amd, inc_include, inc_src,
@@ -259,7 +259,7 @@ if with_tests and not with_platform_windows
       'ac_surface_meta_address_test',
       executable(
         'ac_surface_meta_address_test',
-        ['ac_surface_meta_address_test.c'],
+        ['ac_surface_meta_address_test.c', 'amdgpu_devices.c'],
         link_with: [libamd_common, libamdgpu_addrlib],
         include_directories : [
           inc_amd, inc_include, inc_src,
