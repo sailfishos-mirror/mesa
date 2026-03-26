@@ -1253,6 +1253,13 @@ struct anv_shader_group_rt_replay {
    uint64_t intersection;
 };
 
+struct anv_shader_workaround {
+   bool force_typed_barrier_after_dispatch_to_compute:1;
+   bool force_typed_barrier_after_dispatch_to_top:1;
+   bool force_untyped_barrier_after_dispatch_to_compute:1;
+   bool force_untyped_barrier_after_dispatch_to_top:1;
+};
+
 struct anv_shader {
    struct vk_shader vk;
 
@@ -1286,6 +1293,8 @@ struct anv_shader {
     * Array of pointers of length bind_map.embedded_sampler_count
     */
    struct anv_embedded_sampler **embedded_samplers;
+
+   struct anv_shader_workaround workaround;
 
    /* Mutex to protect the lazy replay allocation */
    simple_mtx_t replay_mutex;
@@ -1835,6 +1844,10 @@ struct anv_instance {
     struct vk_instance                          vk;
 
     struct anv_drirc                            drirc;
+
+    struct hash_table_u64                      *shader_workarounds;
+
+    VkResult                                    drirc_status;
 };
 
 VkResult anv_init_wsi(struct anv_physical_device *physical_device);

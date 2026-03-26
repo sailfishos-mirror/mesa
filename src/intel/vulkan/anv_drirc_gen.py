@@ -136,6 +136,16 @@ def declare_options(android_version):
         B("intel_enable_wa_14024015672_msaa", False,
           "Workaround for RHWO MSAA",
           c_name="wa_14024015672_msaa"),
+
+        # Workaround command emission, shader specific
+        B("force_vk_typed_barrier_after_dispatch_to_compute", False,
+          "Insert a barrier for typed resources after dispatch of a shader for other compute shaders"),
+        B("force_vk_untyped_barrier_after_dispatch_to_compute", False,
+          "Insert a barrier for untyped resources after dispatch of a shader for other compute shaders"),
+        B("force_vk_typed_barrier_after_dispatch_to_top", False,
+          "Insert a barrier for typed resources after dispatch of a shader for any other shader"),
+        B("force_vk_untyped_barrier_after_dispatch_to_top", False,
+          "Insert a barrier for untyped resources after dispatch of a shader for any other shader"),
     ]
 
     perf_options = [
