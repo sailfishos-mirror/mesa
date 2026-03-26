@@ -219,9 +219,8 @@ try_copy_prop(struct v3d_compile *c, struct qinst *inst, struct qinst **movs)
                 }
 
                 if (debug) {
-                        fprintf(stderr, "Copy propagate: ");
-                        vir_dump_inst(c, inst);
-                        fprintf(stderr, "\n");
+                        char *dump_inst = vir_dump_inst(c, inst);
+                        fprintf(stderr, "Copy propagate: %s\n", dump_inst);
                 }
 
                 inst->src[i] = mov->src[0];
@@ -232,9 +231,8 @@ try_copy_prop(struct v3d_compile *c, struct qinst *inst, struct qinst **movs)
                 }
 
                 if (debug) {
-                        fprintf(stderr, "to: ");
-                        vir_dump_inst(c, inst);
-                        fprintf(stderr, "\n");
+                        char *dump_inst = vir_dump_inst(c, inst);
+                        fprintf(stderr, "to: %s\n", dump_inst);
                 }
 
                 progress = true;

@@ -36,10 +36,10 @@ static void
 vir_dce_pf(struct v3d_compile *c, struct qinst *inst)
 {
         if (debug) {
+                char *dump_inst = vir_dump_inst(c, inst);
                 fprintf(stderr,
-                        "Removing flags write from: ");
-                vir_dump_inst(c, inst);
-                fprintf(stderr, "\n");
+                        "Removing flags write from: %s\n",
+                        dump_inst);
         }
 
         assert(inst->qpu.type == V3D_QPU_INSTR_TYPE_ALU);

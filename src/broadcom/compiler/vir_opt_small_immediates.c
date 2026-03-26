@@ -116,9 +116,10 @@ vir_opt_small_immediates(struct v3d_compile *c)
                                 continue;
 
                         if (debug) {
-                                fprintf(stderr, "opt_small_immediate() from: ");
-                                vir_dump_inst(c, inst);
-                                fprintf(stderr, "\n");
+                                char *dump_inst = vir_dump_inst(c, inst);
+                                fprintf(stderr, "opt_small_immediate() from: %s\n",
+                                        dump_inst);
+                                ralloc_free(dump_inst);
                         }
                         inst->qpu.sig.small_imm_a = new_sig.small_imm_a;
                         inst->qpu.sig.small_imm_b = new_sig.small_imm_b;
@@ -129,9 +130,9 @@ vir_opt_small_immediates(struct v3d_compile *c)
                         inst->src[i].file = QFILE_SMALL_IMM;
                         inst->src[i].index = imm;
                         if (debug) {
-                                fprintf(stderr, "to: ");
-                                vir_dump_inst(c, inst);
-                                fprintf(stderr, "\n");
+                                char *dump_inst = vir_dump_inst(c, inst);
+                                fprintf(stderr, "to: %s\n", dump_inst);
+                                ralloc_free(dump_inst);
                         }
                         progress = true;
                         break;

@@ -264,9 +264,8 @@ v3d_generate_code_block(struct v3d_compile *c,
 {
         vir_for_each_inst_safe(qinst, block) {
 #if 0
-                fprintf(stderr, "translating qinst to qpu: ");
-                vir_dump_inst(c, qinst);
-                fprintf(stderr, "\n");
+                char *dump_inst = vir_dump_inst(c, qinst);
+                fprintf(stderr, "translating qinst to qpu: %s\n");
 #endif
 
                 if (vir_has_uniform(qinst))
@@ -448,10 +447,10 @@ v3d_dump_qpu(struct v3d_compile *c)
                 fprintf(stderr, "0x%016"PRIx64" %s", c->qpu_insts[i], str);
 
                 if (reads_uniform(c->devinfo, c->qpu_insts[i])) {
-                        fprintf(stderr, " (");
-                        vir_dump_uniform(c->uniform_contents[next_uniform],
-                                         c->uniform_data[next_uniform]);
-                        fprintf(stderr, ")");
+                        char *str = vir_dump_uniform(c->uniform_contents[next_uniform],
+                                                     c->uniform_data[next_uniform]);
+                        fprintf(stderr, " (%s)", str);
+                        ralloc_free(str);
                         next_uniform++;
                 }
                 fprintf(stderr, "\n");
@@ -483,9 +482,9 @@ v3d_vir_to_qpu(struct v3d_compile *c, struct qpu_reg *temp_registers)
                 bool ok = v3d_qpu_instr_pack(c->devinfo, &inst->qpu,
                                              &c->qpu_insts[i++]);
                 if (!ok) {
-                        fprintf(stderr, "Failed to pack instruction %d:\n", i);
-                        vir_dump_inst(c, inst);
-                        fprintf(stderr, "\n");
+                        char *dump_inst = vir_dump_inst(c, inst);
+                        fprintf(stderr, "Failed to pack instruction %d:\n%s\n", i,
+                                dump_inst);
                         c->compilation_result = V3D_COMPILATION_FAILED;
                         return;
                 }
