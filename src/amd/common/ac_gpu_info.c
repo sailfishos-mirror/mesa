@@ -519,6 +519,80 @@ ac_fill_memory_info(struct radeon_info *info, const struct drm_amdgpu_info_devic
 
    info->vram_type = device_info->vram_type;
    info->memory_bus_width = device_info->vram_bit_width;
+
+   /* Set which chips have uncached device memory. */
+   info->has_l2_uncached = info->gfx_level >= GFX9;
+
+   info->max_tcc_blocks = device_info->num_tcc_blocks;
+   if (info->gfx_level >= GFX10) {
+      info->tcc_cache_line_size = info->gfx_level >= GFX12 ? 256 : 128;
+      info->num_tcc_blocks = info->max_tcc_blocks - util_bitcount64(device_info->tcc_disabled_mask);
+   } else {
+      if (!info->has_graphics && info->family >= CHIP_MI200)
+         info->tcc_cache_line_size = 128;
+      else
+         info->tcc_cache_line_size = 64;
+
+      info->num_tcc_blocks = info->max_tcc_blocks;
+   }
+
+   /* Firmware wrongly reports 0 bytes of MALL being present on Navi33.
+    * Work around this by manually computing cache sizes. */
+   if (info->gfx_level >= GFX11 && info->family != CHIP_NAVI33) {
+      info->tcp_cache_size = device_info->tcp_cache_size * 1024;
+      info->l1_cache_size = device_info->gl1c_cache_size * 1024;
+      info->l2_cache_size = device_info->gl2c_cache_size * 1024;
+      info->l3_cache_size_mb = DIV_ROUND_UP(device_info->mall_size, 1024 * 1024);
+   } else {
+      if (info->gfx_level >= GFX11) {
+         info->tcp_cache_size = 32768;
+         info->l1_cache_size = 256 * 1024;
+      } else {
+         info->tcp_cache_size = 16384;
+         info->l1_cache_size = 128 * 1024;
+      }
+
+      if (info->gfx_level >= GFX10_3 && info->has_dedicated_vram) {
+         info->l3_cache_size_mb = info->num_tcc_blocks *
+                                  (info->family == CHIP_NAVI21 ||
+                                   info->family == CHIP_NAVI22 ? 8 : 4);
+      }
+
+      switch (info->family) {
+      case CHIP_TAHITI:
+      case CHIP_PITCAIRN:
+      case CHIP_OLAND:
+      case CHIP_HAWAII:
+      case CHIP_KABINI:
+      case CHIP_TONGA:
+      case CHIP_STONEY:
+      case CHIP_RAVEN2:
+         info->l2_cache_size = info->num_tcc_blocks * 64 * 1024;
+         break;
+      case CHIP_VERDE:
+      case CHIP_HAINAN:
+      case CHIP_BONAIRE:
+      case CHIP_KAVERI:
+      case CHIP_ICELAND:
+      case CHIP_CARRIZO:
+      case CHIP_FIJI:
+      case CHIP_POLARIS12:
+      case CHIP_VEGAM:
+      case CHIP_RAPHAEL_MENDOCINO:
+         info->l2_cache_size = info->num_tcc_blocks * 128 * 1024;
+         break;
+      default:
+         info->l2_cache_size = info->num_tcc_blocks * 256 * 1024;
+         break;
+      case CHIP_REMBRANDT:
+      case CHIP_PHOENIX:
+         info->l2_cache_size = info->num_tcc_blocks * 512 * 1024;
+         break;
+      }
+   }
+
+   info->pte_fragment_size = device_info->pte_fragment_size;
+   info->gart_page_size = device_info->gart_page_size;
 }
 
 bool
@@ -914,7 +988,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       fprintf(stderr, "amdgpu: ac_drm_query_info(memory) failed.\n");
       return AC_QUERY_GPU_INFO_FAIL;
    }
-   ac_fill_memory_info(info, &device_info, &meminfo);
 
    ac_drm_query_video_caps_info(dev, AMDGPU_INFO_VIDEO_CAPS_DECODE,
                                 sizeof(info->dec_caps), &(info->dec_caps));
@@ -927,14 +1000,12 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    const char *marketing_name = ac_drm_get_marketing_name(dev);
    strncpy(info->marketing_name, marketing_name ? marketing_name : "AMD Unknown", sizeof(info->marketing_name));
 
-   /* Set which chips have uncached device memory. */
-   info->has_l2_uncached = info->gfx_level >= GFX9;
+   ac_fill_memory_info(info, &device_info, &meminfo);
 
    /* Set hardware information. */
    /* convert the shader/memory clocks from KHz to MHz */
    info->max_gpu_freq_mhz = device_info.max_engine_clock / 1000;
    info->memory_freq_mhz_effective = info->memory_freq_mhz = device_info.max_memory_clock / 1000;
-   info->max_tcc_blocks = device_info.num_tcc_blocks;
    info->max_se = device_info.num_shader_engines;
    info->max_sa_per_se = device_info.num_shader_arrays_per_engine;
    info->num_cu_per_sh = device_info.num_cu_per_sh;
@@ -986,18 +1057,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       info->clock_crystal_freq = 1;
    }
 
-   if (info->gfx_level >= GFX10) {
-      info->tcc_cache_line_size = info->gfx_level >= GFX12 ? 256 : 128;
-      info->num_tcc_blocks = info->max_tcc_blocks - util_bitcount64(device_info.tcc_disabled_mask);
-   } else {
-      if (!info->has_graphics && info->family >= CHIP_MI200)
-         info->tcc_cache_line_size = 128;
-      else
-         info->tcc_cache_line_size = 64;
-
-      info->num_tcc_blocks = info->max_tcc_blocks;
-   }
-
    info->tcc_rb_non_coherent = info->gfx_level < GFX12 &&
                                !util_is_power_of_two_or_zero(info->num_tcc_blocks) &&
                                info->num_rb != info->num_tcc_blocks;
@@ -1007,61 +1066,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->sqc_inst_cache_size = device_info.sqc_inst_cache_size * 1024;
    info->sqc_scalar_cache_size = device_info.sqc_data_cache_size * 1024;
    info->num_sqc_per_wgp = device_info.num_sqc_per_wgp;
-
-   /* Firmware wrongly reports 0 bytes of MALL being present on Navi33.
-    * Work around this by manually computing cache sizes. */
-   if (info->gfx_level >= GFX11 && info->family != CHIP_NAVI33) {
-      info->tcp_cache_size = device_info.tcp_cache_size * 1024;
-      info->l1_cache_size = device_info.gl1c_cache_size * 1024;
-      info->l2_cache_size = device_info.gl2c_cache_size * 1024;
-      info->l3_cache_size_mb = DIV_ROUND_UP(device_info.mall_size, 1024 * 1024);
-   } else {
-      if (info->gfx_level >= GFX11) {
-         info->tcp_cache_size = 32768;
-         info->l1_cache_size = 256 * 1024;
-      } else {
-         info->tcp_cache_size = 16384;
-         info->l1_cache_size = 128 * 1024;
-      }
-
-      if (info->gfx_level >= GFX10_3 && info->has_dedicated_vram) {
-         info->l3_cache_size_mb = info->num_tcc_blocks *
-                                  (info->family == CHIP_NAVI21 ||
-                                   info->family == CHIP_NAVI22 ? 8 : 4);
-      }
-
-      switch (info->family) {
-      case CHIP_TAHITI:
-      case CHIP_PITCAIRN:
-      case CHIP_OLAND:
-      case CHIP_HAWAII:
-      case CHIP_KABINI:
-      case CHIP_TONGA:
-      case CHIP_STONEY:
-      case CHIP_RAVEN2:
-         info->l2_cache_size = info->num_tcc_blocks * 64 * 1024;
-         break;
-      case CHIP_VERDE:
-      case CHIP_HAINAN:
-      case CHIP_BONAIRE:
-      case CHIP_KAVERI:
-      case CHIP_ICELAND:
-      case CHIP_CARRIZO:
-      case CHIP_FIJI:
-      case CHIP_POLARIS12:
-      case CHIP_VEGAM:
-      case CHIP_RAPHAEL_MENDOCINO:
-         info->l2_cache_size = info->num_tcc_blocks * 128 * 1024;
-         break;
-      default:
-         info->l2_cache_size = info->num_tcc_blocks * 256 * 1024;
-         break;
-      case CHIP_REMBRANDT:
-      case CHIP_PHOENIX:
-         info->l2_cache_size = info->num_tcc_blocks * 512 * 1024;
-         break;
-      }
-   }
 
    ac_fill_tiling_info(info, &amdinfo);
    info->r600_has_virtual_memory = true;
@@ -1325,9 +1329,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       cu_group;
    info->min_good_cu_per_sa =
       (info->num_cu / (info->num_se * info->max_sa_per_se * cu_group)) * cu_group;
-
-   info->pte_fragment_size = device_info.pte_fragment_size;
-   info->gart_page_size = device_info.gart_page_size;
 
    info->gfx_ib_pad_with_type2 = info->gfx_level == GFX6;
 
