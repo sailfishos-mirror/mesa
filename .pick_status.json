@@ -4524,7 +4524,7 @@
         "description": "rusticl: move the worker queue into the Platform",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cfafa79447699ef4cb4e49cb5c584aefbce369ce",
         "notes": null
