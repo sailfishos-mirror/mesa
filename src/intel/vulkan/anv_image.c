@@ -261,8 +261,12 @@ anv_image_choose_isl_surf_usage(struct anv_physical_device *device,
        */
       if (devinfo->verx10 == 125 &&
           vk_usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                      VK_IMAGE_USAGE_STORAGE_BIT))
+                      VK_IMAGE_USAGE_STORAGE_BIT)) {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Disabling aux: fragment shading rate attachment "
+                       "with color attachment/storage usage");
          isl_usage |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+      }
    }
 
    if (vk_create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT)
@@ -277,8 +281,12 @@ anv_image_choose_isl_surf_usage(struct anv_physical_device *device,
    /* We disable aux surfaces for host read/write images so that we can update
     * the main surface without caring about the auxiliary surface.
     */
-   if (vk_usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT)
+   if (vk_usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT) {
+      anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                    "Disabling aux: "
+                    "VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT is set");
       isl_usage |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+   }
 
    if (vk_create_flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
       isl_usage |= ISL_SURF_USAGE_CUBE_BIT;
@@ -323,8 +331,12 @@ anv_image_choose_isl_surf_usage(struct anv_physical_device *device,
       isl_usage |= ISL_SURF_USAGE_RENDER_TARGET_BIT;
    }
 
-   if (comp_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT)
+   if (comp_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) {
+      anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                    "Disabling aux: "
+                    "image compression disabled via create flags");
       isl_usage |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+   }
 
    /* We only need software detiling for 64bit atomics and we need to disable
     * AUX for software detiling, but we don't support sparseImageInt64Atomics,
@@ -339,6 +351,9 @@ anv_image_choose_isl_surf_usage(struct anv_physical_device *device,
         ((vk_create_flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) &&
          vk_format_get_blocksizebits(vk_format) == 64 &&
          format_list_has_64bit_format(format_list_info)))) {
+      anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                    "Disabling aux: 64-bit storage image requires "
+                    "software detiling");
       isl_usage |= ISL_SURF_USAGE_DISABLE_AUX_BIT |
                    ISL_SURF_USAGE_SOFTWARE_DETILING;
    }
@@ -734,8 +749,12 @@ add_aux_surface_if_supported(struct anv_device *device,
    /* The aux surface must not be already added. */
    assert(!anv_surface_is_valid(&image->planes[plane].aux_surface));
 
-   if (main_surf->usage & ISL_SURF_USAGE_DISABLE_AUX_BIT)
+   if (main_surf->usage & ISL_SURF_USAGE_DISABLE_AUX_BIT) {
+      anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                    "Skipping aux surface creation: "
+                    "ISL_SURF_USAGE_DISABLE_AUX_BIT is set");
       return VK_SUCCESS;
+   }
 
    uint32_t binding;
    if (image->vk.drm_format_mod == DRM_FORMAT_MOD_INVALID ||
@@ -753,10 +772,17 @@ add_aux_surface_if_supported(struct anv_device *device,
 
       ok = isl_surf_get_hiz_surf(&device->isl_dev, main_surf,
                                  &image->planes[plane].aux_surface.isl);
-      if (!ok)
+      if (!ok) {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Skipping aux surface creation: "
+                       "isl_surf_get_hiz_surf failed");
          return VK_SUCCESS;
+      }
 
       if (!isl_surf_supports_ccs(&device->isl_dev, main_surf)) {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Depth surface does not support CCS, "
+                       "falling back to HIZ without compression");
          image->planes[plane].aux_usage = ISL_AUX_USAGE_HIZ;
       } else if (want_hiz_wt_for_image(device->info, image)) {
          assert(device->info->ver >= 12);
@@ -787,8 +813,12 @@ add_aux_surface_if_supported(struct anv_device *device,
                                               plane);
       }
    } else if (main_surf->usage & (ISL_SURF_USAGE_STENCIL_BIT | ISL_SURF_USAGE_CPB_BIT)) {
-      if (!isl_surf_supports_ccs(&device->isl_dev, main_surf))
+      if (!isl_surf_supports_ccs(&device->isl_dev, main_surf)) {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Skipping aux surface creation: "
+                       "stencil/cpb surface does not support CCS");
          return VK_SUCCESS;
+      }
 
       image->planes[plane].aux_usage = ISL_AUX_USAGE_STC_CCS;
 
@@ -809,8 +839,12 @@ add_aux_surface_if_supported(struct anv_device *device,
                                     &image->planes[plane].aux_surface.isl,
                                     stride);
       }
-      if (!ok)
+      if (!ok) {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Skipping aux surface creation: "
+                       "color surface does not support CCS");
          return VK_SUCCESS;
+      }
 
       /* Choose aux usage. */
       if (device->info->verx10 == 125 && !device->physical->disable_fcv) {
@@ -863,12 +897,19 @@ add_aux_surface_if_supported(struct anv_device *device,
       assert(!(image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT));
       ok = isl_surf_get_mcs_surf(&device->isl_dev, main_surf,
                                  &image->planes[plane].aux_surface.isl);
-      if (!ok)
+      if (!ok) {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Skipping aux surface creation: "
+                       "isl_surf_get_mcs_surf failed for MSAA color");
          return VK_SUCCESS;
+      }
 
       if (isl_surf_supports_ccs(&device->isl_dev, main_surf)) {
          image->planes[plane].aux_usage = ISL_AUX_USAGE_MCS_CCS;
       } else {
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "MSAA color surface does not support CCS, "
+                       "falling back to MCS without compression");
          image->planes[plane].aux_usage = ISL_AUX_USAGE_MCS;
       }
 
