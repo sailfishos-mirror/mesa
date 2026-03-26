@@ -89,6 +89,7 @@ static const struct debug_control radv_debug_options[] = {
    {"dumpibs", RADV_DEBUG_DUMP_IBS},
    {"vm", RADV_DEBUG_VM},
    {"nosmemmitigation", RADV_DEBUG_NO_SMEM_MITIGATION},
+   {"fullsync", RADV_DEBUG_FULL_SYNC},
    {NULL, 0},
 };
 
