@@ -72,10 +72,12 @@ struct radv_accel_struct_header {
    /* Everything after this gets updated/copied from the CPU. */
    uint32_t geometry_type;
    uint32_t geometry_count;
-   uint64_t instance_offset;
+   uint64_t leaf_nodes_offset;
+   uint64_t primitive_count;
    uint64_t instance_count;
    uint32_t leaf_node_offsets_offset;
    uint32_t build_flags;
+   uint32_t type;
 };
 
 struct radv_bvh_triangle_node {

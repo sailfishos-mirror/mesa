@@ -70,7 +70,8 @@ struct header_args {
    REF(radv_accel_struct_header) dst;
    uint32_t bvh_offset;
    uint32_t internal_nodes_offset;
-   uint32_t instance_count;
+   uint32_t primitive_count;
+   uint32_t type;
 };
 
 struct update_args {

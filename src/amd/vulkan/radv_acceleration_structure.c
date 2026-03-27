@@ -655,9 +655,6 @@ radv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_str
 
    size_t base = offsetof(struct radv_accel_struct_header, compacted_size);
 
-   uint64_t instance_count =
-      state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR ? state->leaf_node_count : 0;
-
    struct acceleration_structure_layout layout;
    radv_get_acceleration_structure_layout(device, state, &layout);
 
@@ -668,7 +665,8 @@ radv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_str
       .dst = vk_acceleration_structure_get_va(dst),
       .bvh_offset = layout.bvh_offset,
       .internal_nodes_offset = layout.internal_nodes_offset - layout.bvh_offset,
-      .instance_count = instance_count,
+      .primitive_count = state->leaf_node_count,
+      .type = state->build_info->type,
    };
    radv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
 
@@ -676,8 +674,10 @@ radv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_str
 
    struct radv_accel_struct_header header;
 
-   header.instance_offset = layout.bvh_offset + sizeof(struct radv_bvh_box32_node);
-   header.instance_count = instance_count;
+   header.leaf_nodes_offset = layout.bvh_offset + sizeof(struct radv_bvh_box32_node);
+   header.primitive_count = state->leaf_node_count;
+   header.instance_count =
+      (state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR ? state->leaf_node_count : 0);
    header.leaf_node_offsets_offset = layout.leaf_node_offsets_offset;
    header.compacted_size = layout.size;
 
@@ -685,16 +685,19 @@ radv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_str
    header.copy_dispatch_size[1] = 1;
    header.copy_dispatch_size[2] = 1;
 
-   header.serialization_size =
-      header.compacted_size +
-      align(sizeof(struct radv_accel_struct_serialization_header) + sizeof(uint64_t) * header.instance_count, 128);
+   uint32_t blas_addrs_size = 0;
+   if (state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR)
+      blas_addrs_size = state->leaf_node_count * sizeof(uint64_t);
 
-   header.size = header.serialization_size - sizeof(struct radv_accel_struct_serialization_header) -
-                 sizeof(uint64_t) * header.instance_count;
+   header.serialization_size =
+      header.compacted_size + align(sizeof(struct radv_accel_struct_serialization_header) + blas_addrs_size, 128);
+
+   header.size = header.serialization_size - sizeof(struct radv_accel_struct_serialization_header) - blas_addrs_size;
 
    header.build_flags = state->build_info->flags;
    header.geometry_type = vk_get_as_geometry_type(state->build_info);
    header.geometry_count = state->build_info->geometryCount;
+   header.type = state->build_info->type;
 
    radv_update_memory_cp(cmd_buffer, vk_acceleration_structure_get_va(dst) + base, (const char *)&header + base,
                          sizeof(header) - base);

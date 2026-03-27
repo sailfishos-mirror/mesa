@@ -217,7 +217,7 @@ rra_fill_accel_struct_header_common(const struct radv_physical_device *pdev, str
    result.leaf_nodes_offset = result.internal_nodes_offset + bvh_info->internal_nodes_size;
    result.geometry_infos_offset = result.leaf_nodes_offset + bvh_info->leaf_nodes_size;
    result.leaf_ids_offset = result.geometry_infos_offset;
-   if (header->instance_count) {
+   if (header->geometry_type == VK_GEOMETRY_TYPE_INSTANCES_KHR) {
       if (radv_use_bvh8(pdev))
          result.leaf_ids_offset += bvh_info->instance_sideband_data_size;
    } else {
@@ -276,13 +276,11 @@ rra_validate_header(struct radv_rra_accel_struct_data *accel_struct, const struc
       .location = "header",
    };
 
-   if (accel_struct->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR && header->instance_count > 0)
-      rra_validation_fail(&ctx, "BLAS contains instances");
-
    if (header->bvh_offset >= accel_struct->size)
       rra_validation_fail(&ctx, "Invalid BVH offset %u", header->bvh_offset);
 
-   if (header->instance_count * sizeof(struct radv_bvh_instance_node) >= accel_struct->size)
+   if (accel_struct->type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR &&
+       header->primitive_count * sizeof(struct radv_bvh_instance_node) >= accel_struct->size)
       rra_validation_fail(&ctx, "Too many instances");
 
    return ctx.failed;
@@ -296,7 +294,7 @@ rra_dump_acceleration_structure(const struct radv_physical_device *pdev,
 {
    struct radv_accel_struct_header *header = (struct radv_accel_struct_header *)data;
 
-   bool is_tlas = header->instance_count > 0;
+   bool is_tlas = header->geometry_type == VK_GEOMETRY_TYPE_INSTANCES_KHR;
 
    uint64_t geometry_infos_offset = sizeof(struct radv_accel_struct_header);
 
@@ -1184,7 +1182,7 @@ dump_bvh_stats(struct radv_device *device, struct vk_acceleration_structure *acc
 
    struct radv_accel_struct_header *header = (struct radv_accel_struct_header *)data;
 
-   bool is_tlas = header->instance_count > 0;
+   bool is_tlas = header->type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
    if (is_tlas != tlas_pass)
       return;
 
