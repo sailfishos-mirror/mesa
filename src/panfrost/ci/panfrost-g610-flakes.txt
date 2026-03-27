@@ -209,6 +209,7 @@ dEQP-VK.wsi.*.swapchain.simulate_oom.*
 # https://gerrit.khronos.org/c/vk-gl-cts/+/19859
 dEQP-VK.wsi.xcb.maintenance1.present_modes.*
 dEQP-VK.wsi.xcb.maintenance1.present_fence.*
+dEQP-VK.wsi.xcb.maintenance1.deferred_alloc.*
 
 # With linux kernel 6.13-rc4 uprev
 dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_8x6_rgba.rgba_astc_8x6_khr_srgb8_alpha8_astc_8x6_khr.texture3d_to_cubemap
