@@ -284,12 +284,12 @@ lower_shader_system_values(struct nir_builder *builder, nir_instr *instr,
       nir_imm_int(builder, 0),
       .desc_set = conf->runtime_data_cbv.register_space,
       .binding = conf->runtime_data_cbv.base_shader_register,
-      .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      .desc_type = nir_descriptor_type_uniform_buffer);
 
    nir_def *load_desc = nir_load_vulkan_descriptor(
       builder, nir_address_format_num_components(ubo_format),
       nir_address_format_bit_size(ubo_format),
-      index, .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      index, .desc_type = nir_descriptor_type_uniform_buffer);
 
    nir_def *load_data = nir_load_ubo(
       builder, 
@@ -371,12 +371,12 @@ lower_load_push_constant(struct nir_builder *builder, nir_instr *instr,
       nir_address_format_bit_size(ubo_format),
       nir_imm_int(builder, 0),
       .desc_set = data->desc_set, .binding = data->binding,
-      .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      .desc_type = nir_descriptor_type_uniform_buffer);
 
    nir_def *load_desc = nir_load_vulkan_descriptor(
       builder, nir_address_format_num_components(ubo_format),
       nir_address_format_bit_size(ubo_format),
-      index, .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      index, .desc_type = nir_descriptor_type_uniform_buffer);
 
    nir_def *offset = intrin->src[0].ssa;
    nir_def *load_data = nir_load_ubo(
@@ -465,12 +465,12 @@ lower_yz_flip(struct nir_builder *builder, nir_instr *instr,
          nir_imm_int(builder, 0),
          .desc_set = rt_conf->runtime_data_cbv.register_space,
          .binding = rt_conf->runtime_data_cbv.base_shader_register,
-         .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+         .desc_type = nir_descriptor_type_uniform_buffer);
 
       nir_def *load_desc = nir_load_vulkan_descriptor(
          builder, nir_address_format_num_components(ubo_format),
          nir_address_format_bit_size(ubo_format),
-         index, .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+         index, .desc_type = nir_descriptor_type_uniform_buffer);
 
       dyn_yz_flip_mask =
          nir_load_ubo(builder, 1, 32,
@@ -620,12 +620,12 @@ write_pntc_with_pos(nir_builder *b, nir_instr *instr, void *_data)
       nir_imm_int(b, 0),
       .desc_set = data->conf->runtime_data_cbv.register_space,
       .binding = data->conf->runtime_data_cbv.base_shader_register,
-      .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      .desc_type = nir_descriptor_type_uniform_buffer);
 
    nir_def *load_desc = nir_load_vulkan_descriptor(
       b, nir_address_format_num_components(ubo_format),
       nir_address_format_bit_size(ubo_format),
-      index, .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      index, .desc_type = nir_descriptor_type_uniform_buffer);
 
    nir_def *transform = nir_channels(b,
                                          nir_load_ubo(b, 4, 32,

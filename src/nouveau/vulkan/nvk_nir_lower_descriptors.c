@@ -68,10 +68,10 @@ struct lower_descriptors_ctx {
 };
 
 static bool
-descriptor_type_is_ubo(VkDescriptorType desc_type)
+descriptor_type_is_ubo(nir_descriptor_type desc_type)
 {
    switch (desc_type) {
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+   case nir_descriptor_type_uniform_buffer:
       return true;
 
    default:
@@ -80,10 +80,10 @@ descriptor_type_is_ubo(VkDescriptorType desc_type)
 }
 
 static bool
-descriptor_type_is_ssbo(VkDescriptorType desc_type)
+descriptor_type_is_ssbo(nir_descriptor_type desc_type)
 {
    switch (desc_type) {
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+   case nir_descriptor_type_storage_buffer:
       return true;
 
    default:
@@ -723,7 +723,7 @@ load_descriptor_for_idx_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
    uint32_t binding = nir_intrinsic_binding(intrin);
    index = nir_iadd(b, index, intrin->src[0].ssa);
 
-   const VkDescriptorType desc_type = nir_intrinsic_desc_type(intrin);
+   const nir_descriptor_type desc_type = nir_intrinsic_desc_type(intrin);
    if (descriptor_type_is_ubo(desc_type) && ctx->use_bindless_cbuf) {
       nir_def *desc = load_descriptor(b, 1, 64, set, binding, index, 0, ctx);
 
@@ -746,7 +746,7 @@ static bool
 try_lower_load_vulkan_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
                                  const struct lower_descriptors_ctx *ctx)
 {
-   ASSERTED const VkDescriptorType desc_type = nir_intrinsic_desc_type(intrin);
+   ASSERTED const nir_descriptor_type desc_type = nir_intrinsic_desc_type(intrin);
    b->cursor = nir_before_instr(&intrin->instr);
 
    nir_intrinsic_instr *idx_intrin = nir_src_as_intrinsic(intrin->src[0]);

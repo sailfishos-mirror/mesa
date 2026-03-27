@@ -34,7 +34,6 @@
 #include "util/memstream.h"
 #include "util/mesa-blake3.h"
 #include "util/ralloc.h"
-#include "vulkan/vulkan_core.h"
 #include "nir.h"
 #include "nir_builder.h"
 
@@ -1203,39 +1202,15 @@ print_deref_instr(nir_deref_instr *instr, print_state *state)
 }
 
 static const char *
-vulkan_descriptor_type_name(VkDescriptorType type)
+nir_descriptor_type_name(nir_descriptor_type type)
 {
    switch (type) {
-   case VK_DESCRIPTOR_TYPE_SAMPLER:
-      return "sampler";
-   case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-      return "texture+sampler";
-   case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-      return "texture";
-   case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-      return "image";
-   case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-      return "texture-buffer";
-   case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-      return "image-buffer";
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+   case nir_descriptor_type_uniform_buffer:
       return "UBO";
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+   case nir_descriptor_type_storage_buffer:
       return "SSBO";
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-      return "UBO";
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-      return "SSBO";
-   case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-      return "input-att";
-   case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
-      return "inline-UBO";
-   case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+   case nir_descriptor_type_acceleration_structure:
       return "accel-struct";
-   case VK_DESCRIPTOR_TYPE_SAMPLE_WEIGHT_IMAGE_QCOM:
-      return "sample-weight-image";
-   case VK_DESCRIPTOR_TYPE_BLOCK_MATCH_IMAGE_QCOM:
-      return "block-match-image";
    default:
       return "unknown";
    }
@@ -1450,8 +1425,8 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
       }
 
       case NIR_INTRINSIC_DESC_TYPE: {
-         VkDescriptorType desc_type = nir_intrinsic_desc_type(instr);
-         fprintf(fp, "desc_type=%s", vulkan_descriptor_type_name(desc_type));
+         nir_descriptor_type desc_type = nir_intrinsic_desc_type(instr);
+         fprintf(fp, "desc_type=%s", nir_descriptor_type_name(desc_type));
          break;
       }
 

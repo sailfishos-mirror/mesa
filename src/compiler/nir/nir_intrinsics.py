@@ -248,8 +248,8 @@ index("unsigned", "offset_shift")
 # Similar to offset_shift except it is applied only to the non uniform offset src, not the base.
 index("unsigned", "offset_shift_nv")
 
-# The Vulkan descriptor type for a vulkan_resource_[re]index intrinsic.
-index("unsigned", "desc_type")
+# The NIR descriptor type for a vulkan_resource_[re]index intrinsic.
+index("nir_descriptor_type", "desc_type")
 
 # The NIR resource type according to VkSpirvResourceTypeFlagsKHR.
 index("nir_resource_type", "resource_type")

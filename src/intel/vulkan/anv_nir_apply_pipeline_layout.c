@@ -114,14 +114,14 @@ bti_multiplier(const struct apply_pipeline_layout_state *state,
 }
 
 static nir_address_format
-addr_format_for_desc_type(VkDescriptorType desc_type,
+addr_format_for_desc_type(nir_descriptor_type desc_type,
                           struct apply_pipeline_layout_state *state)
 {
    switch (desc_type) {
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+   case nir_descriptor_type_storage_buffer:
       return state->ssbo_addr_format;
 
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+   case nir_descriptor_type_uniform_buffer:
       return state->ubo_addr_format;
 
    default:
@@ -186,7 +186,7 @@ const VkDescriptorBindingFlags non_pushable_binding_flags =
 
 static void
 add_binding_type(struct apply_pipeline_layout_state *state,
-                 uint32_t set, uint32_t binding, VkDescriptorType type)
+                 uint32_t set, uint32_t binding, nir_descriptor_type type)
 {
    add_binding(state, set, binding, false);
 
@@ -207,7 +207,7 @@ add_binding_type(struct apply_pipeline_layout_state *state,
         set_layout->binding[binding].type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
         set_layout->binding[binding].type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK ||
         set_layout->binding[binding].type == VK_DESCRIPTOR_TYPE_MUTABLE_EXT) &&
-       type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+       type == nir_descriptor_type_uniform_buffer)
       state->set[set].binding[binding].properties |= BINDING_PROPERTY_PUSHABLE;
 }
 
@@ -1588,7 +1588,7 @@ lower_direct_buffer_instr(nir_builder *b, nir_instr *instr, void *_state)
 
    case nir_intrinsic_load_vulkan_descriptor:
       if (nir_intrinsic_desc_type(intrin) ==
-          VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
+          nir_descriptor_type_acceleration_structure)
          return lower_load_accel_struct_desc(b, intrin, state);
       return false;
 
@@ -1633,18 +1633,34 @@ lower_res_reindex_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
    return true;
 }
 
+static VkDescriptorType
+nir_to_vk_descriptor_type(nir_descriptor_type type)
+{
+   switch (type) {
+   case nir_descriptor_type_uniform_buffer:
+      return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+   case nir_descriptor_type_storage_buffer:
+      return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+   case nir_descriptor_type_acceleration_structure:
+      return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+   default:
+      UNREACHABLE("Invalid nir_descriptor_type");
+   }
+}
+
 static bool
 lower_load_vulkan_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
                              struct apply_pipeline_layout_state *state)
 {
    b->cursor = nir_before_instr(&intrin->instr);
 
-   const VkDescriptorType desc_type = nir_intrinsic_desc_type(intrin);
+   const nir_descriptor_type desc_type = nir_intrinsic_desc_type(intrin);
+   const VkDescriptorType vk_desc_type = nir_to_vk_descriptor_type(desc_type);
    nir_address_format addr_format = addr_format_for_desc_type(desc_type, state);
 
    nir_def *desc =
       build_buffer_addr_for_res_index(b,
-                                      desc_type, intrin->src[0].ssa,
+                                      vk_desc_type, intrin->src[0].ssa,
                                       addr_format, state);
 
    assert(intrin->def.bit_size == desc->bit_size);

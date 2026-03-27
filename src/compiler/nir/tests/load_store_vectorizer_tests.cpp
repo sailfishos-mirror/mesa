@@ -171,7 +171,7 @@ nir_load_store_vectorize_test::get_resource(uint32_t binding, bool ssbo)
    res->num_components = 1;
    res->src[0] = nir_src_for_ssa(nir_imm_zero(b, 1, 32));
    nir_intrinsic_set_desc_type(
-      res, ssbo ? 7/*VK_DESCRIPTOR_TYPE_STORAGE_BUFFER*/ : 6/*VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER*/);
+      res, ssbo ? nir_descriptor_type_storage_buffer : nir_descriptor_type_uniform_buffer);
    nir_intrinsic_set_desc_set(res, 0);
    nir_intrinsic_set_binding(res, binding);
    nir_builder_instr_insert(b, &res->instr);

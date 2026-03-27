@@ -206,16 +206,16 @@ vtn_access_link_as_ssa(struct vtn_builder *b, struct vtn_access_link link,
    }
 }
 
-static VkDescriptorType
-vk_desc_type_for_mode(struct vtn_builder *b, enum vtn_variable_mode mode)
+static nir_descriptor_type
+nir_desc_type_for_mode(struct vtn_builder *b, enum vtn_variable_mode mode)
 {
    switch (mode) {
    case vtn_variable_mode_ubo:
-      return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      return nir_descriptor_type_uniform_buffer;
    case vtn_variable_mode_ssbo:
-      return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+      return nir_descriptor_type_storage_buffer;
    case vtn_variable_mode_accel_struct:
-      return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+      return nir_descriptor_type_acceleration_structure;
    default:
       vtn_fail("Invalid mode for vulkan_resource_index");
    }
@@ -241,7 +241,7 @@ vtn_variable_resource_index(struct vtn_builder *b, struct vtn_variable *var,
    instr->src[0] = nir_src_for_ssa(desc_array_index);
    nir_intrinsic_set_desc_set(instr, var->descriptor_set);
    nir_intrinsic_set_binding(instr, var->binding);
-   nir_intrinsic_set_desc_type(instr, vk_desc_type_for_mode(b, var->mode));
+   nir_intrinsic_set_desc_type(instr, nir_desc_type_for_mode(b, var->mode));
    nir_intrinsic_set_resource_type(instr, var->var->data.resource_type);
 
    nir_address_format addr_format = vtn_mode_to_address_format(b, var->mode);
@@ -265,7 +265,7 @@ vtn_resource_reindex(struct vtn_builder *b, enum vtn_variable_mode mode,
                                  nir_intrinsic_vulkan_resource_reindex);
    instr->src[0] = nir_src_for_ssa(base_index);
    instr->src[1] = nir_src_for_ssa(offset_index);
-   nir_intrinsic_set_desc_type(instr, vk_desc_type_for_mode(b, mode));
+   nir_intrinsic_set_desc_type(instr, nir_desc_type_for_mode(b, mode));
 
    nir_address_format addr_format = vtn_mode_to_address_format(b, mode);
    nir_def_init(&instr->instr, &instr->def,
@@ -287,7 +287,7 @@ vtn_descriptor_load(struct vtn_builder *b, enum vtn_variable_mode mode,
       nir_intrinsic_instr_create(b->nb.shader,
                                  nir_intrinsic_load_vulkan_descriptor);
    desc_load->src[0] = nir_src_for_ssa(desc_index);
-   nir_intrinsic_set_desc_type(desc_load, vk_desc_type_for_mode(b, mode));
+   nir_intrinsic_set_desc_type(desc_load, nir_desc_type_for_mode(b, mode));
 
    nir_address_format addr_format = vtn_mode_to_address_format(b, mode);
    nir_def_init(&desc_load->instr, &desc_load->def,

@@ -60,14 +60,14 @@ struct lower_desc_ctx {
 };
 
 static nir_address_format
-addr_format_for_desc_type(VkDescriptorType desc_type,
+addr_format_for_desc_type(nir_descriptor_type desc_type,
                           const struct lower_desc_ctx *ctx)
 {
    switch (desc_type) {
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+   case nir_descriptor_type_uniform_buffer:
       return ctx->ubo_addr_format;
 
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+   case nir_descriptor_type_storage_buffer:
       return ctx->ssbo_addr_format;
 
    default:
@@ -433,7 +433,7 @@ lower_res_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
 {
    b->cursor = nir_before_instr(&intrin->instr);
 
-   const VkDescriptorType desc_type = nir_intrinsic_desc_type(intrin);
+   const nir_descriptor_type desc_type = nir_intrinsic_desc_type(intrin);
    nir_address_format addr_format = addr_format_for_desc_type(desc_type, ctx);
 
    nir_def *res;

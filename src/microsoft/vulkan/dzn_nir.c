@@ -59,10 +59,10 @@ dzn_nir_create_bo_desc(nir_builder *b,
    else
       b->shader->info.num_ssbos++;
 
-   VkDescriptorType desc_type =
+   nir_descriptor_type desc_type =
       var->data.mode == nir_var_mem_ubo ?
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER :
-      VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+      nir_descriptor_type_uniform_buffer :
+      nir_descriptor_type_storage_buffer;
    nir_address_format addr_format = nir_address_format_32bit_index_offset;
    nir_def *index =
       nir_vulkan_resource_index(b,
@@ -813,12 +813,12 @@ load_dynamic_depth_bias(nir_builder *b, struct dzn_nir_point_gs_info *info)
       nir_imm_int(b, 0),
       .desc_set = info->runtime_data_cbv.register_space,
       .binding = info->runtime_data_cbv.base_shader_register,
-      .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      .desc_type = nir_descriptor_type_uniform_buffer);
 
    nir_def *load_desc = nir_load_vulkan_descriptor(
       b, nir_address_format_num_components(ubo_format),
       nir_address_format_bit_size(ubo_format),
-      index, .desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      index, .desc_type = nir_descriptor_type_uniform_buffer);
 
    return nir_load_ubo(
       b, 1, 32,

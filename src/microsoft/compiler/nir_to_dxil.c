@@ -4473,11 +4473,11 @@ emit_load_vulkan_descriptor(struct ntd_context *ctx, nir_intrinsic_instr *intr)
    enum dxil_resource_class resource_class;
    enum dxil_resource_kind resource_kind;
    switch (nir_intrinsic_desc_type(intr)) {
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+   case nir_descriptor_type_uniform_buffer:
       resource_class = DXIL_RESOURCE_CLASS_CBV;
       resource_kind = DXIL_RESOURCE_KIND_CBUFFER;
       break;
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+   case nir_descriptor_type_storage_buffer:
       resource_class = DXIL_RESOURCE_CLASS_UAV;
       resource_kind = DXIL_RESOURCE_KIND_RAW_BUFFER;
       break;

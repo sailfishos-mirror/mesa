@@ -197,6 +197,15 @@ typedef enum {
 } nir_resource_type;
 
 /**
+ * Descriptor types.
+ */
+typedef enum {
+   nir_descriptor_type_uniform_buffer = 0,
+   nir_descriptor_type_storage_buffer = 1,
+   nir_descriptor_type_acceleration_structure = 2,
+} nir_descriptor_type;
+
+/**
  * Rounding modes.
  */
 typedef enum {

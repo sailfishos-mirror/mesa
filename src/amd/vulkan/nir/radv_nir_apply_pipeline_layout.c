@@ -136,8 +136,8 @@ visit_vulkan_resource_index(nir_builder *b, apply_layout_state *state, nir_intri
 static void
 visit_vulkan_resource_reindex(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
 {
-   VkDescriptorType desc_type = nir_intrinsic_desc_type(intrin);
-   if (desc_type == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR) {
+   nir_descriptor_type desc_type = nir_intrinsic_desc_type(intrin);
+   if (desc_type == nir_descriptor_type_acceleration_structure) {
       nir_def *set_ptr = nir_unpack_64_2x32_split_x(b, intrin->src[0].ssa);
       nir_def *binding_ptr = nir_unpack_64_2x32_split_y(b, intrin->src[0].ssa);
 
@@ -147,7 +147,7 @@ visit_vulkan_resource_reindex(nir_builder *b, apply_layout_state *state, nir_int
 
       nir_def_rewrite_uses(&intrin->def, nir_pack_64_2x32_split(b, set_ptr, binding_ptr));
    } else {
-      assert(desc_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || desc_type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+      assert(desc_type == nir_descriptor_type_uniform_buffer || desc_type == nir_descriptor_type_storage_buffer);
 
       nir_def *binding_ptr = nir_channel(b, intrin->src[0].ssa, 1);
       nir_def *stride = nir_channel(b, intrin->src[0].ssa, 2);
@@ -163,7 +163,7 @@ visit_vulkan_resource_reindex(nir_builder *b, apply_layout_state *state, nir_int
 static void
 visit_load_vulkan_descriptor(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
 {
-   if (nir_intrinsic_desc_type(intrin) == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR) {
+   if (nir_intrinsic_desc_type(intrin) == nir_descriptor_type_acceleration_structure) {
       nir_def *addr = convert_pointer_to_64_bit(b, state,
                                                 nir_iadd(b, nir_unpack_64_2x32_split_x(b, intrin->src[0].ssa),
                                                          nir_unpack_64_2x32_split_y(b, intrin->src[0].ssa)));

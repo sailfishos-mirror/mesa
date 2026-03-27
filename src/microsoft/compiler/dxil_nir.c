@@ -1544,7 +1544,7 @@ lower_ubo_array_one_to_static(struct nir_builder *b,
    if (nir_src_is_const(index->src[0]) && nir_src_as_uint(index->src[0]) == 0)
       return false;
 
-   if (nir_intrinsic_desc_type(index) != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+   if (nir_intrinsic_desc_type(index) != nir_descriptor_type_uniform_buffer)
       return false;
 
    b->cursor = nir_instr_remove(&index->instr);
