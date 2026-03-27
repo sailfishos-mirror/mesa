@@ -2310,6 +2310,15 @@ bi_alu_src_index(bi_builder *b, nir_alu_src src, unsigned comps)
 {
    unsigned bitsize = nir_src_bit_size(src.src);
 
+   if (b->shader->arch >= 9 && bitsize == 64) {
+      /* For Valhall, 64-bit instructions only encode one register but will read
+       * the adjacent register that comes right after as well. Therefore we
+       * don't need to extract a single register here.
+       */
+      assert(comps == 1);
+      return bi_src_index(&src.src);
+   }
+
    /* the bi_index carries the 32-bit (word) offset separate from the
     * subword swizzle, first handle the offset */
 
@@ -3373,7 +3382,14 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       break;
 
    case nir_op_iadd:
-      bi_iadd_to(b, nir_type_int, sz, dst, s0, s1, false);
+      if (sz == 64) {
+         assert(b->shader->arch >= 9);
+         bi_shaddx_s64_to(b, dst, s0, s1, 0);
+         bi_index dsts[4] = {bi_null(), bi_null(), bi_null(), bi_null()};
+         bi_emit_split_i32(b, dsts, dst, 2);
+         bi_cache_collect(b, dst, dsts, 2);
+      } else
+         bi_iadd_to(b, nir_type_int, sz, dst, s0, s1, false);
       break;
 
    case nir_op_iadd_sat:

@@ -116,7 +116,7 @@ bool valhall_can_merge_workgroups(nir_shader *nir);
                                                                                \
       .lower_doubles_options =                                                 \
          nir_lower_dmod, /* TODO: Don't lower supported 64-bit operations */   \
-      .lower_int64_options = ~0, /* TODO: Use IMULD on v7 */                   \
+      .lower_int64_options = arch >= 9 ? ~(nir_lower_iadd64) : ~0,             \
       .lower_mul_high = true,                                                  \
       .lower_fisnormal = true,                                                 \
       .lower_uadd_carry = true,                                                \
