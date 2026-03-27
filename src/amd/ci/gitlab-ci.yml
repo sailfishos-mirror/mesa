@@ -225,7 +225,7 @@ radv-renoir-vkcts-full:
     RADV_PERFTEST: transfer_queue
     FDO_CI_CONCURRENT: 12  # HACK: Reduce the memory pressure
 
-radv-navi10-vkct-full:
+radv-navi10-vkcts-full:
   parallel: 2
   extends:
     - .ci-tron-test-radv-vk-nightly
