@@ -200,6 +200,7 @@ bi_cache_collect(bi_builder *b, bi_index dst, bi_index *s, unsigned n)
 static void
 bi_emit_split_i32(bi_builder *b, bi_index dests[4], bi_index vec, unsigned n)
 {
+   assert(n <= 4);
    /* Setup the destinations */
    for (unsigned i = 0; i < n; ++i) {
       dests[i] = bi_temp(b->shader);
