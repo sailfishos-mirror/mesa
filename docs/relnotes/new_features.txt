@@ -33,3 +33,5 @@ VK_EXT_shader_subgroup_vote on pvr
 VK_KHR_shader_subgroup_rotate on pvr
 VK_KHR_shader_subgroup_uniform_control_flow on pvr
 VK_EXT_subgroup_size_control on pvr
+VK_EXT_rasterization_order_attachment_access on panvk
+VK_ARM_rasterization_order_attachment_access on panvk

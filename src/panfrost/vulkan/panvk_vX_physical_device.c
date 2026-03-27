@@ -194,6 +194,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_primitive_topology_list_restart = true,
       .EXT_provoking_vertex = true,
       .EXT_queue_family_foreign = true,
+      .EXT_rasterization_order_attachment_access = PAN_ARCH >= 10,
       .EXT_rgba10x6_formats = PAN_ARCH >= 11,
       .EXT_robustness2 = PAN_ARCH >= 10,
       .EXT_sampler_filter_minmax = PAN_ARCH >= 10,
@@ -235,6 +236,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .ARM_shader_core_builtins = PAN_ARCH >= 9,
       .ARM_shader_core_properties = has_vk1_1,
       .ARM_scheduling_controls = PAN_ARCH >= 10,
+      .ARM_rasterization_order_attachment_access = PAN_ARCH >= 10,
    };
 }
 
@@ -723,6 +725,11 @@ panvk_per_arch(get_physical_device_features)(
       .presentAtRelativeTime = true,
       .presentAtAbsoluteTime = true,
 #endif
+
+      /* VK_EXT_rasterization_order_attachment_access */
+      .rasterizationOrderColorAttachmentAccess = PAN_ARCH >= 10,
+      .rasterizationOrderDepthAttachmentAccess = PAN_ARCH >= 10,
+      .rasterizationOrderStencilAttachmentAccess = PAN_ARCH >= 10,
    };
 }
 
