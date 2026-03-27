@@ -65,11 +65,9 @@ addr_format_for_desc_type(VkDescriptorType desc_type,
 {
    switch (desc_type) {
    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
       return ctx->ubo_addr_format;
 
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
       return ctx->ssbo_addr_format;
 
    default:

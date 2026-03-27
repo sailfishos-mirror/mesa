@@ -119,15 +119,10 @@ addr_format_for_desc_type(VkDescriptorType desc_type,
 {
    switch (desc_type) {
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
       return state->ssbo_addr_format;
 
    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
       return state->ubo_addr_format;
-
-   case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
-      return state->desc_addr_format;
 
    default:
       UNREACHABLE("Unsupported descriptor type");
@@ -212,8 +207,7 @@ add_binding_type(struct apply_pipeline_layout_state *state,
         set_layout->binding[binding].type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
         set_layout->binding[binding].type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK ||
         set_layout->binding[binding].type == VK_DESCRIPTOR_TYPE_MUTABLE_EXT) &&
-       (type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-        type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK))
+       type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
       state->set[set].binding[binding].properties |= BINDING_PROPERTY_PUSHABLE;
 }
 

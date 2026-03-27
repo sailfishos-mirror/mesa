@@ -243,8 +243,7 @@ try_lower_load_vulkan_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
 
    nir_intrinsic_instr *idx_intrin = nir_src_as_intrinsic(intrin->src[0]);
    if (idx_intrin == NULL || !is_idx_intrin(idx_intrin)) {
-      assert(desc_type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER ||
-             desc_type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+      assert(desc_type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
       return false;
    }
 
@@ -580,8 +579,7 @@ lower_ssbo_resource_index(nir_builder *b, nir_intrinsic_instr *intrin,
                           const struct lower_descriptors_ctx *ctx)
 {
    const VkDescriptorType desc_type = nir_intrinsic_desc_type(intrin);
-   if (desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER &&
-       desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+   if (desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
       return false;
 
    b->cursor = nir_instr_remove(&intrin->instr);
@@ -647,8 +645,7 @@ lower_ssbo_resource_reindex(nir_builder *b, nir_intrinsic_instr *intrin,
                             const struct lower_descriptors_ctx *ctx)
 {
    const VkDescriptorType desc_type = nir_intrinsic_desc_type(intrin);
-   if (desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER &&
-       desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+   if (desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
       return false;
 
    b->cursor = nir_instr_remove(&intrin->instr);
@@ -672,8 +669,7 @@ lower_load_ssbo_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
                            const struct lower_descriptors_ctx *ctx)
 {
    const VkDescriptorType desc_type = nir_intrinsic_desc_type(intrin);
-   if (desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER &&
-       desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+   if (desc_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
       return false;
 
    b->cursor = nir_instr_remove(&intrin->instr);

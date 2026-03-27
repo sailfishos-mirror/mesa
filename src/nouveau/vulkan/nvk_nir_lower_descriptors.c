@@ -72,8 +72,6 @@ descriptor_type_is_ubo(VkDescriptorType desc_type)
 {
    switch (desc_type) {
    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-   case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
       return true;
 
    default:
@@ -86,7 +84,6 @@ descriptor_type_is_ssbo(VkDescriptorType desc_type)
 {
    switch (desc_type) {
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
       return true;
 
    default:

@@ -64,15 +64,10 @@ addr_format_for_desc_type(VkDescriptorType desc_type,
 {
    switch (desc_type) {
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
       return state->ssbo_addr_format;
 
    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
       return state->ubo_addr_format;
-
-   case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
-      return nir_address_format_32bit_index_offset;
 
    default:
       UNREACHABLE("Unsupported descriptor type");
