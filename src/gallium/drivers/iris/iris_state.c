@@ -6821,12 +6821,27 @@ emit_wa_18020335297_dummy_draw(struct iris_batch *batch)
    }
 }
 
+#if INTEL_WA_14024997852_GFX_VER
+static void
+setup_ff_mode_autostrip(struct iris_context *ice,
+                        struct iris_batch *batch,
+                        bool enable)
+{
+   struct mi_builder b;
+   mi_builder_init(&b, batch->screen->devinfo, batch);
+   mi_builder_set_mocs(&b, isl_mocs(&batch->screen->isl_dev, 0, false));
+   mi_builder_set_write_check(&b, true);
+
+   mi_set_autostrip_state(&b, enable);
+}
+#endif
+
 static void
 setup_autostrip_state(struct iris_context *ice,
                       struct iris_batch *batch,
                       bool enable)
 {
-#if GFX_VERx10 >= 200
+#if INTEL_WA_14024997852_GFX_VER
    if (ice->state.autostrip_state != enable) {
       iris_emit_pipe_control_flush(batch,
                                    "Wa_14024997852",
@@ -6839,11 +6854,8 @@ setup_autostrip_state(struct iris_context *ice,
          vfl.PartialAutostripDisableMask = true;
       }
       /* TE and Mesh. */
-      iris_emit_reg(batch, GENX(FF_MODE), ff) {
-         ff.TEAutostripDisable = !enable;
-         ff.MeshShaderAutostripDisable = !enable;
-         ff.MeshShaderPartialAutostripDisable = !enable;
-      }
+      setup_ff_mode_autostrip(ice, batch, enable);
+
       ice->state.autostrip_state = enable;
    }
 #endif
