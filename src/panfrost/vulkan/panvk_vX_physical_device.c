@@ -635,8 +635,10 @@ panvk_per_arch(get_physical_device_features)(
       /* VK_ARM_scheduling_controls */
       .schedulingControls = PAN_ARCH >= 10,
 
+#ifdef PANVK_USE_WSI_PLATFORM
       /* KHR_swapchain_maintenance1 */
       .swapchainMaintenance1 = true,
+#endif
 
       /* VK_EXT_multisampled_render_to_single_sampled */
       .multisampledRenderToSingleSampled = true,
