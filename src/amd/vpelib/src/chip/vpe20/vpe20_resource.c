@@ -1836,16 +1836,7 @@ int32_t vpe20_program_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe
 {
 
     struct dpp           *dpp       = vpe_priv->resource.dpp[pipe_idx];
-    struct mpc           *mpc       = vpe_priv->resource.mpc[pipe_idx];
     struct vpe_cmd_input *cmd_input = &cmd_info->inputs[cmd_input_idx];
-
-    struct mpcc_blnd_cfg blndcfg = {0};
-    enum mpc_mpccid      mpccid  = pipe_idx;
-    enum mpc_mux_topsel  topsel;
-    enum mpc_mux_outmux  outmux;
-    enum mpc_mux_botsel  botsel;
-    enum mpc_mux_oppid   oppid;
-    enum mpcc_blend_mode blend_mode;
 
     vpe_priv->fe_cb_ctx.vpe_priv          = vpe_priv;
     vpe_priv->fe_cb_ctx.stream_idx        = cmd_input->stream_idx;
@@ -1857,15 +1848,7 @@ int32_t vpe20_program_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe
         &vpe_priv->config_writer, &vpe_priv->fe_cb_ctx, vpe_frontend_config_callback);
     config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, pipe_idx);
 
-    // out mux depends on cmd type (blend vs composition)
-    vpe20_build_mpcc_mux_params(vpe_priv, cmd_info->ops, pipe_idx, cmd_info->num_inputs, &topsel,
-        &botsel, &outmux, &oppid, &blend_mode);
-    build_blend_cnfg(
-        vpe_priv, stream_ctx, cmd_input, cmd_info->ops, blend_mode, pipe_idx, &blndcfg);
-
-    mpc->funcs->program_mpcc_mux(mpc, mpccid, topsel, botsel, outmux, oppid);
     dpp->funcs->set_frame_scaler(dpp, &cmd_input->scaler_data);
-    mpc->funcs->program_mpcc_blending(mpc, pipe_idx, &blndcfg);
 
     config_writer_complete(&vpe_priv->config_writer);
 
@@ -1980,7 +1963,14 @@ int32_t vpe20_program_frontend_segment(
     uint32_t                 hw_mult           = 0;
     enum lut3d_type          lut3d_type        = vpe_get_stream_lut3d_type(stream_ctx);
     bool                     is_enabled_precsc = false;
-    enum mpc_mpccid          mpccid            = pipe_idx;
+
+    struct mpcc_blnd_cfg blndcfg = {0};
+    enum mpc_mpccid      mpccid  = pipe_idx;
+    enum mpc_mux_topsel  topsel;
+    enum mpc_mux_outmux  outmux;
+    enum mpc_mux_botsel  botsel;
+    enum mpc_mux_oppid   oppid;
+    enum mpcc_blend_mode blend_mode;
 
     vpe_priv->fe_cb_ctx.vpe_priv          = vpe_priv;
     vpe_priv->fe_cb_ctx.stream_idx        = cmd_input->stream_idx;
@@ -1992,6 +1982,12 @@ int32_t vpe20_program_frontend_segment(
         &vpe_priv->config_writer, &vpe_priv->fe_cb_ctx, vpe_frontend_config_callback);
     config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, pipe_idx);
 
+    // out mux depends on cmd type (blend vs composition)
+    vpe20_build_mpcc_mux_params(vpe_priv, cmd_info->ops, pipe_idx, cmd_info->num_inputs, &topsel,
+        &botsel, &outmux, &oppid, &blend_mode);
+    build_blend_cnfg(
+        vpe_priv, stream_ctx, cmd_input, cmd_info->ops, blend_mode, pipe_idx, &blndcfg);
+
     // Due to MPS algorithm, you may have two streams in a single build command,
     // where one of the streams requires tone mapping and the pipe processing that
     // stream has changed since the previous command. Thus there is a need for per
@@ -2002,6 +1998,9 @@ int32_t vpe20_program_frontend_segment(
         mpc->funcs->attach_3dlut_to_mpc_inst(mpc, pipe_idx);
         mpc->funcs->shaper_bypass(mpc, false);
     }
+
+    mpc->funcs->program_mpcc_mux(mpc, mpccid, topsel, botsel, outmux, oppid);
+    mpc->funcs->program_mpcc_blending(mpc, pipe_idx, &blndcfg);
 
     cdc_fe->funcs->program_viewport(
         cdc_fe, &cmd_input->scaler_data.viewport, &cmd_input->scaler_data.viewport_c);
