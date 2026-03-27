@@ -2599,6 +2599,17 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
 #undef SETUP_PROVOKING_VERTEX
 
 #if INTEL_WA_14024997852_GFX_VER
+static void
+setup_ff_mode_autostrip(struct anv_cmd_buffer *cmd_buffer, bool enable)
+{
+   struct mi_builder b;
+   mi_builder_init(&b, cmd_buffer->device->info, &cmd_buffer->batch);
+   mi_builder_set_mocs(&b, isl_mocs(&cmd_buffer->device->isl_dev, 0, false));
+   mi_builder_set_write_check(&b, true);
+
+   mi_set_autostrip_state(&b, enable);
+}
+
 void
 genX(setup_autostrip_state)(struct anv_cmd_buffer *cmd_buffer, bool enable)
 {
@@ -2616,11 +2627,7 @@ genX(setup_autostrip_state)(struct anv_cmd_buffer *cmd_buffer, bool enable)
       vfl.PartialAutostripDisableMask = true;
    }
    /* TE and Mesh. */
-   anv_batch_write_reg(&cmd_buffer->batch, GENX(FF_MODE), ff) {
-      ff.TEAutostripDisable = !enable;
-      ff.MeshShaderAutostripDisable = !enable;
-      ff.MeshShaderPartialAutostripDisable = !enable;
-   }
+   setup_ff_mode_autostrip(cmd_buffer, enable);
 }
 #endif /* INTEL_WA_14024997852_GFX_VER */
 
