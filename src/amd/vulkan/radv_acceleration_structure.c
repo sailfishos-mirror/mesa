@@ -18,8 +18,8 @@
 #include "vk_acceleration_structure.h"
 #include "vk_common_entrypoints.h"
 
-static const uint32_t copy_blas_addrs_spv[] = {
-#include "bvh/copy_blas_addrs.spv.h"
+static const uint32_t copy_addrs_spv[] = {
+#include "bvh/copy_addrs.spv.h"
 };
 
 static const uint32_t copy_spv[] = {
@@ -1174,8 +1174,8 @@ radv_CmdCopyMemoryToAccelerationStructureKHR(VkCommandBuffer commandBuffer,
    /* Wait for the main copy dispatch to finish. */
    vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-   radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_blas_addrs_spv,
-                                sizeof(copy_blas_addrs_spv), sizeof(struct copy_args), flags);
+   radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_addrs_spv,
+                                sizeof(copy_addrs_spv), sizeof(struct copy_args), flags);
 
    radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 256, 1, 1);
 
@@ -1223,8 +1223,8 @@ radv_CmdCopyAccelerationStructureToMemoryKHR(VkCommandBuffer commandBuffer,
    /* Wait for the main copy dispatch to finish. */
    vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-   radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_blas_addrs_spv,
-                                sizeof(copy_blas_addrs_spv), sizeof(struct copy_args), flags);
+   radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_addrs_spv,
+                                sizeof(copy_addrs_spv), sizeof(struct copy_args), flags);
 
    radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 256, 1, 1);
 
