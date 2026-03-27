@@ -1356,6 +1356,14 @@ LLVMpipe driver environment variables
    turns off threading completely. The default value is the number of
    CPU cores present.
 
+.. envvar:: LP_CONTEXT_RESET_FILE
+
+   a file path. If set, contexts using the LOSE_CONTEXT_ON_RESET strategy will
+   check it for the presence and modification time of a file and trigger an
+   emulated device reset if they were created before the last modification time.
+
+   Currently not available on Windows.
+
 VMware SVGA driver environment variables
 ----------------------------------------
 
