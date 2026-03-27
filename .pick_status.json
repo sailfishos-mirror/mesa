@@ -684,7 +684,7 @@
         "description": "r300: don't apply odd macroblock rounding to 3D textures",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0763fb947a338c50eef69f5af6d9a20204ef4b1b",
         "notes": null

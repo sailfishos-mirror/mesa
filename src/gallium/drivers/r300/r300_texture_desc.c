@@ -140,7 +140,9 @@ static unsigned r300_texture_get_stride(struct r300_screen *screen,
 
         /* NPOT textures use stride addressing (TX_PITCH_EN). Keep macro-tiled
          * strides at an even number of macro tiles in X to prevent flakes. */
-        if (tex->tex.macrotile[level] && tex->tex.uses_stride_addressing) {
+        if (tex->b.target != PIPE_TEXTURE_3D &&
+            tex->tex.macrotile[level] &&
+            tex->tex.uses_stride_addressing) {
             width = align(width, tile_width * 2);
         }
 
