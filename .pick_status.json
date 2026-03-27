@@ -2624,7 +2624,7 @@
         "description": "pvr: follow other drivers' practice for copying build ID",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6a42493c94b669108a36d0c83f1ab0c6c67397ba",
         "notes": null
