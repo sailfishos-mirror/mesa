@@ -1584,6 +1584,8 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    ac_fill_compiler_info(info, &device_info, compiler_compat_mode);
 
+   ac_fill_video_info(info, dev);
+
    /* BIG_PAGE is supported since gfx10.3 and requires VRAM. VRAM is only guaranteed
     * with AMDGPU_GEM_CREATE_DISCARDABLE.
     */

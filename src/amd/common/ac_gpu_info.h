@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "amd_family.h"
+#include "ac_video.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -361,6 +362,7 @@ struct radeon_info {
          uint32_t pad;
       } codec_info[8]; /* the number of available codecs */
    } dec_caps, enc_caps;
+   struct ac_video_caps video_caps;
 
    enum vcn_version vcn_ip_version;
    enum sdma_version sdma_ip_version;

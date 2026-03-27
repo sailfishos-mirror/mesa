@@ -147,6 +147,7 @@ amd_common_files = files(
   'ac_vcn_enc.c',
   'ac_uvd_dec.c',
   'ac_video.h',
+  'ac_video.c',
   'ac_video_dec.h',
   'ac_video_dec.c',
 ) + amd_ib_parsers
