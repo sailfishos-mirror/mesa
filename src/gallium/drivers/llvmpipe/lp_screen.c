@@ -391,6 +391,9 @@ llvmpipe_init_screen_caps(struct pipe_screen *screen)
    caps->shader_subgroup_supported_stages = BITFIELD_MASK(MESA_SHADER_MESH_STAGES);
    caps->shader_subgroup_supported_features = PIPE_SHADER_SUBGROUP_FEATURE_MASK;
 
+   /* We just pretend that every size is accelerated */
+   caps->hw_clear_buffer_sizes = ~0;
+
    caps->mesh_shader = true;
 
    caps->mesh.max_task_work_group_total_count = 4194304;

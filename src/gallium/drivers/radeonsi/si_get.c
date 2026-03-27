@@ -179,4 +179,7 @@ void si_init_screen_caps(struct si_screen *sscreen)
    if (sscreen->info.has_timeline_syncobj &&
        !(sscreen->info.userq_ip_mask & BITFIELD_BIT(AMD_IP_GFX)))
       caps->max_timeline_semaphore_difference = UINT64_MAX;
+
+      /* Up to 16 bytes are accelerated */
+   caps->hw_clear_buffer_sizes = 1 | 2 | 4 | 8 | 16;
 }

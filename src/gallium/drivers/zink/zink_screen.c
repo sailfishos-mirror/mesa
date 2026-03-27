@@ -1264,6 +1264,9 @@ zink_init_screen_caps(struct zink_screen *screen)
       caps->shader_subgroup_supported_features = screen->info.subgroup.supportedOperations & PIPE_SHADER_SUBGROUP_FEATURE_MASK;
       caps->shader_subgroup_quad_all_stages = screen->info.subgroup.quadOperationsInAllStages;
    }
+
+   /* Vulkan supports only 4 byte clears */
+   caps->hw_clear_buffer_sizes = 4;
 }
 
 static VkSampleCountFlagBits

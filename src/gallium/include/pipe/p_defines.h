@@ -1154,6 +1154,9 @@ struct pipe_caps {
    uint64_t min_vma;
    uint64_t max_vma;
 
+   /** Which POT pattern sizes are accelerated? This is a bitmask of sizes */
+   uint16_t hw_clear_buffer_sizes;
+
    enum pipe_vertex_input_alignment vertex_input_alignment;
    enum pipe_endian endianness;
    enum pipe_point_size_lower_mode point_size_fixed;
