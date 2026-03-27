@@ -704,7 +704,7 @@
         "description": "r300: fix bias presubtract algebraic transformation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0508db91556242c57029ad538613c2b1ee1969ef",
         "notes": null
