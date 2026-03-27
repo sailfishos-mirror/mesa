@@ -2330,50 +2330,6 @@ bi_emit_load_const(bi_builder *b, nir_load_const_instr *instr)
    }
 }
 
-
-static bool
-bi_byte_swizzle_from_nir_swizzle(unsigned *channels, unsigned comps,
-                                 enum bi_swizzle *out_swizzle)
-{
-   assert(comps == 4 || comps == 2);
-   unsigned index = 0;
-   for (unsigned i = 0; i < 4; i++) {
-      index = (index << 2) + channels[i * comps / 4];
-   }
-   switch (index) {
-#define B(b0, b1, b2, b3)                                                      \
-   case ((b0) << 6) | ((b1) << 4) | ((b2) << 2) | (b3):                        \
-      *out_swizzle = BI_SWIZZLE_B##b0##b1##b2##b3;                             \
-      return true;
-      B(0, 1, 0, 1);
-      B(0, 1, 2, 3);
-      B(2, 3, 0, 1);
-      B(2, 3, 2, 3);
-      B(0, 0, 0, 0);
-      B(1, 1, 1, 1);
-      B(2, 2, 2, 2);
-      B(3, 3, 3, 3);
-      B(0, 0, 1, 1);
-      B(2, 2, 3, 3);
-      B(1, 0, 3, 2);
-      B(3, 2, 1, 0);
-      B(0, 0, 2, 2);
-      B(1, 1, 0, 0);
-      B(2, 2, 0, 0);
-      B(3, 3, 0, 0);
-      B(2, 2, 1, 1);
-      B(3, 3, 1, 1);
-      B(1, 1, 2, 2);
-      B(3, 3, 2, 2);
-      B(0, 0, 3, 3);
-      B(1, 1, 3, 3);
-      B(1, 1, 2, 3);
-#undef B
-   default:
-      return false;
-   }
-}
-
 static bi_index
 bi_alu_src_index(bi_builder *b, nir_alu_src src, unsigned comps)
 {
@@ -2407,12 +2363,15 @@ bi_alu_src_index(bi_builder *b, nir_alu_src src, unsigned comps)
       idx.swizzle = BI_SWIZZLE_B0000 + (src.swizzle[0] & 3);
    } else if (bitsize == 8) {
       if (comps == 2 || comps == 4) {
+         /* For a vec2, place the two components in 0 and 2 instead of
+          * 0 and 1.  For a scalar, splat it out to all channels.
+          */
          unsigned c[4] = {0};
-         for (unsigned i = 0; i < comps; ++i)
-            c[i] = src.swizzle[i] & 3;
+         for (unsigned i = 0; i < 4; ++i)
+            c[i] = src.swizzle[i * comps / 4] & 3;
 
          enum bi_swizzle swizzle;
-         if (bi_byte_swizzle_from_nir_swizzle(c, comps, &swizzle)) {
+         if (bi_swizzle_from_byte_channels(c, &swizzle)) {
             idx.swizzle = swizzle;
             return idx;
          }
