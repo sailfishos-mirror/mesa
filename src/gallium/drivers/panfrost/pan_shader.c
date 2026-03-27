@@ -143,6 +143,8 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
          NIR_PASS(_, s, nir_lower_texcoord_replace_late,
                   key->fs.sprite_coord_enable,
                   true /* point coord is sysval */);
+         /* Lower load_point_coord if present */
+         NIR_PASS(_, s, pan_nir_lower_var_special_pan);
       }
 
       if (key->fs.clip_plane_enable) {

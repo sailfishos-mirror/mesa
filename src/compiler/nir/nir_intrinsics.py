@@ -1671,6 +1671,13 @@ load("var_buf_pan", [1, 2], [SRC_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDE
 # src[] = { offset }
 load("var_buf_flat_pan", [1], [SRC_TYPE, IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
 
+# Panfrost-specific intrinsic to load special varyings, can load point coords
+# and frag_[zw] at specific barycentric coordinates.
+# src[] = { barycoord }
+# FLAGS is enum bi_varying_name
+intrinsic("load_var_special_pan", src_comp=[2], dest_comp=0, bit_sizes=[32],
+          indices=[FLAGS], flags=[CAN_ELIMINATE, CAN_REORDER])
+
 # Panfrost-specific intrinsic to load the shader_output special-FAU value on 5th Gen.
 intrinsic("load_shader_output_pan", dest_comp=1, src_comp=[], bit_sizes=[32],
           indices=[], flags=[CAN_REORDER, CAN_ELIMINATE])
@@ -1704,11 +1711,6 @@ system_value("raw_vertex_offset_pan", 1)
 store("raw_output_pan", [], [IO_SEMANTICS, BASE])
 store("combined_output_pan", [1, 1, 1, 4], [IO_SEMANTICS, COMPONENT, SRC_TYPE, DEST_TYPE])
 load("raw_output_pan", [1], [IO_SEMANTICS], [CAN_ELIMINATE, CAN_REORDER])
-
-# Like the frag_coord_zw intrinsic, but takes a barycentric. This is needed for
-# noperspective lowering.
-# src[] = { barycoord }
-intrinsic("load_frag_coord_zw_pan", [2], dest_comp=1, indices=[COMPONENT], flags=[CAN_ELIMINATE, CAN_REORDER], bit_sizes=[32])
 
 # Loads the sampler paramaters <min_lod, max_lod, lod_bias>
 # src[] = { sampler_index }

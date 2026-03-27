@@ -4,6 +4,7 @@
  */
 
 #include "compiler/nir/nir_builder.h"
+#include "bi_opcodes.h"
 #include "pan_nir.h"
 
 /* Mali only provides instructions to fetch varyings with either flat or
@@ -207,7 +208,8 @@ lower_noperspective_fs(nir_builder *b, nir_intrinsic_instr *intrin,
    b->cursor = nir_after_instr(&intrin->instr);
 
    nir_def *bary = intrin->src[0].ssa;
-   nir_def *fragcoord_w = nir_load_frag_coord_zw_pan(b, bary, .component = 3);
+   nir_def *fragcoord_w =
+      nir_load_var_special_pan(b, 1, bary, .flags = BI_VARYING_NAME_FRAG_W);
    if (intrin->def.bit_size == 16)
       fragcoord_w = nir_f2f16(b, fragcoord_w);
 

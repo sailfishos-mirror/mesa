@@ -51,7 +51,7 @@ bool pan_nir_lower_vertex_id(nir_shader *shader);
 
 bool pan_nir_lower_image_ms(nir_shader *shader);
 
-bool pan_nir_lower_frag_coord_zw(nir_shader *shader);
+bool pan_nir_lower_var_special_pan(nir_shader *shader);
 bool pan_nir_lower_noperspective_vs(nir_shader *shader);
 bool pan_nir_lower_noperspective_fs(nir_shader *shader);
 

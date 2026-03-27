@@ -861,6 +861,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_barycentric_coord_at_offset:
    case nir_intrinsic_load_var_pan:
    case nir_intrinsic_load_var_buf_pan:
+   case nir_intrinsic_load_var_special_pan:
    case nir_intrinsic_load_persp_center_rhw_ir3:
    case nir_intrinsic_load_input_attachment_coord:
    case nir_intrinsic_interp_deref_at_offset:
@@ -874,7 +875,6 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_frag_coord:
    case nir_intrinsic_load_frag_coord_z:
    case nir_intrinsic_load_frag_coord_w:
-   case nir_intrinsic_load_frag_coord_zw_pan:
    case nir_intrinsic_load_frag_coord_unscaled_ir3:
    case nir_intrinsic_load_frag_coord_gmem_ir3:
    case nir_intrinsic_load_pixel_coord:

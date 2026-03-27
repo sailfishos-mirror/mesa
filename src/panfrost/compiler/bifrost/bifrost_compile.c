@@ -1729,23 +1729,28 @@ bi_emit_atomic_i32_to(bi_builder *b, bi_index dst, bi_index addr, bi_index arg,
 }
 
 static void
-bi_emit_load_frag_coord_zw_pan(bi_builder *b, nir_intrinsic_instr *instr)
+bi_emit_load_var_special_pan(bi_builder *b, nir_intrinsic_instr *instr)
 {
    bi_index dst = bi_def_index(&instr->def);
-   unsigned channel = nir_intrinsic_component(instr);
+   enum bi_varying_name var_name = nir_intrinsic_flags(instr);
    nir_intrinsic_instr *bary = nir_src_as_intrinsic(instr->src[0]);
 
    enum bi_sample sample = bi_interp_for_intrinsic(bary->intrinsic);
    bi_index src0 = bi_varying_src0_for_barycentric(b, bary);
+   unsigned nr = instr->num_components;
+   assert(instr->def.bit_size == 32);
+
 
    /* .explicit is not supported with frag_z */
-   if (channel == 2)
+   if (var_name == BI_VARYING_NAME_FRAG_Z)
       assert(sample != BI_SAMPLE_EXPLICIT);
 
+   /* TODO: v10 adds BI_UPDATE_NONE and v14 introduces store/retrieve updates
+    * and the barycentric coordinate special varying */
    bi_ld_var_special_to(
       b, dst, src0, BI_REGISTER_FORMAT_F32, sample, BI_UPDATE_CLOBBER,
-      (channel == 2) ? BI_VARYING_NAME_FRAG_Z : BI_VARYING_NAME_FRAG_W,
-      BI_VECSIZE_NONE);
+      (enum bi_varying_name) var_name, nr - 1);
+   bi_emit_cached_split_i32(b, dst, nr);
 }
 
 static void
@@ -2179,10 +2184,6 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_mov_i32_to(b, dst, bi_preload(b, 59));
       break;
 
-   case nir_intrinsic_load_frag_coord_zw_pan:
-      bi_emit_load_frag_coord_zw_pan(b, instr);
-      break;
-
    case nir_intrinsic_load_texel_buf_conv_pan:
       assert(b->shader->arch >= 9 &&
              "conv desc is loaded with the texel_buf_addr on Bifrost");
@@ -2269,11 +2270,8 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       break;
    }
 
-   case nir_intrinsic_load_point_coord:
-      bi_ld_var_special_to(b, dst, bi_zero(), BI_REGISTER_FORMAT_F32,
-                           BI_SAMPLE_CENTER, BI_UPDATE_CLOBBER,
-                           BI_VARYING_NAME_POINT, BI_VECSIZE_V2);
-      bi_emit_cached_split_i32(b, dst, 2);
+   case nir_intrinsic_load_var_special_pan:
+      bi_emit_load_var_special_pan(b, instr);
       break;
 
    /* It appears vertex_id is zero-based with Bifrost geometry flows, but
@@ -6183,7 +6181,7 @@ bifrost_postprocess_nir(nir_shader *nir, unsigned gpu_id)
    NIR_PASS(_, nir, nir_lower_var_copies);
    NIR_PASS(_, nir, nir_lower_alu);
    NIR_PASS(_, nir, nir_lower_frag_coord_to_pixel_coord);
-   NIR_PASS(_, nir, pan_nir_lower_frag_coord_zw);
+   NIR_PASS(_, nir, pan_nir_lower_var_special_pan);
 }
 
 void bifrost_lower_texture_nir(nir_shader *nir, unsigned gpu_id)
