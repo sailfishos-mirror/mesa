@@ -97,12 +97,18 @@ poly_nir_passthrough_gs(nir_builder *b, const void *key_)
             .num_slots = num_slots,
          };
 
-         nir_def *val = nir_load_per_vertex_input(b, comps, 32, vertex, offset,
-                                                  .io_semantics = sem);
+         nir_alu_type type = key->output_types[loc];
+         unsigned bit_size = nir_alu_type_get_type_size(type);
+
+         nir_def *val = nir_load_per_vertex_input(b, comps, bit_size, vertex,
+                                                  offset,
+                                                  .io_semantics = sem,
+                                                  .dest_type = type);
 
          for (unsigned c = 0; c < comps; ++c) {
             nir_store_output(b, nir_channel(b, val, c), offset,
-                             .io_semantics = sem, .src_type = nir_type_uint32,
+                             .io_semantics = sem,
+                             .src_type = type,
                              .component = c);
          }
       }

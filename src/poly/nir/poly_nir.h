@@ -67,6 +67,9 @@ struct poly_passthrough_gs_key {
    /* Bit mask of outputs written by the VS/TES, to be passed through */
    uint64_t outputs;
 
+   /* Type of each output varying written by the VS/TES */
+   nir_alu_type output_types[NUM_TOTAL_VARYING_SLOTS];
+
    /* Clip/cull sizes, implies clip/cull written in output */
    uint8_t clip_distance_array_size;
    uint8_t cull_distance_array_size;

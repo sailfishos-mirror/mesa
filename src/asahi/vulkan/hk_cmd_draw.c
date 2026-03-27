@@ -3245,6 +3245,12 @@ hk_handle_passthrough_gs(struct hk_cmd_buffer *cmd, struct agx_draw draw)
       .cull_distance_array_size = last_sw->info.cull_distance_array_size,
    };
 
+   /* We don't care about VS varying types in AGX, just set everything to
+    * uint32 to improve cache hits. */
+   for (uint32_t i = 0; i < NUM_TOTAL_VARYING_SLOTS; i++) {
+      key->output_types[i] = nir_type_uint32;
+   }
+
    if (xfb_outputs) {
       typed_memcpy(key->xfb_stride, last_sw->info.xfb_stride,
                    ARRAY_SIZE(key->xfb_stride));
