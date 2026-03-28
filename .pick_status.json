@@ -854,7 +854,7 @@
         "description": "pco: amend tg4 lowering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "46c9239c11147b835659df2dedaa1e72263b99b2",
         "notes": null
