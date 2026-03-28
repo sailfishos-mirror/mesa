@@ -89,11 +89,48 @@ the host driver as well when building the Venus driver.  Just remember to set
 :envvar:`VK_DRIVER_FILES` when starting the vtest server so that the vtest
 server finds the locally built host driver.
 
-Virtio-GPU
+QEMU
 ----------
 
-The driver requires ``VIRTGPU_PARAM_CONTEXT_INIT`` from the virtio-gpu kernel
-driver, which was upstreamed in kernel 5.16.
+This is how one might want to start QEMU
+
+.. code-block:: sh
+
+ $ ./qemu-system-x86_64                                             \
+       -enable-kvm                                                  \
+       -M q35                                                       \
+       -smp 8                                                       \
+       -m 4G                                                        \
+       -cpu host                                                    \
+       -net nic,model=virtio                                        \
+       -net user,hostfwd=tcp::2222-:22                              \
+       -device virtio-gpu-gl,hostmem=4G,blob=true,venus=true        \
+       -vga none                                                    \
+       -display sdl,gl=on,show-cursor=on                            \
+       -usb -device usb-tablet                                      \
+       -object memory-backend-memfd,id=mem1,size=4G                 \
+       -machine memory-backend=mem1                                 \
+       -hda $IMG
+
+To build QEMU, this is how one might want to configure it
+
+.. code-block:: sh
+
+ $ cd <QEMU source dir>
+ $ mkdir build && cd build
+ $ ../configure                                                     \
+       --prefix=$HOME/.local                                        \
+       --target-list=x86_64-softmmu                                 \
+       --enable-kvm                                                 \
+       --disable-werror                                             \
+       --enable-opengl                                              \
+       --enable-virglrenderer                                       \
+       --enable-gtk                                                 \
+       --enable-sdl
+ $ make -j$(nproc)
+
+crosvm
+----------
 
 crosvm is written in Rust.  To build crosvm, make sure Rust has been installed
 and
