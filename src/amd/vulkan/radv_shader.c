@@ -693,6 +693,7 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
       .lower_invalid_implicit_lod = true,
       .lower_1d = pdev->info.gfx_level == GFX9,
       .optimize_txd = true,
+      .lower_tg4_shadow_to_16bit = pdev->info.compiler_info.has_fma_mix,
    };
 
    NIR_PASS(_, nir, nir_lower_tex, &tex_options);

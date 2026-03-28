@@ -6133,6 +6133,9 @@ typedef struct nir_lower_tex_options {
    /* Optimize txd(coord, ddxy_coarse(coord)) to tex(coord). */
    bool optimize_txd;
 
+   /* If true, lower tg4 shadow compare operations to 16bit. */
+   bool lower_tg4_shadow_to_16bit;
+
    /**
     * Payload data to be sent to callback / filter functions.
     */

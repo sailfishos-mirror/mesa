@@ -1473,6 +1473,18 @@ lower_index_to_offset(nir_builder *b, nir_tex_instr *tex)
    return progress;
 }
 
+static void
+lower_tg4_shadow_to_16bit(nir_builder *b, nir_tex_instr *tex)
+{
+   tex->def.bit_size = 16;
+   tex->dest_type = nir_type_float16;
+
+   b->cursor = nir_after_instr(&tex->instr);
+   nir_def *cvt = nir_f2f32(b, &tex->def);
+
+   nir_def_rewrite_uses_after(&tex->def, cvt);
+}
+
 unsigned
 nir_tex_parse_txd_coords(nir_shader *shader, nir_tex_instr *tex, nir_instr **ddxy_instrs)
 {
@@ -1753,6 +1765,12 @@ nir_lower_tex_block(nir_block *block, nir_builder *b,
       if (options->optimize_txd && tex->op == nir_texop_txd && !sat_mask &&
           nir_shader_supports_implicit_lod(b->shader)) {
          progress |= optimize_txd(b->shader, tex, *prev_terminate_return);
+      }
+
+      if (options->lower_tg4_shadow_to_16bit && tex->op == nir_texop_tg4 &&
+          tex->is_shadow && tex->def.bit_size == 32 && !tex->is_sparse) {
+         lower_tg4_shadow_to_16bit(b, tex);
+         progress = true;
       }
 
       if (tex->op == nir_texop_txd &&
