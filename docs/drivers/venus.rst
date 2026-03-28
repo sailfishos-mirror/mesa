@@ -27,25 +27,24 @@ implementation-defined behaviors to support ``vkMapMemory`` (see `below
 drivers meeting the requirements.  It has only been tested with:
 
 - ANV 21.1 or later
+   - Note: with Intel Meteor Lake or xe driver, you need 6.16+ kernel and 11.0+
+     QEMU with ``-accel kvm,honor-guest-pat=on`` (request to default that on is
+     `here <https://gitlab.com/qemu-project/qemu/-/work_items/3357>`__).
 - RADV 21.1 or later
    - Note: you need 6.13+ kernel that already has
      `KVM: Stop grabbing references to PFNMAP'd pages
      <https://lore.kernel.org/all/20241010182427.1434605-1-seanjc@google.com/>`__.
-   - Note: for dGPU paired with Intel CPU, you need 6.11+ kernel patched with
-     `KVM: VMX: Always honor guest PAT on CPUs that support self-snoop
-     <https://lore.kernel.org/all/20240309010929.1403984-6-seanjc@google.com/>`__,
-     or 6.16+ kernel with VMM to opt-out ``KVM_X86_QUIRK_IGNORE_GUEST_PAT`` (QEMU
-     request is `here <https://gitlab.com/qemu-project/qemu/-/issues/2943>`__).
+   - Note: for dGPU paired with Intel CPU, you need 6.16+ kernel and 11.0+ QEMU
+     with ``-accel kvm,honor-guest-pat=on`` (request to default that on is
+     `here <https://gitlab.com/qemu-project/qemu/-/work_items/3357>`__).
 - Turnip 22.0 or later
 - PanVK 25.1 or later
 - Lavapipe 22.1 or later
 - Mali (Proprietary) r32p0 or later
 - NVIDIA (Proprietary) 570.86 or later
-   - Note: if paired with Intel CPU, you need 6.11+ kernel patched with
-     `KVM: VMX: Always honor guest PAT on CPUs that support self-snoop
-     <https://lore.kernel.org/all/20240309010929.1403984-6-seanjc@google.com/>`__,
-     or 6.16+ kernel with VMM to opt-out ``KVM_X86_QUIRK_IGNORE_GUEST_PAT`` (QEMU
-     request is `here <https://gitlab.com/qemu-project/qemu/-/issues/2943>`__).
+   - Note: if paired with Intel CPU, you need 6.16+ kernel and 11.0+ QEMU with
+     ``-accel kvm,honor-guest-pat=on`` (request to default that on is
+     `here <https://gitlab.com/qemu-project/qemu/-/work_items/3357>`__).
 
 The Venus driver requires supports for
 
