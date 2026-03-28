@@ -37,14 +37,14 @@ drivers meeting the requirements.  It has only been tested with:
    - Note: for dGPU paired with Intel CPU, you need 6.16+ kernel and 11.0+ QEMU
      with ``-accel kvm,honor-guest-pat=on`` (request to default that on is
      `here <https://gitlab.com/qemu-project/qemu/-/work_items/3357>`__).
-- Turnip 22.0 or later
-- PanVK 25.1 or later
-- Lavapipe 22.1 or later
-- Mali (Proprietary) r32p0 or later
 - NVIDIA (Proprietary) 570.86 or later
    - Note: if paired with Intel CPU, you need 6.16+ kernel and 11.0+ QEMU with
      ``-accel kvm,honor-guest-pat=on`` (request to default that on is
      `here <https://gitlab.com/qemu-project/qemu/-/work_items/3357>`__).
+- ARM Mali (Proprietary) r32p0 or later
+- Turnip 22.0 or later
+- PanVK 25.1 or later
+- Lavapipe 22.1 or later
 
 The Venus driver requires supports for
 
@@ -128,11 +128,6 @@ assuming a working system is installed to partition 1 of ``disk.img``.
 
 Optional Requirements
 ---------------------
-
-When virglrenderer is built with ``-Dminigbm_allocation=true``, the Venus
-renderer might need to import GBM BOs.  The imports will fail unless the host
-driver supports the formats, especially multi-planar ones, and the DRM format
-modifiers of the GBM BOs.
 
 In the future, if virglrenderer's ``virgl_renderer_export_fence`` is
 supported, the Venus renderer will require :ext:`VK_KHR_external_fence_fd`
