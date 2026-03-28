@@ -3344,7 +3344,7 @@
         "description": "brw: brw_reg::nr for an accumulator is not part of the offset",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "937373eb25c53b0803e526b7b273afc2b3330752",
         "notes": null
