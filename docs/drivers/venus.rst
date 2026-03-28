@@ -90,7 +90,7 @@ the host driver as well when building the Venus driver.  Just remember to set
 server finds the locally built host driver.
 
 QEMU
-----------
+----
 
 This is how one might want to start QEMU
 
@@ -130,7 +130,7 @@ To build QEMU, this is how one might want to configure it
  $ make -j$(nproc)
 
 crosvm
-----------
+------
 
 crosvm is written in Rust.  To build crosvm, make sure Rust has been installed
 and
@@ -162,6 +162,13 @@ This is how one might want to start crosvm
 
 assuming a working system is installed to partition 1 of ``disk.img``.
 ``sudo`` or ``CAP_NET_ADMIN`` is needed to set up the TAP network device.
+
+Android Cuttlefish
+------------------
+
+Venus isn't supported in the upstream Cuttlefish yet, for ``venus_guest_angle``
+mode used in Mesa CI against Android 16 AOSP, the instruction is
+`here <https://gitlab.freedesktop.org/gfx-ci/android/aosp-manifest/-/blob/android16-release+venus/README.md>`__.
 
 Optional Requirements
 ---------------------
