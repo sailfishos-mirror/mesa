@@ -904,7 +904,7 @@
         "description": "iris: fix a crash in disable_rb_aux_buffer",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ca96f8517cc996915778c6d63d753f4cce63c555",
         "notes": null
