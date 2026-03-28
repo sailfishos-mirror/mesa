@@ -407,19 +407,13 @@ nir_intrinsic_instr *pco_emit_nir_smp(nir_builder *b, pco_smp_params *params)
 static nir_def *
 lower_tex_gather(nir_builder *b, nir_tex_instr *tex, nir_def *raw_data)
 {
-   unsigned swiz[ARRAY_SIZE(tex->tg4_offsets)];
-   for (unsigned u = 0; u < ARRAY_SIZE(tex->tg4_offsets); ++u) {
-      unsigned offset = ARRAY_SIZE(*tex->tg4_offsets) * tex->tg4_offsets[u][0];
-      offset += tex->tg4_offsets[u][1];
-      offset *= ARRAY_SIZE(tex->tg4_offsets);
-      offset += tex->component;
+   assert(!nir_tex_instr_has_explicit_tg4_offsets(tex));
 
-      swiz[u] = offset;
-   }
+#define TG4_SEL(sample) (((sample) * 4) + tex->component)
+   unsigned swiz[] = { TG4_SEL(2), TG4_SEL(3), TG4_SEL(1), TG4_SEL(0) };
+#undef TG4_SEL
 
-   nir_def *result = nir_swizzle(b, raw_data, swiz, ARRAY_SIZE(swiz));
-
-   return result;
+   return nir_swizzle(b, raw_data, swiz, ARRAY_SIZE(swiz));
 }
 
 static nir_def *lower_tex_shadow(nir_builder *b,
