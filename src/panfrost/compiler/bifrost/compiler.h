@@ -1523,6 +1523,7 @@ void va_optimize(bi_context *ctx);
 void va_lower_split_64bit(bi_context *ctx);
 
 void bi_lower_opt_instructions(bi_context *ctx);
+void bi_lower_mkvec_swz(bi_context *ctx);
 
 void bi_iterator_schedule(bi_context *ctx);
 void bi_pressure_schedule(bi_context *ctx);

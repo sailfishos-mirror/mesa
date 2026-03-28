@@ -5352,6 +5352,7 @@ bi_compile_variant_nir(nir_shader *nir,
    }
 
    bi_lower_opt_instructions(ctx);
+   bi_lower_mkvec_swz(ctx);
 
    if (ctx->arch >= 9) {
       va_lower_isel(ctx);
