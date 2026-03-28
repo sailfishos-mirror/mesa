@@ -57,7 +57,10 @@ pub enum KernelArgValue {
     /// cl_ext_buffer_device_address
     BDA(u64),
     SVM(usize),
-    Buffer(Weak<Buffer>),
+    Buffer {
+        buffer: Weak<Buffer>,
+        offset: usize,
+    },
     Constant(Vec<u8>),
     Image(Weak<Image>),
     LocalMem(usize),
@@ -1701,7 +1704,7 @@ impl Kernel {
         // event was processed.
         for arg in arg_values.iter() {
             match arg {
-                Some(KernelArgValue::Buffer(buffer)) => {
+                Some(KernelArgValue::Buffer { buffer, .. }) => {
                     buffer_arcs.insert(
                         // we use the ptr as the key, and also cast it to usize so we don't need to
                         // deal with Send + Sync here.
@@ -1813,7 +1816,7 @@ impl Kernel {
                                     exec_builder.add_pointer(*address);
                                 }
                             }
-                            KernelArgValue::Buffer(buffer) => {
+                            KernelArgValue::Buffer { buffer, offset } => {
                                 let buffer = &buffer_arcs[&(buffer.as_ptr() as usize)];
                                 let rw = if api_arg.spirv.address_qualifier
                                     == clc_kernel_arg_address_qualifier::CLC_KERNEL_ARG_ADDRESS_CONSTANT
@@ -1836,7 +1839,7 @@ impl Kernel {
                                     }
                                 } else {
                                     let res = buffer.get_res_for_access(ctx, rw)?;
-                                    exec_builder.add_global(res, buffer.offset());
+                                    exec_builder.add_global(res, buffer.offset() + offset);
                                 }
                             }
                             &KernelArgValue::SVM(handle) => {

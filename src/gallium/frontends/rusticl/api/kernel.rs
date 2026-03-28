@@ -460,7 +460,10 @@ fn set_kernel_arg(
                         return Err(CL_INVALID_ARG_VALUE);
                     }
 
-                    KernelArgValue::Buffer(Arc::downgrade(&buffer))
+                    KernelArgValue::Buffer {
+                        buffer: Arc::downgrade(&buffer),
+                        offset: 0,
+                    }
                 }
             }
             KernelArgType::MemLocal if !arg.dead => KernelArgValue::LocalMem(arg_size),
