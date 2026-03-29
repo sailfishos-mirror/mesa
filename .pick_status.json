@@ -4974,7 +4974,7 @@
         "description": "st/bitmap: release the temporary bitmap sampler view",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1a5c660ef5b881d4193566a777b150ef912a4f9a",
         "notes": null
