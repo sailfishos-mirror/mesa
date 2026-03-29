@@ -224,6 +224,13 @@ void
 bi_lower_swizzle(bi_context *ctx)
 {
    bi_foreach_instr_global_safe(ctx, ins) {
+      /* bi_lower_mkvec_swz takes care of these and can handle any swizzle */
+      if (ins->op == BI_OPCODE_MKVEC_V2I16 ||
+          ins->op == BI_OPCODE_MKVEC_V4I8 ||
+          ins->op == BI_OPCODE_SWZ_V2I16 ||
+          ins->op == BI_OPCODE_SWZ_V4I8)
+         continue;
+
       bi_foreach_src(ins, s) {
          if (bi_is_null(ins->src[s]))
             continue;
