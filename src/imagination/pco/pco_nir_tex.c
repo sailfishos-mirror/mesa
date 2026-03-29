@@ -370,7 +370,7 @@ nir_intrinsic_instr *pco_emit_nir_smp(nir_builder *b, pco_smp_params *params)
 
    if (params->sample_raw) {
       assert(!params->sample_coeffs);
-      assert(!params->sample_components);
+      assert(params->sample_components >= 1 && params->sample_components <= 4);
       assert(!params->write_data);
 
       nir_def *def = nir_smp_raw_pco(b,
@@ -378,7 +378,8 @@ nir_intrinsic_instr *pco_emit_nir_smp(nir_builder *b, pco_smp_params *params)
                                      params->tex_state,
                                      params->smp_state,
                                      .smp_flags_pco = smp_flags._,
-                                     .range = count);
+                                     .range = count,
+                                     .enabled_channels = params->sample_components);
 
       return nir_def_as_intrinsic(def);
    }
@@ -419,7 +420,7 @@ lower_tex_gather(nir_builder *b, nir_tex_instr *tex, nir_def *raw_data)
 {
    assert(!nir_tex_instr_has_explicit_tg4_offsets(tex));
 
-#define TG4_SEL(sample) (((sample) * 4) + tex->component)
+#define TG4_SEL(sample) (((sample) * (tex->component + 1)) + tex->component)
    unsigned swiz[] = { TG4_SEL(2), TG4_SEL(3), TG4_SEL(1), TG4_SEL(0) };
 #undef TG4_SEL
 
@@ -739,6 +740,7 @@ static bool lower_tex(nir_builder *b, nir_tex_instr *tex, void *cb_data)
 
    case nir_texop_tg4:
       params.sample_raw = true;
+      params.sample_components = tex->component + 1;
       smp = pco_emit_nir_smp(b, &params);
       result = lower_tex_gather(b, tex, &smp->def);
       break;

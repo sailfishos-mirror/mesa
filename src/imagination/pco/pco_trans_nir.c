@@ -1708,7 +1708,9 @@ static pco_instr *lower_smp(trans_ctx *tctx,
       break;
 
    case nir_intrinsic_smp_raw_pco:
-      chans = 4;
+      chans = nir_intrinsic_enabled_channels(intr);
+      /* Shrink the destination to its actual size. */
+      *dest = pco_ref_chans(*dest, chans * 4);
       sb_mode = PCO_SB_MODE_RAWDATA;
       break;
 
