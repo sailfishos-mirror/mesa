@@ -3924,7 +3924,7 @@
         "description": "pan/bi: Use bi_half() for texture MS indices",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ae79f6765a371ca3d6f612bdf607f29ae35101c7",
         "notes": null
