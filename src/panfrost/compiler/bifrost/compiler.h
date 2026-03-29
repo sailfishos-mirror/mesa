@@ -139,6 +139,12 @@ bi_swizzle_to_byte_channels(enum bi_swizzle swizzle, unsigned *channels)
 #undef B
 }
 
+static inline enum bi_swizzle
+bi_swizzle_from_half(bool x, bool y)
+{
+   return (enum bi_swizzle)(BI_SWIZZLE_H00 | (x << 1) | y);
+}
+
 /* Given a packed i16vec2/i8vec4 constant, apply a swizzle. Useful for constant
  * folding and Valhall constant optimization. */
 
@@ -336,7 +342,7 @@ static inline bi_index
 bi_swz_16(bi_index idx, bool x, bool y)
 {
    assert(idx.swizzle == BI_SWIZZLE_H01);
-   idx.swizzle = (enum bi_swizzle)(BI_SWIZZLE_H00 | (x << 1) | y);
+   idx.swizzle = bi_swizzle_from_half(x, y);
    return idx;
 }
 
