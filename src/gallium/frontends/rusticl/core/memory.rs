@@ -1844,6 +1844,7 @@ impl Image {
 
     pub fn fill(
         self: Arc<Self>,
+        dev: &Device,
         pattern: [u32; 4],
         origin: CLVec<usize>,
         region: CLVec<usize>,
@@ -1869,28 +1870,43 @@ impl Image {
 
         // If image is created from a buffer, use clear_image_buffer instead
         Ok(if let Some(Mem::Buffer(parent)) = self.parent() {
-            let strides = (
-                self.image_desc.row_pitch()? as usize,
-                self.image_desc.slice_pitch(),
-            );
-            let offset = parent.apply_offset(CLVec::calc_offset(
-                origin,
-                [pixel_size, strides.0, strides.1],
-            ))?;
+            match self.mem_type {
+                CL_MEM_OBJECT_IMAGE1D_BUFFER => {
+                    let new_pattern = new_pattern
+                        .iter()
+                        .flat_map(|item| item.to_ne_bytes())
+                        .take(pixel_size)
+                        .collect::<Vec<_>>();
+                    let offset = pixel_size * origin[0];
+                    let size = pixel_size * region[0];
+                    parent.fill(dev, new_pattern, offset, size)?
+                }
+                CL_MEM_OBJECT_IMAGE2D => {
+                    let strides = (
+                        self.image_desc.row_pitch()? as usize,
+                        self.image_desc.slice_pitch(),
+                    );
+                    let offset = parent.apply_offset(CLVec::calc_offset(
+                        origin,
+                        [pixel_size, strides.0, strides.1],
+                    ))?;
 
-            let parent = Arc::clone(parent);
-            Box::new(move |_, ctx| {
-                let res = parent.get_res_for_access(ctx, RWFlags::WR)?;
-                ctx.clear_image_buffer(
-                    res,
-                    &new_pattern,
-                    offset.try_into_with_err(CL_OUT_OF_HOST_MEMORY)?,
-                    &region,
-                    strides,
-                    pixel_size,
-                );
-                Ok(())
-            })
+                    let parent = Arc::clone(parent);
+                    Box::new(move |_, ctx| {
+                        let res = parent.get_res_for_access(ctx, RWFlags::WR)?;
+                        ctx.clear_image_buffer(
+                            res,
+                            &new_pattern,
+                            offset.try_into_with_err(CL_OUT_OF_HOST_MEMORY)?,
+                            &region,
+                            strides,
+                            pixel_size,
+                        );
+                        Ok(())
+                    })
+                }
+                _ => return Err(CL_INVALID_OPERATION),
+            }
         } else {
             let bx = create_pipe_box(origin, region, self.mem_type)?;
 

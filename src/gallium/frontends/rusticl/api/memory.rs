@@ -2154,13 +2154,14 @@ fn enqueue_fill_image(
         unsafe { fill_color.cast::<[u32; 4]>().read() }
     };
 
+    let dev = q.device;
     create_and_queue(
         q,
         CL_COMMAND_FILL_BUFFER,
         evs,
         event,
         false,
-        i.fill(fill_color, origin, region)?,
+        i.fill(dev, fill_color, origin, region)?,
     )
 
     //• CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
