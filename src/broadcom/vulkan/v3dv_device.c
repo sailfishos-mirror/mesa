@@ -204,7 +204,9 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .KHR_swapchain_maintenance1           = true,
       .KHR_swapchain_mutable_format         = true,
       .KHR_incremental_present              = true,
+      .KHR_present_id                       = true,
       .KHR_present_id2                      = true,
+      .KHR_present_wait                     = true,
       .KHR_present_wait2                    = true,
 #endif
       .KHR_variable_pointers                = true,
@@ -527,8 +529,14 @@ get_features(const struct v3dv_physical_device *physical_device,
       /* VK_KHR_swapchain_maintenance1 */
       .swapchainMaintenance1 = true,
 
+      /* VK_KHR_present_id */
+      .presentId = true,
+
       /* VK_KHR_present_id2 */
       .presentId2 = true,
+
+      /* VK_KHR_present_wait */
+      .presentWait = true,
 
       /* VK_KHR_present_wait2 */
       .presentWait2 = true,
