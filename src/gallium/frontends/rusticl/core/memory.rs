@@ -6,6 +6,7 @@ use crate::api::types::*;
 use crate::api::util::*;
 use crate::core::context::*;
 use crate::core::device::*;
+use crate::core::event::EventSig;
 use crate::core::format::*;
 use crate::core::gl::*;
 use crate::core::platform::*;
@@ -1832,14 +1833,11 @@ impl Image {
     }
 
     pub fn fill(
-        &self,
-        ctx: &QueueContext,
+        self: Arc<Self>,
         pattern: [u32; 4],
-        origin: &CLVec<usize>,
-        region: &CLVec<usize>,
-    ) -> CLResult<()> {
-        let res = self.get_res_for_access(ctx, RWFlags::WR)?;
-
+        origin: CLVec<usize>,
+        region: CLVec<usize>,
+    ) -> CLResult<EventSig> {
         // make sure we allocate multiples of 4 bytes so drivers don't read out of bounds or
         // unaligned.
         let pixel_size: usize = self.image_format.pixel_size().unwrap().into();
@@ -1860,7 +1858,7 @@ impl Image {
         }
 
         // If image is created from a buffer, use clear_image_buffer instead
-        if let Some(Mem::Buffer(parent)) = self.parent() {
+        Ok(if let Some(Mem::Buffer(parent)) = self.parent() {
             let strides = (
                 self.image_desc.row_pitch()? as usize,
                 self.image_desc.slice_pitch(),
@@ -1870,20 +1868,28 @@ impl Image {
                 [pixel_size, strides.0, strides.1],
             ))?;
 
-            ctx.clear_image_buffer(
-                res,
-                &new_pattern,
-                offset.try_into_with_err(CL_OUT_OF_HOST_MEMORY)?,
-                region,
-                strides,
-                pixel_size,
-            );
+            let parent = Arc::clone(parent);
+            Box::new(move |_, ctx| {
+                let res = parent.get_res_for_access(ctx, RWFlags::WR)?;
+                ctx.clear_image_buffer(
+                    res,
+                    &new_pattern,
+                    offset.try_into_with_err(CL_OUT_OF_HOST_MEMORY)?,
+                    &region,
+                    strides,
+                    pixel_size,
+                );
+                Ok(())
+            })
         } else {
-            let bx = create_pipe_box(*origin, *region, self.mem_type)?;
-            ctx.clear_texture(res, &new_pattern, &bx);
-        }
+            let bx = create_pipe_box(origin, region, self.mem_type)?;
 
-        Ok(())
+            Box::new(move |_, ctx| {
+                let res = self.get_res_for_access(ctx, RWFlags::WR)?;
+                ctx.clear_texture(res, &new_pattern, &bx);
+                Ok(())
+            })
+        })
     }
 
     fn is_mapped_ptr(&self, ptr: *mut c_void) -> bool {

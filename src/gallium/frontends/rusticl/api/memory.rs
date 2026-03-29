@@ -2159,7 +2159,7 @@ fn enqueue_fill_image(
         evs,
         event,
         false,
-        Box::new(move |_, ctx| i.fill(ctx, fill_color, &origin, &region)),
+        i.fill(fill_color, origin, region)?,
     )
 
     //• CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
