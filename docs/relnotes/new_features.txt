@@ -17,6 +17,7 @@ VK_KHR_swapchain_mutable_format on panvk
 VK_EXT_astc_decode_mode on panvk
 VK_KHR_copy_memory_indirect on nvk, RADV/GFX8+
 VK_EXT_color_write_enable on panvk
+VK_EXT_hdr_metadata on v3dv
 VK_EXT_image_view_min_lod on panvk
 VK_EXT_depth_clamp_control on panvk
 VK_VALVE_shader_mixed_float_dot_product on RADV (Vega20, Navi14, RDNA2+)
