@@ -604,7 +604,7 @@
         "description": "gfxstream: Fix vkSetDebugUtilsObjectNameEXT crash for unwrapped objects",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7b50e62179f201279d75700f8c53ad4d28fd4b32",
         "notes": null
