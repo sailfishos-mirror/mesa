@@ -348,7 +348,7 @@ static bool lower_resource_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin
       } else {
          nir_intrinsic_set_image_dim(intrin, glsl_get_sampler_dim(deref->type));
          nir_intrinsic_set_image_array(intrin, glsl_sampler_type_is_array(deref->type));
-         nir_rewrite_image_intrinsic(intrin, desc, true);
+         nir_rewrite_image_intrinsic(intrin, desc, nir_image_intrinsic_type_bindless);
       }
       break;
    }

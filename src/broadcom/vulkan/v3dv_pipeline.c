@@ -831,7 +831,7 @@ lower_image_deref(nir_builder *b,
 
    index = nir_imm_int(b, desc_index);
 
-   nir_rewrite_image_intrinsic(instr, index, false);
+   nir_rewrite_image_intrinsic(instr, index, nir_image_intrinsic_type_default);
 }
 
 static bool

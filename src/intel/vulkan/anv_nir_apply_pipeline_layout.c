@@ -1857,7 +1857,9 @@ lower_image_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
    nir_def *handle =
       build_load_var_deref_surface_handle(b, deref, non_uniform,
                                           &is_bindless, state);
-   nir_rewrite_image_intrinsic(intrin, handle, is_bindless);
+   nir_rewrite_image_intrinsic(intrin, handle,
+                               is_bindless ? nir_image_intrinsic_type_bindless
+                                           : nir_image_intrinsic_type_default);
 
    return true;
 }
@@ -1878,7 +1880,9 @@ lower_image_size_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
    nir_def *handle =
       build_load_var_deref_surface_handle(b, deref, non_uniform,
                                           &is_bindless, state);
-   nir_rewrite_image_intrinsic(intrin, handle, is_bindless);
+   nir_rewrite_image_intrinsic(intrin, handle,
+                               is_bindless ? nir_image_intrinsic_type_bindless
+                                           : nir_image_intrinsic_type_default);
 
    nir_variable *var = nir_deref_instr_get_variable(deref);
    const uint32_t set = var->data.descriptor_set;

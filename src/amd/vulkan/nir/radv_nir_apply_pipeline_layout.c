@@ -335,7 +335,7 @@ update_image_intrinsic(nir_builder *b, apply_layout_state *state, nir_intrinsic_
    if (intrin->intrinsic == nir_intrinsic_image_deref_descriptor_amd) {
       nir_def_replace(&intrin->def, desc);
    } else {
-      nir_rewrite_image_intrinsic(intrin, desc, true);
+      nir_rewrite_image_intrinsic(intrin, desc, nir_image_intrinsic_type_bindless);
    }
 }
 

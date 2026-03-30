@@ -998,7 +998,7 @@ lower_edb_buffer_image_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
          nir_def_rewrite_uses_after(&intrin->def, res);
       }
 
-      nir_rewrite_image_intrinsic(intrin, index, true);
+      nir_rewrite_image_intrinsic(intrin, index, nir_image_intrinsic_type_bindless);
       break;
    }
 
@@ -1027,7 +1027,7 @@ lower_image_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
 
    b->cursor = nir_before_instr(&intrin->instr);
    nir_def *desc = load_resource_deref_desc(b, 1, 32, deref, 0, ctx);
-   nir_rewrite_image_intrinsic(intrin, desc, true);
+   nir_rewrite_image_intrinsic(intrin, desc, nir_image_intrinsic_type_bindless);
 
    /* On pre-Volta hardware, we don't have real null descriptors.  Null
     * descriptors work well enough for sampling but they may not return the

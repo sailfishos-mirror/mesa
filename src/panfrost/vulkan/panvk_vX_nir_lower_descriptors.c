@@ -918,7 +918,8 @@ lower_img_intrinsic(nir_builder *b, nir_intrinsic_instr *intr,
 
       nir_def_replace(&intr->def, res);
    } else {
-      nir_rewrite_image_intrinsic(intr, get_img_index(b, deref, ctx), false);
+      nir_rewrite_image_intrinsic(intr, get_img_index(b, deref, ctx),
+                                  nir_image_intrinsic_type_default);
    }
 
    return true;

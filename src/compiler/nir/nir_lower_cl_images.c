@@ -271,7 +271,7 @@ nir_lower_cl_images(nir_shader *shader, bool lower_image_derefs, bool lower_samp
                b.cursor = nir_before_instr(&intrin->instr);
                /* Back-ends expect a 32-bit thing, not 64-bit */
                nir_def *offset = nir_u2u32(&b, intrin->src[0].ssa);
-               nir_rewrite_image_intrinsic(intrin, offset, false);
+               nir_rewrite_image_intrinsic(intrin, offset, nir_image_intrinsic_type_default);
                progress = true;
                break;
             }

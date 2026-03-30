@@ -148,7 +148,7 @@ lower_image_intrinsic(nir_builder *b,
    nir_deref_instr *deref = nir_src_as_deref(intrin->src[0]);
 
    nir_def *resource = vulkan_resource_from_deref(b, deref, layout, 0);
-   nir_rewrite_image_intrinsic(intrin, resource, true);
+   nir_rewrite_image_intrinsic(intrin, resource, nir_image_intrinsic_type_bindless);
 }
 
 static bool

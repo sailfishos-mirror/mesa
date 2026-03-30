@@ -890,7 +890,7 @@ lower_image_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
       }
 
       index = nir_iadd_imm(b, index, binding_offset);
-      nir_rewrite_image_intrinsic(intrin, index, false);
+      nir_rewrite_image_intrinsic(intrin, index, nir_image_intrinsic_type_default);
    }
 
    return true;

@@ -745,29 +745,7 @@ lower_heaps_image(nir_builder *b, nir_intrinsic_instr *intrin,
    if (heap_offset == NULL)
       return false;
 
-   nir_rewrite_image_intrinsic(intrin, heap_offset, false);
-
-   /* TODO: Roll this into nir_rewrite_image_intrinsic? */
-   switch (intrin->intrinsic) {
-#define CASE(op)                                            \
-   case nir_intrinsic_image_##op:                        \
-      intrin->intrinsic = nir_intrinsic_image_heap_##op; \
-      break;
-   CASE(load)
-   CASE(sparse_load)
-   CASE(store)
-   CASE(atomic)
-   CASE(atomic_swap)
-   CASE(size)
-   CASE(samples)
-   CASE(load_raw_intel)
-   CASE(store_raw_intel)
-   CASE(fragment_mask_load_amd)
-   CASE(store_block_agx)
-#undef CASE
-   default:
-      UNREACHABLE("Unhanded image intrinsic");
-   }
+   nir_rewrite_image_intrinsic(intrin, heap_offset, nir_image_intrinsic_type_heap);
 
    return true;
 }

@@ -400,7 +400,7 @@ lower_preamble(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
          if (ts) {
             nir_rewrite_image_intrinsic(pintr, nir_imm_intN_t(b, base / 2, 16),
-                                        false);
+                                        nir_image_intrinsic_type_default);
          } else if (new_ != NULL &&
                     pintr->intrinsic != nir_intrinsic_bindless_image_agx) {
             nir_src_rewrite(use, new_);

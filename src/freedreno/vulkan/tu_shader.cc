@@ -605,7 +605,8 @@ lower_image_deref(struct tu_device *dev, nir_builder *b,
 {
    nir_deref_instr *deref = nir_src_as_deref(instr->src[0]);
    nir_def *bindless = build_bindless(dev, b, deref, 0, shader, layout, 0, false);
-   nir_rewrite_image_intrinsic(instr, bindless, true);
+   nir_rewrite_image_intrinsic(instr, bindless,
+                               nir_image_intrinsic_type_bindless);
 }
 
 static bool

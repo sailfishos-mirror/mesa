@@ -182,7 +182,8 @@ clc_lower_input_image_deref(nir_builder *b, struct clc_image_lower_context *cont
                }
 
                assert((in_var->data.access & ACCESS_NON_WRITEABLE) == 0);
-               nir_rewrite_image_intrinsic(intrinsic, nir_imm_int(b, image_binding), false);
+               nir_rewrite_image_intrinsic(intrinsic, nir_imm_int(b, image_binding),
+                                           nir_image_intrinsic_type_default);
                break;
             }
 
@@ -205,7 +206,8 @@ clc_lower_input_image_deref(nir_builder *b, struct clc_image_lower_context *cont
                }
 
                assert((in_var->data.access & ACCESS_NON_WRITEABLE) == 0);
-               nir_rewrite_image_intrinsic(intrinsic, nir_imm_int(b, image_binding), false);
+               nir_rewrite_image_intrinsic(intrinsic, nir_imm_int(b, image_binding),
+                                           nir_image_intrinsic_type_default);
                break;
             }
 

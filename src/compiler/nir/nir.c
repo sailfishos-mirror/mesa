@@ -2773,7 +2773,7 @@ nir_system_value_from_intrinsic(nir_intrinsic_op intrin)
 
 void
 nir_rewrite_image_intrinsic(nir_intrinsic_instr *intrin, nir_def *src,
-                            bool bindless)
+                            nir_image_intrinsic_type type)
 {
    enum gl_access_qualifier access = nir_intrinsic_access(intrin);
 
@@ -2796,12 +2796,23 @@ nir_rewrite_image_intrinsic(nir_intrinsic_instr *intrin, nir_def *src,
       explicit_coord = nir_intrinsic_explicit_coord(intrin);
 
    switch (intrin->intrinsic) {
-#define CASE(op)                                                       \
-   case nir_intrinsic_image_deref_##op:                                \
-   case nir_intrinsic_image_##op:                                      \
-   case nir_intrinsic_bindless_image_##op:                             \
-      intrin->intrinsic = bindless ? nir_intrinsic_bindless_image_##op \
-                                   : nir_intrinsic_image_##op;         \
+#define CASE(op)                                                \
+   case nir_intrinsic_image_deref_##op:                         \
+   case nir_intrinsic_image_##op:                               \
+   case nir_intrinsic_bindless_image_##op:                      \
+      switch (type) {                                           \
+      case nir_image_intrinsic_type_default:                    \
+         intrin->intrinsic = nir_intrinsic_image_##op;          \
+         break;                                                 \
+      case nir_image_intrinsic_type_bindless:                   \
+         intrin->intrinsic = nir_intrinsic_bindless_image_##op; \
+         break;                                                 \
+      case nir_image_intrinsic_type_heap:                       \
+         intrin->intrinsic = nir_intrinsic_image_heap_##op;     \
+         break;                                                 \
+      default:                                                  \
+         UNREACHABLE("Invalid nir_image_intrinsic.");           \
+      }                                                         \
       break;
       CASE(load)
       CASE(sparse_load)

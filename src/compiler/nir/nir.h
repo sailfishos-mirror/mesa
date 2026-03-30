@@ -206,6 +206,16 @@ typedef enum {
 } nir_descriptor_type;
 
 /**
+ * NIR image intrinsics variants.
+ */
+typedef enum {
+   nir_image_intrinsic_type_default = 0,
+   nir_image_intrinsic_type_deref = 1,
+   nir_image_intrinsic_type_bindless = 2,
+   nir_image_intrinsic_type_heap = 3,
+} nir_image_intrinsic_type;
+
+/**
  * Rounding modes.
  */
 typedef enum {
@@ -2212,9 +2222,9 @@ nir_intrinsic_has_align(const nir_intrinsic_instr *intrin)
 unsigned
 nir_image_intrinsic_coord_components(const nir_intrinsic_instr *instr);
 
-/* Converts a image_deref_* intrinsic into a image_* one */
+/* Converts an image intrinsic into a different type. */
 void nir_rewrite_image_intrinsic(nir_intrinsic_instr *instr,
-                                 nir_def *handle, bool bindless);
+                                 nir_def *handle, nir_image_intrinsic_type type);
 
 /* Determine if an intrinsic can be arbitrarily reordered and eliminated. */
 bool nir_intrinsic_can_reorder(nir_intrinsic_instr *instr);

@@ -382,7 +382,7 @@ lower_image_intrin(nir_builder *b, nir_intrinsic_instr *intr,
       .access = nir_intrinsic_access(intr) | var->data.access,
       .flags = msl_convert_access_flag(var->data.access));
 
-   nir_rewrite_image_intrinsic(intr, handle, true);
+   nir_rewrite_image_intrinsic(intr, handle, nir_image_intrinsic_type_bindless);
 
    return true;
 }

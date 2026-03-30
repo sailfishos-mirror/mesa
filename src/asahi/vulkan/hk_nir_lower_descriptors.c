@@ -347,8 +347,9 @@ lower_image_intrin(nir_builder *b, nir_intrinsic_instr *intr,
       offs = offsetof(struct hk_storage_image_descriptor, tex);
    }
 
-   nir_rewrite_image_intrinsic(
-      intr, load_image_handle(b, ctx, intr->src[0], offs), true);
+   nir_rewrite_image_intrinsic(intr,
+                               load_image_handle(b, ctx, intr->src[0], offs),
+                               nir_image_intrinsic_type_bindless);
 
    return true;
 }

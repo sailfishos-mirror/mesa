@@ -152,7 +152,7 @@ lower_bindless_image_intr(nir_builder *b, nir_intrinsic_instr *intr, struct dxil
    if (!handle)
       return false;
 
-   nir_rewrite_image_intrinsic(intr, handle, true);
+   nir_rewrite_image_intrinsic(intr, handle, nir_image_intrinsic_type_bindless);
    return true;
 }
 
