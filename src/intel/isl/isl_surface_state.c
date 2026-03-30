@@ -1175,13 +1175,16 @@ isl_genX(buffer_fill_state_s)(const struct isl_device *dev, void *state,
 #endif
 
 #if (GFX_VERx10 >= 75)
-   struct isl_swizzle swz = isl_get_shader_channel_select(info->format,
-                                                          info->swizzle);
+   if (info->format != ISL_FORMAT_RAW) {
+      struct isl_swizzle swz =
+         isl_get_shader_channel_select(info->format,
+                                       info->swizzle);
 
-   s.ShaderChannelSelectRed = (enum GENX(ShaderChannelSelect)) swz.r;
-   s.ShaderChannelSelectGreen = (enum GENX(ShaderChannelSelect)) swz.g;
-   s.ShaderChannelSelectBlue = (enum GENX(ShaderChannelSelect)) swz.b;
-   s.ShaderChannelSelectAlpha = (enum GENX(ShaderChannelSelect)) swz.a;
+      s.ShaderChannelSelectRed = (enum GENX(ShaderChannelSelect)) swz.r;
+      s.ShaderChannelSelectGreen = (enum GENX(ShaderChannelSelect)) swz.g;
+      s.ShaderChannelSelectBlue = (enum GENX(ShaderChannelSelect)) swz.b;
+      s.ShaderChannelSelectAlpha = (enum GENX(ShaderChannelSelect)) swz.a;
+   }
 #endif
 
    GENX(RENDER_SURFACE_STATE_pack)(NULL, state, &s);
