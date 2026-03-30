@@ -672,6 +672,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_image_texel_address:
    case nir_intrinsic_image_deref_texel_address:
    case nir_intrinsic_bindless_image_texel_address:
+   case nir_intrinsic_image_heap_texel_address:
       is_divergent = (src_divergent(instr->src[0], state) &&
                       (nir_intrinsic_access(instr) & ACCESS_NON_UNIFORM)) ||
                      src_divergent(instr->src[1], state) ||
