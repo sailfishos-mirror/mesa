@@ -1211,7 +1211,7 @@ lower_tg4_offsets(nir_builder *b, nir_tex_instr *tex)
       tex_copy->src[tex_copy->num_srcs - 1] = src;
 
       nir_def_init(&tex_copy->instr, &tex_copy->def,
-                   nir_tex_instr_dest_size(tex), 32);
+                   nir_tex_instr_dest_size(tex), tex->def.bit_size);
 
       nir_builder_instr_insert(b, &tex_copy->instr);
 
