@@ -122,6 +122,29 @@ for bsz in [8, 16, 32]:
             ((f'b2f{fsz}', f'a@{bsz}'), (f'b{fsz}csel', a_fsz, 1.0, 0.0)),
         ]
 
+# Bifrost LDEXP.v2f16 takes i16 exponent, while nir_op_ldexp takes i32. Lower
+# to nir_op_ldexp16_pan.
+#
+# From the GLSL 4.60 spec (section 8.3):
+#     "If exp is greater than +128 (single-precision) or +1024
+#     (double-precision), the value returned is undefined. If exp is less
+#     than -126 (single- precision) or -1022 (double-precision), the value
+#     returned may be flushed to zero."
+#
+# So we can't just truncate the exponent. Overflow is undefined behavior, but
+# we need to return signed zero on underflow. If exp32 < INT16_MIN, we can use
+# any 16-bit exponent that's sufficiently small to send all f16 values to zero.
+#
+# If we test exp32 < INT16_MIN directly, the comparison could not be
+# vectorized, so instead we test the upper half.
+# TODO: some possible values for -127 can be encoded as small
+#       immediates on valhall. None of the usable immediates have replicated
+#       i16 lanes, but for example 0xFAFCFDFE would be {-1284,-514}, both of
+#       which are small enough.
+algebraic_late += [
+    (('ldexp', 'a@16', b), ('ldexp16_pan', a, ('b16csel', ('ilt16', ('unpack_32_2x16_split_y', b), -1), -127, ('i2i16', b))))
+]
+
 
 def main():
     parser = argparse.ArgumentParser()
