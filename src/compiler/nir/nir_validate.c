@@ -674,7 +674,9 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
    case nir_intrinsic_bindless_image_atomic:
    case nir_intrinsic_bindless_image_atomic_swap:
    case nir_intrinsic_image_atomic:
-   case nir_intrinsic_image_atomic_swap: {
+   case nir_intrinsic_image_atomic_swap:
+   case nir_intrinsic_image_heap_atomic:
+   case nir_intrinsic_image_heap_atomic_swap: {
       nir_atomic_op op = nir_intrinsic_atomic_op(instr);
 
       enum pipe_format format = image_intrin_format(instr);
