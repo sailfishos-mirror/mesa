@@ -208,7 +208,7 @@ build_instance(inout vk_aabb bounds, VOID_REF src_ptr, VOID_REF dst_ptr, uint32_
       root_flags = VK_BVH_BOX_FLAG_NO_OPAQUE;
    else
       root_flags = DEREF(REF(uint32_t)(instance.accelerationStructureReference + ROOT_FLAGS_OFFSET));
-   DEREF(node).root_flags = root_flags;
+   DEREF(node).root_flags = root_flags | ((~(instance.custom_instance_and_mask >> 24)) << VK_BVH_BOX_FLAGS_INV_CULL_MASK_SHIFT);
 
    return true;
 }

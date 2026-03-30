@@ -119,6 +119,8 @@ struct vk_ir_node {
 /* Box node contains no opaque leaves */
 #define VK_BVH_BOX_FLAG_NO_OPAQUE    0x2
 
+#define VK_BVH_BOX_FLAGS_INV_CULL_MASK_SHIFT 2
+
 struct vk_ir_box_node {
    vk_ir_node base;
    uint32_t children[2];
