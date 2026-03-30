@@ -4,6 +4,7 @@
  */
 
 #include "util/u_memory.h"
+#include "bi_debug.h"
 #include "bi_builder.h"
 #include "compiler.h"
 #include "nodearray.h"

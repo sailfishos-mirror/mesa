@@ -4,6 +4,7 @@
  */
 
 #include "compiler.h"
+#include "bi_debug.h"
 
 /* Assign dependency slots to each clause and calculate dependencies, This pass
  * must be run after scheduling.

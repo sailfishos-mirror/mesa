@@ -4,6 +4,7 @@
  */
 
 #include "util/u_memory.h"
+#include "bi_debug.h"
 #include "compiler.h"
 
 /* Validatation doesn't make sense in release builds */

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "bi_debug.h"
 #include "bi_builder.h"
 #include "compiler.h"
 

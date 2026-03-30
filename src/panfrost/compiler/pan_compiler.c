@@ -6,6 +6,7 @@
 #include "pan_compiler.h"
 #include "pan_nir.h"
 
+#include "bifrost/bi_debug.h"
 #include "bifrost/bifrost_compile.h"
 #include "bifrost/bifrost/disassemble.h"
 #include "bifrost/valhall/disassemble.h"

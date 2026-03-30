@@ -31,6 +31,7 @@ libpanfrost_bifrost_files = files(
   'bi_repair_ssa.c',
   'bi_validate.c',
   'bi_dominance.c',
+  'bi_debug.c',
   'bir.c',
   'bifrost_compile.c',
   'bifrost/bi_opt_message_preload.c',

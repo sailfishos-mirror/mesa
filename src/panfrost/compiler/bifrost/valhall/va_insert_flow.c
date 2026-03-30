@@ -5,6 +5,7 @@
 
 #include "panfrost/lib/pan_props.h"
 
+#include "bi_debug.h"
 #include "bi_builder.h"
 #include "va_compiler.h"
 #include "valhall_enums.h"

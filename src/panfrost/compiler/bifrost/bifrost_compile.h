@@ -18,7 +18,6 @@ struct bifrost_precompiled_kernel_sysvals {
    } num_workgroups;
    uint64_t printf_buffer_address;
 } __attribute__((aligned(8)));
-;
 
 #define BIFROST_PRECOMPILED_KERNEL_SYSVALS_SIZE                                \
    sizeof(struct bifrost_precompiled_kernel_sysvals)
@@ -68,9 +67,6 @@ void bifrost_optimize_nir(nir_shader *nir, unsigned gpu_id);
 void bifrost_postprocess_nir(nir_shader *nir, unsigned gpu_id);
 void bifrost_lower_texture_nir(nir_shader *nir, unsigned gpu_id);
 void bifrost_lower_texture_late_nir(nir_shader *nir, unsigned gpu_id);
-
-bool bifrost_will_dump_shaders(void);
-bool bifrost_want_debug_info(void);
 
 void bifrost_compile_shader_nir(nir_shader *nir,
                                 const struct pan_compile_inputs *inputs,
