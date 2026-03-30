@@ -2307,35 +2307,49 @@ bi_alu_src_index(bi_builder *b, nir_alu_src src, unsigned comps)
    } else if (bitsize == 8 && comps == 1) {
       idx.swizzle = BI_SWIZZLE_B0000 + (src.swizzle[0] & 3);
    } else if (bitsize == 8) {
-      if (comps == 2 || comps == 4) {
-         /* For a vec2, place the two components in 0 and 2 instead of
-          * 0 and 1.  For a scalar, splat it out to all channels.
-          */
-         unsigned c[4] = {0};
-         for (unsigned i = 0; i < 4; ++i)
-            c[i] = src.swizzle[i * comps / 4] & 3;
+      bool has_swizzle = false;
+      enum bi_swizzle swizzle = BI_SWIZZLE_H01;
+      if (comps == 3) {
+         unsigned c[4];
+         for (unsigned i = 0; i < 3; ++i)
+            c[i] = src.swizzle[i] & 3;
 
-         enum bi_swizzle swizzle;
-         if (bi_swizzle_from_byte_channels(c, &swizzle)) {
-            idx.swizzle = swizzle;
-            return idx;
+         /* Try to find a swizzle that starts with the given v3i8 swizzle */
+         for (unsigned i = 0; i < 4; i++) {
+            c[3] = i;
+            if (bi_swizzle_from_byte_channels(c, &swizzle)) {
+               has_swizzle = true;
+               break;
+            }
          }
+      } else {
+         /* For 1 and 2-component, repeat the swizzle to increase the chances
+          * that it's a valid bi_swizzle.
+          */
+         unsigned c[4];
+         for (unsigned i = 0; i < 4; ++i)
+            c[i] = src.swizzle[i % comps] & 3;
+         has_swizzle = bi_swizzle_from_byte_channels(c, &swizzle);
       }
 
-      /* XXX: Use optimized swizzle when posisble */
-      bi_index unoffset_srcs[NIR_MAX_VEC_COMPONENTS] = {bi_null()};
-      unsigned channels[NIR_MAX_VEC_COMPONENTS] = {0};
-
-      for (unsigned i = 0; i < comps; ++i) {
-         unoffset_srcs[i] = bi_src_index(&src.src);
-         channels[i] = src.swizzle[i];
+      if (has_swizzle) {
+         idx.swizzle = swizzle;
+         return idx;
       }
 
-      bi_index temp = bi_temp(b->shader);
-      bi_make_vec_to(b, temp, unoffset_srcs, channels, comps, bitsize);
+      bi_index v4_srcs[4];
+      for (unsigned i = 0; i < comps; i++) {
+         v4_srcs[i] = idx;
+         v4_srcs[i].swizzle = BI_SWIZZLE_B0 + src.swizzle[i];
+      }
+      for (unsigned i = comps; i < 4; i++)
+         v4_srcs[i] = bi_imm_u8(0);
+
+      bi_index temp = bi_mkvec_v4i8(b, v4_srcs[0], v4_srcs[1],
+                                    v4_srcs[2], v4_srcs[3]);
 
       static const enum bi_swizzle swizzle_lut[] = {
-         BI_SWIZZLE_B0000, BI_SWIZZLE_B0011, BI_SWIZZLE_B0123, BI_SWIZZLE_B0123
+         BI_SWIZZLE_B0000, BI_SWIZZLE_B0101, BI_SWIZZLE_B0123, BI_SWIZZLE_B0123
       };
       assert(comps - 1 < ARRAY_SIZE(swizzle_lut));
 
@@ -2345,6 +2359,17 @@ bi_alu_src_index(bi_builder *b, nir_alu_src src, unsigned comps)
       return temp;
    }
 
+   return idx;
+}
+
+static bi_index
+bi_swiz_b01(bi_index idx)
+{
+   enum bi_swizzle swizzle;
+   bool valid = bi_try_compose_swizzles(&swizzle, BI_SWIZZLE_B01, idx.swizzle);
+   assert(valid);
+
+   idx.swizzle = swizzle;
    return idx;
 }
 
@@ -2865,12 +2890,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
    bi_index s2 =
       srcs > 2 ? bi_alu_src_index(b, instr->src[2], comps) : bi_null();
 
-   bool need_post_swizzle = sz == 8 && comps == 2;
-   bi_index post_swizzle_dst = dst;
-   if (need_post_swizzle) {
-      dst = bi_temp(b->shader);
-   }
-
    switch (instr->op) {
    case nir_op_ffma:
       bi_fma_to(b, sz, dst, s0, s1, s2);
@@ -3148,7 +3167,7 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       if (src_sz == 16)
          bi_v2u16_to_v2f16_to(b, dst, s0);
       else if (src_sz == 8)
-         bi_v2u8_to_v2f16_to(b, dst, s0);
+         bi_v2u8_to_v2f16_to(b, dst, bi_swiz_b01(s0));
       break;
 
    case nir_op_u2f32:
@@ -3174,7 +3193,7 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       if (src_sz == 16)
          bi_v2s16_to_v2f16_to(b, dst, s0);
       else if (src_sz == 8)
-         bi_v2s8_to_v2f16_to(b, dst, s0);
+         bi_v2s8_to_v2f16_to(b, dst, bi_swiz_b01(s0));
       break;
 
    case nir_op_i2f32:
@@ -3216,7 +3235,7 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       assert(src_sz == 8 || src_sz == 32);
 
       if (src_sz == 8)
-         bi_v2s8_to_v2s16_to(b, dst, s0);
+         bi_v2s8_to_v2s16_to(b, dst, bi_swiz_b01(s0));
       else
          bi_mov_i32_to(b, dst, s0);
       break;
@@ -3225,7 +3244,7 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       assert(src_sz == 8 || src_sz == 32);
 
       if (src_sz == 8)
-         bi_v2u8_to_v2u16_to(b, dst, s0);
+         bi_v2u8_to_v2u16_to(b, dst, bi_swiz_b01(s0));
       else
          bi_mov_i32_to(b, dst, s0);
       break;
@@ -3439,12 +3458,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
    default:
       fprintf(stderr, "Unhandled ALU op %s\n", nir_op_infos[instr->op].name);
       UNREACHABLE("Unknown ALU op");
-   }
-
-   if (need_post_swizzle) {
-      bi_index srcs[2] = {dst, dst};
-      unsigned channels[2] = {0, 2};
-      bi_make_vec_to(b, post_swizzle_dst, srcs, channels, 2, 8);
    }
 }
 
