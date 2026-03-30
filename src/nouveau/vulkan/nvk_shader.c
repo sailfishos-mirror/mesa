@@ -540,23 +540,35 @@ nvk_compile_nir(struct nvk_device *dev, nir_shader *nir,
    return VK_SUCCESS;
 }
 
-static VkResult
-nvk_shader_upload(struct nvk_device *dev, struct nvk_shader *shader)
+static uint32_t
+nvk_shader_get_hdr_size(struct nvk_device *dev, struct nvk_shader *shader)
+{
+   if (shader->info.stage == MESA_SHADER_COMPUTE)
+      return 0;
+
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+   return pdev->info.cls_eng3d >= TURING_A ? TU102_SHADER_HEADER_SIZE
+                                           : GF100_SHADER_HEADER_SIZE;
+}
+
+static uint32_t
+nvk_shader_get_shader_alignment(struct nvk_device *dev)
 {
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
-
-   uint32_t hdr_size = 0;
-   if (shader->info.stage != MESA_SHADER_COMPUTE) {
-      if (pdev->info.cls_eng3d >= TURING_A)
-         hdr_size = TU102_SHADER_HEADER_SIZE;
-      else
-         hdr_size = GF100_SHADER_HEADER_SIZE;
-   }
 
    /* Fermi   needs 0x40 alignment
     * Kepler+ needs the first instruction to be 0x80 aligned, so we waste 0x30 bytes
     */
-   int alignment = pdev->info.cls_eng3d >= KEPLER_A ? 0x80 : 0x40;
+   return pdev->info.cls_eng3d >= KEPLER_A ? 0x80 : 0x40;
+}
+
+static uint32_t
+nvk_shader_get_shader_size(struct nvk_device *dev, struct nvk_shader *shader,
+                           uint32_t *out_hdr_offset, uint32_t *out_code_offset)
+{
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+   const uint32_t hdr_size = nvk_shader_get_hdr_size(dev, shader);
+   const uint32_t alignment = nvk_shader_get_shader_alignment(dev);
 
    uint32_t total_size = 0;
    if (pdev->info.cls_eng3d >= KEPLER_A &&
@@ -568,12 +580,33 @@ nvk_shader_upload(struct nvk_device *dev, struct nvk_shader *shader)
       total_size = alignment - hdr_size;
    }
 
-   const uint32_t hdr_offset = total_size;
+   if (out_hdr_offset)
+      *out_hdr_offset = total_size;
+
    total_size += hdr_size;
 
-   const uint32_t code_offset = total_size;
-   assert(code_offset % alignment == 0);
+   if (out_code_offset) {
+      *out_code_offset = total_size;
+      assert(*out_code_offset % alignment == 0);
+   }
+
    total_size += shader->code_size;
+
+   return total_size;
+}
+
+static VkResult
+nvk_shader_upload(struct nvk_device *dev, struct nvk_shader *shader)
+{
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+
+   const uint32_t hdr_size = nvk_shader_get_hdr_size(dev, shader);
+   uint32_t hdr_offset;
+   uint32_t code_offset;
+
+   uint32_t total_size = nvk_shader_get_shader_size(dev, shader, &hdr_offset,
+                                                    &code_offset);
+   uint32_t alignment = nvk_shader_get_shader_alignment(dev);
 
    uint32_t data_offset = 0;
    if (shader->data_size > 0) {
