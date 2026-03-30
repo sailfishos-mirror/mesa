@@ -88,26 +88,33 @@ get_load_resource(nir_instr *instr)
       case nir_intrinsic_image_load:
       case nir_intrinsic_image_deref_load:
       case nir_intrinsic_bindless_image_load:
+      case nir_intrinsic_image_heap_load:
       case nir_intrinsic_image_sparse_load:
       case nir_intrinsic_image_deref_sparse_load:
       case nir_intrinsic_bindless_image_sparse_load:
+      case nir_intrinsic_image_heap_sparse_load:
       /* Fragment mask loads. (samples_identical also loads it) */
       case nir_intrinsic_image_fragment_mask_load_amd:
       case nir_intrinsic_image_deref_fragment_mask_load_amd:
       case nir_intrinsic_bindless_image_fragment_mask_load_amd:
+      case nir_intrinsic_image_heap_fragment_mask_load_amd:
       case nir_intrinsic_image_samples_identical:
       case nir_intrinsic_image_deref_samples_identical:
       case nir_intrinsic_bindless_image_samples_identical:
+      case nir_intrinsic_image_heap_samples_identical:
       /* Queries */
       case nir_intrinsic_image_size:
       case nir_intrinsic_image_deref_size:
       case nir_intrinsic_bindless_image_size:
+      case nir_intrinsic_image_heap_size:
       case nir_intrinsic_image_samples:
       case nir_intrinsic_image_deref_samples:
       case nir_intrinsic_bindless_image_samples:
+      case nir_intrinsic_image_heap_samples:
       case nir_intrinsic_image_levels:
       case nir_intrinsic_image_deref_levels:
       case nir_intrinsic_bindless_image_levels:
+      case nir_intrinsic_image_heap_levels:
       /* Other loads. */
       /* load_ubo is ignored because it's usually cheap. */
       case nir_intrinsic_load_ssbo:
