@@ -318,6 +318,10 @@ enum brw_reg_type brw_type_for_base_type(enum glsl_base_type base_type);
 enum brw_reg_type brw_type_for_nir_type(const struct intel_device_info *devinfo,
                                         nir_alu_type type);
 
+struct brw_nir_vectorize_mem_cb_data {
+   const struct intel_device_info *devinfo;
+};
+
 bool brw_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
                                   unsigned bit_size,
                                   unsigned num_components,

@@ -145,9 +145,13 @@ compile_shader(struct anv_device *device,
    /* Do vectorizing here. For some reason when trying to do it in the back
     * this just isn't working.
     */
+   struct brw_nir_vectorize_mem_cb_data vectorize_cb_data = {
+      .devinfo = device->info,
+   };
    nir_load_store_vectorize_options options = {
       .modes = nir_var_mem_ubo | nir_var_mem_ssbo | nir_var_mem_global,
       .callback = brw_nir_should_vectorize_mem,
+      .cb_data = &vectorize_cb_data,
       .robust_modes = (nir_variable_mode)0,
    };
    NIR_PASS(_, nir, nir_opt_load_store_vectorize, &options);

@@ -1181,12 +1181,15 @@ anv_shader_compile_bs(struct anv_device *device,
    nir_shader **resume_shaders = NULL;
    uint32_t num_resume_shaders = 0;
    if (nir->info.stage != MESA_SHADER_COMPUTE) {
+      struct brw_nir_vectorize_mem_cb_data vectorize_cb_data = {
+         .devinfo = devinfo,
+      };
       const nir_lower_shader_calls_options opts = {
          .address_format = nir_address_format_64bit_global,
          .stack_alignment = BRW_BTD_STACK_ALIGN,
          .localized_loads = true,
          .vectorizer_callback = brw_nir_should_vectorize_mem,
-         .vectorizer_data = NULL,
+         .vectorizer_data = &vectorize_cb_data,
          .should_remat_callback = should_remat_cb,
       };
 
