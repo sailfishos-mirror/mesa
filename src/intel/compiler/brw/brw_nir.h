@@ -326,6 +326,24 @@ bool brw_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
                                   nir_intrinsic_instr *high,
                                   void *data);
 
+/**
+ * Gets the size of a nir_load_*_uniform_block_intel after its lowered
+ * by the backend to a block load message, note that page faults can
+ * happen if this is not accounted for when using these intrinsics.
+ */
+static inline unsigned
+brw_uniform_block_size(const struct intel_device_info *devinfo,
+                       unsigned num_components)
+{
+   /* Round up to a supported block size, or to the nearest multiple of
+    * 16 components if its any larger.
+    */
+   return num_components > 8 ? align(num_components, 16)
+      : num_components > 4 ? 8
+      : !devinfo->has_lsc ? 4
+      : num_components;
+}
+
 void brw_nir_optimize(struct brw_pass_tracker *pt);
 
 #define BRW_NIR_FRAG_OUTPUT_INDEX_SHIFT 0
