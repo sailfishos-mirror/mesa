@@ -431,12 +431,6 @@ nvk_queue_create(struct nvk_device *dev,
                                    &queue->draw_cb0);
       if (result != VK_SUCCESS)
          goto fail_exec_ctx;
-
-      result = nvk_upload_queue_fill(dev, &dev->upload,
-                                     queue->draw_cb0->va->addr, 0,
-                                     queue->draw_cb0->size_B);
-      if (result != VK_SUCCESS)
-         goto fail_draw_cb0;
    }
 
    if (queue_family->queue_flags & VK_QUEUE_SPARSE_BINDING_BIT) {
