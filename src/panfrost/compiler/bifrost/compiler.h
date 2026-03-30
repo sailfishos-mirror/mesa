@@ -98,6 +98,9 @@ enum bi_swizzle {
    BI_SWIZZLE_B33 = BI_SWIZZLE_B3333,
 };
 
+bool bi_op_supports_swizzle(enum bi_opcode op, unsigned src,
+                            enum bi_swizzle swizzle, unsigned arch);
+
 static inline void
 bi_swizzle_to_byte_channels(enum bi_swizzle swizzle, unsigned *channels)
 {

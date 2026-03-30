@@ -95,6 +95,15 @@ va_op_swizzles(enum bi_opcode op, unsigned src)
    return swizzles;
 }
 
+bool
+bi_op_supports_swizzle(enum bi_opcode op, unsigned src,
+                       enum bi_swizzle swizzle, unsigned arch)
+{
+   uint32_t supported_swizzles = arch >= 9 ?
+      va_op_swizzles(op, src) : bi_op_swizzles[op][src];
+   return supported_swizzles & BITFIELD_BIT(swizzle);
+}
+
 static void
 lower_swizzle(bi_context *ctx, bi_instr *ins, unsigned src)
 {
@@ -112,9 +121,7 @@ lower_swizzle(bi_context *ctx, bi_instr *ins, unsigned src)
       return;
    }
 
-   uint32_t supported_swizzles = pan_arch(ctx->inputs->gpu_id) >= 9 ?
-      va_op_swizzles(ins->op, src) : bi_op_swizzles[ins->op][src];
-   if (supported_swizzles & (1 << ins->src[src].swizzle))
+   if (bi_op_supports_swizzle(ins->op, src, ins->src[src].swizzle, ctx->arch))
       return;
 
    /* First, try to apply a given swizzle to a constant to clear the
