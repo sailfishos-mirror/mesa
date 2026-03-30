@@ -252,7 +252,7 @@ radv_optimize_nir_algebraic_early(nir_shader *nir)
       NIR_PASS(_, nir, nir_opt_cse);
 
       nir_opt_peephole_select_options peephole_select_options = {
-         .limit = 3,
+         .limit = 8,
          .indirect_load_ok = true,
          .expensive_alu_ok = true,
          .discard_ok = true,
