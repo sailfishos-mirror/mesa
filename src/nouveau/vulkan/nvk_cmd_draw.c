@@ -30,6 +30,7 @@
 #include "nv_push_clc197.h"
 #include "nv_push_clc397.h"
 #include "nv_push_clc597.h"
+#include "nv_push_clc797.h"
 #include "nv_push_clcb97.h"
 #include "nv_push_clcd97.h"
 #include "clc7c0.h"
@@ -532,6 +533,9 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
             P_INLINE_DATA(p, 0);
       }
    }
+
+   if (pdev->info.cls_eng3d >= AMPERE_B)
+      P_IMMD(p, NVC797, SET_ROOT_TABLE_PREFETCH, 0x3f);
 
    if (pdev->info.cls_eng3d >= TURING_A) {
       /* I don't know what these values actually mean.  I just copied them
