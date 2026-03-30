@@ -1657,7 +1657,9 @@ static int amdgpu_cs_submit_ib_userq(struct amdgpu_userq *userq,
    }
    syncobj_signal_list[num_syncobj_to_signal - 1] = ((struct amdgpu_fence*)csc->fence)->syncobj;
 
-   struct drm_amdgpu_userq_fence_info *fence_info;
+   uint16_t num_wait_fences = 256;
+   struct drm_amdgpu_userq_fence_info *fence_info = (struct drm_amdgpu_userq_fence_info*)
+      alloca(num_wait_fences * sizeof(struct drm_amdgpu_userq_fence_info));
    struct drm_amdgpu_userq_wait userq_wait_data = {
       .waitq_id = userq->userq_handle,
       .syncobj_handles = (uintptr_t)syncobj_dependencies_list,
@@ -1668,11 +1670,11 @@ static int amdgpu_cs_submit_ib_userq(struct amdgpu_userq *userq,
       /* Wait for previous writes to complete before reading from these BOs. */
       .bo_write_handles = num_shared_buf_read ? (uintptr_t)shared_buf_kms_handles_read : 0,
       .num_syncobj_timeline_handles = num_syncobj_timeline_dependencies,
-      .num_fences = 0,
+      .num_fences = num_wait_fences,
       .num_syncobj_handles = num_syncobj_dependencies,
       .num_bo_read_handles = num_shared_buf_write,
       .num_bo_write_handles = num_shared_buf_read,
-      .out_fences = (uintptr_t)NULL,
+      .out_fences = (uintptr_t)fence_info,
    };
 
    /*
@@ -1682,14 +1684,6 @@ static int amdgpu_cs_submit_ib_userq(struct amdgpu_userq *userq,
     * To implement this strategy, we use amdgpu_userq_wait() before submitting
     * a job, and amdgpu_userq_signal() after to indicate completion.
     */
-   r = ac_drm_userq_wait(aws->dev, &userq_wait_data);
-   if (r)
-      mesa_loge("amdgpu: getting wait num_fences failed\n");
-
-   fence_info = (struct drm_amdgpu_userq_fence_info*)
-      alloca(userq_wait_data.num_fences * sizeof(struct drm_amdgpu_userq_fence_info));
-   userq_wait_data.out_fences = (uintptr_t)fence_info;
-
    r = ac_drm_userq_wait(aws->dev, &userq_wait_data);
    if (r)
       mesa_loge("amdgpu: getting wait fences failed\n");
