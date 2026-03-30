@@ -1345,7 +1345,7 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
        * alignment is any lower. */
       .shaderGroupBaseAlignment = 32,
       .shaderGroupHandleCaptureReplaySize = 0,
-      .maxRayDispatchInvocationCount = 1024 * 1024 * 64,
+      .maxRayDispatchInvocationCount = 1 << 30,
       .shaderGroupHandleAlignment = 16,
       .maxRayHitAttributeSize = LVP_RAY_HIT_ATTRIBS_SIZE,
 
