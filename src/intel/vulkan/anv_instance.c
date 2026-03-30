@@ -63,6 +63,27 @@ static const driOptionDescription anv_dri_options[] = {
                      DRI_CONF_ENUM(512,  "512 stackids")
                      DRI_CONF_ENUM(1024, "1024 stackids")
                      DRI_CONF_ENUM(2048, "2048 stackids"))
+      DRI_CONF_OPT_E(dispatch_timeout_counter, 512, 64, 4096,
+                     "Force BTD child dispatches if dispatches do not happen naturally for number of clocks equal to the programmed timeout counter",
+                     DRI_CONF_ENUM(64,    "64 clocks")
+                     DRI_CONF_ENUM(128,   "128 clocks")
+                     DRI_CONF_ENUM(192,   "192 clocks")
+                     DRI_CONF_ENUM(256,   "256 clocks")
+                     DRI_CONF_ENUM(384,   "384 clocks")
+                     DRI_CONF_ENUM(512,   "512 clocks")
+                     DRI_CONF_ENUM(640,   "640 clocks")
+                     DRI_CONF_ENUM(768,   "768 clocks")
+                     DRI_CONF_ENUM(896,   "896 clocks")
+                     DRI_CONF_ENUM(1024,  "1024 clocks")
+                     DRI_CONF_ENUM(1152,  "1152 clocks")
+                     DRI_CONF_ENUM(1280,  "1280 clocks")
+                     DRI_CONF_ENUM(1408,  "1408 clocks")
+                     DRI_CONF_ENUM(1536,  "1536 clocks")
+                     DRI_CONF_ENUM(1664,  "1664 clocks")
+                     DRI_CONF_ENUM(1792,  "1792 clocks")
+                     DRI_CONF_ENUM(1920,  "1920 clocks")
+                     DRI_CONF_ENUM(2048,  "2048 clocks")
+                     DRI_CONF_ENUM(4096,  "4096 clocks"))
       DRI_CONF_ANV_UPPER_BOUND_DESCRIPTOR_POOL_SAMPLER(false)
    DRI_CONF_SECTION_END
 
@@ -300,6 +321,36 @@ anv_init_dri_options(struct anv_instance *instance)
     }
     instance->force_guc_low_latency =
        driQueryOptionb(&instance->dri_options, "force_guc_low_latency");
+
+   instance->dispatch_timeout_counter =
+      driQueryOptioni(&instance->dri_options, "dispatch_timeout_counter");
+   switch(instance->dispatch_timeout_counter) {
+   case 64:
+   case 128:
+   case 192:
+   case 256:
+   case 384:
+   case 512:
+   case 640:
+   case 768:
+   case 896:
+   case 1024:
+   case 1152:
+   case 1280:
+   case 1408:
+   case 1536:
+   case 1664:
+   case 1792:
+   case 1920:
+   case 2048:
+   case 4096:
+      break;
+   default:
+       mesa_logw("Invalid value provided for drirc dispatch_timeout_counter=%u, reverting to 512.",
+                 instance->dispatch_timeout_counter);
+       instance->dispatch_timeout_counter = 512;
+       break;
+   }
 }
 
 VkResult anv_CreateInstance(

@@ -353,12 +353,17 @@ init_common_queue_state(struct anv_queue *queue, struct anv_batch *batch)
 #if GFX_VERx10 >= 125
    if (ANV_SUPPORT_RT && device->info->has_ray_tracing) {
       anv_batch_emit(batch, GENX(3DSTATE_BTD), btd) {
-         /* TODO: This is the timeout after which the bucketed thread
-          *       dispatcher will kick off a wave of threads. We go with the
-          *       lowest value for now. It could be tweaked on a per
-          *       application basis (drirc).
-          */
-         btd.DispatchTimeoutCounter = _64clocks;
+         uint32_t dispatch_timeout_counter =
+            device->physical->instance->dispatch_timeout_counter;
+         uint32_t clamped_timeout_counter =
+            genX(anv_get_btd_dispatch_timeout_counter)(dispatch_timeout_counter);
+#if GFX_VERx10 >= 200
+         btd.DispatchTimeoutCounter = clamped_timeout_counter;
+#else
+         btd.DispatchTimeoutCounter = clamped_timeout_counter & 0x3;
+         btd.DispatchTimeoutCounterExtend = (clamped_timeout_counter >> 2) & 0x3;
+#endif
+
          /* BSpec 43851: "This field must be programmed to 6h i.e. memory
           *               backed buffer must be 128KB."
           */

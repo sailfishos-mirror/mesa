@@ -1872,6 +1872,10 @@ struct anv_instance {
      * Ray tracing configuration.
      */
     unsigned                                    stack_ids;
+    /**
+     * 3DSTATE_BTD dispatch timeout counter configuration.
+     */
+    unsigned                                    dispatch_timeout_counter;
 };
 
 VkResult anv_init_wsi(struct anv_physical_device *physical_device);
