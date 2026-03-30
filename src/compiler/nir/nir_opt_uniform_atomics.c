@@ -61,6 +61,7 @@ parse_atomic(nir_intrinsic_instr *intr, unsigned *offset_src,
    case nir_intrinsic_image_deref_atomic:
    case nir_intrinsic_image_atomic:
    case nir_intrinsic_bindless_image_atomic:
+   case nir_intrinsic_image_heap_atomic:
       *offset_src = 1;
       *offset2_src = *offset_src;
       return true;
