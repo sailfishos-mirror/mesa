@@ -34,6 +34,7 @@ libpanfrost_bifrost_files = files(
   'bi_debug.c',
   'bir.c',
   'bifrost_compile.c',
+  'bifrost_nir.c',
   'bifrost/bi_opt_message_preload.c',
   'bifrost/bi_pack.c',
   'bifrost/bi_schedule.c',

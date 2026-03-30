@@ -1529,6 +1529,11 @@ bi_is_terminal_block(bi_block *block)
 unsigned bi_pack(bi_context *ctx, struct util_dynarray *emission);
 void bi_pack_valhall(bi_context *ctx, struct util_dynarray *emission);
 
+void bi_compile_variant(nir_shader *nir,
+                   const struct pan_compile_inputs *inputs,
+                   struct util_dynarray *binary, struct pan_shader_info *info,
+                   enum bi_idvs_mode idvs);
+
 struct bi_packed_tuple {
    uint64_t lo;
    uint64_t hi;
