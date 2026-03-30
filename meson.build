@@ -115,6 +115,7 @@ with_vulkan_anti_lag_layer = get_option('vulkan-layers').contains('anti-lag')
 with_tools = get_option('tools')
 if with_tools.contains('all')
   with_tools = [
+    'amd',
     'asahi',
     'dlclose-skip',
     'drm-shim',
