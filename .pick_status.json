@@ -3974,7 +3974,7 @@
         "description": "pan/bi: Support more swizzle aliases in the bifrost pack code",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "82328a524519c7b1066837b9a499b37051d55a08",
         "notes": null
