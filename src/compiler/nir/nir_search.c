@@ -71,48 +71,6 @@ static const uint8_t identity_swizzle[NIR_MAX_VEC_COMPONENTS] = {
    15,
 };
 
-/**
- * Check if a source produces a value of the given type.
- *
- * Used for satisfying 'a@type' constraints.
- */
-static bool
-src_is_type(nir_src src, nir_alu_type type)
-{
-   assert(type != nir_type_invalid);
-
-   if (nir_src_is_alu(src)) {
-      nir_alu_instr *src_alu = nir_def_as_alu(src.ssa);
-      nir_alu_type output_type = nir_op_infos[src_alu->op].output_type;
-
-      if (type == nir_type_bool) {
-         switch (src_alu->op) {
-         case nir_op_iand:
-         case nir_op_ior:
-         case nir_op_ixor:
-            return src_is_type(src_alu->src[0].src, nir_type_bool) &&
-                   src_is_type(src_alu->src[1].src, nir_type_bool);
-         case nir_op_inot:
-            return src_is_type(src_alu->src[0].src, nir_type_bool);
-         default:
-            break;
-         }
-      }
-
-      return nir_alu_type_get_base_type(output_type) == type;
-   } else if (nir_src_is_intrinsic(src)) {
-      nir_intrinsic_instr *intr = nir_def_as_intrinsic(src.ssa);
-
-      if (type == nir_type_bool) {
-         return intr->intrinsic == nir_intrinsic_load_front_face ||
-                intr->intrinsic == nir_intrinsic_load_helper_invocation;
-      }
-   }
-
-   /* don't know */
-   return false;
-}
-
 static bool
 nir_op_matches_search_op(nir_op nop, uint16_t sop)
 {
@@ -279,10 +237,6 @@ match_value(const nir_algebraic_table *table,
 
       if (var->cond_index != -1 && !table->variable_cond[var->cond_index](state->state, instr,
                                                                           src, num_components, new_swizzle))
-         return false;
-
-      if (var->type != nir_type_invalid &&
-          !src_is_type(instr->src[src].src, var->type))
          return false;
 
       if (state->variables_seen & (1 << var->variable)) {

@@ -202,7 +202,6 @@ class Value(object):
 % elif isinstance(val, Variable):
       ${val.index}, /* ${val.var_name} */
       ${'true' if val.is_constant else 'false'},
-      ${val.type() or 'nir_type_invalid' },
       ${val.cond_index},
       ${val.swizzle()},
 % elif isinstance(val, Expression):
@@ -295,7 +294,7 @@ class Constant(Value):
 # The $ at the end forces there to be an error if any part of the string
 # doesn't match one of the field patterns.
 _var_name_re = re.compile(r"(?P<const>#)?(?P<name>\w+)"
-                          r"(?:@(?P<type>int|uint|bool|float)?(?P<bits>\d+)?)?"
+                          r"(?P<bits>@\d+)?"
                           r"(?P<cond>\([^\)]+\))?"
                           r"(?P<swiz>\.[xyzwabcdefghijklmnop]+)?"
                           r"$")
@@ -328,28 +327,10 @@ class Variable(Value):
         self.cond = m.group('cond')
         self.cond_index = get_cond_index(
             algebraic_pass.variable_cond, m.group('cond'))
-        self.required_type = m.group('type')
-        self._bit_size = int(m.group('bits')) if m.group('bits') else None
+        self._bit_size = int(m.group('bits')[1:]) if m.group('bits') else None
         self.swiz = m.group('swiz')
 
-        if self.required_type == 'bool':
-            if self._bit_size is not None:
-                assert self._bit_size in type_sizes(self.required_type)
-            else:
-                self._bit_size = 1
-
-        if self.required_type is not None:
-            assert self.required_type in ('float', 'bool', 'int', 'uint')
-
         self.index = varset[self.var_name]
-
-    def type(self):
-        if self.required_type == 'bool':
-            return "nir_type_bool"
-        elif self.required_type in ('int', 'uint'):
-            return "nir_type_int"
-        elif self.required_type == 'float':
-            return "nir_type_float"
 
     def equivalent(self, other):
         """Check that two variables are equivalent.
@@ -821,9 +802,6 @@ class BitSizeValidator(object):
 
             assert val.cond_index == -1, \
                 'Replacement variables must not have a condition.'
-
-            assert not val.required_type, \
-                'Replacement variables must not have a required type.'
 
     def validate(self, search, replace):
         self.is_search = True
@@ -1436,12 +1414,8 @@ def get_expression_def(expr, name, value_comps, variable_map, defs, expr_conds, 
             def_name = f"{name}{len(defs)}"
             num_components = value_comps[expr.index]
 
-            if expr.required_type == "bool":
-                defs.append(
-                    f"nir_def *{def_name} = nir_b2b{bit_size}(b, nir_unit_test_uniform_input(b, {num_components}, 1, {expr.index}));")
-            else:
-                defs.append(
-                    f"nir_def *{def_name} = nir_unit_test_uniform_input(b, {num_components}, {bit_size}, {expr.index});")
+            defs.append(
+                f"nir_def *{def_name} = nir_unit_test_uniform_input(b, {num_components}, {bit_size}, {expr.index});")
 
             variable_map[expr.index] = def_name
         else:
