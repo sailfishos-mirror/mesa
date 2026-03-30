@@ -1362,6 +1362,16 @@ impl DeviceBase {
 }
 
 impl Device {
+    pub fn mem_base_addr_align_bytes(&self) -> usize {
+        // TODO: proper retrieval from the underlying device/screen
+        0x200
+    }
+
+    pub fn mem_base_addr_align_bits(&self) -> u32 {
+        const BITS_PER_BYTE: u32 = 8;
+        (self.mem_base_addr_align_bytes() as u32) * BITS_PER_BYTE
+    }
+
     fn new(screen: PipeScreenWithLdev) -> Option<Device> {
         if !Self::check_valid(&screen) {
             return None;
