@@ -364,6 +364,10 @@ nir_intrinsic_writes_external_memory(const nir_intrinsic_instr *instr)
    case nir_intrinsic_image_deref_store_raw_intel:
    case nir_intrinsic_image_store:
    case nir_intrinsic_image_store_raw_intel:
+   case nir_intrinsic_image_heap_atomic:
+   case nir_intrinsic_image_heap_atomic_swap:
+   case nir_intrinsic_image_heap_store:
+   case nir_intrinsic_image_heap_store_raw_intel:
    case nir_intrinsic_ssbo_atomic:
    case nir_intrinsic_ssbo_atomic_swap:
    case nir_intrinsic_ssbo_atomic_ir3:
@@ -534,7 +538,9 @@ gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
    }
 
    case nir_intrinsic_bindless_image_load:
-   case nir_intrinsic_bindless_image_sparse_load: {
+   case nir_intrinsic_bindless_image_sparse_load:
+   case nir_intrinsic_image_heap_load:
+   case nir_intrinsic_image_heap_sparse_load: {
       enum glsl_sampler_dim dim = nir_intrinsic_image_dim(instr);
       if (dim != GLSL_SAMPLER_DIM_SUBPASS &&
           dim != GLSL_SAMPLER_DIM_SUBPASS_MS)
