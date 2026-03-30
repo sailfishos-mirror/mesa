@@ -1943,8 +1943,10 @@ radv_generate_graphics_state_key(const struct radv_device *device, const struct 
       key.vs.has_prolog = true;
    }
 
-   /* Compile the pre-rasterization stages only when the vertex input interface is missing. */
-   if ((state->shader_stages && VK_SHADER_STAGE_VERTEX_BIT) && !state->vi) {
+   /* Make sure to require a VS prolog when the VS is compiled without the vertex input state (this
+    * can happen with GPL).
+    */
+   if ((state->shader_stages & VK_SHADER_STAGE_VERTEX_BIT) && !state->vi) {
       key.vs.has_prolog = true;
    }
 
