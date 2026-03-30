@@ -216,12 +216,15 @@ can_move_intrinsic(nir_intrinsic_instr *instr, opt_preamble_ctx *ctx)
    case nir_intrinsic_image_levels:
    case nir_intrinsic_image_deref_levels:
    case nir_intrinsic_bindless_image_levels:
+   case nir_intrinsic_image_heap_levels:
    case nir_intrinsic_image_samples:
    case nir_intrinsic_image_deref_samples:
    case nir_intrinsic_bindless_image_samples:
+   case nir_intrinsic_image_heap_samples:
    case nir_intrinsic_image_size:
    case nir_intrinsic_image_deref_size:
    case nir_intrinsic_bindless_image_size:
+   case nir_intrinsic_image_heap_size:
    case nir_intrinsic_vulkan_resource_index:
    case nir_intrinsic_vulkan_resource_reindex:
    case nir_intrinsic_load_vulkan_descriptor:
@@ -241,6 +244,7 @@ can_move_intrinsic(nir_intrinsic_instr *instr, opt_preamble_ctx *ctx)
    case nir_intrinsic_image_load:
    case nir_intrinsic_image_samples_identical:
    case nir_intrinsic_bindless_image_load:
+   case nir_intrinsic_image_heap_load:
    case nir_intrinsic_load_global_bounded:
    case nir_intrinsic_load_ssbo:
    case nir_intrinsic_load_ssbo_intel:
