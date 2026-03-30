@@ -679,7 +679,7 @@ nvk_max_shader_push_dw(const struct nvk_physical_device *pdev,
    if (stage == MESA_SHADER_COMPUTE)
       return 0;
 
-   uint16_t max_dw_count = 8;
+   uint16_t max_dw_count = 9;
 
    if (stage == MESA_SHADER_TESS_CTRL || stage == MESA_SHADER_TESS_EVAL)
       max_dw_count += 2;
@@ -719,12 +719,23 @@ nvk_shader_fill_push(struct nvk_device *dev,
       .type    = type,
    });
 
-   max_dw_count += 3;
+   max_dw_count += 4;
    uint64_t addr = shader->hdr_addr;
    if (pdev->info.cls_eng3d >= VOLTA_A) {
       P_MTHD(p, NVC397, SET_PIPELINE_PROGRAM_ADDRESS_A(idx));
       P_NVC397_SET_PIPELINE_PROGRAM_ADDRESS_A(p, idx, addr >> 32);
       P_NVC397_SET_PIPELINE_PROGRAM_ADDRESS_B(p, idx, addr);
+
+      /* On Ampere B and later, we can be prefetched for up to 127 blocks of a
+       * shader. */
+      if (pdev->info.cls_eng3d >= AMPERE_B) {
+         uint32_t shader_size =
+            nvk_shader_get_shader_size(dev, shader, NULL, NULL);
+         uint32_t shader_prefetch_size_in_blocks =
+            MIN2(DIV_ROUND_UP(shader_size, 256), 127);
+         P_NVC797_SET_PIPELINE_PROGRAM_PREFETCH(p, idx,
+                                                shader_prefetch_size_in_blocks);
+      }
    } else {
       assert(addr < 0xffffffff);
       P_IMMD(p, NV9097, SET_PIPELINE_PROGRAM(idx), addr);
