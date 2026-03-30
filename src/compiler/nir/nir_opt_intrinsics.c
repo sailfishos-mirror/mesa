@@ -491,6 +491,18 @@ try_opt_atomic_exchange_to_store(nir_builder *b, nir_intrinsic_instr *intrin)
                                .access = nir_intrinsic_access(intrin) | ACCESS_ATOMIC | ACCESS_COHERENT,
                                .src_type = image_atomic_type(intrin));
       break;
+   case nir_intrinsic_image_heap_atomic:
+      nir_image_heap_store(b, intrin->src[0].ssa,
+                           intrin->src[1].ssa,
+                           intrin->src[2].ssa,
+                           intrin->src[3].ssa,
+                           nir_imm_int(b, 0),
+                           .image_dim = nir_intrinsic_image_dim(intrin),
+                           .image_array = nir_intrinsic_image_array(intrin),
+                           .format = nir_intrinsic_format(intrin),
+                           .access = nir_intrinsic_access(intrin) | ACCESS_ATOMIC | ACCESS_COHERENT,
+                           .src_type = image_atomic_type(intrin));
+      break;
    default:
       UNREACHABLE("unhandled atomic intrinsic");
    }
@@ -606,6 +618,18 @@ try_opt_atomic_to_load(nir_builder *b, nir_intrinsic_instr *intrin)
                                     .access = nir_intrinsic_access(intrin) | ACCESS_ATOMIC | ACCESS_COHERENT,
                                     .dest_type = image_atomic_type(intrin));
       break;
+   case nir_intrinsic_image_heap_atomic:
+      def = nir_image_heap_load(b, 1, bit_size,
+                                intrin->src[0].ssa,
+                                intrin->src[1].ssa,
+                                intrin->src[2].ssa,
+                                nir_imm_int(b, 0),
+                                .image_dim = nir_intrinsic_image_dim(intrin),
+                                .image_array = nir_intrinsic_image_array(intrin),
+                                .format = nir_intrinsic_format(intrin),
+                                .access = nir_intrinsic_access(intrin) | ACCESS_ATOMIC | ACCESS_COHERENT,
+                                .dest_type = image_atomic_type(intrin));
+      break;
    default:
       UNREACHABLE("unhandled atomic intrinsic");
    }
@@ -677,6 +701,7 @@ opt_intrinsics_intrin(nir_builder *b, nir_intrinsic_instr *intrin)
    case nir_intrinsic_image_deref_atomic:
    case nir_intrinsic_image_atomic:
    case nir_intrinsic_bindless_image_atomic:
+   case nir_intrinsic_image_heap_atomic:
       progress |= try_opt_atomic_isub(b, intrin);
       progress |= try_opt_atomic_to_exchange(b, intrin);
       progress |= try_opt_atomic_exchange_to_store(b, intrin);
