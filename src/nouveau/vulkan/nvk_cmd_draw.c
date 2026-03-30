@@ -33,6 +33,7 @@
 #include "nv_push_clcb97.h"
 #include "nv_push_clcd97.h"
 #include "clc7c0.h"
+#include "clc997.h"
 #include "clcb97.h"
 #include "clcd97.h"
 #include "drf.h"
@@ -315,6 +316,7 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
    P_NV9097_SET_REDUCE_COLOR_THRESHOLDS_SRGB8(p, {
       .all_covered_all_hit_once = 0xff,
    });
+   P_IMMD(p, NV9097, SET_SHADER_CACHE_CONTROL, pdev->info.cls_eng3d >= ADA_A);
 
    if (pdev->info.cls_eng3d < VOLTA_A)
       P_IMMD(p, NV9097, SET_ALPHA_FRACTION, 0x3f);
