@@ -171,7 +171,12 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
       operation->pooling.type = ETHOSU_POOLING_TYPE_MAX;
       break;
    case PIPE_ML_POOLING_TYPE_AVG:
-      operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+      if (ethosu_ml_device(subgraph->base.device)->is_u65 ||
+          ((poperation->pooling.filter_height <= 8) &&
+           (poperation->pooling.filter_width <= 8)))
+         operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+      else
+         operation->pooling.type = ETHOSU_POOLING_TYPE_SUM;
       break;
    default:
       assert(0 && "Unsupported pooling type");
