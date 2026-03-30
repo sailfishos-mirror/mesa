@@ -3954,7 +3954,7 @@
         "description": "pan/bi/ra: Allow offsets on tied sources",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bc17288697f87830f533c2a55ba3503e7423d53a",
         "notes": null
