@@ -91,3 +91,18 @@ executable(
   build_by_default : with_tools.contains('nouveau'),
   install : with_tools.contains('nouveau'),
 )
+
+executable(
+  'nv_mme_method_dumper',
+  'nv_mme_method_dumper.c',
+  include_directories : [inc_include, inc_src],
+  dependencies : [
+    dep_libdrm,
+    idep_mesautil,
+    idep_nvidia_headers,
+    idep_nouveau_mme,
+    idep_nouveau_ws
+  ],
+  build_by_default : with_tools.contains('nouveau'),
+  install : with_tools.contains('nouveau'),
+)
