@@ -89,6 +89,7 @@ static const struct debug_control radv_debug_options[] = {
    {"vm", RADV_DEBUG_VM},
    {"nosmemmitigation", RADV_DEBUG_NO_SMEM_MITIGATION},
    {"fullsync", RADV_DEBUG_FULL_SYNC},
+   {"notmz", RADV_DEBUG_NO_TMZ},
    {NULL, 0},
 };
 

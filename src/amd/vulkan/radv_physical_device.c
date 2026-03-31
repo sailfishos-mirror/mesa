@@ -82,6 +82,17 @@ radv_spm_trace_enabled(const struct radv_physical_device *pdev)
 }
 
 bool
+radv_tmz_enabled(const struct radv_physical_device *pdev)
+{
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   /* TODO: Fix GFX/SDMA rings hang on GFX9 APUs. */
+   const bool radv_supports_tmz = pdev->info.gfx_level >= GFX10 || pdev->info.family == CHIP_VEGA10;
+
+   return pdev->info.has_tmz_support && radv_supports_tmz && !(instance->debug_flags & RADV_DEBUG_NO_TMZ);
+}
+
+bool
 radv_sparse_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
