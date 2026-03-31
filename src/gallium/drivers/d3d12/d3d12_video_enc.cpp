@@ -2435,7 +2435,6 @@ d3d12_video_encoder_create_command_objects(struct d3d12_video_encoder *pD3D12Enc
 
       // Initialize fence for the in flight resource pool slot
       inputResource.m_CompletionFence.reset(d3d12_create_fence_raw(pD3D12Enc->m_spFence.Get(), CompletionFenceValue));
-      inputResource.m_CompletionFence.reset(d3d12_create_fence_raw(pD3D12Enc->m_spLastSliceFence.Get(), CompletionFenceValue));
       CompletionFenceValue++;
    }
 
@@ -3319,6 +3318,9 @@ d3d12_video_encoder_encode_bitstream(struct pipe_video_codec * codec,
                                              &slice_fences,
                                              &last_slice_completion_fence,
                                              feedback);
+   // Release local fence references to prevent leaking pipe fences + event handles each frame
+   if (last_slice_completion_fence)
+      d3d12_fence_reference((struct d3d12_fence **)&last_slice_completion_fence, NULL);
 }
 
 void
