@@ -1799,7 +1799,7 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
    }
 }
 
-#if PAN_ARCH == 10
+#if PAN_ARCH <= 12
 static struct pan_ptr
 csf_emit_fullscreen_dcd(struct panfrost_batch *batch,
                         struct pan_ptr vertex_array, uint64_t resources)
@@ -1819,22 +1819,36 @@ csf_emit_fullscreen_dcd(struct panfrost_batch *batch,
 
       /* Vertex descriptor */
       if (vertex_array.cpu) {
+#if PAN_ARCH >= 12
+         cfg.vertex_pointer = vertex_array.gpu;
+#else
          cfg.vertex_array.packet = true;
          cfg.vertex_array.pointer = vertex_array.gpu;
          cfg.vertex_array.vertex_packet_stride =
             PAN_RUN_FULLSCREEN_PACKET_STRIDE;
          cfg.vertex_array.vertex_attribute_stride =
             PAN_RUN_FULLSCREEN_ATTRIB_STRIDE;
+#endif
       }
 
       /* Depth/stencil and blend descriptor */
+#if PAN_ARCH == 10
       cfg.minimum_z = batch->minimum_z;
       cfg.maximum_z = batch->maximum_z;
+#endif
       cfg.depth_stencil = batch->depth_stencil;
       cfg.blend_count = MAX2(batch->key.nr_cbufs, 1);
       cfg.blend = batch->blend;
 
       /* Shader environment */
+#if PAN_ARCH >= 12
+      cfg.fragment_fau.count = DIV_ROUND_UP(
+         batch->nr_push_uniforms[MESA_SHADER_FRAGMENT], 2);
+      cfg.fragment_resources = resources;
+      cfg.fragment_shader = batch->rsd[MESA_SHADER_FRAGMENT];
+      cfg.thread_storage = batch->tls.gpu;
+      cfg.fragment_fau.pointer = batch->push_uniforms[MESA_SHADER_FRAGMENT];
+#else
       cfg.shader.attribute_offset = 0;
       cfg.shader.fau_count = DIV_ROUND_UP(
          batch->nr_push_uniforms[MESA_SHADER_FRAGMENT], 2);
@@ -1842,6 +1856,7 @@ csf_emit_fullscreen_dcd(struct panfrost_batch *batch,
       cfg.shader.shader = batch->rsd[MESA_SHADER_FRAGMENT];
       cfg.shader.thread_storage = batch->tls.gpu;
       cfg.shader.fau = batch->push_uniforms[MESA_SHADER_FRAGMENT];
+#endif
    }
 
    return dcd;
@@ -1853,7 +1868,7 @@ GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
                                  enum blitter_attrib_type type,
                                  const struct blitter_attrib *attrib)
 {
-#if PAN_ARCH == 10
+#if PAN_ARCH <= 12
    PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
 
    struct cs_builder *b = batch->csf.cs.builder;

@@ -25,7 +25,7 @@ panfrost_blitter_draw_rectangle(struct blitter_context *blitter,
    struct panfrost_context *pctx = pan_context(ctx);
    struct panfrost_screen *scr = pan_screen(ctx->screen);
 
-   if (scr->dev.arch <= 8 || scr->dev.arch >= 11 || depth != 0.0f ||
+   if (scr->dev.arch <= 8 || scr->dev.arch >= 13 || depth != 0.0f ||
        num_instances > 1)
       goto fallback;
 
