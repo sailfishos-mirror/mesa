@@ -360,6 +360,9 @@ program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float8,F
 # (file=input,line=0,column=0,index=0): Unresolved external reference to "_Z21convert_char4_sat_rteDv4_i".
 program@execute@vector-conversion,Fail
 
+# Piglit doesn't check subbuffer alignment requirements
+api@clgetmemobjectinfo,Fail
+
 # piles of new fails since updating skqp; to be re-evaluated with new upstream
 gl_all_bitmap_configs,Fail
 gl_androidblendmodes,Fail

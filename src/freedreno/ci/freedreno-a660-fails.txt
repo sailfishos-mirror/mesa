@@ -114,6 +114,9 @@ api@clgetdeviceinfo,Fail
 # CL_QUEUE_SIZE Unexpected CL error: CL_INVALID_COMMAND_QUEUE -36
 api@clgetcommandqueueinfo,Fail
 
+# Piglit doesn't check subbuffer alignment requirements
+api@clgetmemobjectinfo,Fail
+
 # broken piglit test (doesn't account for FTZ)
 program@execute@builtin@builtin-float-nextafter-1.0.generated,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float1,Fail

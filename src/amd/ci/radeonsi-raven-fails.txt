@@ -63,6 +63,7 @@ program@execute@builtin@builtin-float-sign-1.0.generated@sign float8,Fail
 program@execute@global-offset,Fail
 program@execute@global-offset@3d- input dependent,Fail
 program@execute@vector-conversion,Fail
+api@clgetmemobjectinfo,Fail
 
 # piglit bug, pigligt checks the global limits, but radeonsi advertises
 # only half the threads if the work group size is variable...
