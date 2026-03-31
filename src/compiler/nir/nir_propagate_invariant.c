@@ -89,9 +89,9 @@ propagate_invariant_instr(nir_instr *instr, struct set *invariants)
       break;
    }
 
-   case nir_instr_type_tex: {
-      nir_tex_instr *tex = nir_instr_as_tex(instr);
-      if (def_is_invariant(&tex->def, invariants))
+   case nir_instr_type_tex:
+   case nir_instr_type_deref: {
+      if (def_is_invariant(nir_instr_def(instr), invariants))
          nir_foreach_src(instr, add_src_cb, invariants);
       break;
    }
@@ -132,7 +132,6 @@ propagate_invariant_instr(nir_instr *instr, struct set *invariants)
       break;
    }
 
-   case nir_instr_type_deref:
    case nir_instr_type_jump:
    case nir_instr_type_undef:
    case nir_instr_type_load_const:
