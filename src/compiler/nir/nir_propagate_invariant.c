@@ -22,6 +22,12 @@
  */
 
 #include "nir.h"
+#include "shader_enums.h"
+
+enum var_flags {
+   var_all_invariant = 1 << 0,
+   var_any_invariant = 1 << 2,
+};
 
 static void
 add_src(nir_src *src, struct set *invariants)
@@ -55,28 +61,55 @@ add_cf_node(nir_cf_node *cf, struct set *invariants)
 }
 
 static void
-add_var(nir_variable *var, struct set *invariants)
+add_var(const nir_deref_instr *deref, struct set *invariants, uint8_t *var_invariant)
 {
-   /* Because we pass the result of nir_intrinsic_get_var directly to this
-    * function, it's possible for var to be NULL if, for instance, there's a
-    * cast somewhere in the chain.
+   /* It's possible for var to be NULL if, for instance, there's a cast
+    * somewhere in the chain.
     */
-   if (var != NULL)
+   nir_variable *var = nir_deref_instr_get_variable(deref);
+   unsigned modes = var ? var->data.mode : deref->modes;
+
+   uint8_t flags = 0;
+   if (var && !(var->data.access & ACCESS_NON_WRITEABLE)) {
       _mesa_set_add(invariants, var);
+
+      flags = var_any_invariant;
+   } else if (!var) {
+      flags = var_any_invariant | var_all_invariant;
+   }
+   u_foreach_bit(i, modes)
+      var_invariant[i] |= flags;
 }
 
 static bool
-var_is_invariant(nir_variable *var, struct set *invariants)
+var_is_invariant(const nir_deref_instr *deref, struct set *invariants, uint8_t *var_invariant)
 {
-   /* Because we pass the result of nir_intrinsic_get_var directly to this
-    * function, it's possible for var to be NULL if, for instance, there's a
-    * cast somewhere in the chain.
+   /* It's possible for var to be NULL if, for instance, there's a cast
+    * somewhere in the chain.
     */
-   return var && (var->data.invariant || _mesa_set_search(invariants, var));
+   nir_variable *var = nir_deref_instr_get_variable(deref);
+   unsigned modes = var ? var->data.mode : deref->modes;
+
+   unsigned global_idx = ffs(nir_var_mem_global) - 1;
+   unsigned ssbo_idx = ffs(nir_var_mem_ssbo) - 1;
+   uint8_t flags = 0;
+   u_foreach_bit(i, modes) {
+      flags |= var_invariant[i];
+      if (i == ssbo_idx || i == global_idx)
+         flags |= var_invariant[i == ssbo_idx ? global_idx : ssbo_idx];
+   }
+   if (flags & var_all_invariant)
+      return true;
+
+   if (var) {
+      return var->data.invariant || _mesa_set_search(invariants, var);
+   } else {
+      return flags & var_any_invariant;
+   }
 }
 
 static void
-propagate_invariant_instr(nir_instr *instr, struct set *invariants)
+propagate_invariant_instr(nir_instr *instr, struct set *invariants, uint8_t *var_invariant)
 {
    switch (instr->type) {
    case nir_instr_type_alu: {
@@ -101,17 +134,17 @@ propagate_invariant_instr(nir_instr *instr, struct set *invariants)
       switch (intrin->intrinsic) {
       case nir_intrinsic_copy_deref:
          /* If the destination is invariant then so is the source */
-         if (var_is_invariant(nir_intrinsic_get_var(intrin, 0), invariants))
-            add_var(nir_intrinsic_get_var(intrin, 1), invariants);
+         if (var_is_invariant(nir_src_as_deref(intrin->src[0]), invariants, var_invariant))
+            add_var(nir_src_as_deref(intrin->src[1]), invariants, var_invariant);
          break;
 
       case nir_intrinsic_load_deref:
          if (def_is_invariant(&intrin->def, invariants))
-            add_var(nir_intrinsic_get_var(intrin, 0), invariants);
+            add_var(nir_src_as_deref(intrin->src[0]), invariants, var_invariant);
          break;
 
       case nir_intrinsic_store_deref:
-         if (var_is_invariant(nir_intrinsic_get_var(intrin, 0), invariants))
+         if (var_is_invariant(nir_src_as_deref(intrin->src[0]), invariants, var_invariant))
             add_src(&intrin->src[1], invariants);
          break;
 
@@ -163,16 +196,31 @@ propagate_invariant_impl(nir_function_impl *impl, struct set *invariants)
 {
    bool progress = false;
 
+   uint8_t var_invariant[nir_num_variable_modes] = { 0 };
+
+   nir_foreach_variable_in_shader(var, impl->function->shader) {
+      if (var->data.invariant)
+         var_invariant[ffs(var->data.mode) - 1] |= var_any_invariant;
+   }
+
+   nir_foreach_function_temp_variable(var, impl) {
+      if (var->data.invariant)
+         var_invariant[ffs(var->data.mode) - 1] |= var_any_invariant;
+   }
+
    while (true) {
       uint32_t prev_entries = invariants->entries;
+      uint8_t prev_var_invariant[nir_num_variable_modes];
+      memcpy(prev_var_invariant, var_invariant, sizeof(var_invariant));
 
       nir_foreach_block_reverse(block, impl) {
          nir_foreach_instr_reverse(instr, block)
-            propagate_invariant_instr(instr, invariants);
+            propagate_invariant_instr(instr, invariants, var_invariant);
       }
 
       /* Keep running until we make no more progress. */
-      if (invariants->entries > prev_entries) {
+      if (invariants->entries > prev_entries ||
+          memcmp(prev_var_invariant, var_invariant, sizeof(var_invariant))) {
          progress = true;
          continue;
       } else {
