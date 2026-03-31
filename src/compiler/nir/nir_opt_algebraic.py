@@ -2708,6 +2708,23 @@ optimizations.extend([
                                            127.0))),
      'options->lower_unpack_snorm_4x8'),
 
+    # f2u32(fmul(unpack_*norm_*)). These are exact replacements.
+    # 0x37800080 = 1.0 / 65535.0
+    # 0x3b808081 = 1.0 / 255.0
+    # 0x38000100 = 1.0 / 32767.0
+    # 0x3c010204 = 1.0 / 127.0
+    (('f2u32', ('fmul', ('fmul', ('u2f32', ('extract_u16', 'a@32', b)), 0x37800080), 65535.0)),
+     ('extract_u8', a, b),
+     '!nir_is_rounding_mode_rtz(info->float_controls_execution_mode, 32)'),
+    (('f2u32', ('fmul', ('fmul', ('u2f32', ('extract_u8', 'a@32', b)), 0x3b808081), 255.0)),
+     ('extract_u8', a, b)),
+    (('f2u32', ('fmul', ('fmin', 1.0, ('fmax', -1.0, ('fmul', ('u2f32', ('extract_i16', 'a@32', b)), 0x38000100))), 32767.0)),
+     ('imax', ('extract_i16', a, b), -32767),
+     '!nir_is_rounding_mode_rtz(info->float_controls_execution_mode, 32)'),
+    (('f2u32', ('fmul', ('fmin', 1.0, ('fmax', -1.0, ('fmul', ('u2f32', ('extract_i8', 'a@32', b)), 0x3c010204))), 127.0)),
+     ('imax', ('extract_i8', a, b), -127),
+     '!nir_is_rounding_mode_rtz(info->float_controls_execution_mode, 32)'),
+
    (('pack_half_2x16_split', 'a@32', 'b@32'),
     ('ior', ('ishl', ('u2u32', ('f2f16', b)), 16), ('u2u32', ('f2f16', a))),
     'options->lower_pack_split'),
