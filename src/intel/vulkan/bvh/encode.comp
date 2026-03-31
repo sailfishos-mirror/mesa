@@ -71,8 +71,10 @@ anv_cluster_init(out anv_cluster cluster, uint32_t size)
    subgroupShuffle(value, (gl_SubgroupInvocationID & (~(cluster.size - 1))) + cluster_idx)
 
 void
-encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_accel_struct_header) dst_header)
+encode_leaf_node(uint32_t type, IR_NODE child, uint64_t dst_node, REF(anv_accel_struct_header) dst_header)
 {
+   uint64_t src_node = NODE_OFFSET(child);
+
    if (DEBUG_EXIT_EARLY(type))
       return;
    switch (type) {
@@ -223,8 +225,8 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
       DEREF(dst_instance).part1.instance_id = src.custom_instance_and_mask & 0xffffff;
 
       uint64_t instance_leaves_addr_base = args.instance_leaves_addr;
-      uint64_t cnt = atomicAdd(DEREF(dst_header).instance_count, 1);
-      DEREF(INDEX(uint64_t, instance_leaves_addr_base, cnt)) = dst_node;
+      uint64_t slot = ir_id_to_offset(child) / SIZEOF(vk_ir_instance_node);
+      DEREF(INDEX(uint64_t, instance_leaves_addr_base, slot)) = dst_node;
       break;
    }
    }
@@ -660,8 +662,8 @@ main()
 
             uint32_t type = ir_id_to_type(child);
             if (child != VK_BVH_INVALID_NODE && type != vk_ir_node_internal)
-               encode_leaf_node(type, NODE_OFFSET(child),
-                              BLOCK_OFFSET(child_block), header);
+               encode_leaf_node(type, child, BLOCK_OFFSET(child_block),
+                                header);
          }
 
          BLOCK child_block_offset =
