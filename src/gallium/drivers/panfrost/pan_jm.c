@@ -1036,6 +1036,14 @@ GENX(jm_launch_draw_indirect)(struct panfrost_batch *batch,
 }
 
 void
+GENX(jm_launch_draw_fullscreen)(struct panfrost_batch *batch,
+                                enum blitter_attrib_type type,
+                                const struct blitter_attrib *attrib)
+{
+   UNREACHABLE("draw fullscreen not implemented for jm");
+}
+
+void
 GENX(jm_emit_write_timestamp)(struct panfrost_batch *batch,
                               struct panfrost_resource *dst, unsigned offset)
 {

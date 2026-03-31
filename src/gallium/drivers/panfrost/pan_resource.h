@@ -166,6 +166,8 @@ enum {
    PAN_RENDER_CLEAR = PAN_SAVE_FRAGMENT_STATE | PAN_SAVE_FRAGMENT_CONSTANT,
 };
 
+struct blitter_context *panfrost_blitter_create(struct pipe_context *pipe);
+
 /* Callers should ensure that all AFBC/AFRC resources that will be used in the
  * blit operation are legalized before calling blitter operations, otherwise
  * we may trigger a recursive blit */

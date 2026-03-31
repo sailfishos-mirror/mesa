@@ -1784,6 +1784,14 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
    }
 }
 
+void
+GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
+                                 enum blitter_attrib_type type,
+                                 const struct blitter_attrib *attrib)
+{
+   UNREACHABLE("draw fullscreen not implemented for csf");
+}
+
 #define POSITION_FIFO_SIZE (64 * 1024)
 
 static enum drm_panthor_group_priority

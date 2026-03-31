@@ -10,6 +10,77 @@
 #include "pan_trace.h"
 #include "pan_util.h"
 
+static void
+panfrost_blitter_draw_rectangle(struct blitter_context *blitter,
+                                void *vertex_elements_cso,
+                                blitter_get_vs_func get_vs,
+                                int x1, int y1, int x2, int y2,
+                                float depth, unsigned num_instances,
+                                enum blitter_attrib_type type,
+                                const struct blitter_attrib *attrib)
+{
+   assert(num_instances);
+
+   struct pipe_context *ctx = blitter->pipe;
+   struct panfrost_context *pctx = pan_context(ctx);
+   struct panfrost_screen *scr = pan_screen(ctx->screen);
+
+   /* Always fallback for now. */
+   goto fallback;
+
+   /* Map viewport to the dest rect of the framebuffer. The tiler will then be
+    * configured to use it as scissor box in order to clip fullscreen
+    * fragments lying outside.
+    *
+    * Note that: tx = x1 + ((x2 - x1) / 2) = (x2 + x1) / 2
+    *            ty = y1 + ((y2 - y1) / 2) = (y2 + y1) / 2
+    */
+   const struct pipe_viewport_state viewport_state = {
+      .scale     = { 0.5f * (x2 - x1), 0.5f * (y2 - y1), 1.0f },
+      .translate = { 0.5f * (x2 + x1), 0.5f * (y2 + y1), 0.0f },
+      .swizzle_x = PIPE_VIEWPORT_SWIZZLE_POSITIVE_X,
+      .swizzle_y = PIPE_VIEWPORT_SWIZZLE_POSITIVE_Y,
+      .swizzle_z = PIPE_VIEWPORT_SWIZZLE_POSITIVE_Z,
+      .swizzle_w = PIPE_VIEWPORT_SWIZZLE_POSITIVE_W
+   };
+   ctx->set_viewport_states(ctx, 0, 1, &viewport_state);
+
+   /* Map texture coordinates to the fullscreen framebuffer. */
+   struct blitter_attrib fs_attrib;
+   if (type == UTIL_BLITTER_ATTRIB_TEXCOORD_XY ||
+       type == UTIL_BLITTER_ATTRIB_TEXCOORD_XYZW) {
+      float dfdx = (attrib->texcoord.x2 - attrib->texcoord.x1) / (x2 - x1);
+      float dfdy = (attrib->texcoord.y2 - attrib->texcoord.y1) / (y2 - y1);
+      float w = pctx->pipe_framebuffer.width;
+      float h = pctx->pipe_framebuffer.height;
+      fs_attrib = *attrib;
+      fs_attrib.texcoord.x1 -= dfdx * x1;
+      fs_attrib.texcoord.y1 -= dfdy * y1;
+      fs_attrib.texcoord.x2 += dfdx * (w - x2);
+      fs_attrib.texcoord.y2 += dfdy * (h - y2);
+   };
+
+   scr->vtbl.draw_fullscreen(pan_context(ctx), get_vs(blitter), type,
+                             &fs_attrib);
+   return;
+
+ fallback:
+   /* Fallback to draw_vbo. */
+   util_blitter_draw_rectangle(blitter, vertex_elements_cso, get_vs, x1, y1,
+                               x2, y2, depth, num_instances, type, attrib);
+}
+
+struct blitter_context *
+panfrost_blitter_create(struct pipe_context *pipe)
+{
+   struct blitter_context *blitter;
+
+   blitter = util_blitter_create(pipe);
+   blitter->draw_rectangle = panfrost_blitter_draw_rectangle;
+
+   return blitter;
+}
+
 void
 panfrost_blitter_save(struct panfrost_context *ctx,
                       const enum panfrost_blitter_op blitter_op)

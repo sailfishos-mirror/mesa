@@ -1196,7 +1196,7 @@ panfrost_create_context(struct pipe_screen *screen, void *priv, unsigned flags)
       goto failed;
    }
 
-   ctx->blitter = util_blitter_create(gallium);
+   ctx->blitter = panfrost_blitter_create(gallium);
 
    ctx->writers = _mesa_hash_table_create(gallium, _mesa_hash_pointer,
                                           _mesa_key_pointer_equal);

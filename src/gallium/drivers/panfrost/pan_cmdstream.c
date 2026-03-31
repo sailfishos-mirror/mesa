@@ -3688,6 +3688,43 @@ panfrost_draw_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info,
    }
 }
 
+static void
+panfrost_draw_fullscreen(struct panfrost_context *ctx,
+                         struct panfrost_uncompiled_shader *vs,
+                         enum blitter_attrib_type type,
+                         const struct blitter_attrib *attrib)
+{
+   assert(!ctx->active_queries);
+   assert(!ctx->streamout.num_targets);
+
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CMDSTREAM);
+
+   ctx->draw_calls++;
+
+   struct panfrost_batch *batch = prepare_draw(&ctx->base, MESA_PRIM_QUADS);
+   if (!batch) {
+      mesa_loge("prepare_draw failed");
+      return;
+   }
+
+   /* Fullscreen draw calls don't configure any position or varying shader but
+    * link info is needed. The active primitive update takes care of the
+    * fragment shader variant update. */
+   ctx->uncompiled[MESA_SHADER_VERTEX] = vs;
+   panfrost_update_shader_variant(ctx, MESA_SHADER_VERTEX);
+   panfrost_update_active_prim(ctx, MESA_PRIM_QUADS);
+
+   /* Clear the dirty vertex flag to ensure the shader state update doesn't
+    * emit any vertex info. */
+   ctx->dirty &= ~PAN_DIRTY_VERTEX;
+   panfrost_update_state_3d(batch);
+   panfrost_update_shader_state(batch, MESA_SHADER_FRAGMENT);
+   panfrost_clean_state_3d(ctx);
+
+   JOBX(launch_draw_fullscreen)(batch, type, attrib);
+   batch->draw_count++;
+}
+
 /* Launch grid is the compute equivalent of draw_vbo, so in this routine, we
  * construct the COMPUTE job and some of its payload.
  */
@@ -4813,6 +4850,7 @@ GENX(panfrost_cmdstream_screen_init)(struct panfrost_screen *screen)
 #endif
    screen->vtbl.select_tile_size = GENX(pan_select_tile_size);
    screen->vtbl.get_conv_desc = get_conv_desc;
+   screen->vtbl.draw_fullscreen = panfrost_draw_fullscreen;
 
    pan_blend_shader_cache_init(&dev->blend_shaders, panfrost_device_gpu_id(dev),
                                dev->kmod.dev->props.gpu_variant,
