@@ -694,11 +694,19 @@ opt_simplify_bcsel_of_phi(nir_builder *b, nir_loop *loop)
    return progress;
 }
 
+/* Checks whether the block is empty except for load_const instructions. */
 static bool
-is_block_empty(nir_block *block)
+is_block_empty_or_constant(nir_block *block)
 {
-   return nir_cf_node_is_last(&block->cf_node) &&
-          exec_list_is_empty(&block->instr_list);
+   if (!nir_cf_node_is_last(&block->cf_node))
+      return false;
+
+   nir_foreach_instr(instr, block) {
+      if (instr->type != nir_instr_type_load_const)
+         return false;
+   }
+
+   return true;
 }
 
 /* Walk all the phis in the block immediately following the if statement and
@@ -744,8 +752,8 @@ static bool
 opt_if_simplification(nir_builder *b, nir_if *nif)
 {
    /* Only simplify if the then block is empty and the else block is not. */
-   if (!is_block_empty(nir_if_first_then_block(nif)) ||
-       is_block_empty(nir_if_first_else_block(nif)))
+   if (!is_block_empty_or_constant(nir_if_first_then_block(nif)) ||
+       is_block_empty_or_constant(nir_if_first_else_block(nif)))
       return false;
 
    /* Insert the inverted instruction and rewrite the condition. */
@@ -770,8 +778,13 @@ opt_if_simplification(nir_builder *b, nir_if *nif)
    rewrite_phi_predecessor_blocks(nif, then_block, else_block, else_block,
                                   then_block);
 
-   /* Finally, move the else block to the then block. */
+   /* Move potential load_const before the if. */
    nir_cf_list tmp;
+   nir_cf_extract(&tmp, nir_before_cf_list(&nif->then_list),
+                  nir_after_cf_list(&nif->then_list));
+   nir_cf_reinsert(&tmp, nir_before_cf_node(&nif->cf_node));
+
+   /* Finally, move the else block to the then block. */
    nir_cf_extract(&tmp, nir_before_cf_list(&nif->else_list),
                   nir_after_cf_list(&nif->else_list));
    nir_cf_reinsert(&tmp, nir_before_cf_list(&nif->then_list));
