@@ -182,7 +182,13 @@ void IntelDriver::disable_perfcnt()
 /// @return True if the duration is at least close to the sampling period
 static bool close_enough(uint64_t duration, uint64_t sampling_period)
 {
-   return duration > sampling_period - 1000;
+   /* If the duration isn't greater than 67% of the request, we will use
+    * the next hw sampling period, which will be double the current duration.
+    * That value will fall somewhere between 100%-133%, guaranteeing a duration
+    * that falls closer to the requested sampling period overall, while scaling
+    * to accomodate relatively larger requested sample periods.
+    */
+   return duration > sampling_period * 0.67;
 }
 
 /// @brief Transforms the raw data received in from the driver into records
