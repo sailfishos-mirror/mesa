@@ -941,15 +941,17 @@ void
 visit_loop(isel_context* ctx, nir_loop* loop)
 {
    assert(!nir_loop_has_continue_construct(loop));
-   loop_context lc;
-   begin_loop(ctx, &lc);
+
+   ctx->loop_stack.push_back(loop_context());
+   begin_loop(ctx, &ctx->loop_stack.back());
    ctx->cf_info.parent_loop.has_divergent_break =
       loop->divergent_break && nir_block_num_preds(nir_loop_first_block(loop)) > 1;
    ctx->cf_info.in_divergent_cf |= ctx->cf_info.parent_loop.has_divergent_break;
 
    visit_cf_list(ctx, &loop->body);
 
-   end_loop(ctx, &lc);
+   end_loop(ctx, &ctx->loop_stack.back());
+   ctx->loop_stack.pop_back();
 }
 
 void
@@ -958,7 +960,7 @@ visit_if(isel_context* ctx, nir_if* if_stmt)
    Temp cond = get_ssa_temp(ctx, if_stmt->condition.ssa);
    Builder bld(ctx->program, ctx->block);
    aco_ptr<Instruction> branch;
-   if_context ic;
+   ctx->if_stack.push_back(if_context());
 
    if (!nir_src_is_divergent(&if_stmt->condition)) { /* uniform condition */
       /**
@@ -980,13 +982,13 @@ visit_if(isel_context* ctx, nir_if* if_stmt)
       assert(cond.regClass() == ctx->program->lane_mask);
       cond = bool_to_scalar_condition(ctx, cond);
 
-      begin_uniform_if_then(ctx, &ic, cond);
+      begin_uniform_if_then(ctx, &ctx->if_stack.back(), cond);
       visit_cf_list(ctx, &if_stmt->then_list);
 
-      begin_uniform_if_else(ctx, &ic);
+      begin_uniform_if_else(ctx, &ctx->if_stack.back());
       visit_cf_list(ctx, &if_stmt->else_list);
 
-      end_uniform_if(ctx, &ic);
+      end_uniform_if(ctx, &ctx->if_stack.back());
    } else { /* non-uniform condition */
       /**
        * To maintain a logical and linear CFG without critical edges,
@@ -1023,14 +1025,16 @@ visit_if(isel_context* ctx, nir_if* if_stmt)
        *                        BB_ENDIF
        **/
 
-      begin_divergent_if_then(ctx, &ic, cond, if_stmt->control);
+      begin_divergent_if_then(ctx, &ctx->if_stack.back(), cond, if_stmt->control);
       visit_cf_list(ctx, &if_stmt->then_list);
 
-      begin_divergent_if_else(ctx, &ic, if_stmt->control);
+      begin_divergent_if_else(ctx, &ctx->if_stack.back(), if_stmt->control);
       visit_cf_list(ctx, &if_stmt->else_list);
 
-      end_divergent_if(ctx, &ic);
+      end_divergent_if(ctx, &ctx->if_stack.back());
    }
+
+   ctx->if_stack.pop_back();
 }
 
 void

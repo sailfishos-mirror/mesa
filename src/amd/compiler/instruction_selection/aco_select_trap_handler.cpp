@@ -143,8 +143,8 @@ dump_vgprs_to_mem(isel_context* ctx, Builder& bld, Operand rsrc)
                Operand(PhysReg{1}, s1) /* SRC0 mode */);
    }
 
-   loop_context lc;
-   begin_loop(ctx, &lc);
+   ctx->loop_stack.push_back(loop_context());
+   begin_loop(ctx, &ctx->loop_stack.back());
    {
       bld.reset(ctx->block);
 
@@ -177,7 +177,7 @@ dump_vgprs_to_mem(isel_context* ctx, Builder& bld, Operand rsrc)
       }
       end_uniform_if(ctx, &loop_break);
    }
-   end_loop(ctx, &lc);
+   end_loop(ctx, &ctx->loop_stack.back());
    bld.reset(ctx->block);
 
    if (ctx->program->gfx_level < GFX10) {
@@ -240,8 +240,8 @@ dump_lds_to_mem(isel_context* ctx, Builder& bld, Operand rsrc)
 
       Operand m = load_lds_size_m0(bld);
 
-      loop_context lc;
-      begin_loop(ctx, &lc);
+      ctx->loop_stack.push_back(loop_context());
+      begin_loop(ctx, &ctx->loop_stack.back());
       {
          bld.reset(ctx->block);
 
@@ -274,7 +274,7 @@ dump_lds_to_mem(isel_context* ctx, Builder& bld, Operand rsrc)
          }
          end_uniform_if(ctx, &loop_break);
       }
-      end_loop(ctx, &lc);
+      end_loop(ctx, &ctx->loop_stack.back());
       bld.reset(ctx->block);
    }
    begin_uniform_if_else(ctx, &ic);

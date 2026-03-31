@@ -41,7 +41,7 @@ emit_loop_jump(isel_context* ctx, bool is_break)
    unsigned idx = ctx->block->index;
 
    if (is_break) {
-      logical_target = ctx->cf_info.parent_loop.exit;
+      logical_target = &ctx->loop_stack.back().loop_exit;
       add_logical_edge(idx, logical_target);
       ctx->block->kind |= block_kind_break;
 
@@ -60,7 +60,7 @@ emit_loop_jump(isel_context* ctx, bool is_break)
       if (!ctx->cf_info.exec.potentially_empty_break)
          ctx->cf_info.exec.potentially_empty_break = true;
    } else {
-      logical_target = &ctx->program->blocks[ctx->cf_info.parent_loop.header_idx];
+      logical_target = &ctx->program->blocks[ctx->loop_stack.back().header_idx];
       add_logical_edge(idx, logical_target);
       ctx->block->kind |= block_kind_continue;
 
@@ -92,7 +92,7 @@ emit_loop_jump(isel_context* ctx, bool is_break)
    add_linear_edge(idx, break_block);
    /* the loop_header pointer might be invalidated by this point */
    if (!is_break)
-      logical_target = &ctx->program->blocks[ctx->cf_info.parent_loop.header_idx];
+      logical_target = &ctx->program->blocks[ctx->loop_stack.back().header_idx];
    add_linear_edge(break_block->index, logical_target);
    bld.reset(break_block);
    bld.branch(aco_opcode::p_branch);
@@ -136,7 +136,8 @@ begin_loop(isel_context* ctx, loop_context* lc)
    append_logical_start(ctx->block);
 
    lc->cf_info_old = ctx->cf_info;
-   ctx->cf_info.parent_loop = {loop_header->index, &lc->loop_exit, false};
+   lc->header_idx = loop_header->index;
+   ctx->cf_info.parent_loop = {false, false};
    ctx->cf_info.parent_if.is_divergent = false;
 
    /* Never enter a loop with empty exec mask. */
@@ -152,7 +153,7 @@ end_loop(isel_context* ctx, loop_context* lc)
     * divergent control flow requires WQM.
     */
    assert(!ctx->cf_info.exec.potentially_empty_discard);
-   Block& header = ctx->program->blocks[ctx->cf_info.parent_loop.header_idx];
+   Block& header = ctx->program->blocks[lc->header_idx];
 
    /* Add the trivial continue. */
    if (!ctx->cf_info.has_branch) {

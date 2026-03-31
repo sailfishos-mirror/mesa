@@ -98,8 +98,6 @@ struct exec_info {
 
 struct cf_context {
    struct {
-      unsigned header_idx = 0;
-      Block* exit = NULL;
       bool has_divergent_continue = false;
       bool has_divergent_break = false;
    } parent_loop;
@@ -127,6 +125,7 @@ struct if_context {
 
 struct loop_context {
    Block loop_exit;
+   unsigned header_idx = 0;
 
    cf_context cf_info_old;
 };
@@ -146,6 +145,9 @@ struct isel_context {
    cf_context cf_info;
    bool skipping_empty_exec = false;
    if_context empty_exec_skip;
+
+   std::vector<if_context> if_stack;
+   std::vector<loop_context> loop_stack;
 
    /* NIR range analysis. */
    struct hash_table* range_ht;
