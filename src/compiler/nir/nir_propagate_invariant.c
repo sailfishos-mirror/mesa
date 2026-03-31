@@ -122,6 +122,11 @@ propagate_invariant_instr(nir_instr *instr, struct set *invariants)
 
       if (nir_intrinsic_infos[intrin->intrinsic].has_dest &&
           def_is_invariant(&intrin->def, invariants)) {
+         if (nir_intrinsic_has_fp_math_ctrl(intrin)) {
+            unsigned ctrl = nir_intrinsic_fp_math_ctrl(intrin) | nir_fp_exact;
+            nir_intrinsic_set_fp_math_ctrl(intrin, ctrl);
+         }
+
          nir_foreach_src(instr, add_src_cb, invariants);
       }
       break;
