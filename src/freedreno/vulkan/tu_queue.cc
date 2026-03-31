@@ -571,7 +571,9 @@ queue_submit(struct vk_queue *_queue, struct vk_queue_submit *vk_submit)
       u_trace_submission_data->fence = queue->fence;
 
       for (uint32_t i = 0; i < u_trace_submission_data->cmd_buffer_count; i++) {
-         bool free_data = i == u_trace_submission_data->last_buffer_with_tracepoints;
+         bool free_data =
+            i == u_trace_submission_data->last_buffer_with_tracepoints &&
+            !u_trace_submission_data->timestamp_copy_data;
          if (u_trace_submission_data->trace_per_cmd_buffer[i])
             u_trace_flush(u_trace_submission_data->trace_per_cmd_buffer[i],
                           u_trace_submission_data, queue->device->vk.current_frame,

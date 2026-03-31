@@ -2344,9 +2344,10 @@ tu_create_copy_timestamp_cs(struct tu_u_trace_submission_data *submission_data,
 
       tu_cs_init(&submission_data->timestamp_copy_data->cs, device,
                  TU_CS_MODE_GROW, cs_size, "trace copy timestamp cs");
-      u_trace_init(&submission_data->timestamp_copy_data->trace,
-                   &device->trace_context);
    }
+
+   u_trace_init(&submission_data->timestamp_copy_data->trace,
+                &device->trace_context);
 
    tu_cs *cs = &submission_data->timestamp_copy_data->cs;
 
