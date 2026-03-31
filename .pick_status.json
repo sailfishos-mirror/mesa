@@ -2684,7 +2684,7 @@
         "description": "pvr: check command buffer is in recording state in vkCmd{Begin,End}Rendering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "146364ab9f159a5552a1db2f44acae9127bf01ef",
         "notes": null

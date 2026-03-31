@@ -4754,7 +4754,9 @@ void PVR_PER_ARCH(CmdBeginRendering)(VkCommandBuffer commandBuffer,
    bool resume, suspend;
    VkResult result;
 
-   /* TODO: Check not in renderpess? */
+   PVR_CHECK_COMMAND_BUFFER_BUILDING_STATE(cmd_buffer);
+
+   /* TODO: Check not in renderpass? */
 
    suspend = pRenderingInfo->flags & VK_RENDERING_SUSPENDING_BIT_KHR;
    resume = pRenderingInfo->flags & VK_RENDERING_RESUMING_BIT_KHR;
@@ -4882,6 +4884,8 @@ void PVR_PER_ARCH(CmdEndRendering)(VkCommandBuffer commandBuffer)
    VK_FROM_HANDLE(pvr_cmd_buffer, cmd_buffer, commandBuffer);
    struct pvr_cmd_buffer_state *state = &cmd_buffer->state;
    VkResult result;
+
+   PVR_CHECK_COMMAND_BUFFER_BUILDING_STATE(cmd_buffer);
 
    if (state->current_sub_cmd && state->current_sub_cmd->is_suspend) {
       return;
