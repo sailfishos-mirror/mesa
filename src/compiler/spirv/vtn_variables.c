@@ -1791,19 +1791,16 @@ vtn_storage_class_to_mode(struct vtn_builder *b,
       } else if (b->shader->info.stage == MESA_SHADER_KERNEL) {
          mode = vtn_variable_mode_constant;
          nir_mode = nir_var_mem_constant;
+      } else if (interface_type &&
+                 interface_type->base_type == vtn_base_type_accel_struct) {
+         mode = vtn_variable_mode_accel_struct;
+         nir_mode = nir_var_uniform;
       } else {
-         /* interface_type is only NULL when OpTypeForwardPointer is used and
-          * OpTypeForwardPointer cannot be used with the UniformConstant
-          * storage class.
+         /* OpTypeUntypedPointerKHR with UniformConstant is allowed with
+          * descriptor heap.
           */
-         assert(interface_type != NULL);
-         if (interface_type->base_type == vtn_base_type_accel_struct) {
-            mode = vtn_variable_mode_accel_struct;
-            nir_mode = nir_var_uniform;
-         } else {
-            mode = vtn_variable_mode_uniform;
-            nir_mode = nir_var_uniform;
-         }
+         mode = vtn_variable_mode_uniform;
+         nir_mode = nir_var_uniform;
       }
       break;
    case SpvStorageClassPushConstant:
