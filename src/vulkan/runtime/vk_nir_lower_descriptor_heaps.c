@@ -430,10 +430,9 @@ vk_build_descriptor_heap_offset(nir_builder *b,
    }
 }
 
-nir_def *
+static nir_def *
 vk_build_descriptor_heap_address(nir_builder *b,
-                                 const VkDescriptorSetAndBindingMappingEXT *mapping,
-                                 uint32_t binding, nir_def *index)
+                                 const VkDescriptorSetAndBindingMappingEXT *mapping)
 {
    switch (mapping->source) {
    case VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_ADDRESS_EXT:
@@ -843,9 +842,8 @@ try_lower_heaps_deref_access(nir_builder *b, nir_intrinsic_instr *intrin,
    case VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_ADDRESS_EXT: {
       b->cursor = nir_before_instr(&desc_load->instr);
 
-      nir_def *index = build_buffer_resource_index(b, desc_load);
       nir_def *addr =
-         vk_build_descriptor_heap_address(b, mapping, binding, index);
+         vk_build_descriptor_heap_address(b, mapping);
 
       /* This moves the cursor */
       addr = build_buffer_addr_for_deref(b, addr, deref,
@@ -934,7 +932,7 @@ lower_heaps_load_descriptor(nir_builder *b, nir_intrinsic_instr *desc_load,
     * load the address and ask the driver to convert the address to a
     * descriptor.
     */
-   nir_def *addr = vk_build_descriptor_heap_address(b, mapping, binding, index);
+   nir_def *addr = vk_build_descriptor_heap_address(b, mapping);
    if (addr != NULL) {
       nir_def *desc =
          nir_global_addr_to_descriptor(b, desc_load->def.num_components,

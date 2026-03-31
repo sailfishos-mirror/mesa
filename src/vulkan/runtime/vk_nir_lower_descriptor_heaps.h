@@ -56,11 +56,6 @@ void vk_hash_descriptor_heap_mappings(
    const VkShaderDescriptorSetAndBindingMappingInfoEXT *info,
    blake3_hash blake3_out);
 
-nir_def *
-vk_build_descriptor_heap_address(nir_builder *b,
-                                 const VkDescriptorSetAndBindingMappingEXT *mapping,
-                                 uint32_t binding, nir_def *index);
-
 struct vk_sampler_state_array {
    struct vk_sampler_state *samplers;
    uint32_t sampler_count;
