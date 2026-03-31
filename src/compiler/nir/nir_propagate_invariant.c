@@ -119,7 +119,12 @@ propagate_invariant_instr(nir_instr *instr, struct set *invariants)
          /* Nothing to do */
          break;
       }
-      FALLTHROUGH;
+
+      if (nir_intrinsic_infos[intrin->intrinsic].has_dest &&
+          def_is_invariant(&intrin->def, invariants)) {
+         nir_foreach_src(instr, add_src_cb, invariants);
+      }
+      break;
    }
 
    case nir_instr_type_deref:
