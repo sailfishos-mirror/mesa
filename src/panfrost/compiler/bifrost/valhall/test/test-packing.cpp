@@ -294,6 +294,30 @@ TEST_F(ValhallPacking, LdVarBufImmF16)
              11, 0x005d80443300083d);
 }
 
+TEST_F(ValhallPacking, LdVarBufFlatImmFormat)
+{
+   CASE_ARCH(bi_ld_var_buf_flat_imm_to(b, bi_register(0),
+                                       BI_REGISTER_FORMAT_F32,
+                                       BI_VECSIZE_V4, 0x12),
+             14, 0x0040800832001200);
+
+   CASE_ARCH(bi_ld_var_buf_flat_imm_to(b, bi_register(0),
+                                       BI_REGISTER_FORMAT_F16,
+                                       BI_VECSIZE_V4, 0x12),
+             14, 0x0040800433001200);
+}
+
+TEST_F(ValhallPacking, LdVarBufFlat)
+{
+   CASE_ARCH(bi_ld_var_buf_flat_to(b, bi_register(0), bi_register(61),
+                                   BI_REGISTER_FORMAT_F32, BI_VECSIZE_V4),
+             14, 0x005f80083200003d);
+
+   CASE_ARCH(bi_ld_var_buf_flat_to(b, bi_register(0), bi_register(61),
+                                   BI_REGISTER_FORMAT_F16, BI_VECSIZE_V4),
+             14, 0x005f80043300003d);
+}
+
 TEST_F(ValhallPacking, LeaBufImm)
 {
    CASE(bi_lea_buf_imm_to(b, bi_register(4), bi_discard(bi_register(59))),
