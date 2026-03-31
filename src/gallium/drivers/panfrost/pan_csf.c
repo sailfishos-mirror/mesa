@@ -1799,23 +1799,22 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
    }
 }
 
-#if PAN_ARCH <= 12
+#if PAN_ARCH <= 13
 static struct pan_ptr
 csf_emit_fullscreen_dcd(struct panfrost_batch *batch,
-                        struct pan_ptr vertex_array, uint64_t resources)
+                        struct pan_ptr vertex_array, uint64_t resources,
+                        struct MALI_DCD_FLAGS_0 *dcd_flags0,
+                        struct MALI_DCD_FLAGS_1 *dcd_flags1)
 {
    struct panfrost_context *ctx = batch->ctx;
    struct pan_ptr dcd = pan_pool_alloc_desc(&batch->pool.base, DRAW);
-   struct MALI_DCD_FLAGS_0 dcd_flags0_unpacked = { 0, };
-   struct MALI_DCD_FLAGS_1 dcd_flags1_unpacked = { 0, };
 
-   csf_emit_draw_flags(ctx, MESA_PRIM_QUADS, true, &dcd_flags0_unpacked,
-                       &dcd_flags1_unpacked);
+   csf_emit_draw_flags(ctx, MESA_PRIM_QUADS, true, dcd_flags0, dcd_flags1);
 
    pan_cast_and_pack(dcd.cpu, DRAW, cfg) {
       /* Flags */
-      cfg.flags_0 = dcd_flags0_unpacked;
-      cfg.flags_1 = dcd_flags1_unpacked;
+      cfg.flags_0 = *dcd_flags0;
+      cfg.flags_1 = *dcd_flags1;
 
       /* Vertex descriptor */
       if (vertex_array.cpu) {
@@ -1868,10 +1867,12 @@ GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
                                  enum blitter_attrib_type type,
                                  const struct blitter_attrib *attrib)
 {
-#if PAN_ARCH <= 12
+#if PAN_ARCH <= 13
    PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
 
    struct cs_builder *b = batch->csf.cs.builder;
+   struct MALI_DCD_FLAGS_0 dcd_flags0_unpacked = { 0, };
+   struct MALI_DCD_FLAGS_1 dcd_flags1_unpacked = { 0, };
 
    if (batch->draw_count == 0) {
       emit_tiler_oom_context(b, batch);
@@ -1882,7 +1883,9 @@ GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
    struct pan_ptr array = panfrost_emit_fullscreen_vertex_array(batch, type,
                                                                 attrib);
    uint64_t resources = panfrost_emit_resources(batch, MESA_SHADER_FRAGMENT);
-   struct pan_ptr dcd = csf_emit_fullscreen_dcd(batch, array, resources);
+   struct pan_ptr dcd = csf_emit_fullscreen_dcd(batch, array, resources,
+                                                &dcd_flags0_unpacked,
+                                                &dcd_flags1_unpacked);
 
    struct mali_primitive_flags_packed primitive_flags;
    pan_pack(&primitive_flags, PRIMITIVE_FLAGS, cfg) {
@@ -1897,6 +1900,17 @@ GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
    cs_move64_to(b, cs_sr_reg64(b, FULLSCREEN, SCISSOR_BOX), *sbd);
    cs_move32_to(b, cs_sr_reg32(b, FULLSCREEN, TILER_FLAGS),
                 primitive_flags.opaque[0]);
+#if PAN_ARCH == 13
+   struct mali_dcd_flags_0_packed dcd_flags0;
+   struct mali_dcd_flags_1_packed dcd_flags1;
+   MALI_DCD_FLAGS_0_pack(&dcd_flags0, &dcd_flags0_unpacked);
+   MALI_DCD_FLAGS_1_pack(&dcd_flags1, &dcd_flags1_unpacked);
+   cs_move32_to(b, cs_sr_reg32(b, FULLSCREEN, TILER_DCD_FLAGS0),
+                dcd_flags0.opaque[0]);
+   cs_move32_to(b, cs_sr_reg32(b, FULLSCREEN, TILER_DCD_FLAGS1),
+                dcd_flags1.opaque[0]);
+   cs_move32_to(b, cs_sr_reg32(b, FULLSCREEN, TILER_DCD_FLAGS2), 0);
+#endif
 
    /* Emit RUN_FULLSCREEN. */
    struct cs_index dcd_pointer = cs_reg64(b, 64);
