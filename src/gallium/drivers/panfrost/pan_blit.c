@@ -25,8 +25,8 @@ panfrost_blitter_draw_rectangle(struct blitter_context *blitter,
    struct panfrost_context *pctx = pan_context(ctx);
    struct panfrost_screen *scr = pan_screen(ctx->screen);
 
-   /* Always fallback for now. */
-   goto fallback;
+   if (scr->dev.arch != 9 || depth != 0.0f || num_instances > 1)
+      goto fallback;
 
    /* Map viewport to the dest rect of the framebuffer. The tiler will then be
     * configured to use it as scissor box in order to clip fullscreen
