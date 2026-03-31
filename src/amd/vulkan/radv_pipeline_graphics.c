@@ -2235,14 +2235,15 @@ radv_fill_shader_info(struct radv_device *device, const enum radv_pipeline_type 
 
 static void
 radv_declare_pipeline_args(struct radv_device *device, struct radv_shader_stage *stages,
-                           const struct radv_graphics_state_key *gfx_state, VkShaderStageFlagBits active_nir_stages)
+                           const struct radv_graphics_state_key *gfx_state, VkShaderStageFlagBits active_nir_stages,
+                           struct radv_shader_debug_info *debug)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    enum amd_gfx_level gfx_level = pdev->info.gfx_level;
 
    if (gfx_level >= GFX9 && stages[MESA_SHADER_TESS_CTRL].nir) {
       radv_declare_shader_args(device, gfx_state, &stages[MESA_SHADER_TESS_CTRL].info, MESA_SHADER_TESS_CTRL,
-                               MESA_SHADER_VERTEX, &stages[MESA_SHADER_TESS_CTRL].args);
+                               MESA_SHADER_VERTEX, &stages[MESA_SHADER_TESS_CTRL].args, &debug[MESA_SHADER_TESS_CTRL]);
       stages[MESA_SHADER_TESS_CTRL].info.user_sgprs_locs = stages[MESA_SHADER_TESS_CTRL].args.user_sgprs_locs;
       stages[MESA_SHADER_TESS_CTRL].info.inline_push_constant_mask =
          stages[MESA_SHADER_TESS_CTRL].args.ac.inline_push_const_mask;
@@ -2259,7 +2260,7 @@ radv_declare_pipeline_args(struct radv_device *device, struct radv_shader_stage 
    if (gfx_level >= GFX9 && stages[MESA_SHADER_GEOMETRY].nir) {
       mesa_shader_stage pre_stage = stages[MESA_SHADER_TESS_EVAL].nir ? MESA_SHADER_TESS_EVAL : MESA_SHADER_VERTEX;
       radv_declare_shader_args(device, gfx_state, &stages[MESA_SHADER_GEOMETRY].info, MESA_SHADER_GEOMETRY, pre_stage,
-                               &stages[MESA_SHADER_GEOMETRY].args);
+                               &stages[MESA_SHADER_GEOMETRY].args, &debug[MESA_SHADER_GEOMETRY]);
       stages[MESA_SHADER_GEOMETRY].info.user_sgprs_locs = stages[MESA_SHADER_GEOMETRY].args.user_sgprs_locs;
       stages[MESA_SHADER_GEOMETRY].info.inline_push_constant_mask =
          stages[MESA_SHADER_GEOMETRY].args.ac.inline_push_const_mask;
@@ -2272,7 +2273,7 @@ radv_declare_pipeline_args(struct radv_device *device, struct radv_shader_stage 
    }
 
    u_foreach_bit (i, active_nir_stages) {
-      radv_declare_shader_args(device, gfx_state, &stages[i].info, i, MESA_SHADER_NONE, &stages[i].args);
+      radv_declare_shader_args(device, gfx_state, &stages[i].info, i, MESA_SHADER_NONE, &stages[i].args, &debug[i]);
       stages[i].info.user_sgprs_locs = stages[i].args.user_sgprs_locs;
       stages[i].info.inline_push_constant_mask = stages[i].args.ac.inline_push_const_mask;
    }
@@ -2312,7 +2313,7 @@ radv_create_gs_copy_shader(struct radv_device *device, struct vk_pipeline_cache 
    gs_copy_stage.info.type = RADV_SHADER_TYPE_GS_COPY;
 
    radv_declare_shader_args(device, gfx_state, &gs_copy_stage.info, MESA_SHADER_VERTEX, MESA_SHADER_NONE,
-                            &gs_copy_stage.args);
+                            &gs_copy_stage.args, gs_copy_debug);
    gs_copy_stage.info.user_sgprs_locs = gs_copy_stage.args.user_sgprs_locs;
    gs_copy_stage.info.inline_push_constant_mask = gs_copy_stage.args.ac.inline_push_const_mask;
 
@@ -2852,7 +2853,7 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
 
    radv_fill_shader_info(device, RADV_PIPELINE_GRAPHICS, gfx_state, stages, active_nir_stages);
 
-   radv_declare_pipeline_args(device, stages, gfx_state, active_nir_stages);
+   radv_declare_pipeline_args(device, stages, gfx_state, active_nir_stages, debug);
 
    radv_foreach_stage (i, active_nir_stages) {
       int64_t stage_start = os_time_get_nano();

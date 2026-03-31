@@ -405,7 +405,7 @@ radv_rt_nir_to_asm(struct radv_device *device, struct radv_ray_tracing_pipeline 
                              &stage->info);
 
    /* Declare shader arguments. */
-   radv_declare_shader_args(device, NULL, &stage->info, stage->stage, MESA_SHADER_NONE, &stage->args);
+   radv_declare_shader_args(device, NULL, &stage->info, stage->stage, MESA_SHADER_NONE, &stage->args, debug);
 
    stage->info.user_sgprs_locs = stage->args.user_sgprs_locs;
    stage->info.inline_push_constant_mask = stage->args.ac.inline_push_const_mask;
@@ -1048,7 +1048,8 @@ compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *
    uint32_t push_constant_size = 0;
 
    struct radv_shader_stage prolog_stage = {0};
-   radv_build_rt_prolog(device, &prolog_stage, uses_descriptor_heap);
+   struct radv_shader_debug_info debug = {0};
+   radv_build_rt_prolog(device, &prolog_stage, uses_descriptor_heap, &debug);
    prolog_stage.nir->options = &pdev->nir_options[MESA_SHADER_COMPUTE];
    radv_optimize_nir(prolog_stage.nir, false);
    radv_postprocess_nir(device, NULL, &prolog_stage);
@@ -1059,7 +1060,7 @@ compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *
    NIR_PASS(_, prolog_stage.nir, nir_opt_copy_prop);
    NIR_PASS(_, prolog_stage.nir, nir_opt_remove_phis);
 
-   pipeline->prolog = radv_compile_rt_prolog(device, &prolog_stage);
+   pipeline->prolog = radv_compile_rt_prolog(device, &prolog_stage, &debug);
 
    bool has_traversal = !!pipeline->base.base.shaders[MESA_SHADER_INTERSECTION];
 

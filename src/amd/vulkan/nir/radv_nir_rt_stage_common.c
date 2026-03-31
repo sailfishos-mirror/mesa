@@ -257,7 +257,8 @@ radv_nir_return_param_from_type(nir_parameter *param, const glsl_type *type, boo
 }
 
 void
-radv_build_rt_prolog(struct radv_device *device, struct radv_shader_stage *stage, bool uses_descriptor_heap)
+radv_build_rt_prolog(struct radv_device *device, struct radv_shader_stage *stage, bool uses_descriptor_heap,
+                     struct radv_shader_debug_info *debug)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
@@ -280,7 +281,7 @@ radv_build_rt_prolog(struct radv_device *device, struct radv_shader_stage *stage
    for (unsigned i = 0; i < 3; i++)
       stage->info.cs.uses_block_id[i] = true;
 
-   radv_declare_shader_args(device, NULL, &stage->info, MESA_SHADER_COMPUTE, MESA_SHADER_NONE, &stage->args);
+   radv_declare_shader_args(device, NULL, &stage->info, MESA_SHADER_COMPUTE, MESA_SHADER_NONE, &stage->args, debug);
    stage->info.user_sgprs_locs = stage->args.user_sgprs_locs;
 
    b.shader->info.workgroup_size[0] = pdev->rt_wave_size;

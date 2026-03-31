@@ -14,6 +14,8 @@
 #include "radv_physical_device.h"
 #include "radv_shader.h"
 
+#include "util/memstream.h"
+
 struct user_sgpr_info {
    uint64_t inline_push_constant_mask;
    bool inlined_all_push_consts;
@@ -50,6 +52,10 @@ allocate_inline_push_consts(const struct radv_shader_info *info, struct user_sgp
 
 struct radv_shader_args_state {
    struct radv_shader_args *args;
+   bool gather_debug_info;
+   void *ctx;
+   const char *arg_names[AC_MAX_ARGS];
+   BITSET_DECLARE(user_data, AC_MAX_ARGS);
 };
 
 static void
@@ -66,18 +72,44 @@ add_ud_arg(struct radv_shader_args_state *state, unsigned size, enum ac_arg_type
    ud_info->num_sgprs += size;
 
    state->args->num_user_sgprs += size;
+
+   if (state->gather_debug_info)
+      BITSET_SET(state->user_data, arg->arg_index);
 }
 
-#define RADV_ADD_UD_ARG(state, size, type, arg, ud_index) add_ud_arg(state, size, type, &(state)->args->arg, ud_index)
+#define RADV_ADD_UD_ARG(state, size, type, arg, ud_index)                                                              \
+   do {                                                                                                                \
+      add_ud_arg(state, size, type, &(state)->args->arg, ud_index);                                                    \
+      if ((state)->gather_debug_info) {                                                                                \
+         (state)->arg_names[(state)->args->arg.arg_index] = #arg;                                                      \
+      }                                                                                                                \
+   } while (false)
 
 #define RADV_ADD_UD_ARRAY_ARG(state, size, type, arg, array_index, ud_index)                                           \
-   add_ud_arg(state, size, type, &(state)->args->arg[array_index], ud_index)
+   do {                                                                                                                \
+      add_ud_arg(state, size, type, &(state)->args->arg[array_index], ud_index);                                       \
+      if ((state)->gather_debug_info) {                                                                                \
+         (state)->arg_names[(state)->args->arg[array_index].arg_index] =                                               \
+            ralloc_asprintf((state)->ctx, "%s[%u]", #arg, array_index);                                                \
+      }                                                                                                                \
+   } while (false)
 
 #define RADV_ADD_ARG(state, regfile, size, type, arg)                                                                  \
-   ac_add_arg(&(state)->args->ac, regfile, size, type, &(state)->args->arg)
+   do {                                                                                                                \
+      ac_add_arg(&(state)->args->ac, regfile, size, type, &(state)->args->arg);                                        \
+      if ((state)->gather_debug_info) {                                                                                \
+         (state)->arg_names[(state)->args->arg.arg_index] = #arg;                                                      \
+      }                                                                                                                \
+   } while (false)
 
 #define RADV_ADD_ARRAY_ARG(state, regfile, size, type, arg, array_index)                                               \
-   ac_add_arg(&(state)->args->ac, regfile, size, type, &(state)->args->arg[array_index])
+   do {                                                                                                                \
+      ac_add_arg(&(state)->args->ac, regfile, size, type, &(state)->args->arg[array_index]);                           \
+      if ((state)->gather_debug_info) {                                                                                \
+         (state)->arg_names[(state)->args->arg[array_index].arg_index] =                                               \
+            ralloc_asprintf((state)->ctx, "%s[%u]", #arg, array_index);                                                \
+      }                                                                                                                \
+   } while (false)
 
 #define RADV_ADD_NULL_ARG(state, regfile, size, type) ac_add_arg(&(state)->args->ac, regfile, size, type, NULL)
 
@@ -881,56 +913,117 @@ declare_shader_args(struct radv_shader_args_state *state, const struct radv_devi
    }
 }
 
+static void
+radv_gather_shader_args_debug_info(struct radv_shader_args_state *state, struct radv_shader_debug_info *debug)
+{
+   char *data = NULL;
+   size_t size = 0;
+   struct u_memstream mem;
+   if (u_memstream_open(&mem, &data, &size)) {
+      FILE *const memf = u_memstream_get(&mem);
+
+      for (uint32_t i = 0; i < state->args->ac.arg_count; i++) {
+         fprintf(memf, "   %u.", i);
+         switch (state->args->ac.args[i].file) {
+         case AC_ARG_SGPR:
+            fprintf(memf, " sgpr");
+            break;
+         case AC_ARG_VGPR:
+            fprintf(memf, " vgpr");
+            break;
+         }
+         switch (state->args->ac.args[i].type) {
+         case AC_ARG_VALUE:
+            fprintf(memf, " value");
+            break;
+         case AC_ARG_CONST_ADDR:
+            fprintf(memf, " const_addr");
+            break;
+         }
+         if (state->args->ac.args[i].skip)
+            fprintf(memf, " skip");
+         if (state->args->ac.args[i].pending_vmem)
+            fprintf(memf, " pending_vmem");
+         if (state->args->ac.args[i].preserved)
+            fprintf(memf, " preserved");
+         if (BITSET_TEST(state->user_data, i))
+            fprintf(memf, " user_data");
+         fprintf(memf, " offset=%u size=%u name=%s\n", state->args->ac.args[i].offset, state->args->ac.args[i].size,
+                 state->arg_names[i] ? state->arg_names[i] : "(null)");
+      }
+
+      u_memstream_close(&mem);
+   }
+
+   debug->args_string = malloc(size + 1);
+   if (debug->args_string) {
+      memcpy(debug->args_string, data, size);
+      debug->args_string[size] = 0;
+   }
+   free(data);
+}
+
 void
 radv_declare_shader_args(const struct radv_device *device, const struct radv_graphics_state_key *gfx_state,
                          const struct radv_shader_info *info, mesa_shader_stage stage, mesa_shader_stage previous_stage,
-                         struct radv_shader_args *args)
+                         struct radv_shader_args *args, struct radv_shader_debug_info *debug)
 {
    struct radv_shader_args_state state = {
       .args = args,
    };
 
-   declare_shader_args(&state, device, gfx_state, info, stage, previous_stage, NULL);
+   struct user_sgpr_info user_sgpr_info = {};
 
-   if (mesa_shader_stage_is_rt(stage))
-      return;
+   if (!mesa_shader_stage_is_rt(stage)) {
+      declare_shader_args(&state, device, gfx_state, info, stage, previous_stage, NULL);
 
-   uint32_t num_user_sgprs = args->num_user_sgprs;
-   if (info->loads_push_constants)
-      num_user_sgprs++;
-   if (info->loads_dynamic_offsets) {
-      num_user_sgprs++;
-      if (info->loads_dynamic_descriptors_offset_addr)
+      uint32_t num_user_sgprs = args->num_user_sgprs;
+      if (info->loads_push_constants)
          num_user_sgprs++;
-   }
-
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   const enum amd_gfx_level gfx_level = pdev->info.gfx_level;
-   uint32_t available_sgprs = gfx_level >= GFX9 && stage != MESA_SHADER_COMPUTE && stage != MESA_SHADER_TASK ? 32 : 16;
-   uint32_t remaining_sgprs = available_sgprs - num_user_sgprs;
-
-   struct user_sgpr_info user_sgpr_info = {
-      .remaining_sgprs = remaining_sgprs,
-   };
-
-   if (info->descriptor_heap) {
-      assert(user_sgpr_info.remaining_sgprs >= RADV_MAX_HEAPS);
-      user_sgpr_info.remaining_sgprs -= RADV_MAX_HEAPS;
-   } else {
-      const uint32_t num_desc_set = util_bitcount(info->desc_set_used_mask);
-
-      if (info->force_indirect_descriptors || remaining_sgprs < num_desc_set) {
-         user_sgpr_info.indirect_all_descriptor_sets = true;
-         user_sgpr_info.remaining_sgprs--;
-      } else {
-         user_sgpr_info.remaining_sgprs -= num_desc_set;
+      if (info->loads_dynamic_offsets) {
+         num_user_sgprs++;
+         if (info->loads_dynamic_descriptors_offset_addr)
+            num_user_sgprs++;
       }
+
+      const struct radv_physical_device *pdev = radv_device_physical(device);
+      const enum amd_gfx_level gfx_level = pdev->info.gfx_level;
+      uint32_t available_sgprs =
+         gfx_level >= GFX9 && stage != MESA_SHADER_COMPUTE && stage != MESA_SHADER_TASK ? 32 : 16;
+      uint32_t remaining_sgprs = available_sgprs - num_user_sgprs;
+
+      user_sgpr_info.remaining_sgprs = remaining_sgprs;
+
+      if (info->descriptor_heap) {
+         assert(user_sgpr_info.remaining_sgprs >= RADV_MAX_HEAPS);
+         user_sgpr_info.remaining_sgprs -= RADV_MAX_HEAPS;
+      } else {
+         const uint32_t num_desc_set = util_bitcount(info->desc_set_used_mask);
+
+         if (info->force_indirect_descriptors || remaining_sgprs < num_desc_set) {
+            user_sgpr_info.indirect_all_descriptor_sets = true;
+            user_sgpr_info.remaining_sgprs--;
+         } else {
+            user_sgpr_info.remaining_sgprs -= num_desc_set;
+         }
+      }
+
+      if (!info->merged_shader_compiled_separately)
+         allocate_inline_push_consts(info, &user_sgpr_info);
    }
 
-   if (!info->merged_shader_compiled_separately)
-      allocate_inline_push_consts(info, &user_sgpr_info);
+   state.gather_debug_info = debug && device->keep_shader_info;
+   if (state.gather_debug_info) {
+      state.ctx = ralloc_context(NULL);
+      state.gather_debug_info &= !!state.ctx;
+   }
 
    declare_shader_args(&state, device, gfx_state, info, stage, previous_stage, &user_sgpr_info);
+
+   if (state.gather_debug_info)
+      radv_gather_shader_args_debug_info(&state, debug);
+
+   ralloc_free(state.ctx);
 }
 
 void

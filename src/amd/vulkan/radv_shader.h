@@ -428,6 +428,7 @@ struct radv_shader_debug_info {
    char *nir_string;
    char *disasm_string;
    char *ir_string;
+   char *args_string;
    struct amd_stats *statistics;
    struct ac_shader_debug_info *debug_info;
    uint32_t debug_info_count;
@@ -569,7 +570,8 @@ void radv_free_shader_memory(struct radv_device *device, union radv_shader_arena
 
 struct radv_shader *radv_create_trap_handler_shader(struct radv_device *device);
 
-struct radv_shader *radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *stage);
+struct radv_shader *radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *stage,
+                                           struct radv_shader_debug_info *debug);
 
 struct radv_shader_part *radv_shader_part_create(struct radv_device *device, struct radv_shader_part_binary *binary,
                                                  unsigned wave_size);

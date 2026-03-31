@@ -136,10 +136,12 @@ struct radv_graphics_state_key;
 struct radv_shader_info;
 struct radv_ps_epilog_key;
 struct radv_device;
+struct radv_shader_debug_info;
 
 void radv_declare_shader_args(const struct radv_device *device, const struct radv_graphics_state_key *gfx_state,
                               const struct radv_shader_info *info, mesa_shader_stage stage,
-                              mesa_shader_stage previous_stage, struct radv_shader_args *args);
+                              mesa_shader_stage previous_stage, struct radv_shader_args *args,
+                              struct radv_shader_debug_info *debug);
 
 void radv_declare_ps_epilog_args(const struct radv_device *device, const struct radv_ps_epilog_key *key,
                                  struct radv_shader_args *args);

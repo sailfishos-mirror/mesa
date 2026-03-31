@@ -588,6 +588,10 @@ radv_dump_shader(struct radv_device *device, struct radv_pipeline *pipeline, str
       fprintf(f, "NIR:\n%s\n", shader->dbg.nir_string);
    }
 
+   if (shader->dbg.args_string) {
+      fprintf(f, "ARGS:\n%s\n", shader->dbg.args_string);
+   }
+
    fprintf(f, "%s IR:\n%s\n", pdev->use_llvm ? "LLVM" : "ACO", shader->dbg.ir_string);
    fprintf(f, "DISASM:\n%s\n", shader->dbg.disasm_string);
 
