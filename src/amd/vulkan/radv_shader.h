@@ -532,7 +532,7 @@ VkResult radv_parse_binary_debug_info(struct radv_device *device, const struct r
 
 VkResult radv_shader_create_uncached(struct radv_device *device, const struct radv_shader_binary *binary,
                                      bool replayable, struct radv_serialized_shader_arena_block *replay_block,
-                                     struct radv_shader **out_shader);
+                                     struct radv_shader_debug_info *dbg, struct radv_shader **out_shader);
 
 struct radv_shader_binary *radv_shader_nir_to_asm(struct radv_device *device, struct radv_shader_stage *pl_stage,
                                                   struct nir_shader *const *shaders, int shader_count,

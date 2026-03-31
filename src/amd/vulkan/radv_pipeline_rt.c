@@ -543,12 +543,11 @@ radv_rt_compile_nir(struct radv_device *device, struct vk_pipeline_cache *cache,
 
    struct radv_shader *shader;
    if (replay_block || replayable) {
-      VkResult result = radv_shader_create_uncached(device, binary, replayable, replay_block, &shader);
+      VkResult result = radv_shader_create_uncached(device, binary, replayable, replay_block, &debug, &shader);
       if (result != VK_SUCCESS) {
          free(binary);
          return result;
       }
-      shader->dbg = debug;
    } else {
       shader = radv_shader_create(device, cache, binary, skip_shaders_cache, &debug);
    }

@@ -2962,7 +2962,8 @@ radv_parse_binary_debug_info(struct radv_device *device, const struct radv_shade
 
 VkResult
 radv_shader_create_uncached(struct radv_device *device, const struct radv_shader_binary *binary, bool replayable,
-                            struct radv_serialized_shader_arena_block *replay_block, struct radv_shader **out_shader)
+                            struct radv_serialized_shader_arena_block *replay_block, struct radv_shader_debug_info *dbg,
+                            struct radv_shader **out_shader)
 {
    VkResult result = VK_SUCCESS;
    struct radv_shader *shader = calloc(1, sizeof(struct radv_shader));
@@ -2979,6 +2980,9 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
    shader->info = binary->info;
    shader->config = binary->config;
    shader->max_waves = radv_get_max_waves(device, &shader->config, &shader->info);
+
+   if (dbg)
+      shader->dbg = *dbg;
 
    if (binary->type == RADV_BINARY_TYPE_RTLD) {
 #if !defined(USE_LIBELF)
@@ -3470,7 +3474,7 @@ radv_create_trap_handler_shader(struct radv_device *device)
    radv_postprocess_binary_config(device, binary, &args);
 
    struct radv_shader *shader;
-   radv_shader_create_uncached(device, binary, false, NULL, &shader);
+   radv_shader_create_uncached(device, binary, false, NULL, NULL, &shader);
    radv_parse_binary_debug_info(device, binary, &shader->dbg);
 
    if (options.dump_shader) {
@@ -3543,7 +3547,7 @@ radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *sta
    binary->info = stage->info;
 
    radv_postprocess_binary_config(device, binary, &stage->args);
-   radv_shader_create_uncached(device, binary, false, NULL, &prolog);
+   radv_shader_create_uncached(device, binary, false, NULL, NULL, &prolog);
    if (!prolog || radv_parse_binary_debug_info(device, binary, &prolog->dbg) != VK_SUCCESS)
       goto done;
 
