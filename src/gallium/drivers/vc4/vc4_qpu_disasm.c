@@ -98,13 +98,13 @@ static const char *qpu_pack_mul[] = {
  */
 static const char *qpu_unpack[] = {
         [QPU_UNPACK_NOP] = "",
-        [QPU_UNPACK_16A] = "16a",
-        [QPU_UNPACK_16B] = "16b",
-        [QPU_UNPACK_8D_REP] = "8d_rep",
-        [QPU_UNPACK_8A] = "8a",
-        [QPU_UNPACK_8B] = "8b",
-        [QPU_UNPACK_8C] = "8c",
-        [QPU_UNPACK_8D] = "8d",
+        [QPU_UNPACK_16A] = ".16a",
+        [QPU_UNPACK_16B] = ".16b",
+        [QPU_UNPACK_8D_REP] = ".8d_rep",
+        [QPU_UNPACK_8A] = ".8a",
+        [QPU_UNPACK_8B] = ".8b",
+        [QPU_UNPACK_8C] = ".8c",
+        [QPU_UNPACK_8D] = ".8d",
 };
 
 static const char *special_read_a[] = {
@@ -276,8 +276,7 @@ vc4_qpu_disasm_pack_a(FILE *out, uint32_t pack)
 void
 vc4_qpu_disasm_unpack(FILE *out, uint32_t unpack)
 {
-        if (unpack != QPU_UNPACK_NOP)
-                fprintf(out, ".%s", DESC(qpu_unpack, unpack));
+        fprintf(out, "%s", DESC(qpu_unpack, unpack));
 }
 
 void
