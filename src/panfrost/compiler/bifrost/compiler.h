@@ -183,6 +183,22 @@ bi_swizzle_from_byte_channels(const unsigned byte_channels[4],
    }
 }
 
+static inline bool
+bi_try_compose_swizzles(enum bi_swizzle *ab_out,
+                        enum bi_swizzle a, enum bi_swizzle b)
+{
+   unsigned a_bytes[4], b_bytes[4];
+   bi_swizzle_to_byte_channels(a, a_bytes);
+   bi_swizzle_to_byte_channels(b, b_bytes);
+
+   unsigned ab_bytes[4];
+   for (unsigned i = 0; i < 4; i++) {
+      ab_bytes[i] = b_bytes[a_bytes[i]];
+   }
+
+   return bi_swizzle_from_byte_channels(ab_bytes, ab_out);
+}
+
 static inline enum bi_swizzle
 bi_swizzle_from_half(bool x, bool y)
 {
