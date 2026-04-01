@@ -1694,7 +1694,7 @@
         "description": "gallium/u_blitter: remove unused CONST declaration when using IMM",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2ff9fa8b728c5f206e19433a9d9b88eb8d97055b",
         "notes": null
