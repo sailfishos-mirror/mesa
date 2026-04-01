@@ -485,6 +485,9 @@ program@run kernel with max work item sizes,Fail
 # Bisected to 6bc47e65 ("rusticl: Fix work group size validation")
 program@bitcoin: phatk kernel,Fail
 
+# Bisected to c8d7fad1534 ("rusticl: return correct error from clCreateSubBuffer")
+api@clgetmemobjectinfo,Fail
+
 # Failures from arm32
 arm32-KHR-GL31.framebuffer_blit.multisampled_to_singlesampled_blit_color_config_test,Fail
 arm32-KHR-GL31.framebuffer_blit.scissor_blit,Fail
