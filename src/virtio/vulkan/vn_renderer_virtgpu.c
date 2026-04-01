@@ -37,7 +37,6 @@
 #endif
 
 /* XXX comment these out to really use kernel uapi */
-#define SIMULATE_BO_SIZE_FIX 1
 #define SIMULATE_SYNCOBJ     1
 #define SIMULATE_SUBMIT      1
 
@@ -645,10 +644,6 @@ virtgpu_ioctl_resource_create_blob(struct virtgpu *gpu,
                                    uint64_t blob_id,
                                    uint32_t *res_id)
 {
-#ifdef SIMULATE_BO_SIZE_FIX
-   blob_size = align64(blob_size, 4096);
-#endif
-
    struct drm_virtgpu_resource_create_blob args = {
       .blob_mem = blob_mem,
       .blob_flags = blob_flags,
