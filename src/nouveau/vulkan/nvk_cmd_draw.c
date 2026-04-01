@@ -270,8 +270,10 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
 
    P_IMMD(p, NV9097, SET_CT_SELECT, { .target_count = 1 });
 
-//   P_MTHD(cmd->push, NVC0_3D, CSAA_ENABLE);
-//   P_INLINE_DATA(cmd->push, 0);
+   /* TODO: The proprietary driver set method 0x15b4 to 0
+    * and the golden ctx set it to 1 so we should probably unset it.
+    * On the Gallium driver, the unofficial name of this is CSAA_ENABLE.
+    */
 
    P_IMMD(p, NV9097, SET_ALIASED_LINE_WIDTH_ENABLE, V_TRUE);
 
@@ -469,8 +471,6 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
                         BY_VIEWPORT_INDEX_FALSE);
    }
 
-   /* TODO: Vertex runout */
-
    P_IMMD(p, NV9097, SET_WINDOW_ORIGIN, {
       .mode    = MODE_UPPER_LEFT,
       .flip_y  = FLIP_Y_FALSE,
@@ -492,11 +492,6 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_UPDATE_WINDOW_CLIP));
    P_INLINE_DATA(p, 1);
    P_IMMD(p, NV9097, SET_CLIP_ID_TEST, ENABLE_FALSE);
-
-//   P_IMMD(p, NV9097, X_X_X_SET_CLEAR_CONTROL, {
-//      .respect_stencil_mask   = RESPECT_STENCIL_MASK_FALSE,
-//      .use_clear_rect         = USE_CLEAR_RECT_FALSE,
-//   });
 
    P_IMMD(p, NV9097, SET_VIEWPORT_SCALE_OFFSET, ENABLE_TRUE);
 
@@ -565,14 +560,10 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
       }
    }
 
-//   P_MTHD(cmd->push, NVC0_3D, MACRO_GP_SELECT);
-//   P_INLINE_DATA(cmd->push, 0x40);
    P_IMMD(p, NV9097, SET_RT_LAYER, {
       .v = 0,
       .control = CONTROL_V_SELECTS_LAYER,
    });
-//   P_MTHD(cmd->push, NVC0_3D, MACRO_TEP_SELECT;
-//   P_INLINE_DATA(cmd->push, 0x30);
 
    P_IMMD(p, NV9097, SET_POINT_CENTER_MODE, V_OGL);
    P_IMMD(p, NV9097, SET_EDGE_FLAG, V_TRUE);
