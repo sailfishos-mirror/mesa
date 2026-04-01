@@ -1272,54 +1272,18 @@ void gfx6_math(struct brw_codegen *p,
 }
 
 void
-brw_send_indirect_message(struct brw_codegen *p,
-                          unsigned sfid,
-                          struct brw_reg dst,
-                          struct brw_reg payload,
-                          struct brw_reg desc,
-                          bool eot,
-                          bool gather)
-{
-   const struct intel_device_info *devinfo = p->devinfo;
-   struct brw_eu_inst *send;
-
-   dst = retype(dst, BRW_TYPE_UW);
-
-   assert(desc.type == BRW_TYPE_UD);
-
-   if (desc.file == IMM) {
-      send = next_insn(p, BRW_OPCODE_SEND);
-      brw_set_src0(p, send, retype(payload, BRW_TYPE_UD));
-      brw_set_desc(p, send, desc.ud, gather);
-   } else {
-      assert(desc.file == ADDRESS);
-      assert(desc.subnr == 0);
-      send = next_insn(p, BRW_OPCODE_SEND);
-      brw_set_src0(p, send, retype(payload, BRW_TYPE_UD));
-      if (devinfo->ver >= 12)
-         brw_eu_inst_set_send_sel_reg32_desc(devinfo, send, true);
-      else
-         brw_set_src1(p, send, desc);
-   }
-
-   brw_set_dest(p, send, dst);
-   brw_eu_inst_set_sfid(devinfo, send, sfid);
-   brw_eu_inst_set_eot(devinfo, send, eot);
-}
-
-void
-brw_send_indirect_split_message(struct brw_codegen *p,
-                                unsigned sfid,
-                                struct brw_reg dst,
-                                struct brw_reg payload0,
-                                struct brw_reg payload1,
-                                struct brw_reg desc,
-                                struct brw_reg ex_desc,
-                                uint32_t ex_desc_imm_inst,
-                                unsigned ex_mlen,
-                                bool ex_bso,
-                                bool eot,
-                                bool gather)
+brw_SEND(struct brw_codegen *p,
+         unsigned sfid,
+         struct brw_reg dst,
+         struct brw_reg payload0,
+         struct brw_reg payload1,
+         struct brw_reg desc,
+         struct brw_reg ex_desc,
+         uint32_t ex_desc_imm_inst,
+         unsigned ex_mlen,
+         bool ex_bso,
+         bool eot,
+         bool gather)
 {
    const struct intel_device_info *devinfo = p->devinfo;
    struct brw_eu_inst *send;
@@ -1507,21 +1471,21 @@ void
 brw_barrier(struct brw_codegen *p, struct brw_reg src)
 {
    const struct intel_device_info *devinfo = p->devinfo;
-   struct brw_eu_inst *inst;
 
    brw_push_insn_state(p);
    brw_set_default_access_mode(p, BRW_ALIGN_1);
-   inst = next_insn(p, BRW_OPCODE_SEND);
-   brw_set_dest(p, inst, retype(brw_null_reg(), BRW_TYPE_UW));
-   brw_set_src0(p, inst, src);
-   brw_set_src1(p, inst, brw_null_reg());
-   brw_set_desc(p, inst, brw_message_desc(devinfo,
-                                          1 * reg_unit(devinfo), 0, false), false);
+   brw_SEND(p, BRW_SFID_MESSAGE_GATEWAY,
+            retype(brw_null_reg(), BRW_TYPE_UW), src,
+            brw_null_reg(),
+            brw_imm_ud(brw_message_desc(devinfo,
+                                        1 * reg_unit(devinfo), 0,
+                                        false)),
+            brw_imm_ud(0), 0, 0, false,
+            false, false);
 
-   brw_eu_inst_set_sfid(devinfo, inst, BRW_SFID_MESSAGE_GATEWAY);
+   brw_eu_inst *inst = brw_eu_last_inst(p);
    brw_eu_inst_set_gateway_subfuncid(devinfo, inst,
-                                  BRW_MESSAGE_GATEWAY_SFID_BARRIER_MSG);
-
+                                     BRW_MESSAGE_GATEWAY_SFID_BARRIER_MSG);
    brw_eu_inst_set_mask_control(devinfo, inst, BRW_MASK_DISABLE);
    brw_pop_insn_state(p);
 }
