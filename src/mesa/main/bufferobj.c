@@ -5351,3 +5351,15 @@ _mesa_NamedBufferPageCommitmentEXT(GLuint buffer, GLintptr offset,
    buffer_page_commitment(ctx, bufferObj, offset, size, commit,
                           "glNamedBufferPageCommitmentEXT");
 }
+
+void GLAPIENTRY
+_mesa_AddClientPointerRangeMESA(void *addr, GLsizeiptr size)
+{
+
+}
+
+void * GLAPIENTRY
+_mesa_ReleaseClientPointerRangeMESA(GLbitfield flags, GLsizeiptr *size)
+{
+
+}
