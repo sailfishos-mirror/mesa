@@ -1335,11 +1335,13 @@ kk_cmd_bind_graphics_shader(struct kk_cmd_buffer *cmd,
                             const mesa_shader_stage stage,
                             struct kk_shader *shader)
 {
+   cmd->state.shaders[stage] = shader;
+   cmd->state.dirty_shaders |= BITFIELD_BIT(stage);
+
    /* Relevant pipeline data is only stored in vertex shaders */
    if (stage != MESA_SHADER_VERTEX)
       return;
 
-   cmd->state.gfx.pipeline_state = shader->pipeline.gfx.handle;
    cmd->state.gfx.vb.attribs_read = shader->info.vs.attribs_read;
 
    bool requires_dynamic_depth_stencil =
@@ -1358,7 +1360,6 @@ kk_cmd_bind_graphics_shader(struct kk_cmd_buffer *cmd,
       cmd->state.gfx.depth_stencil_state =
          shader->pipeline.gfx.mtl_depth_stencil_state_handle;
    cmd->state.gfx.is_depth_stencil_dynamic = requires_dynamic_depth_stencil;
-   cmd->state.gfx.dirty |= KK_DIRTY_PIPELINE;
    cmd->state.gfx.dirty |= KK_DIRTY_VB;
 
    cmd->state.gfx.sample_count = shader->info.vs.sample_count;

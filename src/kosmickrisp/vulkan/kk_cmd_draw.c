@@ -645,8 +645,11 @@ set_empty_scissor(mtl_render_encoder *enc)
 }
 
 static void
-kk_flush_draw_state(struct kk_cmd_buffer *cmd)
+kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
 {
+#define IS_SHADER_DIRTY(bit)                                                   \
+   (cmd->state.dirty_shaders & BITFIELD_BIT(MESA_SHADER_##bit))
+
    struct kk_device *device = kk_cmd_buffer_device(cmd);
    struct kk_graphics_state *gfx = &cmd->state.gfx;
    struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
@@ -778,8 +781,9 @@ kk_flush_draw_state(struct kk_cmd_buffer *cmd)
       desc->root_dirty = true;
    }
 
-   if (gfx->dirty & KK_DIRTY_PIPELINE) {
-      mtl_render_set_pipeline_state(enc, gfx->pipeline_state);
+   if (IS_SHADER_DIRTY(VERTEX)) {
+      mtl_render_set_pipeline_state(
+         enc, cmd->state.shaders[MESA_SHADER_VERTEX]->pipeline.gfx.handle);
       if (gfx->depth_stencil_state)
          mtl_set_depth_stencil_state(enc, gfx->depth_stencil_state);
    }
@@ -800,8 +804,11 @@ kk_flush_draw_state(struct kk_cmd_buffer *cmd)
                                      gfx->occlusion.index * sizeof(uint64_t));
    }
 
+   cmd->state.dirty_shaders = 0u;
    gfx->dirty = 0u;
    vk_dynamic_graphics_state_clear_dirty(dyn);
+
+#undef IS_SHADER_DIRTY
 }
 
 struct kk_draw_data {
@@ -988,7 +995,7 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    if (!data.indirect && (data.count[0] == 0u || data.count[1] == 0u))
       return;
 
-   kk_flush_draw_state(cmd);
+   kk_flush_gfx_state(cmd);
 
    /* If the restart bool is set, it means that primitive restart is disabled
     * but index type is not uint32_t which requires promoting the type to

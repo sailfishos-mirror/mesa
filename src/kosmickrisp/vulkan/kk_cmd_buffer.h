@@ -97,19 +97,14 @@ struct kk_rendering_state {
  * shaders_dirty.
  */
 enum kk_dirty {
-   KK_DIRTY_INDEX = BITFIELD_BIT(0),
-   KK_DIRTY_VB = BITFIELD_BIT(1),
-   KK_DIRTY_OCCLUSION = BITFIELD_BIT(2),
-   KK_DIRTY_PROVOKING = BITFIELD_BIT(3),
-   KK_DIRTY_VARYINGS = BITFIELD_BIT(4),
-   KK_DIRTY_PIPELINE = BITFIELD_BIT(5),
+   KK_DIRTY_VB = BITFIELD_BIT(0),
+   KK_DIRTY_OCCLUSION = BITFIELD_BIT(1),
 };
 
 struct kk_graphics_state {
    struct kk_rendering_state render;
    struct kk_descriptor_state descriptors;
 
-   mtl_render_pipeline_state *pipeline_state;
    mtl_depth_stencil_state *depth_stencil_state;
    mtl_render_pass_descriptor *render_pass_descriptor;
    bool is_depth_stencil_dynamic;
@@ -168,6 +163,7 @@ struct kk_cmd_buffer {
       struct kk_graphics_state gfx;
       struct kk_compute_state cs;
       struct kk_shader *shaders[MESA_SHADER_STAGES];
+      /* Only tracks graphics shaders since compute is always bound for now. */
       uint32_t dirty_shaders;
    } state;
 
@@ -213,6 +209,7 @@ kk_cmd_buffer_dirty_all_gfx(struct kk_cmd_buffer *cmd)
 {
    /* Ensure we flush all graphics state */
    vk_dynamic_graphics_state_dirty_all(&cmd->vk.dynamic_graphics_state);
+   cmd->state.dirty_shaders = ~0u;
    cmd->state.gfx.dirty = ~0u;
    cmd->state.gfx.descriptors.root_dirty = true;
 }

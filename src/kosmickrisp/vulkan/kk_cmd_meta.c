@@ -100,7 +100,11 @@ kk_meta_begin(struct kk_cmd_buffer *cmd, struct kk_meta_save *save,
       save->dynamic = cmd->vk.dynamic_graphics_state;
       save->_dynamic_vi = cmd->state.gfx._dynamic_vi;
       save->_dynamic_sl = cmd->state.gfx._dynamic_sl;
-      save->pipeline.gfx.ps = cmd->state.gfx.pipeline_state;
+
+      for (uint32_t stage = 0u; stage < MESA_SHADER_COMPUTE; ++stage) {
+         save->shaders[stage] = cmd->state.shaders[stage];
+      }
+
       save->pipeline.gfx.ds = cmd->state.gfx.depth_stencil_state;
       save->pipeline.gfx.attribs_read = cmd->state.gfx.vb.attribs_read;
       save->pipeline.gfx.occlusion = cmd->state.gfx.occlusion.mode;
@@ -158,14 +162,17 @@ kk_meta_end(struct kk_cmd_buffer *cmd, struct kk_meta_save *save,
              cmd->vk.dynamic_graphics_state.set,
              sizeof(cmd->vk.dynamic_graphics_state.set));
 
+      for (uint32_t stage = 0u; stage < MESA_SHADER_COMPUTE; ++stage) {
+         cmd->state.shaders[stage] = save->shaders[stage];
+      }
+      cmd->state.dirty_shaders |= BITFIELD_MASK(MESA_SHADER_COMPUTE);
+
       if (cmd->state.gfx.is_depth_stencil_dynamic)
          mtl_release(cmd->state.gfx.depth_stencil_state);
-      cmd->state.gfx.pipeline_state = save->pipeline.gfx.ps;
       cmd->state.gfx.depth_stencil_state = save->pipeline.gfx.ds;
       cmd->state.gfx.vb.attribs_read = save->pipeline.gfx.attribs_read;
       cmd->state.gfx.is_depth_stencil_dynamic =
          save->pipeline.gfx.is_ds_dynamic;
-      cmd->state.gfx.dirty |= KK_DIRTY_PIPELINE;
 
       cmd->state.gfx.vb.addr_range[0] = save->vb0;
       cmd->state.gfx.vb.handles[0] = save->vb0_handle;
