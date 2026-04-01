@@ -112,11 +112,6 @@ ok_dims(const struct pipe_resource *r, const struct pipe_box *b, int lvl)
 static bool
 ok_format(const struct fd_dev_info *info, enum pipe_format pfmt, bool check_a2d)
 {
-   if (!fd6_color_format_supported(info, pfmt, TILE6_LINEAR))
-      return false;
-
-   enum a6xx_format fmt = fd6_color_format(pfmt, TILE6_LINEAR);
-
    if (util_format_is_compressed(pfmt))
       return true;
 
@@ -132,6 +127,11 @@ ok_format(const struct fd_dev_info *info, enum pipe_format pfmt, bool check_a2d)
    default:
       break;
    }
+
+   if (!fd6_color_format_supported(info, pfmt, TILE6_LINEAR))
+      return false;
+
+   enum a6xx_format fmt = fd6_color_format(pfmt, TILE6_LINEAR);
 
    if (fmt == FMT6_NONE)
       return false;
