@@ -629,7 +629,10 @@ static uint32_t zlib_inflate(const void *compressed_data,
 struct v3d_spec *
 v3d_spec_load(const struct v3d_device_info *devinfo)
 {
-        struct v3d_spec *spec = calloc(1, sizeof(struct v3d_spec));
+        static struct v3d_spec *spec = NULL;
+        if (spec)
+                return spec;
+        spec = calloc(1, sizeof(struct v3d_spec));
         if (!spec)
                 return NULL;
 
