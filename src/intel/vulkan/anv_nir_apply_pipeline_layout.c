@@ -67,8 +67,8 @@ struct apply_pipeline_layout_state {
    bool has_dynamic_buffers;
    uint8_t constants_offset;
 
-   nir_def *set_idx_to_bti;
-   nir_def *set_idx_to_offset;
+   nir_variable *set_idx_to_bti;
+   nir_variable *set_idx_to_offset;
 
    struct {
       bool desc_buffer_used;
@@ -689,13 +689,13 @@ build_desc_address32(nir_builder *b,
                      const struct apply_pipeline_layout_state *state)
 {
    return nir_vec2(b,
-                   nir_vector_extract(
-                      b, state->set_idx_to_bti,
-                      set < MAX_SETS ? nir_imm_int(b, set) : set_idx),
+                   nir_load_array_var(b, state->set_idx_to_bti,
+                                      set < MAX_SETS ?
+                                      nir_imm_int(b, set) : set_idx),
                    nir_iadd(b,
-                            nir_vector_extract(
-                               b, state->set_idx_to_offset,
-                               set < MAX_SETS ? nir_imm_int(b, set) : set_idx),
+                            nir_load_array_var(b, state->set_idx_to_offset,
+                                               set < MAX_SETS ?
+                                               nir_imm_int(b, set) : set_idx),
                             offset));
 }
 
@@ -2513,36 +2513,36 @@ build_packed_binding_table(struct apply_pipeline_layout_state *state,
    }
 }
 
-static nir_def *
-build_descriptor_sets_bti_vec(nir_builder *b,
-                              const struct apply_pipeline_layout_state *state)
+static nir_variable *
+build_descriptor_sets_bti_array(nir_builder *b,
+                                const struct apply_pipeline_layout_state *state)
 {
-   STATIC_ASSERT(MAX_SETS == 8);
-   return nir_vec8(b,
-                   build_descriptor_set_bti(b, 0, state),
-                   build_descriptor_set_bti(b, 1, state),
-                   build_descriptor_set_bti(b, 2, state),
-                   build_descriptor_set_bti(b, 3, state),
-                   build_descriptor_set_bti(b, 4, state),
-                   build_descriptor_set_bti(b, 5, state),
-                   build_descriptor_set_bti(b, 6, state),
-                   build_descriptor_set_bti(b, 7, state));
+   nir_variable *set_to_bti = nir_local_variable_create(
+      b->impl, glsl_array_type(glsl_uint_type(), MAX_SETS, 0),
+      "set_to_bti");
+
+   for (uint32_t i = 0; i < MAX_SETS; i++) {
+      nir_store_array_var(b, set_to_bti, nir_imm_int(b, i),
+                          build_descriptor_set_bti(b, i, state), 0x1);
+   }
+
+   return set_to_bti;
 }
 
-static nir_def *
-build_descriptor_sets_offset_vec(nir_builder *b,
-                                 const struct apply_pipeline_layout_state *state)
+static nir_variable *
+build_descriptor_sets_offset_array(nir_builder *b,
+                                   const struct apply_pipeline_layout_state *state)
 {
-   STATIC_ASSERT(MAX_SETS == 8);
-   return nir_vec8(b,
-                   build_descriptor_set_offset(b, 0, state),
-                   build_descriptor_set_offset(b, 1, state),
-                   build_descriptor_set_offset(b, 2, state),
-                   build_descriptor_set_offset(b, 3, state),
-                   build_descriptor_set_offset(b, 4, state),
-                   build_descriptor_set_offset(b, 5, state),
-                   build_descriptor_set_offset(b, 6, state),
-                   build_descriptor_set_offset(b, 7, state));
+   nir_variable *set_to_offset = nir_local_variable_create(
+      b->impl, glsl_array_type(glsl_uint_type(), MAX_SETS, 0),
+      "set_to_offset");
+
+   for (uint32_t i = 0; i < MAX_SETS; i++) {
+      nir_store_array_var(b, set_to_offset, nir_imm_int(b, i),
+                          build_descriptor_set_offset(b, i, state), 0x1);
+   }
+
+   return set_to_offset;
 }
 
 bool
@@ -2627,8 +2627,8 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
     */
    nir_foreach_function_impl(impl, shader) {
       nir_builder _b = nir_builder_at(nir_before_impl(impl)), *b = &_b;
-      state.set_idx_to_bti = build_descriptor_sets_bti_vec(b, &state);
-      state.set_idx_to_offset = build_descriptor_sets_offset_vec(b, &state);
+      state.set_idx_to_bti = build_descriptor_sets_bti_array(b, &state);
+      state.set_idx_to_offset = build_descriptor_sets_offset_array(b, &state);
       progress |= nir_function_instructions_pass(impl,
                                                  lower_direct_buffer_instr,
                                                  nir_metadata_control_flow,
@@ -2642,8 +2642,8 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
 
    nir_foreach_function_impl(impl, shader) {
       nir_builder _b = nir_builder_at(nir_before_impl(impl)), *b = &_b;
-      state.set_idx_to_bti = build_descriptor_sets_bti_vec(b, &state);
-      state.set_idx_to_offset = build_descriptor_sets_offset_vec(b, &state);
+      state.set_idx_to_bti = build_descriptor_sets_bti_array(b, &state);
+      state.set_idx_to_offset = build_descriptor_sets_offset_array(b, &state);
       progress |= nir_function_instructions_pass(impl,
                                                  apply_pipeline_layout,
                                                  nir_metadata_control_flow,

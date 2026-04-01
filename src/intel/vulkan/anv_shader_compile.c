@@ -1330,6 +1330,23 @@ fixup_large_workgroup_image_coherency(nir_shader *nir)
 }
 
 static void
+cleanup_nir(nir_shader *nir)
+{
+   /* First run copy-prop to get rid of all of the vec() that address
+    * calculations often create and then constant-fold so that, when we get to
+    * anv_nir_lower_ubo_loads, we can detect constant offsets.
+    */
+   bool progress;
+   do {
+      progress = false;
+      NIR_PASS(progress, nir, nir_opt_algebraic);
+      NIR_PASS(progress, nir, nir_opt_copy_prop);
+      NIR_PASS(progress, nir, nir_opt_constant_folding);
+      NIR_PASS(progress, nir, nir_opt_dce);
+   } while (progress);
+}
+
+static void
 anv_shader_lower_nir(struct anv_device *device,
                      void *mem_ctx,
                      const struct vk_graphics_pipeline_state *state,
@@ -1507,18 +1524,12 @@ anv_shader_lower_nir(struct anv_device *device,
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_ssbo,
             anv_nir_ssbo_addr_format(pdevice, shader_data->key.base.robust_flags));
 
-   /* First run copy-prop to get rid of all of the vec() that address
-    * calculations often create and then constant-fold so that, when we
-    * get to anv_nir_lower_ubo_loads, we can detect constant offsets.
-    */
-   bool progress;
-   do {
-      progress = false;
-      NIR_PASS(progress, nir, nir_opt_algebraic);
-      NIR_PASS(progress, nir, nir_opt_copy_prop);
-      NIR_PASS(progress, nir, nir_opt_constant_folding);
-      NIR_PASS(progress, nir, nir_opt_dce);
-   } while (progress);
+
+   cleanup_nir(nir);
+
+   NIR_PASS(_, nir, nir_lower_vars_to_ssa);
+
+   cleanup_nir(nir);
 
    /* Required for nir_divergence_analysis() which is needed for
     * anv_nir_lower_ubo_loads.
