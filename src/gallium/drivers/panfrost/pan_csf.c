@@ -1429,6 +1429,120 @@ emit_tiler_oom_context(struct cs_builder *b, struct panfrost_batch *batch)
    csf_update_tiler_oom_ctx(b, batch->csf.tiler_oom_ctx.gpu);
 }
 
+static void
+csf_emit_draw_flags(struct panfrost_context *ctx, enum mesa_prim mode,
+                    bool fs_required, struct MALI_DCD_FLAGS_0 *flags_0,
+                    struct MALI_DCD_FLAGS_1 *flags_1)
+{
+   struct pipe_rasterizer_state *rast = &ctx->rasterizer->base;
+   struct panfrost_compiled_shader *fs = ctx->prog[MESA_SHADER_FRAGMENT];
+
+   if (flags_0) {
+      enum mesa_prim reduced_mode = u_reduced_prim(mode);
+      bool polygon = reduced_mode == MESA_PRIM_TRIANGLES;
+      bool lines = reduced_mode == MESA_PRIM_LINES;
+
+      /*
+       * From the Gallium documentation,
+       * pipe_rasterizer_state::cull_face "indicates which faces of
+       * polygons to cull". Points and lines are not considered
+       * polygons and should be drawn even if all faces are culled.
+       * The hardware does not take primitive type into account when
+       * culling, so we need to do that check ourselves.
+       */
+      flags_0->cull_front_face =
+         polygon && (rast->cull_face & PIPE_FACE_FRONT);
+      flags_0->cull_back_face = polygon && (rast->cull_face & PIPE_FACE_BACK);
+      flags_0->front_face_ccw = rast->front_ccw;
+
+      flags_0->multisample_enable = rast->multisample;
+
+      /* Use per-sample shading if required by API Also use it when a
+       * blend shader is used with multisampling, as this is handled
+       * by a single ST_TILE in the blend shader with the current
+       * sample ID, requiring per-sample shading.
+       */
+      flags_0->evaluate_per_sample =
+         (rast->multisample &&
+          ((ctx->min_samples > 1) || ctx->valhall_has_blend_shader));
+
+      flags_0->aligned_line_ends = !rast->line_rectangular;
+
+      if (lines && rast->line_smooth)
+         flags_0->multisample_enable = true;
+
+      bool has_oq = ctx->occlusion_query && ctx->active_queries;
+      if (has_oq) {
+         if (ctx->occlusion_query->type == PIPE_QUERY_OCCLUSION_COUNTER)
+            flags_0->occlusion_query = MALI_OCCLUSION_MODE_COUNTER;
+         else
+            flags_0->occlusion_query = MALI_OCCLUSION_MODE_PREDICATE;
+      }
+
+      if (fs_required) {
+         struct pan_earlyzs_state earlyzs = pan_earlyzs_get(
+            fs->earlyzs, ctx->depth_stencil->writes_zs || has_oq,
+            ctx->blend->base.alpha_to_coverage,
+            ctx->depth_stencil->zs_always_passes,
+            PAN_EARLYZS_ZS_TILEBUF_NOT_READ);
+
+         flags_0->pixel_kill_operation = (enum mali_pixel_kill)earlyzs.kill;
+         flags_0->zs_update_operation = (enum mali_pixel_kill)earlyzs.update;
+
+         flags_0->allow_forward_pixel_to_kill =
+            pan_allow_forward_pixel_to_kill(ctx, fs);
+         flags_0->allow_forward_pixel_to_be_killed = !fs->info.writes_global;
+
+         flags_0->overdraw_alpha0 = panfrost_overdraw_alpha(ctx, 0);
+         flags_0->overdraw_alpha1 = panfrost_overdraw_alpha(ctx, 1);
+
+         /* Also use per-sample shading if required by the shader
+          */
+         flags_0->evaluate_per_sample |=
+            (fs->info.fs.sample_shading && rast->multisample);
+
+         /* Unlike Bifrost, alpha-to-coverage must be included in
+          * this identically-named flag. Confusing, isn't it?
+          */
+         flags_0->shader_modifies_coverage = fs->info.fs.writes_coverage ||
+                                        fs->info.fs.can_discard ||
+                                        ctx->blend->base.alpha_to_coverage;
+
+         flags_0->alpha_to_coverage = ctx->blend->base.alpha_to_coverage;
+      } else {
+         /* These operations need to be FORCE to benefit from the
+          * depth-only pass optimizations.
+          */
+         flags_0->pixel_kill_operation = MALI_PIXEL_KILL_FORCE_EARLY;
+         flags_0->zs_update_operation = MALI_PIXEL_KILL_FORCE_EARLY;
+
+         /* No shader and no blend => no shader or blend
+          * reasons to disable FPK. The only FPK-related state
+          * not covered is alpha-to-coverage which we don't set
+          * without blend.
+          */
+         flags_0->allow_forward_pixel_to_kill = true;
+
+         /* No shader => no shader side effects */
+         flags_0->allow_forward_pixel_to_be_killed = true;
+
+         /* Alpha isn't written so these are vacuous */
+         flags_0->overdraw_alpha0 = true;
+         flags_0->overdraw_alpha1 = true;
+      }
+   }
+
+   if (flags_1) {
+      flags_1->sample_mask = rast->multisample ? ctx->sample_mask : 0xFFFF;
+
+      if (fs_required) {
+         /* See JM Valhall equivalent code */
+         flags_1->render_target_mask =
+            (fs->info.outputs_written >> FRAG_RESULT_DATA0) & ctx->fb_rt_mask;
+      }
+   }
+}
+
 static uint32_t
 csf_emit_draw_state(struct panfrost_batch *batch,
                     const struct pipe_draw_info *info, unsigned drawid_offset)
@@ -1538,113 +1652,14 @@ csf_emit_draw_state(struct panfrost_batch *batch,
    cs_move32_to(b, cs_sr_reg32(b, IDVS, TILER_FLAGS),
                 primitive_flags.opaque[0]);
 
+   struct MALI_DCD_FLAGS_0 dcd_flags0_unpacked = { 0, };
+   struct MALI_DCD_FLAGS_1 dcd_flags1_unpacked = { 0, };
    struct mali_dcd_flags_0_packed dcd_flags0;
    struct mali_dcd_flags_1_packed dcd_flags1;
-
-   pan_pack(&dcd_flags0, DCD_FLAGS_0, cfg) {
-      enum mesa_prim reduced_mode = u_reduced_prim(info->mode);
-      bool polygon = reduced_mode == MESA_PRIM_TRIANGLES;
-      bool lines = reduced_mode == MESA_PRIM_LINES;
-
-      /*
-       * From the Gallium documentation,
-       * pipe_rasterizer_state::cull_face "indicates which faces of
-       * polygons to cull". Points and lines are not considered
-       * polygons and should be drawn even if all faces are culled.
-       * The hardware does not take primitive type into account when
-       * culling, so we need to do that check ourselves.
-       */
-      cfg.cull_front_face = polygon && (rast->cull_face & PIPE_FACE_FRONT);
-      cfg.cull_back_face = polygon && (rast->cull_face & PIPE_FACE_BACK);
-      cfg.front_face_ccw = rast->front_ccw;
-
-      cfg.multisample_enable = rast->multisample;
-
-      /* Use per-sample shading if required by API Also use it when a
-       * blend shader is used with multisampling, as this is handled
-       * by a single ST_TILE in the blend shader with the current
-       * sample ID, requiring per-sample shading.
-       */
-      cfg.evaluate_per_sample =
-         (rast->multisample &&
-          ((ctx->min_samples > 1) || ctx->valhall_has_blend_shader));
-
-      cfg.aligned_line_ends = !rast->line_rectangular;
-
-      if (lines && rast->line_smooth)
-         cfg.multisample_enable = true;
-
-      bool has_oq = ctx->occlusion_query && ctx->active_queries;
-      if (has_oq) {
-         if (ctx->occlusion_query->type == PIPE_QUERY_OCCLUSION_COUNTER)
-            cfg.occlusion_query = MALI_OCCLUSION_MODE_COUNTER;
-         else
-            cfg.occlusion_query = MALI_OCCLUSION_MODE_PREDICATE;
-      }
-
-      if (fs_required) {
-         struct pan_earlyzs_state earlyzs = pan_earlyzs_get(
-            fs->earlyzs, ctx->depth_stencil->writes_zs || has_oq,
-            ctx->blend->base.alpha_to_coverage,
-            ctx->depth_stencil->zs_always_passes,
-            PAN_EARLYZS_ZS_TILEBUF_NOT_READ);
-
-         cfg.pixel_kill_operation = (enum mali_pixel_kill)earlyzs.kill;
-         cfg.zs_update_operation = (enum mali_pixel_kill)earlyzs.update;
-
-         cfg.allow_forward_pixel_to_kill =
-            pan_allow_forward_pixel_to_kill(ctx, fs);
-         cfg.allow_forward_pixel_to_be_killed = !fs->info.writes_global;
-
-         cfg.overdraw_alpha0 = panfrost_overdraw_alpha(ctx, 0);
-         cfg.overdraw_alpha1 = panfrost_overdraw_alpha(ctx, 1);
-
-         /* Also use per-sample shading if required by the shader
-          */
-         cfg.evaluate_per_sample |=
-            (fs->info.fs.sample_shading && rast->multisample);
-
-         /* Unlike Bifrost, alpha-to-coverage must be included in
-          * this identically-named flag. Confusing, isn't it?
-          */
-         cfg.shader_modifies_coverage = fs->info.fs.writes_coverage ||
-                                        fs->info.fs.can_discard ||
-                                        ctx->blend->base.alpha_to_coverage;
-
-         cfg.alpha_to_coverage = ctx->blend->base.alpha_to_coverage;
-      } else {
-         /* These operations need to be FORCE to benefit from the
-          * depth-only pass optimizations.
-          */
-         cfg.pixel_kill_operation = MALI_PIXEL_KILL_FORCE_EARLY;
-         cfg.zs_update_operation = MALI_PIXEL_KILL_FORCE_EARLY;
-
-         /* No shader and no blend => no shader or blend
-          * reasons to disable FPK. The only FPK-related state
-          * not covered is alpha-to-coverage which we don't set
-          * without blend.
-          */
-         cfg.allow_forward_pixel_to_kill = true;
-
-         /* No shader => no shader side effects */
-         cfg.allow_forward_pixel_to_be_killed = true;
-
-         /* Alpha isn't written so these are vacuous */
-         cfg.overdraw_alpha0 = true;
-         cfg.overdraw_alpha1 = true;
-      }
-   }
-
-   pan_pack(&dcd_flags1, DCD_FLAGS_1, cfg) {
-      cfg.sample_mask = rast->multisample ? ctx->sample_mask : 0xFFFF;
-
-      if (fs_required) {
-         /* See JM Valhall equivalent code */
-         cfg.render_target_mask =
-            (fs->info.outputs_written >> FRAG_RESULT_DATA0) & ctx->fb_rt_mask;
-      }
-   }
-
+   csf_emit_draw_flags(ctx, info->mode, fs_required, &dcd_flags0_unpacked,
+                       &dcd_flags1_unpacked);
+   MALI_DCD_FLAGS_0_pack(&dcd_flags0, &dcd_flags0_unpacked);
+   MALI_DCD_FLAGS_1_pack(&dcd_flags1, &dcd_flags1_unpacked);
    cs_move32_to(b, cs_sr_reg32(b, IDVS, DCD0), dcd_flags0.opaque[0]);
    cs_move32_to(b, cs_sr_reg32(b, IDVS, DCD1), dcd_flags1.opaque[0]);
 
