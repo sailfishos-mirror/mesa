@@ -98,7 +98,7 @@ enum bi_swizzle {
    BI_SWIZZLE_B33 = BI_SWIZZLE_B3333,
 };
 
-static inline bool
+static inline void
 bi_swizzle_to_byte_channels(enum bi_swizzle swizzle, unsigned *channels)
 {
 #define B(b0, b1, b2, b3)                                                      \
@@ -107,7 +107,7 @@ bi_swizzle_to_byte_channels(enum bi_swizzle swizzle, unsigned *channels)
       channels[1] = b1;                                                        \
       channels[2] = b2;                                                        \
       channels[3] = b3;                                                        \
-      return true;                                                             \
+      return;                                                                  \
    }
    switch (swizzle) {
       B(0, 1, 0, 1);
@@ -133,10 +133,10 @@ bi_swizzle_to_byte_channels(enum bi_swizzle swizzle, unsigned *channels)
       B(0, 0, 3, 3);
       B(1, 1, 3, 3);
       B(1, 1, 2, 3);
-   default:
-      return false;
    }
 #undef B
+
+   UNREACHABLE("Invalid bi_swizzle");
 }
 
 static inline enum bi_swizzle
@@ -365,8 +365,7 @@ static inline bi_index
 bi_byte(bi_index idx, unsigned lane)
 {
    unsigned bytes[4];
-   bool valid = bi_swizzle_to_byte_channels(idx.swizzle, bytes);
-   assert(valid);
+   bi_swizzle_to_byte_channels(idx.swizzle, bytes);
 
    assert(lane < 4);
    idx.swizzle = (enum bi_swizzle)(BI_SWIZZLE_B0 + bytes[lane]);

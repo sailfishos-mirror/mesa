@@ -16,9 +16,7 @@ lower_swz_v4i8(bi_builder *b, bi_instr *I)
    if (b->shader->arch >= 11) {
       bi_index srcs[4] = {I->src[0], I->src[0], I->src[0], I->src[0]};
       unsigned channels[4];
-      ASSERTED bool valid_swizzle =
-         bi_swizzle_to_byte_channels(I->src[0].swizzle, channels);
-      assert(valid_swizzle);
+      bi_swizzle_to_byte_channels(I->src[0].swizzle, channels);
       return bi_make_vec_to(b, I->dest[0], srcs, channels, 4, 8);
    }
 
