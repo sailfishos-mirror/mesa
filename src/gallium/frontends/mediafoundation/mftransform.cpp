@@ -1573,10 +1573,11 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                // and what pSliceFences[] after that point are unused and must not be waited on.
                //
                // When emitting the MFSamples asynchronously for each slice, we need to mark MFSample_LastSlice
-               // on the last actual slice. In auto mode, we only know which one is the last actual slice after pLastSliceFence is
-               // signaled and by that time, it is too late to mark MFSample_LastSlice on the last slice only (as it may have been
-               // already emitted), so in PIPE_SLICE_AUTO_MODE, we gather all completed slices here and emit them together after
-               // pLastSliceFence is signaled.
+               // on the last actual slice. In auto mode, we use a pending-buffer approach: all slices except the
+               // most recent are emitted eagerly with bIsLastSlice = FALSE. The most recently completed slice is
+               // held in a pending slot. When pLastSliceFence signals (breaking the loop), the pending slice is
+               // emitted with bIsLastSlice = TRUE. This avoids deferring all emissions to a second pass while
+               // still correctly marking the last slice.
                //
                if( !pDX12EncodeContext->IsSliceAutoModeEnabled() )
                {
@@ -1620,20 +1621,31 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                }
                else
                {
-                  std::vector<ComPtr<IMFMediaBuffer>> spMediaBuffers;
-                  spMediaBuffers.reserve( num_slice_buffers );
-                  std::vector<ComPtr<IMFSample>> spOutputSamples;
-                  spOutputSamples.reserve( num_slice_buffers );
-                  std::vector<std::vector<struct codec_unit_location_t>> codec_unit_metadatas;
-                  codec_unit_metadatas.reserve( num_slice_buffers );
+                  // Pending-buffer approach: emit slices eagerly as each pSliceFences[slice_idx] completes,
+                  // but always hold back the most recently completed slice in a "pending" slot.
+                  // When a new slice completes, emit the pending one with bIsLastSlice = FALSE and replace it.
+                  // When pLastSliceFence fires (breaking the loop), emit the pending slice with bIsLastSlice = TRUE.
+                  // This gives immediate emission of all slices except the last, which is only delayed by the
+                  // nanosecond gap between the last pSliceFences signal and pLastSliceFence.
+                  ComPtr<IMFSample> pendingSample;
+                  ComPtr<IMFMediaBuffer> pendingBuffer;
+                  std::vector<struct codec_unit_location_t> pendingMetadata;
+                  pendingMetadata.reserve( 16 );
+                  uint32_t actual_slice_count = 0;
 
-                  std::vector<struct codec_unit_location_t> cur_slice_codec_unit_metadata;
-                  cur_slice_codec_unit_metadata.reserve( 16 );
+                  struct HandleCloser {
+                     void operator()( void *h ) {
+                        if(h) CloseHandle(h);
+                     }
+                  };
+
+                  std::unique_ptr<void, HandleCloser> lastSliceFenceEvent(
+                     pThis->m_pPipeContext->screen->fence_get_win32_event(
+                     pThis->m_pPipeContext->screen, pDX12EncodeContext->pLastSliceFence ) );
+                  assert(lastSliceFenceEvent);
 
                   for( uint32_t slice_idx = 0; slice_idx < num_slice_buffers; slice_idx++ )
                   {
-                     cur_slice_codec_unit_metadata.clear();
-
                      // Wait for the current slice fence to complete, using pLastSliceFence as a short-circuit.
                      // pLastSliceFence signals when ALL slices are complete, so once it's signaled, we can
                      // stop polling individual slice fences and assume those are all done.
@@ -1641,43 +1653,47 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                      // actually generated than the max allocated buffers (num_slice_buffers is max number of supported slices in
                      // auto slice mode). pLastSliceFence acts as a "cancel token" to exit the wait loop when all actual slices are
                      // ready to process.
-                     uint32_t slice_fence_wait_iteration = 0u;
-                     constexpr uint32_t slice_fence_wait_max_iterations =
-                        1000u;   // 1 second max wait (1ms timeout per iteration below)
-                     while( slice_fence_wait_iteration++ < slice_fence_wait_max_iterations &&
-                            !WaitForFence( pDX12EncodeContext->pSliceFences[slice_idx], 1000000ULL /* 1ms timeout */ ) &&
-                            !WaitForFence( pDX12EncodeContext->pLastSliceFence, 0 /* No wait, just poll */ ) )
-                     {
-                        // Keep polling with 1ms timeout until either:
-                        // 1. slice_fence_wait_iteration reaches max iterations (timeout), OR
-                        // 2. The current slice fence signals, OR
-                        // 3. pLastSliceFence signals (all actual slices are ready to process - short-circuit)
-                     }
+                     //
+                     // Use WaitForMultipleObjects to block until either fence signals
+                     //
 
-                     if( slice_fence_wait_iteration >= slice_fence_wait_max_iterations )
-                     {
-                        assert( false );
-                        MFE_ERROR( "[dx12 hmft 0x%p] Timeout waiting for slice %u fence OR pLastSliceFence to complete",
-                                   pThis,
-                                   slice_idx );
-                        break;
-                     }
-                     else if( WaitForFence( pDX12EncodeContext->pSliceFences[slice_idx], 0 /* No wait, just check */ ) )
+                     std::unique_ptr<void, HandleCloser> sliceFenceEvent(
+                        pThis->m_pPipeContext->screen->fence_get_win32_event(
+                        pThis->m_pPipeContext->screen, pDX12EncodeContext->pSliceFences[slice_idx] ) );
+                     assert(sliceFenceEvent);
+
+                     HANDLE fenceEvents[2] = { sliceFenceEvent.get(), lastSliceFenceEvent.get() };
+                     DWORD waitResult = WaitForMultipleObjects( 2, fenceEvents, FALSE /* bWaitAll */, INFINITE );
+
+                     if( waitResult == WAIT_OBJECT_0 + 0 /* slice fence signaled */ )
                      {
                         //
                         // The current slice_idx fence is completed - process this slice
                         //
 
-                        ComPtr<IMFSample> spOutputSample;
-                        MFCreateSample( &spOutputSample );
-                        spOutputSamples.push_back( spOutputSample );
-                        ComPtr<IMFMediaBuffer> spMediaBuffer;
+                        // Emit the previous pending slice (not the last) before replacing it
+                        if( pendingSample )
+                        {
+                           pThis->FinalizeAndEmitOutputSample( pDX12EncodeContext,
+                                                               pendingBuffer,
+                                                               pendingSample,
+                                                               pendingMetadata.data(),
+                                                               static_cast<unsigned>( pendingMetadata.size() ),
+                                                               dwReceivedInput,
+                                                               FALSE /*bIsLastSlice*/,
+                                                               ResolveStatsCompletionFenceValue );
+                        }
 
-                        // Reset codec unit metadata for this slice as it will be wrapped on its own IMFSample
+                        // Current slice becomes pending
+                        pendingSample.Reset();
+                        pendingBuffer.Reset();
+                        pendingMetadata.clear();
+                        MFCreateSample( &pendingSample );
+
                         if( !pThis->ProcessSliceBitstreamZeroCopy( pDX12EncodeContext,
                                                                    slice_idx,
-                                                                   spMediaBuffer,
-                                                                   cur_slice_codec_unit_metadata ) )
+                                                                   pendingBuffer,
+                                                                   pendingMetadata ) )
                         {
                            debug_printf( "[dx12 hmft 0x%p] Failed to process slice %u bitstream\n", pThis, slice_idx );
                            MFE_ERROR( "[dx12 hmft 0x%p] Failed to process slice %u bitstream", pThis, slice_idx );
@@ -1688,10 +1704,9 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                            break;
                         }
 
-                        spMediaBuffers.push_back( spMediaBuffer );
-                        codec_unit_metadatas.push_back( cur_slice_codec_unit_metadata );
+                        actual_slice_count++;
                      }
-                     else if( WaitForFence( pDX12EncodeContext->pLastSliceFence, 0 /* No wait, just check */ ) )
+                     else if( waitResult == WAIT_OBJECT_0 + 1 /* last slice fence signaled */ )
                      {
                         //
                         // If pLastSliceFence is completed but the slice_idx fence didn't, it means this pSliceFences slot
@@ -1701,32 +1716,39 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                      }
                      else
                      {
-                        // Unexpected: neither fence signaled after exiting wait loop - this should not happen
-                        assert( false );
-                        MFE_ERROR( "[dx12 hmft 0x%p] Slice fence wait loop exited but neither fence signaled for slice %u",
+                        // Unexpected WaitForMultipleObjects result on waitResult
+                        DWORD lastError = GetLastError();
+                        debug_printf( "[dx12 hmft 0x%p] WaitForMultipleObjects failed for slice %" PRIu32 " (result=0x%" PRIx32 ", GetLastError=0x%" PRIx32 ")\n",
+                                      pThis,
+                                      slice_idx,
+                                      static_cast<uint32_t>( waitResult ),
+                                      static_cast<uint32_t>( lastError ) );
+                        MFE_ERROR( "[dx12 hmft 0x%p] WaitForMultipleObjects failed for slice %u (result=0x%x, GetLastError=0x%x)",
                                    pThis,
-                                   slice_idx );
+                                   slice_idx,
+                                   static_cast<uint32_t>( waitResult ),
+                                   static_cast<uint32_t>( lastError ) );
+                        assert( false );
+                        pThis->QueueEvent( MEError, GUID_NULL, E_FAIL, nullptr );
+                        bHasEncodingError = TRUE;
+                        delete pDX12EncodeContext;
                         break;
                      }
                   }
 
-                  // At the end of the loop, we always have in spOutputSamples.size() the actual number of slices processed
-                  // which may be less than num_slice_buffers in auto slice mode
-                  // so adjust accordingly num_slice_buffers here so we only emit the actual processed slices
-                  num_slice_buffers = static_cast<uint32_t>( spOutputSamples.size() );
-
-                  for( uint32_t emission_idx = 0; emission_idx < num_slice_buffers; emission_idx++ )
+                  // Emit the final pending slice with bIsLastSlice = TRUE
+                  if( pendingSample )
                   {
                      pThis->FinalizeAndEmitOutputSample( pDX12EncodeContext,
-                                                         spMediaBuffers[emission_idx],
-                                                         spOutputSamples[emission_idx],
-                                                         codec_unit_metadatas[emission_idx].data(),
-                                                         static_cast<unsigned>( codec_unit_metadatas[emission_idx].size() ),
+                                                         pendingBuffer,
+                                                         pendingSample,
+                                                         pendingMetadata.data(),
+                                                         static_cast<unsigned>( pendingMetadata.size() ),
                                                          dwReceivedInput,
-                                                         ( emission_idx == ( num_slice_buffers - 1 ) ),
+                                                         TRUE /*bIsLastSlice*/,
                                                          ResolveStatsCompletionFenceValue );
+                     HMFT_ETW_EVENT_STOP( "TimeToEmitMFSampleOutput", pThis );
                   }
-                  HMFT_ETW_EVENT_STOP( "TimeToEmitMFSampleOutput", pThis );
                }
 
                // Cleanup fences
