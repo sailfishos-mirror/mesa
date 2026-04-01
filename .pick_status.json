@@ -2394,7 +2394,7 @@
         "description": "pan/compiler/lower_fs_inputs: Do not trust slot->alu_type",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "66bee415ad9c2d1f9b89d3cc2eeaca6dd29fab7c",
         "notes": null
