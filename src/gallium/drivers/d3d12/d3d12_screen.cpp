@@ -1223,6 +1223,32 @@ static void* d3d12_fence_get_win32_handle(struct pipe_screen *pscreen,
 
    return (void*) shared_handle;
 }
+
+static void *d3d12_fence_get_win32_event([[maybe_unused]] struct pipe_screen *pscreen,
+                                         struct pipe_fence_handle *fence_handle)
+{
+   struct d3d12_fence* fence = (struct d3d12_fence*) fence_handle;
+
+   if (fence->type != PIPE_FD_TYPE_NATIVE_SYNC)
+      return NULL;
+
+   /* Create a new manual-reset event rather than duplicating the fence's
+    * auto-reset event.  Duplicated handles share the same kernel object, so
+    * a wait on any handle consumes the single auto-reset signal — causing
+    * other waiters to hang.
+    * A dedicated manual-reset event with its own SetEventOnCompletion avoids
+    * this by giving each caller an independent signal. */
+   HANDLE event = CreateEvent(NULL, TRUE /* bManualReset */, FALSE, NULL);
+   if (!event)
+      return NULL;
+
+   if (FAILED(fence->cmdqueue_fence->SetEventOnCompletion(fence->value, event))) {
+      CloseHandle(event);
+      return NULL;
+   }
+
+   return event;
+}
 #endif
 
 static void
@@ -1309,6 +1335,7 @@ d3d12_init_screen_base(struct d3d12_screen *screen, struct sw_winsys *winsys, LU
    screen->base.interop_export_object = d3d12_interop_export_object;
 #ifdef _WIN32
    screen->base.fence_get_win32_handle = d3d12_fence_get_win32_handle;
+   screen->base.fence_get_win32_event = d3d12_fence_get_win32_event;
 #endif
    screen->base.query_memory_info = d3d12_query_memory_info;
 
