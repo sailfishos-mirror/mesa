@@ -1799,12 +1799,97 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
    }
 }
 
+#if PAN_ARCH == 10
+static struct pan_ptr
+csf_emit_fullscreen_dcd(struct panfrost_batch *batch,
+                        struct pan_ptr vertex_array, uint64_t resources)
+{
+   struct panfrost_context *ctx = batch->ctx;
+   struct pan_ptr dcd = pan_pool_alloc_desc(&batch->pool.base, DRAW);
+   struct MALI_DCD_FLAGS_0 dcd_flags0_unpacked = { 0, };
+   struct MALI_DCD_FLAGS_1 dcd_flags1_unpacked = { 0, };
+
+   csf_emit_draw_flags(ctx, MESA_PRIM_QUADS, true, &dcd_flags0_unpacked,
+                       &dcd_flags1_unpacked);
+
+   pan_cast_and_pack(dcd.cpu, DRAW, cfg) {
+      /* Flags */
+      cfg.flags_0 = dcd_flags0_unpacked;
+      cfg.flags_1 = dcd_flags1_unpacked;
+
+      /* Vertex descriptor */
+      if (vertex_array.cpu) {
+         cfg.vertex_array.packet = true;
+         cfg.vertex_array.pointer = vertex_array.gpu;
+         cfg.vertex_array.vertex_packet_stride =
+            PAN_RUN_FULLSCREEN_PACKET_STRIDE;
+         cfg.vertex_array.vertex_attribute_stride =
+            PAN_RUN_FULLSCREEN_ATTRIB_STRIDE;
+      }
+
+      /* Depth/stencil and blend descriptor */
+      cfg.minimum_z = batch->minimum_z;
+      cfg.maximum_z = batch->maximum_z;
+      cfg.depth_stencil = batch->depth_stencil;
+      cfg.blend_count = MAX2(batch->key.nr_cbufs, 1);
+      cfg.blend = batch->blend;
+
+      /* Shader environment */
+      cfg.shader.attribute_offset = 0;
+      cfg.shader.fau_count = DIV_ROUND_UP(
+         batch->nr_push_uniforms[MESA_SHADER_FRAGMENT], 2);
+      cfg.shader.resources = resources;
+      cfg.shader.shader = batch->rsd[MESA_SHADER_FRAGMENT];
+      cfg.shader.thread_storage = batch->tls.gpu;
+      cfg.shader.fau = batch->push_uniforms[MESA_SHADER_FRAGMENT];
+   }
+
+   return dcd;
+}
+#endif
+
 void
 GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
                                  enum blitter_attrib_type type,
                                  const struct blitter_attrib *attrib)
 {
-   UNREACHABLE("draw fullscreen not implemented for csf");
+#if PAN_ARCH == 10
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
+   struct cs_builder *b = batch->csf.cs.builder;
+
+   if (batch->draw_count == 0) {
+      emit_tiler_oom_context(b, batch);
+      cs_vt_start(batch->csf.cs.builder, cs_now());
+   }
+
+   /* Build draw call. */
+   struct pan_ptr array = panfrost_emit_fullscreen_vertex_array(batch, type,
+                                                                attrib);
+   uint64_t resources = panfrost_emit_resources(batch, MESA_SHADER_FRAGMENT);
+   struct pan_ptr dcd = csf_emit_fullscreen_dcd(batch, array, resources);
+
+   struct mali_primitive_flags_packed primitive_flags;
+   pan_pack(&primitive_flags, PRIMITIVE_FLAGS, cfg) {
+      cfg.scissor_array_enable = false;
+      cfg.view_mask = 0;
+   }
+
+   /* Set input staging registers. */
+   uint64_t *sbd = (uint64_t *)batch->scissor;
+   cs_move64_to(b, cs_sr_reg64(b, FULLSCREEN, TILER_CTX),
+                csf_get_tiler_desc(batch));
+   cs_move64_to(b, cs_sr_reg64(b, FULLSCREEN, SCISSOR_BOX), *sbd);
+   cs_move32_to(b, cs_sr_reg32(b, FULLSCREEN, TILER_FLAGS),
+                primitive_flags.opaque[0]);
+
+   /* Emit RUN_FULLSCREEN. */
+   struct cs_index dcd_pointer = cs_reg64(b, 64);
+   cs_move64_to(b, dcd_pointer, dcd.gpu);
+   cs_run_fullscreen(b, 0, dcd_pointer);
+#else
+   UNREACHABLE("Unsupported architecture!");
+#endif
 }
 
 #define POSITION_FIFO_SIZE (64 * 1024)
