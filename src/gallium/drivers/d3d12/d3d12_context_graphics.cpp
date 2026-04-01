@@ -2026,7 +2026,7 @@ d3d12_clear_render_target(struct pipe_context *pctx,
                                           clear_color, 1, &rect);
       ctx->has_commands = true;
       d3d12_batch_reference_surface_texture(d3d12_current_batch(ctx), surf);
-      d3d12_surface_destroy(surf);
+      d3d12_surface_destroy(NULL, &surf->base);
    }
 
 
@@ -2075,7 +2075,7 @@ d3d12_clear_depth_stencil(struct pipe_context *pctx,
    if (!render_condition_enabled && ctx->current_predication) {
       d3d12_enable_predication(ctx);
    }
-   d3d12_surface_destroy(surf);
+   d3d12_surface_destroy(NULL, &surf->base);
 }
 
 static void

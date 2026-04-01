@@ -168,7 +168,7 @@ d3d12_reset_batch(struct d3d12_context *ctx, struct d3d12_batch *batch, uint64_t
    _mesa_hash_table_clear(batch->bos, delete_bo_entry);
    set_foreach_remove(batch->surfaces, entry) {
       struct pipe_surface *surf = (struct pipe_surface *)entry->key;
-      pipe_surface_reference(&surf, NULL, &ctx->base, (pipe_surface_destroy_func)d3d12_surface_destroy);
+      pipe_surface_reference(&surf, NULL, &ctx->base, d3d12_surface_destroy);
    }
    _mesa_set_clear(batch->objects, delete_object);
    
