@@ -130,9 +130,7 @@ export -f _error_msg
 
 if [ -z "${RESULTS_DIR:-}" ]; then
 	export RESULTS_DIR="${PWD%/}/results"
-	if [ -e "${RESULTS_DIR}" ]; then
-		rm -rf "${RESULTS_DIR}"
-	fi
+	rm -rf "${RESULTS_DIR}"
 	mkdir -p "${RESULTS_DIR}"
 fi
 
