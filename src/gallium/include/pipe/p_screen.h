@@ -437,6 +437,12 @@ struct pipe_screen {
                                    uint64_t *fence_value);
 
    /**
+    * Retrieves the Win32 event handle from the fence.
+    */
+   void* (*fence_get_win32_event)(struct pipe_screen *screen,
+                                  struct pipe_fence_handle *fence);
+
+   /**
     * Create a fence from an Win32 handle.
     *
     * This is used for importing a foreign/external fence handle.
