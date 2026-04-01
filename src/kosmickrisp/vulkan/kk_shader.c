@@ -1324,12 +1324,10 @@ kk_deserialize_shader(struct vk_device *vk_dev, struct blob_reader *blob,
    return VK_SUCCESS;
 }
 
-static void
+void
 kk_cmd_bind_compute_shader(struct kk_cmd_buffer *cmd, struct kk_shader *shader)
 {
-   cmd->state.cs.pipeline_state = shader->pipeline.cs;
-   cmd->state.cs.dirty |= KK_DIRTY_PIPELINE;
-   cmd->state.cs.local_size = shader->info.cs.local_size;
+   cmd->state.shaders[MESA_SHADER_COMPUTE] = shader;
 }
 
 static void

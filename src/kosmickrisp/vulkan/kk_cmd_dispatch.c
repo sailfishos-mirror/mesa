@@ -47,8 +47,8 @@ kk_flush_compute_state(struct kk_cmd_buffer *cmd)
    if (root_buffer)
       mtl_compute_set_buffer(enc, root_buffer->map, 0, 0);
 
-   mtl_compute_set_pipeline_state(enc, cmd->state.cs.pipeline_state);
-   cmd->state.cs.dirty = 0u;
+   mtl_compute_set_pipeline_state(
+      enc, cmd->state.shaders[MESA_SHADER_COMPUTE]->pipeline.cs);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -69,13 +69,14 @@ kk_CmdDispatchBase(VkCommandBuffer commandBuffer, uint32_t baseGroupX,
 
    kk_flush_compute_state(cmd);
 
+   struct kk_shader *cs = cmd->state.shaders[MESA_SHADER_COMPUTE];
    struct mtl_size grid_size = {
       .x = groupCountX,
       .y = groupCountY,
       .z = groupCountZ,
    };
    mtl_compute_encoder *enc = kk_compute_encoder(cmd);
-   mtl_dispatch_threads(enc, grid_size, cmd->state.cs.local_size);
+   mtl_dispatch_threads(enc, grid_size, cs->info.cs.local_size);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -95,7 +96,8 @@ kk_CmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
 
    kk_flush_compute_state(cmd);
 
+   struct kk_shader *cs = cmd->state.shaders[MESA_SHADER_COMPUTE];
    mtl_compute_encoder *enc = kk_compute_encoder(cmd);
    mtl_dispatch_threadgroups_with_indirect_buffer(
-      enc, buffer->mtl_handle, offset, cmd->state.cs.local_size);
+      enc, buffer->mtl_handle, offset, cs->info.cs.local_size);
 }

@@ -154,9 +154,6 @@ struct kk_graphics_state {
 
 struct kk_compute_state {
    struct kk_descriptor_state descriptors;
-   mtl_compute_pipeline_state *pipeline_state;
-   struct mtl_size local_size;
-   enum kk_dirty dirty;
 };
 
 struct kk_encoder;
@@ -170,6 +167,8 @@ struct kk_cmd_buffer {
    struct {
       struct kk_graphics_state gfx;
       struct kk_compute_state cs;
+      struct kk_shader *shaders[MESA_SHADER_STAGES];
+      uint32_t dirty_shaders;
    } state;
 
    /* Owned large BOs */
