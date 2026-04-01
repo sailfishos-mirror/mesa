@@ -366,7 +366,7 @@ asan-KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 # This seems to be working with upstream
 program@execute@vector-conversion,Fail
 
-# New failures with VK CTS 1.4.4.0
+# https://gitlab.khronos.org/Tracker/vk-gl-cts/-/issues/6437
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.combined_image_sampler,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.sampled_image,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.storage_buffer,Crash
