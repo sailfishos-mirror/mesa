@@ -295,7 +295,7 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
 
    P_IMMD(p, NV9097, SET_REDUCE_COLOR_THRESHOLDS_ENABLE, V_FALSE);
    P_IMMD(p, NV9097, SET_REDUCE_COLOR_THRESHOLDS_UNORM8, {
-      .all_covered_all_hit_once = 0xff,
+      .all_covered_all_hit_once = 0x4,
    });
    P_MTHD(p, NV9097, SET_REDUCE_COLOR_THRESHOLDS_UNORM10);
    P_NV9097_SET_REDUCE_COLOR_THRESHOLDS_UNORM10(p, {
@@ -311,7 +311,7 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
       .all_covered_all_hit_once = 0xff,
    });
    P_NV9097_SET_REDUCE_COLOR_THRESHOLDS_SRGB8(p, {
-      .all_covered_all_hit_once = 0xff,
+      .all_covered_all_hit_once = 0x4,
    });
    P_IMMD(p, NV9097, SET_SHADER_CACHE_CONTROL, pdev->info.cls_eng3d >= ADA_A);
 
