@@ -506,34 +506,9 @@ sim_submit_signal_syncs(struct virtgpu *gpu,
    return 0;
 }
 
-static uint32_t *
-sim_submit_alloc_gem_handles(struct vn_renderer_bo *const *bos,
-                             uint32_t bo_count)
-{
-   uint32_t *gem_handles = malloc(sizeof(*gem_handles) * bo_count);
-   if (!gem_handles)
-      return NULL;
-
-   for (uint32_t i = 0; i < bo_count; i++) {
-      struct virtgpu_bo *bo = (struct virtgpu_bo *)bos[i];
-      gem_handles[i] = bo->gem_handle;
-   }
-
-   return gem_handles;
-}
-
 static int
 sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit *submit)
 {
-   /* TODO replace submit->bos by submit->gem_handles to avoid malloc/loop */
-   uint32_t *gem_handles = NULL;
-   if (submit->bo_count) {
-      gem_handles =
-         sim_submit_alloc_gem_handles(submit->bos, submit->bo_count);
-      if (!gem_handles)
-         return -1;
-   }
-
    assert(submit->batch_count);
 
    int ret = 0;
@@ -545,8 +520,6 @@ sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit *submit)
                   (batch->sync_count ? VIRTGPU_EXECBUF_FENCE_FD_OUT : 0),
          .size = batch->cs_size,
          .command = (uintptr_t)batch->cs_data,
-         .bo_handles = (uintptr_t)gem_handles,
-         .num_bo_handles = submit->bo_count,
          .ring_idx = batch->ring_idx,
       };
 
@@ -566,7 +539,6 @@ sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit *submit)
       }
    }
 
-   free(gem_handles);
    return ret;
 }
 

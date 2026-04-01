@@ -100,15 +100,6 @@ struct vn_renderer_submit_batch {
 };
 
 struct vn_renderer_submit {
-   /* BOs to pin and to fence implicitly
-    *
-    * TODO track all bos and automatically pin them.  We don't do it yet
-    * because each vn_command_buffer owns a bo.  We can probably make do by
-    * returning the bos to a bo cache and exclude bo cache from pinning.
-    */
-   struct vn_renderer_bo *const *bos;
-   uint32_t bo_count;
-
    const struct vn_renderer_submit_batch *batches;
    uint32_t batch_count;
 };
