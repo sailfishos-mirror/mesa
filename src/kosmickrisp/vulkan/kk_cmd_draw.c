@@ -644,26 +644,60 @@ set_empty_scissor(mtl_render_encoder *enc)
    mtl_set_scissor_rects(enc, &rect, 1);
 }
 
-static void
-kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
-{
+#define IS_DIRTY(bit) BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_##bit)
 #define IS_SHADER_DIRTY(bit)                                                   \
    (cmd->state.dirty_shaders & BITFIELD_BIT(MESA_SHADER_##bit))
 
+static void
+kk_flush_pipeline(struct kk_cmd_buffer *cmd)
+{
    struct kk_device *device = kk_cmd_buffer_device(cmd);
+   mtl_render_encoder *enc = kk_render_encoder(cmd);
    struct kk_graphics_state *gfx = &cmd->state.gfx;
    struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
-   struct kk_descriptor_state *desc = &cmd->state.gfx.descriptors;
+
+   /* Depth/stencil state may be dynamic, handle it as part of the pipeline. */
+   if (cmd->state.gfx.is_depth_stencil_dynamic &&
+       (cmd->state.gfx.render.depth_att.vk_format != VK_FORMAT_UNDEFINED ||
+        cmd->state.gfx.render.stencil_att.vk_format != VK_FORMAT_UNDEFINED) &&
+       (IS_DIRTY(DS_DEPTH_TEST_ENABLE) | IS_DIRTY(DS_DEPTH_WRITE_ENABLE) |
+        IS_DIRTY(DS_DEPTH_COMPARE_OP) | IS_DIRTY(DS_STENCIL_TEST_ENABLE) |
+        IS_DIRTY(DS_STENCIL_OP) | IS_DIRTY(DS_STENCIL_COMPARE_MASK) |
+        IS_DIRTY(DS_STENCIL_WRITE_MASK))) {
+      kk_cmd_release_dynamic_ds_state(cmd);
+
+      bool has_depth = dyn->rp.attachments & MESA_VK_RP_ATTACHMENT_DEPTH_BIT;
+      bool has_stencil =
+         dyn->rp.attachments & MESA_VK_RP_ATTACHMENT_STENCIL_BIT;
+      gfx->depth_stencil_state = kk_compile_depth_stencil_state(
+         device, &dyn->ds, has_depth, has_stencil);
+      mtl_set_depth_stencil_state(enc, gfx->depth_stencil_state);
+   }
+
+   if (IS_SHADER_DIRTY(VERTEX)) {
+      struct kk_shader *vs = cmd->state.shaders[MESA_SHADER_VERTEX];
+      mtl_render_set_pipeline_state(enc, vs->pipeline.gfx.handle);
+      if (gfx->depth_stencil_state)
+         mtl_set_depth_stencil_state(enc, gfx->depth_stencil_state);
+   }
+}
+
+static void
+kk_flush_dynamic_state(struct kk_cmd_buffer *cmd)
+{
+   struct kk_graphics_state *gfx = &cmd->state.gfx;
+   struct kk_descriptor_state *desc = &gfx->descriptors;
+   struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
    mtl_render_encoder *enc = kk_render_encoder(cmd);
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VI_BINDING_STRIDES)) {
+   if (IS_DIRTY(VI_BINDING_STRIDES)) {
       u_foreach_bit(ndx, dyn->vi->bindings_valid) {
          desc->root.draw.buffer_strides[ndx] = dyn->vi_binding_strides[ndx];
       }
       desc->root_dirty = true;
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_RASTERIZER_DISCARD_ENABLE)) {
+   if (IS_DIRTY(RS_RASTERIZER_DISCARD_ENABLE)) {
       if (dyn->rs.rasterizer_discard_enable) {
          set_empty_scissor(enc);
       } else {
@@ -672,7 +706,7 @@ kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
       }
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_CULL_MODE)) {
+   if (IS_DIRTY(RS_CULL_MODE)) {
       gfx->is_cull_front_and_back =
          dyn->rs.cull_mode == VK_CULL_MODE_FRONT_AND_BACK;
       if (gfx->is_cull_front_and_back) {
@@ -687,43 +721,17 @@ kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
 
    /* We enable raster discard by setting scissor to size (0, 0) */
    if (!(dyn->rs.rasterizer_discard_enable || gfx->is_cull_front_and_back) &&
-       (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_VIEWPORT_COUNT) ||
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_VIEWPORTS) ||
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_SCISSOR_COUNT) ||
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_SCISSORS)))
+       (IS_DIRTY(VP_VIEWPORT_COUNT) || IS_DIRTY(VP_VIEWPORTS) ||
+        IS_DIRTY(VP_SCISSOR_COUNT) || IS_DIRTY(VP_SCISSORS)))
       kk_flush_vp_state(cmd);
 
-   if (cmd->state.gfx.is_depth_stencil_dynamic &&
-       (cmd->state.gfx.render.depth_att.vk_format != VK_FORMAT_UNDEFINED ||
-        cmd->state.gfx.render.stencil_att.vk_format != VK_FORMAT_UNDEFINED) &&
-       (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_DEPTH_TEST_ENABLE) |
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_DEPTH_WRITE_ENABLE) |
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_DEPTH_COMPARE_OP) |
-        // BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_DEPTH_BOUNDS_TEST_ENABLE)
-        // | BITSET_TEST(dyn->dirty,
-        // MESA_VK_DYNAMIC_DS_DEPTH_BOUNDS_TEST_BOUNDS) |
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_STENCIL_TEST_ENABLE) |
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_STENCIL_OP) |
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_STENCIL_COMPARE_MASK) |
-        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_STENCIL_WRITE_MASK))) {
-      kk_cmd_release_dynamic_ds_state(cmd);
-
-      bool has_depth = dyn->rp.attachments & MESA_VK_RP_ATTACHMENT_DEPTH_BIT;
-      bool has_stencil =
-         dyn->rp.attachments & MESA_VK_RP_ATTACHMENT_STENCIL_BIT;
-      gfx->depth_stencil_state = kk_compile_depth_stencil_state(
-         device, &dyn->ds, has_depth, has_stencil);
-      mtl_set_depth_stencil_state(enc, gfx->depth_stencil_state);
-   }
-
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_FRONT_FACE)) {
+   if (IS_DIRTY(RS_FRONT_FACE)) {
       mtl_set_front_face_winding(
          enc, vk_front_face_to_mtl_winding(
                  cmd->vk.dynamic_graphics_state.rs.front_face));
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_BIAS_FACTORS) ||
-       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_BIAS_ENABLE)) {
+   if (IS_DIRTY(RS_DEPTH_BIAS_FACTORS) || IS_DIRTY(RS_DEPTH_BIAS_ENABLE)) {
       if (dyn->rs.depth_bias.enable)
          mtl_set_depth_bias(enc, dyn->rs.depth_bias.constant_factor,
                             dyn->rs.depth_bias.slope_factor,
@@ -732,19 +740,19 @@ kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
          mtl_set_depth_bias(enc, 0.0f, 0.0f, 0.0f);
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_CLAMP_ENABLE)) {
+   if (IS_DIRTY(RS_DEPTH_CLAMP_ENABLE)) {
       enum mtl_depth_clip_mode mode = dyn->rs.depth_clamp_enable
                                          ? MTL_DEPTH_CLIP_MODE_CLAMP
                                          : MTL_DEPTH_CLIP_MODE_CLIP;
       mtl_set_depth_clip_mode(enc, mode);
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_STENCIL_REFERENCE))
+   if (IS_DIRTY(DS_STENCIL_REFERENCE))
       mtl_set_stencil_references(
          enc, cmd->vk.dynamic_graphics_state.ds.stencil.front.reference,
          cmd->vk.dynamic_graphics_state.ds.stencil.back.reference);
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_CB_BLEND_CONSTANTS)) {
+   if (IS_DIRTY(CB_BLEND_CONSTANTS)) {
       static_assert(sizeof(desc->root.draw.blend_constant) ==
                        sizeof(dyn->cb.blend_constants),
                     "common size");
@@ -754,13 +762,12 @@ kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
       desc->root_dirty = true;
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VI) ||
-       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VI_BINDINGS_VALID) ||
-       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VI_BINDING_STRIDES) ||
-       gfx->dirty & KK_DIRTY_VB) {
+   if (IS_DIRTY(VI) || IS_DIRTY(VI_BINDINGS_VALID) ||
+       IS_DIRTY(VI_BINDING_STRIDES) || gfx->dirty & KK_DIRTY_VB) {
+      struct kk_shader *vs = cmd->state.shaders[MESA_SHADER_VERTEX];
       unsigned slot = 0;
       cmd->state.gfx.vb.max_vertices = 0u;
-      u_foreach_bit(i, cmd->state.gfx.vb.attribs_read) {
+      u_foreach_bit(i, vs->info.vs.attribs_read) {
          if (dyn->vi->attributes_valid & BITFIELD_BIT(i)) {
             struct vk_vertex_attribute_state attr = dyn->vi->attributes[i];
             struct kk_addr_range vb = gfx->vb.addr_range[attr.binding];
@@ -781,15 +788,6 @@ kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
       desc->root_dirty = true;
    }
 
-   if (IS_SHADER_DIRTY(VERTEX)) {
-      mtl_render_set_pipeline_state(
-         enc, cmd->state.shaders[MESA_SHADER_VERTEX]->pipeline.gfx.handle);
-      if (gfx->depth_stencil_state)
-         mtl_set_depth_stencil_state(enc, gfx->depth_stencil_state);
-   }
-
-   if (desc->push_dirty)
-      kk_cmd_buffer_flush_push_descriptors(cmd, desc);
    if (desc->root_dirty)
       kk_upload_descriptor_root(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -803,13 +801,27 @@ kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
       mtl_set_visibility_result_mode(enc, gfx->occlusion.mode,
                                      gfx->occlusion.index * sizeof(uint64_t));
    }
+}
+
+static void
+kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
+{
+   struct kk_graphics_state *gfx = &cmd->state.gfx;
+   struct kk_descriptor_state *desc = &gfx->descriptors;
+
+   kk_flush_pipeline(cmd);
+
+   if (desc->push_dirty)
+      kk_cmd_buffer_flush_push_descriptors(cmd, desc);
+
+   kk_flush_dynamic_state(cmd);
 
    cmd->state.dirty_shaders = 0u;
-   gfx->dirty = 0u;
-   vk_dynamic_graphics_state_clear_dirty(dyn);
-
-#undef IS_SHADER_DIRTY
+   cmd->state.gfx.dirty = 0u;
+   vk_dynamic_graphics_state_clear_dirty(&cmd->vk.dynamic_graphics_state);
 }
+#undef IS_SHADER_DIRTY
+#undef IS_DIRTY
 
 struct kk_draw_data {
    union {

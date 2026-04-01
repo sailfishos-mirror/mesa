@@ -136,7 +136,6 @@ struct kk_graphics_state {
    struct {
       struct kk_addr_range addr_range[KK_MAX_VBUFS];
       mtl_buffer *handles[KK_MAX_VBUFS];
-      uint32_t attribs_read;
       /* Required to understand maximum size of index buffer if primitive is
        * triangle fans */
       uint32_t max_vertices;

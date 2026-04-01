@@ -67,7 +67,7 @@ struct kk_pipeline_handles {
    union {
       struct {
          mtl_render_pipeline_state *handle;
-         mtl_depth_stencil_state *mtl_depth_stencil_state_handle;
+         mtl_depth_stencil_state *ds_handle;
       } gfx;
       mtl_compute_pipeline_state *cs;
    };

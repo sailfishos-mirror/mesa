@@ -569,10 +569,10 @@ kk_shader_destroy(struct vk_device *vk_dev, struct vk_shader *vk_shader,
       mtl_release(shader->pipeline.cs);
    } else if (shader->info.stage == MESA_SHADER_VERTEX) {
       mtl_release(shader->pipeline.gfx.handle);
-      if (shader->pipeline.gfx.mtl_depth_stencil_state_handle)
-         mtl_release(shader->pipeline.gfx.mtl_depth_stencil_state_handle);
+      if (shader->pipeline.gfx.ds_handle)
+         mtl_release(shader->pipeline.gfx.ds_handle);
       shader->pipeline.gfx.handle = NULL;
-      shader->pipeline.gfx.mtl_depth_stencil_state_handle = NULL;
+      shader->pipeline.gfx.ds_handle = NULL;
 
       ralloc_free((void *)shader->info.vs.frag_msl_code);
       ralloc_free((void *)shader->info.vs.frag_entrypoint_name);
@@ -1061,8 +1061,7 @@ kk_compile_graphics_pipeline(struct kk_device *device, const char *vs,
          pipeline_descriptor, info->vs.s_format);
 
    if (info->vs.has_ds) {
-      pipeline->gfx.mtl_depth_stencil_state_handle =
-         kk_compile_ds_state(device, info);
+      pipeline->gfx.ds_handle = kk_compile_ds_state(device, info);
    }
 
    if (info->vs.view_mask) {
@@ -1342,10 +1341,7 @@ kk_cmd_bind_graphics_shader(struct kk_cmd_buffer *cmd,
    if (stage != MESA_SHADER_VERTEX)
       return;
 
-   cmd->state.gfx.vb.attribs_read = shader->info.vs.attribs_read;
-
-   bool requires_dynamic_depth_stencil =
-      shader->pipeline.gfx.mtl_depth_stencil_state_handle == NULL;
+   bool requires_dynamic_depth_stencil = shader->pipeline.gfx.ds_handle == NULL;
    if (cmd->state.gfx.is_depth_stencil_dynamic) {
       /* If we are switching from dynamic to static, we need to clean up
        * temporary state. Otherwise, leave the existing dynamic state
@@ -1353,12 +1349,10 @@ kk_cmd_bind_graphics_shader(struct kk_cmd_buffer *cmd,
        */
       if (!requires_dynamic_depth_stencil) {
          mtl_release(cmd->state.gfx.depth_stencil_state);
-         cmd->state.gfx.depth_stencil_state =
-            shader->pipeline.gfx.mtl_depth_stencil_state_handle;
+         cmd->state.gfx.depth_stencil_state = shader->pipeline.gfx.ds_handle;
       }
    } else
-      cmd->state.gfx.depth_stencil_state =
-         shader->pipeline.gfx.mtl_depth_stencil_state_handle;
+      cmd->state.gfx.depth_stencil_state = shader->pipeline.gfx.ds_handle;
    cmd->state.gfx.is_depth_stencil_dynamic = requires_dynamic_depth_stencil;
    cmd->state.gfx.dirty |= KK_DIRTY_VB;
 
