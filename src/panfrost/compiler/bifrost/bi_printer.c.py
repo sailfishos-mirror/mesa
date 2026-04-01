@@ -68,11 +68,6 @@ bir_passthrough_name(unsigned idx)
 static void
 bi_print_index(FILE *fp, bi_index index, unsigned nr_regs)
 {
-    if (index.discard)
-        fputs("^", fp);
-    if (index.kill_ssa)
-        fputs("!", fp);
-
     if (bi_is_null(index))
         fprintf(fp, "_");
     else if (index.type == BI_INDEX_CONSTANT)
@@ -94,6 +89,9 @@ bi_print_index(FILE *fp, bi_index index, unsigned nr_regs)
         fprintf(fp, "%s%u", index.memory ? "m" : "", index.value);
     else
         UNREACHABLE("Invalid index");
+
+    if (index.discard || index.kill_ssa)
+        fputs("^", fp);
 
     if (index.offset)
         fprintf(fp, "[%u]", index.offset);
