@@ -663,12 +663,14 @@ spirv_to_gl_access_qualifier(struct vtn_builder *b,
 
 static nir_deref_instr *
 vtn_get_image(struct vtn_builder *b, uint32_t value_id,
-              enum gl_access_qualifier *access)
+              enum gl_access_qualifier *access, unsigned *image_format)
 {
    struct vtn_type *type = vtn_get_value_type(b, value_id);
    vtn_assert(type->base_type == vtn_base_type_image);
    if (access)
       *access |= spirv_to_gl_access_qualifier(b, type->access_qualifier);
+   if (image_format)
+      *image_format = type->image_format;
    nir_variable_mode mode = glsl_type_is_image(type->glsl_image) ?
                             nir_var_image : nir_var_uniform;
    return nir_build_deref_cast(&b->nb, vtn_get_nir_ssa(b, value_id),
@@ -3462,7 +3464,7 @@ vtn_handle_texture(struct vtn_builder *b, SpvOp opcode,
 {
    if (opcode == SpvOpSampledImage) {
       struct vtn_sampled_image si = {
-         .image = vtn_get_image(b, w[3], NULL),
+         .image = vtn_get_image(b, w[3], NULL, NULL),
          .sampler = vtn_get_sampler(b, w[4]),
       };
 
@@ -3499,7 +3501,7 @@ vtn_handle_texture(struct vtn_builder *b, SpvOp opcode,
       image = si.image;
       sampler = si.sampler;
    } else {
-      image = vtn_get_image(b, w[3], NULL);
+      image = vtn_get_image(b, w[3], NULL, NULL);
    }
 
    const enum glsl_sampler_dim sampler_dim = glsl_get_sampler_dim(image->type);
@@ -4203,6 +4205,7 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
 {
    /* Just get this one out of the way */
    if (opcode == SpvOpImageTexelPointer) {
+      struct vtn_type *type = vtn_get_value_type(b, w[3]);
       struct vtn_value *val =
          vtn_push_value(b, w[2], vtn_value_type_image_pointer);
       val->image = vtn_alloc(b, struct vtn_image_pointer);
@@ -4211,6 +4214,7 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
       val->image->coord = get_image_coord(b, w[4]);
       val->image->sample = vtn_get_nir_ssa(b, w[5]);
       val->image->lod = nir_imm_int(&b->nb, 0);
+      val->image->format = type->image_format;
       return;
    }
 
@@ -4220,6 +4224,7 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
    SpvImageOperandsMask operands = SpvImageOperandsMaskNone;
 
    enum gl_access_qualifier access = 0;
+   unsigned image_format = 0;
 
    struct vtn_value *res_val;
    switch (opcode) {
@@ -4260,7 +4265,8 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
 
    case SpvOpImageQuerySizeLod:
       res_val = vtn_untyped_value(b, w[3]);
-      image.image = vtn_get_image(b, w[3], &access);
+      image.image = vtn_get_image(b, w[3], &access, &image_format);
+      image.format = image_format;
       image.coord = NULL;
       image.sample = NULL;
       image.lod = vtn_ssa_value(b, w[4])->def;
@@ -4272,7 +4278,8 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
    case SpvOpImageQuerySamples:
    case SpvOpImageQuerySize:
       res_val = vtn_untyped_value(b, w[3]);
-      image.image = vtn_get_image(b, w[3], &access);
+      image.image = vtn_get_image(b, w[3], &access, &image_format);
+      image.format = image_format;
       image.coord = NULL;
       image.sample = NULL;
       image.lod = NULL;
@@ -4281,7 +4288,8 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
    case SpvOpImageRead:
    case SpvOpImageSparseRead: {
       res_val = vtn_untyped_value(b, w[3]);
-      image.image = vtn_get_image(b, w[3], &access);
+      image.image = vtn_get_image(b, w[3], &access, &image_format);
+      image.format = image_format;
       image.coord = get_image_coord(b, w[4]);
 
       operands = count > 5 ? w[5] : SpvImageOperandsMaskNone;
@@ -4321,7 +4329,8 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
 
    case SpvOpImageWrite: {
       res_val = vtn_untyped_value(b, w[1]);
-      image.image = vtn_get_image(b, w[1], &access);
+      image.image = vtn_get_image(b, w[1], &access, &image_format);
+      image.format = image_format;
       image.coord = get_image_coord(b, w[2]);
 
       /* texel = w[3] */
@@ -4412,6 +4421,7 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
    nir_intrinsic_set_image_dim(intrin, glsl_get_sampler_dim(image.image->type));
    nir_intrinsic_set_image_array(intrin,
       glsl_sampler_type_is_array(image.image->type));
+   nir_intrinsic_set_format(intrin, image.format);
 
    switch (opcode) {
    case SpvOpImageQueryLevels:

@@ -544,6 +544,7 @@ vtn_translate_scope(struct vtn_builder *b, SpvScope scope);
 
 struct vtn_image_pointer {
    nir_deref_instr *image;
+   unsigned format;
    nir_def *coord;
    nir_def *sample;
    nir_def *lod;
