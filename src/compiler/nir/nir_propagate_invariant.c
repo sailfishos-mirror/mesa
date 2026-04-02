@@ -26,6 +26,7 @@
 
 enum var_flags {
    var_all_invariant = 1 << 0,
+   var_all_alias_invariant = 1 << 1,
    var_any_invariant = 1 << 2,
 };
 
@@ -60,6 +61,16 @@ add_cf_node(nir_cf_node *cf, struct set *invariants)
       add_cf_node(cf->parent, invariants);
 }
 
+static bool
+var_may_alias(nir_variable *var)
+{
+   if (var->data.mode == nir_var_mem_ssbo)
+      return !(var->data.access & ACCESS_RESTRICT);
+   else if (var->data.mode == nir_var_mem_shared)
+      return var->data.aliased_shared_memory;
+   return false;
+}
+
 static void
 add_var(const nir_deref_instr *deref, struct set *invariants, uint8_t *var_invariant)
 {
@@ -74,8 +85,10 @@ add_var(const nir_deref_instr *deref, struct set *invariants, uint8_t *var_invar
       _mesa_set_add(invariants, var);
 
       flags = var_any_invariant;
+      if (var_may_alias(var))
+         flags |= var_all_alias_invariant;
    } else if (!var) {
-      flags = var_any_invariant | var_all_invariant;
+      flags = var_any_invariant | var_all_invariant | var_all_alias_invariant;
    }
    u_foreach_bit(i, modes)
       var_invariant[i] |= flags;
@@ -102,6 +115,8 @@ var_is_invariant(const nir_deref_instr *deref, struct set *invariants, uint8_t *
       return true;
 
    if (var) {
+      if (var_may_alias(var) && (flags & var_all_alias_invariant))
+         return true;
       return var->data.invariant || _mesa_set_search(invariants, var);
    } else {
       return flags & var_any_invariant;
