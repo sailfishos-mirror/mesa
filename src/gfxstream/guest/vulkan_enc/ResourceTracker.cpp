@@ -6366,72 +6366,73 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
     std::vector<std::vector<uint64_t>> prunedWaitSemaphoreValueLists(submitCount);
     std::vector<std::vector<uint64_t>> prunedSignalSemaphoreValueLists(submitCount);
 
-    std::unique_lock<std::recursive_mutex> lock(mLock);
+    {
+        std::unique_lock<std::recursive_mutex> lock(mLock);
 
-    for (uint32_t i = 0; i < submitCount; ++i) {
-        std::vector<VkSemaphore> waitSemsToRemove;
-        std::vector<VkSemaphore> signalSemsToRemove;
-        for (uint32_t j = 0; j < getWaitSemaphoreCount(pSubmits[i]); ++j) {
-            VkSemaphore semaphore = getWaitSemaphore(pSubmits[i], j);
-            auto it = info_VkSemaphore.find(semaphore);
-            if (it != info_VkSemaphore.end()) {
-                auto& semInfo = it->second;
+        for (uint32_t i = 0; i < submitCount; ++i) {
+            std::vector<VkSemaphore> waitSemsToRemove;
+            std::vector<VkSemaphore> signalSemsToRemove;
+            for (uint32_t j = 0; j < getWaitSemaphoreCount(pSubmits[i]); ++j) {
+                VkSemaphore semaphore = getWaitSemaphore(pSubmits[i], j);
+                auto it = info_VkSemaphore.find(semaphore);
+                if (it != info_VkSemaphore.end()) {
+                    auto& semInfo = it->second;
 #ifdef VK_USE_PLATFORM_FUCHSIA
-                if (semInfo.eventHandle) {
-                    pre_signal_events.push_back(semInfo.eventHandle);
-                    pre_signal_semaphores.push_back(semaphore);
-                }
+                    if (semInfo.eventHandle) {
+                        pre_signal_events.push_back(semInfo.eventHandle);
+                        pre_signal_semaphores.push_back(semaphore);
+                    }
 #endif
 #if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
-                if (semInfo.syncFd.has_value()) {
-                    preSignalSyncFds.push_back(semInfo.syncFd.value());
-                    waitSemsToRemove.push_back(semaphore);
-                }
-#endif
-            }
-        }
-        for (uint32_t j = 0; j < getSignalSemaphoreCount(pSubmits[i]); ++j) {
-            VkSemaphore semaphore = getSignalSemaphore(pSubmits[i], j);
-            auto it = info_VkSemaphore.find(semaphore);
-            if (it != info_VkSemaphore.end()) {
-                auto& semInfo = it->second;
-#ifdef VK_USE_PLATFORM_FUCHSIA
-                if (semInfo.eventHandle) {
-                    post_wait_events.push_back({semInfo.eventHandle, semInfo.eventKoid});
-#ifndef FUCHSIA_NO_TRACE
-                    if (semInfo.eventKoid != ZX_KOID_INVALID) {
-                        // TODO(fxbug.dev/42144867): Remove the "semaphore"
-                        // FLOW_END events once it is removed from clients
-                        // (for example, gfx Engine).
-                        TRACE_FLOW_END("gfx", "semaphore", semInfo.eventKoid);
-                        TRACE_FLOW_BEGIN("gfx", "goldfish_post_wait_event", semInfo.eventKoid);
+                    if (semInfo.syncFd.has_value()) {
+                        preSignalSyncFds.push_back(semInfo.syncFd.value());
+                        waitSemsToRemove.push_back(semaphore);
                     }
 #endif
                 }
+            }
+            for (uint32_t j = 0; j < getSignalSemaphoreCount(pSubmits[i]); ++j) {
+                VkSemaphore semaphore = getSignalSemaphore(pSubmits[i], j);
+                auto it = info_VkSemaphore.find(semaphore);
+                if (it != info_VkSemaphore.end()) {
+                    auto& semInfo = it->second;
+#ifdef VK_USE_PLATFORM_FUCHSIA
+                    if (semInfo.eventHandle) {
+                        post_wait_events.push_back({semInfo.eventHandle, semInfo.eventKoid});
+#ifndef FUCHSIA_NO_TRACE
+                        if (semInfo.eventKoid != ZX_KOID_INVALID) {
+                            // TODO(fxbug.dev/42144867): Remove the "semaphore"
+                            // FLOW_END events once it is removed from clients
+                            // (for example, gfx Engine).
+                            TRACE_FLOW_END("gfx", "semaphore", semInfo.eventKoid);
+                            TRACE_FLOW_BEGIN("gfx", "goldfish_post_wait_event", semInfo.eventKoid);
+                        }
+#endif
+                    }
 #endif
 #if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
-                if (semInfo.syncFd.value_or(-1) >= 0) {
-                    post_wait_sync_fds.push_back(semInfo.syncFd.value());
-                    signalSemsToRemove.push_back(semaphore);
-                }
+                    if (semInfo.syncFd.value_or(-1) >= 0) {
+                        post_wait_sync_fds.push_back(semInfo.syncFd.value());
+                        signalSemsToRemove.push_back(semaphore);
+                    }
 #endif
+                }
             }
-        }
 
-        // Get the current TSSI from the unorphaned submitInfo, the prune functions may need this.
-        const VkTimelineSemaphoreSubmitInfo* currTssi = vk_find_struct_const(&pSubmits[i], TIMELINE_SEMAPHORE_SUBMIT_INFO);
-        // Start with an orphan copy of the current submitInfo
-        prunedSubmitInfos[i] = vk_make_orphan_copy(pSubmits[i]);
-        // Do initial setup for the new tssi struct; prune functions may or may not actually add to submitInfo.
-        prunedTssis[i] = {
-            .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-            .pNext = NULL
-        };
-        // Finally, prune the wait/signal semaphores accordingly!
-        pruneWaitSemaphores(waitSemsToRemove, prunedSubmitInfos[i], currTssi, prunedWaitSemaphoreLists[i], prunedWaitDstStageMaskFlagLists[i], prunedTssis[i], prunedWaitSemaphoreValueLists[i]);
-        pruneSignalSemaphores(signalSemsToRemove, prunedSubmitInfos[i], currTssi, prunedSignalSemaphoreLists[i], prunedTssis[i], prunedSignalSemaphoreValueLists[i]);
+            // Get the current TSSI from the unorphaned submitInfo, the prune functions may need this.
+            const VkTimelineSemaphoreSubmitInfo* currTssi = vk_find_struct_const(&pSubmits[i], TIMELINE_SEMAPHORE_SUBMIT_INFO);
+            // Start with an orphan copy of the current submitInfo
+            prunedSubmitInfos[i] = vk_make_orphan_copy(pSubmits[i]);
+            // Do initial setup for the new tssi struct; prune functions may or may not actually add to submitInfo.
+            prunedTssis[i] = {
+                .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+                .pNext = NULL
+            };
+            // Finally, prune the wait/signal semaphores accordingly!
+            pruneWaitSemaphores(waitSemsToRemove, prunedSubmitInfos[i], currTssi, prunedWaitSemaphoreLists[i], prunedWaitDstStageMaskFlagLists[i], prunedTssis[i], prunedWaitSemaphoreValueLists[i]);
+            pruneSignalSemaphores(signalSemsToRemove, prunedSubmitInfos[i], currTssi, prunedSignalSemaphoreLists[i], prunedTssis[i], prunedSignalSemaphoreValueLists[i]);
+        }
     }
-    lock.unlock();
 
     // Schedule waits on the OS external objects and
     // signal the wait semaphores
@@ -6471,20 +6472,22 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
     input_result = vkQueueSubmitEnc(enc, queue, submitCount, prunedSubmitInfos.data(), fence);
     if (input_result != VK_SUCCESS) return input_result;
 
-    lock.lock();
     int externalFenceFdToSignal = -1;
-
 #if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
-    if (fence != VK_NULL_HANDLE) {
-        auto it = info_VkFence.find(fence);
-        if (it != info_VkFence.end()) {
-            const auto& info = it->second;
-            if (info.syncFd && *info.syncFd >= 0) {
-                externalFenceFdToSignal = *info.syncFd;
+    {
+        std::unique_lock<std::recursive_mutex> lock(mLock);
+        if (fence != VK_NULL_HANDLE) {
+            auto it = info_VkFence.find(fence);
+            if (it != info_VkFence.end()) {
+                const auto& info = it->second;
+                if (info.syncFd && *info.syncFd >= 0) {
+                    externalFenceFdToSignal = *info.syncFd;
+                }
             }
         }
     }
 #endif
+
     VkResult waitIdleRes = VK_SUCCESS;
     if (externalFenceFdToSignal >= 0 || !post_wait_events.empty() || !post_wait_sync_fds.empty()) {
         auto hostConn = ResourceTracker::threadingCallbacks.hostConnectionGetFunc();
