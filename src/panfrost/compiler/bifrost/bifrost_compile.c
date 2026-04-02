@@ -546,7 +546,7 @@ bi_emit_lea_attr(bi_builder *b, nir_intrinsic_instr *intr)
 
    if (b->shader->arch < 9 && b->shader->idvs == BI_IDVS_POSITION) {
       /* Bifrost position shaders have a fast path */
-      assert(nir_src_as_uint(intr->src[0]) == 0);
+      assert(nir_src_is_zero(intr->src[0]));
       assert(src_fmt == nir_type_float32);
       unsigned regfmt = BI_REGISTER_FORMAT_F32;
       unsigned identity = (b->shader->arch == 6) ? 0x688 : 0;
@@ -3641,8 +3641,7 @@ bi_emit_texc_offset_ms_index(bi_builder *b, nir_tex_instr *instr)
    bi_index dest = bi_zero();
 
    int offs_idx = nir_tex_instr_src_index(instr, nir_tex_src_offset);
-   if (offs_idx >= 0 && (!nir_src_is_const(instr->src[offs_idx].src) ||
-                         nir_src_as_uint(instr->src[offs_idx].src) != 0)) {
+   if (offs_idx >= 0 && !nir_src_is_zero(instr->src[offs_idx].src)) {
       unsigned nr = nir_src_num_components(instr->src[offs_idx].src);
       bi_index idx = bi_src_index(&instr->src[offs_idx].src);
       dest = bi_mkvec_v4i8(
@@ -3653,8 +3652,7 @@ bi_emit_texc_offset_ms_index(bi_builder *b, nir_tex_instr *instr)
    }
 
    int ms_idx = nir_tex_instr_src_index(instr, nir_tex_src_ms_index);
-   if (ms_idx >= 0 && (!nir_src_is_const(instr->src[ms_idx].src) ||
-                       nir_src_as_uint(instr->src[ms_idx].src) != 0)) {
+   if (ms_idx >= 0 && !nir_src_is_zero(instr->src[ms_idx].src)) {
       dest = bi_lshift_or_i32(b, bi_src_index(&instr->src[ms_idx].src), dest,
                               bi_imm_u8(24));
    }
@@ -3678,8 +3676,7 @@ bi_emit_valhall_offsets(bi_builder *b, nir_tex_instr *instr)
    int lod_idx = nir_tex_instr_src_index(instr, nir_tex_src_lod);
 
    /* Components 0-2: offsets */
-   if (offs_idx >= 0 && (!nir_src_is_const(instr->src[offs_idx].src) ||
-                         nir_src_as_uint(instr->src[offs_idx].src) != 0)) {
+   if (offs_idx >= 0 && !nir_src_is_zero(instr->src[offs_idx].src)) {
       unsigned nr = nir_src_num_components(instr->src[offs_idx].src);
       bi_index idx = bi_src_index(&instr->src[offs_idx].src);
 
@@ -3698,16 +3695,13 @@ bi_emit_valhall_offsets(bi_builder *b, nir_tex_instr *instr)
    }
 
    /* Component 2: multisample index */
-   if (ms_idx >= 0 && (!nir_src_is_const(instr->src[ms_idx].src) ||
-                       nir_src_as_uint(instr->src[ms_idx].src) != 0)) {
+   if (ms_idx >= 0 && !nir_src_is_zero(instr->src[ms_idx].src)) {
       bi_index ms = bi_src_index(&instr->src[ms_idx].src);
       dest = bi_mkvec_v2i16(b, bi_half(dest, false), bi_half(ms, false));
    }
 
    /* Component 3: 8-bit LOD */
-   if (lod_idx >= 0 &&
-       (!nir_src_is_const(instr->src[lod_idx].src) ||
-        nir_src_as_uint(instr->src[lod_idx].src) != 0) &&
+   if (lod_idx >= 0 && !nir_src_is_zero(instr->src[lod_idx].src) &&
        nir_tex_instr_src_type(instr, lod_idx) != nir_type_float) {
       dest = bi_lshift_or_i32(b, bi_src_index(&instr->src[lod_idx].src), dest,
                               bi_imm_u8(24));
@@ -3916,8 +3910,7 @@ bi_emit_texc(bi_builder *b, nir_tex_instr *instr)
 
       case nir_tex_src_lod:
          if (desc.op == BIFROST_TEX_OP_TEX &&
-             nir_src_is_const(instr->src[i].src) &&
-             nir_src_as_uint(instr->src[i].src) == 0) {
+             nir_src_is_zero(instr->src[i].src)) {
             desc.lod_or_fetch = BIFROST_LOD_MODE_ZERO;
          } else if (desc.op == BIFROST_TEX_OP_TEX) {
             assert(base == nir_type_float);
@@ -4210,8 +4203,7 @@ bi_emit_tex_valhall(bi_builder *b, nir_tex_instr *instr)
       }
 
       case nir_tex_src_lod:
-         if (nir_src_is_const(instr->src[i].src) &&
-             nir_src_as_uint(instr->src[i].src) == 0) {
+         if (nir_src_is_zero(instr->src[i].src)) {
             lod_mode = BI_VA_LOD_MODE_ZERO_LOD;
          } else if (has_lod_mode) {
             lod_mode = BI_VA_LOD_MODE_EXPLICIT;
@@ -4519,7 +4511,7 @@ bi_is_simple_tex(nir_tex_instr *instr)
       return true;
 
    nir_src lod = instr->src[lod_idx].src;
-   return nir_src_is_const(lod) && nir_src_as_uint(lod) == 0;
+   return nir_src_is_zero(lod);
 }
 
 static void
