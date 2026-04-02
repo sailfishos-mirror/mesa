@@ -138,8 +138,10 @@ lower_gs_intrinsics(nir_shader *shader)
          bool restart = n > 1;
 
          shader->info.outputs_written |= VARYING_BIT_POS;
-         nir_store_output(&b, nir_imm_float(&b, NAN), zero,
-                          .io_semantics.location = VARYING_SLOT_POS);
+         for (unsigned i = 0; i < 4; i++)
+            nir_store_output(&b, nir_imm_float(&b, NAN), zero,
+                             .component = i,
+                             .io_semantics.location = VARYING_SLOT_POS);
          nir_select_vertex_poly(&b, zero);
          nir_emit_primitive_poly(&b, zero, zero, n_, zero);
          nir_store_var(&b, state.indices, nir_iadd_imm(&b, n_, restart), 1);
@@ -209,6 +211,7 @@ struct lower_output_to_var_slot {
    nir_variable *output_var;
    nir_variable *selected_var;
    nir_alu_type type;
+   unsigned nr_components;
 };
 
 static bool
@@ -234,6 +237,9 @@ collect_output_types(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       assert(output->type == nir_intrinsic_src_type(intr));
    }
 
+   unsigned component = nir_intrinsic_component(intr);
+   output->nr_components = MAX2(output->nr_components, component + 1);
+
    return false;
 }
 
@@ -258,13 +264,10 @@ lower_store_to_var(nir_builder *b, nir_intrinsic_instr *intr,
       return;
    }
 
-   unsigned nr_components = glsl_get_components(
-      glsl_without_array(output->output_var->type));
-   assert(component < nr_components);
-
-   /* Turn it into a vec4 write like NIR expects */
+   /* Turn it into a vector write like NIR expects */
+   assert(component < output->nr_components);
    unsigned bit_size = nir_alu_type_get_type_size(output->type);
-   value = nir_vector_insert_imm(b, nir_undef(b, nr_components, bit_size),
+   value = nir_vector_insert_imm(b, nir_undef(b, output->nr_components, bit_size),
                                  value, component);
 
    nir_store_var(b, output->output_var, value, BITFIELD_BIT(component));
@@ -748,20 +751,15 @@ create_gs_rast_shader(const nir_shader *gs, const struct lower_gs_state *state)
       const char *slot_name =
          gl_varying_slot_name_for_stage(slot, MESA_SHADER_GEOMETRY);
 
-      bool scalar = (slot == VARYING_SLOT_PSIZ) ||
-                    (slot == VARYING_SLOT_LAYER) ||
-                    (slot == VARYING_SLOT_VIEWPORT);
-      unsigned comps = scalar ? 1 : 4;
-
       enum glsl_base_type type =
          nir_get_glsl_base_type_for_nir_type(output->type);
 
       output->output_var = nir_variable_create(
-         shader, nir_var_shader_temp, glsl_vector_type(type, comps),
+         shader, nir_var_shader_temp, glsl_vector_type(type, output->nr_components),
          ralloc_asprintf(shader, "%s-temp", slot_name));
 
       output->selected_var = nir_variable_create(
-         shader, nir_var_shader_temp, glsl_vector_type(type, comps),
+         shader, nir_var_shader_temp, glsl_vector_type(type, output->nr_components),
          ralloc_asprintf(shader, "%s-selected", slot_name));
    }
 
