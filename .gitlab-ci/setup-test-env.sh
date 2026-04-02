@@ -130,7 +130,7 @@ export -f _error_msg
 
 if [ -z "${RESULTS_DIR:-}" ]; then
 	export RESULTS_DIR="${PWD%/}/results"
-	if [ "$GIT_STRATEGY" = none ]; then
+	if [ "${GIT_STRATEGY:-}" = none ]; then
 		rm -rf "${RESULTS_DIR}"
 	fi
 fi
