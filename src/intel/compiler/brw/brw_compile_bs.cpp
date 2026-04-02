@@ -87,13 +87,14 @@ compile_single_bs(const struct brw_compiler *compiler,
       .nir = shader,
       .dispatch_width = required_width,
       .compiler = compiler,
+      .key = &key->base,
       .archiver = params->base.archiver,
    }, *pt = &pt_;
 
    BRW_NIR_SNAPSHOT("first");
    brw_nir_apply_key(pt, &key->base, required_width);
 
-   brw_postprocess_nir(pt, debug_enabled, key->base.robust_flags);
+   brw_postprocess_nir(pt, debug_enabled);
 
    const brw_shader_params shader_params = {
       .compiler                = compiler,

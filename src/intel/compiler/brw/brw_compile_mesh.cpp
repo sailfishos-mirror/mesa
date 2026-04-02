@@ -285,6 +285,7 @@ brw_compile_task(const struct brw_compiler *compiler,
       .nir = nir,
       .dispatch_width = 0,
       .compiler = compiler,
+      .key = &key->base,
       .archiver = params->base.archiver,
    }, *pt = &pt_;
 
@@ -321,7 +322,7 @@ brw_compile_task(const struct brw_compiler *compiler,
    prog_data->base.uses_inline_data = brw_nir_uses_inline_data(nir) ||
                                       key->base.uses_inline_push_addr;
 
-   brw_postprocess_nir_opts(pt, key->base.robust_flags);
+   brw_postprocess_nir_opts(pt);
 
    brw_simd_selection_state simd_state{
       .devinfo = compiler->devinfo,
@@ -983,6 +984,7 @@ brw_compile_mesh(const struct brw_compiler *compiler,
       .nir = nir,
       .dispatch_width = 0,
       .compiler = compiler,
+      .key = &key->base,
       .archiver = params->base.archiver,
    }, *pt = &pt_;
 
@@ -1047,7 +1049,7 @@ brw_compile_mesh(const struct brw_compiler *compiler,
    prog_data->base.uses_inline_data = brw_nir_uses_inline_data(nir) ||
                                       key->base.uses_inline_push_addr;
 
-   brw_postprocess_nir_opts(pt, key->base.robust_flags);
+   brw_postprocess_nir_opts(pt);
 
    const struct brw_lower_urb_cb_data cb_data = {
       .devinfo = devinfo,

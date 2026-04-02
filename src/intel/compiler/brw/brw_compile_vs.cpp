@@ -66,6 +66,7 @@ brw_compile_vs(const struct brw_compiler *compiler,
       .nir = nir,
       .dispatch_width = dispatch_width,
       .compiler = compiler,
+      .key = &key->base,
       .archiver = params->base.archiver,
    }, *pt = &pt_;
 
@@ -103,8 +104,7 @@ brw_compile_vs(const struct brw_compiler *compiler,
    if (key->vf_component_packing)
       nr_packed_regs = brw_nir_pack_vs_input(nir, prog_data);
 
-   brw_postprocess_nir(pt, debug_enabled,
-                       key->base.robust_flags);
+   brw_postprocess_nir(pt, debug_enabled);
 
    BRW_NIR_PASS(brw_nir_lower_deferred_urb_writes, compiler->devinfo,
                 &prog_data->base.vue_map, 0, 0);

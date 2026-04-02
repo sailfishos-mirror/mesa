@@ -2422,8 +2422,7 @@ brw_nir_ssbo_intel(nir_shader *shader)
 }
 
 static void
-brw_vectorize_lower_mem_access(brw_pass_tracker *pt,
-                               enum brw_robustness_flags robust_flags)
+brw_vectorize_lower_mem_access(brw_pass_tracker *pt)
 {
    const struct intel_device_info *devinfo = pt->compiler->devinfo;
 
@@ -2435,9 +2434,9 @@ brw_vectorize_lower_mem_access(brw_pass_tracker *pt,
       .robust_modes = (nir_variable_mode)0,
    };
 
-   if (robust_flags & BRW_ROBUSTNESS_UBO)
+   if (pt->key->robust_flags & BRW_ROBUSTNESS_UBO)
       options.robust_modes |= nir_var_mem_ubo;
-   if (robust_flags & BRW_ROBUSTNESS_SSBO)
+   if (pt->key->robust_flags & BRW_ROBUSTNESS_SSBO)
       options.robust_modes |= nir_var_mem_ssbo;
 
    OPT(nir_opt_load_store_vectorize, &options);
@@ -2679,8 +2678,7 @@ brw_nir_lower_int64(brw_pass_tracker *pt)
  * backend and is highly backend-specific.
  */
 void
-brw_postprocess_nir_opts(brw_pass_tracker *pt,
-                         enum brw_robustness_flags robust_flags)
+brw_postprocess_nir_opts(brw_pass_tracker *pt)
 {
    const struct brw_compiler *compiler = pt->compiler;
    const struct intel_device_info *devinfo = compiler->devinfo;
@@ -2762,7 +2760,7 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt,
       brw_nir_optimize(pt);
    }
 
-   brw_vectorize_lower_mem_access(pt, robust_flags);
+   brw_vectorize_lower_mem_access(pt);
 
    /* Fence LSC SLM writes to avoid workgroups WaW hazards to the same SLM
     * location.

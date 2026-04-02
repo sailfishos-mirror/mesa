@@ -145,11 +145,12 @@ brw_compile_cs(const struct brw_compiler *compiler,
       .nir = nir,
       .dispatch_width = 0,
       .compiler = compiler,
+      .key = &key->base,
       .archiver = params->base.archiver,
    }, *pt = &pt_;
 
    BRW_NIR_SNAPSHOT("first");
-   brw_postprocess_nir_opts(pt, key->base.robust_flags);
+   brw_postprocess_nir_opts(pt);
 
    brw_simd_selection_state simd_state{
       .devinfo = compiler->devinfo,

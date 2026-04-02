@@ -277,18 +277,16 @@ bool brw_nir_lower_mem_access_bit_sizes(nir_shader *shader,
 
 bool brw_nir_lower_simd(nir_shader *nir, unsigned dispatch_width);
 
-void brw_postprocess_nir_opts(struct brw_pass_tracker *pt,
-                              enum brw_robustness_flags robust_flags);
+void brw_postprocess_nir_opts(struct brw_pass_tracker *pt);
 
 void brw_postprocess_nir_out_of_ssa(struct brw_pass_tracker *pt,
                                     bool debug_enabled);
 
 static inline void
 brw_postprocess_nir(struct brw_pass_tracker *pt,
-                    bool debug_enabled,
-                    enum brw_robustness_flags robust_flags)
+                    bool debug_enabled)
 {
-   brw_postprocess_nir_opts(pt, robust_flags);
+   brw_postprocess_nir_opts(pt);
    brw_postprocess_nir_out_of_ssa(pt, debug_enabled);
 }
 

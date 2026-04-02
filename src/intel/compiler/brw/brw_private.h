@@ -25,6 +25,8 @@ typedef struct brw_pass_tracker {
 
    const struct brw_compiler *compiler;
 
+   const struct brw_base_prog_key *key;
+
    bool progress;
 
    /* Filled with the last line that made progress.

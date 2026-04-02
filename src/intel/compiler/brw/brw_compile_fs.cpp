@@ -1451,6 +1451,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
       .nir = nir,
       .dispatch_width = 0,
       .compiler = compiler,
+      .key = &key->base,
       .archiver = params->base.archiver,
    }, *pt = &pt_;
 
@@ -1534,7 +1535,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
       BRW_NIR_PASS(nir_inline_sysval, nir_intrinsic_load_fs_config_intel, f);
    }
 
-   brw_postprocess_nir_opts(pt, key->base.robust_flags);
+   brw_postprocess_nir_opts(pt);
 
    unsigned pressure[SIMD_COUNT];
    brw_nir_quick_pressure_estimate(nir, devinfo, pressure);
