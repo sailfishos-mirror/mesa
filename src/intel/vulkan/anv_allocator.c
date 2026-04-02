@@ -1483,6 +1483,27 @@ anv_scratch_pool_get_surf(struct anv_device *device,
    }
 }
 
+uint32_t
+anv_shader_get_scratch_surf(struct anv_batch *batch,
+                            struct anv_device *device,
+                            struct anv_shader *shader,
+                            bool protected)
+{
+   if (shader->prog_data->total_scratch == 0)
+      return 0;
+
+   struct anv_scratch_pool *pool = protected ?
+      &device->protected_scratch_pool : &device->scratch_pool;
+   struct anv_bo *bo =
+      anv_scratch_pool_alloc(device, pool, shader->vk.stage,
+                             shader->prog_data->total_scratch);
+   anv_reloc_list_add_bo(batch->relocs, bo);
+   uint32_t ret = anv_scratch_pool_get_surf(
+      device, pool, shader->prog_data->total_scratch);
+
+   return ret >> ANV_SCRATCH_SPACE_SHIFT;
+}
+
 VkResult
 anv_bo_cache_init(struct anv_bo_cache *cache, struct anv_device *device)
 {
