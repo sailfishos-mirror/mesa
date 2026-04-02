@@ -4374,40 +4374,46 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
       vtn_fail_with_opcode("Invalid image opcode", opcode);
    }
 
+   nir_deref_instr *deref = nir_def_as_deref(&image.image->def);
+   nir_variable *var = nir_deref_instr_get_variable(deref);
+   bool heap = var && (var->data.mode == nir_var_resource_heap ||
+                       var->data.mode == nir_var_sampler_heap);
+
    if (semantics & SpvMemorySemanticsVolatileMask)
       access |= ACCESS_VOLATILE;
 
    nir_intrinsic_op op;
    switch (opcode) {
-#define OP(S, N) case SpvOp##S: op = nir_intrinsic_image_deref_##N; break;
-   OP(ImageQuerySize,            size)
-   OP(ImageQuerySizeLod,         size)
-   OP(ImageRead,                 load)
-   OP(ImageSparseRead,           sparse_load)
-   OP(ImageWrite,                store)
-   OP(AtomicLoad,                load)
-   OP(AtomicStore,               store)
-   OP(AtomicExchange,            atomic)
-   OP(AtomicCompareExchange,     atomic_swap)
-   OP(AtomicCompareExchangeWeak, atomic_swap)
-   OP(AtomicIIncrement,          atomic)
-   OP(AtomicIDecrement,          atomic)
-   OP(AtomicIAdd,                atomic)
-   OP(AtomicISub,                atomic)
-   OP(AtomicSMin,                atomic)
-   OP(AtomicUMin,                atomic)
-   OP(AtomicSMax,                atomic)
-   OP(AtomicUMax,                atomic)
-   OP(AtomicAnd,                 atomic)
-   OP(AtomicOr,                  atomic)
-   OP(AtomicXor,                 atomic)
-   OP(AtomicFAddEXT,             atomic)
-   OP(AtomicFMinEXT,             atomic)
-   OP(AtomicFMaxEXT,             atomic)
-   OP(ImageQueryFormat,          format)
-   OP(ImageQueryLevels,          levels)
-   OP(ImageQueryOrder,           order)
-   OP(ImageQuerySamples,         samples)
+#define OP(S, N, heap) case SpvOp##S: op = heap ? nir_intrinsic_image_heap_##N \
+                                                : nir_intrinsic_image_deref_##N; break;
+   OP(ImageQuerySize,            size,          heap)
+   OP(ImageQuerySizeLod,         size,          heap)
+   OP(ImageRead,                 load,          heap)
+   OP(ImageSparseRead,           sparse_load,   heap)
+   OP(ImageWrite,                store,         heap)
+   OP(AtomicLoad,                load,          heap)
+   OP(AtomicStore,               store,         heap)
+   OP(AtomicExchange,            atomic,        heap)
+   OP(AtomicCompareExchange,     atomic_swap,   heap)
+   OP(AtomicCompareExchangeWeak, atomic_swap,   heap)
+   OP(AtomicIIncrement,          atomic,        heap)
+   OP(AtomicIDecrement,          atomic,        heap)
+   OP(AtomicIAdd,                atomic,        heap)
+   OP(AtomicISub,                atomic,        heap)
+   OP(AtomicSMin,                atomic,        heap)
+   OP(AtomicUMin,                atomic,        heap)
+   OP(AtomicSMax,                atomic,        heap)
+   OP(AtomicUMax,                atomic,        heap)
+   OP(AtomicAnd,                 atomic,        heap)
+   OP(AtomicOr,                  atomic,        heap)
+   OP(AtomicXor,                 atomic,        heap)
+   OP(AtomicFAddEXT,             atomic,        heap)
+   OP(AtomicFMinEXT,             atomic,        heap)
+   OP(AtomicFMaxEXT,             atomic,        heap)
+   OP(ImageQueryFormat,          format,        heap)
+   OP(ImageQueryLevels,          levels,        heap)
+   OP(ImageQueryOrder,           order,         heap)
+   OP(ImageQuerySamples,         samples,       heap)
 #undef OP
    default:
       vtn_fail_with_opcode("Invalid image opcode", opcode);
@@ -4485,7 +4491,8 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
       const uint32_t value_id = opcode == SpvOpAtomicStore ? w[4] : w[3];
       struct vtn_ssa_value *value = vtn_ssa_value(b, value_id);
       /* nir_intrinsic_image_deref_store always takes a vec4 value */
-      assert(op == nir_intrinsic_image_deref_store);
+      assert(op == nir_intrinsic_image_deref_store ||
+             op == nir_intrinsic_image_heap_store);
       intrin->num_components = 4;
       intrin->src[3] = nir_src_for_ssa(nir_pad_vec4(&b->nb, value->def));
       /* Only OpImageWrite can support a lod parameter if
