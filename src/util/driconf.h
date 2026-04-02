@@ -976,6 +976,10 @@
    DRI_CONF_OPT_B(anv_barrier_post_typed_clear_shader, def, \
                   "Insert pipeline barriers post clearing shader on typed data")
 
+#define DRI_CONF_ANV_ENABLE_OPT_DIVERGENT_ATOMICS(def) \
+   DRI_CONF_OPT_I(anv_enable_opt_divergent_atomics, def, 0, 3,\
+                  "Enable fusion of divergent atomics (see brw_divergent_atomics_flags)")
+
 /**
  * \brief HASVK specific configuration options
  */

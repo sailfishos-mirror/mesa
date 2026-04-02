@@ -1848,6 +1848,7 @@ struct anv_instance {
      * Performance workarounds
      */
     bool                                        disable_lto;
+    enum brw_divergent_atomics_flags            enable_opt_divergent_atomics;
 
     /**
      * Ray tracing configuration.

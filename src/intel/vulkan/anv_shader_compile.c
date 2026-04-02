@@ -293,6 +293,7 @@ populate_base_prog_key(struct brw_base_prog_key *key,
     */
    if (rs != NULL)
       key->robust_flags = anv_get_robust_flags(rs);
+   key->divergent_atomics_flags = pdevice->instance->enable_opt_divergent_atomics;
    key->limit_trig_input_range = pdevice->instance->limit_trig_input_range;
 }
 
