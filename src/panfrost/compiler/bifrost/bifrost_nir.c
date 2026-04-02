@@ -1094,18 +1094,8 @@ bifrost_compile_shader_nir(nir_shader *nir,
     * fragment shader of something that isn't written by the vertex shader.
     * In that case, we just return zero.
     */
-   if (pan_arch(inputs->gpu_id) >= 9 && inputs->varying_layout) {
+   if (pan_arch(inputs->gpu_id) >= 9 && inputs->varying_layout)
       NIR_PASS(_, nir, pan_nir_resize_varying_io, inputs->varying_layout);
-
-      /* pan_nir_resize_varying_io may generate vector conversions which we
-       * need to clean up so the back-end doesn't see them.
-       */
-      uint64_t gpu_id = inputs->gpu_id;
-      NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
-      NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
-      NIR_PASS(_, nir, nir_opt_copy_prop);
-      NIR_PASS(_, nir, nir_opt_dce);
-   }
 
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       info->vs.idvs = bi_should_idvs(nir, inputs);
