@@ -166,19 +166,8 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
                             : alu->def.bit_size;
    if (bit_size == 1)
       return 0;
-   else if (bit_size == 8)
-      switch (alu->op) {
-      case nir_op_imul:
-      case nir_op_i2i8:
-      case nir_op_u2u8:
-         return 4;
-      default:
-         return 2;
-      }
-   else if (bit_size == 16)
-      return 2;
    else
-      return 1;
+      return MAX2(1, 32 / bit_size);
 }
 
 static bool
