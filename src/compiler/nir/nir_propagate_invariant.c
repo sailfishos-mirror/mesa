@@ -123,6 +123,30 @@ var_is_invariant(const nir_deref_instr *deref, struct set *invariants, uint8_t *
    }
 }
 
+static bool
+is_image(nir_intrinsic_op intrin, bool read)
+{
+   switch (intrin) {
+#define CASE(op)                           \
+   case nir_intrinsic_image_deref_##op:    \
+   case nir_intrinsic_image_##op:          \
+   case nir_intrinsic_bindless_image_##op: \
+   case nir_intrinsic_image_heap_##op:
+      CASE(load)
+      CASE(sparse_load)
+      CASE(samples_identical)
+      return read;
+      CASE(store)
+      return !read;
+      CASE(atomic)
+      CASE(atomic_swap)
+      return true;
+#undef CASE
+   default:
+      return false;
+   }
+}
+
 static void
 propagate_invariant_instr(nir_instr *instr, struct set *invariants, uint8_t *var_invariant)
 {
@@ -168,6 +192,23 @@ propagate_invariant_instr(nir_instr *instr, struct set *invariants, uint8_t *var
          break;
       }
 
+      if (is_image(intrin->intrinsic, false)) {
+         uint8_t img_flags = 0, buf_flags = 0;
+         if (nir_intrinsic_image_dim(intrin) == GLSL_SAMPLER_DIM_BUF) {
+            buf_flags |= var_invariant[ffs(nir_var_mem_ssbo) - 1] |
+                         var_invariant[ffs(nir_var_mem_global) - 1];
+         } else {
+            img_flags |= var_invariant[ffs(nir_var_image) - 1];
+         }
+
+         if ((img_flags & var_any_invariant) ||
+             (buf_flags & (var_all_invariant | var_all_alias_invariant))) {
+            add_src(&intrin->src[3], invariants);
+            if (nir_intrinsic_infos[intrin->intrinsic].num_srcs > 4)
+               add_src(&intrin->src[4], invariants);
+         }
+      }
+
       if (nir_intrinsic_infos[intrin->intrinsic].has_dest &&
           def_is_invariant(&intrin->def, invariants)) {
          if (nir_intrinsic_has_fp_math_ctrl(intrin)) {
@@ -176,6 +217,15 @@ propagate_invariant_instr(nir_instr *instr, struct set *invariants, uint8_t *var
          }
 
          nir_foreach_src(instr, add_src_cb, invariants);
+
+         if (is_image(intrin->intrinsic, true)) {
+            uint8_t img_flags = var_any_invariant | var_all_invariant | var_all_alias_invariant;
+            uint8_t buf_flags = var_any_invariant | var_all_alias_invariant;
+            if (nir_intrinsic_image_dim(intrin) == GLSL_SAMPLER_DIM_BUF)
+               var_invariant[ffs(nir_var_mem_ssbo) - 1] |= buf_flags;
+            else
+               var_invariant[ffs(nir_var_image) - 1] |= img_flags;
+         }
       }
       break;
    }
