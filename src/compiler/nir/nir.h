@@ -3102,6 +3102,20 @@ NIR_DEFINE_SRC_AS_CONST(double, float)
 
 #undef NIR_DEFINE_SRC_AS_CONST
 
+static inline bool
+nir_src_is_zero(nir_src src)
+{
+   if (!nir_src_is_const(src))
+      return false;
+
+   for (unsigned i = 0; i < nir_src_num_components(src); i++) {
+      if (nir_src_comp_as_uint(src, i) != 0)
+         return false;
+   }
+
+   return true;
+}
+
 static inline nir_const_value
 nir_scalar_as_const_value(nir_scalar s)
 {
@@ -3124,6 +3138,12 @@ NIR_DEFINE_SCALAR_AS_CONST(bool, bool)
 NIR_DEFINE_SCALAR_AS_CONST(double, float)
 
 #undef NIR_DEFINE_SCALAR_AS_CONST
+
+static inline bool
+nir_scalar_is_zero(nir_scalar s)
+{
+   return nir_scalar_is_const(s) && nir_scalar_as_uint(s) == 0;
+}
 
 static inline nir_op
 nir_scalar_alu_op(nir_scalar s)
