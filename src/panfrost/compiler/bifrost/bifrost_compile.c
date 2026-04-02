@@ -2274,25 +2274,34 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
 static void
 bi_emit_load_const(bi_builder *b, nir_load_const_instr *instr)
 {
-   /* Accumulate all the channels of the constant, as if we did an
-    * implicit SEL over them */
-   uint64_t acc = 0;
+   const unsigned sz = instr->def.bit_size;
+   const unsigned comps = instr->def.num_components;
+   bi_index temp[BI_MAX_VEC];
 
-   for (unsigned i = 0; i < instr->def.num_components; ++i) {
-      uint64_t v =
-         nir_const_value_as_uint(instr->value[i], instr->def.bit_size);
-      acc |= (v << (i * instr->def.bit_size));
-   }
-
-   if (instr->def.bit_size <= 32) {
-      bi_mov_i32_to(b, bi_get_index(instr->def.index), bi_imm_u32(acc));
+   if (sz == 64) {
+      for (unsigned i = 0; i < comps; ++i) {
+         uint64_t v = nir_const_value_as_uint(instr->value[i], 64);
+         temp[i * 2 + 0] = bi_mov_i32(b, bi_imm_u32(v));
+         temp[i * 2 + 1] = bi_mov_i32(b, bi_imm_u32(v >> 32));
+      }
+      bi_emit_collect_to(b, bi_get_index(instr->def.index), temp, comps * 2);
    } else {
-      uint32_t imm_2x32[2] = { acc & 0xffffffff, (acc >> 32) & 0xffffffff };
-      bi_index temp[2] = { bi_temp(b->shader), bi_temp(b->shader) };
-      bi_mov_i32_to(b, temp[0], bi_imm_u32(imm_2x32[0]));
-      bi_mov_i32_to(b, temp[1], bi_imm_u32(imm_2x32[1]));
+      assert(sz == 8 || sz == 16 || sz == 32);
+      const unsigned comps_per_word = 32 / sz;
+      const unsigned words = DIV_ROUND_UP(comps, comps_per_word);
+      for (unsigned w = 0; w < words; w++) {
+         uint32_t acc = 0;
+         for (unsigned i = 0; i < comps_per_word; i++) {
+            unsigned c = w * comps_per_word + i;
+            if (c >= comps)
+               break;
 
-      bi_emit_collect_to(b, bi_get_index(instr->def.index), temp, 2);
+            uint32_t v = nir_const_value_as_uint(instr->value[c], sz);
+            acc |= v << (i * sz);
+         }
+         temp[w] = bi_mov_i32(b, bi_imm_u32(acc));
+      }
+      bi_emit_collect_to(b, bi_get_index(instr->def.index), temp, words);
    }
 }
 
