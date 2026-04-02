@@ -210,7 +210,7 @@ radv_compute_pipeline_compile(const VkComputePipelineCreateInfo *pCreateInfo, st
 
    radv_pipeline_stage_init(pipeline->base.create_flags, pStage, pipeline_layout, &stage_key, &cs_stage);
 
-   struct radv_shader_debug_info cs_dbg = {};
+   struct radv_shader_debug_info cs_dbg = {0};
    struct radv_shader_binary *cs_binary = radv_compile_cs(device, &cs_stage, keep_executable_info, keep_statistic_info,
                                                           pipeline->base.is_internal, &cs_dbg);
    pipeline->base.shaders[MESA_SHADER_COMPUTE] =
