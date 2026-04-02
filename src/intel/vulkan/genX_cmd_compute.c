@@ -55,19 +55,12 @@ genX(cmd_buffer_ensure_cfe_state)(struct anv_cmd_buffer *cmd_buffer,
    anv_batch_emit(&cmd_buffer->batch, GENX(CFE_STATE), cfe) {
       cfe.MaximumNumberofThreads = devinfo->max_cs_threads * devinfo->subslice_total;
 
-      uint32_t scratch_surf;
-      struct anv_scratch_pool *scratch_pool =
-         (cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT) ?
-          &cmd_buffer->device->protected_scratch_pool :
-          &cmd_buffer->device->scratch_pool;
-      struct anv_bo *scratch_bo =
-            anv_scratch_pool_alloc(cmd_buffer->device, scratch_pool,
-                                   MESA_SHADER_COMPUTE,
-                                   total_scratch);
-      anv_reloc_list_add_bo(cmd_buffer->batch.relocs, scratch_bo);
-      scratch_surf = anv_scratch_pool_get_surf(cmd_buffer->device, scratch_pool,
-                                               total_scratch);
-      cfe.ScratchSpaceBuffer = scratch_surf >> ANV_SCRATCH_SPACE_SHIFT;
+      const bool protected = cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
+      cfe.ScratchSpaceBuffer = anv_shader_get_scratch_surf(&cmd_buffer->batch,
+                                                           cmd_buffer->device,
+                                                           MESA_SHADER_COMPUTE,
+                                                           total_scratch,
+                                                           protected);
 #if GFX_VER >= 20
       switch (cmd_buffer->device->physical->instance->stack_ids) {
       case 256:  cfe.StackIDControl = StackIDs256;  break;
@@ -1303,18 +1296,11 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
       btd.PerDSSMemoryBackedBufferSize = 6;
       btd.MemoryBackedBufferBasePointer = (struct anv_address) { .bo = device->btd_fifo_bo };
       if (rt->scratch_size > 0) {
-         struct anv_bo *scratch_bo =
-            anv_scratch_pool_alloc(device,
-                                   &device->scratch_pool,
-                                   MESA_SHADER_COMPUTE,
-                                   rt->scratch_size);
-         anv_reloc_list_add_bo(cmd_buffer->batch.relocs,
-                               scratch_bo);
-         uint32_t scratch_surf =
-            anv_scratch_pool_get_surf(cmd_buffer->device,
-                                      &device->scratch_pool,
-                                      rt->scratch_size);
-         btd.ScratchSpaceBuffer = scratch_surf >> ANV_SCRATCH_SPACE_SHIFT;
+         btd.ScratchSpaceBuffer = anv_shader_get_scratch_surf(&cmd_buffer->batch,
+                                                              cmd_buffer->device,
+                                                              MESA_SHADER_COMPUTE,
+                                                              rt->scratch_size,
+                                                              false);;
       }
 #if INTEL_NEEDS_WA_14017794102 || INTEL_NEEDS_WA_14023061436
       btd.BTDMidthreadpreemption = false;
