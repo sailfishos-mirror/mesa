@@ -31,6 +31,7 @@
 #include <math.h>
 #include "util/half_float.h"
 #include "util/macros.h"
+#include "util/ralloc.h"
 #include "util/u_math.h"
 #include "util/u_printf.h"
 #include "util/u_qsort.h"
@@ -729,6 +730,13 @@ nir_function_impl_create(nir_function *function)
    return impl;
 }
 
+static void
+nir_block_destructor(void *block_)
+{
+   nir_block *block = block_;
+   util_dynarray_fini(&block->predecessors);
+}
+
 nir_block *
 nir_block_create(nir_shader *shader)
 {
@@ -737,11 +745,14 @@ nir_block_create(nir_shader *shader)
    cf_init(&block->cf_node, nir_cf_node_block);
 
    block->successors[0] = block->successors[1] = NULL;
-   _mesa_pointer_set_init(&block->predecessors, block);
+   util_dynarray_init_from_stack(
+      &block->predecessors, block->_preds_storage, sizeof(block->_preds_storage));
    block->imm_dom = NULL;
    _mesa_pointer_set_init(&block->dom_frontier, block);
 
    exec_list_make_empty(&block->instr_list);
+
+   ralloc_set_destructor(block, &nir_block_destructor);
 
    return block;
 }

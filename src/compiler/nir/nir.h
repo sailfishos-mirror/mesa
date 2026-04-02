@@ -45,6 +45,7 @@
 #include "util/set.h"
 #include "util/simple_mtx.h"
 #include "util/sparse_bitset.h"
+#include "util/u_dynarray.h"
 #include "util/u_math.h"
 #include "nir_defines.h"
 #include "nir_shader_compiler_options.h"
@@ -3261,7 +3262,8 @@ typedef struct nir_block {
    nir_block *successors[2];
 
    /* Set of nir_block predecessors in the CFG */
-   struct set predecessors;
+   struct util_dynarray predecessors;
+   nir_block *_preds_storage[2];
 
    /*
     * this node's immediate dominator in the dominance tree - set to NULL for
@@ -3311,57 +3313,48 @@ typedef struct nir_block {
    struct u_sparse_bitset live_out;
 } nir_block;
 
-static ALWAYS_INLINE nir_block *
-_nir_pred_iter_begin(const nir_block *block, nir_block **iter)
+static ALWAYS_INLINE nir_block **
+_nir_pred_iter_begin(const nir_block *block)
 {
-   struct set_entry *entry = _mesa_set_next_entry(&block->predecessors, NULL);
-   *iter = (nir_block *)entry;
-   return entry ? (nir_block *)entry->key : NULL;
+   return (nir_block **)util_dynarray_begin(&block->predecessors);
 }
 
-static ALWAYS_INLINE nir_block *
-_nir_pred_iter_end(const nir_block *block)
+static ALWAYS_INLINE bool
+_nir_pred_iter_end(const nir_block *block, nir_block **iter, nir_block **pred)
 {
-   struct set_entry *entry = NULL;
-   return (nir_block *)entry;
+   if (iter == (nir_block **)util_dynarray_end(&block->predecessors))
+      return false;
+   *pred = *iter;
+   return true;
 }
 
-static ALWAYS_INLINE nir_block *
-_nir_pred_iter_advance(const nir_block *block, nir_block **iter)
-{
-   struct set_entry *entry = (struct set_entry *)*iter;
-   entry = _mesa_set_next_entry(&block->predecessors, entry);
-   *iter = (nir_block *)entry;
-   return entry ? (nir_block *)entry->key : NULL;
-}
-
-#define nir_foreach_pred(pred, block)                                                 \
-   for (nir_block * pred##_iter, *pred = _nir_pred_iter_begin((block), &pred##_iter); \
-        pred##_iter != _nir_pred_iter_end((block));                                   \
-        pred = _nir_pred_iter_advance((block), &pred##_iter))
+#define nir_foreach_pred(pred, block)                                    \
+   for (nir_block * pred, **pred##_iter = _nir_pred_iter_begin((block)); \
+        _nir_pred_iter_end((block), pred##_iter, &pred);                 \
+        pred##_iter++)
 
 static inline size_t
 nir_block_num_preds(const nir_block *block)
 {
-   return block->predecessors.entries;
+   return util_dynarray_num_elements(&block->predecessors, nir_block *);
 }
 
 static inline bool
 nir_block_has_pred(const nir_block *block, const nir_block *pred)
 {
-   return _mesa_set_search(&block->predecessors, pred);
+   return pred->successors[0] == block || pred->successors[1] == block;
 }
 
 static inline void
 nir_block_add_pred(nir_block *block, nir_block *pred)
 {
-   _mesa_set_add(&block->predecessors, pred);
+   util_dynarray_append(&block->predecessors, pred);
 }
 
 static inline void
 nir_block_remove_pred(nir_block *block, nir_block *pred)
 {
-   _mesa_set_remove_key(&block->predecessors, pred);
+   util_dynarray_delete_unordered(&block->predecessors, nir_block *, pred);
 }
 
 static inline bool

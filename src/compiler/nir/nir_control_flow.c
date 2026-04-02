@@ -162,7 +162,7 @@ replace_pred_succs(nir_block *block, nir_block *new_block, nir_block *exclude)
       nir_block_add_pred(new_block, pred);
    }
 
-   _mesa_set_clear(&block->predecessors, NULL);
+   util_dynarray_clear(&block->predecessors);
    if (found_exclude)
       nir_block_add_pred(block, exclude);
 }

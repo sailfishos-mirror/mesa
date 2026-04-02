@@ -1472,8 +1472,10 @@ validate_block_predecessors(nir_block *block, validate_state *state)
                                               block->successors[i]));
 
       /* And we have to be in our successor's predecessors set */
-      validate_assert(state,
-                      nir_block_has_pred(block->successors[i], block));
+      bool has_pred = false;
+      nir_foreach_pred(pred, block->successors[i])
+         has_pred |= pred == block;
+      validate_assert(state, has_pred);
 
       validate_phi_srcs(block, block->successors[i], state);
    }
@@ -1481,6 +1483,17 @@ validate_block_predecessors(nir_block *block, validate_state *state)
    /* The start block cannot have any predecessors */
    if (block == nir_start_block(state->impl))
       validate_assert(state, nir_block_num_preds(block) == 0);
+
+   /* Check for duplicate predecessors. */
+   nir_foreach_pred(pred, block) {
+      bool found = false;
+      nir_foreach_pred(pred2, block) {
+         if (pred == pred2) {
+            validate_assert(state, !found);
+            found = true;
+         }
+      }
+   }
 
    nir_foreach_pred(pred, block) {
       validate_assert(state, _mesa_set_search(state->blocks, pred));
