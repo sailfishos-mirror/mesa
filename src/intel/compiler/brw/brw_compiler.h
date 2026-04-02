@@ -206,6 +206,11 @@ enum brw_robustness_flags {
    BRW_ROBUSTNESS_SSBO = BITFIELD_BIT(1),
 };
 
+enum brw_divergent_atomics_flags {
+   BRW_OPT_DIVERGENT_ATOMICS_BUFFER = BITFIELD_BIT(0),
+   BRW_OPT_DIVERGENT_ATOMICS_IMAGE  = BITFIELD_BIT(1),
+};
+
 struct brw_base_prog_key {
    /** Multiview mask
     *
@@ -226,7 +231,9 @@ struct brw_base_prog_key {
     */
    bool limit_trig_input_range:1;
 
-   uint32_t padding:26;
+   enum brw_divergent_atomics_flags divergent_atomics_flags:2;
+
+   uint32_t padding:24;
 };
 
 /**
