@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import argparse
+import itertools
 import sys
 import math
 
@@ -138,7 +139,34 @@ for isz in [8, 16, 32]:
         ((f'b2i{isz}', a), ('bcsel_pan', a_isz, 1, 0), 'is_kraid'),
     ]
 
-# Convert shifts and logic ops to fused shift+logic ops
+LOPS = ['and', 'or', 'xor']
+SHIFTS = [
+    ('ishl', 'lshift'),
+    ('ushr', 'rshift'),
+    ('ishr', 'arshift'),
+]
+
+for (ns, ps), lop in itertools.product(SHIFTS, LOPS):
+    nl = f'i{lop}'
+    psl = f'{ps}_{lop}_pan'
+    algebraic_late += [
+        # Logic ops distribute across shifts so:
+        #
+        #   shift(a LOP b, c) LOP d = (shift(a, c) LOP shift(b, c)) LOP d
+        #
+        # and logic ops are associative so
+        #
+        #                           = shift(a, c) LOP (shift(b, c) LOP d)
+        #
+        ((nl, (f'{ns}(is_used_once)', (nl, a, '#b'), '#c'), '#d'),
+         (psl, a, ('u2u8', c), (nl, (ns, b, c), d)), 'is_kraid'),
+        ((nl, (f'{ns}(is_used_once)', a, b), c),
+         (psl, a, ('u2u8', b), c), 'is_kraid'),
+        ((ns, (nl, a, '#b'), '#c'),
+         (psl, a, ('u2u8', c), (ns, b, c)), 'is_kraid'),
+    ]
+
+# If we have any regular shifts or logic ops left, lower them
 algebraic_late += [
     (('iand', a, b), ('lshift_and_pan', a, 0, b), 'is_kraid'),
     (('ior', a, b), ('lshift_or_pan', a, 0, b), 'is_kraid'),
