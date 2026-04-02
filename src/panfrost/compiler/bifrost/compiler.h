@@ -341,8 +341,17 @@ bi_passthrough(enum bifrost_packed_src value)
 static inline bi_index
 bi_swz_16(bi_index idx, bool x, bool y)
 {
-   assert(idx.swizzle == BI_SWIZZLE_H01);
-   idx.swizzle = bi_swizzle_from_half(x, y);
+   bool halves[2];
+   switch (idx.swizzle) {
+   case BI_SWIZZLE_H00: halves[0] = 0; halves[1] = 0; break;
+   case BI_SWIZZLE_H01: halves[0] = 0; halves[1] = 1; break;
+   case BI_SWIZZLE_H10: halves[0] = 1; halves[1] = 0; break;
+   case BI_SWIZZLE_H11: halves[0] = 1; halves[1] = 1; break;
+   default: UNREACHABLE("Not a half swizzle");
+   }
+   assert(idx.swizzle == bi_swizzle_from_half(halves[0], halves[1]));
+
+   idx.swizzle = bi_swizzle_from_half(halves[x], halves[y]);
    return idx;
 }
 
@@ -352,22 +361,15 @@ bi_half(bi_index idx, bool upper)
    return bi_swz_16(idx, upper, upper);
 }
 
-static inline bool
-bi_valid_lane_for_byte_swizzle(enum bi_swizzle swizzle, unsigned lane)
-{
-   unsigned channels[4];
-   if (bi_swizzle_to_byte_channels(swizzle, channels)) {
-      return lane == channels[0] || lane == channels[1] ||
-             lane == channels[2] || lane == channels[3];
-   }
-   return false;
-}
-
 static inline bi_index
 bi_byte(bi_index idx, unsigned lane)
 {
-   assert(bi_valid_lane_for_byte_swizzle(idx.swizzle, lane));
-   idx.swizzle = (enum bi_swizzle)(BI_SWIZZLE_B0 + lane);
+   unsigned bytes[4];
+   bool valid = bi_swizzle_to_byte_channels(idx.swizzle, bytes);
+   assert(valid);
+
+   assert(lane < 4);
+   idx.swizzle = (enum bi_swizzle)(BI_SWIZZLE_B0 + bytes[lane]);
    return idx;
 }
 
