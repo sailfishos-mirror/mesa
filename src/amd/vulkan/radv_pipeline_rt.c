@@ -534,7 +534,7 @@ radv_rt_compile_nir(struct radv_device *device, struct vk_pipeline_cache *cache,
                      !radv_is_traversal_shader(stage->nir);
 
    struct radv_shader_binary *binary;
-   struct radv_shader_debug_info debug = {};
+   struct radv_shader_debug_info debug = {0};
    radv_rt_nir_to_asm(device, pipeline, mode, stage, payload_size, hit_attrib_size, stage_info, traversal_stage_info,
                       has_position_fetch, &binary, &debug);
 
