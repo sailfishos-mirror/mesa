@@ -3196,8 +3196,8 @@ radv_graphics_pipeline_compile(struct radv_graphics_pipeline *pipeline, const Vk
 
    const bool noop_fs = radv_pipeline_needs_noop_fs(pipeline, &gfx_state->key.gfx_state);
 
-   struct radv_shader_debug_info debug[MESA_VULKAN_SHADER_STAGES] = {};
-   struct radv_shader_debug_info gs_copy_debug = {};
+   struct radv_shader_debug_info debug[MESA_VULKAN_SHADER_STAGES] = {0};
+   struct radv_shader_debug_info gs_copy_debug = {0};
    radv_graphics_shaders_compile(device, cache, stages, &gfx_state->key.gfx_state, keep_executable_info,
                                  keep_statistic_info, pipeline->base.is_internal, retained_shaders, noop_fs, debug,
                                  binaries, &gs_copy_debug, &gs_copy_binary);
