@@ -3040,17 +3040,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       assert((src_sz == 16 || src_sz == 32) && "should be lowered");
       unsigned byte = nir_alu_src_as_uint(instr->src[1]);
 
-      if (s0.swizzle == BI_SWIZZLE_H11) {
-         assert(byte < 2);
-         byte += 2;
-      } else if (s0.swizzle != BI_SWIZZLE_H01) {
-         assert(s0.swizzle == BI_SWIZZLE_H00);
-      }
-
-      assert(byte < 4);
-
-      s0.swizzle = BI_SWIZZLE_H01;
-
       if (instr->op == nir_op_extract_i8)
          bi_s8_to_s32_to(b, dst, bi_byte(s0, byte));
       else
