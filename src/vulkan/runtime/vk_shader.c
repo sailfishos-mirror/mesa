@@ -619,7 +619,7 @@ vk_common_CreateShadersEXT(VkDevice _device,
                .idx = i,
             };
          } else {
-            struct vk_sampler_state_array embedded_samplers = {};
+            struct vk_sampler_state_array embedded_samplers = {0};
             nir_shader *nir = vk_shader_to_nir(device, vk_info,
                                                &vk_robustness_disabled,
                                                &embedded_samplers);
