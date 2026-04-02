@@ -1124,16 +1124,10 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    bi_optimize_nir(nir, inputs->gpu_id, inputs->robust_modes);
 
-   {
-      bool scalar_phis_pass = false;
-      uint64_t gpu_id = inputs->gpu_id;
-      NIR_PASS(scalar_phis_pass, nir, nir_lower_phis_to_scalar,
-               bi_vectorize_filter, &gpu_id);
-      if (scalar_phis_pass) {
-         NIR_PASS(_, nir, nir_opt_copy_prop);
-         NIR_PASS(_, nir, nir_opt_dce);
-      }
-   }
+   uint64_t gpu_id = inputs->gpu_id;
+   NIR_PASS(_, nir, nir_lower_phis_to_scalar, bi_vectorize_filter, &gpu_id);
+   NIR_PASS(_, nir, nir_opt_copy_prop);
+   NIR_PASS(_, nir, nir_opt_dce);
 
    info->tls_size = nir->scratch_size;
    info->stage = nir->info.stage;
