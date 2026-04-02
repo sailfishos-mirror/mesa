@@ -2004,27 +2004,29 @@ get_reg(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
 
       unsigned def_size = info.rc.size();
       std::vector<IDAndRegClass> def_vars;
-      for (Definition def : instr->definitions) {
-         if (def.isPrecolored()) {
-            assert(!regs.contains({def.physReg(), def.size()}));
-            continue;
-         }
-         if (ctx.assignments[def.tempId()].assigned && def.regClass().type() == info.rc.type()) {
-            def_size += def.regClass().size();
-            def_vars.emplace_back(def.tempId(), def.regClass());
-         }
-      }
-
       unsigned killed_op_size = 0;
       std::vector<IDAndRegClass> killed_op_vars;
-      for (Operand op : instr->operands) {
-         if (op.isPrecolored()) {
-            assert(!regs.contains({op.physReg(), op.size()}));
-            continue;
+      if (operand_index < 0) {
+         for (Definition def : instr->definitions) {
+            if (def.isPrecolored()) {
+               assert(!regs.contains({def.physReg(), def.size()}));
+               continue;
+            }
+            if (ctx.assignments[def.tempId()].assigned && def.regClass().type() == info.rc.type()) {
+               def_size += def.regClass().size();
+               def_vars.emplace_back(def.tempId(), def.regClass());
+            }
          }
-         if (op.isTemp() && op.isFirstKillBeforeDef() && op.regClass().type() == info.rc.type()) {
-            killed_op_size += op.regClass().size();
-            killed_op_vars.emplace_back(op.tempId(), op.regClass());
+
+         for (Operand op : instr->operands) {
+            if (op.isPrecolored()) {
+               assert(!regs.contains({op.physReg(), op.size()}));
+               continue;
+            }
+            if (op.isTemp() && op.isFirstKillBeforeDef() && op.regClass().type() == info.rc.type()) {
+               killed_op_size += op.regClass().size();
+               killed_op_vars.emplace_back(op.tempId(), op.regClass());
+            }
          }
       }
 
