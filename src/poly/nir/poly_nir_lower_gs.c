@@ -205,13 +205,14 @@ load_geometry_param_offset(nir_builder *b, uint32_t offset, uint8_t bytes)
       sizeof(((struct poly_geometry_params *)0)->field))
 
 /* Helpers for lowering I/O to variables */
-struct lower_output_to_var_state {
-   nir_variable *outputs[NUM_TOTAL_VARYING_SLOTS];
+struct lower_output_to_var_slot {
+   nir_variable *output_var;
+   nir_variable *selected_var;
 };
 
 static void
 lower_store_to_var(nir_builder *b, nir_intrinsic_instr *intr,
-                   struct lower_output_to_var_state *state)
+                   struct lower_output_to_var_slot *outputs)
 {
    b->cursor = nir_instr_remove(&intr->instr);
    nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
@@ -222,22 +223,23 @@ lower_store_to_var(nir_builder *b, nir_intrinsic_instr *intr,
    assert(nir_intrinsic_write_mask(intr) == nir_component_mask(1) &&
           "should be scalarized");
 
-   nir_variable *var =
-      state->outputs[sem.location + nir_src_as_uint(intr->src[1])];
-   if (!var) {
+   gl_varying_slot slot = sem.location + nir_src_as_uint(intr->src[1]);
+   struct lower_output_to_var_slot *output = &outputs[slot];
+   if (!output->output_var) {
       assert(sem.location == VARYING_SLOT_PSIZ &&
              "otherwise in outputs_written");
       return;
    }
 
-   unsigned nr_components = glsl_get_components(glsl_without_array(var->type));
+   unsigned nr_components = glsl_get_components(
+      glsl_without_array(output->output_var->type));
    assert(component < nr_components);
 
    /* Turn it into a vec4 write like NIR expects */
    value = nir_vector_insert_imm(b, nir_undef(b, nr_components, 32), value,
                                  component);
 
-   nir_store_var(b, var, value, BITFIELD_BIT(component));
+   nir_store_var(b, output->output_var, value, BITFIELD_BIT(component));
 }
 
 /*
@@ -483,8 +485,7 @@ create_geometry_count_shader(nir_shader *gs, struct lower_gs_state *state)
 struct lower_gs_rast_state {
    nir_def *raw_instance_id;
    nir_def *instance_id, *primitive_id, *output_id, *stream;
-   struct lower_output_to_var_state outputs;
-   struct lower_output_to_var_state selected;
+   struct lower_output_to_var_slot outputs[NUM_TOTAL_VARYING_SLOTS];
    bool points;
 
    nir_variable *output_strip_length, *output_strip_base, *id_in_strip;
@@ -500,12 +501,12 @@ select_rast_output(nir_builder *b, nir_intrinsic_instr *intr,
                  nir_ieq_imm(b, state->stream, nir_intrinsic_stream_id(intr)));
 
    u_foreach_bit64(slot, b->shader->info.outputs_written) {
-      nir_def *orig = nir_load_var(b, state->selected.outputs[slot]);
-      nir_def *data = nir_load_var(b, state->outputs.outputs[slot]);
+      nir_def *orig = nir_load_var(b, state->outputs[slot].selected_var);
+      nir_def *data = nir_load_var(b, state->outputs[slot].output_var);
 
       nir_def *value = nir_bcsel(b, us, data, orig);
 
-      nir_store_var(b, state->selected.outputs[slot], value,
+      nir_store_var(b, state->outputs[slot].selected_var, value,
                     nir_component_mask(value->num_components));
    }
 }
@@ -517,7 +518,7 @@ lower_to_gs_rast(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
    switch (intr->intrinsic) {
    case nir_intrinsic_store_output:
-      lower_store_to_var(b, intr, &state->outputs);
+      lower_store_to_var(b, intr, state->outputs);
       return true;
 
    case nir_intrinsic_select_vertex_poly:
@@ -720,11 +721,11 @@ create_gs_rast_shader(const nir_shader *gs, const struct lower_gs_state *state)
                     (slot == VARYING_SLOT_VIEWPORT);
       unsigned comps = scalar ? 1 : 4;
 
-      rs.outputs.outputs[slot] = nir_variable_create(
+      rs.outputs[slot].output_var = nir_variable_create(
          shader, nir_var_shader_temp, glsl_vector_type(GLSL_TYPE_UINT, comps),
          ralloc_asprintf(shader, "%s-temp", slot_name));
 
-      rs.selected.outputs[slot] = nir_variable_create(
+      rs.outputs[slot].selected_var = nir_variable_create(
          shader, nir_var_shader_temp, glsl_vector_type(GLSL_TYPE_UINT, comps),
          ralloc_asprintf(shader, "%s-selected", slot_name));
    }
@@ -782,7 +783,7 @@ create_gs_rast_shader(const nir_shader *gs, const struct lower_gs_state *state)
                unsigned buffer = output.buffer;
                unsigned stride = xfb->buffers[buffer].stride;
 
-               nir_variable *var = rs.selected.outputs[output.location];
+               nir_variable *var = rs.outputs[output.location].selected_var;
                nir_def *value =
                   var ? nir_load_var(b, var) : nir_undef(b, 4, 32);
 
@@ -811,8 +812,9 @@ create_gs_rast_shader(const nir_shader *gs, const struct lower_gs_state *state)
 
    /* Forward each selected output to the rasterizer */
    u_foreach_bit64(slot, shader->info.outputs_written) {
-      assert(rs.selected.outputs[slot] != NULL);
-      nir_def *value = nir_load_var(b, rs.selected.outputs[slot]);
+      struct lower_output_to_var_slot *output = &rs.outputs[slot];
+      assert(output->selected_var != NULL);
+      nir_def *value = nir_load_var(b, output->selected_var);
 
       /* We must only rasterize vertices from the rasterization stream. Since we
        * shade vertices across all streams, we do this by throwing away vertices
