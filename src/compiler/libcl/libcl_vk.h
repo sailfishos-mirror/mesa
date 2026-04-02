@@ -186,4 +186,4 @@ typedef struct VkCopyMemoryIndirectCommandKHR {
     VkDeviceAddress    srcAddress;
     VkDeviceAddress    dstAddress;
     VkDeviceSize       size;
-} VkCopyMemoryIndirectCommandKHR;
+} VkCopyMemoryIndirectCommandKHR __attribute__((aligned(4)));
