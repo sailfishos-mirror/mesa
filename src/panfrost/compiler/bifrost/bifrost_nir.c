@@ -133,12 +133,6 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
    case nir_op_ishl:
    case nir_op_ishr:
    case nir_op_ushr:
-   case nir_op_b2f16:
-   case nir_op_f2i16:
-   case nir_op_f2u16:
-   case nir_op_f2i8:
-   case nir_op_f2u8:
-   case nir_op_f2fmp:
    case nir_op_extract_u16:
    case nir_op_extract_i16:
    case nir_op_insert_u16:
@@ -159,9 +153,9 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
       break;
    }
 
-   const uint8_t bit_size = nir_alu_instr_is_comparison(alu)
-                            ? nir_src_bit_size(alu->src[0].src)
-                            : alu->def.bit_size;
+   const uint8_t bit_size =
+      MAX2(alu->def.bit_size, nir_src_bit_size(alu->src[0].src));
+
    if (bit_size == 1)
       return 0;
    else
