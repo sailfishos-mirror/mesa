@@ -2330,30 +2330,30 @@ radv_enc_op_init_rc_vbv(struct radv_cmd_buffer *cmd_buffer)
 }
 
 static void
-radv_enc_op_preset(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *enc_info)
+radv_enc_op_preset(struct radv_cmd_buffer *cmd_buffer, uint32_t quality_level)
 {
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_video_session *vid = cmd_buffer->video.vid;
+
    uint32_t preset_mode;
 
-   if (vid->enc_preset_mode == RENCODE_PRESET_MODE_QUALITY)
-      preset_mode = RENCODE_IB_OP_SET_QUALITY_ENCODING_MODE;
-   else if (vid->enc_preset_mode == RENCODE_PRESET_MODE_BALANCE)
+   switch (quality_level) {
+   case 1:
       preset_mode = RENCODE_IB_OP_SET_BALANCE_ENCODING_MODE;
-   else
-      preset_mode = RENCODE_IB_OP_SET_SPEED_ENCODING_MODE;
-
-   switch (vid->vk.op) {
-   case VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR: {
-      const struct VkVideoEncodeH265PictureInfoKHR *h265_picture_info =
-         vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_H265_PICTURE_INFO_KHR);
-      const StdVideoEncodeH265PictureInfo *pic = h265_picture_info->pStdPictureInfo;
-      const StdVideoH265SequenceParameterSet *sps =
-         vk_video_find_h265_enc_std_sps(cmd_buffer->video.params, pic->pps_seq_parameter_set_id);
-      if (sps->flags.sample_adaptive_offset_enabled_flag && vid->enc_preset_mode == RENCODE_PRESET_MODE_SPEED)
-         preset_mode = RENCODE_IB_OP_SET_BALANCE_ENCODING_MODE;
       break;
-   }
+   case 2:
+      preset_mode = RENCODE_IB_OP_SET_QUALITY_ENCODING_MODE;
+      break;
+   case 3:
+      preset_mode = RENCODE_IB_OP_SET_HIGH_QUALITY_ENCODING_MODE;
+      break;
+   case 0:
    default:
+      if (pdev->enc_hw_ver < RADV_VIDEO_ENC_HW_5 && vid->vk.op == VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR)
+         preset_mode = RENCODE_IB_OP_SET_BALANCE_ENCODING_MODE;
+      else
+         preset_mode = RENCODE_IB_OP_SET_SPEED_ENCODING_MODE;
       break;
    }
 
@@ -3065,8 +3065,6 @@ radv_vcn_encode_video(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInf
    }
    // v2 output format
 
-   // op_preset
-   radv_enc_op_preset(cmd_buffer, enc_info);
    // op_enc
    radv_enc_op_enc(cmd_buffer);
 
@@ -3099,7 +3097,9 @@ radv_video_enc_control_video_coding(struct radv_cmd_buffer *cmd_buffer, const Vk
 
    bool session_init = false;
    bool rate_control_init = false;
+   bool quality_preset_init = false;
    uint32_t vbv_buffer_level = 64;
+   uint32_t quality_level = 0;
    rvcn_enc_rate_ctl_layer_init_t rc_layer_init[RADV_ENC_MAX_RATE_LAYER];
    rvcn_enc_rate_ctl_per_picture_t rc_per_pic[RADV_ENC_MAX_RATE_LAYER];
 
@@ -3123,6 +3123,7 @@ radv_video_enc_control_video_coding(struct radv_cmd_buffer *cmd_buffer, const Vk
 
       session_init = true;
       rate_control_init = true;
+      quality_preset_init = true;
    }
 
    if (control_info->flags & VK_VIDEO_CODING_CONTROL_ENCODE_RATE_CONTROL_BIT_KHR) {
@@ -3235,7 +3236,16 @@ radv_video_enc_control_video_coding(struct radv_cmd_buffer *cmd_buffer, const Vk
       rate_control_init = true;
    }
 
-   if (!session_init && !rate_control_init)
+   if (control_info->flags & VK_VIDEO_CODING_CONTROL_ENCODE_QUALITY_LEVEL_BIT_KHR) {
+      const struct VkVideoEncodeQualityLevelInfoKHR *quality_info =
+         vk_find_struct_const(control_info->pNext, VIDEO_ENCODE_QUALITY_LEVEL_INFO_KHR);
+      assert(quality_info);
+
+      quality_level = quality_info->qualityLevel;
+      quality_preset_init = true;
+   }
+
+   if (!session_init && !rate_control_init && !quality_preset_init)
       return;
 
    radeon_check_space(device->ws, cmd_buffer->cs->b, 256);
@@ -3266,6 +3276,9 @@ radv_video_enc_control_video_coding(struct radv_cmd_buffer *cmd_buffer, const Vk
       radv_enc_op_init_rc(cmd_buffer);
       radv_enc_op_init_rc_vbv(cmd_buffer);
    }
+
+   if (quality_preset_init)
+      radv_enc_op_preset(cmd_buffer, quality_level);
 
    *cmd_buffer->video.enc.p_task_size = cmd_buffer->video.enc.total_task_size;
 
