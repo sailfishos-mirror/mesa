@@ -4404,7 +4404,7 @@
         "description": "nir/opt_load_skip_helpers: don't skip helpers for store_scratch data",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a65009e8087ff0d36bfc6714eaf42874e7b0ade2",
         "notes": null
