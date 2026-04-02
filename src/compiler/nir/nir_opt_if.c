@@ -702,7 +702,8 @@ is_block_empty_or_constant(nir_block *block)
       return false;
 
    nir_foreach_instr(instr, block) {
-      if (instr->type != nir_instr_type_load_const)
+      if (instr->type != nir_instr_type_load_const &&
+          instr->type != nir_instr_type_undef)
          return false;
    }
 
