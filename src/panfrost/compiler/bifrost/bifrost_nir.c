@@ -349,9 +349,6 @@ bi_optimize_nir(nir_shader *nir, uint64_t gpu_id,
       NIR_PASS(_, nir, nir_opt_cse);
    }
 
-   NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
-   NIR_PASS(_, nir, nir_opt_dce);
-
    /* Backend scheduler is purely local, so do some global optimizations
     * to reduce register pressure. */
    nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo |
@@ -1124,6 +1121,11 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    bi_optimize_nir(nir, inputs->gpu_id, inputs->robust_modes);
 
+   /* Lower constants to scalar but then immediately fold so we get minimum-
+    * width vectors instead of scalars
+    */
+   NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
+   NIR_PASS(_, nir, nir_opt_constant_folding);
    uint64_t gpu_id = inputs->gpu_id;
    NIR_PASS(_, nir, nir_lower_phis_to_scalar, bi_vectorize_filter, &gpu_id);
    NIR_PASS(_, nir, nir_opt_copy_prop);

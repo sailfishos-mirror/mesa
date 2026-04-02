@@ -5249,10 +5249,6 @@ bi_compile_variant_nir(nir_shader *nir,
          NIR_PASS(progress, nir, nir_opt_dead_cf);
          NIR_PASS(progress, nir, nir_opt_cse);
       }
-
-      /* opt_cse can vectorize load_const, we need to lower this to scalar */
-      NIR_PASS(progress, nir, nir_lower_load_const_to_scalar);
-      NIR_PASS(progress, nir, nir_opt_dce);
    }
 
    /* If nothing is pushed, all UBOs need to be uploaded */
