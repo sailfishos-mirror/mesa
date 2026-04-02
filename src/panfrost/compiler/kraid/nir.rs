@@ -406,6 +406,15 @@ impl<'a> ShaderFromNir<'a> {
             DataType::get(comps, num_type, bits)
         };
 
+        let src_is_zero = |i| {
+            for c in 0..alu.src_components(i) {
+                if alu.get_src(i.into()).comp_as_uint(c) != Some(0) {
+                    return false;
+                }
+            }
+            true
+        };
+
         let dst = self.alloc_ssa(b, &alu.def);
         let dst_type = |num_type| {
             let comps = alu.def.num_components.next_power_of_two();
@@ -961,23 +970,6 @@ impl<'a> ShaderFromNir<'a> {
                     src2: 0.into(),
                 });
             }
-            nir_op_iand | nir_op_ior | nir_op_ixor => {
-                b.push_op(OpShiftLop {
-                    dst: dst.into(),
-                    dst_type: dst_type(NumericType::UnsignedInteger),
-                    shift_op: ShiftOp::None,
-                    logic_op: match alu.op {
-                        nir_op_iand => LogicOp::And,
-                        nir_op_ior => LogicOp::Or,
-                        nir_op_ixor => LogicOp::Xor,
-                        _ => panic!("Unhandled logic op"),
-                    },
-                    not_result: false,
-                    src0: srcs(0),
-                    shift: Src::imm_u8(0),
-                    src2: srcs(1),
-                });
-            }
             nir_op_ieq_pan | nir_op_ige_pan | nir_op_ilt_pan
             | nir_op_ine_pan | nir_op_uge_pan | nir_op_ult_pan => {
                 let num_type = match alu.input_type(0).base_type() {
@@ -1059,24 +1051,74 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [bits.into(), tmp.into()],
                 });
             }
-            nir_op_ishl | nir_op_ishr | nir_op_ushr | nir_op_urol
-            | nir_op_uror => {
+            nir_op_arshift_and_pan
+            | nir_op_arshift_or_pan
+            | nir_op_arshift_xor_pan
+            | nir_op_lshift_and_pan
+            | nir_op_lshift_or_pan
+            | nir_op_lshift_xor_pan
+            | nir_op_rshift_and_pan
+            | nir_op_rshift_or_pan
+            | nir_op_rshift_xor_pan
+            | nir_op_lrot_and_pan
+            | nir_op_lrot_or_pan
+            | nir_op_lrot_xor_pan
+            | nir_op_rrot_and_pan
+            | nir_op_rrot_or_pan
+            | nir_op_rrot_xor_pan => {
+                let shift_op = if src_is_zero(1) {
+                    ShiftOp::None
+                } else {
+                    match alu.op {
+                        nir_op_arshift_and_pan
+                        | nir_op_arshift_or_pan
+                        | nir_op_arshift_xor_pan => ShiftOp::ARShift,
+                        nir_op_lshift_and_pan
+                        | nir_op_lshift_or_pan
+                        | nir_op_lshift_xor_pan => ShiftOp::LShift,
+                        nir_op_rshift_and_pan
+                        | nir_op_rshift_or_pan
+                        | nir_op_rshift_xor_pan => ShiftOp::RShift,
+                        nir_op_lrot_and_pan | nir_op_lrot_or_pan
+                        | nir_op_lrot_xor_pan => ShiftOp::LRot,
+                        nir_op_rrot_and_pan | nir_op_rrot_or_pan
+                        | nir_op_rrot_xor_pan => ShiftOp::RRot,
+                        _ => unreachable!(),
+                    }
+                };
+
+                let logic_op = if src_is_zero(2) {
+                    LogicOp::None
+                } else {
+                    match alu.op {
+                        nir_op_arshift_and_pan
+                        | nir_op_lshift_and_pan
+                        | nir_op_rshift_and_pan
+                        | nir_op_lrot_and_pan
+                        | nir_op_rrot_and_pan => LogicOp::And,
+                        nir_op_arshift_or_pan
+                        | nir_op_lshift_or_pan
+                        | nir_op_rshift_or_pan
+                        | nir_op_lrot_or_pan
+                        | nir_op_rrot_or_pan => LogicOp::Or,
+                        nir_op_arshift_xor_pan
+                        | nir_op_lshift_xor_pan
+                        | nir_op_rshift_xor_pan
+                        | nir_op_lrot_xor_pan
+                        | nir_op_rrot_xor_pan => LogicOp::Xor,
+                        _ => unreachable!(),
+                    }
+                };
+
                 b.push_op(OpShiftLop {
                     dst: dst.into(),
                     dst_type: dst_type(NumericType::UnsignedInteger),
-                    shift_op: match alu.op {
-                        nir_op_ishl => ShiftOp::LShift,
-                        nir_op_ishr => ShiftOp::ARShift,
-                        nir_op_ushr => ShiftOp::RShift,
-                        nir_op_urol => ShiftOp::LRot,
-                        nir_op_uror => ShiftOp::RRot,
-                        _ => panic!("Unhandled shift op"),
-                    },
-                    logic_op: LogicOp::None,
+                    shift_op,
+                    logic_op,
                     not_result: false,
                     src0: srcs(0),
                     shift: srcs(1).byte(0),
-                    src2: 0.into(),
+                    src2: srcs(2),
                 });
             }
             nir_op_u2u8 | nir_op_u2u16 | nir_op_u2u32 => {
