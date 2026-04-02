@@ -69,9 +69,7 @@ poly_nir_passthrough_gs(nir_builder *b, const void *key_)
          unsigned adjusted_loc = loc;
          nir_def *offset = zero;
          unsigned num_slots = 1;
-
-         bool scalar = nir_slot_num_components(loc, MESA_SHADER_GEOMETRY) == 1;
-         unsigned comps = scalar ? 1 : 4;
+         unsigned comps = key->output_components[loc];
 
          /* We use combined, compact clip/cull */
          if (loc == VARYING_SLOT_CLIP_DIST1 || loc == VARYING_SLOT_CULL_DIST1) {

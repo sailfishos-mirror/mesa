@@ -3245,9 +3245,14 @@ hk_handle_passthrough_gs(struct hk_cmd_buffer *cmd, struct agx_draw draw)
       .cull_distance_array_size = last_sw->info.cull_distance_array_size,
    };
 
-   /* We don't care about VS varying types in AGX, just set everything to
-    * uint32 to improve cache hits. */
    for (uint32_t i = 0; i < NUM_TOTAL_VARYING_SLOTS; i++) {
+      key->output_components[i] =
+         nir_slot_num_components(i, MESA_SHADER_VERTEX);
+      if (key->output_components[i] == 0)
+         key->output_components[i] = 4;
+
+      /* We don't care about VS varying types in AGX, just set everything to
+       * uint32 to improve cache hits. */
       key->output_types[i] = nir_type_uint32;
    }
 
