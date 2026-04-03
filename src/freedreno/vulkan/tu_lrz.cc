@@ -11,6 +11,7 @@
 #include "tu_cmd_buffer.h"
 #include "tu_cs.h"
 #include "tu_image.h"
+#include "tu_tracepoints.h"
 
 /* See lrz.rst for how HW works. Here are only the implementation notes.
  *
@@ -882,6 +883,9 @@ tu_disable_lrz(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
    if (!image->lrz_layout.lrz_total_size)
       return;
 
+   trace_start_disable_lrz(&cmd->trace, &cmd->cs, cmd, image->vk.format,
+                           image->vk.extent.width, image->vk.extent.height);
+
    uint64_t lrz_iova = image->iova + image->lrz_layout.lrz_offset;
 
    /* Synchronize writes in BV with subsequent render passes against this
@@ -927,6 +931,8 @@ tu_disable_lrz(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
       tu_cs_emit_qw(cs, TU_ONCHIP_CB_RESLIST_OVERFLOW);
       tu_cs_emit(cs, 0); /* value */
    }
+
+   trace_end_disable_lrz(&cmd->trace, &cmd->cs);
 }
 TU_GENX(tu_disable_lrz);
 
