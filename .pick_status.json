@@ -1074,7 +1074,7 @@
         "description": "anv: fix debug printfs on hang",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0932d0c7e0158544261dd88de30b939aa2ddd207",
         "notes": null
