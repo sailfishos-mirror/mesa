@@ -5370,7 +5370,8 @@ nir_varying_var_mask(nir_shader *nir);
 void
 nir_opt_varyings_bulk(nir_shader **shaders, uint32_t num_shaders, bool spirv,
                       unsigned max_uniform_comps, unsigned max_ubos,
-                      void (*optimize)(nir_shader *));
+                      void (*optimize)(nir_shader *, void *),
+                      void *optimize_data);
 
 bool nir_slot_is_sysval_output(gl_varying_slot slot,
                                mesa_shader_stage next_shader);

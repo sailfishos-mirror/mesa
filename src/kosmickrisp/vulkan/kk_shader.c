@@ -751,7 +751,7 @@ kk_compile_nir_shader(struct kk_device *dev, nir_shader *nir,
 }
 
 static void
-nir_opts(nir_shader *nir)
+nir_opts(nir_shader *nir, void *data)
 {
    bool progress;
 
@@ -1134,12 +1134,12 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
 
    uint32_t total_shaders = null_fs ? shader_count + 1 : shader_count;
    nir_opt_varyings_bulk(shaders, total_shaders, true, UINT32_MAX, UINT32_MAX,
-                         nir_opts);
+                         nir_opts, NULL);
    /* Second pass is required because some dEQP-VK.glsl.matrix.sub.dynamic.*
     * would fail otherwise due to vertex outputting vec4 while fragments reading
     * vec3 when in reality only vec3 is needed. */
    nir_opt_varyings_bulk(shaders, total_shaders, true, UINT32_MAX, UINT32_MAX,
-                         nir_opts);
+                         nir_opts, NULL);
 
    for (uint32_t i = 0; i < shader_count; i++) {
       result =

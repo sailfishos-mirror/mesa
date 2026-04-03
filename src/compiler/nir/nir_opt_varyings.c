@@ -5470,16 +5470,16 @@ nir_varying_var_mask(nir_shader *nir)
 static nir_opt_varyings_progress
 optimize_varyings(nir_shader *producer, nir_shader *consumer, bool spirv,
                   unsigned max_uniform_comps, unsigned max_ubos,
-                  void (*optimize)(nir_shader *))
+                  void (*optimize)(nir_shader *, void *), void *optimize_data)
 {
    nir_opt_varyings_progress progress =
       nir_opt_varyings(producer, consumer, spirv, max_uniform_comps,
                        max_ubos, false);
 
    if (progress & nir_progress_producer)
-      optimize(producer);
+      optimize(producer, optimize_data);
    if (progress & nir_progress_consumer)
-      optimize(consumer);
+      optimize(consumer, optimize_data);
 
    return progress;
 }
@@ -5493,7 +5493,8 @@ optimize_varyings(nir_shader *producer, nir_shader *consumer, bool spirv,
 void
 nir_opt_varyings_bulk(nir_shader **shaders, uint32_t num_shaders, bool spirv,
                       unsigned max_uniform_comps, unsigned max_ubos,
-                      void (*optimize)(nir_shader *))
+                      void (*optimize)(nir_shader *, void *),
+                      void *optimize_data)
 {
    /* There is nothing to link for only 1 shader. */
    if (num_shaders == 1) {
@@ -5537,7 +5538,7 @@ nir_opt_varyings_bulk(nir_shader **shaders, uint32_t num_shaders, bool spirv,
                NULL, NULL);
 
       /* nir_opt_varyings requires shaders to be optimized. */
-      optimize(nir);
+      optimize(nir, optimize_data);
    }
 
    /* Optimize varyings from the first shader to the last shader first, and
@@ -5556,7 +5557,8 @@ nir_opt_varyings_bulk(nir_shader **shaders, uint32_t num_shaders, bool spirv,
    unsigned highest_changed_producer = 0;
    for (unsigned i = 0; i < num_shaders - 1; i++) {
       if (optimize_varyings(shaders[i], shaders[i + 1], spirv,
-                            max_uniform_comps, max_ubos, optimize) &
+                            max_uniform_comps, max_ubos, optimize,
+                            optimize_data) &
           nir_progress_producer)
          highest_changed_producer = i;
    }
@@ -5566,7 +5568,7 @@ nir_opt_varyings_bulk(nir_shader **shaders, uint32_t num_shaders, bool spirv,
     */
    for (unsigned i = highest_changed_producer; i > 0; i--) {
       optimize_varyings(shaders[i - 1], shaders[i], spirv, max_uniform_comps,
-                        max_ubos, optimize);
+                        max_ubos, optimize, optimize_data);
    }
 
    /* Final cleanups. */
