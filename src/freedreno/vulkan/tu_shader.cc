@@ -2930,22 +2930,12 @@ tu_shader_deserialize(struct vk_pipeline_cache *cache,
    return &shader->base;
 }
 
-VkResult
-tu_shader_create(struct tu_device *dev,
-                 struct tu_shader **shader_out,
-                 nir_shader *nir,
-                 const struct tu_shader_key *key,
-                 const struct ir3_shader_key *ir3_key,
-                 const void *key_data,
-                 size_t key_size,
-                 struct tu_pipeline_layout *layout,
-                 bool executable_info)
+void
+tu_lower_nir(struct tu_device *dev,
+             nir_shader *nir,
+             const struct tu_shader_key *key,
+             struct tu_shader_info *info)
 {
-   struct tu_shader *shader = tu_shader_init(dev, key_data, key_size);
-
-   if (!shader)
-      return VK_ERROR_OUT_OF_HOST_MEMORY;
-
    const nir_opt_access_options access_options = {
       .is_vulkan = true,
    };
@@ -2993,12 +2983,7 @@ tu_shader_create(struct tu_device *dev,
        nir->info.stage != MESA_SHADER_COMPUTE &&
        !key->multiview_mask &&
        key->fdm_per_layer) {
-      NIR_PASS(_, nir, tu_nir_lower_layered_fdm, &shader->per_layer_viewport);
-   }
-
-   if (nir->info.stage == MESA_SHADER_FRAGMENT &&
-       key->fdm_per_layer) {
-      shader->fs.max_fdm_layers = key->max_fdm_layers;
+      NIR_PASS(_, nir, tu_nir_lower_layered_fdm, &info->per_layer_viewport);
    }
 
    /* Note that nir_opt_barrier_modes here breaks tests such as
@@ -3077,15 +3062,6 @@ tu_shader_create(struct tu_device *dev,
          nir->info.stage == MESA_SHADER_GEOMETRY)
       nir_shader_gather_xfb_info(nir);
 
-   for (unsigned i = 0; i < layout->num_sets; i++) {
-      if (layout->set[i].layout) {
-         shader->dynamic_descriptor_sizes[i] =
-            layout->set[i].layout->dynamic_offset_size;
-      } else {
-         shader->dynamic_descriptor_sizes[i] = -1;
-      }
-   }
-
    {
       /* Lower 64b push constants before lowering IO. */
       nir_lower_mem_access_bit_sizes_options options = {
@@ -3100,6 +3076,42 @@ tu_shader_create(struct tu_device *dev,
 
    if (key->emulate_alpha_to_coverage)
       lower_alpha_to_coverage(nir);
+}
+
+VkResult
+tu_shader_create(struct tu_device *dev,
+                 struct tu_shader **shader_out,
+                 nir_shader *nir,
+                 const struct tu_shader_key *key,
+                 const struct ir3_shader_key *ir3_key,
+                 const void *key_data,
+                 size_t key_size,
+                 struct tu_pipeline_layout *layout,
+                 bool executable_info)
+{
+   struct tu_shader *shader = tu_shader_init(dev, key_data, key_size);
+
+   if (!shader)
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+   struct tu_shader_info info = {};
+   tu_lower_nir(dev, nir, key, &info);
+
+   shader->per_layer_viewport = info.per_layer_viewport;
+
+   if (nir->info.stage == MESA_SHADER_FRAGMENT &&
+       key->fdm_per_layer) {
+      shader->fs.max_fdm_layers = key->max_fdm_layers;
+   }
+
+   for (unsigned i = 0; i < layout->num_sets; i++) {
+      if (layout->set[i].layout) {
+         shader->dynamic_descriptor_sizes[i] =
+            layout->set[i].layout->dynamic_offset_size;
+      } else {
+         shader->dynamic_descriptor_sizes[i] = -1;
+      }
+   }
 
    struct ir3_const_allocations const_allocs = {};
    NIR_PASS(_, nir, tu_lower_io, dev, shader, layout,

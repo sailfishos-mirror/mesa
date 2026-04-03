@@ -133,6 +133,13 @@ struct tu_shader_key {
    enum ir3_wavesize_option api_wavesize, real_wavesize;
 };
 
+/* Information needed for tu_shader creation that is gathered during NIR
+ * lowering.
+ */
+struct tu_shader_info {
+   bool per_layer_viewport;
+};
+
 extern const struct vk_pipeline_cache_object_ops tu_shader_ops;
 
 void
@@ -190,6 +197,12 @@ tu6_emit_gs(struct tu_cs *cs, const struct ir3_shader_variant *hs);
 template <chip CHIP>
 void
 tu6_emit_fs(struct tu_cs *cs, const struct ir3_shader_variant *fs);
+
+void
+tu_lower_nir(struct tu_device *dev,
+             nir_shader *nir,
+             const struct tu_shader_key *key,
+             struct tu_shader_info *info);
 
 VkResult
 tu_shader_create(struct tu_device *dev,
