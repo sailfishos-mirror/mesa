@@ -3744,7 +3744,7 @@
         "description": "panfrost: Fix GEM handle refcount leak in panfrost_bo_import",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5089a758dfb1760a0dc397b0f491c4a6dc2160af",
         "notes": null
