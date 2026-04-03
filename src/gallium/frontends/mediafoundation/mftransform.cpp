@@ -1579,6 +1579,11 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                // emitted with bIsLastSlice = TRUE. This avoids deferring all emissions to a second pass while
                // still correctly marking the last slice.
                //
+               // Pre-create all MFSamples to avoid per-slice COM allocation in the hot loop
+               std::vector<ComPtr<IMFSample>> preallocatedSamples( num_slice_buffers );
+               for( uint32_t i = 0; i < num_slice_buffers; i++ )
+                  MFCreateSample( &preallocatedSamples[i] );
+
                if( !pDX12EncodeContext->IsSliceAutoModeEnabled() )
                {
                   std::vector<struct codec_unit_location_t> codec_unit_metadata;
@@ -1587,9 +1592,8 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                   {
                      codec_unit_metadata.clear();
 
-                     ComPtr<IMFSample> spOutputSample;
+                     ComPtr<IMFSample> spOutputSample = std::move( preallocatedSamples[slice_idx] );
                      ComPtr<IMFMediaBuffer> spMediaBuffer;
-                     MFCreateSample( &spOutputSample );
 
                      if( WaitForFence( pDX12EncodeContext->pSliceFences[slice_idx], OS_TIMEOUT_INFINITE ) )
                      {
@@ -1692,10 +1696,9 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                         }
 
                         // Current slice becomes pending
-                        pendingSample.Reset();
+                        pendingSample = std::move( preallocatedSamples[slice_idx] );
                         pendingBuffer.Reset();
                         pendingMetadata.clear();
-                        MFCreateSample( &pendingSample );
 
                         if( !pThis->ProcessSliceBitstreamZeroCopy( pDX12EncodeContext,
                                                                    slice_idx,
