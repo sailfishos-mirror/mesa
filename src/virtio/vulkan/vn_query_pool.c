@@ -284,15 +284,48 @@ vn_get_query_pool_results(VkDevice device,
    return result;
 }
 
+static void
+vn_query_feedback_wait_ready(struct vn_device *dev,
+                             struct vn_query_pool *pool,
+                             uint32_t first_query,
+                             uint32_t query_count)
+{
+   VN_TRACE_FUNC();
+
+   /* Feedback results are always 64 bit and include availability bit
+    * (also 64 bit)
+    */
+   const uint32_t step = pool->result_array_size + 1;
+   const uint64_t *avail = (uint64_t *)pool->fb_buf->data +
+                           first_query * step + pool->result_array_size;
+
+   struct vn_relax_state relax_state =
+      vn_relax_init(dev->instance, VN_RELAX_REASON_QUERY);
+   for (uint32_t i = 0, j = 0; i < query_count; i++, j += step) {
+      while (!avail[j]) {
+         vn_relax(&relax_state);
+      }
+   }
+   vn_relax_fini(&relax_state);
+}
+
 static VkResult
-vn_get_query_pool_feedback(struct vn_query_pool *pool,
+vn_get_query_pool_feedback(VkDevice device,
+                           VkQueryPool queryPool,
                            uint32_t firstQuery,
                            uint32_t queryCount,
                            void *pData,
                            VkDeviceSize stride,
                            VkQueryResultFlags flags)
 {
+   struct vn_device *dev = vn_device_from_handle(device);
+   struct vn_query_pool *pool = vn_query_pool_from_handle(queryPool);
    VkResult result = VK_SUCCESS;
+
+   /* If wait bit is set, wait poll until query is ready */
+   if (flags & VK_QUERY_RESULT_WAIT_BIT)
+      vn_query_feedback_wait_ready(dev, pool, firstQuery, queryCount);
+
    /* Feedback results are always 64 bit and include availability bit
     * (also 64 bit)
     */
@@ -360,31 +393,6 @@ vn_get_query_pool_feedback(struct vn_query_pool *pool,
    return result;
 }
 
-static void
-vn_query_feedback_wait_ready(struct vn_device *dev,
-                             struct vn_query_pool *pool,
-                             uint32_t first_query,
-                             uint32_t query_count)
-{
-   VN_TRACE_FUNC();
-
-   /* Feedback results are always 64 bit and include availability bit
-    * (also 64 bit)
-    */
-   const uint32_t step = pool->result_array_size + 1;
-   const uint64_t *avail = (uint64_t *)pool->fb_buf->data +
-                           first_query * step + pool->result_array_size;
-
-   struct vn_relax_state relax_state =
-      vn_relax_init(dev->instance, VN_RELAX_REASON_QUERY);
-   for (uint32_t i = 0, j = 0; i < query_count; i++, j += step) {
-      while (!avail[j]) {
-         vn_relax(&relax_state);
-      }
-   }
-   vn_relax_fini(&relax_state);
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 vn_GetQueryPoolResults(VkDevice device,
                        VkQueryPool queryPool,
@@ -403,12 +411,8 @@ vn_GetQueryPoolResults(VkDevice device,
     * Not possible for VK_QUERY_RESULT_PARTIAL_BIT
     */
    if (pool->fb_buf) {
-      /* If wait bit is set, wait poll until query is ready */
-      if (flags & VK_QUERY_RESULT_WAIT_BIT)
-         vn_query_feedback_wait_ready(dev, pool, firstQuery, queryCount);
-
-      result = vn_get_query_pool_feedback(pool, firstQuery, queryCount, pData,
-                                          stride, flags);
+      result = vn_get_query_pool_feedback(device, queryPool, firstQuery,
+                                          queryCount, pData, stride, flags);
    } else {
       result = vn_get_query_pool_results(device, queryPool, firstQuery,
                                          queryCount, pData, stride, flags);
