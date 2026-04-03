@@ -1320,11 +1320,9 @@ vtn_get_builtin_location(struct vtn_builder *b,
       break;
 
    case SpvBuiltInSamplerHeapEXT:
-      *location = SYSTEM_VALUE_SAMPLER_HEAP_PTR;
       *mode = nir_var_sampler_heap;
       break;
    case SpvBuiltInResourceHeapEXT:
-      *location = SYSTEM_VALUE_RESOURCE_HEAP_PTR;
       *mode = nir_var_resource_heap;
       break;
 

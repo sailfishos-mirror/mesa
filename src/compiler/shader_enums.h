@@ -969,10 +969,6 @@ typedef enum
    SYSTEM_VALUE_WARP_ID_ARM,
    SYSTEM_VALUE_WARP_MAX_ID_ARM,
 
-   /* SPV_EXT_descriptor_heap */
-   SYSTEM_VALUE_SAMPLER_HEAP_PTR,
-   SYSTEM_VALUE_RESOURCE_HEAP_PTR,
-
    SYSTEM_VALUE_MAX             /**< Number of values */
 } gl_system_value;
 
