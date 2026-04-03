@@ -1092,4 +1092,17 @@ nir_deref_instr *vtn_create_cmat_temporary(struct vtn_builder *b,
 
 mesa_shader_stage vtn_stage_for_execution_model(SpvExecutionModel model);
 
+static inline bool
+vtn_value_is_non_uniform(struct vtn_builder *b, struct vtn_value *value)
+{
+   if (vtn_has_decoration(b, value, SpvDecorationNonUniformEXT))
+      return true;
+
+   if (b->enabled_capabilities.DescriptorHeapEXT &&
+       !vtn_has_decoration(b, value, SpvDecorationUniform))
+      return true;
+
+   return false;
+}
+
 #endif /* _VTN_PRIVATE_H_ */

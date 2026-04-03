@@ -3473,8 +3473,8 @@ vtn_handle_texture(struct vtn_builder *b, SpvOp opcode,
          "Type of Image operand of OpSampledImage");
 
       enum gl_access_qualifier access = 0;
-      if (vtn_has_decoration(b, vtn_untyped_value(b, w[3]), SpvDecorationNonUniformEXT) ||
-          vtn_has_decoration(b, vtn_untyped_value(b, w[4]), SpvDecorationNonUniformEXT))
+      if (vtn_value_is_non_uniform(b, vtn_untyped_value(b, w[3])) ||
+          vtn_value_is_non_uniform(b, vtn_untyped_value(b, w[4])))
          access |= ACCESS_NON_UNIFORM;
 
       vtn_push_sampled_image(b, w[2], si, access & ACCESS_NON_UNIFORM);
@@ -3483,7 +3483,7 @@ vtn_handle_texture(struct vtn_builder *b, SpvOp opcode,
       struct vtn_sampled_image si = vtn_get_sampled_image(b, w[3]);
 
       enum gl_access_qualifier access = 0;
-      if (vtn_has_decoration(b, vtn_untyped_value(b, w[3]), SpvDecorationNonUniformEXT))
+      if (vtn_value_is_non_uniform(b, vtn_untyped_value(b, w[3])))
          access |= ACCESS_NON_UNIFORM;
 
       vtn_push_image(b, w[2], si.image, access & ACCESS_NON_UNIFORM);
@@ -4015,7 +4015,7 @@ vtn_handle_texture(struct vtn_builder *b, SpvOp opcode,
     * can assume it doesn't exist.
     */
    enum gl_access_qualifier access = 0;
-   if (vtn_has_decoration(b, sampled_val, SpvDecorationNonUniformEXT))
+   if (vtn_value_is_non_uniform(b, sampled_val))
       access |= ACCESS_NON_UNIFORM;
 
    if (operands & SpvImageOperandsNontemporalMask)
@@ -4473,7 +4473,7 @@ vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
     * chains to find the NonUniform decoration.  It's either right there or we
     * can assume it doesn't exist.
     */
-   if (vtn_has_decoration(b, res_val, SpvDecorationNonUniformEXT))
+   if (vtn_value_is_non_uniform(b, res_val))
       access |= ACCESS_NON_UNIFORM;
    nir_intrinsic_set_access(intrin, access);
 
