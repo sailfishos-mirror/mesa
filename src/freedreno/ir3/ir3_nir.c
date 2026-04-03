@@ -957,6 +957,11 @@ ir3_nir_lower_io(nir_shader *s)
             nir_var_shader_in | nir_var_shader_out,
             &(nir_remove_dead_variables_options) {});
 
+   if (s->xfb_info) {
+      NIR_PASS(_, s, nir_opt_constant_folding);
+      NIR_PASS(_, s, nir_io_add_intrinsic_xfb_info);
+   }
+
    s->info.io_lowered = true;
 }
 
