@@ -259,6 +259,8 @@ nir_shader_add_variable(nir_shader *shader, nir_variable *var)
    case nir_var_mem_pixel_local_in:
    case nir_var_mem_pixel_local_out:
    case nir_var_mem_pixel_local_inout:
+   case nir_var_resource_heap:
+   case nir_var_sampler_heap:
       break;
 
    default:

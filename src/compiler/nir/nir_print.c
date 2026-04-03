@@ -813,6 +813,10 @@ get_variable_mode_str(nir_variable_mode mode, bool want_local_global_mode)
       return "node_payload";
    case nir_var_mem_node_payload_in:
       return "node_payload_in";
+   case nir_var_resource_heap:
+      return "resource_heap";
+   case nir_var_sampler_heap:
+      return "sampler_heap";
    default:
       if (mode && (mode & nir_var_mem_generic) == mode)
          return "generic";

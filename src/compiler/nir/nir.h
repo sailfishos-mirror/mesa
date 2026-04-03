@@ -484,7 +484,7 @@ typedef struct nir_variable {
        *
        * :c:struct:`nir_variable_mode`
        */
-      unsigned mode : 24;
+      unsigned mode : 26;
 
       /**
        * Is the variable read-only?

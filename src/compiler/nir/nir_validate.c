@@ -330,10 +330,23 @@ validate_deref_instr(nir_deref_instr *instr, validate_state *state)
 
       nir_deref_instr *parent = nir_src_as_deref(instr->parent);
       if (parent) {
-         /* Casts can change the mode but it can't change completely.  The new
-          * mode must have some bits in common with the old.
-          */
-         validate_assert(state, instr->modes & parent->modes);
+         if (parent->modes & nir_var_resource_heap) {
+            /* Some casts from the resource heap pointer are allowed. */
+            validate_assert(state, instr->modes & (nir_var_resource_heap |
+                                                   nir_var_image |
+                                                   nir_var_uniform |
+                                                   nir_var_mem_ubo |
+                                                   nir_var_mem_ssbo));
+         } else if (parent->modes & nir_var_sampler_heap) {
+            /* Some casts from the sampler heap pointer are allowed. */
+            validate_assert(state, instr->modes & (nir_var_sampler_heap |
+                                                   nir_var_uniform));
+         } else {
+            /* Casts can change the mode but it can't change completely. The
+             * new mode must have some bits in common with the old.
+             */
+            validate_assert(state, instr->modes & parent->modes);
+         }
       } else {
          /* If our parent isn't a deref, just assert the mode is there */
          validate_assert(state, instr->modes != 0);
@@ -2353,7 +2366,9 @@ nir_validate_shader(nir_shader *shader, const char *when)
       nir_var_mem_pixel_local_in |
       nir_var_mem_pixel_local_out |
       nir_var_mem_pixel_local_inout |
-      nir_var_image;
+      nir_var_image |
+      nir_var_resource_heap |
+      nir_var_sampler_heap;
 
    if (mesa_shader_stage_is_callable(shader->info.stage))
       valid_modes |= nir_var_shader_call_data;

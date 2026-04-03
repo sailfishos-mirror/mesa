@@ -1086,6 +1086,13 @@ opt_restrict_deref_modes(nir_deref_instr *deref)
    if (parent == NULL || parent->modes == deref->modes)
       return false;
 
+   /* Casts from the heap pointers shouldn't be restricted because it's allowed
+    * to cast to some variable modes.
+    */
+   if (parent->modes & (nir_var_resource_heap |
+                        nir_var_sampler_heap))
+      return false;
+
    assert(parent->modes & deref->modes);
    deref->modes &= parent->modes;
    return true;
