@@ -201,6 +201,9 @@ set_io_mask(nir_shader *shader, nir_variable *var, int offset, int len,
          if (shader->info.stage == MESA_SHADER_FRAGMENT &&
              !is_output_read && var->data.index == 1)
             shader->info.fs.color_is_dual_source = true;
+
+         if (var->data.per_view)
+            shader->info.per_view_outputs |= bitfield;
       }
    }
 }
@@ -423,6 +426,7 @@ gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
    uint64_t slot_mask = 0;
    uint16_t slot_mask_16bit = 0;
    bool is_patch_special = false;
+   bool is_per_view = false;
 
    if (nir_intrinsic_has_io_semantics(instr)) {
       nir_io_semantics semantics = nir_intrinsic_io_semantics(instr);
@@ -431,6 +435,7 @@ gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
                          semantics.location == VARYING_SLOT_TESS_LEVEL_OUTER ||
                          semantics.location == VARYING_SLOT_BOUNDING_BOX0 ||
                          semantics.location == VARYING_SLOT_BOUNDING_BOX1;
+      is_per_view = semantics.per_view;
 
       if (semantics.location >= VARYING_SLOT_PATCH0 &&
           semantics.location <= VARYING_SLOT_PATCH31) {
@@ -641,6 +646,9 @@ gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
       if (shader->info.stage == MESA_SHADER_FRAGMENT &&
           nir_intrinsic_io_semantics(instr).fb_fetch_output)
          shader->info.fs.uses_fbfetch_output = true;
+
+      if (is_per_view)
+         shader->info.per_view_outputs |= slot_mask;
       break;
 
    case nir_intrinsic_store_output:
@@ -691,6 +699,9 @@ gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
       if (shader->info.stage == MESA_SHADER_FRAGMENT &&
           instr->intrinsic == nir_intrinsic_store_pixel_local)
          shader->info.fs.accesses_pixel_local_storage = true;
+
+      if (is_per_view)
+         shader->info.per_view_outputs |= slot_mask;
       break;
 
    case nir_intrinsic_load_subgroup_size:
@@ -1081,6 +1092,7 @@ nir_shader_gather_info(nir_shader *shader, nir_function_impl *entrypoint)
    shader->info.patch_outputs_written_indirectly = 0;
    shader->info.per_primitive_inputs = 0;
    shader->info.per_primitive_outputs = 0;
+   shader->info.per_view_outputs = 0;
 
    shader->info.uses_resource_info_query = false;
 
@@ -1125,7 +1137,6 @@ nir_shader_gather_info(nir_shader *shader, nir_function_impl *entrypoint)
    gather_func_info(entrypoint, shader, &visited_funcs);
    _mesa_set_fini(&visited_funcs, NULL);
 
-   shader->info.per_view_outputs = 0;
    nir_foreach_shader_out_variable(var, shader) {
       if (var->data.per_primitive) {
          assert(shader->info.stage == MESA_SHADER_MESH);
