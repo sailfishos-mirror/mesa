@@ -2358,6 +2358,12 @@ nir_visitor::visit(ir_expression *ir)
       return;
    }
 
+   case ir_unop_asin:
+      result = nir_asin(&b, srcs[0]);
+      break;
+   case ir_unop_acos:
+      result = nir_acos(&b, srcs[0]);
+      break;
    case ir_unop_atan:
       result = nir_atan(&b, srcs[0]);
       break;
