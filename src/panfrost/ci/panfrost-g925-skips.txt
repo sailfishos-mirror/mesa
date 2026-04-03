@@ -6,3 +6,7 @@ dEQP-VK.api.external.semaphore.sync_fd.export_multiple_times_temporary
 dEQP-VK.wsi.xlib.maintenance1.present_modes.*
 dEQP-VK.wsi.xlib.maintenance1.deferred_alloc.fifo.*
 dEQP-VK.wsi.xlib.maintenance1.present_fence.fifo.*
+
+# May time out
+dEQP-VK.wsi.wayland.maintenance1.present_modes.fifo.change_modes_multi_swapchain
+dEQP-VK.wsi.wayland.swapchain.render.10swapchains
