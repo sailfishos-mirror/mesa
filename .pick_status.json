@@ -4714,7 +4714,7 @@
         "description": "ir3: fix handle_partial_const with vectorized src",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "50a91fbf87c346469a0cfa17f7742cdd2643893a",
         "notes": null
