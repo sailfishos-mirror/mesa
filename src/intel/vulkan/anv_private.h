@@ -1801,13 +1801,15 @@ enum anv_debug {
    ANV_DEBUG_DESCRIPTOR_DIRTY  = BITFIELD_BIT(9),
 };
 
+extern enum anv_debug anv_debug;
+
+#define ANV_DEBUG(name) unlikely(anv_debug & ANV_DEBUG_##name)
+
 struct anv_instance {
     struct vk_instance                          vk;
 
     struct driOptionCache                       dri_options;
     struct driOptionCache                       available_dri_options;
-
-    enum anv_debug                              debug;
 
     int                                         mesh_conv_prim_attrs_to_vert_attrs;
     bool                                        enable_tbimr;
@@ -6940,8 +6942,7 @@ anv_cmd_buffer_dirty_descriptors(struct anv_cmd_buffer* cmd_buffer,
                                  const char* reason)
 {
    cmd_buffer->state.descriptors_dirty |= stages;
-   if (unlikely(cmd_buffer->device->physical->instance->debug &
-                ANV_DEBUG_DESCRIPTOR_DIRTY))
+   if (ANV_DEBUG(DESCRIPTOR_DIRTY))
       anv_cmd_buffer_descriptor_buffer_debug(cmd_buffer, stages, reason);
 }
 

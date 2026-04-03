@@ -643,11 +643,10 @@ emit_cs_walker(struct anv_cmd_buffer *cmd_buffer,
                bool is_unaligned_size_x, uint32_t unaligned_invocations_x)
 {
    struct anv_device *device = cmd_buffer->device;
-   struct anv_instance *instance = device->physical->instance;
    bool is_indirect = !anv_address_is_null(indirect_addr);
 
    struct mi_builder b;
-   if (unlikely(instance->debug & ANV_DEBUG_SHADER_HASH)) {
+   if (ANV_DEBUG(SHADER_HASH)) {
       mi_builder_init(&b, device->info, &cmd_buffer->batch);
       mi_builder_set_mocs(&b, isl_mocs(&device->isl_dev, 0, false));
       mi_store(&b, mi_mem32(device->workaround_address),

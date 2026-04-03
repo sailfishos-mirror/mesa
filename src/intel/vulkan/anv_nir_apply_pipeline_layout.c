@@ -2265,8 +2265,7 @@ binding_should_use_surface_binding_table(const struct apply_pipeline_layout_stat
    if ((bind_layout->data & ANV_DESCRIPTOR_BTI_SURFACE_STATE) == 0)
       return false;
 
-   if ((state->pdevice->instance->debug & ANV_DEBUG_BINDLESS) &&
-       (bind_layout->data & ANV_DESCRIPTOR_SURFACE))
+   if (ANV_DEBUG(BINDLESS) && (bind_layout->data & ANV_DESCRIPTOR_SURFACE))
       return false;
 
    if (state->set[set].binding[binding].properties &
@@ -2283,8 +2282,7 @@ binding_should_use_sampler_binding_table(const struct apply_pipeline_layout_stat
    if ((binding->data & ANV_DESCRIPTOR_BTI_SAMPLER_STATE) == 0)
       return false;
 
-   if ((state->pdevice->instance->debug & ANV_DEBUG_BINDLESS) &&
-       (binding->data & ANV_DESCRIPTOR_SAMPLER))
+   if (ANV_DEBUG(BINDLESS) && (binding->data & ANV_DESCRIPTOR_SAMPLER))
       return false;
 
    return true;

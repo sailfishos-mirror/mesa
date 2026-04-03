@@ -3605,7 +3605,6 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
 {
    struct anv_batch *batch = &cmd_buffer->batch;
    struct anv_device *device = cmd_buffer->device;
-   struct anv_instance *instance = device->physical->instance;
    struct anv_cmd_graphics_state *gfx = &cmd_buffer->state.gfx;
    const struct vk_dynamic_graphics_state *dyn =
       &cmd_buffer->vk.dynamic_graphics_state;
@@ -3615,7 +3614,7 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
 
 #define DEBUG_SHADER_HASH(stage) do {                                   \
       if (unlikely(                                                     \
-             (instance->debug & ANV_DEBUG_SHADER_HASH) &&               \
+             ANV_DEBUG(SHADER_HASH) &&                                  \
              anv_gfx_has_stage(gfx, stage))) {                          \
          mi_store(&b,                                                   \
                   mi_mem32(device->workaround_address),                 \
@@ -3624,7 +3623,7 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
    } while (0)
 
    struct mi_builder b;
-   if (unlikely(instance->debug & ANV_DEBUG_SHADER_HASH)) {
+   if (ANV_DEBUG(SHADER_HASH)) {
       mi_builder_init(&b, device->info, &cmd_buffer->batch);
       mi_builder_set_mocs(&b, isl_mocs(&device->isl_dev, 0, false));
    }

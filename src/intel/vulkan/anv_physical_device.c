@@ -138,9 +138,8 @@ get_device_extensions(const struct anv_physical_device *device,
                            !intel_use_jay_any_stage(&device->info);
    const bool hw_video_encode_supported = device->info.verx10 < 125;
    const bool video_encode_enabled = hw_video_encode_supported &&
-                                     (device->instance->debug & ANV_DEBUG_VIDEO_ENCODE);
-   const bool video_decode_enabled = device->instance->debug & ANV_DEBUG_VIDEO_DECODE;
-
+                                     ANV_DEBUG(VIDEO_ENCODE);
+   const bool video_decode_enabled = ANV_DEBUG(VIDEO_DECODE);
 
    *ext = (struct vk_device_extension_table) {
       .KHR_8bit_storage                      = true,
@@ -201,7 +200,7 @@ get_device_extensions(const struct anv_physical_device *device,
          device->perf &&
          (intel_perf_has_hold_preemption(device->perf) ||
           INTEL_DEBUG(DEBUG_NO_OACONFIG)) &&
-         !(device->instance->debug & ANV_DEBUG_NO_SECONDARY_CALL),
+         !ANV_DEBUG(NO_SECONDARY_CALL),
       .KHR_pipeline_binary                   = true,
       .KHR_pipeline_executable_properties    = true,
       .KHR_pipeline_library                  = true,
@@ -309,7 +308,7 @@ get_device_extensions(const struct anv_physical_device *device,
                                                VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR,
       .EXT_global_priority_query             = device->max_context_priority >=
                                                VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR,
-      .EXT_graphics_pipeline_library         = !(device->instance->debug & ANV_DEBUG_NO_GPL),
+      .EXT_graphics_pipeline_library         = !ANV_DEBUG(NO_GPL),
       .EXT_hdr_metadata = true,
       .EXT_host_image_copy                   = true,
       .EXT_host_query_reset                  = true,
@@ -2387,7 +2386,7 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
    _mesa_blake3_init(&blake3_ctx);
    _mesa_blake3_update(&blake3_ctx, build_id_data(note), build_id_len);
    brw_device_blake3_update(&blake3_ctx, &device->info);
-   bool always_use_bindless = !!(device->instance->debug & ANV_DEBUG_BINDLESS);
+   bool always_use_bindless = ANV_DEBUG(BINDLESS);
    _mesa_blake3_update(&blake3_ctx, &always_use_bindless,
                      sizeof(always_use_bindless));
    _mesa_blake3_final(&blake3_ctx, blake3);
@@ -2566,8 +2565,7 @@ anv_physical_device_init_queue_families(struct anv_physical_device *pdevice)
             .engine_class = compute_class,
          };
       }
-      if (v_count > 0 && ((pdevice->instance->debug & ANV_DEBUG_VIDEO_DECODE) ||
-                          (pdevice->instance->debug & ANV_DEBUG_VIDEO_ENCODE))) {
+      if (v_count > 0 && (ANV_DEBUG(VIDEO_DECODE) || ANV_DEBUG(VIDEO_ENCODE))) {
          /* HEVC support on Gfx9 is only available on VCS0. So limit the number of video queues
           * to the first VCS engine instance.
           *
@@ -2580,9 +2578,9 @@ anv_physical_device_init_queue_families(struct anv_physical_device *pdevice)
           */
          /* TODO: enable protected content on video queue */
          pdevice->queue.families[family_count++] = (struct anv_queue_family) {
-            .queueFlags = ((pdevice->instance->debug & ANV_DEBUG_VIDEO_DECODE) ?
+            .queueFlags = (ANV_DEBUG(VIDEO_DECODE) ?
                            VK_QUEUE_VIDEO_DECODE_BIT_KHR : 0) |
-                          ((pdevice->instance->debug & ANV_DEBUG_VIDEO_ENCODE) ?
+                          (ANV_DEBUG(VIDEO_ENCODE) ?
                            VK_QUEUE_VIDEO_ENCODE_BIT_KHR : 0),
             .queueCount = pdevice->info.ver == 9 ? MIN2(1, v_count) : v_count,
             .engine_class = INTEL_ENGINE_CLASS_VIDEO,
@@ -2816,9 +2814,9 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    device->uses_relocs = device->info.kmd_type != INTEL_KMD_TYPE_XE;
 
    /* While xe.ko can use both vm_bind and TR-TT, i915.ko only has TR-TT. */
-   if (!(instance->debug & ANV_DEBUG_NO_SPARSE)) {
+   if (!ANV_DEBUG(NO_SPARSE)) {
       if (device->info.kmd_type == INTEL_KMD_TYPE_XE) {
-         if (instance->debug & ANV_DEBUG_SPARSE_TRTT)
+         if (ANV_DEBUG(SPARSE_TRTT))
             device->sparse_type = ANV_SPARSE_TYPE_TRTT;
          else
             device->sparse_type = ANV_SPARSE_TYPE_VM_BIND;

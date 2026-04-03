@@ -105,6 +105,14 @@ static const struct debug_control debug_control[] = {
    { NULL,    0 }
 };
 
+enum anv_debug anv_debug;
+
+static void
+process_anv_debug_variable_once(void)
+{
+   anv_debug = parse_debug_string(os_get_option("ANV_DEBUG"), debug_control);
+}
+
 VkResult anv_EnumerateInstanceVersion(
     uint32_t*                                   pApiVersion)
 {
@@ -327,8 +335,9 @@ VkResult anv_CreateInstance(
 
    anv_init_dri_options(instance);
 
-   instance->debug = parse_debug_string(os_get_option("ANV_DEBUG"),
-                                        debug_control);
+   static once_flag process_anv_debug_variable_flag = ONCE_FLAG_INIT;
+   call_once(&process_anv_debug_variable_flag,
+             process_anv_debug_variable_once);
 
    process_intel_debug_variable();
    instance->vk.enable_debug_logging = INTEL_DEBUG(DEBUG_PERF);
