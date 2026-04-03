@@ -1644,6 +1644,18 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                      pThis->m_pPipeContext->screen, pDX12EncodeContext->pLastSliceFence ) );
                   assert(lastSliceFenceEvent);
 
+                  // Pre-create all slice fence events to avoid per-iteration
+                  // CreateEvent+SetEventOnCompletion kernel round-trips
+                  // and so we don't wait between each WaitForMultipleObjects to create the next event
+                  std::vector<std::unique_ptr<void, HandleCloser>> sliceFenceEvents;
+                  sliceFenceEvents.reserve( num_slice_buffers );
+                  for( uint32_t i = 0; i < num_slice_buffers; i++ )
+                  {
+                     sliceFenceEvents.emplace_back( pThis->m_pPipeContext->screen->fence_get_win32_event(
+                        pThis->m_pPipeContext->screen, pDX12EncodeContext->pSliceFences[i] ) );
+                     assert( sliceFenceEvents[i] );
+                  }
+
                   for( uint32_t slice_idx = 0; slice_idx < num_slice_buffers; slice_idx++ )
                   {
                      // Wait for the current slice fence to complete, using pLastSliceFence as a short-circuit.
@@ -1657,12 +1669,7 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                      // Use WaitForMultipleObjects to block until either fence signals
                      //
 
-                     std::unique_ptr<void, HandleCloser> sliceFenceEvent(
-                        pThis->m_pPipeContext->screen->fence_get_win32_event(
-                        pThis->m_pPipeContext->screen, pDX12EncodeContext->pSliceFences[slice_idx] ) );
-                     assert(sliceFenceEvent);
-
-                     HANDLE fenceEvents[2] = { sliceFenceEvent.get(), lastSliceFenceEvent.get() };
+                     HANDLE fenceEvents[2] = { sliceFenceEvents[slice_idx].get(), lastSliceFenceEvent.get() };
                      DWORD waitResult = WaitForMultipleObjects( 2, fenceEvents, FALSE /* bWaitAll */, INFINITE );
 
                      if( waitResult == WAIT_OBJECT_0 + 0 /* slice fence signaled */ )
