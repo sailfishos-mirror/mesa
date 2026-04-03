@@ -4734,7 +4734,7 @@
         "description": "nir/gather_info: clear interpolation qualifiers before gathering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "66740d9c91b2e498423bca9f069225389124a23c",
         "notes": null
