@@ -102,6 +102,8 @@ nir_recompute_io_bases(nir_shader *nir, nir_variable_mode modes)
                                sem.location)) {
             num_slots = DIV_ROUND_UP(num_slots, 4);
          }
+         if (sem.per_view)
+            num_slots *= util_bitcount(nir->info.view_mask);
 
          if (mode == nir_var_shader_in) {
             for (unsigned i = 0; i < num_slots; i++) {
