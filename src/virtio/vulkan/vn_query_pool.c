@@ -284,7 +284,7 @@ vn_get_query_pool_results(VkDevice device,
    return result;
 }
 
-static void
+static bool
 vn_query_feedback_wait_ready(struct vn_device *dev,
                              struct vn_query_pool *pool,
                              uint32_t first_query,
@@ -304,9 +304,16 @@ vn_query_feedback_wait_ready(struct vn_device *dev,
    for (uint32_t i = 0, j = 0; i < query_count; i++, j += step) {
       while (!avail[j]) {
          vn_relax(&relax_state);
+
+         /* Wait until warn order is reached. */
+         if (vn_relax_warn(&relax_state)) {
+            vn_relax_fini(&relax_state);
+            return false;
+         }
       }
    }
    vn_relax_fini(&relax_state);
+   return true;
 }
 
 static VkResult
@@ -323,8 +330,27 @@ vn_get_query_pool_feedback(VkDevice device,
    VkResult result = VK_SUCCESS;
 
    /* If wait bit is set, wait poll until query is ready */
-   if (flags & VK_QUERY_RESULT_WAIT_BIT)
-      vn_query_feedback_wait_ready(dev, pool, firstQuery, queryCount);
+   if (flags & VK_QUERY_RESULT_WAIT_BIT) {
+      /* vn_query_feedback_wait_ready waits for a warn order */
+      if (!vn_query_feedback_wait_ready(dev, pool, firstQuery, queryCount)) {
+         /* Emit synchronous call to catch renderer device lost */
+         result = vn_get_query_pool_results(device, queryPool, firstQuery,
+                                            queryCount, pData, stride, flags);
+         if (result == VK_ERROR_DEVICE_LOST) {
+            vn_log(dev->instance, "aborting on qfb device lost");
+            abort();
+         }
+         if (result != VK_SUCCESS)
+            return result;
+
+         /* Re-check qfb availability bits */
+         if (!vn_query_feedback_wait_ready(dev, pool, firstQuery,
+                                           queryCount)) {
+            vn_log(dev->instance, "ERROR: qfb must be available now");
+            return VK_ERROR_UNKNOWN;
+         }
+      }
+   }
 
    /* Feedback results are always 64 bit and include availability bit
     * (also 64 bit)
