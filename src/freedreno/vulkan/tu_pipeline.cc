@@ -4971,7 +4971,9 @@ tu_compute_pipeline_create(VkDevice device,
       nir_initial_disasm = executable_info ?
          nir_shader_as_str(nir, pipeline->base.executables_mem_ctx) : NULL;
 
-      result = tu_shader_create(dev, &shader, nir, &key, &ir3_key,
+      struct tu_shader_info info = {};
+      tu_lower_nir(dev, nir, &key, &info);
+      result = tu_shader_create(dev, &shader, nir, &key, &info, &ir3_key,
                                 pipeline_blake3, sizeof(pipeline_blake3), layout,
                                 executable_info);
       if (!shader) {
