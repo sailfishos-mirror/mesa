@@ -3903,7 +3903,7 @@ gfx103_emit_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       }
 
       radeon_begin(cs);
-      radeon_opt_set_context_reg(R_028064_DB_VRS_OVERRIDE_CNTL, AC_TRACKED_DB_VRS_OVERRIDE_CNTL,
+      radeon_opt_set_context_reg(R_028064_DB_VRS_OVERRIDE_CNTL, AC_TRACKED_DB_PA_SC_VRS_OVERRIDE_CNTL,
                                  S_028064_VRS_OVERRIDE_RATE_COMBINER_MODE(mode) | S_028064_VRS_OVERRIDE_RATE_X(rate_x) |
                                     S_028064_VRS_OVERRIDE_RATE_Y(rate_y));
       radeon_end();

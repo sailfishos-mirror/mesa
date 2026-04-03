@@ -873,7 +873,6 @@ ac_set_tracked_regs_to_clear_state(struct ac_tracked_regs *tracked_regs,
    tracked_regs->reg_value[AC_TRACKED_DB_STENCIL_CONTROL] = 0;
    tracked_regs->reg_value[AC_TRACKED_DB_DEPTH_BOUNDS_MIN] = 0;
    tracked_regs->reg_value[AC_TRACKED_DB_DEPTH_BOUNDS_MAX] = 0;
-   tracked_regs->reg_value[AC_TRACKED_DB_VRS_OVERRIDE_CNTL] = 0;
    tracked_regs->reg_value[AC_TRACKED_DB_ALPHA_TO_MASK] = 0;
 
    if (info->gfx_level >= GFX9) {
