@@ -1550,7 +1550,7 @@ validate_instr_defs(Program* program, std::array<unsigned, 2048>& regs,
          if (regs[reg.reg_b + j])
             err |=
                ra_fail(program, loc, assignments[regs[reg.reg_b + j]].defloc,
-                       "Assignment of element %d of %%%d already taken by %%%d from instruction", i,
+                       "Assignment of byte %d of %%%d already taken by %%%d from instruction", j,
                        tmp.id(), regs[reg.reg_b + j]);
          regs[reg.reg_b + j] = tmp.id();
       }
@@ -1562,9 +1562,9 @@ validate_instr_defs(Program* program, std::array<unsigned, 2048>& regs,
             unsigned written_reg = reg.reg() * 4u + j;
             if (regs[written_reg] && regs[written_reg] != def.tempId())
                err |= ra_fail(program, loc, assignments[regs[written_reg]].defloc,
-                              "Assignment of element %d of %%%d overwrites the full register "
+                              "Assignment of byte %d of %%%d overwrites the full register "
                               "taken by %%%d from instruction",
-                              i, tmp.id(), regs[written_reg]);
+                              j, tmp.id(), regs[written_reg]);
          }
       }
    }
@@ -1740,7 +1740,7 @@ validate_ra(Program* program)
          for (unsigned i = 0; i < tmp.bytes(); i++) {
             if (regs[reg.reg_b + i]) {
                err |= ra_fail(program, loc, Location(),
-                              "Assignment of element %d of %%%d already taken by %%%d in live-in",
+                              "Assignment of byte %d of %%%d already taken by %%%d in live-in",
                               i, id, regs[reg.reg_b + i]);
             }
             regs[reg.reg_b + i] = id;
