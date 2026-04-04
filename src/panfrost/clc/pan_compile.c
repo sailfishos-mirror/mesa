@@ -421,8 +421,6 @@ main(int argc, const char **argv)
 
          pan_preprocess_nir(s, inputs.gpu_id);
          pan_nir_lower_texture_early(s, inputs.gpu_id);
-         pan_postprocess_nir(s, inputs.gpu_id);
-         pan_nir_lower_texture_late(s, inputs.gpu_id);
 
          NIR_PASS(_, s, nir_opt_deref);
          NIR_PASS(_, s, nir_lower_vars_to_ssa);
@@ -430,6 +428,9 @@ main(int argc, const char **argv)
                   nir_var_shader_temp | nir_var_function_temp |
                      nir_var_mem_shared | nir_var_mem_global,
                   nir_address_format_62bit_generic);
+
+         pan_postprocess_nir(s, inputs.gpu_id);
+         pan_nir_lower_texture_late(s, inputs.gpu_id);
 
          NIR_PASS(_, s, nir_shader_intrinsics_pass, lower_sysvals,
                   nir_metadata_control_flow, NULL);

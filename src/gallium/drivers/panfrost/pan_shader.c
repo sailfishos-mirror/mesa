@@ -112,7 +112,6 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    if (mesa_shader_stage_is_compute(s->info.stage)) {
       pan_preprocess_nir(s, panfrost_device_gpu_id(dev));
       pan_nir_lower_texture_early(s, panfrost_device_gpu_id(dev));
-      pan_postprocess_nir(s, panfrost_device_gpu_id(dev));
    }
 
    struct pan_compile_inputs inputs = {
@@ -132,7 +131,18 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       }
    }
 
-   out->binary = UTIL_DYNARRAY_INIT;
+   /* nir_opt_varyings is replacing all flat highp types with float32, we need
+    * to figure out the varying types ourselves */
+   inputs.trust_varying_flat_highp_types = false;
+   struct pan_varying_layout varyings_layout;
+   /* TODO: wire up VS layout in FS when linked together */
+   if (s->info.stage == MESA_SHADER_VERTEX) {
+      pan_varying_collect_formats(&varyings_layout, s,
+                                  inputs.gpu_id,
+                                  inputs.trust_varying_flat_highp_types, false);
+      pan_build_varying_layout_compact(&varyings_layout, s, inputs.gpu_id);
+      inputs.varying_layout = &varyings_layout;
+   }
 
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
       if (key->fs.nr_cbufs_for_fragcolor) {
@@ -174,6 +184,12 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
                panfrost_device_gpu_prod_id(dev) < 0x700);
    }
 
+   pan_postprocess_nir(s, panfrost_device_gpu_id(dev));
+
+   /* Lower resource indices */
+   NIR_PASS(_, s, panfrost_nir_lower_res_indices, &inputs);
+   pan_nir_lower_texture_late(s, inputs.gpu_id);
+
    if (s->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, s, nir_inline_sysval,
                nir_intrinsic_load_noperspective_varyings_pan,
@@ -197,29 +213,13 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       inputs.pushable_ubos |= BITFIELD_BIT(PAN_UBO_SYSVALS);
    }
 
-   /* Lower resource indices */
-   NIR_PASS(_, s, panfrost_nir_lower_res_indices, &inputs);
-   pan_nir_lower_texture_late(s, inputs.gpu_id);
-
-   /* nir_opt_varyings is replacing all flat highp types with float32, we need
-    * to figure out the varying types ourselves */
-   inputs.trust_varying_flat_highp_types = false;
-   struct pan_varying_layout varyings_layout;
-   /* TODO: wire up VS layout in FS when linked together */
-   if (s->info.stage == MESA_SHADER_VERTEX) {
-      pan_varying_collect_formats(&varyings_layout, s,
-                                  inputs.gpu_id,
-                                  inputs.trust_varying_flat_highp_types, false);
-      pan_build_varying_layout_compact(&varyings_layout, s, inputs.gpu_id);
-      inputs.varying_layout = &varyings_layout;
-   }
-
    if (dev->arch >= 9) {
       /* Always enable this for GL, it avoids crashes when using unbound
        * resources. */
       inputs.robust_descriptors = true;
    }
 
+   out->binary = UTIL_DYNARRAY_INIT;
    screen->vtbl.compile_shader(s, &inputs, &out->binary, &out->info);
 
    /* Report stats only if we really got the shader compiled */
@@ -546,8 +546,6 @@ panfrost_create_shader_state(struct pipe_context *pctx,
             nir_var_shader_in | nir_var_shader_out, UINT32_MAX);
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
             glsl_type_size, nir_lower_io_use_interpolated_input_intrinsics);
-
-   pan_postprocess_nir(nir, panfrost_device_gpu_id(dev));
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT)
       so->noperspective_varyings =
