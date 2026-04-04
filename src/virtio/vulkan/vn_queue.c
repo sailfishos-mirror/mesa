@@ -1760,6 +1760,22 @@ vn_get_fence_status(VkDevice dev_handle,
              */
             vn_async_vkWaitForFences(dev->primary_ring, dev_handle, 1,
                                      &fence_handle, VK_TRUE, UINT64_MAX);
+         } else if (relax_state && vn_relax_warn(relax_state)) {
+            /* Upon vn_relax warn order, emit a synchronous vkGetFenceStatus
+             * to catch renderer device lost. Meanwhile, validate consistency
+             * against ffb status if the fence is signaled.
+             */
+            result = vn_call_vkGetFenceStatus(dev->primary_ring, dev_handle,
+                                              fence_handle);
+            if (result == VK_ERROR_DEVICE_LOST) {
+               vn_log(dev->instance, "aborting on ffb device lost");
+               abort();
+            }
+            if (result == VK_SUCCESS &&
+                vn_feedback_get_status(fence->feedback.slot) != VK_SUCCESS) {
+               vn_log(dev->instance, "ERROR: ffb must be signaled now");
+               result = VK_ERROR_UNKNOWN;
+            }
          }
       } else {
          result = vn_call_vkGetFenceStatus(dev->primary_ring, dev_handle,
