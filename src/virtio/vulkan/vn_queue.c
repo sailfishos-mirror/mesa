@@ -1733,11 +1733,13 @@ vn_ResetFences(VkDevice device, uint32_t fenceCount, const VkFence *pFences)
    return VK_SUCCESS;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL
-vn_GetFenceStatus(VkDevice device, VkFence _fence)
+static VkResult
+vn_get_fence_status(VkDevice dev_handle,
+                    VkFence fence_handle,
+                    struct vn_relax_state *relax_state)
 {
-   struct vn_device *dev = vn_device_from_handle(device);
-   struct vn_fence *fence = vn_fence_from_handle(_fence);
+   struct vn_device *dev = vn_device_from_handle(dev_handle);
+   struct vn_fence *fence = vn_fence_from_handle(fence_handle);
    struct vn_sync_payload *payload = fence->payload;
 
    VkResult result;
@@ -1756,11 +1758,12 @@ vn_GetFenceStatus(VkDevice device, VkFence _fence)
              * longer sees any fence status checks and falsely believes the
              * caller does not sync.
              */
-            vn_async_vkWaitForFences(dev->primary_ring, device, 1, &_fence,
-                                     VK_TRUE, UINT64_MAX);
+            vn_async_vkWaitForFences(dev->primary_ring, dev_handle, 1,
+                                     &fence_handle, VK_TRUE, UINT64_MAX);
          }
       } else {
-         result = vn_call_vkGetFenceStatus(dev->primary_ring, device, _fence);
+         result = vn_call_vkGetFenceStatus(dev->primary_ring, dev_handle,
+                                           fence_handle);
       }
       break;
    case VN_SYNC_TYPE_IMPORTED_SYNC_FD:
@@ -1774,16 +1777,25 @@ vn_GetFenceStatus(VkDevice device, VkFence _fence)
       break;
    }
 
+   return result;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+vn_GetFenceStatus(VkDevice device, VkFence fence)
+{
+   struct vn_device *dev = vn_device_from_handle(device);
+   VkResult result = vn_get_fence_status(device, fence, NULL);
    return vn_result(dev->instance, result);
 }
 
 static VkResult
 vn_find_first_signaled_fence(VkDevice device,
                              const VkFence *fences,
-                             uint32_t count)
+                             uint32_t count,
+                             struct vn_relax_state *relax_state)
 {
    for (uint32_t i = 0; i < count; i++) {
-      VkResult result = vn_GetFenceStatus(device, fences[i]);
+      VkResult result = vn_get_fence_status(device, fences[i], relax_state);
       if (result == VK_SUCCESS || result < 0)
          return result;
    }
@@ -1791,11 +1803,14 @@ vn_find_first_signaled_fence(VkDevice device,
 }
 
 static VkResult
-vn_remove_signaled_fences(VkDevice device, VkFence *fences, uint32_t *count)
+vn_remove_signaled_fences(VkDevice device,
+                          VkFence *fences,
+                          uint32_t *count,
+                          struct vn_relax_state *relax_state)
 {
    uint32_t cur = 0;
    for (uint32_t i = 0; i < *count; i++) {
-      VkResult result = vn_GetFenceStatus(device, fences[i]);
+      VkResult result = vn_get_fence_status(device, fences[i], relax_state);
       if (result != VK_SUCCESS) {
          if (result < 0)
             return result;
@@ -1848,7 +1863,8 @@ vn_WaitForFences(VkDevice device,
       struct vn_relax_state relax_state =
          vn_relax_init(dev->instance, VN_RELAX_REASON_FENCE);
       while (result == VK_NOT_READY) {
-         result = vn_remove_signaled_fences(device, fences, &fenceCount);
+         result = vn_remove_signaled_fences(device, fences, &fenceCount,
+                                            &relax_state);
          result =
             vn_update_sync_result(dev, result, abs_timeout, &relax_state);
       }
@@ -1859,7 +1875,8 @@ vn_WaitForFences(VkDevice device,
       struct vn_relax_state relax_state =
          vn_relax_init(dev->instance, VN_RELAX_REASON_FENCE);
       while (result == VK_NOT_READY) {
-         result = vn_find_first_signaled_fence(device, pFences, fenceCount);
+         result = vn_find_first_signaled_fence(device, pFences, fenceCount,
+                                               &relax_state);
          result =
             vn_update_sync_result(dev, result, abs_timeout, &relax_state);
       }
