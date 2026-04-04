@@ -256,8 +256,11 @@ pan_nir_lower_noperspective_vs(nir_shader *shader)
       return false;
 
    nir_intrinsic_instr *pos_store = find_pos_store(impl);
-   assert(pos_store);
-   assert(nir_intrinsic_write_mask(pos_store) & BITFIELD_BIT(3));
+   /* gl_Position may be written, it can also be left undefined */
+   bool has_pos_w =
+      pos_store && !!(nir_intrinsic_write_mask(pos_store) & BITFIELD_BIT(3));
+   if (!has_pos_w)
+      return false;
 
    nir_builder b = nir_builder_at(nir_after_instr(&pos_store->instr));
 
