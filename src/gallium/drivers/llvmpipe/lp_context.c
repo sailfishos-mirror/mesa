@@ -225,8 +225,13 @@ llvmpipe_get_device_reset_status(struct pipe_context *pipe)
          PIPE_UNKNOWN_CONTEXT_RESET : PIPE_NO_RESET;
 
    if (stat(llvmpipe->context_reset_file_path, &st_reset_file) == 0) {
+#if defined(__APPLE__)
+      int64_t file_mod_time_ns = (int64_t)st_reset_file.st_mtimespec.tv_sec *
+         1000000000LL + st_reset_file.st_mtimespec.tv_nsec;
+#else
       int64_t file_mod_time_ns = (int64_t)st_reset_file.st_mtim.tv_sec *
          1000000000LL + st_reset_file.st_mtim.tv_nsec;
+#endif
 
       if (llvmpipe->context_creation_time_ns < file_mod_time_ns) {
          llvmpipe->context_reset_time_ns = now_ns;
