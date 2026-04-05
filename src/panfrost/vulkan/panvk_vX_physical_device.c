@@ -52,6 +52,7 @@ panvk_per_arch(get_physical_device_extensions)(
          device->kmod.dev->props.gpu_can_query_timestamp,
       .KHR_compute_shader_derivatives = PAN_ARCH >= 9,
       .KHR_copy_commands2 = true,
+      .KHR_copy_memory_indirect = PAN_ARCH >= 10,
       .KHR_create_renderpass2 = true,
       .KHR_dedicated_allocation = true,
       .KHR_descriptor_update_template = true,
@@ -565,6 +566,9 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_color_write_enable */
       .colorWriteEnable = true,
+
+      /* VK_KHR_copy_memory_indirect */
+      .indirectMemoryCopy = PAN_ARCH >= 10,
 
       /* VK_EXT_conditional_rendering */
       .conditionalRendering = PAN_ARCH >= 10,
@@ -1291,6 +1295,9 @@ panvk_per_arch(get_physical_device_properties)(
       /* VK_ARM_scheduling_controls */
       .schedulingControlsFlags =
          VK_PHYSICAL_DEVICE_SCHEDULING_CONTROLS_SHADER_CORE_COUNT_ARM,
+
+      /* VK_KHR_copy_memory_indirect */
+      .supportedQueues = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT,
    };
 
    snprintf(properties->deviceName, sizeof(properties->deviceName), "%s",

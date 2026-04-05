@@ -14,3 +14,4 @@ VK_ARM_scheduling_controls on panvk/v6-7
 shaderCoreBuiltins on panvk/v6-7
 schedulingControls on panvk/v6-7
 VK_KHR_synchronization2 on pvr
+VK_KHR_copy_memory_indirect on panvk
