@@ -2684,7 +2684,7 @@
         "description": "pvr: set has_usc_alu_roundingmode_rne for all B-series Rogue cores",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1db1038a61a9ab7f9e23d63ce5ac7f247bec8fdb",
         "notes": null
