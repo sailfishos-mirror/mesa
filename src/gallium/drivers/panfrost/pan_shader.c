@@ -184,10 +184,10 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
                panfrost_device_gpu_prod_id(dev) < 0x700);
    }
 
-   pan_postprocess_nir(s, panfrost_device_gpu_id(dev));
-
    /* Lower resource indices */
    NIR_PASS(_, s, panfrost_nir_lower_res_indices, &inputs);
+
+   pan_postprocess_nir(s, panfrost_device_gpu_id(dev));
    pan_nir_lower_texture_late(s, inputs.gpu_id);
 
    if (s->info.stage == MESA_SHADER_VERTEX) {
