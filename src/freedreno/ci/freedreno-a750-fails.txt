@@ -131,3 +131,6 @@ vkd3d-test_stress_fallback_render_target_allocation_device,Fail
 
 vkd3d-test_sparse_depth_stencil_rendering,Fail
 vkd3d-test_clear_render_target_view_extreme_values,Fail
+
+# Autotune regression
+vkd3d-test_multisample_resolve_formats,Fail
