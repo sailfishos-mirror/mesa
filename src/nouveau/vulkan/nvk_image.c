@@ -1698,20 +1698,6 @@ nvk_bind_image_memory(struct nvk_device *dev,
       result = nvk_image_zcull_bind(&image->zcull, mem, offset_B);
       if (result != VK_SUCCESS)
          return result;
-
-      /*
-       * zcull hardware kills the context if we try to LOAD_ZCULL on garbage
-       * data. Work around this by always initializing the zcull data to zero.
-       */
-      result = nvk_upload_queue_fill(dev, &dev->upload,
-                                     image->zcull.addr,
-                                     0, image->zcull.nil.size_B);
-      if (result != VK_SUCCESS)
-         return result;
-
-      result = nvk_upload_queue_sync(dev, &dev->upload);
-      if (result != VK_SUCCESS)
-         return result;
    }
 
    if (image->stencil_copy_temp.nil.size_B > 0) {
