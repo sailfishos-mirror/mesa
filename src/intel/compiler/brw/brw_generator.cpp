@@ -721,6 +721,7 @@ brw_generator::generate_code(const brw_shader &s,
          brw_set_default_group(p, 0);
          brw_set_default_mask_control(p, BRW_MASK_DISABLE);
          brw_set_default_predicate_control(p, BRW_PREDICATE_NONE);
+         brw_set_default_predicate_inverse(p, false);
          brw_set_default_flag_reg(p, 0, 0);
          brw_set_default_swsb(p, tgl_swsb_src_dep(swsb));
          brw_MOV(p, brw_acc_reg(8), brw_imm_f(0.0f));
