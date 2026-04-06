@@ -6900,12 +6900,9 @@ lower_simd(nir_builder *b, nir_instr *instr, void *options)
       /* If the whole workgroup fits in one thread, we can lower subgroup_id
        * to a constant zero.
        */
-      if (!b->shader->info.workgroup_size_variable) {
-         unsigned local_workgroup_size = b->shader->info.workgroup_size[0] *
-                                         b->shader->info.workgroup_size[1] *
-                                         b->shader->info.workgroup_size[2];
-         if (local_workgroup_size <= simd_width)
-            return nir_imm_int(b, 0);
+      if (!b->shader->info.workgroup_size_variable &&
+          nir_static_workgroup_size(b->shader) <= simd_width) {
+         return nir_imm_int(b, 0);
       }
       return NULL;
 
