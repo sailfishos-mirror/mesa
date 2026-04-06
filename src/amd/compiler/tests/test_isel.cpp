@@ -235,6 +235,38 @@ BEGIN_TEST(isel.s_bfe_mask_bits)
 END_TEST
 
 /**
+ * Test that deeply nested control flow doesn't crash the compiler.
+ * Each level checks if a divergent value is greater than the depth level.
+ */
+#if 0
+BEGIN_TEST(isel.cf.deep_traversal)
+   if (!setup_nir_cs(GFX11))
+      return;
+
+   nir_def *input = nir_unit_test_divergent_input(nb, 1, 32, .base = 0);
+
+   auto depth = 10000;
+
+   for (int i = 0; i < depth; i++) {
+      nir_def *threshold = nir_imm_int(nb, i);
+      nir_def *cond = nir_ilt(nb, threshold, input);
+      nir_push_if(nb, cond);
+   }
+
+   nir_def *val = nir_imm_int(nb, 0);
+   nir_unit_test_output(nb, val, .base = 2);
+
+   for (int i = 0; i < depth; i++) {
+      nir_pop_if(nb, NULL);
+   }
+
+   finish_isel_test();
+
+   //>> s_endpgm
+END_TEST
+#endif
+
+/**
  * loop {
  *   if (uniform) {
  *     break;
