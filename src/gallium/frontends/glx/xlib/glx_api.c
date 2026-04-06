@@ -1205,6 +1205,8 @@ glXMakeContextCurrent( Display *dpy, GLXDrawable draw,
 
       /* Now make current! */
       if (XMesaMakeCurrent2(xmctx, drawBuffer, readBuffer)) {
+         if (current && current != ctx)
+            current->currentDpy = NULL;
          ctx->currentDpy = dpy;
          ctx->currentDrawable = draw;
          ctx->currentReadable = read;
