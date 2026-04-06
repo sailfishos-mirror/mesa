@@ -1507,7 +1507,7 @@ optimizations.extend([
 
    # Vulkan allows us to use any rounding mode, so choose rtz because it's simple.
    # Avoid some NaNs being converted to Inf if the lsb are cut off.
-   (('f2bf', a), ('bcsel', ('fneu(preserve_nan_inf)', a, a), -1, ('unpack_32_2x16_split_y', a)), 'options->lower_bfloat16_conversions', TestStatus.UNSUPPORTED), # all test inputs skipped
+   (('f2bf', a), ('bcsel', ('fneu(preserve_nan_inf)', a, a), -1, ('unpack_32_2x16_split_y', a)), 'options->lower_bfloat16_conversions'),
    (('bf2f', a), ('pack_32_2x16', ('vec2', 0, a)), 'options->lower_bfloat16_conversions'),
 ])
 
@@ -3195,9 +3195,9 @@ def ldexp(f, exp, bits):
    return ('!fmul', ('!fmul', f, pow2_1), pow2_2)
 
 optimizations += [
-   (('ldexp@16', 'x', 'exp'), ldexp('x', 'exp', 16), '!options->has_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
-   (('ldexp@32', 'x', 'exp'), ldexp('x', 'exp', 32), '!options->has_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
-   (('ldexp@64', 'x', 'exp'), ldexp('x', 'exp', 64), '!options->has_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
+   (('ldexp@16', 'x', 'exp'), ldexp('x', 'exp', 16), '!options->has_ldexp'),
+   (('ldexp@32', 'x', 'exp'), ldexp('x', 'exp', 32), '!options->has_ldexp'),
+   (('ldexp@64', 'x', 'exp'), ldexp('x', 'exp', 64), '!options->has_ldexp'),
    (('fexp2(contract)', ('i2f', 'a@8')), ('ldexp', 1.0, ('i2i32', a)), 'options->has_ldexp'),
    (('fexp2(contract)', ('i2f', 'a@16')), ('ldexp', 1.0, ('i2i32', a)), 'options->has_ldexp'),
    (('fexp2(contract)', ('i2f', 'a@32')), ('ldexp', 1.0, a), 'options->has_ldexp'),
