@@ -67,6 +67,20 @@ pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
       bifrost_preprocess_nir(nir, gpu_id);
    else
       midgard_preprocess_nir(nir, gpu_id);
+
+   /* Lower textures early */
+   nir_lower_tex_options lower_tex_options = {
+      .lower_txs_lod = true,
+      .lower_txp = ~0,
+      .lower_tg4_offsets = true,
+      .lower_tg4_broadcom_swizzle = true,
+      .lower_txd = pan_arch(gpu_id) < 6,
+      .lower_txd_cube_map = true,
+      .lower_invalid_implicit_lod = true,
+      .lower_index_to_offset = pan_arch(gpu_id) >= 6,
+   };
+
+   NIR_PASS(_, nir, nir_lower_tex, &lower_tex_options);
 }
 
 void
@@ -85,22 +99,6 @@ pan_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
       midgard_postprocess_nir(nir, gpu_id);
 }
 
-void
-pan_nir_lower_texture_early(nir_shader *nir, uint64_t gpu_id)
-{
-   nir_lower_tex_options lower_tex_options = {
-      .lower_txs_lod = true,
-      .lower_txp = ~0,
-      .lower_tg4_offsets = true,
-      .lower_tg4_broadcom_swizzle = true,
-      .lower_txd = pan_arch(gpu_id) < 6,
-      .lower_txd_cube_map = true,
-      .lower_invalid_implicit_lod = true,
-      .lower_index_to_offset = pan_arch(gpu_id) >= 6,
-   };
-
-   NIR_PASS(_, nir, nir_lower_tex, &lower_tex_options);
-}
 /** Converts a per-component mask to a byte mask */
 uint16_t
 pan_to_bytemask(unsigned bytes, unsigned mask)

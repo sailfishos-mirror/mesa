@@ -420,7 +420,6 @@ main(int argc, const char **argv)
                   glsl_get_cl_type_size_align);
 
          pan_preprocess_nir(s, inputs.gpu_id);
-         pan_nir_lower_texture_early(s, inputs.gpu_id);
 
          NIR_PASS(_, s, nir_opt_deref);
          NIR_PASS(_, s, nir_lower_vars_to_ssa);

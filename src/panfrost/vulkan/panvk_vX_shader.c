@@ -486,7 +486,6 @@ panvk_preprocess_nir(struct vk_physical_device *vk_pdev,
     *
     * This would give us a better place to do panvk-specific lowering.
     */
-   pan_nir_lower_texture_early(nir, pdev->kmod.dev->props.gpu_id);
    NIR_PASS(_, nir, nir_lower_system_values);
 
    nir_lower_compute_system_values_options options = {

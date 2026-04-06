@@ -111,7 +111,6 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
     */
    if (mesa_shader_stage_is_compute(s->info.stage)) {
       pan_preprocess_nir(s, panfrost_device_gpu_id(dev));
-      pan_nir_lower_texture_early(s, panfrost_device_gpu_id(dev));
    }
 
    struct pan_compile_inputs inputs = {
@@ -539,7 +538,6 @@ panfrost_create_shader_state(struct pipe_context *pctx,
    /* Then run the suite of lowering and optimization, including I/O lowering */
    struct panfrost_device *dev = pan_device(pctx->screen);
    pan_preprocess_nir(nir, panfrost_device_gpu_id(dev));
-   pan_nir_lower_texture_early(nir, panfrost_device_gpu_id(dev));
 
    NIR_PASS(_, nir, nir_lower_indirect_derefs_to_if_else_trees,
             nir_var_shader_in | nir_var_shader_out, UINT32_MAX);
