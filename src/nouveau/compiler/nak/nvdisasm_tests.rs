@@ -1009,3 +1009,41 @@ pub fn test_isbewr() {
         c.check(sm);
     }
 }
+
+#[test]
+pub fn test_mufu() {
+    let r2 = RegRef::new(RegFile::GPR, 2, 1);
+    let r3 = RegRef::new(RegFile::GPR, 3, 1);
+
+    use MuFuOp::*;
+    let ops = [Cos, Sin, Exp2, Log2, Rcp, Rsq, Rcp64H, Rsq64H, Sqrt, Tanh];
+    let op_types = [(FloatType::F32, ""), (FloatType::F16, ".f16")];
+
+    for &sm in sm_list() {
+        let mut c = DisasmCheck::new();
+
+        for op in ops {
+            for (op_type, op_type_str) in op_types {
+                match (op, op_type) {
+                    (Rcp64H | Rsq64H, FloatType::F16) => continue,
+                    _ => (),
+                }
+                let instr = OpMuFu {
+                    dst: Dst::Reg(r2),
+                    src: SrcRef::Reg(r3).into(),
+                    op,
+                    op_type,
+                };
+                let op_str = match op {
+                    Exp2 => ".ex2".into(),
+                    Log2 => ".lg2".into(),
+                    _ => format!(".{op}"),
+                };
+                let disasm = format!("mufu{op_str}{op_type_str} r2, r3;");
+                c.push(instr, disasm);
+            }
+        }
+
+        c.check(sm);
+    }
+}

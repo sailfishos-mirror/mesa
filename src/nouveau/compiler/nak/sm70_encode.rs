@@ -991,7 +991,19 @@ impl SM70Op for OpMuFu {
             self.src_types()[0].into(),
         );
 
-        e.set_bit(73, self.op_type == FloatType::F16);
+        if e.sm >= 90 {
+            e.set_field(
+                72..73,
+                match self.op_type {
+                    FloatType::F32 => 0u8,
+                    FloatType::F16 => 1u8,
+                    /* .bf16 => 2 */
+                    FloatType::F64 => unreachable!(),
+                },
+            );
+        } else {
+            e.set_bit(73, self.op_type == FloatType::F16);
+        }
         e.set_field(
             74..80,
             match self.op {
