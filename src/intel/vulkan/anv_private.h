@@ -1799,11 +1799,17 @@ enum anv_debug {
    ANV_DEBUG_SHADER_HASH       = BITFIELD_BIT(7),
    ANV_DEBUG_NO_SLAB           = BITFIELD_BIT(8),
    ANV_DEBUG_DESCRIPTOR_DIRTY  = BITFIELD_BIT(9),
+   ANV_DEBUG_SHADER_PRINT      = BITFIELD_BIT(10),
 };
 
 extern enum anv_debug anv_debug;
 
 #define ANV_DEBUG(name) unlikely(anv_debug & ANV_DEBUG_##name)
+
+static inline bool anv_needs_printf_buffer(void)
+{
+   return ANV_DEBUG(SHADER_PRINT);
+}
 
 struct anv_instance {
     struct vk_instance                          vk;

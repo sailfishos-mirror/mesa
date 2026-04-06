@@ -116,7 +116,7 @@ anv_shader_internal_create(struct anv_device *device,
    shader->code = code;
    memcpy(shader->code, kernel_data, kernel_size);
 
-   if (INTEL_DEBUG(DEBUG_SHADER_PRINT)) {
+   if (anv_needs_printf_buffer()) {
       struct intel_shader_reloc_value reloc_values[3];
       uint32_t rv_count = 0;
 

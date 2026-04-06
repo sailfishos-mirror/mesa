@@ -219,7 +219,7 @@ anv_shader_get_spirv_options(struct vk_physical_device *device,
       .phys_ssbo_addr_format = nir_address_format_64bit_global,
       .push_const_addr_format = nir_address_format_logical,
 
-      .printf = INTEL_DEBUG(DEBUG_SHADER_PRINT),
+      .printf = ANV_DEBUG(SHADER_PRINT),
 
       /* TODO: Consider changing this to an address format that has the NULL
        * pointer equals to 0.  That might be a better format to play nice
@@ -270,7 +270,7 @@ anv_shader_preprocess_nir(struct vk_physical_device *device,
    NIR_PASS(_, nir, nir_opt_barrier_modes);
    NIR_PASS(_, nir, nir_opt_acquire_release_barriers, SCOPE_QUEUE_FAMILY);
 
-   if (INTEL_DEBUG(DEBUG_SHADER_PRINT)) {
+   if (ANV_DEBUG(SHADER_PRINT)) {
       const nir_lower_printf_options printf_opts = {
          .ptr_bit_size = 64,
          .hash_format_strings = true,

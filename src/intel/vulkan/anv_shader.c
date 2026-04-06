@@ -520,7 +520,7 @@ anv_shader_set_relocs(struct anv_device *device,
       };
    }
 
-   if (INTEL_DEBUG(DEBUG_SHADER_PRINT)) {
+   if (anv_needs_printf_buffer()) {
       struct anv_bo *bo = device->printf.bo;
       assert(bo != NULL);
 

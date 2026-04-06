@@ -998,7 +998,7 @@ VkResult anv_CreateDevice(
    if (!device->info->has_64bit_float)
       anv_load_fp64_shader(device);
 
-   if (INTEL_DEBUG(DEBUG_SHADER_PRINT)) {
+   if (anv_needs_printf_buffer()) {
       result = anv_device_print_init(device);
       if (result != VK_SUCCESS)
          goto fail_internal_cache;
@@ -1140,7 +1140,7 @@ VkResult anv_CreateDevice(
                                    device->companion_rcs_cmd_pool, NULL);
    }
  fail_print:
-   if (INTEL_DEBUG(DEBUG_SHADER_PRINT))
+   if (anv_needs_printf_buffer())
       anv_device_print_fini(device);
  fail_internal_cache:
    vk_pipeline_cache_destroy(device->internal_cache, NULL);
@@ -1277,7 +1277,7 @@ void anv_DestroyDevice(
 
    anv_device_finish_descriptors_view(device);
 
-   if (INTEL_DEBUG(DEBUG_SHADER_PRINT))
+   if (anv_needs_printf_buffer())
       anv_device_print_fini(device);
 
    vk_pipeline_cache_destroy(device->internal_cache, NULL);

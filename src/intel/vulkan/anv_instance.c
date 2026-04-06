@@ -102,6 +102,7 @@ static const struct debug_control debug_control[] = {
    { "shader-hash",  ANV_DEBUG_SHADER_HASH},
    { "no-slab",      ANV_DEBUG_NO_SLAB},
    { "desc-dirty",   ANV_DEBUG_DESCRIPTOR_DIRTY},
+   { "shader-print", ANV_DEBUG_SHADER_PRINT},
    { NULL,    0 }
 };
 
