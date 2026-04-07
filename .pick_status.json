@@ -3324,7 +3324,7 @@
         "description": "util: fix UBSan error with _mesa_bfloat16_bits_to_float",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ecd2d2cf46dfc3305a6dc1497815b7b54eef513e",
         "notes": null
