@@ -1055,6 +1055,53 @@ private:
    }
 };
 
+gen_reg_type
+xe_decode_type(const intel_device_info *devinfo, gen_file file,
+               unsigned hw_type)
+{
+   if (hw_type >= (1 << 4))
+      return GEN_TYPE_INVALID;
+
+   static const gen_reg_type tbl[16] = {
+      [0b0000] = GEN_TYPE_UB, /* or UV */
+      [0b0001] = GEN_TYPE_UW,
+      [0b0010] = GEN_TYPE_UD,
+      [0b0011] = GEN_TYPE_UQ,
+      [0b0100] = GEN_TYPE_B, /* or V */
+      [0b0101] = GEN_TYPE_W,
+      [0b0110] = GEN_TYPE_D,
+      [0b0111] = GEN_TYPE_Q,
+      [0b1000] = GEN_TYPE_BF8, /* or VF */
+      [0b1001] = GEN_TYPE_HF,
+      [0b1010] = GEN_TYPE_F,
+      [0b1011] = GEN_TYPE_DF,
+      [0b1100] = GEN_TYPE_HF8,
+      [0b1101] = GEN_TYPE_BF,
+      [0b1110] = GEN_TYPE_INVALID,
+      [0b1111] = GEN_TYPE_INVALID,
+   };
+
+   enum gen_reg_type t = tbl[hw_type];
+
+   if (file == GEN_IMM) {
+      switch (t) {
+      case GEN_TYPE_UB:  return GEN_TYPE_UV;
+      case GEN_TYPE_B:   return GEN_TYPE_V;
+      case GEN_TYPE_BF8: return GEN_TYPE_VF;
+      case GEN_TYPE_HF8: return GEN_TYPE_VF;
+      default:           break;
+      }
+   }
+
+   if ((t == GEN_TYPE_HF8 || t == GEN_TYPE_BF8) &&
+       !devinfo->has_fp8)
+      return GEN_TYPE_INVALID;
+   if (t == GEN_TYPE_BF && !devinfo->has_bfloat16)
+      return GEN_TYPE_INVALID;
+
+   return t;
+}
+
 /* E is the struct with the Encoding fields and type. */
 template <typename E>
 struct gen_decoder {
@@ -1563,47 +1610,7 @@ private:
    inline gen_reg_type
    decode_type(gen_file file, unsigned hw_type)
    {
-      if (hw_type >= (1 << 4))
-         return GEN_TYPE_INVALID;
-
-      static const gen_reg_type tbl[16] = {
-         [0b0000] = GEN_TYPE_UB, /* or UV */
-         [0b0001] = GEN_TYPE_UW,
-         [0b0010] = GEN_TYPE_UD,
-         [0b0011] = GEN_TYPE_UQ,
-         [0b0100] = GEN_TYPE_B, /* or V */
-         [0b0101] = GEN_TYPE_W,
-         [0b0110] = GEN_TYPE_D,
-         [0b0111] = GEN_TYPE_Q,
-         [0b1000] = GEN_TYPE_BF8, /* or VF */
-         [0b1001] = GEN_TYPE_HF,
-         [0b1010] = GEN_TYPE_F,
-         [0b1011] = GEN_TYPE_DF,
-         [0b1100] = GEN_TYPE_HF8,
-         [0b1101] = GEN_TYPE_BF,
-         [0b1110] = GEN_TYPE_INVALID,
-         [0b1111] = GEN_TYPE_INVALID,
-      };
-
-      enum gen_reg_type t = tbl[hw_type];
-
-      if (file == GEN_IMM) {
-         switch (t) {
-         case GEN_TYPE_UB:  return GEN_TYPE_UV;
-         case GEN_TYPE_B:   return GEN_TYPE_V;
-         case GEN_TYPE_BF8: return GEN_TYPE_VF;
-         case GEN_TYPE_HF8: return GEN_TYPE_VF;
-         default:           break;
-         }
-      }
-
-      if ((t == GEN_TYPE_HF8 || t == GEN_TYPE_BF8) &&
-          !devinfo->has_fp8)
-         return GEN_TYPE_INVALID;
-      if (t == GEN_TYPE_BF && !devinfo->has_bfloat16)
-         return GEN_TYPE_INVALID;
-
-      return t;
+      return xe_decode_type(devinfo, file, hw_type);
    }
 
    inline gen_reg_type

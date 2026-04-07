@@ -777,6 +777,82 @@ private:
    }
 };
 
+gen_reg_type
+pre_xe_decode_type(const intel_device_info *devinfo, gen_file file,
+                   unsigned hw_type)
+{
+   if (hw_type >= (1 << 4))
+      return GEN_TYPE_INVALID;
+
+   if (devinfo->ver == 11) {
+      static const enum gen_reg_type tbl[] = {
+         [0] = GEN_TYPE_UD,
+         [1] = GEN_TYPE_D,
+         [2] = GEN_TYPE_UW,
+         [3] = GEN_TYPE_W,
+         [4] = GEN_TYPE_UB, /* or UV */
+         [5] = GEN_TYPE_B,  /* or V */
+         [6] = GEN_TYPE_UQ,
+         [7] = GEN_TYPE_Q,
+         [8] = GEN_TYPE_HF,
+         [9] = GEN_TYPE_F,
+         [10] = GEN_TYPE_INVALID, /* no DF */
+         [11] = GEN_TYPE_VF,
+         [12] = GEN_TYPE_INVALID,
+         [13] = GEN_TYPE_INVALID,
+         [14] = GEN_TYPE_INVALID,
+         [15] = GEN_TYPE_INVALID,
+      };
+      enum gen_reg_type t = tbl[hw_type];
+      if (file == GEN_IMM && gen_type_size_bits(t) == 8)
+         return (t & GEN_TYPE_BASE_SINT) ? GEN_TYPE_V : GEN_TYPE_UV;
+      if (file != GEN_IMM && gen_type_is_vector_imm(t))
+         return GEN_TYPE_INVALID;
+      return t;
+   } else {
+      static const enum gen_reg_type imm_tbl[] = {
+         [0] = GEN_TYPE_UD,
+         [1] = GEN_TYPE_D,
+         [2] = GEN_TYPE_UW,
+         [3] = GEN_TYPE_W,
+         [4] = GEN_TYPE_UV,
+         [5] = GEN_TYPE_VF,
+         [6] = GEN_TYPE_V,
+         [7] = GEN_TYPE_F,
+         [8] = GEN_TYPE_UQ,
+         [9] = GEN_TYPE_Q,
+         [10] = GEN_TYPE_DF,
+         [11] = GEN_TYPE_HF,
+         [12] = GEN_TYPE_INVALID,
+         [13] = GEN_TYPE_INVALID,
+         [14] = GEN_TYPE_INVALID,
+         [15] = GEN_TYPE_INVALID,
+      };
+      static const enum gen_reg_type reg_tbl[] = {
+         [0] = GEN_TYPE_UD,
+         [1] = GEN_TYPE_D,
+         [2] = GEN_TYPE_UW,
+         [3] = GEN_TYPE_W,
+         [4] = GEN_TYPE_UB,
+         [5] = GEN_TYPE_B,
+         [6] = GEN_TYPE_DF,
+         [7] = GEN_TYPE_F,
+         [8] = GEN_TYPE_UQ,
+         [9] = GEN_TYPE_Q,
+         [10] = GEN_TYPE_HF,
+         [11] = GEN_TYPE_INVALID,
+         [12] = GEN_TYPE_INVALID,
+         [13] = GEN_TYPE_INVALID,
+         [14] = GEN_TYPE_INVALID,
+         [15] = GEN_TYPE_INVALID,
+      };
+      const enum gen_reg_type *tbl = file == GEN_IMM ? imm_tbl : reg_tbl;
+      return tbl[hw_type];
+   }
+
+   return GEN_TYPE_INVALID;
+}
+
 struct gen_decoder_pre_xe : public gen_encoding_pre_xe {
    const intel_device_info *devinfo;
 
@@ -1302,76 +1378,7 @@ private:
    inline gen_reg_type
    decode_type(gen_file file, unsigned hw_type)
    {
-      if (hw_type >= (1 << 4))
-         return GEN_TYPE_INVALID;
-
-      if (devinfo->ver == 11) {
-         static const enum gen_reg_type tbl[] = {
-            [0] = GEN_TYPE_UD,
-            [1] = GEN_TYPE_D,
-            [2] = GEN_TYPE_UW,
-            [3] = GEN_TYPE_W,
-            [4] = GEN_TYPE_UB, /* or UV */
-            [5] = GEN_TYPE_B,  /* or V */
-            [6] = GEN_TYPE_UQ,
-            [7] = GEN_TYPE_Q,
-            [8] = GEN_TYPE_HF,
-            [9] = GEN_TYPE_F,
-            [10] = GEN_TYPE_INVALID, /* no DF */
-            [11] = GEN_TYPE_VF,
-            [12] = GEN_TYPE_INVALID,
-            [13] = GEN_TYPE_INVALID,
-            [14] = GEN_TYPE_INVALID,
-            [15] = GEN_TYPE_INVALID,
-         };
-         enum gen_reg_type t = tbl[hw_type];
-         if (file == GEN_IMM && gen_type_size_bits(t) == 8)
-            return (t & GEN_TYPE_BASE_SINT) ? GEN_TYPE_V : GEN_TYPE_UV;
-         if (file != GEN_IMM && gen_type_is_vector_imm(t))
-            return GEN_TYPE_INVALID;
-         return t;
-      } else {
-         static const enum gen_reg_type imm_tbl[] = {
-            [0] = GEN_TYPE_UD,
-            [1] = GEN_TYPE_D,
-            [2] = GEN_TYPE_UW,
-            [3] = GEN_TYPE_W,
-            [4] = GEN_TYPE_UV,
-            [5] = GEN_TYPE_VF,
-            [6] = GEN_TYPE_V,
-            [7] = GEN_TYPE_F,
-            [8] = GEN_TYPE_UQ,
-            [9] = GEN_TYPE_Q,
-            [10] = GEN_TYPE_DF,
-            [11] = GEN_TYPE_HF,
-            [12] = GEN_TYPE_INVALID,
-            [13] = GEN_TYPE_INVALID,
-            [14] = GEN_TYPE_INVALID,
-            [15] = GEN_TYPE_INVALID,
-         };
-         static const enum gen_reg_type reg_tbl[] = {
-            [0] = GEN_TYPE_UD,
-            [1] = GEN_TYPE_D,
-            [2] = GEN_TYPE_UW,
-            [3] = GEN_TYPE_W,
-            [4] = GEN_TYPE_UB,
-            [5] = GEN_TYPE_B,
-            [6] = GEN_TYPE_DF,
-            [7] = GEN_TYPE_F,
-            [8] = GEN_TYPE_UQ,
-            [9] = GEN_TYPE_Q,
-            [10] = GEN_TYPE_HF,
-            [11] = GEN_TYPE_INVALID,
-            [12] = GEN_TYPE_INVALID,
-            [13] = GEN_TYPE_INVALID,
-            [14] = GEN_TYPE_INVALID,
-            [15] = GEN_TYPE_INVALID,
-         };
-         const enum gen_reg_type *tbl = file == GEN_IMM ? imm_tbl : reg_tbl;
-         return tbl[hw_type];
-      }
-
-      return GEN_TYPE_INVALID;
+      return pre_xe_decode_type(devinfo, file, hw_type);
    }
 
    inline gen_reg_type

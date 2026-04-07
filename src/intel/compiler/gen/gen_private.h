@@ -424,3 +424,9 @@ void gen_decode_inst_pre_xe(const intel_device_info *devinfo,
                             gen_inst *inst,
                             const gen_raw_inst *raw, char **error);
 
+gen_reg_type
+xe_decode_type(const intel_device_info *devinfo, gen_file file,
+               unsigned hw_type);
+gen_reg_type
+pre_xe_decode_type(const intel_device_info *devinfo, gen_file file,
+                   unsigned hw_type);
