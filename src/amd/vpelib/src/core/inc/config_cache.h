@@ -132,7 +132,8 @@ struct config_cache {
                             if ((obj_cache)->config_cache[inst].p_buffer)                          \
                                 vpe_free((obj_cache)->config_cache[inst].p_buffer);                \
                                                                                                    \
-                            (obj_cache)->config_cache[inst].p_buffer = vpe_zalloc((size_t)size);   \
+                            (obj_cache)->config_cache[inst].p_buffer =                             \
+                                (uint8_t *)vpe_zalloc((size_t)size);                               \
                             if ((obj_cache)->config_cache[inst].p_buffer) {                        \
                                 memcpy((obj_cache)->config_cache[inst].p_buffer,                   \
                                     (void *)(uintptr_t)start, (size_t)size);                       \

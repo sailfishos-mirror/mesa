@@ -805,6 +805,7 @@ enum vpe_status vpe_color_update_shaper(const struct vpe_priv *vpe_priv, uint16_
     }
 
     // Force PQ curve when FP16 format
+
     if (stream_ctx->tf == TRANSFER_FUNC_LINEAR) {
         // tf = stream_ctx->stream.tm_params.shaper_tf;
         tf = tf_in_3dlut;

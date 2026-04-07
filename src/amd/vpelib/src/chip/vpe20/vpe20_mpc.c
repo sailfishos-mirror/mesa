@@ -47,10 +47,8 @@ static struct mpc_funcs mpc_funcs = {
     .program_output_csc          = vpe10_program_output_csc,
     .set_output_gamma            = vpe10_mpc_set_output_gamma,
     .set_gamut_remap             = NULL,
-    .set_gamut_remap2            = vpe20_mpc_set_gamut_remap2,
     .power_on_1dlut_shaper_3dlut = vpe20_mpc_power_on_1dlut_shaper_3dlut,
     .program_shaper              = vpe20_mpc_program_shaper,
-    .program_shaper_indirect     = vpe20_mpc_program_shaper_indirect,
     .program_3dlut               = vpe20_mpc_program_3dlut,
     .program_3dlut_indirect      = vpe20_mpc_program_3dlut_indirect,
     .program_1dlut               = vpe10_mpc_program_1dlut,
@@ -60,14 +58,16 @@ static struct mpc_funcs mpc_funcs = {
     .program_mpc_out             = vpe10_mpc_program_mpc_out,
     .set_output_transfer_func    = vpe10_mpc_set_output_transfer_func,
     .set_mpc_shaper_3dlut        = vpe20_mpc_set_mpc_shaper_3dlut,
-    .shaper_bypass               = vpe20_mpc_shaper_bypass,
     .set_blend_lut               = vpe10_mpc_set_blend_lut,
     .program_movable_cm          = vpe20_mpc_program_movable_cm,
     .program_crc                 = vpe10_mpc_program_crc,
     .attach_3dlut_to_mpc_inst    = vpe20_attach_3dlut_to_mpc_inst,
+    .set_gamut_remap2            = vpe20_mpc_set_gamut_remap2,
     .update_3dlut_fl_bias_scale  = vpe20_update_3dlut_fl_bias_scale,
     .program_mpc_3dlut_fl_config = vpe20_mpc_program_3dlut_fl_config,
     .program_mpc_3dlut_fl        = vpe20_mpc_program_3dlut_fl,
+    .shaper_bypass               = vpe20_mpc_shaper_bypass,
+    .program_shaper_indirect     = vpe20_mpc_program_shaper_indirect,
 };
 
 void vpe20_construct_mpc(struct vpe_priv *vpe_priv, struct mpc *mpc)
