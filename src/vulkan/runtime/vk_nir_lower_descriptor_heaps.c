@@ -899,42 +899,38 @@ lower_heaps_load_descriptor(nir_builder *b, nir_intrinsic_instr *desc_load,
    if (mapping == NULL)
       return false; /* Descriptor sets */
 
-   /* These have to be handled by try_lower_deref_access() */
+   b->cursor = nir_before_instr(&desc_load->instr);
+
    if (mapping->source == VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_DATA_EXT ||
        mapping->source == VK_DESCRIPTOR_MAPPING_SOURCE_RESOURCE_HEAP_DATA_EXT) {
+      /* These have to be handled by try_lower_deref_access() */
       assert(resource_type == nir_resource_type_uniform_buffer);
       return false;
-   }
+   } else if (mapping->source == VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_ADDRESS_EXT ||
+              mapping->source == VK_DESCRIPTOR_MAPPING_SOURCE_INDIRECT_ADDRESS_EXT ||
+              mapping->source == VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_DATA_EXT ||
+              mapping->source == VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_ADDRESS_EXT) {
+      /* Other resource types have to be handled by try_lower_deref_access() */
+      if (resource_type != nir_resource_type_acceleration_structure)
+         return false;
 
-   b->cursor = nir_before_instr(&desc_load->instr);
-   nir_def *index = build_buffer_resource_index(b, desc_load);
+      nir_def *addr = vk_build_descriptor_heap_address(b, mapping);
+      assert(addr);
+      nir_def_replace(&desc_load->def, addr);
+   } else {
+      nir_def *index = build_buffer_resource_index(b, desc_load);
 
-   /* There are a few mapping sources that are allowed for SSBOs and
-    * acceleration structures which use addresses.  If it's an acceleration
-    * structure or try_lower_deref_access() fails to catch it, we have to
-    * load the address and ask the driver to convert the address to a
-    * descriptor.
-    */
-   nir_def *addr = vk_build_descriptor_heap_address(b, mapping);
-   if (addr != NULL) {
-      nir_def *desc =
-         nir_global_addr_to_descriptor(b, desc_load->def.num_components,
-                                       desc_load->def.bit_size, addr,
-                                       .resource_type = resource_type);
+      /* Everything else is an offset */
+      nir_def *heap_offset =
+         vk_build_descriptor_heap_offset(b, mapping, resource_type, binding,
+                                         index, false /* is_sampler */);
+      nir_def *desc = nir_load_heap_descriptor(b, desc_load->def.num_components,
+                                               desc_load->def.bit_size,
+                                               heap_offset,
+                                               .resource_type = resource_type);
+
       nir_def_replace(&desc_load->def, desc);
-      return true;
    }
-
-   /* Everything else is an offset */
-   nir_def *heap_offset =
-      vk_build_descriptor_heap_offset(b, mapping, resource_type, binding,
-                                      index, false /* is_sampler */);
-   nir_def *desc = nir_load_heap_descriptor(b, desc_load->def.num_components,
-                                            desc_load->def.bit_size,
-                                            heap_offset,
-                                            .resource_type = resource_type);
-
-   nir_def_replace(&desc_load->def, desc);
 
    return true;
 }
