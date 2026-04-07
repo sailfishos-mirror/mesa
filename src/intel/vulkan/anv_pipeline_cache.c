@@ -357,7 +357,7 @@ anv_load_fp64_shader(struct anv_device *device)
 
    nir_shader* nir =
       spirv_to_nir(float64_spv_source, sizeof(float64_spv_source) / 4,
-                   NULL, 0, MESA_SHADER_VERTEX, "main",
+                   NULL, MESA_SHADER_VERTEX, "main",
                    &spirv_options, nir_options);
 
    assert(nir != NULL);

@@ -69,9 +69,7 @@ tu_spirv_to_nir_library(struct tu_device *dev,
    spirv_to_nir_options spirv_options = tu_spirv_options;
    spirv_options.create_library = true;
 
-   nir_shader *nir =
-      spirv_to_nir(words, word_count, NULL, 0, MESA_SHADER_COMPUTE,
-                   "main", &spirv_options, nir_options);
+   nir_shader *nir = spirv_to_nir(words, word_count, NULL, MESA_SHADER_COMPUTE, "main", &spirv_options, nir_options);
 
    NIR_PASS(_, nir, nir_lower_system_values);
 

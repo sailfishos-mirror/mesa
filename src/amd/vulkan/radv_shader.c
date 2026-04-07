@@ -496,9 +496,7 @@ radv_shader_spirv_to_nir(struct radv_device *device, struct radv_shader_stage *s
          if (instance->debug_flags & dump_flags)
             spirv_print_asm(stderr, (const uint32_t *)stage->spirv.data, stage->spirv.size / 4);
       }
-
-      uint32_t num_spec_entries = 0;
-      struct nir_spirv_specialization *spec_entries = vk_spec_info_to_nir_spirv(stage->spec_info, &num_spec_entries);
+      struct nir_spirv_specialization *spec = vk_spec_info_to_nir_spirv(stage->spec_info);
       struct radv_shader_debug_data spirv_debug_data = {
          .debug_report = &instance->vk.debug_report,
          .object = stage->spirv.object,
@@ -537,13 +535,13 @@ radv_shader_spirv_to_nir(struct radv_device *device, struct radv_shader_stage *s
          .buffer_descriptor_size = pdev->vk.properties.bufferDescriptorSize,
          .buffer_descriptor_alignment = pdev->vk.properties.bufferDescriptorAlignment,
       };
-      nir = spirv_to_nir(spirv, stage->spirv.size / 4, spec_entries, num_spec_entries, stage->stage, stage->entrypoint,
-                         &spirv_options, &pdev->nir_options[stage->stage]);
+      nir = spirv_to_nir(spirv, stage->spirv.size / 4, spec, stage->stage, stage->entrypoint, &spirv_options,
+                         &pdev->nir_options[stage->stage]);
       nir->info.internal |= is_internal;
       assert(nir->info.stage == stage->stage);
       nir_validate_shader(nir, "after spirv_to_nir");
 
-      free(spec_entries);
+      vtn_free_specialization(spec);
 
       const struct nir_lower_sysvals_to_varyings_options sysvals_to_varyings = {
          .point_coord = true,
