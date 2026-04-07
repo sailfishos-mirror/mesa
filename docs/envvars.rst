@@ -1427,7 +1427,7 @@ RADV driver environment variables
    a comma-separated list of named flags, which do various things:
 
    ``llvm``
-      enable LLVM compiler backend
+      enable LLVM compiler backend. Only available in debug builds.
    ``allbos``
       force all allocated buffers to be referenced in submissions
    ``bo_history``

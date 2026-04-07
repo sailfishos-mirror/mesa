@@ -2456,6 +2456,12 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
                       "enabled at build time.\n");
       abort();
    }
+#elif NDEBUG
+   if (pdev->use_llvm) {
+      fprintf(stderr, "ERROR: The LLVM compiler backend is only for debugging and not supported "
+                      "in release builds of RADV!\n");
+      pdev->use_llvm = false;
+   }
 #endif
 
 #if DETECT_OS_ANDROID
