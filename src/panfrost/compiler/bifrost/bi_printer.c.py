@@ -86,7 +86,7 @@ bi_print_index(FILE *fp, bi_index index, unsigned nr_regs)
             fprintf(fp, "%s%u", index.memory ? "m" : "r", index.value + i);
         }
     } else if (index.type == BI_INDEX_NORMAL)
-        fprintf(fp, "%s%u", index.memory ? "m" : "", index.value);
+        fprintf(fp, "%%%s%u", index.memory ? "m" : "", index.value);
     else
         UNREACHABLE("Invalid index");
 
