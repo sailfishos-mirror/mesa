@@ -764,7 +764,6 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_vulkan_descriptor:
    case nir_intrinsic_load_heap_descriptor:
    case nir_intrinsic_load_resource_heap_data:
-   case nir_intrinsic_global_addr_to_descriptor:
    case nir_intrinsic_load_input_attachment_target_pan:
    case nir_intrinsic_load_input_attachment_conv_pan:
    case nir_intrinsic_load_global_cvt_pan:
