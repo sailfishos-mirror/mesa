@@ -2182,11 +2182,11 @@ tu_autotune::emit_reset_rp_hash_draw_state(struct tu_cmd_buffer *cmd, struct tu_
    tu_cs_emit_qw(cs, reset_rp_hash_draw_state.iova);
 }
 
-void
+bool
 tu_autotune::emit_preempt_latency_tracking_setup(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
 {
    if (!cmd->autotune_ctx.tracks_preempt_latency())
-      return;
+      return false;
 
    tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 4);
    tu_cs_emit_qw(cs, global_iova(cmd, max_preemption_latency));
@@ -2206,6 +2206,8 @@ tu_autotune::emit_preempt_latency_tracking_setup(struct tu_cmd_buffer *cmd, stru
 
    write_preempt_counters_to_iova(cs, true, true, global_iova(cmd, base_preemption_latency),
                                   global_iova(cmd, base_always_count), global_iova(cmd, base_aon));
+
+   return true;
 }
 
 tu_autotune::rp_key_opt

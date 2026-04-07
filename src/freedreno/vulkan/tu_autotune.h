@@ -357,7 +357,8 @@ struct tu_autotune {
    void init_reset_rp_hash_draw_state();
    void emit_reset_rp_hash_draw_state(struct tu_cmd_buffer *cmd, struct tu_cs *cs) const;
 
-   void emit_preempt_latency_tracking_setup(struct tu_cmd_buffer *cmd, struct tu_cs *cs);
+   /* Returns if preemption latency tracking is enabled for this CB. */
+   bool emit_preempt_latency_tracking_setup(struct tu_cmd_buffer *cmd, struct tu_cs *cs);
    /* Returns the RP hash only when preemption latency tracking is enabled. */
    rp_key_opt emit_preempt_latency_tracking_rp_hash(struct tu_cmd_buffer *cmd);
 };
