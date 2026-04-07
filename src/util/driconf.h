@@ -960,6 +960,10 @@
    DRI_CONF_OPT_I(anv_enable_opt_divergent_atomics, def, 0, 3,\
                   "Enable fusion of divergent atomics (see brw_divergent_atomics_flags)")
 
+#define DRI_CONF_ANV_BRW_DISABLE_SUBGROUP_SIZE_CONTROL(def) \
+   DRI_CONF_OPT_B(anv_brw_disable_subgroup_size_control, def, \
+                  "Disable EXT_subgroup_size_control support when using brw compiler.")
+
 /**
  * \brief HASVK specific configuration options
  */
