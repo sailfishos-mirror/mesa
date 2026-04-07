@@ -362,7 +362,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    if (stage->nir->info.uses_resource_info_query)
       NIR_PASS(_, stage->nir, ac_nir_lower_resinfo, gfx_level);
 
-   /* Ensure split load_push_constant still have constant offsets, for radv_nir_apply_pipeline_layout. */
+   /* Ensure split load_push_constant still have constant offsets, for radv_nir_lower_descriptors. */
    if (constant_fold_for_push_const && stage->args.ac.inline_push_const_mask)
       NIR_PASS(_, stage->nir, nir_opt_constant_folding);
 
@@ -375,7 +375,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    /* This has to be done after nir_opt_algebraic for best descriptor vectorization, but also before
     * NGG culling.
     */
-   NIR_PASS(_, stage->nir, radv_nir_apply_pipeline_layout, device, stage);
+   NIR_PASS(_, stage->nir, radv_nir_lower_descriptors, device, stage);
 
    NIR_PASS(_, stage->nir, nir_lower_alu_width, ac_nir_opt_vectorize_cb, &gfx_level);
 

@@ -27,8 +27,7 @@ struct radv_graphics_state_key;
 struct radv_ps_epilog_key;
 struct radv_debug_nir;
 
-bool radv_nir_apply_pipeline_layout(nir_shader *shader, struct radv_device *device,
-                                    const struct radv_shader_stage *stage);
+bool radv_nir_lower_descriptors(nir_shader *shader, struct radv_device *device, const struct radv_shader_stage *stage);
 
 bool radv_nir_lower_abi(nir_shader *shader, enum amd_gfx_level gfx_level, const struct radv_shader_stage *stage,
                         const struct radv_graphics_state_key *gfx_state, uint32_t address32_hi);

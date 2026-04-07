@@ -29,7 +29,7 @@ typedef struct {
    const struct radv_shader_args *args;
    const struct radv_shader_info *info;
    const struct radv_shader_layout *layout;
-} apply_layout_state;
+} lower_descriptors_state;
 
 static nir_def *
 get_scalar_arg(nir_builder *b, unsigned size, struct ac_arg arg)
@@ -39,7 +39,7 @@ get_scalar_arg(nir_builder *b, unsigned size, struct ac_arg arg)
 }
 
 static nir_def *
-get_indirect_descriptors_addr(nir_builder *b, apply_layout_state *state)
+get_indirect_descriptors_addr(nir_builder *b, lower_descriptors_state *state)
 {
    if (mesa_shader_stage_is_rt(b->shader->info.stage))
       return nir_load_param(b, RT_ARG_DESCRIPTORS);
@@ -47,7 +47,7 @@ get_indirect_descriptors_addr(nir_builder *b, apply_layout_state *state)
 }
 
 static nir_def *
-get_indirect_push_constants_addr(nir_builder *b, apply_layout_state *state)
+get_indirect_push_constants_addr(nir_builder *b, lower_descriptors_state *state)
 {
    if (mesa_shader_stage_is_rt(b->shader->info.stage))
       return nir_load_param(b, RT_ARG_PUSH_CONSTANTS);
@@ -55,7 +55,7 @@ get_indirect_push_constants_addr(nir_builder *b, apply_layout_state *state)
 }
 
 static nir_def *
-get_dynamic_descriptors_addr(nir_builder *b, apply_layout_state *state)
+get_dynamic_descriptors_addr(nir_builder *b, lower_descriptors_state *state)
 {
    if (mesa_shader_stage_is_rt(b->shader->info.stage))
       return nir_load_param(b, RT_ARG_DYNAMIC_DESCRIPTORS);
@@ -63,13 +63,13 @@ get_dynamic_descriptors_addr(nir_builder *b, apply_layout_state *state)
 }
 
 static nir_def *
-convert_pointer_to_64_bit(nir_builder *b, apply_layout_state *state, nir_def *ptr)
+convert_pointer_to_64_bit(nir_builder *b, lower_descriptors_state *state, nir_def *ptr)
 {
    return nir_pack_64_2x32_split(b, ptr, nir_imm_int(b, state->address32_hi));
 }
 
 static nir_def *
-get_dynamic_descriptors_offset(nir_builder *b, apply_layout_state *state, uint32_t desc_set, uint32_t binding)
+get_dynamic_descriptors_offset(nir_builder *b, lower_descriptors_state *state, uint32_t desc_set, uint32_t binding)
 {
    struct radv_descriptor_set_layout *layout = state->layout->set[desc_set].layout;
    nir_def *dynamic_offset_start;
@@ -88,7 +88,7 @@ get_dynamic_descriptors_offset(nir_builder *b, apply_layout_state *state, uint32
 }
 
 static nir_def *
-load_desc_ptr(nir_builder *b, apply_layout_state *state, unsigned set)
+load_desc_ptr(nir_builder *b, lower_descriptors_state *state, unsigned set)
 {
    const struct radv_userdata_locations *user_sgprs_locs = &state->info->user_sgprs_locs;
    if (user_sgprs_locs->shader_data[AC_UD_INDIRECT_DESCRIPTORS].sgpr_idx != -1 ||
@@ -103,7 +103,7 @@ load_desc_ptr(nir_builder *b, apply_layout_state *state, unsigned set)
 }
 
 static void
-visit_vulkan_resource_index(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
+visit_vulkan_resource_index(nir_builder *b, lower_descriptors_state *state, nir_intrinsic_instr *intrin)
 {
    unsigned desc_set = nir_intrinsic_desc_set(intrin);
    unsigned binding = nir_intrinsic_binding(intrin);
@@ -134,7 +134,7 @@ visit_vulkan_resource_index(nir_builder *b, apply_layout_state *state, nir_intri
 }
 
 static void
-visit_vulkan_resource_reindex(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
+visit_vulkan_resource_reindex(nir_builder *b, lower_descriptors_state *state, nir_intrinsic_instr *intrin)
 {
    nir_descriptor_type desc_type = nir_intrinsic_desc_type(intrin);
    if (desc_type == nir_descriptor_type_acceleration_structure) {
@@ -161,7 +161,7 @@ visit_vulkan_resource_reindex(nir_builder *b, apply_layout_state *state, nir_int
 }
 
 static void
-visit_load_vulkan_descriptor(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
+visit_load_vulkan_descriptor(nir_builder *b, lower_descriptors_state *state, nir_intrinsic_instr *intrin)
 {
    if (nir_intrinsic_desc_type(intrin) == nir_descriptor_type_acceleration_structure) {
       nir_def *addr = convert_pointer_to_64_bit(b, state,
@@ -177,7 +177,7 @@ visit_load_vulkan_descriptor(nir_builder *b, apply_layout_state *state, nir_intr
 }
 
 static nir_def *
-load_inline_buffer_descriptor(nir_builder *b, apply_layout_state *state, nir_def *rsrc)
+load_inline_buffer_descriptor(nir_builder *b, lower_descriptors_state *state, nir_def *rsrc)
 {
    uint32_t desc[4];
 
@@ -187,7 +187,7 @@ load_inline_buffer_descriptor(nir_builder *b, apply_layout_state *state, nir_def
 }
 
 static nir_def *
-load_buffer_descriptor(nir_builder *b, apply_layout_state *state, nir_def *rsrc, unsigned access)
+load_buffer_descriptor(nir_builder *b, lower_descriptors_state *state, nir_def *rsrc, unsigned access)
 {
    nir_binding binding = nir_chase_binding(nir_src_for_ssa(rsrc));
 
@@ -210,7 +210,7 @@ load_buffer_descriptor(nir_builder *b, apply_layout_state *state, nir_def *rsrc,
 }
 
 static void
-visit_ssbo_descriptor_amd(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
+visit_ssbo_descriptor_amd(nir_builder *b, lower_descriptors_state *state, nir_intrinsic_instr *intrin)
 {
    nir_def *rsrc = intrin->src[0].ssa;
    nir_def *desc;
@@ -229,8 +229,8 @@ visit_ssbo_descriptor_amd(nir_builder *b, apply_layout_state *state, nir_intrins
 }
 
 static nir_def *
-get_sampler_desc(nir_builder *b, apply_layout_state *state, nir_deref_instr *deref, enum ac_descriptor_type desc_type,
-                 bool non_uniform, nir_tex_instr *tex, bool write)
+get_sampler_desc(nir_builder *b, lower_descriptors_state *state, nir_deref_instr *deref,
+                 enum ac_descriptor_type desc_type, bool non_uniform, nir_tex_instr *tex, bool write)
 {
    nir_variable *var = nir_deref_instr_get_variable(deref);
    assert(var);
@@ -322,7 +322,7 @@ get_sampler_desc(nir_builder *b, apply_layout_state *state, nir_deref_instr *der
 }
 
 static void
-update_image_intrinsic(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
+update_image_intrinsic(nir_builder *b, lower_descriptors_state *state, nir_intrinsic_instr *intrin)
 {
    nir_deref_instr *deref = nir_src_as_deref(intrin->src[0]);
    const enum glsl_sampler_dim dim = glsl_get_sampler_dim(deref->type);
@@ -349,7 +349,7 @@ can_increase_load_size(nir_intrinsic_instr *intrin, unsigned offset, unsigned ol
 }
 
 static nir_def *
-load_push_constant(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
+load_push_constant(nir_builder *b, lower_descriptors_state *state, nir_intrinsic_instr *intrin)
 {
    unsigned base = nir_intrinsic_base(intrin);
    unsigned bit_size = intrin->def.bit_size;
@@ -416,7 +416,7 @@ load_push_constant(nir_builder *b, apply_layout_state *state, nir_intrinsic_inst
 }
 
 static bool
-apply_layout_to_intrin(nir_builder *b, apply_layout_state *state, nir_intrinsic_instr *intrin)
+lower_descriptors_intrin(nir_builder *b, lower_descriptors_state *state, nir_intrinsic_instr *intrin)
 {
    b->cursor = nir_before_instr(&intrin->instr);
 
@@ -467,7 +467,7 @@ apply_layout_to_intrin(nir_builder *b, apply_layout_state *state, nir_intrinsic_
 }
 
 static bool
-apply_layout_to_tex(nir_builder *b, apply_layout_state *state, nir_tex_instr *tex)
+lower_descriptors_tex(nir_builder *b, lower_descriptors_state *state, nir_tex_instr *tex)
 {
    b->cursor = nir_before_instr(&tex->instr);
 
@@ -564,12 +564,12 @@ apply_layout_to_tex(nir_builder *b, apply_layout_state *state, nir_tex_instr *te
 }
 
 bool
-radv_nir_apply_pipeline_layout(nir_shader *shader, struct radv_device *device, const struct radv_shader_stage *stage)
+radv_nir_lower_descriptors(nir_shader *shader, struct radv_device *device, const struct radv_shader_stage *stage)
 {
    bool progress = false;
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
-   apply_layout_state state = {
+   lower_descriptors_state state = {
       .gfx_level = pdev->info.gfx_level,
       .address32_hi = pdev->info.address32_hi,
       .combined_image_sampler_desc_size = radv_get_combined_image_sampler_desc_size(pdev),
@@ -594,9 +594,9 @@ radv_nir_apply_pipeline_layout(nir_shader *shader, struct radv_device *device, c
       nir_foreach_block_reverse (block, impl) {
          nir_foreach_instr_reverse_safe (instr, block) {
             if (instr->type == nir_instr_type_tex)
-               impl_progress |= apply_layout_to_tex(&b, &state, nir_instr_as_tex(instr));
+               impl_progress |= lower_descriptors_tex(&b, &state, nir_instr_as_tex(instr));
             else if (instr->type == nir_instr_type_intrinsic)
-               impl_progress |= apply_layout_to_intrin(&b, &state, nir_instr_as_intrinsic(instr));
+               impl_progress |= lower_descriptors_intrin(&b, &state, nir_instr_as_intrinsic(instr));
          }
       }
 
