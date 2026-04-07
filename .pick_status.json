@@ -2464,7 +2464,7 @@
         "description": "panfrost: don't try to emit varying shader stats on v12+",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7819b103fa70b79e4f3de5b8a2bf6705ecacca9c",
         "notes": null
