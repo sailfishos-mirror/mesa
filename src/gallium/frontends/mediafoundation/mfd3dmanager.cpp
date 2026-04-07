@@ -290,7 +290,8 @@ MFTRegisterWorkQueue( struct d3d12_context_queue_priority_manager *manager, ID3D
    mtx_lock( &mft_mgr->m_lock );
 
    ComPtr<IUnknown> queue_unknown;
-   if( FAILED( queue->QueryInterface( IID_PPV_ARGS( &queue_unknown ) ) ) )
+   if( !queue ||
+       FAILED( queue->QueryInterface( IID_PPV_ARGS( &queue_unknown ) ) ) )
    {
       mtx_unlock( &mft_mgr->m_lock );
       return -1;
@@ -318,7 +319,8 @@ MFTUnregisterWorkQueue( struct d3d12_context_queue_priority_manager *manager, ID
    mtx_lock( &mft_mgr->m_lock );
 
    ComPtr<IUnknown> queue_unknown;
-   if( FAILED( queue->QueryInterface( IID_PPV_ARGS( &queue_unknown ) ) ) )
+   if( !queue ||
+       FAILED( queue->QueryInterface( IID_PPV_ARGS( &queue_unknown ) ) ) )
    {
       mtx_unlock( &mft_mgr->m_lock );
       return -1;
