@@ -3038,6 +3038,22 @@ brw_nir_apply_key(brw_pass_tracker *pt,
 
    pt->progress = false;
 
+   unsigned subgroup_size = get_subgroup_size(&nir->info, max_subgroup_size);
+
+   /* VS/TCS/TES/GS always run at a fixed SIMD width, which is what our
+    * max_subgroup_size parameter represents.  Compute/Mesh can run at
+    * different sizes, but we clone the NIR for each SIMD width, and pass
+    * our chosen width here as max_subgroup_size.
+    *
+    * For fragment shaders, we may dispatch at multiple SIMD widths,
+    * and use a single copy of the NIR for all sizes, so we can't lower
+    * the actual width at this point.
+    */
+   if (nir->info.stage != MESA_SHADER_FRAGMENT) {
+      nir->info.min_subgroup_size = max_subgroup_size;
+      nir->info.max_subgroup_size = max_subgroup_size;
+   }
+
    const nir_lower_subgroups_options subgroups_options = {
       .subgroup_size = get_subgroup_size(&nir->info, max_subgroup_size),
       .ballot_bit_size = 32,
