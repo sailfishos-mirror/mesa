@@ -1019,6 +1019,73 @@ brw_nir_opt_vectorize_urb(brw_pass_tracker *pt)
    BRW_NIR_PASS(nir_opt_load_store_vectorize, &options);
 }
 
+static bool
+lower_16bit_io_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
+{
+   const nir_variable_mode *mode = data;
+
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_load_input:
+   case nir_intrinsic_load_interpolated_input:
+   case nir_intrinsic_load_per_primitive_input:
+   case nir_intrinsic_load_per_primitive_output:
+   case nir_intrinsic_load_per_vertex_input:
+   case nir_intrinsic_load_per_vertex_output: {
+      if ((*mode & nir_var_shader_in) == 0)
+         return false;
+
+      nir_alu_type type = nir_intrinsic_dest_type(intrin);
+      unsigned bit_size = intrin->def.bit_size;
+      if (bit_size != 16)
+         return false;
+
+      b->cursor = nir_after_instr(&intrin->instr);
+      intrin->def.bit_size = 32;
+      nir_intrinsic_set_dest_type(intrin,
+                                  nir_alu_type_get_base_type(type) | 32);
+
+      nir_def *new_val =
+         (type & nir_type_float) ? nir_f2fN(b, &intrin->def, bit_size) :
+         (type & nir_type_int)   ? nir_i2iN(b, &intrin->def, bit_size) :
+         nir_u2uN(b, &intrin->def, bit_size);
+      nir_def_rewrite_uses_after(&intrin->def, new_val);
+      return true;
+   }
+   case nir_intrinsic_store_output:
+   case nir_intrinsic_store_per_primitive_output:
+   case nir_intrinsic_store_per_vertex_output: {
+      if ((*mode & nir_var_shader_out) == 0)
+         return false;
+
+      nir_src *src = nir_get_io_data_src(intrin);
+      if (src->ssa->bit_size != 16)
+         return false;
+
+      b->cursor = nir_before_instr(&intrin->instr);
+      nir_alu_type type = nir_intrinsic_src_type(intrin);
+      nir_intrinsic_set_src_type(
+         intrin,
+         nir_alu_type_get_base_type(type) | 32);
+      nir_def *new_val =
+         (type & nir_type_float) ? nir_f2f32(b, src->ssa) :
+         (type & nir_type_int)   ? nir_i2i32(b, src->ssa) :
+         nir_u2u32(b, src->ssa);
+      nir_src_rewrite(src, new_val);
+      return true;
+   }
+   default:
+      return false;
+   }
+}
+
+static bool
+brw_nir_lower_16bit_io(nir_shader *nir, nir_variable_mode mode)
+{
+   return nir_shader_intrinsics_pass(nir, lower_16bit_io_instr,
+                                     nir_metadata_control_flow,
+                                     &mode);
+}
+
 void
 brw_nir_lower_vs_inputs(nir_shader *nir)
 {
@@ -1032,6 +1099,8 @@ brw_nir_lower_vs_inputs(nir_shader *nir)
     */
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in, type_size_vec4,
             nir_lower_io_lower_64bit_to_32_new);
+
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_in);
 
    /* Fold constant offset srcs for IO. */
    NIR_PASS(_, nir, nir_opt_constant_folding);
@@ -1171,6 +1240,8 @@ brw_nir_lower_gs_inputs(nir_shader *nir,
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in, type_size_vec4,
             nir_lower_io_lower_64bit_to_32);
 
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_in);
+
    /* Fold constant offset srcs for IO. */
    NIR_PASS(_, nir, nir_opt_constant_folding);
 
@@ -1215,6 +1286,8 @@ brw_nir_lower_tes_inputs(nir_shader *nir,
 
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in, type_size_vec4,
             nir_lower_io_lower_64bit_to_32);
+
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_in);
 
    /* Run nir_opt_constant_folding to allow update base/io_semantic::location
     * for the remapping pass to look into the VUE mapping.
@@ -1443,6 +1516,9 @@ brw_nir_lower_fs_inputs(nir_shader *nir,
             nir_var_shader_in, type_size_vec4,
             nir_lower_io_lower_64bit_to_32 |
             nir_lower_io_use_interpolated_input_intrinsics);
+
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_in);
+
    if (devinfo->ver >= 11)
       NIR_PASS(_, nir, nir_lower_interpolation, ~0);
 
@@ -1484,6 +1560,8 @@ brw_nir_lower_vue_outputs(nir_shader *nir)
 {
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_out, type_size_vec4,
             nir_lower_io_lower_64bit_to_32);
+
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_out);
 }
 
 void
@@ -1494,6 +1572,8 @@ brw_nir_lower_tcs_inputs(nir_shader *nir,
    /* Inputs are stored in vec4 slots, so use type_size_vec4(). */
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in, type_size_vec4,
             nir_lower_io_lower_64bit_to_32);
+
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_in);
 
    /* Fold constant offset srcs for IO. */
    NIR_PASS(_, nir, nir_opt_constant_folding);
@@ -1518,6 +1598,8 @@ brw_nir_lower_tcs_outputs(nir_shader *nir,
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_out, type_size_vec4,
             nir_lower_io_lower_64bit_to_32);
 
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_out);
+
    /* Run nir_opt_constant_folding to allow update base/io_semantic::location
     * for the remapping pass to look into the VUE mapping.
     */
@@ -1535,6 +1617,16 @@ brw_nir_lower_tcs_outputs(nir_shader *nir,
 }
 
 void
+brw_nir_lower_mesh_outputs(nir_shader *nir,
+                           const struct brw_mue_map *map)
+{
+   NIR_PASS(_, nir, nir_lower_io, nir_var_shader_out,
+            type_size_vec4, nir_lower_io_lower_64bit_to_32);
+
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_out);
+}
+
+void
 brw_nir_lower_fs_outputs(nir_shader *nir)
 {
    nir_foreach_shader_out_variable(var, nir) {
@@ -1544,6 +1636,7 @@ brw_nir_lower_fs_outputs(nir_shader *nir)
    }
 
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_out, type_size_vec4, 0);
+   NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_out);
    nir->info.disable_output_offset_src_constant_folding = true;
 }
 

@@ -624,14 +624,6 @@ brw_print_mue_map(FILE *fp, const struct brw_mue_map *map, struct nir_shader *ni
    brw_print_vue_map(fp, &map->vue_map, MESA_SHADER_MESH);
 }
 
-static void
-brw_nir_lower_mue_outputs(brw_pass_tracker *pt, const struct brw_mue_map *map)
-{
-   BRW_NIR_PASS(nir_lower_io, nir_var_shader_out,
-                type_size_vec4,
-                nir_lower_io_lower_64bit_to_32);
-}
-
 static bool
 brw_nir_initialize_mue(nir_shader *nir, const struct brw_mue_map *map)
 {
@@ -1031,7 +1023,7 @@ brw_compile_mesh(const struct brw_compiler *compiler,
                        prog_data->index_format,
                        key->base.vue_layout,
                        apply_wa_18019110168 ? wa_18019110168_mapping : NULL);
-   brw_nir_lower_mue_outputs(pt, &prog_data->map);
+   brw_nir_lower_mesh_outputs(nir, &prog_data->map);
 
    /* When Primitive Header is enabled, we may not generates writes to all
     * fields, so let's initialize everything.
