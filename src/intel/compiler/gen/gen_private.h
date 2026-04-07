@@ -412,6 +412,10 @@ gen_raw_get_opcode(const void *raw_bytes)
 bool gen_compact(gen_encode_params *params);
 bool gen_decode_compact(gen_raw_compact_inst inst,
                         gen_inst *decoded);
+void gen_uncompact(gen_decode_params *params, void *&uncompacted);
+bool gen_uncompact_inst(const struct intel_device_info *devinfo,
+                        const gen_raw_compact_inst &src,
+                        gen_raw_inst &dst);
 
 bool gen_encode_pre_xe(gen_encode_params *params);
 bool gen_decode_pre_xe(gen_decode_params *params);

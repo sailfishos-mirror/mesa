@@ -1142,9 +1142,14 @@ struct gen_decoder {
    {
       int decoded = 0;
 
-      uint64_t *raw = (uint64_t *)params->raw_bytes;
-      const uint64_t *raw_end = raw + (params->raw_bytes_size / 8);
+      void *uncompacted;
+      gen_uncompact(params, uncompacted);
+      const size_t uncompact_size = sizeof(gen_raw_inst) * params->num_insts;
 
+      const uint64_t *raw = (uint64_t *)uncompacted;
+      const uint64_t *raw_end = raw + (uncompact_size / 8);
+
+      decoded = 0;
       while (raw < raw_end) {
          if (gen_raw_is_compact((void *)raw)) {
             UNREACHABLE("Compact instructions can't be decoded!");
