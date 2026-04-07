@@ -3154,7 +3154,7 @@
         "description": "pvr: fix pvr_clear_vdm_state_get_size_in_dw() inverted feature condition",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b59eb30e8860a8bd40ba8747194ff91e27d1812c",
         "notes": null
