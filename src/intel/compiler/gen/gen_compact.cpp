@@ -11,6 +11,9 @@
 
 #include "gen_private.h"
 
+/* Generated instruction information */
+#include "gen_info_util.h"
+
 static const uint32_t gfx8_control_index_table[32] = {
    0b0000000000000000010,
    0b0000100000000000000,
@@ -935,3 +938,123 @@ get_compact_tables(const struct intel_device_info *devinfo)
       return empty_tables;
    }
 }
+
+template <typename E>
+struct gen_compact_accessor {
+
+   gen_raw_inst uc_raw;
+   gen_raw_compact_inst c_raw;
+
+   inline uint64_t
+   c_get(const gen_range &bits)
+   {
+      unsigned high = bits.hi;
+      unsigned low = bits.lo;
+
+      assume(high < 64);
+      assume(high >= low);
+
+      const uint64_t mask = (~0ull >> (64 - (high - low + 1)));
+
+      return (c_raw.data >> low) & mask;
+   }
+
+   inline void
+   c_set(const gen_range &bits, uint64_t value)
+   {
+      unsigned high = bits.hi;
+      unsigned low = bits.lo;
+
+      assume(high < 64);
+      assume(high >= low);
+
+      const uint64_t mask = (~0ull >> (64 - (high - low + 1))) << low;
+
+      /* Make sure the supplied value actually fits in the given bitfield. */
+      assert((value & (mask >> low)) == value);
+
+      c_raw.data = (c_raw.data & ~mask) | (value << low);
+   }
+
+   inline void
+   uc_set(const gen_range &bits, uint64_t value)
+   {
+      unsigned high = bits.hi;
+      unsigned low = bits.lo;
+
+      assume(high < 128);
+      assume(high >= low);
+      const unsigned word = high / 64;
+      assert(word == low / 64);
+
+      high %= 64;
+      low %= 64;
+
+      const uint64_t mask = (~0ull >> (64 - (high - low + 1))) << low;
+
+      /* Make sure the supplied value actually fits in the given bitfield. */
+      assert((value & (mask >> low)) == value);
+
+      uc_raw.data[word] = (uc_raw.data[word] & ~mask) | (value << low);
+   }
+
+   inline uint64_t
+   uc_get(const gen_range &bits) const
+   {
+      unsigned high = bits.hi;
+      unsigned low = bits.lo;
+
+      assume(high < 128);
+      assume(high >= low);
+      /* We assume the field doesn't cross 64-bit boundaries. */
+      const unsigned word = high / 64;
+      assert(word == low / 64);
+
+      high %= 64;
+      low %= 64;
+
+      const uint64_t mask = (~0ull >> (64 - (high - low + 1)));
+
+      return (uc_raw.data[word] >> low) & mask;
+   }
+
+   int32_t
+   uc_get_jip()
+   {
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         return uc_get(E::IMM_LO_32);
+      } else {
+         return uc_get(E::BRANCH_JIP);
+      }
+   }
+
+   void
+   uc_set_jip(int32_t ip_delta)
+   {
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         uc_set(E::IMM_LO_32, (uint32_t)ip_delta);
+      } else {
+         uc_set(E::BRANCH_JIP, (uint32_t)ip_delta);
+      }
+   }
+
+   int32_t
+   uc_get_uip()
+   {
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         return uc_get(E::IMM_HI_32);
+      } else {
+         return uc_get(E::BRANCH_UIP);
+      }
+   }
+
+   void
+   uc_set_uip(int32_t ip_delta)
+   {
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         uc_set(E::IMM_HI_32, (uint32_t)ip_delta);
+      } else {
+         uc_set(E::BRANCH_UIP, (uint32_t)ip_delta);
+      }
+   }
+};
