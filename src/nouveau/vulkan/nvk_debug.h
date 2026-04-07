@@ -44,4 +44,9 @@ enum nvk_debug {
    NVK_DEBUG_FORCE_COHERENT = 1ull << 8,
 };
 
+enum nvk_experimental {
+   /* Enable dlss support */
+   NVK_EXPERIMENTAL_DLSS = 1ull << 0,
+};
+
 #endif /* NVK_DEBUG_H */
