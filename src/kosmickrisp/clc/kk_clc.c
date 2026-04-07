@@ -32,7 +32,7 @@ static const struct spirv_to_nir_options spirv_options = {
    .temp_addr_format = nir_address_format_62bit_generic,
    .constant_addr_format = nir_address_format_64bit_global,
    .create_library = true,
-   .printf = true,
+   .printf = false, /* TODO_KOSMICKRISP Enable */
 };
 
 /* Standard optimization loop */
