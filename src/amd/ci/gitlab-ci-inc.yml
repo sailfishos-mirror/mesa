@@ -361,6 +361,7 @@
     radv_cooperative_matrix2_nv: 'true'
     # Enable ETC2 emulation on non-native platforms (RENOIR,RDNA+, GFX6-8 dGPUs)
     vk_require_etc2: 'true'
+    RADV_EXPERIMENTAL: 'heap'
     CI_TRON__B2C_SWAP_SIZE: '16g'
 
 .ci-tron-test-radv-vk:
