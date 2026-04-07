@@ -2803,7 +2803,6 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
    if (OPT(intel_nir_opt_peephole_ffma))
       OPT(nir_opt_shrink_vectors, false);
 
-   OPT(intel_nir_opt_peephole_imul32x16);
    OPT(nir_opt_generate_bfi);
    OPT(nir_opt_reassociate_bfi);
 
@@ -2922,6 +2921,11 @@ brw_postprocess_nir_out_of_ssa(brw_pass_tracker *pt,
                                bool debug_enabled)
 {
    nir_shader *nir = pt->nir;
+
+   /* Run this late - it interferes with algebraic opts after applying the SIMD
+    * width key if we have expressions like `(x * simd width) * 4.
+    */
+   OPT(intel_nir_opt_peephole_imul32x16);
 
    /* Run fsign lowering again after the last time brw_nir_optimize is called.
     * As is the case with conversion lowering (below), brw_nir_optimize can
