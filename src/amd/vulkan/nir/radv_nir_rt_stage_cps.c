@@ -519,21 +519,16 @@ radv_nir_lower_rt_io_cps(nir_shader *nir)
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_function_temp, nir_address_format_32bit_offset);
 }
 
-static void
-init_cps_function(nir_function *function, bool uses_descriptor_heap)
+void
+radv_nir_init_cps_function(nir_function *function, bool uses_descriptor_heap)
 {
    function->num_params = CPS_ARG_COUNT;
    function->params = rzalloc_array_size(function->shader, sizeof(nir_parameter), function->num_params);
 
    radv_nir_param_from_type(function->params + RT_ARG_LAUNCH_ID, glsl_vector_type(GLSL_TYPE_UINT, 3), false, 0);
    radv_nir_param_from_type(function->params + RT_ARG_LAUNCH_SIZE, glsl_vector_type(GLSL_TYPE_UINT, 3), true, 0);
-   if (uses_descriptor_heap) {
-      radv_nir_param_from_type(function->params + RT_ARG_HEAP_RESOURCE, glsl_uint_type(), true, 0);
-      radv_nir_param_from_type(function->params + RT_ARG_HEAP_SAMPLER, glsl_uint_type(), true, 0);
-   } else {
-      radv_nir_param_from_type(function->params + RT_ARG_DESCRIPTORS, glsl_uint_type(), true, 0);
-      radv_nir_param_from_type(function->params + RT_ARG_DYNAMIC_DESCRIPTORS, glsl_uint_type(), true, 0);
-   }
+   radv_nir_param_from_type(function->params + RT_ARG_DESCRIPTORS, glsl_uint_type(), true, 0);
+   radv_nir_param_from_type(function->params + RT_ARG_DYNAMIC_DESCRIPTORS, glsl_uint_type(), true, 0);
    radv_nir_param_from_type(function->params + RT_ARG_PUSH_CONSTANTS, glsl_uint_type(), true, 0);
    radv_nir_param_from_type(function->params + RT_ARG_SBT_DESCRIPTORS, glsl_uint64_t_type(), true, 0);
    radv_nir_param_from_type(function->params + RAYGEN_ARG_TRAVERSAL_ADDR, glsl_uint64_t_type(), true, 0);
@@ -576,7 +571,7 @@ radv_nir_lower_rt_abi_cps(nir_shader *shader, const struct radv_shader_info *inf
     * first shader can use the CPS function signature.
     */
    if (shader->info.stage != MESA_SHADER_RAYGEN || resume_shader)
-      init_cps_function(impl->function, uses_descriptor_heap);
+      radv_nir_init_cps_function(impl->function, uses_descriptor_heap);
    else
       radv_nir_init_rt_function_params(impl->function, MESA_SHADER_RAYGEN, 0, 0, uses_descriptor_heap);
 
@@ -642,7 +637,7 @@ radv_nir_lower_rt_abi_cps(nir_shader *shader, const struct radv_shader_info *inf
    /* tail-call next shader */
    nir_def *shader_addr = nir_load_var(&b, vars.shader_addr);
    nir_function *continuation_func = nir_function_create(shader, "continuation_func");
-   init_cps_function(continuation_func, uses_descriptor_heap);
+   radv_nir_init_cps_function(continuation_func, uses_descriptor_heap);
 
    unsigned param_count = continuation_func->num_params;
    nir_def **next_args = rzalloc_array_size(b.shader, sizeof(nir_def *), param_count);
