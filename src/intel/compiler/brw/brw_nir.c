@@ -3038,8 +3038,6 @@ brw_nir_apply_key(brw_pass_tracker *pt,
 
    pt->progress = false;
 
-   unsigned subgroup_size = get_subgroup_size(&nir->info, max_subgroup_size);
-
    /* VS/TCS/TES/GS always run at a fixed SIMD width, which is what our
     * max_subgroup_size parameter represents.  Compute/Mesh can run at
     * different sizes, but we clone the NIR for each SIMD width, and pass
@@ -3052,6 +3050,8 @@ brw_nir_apply_key(brw_pass_tracker *pt,
    if (nir->info.stage != MESA_SHADER_FRAGMENT) {
       nir->info.min_subgroup_size = max_subgroup_size;
       nir->info.max_subgroup_size = max_subgroup_size;
+
+      OPT(brw_nir_lower_simd);
    }
 
    const nir_lower_subgroups_options subgroups_options = {
@@ -3442,13 +3442,16 @@ filter_simd(const nir_instr *instr, UNUSED const void *options)
 static nir_def *
 lower_simd(nir_builder *b, nir_instr *instr, void *options)
 {
-   uintptr_t simd_width = (uintptr_t)options;
+   unsigned simd_width = b->shader->info.max_subgroup_size;
+   assert(b->shader->info.min_subgroup_size == simd_width);
 
    switch (nir_instr_as_intrinsic(instr)->intrinsic) {
    case nir_intrinsic_load_simd_width_intel:
       return nir_imm_int(b, simd_width);
 
    case nir_intrinsic_load_subgroup_id:
+      assert(mesa_shader_stage_uses_workgroup(b->shader->info.stage));
+
       /* If the whole workgroup fits in one thread, we can lower subgroup_id
        * to a constant zero.
        */
@@ -3464,10 +3467,10 @@ lower_simd(nir_builder *b, nir_instr *instr, void *options)
 }
 
 bool
-brw_nir_lower_simd(nir_shader *nir, unsigned dispatch_width)
+brw_nir_lower_simd(nir_shader *nir)
 {
-   return nir_shader_lower_instructions(nir, filter_simd, lower_simd,
-                                 (void *)(uintptr_t)dispatch_width);
+   return nir->info.min_subgroup_size == nir->info.max_subgroup_size &&
+          nir_shader_lower_instructions(nir, filter_simd, lower_simd, NULL);
 }
 
 nir_variable *

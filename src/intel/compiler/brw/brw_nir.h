@@ -275,7 +275,7 @@ bool brw_nir_lower_mem_access_bit_sizes(nir_shader *shader,
                                         const struct
                                         intel_device_info *devinfo);
 
-bool brw_nir_lower_simd(nir_shader *nir, unsigned dispatch_width);
+bool brw_nir_lower_simd(nir_shader *nir);
 
 void brw_postprocess_nir_opts(struct brw_pass_tracker *pt);
 
