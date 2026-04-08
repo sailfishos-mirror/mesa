@@ -1526,7 +1526,7 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .shaderMixedFloatDotProductFloat16AccFloat32 = true,
       .shaderMixedFloatDotProductFloat16AccFloat16 = pdev->info.gfx_level >= GFX11,
       .shaderMixedFloatDotProductBFloat16Acc = radv_bfloat16_enabled(pdev),
-      .shaderMixedFloatDotProductFloat8AccFloat32 = pdev->info.gfx_level >= GFX12,
+      .shaderMixedFloatDotProductFloat8AccFloat32 = pdev->info.gfx_level >= GFX11_7,
 
       /* VK_KHR_copy_memory_indirect */
       .indirectMemoryCopy = pdev->info.gfx_level >= GFX8,
