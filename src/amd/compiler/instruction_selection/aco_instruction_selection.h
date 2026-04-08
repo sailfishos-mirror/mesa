@@ -144,7 +144,6 @@ struct isel_context {
 
    cf_context cf_info;
    bool skipping_empty_exec = false;
-   if_context empty_exec_skip;
 
    std::vector<if_context> if_stack;
    std::vector<loop_context> loop_stack;
@@ -250,14 +249,14 @@ void emit_loop_break(isel_context* ctx);
 void emit_loop_continue(isel_context* ctx);
 void begin_loop(isel_context* ctx);
 void end_loop(isel_context* ctx);
-void begin_uniform_if_then(isel_context* ctx, if_context* ic, Temp cond);
-void begin_uniform_if_else(isel_context* ctx, if_context* ic, bool logical_else = true);
-void end_uniform_if(isel_context* ctx, if_context* ic, bool logical_else = true);
-void begin_divergent_if_then(isel_context* ctx, if_context* ic, Temp cond,
+void begin_uniform_if_then(isel_context* ctx, Temp cond);
+void begin_uniform_if_else(isel_context* ctx, bool logical_else = true);
+void end_uniform_if(isel_context* ctx, bool logical_else = true);
+void begin_divergent_if_then(isel_context* ctx, Temp cond,
                              nir_selection_control sel_ctrl = nir_selection_control_none);
-void begin_divergent_if_else(isel_context* ctx, if_context* ic,
+void begin_divergent_if_else(isel_context* ctx,
                              nir_selection_control sel_ctrl = nir_selection_control_none);
-void end_divergent_if(isel_context* ctx, if_context* ic);
+void end_divergent_if(isel_context* ctx);
 void begin_empty_exec_skip(isel_context* ctx, nir_instr* after_instr, nir_block* block);
 void end_empty_exec_skip(isel_context* ctx);
 

@@ -958,7 +958,6 @@ visit_if(isel_context* ctx, nir_if* if_stmt)
    Temp cond = get_ssa_temp(ctx, if_stmt->condition.ssa);
    Builder bld(ctx->program, ctx->block);
    aco_ptr<Instruction> branch;
-   ctx->if_stack.push_back(if_context());
 
    if (!nir_src_is_divergent(&if_stmt->condition)) { /* uniform condition */
       /**
@@ -980,13 +979,13 @@ visit_if(isel_context* ctx, nir_if* if_stmt)
       assert(cond.regClass() == ctx->program->lane_mask);
       cond = bool_to_scalar_condition(ctx, cond);
 
-      begin_uniform_if_then(ctx, &ctx->if_stack.back(), cond);
+      begin_uniform_if_then(ctx, cond);
       visit_cf_list(ctx, &if_stmt->then_list);
 
-      begin_uniform_if_else(ctx, &ctx->if_stack.back());
+      begin_uniform_if_else(ctx);
       visit_cf_list(ctx, &if_stmt->else_list);
 
-      end_uniform_if(ctx, &ctx->if_stack.back());
+      end_uniform_if(ctx);
    } else { /* non-uniform condition */
       /**
        * To maintain a logical and linear CFG without critical edges,
@@ -1023,16 +1022,14 @@ visit_if(isel_context* ctx, nir_if* if_stmt)
        *                        BB_ENDIF
        **/
 
-      begin_divergent_if_then(ctx, &ctx->if_stack.back(), cond, if_stmt->control);
+      begin_divergent_if_then(ctx, cond, if_stmt->control);
       visit_cf_list(ctx, &if_stmt->then_list);
 
-      begin_divergent_if_else(ctx, &ctx->if_stack.back(), if_stmt->control);
+      begin_divergent_if_else(ctx, if_stmt->control);
       visit_cf_list(ctx, &if_stmt->else_list);
 
-      end_divergent_if(ctx, &ctx->if_stack.back());
+      end_divergent_if(ctx);
    }
-
-   ctx->if_stack.pop_back();
 }
 
 void
@@ -1042,7 +1039,6 @@ visit_cf_list(isel_context* ctx, struct exec_list* list)
       return;
 
    bool skipping_empty_exec_old = ctx->skipping_empty_exec;
-   if_context empty_exec_skip_old = std::move(ctx->empty_exec_skip);
    ctx->skipping_empty_exec = false;
 
    foreach_list_typed (nir_cf_node, node, node, list) {
@@ -1056,7 +1052,6 @@ visit_cf_list(isel_context* ctx, struct exec_list* list)
 
    end_empty_exec_skip(ctx);
    ctx->skipping_empty_exec = skipping_empty_exec_old;
-   ctx->empty_exec_skip = std::move(empty_exec_skip_old);
 }
 
 void
@@ -1434,8 +1429,8 @@ create_end_for_merged_shader(isel_context* ctx)
 
 void
 select_shader(isel_context& ctx, nir_shader* nir, const bool need_startpgm, const bool need_endpgm,
-              const bool need_barrier, if_context* ic_merged_wave_info,
-              const bool check_merged_wave_info, const bool endif_merged_wave_info)
+              const bool need_barrier, const bool check_merged_wave_info,
+              const bool endif_merged_wave_info)
 {
    init_context(&ctx, nir);
    setup_fp_mode(&ctx, nir);
@@ -1467,7 +1462,7 @@ select_shader(isel_context& ctx, nir_shader* nir, const bool need_startpgm, cons
       const unsigned i =
          nir->info.stage == MESA_SHADER_VERTEX || nir->info.stage == MESA_SHADER_TESS_EVAL ? 0 : 1;
       const Temp cond = merged_wave_info_to_mask(&ctx, i);
-      begin_divergent_if_then(&ctx, ic_merged_wave_info, cond);
+      begin_divergent_if_then(&ctx, cond);
    }
 
    if (need_barrier) {
@@ -1497,8 +1492,8 @@ select_shader(isel_context& ctx, nir_shader* nir, const bool need_startpgm, cons
    }
 
    if (endif_merged_wave_info) {
-      begin_divergent_if_else(&ctx, ic_merged_wave_info);
-      end_divergent_if(&ctx, ic_merged_wave_info);
+      begin_divergent_if_else(&ctx);
+      end_divergent_if(&ctx);
    }
 
    bool is_first_stage_of_merged_shader = false;
@@ -1534,7 +1529,6 @@ select_shader(isel_context& ctx, nir_shader* nir, const bool need_startpgm, cons
 void
 select_program_merged(isel_context& ctx, const unsigned shader_count, nir_shader* const* shaders)
 {
-   if_context ic_merged_wave_info;
    const bool ngg_gs = ctx.stage.hw == AC_HW_NEXT_GEN_GEOMETRY_SHADER && ctx.stage.has(SWStage::GS);
    const bool hs = ctx.stage.hw == AC_HW_HULL_SHADER;
 
@@ -1568,8 +1562,8 @@ select_program_merged(isel_context& ctx, const unsigned shader_count, nir_shader
       /* A barrier is usually needed at the beginning of the second shader, with exceptions. */
       const bool need_barrier = i != 0 && !ngg_gs && !tcs_skip_barrier;
 
-      select_shader(ctx, nir, need_startpgm, need_endpgm, need_barrier, &ic_merged_wave_info,
-                    check_merged_wave_info, endif_merged_wave_info);
+      select_shader(ctx, nir, need_startpgm, need_endpgm, need_barrier, check_merged_wave_info,
+                    endif_merged_wave_info);
 
       if (i == 0 && ctx.stage == vertex_tess_control_hs && ctx.tcs_in_out_eq) {
          /* Special handling when TCS input and output patch size is the same.
@@ -1599,7 +1593,6 @@ select_program(Program* program, unsigned shader_count, struct nir_shader* const
       select_program_merged(ctx, shader_count, shaders);
    } else {
       bool need_barrier = false, check_merged_wave_info = false, endif_merged_wave_info = false;
-      if_context ic_merged_wave_info;
 
       /* Handle separate compilation of VS+TCS and {VS,TES}+GS on GFX9+. */
       if (ctx.program->info.merged_shader_compiled_separately) {
@@ -1616,8 +1609,8 @@ select_program(Program* program, unsigned shader_count, struct nir_shader* const
          }
       }
 
-      select_shader(ctx, shaders[0], true, true, need_barrier, &ic_merged_wave_info,
-                    check_merged_wave_info, endif_merged_wave_info);
+      select_shader(ctx, shaders[0], true, true, need_barrier, check_merged_wave_info,
+                    endif_merged_wave_info);
    }
 }
 
