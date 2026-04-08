@@ -2472,3 +2472,16 @@ anv_device_get_pat_entry(struct anv_device *device,
    else
       return &device->info->pat.writecombining;
 }
+
+struct intel_pagefault_buffer *
+anv_device_alloc_get_vm_faults(struct anv_device *device)
+{
+   if (!device->physical->can_get_vm_faults)
+      return NULL;
+   switch (device->info->kmd_type) {
+   case INTEL_KMD_TYPE_XE:
+      return anv_xe_device_alloc_get_vm_faults(device);
+   default:
+      return NULL;
+   }
+}

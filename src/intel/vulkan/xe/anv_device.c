@@ -28,6 +28,7 @@
 #include "drm-uapi/xe_drm.h"
 
 #include "common/xe/intel_device_query.h"
+#include "common/xe/intel_gem.h"
 
 bool anv_xe_device_destroy_vm(struct anv_device *device)
 {
@@ -226,4 +227,10 @@ anv_xe_device_check_status(struct vk_device *vk_device)
    }
 
    return result;
+}
+
+struct intel_pagefault_buffer *
+anv_xe_device_alloc_get_vm_faults(struct anv_device *device)
+{
+   return xe_gem_alloc_get_vm_faults(device->fd, device->vm_id);
 }

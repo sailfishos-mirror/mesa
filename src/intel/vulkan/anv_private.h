@@ -47,6 +47,7 @@
 #include "common/intel_l3_config.h"
 #include "common/intel_measure.h"
 #include "common/intel_sample_positions.h"
+#include "common/intel_pagefault.h"
 #include "decoder/intel_decoder.h"
 #include "dev/intel_device_info.h"
 #include "blorp/blorp.h"
@@ -1552,6 +1553,8 @@ struct anv_physical_device {
     bool                                        rt_change_needs_flush;
 
     bool                                        has_scratch_page;
+
+    bool                                        can_get_vm_faults;
 
     /** Whether the device can support compression control */
     bool                                        has_compression_control;
@@ -7150,6 +7153,8 @@ anv_device_utrace_emit_gfx_copy_buffer(struct u_trace_context *utctx,
                                        void *ts_from, uint64_t from_offset_B,
                                        void *ts_to, uint64_t to_offset_B,
                                        uint64_t size_B);
+struct intel_pagefault_buffer *
+anv_device_alloc_get_vm_faults(struct anv_device *device);
 
 void
 anv_device_update_fault_state(struct anv_device *device,

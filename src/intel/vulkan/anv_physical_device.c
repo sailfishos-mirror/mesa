@@ -12,6 +12,7 @@
 
 #include "common/intel_common.h"
 #include "common/intel_uuid.h"
+#include "common/xe/intel_gem.h"
 #include "common/xe/intel_queue.h"
 
 #include "perf/intel_perf.h"
@@ -2976,6 +2977,9 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    device->has_scratch_page =
       device->info.ver < 20 || device->info.kmd_type == INTEL_KMD_TYPE_I915 ||
       instance->drirc.features.scratch_page;
+
+   device->can_get_vm_faults =
+      !device->has_scratch_page && xe_gem_supports_get_vm_faults(device->local_fd);
 
    device->compiler = brw_compiler_create(NULL, &device->info);
    if (device->compiler == NULL) {
