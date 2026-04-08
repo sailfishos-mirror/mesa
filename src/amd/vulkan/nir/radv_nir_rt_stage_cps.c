@@ -520,9 +520,9 @@ radv_nir_lower_rt_io_cps(nir_shader *nir)
 }
 
 static void
-init_cps_function(nir_function *function, bool has_position_fetch, bool uses_descriptor_heap)
+init_cps_function(nir_function *function, bool uses_descriptor_heap)
 {
-   function->num_params = has_position_fetch ? CPS_ARG_COUNT : CPS_ARG_COUNT - 1;
+   function->num_params = CPS_ARG_COUNT;
    function->params = rzalloc_array_size(function->shader, sizeof(nir_parameter), function->num_params);
 
    radv_nir_param_from_type(function->params + RT_ARG_LAUNCH_ID, glsl_vector_type(GLSL_TYPE_UINT, 3), false, 0);
@@ -554,8 +554,7 @@ init_cps_function(nir_function *function, bool has_position_fetch, bool uses_des
    radv_nir_param_from_type(function->params + CPS_ARG_GEOMETRY_ID_AND_FLAGS, glsl_uint_type(), false, 0);
    radv_nir_param_from_type(function->params + CPS_ARG_HIT_KIND, glsl_uint_type(), false, 0);
 
-   if (has_position_fetch)
-      radv_nir_param_from_type(function->params + CPS_ARG_PRIMITIVE_ADDR, glsl_uint64_t_type(), false, 0);
+   radv_nir_param_from_type(function->params + CPS_ARG_PRIMITIVE_ADDR, glsl_uint64_t_type(), false, 0);
 
    function->driver_attributes =
       (uint32_t)ACO_NIR_CALL_ABI_RT_RECURSIVE | ACO_NIR_FUNCTION_ATTRIB_DIVERGENT_CALL | ACO_NIR_FUNCTION_ATTRIB_NORETURN;
@@ -577,7 +576,7 @@ radv_nir_lower_rt_abi_cps(nir_shader *shader, const struct radv_shader_info *inf
     * first shader can use the CPS function signature.
     */
    if (shader->info.stage != MESA_SHADER_RAYGEN || resume_shader)
-      init_cps_function(impl->function, has_position_fetch, uses_descriptor_heap);
+      init_cps_function(impl->function, uses_descriptor_heap);
    else
       radv_nir_init_rt_function_params(impl->function, MESA_SHADER_RAYGEN, 0, 0, uses_descriptor_heap);
 
@@ -643,7 +642,7 @@ radv_nir_lower_rt_abi_cps(nir_shader *shader, const struct radv_shader_info *inf
    /* tail-call next shader */
    nir_def *shader_addr = nir_load_var(&b, vars.shader_addr);
    nir_function *continuation_func = nir_function_create(shader, "continuation_func");
-   init_cps_function(continuation_func, has_position_fetch, uses_descriptor_heap);
+   init_cps_function(continuation_func, uses_descriptor_heap);
 
    unsigned param_count = continuation_func->num_params;
    nir_def **next_args = rzalloc_array_size(b.shader, sizeof(nir_def *), param_count);
