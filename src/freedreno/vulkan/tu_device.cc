@@ -12,9 +12,6 @@
 #include "drm-uapi/drm_fourcc.h"
 #include "git_sha1.h"
 
-#include <fcntl.h>
-#include <poll.h>
-
 #include "common/freedreno_stompable_regs.h"
 /* for fd_get_driver/device_uuid() */
 #include "util/cache_ops.h"
@@ -26,7 +23,6 @@
 #include "util/u_process.h"
 #include "vk_android.h"
 #include "vk_debug_utils.h"
-#include "vk_sampler.h"
 #include "vk_shader_module.h"
 #include "vk_util.h"
 

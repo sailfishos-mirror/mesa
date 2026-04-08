@@ -16,6 +16,7 @@
 #include "vk_android.h"
 #include "vk_debug_utils.h"
 #include "vk_util.h"
+#include "vk_ycbcr_conversion.h"
 #include "vulkan/vulkan_core.h"
 
 #include "common/freedreno_lrz.h"

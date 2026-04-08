@@ -6,8 +6,6 @@
 #ifndef TU_AUTOTUNE_H
 #define TU_AUTOTUNE_H
 
-#include "tu_common.h"
-
 #include <atomic>
 #include <deque>
 #include <memory>

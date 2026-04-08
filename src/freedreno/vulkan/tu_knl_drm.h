@@ -10,6 +10,7 @@
 #include "drm-uapi/msm_drm.h"
 
 #include "util/timespec.h"
+#include "util/u_dynarray.h"
 #include "vk_util.h"
 
 #include "tu_knl.h"

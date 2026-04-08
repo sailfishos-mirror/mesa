@@ -22,6 +22,7 @@
 #include "tu_lrz.h"
 #include "tu_pipeline.h"
 #include "tu_rmv.h"
+#include "tu_sampler.h"
 #include "tu_subsampled_image.h"
 
 static void

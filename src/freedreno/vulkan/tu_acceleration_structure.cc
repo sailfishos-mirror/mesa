@@ -29,7 +29,6 @@
 #include "vk_acceleration_structure.h"
 
 #include "bvh/tu_build_interface.h"
-#include "common/freedreno_gpu_event.h"
 #include "tu_buffer.h"
 #include "tu_cmd_buffer.h"
 #include "tu_device.h"
