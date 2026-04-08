@@ -1396,18 +1396,21 @@ spill_vgpr(spill_ctx& ctx, Block& block, std::vector<aco_ptr<Instruction>>& inst
       for (unsigned i = 0; i < temp.size(); i++)
          split->definitions[i] = bld.def(v1);
       bld.insert(split);
-      for (unsigned i = 0; i < temp.size(); i++, offset += 4, lds_offset += workgroup_size * 4) {
+      for (unsigned i = 0; i < temp.size(); i++) {
          Temp elem = split->definitions[i].getTemp();
          if (i < lds_slots) {
             bld.ds(aco_opcode::ds_write_addtid_b32, bld.m0(ctx.lds_m0_zero), elem, lds_offset);
+            lds_offset += workgroup_size * 4;
          } else if (ctx.program->gfx_level >= GFX9) {
             bld.scratch(aco_opcode::scratch_store_dword, Operand(v1), ctx.scratch_rsrc, elem,
                         offset, memory_sync_info(storage_vgpr_spill, semantic_private));
+            offset += 4;
          } else {
             Instruction* instr = bld.mubuf(aco_opcode::buffer_store_dword, ctx.scratch_rsrc,
                                            Operand(v1), scratch_offset, elem, offset, false);
             instr->mubuf().sync = memory_sync_info(storage_vgpr_spill, semantic_private);
             instr->mubuf().cache.value = ac_swizzled;
+            offset += 4;
          }
       }
    } else if (lds_slots) {
@@ -1455,22 +1458,25 @@ reload_vgpr(spill_ctx& ctx, Block& block, std::vector<aco_ptr<Instruction>>& ins
       Instruction* vec{
          create_instruction(aco_opcode::p_create_vector, Format::PSEUDO, def.size(), 1)};
       vec->definitions[0] = def;
-      for (unsigned i = 0; i < def.size(); i++, offset += 4, lds_offset += workgroup_size * 4) {
+      for (unsigned i = 0; i < def.size(); i++) {
          Temp tmp = bld.tmp(v1);
          vec->operands[i] = Operand(tmp);
          if (i < lds_slots) {
             bld.ds(aco_opcode::ds_read_addtid_b32, Definition(tmp), bld.m0(ctx.lds_m0_zero),
                    lds_offset);
+            lds_offset += workgroup_size * 4;
          } else if (ctx.program->gfx_level >= GFX9) {
             bld.scratch(aco_opcode::scratch_load_dword, Definition(tmp), Operand(v1),
                         ctx.scratch_rsrc, offset,
                         memory_sync_info(storage_vgpr_spill, semantic_private));
+            offset += 4;
          } else {
             Instruction* instr =
                bld.mubuf(aco_opcode::buffer_load_dword, Definition(tmp), ctx.scratch_rsrc,
                          Operand(v1), scratch_offset, offset, false);
             instr->mubuf().sync = memory_sync_info(storage_vgpr_spill, semantic_private);
             instr->mubuf().cache.value = ac_swizzled;
+            offset += 4;
          }
       }
       bld.insert(vec);
