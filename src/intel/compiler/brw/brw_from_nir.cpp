@@ -5467,6 +5467,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
    }
 
    case nir_intrinsic_load_subgroup_size:
+   case nir_intrinsic_load_simd_width_intel:
       /* This should only happen for fragment shaders because every other case
        * is lowered in NIR so we can optimize on it.
        */
