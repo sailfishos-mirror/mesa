@@ -11,6 +11,14 @@
  *    #define __U_STUB__
  *    #endif
  *    #include "u_stub.h"
+ * 
+ * To override TAIL, define __U_STUB__TAIL before including u_stub.h, for example:
+ *
+ *    #define __U_STUB__TAIL { return VA_STATUS_ERROR_UNIMPLEMENTED; }
+ *    #ifndef HAVE_XXXX
+ *    #define __U_STUB__
+ *    #endif
+ *    #include "u_stub.h"
  *
  */
 
@@ -24,10 +32,15 @@
 
 #ifdef __U_STUB__
 #define MESAPROC static inline
+
+#ifdef __U_STUB__TAIL
+#define TAIL __U_STUB__TAIL
+#else
 #define TAIL                                                                                       \
    {                                                                                               \
       return -1;                                                                                   \
    }
+#endif
 #define TAILZ                                                                                      \
    {                                                                                               \
       return 0;                                                                                     \
