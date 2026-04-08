@@ -52,6 +52,8 @@ struct asm_context {
          opcode = &instr_info.opcode_gfx10[0];
       else if (gfx_level <= GFX11_5)
          opcode = &instr_info.opcode_gfx11[0];
+      else if (gfx_level <= GFX11_7)
+         opcode = &instr_info.opcode_gfx11_7[0];
       else
          opcode = &instr_info.opcode_gfx12[0];
    }
