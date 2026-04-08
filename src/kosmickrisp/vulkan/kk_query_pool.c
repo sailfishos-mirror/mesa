@@ -284,7 +284,7 @@ kk_CmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool,
    /* Make the query available */
    if (kk_has_available(pool)) {
       uint64_t addr = kk_query_available_addr(pool, query);
-      kk_cmd_write(cmd, pool->bo->map, addr, true);
+      kk_cmd_write(cmd, (struct libkk_imm_write){addr, true});
    }
 }
 

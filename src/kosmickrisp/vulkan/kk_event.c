@@ -94,7 +94,7 @@ kk_CmdSetEvent2(VkCommandBuffer commandBuffer, VkEvent _event,
 {
    VK_FROM_HANDLE(kk_event, event, _event);
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
-   kk_cmd_write(cmd, event->bo->map, event->addr, VK_EVENT_SET);
+   kk_cmd_write(cmd, (struct libkk_imm_write){event->addr, VK_EVENT_SET});
 
    /* Can only be called from outside of a render pass, which means we can
     * directly upload the writes. */
@@ -107,7 +107,7 @@ kk_CmdResetEvent2(VkCommandBuffer commandBuffer, VkEvent _event,
 {
    VK_FROM_HANDLE(kk_event, event, _event);
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
-   kk_cmd_write(cmd, event->bo->map, event->addr, VK_EVENT_RESET);
+   kk_cmd_write(cmd, (struct libkk_imm_write){event->addr, VK_EVENT_RESET});
 
    /* Can only be called from outside of a render pass, which means we can
     * directly upload the writes. */

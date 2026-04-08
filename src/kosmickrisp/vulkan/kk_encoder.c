@@ -135,15 +135,18 @@ upload_queue_writes(struct kk_cmd_buffer *cmd)
        enc->copy_query_pool_result_infos.size == 0u)
       return;
 
-   uint32_t count = util_dynarray_num_elements(&enc->imm_writes, uint64_t) / 2u;
+   uint32_t count =
+      util_dynarray_num_elements(&enc->imm_writes, struct libkk_imm_write);
    if (count != 0) {
-      struct kk_bo *bo = kk_cmd_allocate_buffer(cmd, enc->imm_writes.size, 8u);
+      uint64_t addr =
+         kk_pool_upload(cmd, enc->imm_writes.data, enc->imm_writes.size,
+                        sizeof(struct libkk_imm_write))
+            .gpu;
       /* kk_cmd_allocate_buffer sets the cmd buffer error so we can just exit */
-      if (!bo)
+      if (!addr)
          return;
-      memcpy(bo->cpu, enc->imm_writes.data, enc->imm_writes.size);
       struct mtl_size grid = {count, 1, 1};
-      libkk_write_u64(cmd, grid, false, bo->gpu);
+      libkk_write_u64_array(cmd, grid, false, addr);
       enc->imm_writes.size = 0u;
    }
 

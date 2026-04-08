@@ -50,9 +50,10 @@ libkk_reset_query(global uint64_t *availability, global uint64_t *results,
 }
 
 KERNEL(1)
-libkk_write_u64(global struct libkk_imm_write *write_array)
+libkk_write_u64_array(global struct libkk_imm_write *write_array)
 {
-   *write_array[cl_group_id.x].address = write_array[cl_group_id.x].value;
+   uint id = cl_global_id.x;
+   *(write_array[id].address) = write_array[id].value;
 }
 
 KERNEL(1)

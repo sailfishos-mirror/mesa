@@ -17,6 +17,8 @@
 
 #include "kosmickrisp/bridge/mtl_types.h"
 
+#include "kosmickrisp/libkk/kk_query.h"
+
 #include "util/u_dynarray.h"
 
 #include "vk_command_buffer.h"
@@ -252,7 +254,6 @@ void kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct mtl_size grid,
 
 #define MESA_DISPATCH_PRECOMP kk_dispatch_precomp
 
-void kk_cmd_write(struct kk_cmd_buffer *cmd, mtl_buffer *buffer, uint64_t addr,
-                  uint64_t value);
+void kk_cmd_write(struct kk_cmd_buffer *cmd, struct libkk_imm_write write);
 
 #endif
