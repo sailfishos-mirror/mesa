@@ -2815,6 +2815,7 @@ nir_rewrite_image_intrinsic(nir_intrinsic_instr *intrin, nir_def *src,
    case nir_intrinsic_image_deref_##op:                         \
    case nir_intrinsic_image_##op:                               \
    case nir_intrinsic_bindless_image_##op:                      \
+   case nir_intrinsic_image_heap_##op:                          \
       switch (type) {                                           \
       case nir_image_intrinsic_type_default:                    \
          intrin->intrinsic = nir_intrinsic_image_##op;          \
