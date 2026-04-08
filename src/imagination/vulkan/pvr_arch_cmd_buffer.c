@@ -9813,11 +9813,11 @@ VkResult PVR_PER_ARCH(EndCommandBuffer)(VkCommandBuffer commandBuffer)
    /* TODO: We should be freeing all the resources, allocated for recording,
     * here.
     */
-   util_dynarray_fini(&state->query_indices);
-
    result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
    if (result != VK_SUCCESS)
       pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
+
+   util_dynarray_fini(&state->query_indices);
 
    return vk_command_buffer_end(&cmd_buffer->vk);
 }
