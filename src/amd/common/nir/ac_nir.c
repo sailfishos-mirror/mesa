@@ -90,7 +90,7 @@ void ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
    options->has_msad = true;
    options->has_shfr32 = true;
    options->has_mul24_relaxed = true;
-   options->has_f2e4m3fn_satfn = !use_llvm && info->gfx_level >= GFX12;
+   options->has_f2e4m3fn_satfn = !use_llvm && info->gfx_level >= GFX11_7;
    options->has_atomic_isub = true;
    options->has_atomic_load_store = true;
    options->lower_int64_options = nir_lower_imul64 | nir_lower_imul_high64 | nir_lower_imul_2x32_64 | nir_lower_divmod64 |

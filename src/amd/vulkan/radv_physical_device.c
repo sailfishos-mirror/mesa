@@ -832,7 +832,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_shader_atomic_float = true,
       .EXT_shader_atomic_float2 = true,
       .EXT_shader_demote_to_helper_invocation = true,
-      .EXT_shader_float8 = pdev->info.gfx_level >= GFX12 && !pdev->use_llvm,
+      .EXT_shader_float8 = pdev->info.gfx_level >= GFX11_7 && !pdev->use_llvm,
       .EXT_shader_image_atomic_int64 = true,
       .EXT_shader_module_identifier = true,
       .EXT_shader_object = !pdev->use_llvm && !(instance->debug_flags & RADV_DEBUG_NO_ESO),
@@ -3336,7 +3336,7 @@ fill_array_sizes_structs(const struct radv_physical_device *pdev, struct __vk_ou
     */
    struct matrix_prop prop;
 
-   if (pdev->info.gfx_level >= GFX12) {
+   if (pdev->info.gfx_level >= GFX11_7) {
       for (unsigned e5m2_a = 0; e5m2_a < 2; e5m2_a++) {
          for (unsigned e5m2_b = 0; e5m2_b < 2; e5m2_b++) {
             prop.saturate = false;
