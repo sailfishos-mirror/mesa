@@ -2660,6 +2660,13 @@ store("ssbo_block_intel", [-1, 1], [ACCESS, ALIGN_MUL, ALIGN_OFFSET])
 # src[] = { value, offset }.
 store("shared_block_intel", [1], [BASE, ALIGN_MUL, ALIGN_OFFSET])
 
+# These offsets are into per-subgroup scratch memory, rather than the per-lane
+# offsets the standard NIR intrinsics use.
+# src[] = { offset }.
+load("scratch_intel", [1], [ACCESS], [CAN_ELIMINATE])
+# src[] = { value, offset }.
+store("scratch_intel", [1], [])
+
 # src[] = { address }.
 load("global_constant_uniform_block_intel", [1],
      [ACCESS, ALIGN_MUL, ALIGN_OFFSET, BASE], [CAN_ELIMINATE, CAN_REORDER])

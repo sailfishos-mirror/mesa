@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "intel_nir.h"
 #include "brw_nir.h"
 #include "brw_private.h"
 #include "brw_sampler.h"
@@ -11,6 +10,82 @@
 #include "compiler/nir/nir_builder.h"
 #include "dev/intel_debug.h"
 #include "util/sparse_bitset.h"
+#include "intel_nir.h"
+#include "nir.h"
+#include "nir_builder_opcodes.h"
+#include "nir_intrinsics.h"
+#include "nir_intrinsics_indices.h"
+
+/*
+ * Intel scratch swizzling can be described with the formula:
+ *
+ *    (SIMD width * round_down(offset_B, stride_B)) +
+ *    (lane * stride_B) +
+ *    (offset_B % stride_B)
+ */
+static nir_def *
+swizzle_scratch(nir_builder *b,
+                nir_def *offset_B,
+                unsigned stride_B,
+                unsigned align_B)
+{
+   struct shader_info *info = &b->shader->info;
+
+   assert(util_is_power_of_two_nonzero(stride_B));
+   assert(util_is_power_of_two_nonzero(align_B));
+
+   nir_def *trailing_B = NULL;
+   if (align_B < stride_B) {
+      trailing_B = nir_umod_imm(b, offset_B, stride_B);
+      offset_B = nir_iand_imm(b, offset_B, ~(stride_B - 1));
+   }
+
+   nir_def *simd_width = info->min_subgroup_size == info->max_subgroup_size ?
+                         nir_imm_int(b, info->max_subgroup_size) :
+                         nir_load_simd_width_intel(b);
+
+   nir_def *simd_offs_B = nir_imul(b, simd_width, offset_B);
+
+   nir_def *lane = nir_load_subgroup_invocation(b);
+   nir_def *lane_offs_B = nir_imul_imm(b, lane, stride_B);
+   nir_def *swizzled_B = nir_iadd(b, simd_offs_B, lane_offs_B);
+
+   return trailing_B ? nir_iadd(b, swizzled_B, trailing_B) : swizzled_B;
+}
+
+static bool
+lower_scratch(nir_builder *b, nir_intrinsic_instr *intr, void *data)
+{
+   b->cursor = nir_before_instr(&intr->instr);
+   b->constant_fold_alu = true;
+
+   unsigned stride = 4 /* TODO */;
+
+   if (intr->intrinsic == nir_intrinsic_load_scratch) {
+      nir_def *val =
+         nir_load_scratch_intel(b, intr->def.num_components, intr->def.bit_size,
+                                swizzle_scratch(b, intr->src[0].ssa, stride,
+                                                nir_intrinsic_align(intr)),
+                                .access = nir_intrinsic_access(intr));
+      nir_def_replace(&intr->def, val);
+   } else if (intr->intrinsic == nir_intrinsic_store_scratch) {
+      nir_store_scratch_intel(b, intr->src[0].ssa,
+                              swizzle_scratch(b, intr->src[1].ssa, stride,
+                                              nir_intrinsic_align(intr)));
+      nir_instr_remove(&intr->instr);
+   } else {
+      return false;
+   }
+
+   return true;
+}
+
+static bool
+intel_nir_lower_scratch(nir_shader *nir)
+{
+   return nir_shader_intrinsics_pass(nir, lower_scratch,
+                                     nir_metadata_control_flow, NULL);
+}
 
 /**
  * Returns the minimum number of vec4 elements needed to pack a type.
@@ -2493,6 +2568,10 @@ brw_vectorize_lower_mem_access(brw_pass_tracker *pt)
    OPT(nir_opt_algebraic);
    OPT(nir_opt_cse);
 
+   if (pt->nir->scratch_size) {
+      OPT(intel_nir_lower_scratch);
+   }
+
    /* Do this after the vectorization & brw_nir_rebase_const_offset_ubo_loads
     * so that we maximize the offset put into the messages.
     */
@@ -3139,6 +3218,7 @@ lsc_op_for_nir_intrinsic(const nir_intrinsic_instr *intrin)
    case nir_intrinsic_load_ssbo_uniform_block_intel:
    case nir_intrinsic_load_ubo_uniform_block_intel:
    case nir_intrinsic_load_scratch:
+   case nir_intrinsic_load_scratch_intel:
    case nir_intrinsic_load_shader_indirect_data_intel:
       return LSC_OP_LOAD;
 
@@ -3149,7 +3229,7 @@ lsc_op_for_nir_intrinsic(const nir_intrinsic_instr *intrin)
    case nir_intrinsic_store_global_block_intel:
    case nir_intrinsic_store_shared_block_intel:
    case nir_intrinsic_store_ssbo_block_intel:
-   case nir_intrinsic_store_scratch:
+   case nir_intrinsic_store_scratch_intel:
       return LSC_OP_STORE;
 
    case nir_intrinsic_image_load:

@@ -1425,9 +1425,9 @@ lower_hdc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       8 * lsc_data_size_bytes(data_size);
 
    const bool byte_scattered =
-      data_bit_size < 32 || (alignment != 0 && alignment < 4);
-   const bool dword_scattered = !byte_scattered && mode == MEMORY_MODE_SCRATCH;
-   const bool surface_access = !byte_scattered && !dword_scattered && !block;
+      data_bit_size < 32 || (alignment != 0 && alignment < 4) ||
+      mode == MEMORY_MODE_SCRATCH;
+   const bool surface_access = !byte_scattered && !block;
 
    /* SLM block reads must use the 16B-aligned OWord Block Read messages,
     * as the unaligned message doesn't exist for SLM.
@@ -1550,7 +1550,6 @@ lower_hdc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       desc = brw_dp_oword_block_rw_desc(devinfo, false, components, !has_dest);
    } else if (addr_size == LSC_ADDR_SIZE_A64) {
       assert(binding_type == LSC_ADDR_SURFTYPE_FLAT);
-      assert(!dword_scattered);
 
       sfid = BRW_SFID_HDC1;
 
@@ -1595,9 +1594,6 @@ lower_hdc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       } else if (byte_scattered) {
          desc = brw_dp_byte_scattered_rw_desc(devinfo, mem->exec_size,
                                               data_bit_size, !has_dest);
-      } else if (dword_scattered) {
-         desc = brw_dp_dword_scattered_rw_desc(devinfo, mem->exec_size,
-                                               !has_dest);
       } else {
          desc = brw_dp_untyped_surface_rw_desc(devinfo, mem->exec_size,
                                                components, !has_dest);

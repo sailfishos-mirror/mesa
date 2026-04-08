@@ -4561,82 +4561,6 @@ get_nir_buffer_intrinsic_index(nir_to_brw_state &ntb, const brw_builder &bld,
    return bld.emit_uniformize(retype(surf_index, type));
 }
 
-/**
- * The offsets we get from NIR act as if each SIMD channel has it's own blob
- * of contiguous space.  However, if we actually place each SIMD channel in
- * it's own space, we end up with terrible cache performance because each SIMD
- * channel accesses a different cache line even when they're all accessing the
- * same byte offset.  To deal with this problem, we swizzle the address using
- * a simple algorithm which ensures that any time a SIMD message reads or
- * writes the same address, it's all in the same cache line.  We have to keep
- * the bottom two bits fixed so that we can read/write up to a dword at a time
- * and the individual element is contiguous.  We do this by splitting the
- * address as follows:
- *
- *    31                             4-6           2          0
- *    +-------------------------------+------------+----------+
- *    |        Hi address bits        | chan index | addr low |
- *    +-------------------------------+------------+----------+
- *
- * In other words, the bottom two address bits stay, and the top 30 get
- * shifted up so that we can stick the SIMD channel index in the middle.  This
- * way, we can access 8, 16, or 32-bit elements and, when accessing a 32-bit
- * at the same logical offset, the scratch read/write instruction acts on
- * continuous elements and we get good cache locality.
- */
-static brw_reg
-swizzle_nir_scratch_addr(nir_to_brw_state &ntb,
-                         const brw_builder &bld,
-                         const nir_src &nir_addr_src,
-                         bool in_dwords)
-{
-   brw_shader &s = ntb.s;
-
-   const brw_reg chan_index = bld.LOAD_SUBGROUP_INVOCATION();
-   const unsigned chan_index_bits = ffs(s.dispatch_width) - 1;
-
-   if (nir_src_is_const(nir_addr_src)) {
-      unsigned nir_addr = nir_src_as_uint(nir_addr_src);
-      if (in_dwords) {
-         /* In this case, we know the address is aligned to a DWORD and we want
-          * the final address in DWORDs.
-          */
-         return bld.OR(chan_index,
-                       brw_imm_ud(nir_addr << (chan_index_bits - 2)));
-      } else {
-         /* This case is substantially more annoying because we have to pay
-          * attention to those pesky two bottom bits.
-          */
-         unsigned addr_hi = (nir_addr & ~0x3u) << chan_index_bits;
-         unsigned addr_lo = (nir_addr &  0x3u);
-
-         return bld.OR(bld.SHL(chan_index, brw_imm_ud(2)),
-                       brw_imm_ud(addr_lo | addr_hi));
-      }
-   }
-
-   const brw_reg nir_addr =
-      retype(get_nir_src(ntb, nir_addr_src, 0), BRW_TYPE_UD);
-
-   if (in_dwords) {
-      /* In this case, we know the address is aligned to a DWORD and we want
-       * the final address in DWORDs.
-       */
-      return bld.OR(bld.SHL(nir_addr, brw_imm_ud(chan_index_bits - 2)),
-                    chan_index);
-   } else {
-      /* This case substantially more annoying because we have to pay
-       * attention to those pesky two bottom bits.
-       */
-      brw_reg chan_addr = bld.SHL(chan_index, brw_imm_ud(2));
-      brw_reg addr_bits =
-         bld.OR(bld.AND(nir_addr, brw_imm_ud(0x3u)),
-                bld.SHL(bld.AND(nir_addr, brw_imm_ud(~0x3u)),
-                        brw_imm_ud(chan_index_bits)));
-      return bld.OR(addr_bits, chan_addr);
-   }
-}
-
 static unsigned
 choose_block_size_dwords(const intel_device_info *devinfo, unsigned dwords)
 {
@@ -4919,6 +4843,8 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
    case nir_intrinsic_global_atomic_swap:
    case nir_intrinsic_load_scratch:
    case nir_intrinsic_store_scratch:
+   case nir_intrinsic_load_scratch_intel:
+   case nir_intrinsic_store_scratch_intel:
    case nir_intrinsic_load_shader_indirect_data_intel:
       brw_from_nir_emit_memory_access(ntb, bld, xbld, instr);
       break;
@@ -6098,8 +6024,8 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
       no_mask_handle = true;
       break;
    }
-   case nir_intrinsic_load_scratch:
-   case nir_intrinsic_store_scratch: {
+   case nir_intrinsic_load_scratch_intel:
+   case nir_intrinsic_store_scratch_intel: {
       mode = MEMORY_MODE_SCRATCH;
 
       const nir_src &addr = instr->src[is_store ? 1 : 0];
@@ -6113,24 +6039,16 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          if (devinfo->ver >= 20 || intel_has_extended_bindless(devinfo))
             bind = ubld.SHR(bind, brw_imm_ud(4));
 
-         /* load_scratch / store_scratch cannot be is_scalar yet. */
-         assert(xbld.dispatch_width() == bld.dispatch_width());
-
          srcs[MEMORY_LOGICAL_BINDING] = component(bind, 0);
-         srcs[MEMORY_LOGICAL_ADDRESS] =
-            swizzle_nir_scratch_addr(ntb, bld, addr, false);
       } else {
-         unsigned bit_size =
-            is_store ? nir_src_bit_size(instr->src[0]) : instr->def.bit_size;
-         bool dword_aligned = alignment >= 4 && bit_size == 32;
-
-         /* load_scratch / store_scratch cannot be is_scalar yet. */
-         assert(xbld.dispatch_width() == bld.dispatch_width());
-
          binding_type = LSC_ADDR_SURFTYPE_FLAT;
-         srcs[MEMORY_LOGICAL_ADDRESS] =
-            swizzle_nir_scratch_addr(ntb, bld, addr, dword_aligned);
       }
+
+      /* load_scratch / store_scratch cannot be is_scalar yet. */
+      assert(xbld.dispatch_width() == bld.dispatch_width());
+
+      srcs[MEMORY_LOGICAL_ADDRESS] =
+         retype(get_nir_src(ntb, addr, 0), BRW_TYPE_UD);
 
       if (is_store)
          ++s.shader_stats.spill_count;

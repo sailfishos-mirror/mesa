@@ -892,6 +892,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_is_helper_invocation:
    case nir_intrinsic_load_scratch:
    case nir_intrinsic_load_scratch_nv:
+   case nir_intrinsic_load_scratch_intel:
    case nir_intrinsic_deref_atomic:
    case nir_intrinsic_deref_atomic_swap:
    case nir_intrinsic_ssbo_atomic:
