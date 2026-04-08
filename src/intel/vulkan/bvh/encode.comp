@@ -653,6 +653,11 @@ main()
                child = anv_shuffle(cluster, idx, children[i]);
                if (i == cluster.idx)
                   break;
+
+               /* Invalid node should not contribute to child_block count */
+               if (child == VK_BVH_INVALID_NODE)
+                  continue;
+
                uint32_t type = ir_id_to_type(child);
                child_block += (type == vk_ir_node_instance) ? 2 : 1;
             }
