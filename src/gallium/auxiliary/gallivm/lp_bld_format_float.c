@@ -113,23 +113,56 @@ lp_build_float_to_smallfloat(struct gallivm_state *gallivm,
    i32_roundmask = lp_build_const_int_vec(gallivm, i32_type,
                                           ~((1 << (23 - mantissa_bits)) - 1) &
                                           0x7fffffff);
-   rescale_src = LLVMBuildBitCast(builder, rescale_src, i32_bld.vec_type, "");
    rescale_src = lp_build_and(&i32_bld, rescale_src, i32_roundmask);
-   rescale_src = LLVMBuildBitCast(builder, rescale_src, f32_bld.vec_type, "");
 
-   /* bias exponent (and denormalize if necessary) */
-   magic = lp_build_const_int_vec(gallivm, i32_type,
-                                  ((1 << (exponent_bits - 1)) - 1) << 23);
-   magic = LLVMBuildBitCast(builder, magic, f32_bld.vec_type, "");
-   normal = lp_build_mul(&f32_bld, rescale_src, magic);
-
-   /* clamp to max value - largest non-infinity number */
+   /* largest non-infinity number */
    small_max = lp_build_const_int_vec(gallivm, i32_type,
-                                      (((1 << exponent_bits) - 2) << 23) |
+                                      ((127 + ((1 << (exponent_bits - 1)) - 1)) << 23) |
                                       (((1 << mantissa_bits) - 1) << (23 - mantissa_bits)));
-   small_max = LLVMBuildBitCast(builder, small_max, f32_bld.vec_type, "");
-   normal = lp_build_min(&f32_bld, normal, small_max);
-   normal = LLVMBuildBitCast(builder, normal, i32_bld.vec_type, "");
+
+   /*
+    * This code only works correctly if denormals are enabled if the smallfloat
+    * result is a denormal, otherwise result is flushed to zero.
+    */
+   if (0) {
+      /* clamp to max value */
+      rescale_src = LLVMBuildBitCast(builder, rescale_src, f32_bld.vec_type, "");
+      small_max = LLVMBuildBitCast(builder, small_max, f32_bld.vec_type, "");
+      normal = lp_build_min(&f32_bld, rescale_src, small_max);
+      /* bias exponent (and denormalize if necessary) */
+      magic = lp_build_const_int_vec(gallivm, i32_type,
+                                     ((1 << (exponent_bits - 1)) - 1) << 23);
+      magic = LLVMBuildBitCast(builder, magic, f32_bld.vec_type, "");
+      normal = lp_build_mul(&f32_bld, normal, magic);
+      normal = LLVMBuildBitCast(builder, normal, i32_bld.vec_type, "");
+   }
+   else {
+      LLVMValueRef exp_adj, denorm_scale, is_denorm_or_zero, denorm;
+      /* clamp to max value */
+      normal = lp_build_min(&i32_bld, rescale_src, small_max);
+      exp_adj = lp_build_const_int_vec(gallivm, i32_type,
+                                       (127 - ((1 << (exponent_bits - 1)) - 1)) << 23);
+      normal = lp_build_sub(&i32_bld, normal, exp_adj);
+      LLVMValueRef mantissa_mask = lp_build_not(&i32_bld,
+                                                lp_build_const_int_vec(gallivm, i32_type, 0xFF800000));
+      is_denorm_or_zero = lp_build_cmp(&i32_bld, PIPE_FUNC_LEQUAL, normal, mantissa_mask);
+      /*
+       * for smallfloat denormals, do magic scaling so the mantissa bits can
+       * be extracted directly. denorm_scale is just the smallest normal number.
+       */
+      denorm_scale = lp_build_const_int_vec(gallivm, i32_type,
+                                            (127 - ((1 << (exponent_bits - 1)) - 2)) << 23);
+      denorm_scale = LLVMBuildBitCast(builder, denorm_scale, f32_bld.vec_type, "");
+      rescale_src = LLVMBuildBitCast(builder, rescale_src, f32_bld.vec_type, "");
+      /*
+       * this magic add will shift out the mantissa bits to the right position (if
+       * the number is actually smaller than denorm_scale).
+       */
+      denorm = lp_build_add(&f32_bld, rescale_src, denorm_scale);
+      denorm = LLVMBuildBitCast(builder, denorm, i32_bld.vec_type, "");
+      denorm = lp_build_and(&i32_bld, denorm, mantissa_mask);
+      normal = lp_build_select(&i32_bld, is_denorm_or_zero, denorm, normal);
+   }
 
    /*
     * handle nan/inf cases
@@ -344,7 +377,7 @@ lp_build_smallfloat_to_float(struct gallivm_state *gallivm,
 
       /* for normals, Infs, Nans fix up exponent */
       exp_adj = lp_build_const_int_vec(gallivm, i32_type,
-                                      (127 - ((1 << (exponent_bits - 1)) - 1)) << 23);
+                                       (127 - ((1 << (exponent_bits - 1)) - 1)) << 23);
       normal = lp_build_add(&i32_bld, srcabs, exp_adj);
       tmp = lp_build_and(&i32_bld, wasinfnan, i32_floatexpmask);
       normal = lp_build_or(&i32_bld, tmp, normal);
