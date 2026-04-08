@@ -527,8 +527,13 @@ radv_nir_init_cps_function(nir_function *function, bool uses_descriptor_heap)
 
    radv_nir_param_from_type(function->params + RT_ARG_LAUNCH_ID, glsl_vector_type(GLSL_TYPE_UINT, 3), false, 0);
    radv_nir_param_from_type(function->params + RT_ARG_LAUNCH_SIZE, glsl_vector_type(GLSL_TYPE_UINT, 3), true, 0);
-   radv_nir_param_from_type(function->params + RT_ARG_DESCRIPTORS, glsl_uint_type(), true, 0);
-   radv_nir_param_from_type(function->params + RT_ARG_DYNAMIC_DESCRIPTORS, glsl_uint_type(), true, 0);
+   if (uses_descriptor_heap) {
+      radv_nir_param_from_type(function->params + RT_ARG_HEAP_RESOURCE, glsl_uint_type(), true, 0);
+      radv_nir_param_from_type(function->params + RT_ARG_HEAP_SAMPLER, glsl_uint_type(), true, 0);
+   } else {
+      radv_nir_param_from_type(function->params + RT_ARG_DESCRIPTORS, glsl_uint_type(), true, 0);
+      radv_nir_param_from_type(function->params + RT_ARG_DYNAMIC_DESCRIPTORS, glsl_uint_type(), true, 0);
+   }
    radv_nir_param_from_type(function->params + RT_ARG_PUSH_CONSTANTS, glsl_uint_type(), true, 0);
    radv_nir_param_from_type(function->params + RT_ARG_SBT_DESCRIPTORS, glsl_uint64_t_type(), true, 0);
    radv_nir_param_from_type(function->params + RAYGEN_ARG_TRAVERSAL_ADDR, glsl_uint64_t_type(), true, 0);
@@ -567,13 +572,9 @@ radv_nir_lower_rt_abi_cps(nir_shader *shader, const struct radv_shader_info *inf
    const bool uses_descriptor_heap = pipeline->base.base.create_flags & VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT;
    nir_function_impl *impl = nir_shader_get_entrypoint(shader);
 
-   /* The first raygen shader gets called by the prolog with the standard raygen signature. Only shaders called by the
-    * first shader can use the CPS function signature.
-    */
-   if (shader->info.stage != MESA_SHADER_RAYGEN || resume_shader)
-      radv_nir_init_cps_function(impl->function, uses_descriptor_heap);
-   else
-      radv_nir_init_rt_function_params(impl->function, MESA_SHADER_RAYGEN, 0, 0, uses_descriptor_heap);
+   radv_nir_init_cps_function(impl->function, uses_descriptor_heap);
+   if (shader->info.stage == MESA_SHADER_RAYGEN && !resume_shader)
+      impl->function->driver_attributes &= ~ACO_NIR_FUNCTION_ATTRIB_DIVERGENT_CALL;
 
    if (traversal_info) {
       unsigned idx;
@@ -604,33 +605,27 @@ radv_nir_lower_rt_abi_cps(nir_shader *shader, const struct radv_shader_info *inf
    nir_store_var(&b, vars.traversal_addr, nir_load_param(&b, RAYGEN_ARG_TRAVERSAL_ADDR), 0x1);
    nir_store_var(&b, vars.shader_record_ptr, nir_load_param(&b, RAYGEN_ARG_SHADER_RECORD_PTR), 0x1);
    nir_store_var(&b, vars.shader_addr, nir_imm_int64(&b, 0), 0x1);
+   nir_store_var(&b, vars.stack_ptr, nir_load_param(&b, CPS_ARG_STACK_PTR), 0x1);
+   nir_store_var(&b, vars.arg, nir_load_param(&b, CPS_ARG_PAYLOAD_SCRATCH_OFFSET), 0x1);
+   nir_store_var(&b, vars.origin, nir_load_param(&b, CPS_ARG_RAY_ORIGIN), 0x7);
+   nir_store_var(&b, vars.tmin, nir_load_param(&b, CPS_ARG_RAY_TMIN), 0x1);
+   nir_store_var(&b, vars.direction, nir_load_param(&b, CPS_ARG_RAY_DIRECTION), 0x7);
+   nir_store_var(&b, vars.tmax, nir_load_param(&b, CPS_ARG_RAY_TMAX), 0x1);
+   nir_store_var(&b, vars.cull_mask_and_flags, nir_load_param(&b, CPS_ARG_CULL_MASK_AND_FLAGS), 0x1);
+   nir_store_var(&b, vars.sbt_offset, nir_load_param(&b, CPS_ARG_SBT_OFFSET), 0x1);
+   nir_store_var(&b, vars.sbt_stride, nir_load_param(&b, CPS_ARG_SBT_STRIDE), 0x1);
+   nir_store_var(&b, vars.accel_struct, nir_load_param(&b, CPS_ARG_ACCEL_STRUCT), 0x1);
+   nir_store_var(&b, vars.primitive_id, nir_load_param(&b, CPS_ARG_PRIMITIVE_ID), 0x1);
+   nir_store_var(&b, vars.instance_addr, nir_load_param(&b, CPS_ARG_INSTANCE_ADDR), 0x1);
+   if (has_position_fetch)
+      nir_store_var(&b, vars.primitive_addr, nir_load_param(&b, CPS_ARG_PRIMITIVE_ADDR), 0x1);
+   nir_store_var(&b, vars.geometry_id_and_flags, nir_load_param(&b, CPS_ARG_GEOMETRY_ID_AND_FLAGS), 0x1);
+   nir_store_var(&b, vars.hit_kind, nir_load_param(&b, CPS_ARG_HIT_KIND), 0x1);
 
-   if (shader->info.stage == MESA_SHADER_RAYGEN && !resume_shader) {
-      impl->function->driver_attributes &= ~ACO_NIR_FUNCTION_ATTRIB_DIVERGENT_CALL;
-      nir_store_var(&b, vars.stack_ptr, nir_imm_int(&b, 0), 0x1);
-   } else {
-      nir_store_var(&b, vars.stack_ptr, nir_load_param(&b, CPS_ARG_STACK_PTR), 0x1);
-      nir_store_var(&b, vars.arg, nir_load_param(&b, CPS_ARG_PAYLOAD_SCRATCH_OFFSET), 0x1);
-      nir_store_var(&b, vars.origin, nir_load_param(&b, CPS_ARG_RAY_ORIGIN), 0x7);
-      nir_store_var(&b, vars.tmin, nir_load_param(&b, CPS_ARG_RAY_TMIN), 0x1);
-      nir_store_var(&b, vars.direction, nir_load_param(&b, CPS_ARG_RAY_DIRECTION), 0x7);
-      nir_store_var(&b, vars.tmax, nir_load_param(&b, CPS_ARG_RAY_TMAX), 0x1);
-      nir_store_var(&b, vars.cull_mask_and_flags, nir_load_param(&b, CPS_ARG_CULL_MASK_AND_FLAGS), 0x1);
-      nir_store_var(&b, vars.sbt_offset, nir_load_param(&b, CPS_ARG_SBT_OFFSET), 0x1);
-      nir_store_var(&b, vars.sbt_stride, nir_load_param(&b, CPS_ARG_SBT_STRIDE), 0x1);
-      nir_store_var(&b, vars.accel_struct, nir_load_param(&b, CPS_ARG_ACCEL_STRUCT), 0x1);
-      nir_store_var(&b, vars.primitive_id, nir_load_param(&b, CPS_ARG_PRIMITIVE_ID), 0x1);
-      nir_store_var(&b, vars.instance_addr, nir_load_param(&b, CPS_ARG_INSTANCE_ADDR), 0x1);
-      if (has_position_fetch)
-         nir_store_var(&b, vars.primitive_addr, nir_load_param(&b, CPS_ARG_PRIMITIVE_ADDR), 0x1);
-      nir_store_var(&b, vars.geometry_id_and_flags, nir_load_param(&b, CPS_ARG_GEOMETRY_ID_AND_FLAGS), 0x1);
-      nir_store_var(&b, vars.hit_kind, nir_load_param(&b, CPS_ARG_HIT_KIND), 0x1);
-
-      if (traversal_info && traversal_info->miss_index.state == RADV_RT_CONST_ARG_STATE_VALID)
-         nir_store_var(&b, vars.miss_index, nir_imm_int(&b, traversal_info->miss_index.value), 0x1);
-      else
-         nir_store_var(&b, vars.miss_index, nir_load_param(&b, CPS_ARG_MISS_INDEX), 0x1);
-   }
+   if (traversal_info && traversal_info->miss_index.state == RADV_RT_CONST_ARG_STATE_VALID)
+      nir_store_var(&b, vars.miss_index, nir_imm_int(&b, traversal_info->miss_index.value), 0x1);
+   else
+      nir_store_var(&b, vars.miss_index, nir_load_param(&b, CPS_ARG_MISS_INDEX), 0x1);
 
    b.cursor = nir_after_impl(impl);
 
