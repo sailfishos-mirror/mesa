@@ -8,25 +8,23 @@
 
 #include "tu_clear_blit.h"
 
-#include "ir3/ir3_nir.h"
-
+#include "nir/nir_builder.h"
 #include "util/format_r11g11b10f.h"
 #include "util/format_rgb9e5.h"
 #include "util/format_srgb.h"
 #include "util/half_float.h"
-#include "nir/nir_builder.h"
 
+#include "common/freedreno_gpu_event.h"
+#include "common/freedreno_lrz.h"
+#include "ir3/ir3_nir.h"
 #include "tu_buffer.h"
 #include "tu_cmd_buffer.h"
 #include "tu_cs.h"
 #include "tu_descriptor_set.h"
 #include "tu_formats.h"
 #include "tu_image.h"
-#include "tu_tracepoints.h"
 #include "tu_lrz.h"
-
-#include "common/freedreno_gpu_event.h"
-#include "common/freedreno_lrz.h"
+#include "tu_tracepoints.h"
 
 static const VkOffset2D blt_no_coord = { ~0, ~0 };
 

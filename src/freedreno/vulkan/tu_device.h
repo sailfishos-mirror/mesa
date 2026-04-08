@@ -12,9 +12,15 @@
 
 #include "tu_common.h"
 
+#include "radix_sort/radix_sort_vk.h"
+#include "util/rwlock.h"
+#include "util/u_vector.h"
+#include "util/vma.h"
 #include "vk_device_memory.h"
 #include "vk_meta.h"
 
+#include "common/fd6_gmem_cache.h"
+#include "common/freedreno_rd_output.h"
 #include "tu_autotune.h"
 #include "tu_cs.h"
 #include "tu_pass.h"
@@ -22,14 +28,6 @@
 #include "tu_queue.h"
 #include "tu_suballoc.h"
 #include "tu_util.h"
-
-#include "radix_sort/radix_sort_vk.h"
-
-#include "common/freedreno_rd_output.h"
-#include "common/fd6_gmem_cache.h"
-#include "util/vma.h"
-#include "util/u_vector.h"
-#include "util/rwlock.h"
 
 /* queue types */
 #define TU_QUEUE_GENERAL 0

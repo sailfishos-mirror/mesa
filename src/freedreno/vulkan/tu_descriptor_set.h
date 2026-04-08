@@ -8,13 +8,12 @@
 
 #include "tu_common.h"
 
-#include "vk_descriptor_set_layout.h"
-
-#include "tu_sampler.h"
 #include "util/vma.h"
+#include "vk_descriptor_set_layout.h"
 
 #include "common/freedreno_pm4.h"
 #include "fdl/fd6_format_table.h"
+#include "tu_sampler.h"
 
 /* The hardware supports up to 8 descriptor sets since A7XX.
  * Note: This is the maximum across generations, not the maximum for a

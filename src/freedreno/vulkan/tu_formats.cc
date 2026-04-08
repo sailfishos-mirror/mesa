@@ -6,15 +6,15 @@
 
 #include "tu_formats.h"
 
-#include "fdl/fd6_format_table.h"
-#include "common/freedreno_ubwc.h"
+#include "drm-uapi/drm_fourcc.h"
 
+#include "vk_acceleration_structure.h"
 #include "vk_android.h"
 #include "vk_enum_defines.h"
 #include "vk_util.h"
-#include "vk_acceleration_structure.h"
-#include "drm-uapi/drm_fourcc.h"
 
+#include "common/freedreno_ubwc.h"
+#include "fdl/fd6_format_table.h"
 #include "tu_device.h"
 #include "tu_image.h"
 

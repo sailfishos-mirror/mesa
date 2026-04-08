@@ -12,18 +12,16 @@
 
 #include "nir/nir_builder.h"
 #include "util/os_time.h"
-
 #include "vk_acceleration_structure.h"
 #include "vk_util.h"
 
-#include "tu_buffer.h"
 #include "bvh/tu_build_interface.h"
+#include "common/freedreno_gpu_event.h"
+#include "tu_buffer.h"
 #include "tu_cmd_buffer.h"
 #include "tu_cs.h"
 #include "tu_device.h"
 #include "tu_rmv.h"
-
-#include "common/freedreno_gpu_event.h"
 
 #define NSEC_PER_SEC 1000000000ull
 #define WAIT_TIMEOUT 5

@@ -11,6 +11,7 @@
 #define TU_DRM_H
 
 #include "tu_common.h"
+
 #include "tu_queue.h"
 
 struct tu_u_trace_syncobj;

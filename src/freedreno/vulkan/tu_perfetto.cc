@@ -3,23 +3,23 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <perfetto.h>
-
 #include "tu_perfetto.h"
-#include "tu_buffer.h"
-#include "tu_device.h"
-#include "tu_queue.h"
-#include "tu_image.h"
+
+#include <perfetto.h>
 
 #include "util/hash_table.h"
 #include "util/perf/u_perfetto.h"
 #include "util/perf/u_perfetto_renderpass.h"
-
-#include "tu_cmd_buffer.h"
-#include "tu_tracepoints.h"
-#include "tu_tracepoints_perfetto.h"
 #include "vk_object.h"
 #include "vk_util.h"
+
+#include "tu_buffer.h"
+#include "tu_cmd_buffer.h"
+#include "tu_device.h"
+#include "tu_image.h"
+#include "tu_queue.h"
+#include "tu_tracepoints.h"
+#include "tu_tracepoints_perfetto.h"
 
 /* we can't include tu_knl.h and tu_device.h */
 

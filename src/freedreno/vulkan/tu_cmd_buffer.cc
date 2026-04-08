@@ -14,6 +14,9 @@
 #include "vk_render_pass.h"
 #include "vk_util.h"
 
+#include "common/freedreno_gpu_event.h"
+#include "common/freedreno_lrz.h"
+#include "common/freedreno_vrs.h"
 #include "tu_autotune.h"
 #include "tu_buffer.h"
 #include "tu_clear_blit.h"
@@ -21,13 +24,9 @@
 #include "tu_event.h"
 #include "tu_image.h"
 #include "tu_knl.h"
+#include "tu_subsampled_image.h"
 #include "tu_tile_config.h"
 #include "tu_tracepoints.h"
-#include "tu_subsampled_image.h"
-
-#include "common/freedreno_gpu_event.h"
-#include "common/freedreno_lrz.h"
-#include "common/freedreno_vrs.h"
 
 enum tu_cmd_buffer_status {
    TU_CMD_BUFFER_STATUS_IDLE = 0,

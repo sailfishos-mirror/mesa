@@ -11,6 +11,7 @@
 #define TU_EVENT_H
 
 #include "tu_common.h"
+
 #include "tu_suballoc.h"
 
 struct tu_event

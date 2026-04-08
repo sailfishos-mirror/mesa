@@ -5,9 +5,11 @@
 
 #include "tu_shader.h"
 
+#include <initializer_list>
+
+#include "nir/nir_xfb_info.h"
 #include "spirv/nir_spirv.h"
 #include "util/mesa-blake3.h"
-#include "nir/nir_xfb_info.h"
 #include "vk_nir.h"
 #include "vk_nir_convert_ycbcr.h"
 #include "vk_pipeline.h"
@@ -15,15 +17,12 @@
 
 #include "ir3/ir3_compiler.h"
 #include "ir3/ir3_nir.h"
-
-#include "tu_device.h"
 #include "tu_descriptor_set.h"
+#include "tu_device.h"
 #include "tu_lrz.h"
 #include "tu_pipeline.h"
 #include "tu_rmv.h"
 #include "tu_subsampled_image.h"
-
-#include <initializer_list>
 
 static void
 init_ir3_nir_options(struct ir3_shader_nir_options *options,

@@ -5,13 +5,12 @@
 
 #include "tu_lrz.h"
 
+#include "common/freedreno_gpu_event.h"
+#include "common/freedreno_lrz.h"
 #include "tu_clear_blit.h"
 #include "tu_cmd_buffer.h"
 #include "tu_cs.h"
 #include "tu_image.h"
-
-#include "common/freedreno_gpu_event.h"
-#include "common/freedreno_lrz.h"
 
 /* See lrz.rst for how HW works. Here are only the implementation notes.
  *

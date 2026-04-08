@@ -10,8 +10,8 @@
 
 /* we can't include tu_common.h because ir3 headers are not C++-compatible */
 #include <stdint.h>
-
 #include <vulkan/vulkan.h>
+
 #include "c11/threads.h"
 
 #ifdef __cplusplus

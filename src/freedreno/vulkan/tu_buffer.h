@@ -12,9 +12,9 @@
 
 #include "tu_common.h"
 
-#include "tu_knl.h"
-
 #include "vk_buffer.h"
+
+#include "tu_knl.h"
 
 struct tu_buffer
 {

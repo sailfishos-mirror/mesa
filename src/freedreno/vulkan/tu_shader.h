@@ -11,9 +11,10 @@
 #define TU_SHADER_H
 
 #include "tu_common.h"
+
 #include "tu_cs.h"
-#include "tu_suballoc.h"
 #include "tu_descriptor_set.h"
+#include "tu_suballoc.h"
 
 struct tu_inline_ubo
 {

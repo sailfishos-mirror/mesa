@@ -3,13 +3,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "tu_shader.h"
-
 #include "nir/nir_builder.h"
 
-#include "tu_device.h"
-
 #include "ir3/ir3_nir.h"
+#include "tu_device.h"
+#include "tu_shader.h"
 
 /* Some a6xx variants cannot support a non-contiguous multiview mask. Instead,
  * inside the shader something like this needs to be inserted:

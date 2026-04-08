@@ -24,12 +24,12 @@ from u_trace import TracepointArgStruct as ArgStruct
 from u_trace import utrace_generate
 from u_trace import utrace_generate_perfetto_utils
 
-Header('vk_enum_to_str.h', scope=HeaderScope.SOURCE|HeaderScope.PERFETTO)
-Header('vk_format.h')
-Header('util/mesa-blake3.h')
+Header('common/freedreno_lrz.h')
 Header('tu_cmd_buffer.h', scope=HeaderScope.SOURCE)
 Header('tu_device.h', scope=HeaderScope.SOURCE)
-Header('common/freedreno_lrz.h')
+Header('util/mesa-blake3.h')
+Header('vk_enum_to_str.h', scope=HeaderScope.SOURCE|HeaderScope.PERFETTO)
+Header('vk_format.h')
 Header('vulkan/vulkan_core.h', scope=HeaderScope.SOURCE|HeaderScope.PERFETTO)
 
 # we can't use tu_common.h because it includes ir3 headers which are not
