@@ -111,6 +111,19 @@ allocate_feature_maps(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    operation->ifm.tiles.width_0 = operation->ifm.shape.width;
 }
 
+static void
+operation_set_defaults(struct ethosu_operation *operation)
+{
+   memset(operation, 0, sizeof(*operation));
+
+   operation->kernel.height = 1;
+   operation->kernel.width = 1;
+   operation->kernel.stride_y = 1;
+   operation->kernel.stride_x = 1;
+   operation->kernel.dilation_y = 1;
+   operation->kernel.dilation_x = 1;
+}
+
 static const struct pipe_ml_operation *
 ethosu_find_first_producer(const struct pipe_ml_operation *poperations, unsigned count,
                            unsigned tensor_index)
@@ -145,8 +158,6 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
    operation->kernel.width = poperation->conv.weight_tensor->dims[2];
    operation->kernel.stride_y = poperation->conv.stride_y;
    operation->kernel.stride_x = poperation->conv.stride_x;
-   operation->kernel.dilation_y = 1;
-   operation->kernel.dilation_x = 1;
    operation->kernel.depthwise = is_depthwise(poperation);
    operation->kernel.scale = poperation->conv.weight_tensor->scale;
    operation->kernel.zero_point = poperation->conv.weight_tensor->zero_point;
@@ -159,15 +170,11 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
    if (weight->scales != NULL) {
       operation->kernel.scales = malloc(num_channels * sizeof(float));
       memcpy(operation->kernel.scales, weight->scales, num_channels * sizeof(float));
-   } else {
-      operation->kernel.scales = NULL;
    }
 
    if (weight->zero_points != NULL) {
       operation->kernel.zero_points = malloc(num_channels * sizeof(int));
       memcpy(operation->kernel.zero_points, weight->zero_points, num_channels * sizeof(int));
-   } else {
-      operation->kernel.zero_points = NULL;
    }
 
    operation->pad.top = poperation->conv.padding_top;
@@ -216,8 +223,6 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
    operation->kernel.width = poperation->pooling.filter_width;
    operation->kernel.stride_y = poperation->pooling.stride_y;
    operation->kernel.stride_x = poperation->pooling.stride_x;
-   operation->kernel.dilation_y = 1;
-   operation->kernel.dilation_x = 1;
 
    operation->pad.top = poperation->pooling.padding_top;
    operation->pad.bottom = poperation->pooling.padding_bottom;
@@ -245,13 +250,6 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
    set_feature_maps(poperation->input_tensors[input_idx], poperation->output_tensors[0], operation);
    operation->ofm.shape.depth = operation->ifm.shape.depth;
 
-   operation->kernel.height = 1;
-   operation->kernel.width = 1;
-   operation->kernel.stride_y = 1;
-   operation->kernel.stride_x = 1;
-   operation->kernel.dilation_y = 1;
-   operation->kernel.dilation_x = 1;
-
    allocate_feature_maps(subgraph, operation);
    for (unsigned i = 0; i < input_idx; i++) {
       struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, operation->ofm.tensor_idx);
@@ -277,13 +275,6 @@ ethosu_lower_resize(struct ethosu_subgraph *subgraph,
 
    set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
-   operation->kernel.height = 1;
-   operation->kernel.width = 1;
-   operation->kernel.stride_y = 1;
-   operation->kernel.stride_x = 1;
-   operation->kernel.dilation_y = 1;
-   operation->kernel.dilation_x = 1;
-
    operation->upscale = ETHOSU_UPSCALE_NEAREST;
 
    allocate_feature_maps(subgraph, operation);
@@ -300,13 +291,6 @@ ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
 
    set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
    operation->ifm.shape = operation->ofm.shape;
-
-   operation->kernel.height = 1;
-   operation->kernel.width = 1;
-   operation->kernel.stride_y = 1;
-   operation->kernel.stride_x = 1;
-   operation->kernel.dilation_y = 1;
-   operation->kernel.dilation_x = 1;
 
    allocate_feature_maps(subgraph, operation);
 
@@ -375,13 +359,6 @@ ethosu_lower_add(struct ethosu_subgraph *subgraph,
    if (poperation->add.relu)
       operation->eltwise.activation_min = operation->ofm.zero_point;
 
-   operation->kernel.height = 1;
-   operation->kernel.width = 1;
-   operation->kernel.stride_y = 1;
-   operation->kernel.stride_x = 1;
-   operation->kernel.dilation_y = 1;
-   operation->kernel.dilation_x = 1;
-
    allocate_feature_maps(subgraph, operation);
 
    operation->ifm2.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm2.tensor_idx);
@@ -446,7 +423,9 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
    /* Lower */
    for (int i = 0; i < count; i++) {
-      struct ethosu_operation operation = {0};
+      struct ethosu_operation operation;
+
+      operation_set_defaults(&operation);
 
       switch (poperations[i].type) {
 
