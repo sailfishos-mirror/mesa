@@ -766,6 +766,10 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
          ++ahit_isec_stage_count;
    }
    inline_any_hit_shaders &= ahit_isec_stage_count < 20;
+   /* TODO: CPS mode could compile any-hit/isec shaders separately, but doing so would require moving the payload
+    * from scratch to registers and back.
+    */
+   inline_any_hit_shaders |= recursive_lowering_mode == RADV_RT_LOWERING_MODE_CPS;
    /* Monolithic pipelines always inline any-hit/isec shaders. */
    inline_any_hit_shaders |= raygen_lowering_mode == RADV_RT_LOWERING_MODE_MONOLITHIC && !raygen_imported;
 
