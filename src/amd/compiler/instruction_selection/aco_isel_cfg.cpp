@@ -116,15 +116,16 @@ update_exec_info(isel_context* ctx)
 }
 
 void
-begin_loop(isel_context* ctx, loop_context* lc)
+begin_loop(isel_context* ctx)
 {
+   loop_context lc;
    append_logical_end(ctx);
    ctx->block->kind |= block_kind_loop_preheader | block_kind_uniform;
    Builder bld(ctx->program, ctx->block);
    bld.branch(aco_opcode::p_branch);
    unsigned loop_preheader_idx = ctx->block->index;
 
-   lc->loop_exit.kind |= (block_kind_loop_exit | (ctx->block->kind & block_kind_top_level));
+   lc.loop_exit.kind |= (block_kind_loop_exit | (ctx->block->kind & block_kind_top_level));
 
    ctx->program->next_loop_depth++;
 
@@ -135,17 +136,18 @@ begin_loop(isel_context* ctx, loop_context* lc)
 
    append_logical_start(ctx->block);
 
-   lc->cf_info_old = ctx->cf_info;
-   lc->header_idx = loop_header->index;
+   lc.cf_info_old = ctx->cf_info;
+   lc.header_idx = loop_header->index;
    ctx->cf_info.parent_loop = {false, false};
    ctx->cf_info.parent_if.is_divergent = false;
+   ctx->loop_stack.push_back(std::move(lc));
 
    /* Never enter a loop with empty exec mask. */
    assert(!ctx->cf_info.exec.empty());
 }
 
 void
-end_loop(isel_context* ctx, loop_context* lc)
+end_loop(isel_context* ctx)
 {
    /* No need to check exec.potentially_empty_break/continue originating inside the loop. In the
     * only case where it's possible at this point (divergent break after divergent continue), we
@@ -153,7 +155,8 @@ end_loop(isel_context* ctx, loop_context* lc)
     * divergent control flow requires WQM.
     */
    assert(!ctx->cf_info.exec.potentially_empty_discard);
-   Block& header = ctx->program->blocks[lc->header_idx];
+   loop_context& lc = ctx->loop_stack.back();
+   Block& header = ctx->program->blocks[lc.header_idx];
 
    /* Add the trivial continue. */
    if (!ctx->cf_info.has_branch) {
@@ -176,14 +179,16 @@ end_loop(isel_context* ctx, loop_context* lc)
 
    /* emit loop successor block */
    ctx->program->next_loop_depth--;
-   ctx->block = ctx->program->insert_block(std::move(lc->loop_exit));
+   ctx->block = ctx->program->insert_block(std::move(lc.loop_exit));
    append_logical_start(ctx->block);
 
    /* Propagate information about discards and restore previous CF info. */
-   lc->cf_info_old.exec.potentially_empty_discard |= ctx->cf_info.exec.potentially_empty_discard;
-   lc->cf_info_old.had_divergent_discard |= ctx->cf_info.had_divergent_discard;
-   ctx->cf_info = lc->cf_info_old;
+   lc.cf_info_old.exec.potentially_empty_discard |= ctx->cf_info.exec.potentially_empty_discard;
+   lc.cf_info_old.had_divergent_discard |= ctx->cf_info.had_divergent_discard;
+   ctx->cf_info = lc.cf_info_old;
    update_exec_info(ctx);
+
+   ctx->loop_stack.pop_back();
 }
 
 void

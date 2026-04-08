@@ -3773,8 +3773,7 @@ pops_await_overlapped_waves(isel_context* ctx)
 
    /* Await the overlapped waves. */
 
-   ctx->loop_stack.push_back(loop_context());
-   begin_loop(ctx, &ctx->loop_stack.back());
+   begin_loop(ctx);
    bld.reset(ctx->block);
 
    const Temp exiting_wave_id = bld.pseudo(aco_opcode::p_pops_gfx9_add_exiting_wave_id, bld.def(s1),
@@ -3795,7 +3794,7 @@ pops_await_overlapped_waves(isel_context* ctx)
    /* Sleep before rechecking to let overlapped waves run for some time. */
    bld.sopp(aco_opcode::s_sleep, ctx->program->gfx_level >= GFX10 ? UINT16_MAX : 3);
 
-   end_loop(ctx, &ctx->loop_stack.back());
+   end_loop(ctx);
    bld.reset(ctx->block);
 
    /* Indicate the wait has been done to subsequent compilation stages. */

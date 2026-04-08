@@ -248,8 +248,8 @@ isel_context setup_isel_context(Program* program, unsigned shader_count,
 /* aco_isel_cfg.cpp */
 void emit_loop_break(isel_context* ctx);
 void emit_loop_continue(isel_context* ctx);
-void begin_loop(isel_context* ctx, loop_context* lc);
-void end_loop(isel_context* ctx, loop_context* lc);
+void begin_loop(isel_context* ctx);
+void end_loop(isel_context* ctx);
 void begin_uniform_if_then(isel_context* ctx, if_context* ic, Temp cond);
 void begin_uniform_if_else(isel_context* ctx, if_context* ic, bool logical_else = true);
 void end_uniform_if(isel_context* ctx, if_context* ic, bool logical_else = true);

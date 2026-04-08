@@ -942,16 +942,14 @@ visit_loop(isel_context* ctx, nir_loop* loop)
 {
    assert(!nir_loop_has_continue_construct(loop));
 
-   ctx->loop_stack.push_back(loop_context());
-   begin_loop(ctx, &ctx->loop_stack.back());
+   begin_loop(ctx);
    ctx->cf_info.parent_loop.has_divergent_break =
       loop->divergent_break && nir_block_num_preds(nir_loop_first_block(loop)) > 1;
    ctx->cf_info.in_divergent_cf |= ctx->cf_info.parent_loop.has_divergent_break;
 
    visit_cf_list(ctx, &loop->body);
 
-   end_loop(ctx, &ctx->loop_stack.back());
-   ctx->loop_stack.pop_back();
+   end_loop(ctx);
 }
 
 void
