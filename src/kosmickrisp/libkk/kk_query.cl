@@ -27,7 +27,7 @@ query_report(global uint64_t *results, global uint16_t *oq_index,
  * setting all element values to 0 and emitting them as available.
  */
 KERNEL(1)
-libkk_reset_query(global uint64_t *availability, global uint64_t *results,
+libkk_reset_query(global uint32_t *availability, global uint64_t *results,
                   global uint16_t *oq_index, uint32_t first_query,
                   uint16_t reports_per_query, int set_available)
 {
@@ -50,14 +50,14 @@ libkk_reset_query(global uint64_t *availability, global uint64_t *results,
 }
 
 KERNEL(1)
-libkk_write_u64_array(global struct libkk_imm_write *write_array)
+libkk_write_u32_array(global struct libkk_imm_write *write_array)
 {
    uint id = cl_global_id.x;
    *(write_array[id].address) = write_array[id].value;
 }
 
 KERNEL(1)
-libkk_copy_queries(global uint64_t *availability, global uint64_t *results,
+libkk_copy_queries(global uint32_t *availability, global uint64_t *results,
                    global uint16_t *oq_index, uint64_t dst_addr,
                    uint64_t dst_stride, uint32_t first_query,
                    VkQueryResultFlagBits flags, uint16_t reports_per_query)

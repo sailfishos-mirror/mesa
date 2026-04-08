@@ -13,7 +13,9 @@
 #include "kk_encoder.h"
 #include "kk_entrypoints.h"
 
-#define KK_EVENT_MEM_SIZE sizeof(uint64_t)
+#define KK_EVENT_MEM_SIZE sizeof(VkResult)
+
+static_assert(sizeof(uint32_t) == KK_EVENT_MEM_SIZE, "Events are 32 bits");
 
 VKAPI_ATTR VkResult VKAPI_CALL
 kk_CreateEvent(VkDevice device, const VkEventCreateInfo *pCreateInfo,

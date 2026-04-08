@@ -146,7 +146,7 @@ upload_queue_writes(struct kk_cmd_buffer *cmd)
       if (!addr)
          return;
       struct mtl_size grid = {count, 1, 1};
-      libkk_write_u64_array(cmd, grid, false, addr);
+      libkk_write_u32_array(cmd, grid, false, addr);
       enc->imm_writes.size = 0u;
    }
 

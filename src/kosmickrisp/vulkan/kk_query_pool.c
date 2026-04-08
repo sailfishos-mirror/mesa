@@ -72,7 +72,7 @@ kk_CreateQueryPool(VkDevice device, const VkQueryPoolCreateInfo *pCreateInfo,
    /* We place the availability first and then data */
    pool->query_start = 0;
    if (kk_has_available(pool)) {
-      pool->query_start = align(pool->vk.query_count * sizeof(uint64_t),
+      pool->query_start = align(pool->vk.query_count * sizeof(uint32_t),
                                 sizeof(struct kk_query_report));
    }
 
@@ -142,12 +142,12 @@ kk_DestroyQueryPool(VkDevice device, VkQueryPool queryPool,
    vk_query_pool_destroy(&dev->vk, pAllocator, &pool->vk);
 }
 
-static uint64_t *
+static uint32_t *
 kk_query_available_map(struct kk_query_pool *pool, uint32_t query)
 {
    assert(kk_has_available(pool));
    assert(query < pool->vk.query_count);
-   return (uint64_t *)pool->bo->cpu + query;
+   return (uint32_t *)pool->bo->cpu + query;
 }
 
 static uint64_t
@@ -175,7 +175,7 @@ kk_query_available_addr(struct kk_query_pool *pool, uint32_t query)
 {
    assert(kk_has_available(pool));
    assert(query < pool->vk.query_count);
-   return pool->bo->gpu + query * sizeof(uint64_t);
+   return pool->bo->gpu + query * sizeof(uint32_t);
 }
 
 static struct kk_query_report *
@@ -204,7 +204,7 @@ kk_ResetQueryPool(VkDevice device, VkQueryPool queryPool, uint32_t firstQuery,
 
       uint64_t value = 0;
       if (kk_has_available(pool)) {
-         uint64_t *available = kk_query_available_map(pool, firstQuery + i);
+         uint32_t *available = kk_query_available_map(pool, firstQuery + i);
          *available = 0u;
       } else {
          value = UINT64_MAX;
@@ -293,7 +293,7 @@ kk_query_is_available(struct kk_device *dev, struct kk_query_pool *pool,
                       uint32_t query)
 {
    if (kk_has_available(pool)) {
-      uint64_t *available = kk_query_available_map(pool, query);
+      uint32_t *available = kk_query_available_map(pool, query);
       return p_atomic_read(available) != 0;
    } else {
       const struct kk_query_report *report =
