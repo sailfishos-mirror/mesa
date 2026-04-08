@@ -3874,7 +3874,7 @@
         "description": "pvr: finalize query_indices array after ending last sub_cmd",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2b1992a0005b2342afd53dc21eb01288dddee6b5",
         "notes": null
