@@ -216,35 +216,24 @@ kk_ResetQueryPool(VkDevice device, VkQueryPool queryPool, uint32_t firstQuery,
    }
 }
 
-/**
- * Goes through a series of consecutive query indices in the given pool,
- * setting all element values to 0 and emitting them as available.
- */
 static void
 emit_zero_queries(struct kk_cmd_buffer *cmd, struct kk_query_pool *pool,
                   uint32_t first_index, uint32_t num_queries,
                   bool set_available)
 {
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
-   mtl_buffer *buffer = pool->bo->map;
+   struct libkk_reset_query_args info = {
+      .availability = kk_has_available(pool) ? pool->bo->gpu : 0,
+      .results = pool->oq_queries ? dev->occlusion_queries.bo->gpu
+                                  : pool->bo->gpu + pool->query_start,
+      .oq_index = pool->oq_queries ? pool->bo->gpu + pool->query_start : 0,
 
-   for (uint32_t i = 0; i < num_queries; i++) {
-      uint64_t report = kk_query_report_addr(dev, pool, first_index + i);
-
-      uint64_t value = 0;
-      if (kk_has_available(pool)) {
-         uint64_t available = kk_query_available_addr(pool, first_index + i);
-         kk_cmd_write(cmd, buffer, available, set_available);
-      } else {
-         value = set_available ? 0u : UINT64_MAX;
-      }
-
-      /* XXX: is this supposed to happen on the begin? */
-      for (unsigned j = 0; j < kk_reports_per_query(pool); ++j) {
-         kk_cmd_write(cmd, buffer,
-                      report + (j * sizeof(struct kk_query_report)), value);
-      }
-   }
+      .first_query = first_index,
+      .reports_per_query = kk_reports_per_query(pool),
+      .set_available = set_available,
+   };
+   struct mtl_size grid = {.x = num_queries, .y = 1u, .z = 1u};
+   libkk_reset_query_struct(cmd, grid, false, info);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -255,11 +244,10 @@ kk_CmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool,
    VK_FROM_HANDLE(kk_query_pool, pool, queryPool);
    /* Need to flush other availabilities just in case there is a reset after it
     * was made available but the writes have not propagated yet. Need to avoid
-    * data rances in the writes. This is save to do sice vkCmdResetQueryPool
+    * data races in the writes. This is save to do sice vkCmdResetQueryPool
     * cannot be called when a render pass is active. */
    upload_queue_writes(cmd);
    emit_zero_queries(cmd, pool, firstQuery, queryCount, false);
-   upload_queue_writes(cmd);
 }
 
 VKAPI_ATTR void VKAPI_CALL
