@@ -3128,7 +3128,7 @@ vop3_can_use_vop2acc(ra_ctx& ctx, Instruction* instr)
          return false;
       break;
    case aco_opcode::v_dot2_f32_f16:
-      if (ctx.program->gfx_level < GFX10 || ctx.program->gfx_level >= GFX12)
+      if (ctx.program->gfx_level < GFX10 || ctx.program->gfx_level >= GFX11_7)
          return false;
       break;
    default: return false;
