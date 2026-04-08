@@ -27,11 +27,11 @@ lower_split_src(bi_context *ctx, bi_instr *I, unsigned s, bi_instr** lut)
    }
 
    /* Check if the source regs are already coming from a split. */
-   bi_index* src_a = &I->src[s];
-   bi_index* src_b = &I->src[s + 1];
+   bi_index *src_a = &I->src[s];
+   bi_index *src_b = &I->src[s + 1];
    if (bi_is_ssa(*src_a) && bi_is_ssa(*src_b)) {
-      bi_instr* src_ins_a = lut[src_a->value];
-      bi_instr* src_ins_b = lut[src_b->value];
+      bi_instr *src_ins_a = lut[src_a->value];
+      bi_instr *src_ins_b = lut[src_b->value];
       if (src_ins_a->op == BI_OPCODE_SPLIT_I32 && src_ins_a == src_ins_b)
          return;
    }
