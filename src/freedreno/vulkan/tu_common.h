@@ -26,6 +26,7 @@
 #define VG(x) ((void)0)
 #endif
 
+#undef MESA_LOG_TAG
 #define MESA_LOG_TAG "TU"
 
 #include "c11/threads.h"
