@@ -701,8 +701,9 @@ anv_gem_execbuffer_impl(struct anv_queue *queue,
    struct anv_device *device = queue->device;
 
    int ret = i915_gem_execbuf_ioctl(device->fd, device->info, execbuf);
-   if (ret)
-      return vk_queue_set_lost(&queue->vk, "%s(%d) failed: %m", func, line);
+   if (ret) {
+      return anv_queue_set_lost(queue, errno, "%s(%d) failed: %m", func, line);
+   }
 
    return VK_SUCCESS;
 }

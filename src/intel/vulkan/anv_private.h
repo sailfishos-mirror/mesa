@@ -2555,6 +2555,16 @@ struct anv_device_astc_emu {
     VkPipeline pipeline;
 };
 
+struct anv_device_fault_state {
+   int device_status;
+   int queue_status;
+   struct {
+      uint32_t family;
+      uint32_t index;
+      uint32_t flags;
+   } queue;
+};
+
 struct anv_device {
     struct vk_device                            vk;
 
@@ -2830,6 +2840,11 @@ struct anv_device {
    struct vk_meta_device meta_device;
 
    struct pb_slabs bo_slabs[3];
+
+   struct {
+      mtx_t mutex;
+      struct anv_device_fault_state state;
+   } fault;
 };
 
 static inline uint32_t
@@ -7135,6 +7150,19 @@ anv_device_utrace_emit_gfx_copy_buffer(struct u_trace_context *utctx,
                                        void *ts_from, uint64_t from_offset_B,
                                        void *ts_to, uint64_t to_offset_B,
                                        uint64_t size_B);
+
+void
+anv_device_update_fault_state(struct anv_device *device,
+                              int device_errno);
+#define anv_device_set_lost(device, err, ...)       \
+   (anv_device_update_fault_state((device), (err)), \
+    vk_device_set_lost(&(device)->vk, __VA_ARGS__))
+void
+anv_queue_update_fault_state(struct anv_queue *queue,
+                             int queue_errno);
+#define anv_queue_set_lost(queue, err, ...)         \
+   (anv_queue_update_fault_state((queue), (err)),   \
+    vk_queue_set_lost(&(queue)->vk, __VA_ARGS__))
 
 #define ANV_FROM_HANDLE(__anv_type, __name, __handle) \
    VK_FROM_HANDLE(__anv_type, __name, __handle)
