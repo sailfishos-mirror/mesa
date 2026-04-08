@@ -182,6 +182,7 @@ struct rendering_state {
    uint8_t push_constants[128 * 4];
    uint16_t push_size[LVP_PIPELINE_TYPE_COUNT];
    uint16_t gfx_push_sizes[LVP_SHADER_STAGES];
+   uint16_t emitted_push_size[LVP_PIPELINE_TYPE_COUNT];
 
    VkRect2D render_area;
    bool suspending;
@@ -334,19 +335,14 @@ static void finish_fence(struct rendering_state *state)
                                         &handle, NULL);
 }
 
-static unsigned
-get_pcbuf_size(struct rendering_state *state, mesa_shader_stage pstage)
-{
-   enum lvp_pipeline_type type =
-      ffs(lvp_pipeline_types_from_shader_stages(mesa_to_vk_shader_stage(pstage))) - 1;
-   return state->has_pcbuf[pstage] ? state->push_size[type] : 0;
-}
-
 static void
 update_pcbuf(struct rendering_state *state, mesa_shader_stage pstage,
              mesa_shader_stage api_stage)
 {
-   unsigned size = get_pcbuf_size(state, api_stage);
+   enum lvp_pipeline_type type =
+      ffs(lvp_pipeline_types_from_shader_stages(mesa_to_vk_shader_stage(api_stage))) - 1;
+   unsigned size = state->has_pcbuf[api_stage] ? state->push_size[type] : 0;
+
    if (size) {
       uint8_t *mem;
       struct pipe_constant_buffer cbuf;
@@ -362,6 +358,7 @@ update_pcbuf(struct rendering_state *state, mesa_shader_stage pstage,
       state->pctx->set_constant_buffer(state->pctx, pstage, 0, &cbuf);
    }
    state->pcbuf_dirty[api_stage] = false;
+   state->emitted_push_size[type] = size;
 }
 
 static void emit_compute_state(struct rendering_state *state)
@@ -1244,6 +1241,11 @@ static void handle_pipeline(struct vk_cmd_queue_entry *cmd,
             state->push_size[pipeline->type] = pipeline->shaders[i].push_constant_size;
             break;
          }
+   }
+
+   if (state->push_size[pipeline->type] != state->emitted_push_size[pipeline->type]) {
+      for (unsigned i = 0; i < ARRAY_SIZE(pipeline->shaders); i++)
+         state->pcbuf_dirty[i] = true;
    }
 }
 
@@ -4415,7 +4417,9 @@ handle_shaders(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
          state->gfx_push_sizes[stage] = shader ? shader->layout->push_constant_size : 0;
          gfx = true;
       } else {
-         state->push_size[1] = shader ? shader->layout->push_constant_size : 0;
+         state->push_size[LVP_PIPELINE_COMPUTE] = shader ? shader->layout->push_constant_size : 0;
+         if (state->push_size[LVP_PIPELINE_COMPUTE] != state->emitted_push_size[LVP_PIPELINE_COMPUTE])
+            state->pcbuf_dirty[MESA_SHADER_COMPUTE] = true;
       }
    }
 
@@ -4433,9 +4437,16 @@ handle_shaders(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
    }
 
    if (gfx) {
-      state->push_size[0] = 0;
+      state->push_size[LVP_PIPELINE_GRAPHICS] = 0;
       for (unsigned i = 0; i < ARRAY_SIZE(state->gfx_push_sizes); i++)
-         state->push_size[0] += state->gfx_push_sizes[i];
+         state->push_size[LVP_PIPELINE_GRAPHICS] += state->gfx_push_sizes[i];
+
+      if (state->push_size[LVP_PIPELINE_GRAPHICS] != state->emitted_push_size[LVP_PIPELINE_GRAPHICS]) {
+         for (unsigned i = 0; i < bind->stage_count; i++) {
+            mesa_shader_stage stage = vk_to_mesa_shader_stage(bind->stages[i]);
+            state->pcbuf_dirty[stage] = true;
+         }
+      }
    }
 }
 
