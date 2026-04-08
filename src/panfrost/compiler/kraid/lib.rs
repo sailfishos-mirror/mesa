@@ -4,4 +4,5 @@
 mod compile;
 mod data_type;
 mod model;
+mod ssa_value;
 mod swizzle;
