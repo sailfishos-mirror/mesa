@@ -3054,7 +3054,7 @@
         "description": "pan/cs: Fix cs_run_fragment() calls with swapped arguments",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "53f780ec916d1cd4773af6cec40c3149042d852f",
         "notes": null
