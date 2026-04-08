@@ -1191,7 +1191,7 @@ nvk_CmdBeginRendering(VkCommandBuffer commandBuffer,
 
    nvk_cmd_buffer_dirty_render_pass(cmd);
 
-   const size_t zcull_count = 51;
+   const size_t zcull_count = 47;
    struct nv_push *p = nvk_cmd_buffer_push(
       cmd, NVK_MAX_RTS * 12 + 44 + zcull_count
    );
@@ -1553,33 +1553,6 @@ nvk_CmdBeginRendering(VkCommandBuffer commandBuffer,
          .type = TYPE_DEPTH_TEST,
       });
 
-      float depth = 0.0f;
-      switch (pRenderingInfo->pDepthAttachment->loadOp) {
-         case VK_ATTACHMENT_LOAD_OP_CLEAR:
-            depth =
-               pRenderingInfo->pDepthAttachment->clearValue.depthStencil.depth;
-            FALLTHROUGH;
-         case VK_ATTACHMENT_LOAD_OP_DONT_CARE:
-            P_IMMD(p, NV9097, SET_Z_CLEAR_VALUE, fui(depth));
-
-            P_IMMD(p, NV9097, CLEAR_ZCULL_REGION, {
-               .z_enable = true,
-               .stencil_enable = false,
-               .use_clear_rect = false,
-               .use_rt_array_index = false,
-               .make_conservative = true,
-            });
-            break;
-
-         case VK_ATTACHMENT_LOAD_OP_LOAD:
-            assert(zcull_plane);
-            P_IMMD(p, NV9097, LOAD_ZCULL, 0);
-            break;
-
-         default:
-            assert(!"Unhandled loadOp");
-            break;
-      }
       uint32_t end_count = nv_push_dw_count(p);
       assert(end_count - start_count <= zcull_count);
    } else {
@@ -1673,6 +1646,38 @@ nvk_CmdBeginRendering(VkCommandBuffer commandBuffer,
 
    if (render->flags & VK_RENDERING_RESUMING_BIT)
       return;
+
+   if (use_zcull) {
+      float depth = 0.0f;
+      switch (pRenderingInfo->pDepthAttachment->loadOp) {
+         case VK_ATTACHMENT_LOAD_OP_CLEAR:
+            depth =
+               pRenderingInfo->pDepthAttachment->clearValue.depthStencil.depth;
+            FALLTHROUGH;
+         case VK_ATTACHMENT_LOAD_OP_DONT_CARE:
+            p = nvk_cmd_buffer_push(cmd, 4);
+            P_IMMD(p, NV9097, SET_Z_CLEAR_VALUE, fui(depth));
+
+            P_IMMD(p, NV9097, CLEAR_ZCULL_REGION, {
+               .z_enable = true,
+               .stencil_enable = false,
+               .use_clear_rect = false,
+               .use_rt_array_index = false,
+               .make_conservative = true,
+            });
+            break;
+
+         case VK_ATTACHMENT_LOAD_OP_LOAD:
+            assert(zcull_plane);
+            p = nvk_cmd_buffer_push(cmd, 2);
+            P_IMMD(p, NV9097, LOAD_ZCULL, 0);
+            break;
+
+         default:
+            assert(!"Unhandled loadOp");
+            break;
+      }
+   }
 
    for (uint32_t i = 0; i < pRenderingInfo->colorAttachmentCount; i++) {
       const struct nvk_image_view *iview = render->color_att[i].iview;
