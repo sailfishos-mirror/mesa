@@ -1069,6 +1069,7 @@ enum pipe_ml_operation_type {
    PIPE_ML_OPERATION_TYPE_RESIZE,
    PIPE_ML_OPERATION_TYPE_MUL,
    PIPE_ML_OPERATION_TYPE_LEAKY_RELU,
+   PIPE_ML_OPERATION_TYPE_QUANTIZE,
 };
 
 enum pipe_ml_pooling_type {
