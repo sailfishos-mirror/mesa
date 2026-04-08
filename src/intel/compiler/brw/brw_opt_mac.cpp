@@ -1307,6 +1307,7 @@ apply_replacement(brw_shader &s, const brw_def_analysis &defs, bblock_t *b,
 bool
 brw_opt_mac(brw_shader &s)
 {
+   bool progress = false;
    /* Number of SIMD8 accumulator slots. */
    unsigned num_accumulators;
 
@@ -1318,58 +1319,62 @@ brw_opt_mac(brw_shader &s)
       num_accumulators = 8;
    }
 
-   unsigned acc_nr = 0;
+   for (unsigned acc_nr = 0; acc_nr < num_accumulators; acc_nr += reg_unit(s.devinfo)) {
+      bool pass_progress = false;
 
-   unsigned acc;
-   if (acc_nr % 4 == 0) {
-      acc = 0xf << acc_nr;
-   } else if (acc_nr % 2 == 0) {
-      acc = 0x3 << acc_nr;
-   } else {
-      acc = 0x1 << acc_nr;
-   }
+      unsigned acc;
+      if (acc_nr % 4 == 0) {
+         acc = 0xf << acc_nr;
+      } else if (acc_nr % 2 == 0) {
+         acc = 0x3 << acc_nr;
+      } else {
+         acc = 0x1 << acc_nr;
+      }
 
-   acc &= (1U << num_accumulators) - 1;
+      acc &= (1U << num_accumulators) - 1;
 
-   const brw_def_analysis &defs = s.def_analysis.require();
-   bool progress = false;
-   bool *flags = NULL;
-   path *all_paths = NULL;
+      const brw_def_analysis &defs = s.def_analysis.require();
+      bool *flags = NULL;
+      path *all_paths = NULL;
 
-   flags = new bool[defs.count()];
-   if (flags == NULL)
-      return false;
+      flags = new bool[defs.count()];
+      if (flags == NULL)
+         return false;
 
-   all_paths = new path[s.cfg->total_instructions];
-   if (all_paths == NULL) {
+      all_paths = new path[s.cfg->total_instructions];
+      if (all_paths == NULL) {
+         delete [] flags;
+         return false;
+      }
+
+      foreach_block(block, s.cfg) {
+         memset(flags, 0, sizeof(*flags) * defs.count());
+         memset(all_paths, 0, sizeof(*all_paths) * s.cfg->total_instructions);
+
+         /* The preprocess pass determines which instructions could be allowed to
+          * write the accumulator.
+          */
+         preprocess_block(s, defs, block, acc, flags);
+
+         /* A second pass to find all the possible
+          */
+         path *best = find_optimal_path(s, defs, block, acc, flags, all_paths);
+         if (best != nullptr) {
+            munge_types(best);
+            apply_replacement(s, defs, block, acc, best, true);
+            pass_progress = true;
+         }
+      }
+
       delete [] flags;
-      return false;
-   }
+      delete [] all_paths;
 
-   foreach_block(block, s.cfg) {
-      memset(flags, 0, sizeof(*flags) * defs.count());
-      memset(all_paths, 0, sizeof(*all_paths) * s.cfg->total_instructions);
-
-      /* The preprocess pass determines which instructions could be allowed to
-       * write the accumulator.
-       */
-      preprocess_block(s, defs, block, acc, flags);
-
-      /* A second pass to find all the possible
-       */
-      path *best = find_optimal_path(s, defs, block, acc, flags, all_paths);
-      if (best != nullptr) {
-         munge_types(best);
-         apply_replacement(s, defs, block, acc, best, true);
+      if (pass_progress) {
          progress = true;
+         s.invalidate_analysis(BRW_DEPENDENCY_INSTRUCTIONS |
+                               BRW_DEPENDENCY_VARIABLES);
       }
    }
 
-   delete [] flags;
-   delete [] all_paths;
-
-   if (progress)
-      s.invalidate_analysis(BRW_DEPENDENCY_INSTRUCTIONS |
-                            BRW_DEPENDENCY_VARIABLES);
    return progress;
 }

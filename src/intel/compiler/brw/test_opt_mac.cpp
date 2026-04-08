@@ -787,19 +787,26 @@ TEST_F(mac_test, usub_sat_between)
    set_gfx_verx10(125);
 
    brw_builder bld = make_shader(MESA_SHADER_FRAGMENT, 8);
+   brw_builder exp = make_shader(MESA_SHADER_FRAGMENT, 8);
 
-   brw_reg dst0 = vgrf(bld, BRW_TYPE_F);
-   brw_reg dst1 = vgrf(bld, BRW_TYPE_F);
-   brw_reg dst2 = vgrf(bld, BRW_TYPE_UD);
-   brw_reg src0 = vgrf(bld, BRW_TYPE_F);
-   brw_reg src1 = vgrf(bld, BRW_TYPE_F);
+   brw_reg dst0 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg dst1 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg dst2 = vgrf(bld, exp, BRW_TYPE_UD);
+   brw_reg src0 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg src1 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg acc2 = retype(brw_acc_reg(8 * reg_unit(devinfo)),
+                         BRW_TYPE_F);
+
+   acc2.nr = BRW_ARF_ACCUMULATOR + 2;
 
    /* Sources must be initialized for defs analysis to work. */
    bld.MOV(src0, brw_imm_f(1.0));
    bld.MOV(src1, brw_imm_f(2.0));
    bld.MUL(dst0, src0, src1);
 
-   /* This will be lowered to something that uses the accumulator. */
+   /* This will be lowered to something that uses acc0 and acc1 due to it
+    * being an integer instruction.
+    */
    bld.emit(SHADER_OPCODE_USUB_SAT,
             dst2,
             retype(src0, BRW_TYPE_UD),
@@ -807,7 +814,27 @@ TEST_F(mac_test, usub_sat_between)
 
    bld.MAD(dst1, dst0, src0, brw_imm_f(4.0));
 
-   EXPECT_NO_PROGRESS(brw_opt_mac, bld);
+   EXPECT_PROGRESS(brw_opt_mac, bld);
+
+   /* brw_builder uses fix_3src_operand to prevent accumulators from being
+    * used as sources to MAD. Work around this by setting the source after the
+    * builder is done.
+    */
+   brw_inst *inst;
+
+   exp.MOV(src0, brw_imm_f(1.0));
+   exp.MOV(src1, brw_imm_f(2.0));
+   exp.MUL(acc2, src0, src1);
+
+   exp.emit(SHADER_OPCODE_USUB_SAT,
+            dst2,
+            retype(src0, BRW_TYPE_UD),
+            retype(src1, BRW_TYPE_UD));
+
+   inst = exp.MAD(dst1, dst0, src0, brw_imm_f(4.0));
+   inst->src[0] = acc2;
+
+   EXPECT_SHADERS_MATCH(bld, exp);
 }
 
 TEST_F(mac_test, acc_read_after)
@@ -1334,10 +1361,11 @@ TEST_F(mac_test, destination_is_acc2)
    set_gfx_verx10(125);
 
    brw_builder bld = make_shader(MESA_SHADER_FRAGMENT, 16);
+   brw_builder exp = make_shader(MESA_SHADER_FRAGMENT, 16);
 
-   brw_reg dst0 = vgrf(bld, BRW_TYPE_F);
-   brw_reg src0 = vgrf(bld, BRW_TYPE_F);
-   brw_reg src1 = vgrf(bld, BRW_TYPE_F);
+   brw_reg dst0 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg src0 = vgrf(bld, exp, BRW_TYPE_F);
+   brw_reg src1 = vgrf(bld, exp, BRW_TYPE_F);
    brw_reg acc2 = retype(brw_acc_reg(8 * reg_unit(devinfo)),
                          BRW_TYPE_F);
 
@@ -1349,7 +1377,21 @@ TEST_F(mac_test, destination_is_acc2)
    bld.MUL(dst0, src0, src1);
    bld.MAD(acc2, dst0, src1, brw_imm_f(4.0));
 
-   EXPECT_NO_PROGRESS(brw_opt_mac, bld);
+   EXPECT_PROGRESS(brw_opt_mac, bld);
+
+   /* brw_builder uses fix_3src_operand to prevent accumulators from being
+    * used as sources to MAD. Work around this by setting the source after the
+    * builder is done.
+    */
+   brw_inst *inst;
+
+   exp.BFREV(retype(src0, BRW_TYPE_UD), brw_imm_ud(1));
+   exp.BFREV(retype(src1, BRW_TYPE_UD), brw_imm_ud(2));
+   exp.MUL(acc2, src0, src1);
+   inst = exp.MAD(acc2, dst0, src1, brw_imm_f(4.0));
+   inst->src[0] = acc2;
+
+   EXPECT_SHADERS_MATCH(bld, exp);
 }
 
 TEST_F(mac_test, skia_1681)
@@ -1757,4 +1799,32 @@ TEST_F(mac_test, issue_16469)
    exp.MAC(dst2, src1, src2);
 
    EXPECT_SHADERS_MATCH(bld, exp);
+}
+
+TEST_F(mac_test, gfx11_acc1_implicit_destination)
+{
+   set_gfx_verx10(110);
+
+   brw_builder bld = make_shader();
+
+   brw_reg a = vgrf(bld, BRW_TYPE_F);
+   brw_reg b = vgrf(bld, BRW_TYPE_F);
+   brw_reg c = vgrf(bld, BRW_TYPE_F);
+   brw_reg tmp = vgrf(bld, BRW_TYPE_F);
+   brw_reg result = vgrf(bld, BRW_TYPE_F);
+   brw_reg result2 = vgrf(bld, BRW_TYPE_F);
+   brw_reg acc0 = retype(brw_acc_reg(8), BRW_TYPE_F);
+
+   /* Initialize defs without introducing accumulator-write candidates. */
+   bld.BFREV(retype(a, BRW_TYPE_UD), brw_imm_ud(1));
+   bld.BFREV(retype(b, BRW_TYPE_UD), brw_imm_ud(2));
+   bld.BFREV(retype(c, BRW_TYPE_UD), brw_imm_ud(3));
+
+   /* Keep acc0 live across the MAD and its consumer. */
+   bld.MOV(acc0, brw_imm_f(1));
+   bld.MAD(tmp, a, b, c);
+   bld.ADD(result, tmp, a);
+   bld.ADD(result2, acc0, a);
+
+   EXPECT_NO_PROGRESS(brw_opt_mac, bld);
 }
