@@ -6,7 +6,7 @@
 #include "tu_cmd_buffer.h"
 #include "tu_subsampled_image.h"
 
-#include "nir_builder.h"
+#include "nir/nir_builder.h"
 
 /* If a tile is not subsampled, we treat it as if its fragment area is (1,1)
  * for the purposes of subsampling.

@@ -5,7 +5,7 @@
 
 #include "tu_shader.h"
 
-#include "nir_builder.h"
+#include "nir/nir_builder.h"
 
 #include "tu_device.h"
 
