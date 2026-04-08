@@ -334,7 +334,6 @@ struct tu_pvtmem_bo {
 };
 
 struct tu_virtio_device;
-struct tu_queue;
 
 struct tu_device
 {
