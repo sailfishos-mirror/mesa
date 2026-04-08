@@ -378,13 +378,11 @@ radv_rt_nir_to_asm(struct radv_device *device, struct radv_ray_tracing_pipeline 
                    enum radv_rt_lowering_mode mode, struct radv_shader_stage *stage, uint32_t *payload_size,
                    uint32_t *hit_attrib_size, struct radv_ray_tracing_stage_info *stage_info,
                    const struct radv_ray_tracing_stage_info *traversal_stage_info, bool has_position_fetch,
-                   struct radv_shader_binary **binary, struct radv_shader_debug_info *debug)
+                   struct radv_shader_binary **binary, bool keep_executable_info, bool keep_statistic_info,
+                   struct radv_shader_debug_info *debug)
 {
    struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_instance *instance = radv_physical_device_instance(pdev);
-
-   bool keep_executable_info = radv_pipeline_capture_shaders(device, pipeline->base.base.create_flags);
-   bool keep_statistic_info = radv_pipeline_capture_shader_stats(device, pipeline->base.base.create_flags);
 
    switch (mode) {
    case RADV_RT_LOWERING_MODE_MONOLITHIC:
@@ -532,6 +530,8 @@ radv_rt_compile_nir(struct radv_device *device, struct vk_pipeline_cache *cache,
                     struct radv_serialized_shader_arena_block *replay_block, bool skip_shaders_cache,
                     bool has_position_fetch, struct radv_shader **out_shader)
 {
+   bool keep_executable_info = radv_pipeline_capture_shaders(device, pipeline->base.base.create_flags);
+   bool keep_statistic_info = radv_pipeline_capture_shader_stats(device, pipeline->base.base.create_flags);
    bool replayable = (pipeline->base.base.create_flags &
                       VK_PIPELINE_CREATE_2_RAY_TRACING_SHADER_GROUP_HANDLE_CAPTURE_REPLAY_BIT_KHR) &&
                      !radv_is_traversal_shader(stage->nir);
@@ -539,7 +539,7 @@ radv_rt_compile_nir(struct radv_device *device, struct vk_pipeline_cache *cache,
    struct radv_shader_binary *binary;
    struct radv_shader_debug_info debug = {0};
    radv_rt_nir_to_asm(device, pipeline, mode, stage, payload_size, hit_attrib_size, stage_info, traversal_stage_info,
-                      has_position_fetch, &binary, &debug);
+                      has_position_fetch, &binary, keep_executable_info, keep_statistic_info, &debug);
 
    struct radv_shader *shader;
    if (replay_block || replayable) {
