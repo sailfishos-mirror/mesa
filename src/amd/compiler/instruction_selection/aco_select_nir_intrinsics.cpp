@@ -1970,7 +1970,7 @@ visit_image_store(isel_context* ctx, nir_intrinsic_instr* instr)
          nir_scalar comp = nir_scalar_resolved(instr->src[3].ssa, i);
          if (nir_scalar_is_undef(comp)) {
             dmask &= ~BITFIELD_BIT(i);
-         } else if (ctx->options->gfx_level <= GFX11_5) {
+         } else if (ctx->options->gfx_level < GFX12) {
             if (nir_scalar_is_const(comp) && nir_scalar_as_uint(comp) == 0)
                dmask &= ~BITFIELD_BIT(i);
          } else {
@@ -4262,9 +4262,9 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
          Temp tid = emit_mbcnt(ctx, bld.tmp(v1));
          Temp src_lane = bld.vadd32(bld.def(v1), tid, delta);
 
-         if (ctx->program->gfx_level >= GFX10 && ctx->program->gfx_level <= GFX11_5 &&
+         if (ctx->program->gfx_level >= GFX10 && ctx->program->gfx_level < GFX12 &&
              cluster_size == 32) {
-            /* ds_bpermute is restricted to 32 lanes on GFX10-GFX11.5. */
+            /* ds_bpermute is restricted to 32 lanes on GFX10-GFX11.7. */
             Temp index_x4 =
                bld.vop2(aco_opcode::v_lshlrev_b32, bld.def(v1), Operand::c32(2u), src_lane);
             tmp = bld.ds(aco_opcode::ds_bpermute_b32, bld.def(v1), index_x4, src);

@@ -274,11 +274,11 @@ emit_smem_instruction(asm_context& ctx, std::vector<uint32_t>& out, const Instru
       /* We don't use the NV bit. */
    } else {
       encoding = (0b111101 << 26);
-      if (ctx.gfx_level <= GFX11_5)
+      if (ctx.gfx_level < GFX12)
          encoding |= dlc ? 1 << (ctx.gfx_level >= GFX11 ? 13 : 14) : 0;
    }
 
-   if (ctx.gfx_level <= GFX11_5) {
+   if (ctx.gfx_level < GFX12) {
       encoding |= opcode << 18;
       encoding |= glc ? 1 << (ctx.gfx_level >= GFX11 ? 14 : 16) : 0;
    } else {
