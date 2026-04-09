@@ -1460,7 +1460,7 @@ typedef enum {
    /**
     * Operation is associative mathematically (as real numbers), but not
     * associative with floating-point math. This can be treated as associative
-    * iff the operation's exact bit is not set.
+    * iff the operation's nir_fp_no_reassoc bit is not set.
     */
    NIR_OP_IS_INEXACT_ASSOCIATIVE = (1 << 3),
 } nir_op_algebraic_property;
@@ -1533,7 +1533,7 @@ nir_op_is_selection(nir_op op)
    return (nir_op_infos[op].algebraic_properties & NIR_OP_IS_SELECTION) != 0;
 }
 
-#define NIR_FP_MATH_CONTROL_BIT_COUNT 4
+#define NIR_FP_MATH_CONTROL_BIT_COUNT 6
 /**
  * Floating point fast math control.
  *
@@ -1559,6 +1559,23 @@ typedef enum {
     */
    nir_fp_preserve_nan = BITFIELD_BIT(2),
 
+   /* If not set, allow all optimizations that result in a value closer
+    * to the infinitely precise result than the original pattern.
+    * One common example here is fma fusing.
+    */
+   nir_fp_no_contract = BITFIELD_BIT(3),
+
+   /* If not set, allow to treat opcodes with NIR_OP_IS_INEXACT_ASSOCIATIVE
+    * as associative.
+    */
+   nir_fp_no_reassoc = BITFIELD_BIT(4),
+
+   /* If not set, allow any optimization that would be valid for real numbers.
+    *
+    * Must be set if nir_fp_no_contract or nir_fp_no_reassoc are set.
+    */
+   nir_fp_no_transform = BITFIELD_BIT(5),
+
    /** Indicates that this ALU instruction generates an exact value
     *
     * This is kind of a mixture of GLSL "precise" and "invariant" and not
@@ -1567,8 +1584,13 @@ typedef enum {
     * it must ensure that the resulting value is bit-for-bit identical to the
     * original, with the exception of undefindness allowed by other
     * nir_fp_math_control bits and NaN patterns.
+    *
+    * The sub bits allow more fine grained control over the kind of inexact
+    * optimizations allowed.
     */
-   nir_fp_exact = BITFIELD_BIT(3),
+   nir_fp_exact = nir_fp_no_contract |
+                  nir_fp_no_reassoc |
+                  nir_fp_no_transform,
 
    nir_fp_preserve_sz_inf_nan = nir_fp_preserve_signed_zero |
                                 nir_fp_preserve_inf |
@@ -1643,6 +1665,24 @@ static inline bool
 nir_alu_instr_is_exact(const nir_alu_instr *alu)
 {
    return alu->fp_math_ctrl & nir_fp_exact;
+}
+
+static inline bool
+nir_alu_instr_no_contract(const nir_alu_instr *alu)
+{
+   return alu->fp_math_ctrl & nir_fp_no_contract;
+}
+
+static inline bool
+nir_alu_instr_no_reassoc(const nir_alu_instr *alu)
+{
+   return alu->fp_math_ctrl & nir_fp_no_reassoc;
+}
+
+static inline bool
+nir_alu_instr_no_transform(const nir_alu_instr *alu)
+{
+   return alu->fp_math_ctrl & nir_fp_no_transform;
 }
 
 static inline unsigned

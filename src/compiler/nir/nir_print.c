@@ -488,7 +488,16 @@ print_fp_math_ctrl(unsigned fp_math_ctrl, print_state *state)
    FILE *fp = state->fp;
 
    if (fp_math_ctrl & nir_fp_exact) {
-      fprintf(fp, "exact");
+      if ((fp_math_ctrl & nir_fp_exact) == nir_fp_exact) {
+         fprintf(fp, "exact");
+      } else if (fp_math_ctrl & nir_fp_no_contract) {
+         fprintf(fp, "no-contract");
+      } else if (fp_math_ctrl & nir_fp_no_reassoc) {
+         fprintf(fp, "no-reassoc");
+      } else if (fp_math_ctrl & nir_fp_no_transform) {
+         fprintf(fp, "no-transform");
+      }
+
       if (fp_math_ctrl & ~nir_fp_exact)
          fprintf(fp, ", ");
    }
