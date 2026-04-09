@@ -6,14 +6,7 @@
 #ifndef FD6_HW_H
 #define FD6_HW_H
 
-#include <stdbool.h>
-#include <stdint.h>
-
-#include "util/half_float.h"
-#include "util/u_math.h"
-
-#include "adreno_pm4.xml.h"
-#include "adreno_common.xml.h"
+#include "fd_hw_common.h"
 
 #include "a6xx_enums.xml.h"
 #include "a7xx_enums.xml.h"
