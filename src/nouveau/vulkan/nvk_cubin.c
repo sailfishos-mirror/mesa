@@ -7,6 +7,7 @@
 #include "nvk_cmd_buffer.h"
 #include "nvk_device.h"
 #include "nvk_entrypoints.h"
+#include "nvk_instance.h"
 
 #include "nouveau/cubin/nv_cubin.h"
 #include "nouveau/cubin/nv_fatbin.h"
@@ -39,8 +40,11 @@ nvk_cubin_module_init(struct nvk_device *dev, struct nvk_cubin_module *module,
                       const VkAllocationCallbacks *pAllocator)
 {
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+   const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
    const void *data;
    size_t size;
+   bool backwards_compat =
+      instance->experimental_flags & NVK_EXPERIMENTAL_DLSS_BACK_COMPAT;
 
    struct nv_fatbin fatbin;
    if (nv_fatbin_init(&fatbin, pCreateInfo->pData, pCreateInfo->dataSize)) {
@@ -50,7 +54,8 @@ nvk_cubin_module_init(struct nvk_device *dev, struct nvk_cubin_module *module,
          nvk_cubin_dump("fatbin", pCreateInfo->pData, pCreateInfo->dataSize);
 #endif
 
-      if (!nv_fatbin_get_bytecode(&fatbin, pdev->info.sm, &data, &size))
+      if (!nv_fatbin_get_bytecode(&fatbin, pdev->info.sm,
+                                  backwards_compat, &data, &size))
          return vk_errorf(dev, VK_ERROR_INITIALIZATION_FAILED,
                          "Fatbin does not have compatible bytecode");
    } else {
@@ -71,7 +76,7 @@ nvk_cubin_module_init(struct nvk_device *dev, struct nvk_cubin_module *module,
    if (!nv_cubin_module_init(module->info, data, size))
       return VK_ERROR_INITIALIZATION_FAILED;
 
-   if (!nv_is_sm_compatible(pdev->info.sm, module->info->sm))
+   if (!nv_is_sm_compatible(pdev->info.sm, module->info->sm, backwards_compat))
          return vk_errorf(dev, VK_ERROR_INITIALIZATION_FAILED,
                           "Incompatible cubin module: pdev sm_%u vs cubin sm_%u",
                           pdev->info.sm, module->info->sm);

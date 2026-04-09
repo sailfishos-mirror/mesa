@@ -47,6 +47,13 @@ enum nvk_debug {
 enum nvk_experimental {
    /* Enable dlss support */
    NVK_EXPERIMENTAL_DLSS = 1ull << 0,
+
+   /* Enable dlss backwards compat
+    *
+    * Allow using a SASS binary with a matching major version number, but
+    * smaller minor number than the device.
+    */
+   NVK_EXPERIMENTAL_DLSS_BACK_COMPAT = 1ull << 1,
 };
 
 #endif /* NVK_DEBUG_H */

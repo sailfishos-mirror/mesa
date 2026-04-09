@@ -19,9 +19,9 @@ struct nv_fatbin {
 };
 
 bool nv_fatbin_init(struct nv_fatbin *fatbin, const void *data, size_t size);
-bool nv_fatbin_get_bytecode(struct nv_fatbin *fatbin, uint32_t sm,
+bool nv_fatbin_get_bytecode(struct nv_fatbin *fatbin, uint32_t sm, bool backwards_compat,
                             const void **out_data, size_t *out_size);
 
-bool nv_is_sm_compatible(uint32_t device_sm, uint32_t requested_sm);
+bool nv_is_sm_compatible(uint32_t device_sm, uint32_t requested_sm, bool backwards_compat);
 
 #endif

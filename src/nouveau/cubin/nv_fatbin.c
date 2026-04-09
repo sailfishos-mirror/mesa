@@ -25,7 +25,7 @@ nv_fatbin_init(struct nv_fatbin *fatbin, const void *data, size_t size)
 }
 
 bool
-nv_fatbin_get_bytecode(struct nv_fatbin *fatbin, uint32_t sm,
+nv_fatbin_get_bytecode(struct nv_fatbin *fatbin, uint32_t sm, bool backwards_compat,
                        const void **out_data, size_t *out_size)
 {
    uint32_t sm_found = 0;
@@ -38,7 +38,7 @@ nv_fatbin_get_bytecode(struct nv_fatbin *fatbin, uint32_t sm,
 
       /* pick bytecode for our gpu */
       if (object->kind == NV_FATBIN_OBJECT_KIND_BYTECODE &&
-          nv_is_sm_compatible(sm, object->sm)) {
+          nv_is_sm_compatible(sm, object->sm, backwards_compat)) {
          if (object->sm > sm_found) {
             sm_found = object->sm;
             *out_data = ptr;
@@ -54,10 +54,14 @@ nv_fatbin_get_bytecode(struct nv_fatbin *fatbin, uint32_t sm,
 }
 
 bool
-nv_is_sm_compatible(uint32_t device_sm, uint32_t requested_sm)
+nv_is_sm_compatible(uint32_t device_sm, uint32_t requested_sm, bool backwards_compat)
 {
-   /* Binaries of the same SM major version are compatible if the minor version
-    * is lower or equal */
-   return (device_sm / 10) == (requested_sm / 10) &&
-          device_sm >= requested_sm;
+   if (backwards_compat) {
+      /* Binaries of the same SM major version are compatible if the minor version
+      * is lower or equal */
+      return (device_sm / 10) == (requested_sm / 10) &&
+            device_sm >= requested_sm;
+   } else {
+      return device_sm == requested_sm;
+   }
 }
