@@ -146,13 +146,14 @@ panfrost_sampler_compare_func(const struct pipe_sampler_state *cso)
 }
 
 static enum mali_mipmap_mode
-pan_pipe_to_mipmode(enum pipe_tex_mipfilter f)
+pan_pipe_to_mipmode(enum pipe_tex_mipfilter f, bool use_perf_trilinear)
 {
    switch (f) {
    case PIPE_TEX_MIPFILTER_NEAREST:
       return MALI_MIPMAP_MODE_NEAREST;
    case PIPE_TEX_MIPFILTER_LINEAR:
-      return MALI_MIPMAP_MODE_TRILINEAR;
+      return use_perf_trilinear ? MALI_MIPMAP_MODE_PERFORMANCE_TRILINEAR :
+                                  MALI_MIPMAP_MODE_TRILINEAR;
 #if PAN_ARCH >= 6
    case PIPE_TEX_MIPFILTER_NONE:
       return MALI_MIPMAP_MODE_NONE;
@@ -220,7 +221,9 @@ panfrost_create_sampler_state(struct pipe_context *pctx,
       cfg.wrap_mode_t = translate_tex_wrap(cso->wrap_t, using_nearest);
       cfg.wrap_mode_r = translate_tex_wrap(cso->wrap_r, using_nearest);
 
-      cfg.mipmap_mode = pan_pipe_to_mipmode(cso->min_mip_filter);
+      cfg.mipmap_mode = pan_pipe_to_mipmode(cso->min_mip_filter,
+                                            cso->max_anisotropy > 1);
+
       cfg.compare_function = panfrost_sampler_compare_func(cso);
       cfg.seamless_cube_map = cso->seamless_cube_map;
 
