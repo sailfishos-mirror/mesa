@@ -52,3 +52,9 @@ endif
 if with_freedreno_vk
   subdir('vulkan')
 endif
+
+test('check-xml-includes',
+  prog_python,
+  args : files('tests/check_xml_includes.py'),
+  suite : ['freedreno'],
+)
