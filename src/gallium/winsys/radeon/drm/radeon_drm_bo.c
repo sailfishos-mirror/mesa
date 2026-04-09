@@ -33,6 +33,18 @@ static inline struct radeon_bo *radeon_bo(struct pb_buffer_lean *bo)
    return (struct radeon_bo *)bo;
 }
 
+static bool
+radeon_bo_ref_existing(struct radeon_bo *bo)
+{
+   if (unlikely(p_atomic_inc_return(&bo->base.reference.count) == 1)) {
+      p_atomic_dec(&bo->base.reference.count);
+      assert(p_atomic_read(&bo->base.reference.count) == 0);
+      return false;
+   }
+
+   return true;
+}
+
 struct radeon_bo_va_hole {
    struct list_head list;
    uint64_t         offset;
@@ -1184,13 +1196,8 @@ static struct pb_buffer_lean *radeon_winsys_bo_from_handle(struct radeon_winsys 
    }
 
    if (bo) {
-      /* Increase the refcount. */
-      if (unlikely(p_atomic_inc_return(&bo->base.reference.count) == 1)) {
-         p_atomic_dec(&bo->base.reference.count);
-         assert(p_atomic_read(&bo->base.reference.count) == 0);
-      } else {
+      if (radeon_bo_ref_existing(bo))
          goto done;
-      }
    }
 
    /* There isn't, create a new one. */
