@@ -312,7 +312,7 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
    out->has_sram_ecc_enabled = info->family == CHIP_VEGA20 || info->family == CHIP_MI100 ||
                                info->family == CHIP_MI200 || info->family == CHIP_GFX940;
    out->has_point_sample_accel = info->family == CHIP_STRIX1 || info->family == CHIP_STRIX_HALO ||
-                                 info->family == CHIP_KRACKAN1;
+                                 info->family == CHIP_KRACKAN1 || info->gfx_level == GFX11_7;
    out->has_fast_fma32 = info->gfx_level >= GFX9 || info->family == CHIP_TAHITI ||
                          info->family == CHIP_HAWAII || info->family == CHIP_CARRIZO;
    out->has_fma_mix = info->gfx_level >= GFX10 || info->family == CHIP_VEGA12 ||
