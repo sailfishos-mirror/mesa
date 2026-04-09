@@ -59,6 +59,7 @@
 #include "util/bitset.h"
 #include "util/bitscan.h"
 #include "util/cache_ops.h"
+#include "util/cnd_monotonic.h"
 #include "util/detect_os.h"
 #include "util/macros.h"
 #include "util/hash_table.h"
@@ -2846,7 +2847,9 @@ struct anv_device {
 
    struct {
       mtx_t mutex;
+      struct u_cnd_monotonic lost_cnd;
       struct anv_device_fault_state state;
+      uint32_t num_reported;
    } fault;
 };
 

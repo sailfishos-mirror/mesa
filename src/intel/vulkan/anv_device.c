@@ -877,11 +877,16 @@ VkResult anv_CreateDevice(
       goto fail_mutex;
    }
 
+   if (u_cnd_monotonic_init(&device->fault.lost_cnd) != thrd_success) {
+      result = vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
+      goto fail_fault_mutex;
+   }
+
    result = anv_device_bind_null_va(device,
                                     &device->physical->va.null_initialized_heap,
                                     ANV_VM_BIND);
    if (result != VK_SUCCESS)
-      goto fail_fault_mutex;
+      goto fail_fault_cnd;
 
    if (physical_device->instance->vk.trace_mode & VK_TRACE_MODE_RMV)
       anv_memory_trace_init(device);
@@ -1331,6 +1336,8 @@ VkResult anv_CreateDevice(
    anv_device_bind_null_va(device,
                            &device->physical->va.null_initialized_heap,
                            ANV_VM_UNBIND);
+ fail_fault_cnd:
+   u_cnd_monotonic_destroy(&device->fault.lost_cnd);
  fail_fault_mutex:
    mtx_destroy(&device->fault.mutex);
  fail_mutex:
@@ -1476,6 +1483,7 @@ void anv_DestroyDevice(
 
    anv_device_finish_vma_heaps(device);
 
+   u_cnd_monotonic_destroy(&device->fault.lost_cnd);
    mtx_destroy(&device->fault.mutex);
 
    pthread_mutex_destroy(&device->mutex);

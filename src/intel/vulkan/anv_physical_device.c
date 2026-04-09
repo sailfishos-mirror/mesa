@@ -160,6 +160,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_depth_clamp_zero_one              = true,
       .KHR_depth_stencil_resolve             = true,
       .KHR_descriptor_update_template        = true,
+      .KHR_device_fault                      = device->can_get_vm_faults,
       .KHR_device_group                      = true,
       .KHR_device_address_commands           = true,
       .KHR_draw_indirect_count               = true,
@@ -310,6 +311,7 @@ get_device_extensions(const struct anv_physical_device *device,
        * for later.
        */
       .EXT_device_generated_commands         = device->info.verx10 >= 125 || ANV_DEBUG(EXPERIMENTAL),
+      .EXT_device_fault                      = device->can_get_vm_faults,
       .EXT_device_memory_report              = true,
 #ifdef VK_USE_PLATFORM_DISPLAY_KHR
       .EXT_display_control                   = true,
@@ -1065,6 +1067,12 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_EXT_swapchain_compression_control */
       .imageCompressionControlSwapchain = pdevice->expose_compression_control,
+
+      /* VK_EXT_device_fault */
+      .deviceFaultEXT = pdevice->can_get_vm_faults,
+
+      /* VK_KHR_device_fault */
+      .deviceFault = pdevice->can_get_vm_faults,
    };
 
    /* The new DOOM and Wolfenstein games require depthBounds without
@@ -2227,6 +2235,11 @@ get_properties(const struct anv_physical_device *pdevice,
    /* VK_KHR_copy_memory_indirect */
    {
       props->supportedQueues = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+   }
+
+   /* VK_KHR_device_fault */
+   {
+      props->maxDeviceFaultCount = UINT32_MAX;
    }
 }
 
