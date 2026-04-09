@@ -1,6 +1,8 @@
 // Copyright 2025 Google
 // SPDX-License-Identifier: MIT
 
+use std::io::Error;
+use std::io::ErrorKind;
 use std::io::IoSlice;
 use std::io::IoSliceMut;
 use std::mem::MaybeUninit;
@@ -39,6 +41,21 @@ const MAX_IDENTIFIERS: usize = 28;
 
 pub struct Tube {
     socket: OwnedDescriptor,
+}
+
+impl TryFrom<SocketType> for TubeType {
+    type Error = std::io::Error;
+
+    fn try_from(ty: SocketType) -> Result<Self, Self::Error> {
+        match ty {
+            SocketType::SEQPACKET => Ok(TubeType::Packet),
+            SocketType::STREAM => Ok(TubeType::Stream),
+            ty => {
+                log::warn!("Unsupported socket type {ty:?}");
+                Err(Error::from(ErrorKind::Unsupported))
+            }
+        }
+    }
 }
 
 impl Tube {
