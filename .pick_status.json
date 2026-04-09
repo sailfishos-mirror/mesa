@@ -5694,7 +5694,7 @@
         "description": "pvr: fix the code copying query_indices to sub_query_indices",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8c506c4b03aa17ba1c71ed4ce80464d489c29de7",
         "notes": null

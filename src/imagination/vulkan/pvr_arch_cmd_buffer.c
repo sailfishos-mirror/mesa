@@ -2407,8 +2407,8 @@ VkResult pvr_arch_cmd_buffer_end_sub_cmd(struct pvr_cmd_buffer *cmd_buffer)
          assert(gfx_sub_cmd->query_pool);
 
          if (secondary_cont) {
-            util_dynarray_append_dynarray(&state->query_indices,
-                                          &gfx_sub_cmd->sec_query_indices);
+            util_dynarray_append_dynarray(&gfx_sub_cmd->sec_query_indices,
+                                          &state->query_indices);
          } else {
             const void *data = util_dynarray_begin(&state->query_indices);
 
