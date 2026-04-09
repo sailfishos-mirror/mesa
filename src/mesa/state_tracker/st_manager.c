@@ -803,7 +803,7 @@ st_context_flush(struct st_context *st, unsigned flags,
    st_flush(st, fence, pipe_flags);
 
    if ((flags & ST_FLUSH_WAIT) && fence && *fence) {
-      st->screen->fence_finish(st->screen, NULL, *fence,
+      st->screen->fence_finish(st->screen, st->pipe, *fence,
                                      OS_TIMEOUT_INFINITE);
       st->screen->fence_reference(st->screen, fence, NULL);
    }
