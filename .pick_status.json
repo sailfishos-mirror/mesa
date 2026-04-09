@@ -1254,7 +1254,7 @@
         "description": "d3d12: Fix MinGW cross-build error in resource_state_if_promoted",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fe48cd7c5a5942f040e7c6ff0986726e437d30b9",
         "notes": null
