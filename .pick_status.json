@@ -5684,7 +5684,7 @@
         "description": "pvr: propagate get_vis_results flag from secondary cmdbuf gfx jobs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5c34be4340f00ff779b944669baf93448cd0238a",
         "notes": null

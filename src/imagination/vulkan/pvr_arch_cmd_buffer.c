@@ -9061,6 +9061,9 @@ pvr_execute_graphics_cmd_buffer(struct pvr_cmd_buffer *cmd_buffer,
             sec_sub_cmd->gfx.job.disable_compute_overlap;
       }
 
+      primary_sub_cmd->gfx.job.get_vis_results |=
+         sec_sub_cmd->gfx.job.get_vis_results;
+
       primary_sub_cmd->gfx.max_tiles_in_flight =
          MIN2(primary_sub_cmd->gfx.max_tiles_in_flight,
               sec_sub_cmd->gfx.max_tiles_in_flight);
