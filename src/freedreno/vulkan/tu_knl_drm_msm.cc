@@ -1668,6 +1668,8 @@ tu_knl_drm_msm_load(struct tu_instance *instance,
 
    device->has_preemption = tu_drm_has_preemption(device);
 
+   device->is_perf_cntr_selectable = true;
+
    /* Even if kernel is new enough, the GPU itself may not support it. */
    device->has_cached_coherent_memory =
       (device->msm_minor_version >= 8) &&

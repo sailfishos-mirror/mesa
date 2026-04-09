@@ -1339,6 +1339,7 @@ tu_knl_drm_virtio_load(struct tu_instance *instance,
    device->has_set_iova   = true;
    device->has_lazy_bos   = true;
    device->has_preemption = has_preemption;
+   device->is_perf_cntr_selectable = true;
    device->uche_trap_base = uche_trap_base;
 
    device->ubwc_config.bank_swizzle_levels = bank_swizzle_levels;

@@ -216,7 +216,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .KHR_maintenance8 = tu_is_vk_1_1(device),
       .KHR_map_memory2 = true,
       .KHR_multiview = tu_has_multiview(device),
-      .KHR_performance_query = TU_DEBUG(PERFC) || TU_DEBUG(PERFCRAW),
+      .KHR_performance_query = (TU_DEBUG(PERFC) || TU_DEBUG(PERFCRAW)) && device->is_perf_cntr_selectable,
       .KHR_pipeline_executable_properties = true,
       .KHR_pipeline_library = true,
 #ifdef TU_USE_WSI_PLATFORM
