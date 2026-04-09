@@ -924,7 +924,7 @@
         "description": "mesa: Fix inconsistent multisampled CopyTexImage checks",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d7b9da2673a8aef49f83dc043aae6ff4fcb212a3",
         "notes": null
