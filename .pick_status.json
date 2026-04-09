@@ -1584,7 +1584,7 @@
         "description": "intel/compiler: implement macl part of Wa_18035690555",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3ab9145393fe126aed83ef8fc403cefc011d1382",
         "notes": null
