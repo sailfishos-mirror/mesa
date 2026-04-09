@@ -90,6 +90,9 @@ panfrost_batch_init(struct panfrost_context *ctx,
 
    panfrost_batch_add_surface(batch, &batch->key.zsbuf);
 
+   if (dev->arch >= 10)
+      u_trace_init(&batch->trace, &ctx->trace_context);
+
    return screen->vtbl.init_batch(batch);
 }
 
@@ -132,6 +135,9 @@ panfrost_batch_cleanup(struct panfrost_context *ctx,
    util_unreference_framebuffer_state(&batch->key);
 
    util_dynarray_fini(&batch->bos);
+
+   if (dev->arch >= 10)
+      u_trace_fini(&batch->trace);
 
    memset(batch, 0, sizeof(*batch));
    BITSET_CLEAR(ctx->batches.active, batch_idx);
@@ -719,6 +725,9 @@ panfrost_batch_submit(struct panfrost_context *ctx,
    if (ret)
       mesa_loge("panfrost_batch_submit failed: %d\n", ret);
 
+   if (pan_device(ctx->base.screen)->arch >= 10)
+      u_trace_flush(&batch->trace, NULL, U_TRACE_FRAME_UNKNOWN, false);
+
    /* We must reset the damage info of our render targets here even
     * though a damage reset normally happens when the DRI layer swaps
     * buffers. That's because there can be implicit flushes the GL
@@ -759,6 +768,9 @@ panfrost_flush_all_batches(struct panfrost_context *ctx, const char *reason)
       if (ctx->batches.slots[i].seqnum)
          panfrost_batch_submit(ctx, &ctx->batches.slots[i]);
    }
+
+   if (pan_device(ctx->base.screen)->arch >= 10)
+      u_trace_context_process(&ctx->trace_context, false);
 }
 
 void
@@ -773,6 +785,8 @@ panfrost_flush_writer(struct panfrost_context *ctx,
    if (entry) {
       perf_debug(ctx, "Flushing writer due to: %s", reason);
       panfrost_batch_submit(ctx, entry->data);
+      if (pan_device(ctx->base.screen)->arch >= 10)
+         u_trace_context_process(&ctx->trace_context, false);
    }
 }
 
@@ -794,6 +808,8 @@ panfrost_flush_batches_accessing_rsrc(struct panfrost_context *ctx,
       perf_debug(ctx, "Flushing user due to: %s", reason);
       panfrost_batch_submit(ctx, batch);
    }
+   if (pan_device(ctx->base.screen)->arch >= 10)
+      u_trace_context_process(&ctx->trace_context, false);
 }
 
 bool

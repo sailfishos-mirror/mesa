@@ -2002,13 +2002,25 @@ GENX(csf_cleanup_context)(struct panfrost_context *ctx)
 
 void
 GENX(csf_emit_write_timestamp)(struct panfrost_batch *batch,
-                               struct panfrost_resource *dst, unsigned offset)
+                               struct panfrost_resource *dst, unsigned offset,
+                               uint16_t sb_wait_mask)
 {
    struct cs_builder *b = batch->csf.cs.builder;
 
    struct cs_index address = cs_reg64(b, 40);
    cs_move64_to(b, address, dst->plane.base + offset);
-   cs_store_state(b, address, 0, MALI_CS_STATE_TIMESTAMP, cs_now());
+
+   /* When sb_wait_mask is non-zero, defer the write until those scoreboard
+    * slots signals.
+    *
+    * FIXME: cs_defer value for second parameter copied from panvk. Would be
+    * good to get something similar to panvk_sb_ids here, or move it to a
+    * common place.
+    */
+   struct cs_async_op async = sb_wait_mask
+      ? cs_defer(sb_wait_mask, PANFROST_SB_DEFERRED)
+      : cs_now();
+   cs_store_state(b, address, 0, MALI_CS_STATE_TIMESTAMP, async);
 
    panfrost_batch_write_rsrc(batch, dst, MESA_SHADER_VERTEX);
 }

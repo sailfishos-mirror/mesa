@@ -238,7 +238,7 @@ pan_clean_tile_write_any_set(struct pan_clean_tile clean_tile)
    return clean_tile.write_rt_mask || clean_tile.write_zs;
 }
 
-static unsigned
+static inline unsigned
 pan_zsbuf_bytes_per_pixel(const struct pan_fb_info *fb)
 {
    unsigned samples = fb->nr_samples;

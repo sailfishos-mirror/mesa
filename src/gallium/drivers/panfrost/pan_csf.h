@@ -117,6 +117,7 @@ struct panfrost_csf_context {
 
 struct panfrost_batch;
 struct panfrost_context;
+struct panfrost_resource;
 struct pan_fb_info;
 struct pan_tls_info;
 struct pipe_draw_info;
@@ -154,7 +155,8 @@ void GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
 
 void GENX(csf_emit_write_timestamp)(struct panfrost_batch *batch,
                                     struct panfrost_resource *dst,
-                                    unsigned offset);
+                                    unsigned offset,
+                                    uint16_t sb_wait_mask);
 
 #endif /* PAN_ARCH >= 10 */
 
