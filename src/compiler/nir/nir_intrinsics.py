@@ -2107,6 +2107,8 @@ system_value("resume_shader_address_amd", 1, bit_sizes=[64], indices=[CALL_IDX])
 
 # Ray Tracing Traversal inputs
 system_value("rt_descriptors_amd", 1)
+system_value("rt_heap_resource_amd", 1)
+system_value("rt_heap_sampler_amd", 1)
 system_value("rt_dynamic_descriptors_amd", 1)
 system_value("rt_push_constants_amd", 1)
 system_value("sbt_offset_amd", 1)
