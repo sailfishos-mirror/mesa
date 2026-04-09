@@ -3036,14 +3036,42 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
 
    case nir_op_extract_u8:
    case nir_op_extract_i8: {
-      assert(comps == 1 && "should be scalarized");
-      assert((src_sz == 16 || src_sz == 32) && "should be lowered");
-      unsigned byte = nir_alu_src_as_uint(instr->src[1]);
+      if (sz == 32) {
+         assert(comps == 1 && "should be scalarized");
+         unsigned byte = nir_alu_src_as_uint(instr->src[1]);
+         if (instr->op == nir_op_extract_i8)
+            bi_s8_to_s32_to(b, dst, bi_byte(s0, byte));
+         else
+            bi_u8_to_u32_to(b, dst, bi_byte(s0, byte));
+      } else if (sz == 16) {
+         assert(comps <= 2);
+         const unsigned byte_x = nir_alu_src_comp_as_uint(instr->src[1], 0);
+         const unsigned byte_y = comps == 1 ? byte_x :
+                                 nir_alu_src_comp_as_uint(instr->src[1], 1);
+         assert(byte_x < 2 && byte_y < 2);
 
-      if (instr->op == nir_op_extract_i8)
-         bi_s8_to_s32_to(b, dst, bi_byte(s0, byte));
-      else
-         bi_u8_to_u32_to(b, dst, bi_byte(s0, byte));
+         /* Construct the swizzle for the select.  We know it's valid because
+          * it's guaranteed to be a BXXYY swizzle, even when composed with
+          * s0.swizzle.
+          */
+         enum bi_swizzle swizzle = BI_SWIZZLE_H01;
+         const unsigned bytes[4] = { byte_x, byte_x, 2 + byte_y, 2 + byte_y };
+         bool valid = bi_swizzle_from_byte_channels(bytes, &swizzle);
+         assert(valid);
+
+         valid = bi_try_compose_swizzles(&swizzle, swizzle, s0.swizzle);
+         assert(valid);
+
+         bi_index src = s0;
+         src.swizzle = swizzle;
+
+         if (instr->op == nir_op_extract_i8)
+            bi_v2s8_to_v2s16_to(b, dst, src);
+         else
+            bi_v2u8_to_v2u16_to(b, dst, src);
+      } else {
+         UNREACHABLE("should be lowered");
+      }
       break;
    }
 
