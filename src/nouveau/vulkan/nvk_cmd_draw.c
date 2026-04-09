@@ -3363,6 +3363,44 @@ nvk_mme_set_anti_alias(struct mme_builder *b)
    }
 }
 
+static void
+nvk_mme_set_anti_alias_test_check(
+   const struct nv_device_info *devinfo,
+   const struct nvk_mme_test_case *test,
+   const struct nvk_mme_mthd_data *results)
+{
+   const uint32_t expected_table[][7] = {
+      {0xffff0000, 0x0, 0x1, 0x020001, 0x080004, 0x200010, 0x800040},
+      {0xffff0002, 0x2, 0x1, 0x020001, 0x080004, 0x200010, 0x800040},
+      {0x00f00030, 0x31, 0x14, 0x030003, 0x0c000c, 0x300030, 0xc000c0},
+      {0x000f0002, 0x32, 0x12, 0x0f000f, 0x0f000f, 0xf000f0, 0xf000f0},
+   };
+   const uint32_t* expected = NULL;
+   for (int i = 0; i < ARRAY_SIZE(expected_table); i++) {
+      if (expected_table[i][0] == test->params[0]) {
+         expected = expected_table[i];
+         break;
+      }
+   }
+   assert(expected != NULL);
+
+   assert(results[0].mthd == NVK_SET_MME_SCRATCH(ANTI_ALIAS));
+   assert(results[0].data == expected[1]);
+
+   assert(results[1].mthd == NV9097_SET_HYBRID_ANTI_ALIAS_CONTROL);
+   assert(results[1].data == expected[2]);
+
+   assert(results[2].mthd == NV9097_LOAD_CONSTANT_BUFFER_OFFSET);
+   assert(results[2].data == nvk_root_descriptor_offset(draw.sample_masks));
+
+   for (int i = 0; i < 4; i++) {
+      assert(results[3 + i].mthd == NV9097_LOAD_CONSTANT_BUFFER(i));
+      assert(results[3 + i].data == expected[3 + i]);
+   }
+
+   assert(results[7].mthd == 0);
+}
+
 const struct nvk_mme_test_case nvk_mme_set_anti_alias_tests[] = {{
    /* This case doesn't change the state so it should do nothing */
    .init = (struct nvk_mme_mthd_data[]) {
@@ -3380,17 +3418,7 @@ const struct nvk_mme_test_case nvk_mme_set_anti_alias_tests[] = {{
       { }
    },
    .params = (uint32_t[]) { 0xffff0000 },
-   .expected = (struct nvk_mme_mthd_data[]) {
-      { NVK_SET_MME_SCRATCH(ANTI_ALIAS), 0 },
-      { NV9097_SET_HYBRID_ANTI_ALIAS_CONTROL, 0x1 },
-      { NV9097_LOAD_CONSTANT_BUFFER_OFFSET,
-        nvk_root_descriptor_offset(draw.sample_masks) },
-      { NV9097_LOAD_CONSTANT_BUFFER(0), 0x020001 },
-      { NV9097_LOAD_CONSTANT_BUFFER(1), 0x080004 },
-      { NV9097_LOAD_CONSTANT_BUFFER(2), 0x200010 },
-      { NV9097_LOAD_CONSTANT_BUFFER(3), 0x800040 },
-      { }
-   },
+   .check = nvk_mme_set_anti_alias_test_check,
 }, {
    /* Single sample, minSampleShading = 0.25 */
    .init = (struct nvk_mme_mthd_data[]) {
@@ -3398,17 +3426,7 @@ const struct nvk_mme_test_case nvk_mme_set_anti_alias_tests[] = {{
       { }
    },
    .params = (uint32_t[]) { 0xffff0002 },
-   .expected = (struct nvk_mme_mthd_data[]) {
-      { NVK_SET_MME_SCRATCH(ANTI_ALIAS), 0x2 },
-      { NV9097_SET_HYBRID_ANTI_ALIAS_CONTROL, 0x1 },
-      { NV9097_LOAD_CONSTANT_BUFFER_OFFSET,
-        nvk_root_descriptor_offset(draw.sample_masks) },
-      { NV9097_LOAD_CONSTANT_BUFFER(0), 0x020001 },
-      { NV9097_LOAD_CONSTANT_BUFFER(1), 0x080004 },
-      { NV9097_LOAD_CONSTANT_BUFFER(2), 0x200010 },
-      { NV9097_LOAD_CONSTANT_BUFFER(3), 0x800040 },
-      { }
-   },
+   .check = nvk_mme_set_anti_alias_test_check,
 }, {
    /* 8 samples, minSampleShading = 0.5 */
    .init = (struct nvk_mme_mthd_data[]) {
@@ -3420,17 +3438,7 @@ const struct nvk_mme_test_case nvk_mme_set_anti_alias_tests[] = {{
       { }
    },
    .params = (uint32_t[]) { 0x00f00030 },
-   .expected = (struct nvk_mme_mthd_data[]) {
-      { NVK_SET_MME_SCRATCH(ANTI_ALIAS), 0x31 },
-      { NV9097_SET_HYBRID_ANTI_ALIAS_CONTROL, 0x14 },
-      { NV9097_LOAD_CONSTANT_BUFFER_OFFSET,
-        nvk_root_descriptor_offset(draw.sample_masks) },
-      { NV9097_LOAD_CONSTANT_BUFFER(0), 0x030003 },
-      { NV9097_LOAD_CONSTANT_BUFFER(1), 0x0c000c },
-      { NV9097_LOAD_CONSTANT_BUFFER(2), 0x300030 },
-      { NV9097_LOAD_CONSTANT_BUFFER(3), 0xc000c0 },
-      { }
-   },
+   .check = nvk_mme_set_anti_alias_test_check,
 }, {
    /* 8 samples, minSampleShading = 0.25 */
    .init = (struct nvk_mme_mthd_data[]) {
@@ -3442,17 +3450,7 @@ const struct nvk_mme_test_case nvk_mme_set_anti_alias_tests[] = {{
       { }
    },
    .params = (uint32_t[]) { 0x000f0002 },
-   .expected = (struct nvk_mme_mthd_data[]) {
-      { NVK_SET_MME_SCRATCH(ANTI_ALIAS), 0x32 },
-      { NV9097_SET_HYBRID_ANTI_ALIAS_CONTROL, 0x12 },
-      { NV9097_LOAD_CONSTANT_BUFFER_OFFSET,
-        nvk_root_descriptor_offset(draw.sample_masks) },
-      { NV9097_LOAD_CONSTANT_BUFFER(0), 0x0f000f },
-      { NV9097_LOAD_CONSTANT_BUFFER(1), 0x0f000f },
-      { NV9097_LOAD_CONSTANT_BUFFER(2), 0xf000f0 },
-      { NV9097_LOAD_CONSTANT_BUFFER(3), 0xf000f0 },
-      { }
-   },
+   .check = nvk_mme_set_anti_alias_test_check,
 }, {}};
 
 static VkSampleLocationEXT
