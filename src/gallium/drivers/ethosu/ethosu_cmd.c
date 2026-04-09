@@ -725,6 +725,17 @@ simplified_elementwise_add_sub_scale(
 }
 
 static void
+elementwise_min_max_scale(struct ethosu_subgraph *subgraph)
+{
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65) {
+      EMIT1(NPU_SET_OPA_SCALE, 0, 1);
+      EMIT1(NPU_SET_OPB_SCALE, 0, 1);
+
+   }
+   EMIT1(NPU_SET_OFM_SCALE, 0, 1);
+}
+
+static void
 elementwise_mul_scale(
    struct ethosu_subgraph *subgraph,
    double input1_scale,
@@ -814,6 +825,10 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
          else
             op_to_scale = OP_A;
       }
+      break;
+   case ETHOSU_ELTWISE_TYPE_MAX:
+   case ETHOSU_ELTWISE_TYPE_MIN:
+      elementwise_min_max_scale(subgraph);
       break;
    default:
       assert(0);

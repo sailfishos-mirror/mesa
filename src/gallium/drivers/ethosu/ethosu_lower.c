@@ -877,6 +877,20 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          break;
       }
 
+      case PIPE_ML_OPERATION_TYPE_MAXIMUM: {
+         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
+         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_MAX;
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_MINIMUM: {
+         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
+         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_MIN;
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
       case PIPE_ML_OPERATION_TYPE_POOLING: {
          ethosu_lower_pooling(subgraph, &poperations[i], &operation);
          util_dynarray_append(&subgraph->operations, operation);

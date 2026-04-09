@@ -140,6 +140,8 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
 
       break;
    }
+   case PIPE_ML_OPERATION_TYPE_MAXIMUM:
+   case PIPE_ML_OPERATION_TYPE_MINIMUM:
    case PIPE_ML_OPERATION_TYPE_MUL:
    case PIPE_ML_OPERATION_TYPE_ADD:
    case PIPE_ML_OPERATION_TYPE_POOLING:
