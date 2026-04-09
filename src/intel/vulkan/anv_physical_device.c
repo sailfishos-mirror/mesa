@@ -2885,8 +2885,8 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       goto fail_base;
 
    device->has_cooperative_matrix =
-      (device->info.has_systolic || debug_get_bool_option("INTEL_LOWER_DPAS", false)) &&
-      device->info.cooperative_matrix_configurations[0].scope != INTEL_CMAT_SCOPE_NONE &&
+      (device->info.has_systolic ||
+       debug_get_bool_option("INTEL_LOWER_DPAS", false)) &&
       !intel_use_jay_any_stage(&device->info);
 
    /* Because of Xe2 PAT selected compression and the Vulkan spec requirement
@@ -3418,28 +3418,66 @@ VkResult anv_GetPhysicalDeviceFragmentShadingRatesKHR(
    return vk_outarray_status(&out);
 }
 
-static VkComponentTypeKHR
-convert_component_type(enum intel_cooperative_matrix_component_type t)
+static void
+anv_fill_all_cooperative_matrix_props(const struct anv_physical_device *pdevice, struct __vk_outarray *base,
+                                      void (*fill_cb)(struct __vk_outarray *base, unsigned exec_size,
+                                                      VkComponentTypeKHR a_type, VkComponentTypeKHR b_type,
+                                                      VkComponentTypeKHR c_type, VkComponentTypeKHR r_type,
+                                                      unsigned ops_per_chan, bool saturate))
 {
-   switch (t) {
-   case INTEL_CMAT_FLOAT16:  return VK_COMPONENT_TYPE_FLOAT16_KHR;
-   case INTEL_CMAT_FLOAT32:  return VK_COMPONENT_TYPE_FLOAT32_KHR;
-   case INTEL_CMAT_SINT32:   return VK_COMPONENT_TYPE_SINT32_KHR;
-   case INTEL_CMAT_SINT8:    return VK_COMPONENT_TYPE_SINT8_KHR;
-   case INTEL_CMAT_UINT32:   return VK_COMPONENT_TYPE_UINT32_KHR;
-   case INTEL_CMAT_UINT8:    return VK_COMPONENT_TYPE_UINT8_KHR;
-   case INTEL_CMAT_BFLOAT16: return VK_COMPONENT_TYPE_BFLOAT16_KHR;
+   const struct intel_device_info *devinfo = &pdevice->info;
+   if (!pdevice->has_cooperative_matrix)
+      return;
+
+   const bool emulated = debug_get_bool_option("INTEL_LOWER_DPAS", false);
+   const unsigned exec_size = devinfo->ver >= 20 ? 16 : 8;
+
+#define FILL(a_type, b_type, c_type, r_type, ops_per_chan, sat) \
+   fill_cb(base, exec_size,                                     \
+           VK_COMPONENT_TYPE_##a_type##_KHR,                    \
+           VK_COMPONENT_TYPE_##b_type##_KHR,                    \
+           VK_COMPONENT_TYPE_##c_type##_KHR,                    \
+           VK_COMPONENT_TYPE_##r_type##_KHR,                    \
+           ops_per_chan, sat)
+
+   /* Note: XeHP doesn't have this configuration. */
+   if (devinfo->ver >= 20 || emulated)
+      FILL(FLOAT16, FLOAT16, FLOAT16, FLOAT16, 2, false);
+
+   FILL(FLOAT16, FLOAT16, FLOAT32, FLOAT32, 2, false);
+
+   if (devinfo->has_bfloat16 && !emulated) {
+      if (devinfo->ver >= 20)
+         FILL(BFLOAT16, BFLOAT16, BFLOAT16, BFLOAT16, 2, false);
+      FILL(BFLOAT16, BFLOAT16, FLOAT32, FLOAT32, 2, false);
    }
-   UNREACHABLE("invalid cooperative matrix component type in configuration");
+
+   FILL(SINT8, SINT8, SINT32, SINT32, 4, false);
+   FILL(UINT8, UINT8, UINT32, UINT32, 4, false);
+
+#undef FILL
 }
 
-static VkScopeKHR
-convert_scope(enum intel_cmat_scope scope)
+static void
+anv_fill_cooperative_matrix_prop(struct __vk_outarray *base, unsigned exec_size,
+                                 VkComponentTypeKHR a_type, VkComponentTypeKHR b_type,
+                                 VkComponentTypeKHR c_type, VkComponentTypeKHR r_type,
+                                 unsigned ops_per_chan, bool saturate)
 {
-   switch (scope) {
-   case INTEL_CMAT_SCOPE_SUBGROUP: return VK_SCOPE_SUBGROUP_KHR;
-   default:
-      UNREACHABLE("invalid cooperative matrix scope in configuration");
+   vk_outarray(VkCooperativeMatrixPropertiesKHR) *out = (void *)base;
+
+   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, out, p)
+   {
+      *p = (struct VkCooperativeMatrixPropertiesKHR){.sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+                                                     .MSize = 8,
+                                                     .NSize = exec_size,
+                                                     .KSize = 8 * ops_per_chan,
+                                                     .AType = a_type,
+                                                     .BType = b_type,
+                                                     .CType = c_type,
+                                                     .ResultType = r_type,
+                                                     .saturatingAccumulation = saturate,
+                                                     .scope = VK_SCOPE_SUBGROUP_KHR};
    }
 }
 
@@ -3449,43 +3487,8 @@ VkResult anv_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(
    VkCooperativeMatrixPropertiesKHR*           pProperties)
 {
    ANV_FROM_HANDLE(anv_physical_device, pdevice, physicalDevice);
-   const struct intel_device_info *devinfo = &pdevice->info;
-
    VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixPropertiesKHR, out, pProperties, pPropertyCount);
-
-   if (!pdevice->has_cooperative_matrix)
-      return vk_outarray_status(&out);
-
-   const bool emulated = debug_get_bool_option("INTEL_LOWER_DPAS", false);
-
-   for (int i = 0; i < ARRAY_SIZE(devinfo->cooperative_matrix_configurations); i++) {
-      const struct intel_cooperative_matrix_configuration *cfg =
-         &devinfo->cooperative_matrix_configurations[i];
-
-      if (cfg->scope == INTEL_CMAT_SCOPE_NONE)
-         break;
-
-      /* BFloat16 not supported by brw_lower_dpas emulation. */
-      if (emulated && cfg->a == INTEL_CMAT_BFLOAT16)
-         continue;
-
-      vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, prop) {
-         prop->sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
-
-         prop->MSize = cfg->m;
-         prop->NSize = cfg->n;
-         prop->KSize = cfg->k;
-
-         prop->AType      = convert_component_type(cfg->a);
-         prop->BType      = convert_component_type(cfg->b);
-         prop->CType      = convert_component_type(cfg->c);
-         prop->ResultType = convert_component_type(cfg->result);
-
-         prop->saturatingAccumulation = VK_FALSE;
-         prop->scope = convert_scope(cfg->scope);
-      }
-   }
-
+   anv_fill_all_cooperative_matrix_props(pdevice, &out.base, anv_fill_cooperative_matrix_prop);
    return vk_outarray_status(&out);
 }
 
