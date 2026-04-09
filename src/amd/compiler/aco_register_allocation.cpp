@@ -645,7 +645,9 @@ get_subdword_operand_stride(amd_gfx_level gfx_level, const aco_ptr<Instruction>&
          return rc.bytes() % 2 == 0 ? 2 : 1;
    }
 
-   assert(rc.bytes() <= 2);
+   if (rc.bytes() > 2)
+      return 4;
+
    if (instr->isVALU()) {
       if (can_use_SDWA(gfx_level, instr, false))
          return rc.bytes();
@@ -766,8 +768,11 @@ DefInfo::get_subdword_definition_info(Program* program, const aco_ptr<Instructio
    }
 
    if (instr->isVALU()) {
-      if (rc.bytes() == 3)
+      if (rc.bytes() == 3) {
          rc = v1;
+         stride = 4;
+         return;
+      }
 
       if (can_use_SDWA(gfx_level, instr, false))
          return;
