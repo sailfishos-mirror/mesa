@@ -944,8 +944,9 @@ private:
 class Definition final {
 public:
    constexpr Definition()
-       : temp(Temp(0, s1)), reg_(0), isFixed_(0), isPrecolored_(0), isKill_(0), isPrecise_(0),
-         isInfPreserve_(0), isNaNPreserve_(0), isSZPreserve_(0), isNUW_(0), isNoCSE_(0)
+       : temp(Temp(0, s1)), reg_(0), isFixed_(0), isPrecolored_(0), isKill_(0), isNoContract_(0),
+         isNoReassoc_(0), isInfPreserve_(0), isNaNPreserve_(0), isSZPreserve_(0), isNUW_(0),
+         isNoCSE_(0)
    {}
    explicit Definition(Temp tmp) noexcept : temp(tmp) {}
    explicit Definition(PhysReg reg, RegClass type) noexcept : temp(Temp(0, type)) { setFixed(reg); }
@@ -988,9 +989,13 @@ public:
 
    constexpr bool isKill() const noexcept { return isKill_; }
 
-   constexpr void setPrecise(bool precise) noexcept { isPrecise_ = precise; }
+   constexpr void setNoContract(bool no_contract) noexcept { isNoContract_ = no_contract; }
 
-   constexpr bool isPrecise() const noexcept { return isPrecise_; }
+   constexpr bool isNoContract() const noexcept { return isNoContract_; }
+
+   constexpr void setNoReassoc(bool no_reassoc) noexcept { isNoReassoc_ = no_reassoc; }
+
+   constexpr bool isNoReassoc() const noexcept { return isNoReassoc_; }
 
    constexpr void setInfPreserve(bool inf_preserve) noexcept { isInfPreserve_ = inf_preserve; }
 
@@ -1021,7 +1026,8 @@ private:
          uint8_t isFixed_ : 1;
          uint8_t isPrecolored_ : 1;
          uint8_t isKill_ : 1;
-         uint8_t isPrecise_ : 1;
+         uint8_t isNoContract_ : 1;
+         uint8_t isNoReassoc_ : 1;
          uint8_t isInfPreserve_ : 1;
          uint8_t isNaNPreserve_ : 1;
          uint8_t isSZPreserve_ : 1;

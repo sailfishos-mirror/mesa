@@ -399,8 +399,10 @@ process_block(vn_ctx& ctx, Block& block)
                assert(instr->definitions[i].regClass() == orig_instr->definitions[i].regClass());
                assert(instr->definitions[i].isTemp());
                ctx.renames[instr->definitions[i].tempId()] = orig_instr->definitions[i].getTemp();
-               if (instr->definitions[i].isPrecise())
-                  orig_instr->definitions[i].setPrecise(true);
+               if (instr->definitions[i].isNoContract())
+                  orig_instr->definitions[i].setNoContract(true);
+               if (instr->definitions[i].isNoReassoc())
+                  orig_instr->definitions[i].setNoReassoc(true);
                if (instr->definitions[i].isSZPreserve())
                   orig_instr->definitions[i].setSZPreserve(true);
                if (instr->definitions[i].isInfPreserve())
