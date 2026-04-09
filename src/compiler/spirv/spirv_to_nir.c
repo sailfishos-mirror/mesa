@@ -6042,13 +6042,19 @@ vtn_handle_execution_mode_id(struct vtn_builder *b, struct vtn_value *entry_poin
       if (!fp_math_ctrl)
          vtn_fail("Unkown float type for FPFastMathDefault");
 
-      SpvFPFastMathModeMask can_fast_math =
-         SpvFPFastMathModeAllowRecipMask |
-         SpvFPFastMathModeAllowContractMask |
-         SpvFPFastMathModeAllowReassocMask |
-         SpvFPFastMathModeAllowTransformMask;
-      if ((flags & can_fast_math) != can_fast_math)
-         *fp_math_ctrl |= nir_fp_exact;
+      if (!(flags & SpvFPFastMathModeAllowContractMask))
+         *fp_math_ctrl |= nir_fp_no_contract;
+
+      if (!(flags & SpvFPFastMathModeAllowReassocMask))
+         *fp_math_ctrl |= nir_fp_no_reassoc;
+
+      if (!(flags & SpvFPFastMathModeAllowTransformMask))
+         *fp_math_ctrl |= nir_fp_no_transform;
+
+      /* XXX maybe SpvFPFastMathModeAllowRecipMask
+       * should do something for CL?
+       * It's always allowed for VK/GL.
+       */
 
       if (!(flags & SpvFPFastMathModeNotNaNMask))
          *fp_math_ctrl |= nir_fp_preserve_nan;
