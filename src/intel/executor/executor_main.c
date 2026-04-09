@@ -1000,7 +1000,7 @@ main(int argc, char *argv[])
       lua_pushinteger(L, E.devinfo.verx10);
       lua_setfield(L, -2, "verx10");
 
-      lua_pushboolean(L, E.devinfo.cooperative_matrix_configurations[0].scope != INTEL_CMAT_SCOPE_NONE);
+      lua_pushboolean(L, E.devinfo.has_systolic);
       lua_setfield(L, -2, "has_dpas");
 
       lua_pushboolean(L, E.devinfo.has_bfloat16);
