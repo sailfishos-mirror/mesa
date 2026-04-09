@@ -581,8 +581,10 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
       bool run_copy_prop = false;
       NIR_PASS(run_copy_prop, stage->nir, nir_opt_16bit_tex_image, &opt_16bit_options);
 
-      /* Optimizing 16bit texture/image dests leaves scalar moves that stops
-       * nir_opt_vectorize from vectorzing the alu uses of them.
+      /* Optimizing 16bit texture/image dests leaves scalar moves that need to be removed
+       * before the next alu nir_lower_alu_width, otherwise we might end up with invalid swizzles
+       * in the backend.
+       * It also allows nir_opt_vectorize to make more progress.
        */
       if (run_copy_prop) {
          NIR_PASS(_, stage->nir, nir_opt_copy_prop);
