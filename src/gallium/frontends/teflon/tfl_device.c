@@ -182,6 +182,12 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       }
       break;
    }
+   case kTfLiteBuiltinMaximum:
+      operation->type = PIPE_ML_OPERATION_TYPE_MAXIMUM;
+      break;
+   case kTfLiteBuiltinMinimum:
+      operation->type = PIPE_ML_OPERATION_TYPE_MINIMUM;
+      break;
    case kTfLiteBuiltinMul:
       operation->type = PIPE_ML_OPERATION_TYPE_MUL;
       break;
@@ -515,6 +521,12 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
       case PIPE_ML_OPERATION_TYPE_RESIZE:
          teflon_debug("%-15s ", "RESIZE");
          break;
+      case PIPE_ML_OPERATION_TYPE_MAXIMUM:
+         teflon_debug("%-15s ", "MAX");
+         break;
+      case PIPE_ML_OPERATION_TYPE_MINIMUM:
+         teflon_debug("%-15s ", "MIN");
+         break;
       case PIPE_ML_OPERATION_TYPE_MUL:
          teflon_debug("%-15s ", "MUL");
          break;
@@ -723,6 +735,10 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "DEQUANT";
    case kTfLiteBuiltinHardSwish:
       return "HSWISH";
+   case kTfLiteBuiltinMaximum:
+      return "MAX";
+   case kTfLiteBuiltinMinimum:
+      return "MIN";
    case kTfLiteBuiltinMul:
       return "MUL";
    case kTfLiteBuiltinPad:
