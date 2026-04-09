@@ -1410,15 +1410,16 @@ v3dX(meta_copy_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
       uint32_t width, height;
       framebuffer_size_for_pixel_count(num_items, &width, &height);
 
-      v3dv_job_start_frame(job, width, height, 1, true, true, 1,
-                           internal_bpp, 4 * v3d_internal_bpp_words(internal_bpp),
-                           false);
+      v3dv_job_start_frame(job, width, height, 1, true, 1, internal_bpp,
+                           4 * v3d_internal_bpp_words(internal_bpp), false);
 
       struct v3dv_meta_framebuffer framebuffer;
       v3dX(meta_framebuffer_init)(&framebuffer, vk_format, internal_type,
                                   &job->frame_tiling);
 
       v3dX(job_emit_binning_flush)(job);
+      if (!v3dv_job_allocate_tile_state(job))
+         return NULL;
 
       v3dX(meta_emit_copy_buffer_rcl)(job, dst, src, dst_offset, src_offset,
                                       &framebuffer, format, item_size);
@@ -1458,15 +1459,16 @@ v3dX(meta_fill_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
       uint32_t width, height;
       framebuffer_size_for_pixel_count(num_items, &width, &height);
 
-      v3dv_job_start_frame(job, width, height, 1, true, true, 1,
-                           internal_bpp, 4 * v3d_internal_bpp_words(internal_bpp),
-                           false);
+      v3dv_job_start_frame(job, width, height, 1, true, 1, internal_bpp,
+                           4 * v3d_internal_bpp_words(internal_bpp), false);
 
       struct v3dv_meta_framebuffer framebuffer;
       v3dX(meta_framebuffer_init)(&framebuffer, VK_FORMAT_R8G8B8A8_UINT,
                                   internal_type, &job->frame_tiling);
 
       v3dX(job_emit_binning_flush)(job);
+      if (!v3dv_job_allocate_tile_state(job))
+         return;
 
       v3dX(meta_emit_fill_buffer_rcl)(job, bo, offset, &framebuffer, data);
 

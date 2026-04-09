@@ -490,7 +490,6 @@ v3dv_job_start_frame(struct v3dv_job *job,
                      uint32_t height,
                      uint32_t layers,
                      bool allocate_tile_state_for_all_layers,
-                     bool allocate_tile_state_now,
                      uint32_t render_target_count,
                      uint8_t max_internal_bpp,
                      uint8_t total_color_bpp,
@@ -510,14 +509,6 @@ v3dv_job_start_frame(struct v3dv_job *job,
    v3dv_return_if_oom(NULL, job);
 
    job->allocate_tile_state_for_all_layers = allocate_tile_state_for_all_layers;
-
-   /* For subpass jobs we postpone tile state allocation until we are finishing
-    * the job and have made a decision about double-buffer.
-    */
-   if (allocate_tile_state_now) {
-      if (!v3dv_job_allocate_tile_state(job))
-         return;
-   }
 
    v3d_X((&job->device->devinfo), job_emit_binning_prolog)(job, tiling,
       allocate_tile_state_for_all_layers ? tiling->layers : 1);
@@ -1785,7 +1776,7 @@ cmd_buffer_subpass_create_job(struct v3dv_cmd_buffer *cmd_buffer,
                            width,
                            height,
                            layers,
-                           true, false,
+                           true,
                            subpass->color_count,
                            max_internal_bpp,
                            total_color_bpp,
@@ -2776,7 +2767,7 @@ cmd_buffer_restart_job_for_msaa_if_needed(struct v3dv_cmd_buffer *cmd_buffer)
                         old_job->frame_tiling.width,
                         old_job->frame_tiling.height,
                         old_job->frame_tiling.layers,
-                        true, false,
+                        true,
                         old_job->frame_tiling.render_target_count,
                         old_job->frame_tiling.internal_bpp,
                         old_job->frame_tiling.total_color_bpp,

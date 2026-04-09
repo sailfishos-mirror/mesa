@@ -30,9 +30,10 @@
 void
 v3dX(job_emit_noop)(struct v3dv_job *job)
 {
-   v3dv_job_start_frame(job, 1, 1, 1, true, true, 1,
-                        V3D_INTERNAL_BPP_32, 4, false);
+   v3dv_job_start_frame(job, 1, 1, 1, true, 1, V3D_INTERNAL_BPP_32, 4, false);
    v3dX(job_emit_binning_flush)(job);
+   if (!v3dv_job_allocate_tile_state(job))
+      return;
 
    struct v3dv_cl *rcl = &job->rcl;
    v3dv_cl_ensure_space_with_branch(rcl, 200 + 1 * 256 *
