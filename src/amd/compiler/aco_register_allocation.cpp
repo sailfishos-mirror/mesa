@@ -329,8 +329,6 @@ public:
 
    const uint32_t& operator[](PhysReg index) const { return regs[index]; }
 
-   uint32_t& operator[](PhysReg index) { return regs[index]; }
-
    unsigned count_zero(PhysRegInterval reg_interval) const
    {
       unsigned res = 0;
@@ -457,8 +455,9 @@ private:
 
    void fill_subdword(PhysReg start, unsigned num_bytes, uint32_t val)
    {
-      fill(start, DIV_ROUND_UP(num_bytes, 4), 0xF0000000);
       for (PhysReg i = start; i.reg_b < start.reg_b + num_bytes; i = PhysReg(i + 1)) {
+         regs[i] = 0xF0000000;
+
          /* emplace or get */
          std::array<uint32_t, 4>& sub =
             subdword_regs.emplace(i, std::array<uint32_t, 4>{0, 0, 0, 0}).first->second;
