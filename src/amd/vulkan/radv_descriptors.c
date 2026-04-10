@@ -144,7 +144,7 @@ radv_GetDescriptorEXT(VkDevice _device, const VkDescriptorGetInfoEXT *pDescripto
                                                        ? pDescriptorInfo->data.pUniformBuffer
                                                        : pDescriptorInfo->data.pStorageBuffer;
 
-      radv_write_buffer_descriptor(device, pDescriptor, addr_info ? addr_info->address : 0,
+      radv_write_buffer_descriptor(device, pDescriptorInfo->type, pDescriptor, addr_info ? addr_info->address : 0,
                                    addr_info ? addr_info->range : 0);
       break;
    }
@@ -242,8 +242,8 @@ radv_WriteResourceDescriptorsEXT(VkDevice _device, uint32_t resourceCount,
       case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: {
          const VkDeviceAddressRangeEXT *addr_range = resource->data.pAddressRange;
 
-         radv_write_buffer_descriptor(device, host_addr_range->address, addr_range ? addr_range->address : 0,
-                                      addr_range ? addr_range->size : 0);
+         radv_write_buffer_descriptor(device, resource->type, host_addr_range->address,
+                                      addr_range ? addr_range->address : 0, addr_range ? addr_range->size : 0);
          break;
       }
       case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
