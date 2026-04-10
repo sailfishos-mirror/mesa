@@ -2745,7 +2745,7 @@ emit_binding_table(struct anv_cmd_buffer *cmd_buffer,
          bt_map[s] = 0;
          break;
 
-      case ANV_DESCRIPTOR_SET_COLOR_ATTACHMENTS:
+      case ANV_DESCRIPTOR_SET_COLOR_ATTACHMENTS: {
          /* Color attachment binding */
          assert(shader->vk.stage == MESA_SHADER_FRAGMENT);
          uint32_t index = binding->index < MAX_RTS ?
@@ -2762,6 +2762,7 @@ emit_binding_table(struct anv_cmd_buffer *cmd_buffer,
          assert(surface_state.map);
          bt_map[s] = surface_state.offset + state_offset;
          break;
+      }
 
       case ANV_DESCRIPTOR_SET_DESCRIPTORS: {
          struct anv_descriptor_set *set =
