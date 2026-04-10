@@ -151,7 +151,7 @@ def gather_results(
 ) -> None:
     """Gather results"""
 
-    target_jobs_regex = re.compile(".*-traces([:].*)?$")
+    target_jobs_regex = re.compile(".*-traces(-restricted)?([:].*)?$")
 
     for job in pipeline.jobs.list(all=True, sort="desc"):
         if target_jobs_regex.match(job.name) and job.status == "failed":
