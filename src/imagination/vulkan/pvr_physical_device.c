@@ -225,7 +225,7 @@ static void pvr_physical_device_get_supported_features(
       .multiDrawIndirect = true,
       .drawIndirectFirstInstance = true,
       .depthClamp = false,
-      .depthBiasClamp = false,
+      .depthBiasClamp = true,
       .fillModeNonSolid = false,
       .depthBounds = false,
       .wideLines = false,
