@@ -1734,6 +1734,18 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                            &info->pa_sc_raster_config_1, &info->se_tile_repeat);
    }
 
+   if (info->compiler_info.has_smem_with_null_prt_bug) {
+      /* Query the PRT control bit that determines whether a VA is in the
+       * "LOW" or "HIGH" address space. This is needed to implement the SMEM
+       * with NULL PRT workaround.
+       */
+      r = ac_drm_query_sw_info(dev, amdgpu_sw_info_address_prt_wa_control_bit, &info->address_prt_wa_control_bit);
+      if (r) {
+         fprintf(stderr, "amdgpu: amdgpu_query_sw_info(amdgpu_sw_info_address_prt_wa_control_bit) failed.\n");
+         return AC_QUERY_GPU_INFO_FAIL;
+      }
+   }
+
    const char *ib_filename = debug_get_option("AMD_PARSE_IB", NULL);
    if (ib_filename) {
       FILE *f = fopen(ib_filename, "r");

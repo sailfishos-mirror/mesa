@@ -396,6 +396,7 @@ struct radeon_info {
    bool has_trap_handler_support;
    bool kernel_has_modifiers;
    uint32_t userq_ip_mask; /* AMD_IP_* bits */
+   uint8_t address_prt_wa_control_bit;
 
    /* If the kernel driver uses CU reservation for high priority compute on gfx10+, it programs
     * a global CU mask in the hw that is AND'ed with CU_EN register fields set by userspace.
