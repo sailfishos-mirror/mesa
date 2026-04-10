@@ -50,3 +50,4 @@ VK_EXT_descriptor_heap on RADV (with 'export RADV_EXPERIMENTAL=heap')
 fullDrawIndexUint32 on pvr
 multiDrawIndirect on pvr
 depthBiasClamp on pvr
+wideLines on pvr

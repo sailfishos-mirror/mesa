@@ -228,7 +228,7 @@ static void pvr_physical_device_get_supported_features(
       .depthBiasClamp = true,
       .fillModeNonSolid = false,
       .depthBounds = false,
-      .wideLines = false,
+      .wideLines = true,
       .largePoints = true,
       .alphaToOne = true,
       .multiViewport = false,
@@ -703,10 +703,9 @@ static bool pvr_physical_device_get_properties(
       .pointSizeRange[1] = PVR_POINT_SIZE_RANGE_MAX,
       .pointSizeGranularity = PVR_POINT_SIZE_GRANULARITY,
 
-      /* Requires wideLines */
-      .lineWidthRange[0] = 1.0f,
-      .lineWidthRange[1] = 1.0f,
-      .lineWidthGranularity = 0.0f,
+      .lineWidthRange[0] = PVR_LINE_WIDTH_MIN,
+      .lineWidthRange[1] = PVR_LINE_WIDTH_MAX,
+      .lineWidthGranularity = PVR_LINE_WIDTH_GRANULARITY,
 
       .strictLines = false,
       .standardSampleLocations = true,
