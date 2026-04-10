@@ -43,6 +43,7 @@ VkResult
 radv_create_buffer(struct radv_device *device, const VkBufferCreateInfo *pCreateInfo,
                    const VkAllocationCallbacks *pAllocator, VkBuffer *pBuffer, bool is_internal)
 {
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_buffer *buffer;
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
@@ -66,6 +67,14 @@ radv_create_buffer(struct radv_device *device, const VkBufferCreateInfo *pCreate
    if (pCreateInfo->flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT) {
       enum radeon_bo_flag flags = RADEON_FLAG_VIRTUAL;
       uint64_t replay_address = 0;
+
+      if (pdev->info.compiler_info.has_smem_with_null_prt_bug &&
+          (buffer->vk.create_flags & VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT) &&
+          (buffer->vk.usage & (VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT |
+                               VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT))) {
+         /* Emulate sparse residency for sparse buffers that might use SMEM reads. */
+         flags |= RADEON_FLAG_EMULATE_SPARSE_RESIDENCY;
+      }
 
       if (pCreateInfo->flags & VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT) {
          flags |= RADEON_FLAG_REPLAYABLE;
