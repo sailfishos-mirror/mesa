@@ -3456,12 +3456,18 @@ VkResult anv_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(
    if (!pdevice->has_cooperative_matrix)
       return vk_outarray_status(&out);
 
+   const bool emulated = debug_get_bool_option("INTEL_LOWER_DPAS", false);
+
    for (int i = 0; i < ARRAY_SIZE(devinfo->cooperative_matrix_configurations); i++) {
       const struct intel_cooperative_matrix_configuration *cfg =
          &devinfo->cooperative_matrix_configurations[i];
 
       if (cfg->scope == INTEL_CMAT_SCOPE_NONE)
          break;
+
+      /* BFloat16 not supported by brw_lower_dpas emulation. */
+      if (emulated && cfg->a == INTEL_CMAT_BFLOAT16)
+         continue;
 
       vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, prop) {
          prop->sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
