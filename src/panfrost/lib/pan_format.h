@@ -25,6 +25,8 @@
 #define PAN_SUPPORTED_MODIFIERS(__name)                                        \
    static const uint64_t __name[] = {                                          \
       DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_32x8 |                \
+                              AFBC_FORMAT_MOD_SPARSE),                         \
+      DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_32x8 |                \
                               AFBC_FORMAT_MOD_SPARSE | AFBC_FORMAT_MOD_SPLIT), \
       DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_32x8 |                \
                               AFBC_FORMAT_MOD_SPARSE | AFBC_FORMAT_MOD_SPLIT | \
