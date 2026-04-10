@@ -415,6 +415,85 @@ ethos_create_hswish_lut(struct ethosu_operation *operation, uint8_t *lut)
    }
 }
 
+static int32_t
+saturating_rounding_doubling_high_mul_32(int32_t a, int32_t b)
+{
+   bool overflow = a == b && a == INT32_MIN;
+   int64_t a_64 = a;
+   int64_t b_64 = b;
+   int64_t ab_64 = a_64 * b_64;
+   int32_t nudge = ab_64 >= 0 ? (1 << 30) : (1 - (1 << 30));
+   int32_t ab_x2_high32 = ((ab_64 + nudge) / (1ll << 31));
+   return overflow ? INT32_MAX : ab_x2_high32;
+}
+
+static int32_t
+rounding_divide_by_pow2_32(int32_t x, int exponent)
+{
+   const int32_t mask = (1 << exponent) - 1;
+   const int32_t remainder = x & mask;
+   const int32_t threshold = (mask >> 1) + ((x < 0) ? 1 : 0);
+   return (x >> exponent) + ((remainder > threshold) ? 1 : 0);
+}
+
+// Multiplies int with QuantizedScale with rounding.
+static int
+multiply_by_quantized_multiplier(int x, int shift, int32_t scale)
+{
+   // Multiplies x (int32) by QuantizedScale (scale, shift), returns rounded result.
+   // Expects the QuantizedScale to be left-shift positive.
+   const int leftShift = shift > 0 ? shift : 0;
+   const int rightShift = shift < 0 ? -shift : 0;
+   const int32_t mul = saturating_rounding_doubling_high_mul_32(x * (1 << leftShift), scale);
+   return rounding_divide_by_pow2_32(mul, rightShift);
+}
+
+static float
+clamp(double d)
+{
+   return (float)CLAMP(d, -FLT_MAX, FLT_MAX);
+}
+
+/* Calculate elementwise Mul OFM QuantizedScale */
+static int32_t
+elementwise_mul_scale(double inputScale, double input2Scale, double outputScale, int32_t *mul_shift)
+{
+   // clamp to single-point precision
+   float ifm1Scale = clamp(inputScale);
+   float ifm2Scale = clamp(input2Scale);
+   float outScale = clamp(outputScale);
+
+   float outputRescale = (ifm1Scale * ifm2Scale) / outScale;
+   return ethosu_quantize_scale(outputRescale, mul_shift, false);
+}
+
+static void
+ethos_create_leakyrelu_lut(struct ethosu_operation *operation, uint8_t *lut, float alpha)
+{
+   const double ifm_scale = operation->ifm.scale;
+   const double ofm_scale = operation->ofm.scale;
+   const int zpIn = operation->ifm.zero_point;
+   const int zpOut = operation->ofm.zero_point;
+   const int qMin = operation->ifm.is_signed ? -128 : 0;
+   const int qMax = operation->ifm.is_signed ? 127 : 255;
+   int64_t scalar = 1;
+   int32_t identity_shift;
+   int32_t identity_scale = elementwise_mul_scale(ifm_scale, 1.0, ofm_scale, &identity_shift);
+   int32_t alpha_shift;
+   int32_t alpha_scale = elementwise_mul_scale(ifm_scale, alpha, ofm_scale, &alpha_shift);
+
+   for (int x = qMin; x <= qMax; ++x, lut++) {
+      int lutResult;
+      if (x < zpIn)
+         lutResult = zpOut + multiply_by_quantized_multiplier((int)(scalar * (x - zpIn)), 31 - alpha_shift, alpha_scale);
+      else
+         lutResult = zpOut + multiply_by_quantized_multiplier((int)(x - zpIn), 31 - identity_shift, identity_scale);
+
+      lutResult = MIN2(qMax, MAX2(qMin, lutResult));
+      *lut = lutResult;
+   }
+}
+
 static void
 ethosu_lower_lut_dma(struct ethosu_subgraph *subgraph,
                      const struct pipe_ml_operation *poperation,
@@ -468,6 +547,31 @@ ethosu_lower_hswish(struct ethosu_subgraph *subgraph,
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
    ethos_create_hswish_lut(operation, lut);
+   fill_lut(subgraph, operation, lut);
+
+   /* The LUT handles 0 point and scale, so make them equal */
+   operation->ofm.zero_point = operation->ifm.zero_point;
+   operation->ofm.scale = operation->ifm.scale;
+
+   allocate_feature_maps(subgraph, operation);
+   ethosu_sched_operation(subgraph, operation);
+}
+
+static void
+ethosu_lower_leakyrelu(struct ethosu_subgraph *subgraph,
+                       const struct pipe_ml_operation *poperation,
+                       struct ethosu_operation *operation)
+{
+   uint8_t lut[LUT8_SIZE];
+
+   operation->type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation->round_mode = ETHOSU_ROUNDING_NATURAL;
+   operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+   operation->pooling.activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
+
+   set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+
+   ethos_create_leakyrelu_lut(operation, lut, poperation->leakyrelu.alpha);
    fill_lut(subgraph, operation, lut);
 
    /* The LUT handles 0 point and scale, so make them equal */
@@ -796,6 +900,17 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
       case PIPE_ML_OPERATION_TYPE_PAD: {
          // Just ignore the pad operation for now, as it will be handled by its consumers
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_LEAKY_RELU: {
+         ethosu_lower_leakyrelu(subgraph, &poperations[i], &operation);
+
+         struct ethosu_operation dma_operation = {0};
+         ethosu_lower_lut_dma(subgraph, &poperations[i], &operation, &dma_operation);
+         util_dynarray_append(&subgraph->operations, dma_operation);
+
+         util_dynarray_append(&subgraph->operations, operation);
          break;
       }
 
