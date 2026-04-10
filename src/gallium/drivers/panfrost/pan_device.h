@@ -167,7 +167,7 @@ panfrost_device_fd(const struct panfrost_device *dev)
    return dev->kmod.dev->fd;
 }
 
-static inline uint32_t
+static inline uint64_t
 panfrost_device_gpu_id(const struct panfrost_device *dev)
 {
    return dev->kmod.dev->props.gpu_id;
