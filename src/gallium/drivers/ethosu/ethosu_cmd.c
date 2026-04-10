@@ -423,7 +423,7 @@ emit_convolution(struct ethosu_subgraph *subgraph, struct ethosu_operation *oper
 }
 
 static unsigned
-quantise_pooling_scale(unsigned nr_kernel_elements, unsigned rescale_bits, unsigned *out_shift)
+quantise_pooling_scale(unsigned nr_kernel_elements, unsigned rescale_bits, int32_t *out_shift)
 {
    int k = 0;
    long long N = 0;
@@ -441,7 +441,7 @@ pooling_emit_ofm_scaling(
    double output_scale,
    unsigned kernel_height,
    unsigned kernel_width,
-   uint32_t *out_shift)
+   int32_t *out_shift)
 {
    double rescale = input1_scale / output_scale;
    unsigned rescale_bits = 0;
@@ -459,7 +459,7 @@ pooling_emit_ofm_scaling(
 }
 
 static unsigned
-sum_emit_ofm_scaling(double input1_scale, double output_scale, unsigned kernel_height, unsigned kernel_width, uint32_t *out_shift)
+sum_emit_ofm_scaling(double input1_scale, double output_scale, unsigned kernel_height, unsigned kernel_width, int32_t *out_shift)
 {
    int kernel_elements = kernel_height * kernel_width;
    double rescale = input1_scale / output_scale;
@@ -484,7 +484,7 @@ static void
 emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
    unsigned scale;
-   unsigned scale_shift;
+   int32_t scale_shift;
 
    emit_common(subgraph, operation, false);
 
@@ -658,8 +658,8 @@ eltwise_emit_ofm_scaling(
    uint32_t input_shift = (bitdepth == 8) ? 20 : 15;
    double input_shift_val = (double)(1ULL << input_shift);
    enum ethosu_op_to_scale op_to_scale;
-   uint32_t opa_scale, opa_shift;
-   uint32_t ofm_scale, ofm_shift;
+   int32_t opa_scale, opa_shift;
+   int32_t ofm_scale, ofm_shift;
    double input_rescale, output_rescale;
 
    /* Determine which operand to scale (the one with smaller scale) */
@@ -704,11 +704,11 @@ simplified_elementwise_add_sub_scale(
    double input1_scale,
    double input2_scale,
    double output_scale,
-   uint32_t input_shift,
+   int32_t input_shift,
    double *out_input1_rescale,
    double *out_input2_rescale,
-   uint32_t *out_out_scale,
-   uint32_t *out_out_shift)
+   int32_t *out_out_scale,
+   int32_t *out_out_shift)
 {
    double max_input_scale = MAX2(input1_scale, input2_scale);
    double input_shift_val = (double)(1LL << input_shift); /* Use 1LL for large shifts */
@@ -747,9 +747,9 @@ eltwise_emit_ofm_scaling_u85(
    uint32_t input_shift = (bitdepth == 8) ? 20 : 15;
    double input1_rescale;
    double input2_rescale;
-   unsigned ofm_scale, ofm_shift;
-   unsigned opa_scale, opa_shift;
-   unsigned opb_scale, opb_shift;
+   int32_t ofm_scale, ofm_shift;
+   int32_t opa_scale, opa_shift;
+   int32_t opb_scale, opb_shift;
 
    simplified_elementwise_add_sub_scale(
       input1_scale, input2_scale, output_scale, input_shift,

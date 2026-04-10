@@ -269,6 +269,6 @@ int ethosu_round_up_to_multiple(int a, int b);
 
 int ethosu_round_up_divide(int a, int b);
 
-int ethosu_quantize_scale(double scale, uint32_t *shift);
+int ethosu_quantize_scale(double scale, int32_t *shift);
 
 #endif /* ETHOSU_ML_H */

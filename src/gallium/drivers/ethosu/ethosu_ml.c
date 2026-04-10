@@ -83,11 +83,11 @@ ethosu_round_up_divide(int a, int b)
 }
 
 int
-ethosu_quantize_scale(double scale, uint32_t *shift)
+ethosu_quantize_scale(double scale, int32_t *shift)
 {
    int exponent = 0;
    double significand = frexp(scale, &exponent);
-   uint32_t quantized_scale = round(significand * (double)(1LL << 31));
+   int32_t quantized_scale = round(significand * (double)(1LL << 31));
    *shift = 31 - exponent;
    if (*shift > 63) {
       if (quantized_scale > exp2(*shift - 63)) {
