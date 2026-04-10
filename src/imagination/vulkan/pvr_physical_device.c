@@ -222,7 +222,7 @@ static void pvr_physical_device_get_supported_features(
       .sampleRateShading = true,
       .dualSrcBlend = false,
       .logicOp = true,
-      .multiDrawIndirect = false,
+      .multiDrawIndirect = true,
       .drawIndirectFirstInstance = true,
       .depthClamp = false,
       .depthBiasClamp = false,
@@ -646,7 +646,7 @@ static bool pvr_physical_device_get_properties(
       .mipmapPrecisionBits = 8U,
 
       .maxDrawIndexedIndexValue = UINT32_MAX,
-      .maxDrawIndirectCount = 1U, /* Requires multiDrawIndirect */
+      .maxDrawIndirectCount = 2U * 1024U * 1024U * 1024U,
       .maxSamplerLodBias = 16.0f,
       .maxSamplerAnisotropy = 16.0f, /* Requires samplerAnisotropy */
       .maxViewports = 1U, /* Requires multiViewport */
