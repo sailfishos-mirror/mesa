@@ -549,10 +549,18 @@ static ATTRIBUTE_NOINLINE void
 compute_w_entry_loop_header(struct spill_ctx *ctx, jay_block *block)
 {
    unsigned j = 0;
-   /* TODO: Account for phis too! */
    foreach_next_use(&ctx->blocks[block->index].next_use_in, it) {
       assert(j < ctx->n);
       ctx->candidates[j++] = *it;
+   }
+
+   jay_foreach_phi_dst_in_block(block, I) {
+      if (I->dst.file == ctx->file) {
+         ctx->candidates[j++] = (struct next_use) {
+            .index = jay_index(I->dst),
+            .dist = ctx->next_uses[jay_index(I->dst)],
+         };
+      }
    }
 
    /* Take the best candidates sorted by next-use distance */
@@ -608,7 +616,8 @@ compute_w_entry(struct spill_ctx *ctx, jay_block *block)
     * this reduces pointless spills/fills with massive phi webs.
     */
    jay_foreach_phi_dst_in_block(block, I) {
-      if (!u_sparse_bitset_test(&ctx->phi_set, jay_index(I->dst))) {
+      if (I->dst.file == ctx->file &&
+          !u_sparse_bitset_test(&ctx->phi_set, jay_index(I->dst))) {
          ctx->candidates[j++] = (struct next_use) {
             .index = jay_index(I->dst),
             .dist = ctx->next_uses[jay_index(I->dst)],
