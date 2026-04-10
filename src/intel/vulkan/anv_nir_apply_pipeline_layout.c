@@ -56,7 +56,6 @@ struct apply_pipeline_layout_state {
 
    const uint32_t *dynamic_offset_start;
 
-   nir_address_format desc_addr_format;
    nir_address_format ssbo_addr_format;
    nir_address_format ubo_addr_format;
 
@@ -401,8 +400,6 @@ build_load_descriptor_mem(nir_builder *b,
                           const struct apply_pipeline_layout_state *state)
 
 {
-   assert(state->desc_addr_format == nir_address_format_32bit_index_offset);
-
    nir_def *surface_index = nir_channel(b, desc_addr, 0);
    nir_def *offset32 = nir_iadd_imm(b, nir_channel(b, desc_addr, 1), desc_offset);
 
@@ -839,51 +836,15 @@ build_res_reindex(nir_builder *b, nir_def *orig, nir_def *delta)
  */
 static nir_def *
 build_desc_addr_for_res_index(nir_builder *b,
-                              const VkDescriptorType desc_type,
                               nir_def *index, nir_address_format addr_format,
                               struct apply_pipeline_layout_state *state)
 {
    struct res_index_defs res = unpack_res_index(b, index);
 
-   nir_def *desc_offset = res.desc_offset_base;
-   if (desc_type != VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
-      /* Compute the actual descriptor offset.  For inline uniform blocks,
-       * the array index is ignored as they are only allowed to be a single
-       * descriptor (not an array) and there is no concept of a "stride".
-       *
-       */
-      desc_offset =
-         nir_iadd(b, desc_offset, nir_imul(b, res.array_index, res.desc_stride));
-   }
-
-   switch (addr_format) {
-   case nir_address_format_64bit_global_32bit_offset:
-   case nir_address_format_64bit_bounded_global: {
-      switch (state->desc_addr_format) {
-      case nir_address_format_64bit_global_32bit_offset: {
-         nir_def *base_addr = build_desc_address64(b, res.set, UINT32_MAX, state);
-         return nir_vec4(b, nir_unpack_64_2x32_split_x(b, base_addr),
-                            nir_unpack_64_2x32_split_y(b, base_addr),
-                            nir_imm_int(b, UINT32_MAX),
-                            desc_offset);
-      }
-
-      case nir_address_format_32bit_index_offset:
-         return build_desc_address32(b, res.set, UINT32_MAX, desc_offset, state);
-
-      default:
-         UNREACHABLE("Unhandled address format");
-      }
-   }
-
-   case nir_address_format_32bit_index_offset:
-      assert(desc_type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK);
-      assert(state->desc_addr_format == nir_address_format_32bit_index_offset);
-      return build_desc_address32(b, res.set, UINT32_MAX, desc_offset, state);
-
-   default:
-      UNREACHABLE("Unhandled address format");
-   }
+   nir_def *desc_offset = nir_iadd(b,
+                                   res.desc_offset_base,
+                                   nir_imul(b, res.array_index, res.desc_stride));
+   return build_desc_address32(b, res.set, UINT32_MAX, desc_offset, state);
 }
 
 static nir_def *
@@ -895,44 +856,30 @@ build_desc_addr_for_binding(nir_builder *b,
    const struct anv_descriptor_set_binding_layout *bind_layout =
       &state->set_layouts[set]->binding[binding];
 
-   switch (state->desc_addr_format) {
-   case nir_address_format_64bit_global_32bit_offset:
-   case nir_address_format_64bit_bounded_global: {
-      nir_def *base_addr = build_desc_address64(b, NULL, set, state);
-      nir_def *desc_offset =
-         nir_iadd_imm(b,
-                      nir_imul_imm(b,
-                                   array_index,
-                                   bind_layout->descriptor_surface_stride),
-                      bind_layout->descriptor_surface_offset);
-      if (plane != 0) {
-         desc_offset = nir_iadd_imm(
-            b, desc_offset, plane * bind_layout->descriptor_data_surface_size);
-      }
-
-      return nir_vec4(b, nir_unpack_64_2x32_split_x(b, base_addr),
-                         nir_unpack_64_2x32_split_y(b, base_addr),
-                         nir_imm_int(b, UINT32_MAX),
-                         desc_offset);
+   nir_def *desc_offset =
+      nir_iadd_imm(b,
+                   nir_imul_imm(b,
+                                array_index,
+                                bind_layout->descriptor_surface_stride),
+                   bind_layout->descriptor_surface_offset);
+   if (plane != 0) {
+      desc_offset = nir_iadd_imm(
+         b, desc_offset, plane * bind_layout->descriptor_data_surface_size);
    }
+   return build_desc_address32(b, NULL, set, desc_offset, state);
+}
 
-   case nir_address_format_32bit_index_offset: {
-      nir_def *desc_offset =
-         nir_iadd_imm(b,
-                      nir_imul_imm(b,
-                                   array_index,
-                                   bind_layout->descriptor_surface_stride),
-                      bind_layout->descriptor_surface_offset);
-      if (plane != 0) {
-         desc_offset = nir_iadd_imm(
-            b, desc_offset, plane * bind_layout->descriptor_data_surface_size);
-      }
-      return build_desc_address32(b, NULL, set, desc_offset, state);
-   }
-
-   default:
-      UNREACHABLE("Unhandled address format");
-   }
+static nir_def *
+build_inline_desc_addr32(nir_builder *b,
+                         unsigned set,
+                         const struct anv_descriptor_set_binding_layout *bind_layout,
+                         const struct apply_pipeline_layout_state *state)
+{
+   return nir_vec2(
+      b,
+      nir_load_array_var_imm(b, state->set_idx_to_bti, set),
+      nir_iadd_imm(b, nir_load_array_var_imm(b, state->set_idx_to_offset, set),
+                   bind_layout->descriptor_surface_offset));
 }
 
 static unsigned
@@ -1151,25 +1098,14 @@ build_buffer_dynamic_offset_for_res_index(nir_builder *b,
  */
 static nir_def *
 build_indirect_buffer_addr_for_res_index(nir_builder *b,
-                                         const VkDescriptorType desc_type,
                                          nir_def *res_index,
                                          nir_address_format addr_format,
                                          struct apply_pipeline_layout_state *state)
 {
    struct res_index_defs res = unpack_res_index(b, res_index);
 
-   if (desc_type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
-      assert(addr_format == state->desc_addr_format);
-      return build_desc_addr_for_res_index(b, desc_type, res_index,
-                                           addr_format, state);
-   } else if (addr_format == nir_address_format_32bit_index_offset) {
-      return build_desc_address32(b, res.bti_idx, UINT32_MAX,
-                                  nir_imm_int(b, 0), state);
-   }
-
    nir_def *desc_addr =
-      build_desc_addr_for_res_index(b, desc_type, res_index,
-                                    addr_format, state);
+      build_desc_addr_for_res_index(b, res_index, addr_format, state);
 
    nir_def *desc = build_load_descriptor_mem(b, desc_addr, 0, 4, 32, state);
 
@@ -1212,16 +1148,11 @@ build_indirect_buffer_addr_for_res_index(nir_builder *b,
 
 static nir_def *
 build_direct_buffer_addr_for_res_index(nir_builder *b,
-                                       const VkDescriptorType desc_type,
                                        nir_def *res_index,
                                        nir_address_format addr_format,
                                        struct apply_pipeline_layout_state *state)
 {
-   if (desc_type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
-      assert(addr_format == state->desc_addr_format);
-      return build_desc_addr_for_res_index(b, desc_type, res_index,
-                                           addr_format, state);
-   } else if (addr_format == nir_address_format_32bit_index_offset) {
+   if (addr_format == nir_address_format_32bit_index_offset) {
       struct res_index_defs res = unpack_res_index(b, res_index);
 
       return build_desc_address32(b, res.set, UINT32_MAX,
@@ -1231,8 +1162,7 @@ build_direct_buffer_addr_for_res_index(nir_builder *b,
    }
 
    nir_def *desc_addr =
-      build_desc_addr_for_res_index(b, desc_type, res_index,
-                                    addr_format, state);
+      build_desc_addr_for_res_index(b, res_index, addr_format, state);
 
    nir_def *addr =
       build_load_render_surface_state_address(b, desc_addr, state);
@@ -1272,36 +1202,35 @@ build_direct_buffer_addr_for_res_index(nir_builder *b,
 
 static nir_def *
 build_buffer_addr_for_res_index(nir_builder *b,
-                                const VkDescriptorType desc_type,
                                 nir_def *res_index,
                                 nir_address_format addr_format,
                                 struct apply_pipeline_layout_state *state)
 {
    if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT)
-      return build_indirect_buffer_addr_for_res_index(b, desc_type, res_index, addr_format, state);
+      return build_indirect_buffer_addr_for_res_index(b, res_index, addr_format, state);
    else
-      return build_direct_buffer_addr_for_res_index(b, desc_type, res_index, addr_format, state);
+      return build_direct_buffer_addr_for_res_index(b, res_index, addr_format, state);
 }
 
 static nir_def *
 build_buffer_addr_for_binding(nir_builder *b,
-                              const VkDescriptorType desc_type,
                               unsigned set,
                               unsigned binding,
                               nir_def *res_index,
                               nir_address_format addr_format,
                               struct apply_pipeline_layout_state *state)
 {
-   if (addr_format != nir_address_format_32bit_index_offset)
-      return build_buffer_addr_for_res_index(b, desc_type, res_index, addr_format, state);
-
    const struct anv_descriptor_set_binding_layout *bind_layout =
       &state->set_layouts[set]->binding[binding];
+
    if (bind_layout->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
       return build_desc_address32(b, NULL, set,
                                   nir_imm_int(b, bind_layout->descriptor_surface_offset),
                                   state);
    }
+
+   if (addr_format != nir_address_format_32bit_index_offset)
+      return build_buffer_addr_for_res_index(b, res_index, addr_format, state);
 
    struct res_index_defs res = unpack_res_index(b, res_index);
 
@@ -1388,11 +1317,7 @@ build_buffer_addr_for_idx_intrin(nir_builder *b,
    nir_def *res_index =
       build_res_index_for_chain(b, idx_intrin, &set, &binding, state);
 
-   const struct anv_descriptor_set_binding_layout *bind_layout =
-      &state->set_layouts[set]->binding[binding];
-
-   return build_buffer_addr_for_binding(b, bind_layout->type,
-                                        set, binding, res_index,
+   return build_buffer_addr_for_binding(b, set, binding, res_index,
                                         addr_format, state);
 }
 
@@ -1633,21 +1558,6 @@ lower_res_reindex_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
    return true;
 }
 
-static VkDescriptorType
-nir_to_vk_descriptor_type(nir_descriptor_type type)
-{
-   switch (type) {
-   case nir_descriptor_type_uniform_buffer:
-      return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-   case nir_descriptor_type_storage_buffer:
-      return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-   case nir_descriptor_type_acceleration_structure:
-      return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-   default:
-      UNREACHABLE("Invalid nir_descriptor_type");
-   }
-}
-
 static bool
 lower_load_vulkan_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
                              struct apply_pipeline_layout_state *state)
@@ -1655,13 +1565,10 @@ lower_load_vulkan_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
    b->cursor = nir_before_instr(&intrin->instr);
 
    const nir_descriptor_type desc_type = nir_intrinsic_desc_type(intrin);
-   const VkDescriptorType vk_desc_type = nir_to_vk_descriptor_type(desc_type);
    nir_address_format addr_format = addr_format_for_desc_type(desc_type, state);
 
    nir_def *desc =
-      build_buffer_addr_for_res_index(b,
-                                      vk_desc_type, intrin->src[0].ssa,
-                                      addr_format, state);
+      build_buffer_addr_for_res_index(b, intrin->src[0].ssa, addr_format, state);
 
    assert(intrin->def.bit_size == desc->bit_size);
    assert(intrin->def.num_components == desc->num_components);
@@ -1686,7 +1593,6 @@ lower_get_ssbo_size(nir_builder *b, nir_intrinsic_instr *intrin,
       nir_build_addr_iadd_imm(
          b,
          build_desc_addr_for_res_index(b,
-                                       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                                        intrin->src[0].ssa,
                                        addr_format, state),
          addr_format,
@@ -2569,7 +2475,6 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
       .set_layouts = set_layouts,
       .set_count = set_count,
       .dynamic_offset_start = dynamic_offset_start,
-      .desc_addr_format = nir_address_format_32bit_index_offset,
       .ssbo_addr_format = anv_nir_ssbo_addr_format(pdevice, robust_flags),
       .ubo_addr_format = anv_nir_ubo_addr_format(pdevice, robust_flags),
    };
