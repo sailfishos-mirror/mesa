@@ -513,7 +513,8 @@ d3d12_resource_create_or_place(struct d3d12_screen *screen,
    init_valid_range(res);
    threaded_resource_init(&res->base.b,
       templ->usage == PIPE_USAGE_DEFAULT &&
-      templ->target == PIPE_BUFFER);
+      templ->target == PIPE_BUFFER &&
+      templ->width0 < 0x1000);
 
    memset(&res->bind_counts, 0, sizeof(d3d12_resource::bind_counts));
 
