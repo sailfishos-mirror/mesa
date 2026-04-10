@@ -17,6 +17,7 @@
 #include "pan_fb_preload.h"
 #include "pan_job.h"
 #include "pan_trace.h"
+#include "panfrost_tracepoints.h"
 
 #if PAN_ARCH < 10
 #error "CSF helpers are only used for gen >= 10"
@@ -497,6 +498,11 @@ GENX(csf_init_batch)(struct panfrost_batch *batch)
    if (!batch->tls.cpu)
       return -1;
 
+#if PAN_ARCH >= 10
+   trace_panfrost_start_batch(&batch->trace,
+                     &(struct panfrost_trace_cs_info){ .batch = batch });
+#endif
+
    return 0;
 }
 
@@ -554,7 +560,14 @@ csf_emit_batch_end(struct panfrost_batch *batch)
    struct cs_builder *b = batch->csf.cs.builder;
 
    /* Barrier to let everything finish */
+#if PAN_ARCH >= 10
+   struct panfrost_trace_cs_info _tcs = { .batch = batch };
+   trace_panfrost_start_barrier(&batch->trace, &_tcs);
+#endif
    cs_wait_slots(b, BITFIELD_MASK(8));
+#if PAN_ARCH >= 10
+   trace_panfrost_end_barrier(&batch->trace, &_tcs);
+#endif
 
    if (dev->debug & PAN_DBG_SYNC) {
       /* Get the CS state */
@@ -569,12 +582,20 @@ csf_emit_batch_end(struct panfrost_batch *batch)
    }
 
    /* Flush caches now that we're done (synchronous) */
+#if PAN_ARCH >= 10
+   trace_panfrost_start_cache_flush(&batch->trace, &_tcs);
+#endif
    struct cs_index flush_id = cs_reg32(b, 74);
    cs_move32_to(b, flush_id, 0);
    cs_flush_caches(b, MALI_CS_FLUSH_MODE_CLEAN, MALI_CS_FLUSH_MODE_CLEAN,
                    MALI_CS_OTHER_FLUSH_MODE_INVALIDATE, flush_id,
                    cs_defer(0, 0));
    cs_wait_slot(b, PANFROST_SB_LS);
+
+#if PAN_ARCH >= 10
+   trace_panfrost_end_cache_flush(&batch->trace, &_tcs);
+   trace_panfrost_end_batch(&batch->trace, &_tcs);
+#endif
 
    /* Finish the command stream */
    if (cs_is_valid(batch->csf.cs.builder))

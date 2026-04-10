@@ -64,6 +64,12 @@ begin_end_tp('fragment',
           TracepointArg(type='uint8_t',          var='samples',       c_format='%u')],
 )
 
+begin_end_tp('batch')
+
+begin_end_tp('barrier')
+
+begin_end_tp('cache_flush')
+
 begin_end_tp('compute',
     args=[TracepointArg(type='uint16_t', var='local_size_x', c_format='%u'),
           TracepointArg(type='uint16_t', var='local_size_y', c_format='%u'),

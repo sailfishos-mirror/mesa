@@ -4,6 +4,7 @@
  */
 
 #include <functional>
+#include <inttypes.h>
 #include <perfetto.h>
 
 #include "c11/threads.h"
@@ -30,6 +31,9 @@ static const char * const panfrost_stage_names[] = {
    [PANFROST_STAGE_VERTEX_TILER] = "Vertex/Tiler",
    [PANFROST_STAGE_FRAGMENT]     = "Fragment",
    [PANFROST_STAGE_COMPUTE]      = "Compute",
+   [PANFROST_STAGE_BATCH]        = "Batch",
+   [PANFROST_STAGE_BARRIER]      = "Barrier",
+   [PANFROST_STAGE_CACHE_FLUSH]  = "CacheFlush",
 };
 
 static const char * const panfrost_queue_names[] = {
@@ -45,6 +49,9 @@ static const uint64_t panfrost_stage_iids[] = {
    [PANFROST_STAGE_VERTEX_TILER] = 2,
    [PANFROST_STAGE_FRAGMENT]     = 3,
    [PANFROST_STAGE_COMPUTE]      = 4,
+   [PANFROST_STAGE_BATCH]        = 5,
+   [PANFROST_STAGE_BARRIER]      = 6,
+   [PANFROST_STAGE_CACHE_FLUSH]  = 7,
 };
 
 struct PanfrostRenderpassTraits : public perfetto::DefaultDataSourceTraits {
@@ -133,6 +140,21 @@ stage_end(struct pipe_context *pctx, uint64_t ts_ns,
    struct panfrost_context *ctx = pan_context(pctx);
    struct panfrost_perfetto_state *p = &ctx->perfetto;
 
+   /* Usually, on the following condition we could skip the event. But for
+    * BATCH we must still emit it because Fragment/VT events for this batch
+    * have already been emitted and would be isolated without a parent Batch
+    * event. Use the cache-flush start (the last fresh timestamp before the
+    * stale slots) as a reference end time so the Batch event covers the real
+    * GPU work.
+    */
+   if (p->start_ts[stage] && ts_ns <= p->start_ts[stage]) {
+      if (stage != PANFROST_STAGE_BATCH)
+         return;
+      ts_ns = p->start_ts[PANFROST_STAGE_CACHE_FLUSH]
+              ? p->start_ts[PANFROST_STAGE_CACHE_FLUSH]
+              : p->start_ts[stage];
+   }
+
    PanfrostRenderpassDataSource::Trace(
       [=](PanfrostRenderpassDataSource::TraceContext tctx) {
          if (auto state = tctx.GetIncrementalState(); state->was_cleared) {
@@ -144,9 +166,33 @@ stage_end(struct pipe_context *pctx, uint64_t ts_ns,
              * any render stage events.
              */
             p->next_clock_sync_ns = 0;
+
+            /* The GPU clock sequence has been reset.  Any start_ts[BATCH]
+             * value left over from a previous session (e.g. because
+             * end_batch was skipped when PERFETTO_ACTIVE dropped
+             * mid-chunk) would let a batch that is missing its
+             * start_batch event bypass the !start_ts[BATCH] guard,
+             * producing sub-stage events isolated, without a batch.
+             *
+             * Clear it now so the guard suppresses such events.  We only do
+             * this when processing a sub-stage (stage != BATCH). If
+             * was_cleared was set on the BATCH event itself it means
+             * VT/Fragment were already emitted in the old sequence, and
+             * suppressing Batch as well would make things worse.
+             */
+            if (stage != PANFROST_STAGE_BATCH)
+               p->start_ts[PANFROST_STAGE_BATCH] = 0;
          }
 
          sync_timestamp(tctx, ctx);
+
+         /* Return if we haven't started to record yet (like if Perfetto
+          * became active after csf_init_batch) or if we have an invalid GPU
+          * timestamp. Otherwise we get isolated event that should be
+          * part of the batch.
+          */
+         if (!p->start_ts[PANFROST_STAGE_BATCH])
+            return;
 
          auto packet = tctx.NewTracePacket();
 
@@ -162,6 +208,14 @@ stage_end(struct pipe_context *pctx, uint64_t ts_ns,
 
          emit_extra(event);
       });
+
+   /* Clear the batch start timestamp after the batch event is emitted so the
+    * next batch starts with start_ts[BATCH]=0. We need to do this to avoid
+    * sub-stage events to be emitted with the wrong start time if the next
+    * Batch misses its start_batch tracepoint.
+    */
+   if (stage == PANFROST_STAGE_BATCH)
+      p->start_ts[PANFROST_STAGE_BATCH] = 0;
 }
 
 #ifdef __cplusplus
@@ -264,6 +318,9 @@ PANFROST_PERFETTO_PROCESS_EVENT(vertex_tiler, VERTEX_TILER)
 PANFROST_PERFETTO_PROCESS_EVENT(fragment,     FRAGMENT)
 PANFROST_PERFETTO_PROCESS_EVENT(compute,          COMPUTE)
 PANFROST_PERFETTO_PROCESS_EVENT(compute_indirect, COMPUTE)
+PANFROST_PERFETTO_PROCESS_EVENT(batch,        BATCH)
+PANFROST_PERFETTO_PROCESS_EVENT(barrier,      BARRIER)
+PANFROST_PERFETTO_PROCESS_EVENT(cache_flush,  CACHE_FLUSH)
 
 #ifdef __cplusplus
 }

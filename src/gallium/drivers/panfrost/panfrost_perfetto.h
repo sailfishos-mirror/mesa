@@ -19,6 +19,9 @@ enum panfrost_stage_id {
    PANFROST_STAGE_VERTEX_TILER, /* Vertex/tiler (draw) work */
    PANFROST_STAGE_FRAGMENT,     /* Fragment render pass with RT info */
    PANFROST_STAGE_COMPUTE,      /* Compute dispatch */
+   PANFROST_STAGE_BATCH,        /* CSF-only: entire batch from first job to cache flush */
+   PANFROST_STAGE_BARRIER,      /* CSF-only: GPU overhead waiting for all slots to drain */
+   PANFROST_STAGE_CACHE_FLUSH,  /* CSF-only: GPU overhead flushing/invalidating caches */
 
    PANFROST_NUM_STAGES
 };
