@@ -2536,17 +2536,11 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
                                                  lower_direct_buffer_instr,
                                                  nir_metadata_control_flow,
                                                  &state);
-   }
+      /* We just got rid of all the direct access.  Delete it so it's not in the
+       * way when we do our indirect lowering.
+       */
+      progress |= nir_opt_dce_impl(impl);
 
-   /* We just got rid of all the direct access.  Delete it so it's not in the
-    * way when we do our indirect lowering.
-    */
-   progress |= nir_opt_dce(shader);
-
-   nir_foreach_function_impl(impl, shader) {
-      nir_builder _b = nir_builder_at(nir_before_impl(impl)), *b = &_b;
-      state.set_idx_to_bti = build_descriptor_sets_bti_array(b, &state);
-      state.set_idx_to_offset = build_descriptor_sets_offset_array(b, &state);
       progress |= nir_function_instructions_pass(impl,
                                                  apply_pipeline_layout,
                                                  nir_metadata_control_flow,
