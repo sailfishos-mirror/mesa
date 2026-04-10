@@ -561,7 +561,7 @@ needs_dst_copy(const brw_builder &lbld, const brw_inst *inst)
        */
       if (regions_overlap(inst->dst, inst->size_written,
                           inst->src[i], inst->size_read(lbld.shader->devinfo, i)) &&
-          !inst->dst.equals(inst->src[i]))
+          !inst->dst.equals(inst->src[i].without_src_mods()))
         return true;
    }
 

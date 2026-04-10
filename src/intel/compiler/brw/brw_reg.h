@@ -200,6 +200,17 @@ typedef struct brw_reg {
 
    bool equals(const brw_reg &r) const;
    bool negative_equals(const brw_reg &r) const;
+
+   brw_reg without_src_mods() const
+   {
+      brw_reg r = *this;
+
+      r.negate = false;
+      r.abs = false;
+
+      return r;
+   }
+
    bool is_contiguous() const;
 
    bool is_zero() const;

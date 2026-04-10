@@ -162,6 +162,7 @@ if with_tests
         'test_insert_load_reg.cpp',
         'test_lower_regioning.cpp',
         'test_lower_scoreboard.cpp',
+        'test_lower_simd_width.cpp',
         'test_opt_algebraic.cpp',
         'test_opt_cmod_propagation.cpp',
         'test_opt_combine_constants.cpp',
