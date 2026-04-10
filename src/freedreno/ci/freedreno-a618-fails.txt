@@ -512,3 +512,8 @@ dEQP-VK.fragment_operations.early_fragment.sample_count_early_fragment_tests_dep
 dEQP-VK.fragment_operations.early_fragment.sample_count_early_fragment_tests_depth_samples_2_maintenance5,Fail
 dEQP-VK.fragment_operations.early_fragment.sample_count_early_fragment_tests_depth_samples_4,Fail
 dEQP-VK.fragment_operations.early_fragment.sample_count_early_fragment_tests_depth_samples_4_maintenance5,Fail
+
+# Autotune regression
+angle-dEQP-GLES3.functional.fbo.msaa.2_samples.rg8,Fail
+angle-dEQP-GLES3.functional.fbo.msaa.4_samples.rg8,Fail
+
