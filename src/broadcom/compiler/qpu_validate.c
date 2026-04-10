@@ -139,8 +139,17 @@ qpu_validate_inst(struct v3d_qpu_validate_state *state, struct qinst *qinst)
 
         assert(inst->type == V3D_QPU_INSTR_TYPE_ALU);
 
-        if (inst->alu.mul.op == V3D_QPU_M_MULTOP)
-            state->rtop_valid = true;
+        if (inst->alu.mul.op == V3D_QPU_M_MULTOP) {
+            /* On unconditional branches qpu_set_branch_targets() can fill the
+             * delay slots with a copy of the first instructions of the
+             * successor block. As the qpu validator is sequential it would
+             * detect a non real hazard when the MULTOP was copied but the
+             * UMUL24 wasn't. So we disable the hazard detection mechanism in
+             * this case.
+             */
+            if (!in_branch_delay_slots(state))
+                state->rtop_valid = true;
+        }
 
         if (inst->alu.mul.op == V3D_QPU_M_UMUL24) {
             if (state->rtop_hazard)
