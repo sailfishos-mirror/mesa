@@ -248,27 +248,6 @@ typedef enum IntraRefreshMode
    HMFT_INTRA_REFRESH_MODE_MAX
 } IntraRefreshMode;
 
-#ifndef CODECAPI_AVEncVideoEnableSpatialAdaptiveQuantization
-// AVEncVideoEnableSpatialAdaptiveQuantization (BOOL)
-// Indicates whether to enable or disable spatial adaptive quantization for video encoding.
-// VARIANT_FALSE: disable; VARIANT_TRUE: enable
-DEFINE_CODECAPI_GUID( AVEncVideoEnableSpatialAdaptiveQuantization,
-                      "659CB943-15CA-448D-B99A-875619DB4DE4",
-                      0x659cb943,
-                      0x15ca,
-                      0x448d,
-                      0xb9,
-                      0x9a,
-                      0x87,
-                      0x56,
-                      0x19,
-                      0xdb,
-                      0x4d,
-                      0xe4 )
-#define CODECAPI_AVEncVideoEnableSpatialAdaptiveQuantization                                                                       \
-   DEFINE_CODECAPI_GUIDNAMED( AVEncVideoEnableSpatialAdaptiveQuantization )
-#endif
-
 #ifndef CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode
 
 // MFSampleExtension_VideoEncodeD3D12ReconstructedPicture {3E8A1B7F-5C92-4D6E-B834-F0A729E65C48}
@@ -316,87 +295,6 @@ DEFINE_CODECAPI_GUID( AVEncVideoD3D12ReconstructedPictureOutputMode,
    DEFINE_CODECAPI_GUIDNAMED( AVEncVideoD3D12ReconstructedPictureOutputMode )
 
 #endif
-
-#ifndef CODECAPI_AVEncVideoInputDeltaQPBlockSettings
-// AVEncVideoInputDeltaQPSettings (VT_BLOB)
-// Read-only parameter that specifies the settings that the encoder MFT supports with respect to delta QP values as input.
-// Use ICodecAPI::GetValue to determine supported settings for Input Delta QP.
-// See usage of InputQPSettings within mfapi.h to retrieve block size & qp details
-DEFINE_CODECAPI_GUID( AVEncVideoInputDeltaQPBlockSettings,
-                      "5A4787DC-0648-47AA-B945-552BFAD2A6D8",
-                      0x5a4787dc,
-                      0x648,
-                      0x47aa,
-                      0xb9,
-                      0x45,
-                      0x55,
-                      0x2b,
-                      0xfa,
-                      0xd2,
-                      0xa6,
-                      0xd8 )
-
-#define CODECAPI_AVEncVideoInputDeltaQPBlockSettings DEFINE_CODECAPI_GUIDNAMED( AVEncVideoInputDeltaQPBlockSettings )
-
-typedef enum _eAVEncVideoQPMapElementDataType
-{
-   CODEC_API_QP_MAP_INT8 = 0x00000000,
-   CODEC_API_QP_MAP_INT16 = 0x00000001,
-   CODEC_API_QP_MAP_INT32 = 0x00000002,
-   CODEC_API_QP_MAP_UINT8 = 0x80000000,
-   CODEC_API_QP_MAP_UINT16 = 0x80000001,
-   CODEC_API_QP_MAP_UINT32 = 0x80000002,
-} eAVEncVideoQPMapElementDataType;
-
-typedef struct _inputQPSettings
-{
-   UINT32 minBlockSize;
-   UINT32 maxBlockSize;
-   UINT32 stepsBlockSize;
-   eAVEncVideoQPMapElementDataType dataType;
-   INT16 minValue;
-   INT16 maxValue;
-   UINT16 step;
-} InputQPSettings;
-
-// MFSampleExtension_VideoEncodeInputDeltaQPMap   {DAB419C3-BF21-4B46-8692-9A7BF0A71769}
-// Type: IMFMediaBuffer
-// MFSampleExtension_VideoEncodeInputDeltaQPMap specifies the input delta QP map of the frame.
-// The delta QP map must use one of the block sizes specified by CODECAPI_AVEncVideoInputDeltaQPBlockSize.
-DEFINE_GUID(
-   MFSampleExtension_VideoEncodeInputDeltaQPMap, 0xdab419c3, 0xbf21, 0x4b46, 0x86, 0x92, 0x9a, 0x7b, 0xf0, 0xa7, 0x17, 0x69 );
-
-#endif /* CODECAPI_AVEncVideoInputDeltaQPBlockSettings */
-
-#ifndef CODECAPI_AVEncVideoInputAbsoluteQPBlockSettings
-// AVEncVideoInputAbsoluteQPBlockSettings (VT_BLOB)
-// Read-only parameter that specifies the settings that the encoder MFT supports with respect to absolute QP values as input.
-// Use ICodecAPI::GetValue to determine supported settings for Input Absolute QP.
-// See usage of InputQPSettings within mfapi.h to retrieve block size & qp details
-DEFINE_CODECAPI_GUID( AVEncVideoInputAbsoluteQPBlockSettings,
-                      "EF95A145-4F91-4DEA-8173-ACFF11434210",
-                      0xef95a145,
-                      0x4f91,
-                      0x4dea,
-                      0x81,
-                      0x73,
-                      0xac,
-                      0xff,
-                      0x11,
-                      0x43,
-                      0x42,
-                      0x10 )
-
-#define CODECAPI_AVEncVideoInputAbsoluteQPBlockSettings DEFINE_CODECAPI_GUIDNAMED( AVEncVideoInputAbsoluteQPBlockSettings )
-
-// MFSampleExtension_VideoEncodeInputAbsoluteQPMap {432A6E9A-F1ED-456E-8DC3-6F8985649EB9}
-// Type: IMFMediaBuffer
-// MFSampleExtension_VideoEncodeInputExtAbsDeltaQPMap specifies the absolute QP map of the frame.
-// The absolute QP map must use one of the block sizes specified by CODECAPI_AVEncVideoInputAbsQPBlockSize.
-DEFINE_GUID(
-   MFSampleExtension_VideoEncodeInputAbsoluteQPMap, 0x432a6e9a, 0xf1ed, 0x456e, 0x8d, 0xc3, 0x6f, 0x89, 0x85, 0x64, 0x9e, 0xb9 );
-
-#endif /* CODECAPI_AVEncVideoInputAbsoluteQPBlockSettings */
 
 #ifndef CODECAPI_AVEncVideoRateControlFramePreAnalysis
 // AVEncVideoRateControlFramePreAnalysis (VT_BOOL) (Experimental, Testing only)
