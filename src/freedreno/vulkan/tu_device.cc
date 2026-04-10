@@ -194,17 +194,6 @@ is_kgsl(struct tu_instance *instance)
    return strcmp(instance->knl->name, "kgsl") == 0;
 }
 
-static bool tu_has_multiview(const struct tu_physical_device *device)
-{
-   return device->info->props.has_hw_multiview || TU_DEBUG(NOCONFORM);
-}
-
-/* We are generally VK 1.1 except A702, which has no multiview */
-static bool tu_is_vk_1_1(const struct tu_physical_device *device)
-{
-   return tu_has_multiview(device);
-}
-
 static uint32_t
 tu_subgroup_size(const struct tu_physical_device *device)
 {
@@ -235,8 +224,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .KHR_calibrated_timestamps = device->info->props.has_persistent_counter,
       .KHR_compute_shader_derivatives = true,
       .KHR_copy_commands2 = true,
-      // TODO workaround for https://github.com/KhronosGroup/VK-GL-CTS/issues/525
-      .KHR_create_renderpass2 = true, // tu_has_multiview(device),
+      .KHR_create_renderpass2 = true,
       .KHR_dedicated_allocation = true,
       .KHR_deferred_host_operations = true,
       .KHR_depth_clamp_zero_one = true,
@@ -256,27 +244,27 @@ get_device_extensions(const struct tu_physical_device *device,
       .KHR_format_feature_flags2 = true,
       .KHR_fragment_shading_rate = device->info->props.has_attachment_shading_rate,
       .KHR_get_memory_requirements2 = true,
-      .KHR_global_priority = tu_is_vk_1_1(device),
+      .KHR_global_priority = true,
       .KHR_image_format_list = true,
       .KHR_imageless_framebuffer = true,
 #ifdef TU_USE_WSI_PLATFORM
       .KHR_incremental_present = true,
 #endif
       .KHR_index_type_uint8 = true,
-      .KHR_internally_synchronized_queues = tu_is_vk_1_1(device),
+      .KHR_internally_synchronized_queues = true,
       .KHR_line_rasterization = !device->info->props.is_a702,
       .KHR_load_store_op_none = true,
       .KHR_maintenance1 = true,
       .KHR_maintenance2 = true,
       .KHR_maintenance3 = true,
-      .KHR_maintenance4 = tu_is_vk_1_1(device),
-      .KHR_maintenance5 = tu_is_vk_1_1(device),
-      .KHR_maintenance6 = tu_is_vk_1_1(device),
-      .KHR_maintenance7 = tu_is_vk_1_1(device),
-      .KHR_maintenance8 = tu_is_vk_1_1(device),
-      .KHR_maintenance9 = tu_is_vk_1_1(device),
+      .KHR_maintenance4 = true,
+      .KHR_maintenance5 = true,
+      .KHR_maintenance6 = true,
+      .KHR_maintenance7 = true,
+      .KHR_maintenance8 = true,
+      .KHR_maintenance9 = true,
       .KHR_map_memory2 = true,
-      .KHR_multiview = tu_has_multiview(device),
+      .KHR_multiview = true,
       .KHR_performance_query = (TU_DEBUG(PERFC) || TU_DEBUG(PERFCRAW)) && device->is_perf_cntr_selectable,
       .KHR_pipeline_executable_properties = true,
       .KHR_pipeline_library = true,
@@ -300,16 +288,16 @@ get_device_extensions(const struct tu_physical_device *device,
       .KHR_shader_expect_assume = true,
       .KHR_shader_float16_int8 = true,
       .KHR_shader_float_controls = true,
-      .KHR_shader_float_controls2 = tu_is_vk_1_1(device),
+      .KHR_shader_float_controls2 = true,
       .KHR_shader_integer_dot_product = true,
       .KHR_shader_non_semantic_info = true,
       .KHR_shader_quad_control = device->info->props.has_getfiberid,
       .KHR_shader_relaxed_extended_instruction = true,
-      .KHR_shader_subgroup_extended_types = tu_is_vk_1_1(device),
+      .KHR_shader_subgroup_extended_types = true,
       .KHR_shader_subgroup_rotate = true,
-      .KHR_shader_subgroup_uniform_control_flow = tu_is_vk_1_1(device),
+      .KHR_shader_subgroup_uniform_control_flow = true,
       .KHR_shader_terminate_invocation = true,
-      .KHR_spirv_1_4 = tu_is_vk_1_1(device),
+      .KHR_spirv_1_4 = true,
       .KHR_storage_buffer_storage_class = true,
 #ifdef TU_USE_WSI_PLATFORM
       .KHR_swapchain = true,
@@ -356,8 +344,8 @@ get_device_extensions(const struct tu_physical_device *device,
       .EXT_filter_cubic = device->info->props.has_tex_filter_cubic,
       .EXT_fragment_density_map = true,
       .EXT_fragment_density_map_offset = true,
-      .EXT_global_priority = tu_is_vk_1_1(device),
-      .EXT_global_priority_query = tu_is_vk_1_1(device),
+      .EXT_global_priority = true,
+      .EXT_global_priority_query = true,
       .EXT_graphics_pipeline_library = true,
       .EXT_hdr_metadata = true,
       .EXT_host_image_copy = true,
@@ -411,8 +399,8 @@ get_device_extensions(const struct tu_physical_device *device,
          device->info->props.has_getfiberid && tu_subgroup_size(device) <= 64,
       .EXT_shader_subgroup_vote = device->info->props.has_getfiberid,
       .EXT_shader_uniform_buffer_unsized_array = true,
-      .EXT_shader_viewport_index_layer = tu_has_multiview(device),
-      .EXT_subgroup_size_control = tu_is_vk_1_1(device),
+      .EXT_shader_viewport_index_layer = device->info->props.has_hw_multiview,
+      .EXT_subgroup_size_control = true,
 #ifdef TU_USE_WSI_PLATFORM
       .EXT_swapchain_maintenance1 = true,
 #endif
@@ -445,7 +433,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .QCOM_render_pass_shader_resolve = true,
       .VALVE_buffer_device_address_allocation_alignment =
          device->has_iova_align,
-      .VALVE_fragment_density_map_layered = tu_is_vk_1_1(device),
+      .VALVE_fragment_density_map_layered = true,
       .VALVE_mutable_descriptor_type = true,
    } };
 }
@@ -475,7 +463,7 @@ tu_get_features(struct tu_physical_device *pdevice,
    features->wideLines = pdevice->info->props.line_width_max > 1.0;
    features->largePoints = true;
    features->alphaToOne = true;
-   features->multiViewport = tu_has_multiview(pdevice);
+   features->multiViewport = pdevice->info->props.has_hw_multiview;
    features->samplerAnisotropy = true;
    features->textureCompressionETC2 = true;
    features->textureCompressionASTC_LDR = true;
@@ -1000,8 +988,7 @@ tu_get_physical_device_properties_1_1(struct tu_physical_device *pdevice,
    p->subgroupQuadOperationsInAllStages = pdevice->info->props.has_getfiberid;
 
    p->pointClippingBehavior = VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES;
-   p->maxMultiviewViewCount =
-      tu_has_multiview(pdevice) ? MAX_VIEWS : 1;
+   p->maxMultiviewViewCount = MAX_VIEWS;
    p->maxMultiviewInstanceIndex = INT_MAX;
    p->protectedNoFault = false;
    /* Our largest descriptors are 2 texture descriptors, or a texture and
@@ -1274,7 +1261,7 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->maxSamplerLodBias = 4095.0 / 256.0; /* [-16, 15.99609375] */
    props->maxSamplerAnisotropy = 16;
    props->maxViewports =
-         tu_has_multiview(pdevice) ? MAX_VIEWPORTS : 1;
+         pdevice->info->props.has_hw_multiview ? MAX_VIEWPORTS : 1;
    props->maxViewportDimensions[0] =
       props->maxViewportDimensions[1] = MAX_VIEWPORT_SIZE;
    props->viewportBoundsRange[0] = INT16_MIN;
@@ -1325,10 +1312,8 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->nonCoherentAtomSize = 64;
 
    props->apiVersion =
-      tu_has_multiview(pdevice) ?
-         ((pdevice->info->chip >= 7) ? TU_API_VERSION :
-            VK_MAKE_VERSION(1, 3, VK_HEADER_VERSION))
-         : VK_MAKE_VERSION(1, 0, VK_HEADER_VERSION);
+      ((pdevice->info->chip >= 7) ? TU_API_VERSION :
+         VK_MAKE_VERSION(1, 3, VK_HEADER_VERSION));
    props->driverVersion = vk_get_driver_version();
    props->vendorID = pdevice->instance->drirc.debug.force_vk_vendor != 0 ?
                      pdevice->instance->drirc.debug.force_vk_vendor : 0x5143;
