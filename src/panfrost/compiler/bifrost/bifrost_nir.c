@@ -656,17 +656,147 @@ bifrost_nir_lower_load_output(nir_shader *nir)
       nir_metadata_control_flow, NULL);
 }
 
+static bool
+bytes_can_straddle_boundary(unsigned bytes, unsigned align_mul,
+                            unsigned align_off, unsigned boundary)
+{
+   /* addr = k*align_mul + align_off */
+   assert(IS_POT(align_mul));
+   assert(align_off < align_mul);
+   assert(IS_POT(boundary));
+
+   if (align_mul >= boundary)
+      return (align_off % boundary) + bytes > boundary;
+   else
+      return align_off + bytes > align_mul;
+}
+
+static nir_mem_access_size_align
+size_align_for_bytes(uint8_t bytes, uint8_t bit_size,
+                     uint32_t align_mul, uint32_t align_off)
+{
+   /* Grab the largest power of two which divides bytes */
+   assert(bytes != 0);
+   uint8_t bytes_max_bit_size = 8 << (ffs(bytes) - 1);
+
+   /* Clamp the bit size if needed */
+   bit_size = MIN3(bit_size, bytes_max_bit_size, 64);
+
+   return (nir_mem_access_size_align) {
+      .num_components = (bytes * 8) / bit_size,
+      .bit_size = bit_size,
+      .align = nir_combined_align(align_mul, align_off),
+      .shift = nir_mem_access_shift_method_scalar,
+   };
+}
+
+static nir_mem_access_size_align
+scratch_access_size_align_v9(uint8_t bytes, uint8_t bit_size,
+                             uint32_t align_mul, uint32_t align_off)
+{
+   /* On v9-v10, we must never straddle the 16-byte boundary. */
+   while (bytes_can_straddle_boundary(bytes, align_mul, align_off, 16))
+      bytes--;
+
+   return size_align_for_bytes(bytes, bit_size, align_mul, align_off);
+}
+
+static nir_mem_access_size_align
+scratch_access_size_align_v11(uint8_t bytes, uint8_t bit_size,
+                              uint32_t align_mul, uint32_t align_off,
+                              bool is_store)
+{
+   assert(align_off < align_mul);
+
+   /* v11+ has complex rules based on how many bytes are accessed, check if the
+    * access is legal, otherwise reduce the amount of bytes accessed.
+    */
+   for (; bytes > 1; bytes--) {
+      switch (bytes) {
+      case 2:
+         /* Must not straddle 4 bytes boundaries */
+         if (bytes_can_straddle_boundary(bytes, align_mul, align_off, 4))
+            continue;
+
+         return size_align_for_bytes(1, bit_size, align_mul, align_off);
+
+      case 3:
+         /* No restrictions for store */
+         if (is_store)
+            return size_align_for_bytes(3, 8, align_mul, align_off);
+
+         /* We can do 3-byte loads as long as they're aligned to 4 bytes.
+          * If align_off == 1, nir_lower_mem_access_bit_sizes() will upgrade
+          * to an aligned 4-byte load and shift the result.
+          */
+         if (align_mul >= 4 && align_off <= 1)
+            return size_align_for_bytes(3, 8, 4, 0);
+
+         /* Otherwise, we have to split the load */
+         continue;
+
+      case 4:
+      case 8:
+      case 16:
+         /* Must be 4-byte aligned */
+         if (nir_combined_align(align_mul, align_off) < 4)
+            continue;
+
+         return size_align_for_bytes(bytes, bit_size, align_mul, align_off);
+
+      case 6:
+         if (is_store) {
+            /* Stores must not straddle 4 bytes boundaries. */
+            if (bytes_can_straddle_boundary(bytes, align_mul, align_off, 4))
+               continue;
+
+            return size_align_for_bytes(6, bit_size, align_mul, align_off);
+         } else {
+            /* Loads must be aligned to 4 bytes. */
+            if (nir_combined_align(align_mul, align_off) < 4)
+               continue;
+
+            return size_align_for_bytes(6, bit_size, 4, 0);
+         }
+
+      default: /* 5, 7, 9-15 */
+         /* All other sizes have to fall back to a smaller load */
+         continue;
+      }
+   }
+
+   /* 1-byte accesses are always unrestricted */
+   assert(bytes == 1);
+   return size_align_for_bytes(1, 8, align_mul, align_off);
+}
+
 static nir_mem_access_size_align
 mem_access_size_align_cb(nir_intrinsic_op intrin, uint8_t bytes,
                          uint8_t bit_size, uint32_t align_mul,
                          uint32_t align_offset, bool offset_is_const,
                          enum gl_access_qualifier access, const void *cb_data)
 {
+   uint64_t gpu_id = *(uint64_t *)cb_data;
    uint32_t align = nir_combined_align(align_mul, align_offset);
    assert(util_is_power_of_two_nonzero(align));
 
+   bool is_scratch = intrin == nir_intrinsic_load_scratch ||
+                     intrin == nir_intrinsic_store_scratch;
+
    /* No more than 16 bytes at a time. */
    bytes = MIN2(bytes, 16);
+
+   /* TLS memory requires special alignment, handle it separately */
+   if (pan_arch(gpu_id) >= 9 && is_scratch) {
+      bool is_store = intrin == nir_intrinsic_store_scratch;
+
+      if (pan_arch(gpu_id) >= 11)
+         return scratch_access_size_align_v11(bytes, bit_size, align_mul,
+                                                align_offset, is_store);
+      else
+         return scratch_access_size_align_v9(bytes, bit_size, align_mul,
+                                             align_offset);
+   }
 
    /* All loads must be aligned up to the next power of two of their byte
     * size. If we have insufficient alignment, split into smaller loads. */
@@ -758,6 +888,7 @@ bifrost_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
                nir_var_shader_temp | nir_var_function_temp |
                nir_var_mem_global | nir_var_mem_shared,
       .callback = mem_access_size_align_cb,
+      .cb_data = (void *) &gpu_id,
    };
    NIR_PASS(_, nir, nir_lower_mem_access_bit_sizes, &mem_size_options);
 
