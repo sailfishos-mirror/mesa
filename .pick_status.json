@@ -6404,7 +6404,7 @@
         "description": "broadcom/compiler: really enable branch in delay slots validation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "90269ba353333be13e54549ecff3adb8803661db",
         "notes": null
