@@ -15633,7 +15633,7 @@ radv_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstC
 
    STACK_ARRAY(VkBindTransformFeedbackBuffer2InfoEXT, counters, counterBufferCount);
 
-   for (uint32_t i = 0; i < counterBufferCount; i++) {
+   for (uint32_t i = 0; pCounterBuffers && i < counterBufferCount; i++) {
       VK_FROM_HANDLE(radv_buffer, buffer, pCounterBuffers[i]);
       VkDeviceAddressRangeKHR addr_range = {0};
 
@@ -15652,7 +15652,7 @@ radv_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstC
    }
 
    radv_CmdBeginTransformFeedback2EXT(commandBuffer, firstCounterBuffer, counterBufferCount,
-                                      counterBufferCount > 0 ? counters : NULL);
+                                      counterBufferCount > 0 && pCounterBuffers ? counters : NULL);
 
    STACK_ARRAY_FINISH(counters);
 }
@@ -15765,7 +15765,7 @@ radv_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstCou
 
    STACK_ARRAY(VkBindTransformFeedbackBuffer2InfoEXT, counters, counterBufferCount);
 
-   for (uint32_t i = 0; i < counterBufferCount; i++) {
+   for (uint32_t i = 0; pCounterBuffers && i < counterBufferCount; i++) {
       VK_FROM_HANDLE(radv_buffer, buffer, pCounterBuffers[i]);
       VkDeviceAddressRangeKHR addr_range = {0};
 
@@ -15784,7 +15784,7 @@ radv_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstCou
    }
 
    radv_CmdEndTransformFeedback2EXT(commandBuffer, firstCounterBuffer, counterBufferCount,
-                                    counterBufferCount > 0 ? counters : NULL);
+                                    counterBufferCount > 0 && pCounterBuffers ? counters : NULL);
 
    STACK_ARRAY_FINISH(counters);
 }
