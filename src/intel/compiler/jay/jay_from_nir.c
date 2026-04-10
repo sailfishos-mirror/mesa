@@ -842,11 +842,8 @@ jay_scratch_surface(struct nir_to_jay_state *nj)
       assert(func->is_entrypoint && "todo: this needs ABI");
 
       jay_builder b = jay_init_builder(func, jay_before_function(func));
-      nj->payload.scratch_surface = jay_alloc_def(&b, J_ADDRESS, 1);
-
       jay_def u0_5 = jay_extract(nj->payload.u0, 5);
-      jay_def state = jay_AND_u32(&b, u0_5, ~BITFIELD_MASK(10));
-      jay_SHR(&b, JAY_TYPE_U32, nj->payload.scratch_surface, state, 4);
+      nj->payload.scratch_surface = jay_AND_u32(&b, u0_5, ~BITFIELD_MASK(10));
    }
 
    return nj->payload.scratch_surface;
@@ -1037,7 +1034,9 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_def ex_desc = jay_null();
    uint32_t ex_desc_imm = 0;
    if (scratch) {
-      ex_desc = jay_scratch_surface(nj);
+      /* TODO: Once we have an address register RA, we should CSE these */
+      ex_desc = jay_alloc_def(b, J_ADDRESS, 1);
+      jay_SHR(b, JAY_TYPE_U32, ex_desc, jay_scratch_surface(nj), 4);
 
       if (has_dest) {
          b->shader->fills++;
