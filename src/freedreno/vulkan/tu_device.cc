@@ -2886,6 +2886,14 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
    vk_device_dispatch_table_from_entrypoints(
       &dispatch_table, &wsi_device_entrypoints, false);
 
+   /* Devices without HW multiview emulate it by replaying each draw once per
+    * view, which is done by wrapping the draw entrypoints.
+    */
+   if (!physical_device->info->props.has_hw_multiview) {
+      tu_install_sw_multiview_draw_entrypoints(&dispatch_table,
+                                               physical_device->info);
+   }
+
    const struct vk_device_entrypoint_table *knl_device_entrypoints =
          physical_device->instance->knl->device_entrypoints;
    if (knl_device_entrypoints) {
