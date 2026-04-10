@@ -1047,7 +1047,7 @@ compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *
    const struct radv_physical_device *pdev = radv_device_physical(device);
    uint32_t push_constant_size = 0;
 
-   struct radv_shader_stage prolog_stage = {};
+   struct radv_shader_stage prolog_stage = {0};
    radv_build_rt_prolog(device, &prolog_stage);
    prolog_stage.nir->options = &pdev->nir_options[MESA_SHADER_COMPUTE];
    radv_optimize_nir(prolog_stage.nir, false);
