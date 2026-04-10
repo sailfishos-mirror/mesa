@@ -113,6 +113,34 @@ radv_amdgpu_winsys_query_gpuvm_fault(struct radeon_winsys *rws, struct radv_wins
 static simple_mtx_t winsys_creation_mutex = SIMPLE_MTX_INITIALIZER;
 static struct hash_table *winsyses = NULL;
 
+static VkResult
+radv_amdgpu_null_prt_bug_init(struct radeon_winsys *rws)
+{
+   struct radv_amdgpu_winsys *ws = (struct radv_amdgpu_winsys *)rws;
+
+   if (!ws->info.compiler_info.has_smem_with_null_prt_bug)
+      return VK_SUCCESS;
+
+   /* Create a zero-allocated 8MiB BO that will be used to map partially resident sparse buffers at
+    * creation or when explicitly unmapped.
+    */
+   return ws->base.buffer_create(&ws->base, 8 * 1024 * 1024 /* 8MiB */, 4096, RADEON_DOMAIN_VRAM,
+                                 RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_ZERO_VRAM | RADEON_FLAG_READ_ONLY |
+                                    RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_PREFER_LOCAL_BO,
+                                 RADV_BO_PRIORITY_VIRTUAL, 0, &ws->null_prt_bug.bo);
+}
+
+static void
+radv_amdgpu_null_prt_bug_finish(struct radeon_winsys *rws)
+{
+   struct radv_amdgpu_winsys *ws = (struct radv_amdgpu_winsys *)rws;
+
+   if (!ws->info.compiler_info.has_smem_with_null_prt_bug)
+      return;
+
+   ws->base.buffer_destroy(&ws->base, ws->null_prt_bug.bo);
+}
+
 static void
 radv_amdgpu_winsys_destroy(struct radeon_winsys *rws)
 {
@@ -146,6 +174,9 @@ radv_amdgpu_winsys_destroy(struct radeon_winsys *rws)
       fclose(ws->bo_history_logfile);
 
    u_rwlock_destroy(&ws->log_bo_list_lock);
+
+   radv_amdgpu_null_prt_bug_finish(rws);
+
    ac_drm_device_deinitialize(ws->dev);
    FREE(rws);
 }
@@ -345,6 +376,10 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    ws->base.unreserve_vmid = radv_amdgpu_winsys_unreserve_vmid;
    radv_amdgpu_bo_init_functions(ws);
    radv_amdgpu_cs_init_functions(ws);
+
+   result = radv_amdgpu_null_prt_bug_init(&ws->base);
+   if (result != VK_SUCCESS)
+      goto winsys_fail;
 
    _mesa_hash_table_insert(winsyses, (void *)ac_drm_device_get_cookie(dev), ws);
    simple_mtx_unlock(&winsys_creation_mutex);
