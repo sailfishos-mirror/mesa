@@ -3034,13 +3034,25 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
    case nir_intrinsic_load_base_instance:
       dst[0] = create_driver_param(ctx, IR3_DP_VS(instid_base));
       break;
-   case nir_intrinsic_load_view_index:
-      if (!ctx->view_index) {
-         ctx->view_index =
-            create_sysval_input(ctx, SYSTEM_VALUE_VIEW_INDEX, 0x1);
+   case nir_intrinsic_load_view_index: {
+      struct driver_param_info param_info;
+      /* Only the software-multiview path (no HW multiview) supplies the view
+       * index as a driver param.  On HW multiview devices load_view_index
+       * that survives to here (e.g. when the multipos optimization bails out
+       * and the hardware view-broadcast path is used) must read the
+       * SYSTEM_VALUE_VIEW_INDEX sysval instead.
+       */
+      if (ir3_get_driver_param_info(ctx->s, &ctx->so->key, intr, &param_info)) {
+         dst[0] = create_driver_param(ctx, param_info.offset);
+      } else {
+         if (!ctx->view_index) {
+            ctx->view_index =
+               create_sysval_input(ctx, SYSTEM_VALUE_VIEW_INDEX, 0x1);
+         }
+         dst[0] = ctx->view_index;
       }
-      dst[0] = ctx->view_index;
       break;
+   }
    case nir_intrinsic_load_vertex_id_zero_base:
    case nir_intrinsic_load_vertex_id:
       if (!ctx->vertex_id) {

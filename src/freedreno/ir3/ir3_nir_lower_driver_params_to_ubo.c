@@ -83,19 +83,20 @@ lower_driver_param_to_ubo(nir_builder *b, nir_intrinsic_instr *intr, void *in)
       break;
    default: {
       struct driver_param_info param_info;
-      if (!ir3_get_driver_param_info(b->shader, intr, &param_info))
+      if (!ir3_get_driver_param_info(b->shader, &v->key, intr, &param_info))
          return false;
 
       /* VS is a bit special because SQE patches in draw_id/base_vertex/
-       * first_vertex/base_instance, so these are still loaded the "old"
-       * way.
+       * first_vertex/base_instance, and Turnip pushes view_index as part
+       * of the 2-vec4 pushed consts block for SW multiview, so these are
+       * still loaded the "old" way.
        *
-       * So the driver-params are split, with the first vec4 being pushed
-       * via CP_LOAD_STATE, and the remainder (if present, only used by
-       * gl/gallium) pushed via UBO.
+       * So the driver-params are split, with the first 2 vec4s up to
+       * view_index being pushed via CP_LOAD_STATE, and the remainder (if
+       * present, only used by gl/gallium) pushed via UBO.
        */
       if ((v->type == MESA_SHADER_VERTEX) &&
-          (param_info.offset < IR3_DP_VS(is_indexed_draw))) {
+          (param_info.offset <= IR3_DP_VS(view_index))) {
          return false;
       }
 

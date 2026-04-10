@@ -1411,6 +1411,7 @@ shader_uses_push_consts(nir_shader *shader)
 static bool
 tu_lower_io(nir_shader *shader, struct tu_device *dev,
             struct tu_shader *tu_shader,
+            const struct ir3_shader_key *ir3_key,
             const struct tu_pipeline_layout *layout,
             uint32_t read_only_input_attachments,
             bool dynamic_renderpass,
@@ -1429,7 +1430,7 @@ tu_lower_io(nir_shader *shader, struct tu_device *dev,
     */
    if (shader->info.stage == MESA_SHADER_VERTEX) {
       uint32_t num_driver_params =
-         ir3_nir_scan_driver_consts(dev->compiler, shader, nullptr);
+         ir3_nir_scan_driver_consts(dev->compiler, shader, ir3_key, nullptr);
       ir3_alloc_driver_params(const_allocs, &num_driver_params, dev->compiler,
                               shader->info.stage);
    }
@@ -3595,7 +3596,7 @@ tu_shader_create(struct tu_device *dev,
    }
 
    struct ir3_const_allocations const_allocs = {};
-   NIR_PASS(_, nir, tu_lower_io, dev, shader, layout,
+   NIR_PASS(_, nir, tu_lower_io, dev, shader, ir3_key, layout,
             key->read_only_input_attachments, key->dynamic_renderpass,
             &const_allocs);
 

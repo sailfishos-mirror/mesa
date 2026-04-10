@@ -8963,6 +8963,8 @@ vs_params_offset(struct tu_cmd_buffer *cmd)
    STATIC_ASSERT(IR3_DP_VS(draw_id) == 0);
    STATIC_ASSERT(IR3_DP_VS(vtxid_base) == 1);
    STATIC_ASSERT(IR3_DP_VS(instid_base) == 2);
+   STATIC_ASSERT(sizeof(struct ir3_driver_params_vs) % 16 == 0);
+   STATIC_ASSERT(sizeof(struct ir3_driver_params_vs) == 40 * sizeof(uint32_t));
 
    /* 0 means disabled for CP_DRAW_INDIRECT_MULTI */
    assert(param_offset != 0);
