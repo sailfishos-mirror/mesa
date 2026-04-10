@@ -19,6 +19,7 @@ use rustix::net::listen;
 use rustix::net::recvmsg;
 use rustix::net::sendmsg;
 use rustix::net::socket_with;
+use rustix::net::sockopt::socket_type;
 use rustix::net::AddressFamily;
 use rustix::net::RecvAncillaryBuffer;
 use rustix::net::RecvAncillaryMessage;
@@ -41,6 +42,18 @@ const MAX_IDENTIFIERS: usize = 28;
 
 pub struct Tube {
     socket: OwnedDescriptor,
+}
+
+impl TryFrom<OwnedDescriptor> for Tube {
+    type Error = MesaError;
+
+    fn try_from(socket: OwnedDescriptor) -> Result<Self, Self::Error> {
+        let ty = socket_type(&socket)?;
+        match ty {
+            SocketType::SEQPACKET | SocketType::STREAM => Ok(Tube { socket }),
+            _ => Err(MesaError::Unsupported),
+        }
+    }
 }
 
 impl TryFrom<SocketType> for TubeType {
