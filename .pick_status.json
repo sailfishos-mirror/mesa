@@ -3664,7 +3664,7 @@
         "description": "nak: the MS location comes last in TLD, same spot as depth compare in TEX",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ad01fbdda030d2c5d2dd09f02bbaa7ab3613b7ae",
         "notes": null
