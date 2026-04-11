@@ -80,8 +80,16 @@ bool IntelDriver::init_perfcnt()
 
    if (perf->cfg->features_supported & INTEL_PERF_FEATURE_OA_BLOCKED_BY_POLICY) {
       PPS_LOG_ERROR("OA metrics access blocked by system policy "
-                    "(gpu=%d, driver=%s). "
+                    "(gpu=%d, driver=%s): "
                     "Check kernel paranoid settings or run as root.",
+                    drm_device.gpu_num,
+                    drm_device.name.c_str());
+      return false;
+   }
+
+   if (perf->cfg->n_queries == 0) {
+      PPS_LOG_ERROR("No OA queries available for this device "
+                    "(gpu=%d, driver=%s)",
                     drm_device.gpu_num,
                     drm_device.name.c_str());
       return false;
