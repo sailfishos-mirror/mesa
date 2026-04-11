@@ -753,7 +753,7 @@ layouts_equal(const struct lvp_descriptor_set_layout *a, const struct lvp_descri
    }
    if (!a->immutable_sampler_count)
       return true;
-   if (memcmp(la->immutable_samplers, lb->immutable_samplers, a->immutable_sampler_count * sizeof(struct lp_descriptor)))
+   if (memcmp(la->immutable_samplers, lb->immutable_samplers, a->immutable_sampler_count * sizeof(struct lp_sampler_descriptor)))
       return false;
    return !memcmp(la->immutable_ycbcr, lb->immutable_ycbcr, a->immutable_sampler_count * sizeof(struct vk_ycbcr_conversion_state));
 }

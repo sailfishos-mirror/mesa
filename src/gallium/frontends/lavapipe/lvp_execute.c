@@ -1368,15 +1368,13 @@ apply_dynamic_offsets(struct lvp_descriptor_set **out_set, const uint32_t *offse
       if (!vk_descriptor_type_is_dynamic(binding->type))
          continue;
 
-      struct lp_descriptor *desc = set->map;
-      desc += binding->descriptor_index;
-
+      struct lp_buffer_descriptor *desc = (struct lp_buffer_descriptor *)(set->map + binding->offset);
       for (uint32_t j = 0; j < binding->array_size; j++) {
          uint32_t offset_index = binding->dynamic_index + j;
          if (offset_index >= offset_count)
             return;
 
-         desc[j].buffer.u = (uint32_t *)((uint8_t *)desc[j].buffer.u + offsets[offset_index]);
+         desc[j].jit.u = (uint32_t *)((uint8_t *)desc[j].jit.u + offsets[offset_index]);
       }
    }
 }
@@ -4796,13 +4794,10 @@ bind_db_samplers(struct rendering_state *state, enum lvp_pipeline_type pipeline_
       if (!bind_layout->immutable_samplers)
          continue;
 
-      struct lp_descriptor *desc = (void*)db;
-      desc += bind_layout->descriptor_index;
+      struct lp_sampler_descriptor *desc = (struct lp_sampler_descriptor *)(db + bind_layout->offset);
 
       for (uint32_t sampler_index = 0; sampler_index < bind_layout->array_size; sampler_index++) {
-         struct lp_descriptor *immutable_desc = &bind_layout->immutable_samplers[sampler_index];
-         desc[sampler_index].sampler = immutable_desc->sampler;
-         desc[sampler_index].texture.sampler_index = immutable_desc->texture.sampler_index;
+         desc[sampler_index] = bind_layout->immutable_samplers[sampler_index];
          if (pipeline_type == LVP_PIPELINE_RAY_TRACING) {
             did_update |= BITFIELD_BIT(MESA_SHADER_RAYGEN);
          } else {

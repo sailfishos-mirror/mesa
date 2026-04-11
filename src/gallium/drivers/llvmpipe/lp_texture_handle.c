@@ -730,8 +730,8 @@ static uint64_t
 get_sample_function(uint64_t _matrix, uint64_t _texture_functions, uint64_t _sampler_desc, uint32_t sample_key)
 {
    struct lp_sampler_matrix *matrix = (void *)(uintptr_t)_matrix;
-   struct lp_descriptor *sampler_desc = (void *)(uintptr_t)_sampler_desc;
-   uint32_t sampler_index = sampler_desc->texture.sampler_index;
+   struct lp_sampler_descriptor *sampler_desc = (void *)(uintptr_t)_sampler_desc;
+   uint32_t sampler_index = sampler_desc->sampler_index;
 
    struct lp_texture_functions *texture_functions = (void *)(uintptr_t)_texture_functions;
    struct sample_function_cache_key key = {
@@ -910,7 +910,7 @@ compile_jit_sample_function(struct llvmpipe_context *ctx, uint32_t sample_key)
    LLVMPositionBuilderAtEnd(gallivm->builder, block);
 
    LLVMValueRef functions_offset =
-      lp_build_const_int64(gallivm, offsetof(struct lp_descriptor, functions));
+      lp_build_const_int64(gallivm, offsetof(struct lp_image_descriptor, functions));
    LLVMValueRef functions_ptr =
       LLVMBuildAdd(builder, texture_descriptor, functions_offset, "");
 
@@ -1029,7 +1029,7 @@ compile_jit_fetch_function(struct llvmpipe_context *ctx, uint32_t sample_key)
    LLVMPositionBuilderAtEnd(gallivm->builder, block);
 
    LLVMValueRef functions_offset =
-      lp_build_const_int64(gallivm, offsetof(struct lp_descriptor, functions));
+      lp_build_const_int64(gallivm, offsetof(struct lp_image_descriptor, functions));
    LLVMValueRef functions_ptr =
       LLVMBuildAdd(builder, texture_descriptor, functions_offset, "");
 
@@ -1153,7 +1153,7 @@ compile_jit_size_function(struct llvmpipe_context *ctx, bool samples)
    LLVMPositionBuilderAtEnd(gallivm->builder, block);
 
    LLVMValueRef functions_offset =
-      lp_build_const_int64(gallivm, offsetof(struct lp_descriptor, functions));
+      lp_build_const_int64(gallivm, offsetof(struct lp_image_descriptor, functions));
    LLVMValueRef functions_ptr =
       LLVMBuildAdd(builder, texture_descriptor, functions_offset, "");
 

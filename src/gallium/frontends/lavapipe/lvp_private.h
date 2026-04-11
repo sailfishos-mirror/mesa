@@ -311,14 +311,15 @@ struct lvp_image_view {
 
 struct lvp_sampler {
    struct vk_sampler vk;
-   struct lp_descriptor desc;
+   struct lp_sampler_descriptor desc;
 };
 
 struct lvp_descriptor_set_binding_layout {
-   uint32_t descriptor_index;
+   uint32_t offset;
    /* Number of array elements in this binding */
    VkDescriptorType type;
    uint32_t stride; /* used for planar samplers */
+   uint32_t max_plane_count;
    uint32_t array_size;
    bool valid;
 
@@ -328,7 +329,7 @@ struct lvp_descriptor_set_binding_layout {
    uint32_t uniform_block_size;
 
    /* Immutable samplers (or NULL if no immutable samplers) */
-   struct lp_descriptor *immutable_samplers;
+   struct lp_sampler_descriptor *immutable_samplers;
    struct vk_ycbcr_conversion_state *immutable_ycbcr;
 };
 
@@ -372,7 +373,7 @@ struct lvp_descriptor_set {
    /* Buffer holding the descriptors. */
    struct pipe_memory_allocation *pmem;
    struct pipe_resource *bo;
-   void *map;
+   uint8_t *map;
 };
 
 struct lvp_descriptor_pool {
@@ -396,6 +397,15 @@ void
 lvp_descriptor_set_update_with_template(VkDevice _device, VkDescriptorSet descriptorSet,
                                         VkDescriptorUpdateTemplate descriptorUpdateTemplate,
                                         const void *pData);
+
+struct lvp_image_sampler_descriptor {
+   struct lp_image_descriptor image;
+   struct lp_sampler_descriptor sampler;
+};
+
+uint32_t lvp_get_descriptor_size(VkDescriptorType type);
+
+uint32_t lvp_get_sampler_descriptor_offset(VkDescriptorType type);
 
 struct lvp_pipeline_layout {
    struct vk_pipeline_layout vk;
@@ -756,7 +766,7 @@ void
 lvp_nir_lower_blend(nir_shader *nir, const nir_lower_blend_options *opts);
 
 void
-lvp_sampler_init(struct lvp_device *device, struct lp_descriptor *desc, const VkSamplerCreateInfo *pCreateInfo, const struct vk_sampler *sampler);
+lvp_sampler_init(struct lvp_device *device, struct lp_sampler_descriptor *desc, const VkSamplerCreateInfo *pCreateInfo, const struct vk_sampler *sampler);
 
 static inline uint8_t
 lvp_image_aspects_to_plane(ASSERTED const struct lvp_image *image,

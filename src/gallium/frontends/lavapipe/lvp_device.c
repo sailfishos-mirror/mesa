@@ -936,7 +936,6 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
 
    int texel_buffer_alignment = device->pscreen->caps.texture_buffer_offset_alignment;
 
-   STATIC_ASSERT(sizeof(struct lp_descriptor) <= 256);
    *p = (struct vk_properties) {
       /* Vulkan 1.0 */
       .apiVersion = LVP_API_VERSION,
@@ -1241,20 +1240,20 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
       .imageViewCaptureReplayDescriptorDataSize = 0,
       .samplerCaptureReplayDescriptorDataSize = 0,
       .accelerationStructureCaptureReplayDescriptorDataSize = 0,
-      .EDBsamplerDescriptorSize = sizeof(struct lp_descriptor),
-      .combinedImageSamplerDescriptorSize = sizeof(struct lp_descriptor),
-      .sampledImageDescriptorSize = sizeof(struct lp_descriptor),
-      .storageImageDescriptorSize = sizeof(struct lp_descriptor),
-      .uniformTexelBufferDescriptorSize = sizeof(struct lp_descriptor),
-      .robustUniformTexelBufferDescriptorSize = sizeof(struct lp_descriptor),
-      .storageTexelBufferDescriptorSize = sizeof(struct lp_descriptor),
-      .robustStorageTexelBufferDescriptorSize = sizeof(struct lp_descriptor),
-      .uniformBufferDescriptorSize = sizeof(struct lp_descriptor),
-      .robustUniformBufferDescriptorSize = sizeof(struct lp_descriptor),
-      .storageBufferDescriptorSize = sizeof(struct lp_descriptor),
-      .robustStorageBufferDescriptorSize = sizeof(struct lp_descriptor),
-      .inputAttachmentDescriptorSize = sizeof(struct lp_descriptor),
-      .accelerationStructureDescriptorSize = sizeof(struct lp_descriptor),
+      .EDBsamplerDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_SAMPLER),
+      .combinedImageSamplerDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
+      .sampledImageDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
+      .storageImageDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+      .uniformTexelBufferDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER),
+      .robustUniformTexelBufferDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER),
+      .storageTexelBufferDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER),
+      .robustStorageTexelBufferDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER),
+      .uniformBufferDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER),
+      .robustUniformBufferDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER),
+      .storageBufferDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+      .robustStorageBufferDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+      .inputAttachmentDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT),
+      .accelerationStructureDescriptorSize = lvp_get_descriptor_size(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR),
       .maxSamplerDescriptorBufferRange = UINT32_MAX,
       .maxResourceDescriptorBufferRange = UINT32_MAX,
       .resourceDescriptorBufferAddressSpaceSize = UINT32_MAX,
@@ -2658,7 +2657,7 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_ResetEvent(
 }
 
 void
-lvp_sampler_init(struct lvp_device *device, struct lp_descriptor *desc, const VkSamplerCreateInfo *pCreateInfo, const struct vk_sampler *sampler)
+lvp_sampler_init(struct lvp_device *device, struct lp_sampler_descriptor *desc, const VkSamplerCreateInfo *pCreateInfo, const struct vk_sampler *sampler)
 {
    struct pipe_sampler_state state = {0};
    VkClearColorValue border_color =
@@ -2690,11 +2689,11 @@ lvp_sampler_init(struct lvp_device *device, struct lp_descriptor *desc, const Vk
 
    simple_mtx_lock(&device->queue.lock);
    struct lp_texture_handle *texture_handle = (void *)(uintptr_t)device->queue.ctx->create_texture_handle(device->queue.ctx, NULL, &state);
-   desc->texture.sampler_index = texture_handle->sampler_index;
+   desc->sampler_index = texture_handle->sampler_index;
    device->queue.ctx->delete_texture_handle(device->queue.ctx, (uint64_t)(uintptr_t)texture_handle);
    simple_mtx_unlock(&device->queue.lock);
 
-   lp_jit_sampler_from_pipe(&desc->sampler, &state);
+   lp_jit_sampler_from_pipe(&desc->jit, &state);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateSampler(

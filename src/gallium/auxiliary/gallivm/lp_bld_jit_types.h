@@ -237,27 +237,30 @@ struct lp_jit_bindless_texture
 {
    const void *base;
    const void *residency;
-   uint32_t sampler_index;
    uint32_t base_offset;
 };
 
-struct lp_descriptor {
+struct lp_image_descriptor {
    union {
-      struct {
-         struct lp_jit_bindless_texture texture;
-         struct lp_jit_sampler sampler;
-      };
-      struct {
-         struct lp_jit_image image;
-      };
-      struct lp_jit_buffer buffer;
-      uint64_t accel_struct;
+      struct lp_jit_bindless_texture texture;
+      struct lp_jit_image image;
    };
 
    /* Store sample/image functions in the same location since some d3d12 games
     * rely on mismatched descriptor types with null descriptors.
     */
    void *functions;
+
+   uint32_t padding[2];
+};
+
+struct lp_sampler_descriptor {
+   struct lp_jit_sampler jit;
+   uint32_t sampler_index;
+};
+
+struct lp_buffer_descriptor {
+   struct lp_jit_buffer jit;
 };
 
 #define LP_MAX_TEX_FUNC_ARGS 32
