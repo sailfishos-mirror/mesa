@@ -5448,6 +5448,7 @@ pub struct OpTex {
     pub mem_eviction_priority: MemEvictionPriority,
     pub nodep: bool,
     pub channel_mask: ChannelMask,
+    pub scalar: bool,
 }
 
 impl DisplayOp for OpTex {
@@ -5461,6 +5462,9 @@ impl DisplayOp for OpTex {
             write!(f, ".dc")?;
         }
         write!(f, "{}", self.mem_eviction_priority)?;
+        if self.scalar {
+            write!(f, ".scr")?;
+        }
         if self.nodep {
             write!(f, ".nodep")?;
         }
@@ -5488,6 +5492,7 @@ pub struct OpTld {
     pub mem_eviction_priority: MemEvictionPriority,
     pub nodep: bool,
     pub channel_mask: ChannelMask,
+    pub scalar: bool,
 }
 
 impl DisplayOp for OpTld {
@@ -5497,6 +5502,9 @@ impl DisplayOp for OpTld {
             write!(f, ".ms")?;
         }
         write!(f, "{}", self.mem_eviction_priority)?;
+        if self.scalar {
+            write!(f, ".scr")?;
+        }
         if self.nodep {
             write!(f, ".nodep")?;
         }
@@ -5524,6 +5532,7 @@ pub struct OpTld4 {
     pub mem_eviction_priority: MemEvictionPriority,
     pub nodep: bool,
     pub channel_mask: ChannelMask,
+    pub scalar: bool,
 }
 
 impl DisplayOp for OpTld4 {
@@ -5533,6 +5542,9 @@ impl DisplayOp for OpTld4 {
             write!(f, ".dc")?;
         }
         write!(f, "{}", self.mem_eviction_priority)?;
+        if self.scalar {
+            write!(f, ".scr")?;
+        }
         if self.nodep {
             write!(f, ".nodep")?;
         }

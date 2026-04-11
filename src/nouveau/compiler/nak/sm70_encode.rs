@@ -2614,6 +2614,7 @@ impl SM70Op for OpTex {
             e.set_ureg_src(48..56, &Src::ZERO); // offset
         }
 
+        e.set_bit(60, self.scalar);
         e.set_tex_dim(61..64, self.dim);
         e.set_tex_channel_mask(72..76, self.channel_mask);
         if e.sm >= 100 {
@@ -2694,6 +2695,7 @@ impl SM70Op for OpTld {
         } else {
             e.set_bit(76, self.offset_mode == TexOffsetMode::AddOffI);
         }
+        e.set_bit(60, self.scalar);
         e.set_tex_dim(61..64, self.dim);
         e.set_tex_channel_mask(72..76, self.channel_mask);
 
@@ -2757,6 +2759,7 @@ impl SM70Op for OpTld4 {
             e.set_ureg_src(48..56, &Src::ZERO); // offset
         }
 
+        e.set_bit(60, self.scalar);
         e.set_tex_dim(61..64, self.dim);
         e.set_tex_channel_mask(72..76, self.channel_mask);
         e.set_field(

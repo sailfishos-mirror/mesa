@@ -181,7 +181,8 @@ struct nak_nir_tex_flags {
    bool has_z_cmpr:1;
    bool is_sparse:1;
    bool nodep:1;
-   uint32_t pad:22;
+   bool scalar:1;
+   uint32_t pad:21;
 };
 PRAGMA_DIAGNOSTIC_POP
 static_assert(sizeof(struct nak_nir_tex_flags) == 4,

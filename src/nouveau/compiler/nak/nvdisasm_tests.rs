@@ -506,6 +506,7 @@ pub fn test_texture() {
                 mem_eviction_priority: MemEvictionPriority::First,
                 nodep: true,
                 channel_mask: ChannelMask::for_comps(3),
+                scalar: false,
             };
             c.push(
                 instr,
@@ -530,6 +531,7 @@ pub fn test_texture() {
                     mem_eviction_priority: MemEvictionPriority::First,
                     nodep: true,
                     channel_mask: ChannelMask::for_comps(3),
+                    scalar: false,
                 };
                 c.push(
                     instr,
@@ -562,6 +564,7 @@ pub fn test_texture() {
                 mem_eviction_priority: MemEvictionPriority::First,
                 nodep: true,
                 channel_mask: ChannelMask::for_comps(3),
+                scalar: false,
             };
             c.push(
                 instr,
