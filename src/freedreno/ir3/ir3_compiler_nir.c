@@ -1794,7 +1794,7 @@ emit_intrinsic_load_image(struct ir3_context *ctx, nir_intrinsic_instr *intr,
          coords[i] = src0[i];
    }
 
-   sam = emit_sam(ctx, OPC_ISAM, info, type, 0b1111,
+   sam = emit_sam(ctx, OPC_ISAM, info, type, MASK(intr->num_components),
                   ir3_create_collect(b, coords, ncoords), NULL);
 
    ir3_handle_nonuniform(sam, intr);
@@ -1802,7 +1802,7 @@ emit_intrinsic_load_image(struct ir3_context *ctx, nir_intrinsic_instr *intr,
    sam->barrier_class = IR3_BARRIER_IMAGE_R;
    sam->barrier_conflict = IR3_BARRIER_IMAGE_W;
 
-   ir3_split_dest(b, dst, sam, 0, 4);
+   ir3_split_dest(b, dst, sam, 0, intr->num_components);
 
    if (intr->intrinsic == nir_intrinsic_image_sparse_load ||
        intr->intrinsic == nir_intrinsic_bindless_image_sparse_load) {
