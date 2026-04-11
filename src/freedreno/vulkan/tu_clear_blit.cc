@@ -2005,6 +2005,10 @@ copy_format(VkFormat vk_format, VkImageAspectFlags aspect_mask)
        vk_format_get_ycbcr_info(vk_format))
       return tu_aspects_to_plane(vk_format, aspect_mask);
 
+   if (vk_format == VK_FORMAT_R64_SINT || vk_format == VK_FORMAT_R64_UINT) {
+      return PIPE_FORMAT_R32G32_UINT;
+   }
+
    /* Otherwise, simply return the pipe_format */
    return format;
 }
@@ -3964,6 +3968,9 @@ clear_image_event_blit(struct tu_cmd_buffer *cmd,
    }
 
    enum pipe_format format = vk_format_to_pipe_format(vk_format);
+   if (format == PIPE_FORMAT_R64_SINT || format == PIPE_FORMAT_R64_UINT) {
+      format = PIPE_FORMAT_R32G32_UINT;
+   }
 
    if (image->layout[0].depth0 > 1) {
       assert(layer_count == 1);

@@ -144,12 +144,16 @@ tu_physical_device_get_format_properties(
        physical_device->info->props.has_64b_image_atomics) {
       assert(!(supported_vtx || supported_color || supported_tex));
       optimal = VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT |
-                VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT;
+                VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT |
+                VK_FORMAT_FEATURE_TRANSFER_SRC_BIT |
+                VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
       out_properties->linearTilingFeatures = optimal;
       out_properties->optimalTilingFeatures = optimal;
       out_properties->bufferFeatures =
          VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_BIT |
-         VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_ATOMIC_BIT;
+         VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_ATOMIC_BIT |
+         VK_FORMAT_FEATURE_TRANSFER_SRC_BIT |
+         VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
       return;
    }
 
