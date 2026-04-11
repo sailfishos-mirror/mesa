@@ -181,7 +181,7 @@ jay_collect(jay_builder *b,
 
    for (unsigned i = 1; i < nr; ++i) {
       if (indices[i] != (indices[0] + i)) {
-         static_assert(sizeof(uintptr_t) <= sizeof(uint64_t) &&
+         static_assert(sizeof(uintptr_t) <= sizeof(uint64_t),
                        "sorry, no Morello support");
          void *dup =
             linear_memdup(b->shader->lin_ctx, indices, sizeof(uint32_t) * nr);
