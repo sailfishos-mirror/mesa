@@ -4414,10 +4414,10 @@ handle_shaders(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
       }
 
       if (stage != MESA_SHADER_COMPUTE) {
-         state->gfx_push_sizes[stage] = shader ? shader->layout->push_constant_size : 0;
+         state->gfx_push_sizes[stage] = shader ? shader->push_constant_size : 0;
          gfx = true;
       } else {
-         state->push_size[LVP_PIPELINE_COMPUTE] = shader ? shader->layout->push_constant_size : 0;
+         state->push_size[LVP_PIPELINE_COMPUTE] = shader ? shader->push_constant_size : 0;
          if (state->push_size[LVP_PIPELINE_COMPUTE] != state->emitted_push_size[LVP_PIPELINE_COMPUTE])
             state->pcbuf_dirty[MESA_SHADER_COMPUTE] = true;
       }

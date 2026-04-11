@@ -1250,6 +1250,23 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
    nir_shader *nir = NULL;
    mesa_shader_stage stage = vk_to_mesa_shader_stage(pCreateInfo->stage);
    assert(stage <= LVP_SHADER_STAGES && stage != MESA_SHADER_NONE);
+
+   struct lvp_shader *shader = vk_object_zalloc(&device->vk, pAllocator, sizeof(struct lvp_shader), VK_OBJECT_TYPE_SHADER_EXT);
+   if (!shader)
+      goto fail;
+
+   VkPipelineLayoutCreateInfo pci = {
+      VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      NULL,
+      0,
+      pCreateInfo->setLayoutCount,
+      pCreateInfo->pSetLayouts,
+      pCreateInfo->pushConstantRangeCount,
+      pCreateInfo->pPushConstantRanges,
+   };
+   shader->layout = lvp_pipeline_layout_create(device, &pci, pAllocator);
+   shader->push_constant_size = shader->layout->push_constant_size;
+
    if (pCreateInfo->codeType == VK_SHADER_CODE_TYPE_SPIRV_EXT) {
       VkShaderModuleCreateInfo minfo = {
          VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -1300,24 +1317,13 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
       nir = nir_deserialize(NULL, device->pscreen->nir_options[stage], &blob);
       if (!nir)
          goto fail;
+
+      shader->push_constant_size = blob_read_uint32(&blob);
    }
    if (!nir_shader_get_entrypoint(nir))
       goto fail;
-   struct lvp_shader *shader = vk_object_zalloc(&device->vk, pAllocator, sizeof(struct lvp_shader), VK_OBJECT_TYPE_SHADER_EXT);
-   if (!shader)
-      goto fail;
+
    blob_init(&shader->blob);
-   VkPipelineLayoutCreateInfo pci = {
-      VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-      NULL,
-      0,
-      pCreateInfo->setLayoutCount,
-      pCreateInfo->pSetLayouts,
-      pCreateInfo->pushConstantRangeCount,
-      pCreateInfo->pPushConstantRanges,
-   };
-   shader->layout = lvp_pipeline_layout_create(device, &pci, pAllocator);
-   shader->push_constant_size = shader->layout->push_constant_size;
 
    if (pCreateInfo->codeType == VK_SHADER_CODE_TYPE_SPIRV_EXT)
       lvp_shader_lower(device, nir, shader->layout, NULL);
@@ -1333,6 +1339,9 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
       shader->tess_ccw_cso = lvp_shader_compile(device, shader, nir_shader_clone(NULL, shader->tess_ccw->nir), false);
    }
    nir_serialize(&shader->blob, nir, true);
+
+   blob_write_uint32(&shader->blob, shader->push_constant_size);
+
    shader->shader_cso = lvp_shader_compile(device, shader, nir_shader_clone(NULL, nir), false);
    return lvp_shader_to_handle(shader);
 fail:
