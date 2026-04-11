@@ -416,6 +416,10 @@ ubwc_possible(struct tu_device *device,
       return false;
    }
 
+   if (format == VK_FORMAT_R64_UINT || format == VK_FORMAT_R64_SINT) {
+      return false;
+   }
+
    return true;
 }
 

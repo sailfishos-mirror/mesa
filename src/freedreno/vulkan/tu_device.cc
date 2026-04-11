@@ -331,6 +331,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .EXT_separate_stencil_usage = true,
       .EXT_shader_atomic_float = true,
       .EXT_shader_demote_to_helper_invocation = true,
+      .EXT_shader_image_atomic_int64 = device->info->props.has_64b_image_atomics,
       .EXT_shader_module_identifier = true,
       .EXT_shader_replicated_composites = true,
       .EXT_shader_stencil_export = true,
@@ -713,6 +714,10 @@ tu_get_features(struct tu_physical_device *pdevice,
 
    /* VK_EXT_host_image_copy */
    features->hostImageCopy = true;
+
+   /* VK_EXT_shader_image_atomic_int64 */
+   features->shaderImageInt64Atomics = pdevice->info->props.has_64b_image_atomics;
+   features->sparseImageInt64Atomics = false;
 
    /* VK_EXT_image_2d_view_of_3d  */
    features->image2DViewOf3D = true;

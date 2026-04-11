@@ -139,6 +139,20 @@ tu_physical_device_get_format_properties(
    bool supported_color = tu6_format_color_supported(physical_device->info, format);
    bool supported_tex = fd6_texture_format_supported(physical_device->info, format,
                                                      TILE6_LINEAR, false);
+
+   if ((format == PIPE_FORMAT_R64_UINT || format == PIPE_FORMAT_R64_SINT) &&
+       physical_device->info->props.has_64b_image_atomics) {
+      assert(!(supported_vtx || supported_color || supported_tex));
+      optimal = VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT |
+                VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT;
+      out_properties->linearTilingFeatures = optimal;
+      out_properties->optimalTilingFeatures = optimal;
+      out_properties->bufferFeatures =
+         VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_BIT |
+         VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_ATOMIC_BIT;
+      return;
+   }
+
    bool is_npot = !util_is_power_of_two_or_zero(desc->block.bits);
 
    if (format == PIPE_FORMAT_NONE ||
@@ -226,8 +240,6 @@ tu_physical_device_get_format_properties(
 
       /* TODO: The blob also exposes these for R16G16_UINT/R16G16_SINT/
        * R32G32_SFLOAT/R32G32B32A32_SFLOAT, but we don't have any tests for those.
-       * The WoA blob on X1 also supports VK_EXT_shader_image_atomic_int64 (for
-       * R64_UINT and R64_SINT).
        */
       if (vk_format == VK_FORMAT_R32_UINT || vk_format == VK_FORMAT_R32_SINT ||
           vk_format == VK_FORMAT_R32_SFLOAT) {
