@@ -2964,7 +2964,7 @@
         "description": "panvk: add VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL to host copy layouts",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1cd61ee94875efbf546455212e67ccc6bac111c6",
         "notes": null
