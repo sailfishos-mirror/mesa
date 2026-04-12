@@ -1766,7 +1766,6 @@ struct anv_instance {
     struct driOptionCache                       dri_options;
     struct driOptionCache                       available_dri_options;
 
-    int                                         mesh_conv_prim_attrs_to_vert_attrs;
     bool                                        enable_tbimr;
     bool                                        enable_vf_distribution;
     bool                                        enable_te_distribution;
