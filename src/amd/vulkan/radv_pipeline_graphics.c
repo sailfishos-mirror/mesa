@@ -1204,11 +1204,9 @@ merge_tess_info(struct shader_info *tes_info, struct shader_info *tcs_info)
 }
 
 static void
-radv_link_shaders(const struct radv_device *device, struct radv_shader_stage *producer_stage,
-                  struct radv_shader_stage *consumer_stage, const struct radv_graphics_state_key *gfx_state)
+radv_link_shaders(struct radv_shader_stage *producer_stage, struct radv_shader_stage *consumer_stage,
+                  const struct radv_graphics_state_key *gfx_state)
 {
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   const enum amd_gfx_level gfx_level = pdev->info.gfx_level;
    nir_shader *producer = producer_stage->nir;
    nir_shader *consumer = consumer_stage->nir;
 
@@ -1243,21 +1241,6 @@ radv_link_shaders(const struct radv_device *device, struct radv_shader_stage *pr
 
    NIR_PASS(_, producer, nir_remove_dead_variables, nir_var_shader_out, NULL);
    NIR_PASS(_, consumer, nir_remove_dead_variables, nir_var_shader_in, NULL);
-
-   const bool has_geom_or_tess =
-      consumer->info.stage == MESA_SHADER_GEOMETRY || consumer->info.stage == MESA_SHADER_TESS_CTRL;
-   const bool merged_gs = consumer->info.stage == MESA_SHADER_GEOMETRY && gfx_level >= GFX9;
-
-   if (producer->info.stage == MESA_SHADER_TESS_CTRL || producer->info.stage == MESA_SHADER_MESH ||
-       (producer->info.stage == MESA_SHADER_VERTEX && has_geom_or_tess) ||
-       (producer->info.stage == MESA_SHADER_TESS_EVAL && merged_gs)) {
-      NIR_PASS(_, producer, nir_opt_vectorize_io_vars, nir_var_shader_out);
-   }
-
-   if (consumer->info.stage == MESA_SHADER_GEOMETRY || consumer->info.stage == MESA_SHADER_TESS_CTRL ||
-       consumer->info.stage == MESA_SHADER_TESS_EVAL) {
-      NIR_PASS(_, consumer, nir_opt_vectorize_io_vars, nir_var_shader_in);
-   }
 }
 
 static const mesa_shader_stage graphics_shader_order[] = {
@@ -1269,7 +1252,7 @@ static const mesa_shader_stage graphics_shader_order[] = {
 };
 
 static void
-radv_link_vs(const struct radv_device *device, struct radv_shader_stage *vs_stage, struct radv_shader_stage *next_stage,
+radv_link_vs(struct radv_shader_stage *vs_stage, struct radv_shader_stage *next_stage,
              const struct radv_graphics_state_key *gfx_state)
 {
    assert(vs_stage->nir->info.stage == MESA_SHADER_VERTEX);
@@ -1283,13 +1266,13 @@ radv_link_vs(const struct radv_device *device, struct radv_shader_stage *vs_stag
              next_stage->nir->info.stage == MESA_SHADER_GEOMETRY ||
              next_stage->nir->info.stage == MESA_SHADER_FRAGMENT);
 
-      radv_link_shaders(device, vs_stage, next_stage, gfx_state);
+      radv_link_shaders(vs_stage, next_stage, gfx_state);
    }
 }
 
 static void
-radv_link_tcs(const struct radv_device *device, struct radv_shader_stage *tcs_stage,
-              struct radv_shader_stage *tes_stage, const struct radv_graphics_state_key *gfx_state)
+radv_link_tcs(struct radv_shader_stage *tcs_stage, struct radv_shader_stage *tes_stage,
+              const struct radv_graphics_state_key *gfx_state)
 {
    if (!tes_stage)
       return;
@@ -1297,15 +1280,15 @@ radv_link_tcs(const struct radv_device *device, struct radv_shader_stage *tcs_st
    assert(tcs_stage->nir->info.stage == MESA_SHADER_TESS_CTRL);
    assert(tes_stage->nir->info.stage == MESA_SHADER_TESS_EVAL);
 
-   radv_link_shaders(device, tcs_stage, tes_stage, gfx_state);
+   radv_link_shaders(tcs_stage, tes_stage, gfx_state);
 
    /* Copy TCS info into the TES info */
    merge_tess_info(&tes_stage->nir->info, &tcs_stage->nir->info);
 }
 
 static void
-radv_link_tes(const struct radv_device *device, struct radv_shader_stage *tes_stage,
-              struct radv_shader_stage *next_stage, const struct radv_graphics_state_key *gfx_state)
+radv_link_tes(struct radv_shader_stage *tes_stage, struct radv_shader_stage *next_stage,
+              const struct radv_graphics_state_key *gfx_state)
 {
    assert(tes_stage->nir->info.stage == MESA_SHADER_TESS_EVAL);
 
@@ -1317,12 +1300,12 @@ radv_link_tes(const struct radv_device *device, struct radv_shader_stage *tes_st
       assert(next_stage->nir->info.stage == MESA_SHADER_GEOMETRY ||
              next_stage->nir->info.stage == MESA_SHADER_FRAGMENT);
 
-      radv_link_shaders(device, tes_stage, next_stage, gfx_state);
+      radv_link_shaders(tes_stage, next_stage, gfx_state);
    }
 }
 
 static void
-radv_link_gs(const struct radv_device *device, struct radv_shader_stage *gs_stage, struct radv_shader_stage *fs_stage,
+radv_link_gs(struct radv_shader_stage *gs_stage, struct radv_shader_stage *fs_stage,
              const struct radv_graphics_state_key *gfx_state)
 {
    assert(gs_stage->nir->info.stage == MESA_SHADER_GEOMETRY);
@@ -1334,13 +1317,13 @@ radv_link_gs(const struct radv_device *device, struct radv_shader_stage *gs_stag
    if (fs_stage) {
       assert(fs_stage->nir->info.stage == MESA_SHADER_FRAGMENT);
 
-      radv_link_shaders(device, gs_stage, fs_stage, gfx_state);
+      radv_link_shaders(gs_stage, fs_stage, gfx_state);
    }
 }
 
 static void
-radv_link_task(const struct radv_device *device, struct radv_shader_stage *task_stage,
-               struct radv_shader_stage *mesh_stage, const struct radv_graphics_state_key *gfx_state)
+radv_link_task(struct radv_shader_stage *task_stage, struct radv_shader_stage *mesh_stage,
+               const struct radv_graphics_state_key *gfx_state)
 {
    assert(task_stage->nir->info.stage == MESA_SHADER_TASK);
 
@@ -1348,13 +1331,13 @@ radv_link_task(const struct radv_device *device, struct radv_shader_stage *task_
       assert(mesh_stage->nir->info.stage == MESA_SHADER_MESH);
 
       /* Linking task and mesh shaders shouldn't do anything for now but keep it for consistency. */
-      radv_link_shaders(device, task_stage, mesh_stage, gfx_state);
+      radv_link_shaders(task_stage, mesh_stage, gfx_state);
    }
 }
 
 static void
-radv_link_mesh(const struct radv_device *device, struct radv_shader_stage *mesh_stage,
-               struct radv_shader_stage *fs_stage, const struct radv_graphics_state_key *gfx_state)
+radv_link_mesh(struct radv_shader_stage *mesh_stage, struct radv_shader_stage *fs_stage,
+               const struct radv_graphics_state_key *gfx_state)
 {
    assert(mesh_stage->nir->info.stage == MESA_SHADER_MESH);
 
@@ -1369,7 +1352,7 @@ radv_link_mesh(const struct radv_device *device, struct radv_shader_stage *mesh_
          }
       }
 
-      radv_link_shaders(device, mesh_stage, fs_stage, gfx_state);
+      radv_link_shaders(mesh_stage, fs_stage, gfx_state);
    }
 
    /* Lower mesh shader draw ID to zero prevent app bugs from triggering undefined behaviour. */
@@ -1414,22 +1397,22 @@ radv_graphics_shaders_link(const struct radv_device *device, const struct radv_g
 
       switch (s) {
       case MESA_SHADER_VERTEX:
-         radv_link_vs(device, &stages[s], next_stage, gfx_state);
+         radv_link_vs(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_TESS_CTRL:
-         radv_link_tcs(device, &stages[s], next_stage, gfx_state);
+         radv_link_tcs(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_TESS_EVAL:
-         radv_link_tes(device, &stages[s], next_stage, gfx_state);
+         radv_link_tes(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_GEOMETRY:
-         radv_link_gs(device, &stages[s], next_stage, gfx_state);
+         radv_link_gs(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_TASK:
-         radv_link_task(device, &stages[s], next_stage, gfx_state);
+         radv_link_task(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_MESH:
-         radv_link_mesh(device, &stages[s], next_stage, gfx_state);
+         radv_link_mesh(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_FRAGMENT:
          radv_link_fs(&stages[s], gfx_state);
