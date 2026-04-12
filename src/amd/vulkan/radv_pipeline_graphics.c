@@ -2876,28 +2876,44 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
                                 nir_shader_get_entrypoint(stages[MESA_SHADER_FRAGMENT].nir));
    }
 
-   /* Remove all varyings when the fragment shader is a noop. */
-   if (noop_fs) {
-      radv_foreach_stage (i, active_nir_stages) {
-         if (!radv_is_last_vgt_stage(&stages[i]))
-            continue;
+   radv_foreach_stage (i, active_nir_stages) {
+      if (!radv_is_last_vgt_stage(&stages[i]))
+         continue;
 
-         bool progress = false;
+      uint64_t remove_as_varying = 0;
+      uint64_t remove_as_sysval = 0;
 
-         /* Remove all output varyings. */
-         NIR_PASS(progress, stages[i].nir, nir_remove_outputs, MESA_SHADER_FRAGMENT, ~0ull, 0);
+      /* Remove all varyings when the fragment shader is a noop. */
+      if (noop_fs)
+         remove_as_varying |= ~0ull;
 
-         if (progress) {
-            /* Remove dead code resulting from removed output varyings. */
-            do {
-               progress = false;
-               NIR_PASS(progress, stages[i].nir, nir_opt_dce);
-               NIR_PASS(progress, stages[i].nir, nir_opt_dead_cf);
-            } while (progress);
-         }
-
-         break;
+      /* Remove PSIZ from shaders when it's not needed.
+       * This is typically produced by translation layers like Zink or d3d9 DXVK.
+       */
+      if (gfx_state->enable_remove_point_size && (i != MESA_SHADER_TESS_EVAL || !stages[i].nir->info.tess.point_mode) &&
+          (i != MESA_SHADER_GEOMETRY || stages[i].nir->info.gs.output_primitive != MESA_PRIM_POINTS) &&
+          (i != MESA_SHADER_MESH || stages[i].nir->info.mesh.primitive_type != MESA_PRIM_POINTS)) {
+         remove_as_varying |= VARYING_BIT_PSIZ;
+         remove_as_sysval |= VARYING_BIT_PSIZ;
       }
+
+      if (!remove_as_varying && !remove_as_sysval)
+         continue;
+
+      bool progress = false;
+
+      NIR_PASS(progress, stages[i].nir, nir_remove_outputs, MESA_SHADER_FRAGMENT, remove_as_varying, remove_as_sysval);
+
+      if (progress) {
+         /* Remove dead code resulting from removed outputs. */
+         do {
+            progress = false;
+            NIR_PASS(progress, stages[i].nir, nir_opt_dce);
+            NIR_PASS(progress, stages[i].nir, nir_opt_dead_cf);
+         } while (progress);
+      }
+
+      break;
    }
 
    /* Optimize varyings on lowered shader I/O (more efficient than optimizing I/O derefs). */
