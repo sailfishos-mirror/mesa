@@ -1164,36 +1164,6 @@ radv_should_export_multiview(const struct radv_shader_stage *stage, const struct
 }
 
 static void
-radv_remove_point_size(const struct radv_graphics_state_key *gfx_state, nir_shader *producer, nir_shader *consumer)
-{
-   if ((consumer->info.inputs_read & VARYING_BIT_PSIZ) || !(producer->info.outputs_written & VARYING_BIT_PSIZ))
-      return;
-
-   /* Do not remove PSIZ if the shader uses XFB because it might be stored. */
-   if (producer->xfb_info)
-      return;
-
-   /* Do not remove PSIZ if the rasterization primitive uses points. */
-   if (consumer->info.stage == MESA_SHADER_FRAGMENT &&
-       ((producer->info.stage == MESA_SHADER_TESS_EVAL && producer->info.tess.point_mode) ||
-        (producer->info.stage == MESA_SHADER_GEOMETRY && producer->info.gs.output_primitive == MESA_PRIM_POINTS) ||
-        (producer->info.stage == MESA_SHADER_MESH && producer->info.mesh.primitive_type == MESA_PRIM_POINTS)))
-      return;
-
-   nir_variable *var = nir_find_variable_with_location(producer, nir_var_shader_out, VARYING_SLOT_PSIZ);
-   assert(var);
-
-   /* Change PSIZ to a global variable which allows it to be DCE'd. */
-   var->data.location = 0;
-   var->data.mode = nir_var_shader_temp;
-
-   producer->info.outputs_written &= ~VARYING_BIT_PSIZ;
-   NIR_PASS(_, producer, nir_fixup_deref_modes);
-   NIR_PASS(_, producer, nir_remove_dead_variables, nir_var_shader_temp, NULL);
-   NIR_PASS(_, producer, nir_opt_dce);
-}
-
-static void
 radv_remove_color_exports(const struct radv_graphics_state_key *gfx_state, nir_shader *nir)
 {
    uint8_t color_remap[MAX_RTS];
@@ -1316,12 +1286,6 @@ radv_link_shaders(const struct radv_device *device, struct radv_shader_stage *pr
 
    radv_nir_lower_io_vars_to_scalar(producer, nir_var_shader_out);
    radv_nir_lower_io_vars_to_scalar(consumer, nir_var_shader_in);
-
-   /* Remove PSIZ from shaders when it's not needed.
-    * This is typically produced by translation layers like Zink or D9VK.
-    */
-   if (gfx_state->enable_remove_point_size)
-      radv_remove_point_size(gfx_state, producer, consumer);
 
    NIR_PASS(_, producer, nir_remove_dead_variables, nir_var_shader_out, NULL);
    NIR_PASS(_, consumer, nir_remove_dead_variables, nir_var_shader_in, NULL);
