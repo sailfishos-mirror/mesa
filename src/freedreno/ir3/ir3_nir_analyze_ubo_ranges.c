@@ -523,6 +523,14 @@ assign_offsets(struct ir3_ubo_analysis_state *state, unsigned start,
    state->size = offset;
 }
 
+static uint32_t
+const_align_vec4(struct ir3_compiler *compiler)
+{
+   return compiler->info->props.load_shader_consts_via_preamble
+             ? 1
+             : compiler->const_upload_unit;
+}
+
 /* Lowering to ldg to ldg.k + const uses the same infrastructure as lowering UBO
  * loads, but must be done separately because the analysis and transform must be
  * done in the same pass and we cannot reuse the main variant analysis for the
@@ -618,9 +626,7 @@ ir3_nir_analyze_ubo_ranges(nir_shader *nir, struct ir3_shader_variant *v)
                               ptrs_vec4, 1);
    }
 
-   uint32_t align_vec4 = compiler->info->props.load_shader_consts_via_preamble
-                            ? 1
-                            : compiler->const_upload_unit;
+   uint32_t align_vec4 = const_align_vec4(compiler);
 
    /* Limit our uploads to the amount of constant buffer space available in
     * the hardware, minus what the shader compiler may need for various
