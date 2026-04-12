@@ -603,6 +603,8 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
 static inline void
 jay_copy_strided(jay_builder *b, jay_def dst, jay_def src, bool src_strided)
 {
+   assert(!jay_is_null(src));
+
    unsigned src_stride = src_strided ? jay_ugpr_per_grf(b->shader) : 1;
    uint32_t n = MIN2(jay_num_values(dst), jay_num_values(src) / src_stride);
 
