@@ -5994,7 +5994,7 @@
         "description": "zink: remove unused variable in zink_instance.py",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2b4fcf0a063f32d7000e9f4c6b8e398867d3b21c",
         "notes": null
