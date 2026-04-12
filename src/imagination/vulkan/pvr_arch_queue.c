@@ -766,14 +766,14 @@ static VkResult pvr_process_cmd_buffer(struct pvr_device *device,
                break;
          }
 
-         if (*suspended_rts) {
+         if (sub_cmd->is_resume) {
             sub_cmd->gfx.job.view_state.rt_datasets = *suspended_rts;
+         }
 
-            if (sub_cmd->gfx.job.geometry_terminate)
-               *suspended_rts = NULL;
-
-         } else if (!sub_cmd->gfx.job.geometry_terminate) {
+         if (sub_cmd->is_suspend) {
             *suspended_rts = sub_cmd->gfx.job.view_state.rt_datasets;
+         } else {
+            *suspended_rts = NULL;
          }
 
          assert(sub_cmd->gfx.job.view_state.rt_datasets);
