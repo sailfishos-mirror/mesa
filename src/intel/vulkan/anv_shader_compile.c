@@ -566,7 +566,7 @@ populate_fs_prog_key(struct brw_fs_prog_key *key,
    key->mesh_input =
       (link_stages & VK_SHADER_STAGE_VERTEX_BIT) ? INTEL_NEVER :
       (link_stages & VK_SHADER_STAGE_MESH_BIT_EXT) ? INTEL_ALWAYS :
-      pdevice->info.verx10 >= 125 ? INTEL_SOMETIMES : INTEL_NEVER;
+      pdevice->info.has_mesh_shading ? INTEL_SOMETIMES : INTEL_NEVER;
 
    if (state && state->ms) {
       key->min_sample_shading = state->ms->min_sample_shading;
