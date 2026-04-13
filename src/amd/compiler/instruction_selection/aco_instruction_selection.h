@@ -279,6 +279,7 @@ void expand_vector(isel_context* ctx, Temp vec_src, Temp dst, unsigned num_compo
 Temp convert_int(isel_context* ctx, Builder& bld, Temp src, unsigned src_bits, unsigned dst_bits,
                  bool sign_extend, Temp dst = Temp());
 Temp convert_pointer_to_64_bit(isel_context* ctx, Temp ptr, bool non_uniform = false);
+Temp add64_32(Builder& bld, Temp src0, Operand src1, Temp dst = Temp());
 void select_vec2(isel_context* ctx, Temp dst, Temp cond, Temp then, Temp els);
 Operand load_lds_size_m0(Builder& bld);
 Temp create_vec_from_array(isel_context* ctx, Temp arr[], unsigned cnt, RegType reg_type,

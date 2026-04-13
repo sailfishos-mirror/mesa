@@ -242,28 +242,6 @@ emit_vector_as_uniform(isel_context* ctx, Temp src, Temp dst,
    return dst;
 }
 
-Temp
-add64_32(Builder& bld, Temp src0, Operand src1)
-{
-   Temp src00 = bld.tmp(src0.type(), 1);
-   Temp src01 = bld.tmp(src0.type(), 1);
-   bld.pseudo(aco_opcode::p_split_vector, Definition(src00), Definition(src01), src0);
-
-   if (src0.type() == RegType::vgpr || src1.isOfType(RegType::vgpr)) {
-      src1 = src1.isOfType(RegType::vgpr) ? src1 : bld.copy(bld.def(v1), src1);
-      Temp dst0 = bld.tmp(v1);
-      Temp carry = bld.vadd32(Definition(dst0), src00, src1, true).def(1).getTemp();
-      Temp dst1 = bld.vadd32(bld.def(v1), src01, Operand::zero(), false, carry);
-      return bld.pseudo(aco_opcode::p_create_vector, bld.def(v2), dst0, dst1);
-   } else {
-      Temp carry = bld.tmp(s1);
-      Temp dst0 =
-         bld.sop2(aco_opcode::s_add_u32, bld.def(s1), bld.scc(Definition(carry)), src00, src1);
-      Temp dst1 = bld.sop2(aco_opcode::s_add_u32, bld.def(s1), bld.def(s1, scc), src01, carry);
-      return bld.pseudo(aco_opcode::p_create_vector, bld.def(s2), dst0, dst1);
-   }
-}
-
 /* undef becomes Temp(id=0) */
 Temp
 as_temp(Builder& bld, Operand op)

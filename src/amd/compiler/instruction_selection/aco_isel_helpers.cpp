@@ -313,6 +313,30 @@ convert_pointer_to_64_bit(isel_context* ctx, Temp ptr, bool non_uniform)
                      Operand::c32((unsigned)ctx->options->address32_hi));
 }
 
+Temp
+add64_32(Builder& bld, Temp src0, Operand src1, Temp dst)
+{
+   Temp src00 = bld.tmp(src0.type(), 1);
+   Temp src01 = bld.tmp(src0.type(), 1);
+   bld.pseudo(aco_opcode::p_split_vector, Definition(src00), Definition(src01), src0);
+
+   if (src0.type() == RegType::vgpr || src1.isOfType(RegType::vgpr)) {
+      src1 = src1.isOfType(RegType::vgpr) ? src1 : bld.copy(bld.def(v1), src1);
+      Temp dst0 = bld.tmp(v1);
+      Temp carry = bld.vadd32(Definition(dst0), src00, src1, true).def(1).getTemp();
+      Temp dst1 = bld.vadd32(bld.def(v1), src01, Operand::zero(), false, carry);
+      Definition def = dst == Temp() ? bld.def(v2) : Definition(dst);
+      return bld.pseudo(aco_opcode::p_create_vector, def, dst0, dst1);
+   } else {
+      Temp carry = bld.tmp(s1);
+      Temp dst0 =
+         bld.sop2(aco_opcode::s_add_u32, bld.def(s1), bld.scc(Definition(carry)), src00, src1);
+      Temp dst1 = bld.sop2(aco_opcode::s_add_u32, bld.def(s1), bld.def(s1, scc), src01, carry);
+      Definition def = dst == Temp() ? bld.def(s2) : Definition(dst);
+      return bld.pseudo(aco_opcode::p_create_vector, def, dst0, dst1);
+   }
+}
+
 void
 select_vec2(isel_context* ctx, Temp dst, Temp cond, Temp then, Temp els)
 {
