@@ -1615,7 +1615,10 @@ jay_register_allocate_function(jay_function *f)
 
    jay_foreach_inst_in_func(f, block, I) {
       jay_foreach_src_index(I, s, c, index) {
-         if (jay_num_values(I->src[s]) > 1) {
+         /* We check repr==0 to try to coalesce with the first vector use, as
+          * the closest to the definition. This heuristic reduces shuffling.
+          */
+         if (jay_num_values(I->src[s]) > 1 && !ra.affinities[index].repr) {
             uint32_t repr = UINT_MAX, repr_c = 0;
 
             /* Pick the representative with the smallest index, as it most
