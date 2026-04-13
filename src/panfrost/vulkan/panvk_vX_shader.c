@@ -497,11 +497,6 @@ panvk_preprocess_nir(struct vk_physical_device *vk_pdev,
    if (nir->info.stage == MESA_SHADER_FRAGMENT)
       NIR_PASS(_, nir, nir_lower_wpos_center);
 
-   pan_optimize_nir(nir, pdev->kmod.dev->props.gpu_id);
-
-   NIR_PASS(_, nir, nir_split_var_copies);
-   NIR_PASS(_, nir, nir_lower_var_copies);
-
    assert(pdev->kmod.dev->props.shader_present != 0);
    uint64_t core_max_id =
       util_last_bit(pdev->kmod.dev->props.shader_present) - 1;

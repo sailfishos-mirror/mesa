@@ -259,12 +259,6 @@ bi_optimize_loop_nir(nir_shader *nir, uint64_t gpu_id, bool allow_copies)
    NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 }
 
-void
-bifrost_optimize_nir(nir_shader *nir, uint64_t gpu_id)
-{
-   bi_optimize_loop_nir(nir, gpu_id, true);
-}
-
 static void
 bi_optimize_nir(nir_shader *nir, uint64_t gpu_id,
                 nir_variable_mode robust_modes)

@@ -58,19 +58,18 @@ struct pan_compile_inputs {
 };
 
 /* Every panfrost compilation pipeline should adhere to:
- * 1. Driver-specific early lowering + pan_optimize_nir() (optional)
+ * 1. Driver-specific early lowering
  * 2. pan_preprocess_nir()
  * 3. Descriptor lowering
  * 4. pan_postprocess_nir()
  * 5. Inline sysvals
- * 5. pan_shader_compile()
+ * 6. pan_shader_compile()
  * ONLY SYSVAL LOWERING is allowed between postprocess and shader_compile.
  * Driver-specific lowerings should be either BEFORE preprocess or BETWEEN
  * preprocess and postprocess.  Any code except sysval inlining put after
  * postprocess WILL BE NAKed.
  */
 void pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id);
-void pan_optimize_nir(nir_shader *nir, uint64_t gpu_id);
 void pan_postprocess_nir(nir_shader *nir,
                          const struct pan_compile_inputs *inputs,
                          struct pan_shader_info *info);

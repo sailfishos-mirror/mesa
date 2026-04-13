@@ -84,13 +84,6 @@ pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
 }
 
 void
-pan_optimize_nir(nir_shader *nir, uint64_t gpu_id)
-{
-   assert(pan_arch(gpu_id) >= 6);
-   bifrost_optimize_nir(nir, gpu_id);
-}
-
-void
 pan_postprocess_nir(nir_shader *nir, const struct pan_compile_inputs *inputs,
                     struct pan_shader_info *info)
 {
