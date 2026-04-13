@@ -239,7 +239,7 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
       jay_foreach_pipe(p) {
          if (dep[p]) {
             jay_foreach_pipe(q) {
-               if (dep[q] && state.finished_ip[p][q] >= dep[q]) {
+               if (p != q && dep[q] && state.finished_ip[p][q] >= dep[q]) {
                   dep[q] = 0;
                }
             }
