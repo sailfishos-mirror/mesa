@@ -264,15 +264,9 @@ emit(struct brw_codegen *p,
 
    brw_set_default_exec_size(p, util_logbase2(exec_size));
    brw_set_default_mask_control(p, jay_is_no_mask(I));
+   brw_set_default_group(p, simd_offs * exec_size);
    brw_set_default_swsb(p, dep);
    brw_set_default_saturate(p, I->saturate);
-
-   /* Quad swizzle can get split down to SIMD4 even on Xe2 where we don't have
-    * NibCtrl. Fortunately, it's NoMask so it doesn't matter.
-    */
-   if (I->op != JAY_OPCODE_QUAD_SWIZZLE) {
-      brw_set_default_group(p, simd_offs * exec_size);
-   }
 
    /* Grab the hardware predicate, corresponding either to a logical predicate
     * or SEL's selector.
@@ -419,6 +413,10 @@ emit(struct brw_codegen *p,
       break;
 
    case JAY_OPCODE_QUAD_SWIZZLE:
+      /* Quad swizzle can get split down to SIMD4 even on Xe2 where we don't
+       * have NibCtrl.  Fortunately, it's NoMask so it doesn't matter.
+       */
+      brw_set_default_group(p, 0);
       brw_MOV(p, dst, quad_swizzle(SRC(0), I));
       break;
 
