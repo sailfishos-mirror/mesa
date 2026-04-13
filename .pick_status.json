@@ -124,7 +124,7 @@
         "description": "pvr: skip emitting query program when copy result / reset with 0 queries",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0aa9f32b95e6d05a7b9ccd737dba14df785159c7",
         "notes": null
