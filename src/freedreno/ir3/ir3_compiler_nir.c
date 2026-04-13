@@ -2851,8 +2851,6 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
             if (ctx->compiler->info->props.has_scalar_alu && !intr->def.divergent)
                dst[i]->dsts[0]->flags |= IR3_REG_SHARED;
          }
-
-         ctx->has_relative_load_const_ir3 = true;
       }
       break;
 
