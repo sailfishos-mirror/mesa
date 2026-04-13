@@ -1472,7 +1472,16 @@ anv_shader_lower_nir(struct anv_device *device,
       NIR_PASS(_, nir, nir_opt_dce);
       NIR_PASS(inlined, nir, nir_inline_functions);
       nir_remove_non_entrypoints(nir);
+
       if (inlined) {
+         /* Some shader_temp vars may have remained multi-function before
+          * cmat lowering/inlining.  Now that everything was inlined,
+          * they may be lowered to locals.
+          */
+         bool lowered_globals = false;
+         NIR_PASS(lowered_globals, nir, nir_lower_global_vars_to_local);
+         if (lowered_globals)
+            NIR_PASS(_, nir, nir_split_struct_vars, nir_var_function_temp);
          NIR_PASS(_, nir, nir_opt_copy_prop_vars);
          NIR_PASS(_, nir, nir_opt_copy_prop);
       }
