@@ -183,7 +183,7 @@ mem_vectorize_cb(unsigned align_mul, unsigned align_offset, unsigned bit_size,
 }
 
 static void
-bi_optimize_loop_nir(nir_shader *nir, uint64_t gpu_id, bool allow_copies)
+bi_optimize_loop(nir_shader *nir, uint64_t gpu_id, bool allow_copies)
 {
    bool progress;
 
@@ -198,7 +198,7 @@ bi_optimize_loop_nir(nir_shader *nir, uint64_t gpu_id, bool allow_copies)
       NIR_PASS(progress, nir, nir_lower_wrmasks);
 
       if (allow_copies) {
-         /* Only run this pass in the first call to bi_optimize_nir. Later
+         /* Only run this pass in the first call to bi_optimize_loop. Later
           * calls assume that we've lowered away any copy_deref instructions
           * and we don't want to introduce any more.
           */
@@ -260,11 +260,11 @@ bi_optimize_loop_nir(nir_shader *nir, uint64_t gpu_id, bool allow_copies)
 }
 
 static void
-bi_optimize_nir(nir_shader *nir, uint64_t gpu_id,
+bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
                 nir_variable_mode robust_modes)
 {
    NIR_PASS(_, nir, nir_opt_shrink_stores, true);
-   bi_optimize_loop_nir(nir, gpu_id, false);
+   bi_optimize_loop(nir, gpu_id, false /* allow_copies */);
 
    NIR_PASS(_, nir, nir_opt_shrink_vectors, false);
 
@@ -400,7 +400,7 @@ bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
    /* Get rid of any global vars before we lower to scratch. */
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
 
-   bi_optimize_loop_nir(nir, gpu_id, true);
+   bi_optimize_loop(nir, gpu_id, true /* allow_copies */);
 
    NIR_PASS(_, nir, nir_lower_var_copies);
 }
@@ -1289,7 +1289,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
       NIR_PASS(_, nir, pan_nir_lower_fs_outputs, skip_atest);
    }
 
-   bi_optimize_nir(nir, inputs->gpu_id, inputs->robust_modes);
+   bi_optimize_late(nir, inputs->gpu_id, inputs->robust_modes);
 
    /* Lower constants to scalar but then immediately fold so we get minimum-
     * width vectors instead of scalars
