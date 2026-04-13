@@ -246,13 +246,15 @@ emit(struct brw_codegen *p,
    unsigned exec_size = jay_simd_width_physical(f->shader, I);
    // jay_print_inst(stdout, (jay_inst *) I);
 
-   /* Fix up SWSB dependencies for SIMD split instructions. The latter
-    * instructions do not need to redundantly wait on an SBID but might
-    * replicate their regdists.
-    */
+   /* Replicate the SWSB regdist for SIMD split instructions if needed */
    struct tgl_swsb dep =
       simd_offs && !I->replicate_dep ? tgl_swsb_null() : I->dep;
-   dep.mode = simd_offs ? TGL_SBID_NULL : dep.mode;
+
+   /* We do not allow SBID dependencies on SIMD split instructions since
+    * individual groups could get shot down. This would require more tracking
+    * and is unclear whether it's beneficial.
+    */
+   assert(simd_offs == 0 || I->dep.mode == TGL_SBID_NULL);
 
    if (I->decrement_dep) {
       unsigned delta = simd_offs * jay_macro_length(I);

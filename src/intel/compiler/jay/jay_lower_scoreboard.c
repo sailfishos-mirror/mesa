@@ -285,11 +285,16 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
       };
 
       /* Fold the immediate preceding SYNC.nop into this instruction, allowing
-       * us to wait on both ALU and a SEND in the same annotation.
+       * us to wait on both ALU and a SEND in the same annotation. We cannot do
+       * this safely in the presence of predication or SIMD splitting that could
+       * cause any part of the instruction to get shot down, skipping the sync
+       * for future instructions (at least not without more tricky logic).
        */
       if (last_sync &&
           jay_sync_op(last_sync) == TGL_SYNC_NOP &&
           I->dep.mode == TGL_SBID_NULL &&
+          !I->predication &&
+          !jay_simd_split(func->shader, I) &&
           (I->dep.regdist == 0 ||
            inferred_sync_pipe(func->shader->devinfo, I) == I->dep.pipe)) {
 
