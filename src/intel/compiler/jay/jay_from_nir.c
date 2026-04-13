@@ -1088,13 +1088,10 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       !has_dest          ? LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS) :
                            LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
 
-   unsigned max_imm_bits = brw_max_immediate_offset_bits(surf_type);
+   ASSERTED const unsigned max_imm_bits = brw_max_immediate_offset_bits(surf_type);
    assert(base_offset >= u_intN_min(max_imm_bits));
    assert(base_offset <= u_intN_max(max_imm_bits));
    assert(base_offset == 0 || sfid != BRW_SFID_TGM);
-
-   const unsigned base_offs_bits =
-      util_bitpack_sint(base_offset, 0, max_imm_bits - 1);
 
    unsigned nr = ndata->num_components;
    uint64_t desc =
@@ -1150,21 +1147,36 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          b->shader->spills++;
       }
    } else if (surf_type == LSC_ADDR_SURFTYPE_FLAT) {
-      desc |= ((uint64_t) lsc_flat_ex_desc(devinfo, base_offs_bits) << 32);
+      const gen_lsc_ex_desc gen_ex_desc = {
+         .addr_type = surf_type,
+         .flat.base_offset = base_offset,
+      };
+      desc |= ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
    } else if (jay_is_null(bti_indirect)) {
-      desc |=
-         ((uint64_t) lsc_bti_ex_desc(devinfo, bti_const, base_offs_bits) << 32);
+      const gen_lsc_ex_desc gen_ex_desc = {
+         .addr_type = LSC_ADDR_SURFTYPE_BTI,
+         .bti = {
+            .index = bti_const,
+            .base_offset = base_offset,
+         },
+      };
+      desc |= ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
    } else if (!jay_is_null(bti_indirect)) {
       ex_desc = bti_indirect;
 
       if (surf_type == LSC_ADDR_SURFTYPE_SS ||
           surf_type == LSC_ADDR_SURFTYPE_BSS) {
-         ex_desc_imm = SET_BITS(GET_BITS(base_offs_bits, 16, 4), 31, 19) |
-                       SET_BITS(GET_BITS(base_offs_bits, 3, 0), 15, 12);
+         const gen_lsc_ex_desc gen_ex_desc = {
+            .addr_type = surf_type,
+            .surface_state = {
+               .base_offset = base_offset,
+            },
+         };
+         gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, &ex_desc_imm);
       } else {
          /* TODO: Move the SHL to NIR for CSE? */
          assert(surf_type == LSC_ADDR_SURFTYPE_BTI);
-         assert(base_offs_bits == 0);
+         assert(base_offset == 0);
          ex_desc = jay_SHL_u32(b, bti_indirect, 24);
       }
    }

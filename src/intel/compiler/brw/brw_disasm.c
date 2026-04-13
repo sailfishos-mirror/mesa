@@ -1979,25 +1979,28 @@ lsc_disassemble_ex_desc(const struct intel_device_info *devinfo,
                         uint32_t imm_ex_desc,
                         FILE *file)
 {
-   const unsigned addr_type = lsc_msg_desc_addr_type(devinfo, imm_desc);
-   switch (addr_type) {
+   const gen_lsc_desc desc = gen_lsc_desc_decode(devinfo, imm_desc);
+   const gen_lsc_ex_desc ex_desc =
+      gen_lsc_ex_desc_decode(devinfo, desc.addr_type, imm_ex_desc, 0);
+
+   switch (ex_desc.addr_type) {
    case LSC_ADDR_SURFTYPE_FLAT:
-      format(file, " base_offset %u ",
-             lsc_flat_ex_desc_base_offset(devinfo, imm_ex_desc));
+      format(file, " base_offset %d ",
+             ex_desc.flat.base_offset);
       break;
    case LSC_ADDR_SURFTYPE_BSS:
    case LSC_ADDR_SURFTYPE_SS:
       format(file, " surface_state_index %u ",
-             lsc_bss_ex_desc_index(devinfo, imm_ex_desc));
+             ex_desc.surface_state.surface_state_index);
       break;
    case LSC_ADDR_SURFTYPE_BTI:
       format(file, " BTI %u ",
-             lsc_bti_ex_desc_index(devinfo, imm_ex_desc));
-      format(file, " base_offset %u ",
-             lsc_bti_ex_desc_base_offset(devinfo, imm_ex_desc));
+             ex_desc.bti.index);
+      format(file, " base_offset %d ",
+             ex_desc.bti.base_offset);
       break;
    default:
-      format(file, "unsupported address surface type %d", addr_type);
+      format(file, "unsupported address surface type %d", ex_desc.addr_type);
       break;
    }
 }
@@ -2338,30 +2341,31 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
          case BRW_SFID_URB: {
             if (devinfo->ver >= 20) {
                format(file, " (");
-               const enum lsc_opcode op = lsc_msg_desc_opcode(devinfo, imm_desc);
+               const gen_lsc_desc desc = gen_lsc_desc_decode(devinfo, imm_desc);
+               const enum lsc_opcode op = desc.op;
                err |= control(file, "operation", lsc_operation,
                               op, &space);
                format(file, ",");
                err |= control(file, "addr_size", lsc_addr_size,
-                              lsc_msg_desc_addr_size(devinfo, imm_desc),
+                              desc.addr_size,
                               &space);
 
                format(file, ",");
                err |= control(file, "data_size", lsc_data_size,
-                              lsc_msg_desc_data_size(devinfo, imm_desc),
+                              desc.data_size,
                               &space);
                format(file, ",");
                if (lsc_opcode_has_cmask(op)) {
                   err |= control(file, "component_mask",
                                  lsc_cmask_str,
-                                 lsc_msg_desc_cmask(devinfo, imm_desc),
+                                 desc.cmask,
                                  &space);
                } else {
                   err |= control(file, "vector_size",
                                  lsc_vect_size_str,
-                                 lsc_msg_desc_vect_size(devinfo, imm_desc),
+                                 desc.vect_size,
                                  &space);
-                  if (lsc_msg_desc_transpose(devinfo, imm_desc))
+                  if (desc.transpose)
                      format(file, ", transpose");
                }
                switch(op) {
@@ -2373,7 +2377,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                                  devinfo->ver >= 20 ?
                                  xe2_lsc_cache_load :
                                  lsc_cache_load,
-                                 lsc_msg_desc_cache_ctrl(devinfo, imm_desc),
+                                 desc.cache_ctrl,
                                  &space);
                   break;
                default:
@@ -2382,7 +2386,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                                  devinfo->ver >= 20 ?
                                  xe2_lsc_cache_store :
                                  lsc_cache_store,
-                                 lsc_msg_desc_cache_ctrl(devinfo, imm_desc),
+                                 desc.cache_ctrl,
                                  &space);
                   break;
                }
@@ -2395,7 +2399,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                   format(file, " src1_len = %d",
                          brw_message_ex_desc_ex_mlen(devinfo, imm_ex_desc) / reg_unit(devinfo));
                err |= control(file, "address_type", lsc_addr_surface_type,
-                              lsc_msg_desc_addr_type(devinfo, imm_desc), &space);
+                              desc.addr_type, &space);
                format(file, " )");
             } else {
                unsigned urb_opcode = brw_eu_inst_urb_opcode(devinfo, inst);
@@ -2436,45 +2440,46 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
          case BRW_SFID_UGM: {
             assert(devinfo->has_lsc);
             format(file, " (");
-            const enum lsc_opcode op = lsc_msg_desc_opcode(devinfo, imm_desc);
+            const gen_lsc_desc desc = gen_lsc_desc_decode(devinfo, imm_desc);
+            const enum lsc_opcode op = desc.op;
             err |= control(file, "operation", lsc_operation,
                            op, &space);
             format(file, ",");
             err |= control(file, "addr_size", lsc_addr_size,
-                           lsc_msg_desc_addr_size(devinfo, imm_desc),
+                           desc.addr_size,
                            &space);
 
             if (op == LSC_OP_FENCE) {
                format(file, ",");
                err |= control(file, "scope", lsc_fence_scope,
-                              lsc_fence_msg_desc_scope(devinfo, imm_desc),
+                              desc.fence.scope,
                               &space);
                format(file, ",");
                err |= control(file, "flush_type", lsc_flush_type,
-                              lsc_fence_msg_desc_flush_type(devinfo, imm_desc),
+                              desc.fence.flush_type,
                               &space);
                format(file, ",");
                err |= control(file, "backup_mode_fence_routing",
                               lsc_backup_fence_routing,
-                              lsc_fence_msg_desc_backup_routing(devinfo, imm_desc),
+                              desc.fence.route_to_lsc,
                               &space);
             } else {
                format(file, ",");
                err |= control(file, "data_size", lsc_data_size,
-                              lsc_msg_desc_data_size(devinfo, imm_desc),
+                              desc.data_size,
                               &space);
                format(file, ",");
                if (lsc_opcode_has_cmask(op)) {
                   err |= control(file, "component_mask",
                                  lsc_cmask_str,
-                                 lsc_msg_desc_cmask(devinfo, imm_desc),
+                                 desc.cmask,
                                  &space);
                } else {
                   err |= control(file, "vector_size",
                                  lsc_vect_size_str,
-                                 lsc_msg_desc_vect_size(devinfo, imm_desc),
+                                 desc.vect_size,
                                  &space);
-                  if (lsc_msg_desc_transpose(devinfo, imm_desc))
+                  if (desc.transpose)
                      format(file, ", transpose");
                }
                switch(op) {
@@ -2485,7 +2490,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                                  devinfo->ver >= 20 ?
                                  xe2_lsc_cache_load :
                                  lsc_cache_load,
-                                 lsc_msg_desc_cache_ctrl(devinfo, imm_desc),
+                                 desc.cache_ctrl,
                                  &space);
                   break;
                default:
@@ -2494,7 +2499,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                                  devinfo->ver >= 20 ?
                                  xe2_lsc_cache_store :
                                  lsc_cache_store,
-                                 lsc_msg_desc_cache_ctrl(devinfo, imm_desc),
+                                 desc.cache_ctrl,
                                  &space);
                   break;
                }
@@ -2510,7 +2515,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                       brw_message_ex_desc_ex_mlen(devinfo, imm_ex_desc) / reg_unit(devinfo));
 
             err |= control(file, "address_type", lsc_addr_surface_type,
-                           lsc_msg_desc_addr_type(devinfo, imm_desc), &space);
+                           desc.addr_type, &space);
             format(file, " )");
             break;
          }
