@@ -169,11 +169,6 @@ radv_nir_lower_io(struct radv_device *device, nir_shader *nir)
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       /* Lower explicit input load intrinsics to sysvals for the layer ID. */
       NIR_PASS(_, nir, nir_lower_system_values);
-
-      /* Recompute FS input intrinsic bases to assign a location to each FS input.
-       * The computed base will match the index of each input in SPI_PS_INPUT_CNTL_n.
-       */
-      radv_recompute_fs_input_bases(nir);
    }
 
    NIR_PASS(_, nir, nir_opt_dce);
