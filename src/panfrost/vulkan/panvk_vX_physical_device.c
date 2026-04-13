@@ -150,6 +150,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_display_control = true,
 #endif
       .EXT_descriptor_indexing = PAN_ARCH >= 9,
+      .EXT_dynamic_rendering_unused_attachments = true,
       .EXT_extended_dynamic_state = true,
       .EXT_extended_dynamic_state2 = true,
       .EXT_external_memory_acquire_unmodified = true,
@@ -484,6 +485,9 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_depth_clip_enable */
       .depthClipEnable = true,
+
+      /* VK_EXT_dynamic_rendering_unused_attachments */
+      .dynamicRenderingUnusedAttachments = true,
 
       /* VK_EXT_extended_dynamic_state */
       .extendedDynamicState = true,
