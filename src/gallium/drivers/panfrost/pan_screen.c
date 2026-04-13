@@ -140,7 +140,7 @@ get_max_msaa(struct panfrost_device *dev, enum pipe_format format)
     * the r1p0 version, which prevents 16x MSAA from working properly.
     */
    if (panfrost_device_gpu_prod_id(dev) == 0x750 &&
-       panfrost_device_gpu_rev(dev) < 0x1000)
+       panfrost_device_gpu_rev(dev) < PAN_REV(1, 0))
       max_msaa = MIN2(max_msaa, 8);
 
    if (dev->model->quirks.max_4x_msaa)
