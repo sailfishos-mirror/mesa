@@ -527,7 +527,7 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
        * TODO: Come up with a better heuristic.
        */
       assert(info->type_0 == info->type_1);
-      unsigned split = !p.check_tdr ? DIV_ROUND_UP(p.nr_srcs, 2) : p.nr_srcs;
+      unsigned split = !p.check_tdr ? (p.nr_srcs / 2) : p.nr_srcs;
       I->src[2] = jay_collect_vectors(b, &p.srcs[0], split);
       I->src[3] = jay_collect_vectors(b, &p.srcs[split], p.nr_srcs - split);
    }
