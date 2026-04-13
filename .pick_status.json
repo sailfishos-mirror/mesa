@@ -2394,7 +2394,7 @@
         "description": "Modify x11_xcb_display_supports_xshm to get xshm opcode",
         "nominated": false,
         "nomination_type": 2,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5f4eccf1fbb8f84a93c2c85c6f73f4b4152a7eca",
         "notes": null
