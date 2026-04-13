@@ -288,6 +288,9 @@ typedef struct jay_ra_state {
    /** Size of each register file */
    unsigned num_regs[JAY_NUM_RA_FILES];
 
+   /** Counter for roundrobin register allocation */
+   unsigned roundrobin[JAY_NUM_RA_FILES];
+
    /** First GPR that may be used for EOT sends */
    unsigned eot_offs;
 
@@ -764,8 +767,23 @@ pick_regs(jay_ra_state *ra,
       ra->phi_web[phi_web_find(ra->phi_web, jay_channel(var, 0))].affinity;
 
    assert(alignment >= size && "alignment must be a multiple of size");
+   unsigned nr = DIV_ROUND_UP((end + 1 - size - first), alignment);
+   unsigned roundrobin = (ra->roundrobin[file]++) % nr;
+   unsigned rr_al = roundrobin * alignment, nr_al = nr * alignment;
 
-   for (unsigned r = first; r + size <= end; r += alignment) {
+   for (unsigned i = rr_al; i < rr_al + nr_al; i += alignment) {
+      /* We select registers roundrobin. This has several benefits:
+       *
+       * 1. Easier coalescing since we are less likely statistically to allocate
+       *    a register that a future instruction has an affinity.
+       *
+       * 2. More freedom for post-RA scheduling thanks to fewer dependencies.
+       *
+       * 3. Less stalling due to SWSB annotations from register reuse.
+       */
+      unsigned r = first + (i >= nr_al ? (i - nr_al) : i);
+      assert(r >= first && r + size <= end);
+
       unsigned cost = 0;
       bool tied = last_killed && last_killed->reg == r;
       enum jay_stride stride =
