@@ -3200,7 +3200,10 @@ static void
 jay_gather_stats(const jay_shader *s, struct genisa_stats *stats)
 {
    jay_foreach_inst_in_shader(s, f, I) {
-      stats->instrs += I->op != JAY_OPCODE_SYNC;
+      if (I->op != JAY_OPCODE_SYNC) {
+         stats->instrs += jay_macro_length(I) << jay_simd_split(s, I);
+      }
+
       stats->loops += I->op == JAY_OPCODE_WHILE;
       stats->sends += I->op == JAY_OPCODE_SEND;
 

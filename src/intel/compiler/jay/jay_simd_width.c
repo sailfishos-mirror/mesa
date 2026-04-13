@@ -7,7 +7,7 @@
 #include "jay_opcodes.h"
 
 static unsigned
-max_simd_width(jay_shader *shader, const jay_inst *I)
+max_simd_width(const jay_shader *shader, const jay_inst *I)
 {
    /* Only certain "complex" quad swizzles require splitting down to SIMD4 */
    if (I->op == JAY_OPCODE_QUAD_SWIZZLE &&
@@ -54,7 +54,7 @@ max_simd_width(jay_shader *shader, const jay_inst *I)
 }
 
 unsigned
-jay_simd_split(jay_shader *s, const jay_inst *I)
+jay_simd_split(const jay_shader *s, const jay_inst *I)
 {
    unsigned actual = jay_simd_width_logical(s, I);
    unsigned max = max_simd_width(s, I);

@@ -788,7 +788,7 @@ struct jay_partition {
 };
 
 static inline enum jay_stride
-jay_gpr_to_stride(struct jay_partition *p, unsigned reg)
+jay_gpr_to_stride(const struct jay_partition *p, unsigned reg)
 {
    return (reg < p->base8 || reg >= p->base_eot) ? JAY_STRIDE_4 :
           reg >= p->base2                        ? JAY_STRIDE_2 :
@@ -958,10 +958,10 @@ jay_inst_is_uniform(const jay_inst *I)
           (I->dst.file == J_ARF && !jay_is_null(I->dst));
 }
 
-unsigned jay_simd_split(jay_shader *s, const jay_inst *I);
+unsigned jay_simd_split(const jay_shader *s, const jay_inst *I);
 
 static inline unsigned
-jay_simd_width_logical(jay_shader *s, const jay_inst *I)
+jay_simd_width_logical(const jay_shader *s, const jay_inst *I)
 {
    unsigned base = jay_inst_is_uniform(I) ? 1 : s->dispatch_width;
 
@@ -1072,7 +1072,7 @@ jay_num_regs(jay_shader *shader, enum jay_file file)
 }
 
 static inline enum jay_stride
-jay_def_stride(jay_shader *shader, jay_def x)
+jay_def_stride(const jay_shader *shader, jay_def x)
 {
    assert(x.file == GPR);
    return jay_gpr_to_stride(&shader->partition, x.reg);
