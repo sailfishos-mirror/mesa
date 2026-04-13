@@ -22,8 +22,6 @@ namespace {
 struct ra_ctx;
 struct DefInfo;
 
-unsigned get_subdword_operand_stride(amd_gfx_level gfx_level, const aco_ptr<Instruction>& instr,
-                                     unsigned idx, RegClass rc);
 void add_subdword_operand(ra_ctx& ctx, aco_ptr<Instruction>& instr, unsigned idx, unsigned byte,
                           RegClass rc);
 void add_subdword_definition(Program* program, aco_ptr<Instruction>& instr, PhysReg reg,
@@ -289,9 +287,12 @@ struct DefInfo {
 
       if (rc.is_subdword() && operand >= 0) {
          /* stride in bytes */
-         stride = get_subdword_operand_stride(ctx.program->gfx_level, instr, operand, rc);
+         stride = get_subdword_operand_stride(ctx.program, instr.get(), operand, rc);
       } else if (rc.is_subdword()) {
-         get_subdword_definition_info(ctx.program, instr);
+         SubdwordCaps caps = get_subdword_definition_caps(ctx.program, instr.get(), 0, rc);
+         stride = rc.bytes() == caps.overwrite_bytes ? caps.placement_stride : 4;
+         rc = rc.resize(caps.overwrite_bytes);
+         data_stride = caps.placement_stride;
       } else if (instr->isMIMG() && instr->mimg().d16 && ctx.program->gfx_level <= GFX9) {
          /* Workaround GFX9 hardware bug for D16 image instructions: FeatureImageGather4D16Bug
           *
@@ -317,9 +318,6 @@ struct DefInfo {
       if (!data_stride)
          data_stride = stride;
    }
-
-private:
-   void get_subdword_definition_info(Program* program, const aco_ptr<Instruction>& instr);
 };
 
 class RegisterFile {
@@ -631,56 +629,6 @@ convert_bitwise_to_16bit(Instruction* instr)
    return true;
 }
 
-unsigned
-get_subdword_operand_stride(amd_gfx_level gfx_level, const aco_ptr<Instruction>& instr,
-                            unsigned idx, RegClass rc)
-{
-   assert(gfx_level >= GFX8);
-   if (instr->isPseudo()) {
-      /* v_readfirstlane_b32 cannot use SDWA */
-      if (instr->opcode == aco_opcode::p_as_uniform ||
-          instr->opcode == aco_opcode::p_permlane64_shared_vgpr)
-         return 4;
-      else
-         return rc.bytes() % 2 == 0 ? 2 : 1;
-   }
-
-   if (rc.bytes() > 2)
-      return 4;
-
-   if (instr->isVALU()) {
-      if (can_use_SDWA(gfx_level, instr, false))
-         return rc.bytes();
-      if (can_use_opsel(gfx_level, instr->opcode, idx))
-         return 2;
-      if (instr->isVOP3P())
-         return 2;
-   }
-
-   switch (instr->opcode) {
-   case aco_opcode::v_mov_b32:
-   case aco_opcode::v_not_b32:
-   case aco_opcode::v_and_b32:
-   case aco_opcode::v_or_b32:
-   case aco_opcode::v_xor_b32:
-   case aco_opcode::v_cndmask_b32:
-      return gfx_level >= GFX11 && instr->definitions[0].bytes() <= 2 ? 2 : 4;
-   case aco_opcode::v_cvt_f32_ubyte0: return 1;
-   case aco_opcode::ds_write_b8:
-   case aco_opcode::ds_write_b16: return gfx_level >= GFX9 ? 2 : 4;
-   case aco_opcode::buffer_store_byte:
-   case aco_opcode::buffer_store_short:
-   case aco_opcode::buffer_store_format_d16_x:
-   case aco_opcode::flat_store_byte:
-   case aco_opcode::flat_store_short:
-   case aco_opcode::scratch_store_byte:
-   case aco_opcode::scratch_store_short:
-   case aco_opcode::global_store_byte:
-   case aco_opcode::global_store_short: return gfx_level >= GFX9 ? 2 : 4;
-   default: return 4;
-   }
-}
-
 void
 add_subdword_operand(ra_ctx& ctx, aco_ptr<Instruction>& instr, unsigned idx, unsigned byte,
                      RegClass rc)
@@ -748,102 +696,6 @@ add_subdword_operand(ra_ctx& ctx, aco_ptr<Instruction>& instr, unsigned idx, uns
    else
       UNREACHABLE("Something went wrong: Impossible register assignment.");
    return;
-}
-
-void
-DefInfo::get_subdword_definition_info(Program* program, const aco_ptr<Instruction>& instr)
-{
-   amd_gfx_level gfx_level = program->gfx_level;
-   assert(gfx_level >= GFX8);
-
-   stride = rc.bytes() % 2 == 0 ? 2 : 1;
-
-   if (instr->isPseudo()) {
-      if (instr->opcode == aco_opcode::p_interp_gfx11 ||
-          instr->opcode == aco_opcode::p_permlane64_shared_vgpr) {
-         rc = RegClass(RegType::vgpr, rc.size());
-         stride = 4;
-      }
-      return;
-   }
-
-   if (instr->isVALU()) {
-      if (rc.bytes() == 3) {
-         rc = v1;
-         stride = 4;
-         return;
-      }
-
-      if (can_use_SDWA(gfx_level, instr, false))
-         return;
-
-      rc = instr_is_16bit(gfx_level, instr->opcode) ? v2b : v1;
-      stride = 4;
-      if (instr->opcode == aco_opcode::v_fma_mixlo_f16 ||
-          instr->opcode == aco_opcode::p_v_fma_mixlo_f16_rtz ||
-          can_use_opsel(gfx_level, instr->opcode, -1)) {
-         data_stride = 2;
-         stride = rc == v2b ? 2 : stride;
-      } else if ((instr->opcode == aco_opcode::v_cndmask_b32 ||
-                  instr->opcode == aco_opcode::v_mov_b32 ||
-                  instr->opcode == aco_opcode::v_not_b32 ||
-                  instr->opcode == aco_opcode::v_and_b32 || instr->opcode == aco_opcode::v_or_b32 ||
-                  instr->opcode == aco_opcode::v_xor_b32) &&
-                 program->gfx_level >= GFX11) {
-         /* Convert to 16bit opcode on demand. */
-         rc = v2b;
-         data_stride = 2;
-         stride = 2;
-      }
-      return;
-   }
-
-   switch (instr->opcode) {
-   case aco_opcode::v_interp_p2_f16: return;
-   /* D16 loads with _hi version */
-   case aco_opcode::ds_read_u8_d16:
-   case aco_opcode::ds_read_i8_d16:
-   case aco_opcode::ds_read_u16_d16:
-   case aco_opcode::flat_load_ubyte_d16:
-   case aco_opcode::flat_load_sbyte_d16:
-   case aco_opcode::flat_load_short_d16:
-   case aco_opcode::global_load_ubyte_d16:
-   case aco_opcode::global_load_sbyte_d16:
-   case aco_opcode::global_load_short_d16:
-   case aco_opcode::scratch_load_ubyte_d16:
-   case aco_opcode::scratch_load_sbyte_d16:
-   case aco_opcode::scratch_load_short_d16:
-   case aco_opcode::buffer_load_ubyte_d16:
-   case aco_opcode::buffer_load_sbyte_d16:
-   case aco_opcode::buffer_load_short_d16:
-   case aco_opcode::buffer_load_format_d16_x: {
-      assert(gfx_level >= GFX9);
-      if (program->dev.sram_ecc_enabled) {
-         rc = v1;
-         stride = 4;
-         data_stride = 2;
-      } else {
-         stride = 2;
-      }
-      return;
-   }
-   /* 3-component D16 loads */
-   case aco_opcode::buffer_load_format_d16_xyz:
-   case aco_opcode::tbuffer_load_format_d16_xyz: {
-      assert(gfx_level >= GFX9);
-      stride = 4;
-      if (program->dev.sram_ecc_enabled)
-         rc = v2;
-      return;
-   }
-   default: break;
-   }
-
-   stride = 4;
-   if (instr->isMIMG() && instr->mimg().d16 && !program->dev.sram_ecc_enabled)
-      assert(gfx_level >= GFX9);
-   else
-      rc = RegClass(RegType::vgpr, rc.size());
 }
 
 void
@@ -2387,11 +2239,12 @@ handle_pseudo(ra_ctx& ctx, const RegisterFile& reg_file, Instruction* instr)
 }
 
 bool
-operand_can_use_reg(amd_gfx_level gfx_level, aco_ptr<Instruction>& instr, unsigned idx, PhysReg reg,
+operand_can_use_reg(ra_ctx& ctx, aco_ptr<Instruction>& instr, unsigned idx, PhysReg reg,
                     RegClass rc)
 {
+   amd_gfx_level gfx_level = ctx.program->gfx_level;
    if (reg.byte()) {
-      unsigned stride = get_subdword_operand_stride(gfx_level, instr, idx, rc);
+      unsigned stride = get_subdword_operand_stride(ctx.program, instr.get(), idx, rc);
       if (reg.byte() % stride)
          return false;
    }
@@ -3699,8 +3552,7 @@ undo_renames(ra_ctx& ctx, std::vector<parallelcopy>& parallelcopies,
          }
 
          bool use_original = !op.isPrecolored() && !op.isLateKill();
-         use_original &= operand_can_use_reg(ctx.program->gfx_level, instr, i, copy.op.physReg(),
-                                             copy.op.regClass());
+         use_original &= operand_can_use_reg(ctx, instr, i, copy.op.physReg(), copy.op.regClass());
 
          if (use_original) {
             const PhysRegInterval copy_reg = {copy.op.physReg(), copy.op.size()};
@@ -4128,7 +3980,7 @@ register_allocation(Program* program, ra_test_policy policy)
             }
 
             PhysReg reg = ctx.assignments[operand.tempId()].reg;
-            if (operand_can_use_reg(program->gfx_level, instr, i, reg, operand.regClass()))
+            if (operand_can_use_reg(ctx, instr, i, reg, operand.regClass()))
                operand.setFixed(reg);
             else
                get_reg_for_operand(ctx, register_file, parallelcopy, instr, operand, i);
