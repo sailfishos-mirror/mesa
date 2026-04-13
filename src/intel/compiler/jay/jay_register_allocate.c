@@ -768,8 +768,9 @@ pick_regs(jay_ra_state *ra,
 
    assert(alignment >= size && "alignment must be a multiple of size");
    unsigned nr = DIV_ROUND_UP((end + 1 - size - first), alignment);
-   unsigned roundrobin = (ra->roundrobin[file]++) % nr;
+   unsigned roundrobin = (ra->roundrobin[file]) % nr;
    unsigned rr_al = roundrobin * alignment, nr_al = nr * alignment;
+   ra->roundrobin[file] += size;
 
    for (unsigned i = rr_al; i < rr_al + nr_al; i += alignment) {
       /* We select registers roundrobin. This has several benefits:
