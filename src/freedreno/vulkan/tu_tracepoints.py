@@ -266,9 +266,9 @@ begin_end_tp('compute_indirect',
 # Annotations for Cmd(Begin|End)DebugUtilsLabelEXT
 for suffix in ["", "_rp"]:
     begin_end_tp('cmd_buffer_annotation' + suffix,
-                    args=[Arg(type='unsigned', var='len'),
-                          Arg(type='str', var='str', c_format='%s', length_arg='len + 1', copy_func='strncpy'),],
-                    tp_struct=[Arg(type='uint8_t', name='dummy', var='0'),])
+                    end_args=[Arg(type='unsigned', var='len'),
+                              Arg(type='str', var='str', c_format='%s', length_arg='len + 1', copy_func='strncpy'),],
+                    end_tp_struct=[Arg(type='uint8_t', name='dummy', var='0'),])
 
 utrace_generate(cpath=args.utrace_src,
                 hpath=args.utrace_hdr,

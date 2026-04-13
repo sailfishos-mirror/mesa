@@ -2712,9 +2712,6 @@ tu_device_destroy_mutexes(struct tu_device *device)
    mtx_destroy(&device->wave_pvtmem_bo.mtx);
    mtx_destroy(&device->mutex);
    mtx_destroy(&device->copy_timestamp_cs_pool_mutex);
-#ifdef HAVE_PERFETTO
-   mtx_destroy(&device->perfetto.pending_clocks_sync_mtx);
-#endif
    for (unsigned i = 0; i < ARRAY_SIZE(device->scratch_bos); i++)
       mtx_destroy(&device->scratch_bos[i].construct_mtx);
 
@@ -2830,7 +2827,7 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
    mtx_init(&device->copy_timestamp_cs_pool_mutex, mtx_plain);
    mtx_init(&device->softfloat_mutex, mtx_plain);
 #ifdef HAVE_PERFETTO
-   mtx_init(&device->perfetto.pending_clocks_sync_mtx, mtx_plain);
+   tu_perfetto_init_state(&device->perfetto);
 #endif
    for (unsigned i = 0; i < ARRAY_SIZE(device->scratch_bos); i++)
       mtx_init(&device->scratch_bos[i].construct_mtx, mtx_plain);
@@ -3203,6 +3200,9 @@ fail_queues:
          vk_free(&device->vk.alloc, device->queues[i]);
    }
 
+#ifdef HAVE_PERFETTO
+   tu_perfetto_destroy_state(&device->perfetto);
+#endif
    tu_device_destroy_mutexes(device);
    tu_drm_device_finish(device);
    vk_device_finish(&device->vk);
@@ -4544,13 +4544,10 @@ tu_CmdBeginDebugUtilsLabelEXT(VkCommandBuffer _commandBuffer,
     * buffers. Still, getting the simple case of cmd buffer annotation into
     * perfetto should prove useful.
     */
-   const char *label = pLabelInfo->pLabelName;
    if (cmd_buffer->state.pass) {
-      trace_start_cmd_buffer_annotation_rp(
-         &cmd_buffer->trace, &cmd_buffer->draw_cs, cmd_buffer, strlen(label), label);
+      trace_start_cmd_buffer_annotation_rp(&cmd_buffer->trace, &cmd_buffer->draw_cs, cmd_buffer);
    } else {
-      trace_start_cmd_buffer_annotation(&cmd_buffer->trace, &cmd_buffer->cs,
-                                        cmd_buffer, strlen(label), label);
+      trace_start_cmd_buffer_annotation(&cmd_buffer->trace, &cmd_buffer->cs, cmd_buffer);
    }
 }
 
@@ -4559,11 +4556,16 @@ tu_CmdEndDebugUtilsLabelEXT(VkCommandBuffer _commandBuffer)
 {
    VK_FROM_HANDLE(tu_cmd_buffer, cmd_buffer, _commandBuffer);
 
-   if (cmd_buffer->state.pass) {
-      trace_end_cmd_buffer_annotation_rp(&cmd_buffer->trace,
-                                          &cmd_buffer->draw_cs);
-   } else {
-      trace_end_cmd_buffer_annotation(&cmd_buffer->trace, &cmd_buffer->cs);
+   if (cmd_buffer->vk.labels.size > 0) {
+      const VkDebugUtilsLabelEXT *label = util_dynarray_top_ptr(&cmd_buffer->vk.labels, VkDebugUtilsLabelEXT);
+
+      if (cmd_buffer->state.pass) {
+         trace_end_cmd_buffer_annotation_rp(&cmd_buffer->trace, &cmd_buffer->draw_cs, strlen(label->pLabelName),
+                                            label->pLabelName);
+      } else {
+         trace_end_cmd_buffer_annotation(&cmd_buffer->trace, &cmd_buffer->cs, strlen(label->pLabelName),
+                                         label->pLabelName);
+      }
    }
 
    vk_common_CmdEndDebugUtilsLabelEXT(_commandBuffer);
@@ -4574,11 +4576,12 @@ tu_SetDebugUtilsObjectNameEXT(
    VkDevice device,
    const VkDebugUtilsObjectNameInfoEXT *pNameInfo)
 {
+   UNUSED VK_FROM_HANDLE(tu_device, dev, device);
    VkResult result = vk_common_SetDebugUtilsObjectNameEXT(device, pNameInfo);
 
 #ifdef HAVE_PERFETTO
    if (result == VK_SUCCESS)
-      tu_perfetto_set_debug_utils_object_name(pNameInfo);
+      tu_perfetto_set_debug_utils_object_name(dev, pNameInfo);
 #endif
 
    return result;
