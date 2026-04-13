@@ -70,6 +70,7 @@ struct fd_perfcntr_countable {
 /* Describes an entire counter group: */
 struct fd_perfcntr_group {
    const char *name;
+   int pipe;
    unsigned num_counters;
    const struct fd_perfcntr_counter *counters;
    unsigned num_countables;
@@ -78,8 +79,10 @@ struct fd_perfcntr_group {
 
 const struct fd_perfcntr_group *fd_perfcntrs(const struct fd_dev_id *id, unsigned *count);
 
-#define GROUP(_name, _counters, _countables) {                                 \
-      .name = _name, .num_counters = ARRAY_SIZE(_counters),                    \
+#define GROUP(_name, _pipe, _counters, _countables) {                          \
+      .name = _name,                                                           \
+      .pipe = _pipe,                                                           \
+      .num_counters = ARRAY_SIZE(_counters),                                   \
       .counters = _counters, .num_countables = ARRAY_SIZE(_countables),        \
       .countables = _countables,                                               \
    }

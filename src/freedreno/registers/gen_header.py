@@ -1149,8 +1149,11 @@ def dump_perfcntrs(args):
     for group in groups:
         name = group['name']
         name_low = name.lower()
+        pipe = 'NONE'
+        if 'pipe' in group:
+            pipe = group['pipe']
 
-        print("   GROUP(\"%s\", %s_counters, %s_countables)," % (name, name_low, name_low))
+        print("   GROUP(\"%s\", PIPE_%s, %s_counters, %s_countables)," % (name, pipe, name_low, name_low))
 
     print("};")
     print("const unsigned " + chip.lower() + "_num_perfcntr_groups = ARRAY_SIZE(" + chip.lower() + "_perfcntr_groups);")
