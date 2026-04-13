@@ -72,14 +72,10 @@ collect_reg_info(struct ir3_shader_variant *v,
                  struct ir3_instruction *instr, struct ir3_register *reg,
                  struct ir3_info *info)
 {
-   if (reg->flags & IR3_REG_IMMED) {
+   if (reg->flags & (IR3_REG_IMMED | IR3_REG_CONST)) {
       /* nothing to do */
       return;
    }
-
-   /* Shared consts don't need to be included into constlen. */
-   if (is_shared_consts(v->compiler, ir3_const_state(v), reg))
-      return;
 
    unsigned components;
    int16_t max;
@@ -92,9 +88,7 @@ collect_reg_info(struct ir3_shader_variant *v,
       max = (reg->num + components - 1);
    }
 
-   if (reg->flags & IR3_REG_CONST) {
-      info->max_const = MAX2(info->max_const, max >> 2);
-   } else if (max < regid(48, 0)) {
+   if (max < regid(48, 0)) {
       if (reg->flags & IR3_REG_HALF) {
          if (v->mergedregs) {
             /* starting w/ a6xx, half regs conflict with full regs: */
@@ -329,7 +323,6 @@ ir3_collect_info(struct ir3_shader_variant *v)
    memset(info, 0, sizeof(*info));
    info->max_reg = -1;
    info->max_half_reg = -1;
-   info->max_const = -1;
    info->multi_dword_ldp_stp = false;
 
    uint32_t instr_count = 0;

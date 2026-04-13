@@ -1584,7 +1584,6 @@ fd6_program_create(void *data, const struct ir3_shader_variant *bs,
          .info = {
                .max_reg = -1,
                .max_half_reg = -1,
-               .max_const = -1,
          },
    };
    /* The last geometry stage in use: */
