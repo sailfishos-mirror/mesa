@@ -189,9 +189,9 @@ struct affinity {
    bool eot:1;
 
    /** If true, this UGPR needs full GRF alignment */
-   bool grf_align     :1;
+   unsigned align     :5;
    unsigned align_offs:4;
-   unsigned padding   :22;
+   unsigned padding   :18;
 };
 static_assert(sizeof(struct affinity) == 8, "packed");
 
@@ -727,7 +727,6 @@ pick_regs(jay_ra_state *ra,
 {
    struct jay_partition *partition = &ra->bld.shader->partition;
    unsigned first = 0, end = ra->num_regs[file];
-   unsigned ugpr_per_grf = jay_ugpr_per_grf(ra->bld.shader);
    bool must_tie = I->op == JAY_OPCODE_LANE_ID_EXPAND;
    must_tie &= !is_src;
 
@@ -809,8 +808,8 @@ pick_regs(jay_ra_state *ra,
       /* If there are stricter alignment requirements later, model the cost of
        * inserting copies for that.
        */
-      if (affinity.grf_align &&
-          !util_is_aligned(r - affinity.align_offs, ugpr_per_grf))
+      if (affinity.align &&
+          !util_is_aligned(r - affinity.align_offs, affinity.align))
          cost += size;
 
       if (affinity.repr == jay_channel(var, 0)) {
@@ -1637,8 +1636,8 @@ jay_register_allocate_function(jay_function *f)
             ra.affinities[index].eot = true;
          }
 
-         if (jay_src_alignment(shader, I, s) >= jay_ugpr_per_grf(shader)) {
-            ra.affinities[index].grf_align = true;
+         if (jay_src_alignment(shader, I, s) >= ra.affinities[index].align) {
+            ra.affinities[index].align = jay_src_alignment(shader, I, s);
             ra.affinities[index].align_offs = c;
          }
 
