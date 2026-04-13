@@ -1315,7 +1315,24 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
       } else if (dst.regClass() == v1 && instr->def.bit_size == 16) {
          emit_vop3p_instruction(ctx, instr, aco_opcode::v_pk_add_u16, dst);
          break;
-      } else if (dst.regClass() == s2 && ctx->program->gfx_level >= GFX12) {
+      }
+
+      /* Special-case iadd(a, u2u64(b)) */
+      if (instr->def.bit_size == 64) {
+         /* TODO: move this optimization to NIR. */
+         for (unsigned i = 0; i < 2; i++) {
+            nir_alu_instr* src = nir_src_as_alu(instr->src[i].src);
+            /* u2u64(a) gets lowered to pack_64_2x32_split(a, 0). */
+            if (src && src->op == nir_op_pack_64_2x32_split && nir_src_is_const(src->src[1].src) &&
+                nir_src_as_uint(src->src[1].src) == 0) {
+               Operand op32 = Operand(get_alu_src(ctx, src->src[0]));
+               add64_32(bld, get_alu_src(ctx, instr->src[!i]), op32, dst);
+               return;
+            }
+         }
+      }
+
+      if (dst.regClass() == s2 && ctx->program->gfx_level >= GFX12) {
          emit_sop2_instruction(ctx, instr, aco_opcode::s_add_u64, dst, false);
          break;
       }
