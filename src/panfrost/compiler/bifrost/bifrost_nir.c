@@ -826,9 +826,6 @@ mem_access_size_align_cb(nir_intrinsic_op intrin, uint8_t bytes,
    };
 }
 
-static void bi_lower_texture_nir(nir_shader *nir, uint64_t gpu_id);
-static void bi_lower_texture_late_nir(nir_shader *nir, uint64_t gpu_id);
-
 static bool
 nir_shader_has_local_variables(const nir_shader *nir)
 {
@@ -840,6 +837,11 @@ nir_shader_has_local_variables(const nir_shader *nir)
    return false;
 }
 
+static bool pan_nir_lower_texel_buffer_fetch(nir_shader *nir, unsigned arch);
+static bool pan_nir_lower_buf_image_access(nir_shader *nir, unsigned arch);
+static bool bi_should_idvs(nir_shader *nir, const struct pan_compile_inputs *inputs);
+static bool bifrost_nir_lower_vs_atomics(nir_shader *nir);
+
 void
 bifrost_postprocess_nir(nir_shader *nir,
                         const struct pan_compile_inputs *inputs,
@@ -850,6 +852,15 @@ bifrost_postprocess_nir(nir_shader *nir,
    const uint64_t gpu_id = inputs->gpu_id;
    const unsigned gpu_arch = pan_arch(gpu_id);
 
+   NIR_PASS(_, nir, nir_lower_image_atomics_to_global, NULL, NULL);
+
+   /* on Bifrost, lower MSAA load/stores to 3D load/stores */
+   if (gpu_arch < 9)
+      NIR_PASS(_, nir, pan_nir_lower_image_ms);
+
+   NIR_PASS(_, nir, pan_nir_lower_texel_buffer_fetch, gpu_arch);
+   NIR_PASS(_, nir, pan_nir_lower_buf_image_access, gpu_arch);
+
    /* We assume that UBO and SSBO were lowered, let's move things around. */
    nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo |
                                nir_move_comparisons | nir_move_copies |
@@ -858,20 +869,78 @@ bifrost_postprocess_nir(nir_shader *nir,
    NIR_PASS(_, nir, nir_opt_sink, move_all);
    NIR_PASS(_, nir, nir_opt_move, move_all);
 
-   bi_lower_texture_nir(nir, gpu_id);
+   /* The varying layout (if any) may have different bit sizes for some
+    * varyings than we have in the shader.  For descriptors, this isn't a
+    * problem as it's handled by the descriptor layout.  However, for direct
+    * loads and stores on Valhall+, we need the right bit sizes in the shader.
+    * We could do this in the back-end as we emit but it's easier for now to
+    * lower in NIR.  This also handles the case where we do a load from the
+    * fragment shader of something that isn't written by the vertex shader.
+    * In that case, we just return zero.
+    */
+   if (pan_arch(inputs->gpu_id) >= 9 && inputs->varying_layout)
+      NIR_PASS(_, nir, pan_nir_resize_varying_io, inputs->varying_layout);
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      NIR_PASS(_, nir, nir_lower_is_helper_invocation);
+      NIR_PASS(_, nir, pan_nir_lower_helper_invocation);
+      NIR_PASS(_, nir, pan_nir_lower_sample_pos);
       NIR_PASS(_, nir, pan_nir_lower_noperspective_fs);
+      NIR_PASS(_, nir, nir_lower_frag_coord_to_pixel_coord);
+      NIR_PASS(_, nir, pan_nir_lower_var_special_pan);
 
+      /* TODO: should we do this in VS too? Should we do this earlier? */
       NIR_PASS(_, nir, nir_lower_mediump_io,
                nir_var_shader_in | nir_var_shader_out,
                ~bi_fp32_varying_mask(nir), false);
 
       NIR_PASS(_, nir, bifrost_nir_lower_load_output);
+
+      /* Collect format varyings */
+      pan_varying_collect_formats(&info->varyings.formats,
+                                  nir, inputs->gpu_id,
+                                  inputs->trust_varying_flat_highp_types,
+                                  false /* lower mediump */);
+
+      /* TODO: This can go in lower_noperspective_fs */
+      info->varyings.noperspective =
+         pan_nir_collect_noperspective_varyings_fs(nir);
+
+      if (!inputs->is_blend)
+         NIR_PASS(_, nir, pan_nir_lower_fs_inputs, inputs->gpu_id,
+                  inputs->varying_layout, info);
+
+      /* Blit shaders may not need to run ATEST, since ATEST is not needed if
+       * early-z is forced, alpha-to-coverage is disabled, and there are no
+       * writes to the coverage mask. The latter two are satisfied for all
+       * blit shaders, so we just care about early-z, which blit shaders force
+       * iff they do not write depth or stencil
+       */
+      const bool emit_zs =
+         nir->info.outputs_written & (BITFIELD_BIT(FRAG_RESULT_DEPTH) |
+                                      BITFIELD_BIT(FRAG_RESULT_STENCIL));
+      const bool skip_atest = inputs->is_blit && !emit_zs;
+      NIR_PASS(_, nir, pan_nir_lower_fs_outputs, skip_atest);
    } else if (nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, nir_lower_viewport_transform);
       NIR_PASS(_, nir, nir_lower_point_size, 1.0, 0.0);
+
+      /* Copy varying format & Layout */
+      assert(inputs->varying_layout);
+      memcpy(&info->varyings.formats, inputs->varying_layout,
+             sizeof(*inputs->varying_layout));
+
+      info->vs.idvs = bi_should_idvs(nir, inputs);
+
+      if (info->vs.idvs && nir->info.writes_memory)
+         NIR_PASS(_, nir, bifrost_nir_lower_vs_atomics);
+
+      /* Needs to run after lower_vs_atomics as it inserts operations between
+       * ssbo_atomic and store_output */
       NIR_PASS(_, nir, pan_nir_lower_noperspective_vs);
+      NIR_PASS(_, nir, pan_nir_lower_vs_outputs, inputs->gpu_id,
+               inputs->varying_layout, info->vs.idvs,
+               &info->vs.needs_extended_fifo);
    }
 
    /* Our OpenCL compiler (src/panfrost/clc/pan_compile.c) has a very weird and
@@ -937,73 +1006,62 @@ bifrost_postprocess_nir(nir_shader *nir,
     * we can implement reductions and scans on f16vec2 values without splitting
     * to scalar first.
     */
+   const nir_lower_subgroups_options lower_subgroup_opts = {
+      .subgroup_size = pan_subgroup_size(gpu_arch),
+      .ballot_bit_size = 32,
+      .ballot_components = 1,
+      .lower_to_scalar = true,
+      .lower_vote_feq = true,
+      .lower_vote_ieq = true,
+      .lower_vote_bool_eq = true,
+      .lower_first_invocation_to_ballot = true,
+      .lower_read_first_invocation = true,
+      .lower_subgroup_masks = true,
+      .lower_relative_shuffle = true,
+      .lower_shuffle = true,
+      .lower_quad = true,
+      .lower_quad_broadcast_dynamic = true,
+      .lower_quad_vote = true,
+      .lower_elect = true,
+      .lower_rotate_to_shuffle = true,
+      .lower_rotate_clustered_to_shuffle = true,
+      .lower_inverse_ballot = true,
+      .lower_reduce = true,
+      .lower_boolean_reduce = true,
+      .lower_boolean_shuffle = true,
+   };
    bool lower_subgroups_progress = false;
    NIR_PASS(lower_subgroups_progress, nir, nir_lower_subgroups,
-      &(nir_lower_subgroups_options) {
-         .subgroup_size = pan_subgroup_size(pan_arch(gpu_id)),
-         .ballot_bit_size = 32,
-         .ballot_components = 1,
-         .lower_to_scalar = true,
-         .lower_vote_feq = true,
-         .lower_vote_ieq = true,
-         .lower_vote_bool_eq = true,
-         .lower_first_invocation_to_ballot = true,
-         .lower_read_first_invocation = true,
-         .lower_subgroup_masks = true,
-         .lower_relative_shuffle = true,
-         .lower_shuffle = true,
-         .lower_quad = true,
-         .lower_quad_broadcast_dynamic = true,
-         .lower_quad_vote = true,
-         .lower_elect = true,
-         .lower_rotate_to_shuffle = true,
-         .lower_rotate_clustered_to_shuffle = true,
-         .lower_inverse_ballot = true,
-         .lower_reduce = true,
-         .lower_boolean_reduce = true,
-         .lower_boolean_shuffle = true,
-      });
-   /* nir_lower_subgroups creates new vars, clean them up. */
+            &lower_subgroup_opts);
+   /* lower_subgroups creates vars, clean them up before lower_64bit_phis */
    if (lower_subgroups_progress)
       NIR_PASS(_, nir, nir_lower_vars_to_ssa);
 
    NIR_PASS(_, nir, nir_shader_intrinsics_pass, bi_lower_subgroups,
-      nir_metadata_control_flow, (void *) &gpu_id);
+            nir_metadata_control_flow, (void *) &gpu_id);
 
+   /* Lower constant idiv before we lower 64-bit integers */
+   NIR_PASS(_, nir, nir_opt_idiv_const, 8);
+
+   /* Lower 64-bit integers */
    NIR_PASS(_, nir, nir_lower_64bit_phis);
    NIR_PASS(_, nir, nir_lower_int64);
+
+   const nir_lower_idiv_options lower_idiv_opts = {
+      .allow_fp16 = true,
+   };
+   NIR_PASS(_, nir, nir_lower_idiv, &lower_idiv_opts);
+
+   NIR_PASS(_, nir, nir_lower_flrp, 16 | 32 | 64, false /* always_precise */);
+   NIR_PASS(_, nir, nir_lower_alu); /* Lower [iu]mul_high */
+
+   /* Lower bit sizes and vector widths */
    NIR_PASS(_, nir, nir_lower_bit_size, bi_lower_bit_size, (void *) &gpu_id);
-
-   NIR_PASS(_, nir, nir_opt_idiv_const, 8);
-   NIR_PASS(_, nir, nir_lower_idiv,
-            &(nir_lower_idiv_options){.allow_fp16 = true});
-
    NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
    NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
    NIR_PASS(_, nir, nir_lower_phis_to_scalar, bi_vectorize_filter, &gpu_id);
-   NIR_PASS(_, nir, nir_lower_flrp, 16 | 32 | 64, false /* always_precise */);
-   NIR_PASS(_, nir, nir_lower_var_copies);
-   NIR_PASS(_, nir, nir_lower_alu);
-   NIR_PASS(_, nir, nir_lower_frag_coord_to_pixel_coord);
-   NIR_PASS(_, nir, pan_nir_lower_var_special_pan);
 
-   bi_lower_texture_late_nir(nir, gpu_id);
-}
-
-static void
-bi_lower_texture_nir(nir_shader *nir, uint64_t gpu_id)
-{
-   NIR_PASS(_, nir, nir_lower_image_atomics_to_global, NULL, NULL);
-
-   /* on Bifrost, lower MSAA load/stores to 3D load/stores */
-   if (pan_arch(gpu_id) < 9)
-      NIR_PASS(_, nir, pan_nir_lower_image_ms);
-
-   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-      NIR_PASS(_, nir, nir_lower_is_helper_invocation);
-      NIR_PASS(_, nir, pan_nir_lower_helper_invocation);
-      NIR_PASS(_, nir, pan_nir_lower_sample_pos);
-   }
+   bi_optimize_loop(nir, gpu_id, false /* allow_copies */);
 }
 
 static bool
@@ -1136,18 +1194,6 @@ pan_nir_lower_buf_image_access(nir_shader *shader, unsigned arch)
                                      nir_metadata_control_flow, &arch);
 }
 
-/* This must be called after any lowering of resource indices
- * (panfrost_nir_lower_res_indices / panvk_per_arch(nir_lower_descriptors))
- * and lowering of attribute indices (pan_nir_lower_image_index /
- * pan_nir_lower_texel_buffer_fetch_index)
- */
-static void
-bi_lower_texture_late_nir(nir_shader *nir, uint64_t gpu_id)
-{
-   NIR_PASS(_, nir, pan_nir_lower_texel_buffer_fetch, pan_arch(gpu_id));
-   NIR_PASS(_, nir, pan_nir_lower_buf_image_access, pan_arch(gpu_id));
-}
-
 /* Decide if Index-Driven Vertex Shading should be used for a given shader */
 static bool
 bi_should_idvs(nir_shader *nir, const struct pan_compile_inputs *inputs)
@@ -1179,6 +1225,10 @@ bi_should_idvs(nir_shader *nir, const struct pan_compile_inputs *inputs)
  * This allows
  * "dEQP-GLES31.functional.shaders.opaque_type_indexing.atomic_counter.*" to
  * pass under ANGLE.
+ * TODO: We should fix the tests and fix ANGLE too since VS atomics are not yet
+ *       enabled for panvk (even though they should be).  This pass is only here
+ *       to pass a couple tests and breaks if any operation is inserted between
+ *       the atomic operation and the varying store.
  */
 
 static bool
@@ -1252,43 +1302,6 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    bifrost_init_debug_options();
 
-   /* The varying layout (if any) may have different bit sizes for some
-    * varyings than we have in the shader.  For descriptors, this isn't a
-    * problem as it's handled by the descriptor layout.  However, for direct
-    * loads and stores on Valhall+, we need the right bit sizes in the shader.
-    * We could do this in the back-end as we emit but it's easier for now to
-    * lower in NIR.  This also handles the case where we do a load from the
-    * fragment shader of something that isn't written by the vertex shader.
-    * In that case, we just return zero.
-    */
-   if (pan_arch(inputs->gpu_id) >= 9 && inputs->varying_layout)
-      NIR_PASS(_, nir, pan_nir_resize_varying_io, inputs->varying_layout);
-
-   if (nir->info.stage == MESA_SHADER_VERTEX) {
-      info->vs.idvs = bi_should_idvs(nir, inputs);
-
-      if (info->vs.idvs && nir->info.writes_memory)
-         NIR_PASS(_, nir, bifrost_nir_lower_vs_atomics);
-
-      NIR_PASS(_, nir, pan_nir_lower_vs_outputs, inputs->gpu_id,
-               inputs->varying_layout, info->vs.idvs,
-               &info->vs.needs_extended_fifo);
-   }
-
-   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-      /* Blit shaders may not need to run ATEST, since ATEST is not needed if
-       * early-z is forced, alpha-to-coverage is disabled, and there are no
-       * writes to the coverage mask. The latter two are satisfied for all
-       * blit shaders, so we just care about early-z, which blit shaders force
-       * iff they do not write depth or stencil
-       */
-      const bool emit_zs =
-         nir->info.outputs_written & (BITFIELD_BIT(FRAG_RESULT_DEPTH) |
-                                      BITFIELD_BIT(FRAG_RESULT_STENCIL));
-      const bool skip_atest = inputs->is_blit && !emit_zs;
-      NIR_PASS(_, nir, pan_nir_lower_fs_outputs, skip_atest);
-   }
-
    bi_optimize_late(nir, inputs->gpu_id, inputs->robust_modes);
 
    /* Lower constants to scalar but then immediately fold so we get minimum-
@@ -1303,22 +1316,6 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    info->tls_size = nir->scratch_size;
    info->stage = nir->info.stage;
-
-   if (nir->info.stage == MESA_SHADER_VERTEX) {
-      assert(inputs->varying_layout);
-      memcpy(&info->varyings.formats, inputs->varying_layout,
-             sizeof(*inputs->varying_layout));
-   } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-      pan_varying_collect_formats(&info->varyings.formats,
-                                  nir, inputs->gpu_id,
-                                  inputs->trust_varying_flat_highp_types, false);
-      info->varyings.noperspective =
-         pan_nir_collect_noperspective_varyings_fs(nir);
-
-      if (!inputs->is_blend)
-         NIR_PASS(_, nir, pan_nir_lower_fs_inputs, inputs->gpu_id,
-                  inputs->varying_layout, info);
-   }
 
    if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs) {
       /* On 5th Gen, IDVS is only in one binary */
