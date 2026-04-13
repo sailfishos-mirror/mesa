@@ -3206,11 +3206,6 @@ jay_gather_stats(const jay_shader *s, struct genisa_stats *stats)
 
       /* XXX: Write a real cycle model */
       stats->cycles++;
-
-      /* Calculate register usage */
-      if (I->dst.file == GPR)
-         stats->grf_registers =
-            MAX2(stats->grf_registers, I->dst.reg + jay_num_values(I->dst));
    }
 
    stats->spills = s->spills;
