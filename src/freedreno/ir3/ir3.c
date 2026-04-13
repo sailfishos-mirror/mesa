@@ -1331,10 +1331,6 @@ ir3_store_const(struct ir3_shader_variant *so, struct ir3_builder *build,
       stc->flags |= IR3_INSTR_A1EN;
    }
 
-   /* The assembler isn't aware of what value a1.x has, so make sure that
-    * constlen includes the stc here.
-    */
-   so->constlen = MAX2(so->constlen, DIV_ROUND_UP(dst + components, 4));
    struct ir3_block *block = ir3_cursor_current_block(build->cursor);
    array_insert(block, block->keeps, stc);
    return stc;

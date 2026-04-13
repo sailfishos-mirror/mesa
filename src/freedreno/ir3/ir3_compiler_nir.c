@@ -1231,12 +1231,6 @@ emit_intrinsic_copy_ubo_to_uniform(struct ir3_context *ctx,
 
    ir3_instr_set_address(ldc, addr1);
 
-   /* The assembler isn't aware of what value a1.x has, so make sure that
-    * constlen includes the ldc.k here.
-    */
-   ctx->so->constlen =
-      MAX2(ctx->so->constlen, DIV_ROUND_UP(base + size * 4, 4));
-
    array_insert(ctx->block, ctx->block->keeps, ldc);
 }
 
@@ -1269,12 +1263,6 @@ emit_intrinsic_copy_global_to_uniform(struct ir3_context *ctx,
       ldg->flags |= IR3_INSTR_A1EN;
    }
 
-   /* The assembler isn't aware of what value a1.x has, so make sure that
-    * constlen includes the ldg.k here.
-    */
-   ctx->so->constlen =
-      MAX2(ctx->so->constlen, DIV_ROUND_UP(dst + size * 4, 4));
-
    array_insert(ctx->block, ctx->block->keeps, ldg);
 }
 
@@ -1302,15 +1290,6 @@ emit_intrinsic_load_ubo(struct ir3_context *ctx, nir_intrinsic_instr *intr,
                                         ir3_get_addr0(ctx, src0, ptrsz));
       base_hi = create_uniform_indirect(b, ubo + 1, TYPE_U32,
                                         ir3_get_addr0(ctx, src0, ptrsz));
-
-      /* NOTE: since relative addressing is used, make sure constlen is
-       * at least big enough to cover all the UBO addresses, since the
-       * assembler won't know what the max address reg is.
-       */
-      ctx->so->constlen = MAX2(
-         ctx->so->constlen,
-         const_state->allocs.consts[IR3_CONST_ALLOC_UBO_PTRS].offset_vec4 +
-            (ctx->s->info.num_ubos * ptrsz));
    }
 
    /* note: on 32bit gpu's base_hi is ignored and DCE'd */
@@ -3253,10 +3232,6 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
             dst[i] = create_driver_param_indirect(ctx, param + i,
                                                   ir3_get_addr0(ctx, view, 8));
          }
-         ctx->so->constlen =
-            MAX2(ctx->so->constlen,
-                 const_state->allocs.consts[IR3_CONST_ALLOC_DRIVER_PARAMS].offset_vec4 +
-                    param / 4 + nir_intrinsic_range(intr) * 2);
       }
       break;
    }
@@ -3502,11 +3477,6 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
       load->push_consts.dst_base = nir_src_as_uint(intr->src[0]);
       load->push_consts.src_base = nir_intrinsic_base(intr);
       load->push_consts.src_size = nir_intrinsic_range(intr);
-
-      ctx->so->constlen =
-         MAX2(ctx->so->constlen,
-              DIV_ROUND_UP(
-                 load->push_consts.dst_base + load->push_consts.src_size, 4));
       break;
    }
    case nir_intrinsic_prefetch_sam_ir3: {
@@ -6252,26 +6222,7 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
 
    ctx->so->sample_shading = ctx->s->info.fs.uses_sample_shading;
 
-   if (ctx->has_relative_load_const_ir3) {
-      /* NOTE: if relative addressing is used, we set
-       * constlen in the compiler (to worst-case value)
-       * since we don't know in the assembler what the max
-       * addr reg value can be:
-       */
-      const struct ir3_const_state *const_state = ir3_const_state(ctx->so);
-      const enum ir3_const_alloc_type rel_const_srcs[] = {
-         IR3_CONST_ALLOC_INLINE_UNIFORM_ADDRS, IR3_CONST_ALLOC_UBO_RANGES,
-         IR3_CONST_ALLOC_PREAMBLE, IR3_CONST_ALLOC_GLOBAL};
-      for (int i = 0; i < ARRAY_SIZE(rel_const_srcs); i++) {
-         const struct ir3_const_allocation *const_alloc =
-            &const_state->allocs.consts[rel_const_srcs[i]];
-         if (const_alloc->size_vec4 > 0) {
-            ctx->so->constlen =
-               MAX2(ctx->so->constlen,
-                    const_alloc->offset_vec4 + const_alloc->size_vec4);
-         }
-      }
-   }
+   so->constlen = ir3_constlen(so);
 
    if (ctx->so->type == MESA_SHADER_FRAGMENT &&
        compiler->info->props.fs_must_have_non_zero_constlen_quirk) {

@@ -1082,6 +1082,13 @@ ir3_const_state_mut(const struct ir3_shader_variant *v)
 }
 
 static inline unsigned
+ir3_constlen(const struct ir3_shader_variant *v)
+{
+   return ir3_const_state(v)->allocs.max_const_offset_vec4 +
+          v->imm_state.size / 4;
+}
+
+static inline unsigned
 ir3_max_const_compute(const struct ir3_shader_variant *v,
                       const struct ir3_compiler *compiler)
 {
