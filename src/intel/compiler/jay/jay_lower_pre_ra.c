@@ -143,6 +143,9 @@ try_swap_src01(jay_inst *I)
 static void
 lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
 {
+   if (I->num_srcs == 0)
+      return;
+
    /* Canonicalize compare-with-zero to increase freedom */
    if (I->op == JAY_OPCODE_CMP &&
        jay_is_zero(I->src[1]) &&
