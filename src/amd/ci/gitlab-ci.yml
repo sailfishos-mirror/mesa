@@ -223,7 +223,6 @@ radv-renoir-vkcts-full:
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 130
     RADV_EXPERIMENTAL: transfer_queue
-    FDO_CI_CONCURRENT: 12  # HACK: Reduce the memory pressure
 
 radv-navi10-vkcts-full:
   parallel: 2
