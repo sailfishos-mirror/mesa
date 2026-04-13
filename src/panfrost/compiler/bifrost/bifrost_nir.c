@@ -847,9 +847,14 @@ nir_shader_has_local_variables(const nir_shader *nir)
 }
 
 void
-bifrost_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
+bifrost_postprocess_nir(nir_shader *nir,
+                        const struct pan_compile_inputs *inputs,
+                        struct pan_shader_info *info)
 {
    MESA_TRACE_FUNC();
+
+   const uint64_t gpu_id = inputs->gpu_id;
+   const unsigned gpu_arch = pan_arch(gpu_id);
 
    /* We assume that UBO and SSBO were lowered, let's move things around. */
    nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo |
@@ -924,8 +929,8 @@ bifrost_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
    NIR_PASS(_, nir, nir_lower_mem_access_bit_sizes, &mem_size_options);
 
    nir_lower_ssbo_options ssbo_opts = {
-      .native_loads = pan_arch(gpu_id) >= 9,
-      .native_offset = pan_arch(gpu_id) >= 9,
+      .native_loads = gpu_arch >= 9,
+      .native_offset = gpu_arch >= 9,
    };
    NIR_PASS(_, nir, nir_lower_ssbo, &ssbo_opts);
 
@@ -969,11 +974,11 @@ bifrost_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
       NIR_PASS(_, nir, nir_lower_vars_to_ssa);
 
    NIR_PASS(_, nir, nir_shader_intrinsics_pass, bi_lower_subgroups,
-      nir_metadata_control_flow, &gpu_id);
+      nir_metadata_control_flow, (void *) &gpu_id);
 
    NIR_PASS(_, nir, nir_lower_64bit_phis);
    NIR_PASS(_, nir, nir_lower_int64);
-   NIR_PASS(_, nir, nir_lower_bit_size, bi_lower_bit_size, &gpu_id);
+   NIR_PASS(_, nir, nir_lower_bit_size, bi_lower_bit_size, (void *) &gpu_id);
 
    NIR_PASS(_, nir, nir_opt_idiv_const, 8);
    NIR_PASS(_, nir, nir_lower_idiv,

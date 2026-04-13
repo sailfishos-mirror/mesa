@@ -979,7 +979,7 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
       NIR_PASS(_, nir, pan_nir_lower_texel_buffer_fetch_index, MAX_VS_ATTRIBS);
    }
 
-   pan_postprocess_nir(nir, input.gpu_id);
+   pan_postprocess_nir(nir, &input, &shader->info);
 
    if (noperspective_varyings && nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, nir_inline_sysval,
@@ -2471,6 +2471,8 @@ panvk_per_arch(create_internal_shader)(
    struct util_dynarray binary;
 
    panvk_per_arch(compiler_lock)();
+
+   pan_postprocess_nir(nir, compiler_inputs, &shader->info);
 
    util_dynarray_init(&binary, nir);
    pan_shader_compile(nir, compiler_inputs, &binary, &shader->info);

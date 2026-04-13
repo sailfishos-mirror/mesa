@@ -71,7 +71,9 @@ struct pan_compile_inputs {
  */
 void pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id);
 void pan_optimize_nir(nir_shader *nir, uint64_t gpu_id);
-void pan_postprocess_nir(nir_shader *nir, uint64_t gpu_id);
+void pan_postprocess_nir(nir_shader *nir,
+                         const struct pan_compile_inputs *inputs,
+                         struct pan_shader_info *info);
 
 void pan_shader_compile(nir_shader *nir, struct pan_compile_inputs *inputs,
                         struct util_dynarray *binary,
