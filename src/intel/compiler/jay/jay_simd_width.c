@@ -21,6 +21,7 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
        I->op == JAY_OPCODE_EXTRACT_LAYER ||
        I->op == JAY_OPCODE_EXTRACT_BYTE_PER_8LANES ||
        I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS ||
+       I->op == JAY_OPCODE_DESWIZZLE_ODD ||
        I->op == JAY_OPCODE_MUL_32 ||
        I->op == JAY_OPCODE_SHUFFLE) {
       return 16;

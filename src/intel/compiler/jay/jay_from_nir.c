@@ -3062,27 +3062,7 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       }
 
       b->cursor = jay_before_block(nj->after_block);
-      unsigned size = p->offsets[GPR];
-
-      /* Odd: copy both halves to contiguous pair after payload */
-      for (unsigned i = 1; i < size; i += 2) {
-         jay_DESWIZZLE_16(b, size + size + i + 1, 2 + i);
-         jay_DESWIZZLE_16(b, size + size + i + 2, 2 + i + size);
-      }
-
-      /* Even: leave the bottom half in place, copy top half. If size=1 (rare
-       * but possible), this would be a no-op move so skip it.
-       */
-      if (size > 1) {
-         for (unsigned i = 0; i < size; i += 2) {
-            jay_inst *I = jay_DESWIZZLE_16(b, 2 + i + 1, 2 + size + i);
-
-            /* Stall in between to avoid a write-after-read hazard */
-            if (i == 0) {
-               I->dep = (struct tgl_swsb) { 1, TGL_PIPE_INT };
-            }
-         }
-      }
+      jay_DESWIZZLE(b, p->offsets[GPR]);
    }
 }
 
