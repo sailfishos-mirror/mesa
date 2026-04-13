@@ -301,7 +301,8 @@ impl<'a> CopyPropPass<'a> {
                     }
 
                     // If there are modifiers, the source types have to match
-                    if !entry.src.is_unmodified() && entry.src_type != src_type
+                    if !entry.src.is_unmodified()
+                        && !entry.src_type.eq_ftz_mod(src_type)
                     {
                         return;
                     }

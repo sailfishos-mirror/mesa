@@ -1315,6 +1315,16 @@ pub enum SrcType {
 
 impl SrcType {
     const DEFAULT: SrcType = SrcType::GPR;
+
+    pub fn is_fp16(&self) -> bool {
+        matches!(self, Self::F16 | Self::F16v2)
+    }
+
+    /// Checks if consuming a value has the same semantics in regards to ftz
+    /// and modifiers. E.g. F16v2 and F16 would return true here.
+    pub fn eq_ftz_mod(&self, other: Self) -> bool {
+        *self == other || (self.is_fp16() && other.is_fp16())
+    }
 }
 
 pub type SrcTypeList = AttrList<SrcType>;
