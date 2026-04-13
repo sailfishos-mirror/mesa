@@ -674,7 +674,7 @@
         "description": "hk: Add HK_MAX_RTS to maxFragmentCombinedOutputResources",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "564b06198147abec0074b142b751d5219592409b",
         "notes": null
