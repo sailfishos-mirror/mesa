@@ -981,7 +981,6 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
    }
 
    pan_postprocess_nir(nir, input.gpu_id);
-   pan_nir_lower_texture_late(nir, input.gpu_id);
 
    if (noperspective_varyings && nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, nir_inline_sysval,

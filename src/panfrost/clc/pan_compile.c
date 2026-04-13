@@ -430,7 +430,6 @@ main(int argc, const char **argv)
                   nir_address_format_62bit_generic);
 
          pan_postprocess_nir(s, inputs.gpu_id);
-         pan_nir_lower_texture_late(s, inputs.gpu_id);
 
          NIR_PASS(_, s, nir_shader_intrinsics_pass, lower_sysvals,
                   nir_metadata_control_flow, NULL);

@@ -101,18 +101,6 @@ pan_nir_lower_texture_early(nir_shader *nir, uint64_t gpu_id)
 
    NIR_PASS(_, nir, nir_lower_tex, &lower_tex_options);
 }
-
-void
-pan_nir_lower_texture_late(nir_shader *nir, uint64_t gpu_id)
-{
-   /* This must be called after any lowering of resource indices
-    * (panfrost_nir_lower_res_indices / panvk_per_arch(nir_lower_descriptors))
-    * and lowering of attribute indices (pan_nir_lower_image_index /
-    * pan_nir_lower_texel_buffer_fetch_index)  */
-   if (pan_arch(gpu_id) >= 6)
-      bifrost_lower_texture_late_nir(nir, gpu_id);
-}
-
 /** Converts a per-component mask to a byte mask */
 uint16_t
 pan_to_bytemask(unsigned bytes, unsigned mask)
