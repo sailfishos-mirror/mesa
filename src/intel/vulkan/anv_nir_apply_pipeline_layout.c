@@ -322,6 +322,109 @@ get_used_bindings(UNUSED nir_builder *_b, nir_instr *instr, void *_state)
    return false;
 }
 
+static nir_def *
+build_load_desc_set_dynamic_index(nir_builder *b, unsigned set_idx)
+{
+   return nir_iand_imm(
+      b,
+      anv_load_driver_uniform(b, 1, desc_surface_offsets[set_idx]),
+      ANV_DESCRIPTOR_SET_DYNAMIC_INDEX_MASK);
+}
+
+/** Build a Vulkan resource index
+ *
+ * A "resource index" is the term used by our SPIR-V parser and the relevant
+ * NIR intrinsics for a reference into a descriptor set.  It acts much like a
+ * deref in NIR except that it accesses opaque descriptors instead of memory.
+ *
+ * Coming out of SPIR-V, both the resource indices (in the form of
+ * vulkan_resource_[re]index intrinsics) and the memory derefs (in the form
+ * of nir_deref_instr) use the same vector component/bit size.  The meaning
+ * of those values for memory derefs (nir_deref_instr) is given by the
+ * nir_address_format associated with the descriptor type.  For resource
+ * indices, it's an entirely internal to ANV encoding which describes, in some
+ * sense, the address of the descriptor.  Thanks to the NIR/SPIR-V rules, it
+ * must be packed into the same size SSA values as a memory address.  For this
+ * reason, the actual encoding may depend both on the address format for
+ * memory derefs and the descriptor address format.
+ *
+ * The load_vulkan_descriptor intrinsic exists to provide a transition point
+ * between these two forms of derefs: descriptor and memory.
+ */
+static nir_def *
+build_res_index(nir_builder *b,
+                uint32_t set, uint32_t binding,
+                nir_def *array_index,
+                const struct apply_pipeline_layout_state *state)
+{
+   const struct anv_descriptor_set_binding_layout *bind_layout =
+      &state->set_layouts[set]->binding[binding];
+
+   assert(bind_layout->dynamic_offset_index < MAX_DYNAMIC_BUFFERS);
+      nir_def *dynamic_offset_index;
+      if (bind_layout->dynamic_offset_index >= 0) {
+         if (state->dynamic_offset_start == NULL) {
+            nir_def *dynamic_offset_start =
+               build_load_desc_set_dynamic_index(b, set);
+            dynamic_offset_index =
+               nir_iadd_imm(b, dynamic_offset_start,
+                            bind_layout->dynamic_offset_index);
+         } else {
+            dynamic_offset_index =
+               nir_imm_int(b,
+                           state->dynamic_offset_start[set] +
+                           bind_layout->dynamic_offset_index);
+         }
+      } else {
+         dynamic_offset_index = nir_imm_int(b, 0xff); /* No dynamic offset */
+      }
+
+   /* We don't care about the stride field for inline uniforms (see
+    * build_desc_addr_for_res_index), but for anything else we should be
+    * aligned to 8 bytes because we store a multiple of 8 in the packed info
+    * to be able to encode a stride up to 2040 (8 * 255).
+    */
+   assert(bind_layout->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK ||
+          bind_layout->descriptor_surface_stride % 8 == 0);
+   const uint32_t desc_stride =
+      bind_layout->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK ? 0 :
+      bind_layout->descriptor_surface_stride / 8;
+
+   nir_def *packed =
+      nir_ior_imm(b,
+                  dynamic_offset_index,
+                  (desc_stride << 8));
+
+   return nir_vec4(b,
+                   nir_imm_int(b, set),
+                   packed,
+                   nir_imm_int(b, bind_layout->descriptor_surface_offset),
+                   array_index);
+}
+
+struct res_index_defs {
+   nir_def *bti_idx;
+   nir_def *set;
+   nir_def *dyn_offset_base;
+   nir_def *desc_offset_base;
+   nir_def *array_index;
+   nir_def *desc_stride;
+};
+
+static struct res_index_defs
+unpack_res_index(nir_builder *b, nir_def *index)
+{
+   nir_def *packed = nir_channel(b, index, 1);
+
+   return (struct res_index_defs) {
+      .set              = nir_channel(b, index, 0),
+      .desc_stride      = nir_imul_imm(b, nir_extract_u8_imm(b, packed, 1), 8),
+      .dyn_offset_base  = nir_extract_u8_imm(b, packed, 0),
+      .desc_offset_base = nir_channel(b, index, 2),
+      .array_index      = nir_channel(b, index, 3),
+   };
+}
+
 static nir_intrinsic_instr *
 find_descriptor_for_index_src(nir_src src,
                               struct apply_pipeline_layout_state *state)
@@ -590,15 +693,6 @@ build_load_storage_3d_image_depth(nir_builder *b,
    }
 }
 
-static nir_def *
-build_load_desc_set_dynamic_index(nir_builder *b, unsigned set_idx)
-{
-   return nir_iand_imm(
-      b,
-      anv_load_driver_uniform(b, 1, desc_surface_offsets[set_idx]),
-      ANV_DESCRIPTOR_SET_DYNAMIC_INDEX_MASK);
-}
-
 /** Build a 64bit_global_32bit_offset address for a descriptor set */
 static nir_def *
 build_desc_address64(nir_builder *b, nir_def *set_idx, unsigned set_idx_imm,
@@ -694,100 +788,6 @@ build_desc_address32(nir_builder *b,
                                                set < MAX_SETS ?
                                                nir_imm_int(b, set) : set_idx),
                             offset));
-}
-
-/** Build a Vulkan resource index
- *
- * A "resource index" is the term used by our SPIR-V parser and the relevant
- * NIR intrinsics for a reference into a descriptor set.  It acts much like a
- * deref in NIR except that it accesses opaque descriptors instead of memory.
- *
- * Coming out of SPIR-V, both the resource indices (in the form of
- * vulkan_resource_[re]index intrinsics) and the memory derefs (in the form
- * of nir_deref_instr) use the same vector component/bit size.  The meaning
- * of those values for memory derefs (nir_deref_instr) is given by the
- * nir_address_format associated with the descriptor type.  For resource
- * indices, it's an entirely internal to ANV encoding which describes, in some
- * sense, the address of the descriptor.  Thanks to the NIR/SPIR-V rules, it
- * must be packed into the same size SSA values as a memory address.  For this
- * reason, the actual encoding may depend both on the address format for
- * memory derefs and the descriptor address format.
- *
- * The load_vulkan_descriptor intrinsic exists to provide a transition point
- * between these two forms of derefs: descriptor and memory.
- */
-static nir_def *
-build_res_index(nir_builder *b,
-                uint32_t set, uint32_t binding,
-                nir_def *array_index,
-                struct apply_pipeline_layout_state *state)
-{
-   const struct anv_descriptor_set_binding_layout *bind_layout =
-      &state->set_layouts[set]->binding[binding];
-
-   assert(bind_layout->dynamic_offset_index < MAX_DYNAMIC_BUFFERS);
-      nir_def *dynamic_offset_index;
-      if (bind_layout->dynamic_offset_index >= 0) {
-         if (state->dynamic_offset_start == NULL) {
-            nir_def *dynamic_offset_start =
-               build_load_desc_set_dynamic_index(b, set);
-            dynamic_offset_index =
-               nir_iadd_imm(b, dynamic_offset_start,
-                            bind_layout->dynamic_offset_index);
-         } else {
-            dynamic_offset_index =
-               nir_imm_int(b,
-                           state->dynamic_offset_start[set] +
-                           bind_layout->dynamic_offset_index);
-         }
-      } else {
-         dynamic_offset_index = nir_imm_int(b, 0xff); /* No dynamic offset */
-      }
-
-   /* We don't care about the stride field for inline uniforms (see
-    * build_desc_addr_for_res_index), but for anything else we should be
-    * aligned to 8 bytes because we store a multiple of 8 in the packed info
-    * to be able to encode a stride up to 2040 (8 * 255).
-    */
-   assert(bind_layout->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK ||
-          bind_layout->descriptor_surface_stride % 8 == 0);
-   const uint32_t desc_stride =
-      bind_layout->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK ? 0 :
-      bind_layout->descriptor_surface_stride / 8;
-
-   nir_def *packed =
-      nir_ior_imm(b,
-                  dynamic_offset_index,
-                  (desc_stride << 8));
-
-   return nir_vec4(b,
-                   nir_imm_int(b, set),
-                   packed,
-                   nir_imm_int(b, bind_layout->descriptor_surface_offset),
-                   array_index);
-}
-
-struct res_index_defs {
-   nir_def *bti_idx;
-   nir_def *set;
-   nir_def *dyn_offset_base;
-   nir_def *desc_offset_base;
-   nir_def *array_index;
-   nir_def *desc_stride;
-};
-
-static struct res_index_defs
-unpack_res_index(nir_builder *b, nir_def *index)
-{
-   nir_def *packed = nir_channel(b, index, 1);
-
-   return (struct res_index_defs) {
-      .set              = nir_channel(b, index, 0),
-      .desc_stride      = nir_imul_imm(b, nir_extract_u8_imm(b, packed, 1), 8),
-      .dyn_offset_base  = nir_extract_u8_imm(b, packed, 0),
-      .desc_offset_base = nir_channel(b, index, 2),
-      .array_index      = nir_channel(b, index, 3),
-   };
 }
 
 /** Whether a surface is accessed through the bindless surface state heap */
