@@ -168,6 +168,7 @@ struct ethosu_operation {
 
       struct {
          enum ethosu_pooling_type type;
+         bool nop;
       } pooling;
 
       struct {
@@ -278,6 +279,6 @@ int ethosu_round_up_to_multiple(int a, int b);
 
 int ethosu_round_up_divide(int a, int b);
 
-int ethosu_quantize_scale(double scale, int32_t *shift);
+int ethosu_quantize_scale(double scale, int32_t *shift, bool reduced);
 
 #endif /* ETHOSU_ML_H */

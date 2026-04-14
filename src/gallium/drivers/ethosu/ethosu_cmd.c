@@ -472,38 +472,45 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 
    emit_common(subgraph, operation, false);
 
-   switch (operation->pooling.type) {
-   case ETHOSU_POOLING_TYPE_MAX: {
-      if (!ethosu_ml_device(subgraph->base.device)->is_u65) {
-         EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_ROUND_MODE(1), 1);
-         break;
-      } else
-         FALLTHROUGH;
-   }
-   case ETHOSU_POOLING_TYPE_AVG: {
-      scale = pooling_emit_ofm_scaling(
-         operation->ifm.scale,
-         operation->ofm.scale,
-         operation->kernel.height,
-         operation->kernel.width,
-         &scale_shift);
-
+   if (operation->pooling.nop) {
+      scale = ethosu_quantize_scale(
+         operation->ifm.scale / operation->ofm.scale,
+         &scale_shift, true);
       EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
-      break;
-   }
-   case ETHOSU_POOLING_TYPE_SUM: {
-      scale = sum_emit_ofm_scaling(
-         operation->ifm.scale,
-         operation->ofm.scale,
-         operation->kernel.height,
-         operation->kernel.width,
-         &scale_shift);
+   } else {
+      switch (operation->pooling.type) {
+      case ETHOSU_POOLING_TYPE_MAX: {
+         if (!ethosu_ml_device(subgraph->base.device)->is_u65) {
+            EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_ROUND_MODE(1), 1);
+            break;
+         } else
+            FALLTHROUGH;
+      }
+      case ETHOSU_POOLING_TYPE_AVG: {
+         scale = pooling_emit_ofm_scaling(
+            operation->ifm.scale,
+            operation->ofm.scale,
+            operation->kernel.height,
+            operation->kernel.width,
+            &scale_shift);
 
-      EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift) | NPU_SET_OFM_SCALE_ROUND_MODE(1), scale);
-      break;
-   }
-   default:
-      UNREACHABLE("Invalid pooling type");
+         EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
+         break;
+      }
+      case ETHOSU_POOLING_TYPE_SUM: {
+         scale = sum_emit_ofm_scaling(
+            operation->ifm.scale,
+            operation->ofm.scale,
+            operation->kernel.height,
+            operation->kernel.width,
+            &scale_shift);
+
+         EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift) | NPU_SET_OFM_SCALE_ROUND_MODE(1), scale);
+         break;
+      }
+      default:
+         UNREACHABLE("Invalid pooling type");
+      }
    }
 
    emit_block_config(subgraph, operation);
@@ -658,8 +665,8 @@ eltwise_emit_ofm_scaling(
    input_rescale = min_input_scale * input_shift_val / (2.0 * max_input_scale);
    output_rescale = (2.0 * max_input_scale) / (output_scale * input_shift_val);
 
-   opa_scale = ethosu_quantize_scale(input_rescale, &opa_shift);
-   ofm_scale = ethosu_quantize_scale(output_rescale, &ofm_shift);
+   opa_scale = ethosu_quantize_scale(input_rescale, &opa_shift, false);
+   ofm_scale = ethosu_quantize_scale(output_rescale, &ofm_shift, false);
 
    if (DBG_ENABLED(ETHOSU_DBG_MSGS)) {
       fprintf(stderr, "ADD advanced scaling: ifm1_scale=%f ifm2_scale=%f ofm_scale=%f\n",
@@ -711,7 +718,7 @@ simplified_elementwise_add_sub_scale(
       output_rescale_val = (2.0 * max_input_scale) / (output_scale * input_shift_val);
    }
 
-   *out_out_scale = ethosu_quantize_scale(output_rescale_val, out_out_shift);
+   *out_out_scale = ethosu_quantize_scale(output_rescale_val, out_out_shift, false);
 }
 
 /*
@@ -739,8 +746,8 @@ eltwise_emit_ofm_scaling_u85(
       &input1_rescale, &input2_rescale,
       &ofm_scale, &ofm_shift);
 
-   opa_scale = ethosu_quantize_scale(input1_rescale, &opa_shift);
-   opb_scale = ethosu_quantize_scale(input2_rescale, &opb_shift);
+   opa_scale = ethosu_quantize_scale(input1_rescale, &opa_shift, false);
+   opb_scale = ethosu_quantize_scale(input2_rescale, &opb_shift, false);
 
    EMIT1(NPU_SET_OPA_SCALE,
          NPU_SET_OPA_SCALE_SHIFT(opa_shift) | NPU_SET_OPA_SCALE_DBL_RND(input_shift),

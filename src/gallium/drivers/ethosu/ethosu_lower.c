@@ -264,6 +264,7 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
       operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    } else
       operation->pooling.type = ETHOSU_POOLING_TYPE_SUM;
+   operation->pooling.nop = true;
 
    set_feature_maps(subgraph, poperation->input_tensors[input_idx], poperation->output_tensors[0], operation);
    operation->ofm.shape.depth = operation->ifm.shape.depth;

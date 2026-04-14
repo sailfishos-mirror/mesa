@@ -85,7 +85,7 @@ fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation 
       }
 
       int32_t shift;
-      int scale = ethosu_quantize_scale(conv_scale, &shift);
+      int scale = ethosu_quantize_scale(conv_scale, &shift, false);
 
       uint64_t bias = biases ? biases[i] : 0;
 
