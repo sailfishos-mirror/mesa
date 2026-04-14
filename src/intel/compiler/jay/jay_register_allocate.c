@@ -885,12 +885,6 @@ pick_regs(jay_ra_state *ra,
    return best_reg;
 }
 
-struct window {
-   jay_reg base;
-   uint16_t length;
-};
-static_assert(sizeof(struct window) == 4, "packed");
-
 static void
 assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
 {
