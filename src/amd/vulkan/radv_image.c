@@ -44,12 +44,9 @@ radv_choose_tiling(struct radv_device *device, const VkImageCreateInfo *pCreateI
       return RADEON_SURF_MODE_LINEAR_ALIGNED;
    }
 
-   if (pdev->info.vcn_ip_version < VCN_1_0_0 &&
-       pCreateInfo->usage & (VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR | VK_IMAGE_USAGE_VIDEO_ENCODE_DPB_BIT_KHR))
-      return RADEON_SURF_MODE_LINEAR_ALIGNED;
-
-   if (pdev->info.vcn_ip_version < VCN_5_0_0 &&
-       pCreateInfo->usage & (VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR | VK_IMAGE_USAGE_VIDEO_ENCODE_SRC_BIT_KHR))
+   if (pdev->info.vcn_ip_version < VCN_2_0_0 &&
+       pCreateInfo->usage & (VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR | VK_IMAGE_USAGE_VIDEO_ENCODE_DPB_BIT_KHR |
+                             VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR | VK_IMAGE_USAGE_VIDEO_ENCODE_SRC_BIT_KHR))
       return RADEON_SURF_MODE_LINEAR_ALIGNED;
 
    if (pCreateInfo->usage & VK_IMAGE_USAGE_VIDEO_ENCODE_QUANTIZATION_DELTA_MAP_BIT_KHR)
