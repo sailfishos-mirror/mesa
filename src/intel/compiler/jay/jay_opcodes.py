@@ -84,7 +84,8 @@ op('cmp',   2, 'u32', Props.NEGATE | Props.CMOD)
 # With an 8/16-bit type, `index` specifies the element index of the source
 # within the 32-bit word. For example, if src_type == U16 and index == 1, this
 # converts the upper 16-bits of the input.
-op('cvt', 1, 'u8 s8 u16 s16 u32 s32 u64 s64 f32 f64 f16 bf16', Props.NEGATE | Props.SAT, [
+op('cvt', 1, 'u8 s8 u16 s16 u32 s32 u64 s64 f32 f64 f16 bf16',
+   Props.NEGATE | Props.SAT | Props.CMOD, [
     'enum jay_type src_type',
     'enum jay_rounding_mode rounding_mode',
     'uint8_t index',
