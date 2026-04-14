@@ -199,6 +199,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_shader_stencil_export = true,
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
+      .EXT_shader_uniform_buffer_unsized_array = true,
       .EXT_subgroup_size_control = has_vk1_1,
 #ifdef PANVK_USE_WSI_PLATFORM
       .EXT_swapchain_maintenance1 = true,
@@ -573,6 +574,9 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_shader_replicated_composites */
       .shaderReplicatedComposites = true,
+
+      /* VK_EXT_shader_uniform_buffer_unsized_array */
+      .shaderUniformBufferUnsizedArray = true,
 
       /* VK_EXT_shader_atomic_float */
       .shaderBufferFloat32Atomics = true,
