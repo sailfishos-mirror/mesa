@@ -1252,7 +1252,7 @@ emit_intrinsic_copy_global_to_uniform(struct ir3_context *ctx,
       a1 = ir3_create_addr1(&ctx->build, dst_hi << 8);
 
    struct ir3_instruction *addr =
-      ir3_collect(b, ir3_get_src(ctx, &intr->src[0])[0]);
+      ir3_collect(b, ir3_get_src_shared(ctx, &intr->src[0], true)[0]);
    struct ir3_instruction *ldg = ir3_LDG_K(b, create_immed(b, dst_lo), 0, addr, 0, 
                                            create_immed(b, addr_offset), 0,
                                            create_immed(b, size), 0);
