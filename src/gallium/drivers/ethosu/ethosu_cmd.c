@@ -551,7 +551,7 @@ emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, 
          EMIT1(NPU_SET_OP_SCALAR, 0, operation->ifm2.scalar);
       }
    } else {
-      EMIT0(NPU_SET_IFM2_REGION, IO_REGION);
+      EMIT0(NPU_SET_IFM2_REGION, operation->ifm2.region);
       emit_addresses(subgraph, &operation->ifm2, NPU_SET_IFM2_BASE0, NPU_SET_IFM2_BASE1, NPU_SET_IFM2_BASE2, NPU_SET_IFM2_BASE3);
       emit_tiles(subgraph, &operation->ifm2, NPU_SET_IFM2_HEIGHT0_M1, NPU_SET_IFM2_HEIGHT1_M1, NPU_SET_IFM2_WIDTH0_M1);
       emit_strides(subgraph, &operation->ifm2, NPU_SET_IFM2_STRIDE_C, NPU_SET_IFM2_STRIDE_Y, NPU_SET_IFM2_STRIDE_X);

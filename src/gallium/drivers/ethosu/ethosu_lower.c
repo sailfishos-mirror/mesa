@@ -390,22 +390,34 @@ ethosu_lower_eltwise(struct ethosu_subgraph *subgraph,
 
    set_feature_map(subgraph, poperation->input_tensors[ifm2_idx], &operation->ifm2);
 
-   if (poperation->input_tensors[ifm2_idx]->data &&
-       operation->ifm2.shape.width == 1 &&
-       operation->ifm2.shape.height == 1 &&
-       operation->ifm2.shape.depth == 1) {
-      operation->ifm2.scalar = *poperation->input_tensors[ifm2_idx]->data;
+   if (poperation->input_tensors[ifm2_idx]->data) {
+      if (operation->ifm2.shape.width == 1 &&
+          operation->ifm2.shape.height == 1 &&
+          operation->ifm2.shape.depth == 1)
+         operation->ifm2.scalar = *poperation->input_tensors[ifm2_idx]->data;
+      else {
+         size_t size = operation->ifm2.shape.height * operation->ifm2.shape.width *
+                       operation->ifm2.shape.depth * poperation->input_tensors[ifm2_idx]->type_size;
+
+         operation->ifm2.region = COEFS_REGION;
+         operation->ifm2.tiles.addresses[0] = subgraph->coefs_used;
+         subgraph->coefs_used += size;
+         subgraph->coefs = realloc(subgraph->coefs, subgraph->coefs_used);
+         memcpy(subgraph->coefs + operation->ifm2.tiles.addresses[0],
+                poperation->input_tensors[ifm2_idx]->data, size);
+      }
+   } else {
+      operation->ifm2.region = IO_REGION;
+      operation->ifm2.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm2.tensor);
    }
-   if (poperation->add.relu)
-      operation->eltwise.activation_min = operation->ofm.zero_point;
-
-   allocate_feature_maps(subgraph, operation);
-
-   operation->ifm2.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm2.tensor);
    operation->ifm2.tiles.height_0 = operation->ifm2.shape.height;
    operation->ifm2.tiles.height_1 = operation->ifm2.shape.height;
    operation->ifm2.tiles.width_0 = operation->ifm2.shape.width;
 
+   if (poperation->add.relu)
+      operation->eltwise.activation_min = operation->ofm.zero_point;
+
+   allocate_feature_maps(subgraph, operation);
    ethosu_sched_operation(subgraph, operation);
 }
 
