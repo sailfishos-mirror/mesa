@@ -22,6 +22,16 @@ bool jay_nir_lower_bool(nir_shader *nir);
 bool jay_nir_opt_sel_zero(nir_shader *nir);
 bool jay_nir_lower_fsign(nir_shader *nir);
 
+void jay_populate_prog_data(const struct intel_device_info *devinfo,
+                            nir_shader *nir,
+                            union brw_any_prog_data *prog_data,
+                            union brw_any_prog_key *key,
+                            unsigned nr_packed_regs);
+unsigned jay_process_nir(const struct intel_device_info *devinfo,
+                         nir_shader *nir,
+                         union brw_any_prog_data *prog_data,
+                         union brw_any_prog_key *key);
+
 void jay_compute_liveness(jay_function *f);
 void jay_calculate_register_demands(jay_function *f);
 
@@ -63,6 +73,7 @@ void jay_lower_post_ra(jay_shader *s);
 void jay_lower_spill(jay_function *func);
 void jay_lower_simd_width(jay_shader *s);
 void jay_lower_scoreboard(jay_shader *s);
+void jay_insert_fp_mode(jay_shader *shader, uint32_t api, uint32_t float_sizes);
 
 struct jay_shader_bin *
 jay_to_binary(jay_shader *s, void *const_data, size_t const_data_size);
