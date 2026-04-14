@@ -42,6 +42,31 @@ enum ethosu_operation_type {
    ETHOSU_OPERATION_TYPE_DMA,
 };
 
+enum ethosu_eltwise_type {
+   ETHOSU_ELTWISE_TYPE_MUL,
+   ETHOSU_ELTWISE_TYPE_ADD,
+   ETHOSU_ELTWISE_TYPE_SUB,
+   ETHOSU_ELTWISE_TYPE_MIN,
+   ETHOSU_ELTWISE_TYPE_MAX,
+   ETHOSU_ELTWISE_TYPE_LRELU,
+   ETHOSU_ELTWISE_TYPE_ABS,
+   /* U85 only */
+   ETHOSU_ELTWISE_TYPE_CLZ,
+   ETHOSU_ELTWISE_TYPE_SHR,
+   ETHOSU_ELTWISE_TYPE_SHL,
+   ETHOSU_ELTWISE_TYPE_LSR,
+   ETHOSU_ELTWISE_TYPE_DIV,
+   ETHOSU_ELTWISE_TYPE_CMP_EQ = 0x10,
+   ETHOSU_ELTWISE_TYPE_CMP_NE,
+   ETHOSU_ELTWISE_TYPE_CMP_GE,
+   ETHOSU_ELTWISE_TYPE_CMP_GT,
+   ETHOSU_ELTWISE_TYPE_CMP_AND = 0x21,
+   ETHOSU_ELTWISE_TYPE_CMP_OR,
+   ETHOSU_ELTWISE_TYPE_CMP_XOR,
+   ETHOSU_ELTWISE_TYPE_CMP_NOT,
+   ETHOSU_ELTWISE_TYPE_CMP_AND_NOT = 0x2A,
+};
+
 struct ethosu_tile_box {
    unsigned height_0;     /* The height of tile 0 */
    unsigned height_1;     /* The height of tile 1, 0 if unused */
@@ -173,6 +198,7 @@ struct ethosu_operation {
       } pooling;
 
       struct {
+         enum ethosu_eltwise_type type;
          uint16_t activation_min;
          unsigned lut_bytes;
          bool ifm_reversed;

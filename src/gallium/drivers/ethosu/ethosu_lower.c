@@ -519,6 +519,14 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
       case PIPE_ML_OPERATION_TYPE_ADD: {
          ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
+         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_ADD;
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_MUL: {
+         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
+         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_MUL;
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }

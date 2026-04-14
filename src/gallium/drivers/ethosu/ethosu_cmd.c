@@ -721,6 +721,23 @@ simplified_elementwise_add_sub_scale(
    *out_out_scale = ethosu_quantize_scale(output_rescale_val, out_out_shift, false);
 }
 
+static void
+elementwise_mul_scale(
+   struct ethosu_subgraph *subgraph,
+   double input1_scale,
+   double input2_scale,
+   double output_scale)
+{
+   double output_rescale;
+   int32_t ofm_scale, ofm_shift;
+
+   output_rescale = (input1_scale * input2_scale) / output_scale;
+   ofm_scale = ethosu_quantize_scale(output_rescale, &ofm_shift, false);
+
+   /* OFM_SCALE: output scale with shift */
+   EMIT1(NPU_SET_OFM_SCALE, ofm_shift, ofm_scale);
+}
+
 /*
  * U85 uses "simplified" mode (from Vela simplified_elementwise_add_sub_scale):
  *   Both operands are independently rescaled.  OPA_SCALE and OPB_SCALE each
@@ -765,27 +782,39 @@ static void
 emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
    bool has_scalar = operation->ifm2.scalar != 0;
-   enum ethosu_op_to_scale op_to_scale;
+   enum ethosu_op_to_scale op_to_scale = OP_NONE;
 
-   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
-      op_to_scale = eltwise_emit_ofm_scaling(
-         subgraph,
-         operation->ifm.scale,
-         operation->ifm2.scale,
-         operation->ofm.scale);
-   } else {
-      op_to_scale = eltwise_emit_ofm_scaling_u85(
-         subgraph,
-         operation->ifm.scale,
-         operation->ifm2.scale,
-         operation->ofm.scale);
-   }
+   switch (operation->eltwise.type) {
+   case ETHOSU_ELTWISE_TYPE_MUL:
+      elementwise_mul_scale(subgraph, operation->ifm.scale,
+                            operation->ifm2.scale,
+                            operation->ofm.scale);
+      break;
+   case ETHOSU_ELTWISE_TYPE_ADD:
+      if (ethosu_ml_device(subgraph->base.device)->is_u65) {
+         op_to_scale = eltwise_emit_ofm_scaling(
+            subgraph,
+            operation->ifm.scale,
+            operation->ifm2.scale,
+            operation->ofm.scale);
+      } else {
+         op_to_scale = eltwise_emit_ofm_scaling_u85(
+            subgraph,
+            operation->ifm.scale,
+            operation->ifm2.scale,
+            operation->ofm.scale);
+      }
 
-   if (operation->eltwise.ifm_reversed) {
-      if (op_to_scale == OP_A)
-         op_to_scale = OP_B;
-      else
-         op_to_scale = OP_A;
+      if (operation->eltwise.ifm_reversed) {
+         if (op_to_scale == OP_A)
+            op_to_scale = OP_B;
+         else
+            op_to_scale = OP_A;
+      }
+      break;
+   default:
+      assert(0);
+      break;
    }
 
    emit_common(subgraph, operation, op_to_scale);
@@ -832,7 +861,7 @@ emit_operation_code(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
       EMIT0(NPU_OP_POOL, operation->pooling.type);
       break;
    case ETHOSU_OPERATION_TYPE_ELTWISE:
-      EMIT0(NPU_OP_ELEMENTWISE, 0x1);
+      EMIT0(NPU_OP_ELEMENTWISE, operation->eltwise.type);
       break;
    case ETHOSU_OPERATION_TYPE_DMA:
       EMIT0(NPU_OP_DMA_START, 0x0);
