@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2021 Collabora, Ltd.
+ * Copyright (C) 2026 Arm Ltd.
  * SPDX-License-Identifier: MIT
  */
 
@@ -9,9 +10,9 @@
 
 #include <gtest/gtest.h>
 
-#define CASE(instr, expected)                                                  \
+#define CASE_ARCH(instr, arch, expected)                                       \
    do {                                                                        \
-      uint64_t _value = va_pack_instr(instr, 10);                              \
+      uint64_t _value = va_pack_instr(instr, arch);                            \
       if (_value != expected) {                                                \
          fprintf(stderr, "Got %" PRIx64 ", expected %" PRIx64 "\n", _value,    \
                  (uint64_t)expected);                                          \
@@ -20,6 +21,8 @@
          ADD_FAILURE();                                                        \
       }                                                                        \
    } while (0)
+
+#define CASE(instr, expected) CASE_ARCH(instr, 10, expected)
 
 class ValhallPacking : public testing::Test {
  protected:
@@ -278,11 +281,17 @@ TEST_F(ValhallPacking, LdVarBufImmF16)
                                  BI_VECSIZE_V4, 0),
         0x005d80843300003d);
 
-   CASE(bi_ld_var_buf_imm_f16_to(b, bi_register(0), bi_register(61),
-                                 BI_REGISTER_FORMAT_F16, BI_SAMPLE_CENTROID,
-                                 BI_SOURCE_FORMAT_F16, BI_UPDATE_STORE,
-                                 BI_VECSIZE_V4, 8),
-        0x005d80443308003d);
+   CASE_ARCH(bi_ld_var_buf_imm_f16_to(b, bi_register(0), bi_register(61),
+                                      BI_REGISTER_FORMAT_F16,
+                                      BI_SAMPLE_CENTROID, BI_SOURCE_FORMAT_F16,
+                                      BI_UPDATE_STORE, BI_VECSIZE_V4, 8),
+             10, 0x005d80443308003d);
+
+   CASE_ARCH(bi_ld_var_buf_imm_f16_to(b, bi_register(0), bi_register(61),
+                                      BI_REGISTER_FORMAT_F16,
+                                      BI_SAMPLE_CENTROID, BI_SOURCE_FORMAT_F16,
+                                      BI_UPDATE_STORE, BI_VECSIZE_V4, 8),
+             11, 0x005d80443300083d);
 }
 
 TEST_F(ValhallPacking, LeaBufImm)
