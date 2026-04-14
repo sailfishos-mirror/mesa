@@ -224,17 +224,19 @@ msl_ensure_vertex_position_output(nir_shader *nir)
    bool has_position_write =
       nir->info.outputs_written & BITFIELD64_BIT(VARYING_SLOT_POS);
    if (!has_position_write) {
-      nir_variable *position_var = nir_create_variable_with_location(
-         nir, nir_var_shader_out, VARYING_SLOT_POS, glsl_vec4_type());
-
       /* Write to depth at the very beginning */
       nir_function_impl *entrypoint = nir_shader_get_entrypoint(nir);
       nir_builder b = nir_builder_at(nir_before_impl(entrypoint));
 
-      nir_deref_instr *position_deref = nir_build_deref_var(&b, position_var);
+      struct nir_io_semantics io_semantics = {
+         .location = VARYING_SLOT_POS,
+         .num_slots = 4u,
+      };
       nir_def *zero = nir_imm_float(&b, 0.0f);
-      nir_store_deref(&b, position_deref, nir_vec4(&b, zero, zero, zero, zero),
-                      0xFFFFFFFF);
+      nir_store_output(
+         &b, nir_vec4(&b, zero, zero, zero, zero), nir_imm_int(&b, 0u),
+         .base = 0u, .range = 4u, .write_mask = 0xf, .component = 0u,
+         .src_type = nir_type_float32, .io_semantics = io_semantics);
 
       nir->info.outputs_written |= BITFIELD64_BIT(VARYING_SLOT_POS);
       return nir_progress(true, entrypoint, nir_metadata_control_flow);
