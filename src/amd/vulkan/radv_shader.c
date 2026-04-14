@@ -800,7 +800,7 @@ radv_shader_spirv_to_nir(struct radv_device *device, struct radv_shader_stage *s
 
    if (stage->key.descriptor_heap) {
       progress = false;
-      NIR_PASS(progress, nir, vk_nir_lower_descriptor_heaps, stage->layout.mapping, &embedded_samplers);
+      NIR_PASS(progress, nir, vk_nir_lower_descriptor_heaps, stage->layout.mapping, NULL, &embedded_samplers);
       if (progress) {
          NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_uniform | nir_var_image, NULL);
          NIR_PASS(_, nir, nir_opt_dce);
