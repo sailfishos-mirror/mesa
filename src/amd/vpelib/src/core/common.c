@@ -908,9 +908,15 @@ enum vpe_status vpe_check_tone_map_support(
 
     // Check if Tone Mapping parameters are valid
     if (is_3D_lut_enabled) {
-        if ((stream->tm_params.lut_data == NULL) ||
-            (!input_is_hdr) ||
-            (!is_hlg && !is_in_lum_greater_than_out_lum)) {
+        if (vpe->caps->color_caps.mpc.dma_3d_lut == true) {
+            if (stream->dma_info.lut3d.data == 0)
+                status = VPE_STATUS_BAD_TONE_MAP_PARAMS;
+        } else if (stream->tm_params.lut_data == NULL) {
+            status = VPE_STATUS_BAD_TONE_MAP_PARAMS;
+        }
+
+        if ((!stream->lut_compound.enabled) &&
+            ((!input_is_hdr) || (!is_hlg && !is_in_lum_greater_than_out_lum))) {
             status = VPE_STATUS_BAD_TONE_MAP_PARAMS;
         }
     } else {

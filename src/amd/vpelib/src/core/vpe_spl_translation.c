@@ -217,6 +217,12 @@ static enum spl_transfer_func_predefined get_spl_tf(enum color_transfer_func tf)
         return SPL_TRANSFER_FUNCTION_UNITY;
     case TRANSFER_FUNC_HLG:
         return SPL_TRANSFER_FUNCTION_HLG;
+    case TRANSFER_FUNC_CUSTOM:
+        // TF is app controlled and not known
+        // SPL currenly only cares L or NL, but I will use default PQ
+        // as CUSTOM is most likely to be used in tone mapping cases with HDR input
+        // possible improvement is to pass in pixel format and use LINEAR as default for FP16/RGBE
+        return SPL_TRANSFER_FUNCTION_PQ;
     default:
         VPE_ASSERT(false);
         return SPL_TRANSFER_FUNCTION_SRGB;
@@ -251,6 +257,10 @@ static enum spl_color_space get_spl_cs(enum color_space cs)
     case COLOR_SPACE_2020_YCBCR:
     case COLOR_SPACE_2020_YCBCR_LIMITED:
         return SPL_COLOR_SPACE_2020_YCBCR;
+    case COLOR_SPACE_CUSTOM:
+        // Color space is app controlled and not known
+        // I will default to BT.2020 being the widest cs
+        return SPL_COLOR_SPACE_2020_RGB_FULLRANGE;
     default:
         VPE_ASSERT(false);
         return SPL_COLOR_SPACE_UNKNOWN;
