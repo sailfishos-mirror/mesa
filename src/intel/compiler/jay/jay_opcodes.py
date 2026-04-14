@@ -77,7 +77,7 @@ op('bfi1',  2, 'u32')
 op('bfi2',  3, 'u32')
 op('bfn',   3, 'u32', Props.CMOD, ['uint8_t ctrl'])
 op('bfrev', 1, 'u32', Props.NEGATE)
-op('cbit',  1, 'u32', Props.NEGATE | Props.CMOD)
+op('cbit',  1, 'u32')
 op('cmp',   2, 'u32', Props.NEGATE | Props.CMOD)
 
 
@@ -119,8 +119,10 @@ op('rndz',       1, 'f16 f32 f64', Props.NEGATE | Props.SAT)
 op('rnde',       1, 'f16 f32 f64', Props.NEGATE | Props.SAT)
 op('math', 1, 'f16 f32',     Props.NEGATE | Props.SAT, ['enum jay_math op'])
 
-for n in ['rol', 'ror', 'shl', 'shr']:
-    op(n, 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD | Props.NEGATE0)
+op('rol', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD)
+op('ror', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD)
+op('shl', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD | Props.NEGATE0)
+op('shr', 2, 'u32 u64 u16 s16 s32 s64', Props.CMOD | Props.NEGATE0)
 
 op('quad_swizzle', 1, 'u1 u32', 0, ['enum jay_quad_swizzle swizzle'])
 op('sync', 0, None, Props.NO_DEST, ['enum tgl_sync_function op'])
