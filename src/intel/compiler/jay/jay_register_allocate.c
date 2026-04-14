@@ -326,12 +326,12 @@ typedef struct jay_ra_state {
    BITSET_WORD *available_regs[JAY_NUM_RA_FILES];
 
    /**
-    * Within assign_regs_for_inst, the set of registers that have been
-    * assigned and are therefore pinned.
+    * Within assign_regs_for_inst, the set of registers that have respectively
+    * been 1. assigned and therefore pinned; 2. the base of a killed source.
     *
     * Invariant: zeroed on entry to assign_regs_for_inst.
     */
-   BITSET_WORD *pinned[JAY_NUM_RA_FILES];
+   BITSET_WORD *pinned[JAY_NUM_RA_FILES], *killed[JAY_NUM_RA_FILES];
 
    /** Vector affinities for each def. */
    struct affinity *affinities;
@@ -722,7 +722,6 @@ pick_regs(jay_ra_state *ra,
           enum jay_stride max_stride,
           jay_inst *I,
           jay_def var,
-          jay_def *last_killed,
           bool is_src)
 {
    struct jay_partition *partition = &ra->bld.shader->partition;
@@ -785,7 +784,7 @@ pick_regs(jay_ra_state *ra,
       assert(r >= first && r + size <= end);
 
       unsigned cost = 0;
-      bool tied = last_killed && last_killed->reg == r;
+      bool tied = !is_src && BITSET_TEST(ra->killed[file], r);
       enum jay_stride stride =
          file == GPR ? jay_gpr_to_stride(partition, r) : min_stride;
 
@@ -890,7 +889,6 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
 {
    jay_shader *shader = ra->bld.shader;
    jay_def *vars[JAY_MAX_OPERANDS];
-   jay_def *last_killed[JAY_NUM_RA_FILES] = { 0 };
    jay_def saved_srcs[JAY_MAX_SRCS];
    struct jay_parallel_copy copies[JAY_MAX_DEF_LENGTH * JAY_MAX_OPERANDS];
    uint32_t eviction_indices[JAY_MAX_DEF_LENGTH * JAY_MAX_OPERANDS];
@@ -1012,21 +1010,30 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
       }
 
       /* Choose registers satisfying the constraints and minimizing shuffles */
-      unsigned base =
-         pick_regs(ra, file, size, alignment, min_stride, max_stride, I, var,
-                   is_src ? NULL : last_killed[file], is_src);
+      unsigned base = pick_regs(ra, file, size, alignment, min_stride,
+                                max_stride, I, var, is_src);
       jay_reg reg = make_reg(file, base);
 
       /* If we decided to tie, process that */
-      if (!is_src && last_killed[file] && last_killed[file]->reg == base) {
+      if (!is_src && BITSET_TEST(ra->killed[file], base)) {
+         unsigned found = ~0;
+         for (unsigned j = 0; j < i; ++j) {
+            if (vars[j]->file == file && vars[j]->reg == base) {
+               found = j;
+               break;
+            }
+         }
+
+         assert(found < i && vars[found] >= I->src && "killed source");
+         unsigned lu_offs =
+            jay_source_last_use_bit(saved_srcs, vars[found] - I->src);
+
          /* Fully killed source so we can zero a contiguous range. Note we need
           * to use the unpadded size to avoid leaking a register for vec3
           * destinations tied to vec4 sources.
           */
-         unsigned offs =
-            jay_source_last_use_bit(saved_srcs, last_killed[file] - I->src);
-         BITSET_CLEAR_COUNT(I->last_use, offs, jay_num_values(var));
-         last_killed[file] = NULL;
+         BITSET_CLEAR_COUNT(I->last_use, lu_offs, jay_num_values(var));
+         BITSET_CLEAR(ra->killed[file], base);
       } else {
          /* Otherwise pin our choice */
          BITSET_SET_COUNT(ra->pinned[file], base, size);
@@ -1051,7 +1058,7 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
       }
 
       if (killed) {
-         last_killed[file] = vars[i];
+         BITSET_SET(ra->killed[file], vars[i]->reg);
       }
    }
 
@@ -1081,8 +1088,9 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
    /* Reset data structures */
    for (unsigned i = 0; i < nr_vars; ++i) {
       jay_def var = *(vars[i]);
-      BITSET_CLEAR_COUNT(ra->pinned[var.file], var.reg,
-                         util_next_power_of_two(jay_num_values(var)));
+      unsigned n = util_next_power_of_two(jay_num_values(var));
+      BITSET_CLEAR_COUNT(ra->pinned[var.file], var.reg, n);
+      BITSET_CLEAR_COUNT(ra->killed[var.file], var.reg, n);
    }
 
    /* Sources selected for early-kill have had their last_use fields cleared.
@@ -1597,6 +1605,7 @@ jay_register_allocate_function(jay_function *f)
       ra.index_for_reg[file] = linear_zalloc_array(lin_ctx, uint32_t, num_regs);
       ra.available_regs[file] = BITSET_LINEAR_ZALLOC(lin_ctx, num_regs);
       ra.pinned[file] = BITSET_LINEAR_ZALLOC(lin_ctx, num_regs);
+      ra.killed[file] = BITSET_LINEAR_ZALLOC(lin_ctx, num_regs);
    }
 
    ra.phi_web = linear_zalloc_array(lin_ctx, struct phi_web_node, f->ssa_alloc);
