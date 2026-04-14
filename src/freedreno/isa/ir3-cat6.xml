@@ -220,6 +220,9 @@ TODO rename UAV src to "UAV" so disasm_field_cb can find it easily?
 <bitset name="ldg.k" extends="#instruction-cat6-a3xx">
 	<doc>
 		LoaD Global Constants
+
+		DST: offset into the const file as an immediate or value in a1.x.
+		The a1.x+offset form is not supported (i.e., the offset is ignored).
 	</doc>
 
 	<gen min="600"/>

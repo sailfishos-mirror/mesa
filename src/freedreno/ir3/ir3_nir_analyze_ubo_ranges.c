@@ -408,20 +408,8 @@ copy_global_to_uniform(nir_shader *nir, struct ir3_ubo_analysis_state *state)
       unsigned size = (range->end - range->start);
       for (unsigned offset = 0; offset < size; offset += 16) {
          unsigned const_offset = range->offset / 4 + offset / 4;
-         if (const_offset < 256) {
-            nir_copy_global_to_uniform_ir3(b, base,
-                                           .base = start + offset,
-                                           .range_base = const_offset,
-                                           .range = 1);
-         } else {
-            /* It seems that the a1.x format doesn't work, so we need to
-             * decompose the ldg.k into ldg + stc.
-             */
-            nir_def *load =
-               nir_load_global_ir3(b, 4, 32, base,
-                                   nir_imm_int(b, (start + offset) / 4));
-            nir_store_const_ir3(b, load, .base = const_offset);
-         }
+         nir_copy_global_to_uniform_ir3(b, base, .base = start + offset,
+                                        .range_base = const_offset, .range = 1);
       }
    }
 
