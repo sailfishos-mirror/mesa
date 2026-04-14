@@ -406,10 +406,12 @@ copy_global_to_uniform(nir_shader *nir, struct ir3_ubo_analysis_state *state)
       }
 
       unsigned size = (range->end - range->start);
-      for (unsigned offset = 0; offset < size; offset += 16) {
+      /* ldg.k can copy at most 256 vec4s. */
+      for (unsigned offset = 0; offset < size; offset += 256 * 16) {
          unsigned const_offset = range->offset / 4 + offset / 4;
-         nir_copy_global_to_uniform_ir3(b, base, .base = start + offset,
-                                        .range_base = const_offset, .range = 1);
+         nir_copy_global_to_uniform_ir3(
+            b, base, .base = start + offset, .range_base = const_offset,
+            .range = MIN2(256, (size - offset) / 16));
       }
    }
 
