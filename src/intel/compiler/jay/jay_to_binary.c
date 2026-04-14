@@ -504,7 +504,18 @@ emit(struct brw_codegen *p,
    }
 
    if (cmod != BRW_CONDITIONAL_NONE) {
-      brw_eu_inst_set_cond_modifier(p->devinfo, brw_eu_last_inst(p), cmod);
+      if (I->op != JAY_OPCODE_BFN) {
+         brw_eu_inst_set_cond_modifier(p->devinfo, brw_eu_last_inst(p), cmod);
+      } else {
+         unsigned cc = cmod == BRW_CONDITIONAL_L    ? 3 :
+                       cmod == BRW_CONDITIONAL_G    ? 2 :
+                       cmod == BRW_CONDITIONAL_Z    ? 1 :
+                       cmod == BRW_CONDITIONAL_NONE ? 0 :
+                                                      -1;
+         assert(cc < 4 && "invalid cmod for bfn");
+         brw_eu_inst_set_boolean_func_cond_modifier(p->devinfo,
+                                                    brw_eu_last_inst(p), cc);
+      }
    }
 
    assert(p->nr_insn == (nr_ins_before + jay_macro_length(I)) &&

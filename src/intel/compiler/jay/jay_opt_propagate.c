@@ -42,6 +42,15 @@ propagate_cmod(jay_function *func, jay_inst *I, jay_inst **defs)
    if (!def || !jay_is_null(def->cond_flag) || !jay_opcode_infos[def->op].cmod)
       return false;
 
+   /* bfn bspec says "only zero(ze), greater-than(gt), and less-than(lt)
+    * conditional modifiers are valid."
+    */
+   if (def->op == JAY_OPCODE_BFN && !(cmod == JAY_CONDITIONAL_EQ ||
+                                      cmod == JAY_CONDITIONAL_GT ||
+                                      cmod == JAY_CONDITIONAL_LT)) {
+      return false;
+   }
+
    /* "Neither Saturate nor conditional modifier allowed with DW integer
     * multiply."
     *

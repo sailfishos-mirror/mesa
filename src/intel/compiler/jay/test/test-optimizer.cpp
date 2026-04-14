@@ -251,7 +251,14 @@ TEST_F(Optimizer, TypeNeutralConditionalMods)
             jay_def flag = jay_alloc_def(b, FLAG, 1);
             jay_def x = jay_alloc_def(b, GPR, 1);
             jay_inst *bfn3 = jay_BFN(b, x, wx, wy, wz, UTIL_LUT3(a & b & c));
-            jay_set_conditional_mod(b, bfn3, flag, mods[i]);
+
+            /* BFN.ne is not permitted & should not be propagated */
+            if (mods[i] == JAY_CONDITIONAL_EQ) {
+               jay_set_conditional_mod(b, bfn3, flag, mods[i]);
+            } else {
+               jay_CMP(b, JAY_TYPE_S32, mods[i], flag, x, 0);
+            }
+
             jay_SEL(b, JAY_TYPE_U32, out, x, 123, flag);
          });
 
