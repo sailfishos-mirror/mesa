@@ -1608,7 +1608,7 @@ jay_register_allocate_function(jay_function *f)
       ra.killed[file] = BITSET_LINEAR_ZALLOC(lin_ctx, num_regs);
    }
 
-   ra.phi_web = linear_zalloc_array(lin_ctx, struct phi_web_node, f->ssa_alloc);
+   ra.phi_web = linear_alloc_array(lin_ctx, struct phi_web_node, f->ssa_alloc);
 
    /* Construct the phi equivalence classes using the union-find data
     * structure. This associates all SSA values related to the same phi,
