@@ -2038,8 +2038,8 @@ bool vpe_is_mps_possible(struct vpe_priv *vpe_priv, struct stream_ctx **mps_stre
             return false;
     }
 
-    num_3dlut_required =
-        get_num_3dlut_required((const struct stream_ctx **)mps_stream_ctx, num_streams, recout_width_alignment);
+    num_3dlut_required = get_num_3dlut_required(
+        (const struct stream_ctx **)mps_stream_ctx, num_streams, recout_width_alignment);
 
     if (vpe_priv->init.debug.multi_pipe_segmentation_policy == VPE_MPS_DISABLED)
         return false;

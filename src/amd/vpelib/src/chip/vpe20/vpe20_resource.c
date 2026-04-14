@@ -2916,9 +2916,10 @@ static enum vpe_status segment_stream(struct vpe_priv *vpe_priv, struct stream_c
         for (stream_idx = 0; stream_idx < max_num_mps_streams; stream_idx++)
             mps_stream_ctx[stream_idx] = &vpe_priv->stream_ctx[stream_idx];
 
-        if (vpe_is_mps_possible(vpe_priv, mps_stream_ctx, max_num_mps_streams, recout_alignment))
+        if (vpe_is_mps_possible(vpe_priv, mps_stream_ctx, max_num_mps_streams, recout_alignment)) {
             if (vpe_init_mps_ctx(vpe_priv, mps_stream_ctx, max_num_mps_streams) != VPE_STATUS_OK)
                 return VPE_STATUS_ERROR;
+        }
     }
 
     res = vpe_priv->resource.set_num_segments(vpe_priv, stream_ctx, &scl_data,
