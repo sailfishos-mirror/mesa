@@ -2274,7 +2274,7 @@
         "description": "ir3: Use correct immediate size for constlen calculation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "86f3c0c4c2c0044e3b75bcb68079bbf7b5e77243",
         "notes": null
