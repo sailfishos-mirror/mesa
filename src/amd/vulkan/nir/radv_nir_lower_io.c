@@ -21,14 +21,6 @@ type_size_vec4(const struct glsl_type *type, bool bindless)
    return glsl_count_attribute_slots(type, false);
 }
 
-void
-radv_nir_lower_io_vars_to_scalar(nir_shader *nir, nir_variable_mode mask)
-{
-   bool progress = false;
-
-   NIR_PASS(progress, nir, nir_lower_io_vars_to_scalar, mask);
-}
-
 typedef struct {
    uint64_t always_per_vertex;
    uint64_t potentially_per_primitive;

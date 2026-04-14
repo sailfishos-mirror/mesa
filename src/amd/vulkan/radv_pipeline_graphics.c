@@ -1235,9 +1235,6 @@ radv_link_shaders(struct radv_shader_stage *producer_stage, struct radv_shader_s
    nir_lower_io_array_vars_to_elements(producer, consumer);
    nir_validate_shader(producer, "after nir_lower_io_arrays_to_elements");
    nir_validate_shader(consumer, "after nir_lower_io_arrays_to_elements");
-
-   radv_nir_lower_io_vars_to_scalar(producer, nir_var_shader_out);
-   radv_nir_lower_io_vars_to_scalar(consumer, nir_var_shader_in);
 }
 
 static const mesa_shader_stage graphics_shader_order[] = {
