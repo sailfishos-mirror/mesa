@@ -82,6 +82,7 @@ static void print_token(FILE *file, int type, YYSTYPE value)
 %token <tok> T_A_TEX
 %token <tok> T_A_PVTMEM
 %token <tok> T_A_LOCALMEM
+%token <tok> T_A_CONSTLEN
 %token <tok> T_A_EARLYPREAMBLE
 %token <tok> T_A_FULLNOPSTART
 %token <tok> T_A_FULLNOPEND
@@ -508,6 +509,7 @@ header:            localsize_header
 |                  pvtmem_header
 |                  localmem_header
 |                  earlypreamble_header
+|                  constlen_header
 
 const_val:         T_FLOAT   { $$ = fui($1); }
 |                  T_INT     { $$ = $1;      }
@@ -586,6 +588,8 @@ pvtmem_header: T_A_PVTMEM const_val { variant->pvtmem_size = $2; }
 localmem_header: T_A_LOCALMEM const_val { variant->shared_size = $2; }
 
 earlypreamble_header: T_A_EARLYPREAMBLE { variant->early_preamble = 1; }
+
+constlen_header: T_A_CONSTLEN const_val { variant->constlen = $2; }
 
 /* Stubs for now */
 in_header:         T_A_IN '(' T_REGISTER ')' T_IDENTIFIER '(' T_IDENTIFIER '=' integer ')' { }
