@@ -372,9 +372,9 @@ is_sub_shape(struct pipe_tensor *sub, struct pipe_tensor *super)
 }
 
 static void
-ethosu_lower_add(struct ethosu_subgraph *subgraph,
-                 const struct pipe_ml_operation *poperation,
-                 struct ethosu_operation *operation)
+ethosu_lower_eltwise(struct ethosu_subgraph *subgraph,
+                     const struct pipe_ml_operation *poperation,
+                     struct ethosu_operation *operation)
 {
    operation->type = ETHOSU_OPERATION_TYPE_ELTWISE;
    int ifm_idx = 0;
@@ -506,7 +506,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       }
 
       case PIPE_ML_OPERATION_TYPE_ADD: {
-         ethosu_lower_add(subgraph, &poperations[i], &operation);
+         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
