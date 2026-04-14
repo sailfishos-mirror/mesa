@@ -222,7 +222,15 @@ radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively)
       NIR_LOOP_PASS(progress, skip, shader, nir_opt_undef);
 
       if (shader->options->max_unroll_iterations) {
-         NIR_LOOP_PASS_NOT_IDEMPOTENT(progress, skip, shader, nir_opt_loop_unroll);
+         bool unroll_progess = false;
+         NIR_LOOP_PASS_NOT_IDEMPOTENT(unroll_progess, skip, shader, nir_opt_loop_unroll);
+         /* Loop unrolling can add trivial phis for constants defined in the loop,
+          * which can break all kinds of validation if they aren't removed immediately.
+          */
+         if (unroll_progess) {
+            progress = true;
+            NIR_LOOP_PASS(progress, skip, shader, nir_opt_remove_phis);
+         }
       }
    } while (progress && !optimize_conservatively);
    _mesa_set_destroy(skip, NULL);
