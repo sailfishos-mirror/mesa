@@ -1544,6 +1544,7 @@ writes_pred(struct ir3_instruction *instr)
 #define SHARED_REG_SIZE (4 * 8)
 #define NONGPR_REG_START (SHARED_REG_START + SHARED_REG_SIZE)
 #define NONGPR_REG_SIZE (4 * 8)
+#define CONST_REG_SIZE (4 * 512)
 
 enum ir3_reg_file {
    IR3_FILE_FULL,
@@ -3347,6 +3348,8 @@ struct ir3_nop_state {
    unsigned half_ready[GPR_REG_SIZE];
 };
 
+typedef BITSET_DECLARE(conststate_t, CONST_REG_SIZE);
+
 struct ir3_legalize_state {
    regmask_t needs_ss;
    regmask_t needs_ss_scalar_full; /* half scalar ALU producer -> full scalar ALU consumer */
@@ -3357,8 +3360,8 @@ struct ir3_legalize_state {
    regmask_t needs_ss_scalar_war; /* scalar ALU write -> ALU write */
    regmask_t needs_ss_or_sy_scalar_war;
    regmask_t needs_sy;
-   bool needs_ss_for_const;
-   bool needs_sy_for_const;
+   conststate_t needs_ss_for_const;
+   conststate_t needs_sy_for_const;
 
    /* Next instruction needs (ss)/(sy), no matter its dsts/srcs. */
    bool force_ss;
