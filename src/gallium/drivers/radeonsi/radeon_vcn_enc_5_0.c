@@ -168,7 +168,7 @@ static void radeon_enc_spec_misc_av1(struct radeon_encoder *enc)
 static uint32_t radeon_enc_ref_swizzle_mode(struct radeon_encoder *enc)
 {
    /* return RENCODE_REC_SWIZZLE_MODE_LINEAR; for debugging purpose */
-   return RENCODE_REC_SWIZZLE_MODE_256B_D_VCN5;
+   return RENCODE_REC_SWIZZLE_MODE_256B_D_GFX12;
 }
 
 static void radeon_enc_ctx(struct radeon_encoder *enc)
