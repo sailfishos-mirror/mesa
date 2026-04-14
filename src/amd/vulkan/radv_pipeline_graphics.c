@@ -1217,24 +1217,6 @@ radv_link_shaders(struct radv_shader_stage *producer_stage, struct radv_shader_s
          NIR_PASS(_, consumer, radv_nir_lower_viewport_to_zero);
       }
    }
-
-   if (producer_stage->key.optimisations_disabled || consumer_stage->key.optimisations_disabled)
-      return;
-
-   if (consumer->info.stage == MESA_SHADER_FRAGMENT && producer->info.has_transform_feedback_varyings) {
-      nir_link_xfb_varyings(producer, consumer);
-   }
-
-   unsigned array_deref_of_vec_options =
-      nir_lower_direct_array_deref_of_vec_load | nir_lower_indirect_array_deref_of_vec_load |
-      nir_lower_direct_array_deref_of_vec_store | nir_lower_indirect_array_deref_of_vec_store;
-
-   NIR_PASS(_, producer, nir_lower_array_deref_of_vec, nir_var_shader_out, NULL, array_deref_of_vec_options);
-   NIR_PASS(_, consumer, nir_lower_array_deref_of_vec, nir_var_shader_in, NULL, array_deref_of_vec_options);
-
-   nir_lower_io_array_vars_to_elements(producer, consumer);
-   nir_validate_shader(producer, "after nir_lower_io_arrays_to_elements");
-   nir_validate_shader(consumer, "after nir_lower_io_arrays_to_elements");
 }
 
 static const mesa_shader_stage graphics_shader_order[] = {
