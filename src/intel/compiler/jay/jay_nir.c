@@ -10,6 +10,7 @@
 #include "jay_private.h"
 #include "nir.h"
 #include "nir_builder.h"
+#include "nir_intrinsics.h"
 
 /*
  * Jay-to-NIR relies on a careful indexing of defs: every 32-bit word has
@@ -97,6 +98,12 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
       intr->def.bit_size = *simd_width;
       nir_def *u2uN = nir_u2uN(b, &intr->def, old_bitsize);
       nir_def_rewrite_uses_after(&intr->def, u2uN);
+      return true;
+   }
+
+   /* Just a constant */
+   if (intr->intrinsic == nir_intrinsic_load_simd_width_intel) {
+      nir_def_replace(&intr->def, nir_imm_int(b, *simd_width));
       return true;
    }
 
