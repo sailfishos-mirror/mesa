@@ -1203,22 +1203,6 @@ merge_tess_info(struct shader_info *tes_info, struct shader_info *tcs_info)
    tcs_info->tess._primitive_mode = tes_info->tess._primitive_mode;
 }
 
-static void
-radv_link_shaders(struct radv_shader_stage *producer_stage, struct radv_shader_stage *consumer_stage,
-                  const struct radv_graphics_state_key *gfx_state)
-{
-   nir_shader *producer = producer_stage->nir;
-   nir_shader *consumer = consumer_stage->nir;
-
-   if (consumer->info.stage == MESA_SHADER_FRAGMENT) {
-      /* Lower the viewport index to zero when the last vertex stage doesn't export it. */
-      if ((consumer->info.inputs_read & VARYING_BIT_VIEWPORT) &&
-          !(producer->info.outputs_written & VARYING_BIT_VIEWPORT)) {
-         NIR_PASS(_, consumer, radv_nir_lower_viewport_to_zero);
-      }
-   }
-}
-
 static const mesa_shader_stage graphics_shader_order[] = {
    MESA_SHADER_VERTEX,   MESA_SHADER_TESS_CTRL, MESA_SHADER_TESS_EVAL, MESA_SHADER_GEOMETRY,
 
@@ -1236,14 +1220,6 @@ radv_link_vs(struct radv_shader_stage *vs_stage, struct radv_shader_stage *next_
    if (radv_should_export_multiview(vs_stage, gfx_state)) {
       NIR_PASS(_, vs_stage->nir, radv_nir_export_multiview);
    }
-
-   if (next_stage) {
-      assert(next_stage->nir->info.stage == MESA_SHADER_TESS_CTRL ||
-             next_stage->nir->info.stage == MESA_SHADER_GEOMETRY ||
-             next_stage->nir->info.stage == MESA_SHADER_FRAGMENT);
-
-      radv_link_shaders(vs_stage, next_stage, gfx_state);
-   }
 }
 
 static void
@@ -1255,8 +1231,6 @@ radv_link_tcs(struct radv_shader_stage *tcs_stage, struct radv_shader_stage *tes
 
    assert(tcs_stage->nir->info.stage == MESA_SHADER_TESS_CTRL);
    assert(tes_stage->nir->info.stage == MESA_SHADER_TESS_EVAL);
-
-   radv_link_shaders(tcs_stage, tes_stage, gfx_state);
 
    /* Copy TCS info into the TES info */
    merge_tess_info(&tes_stage->nir->info, &tcs_stage->nir->info);
@@ -1271,13 +1245,6 @@ radv_link_tes(struct radv_shader_stage *tes_stage, struct radv_shader_stage *nex
    if (radv_should_export_multiview(tes_stage, gfx_state)) {
       NIR_PASS(_, tes_stage->nir, radv_nir_export_multiview);
    }
-
-   if (next_stage) {
-      assert(next_stage->nir->info.stage == MESA_SHADER_GEOMETRY ||
-             next_stage->nir->info.stage == MESA_SHADER_FRAGMENT);
-
-      radv_link_shaders(tes_stage, next_stage, gfx_state);
-   }
 }
 
 static void
@@ -1288,26 +1255,6 @@ radv_link_gs(struct radv_shader_stage *gs_stage, struct radv_shader_stage *fs_st
 
    if (radv_should_export_multiview(gs_stage, gfx_state)) {
       NIR_PASS(_, gs_stage->nir, radv_nir_export_multiview);
-   }
-
-   if (fs_stage) {
-      assert(fs_stage->nir->info.stage == MESA_SHADER_FRAGMENT);
-
-      radv_link_shaders(gs_stage, fs_stage, gfx_state);
-   }
-}
-
-static void
-radv_link_task(struct radv_shader_stage *task_stage, struct radv_shader_stage *mesh_stage,
-               const struct radv_graphics_state_key *gfx_state)
-{
-   assert(task_stage->nir->info.stage == MESA_SHADER_TASK);
-
-   if (mesh_stage) {
-      assert(mesh_stage->nir->info.stage == MESA_SHADER_MESH);
-
-      /* Linking task and mesh shaders shouldn't do anything for now but keep it for consistency. */
-      radv_link_shaders(task_stage, mesh_stage, gfx_state);
    }
 }
 
@@ -1327,8 +1274,6 @@ radv_link_mesh(struct radv_shader_stage *mesh_stage, struct radv_shader_stage *f
             var->data.per_primitive = true;
          }
       }
-
-      radv_link_shaders(mesh_stage, fs_stage, gfx_state);
    }
 
    /* Lower mesh shader draw ID to zero prevent app bugs from triggering undefined behaviour. */
@@ -1385,7 +1330,6 @@ radv_graphics_shaders_link(const struct radv_device *device, const struct radv_g
          radv_link_gs(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_TASK:
-         radv_link_task(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_MESH:
          radv_link_mesh(&stages[s], next_stage, gfx_state);
