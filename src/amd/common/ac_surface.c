@@ -2017,6 +2017,20 @@ static int gfx9_get_preferred_swizzle_mode(struct ac_addrlib *addrlib, const str
       sin.forbiddenBlock.gfx11.thick256KB = 1;
    }
 
+   if (surf->flags & (RADEON_SURF_DECODE_DST | RADEON_SURF_ENCODE_SRC)) {
+      assert(info->vcn_ip_version >= VCN_2_0_0);
+
+      /* Only "S" swizzle modes supported */
+      if (info->vcn_ip_version < VCN_3_0_0) {
+         sin.preferredSwSet.value = 0;
+         sin.preferredSwSet.sw_S = 1;
+      }
+
+      /* Video cannot support XOR modes for image arrays */
+      if (in->numSlices > 1)
+         sin.noXor = 1;
+   }
+
    ret = Addr2GetPreferredSurfaceSetting(addrlib->handle, &sin, &sout);
    if (ret != ADDR_OK)
       return ret;
