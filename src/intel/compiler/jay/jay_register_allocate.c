@@ -337,13 +337,20 @@ typedef struct jay_ra_state {
    struct affinity *affinities;
 } jay_ra_state;
 
+static bool
+reg_is_available(const jay_ra_state *ra, jay_reg reg)
+{
+   assert(reg != NO_REG);
+   return BITSET_TEST(ra->available_regs[r_file(reg)], r_reg(reg));
+}
+
 static inline jay_reg
 current_reg(const jay_ra_state *ra, uint32_t index)
 {
    assert(index > 0 && index < ra->bld.func->ssa_alloc);
    jay_reg reg = ra->reg_for_index[index];
 
-   assert(reg != NO_REG);
+   assert(!reg_is_available(ra, reg));
    assert(ra->index_for_reg[r_file(reg)][r_reg(reg)] == index);
    return reg;
 }
@@ -620,13 +627,6 @@ jay_emit_parallel_copies(jay_builder *b,
 
    free(simple);
    free(done);
-}
-
-static bool
-reg_is_available(jay_ra_state *ra, jay_reg reg)
-{
-   assert(reg != NO_REG);
-   return BITSET_TEST(ra->available_regs[r_file(reg)], r_reg(reg));
 }
 
 static void
