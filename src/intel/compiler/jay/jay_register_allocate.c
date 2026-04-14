@@ -1261,7 +1261,7 @@ construct_phi_webs(struct phi_web_node *web, jay_function *f)
 static void
 insert_parallel_copies_for_phis(jay_function *f)
 {
-   jay_reg *phi_dsts = calloc(f->ssa_alloc, sizeof(jay_reg));
+   jay_reg *phi_dsts = malloc(f->ssa_alloc * sizeof(jay_reg));
    struct util_dynarray copies = UTIL_DYNARRAY_INIT;
    memset(phi_dsts, 0xFF, sizeof(jay_reg) * f->ssa_alloc);
 
