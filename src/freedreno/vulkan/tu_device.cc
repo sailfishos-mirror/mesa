@@ -1778,6 +1778,9 @@ tu_physical_device_init(struct tu_physical_device *device,
 
    device->vk.pipeline_cache_import_ops = cache_import_ops;
 
+   /* gen8 and onwards must use kernel UAPI for perfcntr management */
+   device->is_perf_cntr_selectable &= (device->info->chip <= 7);
+
    return VK_SUCCESS;
 
 fail_free_name:
