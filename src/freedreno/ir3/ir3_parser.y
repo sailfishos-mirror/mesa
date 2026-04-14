@@ -1000,6 +1000,9 @@ cat6_dst_offset:   offset    { instr->cat6.dst_offset = $1; }
 
 cat6_immed:        integer   { instr->cat6.iim_val = $1; }
 
+cat6_immed_or_gpr: immediate
+|                  src_gpr
+
 cat6_src_shift: '<' '<' integer {$$ = $3;}
 |                               {$$ = 0;}
 
@@ -1036,7 +1039,7 @@ cat6_a6xx_global_address:
 
 cat6_load:         T_OP_LDG   { new_instr(OPC_LDG); }   cat6_type dst_reg ',' 'g' '[' src cat6_offset ']' ',' immediate
 |                  T_OP_LDG_A { new_instr(OPC_LDG_A); } cat6_type dst_reg ',' 'g' '[' cat6_a6xx_global_address ']' ',' immediate
-|                  T_OP_LDG_K { new_instr(OPC_LDG_K); } cat6_type 'c' '[' const_dst ']' ',' 'g' '[' src cat6_offset ']' ',' immediate
+|                  T_OP_LDG_K { new_instr(OPC_LDG_K); } cat6_type 'c' '[' const_dst ']' ',' 'g' '[' src cat6_offset ']' ',' cat6_immed_or_gpr
 |                  T_OP_LDP   { new_instr(OPC_LDP); }   cat6_type dst_reg ',' 'p' '[' src cat6_offset ']' ',' immediate
 |                  T_OP_LDL   { new_instr(OPC_LDL); }   cat6_type dst_reg ',' 'l' '[' src cat6_offset ']' ',' immediate
 |                  T_OP_LDLW  { new_instr(OPC_LDLW); }  cat6_type dst_reg ',' 'l' '[' src cat6_offset ']' ',' immediate
