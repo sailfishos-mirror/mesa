@@ -190,27 +190,19 @@ pan_mod_afbc_test_props(const struct pan_kmod_dev_props *dprops,
    if ((iprops->modifier & AFBC_FORMAT_MOD_TILED) && !pan_afbc_can_tile(PAN_ARCH))
       return PAN_MOD_NOT_SUPPORTED;
 
-   unsigned plane_count = util_format_get_num_planes(iprops->format);
-   const struct util_format_description *fdesc =
-      util_format_description(iprops->format);
-
-   /* Check if the format supports AFBC */
-   enum pan_afbc_mode plane_modes[3];
-   for (unsigned p = 0; p < plane_count; p++) {
-      plane_modes[p] = pan_afbc_format(PAN_ARCH, iprops->format, p);
-      if (plane_modes[p] == PAN_AFBC_MODE_INVALID)
-         return PAN_MOD_NOT_SUPPORTED;
-
-      if ((iprops->modifier & AFBC_FORMAT_MOD_SPLIT) &&
-          !pan_afbc_can_split(PAN_ARCH, plane_modes[p], iprops->modifier)) {
-         return PAN_MOD_NOT_SUPPORTED;
-      }
-   }
-
-   /* YTR is only useful on RGB formats. */
-   if ((iprops->modifier & AFBC_FORMAT_MOD_YTR) &&
-       (pan_format_is_yuv(iprops->format) || fdesc->nr_channels < 3))
+   /* ... or split mode */
+   if ((iprops->modifier & AFBC_FORMAT_MOD_SPLIT) && !pan_afbc_can_split(PAN_ARCH))
       return PAN_MOD_NOT_SUPPORTED;
+
+   /* Check compatibility between formats and parameters */
+   unsigned plane_count = util_format_get_num_planes(iprops->format);
+   for (unsigned p = 0; p < plane_count; p++) {
+      enum pan_afbc_mode mode = pan_afbc_format(PAN_ARCH, iprops->format, p);
+      if (mode == PAN_AFBC_MODE_INVALID)
+         return PAN_MOD_NOT_SUPPORTED;
+      if (!pan_afbc_check_params(mode, iprops->modifier))
+         return PAN_MOD_NOT_SUPPORTED;
+   }
 
    /* AFBC can't do multisampling. */
    if (iprops->nr_samples > 1)
