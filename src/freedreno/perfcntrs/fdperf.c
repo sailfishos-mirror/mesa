@@ -11,6 +11,8 @@
 #include <inttypes.h>
 #include <libconfig.h>
 #include <locale.h>
+#include <poll.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,8 +26,11 @@
 
 #include "util/os_file.h"
 
+#include "freedreno_common.h"
 #include "freedreno_dt.h"
 #include "freedreno_perfcntr.h"
+
+#include "drm-uapi/msm_drm.h"
 
 #define MAX_CNTR_PER_GROUP 24
 #define REFRESH_MS         500
@@ -80,7 +85,25 @@ static struct {
    const struct fd_dev_id *dev_id;
    struct fd_submit *submit;
    struct fd_ringbuffer *ring;
-} dev;
+
+   /* This is used for PERFCNTR_CONFIG if supported by kernel.  In
+    * this case, dev.io is not used.
+    */
+   struct drm_msm_perfcntr_config perfcntr_config;
+   int perfcntr_stream_fd;
+
+   int num_configured_counters;
+
+   uint32_t seqno;
+   bool discontinuity;
+} dev = {
+   .perfcntr_config = {
+      .flags = MSM_PERFCNTR_STREAM | MSM_PERFCNTR_UPDATE,
+      .bufsz_shift = 12,
+      .group_stride = sizeof(struct drm_msm_perfcntr_group),
+   },
+   .perfcntr_stream_fd = -1,
+};
 
 static void config_save(void);
 static void config_restore(void);
@@ -117,6 +140,27 @@ delta(uint64_t a, uint64_t b)
       return 0xffffffffffffffffull - a + b;
    else
       return b - a;
+}
+
+static int
+perfcntr_config(void)
+{
+   if (dev.perfcntr_stream_fd >= 0) {
+      close(dev.perfcntr_stream_fd);
+      dev.perfcntr_stream_fd = -1;
+   }
+
+   errno = 0;
+
+   int fd = drmIoctl(fd_device_fd(dev.dev),
+                     DRM_IOCTL_MSM_PERFCNTR_CONFIG,
+                     &dev.perfcntr_config);
+   if (fd < 0)
+      return -errno;
+
+   dev.perfcntr_stream_fd = fd;
+
+   return 0;
 }
 
 static void
@@ -161,6 +205,33 @@ find_device(void)
    dev.groups = calloc(dev.ngroups, sizeof(struct counter_group));
    setup_counter_groups(groups);
 
+   ret = perfcntr_config();
+   if (ret == -E2BIG) {
+      struct drm_msm_perfcntr_group *g = U642VOID(dev.perfcntr_config.groups);
+
+      /* we are trying to use too many counters, back off: */
+      for (unsigned i = 0; i < dev.ngroups; i++) {
+         if (g[i].nr_countables < dev.groups[i].num_counters) {
+            printf("reducing %s counters %u -> %u\n",
+                   groups[i].name, dev.groups[i].num_counters, g[i].nr_countables);
+            dev.num_configured_counters -=
+               dev.groups[i].num_counters - g[i].nr_countables;
+            dev.groups[i].num_counters = g[i].nr_countables;
+         }
+      }
+
+      ret = perfcntr_config();
+   }
+
+   if (!ret) {
+      return;
+   }
+
+   /* mmio not supported on gen8+: */
+   if (fd_dev_gen(dev.dev_id) >= 8) {
+      err(1, "mmio fallback not supported");
+   }
+
    dev.io = fd_dt_find_io();
    if (!dev.io) {
       err(1, "could not map device");
@@ -176,6 +247,13 @@ find_device(void)
 static void
 flush_ring(void)
 {
+   if (!dev.io) {
+      int ret = perfcntr_config();
+      if (ret < 0)
+         errx(1, "perfcntr_config() failed");
+      return;
+   }
+
    if (!dev.submit)
       return;
 
@@ -212,6 +290,20 @@ select_counter(struct counter_group *group, int ctr, int countable_val)
 
    group->label[ctr] = group->group->countables[countable_idx].name;
    group->counter[ctr].select_val = countable_val;
+
+   /* If using PERFCNTR_CONFIG, then update the ioctl structure: */
+   if (!dev.io) {
+      struct drm_msm_perfcntr_group *g = U642VOID(dev.perfcntr_config.groups);
+
+      for (int i = 0; i < dev.ngroups; i++) {
+         if (&dev.groups[i] == group) {
+            uint32_t *countables = U642VOID(g[i].countables);
+            countables[ctr] = countable_val;
+            break;
+         }
+      }
+      return;
+   }
 
    if (!dev.submit) {
       dev.submit = fd_submit_new(dev.pipe);
@@ -326,6 +418,82 @@ check_counter_invalid(struct counter_group *group, int ctr)
    group->counter[ctr].is_invalid = (hw_selector != group->counter[ctr].select_val);
 }
 
+static bool
+perfcntr_stream_ready(void)
+{
+   struct pollfd pfd;
+
+   pfd.fd = dev.perfcntr_stream_fd;
+   pfd.events = POLLIN;
+   pfd.revents = 0;
+
+   if (poll(&pfd, 1, 0) < 0)
+      return false;
+
+   if (!(pfd.revents & POLLIN))
+      return false;
+
+   return true;
+}
+
+/* GPU always-on timer constants */
+static const uint64_t ALWAYS_ON_FREQUENCY_HZ = 19200000;
+static const double GPU_TICKS_PER_US = ALWAYS_ON_FREQUENCY_HZ / 1000000.0;
+
+static uint64_t
+ticks_to_us(uint64_t ticks)
+{
+   return ticks / GPU_TICKS_PER_US;
+}
+
+static void
+resample_perfcntr_stream(void)
+{
+   if (!perfcntr_stream_ready()) {
+      dev.discontinuity = true;
+      return;
+   }
+
+   uint64_t buf[dev.num_configured_counters + 2];  /* include 128b header */
+   void *ptr = buf;
+   size_t sz = sizeof(buf);
+
+   while (sz > 0) {
+      ssize_t ret = read(dev.perfcntr_stream_fd, ptr, sz);
+
+      if (ret < 0)
+         ret = -errno;
+
+      if (ret == -EINTR || ret == -EAGAIN)
+         continue;
+
+      if (ret < 0)
+         errx(ret, "read failed");
+
+      sz -= ret;
+      ptr += ret;
+   }
+
+   int idx = 0;
+   uint64_t ts = ticks_to_us(buf[idx++]);
+   uint32_t seqno = buf[idx++] & 0xffffffff;
+
+   dev.discontinuity = (seqno == 0);
+
+   for (unsigned i = 0; i < dev.ngroups; i++) {
+      struct counter_group *group = &dev.groups[i];
+      for (unsigned ctr = 0; ctr < group->num_counters; ctr++) {
+         uint64_t previous_value = group->value[ctr];
+         group->value[ctr] = buf[idx++];
+         group->value_delta[ctr] = delta(previous_value, group->value[ctr]);
+
+         uint64_t previous_sample_time = group->sample_time[ctr];
+         group->sample_time[ctr] = ts;
+         group->sample_time_delta[ctr] = delta(previous_sample_time, ts);
+      }
+   }
+}
+
 /* sample all the counters: */
 static void
 resample(void)
@@ -337,6 +505,11 @@ resample(void)
       return;
 
    last_time = current_time;
+
+   if (!dev.io) {
+      resample_perfcntr_stream();
+      return;
+   }
 
    for (unsigned i = 0; i < dev.ngroups; i++) {
       struct counter_group *group = &dev.groups[i];
@@ -484,7 +657,7 @@ static void
 redraw_counter(WINDOW *win, int row, struct counter_group *group, int ctr,
                bool selected)
 {
-   bool is_invalid = group->counter[ctr].is_invalid;
+   bool is_invalid = group->counter[ctr].is_invalid || dev.discontinuity;
    redraw_counter_label(win, row, group->label[ctr], selected, is_invalid);
    redraw_counter_value(win, row, group, ctr, is_invalid);
 }
@@ -749,6 +922,9 @@ main_ui(void)
       resample();
       redraw(mainwin);
 
+      if (!dev.io)
+         continue;
+
       /* restore the counters every 0.5s in case the GPU has suspended,
        * in which case the current selected countables will have reset:
        */
@@ -826,8 +1002,24 @@ restore_counter_groups(void)
 static void
 setup_counter_groups(const struct fd_perfcntr_group *groups)
 {
+   /* pre-allocate memory needed for PERFCNTR_CONFIG ioctl: */
+   struct drm_msm_perfcntr_group *g = calloc(sizeof(struct drm_msm_perfcntr_group), dev.ngroups);
+
+   dev.perfcntr_config.nr_groups = dev.ngroups;
+   dev.perfcntr_config.period = options.refresh_ms * 1000000;
+   dev.perfcntr_config.groups = VOID2U64(g);
+
    for (unsigned i = 0; i < dev.ngroups; i++) {
       struct counter_group *group = &dev.groups[i];
+
+      if (strlen(groups[i].name) > sizeof(g[i].group_name))
+         errx(1, "group name too large: %s", groups[i].name);
+
+      strncpy(g[i].group_name, groups[i].name, sizeof(g[i].group_name));
+      g[i].nr_countables = groups[i].num_counters;
+      g[i].countables = VOID2U64(calloc(sizeof(uint32_t), g[i].nr_countables));
+
+      dev.num_configured_counters += g[i].nr_countables;
 
       group->group = &groups[i];
       group->num_counters = group->group->num_counters;
