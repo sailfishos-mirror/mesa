@@ -1046,6 +1046,8 @@ pipeline_populate_v3d_key(struct v3d_key *key,
       p_stage->robustness.images == robust_image_enabled;
    key->robust_image_access_2 =
       p_stage->robustness.images == robust_image2_enabled;
+   key->null_descriptor =
+      p_stage->pipeline->device->vk.enabled_features.nullDescriptor;
 }
 
 uint32_t

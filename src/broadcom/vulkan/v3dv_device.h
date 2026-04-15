@@ -395,6 +395,11 @@ struct v3dv_device {
     */
    struct v3dv_bo *default_attribute_float;
 
+   /* When nullDescriptor is enabled, this BO provides valid zeroed memory
+    * for null descriptor paths.
+    */
+   struct v3dv_bo *null_bo;
+
    void *device_address_mem_ctx;
    struct util_dynarray device_address_bo_list; /* Array of struct v3dv_bo * */
 };

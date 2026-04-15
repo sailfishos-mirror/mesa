@@ -423,7 +423,7 @@ get_features(const struct v3dv_physical_device *physical_device,
       .robustImageAccess = true,
       .robustBufferAccess2 = false,
       .robustImageAccess2 = true,
-      .nullDescriptor = false,
+      .nullDescriptor = true,
       .shaderIntegerDotProduct = true,
 
       /* VK_EXT_4444_formats */
@@ -2030,6 +2030,18 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
    if (result != VK_SUCCESS)
       goto fail;
 
+   if (device->vk.enabled_features.nullDescriptor) {
+      device->null_bo =
+         v3dv_bo_alloc(device, 4096, "null texture data", true);
+      if (!device->null_bo ||
+          !v3dv_bo_map(device, device->null_bo,
+                       device->null_bo->size)) {
+         result = vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+         goto fail;
+      }
+      memset(device->null_bo->map, 0, device->null_bo->size);
+   }
+
    device->device_address_mem_ctx = ralloc_context(NULL);
    util_dynarray_init(&device->device_address_bo_list,
                       device->device_address_mem_ctx);
@@ -2066,6 +2078,7 @@ fail_queues_alloc:
    v3dv_pipeline_cache_finish(&device->default_pipeline_cache);
    v3dv_event_free_resources(device);
    v3dv_query_free_resources(device);
+   v3dv_bo_free(device, device->null_bo);
    vk_device_finish(&device->vk);
    vk_free(&device->vk.alloc, device);
 
@@ -2097,6 +2110,11 @@ v3dv_DestroyDevice(VkDevice _device,
    if (device->default_attribute_float) {
       v3dv_bo_free(device, device->default_attribute_float);
       device->default_attribute_float = NULL;
+   }
+
+   if (device->null_bo) {
+      v3dv_bo_free(device, device->null_bo);
+      device->null_bo = NULL;
    }
 
    ralloc_free(device->device_address_mem_ctx);

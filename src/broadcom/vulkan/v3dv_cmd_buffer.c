@@ -3482,6 +3482,8 @@ v3dv_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer,
 
    for (uint32_t i = 0; i < bindingCount; i++) {
       struct v3dv_buffer *buffer = v3dv_buffer_from_handle(pBuffers[i]);
+      assert(buffer || cmd_buffer->device->vk.enabled_features.nullDescriptor);
+
       if (vb[firstBinding + i].buffer != buffer) {
          vb[firstBinding + i].buffer = v3dv_buffer_from_handle(pBuffers[i]);
          vb_state_changed = true;
@@ -3491,14 +3493,19 @@ v3dv_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer,
          vb[firstBinding + i].offset = pOffsets[i];
          vb_state_changed = true;
       }
-      assert(pOffsets[i] <= buffer->size);
 
       VkDeviceSize size;
-      if (!pSizes || pSizes[i] == VK_WHOLE_SIZE)
-         size = buffer->size - pOffsets[i];
-      else
-         size = pSizes[i];
-      assert(pOffsets[i] + size <= buffer->size);
+      if (!buffer) {
+         size = 0;
+      } else {
+         assert(pOffsets[i] <= buffer->size);
+
+         if (!pSizes || pSizes[i] == VK_WHOLE_SIZE)
+            size = buffer->size - pOffsets[i];
+         else
+            size = pSizes[i];
+         assert(pOffsets[i] + size <= buffer->size);
+      }
 
       if (vb[firstBinding + i].size != size) {
          vb[firstBinding + i].size = size;
