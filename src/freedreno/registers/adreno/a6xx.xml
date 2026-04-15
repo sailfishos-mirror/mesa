@@ -10,6 +10,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 <import file="adreno/a8xx_enums.xml"/>
 <import file="adreno/a6xx_perfcntrs.xml"/>
 <import file="adreno/a7xx_perfcntrs.xml"/>
+<import file="adreno/a8xx_perfcntrs.xml"/>
 <import file="adreno/a6xx_descriptors.xml"/>
 <import file="adreno/a8xx_descriptors.xml"/>
 
