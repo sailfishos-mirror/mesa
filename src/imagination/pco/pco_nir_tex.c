@@ -641,7 +641,7 @@ static nir_def *lower_tex(nir_builder *b, nir_instr *instr, void *cb_data)
          assert(array_index);
 
          nir_def *array_max = usclib_tex_state_array_max(b, tex_state);
-         array_index = nir_uclamp(b, array_index, nir_imm_int(b, 0), array_max);
+         array_index = nir_iclamp(b, array_index, nir_imm_int(b, 0), array_max);
          if (is_cube_array)
             array_index = nir_imul_imm(b, array_index, 6);
 
@@ -1244,7 +1244,7 @@ static nir_def *lower_image(nir_builder *b, nir_instr *instr, void *cb_data)
       if (is_array) {
          assert(array_index);
          nir_def *array_max = usclib_tex_state_array_max(b, tex_state);
-         array_index = nir_uclamp(b, array_index, nir_imm_int(b, 0), array_max);
+         array_index = nir_iclamp(b, array_index, nir_imm_int(b, 0), array_max);
 
          nir_def *tex_meta = nir_load_tex_meta_pco(b,
                                                    PCO_IMAGE_META_COUNT,
@@ -1415,7 +1415,7 @@ static nir_def *lower_image(nir_builder *b, nir_instr *instr, void *cb_data)
          assert(array_index);
 
          nir_def *array_max = usclib_tex_state_array_max(b, tex_state);
-         array_index = nir_uclamp(b, array_index, nir_imm_int(b, 0), array_max);
+         array_index = nir_iclamp(b, array_index, nir_imm_int(b, 0), array_max);
 
          nir_def *tex_meta = nir_load_tex_meta_pco(b,
                                                    PCO_IMAGE_META_COUNT,
