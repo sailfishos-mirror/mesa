@@ -631,7 +631,9 @@ void si_init_screen_caps(struct si_screen *sscreen)
    caps->resource_from_user_memory = !UTIL_ARCH_BIG_ENDIAN && sscreen->info.has_userptr;
 
    caps->device_protected_surface = sscreen->info.has_tmz_support;
-
+#if defined(__ANDROID__) || defined(ANDROID)
+   caps->device_protected_context = sscreen->info.has_tmz_support;
+#endif
    caps->min_map_buffer_alignment = SI_MAP_BUFFER_ALIGNMENT;
 
    caps->max_vertex_buffers = SI_MAX_ATTRIBS;
