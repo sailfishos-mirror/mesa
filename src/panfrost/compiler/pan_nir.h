@@ -53,7 +53,8 @@ bool pan_nir_lower_image_ms(nir_shader *shader);
 
 bool pan_nir_lower_var_special_pan(nir_shader *shader);
 bool pan_nir_lower_noperspective_vs(nir_shader *shader);
-bool pan_nir_lower_noperspective_fs(nir_shader *shader);
+bool pan_nir_lower_noperspective_fs(nir_shader *shader,
+                                    uint32_t *noperspective_varyings);
 
 bool pan_nir_lower_vs_outputs(nir_shader *shader, uint64_t gpu_id,
                               const struct pan_varying_layout *varying_layout,

@@ -885,7 +885,8 @@ bifrost_postprocess_nir(nir_shader *nir,
       NIR_PASS(_, nir, nir_lower_is_helper_invocation);
       NIR_PASS(_, nir, pan_nir_lower_helper_invocation);
       NIR_PASS(_, nir, pan_nir_lower_sample_pos);
-      NIR_PASS(_, nir, pan_nir_lower_noperspective_fs);
+      NIR_PASS(_, nir, pan_nir_lower_noperspective_fs,
+               &info->varyings.noperspective);
       NIR_PASS(_, nir, nir_lower_frag_coord_to_pixel_coord);
       NIR_PASS(_, nir, pan_nir_lower_var_special_pan);
 
@@ -901,10 +902,6 @@ bifrost_postprocess_nir(nir_shader *nir,
                                   nir, inputs->gpu_id,
                                   inputs->trust_varying_flat_highp_types,
                                   false /* lower mediump */);
-
-      /* TODO: This can go in lower_noperspective_fs */
-      info->varyings.noperspective =
-         pan_nir_collect_noperspective_varyings_fs(nir);
 
       if (!inputs->is_blend)
          NIR_PASS(_, nir, pan_nir_lower_fs_inputs, inputs->gpu_id,
