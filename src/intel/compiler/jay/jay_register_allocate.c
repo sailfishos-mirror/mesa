@@ -311,7 +311,7 @@ typedef struct jay_ra_state {
    jay_block *block;
 
    /** Builder for inserting shuffle code */
-   jay_builder bld;
+   jay_builder b;
 
    /** Local SSA index -> jay_reg map. Only defined for live indices. */
    jay_reg *reg_for_index;
@@ -349,7 +349,7 @@ reg_is_available(const jay_ra_state *ra, jay_reg reg)
 static inline jay_reg
 current_reg(const jay_ra_state *ra, uint32_t index)
 {
-   assert(index > 0 && index < ra->bld.func->ssa_alloc);
+   assert(index > 0 && index < ra->b.func->ssa_alloc);
    jay_reg reg = ra->reg_for_index[index];
 
    assert(!reg_is_available(ra, reg));
@@ -672,7 +672,7 @@ try_find_free_reg(jay_ra_state *ra, enum jay_file file, unsigned except)
    if (file == GPR) {
       BITSET_FOREACH_SET(i, ra->available_regs[file], ra->num_regs[file]) {
          if (i != except &&
-             jay_gpr_to_stride(&ra->bld.shader->partition, i) == JAY_STRIDE_4) {
+             jay_gpr_to_stride(&ra->b.shader->partition, i) == JAY_STRIDE_4) {
             return make_reg(file, i);
          }
       }
@@ -726,7 +726,7 @@ pick_regs(jay_ra_state *ra,
           jay_def var,
           bool is_src)
 {
-   struct jay_partition *partition = &ra->bld.shader->partition;
+   struct jay_partition *partition = &ra->b.shader->partition;
    unsigned first = 0, end = ra->num_regs[file];
    bool must_tie = I->op == JAY_OPCODE_LANE_ID_EXPAND;
    must_tie &= !is_src;
@@ -881,7 +881,7 @@ pick_regs(jay_ra_state *ra,
 static void
 assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
 {
-   jay_shader *shader = ra->bld.shader;
+   jay_shader *shader = ra->b.shader;
    jay_def *vars[JAY_MAX_OPERANDS];
    jay_def saved_srcs[JAY_MAX_SRCS];
    struct jay_parallel_copy copies[JAY_MAX_DEF_LENGTH * JAY_MAX_OPERANDS];
@@ -1080,8 +1080,8 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
    }
 
    /* Shuffle everything */
-   ra->bld.cursor = jay_before_inst(I);
-   jay_emit_parallel_copies(&ra->bld, copies, nr_copies, temp_regs);
+   ra->b.cursor = jay_before_inst(I);
+   jay_emit_parallel_copies(&ra->b, copies, nr_copies, temp_regs);
 
    /* Reset data structures */
    for (unsigned i = 0; i < nr_vars; ++i) {
@@ -1153,7 +1153,7 @@ local_ra(jay_ra_state *ra, jay_block *block)
 
       /* Release registers for destinations that are immediately killed */
       jay_foreach_index(I->dst, _, index) {
-         if (BITSET_TEST(ra->bld.func->dead_defs, index)) {
+         if (BITSET_TEST(ra->b.func->dead_defs, index)) {
             release_reg(ra, current_reg(ra, index));
          }
       }
@@ -1216,11 +1216,11 @@ local_ra(jay_ra_state *ra, jay_block *block)
    block->temps_out = find_temp_regs(ra);
 
    /* Handle the end of the block */
-   ra->bld.cursor = jay_before_block(block);
+   ra->b.cursor = jay_before_block(block);
 
    jay_foreach_inst_in_block_rev(block, I) {
       if (I->op != JAY_OPCODE_PHI_SRC && !jay_op_is_control_flow(I->op)) {
-         ra->bld.cursor = jay_after_inst(I);
+         ra->b.cursor = jay_after_inst(I);
          break;
       }
 
@@ -1233,7 +1233,7 @@ local_ra(jay_ra_state *ra, jay_block *block)
    const unsigned num_pcopies =
       util_dynarray_num_elements(&copies, struct jay_parallel_copy);
 
-   jay_emit_parallel_copies(&ra->bld, copies.data, num_pcopies, temp_regs);
+   jay_emit_parallel_copies(&ra->b, copies.data, num_pcopies, temp_regs);
    util_dynarray_fini(&copies);
 }
 
@@ -1567,7 +1567,7 @@ static void
 jay_register_allocate_function(jay_function *f)
 {
    jay_shader *shader = f->shader;
-   jay_ra_state ra = { .bld.shader = shader, .bld.func = f };
+   jay_ra_state ra = { .b.shader = shader, .b.func = f };
 
    /* Spill as needed to fit within the limits. We spill GPR before UGPR since
     * spilling GPRs requires reserving a UGPR.
