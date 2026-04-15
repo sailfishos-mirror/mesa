@@ -570,12 +570,8 @@ gather_shader_info_vs(struct radv_device *device, const nir_shader *nir,
       info->esgs_itemsize = radv_compute_esgs_itemsize(pdev->info.gfx_level, info->vs.num_linked_outputs);
    }
 
-   if (info->is_ngg) {
-      info->vs.num_outputs = nir->num_outputs;
-
-      if (info->next_stage == MESA_SHADER_FRAGMENT || info->next_stage == MESA_SHADER_NONE) {
-         gather_shader_info_ngg_query(device, info);
-      }
+   if (info->is_ngg && (info->next_stage == MESA_SHADER_FRAGMENT || info->next_stage == MESA_SHADER_NONE)) {
+      gather_shader_info_ngg_query(device, info);
    }
 }
 
@@ -636,12 +632,8 @@ gather_shader_info_tes(struct radv_device *device, const nir_shader *nir, struct
       info->esgs_itemsize = radv_compute_esgs_itemsize(pdev->info.gfx_level, info->tes.num_linked_outputs);
    }
 
-   if (info->is_ngg) {
-      info->tes.num_outputs = nir->num_outputs;
-
-      if (info->next_stage == MESA_SHADER_FRAGMENT || info->next_stage == MESA_SHADER_NONE) {
-         gather_shader_info_ngg_query(device, info);
-      }
+   if (info->is_ngg && (info->next_stage == MESA_SHADER_FRAGMENT || info->next_stage == MESA_SHADER_NONE)) {
+      gather_shader_info_ngg_query(device, info);
    }
 }
 
