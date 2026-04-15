@@ -322,36 +322,30 @@ insert_coupling_code(struct spill_ctx *ctx, jay_block *pred, jay_block *succ)
    struct spill_block *sp = &ctx->blocks[pred->index];
    struct spill_block *ss = &ctx->blocks[succ->index];
 
-   /* Insert spill/fill at phi sources to match their destination */
+   /* Insert spills at phi sources to match their destination */
    jay_foreach_phi_src_in_block(pred, phi_src) {
       jay_inst *phi_dst = ctx->defs[jay_phi_src_index(phi_src)];
       unsigned src = jay_index(phi_src->src[0]);
 
-      if (phi_src->src[0].file == ctx->file) {
-         if (jay_is_mem(phi_dst->dst)) {
-            if (!u_sparse_bitset_test(&sp->S_out, src)) {
-               /* Spill the phi source. TODO: avoid redundant spills here */
-               b.cursor = jay_after_block_logical(pred);
-               insert_spill(&b, ctx, src);
-            }
-
-            if (can_remat_node(ctx, jay_index(phi_src->src[0]))) {
-               jay_def idx = jay_scalar(ctx->file, src);
-               jay_def tmp = jay_alloc_def(&b, ctx->file, 1);
-
-               b.cursor = jay_before_function(ctx->func);
-               remat_to(&b, tmp, ctx, src);
-               jay_MOV(&b, jay_def_as_mem(ctx, idx), tmp);
-            }
-
-            /* Use the spilled version */
-            phi_src->src[0] = jay_def_as_mem(ctx, phi_src->src[0]);
-            jay_set_phi_src_index(phi_src, jay_index(phi_dst->dst));
-         } else if (!u_sparse_bitset_test(&sp->W_out, src)) {
-            /* Fill the phi source in the predecessor */
-            jay_block *reload_block = jay_edge_to_block(pred, succ);
-            insert_reload(ctx, reload_block, jay_along_edge(pred, succ), src);
+      if (phi_src->src[0].file == ctx->file && jay_is_mem(phi_dst->dst)) {
+         if (!u_sparse_bitset_test(&sp->S_out, src)) {
+            /* Spill the phi source. TODO: avoid redundant spills here */
+            b.cursor = jay_after_block_logical(pred);
+            insert_spill(&b, ctx, src);
          }
+
+         if (can_remat_node(ctx, jay_index(phi_src->src[0]))) {
+            jay_def idx = jay_scalar(ctx->file, src);
+            jay_def tmp = jay_alloc_def(&b, ctx->file, 1);
+
+            b.cursor = jay_before_function(ctx->func);
+            remat_to(&b, tmp, ctx, src);
+            jay_MOV(&b, jay_def_as_mem(ctx, idx), tmp);
+         }
+
+         /* Use the spilled version */
+         phi_src->src[0] = jay_def_as_mem(ctx, phi_src->src[0]);
+         jay_set_phi_src_index(phi_src, jay_index(phi_dst->dst));
       }
    }
 
@@ -365,6 +359,22 @@ insert_coupling_code(struct spill_ctx *ctx, jay_block *pred, jay_block *succ)
 
    jay_foreach_phi_dst_in_block(succ, phi) {
       u_sparse_bitset_set(&ctx->phi_set, jay_index(phi->dst));
+   }
+
+   /* Now insert fills at phi sources to match their destination. Note that we
+    * must do all spilling before any filling to ensure we stay under the limit.
+    */
+   jay_foreach_phi_src_in_block(pred, phi_src) {
+      unsigned src = jay_index(phi_src->src[0]);
+
+      if (phi_src->src[0].file == ctx->file &&
+          !jay_is_mem(ctx->defs[jay_phi_src_index(phi_src)]->dst) &&
+          !u_sparse_bitset_test(&sp->W_out, src)) {
+
+         /* Fill the phi source in the predecessor */
+         jay_block *reload_block = jay_edge_to_block(pred, succ);
+         insert_reload(ctx, reload_block, jay_along_edge(pred, succ), src);
+      }
    }
 
    /* Variables in W at the start of succ must be defined along the edge.
