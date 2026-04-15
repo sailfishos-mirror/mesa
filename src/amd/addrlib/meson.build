@@ -49,7 +49,7 @@ files_addrlib = files(
 )
 
 # Skip the addrlib definition of ADDR_FASTCALL so as not to use regparm.
-cpp_args_addrlib = ['-DADDR_FASTCALL=']
+cpp_args_addrlib = ['-DADDR_FASTCALL=', '-DADDR_ALLOW_SIMD=1']
 
 if host_machine.endian() == 'little'
   cpp_args_addrlib += '-DLITTLEENDIAN_CPU'
