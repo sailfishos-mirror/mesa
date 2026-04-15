@@ -1561,7 +1561,9 @@ spill_file(jay_function *f, enum jay_file file, bool *spilled)
       jay_calculate_register_demands(f);
 
       if (f->demand[file] > limit) {
-         fprintf(stderr, "limit %u but demand %u\n", limit, f->demand[file]);
+         fprintf(stderr, "file %u, limit %u but demand %u\n", file, limit,
+                 f->demand[file]);
+         fflush(stdout);
          UNREACHABLE("spiller bug");
       }
 
