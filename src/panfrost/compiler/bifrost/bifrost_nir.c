@@ -296,8 +296,11 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
     * handle them */
    NIR_PASS(_, nir, nir_opt_algebraic);
 
-   /* TODO: Why is 64-bit getting rematerialized?
-    * KHR-GLES31.core.shader_image_load_store.basic-allTargets-atomicFS */
+   /* This is only needed because we support iadd64 but not isub64.
+    * nir_opt_algebraic lowers isub64 into iadd64 + ineg64 and since ineg64 is
+    * not supported either we lower that too.
+    * TODO: wire up isub64 and ineg64, then remove this
+    */
    NIR_PASS(_, nir, nir_lower_int64);
 
    /* Algebraic can materialize instructions with a bit_size that we need to lower */
