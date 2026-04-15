@@ -4,6 +4,7 @@
  */
 
 #include "util/bitset.h"
+#include "jay_builder.h"
 #include "jay_ir.h"
 #include "jay_opcodes.h"
 #include "jay_private.h"
@@ -18,6 +19,12 @@ pass(jay_function *f)
       if (!BITSET_TEST_COUNT(live_set, jay_base_index(I->dst),
                              jay_num_values(I->dst)) &&
           I->op != JAY_OPCODE_SEND) {
+
+         if (I->predication == JAY_PREDICATED_DEFAULT && !jay_is_null(I->dst)) {
+            jay_shrink_sources(I, I->num_srcs - 1);
+            I->predication = JAY_PREDICATED;
+         }
+
          I->dst = jay_null();
       }
 
