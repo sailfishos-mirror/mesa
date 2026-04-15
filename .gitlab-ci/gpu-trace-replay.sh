@@ -67,7 +67,7 @@ if [ -n "$WINE_TAG" ]; then
   export WINEDEBUG="-all"
   export WINEPREFIX="/wineprefix"
   export WINEESYNC=1
-  export WINEPATH="/apitrace-msvc-win64/bin"
+  export WINEPATH="/apitrace-msvc-win64/bin;/renderdoc-win64"
 
   # This may be useful if you're debugging DXVK loading.
   #export WINEDEBUG="+loaddll,+module"
