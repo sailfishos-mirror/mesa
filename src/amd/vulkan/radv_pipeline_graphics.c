@@ -1258,17 +1258,6 @@ radv_link_gs(struct radv_shader_stage *gs_stage, struct radv_shader_stage *fs_st
    }
 }
 
-static void
-radv_link_mesh(struct radv_shader_stage *mesh_stage, struct radv_shader_stage *fs_stage,
-               const struct radv_graphics_state_key *gfx_state)
-{
-   assert(mesh_stage->nir->info.stage == MESA_SHADER_MESH);
-
-   /* Lower mesh shader draw ID to zero prevent app bugs from triggering undefined behaviour. */
-   if (mesh_stage->info.ms.has_task && BITSET_TEST(mesh_stage->nir->info.system_values_read, SYSTEM_VALUE_DRAW_ID))
-      radv_nir_lower_draw_id_to_zero(mesh_stage->nir);
-}
-
 static bool
 radv_pipeline_needs_noop_fs(struct radv_graphics_pipeline *pipeline, const struct radv_graphics_state_key *gfx_state)
 {
@@ -1311,7 +1300,6 @@ radv_graphics_shaders_link(const struct radv_device *device, const struct radv_g
       case MESA_SHADER_TASK:
          break;
       case MESA_SHADER_MESH:
-         radv_link_mesh(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_FRAGMENT:
          break;
@@ -2677,6 +2665,11 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
    radv_foreach_stage (i, active_nir_stages) {
       if (!radv_is_last_vgt_stage(&stages[i]))
          continue;
+
+      /* Lower mesh shader draw ID to zero prevent app bugs from triggering undefined behaviour. */
+      if (i == MESA_SHADER_MESH && stages[i].info.ms.has_task &&
+          BITSET_TEST(stages[i].nir->info.system_values_read, SYSTEM_VALUE_DRAW_ID))
+         radv_nir_lower_draw_id_to_zero(stages[i].nir);
 
       uint64_t remove_as_varying = 0;
       uint64_t remove_as_sysval = 0;
