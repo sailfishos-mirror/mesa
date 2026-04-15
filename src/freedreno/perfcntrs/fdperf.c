@@ -80,6 +80,7 @@ static struct {
 static void config_save(void);
 static void config_restore(void);
 static void restore_counter_groups(void);
+static void setup_counter_groups(const struct fd_perfcntr_group *groups);
 
 /*
  * helpers
@@ -145,6 +146,15 @@ find_device(void)
    }
 
    printf("min_freq=%u, max_freq=%u\n", dev.min_freq, dev.max_freq);
+
+   const struct fd_perfcntr_group *groups;
+   groups = fd_perfcntrs(dev.dev_id, &dev.ngroups);
+   if (!groups) {
+      errx(1, "no perfcntr support");
+   }
+
+   dev.groups = calloc(dev.ngroups, sizeof(struct counter_group));
+   setup_counter_groups(groups);
 
    dev.io = fd_dt_find_io();
    if (!dev.io) {
@@ -997,17 +1007,8 @@ main(int argc, char **argv)
 
    find_device();
 
-   const struct fd_perfcntr_group *groups;
-   groups = fd_perfcntrs(dev.dev_id, &dev.ngroups);
-   if (!groups) {
-      errx(1, "no perfcntr support");
-   }
-
-   dev.groups = calloc(dev.ngroups, sizeof(struct counter_group));
-
    setlocale(LC_NUMERIC, "en_US.UTF-8");
 
-   setup_counter_groups(groups);
    restore_counter_groups();
    config_restore();
    flush_ring();
