@@ -127,6 +127,7 @@ lower(jay_builder *b, jay_inst *I)
 
    case JAY_OPCODE_DESWIZZLE: {
       unsigned size = jay_deswizzle_size(I);
+      assert(b->shader->partition.blocks[GPR][0].start == 1);
 
       /* Odd: copy both halves to contiguous pair after payload */
       for (unsigned i = 0; i < (size / 2); ++i) {
