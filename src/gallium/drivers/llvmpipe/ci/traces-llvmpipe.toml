@@ -218,7 +218,6 @@ devices = { llvmpipe = { checksum = "e1ae4dc9376d2fceb2a8d740529638697193f3ad855
 path = "supertuxkart/supertuxkart-ravenbridge-mansion.rdc"
 devices = { llvmpipe = { checksum = "e24faa84c7be25876719f3ff48e2c65642ce243ab93659f620e279d1981c8dcf" } }
 
-# thedarkmod/thedarkmod.trace: Basically black rendering, probably from a bad trim
 # unvanquished/unvanquished-lowest.trace: Requires GL 4.6, and doesn't render correctly even with version override
 # unvanquished/unvanquished-ultra.trace: Requires GL 4.6, and doesn't render correctly even with version override
 
