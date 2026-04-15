@@ -22,10 +22,8 @@ type_size_vec4(const struct glsl_type *type, bool bindless)
 }
 
 void
-radv_nir_lower_io(struct radv_device *device, nir_shader *nir)
+radv_nir_lower_io(nir_shader *nir)
 {
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
    /* The nir_lower_io pass currently cannot handle array deref of vectors.
     * Call this here to make sure there are no such derefs left in the shader.
     */
@@ -43,16 +41,8 @@ radv_nir_lower_io(struct radv_device *device, nir_shader *nir)
    /* Fold constant offset srcs for IO. */
    NIR_PASS(_, nir, nir_opt_constant_folding);
 
-   if (nir->xfb_info) {
+   if (nir->xfb_info)
       NIR_PASS(_, nir, nir_io_add_intrinsic_xfb_info);
-
-      if (pdev->use_ngg_streamout) {
-         /* The total number of shader outputs is required for computing the pervertex LDS size for
-          * VS/TES when lowering NGG streamout.
-          */
-         nir_assign_io_var_locations(nir, nir_var_shader_out);
-      }
-   }
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       /* Lower explicit input load intrinsics to sysvals for the layer ID. */

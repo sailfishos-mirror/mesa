@@ -2635,7 +2635,7 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
          }
       }
 
-      radv_nir_lower_io(device, stages[i].nir);
+      radv_nir_lower_io(stages[i].nir);
 
       if (!stages[i].key.optimisations_disabled) {
          /* Scalarize all I/O, because nir_opt_varyings and nir_opt_vectorize_io expect all I/O to be scalarized. */
