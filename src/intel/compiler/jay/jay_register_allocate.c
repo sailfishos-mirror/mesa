@@ -326,12 +326,14 @@ typedef struct jay_ra_state {
    BITSET_WORD *available_regs[JAY_NUM_RA_FILES];
 
    /**
-    * Within assign_regs_for_inst, the set of registers that have respectively
-    * been 1. assigned and therefore pinned; 2. the base of a killed source.
+    * Within assign_regs_for_inst, the set of registers that are respectively
+    * 1. assigned and therefore pinned; 2. the base of a killed source; 3. used
+    * as sources not yet processed.
     *
     * Invariant: zeroed on entry to assign_regs_for_inst.
     */
-   BITSET_WORD *pinned[JAY_NUM_RA_FILES], *killed[JAY_NUM_RA_FILES];
+   BITSET_WORD *pinned[JAY_NUM_RA_FILES], *killed[JAY_NUM_RA_FILES],
+      *sources[JAY_NUM_RA_FILES];
 
    /** Vector affinities for each def. */
    struct affinity *affinities;
@@ -853,17 +855,9 @@ pick_regs(jay_ra_state *ra,
          }
 
          /* Choosing this register will pin it, leaving it unavailable to later
-          * smaller sources which will need to be shuffled. Account for those
-          * moves.
-          *
-          * TODO: Faster algorithm.
+          * smaller sources which will need a move.
           */
-         jay_foreach_src_index(I, s, c, index) {
-            if (jay_num_values(I->src[s]) < size &&
-                ra->reg_for_index[index] == make_reg(file, i)) {
-               cost++;
-            }
-         }
+         cost += BITSET_TEST(ra->sources[file], i);
       }
 
       if (cost < best_cost) {
@@ -927,7 +921,7 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
           */
          jay_foreach_index(I->src[s], _, index) {
             jay_reg reg = current_reg(ra, index);
-            assert(reg != NO_REG);
+            BITSET_SET(ra->sources[r_file(reg)], r_reg(reg));
 
             eviction_indices[nr_copies] = index;
             copies[nr_copies++] = (struct jay_parallel_copy) { .src = reg };
@@ -1002,6 +996,10 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
                killed = false;
                break;
             }
+         }
+
+         jay_foreach_index(var, c, index) {
+            BITSET_CLEAR(ra->sources[file], r_reg(ra->reg_for_index[index]));
          }
       } else {
          alignment = MAX2(alignment, jay_dst_alignment(shader, I));
@@ -1606,6 +1604,7 @@ jay_register_allocate_function(jay_function *f)
       ra.available_regs[file] = BITSET_LINEAR_ZALLOC(lin_ctx, num_regs);
       ra.pinned[file] = BITSET_LINEAR_ZALLOC(lin_ctx, num_regs);
       ra.killed[file] = BITSET_LINEAR_ZALLOC(lin_ctx, num_regs);
+      ra.sources[file] = BITSET_LINEAR_ZALLOC(lin_ctx, num_regs);
    }
 
    ra.phi_web = linear_alloc_array(lin_ctx, struct phi_web_node, f->ssa_alloc);
