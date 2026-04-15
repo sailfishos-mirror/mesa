@@ -844,7 +844,7 @@
         "description": "pco: fix clamping the array index when shaderImageGatherExtended is enabled",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "854563f0f82ff6d6a0570eee3ee4e24611b6196a",
         "notes": null
