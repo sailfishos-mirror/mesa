@@ -336,5 +336,11 @@ process_intel_debug_variable(void)
    call_once(&process_intel_debug_variable_flag,
              process_intel_debug_variable_once);
 
-   use_jay = debug_get_option_use_jay();
+   /* Jay is under heavy development and is not considered released. It is
+    * available in upstream Mesa for developers to hack on but is not part of
+    * the 26.1 release. This comment acts like a chicken bit to fuse off the
+    * compiler while minimizing conflicts with backports (which is why we don't
+    * remove Jay wholesale from the release).
+    */
+   // use_jay = debug_get_option_use_jay();
 }
