@@ -203,7 +203,12 @@ bool
 radv_host_image_copy_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   return pdev->info.gfx_level >= GFX10 && (instance->experimental_flags & RADV_EXPERIMENTAL_HIC);
+   /* TODO: HIC is supported on GFX10 but the recent addrlib bump introduced few regressions that
+    * should be fixed soon, it's also still missing AVX for some formats. Let's not enable it by
+    * default for now.
+    */
+   return pdev->info.gfx_level >= GFX10_3 ||
+          (pdev->info.gfx_level == GFX10 && (instance->experimental_flags & RADV_EXPERIMENTAL_HIC));
 }
 
 bool
