@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "util/bitset.h"
 #include "util/lut.h"
 #include "jay_builder.h"
 #include "jay_ir.h"
@@ -239,13 +240,71 @@ propagate_fsat(jay_inst *I, jay_inst *fsat)
    return true;
 }
 
+/*
+ * Locally fuse flag AND/OR by converting to predication with tied sources.
+ * While easy in SSA, this relies on RA coalescing everything for profitability.
+ *
+ *    f0 = cmp a, b            f0 = cmp a, b
+ *    f1 = cmp c, d    ---->
+ *    f2 = and f0, f1          f2 = (f0|f0) cmp c, d
+ */
+static bool
+local_fuse_flag_and_or(jay_function *f,
+                       jay_inst *I,
+                       jay_inst *use,
+                       BITSET_WORD *defined)
+{
+   /* TODO: Generalize */
+   if (I->op != JAY_OPCODE_CMP ||
+       jay_type_size_bits(I->type) == 1 ||
+       !(use->op == JAY_OPCODE_AND || use->op == JAY_OPCODE_OR) ||
+       use->src[0].negate ||
+       use->src[1].negate) {
+      return false;
+   }
+
+   assert(jay_is_null(I->dst) && !I->predication);
+   unsigned i = jay_defs_equivalent(use->src[0], I->cond_flag) ? 0 : 1;
+   assert(jay_defs_equivalent(use->src[i], I->cond_flag));
+   jay_def other = use->src[1 - i];
+
+   /* We must ensure `other` dominates I. Because defs precede uses and we only
+    * work locally, it suffices to check that `other` is defined before I.
+    * Counterintuitively, that means we ensure that `other` has NOT yet been
+    * defined when processing I - because we propagate backwards.
+    *
+    * Currently we also bail on mixed FLAG/UFLAG cases for simplicity.
+    */
+   if (BITSET_TEST(defined, jay_index(other)) ||
+       use->src[0].file != use->src[1].file) {
+      return false;
+   }
+
+   /* Convert to predication using the identities:
+    *
+    *    a & b = a ? b : 0 = a ? b : a
+    *    a | b = a ? 1 : b = a ? a : b
+    */
+   I->cond_flag = use->dst;
+   jay_def pred = use->op == JAY_OPCODE_OR ? jay_negate(other) : other;
+   jay_builder b = jay_init_builder(f, jay_before_inst(I));
+   jay_add_predicate_else(&b, I, pred, other);
+   return true;
+}
+
 static void
 propagate_backwards(jay_function *f)
 {
    jay_inst **uses = calloc(f->ssa_alloc, sizeof(uses[0]));
    BITSET_WORD *multiple = BITSET_CALLOC(f->ssa_alloc);
+   BITSET_WORD *defined = BITSET_CALLOC(f->ssa_alloc);
+   uint32_t *def_block = malloc(f->ssa_alloc * sizeof(def_block[0]));
 
-   jay_foreach_inst_in_func_rev(f, block, I) {
+   jay_foreach_inst_in_func_safe_rev(f, block, I) {
+      jay_foreach_dst_index(I, _, index) {
+         BITSET_SET(defined, index);
+      }
+
       /* Record uses */
       jay_foreach_src_index(I, s, c, ssa_index) {
          if (uses[ssa_index])
@@ -254,17 +313,29 @@ propagate_backwards(jay_function *f)
             uses[ssa_index] = I;
       }
 
+      bool flag = jay_is_null(I->dst);
+      jay_def dst = flag ? I->cond_flag : I->dst;
+
       /* TODO: f64 sat propagation */
-      if (jay_num_values(I->dst) != 1)
+      if (jay_num_values(dst) != 1)
          continue;
 
-      assert(jay_is_ssa(I->dst));
+      def_block[jay_base_index(dst)] = block->index;
 
-      jay_inst *use = uses[jay_base_index(I->dst)];
-      if (!use || BITSET_TEST(multiple, jay_base_index(I->dst)))
+      assert(jay_is_ssa(dst));
+      jay_inst *use = uses[jay_base_index(dst)];
+      if (!use || BITSET_TEST(multiple, jay_base_index(dst)))
          continue;
 
-      if (jay_opcode_infos[I->op].sat &&
+      if (def_block[jay_base_index(use->dst)] == block->index &&
+          local_fuse_flag_and_or(f, I, use, defined)) {
+
+         jay_remove_instruction(use);
+         continue;
+      }
+
+      if (!flag &&
+          jay_opcode_infos[I->op].sat &&
           jay_type_is_any_float(I->type) &&
           propagate_fsat(I, use)) {
 
@@ -273,7 +344,8 @@ propagate_backwards(jay_function *f)
       }
 
       /* Fold UGPR->{GPR, FLAG} copies coming out of NIR */
-      if (I->type == use->type &&
+      if (!flag &&
+          I->type == use->type &&
           I->op != JAY_OPCODE_PHI_DST &&
           use->op == JAY_OPCODE_MOV) {
 
@@ -283,6 +355,8 @@ propagate_backwards(jay_function *f)
       }
    }
 
+   free(defined);
+   free(def_block);
    free(multiple);
    free(uses);
 }
