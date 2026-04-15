@@ -1155,7 +1155,8 @@ static bool
 bifrost_nir_lower_vs_atomics_impl(nir_builder *b, nir_intrinsic_instr *intr,
                                   UNUSED void *data)
 {
-   if (intr->intrinsic != nir_intrinsic_global_atomic)
+   if (intr->intrinsic != nir_intrinsic_global_atomic &&
+       intr->intrinsic != nir_intrinsic_ssbo_atomic)
       return false;
 
    unsigned output_mask = 0;
