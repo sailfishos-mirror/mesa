@@ -244,7 +244,7 @@ merge_requests:
         '^src/gallium/winsys/lima/': ['lima']
         '^src/gallium/winsys/nouveau/': ['nouveau']
         '^src/gallium/winsys/panfrost/': ['panfrost']
-        # '^src/gallium/winsys/radeon/': ['radeon']
+        '^src/gallium/winsys/radeon/': ['r300', 'r600', 'radeonsi']
         '^src/gallium/winsys/svga/': ['svga']
         # '^src/gallium/winsys/sw/': ['']
         '^src/gallium/winsys/sw/gdi/': ['wgl']
