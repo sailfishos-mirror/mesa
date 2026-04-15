@@ -241,7 +241,7 @@ static void pvr_physical_device_get_supported_features(
       .vertexPipelineStoresAndAtomics = false,
       .fragmentStoresAndAtomics = false,
       .shaderTessellationAndGeometryPointSize = false,
-      .shaderImageGatherExtended = false,
+      .shaderImageGatherExtended = true,
       .shaderStorageImageExtendedFormats = true,
       .shaderStorageImageMultisample = false,
       .shaderStorageImageReadWithoutFormat = true,
@@ -666,8 +666,8 @@ static bool pvr_physical_device_get_properties(
       .maxTexelOffset = 7U,
 
       /* Requires shaderImageGatherExtended */
-      .minTexelGatherOffset = 0,
-      .maxTexelGatherOffset = 0U,
+      .minTexelGatherOffset = -8,
+      .maxTexelGatherOffset = 7U,
 
       /* Requires sampleRateShading */
       .minInterpolationOffset = -0.5f,
