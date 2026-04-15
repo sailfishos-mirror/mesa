@@ -669,6 +669,10 @@ enum memory_flags {
     *  fusion (Gfx12.x only).
     */
    MEMORY_FLAG_FUSED_EU_DISABLE = 1 << 4,
+   /** Whether this memory load can be arbitrarily reordered or CSE'd
+    *  with other loads.
+    */
+   MEMORY_FLAG_CAN_REORDER = 1 << 5,
 };
 
 enum rt_logical_srcs {
