@@ -232,7 +232,7 @@ merge_requests:
         '^src/gallium/targets/mediafoundation/': ['mediafoundation']
         '^src/gallium/tests/': ['gallium']
         '^src/gallium/tools/': ['gallium']
-        # '^src/gallium/winsys/amdgpu/': ['']
+        '^src/gallium/winsys/amdgpu/': ['radeonsi']
         '^src/gallium/winsys/crocus/': ['crocus']
         '^src/gallium/winsys/d3d12/': ['d3d12']
         '^src/gallium/winsys/etnaviv/': ['etnaviv']
