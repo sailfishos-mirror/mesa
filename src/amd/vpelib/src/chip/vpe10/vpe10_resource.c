@@ -774,6 +774,11 @@ enum vpe_status vpe10_calculate_segments(
     struct dpp         *dpp                  = vpe_priv->resource.dpp[0];
     const uint32_t      max_lb_size          = dpp->funcs->get_line_buffer_size();
     uint16_t            alignment            = 1;
+    struct vpe_rect     target_rect          = params->target_rect;
+
+    if (vpe_is_zero_rect(&target_rect)) {
+        return VPE_STATUS_VIEWPORT_SIZE_NOT_SUPPORTED;
+    }
 
     for (stream_idx = 0; stream_idx < (uint16_t)vpe_priv->num_streams; stream_idx++) {
         stream_ctx = &vpe_priv->stream_ctx[stream_idx];
@@ -783,7 +788,7 @@ enum vpe_status vpe10_calculate_segments(
         if (stream_ctx->stream_type == VPE_STREAM_TYPE_BG_GEN)
             continue;
 
-        if (dst_rect->width == 0 && dst_rect->height == 0) {
+        if (vpe_is_zero_rect(dst_rect)) {
             stream_ctx->num_segments = 0;
             continue;
         }

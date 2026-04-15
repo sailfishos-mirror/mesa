@@ -2872,7 +2872,11 @@ static enum vpe_status segment_stream(struct vpe_priv *vpe_priv, struct stream_c
     max_seg_width    = vpe_priv->resource.get_max_seg_width(
         &vpe_priv->output_ctx, stream_ctx->stream.surface_info.format, stream_ctx->scan);
 
-    if (dst_rect.width == 0 && dst_rect.height == 0) {
+    if (vpe_is_zero_rect(&target_rect)) {
+        return VPE_STATUS_VIEWPORT_SIZE_NOT_SUPPORTED;
+    }
+
+    if (vpe_is_zero_rect(&dst_rect)) {
         stream_ctx->num_segments = 0;
         return VPE_STATUS_OK;
     }
