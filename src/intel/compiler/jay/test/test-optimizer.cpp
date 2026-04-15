@@ -287,3 +287,31 @@ TEST_F(Optimizer, FloatMismatchConditionalMods)
       });
    }
 }
+
+TEST_F(Optimizer, PredicateLogic)
+{
+   for (int and_ = 0; and_ < 2; ++and_) {
+      CASEB({
+         jay_def flag = jay_alloc_def(b, FLAG, 1);
+         jay_def flag2 = jay_alloc_def(b, FLAG, 1);
+         jay_def flag3 = jay_alloc_def(b, FLAG, 1);
+         jay_def x = jay_alloc_def(b, GPR, 1);
+         jay_ADD(b, JAY_TYPE_S32, x, wx, NEG(wy));
+         jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_LT, flag, 7, x);
+         jay_inst *cmp2 =
+            jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_GT, flag2, 12, x);
+
+         if (after) {
+            cmp2->cond_flag = flag3;
+            jay_add_predicate_else(b, cmp2, and_ ? flag : jay_negate(flag),
+                                   flag);
+         } else if (and_) {
+            jay_AND(b, JAY_TYPE_U1, flag3, flag, flag2);
+         } else {
+            jay_OR(b, JAY_TYPE_U1, flag3, flag, flag2);
+         }
+
+         jay_SEL(b, JAY_TYPE_U32, out, x, 123, flag3);
+      });
+   }
+}
