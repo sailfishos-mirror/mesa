@@ -58,7 +58,8 @@ assign_flag(struct flag_ra *ra,
             jay_def flag,
             enum jay_file file,
             bool free_canonical,
-            bool ballot)
+            bool ballot,
+            jay_def *tie)
 {
    jay_def canonical = canonicalize_flag(flag);
    jay_def tmp = jay_alloc_def(ra->b, file, 1);
@@ -67,7 +68,9 @@ assign_flag(struct flag_ra *ra,
     * TODO: We could optimize this with more tracking.
     */
    unsigned num_flags = jay_num_regs(ra->b->shader, FLAG);
-   tmp.reg = ballot ? 0 : (1 + (ra->roundrobin++) % (num_flags - 2));
+   tmp.reg = tie    ? tie->reg :
+             ballot ? 0 :
+                      (1 + (ra->roundrobin++) % (num_flags - 2));
 
    ra->vars[jay_index(canonical)] = (struct var_info) {
       .uniform = tmp.file == UFLAG,
@@ -194,6 +197,11 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
          I->type = JAY_TYPE_U32;
       }
 
+      if (I->op == JAY_OPCODE_CMP && I->predication) {
+         jay_def *default_ = jay_inst_get_default(I);
+         *default_ = canonicalize_flag(*default_);
+      }
+
       /* Handle flag sources */
       jay_foreach_src(I, s) {
          if (!jay_is_flag(I->src[s])) {
@@ -202,7 +210,10 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
 
          unsigned index = jay_index(I->src[s]);
          bool ballot = jay_src_type(I, s) != JAY_TYPE_U1;
-         enum jay_file file = I->dst.file == UGPR && !ballot ? UFLAG : FLAG;
+         bool uniform = I->dst.file == UGPR ||
+                        (jay_is_null(I->dst) && I->cond_flag.file == UFLAG);
+         enum jay_file file = uniform && !ballot ? UFLAG : FLAG;
+
          bool in_flag = ra->flag_to_global[var_to_flag[index].flag] == index &&
                         ((file == UFLAG) == var_to_flag[index].uniform);
 
@@ -213,7 +224,7 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
 
          /* Otherwise, ensure we have the value in a flag. */
          if (!in_flag) {
-            jay_def tmp = assign_flag(ra, I->src[s], file, false, ballot);
+            jay_def tmp = assign_flag(ra, I->src[s], file, false, ballot, NULL);
 
             /* XXX: We need a more systematic approach to modifiers :/ */
             b.cursor = jay_before_inst(I);
@@ -238,21 +249,23 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
        */
       if (!jay_is_null(I->dst) && jay_is_flag(I->dst)) {
          jay_def canonical = canonicalize_flag(I->dst);
-         I->dst = assign_flag(ra, I->dst, I->dst.file, false, false);
+         I->dst = assign_flag(ra, I->dst, I->dst.file, false, false, NULL);
          jay_SEL(&b, JAY_TYPE_U32, canonical, ~0, 0, I->dst);
       }
 
       if (!jay_is_null(I->cond_flag)) {
+         jay_def *tie = I->predication ? jay_inst_get_predicate(I) : NULL;
          I->broadcast_flag =
             var_to_flag[jay_index(I->cond_flag)].read_by_predication &&
             I->cond_flag.file == UFLAG &&
-            I->op == JAY_OPCODE_CMP;
+            I->op == JAY_OPCODE_CMP &&
+            !tie;
 
          jay_def canonical = canonicalize_flag(I->cond_flag);
          I->cond_flag =
             assign_flag(ra, I->cond_flag,
                         I->broadcast_flag ? FLAG : I->cond_flag.file,
-                        I->op == JAY_OPCODE_CMP, false);
+                        I->op == JAY_OPCODE_CMP, false, tie);
 
          if (I->op == JAY_OPCODE_CMP) {
             assert(jay_is_null(I->dst));
@@ -341,7 +354,7 @@ jay_assign_flags(jay_shader *s)
             def_to_block[jay_index(I->cond_flag)] = block->index + 1;
          }
 
-         if (I->predication) {
+         if (I->predication == JAY_PREDICATED) {
             jay_def predicate = *jay_inst_get_predicate(I);
             if (def_to_block[jay_index(predicate)] == block->index + 1) {
                map[jay_index(predicate)].read_by_predication = true;
