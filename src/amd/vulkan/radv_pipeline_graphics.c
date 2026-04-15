@@ -1269,15 +1269,6 @@ radv_link_mesh(struct radv_shader_stage *mesh_stage, struct radv_shader_stage *f
       radv_nir_lower_draw_id_to_zero(mesh_stage->nir);
 }
 
-static void
-radv_link_fs(struct radv_shader_stage *fs_stage, const struct radv_graphics_state_key *gfx_state)
-{
-   assert(fs_stage->nir->info.stage == MESA_SHADER_FRAGMENT);
-
-   /* Lower the view index to map on the layer. */
-   NIR_PASS(_, fs_stage->nir, radv_nir_lower_view_index);
-}
-
 static bool
 radv_pipeline_needs_noop_fs(struct radv_graphics_pipeline *pipeline, const struct radv_graphics_state_key *gfx_state)
 {
@@ -1323,7 +1314,6 @@ radv_graphics_shaders_link(const struct radv_device *device, const struct radv_g
          radv_link_mesh(&stages[s], next_stage, gfx_state);
          break;
       case MESA_SHADER_FRAGMENT:
-         radv_link_fs(&stages[s], gfx_state);
          break;
       default:
          UNREACHABLE("Invalid graphics shader stage");
@@ -2679,6 +2669,9 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_copy_prop);
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_dce);
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_frag_coord_to_pixel_coord);
+
+      /* Lower the view index to map on the layer. */
+      NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_lower_view_index);
    }
 
    radv_foreach_stage (i, active_nir_stages) {
