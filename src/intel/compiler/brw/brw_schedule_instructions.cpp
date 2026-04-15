@@ -571,7 +571,8 @@ public:
                              int block_count, bool post_reg_alloc, bool need_latencies);
 
    void add_barrier_deps(schedule_node *n);
-   void add_cross_lane_deps(schedule_node *n);
+   void add_memory_deps(schedule_node *n);
+   void add_halt_deps(schedule_node *n);
    void add_dep(schedule_node *before, schedule_node *after, int latency);
    void add_dep(schedule_node *before, schedule_node *after);
    void add_address_dep(schedule_node *before, schedule_node *after);
@@ -1080,8 +1081,28 @@ static bool
 is_scheduling_barrier(const brw_inst *inst)
 {
    return inst->opcode == SHADER_OPCODE_HALT_TARGET ||
+          inst->opcode == SHADER_OPCODE_RND_MODE ||
+          inst->opcode == SHADER_OPCODE_FLOAT_CONTROL_MODE ||
           (inst->is_control_flow() && inst->opcode != BRW_OPCODE_HALT) ||
-          inst->has_side_effects();
+          inst->eot;
+}
+
+static bool
+has_memory_side_effects(const brw_inst *inst)
+{
+   assert(inst->opcode != SHADER_OPCODE_LSC_SPILL);
+   return inst->opcode == BRW_OPCODE_SYNC ||
+          inst->opcode == BRW_OPCODE_WAIT ||
+          inst->opcode == SHADER_OPCODE_BARRIER ||
+          inst->opcode == FS_OPCODE_SCHEDULING_FENCE ||
+          (inst->is_send() && inst->as_send()->has_side_effects);
+}
+
+static bool
+is_memory_volatile(const brw_inst *inst)
+{
+   return has_memory_side_effects(inst) ||
+          (inst->is_send() && inst->as_send()->is_volatile);
 }
 
 static bool
@@ -1186,16 +1207,43 @@ brw_instruction_scheduler::add_barrier_deps(schedule_node *n)
    }
 }
 
+void
+brw_instruction_scheduler::add_memory_deps(schedule_node *n)
+{
+   for (schedule_node *prev = n - 1; prev >= current.start; prev--) {
+      if (has_memory_side_effects(prev->inst)) {
+         add_dep(prev, n, 0);
+         break;
+      }
+      if (is_memory_volatile(prev->inst)) {
+         add_dep(prev, n, 0);
+      }
+   }
+
+   for (schedule_node *next = n + 1; next < current.end; next++) {
+      if (has_memory_side_effects(next->inst)) {
+         add_dep(n, next, 0);
+         break;
+      }
+      if (is_memory_volatile(next->inst)) {
+         add_dep(n, next, 0);
+      }
+   }
+}
+
 /**
  * Because some instructions like HALT can disable lanes, scheduling prior to
  * a cross lane access should not be allowed, otherwise we could end up with
- * later instructions accessing uninitialized data.
+ * later instructions accessing uninitialized data. Instructions with memory
+ * side effects must also be scheduled prior to a HALT, otherwise we would be
+ * changing the behavior of the program.
  */
 void
-brw_instruction_scheduler::add_cross_lane_deps(schedule_node *n)
+brw_instruction_scheduler::add_halt_deps(schedule_node *n)
 {
    for (schedule_node *prev = n - 1; prev >= current.start; prev--) {
-      if (has_cross_lane_access((brw_inst*)prev->inst))
+      if (has_cross_lane_access(prev->inst) ||
+          has_memory_side_effects(prev->inst))
          add_dep(prev, n, 0);
    }
 }
@@ -1338,9 +1386,12 @@ brw_instruction_scheduler::calculate_deps()
       if (is_scheduling_barrier(inst))
          add_barrier_deps(n);
 
+      if (has_memory_side_effects(inst))
+         add_memory_deps(n);
+
       if (inst->opcode == BRW_OPCODE_HALT ||
           inst->opcode == SHADER_OPCODE_HALT_TARGET)
-          add_cross_lane_deps(n);
+         add_halt_deps(n);
 
       /* read-after-write deps. */
       for (int i = 0; i < inst->sources; i++) {
