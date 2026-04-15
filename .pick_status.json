@@ -574,7 +574,7 @@
         "description": "nir/opt_reassociate: fix exactness bug",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e0b0f7e73c88f63472cdaedf01b428e6a824d5de",
         "notes": null
