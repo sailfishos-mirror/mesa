@@ -514,7 +514,7 @@
         "description": "pan/bi: Fix source swizzle in bi_repair_ssa",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dd94d1833f6cd05a123ca4aa038a6547685ec20b",
         "notes": null
