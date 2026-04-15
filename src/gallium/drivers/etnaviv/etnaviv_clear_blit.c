@@ -283,27 +283,28 @@ etna_flush_resource(struct pipe_context *pctx, struct pipe_resource *prsc)
       }
    } else if (flush_rb_swap) {
       /* No render shadow and no TS — PE rendered directly into the shared
-       * buffer. We still need to R<->B swap the contents.
-       * Can't use etna_copy_resource(src==dst) here because it skips levels
-       * without valid TS, so issue the blit directly. */
-      assert(prsc->last_level == 0);
-      struct etna_resource_level *lev = &rsc->levels[0];
-      struct pipe_blit_info blit = {
-         .mask = util_format_get_mask(prsc->format),
-         .filter = PIPE_TEX_FILTER_NEAREST,
-         .src.resource = blit.dst.resource = prsc,
-         .src.format = blit.dst.format = prsc->format,
-         .src.box.width = blit.dst.box.width = lev->width,
-         .src.box.height = blit.dst.box.height = lev->height,
-         .src.box.depth = blit.dst.box.depth = 1,
-      };
+       * buffer. If the fragment shader already swapped R/B (LINEAR_PE),
+       * bytes are already correct. Otherwise we need to swap here. */
+      if (!rsc->shared_native_order) {
+         assert(prsc->last_level == 0);
+         struct etna_resource_level *lev = &rsc->levels[0];
+         struct pipe_blit_info blit = {
+            .mask = util_format_get_mask(prsc->format),
+            .filter = PIPE_TEX_FILTER_NEAREST,
+            .src.resource = blit.dst.resource = prsc,
+            .src.format = blit.dst.format = prsc->format,
+            .src.box.width = blit.dst.box.width = lev->width,
+            .src.box.height = blit.dst.box.height = lev->height,
+            .src.box.depth = blit.dst.box.depth = 1,
+         };
 
-      ctx->blit_rb_swap = true;
-      ctx->blit(pctx, &blit);
-      ctx->blit_rb_swap = false;
+         ctx->blit_rb_swap = true;
+         ctx->blit(pctx, &blit);
+         ctx->blit_rb_swap = false;
 
-      rsc->shared_native_order = true;
-      etna_resource_level_mark_changed(&rsc->levels[0]);
+         rsc->shared_native_order = true;
+         etna_resource_level_mark_changed(&rsc->levels[0]);
+      }
    }
 }
 
