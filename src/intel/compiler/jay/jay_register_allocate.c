@@ -795,6 +795,12 @@ pick_regs(jay_ra_state *ra,
           !(min_stride <= stride && stride <= max_stride))
          continue;
 
+      /* Try to tie predicated default values, otherwise post-RA lowering needs
+       * to insert a predicated-MOV or SEL.
+       */
+      if (I->predication == JAY_PREDICATED_DEFAULT && !is_src)
+         cost += jay_inst_get_default(I)->reg != r;
+
       /* Assigning a stride that is too big may result in SIMDness splitting.
        * Model that cost so we prefer packed registers.
        */
