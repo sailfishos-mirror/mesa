@@ -2234,7 +2234,7 @@
         "description": "winsys/amdgpu: Use render node only as fallback",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8f30e90fc104c2b9e044d279fe953a308c44353f",
         "notes": null
