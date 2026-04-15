@@ -1264,18 +1264,6 @@ radv_link_mesh(struct radv_shader_stage *mesh_stage, struct radv_shader_stage *f
 {
    assert(mesh_stage->nir->info.stage == MESA_SHADER_MESH);
 
-   if (fs_stage) {
-      assert(fs_stage->nir->info.stage == MESA_SHADER_FRAGMENT);
-
-      nir_foreach_shader_in_variable (var, fs_stage->nir) {
-         /* These variables are per-primitive when used with a mesh shader. */
-         if (var->data.location == VARYING_SLOT_PRIMITIVE_ID || var->data.location == VARYING_SLOT_VIEWPORT ||
-             var->data.location == VARYING_SLOT_LAYER) {
-            var->data.per_primitive = true;
-         }
-      }
-   }
-
    /* Lower mesh shader draw ID to zero prevent app bugs from triggering undefined behaviour. */
    if (mesh_stage->info.ms.has_task && BITSET_TEST(mesh_stage->nir->info.system_values_read, SYSTEM_VALUE_DRAW_ID))
       radv_nir_lower_draw_id_to_zero(mesh_stage->nir);
@@ -2643,6 +2631,19 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
 
    radv_foreach_stage (i, active_nir_stages) {
       int64_t stage_start = os_time_get_nano();
+
+      if (i == MESA_SHADER_FRAGMENT && stages[MESA_SHADER_MESH].nir) {
+         nir_foreach_shader_in_variable (var, stages[i].nir) {
+            /* These variables are implicitly per-primitive when used with mesh->fragment stages
+             * and this can't be determined with only the FS.
+             * nir_opt_varyings relies on inputs and outputs agreeing on per-primitive.
+             */
+            if (var->data.location == VARYING_SLOT_PRIMITIVE_ID || var->data.location == VARYING_SLOT_VIEWPORT ||
+                var->data.location == VARYING_SLOT_LAYER) {
+               var->data.per_primitive = true;
+            }
+         }
+      }
 
       radv_nir_lower_io(device, stages[i].nir);
 
