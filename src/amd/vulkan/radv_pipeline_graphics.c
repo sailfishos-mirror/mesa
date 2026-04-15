@@ -1211,20 +1211,6 @@ static const mesa_shader_stage graphics_shader_order[] = {
    MESA_SHADER_FRAGMENT,
 };
 
-static void
-radv_link_tcs(struct radv_shader_stage *tcs_stage, struct radv_shader_stage *tes_stage,
-              const struct radv_graphics_state_key *gfx_state)
-{
-   if (!tes_stage)
-      return;
-
-   assert(tcs_stage->nir->info.stage == MESA_SHADER_TESS_CTRL);
-   assert(tes_stage->nir->info.stage == MESA_SHADER_TESS_EVAL);
-
-   /* Copy TCS info into the TES info */
-   merge_tess_info(&tes_stage->nir->info, &tcs_stage->nir->info);
-}
-
 static bool
 radv_pipeline_needs_noop_fs(struct radv_graphics_pipeline *pipeline, const struct radv_graphics_state_key *gfx_state)
 {
@@ -1238,41 +1224,6 @@ radv_pipeline_needs_noop_fs(struct radv_graphics_pipeline *pipeline, const struc
       return true;
 
    return false;
-}
-
-static void
-radv_graphics_shaders_link(const struct radv_device *device, const struct radv_graphics_state_key *gfx_state,
-                           struct radv_shader_stage *stages)
-{
-   /* Walk backwards to link */
-   struct radv_shader_stage *next_stage = NULL;
-   for (int i = ARRAY_SIZE(graphics_shader_order) - 1; i >= 0; i--) {
-      mesa_shader_stage s = graphics_shader_order[i];
-      if (!stages[s].nir)
-         continue;
-
-      switch (s) {
-      case MESA_SHADER_VERTEX:
-         break;
-      case MESA_SHADER_TESS_CTRL:
-         radv_link_tcs(&stages[s], next_stage, gfx_state);
-         break;
-      case MESA_SHADER_TESS_EVAL:
-         break;
-      case MESA_SHADER_GEOMETRY:
-         break;
-      case MESA_SHADER_TASK:
-         break;
-      case MESA_SHADER_MESH:
-         break;
-      case MESA_SHADER_FRAGMENT:
-         break;
-      default:
-         UNREACHABLE("Invalid graphics shader stage");
-      }
-
-      next_stage = &stages[s];
-   }
 }
 
 static void
@@ -2547,7 +2498,10 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
       NIR_PASS(_, stages[MESA_SHADER_GEOMETRY].nir, nir_lower_vars_to_ssa);
    }
 
-   radv_graphics_shaders_link(device, gfx_state, stages);
+   if (stages[MESA_SHADER_TESS_CTRL].nir && stages[MESA_SHADER_TESS_EVAL].nir) {
+      /* Copy TCS info into the TES info */
+      merge_tess_info(&stages[MESA_SHADER_TESS_EVAL].nir->info, &stages[MESA_SHADER_TESS_CTRL].nir->info);
+   }
 
    if (stages[MESA_SHADER_FRAGMENT].nir) {
       unsigned vgt_outprim_type = radv_get_vgt_outprim_type(stages, gfx_state);
