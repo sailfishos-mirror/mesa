@@ -153,25 +153,18 @@ inst_exec_pipe(const struct intel_device_info *devinfo, jay_inst *I)
 static enum tgl_pipe
 inferred_sync_pipe(const struct intel_device_info *devinfo, const jay_inst *I)
 {
-   bool has_int_src = false, has_long_src = false;
+   enum jay_type type = I->num_srcs ? jay_src_type(I, 0) : JAY_TYPE_UNTYPED;
 
-   if (devinfo->verx10 >= 125) {
-      jay_foreach_src(I, s) {
-         has_int_src |= !jay_type_is_any_float(jay_src_type(I, s));
-         has_long_src |= jay_src_type(I, s) == JAY_TYPE_F64;
-      }
-
+   if (I->op == JAY_OPCODE_SEND) {
+      return TGL_PIPE_NONE;
+   } else if (devinfo->verx10 >= 125 && type == JAY_TYPE_F64) {
       /* Avoid emitting (RegDist, SWSB) annotations for long instructions on
        * platforms where they are unordered as they may not be allowed.
        */
-      if (devinfo->has_64bit_float_via_math_pipe && has_long_src)
-         return TGL_PIPE_NONE;
+      return devinfo->has_64bit_float ? TGL_PIPE_LONG : TGL_PIPE_NONE;
+   } else {
+      return jay_type_is_any_float(type) ? TGL_PIPE_FLOAT : TGL_PIPE_INT;
    }
-
-   return I->op == JAY_OPCODE_SEND ? TGL_PIPE_NONE :
-          has_long_src             ? TGL_PIPE_LONG :
-          has_int_src              ? TGL_PIPE_INT :
-                                     TGL_PIPE_FLOAT;
 }
 
 static void
