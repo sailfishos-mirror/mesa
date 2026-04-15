@@ -214,7 +214,8 @@ validate_inst(struct validate_state *validate, jay_inst *I)
       CHECK(num_srcs >= I->predication);
 
       if (jay_inst_has_default(I)) {
-         CHECK(jay_inst_get_default(I)->file == I->dst.file);
+         jay_def dst = jay_is_null(I->dst) ? I->cond_flag : I->dst;
+         CHECK(jay_inst_get_default(I)->file == dst.file);
       }
 
       CHECK(jay_is_flag(*jay_inst_get_predicate(I)));
