@@ -150,9 +150,10 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
    if (I->op == JAY_OPCODE_CMP &&
        jay_is_zero(I->src[1]) &&
        jay_is_null(I->dst) &&
-       I->type == JAY_TYPE_U32) {
+       I->type == JAY_TYPE_U32 &&
+       !I->predication) {
 
-      assert(!jay_is_null(I->cond_flag) && !I->predication);
+      assert(!jay_is_null(I->cond_flag));
       I->op = JAY_OPCODE_MOV;
       jay_shrink_sources(I, 1);
    }
