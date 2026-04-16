@@ -333,7 +333,6 @@ iris_init_screen_caps(struct iris_screen *screen)
    caps->polygon_offset_clamp = true;
    caps->query_so_overflow = true;
    caps->query_buffer_object = true;
-   caps->tgsi_tex_txf_lz = true;
    caps->texture_query_samples = true;
    caps->shader_clock = true;
    caps->shader_ballot = true;
