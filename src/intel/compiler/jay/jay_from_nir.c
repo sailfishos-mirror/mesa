@@ -750,34 +750,88 @@ jay_emit_derivative(jay_builder *b,
            jay_negate(jay_QUAD_SWIZZLE_u32(b, val, swz0)));
 }
 
+static inline jay_def
+optional_src(nir_src nsrc)
+{
+   return nir_src_is_undef(nsrc) ? jay_null() : nj_src(nsrc);
+}
+
+static bool
+scalars_equal(nir_scalar a, nir_scalar b)
+{
+   return nir_scalar_equal(a, b) ||
+          (nir_scalar_is_const(a) &&
+           nir_scalar_is_const(b) &&
+           nir_scalar_as_uint(a) == nir_scalar_as_uint(b));
+}
+
 static void
 jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
 {
-   jay_def data = nj_src(intr->src[0]);
-   jay_def srcs[8];
+   const struct intel_device_info *devinfo = b->shader->devinfo;
+   jay_def colour = nj_src(intr->src[0]);
+   jay_def src0_alpha = optional_src(intr->src[1]);
+   jay_def omask = optional_src(intr->src[2]);
+   jay_def depth = optional_src(intr->src[3]);
+   jay_def stencil = optional_src(intr->src[4]);
+   const bool null_rt = ((signed) nir_intrinsic_target(intr)) < 0;
+   const int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
+   const bool last = !nir_instr_next(&intr->instr);
 
-   /* Optimize unconditional discards. Should probably do this in NIR. */
-   bool trivial =
-      nir_src_is_const(intr->src[2]) && nir_src_as_bool(intr->src[2]);
+   /* If our alpha happens to match src0_alpha, we can skip sending it,
+    * as the hardware will use our alpha in that case.
+    */
+   if (scalars_equal(nir_scalar_resolved(intr->src[1].ssa, 0),
+                     nir_scalar_resolved(intr->src[0].ssa, 3)))
+      src0_alpha = jay_null();
 
-   for (unsigned i = 0; i < nir_src_num_components(intr->src[0]); ++i) {
-      srcs[i] =
-         trivial ? jay_UNDEF_u32(b) : jay_as_gpr(b, jay_extract(data, i));
+   unsigned op = b->shader->dispatch_width == 32 ?
+                    XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :
+                    BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD16_SINGLE_SOURCE;
+   uint64_t desc =
+      brw_fb_write_desc(devinfo, target, op, last, false /* coarse write */);
+
+   uint64_t ex_desc = (target << 21) |
+                      (null_rt ? (1 << 20) : 0) |
+                      (jay_is_null(src0_alpha) ? 0 : (1 << 15)) |
+                      (jay_is_null(stencil) ? 0 : (1 << 14)) |
+                      (jay_is_null(depth) ? 0 : (1 << 13)) |
+                      (jay_is_null(omask) ? 0 : (1 << 12));
+
+   assert((jay_is_null(src0_alpha) || jay_is_null(omask)) &&
+          "TODO: lower alpha test to discards when samplemask is written");
+
+   jay_def srcs[4 + 16 + 4 + 1 + 16];
+
+   unsigned len = 0;
+
+   if (!jay_is_null(src0_alpha))
+      srcs[len++] = jay_as_gpr(b, src0_alpha);
+
+   assert(jay_is_null(omask) && "TODO: samplemask");
+
+   for (unsigned i = 0; i < 4; i++)
+      srcs[len++] = jay_as_gpr(b, jay_extract(colour, i));
+
+   if (!jay_is_null(depth))
+      srcs[len++] = jay_as_gpr(b, depth);
+
+   assert(jay_is_null(stencil) && "TODO: stencil");
+
+   /* Optimize out unconditional discards (probably should do this in NIR) */
+   if (nir_src_is_const(intr->src[5]) && nir_src_as_bool(intr->src[5])) {
+      for (unsigned i = 0; i < len; i++)
+         srcs[i] = jay_UNDEF_u32(b);
    }
 
    jay_inst *send =
       jay_SEND(b, .sfid = BRW_SFID_RENDER_CACHE, .check_tdr = true,
-               .msg_desc = nir_scalar_as_uint(nir_scalar_chase_movs(
-                              nir_get_scalar(intr->src[1].ssa, 0))) |
-                           (nir_scalar_as_uint(nir_scalar_chase_movs(
-                               nir_get_scalar(intr->src[1].ssa, 1)))
-                            << 32),
-               .srcs = srcs, .nr_srcs = nir_src_num_components(intr->src[0]),
-               .type = JAY_TYPE_U32, .eot = nir_intrinsic_eot(intr));
+               .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
+               .type = JAY_TYPE_U32, .eot = last);
 
    /* Handle the disable predicate. It is logically inverted. */
-   if (!nir_src_is_const(intr->src[2]) || nir_src_as_bool(intr->src[2])) {
-      jay_add_predicate(b, send, jay_negate(nj_src(intr->src[2])));
+   if (!nir_src_is_const(intr->src[5]) || nir_src_as_bool(intr->src[5])) {
+      jay_add_predicate(b, send, jay_negate(nj_src(intr->src[5])));
    }
 }
 
