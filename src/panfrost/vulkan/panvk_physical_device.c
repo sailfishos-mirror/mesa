@@ -903,6 +903,26 @@ panvk_get_sample_counts(unsigned arch, unsigned max_tib_size,
    return sample_counts;
 }
 
+/* Plane descriptors have limits to how large resources they can encode, both
+ * for the buffer size and for the slice-strides.
+ *
+ * The only mandates we have from the Vulkan spec to limit resource sizes,
+ * is to use the maxImageDimension* limits, or through maxResourceSize.
+ * Limiting using maxImageDimension* has application compatibility problems,
+ * so let's use maxResourceSize.
+ *
+ * Unfortunately, this means we have to limit the *entire* resource to the
+ * limit, rather than just a single image plane.
+ */
+
+VkDeviceSize
+panvk_get_max_resource_size(const struct panvk_physical_device *device)
+{
+   const unsigned arch = pan_arch(device->kmod.dev->props.gpu_id);
+   unsigned max_desc_size = u_uintN_max(arch < 11 ? 32 : 48);
+   return MIN2(max_desc_size, device->memory.max_supported_va);
+}
+
 static VkFormatFeatureFlags2
 get_image_format_sample_counts(struct panvk_physical_device *physical_device,
                                VkFormat format)
@@ -1245,14 +1265,7 @@ get_image_format_properties(struct panvk_physical_device *physical_device,
       .maxMipLevels = maxMipLevels,
       .maxArrayLayers = maxArraySize,
       .sampleCounts = sampleCounts,
-
-      /* We need to limit images to 32-bit range, because the maximum
-       * slice-stride is 32-bit wide, meaning that if we allocate an image
-       * with the maximum width and height, we end up overflowing it.
-       *
-       * We get around this by simply limiting the maximum resource size.
-       */
-      .maxResourceSize = UINT32_MAX,
+      .maxResourceSize = panvk_get_max_resource_size(physical_device),
    };
 
    if (p_feature_flags)
