@@ -923,6 +923,14 @@ panvk_get_max_resource_size(const struct panvk_physical_device *device)
    return MIN2(max_desc_size, device->memory.max_supported_va);
 }
 
+VkDeviceSize
+panvk_get_max_buffer_size(const struct panvk_physical_device *device)
+{
+   const unsigned arch = pan_arch(device->kmod.dev->props.gpu_id);
+   unsigned max_desc_size = u_uintN_max(arch < 11 ? 32 : 48);
+   return MIN2(max_desc_size, device->memory.max_supported_va);
+}
+
 static VkFormatFeatureFlags2
 get_image_format_sample_counts(struct panvk_physical_device *physical_device,
                                VkFormat format)

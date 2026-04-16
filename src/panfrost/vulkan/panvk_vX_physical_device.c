@@ -741,10 +741,7 @@ panvk_per_arch(get_physical_device_properties)(
       .maxImageDimension3D = (1 << 16),
       .maxImageDimensionCube = (1 << 16),
       .maxImageArrayLayers = (1 << 16),
-      /* Pre-v11 is limited to 2^27 elements of 16 byte formats due to
-         size fields of 32 bits. */
-      .maxTexelBufferElements =
-         PAN_ARCH >= 11 ? PANVK_MAX_BUFFER_SIZE : (1 << 27),
+      .maxTexelBufferElements = UINT64_C(1) << (util_logbase2(panvk_get_max_buffer_size(device) / 16)),
       /* Each uniform entry is 16-byte and the number of entries is encoded in a
        * 12-bit field, with the minus(1) modifier, which gives 2^20.
        */
@@ -1086,7 +1083,7 @@ panvk_per_arch(get_physical_device_properties)(
       .storageTexelBufferOffsetSingleTexelAlignment = true,
       .uniformTexelBufferOffsetAlignmentBytes = 4,
       .uniformTexelBufferOffsetSingleTexelAlignment = true,
-      .maxBufferSize = PANVK_MAX_BUFFER_SIZE,
+      .maxBufferSize = panvk_get_max_buffer_size(device),
 
       /* Vulkan 1.4 properties */
       .lineSubPixelPrecisionBits = 8,
