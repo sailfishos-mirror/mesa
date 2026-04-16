@@ -1314,7 +1314,7 @@
         "description": "pan/lib: fix up afbc and linear layout",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c2c91e78fdc7e121a54796636c09ab8d76451df4",
         "notes": null
