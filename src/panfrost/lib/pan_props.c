@@ -17,6 +17,13 @@ pan_query_l2_slices(const struct pan_kmod_dev_props *props)
    return ((props->mem_features >> 8) & 0xF) + 1;
 }
 
+unsigned
+pan_query_bus_width(const struct pan_kmod_dev_props *props)
+{
+   /* BUS_WIDTH is L2_FEATURES[31:24] log2 */
+   return 1 << ((props->l2_features >> 24) & 0xF);
+}
+
 struct pan_tiler_features
 pan_query_tiler_features(const struct pan_kmod_dev_props *props)
 {

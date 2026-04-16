@@ -21,6 +21,8 @@ struct pan_kmod_vm;
 
 unsigned pan_query_l2_slices(const struct pan_kmod_dev_props *props);
 
+unsigned pan_query_bus_width(const struct pan_kmod_dev_props *props);
+
 struct pan_tiler_features
 pan_query_tiler_features(const struct pan_kmod_dev_props *props);
 
