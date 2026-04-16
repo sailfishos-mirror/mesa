@@ -345,7 +345,7 @@ propagate_backwards(jay_function *f)
 
       /* Fold UGPR->{GPR, FLAG} copies coming out of NIR */
       if (!flag &&
-          I->type == use->type &&
+          canonicalize_for_bit_compare(I->type) == use->type &&
           I->op != JAY_OPCODE_PHI_DST &&
           use->op == JAY_OPCODE_MOV &&
           use->dst.file != J_ADDRESS) {
