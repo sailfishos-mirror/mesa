@@ -376,6 +376,33 @@ queue_init(struct u_trace_context *utctx)
       utctx->out = NULL;
 }
 
+static uint32_t
+u_trace_event_fuzzy_hash(const void *_event)
+{
+   const struct u_trace_event *event = _event;
+
+   uint32_t hash = _mesa_hash_pointer(event->tp);
+   if (!event->tp->fuzzy_hash)
+      return hash;
+
+   return hash * event->tp->fuzzy_hash(event->payload);
+}
+
+static bool
+u_trace_event_fuzzy_equals(const void *_a, const void *_b)
+{
+   const struct u_trace_event *a = _a;
+   const struct u_trace_event *b = _b;
+
+   if (a->tp != b->tp)
+      return false;
+
+   if (a->tp->fuzzy_equals && !a->tp->fuzzy_equals(a->payload, b->payload))
+      return false;
+
+   return true;
+}
+
 void
 u_trace_context_init(struct u_trace_context *utctx,
                      void *pctx,
@@ -430,7 +457,7 @@ u_trace_context_init(struct u_trace_context *utctx,
    }
 
    util_dynarray_init(&utctx->begin_tracepoints, NULL);
-   _mesa_pointer_hash_table_init(&utctx->tracepoint_ranges, NULL);
+   _mesa_hash_table_init(&utctx->tracepoint_ranges, NULL, u_trace_event_fuzzy_hash, u_trace_event_fuzzy_equals);
 
 #ifdef HAVE_PERFETTO
    simple_mtx_lock(&ctx_list_mutex);
@@ -460,6 +487,7 @@ free_tracepoint_ranges_entry(struct hash_entry *entry)
    struct u_trace_tracepoint_range *range = entry->data;
    _mesa_hash_table_fini(&range->child_ranges, free_tracepoint_ranges_entry);
    free(range);
+   free((void *)entry->key);
 }
 
 void
@@ -589,11 +617,16 @@ print_ranges(struct u_trace_context *utctx, struct hash_table *ranges, uint32_t 
 
    for (uint32_t i = 0; i < _mesa_hash_table_num_entries(ranges); i++) {
       struct hash_entry *entry = &sorted_ranges[i];
-      const struct u_tracepoint *tracepoint = entry->key;
+      const struct u_trace_event *event = entry->key;
       struct u_trace_tracepoint_range *range = entry->data;
       for (uint32_t j = 0; j < indentation; j++)
          fprintf(stderr, "   ");
-      fprintf(stderr, "%s (avg/frame=%s avg=%s count=%u total=%s)\n", tracepoint->name,
+      fprintf(stderr, "%s ", event->tp->name);
+      if (event->tp->print_fuzzy_hash_args) {
+         event->tp->print_fuzzy_hash_args(stderr, event->payload);
+         fprintf(stderr, " ");
+      }
+      fprintf(stderr, "(avg/frame=%s avg=%s count=%u total=%s)\n",
               print_time(ctx, range->duration_ns / utctx->accumulated_frame_count),
               print_time(ctx, range->duration_ns / range->count), range->count,
               print_time(ctx, range->duration_ns));
@@ -654,7 +687,7 @@ process_flush(void *job, void *gdata, int thread_index)
       if (utctx->enabled_traces & U_TRACE_TYPE_RANGES) {
          if (event->tp->type == u_tracepoint_type_begin_range) {
             struct u_trace_begin_tracepoint range = {
-               .tracepoint = event->tp,
+               .event = event,
                .timestamp_ns = timestamp,
             };
             util_dynarray_append(&utctx->begin_tracepoints, range);
@@ -664,14 +697,20 @@ process_flush(void *job, void *gdata, int thread_index)
 
             struct hash_table *ranges = &utctx->tracepoint_ranges;
             util_dynarray_foreach(&utctx->begin_tracepoints, struct u_trace_begin_tracepoint, begin) {
-               struct hash_entry *entry = _mesa_hash_table_search(ranges, begin->tracepoint);
+               const struct u_trace_event *begin_event = begin->event;
+               struct hash_entry *entry = _mesa_hash_table_search(ranges, begin_event);
                struct u_trace_tracepoint_range *range = NULL;
                if (entry) {
                   range = entry->data;
                } else {
                   range = calloc(1, sizeof(struct u_trace_tracepoint_range));
-                  _mesa_pointer_hash_table_init(&range->child_ranges, NULL);
-                  _mesa_hash_table_insert(ranges, begin->tracepoint, range);
+                  _mesa_hash_table_init(&range->child_ranges, NULL, u_trace_event_fuzzy_hash, u_trace_event_fuzzy_equals);
+
+                  uint32_t event_size = sizeof(struct u_trace_event) + begin_event->payload_size;
+                  void *event_copy = malloc(event_size);
+                  memcpy(event_copy, begin_event, event_size);
+
+                  _mesa_hash_table_insert(ranges, event_copy, range);
                }
                if (begin == last_begin) {
                   range->duration_ns += timestamp - begin->timestamp_ns;

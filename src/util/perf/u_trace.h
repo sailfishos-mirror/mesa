@@ -216,7 +216,7 @@ struct u_trace_tracepoint_range {
 };
 
 struct u_trace_begin_tracepoint {
-   const void *tracepoint;
+   const void *event;
    uint64_t timestamp_ns;
 };
 
