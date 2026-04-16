@@ -1304,7 +1304,7 @@
         "description": "pan/lib: emit high bits of buffer-size",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4db7958edc4145acc7777534c1454bc300dea8be",
         "notes": null
