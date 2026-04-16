@@ -1623,21 +1623,28 @@ jay_register_allocate_function(jay_function *f)
     */
    construct_phi_webs(ra.phi_web, f);
 
+   /* We track the order of instructions in the program to inform coalescing */
+   uint32_t *order = linear_alloc_array(lin_ctx, uint32_t, f->ssa_alloc);
+   uint32_t order_counter = 0;
+
    jay_foreach_inst_in_func(f, block, I) {
+      jay_foreach_dst_index(I, _, index) {
+         order[index] = order_counter++;
+      }
+
       jay_foreach_src_index(I, s, c, index) {
          /* We check repr==0 to try to coalesce with the first vector use, as
           * the closest to the definition. This heuristic reduces shuffling.
           */
          if (jay_num_values(I->src[s]) > 1 && !ra.affinities[index].repr) {
-            uint32_t repr = UINT_MAX, repr_c = 0;
+            uint32_t repr = UINT_MAX, repr_c = 0, best_order = UINT_MAX;
 
-            /* Pick the representative with the smallest index, as it most
-             * likely dominates the other components.
-             */
-            jay_foreach_comp(I->src[s], j) {
-               if (jay_channel(I->src[s], j) < repr) {
-                  repr = jay_channel(I->src[s], j);
+            /* Pick the earliest representative to maximize freedom */
+            jay_foreach_index(I->src[s], j, index) {
+               if (order[index] < best_order) {
+                  repr = index;
                   repr_c = j;
+                  best_order = order[index];
                }
             }
 
