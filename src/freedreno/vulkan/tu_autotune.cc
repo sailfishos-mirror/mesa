@@ -1660,15 +1660,13 @@ tu_autotune::tu_autotune(struct tu_device *device, VkResult &result)
          auto always_count_countable = get_perfcntr_countable(cp_group, "PERF_CP_ALWAYS_COUNT");
          if (preemption_latency_countable && always_count_countable) {
             if (cp_group->num_counters >= 2) {
-               uint32_t preemption_latency_counter_index = cp_group->num_counters - 2;
-               preemption_latency_selector_reg = cp_group->counters[preemption_latency_counter_index].select_reg;
+               preemption_latency_selector_reg = cp_group->counters[0].select_reg;
                preemption_latency_selector = preemption_latency_countable->selector;
-               preemption_latency_counter_reg_lo = cp_group->counters[preemption_latency_counter_index].counter_reg_lo;
+               preemption_latency_counter_reg_lo = cp_group->counters[0].counter_reg_lo;
 
-               uint32_t always_count_counter_index = cp_group->num_counters - 1;
-               always_count_selector_reg = cp_group->counters[always_count_counter_index].select_reg;
+               always_count_selector_reg = cp_group->counters[1].select_reg;
                always_count_selector = always_count_countable->selector;
-               always_count_counter_reg_lo = cp_group->counters[always_count_counter_index].counter_reg_lo;
+               always_count_counter_reg_lo = cp_group->counters[1].counter_reg_lo;
             } else {
                fail_reason = "not enough counters in CP group for preemption latency tracking";
             }
