@@ -2024,7 +2024,7 @@
         "description": "radv: Fix gnu-empty-initializer errors in 480a94fb",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "480a94fb16ab87bffcade54389a588082120f0bb",
         "notes": null
