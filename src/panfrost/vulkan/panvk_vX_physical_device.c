@@ -739,9 +739,6 @@ panvk_per_arch(get_physical_device_properties)(
        * except for 2D/Cube dimensions where taking a power-of-two would be
        * too limiting, so we pick power-of-two-minus-one, which makes things
        * fit exactly in our 32-bit budget.
-       *
-       * TODO: increase the limit on v11+ once we have all the necessary bits
-       * patched to handle the size/stride field extension.
        */
       .maxImageDimension1D = (1 << 16),
       .maxImageDimension2D = PAN_ARCH <= 10 ? (1 << 14) - 1 : (1 << 16),
