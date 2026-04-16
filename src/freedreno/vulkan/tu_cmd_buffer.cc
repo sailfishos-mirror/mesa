@@ -95,6 +95,7 @@ tu_cmd_buffer_status_gpu_write(struct tu_cmd_buffer *cmd_buffer,
    tu_cs_emit(cs, (uint32_t)status);
 }
 
+template <chip CHIP>
 static void
 tu_clone_trace_range(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
                      struct u_trace *dst,
@@ -103,17 +104,44 @@ tu_clone_trace_range(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
    if (u_trace_iterator_equal(begin, end))
       return;
 
+   /* The only way to wait for tracepoint's RB_DONE_TS completion on A7XX+ is to wait
+    * on a value it written, however neither we know the value tracepoint writes,
+    * nor we can rely on previous value being zero. So we have to issue our own
+    * RB_DONE_TS with known value and wait for it.
+    */
+    /* TODO: Maybe we can do this only when we copy from memory written by RB_DONE_TS? */
+    if constexpr (CHIP >= A7XX) {
+      static uint32_t seqno = 0;
+      uint32_t value = p_atomic_add_return(&seqno, 1);
+
+      tu_cs_emit_pkt7(cs, CP_EVENT_WRITE7, 4);
+      tu_cs_emit(cs, CP_EVENT_WRITE7_0(
+         .event = RB_DONE_TS,
+         .write_src = EV_WRITE_USER_32B,
+         .write_dst = EV_DST_ONCHIP,
+         .write_enabled = true).value);
+      tu_cs_emit_qw(cs, TU_ONCHIP_U_TRACE_BARRIER);
+      tu_cs_emit(cs, value);
+
+      tu_cs_emit_pkt7(cs, CP_WAIT_REG_MEM, 6);
+      tu_cs_emit(cs, CP_WAIT_REG_MEM_0_FUNCTION(WRITE_EQ) | CP_WAIT_REG_MEM_0_POLL(POLL_ON_CHIP));
+      tu_cs_emit_qw(cs, TU_ONCHIP_U_TRACE_BARRIER);
+      tu_cs_emit(cs, CP_WAIT_REG_MEM_3_REF(value));
+      tu_cs_emit(cs, CP_WAIT_REG_MEM_4_MASK(~0u));
+      tu_cs_emit(cs, CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES(2));
+   }
+
    tu_cs_emit_wfi(cs);
    tu_cs_emit_pkt7(cs, CP_WAIT_FOR_ME, 0);
    u_trace_clone_append(begin, end, dst, cs, tu_copy_buffer);
 }
 
+template <chip CHIP>
 static void
 tu_clone_trace(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
                struct u_trace *dst, struct u_trace *src)
 {
-   tu_clone_trace_range(cmd, cs, dst, u_trace_begin_iterator(src),
-         u_trace_end_iterator(src));
+   tu_clone_trace_range<CHIP>(cmd, cs, dst, u_trace_begin_iterator(src), u_trace_end_iterator(src));
 }
 
 template <chip CHIP>
@@ -2683,8 +2711,7 @@ tu6_emit_binning_pass(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
    else
       trace_end_binning_ib(&cmd->trace, cs);
 
-   tu_clone_trace_range(cmd, cs, &cmd->trace, cmd->trace_renderpass_start,
-                        u_trace_end_iterator(&cmd->rp_trace));
+   tu_clone_trace_range<CHIP>(cmd, cs, &cmd->trace, cmd->trace_renderpass_start, u_trace_end_iterator(&cmd->rp_trace));
 
    /* switching from binning pass to GMEM pass will cause a switch from
     * PROGRAM_BINNING to PROGRAM, which invalidates const state (XS_CONST states)
@@ -3671,8 +3698,7 @@ tu6_render_tile(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
 
    tu_cs_emit_call(cs, &cmd->tile_store_cs);
 
-   tu_clone_trace_range(cmd, cs, &cmd->trace, cmd->trace_renderpass_start,
-                        u_trace_end_iterator(&cmd->rp_trace));
+   tu_clone_trace_range<CHIP>(cmd, cs, &cmd->trace, cmd->trace_renderpass_start, u_trace_end_iterator(&cmd->rp_trace));
    tu_cs_emit_wfi(cs);
 
    tu_set_render_mode<CHIP>(cs, {RM6_BIN_RENDER_END});
@@ -3975,9 +4001,8 @@ tu_cmd_render_sysmem(struct tu_cmd_buffer *cmd,
    /* Outside of renderpasses we assume all draw states are disabled. */
    tu_disable_draw_states(cmd, &cmd->cs);
 
-   tu_clone_trace_range(cmd, &cmd->cs, &cmd->trace,
-                        cmd->trace_renderpass_start,
-                        u_trace_end_iterator(&cmd->rp_trace));
+   tu_clone_trace_range<CHIP>(cmd, &cmd->cs, &cmd->trace, cmd->trace_renderpass_start,
+                              u_trace_end_iterator(&cmd->rp_trace));
 
    tu_trace_end_render_pass<CHIP>(cmd, false);
 }
@@ -6132,8 +6157,7 @@ tu_append_pre_chain(struct tu_cmd_buffer *cmd,
 
    tu_render_pass_state_merge(&cmd->state.rp,
                               &secondary->pre_chain.state);
-   tu_clone_trace(cmd, &cmd->draw_cs,
-                  &cmd->rp_trace, &secondary->pre_chain.rp_trace);
+   TU_CALLX(cmd->device, tu_clone_trace)(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->pre_chain.rp_trace);
    util_dynarray_append_dynarray(&cmd->fdm_bin_patchpoints,
                                  &secondary->pre_chain.fdm_bin_patchpoints);
 
@@ -6154,7 +6178,7 @@ tu_append_post_chain(struct tu_cmd_buffer *cmd,
    tu_cs_add_entries(&cmd->draw_cs, &secondary->draw_cs);
    tu_cs_add_entries(&cmd->draw_epilogue_cs, &secondary->draw_epilogue_cs);
 
-   tu_clone_trace(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
+   TU_CALLX(cmd->device, tu_clone_trace)(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
    cmd->state.rp = secondary->state.rp;
    util_dynarray_append_dynarray(&cmd->fdm_bin_patchpoints,
                                  &secondary->fdm_bin_patchpoints);
@@ -6173,7 +6197,7 @@ tu_append_pre_post_chain(struct tu_cmd_buffer *cmd,
    tu_cs_add_entries(&cmd->draw_cs, &secondary->draw_cs);
    tu_cs_add_entries(&cmd->draw_epilogue_cs, &secondary->draw_epilogue_cs);
 
-   tu_clone_trace(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
+   TU_CALLX(cmd->device, tu_clone_trace)(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
    tu_render_pass_state_merge(&cmd->state.rp,
                               &secondary->state.rp);
    util_dynarray_append_dynarray(&cmd->fdm_bin_patchpoints,
@@ -6255,7 +6279,7 @@ tu_CmdExecuteCommands(VkCommandBuffer commandBuffer,
          cmd->state.lrz.color_written_with_z_test |=
             secondary->state.lrz.color_written_with_z_test;
 
-         tu_clone_trace(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
+         TU_CALLX(cmd->device, tu_clone_trace)(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
          tu_render_pass_state_merge(&cmd->state.rp, &secondary->state.rp);
          util_dynarray_append_dynarray(&cmd->fdm_bin_patchpoints,
                                        &secondary->fdm_bin_patchpoints);
@@ -6320,7 +6344,7 @@ tu_CmdExecuteCommands(VkCommandBuffer commandBuffer,
             assert(tu_cs_is_empty(&secondary->draw_cs));
             assert(tu_cs_is_empty(&secondary->draw_epilogue_cs));
             tu_cs_add_entries(&cmd->cs, &secondary->cs);
-            tu_clone_trace(cmd, &cmd->cs, &cmd->trace, &secondary->trace);
+            TU_CALLX(cmd->device, tu_clone_trace)(cmd, &cmd->cs, &cmd->trace, &secondary->trace);
             break;
 
          case SR_IN_PRE_CHAIN:
