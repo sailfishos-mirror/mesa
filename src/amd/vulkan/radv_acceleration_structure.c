@@ -449,7 +449,7 @@ radv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
 
    if (args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "update_as(build_flags=0x%x)", build_flags);
-      radv_utrace_begin_update_as(cmd_buffer);
+      radv_utrace_begin_update_as(cmd_buffer, build_flags);
    }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_UPDATE, update_spv, sizeof(update_spv),
@@ -510,7 +510,7 @@ radv_update_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
 
    if (args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "update_as(build_flags=0x%x)", build_flags);
-      radv_utrace_begin_update_as(cmd_buffer);
+      radv_utrace_begin_update_as(cmd_buffer, build_flags);
    }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_UPDATE, update_gfx12_spv,
@@ -575,7 +575,7 @@ radv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
 
    if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "encode_as(build_flags=0x%x)", build_flags);
-      radv_utrace_begin_encode_as(cmd_buffer);
+      radv_utrace_begin_encode_as(cmd_buffer, build_flags);
    }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE, encode_spv, sizeof(encode_spv),
@@ -639,7 +639,7 @@ radv_encode_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
 
    if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "encode_as(build_flags=0x%x)", build_flags);
-      radv_utrace_begin_encode_as(cmd_buffer);
+      radv_utrace_begin_encode_as(cmd_buffer, build_flags);
    }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE, encode_gfx12_spv,
@@ -727,7 +727,7 @@ radv_encode_triangles_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_
    if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "encode_triangles(build_flags=0x%x)",
                                                        build_flags);
-      radv_utrace_begin_encode_triangles(cmd_buffer);
+      radv_utrace_begin_encode_triangles(cmd_buffer, build_flags);
    }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE_TRIANGLES_GFX12,
@@ -791,7 +791,7 @@ radv_encode_triangles_retry_gfx12(VkCommandBuffer commandBuffer, struct vk_devic
    if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "encode_triangles_retry(build_flags=0x%x)",
                                                        build_flags);
-      radv_utrace_begin_encode_triangles_retry(cmd_buffer);
+      radv_utrace_begin_encode_triangles_retry(cmd_buffer, build_flags);
    }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE_TRIANGLES_GFX12,
@@ -854,7 +854,7 @@ radv_init_header(VkCommandBuffer commandBuffer, struct vk_device *vk_device, str
 
    if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "init_header(build_flags=0x%x)", build_flags);
-      radv_utrace_begin_init_header(cmd_buffer);
+      radv_utrace_begin_init_header(cmd_buffer, build_flags);
    }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_HEADER, header_spv, sizeof(header_spv),

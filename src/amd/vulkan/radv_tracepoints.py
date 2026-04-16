@@ -104,11 +104,21 @@ begin_end_tp('lbvh_main', toggle_name='internal')
 begin_end_tp('lbvh_generate_ir', toggle_name='internal')
 begin_end_tp('ploc', toggle_name='internal')
 begin_end_tp('hploc', toggle_name='internal')
-begin_end_tp('update_as', toggle_name='internal')
-begin_end_tp('encode_as', toggle_name='internal')
-begin_end_tp('encode_triangles', toggle_name='internal')
-begin_end_tp('encode_triangles_retry', toggle_name='internal')
-begin_end_tp('init_header', toggle_name='internal')
+begin_end_tp('update_as', toggle_name='internal', tp_args=[
+    Arg(type='uint32_t', var='build_flags', c_format=r'0x%x', fuzzy_hash=''),
+])
+begin_end_tp('encode_as', toggle_name='internal', tp_args=[
+    Arg(type='uint32_t', var='build_flags', c_format=r'0x%x', fuzzy_hash=''),
+])
+begin_end_tp('encode_triangles', toggle_name='internal', tp_args=[
+    Arg(type='uint32_t', var='build_flags', c_format=r'0x%x', fuzzy_hash=''),
+])
+begin_end_tp('encode_triangles_retry', toggle_name='internal', tp_args=[
+    Arg(type='uint32_t', var='build_flags', c_format=r'0x%x', fuzzy_hash=''),
+])
+begin_end_tp('init_header', toggle_name='internal', tp_args=[
+    Arg(type='uint32_t', var='build_flags', c_format=r'0x%x', fuzzy_hash=''),
+])
 
 class ArgInfo:
     def __init__(self, type, c_format, name, expr=None):
