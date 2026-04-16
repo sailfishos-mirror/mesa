@@ -5094,7 +5094,7 @@
         "description": "panvk: drop out-of-date TODO",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d36e6af32900cd0dc7d1d56bda42b37bf86bd732",
         "notes": null
