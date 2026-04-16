@@ -3474,7 +3474,7 @@
         "description": "anv: Fix Wa_14021821874, Wa_14018813551, Wa_14026600921",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cb423ee63608551e0d20d9f1fe36598c9e8883fa",
         "notes": null
