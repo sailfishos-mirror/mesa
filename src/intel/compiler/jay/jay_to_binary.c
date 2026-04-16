@@ -319,6 +319,7 @@ emit(struct brw_codegen *p,
       OP1(FBH, FBH)
       OP1(LZD, LZD)
       OP2(ROL, ROL)
+      OP2(ROR, ROR)
       OP2(AVG, AVG)
       OP2(ADD, ADD)
       OP2(MUL, MUL)
