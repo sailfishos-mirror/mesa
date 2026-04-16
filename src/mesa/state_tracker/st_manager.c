@@ -23,6 +23,9 @@
  *
  * Authors:
  *    Chia-I Wu <olv@lunarg.com>
+ *
+ * Modifications Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
+ *
  */
 
 #include "main/mtypes.h"
@@ -1019,6 +1022,9 @@ st_api_create_context(struct pipe_frontend_screen *fscreen,
       pipe->destroy(pipe);
       return NULL;
    }
+
+   if (attribs->context_flags & PIPE_CONTEXT_PROTECTED)
+      st->ctx->Const.ContextFlags |= GL_CONTEXT_FLAG_PROTECTED_CONTENT_BIT_EXT;
 
    if (attribs->flags & ST_CONTEXT_FLAG_DEBUG) {
       if (!_mesa_set_debug_state_int(st->ctx, GL_DEBUG_OUTPUT, GL_TRUE)) {
