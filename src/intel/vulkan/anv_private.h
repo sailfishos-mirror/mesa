@@ -1820,6 +1820,7 @@ struct anv_instance {
     bool                                        external_memory_implicit_sync;
     bool                                        force_guc_low_latency;
     bool                                        emulate_read_without_format;
+    bool                                        promote_cbv_to_push_buffers;
 
     /**
      * Workarounds for game bugs.

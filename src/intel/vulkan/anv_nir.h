@@ -125,6 +125,8 @@ struct anv_nir_push_layout_info {
 
 bool anv_nir_shrink_push_constant_ranges(nir_shader *nir);
 
+bool anv_nir_realign_cbv(nir_shader *shader);
+
 bool anv_nir_compute_push_layout(nir_shader *nir,
                                  const struct anv_physical_device *pdevice,
                                  enum brw_robustness_flags robust_flags,

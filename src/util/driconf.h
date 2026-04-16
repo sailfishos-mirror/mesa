@@ -937,6 +937,10 @@
 #define DRI_CONF_ANV_EXTERNAL_MEMORY_IMPLICIT_SYNC(def) \
    DRI_CONF_OPT_B(anv_external_memory_implicit_sync, def, "Implicit sync on external BOs")
 
+#define DRI_CONF_ANV_PROMOTE_CBV_TO_PUSH_BUFFERS(def) \
+   DRI_CONF_OPT_B(anv_promote_cbv_to_push_buffers, def, \
+                  "Promote CBV 64bit pointers in push constant data to push buffers")
+
 #define DRI_CONF_ANV_STATE_CACHE_PERF_FIX(def) \
    DRI_CONF_OPT_B(anv_state_cache_perf_fix, def, \
                   "Whether COMMON_SLICE_CHICKEN3 bit13 should be programmed to enable BTP+BTI RCC keying")

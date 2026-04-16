@@ -186,6 +186,9 @@ anv_shader_init_uuid(struct anv_physical_device *device)
    const bool btp_bti_rcc = device->rt_change_needs_flush;
    _mesa_blake3_update(&ctx, &btp_bti_rcc, sizeof(btp_bti_rcc));
 
+   const bool cbv_push_buffer = device->instance->promote_cbv_to_push_buffers;
+   _mesa_blake3_update(&ctx, &cbv_push_buffer, sizeof(cbv_push_buffer));
+
    uint8_t blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_final(&ctx, blake3);
    memcpy(device->shader_binary_uuid, blake3, sizeof(device->shader_binary_uuid));
@@ -1530,10 +1533,23 @@ anv_shader_lower_nir(struct anv_device *device,
                pdevice->isl_dev.shader_tiling);
    }
 
-   NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global,
-            nir_address_format_64bit_global);
+   /* Lower push constants variables prior to global realignment for CBV
+    * resources, it makes identifying a 64bit pointer from the push constants
+    * easier.
+    */
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_push_const,
             nir_address_format_32bit_offset);
+
+   /* Realign pointers to CBV on stages that can promote to push buffers. */
+   if (pdevice->instance->promote_cbv_to_push_buffers &&
+       nir->info.stage <= MESA_SHADER_FRAGMENT) {
+      /* Cleanup for the analysis, we don't want any ALU */
+      cleanup_nir(nir);
+      NIR_PASS(_, nir, anv_nir_realign_cbv);
+   }
+
+   NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global,
+            nir_address_format_64bit_global);
 
    NIR_PASS(_, nir, brw_nir_lower_ray_queries, &pdevice->info);
 
