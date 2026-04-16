@@ -6073,7 +6073,6 @@ tu_render_pass_state_merge(struct tu_render_pass_state *dst,
    dst->draw_cs_writes_to_cond_pred |= src->draw_cs_writes_to_cond_pred;
    dst->shared_viewport |= src->shared_viewport;
 
-   dst->drawcall_count += src->drawcall_count;
    dst->drawcall_bandwidth_per_sample_sum +=
       src->drawcall_bandwidth_per_sample_sum;
    if (!dst->lrz_disable_reason && src->lrz_disable_reason) {
@@ -6090,6 +6089,8 @@ tu_render_pass_state_merge(struct tu_render_pass_state *dst,
    if (!dst->gmem_disable_reason && src->gmem_disable_reason) {
       dst->gmem_disable_reason = src->gmem_disable_reason;
    }
+
+   dst->drawcall_count += src->drawcall_count;
 }
 
 void
