@@ -728,10 +728,14 @@ static VkResult pvr_process_event_cmd(struct pvr_device *device,
    };
 }
 
+struct pvr_suspended_data {
+   struct pvr_rt_dataset **rts;
+};
+
 static VkResult pvr_process_cmd_buffer(struct pvr_device *device,
                                        struct pvr_queue *queue,
                                        struct pvr_cmd_buffer *cmd_buffer,
-                                       struct pvr_rt_dataset ***suspended_rts)
+                                       struct pvr_suspended_data *suspended_data)
 {
    VkResult result;
 
@@ -767,13 +771,13 @@ static VkResult pvr_process_cmd_buffer(struct pvr_device *device,
          }
 
          if (sub_cmd->is_resume) {
-            sub_cmd->gfx.job.view_state.rt_datasets = *suspended_rts;
+            sub_cmd->gfx.job.view_state.rt_datasets = suspended_data->rts;
          }
 
          if (sub_cmd->is_suspend) {
-            *suspended_rts = sub_cmd->gfx.job.view_state.rt_datasets;
+            suspended_data->rts = sub_cmd->gfx.job.view_state.rt_datasets;
          } else {
-            *suspended_rts = NULL;
+            suspended_data->rts = NULL;
          }
 
          assert(sub_cmd->gfx.job.view_state.rt_datasets);
@@ -1011,19 +1015,19 @@ static VkResult pvr_driver_queue_submit(struct vk_queue *queue,
          return result;
    }
 
-   struct pvr_rt_dataset **suspended_rts = NULL;
+   struct pvr_suspended_data suspended_data = {0};
 
    for (uint32_t i = 0U; i < submit->command_buffer_count; i++) {
       result = pvr_process_cmd_buffer(
          device,
          driver_queue,
          container_of(submit->command_buffers[i], struct pvr_cmd_buffer, vk),
-         &suspended_rts);
+         &suspended_data);
       if (result != VK_SUCCESS)
          return result;
    }
 
-   assert(suspended_rts == NULL && "suspended graphics job never resumed");
+   assert(suspended_data.rts == NULL && "suspended graphics job never resumed");
 
    result = pvr_process_queue_signals(driver_queue,
                                       submit->signals,
