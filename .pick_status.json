@@ -2304,7 +2304,7 @@
         "description": "radeonsi: remove old, unsupported cap",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "420fe1e7f9ef56177c8f45e98e057488a2b57646",
         "notes": null
