@@ -164,6 +164,7 @@ panthor_dev_query_props(struct panthor_kmod_dev *panthor_dev)
       .mem_features = panthor_dev->props.gpu.mem_features,
       .mmu_features = panthor_dev->props.gpu.mmu_features,
       .pgsize_bitmap = panthor_dev->props.mmu.page_size_bitmap,
+      .l2_features = panthor_dev->props.gpu.l2_features,
 
       /* This register does not exist because AFBC is no longer optional. */
       .afbc_features = 0,

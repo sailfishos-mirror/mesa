@@ -209,6 +209,9 @@ struct pan_kmod_dev_props {
    /* Texture feature bits. */
    uint32_t texture_features[4];
 
+   /* L2 feature bits. */
+   uint32_t l2_features;
+
    /* Maximum number of threads per core. */
    uint32_t max_threads_per_core;
 

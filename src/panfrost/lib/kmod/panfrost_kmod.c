@@ -163,6 +163,8 @@ panfrost_dev_query_props(struct panfrost_kmod_dev *panfrost_dev)
       panfrost_query_raw(fd, DRM_PANFROST_PARAM_MEM_FEATURES, true, 0);
    props->mmu_features =
       panfrost_query_raw(fd, DRM_PANFROST_PARAM_MMU_FEATURES, true, 0);
+   props->l2_features =
+      panfrost_query_raw(fd, DRM_PANFROST_PARAM_L2_FEATURES, true, 0);
 
    for (unsigned i = 0; i < ARRAY_SIZE(props->texture_features); i++) {
       props->texture_features[i] = panfrost_query_raw(
