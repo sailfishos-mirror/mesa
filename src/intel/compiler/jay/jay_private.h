@@ -75,8 +75,10 @@ void jay_lower_simd_width(jay_shader *s);
 void jay_lower_scoreboard(jay_shader *s);
 void jay_insert_fp_mode(jay_shader *shader, uint32_t api, uint32_t float_sizes);
 
-struct jay_shader_bin *
-jay_to_binary(jay_shader *s, void *const_data, size_t const_data_size);
+struct jay_shader_bin *jay_to_binary(jay_shader *s,
+                                     void *const_data,
+                                     size_t const_data_size,
+                                     bool debug);
 
 #ifdef __cplusplus
 } /* extern C */

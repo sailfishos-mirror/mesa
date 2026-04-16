@@ -2587,7 +2587,10 @@ jay_compile(const struct intel_device_info *devinfo,
             union brw_any_prog_key *key)
 {
    jay_debug = debug_get_option_jay_debug();
-   bool debug = INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage));
+   bool debug =
+      INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage)) &&
+      !(nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
+
    unsigned simd_width = jay_process_nir(devinfo, nir, prog_data, key);
 
    if (debug) {
@@ -2656,7 +2659,7 @@ jay_compile(const struct intel_device_info *devinfo,
    }
 
    struct jay_shader_bin *bin =
-      jay_to_binary(s, nir->constant_data, nir->constant_data_size);
+      jay_to_binary(s, nir->constant_data, nir->constant_data_size, debug);
    assert(bin->kernel);
    ralloc_steal(mem_ctx, bin);
 

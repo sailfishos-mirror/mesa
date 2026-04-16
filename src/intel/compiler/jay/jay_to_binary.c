@@ -525,7 +525,10 @@ emit(struct brw_codegen *p,
 }
 
 struct jay_shader_bin *
-jay_to_binary(jay_shader *s, void *const_data, size_t const_data_size)
+jay_to_binary(jay_shader *s,
+              void *const_data,
+              size_t const_data_size,
+              bool debug)
 {
    struct jay_shader_bin *bin = rzalloc(s, struct jay_shader_bin);
 
@@ -570,7 +573,7 @@ jay_to_binary(jay_shader *s, void *const_data, size_t const_data_size)
 
    brw_compact_instructions(&p, start_offset, disasm);
 
-   if (INTEL_DEBUG(intel_debug_flag_for_shader_stage(s->stage)) || !valid) {
+   if (debug || !valid) {
       dump_assembly(p.store, 0, p.next_insn_offset, disasm, NULL, stdout);
    }
 
