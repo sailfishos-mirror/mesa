@@ -2624,8 +2624,14 @@ jay_compile(const struct intel_device_info *devinfo,
 
    jay_validate(s, "NIR->Jay translation");
 
+   /* After each propagation pass, eliminate dead code. This ensures use counts
+    * are correct in jay_opt_propagate_backwards which allows more progress. We
+    * don't do a progress loop - just run DCE an extra time. DCE is cheap.
+    */
    if (!(jay_debug & JAY_DBG_NOOPT)) {
       JAY_PASS(s, jay_opt_propagate_forwards);
+      JAY_PASS(s, jay_opt_dead_code);
+
       JAY_PASS(s, jay_opt_propagate_backwards);
       JAY_PASS(s, jay_opt_dead_code);
    }
