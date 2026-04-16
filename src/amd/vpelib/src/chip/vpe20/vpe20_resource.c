@@ -3168,10 +3168,12 @@ void vpe20_create_bg_segments(
     struct vpe_priv *vpe_priv, struct vpe_rect *gaps, uint16_t gaps_cnt, enum vpe_cmd_ops ops)
 {
     uint16_t            gap_index;
-    uint16_t            bg_index    = vpe_priv->resource.get_bg_stream_idx(vpe_priv);
     struct vpe_cmd_info cmd_info    = {0};
-    struct scaler_data *scaler_data = &(cmd_info.inputs[bg_index].scaler_data);
-    struct stream_ctx  *stream_ctx  = &(vpe_priv->stream_ctx[bg_index]);
+    struct scaler_data *scaler_data = &(cmd_info.inputs[0].scaler_data);
+
+    // For background gen, we just need a valid memory address for the input so we just take the
+    // first stream
+    struct stream_ctx *stream_ctx = &(vpe_priv->stream_ctx[0]);
 
     for (gap_index = 0; gap_index < gaps_cnt; gap_index++) {
 
