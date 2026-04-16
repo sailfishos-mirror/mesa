@@ -2014,7 +2014,7 @@
         "description": "radv: Fix gnu-empty-initializer errors in 8c10eab1",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8c10eab1f338ae297a7982b38592aded1a13a78e",
         "notes": null
