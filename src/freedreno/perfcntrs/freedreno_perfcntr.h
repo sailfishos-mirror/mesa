@@ -26,8 +26,10 @@ extern "C" {
 
 /* Describes a single counter: */
 struct fd_perfcntr_counter {
-   /* offset of the select register to choose what to count: */
+   /* offset of the SELect register to choose what to count: */
    unsigned select_reg;
+   /* additional SEL regs to enable slice counters (gen8+) */
+   unsigned slice_select_regs[2];
    /* offset of the lo/hi 32b to read current counter value: */
    unsigned counter_reg_lo;
    unsigned counter_reg_hi;

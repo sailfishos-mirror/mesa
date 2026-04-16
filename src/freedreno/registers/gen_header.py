@@ -1135,12 +1135,21 @@ def dump_perfcntrs(args):
             (counter_lo, counter_hi) = get_counter()
             select = get_reg(group['select'])
 
+            select_offset = 0
             if "select_offset" in group:
-                select = select + int(group["select_offset"])
+                select_offset = int(group["select_offset"])
+                select = select + select_offset
+
+            slice_select_str = ""
+            if "slice_select" in group:
+                slice_select = group["slice_select"]
+                for reg in slice_select:
+                    val = get_reg(reg) + select_offset
+                    slice_select_str += "0x%04x, " % val
 
             # TODO add support for things that need enable/clear regs
 
-            print("   { 0x%04x, 0x%04x, 0x%04x }," % (select, counter_lo, counter_hi))
+            print("   { 0x%04x, {%s}, 0x%04x, 0x%04x }," % (select, slice_select_str, counter_lo, counter_hi))
         print("};")
 
         print()
