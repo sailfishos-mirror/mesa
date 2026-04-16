@@ -730,6 +730,10 @@ static VkResult pvr_process_event_cmd(struct pvr_device *device,
 
 struct pvr_suspended_data {
    struct pvr_rt_dataset **rts;
+   bool frag_uses_atomic_ops;
+   bool disable_compute_overlap;
+   bool get_vis_results;
+   const struct pvr_query_pool *query_pool;
 };
 
 static VkResult pvr_process_cmd_buffer(struct pvr_device *device,
@@ -772,12 +776,34 @@ static VkResult pvr_process_cmd_buffer(struct pvr_device *device,
 
          if (sub_cmd->is_resume) {
             sub_cmd->gfx.job.view_state.rt_datasets = suspended_data->rts;
+            sub_cmd->gfx.job.frag_uses_atomic_ops |=
+               suspended_data->frag_uses_atomic_ops;
+            sub_cmd->gfx.job.disable_compute_overlap |=
+               suspended_data->disable_compute_overlap;
+            sub_cmd->gfx.job.get_vis_results |= suspended_data->get_vis_results;
+            if (!sub_cmd->gfx.query_pool) {
+               sub_cmd->gfx.query_pool = suspended_data->query_pool;
+            } else if (suspended_data->query_pool &&
+                       sub_cmd->gfx.query_pool != suspended_data->query_pool) {
+               pvr_finishme(
+                  "Emit a barrier between suspending and resuming jobs with different query pools");
+            }
          }
 
          if (sub_cmd->is_suspend) {
             suspended_data->rts = sub_cmd->gfx.job.view_state.rt_datasets;
+            suspended_data->frag_uses_atomic_ops =
+               sub_cmd->gfx.job.frag_uses_atomic_ops;
+            suspended_data->disable_compute_overlap =
+               sub_cmd->gfx.job.disable_compute_overlap;
+            suspended_data->get_vis_results = sub_cmd->gfx.job.get_vis_results;
+            suspended_data->query_pool = sub_cmd->gfx.query_pool;
          } else {
             suspended_data->rts = NULL;
+            suspended_data->frag_uses_atomic_ops = false;
+            suspended_data->disable_compute_overlap = false;
+            suspended_data->get_vis_results = false;
+            suspended_data->query_pool = NULL;
          }
 
          assert(sub_cmd->gfx.job.view_state.rt_datasets);
