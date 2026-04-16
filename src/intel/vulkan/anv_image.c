@@ -518,7 +518,7 @@ anv_formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
    if (vk_usage & VK_IMAGE_USAGE_STORAGE_BIT) {
       /* Only color */
       assert((vk_format_aspects(vk_format) & ~VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV) == 0);
-      if (devinfo->ver == 12) {
+      if (devinfo->verx10 == 120) {
          /* From the TGL Bspec 44930 (r47128):
           *
           *    "Memory atomic operation on compressed data is not supported
@@ -528,9 +528,7 @@ anv_formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
           *     Software should ensure at the time of the Atomic operation
           *     the surface is resolved (uncompressed) state."
           *
-          * On gfx12.0, compression is not supported with atomic
-          * operations. On gfx12.5, the support is there, but it's slow
-          * (see HSD 1406337848).
+          * On gfx12.0, compression is not supported with atomic operations.
           *
           * We only care about the non-modifier case. Modifier capabilities
           * are exposed via the standard interfaces and unlike prior
@@ -2020,6 +2018,27 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
          anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
                        "Disabling aux: "
                        "aliased image not from WSI");
+         isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+      }
+
+      if (device->info->verx10 == 125 &&
+          image->vk.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
+          (image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT) &&
+          (image->vk.format == VK_FORMAT_R32_UINT ||
+           image->vk.format == VK_FORMAT_R32_SINT) &&
+          image->vk.extent.width * image->vk.extent.height <= 16384 * 127) {
+         /* According to HSD 1406337848, atomics are slow on compressed
+          * surfaces. To mitigate this, HSD 18014810884 suggests disabling CCS
+          * if the total size of every pixel in the image is <= 64KB. In order
+          * to avoid trace regressions, we implement a stricter size check.
+          * This upper limit specifically avoids regressions from 1080p images
+          * in a Sons of the Forest trace.
+          *
+          * Note that atomics on the compressed modifiers are disabled through
+          * format queries. So, we ignore that tiling here.
+          */
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Disabling aux: atomics are slow with CCS");
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
       }
 
