@@ -510,3 +510,8 @@ dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_17,Fail
 dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_20,Fail
 dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_24,Fail
 gmem-dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_24,Fail
+
+# uprev Piglit in Mesa
+spec@!opengl 1.1@large-tex,Fail
+spec@!opengl 1.1@large-tex@test_image_load_store,Fail
+
