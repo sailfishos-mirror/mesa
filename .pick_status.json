@@ -2744,7 +2744,7 @@
         "description": "intel/elk: Remove dead TXL_LZ/TXF_LZ opcodes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "05d78994a763d220f69cb9770fcc6c4e9cb40275",
         "notes": null
