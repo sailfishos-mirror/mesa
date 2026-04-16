@@ -87,32 +87,14 @@ jay_compose_src(jay_def to, jay_def from)
    return from;
 }
 
-static bool
-uses_modifiers(const jay_inst *I)
-{
-   jay_foreach_src(I, s) {
-      if (I->src[s].abs || I->src[s].negate)
-         return true;
-   }
-
-   return I->saturate;
-}
-
 static void
 propagate_modifier(jay_inst *I, unsigned s, jay_inst *mod)
 {
    /* Check if we can propagate abs/neg here in general */
-   if (!jay_has_src_mods(I, s) || mod->saturate)
+   if (!jay_has_src_mods(I, s) ||
+       mod->saturate ||
+       jay_src_type(I, s) != mod->type)
       return;
-
-   /* Try to make the types compatible. */
-   if (jay_src_type(I, s) != mod->type) {
-      if (I->op == JAY_OPCODE_SEL && !uses_modifiers(I)) {
-         I->type = mod->type;
-      } else {
-         return;
-      }
-   }
 
    jay_replace_src(&I->src[s], mod->src[0]);
    I->src[s] = jay_compose_src(I->src[s], mod->src[0]);

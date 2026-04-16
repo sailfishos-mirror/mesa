@@ -31,6 +31,7 @@
 #include "nir_intrinsics.h"
 #include "nir_intrinsics_indices.h"
 #include "nir_opcodes.h"
+#include "nir_search_helpers.h"
 #include "shader_enums.h"
 #include "shader_stats.h"
 
@@ -528,11 +529,28 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
       assert(alu->def.bit_size < 64);
       assert(jay_is_flag(src[0]));
 
+      /* sel.s32 can propagate more modifiers than sel.u32 with no drawback */
+      type = jay_type_rebase(type, JAY_TYPE_S);
+
       /* b2i8 gets lowered into 8-bit csel. Just use the upper bits garbage
        * convention to implement with SEL.u16 instead.
        */
-      if (type == JAY_TYPE_U8) {
-         type = JAY_TYPE_U16;
+      if (type == JAY_TYPE_S8) {
+         type = JAY_TYPE_S16;
+      }
+
+      /* SEL.f32 flushes denorms but SEL.u32 does not, so we can only use the
+       * float types when we are used only as a float. We care about the uses
+       * and not the sources here, to ensure we pick u32 instead of f32 for:
+       *
+       *    ieq(1, bcsel(a, fneg(b), c))
+       *
+       * Picking sel.f32 would incorrectly "flush" the integer c. However, when
+       * we can use sel.f32, we prefer it since it usually gives more
+       * flexibility for modifiers and saturation.
+       */
+      if (is_only_used_as_float(alu)) {
+         type = jay_type_rebase(type, JAY_TYPE_F);
       }
 
       jay_SEL(b, type, dst, src[1], src[2], src[0]);

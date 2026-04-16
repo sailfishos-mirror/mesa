@@ -110,7 +110,7 @@ op('mul',        2, 'u16 s16 f32 f64 f16 bf16',
 op('mul_high',   2, 'u32 s32', Props.COMMUTATIVE)
 op('mul_32x16',  2, 'u32 s32')
 op('mul_32',     2, 'u32 s32', Props.COMMUTATIVE, ['bool high'])
-op('sel',        3, 'u32 f32 u1 u16', Props.NEGATE)
+op('sel',        3, 'u32 f32 s32 u1 s16 u16 f16', Props.NEGATE)
 op('csel',       3, 'u32 s32 f32', Props.NEGATE)
 op('dp4a_uu',    3, 'u32', Props.SAT)
 op('dp4a_ss',    3, 's32', Props.SAT)

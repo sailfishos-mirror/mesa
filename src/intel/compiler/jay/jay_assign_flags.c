@@ -97,9 +97,15 @@ rewrite_sel_with_zero(jay_inst *I, unsigned zero)
    if (!jay_defs_equivalent(I->src[zero], jay_imm(0)) ||
        I->src[other].abs ||
        I->src[other].negate ||
+       I->saturate ||
        jay_type_size_bits(I->type) != 32) {
       return false;
    }
+
+   /* If no abs/negate/saturate are set, even if we are a SEL.f32 we are not
+    * necessarily going to canonicalize denorms so it's safe to use integers.
+    */
+   I->type = jay_type_rebase(I->type, JAY_TYPE_U);
 
    if (jay_defs_equivalent(I->src[other], jay_imm(0xffffffff)) && zero == 1) {
       /* (c ? 0xffffffff : 0) -> canonical(c) */
