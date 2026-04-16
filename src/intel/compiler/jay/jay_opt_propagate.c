@@ -347,7 +347,8 @@ propagate_backwards(jay_function *f)
       if (!flag &&
           I->type == use->type &&
           I->op != JAY_OPCODE_PHI_DST &&
-          use->op == JAY_OPCODE_MOV) {
+          use->op == JAY_OPCODE_MOV &&
+          use->dst.file != J_ADDRESS) {
 
          I->dst = use->dst;
          jay_remove_instruction(use);
