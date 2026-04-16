@@ -4688,9 +4688,15 @@ gfx10_surface_copy_mem_surface(struct ac_addrlib *addrlib, const struct radeon_i
       texel_scale = 3;
    }
 
+   /* Adjust surface info for a stencil-only copy. */
+   if (surf_copy_region->is_stencil_only) {
+      format = ADDR_FMT_8;
+      bpe = 1;
+   }
+
    ADDR2_COPY_MEMSURFACE_INPUT input = {0};
    input.size = sizeof(ADDR2_COPY_MEMSURFACE_INPUT);
-   input.swizzleMode = surf->has_stencil ?
+   input.swizzleMode = (surf->has_stencil && surf_copy_region->is_stencil_only) ?
                        surf->u.gfx9.zs.stencil_swizzle_mode :
                        surf->u.gfx9.swizzle_mode;
    input.format = format;
@@ -4707,7 +4713,8 @@ gfx10_surface_copy_mem_surface(struct ac_addrlib *addrlib, const struct radeon_i
    input.numSamples = surf_info->samples;
    input.pitchInElement = surf->u.gfx9.pitch[surf_copy_region->level];
    input.pbXor = surf->tile_swizzle;
-   input.pMappedSurface = (void *)surf_copy_region->surf_ptr;
+   input.pMappedSurface = (char *)surf_copy_region->surf_ptr +
+      (surf_copy_region->is_stencil_only ? surf->u.gfx9.zs.stencil_offset : 0);
 
    ADDR_E_RETURNCODE res;
    ADDR2_COPY_MEMSURFACE_REGION region = {0};
@@ -4755,9 +4762,15 @@ gfx12_surface_copy_mem_surface(struct ac_addrlib *addrlib, const struct radeon_i
       texel_scale = 3;
    }
 
+   /* Adjust surface info for a stencil-only copy. */
+   if (surf_copy_region->is_stencil_only) {
+      format = ADDR_FMT_8;
+      bpe = 1;
+   }
+
    ADDR3_COPY_MEMSURFACE_INPUT input = {0};
    input.size = sizeof(ADDR3_COPY_MEMSURFACE_INPUT);
-   input.swizzleMode = surf->has_stencil ?
+   input.swizzleMode = (surf->has_stencil && surf_copy_region->is_stencil_only) ?
                        surf->u.gfx9.zs.stencil_swizzle_mode :
                        surf->u.gfx9.swizzle_mode;
    input.format = format;
@@ -4773,7 +4786,8 @@ gfx12_surface_copy_mem_surface(struct ac_addrlib *addrlib, const struct radeon_i
    input.numSamples = surf_info->samples;
    input.pitchInElement = surf->u.gfx9.pitch[surf_copy_region->level];
    input.pbXor = surf->tile_swizzle;
-   input.pMappedSurface = (void *)surf_copy_region->surf_ptr;
+   input.pMappedSurface = (char *)surf_copy_region->surf_ptr +
+      (surf_copy_region->is_stencil_only ? surf->u.gfx9.zs.stencil_offset : 0);
 
    ADDR_E_RETURNCODE res;
    ADDR3_COPY_MEMSURFACE_REGION region = {0};
