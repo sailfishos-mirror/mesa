@@ -1244,7 +1244,7 @@
         "description": "nouveau: do not report unsupported feature",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c3cbe610dfd978c2f25124017a54196757401434",
         "notes": null
