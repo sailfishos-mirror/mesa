@@ -64,7 +64,6 @@ dEQP-VK.pipeline.monolithic.stencil.format.d32_sfloat_s8_uint_separate_layouts.s
 dEQP-VK.pipeline.monolithic.stencil.nocolor.format.d24_unorm_s8_uint_separate_layouts.states.fail_incc.pass_wrap.dfail_keep.comp_always.any
 dEQP-VK.pipeline.monolithic.stencil.nocolor.format.d32_sfloat_s8_uint.states.fail_zero.pass_keep.dfail_inv.comp_less.any
 dEQP-VK.pipeline.monolithic.vertex_input.multiple_attributes.layout_skip.binding_one_to_one.attributes.uvec2.uvec3.mat2
-dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed16_multiview
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.suballocation.unused_clear_attachments.colorunused_colorused_colorunused_colorunused_stencilonly_d32s8_unused
 dEQP-VK.renderpasses.renderpass2.dedicated_allocation.formats.a2b10g10r10_uint_pack32.input.load.dont_care.clear_draw
 dEQP-VK.renderpasses.renderpass2.suballocation.attachment_allocation.roll.87
