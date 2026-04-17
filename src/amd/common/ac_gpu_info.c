@@ -236,6 +236,8 @@ static bool handle_env_var_force_family(struct radeon_info *info)
 void
 ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)
 {
+   /* We use ac_compiler_info for shader cache keys, so make sure there is no padding. */
+   STATIC_ASSERT(sizeof(enum amd_gfx_level) == 4);
    STATIC_ASSERT(sizeof(struct ac_compiler_info) == 56);
 
    struct ac_compiler_info *out = &info->compiler_info;

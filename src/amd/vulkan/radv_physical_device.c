@@ -291,6 +291,9 @@ parse_hex(char *out, const char *in, unsigned length)
 static void
 radv_physical_device_init_cache_key(struct radv_physical_device *pdev)
 {
+   STATIC_ASSERT(sizeof(enum radeon_family) == 4);
+   STATIC_ASSERT(sizeof(struct radv_physical_device_cache_key) == 12);
+
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct radv_physical_device_cache_key *key = &pdev->cache_key;
 

@@ -864,6 +864,8 @@ capture_trace(VkQueue _queue)
 static void
 radv_device_init_cache_key(struct radv_device *device)
 {
+   STATIC_ASSERT(sizeof(struct radv_device_cache_key) == 4);
+
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_device_cache_key *key = &device->cache_key;
    struct mesa_blake3 ctx;
