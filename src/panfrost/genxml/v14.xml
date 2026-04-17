@@ -1482,6 +1482,7 @@
     <value name="FRAME_SHADER_DCD_POINTER" value="46"/>
     <value name="VRS_IMAGE" value="48"/>
     <!-- 50-51, 53 zero -->
+    <value name="FBD_POINTER" value="54"/> <!-- SW ABI -->
   </enum>
 
   <struct name="Descriptor Header" size="1" align="32">

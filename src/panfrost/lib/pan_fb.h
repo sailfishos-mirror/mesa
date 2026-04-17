@@ -618,15 +618,67 @@ bool GENX(pan_fb_load_shader_key_fill)(struct pan_fb_shader_key *key,
                                        const struct pan_fb_load *load,
                                        bool zs_prepass);
 
+#if PAN_ARCH >= 5
+struct pan_fb_clean_tile {
+   uint8_t rts;
+   bool zs, s;
+};
+
+struct pan_fb_clean_tile
+   GENX(pan_fb_get_clean_tile)(const struct pan_fb_desc_info *info);
+
+static inline bool
+pan_target_has_clear(const struct pan_fb_load_target *target)
+{
+   return target->in_bounds_load == PAN_FB_LOAD_CLEAR ||
+          target->border_load == PAN_FB_LOAD_CLEAR;
+}
+#endif /* PAN_ARCH >= 5 */
+
 #if PAN_ARCH >= 6
 bool GENX(pan_fb_resolve_shader_key_fill)(struct pan_fb_shader_key *key,
                                           const struct pan_fb_layout *fb,
                                           const struct pan_fb_resolve *resolve);
-#endif
+
+/* All GPUs starting from Bifrost are affected by issue TSIX-2033:
+ *
+ *      Forcing clean_tile_writes breaks INTERSECT readbacks
+ *
+ * To workaround, use the pre-frame shader mode ALWAYS instead of INTERSECT if
+ * clean_tile_write_enable is set on either one of the color, depth or stencil
+ * buffers. Since INTERSECT is a hint that the hardware may ignore, this
+ * cannot affect correctness, only performance. */
+
+static inline enum mali_pre_post_frame_shader_mode
+pan_fix_frame_shader_mode(enum mali_pre_post_frame_shader_mode mode,
+                          bool force_clean_tile)
+{
+   if (force_clean_tile && mode == MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT)
+      return MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS;
+   else
+      return mode;
+}
+#endif /* PAN_ARCH >= 6 */
 
 struct nir_shader *
 GENX(pan_get_fb_shader)(const struct pan_fb_shader_key *key,
                         const struct nir_shader_compiler_options *nir_options);
+
+#if PAN_ARCH >= 13
+/**
+ * Returns true if there's enough space in the tile buffer for at least two
+ * Z/S tiles.
+ */
+static inline bool
+pan_fb_can_pipeline_zs(const struct pan_fb_layout *fb)
+{
+   const uint32_t z_B_per_px = sizeof(float) * fb->sample_count;
+   const uint32_t z_B_per_tile = z_B_per_px * fb->tile_size_px;
+
+   /* The budget is already half the available Z space */
+   return z_B_per_tile < fb->tile_z_budget_B;
+}
+#endif
 #endif /* PAN_ARCH */
 
 #endif /* __PAN_FB_H */

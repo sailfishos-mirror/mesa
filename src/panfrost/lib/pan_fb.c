@@ -76,20 +76,6 @@ GENX(pan_select_fb_tile_size)(struct pan_fb_layout *fb)
 #endif
 }
 
-/**
- * Returns true if there's enough space in the tile buffer for at least two
- * Z/S tiles.
- */
-static inline bool
-pan_fb_can_pipeline_zs(const struct pan_fb_layout *fb)
-{
-   const uint32_t z_B_per_px = sizeof(float) * fb->sample_count;
-   const uint32_t z_B_per_tile = z_B_per_px * fb->tile_size_px;
-
-   /* The budget is already half the available Z space */
-   return z_B_per_tile < fb->tile_z_budget_B;
-}
-
 static void
 align_fb_tiling_area_for_image_plane(struct pan_fb_layout *fb,
                                      struct pan_image_plane_ref pref)
@@ -377,13 +363,6 @@ GENX(pan_fill_fb_info)(const struct pan_fb_desc_info *info,
 }
 
 #if PAN_ARCH >= 5
-static bool
-target_has_clear(const struct pan_fb_load_target *target)
-{
-   return target->in_bounds_load == PAN_FB_LOAD_CLEAR ||
-          target->border_load == PAN_FB_LOAD_CLEAR;
-}
-
 static enum mali_msaa
 translate_msaa_copy_op(const struct pan_fb_layout *fb,
                        const struct pan_image_view *iview,
@@ -414,11 +393,6 @@ translate_msaa_copy_op(const struct pan_fb_layout *fb,
    }
 }
 
-struct pan_fb_clean_tile {
-   uint8_t rts;
-   bool zs, s;
-};
-
 static bool
 pan_fb_load_target_always(const struct pan_fb_load_target *target)
 {
@@ -435,8 +409,8 @@ pan_fb_store_target_always(const struct pan_fb_store_target *target)
    return target->store && target->always;
 }
 
-static struct pan_fb_clean_tile
-pan_fb_get_clean_tile(const struct pan_fb_desc_info *info)
+struct pan_fb_clean_tile
+GENX(pan_fb_get_clean_tile)(const struct pan_fb_desc_info *info)
 {
    const struct pan_fb_layout *fb = info->fb;
    const struct pan_fb_load *load = info->load;
@@ -614,7 +588,7 @@ emit_rgb_rt_desc(const struct pan_fb_desc_info *info,
       cfg.clean_pixel_write_enable = !!(ct.rts & BITFIELD_BIT(rt));
 #endif
 
-      if (load && target_has_clear(&load->rts[rt])) {
+      if (load && pan_target_has_clear(&load->rts[rt])) {
          uint32_t packed[4] = {};
          pan_pack_color(GENX(pan_blendable_formats), packed,
                         &load->rts[rt].clear.color, fb->rt_formats[rt],
@@ -649,33 +623,12 @@ emit_rgb_rt_desc(const struct pan_fb_desc_info *info,
    pan_merge(rgb_rt, &desc, RGB_RENDER_TARGET);
 }
 
-#if PAN_ARCH >= 6
-/* All GPUs starting from Bifrost are affected by issue TSIX-2033:
- *
- *      Forcing clean_tile_writes breaks INTERSECT readbacks
- *
- * To workaround, use the pre-frame shader mode ALWAYS instead of INTERSECT if
- * clean_tile_write_enable is set on either one of the color, depth or stencil
- * buffers. Since INTERSECT is a hint that the hardware may ignore, this
- * cannot affect correctness, only performance. */
-
-static enum mali_pre_post_frame_shader_mode
-pan_fix_frame_shader_mode(enum mali_pre_post_frame_shader_mode mode,
-                          bool force_clean_tile)
-{
-   if (force_clean_tile && mode == MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT)
-      return MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS;
-   else
-      return mode;
-}
-#endif
-
 static void
 emit_rts(const struct pan_fb_desc_info *info,
          struct mali_rgb_render_target_packed *rts)
 {
    const struct pan_fb_layout *fb = info->fb;
-   const struct pan_fb_clean_tile ct = pan_fb_get_clean_tile(info);
+   const struct pan_fb_clean_tile ct = GENX(pan_fb_get_clean_tile)(info);
 
    uint32_t tile_rt_offset_B = 0;
    for (unsigned rt = 0; rt < fb->rt_count; rt++) {
@@ -696,7 +649,7 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
                        const struct pan_fb_descs *out)
 {
    if (pan_fb_has_zs(info->fb)) {
-      emit_zs_crc_desc(info, pan_fb_get_clean_tile(info), out->zs_crc);
+      emit_zs_crc_desc(info, GENX(pan_fb_get_clean_tile)(info), out->zs_crc);
    }
 
    emit_rts(info, out->rts);
@@ -711,7 +664,7 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
    const struct pan_fb_layout *fb = info->fb;
    const struct pan_fb_load *load = info->load;
    const struct pan_fb_store *store = info->store;
-   const struct pan_fb_clean_tile ct = pan_fb_get_clean_tile(info);
+   const struct pan_fb_clean_tile ct = GENX(pan_fb_get_clean_tile)(info);
 
    const bool has_zs_crc_ext = pan_fb_has_zs(fb);
 
@@ -793,14 +746,14 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
 
       if (fb->s_format != PIPE_FORMAT_NONE) {
          cfg.s_clear =
-            load && target_has_clear(&load->s) ? load->s.clear.stencil : 0;
+            load && pan_target_has_clear(&load->s) ? load->s.clear.stencil : 0;
          cfg.s_write_enable = store && store->s.store;
       }
 
       if (fb->z_format != PIPE_FORMAT_NONE) {
          cfg.z_internal_format = pan_get_z_internal_format(fb->z_format);
          cfg.z_clear =
-            load && target_has_clear(&load->z) ? load->z.clear.depth : 0;
+            load && pan_target_has_clear(&load->z) ? load->z.clear.depth : 0;
          cfg.z_write_enable = store && store->zs.store;
       } else {
          /* Default to 24 bit depth if there's no surface. */
