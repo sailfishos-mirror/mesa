@@ -82,7 +82,7 @@ void radv_pipeline_init(struct radv_device *device, struct radv_pipeline *pipeli
 void radv_pipeline_destroy(struct radv_device *device, struct radv_pipeline *pipeline,
                            const VkAllocationCallbacks *allocator);
 
-struct radv_shader_stage_key radv_pipeline_get_shader_key(const struct radv_device *device,
+struct radv_shader_stage_key radv_pipeline_get_shader_key(const struct radv_compiler_info *compiler_info,
                                                           const VkPipelineShaderStageCreateInfo *stage,
                                                           VkPipelineCreateFlags2 flags, const void *pNext);
 

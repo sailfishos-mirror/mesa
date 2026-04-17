@@ -84,7 +84,7 @@ radv_generate_rt_shaders_key(const struct radv_device *device, const VkRayTracin
       const VkPipelineShaderStageCreateInfo *stage = &pCreateInfo->pStages[i];
       mesa_shader_stage s = vk_to_mesa_shader_stage(stage->stage);
 
-      stage_keys[s] = radv_pipeline_get_shader_key(device, stage, create_flags, pCreateInfo->pNext);
+      stage_keys[s] = radv_pipeline_get_shader_key(&device->compiler_info, stage, create_flags, pCreateInfo->pNext);
    }
 
    if (pCreateInfo->pLibraryInfo) {

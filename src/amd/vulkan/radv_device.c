@@ -1190,6 +1190,7 @@ radv_device_init_compiler_info(struct radv_device *device)
       .buffer_descriptor_size = pdev->vk.properties.bufferDescriptorSize,
       .buffer_descriptor_alignment = pdev->vk.properties.bufferDescriptorAlignment,
       /* Shader features */
+      .device_robustness_state = &device->vk.robustness_state,
       .use_ngg = pdev->use_ngg,
       .use_ngg_streamout = pdev->use_ngg_streamout,
       .load_grid_size_from_user_sgpr = device->load_grid_size_from_user_sgpr,

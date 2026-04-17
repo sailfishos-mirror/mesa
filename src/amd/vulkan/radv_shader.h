@@ -560,6 +560,7 @@ struct radv_compiler_info {
    uint8_t override_ray_tracing_shader_version;
 
    /* Shader features */
+   const struct vk_pipeline_robustness_state *device_robustness_state;
    uint8_t sampled_image_desc_size;
    uint8_t combined_image_sampler_desc_size;
    uint8_t combined_image_sampler_offset;

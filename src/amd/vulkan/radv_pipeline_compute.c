@@ -163,7 +163,7 @@ radv_compute_pipeline_hash(const struct radv_device *device, const VkComputePipe
    blake3_hasher ctx;
 
    struct radv_shader_stage_key stage_key =
-      radv_pipeline_get_shader_key(device, sinfo, create_flags, pCreateInfo->pNext);
+      radv_pipeline_get_shader_key(&device->compiler_info, sinfo, create_flags, pCreateInfo->pNext);
 
    _mesa_blake3_init(&ctx);
    radv_pipeline_hash(device, pipeline_layout, &ctx);
@@ -208,7 +208,7 @@ radv_compute_pipeline_compile(const VkComputePipelineCreateInfo *pCreateInfo, st
    int64_t stage_start = os_time_get_nano();
 
    const struct radv_shader_stage_key stage_key =
-      radv_pipeline_get_shader_key(device, &pCreateInfo->stage, pipeline->base.create_flags, pCreateInfo->pNext);
+      radv_pipeline_get_shader_key(compiler_info, &pCreateInfo->stage, pipeline->base.create_flags, pCreateInfo->pNext);
 
    radv_pipeline_stage_init(pipeline->base.create_flags, pStage, pipeline_layout, &stage_key, &cs_stage);
 

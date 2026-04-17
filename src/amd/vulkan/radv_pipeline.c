@@ -107,10 +107,10 @@ radv_DestroyPipeline(VkDevice _device, VkPipeline _pipeline, const VkAllocationC
 }
 
 struct radv_shader_stage_key
-radv_pipeline_get_shader_key(const struct radv_device *device, const VkPipelineShaderStageCreateInfo *stage,
-                             VkPipelineCreateFlags2 flags, const void *pNext)
+radv_pipeline_get_shader_key(const struct radv_compiler_info *compiler_info,
+                             const VkPipelineShaderStageCreateInfo *stage, VkPipelineCreateFlags2 flags,
+                             const void *pNext)
 {
-   const struct radv_compiler_info *compiler_info = &device->compiler_info;
    mesa_shader_stage s = vk_to_mesa_shader_stage(stage->stage);
    struct vk_pipeline_robustness_state rs;
    struct radv_shader_stage_key key = {0};
@@ -139,7 +139,7 @@ radv_pipeline_get_shader_key(const struct radv_device *device, const VkPipelineS
       key.version = compiler_info->override_compute_shader_version;
    }
 
-   vk_pipeline_robustness_state_fill(&device->vk.robustness_state, &rs, pNext, stage->pNext);
+   vk_pipeline_robustness_state_fill(compiler_info->device_robustness_state, &rs, pNext, stage->pNext);
 
    radv_set_stage_key_robustness(&rs, s, &key);
 
