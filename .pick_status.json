@@ -1594,7 +1594,7 @@
         "description": "nir/gather_info: clear interpolation qualifiers only in fragment stage",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a72704d0fbd0dc594570ae2c97b7a8015a944b8e",
         "notes": null
