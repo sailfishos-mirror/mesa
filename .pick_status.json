@@ -784,7 +784,7 @@
         "description": "nvk: Handle host accesses barrier",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e1c1cdbd5f382bca34c6d8e5728a90274b893dc0",
         "notes": null
