@@ -928,6 +928,11 @@ radv_GetPhysicalDeviceFormatProperties2(VkPhysicalDevice physicalDevice, VkForma
                                   vk_find_struct(pFormatProperties, DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT));
    radv_list_drm_format_modifiers_2(pdev, format, &format_props,
                                     vk_find_struct(pFormatProperties, DRM_FORMAT_MODIFIER_PROPERTIES_LIST_2_EXT));
+
+   VkSubpassResolvePerformanceQueryEXT *perf =
+      vk_find_struct(pFormatProperties->pNext, SUBPASS_RESOLVE_PERFORMANCE_QUERY_EXT);
+   if (perf)
+      perf->optimal = VK_FALSE;
 }
 
 static VkResult
