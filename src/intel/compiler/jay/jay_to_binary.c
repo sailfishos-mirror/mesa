@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <stdbool.h>
 #include <stdint.h>
-#include "compiler/brw/brw_disasm_info.h"
-#include "compiler/brw/brw_eu.h"
-#include "compiler/brw/brw_eu_defines.h"
-#include "compiler/brw/brw_eu_inst.h"
-#include "compiler/brw/brw_reg.h"
-#include "compiler/brw/brw_reg_type.h"
+#include <stdio.h>
+#include <string.h>
+
+#include "compiler/gen/gen.h"
+#include "dev/intel_debug.h"
 #include "util/macros.h"
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
@@ -18,39 +18,145 @@
 #include "jay_opcodes.h"
 #include "jay_private.h"
 
-static inline enum brw_reg_type
-to_brw_reg_type(enum jay_type type)
+static inline gen_reg_type
+to_gen_reg_type(enum jay_type type)
 {
    /* clang-format off */
    switch (type) {
    case JAY_TYPE_UNTYPED:
-   case JAY_TYPE_U8:   return BRW_TYPE_UB;
-   case JAY_TYPE_U16:  return BRW_TYPE_UW;
-   case JAY_TYPE_U32:  return BRW_TYPE_UD;
-   case JAY_TYPE_U64:  return BRW_TYPE_UQ;
-   case JAY_TYPE_S8:   return BRW_TYPE_B;
-   case JAY_TYPE_S16:  return BRW_TYPE_W;
-   case JAY_TYPE_S32:  return BRW_TYPE_D;
-   case JAY_TYPE_S64:  return BRW_TYPE_Q;
-   case JAY_TYPE_F16:  return BRW_TYPE_HF;
-   case JAY_TYPE_F32:  return BRW_TYPE_F;
-   case JAY_TYPE_F64:  return BRW_TYPE_DF;
-   case JAY_TYPE_BF16: return BRW_TYPE_BF;
+   case JAY_TYPE_U8:   return GEN_TYPE_UB;
+   case JAY_TYPE_U16:  return GEN_TYPE_UW;
+   case JAY_TYPE_U32:  return GEN_TYPE_UD;
+   case JAY_TYPE_U64:  return GEN_TYPE_UQ;
+   case JAY_TYPE_S8:   return GEN_TYPE_B;
+   case JAY_TYPE_S16:  return GEN_TYPE_W;
+   case JAY_TYPE_S32:  return GEN_TYPE_D;
+   case JAY_TYPE_S64:  return GEN_TYPE_Q;
+   case JAY_TYPE_F16:  return GEN_TYPE_HF;
+   case JAY_TYPE_F32:  return GEN_TYPE_F;
+   case JAY_TYPE_F64:  return GEN_TYPE_DF;
+   case JAY_TYPE_BF16: return GEN_TYPE_BF;
    default: UNREACHABLE("invalid type");
    }
    /* clang-format on */
 }
 
-static inline brw_reg
-to_brw_reg(
-   jay_function *f, const jay_inst *I, signed idx, unsigned simd_offs, bool hi)
+#define GEN_INST_BYTES 16
+
+struct jay_codegen {
+   const struct intel_device_info *devinfo;
+   void *mem_ctx;
+
+   gen_inst *insts;
+   int num_insts;
+   int insts_cap;
+
+   /* Indices of the active loop headers. */
+   struct util_dynarray loop_stack;
+
+   uint8_t *output;
+   int output_size;
+
+   /* struct intel_shader_reloc */
+   struct util_dynarray relocs;
+
+   struct {
+      uint8_t exec_size;
+      uint8_t chan_offset;
+      uint8_t flag_nr;
+      uint8_t flag_subnr;
+      gen_predicate pred_control;
+      bool pred_inv;
+      bool no_mask;
+      bool saturate;
+      gen_swsb swsb;
+   } state;
+};
+
+static ATTRIBUTE_NOINLINE gen_inst *
+jc_append(struct jay_codegen *jc, gen_opcode opcode)
 {
+   assert(jc->num_insts < jc->insts_cap);
+   gen_inst *gen = &jc->insts[jc->num_insts++];
+   *gen = (gen_inst) {
+      .opcode       = opcode,
+      .exec_size    = jc->state.exec_size,
+      .chan_offset  = jc->state.chan_offset,
+      .flag_nr      = jc->state.flag_nr,
+      .flag_subnr   = jc->state.flag_subnr,
+      .pred_control = jc->state.pred_control,
+      .pred_inv     = jc->state.pred_inv,
+      .no_mask      = jc->state.no_mask,
+      .saturate     = jc->state.saturate,
+      .swsb         = jc->state.swsb,
+   };
+   return gen;
+}
+
+#define jc_append1(_opcode, _dst, _src0)                         \
+   ({                                                            \
+      gen_inst *_gen = jc_append(jc, (_opcode));                 \
+      _gen->dst = (_dst);                                        \
+      _gen->src[0] = (_src0);                                    \
+      _gen;                                                      \
+   })
+
+#define jc_append2(_opcode, _dst, _src0, _src1)                  \
+   ({                                                            \
+      gen_inst *_gen = jc_append(jc, (_opcode));                 \
+      _gen->dst = (_dst);                                        \
+      _gen->src[0] = (_src0);                                    \
+      _gen->src[1] = (_src1);                                    \
+      _gen;                                                      \
+   })
+
+#define jc_append3(_opcode, _dst, _src0, _src1, _src2)           \
+   ({                                                            \
+      gen_inst *_gen = jc_append(jc, (_opcode));                 \
+      _gen->dst = (_dst);                                        \
+      _gen->src[0] = (_src0);                                    \
+      _gen->src[1] = (_src1);                                    \
+      _gen->src[2] = (_src2);                                    \
+      _gen;                                                      \
+   })
+
+static inline gen_inst *
+jc_MOV(struct jay_codegen *jc, gen_operand dst, gen_operand src)
+{
+   return jc_append1(GEN_OP_MOV, dst, src);
+}
+
+static void
+jc_MOV_reloc(struct jay_codegen *jc,
+             gen_operand dst,
+             uint32_t param,
+             uint32_t base)
+{
+   util_dynarray_append(&jc->relocs,
+                        ((struct intel_shader_reloc) {
+                           .id = param,
+                           .type = INTEL_SHADER_RELOC_TYPE_MOV_IMM,
+                           .offset = GEN_INST_BYTES * jc->num_insts,
+                           .delta = base,
+                        }));
+
+   jc_MOV(jc, dst, gen_imm_ud(GEN_UNCOMPACTABLE_PATCH_IMM));
+}
+
+static inline gen_operand
+to_gen_operand(jay_function *f,
+               const jay_inst *I,
+               signed idx,
+               unsigned simd_offs,
+               bool hi)
+{
+   const struct intel_device_info *devinfo = f->shader->devinfo;
    bool is_dest = idx < 0;
    enum jay_type type = is_dest ? I->type : jay_src_type(I, idx);
    jay_def d = is_dest ? I->dst : I->src[idx];
    hi |= d.hi;
 
-   struct brw_reg R;
+   gen_operand R;
    unsigned reg = d.reg, count = jay_num_values(d);
    unsigned offset_B = 0, grf = 0;
    assert(!hi || d.file == GPR);
@@ -74,22 +180,23 @@ to_brw_reg(
          type = JAY_TYPE_U16;
       }
 
-      R = brw_imm_ud(jay_as_uint(d));
+      R = gen_imm_ud(jay_as_uint(d));
    } else if (jay_is_null(d)) {
-      R = brw_null_reg();
+      R = gen_null();
    } else if (d.file == UGPR || d.file == UACCUM) {
       grf += (reg / jay_ugpr_per_grf(f->shader));
       offset_B = (reg % jay_ugpr_per_grf(f->shader)) * 4;
 
       if (d.file == UGPR) {
-         R = brw_ud1_grf(grf * 2, 0);
+         R = gen_grf(grf, 0);
       } else {
-         R = brw_ud1_reg(ARF, BRW_ARF_ACCUMULATOR + (grf * 2), 0);
+         R = gen_accumulator(grf);
       }
+      R = gen_retype(gen_restride(R, 0, 1, 0), GEN_TYPE_UD);
 
       /* Handle 3-src restrictions and vectorized uniform code. */
       if (is_dest || jay_num_values(d) >= 8) {
-         R = vec8(R);
+         R = gen_restride(R, 8, 8, 1);
       }
 
       /* Some operations have special restrictions on the destination stride,
@@ -106,14 +213,14 @@ to_brw_reg(
          if ((I->type == JAY_TYPE_F16 && !jay_type_is_any_float(src0_type)) ||
              (src0_type == JAY_TYPE_F16 && !jay_type_is_any_float(I->type))) {
             assert(jay_num_values(d) == 1 && "must not vectorize HF<->Int");
-            R = stride(R, 8, 2, 4);
+            R = gen_restride(R, 8, 2, 4);
          }
 
          /* Packed floats have restrictions on mixed sizes.  Use <2>. */
          if (jay_type_size_bits(I->type) == 16 &&
              jay_type_size_bits(jay_src_type(I, 0)) != 16) {
             assert(jay_num_values(d) == 1 && "must not vectorize mixed float");
-            R = stride(R, 4, 2, 2);
+            R = gen_restride(R, 4, 2, 2);
          }
       }
    } else if (d.file == GPR || d.file == ACCUM) {
@@ -136,17 +243,18 @@ to_brw_reg(
       }
 
       if (d.file == GPR) {
-         R = xe2_vec8_grf(grf, 0);
+         R = gen_restride(gen_grf(grf, 0), 8, 8, 1);
       } else {
-         R = brw_vecn_reg(8, ARF, BRW_ARF_ACCUMULATOR + grf, 0);
+         R = gen_restride(gen_accumulator(grf / 2), 8, 8, 1);
       }
 
-      R = byte_offset(R, simd_offs * simd_width * stride_bits / 8);
+      R = gen_byte_offset(devinfo, R,
+                          simd_offs * simd_width * stride_bits / 8);
 
       if (stride_bits == (type_bits * 4)) {
-         R = stride(R, 8, 2, 4);
+         R = gen_restride(R, 8, 2, 4);
       } else if (stride_bits == (type_bits * 2)) {
-         R = stride(R, 4, 2, 2);
+         R = gen_restride(R, 4, 2, 2);
       } else {
          assert(stride_bits == type_bits);
       }
@@ -155,7 +263,7 @@ to_brw_reg(
        * instead due to regioning restrictions.
        */
       if (simd_width == 1) {
-         R = vec1(R);
+         R = gen_restride(R, 0, 1, 0);
       }
    } else if (jay_is_flag(d)) {
       /* Explicit flags act like UGPRs. As sources they broadcast to all lanes,
@@ -164,74 +272,80 @@ to_brw_reg(
        */
       assert(simd_offs == 0 || idx >= 0);
       unsigned offs_B = d.reg * (f->shader->dispatch_width / 8);
-      R = brw_flag_subreg(offs_B / 2);
+      R = gen_flag(offs_B / 2);
    } else if (d.file == J_ADDRESS) {
-      R = brw_address_reg(d.reg);
+      R = gen_address(d.reg);
    } else if (d.file == J_ARF) {
-      R = brw_ud1_reg(ARF, jay_base_index(d), 0);
+      R = gen_arf(jay_base_index(d), 0);
    } else {
       UNREACHABLE("unexpected file");
    }
 
    R.negate = d.negate;
    R.abs = d.abs;
-   return byte_offset(retype(R, to_brw_reg_type(type)), offset_B);
+   R.type = to_gen_reg_type(type);
+   return gen_byte_offset(devinfo, R, offset_B);
 }
 
-#define SRC(i) to_brw_reg(f, I, i, simd_offs, false)
+#define SRC(i) to_gen_operand(f, I, i, simd_offs, false)
 
 #define OP0(hw)                                                                \
    case JAY_OPCODE_##hw:                                                       \
-      brw_##hw(p);                                                             \
+      jc_append(jc, GEN_OP_##hw);                                              \
       break;
 
 #define OP1(jay, hw)                                                           \
    case JAY_OPCODE_##jay:                                                      \
-      brw_alu1(p, BRW_OPCODE_##hw, dst, SRC(0));                               \
+      jc_append1(GEN_OP_##hw, dst, SRC(0));                                    \
       break;
 
 #define OP2(jay, hw)                                                           \
    case JAY_OPCODE_##jay:                                                      \
-      brw_alu2(p, BRW_OPCODE_##hw, dst, SRC(0), SRC(1));                       \
+      jc_append2(GEN_OP_##hw, dst, SRC(0), SRC(1));                            \
       break;
 
 #define OP3(jay, hw)                                                           \
    case JAY_OPCODE_##jay:                                                      \
-      brw_alu3(p, BRW_OPCODE_##hw, dst, SRC(0), SRC(1), SRC(2));               \
+      jc_append3(GEN_OP_##hw, dst, SRC(0), SRC(1), SRC(2));                    \
       break;
 
 #define OP3_SWAP(jay, hw)                                                      \
    case JAY_OPCODE_##jay:                                                      \
-      brw_alu3(p, BRW_OPCODE_##hw, dst, SRC(2), SRC(1), SRC(0));               \
+      jc_append3(GEN_OP_##hw, dst, SRC(2), SRC(1), SRC(0));                    \
       break;
 
-static struct brw_reg
-quad_swizzle(struct brw_reg r, const jay_inst *I)
+static gen_operand
+quad_swizzle(const struct intel_device_info *devinfo,
+             gen_operand r, const jay_inst *I)
 {
-   /* clang-format off */
-   switch (jay_quad_swizzle_swizzle(I)) {
-   case JAY_QUAD_SWIZZLE_XXXX: return suboffset(stride(r, 4, 4, 0), 0);
-   case JAY_QUAD_SWIZZLE_YYYY: return suboffset(stride(r, 4, 4, 0), 1);
-   case JAY_QUAD_SWIZZLE_ZZZZ: return suboffset(stride(r, 4, 4, 0), 2);
-   case JAY_QUAD_SWIZZLE_WWWW: return suboffset(stride(r, 4, 4, 0), 3);
-   case JAY_QUAD_SWIZZLE_XXZZ: return suboffset(stride(r, 2, 2, 0), 0);
-   case JAY_QUAD_SWIZZLE_YYWW: return suboffset(stride(r, 2, 2, 0), 1);
-   case JAY_QUAD_SWIZZLE_XYXY: return suboffset(stride(r, 0, 2, 1), 0);
-   case JAY_QUAD_SWIZZLE_ZWZW: return suboffset(stride(r, 0, 2, 1), 2);
-   }
-   /* clang-format on */
+   static const struct {
+      gen_region region;
+      unsigned element;
+   } map[] = {
+      [JAY_QUAD_SWIZZLE_XXXX] = { { 4, 4, 0 }, 0 },
+      [JAY_QUAD_SWIZZLE_YYYY] = { { 4, 4, 0 }, 1 },
+      [JAY_QUAD_SWIZZLE_ZZZZ] = { { 4, 4, 0 }, 2 },
+      [JAY_QUAD_SWIZZLE_WWWW] = { { 4, 4, 0 }, 3 },
+      [JAY_QUAD_SWIZZLE_XXZZ] = { { 2, 2, 0 }, 0 },
+      [JAY_QUAD_SWIZZLE_YYWW] = { { 2, 2, 0 }, 1 },
+      [JAY_QUAD_SWIZZLE_XYXY] = { { 0, 2, 1 }, 0 },
+      [JAY_QUAD_SWIZZLE_ZWZW] = { { 0, 2, 1 }, 2 },
+   };
 
-   UNREACHABLE("invalid quad swizzle");
+   enum jay_quad_swizzle swizzle = jay_quad_swizzle_swizzle(I);
+   assert(swizzle < ARRAY_SIZE(map));
+   r.region = map[swizzle].region;
+   return gen_element_offset(devinfo, r, map[swizzle].element);
 }
 
 /* Runs once per SIMD-split, so must not modify the instruction! */
 static void
-emit(struct brw_codegen *p,
+emit(struct jay_codegen *jc,
      jay_function *f,
      const jay_inst *I,
      unsigned simd_offs)
 {
-   ASSERTED unsigned nr_ins_before = p->nr_insn;
+   ASSERTED unsigned nr_ins_before = jc->num_insts;
    unsigned exec_size = jay_simd_width_physical(f->shader, I);
    // jay_print_inst(stdout, (jay_inst *) I);
 
@@ -251,11 +365,13 @@ emit(struct brw_codegen *p,
       dep.regdist -= delta;
    }
 
-   brw_set_default_exec_size(p, util_logbase2(exec_size));
-   brw_set_default_mask_control(p, jay_is_no_mask(I));
-   brw_set_default_group(p, simd_offs * exec_size);
-   brw_set_default_swsb(p, dep);
-   brw_set_default_saturate(p, I->saturate);
+   jc->state.exec_size = exec_size;
+   jc->state.no_mask = jay_is_no_mask(I);
+   jc->state.chan_offset = simd_offs * exec_size;
+   jc->state.swsb = dep;
+   jc->state.saturate = I->saturate;
+   jc->state.flag_nr = 0;
+   jc->state.flag_subnr = 0;
 
    /* Grab the hardware predicate, corresponding either to a logical predicate
     * or SEL's selector.
@@ -264,13 +380,10 @@ emit(struct brw_codegen *p,
                          I->op == JAY_OPCODE_SEL ? &I->src[2] :
                                                    NULL;
 
-   brw_set_default_predicate_control(p, pred ? BRW_PREDICATE_NORMAL :
-                                               BRW_PREDICATE_NONE);
-   brw_set_default_predicate_inverse(p, pred && pred->negate);
+   jc->state.pred_control = pred ? GEN_PREDICATE_NORMAL : GEN_PREDICATE_NONE;
+   jc->state.pred_inv = pred && pred->negate;
 
-   /* Jay/brw enums line up by construction */
-   enum brw_conditional_mod cmod =
-      (enum brw_conditional_mod) I->conditional_mod;
+   gen_condition cmod = I->conditional_mod;
 
    if (!jay_is_null(I->cond_flag)) {
       assert(!(pred && pred->reg != I->cond_flag.reg) && "must be tied");
@@ -279,21 +392,21 @@ emit(struct brw_codegen *p,
 
    if (pred) {
       unsigned reg = pred->reg * jay_phys_flag_per_virt(f->shader);
-      brw_set_default_flag_reg(p, reg / 2, reg % 2);
+      jc->state.flag_nr = reg / 2;
+      jc->state.flag_subnr = reg % 2;
    }
 
    if (I->op == JAY_OPCODE_MIN) {
-      cmod = BRW_CONDITIONAL_L;
+      cmod = GEN_CONDITION_LT;
    } else if (I->op == JAY_OPCODE_MAX) {
-      cmod = BRW_CONDITIONAL_GE;
+      cmod = GEN_CONDITION_GE;
    }
 
-   struct brw_reg dst = to_brw_reg(f, I, -1, simd_offs, false);
+   gen_operand dst = to_gen_operand(f, I, -1, simd_offs, false);
 
    switch (I->op) {
       OP0(ELSE)
       OP0(ENDIF)
-      OP0(WHILE)
       OP0(BREAK)
       OP1(MOV, MOV)
       OP1(MODIFIER, MOV)
@@ -334,37 +447,62 @@ emit(struct brw_codegen *p,
       OP3_SWAP(MAD, MAD)
       OP3_SWAP(BFE, BFE)
 
-   case JAY_OPCODE_LOOP_ONCE:
+   case JAY_OPCODE_LOOP_ONCE: {
       /* TODO: Is there a better way to do this? */
-      brw_BREAK(p);
-      brw_WHILE(p);
+      assert(util_dynarray_num_elements(&jc->loop_stack, int) > 0);
+      int header_idx = util_dynarray_pop(&jc->loop_stack, int);
+      jc_append(jc, GEN_OP_BREAK);
+      gen_inst *last = jc_append(jc, GEN_OP_WHILE);
+      last->src[0].file = GEN_IMM;
+      last->src[0].type = GEN_TYPE_D;
+      last->src[0].imm = GEN_INST_BYTES * (header_idx - (jc->num_insts - 1));
       break;
+   }
+
+   case JAY_OPCODE_WHILE: {
+      assert(util_dynarray_num_elements(&jc->loop_stack, int) > 0);
+      int header_idx = util_dynarray_pop(&jc->loop_stack, int);
+      gen_inst *last = jc_append(jc, GEN_OP_WHILE);
+      last->src[0].file = GEN_IMM;
+      last->src[0].type = GEN_TYPE_D;
+      last->src[0].imm = GEN_INST_BYTES * (header_idx - (jc->num_insts - 1));
+      break;
+   }
 
    case JAY_OPCODE_IF:
-      brw_IF(p, util_logbase2(exec_size));
+      jc_append(jc, GEN_OP_IF);
       break;
 
-   case JAY_OPCODE_MATH:
-      gfx6_math(p, dst, jay_math_op(I), SRC(0),
-                retype(brw_null_reg(), to_brw_reg_type(I->type)));
+   case JAY_OPCODE_MATH: {
+      gen_inst *last =
+         jc_append2(GEN_OP_MATH, dst, SRC(0),
+                    gen_retype(gen_null(), to_gen_reg_type(I->type)));
+      last->math.func = (gen_math)jay_math_op(I);
       break;
+   }
 
-   case JAY_OPCODE_BFN:
-      brw_BFN(p, dst, SRC(0), SRC(1), SRC(2), brw_imm_ud(jay_bfn_ctrl(I)));
+   case JAY_OPCODE_BFN: {
+      gen_inst *last =
+         jc_append3(GEN_OP_BFN, dst, SRC(0), SRC(1), SRC(2));
+      last->boolean_func_ctrl = jay_bfn_ctrl(I);
       break;
+   }
 
    case JAY_OPCODE_DESWIZZLE_ODD: {
       bool hi = simd_offs == 0 ? true : jay_deswizzle_odd_src2_hi(I);
-      brw_set_default_group(p, 0);
-      brw_MOV(p, dst,
-              byte_offset(to_brw_reg(f, I, simd_offs, 0, false), hi ? 64 : 0));
+      jc->state.chan_offset = 0;
+      jc_MOV(jc, dst,
+             gen_byte_offset(jc->devinfo,
+                             to_gen_operand(f, I, simd_offs, 0, false),
+                             hi ? 64 : 0));
       break;
    }
 
    case JAY_OPCODE_DESWIZZLE_EVEN:
-      brw_set_default_exec_size(p, BRW_EXECUTE_16);
-      brw_MOV(p, byte_offset(dst, 64),
-              byte_offset(SRC(0), jay_deswizzle_even_src_hi(I) * 64));
+      jc->state.exec_size = 16;
+      jc_MOV(jc, gen_byte_offset(jc->devinfo, dst, 64),
+             gen_byte_offset(jc->devinfo, SRC(0),
+                             jay_deswizzle_even_src_hi(I) * 64));
       break;
 
    case JAY_OPCODE_CVT: {
@@ -389,158 +527,209 @@ emit(struct brw_codegen *p,
          }
       }
 
-      brw_MOV(p, dst,
-              suboffset(to_brw_reg(f, I, 0, simd_offs, force_hi), index));
+      gen_operand src = to_gen_operand(f, I, 0, simd_offs, force_hi);
+      src = gen_element_offset(jc->devinfo, src, index);
+      jc_MOV(jc, dst, src);
       break;
    }
 
-   case JAY_OPCODE_SYNC:
-      brw_SYNC(p, jay_sync_op(I));
-
+   case JAY_OPCODE_SYNC: {
+      gen_inst *sync = jc_append(jc, GEN_OP_SYNC);
+      sync->dst = gen_null();
+      sync->src[0] = gen_null();
       if (!jay_is_null(I->src[0])) {
-         brw_set_src0(p, brw_eu_last_inst(p), stride(SRC(0), 0, 1, 0));
+         sync->src[0] = gen_restride(SRC(0), 0, 1, 0);
       }
+      sync->sync.func = (gen_sync_func)jay_sync_op(I);
       break;
+   }
 
    case JAY_OPCODE_CMP:
-      brw_CMP(p, dst, I->conditional_mod, SRC(0), SRC(1));
+      jc_append2(GEN_OP_CMP, dst, SRC(0), SRC(1));
       break;
 
    case JAY_OPCODE_MOV_IMM64:
-      brw_MOV(p, dst, brw_imm_u64(jay_mov_imm64_imm(I)));
+      jc_MOV(jc, dst, gen_imm_uq(jay_mov_imm64_imm(I)));
       break;
 
    case JAY_OPCODE_RELOC:
-      brw_MOV_reloc_imm(p, dst, BRW_TYPE_UD, jay_reloc_param(I),
-                        jay_reloc_base(I));
+      jc_MOV_reloc(jc, dst, jay_reloc_param(I), jay_reloc_base(I));
       break;
 
    case JAY_OPCODE_QUAD_SWIZZLE:
       /* Quad swizzle can get split down to SIMD4 even on Xe2 where we don't
        * have NibCtrl.  Fortunately, it's NoMask so it doesn't matter.
        */
-      brw_set_default_group(p, 0);
-      brw_MOV(p, dst, quad_swizzle(SRC(0), I));
+      jc->state.chan_offset = 0;
+      jc_MOV(jc, dst, quad_swizzle(jc->devinfo, SRC(0), I));
       break;
 
-   case JAY_OPCODE_BROADCAST_IMM:
-      brw_MOV(p, dst, get_element(SRC(0), jay_broadcast_imm_lane(I)));
-      break;
-
-   case JAY_OPCODE_SEND:
-      brw_SEND(p, jay_send_sfid(I), dst, SRC(2), SRC(3), SRC(0), SRC(1),
-               jay_send_ex_desc_imm(I), jay_send_ex_mlen(I),
-               jay_send_bindless(I), jay_send_eot(I), false /* gather */);
-      if (jay_send_check_tdr(I)) {
-         brw_eu_inst_set_opcode(p->isa, brw_eu_last_inst(p), BRW_OPCODE_SENDC);
+   case JAY_OPCODE_BROADCAST_IMM: {
+      gen_operand src = SRC(0);
+      if (src.file != GEN_IMM) {
+         src = gen_element_offset(jc->devinfo, src, jay_broadcast_imm_lane(I));
+         src = gen_restride(src, 0, 1, 0);
       }
+      jc_MOV(jc, dst, src);
       break;
+   }
+
+   case JAY_OPCODE_SEND: {
+      gen_operand desc = SRC(0);
+      gen_operand ex_desc = SRC(1);
+      gen_operand payload0 = gen_retype(SRC(2), GEN_TYPE_UD);
+      gen_operand payload1 = gen_retype(SRC(3), GEN_TYPE_UD);
+
+      gen_inst *last =
+         jc_append(jc, jay_send_check_tdr(I) ? GEN_OP_SENDC : GEN_OP_SEND);
+      last->send.eot = jay_send_eot(I);
+      last->send.sfid = (gen_sfid)jay_send_sfid(I);
+      last->dst = dst;
+      last->dst.type = GEN_TYPE_UD;
+      last->src[0] = payload0;
+      last->src[1] = payload1;
+
+      if (desc.file == GEN_IMM)
+         last->send.desc_imm = desc.imm;
+      else
+         last->send.desc_is_reg = true;
+
+      if (ex_desc.file == GEN_IMM) {
+         assert(jay_send_ex_desc_imm(I) == 0);
+         last->send.ex_desc_imm = ex_desc.imm;
+      } else {
+         last->send.ex_desc_is_reg = true;
+         last->send.ex_desc_subnr = ex_desc.subnr;
+         if (jay_send_ex_desc_imm(I))
+            last->send.ex_desc_imm_extra = jay_send_ex_desc_imm(I);
+      }
+
+      if (jay_send_bindless(I))
+         last->send.ex_bso = true;
+
+      if (jay_send_bindless(I) || last->send.sfid == GEN_SFID_UGM)
+         last->send.src1_len = jay_send_ex_mlen(I) / reg_unit(jc->devinfo);
+
+      break;
+   }
 
    /* Gfx20+ has separate Render Target Array indices for each pair of subspans
     * in order to support multiple polygons, so we need to use a <1;8,0> region
     * in order to select the word for each channel.
     */
    case JAY_OPCODE_EXTRACT_LAYER:
-      brw_AND(p, dst, stride(retype(SRC(simd_offs), BRW_TYPE_UW), 1, 8, 0),
-              brw_imm_uw(0x7ff));
+      jc_append2(GEN_OP_AND, dst,
+                 gen_restride(gen_retype(SRC(simd_offs), GEN_TYPE_UW), 1, 8, 0),
+                 gen_imm_uw(0x7ff));
       break;
 
    case JAY_OPCODE_EXPAND_QUAD:
-      brw_MOV(p, dst, stride(SRC(simd_offs), 1, 4, 0));
+      jc_MOV(jc, dst, gen_restride(SRC(simd_offs), 1, 4, 0));
       break;
 
    case JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS:
-      brw_set_default_exec_size(p, BRW_EXECUTE_32);
-      brw_set_default_group(p, 0);
-      brw_ADD(p, retype(dst, BRW_TYPE_UW), retype(SRC(0), BRW_TYPE_UW),
-              brw_imm_uv(0x11100100));
+      jc->state.exec_size = 32;
+      jc->state.chan_offset = 0;
+      jc_append2(GEN_OP_ADD,
+                 gen_retype(dst, GEN_TYPE_UW),
+                 gen_retype(SRC(0), GEN_TYPE_UW),
+                 gen_imm_uv(0x11100100));
       break;
 
    case JAY_OPCODE_LANE_ID_8:
-      brw_set_default_exec_size(p, BRW_EXECUTE_8);
-      brw_MOV(p, dst, brw_imm_uv(0x76543210));
+      jc->state.exec_size = 8;
+      jc_MOV(jc, dst, gen_imm_uv(0x76543210));
       break;
 
-   case JAY_OPCODE_LANE_ID_EXPAND:
-      brw_set_default_exec_size(p, util_logbase2(jay_lane_id_expand_width(I)));
-      brw_ADD(p, suboffset(dst, jay_lane_id_expand_width(I)), SRC(0),
-              brw_imm_uw(jay_lane_id_expand_width(I)));
+   case JAY_OPCODE_LANE_ID_EXPAND: {
+      unsigned width = jay_lane_id_expand_width(I);
+      jc->state.exec_size = width;
+      jc_append2(GEN_OP_ADD,
+                 gen_element_offset(jc->devinfo, dst, width),
+                 SRC(0), gen_imm_uw(width));
       break;
+   }
 
    case JAY_OPCODE_GPR_FROM_UGPRS:
-      brw_MOV(p, dst,
-              byte_offset(stride(SRC(0), jay_gpr_from_ugprs_stride(I), 1, 0),
-                          jay_gpr_from_ugprs_index(I)));
+      jc_MOV(jc, dst,
+             gen_byte_offset(jc->devinfo,
+                             gen_restride(SRC(0),
+                                          jay_gpr_from_ugprs_stride(I), 1, 0),
+                             jay_gpr_from_ugprs_index(I)));
       break;
 
    case JAY_OPCODE_ZIP_UGPR16:
-      brw_MOV(p, dst, to_brw_reg(f, I, simd_offs, 0, false));
+      jc_MOV(jc, dst, to_gen_operand(f, I, simd_offs, 0, false));
       break;
 
-   case JAY_OPCODE_EXTRACT_BYTE_PER_8LANES:
-      brw_MOV(p, dst, stride(retype(SRC(simd_offs), BRW_TYPE_UB), 1, 8, 0));
+   case JAY_OPCODE_EXTRACT_BYTE_PER_8LANES: {
+      gen_operand src = gen_restride(gen_retype(SRC(simd_offs), GEN_TYPE_UB),
+                                     1, 8, 0);
+      jc_MOV(jc, dst, src);
       break;
+   }
 
    case JAY_OPCODE_BYTE_PACK:
-      brw_MOV(p, stride(retype(dst, BRW_TYPE_UB), 1, 1, 0),
-              stride(retype(SRC(0), BRW_TYPE_UB), 4, 1, 0));
+      jc_MOV(jc, gen_restride(gen_retype(dst, GEN_TYPE_UB), 1, 1, 0),
+             gen_restride(gen_retype(SRC(0), GEN_TYPE_UB), 4, 1, 0));
       break;
 
    case JAY_OPCODE_WORD_PACK:
-      brw_set_default_exec_size(p, util_logbase2(2 * exec_size));
-      brw_MOV(p, retype(dst, BRW_TYPE_UW), subscript(SRC(0), BRW_TYPE_UW, 0));
+      jc->state.exec_size = 2 * exec_size;
+      jc_MOV(jc, gen_retype(dst, GEN_TYPE_UW),
+             gen_subscript(jc->devinfo, SRC(0), GEN_TYPE_UW, 0));
       break;
 
    case JAY_OPCODE_SHR_ODD_SUBSPANS_BY_4:
-      brw_SHR(p, dst, SRC(0), brw_imm_uv(0x44440000));
+      jc_append2(GEN_OP_SHR, dst, SRC(0), gen_imm_uv(0x44440000));
       break;
 
    case JAY_OPCODE_MUL_32: {
-      brw_MUL(p, retype(brw_acc_reg(1), to_brw_reg_type(I->type)), SRC(0),
-              subscript(SRC(1), BRW_TYPE_UW, 0));
+      gen_operand acc = gen_accumulator(0);
+      acc.type = to_gen_reg_type(I->type);
+      gen_operand src1 = gen_subscript(jc->devinfo, SRC(1), GEN_TYPE_UW, 0);
 
-      brw_set_default_swsb(p, gen_swsb_null());
-      brw_alu2(p, jay_mul_32_high(I) ? BRW_OPCODE_MACH : BRW_OPCODE_MACL, dst,
-               SRC(0), SRC(1));
+      jc_append2(GEN_OP_MUL, acc, SRC(0), src1);
+      jc->state.swsb = gen_swsb_null();
+      jc_append2(jay_mul_32_high(I) ? GEN_OP_MACH : GEN_OP_MACL,
+                 dst, SRC(0), SRC(1));
       break;
    }
 
    case JAY_OPCODE_SHUFFLE: {
-      struct brw_reg a0 = brw_address_reg(0);
+      gen_operand a0 = gen_address(0);
+      gen_operand idx = gen_subscript(jc->devinfo, SRC(1), GEN_TYPE_UW, 0);
+      gen_operand indirect = gen_grf(0, 0);
+      indirect.type = GEN_TYPE_UD;
+      indirect.indirect = true;
+      indirect.region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
+      indirect.addr_imm = 0;
+
       assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
       struct jay_register_block block =
          jay_lookup_block(&f->shader->partition, I->src[0].reg, GPR);
 
       unsigned offset_B =
-         (block.start_grf * 64) +
+         (block.start_grf * jc->devinfo->grf_size) +
          ((I->src[0].reg - block.start_gpr) * 4 * f->shader->dispatch_width);
 
-      brw_ADD(p, a0, subscript(SRC(1), BRW_TYPE_UW, 0), brw_imm_uw(offset_B));
-      brw_MOV(p, dst, retype(brw_VxH_indirect(0, 0), BRW_TYPE_UD));
+      jc_append2(GEN_OP_ADD, a0, idx, gen_imm_uw(offset_B));
+      jc_MOV(jc, dst, indirect);
       break;
    }
 
    default:
-      jay_print_inst(stderr, (jay_inst *) I);
+      jay_print_inst(stderr, (jay_inst *)I);
       UNREACHABLE("Unhandled opcode");
    }
 
-   if (cmod != BRW_CONDITIONAL_NONE) {
-      if (I->op != JAY_OPCODE_BFN) {
-         brw_eu_inst_set_cond_modifier(p->devinfo, brw_eu_last_inst(p), cmod);
-      } else {
-         unsigned cc = cmod == BRW_CONDITIONAL_L    ? 3 :
-                       cmod == BRW_CONDITIONAL_G    ? 2 :
-                       cmod == BRW_CONDITIONAL_Z    ? 1 :
-                       cmod == BRW_CONDITIONAL_NONE ? 0 :
-                                                      -1;
-         assert(cc < 4 && "invalid cmod for bfn");
-         brw_eu_inst_set_boolean_func_cond_modifier(p->devinfo,
-                                                    brw_eu_last_inst(p), cc);
-      }
+   if (cmod != GEN_CONDITION_NONE) {
+      assert(jc->num_insts > 0);
+      gen_inst *last = &jc->insts[jc->num_insts - 1];
+      last->cmod = cmod;
    }
 
-   assert(p->nr_insn == (nr_ins_before + jay_macro_length(I)) &&
+   assert(jc->num_insts == (nr_ins_before + jay_macro_length(I)) &&
           "Jay instructions must map 1:n to GEN instructions");
 }
 
@@ -551,68 +740,152 @@ jay_to_binary(jay_shader *s,
               bool debug)
 {
    struct jay_shader_bin *bin = rzalloc(s, struct jay_shader_bin);
+   void *mem_ctx = ralloc_context(NULL);
 
-   struct util_dynarray prog;
-   util_dynarray_init(&prog, bin);
+   int total_gen_insts = 0;
+   jay_foreach_function(s, f) {
+      jay_foreach_block(f, block) {
+         jay_foreach_inst_in_block(block, I) {
+            total_gen_insts += (1 << jay_simd_split(s, I)) * jay_macro_length(I);
+         }
+      }
+   }
 
-   struct brw_isa_info isa;
-   struct brw_codegen p;
+   const unsigned max_code_size = total_gen_insts * GEN_INST_BYTES;
+   const unsigned output_capacity =
+      const_data_size > 0 ? align(max_code_size, 32) + const_data_size
+                          : max_code_size;
 
-   brw_init_isa_info(&isa, s->devinfo);
-   brw_init_codegen(&isa, &p, bin);
-   int start_offset = p.next_insn_offset;
+   struct jay_codegen jc = {
+      .devinfo = s->devinfo,
+      .mem_ctx = mem_ctx,
+      .insts = rzalloc_array(mem_ctx, gen_inst, total_gen_insts),
+      .insts_cap = total_gen_insts,
+      .output = rzalloc_size(bin, output_capacity),
+   };
+   util_dynarray_init(&jc.loop_stack, mem_ctx);
+   util_dynarray_init(&jc.relocs, bin);
+
+   struct brw_stage_prog_data *prog_data = &s->prog_data->base;
+   int code_size;
 
    /* TODO: Multifunction properly */
    jay_foreach_function(s, f) {
       jay_foreach_block(f, block) {
          if (block->loop_header) {
-            brw_DO(&p, 0);
+            util_dynarray_append(&jc.loop_stack, jc.num_insts);
          }
 
          jay_foreach_inst_in_block(block, I) {
             for (unsigned i = 0; i < (1 << jay_simd_split(s, I)); ++i) {
-               emit(&p, f, I, i);
+               emit(&jc, f, I, i);
             }
          }
       }
    }
 
-   int final_halt_offset = -1 /* TODO */;
-   brw_set_uip_jip(&p, start_offset, final_halt_offset);
+   assert(util_dynarray_num_elements(&jc.loop_stack, int) == 0);
 
-   struct disasm_info *disasm = disasm_initialize(p.isa, NULL);
+   /* TODO: Check if jay still needs this normalization. */
+   for (int i = 0; i < jc.num_insts; i++) {
+      gen_inst *gen = &jc.insts[i];
 
-   disasm_new_inst_group(disasm, 0);
-   disasm_new_inst_group(disasm, p.next_insn_offset);
+      if (gen->exec_size == 1) {
+         if (gen->src[0].file != GEN_BAD_FILE && gen->src[0].region.width == 1)
+            gen->src[0] = gen_restride(gen->src[0], 0, 1, 0);
+         if (gen->src[1].file != GEN_BAD_FILE && gen->src[1].region.width == 1)
+            gen->src[1] = gen_restride(gen->src[1], 0, 1, 0);
+      }
 
-   UNUSED bool valid = true;
-#ifndef NDEBUG
-   valid =
-      brw_validate_instructions(p.isa, p.store, 0, p.next_insn_offset, disasm);
-#endif
-
-   brw_compact_instructions(&p, start_offset, disasm);
-
-   if (debug || !valid) {
-      dump_assembly(p.store, 0, p.next_insn_offset, disasm, NULL, stdout);
+      if ((gen->dst.file == GEN_GRF || gen->dst.file == GEN_ARF) &&
+          gen->dst.region.hstride == 0)
+         gen->dst.region.hstride = 1;
    }
 
-   if (!valid) {
+   int final_halt_offset = -1 /* TODO */;
+   gen_finish_structured_cf(jc.insts, jc.num_insts, final_halt_offset);
+
+   const unsigned num_relocs =
+      util_dynarray_num_elements(&jc.relocs, struct intel_shader_reloc);
+
+   int *inst_offsets = num_relocs > 0 ?
+      rzalloc_array(jc.mem_ctx, int, jc.num_insts) : NULL;
+
+   gen_encode_params enc_params = {
+      .devinfo = jc.devinfo,
+      .compact_all = true,
+#ifdef NDEBUG
+      .skip_validation = true,
+#endif
+      .insts = jc.insts,
+      .num_insts = jc.num_insts,
+      .mem_ctx = bin,
+      .raw_bytes = jc.output,
+      .raw_bytes_size = max_code_size,
+      .encoded_offsets = inst_offsets,
+   };
+
+   bool encoded = gen_encode(&enc_params);
+   if (!encoded) {
+      gen_print_params print_params = {
+         .devinfo = jc.devinfo,
+         .fp = stderr,
+         .insts = jc.insts,
+         .num_insts = jc.num_insts,
+         .errors = enc_params.errors,
+         .num_errors = enc_params.num_errors,
+      };
+      gen_print(&print_params);
+      ralloc_free(jc.mem_ctx);
       UNREACHABLE("invalid assembly");
    }
 
-   struct brw_stage_prog_data *prog_data = &s->prog_data->base;
+   code_size = enc_params.raw_bytes_size;
+   jc.output_size = code_size;
+
+   /* Update reloc offsets to use the actual encoded offsets, which
+    * will account for instruction compaction.
+    */
+   for (unsigned i = 0; i < num_relocs; i++) {
+      struct intel_shader_reloc *reloc =
+         util_dynarray_element(&jc.relocs, struct intel_shader_reloc, i);
+      assert(reloc->type == INTEL_SHADER_RELOC_TYPE_MOV_IMM);
+      assert(reloc->offset % GEN_INST_BYTES == 0);
+
+      unsigned inst_idx = reloc->offset / GEN_INST_BYTES;
+      assert(inst_idx < (unsigned)jc.num_insts);
+
+      reloc->offset = inst_offsets[inst_idx];
+   }
+
+   if (debug) {
+      gen_print_params print_params = {
+         .devinfo = jc.devinfo,
+         .fp = stdout,
+         .insts = jc.insts,
+         .num_insts = jc.num_insts,
+         .raw_bytes = jc.output,
+         .raw_bytes_size = code_size,
+      };
+      gen_print(&print_params);
+   }
 
    assert(prog_data->const_data_size == 0);
    if (const_data_size > 0) {
+      unsigned offset = align(jc.output_size, 32);
+      assert(offset + const_data_size <= output_capacity);
+      memcpy(jc.output + offset, const_data, const_data_size);
+      jc.output_size = offset + const_data_size;
       prog_data->const_data_size = const_data_size;
-      prog_data->const_data_offset =
-         brw_append_data(&p, const_data, const_data_size, 32);
+      prog_data->const_data_offset = offset;
    }
 
-   bin->kernel = brw_get_program(&p, &bin->size);
-   s->prog_data->base.relocs =
-      brw_get_shader_relocs(&p, &s->prog_data->base.num_relocs);
+   prog_data->relocs = jc.relocs.data;
+   prog_data->num_relocs = num_relocs;
 
+   bin->kernel = (const uint32_t *)jc.output;
+   bin->size = jc.output_size;
+
+   ralloc_free(jc.mem_ctx);
    return bin;
 }
