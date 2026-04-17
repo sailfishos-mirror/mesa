@@ -5604,7 +5604,7 @@
         "description": "pvr: fix handling of invalid attachment info in pvr_init_fs_outputs_mrt",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1950b6c1a7cec1ac7df6fc35899ae64e5dfaf2ee",
         "notes": null
