@@ -328,44 +328,14 @@ vk_pipeline_hash_shader_stage(VkPipelineCreateFlags2KHR pipeline_flags,
    _mesa_blake3_compute(blake_hash, sizeof(blake_hash), stage_blake3);
 }
 
-static VkPipelineRobustnessBufferBehaviorEXT
-vk_device_default_robust_buffer_behavior(const struct vk_device *device)
-{
-   if (device->enabled_features.robustBufferAccess2) {
-      return VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2_EXT;
-   } else if (device->enabled_features.robustBufferAccess) {
-      return VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_EXT;
-   } else {
-      return VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT;
-   }
-}
-
-static VkPipelineRobustnessImageBehaviorEXT
-vk_device_default_robust_image_behavior(const struct vk_device *device)
-{
-   if (device->enabled_features.robustImageAccess2) {
-      return VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2_EXT;
-   } else if (device->enabled_features.robustImageAccess) {
-      return VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_EXT;
-   } else {
-      return VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DISABLED_EXT;
-   }
-}
-
 void
 vk_pipeline_robustness_state_fill(const struct vk_device *device,
                                   struct vk_pipeline_robustness_state *rs,
                                   const void *pipeline_pNext,
                                   const void *shader_stage_pNext)
 {
-   *rs = (struct vk_pipeline_robustness_state) {
-      .uniform_buffers = vk_device_default_robust_buffer_behavior(device),
-      .storage_buffers = vk_device_default_robust_buffer_behavior(device),
-      .vertex_inputs = vk_device_default_robust_buffer_behavior(device),
-      .images = vk_device_default_robust_image_behavior(device),
-      .null_uniform_buffer_descriptor = device->enabled_features.nullDescriptor,
-      .null_storage_buffer_descriptor = device->enabled_features.nullDescriptor,
-   };
+   /* Use the device robustness state by default. */
+   *rs = device->robustness_state;
 
    const VkPipelineRobustnessCreateInfoEXT *shader_info =
       vk_find_struct_const(shader_stage_pNext,
