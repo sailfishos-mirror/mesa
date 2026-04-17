@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2026 Collabora, Ltd.
+ * Copyright (C) 2026 Arm Ltd.
  * SPDX-License-Identifier: MIT
  */
 
@@ -480,8 +481,16 @@ struct pan_fb_desc_info {
 void GENX(pan_fill_fb_info)(const struct pan_fb_desc_info *info,
                             struct pan_fb_info *fbinfo);
 
+struct pan_fb_descs {
+#if PAN_ARCH <= 13
+   struct mali_framebuffer_packed *fbd;
+#endif
+   struct mali_zs_crc_extension_packed *zs_crc;
+   struct mali_rgb_render_target_packed *rts;
+};
+
 uint32_t GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
-                                void *out);
+                                const struct pan_fb_descs *out);
 #endif
 
 enum ENUM_PACKED pan_fb_shader_op {
@@ -618,6 +627,6 @@ bool GENX(pan_fb_resolve_shader_key_fill)(struct pan_fb_shader_key *key,
 struct nir_shader *
 GENX(pan_get_fb_shader)(const struct pan_fb_shader_key *key,
                         const struct nir_shader_compiler_options *nir_options);
-#endif
+#endif /* PAN_ARCH */
 
 #endif /* __PAN_FB_H */

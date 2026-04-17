@@ -1309,14 +1309,28 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
    if (result != VK_SUCCESS)
       return result;
 
+   const bool has_zs_ext = pan_fb_has_zs(&render->fb.layout);
+#if PAN_ARCH >= 14
+   const unsigned fb_sz = ALIGN_POT(sizeof(struct panvk_fb_layer_state), 64);
+#else
+   const unsigned fb_sz = pan_size(FRAMEBUFFER);
+#endif
    for (uint32_t i = 0; i < enabled_layer_count; i++) {
       uint32_t layer_idx = multiview ? u_bit_scan(&view_mask_temp) : i;
 
       fbd_info.layer = layer_idx;
       tiler_ctx = get_tiler_context(cmdbuf, layer_idx);
 
-      uint32_t new_fbd_flags =
-         GENX(pan_emit_fb_desc)(&fbd_info, fbds.cpu + fbd_sz * i);
+      const struct pan_ptr fbd = pan_ptr_offset(fbds, fbd_sz * i);
+      const struct pan_fb_descs fb_descs = {
+#if PAN_ARCH <= 13
+         .fbd = fbd.cpu,
+#endif
+         .zs_crc = has_zs_ext ? fbd.cpu + fb_sz : NULL,
+         .rts = has_zs_ext ? fbd.cpu + fb_sz + pan_size(ZS_CRC_EXTENSION)
+                           : fbd.cpu + fb_sz,
+      };
+      uint32_t new_fbd_flags = GENX(pan_emit_fb_desc)(&fbd_info, &fb_descs);
 
       /* Make sure all FBDs have the same flags. */
       assert(i == 0 || new_fbd_flags == fbd_flags);
@@ -1335,7 +1349,6 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
 
       for (uint32_t i = 0; i < enabled_layer_count; i++) {
          uint32_t layer_idx = multiview ? u_bit_scan(&ir_view_mask_temp) : i;
-         void *ir_fbd = (void *)((uint8_t *)ir_fbds.cpu + (i * fbd_sz));
 
          fbd_info.layer = layer_idx;
          tiler_ctx = get_tiler_context(cmdbuf, layer_idx);
@@ -1353,8 +1366,17 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
          if (result != VK_SUCCESS)
             return result;
 
+         const struct pan_ptr fbd = pan_ptr_offset(ir_fbds, fbd_sz * i);
+         const struct pan_fb_descs fb_descs = {
+#if PAN_ARCH <= 13
+            .fbd = fbd.cpu,
+#endif
+            .zs_crc = has_zs_ext ? fbd.cpu + fb_sz : NULL,
+            .rts = has_zs_ext ? fbd.cpu + fb_sz + pan_size(ZS_CRC_EXTENSION)
+                              : fbd.cpu + fb_sz,
+         };
          ASSERTED uint32_t new_fbd_flags =
-            GENX(pan_emit_fb_desc)(&fbd_info, ir_fbd);
+            GENX(pan_emit_fb_desc)(&fbd_info, &fb_descs);
 
          /* Make sure all FBDs have the same flags. */
          assert(new_fbd_flags == fbd_flags);
