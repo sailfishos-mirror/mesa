@@ -2225,7 +2225,6 @@ static void
 radv_pipeline_import_retained_shaders(const struct radv_device *device, struct radv_graphics_lib_pipeline *lib,
                                       struct radv_shader_stage *stages)
 {
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_retained_shaders *retained_shaders = &lib->retained_shaders;
 
    /* Import the stages (SPIR-V only in case of cache hits). */
@@ -2244,7 +2243,7 @@ radv_pipeline_import_retained_shaders(const struct radv_device *device, struct r
       int64_t stage_start = os_time_get_nano();
 
       /* Deserialize the NIR shader. */
-      const struct nir_shader_compiler_options *options = &pdev->nir_options[s];
+      const struct nir_shader_compiler_options *options = &device->compiler_info.nir_options[s];
       struct blob_reader blob_reader;
       blob_reader_init(&blob_reader, retained_shaders->stages[s].serialized_nir,
                        retained_shaders->stages[s].serialized_nir_size);

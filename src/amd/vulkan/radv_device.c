@@ -1221,8 +1221,7 @@ radv_device_init_compiler_info(struct radv_device *device)
       .spirv_caps = vk_physical_device_get_spirv_capabilities(device->vk.physical),
    };
 
-   for (uint32_t s = 0; s < MESA_VULKAN_SHADER_STAGES; s++)
-      info.nir_options[s] = pdev->nir_options[s];
+   radv_get_nir_options(&info);
 
    device->compiler_info = info;
 }

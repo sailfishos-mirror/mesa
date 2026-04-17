@@ -758,7 +758,7 @@ bool radv_consider_culling(const struct radv_compiler_info *compiler_info, struc
                            uint64_t ps_inputs_read, unsigned num_vertices_per_primitive,
                            const struct radv_shader_info *info);
 
-void radv_get_nir_options(struct radv_physical_device *pdev);
+void radv_get_nir_options(struct radv_compiler_info *compiler_info);
 
 enum radv_rt_lowering_mode {
    RADV_RT_LOWERING_MODE_MONOLITHIC,

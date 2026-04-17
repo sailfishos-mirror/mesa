@@ -178,8 +178,6 @@ struct radv_physical_device {
    dev_t render_devid;
 #endif
 
-   nir_shader_compiler_options nir_options[MESA_VULKAN_SHADER_STAGES];
-
    enum radv_queue_family vk_queue_to_radv[RADV_MAX_QUEUE_FAMILIES];
    uint32_t num_queues;
 

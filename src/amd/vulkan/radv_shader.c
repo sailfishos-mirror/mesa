@@ -53,15 +53,16 @@
 #endif
 
 static void
-get_nir_options_for_stage(struct radv_physical_device *pdev, mesa_shader_stage stage)
+get_nir_options_for_stage(struct radv_compiler_info *compiler_info, mesa_shader_stage stage)
 {
-   nir_shader_compiler_options *options = &pdev->nir_options[stage];
-   const bool split_fma = (stage <= MESA_SHADER_GEOMETRY || stage == MESA_SHADER_MESH) && pdev->cache_key.split_fma;
+   nir_shader_compiler_options *options = &compiler_info->nir_options[stage];
+   const bool split_fma =
+      (stage <= MESA_SHADER_GEOMETRY || stage == MESA_SHADER_MESH) && compiler_info->cache_key->split_fma;
 
-   ac_nir_set_options(&pdev->info.compiler_info, pdev->use_llvm, options);
+   ac_nir_set_options(compiler_info->ac, compiler_info->debug.use_llvm, options);
 
-   options->lower_ffma16 = split_fma || pdev->info.gfx_level < GFX9;
-   options->lower_ffma32 = split_fma || pdev->info.gfx_level < GFX10_3;
+   options->lower_ffma16 = split_fma || compiler_info->ac->gfx_level < GFX9;
+   options->lower_ffma32 = split_fma || compiler_info->ac->gfx_level < GFX10_3;
    options->lower_ffma64 = split_fma;
    options->max_unroll_iterations = 32;
    options->max_unroll_iterations_aggressive = 128;
@@ -71,10 +72,10 @@ get_nir_options_for_stage(struct radv_physical_device *pdev, mesa_shader_stage s
 }
 
 void
-radv_get_nir_options(struct radv_physical_device *pdev)
+radv_get_nir_options(struct radv_compiler_info *compiler_info)
 {
    for (mesa_shader_stage stage = MESA_SHADER_VERTEX; stage < MESA_VULKAN_SHADER_STAGES; stage++)
-      get_nir_options_for_stage(pdev, stage);
+      get_nir_options_for_stage(compiler_info, stage);
 }
 
 static uint8_t

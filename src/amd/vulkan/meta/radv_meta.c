@@ -347,7 +347,7 @@ radv_device_init_meta(struct radv_device *device)
 
    if (pdev->emulate_etc2) {
       device->meta_state.etc_decode.allocator = &device->meta_state.alloc;
-      device->meta_state.etc_decode.nir_options = &pdev->nir_options[MESA_SHADER_COMPUTE];
+      device->meta_state.etc_decode.nir_options = &device->compiler_info.nir_options[MESA_SHADER_COMPUTE];
       device->meta_state.etc_decode.pipeline_cache = device->meta_state.cache;
 
       vk_texcompress_etc2_init(&device->vk, &device->meta_state.etc_decode);
