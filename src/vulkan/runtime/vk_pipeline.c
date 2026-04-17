@@ -359,10 +359,10 @@ vk_pipeline_robustness_state_fill(const struct vk_device *device,
                                   const void *shader_stage_pNext)
 {
    *rs = (struct vk_pipeline_robustness_state) {
-      .uniform_buffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT,
-      .storage_buffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT,
-      .vertex_inputs = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT,
-      .images = VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DEVICE_DEFAULT_EXT,
+      .uniform_buffers = vk_device_default_robust_buffer_behavior(device),
+      .storage_buffers = vk_device_default_robust_buffer_behavior(device),
+      .vertex_inputs = vk_device_default_robust_buffer_behavior(device),
+      .images = vk_device_default_robust_image_behavior(device),
       .null_uniform_buffer_descriptor = device->enabled_features.nullDescriptor,
       .null_storage_buffer_descriptor = device->enabled_features.nullDescriptor,
    };
@@ -370,37 +370,22 @@ vk_pipeline_robustness_state_fill(const struct vk_device *device,
    const VkPipelineRobustnessCreateInfoEXT *shader_info =
       vk_find_struct_const(shader_stage_pNext,
                            PIPELINE_ROBUSTNESS_CREATE_INFO_EXT);
-   if (shader_info) {
-      rs->storage_buffers = shader_info->storageBuffers;
-      rs->uniform_buffers = shader_info->uniformBuffers;
-      rs->vertex_inputs = shader_info->vertexInputs;
-      rs->images = shader_info->images;
-   } else {
-      const VkPipelineRobustnessCreateInfoEXT *pipeline_info =
-         vk_find_struct_const(pipeline_pNext,
-                              PIPELINE_ROBUSTNESS_CREATE_INFO_EXT);
-      if (pipeline_info) {
-         rs->storage_buffers = pipeline_info->storageBuffers;
-         rs->uniform_buffers = pipeline_info->uniformBuffers;
-         rs->vertex_inputs = pipeline_info->vertexInputs;
-         rs->images = pipeline_info->images;
-      }
+   const VkPipelineRobustnessCreateInfoEXT *pipeline_info =
+      vk_find_struct_const(pipeline_pNext,
+                           PIPELINE_ROBUSTNESS_CREATE_INFO_EXT);
+
+   const VkPipelineRobustnessCreateInfoEXT *robustness_info =
+      shader_info ? shader_info : pipeline_info;
+   if (robustness_info) {
+      if (robustness_info->storageBuffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT)
+         rs->storage_buffers = robustness_info->storageBuffers;
+      if (robustness_info->uniformBuffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT)
+         rs->uniform_buffers = robustness_info->uniformBuffers;
+      if (robustness_info->vertexInputs != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT)
+         rs->vertex_inputs = robustness_info->vertexInputs;
+      if (robustness_info->images != VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DEVICE_DEFAULT_EXT)
+         rs->images = robustness_info->images;
    }
-
-   if (rs->storage_buffers ==
-       VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT)
-      rs->storage_buffers = vk_device_default_robust_buffer_behavior(device);
-
-   if (rs->uniform_buffers ==
-       VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT)
-      rs->uniform_buffers = vk_device_default_robust_buffer_behavior(device);
-
-   if (rs->vertex_inputs ==
-       VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT)
-      rs->vertex_inputs = vk_device_default_robust_buffer_behavior(device);
-
-   if (rs->images == VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DEVICE_DEFAULT_EXT)
-      rs->images = vk_device_default_robust_image_behavior(device);
 }
 
 static void
