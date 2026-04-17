@@ -399,7 +399,7 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .maxFragmentInputComponents = 128,
       .maxFragmentOutputAttachments = KK_MAX_RTS,
       .maxFragmentDualSrcAttachments = 1,
-      .maxFragmentCombinedOutputResources = 16,
+      .maxFragmentCombinedOutputResources = KK_MAX_DESCRIPTORS,
       .maxComputeSharedMemorySize = KK_MAX_SHARED_SIZE,
       .maxComputeWorkGroupCount = {0x7fffffff, 65535, 65535},
       .maxComputeWorkGroupInvocations = pdev->info.max_workgroup_invocations,
@@ -741,7 +741,7 @@ kk_physical_device_init_pipeline_cache(struct kk_physical_device *pdev)
    _mesa_blake3_init(&blake3_ctx);
 
    _mesa_blake3_update(&blake3_ctx, instance->driver_build_sha,
-                     sizeof(instance->driver_build_sha));
+                       sizeof(instance->driver_build_sha));
 
    unsigned char blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_final(&blake3_ctx, blake3);
