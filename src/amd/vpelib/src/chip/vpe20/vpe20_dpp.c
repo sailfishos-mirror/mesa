@@ -225,6 +225,7 @@ void vpe20_dpp_program_cnv(
         alpha_en     = 0;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBA16161616:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_BGRA16161616: /* use crossbar */
         pixel_format = 21;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_PLANAR_16bpc_RGB_FLOAT:
@@ -260,15 +261,19 @@ void vpe20_dpp_program_cnv(
         pixel_format = 15;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616_UNORM:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616_UNORM:
         pixel_format = 26;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_BGRA16161616_UNORM:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBA16161616_UNORM:
         pixel_format = 27;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_BGRA16161616_SNORM:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBA16161616_SNORM:
         pixel_format = 28;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616_SNORM:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616_SNORM:
         pixel_format = 29;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_PLANAR_16bpc_YCbCr:

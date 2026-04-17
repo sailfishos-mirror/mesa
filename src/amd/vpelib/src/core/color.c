@@ -939,6 +939,11 @@ enum vpe_status vpe_color_setup_dma_lut(struct vpe_3dlut *lut3d_func, struct str
         lut3d_func->dma_params.format     = VPE_3DLUT_MEM_FORMAT_16161616_UNORM_12MSB;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_BGRA16161616:
+        lut3d_func->dma_params.crossbar_b = VPE_3DLUT_CROSSBAR_BIT_SLICE_48_63;
+        lut3d_func->dma_params.crossbar_g = VPE_3DLUT_CROSSBAR_BIT_SLICE_32_47;
+        lut3d_func->dma_params.crossbar_r = VPE_3DLUT_CROSSBAR_BIT_SLICE_16_31;
+        lut3d_func->dma_params.format     = VPE_3DLUT_MEM_FORMAT_16161616_UNORM_12MSB;
+        break;
     default:
         lut3d_func->dma_params.crossbar_b = VPE_3DLUT_CROSSBAR_BIT_SLICE_48_63;
         lut3d_func->dma_params.crossbar_g = VPE_3DLUT_CROSSBAR_BIT_SLICE_32_47;

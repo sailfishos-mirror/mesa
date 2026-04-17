@@ -2411,6 +2411,7 @@ uint32_t vpe20_get_hw_surface_format(enum vpe_surface_pixel_format format)
         surf_format = 20;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBA16161616:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_BGRA16161616:
         surf_format = 21;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
@@ -2422,15 +2423,19 @@ uint32_t vpe20_get_hw_surface_format(enum vpe_surface_pixel_format format)
         surf_format = 25;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616_UNORM:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616_UNORM:
         surf_format = 26;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_BGRA16161616_UNORM:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBA16161616_UNORM:
         surf_format = 27;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616_SNORM:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616_SNORM:
         surf_format = 28;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_BGRA16161616_SNORM:
+    case VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBA16161616_SNORM:
         surf_format = 29;
         break;
     case VPE_SURFACE_PIXEL_FORMAT_VIDEO_ACrYCb12121212:
