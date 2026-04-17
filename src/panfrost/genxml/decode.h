@@ -275,4 +275,22 @@ void GENX(pandecode_depth_stencil)(struct pandecode_context *ctx,
 
 #endif
 
+#if PAN_ARCH >= 6
+void GENX(pandecode_sample_locations)(struct pandecode_context *ctx,
+                                      uint64_t sample_locations);
+
+void
+   GENX(pandecode_frame_shader_dcds)(struct pandecode_context *ctx,
+                                     uint64_t dcd_pointer, unsigned pre_frame_0,
+                                     unsigned pre_frame_1, unsigned post_frame,
+                                     unsigned job_type_param, uint64_t gpu_id);
+#endif
+
+#if PAN_ARCH >= 5
+void GENX(pandecode_rts)(struct pandecode_context *ctx, uint64_t gpu_va,
+                         uint32_t render_target_count);
+
+void GENX(pandecode_zs_crc_ext)(struct pandecode_context *ctx, uint64_t gpu_va);
+#endif
+
 #endif /* __MMAP_TRACE_H__ */
