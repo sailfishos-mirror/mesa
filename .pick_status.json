@@ -1164,7 +1164,7 @@
         "description": "frontends/va: Fix finding LTRs from POCs in HEVC decode",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "779edc07598399435d83874e7f0086be9d28317e",
         "notes": null
