@@ -1795,8 +1795,7 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
 
       if (stage_infos[stage]) {
          struct vk_pipeline_robustness_state rs;
-         vk_pipeline_robustness_state_fill(&builder->device->vk, &rs,
-                                           builder->create_info->pNext,
+         vk_pipeline_robustness_state_fill(&builder->device->vk.robustness_state, &rs, builder->create_info->pNext,
                                            stage_infos[stage]->pNext);
          tu_shader_key_robustness(&keys[stage], &rs);
          if (builder->create_flags & VK_PIPELINE_CREATE_2_VIEW_INDEX_FROM_DEVICE_INDEX_BIT_KHR)
@@ -4929,9 +4928,7 @@ tu_compute_pipeline_create(VkDevice device,
                                dev);
 
    struct vk_pipeline_robustness_state rs;
-   vk_pipeline_robustness_state_fill(&dev->vk, &rs,
-                                     pCreateInfo->pNext,
-                                     stage_info->pNext);
+   vk_pipeline_robustness_state_fill(&dev->vk.robustness_state, &rs, pCreateInfo->pNext, stage_info->pNext);
    tu_shader_key_robustness(&key, &rs);
 
    void *pipeline_mem_ctx = ralloc_context(NULL);

@@ -157,7 +157,7 @@ radv_pipeline_get_shader_key(const struct radv_device *device, const VkPipelineS
       key.version = instance->drirc.misc.override_compute_shader_version;
    }
 
-   vk_pipeline_robustness_state_fill(&device->vk, &rs, pNext, stage->pNext);
+   vk_pipeline_robustness_state_fill(&device->vk.robustness_state, &rs, pNext, stage->pNext);
 
    radv_set_stage_key_robustness(&rs, s, &key);
 

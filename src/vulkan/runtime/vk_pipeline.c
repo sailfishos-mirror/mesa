@@ -329,13 +329,13 @@ vk_pipeline_hash_shader_stage(VkPipelineCreateFlags2KHR pipeline_flags,
 }
 
 void
-vk_pipeline_robustness_state_fill(const struct vk_device *device,
+vk_pipeline_robustness_state_fill(const struct vk_pipeline_robustness_state *device_robustness_state,
                                   struct vk_pipeline_robustness_state *rs,
                                   const void *pipeline_pNext,
                                   const void *shader_stage_pNext)
 {
    /* Use the device robustness state by default. */
-   *rs = device->robustness_state;
+   *rs = *device_robustness_state;
 
    const VkPipelineRobustnessCreateInfoEXT *shader_info =
       vk_find_struct_const(shader_stage_pNext,
@@ -904,8 +904,8 @@ vk_pipeline_hash_precomp_shader_stage(struct vk_device *device,
                                       struct vk_pipeline_stage *stage)
 {
    struct vk_pipeline_robustness_state rs;
-   vk_pipeline_robustness_state_fill(device, &rs, pipeline_info_pNext,
-                                     info->pNext);
+   vk_pipeline_robustness_state_fill(&device->robustness_state, &rs,
+                                     pipeline_info_pNext, info->pNext);
 
    vk_pipeline_hash_shader_stage_blake3(pipeline_flags, info,
                                         &rs, stage->precomp_key);
@@ -940,9 +940,8 @@ vk_pipeline_precompile_shader(struct vk_device *device,
       return VK_PIPELINE_COMPILE_REQUIRED;
 
    struct vk_pipeline_robustness_state rs;
-   vk_pipeline_robustness_state_fill(device, &rs,
-                                     pipeline_info_pNext,
-                                     info->pNext);
+   vk_pipeline_robustness_state_fill(&device->robustness_state, &rs,
+                                     pipeline_info_pNext, info->pNext);
 
    const struct nir_shader_compiler_options *nir_options =
       ops->get_nir_options(device->physical, stage->stage, &rs);
