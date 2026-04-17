@@ -514,7 +514,7 @@
         "description": "ac/parse_ib: Fix printing enc recon VAs on VCN5",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f8f80c3700045acd7fae81e3e6139d70900ac785",
         "notes": null
