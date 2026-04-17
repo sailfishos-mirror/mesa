@@ -1144,7 +1144,9 @@ select_shader_variant(struct d3d12_selection_context *sel_ctx, d3d12_shader_sele
 
    if (new_nir_variant->info.stage == MESA_SHADER_TESS_CTRL) {
       new_nir_variant->info.tess._primitive_mode = (tess_primitive_mode)key.hs.primitive_mode;
-      new_nir_variant->info.tess.ccw = key.hs.ccw;
+      /* GL tess domain is lower-left origin, D3D is upper-left.
+       * Since we invert origin, we also need to invert triangle winding. */
+      new_nir_variant->info.tess.ccw = !key.hs.ccw;
       new_nir_variant->info.tess.point_mode = key.hs.point_mode;
       new_nir_variant->info.tess.spacing = key.hs.spacing;
 

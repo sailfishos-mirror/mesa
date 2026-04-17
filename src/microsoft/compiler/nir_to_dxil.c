@@ -1746,12 +1746,9 @@ get_tessellator_output_primitive(const struct shader_info *info)
       return DXIL_TESSELLATOR_OUTPUT_PRIMITIVE_POINT;
    if (info->tess._primitive_mode == TESS_PRIMITIVE_ISOLINES)
       return DXIL_TESSELLATOR_OUTPUT_PRIMITIVE_LINE;
-   /* Note: GL tessellation domain is inverted from D3D, which means triangle
-    * winding needs to be inverted.
-    */
    if (info->tess.ccw)
-      return DXIL_TESSELLATOR_OUTPUT_PRIMITIVE_TRIANGLE_CW;
-   return DXIL_TESSELLATOR_OUTPUT_PRIMITIVE_TRIANGLE_CCW;
+      return DXIL_TESSELLATOR_OUTPUT_PRIMITIVE_TRIANGLE_CCW;
+   return DXIL_TESSELLATOR_OUTPUT_PRIMITIVE_TRIANGLE_CW;
 }
 
 static const struct dxil_mdnode *
