@@ -754,11 +754,30 @@ GENX(csf_preload_fb)(struct panfrost_batch *batch, struct pan_fb_info *fb)
    (&dev->fb_preload_cache, &batch->pool.base, fb, batch->tls.gpu, NULL);
 }
 
-#define GET_FBD(_ctx, _pass)                                                   \
-   (_ctx)->fbds[PAN_INCREMENTAL_RENDERING_##_pass##_PASS]
-#define EMIT_FBD(_ctx, _pass, _fb, _tls, _tiler_ctx)                           \
-   GET_FBD(_ctx, _pass).gpu |=                                                 \
-      GENX(pan_emit_fbd)(_fb, 0, _tls, _tiler_ctx, GET_FBD(_ctx, _pass).cpu)
+static inline void
+emit_ir_fbd(struct pan_csf_tiler_oom_ctx *ctx, enum pan_rendering_pass pass,
+            const struct pan_fb_info *fb, const struct pan_tls_info *tls,
+            const struct pan_tiler_context *tiler_ctx, uint32_t fb_sz)
+{
+   void *desc_addr = ctx->fbds[pass].cpu;
+   struct pan_fbd_descs ir_descs = {0};
+
+#if PAN_ARCH <= 13
+   ir_descs.fbd = desc_addr;
+   desc_addr += fb_sz;
+#endif
+
+   const int crc_rt = GENX(pan_select_crc_rt)(fb, fb->tile_size);
+   const bool has_zs_ext = (fb->zs.view.zs || fb->zs.view.s || crc_rt >= 0);
+   if (has_zs_ext) {
+      ir_descs.zs_crc = desc_addr;
+      desc_addr += pan_size(ZS_CRC_EXTENSION);
+   }
+
+   ir_descs.rts = desc_addr;
+
+   ctx->fbds[pass].gpu |= GENX(pan_emit_fbd)(fb, 0, tls, tiler_ctx, &ir_descs);
+}
 
 void
 GENX(csf_emit_fbds)(struct panfrost_batch *batch, struct pan_fb_info *fb,
@@ -769,9 +788,25 @@ GENX(csf_emit_fbds)(struct panfrost_batch *batch, struct pan_fb_info *fb,
    struct panfrost_device *dev = pan_device(batch->ctx->base.screen);
 
    /* Default framebuffer descriptor */
+   const int crc_rt = GENX(pan_select_crc_rt)(fb, fb->tile_size);
+   const bool has_zs_ext = (fb->zs.view.zs || fb->zs.view.s || crc_rt >= 0);
 
+#if PAN_ARCH >= 14
+   const unsigned fb_sz = ALIGN_POT(sizeof(struct pan_fb_state), 64);
+#else
+   const unsigned fb_sz = pan_size(FRAMEBUFFER);
+#endif
+   const struct pan_fbd_descs fb_descs = {
+#if PAN_ARCH <= 13
+      .fbd = batch->framebuffer.cpu,
+#endif
+      .zs_crc = has_zs_ext ? batch->framebuffer.cpu + fb_sz : NULL,
+      .rts = has_zs_ext
+                ? batch->framebuffer.cpu + fb_sz + pan_size(ZS_CRC_EXTENSION)
+                : batch->framebuffer.cpu + fb_sz,
+   };
    batch->framebuffer.gpu |=
-      GENX(pan_emit_fbd)(fb, 0, tls, &batch->tiler_ctx, batch->framebuffer.cpu);
+      GENX(pan_emit_fbd)(fb, 0, tls, &batch->tiler_ctx, &fb_descs);
 
    if (batch->draw_count == 0)
       return;
@@ -788,7 +823,8 @@ GENX(csf_emit_fbds)(struct panfrost_batch *batch, struct pan_fb_info *fb,
    alt_fb.zs.discard.z = false;
    alt_fb.zs.discard.s = false;
 
-   EMIT_FBD(tiler_oom_ctx, FIRST, &alt_fb, tls, &batch->tiler_ctx);
+   emit_ir_fbd(tiler_oom_ctx, PAN_INCREMENTAL_RENDERING_FIRST_PASS, &alt_fb,
+               tls, &batch->tiler_ctx, fb_sz);
 
    /* Subsequent incremental rendering passes: preload old content and don't
     * discard result */
@@ -825,7 +861,8 @@ GENX(csf_emit_fbds)(struct panfrost_batch *batch, struct pan_fb_info *fb,
       (&dev->fb_preload_cache, &batch->pool.base, &alt_fb, batch->tls.gpu, NULL);
    }
 
-   EMIT_FBD(tiler_oom_ctx, MIDDLE, &alt_fb, tls, &batch->tiler_ctx);
+   emit_ir_fbd(tiler_oom_ctx, PAN_INCREMENTAL_RENDERING_MIDDLE_PASS, &alt_fb,
+               tls, &batch->tiler_ctx, fb_sz);
 
    /* Last incremental rendering pass: preload previous content and deal with
     * results as specified by user */
@@ -835,7 +872,8 @@ GENX(csf_emit_fbds)(struct panfrost_batch *batch, struct pan_fb_info *fb,
    alt_fb.zs.discard.z = fb->zs.discard.z;
    alt_fb.zs.discard.s = fb->zs.discard.s;
 
-   EMIT_FBD(tiler_oom_ctx, LAST, &alt_fb, tls, &batch->tiler_ctx);
+   emit_ir_fbd(tiler_oom_ctx, PAN_INCREMENTAL_RENDERING_LAST_PASS, &alt_fb, tls,
+               &batch->tiler_ctx, fb_sz);
 }
 
 void
@@ -872,7 +910,7 @@ GENX(csf_emit_fragment_job)(struct panfrost_batch *batch,
       cs_wait_slot(b, 0);
       cs_if(b, MALI_CS_CONDITION_GREATER, counter) {
          cs_move64_to(b, cs_sr_reg64(b, FRAGMENT, FBD_POINTER),
-                      GET_FBD(oom_ctx, LAST).gpu);
+                      oom_ctx->fbds[PAN_INCREMENTAL_RENDERING_LAST_PASS].gpu);
       }
    }
 

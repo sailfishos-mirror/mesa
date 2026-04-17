@@ -338,10 +338,20 @@ void GENX(pan_emit_afrc_color_attachment)(const struct pan_attachment_info *att,
                                           void *payload);
 #endif
 
+struct pan_fbd_descs {
+#if PAN_ARCH <= 13
+   struct mali_framebuffer_packed *fbd;
+#endif
+#if PAN_ARCH >= 5
+   struct mali_zs_crc_extension_packed *zs_crc;
+   struct mali_render_target_packed *rts;
+#endif
+};
+
 unsigned GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
                             const struct pan_tls_info *tls,
                             const struct pan_tiler_context *tiler_ctx,
-                            void *out);
+                            const struct pan_fbd_descs *out);
 
 #if PAN_ARCH >= 6
 unsigned GENX(pan_select_tiler_hierarchy_mask)(uint32_t width, uint32_t height,
