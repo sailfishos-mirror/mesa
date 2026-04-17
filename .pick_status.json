@@ -1144,7 +1144,7 @@
         "description": "panvk: do not enable extension without required feature",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dff1d91c64e55541174141b528d90a7aeab9b0da",
         "notes": null
