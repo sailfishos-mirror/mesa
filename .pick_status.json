@@ -2864,7 +2864,7 @@
         "description": "radv/video: Fix initializing rc structs with default rate control",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "32a02720a88a23cf3836d4515e81ab4164c68c0a",
         "notes": null
