@@ -165,7 +165,7 @@ VAStatus
 vlVaQueryVideoProcFilters(VADriverContextP ctx, VAContextID context_id,
                           VAProcFilterType *filters, unsigned int *num_filters)
 {
-   vlVaDriver *drv = VL_VA_DRIVER(ctx);
+   vlVaDriver *drv;
    vlVaContext *context;
    unsigned int num = 0;
 
@@ -174,6 +174,8 @@ vlVaQueryVideoProcFilters(VADriverContextP ctx, VAContextID context_id,
 
    if (!num_filters || !filters)
       return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+   drv = VL_VA_DRIVER(ctx);
 
    mtx_lock(&drv->mutex);
    context = handle_table_get(drv->htab, context_id);
@@ -198,7 +200,7 @@ vlVaQueryVideoProcFilterCaps(VADriverContextP ctx, VAContextID context_id,
                              VAProcFilterType type, void *filter_caps,
                              unsigned int *num_filter_caps)
 {
-   vlVaDriver *drv = VL_VA_DRIVER(ctx);
+   vlVaDriver *drv;
    vlVaContext *context;
    unsigned int i;
    bool supports_filters;
@@ -208,6 +210,8 @@ vlVaQueryVideoProcFilterCaps(VADriverContextP ctx, VAContextID context_id,
 
    if (!filter_caps || !num_filter_caps)
       return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+   drv = VL_VA_DRIVER(ctx);
 
    mtx_lock(&drv->mutex);
    context = handle_table_get(drv->htab, context_id);
