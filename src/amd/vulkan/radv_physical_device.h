@@ -141,6 +141,9 @@ struct radv_physical_device {
    /* Whether to emulate mesh/task shader queries. */
    bool emulate_mesh_shader_queries;
 
+   /* Whether to inline the compute dispatch size in user sgprs. */
+   bool load_grid_size_from_user_sgpr;
+
    /* Number of threads per wave. */
    uint8_t ps_wave_size;
    uint8_t cs_wave_size;

@@ -1197,7 +1197,7 @@ radv_device_init_compiler_info(struct radv_device *device)
       /* Shader features */
       .device_robustness_state = &device->vk.robustness_state,
       .use_ngg = pdev->use_ngg,
-      .load_grid_size_from_user_sgpr = device->load_grid_size_from_user_sgpr,
+      .load_grid_size_from_user_sgpr = pdev->load_grid_size_from_user_sgpr,
       .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
       .primitives_generated_query = device->cache_key.primitives_generated_query,
       .mesh_shader_queries = device->cache_key.mesh_shader_queries,
@@ -1378,9 +1378,6 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
    if (device->force_aniso >= 0) {
       fprintf(stderr, "radv: Forcing anisotropy filter to %ix\n", 1 << util_logbase2(device->force_aniso));
    }
-
-   /* PKT3_LOAD_SH_REG_INDEX is supported on GFX8+, but it hangs with compute queues until GFX10.3. */
-   device->load_grid_size_from_user_sgpr = pdev->info.gfx_level >= GFX10_3;
 
    device->ws = pdev->ws;
    device->vk.sync = device->ws->get_sync_provider(device->ws);

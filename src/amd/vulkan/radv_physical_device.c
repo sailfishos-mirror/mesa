@@ -2629,6 +2629,9 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
 
    pdev->emulate_mesh_shader_queries = pdev->info.gfx_level == GFX10_3;
 
+   /* PKT3_LOAD_SH_REG_INDEX is supported on GFX8+, but it hangs with compute queues until GFX10.3. */
+   pdev->load_grid_size_from_user_sgpr = pdev->info.gfx_level >= GFX10_3;
+
    /* Determine the number of threads per wave for all stages. */
    pdev->cs_wave_size = 64;
    pdev->ps_wave_size = 64;

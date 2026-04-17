@@ -260,6 +260,7 @@ radv_get_sequence_size_compute(const struct radv_indirect_command_layout *layout
                                uint32_t *upload_size)
 {
    const struct radv_device *device = container_of(layout->vk.base.device, struct radv_device, vk);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
 
    const VkGeneratedCommandsPipelineInfoEXT *pipeline_info =
       vk_find_struct_const(pNext, GENERATED_COMMANDS_PIPELINE_INFO_EXT);
@@ -291,7 +292,7 @@ radv_get_sequence_size_compute(const struct radv_indirect_command_layout *layout
    }
 
    if (uses_grid_base_sgpr) {
-      if (device->load_grid_size_from_user_sgpr) {
+      if (pdev->load_grid_size_from_user_sgpr) {
          /* PKT3_SET_SH_REG for immediate values */
          *cmd_size += 5 * 4;
       } else {
@@ -409,6 +410,7 @@ radv_get_sequence_size_rt(const struct radv_indirect_command_layout *layout, con
                           uint32_t *upload_size)
 {
    const struct radv_device *device = container_of(layout->vk.base.device, struct radv_device, vk);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
 
    const VkGeneratedCommandsPipelineInfoEXT *pipeline_info =
       vk_find_struct_const(pNext, GENERATED_COMMANDS_PIPELINE_INFO_EXT);
@@ -421,7 +423,7 @@ radv_get_sequence_size_rt(const struct radv_indirect_command_layout *layout, con
 
    const struct radv_userdata_info *cs_grid_size_loc = radv_get_user_sgpr_info(rt_prolog, AC_UD_CS_GRID_SIZE);
    if (cs_grid_size_loc->sgpr_idx != -1) {
-      if (device->load_grid_size_from_user_sgpr) {
+      if (pdev->load_grid_size_from_user_sgpr) {
          /* PKT3_LOAD_SH_REG_INDEX */
          *cmd_size += 5 * 4;
       } else {
@@ -2159,13 +2161,14 @@ dgc_emit_dispatch_direct(struct dgc_cmdbuf *cs, nir_def *wg_x, nir_def *wg_y, ni
                          bool is_rt)
 {
    const struct radv_device *device = cs->dev;
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    nir_builder *b = cs->b;
 
    nir_push_if(b, nir_iand(b, nir_ine_imm(b, wg_x, 0), nir_iand(b, nir_ine_imm(b, wg_y, 0), nir_ine_imm(b, wg_z, 0))));
    {
       nir_push_if(b, nir_ine_imm(b, grid_sgpr, 0));
       {
-         if (device->load_grid_size_from_user_sgpr) {
+         if (pdev->load_grid_size_from_user_sgpr) {
             dgc_emit_grid_size_user_sgpr(cs, grid_sgpr, wg_x, wg_y, wg_z);
          } else {
             dgc_emit_grid_size_pointer(cs, grid_sgpr, size_va);
