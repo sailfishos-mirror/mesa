@@ -274,7 +274,7 @@ i965_asm_set_instruction_options(struct brw_asm_parser *parser,
    } else {
       enum opcode opcode = brw_eu_inst_opcode(isa, brw_last_inst);
       brw_eu_inst_set_swsb(devinfo, brw_last_inst,
-                           tgl_swsb_encode(devinfo, options.depinfo, opcode));
+                           brw_swsb_encode(devinfo, options.depinfo, opcode));
    }
    brw_eu_inst_set_debug_control(devinfo, brw_last_inst,
                                  options.debug_control);
@@ -317,7 +317,7 @@ i965_asm_set_instruction_options(struct brw_asm_parser *parser,
    struct options options;
    struct instoption instoption;
    struct msgdesc msgdesc;
-   struct tgl_swsb depinfo;
+   gen_swsb depinfo;
    struct { int sdepth; int rcount; } dpas_params;
    brw_eu_inst *instruction;
 }
@@ -2128,61 +2128,61 @@ depinfo:
    {
       memset(&$$, 0, sizeof($$));
       $$.regdist = $1;
-      $$.pipe = TGL_PIPE_NONE;
+      $$.pipe = GEN_PIPE_NONE;
    }
    | REG_DIST_FLOAT
    {
       memset(&$$, 0, sizeof($$));
       $$.regdist = $1;
-      $$.pipe = TGL_PIPE_FLOAT;
+      $$.pipe = GEN_PIPE_FLOAT;
    }
    | REG_DIST_INT
    {
       memset(&$$, 0, sizeof($$));
       $$.regdist = $1;
-      $$.pipe = TGL_PIPE_INT;
+      $$.pipe = GEN_PIPE_INT;
    }
    | REG_DIST_LONG
    {
       memset(&$$, 0, sizeof($$));
       $$.regdist = $1;
-      $$.pipe = TGL_PIPE_LONG;
+      $$.pipe = GEN_PIPE_LONG;
    }
    | REG_DIST_ALL
    {
       memset(&$$, 0, sizeof($$));
       $$.regdist = $1;
-      $$.pipe = TGL_PIPE_ALL;
+      $$.pipe = GEN_PIPE_ALL;
    }
    | REG_DIST_MATH
    {
       memset(&$$, 0, sizeof($$));
       $$.regdist = $1;
-      $$.pipe = TGL_PIPE_MATH;
+      $$.pipe = GEN_PIPE_MATH;
    }
    | REG_DIST_SCALAR
    {
       memset(&$$, 0, sizeof($$));
       $$.regdist = $1;
-      $$.pipe = TGL_PIPE_SCALAR;
+      $$.pipe = GEN_PIPE_SCALAR;
    }
    | SBID_ALLOC
    {
       memset(&$$, 0, sizeof($$));
       $$.sbid = $1;
-      $$.mode = TGL_SBID_SET;
+      $$.mode = GEN_SBID_SET;
    }
    | SBID_WAIT_SRC
    {
       memset(&$$, 0, sizeof($$));
       $$.sbid = $1;
-      $$.mode = TGL_SBID_SRC;
+      $$.mode = GEN_SBID_SRC;
    }
    | SBID_WAIT_DST
    {
       memset(&$$, 0, sizeof($$));
       $$.sbid = $1;
-      $$.mode = TGL_SBID_DST;
+      $$.mode = GEN_SBID_DST;
    }
 
 instoption:

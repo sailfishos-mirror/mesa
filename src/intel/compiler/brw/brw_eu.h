@@ -40,7 +40,7 @@ struct brw_insn_state {
    unsigned mask_control:1;
 
    /* Scheduling info for Gfx12+ */
-   struct tgl_swsb swsb;
+   gen_swsb swsb;
 
    bool saturate:1;
 
@@ -115,7 +115,7 @@ void brw_push_insn_state( struct brw_codegen *p );
 unsigned brw_get_default_exec_size(struct brw_codegen *p);
 unsigned brw_get_default_group(struct brw_codegen *p);
 unsigned brw_get_default_access_mode(struct brw_codegen *p);
-struct tgl_swsb brw_get_default_swsb(struct brw_codegen *p);
+gen_swsb brw_get_default_swsb(struct brw_codegen *p);
 void brw_set_default_exec_size(struct brw_codegen *p, unsigned value);
 void brw_set_default_mask_control( struct brw_codegen *p, unsigned value );
 void brw_set_default_saturate( struct brw_codegen *p, bool enable );
@@ -127,7 +127,12 @@ void brw_set_default_predicate_control(struct brw_codegen *p, enum brw_predicate
 void brw_set_default_predicate_inverse(struct brw_codegen *p, bool predicate_inverse);
 void brw_set_default_flag_reg(struct brw_codegen *p, int reg, int subreg);
 void brw_set_default_acc_write_control(struct brw_codegen *p, unsigned value);
-void brw_set_default_swsb(struct brw_codegen *p, struct tgl_swsb value);
+void brw_set_default_swsb(struct brw_codegen *p, gen_swsb value);
+
+uint32_t brw_swsb_encode(const struct intel_device_info *devinfo,
+                         gen_swsb swsb, enum opcode op);
+gen_swsb brw_swsb_decode(const struct intel_device_info *devinfo,
+                         bool is_unordered, uint32_t raw, enum opcode op);
 
 void brw_init_codegen(const struct brw_isa_info *isa,
                       struct brw_codegen *p, void *mem_ctx);

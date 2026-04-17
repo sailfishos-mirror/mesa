@@ -668,7 +668,7 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
 
    if (inst->sched.regdist || inst->sched.mode) {
       fprintf(file, " { ");
-      brw_print_swsb(file, s.devinfo, inst->sched);
+      gen_print_swsb(s.devinfo, file, inst->sched);
       fprintf(file, " }");
    }
 
@@ -676,27 +676,3 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
 }
 
 
-void
-brw_print_swsb(FILE *f, const struct intel_device_info *devinfo, const tgl_swsb swsb)
-{
-   if (swsb.regdist) {
-      fprintf(f, "%s@%d",
-              (devinfo && devinfo->verx10 < 125 ? "" :
-               swsb.pipe == TGL_PIPE_FLOAT ? "F" :
-               swsb.pipe == TGL_PIPE_INT ? "I" :
-               swsb.pipe == TGL_PIPE_LONG ? "L" :
-               swsb.pipe == TGL_PIPE_ALL ? "A"  :
-               swsb.pipe == TGL_PIPE_MATH ? "M" :
-               swsb.pipe == TGL_PIPE_SCALAR ? "S" : "" ),
-              swsb.regdist);
-   }
-
-   if (swsb.mode) {
-      if (swsb.regdist)
-          fprintf(f, " ");
-
-      fprintf(f, "$%d%s", swsb.sbid,
-              (swsb.mode & TGL_SBID_SET ? "" :
-               swsb.mode & TGL_SBID_DST ? ".dst" : ".src"));
-   }
-}

@@ -850,7 +850,7 @@ namespace {
     * condition of a Gfx12+ SWSB.
     */
    enum intel_eu_dependency_id
-   tgl_swsb_rd_dependency_id(tgl_swsb swsb)
+   gen_swsb_rd_dependency_id(gen_swsb swsb)
    {
       if (swsb.mode) {
          assert(swsb.sbid < EU_DEPENDENCY_ID_GRF0 - EU_DEPENDENCY_ID_SBID_RD0);
@@ -865,7 +865,7 @@ namespace {
     * condition of a Gfx12+ SWSB.
     */
    enum intel_eu_dependency_id
-   tgl_swsb_wr_dependency_id(tgl_swsb swsb)
+   gen_swsb_wr_dependency_id(gen_swsb swsb)
    {
       if (swsb.mode) {
          assert(swsb.sbid <
@@ -950,10 +950,10 @@ namespace {
       }
 
       /* Stall on any SBID dependencies. */
-      if (inst->sched.mode & (TGL_SBID_SET | TGL_SBID_DST))
-         stall_on_dependency(st, tgl_swsb_wr_dependency_id(inst->sched));
-      else if (inst->sched.mode & TGL_SBID_SRC)
-         stall_on_dependency(st, tgl_swsb_rd_dependency_id(inst->sched));
+      if (inst->sched.mode & (GEN_SBID_SET | GEN_SBID_DST))
+         stall_on_dependency(st, gen_swsb_wr_dependency_id(inst->sched));
+      else if (inst->sched.mode & GEN_SBID_SRC)
+         stall_on_dependency(st, gen_swsb_rd_dependency_id(inst->sched));
 
       /* Execute the instruction. */
       execute_instruction(st, perf);
@@ -995,9 +995,9 @@ namespace {
       }
 
       /* Mark any SBID dependencies. */
-      if (inst->sched.mode & TGL_SBID_SET) {
-         mark_read_dependency(st, perf, tgl_swsb_rd_dependency_id(inst->sched));
-         mark_write_dependency(st, perf, tgl_swsb_wr_dependency_id(inst->sched));
+      if (inst->sched.mode & GEN_SBID_SET) {
+         mark_read_dependency(st, perf, gen_swsb_rd_dependency_id(inst->sched));
+         mark_write_dependency(st, perf, gen_swsb_wr_dependency_id(inst->sched));
       }
    }
 

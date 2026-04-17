@@ -574,7 +574,7 @@ typedef struct jay_inst {
    enum jay_type type; /**< execution type of the instruction */
 
    /** Software scoreboarding dependencies */
-   struct tgl_swsb dep;
+   gen_swsb dep;
 
    /** Number of sources */
    uint8_t num_srcs;

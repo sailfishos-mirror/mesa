@@ -241,8 +241,6 @@ void brw_print_instruction(const brw_shader &s, const brw_inst *inst,
                            FILE *file = stderr,
                            const brw_def_analysis *defs = nullptr);
 
-void brw_print_swsb(FILE *f, const struct intel_device_info *devinfo, const tgl_swsb swsb);
-
 /**
  * Return the flag register used in fragment shaders to keep track of live
  * samples.  On Gfx7+ we use f1.0-f1.1 to allow discard jumps in SIMD32

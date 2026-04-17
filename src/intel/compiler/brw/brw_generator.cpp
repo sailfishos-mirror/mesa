@@ -21,6 +21,105 @@
 #include "util/mesa-blake3.h"
 #include "util/half_float.h"
 
+static gen_opcode
+brw_opcode_to_gen(enum opcode op)
+{
+   switch (op) {
+   case BRW_OPCODE_ILLEGAL:  return GEN_OP_ILLEGAL;
+
+   case BRW_OPCODE_ADD:      return GEN_OP_ADD;
+   case BRW_OPCODE_ADD3:     return GEN_OP_ADD3;
+   case BRW_OPCODE_ADDC:     return GEN_OP_ADDC;
+   case BRW_OPCODE_AND:      return GEN_OP_AND;
+   case BRW_OPCODE_ASR:      return GEN_OP_ASR;
+   case BRW_OPCODE_AVG:      return GEN_OP_AVG;
+   case BRW_OPCODE_BFE:      return GEN_OP_BFE;
+   case BRW_OPCODE_BFI1:     return GEN_OP_BFI1;
+   case BRW_OPCODE_BFI2:     return GEN_OP_BFI2;
+   case BRW_OPCODE_BFN:      return GEN_OP_BFN;
+   case BRW_OPCODE_BFREV:    return GEN_OP_BFREV;
+   case BRW_OPCODE_BRC:      return GEN_OP_BRC;
+   case BRW_OPCODE_BRD:      return GEN_OP_BRD;
+   case BRW_OPCODE_BREAK:    return GEN_OP_BREAK;
+   case BRW_OPCODE_CALL:     return GEN_OP_CALL;
+   case BRW_OPCODE_CALLA:    return GEN_OP_CALLA;
+   case BRW_OPCODE_CBIT:     return GEN_OP_CBIT;
+   case BRW_OPCODE_CMP:      return GEN_OP_CMP;
+   case BRW_OPCODE_CMPN:     return GEN_OP_CMPN;
+   case BRW_OPCODE_CONTINUE: return GEN_OP_CONTINUE;
+   case BRW_OPCODE_CSEL:     return GEN_OP_CSEL;
+   case BRW_OPCODE_DP2:      return GEN_OP_DP2;
+   case BRW_OPCODE_DP3:      return GEN_OP_DP3;
+   case BRW_OPCODE_DP4:      return GEN_OP_DP4;
+   case BRW_OPCODE_DP4A:     return GEN_OP_DP4A;
+   case BRW_OPCODE_DPAS:     return GEN_OP_DPAS;
+   case BRW_OPCODE_DPH:      return GEN_OP_DPH;
+   case BRW_OPCODE_ELSE:     return GEN_OP_ELSE;
+   case BRW_OPCODE_ENDIF:    return GEN_OP_ENDIF;
+   case BRW_OPCODE_FBH:      return GEN_OP_FBH;
+   case BRW_OPCODE_FBL:      return GEN_OP_FBL;
+   case BRW_OPCODE_FRC:      return GEN_OP_FRC;
+   case BRW_OPCODE_GOTO:     return GEN_OP_GOTO;
+   case BRW_OPCODE_HALT:     return GEN_OP_HALT;
+   case BRW_OPCODE_IF:       return GEN_OP_IF;
+   case BRW_OPCODE_JMPI:     return GEN_OP_JMPI;
+   case BRW_OPCODE_JOIN:     return GEN_OP_JOIN;
+   case BRW_OPCODE_LINE:     return GEN_OP_LINE;
+   case BRW_OPCODE_LRP:      return GEN_OP_LRP;
+   case BRW_OPCODE_LZD:      return GEN_OP_LZD;
+   case BRW_OPCODE_MAC:      return GEN_OP_MAC;
+   case BRW_OPCODE_MACH:     return GEN_OP_MACH;
+   case BRW_OPCODE_MACL:     return GEN_OP_MACL;
+   case BRW_OPCODE_MAD:      return GEN_OP_MAD;
+   case BRW_OPCODE_MADM:     return GEN_OP_MADM;
+   case BRW_OPCODE_MATH:     return GEN_OP_MATH;
+   case BRW_OPCODE_MOV:      return GEN_OP_MOV;
+   case BRW_OPCODE_MOVI:     return GEN_OP_MOVI;
+   case BRW_OPCODE_MUL:      return GEN_OP_MUL;
+   case BRW_OPCODE_NOP:      return GEN_OP_NOP;
+   case BRW_OPCODE_NOT:      return GEN_OP_NOT;
+   case BRW_OPCODE_OR:       return GEN_OP_OR;
+   case BRW_OPCODE_PLN:      return GEN_OP_PLN;
+   case BRW_OPCODE_RET:      return GEN_OP_RET;
+   case BRW_OPCODE_RNDD:     return GEN_OP_RNDD;
+   case BRW_OPCODE_RNDE:     return GEN_OP_RNDE;
+   case BRW_OPCODE_RNDU:     return GEN_OP_RNDU;
+   case BRW_OPCODE_RNDZ:     return GEN_OP_RNDZ;
+   case BRW_OPCODE_ROL:      return GEN_OP_ROL;
+   case BRW_OPCODE_ROR:      return GEN_OP_ROR;
+   case BRW_OPCODE_SEL:      return GEN_OP_SEL;
+   case BRW_OPCODE_SEND:     return GEN_OP_SEND;
+   case BRW_OPCODE_SENDC:    return GEN_OP_SENDC;
+   case BRW_OPCODE_SENDS:    return GEN_OP_SENDS;
+   case BRW_OPCODE_SENDSC:   return GEN_OP_SENDSC;
+   case BRW_OPCODE_SHL:      return GEN_OP_SHL;
+   case BRW_OPCODE_SHR:      return GEN_OP_SHR;
+   case BRW_OPCODE_SMOV:     return GEN_OP_SMOV;
+   case BRW_OPCODE_SRND:     return GEN_OP_SRND;
+   case BRW_OPCODE_SUBB:     return GEN_OP_SUBB;
+   case BRW_OPCODE_SYNC:     return GEN_OP_SYNC;
+   case BRW_OPCODE_WAIT:     return GEN_OP_WAIT;
+   case BRW_OPCODE_WHILE:    return GEN_OP_WHILE;
+   case BRW_OPCODE_XOR:      return GEN_OP_XOR;
+
+   default:                  UNREACHABLE("invalid gen opcode");
+   }
+}
+
+uint32_t
+brw_swsb_encode(const struct intel_device_info *devinfo,
+                gen_swsb swsb, enum opcode op)
+{
+   return gen_swsb_encode(devinfo, swsb, brw_opcode_to_gen(op));
+}
+
+gen_swsb
+brw_swsb_decode(const struct intel_device_info *devinfo,
+                bool is_unordered, uint32_t raw, enum opcode op)
+{
+   return gen_swsb_decode(devinfo, is_unordered, raw, brw_opcode_to_gen(op));
+}
+
 static uint32_t
 brw_math_function(enum opcode op)
 {
@@ -149,7 +248,7 @@ brw_generator::generate_mov_indirect(brw_inst *inst,
       if (brw_type_size_bytes(reg.type) > 4 && !devinfo->has_64bit_int) {
          brw_MOV(p, subscript(dst, BRW_TYPE_D, 0),
                     subscript(reg, BRW_TYPE_D, 0));
-         brw_set_default_swsb(p, tgl_swsb_null());
+         brw_set_default_swsb(p, gen_swsb_null());
          brw_MOV(p, subscript(dst, BRW_TYPE_D, 1),
                     subscript(reg, BRW_TYPE_D, 1));
       } else {
@@ -210,13 +309,13 @@ brw_generator::generate_mov_indirect(brw_inst *inst,
       brw_eu_inst_set_mask_control(devinfo, insn, BRW_MASK_DISABLE);
       brw_eu_inst_set_pred_control(devinfo, insn, BRW_PREDICATE_NONE);
       if (devinfo->ver >= 12)
-         brw_set_default_swsb(p, tgl_swsb_null());
+         brw_set_default_swsb(p, gen_swsb_null());
       else
          brw_eu_inst_set_no_dd_clear(devinfo, insn, use_dep_ctrl);
 
       insn = brw_ADD(p, addr, indirect_byte_offset, brw_imm_uw(imm_byte_offset));
       if (devinfo->ver >= 12)
-         brw_set_default_swsb(p, tgl_swsb_regdist(1));
+         brw_set_default_swsb(p, gen_swsb_regdist(1));
       else
          brw_eu_inst_set_no_dd_check(devinfo, insn, use_dep_ctrl);
 
@@ -244,7 +343,7 @@ brw_generator::generate_mov_indirect(brw_inst *inst,
           */
          brw_MOV(p, subscript(dst, BRW_TYPE_D, 0),
                     retype(brw_VxH_indirect(0, 0), BRW_TYPE_D));
-         brw_set_default_swsb(p, tgl_swsb_null());
+         brw_set_default_swsb(p, gen_swsb_null());
          brw_MOV(p, subscript(dst, BRW_TYPE_D, 1),
                     retype(brw_VxH_indirect(0, 4), BRW_TYPE_D));
       } else {
@@ -352,7 +451,7 @@ brw_generator::generate_shuffle(brw_inst *inst,
          brw_eu_inst_set_mask_control(devinfo, insn, BRW_MASK_DISABLE);
          brw_eu_inst_set_pred_control(devinfo, insn, BRW_PREDICATE_NONE);
          if (devinfo->ver >= 12)
-            brw_set_default_swsb(p, tgl_swsb_null());
+            brw_set_default_swsb(p, gen_swsb_null());
          else
             brw_eu_inst_set_no_dd_clear(devinfo, insn, use_dep_ctrl);
 
@@ -362,7 +461,7 @@ brw_generator::generate_shuffle(brw_inst *inst,
                         brw_imm_uw(util_logbase2(brw_type_size_bytes(src.type)) +
                                    src.hstride - 1));
          if (devinfo->ver >= 12)
-            brw_set_default_swsb(p, tgl_swsb_regdist(1));
+            brw_set_default_swsb(p, gen_swsb_regdist(1));
          else
             brw_eu_inst_set_no_dd_check(devinfo, insn, use_dep_ctrl);
 
@@ -372,7 +471,7 @@ brw_generator::generate_shuffle(brw_inst *inst,
                  retype(brw_VxH_indirect(0, 0), src.type));
       }
 
-      brw_set_default_swsb(p, tgl_swsb_null());
+      brw_set_default_swsb(p, gen_swsb_null());
    }
 }
 
@@ -438,7 +537,7 @@ brw_generator::generate_quad_swizzle(const brw_inst *inst,
                brw_eu_inst_set_no_dd_check(devinfo, insn, c > 0);
             }
 
-            brw_set_default_swsb(p, tgl_swsb_null());
+            brw_set_default_swsb(p, gen_swsb_null());
          }
 
          break;
@@ -451,7 +550,7 @@ brw_generator::generate_barrier(brw_inst *, struct brw_reg src)
 {
    brw_barrier(p, src);
    if (devinfo->ver >= 12) {
-      brw_set_default_swsb(p, tgl_swsb_null());
+      brw_set_default_swsb(p, gen_swsb_null());
       brw_SYNC(p, TGL_SYNC_BAR);
    } else {
       brw_WAIT(p);
@@ -549,7 +648,7 @@ brw_generator::generate_ddy(const brw_inst *inst,
             brw_ADD(p, byte_offset(dst, g * type_size),
                        negate(byte_offset(src,  g * type_size)),
                        byte_offset(src, (g + 2) * type_size));
-            brw_set_default_swsb(p, tgl_swsb_null());
+            brw_set_default_swsb(p, gen_swsb_null());
          }
          brw_pop_insn_state(p);
       } else {
@@ -627,7 +726,7 @@ brw_generator::generate_scratch_header(brw_inst *inst,
 
    brw_eu_inst *insn = brw_MOV(p, dst, brw_imm_ud(0));
    if (devinfo->ver >= 12)
-      brw_set_default_swsb(p, tgl_swsb_null());
+      brw_set_default_swsb(p, gen_swsb_null());
    else
       brw_eu_inst_set_no_dd_clear(p->devinfo, insn, true);
 
@@ -685,7 +784,7 @@ brw_generator::generate_code(const brw_shader &s,
       struct brw_reg src[4], dst;
       unsigned int last_insn_offset = p->next_insn_offset;
       bool multiple_instructions_emitted = false;
-      tgl_swsb swsb = inst->sched;
+      gen_swsb swsb = inst->sched;
 
       /* From the Broadwell PRM, Volume 7, "3D-Media-GPGPU", in the
        * "Register Region Restrictions" section: for BDW, SKL:
@@ -723,10 +822,10 @@ brw_generator::generate_code(const brw_shader &s,
          brw_set_default_predicate_control(p, BRW_PREDICATE_NONE);
          brw_set_default_predicate_inverse(p, false);
          brw_set_default_flag_reg(p, 0, 0);
-         brw_set_default_swsb(p, tgl_swsb_src_dep(swsb));
+         brw_set_default_swsb(p, gen_swsb_src_dep(swsb));
          brw_MOV(p, brw_acc_reg(8), brw_imm_f(0.0f));
          last_insn_offset = p->next_insn_offset;
-         swsb = tgl_swsb_dst_dep(swsb, 1);
+         swsb = gen_swsb_dst_dep(swsb, 1);
       }
 
       if (!is_accum_used && !inst->eot) {
@@ -739,18 +838,18 @@ brw_generator::generate_code(const brw_shader &s,
        * Always use @1 SWSB for EOT.
        */
       if (inst->eot && intel_needs_workaround(devinfo, 14013672992)) {
-         if (tgl_swsb_src_dep(swsb).mode) {
+         if (gen_swsb_src_dep(swsb).mode) {
             brw_set_default_exec_size(p, BRW_EXECUTE_1);
             brw_set_default_group(p, 0);
             brw_set_default_mask_control(p, BRW_MASK_DISABLE);
             brw_set_default_predicate_control(p, BRW_PREDICATE_NONE);
             brw_set_default_flag_reg(p, 0, 0);
-            brw_set_default_swsb(p, tgl_swsb_src_dep(swsb));
+            brw_set_default_swsb(p, gen_swsb_src_dep(swsb));
             brw_SYNC(p, TGL_SYNC_NOP);
             last_insn_offset = p->next_insn_offset;
          }
 
-         swsb = tgl_swsb_dst_dep(swsb, 1);
+         swsb = gen_swsb_dst_dep(swsb, 1);
       }
 
       if (unlikely(annotate))
@@ -1042,7 +1141,7 @@ brw_generator::generate_code(const brw_shader &s,
 
       case FS_OPCODE_SCHEDULING_FENCE:
          if (inst->sources == 0 && swsb.regdist == 0 &&
-                                   swsb.mode == TGL_SBID_NULL) {
+                                   swsb.mode == GEN_SBID_NULL) {
             if (unlikely(annotate))
                disasm_info->use_tail = true;
             break;
@@ -1080,7 +1179,7 @@ brw_generator::generate_code(const brw_shader &s,
          assert(inst->force_writemask_all && inst->group == 0);
          assert(inst->dst.file == BAD_FILE);
          brw_set_default_exec_size(p, BRW_EXECUTE_1);
-         brw_set_default_swsb(p, tgl_swsb_dst_dep(swsb, 1));
+         brw_set_default_swsb(p, gen_swsb_dst_dep(swsb, 1));
          brw_MOV(p, retype(brw_flag_subreg(inst->flag_subreg), BRW_TYPE_UD),
                  retype(brw_mask_reg(0), BRW_TYPE_UD));
          /* Reading certain ARF registers (like 'ce', the mask register) on
@@ -1106,7 +1205,7 @@ brw_generator::generate_code(const brw_shader &s,
          brw_set_default_mask_control(p, BRW_MASK_DISABLE);
          brw_MOV(p, dst, src[1]);
          brw_set_default_mask_control(p, BRW_MASK_ENABLE);
-         brw_set_default_swsb(p, tgl_swsb_null());
+         brw_set_default_swsb(p, gen_swsb_null());
          brw_MOV(p, dst, src[0]);
          break;
 
@@ -1237,11 +1336,11 @@ brw_generator::generate_code(const brw_shader &s,
              * accessed both the instruction doing the access and the next one
              * have SWSB set to RegDist(1).
              */
-            if (brw_get_default_swsb(p).mode != TGL_SBID_NULL)
+            if (brw_get_default_swsb(p).mode != GEN_SBID_NULL)
                brw_SYNC(p, TGL_SYNC_NOP);
-            brw_set_default_swsb(p, tgl_swsb_regdist(1));
+            brw_set_default_swsb(p, gen_swsb_regdist(1));
             brw_MOV(p, dst, src[0]);
-            brw_set_default_swsb(p, tgl_swsb_regdist(1));
+            brw_set_default_swsb(p, gen_swsb_regdist(1));
             brw_AND(p, dst, dst, brw_imm_ud(0xffffffff));
          } else {
             brw_MOV(p, dst, src[0]);
@@ -1298,7 +1397,7 @@ brw_generator::generate_code(const brw_shader &s,
        * that current instruction depends on the previous instruction.
        */
       if (INTEL_DEBUG(DEBUG_SWSB_STALL) && devinfo->ver >= 12) {
-         brw_set_default_swsb(p, tgl_swsb_regdist(1));
+         brw_set_default_swsb(p, gen_swsb_regdist(1));
          brw_SYNC(p, TGL_SYNC_NOP);
       }
    }

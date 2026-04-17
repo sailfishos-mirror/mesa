@@ -1929,20 +1929,20 @@ swsb(FILE *file, const struct brw_isa_info *isa, const brw_eu_inst *inst)
       opcode == BRW_OPCODE_MATH || opcode == BRW_OPCODE_DPAS ||
       (devinfo->has_64bit_float_via_math_pipe &&
        inst_has_type(isa, inst, BRW_TYPE_DF));
-   const struct tgl_swsb swsb = tgl_swsb_decode(devinfo, is_unordered, x, opcode);
+   const struct gen_swsb swsb = brw_swsb_decode(devinfo, is_unordered, x, opcode);
    if (swsb.regdist)
       format(file, " %s@%d",
-             (swsb.pipe == TGL_PIPE_FLOAT ? "F" :
-              swsb.pipe == TGL_PIPE_INT ? "I" :
-              swsb.pipe == TGL_PIPE_LONG ? "L" :
-              swsb.pipe == TGL_PIPE_ALL ? "A"  :
-              swsb.pipe == TGL_PIPE_MATH ? "M" :
-              swsb.pipe == TGL_PIPE_SCALAR ? "S" : "" ),
+             (swsb.pipe == GEN_PIPE_FLOAT ? "F" :
+              swsb.pipe == GEN_PIPE_INT ? "I" :
+              swsb.pipe == GEN_PIPE_LONG ? "L" :
+              swsb.pipe == GEN_PIPE_ALL ? "A"  :
+              swsb.pipe == GEN_PIPE_MATH ? "M" :
+              swsb.pipe == GEN_PIPE_SCALAR ? "S" : "" ),
              swsb.regdist);
    if (swsb.mode)
       format(file, " $%d%s", swsb.sbid,
-             (swsb.mode & TGL_SBID_SET ? "" :
-              swsb.mode & TGL_SBID_DST ? ".dst" : ".src"));
+             (swsb.mode & GEN_SBID_SET ? "" :
+              swsb.mode & GEN_SBID_DST ? ".dst" : ".src"));
    return 0;
 }
 

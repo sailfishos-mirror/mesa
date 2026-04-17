@@ -127,7 +127,7 @@ brw_get_default_access_mode(struct brw_codegen *p)
    return p->current->access_mode;
 }
 
-struct tgl_swsb
+gen_swsb
 brw_get_default_swsb(struct brw_codegen *p)
 {
    return p->current->swsb;
@@ -201,7 +201,7 @@ void brw_set_default_acc_write_control(struct brw_codegen *p, unsigned value)
    p->current->acc_wr_control = value;
 }
 
-void brw_set_default_swsb(struct brw_codegen *p, struct tgl_swsb value)
+void brw_set_default_swsb(struct brw_codegen *p, gen_swsb value)
 {
    p->current->swsb = value;
 }

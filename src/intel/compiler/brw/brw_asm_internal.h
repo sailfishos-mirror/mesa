@@ -77,7 +77,7 @@ struct instoption {
    enum instoption_type type;
    union {
       unsigned uint_value;
-      struct tgl_swsb depinfo_value;
+      gen_swsb depinfo_value;
    };
 };
 
@@ -95,7 +95,7 @@ struct options {
    unsigned end_of_thread:1;
    unsigned compaction:1;
    unsigned is_compr:1;
-   struct tgl_swsb depinfo;
+   gen_swsb depinfo;
 };
 
 struct msgdesc {

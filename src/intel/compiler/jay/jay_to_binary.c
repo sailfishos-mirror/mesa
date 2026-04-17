@@ -236,14 +236,14 @@ emit(struct brw_codegen *p,
    // jay_print_inst(stdout, (jay_inst *) I);
 
    /* Replicate the SWSB regdist for SIMD split instructions if needed */
-   struct tgl_swsb dep =
-      simd_offs && !I->replicate_dep ? tgl_swsb_null() : I->dep;
+   gen_swsb dep =
+      simd_offs && !I->replicate_dep ? gen_swsb_null() : I->dep;
 
    /* We do not allow SBID dependencies on SIMD split instructions since
     * individual groups could get shot down. This would require more tracking
     * and is unclear whether it's beneficial.
     */
-   assert(simd_offs == 0 || I->dep.mode == TGL_SBID_NULL);
+   assert(simd_offs == 0 || I->dep.mode == GEN_SBID_NULL);
 
    if (I->decrement_dep) {
       unsigned delta = simd_offs * jay_macro_length(I);
@@ -499,7 +499,7 @@ emit(struct brw_codegen *p,
       brw_MUL(p, retype(brw_acc_reg(1), to_brw_reg_type(I->type)), SRC(0),
               subscript(SRC(1), BRW_TYPE_UW, 0));
 
-      brw_set_default_swsb(p, tgl_swsb_null());
+      brw_set_default_swsb(p, gen_swsb_null());
       brw_alu2(p, jay_mul_32_high(I) ? BRW_OPCODE_MACH : BRW_OPCODE_MACL, dst,
                SRC(0), SRC(1));
       break;

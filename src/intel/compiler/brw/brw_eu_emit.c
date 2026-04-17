@@ -10,6 +10,7 @@
 #include "brw_eu.h"
 
 #include "util/ralloc.h"
+#include "compiler/gen/gen.h"
 
 void
 brw_set_dest(struct brw_codegen *p, brw_eu_inst *inst, struct brw_reg dest)
@@ -366,7 +367,9 @@ brw_eu_inst_set_state(const struct brw_isa_info *isa,
    brw_eu_inst_set_access_mode(devinfo, insn, state->access_mode);
    brw_eu_inst_set_mask_control(devinfo, insn, state->mask_control);
    if (devinfo->ver >= 12)
-      brw_eu_inst_set_swsb(devinfo, insn, tgl_swsb_encode(devinfo, state->swsb, brw_eu_inst_opcode(isa, insn)));
+      brw_eu_inst_set_swsb(devinfo, insn,
+                           brw_swsb_encode(devinfo, state->swsb,
+                                           brw_eu_inst_opcode(isa, insn)));
    brw_eu_inst_set_saturate(devinfo, insn, state->saturate);
    brw_eu_inst_set_pred_control(devinfo, insn, state->predicate);
    brw_eu_inst_set_pred_inv(devinfo, insn, state->pred_inv);
@@ -1381,7 +1384,7 @@ brw_broadcast(struct brw_codegen *p,
       if (brw_type_size_bytes(src.type) > 4 && !devinfo->has_64bit_int) {
          brw_MOV(p, subscript(dst, BRW_TYPE_D, 0),
                     subscript(src, BRW_TYPE_D, 0));
-         brw_set_default_swsb(p, tgl_swsb_null());
+         brw_set_default_swsb(p, gen_swsb_null());
          brw_MOV(p, subscript(dst, BRW_TYPE_D, 1),
                     subscript(src, BRW_TYPE_D, 1));
       } else {
@@ -1424,14 +1427,14 @@ brw_broadcast(struct brw_codegen *p,
        * register is above this limit.
        */
       if (offset >= limit) {
-         brw_set_default_swsb(p, tgl_swsb_regdist(1));
+         brw_set_default_swsb(p, gen_swsb_regdist(1));
          brw_ADD(p, addr, addr, brw_imm_ud(offset - offset % limit));
          offset = offset % limit;
       }
 
       brw_pop_insn_state(p);
 
-      brw_set_default_swsb(p, tgl_swsb_regdist(1));
+      brw_set_default_swsb(p, gen_swsb_regdist(1));
 
       /* Use indirect addressing to fetch the specified component. */
       if (brw_type_size_bytes(src.type) > 4 &&
@@ -1453,7 +1456,7 @@ brw_broadcast(struct brw_codegen *p,
          brw_MOV(p, subscript(dst, BRW_TYPE_D, 0),
                     retype(brw_vec1_indirect(addr.subnr, offset),
                            BRW_TYPE_D));
-         brw_set_default_swsb(p, tgl_swsb_null());
+         brw_set_default_swsb(p, gen_swsb_null());
          brw_MOV(p, subscript(dst, BRW_TYPE_D, 1),
                     retype(brw_vec1_indirect(addr.subnr, offset + 4),
                            BRW_TYPE_D));
@@ -1529,7 +1532,7 @@ brw_float_controls_mode(struct brw_codegen *p,
     *
     * On Gfx12+ this is implemented in terms of SWSB annotations instead.
     */
-   brw_set_default_swsb(p, tgl_swsb_regdist(1));
+   brw_set_default_swsb(p, gen_swsb_regdist(1));
 
    brw_eu_inst *inst = brw_AND(p, brw_cr0_reg(0), brw_cr0_reg(0),
                             brw_imm_ud(~mask));

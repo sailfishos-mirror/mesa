@@ -11,8 +11,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "util/macros.h"
+#include "compiler/gen/gen_enums.h"
 #include "dev/intel_device_info.h"
-#include "intel/compiler/gen/gen_enums.h"
 
 /* The following hunk, up-to "Execution Unit" is used by both the
  * intel/compiler and i965 codebase. */
@@ -844,22 +844,6 @@ enum ENUM_PACKED brw_width {
    BRW_WIDTH_16 = 4,
 };
 
-/**
- * Gfx12+ SWSB SBID synchronization mode.
- *
- * This is represented as a bitmask including any required SBID token
- * synchronization modes, used to synchronize out-of-order instructions.  Only
- * the strongest mode of the mask will be provided to the hardware in the SWSB
- * field of an actual hardware instruction, but virtual instructions may be
- * able to take into account multiple of them.
- */
-enum tgl_sbid_mode {
-   TGL_SBID_NULL = 0,
-   TGL_SBID_SRC = 1,
-   TGL_SBID_DST = 2,
-   TGL_SBID_SET = 4
-};
-
 
 enum gfx12_sub_byte_precision {
    BRW_SUB_BYTE_PRECISION_NONE = 0,
@@ -880,280 +864,40 @@ enum gfx12_systolic_depth {
 
 #ifdef __cplusplus
 /**
- * Allow bitwise arithmetic of tgl_sbid_mode enums.
+ * Allow bitwise arithmetic of gen_sbid_mode enums.
  */
-inline tgl_sbid_mode
-operator|(tgl_sbid_mode x, tgl_sbid_mode y)
+inline gen_sbid_mode
+operator|(gen_sbid_mode x, gen_sbid_mode y)
 {
-   return tgl_sbid_mode(unsigned(x) | unsigned(y));
+   return gen_sbid_mode(unsigned(x) | unsigned(y));
 }
 
-inline tgl_sbid_mode
-operator&(tgl_sbid_mode x, tgl_sbid_mode y)
+inline gen_sbid_mode
+operator&(gen_sbid_mode x, gen_sbid_mode y)
 {
-   return tgl_sbid_mode(unsigned(x) & unsigned(y));
+   return gen_sbid_mode(unsigned(x) & unsigned(y));
 }
 
-inline tgl_sbid_mode
-operator~(tgl_sbid_mode x)
+inline gen_sbid_mode
+operator~(gen_sbid_mode x)
 {
-   const unsigned range = (unsigned(TGL_SBID_SET) << 1) - 1;
-   return tgl_sbid_mode(~unsigned(x) & range);
+   const unsigned range = (unsigned(GEN_SBID_SET) << 1) - 1;
+   return gen_sbid_mode(~unsigned(x) & range);
 }
 
-inline tgl_sbid_mode &
-operator|=(tgl_sbid_mode &x, tgl_sbid_mode y)
+inline gen_sbid_mode &
+operator|=(gen_sbid_mode &x, gen_sbid_mode y)
 {
    return x = x | y;
 }
 
-inline tgl_sbid_mode &
-operator&=(tgl_sbid_mode &x, tgl_sbid_mode y)
+inline gen_sbid_mode &
+operator&=(gen_sbid_mode &x, gen_sbid_mode y)
 {
    return x = x & y;
 }
 #endif
 
-/**
- * TGL+ SWSB RegDist synchronization pipeline.
- *
- * On TGL all instructions that use the RegDist synchronization mechanism are
- * considered to be executed as a single in-order pipeline, therefore only the
- * TGL_PIPE_FLOAT pipeline is applicable.  On XeHP+ platforms there are two
- * additional asynchronous ALU pipelines (which still execute instructions
- * in-order and use the RegDist synchronization mechanism).  TGL_PIPE_NONE
- * doesn't provide any RegDist pipeline synchronization information and allows
- * the hardware to infer the pipeline based on the source types of the
- * instruction.  TGL_PIPE_ALL can be used when synchronization with all ALU
- * pipelines is intended.
- *
- * Xe3 adds TGL_PIPE_SCALAR for a very specific use case (writing immediates
- * to scalar register).
- */
-enum tgl_pipe {
-   TGL_PIPE_NONE = 0,
-   TGL_PIPE_FLOAT,
-   TGL_PIPE_INT,
-   TGL_PIPE_LONG,
-   TGL_PIPE_MATH,
-   TGL_PIPE_SCALAR,
-   TGL_PIPE_ALL
-};
-
-/**
- * Logical representation of the SWSB scheduling information of a hardware
- * instruction.  The binary representation is slightly more compact.
- */
-struct tgl_swsb {
-   unsigned regdist : 3;
-   enum tgl_pipe pipe : 3;
-   unsigned sbid : 5;
-   enum tgl_sbid_mode mode : 3;
-   unsigned pad : 2;
-} PACKED;
-static_assert(sizeof(struct tgl_swsb) == 2, "packed");
-
-/**
- * Construct a scheduling annotation with a single RegDist dependency.  This
- * synchronizes with the completion of the d-th previous in-order instruction.
- * The index is one-based, zero causes a no-op tgl_swsb to be constructed.
- */
-static inline struct tgl_swsb
-tgl_swsb_regdist(unsigned d)
-{
-   const struct tgl_swsb swsb = { d, d ? TGL_PIPE_ALL : TGL_PIPE_NONE };
-   assert(swsb.regdist == d);
-   return swsb;
-}
-
-/**
- * Construct a scheduling annotation that synchronizes with the specified SBID
- * token.
- */
-static inline struct tgl_swsb
-tgl_swsb_sbid(enum tgl_sbid_mode mode, unsigned sbid)
-{
-   const struct tgl_swsb swsb = { 0, TGL_PIPE_NONE, sbid, mode };
-   assert(swsb.sbid == sbid);
-   return swsb;
-}
-
-/**
- * Construct a no-op scheduling annotation.
- */
-static inline struct tgl_swsb
-tgl_swsb_null(void)
-{
-   return tgl_swsb_regdist(0);
-}
-
-/**
- * Return a scheduling annotation that allocates the same SBID synchronization
- * token as \p swsb.  In addition it will synchronize against a previous
- * in-order instruction if \p regdist is non-zero.
- */
-static inline struct tgl_swsb
-tgl_swsb_dst_dep(struct tgl_swsb swsb, unsigned regdist)
-{
-   swsb.regdist = regdist;
-   swsb.mode = swsb.mode & TGL_SBID_SET;
-   swsb.pipe = (regdist ? TGL_PIPE_ALL : TGL_PIPE_NONE);
-   return swsb;
-}
-
-/**
- * Return a scheduling annotation that synchronizes against the same SBID and
- * RegDist dependencies as \p swsb, but doesn't allocate any SBID token.
- */
-static inline struct tgl_swsb
-tgl_swsb_src_dep(struct tgl_swsb swsb)
-{
-   swsb.mode = swsb.mode & (TGL_SBID_SRC | TGL_SBID_DST);
-   return swsb;
-}
-
-/**
- * Convert the provided tgl_swsb to the hardware's binary representation of an
- * SWSB annotation.
- */
-static inline uint32_t
-tgl_swsb_encode(const struct intel_device_info *devinfo,
-                struct tgl_swsb swsb, enum opcode opcode)
-{
-   if (!swsb.mode) {
-      const unsigned pipe = devinfo->verx10 < 125 ? 0 :
-         swsb.pipe == TGL_PIPE_FLOAT ? 0x10 :
-         swsb.pipe == TGL_PIPE_INT ? 0x18 :
-         swsb.pipe == TGL_PIPE_LONG ? 0x20 :
-         swsb.pipe == TGL_PIPE_MATH ? 0x28 :
-         swsb.pipe == TGL_PIPE_SCALAR ? 0x30 :
-         swsb.pipe == TGL_PIPE_ALL ? 0x8 : 0;
-      return pipe | swsb.regdist;
-
-   } else if (swsb.regdist) {
-      if (devinfo->ver >= 20) {
-         unsigned mode = 0;
-         if (opcode == BRW_OPCODE_DPAS) {
-            mode = (swsb.mode & TGL_SBID_SET) ? 0b01 :
-                   (swsb.mode & TGL_SBID_SRC) ? 0b10 :
-                 /* swsb.mode & TGL_SBID_DST */ 0b11;
-         } else if (swsb.mode & TGL_SBID_SET) {
-            assert(opcode == BRW_OPCODE_SEND || opcode == BRW_OPCODE_SENDC);
-            assert(swsb.pipe == TGL_PIPE_ALL ||
-                   swsb.pipe == TGL_PIPE_INT ||
-                   swsb.pipe == TGL_PIPE_FLOAT);
-
-            mode = swsb.pipe == TGL_PIPE_INT   ? 0b11 :
-                   swsb.pipe == TGL_PIPE_FLOAT ? 0b10 :
-                /* swsb.pipe == TGL_PIPE_ALL  */ 0b01;
-         } else {
-            assert(!(swsb.mode & ~(TGL_SBID_DST | TGL_SBID_SRC)));
-            mode = swsb.pipe == TGL_PIPE_ALL  ? 0b11 :
-                   swsb.mode == TGL_SBID_SRC  ? 0b10 :
-                /* swsb.mode == TGL_SBID_DST */ 0b01;
-         }
-         return mode << 8 | swsb.regdist << 5 | swsb.sbid;
-      } else {
-         assert(!(swsb.sbid & ~0xfu));
-         return 0x80 | swsb.regdist << 4 | swsb.sbid;
-      }
-
-   } else {
-      if (devinfo->ver >= 20) {
-         return swsb.sbid | (swsb.mode & TGL_SBID_SET ? 0xc0 :
-                             swsb.mode & TGL_SBID_DST ? 0x80 : 0xa0);
-      } else {
-         assert(!(swsb.sbid & ~0xfu));
-         return swsb.sbid | (swsb.mode & TGL_SBID_SET ? 0x40 :
-                             swsb.mode & TGL_SBID_DST ? 0x20 : 0x30);
-      }
-   }
-}
-
-/**
- * Convert the provided binary representation of an SWSB annotation to a
- * tgl_swsb.
- */
-static inline struct tgl_swsb
-tgl_swsb_decode(const struct intel_device_info *devinfo,
-                const bool is_unordered, const uint32_t x, enum opcode opcode)
-{
-   if (devinfo->ver >= 20) {
-      if (x & 0x300) {
-         /* Mode isn't SingleInfo, there's a tuple */
-         if (opcode == BRW_OPCODE_SEND || opcode == BRW_OPCODE_SENDC) {
-            const struct tgl_swsb swsb = {
-               (x & 0xe0u) >> 5,
-               ((x & 0x300) == 0x300 ? TGL_PIPE_INT :
-                (x & 0x300) == 0x200 ? TGL_PIPE_FLOAT :
-                TGL_PIPE_ALL),
-               x & 0x1fu,
-               TGL_SBID_SET
-            };
-            return swsb;
-         } else if (opcode == BRW_OPCODE_DPAS) {
-            const struct tgl_swsb swsb = {
-               .regdist = (x & 0xe0u) >> 5,
-               .pipe = TGL_PIPE_NONE,
-               .sbid = x & 0x1fu,
-               .mode = (x & 0x300) == 0x300 ? TGL_SBID_DST :
-                       (x & 0x300) == 0x200 ? TGL_SBID_SRC :
-                                              TGL_SBID_SET,
-            };
-            return swsb;
-         } else {
-            const struct tgl_swsb swsb = {
-               (x & 0xe0u) >> 5,
-               ((x & 0x300) == 0x300 ? TGL_PIPE_ALL : TGL_PIPE_NONE),
-               x & 0x1fu,
-               ((x & 0x300) == 0x200 ? TGL_SBID_SRC : TGL_SBID_DST)
-            };
-            return swsb;
-         }
-
-      } else if ((x & 0xe0) == 0x80) {
-         return tgl_swsb_sbid(TGL_SBID_DST, x & 0x1f);
-      } else if ((x & 0xe0) == 0xa0) {
-         return tgl_swsb_sbid(TGL_SBID_SRC, x & 0x1fu);
-      } else if ((x & 0xe0) == 0xc0) {
-         return tgl_swsb_sbid(TGL_SBID_SET, x & 0x1fu);
-      } else {
-            const struct tgl_swsb swsb = { x & 0x7u,
-                                           ((x & 0x38) == 0x10 ? TGL_PIPE_FLOAT :
-                                            (x & 0x38) == 0x18 ? TGL_PIPE_INT :
-                                            (x & 0x38) == 0x20 ? TGL_PIPE_LONG :
-                                            (x & 0x38) == 0x28 ? TGL_PIPE_MATH :
-                                            (x & 0x38) == 0x30 ? TGL_PIPE_SCALAR :
-                                            (x & 0x38) == 0x8 ? TGL_PIPE_ALL :
-                                            TGL_PIPE_NONE) };
-            return swsb;
-      }
-
-   } else {
-      if (x & 0x80) {
-         const struct tgl_swsb swsb = { (x & 0x70u) >> 4, TGL_PIPE_NONE,
-                                        x & 0xfu,
-                                        is_unordered ?
-                                        TGL_SBID_SET : TGL_SBID_DST };
-         return swsb;
-      } else if ((x & 0x70) == 0x20) {
-         return tgl_swsb_sbid(TGL_SBID_DST, x & 0xfu);
-      } else if ((x & 0x70) == 0x30) {
-         return tgl_swsb_sbid(TGL_SBID_SRC, x & 0xfu);
-      } else if ((x & 0x70) == 0x40) {
-         return tgl_swsb_sbid(TGL_SBID_SET, x & 0xfu);
-      } else {
-         const struct tgl_swsb swsb = { x & 0x7u,
-                                        ((x & 0x78) == 0x10 ? TGL_PIPE_FLOAT :
-                                         (x & 0x78) == 0x18 ? TGL_PIPE_INT :
-                                         (x & 0x78) == 0x50 ? TGL_PIPE_LONG :
-                                         (x & 0x78) == 0x8 ? TGL_PIPE_ALL :
-                                         TGL_PIPE_NONE) };
-         assert(devinfo->verx10 >= 125 || swsb.pipe == TGL_PIPE_NONE);
-         return swsb;
-      }
-   }
-}
 
 enum tgl_sync_function {
    TGL_SYNC_NOP = 0x0,
