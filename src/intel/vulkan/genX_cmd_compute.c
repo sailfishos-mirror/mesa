@@ -433,7 +433,7 @@ fill_inline_param(uint8_t param_value,
 }
 
 static inline void
-fill_inline_params(struct GENX(COMPUTE_WALKER_BODY) *body,
+fill_inline_params(uint32_t *compute_walker_inline_data,
                    const struct anv_cmd_compute_state *comp_state,
                    uint64_t push_addr64,
                    uint32_t base_wg[3],
@@ -446,7 +446,7 @@ fill_inline_params(struct GENX(COMPUTE_WALKER_BODY) *body,
       &comp_state->shader->bind_map;
 
    for (uint32_t i = 0; i < bind_map->inline_dwords_count; i++) {
-      body->InlineData[i] = fill_inline_param(
+      compute_walker_inline_data[i] = fill_inline_param(
          bind_map->inline_dwords[i], push_data, push_addr64,
          base_wg, num_wg, unaligned_x_offset);
    }
@@ -517,7 +517,7 @@ emit_indirect_compute_walker(struct anv_cmd_buffer *cmd_buffer,
       indirect_addr64 & 0xffffffff,
       indirect_addr64 >> 32,
    };
-   fill_inline_params(&body, comp_state, push_addr64,
+   fill_inline_params(body.InlineData, comp_state, push_addr64,
                       (uint32_t[]) {0, 0, 0},
                       num_workgroup_data, 0);
 
@@ -579,7 +579,7 @@ emit_compute_walker(struct anv_cmd_buffer *cmd_buffer,
       },
    };
 
-   fill_inline_params(&body, comp_state, push_addr64,
+   fill_inline_params(body.InlineData, comp_state, push_addr64,
                       base_wg, num_workgroup_data,
                       unaligned_invocations_x);
 
