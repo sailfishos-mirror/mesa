@@ -4564,7 +4564,7 @@
         "description": "mesa/st: do not advertise CL subgroup features on the GL side",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2a5227981e3634313a9358aa8a9632d924675572",
         "notes": null
