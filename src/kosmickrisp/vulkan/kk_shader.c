@@ -660,10 +660,10 @@ gather_shader_info(struct kk_shader *shader, nir_shader *nir,
 {
    shader->info.stage = nir->info.stage;
    shader->info.uses_per_draw_data = msl_gather_uses_per_draw_data(nir);
+   shader->info.num_cull_distances = nir->info.cull_distance_array_size;
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       nir_shader_intrinsics_pass(nir, gather_vs_inputs, nir_metadata_all,
                                  &shader->info.vs.attribs_read);
-      shader->info.vs.num_cull_distances = nir->info.cull_distance_array_size;
       shader->info.vs.outputs_written = nir->info.outputs_written;
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       /* Some meta shaders like vk-meta-resolve will have depth_layout as NONE
@@ -761,7 +761,7 @@ kk_compile_shader(struct kk_device *dev, nir_shader *nir,
    gather_shader_info(shader, nir, state);
 
    unsigned num_cull_distances =
-      prev_stage ? prev_stage->info.vs.num_cull_distances : 0;
+      prev_stage ? prev_stage->info.num_cull_distances : 0;
    msl_nir_lower_clip_cull_distance(nir, num_cull_distances);
 
    /* When using poly to emulate tessellation, vertex and tess control shaders
@@ -778,7 +778,11 @@ kk_compile_shader(struct kk_device *dev, nir_shader *nir,
          memset(&nir->info.cs, 0, sizeof(nir->info.cs));
          nir->xfb_info = NULL;
          NIR_PASS(_, nir, poly_nir_lower_sw_vs);
-      }
+      } else
+         /* Metal's instance_id contains base_instance. When the emulation path
+          * is taken, since we launch compute, they correctly get translated.
+          * For the non-emulated path we need to subtract base_instance... */
+         NIR_PASS(_, nir, msl_nir_lower_instance_id);
    } else if (stage == MESA_SHADER_TESS_CTRL) {
       NIR_PASS(_, nir, poly_nir_lower_tcs);
 

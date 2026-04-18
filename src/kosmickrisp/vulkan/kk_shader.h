@@ -48,6 +48,10 @@ kk_tess_info_merge(struct kk_tess_info a, struct kk_tess_info b)
 struct kk_shader_info {
    mesa_shader_stage stage;
    bool uses_per_draw_data;
+
+   /* Required for fragment shader cull distance discards. */
+   uint8_t num_cull_distances;
+
    union {
       /* Vertex shader is the pipeline, store all relevant data here. */
       struct {
@@ -61,9 +65,6 @@ struct kk_shader_info {
          uint32_t attribs_read;
          uint32_t sample_count;
          uint64_t outputs_written;
-
-         /* Required for fragment shader cull distance discards. */
-         uint8_t num_cull_distances;
 
          /* Data needed for serialization. */
          enum mtl_primitive_topology_class topology;

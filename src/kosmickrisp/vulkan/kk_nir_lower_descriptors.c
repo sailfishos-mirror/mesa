@@ -816,9 +816,39 @@ lower_poly(struct nir_builder *b, nir_intrinsic_instr *intrin, void *data)
    case nir_intrinsic_load_index_size_poly:
       return lower_sysval_to_root_table(b, intrin, draw.index_size);
    case nir_intrinsic_load_first_vertex:
-      if (*(bool *)data)
-         return lower_sysval_to_root_table(b, intrin, draw.base_vertex);
-      FALLTHROUGH;
+      /* Lower only compute shaders */
+      if (*(bool *)data) {
+         uint32_t root_table_offset =
+            kk_root_descriptor_offset(draw.base_vertex_addr);
+         b->cursor = nir_instr_remove(&intrin->instr);
+         assert((root_table_offset & 3) == 0 && "aligned");
+
+         nir_def *addr = load_root(b, intrin->def.num_components, 64u,
+                                   nir_imm_int(b, root_table_offset), 4);
+
+         nir_def *val = nir_load_global(b, 1u, intrin->def.bit_size, addr);
+
+         nir_def_rewrite_uses(&intrin->def, val);
+         return true;
+      }
+      return false;
+   case nir_intrinsic_load_base_instance:
+      /* Lower only compute shaders */
+      if (*(bool *)data) {
+         uint32_t root_table_offset =
+            kk_root_descriptor_offset(draw.base_instance_addr);
+         b->cursor = nir_instr_remove(&intrin->instr);
+         assert((root_table_offset & 3) == 0 && "aligned");
+
+         nir_def *addr = load_root(b, intrin->def.num_components, 64u,
+                                   nir_imm_int(b, root_table_offset), 4);
+
+         nir_def *val = nir_load_global(b, 1u, intrin->def.bit_size, addr);
+
+         nir_def_rewrite_uses(&intrin->def, val);
+         return true;
+      }
+      return false;
    default:
       return false;
    }

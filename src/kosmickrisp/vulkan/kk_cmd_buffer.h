@@ -48,8 +48,9 @@ struct kk_root_descriptor_table {
 
          float blend_constant[4];
          float clip_z_coeff;
-         uint32_t base_vertex;
          uint32_t index_size;
+         uint64_t base_vertex_addr;
+         uint64_t base_instance_addr;
       } draw;
       struct {
          uint32_t base_group[3];
@@ -157,6 +158,16 @@ struct kk_graphics_state {
       struct kk_addr_range addr_range[KK_MAX_VBUFS];
       mtl_buffer *handles[KK_MAX_VBUFS];
    } vb;
+
+   /* Tessellation state */
+   struct {
+      /* Grid buffer for when the draw is indirect */
+      struct kk_ptr indirect_ptr;
+      mtl_buffer *out_draws_buffer;
+      uint64_t out_draws_offset;
+      struct kk_tess_info info;
+      enum mesa_prim prim;
+   } tess;
 
    /* Needed by vk_command_buffer::dynamic_graphics_state */
    struct vk_vertex_input_state _dynamic_vi;

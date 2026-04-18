@@ -574,3 +574,25 @@ msl_nir_lower_clip_cull_distance(nir_shader *nir, unsigned num_cull_distances)
    else
       NIR_PASS(_, nir, msl_nir_lower_clip_cull_distance_vs);
 }
+
+static bool
+lower_instance_id(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *data)
+{
+   if (intr->intrinsic != nir_intrinsic_load_instance_id)
+      return false;
+
+   b->cursor = nir_after_instr(&intr->instr);
+   nir_def *base_instance = nir_load_base_instance(b);
+   nir_def *instance_id = nir_isub(b, &intr->def, base_instance);
+   nir_def_rewrite_uses_after(&intr->def, instance_id);
+   BITSET_SET(b->shader->info.system_values_read, SYSTEM_VALUE_BASE_INSTANCE);
+
+   return true;
+}
+
+bool
+msl_nir_lower_instance_id(nir_shader *nir)
+{
+   return nir_shader_intrinsics_pass(nir, lower_instance_id,
+                                     nir_metadata_control_flow, NULL);
+}
