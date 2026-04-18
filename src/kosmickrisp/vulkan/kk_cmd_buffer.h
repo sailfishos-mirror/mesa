@@ -274,7 +274,53 @@ uint64_t kk_upload_descriptor_root(struct kk_cmd_buffer *cmd,
 void kk_cmd_buffer_flush_push_descriptors(struct kk_cmd_buffer *cmd,
                                           struct kk_descriptor_state *desc);
 
-void kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct mtl_size grid,
+enum kk_grid_mode {
+   KK_GRID_DIRECT = 0u,
+   KK_GRID_INDIRECT,
+};
+struct kk_grid {
+   enum kk_grid_mode mode;
+   union {
+      struct {
+         uint32_t offset;
+         mtl_buffer *indirect;
+      };
+      struct mtl_size size;
+   };
+};
+
+static struct kk_grid
+kk_grid_3d(uint32_t x, uint32_t y, uint32_t z)
+{
+   return (struct kk_grid){
+      .mode = KK_GRID_DIRECT,
+      .size = {x, y, z},
+   };
+}
+
+static struct kk_grid
+kk_grid_2d(uint32_t x, uint32_t y)
+{
+   return kk_grid_3d(x, y, 1u);
+}
+
+static struct kk_grid
+kk_grid_1d(uint32_t x)
+{
+   return kk_grid_3d(x, 1u, 1u);
+}
+
+static struct kk_grid
+kk_grid_indirect(mtl_buffer *indirect, uint32_t offset)
+{
+   return (struct kk_grid){
+      .mode = KK_GRID_INDIRECT,
+      .indirect = indirect,
+      .offset = offset,
+   };
+}
+
+void kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct kk_grid grid,
                          bool pre_gfx, enum libkk_program idx, void *data,
                          size_t data_size);
 

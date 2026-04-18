@@ -49,7 +49,7 @@ kk_predicate_compute(struct kk_cmd_buffer *cmd, uint64_t indirect_addr_out,
     * generated commands, constructing an indirect command buffer on the GPU
     * which only contains the commands to run if the condition is true. For the
     * time being, we apply predicates by zeroing out disabled indirect data */
-   struct mtl_size grid = {1u, 1u, 1u};
+   struct kk_grid grid = kk_grid_1d(1u);
    if (cmd->state.cond_render.inverted) {
       libkk_predicate_indirect_eq_zero(cmd, grid, false, indirect_addr_out,
                                        indirect_addr_in, cond_addr, 3u, 3u);

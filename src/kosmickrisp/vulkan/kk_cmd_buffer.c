@@ -495,7 +495,7 @@ kk_cmd_buffer_flush_push_descriptors(struct kk_cmd_buffer *cmd,
 }
 
 void
-kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct mtl_size grid,
+kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct kk_grid grid,
                     bool pre_gfx, enum libkk_program idx, void *data,
                     size_t data_size)
 {
@@ -517,7 +517,12 @@ kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct mtl_size grid,
       .y = prog->info.workgroup_size[1],
       .z = prog->info.workgroup_size[2],
    };
-   mtl_dispatch_threads(encoder, grid, local_size);
+
+   if (grid.mode == KK_GRID_DIRECT)
+      mtl_dispatch_threads(encoder, grid.size, local_size);
+   else
+      mtl_dispatch_threadgroups_with_indirect_buffer(encoder, grid.indirect,
+                                                     grid.offset, local_size);
 }
 
 void

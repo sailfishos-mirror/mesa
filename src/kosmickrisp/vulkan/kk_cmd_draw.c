@@ -1008,7 +1008,7 @@ kk_predicate_draws(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
     * generated commands, constructing an indirect command buffer on the GPU
     * which only contains the commands to run if the condition is true. For the
     * time being, we apply predicates by zeroing out disabled indirect data */
-   struct mtl_size grid = {data.draw_count, 1u, 1u};
+   struct kk_grid grid = kk_grid_1d(data.draw_count);
    for (uint32_t i = 0; i < data.predicate_count; i++) {
       uint64_t addr = data.predicates[i].gpu_addr;
       switch (data.predicates[i].op) {
@@ -1083,8 +1083,8 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
       .mode = data.prim,
    };
 
-   struct mtl_size grid = {1024 * data.draw_count, 1, 1};
-   libkk_unroll_geometry_struct(cmd, grid, true, info);
+   libkk_unroll_geometry_struct(cmd, kk_grid_1d(1024 * data.draw_count), true,
+                                info);
 
    data.indirect_draws.buffer = out_draws.buffer;
    data.indirect_draws.offset = out_draws.offset;

@@ -147,8 +147,7 @@ upload_queue_writes(struct kk_cmd_buffer *cmd)
       /* kk_cmd_allocate_buffer sets the cmd buffer error so we can just exit */
       if (unlikely(!data_gpu.gpu))
          return;
-      struct mtl_size grid = {count, 1, 1};
-      libkk_write_u32_array(cmd, grid, false, data_gpu.gpu);
+      libkk_write_u32_array(cmd, kk_grid_1d(count), false, data_gpu.gpu);
       enc->imm_writes.size = 0u;
    }
 
@@ -160,10 +159,10 @@ upload_queue_writes(struct kk_cmd_buffer *cmd)
             util_dynarray_element(&enc->copy_query_pool_result_infos,
                                   struct kk_copy_query_pool_results_info, i);
 
-         struct mtl_size grid = {push_data->query_count, 1, 1};
          const struct libkk_copy_queries_args *data =
             (const struct libkk_copy_queries_args *)push_data;
-         libkk_copy_queries_struct(cmd, grid, false, *data);
+         libkk_copy_queries_struct(cmd, kk_grid_1d(push_data->query_count),
+                                   false, *data);
       }
       enc->copy_query_pool_result_infos.size = 0u;
    }
