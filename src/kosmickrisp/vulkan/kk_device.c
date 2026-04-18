@@ -297,14 +297,14 @@ kk_DestroyDevice(VkDevice _device, const VkAllocationCallbacks *pAllocator)
    if (dev->heap)
       kk_destroy_bo(dev, dev->heap);
 
-   /* Release the residency set last once all BOs are released. */
-   mtl_release(dev->residency_set.handle);
-   simple_mtx_destroy(&dev->residency_set.mutex);
-
    if (dev->has_queue) {
       kk_queue_finish(dev, &dev->queue);
       dev->has_queue = false;
    }
+
+   /* Release the residency set last once all BOs are released. */
+   mtl_release(dev->residency_set.handle);
+   simple_mtx_destroy(&dev->residency_set.mutex);
 
    vk_device_finish(&dev->vk);
 
