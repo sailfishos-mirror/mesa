@@ -151,7 +151,6 @@ collect_fragment_output(nir_builder *b, nir_intrinsic_instr *intr, void *ctx_)
    } else if (loc == FRAG_RESULT_DEPTH) {
       out = &ctx->depth;
    } else if (loc == FRAG_RESULT_STENCIL) {
-      UNREACHABLE("todo");
       out = &ctx->stencil;
    } else if (loc == FRAG_RESULT_SAMPLE_MASK) {
       UNREACHABLE("todo");

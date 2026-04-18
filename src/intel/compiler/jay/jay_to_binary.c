@@ -488,6 +488,11 @@ emit(struct brw_codegen *p,
       brw_MOV(p, dst, stride(retype(SRC(simd_offs), BRW_TYPE_UB), 1, 8, 0));
       break;
 
+   case JAY_OPCODE_BYTE_PACK:
+      brw_MOV(p, stride(retype(dst, BRW_TYPE_UB), 1, 1, 0),
+              stride(retype(SRC(0), BRW_TYPE_UB), 4, 1, 0));
+      break;
+
    case JAY_OPCODE_SHR_ODD_SUBSPANS_BY_4:
       brw_SHR(p, dst, SRC(0), brw_imm_uv(0x44440000));
       break;

@@ -804,6 +804,7 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
    jay_def srcs[4 + 16 + 4 + 1 + 16];
 
    unsigned len = 0;
+   int split = -1;
 
    if (!jay_is_null(src0_alpha))
       srcs[len++] = jay_as_gpr(b, src0_alpha);
@@ -816,7 +817,16 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
    if (!jay_is_null(depth))
       srcs[len++] = jay_as_gpr(b, depth);
 
-   assert(jay_is_null(stencil) && "TODO: stencil");
+   if (!jay_is_null(stencil)) {
+      jay_def packed = jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
+      jay_BYTE_PACK(b, packed, jay_as_gpr(b, stencil));
+
+      /* Split send before stencil */
+      split = len;
+
+      for (unsigned i = 0; i < jay_num_values(packed); i++)
+         srcs[len++] = jay_extract(packed, i);
+   }
 
    /* Optimize out unconditional discards (probably should do this in NIR) */
    if (nir_src_is_const(intr->src[5]) && nir_src_as_bool(intr->src[5])) {
@@ -824,10 +834,15 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
          srcs[i] = jay_UNDEF_u32(b);
    }
 
+   /* Our current send splitting heuristic is bad, override it. */
+   if (split == -1) {
+      split = len;
+   }
+
    jay_inst *send =
       jay_SEND(b, .sfid = BRW_SFID_RENDER_CACHE, .check_tdr = true,
                .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
-               .type = JAY_TYPE_U32, .eot = last);
+               .type = JAY_TYPE_U32, .eot = last, .split = split);
 
    /* Handle the disable predicate. It is logically inverted. */
    if (!nir_src_is_const(intr->src[5]) || nir_src_as_bool(intr->src[5])) {

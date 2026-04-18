@@ -462,6 +462,7 @@ struct jayb_send_params {
    enum jay_type src_type[2];
    unsigned nr_srcs;
    uint32_t ex_desc_imm;
+   int split; /**< explicit split point */
    bool eot;
    bool check_tdr;
    bool uniform;
@@ -538,15 +539,9 @@ _jay_SEND(jay_builder *b, const struct jayb_send_params p)
       I->src[2] = p.nr_srcs > 0 ? p.srcs[0] : jay_null();
       I->src[3] = p.nr_srcs > 1 ? p.srcs[1] : jay_null();
    } else {
-      /* Otherwise, we need to pick a point to split at.
-       *
-       * Heuristic: don't split render targer writes becuase RA gets confused
-       * with the EOT requirements. Split everything else in half.
-       *
-       * TODO: Come up with a better heuristic.
-       */
+      /* Otherwise, we need to pick a point to split at. */
       assert(info->type_0 == info->type_1);
-      unsigned split = !p.check_tdr ? (p.nr_srcs / 2) : p.nr_srcs;
+      unsigned split = p.split > 0 ? p.split : p.nr_srcs / 2;
       I->src[2] = jay_collect_vectors(b, &p.srcs[0], split);
       I->src[3] = jay_collect_vectors(b, &p.srcs[split], p.nr_srcs - split);
    }

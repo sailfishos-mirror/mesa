@@ -166,6 +166,12 @@ op('extract_byte_per_8lanes', 2, 'u32')
 op('shr_odd_subspans_by_4', 1, 'u16')
 op('and_u32_u16', 2, 'u32')
 
+# Copy the first byte of each lane, treating the destination as if it were
+# effectively JAY_STRIDE_1 (which doesn't exist).  Because the destination
+# doesn't follow proper lane alignments, this should not write to GPRs.
+# This is used for stencil outputs in render target write messages.
+op('byte_pack', 1, 'u32')
+
 # Pixel coord calculations. expand_quad replicates out the per-2x2 values from
 # its source g0.[10...13] and - in the case of SIMD32 - g1.[10...13] into a
 # per-lane value. Then offset_packed_pixel_coords adds the appropriate packed

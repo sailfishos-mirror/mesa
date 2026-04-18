@@ -153,7 +153,9 @@ propagate_forwards(jay_function *f)
       }
 
       /* Don't propagate into phis yet - TODO: File awareness */
-      if (I->op == JAY_OPCODE_PHI_SRC || I->op == JAY_OPCODE_SEND)
+      if (I->op == JAY_OPCODE_PHI_SRC ||
+          I->op == JAY_OPCODE_SEND ||
+          I->op == JAY_OPCODE_BYTE_PACK)
          continue;
 
       jay_foreach_ssa_src(I, s) {
