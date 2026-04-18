@@ -909,6 +909,19 @@ alloc_device_memory(struct u_trace *ut, enum u_trace_buffer_list_index list_inde
    return alloc_device_memory(ut, list_index, size);
 }
 
+/* Release the memory that was allocated most recently back to the allocator. */
+static void
+release_last_device_memory(struct u_trace *ut, enum u_trace_buffer_list_index list_index, struct u_trace_buffer_view view)
+{
+   struct util_dynarray *list = &ut->buffers[list_index];
+
+   uint32_t buffer_count = util_dynarray_num_elements(list, struct u_trace_buffer);
+   assert(view.buffer_index == buffer_count - 1);
+
+   struct u_trace_buffer *last = util_dynarray_last_ptr(list, struct u_trace_buffer);
+   last->alloc_offset = view.offset;
+}
+
 void
 u_trace_clone_append(struct u_trace_iterator begin_it,
                      struct u_trace_iterator end_it,
@@ -1042,10 +1055,13 @@ u_trace_appendv(struct u_trace *ut,
       ut, cs, dst_timestamp_buffer, dst_timestamp.offset, tp->flags);
 
    event->timestamp = dst_timestamp;
-   if (new_timestamp)
+   if (new_timestamp) {
       ut->last_timestamp = dst_timestamp;
-   else if (ut->last_timestamp.buffer_index != UINT32_MAX)
+   } else {
+      assert(ut->last_timestamp.buffer_index != UINT32_MAX);
       event->timestamp = ut->last_timestamp;
+      release_last_device_memory(ut, u_trace_buffer_list_timestamps, dst_timestamp);
+   }
 
    event->indirect.buffer_index = UINT32_MAX;
    if ((ut->utctx->enabled_traces & U_TRACE_TYPE_INDIRECTS) && ut->utctx->max_indirect_size_bytes && n_indirects) {
