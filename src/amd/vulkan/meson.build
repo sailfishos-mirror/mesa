@@ -109,6 +109,7 @@ libradv_files = files(
   'tools/radv_debug_hang.h',
   'tools/radv_debug_nir.c',
   'tools/radv_debug_nir.h',
+  'tools/radv_debug.c',
   'tools/radv_debug.h',
   'tools/radv_rmv.c',
   'tools/radv_rmv.h',

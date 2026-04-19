@@ -7,6 +7,7 @@
 #include "radv_rra.h"
 #include "bvh/bvh.h"
 #include "amd_family.h"
+#include "radv_debug.h"
 #include "radv_device.h"
 #include "radv_entrypoints.h"
 #include "radv_physical_device.h"

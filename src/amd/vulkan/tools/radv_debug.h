@@ -11,4 +11,6 @@
 #include "radv_instance.h"
 #include "radv_physical_device.h"
 
+uint32_t radv_find_memory_index(const struct radv_physical_device *pdev, VkMemoryPropertyFlags flags);
+
 #endif /* RADV_DEBUG_H */
