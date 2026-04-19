@@ -445,3 +445,16 @@ INSTANTIATE_TEST_SUITE_P(InfNaN, DisasmTest,
    )
 );
 // clang-format on
+
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(Image, DisasmTest,
+   testing::Values(
+      disasm_state{ {0x0780003a, 0x39000c00, 0x00a90050, 0x00390018}, "img_store.denorm.pack mem, u0.xyzw, t0.xyyy, t1.xyzw\n"},
+      disasm_state{ {0x0780083a, 0x39000c00, 0x40a90050, 0x00390018}, "img_store.sat.denorm.s32.pack mem, u0.xyzw, t0.xyyy, t1.xyzw\n"},
+      disasm_state{ {0x0780083a, 0x39200c00, 0x80a90050, 0x00390018}, "img_store.sat.denorm.u32.pack mem, u0.xyzw, t0.xyyy, t1.xyzw\n"},
+      disasm_state{ {0x07801039, 0x39004c00, 0x00a90050, 0x00000000}, "img_load.denorm.pack t0, u4.xyzw, t0.xyyy, void\n"},
+      disasm_state{ {0x07801039, 0x39004c00, 0x40a90050, 0x00000000}, "img_load.denorm.s32.pack t0, u4.xyzw, t0.xyyy, void\n"},
+      disasm_state{ {0x07801039, 0x39204c00, 0x80a90050, 0x00000000}, "img_load.denorm.u32.pack t0, u4.xyzw, t0.xyyy, void\n"}
+   )
+);
+// clang-format on
