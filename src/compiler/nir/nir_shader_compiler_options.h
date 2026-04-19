@@ -259,6 +259,20 @@ typedef enum {
    nir_frag_coord_use_pixel_coord = BITFIELD_BIT(2),
 } nir_frag_coord_form;
 
+typedef enum {
+   nir_float_muladd_support_has_ffma       = 0x01,
+   nir_float_muladd_support_has_fmad       = 0x02,
+
+   /** Strongly hints that fmad or fmul+fadd is preferred over ffma */
+   nir_float_muladd_support_prefers_split  = 0x04,
+
+   /** ffma_weak won't be lowered */
+   nir_float_muladd_support_keep_weak_ffma = 0x08,
+
+   nir_float_muladd_support_fuse           = 0x10,
+} nir_float_muladd_support;
+MESA_DEFINE_CPP_ENUM_BITFIELD_OPERATORS(nir_float_muladd_support)
+
 typedef struct nir_shader_compiler_options {
    bool lower_fdiv;
    bool lower_ffma16;
@@ -267,6 +281,9 @@ typedef struct nir_shader_compiler_options {
    bool fuse_ffma16;
    bool fuse_ffma32;
    bool fuse_ffma64;
+   nir_float_muladd_support float_mul_add16;
+   nir_float_muladd_support float_mul_add32;
+   nir_float_muladd_support float_mul_add64;
    bool lower_flrp16;
    bool lower_flrp32;
    /** Lowers flrp when it does not support doubles */
