@@ -590,7 +590,7 @@ emit_combine(struct texenv_fragment_program *p,
       return nir_fdot3(p->b, smear(p->b, tmp0), smear(p->b, tmp1));
 
    case TEXENV_MODE_MODULATE_ADD_ATI:
-      return nir_fmad(p->b, src[0], src[2], src[1]);
+      return nir_fmad_old(p->b, src[0], src[2], src[1]);
 
    case TEXENV_MODE_MODULATE_SIGNED_ADD_ATI:
       return nir_fadd_imm(p->b,

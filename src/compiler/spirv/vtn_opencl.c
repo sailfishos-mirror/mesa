@@ -653,7 +653,7 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
 
       nb->fp_math_ctrl |= nir_fp_exact;
       if (lower)
-         res = nir_fmad(nb, srcs[0], srcs[1], srcs[2]);
+         res = nir_fmad_old(nb, srcs[0], srcs[1], srcs[2]);
       else
          res = nir_ffma_old(nb, srcs[0], srcs[1], srcs[2]);
 

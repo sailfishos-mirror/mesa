@@ -194,7 +194,7 @@ nir_fast_normalize(nir_builder *b, nir_def *vec)
 }
 
 static inline nir_def *
-nir_fmad(nir_builder *b, nir_def *x, nir_def *y, nir_def *z)
+nir_fmad_old(nir_builder *b, nir_def *x, nir_def *y, nir_def *z)
 {
    return nir_fadd(b, nir_fmul(b, x, y), z);
 }

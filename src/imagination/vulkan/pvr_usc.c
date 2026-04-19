@@ -866,7 +866,7 @@ pvr_uscgen_tq_frag_coords(nir_builder *b,
          nir_vec2(b,
                   nir_load_preamble(b, 1, 32, .base = *next_sh + base_sh + 1),
                   nir_load_preamble(b, 1, 32, .base = *next_sh + base_sh + 3));
-      coords = nir_fmad(b, coords, mult, add);
+      coords = nir_fmad_old(b, coords, mult, add);
       *next_sh += 4;
    }
 
