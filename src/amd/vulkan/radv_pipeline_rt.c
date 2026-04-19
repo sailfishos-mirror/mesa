@@ -18,6 +18,7 @@
 #include "tools/radv_debug.h"
 #include "ac_nir.h"
 #include "radv_descriptor_set.h"
+#include "radv_device.h"
 #include "radv_entrypoints.h"
 #include "radv_pipeline_binary.h"
 #include "radv_pipeline_cache.h"

@@ -28,7 +28,7 @@
 
 #include "layers/radv_app_workarounds.h"
 #include "meta/radv_meta.h"
-#include "tools/radv_debug.h"
+#include "tools/radv_debug_hang.h"
 #include "tools/radv_rmv.h"
 #include "tools/radv_spm.h"
 #include "tools/radv_sqtt.h"

@@ -9,7 +9,7 @@
  */
 
 #include "radv_queue.h"
-#include "tools/radv_debug.h"
+#include "tools/radv_debug_hang.h"
 #include "tools/radv_debug_nir.h"
 #include "tools/radv_rmv.h"
 #include "radv_buffer.h"

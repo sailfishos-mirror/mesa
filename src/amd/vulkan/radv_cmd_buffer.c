@@ -10,7 +10,7 @@
 
 #include "radv_cmd_buffer.h"
 #include "meta/radv_meta.h"
-#include "tools/radv_debug.h"
+#include "tools/radv_debug_hang.h"
 #include "tools/radv_rmv.h"
 #include "tools/radv_rra.h"
 #include "ac_formats.h"

@@ -8,7 +8,7 @@
  */
 
 #include "nir/radv_meta_nir.h"
-#include "tools/radv_debug.h"
+#include "tools/radv_debug_hang.h"
 #include "radv_cp_dma.h"
 #include "radv_meta.h"
 #include "radv_sdma.h"

@@ -22,7 +22,7 @@
 #include "ac_descriptors.h"
 #include "git_sha1.h"
 #include "radv_buffer.h"
-#include "radv_debug.h"
+#include "radv_debug_hang.h"
 #include "radv_descriptor_set.h"
 #include "radv_entrypoints.h"
 #include "radv_pipeline_graphics.h"

@@ -9,7 +9,7 @@
  */
 
 #include "radv_cp_dma.h"
-#include "tools/radv_debug.h"
+#include "tools/radv_debug_hang.h"
 #include "tools/radv_sqtt.h"
 #include "radv_buffer.h"
 #include "radv_cs.h"

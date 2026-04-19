@@ -16,7 +16,7 @@
 #include "nir/radv_meta_nir.h"
 #include "nir/radv_nir.h"
 #include "spirv/nir_spirv.h"
-#include "tools/radv_debug.h"
+#include "tools/radv_debug_hang.h"
 #include "tools/radv_debug_nir.h"
 #include "util/memstream.h"
 #include "util/mesa-blake3.h"

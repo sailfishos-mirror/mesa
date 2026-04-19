@@ -25,6 +25,7 @@
 #include "util/hex.h"
 #include "util/u_debug.h"
 #include "radv_android.h"
+#include "radv_device.h"
 #include "radv_entrypoints.h"
 #include "radv_instance.h"
 #include "radv_physical_device.h"
