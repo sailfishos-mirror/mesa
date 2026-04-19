@@ -300,8 +300,8 @@ lower_load_barycentric_at_offset(nir_builder *b, nir_def *offset, enum glsl_inte
    nir_def *offset_y = nir_channel(b, offset, 1);
 
    /* Interpolate standard barycentrics by offset. */
-   nir_def *offset_i = nir_ffma(b, ddy_i, offset_y, nir_ffma(b, ddx_i, offset_x, i));
-   nir_def *offset_j = nir_ffma(b, ddy_j, offset_y, nir_ffma(b, ddx_j, offset_x, j));
+   nir_def *offset_i = nir_ffma_old(b, ddy_i, offset_y, nir_ffma_old(b, ddx_i, offset_x, i));
+   nir_def *offset_j = nir_ffma_old(b, ddy_j, offset_y, nir_ffma_old(b, ddx_j, offset_x, j));
    return nir_vec2(b, offset_i, offset_j);
 }
 

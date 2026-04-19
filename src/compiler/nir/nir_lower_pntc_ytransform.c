@@ -75,7 +75,7 @@ lower_load_pointcoord(lower_pntc_ytransform_state *state,
 
    nir_def *pntc = &intr->def;
    nir_def *transform = get_pntc_transform(state);
-   nir_def *flipped_y = nir_ffma(b, nir_channel(b, pntc, y_swizzle),
+   nir_def *flipped_y = nir_ffma_old(b, nir_channel(b, pntc, y_swizzle),
                                  /* Flip the sign of y if we're flipping. */
                                  nir_channel(b, transform, 0),
                                  /* The offset is 1 if we're flipping, 0 otherwise. */

@@ -2995,7 +2995,7 @@ emit_alu(struct ntd_context *ctx, nir_alu_instr *alu)
    case nir_op_fsqrt: return emit_unary_intin(ctx, alu, DXIL_INTR_SQRT, src[0]);
    case nir_op_fmax: return emit_binary_intin(ctx, alu, DXIL_INTR_FMAX, src[0], src[1]);
    case nir_op_fmin: return emit_binary_intin(ctx, alu, DXIL_INTR_FMIN, src[0], src[1]);
-   case nir_op_ffma:
+   case nir_op_ffma_old:
       if (alu->def.bit_size == 64)
          ctx->mod.feats.dx11_1_double_extensions = 1;
       return emit_tertiary_intin(ctx, alu, DXIL_INTR_FMA, src[0], src[1], src[2]);

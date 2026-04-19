@@ -246,8 +246,8 @@ lower_gl_point_gs_instr(nir_builder *b, nir_instr *instr, void *data)
 
    for (size_t i = 0; i < 4; i++) {
       pos = nir_vec4(b,
-                     nir_ffma(b, half_w_delta, point_dir[i][0], point_pos_x),
-                     nir_ffma(b, half_h_delta, point_dir[i][1], point_pos_y),
+                     nir_ffma_old(b, half_w_delta, point_dir[i][0], point_pos_x),
+                     nir_ffma_old(b, half_h_delta, point_dir[i][1], point_pos_y),
                      nir_channel(b, point_pos, 2),
                      nir_channel(b, point_pos, 3));
 

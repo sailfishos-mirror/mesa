@@ -655,7 +655,7 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
       if (lower)
          res = nir_fmad(nb, srcs[0], srcs[1], srcs[2]);
       else
-         res = nir_ffma(nb, srcs[0], srcs[1], srcs[2]);
+         res = nir_ffma_old(nb, srcs[0], srcs[1], srcs[2]);
 
       nb->fp_math_ctrl = save_math_ctrl;
       return res;
@@ -703,7 +703,7 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
       /* OpenCL FMA is not allowed to be split. */
       const bool save_math_ctrl = nb->fp_math_ctrl;
       nb->fp_math_ctrl |= nir_fp_exact;
-      nir_def *res = nir_ffma(nb, srcs[0], srcs[1], srcs[2]);
+      nir_def *res = nir_ffma_old(nb, srcs[0], srcs[1], srcs[2]);
       nb->fp_math_ctrl = save_math_ctrl;
       return res;
    }

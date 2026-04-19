@@ -726,7 +726,7 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
    case nir_op_fsub:
       dst = ir3_ADD_F_rpt(b, dst_sz, src[0], 0, src[1], IR3_REG_FNEG);
       break;
-   case nir_op_ffma:
+   case nir_op_ffma_old:
       /* The scalar ALU doesn't support mad, so expand to mul+add so that we
        * don't unnecessarily fall back to non-earlypreamble. This is safe
        * because at least on a6xx+ mad is unfused.

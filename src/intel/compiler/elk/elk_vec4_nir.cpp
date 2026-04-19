@@ -1670,7 +1670,7 @@ vec4_visitor::nir_emit_alu(nir_alu_instr *instr)
       emit(SHR(dst, op[0], op[1]));
       break;
 
-   case nir_op_ffma:
+   case nir_op_ffma_old:
       if (type_sz(dst.type) == 8) {
          dst_reg mul_dst = dst_reg(this, glsl_dvec4_type());
          emit(MUL(mul_dst, op[1], op[0]));

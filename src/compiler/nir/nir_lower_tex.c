@@ -409,7 +409,7 @@ convert_yuv_to_rgb(nir_builder *b, nir_tex_instr *tex,
    }
 
    nir_def *result =
-      nir_ffma(b, y, m0, nir_ffma(b, u, m1, nir_ffma(b, v, m2, offset)));
+      nir_ffma_old(b, y, m0, nir_ffma_old(b, u, m1, nir_ffma_old(b, v, m2, offset)));
 
    nir_def_rewrite_uses(&tex->def, result);
 }

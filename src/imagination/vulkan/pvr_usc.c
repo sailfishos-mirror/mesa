@@ -658,7 +658,7 @@ static nir_def *resolve_samples(nir_builder *b,
 
    switch (resolve_op) {
    case PVR_RESOLVE_BLEND:
-      op = nir_op_ffma;
+      op = nir_op_ffma_old;
       coeff = nir_imm_float(b, 1.0 / num_samples);
       break;
 
@@ -683,7 +683,7 @@ static nir_def *resolve_samples(nir_builder *b,
 
    for (unsigned i = 1; i < num_samples; i++) {
       if (resolve_op == PVR_RESOLVE_BLEND)
-         accum = nir_ffma(b, samples[i], coeff, accum);
+         accum = nir_ffma_old(b, samples[i], coeff, accum);
       else
          accum = nir_build_alu2(b, op, samples[i], accum);
    }

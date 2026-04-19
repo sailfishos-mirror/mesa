@@ -52,8 +52,8 @@ replace_with_strict_ffma(struct nir_builder *bld, struct u_vector *dead_flrp,
    nir_def *const c = nir_ssa_for_alu_src(bld, alu, 2);
 
    nir_def *const neg_a = nir_fneg(bld, a);
-   nir_def *const inner_ffma = nir_ffma(bld, neg_a, c, a);
-   nir_def *const outer_ffma = nir_ffma(bld, b, c, inner_ffma);
+   nir_def *const inner_ffma = nir_ffma_old(bld, neg_a, c, a);
+   nir_def *const outer_ffma = nir_ffma_old(bld, b, c, inner_ffma);
 
    nir_def_rewrite_uses(&alu->def, outer_ffma);
 
@@ -79,7 +79,7 @@ replace_with_single_ffma(struct nir_builder *bld, struct u_vector *dead_flrp,
    nir_def *const one_minus_c =
       nir_fadd(bld, nir_imm_floatN_t(bld, 1.0f, c->bit_size), neg_c);
    nir_def *const b_times_c = nir_fmul(bld, b, c);
-   nir_def *const final_ffma = nir_ffma(bld, a, one_minus_c, b_times_c);
+   nir_def *const final_ffma = nir_ffma_old(bld, a, one_minus_c, b_times_c);
 
    nir_def_rewrite_uses(&alu->def, final_ffma);
 

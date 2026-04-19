@@ -464,8 +464,8 @@ Converter::getOperation(nir_op op)
       return OP_EX2;
    case nir_op_ffloor:
       return OP_FLOOR;
-   case nir_op_ffma:
-   case nir_op_ffmaz:
+   case nir_op_ffma_old:
+   case nir_op_ffmaz_old:
       /* No FMA op pre-nvc0 */
       if (info->target < 0xc0)
          return OP_MAD;
@@ -2613,8 +2613,8 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_udiv:
    case nir_op_fexp2:
    case nir_op_ffloor:
-   case nir_op_ffma:
-   case nir_op_ffmaz:
+   case nir_op_ffma_old:
+   case nir_op_ffmaz_old:
    case nir_op_flog2:
    case nir_op_fmax:
    case nir_op_imax:
@@ -2668,11 +2668,11 @@ Converter::visit(nir_alu_instr *insn)
 
             switch (op) {
             case nir_op_fmul:
-            case nir_op_ffma:
+            case nir_op_ffma_old:
               i->dnz = this->info->io.mul_zero_wins;
               break;
             case nir_op_fmulz:
-            case nir_op_ffmaz:
+            case nir_op_ffmaz_old:
               i->dnz = true;
               break;
             default:

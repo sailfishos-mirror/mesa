@@ -450,7 +450,7 @@ init_context(isel_context* ctx, nir_shader* shader)
                case nir_op_e4m3fn2f:
                case nir_op_e5m22f:
                case nir_op_fmulz:
-               case nir_op_ffmaz:
+               case nir_op_ffmaz_old:
                case nir_op_f2f64:
                case nir_op_u2f64:
                case nir_op_i2f64:
@@ -485,7 +485,7 @@ init_context(isel_context* ctx, nir_shader* shader)
                case nir_op_f2f16_ru:
                case nir_op_f2f16_rd: type = RegType::vgpr; break;
                case nir_op_fmul:
-               case nir_op_ffma:
+               case nir_op_ffma_old:
                case nir_op_fadd:
                case nir_op_fsub:
                case nir_op_fmax:

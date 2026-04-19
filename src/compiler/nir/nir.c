@@ -1907,7 +1907,7 @@ nir_def_all_uses_ignore_sign_bit(const nir_def *def)
       nir_alu_instr *alu = nir_instr_as_alu(instr);
       if (alu->op == nir_op_fabs) {
          continue;
-      } else if (alu->op == nir_op_fmul || alu->op == nir_op_ffma) {
+      } else if (alu->op == nir_op_fmul || alu->op == nir_op_ffma_old) {
          nir_alu_src *alu_src = list_entry(use, nir_alu_src, src);
          unsigned src_index = alu_src - alu->src;
          /* a * a doesn't care about sign of a. */

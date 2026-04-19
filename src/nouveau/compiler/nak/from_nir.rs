@@ -1056,7 +1056,7 @@ impl<'a> ShaderFromNir<'a> {
                     b.fexp2(srcs(0)).into()
                 }
             }
-            nir_op_ffma => {
+            nir_op_ffma_old => {
                 let ftype = FloatType::from_bits(alu.def.bit_size().into());
                 let dst;
                 if alu.def.bit_size() == 64 {
@@ -1102,7 +1102,7 @@ impl<'a> ShaderFromNir<'a> {
                 }
                 dst
             }
-            nir_op_ffmaz => {
+            nir_op_ffmaz_old => {
                 assert!(alu.def.bit_size() == 32);
                 // DNZ implies FTZ so we need FTZ set or this is invalid
                 assert!(self.float_ctl.fp32.ftz);

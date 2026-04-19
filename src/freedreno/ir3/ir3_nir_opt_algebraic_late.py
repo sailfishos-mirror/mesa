@@ -20,7 +20,7 @@ for sz in [16, 32]:
     # (or fneg/fabs which are assumed to be propagated away), as a heuristic to
     # avoid fusing in cases where it's harmful.
     fmul = 'fmul(is_only_used_by_fadd)'
-    ffma = 'ffma'
+    ffma = 'ffma_old'
 
     fadd = 'fadd@{}'.format(sz)
 

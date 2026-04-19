@@ -1570,7 +1570,7 @@ ntt_emit_alu(struct ntt_compile *c, nir_alu_instr *instr)
       [nir_op_fmax] = { TGSI_OPCODE_MAX, TGSI_OPCODE_DMAX },
       [nir_op_imax] = { TGSI_OPCODE_IMAX, TGSI_OPCODE_I64MAX },
       [nir_op_umax] = { TGSI_OPCODE_UMAX, TGSI_OPCODE_U64MAX },
-      [nir_op_ffma] = { TGSI_OPCODE_MAD, TGSI_OPCODE_DMAD },
+      [nir_op_ffma_old] = { TGSI_OPCODE_MAD, TGSI_OPCODE_DMAD },
       [nir_op_ldexp] = { TGSI_OPCODE_LDEXP, 0 },
    };
 

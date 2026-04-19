@@ -1132,7 +1132,7 @@ def triop_horiz(name, output_size, src1_size, src2_size, src3_size, const_expr,
    [src1_size, src2_size, src3_size],
    [tuint, tuint, tuint], False, "", const_expr, description)
 
-triop("ffma", tfloat, _2src_commutative, """
+triop("ffma_old", tfloat, _2src_commutative, """
 if (nir_is_rounding_mode_rtz(execution_mode, bit_size)) {
    if (bit_size == 64)
       dst = _mesa_double_fma_rtz(src0, src1, src2);
@@ -1148,7 +1148,7 @@ if (nir_is_rounding_mode_rtz(execution_mode, bit_size)) {
 }
 """)
 
-triop("ffmaz", tfloat32, _2src_commutative, """
+triop("ffmaz_old", tfloat32, _2src_commutative, """
 if (src0 == 0.0 || src1 == 0.0)
    dst = 0.0 + src2;
 else if (nir_is_rounding_mode_rtz(execution_mode, 32))
@@ -1158,8 +1158,8 @@ else
 """, description = """
 Floating-point multiply-add with modified zero handling.
 
-Unlike :nir:alu-op:`ffma`, anything (even infinity or NaN) multiplied by +/-0.0 is
-+0.0. ``ffmaz(0.0, inf, src2)`` and ``ffmaz(0.0, nan, src2)`` must be
+Unlike :nir:alu-op:`ffma_old`, anything (even infinity or NaN) multiplied by +/-0.0 is
++0.0. ``ffmaz_old(0.0, inf, src2)`` and ``ffmaz_old(0.0, nan, src2)`` must be
 ``+0.0 + src2``.
 """)
 

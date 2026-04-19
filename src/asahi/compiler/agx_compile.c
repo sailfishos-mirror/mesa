@@ -1906,7 +1906,7 @@ agx_emit_alu(agx_builder *b, nir_alu_instr *instr)
       else
          return agx_fmul_to(b, dst, s0, s1);
 
-   case nir_op_ffma:
+   case nir_op_ffma_old:
       if (instr->def.bit_size == 16)
          return agx_hfma_to(b, dst, s0, s1, s2);
       else
@@ -3559,7 +3559,7 @@ libagx_frcp(nir_builder *b, nir_def *x)
     *     = fma(fma(-x, u, 1), u, u)
     */
    nir_def *one = nir_imm_float(b, 1.0);
-   nir_def *u_2 = nir_ffma(b, nir_ffma(b, nir_fneg(b, x), u, one), u, u);
+   nir_def *u_2 = nir_ffma_old(b, nir_ffma_old(b, nir_fneg(b, x), u, one), u, u);
 
    /* If the original value was infinite, frcp will generate the correct zero.
     * However, the Newton-Raphson step would multiply 0 * Inf and get a NaN. So

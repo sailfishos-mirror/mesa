@@ -188,7 +188,7 @@ lower_fdot(nir_alu_instr *alu, nir_builder *builder, bool is_bfloat16)
 
    unsigned num_components = nir_op_infos[alu->op].input_sizes[0];
 
-   const nir_op fma_op = is_bfloat16 ? nir_op_bffma : nir_op_ffma;
+   const nir_op fma_op = is_bfloat16 ? nir_op_bffma : nir_op_ffma_old;
    const nir_op mul_op = is_bfloat16 ? nir_op_bfmul : nir_op_fmul;
 
    nir_def *prev = NULL;
@@ -328,12 +328,12 @@ lower_alu_instr_width(nir_builder *b, nir_instr *instr, void *_data)
       } else if (reverse_order) {
          nir_def *sum = nir_channel(b, src1_vec, 3);
          for (int i = 2; i >= 0; i--)
-            sum = nir_ffma(b, nir_channel(b, src0_vec, i), nir_channel(b, src1_vec, i), sum);
+            sum = nir_ffma_old(b, nir_channel(b, src0_vec, i), nir_channel(b, src1_vec, i), sum);
          return sum;
       } else {
          nir_def *sum = nir_fmul(b, nir_channel(b, src0_vec, 0), nir_channel(b, src1_vec, 0));
-         sum = nir_ffma(b, nir_channel(b, src0_vec, 1), nir_channel(b, src1_vec, 1), sum);
-         sum = nir_ffma(b, nir_channel(b, src0_vec, 2), nir_channel(b, src1_vec, 2), sum);
+         sum = nir_ffma_old(b, nir_channel(b, src0_vec, 1), nir_channel(b, src1_vec, 1), sum);
+         sum = nir_ffma_old(b, nir_channel(b, src0_vec, 2), nir_channel(b, src1_vec, 2), sum);
          return nir_fadd(b, sum, nir_channel(b, src1_vec, 3));
       }
    }

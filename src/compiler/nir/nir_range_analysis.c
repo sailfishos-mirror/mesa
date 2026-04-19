@@ -836,8 +836,8 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
          push_fp_query(state, alu->src[0].src.ssa);
          push_fp_query(state, alu->src[1].src.ssa);
          return;
-      case nir_op_ffma:
-      case nir_op_ffmaz:
+      case nir_op_ffma_old:
+      case nir_op_ffmaz_old:
       case nir_op_flrp:
          push_fp_query(state, alu->src[0].src.ssa);
          push_fp_query(state, alu->src[1].src.ssa);
@@ -1320,9 +1320,9 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       break;
    }
 
-   case nir_op_ffma:
-   case nir_op_ffmaz: {
-      bool mulz = alu->op == nir_op_ffmaz;
+   case nir_op_ffma_old:
+   case nir_op_ffmaz_old: {
+      bool mulz = alu->op == nir_op_ffmaz_old;
       bool src_eq = nir_alu_srcs_equal(alu, alu, 0, 1);
       bool src_neg_eq = !nir_src_is_const(alu->src[0].src) && nir_alu_srcs_negative_equal(alu, alu, 0, 1);
       fp_class_mask r_mul = fmul_fp_class(src_res[0], src_res[1], mulz, src_eq, src_neg_eq);
