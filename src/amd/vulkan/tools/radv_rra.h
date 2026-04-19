@@ -19,6 +19,8 @@
 
 #include "bvh/vk_bvh.h"
 
+#include "radv_debug.h"
+
 #include <vulkan/vulkan.h>
 
 #include <assert.h>
@@ -37,8 +39,7 @@ struct radv_rra_accel_struct_data {
 };
 
 struct radv_rra_accel_struct_buffer {
-   VkBuffer buffer;
-   VkDeviceMemory memory;
+   struct radv_backed_buffer buffer;
    uint32_t ref_cnt;
 };
 
@@ -111,12 +112,9 @@ struct radv_rra_trace_data {
    bool validate_as;
    bool copy_after_build;
    bool triggered;
-   uint32_t copy_memory_index;
 
    struct util_dynarray ray_history;
-   VkBuffer ray_history_buffer;
-   VkDeviceMemory ray_history_memory;
-   void *ray_history_data;
+   struct radv_backed_buffer ray_history_buffer;
    uint64_t ray_history_addr;
    uint32_t ray_history_buffer_size;
    uint32_t ray_history_resolution_scale;

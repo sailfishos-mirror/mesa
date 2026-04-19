@@ -15,6 +15,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "radv_debug.h"
+
 #include <vulkan/vulkan_core.h>
 
 #include "util/bitset.h"
@@ -27,10 +29,8 @@ typedef struct nir_def nir_def;
 
 struct radv_printf_data {
    uint32_t buffer_size;
-   VkBuffer buffer;
-   VkDeviceMemory memory;
+   struct radv_backed_buffer buffer;
    VkDeviceAddress buffer_addr;
-   void *data;
    struct util_dynarray formats;
 };
 
@@ -46,8 +46,7 @@ struct radv_printf_buffer_header {
 };
 
 struct radv_valid_va_data {
-   VkDeviceMemory memory;
-   VkBuffer buffer;
+   struct radv_backed_buffer buffer;
    VkDeviceAddress buffer_addr;
    BITSET_WORD *vas;
 };

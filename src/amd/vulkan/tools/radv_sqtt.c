@@ -273,83 +273,13 @@ radv_sqtt_finish_queue_event(struct radv_device *device)
    simple_mtx_destroy(&device->sqtt_command_pool_mtx);
 }
 
-VkResult
-radv_sqtt_allocate_buffer(VkDevice device, uint64_t size, uint32_t memory_type_index, VkBuffer *buffer,
-                          VkDeviceMemory *memory)
-{
-   VkResult result;
-
-   VkBufferCreateInfo buffer_create_info = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .pNext =
-         &(VkBufferUsageFlags2CreateInfo){
-            .sType = VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO,
-            .usage = VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT,
-         },
-      .size = size,
-   };
-
-   result = radv_CreateBuffer(device, &buffer_create_info, NULL, buffer);
-   if (result != VK_SUCCESS)
-      return result;
-
-   VkDeviceBufferMemoryRequirements buffer_mem_req_info = {
-      .sType = VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS,
-      .pCreateInfo = &buffer_create_info,
-   };
-   VkMemoryRequirements2 mem_reqs = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
-   };
-
-   radv_GetDeviceBufferMemoryRequirements(device, &buffer_mem_req_info, &mem_reqs);
-
-   VkMemoryAllocateInfo alloc_info = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .allocationSize = mem_reqs.memoryRequirements.size,
-      .memoryTypeIndex = memory_type_index,
-   };
-
-   result = radv_AllocateMemory(device, &alloc_info, NULL, memory);
-   if (result != VK_SUCCESS)
-      goto fail_buffer;
-
-   VkBindBufferMemoryInfo bind_info = {
-      .sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
-      .buffer = *buffer,
-      .memory = *memory,
-   };
-
-   result = radv_BindBufferMemory2(device, 1, &bind_info);
-   if (result != VK_SUCCESS)
-      goto fail_memory;
-
-   return result;
-
-fail_memory:
-   radv_FreeMemory(device, *memory, NULL);
-fail_buffer:
-   radv_DestroyBuffer(device, *buffer, NULL);
-   return result;
-}
-
-void
-radv_sqtt_destroy_buffer(VkDevice device, VkBuffer buffer, VkDeviceMemory memory)
-{
-   radv_DestroyBuffer(device, buffer, NULL);
-   radv_FreeMemory(device, memory, NULL);
-}
-
 static bool
 radv_sqtt_init_bo(struct radv_device *device)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    unsigned max_se = pdev->info.max_se;
-   VkDeviceMemory memory, staging_memory;
-   VkBuffer buffer, staging_buffer;
    VkResult result;
    uint64_t per_se_size, size;
-   uint64_t va;
-   void *ptr;
 
    /* The buffer size and address need to be aligned in HW regs. Align the
     * size as early as possible so that we do all the allocation & addressing
@@ -361,53 +291,25 @@ radv_sqtt_init_bo(struct radv_device *device)
    size += per_se_size * (uint64_t)max_se;
 
    /* Allocate the SQTT buffer (it must be in VRAM). */
-   const uint32_t memory_type_index = radv_find_memory_index(
-      pdev,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
-         (device->rgp_use_staging_buffer ? 0
-                                         : VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
-
-   result = radv_sqtt_allocate_buffer(radv_device_to_handle(device), size, memory_type_index, &buffer, &memory);
+   result = radv_backed_buffer_init(
+      device, &device->sqtt_buffer, size,
+      device->rgp_use_staging_buffer ? radv_memory_type_invisible_vram : radv_memory_type_visible_vram,
+      VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT, !device->rgp_use_staging_buffer);
    if (result != VK_SUCCESS)
       return false;
 
-   VkBufferDeviceAddressInfo addr_info = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = buffer,
-   };
-
-   va = vk_common_GetBufferDeviceAddress(radv_device_to_handle(device), &addr_info);
-
    /* Allocate a staging buffer in GTT. */
    if (device->rgp_use_staging_buffer) {
-      const uint32_t staging_memory_type_index =
-         radv_find_memory_index(pdev, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                                         VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-      result = radv_sqtt_allocate_buffer(radv_device_to_handle(device), size, staging_memory_type_index,
-                                         &staging_buffer, &staging_memory);
+      result = radv_backed_buffer_init(device, &device->sqtt_staging_buffer, size, radv_memory_type_gtt,
+                                       VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT, true);
       if (result != VK_SUCCESS)
          return false;
    }
 
-   VkMemoryMapInfo mem_map_info = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_MAP_INFO,
-      .memory = device->rgp_use_staging_buffer ? staging_memory : memory,
-      .size = VK_WHOLE_SIZE,
-   };
-
-   result = radv_MapMemory2(radv_device_to_handle(device), &mem_map_info, &ptr);
-   if (result != VK_SUCCESS)
-      return false;
-
    device->sqtt_size = size;
-   device->sqtt_buffer = buffer;
-   device->sqtt_memory = memory;
-   device->sqtt_staging_buffer = staging_buffer;
-   device->sqtt_staging_memory = staging_memory;
-   device->sqtt.buffer_va = va;
-   device->sqtt.bo = &device->sqtt_buffer;
-   device->sqtt.ptr = ptr;
+   device->sqtt.buffer_va = radv_backed_buffer_get_va(device, &device->sqtt_buffer);
+   device->sqtt.bo = &device->sqtt_buffer.buffer;
+   device->sqtt.ptr = device->rgp_use_staging_buffer ? device->sqtt_staging_buffer.map : device->sqtt_buffer.map;
 
    return true;
 }
@@ -415,20 +317,8 @@ radv_sqtt_init_bo(struct radv_device *device)
 static void
 radv_sqtt_finish_bo(struct radv_device *device)
 {
-   VkDeviceMemory memory = device->rgp_use_staging_buffer ? device->sqtt_staging_memory : device->sqtt_memory;
-
-   if (memory) {
-      VkMemoryUnmapInfo unmap_info = {
-         .sType = VK_STRUCTURE_TYPE_MEMORY_UNMAP_INFO,
-         .memory = memory,
-      };
-
-      radv_UnmapMemory2(radv_device_to_handle(device), &unmap_info);
-   }
-
-   radv_sqtt_destroy_buffer(radv_device_to_handle(device), device->sqtt_buffer, device->sqtt_memory);
-   if (device->rgp_use_staging_buffer)
-      radv_sqtt_destroy_buffer(radv_device_to_handle(device), device->sqtt_staging_buffer, device->sqtt_staging_memory);
+   radv_backed_buffer_finish(device, &device->sqtt_buffer);
+   radv_backed_buffer_finish(device, &device->sqtt_staging_buffer);
 }
 
 static VkResult
@@ -753,9 +643,11 @@ radv_end_sqtt(struct radv_queue *queue)
 
    /* Copy to the staging buffers for faster reads on dGPUs. */
    if (device->rgp_use_staging_buffer) {
-      radv_sqtt_copy_buffer(cmdbuf, device->sqtt_buffer, device->sqtt_staging_buffer, device->sqtt_size);
-      if (device->spm.bo)
-         radv_sqtt_copy_buffer(cmdbuf, device->spm_buffer, device->spm_staging_buffer, device->spm.buffer_size);
+      radv_sqtt_copy_buffer(cmdbuf, device->sqtt_buffer.buffer, device->sqtt_staging_buffer.buffer, device->sqtt_size);
+      if (device->spm.bo) {
+         radv_sqtt_copy_buffer(cmdbuf, device->spm_buffer.buffer, device->spm_staging_buffer.buffer,
+                               device->spm.buffer_size);
+      }
    }
 
    result = radv_EndCommandBuffer(cmdbuf);

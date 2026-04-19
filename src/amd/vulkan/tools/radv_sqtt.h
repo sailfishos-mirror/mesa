@@ -102,11 +102,6 @@ VkResult radv_sqtt_allocate_cmdbuf(struct radv_device *device, enum radv_queue_f
 
 void radv_sqtt_free_cmdbuf(struct radv_device *device, enum radv_queue_family queue_family, VkCommandBuffer cmdbuf);
 
-VkResult radv_sqtt_allocate_buffer(VkDevice device, uint64_t size, uint32_t memory_type_index, VkBuffer *buffer,
-                                   VkDeviceMemory *memory);
-
-void radv_sqtt_destroy_buffer(VkDevice device, VkBuffer buffer, VkDeviceMemory memory);
-
 void radv_sqtt_emit_relocated_shaders(struct radv_cmd_buffer *cmd_buffer, struct radv_graphics_pipeline *pipeline);
 
 void radv_write_user_event_marker(struct radv_cmd_buffer *cmd_buffer, enum rgp_sqtt_marker_user_event_type type,

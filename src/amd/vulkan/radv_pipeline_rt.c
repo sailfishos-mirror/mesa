@@ -1166,7 +1166,7 @@ radv_rt_pipeline_compile(struct radv_device *device, const VkRayTracingPipelineC
                          const VkPipelineCreationFeedbackCreateInfo *creation_feedback)
 {
    bool skip_shaders_cache = radv_pipeline_skip_shaders_cache(device, &pipeline->base.base);
-   const bool emit_ray_history = !!device->rra_trace.ray_history_buffer;
+   const bool emit_ray_history = !!device->rra_trace.ray_history_addr;
    VkPipelineCreationFeedback pipeline_feedback = {
       .flags = VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT,
    };

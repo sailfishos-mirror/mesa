@@ -18,7 +18,6 @@
 VkResult
 radv_printf_data_init(struct radv_device *device)
 {
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_printf_data *printf = &device->debug_nir.printf;
 
    printf->formats = UTIL_DYNARRAY_INIT;
@@ -27,53 +26,17 @@ radv_printf_data_init(struct radv_device *device)
    if (printf->buffer_size < sizeof(struct radv_printf_buffer_header))
       return VK_SUCCESS;
 
-   VkBufferCreateInfo buffer_create_info = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .pNext =
-         &(VkBufferUsageFlags2CreateInfo){
-            .sType = VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO,
-            .usage = VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT,
-         },
-      .size = printf->buffer_size,
-   };
-
-   VkDevice _device = radv_device_to_handle(device);
-   VkResult result = device->vk.dispatch_table.CreateBuffer(_device, &buffer_create_info, NULL, &printf->buffer);
+   VkResult result =
+      radv_backed_buffer_init(device, &printf->buffer, printf->buffer_size, radv_memory_type_visible_vram,
+                              VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT, true);
    if (result != VK_SUCCESS)
       return result;
 
-   VkMemoryRequirements requirements;
-   device->vk.dispatch_table.GetBufferMemoryRequirements(_device, printf->buffer, &requirements);
+   printf->buffer_addr = radv_backed_buffer_get_va(device, &printf->buffer);
 
-   VkMemoryAllocateInfo alloc_info = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .allocationSize = requirements.size,
-      .memoryTypeIndex =
-         radv_find_memory_index(pdev, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
-   };
-
-   result = device->vk.dispatch_table.AllocateMemory(_device, &alloc_info, NULL, &printf->memory);
-   if (result != VK_SUCCESS)
-      return result;
-
-   result = device->vk.dispatch_table.MapMemory(_device, printf->memory, 0, VK_WHOLE_SIZE, 0, (void **)&printf->data);
-   if (result != VK_SUCCESS)
-      return result;
-
-   result = device->vk.dispatch_table.BindBufferMemory(_device, printf->buffer, printf->memory, 0);
-   if (result != VK_SUCCESS)
-      return result;
-
-   struct radv_printf_buffer_header *header = printf->data;
+   struct radv_printf_buffer_header *header = printf->buffer.map;
    header->offset = sizeof(struct radv_printf_buffer_header);
    header->size = printf->buffer_size;
-
-   VkBufferDeviceAddressInfo addr_info = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = printf->buffer,
-   };
-   printf->buffer_addr = device->vk.dispatch_table.GetBufferDeviceAddress(_device, &addr_info);
 
    return VK_SUCCESS;
 }
@@ -81,13 +44,9 @@ radv_printf_data_init(struct radv_device *device)
 void
 radv_printf_data_finish(struct radv_device *device)
 {
-   VkDevice _device = radv_device_to_handle(device);
    struct radv_printf_data *printf = &device->debug_nir.printf;
 
-   device->vk.dispatch_table.DestroyBuffer(_device, printf->buffer, NULL);
-   if (printf->memory)
-      device->vk.dispatch_table.UnmapMemory(_device, printf->memory);
-   device->vk.dispatch_table.FreeMemory(_device, printf->memory, NULL);
+   radv_backed_buffer_finish(device, &printf->buffer);
 
    util_dynarray_foreach (&printf->formats, struct radv_printf_format, format)
       free(format->string);
@@ -277,13 +236,13 @@ radv_dump_printf_data(struct radv_device *device, FILE *out)
 {
    struct radv_printf_data *printf = &device->debug_nir.printf;
 
-   if (!printf->data)
+   if (!printf->buffer.map)
       return;
 
    device->vk.dispatch_table.DeviceWaitIdle(radv_device_to_handle(device));
 
-   struct radv_printf_buffer_header *header = printf->data;
-   uint8_t *data = printf->data;
+   struct radv_printf_buffer_header *header = printf->buffer.map;
+   uint8_t *data = printf->buffer.map;
 
    for (uint32_t offset = sizeof(struct radv_printf_buffer_header); offset < header->offset;) {
       uint32_t printf_header = *(uint32_t *)&data[offset];
@@ -391,64 +350,20 @@ radv_dump_printf_data(struct radv_device *device, FILE *out)
 VkResult
 radv_init_va_validation(struct radv_device *device)
 {
-   struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
 
    uint64_t size = RADV_VA_VALIDATION_BIT_COUNT / RADV_VA_VALIDATION_GRANULARITY_BYTES / 8;
 
-   VkBufferCreateInfo buffer_create_info = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .pNext =
-         &(VkBufferUsageFlags2CreateInfo){
-            .sType = VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO,
-            .usage = VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT,
-         },
-      .size = size,
-   };
-
-   VkDevice _device = radv_device_to_handle(device);
-   VkResult result = device->vk.dispatch_table.CreateBuffer(_device, &buffer_create_info, NULL, &valid_va->buffer);
+   VkResult result =
+      radv_backed_buffer_init(device, &valid_va->buffer, size, radv_memory_type_visible_vram,
+                              VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT, true);
    if (result != VK_SUCCESS)
       return result;
 
-   VkMemoryRequirements requirements;
-   device->vk.dispatch_table.GetBufferMemoryRequirements(_device, valid_va->buffer, &requirements);
+   valid_va->vas = valid_va->buffer.map;
+   memset(valid_va->vas, 0, size);
 
-   VkMemoryAllocateFlagsInfo alloc_flags_info = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-      .flags = VK_MEMORY_ALLOCATE_ZERO_INITIALIZE_BIT_EXT,
-   };
-
-   VkMemoryAllocateInfo alloc_info = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .pNext = &alloc_flags_info,
-      .allocationSize = requirements.size,
-      .memoryTypeIndex =
-         radv_find_memory_index(pdev, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
-   };
-
-   result = device->vk.dispatch_table.AllocateMemory(_device, &alloc_info, NULL, &valid_va->memory);
-   if (result != VK_SUCCESS)
-      return result;
-
-   void *data = NULL;
-   result = device->vk.dispatch_table.MapMemory(_device, valid_va->memory, 0, VK_WHOLE_SIZE, 0, &data);
-   if (result != VK_SUCCESS)
-      return result;
-
-   valid_va->vas = data;
-   memset(data, 0, size);
-
-   result = device->vk.dispatch_table.BindBufferMemory(_device, valid_va->buffer, valid_va->memory, 0);
-   if (result != VK_SUCCESS)
-      return result;
-
-   VkBufferDeviceAddressInfo addr_info = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = valid_va->buffer,
-   };
-   valid_va->buffer_addr = device->vk.dispatch_table.GetBufferDeviceAddress(_device, &addr_info);
+   valid_va->buffer_addr = radv_backed_buffer_get_va(device, &valid_va->buffer);
 
    return VK_SUCCESS;
 }
@@ -456,15 +371,11 @@ radv_init_va_validation(struct radv_device *device)
 void
 radv_finish_va_validation(struct radv_device *device)
 {
-   VkDevice _device = radv_device_to_handle(device);
    struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
 
    valid_va->vas = NULL;
 
-   device->vk.dispatch_table.DestroyBuffer(_device, valid_va->buffer, NULL);
-   if (valid_va->memory)
-      device->vk.dispatch_table.UnmapMemory(_device, valid_va->memory);
-   device->vk.dispatch_table.FreeMemory(_device, valid_va->memory, NULL);
+   radv_backed_buffer_finish(device, &valid_va->buffer);
 }
 
 void

@@ -14601,7 +14601,7 @@ radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2K
 
    radv_suspend_conditional_rendering(cmd_buffer);
 
-   if (unlikely(device->rra_trace.ray_history_buffer))
+   if (unlikely(device->rra_trace.ray_history_addr))
       radv_trace_trace_rays(cmd_buffer, tables, indirect_va);
 
    struct radv_shader *rt_prolog = cmd_buffer->state.rt_prolog;
