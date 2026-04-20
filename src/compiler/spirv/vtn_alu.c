@@ -281,6 +281,7 @@ vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
    case SpvOpFSub:               return nir_op_fsub;
    case SpvOpIMul:               return nir_op_imul;
    case SpvOpFMul:               return nir_op_fmul;
+   case SpvOpFmaKHR:             return nir_op_ffma;
    case SpvOpUDiv:               return nir_op_udiv;
    case SpvOpSDiv:               return nir_op_idiv;
    case SpvOpFDiv:               return nir_op_fdiv;
