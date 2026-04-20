@@ -169,7 +169,7 @@ vtn_nir_alu_op_for_spirv_glsl_opcode(struct vtn_builder *b,
    case GLSLstd450UMax:          return nir_op_umax;
    case GLSLstd450SMax:          return nir_op_imax;
    case GLSLstd450FMix:          return nir_op_flrp;
-   case GLSLstd450Fma:           return nir_op_ffma_old;
+   case GLSLstd450Fma:           return nir_op_ffma_weak;
    case GLSLstd450FindILsb:      return nir_op_find_lsb;
    case GLSLstd450FindSMsb:      return nir_op_ifind_msb;
    case GLSLstd450FindUMsb:      return nir_op_ufind_msb;
