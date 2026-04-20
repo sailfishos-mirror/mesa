@@ -201,7 +201,7 @@ intel_nir_opt_peephole_ffma_instr(nir_builder *b,
    if (negate)
       mul_src[0] = nir_fneg(b, mul_src[0]);
 
-   nir_alu_instr *ffma = nir_alu_instr_create(b->shader, nir_op_ffma_old);
+   nir_alu_instr *ffma = nir_alu_instr_create(b->shader, nir_op_ffma);
    ffma->fp_math_ctrl = b->fp_math_ctrl;
 
    for (unsigned i = 0; i < 2; i++) {

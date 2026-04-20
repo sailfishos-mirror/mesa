@@ -1646,6 +1646,7 @@ brw_from_nir_emit_alu(nir_to_brw_state &ntb, nir_alu_instr *instr,
          inst->saturate = true;
       break;
 
+   case nir_op_ffma:
    case nir_op_ffma_old:
       if (nir_has_any_rounding_mode_enabled(execution_mode)) {
          brw_rnd_mode rnd =
