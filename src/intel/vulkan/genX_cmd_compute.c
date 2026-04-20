@@ -71,6 +71,10 @@ genX(cmd_buffer_ensure_cfe_state)(struct anv_cmd_buffer *cmd_buffer,
       }
 #endif
 
+#if GFX_VER >= 30
+      cfe.DynamicStackIDControl = true;
+#endif
+
       cfe.OverDispatchControl = 2; /* 50% overdispatch */
    }
 
@@ -1125,6 +1129,28 @@ cmd_buffer_emit_rt_dispatch_globals_indirect(struct anv_cmd_buffer *cmd_buffer,
    return rtdg_state;
 }
 
+static uint8_t
+get_stack_id_reduction_cap(uint32_t stack_ids)
+{
+   /* Bspec 57497: Dynamic stack management mechanism - REDUCTION_CAP
+    * bitfield states:
+    *
+    *    This value must always be smaller than value given by
+    *    CFE_STATE.Stack_ID_Control.
+    */
+#if GFX_VER >= 30
+   switch (stack_ids) {
+   case 2048: return REDUCTION_CAP_1024;
+   case 1024: return REDUCTION_CAP_512;
+   case 512:  return REDUCTION_CAP_256;
+   case 256:  return REDUCTION_CAP_128;
+   default:   UNREACHABLE("Invalid stack_ids value");
+   }
+#endif
+
+   return 0;
+}
+
 static void
 cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
                       struct trace_params *params)
@@ -1309,6 +1335,11 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
 #endif
 #if GFX_VER >= 30
       btd.RTMemStructures64bModeEnable = true;
+      btd.DynamicstackmanagementmechanismMISSPENALTY = MISS_PENALTY_16;
+      btd.DynamicstackmanagementmechanismHITREWARD = HIT_REWARD_1;
+      btd.DynamicstackmanagementmechanismSCALINGFACTOR = SCALING_FACTOR_4;
+      btd.DynamicstackmanagementmechanismREDUCTIONCAP =
+         get_stack_id_reduction_cap(cmd_buffer->device->physical->instance->stack_ids);
 #endif
    }
 
