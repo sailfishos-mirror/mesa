@@ -133,8 +133,9 @@ to_brw_reg(jay_function *f,
             R = stride(R, 4, 2, 2);
          }
       }
-   } else if (d.file == GPR) {
-      enum jay_stride def_stride = jay_def_stride(f->shader, d);
+   } else if (d.file == GPR || d.file == ACCUM) {
+      enum jay_stride def_stride =
+         d.file == GPR ? jay_def_stride(f->shader, d) : JAY_STRIDE_4;
       uint32_t type_bits = jay_type_size_bits(type);
       unsigned stride_bits = jay_stride_to_bits(def_stride);
       unsigned simd_width = jay_simd_width_physical(f->shader, I);
@@ -151,8 +152,12 @@ to_brw_reg(jay_function *f,
          offset_B = (reg & mask) * 2;
       }
 
-      R = byte_offset(xe2_vec8_grf(grf, 0),
-                      simd_offs * simd_width * stride_bits / 8);
+      if (d.file == GPR) {
+         R = byte_offset(xe2_vec8_grf(grf, 0),
+                         simd_offs * simd_width * stride_bits / 8);
+      } else {
+         R = brw_vecn_reg(8, ARF, BRW_ARF_ACCUMULATOR + (grf * 2), 0);
+      }
 
       if (stride_bits == (type_bits * 4)) {
          R = stride(R, 8, 2, 4);
