@@ -57,7 +57,7 @@ jay_print_def(FILE *fp, const jay_inst *I, int src)
    unsigned lu_bit = has_lu ? jay_source_last_use_bit(I->src, src) : 0;
 
    bool has_index = jay_channel(def, 0) != JAY_SENTINEL;
-   bool has_reg = !def.collect && def.reg && def.file != J_ARF;
+   bool has_reg = (!def.collect && def.reg && def.file != J_ARF) || !has_index;
 
    if (jay_is_null(def)) {
       has_reg = false;
