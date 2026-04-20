@@ -185,6 +185,9 @@ private:
                        AluGroup& group,
                        bool& success,
                        const AluScheduleContext& alu_ctx);
+   bool handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
+                                      AluGroup& group,
+                                      const AluScheduleContext& alu_ctx);
    auto schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_blocks,
                                           bool& success,
                                           const AluScheduleContext& alu_ctx) -> AluGroup*;
@@ -614,33 +617,48 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
       if (success) {
          ++m_alu_groups_scheduled;
          break;
-      } else if (m_current_block->kcache_reservation_failed()) {
-         // LDS read groups should not lead to impossible
-         // kcache constellations
-         assert(!m_current_block->lds_group_active());
-
-         // AR is loaded but not all uses are done, we don't want
-         // to start a new CF here
-         // TODO this can explode, if kcache reservation fails with
-         // an instruction that also requires AR
-         assert(alu_ctx.expected_ar_uses == 0);
-
-         // kcache reservation failed, so we have to start a new CF
-         start_new_block(out_blocks, Block::alu);
-      } else {
-         // Ready is not empty, but we didn't schedule anything, this
-         // means we had a indirect array read or write conflict that we
-         // can resolve with an extra group that has a NOP instruction
-         if (!alu_trans_ready.empty() || !alu_vec_ready.empty()) {
-            group.add_vec_instructions(new AluInstr(op0_nop, 0));
-            break;
-         } else {
-            return false;
-         }
       }
+
+      if (!handle_alu_group_fill_failure(out_blocks, group, alu_ctx))
+         return false;
+
+      if (!group.empty())
+         break;
    }
 
    return true;
+}
+
+bool
+BlockScheduler::handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
+                                              AluGroup& group,
+                                              const AluScheduleContext& alu_ctx)
+{
+   if (m_current_block->kcache_reservation_failed()) {
+      // LDS read groups should not lead to impossible
+      // kcache constellations
+      assert(!m_current_block->lds_group_active());
+
+      // AR is loaded but not all uses are done, we don't want
+      // to start a new CF here
+      // TODO this can explode, if kcache reservation fails with
+      // an instruction that also requires AR
+      assert(alu_ctx.expected_ar_uses == 0);
+
+      // kcache reservation failed, so we have to start a new CF
+      start_new_block(out_blocks, Block::alu);
+      return true;
+   }
+
+   // Ready is not empty, but we didn't schedule anything, this
+   // means we had a indirect array read or write conflict that we
+   // can resolve with an extra group that has a NOP instruction
+   if (!alu_trans_ready.empty() || !alu_vec_ready.empty()) {
+      group.add_vec_instructions(new AluInstr(op0_nop, 0));
+      return true;
+   }
+
+   return false;
 }
 
 auto
