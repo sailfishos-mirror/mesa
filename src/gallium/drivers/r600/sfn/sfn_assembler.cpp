@@ -28,9 +28,9 @@ Assembler::Assembler(r600_shader *sh, const r600_shader_key& key):
 
 extern const std::map<ESDOp, int> ds_opcode_map;
 
-class AssamblerVisitor : public ConstInstrVisitor {
+class AssemblerVisitor : public ConstInstrVisitor {
 public:
-   AssamblerVisitor(r600_shader *sh, const r600_shader_key& key, bool legacy_math_rules);
+   AssemblerVisitor(r600_shader *sh, const r600_shader_key& key, bool legacy_math_rules);
 
    void visit(const AluInstr& instr) override;
    void visit(const AluGroup& instr) override;
@@ -111,7 +111,7 @@ public:
 bool
 Assembler::lower(Shader *shader)
 {
-   AssamblerVisitor ass(m_sh, m_key, shader->has_flag(Shader::sh_legacy_math_rules));
+   AssemblerVisitor ass(m_sh, m_key, shader->has_flag(Shader::sh_legacy_math_rules));
 
    auto& blocks = shader->func();
    for (auto b : blocks) {
@@ -125,7 +125,7 @@ Assembler::lower(Shader *shader)
    return ass.m_result;
 }
 
-AssamblerVisitor::AssamblerVisitor(r600_shader *sh, const r600_shader_key& key,
+AssemblerVisitor::AssemblerVisitor(r600_shader *sh, const r600_shader_key& key,
                                    bool legacy_math_rules):
     m_key(key),
     m_shader(sh),
@@ -144,7 +144,7 @@ AssamblerVisitor::AssamblerVisitor(r600_shader *sh, const r600_shader_key& key,
 }
 
 void
-AssamblerVisitor::finalize()
+AssemblerVisitor::finalize()
 {
    const struct cf_op_info *last = nullptr;
 
@@ -171,7 +171,7 @@ AssamblerVisitor::finalize()
 extern const std::map<EAluOp, int> opcode_map;
 
 void
-AssamblerVisitor::visit(const AluInstr& ai)
+AssemblerVisitor::visit(const AluInstr& ai)
 {
    assert(vtx_fetch_results.empty());
    assert(tex_fetch_results.empty());
@@ -183,7 +183,7 @@ AssamblerVisitor::visit(const AluInstr& ai)
 }
 
 void
-AssamblerVisitor::emit_lds_op(const AluInstr& lds)
+AssemblerVisitor::emit_lds_op(const AluInstr& lds)
 {
    struct r600_bytecode_alu alu;
    memset(&alu, 0, sizeof(alu));
@@ -251,7 +251,7 @@ AssamblerVisitor::emit_lds_op(const AluInstr& lds)
       m_result = false;
 }
 
-auto AssamblerVisitor::translate_for_mathrules(EAluOp op) -> EAluOp
+auto AssemblerVisitor::translate_for_mathrules(EAluOp op) -> EAluOp
 {
    switch (op) {
    case op2_dot_ieee: return op2_dot;
@@ -264,7 +264,7 @@ auto AssamblerVisitor::translate_for_mathrules(EAluOp op) -> EAluOp
 }
 
 void
-AssamblerVisitor::emit_alu_op(const AluInstr& ai)
+AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 {
    sfn_log << SfnLog::assembly << "Emit ALU op " << ai << "\n";
 
@@ -431,7 +431,7 @@ AssamblerVisitor::emit_alu_op(const AluInstr& ai)
 }
 
 void
-AssamblerVisitor::visit(const AluGroup& group)
+AssemblerVisitor::visit(const AluGroup& group)
 {
    clear_states(sf_vtx | sf_tex);
 
@@ -481,7 +481,7 @@ AssamblerVisitor::visit(const AluGroup& group)
 }
 
 void
-AssamblerVisitor::visit(const TexInstr& tex_instr)
+AssemblerVisitor::visit(const TexInstr& tex_instr)
 {
    clear_states(sf_vtx | sf_alu);
 
@@ -530,7 +530,7 @@ AssamblerVisitor::visit(const TexInstr& tex_instr)
 }
 
 void
-AssamblerVisitor::visit(const ExportInstr& exi)
+AssemblerVisitor::visit(const ExportInstr& exi)
 {
    const auto& value = exi.value();
 
@@ -606,7 +606,7 @@ AssamblerVisitor::visit(const ExportInstr& exi)
 }
 
 void
-AssamblerVisitor::visit(const ScratchIOInstr& instr)
+AssemblerVisitor::visit(const ScratchIOInstr& instr)
 {
    clear_states(sf_all);
 
@@ -646,7 +646,7 @@ AssamblerVisitor::visit(const ScratchIOInstr& instr)
 }
 
 void
-AssamblerVisitor::visit(const StreamOutInstr& instr)
+AssemblerVisitor::visit(const StreamOutInstr& instr)
 {
    struct r600_bytecode_output output;
    memset(&output, 0, sizeof(struct r600_bytecode_output));
@@ -667,7 +667,7 @@ AssamblerVisitor::visit(const StreamOutInstr& instr)
 }
 
 void
-AssamblerVisitor::visit(const MemRingOutInstr& instr)
+AssemblerVisitor::visit(const MemRingOutInstr& instr)
 {
    struct r600_bytecode_output output;
    memset(&output, 0, sizeof(struct r600_bytecode_output));
@@ -692,7 +692,7 @@ AssamblerVisitor::visit(const MemRingOutInstr& instr)
 }
 
 void
-AssamblerVisitor::visit(const EmitVertexInstr& instr)
+AssemblerVisitor::visit(const EmitVertexInstr& instr)
 {
    int r = r600_bytecode_add_cfinst(m_bc, instr.op());
    if (!r)
@@ -703,7 +703,7 @@ AssamblerVisitor::visit(const EmitVertexInstr& instr)
 }
 
 void
-AssamblerVisitor::visit(const FetchInstr& fetch_instr)
+AssemblerVisitor::visit(const FetchInstr& fetch_instr)
 {
    bool use_tc =
       fetch_instr.has_fetch_flag(FetchInstr::use_tc) || (m_bc->gfx_level == CAYMAN);
@@ -779,7 +779,7 @@ AssamblerVisitor::visit(const FetchInstr& fetch_instr)
 }
 
 void
-AssamblerVisitor::visit(const WriteTFInstr& instr)
+AssemblerVisitor::visit(const WriteTFInstr& instr)
 {
    struct r600_bytecode_gds gds;
 
@@ -821,7 +821,7 @@ AssamblerVisitor::visit(const WriteTFInstr& instr)
 }
 
 void
-AssamblerVisitor::visit(const RatInstr& instr)
+AssemblerVisitor::visit(const RatInstr& instr)
 {
    struct r600_bytecode_gds gds;
 
@@ -862,7 +862,7 @@ AssamblerVisitor::visit(const RatInstr& instr)
 }
 
 void
-AssamblerVisitor::clear_states(const uint32_t& states)
+AssemblerVisitor::clear_states(const uint32_t& states)
 {
    if (states & sf_vtx)
       vtx_fetch_results.clear();
@@ -877,7 +877,7 @@ AssamblerVisitor::clear_states(const uint32_t& states)
 }
 
 void
-AssamblerVisitor::visit(const Block& block)
+AssemblerVisitor::visit(const Block& block)
 {
    if (block.empty())
       return;
@@ -905,7 +905,7 @@ AssamblerVisitor::visit(const Block& block)
 }
 
 void
-AssamblerVisitor::visit(const IfInstr& instr)
+AssemblerVisitor::visit(const IfInstr& instr)
 {
 
    auto pred = instr.predicate();
@@ -920,7 +920,7 @@ AssamblerVisitor::visit(const IfInstr& instr)
 }
 
 void
-AssamblerVisitor::visit(const ControlFlowInstr& instr)
+AssemblerVisitor::visit(const ControlFlowInstr& instr)
 {
    sfn_log << SfnLog::assembly << "Translate " << instr << " ";
 
@@ -979,7 +979,7 @@ AssamblerVisitor::visit(const ControlFlowInstr& instr)
 }
 
 void
-AssamblerVisitor::visit(const GDSInstr& instr)
+AssemblerVisitor::visit(const GDSInstr& instr)
 {
    struct r600_bytecode_gds gds;
 
@@ -1029,21 +1029,21 @@ AssamblerVisitor::visit(const GDSInstr& instr)
 }
 
 void
-AssamblerVisitor::visit(const LDSAtomicInstr& instr)
+AssemblerVisitor::visit(const LDSAtomicInstr& instr)
 {
    (void)instr;
    UNREACHABLE("LDSAtomicInstr must be lowered to ALUInstr");
 }
 
 void
-AssamblerVisitor::visit(const LDSReadInstr& instr)
+AssemblerVisitor::visit(const LDSReadInstr& instr)
 {
    (void)instr;
    UNREACHABLE("LDSReadInstr must be lowered to ALUInstr");
 }
 
 EBufferIndexMode
-AssamblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
+AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
 {
    assert(idx < 2);
 
@@ -1106,7 +1106,7 @@ AssamblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
 }
 
 void
-AssamblerVisitor::emit_else()
+AssemblerVisitor::emit_else()
 {
    r600_bytecode_add_cfinst(m_bc, CF_OP_ELSE);
    m_bc->cf_last->pop_count = 1;
@@ -1114,7 +1114,7 @@ AssamblerVisitor::emit_else()
 }
 
 void
-AssamblerVisitor::emit_alu_push_before()
+AssemblerVisitor::emit_alu_push_before()
 {
    int elems = m_callstack.push(FC_PUSH_VPM);
    bool needs_workaround = false;
@@ -1144,7 +1144,7 @@ AssamblerVisitor::emit_alu_push_before()
 }
 
 void
-AssamblerVisitor::emit_endif()
+AssemblerVisitor::emit_endif()
 {
    m_callstack.pop(FC_PUSH_VPM);
 
@@ -1176,7 +1176,7 @@ AssamblerVisitor::emit_endif()
 }
 
 void
-AssamblerVisitor::emit_loop_begin(bool vpm)
+AssemblerVisitor::emit_loop_begin(bool vpm)
 {
    r600_bytecode_add_cfinst(m_bc, CF_OP_LOOP_START_DX10);
    m_bc->cf_last->vpm = vpm && m_bc->type == MESA_SHADER_FRAGMENT;
@@ -1186,7 +1186,7 @@ AssamblerVisitor::emit_loop_begin(bool vpm)
 }
 
 void
-AssamblerVisitor::emit_loop_end()
+AssemblerVisitor::emit_loop_end()
 {
    if (m_ack_suggested) {
       emit_wait_ack();
@@ -1201,21 +1201,21 @@ AssamblerVisitor::emit_loop_end()
 }
 
 void
-AssamblerVisitor::emit_loop_break()
+AssemblerVisitor::emit_loop_break()
 {
    r600_bytecode_add_cfinst(m_bc, CF_OP_LOOP_BREAK);
    m_result |= m_jump_tracker.add_mid(m_bc->cf_last, jt_loop);
 }
 
 void
-AssamblerVisitor::emit_loop_cont()
+AssemblerVisitor::emit_loop_cont()
 {
    r600_bytecode_add_cfinst(m_bc, CF_OP_LOOP_CONTINUE);
    m_result |= m_jump_tracker.add_mid(m_bc->cf_last, jt_loop);
 }
 
 bool
-AssamblerVisitor::copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool write)
+AssemblerVisitor::copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool write)
 {
    if (write && d.sel() > g_clause_local_end && d.sel() != g_registers_unused) {
       R600_ASM_ERR("shader_from_nir: Don't support more then 123 GPRs + 4 clause "
@@ -1235,7 +1235,7 @@ AssamblerVisitor::copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool w
 }
 
 void
-AssamblerVisitor::emit_wait_ack()
+AssemblerVisitor::emit_wait_ack()
 {
    int r = r600_bytecode_add_cfinst(m_bc, CF_OP_WAIT_ACK);
    if (!r) {
@@ -1262,7 +1262,7 @@ public:
 };
 
 PVirtualValue
-AssamblerVisitor::copy_src(r600_bytecode_alu_src& src, const VirtualValue& s)
+AssemblerVisitor::copy_src(r600_bytecode_alu_src& src, const VirtualValue& s)
 {
 
    EncodeSourceVisitor visitor(src, m_bc);
