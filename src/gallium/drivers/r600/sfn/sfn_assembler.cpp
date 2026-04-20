@@ -59,6 +59,8 @@ public:
    const uint32_t sf_all = 0xf;
 
    void clear_states(const uint32_t& states);
+   bool prepare_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai);
+   void prepare_alu_src(r600_bytecode_alu& alu, const AluInstr& ai);
    bool copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool write);
    PVirtualValue copy_src(r600_bytecode_alu_src& src, const VirtualValue& s);
 
@@ -297,107 +299,27 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
    m_last_op_was_barrier = opcode == op0_group_barrier;
 
    alu.op = hw_opcode->second;
-
-   auto dst = ai.dest();
-   if (dst) {
-      if (ai.opcode() != op1_mova_int) {
-         if (!copy_dst(alu.dst, *dst, ai.has_alu_flag(alu_write))) {
-            m_result = false;
-            return;
-         }
-
-         alu.dst.write = ai.has_alu_flag(alu_write);
-         alu.dst.rel = dst->addr() ? 1 : 0;
-      } else if (m_bc.gfx_level == CAYMAN && ai.dest()->sel() > 0) {
-         alu.dst.sel = ai.dest()->sel() + 1;
-      }
-   } else {
-      alu.dst.chan = ai.dest_chan();
-   }
-
-   alu.dst.clamp = ai.has_alu_flag(alu_dst_clamp);
    alu.is_op3 = ai.n_sources() == 3;
-
-   if (!alu.is_op3)
-      alu.omod = ai.output_modifier();
-
-   EBufferIndexMode kcache_index_mode = bim_none;
-   PVirtualValue buffer_offset = nullptr;
-
-   for (unsigned i = 0; i < ai.n_sources(); ++i) {
-      buffer_offset = copy_src(alu.src[i], ai.src(i));
-      alu.src[i].neg = ai.has_source_mod(i, AluInstr::mod_neg);
-      if (!alu.is_op3)
-         alu.src[i].abs = ai.has_source_mod(i, AluInstr::mod_abs);
-
-      if (buffer_offset && kcache_index_mode == bim_none) {
-         auto idx_reg = buffer_offset->as_register();
-         if (idx_reg && idx_reg->has_flag(Register::addr_or_idx)) {
-            switch (idx_reg->sel()) {
-            case 1: kcache_index_mode = bim_zero; break;
-            case 2: kcache_index_mode = bim_one; break;
-            default:
-               UNREACHABLE("Unsupported index mode");
-            }
-         } else {
-            kcache_index_mode = bim_zero;
-         }
-         alu.src[i].kc_rel = kcache_index_mode;
-      }
-
-      if (ai.has_lds_queue_read()) {
-         assert(m_bc.cf_last->nlds_read > 0);
-         m_bc.cf_last->nlds_read--;
-      }
-   }
-
+   alu.omod = !alu.is_op3 ? ai.output_modifier() : 0;
+   alu.last = ai.has_alu_flag(alu_last_instr);
+   alu.execute_mask = ai.has_alu_flag(alu_update_exec);
    if (ai.bank_swizzle() != alu_vec_unknown)
       alu.bank_swizzle_force = ai.bank_swizzle();
 
-   alu.last = ai.has_alu_flag(alu_last_instr);
-   alu.execute_mask = ai.has_alu_flag(alu_update_exec);
+   if (!prepare_alu_dst(alu, ai)) {
+      m_result = false;
+      return;
+   }
 
-   /* If the destination register is equal to the last loaded address register
-    * then clear the latter one, because the values will no longer be
-    * identical */
+   prepare_alu_src(alu, ai);
+
+
+
+
    if (m_last_addr)
       sfn_log << SfnLog::assembly << "  Current address register is " << *m_last_addr
               << "\n";
 
-   if (dst)
-      sfn_log << SfnLog::assembly << "  Current dst register is " << *dst << "\n";
-
-   /*
-   auto cf_op = ai.cf_type();
-
-   unsigned type = 0;
-   switch (cf_op) {
-   case cf_alu:
-   case cf_alu_push_before:
-      type = CF_OP_ALU;
-      break;
-   case cf_alu_pop_after:
-      type = CF_OP_ALU_POP_AFTER;
-      break;
-   case cf_alu_pop2_after:
-      type = CF_OP_ALU_POP2_AFTER;
-      break;
-   case cf_alu_break:
-      type = CF_OP_ALU_BREAK;
-      break;
-   case cf_alu_else_after:
-      type = CF_OP_ALU_ELSE_AFTER;
-      break;
-   case cf_alu_continue:
-      type = CF_OP_ALU_CONTINUE;
-      break;
-   case cf_alu_extended:
-      type = CF_OP_ALU_EXT;
-      break;
-   default:
-      assert(0 && "cf_alu_undefined should have been replaced");
-   }
-*/
    if (alu.last)
       m_nliterals_in_group.clear();
 
@@ -426,6 +348,63 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
    if (ai.opcode() == op1_set_cf_idx1) {
       m_bc.index_loaded[1] = 1;
       m_bc.index_reg[1] = -1;
+   }
+}
+
+bool
+AssemblerVisitor::prepare_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai)
+{
+   auto dst = ai.dest();
+   if (dst) {
+      sfn_log << SfnLog::assembly << "  Current dst register is " << *dst << "\n";
+      if (ai.opcode() != op1_mova_int) {
+         if (!copy_dst(alu.dst, *dst, ai.has_alu_flag(alu_write)))
+            return false;
+
+         alu.dst.write = ai.has_alu_flag(alu_write);
+         alu.dst.rel = dst->addr() ? 1 : 0;
+      } else if (m_bc.gfx_level == CAYMAN && dst->sel() > 0) {
+         alu.dst.sel = dst->sel() + 1;
+      }
+   } else {
+      alu.dst.chan = ai.dest_chan();
+   }
+
+   alu.dst.clamp = ai.has_alu_flag(alu_dst_clamp);
+   return true;
+}
+
+void
+AssemblerVisitor::prepare_alu_src(r600_bytecode_alu& alu, const AluInstr& ai)
+{
+   EBufferIndexMode kcache_index_mode = bim_none;
+   PVirtualValue buffer_offset = nullptr;
+
+   for (unsigned i = 0; i < ai.n_sources(); ++i) {
+      buffer_offset = copy_src(alu.src[i], ai.src(i));
+      alu.src[i].neg = ai.has_source_mod(i, AluInstr::mod_neg);
+      if (!alu.is_op3)
+         alu.src[i].abs = ai.has_source_mod(i, AluInstr::mod_abs);
+
+      if (buffer_offset && kcache_index_mode == bim_none) {
+         auto idx_reg = buffer_offset->as_register();
+         if (idx_reg && idx_reg->has_flag(Register::addr_or_idx)) {
+            switch (idx_reg->sel()) {
+            case 1: kcache_index_mode = bim_zero; break;
+            case 2: kcache_index_mode = bim_one; break;
+            default:
+               UNREACHABLE("Unsupported index mode");
+            }
+         } else {
+            kcache_index_mode = bim_zero;
+         }
+         alu.src[i].kc_rel = kcache_index_mode;
+      }
+
+      if (ai.has_lds_queue_read()) {
+         assert(m_bc.cf_last->nlds_read > 0);
+         m_bc.cf_last->nlds_read--;
+      }
    }
 }
 
