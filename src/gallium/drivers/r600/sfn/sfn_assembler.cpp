@@ -30,7 +30,7 @@ extern const std::map<ESDOp, int> ds_opcode_map;
 
 class AssemblerVisitor : public ConstInstrVisitor {
 public:
-   AssemblerVisitor(r600_shader *sh, const r600_shader_key& key, bool legacy_math_rules);
+   AssemblerVisitor(r600_shader& sh, const r600_shader_key& key, bool legacy_math_rules);
 
    void visit(const AluInstr& instr) override;
    void visit(const AluGroup& instr) override;
@@ -81,8 +81,8 @@ public:
 
    /* Start initialized in constructor */
    const r600_shader_key& m_key;
-   r600_shader *m_shader;
-   r600_bytecode *m_bc;
+   r600_shader& m_shader;
+   r600_bytecode& m_bc;
 
    ConditionalJumpTracker m_jump_tracker;
    CallStack m_callstack;
@@ -111,7 +111,7 @@ public:
 bool
 Assembler::lower(Shader *shader)
 {
-   AssemblerVisitor ass(m_sh, m_key, shader->has_flag(Shader::sh_legacy_math_rules));
+   AssemblerVisitor ass(*m_sh, m_key, shader->has_flag(Shader::sh_legacy_math_rules));
 
    auto& blocks = shader->func();
    for (auto b : blocks) {
@@ -125,22 +125,22 @@ Assembler::lower(Shader *shader)
    return ass.m_result;
 }
 
-AssemblerVisitor::AssemblerVisitor(r600_shader *sh, const r600_shader_key& key,
+AssemblerVisitor::AssemblerVisitor(r600_shader& sh, const r600_shader_key& key,
                                    bool legacy_math_rules):
     m_key(key),
     m_shader(sh),
 
-    m_bc(&sh->bc),
-    m_callstack(sh->bc),
+    m_bc(sh.bc),
+    m_callstack(sh.bc),
     ps_alpha_to_one(key.ps.alpha_to_one),
     ps_alpha_to_one_and_coverage(key.ps.alpha_to_one_and_coverage),
     m_legacy_math_rules(legacy_math_rules)
 {
-   if (m_shader->processor_type == MESA_SHADER_FRAGMENT)
+   if (m_shader.processor_type == MESA_SHADER_FRAGMENT)
       m_max_color_exports = MAX2(m_key.ps.nr_cbufs, 1);
 
-   if (m_shader->processor_type == MESA_SHADER_VERTEX && m_shader->ninput > 0)
-      r600_bytecode_add_cfinst(m_bc, CF_OP_CALL_FS);
+   if (m_shader.processor_type == MESA_SHADER_VERTEX && m_shader.ninput > 0)
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_CALL_FS);
 }
 
 void
@@ -148,24 +148,24 @@ AssemblerVisitor::finalize()
 {
    const struct cf_op_info *last = nullptr;
 
-   if (m_bc->cf_last)
-      last = r600_isa_cf(m_bc->cf_last->op);
+   if (m_bc.cf_last)
+      last = r600_isa_cf(m_bc.cf_last->op);
 
    /* alu clause instructions don't have EOP bit, so add NOP */
-   if (m_shader->bc.gfx_level < CAYMAN &&
-       (!last || last->flags & CF_ALU || m_bc->cf_last->op == CF_OP_LOOP_END ||
-        m_bc->cf_last->op == CF_OP_POP))
-      r600_bytecode_add_cfinst(m_bc, CF_OP_NOP);
+    if (m_shader.bc.gfx_level < CAYMAN &&
+       (!last || last->flags & CF_ALU || m_bc.cf_last->op == CF_OP_LOOP_END ||
+        m_bc.cf_last->op == CF_OP_POP))
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_NOP);
 
    /* A fetch shader only can't be EOP (results in hang), but we can replace
     * it by a NOP */
-   else if (last && m_bc->cf_last->op == CF_OP_CALL_FS)
-      m_bc->cf_last->op = CF_OP_NOP;
+   else if (last && m_bc.cf_last->op == CF_OP_CALL_FS)
+      m_bc.cf_last->op = CF_OP_NOP;
 
-   if (m_shader->bc.gfx_level != CAYMAN)
-      m_bc->cf_last->end_of_program = 1;
+   if (m_shader.bc.gfx_level != CAYMAN)
+      m_bc.cf_last->end_of_program = 1;
    else
-      cm_bytecode_add_cf_end(m_bc);
+      cm_bytecode_add_cf_end(&m_bc);
 }
 
 extern const std::map<EAluOp, int> opcode_map;
@@ -242,10 +242,9 @@ AssemblerVisitor::emit_lds_op(const AluInstr& lds)
       alu.src[2].sel = V_SQ_ALU_SRC_0;
 
    alu.last = lds.has_alu_flag(alu_last_instr);
-
-   int r = r600_bytecode_add_alu(m_bc, &alu);
+   int r = r600_bytecode_add_alu(&m_bc, &alu);
    if (has_lds_fetch)
-      m_bc->cf_last->nlds_read++;
+      m_bc.cf_last->nlds_read++;
 
    if (r)
       m_result = false;
@@ -274,10 +273,10 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
    auto opcode = ai.opcode();
 
    if (unlikely(ai.opcode() == op1_mova_int &&
-                (m_bc->gfx_level < CAYMAN || alu.dst.sel == 0))) {
+                (m_bc.gfx_level < CAYMAN || alu.dst.sel == 0))) {
       m_last_addr = ai.psrc(0);
-      m_bc->ar_chan = m_last_addr->chan();
-      m_bc->ar_reg = m_last_addr->sel();
+      m_bc.ar_chan = m_last_addr->chan();
+      m_bc.ar_reg = m_last_addr->sel();
    }
 
    if (m_legacy_math_rules)
@@ -309,7 +308,7 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
          alu.dst.write = ai.has_alu_flag(alu_write);
          alu.dst.rel = dst->addr() ? 1 : 0;
-      } else if (m_bc->gfx_level == CAYMAN && ai.dest()->sel() > 0) {
+      } else if (m_bc.gfx_level == CAYMAN && ai.dest()->sel() > 0) {
          alu.dst.sel = ai.dest()->sel() + 1;
       }
    } else {
@@ -347,8 +346,8 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
       }
 
       if (ai.has_lds_queue_read()) {
-         assert(m_bc->cf_last->nlds_read > 0);
-         m_bc->cf_last->nlds_read--;
+         assert(m_bc.cf_last->nlds_read > 0);
+         m_bc.cf_last->nlds_read--;
       }
    }
 
@@ -402,31 +401,31 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
    if (alu.last)
       m_nliterals_in_group.clear();
 
-   m_result = !r600_bytecode_add_alu(m_bc, &alu);
+   m_result = !r600_bytecode_add_alu(&m_bc, &alu);
 
    if (unlikely(ai.opcode() == op1_mova_int)) {
-      if (m_bc->gfx_level < CAYMAN || alu.dst.sel == 0) {
-         m_bc->ar_loaded = 1;
-      } else if (m_bc->gfx_level == CAYMAN) {
+      if (m_bc.gfx_level < CAYMAN || alu.dst.sel == 0) {
+         m_bc.ar_loaded = 1;
+      } else if (m_bc.gfx_level == CAYMAN) {
          int idx = alu.dst.sel - 2;
-         m_bc->index_loaded[idx] = 1;
-         m_bc->index_reg[idx] = -1;
+         m_bc.index_loaded[idx] = 1;
+         m_bc.index_reg[idx] = -1;
       }
    }
 
    if (alu.dst.sel >= g_clause_local_start && alu.dst.sel < g_clause_local_end) {
       int clidx = 4 * (alu.dst.sel - g_clause_local_start) + alu.dst.chan;
-      m_bc->cf_last->clause_local_written |= 1 << clidx;
+      m_bc.cf_last->clause_local_written |= 1 << clidx;
    }
 
    if (ai.opcode() == op1_set_cf_idx0) {
-      m_bc->index_loaded[0] = 1;
-      m_bc->index_reg[0] = -1;
+      m_bc.index_loaded[0] = 1;
+      m_bc.index_reg[0] = -1;
    }
 
    if (ai.opcode() == op1_set_cf_idx1) {
-      m_bc->index_loaded[1] = 1;
-      m_bc->index_reg[1] = -1;
+      m_bc.index_loaded[1] = 1;
+      m_bc.index_reg[1] = -1;
    }
 }
 
@@ -440,31 +439,31 @@ AssemblerVisitor::visit(const AluGroup& group)
 
    static const unsigned slot_limit = 256;
 
-   if (m_bc->cf_last && !m_bc->force_add_cf) {
+   if (m_bc.cf_last && !m_bc.force_add_cf) {
       if (group.has_lds_group_start()) {
-         if (m_bc->cf_last->ndw + 2 * (*group.begin())->required_slots() > slot_limit) {
-            assert(m_bc->cf_last->nlds_read == 0);
+         if (m_bc.cf_last->ndw + 2 * (*group.begin())->required_slots() > slot_limit) {
+            assert(m_bc.cf_last->nlds_read == 0);
             assert(0 && "Not allowed to start new alu group here");
-            m_bc->force_add_cf = 1;
+            m_bc.force_add_cf = 1;
             m_last_addr = nullptr;
          }
       } else {
-         if (m_bc->cf_last->ndw + 2 * group.slots() > slot_limit) {
-            std::cerr << "m_bc->cf_last->ndw = " << m_bc->cf_last->ndw
+         if (m_bc.cf_last->ndw + 2 * group.slots() > slot_limit) {
+            std::cerr << "m_bc.cf_last->ndw = " << m_bc.cf_last->ndw
                       << " group.slots() = " << group.slots()
-                      << " -> " << m_bc->cf_last->ndw + 2 * group.slots()
+                      << " -> " << m_bc.cf_last->ndw + 2 * group.slots()
                       << "> slot_limit = " << slot_limit << "\n";
-            assert(m_bc->cf_last->nlds_read == 0);
+            assert(m_bc.cf_last->nlds_read == 0);
             assert(0 && "Not allowed to start new alu group here");
-            m_bc->force_add_cf = 1;
+            m_bc.force_add_cf = 1;
             m_last_addr = nullptr;
          } else {
             auto instr = *group.begin();
             if (instr && !instr->has_alu_flag(alu_is_lds) &&
-                instr->opcode() == op0_group_barrier && m_bc->cf_last->ndw + 14 > slot_limit) {
+                instr->opcode() == op0_group_barrier && m_bc.cf_last->ndw + 14 > slot_limit) {
                assert(0 && "Not allowed to start new alu group here");
-               assert(m_bc->cf_last->nlds_read == 0);
-               m_bc->force_add_cf = 1;
+               assert(m_bc.cf_last->nlds_read == 0);
+               m_bc.force_add_cf = 1;
                m_last_addr = nullptr;
             }
          }
@@ -486,7 +485,7 @@ AssemblerVisitor::visit(const TexInstr& tex_instr)
    clear_states(sf_vtx | sf_alu);
 
    if (tex_fetch_results.find(tex_instr.src().sel()) != tex_fetch_results.end()) {
-      m_bc->force_add_cf = 1;
+      m_bc.force_add_cf = 1;
       tex_fetch_results.clear();
    }
 
@@ -523,7 +522,7 @@ AssemblerVisitor::visit(const TexInstr& tex_instr)
       tex.inst_mod = tex_instr.has_tex_flag(TexInstr::grad_fine) ? 1 : 0;
    else
       tex.inst_mod = tex_instr.inst_mode();
-   if (r600_bytecode_add_tex(m_bc, &tex)) {
+   if (r600_bytecode_add_tex(&m_bc, &tex)) {
       R600_ASM_ERR("shader_from_nir: Error creating tex assembly instruction\n");
       m_result = false;
    }
@@ -551,7 +550,7 @@ AssemblerVisitor::visit(const ExportInstr& exi)
       output.type = exi.export_type();
 
       int r = 0;
-      if ((r = r600_bytecode_add_output(m_bc, &output))) {
+      if ((r = r600_bytecode_add_output(&m_bc, &output))) {
          R600_ASM_ERR("Error adding export at location %d : err: %d\n",
                       output.array_base,
                       r);
@@ -599,7 +598,7 @@ AssemblerVisitor::visit(const ExportInstr& exi)
       output.gpr = 0;
 
    int r = 0;
-   if ((r = r600_bytecode_add_output(m_bc, &output))) {
+   if ((r = r600_bytecode_add_output(&m_bc, &output))) {
       R600_ASM_ERR("Error adding export at location %d : err: %d\n", exi.location(), r);
       m_result = false;
    }
@@ -625,21 +624,21 @@ AssemblerVisitor::visit(const ScratchIOInstr& instr)
    cf.swizzle_w = 3;
    cf.burst_count = 1;
 
-   assert(!instr.is_read() || m_bc->gfx_level < R700);
+   assert(!instr.is_read() || m_bc.gfx_level < R700);
 
    if (instr.address()) {
-      cf.type = instr.is_read() || m_bc->gfx_level > R600 ? 3 : 1;
+      cf.type = instr.is_read() || m_bc.gfx_level > R600 ? 3 : 1;
       cf.index_gpr = instr.address()->sel();
 
       /* The docu seems to be wrong here: In indirect addressing the
        * address_base seems to be the array_size */
       cf.array_size = instr.array_size();
    } else {
-      cf.type = instr.is_read() || m_bc->gfx_level > R600 ? 2 : 0;
+      cf.type = instr.is_read() || m_bc.gfx_level > R600 ? 2 : 0;
       cf.array_base = instr.location();
    }
 
-   if (r600_bytecode_add_output(m_bc, &cf)) {
+   if (r600_bytecode_add_output(&m_bc, &cf)) {
       R600_ASM_ERR("shader_from_nir: Error creating SCRATCH_WR assembly instruction\n");
       m_result = false;
    }
@@ -658,9 +657,9 @@ AssemblerVisitor::visit(const StreamOutInstr& instr)
    output.burst_count = instr.burst_count();
    output.array_size = instr.array_size();
    output.comp_mask = instr.comp_mask();
-   output.op = instr.op(m_shader->bc.gfx_level);
+   output.op = instr.op(m_shader.bc.gfx_level);
 
-   if (r600_bytecode_add_output(m_bc, &output)) {
+   if (r600_bytecode_add_output(&m_bc, &output)) {
       R600_ASM_ERR("shader_from_nir: Error creating stream output instruction\n");
       m_result = false;
    }
@@ -685,7 +684,7 @@ AssemblerVisitor::visit(const MemRingOutInstr& instr)
    }
    output.array_base = instr.array_base();
 
-   if (r600_bytecode_add_output(m_bc, &output)) {
+   if (r600_bytecode_add_output(&m_bc, &output)) {
       R600_ASM_ERR("shader_from_nir: Error creating mem ring write instruction\n");
       m_result = false;
    }
@@ -694,19 +693,19 @@ AssemblerVisitor::visit(const MemRingOutInstr& instr)
 void
 AssemblerVisitor::visit(const EmitVertexInstr& instr)
 {
-   int r = r600_bytecode_add_cfinst(m_bc, instr.op());
+   int r = r600_bytecode_add_cfinst(&m_bc, instr.op());
    if (!r)
-      m_bc->cf_last->count = instr.stream();
+      m_bc.cf_last->count = instr.stream();
    else
       m_result = false;
-   assert(m_bc->cf_last->count < 4);
+   assert(m_bc.cf_last->count < 4);
 }
 
 void
 AssemblerVisitor::visit(const FetchInstr& fetch_instr)
 {
    bool use_tc =
-      fetch_instr.has_fetch_flag(FetchInstr::use_tc) || (m_bc->gfx_level == CAYMAN);
+      fetch_instr.has_fetch_flag(FetchInstr::use_tc) || (m_bc.gfx_level == CAYMAN);
 
    auto clear_flags = use_tc ? sf_vtx : sf_tex;
 
@@ -718,13 +717,13 @@ AssemblerVisitor::visit(const FetchInstr& fetch_instr)
 
    if (!use_tc &&
        vtx_fetch_results.find(fetch_instr.src().sel()) != vtx_fetch_results.end()) {
-      m_bc->force_add_cf = 1;
+      m_bc.force_add_cf = 1;
       vtx_fetch_results.clear();
    }
 
    if (fetch_instr.has_fetch_flag(FetchInstr::use_tc) &&
        tex_fetch_results.find(fetch_instr.src().sel()) != tex_fetch_results.end()) {
-      m_bc->force_add_cf = 1;
+      m_bc.force_add_cf = 1;
       tex_fetch_results.clear();
    }
 
@@ -761,21 +760,21 @@ AssemblerVisitor::visit(const FetchInstr& fetch_instr)
    vtx.srf_mode_all = fetch_instr.has_fetch_flag(FetchInstr::srf_mode);
 
    if (fetch_instr.has_fetch_flag(FetchInstr::use_tc)) {
-      if ((r600_bytecode_add_vtx_tc(m_bc, &vtx))) {
+      if ((r600_bytecode_add_vtx_tc(&m_bc, &vtx))) {
          R600_ASM_ERR("shader_from_nir: Error creating tex assembly instruction\n");
          m_result = false;
       }
 
    } else {
-      if ((r600_bytecode_add_vtx(m_bc, &vtx))) {
+      if ((r600_bytecode_add_vtx(&m_bc, &vtx))) {
          R600_ASM_ERR("shader_from_nir: Error creating tex assembly instruction\n");
          m_result = false;
       }
    }
 
-   m_bc->cf_last->vpm =
-      (m_bc->type == MESA_SHADER_FRAGMENT) && fetch_instr.has_fetch_flag(FetchInstr::vpm);
-   m_bc->cf_last->barrier = 1;
+   m_bc.cf_last->vpm =
+      (m_bc.type == MESA_SHADER_FRAGMENT) && fetch_instr.has_fetch_flag(FetchInstr::vpm);
+   m_bc.cf_last->barrier = 1;
 }
 
 void
@@ -796,7 +795,7 @@ AssemblerVisitor::visit(const WriteTFInstr& instr)
    gds.dst_sel_w = 7;
    gds.op = FETCH_OP_TF_WRITE;
 
-   if (r600_bytecode_add_gds(m_bc, &gds) != 0) {
+   if (r600_bytecode_add_gds(&m_bc, &gds) != 0) {
       m_result = false;
       return;
    }
@@ -813,7 +812,7 @@ AssemblerVisitor::visit(const WriteTFInstr& instr)
       gds.dst_sel_w = 7;
       gds.op = FETCH_OP_TF_WRITE;
 
-      if (r600_bytecode_add_gds(m_bc, &gds)) {
+      if (r600_bytecode_add_gds(&m_bc, &gds)) {
          m_result = false;
          return;
       }
@@ -835,9 +834,9 @@ AssemblerVisitor::visit(const RatInstr& instr)
 
    memset(&gds, 0, sizeof(struct r600_bytecode_gds));
 
-   r600_bytecode_add_cfinst(m_bc, instr.cf_opcode());
-   auto cf = m_bc->cf_last;
-   cf->rat.id = rat_idx + m_shader->rat_base;
+   r600_bytecode_add_cfinst(&m_bc, instr.cf_opcode());
+   auto cf = m_bc.cf_last;
+   cf->rat.id = rat_idx + m_shader.rat_base;
    cf->rat.inst = instr.rat_op();
    cf->rat.index_mode = instr.resource_index_mode();
    cf->output.type = instr.need_ack() ? 3 : 1;
@@ -853,7 +852,7 @@ AssemblerVisitor::visit(const RatInstr& instr)
              instr.data_swz(2) == PIPE_SWIZZLE_MAX);
    }
 
-   cf->vpm = m_bc->type == MESA_SHADER_FRAGMENT;
+   cf->vpm = m_bc.type == MESA_SHADER_FRAGMENT;
    cf->barrier = 1;
    cf->mark = instr.need_ack();
    cf->output.elem_size = instr.elm_size();
@@ -885,12 +884,12 @@ AssemblerVisitor::visit(const Block& block)
    if (block.cf_start())
       block.cf_start()->accept(*this);
    else if (block.has_instr_flag(Instr::force_cf)) {
-      m_bc->force_add_cf = 1;
-      m_bc->ar_loaded = 0;
+      m_bc.force_add_cf = 1;
+      m_bc.ar_loaded = 0;
       m_last_addr = nullptr;
    }
    sfn_log << SfnLog::assembly << "Translate block  size: " << block.size()
-           << " new_cf:" << m_bc->force_add_cf << "\n";
+           << " new_cf:" << m_bc.force_add_cf << "\n";
 
    m_require_alu_extended = block.kcache_needs_extended();
    for (const auto& i : block) {
@@ -913,10 +912,10 @@ AssemblerVisitor::visit(const IfInstr& instr)
    assert(!dummy1);
    assert(!addr);
 
-   r600_bytecode_add_cfinst(m_bc, CF_OP_JUMP);
+   r600_bytecode_add_cfinst(&m_bc, CF_OP_JUMP);
    clear_states(sf_all);
 
-   m_jump_tracker.push(m_bc->cf_last, jt_if);
+   m_jump_tracker.push(m_bc.cf_last, jt_if);
 }
 
 void
@@ -933,7 +932,7 @@ AssemblerVisitor::visit(const ControlFlowInstr& instr)
       emit_endif();
       break;
    case ControlFlowInstr::cf_loop_begin: {
-      bool use_vpm = m_shader->processor_type == MESA_SHADER_FRAGMENT &&
+      bool use_vpm = m_shader.processor_type == MESA_SHADER_FRAGMENT &&
                      instr.has_instr_flag(Instr::vpm) &&
                      !instr.has_instr_flag(Instr::helper);
       emit_loop_begin(use_vpm);
@@ -949,29 +948,29 @@ AssemblerVisitor::visit(const ControlFlowInstr& instr)
       emit_loop_cont();
       break;
    case ControlFlowInstr::cf_wait_ack: {
-      int r = r600_bytecode_add_cfinst(m_bc, CF_OP_WAIT_ACK);
+      int r = r600_bytecode_add_cfinst(&m_bc, CF_OP_WAIT_ACK);
       if (!r) {
-         m_bc->cf_last->cf_addr = 0;
-         m_bc->cf_last->barrier = 1;
+         m_bc.cf_last->cf_addr = 0;
+         m_bc.cf_last->barrier = 1;
          m_ack_suggested = false;
       } else {
          m_result = false;
       }
    } break;
    case ControlFlowInstr::cf_alu:
-      r600_bytecode_add_cfinst(m_bc, CF_OP_ALU);
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_ALU);
       break;
    case ControlFlowInstr::cf_alu_push_before:
       emit_alu_push_before();
       break;
    case ControlFlowInstr::cf_gds:
-      r600_bytecode_add_cfinst(m_bc, CF_OP_GDS);
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_GDS);
       break;
    case ControlFlowInstr::cf_tex:
-      r600_bytecode_add_cfinst(m_bc, CF_OP_TEX);
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_TEX);
       break;
    case ControlFlowInstr::cf_vtx:
-      r600_bytecode_add_cfinst(m_bc, CF_OP_VTX);
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_VTX);
       break;
    default:
       UNREACHABLE("Unknown CF instruction type");
@@ -1017,15 +1016,15 @@ AssemblerVisitor::visit(const GDSInstr& instr)
    }
 
    gds.src_gpr2 = 0;
-   gds.alloc_consume = m_bc->gfx_level < CAYMAN ? 1 : 0; // Not Cayman
+   gds.alloc_consume = m_bc.gfx_level < CAYMAN ? 1 : 0; // Not Cayman
 
-   int r = r600_bytecode_add_gds(m_bc, &gds);
+   int r = r600_bytecode_add_gds(&m_bc, &gds);
    if (r) {
       m_result = false;
       return;
    }
-   m_bc->cf_last->vpm = MESA_SHADER_FRAGMENT == m_bc->type;
-   m_bc->cf_last->barrier = 1;
+   m_bc.cf_last->vpm = MESA_SHADER_FRAGMENT == m_bc.type;
+   m_bc.cf_last->barrier = 1;
 }
 
 void
@@ -1047,17 +1046,17 @@ AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
 {
    assert(idx < 2);
 
-   if (!m_bc->index_loaded[idx] || m_loop_nesting ||
-       m_bc->index_reg[idx] != (unsigned)addr.sel() ||
-       m_bc->index_reg_chan[idx] != (unsigned)addr.chan()) {
+   if (!m_bc.index_loaded[idx] || m_loop_nesting ||
+       m_bc.index_reg[idx] != (unsigned)addr.sel() ||
+       m_bc.index_reg_chan[idx] != (unsigned)addr.chan()) {
       struct r600_bytecode_alu alu;
 
       // Make sure MOVA is not last instr in clause
 
-      if (!m_bc->cf_last || (m_bc->cf_last->ndw >> 1) >= 110)
-         m_bc->force_add_cf = 1;
+      if (!m_bc.cf_last || (m_bc.cf_last->ndw >> 1) >= 110)
+         m_bc.force_add_cf = 1;
 
-      if (m_bc->gfx_level != CAYMAN) {
+      if (m_bc.gfx_level != CAYMAN) {
 
          EAluOp idxop = idx ? op1_set_cf_idx1 : op1_set_cf_idx0;
 
@@ -1068,7 +1067,7 @@ AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
          alu.src[0].chan = addr.chan();
          alu.last = 1;
          sfn_log << SfnLog::assembly << "   mova_int, ";
-         int r = r600_bytecode_add_alu(m_bc, &alu);
+         int r = r600_bytecode_add_alu(&m_bc, &alu);
          if (r)
             return bim_invalid;
 
@@ -1078,7 +1077,7 @@ AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
          alu.src[0].chan = 0;
          alu.last = 1;
          sfn_log << SfnLog::assembly << "op1_set_cf_idx" << idx;
-         r = r600_bytecode_add_alu(m_bc, &alu);
+         r = r600_bytecode_add_alu(&m_bc, &alu);
          if (r)
             return bim_invalid;
       } else {
@@ -1090,16 +1089,16 @@ AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
          alu.src[0].chan = addr.chan();
          alu.last = 1;
          sfn_log << SfnLog::assembly << "   mova_int, ";
-         int r = r600_bytecode_add_alu(m_bc, &alu);
+         int r = r600_bytecode_add_alu(&m_bc, &alu);
          if (r)
             return bim_invalid;
       }
 
-      m_bc->ar_loaded = 0;
-      m_bc->index_reg[idx] = addr.sel();
-      m_bc->index_reg_chan[idx] = addr.chan();
-      m_bc->index_loaded[idx] = true;
-      m_bc->force_add_cf = 1;
+      m_bc.ar_loaded = 0;
+      m_bc.index_reg[idx] = addr.sel();
+      m_bc.index_reg_chan[idx] = addr.chan();
+      m_bc.index_loaded[idx] = true;
+      m_bc.force_add_cf = 1;
       sfn_log << SfnLog::assembly << "\n";
    }
    return idx == 0 ? bim_zero : bim_one;
@@ -1108,9 +1107,9 @@ AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
 void
 AssemblerVisitor::emit_else()
 {
-   r600_bytecode_add_cfinst(m_bc, CF_OP_ELSE);
-   m_bc->cf_last->pop_count = 1;
-   m_result &= m_jump_tracker.add_mid(m_bc->cf_last, jt_if);
+   r600_bytecode_add_cfinst(&m_bc, CF_OP_ELSE);
+   m_bc.cf_last->pop_count = 1;
+   m_result &= m_jump_tracker.add_mid(m_bc.cf_last, jt_if);
 }
 
 void
@@ -1119,25 +1118,25 @@ AssemblerVisitor::emit_alu_push_before()
    int elems = m_callstack.push(FC_PUSH_VPM);
    bool needs_workaround = false;
 
-   if (m_bc->gfx_level == CAYMAN && m_bc->stack.loop > 1)
+   if (m_bc.gfx_level == CAYMAN && m_bc.stack.loop > 1)
       needs_workaround = true;
 
-   if (m_bc->gfx_level == EVERGREEN && m_bc->family != CHIP_HEMLOCK &&
-       m_bc->family != CHIP_CYPRESS && m_bc->family != CHIP_JUNIPER) {
-      unsigned dmod1 = (elems - 1) % m_bc->stack.entry_size;
-      unsigned dmod2 = (elems) % m_bc->stack.entry_size;
+   if (m_bc.gfx_level == EVERGREEN && m_bc.family != CHIP_HEMLOCK &&
+       m_bc.family != CHIP_CYPRESS && m_bc.family != CHIP_JUNIPER) {
+      unsigned dmod1 = (elems - 1) % m_bc.stack.entry_size;
+      unsigned dmod2 = (elems) % m_bc.stack.entry_size;
 
       if (elems && (!dmod1 || !dmod2))
          needs_workaround = true;
    }
 
    if (needs_workaround || m_require_alu_extended) {
-      r600_bytecode_add_cfinst(m_bc, CF_OP_PUSH);
-      m_bc->cf_last->cf_addr = m_bc->cf_last->id + 2;
-      r600_bytecode_add_cfinst(m_bc, CF_OP_ALU);
-      m_bc->cf_last->eg_alu_extended = m_require_alu_extended;
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_PUSH);
+      m_bc.cf_last->cf_addr = m_bc.cf_last->id + 2;
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_ALU);
+      m_bc.cf_last->eg_alu_extended = m_require_alu_extended;
    } else {
-      r600_bytecode_add_cfinst(m_bc, CF_OP_ALU_PUSH_BEFORE);
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_ALU_PUSH_BEFORE);
    }
 
    clear_states(sf_tex | sf_vtx);
@@ -1148,39 +1147,39 @@ AssemblerVisitor::emit_endif()
 {
    m_callstack.pop(FC_PUSH_VPM);
 
-   unsigned force_pop = m_bc->force_add_cf;
+   unsigned force_pop = m_bc.force_add_cf;
    if (!force_pop) {
       int alu_pop = 3;
-      if (m_bc->cf_last) {
-         if (m_bc->cf_last->op == CF_OP_ALU)
+      if (m_bc.cf_last) {
+         if (m_bc.cf_last->op == CF_OP_ALU)
             alu_pop = 0;
-         else if (m_bc->cf_last->op == CF_OP_ALU_POP_AFTER)
+         else if (m_bc.cf_last->op == CF_OP_ALU_POP_AFTER)
             alu_pop = 1;
       }
       alu_pop += 1;
       if (alu_pop == 1) {
-         m_bc->cf_last->op = CF_OP_ALU_POP_AFTER;
-         m_bc->force_add_cf = 1;
+         m_bc.cf_last->op = CF_OP_ALU_POP_AFTER;
+         m_bc.force_add_cf = 1;
       } else {
          force_pop = 1;
       }
    }
 
    if (force_pop) {
-      r600_bytecode_add_cfinst(m_bc, CF_OP_POP);
-      m_bc->cf_last->pop_count = 1;
-      m_bc->cf_last->cf_addr = m_bc->cf_last->id + 2;
+      r600_bytecode_add_cfinst(&m_bc, CF_OP_POP);
+      m_bc.cf_last->pop_count = 1;
+      m_bc.cf_last->cf_addr = m_bc.cf_last->id + 2;
    }
 
-   m_result &= m_jump_tracker.pop(m_bc->cf_last, jt_if);
+   m_result &= m_jump_tracker.pop(m_bc.cf_last, jt_if);
 }
 
 void
 AssemblerVisitor::emit_loop_begin(bool vpm)
 {
-   r600_bytecode_add_cfinst(m_bc, CF_OP_LOOP_START_DX10);
-   m_bc->cf_last->vpm = vpm && m_bc->type == MESA_SHADER_FRAGMENT;
-   m_jump_tracker.push(m_bc->cf_last, jt_loop);
+   r600_bytecode_add_cfinst(&m_bc, CF_OP_LOOP_START_DX10);
+   m_bc.cf_last->vpm = vpm && m_bc.type == MESA_SHADER_FRAGMENT;
+   m_jump_tracker.push(m_bc.cf_last, jt_loop);
    m_callstack.push(FC_LOOP);
    ++m_loop_nesting;
 }
@@ -1193,25 +1192,25 @@ AssemblerVisitor::emit_loop_end()
       m_ack_suggested = false;
    }
 
-   r600_bytecode_add_cfinst(m_bc, CF_OP_LOOP_END);
+   r600_bytecode_add_cfinst(&m_bc, CF_OP_LOOP_END);
    m_callstack.pop(FC_LOOP);
    assert(m_loop_nesting);
    --m_loop_nesting;
-   m_result |= m_jump_tracker.pop(m_bc->cf_last, jt_loop);
+   m_result |= m_jump_tracker.pop(m_bc.cf_last, jt_loop);
 }
 
 void
 AssemblerVisitor::emit_loop_break()
 {
-   r600_bytecode_add_cfinst(m_bc, CF_OP_LOOP_BREAK);
-   m_result |= m_jump_tracker.add_mid(m_bc->cf_last, jt_loop);
+   r600_bytecode_add_cfinst(&m_bc, CF_OP_LOOP_BREAK);
+   m_result |= m_jump_tracker.add_mid(m_bc.cf_last, jt_loop);
 }
 
 void
 AssemblerVisitor::emit_loop_cont()
 {
-   r600_bytecode_add_cfinst(m_bc, CF_OP_LOOP_CONTINUE);
-   m_result |= m_jump_tracker.add_mid(m_bc->cf_last, jt_loop);
+   r600_bytecode_add_cfinst(&m_bc, CF_OP_LOOP_CONTINUE);
+   m_result |= m_jump_tracker.add_mid(m_bc.cf_last, jt_loop);
 }
 
 bool
@@ -1237,10 +1236,10 @@ AssemblerVisitor::copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool w
 void
 AssemblerVisitor::emit_wait_ack()
 {
-   int r = r600_bytecode_add_cfinst(m_bc, CF_OP_WAIT_ACK);
+   int r = r600_bytecode_add_cfinst(&m_bc, CF_OP_WAIT_ACK);
    if (!r) {
-      m_bc->cf_last->cf_addr = 0;
-      m_bc->cf_last->barrier = 1;
+      m_bc.cf_last->cf_addr = 0;
+      m_bc.cf_last->barrier = 1;
       m_ack_suggested = false;
    } else
       m_result = false;
@@ -1248,7 +1247,7 @@ AssemblerVisitor::emit_wait_ack()
 
 class EncodeSourceVisitor : public ConstRegisterVisitor {
 public:
-   EncodeSourceVisitor(r600_bytecode_alu_src& s, r600_bytecode *bc);
+   EncodeSourceVisitor(r600_bytecode_alu_src& s, r600_bytecode& bc);
    void visit(const Register& value) override;
    void visit(const LocalArray& value) override;
    void visit(const LocalArrayValue& value) override;
@@ -1257,7 +1256,7 @@ public:
    void visit(const InlineConstant& value) override;
 
    r600_bytecode_alu_src& src;
-   r600_bytecode *m_bc;
+   r600_bytecode& m_bc;
    PVirtualValue m_buffer_offset{nullptr};
 };
 
@@ -1270,17 +1269,17 @@ AssemblerVisitor::copy_src(r600_bytecode_alu_src& src, const VirtualValue& s)
    src.chan = s.chan();
 
    if (s.sel() >= g_clause_local_start && s.sel() < g_clause_local_end ) {
-      assert(m_bc->cf_last);
+      assert(m_bc.cf_last);
       int clidx = 4 * (s.sel() - g_clause_local_start) + s.chan();
       /* Ensure that the clause local register was already written */
-      assert(m_bc->cf_last->clause_local_written & (1 << clidx));
+      assert(m_bc.cf_last->clause_local_written & (1 << clidx));
    }
 
    s.accept(visitor);
    return visitor.m_buffer_offset;
 }
 
-EncodeSourceVisitor::EncodeSourceVisitor(r600_bytecode_alu_src& s, r600_bytecode *bc):
+EncodeSourceVisitor::EncodeSourceVisitor(r600_bytecode_alu_src& s, r600_bytecode& bc):
     src(s),
     m_bc(bc)
 {
