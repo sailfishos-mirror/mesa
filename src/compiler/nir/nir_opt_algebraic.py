@@ -414,6 +414,28 @@ optimizations += [
     ('fexp2', ('fmulz', a, 'mb'))), {'mb': b}),
 ]
 
+# float multadd related rules
+for sz in (16, 32, 64):
+    has_ffma = f'(options->float_mul_add{sz} & nir_float_muladd_support_has_ffma)'
+    has_fmad = f'(options->float_mul_add{sz} & nir_float_muladd_support_has_fmad)'
+    has_none = f'(!options->float_mul_add{sz})'
+    prefers_split = f'(options->float_mul_add{sz} & nir_float_muladd_support_prefers_split)'
+    keep_ffma_weak = f'(options->float_mul_add{sz} & nir_float_muladd_support_keep_weak_ffma)'
+    optimizations += [
+        # Split contract ffma_weak for better optimizations. It will be refused later.
+        ((f'ffma_weak@{sz}(contract)', a, b, c), ('fadd', ('fmul', a, b), c), f'!{keep_ffma_weak}'),
+
+        # Convert ffma_weak to backend supported ops
+        ((f'ffma_weak@{sz}', a, b, c), ('ffma', a, b, c), f'!{keep_ffma_weak} && !{prefers_split} && {has_ffma}'),
+        ((f'ffma_weak@{sz}', a, b, c), ('fadd', ('fmul', a, b), c), f'!{keep_ffma_weak} && ({prefers_split} || {has_fmad} || {has_none})'),
+    ]
+
+optimizations += [
+    # Split fmad better for optimizations. It might get merged to fmad later.
+    (('fmad', a, b, c), ('fadd', ('fmul', a, b), c)),
+    (('fmadz', a, b, c), ('fadd', ('fmulz', a, b), c)),
+]
+
 # Bitwise operations affecting the sign may be replaced by equivalent
 # floating point operations, except possibly for denormal
 # behaviour hence the is_only_used_as_float.
