@@ -1548,15 +1548,11 @@ spill_file(jay_function *f, enum jay_file file, bool *spilled)
       limit = 13;
    }
 
-   /* Ensures we don't XOR swap, XXX: TODO: FIXME */
-   limit--;
-
    if (f->demand[file] > limit) {
-      /* In the worst case, we
-       * require 2 temporary registers to lower a memory-memory swap produced by
-       * parallel copy lowering, so adjust the limit to be num_regs - 2.
+      /* In the worst case when spilling, we require 2 temporary registers to
+       * lower a memory-memory swap produced by parallel copy lowering.
        */
-      limit--;
+      limit -= 2;
 
       /* If we spill, we need to reserve UGPRs for spilling */
       if (!(*spilled)) {
