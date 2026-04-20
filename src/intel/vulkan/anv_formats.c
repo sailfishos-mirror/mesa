@@ -1840,8 +1840,7 @@ anv_get_image_format_properties(
 
       if (isl_drm_modifier_has_aux(isl_mod_info->modifier) &&
           !anv_formats_ccs_e_compatible(physical_device, info->flags, info->format,
-                                        info->tiling, info->usage,
-                                        format_list_info)) {
+                                        info->tiling, format_list_info)) {
          goto unsupported;
       }
    }
@@ -2108,8 +2107,7 @@ anv_get_image_format_properties(
       (vk_format_has_depth(info->format) ||
        isl_format_supports_ccs_d(devinfo, format->planes[0].isl_format) ||
        anv_formats_ccs_e_compatible(physical_device, info->flags, info->format,
-                                    info->tiling, info->usage,
-                                    format_list_info));
+                                    info->tiling, format_list_info));
 
    if (comp_props) {
       comp_props->imageCompressionFixedRateFlags =

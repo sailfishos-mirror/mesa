@@ -500,11 +500,8 @@ bool
 anv_formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
                              VkImageCreateFlags create_flags,
                              VkFormat vk_format, VkImageTiling vk_tiling,
-                             VkImageUsageFlags vk_usage,
                              const VkImageFormatListCreateInfo *fmt_list)
 {
-   const struct intel_device_info *devinfo = &physical_device->info;
-
    u_foreach_bit(b, vk_format_aspects(vk_format)) {
       VkImageAspectFlagBits aspect = 1 << b;
       enum isl_format format =
@@ -513,35 +510,6 @@ anv_formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
       if (!formats_ccs_e_compatible(physical_device, create_flags, aspect,
                                     format, vk_tiling, fmt_list))
          return false;
-   }
-
-   if (vk_usage & VK_IMAGE_USAGE_STORAGE_BIT) {
-      /* Only color */
-      assert((vk_format_aspects(vk_format) & ~VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV) == 0);
-      if (devinfo->verx10 == 120) {
-         /* From the TGL Bspec 44930 (r47128):
-          *
-          *    "Memory atomic operation on compressed data is not supported
-          *     in Gen12 E2E compression. Result of such operation is
-          *     undefined.
-          *
-          *     Software should ensure at the time of the Atomic operation
-          *     the surface is resolved (uncompressed) state."
-          *
-          * On gfx12.0, compression is not supported with atomic operations.
-          *
-          * We only care about the non-modifier case. Modifier capabilities
-          * are exposed via the standard interfaces and unlike prior
-          * platforms, we don't enable compression for uncompressed modifiers.
-          */
-         if (vk_tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
-             image_may_use_r32_view(create_flags, vk_format, fmt_list))
-            return false;
-
-      } else if (devinfo->ver <= 11) {
-         /* Storage accesses are not supported on compressed surfaces. */
-         return false;
-      }
    }
 
    return true;
@@ -864,13 +832,16 @@ add_aux_surface_if_supported(struct anv_device *device,
       } else if (device->info->ver >= 12) {
          /* Support for CCS_E was already checked for in anv_image_init(). */
          image->planes[plane].aux_usage = ISL_AUX_USAGE_CCS_E;
-      } else if (anv_formats_ccs_e_compatible(device->physical,
+      } else if (!(image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT) &&
+                 anv_formats_ccs_e_compatible(device->physical,
                                               image->vk.create_flags,
                                               image->vk.format,
-                                              image->vk.tiling,
-                                              image->vk.usage, fmt_list)) {
+                                              image->vk.tiling, fmt_list)) {
          image->planes[plane].aux_usage = ISL_AUX_USAGE_CCS_E;
       } else {
+         /* Compression is only enabled in a few layouts (none of which
+          * support STORAGE access). See anv_layout_to_aux_state().
+          */
          image->planes[plane].aux_usage = ISL_AUX_USAGE_CCS_D;
       }
 
@@ -2042,11 +2013,34 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
       }
 
+      if (device->info->verx10 == 120 &&
+          (image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT) &&
+          image->vk.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
+          image_may_use_r32_view(image->vk.create_flags, image->vk.format,
+                                 fmt_list)) {
+         /* From the TGL Bspec 44930 (r47128):
+          *
+          *    "Memory atomic operation on compressed data is not supported
+          *     in Gen12 E2E compression. Result of such operation is
+          *     undefined.
+          *
+          *     Software should ensure at the time of the Atomic operation
+          *     the surface is resolved (uncompressed) state."
+          *
+          * On gfx12.0, compression is not supported with atomic operations.
+          * Restrict the combination for non-modifier images here (modifier
+          * images are handled through another interface).
+          */
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Disabling aux: atomics not supported");
+         isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+      }
+
       if (device->info->ver >= 12 &&
           !anv_formats_ccs_e_compatible(device->physical,
                                         image->vk.create_flags,
                                         image->vk.format, image->vk.tiling,
-                                        image->vk.usage, fmt_list)) {
+                                        fmt_list)) {
          /* CCS_E is the only aux-mode supported for single sampled color
           * surfaces on gfx12+. If we can't support it, we should configure
           * the main surface without aux support.
@@ -2226,7 +2220,6 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
                                              image->vk.create_flags,
                                              image->emu_plane_format,
                                              image->vk.tiling,
-                                             image->vk.usage,
                                              emu_format_list_info_ptr));
       }
 
