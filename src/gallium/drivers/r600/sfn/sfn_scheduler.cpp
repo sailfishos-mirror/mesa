@@ -181,6 +181,9 @@ private:
    };
 
    bool schedule_alu(Shader::ShaderBlocks& out_blocks);
+   auto schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_blocks,
+                                          bool& success,
+                                          const AluScheduleContext& alu_ctx) -> AluGroup*;
    AluScheduleContext prepare_schedule_alu(Shader::ShaderBlocks& out_blocks);
    void finalize_schedule_alu_group(Shader::ShaderBlocks& out_blocks,
                                     AluGroup& group,
@@ -550,49 +553,9 @@ bool
 BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
 {
    bool success = false;
-   AluGroup *group = nullptr;
    auto alu_ctx = prepare_schedule_alu(out_blocks);
 
-   /* Schedule groups first. unless we have a pending LDS instruction
-    * We don't want the LDS instructions to be too far apart because the
-    * fetch + read from queue has to be in the same ALU CF block */
-   if (!alu_groups_ready.empty() && !alu_ctx.has_lds_ready && !alu_ctx.has_ar_read_ready) {
-      group = *alu_groups_ready.begin();
-      group->update_readport_reserver();
-
-      if (!check_array_reads(*group)) {
-
-
-         sfn_log << SfnLog::schedule << "try schedule " <<
-                    *group << "\n";
-
-         /* Only start a new CF if we have no pending AR reads */
-         if (m_current_block->try_reserve_kcache(*group)) {
-            alu_groups_ready.erase(alu_groups_ready.begin());
-
-            for (auto i : *group) {
-               if (i)
-                  i->pin_dest_to_chan();
-            }
-            success = true;
-         } else {
-            if (alu_ctx.expected_ar_uses == 0 && !m_current_block->lds_group_active()) {
-               start_new_block(out_blocks, Block::alu);
-
-               if (!m_current_block->try_reserve_kcache(*group))
-                  UNREACHABLE("Scheduling a group in a new block should always succeed");
-               alu_groups_ready.erase(alu_groups_ready.begin());
-               sfn_log << SfnLog::schedule << "Schedule ALU group\n";
-               success = true;
-            } else {
-               sfn_log << SfnLog::schedule << "Don't add group because of " <<
-                          m_current_block->expected_ar_uses()
-                       << "pending AR loads or an active LDS group\n";
-               group = nullptr;
-            }
-         }
-      }
-   }
+   AluGroup *group = schedule_prebuilt_alu_group_first(out_blocks, success, alu_ctx);
 
    if (!group && alu_ctx.has_alu_ready) {
       group = new AluGroup();
@@ -662,6 +625,57 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
 
    finalize_schedule_alu_group(out_blocks, *group, alu_ctx.expected_ar_uses);
    return success;
+}
+
+auto
+BlockScheduler::schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_blocks,
+                                                  bool& success,
+                                                  const AluScheduleContext& alu_ctx) -> AluGroup*
+{
+   AluGroup *group = nullptr;
+
+   /* Schedule groups first. unless we have a pending LDS instruction
+    * We don't want the LDS instructions to be too far apart because the
+    * fetch + read from queue has to be in the same ALU CF block */
+   if (!alu_groups_ready.empty() && !alu_ctx.has_lds_ready && !alu_ctx.has_ar_read_ready) {
+      group = *alu_groups_ready.begin();
+      group->update_readport_reserver();
+
+      if (!check_array_reads(*group)) {
+
+
+         sfn_log << SfnLog::schedule << "try schedule " <<
+                    *group << "\n";
+
+         /* Only start a new CF if we have no pending AR reads */
+         if (m_current_block->try_reserve_kcache(*group)) {
+            alu_groups_ready.erase(alu_groups_ready.begin());
+
+            for (auto i : *group) {
+               if (i)
+                  i->pin_dest_to_chan();
+            }
+            success = true;
+         } else {
+            if (alu_ctx.expected_ar_uses == 0 && !m_current_block->lds_group_active()) {
+               start_new_block(out_blocks, Block::alu);
+
+               if (!m_current_block->try_reserve_kcache(*group))
+                  UNREACHABLE("Scheduling a group in a new block should always succeed");
+               alu_groups_ready.erase(alu_groups_ready.begin());
+               sfn_log << SfnLog::schedule << "Schedule ALU group\n";
+               success = true;
+            } else {
+               sfn_log << SfnLog::schedule << "Don't add group because of " <<
+                          m_current_block->expected_ar_uses()
+                       << "pending AR loads or an active LDS group\n";
+               group = nullptr;
+            }
+         }
+      }
+   }
+
+   return group;
 }
 
 auto
