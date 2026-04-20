@@ -206,6 +206,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_separate_stencil_usage = true,
       .EXT_shader_atomic_float = true,
       .EXT_shader_demote_to_helper_invocation = true,
+      .EXT_shader_image_atomic_int64 = PAN_ARCH >= 9,
       .EXT_shader_module_identifier = true,
       .EXT_shader_replicated_composites = true,
       .EXT_shader_stencil_export = true,
@@ -665,6 +666,10 @@ panvk_per_arch(get_physical_device_features)(
       .shaderImageFloat32AtomicAdd = false,
       .sparseImageFloat32Atomics = has_sparse,
       .sparseImageFloat32AtomicAdd = false,
+
+      /* VK_EXT_shader_image_atomic_int64 */
+      .shaderImageInt64Atomics = PAN_ARCH >= 9,
+      .sparseImageInt64Atomics = false,
 
       /* VK_EXT_texel_buffer_alignment */
       .texelBufferAlignment = true,

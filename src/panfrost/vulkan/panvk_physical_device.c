@@ -761,14 +761,25 @@ get_image_plane_format_features(struct panvk_physical_device *physical_device,
       features |= VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BLEND_BIT;
    }
 
+   const bool is_r64 = util_format_is_int64(util_format_description(pfmt));
+
    if (fmt.bind & PAN_BIND_STORAGE_IMAGE) {
-      features |= VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT |
-                  VK_FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT |
-                  VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT;
+      features |= VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT;
+
+      /* R64 does not support formatless access. */
+      if (!is_r64)
+         features |= VK_FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT |
+                     VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT;
+
       if (pfmt == PIPE_FORMAT_R32_UINT || pfmt == PIPE_FORMAT_R32_SINT ||
-          pfmt == PIPE_FORMAT_R32_FLOAT)
+          pfmt == PIPE_FORMAT_R32_FLOAT || is_r64)
          features |= VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT;
    }
+
+   /* R64 lacks SAMPLER_VIEW - grant transfer bits for host-visible readback. */
+   if (is_r64 && (fmt.bind & PAN_BIND_STORAGE_IMAGE))
+      features |= VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT |
+                  VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT;
 
    if (fmt.bind & PAN_BIND_DEPTH_STENCIL)
       features |= VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT;
