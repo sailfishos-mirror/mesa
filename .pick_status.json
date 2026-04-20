@@ -3044,7 +3044,7 @@
         "description": "radv: fix GPU hangs with PS epilogs and secondaries properly",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1a00587c44ecb97d9978cd6bed8e76e56c6697f5",
         "notes": null
