@@ -48,7 +48,8 @@ remove_hs_intrinsics(nir_function_impl *impl)
          if (instr->type != nir_instr_type_intrinsic)
             continue;
          nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
-         if (intr->intrinsic == nir_intrinsic_load_output) {
+         if (intr->intrinsic == nir_intrinsic_load_output ||
+             intr->intrinsic == nir_intrinsic_load_per_vertex_output) {
             nir_builder b = nir_builder_at(nir_before_instr(&intr->instr));
             nir_def_rewrite_uses(&intr->def, nir_undef(&b, intr->def.num_components, intr->def.bit_size));
          } else if (intr->intrinsic != nir_intrinsic_store_output &&
