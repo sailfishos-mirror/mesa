@@ -11,15 +11,16 @@
 
 /* Validatation doesn't make sense in release builds */
 #ifndef NDEBUG
+#define NUM_VALIDATE_FILES (ACCUM + 1)
 
 struct regfile {
    /* For each register in each file, records the SSA index currently stored
     * in that register (or zero if undefined contents).
     */
-   uint32_t *r[JAY_NUM_SSA_FILES];
+   uint32_t *r[NUM_VALIDATE_FILES];
 
    /* Size of each register file */
-   size_t n[JAY_NUM_SSA_FILES];
+   size_t n[NUM_VALIDATE_FILES];
 };
 
 static uint32_t *
@@ -30,7 +31,7 @@ reg(struct regfile *rf, enum jay_file file, uint32_t reg)
       file = FLAG;
    }
 
-   assert(file < JAY_NUM_SSA_FILES);
+   assert(file < NUM_VALIDATE_FILES);
    assert(reg < rf->n[file]);
    return &rf->r[file][reg];
 }
@@ -161,12 +162,10 @@ validate_block(jay_function *func, jay_block *block, struct regfile *blocks)
 
       if (I->op == JAY_OPCODE_MOV &&
           jay_channel(I->dst, 0) == JAY_SENTINEL &&
-          jay_is_ssa(I->src[0]) &&
+          I->src[0].file < NUM_VALIDATE_FILES &&
           jay_channel(I->src[0], 0) == JAY_SENTINEL) {
 
-         /* Lowered live range splits don't have SSA associated, handle
-          * directly at the register level.
-          */
+         /* Lowered shuffles don't have SSA indices, handle as registers */
          assert(jay_num_values(I->dst) == jay_num_values(I->src[0]));
 
          jay_foreach_comp(I->dst, c) {
@@ -196,8 +195,10 @@ jay_validate_ra(jay_function *func)
       struct regfile *b = &blocks[block->index];
       assert(block->index < func->num_blocks);
 
-      jay_foreach_ssa_file(file) {
-         b->n[file] = jay_num_regs(func->shader, file);
+      for (unsigned file = 0; file < NUM_VALIDATE_FILES; ++file) {
+         b->n[file] = file == ACCUM  ? 8 / jay_grf_per_gpr(func->shader) :
+                      file == UACCUM ? 4 * jay_ugpr_per_grf(func->shader) :
+                                       jay_num_regs(func->shader, file);
          b->r[file] = linear_zalloc_array(lin_ctx, uint32_t, b->n[file]);
       }
    }
