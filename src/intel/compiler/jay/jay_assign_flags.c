@@ -47,6 +47,7 @@ static_assert(sizeof(struct var_info) == 1);
 struct flag_ra {
    jay_builder *b;
    struct var_info *vars;
+   unsigned nr_vars;
    uint32_t flag_to_global[JAY_MAX_FLAGS];
    uint32_t flag_to_local[JAY_MAX_FLAGS];
    unsigned roundrobin;
@@ -70,13 +71,15 @@ assign_flag(struct flag_ra *ra,
    unsigned num_flags = jay_num_regs(ra->b->shader, FLAG);
    tmp.reg = tie    ? tie->reg :
              ballot ? 0 :
-                      (1 + (ra->roundrobin++) % (num_flags - 2));
+                      (1 + ((ra->roundrobin++) % (num_flags - 1)));
 
-   ra->vars[jay_index(canonical)] = (struct var_info) {
-      .uniform = tmp.file == UFLAG,
-      .flag = tmp.reg,
-      .free_canonical = free_canonical,
-   };
+   if (jay_index(canonical) < ra->nr_vars) {
+      ra->vars[jay_index(canonical)] = (struct var_info) {
+         .uniform = tmp.file == UFLAG,
+         .flag = tmp.reg,
+         .free_canonical = free_canonical,
+      };
+   }
 
    ra->flag_to_global[tmp.reg] = jay_index(canonical);
    ra->flag_to_local[tmp.reg] = jay_index(tmp);
@@ -300,9 +303,11 @@ assign_block(struct flag_ra *ra, jay_block *block)
             /* Recover the canonical representation with a CMP. Hopefully,
              * either the CMP or the cmod will be eliminated by a later DCE.
              */
-            jay_CMP(b, I->type, I->conditional_mod, canonical, I->dst, 0)
-               ->cond_flag.reg =
-               jay_num_regs(b->shader, FLAG) - 1; // TODO: no null flag
+            jay_inst *cmp =
+               jay_CMP(b, I->type, I->conditional_mod, canonical, I->dst, 0);
+            cmp->cond_flag =
+               assign_flag(ra, cmp->cond_flag, cmp->cond_flag.file,
+                           true /* free_canonical */, false /* ballot */, NULL);
          }
       }
    }
@@ -370,7 +375,7 @@ jay_assign_flags(jay_shader *s)
 
       jay_foreach_block(f, block) {
          jay_builder b = { .shader = f->shader, .func = f };
-         struct flag_ra ra = { .b = &b, .vars = map };
+         struct flag_ra ra = { .b = &b, .vars = map, .nr_vars = nr_vars };
          assign_block(&ra, block);
       }
 
