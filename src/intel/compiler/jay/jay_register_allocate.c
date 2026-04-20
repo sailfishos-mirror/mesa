@@ -375,7 +375,6 @@ static jay_def
 push_temp(jay_builder *b,
           struct jay_temp_regs t,
           enum jay_file file,
-          bool stride4,
           bool outer,
           jay_def *backing,
           jay_def avoid1,
@@ -385,8 +384,7 @@ push_temp(jay_builder *b,
    jay_reg reg = file == GPR ? t.gpr : t.ugpr;
    jay_def tmp = reg == NO_REG ? jay_null() : def_from_reg(reg);
 
-   if (!jay_is_null(tmp) &&
-       (!stride4 || jay_def_stride(b->shader, tmp) == JAY_STRIDE_4)) {
+   if (!jay_is_null(tmp)) {
       return tmp;
    }
 
@@ -429,13 +427,11 @@ mov(jay_builder *b, jay_def dst, jay_def src, struct jay_temp_regs temps)
    jay_def temp = jay_null(), backing = jay_null();
 
    if (dst.file == MEM && src.file == MEM) {
-      temp = push_temp(b, temps, GPR, true /* stride4 */, false, &backing,
-                       jay_null(), jay_null());
+      temp = push_temp(b, temps, GPR, false, &backing, jay_null(), jay_null());
       jay_MOV(b, temp, src);
       jay_MOV(b, dst, temp);
    } else if (dst.file == UMEM && src.file == UMEM) {
-      temp = push_temp(b, temps, UGPR, false, false, &backing, jay_null(),
-                       jay_null());
+      temp = push_temp(b, temps, UGPR, false, &backing, jay_null(), jay_null());
       jay_MOV(b, def_from_reg(temps.ugpr), src);
       jay_MOV(b, dst, def_from_reg(temps.ugpr));
    } else if (dst.file == GPR &&
@@ -445,8 +441,7 @@ mov(jay_builder *b, jay_def dst, jay_def src, struct jay_temp_regs temps)
               jay_def_stride(b->shader, dst) != JAY_STRIDE_4 &&
               jay_def_stride(b->shader, src) != JAY_STRIDE_4) {
 
-      temp = push_temp(b, temps, GPR, true /* stride4 */, false, &backing,
-                       jay_null(), jay_null());
+      temp = push_temp(b, temps, GPR, false, &backing, jay_null(), jay_null());
       jay_MOV(b, temp, src);
       jay_MOV(b, dst, temp);
    } else {
@@ -610,8 +605,7 @@ jay_emit_parallel_copies(jay_builder *b,
             jay_def temp_backing = jay_null();
             jay_def temp =
                push_temp(b, temps, file == GPR || file == MEM ? GPR : UGPR,
-                         file == MEM /* stride4 */, true /* outer */,
-                         &temp_backing, dst, src);
+                         true /* outer */, &temp_backing, dst, src);
             mov(b, temp, dst, t);
             mov(b, dst, src, t);
             mov(b, src, temp, t);
@@ -697,24 +691,20 @@ register_demand(jay_ra_state *ra, enum jay_file f)
 }
 
 static jay_reg
-try_find_free_reg(jay_ra_state *ra, enum jay_file file, unsigned except)
+try_find_free_reg(jay_ra_state *ra,
+                  enum jay_file file,
+                  unsigned except,
+                  bool stride4)
 {
    unsigned i;
 
    /* Prefer stride 4 temporaries, since they are more compatible and thus
     * should reduce swapping on average.
     */
-   if (file == GPR) {
-      BITSET_FOREACH_SET(i, ra->available_regs[file], ra->num_regs[file]) {
-         if (i != except &&
-             jay_gpr_to_stride(&ra->b.shader->partition, i) == JAY_STRIDE_4) {
-            return make_reg(file, i);
-         }
-      }
-   }
-
    BITSET_FOREACH_SET(i, ra->available_regs[file], ra->num_regs[file]) {
-      if (i != except) {
+      if (i != except &&
+          (!stride4 ||
+           jay_gpr_to_stride(&ra->b.shader->partition, i) == JAY_STRIDE_4)) {
          return make_reg(file, i);
       }
    }
@@ -725,7 +715,7 @@ try_find_free_reg(jay_ra_state *ra, enum jay_file file, unsigned except)
 static jay_reg
 find_free_reg(jay_ra_state *ra, enum jay_file file, unsigned except)
 {
-   jay_reg reg = try_find_free_reg(ra, file, except);
+   jay_reg reg = try_find_free_reg(ra, file, except, false);
 
    if (reg == NO_REG) {
       fprintf(stderr, "file %u, current demand %u, target %u\n", file,
@@ -739,14 +729,15 @@ find_free_reg(jay_ra_state *ra, enum jay_file file, unsigned except)
 static inline struct jay_temp_regs
 find_temp_regs(jay_ra_state *ra)
 {
-   jay_reg gpr = try_find_free_reg(ra, GPR, ~0);
-   jay_reg ugpr = try_find_free_reg(ra, UGPR, ~0);
+   /* For efficiency we only bother using stride=4 temporaries */
+   jay_reg gpr = try_find_free_reg(ra, GPR, ~0, true);
+   jay_reg ugpr = try_find_free_reg(ra, UGPR, ~0, true);
 
    return (struct jay_temp_regs) {
       .gpr = gpr,
       .ugpr = ugpr,
-      .gpr2 = try_find_free_reg(ra, GPR, gpr),
-      .ugpr2 = try_find_free_reg(ra, UGPR, ugpr),
+      .gpr2 = try_find_free_reg(ra, GPR, gpr, true),
+      .ugpr2 = try_find_free_reg(ra, UGPR, ugpr, true),
    };
 }
 
