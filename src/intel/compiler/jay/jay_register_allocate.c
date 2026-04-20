@@ -569,19 +569,15 @@ jay_emit_parallel_copies(jay_builder *b,
          assert(dst.file == src.file);
          enum jay_file file = dst.file;
          jay_reg tmp = (file == GPR || file == MEM) ? temps.gpr : temps.ugpr;
-
-         if (tmp != NO_REG) {
-            struct jay_temp_regs t = { .gpr = temps.gpr2, .ugpr = temps.ugpr2 };
-            jay_def temp = push_temp(b, tmp, file == MEM /* stride4 */);
-            {
-               mov(b, temp, dst, t);
-               mov(b, dst, src, t);
-               mov(b, src, temp, t);
-            }
-            pop_temp(b, temps, temp);
-         } else {
-            jay_SWAP(b, dst, src);
+         assert(tmp != NO_REG);
+         struct jay_temp_regs t = { .gpr = temps.gpr2, .ugpr = temps.ugpr2 };
+         jay_def temp = push_temp(b, tmp, file == MEM /* stride4 */);
+         {
+            mov(b, temp, dst, t);
+            mov(b, dst, src, t);
+            mov(b, src, temp, t);
          }
+         pop_temp(b, temps, temp);
 
          for (unsigned j = 0; j < num_copies; j++) {
             if (pcopies[j].src == copy->dst)

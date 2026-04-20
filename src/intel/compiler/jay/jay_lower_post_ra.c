@@ -107,18 +107,6 @@ lower(jay_builder *b, jay_inst *I)
       return false;
    }
 
-   case JAY_OPCODE_SWAP: {
-      jay_def x = I->src[0], y = I->src[1];
-      /* TODO: Need stride-aware lowering here too like MOV. Same ideas. */
-      if (jay_def_stride(b->shader, x) != jay_def_stride(b->shader, y))
-         UNREACHABLE("todo");
-
-      jay_XOR(b, JAY_TYPE_U32, x, y, x);
-      jay_XOR(b, JAY_TYPE_U32, y, x, y);
-      jay_XOR(b, JAY_TYPE_U32, x, y, x);
-      return true;
-   }
-
    case JAY_OPCODE_ZERO_FLAG: {
       jay_MOV(b, jay_bare_reg(FLAG, jay_zero_flag_reg(I)), 0)->type =
          JAY_TYPE_U32;
