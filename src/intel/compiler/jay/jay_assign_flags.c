@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "util/bitset.h"
 #include "jay_builder.h"
 #include "jay_builder_opcodes.h"
 #include "jay_ir.h"
@@ -46,12 +47,13 @@ static_assert(sizeof(struct var_info) == 1);
 
 struct flag_ra {
    jay_builder *b;
+   BITSET_WORD *ballot_blocks;
+   jay_block *block;
    struct var_info *vars;
    unsigned nr_vars;
    uint32_t flag_to_global[JAY_MAX_FLAGS];
    uint32_t flag_to_local[JAY_MAX_FLAGS];
    unsigned roundrobin;
-   unsigned ballots:JAY_MAX_FLAGS;
 };
 
 static jay_def
@@ -62,16 +64,25 @@ assign_flag(struct flag_ra *ra,
             bool ballot,
             jay_def *tie)
 {
+   assert(!ballot || BITSET_TEST(ra->ballot_blocks, ra->block->index));
+
    jay_def canonical = canonicalize_flag(flag);
    jay_def tmp = jay_alloc_def(ra->b, file, 1);
 
-   /* Dedicate a flag for ballot since uniform access would clobber the zeroing.
-    * TODO: We could optimize this with more tracking.
-    */
    unsigned num_flags = jay_num_regs(ra->b->shader, FLAG);
-   tmp.reg = tie    ? tie->reg :
-             ballot ? 0 :
-                      (1 + ((ra->roundrobin++) % (num_flags - 1)));
+   tmp.reg = tie ? tie->reg : ballot ? 0 : ((ra->roundrobin++) % num_flags);
+
+   /* Uniform access (via a UFLAG or an inverse-ballot) would clobber the zero
+    * for a ballot. We could refine this further but this should be ok for now.
+    */
+   if (!ballot &&
+       tmp.reg == 0 &&
+       BITSET_TEST(ra->ballot_blocks, ra->block->index)) {
+
+      assert(!tie);
+      tmp.reg = 1;
+      ra->roundrobin++;
+   }
 
    if (jay_index(canonical) < ra->nr_vars) {
       ra->vars[jay_index(canonical)] = (struct var_info) {
@@ -83,11 +94,6 @@ assign_flag(struct flag_ra *ra,
 
    ra->flag_to_global[tmp.reg] = jay_index(canonical);
    ra->flag_to_local[tmp.reg] = jay_index(tmp);
-
-   if (ballot) {
-      ra->ballots |= BITFIELD_BIT(tmp.reg);
-   }
-
    return tmp;
 }
 
@@ -172,11 +178,11 @@ rewrite_without_flag(struct flag_ra *ra, jay_inst *I, unsigned s, bool in_flag)
 }
 
 static void
-assign_block(struct flag_ra *ra, jay_block *block)
+assign_block(struct flag_ra *ra)
 {
    jay_builder *b = ra->b;
 
-   jay_foreach_inst_in_block_safe(block, I) {
+   jay_foreach_inst_in_block_safe(ra->block, I) {
       if (I->op == JAY_OPCODE_CAST_CANONICAL_TO_FLAG) {
          /* Assume the source is already 0/~0 canonical and use it. */
          I->op = JAY_OPCODE_MOV;
@@ -312,10 +318,10 @@ assign_block(struct flag_ra *ra, jay_block *block)
       }
    }
 
-   /* Ballots require zeroing flags */
-   b->cursor = jay_before_block(block);
-   u_foreach_bit(i, ra->ballots) {
-      jay_ZERO_FLAG(b, i);
+   /* Ballots require zeroing the ballot flag (f0) */
+   b->cursor = jay_before_block(ra->block);
+   if (BITSET_TEST(ra->ballot_blocks, ra->block->index)) {
+      jay_ZERO_FLAG(b, 0);
    }
 }
 
@@ -359,6 +365,7 @@ jay_assign_flags(jay_shader *s)
       uint32_t nr_vars = f->ssa_alloc;
       struct var_info *map = calloc(nr_vars, sizeof(map[0]));
       uint32_t *def_to_block = calloc(nr_vars, sizeof(def_to_block));
+      BITSET_WORD *ballot_blocks = BITSET_CALLOC(f->num_blocks);
 
       jay_foreach_inst_in_func(f, block, I) {
          if (!jay_is_null(I->cond_flag)) {
@@ -371,12 +378,29 @@ jay_assign_flags(jay_shader *s)
                map[jay_index(predicate)].read_by_predication = true;
             }
          }
+
+         jay_foreach_src(I, s) {
+            if (jay_is_flag(I->src[s]) &&
+                jay_src_type(I, s) != JAY_TYPE_U1 &&
+                s < I->num_srcs - I->predication) {
+
+               assert(block->index < f->num_blocks);
+               BITSET_SET(ballot_blocks, block->index);
+            }
+         }
       }
 
       jay_foreach_block(f, block) {
          jay_builder b = { .shader = f->shader, .func = f };
-         struct flag_ra ra = { .b = &b, .vars = map, .nr_vars = nr_vars };
-         assign_block(&ra, block);
+         struct flag_ra ra = {
+            .b = &b,
+            .vars = map,
+            .nr_vars = nr_vars,
+            .ballot_blocks = ballot_blocks,
+            .block = block,
+         };
+
+         assign_block(&ra);
       }
 
       free(map);
