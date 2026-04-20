@@ -375,35 +375,47 @@ static jay_def
 push_temp(jay_builder *b,
           struct jay_temp_regs t,
           enum jay_file file,
-          bool stride4)
+          bool stride4,
+          bool outer,
+          jay_def *backing,
+          jay_def avoid1,
+          jay_def avoid2)
 {
    assert(file == GPR || file == UGPR);
    jay_reg reg = file == GPR ? t.gpr : t.ugpr;
    jay_def tmp = reg == NO_REG ? jay_null() : def_from_reg(reg);
 
-   if (jay_is_null(tmp) ||
-       (stride4 && jay_def_stride(b->shader, tmp) != JAY_STRIDE_4)) {
-      file = file == UGPR ? UACCUM : ACCUM;
-
-      /* Put accumulators down the float pipe - it's still a raw move. */
-      jay_def new = def_from_reg(0);
-      jay_MOV(b, jay_bare_reg(file, 0), new)->type = JAY_TYPE_F32;
-      tmp = new;
+   if (!jay_is_null(tmp) &&
+       (!stride4 || jay_def_stride(b->shader, tmp) == JAY_STRIDE_4)) {
+      return tmp;
    }
 
-   return tmp;
+   /* Find a register that does not conflict with the inputs */
+   bool avoid_regs[2] = { false, false };
+   if (!jay_is_null(avoid1) && avoid1.file == file && avoid1.reg < 2) {
+      avoid_regs[avoid1.reg] = true;
+   }
+   if (!jay_is_null(avoid2) && avoid2.file == file && avoid2.reg < 2) {
+      avoid_regs[avoid2.reg] = true;
+   }
+
+   unsigned r = avoid_regs[0] ? (avoid_regs[1] ? 2 : 1) : 0;
+
+   file = file == UGPR ? UACCUM : ACCUM;
+   *backing = jay_bare_reg(file, outer ? 2 : 0);
+
+   /* Put accumulators down the float pipe - it's still a raw move. */
+   jay_def new = def_from_reg(r);
+   jay_MOV(b, *backing, new)->type = JAY_TYPE_F32;
+   return new;
 }
 
 static void
-pop_temp(jay_builder *b, struct jay_temp_regs t, jay_def temp)
+pop_temp(jay_builder *b, jay_def temp, jay_def backing)
 {
-   enum jay_file file = temp.file;
-
-   if (file == GPR && make_reg(GPR, temp.reg) != t.gpr) {
-      assert(file == GPR || file == UGPR);
-      file = file == UGPR ? UACCUM : ACCUM;
-
-      jay_MOV(b, temp, jay_bare_reg(file, 0))->type = JAY_TYPE_F32;
+   if (!jay_is_null(backing)) {
+      assert(backing.file == ACCUM || backing.file == UACCUM);
+      jay_MOV(b, temp, backing)->type = JAY_TYPE_F32;
    }
 }
 
@@ -414,16 +426,18 @@ pop_temp(jay_builder *b, struct jay_temp_regs t, jay_def temp)
 static void
 mov(jay_builder *b, jay_def dst, jay_def src, struct jay_temp_regs temps)
 {
+   jay_def temp = jay_null(), backing = jay_null();
+
    if (dst.file == MEM && src.file == MEM) {
-      jay_def temp = push_temp(b, temps, GPR, true /* stride4 */);
+      temp = push_temp(b, temps, GPR, true /* stride4 */, false, &backing,
+                       jay_null(), jay_null());
       jay_MOV(b, temp, src);
       jay_MOV(b, dst, temp);
-      pop_temp(b, temps, temp);
    } else if (dst.file == UMEM && src.file == UMEM) {
-      jay_def temp = push_temp(b, temps, UGPR, false);
+      temp = push_temp(b, temps, UGPR, false, false, &backing, jay_null(),
+                       jay_null());
       jay_MOV(b, def_from_reg(temps.ugpr), src);
       jay_MOV(b, dst, def_from_reg(temps.ugpr));
-      pop_temp(b, temps, temp);
    } else if (dst.file == GPR &&
               src.file == GPR &&
               jay_def_stride(b->shader, dst) !=
@@ -431,13 +445,15 @@ mov(jay_builder *b, jay_def dst, jay_def src, struct jay_temp_regs temps)
               jay_def_stride(b->shader, dst) != JAY_STRIDE_4 &&
               jay_def_stride(b->shader, src) != JAY_STRIDE_4) {
 
-      jay_def temp = push_temp(b, temps, GPR, true /* stride4 */);
+      temp = push_temp(b, temps, GPR, true /* stride4 */, false, &backing,
+                       jay_null(), jay_null());
       jay_MOV(b, temp, src);
       jay_MOV(b, dst, temp);
-      pop_temp(b, temps, temp);
    } else {
       jay_MOV(b, dst, src);
    }
+
+   pop_temp(b, temp, backing);
 }
 
 /*
@@ -580,15 +596,17 @@ jay_emit_parallel_copies(jay_builder *b,
          assert(dst.file == src.file);
          enum jay_file file = dst.file;
          struct jay_temp_regs t = { .gpr = temps.gpr2, .ugpr = temps.ugpr2 };
+         jay_def temp_backing = jay_null();
          jay_def temp =
             push_temp(b, temps, file == GPR || file == MEM ? GPR : UGPR,
-                      file == MEM /* stride4 */);
+                      file == MEM /* stride4 */, true /* outer */,
+                      &temp_backing, dst, src);
          {
             mov(b, temp, dst, t);
             mov(b, dst, src, t);
             mov(b, src, temp, t);
          }
-         pop_temp(b, temps, temp);
+         pop_temp(b, temp, temp_backing);
 
          for (unsigned j = 0; j < num_copies; j++) {
             if (pcopies[j].src == copy->dst)
@@ -1560,11 +1578,6 @@ spill_file(jay_function *f, enum jay_file file, bool *spilled)
    }
 
    if (f->demand[file] > limit) {
-      /* In the worst case when spilling, we require 1 extra temporary register
-       * to lower a memory-memory swap produced by parallel copy lowering.
-       */
-      limit--;
-
       /* If we spill, we need to reserve UGPRs for spilling */
       if (!(*spilled)) {
          unsigned reservation = f->shader->dispatch_width + 1;
