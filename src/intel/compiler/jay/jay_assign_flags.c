@@ -169,10 +169,9 @@ rewrite_without_flag(struct flag_ra *ra, jay_inst *I, unsigned s, bool in_flag)
 }
 
 static void
-assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
+assign_block(struct flag_ra *ra, jay_block *block)
 {
-   jay_builder b = { .shader = func->shader, .func = func };
-   struct flag_ra ra_ = { .b = &b, .vars = var_to_flag }, *ra = &ra_;
+   jay_builder *b = ra->b;
 
    jay_foreach_inst_in_block_safe(block, I) {
       if (I->op == JAY_OPCODE_CAST_CANONICAL_TO_FLAG) {
@@ -220,8 +219,8 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
                         (jay_is_null(I->dst) && I->cond_flag.file == UFLAG);
          enum jay_file file = uniform && !ballot ? UFLAG : FLAG;
 
-         bool in_flag = ra->flag_to_global[var_to_flag[index].flag] == index &&
-                        ((file == UFLAG) == var_to_flag[index].uniform);
+         bool in_flag = ra->flag_to_global[ra->vars[index].flag] == index &&
+                        ((file == UFLAG) == ra->vars[index].uniform);
 
          /* If we don't actually need the flag, we're done. */
          if (rewrite_without_flag(ra, I, s, in_flag)) {
@@ -233,22 +232,22 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
             jay_def tmp = assign_flag(ra, I->src[s], file, false, ballot, NULL);
 
             /* XXX: We need a more systematic approach to modifiers :/ */
-            b.cursor = jay_before_inst(I);
+            b->cursor = jay_before_inst(I);
             jay_def d = I->src[s];
             d.negate = false;
-            jay_CMP(&b, JAY_TYPE_U32, JAY_CONDITIONAL_NE, tmp,
+            jay_CMP(b, JAY_TYPE_U32, JAY_CONDITIONAL_NE, tmp,
                     canonicalize_flag(d), 0);
          }
 
          /* ...and rewrite to use the flag */
-         unsigned reg = var_to_flag[index].flag;
+         unsigned reg = ra->vars[index].flag;
          jay_def flag = jay_scalar(file, ra->flag_to_local[reg]);
          flag.reg = reg;
          jay_replace_src(&I->src[s], flag);
       }
 
       /* Handle flag writes */
-      b.cursor = jay_after_inst(I);
+      b->cursor = jay_after_inst(I);
 
       /* If the flag is written directly (for an inverse ballot), recover the
        * canonical representation with a SEL.
@@ -256,13 +255,13 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
       if (!jay_is_null(I->dst) && jay_is_flag(I->dst)) {
          jay_def canonical = canonicalize_flag(I->dst);
          I->dst = assign_flag(ra, I->dst, I->dst.file, false, false, NULL);
-         jay_SEL(&b, JAY_TYPE_U32, canonical, ~0, 0, I->dst);
+         jay_SEL(b, JAY_TYPE_U32, canonical, ~0, 0, I->dst);
       }
 
       if (!jay_is_null(I->cond_flag)) {
          jay_def *tie = I->predication ? jay_inst_get_predicate(I) : NULL;
          I->broadcast_flag =
-            var_to_flag[jay_index(I->cond_flag)].read_by_predication &&
+            ra->vars[jay_index(I->cond_flag)].read_by_predication &&
             I->cond_flag.file == UFLAG &&
             I->op == JAY_OPCODE_CMP &&
             !tie;
@@ -281,11 +280,11 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
                 * to our write-masking and broadcasting, the flag is already
                 * 0/~0. We simply need to sign-extend.
                 */
-               jay_i2i32(&b, canonical, b.shader->dispatch_width, I->cond_flag);
+               jay_i2i32(b, canonical, b->shader->dispatch_width, I->cond_flag);
             } else if (jay_type_size_bits(I->type) != 32) {
-               I->dst = jay_alloc_def(&b, canonical.file,
+               I->dst = jay_alloc_def(b, canonical.file,
                                       jay_type_vector_length(I->type));
-               jay_i2i32(&b, canonical, jay_type_size_bits(I->type), I->dst);
+               jay_i2i32(b, canonical, jay_type_size_bits(I->type), I->dst);
             } else {
                /* 32-bit CMP returns the canonical form */
                I->dst = canonical;
@@ -294,24 +293,24 @@ assign_block(jay_function *func, jay_block *block, struct var_info *var_to_flag)
             assert(jay_type_size_bits(I->type) == 32 && "limited cmod prop");
 
             if (jay_is_null(I->dst)) {
-               I->dst = jay_alloc_def(&b, canonical.file,
+               I->dst = jay_alloc_def(b, canonical.file,
                                       jay_type_vector_length(I->type));
             }
 
             /* Recover the canonical representation with a CMP. Hopefully,
              * either the CMP or the cmod will be eliminated by a later DCE.
              */
-            jay_CMP(&b, I->type, I->conditional_mod, canonical, I->dst, 0)
+            jay_CMP(b, I->type, I->conditional_mod, canonical, I->dst, 0)
                ->cond_flag.reg =
-               jay_num_regs(b.shader, FLAG) - 1; // TODO: no null flag
+               jay_num_regs(b->shader, FLAG) - 1; // TODO: no null flag
          }
       }
    }
 
    /* Ballots require zeroing flags */
-   b.cursor = jay_before_block(block);
+   b->cursor = jay_before_block(block);
    u_foreach_bit(i, ra->ballots) {
-      jay_ZERO_FLAG(&b, i);
+      jay_ZERO_FLAG(b, i);
    }
 }
 
@@ -352,8 +351,9 @@ void
 jay_assign_flags(jay_shader *s)
 {
    jay_foreach_function(s, f) {
-      struct var_info *map = calloc(f->ssa_alloc, sizeof(map[0]));
-      uint32_t *def_to_block = calloc(f->ssa_alloc, sizeof(def_to_block));
+      uint32_t nr_vars = f->ssa_alloc;
+      struct var_info *map = calloc(nr_vars, sizeof(map[0]));
+      uint32_t *def_to_block = calloc(nr_vars, sizeof(def_to_block));
 
       jay_foreach_inst_in_func(f, block, I) {
          if (!jay_is_null(I->cond_flag)) {
@@ -368,8 +368,10 @@ jay_assign_flags(jay_shader *s)
          }
       }
 
-      jay_foreach_block(f, b) {
-         assign_block(f, b, map);
+      jay_foreach_block(f, block) {
+         jay_builder b = { .shader = f->shader, .func = f };
+         struct flag_ra ra = { .b = &b, .vars = map };
+         assign_block(&ra, block);
       }
 
       free(map);
