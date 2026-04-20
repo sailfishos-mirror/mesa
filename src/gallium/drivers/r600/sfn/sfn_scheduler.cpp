@@ -173,12 +173,15 @@ private:
    template <typename I>
    bool schedule_cf(Shader::ShaderBlocks& out_blocks, std::list<I *>& ready_list);
 
+   struct AluScheduleContext {
+      bool has_alu_ready{false};
+      bool has_lds_ready{false};
+      bool has_ar_read_ready{false};
+      int expected_ar_uses{0};
+   };
+
    bool schedule_alu(Shader::ShaderBlocks& out_blocks);
-   void prepare_schedule_alu(Shader::ShaderBlocks& out_blocks,
-                             bool& has_alu_ready,
-                             bool& has_lds_ready,
-                             bool& has_ar_read_ready,
-                             int& expected_ar_uses);
+   AluScheduleContext prepare_schedule_alu(Shader::ShaderBlocks& out_blocks);
    void finalize_schedule_alu_group(Shader::ShaderBlocks& out_blocks,
                                     AluGroup& group,
                                     int expected_ar_uses);
@@ -548,21 +551,12 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
 {
    bool success = false;
    AluGroup *group = nullptr;
-   int expected_ar_uses = m_current_block->expected_ar_uses();
-
-   bool has_alu_ready = false;
-   bool has_lds_ready = false;
-   bool has_ar_read_ready = false;
-   prepare_schedule_alu(out_blocks,
-                        has_alu_ready,
-                        has_lds_ready,
-                        has_ar_read_ready,
-                        expected_ar_uses);
+   auto alu_ctx = prepare_schedule_alu(out_blocks);
 
    /* Schedule groups first. unless we have a pending LDS instruction
     * We don't want the LDS instructions to be too far apart because the
     * fetch + read from queue has to be in the same ALU CF block */
-   if (!alu_groups_ready.empty() && !has_lds_ready && !has_ar_read_ready) {
+   if (!alu_groups_ready.empty() && !alu_ctx.has_lds_ready && !alu_ctx.has_ar_read_ready) {
       group = *alu_groups_ready.begin();
       group->update_readport_reserver();
 
@@ -582,7 +576,7 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
             }
             success = true;
          } else {
-            if (expected_ar_uses == 0 && !m_current_block->lds_group_active()) {
+            if (alu_ctx.expected_ar_uses == 0 && !m_current_block->lds_group_active()) {
                start_new_block(out_blocks, Block::alu);
 
                if (!m_current_block->try_reserve_kcache(*group))
@@ -600,7 +594,7 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
       }
    }
 
-   if (!group && has_alu_ready) {
+   if (!group && alu_ctx.has_alu_ready) {
       group = new AluGroup();
       sfn_log << SfnLog::schedule << "START new ALU group\n";
    } else if (!success) {
@@ -611,7 +605,7 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
 
    int free_slots = group->free_slot_mask();
 
-   while (free_slots && has_alu_ready) {
+   while (free_slots && alu_ctx.has_alu_ready) {
 
       if (!alu_multi_slot_ready.empty()) {
          success |= schedule_alu_multislot_to_group_vec(group);
@@ -629,7 +623,7 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
        * TODO: check whether this is only relevant for actual LDS instructions
        * or also for instructions that read from the LDS return value queue */
 
-      if (free_slots & 0x10 && !has_lds_ready) {
+      if (free_slots & 0x10 && !alu_ctx.has_lds_ready) {
          sfn_log << SfnLog::schedule << "Try schedule TRANS channel\n";
          if (!alu_trans_ready.empty())
             success |= schedule_alu_to_group_trans(group, alu_trans_ready);
@@ -649,7 +643,7 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
          // to start a new CF here
          // TODO this can explode, if kcache reservation fails with
          // an instruction that also requires AR
-         assert(expected_ar_uses == 0);
+         assert(alu_ctx.expected_ar_uses == 0);
 
          // kcache reservation failed, so we have to start a new CF
          start_new_block(out_blocks, Block::alu);
@@ -666,38 +660,40 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
       }
    }
 
-   finalize_schedule_alu_group(out_blocks, *group, expected_ar_uses);
+   finalize_schedule_alu_group(out_blocks, *group, alu_ctx.expected_ar_uses);
    return success;
 }
 
-void
-BlockScheduler::prepare_schedule_alu(Shader::ShaderBlocks& out_blocks,
-                                     bool& has_alu_ready,
-                                     bool& has_lds_ready,
-                                     bool& has_ar_read_ready,
-                                     int& expected_ar_uses)
+auto
+BlockScheduler::prepare_schedule_alu(Shader::ShaderBlocks& out_blocks)
+   -> AluScheduleContext
 {
+   AluScheduleContext ctx;
+   ctx.expected_ar_uses = m_current_block->expected_ar_uses();
+
    sfn_log << SfnLog::schedule << "Schedule alu with " <<
               m_current_block->expected_ar_uses()
            << " pending AR loads\n";
 
-   has_alu_ready =
+   ctx.has_alu_ready =
       !alu_vec_ready.empty() || !alu_multi_slot_ready.empty() || !alu_trans_ready.empty();
 
-   has_lds_ready =
+   ctx.has_lds_ready =
       !alu_vec_ready.empty() && (*alu_vec_ready.begin())->has_lds_access();
 
-   has_ar_read_ready = !alu_vec_ready.empty() &&
-                       std::get<0>((*alu_vec_ready.begin())->indirect_addr());
+   ctx.has_ar_read_ready = !alu_vec_ready.empty() &&
+                           std::get<0>((*alu_vec_ready.begin())->indirect_addr());
 
    /* If we have ready ALU instructions we have to start a new ALU block */
-   if (has_alu_ready || !alu_groups_ready.empty()) {
+   if (ctx.has_alu_ready || !alu_groups_ready.empty()) {
       if (m_current_block->type() != Block::alu) {
          start_new_block(out_blocks, Block::alu);
          m_alu_groups_scheduled = 0;
-         expected_ar_uses = 0;
+         ctx.expected_ar_uses = 0;
       }
    }
+
+   return ctx;
 }
 
 void
