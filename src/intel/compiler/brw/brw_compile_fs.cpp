@@ -1436,8 +1436,13 @@ brw_compile_fs(const struct brw_compiler *compiler,
    const unsigned reqd_dispatch_width = brw_required_dispatch_width(&nir->info);
    assert(reqd_dispatch_width == 0 || reqd_dispatch_width == 16);
 
-   const unsigned dispatch_width_limit =
-      limit_fs_dispatch_width(devinfo, nir, key);
+   unsigned min_dispatch_width = devinfo->ver < 20 ? 8 : 16;
+   unsigned max_dispatch_width = limit_fs_dispatch_width(devinfo, nir, key);
+
+   if (reqd_dispatch_width) {
+      assert(reqd_dispatch_width == 16);
+      min_dispatch_width = max_dispatch_width = reqd_dispatch_width;
+   }
 
    std::unique_ptr<brw_shader> v8, v16, v32, vmulti;
    float throughput = 0;
@@ -1456,7 +1461,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
       .archiver                = params->base.archiver,
    };
 
-   if (devinfo->ver < 20) {
+   if (min_dispatch_width == 8) {
       brw_shader_params shader_params = base_shader_params;
       shader_params.dispatch_width = 8;
       shader_params.num_polygons   = 1;
@@ -1485,8 +1490,6 @@ brw_compile_fs(const struct brw_compiler *compiler,
    }
 
    if (compiler->optimistic_simd_heuristic) {
-      unsigned max_dispatch_width = reqd_dispatch_width ? reqd_dispatch_width : 32;
-
       if (max_polygons >= 2 && !key->coarse_pixel) {
          if (max_polygons >= 4 && max_dispatch_width >= 32 &&
              4 * prog_data->num_varying_inputs <= MAX_VARYING &&
@@ -1596,9 +1599,9 @@ brw_compile_fs(const struct brw_compiler *compiler,
    } else {
       bool simd16_failed = false;
 
-      if ((!has_spilled && dispatch_width_limit >= 16 &&
-           !beyond_threshold[1] && INTEL_SIMD(FS, 16)) ||
-          reqd_dispatch_width == 16) {
+      if (min_dispatch_width <= 16 && max_dispatch_width >= 16 &&
+          (max_dispatch_width == 16 || INTEL_SIMD_FORCE(16) ||
+           (!has_spilled && !beyond_threshold[1] && INTEL_SIMD(FS, 16)))) {
          /* Try a SIMD16 compile */
          brw_shader_params shader_params = base_shader_params;
          shader_params.dispatch_width = 16;
@@ -1625,13 +1628,12 @@ brw_compile_fs(const struct brw_compiler *compiler,
          }
       }
 
-      /* Currently, the compiler only supports SIMD32 on SNB+ */
-      if (!has_spilled &&
-          dispatch_width_limit >= 32 &&
-          !beyond_threshold[2] &&
-          reqd_dispatch_width == 0 &&
-          !simd16_failed && INTEL_SIMD(FS, 32) &&
-          !prog_data->base.ray_queries) {
+      if (max_dispatch_width == 32 &&
+          (INTEL_SIMD_FORCE(32) ||
+           (!has_spilled && !beyond_threshold[2] &&
+            !simd16_failed && INTEL_SIMD(FS, 32)))) {
+         assert(!prog_data->base.ray_queries);
+
          /* Try a SIMD32 compile */
          brw_shader_params shader_params = base_shader_params;
          shader_params.dispatch_width = 32;
@@ -1667,7 +1669,8 @@ brw_compile_fs(const struct brw_compiler *compiler,
           reqd_dispatch_width == 0) {
 
          if (devinfo->ver >= 20 && max_polygons >= 4 &&
-             dispatch_width_limit >= 32 && !beyond_threshold[2] &&
+             max_dispatch_width >= 32 &&
+             (!beyond_threshold[2] || INTEL_SIMD_FORCE(4X8)) &&
              4 * prog_data->num_varying_inputs <= MAX_VARYING &&
              INTEL_SIMD_FORCE(4X8)) {
             /* Try a quad-SIMD8 compile */
@@ -1687,7 +1690,8 @@ brw_compile_fs(const struct brw_compiler *compiler,
          }
 
          if (!vmulti && devinfo->ver >= 20 &&
-             dispatch_width_limit >= 32 && !beyond_threshold[2] &&
+             max_dispatch_width >= 32 &&
+             (!beyond_threshold[2] || INTEL_SIMD_FORCE(4X8)) &&
              2 * prog_data->num_varying_inputs <= MAX_VARYING &&
              INTEL_SIMD_FORCE(2X16)) {
             /* Try a dual-SIMD16 compile */
@@ -1706,7 +1710,8 @@ brw_compile_fs(const struct brw_compiler *compiler,
             }
          }
 
-         if (!vmulti && dispatch_width_limit >= 16 && !beyond_threshold[1] &&
+         if (!vmulti && max_dispatch_width >= 16 &&
+             (!beyond_threshold[1] || INTEL_SIMD_FORCE(2X8)) &&
              2 * prog_data->num_varying_inputs <= MAX_VARYING &&
              INTEL_SIMD_FORCE(2X8)) {
             /* Try a dual-SIMD8 compile */
@@ -1733,19 +1738,12 @@ brw_compile_fs(const struct brw_compiler *compiler,
                                       vmulti->grf_used);
    }
 
-   /* When the caller compiles a repclear or fast clear shader, they
-    * want SIMD16-only.
-    */
-   if (reqd_dispatch_width == 16)
-      v8.reset();
-
    brw_to_binary_params to_binary_params = {
       .compiler = compiler,
       .params = &params->base,
       .prog_data = &prog_data->base,
    };
 
-   uint32_t max_dispatch_width = 0;
    unsigned num_variants = 0;
 
    if (vmulti) {
