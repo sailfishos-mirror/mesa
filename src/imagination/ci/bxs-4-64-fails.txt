@@ -14,11 +14,6 @@ dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.uniform_buffer,Cras
 dEQP-VK.graphicsfuzz.cov-two-nested-loops-switch-case-matrix-array-increment,Fail
 dEQP-VK.graphicsfuzz.stable-binarysearch-tree-false-if-discard-loop,Fail
 dEQP-VK.memory.concurrent_access.shader_and_host,Crash
-dEQP-VK.pipeline.monolithic.stencil.no_stencil_att.dynamic_rendering.dynamic_enable.d24_unorm_s8_uint,Fail
-dEQP-VK.pipeline.monolithic.stencil.no_stencil_att.dynamic_rendering.dynamic_enable.d32_sfloat_s8_uint,Fail
-dEQP-VK.pipeline.monolithic.stencil.no_stencil_att.dynamic_rendering.static_enable.d24_unorm_s8_uint,Fail
-dEQP-VK.pipeline.monolithic.stencil.no_stencil_att.dynamic_rendering.static_enable.d32_sfloat_s8_uint,Fail
-dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.basic.partial_binding_depth_stencil,Fail
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed0_multiview,Fail
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed10_multiview,Fail
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed11,Fail

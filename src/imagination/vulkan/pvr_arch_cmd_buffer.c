@@ -6611,11 +6611,19 @@ pvr_setup_isp_faces_and_control(struct pvr_cmd_buffer *const cmd_buffer,
    const enum ROGUE_TA_OBJTYPE obj_type =
       pvr_ta_objtype(dynamic_state->ia.primitive_topology);
 
-   const VkImageAspectFlags ds_aspects =
+   VkImageAspectFlags ds_aspects =
       (!rasterizer_discard && attachment)
          ? vk_format_aspects(attachment->vk_format) &
               (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)
          : VK_IMAGE_ASPECT_NONE;
+
+   /* Dynamic rendering attachments could be bound with a D+S format but only
+    * D or S active.
+    */
+   if (!pass_info->pass && attachment && !attachment->is_depth)
+      ds_aspects &= ~VK_IMAGE_ASPECT_DEPTH_BIT;
+   if (!pass_info->pass && attachment && !attachment->is_stencil)
+      ds_aspects &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
    /* This is deliberately a full copy rather than a pointer because
     * vk_optimize_depth_stencil_state() can only be run once against any given
