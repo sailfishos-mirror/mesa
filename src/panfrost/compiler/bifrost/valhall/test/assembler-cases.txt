@@ -25,13 +25,13 @@ e6 00 00 00 00 c1 91 06    MOV.i32 r1, core_id.w0
 01 02 00 0c 70 c0 a0 00    IADD.u32 r0, r1.b3, r2.h1
 01 c9 00 18 00 c0 a0 00    IADD.u32 r0, r1, 0x7060504.b2
 01 02 00 08 20 c0 a1 00    IADD.v2u16 r0, r1, r2
-82 3c 27 20 00 c0 a3 01    SHADDX.u64 r0, u2, r60.w0, shift:0x2
-40 00 00 18 82 80 60 08    LOAD.i32.unsigned.slot0.wait0 @r0, r0^, offset:0
-80 7c 47 20 00 c0 a3 01    SHADDX.u64 r0, u0, r60^.w0, shift:0x4
-40 00 00 38 08 44 61 78    STORE.i128.slot0.end @r4:r5:r6:r7, r0^, offset:0
+82 3c 27 20 00 c0 a3 01    SHADDX.u64 [r0:r1], u2, [r60:r61].w0, shift:0x2
+40 00 00 18 82 80 60 08    LOAD.i32.unsigned.slot0.wait0 @r0, [r0^:r1^], offset:0
+80 7c 47 20 00 c0 a3 01    SHADDX.u64 [r0:r1], u0, [r60^:r61^].w0, shift:0x4
+40 00 00 38 08 44 61 78    STORE.i128.slot0.end @r4:r5:r6:r7, [r0^:r1^], offset:0
 00 00 00 00 00 c0 00 78    NOP.end 
 40 c4 c0 9c 01 c1 f0 00    ICMP_OR.u32.gt.m1 r1, r0^, 0x1000000.b3, 0x0
-42 00 00 18 02 40 61 50    STORE.i32.slot0.reconverge @r0, r2^, offset:0
+42 00 00 18 02 40 61 50    STORE.i32.slot0.reconverge @r0, [r2^:r3^], offset:0
 00 c9 8f 12 30 c0 a0 00    CLPER.i32.f1 r0, r0, 0x7060504.b00
 00 00 00 30 00 c7 90 00    S8_TO_S32 r7, r0.b3
 00 00 00 20 00 c6 90 00    S8_TO_S32 r6, r0.b2
@@ -55,8 +55,8 @@ f0 00 3c 33 04 40 7f 78    BLEND.slot0.v4.f16.end @r0:r1, blend_descriptor_0.w0,
 00 dd c0 08 14 c2 b2 00    FMA.f32 r2, r0, 0x44000000.neg.h1, 0x0.neg
 41 88 c0 00 04 c1 b2 00    FMA.f32 r1, r1^, u8, 0x0.neg
 40 88 c0 00 04 c0 b2 10    FMA.f32.wait1 r0, r0^, u8, 0x0.neg
-44 00 00 32 06 40 61 78    STORE.i96.estream.slot0.end @r0:r1:r2, r4^, offset:0
-44 00 00 39 08 48 61 78    STORE.i128.istream.slot0.end @r8:r9:r10:r11, r4^, offset:0
+44 00 00 32 06 40 61 78    STORE.i96.estream.slot0.end @r0:r1:r2, [r4^:r5^], offset:0
+44 00 00 39 08 48 61 78    STORE.i128.istream.slot0.end @r8:r9:r10:r11, [r4^:r5^], offset:0
 00 00 00 c0 01 c0 45 48    BARRIER.slot7.wait 
 80 00 00 00 82 82 60 00    LOAD.i8.unsigned.slot0 @r2, u0, offset:0
 80 00 00 08 82 82 60 00    LOAD.i16.unsigned.slot0 @r2, u0, offset:0
@@ -97,18 +97,18 @@ f0 00 3c 33 04 40 7f 78    BLEND.slot0.v4.f16.end @r0:r1, blend_descriptor_0.w0,
 00 03 00 00 00 c0 1f 50    BRANCHZ.reconverge r0, offset:3
 c0 00 00 00 00 c0 10 01    IADD_IMM.i32 r0, 0x0, #0x0
 c0 01 00 00 00 c4 10 51    IADD_IMM.i32.reconverge r4, 0x0, #0x1
-80 00 27 20 00 c2 a3 01    SHADDX.u64 r2, u0, r0.w0, shift:0x2
+80 00 27 20 00 c2 a3 01    SHADDX.u64 [r2:r3], u0, [r0:r1].w0, shift:0x2
 40 c9 00 10 00 c0 a0 00    IADD.u32 r0, r0^, 0x7060504.b0
 00 82 c0 80 03 c1 f0 00    ICMP_OR.u32.ne.m1 r1, r0, u2, 0x0
 04 00 00 00 00 c5 91 00    MOV.i32 r5, r4
 04 00 00 00 00 c6 91 00    MOV.i32 r6, r4
 04 00 00 00 00 c7 91 08    MOV.i32.wait0 r7, r4
-42 00 00 38 08 44 61 00    STORE.i128.slot0 @r4:r5:r6:r7, r2^, offset:0
+42 00 00 38 08 44 61 00    STORE.i128.slot0 @r4:r5:r6:r7, [r2^:r3^], offset:0
 41 f8 ff ff 07 c0 1f 50    BRANCHZ.reconverge r1^, offset:-8
 7d c0 00 08 10 bc a1 00    IADD.v2u16 r60.h1, r61^.h10, 0x0
-44 00 46 32 28 40 71 78    ST_CVT.slot0.istream.v4.f32.end @r0:r1:r2:r3, r4^, r6^, offset:0x0
-44 00 46 34 28 40 71 78    ST_CVT.slot0.istream.v4.s32.end @r0:r1:r2:r3, r4^, r6^, offset:0x0
-44 00 46 36 28 40 71 78    ST_CVT.slot0.istream.v4.u32.end @r0:r1:r2:r3, r4^, r6^, offset:0x0
+44 00 46 32 28 40 71 78    ST_CVT.slot0.istream.v4.f32.end @r0:r1:r2:r3, [r4^:r5^], r6^, offset:0x0
+44 00 46 34 28 40 71 78    ST_CVT.slot0.istream.v4.s32.end @r0:r1:r2:r3, [r4^:r5^], r6^, offset:0x0
+44 00 46 36 28 40 71 78    ST_CVT.slot0.istream.v4.u32.end @r0:r1:r2:r3, [r4^:r5^], r6^, offset:0x0
 7c c0 12 00 26 84 67 00    LEA_TEX_IMM.slot0 @r4:r5:r6, r60^, 0x0, table:0x2, index:0x1
 7c c0 02 00 26 84 67 00    LEA_TEX_IMM.slot0 @r4:r5:r6, r60^, 0x0, table:0x2, index:0x0
 82 81 00 28 f4 82 6a 00    LD_PKA.i64.unsigned.slot0 @r2:r3, u2, u1
@@ -216,10 +216,10 @@ c0 f1 00 00 10 c1 2f 08    BRANCHZI.eq.absolute.wait0 0x0, blend_descriptor_0.w1
 80 00 c0 17 34 7c 25 01    TEX_FETCH.slot0.f.32.2d @r0:r1:r2:r3, @r60:r61, u0
 80 00 00 00 00 c1 91 02    MOV.i32 r1, u64
 81 00 00 00 00 c1 91 02    MOV.i32 r1, u65
-30 00 f7 1b 02 cc 20 09    ATOM_RETURN.i32.slot0.axchg.wait0 @r55, @r12, r48, offset:0x0
-32 00 80 18 02 4c 68 08    ATOM.i32.slot0.aadd.wait0 @r12, r50, offset:0x0
-32 00 00 18 02 8c 69 08    ATOM1_RETURN.i32.slot0.ainc.wait0 @r12, r50, offset:0x0
-32 00 00 18 00 80 69 08    ATOM1_RETURN.i32.slot0.ainc.wait0 @, r50, offset:0x0
+30 00 f7 1b 02 cc 20 09    ATOM_RETURN.i32.slot0.axchg.wait0 @r55, @r12, [r48:r49], offset:0x0
+32 00 80 18 02 4c 68 08    ATOM.i32.slot0.aadd.wait0 @r12, [r50:r51], offset:0x0
+32 00 00 18 02 8c 69 08    ATOM1_RETURN.i32.slot0.ainc.wait0 @r12, [r50:r51], offset:0x0
+32 00 00 18 00 80 69 08    ATOM1_RETURN.i32.slot0.ainc.wait0 @, [r50:r51], offset:0x0
 82 00 80 15 b4 80 38 49    VAR_TEX_SINGLE.slot0.skip.sample_store.f.32.2d.zero.wait @r0:r1:r2:r3, u2, u0
 82 20 80 15 b4 80 38 09    VAR_TEX_SINGLE.slot0.skip.sample_store.f.32.2d.computed.wait0 @r0:r1:r2:r3, u2, u0
 82 20 80 1d 84 80 38 41    VAR_TEX_SINGLE.slot0.skip.sample_store.s.32.2d.computed.wait0126 @r0, u2, u0

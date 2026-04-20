@@ -76,7 +76,24 @@ def parse_int(s, minimum, maximum):
     return number
 
 def encode_source(op, fau):
-    if op[0] == 'r':
+    # Reg tuple
+    if op[0] == '[' and op[-1:] == ']':
+        # Remove brackets and split on ":"
+        unpacked = op[1:-1].split(":")
+        die_if(len(unpacked) != 2, 'Invalid tuple')
+        die_if(unpacked[0][0] != 'r', 'Invalid tuple')
+        die_if(unpacked[1][0] != 'r', 'Invalid tuple')
+        if (unpacked[0][-1:] == '^'):
+            val0 = parse_int(unpacked[0][1:-1], 0, 63)
+            val1 = parse_int(unpacked[1][1:-1], 0, 63)
+            die_if(val1 != val0 + 1, 'Invalid tuple value')
+            return val0 | 0x40
+        else:
+            val0 = parse_int(unpacked[0][1:], 0, 63)
+            val1 = parse_int(unpacked[1][1:], 0, 63)
+            die_if(val1 != val0 + 1, 'Invalid tuple value')
+            return val0
+    elif op[0] == 'r':
         if (op[-1:] == '^'):
             return parse_int(op[1:-1], 0, 63) | 0x40
         return parse_int(op[1:], 0, 63)
@@ -105,10 +122,27 @@ def encode_source(op, fau):
 
 
 def encode_dest(op):
-    die_if(op[0] != 'r', f"Expected register destination {op}")
+    # Reg tuple
+    if op[0] == '[' and op[-1:] == ']':
+        # Remove brackets and split on ":"
+        unpacked = op[1:-1].split(":")
+        die_if(len(unpacked) != 2, 'Invalid tuple')
+        die_if(unpacked[0][0] != 'r', 'Invalid tuple')
+        die_if(unpacked[1][0] != 'r', 'Invalid tuple')
 
-    parts = op.split(".")
-    reg = parts[0]
+        parts = unpacked[0].split(".")
+        reg = parts[0]
+        value = parse_int(reg[1:], 0, 63)
+
+        parts1 = unpacked[1].split(".")
+        reg1 = parts1[0]
+        val1 = parse_int(reg1[1:], 0, 63)
+        die_if(val1 != value + 1, 'Invalid tuple value')
+    else:
+        die_if(op[0] != 'r', f"Expected register destination {op}")
+        parts = op.split(".")
+        reg = parts[0]
+        value = parse_int(reg[1:], 0, 63)
 
     # Default to writing in full
     wrmask = 0x3
@@ -120,7 +154,7 @@ def encode_dest(op):
         die_if(mask not in WMASKS, "Expected a write mask")
         wrmask = 1 << WMASKS.index(mask)
 
-    return parse_int(reg[1:], 0, 63) | (wrmask << 6)
+    return value | (wrmask << 6)
 
 def parse_asm(line):
     global LINE

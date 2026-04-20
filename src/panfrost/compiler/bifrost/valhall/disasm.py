@@ -43,7 +43,7 @@ static const uint32_t va_immediates[32] = {
 };
 
 static inline void
-va_print_src(FILE *fp, unsigned type, unsigned value, unsigned fau_page)
+va_print_src(FILE *fp, unsigned type, unsigned value, unsigned size, unsigned fau_page)
 {
 	if (type == VA_SRC_IMM_TYPE) {
         if (value >= 32) {
@@ -64,18 +64,22 @@ va_print_src(FILE *fp, unsigned type, unsigned value, unsigned fau_page)
 		fprintf(fp, "u%u", value | (fau_page << 6));
 	} else {
 		bool discard = (type & 1);
-		fprintf(fp, "r%u%s", value, discard ? "^" : "");
+		char *dmark = discard ? "^" : "";
+		if (size > 32)
+			fprintf(fp, "[r%u%s:r%u%s]", value, dmark, value + 1, dmark);
+		else
+			fprintf(fp, "r%u%s", value, dmark);
 	}
 }
 
 static inline void
-va_print_float_src(FILE *fp, unsigned type, unsigned value, unsigned fau_page, bool neg, bool abs)
+va_print_float_src(FILE *fp, unsigned type, unsigned value, unsigned size, unsigned fau_page, bool neg, bool abs)
 {
 	if (type == VA_SRC_IMM_TYPE) {
         assert(value < 32 && "overflow in LUT");
         fprintf(fp, "0x%X", va_immediates[value]);
 	} else {
-        va_print_src(fp, type, value, fau_page);
+        va_print_src(fp, type, value, size, fau_page);
     }
 
 	if (neg)
@@ -86,13 +90,12 @@ va_print_float_src(FILE *fp, unsigned type, unsigned value, unsigned fau_page, b
 }
 
 static inline void
-va_print_dest(FILE *fp, unsigned mask, unsigned value, bool can_mask)
+va_print_dest(FILE *fp, unsigned mask, unsigned value, unsigned size)
 {
-   fprintf(fp, "r%u", value);
-
-   /* Should write at least one component */
-   //	assert(mask != 0);
-   //	assert(mask == 0x3 || can_mask);
+   if (size > 32)
+      fprintf(fp, "[r%u:r%u]", value, value + 1);
+   else
+      fprintf(fp, "r%u", value);
 
    if (mask != 0x3)
       fprintf(fp, ".h%u", (mask == 1) ? 0 : 1);
@@ -113,7 +116,7 @@ va_print_dest(FILE *fp, unsigned mask, unsigned value, bool can_mask)
             fprintf(fp, "%s ", valhall_flow[(instr >> ${op.offset['flow']}) & ${hex(op.mask['flow'])}]);
 % for i, dest in enumerate(op.dests):
 <% no_comma = False %>
-            va_print_dest(fp, (instr >> ${dest.offset['mode']}) & ${hex(dest.mask['mode'])}, (instr >> ${dest.offset['value']}) & ${hex(dest.mask['value'])}, true);
+            va_print_dest(fp, (instr >> ${dest.offset['mode']}) & ${hex(dest.mask['mode'])}, (instr >> ${dest.offset['value']}) & ${hex(dest.mask['value'])}, ${dest.size});
 % endfor
 % for index, sr in enumerate(op.staging):
 % if not no_comma:
@@ -145,15 +148,15 @@ va_print_dest(FILE *fp, unsigned mask, unsigned value, bool can_mask)
 <% no_comma = False %>
 % if src.absneg:
             va_print_float_src(fp, (instr >> ${src.offset['mode']}) & ${hex(src.mask['mode'])}, (instr >> ${src.offset['value']}) & ${hex(src.mask['value'])},
-                    (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])},
+                    ${src.size}, (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])},
                     instr & BIT(${src.offset['neg']}),
                     instr & BIT(${src.offset['abs']}));
 % elif src.is_float:
             va_print_float_src(fp, (instr >> ${src.offset['mode']}) & ${src.mask['mode']}, (instr >> ${src.offset['value']}) & ${hex(src.mask['value'])},
-                    (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])}, false, false);
+                    ${src.size}, (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])}, false, false);
 % else:
             va_print_src(fp, (instr >> ${src.offset['mode']}) & ${src.mask['mode']}, (instr >> ${src.offset['value']}) & ${hex(src.mask['value'])},
-                    (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])});
+                    ${src.size}, (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])});
 % endif
 % if src.swizzle:
 % if src.size == 32:
