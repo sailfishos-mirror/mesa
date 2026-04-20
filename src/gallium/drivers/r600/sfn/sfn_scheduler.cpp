@@ -181,6 +181,10 @@ private:
    };
 
    bool schedule_alu(Shader::ShaderBlocks& out_blocks);
+   bool fill_alu_group(Shader::ShaderBlocks& out_blocks,
+                       AluGroup& group,
+                       bool& success,
+                       const AluScheduleContext& alu_ctx);
    auto schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_blocks,
                                           bool& success,
                                           const AluScheduleContext& alu_ctx) -> AluGroup*;
@@ -566,19 +570,32 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
 
    assert(group);
 
-   int free_slots = group->free_slot_mask();
+   if (!fill_alu_group(out_blocks, *group, success, alu_ctx))
+      return false;
+
+   finalize_schedule_alu_group(out_blocks, *group, alu_ctx.expected_ar_uses);
+   return success;
+}
+
+bool
+BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
+                               AluGroup& group,
+                               bool& success,
+                               const AluScheduleContext& alu_ctx)
+{
+   int free_slots = group.free_slot_mask();
 
    while (free_slots && alu_ctx.has_alu_ready) {
 
       if (!alu_multi_slot_ready.empty()) {
-         success |= schedule_alu_multislot_to_group_vec(group);
-         free_slots = group->free_slot_mask();
+         success |= schedule_alu_multislot_to_group_vec(&group);
+         free_slots = group.free_slot_mask();
       }
 
       if (!alu_vec_ready.empty())
-         success |= schedule_alu_to_group_vec(group);
+         success |= schedule_alu_to_group_vec(&group);
 
-      if (group->has_kill_op())
+      if (group.has_kill_op())
          break;
 
       /* Apparently one can't schedule a t-slot if there is already
@@ -589,9 +606,9 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
       if (free_slots & 0x10 && !alu_ctx.has_lds_ready) {
          sfn_log << SfnLog::schedule << "Try schedule TRANS channel\n";
          if (!alu_trans_ready.empty())
-            success |= schedule_alu_to_group_trans(group, alu_trans_ready);
+            success |= schedule_alu_to_group_trans(&group, alu_trans_ready);
          if (!alu_vec_ready.empty())
-            success |= schedule_alu_to_group_trans(group, alu_vec_ready);
+            success |= schedule_alu_to_group_trans(&group, alu_vec_ready);
       }
 
       if (success) {
@@ -614,8 +631,8 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
          // Ready is not empty, but we didn't schedule anything, this
          // means we had a indirect array read or write conflict that we
          // can resolve with an extra group that has a NOP instruction
-         if (!alu_trans_ready.empty()  || !alu_vec_ready.empty()) {
-            group->add_vec_instructions(new AluInstr(op0_nop, 0));
+         if (!alu_trans_ready.empty() || !alu_vec_ready.empty()) {
+            group.add_vec_instructions(new AluInstr(op0_nop, 0));
             break;
          } else {
             return false;
@@ -623,8 +640,7 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
       }
    }
 
-   finalize_schedule_alu_group(out_blocks, *group, alu_ctx.expected_ar_uses);
-   return success;
+   return true;
 }
 
 auto
