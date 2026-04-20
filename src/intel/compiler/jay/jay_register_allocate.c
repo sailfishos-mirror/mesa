@@ -642,33 +642,19 @@ jay_emit_parallel_copies(jay_builder *b,
    /* Emit moves after swaps because they fan out and thus increase demand.
     * This gives us more freedom around temporaries. The rewrite of simple
     * copies above ensures correctness.
-    *
-    * Simiarly, we first emit memory-memory copies since those require
-    * temporaries but only register copies can clobber the temporaries.
     */
    for (unsigned i = 0; i < num_simple; i++) {
       jay_def dst = def_from_reg(simple[i].dst);
       jay_def src = def_from_reg(simple[i].src);
 
-      if (jay_is_mem(dst) && jay_is_mem(src)) {
-         mov(b, dst, src, temps);
+      mov(b, dst, src, temps);
+
+      if (temps.gpr == simple[i].dst || temps.gpr == simple[i].src) {
+         temps.gpr = NO_REG;
       }
-   }
 
-   for (unsigned i = 0; i < num_simple; i++) {
-      jay_def dst = def_from_reg(simple[i].dst);
-      jay_def src = def_from_reg(simple[i].src);
-
-      if (!(jay_is_mem(dst) && jay_is_mem(src))) {
-         mov(b, dst, src, temps);
-
-         if (temps.gpr == simple[i].dst || temps.gpr == simple[i].src) {
-            temps.gpr = NO_REG;
-         }
-
-         if (temps.ugpr == simple[i].dst || temps.ugpr == simple[i].src) {
-            temps.ugpr = NO_REG;
-         }
+      if (temps.ugpr == simple[i].dst || temps.ugpr == simple[i].src) {
+         temps.ugpr = NO_REG;
       }
    }
 
