@@ -194,9 +194,9 @@ private:
                                     int expected_ar_uses);
    void start_new_block(Shader::ShaderBlocks& out_blocks, Block::Type type);
 
-   bool schedule_alu_to_group_vec(AluGroup *group);
-   bool schedule_alu_multislot_to_group_vec(AluGroup *group);
-   bool schedule_alu_to_group_trans(AluGroup *group, std::list<AluInstr *>& readylist);
+   bool schedule_alu_to_group_vec(AluGroup& group);
+   bool schedule_alu_multislot_to_group_vec(AluGroup& group);
+   bool schedule_alu_to_group_trans(AluGroup& group, std::list<AluInstr *>& readylist);
 
    bool schedule_exports(Shader::ShaderBlocks& out_blocks,
                          std::list<ExportInstr *>& ready_list);
@@ -588,12 +588,12 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
    while (free_slots && alu_ctx.has_alu_ready) {
 
       if (!alu_multi_slot_ready.empty()) {
-         success |= schedule_alu_multislot_to_group_vec(&group);
+         success |= schedule_alu_multislot_to_group_vec(group);
          free_slots = group.free_slot_mask();
       }
 
       if (!alu_vec_ready.empty())
-         success |= schedule_alu_to_group_vec(&group);
+         success |= schedule_alu_to_group_vec(group);
 
       if (group.has_kill_op())
          break;
@@ -606,9 +606,9 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
       if (free_slots & 0x10 && !alu_ctx.has_lds_ready) {
          sfn_log << SfnLog::schedule << "Try schedule TRANS channel\n";
          if (!alu_trans_ready.empty())
-            success |= schedule_alu_to_group_trans(&group, alu_trans_ready);
+            success |= schedule_alu_to_group_trans(group, alu_trans_ready);
          if (!alu_vec_ready.empty())
-            success |= schedule_alu_to_group_trans(&group, alu_vec_ready);
+            success |= schedule_alu_to_group_trans(group, alu_vec_ready);
       }
 
       if (success) {
@@ -993,16 +993,15 @@ BlockScheduler::schedule_cf(Shader::ShaderBlocks& out_blocks, std::list<I *>& re
 }
 
 bool
-BlockScheduler::schedule_alu_to_group_vec(AluGroup *group)
+BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
 {
-   assert(group);
    assert(!alu_vec_ready.empty());
 
    bool success = false;
    auto i = alu_vec_ready.begin();
    auto e = alu_vec_ready.end();
-   bool group_has_kill = group->has_kill_op();
-   bool group_has_update_pred = group->has_update_exec();
+   bool group_has_kill = group.has_kill_op();
+   bool group_has_update_pred = group.has_update_exec();
    while (i != e) {
       sfn_log << SfnLog::schedule << "Try schedule to vec " << **i;
 
@@ -1033,7 +1032,7 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup *group)
          continue;
       }
 
-      if (group->add_vec_instructions(*i)) {
+      if (group.add_vec_instructions(*i)) {
          (*i)->pin_dest_to_chan();
          group_has_update_pred |= (*i)->has_alu_flag(alu_update_pred);
          auto old_i = i;
@@ -1089,18 +1088,17 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup *group)
 }
 
 bool
-BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup *group)
+BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup& group)
 {
-   assert(group);
    assert(!alu_multi_slot_ready.empty());
 
    bool success = false;
    auto i = alu_multi_slot_ready.begin();
    auto e = alu_multi_slot_ready.end();
 
-   bool group_has_kill = group->has_kill_op();
+   bool group_has_kill = group.has_kill_op();
 
-   while (i != e && util_bitcount(group->free_slot_mask()) > 1) {
+   while (i != e && util_bitcount(group.free_slot_mask()) > 1) {
 
       /* A kill instruction and a predicate update in the same
        * group don't mix well, so skip adding a predicate changing
@@ -1120,7 +1118,7 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup *group)
 
          auto required_mask = (*i)->required_channels_mask();
 
-         if ((group->free_slot_mask() & required_mask) == required_mask) {
+         if ((group.free_slot_mask() & required_mask) == required_mask) {
             can_merge = true;
             break;
          }
@@ -1153,7 +1151,7 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup *group)
          continue;
       }
 
-      if ((*i)->split(*group)) {
+      if ((*i)->split(group)) {
          success = true;
          auto old_i = i;
          ++i;
@@ -1164,7 +1162,7 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup *group)
 
          alu_multi_slot_ready.erase(old_i);
       } else {
-         if ((group->free_slot_mask() & 0xf) == 0xf) {
+         if ((group.free_slot_mask() & 0xf) == 0xf) {
             std::cerr << **i << "\n";
             UNREACHABLE("Splitting into an empty slot must not fail");
          }
@@ -1175,17 +1173,15 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup *group)
 }
 
 bool
-BlockScheduler::schedule_alu_to_group_trans(AluGroup *group,
-                                           std::list<AluInstr *>& readylist)
+BlockScheduler::schedule_alu_to_group_trans(AluGroup& group,
+                                            std::list<AluInstr *>& readylist)
 {
-   assert(group);
-
    bool success = false;
    auto i = readylist.begin();
    auto e = readylist.end();
 
-   bool group_has_kill = group->has_kill_op();
-   bool group_has_update_pred = group->has_update_exec();
+   bool group_has_kill = group.has_kill_op();
+   bool group_has_update_pred = group.has_update_exec();
 
    while (i != e) {
 
@@ -1207,7 +1203,7 @@ BlockScheduler::schedule_alu_to_group_trans(AluGroup *group,
          continue;
       }
 
-      if (group->add_trans_instructions(*i)) {
+      if (group.add_trans_instructions(*i)) {
          (*i)->pin_dest_to_chan();
          auto old_i = i;
          ++i;
