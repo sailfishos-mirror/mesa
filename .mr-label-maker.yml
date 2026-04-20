@@ -123,6 +123,7 @@ merge_requests:
         '^.gitlab/issue_templates/': ['docs']
         '^.gitlab-ci': ['CI']
         '^bin/ci/': ['CI']
+        '^.ci-farms(-disabled)?/collabora': ['CI', 'radeonsi', 'RADV', 'iris', 'ANV', 'panfrost', 'panvk', 'freedreno', 'turnip', 'venus', 'zink']
         '^.*/gitlab-ci(-inc)?.yml': ['CI']
         '^.*/ci/deqp-.*\.toml': ['CI']
         '^.*/ci/.*-(fails|flakes|skips)\.txt': ['CI-Expectations']
