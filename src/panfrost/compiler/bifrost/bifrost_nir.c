@@ -870,6 +870,9 @@ bifrost_postprocess_nir(nir_shader *nir,
    const uint64_t gpu_id = inputs->gpu_id;
    const unsigned gpu_arch = pan_arch(gpu_id);
 
+   if (gpu_arch >= 9)
+      NIR_PASS(_, nir, pan_nir_lower_image_64bit);
+
    NIR_PASS(_, nir, nir_lower_image_atomics_to_global, NULL, NULL);
 
    /* on Bifrost, lower MSAA load/stores to 3D load/stores */
