@@ -99,8 +99,8 @@ def encode_source(op, fau):
         return parse_int(op[1:], 0, 63)
     elif op[0] == 'u':
         val = parse_int(op[1:], 0, 127)
-        fau.set_page(val >> 6)
-        return (val & 0x3F) | 0x80
+        fau.set_page(val >> 5)
+        return ((val & 0x1F) << 1) | 0x80
     elif op[0] == 'i':
         return int(op[3:]) | 0xC0
     elif op.startswith('0x'):
@@ -241,7 +241,9 @@ def parse_asm(line):
         encoded_src = encode_source(parts[0], fau)
 
         # Require a word selection for special FAU values
-        needs_word_select = ((encoded_src >> 5) == 0b111)
+        may_have_word_select = ((encoded_src >> 5) == 0b111)
+        # or for regular FAU values
+        may_have_word_select |= ((encoded_src >> 6) == 0b10)
 
         # Has a swizzle been applied yet?
         swizzled = False
@@ -295,13 +297,13 @@ def parse_asm(line):
                 val = enums['lanes_8_bit'].bare_values.index(mod)
                 encoded |= (val << src.offset['widen'])
             elif mod in ['w0', 'w1']:
-                # Chck for special
-                die_if(not needs_word_select, 'Unexpected word select')
+                # Check whether we may have word select
+                die_if(not may_have_word_select, 'Unexpected word select')
 
                 if mod == 'w1':
                     encoded_src |= 0x1
 
-                needs_word_select = False
+                may_have_word_select = False
             else:
                 die(f"Unknown modifier {mod}")
 

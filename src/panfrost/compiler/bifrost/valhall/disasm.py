@@ -61,7 +61,9 @@ va_print_src(FILE *fp, unsigned type, unsigned value, unsigned size, unsigned fa
             fprintf(fp, "0x%X", va_immediates[value]);
         }
 	} else if (type == VA_SRC_UNIFORM_TYPE) {
-		fprintf(fp, "u%u", value | (fau_page << 6));
+		fprintf(fp, "u%u", value >> 1 | (fau_page << 5));
+		if (size <= 32)
+			fprintf(fp, ".w%u", value & 1);
 	} else {
 		bool discard = (type & 1);
 		char *dmark = discard ? "^" : "";
