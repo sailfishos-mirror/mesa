@@ -174,6 +174,14 @@ private:
    bool schedule_cf(Shader::ShaderBlocks& out_blocks, std::list<I *>& ready_list);
 
    bool schedule_alu(Shader::ShaderBlocks& out_blocks);
+   void prepare_schedule_alu(Shader::ShaderBlocks& out_blocks,
+                             bool& has_alu_ready,
+                             bool& has_lds_ready,
+                             bool& has_ar_read_ready,
+                             int& expected_ar_uses);
+   void finalize_schedule_alu_group(Shader::ShaderBlocks& out_blocks,
+                                    AluGroup& group,
+                                    int expected_ar_uses);
    void start_new_block(Shader::ShaderBlocks& out_blocks, Block::Type type);
 
    bool schedule_alu_to_group_vec(AluGroup *group);
@@ -542,27 +550,14 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
    AluGroup *group = nullptr;
    int expected_ar_uses = m_current_block->expected_ar_uses();
 
-   sfn_log << SfnLog::schedule << "Schedule alu with " <<
-              m_current_block->expected_ar_uses()
-           << " pending AR loads\n";
-
-   bool has_alu_ready =
-      !alu_vec_ready.empty() || !alu_multi_slot_ready.empty() || !alu_trans_ready.empty();
-
-   bool has_lds_ready =
-      !alu_vec_ready.empty() && (*alu_vec_ready.begin())->has_lds_access();
-
-   bool has_ar_read_ready = !alu_vec_ready.empty() &&
-                            std::get<0>((*alu_vec_ready.begin())->indirect_addr());
-
-   /* If we have ready ALU instructions we have to start a new ALU block */
-   if (has_alu_ready || !alu_groups_ready.empty()) {
-      if (m_current_block->type() != Block::alu) {
-         start_new_block(out_blocks, Block::alu);
-         m_alu_groups_scheduled = 0;
-         expected_ar_uses = 0;
-      }
-   }
+   bool has_alu_ready = false;
+   bool has_lds_ready = false;
+   bool has_ar_read_ready = false;
+   prepare_schedule_alu(out_blocks,
+                        has_alu_ready,
+                        has_lds_ready,
+                        has_ar_read_ready,
+                        expected_ar_uses);
 
    /* Schedule groups first. unless we have a pending LDS instruction
     * We don't want the LDS instructions to be too far apart because the
@@ -671,32 +666,69 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
       }
    }
 
+   finalize_schedule_alu_group(out_blocks, *group, expected_ar_uses);
+   return success;
+}
 
+void
+BlockScheduler::prepare_schedule_alu(Shader::ShaderBlocks& out_blocks,
+                                     bool& has_alu_ready,
+                                     bool& has_lds_ready,
+                                     bool& has_ar_read_ready,
+                                     int& expected_ar_uses)
+{
+   sfn_log << SfnLog::schedule << "Schedule alu with " <<
+              m_current_block->expected_ar_uses()
+           << " pending AR loads\n";
 
+   has_alu_ready =
+      !alu_vec_ready.empty() || !alu_multi_slot_ready.empty() || !alu_trans_ready.empty();
+
+   has_lds_ready =
+      !alu_vec_ready.empty() && (*alu_vec_ready.begin())->has_lds_access();
+
+   has_ar_read_ready = !alu_vec_ready.empty() &&
+                       std::get<0>((*alu_vec_ready.begin())->indirect_addr());
+
+   /* If we have ready ALU instructions we have to start a new ALU block */
+   if (has_alu_ready || !alu_groups_ready.empty()) {
+      if (m_current_block->type() != Block::alu) {
+         start_new_block(out_blocks, Block::alu);
+         m_alu_groups_scheduled = 0;
+         expected_ar_uses = 0;
+      }
+   }
+}
+
+void
+BlockScheduler::finalize_schedule_alu_group(Shader::ShaderBlocks& out_blocks,
+                                            AluGroup& group,
+                                            int expected_ar_uses)
+{
    sfn_log << SfnLog::schedule << "Finalize ALU group\n";
-   group->set_scheduled();
-   group->fix_last_flag();
-   group->set_nesting_depth(m_current_block->nesting_depth());
+   group.set_scheduled();
+   group.fix_last_flag();
+   group.set_nesting_depth(m_current_block->nesting_depth());
 
-   auto [addr, is_index] = group->addr();
+   auto [addr, is_index] = group.addr();
    if (is_index) {
       if (addr->sel() == AddressRegister::idx0 && m_idx0_pending) {
-         assert(!group->has_lds_group_start());
+         assert(!group.has_lds_group_start());
          assert(expected_ar_uses == 0);
          start_new_block(out_blocks, Block::alu);
-         m_current_block->try_reserve_kcache(*group);
+         m_current_block->try_reserve_kcache(group);
       }
       if (addr->sel() == AddressRegister::idx1 && m_idx1_pending) {
-         assert(!group->has_lds_group_start());
+         assert(!group.has_lds_group_start());
          assert(expected_ar_uses == 0);
          start_new_block(out_blocks, Block::alu);
-         m_current_block->try_reserve_kcache(*group);
+         m_current_block->try_reserve_kcache(group);
       }
    }
 
-   m_current_block->push_back(group);
+   m_current_block->push_back(&group);
 
-   update_array_writes(*group);
+   update_array_writes(group);
 
    m_idx0_pending |= m_idx0_loading;
    m_idx0_loading = false;
@@ -706,22 +738,21 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
 
    if (!m_current_block->lds_group_active() && expected_ar_uses == 0 &&
        (!addr || is_index)) {
-      group->set_instr_flag(Instr::no_lds_or_addr_group);
+      group.set_instr_flag(Instr::no_lds_or_addr_group);
    }
 
-   if (group->has_lds_group_start())
-      m_current_block->lds_group_start(*group->begin());
+   if (group.has_lds_group_start())
+      m_current_block->lds_group_start(*group.begin());
 
-   if (group->has_lds_group_end())
+   if (group.has_lds_group_end())
       m_current_block->lds_group_end();
 
-   if (group->has_kill_op()) {
-      assert(!group->has_lds_group_start());
+   if (group.has_kill_op()) {
+      assert(!group.has_lds_group_start());
       assert(expected_ar_uses == 0);
       start_new_block(out_blocks, Block::unknown);
    }
-   group->update_readport_reserver();
-   return success;
+   group.update_readport_reserver();
 }
 
 bool
