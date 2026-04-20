@@ -1594,6 +1594,8 @@ brw_compile_fs(const struct brw_compiler *compiler,
       }
 
    } else {
+      bool simd16_failed = false;
+
       if ((!has_spilled && dispatch_width_limit >= 16 &&
            !beyond_threshold[1] && INTEL_SIMD(FS, 16)) ||
           reqd_dispatch_width == 16) {
@@ -1609,6 +1611,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
                                 "SIMD16 shader failed to compile: %s\n",
                                 v16->fail_msg);
             v16.reset();
+            simd16_failed = true;
          } else {
             assert(v16->payload().num_regs % reg_unit(devinfo) == 0);
             prog_data->dispatch_grf_start_reg_16 = v16->payload().num_regs / reg_unit(devinfo);
@@ -1621,8 +1624,6 @@ brw_compile_fs(const struct brw_compiler *compiler,
             allow_spilling = false;
          }
       }
-
-      const bool simd16_failed = !v16;
 
       /* Currently, the compiler only supports SIMD32 on SNB+ */
       if (!has_spilled &&
