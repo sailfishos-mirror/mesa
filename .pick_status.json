@@ -2524,7 +2524,7 @@
         "description": "ac,radeonsi,radv: fix print IB assertion fail for reserved fields",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1c75cd958f4c57fe84020c330779b1f95b182924",
         "notes": null
