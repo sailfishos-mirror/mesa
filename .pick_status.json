@@ -2804,7 +2804,7 @@
         "description": "v3dv: close display_fd on incompatible_driver path",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bb532a7a39c92bc10fb098d37ab577070f0e1652",
         "notes": null
