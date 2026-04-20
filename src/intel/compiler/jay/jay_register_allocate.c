@@ -374,11 +374,14 @@ add_copy(struct util_dynarray *copies, jay_reg dst, jay_reg src)
 static jay_def
 push_temp(jay_builder *b, jay_reg reg, bool stride4)
 {
-   jay_def tmp = def_from_reg(reg);
+   jay_def tmp = reg == NO_REG ? jay_null() : def_from_reg(reg);
 
-   if (stride4 && jay_def_stride(b->shader, tmp) != JAY_STRIDE_4) {
+   if (jay_is_null(tmp) ||
+       (stride4 && jay_def_stride(b->shader, tmp) != JAY_STRIDE_4)) {
+
+      /* Put accumulators down the float pipe - it's still a raw move. */
       jay_def new = def_from_reg(0);
-      jay_MOV(b, tmp, new);
+      jay_MOV(b, jay_bare_reg(ACCUM, 0), new)->type = JAY_TYPE_F32;
       tmp = new;
    }
 
@@ -388,8 +391,8 @@ push_temp(jay_builder *b, jay_reg reg, bool stride4)
 static void
 pop_temp(jay_builder *b, struct jay_temp_regs t, jay_def temp)
 {
-   if (temp.file == GPR && temp.reg != t.gpr) {
-      jay_MOV(b, temp, def_from_reg(t.gpr));
+   if (temp.file == GPR && make_reg(GPR, temp.reg) != t.gpr) {
+      jay_MOV(b, temp, jay_bare_reg(ACCUM, 0))->type = JAY_TYPE_F32;
    }
 }
 
@@ -410,6 +413,17 @@ mov(jay_builder *b, jay_def dst, jay_def src, struct jay_temp_regs temps)
       assert(temps.ugpr != NO_REG && "ensured by the spill limit");
       jay_MOV(b, def_from_reg(temps.ugpr), src);
       jay_MOV(b, dst, def_from_reg(temps.ugpr));
+   } else if (dst.file == GPR &&
+              src.file == GPR &&
+              jay_def_stride(b->shader, dst) !=
+                 jay_def_stride(b->shader, src) &&
+              jay_def_stride(b->shader, dst) != JAY_STRIDE_4 &&
+              jay_def_stride(b->shader, src) != JAY_STRIDE_4) {
+
+      jay_def temp = push_temp(b, temps.gpr, true /* stride4 */);
+      jay_MOV(b, temp, src);
+      jay_MOV(b, dst, temp);
+      pop_temp(b, temps, temp);
    } else {
       jay_MOV(b, dst, src);
    }
