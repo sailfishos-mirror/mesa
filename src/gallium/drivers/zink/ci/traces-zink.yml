@@ -292,6 +292,8 @@ traces:
     gl-zink-anv-adl:
       checksum: 1706229fca06c1d7946ebc94e3b0a66d
     gl-zink-anv-tgl:
+      # Flaky, looks like a window system issue in zink
+      label: [skip, broken]
       checksum: 1706229fca06c1d7946ebc94e3b0a66d
     zink-radv-vangogh:
       checksum: 8b8a99c7828481fd6a126192ee4a4594
