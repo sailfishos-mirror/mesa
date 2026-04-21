@@ -834,7 +834,6 @@ jay_grf_per_gpr(jay_shader *s)
 static inline unsigned
 jay_phys_flag_per_virt(jay_shader *s)
 {
-   /* TODO: Check if this holds on older platforms */
    return jay_grf_per_gpr(s);
 }
 
@@ -900,7 +899,7 @@ jay_dst_alignment(jay_shader *shader, const jay_inst *I)
     *    Register Regioning patterns where register data bit locations are
     *    changed between source and destination are not supported when an
     *    accumulator is used as an implicit source or an explicit source in an
-    *    instruction. (TODO)
+    *    instruction.
     */
    if (I->dst.file == UGPR &&
        (I->op == JAY_OPCODE_SEND || I->op == JAY_OPCODE_MUL_32)) {

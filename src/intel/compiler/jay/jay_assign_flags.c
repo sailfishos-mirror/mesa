@@ -417,6 +417,3 @@ jay_assign_flags(jay_shader *s)
       copyprop(f);
    }
 }
-/* TODO: revisit
- * dEQP-GLES3.functional.shaders.arrays.compare.equal_highp_vec4_highp_vec4_vertex
- */

@@ -26,7 +26,7 @@ struct regfile {
 static uint32_t *
 reg(struct regfile *rf, enum jay_file file, uint32_t reg)
 {
-   /* FLAG and UFLAG share their registers. TODO: Rework? */
+   /* FLAG and UFLAG share their registers */
    if (file == UFLAG) {
       file = FLAG;
    }
