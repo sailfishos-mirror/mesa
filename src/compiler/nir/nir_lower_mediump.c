@@ -476,9 +476,7 @@ static bool
 const_is_f16(nir_scalar scalar)
 {
    double value = nir_scalar_as_float(scalar);
-   uint16_t fp16_val = _mesa_float_to_half(value);
-   bool is_denorm = (fp16_val & 0x7fff) != 0 && (fp16_val & 0x7fff) <= 0x3ff;
-   return value == _mesa_half_to_float(fp16_val) && !is_denorm;
+   return _mesa_float_is_half(value);
 }
 
 static bool
