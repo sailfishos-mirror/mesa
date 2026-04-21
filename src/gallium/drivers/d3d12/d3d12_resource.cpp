@@ -254,6 +254,10 @@ init_texture(struct d3d12_screen *screen,
    if (templ->bind & PIPE_BIND_RENDER_TARGET)
       desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
+   // This is expected from D3D11 openers for D3D12 created shareable resources
+   if (templ->bind & PIPE_BIND_SHARED)
+      desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
+
    if (templ->bind & PIPE_BIND_DEPTH_STENCIL) {
       desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
