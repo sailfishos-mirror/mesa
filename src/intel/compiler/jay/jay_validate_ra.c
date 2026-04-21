@@ -49,10 +49,8 @@ print_regfile(struct regfile *rf, FILE *fp)
    jay_foreach_ssa_file(file) {
       for (unsigned i = 0; i < rf->n[file]; ++i) {
          uint32_t v = *reg(rf, file, i);
-         const char *prefixes = "ruf"; /* XXX: share with jay_print */
-
          if (v) {
-            fprintf(fp, "   %c%u = %u\n", prefixes[file], i, v);
+            fprintf(fp, "   %s%u = %u\n", jay_file_prefix(file), i, v);
          }
       }
    }

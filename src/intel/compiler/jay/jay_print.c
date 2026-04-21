@@ -53,12 +53,18 @@ jay_print_type(FILE *fp, enum jay_type t)
            jay_type_size_bits(t));
 }
 
+const char *
+jay_file_prefix(enum jay_file file)
+{
+   return ENUM_TO_STR(file, jay_file_str);
+}
+
 static void
 jay_print_def(FILE *fp, const jay_inst *I, int src)
 {
    jay_def def = src == -2 ? I->cond_flag : src == -1 ? I->dst : I->src[src];
    unsigned len = jay_num_values(def);
-   const char *file = ENUM_TO_STR(def.file, jay_file_str);
+   const char *file = jay_file_prefix(def.file);
    bool has_lu = jay_is_ssa(def) && !jay_is_null(def) && src >= 0;
    unsigned lu_bit = has_lu ? jay_source_last_use_bit(I->src, src) : 0;
 

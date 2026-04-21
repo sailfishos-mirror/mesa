@@ -41,7 +41,7 @@ void jay_register_allocate(jay_shader *s);
 void jay_assign_flags(jay_shader *s);
 void jay_repair_ssa(jay_function *func);
 
-const char *jay_file_to_string(enum jay_file file);
+const char *jay_file_prefix(enum jay_file file);
 void jay_print_type(FILE *f, enum jay_type t);
 void jay_print_inst(FILE *f, jay_inst *I);
 void jay_print_block(FILE *f, jay_block *block);
