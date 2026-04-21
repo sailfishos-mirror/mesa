@@ -168,7 +168,7 @@ optimize_lower_ps_outputs(nir_builder *b, nir_intrinsic_instr *intrin, lower_ps_
       } else {
          nir_def *ref = nir_load_alpha_reference_amd(b);
          ref = nir_convert_to_bit_size(b, ref, nir_type_float, value->bit_size);
-         nir_def *alpha = s->options->alpha_test_alpha_to_one ?
+         nir_def *alpha = s->options->alpha_to_one ?
                              nir_imm_floatN_t(b, 1, value->bit_size) :
                              nir_channel(b, value, 3 - component);
          nir_def *cond = nir_compare_func(b, s->options->alpha_func, alpha, ref);
@@ -192,6 +192,8 @@ optimize_lower_ps_outputs(nir_builder *b, nir_intrinsic_instr *intrin, lower_ps_
 
    if (s->options->keep_alpha_for_mrtz && color_index == 0)
       format_mask |= BITFIELD_BIT(3);
+   else if (s->options->alpha_to_one)
+      format_mask &= ~BITFIELD_BIT(3);
 
    writemask = (format_mask >> component) & writemask;
    nir_intrinsic_set_write_mask(intrin, writemask);

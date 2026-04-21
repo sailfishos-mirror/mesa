@@ -869,7 +869,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
                                    !(sel->screen->debug_flags & DBG(NO_FMASK)),
 
             .clamp_color = key->ps.part.epilog.clamp_color,
-            .alpha_test_alpha_to_one = key->ps.part.epilog.alpha_to_one,
+            .alpha_to_one = key->ps.part.epilog.alpha_to_one,
             .alpha_func = key->ps.part.epilog.alpha_func,
             .keep_alpha_for_mrtz = key->ps.part.epilog.alpha_to_coverage_via_mrtz,
             .spi_shader_col_format_hint = key->ps.part.epilog.spi_shader_col_format,
