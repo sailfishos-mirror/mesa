@@ -2154,7 +2154,7 @@
         "description": "anv: fix invalid value for push block index",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": null,
         "notes": null
