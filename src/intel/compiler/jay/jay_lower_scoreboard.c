@@ -12,8 +12,7 @@
 #include "jay_opcodes.h"
 #include "jay_private.h"
 
-/* TODO: Shrink */
-#define MAX_KEYS   (2 * JAY_NUM_UGPR)
+#define MAX_KEYS   (JAY_NUM_PHYS_GRF + JAY_NUM_UGPR)
 #define NUM_TOKENS (16)
 
 /** SEND scoreboarding */
