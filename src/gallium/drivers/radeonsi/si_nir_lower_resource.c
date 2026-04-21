@@ -379,8 +379,7 @@ static bool lower_resource_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin
          intrin->intrinsic == nir_intrinsic_bindless_image_fragment_mask_load_amd ||
          intrin->intrinsic == nir_intrinsic_bindless_image_descriptor_amd;
 
-      nir_def *index = nir_u2u32(b, intrin->src[0].ssa);
-
+      nir_def *index = intrin->src[0].ssa;
       nir_def *desc = load_bindless_image_desc(b, index, desc_type, is_load, s);
 
       if (intrin->intrinsic == nir_intrinsic_bindless_image_descriptor_amd) {
@@ -524,12 +523,11 @@ static bool lower_resource_tex(nir_builder *b, nir_tex_instr *tex,
          }
          break;
       case nir_tex_src_texture_handle:
-         /* We use 32-bit handles. */
-         texture_handle = nir_u2u32(b, tex->src[i].src.ssa);
+         texture_handle = tex->src[i].src.ssa;
          break;
       case nir_tex_src_sampler_handle:
          if (has_sampler) {
-            sampler_handle = nir_u2u32(b, tex->src[i].src.ssa);
+            sampler_handle = tex->src[i].src.ssa;
          } else {
             nir_tex_instr_remove_src(tex, i);
             i--;
