@@ -113,9 +113,6 @@ pub extern "C" fn nak_debug_no_ugpr() -> bool {
 fn nir_options(dev: &nv_device_info) -> nir_shader_compiler_options {
     nir_shader_compiler_options {
         lower_fdiv: true,
-        fuse_ffma16: true,
-        fuse_ffma32: true,
-        fuse_ffma64: true,
         float_mul_add16: nir_float_muladd_support_has_ffma
             | nir_float_muladd_support_fuse,
         float_mul_add32: nir_float_muladd_support_has_ffma

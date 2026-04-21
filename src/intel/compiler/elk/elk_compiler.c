@@ -86,9 +86,6 @@ elk_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
       /* Prior to Gfx6, there are no three source operations, and Gfx11 loses
        * LRP.
        */
-      nir_options->lower_ffma16 = devinfo->ver < 6;
-      nir_options->lower_ffma32 = devinfo->ver < 6;
-      nir_options->lower_ffma64 = devinfo->ver < 6;
       nir_options->lower_flrp32 = devinfo->ver < 6;
 
       if (devinfo->ver >= 6) {

@@ -2976,7 +2976,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
 
    switch (instr->op) {
    case nir_op_ffma:
-   case nir_op_ffma_old:
       bi_fma_to(b, sz, dst, s0, s1, s2);
       break;
 

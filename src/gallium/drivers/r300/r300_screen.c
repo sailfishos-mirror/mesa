@@ -105,8 +105,6 @@ static struct disk_cache* r300_get_disk_shader_cache(struct pipe_screen* pscreen
 
 #define COMMON_NIR_OPTIONS                    \
    .fdot_replicates = true,                   \
-   .fuse_ffma32 = true,                       \
-   .fuse_ffma64 = true,                       \
    .float_mul_add32 =                         \
       nir_float_muladd_support_has_fmad |     \
       nir_float_muladd_support_fuse,          \

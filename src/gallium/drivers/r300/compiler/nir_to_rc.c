@@ -820,7 +820,6 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
       [nir_op_fmin] = TGSI_OPCODE_MIN,
       [nir_op_fmax] = TGSI_OPCODE_MAX,
       [nir_op_fmad] = TGSI_OPCODE_MAD,
-      [nir_op_ffma_old] = TGSI_OPCODE_MAD,
    };
 
    if (instr->op < ARRAY_SIZE(op_map) && op_map[instr->op] > 0) {

@@ -3393,8 +3393,6 @@ can_move_alu_across_interp(struct linkage_info *linkage, nir_alu_instr *alu)
    case nir_op_ffmaz:
    case nir_op_fmad:
    case nir_op_fmadz:
-   case nir_op_ffma_old:
-   case nir_op_ffmaz_old:
       return GET_SRC_INTERP(alu, 0) == FLAG_INTERP_CONVERGENT ||
              GET_SRC_INTERP(alu, 1) == FLAG_INTERP_CONVERGENT;
 

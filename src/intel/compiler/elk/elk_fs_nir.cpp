@@ -1707,7 +1707,6 @@ fs_nir_emit_alu(nir_to_elk_state &ntb, nir_alu_instr *instr,
       break;
 
    case nir_op_ffma:
-   case nir_op_ffma_old:
       if (nir_has_any_rounding_mode_enabled(execution_mode)) {
          elk_rnd_mode rnd =
             elk_rnd_mode_from_execution_mode(execution_mode);

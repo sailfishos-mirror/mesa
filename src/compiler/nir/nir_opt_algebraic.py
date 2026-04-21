@@ -241,15 +241,6 @@ optimizations += [
    (('usadd_4x8_vc4', a, ~0), ~0),
    (('~fadd', ('fmul', a, b), ('fmul', a, c)), ('fmul', a, ('fadd', b, c))),
    (('~fadd', ('fmulz', a, b), ('fmulz', a, c)), ('fmulz', a, ('fadd', b, c))),
-   (('~ffma_old', a, b, ('ffma_old(is_used_once)', a, c, d)), ('ffma_old', a, ('fadd', b, c), d)),
-   (('~ffma_old', a, b, ('fmul(is_used_once)', a, c)), ('fmul', a, ('fadd', b, c))),
-   (('~fadd', ('fmul(is_used_once)', a, b), ('ffma_old(is_used_once)', a, c, d)), ('ffma_old', a, ('fadd', b, c), d)),
-   (('~ffma_old', a, ('fmul(is_used_once)', b, c), ('fmul(is_used_once)', b, d)), ('fmul', b, ('ffma_old', a, c, d))),
-   (('~ffmaz_old', a, b, ('ffmaz_old(is_used_once)', a, c, d)), ('ffmaz_old', a, ('fadd', b, c), d)),
-   (('~ffmaz_old', a, b, ('fmulz(is_used_once)', a, c)), ('fmulz', a, ('fadd', b, c))),
-   (('~fadd', ('fmulz(is_used_once)', a, b), ('ffmaz_old(is_used_once)', a, c, d)), ('ffmaz_old', a, ('fadd', b, c), d)),
-   (('~fadd', ('fmulz(is_used_once)', a, b), ('ffmaz(is_used_once)', a, c, d)), ('ffmaz', a, ('fadd', b, c), d)),
-   (('~ffmaz_old', a, ('fmulz(is_used_once)', b, c), ('fmulz(is_used_once)', b, d)), ('fmulz', b, ('ffmaz_old', a, c, d))),
    (('iadd', ('imul', a, b), ('imul', a, c)), ('imul', a, ('iadd', b, c))),
    (('iadd', ('ishl', b, a), ('ishl', c, a)), ('ishl', ('iadd', b, c), a)),
    (('iand', ('iand', a, b), ('iand(is_used_once)', a, c)), ('iand', ('iand', a, b), c)),
@@ -286,11 +277,8 @@ optimizations += [
    (('fmulz(nsz)', a, 'b(is_finite_not_zero)'), ('fmul', a, b)),
    (('fmulz(nsz)', 'a(is_finite)', 'b(is_finite)'), ('fmul', a, b)),
    (('fmulz', a, a), ('fmul', a, a)),
-   (('ffmaz_old(nsz)', a, 'b(is_finite_not_zero)', c), ('ffma_old', a, b, c)),
    (('ffmaz(nsz)', a, 'b(is_finite_not_zero)', c), ('ffma', a, b, c)),
-   (('ffmaz_old', 'a(is_finite)', 'b(is_finite)', c), ('ffma_old', a, b, c)),
    (('ffmaz', 'a(is_finite)', 'b(is_finite)', c), ('ffma', a, b, c)),
-   (('ffmaz_old', a, a, b), ('ffma_old', a, a, b)),
    (('ffmaz', a, a, b), ('ffma', a, a, b)),
    (('imul', a, 0), 0),
    (('imul24_relaxed', a, 0), 0),
@@ -310,32 +298,18 @@ optimizations += [
    # If a != a: fsign(a)*a*a => 0*NaN*NaN => abs(NaN)*NaN
    (('fmul', ('fsign', a), ('fmul', a, a)), ('fmul', ('fabs', a), a)),
    (('fmul', ('fmul', ('fsign', a), a), a), ('fmul', ('fabs', a), a)),
-   (('ffma_old(nsz,nnan)', 0.0, a, b), ('fcanonicalize', b)),
    (('ffma(nsz,nnan)', 0.0, a, b), ('fcanonicalize', b)),
-   (('ffma_old(nsz,nnan)', -0.0, a, b), ('fcanonicalize', b)),
    (('ffma(nsz,nnan)', -0.0, a, b), ('fcanonicalize', b)),
-   (('ffmaz_old', 0.0, a, b), ('fadd', 0.0, b)),
    (('ffmaz', 0.0, a, b), ('fadd', 0.0, b)),
-   (('ffmaz_old', -0.0, a, b), ('fadd', 0.0, b)),
    (('ffmaz', -0.0, a, b), ('fadd', 0.0, b)),
-   (('ffma_old(nsz)', a, b, 0.0), ('fmul', a, b)),
    (('ffma(nsz)', a, b, 0.0), ('fmul', a, b)),
-   (('ffmaz_old(nsz)', a, b, 0.0), ('fmulz', a, b)),
    (('ffmaz(nsz)', a, b, 0.0), ('fmulz', a, b)),
-   (('ffma_old', a, b, -0.0), ('fmul', a, b)),
    (('ffma', a, b, -0.0), ('fmul', a, b)),
-   (('ffmaz_old', a, b, -0.0), ('fmulz', a, b)),
    (('ffmaz', a, b, -0.0), ('fmulz', a, b)),
-   (('ffma_old', 1.0, a, b), ('fadd', a, b)),
    (('ffma', 1.0, a, b), ('fadd', a, b)),
-   (('ffmaz_old(nsz)', 1.0, a, b), ('fadd', a, b)),
    (('ffmaz(nsz)', 1.0, a, b), ('fadd', a, b)),
-   (('ffma_old', -1.0, a, b), ('fadd', ('fneg', a), b)),
    (('ffma', -1.0, a, b), ('fadd', ('fneg', a), b)),
-   (('ffmaz_old(nsz)', -1.0, a, b), ('fadd', ('fneg', a), b)),
    (('ffmaz(nsz)', -1.0, a, b), ('fadd', ('fneg', a), b)),
-   (('~ffma_old', '#a', '#b', c), ('fadd', ('fmul', a, b), c)),
-   (('~ffmaz_old', '#a', '#b', c), ('fadd', ('fmulz', a, b), c)),
    (('flrp(nnan,nsz)', a, b, 0.0), ('fcanonicalize', a)),
    (('flrp(nnan,nsz)', a, b, -0.0), ('fcanonicalize', a)),
    (('flrp(nnan,nsz)', a, b, 1.0), ('fcanonicalize', b)),
@@ -413,20 +387,12 @@ optimizations += [
     ('fmulz', 'ma', b), has_fmulz), {'ma' : a}),
 
    # ffma(b==0.0 ? 0.0 : a, a==0.0 ? 0.0 : b, c) -> ffmaz(a, b, c)
-   *add_fabs_fneg((('ffma_old@32(nsz)', ('bcsel', ('feq', b, 0.0), 0.0, 'ma'), ('bcsel', ('feq', a, 0.0), 0.0, 'mb'), c),
-    ('ffmaz_old', 'ma', 'mb', c), has_fmulz), {'ma' : a, 'mb' : b}),
    *add_fabs_fneg((('ffma@32(nsz)', ('bcsel', ('feq', b, 0.0), 0.0, 'ma'), ('bcsel', ('feq', a, 0.0), 0.0, 'mb'), c),
     ('ffmaz', 'ma', 'mb', c), has_fmulz), {'ma' : a, 'mb' : b}),
-   *add_fabs_fneg((('ffma_old@32(nsz)', 'ma', ('bcsel', ('feq', a, 0.0), 0.0, '#b(is_not_const_zero)'), c),
-    ('ffmaz_old', 'ma', b, c), has_fmulz), {'ma' : a}),
    *add_fabs_fneg((('ffma@32(nsz)', 'ma', ('bcsel', ('feq', a, 0.0), 0.0, '#b(is_not_const_zero)'), c),
     ('ffmaz', 'ma', b, c), has_fmulz), {'ma' : a}),
-   *add_fabs_fneg((('ffma_old@32(nsz)', ('b2f', ('iand', ('fneu', a, 0.0), b)), ('bcsel', b, 'ma', 0.0), c),
-    ('ffmaz_old', 'ma', ('b2f', b), c), has_fmulz), {'ma' : a}),
    *add_fabs_fneg((('ffma@32(nsz)', ('b2f', ('iand', ('fneu', a, 0.0), b)), ('bcsel', b, 'ma', 0.0), c),
     ('ffmaz', 'ma', ('b2f', b), c), has_fmulz), {'ma' : a}),
-   *add_fabs_fneg((('ffma_old@32(nsz)', ('b2f', ('inot', ('ior', ('feq', a, 0.0), b))), ('bcsel', b, 0.0, 'ma'), c),
-    ('ffmaz_old', 'ma', ('b2f', ('inot', b)), c), has_fmulz), {'ma' : a}),
    *add_fabs_fneg((('ffma@32(nsz)', ('b2f', ('inot', ('ior', ('feq', a, 0.0), b))), ('bcsel', b, 0.0, 'ma'), c),
     ('ffmaz', 'ma', ('b2f', ('inot', b)), c), has_fmulz), {'ma' : a}),
 
@@ -546,12 +512,6 @@ optimizations.extend([
    (('~fadd', ('fmul', a, ('b2f', ('inot', 'c@1'))), ('fmul', b, ('b2f',  c))), ('bcsel', c, ('fcanonicalize', b), ('fcanonicalize', a))),
    (('~fadd', a, ('fmul', ('b2f', 'c@1'), ('fadd', b, ('fneg', a)))), ('bcsel', c, ('fcanonicalize', b), ('fcanonicalize', a))),
 
-   (('~ffma_old', a, ('b2f', ('inot', 'c@1')), ('fmul', b, ('b2f', 'c@1'))), ('bcsel', c, ('fcanonicalize', b), ('fcanonicalize', a))),
-   (('~ffma_old', b, ('b2f', 'c@1'), ('ffma_old', ('fneg', a), ('b2f', 'c@1'), a)), ('bcsel', c, ('fcanonicalize', b), ('fcanonicalize', a))),
-
-   (('~ffma_old', ('b2f', 'c@1'), ('fadd', b, ('fneg', a)), a), ('bcsel', c, ('fcanonicalize', b), ('fcanonicalize', a))),
-   (('~ffma_old', ('b2f', 'c@1'), ('ffma_old', ('fneg', a), b, d), ('fmul', a, b)), ('bcsel', c, ('fcanonicalize', d), ('fmul', a, b))),
-
    (('~flrp', ('fmul(is_used_once)', a, b), ('fmul(is_used_once)', a, c), d), ('fmul', ('flrp', b, c, d), a)),
 
    (('~flrp', a, 0.0, c), ('fadd', ('fmul', ('fneg', a), c), a)),
@@ -586,15 +546,6 @@ optimizations.extend([
    (('fadd@32', a, ('fneg(is_used_once)', ('ffloor(is_used_once)', a))), ('ffract', a), '!options->lower_ffract'),
    (('fadd@64', a, ('fneg(is_used_once)', ('ffloor(is_used_once)', a))), ('ffract', a), '!options->lower_ffract && !(options->lower_doubles_options & nir_lower_dfract)'),
    (('fceil', a), ('fneg', ('ffloor', ('fneg', a))), 'options->lower_fceil'),
-   (('ffma_old@16', a, b, c), ('fadd', ('fmul', a, b), c), 'options->lower_ffma16'),
-   (('ffma_old@32', a, b, c), ('fadd', ('fmul', a, b), c), 'options->lower_ffma32'),
-   (('ffma_old@64', a, b, c), ('fadd', ('fmul', a, b), c), 'options->lower_ffma64'),
-   (('ffmaz_old', a, b, c), ('fadd', ('fmulz', a, b), c), 'options->lower_ffma32'),
-   # Always lower inexact ffma_old, because it will be fused back by late optimizations (nir_opt_algebraic_late).
-   (('ffma_old@16(contract)', a, b, c), ('fadd', ('fmul', a, b), c), 'options->fuse_ffma16'),
-   (('ffma_old@32(contract)', a, b, c), ('fadd', ('fmul', a, b), c), 'options->fuse_ffma32'),
-   (('ffma_old@64(contract)', a, b, c), ('fadd', ('fmul', a, b), c), 'options->fuse_ffma64'),
-   (('ffmaz_old(contract)', a, b, c), ('fadd', ('fmulz', a, b), c), 'options->fuse_ffma32'),
 
    (('fmul', ('fadd', ('bcsel', a, ('fmul', b, c), 0), '#d'), '#e'),
     ('bcsel', a, ('fmul', ('fadd', ('fmul', b, c), d), e), ('fmul', ('fadd', d, 0.0), e))),
@@ -1659,7 +1610,6 @@ for compare in [('fneu', a, 0.0), ('inot', ('feq', a, 0.0))]:
 
             optimizations.extend([
                 (('fmul', search_b2f, search_mod), replace_mod_mul),
-                (('ffma_old', search_b2f, search_mod, b), ('fadd', replace_mod, b)),
                 (('ffma', search_b2f, search_mod, b), ('fadd', replace_mod, b)),
             ])
 
@@ -1688,7 +1638,6 @@ optimizations.extend([
    (('iand', ('b2i', 'a@1'), ('b2i', 'b@1')), ('b2i', ('iand', a, b))),
    (('ior', ('b2i', 'a@1'), ('b2i', 'b@1')), ('b2i', ('ior', a, b))),
    (('fmul', ('b2f', 'a@1'), ('b2f', 'b@1')), ('b2f', ('iand', a, b))),
-   (('ffma_old', ('b2f', 'a@1'), ('b2f', 'b@1'), c), ('fadd', ('b2f', ('iand', a, b)), c)),
    (('ffma', ('b2f', 'a@1'), ('b2f', 'b@1'), c), ('fadd', ('b2f', ('iand', a, b)), c)),
    (('fadd', 1.0, ('fneg', ('b2f', a))), ('b2f', ('inot', a))),
    (('fadd(nsz)', -1.0, ('b2f', a)), ('fneg', ('b2f', ('inot', a)))),
@@ -2386,9 +2335,7 @@ optimizations.extend([
    # Propagate negation up multiplication chains
    (('fmul(is_used_by_non_fsat)', ('fneg', a), b), ('fneg', ('fmul', a, b))),
    (('fmulz(is_used_by_non_fsat,nsz)', ('fneg', a), b), ('fneg', ('fmulz', a, b))),
-   (('ffma_old', ('fneg', a), ('fneg', b), c), ('ffma_old', a, b, c)),
    (('ffma', ('fneg', a), ('fneg', b), c), ('ffma', a, b, c)),
-   (('ffmaz_old', ('fneg', a), ('fneg', b), c), ('ffmaz_old', a, b, c)),
    (('ffmaz', ('fneg', a), ('fneg', b), c), ('ffmaz', a, b, c)),
    (('imul', ('ineg', a), b), ('ineg', ('imul', a, b))),
 
@@ -2397,14 +2344,9 @@ optimizations.extend([
    (('~fmulz', ('fmulz(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c'), ('fmulz', ('fmulz', a, c), b)),
    (('~fmul', ('fmulz(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c(is_finite_not_zero)'), ('fmulz', ('fmul', a, c), b)),
    (('imul', ('imul(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c'), ('imul', ('imul', a, c), b)),
-   (('~ffma_old', ('fmul(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c', d), ('ffma_old', ('fmul', a, c), b, d)),
-   (('~ffmaz_old', ('fmulz(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c', d), ('ffmaz_old', ('fmulz', a, c), b, d)),
-   (('~ffma_old', ('fmulz(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c(is_finite_not_zero)', d), ('ffmaz_old', ('fmul', a, c), b, d)),
    # Prefer moving out a multiplication for more MAD/FMA-friendly code
    (('~fadd', ('fadd(is_used_once)', 'a(is_not_const)', 'b(is_fmul)'), '#c'), ('fadd', ('fadd', a, c), b)),
    (('~fadd', ('fadd(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c'), ('fadd', ('fadd', a, c), b)),
-   (('~fadd', ('ffma_old(is_used_once)', 'a(is_not_const)', b, 'c(is_not_const)'), '#d'), ('fadd', ('ffma_old', a, b, d), c)),
-   (('~fadd', ('ffmaz_old(is_used_once)', 'a(is_not_const)', b, 'c(is_not_const)'), '#d'), ('fadd', ('ffmaz_old', a, b, d), c)),
    (('iadd', ('iadd(is_used_once)', 'a(is_not_const)', 'b(is_not_const)'), '#c'), ('iadd', ('iadd', a, c), b)),
 
    # Reassociate constants in add/mul chains so they can be folded together.
@@ -2413,16 +2355,9 @@ optimizations.extend([
    (('~fmul', '#a', ('fmul', b, '#c')), ('fmul', ('fmul', a, c), b)),
    (('~fmulz', '#a', ('fmulz', b, '#c')), ('fmulz', ('fmulz', a, c), b)),
    (('~fmul', '#a(is_finite_not_zero)', ('fmulz', b, '#c')), ('fmulz', ('fmul', a, c), b)),
-   (('~ffma_old', '#a', ('fmul', b, '#c'), d), ('ffma_old', ('fmul', a, c), b, d)),
-   (('~ffmaz_old', '#a', ('fmulz', b, '#c'), d), ('ffmaz_old', ('fmulz', a, c), b, d)),
-   (('~ffmaz_old', '#a(is_finite_not_zero)', ('fmulz', b, '#c'), d), ('ffmaz_old', ('fmul', a, c), b, d)),
    (('imul', '#a', ('imul', b, '#c')), ('imul', ('imul', a, c), b)),
    (('~fadd', '#a',          ('fadd', b, '#c')),  ('fadd', ('fadd', a,          c),           b)),
    (('~fadd', '#a', ('fneg', ('fadd', b, '#c'))), ('fadd', ('fadd', a, ('fneg', c)), ('fneg', b))),
-   (('~fadd', '#a',          ('ffma_old', b, c, '#d')),  ('ffma_old',          b,  c, ('fadd', a,          d))),
-   (('~fadd', '#a', ('fneg', ('ffma_old', b, c, '#d'))), ('ffma_old', ('fneg', b), c, ('fadd', a, ('fneg', d)))),
-   (('~fadd', '#a',          ('ffmaz_old', b, c, '#d')),  ('ffmaz_old',          b,  c, ('fadd', a,          d))),
-   (('~fadd', '#a', ('fneg', ('ffmaz_old', b, c, '#d'))), ('ffmaz_old', ('fneg', b), c, ('fadd', a, ('fneg', d)))),
    (('iadd', '#a', ('iadd', b, '#c')), ('iadd', ('iadd', a, c), b)),
    (('iand', '#a', ('iand', b, '#c')), ('iand', ('iand', a, c), b)),
    (('ior',  '#a', ('ior',  b, '#c')), ('ior',  ('ior',  a, c), b)),
@@ -3535,7 +3470,7 @@ for op in ['fadd', 'fdiv', 'fmod', 'fmul', 'fpow', 'frem', 'fsub']:
     optimizations += [((op, a, '#b(is_nan)'), NAN, 'true', TestStatus.XFAIL if op == 'fpow' else TestStatus.PASS)] # some opcodes are not commutative.  XFAIL is fpow(1.0, NaN) producing NaN instead of 1.0.
 
 # NaN propagation: Trinary opcodes. If any operand is NaN, replace it with NaN.
-for op in ['ffma_old', 'ffma', 'flrp']:
+for op in ['ffma', 'flrp']:
     optimizations += [((op, '#a(is_nan)', b, c), NAN)]
     optimizations += [((op, a, '#b(is_nan)', c), NAN)] # some opcodes are not commutative
     optimizations += [((op, a, b, '#c(is_nan)'), NAN)]
@@ -3779,14 +3714,9 @@ for sz, mulz in itertools.product([16, 32, 64], [False, True]):
     # (or fneg/fabs which are assumed to be propagated away), as a heuristic to
     # avoid fusing in cases where it's harmful.
     fmul = ('fmulz' if mulz else 'fmul') + '(is_only_used_by_fadd)'
-    ffma_old = 'ffmaz_old' if mulz else 'ffma_old'
-
-    fadd = 'fadd@{}(contract)'.format(sz)
-    option_old = 'options->fuse_ffma{}'.format(sz)
-    option_avoid_abs = 'options->avoid_ternary_with_fabs'
-    option_old_with_abs = f'options->fuse_ffma{sz}  && !{option_avoid_abs}'
 
     option = f'options->float_mul_add{sz}'
+    option_avoid_abs = 'options->avoid_ternary_with_fabs'
     option_has_fmad = f'({option} & nir_float_muladd_support_has_fmad)'
     option_has_ffma = f'({option} & nir_float_muladd_support_has_ffma)'
     option_prefer_split = f'({option} & nir_float_muladd_support_prefers_split)'
@@ -3794,19 +3724,6 @@ for sz, mulz in itertools.product([16, 32, 64], [False, True]):
 
     option_fmad = f'{option_fuse} && (!{option_has_ffma} ||  {option_prefer_split}) && {option_has_fmad}'
     option_ffma = f'{option_fuse} && (!{option_has_fmad} || !{option_prefer_split}) && {option_has_ffma}'
-
-    late_optimizations.extend([
-        ((fadd, (fmul, a, b), c), (ffma_old, a, b, c), option_old),
-
-        ((fadd, ('fneg(is_only_used_by_fadd)', (fmul, a, b)), c),
-         (ffma_old, ('fneg', a), b, c), option_old),
-
-        ((fadd, ('fabs(is_only_used_by_fadd)', (fmul, a, b)), c),
-         (ffma_old, ('fabs', a), ('fabs', b), c), option_old_with_abs),
-
-        ((fadd, ('fneg(is_only_used_by_fadd)', ('fabs', (fmul, a, b))), c),
-         (ffma_old, ('fneg', ('fabs', a)), ('fabs', b), c), option_old_with_abs),
-    ])
 
     for fmad in ['ffma', 'fmad']:
         option = option_fmad if fmad == 'fmad' else option_ffma
@@ -3922,10 +3839,6 @@ late_optimizations.extend([
    # A similar operation could apply to any ffma(#a, b, #(-a/2)), but this
    # particular operation is common for expanding values stored in a texture
    # from [0,1] to [-1,1].
-   (('~ffma_old@32', a,  2.0, -1.0), ('flrp', -1.0,  1.0,          a ), '!options->lower_flrp32'),
-   (('~ffma_old@32', a, -2.0, -1.0), ('flrp', -1.0,  1.0, ('fneg', a)), '!options->lower_flrp32'),
-   (('~ffma_old@32', a, -2.0,  1.0), ('flrp',  1.0, -1.0,          a ), '!options->lower_flrp32'),
-   (('~ffma_old@32', a,  2.0,  1.0), ('flrp',  1.0, -1.0, ('fneg', a)), '!options->lower_flrp32'),
    (('~ffma@32', a,  2.0, -1.0), ('flrp', -1.0,  1.0,          a ), '!options->lower_flrp32'),
    (('~ffma@32', a, -2.0, -1.0), ('flrp', -1.0,  1.0, ('fneg', a)), '!options->lower_flrp32'),
    (('~ffma@32', a, -2.0,  1.0), ('flrp',  1.0, -1.0,          a ), '!options->lower_flrp32'),
@@ -3957,10 +3870,6 @@ late_optimizations.extend([
     # Option 5: a * (2 - a)
     #
     # There are a lot of other possible combinations.
-   (('~ffma_old@32', ('fadd', b, ('fneg', a)), a, a), ('flrp', a, b, a), '!options->lower_flrp32'),
-   (('~ffma_old@32', a, 2.0, ('fneg', ('fmul', a, a))), ('flrp', a, 1.0, a), '!options->lower_flrp32'),
-   (('~ffma_old@32', a, 2.0, ('fmul', ('fneg', a), a)), ('flrp', a, 1.0, a), '!options->lower_flrp32'),
-   (('~ffma_old@32', a, ('fneg', a), ('fmul', 2.0, a)), ('flrp', a, 1.0, a), '!options->lower_flrp32'),
    (('~ffma@32', ('fadd', b, ('fneg', a)), a, a), ('flrp', a, b, a), '!options->lower_flrp32'),
    (('~ffma@32', a, 2.0, ('fneg', ('fmul', a, a))), ('flrp', a, 1.0, a), '!options->lower_flrp32'),
    (('~ffma@32', a, 2.0, ('fmul', ('fneg', a), a)), ('flrp', a, 1.0, a), '!options->lower_flrp32'),
@@ -3997,7 +3906,7 @@ late_optimizations.extend([
 # optimization in these stages.  See bugzilla #111490.  In tessellation
 # stages applications seem to use 'precise' when necessary, so allow the
 # optimization in those stages.
-for fmad in ['ffma_old', 'ffma', 'fmad']:
+for fmad in ['ffma', 'fmad']:
    late_optimizations.extend([
       (('~fadd', (f'{fmad}(is_used_once)', a, b, (f'{fmad}(is_used_once)', c, d, (fmad, e, 'f', ('fmul(is_used_once)', 'g(is_not_const_and_not_fsign)', 'h(is_not_const_and_not_fsign)')))), 'i(is_not_const)'),
        (fmad, a, b, (fmad, c, d, (fmad, e, 'f', (fmad, 'g', 'h', 'i')))), '(info->stage != MESA_SHADER_VERTEX && info->stage != MESA_SHADER_GEOMETRY) && !options->intel_vec4'),
@@ -4009,7 +3918,7 @@ for fmad in ['ffma_old', 'ffma', 'fmad']:
        (fmad, ('fneg', a), b, (fmad, ('fneg', c), d, (fmad, ('fneg', e), 'f', 'g'))), '(info->stage != MESA_SHADER_VERTEX && info->stage != MESA_SHADER_GEOMETRY) && !options->intel_vec4'),
    ])
 
-for fmadz in ['ffmaz_old', 'ffmaz', 'fmadz']:
+for fmadz in ['ffmaz', 'fmadz']:
    late_optimizations.extend([
       (('~fadd', (f'{fmadz}(is_used_once)', a, b, (fmadz, c, d, ('fmulz(is_used_once)', 'e(is_not_const_and_not_fsign)', 'f(is_not_const_and_not_fsign)'))), 'g(is_not_const)'),
        (fmadz, a, b, (fmadz, c, d, (fmadz, e, 'f', 'g'))), '(info->stage != MESA_SHADER_VERTEX && info->stage != MESA_SHADER_GEOMETRY) && !options->intel_vec4'),
@@ -4146,7 +4055,7 @@ for op in ['fadd']:
         (('bcsel', a, (op, b, c), (op + '(is_used_once)', b, d)), (op, b, ('bcsel', a, c, d))),
     ]
 
-for op in ['ffma_old', 'ffma', 'ffmaz_old', 'ffmaz']:
+for op in ['ffma', 'ffmaz']:
     late_optimizations += [
         (('bcsel', a, (op + '(is_used_once)', b, c, d), (op, b, c, e)), (op, b, c, ('bcsel', a, d, e))),
         (('bcsel', a, (op, b, c, d), (op + '(is_used_once)', b, c, e)), (op, b, c, ('bcsel', a, d, e))),
@@ -4159,8 +4068,6 @@ for op in ['ffma_old', 'ffma', 'ffmaz_old', 'ffmaz']:
 late_optimizations += [
    (('fmulz@32', a, b),
     ('bcsel', ('feq', ('fmin', ('fabs', a), ('fabs', b)), 0.0), 0.0, ('fmul', a, b)), 'options->lower_fmulz_with_abs_min'),
-   (('ffmaz_old@32', a, b, c),
-    ('bcsel', ('feq', ('fmin', ('fabs', a), ('fabs', b)), 0.0), c, ('ffma_old@32', a, b, c)), 'options->lower_fmulz_with_abs_min'),
    (('ffmaz@32', a, b, c),
     ('bcsel', ('feq', ('fmin', ('fabs', a), ('fabs', b)), 0.0), c, ('ffma@32', a, b, c)), 'options->lower_fmulz_with_abs_min')
 ]
@@ -4182,7 +4089,7 @@ for op in ['fadd', 'fdiv', 'fmax', 'fmin', 'fmod', 'fmul', 'fpow', 'frem']:
     late_optimizations += [(('~f2f32', (op, ('f2fmp', a), ('f2fmp', b))), (op, a, b), 'true', TestStatus.UNSUPPORTED)]
 
 # Ternary opcodes
-for op in ['ffma_old', 'ffma', 'flrp']:
+for op in ['ffma', 'flrp']:
     late_optimizations += [(('~f2f32', (op, ('f2fmp', a), ('f2fmp', b), ('f2fmp', c))), (op, a, b, c), 'true', TestStatus.UNSUPPORTED)]
 
 # Comparison opcodes
@@ -4237,7 +4144,6 @@ late_optimizations += [
 distribute_src_mods = [
    # Try to remove some spurious negations rather than pushing them down.
    (('fmul', ('fneg', a), ('fneg', b)), ('fmul', a, b)),
-   (('ffma_old', ('fneg', a), ('fneg', b), c), ('ffma_old', a, b, c)),
    (('ffma', ('fneg', a), ('fneg', b), c), ('ffma', a, b, c)),
    (('fdot2_replicated', ('fneg', a), ('fneg', b)), ('fdot2_replicated', a, b)),
    (('fdot3_replicated', ('fneg', a), ('fneg', b)), ('fdot3_replicated', a, b)),
@@ -4249,7 +4155,6 @@ distribute_src_mods = [
    (('fabs', ('fmul(is_used_once)', a, b)), ('fmul', ('fabs', a), ('fabs', b))),
    (('fabs', ('fmul_rtz(is_used_once)', a, b)), ('fmul_rtz', ('fabs', a), ('fabs', b))),
 
-   (('fneg', ('ffma_old(is_used_once,nsz)', a, b, c)), ('ffma_old', ('fneg', a), b, ('fneg', c))),
    (('fneg', ('ffma(is_used_once,nsz)', a, b, c)), ('ffma', ('fneg', a), b, ('fneg', c))),
    (('fneg', ('flrp(is_used_once)', a, b, c)), ('flrp', ('fneg', a), ('fneg', b), c), 'true', TestStatus.XFAIL), # XFAIL is -flrp(0, -1, 0) is 0.0 instead of -0.0
    (('fneg', ('fadd(is_used_once,nsz)', a, b)), ('fadd', ('fneg', a), ('fneg', b))),

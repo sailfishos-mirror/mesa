@@ -1034,7 +1034,6 @@ Lower64BitToVec2::support_fp64_op(nir_op op) const
    case nir_op_flt32:
    case nir_op_fneu32:
    case nir_op_ffma:
-   case nir_op_ffma_old:
    case nir_op_fadd:
    case nir_op_fmul:
    case nir_op_fmax:

@@ -1907,7 +1907,6 @@ agx_emit_alu(agx_builder *b, nir_alu_instr *instr)
          return agx_fmul_to(b, dst, s0, s1);
 
    case nir_op_ffma:
-   case nir_op_ffma_old:
       if (instr->def.bit_size == 16)
          return agx_hfma_to(b, dst, s0, s1, s2);
       else

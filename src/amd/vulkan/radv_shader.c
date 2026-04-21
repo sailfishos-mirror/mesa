@@ -60,9 +60,6 @@ get_nir_options_for_stage(struct radv_compiler_info *compiler_info, mesa_shader_
 
    ac_nir_set_options(compiler_info->ac, compiler_info->key.use_llvm, options);
 
-   options->lower_ffma16 = split_fma || compiler_info->ac->gfx_level < GFX9;
-   options->lower_ffma32 = split_fma || compiler_info->ac->gfx_level < GFX10_3;
-   options->lower_ffma64 = split_fma;
    if (split_fma) {
       options->float_mul_add16 |= nir_float_muladd_support_prefers_split;
       options->float_mul_add32 |= nir_float_muladd_support_prefers_split;

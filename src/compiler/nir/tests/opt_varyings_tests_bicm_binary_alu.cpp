@@ -75,8 +75,7 @@ TEST_F(nir_opt_varyings_test_bicm_binary_alu, \
          /* TES uses fadd and fmul for interpolation, so it's always present. */ \
          if (MESA_SHADER_##consumer_stage != MESA_SHADER_TESS_EVAL || \
              (nir_op_##alu != nir_op_fadd && nir_op_##alu != nir_op_fmul && \
-              nir_op_##alu != nir_op_fmad && nir_op_##alu != nir_op_ffma && \
-              nir_op_##alu != nir_op_ffma_old)) { \
+              nir_op_##alu != nir_op_fmad && nir_op_##alu != nir_op_ffma)) { \
             ASSERT_TRUE(!shader_contains_alu_op(b2, nir_op_##alu, bitsize)); \
          } \
       } \

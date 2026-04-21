@@ -985,7 +985,6 @@ ac_nir_op_supports_packed_math_16bit(const nir_alu_instr* alu)
    case nir_op_fsub:
    case nir_op_fmul:
    case nir_op_ffma:
-   case nir_op_ffma_old:
    case nir_op_fdiv:
    case nir_op_flrp:
    case nir_op_fabs:

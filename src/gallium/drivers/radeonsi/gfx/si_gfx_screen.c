@@ -323,12 +323,6 @@ static void si_init_screen_nir_options(struct si_screen *sscreen)
    ac_nir_set_options(&sscreen->info.compiler_info, !sscreen->use_aco, options);
 
    options->ignore_none_interpolation_in_sysval_gathering = true;
-   options->lower_ffma16 = sscreen->info.gfx_level < GFX9;
-   options->lower_ffma32 = !use_fma32;
-   options->lower_ffma64 = false;
-   options->fuse_ffma16 = sscreen->info.gfx_level >= GFX9;
-   options->fuse_ffma32 = use_fma32;
-   options->fuse_ffma64 = true;
 
    bool use_fma32 = !(options->float_mul_add32 & nir_float_muladd_support_prefers_split) ||
       (sscreen->info.gfx_level >= GFX9 && sscreen->options.force_use_fma32);

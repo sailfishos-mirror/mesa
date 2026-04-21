@@ -1722,7 +1722,6 @@ nir_alu_instr_is_mul_add(const nir_alu_instr *instr)
    case nir_op_ffma:
    case nir_op_ffma_weak:
    case nir_op_fmad:
-   case nir_op_ffma_old:
       return true;
    default:
       return false;
@@ -1738,7 +1737,6 @@ nir_alu_instr_is_mul_add_z(const nir_alu_instr *instr)
    switch (instr->op) {
    case nir_op_ffmaz:
    case nir_op_fmadz:
-   case nir_op_ffmaz_old:
       return true;
    default:
       return false;

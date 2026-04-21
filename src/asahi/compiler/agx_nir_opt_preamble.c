@@ -90,7 +90,6 @@ alu_cost(nir_alu_instr *alu)
    case nir_op_fadd:
    case nir_op_fmul:
    case nir_op_ffma:
-   case nir_op_ffma_old:
    case nir_op_iadd:
    case nir_op_inot:
    case nir_op_iand:

@@ -671,7 +671,6 @@ lower_doubles_instr_to_soft(nir_builder *b, nir_alu_instr *instr,
       mangled_name = "__fmul64(u641;u641;";
       break;
    case nir_op_fmad:
-   case nir_op_ffma_old:
       name = "__fmad64";
       mangled_name = "__fmad64(u641;u641;u641;";
       break;

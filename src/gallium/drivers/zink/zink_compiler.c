@@ -1266,9 +1266,6 @@ zink_screen_init_compiler(struct zink_screen *screen)
    static const struct nir_shader_compiler_options
    default_options = {
       .io_options = nir_io_has_intrinsics | nir_io_mediump_is_32bit,
-      .lower_ffma16 = true,
-      .lower_ffma32 = true,
-      .lower_ffma64 = true,
       .lower_scmp = true,
       .lower_fdph = true,
       .lower_flrp32 = true,
@@ -1317,7 +1314,6 @@ zink_screen_init_compiler(struct zink_screen *screen)
    if (!screen->info.feats.features.shaderFloat64) {
       screen->nir_options.lower_doubles_options = ~0;
       screen->nir_options.lower_flrp64 = true;
-      screen->nir_options.lower_ffma64 = true;
       /* soft fp64 function inlining will blow up loop bodies and effectively
        * stop Vulkan drivers from unrolling the loops.
        */

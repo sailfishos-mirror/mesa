@@ -655,8 +655,6 @@ movable_across_interp(nir_builder *b, nir_op op, unsigned interp[3],
    case nir_op_ffmaz:
    case nir_op_fmad:
    case nir_op_fmadz:
-   case nir_op_ffma_old:
-   case nir_op_ffmaz_old:
       return !divergent[0] || !divergent[1];
 
    case nir_op_fdiv:

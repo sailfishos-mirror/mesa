@@ -275,12 +275,6 @@ MESA_DEFINE_CPP_ENUM_BITFIELD_OPERATORS(nir_float_muladd_support)
 
 typedef struct nir_shader_compiler_options {
    bool lower_fdiv;
-   bool lower_ffma16;
-   bool lower_ffma32;
-   bool lower_ffma64;
-   bool fuse_ffma16;
-   bool fuse_ffma32;
-   bool fuse_ffma64;
    nir_float_muladd_support float_mul_add16;
    nir_float_muladd_support float_mul_add32;
    nir_float_muladd_support float_mul_add64;
