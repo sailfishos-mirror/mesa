@@ -30,6 +30,7 @@
 #include <math.h>
 #include "util/bitscan.h"
 #include "util/u_math.h"
+#include "util/half_float.h"
 #include "nir.h"
 #include "nir_range_analysis.h"
 #include "nir_search.h"
@@ -353,6 +354,25 @@ is_neg2x_16_bits(UNUSED const nir_search_state *state, const nir_alu_instr *inst
                  const uint8_t *swizzle)
 {
    return is_16_bits_with_scale(instr, src, num_components, swizzle, -2);
+}
+
+/** Is this a float constant that could fit in a half? */
+static inline bool
+is_representable_as_f16(UNUSED const nir_search_state *state,
+                        const nir_alu_instr *instr,
+                        unsigned src, unsigned num_components,
+                        const uint8_t *swizzle)
+{
+   /* only constant srcs: */
+   if (!nir_src_is_const(instr->src[src].src))
+      return false;
+
+   for (unsigned i = 0; i < num_components; i++) {
+      double value = nir_src_comp_as_float(instr->src[src].src, swizzle[i]);
+      if (!_mesa_float_is_half(value))
+         return false;
+   }
+   return true;
 }
 
 static inline bool
