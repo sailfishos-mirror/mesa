@@ -518,7 +518,8 @@ struct radv_compiler_info {
       uint32_t family;
       uint32_t address32_hi;
       uint32_t rbplus_allowed : 1;
-      uint32_t padding : 31;
+      uint32_t address_prt_wa_control_bit : 8;
+      uint32_t padding : 23;
    } hw;
 
    /* Misc values included as part of the cache key */
@@ -537,6 +538,7 @@ struct radv_compiler_info {
       uint32_t use_fmask : 1;
       uint32_t robust_buffer_access : 1; /* Only used by LLVM. */
       uint32_t mitigate_smem_oob : 1;
+      uint32_t mitigate_smem_with_null_prt : 1;
       uint32_t bvh8 : 1;
       uint32_t no_rt : 1;
       uint32_t rt_cps : 1;
@@ -553,6 +555,7 @@ struct radv_compiler_info {
       uint32_t tex_non_uniform : 1;
       uint32_t lower_terminate_to_discard : 1;
       uint32_t no_implicit_varying_subgroup_size : 1;
+      uint32_t padding : 31;
 
       int32_t force_aniso;
 

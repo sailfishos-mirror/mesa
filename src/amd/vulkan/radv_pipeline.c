@@ -526,6 +526,9 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
    NIR_PASS(_, stage->nir, ac_nir_lower_global_access);
    NIR_PASS(_, stage->nir, nir_lower_int64);
 
+   if (compiler_info->key.mitigate_smem_with_null_prt)
+      NIR_PASS(_, stage->nir, ac_nir_fixup_smem_loads_null_prt, compiler_info->hw.address_prt_wa_control_bit);
+
    if (compiler_info->key.mitigate_smem_oob)
       NIR_PASS(_, stage->nir, ac_nir_fixup_mem_access_gfx6, &stage->args.ac, 4096, true, true);
 

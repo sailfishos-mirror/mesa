@@ -865,7 +865,7 @@ static void
 radv_device_init_cache_key(struct radv_device *device)
 {
    STATIC_ASSERT(sizeof(device->compiler_info.hw) == 12);
-   STATIC_ASSERT(sizeof(device->compiler_info.key) == 12);
+   STATIC_ASSERT(sizeof(device->compiler_info.key) == 16);
 
    uint32_t ptr_size = sizeof(void *);
 
@@ -1149,6 +1149,7 @@ radv_device_init_compiler_info(struct radv_device *device)
          {
             .family = pdev->info.family,
             .address32_hi = pdev->info.address32_hi,
+            .address_prt_wa_control_bit = pdev->info.address_prt_wa_control_bit,
             .rbplus_allowed = pdev->info.rbplus_allowed,
          },
       /* Misc values included as part of the cache key */
@@ -1170,6 +1171,8 @@ radv_device_init_compiler_info(struct radv_device *device)
                                                        device->vk.enabled_features.robustBufferAccess),
             .mitigate_smem_oob = pdev->info.compiler_info.has_smem_oob_access_bug &&
                                  !(instance->debug_flags & RADV_DEBUG_NO_SMEM_MITIGATION),
+            .mitigate_smem_with_null_prt =
+               pdev->info.compiler_info.has_smem_with_null_prt_bug && radv_sparse_enabled(pdev),
             .bvh8 = radv_use_bvh8(pdev),
             .no_rt = !!(instance->debug_flags & RADV_DEBUG_NO_RT),
             .rt_cps = !!(instance->perftest_flags & RADV_PERFTEST_RT_CPS),
