@@ -1786,8 +1786,15 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    }
 
    case nir_intrinsic_atest_pan: {
+      unsigned alpha_bit_size = instr->src[1].ssa->bit_size;
+      assert(alpha_bit_size == 16 || alpha_bit_size == 32);
+
       bi_index coverage = bi_src_index(&instr->src[0]);
       bi_index alpha = bi_src_index(&instr->src[1]);
+
+      if (alpha_bit_size == 16)
+         alpha = bi_half(alpha, false);
+
       bi_atest_to(b, dst, coverage, alpha, bi_fau(BIR_FAU_ATEST_PARAM, false));
       break;
    }
