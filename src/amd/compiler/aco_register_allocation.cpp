@@ -1333,15 +1333,8 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
    /* mark and count killed operands */
    unsigned killed_ops = 0;
    std::bitset<256> is_killed_operand; /* per-register */
-   std::bitset<256> is_precolored;     /* per-register */
    for (unsigned j = 0; j < instr->operands.size(); j++) {
       Operand& op = instr->operands[j];
-      if (op.isTemp() && op.isPrecolored() && !op.isFirstKillBeforeDef() &&
-          bounds.contains(op.physReg())) {
-         for (unsigned i = 0; i < op.size(); ++i) {
-            is_precolored[(op.physReg() & 0xff) + i] = true;
-         }
-      }
       if (op.isTemp() && op.isFirstKillBeforeDef() && bounds.contains(op.physReg()) &&
           !reg_file.test(PhysReg{op.physReg().reg()}, align(op.bytes() + op.physReg().byte(), 4))) {
          assert(op.isFixed());
@@ -1351,14 +1344,6 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
          }
 
          killed_ops += op.getTemp().size();
-      }
-   }
-   for (unsigned j = 0; j < instr->definitions.size(); j++) {
-      Definition& def = instr->definitions[j];
-      if (def.isTemp() && def.isPrecolored() && bounds.contains(def.physReg())) {
-         for (unsigned i = 0; i < def.size(); ++i) {
-            is_precolored[(def.physReg() & 0xff) + i] = true;
-         }
       }
    }
 
@@ -1406,7 +1391,7 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
             }
             continue;
          }
-         if (is_precolored[j & 0xFF] || reg_file[j] == 0xFFFFFFFF) {
+         if (reg_file[j] == 0xFFFFFFFF) {
             found = false;
             break;
          }
