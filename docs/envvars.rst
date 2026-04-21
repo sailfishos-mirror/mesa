@@ -1555,6 +1555,23 @@ RADV driver environment variables
    ``vm``
       add a gap between all VA allocations to check for page faults
 
+.. envvar:: RADV_QUEUE_DISABLE
+
+   a comma-separated list of named queues to disable for testing purposes:
+
+   ``gfx``
+      disable the general/gfx queue
+   ``compute``
+      disable the compute queue
+   ``vdec``
+      disable the video decode queue
+   ``venc``
+      disable the video encode queue
+   ``transfer``
+      disable the transfer queue
+   ``sparse``
+      disable the sparse queue
+
 .. envvar:: RADV_FORCE_VRS
 
    allow to force per-pipeline vertex VRS rates on GFX10.3+. This is only

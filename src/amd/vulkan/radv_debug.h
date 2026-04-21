@@ -126,6 +126,15 @@ enum {
    RADV_TRAP_EXCP_FLOAT_UNDERFLOW = 1u << 3,
 };
 
+enum {
+   RADV_QUEUE_DISABLE_GENERAL = 1u << 0,
+   RADV_QUEUE_DISABLE_COMPUTE = 1u << 1,
+   RADV_QUEUE_DISABLE_VIDEO_DEC = 1u << 2,
+   RADV_QUEUE_DISABLE_VIDEO_ENC = 1u << 3,
+   RADV_QUEUE_DISABLE_TRANSFER = 1u << 4,
+   RADV_QUEUE_DISABLE_SPARSE = 1u << 5,
+};
+
 bool radv_init_trace(struct radv_device *device);
 void radv_finish_trace(struct radv_device *device);
 

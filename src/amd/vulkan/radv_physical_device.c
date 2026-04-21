@@ -98,6 +98,9 @@ radv_sparse_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
+   if (instance->queue_disable_flags & RADV_QUEUE_DISABLE_SPARSE)
+      return false;
+
    return pdev->info.has_sparse || (instance->experimental_flags & RADV_EXPERIMENTAL_SPARSE);
 }
 
@@ -114,19 +117,25 @@ radv_transfer_queue_enabled(const struct radv_physical_device *pdev)
    if (!radv_compute_queue_enabled(pdev))
       return false;
 
-   return pdev->info.gfx_level >= GFX9;
+   return pdev->info.gfx_level >= GFX9 && !(instance->queue_disable_flags & RADV_QUEUE_DISABLE_TRANSFER);
 }
 
 static bool
 radv_video_decode_queue_enabled(const struct radv_physical_device *pdev)
 {
-   return pdev->video_decode_enabled && pdev->info.ip[pdev->vid_decode_ip].num_queues > 0;
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   return pdev->video_decode_enabled && pdev->info.ip[pdev->vid_decode_ip].num_queues > 0 &&
+          !(instance->queue_disable_flags & RADV_QUEUE_DISABLE_VIDEO_DEC);
 }
 
 static bool
 radv_video_encode_queue_enabled(const struct radv_physical_device *pdev)
 {
-   return pdev->video_encode_enabled && pdev->info.ip[AMD_IP_VCN_ENC].num_queues > 0;
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   return pdev->video_encode_enabled && pdev->info.ip[AMD_IP_VCN_ENC].num_queues > 0 &&
+          !(instance->queue_disable_flags & RADV_QUEUE_DISABLE_VIDEO_ENC);
 }
 
 bool
@@ -139,13 +148,15 @@ radv_compute_queue_enabled(const struct radv_physical_device *pdev)
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
    return pdev->info.ip[AMD_IP_COMPUTE].num_queues > 0 &&
-          (!(instance->debug_flags & RADV_DEBUG_NO_COMPUTE_QUEUE) || !pdev->info.has_graphics);
+          (!(instance->queue_disable_flags & RADV_QUEUE_DISABLE_COMPUTE) || !pdev->info.has_graphics);
 }
 
 static bool
 radv_graphics_queue_enabled(const struct radv_physical_device *pdev)
 {
-   return pdev->info.ip[AMD_IP_GFX].num_queues > 0;
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   return pdev->info.ip[AMD_IP_GFX].num_queues > 0 && !(instance->queue_disable_flags & RADV_QUEUE_DISABLE_GENERAL);
 }
 
 static bool
