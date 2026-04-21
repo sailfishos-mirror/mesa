@@ -400,7 +400,7 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .maxFragmentOutputAttachments = KK_MAX_RTS,
       .maxFragmentDualSrcAttachments = 1,
       .maxFragmentCombinedOutputResources = KK_MAX_DESCRIPTORS,
-      .maxComputeSharedMemorySize = KK_MAX_SHARED_SIZE,
+      .maxComputeSharedMemorySize = pdev->info.max_compute_shared_memory_size,
       .maxComputeWorkGroupCount = {0x7fffffff, 65535, 65535},
       .maxComputeWorkGroupInvocations = pdev->info.max_workgroup_invocations,
       .maxComputeWorkGroupSize = {pdev->info.max_workgroup_count[0],
@@ -483,7 +483,7 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .maxMultiviewViewCount = KK_MAX_MULTIVIEW_VIEW_COUNT,
       .maxMultiviewInstanceIndex = UINT32_MAX,
       .maxPerSetDescriptors = UINT32_MAX,
-      .maxMemoryAllocationSize = (1u << 31),
+      .maxMemoryAllocationSize = pdev->info.max_buffer_size,
 
       /* Vulkan 1.2 properties */
       .supportedDepthResolveModes =
@@ -562,7 +562,7 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .storageTexelBufferOffsetSingleTexelAlignment = false,
       .uniformTexelBufferOffsetAlignmentBytes = KK_MIN_TEXEL_BUFFER_ALIGNMENT,
       .uniformTexelBufferOffsetSingleTexelAlignment = false,
-      .maxBufferSize = KK_MAX_BUFFER_SIZE,
+      .maxBufferSize = pdev->info.max_buffer_size,
 
       /* VK_KHR_push_descriptor */
       .maxPushDescriptors = KK_MAX_PUSH_DESCRIPTORS,
@@ -798,6 +798,11 @@ get_metal_limits(struct kk_physical_device *pdev)
    pdev->info.max_workgroup_count[2] = workgroup_size.z;
    pdev->info.max_workgroup_invocations =
       MAX3(workgroup_size.x, workgroup_size.y, workgroup_size.z);
+
+   pdev->info.max_compute_shared_memory_size =
+      mtl_device_max_threadgroup_memory_length(pdev->mtl_dev_handle);
+   pdev->info.max_buffer_size =
+      mtl_device_max_buffer_length(pdev->mtl_dev_handle);
 }
 
 VkResult
