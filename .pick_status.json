@@ -234,7 +234,7 @@
         "description": "pco: Fix pco_last_igrp returning the first element instead of the last",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "719ece42c0dcc7c682ba605fca43e76fac72756f",
         "notes": null
