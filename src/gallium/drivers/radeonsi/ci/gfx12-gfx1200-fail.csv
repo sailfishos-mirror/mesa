@@ -28,7 +28,6 @@ spec@!opengl 1.0@rasterpos@glsl_vs_tes_linked,Fail
 ## Fail because GFX10+ removed MS texture support (see si_get_sparse_texture_virtual_page_size)
 KHR-GL46.sparse_texture2_tests.SparseTexture2Allocation,Fail
 KHR-GL46.sparse_texture2_tests.SparseTexture2Commitment,Fail
-KHR-GL46.transform_feedback_overflow_query_ARB.multiple-streams-one-buffer-per-stream,Fail
 
 # See Khronos issue 5587: the test expects one-dimensional (array) texture to work while
 # it's explicitely marked as non-supported by EXT_sparse_texture2.
