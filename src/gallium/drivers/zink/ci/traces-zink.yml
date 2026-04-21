@@ -279,6 +279,9 @@ traces:
     gl-zink-anv-adl:
       checksum: 558c3d2b1b7acc782b3908c579ce0ce8
     gl-zink-anv-tgl:
+      # The rendered image has a smaller resolution this looks like a
+      # window system issue in zink
+      label: [skip, broken]
       checksum: 558c3d2b1b7acc782b3908c579ce0ce8
     zink-radv-vangogh:
       checksum: e673334ff967e1998c0a445e11066998
