@@ -147,6 +147,8 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .GOOGLE_user_type = true,
       .KHR_external_fence_fd = true,
       .KHR_external_semaphore_fd = true,
+
+      .AMD_shader_image_load_store_lod = true,
    };
 }
 
