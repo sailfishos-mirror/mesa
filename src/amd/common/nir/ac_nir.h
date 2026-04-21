@@ -478,6 +478,9 @@ ac_nir_get_io_driver_location(const nir_shader *nir, unsigned location, bool is_
 bool
 ac_nir_assign_fs_input_locations(nir_shader *nir);
 
+bool
+ac_nir_fixup_smem_loads_null_prt(nir_shader *shader, uint8_t address_prt_wa_control_bit);
+
 #ifdef __cplusplus
 }
 #endif

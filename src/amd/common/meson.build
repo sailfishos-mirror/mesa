@@ -156,6 +156,7 @@ amd_common_files = files(
   'nir/ac_nir_opt_outputs.c',
   'nir/ac_nir_cull.c',
   'nir/ac_nir_create_gs_copy_shader.c',
+  'nir/ac_nir_fixup_smem_loads_null_prt.c',
   'nir/ac_nir_lower_esgs_io_to_mem.c',
   'nir/ac_nir_lower_global_access.c',
   'nir/ac_nir_lower_image_opcodes_cdna.c',
