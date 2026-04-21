@@ -23,6 +23,12 @@ static const char *jay_conditional_mod_str[] = {
    [JAY_CONDITIONAL_OV] = ".ov", [JAY_CONDITIONAL_NAN] = ".nan",
 };
 
+static const char *tgl_pipe_str[] = {
+   [TGL_PIPE_NONE] = "",  [TGL_PIPE_FLOAT] = "F", [TGL_PIPE_INT] = "I",
+   [TGL_PIPE_LONG] = "L", [TGL_PIPE_MATH] = "M",  [TGL_PIPE_SCALAR] = "S",
+   [TGL_PIPE_ALL] = "A",
+};
+
 static const char *jay_arf_str[] = {
    [JAY_ARF_NULL] = "_",
    [JAY_ARF_MASK] = "mask",
@@ -122,33 +128,6 @@ jay_print_src(FILE *fp, jay_inst *I, unsigned s)
    }
 }
 
-/* XXX: copypaste of brw_print_swsb */
-static void
-jay_print_swsb(FILE *f, const struct tgl_swsb swsb)
-{
-   if (swsb.regdist) {
-      fprintf(f, "%s@%d",
-              (swsb.pipe == TGL_PIPE_FLOAT  ? "F" :
-               swsb.pipe == TGL_PIPE_INT    ? "I" :
-               swsb.pipe == TGL_PIPE_LONG   ? "L" :
-               swsb.pipe == TGL_PIPE_ALL    ? "A" :
-               swsb.pipe == TGL_PIPE_MATH   ? "M" :
-               swsb.pipe == TGL_PIPE_SCALAR ? "S" :
-                                              ""),
-              swsb.regdist);
-   }
-
-   if (swsb.mode) {
-      if (swsb.regdist)
-         fprintf(f, " ");
-
-      fprintf(f, "$%d%s", swsb.sbid,
-              (swsb.mode & TGL_SBID_SET ? "" :
-               swsb.mode & TGL_SBID_DST ? ".dst" :
-                                          ".src"));
-   }
-}
-
 void
 jay_print_inst(FILE *fp, jay_inst *I)
 {
@@ -218,7 +197,21 @@ jay_print_inst(FILE *fp, jay_inst *I)
    if (I->dep.regdist || I->dep.mode) {
       fprintf(fp, "%s%s%s", strlen(sep) ? " {" : "{",
               I->replicate_dep ? "*" : "", I->decrement_dep ? "+" : "");
-      jay_print_swsb(fp, I->dep);
+      sep = "";
+
+      if (I->dep.regdist) {
+         fprintf(fp, "%s@%d", ENUM_TO_STR(I->dep.pipe, tgl_pipe_str),
+                 I->dep.regdist);
+         sep = " ";
+      }
+
+      if (I->dep.mode) {
+         fprintf(fp, "%s$%d%s", sep, I->dep.sbid,
+                 (I->dep.mode & TGL_SBID_SET ? "" :
+                  I->dep.mode & TGL_SBID_DST ? ".dst" :
+                                               ".src"));
+      }
+
       fprintf(fp, "}");
    }
 
