@@ -414,15 +414,6 @@ jay_regs_equal(jay_def a, jay_def b)
 }
 
 /**
- * Return a reference to the execution mask (mask0) architecture register.
- */
-static inline jay_def
-jay_exec_mask(void)
-{
-   return jay_scalar(J_ARF, JAY_ARF_MASK);
-}
-
-/**
  * Return a reference to the control (cr0) architecture register.
  */
 static inline jay_def

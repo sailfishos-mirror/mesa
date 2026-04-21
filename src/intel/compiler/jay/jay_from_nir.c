@@ -117,7 +117,7 @@ payload_u1(struct nir_to_jay_state *nj, unsigned idx, unsigned len)
 static jay_def
 emit_active_lane_mask(struct nir_to_jay_state *nj)
 {
-   /* TODO: We don't use jay_exec_mask yet due to hardware issues */
+   /* Note that we don't use mask0 since it needs fixups. Just ballot(true). */
    if (jay_is_null(nj->active_lane_mask)) {
       nj->active_lane_mask = jay_alloc_def(&nj->bld, FLAG, 1);
       jay_MOV(&nj->bld, nj->active_lane_mask, 1);
