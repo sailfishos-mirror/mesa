@@ -94,7 +94,7 @@ to_brw_reg(jay_function *f,
       R = brw_imm_ud(jay_as_uint(d));
    } else if (jay_is_null(d)) {
       R = brw_null_reg();
-   } else if (d.file == UGPR) {
+   } else if (d.file == UGPR || d.file == UACCUM) {
       unsigned grf = (reg >> 1) / 8;
       offset_B = ((reg >> 1) % 8) * 4;
 

@@ -11,7 +11,7 @@
 
 /* Validatation doesn't make sense in release builds */
 #ifndef NDEBUG
-#define NUM_VALIDATE_FILES (ACCUM + 1)
+#define NUM_VALIDATE_FILES (UACCUM + 1)
 
 struct regfile {
    /* For each register in each file, records the SSA index currently stored
