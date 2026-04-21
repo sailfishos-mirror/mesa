@@ -410,6 +410,13 @@ typedef struct {
     */
    bool fix_derivs_in_divergent_cf;
    unsigned max_wqm_vgprs;
+} ac_nir_lower_tex_coords_options;
+
+bool
+ac_nir_lower_tex_coords(nir_shader *nir, const ac_nir_lower_tex_coords_options *options);
+
+typedef struct {
+   enum amd_gfx_level gfx_level;
 } ac_nir_lower_image_tex_options;
 
 bool

@@ -963,10 +963,15 @@ static void si_postprocess_nir(struct si_nir_shader_ctx *ctx)
    if (nir->info.stage == MESA_SHADER_FRAGMENT)
       NIR_PASS(progress, nir, nir_lower_fragcoord_wtrans);
 
+   NIR_PASS(progress, nir, ac_nir_lower_tex_coords,
+            &(ac_nir_lower_tex_coords_options){
+               .gfx_level = sel->screen->info.gfx_level,
+               .lower_array_layer_round_even = !sel->screen->info.compiler_info.conformant_trunc_coord,
+            });
+
    NIR_PASS(progress, nir, ac_nir_lower_image_tex,
             &(ac_nir_lower_image_tex_options){
                .gfx_level = sel->screen->info.gfx_level,
-               .lower_array_layer_round_even = !sel->screen->info.compiler_info.conformant_trunc_coord,
             });
 
    if (nir->info.uses_resource_info_query)

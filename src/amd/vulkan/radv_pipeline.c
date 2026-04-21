@@ -334,13 +334,18 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
    if (progress)
       constant_fold_for_push_const = true;
 
-   NIR_PASS(_, stage->nir, ac_nir_lower_image_tex,
-            &(ac_nir_lower_image_tex_options){
+   NIR_PASS(_, stage->nir, ac_nir_lower_tex_coords,
+            &(ac_nir_lower_tex_coords_options){
                .gfx_level = gfx_level,
                .lower_array_layer_round_even =
                   !compiler_info->ac->conformant_trunc_coord && !compiler_info->key.disable_trunc_coord,
                .fix_derivs_in_divergent_cf = stage->stage == MESA_SHADER_FRAGMENT && !use_llvm,
                .max_wqm_vgprs = 64, // TODO: improve spiller and RA support for linear VGPRs
+            });
+
+   NIR_PASS(_, stage->nir, ac_nir_lower_image_tex,
+            &(ac_nir_lower_image_tex_options){
+               .gfx_level = gfx_level,
             });
 
    if (stage->nir->info.uses_resource_info_query)
