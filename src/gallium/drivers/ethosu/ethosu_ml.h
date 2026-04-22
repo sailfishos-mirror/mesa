@@ -66,8 +66,10 @@ enum ethosu_upscale_mode {
    ETHOSU_UPSCALE_ZEROS = 2,
 };
 
+struct ethosu_tensor;
+
 struct ethosu_feature_map {
-   unsigned tensor_idx;
+   struct ethosu_tensor *tensor;
    struct ethosu_block shape;
    bool is_signed;
    uint8_t precision;

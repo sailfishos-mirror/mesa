@@ -139,7 +139,7 @@ emit_strides(
 {
    unsigned elem_size = 1;
    unsigned tensor_x, tensor_y, tensor_c;
-   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, feature_map->tensor_idx);
+   struct ethosu_tensor *tensor = feature_map->tensor;
 
    if (tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
       tensor_x = 16 * elem_size;
@@ -181,10 +181,9 @@ emit_ifm_precision(struct ethosu_subgraph *subgraph,
                    struct ethosu_feature_map *feature_map,
                    enum ethosu_op_to_scale op_to_scale, uint32_t precision_cmd)
 {
-   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, feature_map->tensor_idx);
    unsigned prec = 0;
 
-   if (tensor->layout == ETHOSU_LAYOUT_NHCWB16)
+   if (feature_map->tensor->layout == ETHOSU_LAYOUT_NHCWB16)
       prec |= NPU_SET_IFM_PRECISION_FORMAT(1);
 
    prec |= NPU_SET_IFM_PRECISION_PRECISION(feature_map->precision);
@@ -238,10 +237,9 @@ emit_ofm(struct ethosu_subgraph *subgraph, struct ethosu_feature_map *feature_ma
 static void
 emit_ofm_precision(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, operation->ofm.tensor_idx);
    unsigned prec = 0;
 
-   if (tensor->layout == ETHOSU_LAYOUT_NHCWB16)
+   if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHCWB16)
       prec |= NPU_SET_OFM_PRECISION_FORMAT(1);
 
    prec |= NPU_SET_OFM_PRECISION_PRECISION(operation->ofm.precision);
@@ -534,13 +532,12 @@ emit_ifm2_precision(struct ethosu_subgraph *subgraph,
                     struct ethosu_operation *operation,
                     bool has_scalar)
 {
-   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, operation->ifm2.tensor_idx);
    unsigned prec = 0;
 
    prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_TYPE(operation->ifm2.is_signed);
    prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_PRECISION(operation->ifm2.precision);
 
-   if (tensor->layout == ETHOSU_LAYOUT_NHCWB16)
+   if (operation->ifm2.tensor->layout == ETHOSU_LAYOUT_NHCWB16)
       prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_FORMAT(1);
 
    /* Vela: scalar → NONE(3), non-scalar → TILE2X2(0) */
@@ -1087,10 +1084,9 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
 
    /* Check if previous OFM matches current IFM (same tensor) */
    int ifm_index = 0;
-   if (operation->ifm2.tensor_idx != 0 &&
-       operation->ifm2.tensor_idx == prev_op->ofm.tensor_idx) {
+   if (operation->ifm2.tensor == prev_op->ofm.tensor) {
       ifm_index = 1;
-   } else if (operation->ifm.tensor_idx != prev_op->ofm.tensor_idx) {
+   } else if (operation->ifm.tensor != prev_op->ofm.tensor) {
       /* Previous operation doesn't produce current operation's IFM */
       return device->max_concurrent_blocks;
    }

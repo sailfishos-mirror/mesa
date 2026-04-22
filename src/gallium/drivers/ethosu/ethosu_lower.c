@@ -31,27 +31,28 @@ needed_total_padding(int input_size, int stride, int filter_size)
 }
 
 static void
-set_feature_maps(struct pipe_tensor *input_tensor,
+set_feature_map(struct ethosu_subgraph *subgraph,
+                struct pipe_tensor *tensor,
+                struct ethosu_feature_map *fm)
+{
+   fm->tensor = ethosu_find_tensor(subgraph, tensor->index);
+   fm->shape.height = tensor->dims[1];
+   fm->shape.width = tensor->dims[2];
+   fm->shape.depth = tensor->dims[3];
+   fm->zero_point = tensor->zero_point;
+   fm->scale = tensor->scale;
+   fm->is_signed = tensor->is_signed;
+   fm->precision = log2(tensor->type_size);
+}
+
+static void
+set_feature_maps(struct ethosu_subgraph *subgraph,
+                 struct pipe_tensor *input_tensor,
                  struct pipe_tensor *output_tensor,
                  struct ethosu_operation *operation)
 {
-   operation->ifm.tensor_idx = input_tensor->index;
-   operation->ifm.shape.height = input_tensor->dims[1];
-   operation->ifm.shape.width = input_tensor->dims[2];
-   operation->ifm.shape.depth = input_tensor->dims[3];
-   operation->ifm.zero_point = input_tensor->zero_point;
-   operation->ifm.scale = input_tensor->scale;
-   operation->ifm.is_signed = input_tensor->is_signed;
-   operation->ifm.precision = log2(input_tensor->type_size);
-
-   operation->ofm.tensor_idx = output_tensor->index;
-   operation->ofm.shape.height = output_tensor->dims[1];
-   operation->ofm.shape.width = output_tensor->dims[2];
-   operation->ofm.shape.depth = output_tensor->dims[3];
-   operation->ofm.zero_point = output_tensor->zero_point;
-   operation->ofm.scale = output_tensor->scale;
-   operation->ofm.is_signed = output_tensor->is_signed;
-   operation->ofm.precision = log2(output_tensor->type_size);
+   set_feature_map(subgraph, input_tensor, &operation->ifm);
+   set_feature_map(subgraph, output_tensor, &operation->ofm);
 }
 
 static const struct pipe_ml_operation *
@@ -70,9 +71,8 @@ ethosu_find_first_consumer(const struct pipe_ml_operation *poperations,
 }
 
 static unsigned
-ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, unsigned tensor_idx)
+ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, struct ethosu_tensor *tensor)
 {
-   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, tensor_idx);
    unsigned size;
 
    if (tensor->layout == ETHOSU_LAYOUT_NHWC) {
@@ -100,12 +100,12 @@ ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, unsigned tensor_id
 static void
 allocate_feature_maps(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   operation->ofm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ofm.tensor_idx);
+   operation->ofm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ofm.tensor);
    operation->ofm.tiles.height_0 = operation->ofm.shape.height;
    operation->ofm.tiles.height_1 = operation->ofm.shape.height;
    operation->ofm.tiles.width_0 = operation->ofm.shape.width;
 
-   operation->ifm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm.tensor_idx);
+   operation->ifm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm.tensor);
    operation->ifm.tiles.height_0 = operation->ifm.shape.height;
    operation->ifm.tiles.height_1 = operation->ifm.shape.height;
    operation->ifm.tiles.width_0 = operation->ifm.shape.width;
@@ -152,7 +152,7 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
 
    operation->conv.depthwise = is_depthwise(poperation);
 
-   set_feature_maps(input_tensor, poperation->output_tensors[0], operation);
+   set_feature_maps(subgraph, input_tensor, poperation->output_tensors[0], operation);
 
    operation->kernel.height = poperation->conv.weight_tensor->dims[1];
    operation->kernel.width = poperation->conv.weight_tensor->dims[2];
@@ -217,7 +217,7 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
       assert(0 && "Unsupported pooling type");
    }
 
-   set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
    operation->kernel.height = poperation->pooling.filter_height;
    operation->kernel.width = poperation->pooling.filter_width;
@@ -247,16 +247,14 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
    } else
       operation->pooling.type = ETHOSU_POOLING_TYPE_SUM;
 
-   set_feature_maps(poperation->input_tensors[input_idx], poperation->output_tensors[0], operation);
+   set_feature_maps(subgraph, poperation->input_tensors[input_idx], poperation->output_tensors[0], operation);
    operation->ofm.shape.depth = operation->ifm.shape.depth;
 
    allocate_feature_maps(subgraph, operation);
    for (unsigned i = 0; i < input_idx; i++) {
-      struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, operation->ofm.tensor_idx);
-
-      if (tensor->layout == ETHOSU_LAYOUT_NHWC)
+      if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHWC)
          operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[3];
-      else if (tensor->layout == ETHOSU_LAYOUT_NHCWB16)
+      else if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHCWB16)
          operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[2] * align(poperation->input_tensors[i]->dims[3], 16);
       else
          assert(0 && "Unsupported layout");
@@ -273,7 +271,7 @@ ethosu_lower_resize(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
 
-   set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
    operation->upscale = ETHOSU_UPSCALE_NEAREST;
 
@@ -289,7 +287,7 @@ ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
 
-   set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
    operation->ifm.shape = operation->ofm.shape;
 
    allocate_feature_maps(subgraph, operation);
@@ -340,16 +338,10 @@ ethosu_lower_add(struct ethosu_subgraph *subgraph,
       operation->eltwise.ifm_reversed = true;
    }
 
-   set_feature_maps(poperation->input_tensors[ifm_idx], poperation->output_tensors[0], operation);
+   set_feature_maps(subgraph, poperation->input_tensors[ifm_idx], poperation->output_tensors[0], operation);
 
-   operation->ifm2.tensor_idx = poperation->input_tensors[ifm2_idx]->index;
-   operation->ifm2.shape.height = poperation->input_tensors[ifm2_idx]->dims[1];
-   operation->ifm2.shape.width = poperation->input_tensors[ifm2_idx]->dims[2];
-   operation->ifm2.shape.depth = poperation->input_tensors[ifm2_idx]->dims[3];
-   operation->ifm2.zero_point = poperation->input_tensors[ifm2_idx]->zero_point;
-   operation->ifm2.scale = poperation->input_tensors[ifm2_idx]->scale;
-   operation->ifm2.is_signed = poperation->input_tensors[ifm2_idx]->is_signed;
-   operation->ifm2.precision = log2(poperation->input_tensors[ifm2_idx]->type_size);
+   set_feature_map(subgraph, poperation->input_tensors[ifm2_idx], &operation->ifm2);
+
    if (poperation->input_tensors[ifm2_idx]->data &&
        operation->ifm2.shape.width == 1 &&
        operation->ifm2.shape.height == 1 &&
@@ -361,7 +353,7 @@ ethosu_lower_add(struct ethosu_subgraph *subgraph,
 
    allocate_feature_maps(subgraph, operation);
 
-   operation->ifm2.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm2.tensor_idx);
+   operation->ifm2.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm2.tensor);
    operation->ifm2.tiles.height_0 = operation->ifm2.shape.height;
    operation->ifm2.tiles.height_1 = operation->ifm2.shape.height;
    operation->ifm2.tiles.width_0 = operation->ifm2.shape.width;
