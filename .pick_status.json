@@ -2484,7 +2484,7 @@
         "description": "freedreno/drm/virtio: Fix wait_fence ret ordering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "441f01e778184be8e5f99d3c40f47ee49402dd03",
         "notes": null
