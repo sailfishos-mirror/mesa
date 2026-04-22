@@ -2412,7 +2412,7 @@ panfrost_emit_vertex_data(struct panfrost_batch *batch, uint64_t *buffers)
             cfg.pointer = addr;
             cfg.stride = stride;
             cfg.size = size;
-            cfg.divisor_r = __builtin_ctz(hw_divisor);
+            cfg.divisor_r = hw_divisor ? __builtin_ctz(hw_divisor) : 0;
          }
 
       } else {
@@ -3446,7 +3446,7 @@ panfrost_single_draw_direct(struct panfrost_batch *batch,
    struct panfrost_compiled_shader *vs = ctx->prog[MESA_SHADER_VERTEX];
    bool idvs = vs->info.vs.idvs;
 
-   UNUSED unsigned vertex_count =
+   unsigned vertex_count =
       panfrost_draw_get_vertex_count(batch, info, draw, idvs);
 
    panfrost_statistics_record(ctx, info, draw);
@@ -3476,7 +3476,8 @@ panfrost_single_draw_direct(struct panfrost_batch *batch,
                                     info->mode == MESA_PRIM_POINTS);
 #endif
 
-   JOBX(launch_draw)(batch, info, drawid_offset, draw, vertex_count);
+   if (vertex_count > 0)
+      JOBX(launch_draw)(batch, info, drawid_offset, draw, vertex_count);
    batch->draw_count++;
 }
 
