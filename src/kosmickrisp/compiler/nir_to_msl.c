@@ -760,11 +760,12 @@ src_to_packed_store(struct nir_to_msl_ctx *ctx, nir_src *src,
                     uint32_t num_components)
 {
    if (num_components == 1) {
-      P_IND(ctx, "*(%s %s*)", addressing, type);
+      P_IND(ctx, "(*(%s %s*)", addressing, type);
    } else {
-      P_IND(ctx, "*(%s packed_%s*)", addressing, type);
+      P_IND(ctx, "(*(%s packed_%s*)", addressing, type);
    }
    src_to_msl(ctx, src);
+   P(ctx, ")");
 }
 
 static const char *
@@ -1234,6 +1235,8 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
          P(ctx, " = ")
          src_to_packed(ctx, &instr->src[0], type,
                        instr->src[0].ssa->num_components);
+         writemask_to_msl(ctx, nir_intrinsic_write_mask(instr),
+                          instr->num_components);
          P(ctx, ";\n");
       }
       break;
