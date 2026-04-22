@@ -1024,7 +1024,7 @@
         "description": "panvk: Fix debug flag overlap",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2d9be417065801124eac3845f71df280f1ebc2bb",
         "notes": null
