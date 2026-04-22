@@ -2444,6 +2444,9 @@ pre_args += '-DHAVE_RENDERDOC_INTEGRATION=@0@'.format(renderdoc_integration_supp
 
 with_teflon = get_option('teflon')
 
+with_torx = get_option('torx')
+dep_executorch = null_dep
+
 with_gpuvis = get_option('gpuvis')
 if with_gpuvis
   pre_args += '-DHAVE_GPUVIS'
@@ -2685,3 +2688,6 @@ summary(perfetto_summary, section: 'Perfetto', bool_yn: true, list_sep: ' ')
 
 teflon_summary = {'Enabled': with_teflon}
 summary(teflon_summary, section: 'Teflon (TensorFlow Lite delegate)', bool_yn: true, list_sep: ' ')
+
+torx_summary = {'Enabled': with_torx}
+summary(torx_summary, section: 'Torx (PyTorch backend)', bool_yn: true, list_sep: ' ')

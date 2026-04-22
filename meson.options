@@ -667,6 +667,13 @@ option(
 )
 
 option(
+  'torx',
+  type : 'boolean',
+  value : false,
+  description : 'Enable Torx (PyTorch backend). Default: false'
+)
+
+option(
   'gpuvis',
   type : 'boolean',
   value : false,
