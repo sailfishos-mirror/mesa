@@ -239,6 +239,7 @@ local_fuse_flag_and_or(jay_function *f,
    /* TODO: Generalize */
    if (I->op != JAY_OPCODE_CMP ||
        jay_type_size_bits(I->type) == 1 ||
+       jay_type_size_bits(I->type) > 32 ||
        !(use->op == JAY_OPCODE_AND || use->op == JAY_OPCODE_OR) ||
        use->src[0].negate ||
        use->src[1].negate) {
