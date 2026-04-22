@@ -323,6 +323,7 @@ kk_lower_vs(nir_shader *nir, const struct vk_graphics_pipeline_state *state)
       nir_shader_intrinsics_pass(nir, msl_nir_vs_remove_point_size_write,
                                  nir_metadata_control_flow, NULL);
 
+   NIR_PASS(_, nir, nir_lower_clip_halfz_dynamic);
    NIR_PASS(_, nir, msl_nir_vs_io_types);
 }
 

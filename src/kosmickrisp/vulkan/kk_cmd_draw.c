@@ -742,6 +742,12 @@ kk_flush_dynamic_state(struct kk_cmd_buffer *cmd)
         IS_DIRTY(VP_SCISSOR_COUNT) || IS_DIRTY(VP_SCISSORS)))
       kk_flush_vp_state(cmd);
 
+   if (IS_DIRTY(VP_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE)) {
+      desc->root.draw.clip_z_coeff =
+         dyn->vp.depth_clip_negative_one_to_one ? 0.5f : 0.0f;
+      desc->root_dirty = true;
+   }
+
    if (IS_DIRTY(RS_FRONT_FACE)) {
       mtl_set_front_face_winding(
          enc, vk_front_face_to_mtl_winding(

@@ -407,6 +407,9 @@ try_lower_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
    case nir_intrinsic_load_blend_const_color_rgba:
       return lower_sysval_to_root_table(b, intrin, draw.blend_constant);
 
+   case nir_intrinsic_load_clip_z_coeff:
+      return lower_sysval_to_root_table(b, intrin, draw.clip_z_coeff);
+
    case nir_intrinsic_load_push_constant:
       return lower_load_push_constant(b, intrin, ctx);
 

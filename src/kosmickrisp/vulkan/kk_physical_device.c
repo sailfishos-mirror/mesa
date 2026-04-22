@@ -135,6 +135,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_workgroup_memory_explicit_layout = true,
 
       .EXT_calibrated_timestamps = true,
+      .EXT_depth_clip_control = true,
       .EXT_external_memory_metal = true,
       .EXT_image_2d_view_of_3d = true,
       .EXT_load_store_op_none = true,
@@ -302,6 +303,9 @@ kk_get_device_features(
       /* EXT_4444_formats */
       .formatA4R4G4B4 = true,
       .formatA4B4G4R4 = true,
+
+      /* VK_EXT_depth_clip_control */
+      .depthClipControl = true,
 
       /* EXT_image_2d_view_of_3d */
       .image2DViewOf3D = true,
