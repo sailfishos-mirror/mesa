@@ -496,7 +496,13 @@ anv_device_init_astc_emu(struct anv_device *device)
       result = vk_texcompress_astc_init(
          &device->vk, &device->vk.alloc, VK_NULL_HANDLE,
          &astc_emu->texcompress,
-         vk_texcompress_astc_default_params(&device->vk));
+         (struct vk_texcompress_astc_params) {
+            .luts_alignment = 64,
+            .luts_memory_flags = (VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                  (device->physical->has_small_bar ? 0 :
+                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)),
+         });
    }
 
    return result;
