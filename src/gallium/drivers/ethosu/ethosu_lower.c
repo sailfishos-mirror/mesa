@@ -267,12 +267,17 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
    operation->pooling.nop = true;
 
    set_feature_maps(subgraph, poperation->input_tensors[input_idx], poperation->output_tensors[0], operation);
-   operation->ofm.shape.depth = operation->ifm.shape.depth;
+   operation->ofm.shape = operation->ifm.shape;
+   if (poperation->conc.axis == 1)
+      operation->ofm.stride = operation->ifm.stride;
 
    allocate_feature_maps(subgraph, operation);
    for (unsigned i = 0; i < input_idx; i++) {
       if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHWC)
-         operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[3];
+         if (poperation->conc.axis == 1)
+            operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[3] * poperation->input_tensors[i]->dims[2] * poperation->input_tensors[i]->dims[1];
+         else
+            operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[3];
       else if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHCWB16)
          operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[2] * align(poperation->input_tensors[i]->dims[3], 16);
       else

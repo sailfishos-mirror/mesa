@@ -152,8 +152,7 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
       break;
    }
    case PIPE_ML_OPERATION_TYPE_CONCATENATION:
-      supported = operation->conc.axis == 3 ||
-                  operation->conc.axis == -1;
+      supported = operation->conc.axis <= 3 && operation->conc.axis >= -1;
       break;
    default:
       supported = false;
