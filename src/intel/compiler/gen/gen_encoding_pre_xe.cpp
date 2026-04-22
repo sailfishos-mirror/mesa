@@ -416,6 +416,24 @@ private:
    }
 
    inline void
+   set(const gen_ranges<1> &ranges, uint64_t value)
+   {
+      set(ranges[0], value);
+   }
+
+   inline void
+   set(const gen_range &bits, const gen_sub_ranges<2> ranges, uint64_t value)
+   {
+      const auto &rs = ranges;
+      unsigned num_bits = (rs[1].hi - rs[1].lo + 1);
+      assume(num_bits <= 64);
+      uint64_t mask = ~0ull >> (64 - num_bits);
+      set(bits(rs[1]), value & mask);
+      value >>= num_bits;
+      set(bits(rs[0]), value);
+   }
+
+   inline void
    encode_controls()
    {
       const gen_range bits = CONTROLS;
@@ -1163,6 +1181,20 @@ private:
       const uint64_t mask = (~0ull >> (64 - (high - low + 1)));
 
       return (raw->data[word] >> low) & mask;
+   }
+
+   inline uint64_t
+   get(const gen_ranges<1> &ranges) const
+   {
+      return get(ranges[0]);
+   }
+
+   inline uint64_t
+   get(const gen_range &bits, const gen_sub_ranges<2> &ranges) const
+   {
+      return
+         (get(bits(ranges[0])) << (ranges[1].hi - ranges[1].lo + 1)) |
+         get(bits(ranges[1])) ;
    }
 
    inline void

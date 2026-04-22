@@ -902,6 +902,23 @@ private:
    }
 
    inline void
+   set(const gen_ranges<1> &ranges, uint64_t value)
+   {
+      set(ranges[0], value);
+   }
+
+   inline void
+   set(const gen_ranges<2> &ranges, uint64_t value)
+   {
+      unsigned num_bits = (ranges[1].hi - ranges[1].lo + 1);
+      assume(num_bits <= 64);
+      uint64_t mask = ~0ull >> (64 - num_bits);
+      set(ranges[1], value & mask);
+      value >>= num_bits;
+      set(ranges[0], value);
+   }
+
+   inline void
    encode_direct_operand(const gen_range &bits, const gen_operand &o, bool skip_subnr = false)
    {
       unsigned subnr = o.subnr;
@@ -1498,6 +1515,20 @@ private:
       const uint64_t mask = (~0ull >> (64 - (high - low + 1)));
 
       return (raw->data[word] >> low) & mask;
+   }
+
+   inline uint64_t
+   get(const gen_ranges<1> &ranges) const
+   {
+      return get(ranges[0]);
+   }
+
+   inline uint64_t
+   get(const gen_ranges<2> &ranges) const
+   {
+      return
+         (get(ranges[0]) << (ranges[1].hi - ranges[1].lo + 1)) |
+         get(ranges[1]) ;
    }
 
    inline void

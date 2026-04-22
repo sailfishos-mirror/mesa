@@ -952,7 +952,7 @@ struct gen_compact_accessor {
    gen_raw_compact_inst c_raw;
 
    inline uint64_t
-   c_get(const gen_range &bits)
+   c_get(const gen_range &bits) const
    {
       unsigned high = bits.hi;
       unsigned low = bits.lo;
@@ -963,6 +963,20 @@ struct gen_compact_accessor {
       const uint64_t mask = (~0ull >> (64 - (high - low + 1)));
 
       return (c_raw.data >> low) & mask;
+   }
+
+   inline uint64_t
+   c_get(const gen_ranges<1> &ranges) const
+   {
+      return c_get(ranges[0]);
+   }
+
+   inline uint64_t
+   c_get(const gen_ranges<2> &ranges) const
+   {
+      return
+         (c_get(ranges[0]) << (ranges[1].hi - ranges[1].lo + 1)) |
+         c_get(ranges[1]) ;
    }
 
    inline void
@@ -980,6 +994,23 @@ struct gen_compact_accessor {
       assert((value & (mask >> low)) == value);
 
       c_raw.data = (c_raw.data & ~mask) | (value << low);
+   }
+
+   inline void
+   c_set(const gen_ranges<1> &ranges, uint64_t value)
+   {
+      c_set(ranges[0], value);
+   }
+
+   inline void
+   c_set(const gen_ranges<2> &ranges, uint64_t value)
+   {
+      unsigned num_bits = ranges[1].hi - ranges[1].lo + 1;
+      assume(num_bits <= 64);
+      uint64_t mask = ~0ull >> (64 - num_bits);
+      c_set(ranges[1], value & mask);
+      value >>= num_bits;
+      c_set(ranges[0], value);
    }
 
    inline void
@@ -1004,6 +1035,32 @@ struct gen_compact_accessor {
       uc_raw.data[word] = (uc_raw.data[word] & ~mask) | (value << low);
    }
 
+   template <int N, int I>
+   inline void
+   uc_set_unroll(const gen_ranges<N> &ranges, uint64_t &value)
+   {
+      if constexpr((I + 1) < N) {
+         /* Recurse up front to set least significant bits first */
+         uc_set_unroll<N, I + 1>(ranges, value);
+      }
+
+      /* Set least significant bits first, and then shift them out of `value`
+       * so the bits for the next range are in the lowest bits of `value`.
+       */
+      unsigned num_bits = ranges[I].hi - ranges[I].lo + 1;
+      uint64_t mask = ~0ull >> (64 - num_bits);
+      uc_set(ranges[I], (value & mask));
+      value = value >> num_bits;
+   }
+
+   template <int N>
+   inline void
+   uc_set(const gen_ranges<N> &ranges, uint64_t value)
+   {
+      uc_set_unroll<N, 0>(ranges, value);
+      assert(value == 0);
+   }
+
    inline uint64_t
    uc_get(const gen_range &bits) const
    {
@@ -1022,6 +1079,29 @@ struct gen_compact_accessor {
       const uint64_t mask = (~0ull >> (64 - (high - low + 1)));
 
       return (uc_raw.data[word] >> low) & mask;
+   }
+
+   template <int N, int I>
+   inline void
+   uc_get_unroll(const gen_ranges<N> &ranges, uint64_t &output) const
+   {
+      /* Read most significant bits first, and merge into `output` */
+      unsigned num_bits = ranges[I].hi - ranges[I].lo + 1;
+      output = output << num_bits | uc_get(ranges[I]);
+
+      if constexpr((I + 1) < N) {
+         /* Read remaining bits from other bit ranges */
+         uc_get_unroll<N, I + 1>(ranges, output);
+      }
+   }
+
+   template <int N>
+   inline uint64_t
+   uc_get(const gen_ranges<N> &ranges) const
+   {
+      uint64_t output = 0;
+      uc_get_unroll<N, 0>(ranges, output);
+      return output;
    }
 
    int32_t
