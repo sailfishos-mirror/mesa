@@ -44,11 +44,11 @@ opt_predicate(jay_function *f, jay_block *block)
 
    /* If's fallthrough to the then */
    jay_block *then_block = jay_next_block(block);
-   assert(block->successors[0] == then_block && "successors for if");
+   assert(block->logical_succs[0] == then_block && "successors for if");
 
    /* We're searching for a single block then, so the next block is else */
    jay_block *else_block = jay_next_block(then_block);
-   if (block->successors[1] != else_block ||
+   if (block->logical_succs[1] != else_block ||
        list_length(&then_block->instructions) > 3 ||
        !list_is_singular(&else_block->instructions))
       return;

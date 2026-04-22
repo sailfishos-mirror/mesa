@@ -249,8 +249,13 @@ jay_print_block(FILE *fp, jay_block *block)
    fprintf(fp, "B%d%s%s", block->index, block->uniform ? " [uniform]" : "",
            block->loop_header ? " [loop header]" : "");
    bool first = true;
-   jay_foreach_predecessor(block, p) {
+   jay_foreach_predecessor(block, p, GPR) {
       fprintf(fp, "%s B%d", first ? " <-" : "", (*p)->index);
+      first = false;
+   }
+   first = true;
+   jay_foreach_predecessor(block, p, UGPR) {
+      fprintf(fp, "%s B%d", first ? " <=" : "", (*p)->index);
       first = false;
    }
    fprintf(fp, " {\n");
@@ -281,11 +286,14 @@ jay_print_block(FILE *fp, jay_block *block)
    indent(fp, block, false);
    fprintf(fp, "}");
    first = true;
-   jay_foreach_successor(block, succ) {
-      if (succ) {
-         fprintf(fp, "%s B%d", first ? " ->" : "", succ->index);
-         first = false;
-      }
+   jay_foreach_successor(block, succ, GPR) {
+      fprintf(fp, "%s B%d", first ? " ->" : "", succ->index);
+      first = false;
+   }
+   first = true;
+   jay_foreach_successor(block, succ, UGPR) {
+      fprintf(fp, "%s B%d", first ? " =>" : "", succ->index);
+      first = false;
    }
    fprintf(fp, "\n\n");
 }

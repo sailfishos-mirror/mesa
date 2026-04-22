@@ -138,7 +138,7 @@ jay_lower_spill(jay_function *func)
       }
 
       /* Canonicalize our internal registers at block boundaries */
-      if (jay_num_successors(block) > 0) {
+      if (jay_num_successors(block, GPR) > 0) {
          if (!address_valid) {
             jay_SHR(&b, JAY_TYPE_U32, ADDRESS_REG, surf, 4);
          }

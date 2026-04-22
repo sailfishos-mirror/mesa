@@ -264,21 +264,30 @@ jay_validate_function(struct validate_state *validate)
       validate->block = block;
       validate->I = NULL;
 
-      CHECK(block->successors[0] || !block->successors[1]);
+      CHECK(block->logical_succs[0] || !block->logical_succs[1]);
 
       /* Post-RA we can remove physical jumps though they exist logically */
-      if (block->successors[1] && !validate->post_ra) {
+      if (block->logical_succs[1] && !validate->post_ra) {
          CHECK(jay_block_ending_jump(block) != NULL);
+      }
+
+      bool uniform_phi = false;
+      jay_foreach_phi_src_in_block(block, phi) {
+         uniform_phi |= jay_is_uniform(phi->src[0]);
       }
 
       /* If a block has multiple successors, and one of them has multiple
        * predecessors, then we've detected a critical edge.
        */
-      if (jay_num_successors(block) > 1 && !validate->post_ra) {
-         jay_foreach_successor(block, succ) {
-            if (jay_num_predecessors(succ) > 1) {
-               chirp(validate, "Critical edge (B%u -> B%u) is not allowed",
-                     block->index, succ->index);
+      for (enum jay_file file = GPR; file <= (uniform_phi ? UGPR : GPR);
+           ++file) {
+         if (jay_num_successors(block, file) > 1 && !validate->post_ra) {
+            jay_foreach_successor(block, succ, file) {
+               if (jay_num_predecessors(succ, file) > 1) {
+                  chirp(validate, "%s critical edge (B%u -> B%u)",
+                        file == GPR ? "Logical" : "Physical", block->index,
+                        succ->index);
+               }
             }
          }
       }

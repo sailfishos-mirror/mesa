@@ -102,15 +102,15 @@ validate_block(jay_function *func, jay_block *block, struct regfile *blocks)
     *
     * dEQP-VK.graphicsfuzz.spv-stable-mergesort-dead-code
     */
-   bool loop_header = block->loop_header && jay_num_predecessors(block) > 1;
+   bool loop_header =
+      block->loop_header && jay_num_predecessors(block, GPR) > 1;
 
    /* Initialize the register file based on predecessors. */
    /* Initialize with the exit state of any one predecessor */
-   jay_block *first_pred = jay_first_predecessor(block);
-   if (first_pred) {
-      struct regfile *pred_rf = &blocks[first_pred->index];
-
-      jay_foreach_ssa_file(f) {
+   jay_foreach_ssa_file(f) {
+      jay_block *first_pred = jay_first_predecessor(block, f);
+      if (first_pred) {
+         struct regfile *pred_rf = &blocks[first_pred->index];
          memcpy(rf->r[f], pred_rf->r[f], rf->n[f] * sizeof(uint32_t));
       }
    }
@@ -121,10 +121,10 @@ validate_block(jay_function *func, jay_block *block, struct regfile *blocks)
        * values coming in from each block, it is considered undefined at the
        * start of the block.
        */
-      jay_foreach_predecessor(block, pred) {
-         struct regfile *pred_rf = &blocks[(*pred)->index];
+      jay_foreach_ssa_file(file) {
+         jay_foreach_predecessor(block, pred, file) {
+            struct regfile *pred_rf = &blocks[(*pred)->index];
 
-         jay_foreach_ssa_file(file) {
             for (unsigned r = 0; r < rf->n[file]; ++r) {
                if (*reg(rf, file, r) != *reg(pred_rf, file, r)) {
                   *reg(rf, file, r) = 0;

@@ -2042,7 +2042,7 @@ jay_emit_jump(struct nir_to_jay_state *nj, nir_jump_instr *instr)
 {
    switch (instr->type) {
    case nir_jump_break:
-      jay_block_add_successor(nj->current_block, nj->break_block);
+      jay_block_add_successor(nj->current_block, nj->break_block, GPR);
       jay_BREAK(&nj->bld);
       break;
    case nir_jump_halt:
@@ -2144,14 +2144,22 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
    /* Pop */
    --nj->indent;
 
-   jay_block_add_successor(before_block, then_first);
-   jay_block_add_successor(before_block, else_first);
+   bool uniform = jay_is_uniform(condition);
+
+   /* Logical CFG edges */
+   jay_block_add_successor(before_block, then_first, GPR);
+   jay_block_add_successor(before_block, else_first, GPR);
 
    if (!jay_block_ending_unconditional_jump(then_last))
-      jay_block_add_successor(then_last, after_block);
+      jay_block_add_successor(then_last, after_block, GPR);
 
    if (!jay_block_ending_unconditional_jump(else_last))
-      jay_block_add_successor(else_last, after_block);
+      jay_block_add_successor(else_last, after_block, GPR);
+
+   /* For a non-uniform IF, we fall through both sides in the physical CFG */
+   if (!uniform) {
+      jay_block_add_successor(then_last, else_first, UGPR);
+   }
 
    nj->after_block = after_block;
 
@@ -2183,7 +2191,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
    loop_header->loop_header = true;
 
    /* The current block falls through to the start of the loop */
-   jay_block_add_successor(nj->current_block, loop_header);
+   jay_block_add_successor(nj->current_block, loop_header, GPR);
 
    /* Emit the loop body */
    nj->after_block = loop_header;
@@ -2194,7 +2202,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
    if (jump && jump->op == JAY_OPCODE_BREAK) {
       jump->op = JAY_OPCODE_LOOP_ONCE;
    } else {
-      jay_block_add_successor(nj->current_block, loop_header);
+      jay_block_add_successor(nj->current_block, loop_header, GPR);
       jay_WHILE(b);
    }
 
@@ -2508,9 +2516,9 @@ jay_setup_payload(struct nir_to_jay_state *nj)
 }
 
 /*
- * NIR sometimes contains unreachable blocks (e.g. due to infinite loops). These
- * blocks have no predecessors, but do have successors and can contribute to
- * phis. They are dead and violate the IR invariant:
+ * NIR sometimes contains logically unreachable blocks (e.g. due to infinite
+ * loops). These blocks have no predecessors, but do have successors and can
+ * contribute to phis. They are dead and violate the IR invariant:
  *
  *    Live-in sources are live-out in all predecessors.
  *
@@ -2530,16 +2538,23 @@ jay_remove_unreachable_blocks(jay_function *func)
 
       jay_foreach_block(func, pred) {
          if (pred != jay_first_block(func) &&
-             jay_num_predecessors(pred) == 0 &&
-             jay_num_successors(pred) > 0) {
+             jay_num_predecessors(pred, GPR) == 0 &&
+             jay_num_successors(pred, GPR) > 0) {
 
-            jay_foreach_successor(pred, succ) {
-               util_dynarray_delete_unordered(&succ->predecessors, jay_block *,
+            jay_foreach_successor(pred, succ, GPR) {
+               util_dynarray_delete_unordered(&succ->logical_preds, jay_block *,
                                               pred);
             }
 
-            pred->successors[0] = NULL;
-            pred->successors[1] = NULL;
+            jay_foreach_successor(pred, succ, UGPR) {
+               util_dynarray_delete_unordered(&succ->physical_preds,
+                                              jay_block *, pred);
+            }
+
+            pred->logical_succs[0] = NULL;
+            pred->logical_succs[1] = NULL;
+            pred->physical_succs[0] = NULL;
+            pred->physical_succs[1] = NULL;
             progress = true;
          }
       }
