@@ -623,7 +623,7 @@ radv_pc_begin_query(struct radv_cmd_buffer *cmd_buffer, struct radv_pc_query_poo
    const struct radv_physical_device *pdev = radv_device_physical(device);
    ASSERTED unsigned cdw_max;
 
-   cmd_buffer->state.uses_perf_counters = true;
+   cmd_buffer->queue_state.uses_perf_counters = true;
 
    cdw_max = radeon_check_space(device->ws, cs->b,
                                 256 +                      /* Random one time stuff */

@@ -9902,6 +9902,7 @@ radv_merge_queue_state(const struct radv_cmd_buffer_queue_state *src, struct rad
    dst->gds_needed |= src->gds_needed;
    dst->gds_oa_needed |= src->gds_oa_needed;
    dst->sample_positions_needed |= src->sample_positions_needed;
+   dst->uses_perf_counters |= src->uses_perf_counters;
 }
 
 VKAPI_ATTR void VKAPI_CALL

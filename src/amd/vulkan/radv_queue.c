@@ -1241,7 +1241,7 @@ radv_update_preambles(struct radv_queue_state *queue, struct radv_device *device
       needs.gds |= cmd_buffer->queue_state.gds_needed;
       needs.gds_oa |= cmd_buffer->queue_state.gds_oa_needed;
       needs.sample_positions |= cmd_buffer->queue_state.sample_positions_needed;
-      *use_perf_counters |= cmd_buffer->state.uses_perf_counters;
+      *use_perf_counters |= cmd_buffer->queue_state.uses_perf_counters;
       *has_follower |= !!cmd_buffer->gang.cs;
    }
 

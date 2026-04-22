@@ -434,9 +434,6 @@ struct radv_cmd_state {
    /* Whether to suspend streamout for internal driver operations. */
    bool suspend_streamout;
 
-   /* Whether this commandbuffer uses performance counters. */
-   bool uses_perf_counters;
-
    struct radv_ia_multi_vgt_param_helpers ia_multi_vgt_param;
 
    /* Tessellation info when patch control points is dynamic. */
@@ -524,6 +521,7 @@ struct radv_cmd_buffer_queue_state {
    bool gds_needed;    /* Emulated queries on GFX10-GFX10.3 */
    bool gds_oa_needed; /* NGG streamout on GFX11-GFX11.5 */
    bool sample_positions_needed;
+   bool uses_perf_counters;
 };
 
 struct radv_cmd_buffer {
