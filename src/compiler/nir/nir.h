@@ -5444,6 +5444,7 @@ bool nir_lower_vars_to_scratch_global(nir_shader *shader,
 bool nir_lower_scratch_to_var(nir_shader *nir);
 
 bool nir_lower_clip_halfz(nir_shader *shader);
+bool nir_lower_clip_halfz_dynamic(nir_shader *shader);
 
 void nir_shader_gather_info(nir_shader *shader, nir_function_impl *entrypoint);
 void nir_gather_clip_cull_distance_sizes_from_vars(nir_shader *nir);

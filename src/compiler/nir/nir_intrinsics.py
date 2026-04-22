@@ -2335,7 +2335,7 @@ intrinsic("quad_ballot_agx", src_comp=[1], dest_comp=1, flags=[CAN_ELIMINATE])
 # 1] clipping, we need to transform z' = (z + w) / 2. We express both cases as a
 # lerp between z and w, where this is the lerp coefficient: 0 for [0, 1] and 0.5
 # for [-1, 1].
-system_value("clip_z_coeff_agx", 1)
+system_value("clip_z_coeff", 1)
 
 # True if drawing triangle fans with first vertex provoking, false otherwise.
 # This affects flatshading, which is defined weirdly for fans with first.
