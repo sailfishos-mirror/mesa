@@ -1409,7 +1409,7 @@ VkResult genX(CreateSampler)(
 
    sampler->n_planes = ycbcr_info ? ycbcr_info->n_planes : 1;
 
-   uint32_t border_color_offset;
+   uint32_t border_color_offset = 0;
    VkResult result = border_color_load(device, sampler, pCreateInfo, &border_color_offset);
    if (result != VK_SUCCESS)
       return result;
