@@ -511,6 +511,21 @@ struct radv_cmd_stream {
    struct ac_buffered_sh_regs buffered_sh_regs;
 };
 
+struct radv_cmd_buffer_queue_state {
+   uint32_t scratch_size_per_wave_needed;
+   uint32_t scratch_waves_wanted;
+   uint32_t compute_scratch_size_per_wave_needed;
+   uint32_t compute_scratch_waves_wanted;
+   uint32_t esgs_ring_size_needed;
+   uint32_t gsvs_ring_size_needed;
+   bool tess_rings_needed;
+   bool task_rings_needed;
+   bool mesh_scratch_ring_needed;
+   bool gds_needed;    /* Emulated queries on GFX10-GFX10.3 */
+   bool gds_oa_needed; /* NGG streamout on GFX11-GFX11.5 */
+   bool sample_positions_needed;
+};
+
 struct radv_cmd_buffer {
    struct vk_command_buffer vk;
 
@@ -533,18 +548,7 @@ struct radv_cmd_buffer {
 
    struct radv_cmd_buffer_upload upload;
 
-   uint32_t scratch_size_per_wave_needed;
-   uint32_t scratch_waves_wanted;
-   uint32_t compute_scratch_size_per_wave_needed;
-   uint32_t compute_scratch_waves_wanted;
-   uint32_t esgs_ring_size_needed;
-   uint32_t gsvs_ring_size_needed;
-   bool tess_rings_needed;
-   bool task_rings_needed;
-   bool mesh_scratch_ring_needed;
-   bool gds_needed;    /* Emulated queries on GFX10-GFX10.3 */
-   bool gds_oa_needed; /* NGG streamout on GFX11-GFX11.5 */
-   bool sample_positions_needed;
+   struct radv_cmd_buffer_queue_state queue_state;
 
    uint64_t gfx9_fence_va;
    uint32_t gfx9_fence_idx;

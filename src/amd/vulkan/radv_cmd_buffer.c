@@ -1281,23 +1281,12 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    radv_rra_accel_struct_buffers_unref(device, cmd_buffer->accel_struct_buffers);
 
    cmd_buffer->push_constant_stages = 0;
-   cmd_buffer->scratch_size_per_wave_needed = 0;
-   cmd_buffer->scratch_waves_wanted = 0;
-   cmd_buffer->compute_scratch_size_per_wave_needed = 0;
-   cmd_buffer->compute_scratch_waves_wanted = 0;
-   cmd_buffer->esgs_ring_size_needed = 0;
-   cmd_buffer->gsvs_ring_size_needed = 0;
-   cmd_buffer->tess_rings_needed = false;
-   cmd_buffer->task_rings_needed = false;
-   cmd_buffer->mesh_scratch_ring_needed = false;
-   cmd_buffer->gds_needed = false;
-   cmd_buffer->gds_oa_needed = false;
-   cmd_buffer->sample_positions_needed = false;
    cmd_buffer->gang.sem.leader_value = 0;
    cmd_buffer->gang.sem.emitted_leader_value = 0;
    cmd_buffer->gang.sem.va = 0;
    cmd_buffer->shader_upload_seq = 0;
    memset(cmd_buffer->vertex_bindings, 0, sizeof(cmd_buffer->vertex_bindings));
+   memset(&cmd_buffer->queue_state, 0, sizeof(cmd_buffer->queue_state));
 
    if (cmd_buffer->upload.upload_bo)
       radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->upload.upload_bo);
@@ -8429,7 +8418,7 @@ radv_EndCommandBuffer(VkCommandBuffer commandBuffer)
        * we leave the IB, otherwise another process might overwrite
        * it while our shaders are busy.
        */
-      if (cmd_buffer->gds_needed)
+      if (cmd_buffer->queue_state.gds_needed)
          cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PS_PARTIAL_FLUSH;
    }
 
@@ -8679,7 +8668,7 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 
       if (pdev->use_ngg_streamout && pdev->info.gfx_level < GFX12) {
          /* GFX11 needs GDS OA for streamout. */
-         cmd_buffer->gds_oa_needed = true;
+         cmd_buffer->queue_state.gds_oa_needed = true;
       }
    }
 
@@ -8773,7 +8762,7 @@ radv_bind_tess_ctrl_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv
 {
    radv_bind_pre_rast_shader(cmd_buffer, tcs);
 
-   cmd_buffer->tess_rings_needed = true;
+   cmd_buffer->queue_state.tess_rings_needed = true;
 
    /* Always re-emit patch control points/domain origin when a new pipeline with tessellation is
     * bound because a bunch of parameters (user SGPRs, TCS vertices out, ccw, etc) can be different.
@@ -8802,8 +8791,8 @@ radv_bind_geometry_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    radv_bind_pre_rast_shader(cmd_buffer, gs);
 
    if (!gs->info.is_ngg && !gs->info.merged_shader_compiled_separately) {
-      cmd_buffer->esgs_ring_size_needed = MAX2(cmd_buffer->esgs_ring_size_needed, gs->regs.gs.esgs_ring_size);
-      cmd_buffer->gsvs_ring_size_needed = MAX2(cmd_buffer->gsvs_ring_size_needed, gs->regs.gs.gsvs_ring_size);
+      cmd_buffer->queue_state.esgs_ring_size_needed = MAX2(cmd_buffer->queue_state.esgs_ring_size_needed, gs->regs.gs.esgs_ring_size);
+      cmd_buffer->queue_state.gsvs_ring_size_needed = MAX2(cmd_buffer->queue_state.gsvs_ring_size_needed, gs->regs.gs.gsvs_ring_size);
    }
 
    /* Re-emit the VS prolog when the geometry shader is compiled separately because shader configs
@@ -8836,7 +8825,7 @@ radv_bind_mesh_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_shad
 {
    radv_bind_pre_rast_shader(cmd_buffer, ms);
 
-   cmd_buffer->mesh_scratch_ring_needed |= ms->info.ms.needs_ms_scratch_ring;
+   cmd_buffer->queue_state.mesh_scratch_ring_needed |= ms->info.ms.needs_ms_scratch_ring;
 }
 
 static void
@@ -8848,7 +8837,7 @@ radv_bind_fragment_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    const struct radv_shader *previous_ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
 
    if (ps->info.ps.needs_sample_positions) {
-      cmd_buffer->sample_positions_needed = true;
+      cmd_buffer->queue_state.sample_positions_needed = true;
    }
 
    if (ps->info.ps.has_epilog)
@@ -8887,7 +8876,7 @@ radv_bind_task_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_shad
    if (radv_get_user_sgpr_info(ts, AC_UD_TASK_STATE)->sgpr_idx != -1)
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_TASK_STATE;
 
-   cmd_buffer->task_rings_needed = true;
+   cmd_buffer->queue_state.task_rings_needed = true;
 }
 
 static void
@@ -8899,7 +8888,7 @@ radv_bind_rt_prolog(struct radv_cmd_buffer *cmd_buffer, struct radv_shader *rt_p
 
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const unsigned max_scratch_waves = radv_get_max_scratch_waves(device, rt_prolog);
-   cmd_buffer->compute_scratch_waves_wanted = MAX2(cmd_buffer->compute_scratch_waves_wanted, max_scratch_waves);
+   cmd_buffer->queue_state.compute_scratch_waves_wanted = MAX2(cmd_buffer->queue_state.compute_scratch_waves_wanted, max_scratch_waves);
 
    cmd_buffer->shader_upload_seq = MAX2(cmd_buffer->shader_upload_seq, rt_prolog->upload_seq);
 
@@ -8992,11 +8981,11 @@ radv_bind_shader(struct radv_cmd_buffer *cmd_buffer, struct radv_shader *shader,
       radv_bind_task_shader(cmd_buffer, shader);
       break;
    case MESA_SHADER_COMPUTE: {
-      cmd_buffer->compute_scratch_size_per_wave_needed =
-         MAX2(cmd_buffer->compute_scratch_size_per_wave_needed, shader->config.scratch_bytes_per_wave);
+      cmd_buffer->queue_state.compute_scratch_size_per_wave_needed =
+         MAX2(cmd_buffer->queue_state.compute_scratch_size_per_wave_needed, shader->config.scratch_bytes_per_wave);
 
       const unsigned max_stage_waves = radv_get_max_scratch_waves(device, shader);
-      cmd_buffer->compute_scratch_waves_wanted = MAX2(cmd_buffer->compute_scratch_waves_wanted, max_stage_waves);
+      cmd_buffer->queue_state.compute_scratch_waves_wanted = MAX2(cmd_buffer->queue_state.compute_scratch_waves_wanted, max_stage_waves);
       break;
    }
    case MESA_SHADER_INTERSECTION:
@@ -9010,11 +8999,11 @@ radv_bind_shader(struct radv_cmd_buffer *cmd_buffer, struct radv_shader *shader,
    cmd_buffer->state.active_stages |= mesa_to_vk_shader_stage(stage);
 
    if (mesa_to_vk_shader_stage(stage) & RADV_GRAPHICS_STAGE_BITS) {
-      cmd_buffer->scratch_size_per_wave_needed =
-         MAX2(cmd_buffer->scratch_size_per_wave_needed, shader->config.scratch_bytes_per_wave);
+      cmd_buffer->queue_state.scratch_size_per_wave_needed =
+         MAX2(cmd_buffer->queue_state.scratch_size_per_wave_needed, shader->config.scratch_bytes_per_wave);
 
       const unsigned max_stage_waves = radv_get_max_scratch_waves(device, shader);
-      cmd_buffer->scratch_waves_wanted = MAX2(cmd_buffer->scratch_waves_wanted, max_stage_waves);
+      cmd_buffer->queue_state.scratch_waves_wanted = MAX2(cmd_buffer->queue_state.scratch_waves_wanted, max_stage_waves);
    }
 
    cmd_buffer->shader_upload_seq = MAX2(cmd_buffer->shader_upload_seq, shader->upload_seq);
@@ -9896,6 +9885,25 @@ radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv
                             att->iview->image, &range);
 }
 
+static void
+radv_merge_queue_state(const struct radv_cmd_buffer_queue_state *src, struct radv_cmd_buffer_queue_state *dst)
+{
+   dst->scratch_size_per_wave_needed = MAX2(dst->scratch_size_per_wave_needed, src->scratch_size_per_wave_needed);
+   dst->scratch_waves_wanted = MAX2(dst->scratch_waves_wanted, src->scratch_waves_wanted);
+   dst->compute_scratch_size_per_wave_needed =
+      MAX2(dst->compute_scratch_size_per_wave_needed, src->compute_scratch_size_per_wave_needed);
+   dst->compute_scratch_waves_wanted = MAX2(dst->compute_scratch_waves_wanted, src->compute_scratch_waves_wanted);
+   dst->esgs_ring_size_needed = MAX2(dst->esgs_ring_size_needed, src->esgs_ring_size_needed);
+   dst->gsvs_ring_size_needed = MAX2(dst->gsvs_ring_size_needed, src->gsvs_ring_size_needed);
+
+   dst->tess_rings_needed |= src->tess_rings_needed;
+   dst->task_rings_needed |= src->task_rings_needed;
+   dst->mesh_scratch_ring_needed |= src->mesh_scratch_ring_needed;
+   dst->gds_needed |= src->gds_needed;
+   dst->gds_oa_needed |= src->gds_oa_needed;
+   dst->sample_positions_needed |= src->sample_positions_needed;
+}
+
 VKAPI_ATTR void VKAPI_CALL
 radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer *pCmdBuffers)
 {
@@ -9924,30 +9932,7 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
        */
       const bool allow_ib2 = !secondary->state.uses_draw_indirect || pdev->info.gfx_level >= GFX8;
 
-      primary->scratch_size_per_wave_needed =
-         MAX2(primary->scratch_size_per_wave_needed, secondary->scratch_size_per_wave_needed);
-      primary->scratch_waves_wanted = MAX2(primary->scratch_waves_wanted, secondary->scratch_waves_wanted);
-      primary->compute_scratch_size_per_wave_needed =
-         MAX2(primary->compute_scratch_size_per_wave_needed, secondary->compute_scratch_size_per_wave_needed);
-      primary->compute_scratch_waves_wanted =
-         MAX2(primary->compute_scratch_waves_wanted, secondary->compute_scratch_waves_wanted);
-
-      if (secondary->esgs_ring_size_needed > primary->esgs_ring_size_needed)
-         primary->esgs_ring_size_needed = secondary->esgs_ring_size_needed;
-      if (secondary->gsvs_ring_size_needed > primary->gsvs_ring_size_needed)
-         primary->gsvs_ring_size_needed = secondary->gsvs_ring_size_needed;
-      if (secondary->tess_rings_needed)
-         primary->tess_rings_needed = true;
-      if (secondary->task_rings_needed)
-         primary->task_rings_needed = true;
-      if (secondary->mesh_scratch_ring_needed)
-         primary->mesh_scratch_ring_needed = true;
-      if (secondary->sample_positions_needed)
-         primary->sample_positions_needed = true;
-      if (secondary->gds_needed)
-         primary->gds_needed = true;
-      if (secondary->gds_oa_needed)
-         primary->gds_oa_needed = true;
+      radv_merge_queue_state(&secondary->queue_state, &primary->queue_state);
 
       primary->shader_upload_seq = MAX2(primary->shader_upload_seq, secondary->shader_upload_seq);
 
@@ -13110,8 +13095,8 @@ radv_bind_graphics_shaders(struct radv_cmd_buffer *cmd_buffer)
          radv_get_legacy_gs_info(&device->compiler_info, &es->info, &gs->info);
          radv_precompute_registers_hw_gs(device, &es->info, gs);
 
-         cmd_buffer->esgs_ring_size_needed = MAX2(cmd_buffer->esgs_ring_size_needed, gs->regs.gs.esgs_ring_size);
-         cmd_buffer->gsvs_ring_size_needed = MAX2(cmd_buffer->gsvs_ring_size_needed, gs->regs.gs.gsvs_ring_size);
+         cmd_buffer->queue_state.esgs_ring_size_needed = MAX2(cmd_buffer->queue_state.esgs_ring_size_needed, gs->regs.gs.esgs_ring_size);
+         cmd_buffer->queue_state.gsvs_ring_size_needed = MAX2(cmd_buffer->queue_state.gsvs_ring_size_needed, gs->regs.gs.gsvs_ring_size);
       }
    }
 
@@ -13805,10 +13790,10 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
    if (ies) {
       radv_cs_add_buffer(device->ws, cs->b, ies->bo);
 
-      cmd_buffer->compute_scratch_size_per_wave_needed =
-         MAX2(cmd_buffer->compute_scratch_size_per_wave_needed, ies->compute_scratch_size_per_wave);
-      cmd_buffer->compute_scratch_waves_wanted =
-         MAX2(cmd_buffer->compute_scratch_waves_wanted, ies->compute_scratch_waves);
+      cmd_buffer->queue_state.compute_scratch_size_per_wave_needed =
+         MAX2(cmd_buffer->queue_state.compute_scratch_size_per_wave_needed, ies->compute_scratch_size_per_wave);
+      cmd_buffer->queue_state.compute_scratch_waves_wanted =
+         MAX2(cmd_buffer->queue_state.compute_scratch_waves_wanted, ies->compute_scratch_waves);
    }
 
    /* Secondary command buffers are banned. */
@@ -14236,8 +14221,8 @@ radv_emit_rt_stack_size(struct radv_cmd_buffer *cmd_buffer)
    uint32_t scratch_bytes_per_wave =
       align(cmd_buffer->state.rt_stack_size * wave_size, pdev->info.scratch_wavesize_granularity);
 
-   cmd_buffer->compute_scratch_size_per_wave_needed =
-      MAX2(cmd_buffer->compute_scratch_size_per_wave_needed, scratch_bytes_per_wave);
+   cmd_buffer->queue_state.compute_scratch_size_per_wave_needed =
+      MAX2(cmd_buffer->queue_state.compute_scratch_size_per_wave_needed, scratch_bytes_per_wave);
 
    if (cmd_buffer->state.rt_stack_size)
       rsrc2 |= S_00B12C_SCRATCH_EN(1);

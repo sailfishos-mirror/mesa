@@ -648,7 +648,7 @@ radv_begin_pipeline_stat_query(struct radv_cmd_buffer *cmd_buffer, struct radv_q
       }
 
       /* Record that the command buffer needs GDS. */
-      cmd_buffer->gds_needed = true;
+      cmd_buffer->queue_state.gds_needed = true;
 
       if (!cmd_buffer->state.active_emulated_pipeline_queries)
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_SHADER_QUERY;
@@ -674,7 +674,7 @@ radv_begin_pipeline_stat_query(struct radv_cmd_buffer *cmd_buffer, struct radv_q
          ac_emit_cp_write_data_imm(ace_cs->b, V_371_MICRO_ENGINE, va + task_invoc_offset + 4, 0x80000000);
 
          /* Record that the command buffer needs GDS. */
-         cmd_buffer->gds_needed = true;
+         cmd_buffer->queue_state.gds_needed = true;
 
          if (!cmd_buffer->state.active_pipeline_ace_queries)
             cmd_buffer->state.dirty |= RADV_CMD_DIRTY_SHADER_QUERY;
@@ -1366,7 +1366,7 @@ radv_begin_pg_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *
          ac_emit_cp_write_data_imm(cs->b, V_371_MICRO_ENGINE, va + 36, 0x80000000);
 
          /* Record that the command buffer needs GDS. */
-         cmd_buffer->gds_needed = true;
+         cmd_buffer->queue_state.gds_needed = true;
 
          if (!cmd_buffer->state.active_emulated_prims_gen_queries)
             cmd_buffer->state.dirty |= RADV_CMD_DIRTY_SHADER_QUERY;
@@ -1593,7 +1593,7 @@ radv_begin_ms_prim_query(struct radv_cmd_buffer *cmd_buffer, uint64_t va)
       ac_emit_cp_write_data_imm(cs->b, V_371_MICRO_ENGINE, va + 4, 0x80000000);
 
       /* Record that the command buffer needs GDS. */
-      cmd_buffer->gds_needed = true;
+      cmd_buffer->queue_state.gds_needed = true;
 
       if (!cmd_buffer->state.active_emulated_prims_gen_queries)
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_SHADER_QUERY;
