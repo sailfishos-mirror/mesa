@@ -185,6 +185,10 @@ private:
                        AluGroup& group,
                        bool& success,
                        const AluScheduleContext& alu_ctx);
+   void try_schedule_alu_trans_slot(AluGroup& group,
+                                    bool& success,
+                                    const AluScheduleContext& alu_ctx,
+                                    int free_slots);
    bool handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
                                       AluGroup& group,
                                       const AluScheduleContext& alu_ctx);
@@ -601,18 +605,7 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
       if (group.has_kill_op())
          break;
 
-      /* Apparently one can't schedule a t-slot if there is already
-       * and LDS instruction scheduled.
-       * TODO: check whether this is only relevant for actual LDS instructions
-       * or also for instructions that read from the LDS return value queue */
-
-      if (free_slots & 0x10 && !alu_ctx.has_lds_ready) {
-         sfn_log << SfnLog::schedule << "Try schedule TRANS channel\n";
-         if (!alu_trans_ready.empty())
-            success |= schedule_alu_to_group_trans(group, alu_trans_ready);
-         if (!alu_vec_ready.empty())
-            success |= schedule_alu_to_group_trans(group, alu_vec_ready);
-      }
+      try_schedule_alu_trans_slot(group, success, alu_ctx, free_slots);
 
       if (success) {
          ++m_alu_groups_scheduled;
@@ -627,6 +620,26 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
    }
 
    return true;
+}
+
+void
+BlockScheduler::try_schedule_alu_trans_slot(AluGroup& group,
+                                            bool& success,
+                                            const AluScheduleContext& alu_ctx,
+                                            int free_slots)
+{
+   /* Apparently one can't schedule a t-slot if there is already
+    * and LDS instruction scheduled.
+    * TODO: check whether this is only relevant for actual LDS instructions
+    * or also for instructions that read from the LDS return value queue */
+
+   if (free_slots & AluOp::t && !alu_ctx.has_lds_ready) {
+      sfn_log << SfnLog::schedule << "Try schedule TRANS channel\n";
+      if (!alu_trans_ready.empty())
+         success |= schedule_alu_to_group_trans(group, alu_trans_ready);
+      if (!alu_vec_ready.empty())
+         success |= schedule_alu_to_group_trans(group, alu_vec_ready);
+   }
 }
 
 bool
