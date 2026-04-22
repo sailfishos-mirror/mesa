@@ -1284,7 +1284,6 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    cmd_buffer->gang.sem.leader_value = 0;
    cmd_buffer->gang.sem.emitted_leader_value = 0;
    cmd_buffer->gang.sem.va = 0;
-   cmd_buffer->shader_upload_seq = 0;
    memset(cmd_buffer->vertex_bindings, 0, sizeof(cmd_buffer->vertex_bindings));
    memset(&cmd_buffer->queue_state, 0, sizeof(cmd_buffer->queue_state));
 
@@ -6161,7 +6160,7 @@ radv_emit_vs_prolog_state(struct radv_cmd_buffer *cmd_buffer)
    emit_prolog_regs(cmd_buffer, vs_shader, prolog);
    emit_prolog_inputs(cmd_buffer, vs_shader, nontrivial_divisors);
 
-   cmd_buffer->shader_upload_seq = MAX2(cmd_buffer->shader_upload_seq, prolog->upload_seq);
+   cmd_buffer->queue_state.shader_upload_seq = MAX2(cmd_buffer->queue_state.shader_upload_seq, prolog->upload_seq);
 
    cmd_buffer->state.emitted_vs_prolog = prolog;
 
@@ -8811,7 +8810,7 @@ radv_bind_gs_copy_shader(struct radv_cmd_buffer *cmd_buffer, struct radv_shader 
    cmd_buffer->state.gs_copy_shader = gs_copy_shader;
 
    if (gs_copy_shader) {
-      cmd_buffer->shader_upload_seq = MAX2(cmd_buffer->shader_upload_seq, gs_copy_shader->upload_seq);
+      cmd_buffer->queue_state.shader_upload_seq = MAX2(cmd_buffer->queue_state.shader_upload_seq, gs_copy_shader->upload_seq);
 
       radv_cs_add_buffer(device->ws, cs->b, gs_copy_shader->bo);
 
@@ -8890,7 +8889,7 @@ radv_bind_rt_prolog(struct radv_cmd_buffer *cmd_buffer, struct radv_shader *rt_p
    const unsigned max_scratch_waves = radv_get_max_scratch_waves(device, rt_prolog);
    cmd_buffer->queue_state.compute_scratch_waves_wanted = MAX2(cmd_buffer->queue_state.compute_scratch_waves_wanted, max_scratch_waves);
 
-   cmd_buffer->shader_upload_seq = MAX2(cmd_buffer->shader_upload_seq, rt_prolog->upload_seq);
+   cmd_buffer->queue_state.shader_upload_seq = MAX2(cmd_buffer->queue_state.shader_upload_seq, rt_prolog->upload_seq);
 
    radv_cs_add_buffer(device->ws, cs->b, rt_prolog->bo);
 }
@@ -8920,7 +8919,7 @@ radv_bind_ps_epilog(struct radv_cmd_buffer *cmd_buffer)
 
    cmd_buffer->state.ps_epilog = ps_epilog;
 
-   cmd_buffer->shader_upload_seq = MAX2(cmd_buffer->shader_upload_seq, ps_epilog->upload_seq);
+   cmd_buffer->queue_state.shader_upload_seq = MAX2(cmd_buffer->queue_state.shader_upload_seq, ps_epilog->upload_seq);
 
    radv_cs_add_buffer(device->ws, cs->b, ps_epilog->bo);
 
@@ -9006,7 +9005,7 @@ radv_bind_shader(struct radv_cmd_buffer *cmd_buffer, struct radv_shader *shader,
       cmd_buffer->queue_state.scratch_waves_wanted = MAX2(cmd_buffer->queue_state.scratch_waves_wanted, max_stage_waves);
    }
 
-   cmd_buffer->shader_upload_seq = MAX2(cmd_buffer->shader_upload_seq, shader->upload_seq);
+   cmd_buffer->queue_state.shader_upload_seq = MAX2(cmd_buffer->queue_state.shader_upload_seq, shader->upload_seq);
 
    radv_cs_add_buffer(device->ws, cs->b, shader->bo);
 }
@@ -9066,7 +9065,7 @@ radv_bind_rt_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_tracin
       if (!shader)
          continue;
 
-      cmd_buffer->shader_upload_seq = MAX2(cmd_buffer->shader_upload_seq, shader->upload_seq);
+      cmd_buffer->queue_state.shader_upload_seq = MAX2(cmd_buffer->queue_state.shader_upload_seq, shader->upload_seq);
       radv_cs_add_buffer(device->ws, cs->b, shader->bo);
    }
 
@@ -9888,6 +9887,7 @@ radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv
 static void
 radv_merge_queue_state(const struct radv_cmd_buffer_queue_state *src, struct radv_cmd_buffer_queue_state *dst)
 {
+   dst->shader_upload_seq = MAX2(dst->shader_upload_seq, src->shader_upload_seq);
    dst->scratch_size_per_wave_needed = MAX2(dst->scratch_size_per_wave_needed, src->scratch_size_per_wave_needed);
    dst->scratch_waves_wanted = MAX2(dst->scratch_waves_wanted, src->scratch_waves_wanted);
    dst->compute_scratch_size_per_wave_needed =
@@ -9934,8 +9934,6 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
       const bool allow_ib2 = !secondary->state.uses_draw_indirect || pdev->info.gfx_level >= GFX8;
 
       radv_merge_queue_state(&secondary->queue_state, &primary->queue_state);
-
-      primary->shader_upload_seq = MAX2(primary->shader_upload_seq, secondary->shader_upload_seq);
 
       if (!secondary->state.render.has_image_views) {
          if (primary->state.render.active && (primary->state.dirty & RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE)) {

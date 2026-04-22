@@ -1623,7 +1623,7 @@ radv_queue_submit_normal(struct radv_queue *queue, struct vk_queue_submit *submi
 
    for (uint32_t j = 0; j < submission->command_buffer_count; j++) {
       struct radv_cmd_buffer *cmd_buffer = (struct radv_cmd_buffer *)submission->command_buffers[j];
-      shader_upload_seq = MAX2(shader_upload_seq, cmd_buffer->shader_upload_seq);
+      shader_upload_seq = MAX2(shader_upload_seq, cmd_buffer->queue_state.shader_upload_seq);
    }
 
    if (shader_upload_seq > queue->last_shader_upload_seq) {

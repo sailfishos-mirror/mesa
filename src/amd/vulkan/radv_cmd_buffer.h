@@ -509,6 +509,7 @@ struct radv_cmd_stream {
 };
 
 struct radv_cmd_buffer_queue_state {
+   uint64_t shader_upload_seq;
    uint32_t scratch_size_per_wave_needed;
    uint32_t scratch_waves_wanted;
    uint32_t compute_scratch_size_per_wave_needed;
@@ -610,8 +611,6 @@ struct radv_cmd_buffer {
       /* Temporary space for some transfer queue copy command workarounds. */
       struct radeon_winsys_bo *copy_temp;
    } transfer;
-
-   uint64_t shader_upload_seq;
 
    uint32_t sqtt_cb_id;
 
