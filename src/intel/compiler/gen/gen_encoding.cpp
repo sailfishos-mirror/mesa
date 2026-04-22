@@ -733,8 +733,7 @@ struct gen_encoder {
             set(E::THREE_SRC1_ABS,    inst->src[1].abs);
             set(E::THREE_SRC2_ABS,    inst->src[2].abs);
          } else {
-            set(E::BFN_FUNC_CONTROL_LO, (inst->boolean_func_ctrl >> 0) & 0xF);
-            set(E::BFN_FUNC_CONTROL_HI, (inst->boolean_func_ctrl >> 4) & 0xF);
+            set(E::BFN_FUNC_CONTROL, inst->boolean_func_ctrl);
          }
 
          break;
@@ -1316,8 +1315,7 @@ struct gen_decoder {
             inst->src[1].abs    = get(E::THREE_SRC1_ABS);
             inst->src[2].abs    = get(E::THREE_SRC2_ABS);
          } else {
-            inst->boolean_func_ctrl = (get(E::BFN_FUNC_CONTROL_LO) << 0) |
-                                      (get(E::BFN_FUNC_CONTROL_HI) << 4);
+            inst->boolean_func_ctrl = get(E::BFN_FUNC_CONTROL);
          }
 
          break;

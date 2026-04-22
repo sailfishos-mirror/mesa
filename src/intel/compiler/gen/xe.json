@@ -78,8 +78,8 @@
 
             "# EU_INSTRUCTION_BFN":"#",
             "BFN_COND_MODIFIER":        [  45,  44 ],
-            "BFN_FUNC_CONTROL_HI":      [  95,  92 ],
-            "BFN_FUNC_CONTROL_LO":      [  87,  84 ],
+            "BFN_FUNC_CONTROL":         [  95,  92,
+                                           87,  84 ],
 
             "# EU_INSTRUCTION_DPAS_THREE_SRC":"#",
             "DPAS_RCOUNT":              [  45,  43 ],
