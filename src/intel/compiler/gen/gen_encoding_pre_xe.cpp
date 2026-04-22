@@ -53,7 +53,7 @@ is_send_eot_pre_xe(const uint64_t *raw, bool compact, uint32_t hw_opcode)
    }
 
    constexpr unsigned send_eot_bit =
-      gen_encoding_pre_xe::SEND_MSG.lo + gen_encoding_pre_xe::SEND_EOT.lo;
+      (gen_encoding_pre_xe::SEND_MSG(gen_encoding_pre_xe::SEND_EOT)).lo;
    static_assert(send_eot_bit == 127);
 
    return raw[1] & (UINT64_C(1) << (send_eot_bit - 64));

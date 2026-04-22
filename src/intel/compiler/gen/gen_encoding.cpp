@@ -1609,7 +1609,7 @@ gen_find_shader_size_xe(const uint64_t *raw,
       if (!compact &&
           (hw_opcode == E::gen_to_description[GEN_OP_SEND].hw_opcode ||
            hw_opcode == E::gen_to_description[GEN_OP_SENDC].hw_opcode) &&
-          (raw - inst_words)[0] & (UINT64_C(1) << E::SEND_EOT.lo))
+          (raw - inst_words)[0] & (UINT64_C(1) << ((gen_range)E::SEND_EOT).lo))
          break;
    }
 
