@@ -644,7 +644,7 @@
         "description": "intel/nir_opt_peephole_ffma: fix fp_math_ctlr for modifiers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1b0808adf3d95c64081e393f021f624f72e86d88",
         "notes": null
