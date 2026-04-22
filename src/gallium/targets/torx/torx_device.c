@@ -3,12 +3,68 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "pipe/p_state.h"
 
 #include "torx_device.h"
+
+/* Layout of the structs the Python ctypes mirror in gallium.py depends
+ * on. The entries must stay in the same order as the mirror's expected
+ * list; gallium.py compares them at import so a drifted mirror fails
+ * loudly instead of corrupting operation structs silently. */
+const uint32_t *
+torx_abi_layout(unsigned *count)
+{
+   static const uint32_t layout[] = {
+      sizeof(struct pipe_tensor),
+      offsetof(struct pipe_tensor, data),
+      offsetof(struct pipe_tensor, index),
+      offsetof(struct pipe_tensor, dims),
+      offsetof(struct pipe_tensor, rank),
+      offsetof(struct pipe_tensor, scale),
+      offsetof(struct pipe_tensor, scales),
+      offsetof(struct pipe_tensor, zero_point),
+      offsetof(struct pipe_tensor, zero_points),
+      offsetof(struct pipe_tensor, is_signed),
+      offsetof(struct pipe_tensor, is_constant),
+      offsetof(struct pipe_tensor, is_external_output),
+      offsetof(struct pipe_tensor, type_size),
+      sizeof(struct pipe_ml_operation),
+      offsetof(struct pipe_ml_operation, type),
+      offsetof(struct pipe_ml_operation, input_tensors),
+      offsetof(struct pipe_ml_operation, input_count),
+      offsetof(struct pipe_ml_operation, output_tensors),
+      offsetof(struct pipe_ml_operation, output_count),
+      offsetof(struct pipe_ml_operation, conv.weight_tensor),
+      offsetof(struct pipe_ml_operation, conv.bias_tensor),
+      offsetof(struct pipe_ml_operation, conv.stride_x),
+      offsetof(struct pipe_ml_operation, conv.padding_top),
+      offsetof(struct pipe_ml_operation, conv.pointwise),
+      offsetof(struct pipe_ml_operation, conv.activation_min),
+      offsetof(struct pipe_ml_operation, conv.activation_max),
+      offsetof(struct pipe_ml_operation, conv.relu),
+      offsetof(struct pipe_ml_operation, conv.dilation_width_factor),
+      offsetof(struct pipe_ml_operation, conv.dilation_height_factor),
+      offsetof(struct pipe_ml_operation, add.relu),
+      sizeof(struct pipe_ml_device),
+      offsetof(struct pipe_ml_device, id),
+      offsetof(struct pipe_ml_device, ml_operation_supported),
+      offsetof(struct pipe_ml_device, ml_subgraph_create),
+      offsetof(struct pipe_ml_device, ml_subgraph_serialize),
+      offsetof(struct pipe_ml_device, ml_subgraph_destroy),
+      offsetof(struct pipe_ml_device, ml_device_destroy),
+      PIPE_ML_OPERATION_TYPE_CONVOLUTION,
+      PIPE_ML_OPERATION_TYPE_ADD,
+      PIPE_ML_OPERATION_TYPE_MINIMUM,
+      PIPE_ML_OPERATION_TYPE_MEAN,
+   };
+
+   *count = ARRAY_SIZE(layout);
+   return layout;
+}
 
 #ifdef GALLIUM_ETHOSU
 #include "ethosu/ethosu_public.h"

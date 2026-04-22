@@ -2446,6 +2446,10 @@ with_teflon = get_option('teflon')
 
 with_torx = get_option('torx')
 dep_executorch = null_dep
+if with_torx
+  py_mod = import('python')
+  py = py_mod.find_installation(prog_python.full_path(), pure: false)
+endif
 
 with_gpuvis = get_option('gpuvis')
 if with_gpuvis
