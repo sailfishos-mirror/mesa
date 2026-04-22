@@ -325,14 +325,14 @@ propagate_backwards(jay_function *f)
          continue;
       }
 
-      /* Fold UGPR->{GPR, FLAG} copies coming out of NIR */
-      if (!flag &&
-          canonicalize_for_bit_compare(I->type) == use->type &&
+      /* Fold UGPR->{GPR, FLAG} and UFLAG->FLAG copies coming out of NIR */
+      if (use->type ==
+             (flag ? JAY_TYPE_U1 : canonicalize_for_bit_compare(I->type)) &&
           I->op != JAY_OPCODE_PHI_DST &&
           use->op == JAY_OPCODE_MOV &&
           use->dst.file != J_ADDRESS) {
 
-         I->dst = use->dst;
+         *(flag ? &I->cond_flag : &I->dst) = use->dst;
          jay_remove_instruction(use);
          continue;
       }
