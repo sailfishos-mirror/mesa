@@ -8,9 +8,6 @@
 #define RADV_RT_COMMON_H
 
 #include "nir/nir_defines.h"
-#include "vk_nir_convert_ycbcr.h"
-
-#include "compiler/spirv/spirv.h"
 
 struct radv_compiler_info;
 

@@ -12,7 +12,6 @@
 #include "radeon_bitstream.h"
 #include "si_pipe.h"
 #include "util/u_memory.h"
-#include "util/u_video.h"
 #include "vl/vl_video_buffer.h"
 
 #include <stdio.h>

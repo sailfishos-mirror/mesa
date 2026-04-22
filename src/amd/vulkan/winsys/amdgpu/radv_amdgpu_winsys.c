@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "drm-uapi/amdgpu_drm.h"
 #include "ac_linux_drm.h"
 #include "ac_surface.h"
@@ -20,7 +19,7 @@
 #include "radv_amdgpu_winsys_public.h"
 #include "radv_debug.h"
 #include "vk_drm_syncobj.h"
-#include "xf86drm.h"
+#include "util/u_memory.h"
 
 static void
 radv_amdgpu_winsys_query_info(struct radeon_winsys *rws, struct radeon_info *gpu_info)

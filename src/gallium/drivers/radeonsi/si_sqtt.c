@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "ac_cmdbuf_cp.h"
 #include "ac_shader_util.h"
 #include "amd_family.h"
 #include "si_build_pm4.h"
 #include "si_pipe.h"
 
-#include "tgsi/tgsi_from_mesa.h"
 #include "util/hash_table.h"
 #include "util/u_debug.h"
 #include "util/u_memory.h"

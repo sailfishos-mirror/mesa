@@ -8,21 +8,15 @@
 #include "drm-uapi/drm_fourcc.h"
 #include "si_pipe.h"
 #include "si_query.h"
-#include "sid.h"
 #include "frontend/drm_driver.h"
 #include "util/format/u_format.h"
-#include "util/os_time.h"
 #include "util/u_log.h"
 #include "util/u_memory.h"
-#include "util/u_pack_color.h"
 #include "util/u_resource.h"
-#include "util/u_surface.h"
 #include "util/u_transfer.h"
 
-#include <errno.h>
 #include <inttypes.h>
 
-#include "amd/addrlib/inc/addrinterface.h"
 #include "ac_formats.h"
 
 static enum radeon_surf_mode si_choose_tiling(struct si_screen *sscreen,

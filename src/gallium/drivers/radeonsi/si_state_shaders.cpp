@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "ac_cmdbuf_cp.h"
 #include "ac_nir.h"
 #include "ac_shader_util.h"
 #include "nir.h"
@@ -19,8 +20,6 @@
 #include "util/u_async_debug.h"
 #include "util/u_math.h"
 #include "util/u_memory.h"
-#include "util/u_prim.h"
-#include "tgsi/tgsi_from_mesa.h"
 
 static void si_update_tess_in_out_patch_vertices(struct si_context *sctx);
 

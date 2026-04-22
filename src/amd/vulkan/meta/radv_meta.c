@@ -8,6 +8,7 @@
 
 #include "radv_meta.h"
 #include "radv_debug_nir.h"
+#include "radv_shader_object.h"
 
 #include "vk_common_entrypoints.h"
 #include "vk_pipeline_cache.h"

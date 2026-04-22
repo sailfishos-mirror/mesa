@@ -8,7 +8,6 @@
 #include "bvh/bvh.h"
 #include "nir/radv_nir_rt_common.h"
 #include "nir/radv_nir_rt_stage_common.h"
-#include "nir/radv_nir_rt_stage_cps.h"
 #include "nir/radv_nir_rt_traversal_shader.h"
 
 #include "aco_nir_call_attribs.h"

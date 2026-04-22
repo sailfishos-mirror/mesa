@@ -10,7 +10,7 @@
 #include "si_pipe.h"
 #include "si_query.h"
 #include "aco_interface.h"
-#include "nir_format_convert.h"
+#include "nir_builder.h"
 #include "ac_nir_helpers.h"
 #include "nir/nir_serialize.h"
 

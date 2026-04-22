@@ -9,9 +9,6 @@
 
 #include "si_pm4.h"
 #include "util/format/u_format.h"
-#include "util/bitset.h"
-
-#include "common/ac_cmdbuf.h"
 
 #ifdef __cplusplus
 extern "C" {

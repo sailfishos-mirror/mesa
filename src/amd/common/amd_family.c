@@ -5,7 +5,6 @@
  */
 
 #include "amd_family.h"
-#include "addrlib/src/amdgpu_asic_addr.h"
 #include "util/macros.h"
 #include "ac_gpu_info.h"
 

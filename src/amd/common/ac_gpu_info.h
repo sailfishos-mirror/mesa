@@ -8,7 +8,8 @@
 #define AC_GPU_INFO_H
 
 #include <stdbool.h>
-#include "util/macros.h"
+#include <stdint.h>
+#include <stdio.h>
 #include "amd_family.h"
 
 #ifdef __cplusplus

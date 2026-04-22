@@ -11,11 +11,9 @@
 #ifndef RADV_DEVICE_H
 #define RADV_DEVICE_H
 
-#include "ac_descriptors.h"
 #include "ac_spm.h"
 #include "ac_sqtt.h"
 
-#include "util/bitset.h"
 #include "util/mesa-blake3.h"
 
 #include "radv_debug_nir.h"

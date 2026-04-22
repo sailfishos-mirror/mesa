@@ -5,10 +5,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "si_build_pm4.h"
-#include "sid.h"
+#include "si_pipe.h"
 #include "util/u_memory.h"
-#include "ac_formats.h"
 #include "ac_cmdbuf_sdma.h"
 
 static

@@ -14,7 +14,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#include "util/set.h"
 #include "ac_nir.h"
 #include "radv_constants.h"
 #include "radv_shader_args.h"

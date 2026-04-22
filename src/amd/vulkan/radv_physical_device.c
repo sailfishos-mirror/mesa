@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include "util/os_misc.h"
 #include "vulkan/vulkan_core.h"
-#include "vk_sync_dummy.h"
 
 #ifdef MAJOR_IN_SYSMACROS
 #include <sys/sysmacros.h>
@@ -43,7 +42,7 @@ typedef void *drmDevicePtr;
 #include "git_sha1.h"
 
 #if AMD_LLVM_AVAILABLE
-#include "ac_llvm_util.h"
+#include <llvm-c/TargetMachine.h>
 #endif
 
 #ifdef _WIN32

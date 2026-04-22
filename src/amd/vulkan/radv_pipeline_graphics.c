@@ -10,16 +10,12 @@
 
 #include "meta/radv_meta.h"
 #include "nir/nir.h"
-#include "nir/nir_builder.h"
 #include "nir/nir_serialize.h"
 #include "nir/nir_xfb_info.h"
 #include "nir/radv_nir.h"
-#include "spirv/nir_spirv.h"
-#include "util/disk_cache.h"
 #include "util/mesa-blake3.h"
 #include "util/os_time.h"
 #include "util/u_atomic.h"
-#include "radv_cs.h"
 #include "radv_debug.h"
 #include "radv_entrypoints.h"
 #include "radv_formats.h"
@@ -30,18 +26,14 @@
 #include "radv_shader.h"
 #include "radv_shader_args.h"
 #include "shader_enums.h"
-#include "vk_nir_convert_ycbcr.h"
 #include "vk_pipeline.h"
-#include "vk_render_pass.h"
 #include "vk_util.h"
 
-#include "util/u_debug.h"
 #include "ac_binary.h"
 #include "ac_formats.h"
 #include "ac_nir.h"
 #include "ac_shader_util.h"
 #include "aco_interface.h"
-#include "sid.h"
 
 static bool
 radv_is_static_vrs_enabled(const struct vk_graphics_pipeline_state *state)

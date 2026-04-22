@@ -10,7 +10,6 @@
 
 #include "radv_image.h"
 #include "util/u_atomic.h"
-#include "util/u_debug.h"
 #include "ac_drm_fourcc.h"
 #include "ac_formats.h"
 #include "radv_android.h"
@@ -25,14 +24,11 @@
 #include "radv_rmv.h"
 #include "radv_video.h"
 #include "radv_wsi.h"
-#include "sid.h"
 #include "vk_debug_utils.h"
 #include "vk_format.h"
 #include "vk_log.h"
 #include "vk_render_pass.h"
 #include "vk_util.h"
-
-#include "gfx10_format_table.h"
 
 static unsigned
 radv_choose_tiling(struct radv_device *device, const VkImageCreateInfo *pCreateInfo, VkFormat format)

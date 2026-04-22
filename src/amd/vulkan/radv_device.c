@@ -28,7 +28,6 @@
 
 #include "layers/radv_app_workarounds.h"
 #include "meta/radv_meta.h"
-#include "util/disk_cache.h"
 #include "util/u_debug.h"
 #include "radv_cs.h"
 #include "radv_debug.h"
@@ -42,32 +41,18 @@
 #include "radv_sqtt.h"
 #include "vk_common_entrypoints.h"
 #include "vk_pipeline_cache.h"
-#include "vk_semaphore.h"
 #include "vk_util.h"
 #ifdef _WIN32
 typedef void *drmDevicePtr;
 #include <io.h>
 #else
 #include <xf86drm.h>
-#include "drm-uapi/amdgpu_drm.h"
-#include "winsys/amdgpu/radv_amdgpu_winsys_public.h"
 #endif
-#include "util/build_id.h"
-#include "util/driconf.h"
 #include "util/mesa-blake3.h"
-#include "util/os_time.h"
-#include "util/timespec.h"
 #include "util/u_atomic.h"
 #include "util/u_process.h"
-#include "vulkan/vk_icd.h"
 #include "git_sha1.h"
-#include "sid.h"
-#include "vk_format.h"
 #include "vk_sync.h"
-#include "vk_sync_dummy.h"
-
-#include "ac_descriptors.h"
-#include "ac_formats.h"
 
 #include "aco_interface.h"
 

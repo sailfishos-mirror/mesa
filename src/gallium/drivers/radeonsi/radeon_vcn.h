@@ -7,9 +7,10 @@
 #ifndef RADEON_VCN_H
 #define RADEON_VCN_H
 
-#include "si_video.h"
-
+#include <stdbool.h>
 #include "ac_vcn.h"
+
+struct radeon_cmdbuf;
 
 void rvcn_sq_header(struct radeon_cmdbuf *cs,
                     struct rvcn_sq_var *sq,

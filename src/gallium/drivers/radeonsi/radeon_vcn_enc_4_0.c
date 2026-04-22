@@ -12,6 +12,7 @@
 
 #include "si_pipe.h"
 #include "radeon_vcn_enc.h"
+#include "radeon_vcn.h"
 
 #define RENCODE_FW_INTERFACE_MAJOR_VERSION   1
 #define RENCODE_FW_INTERFACE_MINOR_VERSION   15

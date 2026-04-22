@@ -5,7 +5,6 @@
  */
 
 #include "si_pipe.h"
-#include "sid.h"
 #include "util/format/u_format.h"
 #include "util/u_pack_color.h"
 #include "util/u_surface.h"

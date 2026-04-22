@@ -8,7 +8,6 @@
 #include "util/format/u_format.h"
 #include "util/format_srgb.h"
 #include "util/hash_table.h"
-#include "util/u_pack_color.h"
 #include "ac_nir_meta.h"
 
 static void si_compute_begin_internal(struct si_context *sctx, bool render_condition_enabled)

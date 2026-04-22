@@ -5,13 +5,13 @@
  */
 
 #include "si_build_pm4.h"
+#include "ac_cmdbuf_cp.h"
 
 #include "util/hash_table.h"
 #define XXH_INLINE_ALL
 #include "util/xxhash.h"
 #include "util/u_cpu_detect.h"
 #include "util/u_index_modify.h"
-#include "util/u_prim.h"
 #include "util/u_upload_mgr.h"
 #include "ac_rtld.h"
 #include "si_build_pm4.h"

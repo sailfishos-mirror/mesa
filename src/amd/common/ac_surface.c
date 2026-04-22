@@ -12,16 +12,14 @@
 #include "addrlib/inc/addrinterface.h"
 #include "addrlib/src/amdgpu_asic_addr.h"
 #include "amd_family.h"
-#include "sid.h"
-#include "util/hash_table.h"
+#include "amdgfxregs.h"
 #include "util/macros.h"
 #include "util/simple_mtx.h"
 #include "util/u_atomic.h"
 #include "util/format/u_format.h"
 #include "util/u_math.h"
-#include "util/u_memory.h"
 
-#include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 

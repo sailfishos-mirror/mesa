@@ -7,12 +7,8 @@
 #include "drm-uapi/amdgpu_drm.h"
 
 #include "amdgpu_virtio_private.h"
-#include "ac_linux_drm.h"
-#include "util/list.h"
 #include "util/log.h"
 #include "util/os_mman.h"
-#include "util/os_time.h"
-#include "util/u_math.h"
 #include "sid.h"
 
 #include <xf86drm.h>

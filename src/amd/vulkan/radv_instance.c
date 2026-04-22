@@ -25,7 +25,6 @@
 
 #include "vk_instance.h"
 #include "vk_log.h"
-#include "vk_util.h"
 
 static const struct debug_control radv_debug_options[] = {
    {"nofastclears", RADV_DEBUG_NO_FAST_CLEARS},

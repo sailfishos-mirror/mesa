@@ -9,8 +9,8 @@
 #ifndef RADEON_VCE_H
 #define RADEON_VCE_H
 
-#include "si_video.h"
-#include "util/list.h"
+#include "si_pipe.h"
+#include "pipe/p_video_codec.h"
 
 #define RVCE_CS(value) (enc->cs.current.buf[enc->cs.current.cdw++] = (value))
 #define RVCE_BEGIN(cmd)                                                                            \

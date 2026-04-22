@@ -12,6 +12,7 @@
 #include "radv_debug.h"
 #include "radv_meta.h"
 #include "radv_sdma.h"
+#include "vk_shader_module.h"
 
 #include "radv_cs.h"
 

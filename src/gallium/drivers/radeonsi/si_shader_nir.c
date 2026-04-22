@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "nir_builder.h"
-#include "nir_xfb_info.h"
+#include "nir.h"
 #include "si_pipe.h"
-#include "ac_nir.h"
 #include "si_shader_internal.h"
 
 void si_nir_opts(struct si_screen *sscreen, struct nir_shader *nir, bool has_array_temps)

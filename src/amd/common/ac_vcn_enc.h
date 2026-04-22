@@ -28,6 +28,7 @@
 #ifndef AC_VCN_ENC_H
 #define AC_VCN_ENC_H
 
+#include <stdint.h>
 #include "amd_family.h"
 
 #define RENCODE_IB_OP_INITIALIZE                                                    0x01000001

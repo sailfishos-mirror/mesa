@@ -29,7 +29,6 @@
 #include "radv_sdma.h"
 #include "radv_shader_args.h"
 
-#include "util/u_debug.h"
 #include "ac_binary.h"
 #include "ac_nir.h"
 #if defined(USE_LIBELF)
@@ -38,7 +37,6 @@
 #include "aco_interface.h"
 #include "sid.h"
 #include "vk_debug_report.h"
-#include "vk_format.h"
 #include "vk_nir.h"
 #include "vk_nir_lower_descriptor_heaps.h"
 #include "vk_sampler.h"

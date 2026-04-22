@@ -18,7 +18,6 @@
 #include "ac_nir.h"
 #include "si_pipe.h"
 #include "si_shader_internal.h"
-#include "sid.h"
 
 struct lower_resource_state {
    struct si_shader *shader;

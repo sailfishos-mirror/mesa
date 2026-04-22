@@ -11,7 +11,7 @@
 #ifndef RADV_PIPELINE_GRAPHICS_H
 #define RADV_PIPELINE_GRAPHICS_H
 
-#include "sid.h"
+#include "amdgfxregs.h"
 
 #include "radv_descriptor_set.h"
 #include "radv_pipeline.h"
@@ -19,7 +19,6 @@
 #include "radv_shader.h"
 
 #include "vk_graphics_state.h"
-#include "vk_meta.h"
 
 #define VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO_RADV (VkStructureType)2000290001
 

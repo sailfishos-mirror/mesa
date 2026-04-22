@@ -14,7 +14,6 @@
 #include "ac_shadowed_regs.h"
 #include "compiler/nir/nir.h"
 #include "util/disk_cache.h"
-#include "util/helpers.h"
 #include "util/hex.h"
 #include "util/u_cpu_detect.h"
 #include "util/u_memory.h"

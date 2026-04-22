@@ -8,7 +8,6 @@
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_deref.h"
-#include "radv_constants.h"
 #include "radv_nir.h"
 #include "radv_shader.h"
 #include "radv_shader_args.h"

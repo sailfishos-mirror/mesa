@@ -7,12 +7,20 @@
 #ifndef RADV_DESCRIPTORS_H
 #define RADV_DESCRIPTORS_H
 
+#include "vk_command_buffer.h"
+
 #include "radv_buffer.h"
 #include "radv_buffer_view.h"
-#include "radv_cmd_buffer.h"
 #include "radv_constants.h"
+#include "radv_descriptor_set.h"
+#include "radv_device.h"
 #include "radv_image_view.h"
+#include "radv_physical_device.h"
+#include "radv_pipeline.h"
+#include "radv_pipeline_layout.h"
 #include "radv_sampler.h"
+#include "radv_shader.h"
+#include "radv_video.h"
 
 #include <vulkan/vulkan.h>
 

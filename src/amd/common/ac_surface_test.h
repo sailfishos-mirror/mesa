@@ -10,7 +10,6 @@
 
 #include "ac_gpu_info.h"
 #include "amdgfxregs.h"
-#include "addrlib/src/amdgpu_asic_addr.h"
 
 #include "amdgpu_devices.h"
 #include "ac_linux_drm.h"

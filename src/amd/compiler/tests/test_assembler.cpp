@@ -6,7 +6,7 @@
 #include <llvm/Config/llvm-config.h>
 
 #include "helpers.h"
-#include "sid.h"
+#include "amdgfxregs.h"
 
 using namespace aco;
 

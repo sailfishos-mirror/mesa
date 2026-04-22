@@ -7,7 +7,7 @@
 #include "ac_nir.h"
 #include "ac_rtld.h"
 #include "ac_shader_util.h"
-#include "nir_builder.h"
+#include "nir.h"
 #include "nir_serialize.h"
 #include "nir_tcs_info.h"
 #include "nir_xfb_info.h"

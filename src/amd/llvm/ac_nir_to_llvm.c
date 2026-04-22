@@ -13,7 +13,6 @@
 #include "ac_shader_util.h"
 #include "ac_nir.h"
 #include "nir/nir.h"
-#include "nir/nir_deref.h"
 #include "sid.h"
 #include "util/bitscan.h"
 #include "util/u_math.h"

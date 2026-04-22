@@ -5,7 +5,6 @@
 #include "si_shader_internal.h"
 #include "nir.h"
 #include "nir_range_analysis.h"
-#include "sid.h"
 #include "si_pipe.h"
 
 /* The spi_shader_*_format fields depend on the framebuffer state and the

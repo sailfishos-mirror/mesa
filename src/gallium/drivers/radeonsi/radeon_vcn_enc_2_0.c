@@ -8,11 +8,8 @@
 
 #include "pipe/p_video_codec.h"
 #include "radeon_vcn_enc.h"
-#include "si_video.h"
 #include "si_pipe.h"
 #include "util/u_video.h"
-
-#include <stdio.h>
 
 #define RENCODE_FW_INTERFACE_MAJOR_VERSION         1
 #define RENCODE_FW_INTERFACE_MINOR_VERSION         20

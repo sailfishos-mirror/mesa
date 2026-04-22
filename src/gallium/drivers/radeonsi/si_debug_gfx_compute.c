@@ -6,16 +6,9 @@
 
 #include "ac_debug.h"
 #include "ac_rtld.h"
-#include "driver_ddebug/dd_util.h"
 #include "si_pipe.h"
-#include "sid.h"
-#include "sid_tables.h"
-#include "tgsi/tgsi_from_mesa.h"
-#include "util/u_dump.h"
 #include "util/u_log.h"
 #include "util/u_memory.h"
-#include "util/u_process.h"
-#include "util/u_string.h"
 
 DEBUG_GET_ONCE_OPTION(replace_shaders, "RADEON_REPLACE_SHADERS", NULL)
 

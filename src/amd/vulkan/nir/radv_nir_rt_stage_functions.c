@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "compiler/spirv/spirv.h"
 #include "nir/nir.h"
 #include "nir/nir_builder.h"
 

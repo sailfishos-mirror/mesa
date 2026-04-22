@@ -4,13 +4,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ac_nir.h"
 #include "si_pipe.h"
 #include "si_shader_internal.h"
 #include "si_shader_llvm.h"
 #include "si_query.h"
-#include "sid.h"
-#include "util/u_memory.h"
 
 LLVMValueRef si_is_es_thread(struct si_shader_context *ctx)
 {

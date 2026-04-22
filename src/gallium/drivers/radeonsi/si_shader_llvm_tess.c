@@ -7,7 +7,6 @@
 #include "si_pipe.h"
 #include "si_shader_internal.h"
 #include "si_shader_llvm.h"
-#include "sid.h"
 #include "nir.h"
 
 static LLVMValueRef si_nir_load_tcs_varyings(struct ac_shader_abi *abi, unsigned num_components,

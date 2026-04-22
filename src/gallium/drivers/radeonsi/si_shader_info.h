@@ -6,6 +6,7 @@
 #define SI_SHADER_INFO_H
 
 #include "ac_nir.h"
+#include "shader_info.h"
 
 #define SI_NUM_INTERP     32
 

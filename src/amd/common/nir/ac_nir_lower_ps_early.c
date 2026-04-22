@@ -13,9 +13,7 @@
  */
 
 #include "ac_nir.h"
-#include "sid.h"
 #include "nir_builder.h"
-#include "nir_builtin_builder.h"
 
 typedef struct {
    const ac_nir_lower_ps_early_options *options;

@@ -30,7 +30,6 @@
 #include "vk_command_pool.h"
 #include "vk_enum_defines.h"
 #include "vk_format.h"
-#include "vk_framebuffer.h"
 #include "vk_render_pass.h"
 #include "vk_synchronization.h"
 #include "vk_util.h"
@@ -43,7 +42,6 @@
 
 #include "aco_interface.h"
 
-#include "compiler/shader_info.h"
 #include "util/compiler.h"
 #include "util/fast_idiv_by_const.h"
 

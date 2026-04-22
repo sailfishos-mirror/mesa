@@ -3,7 +3,7 @@
  */
 
 #include "si_shader_internal.h"
-#include "nir_builder.h"
+#include "nir.h"
 
 bool si_nir_kill_outputs(nir_shader *nir, const union si_shader_key *key)
 {

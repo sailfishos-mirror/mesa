@@ -9,7 +9,8 @@
 
 #include "nir/radv_meta_nir.h"
 #include "radv_meta.h"
-#include "sid.h"
+
+#include "vk_shader_module.h"
 
 struct radv_htile_expand_key {
    enum radv_meta_object_key_type type;

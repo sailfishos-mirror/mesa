@@ -8,7 +8,6 @@
 #include "si_shader_internal.h"
 #include "util/mesa-blake3.h"
 #include "pipe/p_shader_tokens.h"
-#include "sid.h"
 #include "nir.h"
 #include "nir_tcs_info.h"
 #include "nir_xfb_info.h"

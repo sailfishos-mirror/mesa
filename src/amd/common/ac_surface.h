@@ -8,7 +8,7 @@
 #define AC_SURFACE_H
 
 #include "amd_family.h"
-#include "util/format/u_format.h"
+#include "util/format/u_formats.h"
 
 #include <stdbool.h>
 #include <stdint.h>

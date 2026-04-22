@@ -7,7 +7,9 @@
 #include "nir/radv_nir_rt_common.h"
 #include "bvh/bvh.h"
 #include "nir_builder.h"
-#include "radv_debug.h"
+
+#include "radv_device.h"
+#include "radv_physical_device.h"
 
 static nir_def *build_node_to_addr(const struct radv_compiler_info *compiler_info, nir_builder *b, nir_def *node, bool skip_type_and);
 

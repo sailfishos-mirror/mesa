@@ -23,7 +23,6 @@
 #include "radv_debug.h"
 #include "radv_radeon_winsys.h"
 #include "sid.h"
-#include "vk_alloc.h"
 #include "vk_drm_syncobj.h"
 #include "vk_sync.h"
 #include "vk_sync_dummy.h"

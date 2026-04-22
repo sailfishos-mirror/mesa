@@ -113,7 +113,6 @@
 
 #include "shader_info.h"
 #include "ac_binary.h"
-#include "ac_gpu_info.h"
 #include "util/mesa-blake3.h"
 #include "util/u_live_shader_cache.h"
 #include "util/u_queue.h"

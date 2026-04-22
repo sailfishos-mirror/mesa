@@ -10,12 +10,10 @@
 #include "radv_sdma.h"
 #include "meta/radv_meta.h"
 #include "util/macros.h"
-#include "util/u_memory.h"
 #include "radv_cs.h"
 #include "radv_formats.h"
 
 #include "ac_cmdbuf_sdma.h"
-#include "ac_formats.h"
 
 struct radv_sdma_chunked_copy_info {
    unsigned extent_horizontal_blocks;

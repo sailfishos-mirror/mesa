@@ -10,7 +10,6 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "radv_cmd_buffer.h"
 #include "radv_radeon_winsys.h"

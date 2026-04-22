@@ -10,18 +10,15 @@
 
 #include "radv_nir_to_llvm.h"
 #include "nir/nir.h"
-#include "radv_debug.h"
 #include "radv_llvm_helper.h"
 #include "radv_shader.h"
 #include "radv_shader_args.h"
 
 #include "ac_binary.h"
 #include "ac_llvm_build.h"
-#include "ac_nir.h"
 #include "ac_nir_to_llvm.h"
 #include "ac_shader_abi.h"
 #include "ac_shader_util.h"
-#include "sid.h"
 
 struct radv_shader_context {
    struct ac_llvm_context ac;

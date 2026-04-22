@@ -6,7 +6,6 @@
 
 #include "aco_instruction_selection.h"
 #include "aco_interface.h"
-#include "aco_nir_call_attribs.h"
 
 #include "nir_builder.h"
 #include "nir_control_flow.h"

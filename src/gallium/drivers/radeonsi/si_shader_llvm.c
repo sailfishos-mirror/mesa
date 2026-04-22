@@ -12,9 +12,6 @@
 #include "si_pipe.h"
 #include "si_shader_internal.h"
 #include "si_shader_llvm.h"
-#include "sid.h"
-#include "util/u_memory.h"
-#include "util/u_prim.h"
 
 struct si_llvm_diagnostics {
    struct util_debug_callback *debug;

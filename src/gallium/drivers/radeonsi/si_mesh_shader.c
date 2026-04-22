@@ -6,9 +6,7 @@
 
 #include "si_pipe.h"
 #include "si_build_pm4.h"
-#include "si_shader_internal.h"
 #include "si_query.h"
-#include "nir.h"
 #include "util/u_upload_mgr.h"
 
 #define SI_MESH_PIPELINE_STATE_DIRTY_MASK \

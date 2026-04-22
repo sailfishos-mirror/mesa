@@ -11,8 +11,9 @@
 
 #include "bvh/bvh.h"
 #include "nir/radv_nir_rt_common.h"
-#include "radv_debug.h"
+#include "radv_device.h"
 #include "radv_nir.h"
+#include "radv_physical_device.h"
 #include "radv_shader.h"
 
 /* Traversal stack size. Traversal supports backtracking so we can go deeper than this size if

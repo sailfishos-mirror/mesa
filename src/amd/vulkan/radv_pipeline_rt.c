@@ -9,7 +9,6 @@
 #include "nir/nir_serialize.h"
 
 #include "ac_shader_util.h"
-#include "vk_shader_module.h"
 
 #include "nir/radv_nir.h"
 #include "nir/radv_nir_rt_stage_cps.h"
@@ -27,8 +26,6 @@
 
 #include "nir/radv_nir_rt_stage_common.h"
 #include "aco_interface.h"
-#include "aco_nir_call_attribs.h"
-#include "radv_aco_shader_info.h"
 #include "radv_rmv.h"
 #include "radv_shader.h"
 

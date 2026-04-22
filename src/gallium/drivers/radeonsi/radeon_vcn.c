@@ -5,6 +5,7 @@
  */
 
 #include "radeon_vcn.h"
+#include "winsys/radeon_winsys.h"
 
 /* vcn unified queue (sq) ib header */
 void rvcn_sq_header(struct radeon_cmdbuf *cs,

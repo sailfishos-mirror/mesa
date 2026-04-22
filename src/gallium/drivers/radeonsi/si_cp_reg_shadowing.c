@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "si_build_pm4.h"
-#include "ac_debug.h"
+#include "si_pipe.h"
 #include "ac_shadowed_regs.h"
-#include "util/u_memory.h"
 
 bool si_init_cp_reg_shadowing(struct si_context *sctx)
 {

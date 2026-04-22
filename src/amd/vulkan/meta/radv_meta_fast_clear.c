@@ -10,6 +10,7 @@
 #include "nir/radv_meta_nir.h"
 #include "radv_cs.h"
 #include "radv_meta.h"
+#include "vk_shader_module.h"
 
 enum radv_color_op {
    FAST_CLEAR_ELIMINATE,

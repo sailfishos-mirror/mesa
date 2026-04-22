@@ -16,8 +16,6 @@
 #include "vk_pipeline.h"
 #include "vk_pipeline_cache.h"
 
-#include "radv_radeon_winsys.h"
-
 struct radv_device;
 struct radv_shader_stage_key;
 struct radv_shader_stage;
