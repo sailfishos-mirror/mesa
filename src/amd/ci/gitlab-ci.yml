@@ -155,10 +155,11 @@ radv-cezanne-vkcts-asan:
     - .lava-x86_64-test-asan-vk
     - .radv-cezanne-test:x86_64
     - .radv-collabora-rules
-  parallel: 2
+  parallel: 10
   variables:
     DEQP_SUITE: radv
-    DEQP_FRACTION: 25
+    DEQP_FRACTION: 5
+    FDO_CI_CONCURRENT: 3  # We get OOMkills if we go wider
 
 ############### VKCTS tests ###############
 
