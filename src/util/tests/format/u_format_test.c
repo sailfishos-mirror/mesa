@@ -737,10 +737,19 @@ static bool
 test_format_subsampling(const struct util_format_description *format_desc)
 {
    if (format_desc->colorspace == UTIL_FORMAT_COLORSPACE_YUV ||
-       (format_desc->layout == UTIL_FORMAT_LAYOUT_SUBSAMPLED &&
-        format_desc->colorspace != UTIL_FORMAT_COLORSPACE_RGB)) {
-      /* subsampled non-RGB and YUV formats must specify a subsampling format */
+       format_desc->layout == UTIL_FORMAT_LAYOUT_SUBSAMPLED ||
+       format_desc->layout == UTIL_FORMAT_LAYOUT_PLANAR2 ||
+       format_desc->layout == UTIL_FORMAT_LAYOUT_PLANAR3) {
+
+      /* subsampled, planar and YUV formats must specify subsampling */
       if (format_desc->subsampling == PIPE_VIDEO_CHROMA_FORMAT_NONE) {
+         fprintf(stderr, "%s is not subsampled, as it should be.\n",
+                 format_desc->name);
+         return false;
+      }
+   } else {
+      /* other formats shouldn't have subsampling */
+      if (format_desc->subsampling != PIPE_VIDEO_CHROMA_FORMAT_NONE) {
          fprintf(stderr, "%s is not subsampled, as it should be.\n",
                  format_desc->name);
          return false;
