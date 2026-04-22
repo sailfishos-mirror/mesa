@@ -125,6 +125,7 @@ _mesa_shader_stage_to_file_ext(unsigned stage)
    case MESA_SHADER_FRAGMENT:     return "frag";
    case MESA_SHADER_GEOMETRY:     return "geom";
    case MESA_SHADER_COMPUTE:      return "comp";
+   case MESA_SHADER_KERNEL:       return "kernel";
    case MESA_SHADER_TESS_CTRL:    return "tesc";
    case MESA_SHADER_TESS_EVAL:    return "tese";
    case MESA_SHADER_TASK:         return "task";
