@@ -731,6 +731,25 @@ test_format_norm_flags(const struct util_format_description *format_desc)
    return success;
 }
 
+
+/* Test that subsampling is set up correctly */
+static bool
+test_format_subsampling(const struct util_format_description *format_desc)
+{
+   if (format_desc->colorspace == UTIL_FORMAT_COLORSPACE_YUV ||
+       (format_desc->layout == UTIL_FORMAT_LAYOUT_SUBSAMPLED &&
+        format_desc->colorspace != UTIL_FORMAT_COLORSPACE_RGB)) {
+      /* subsampled non-RGB and YUV formats must specify a subsampling format */
+      if (format_desc->subsampling == PIPE_VIDEO_CHROMA_FORMAT_NONE) {
+         fprintf(stderr, "%s is not subsampled, as it should be.\n",
+                 format_desc->name);
+         return false;
+      }
+   }
+
+   return true;
+}
+
 typedef bool
 (*test_func_t)(const struct util_format_description *format_desc,
                const struct util_format_test_case *test);
@@ -856,6 +875,7 @@ test_all(void)
       TEST_ONE_PACK_FUNC(pack_s_8uint);
 
       TEST_FORMAT_METADATA(norm_flags);
+      TEST_FORMAT_METADATA(subsampling);
 
 #     undef TEST_ONE_FUNC
 #     undef TEST_ONE_FORMAT
