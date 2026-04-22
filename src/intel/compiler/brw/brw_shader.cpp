@@ -1048,3 +1048,16 @@ brw_allocate_vgrf_units(brw_shader &s, unsigned units_of_REGSIZE)
 {
    return brw_vgrf(brw_allocate_vgrf_number(s, units_of_REGSIZE), BRW_TYPE_UD);
 }
+
+void brw_prog_data_init(struct brw_stage_prog_data *prog_data,
+                        const struct brw_compile_params *params)
+{
+   /* Do not memset the structure to 0, the driver might have put some bits of
+    * information in there.
+    */
+   prog_data->ray_queries = params->nir->info.ray_queries;
+   prog_data->stage = params->nir->info.stage;
+   prog_data->source_hash = params->source_hash;
+   prog_data->total_scratch = 0;
+   prog_data->total_shared = params->nir->info.shared_size;
+}
