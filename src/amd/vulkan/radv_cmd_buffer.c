@@ -1286,6 +1286,7 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    cmd_buffer->gang.sem.va = 0;
    memset(cmd_buffer->vertex_bindings, 0, sizeof(cmd_buffer->vertex_bindings));
    memset(&cmd_buffer->queue_state, 0, sizeof(cmd_buffer->queue_state));
+   memset(&cmd_buffer->state, 0, sizeof(cmd_buffer->state));
 
    if (cmd_buffer->upload.upload_bo)
       radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->upload.upload_bo);
@@ -1299,8 +1300,6 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
       cmd_buffer->descriptors[i].dirty_heaps = 0;
       cmd_buffer->descriptors[i].valid_heaps = 0;
    }
-
-   radv_cmd_buffer_reset_rendering(cmd_buffer);
 }
 
 const struct vk_command_buffer_ops radv_cmd_buffer_ops = {
@@ -7817,7 +7816,6 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
    if (cmd_buffer->qf == RADV_QUEUE_SPARSE)
       return result;
 
-   memset(&cmd_buffer->state, 0, sizeof(cmd_buffer->state));
    cmd_buffer->state.last_index_type = -1;
    cmd_buffer->state.last_primitive_restart_en = pdev->info.gfx_level >= GFX11 ? false : -1;
    cmd_buffer->state.last_num_instances = -1;
