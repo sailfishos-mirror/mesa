@@ -44,11 +44,11 @@
             "IMM_HI_32":                [  95,  64 ],
 
             "# EU_INSTRUCTION_BASIC_THREE_SRC":"#",
-            "THREE_SRC0_VSTRIDE_LO":    [  35,  35 ],
             "THREE_DST_TYPE":           [  38,  36 ],
             "THREE_EXEC_DATA_TYPE":     [  39,  39 ],
             "THREE_SRC0_TYPE":          [  42,  40 ],
-            "THREE_SRC0_VSTRIDE_HI":    [  43,  43 ],
+            "THREE_SRC0_VSTRIDE":       [  43,  43,
+                                           35,  35 ],
             "THREE_SRC2_IS_IMM":        [  47,  47 ],
             "THREE_DST_HSTRIDE":        [  48,  48 ],
             "THREE_DST_OPERAND":        [  63,  50 ],
