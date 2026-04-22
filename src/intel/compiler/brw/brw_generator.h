@@ -7,6 +7,8 @@
 
 #include "brw_shader.h"
 
+namespace old {
+
 /* Translates BRW IR to actual EU assembly code. */
 class brw_generator
 {
@@ -74,3 +76,5 @@ private:
    mesa_shader_stage stage;
    void *mem_ctx;
 };
+
+} /* namespace old */

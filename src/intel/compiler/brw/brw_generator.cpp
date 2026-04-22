@@ -21,6 +21,8 @@
 #include "util/mesa-blake3.h"
 #include "util/half_float.h"
 
+namespace old {
+
 static gen_opcode
 brw_opcode_to_gen(enum opcode op)
 {
@@ -1644,6 +1646,8 @@ brw_generator::get_assembly()
 
    return brw_get_program(p, &prog_data->program_size);
 }
+
+} /* namespace old */
 
 /* After program generation, go back and update the UIP and JIP of
  * BREAK, CONT, ENDIF and HALT instructions to their correct locations.

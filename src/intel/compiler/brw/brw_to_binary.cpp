@@ -21,8 +21,6 @@
 #include "util/half_float.h"
 #include "util/os_file.h"
 
-namespace gen {
-
 static gen_opcode
 brw_opcode_to_gen(enum opcode op)
 {
@@ -2383,5 +2381,3 @@ brw_generator::append_reloc(const intel_shader_reloc &r)
    relocs = reralloc(mem_ctx, relocs, intel_shader_reloc, num_relocs + 1);
    relocs[num_relocs++] = r;
 }
-
-} /* namespace gen */

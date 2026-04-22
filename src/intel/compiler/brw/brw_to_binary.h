@@ -10,8 +10,6 @@
 #include "brw_shader.h"
 #include "gen/gen.h"
 
-namespace gen {
-
 class brw_generator
 {
 public:
@@ -140,5 +138,3 @@ private:
 
    void append_reloc(const intel_shader_reloc &r);
 };
-
-} /* namespace gen */

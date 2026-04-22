@@ -6,7 +6,7 @@
 #include "brw_cfg.h"
 #include "brw_eu.h"
 #include "brw_shader.h"
-#include "brw_generator.h"
+#include "brw_to_binary.h"
 #include "brw_nir.h"
 #include "brw_private.h"
 #include "intel_nir.h"
