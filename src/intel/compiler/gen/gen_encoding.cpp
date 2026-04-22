@@ -713,8 +713,7 @@ struct gen_encoder {
          encode_direct_operand(E::THREE_SRC1_OPERAND, inst->src[1]);
 
          const unsigned src1_vstride = ENCODE_VSTRIDE_3SRC(inst->src[1].region.vstride);
-         set(E::THREE_SRC1_VSTRIDE_LO, (src1_vstride >> 0) & 1);
-         set(E::THREE_SRC1_VSTRIDE_HI, (src1_vstride >> 1) & 1);
+         set(E::THREE_SRC1_VSTRIDE, src1_vstride);
 
          set(E::THREE_SRC1_HSTRIDE, encode_hstride(inst->src[1].region.hstride));
 
@@ -1293,9 +1292,7 @@ struct gen_decoder {
 
          decode_direct_operand(E::THREE_SRC1_OPERAND, inst->src[1]);
 
-         const unsigned encoded_src1_vstride =
-            (get(E::THREE_SRC1_VSTRIDE_LO) << 0)|
-            (get(E::THREE_SRC1_VSTRIDE_HI) << 1);
+         const unsigned encoded_src1_vstride = get(E::THREE_SRC1_VSTRIDE);
          inst->src[1].region.vstride = DECODE_VSTRIDE_3SRC(encoded_src1_vstride);
 
          inst->src[1].region.hstride = decode_hstride(get(E::THREE_SRC1_HSTRIDE));
