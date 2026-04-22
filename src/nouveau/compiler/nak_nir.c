@@ -135,8 +135,8 @@ phi_vectorize_cb(const nir_instr *instr, const void *data)
    return 1;
 }
 
-static void
-optimize_nir(nir_shader *nir, const struct nak_compiler *nak, bool allow_copies)
+void
+nak_optimize_nir(nir_shader *nir, const struct nak_compiler *nak)
 {
    bool progress;
 
@@ -164,10 +164,10 @@ optimize_nir(nir_shader *nir, const struct nak_compiler *nak, bool allow_copies)
 
       OPT(nir, nir_lower_vars_to_ssa);
 
-      if (allow_copies) {
-         /* Only run this pass in the first call to brw_nir_optimize.  Later
-          * calls assume that we've lowered away any copy_deref instructions
-          * and we don't want to introduce any more.
+      if (!nir->info.var_copies_lowered) {
+         /* Only run this pass if nir_lower_var_copies was not called
+          * yet. That would lower away any copy_deref instructions and we
+          * don't want to introduce any more.
           */
          OPT(nir, nir_opt_find_array_copies);
       }
@@ -221,12 +221,6 @@ optimize_nir(nir_shader *nir, const struct nak_compiler *nak, bool allow_copies)
    OPT(nir, nir_lower_undef_to_zero);
 
    OPT(nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
-}
-
-void
-nak_optimize_nir(nir_shader *nir, const struct nak_compiler *nak)
-{
-   optimize_nir(nir, nak, false);
 }
 
 static unsigned
@@ -378,8 +372,7 @@ nak_preprocess_nir(nir_shader *nir, const struct nak_compiler *nak)
    OPT(nir, nir_split_var_copies);
    OPT(nir, nir_split_struct_vars, nir_var_function_temp);
 
-   /* Optimize but allow copies because we haven't lowered them yet */
-   optimize_nir(nir, nak, true /* allow_copies */);
+   nak_optimize_nir(nir, nak);
 
    OPT(nir, nir_opt_barrier_modes);
    OPT(nir, nir_opt_acquire_release_barriers, SCOPE_QUEUE_FAMILY);
