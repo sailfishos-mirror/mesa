@@ -2032,7 +2032,8 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
           * the main surface without aux support.
           */
          anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
-                       "Disabling aux: CCS_E incompatible format");
+                       "Disabling aux: CCS_E incompatible format(s)[0]=%s",
+                       vk_format_description(image->vk.format)->short_name);
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
       }
 
