@@ -1639,6 +1639,7 @@ AluInstr::from_nir(nir_alu_instr *alu, Shader& shader)
          return emit_alu_op2_64bit_one_dst(*alu, op2_setgt_64, shader, true);
       case nir_op_fneu32:
          return emit_alu_op2_64bit_one_dst(*alu, op2_setne_64, shader, false);
+      case nir_op_ffma:
       case nir_op_ffma_old:
          return emit_alu_fma_64bit(*alu, op3_fma_64, shader);
 
@@ -1956,10 +1957,12 @@ AluInstr::from_nir(nir_alu_instr *alu, Shader& shader)
    case nir_op_unpack_64_2x32_split_y:
       return emit_unpack_64_2x32_split(*alu, 1, shader);
 
+   case nir_op_fmad:
    case nir_op_ffma_old:
       if (!shader.has_flag(Shader::sh_legacy_math_rules))
          return emit_alu_op3(*alu, op3_muladd_ieee, shader);
       FALLTHROUGH;
+   case nir_op_fmadz:
    case nir_op_ffmaz_old:
       return emit_alu_op3(*alu, op3_muladd, shader);
 

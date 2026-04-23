@@ -257,7 +257,7 @@ r600_nir_lower_cube_to_2darray_impl(nir_builder *b, nir_instr *instr, void *_opt
 
    auto cubed = nir_cube_amd(b,
                              nir_trim_vector(b, tex->src[coord_idx].src.ssa, 3));
-   auto xy = nir_fmad_old(b,
+   auto xy = nir_fmad(b,
                       nir_vec2(b, nir_channel(b, cubed, 1), nir_channel(b, cubed, 0)),
                       nir_frcp(b, nir_fabs(b, nir_channel(b, cubed, 2))),
                       nir_imm_float(b, 1.5));
@@ -266,7 +266,7 @@ r600_nir_lower_cube_to_2darray_impl(nir_builder *b, nir_instr *instr, void *_opt
    if (tex->is_array && tex->op != nir_texop_lod) {
       auto slice = nir_fround_even(b, nir_channel(b, tex->src[coord_idx].src.ssa, 3));
       z =
-         nir_fmad_old(b, nir_fmax(b, slice, nir_imm_float(b, 0.0)), nir_imm_float(b, 8.0), z);
+         nir_fmad(b, nir_fmax(b, slice, nir_imm_float(b, 0.0)), nir_imm_float(b, 8.0), z);
    }
 
    if (tex->op == nir_texop_txd) {
