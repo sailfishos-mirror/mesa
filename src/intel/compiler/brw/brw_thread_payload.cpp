@@ -420,8 +420,6 @@ brw_task_mesh_thread_payload::brw_task_mesh_thread_payload(brw_shader &v)
 
 brw_bs_thread_payload::brw_bs_thread_payload(const brw_shader &v)
 {
-   struct brw_bs_prog_data *prog_data = brw_bs_prog_data(v.prog_data);
-
    unsigned r = 0;
 
    /* R0: Thread header. */
@@ -431,7 +429,6 @@ brw_bs_thread_payload::brw_bs_thread_payload(const brw_shader &v)
    r += reg_unit(v.devinfo);
 
    /* R2: Inline Parameter.  Used for argument addresses. */
-   prog_data->uses_inline_push_addr = v.key->uses_inline_push_addr;
    inline_parameter = brw_ud1_grf(r, 0);
    global_arg_ptr = brw_ud1_grf(r, 0);
    local_arg_ptr = brw_ud1_grf(r, 2);
