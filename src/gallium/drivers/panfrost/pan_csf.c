@@ -639,13 +639,6 @@ csf_submit_collect_wait_ops(struct panfrost_batch *batch,
       if (!flags)
          continue;
 
-      /* Update the BO access flags so that panfrost_bo_wait() knows
-       * about all pending accesses.
-       * We only keep the READ/WRITE info since this is all the BO
-       * wait logic cares about.
-       * We also preserve existing flags as this batch might not
-       * be the first one to access the BO.
-       */
       struct panfrost_bo *bo = pan_lookup_bo(dev, i);
 
       ret = panthor_kmod_bo_get_sync_point(bo->kmod_bo, &bo_sync_handle,
@@ -720,7 +713,6 @@ csf_attach_sync_points(struct panfrost_batch *batch, uint32_t vm_sync_handle,
     * be written by the GPU to keep things simple.
     */
    util_dynarray_foreach(&batch->pool.bos, struct panfrost_bo *, bo) {
-      (*bo)->gpu_access |= PAN_BO_ACCESS_RW;
       ret = panthor_kmod_bo_attach_sync_point((*bo)->kmod_bo, vm_sync_handle,
                                               vm_sync_signal_point, true);
       if (ret)
@@ -729,7 +721,6 @@ csf_attach_sync_points(struct panfrost_batch *batch, uint32_t vm_sync_handle,
 
    util_dynarray_foreach(&batch->csf.cs_chunk_pool.bos, struct panfrost_bo *,
                          bo) {
-      (*bo)->gpu_access |= PAN_BO_ACCESS_RW;
       ret = panthor_kmod_bo_attach_sync_point((*bo)->kmod_bo, vm_sync_handle,
                                               vm_sync_signal_point, true);
       if (ret)
@@ -746,7 +737,7 @@ csf_attach_sync_points(struct panfrost_batch *batch, uint32_t vm_sync_handle,
 
       struct panfrost_bo *bo = pan_lookup_bo(dev, i);
 
-      bo->gpu_access |= flags & (PAN_BO_ACCESS_RW);
+      panfrost_context_report_bo_access(ctx, bo, flags);
       ret = panthor_kmod_bo_attach_sync_point(bo->kmod_bo, vm_sync_handle,
                                               vm_sync_signal_point,
                                               flags & PAN_BO_ACCESS_WRITE);

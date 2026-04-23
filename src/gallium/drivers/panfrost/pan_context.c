@@ -1176,6 +1176,7 @@ panfrost_create_context(struct pipe_screen *screen, void *priv, unsigned flags)
    ctx->sample_mask = ~0;
    ctx->active_queries = true;
 
+   util_dynarray_init(&ctx->bo_access, ctx);
    util_dynarray_init(&ctx->global_buffers, ctx);
 
    /* Sync object/FD used for NATIVE_FENCE_FD. */

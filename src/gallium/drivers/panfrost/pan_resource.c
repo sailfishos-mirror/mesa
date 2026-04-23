@@ -1376,12 +1376,63 @@ panfrost_load_tiled_images(struct panfrost_transfer *transfer,
    }
 }
 
+/* panfrost_resource_wait() only waits on panfrost_resource::bo even though
+ * there might be multiple other BOs attached to the resource.
+ *
+ * Here are some aspects that are worth noting:
+ * - rsrc::{separate_stencil,shadow_image}::bo is implicitly waited on because
+ *   panfrost_batch_{write,read}_rsrc() always record access to these resources
+ *   if they are present, so waiting on one of them is equivalent to waiting
+ *   on all of them
+ * - multiplanar resources should be covered because
+ *   panfrost_batch_{write,read}_rsrc() always record accesses on all planes
+ * - panfrost_resource::afbc::{layout,packed}_bo are not covered. They must
+ *   be waited on manually with a panfrost_bo_wait() call, because we don't
+ *   even track accesses to those a the panfrost_context::bo_access level
+ */
 bool
 panfrost_resource_wait(struct panfrost_resource *rsrc,
-                       UNUSED struct panfrost_context *ctx, int64_t timeout_ns,
+                       struct panfrost_context *ctx, int64_t timeout_ns,
                        bool wait_readers)
 {
-   return panfrost_bo_wait(rsrc->bo, timeout_ns, wait_readers);
+   /* The BO is shared, we have to do a KMD wait. */
+   if (rsrc->bo->flags & PAN_BO_SHARED)
+      return panfrost_bo_wait(rsrc->bo, timeout_ns, wait_readers);
+
+   uint32_t handle = panfrost_bo_handle(rsrc->bo);
+   uint32_t *pending_access = NULL;
+   uint32_t seqno = 0, access = 0;
+
+   if (util_dynarray_num_elements(&ctx->bo_access, uint32_t) > handle) {
+      pending_access = util_dynarray_element(&ctx->bo_access, uint32_t, handle);
+      seqno = *pending_access >> 2;
+      access = *pending_access & PAN_BO_ACCESS_RW;
+   }
+
+   uint32_t mask = wait_readers ? PAN_BO_ACCESS_RW : PAN_BO_ACCESS_WRITE;
+   bool ready = false;
+
+   /* If the seqno is zero, it means the entry was uninitialized, and we can't
+    * trust it because it might come from an allocation failure when we try to
+    * resize the bo_access array in panfrost_context_report_bo_access(). In
+    * that case, we just take the hit and do a KMD wait.
+    */
+   if (seqno > 0) {
+      /* If the seqno don't match, the BO has been returned and a fresh one
+       * allocated with the same handle. In that case, pan_bo guarantees the
+       * buffer is idle.
+       */
+      if (rsrc->bo->seqno != seqno || !(access & mask))
+         ready = true;
+   }
+
+   if (!ready)
+      ready = panfrost_bo_wait(rsrc->bo, timeout_ns, wait_readers);
+
+   if (ready && pending_access)
+      *pending_access &= ~mask;
+
+   return ready;
 }
 
 #if MESA_DEBUG

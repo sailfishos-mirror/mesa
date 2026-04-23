@@ -17,6 +17,18 @@
 #include "pan_resource.h"
 #include "util/perf/u_trace.h"
 
+/* BO is being read/written by the GPU */
+#define PAN_BO_ACCESS_READ  BITFIELD_BIT(0)
+#define PAN_BO_ACCESS_WRITE BITFIELD_BIT(1)
+#define PAN_BO_ACCESS_RW    (PAN_BO_ACCESS_READ | PAN_BO_ACCESS_WRITE)
+
+/* Set when the BO access needs to be recorded to the
+ * panfrost_context::bo_access array at submission time.
+ */
+#define PAN_BO_ACCESS_PER_CTX_TRACKING BITFIELD_BIT(2)
+
+typedef uint8_t pan_bo_access;
+
 /* A panfrost_batch corresponds to a bound FBO we're rendering to,
  * collecting over multiple draws. */
 

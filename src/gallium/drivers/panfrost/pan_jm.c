@@ -117,17 +117,7 @@ jm_submit_jc(struct panfrost_batch *batch, uint64_t first_job_desc,
 
       assert(submit.bo_handle_count < batch->num_bos);
       bo_handles[submit.bo_handle_count++] = i;
-
-      /* Update the BO access flags so that panfrost_bo_wait() knows
-       * about all pending accesses.
-       * We only keep the READ/WRITE info since this is all the BO
-       * wait logic cares about.
-       * We also preserve existing flags as this batch might not
-       * be the first one to access the BO.
-       */
-      struct panfrost_bo *bo = pan_lookup_bo(dev, i);
-
-      bo->gpu_access |= flags[i] & (PAN_BO_ACCESS_RW);
+      panfrost_context_report_bo_access(ctx, pan_lookup_bo(dev, i), flags[i]);
    }
 
    panfrost_pool_get_bo_handles(&batch->pool,

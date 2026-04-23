@@ -38,15 +38,6 @@
  * PAN_BO_SHARED if the BO has not been exported yet */
 #define PAN_BO_SHAREABLE (1 << 5)
 
-/* GPU access flags */
-
-/* BO is being read/written by the GPU */
-#define PAN_BO_ACCESS_READ  (1 << 0)
-#define PAN_BO_ACCESS_WRITE (1 << 1)
-#define PAN_BO_ACCESS_RW    (PAN_BO_ACCESS_READ | PAN_BO_ACCESS_WRITE)
-
-typedef uint8_t pan_bo_access;
-
 struct panfrost_device;
 
 struct panfrost_bo {
@@ -74,11 +65,11 @@ struct panfrost_bo {
 
    uint32_t flags;
 
-   /* Combination of PAN_BO_ACCESS_{READ,WRITE} flags encoding pending
-    * GPU accesses to this BO. Useful to avoid calling the WAIT_BO ioctl
-    * when the BO is idle.
+   /* Sequence number that gets incremented every time a BO is allocated.
+    * Used to identify stale data in the per-BO access tracking done at the
+    * panfrost_context level.
     */
-   uint32_t gpu_access;
+   uint32_t seqno;
 
    /* Driver-provided human-readable description of the BO for debugging.
     * Consists of a BO name and optional additional information, like
@@ -102,8 +93,19 @@ panfrost_bo_handle(struct panfrost_bo *bo)
 struct panfrost_bo *panfrost_bo_from_kmod_bo(struct panfrost_device *dev,
                                              struct pan_kmod_bo *kmod_bo);
 
-bool panfrost_bo_wait(struct panfrost_bo *bo, int64_t timeout_ns,
-                      bool wait_readers);
+/* Returns true if the BO is ready, false otherwise.
+ * access_type is encoding the type of access one wants to ensure is done.
+ * Waiting is always done for writers, but if wait_readers is set then readers
+ * are also waited for.
+ */
+static inline bool
+panfrost_bo_wait(struct panfrost_bo *bo, int64_t timeout_ns, bool wait_readers)
+{
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BO);
+
+   return pan_kmod_bo_wait(bo->kmod_bo, timeout_ns, !wait_readers);
+}
+
 void panfrost_bo_reference(struct panfrost_bo *bo);
 void panfrost_bo_unreference(struct panfrost_bo *bo);
 struct panfrost_bo *panfrost_bo_create(struct panfrost_device *dev, size_t size,
