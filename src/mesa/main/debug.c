@@ -101,7 +101,6 @@ set_verbose_flags(const char *str)
       GLbitfield flag;
    };
    static const struct option opts[] = {
-      { "mat",       VERBOSE_MATERIAL },
       { "state",     VERBOSE_STATE },
       { "list",      VERBOSE_DISPLAY_LIST },
    };

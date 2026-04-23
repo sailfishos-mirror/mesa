@@ -3670,9 +3670,8 @@ extern int MESA_DEBUG_FLAGS;
 /** The MESA_VERBOSE var is a bitmask of these flags */
 enum _verbose
 {
-   VERBOSE_MATERIAL     = 0x0001,
-   VERBOSE_STATE        = 0x0002,
-   VERBOSE_DISPLAY_LIST = 0x0004,
+   VERBOSE_STATE        = 0x0001,
+   VERBOSE_DISPLAY_LIST = 0x0002,
 };
 
 
