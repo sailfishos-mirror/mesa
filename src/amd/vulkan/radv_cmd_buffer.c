@@ -9964,6 +9964,41 @@ radv_merge_queue_state(const struct radv_cmd_buffer_queue_state *src, struct rad
    dst->uses_perf_counters |= src->uses_perf_counters;
 }
 
+static void
+radv_invalidate_state(struct radv_cmd_buffer *cmd_buffer)
+{
+   struct radv_rendering_state render_save = cmd_buffer->state.render;
+   uint32_t active_pipeline_queries_save = cmd_buffer->state.active_pipeline_queries;
+   uint32_t active_emulated_pipeline_queries_save = cmd_buffer->state.active_emulated_pipeline_queries;
+   uint32_t active_occlusion_queries_save = cmd_buffer->state.active_occlusion_queries;
+   uint32_t perfect_occlusion_queries_enabled_save = cmd_buffer->state.perfect_occlusion_queries_enabled;
+   bool uses_draw_indirect = cmd_buffer->state.uses_draw_indirect;
+
+   /* From the Vulkan spec 1.4.349:
+    *
+    * "...with the following exception(s):
+    *  If the primary command buffer is inside a render pass instance, then the render pass and
+    *  subpass state is not disturbed by executing secondary command buffers."
+    *
+    * The occlusion/pipeline statistics queries also need to be preserved in case they are inherited
+    * in the secondary command buffer.
+    */
+   memset(&cmd_buffer->state, 0, sizeof(cmd_buffer->state));
+
+   cmd_buffer->state.render = render_save;
+   cmd_buffer->state.active_pipeline_queries = active_pipeline_queries_save;
+   cmd_buffer->state.active_emulated_pipeline_queries = active_emulated_pipeline_queries_save;
+   cmd_buffer->state.active_occlusion_queries = active_occlusion_queries_save;
+   cmd_buffer->state.perfect_occlusion_queries_enabled = perfect_occlusion_queries_enabled_save;
+   cmd_buffer->state.uses_draw_indirect = uses_draw_indirect;
+
+   radv_mark_descriptors_dirty(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS);
+   radv_mark_descriptors_dirty(cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
+   radv_mark_descriptors_dirty(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
+
+   radv_init_default_state(cmd_buffer);
+}
+
 VKAPI_ATTR void VKAPI_CALL
 radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer *pCmdBuffers)
 {
@@ -10059,35 +10094,6 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
 
       device->ws->cs_execute_secondary(primary_cs->b, secondary_cs->b, allow_ib2);
 
-      primary->state.emitted_vs_prolog = secondary->state.emitted_vs_prolog;
-
-      if (secondary->state.last_ia_multi_vgt_param) {
-         primary->state.last_ia_multi_vgt_param = secondary->state.last_ia_multi_vgt_param;
-      }
-
-      if (secondary->state.last_ge_cntl) {
-         primary->state.last_ge_cntl = secondary->state.last_ge_cntl;
-      }
-
-      primary->state.last_num_instances = secondary->state.last_num_instances;
-      primary->state.last_subpass_color_count = secondary->state.last_subpass_color_count;
-
-      if (secondary->state.last_index_type != -1) {
-         primary->state.last_index_type = secondary->state.last_index_type;
-      }
-
-      if (secondary->state.last_primitive_restart_en != -1) {
-         primary->state.last_primitive_restart_en = secondary->state.last_primitive_restart_en;
-      }
-
-      if (secondary->state.primitive_restart_index) {
-         primary->state.primitive_restart_index = secondary->state.primitive_restart_index;
-      }
-
-      if (secondary->state.last_primitive_restart_index) {
-         primary->state.last_primitive_restart_index = secondary->state.last_primitive_restart_index;
-      }
-
       primary->state.uses_draw_indirect |= secondary->state.uses_draw_indirect;
 
       for (uint32_t reg = 0; reg < AC_NUM_ALL_TRACKED_REGS; reg++) {
@@ -10106,23 +10112,23 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
              sizeof(primary_cs->tracked_regs.sx_mrt_blend_opt));
    }
 
-   /* After executing commands from secondary buffers we have to dirty
-    * some states.
+   /* From the Vulkan spec 1.4.349:
+    *
+    * "When a command buffer begins recording, all state in that command buffer is undefined. When
+    *  secondary command buffer(s) are recorded to execute on a primary command buffer, the secondary
+    *  command buffer inherits no state from the primary command buffer, and all state of the primary
+    *  command buffer is undefined after an execute secondary command buffer command is recorded,
+    *  with the following exception(s):
+    *
+    *    - If the primary command buffer is inside a render pass instance, then the render pass and
+    *    subpass state is not disturbed by executing secondary command buffers.
+    *
+    *    - If the primary command buffer has a descriptor heap bound, and the address of that
+    *    descriptor heap is specified in VkCommandBufferInheritanceDescriptorHeapInfoEXT for every
+    *    secondary command buffer, that heap binding is not disturbed by executing secondary command
+    *    buffers."
     */
-   primary->state.dirty_dynamic |= RADV_DYNAMIC_ALL;
-   primary->state.dirty |= RADV_CMD_DIRTY_GRAPHICS_PIPELINE | RADV_CMD_DIRTY_COMPUTE_PIPELINE |
-                           RADV_CMD_DIRTY_RAY_TRACING_PIPELINE | RADV_CMD_DIRTY_INDEX_BUFFER |
-                           RADV_CMD_DIRTY_GUARDBAND | RADV_CMD_DIRTY_SHADER_QUERY | RADV_CMD_DIRTY_OCCLUSION_QUERY |
-                           RADV_CMD_DIRTY_DB_SHADER_CONTROL | RADV_CMD_DIRTY_FRAGMENT_OUTPUT;
-   radv_mark_descriptors_dirty(primary, VK_PIPELINE_BIND_POINT_GRAPHICS);
-   radv_mark_descriptors_dirty(primary, VK_PIPELINE_BIND_POINT_COMPUTE);
-
-   primary->state.last_first_instance = -1;
-   primary->state.last_drawid = -1;
-   primary->state.last_vertex_offset_valid = false;
-
-   /* Make sure to re-emit the PS epilog if the same graphics pipeline is bind again. */
-   primary->state.ps_epilog = NULL;
+   radv_invalidate_state(primary);
 }
 
 static void
