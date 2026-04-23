@@ -1443,7 +1443,7 @@ lower_vs_before_gs(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       b, vp, nir_imm_int64(b, b->shader->info.outputs_written), linear_id,
       location);
 
-   assert(nir_src_bit_size(intr->src[0]) == 32);
+   assert(nir_src_bit_size(intr->src[0]) <= 32);
    addr = nir_iadd_imm(b, addr, nir_intrinsic_component(intr) * 4);
 
    nir_store_global(b, intr->src[0].ssa, addr,
