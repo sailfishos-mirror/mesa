@@ -4040,6 +4040,9 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
       return false;
    }
 
+   const uint32_t plane = anv_image_aspect_to_plane(image, clear_aspect);
+   const struct anv_surface *anv_surf = &image->planes[plane].primary_surface;
+
    /* Start by getting the fast clear type.  We use the first subpass
     * layout here because we don't want to fast-clear if the first subpass
     * to use the attachment can't handle fast-clears.
@@ -4050,8 +4053,16 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
                                     cmd_buffer->queue_family->queueFlags);
    switch (fast_clear_type) {
    case ANV_FAST_CLEAR_NONE:
-      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
-                    "layout does not support fast clear. Slow clearing.");
+      if (image->planes[plane].aux_usage != ISL_AUX_USAGE_NONE) {
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "%s does not support fast clear on %dx%d %s "
+                       "isl_tiling_%s image with usage 0x%x. Slow clearing.",
+                       vk_ImageLayout_to_str(layout),
+                       image->vk.extent.width, image->vk.extent.height,
+                       vk_format_description(image->vk.format)->short_name,
+                       isl_tiling_to_name(anv_surf->isl.tiling),
+                       image->vk.usage);
+      }
       return false;
    case ANV_FAST_CLEAR_DEFAULT_VALUE: {
       uint32_t view_pixel[4] = {};
@@ -4113,8 +4124,6 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
    }
 
    /* Wa_18020603990 - slow clear surfaces up to 256x256, 32bpp. */
-   const uint32_t plane = anv_image_aspect_to_plane(image, clear_aspect);
-   const struct anv_surface *anv_surf = &image->planes[plane].primary_surface;
    if (intel_needs_workaround(cmd_buffer->device->info, 18020603990)) {
       if (isl_format_get_layout(anv_surf->isl.format)->bpb <= 32 &&
           anv_surf->isl.logical_level0_px.w <= 256 &&
