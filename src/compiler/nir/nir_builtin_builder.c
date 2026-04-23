@@ -41,10 +41,10 @@ nir_cross3(nir_builder *b, nir_def *x, nir_def *y)
    unsigned yzx[3] = { 1, 2, 0 };
    unsigned zxy[3] = { 2, 0, 1 };
 
-   return nir_ffma_old(b, nir_swizzle(b, x, yzx, 3),
-                       nir_swizzle(b, y, zxy, 3),
-                       nir_fneg(b, nir_fmul(b, nir_swizzle(b, x, zxy, 3),
-                                            nir_swizzle(b, y, yzx, 3))));
+   return nir_ffma_weak(b, nir_swizzle(b, x, yzx, 3),
+                           nir_swizzle(b, y, zxy, 3),
+                           nir_fneg(b, nir_fmul(b, nir_swizzle(b, x, zxy, 3),
+                                                   nir_swizzle(b, y, yzx, 3))));
 }
 
 nir_def *
@@ -285,7 +285,7 @@ nir_atan(nir_builder *b, nir_def *y_over_x)
                              nir_imm_floatN_t(b, -M_PI_2, bit_size));
 
    /* multiply through by x while fixing up the range reduction */
-   nir_def *tmp = nir_ffma_old(b, nir_fabs(b, u), res, bias);
+   nir_def *tmp = nir_ffma_weak(b, nir_fabs(b, u), res, bias);
 
    /* sign fixup */
    return nir_copysign(b, tmp, y_over_x);

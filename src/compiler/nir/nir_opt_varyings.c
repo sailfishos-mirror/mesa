@@ -3920,9 +3920,9 @@ try_move_postdominator(struct linkage_info *linkage,
             defs[i] = nir_fmul(b, new_tes_loads[i],
                                nir_channel(b, tesscoord, remap[i]));
          } else {
-            defs[i] = nir_ffma_old(b, new_tes_loads[i],
-                               nir_channel(b, tesscoord, remap[i]),
-                               defs[i - 1]);
+            defs[i] = nir_ffma_weak(b, new_tes_loads[i],
+                                    nir_channel(b, tesscoord, remap[i]),
+                                    defs[i - 1]);
          }
       }
       new_input = defs[2];

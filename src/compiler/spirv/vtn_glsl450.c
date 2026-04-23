@@ -430,7 +430,7 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
                             nir_fmul(nb, eta, nir_a_minus_bc(nb, one, n_dot_i, n_dot_i)));
       nir_def *result =
          nir_a_minus_bc(nb, nir_fmul(nb, eta, I),
-                            nir_ffma_old(nb, eta, n_dot_i, nir_fsqrt(nb, k)),
+                            nir_ffma_weak(nb, eta, n_dot_i, nir_fsqrt(nb, k)),
                             N);
       /* XXX: bcsel, or if statement? */
       dest->def = nir_bcsel(nb, nir_flt(nb, k, zero), zero, result);

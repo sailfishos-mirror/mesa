@@ -101,7 +101,7 @@ denorm_ftz_64 = 'nir_is_denorm_flush_to_zero(info->float_controls_execution_mode
 def lowered_sincos(c):
     x = ('fsub', ('fmul', 2.0, ('ffract', ('fadd', ('fmul', 0.5 / pi, a), c))), 1.0)
     x = ('fmul', ('fsub', x, ('fmul', x, ('fabs', x))), 4.0)
-    return ('ffma_old', ('ffma_old', x, ('fabs', x), ('fneg', x)), 0.225, x)
+    return ('ffma_weak', ('ffma_weak', x, ('fabs', x), ('fneg', x)), 0.225, x)
 
 def intBitsToFloat(i):
     return struct.unpack('!f', struct.pack('!I', i))[0]
