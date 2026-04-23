@@ -216,6 +216,9 @@ private:
                                             bool group_has_update_pred,
                                             bool& is_kill,
                                             bool& does_update_pred);
+   bool try_reserve_vec_kcache_for_group(const AluInstr& instr,
+                                         AluScheduleContext& alu_ctx,
+                                         std::array<KCacheLine, 4>& kcache);
    void update_idx_load_state(const AluInstr& instr);
 
    bool schedule_exports(Shader::ShaderBlocks& out_blocks,
@@ -1074,10 +1077,8 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group, AluScheduleContext& a
          continue;
       }
 
-      auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
-      alu_ctx.had_kcache_failure_in_fill |= !reserved;
-
-      if (!reserved) {
+      std::array<KCacheLine, 4> kcache;
+      if (!try_reserve_vec_kcache_for_group(**i, alu_ctx, kcache)) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
          ++i;
          continue;
@@ -1136,6 +1137,20 @@ BlockScheduler::can_schedule_alu_vec_instr_to_group(const AluInstr& instr,
       return false;
 
    return true;
+}
+
+bool
+BlockScheduler::try_reserve_vec_kcache_for_group(const AluInstr& instr,
+                                                 AluScheduleContext& alu_ctx,
+                                                 std::array<KCacheLine, 4>& kcache)
+{
+   auto [reserved_kcache, reserved] = m_current_block->try_reserve_kcache(instr);
+   alu_ctx.had_kcache_failure_in_fill |= !reserved;
+
+   if (reserved)
+      kcache = reserved_kcache;
+   
+   return reserved;
 }
 
 void
