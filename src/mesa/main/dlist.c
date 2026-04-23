@@ -730,7 +730,8 @@ union int64_pair
 #define BLOCK_SIZE 256
 
 
-void mesa_print_display_list(GLuint list);
+static void
+print_list(struct gl_context *ctx, GLuint list, const char *fname);
 
 
 /**
@@ -13410,7 +13411,7 @@ _mesa_EndList(void)
                           ctx->ListState.CurrentList);
 
    if (MESA_VERBOSE & VERBOSE_DISPLAY_LIST)
-      mesa_print_display_list(ctx->ListState.CurrentList->Name);
+      print_list(ctx, ctx->ListState.CurrentList->Name, NULL);
 
    _mesa_HashUnlockMutex(&ctx->Shared->DisplayList);
 
@@ -13442,7 +13443,7 @@ _mesa_CallList(GLuint list)
    }
 
    if (0)
-      mesa_print_display_list( list );
+      print_list(ctx, list, NULL);
 
    /* Save the CompileFlag status, turn it off, execute the display list,
     * and restore the CompileFlag. This is needed for GL_COMPILE_AND_EXECUTE
@@ -14054,19 +14055,6 @@ _mesa_glthread_should_execute_list(struct gl_context *ctx,
       n += n[0].InstSize;
    }
    return false;
-}
-
-
-/**
- * Clients may call this function to help debug display list problems.
- * This function is _ONLY_FOR_DEBUGGING_PURPOSES_.  It may be removed,
- * changed, or break in the future without notice.
- */
-void
-mesa_print_display_list(GLuint list)
-{
-   GET_CURRENT_CONTEXT(ctx);
-   print_list(ctx, list, NULL);
 }
 
 
