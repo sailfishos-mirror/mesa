@@ -91,6 +91,14 @@ elk_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
       nir_options->lower_ffma64 = devinfo->ver < 6;
       nir_options->lower_flrp32 = devinfo->ver < 6;
 
+      if (devinfo->ver >= 6) {
+         nir_options->float_mul_add32 = nir_float_muladd_support_has_ffma;
+         nir_options->float_mul_add64 = nir_float_muladd_support_has_ffma;
+      }
+
+      if (devinfo->ver >= 8)
+         nir_options->float_mul_add16 = nir_float_muladd_support_has_ffma;
+
       nir_options->has_bfe = devinfo->ver >= 7;
       nir_options->has_bfm = devinfo->ver >= 7;
       nir_options->has_bfi = devinfo->ver >= 7;
