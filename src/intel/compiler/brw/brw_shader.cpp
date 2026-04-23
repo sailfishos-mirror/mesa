@@ -178,6 +178,7 @@ brw_shader::brw_shader(const brw_shader_params *params)
 
    this->grf_used = 0;
    this->spilled_any_registers = false;
+   this->start_offset = 0;
 
    this->phase = BRW_SHADER_PHASE_INITIAL;
 

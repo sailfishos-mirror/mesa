@@ -2381,3 +2381,102 @@ brw_generator::append_reloc(const intel_shader_reloc &r)
    relocs = reralloc(mem_ctx, relocs, intel_shader_reloc, num_relocs + 1);
    relocs[num_relocs++] = r;
 }
+
+static uint64_t
+brw_bsr(const struct intel_device_info *devinfo,
+        uint32_t offset, uint8_t simd_size, uint8_t local_arg_offset,
+        uint8_t grf_used)
+{
+   assert(offset % 64 == 0);
+   assert(simd_size == 8 || simd_size == 16);
+   assert(local_arg_offset % 8 == 0);
+
+   return ((uint64_t)ptl_register_blocks(grf_used) << 60) |
+          offset |
+          SET_BITS(simd_size == 8, 4, 4) |
+          SET_BITS(local_arg_offset / 8, 2, 0);
+}
+
+static void
+brw_to_binary_emit_shader(brw_generator &g,
+                          const brw_to_binary_params *p,
+                          brw_shader *shader,
+                          struct genisa_stats *stats,
+                          const char *resume_suffix)
+{
+   if (unlikely(shader->debug_enabled)) {
+      const shader_info *info = &shader->nir->info;
+      const char *debug_name =
+         ralloc_asprintf(p->params->mem_ctx, "%s %s%s shader %s",
+                         info->label ? info->label : "unnamed",
+                         _mesa_shader_stage_to_string(shader->prog_data->stage),
+                         resume_suffix ? resume_suffix : "",
+                         info->name);
+      g.enable_debug(debug_name);
+   }
+
+   shader->start_offset = g.generate_code(*shader, stats);
+}
+
+const unsigned *
+brw_to_binary(const brw_to_binary_params *p)
+{
+   struct brw_stage_prog_data *prog_data = p->prog_data;
+   assert(prog_data);
+
+   brw_generator g(p->compiler, p->params, prog_data, prog_data->stage);
+
+   struct genisa_stats *stats = p->params->stats;
+   for (unsigned i = 0; i < BRW_TO_BINARY_MAX_SHADERS; i++) {
+      brw_shader *shader = p->shaders[i];
+      if (shader == NULL)
+         continue;
+
+      brw_to_binary_emit_shader(g, p, shader, stats, NULL);
+
+      if (stats)
+         stats++;
+   }
+
+   if (p->num_resume_shaders > 0) {
+      assert(brw_shader_stage_is_bindless(prog_data->stage));
+      assert(p->resume_shaders != NULL);
+
+      uint64_t *resume_sbt = ralloc_array(p->params->mem_ctx,
+                                          uint64_t, p->num_resume_shaders);
+      for (unsigned i = 0; i < p->num_resume_shaders; i++) {
+         brw_shader *shader = p->resume_shaders[i];
+         assert(shader != NULL);
+
+         const char *suffix = unlikely(shader->debug_enabled) ?
+            ralloc_asprintf(p->params->mem_ctx, " resume(%u)", i) : NULL;
+         brw_to_binary_emit_shader(g, p, shader, NULL, suffix);
+         assert(shader->start_offset > 0);
+
+         resume_sbt[i] = brw_bsr(p->compiler->devinfo, shader->start_offset,
+                                 shader->dispatch_width, 0,
+                                 shader->grf_used);
+      }
+
+      g.add_resume_sbt(p->num_resume_shaders, resume_sbt);
+   }
+
+   const nir_shader *nir = p->params->nir;
+   if (nir->constant_data_size > 0 || p->extra_const_data_size > 0) {
+      if (p->extra_const_data_size == 0) {
+         g.add_const_data(nir->constant_data, nir->constant_data_size);
+      } else {
+         const unsigned const_data_aligned_size =
+            align(nir->constant_data_size, 32);
+         const unsigned total =
+            const_data_aligned_size + p->extra_const_data_size;
+         uint8_t *combined = (uint8_t *)rzalloc_size(p->params->mem_ctx, total);
+         memcpy(combined, nir->constant_data, nir->constant_data_size);
+         memcpy(combined + const_data_aligned_size,
+                p->extra_const_data, p->extra_const_data_size);
+         g.add_const_data(combined, total);
+      }
+   }
+
+   return g.get_assembly();
+}

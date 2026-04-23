@@ -6,7 +6,6 @@
 #include "brw_cfg.h"
 #include "brw_eu.h"
 #include "brw_shader.h"
-#include "brw_to_binary.h"
 #include "brw_nir.h"
 #include "brw_private.h"
 #include "intel_nir.h"
@@ -173,18 +172,11 @@ brw_compile_tes(const struct brw_compiler *compiler,
    prog_data->base.base.grf_used = v.grf_used;
    prog_data->base.dispatch_mode = INTEL_DISPATCH_MODE_SIMD8;
 
-   brw_generator g(compiler, &params->base,
-                  &prog_data->base.base, MESA_SHADER_TESS_EVAL);
-   if (unlikely(debug_enabled)) {
-      g.enable_debug(ralloc_asprintf(params->base.mem_ctx,
-                                     "%s tessellation evaluation shader %s",
-                                     nir->info.label ? nir->info.label
-                                                     : "unnamed",
-                                     nir->info.name));
-   }
-
-   g.generate_code(v, params->base.stats);
-   g.add_const_data(nir->constant_data, nir->constant_data_size);
-
-   return g.get_assembly();
+   const brw_to_binary_params to_binary_params = {
+      .compiler = compiler,
+      .params = &params->base,
+      .prog_data = &prog_data->base.base,
+      .shaders = { &v },
+   };
+   return brw_to_binary(&to_binary_params);
 }
