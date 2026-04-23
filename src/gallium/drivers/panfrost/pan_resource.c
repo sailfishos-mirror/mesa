@@ -1378,35 +1378,6 @@ panfrost_load_tiled_images(struct panfrost_transfer *transfer,
 
 #if MESA_DEBUG
 
-static void
-dump_headerblock(struct panfrost_resource *rsrc, uint32_t idx)
-{
-   panfrost_bo_wait(rsrc->bo, INT64_MAX, false);
-
-   uint8_t *ptr = rsrc->bo->ptr.cpu;
-   struct pan_afbc_headerblock *header = (struct pan_afbc_headerblock *)
-      (ptr + (idx * AFBC_HEADER_BYTES_PER_TILE));
-   uint32_t *header_u32 = (uint32_t *)header;
-   uint32_t *body = (uint32_t *)(ptr + header->payload.offset);
-   struct pan_image_block_size block_sz =
-      pan_afbc_subblock_size(rsrc->modifier);
-   unsigned pixel_sz = util_format_get_blocksize(rsrc->base.format);
-   unsigned uncompressed_size = pixel_sz * block_sz.width * block_sz.height;
-   uint32_t size = pan_afbc_payload_size(7, *header, uncompressed_size);
-
-   fprintf(stderr, "  Header: %08x %08x %08x %08x (size: %u bytes)\n",
-           header_u32[0], header_u32[1], header_u32[2], header_u32[3], size);
-   if (size > 0) {
-      fprintf(stderr, "  Body:   %08x %08x %08x %08x\n", body[0], body[1],
-              body[2], body[3]);
-   } else {
-      fprintf(stderr, "  Color:  0x%02x%02x%02x%02x\n",
-              header->color.rgba8888.r, header->color.rgba8888.g,
-              header->color.rgba8888.b, header->color.rgba8888.a);
-   }
-   fprintf(stderr, "\n");
-}
-
 void
 pan_dump_resource(struct panfrost_context *ctx, struct panfrost_resource *rsc)
 {
