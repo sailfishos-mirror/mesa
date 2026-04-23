@@ -994,7 +994,7 @@
         "description": "ac/parse_ib: Add parsing for variable slice mode",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d9ba641e2842a0f8c71ffa044e1c9362b0472194",
         "notes": null
