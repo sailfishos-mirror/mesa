@@ -864,37 +864,16 @@ capture_trace(VkQueue _queue)
 static void
 radv_device_init_cache_key(struct radv_device *device)
 {
-   STATIC_ASSERT(sizeof(enum radeon_family) == 4);
-   STATIC_ASSERT(sizeof(struct radv_device_cache_key) == 12);
+   STATIC_ASSERT(sizeof(device->compiler_info.hw) == 12);
    STATIC_ASSERT(sizeof(device->compiler_info.key) == 12);
 
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct radv_device_cache_key *key = &device->cache_key;
+   uint32_t ptr_size = sizeof(void *);
+
    struct mesa_blake3 ctx;
-
-   key->family = pdev->info.family;
-   key->ptr_size = sizeof(void *);
-   key->conformant_trunc_coord = pdev->info.compiler_info.conformant_trunc_coord;
-
-   key->image_2d_view_of_3d = device->vk.enabled_features.image2DViewOf3D && pdev->info.gfx_level == GFX9;
-   key->mesh_shader_queries = device->vk.enabled_features.meshShaderQueries && pdev->emulate_mesh_shader_queries;
-   key->primitives_generated_query = radv_uses_primitives_generated_query(device);
-
-   /* The Vulkan spec says:
-    *  "Binary shaders retrieved from a physical device with a certain shaderBinaryUUID are
-    *   guaranteed to be compatible with all other physical devices reporting the same
-    *   shaderBinaryUUID and the same or higher shaderBinaryVersion."
-    *
-    * That means the driver should compile shaders for the "worst" case of all features being
-    * enabled, regardless of what features are actually enabled on the logical device.
-    */
-   if (device->vk.enabled_features.shaderObject) {
-      key->image_2d_view_of_3d = pdev->info.gfx_level == GFX9;
-      key->primitives_generated_query = true;
-   }
-
    _mesa_blake3_init(&ctx);
-   _mesa_blake3_update(&ctx, &device->cache_key, sizeof(device->cache_key));
+   _mesa_blake3_update(&ctx, &ptr_size, sizeof(ptr_size));
+   _mesa_blake3_update(&ctx, device->compiler_info.ac, sizeof(struct ac_compiler_info));
+   _mesa_blake3_update(&ctx, &device->compiler_info.hw, sizeof(device->compiler_info.hw));
    _mesa_blake3_update(&ctx, &device->compiler_info.key, sizeof(device->compiler_info.key));
    _mesa_blake3_final(&ctx, device->cache_hash);
 }
@@ -1146,6 +1125,23 @@ radv_device_init_compiler_info(struct radv_device *device)
       nggc_max_ps_params = pdev->info.has_dedicated_vram ? 12 : 8;
    }
 
+   bool image_2d_view_of_3d = device->vk.enabled_features.image2DViewOf3D && pdev->info.gfx_level == GFX9;
+   bool mesh_shader_queries = device->vk.enabled_features.meshShaderQueries && pdev->emulate_mesh_shader_queries;
+   bool primitives_generated_query = radv_uses_primitives_generated_query(device);
+
+   /* The Vulkan spec says:
+    *  "Binary shaders retrieved from a physical device with a certain shaderBinaryUUID are
+    *   guaranteed to be compatible with all other physical devices reporting the same
+    *   shaderBinaryUUID and the same or higher shaderBinaryVersion."
+    *
+    * That means the driver should compile shaders for the "worst" case of all features being
+    * enabled, regardless of what features are actually enabled on the logical device.
+    */
+   if (device->vk.enabled_features.shaderObject) {
+      image_2d_view_of_3d = pdev->info.gfx_level == GFX9;
+      primitives_generated_query = true;
+   }
+
    struct radv_compiler_info info = {
       /* Hardware info */
       .ac = &pdev->info.compiler_info,
@@ -1166,9 +1162,9 @@ radv_device_init_compiler_info(struct radv_device *device)
             .no_ngg_gs = instance->drirc.performance.disable_ngg_gs,
             .load_grid_size_from_user_sgpr = pdev->load_grid_size_from_user_sgpr,
             .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
-            .primitives_generated_query = device->cache_key.primitives_generated_query,
-            .mesh_shader_queries = device->cache_key.mesh_shader_queries,
-            .image_2d_view_of_3d = device->cache_key.image_2d_view_of_3d,
+            .primitives_generated_query = primitives_generated_query,
+            .mesh_shader_queries = mesh_shader_queries,
+            .image_2d_view_of_3d = image_2d_view_of_3d,
             .use_fmask = pdev->use_fmask,
             .robust_buffer_access = pdev->use_llvm && (device->vk.enabled_features.robustBufferAccess2 ||
                                                        device->vk.enabled_features.robustBufferAccess),

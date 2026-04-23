@@ -517,7 +517,8 @@ struct radv_compiler_info {
    struct {
       uint32_t family;
       uint32_t address32_hi;
-      bool rbplus_allowed;
+      uint32_t rbplus_allowed : 1;
+      uint32_t padding : 31;
    } hw;
 
    /* Misc values included as part of the cache key */

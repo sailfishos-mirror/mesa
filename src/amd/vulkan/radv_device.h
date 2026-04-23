@@ -54,18 +54,6 @@ struct radv_layer_dispatch_tables {
    struct vk_device_dispatch_table ctx_roll;
 };
 
-struct radv_device_cache_key {
-   enum radeon_family family;
-   uint32_t ptr_size;
-
-   uint32_t conformant_trunc_coord : 1;
-   uint32_t image_2d_view_of_3d : 1;
-   uint32_t mesh_shader_queries : 1;
-   uint32_t primitives_generated_query : 1;
-
-   uint32_t reserved : 28;
-};
-
 enum radv_force_vrs {
    RADV_FORCE_VRS_1x1 = 0,
    RADV_FORCE_VRS_2x2,
@@ -314,7 +302,6 @@ struct radv_device {
 
    struct radv_debug_nir debug_nir;
 
-   struct radv_device_cache_key cache_key;
    blake3_hash cache_hash;
 
    /* Not NULL if a GPU hang report has been generated for VK_EXT_device_fault. */
