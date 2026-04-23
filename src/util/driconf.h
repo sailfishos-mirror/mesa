@@ -948,6 +948,10 @@
    DRI_CONF_OPT_B(anv_barrier_post_typed_clear_shader, def, \
                   "Insert pipeline barriers post clearing shader on typed data")
 
+#define DRI_CONF_ANV_BRW_DISABLE_SUBGROUP_SIZE_CONTROL(def) \
+   DRI_CONF_OPT_B(anv_brw_disable_subgroup_size_control, def, \
+                  "Disable EXT_subgroup_size_control support when using brw compiler.")
+
 /**
  * \brief HASVK specific configuration options
  */
