@@ -525,7 +525,9 @@ struct radv_compiler_info {
       /* Shader features */
       uint32_t use_llvm : 1;
       uint32_t use_ngg : 1;
+      uint32_t use_ngg_culling : 1;
       uint32_t nggc_max_ps_params : 4;
+      uint32_t no_ngg_gs : 1;
       uint32_t load_grid_size_from_user_sgpr : 1;
       uint32_t emulate_ngg_gs_query_pipeline_stat : 1;
       uint32_t primitives_generated_query : 1;
@@ -533,7 +535,23 @@ struct radv_compiler_info {
       uint32_t image_2d_view_of_3d : 1;
       uint32_t use_fmask : 1;
       uint32_t robust_buffer_access : 1; /* Only used by LLVM. */
-      uint32_t padding : 19;
+      uint32_t mitigate_smem_oob : 1;
+      uint32_t bvh8 : 1;
+      uint32_t no_rt : 1;
+      uint32_t rt_cps : 1;
+      uint32_t clear_lds : 1;
+      uint32_t disable_aniso_single_level : 1;
+      uint32_t disable_shrink_image_store : 1;
+      uint32_t disable_sinking_load_input_fs : 1;
+      uint32_t disable_trunc_coord : 1;
+      uint32_t enable_mrt_output_nan_fixup : 1;
+      uint32_t emulate_rt : 1;
+      uint32_t invariant_geom : 1;
+      uint32_t split_fma : 1;
+      uint32_t ssbo_non_uniform : 1;
+      uint32_t tex_non_uniform : 1;
+      uint32_t lower_terminate_to_discard : 1;
+      uint32_t no_implicit_varying_subgroup_size : 1;
 
       int32_t force_aniso;
 
