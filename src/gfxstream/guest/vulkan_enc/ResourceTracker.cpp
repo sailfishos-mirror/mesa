@@ -1880,6 +1880,9 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_EXT_texture_compression_astc_hdr",
         "VK_EXT_tooling_info",
         "VK_EXT_ycbcr_2plane_444_formats",
+
+        // Android requirements
+        "VK_EXT_pipeline_protected_access",
     };
 
     VkEncoder* enc = (VkEncoder*)context;

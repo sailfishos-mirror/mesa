@@ -158,6 +158,9 @@ SUPPORTED_FEATURES = [
     # b/349122558 Zink
     "VK_EXT_color_write_enable",
     "VK_EXT_primitives_generated_query",
+
+    # Android requirements
+    "VK_EXT_pipeline_protected_access",
 ]
 
 HOST_MODULES = ["goldfish_vk_extension_structs", "goldfish_vk_marshaling",
