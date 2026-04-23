@@ -374,13 +374,25 @@ Block::try_reserve_kcache(const AluGroup& group)
       auto u = kc->as_uniform();
       assert(u);
       if (!try_reserve_kcache(*u, kcache)) {
+         m_has_pending_kcache = false;
          m_kcache_alloc_failed = true;
          return false;
       }
    }
 
-   m_kcache = kcache;
+   m_pending_kcache = kcache;
+   m_has_pending_kcache = true;
    m_kcache_alloc_failed = false;
+   return true;
+}
+
+bool
+Block::update_kcache_reservation(const AluGroup& group)
+{
+   if (!try_reserve_kcache(group))
+      return false;
+
+   commit_kcache_reservation();
    return true;
 }
 
@@ -405,14 +417,34 @@ Block::try_reserve_kcache(const AluInstr& instr)
       auto u = src->as_uniform();
       if (u) {
          if (!try_reserve_kcache(*u, kcache)) {
+            m_has_pending_kcache = false;
             m_kcache_alloc_failed = true;
             return false;
          }
       }
    }
-   m_kcache = kcache;
+   m_pending_kcache = kcache;
+   m_has_pending_kcache = true;
    m_kcache_alloc_failed = false;
    return true;
+}
+
+bool
+Block::update_kcache_reservation(const AluInstr& instr)
+{
+   if (!try_reserve_kcache(instr))
+      return false;
+
+   commit_kcache_reservation();
+   return true;
+}
+
+void
+Block::commit_kcache_reservation()
+{
+   assert(m_has_pending_kcache);
+   m_kcache = m_pending_kcache;
+   m_has_pending_kcache = false;
 }
 
 void

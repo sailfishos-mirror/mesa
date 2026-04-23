@@ -208,6 +208,11 @@ private:
    bool schedule_alu_to_group_vec(AluGroup& group);
    bool schedule_alu_multislot_to_group_vec(AluGroup& group);
    bool schedule_alu_to_group_trans(AluGroup& group, std::list<AluInstr *>& readylist);
+   bool can_schedule_alu_vec_instr_to_group(const AluInstr& instr,
+                                            bool group_has_kill,
+                                            bool group_has_update_pred,
+                                            bool& is_kill,
+                                            bool& does_update_pred);
    void update_idx_load_state(const AluInstr& instr);
 
    bool schedule_exports(Shader::ShaderBlocks& out_blocks,
@@ -713,7 +718,7 @@ BlockScheduler::schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_bloc
                     *group << "\n";
 
          /* Only start a new CF if we have no pending AR reads */
-         if (m_current_block->try_reserve_kcache(*group)) {
+         if (m_current_block->update_kcache_reservation(*group)) {
             alu_groups_ready.erase(alu_groups_ready.begin());
 
             for (auto i : *group) {
@@ -725,7 +730,7 @@ BlockScheduler::schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_bloc
             if (alu_ctx.expected_ar_uses == 0 && !m_current_block->lds_group_active()) {
                start_new_block(out_blocks, Block::alu);
 
-               if (!m_current_block->try_reserve_kcache(*group))
+               if (!m_current_block->update_kcache_reservation(*group))
                   UNREACHABLE("Scheduling a group in a new block should always succeed");
                alu_groups_ready.erase(alu_groups_ready.begin());
                sfn_log << SfnLog::schedule << "Schedule ALU group\n";
@@ -791,13 +796,13 @@ BlockScheduler::finalize_schedule_alu_group(Shader::ShaderBlocks& out_blocks,
          assert(!group.has_lds_group_start());
          assert(expected_ar_uses == 0);
          start_new_block(out_blocks, Block::alu);
-         m_current_block->try_reserve_kcache(group);
+         m_current_block->update_kcache_reservation(group);
       }
       if (addr->sel() == AddressRegister::idx1 && m_idx1_pending) {
          assert(!group.has_lds_group_start());
          assert(expected_ar_uses == 0);
          start_new_block(out_blocks, Block::alu);
-         m_current_block->try_reserve_kcache(group);
+         m_current_block->update_kcache_reservation(group);
       }
    }
 
@@ -1054,23 +1059,13 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
    while (i != e) {
       sfn_log << SfnLog::schedule << "Try schedule to vec " << **i;
 
-      if (check_array_reads(**i)) {
-         ++i;
-         continue;
-      }
-
-      bool is_kill = (*i)->is_kill();
-      bool does_update_pred = (*i)->has_alu_flag(alu_update_pred);
-
-      // don't kill while we hae LDS queue reads in the pipeline
-      if (is_kill && (m_current_block->lds_group_active())) {
-         ++i;
-         continue;
-      }
-
-      // don't put a kill and an update of the predicate into the
-      // same group
-      if ((group_has_kill && does_update_pred) || (group_has_update_pred && is_kill)) {
+      bool is_kill = false;
+      bool does_update_pred = false;
+      if (!can_schedule_alu_vec_instr_to_group(**i,
+                                               group_has_kill,
+                                               group_has_update_pred,
+                                               is_kill,
+                                               does_update_pred)) {
          ++i;
          continue;
       }
@@ -1082,6 +1077,7 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
       }
 
       if (group.add_vec_instructions(*i)) {
+         m_current_block->commit_kcache_reservation();
          (*i)->pin_dest_to_chan();
          group_has_update_pred |= (*i)->has_alu_flag(alu_update_pred);
          auto old_i = i;
@@ -1108,6 +1104,31 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
       }
    }
    return success;
+}
+
+bool
+BlockScheduler::can_schedule_alu_vec_instr_to_group(const AluInstr& instr,
+                                                    bool group_has_kill,
+                                                    bool group_has_update_pred,
+                                                    bool& is_kill,
+                                                    bool& does_update_pred)
+{
+   if (check_array_reads(instr))
+      return false;
+
+   is_kill = instr.is_kill();
+   does_update_pred = instr.has_alu_flag(alu_update_pred);
+
+   // don't kill while we hae LDS queue reads in the pipeline
+   if (is_kill && m_current_block->lds_group_active())
+      return false;
+
+   // don't put a kill and an update of the predicate into the
+   // same group
+   if ((group_has_kill && does_update_pred) || (group_has_update_pred && is_kill))
+      return false;
+
+   return true;
 }
 
 void
@@ -1207,6 +1228,7 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup& group)
       }
 
       if ((*i)->split(group)) {
+         m_current_block->commit_kcache_reservation();
          success = true;
          auto old_i = i;
          ++i;
@@ -1259,6 +1281,7 @@ BlockScheduler::schedule_alu_to_group_trans(AluGroup& group,
       }
 
       if (group.add_trans_instructions(*i)) {
+         m_current_block->commit_kcache_reservation();
          (*i)->pin_dest_to_chan();
          auto old_i = i;
          ++i;

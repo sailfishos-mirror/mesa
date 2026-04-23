@@ -204,6 +204,9 @@ public:
 
    bool try_reserve_kcache(const AluGroup& instr);
    bool try_reserve_kcache(const AluInstr& group);
+   void commit_kcache_reservation();
+   bool update_kcache_reservation(const AluGroup& instr);
+   bool update_kcache_reservation(const AluInstr& instr);
 
    auto last_lds_instr() { return m_last_lds_instr; }
    void set_last_lds_instr(Instr *instr) { m_last_lds_instr = instr; }
@@ -244,6 +247,8 @@ private:
    uint32_t m_remaining_slots{0xffff};
 
    std::array<KCacheLine, 4> m_kcache;
+   std::array<KCacheLine, 4> m_pending_kcache;
+   bool m_has_pending_kcache{false};
    bool m_kcache_alloc_failed{false};
 
    Instr *m_last_lds_instr{nullptr};
