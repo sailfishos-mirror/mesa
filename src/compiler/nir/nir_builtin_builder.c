@@ -199,12 +199,12 @@ build_asin(nir_builder *b, nir_def *x, bool piecewise)
    }
    nir_def *abs_x = nir_fabs(b, x);
 
-   nir_def *p0_plus_xp1 = nir_ffma_imm12(b, abs_x, -0.0187293, 0.0742610);
+   nir_def *p0_plus_xp1 = nir_ffma_weak_imm12(b, abs_x, -0.0187293, 0.0742610);
 
    nir_def *expr_tail =
-      nir_ffma_imm2(b, abs_x,
-                       nir_ffma_imm2(b, abs_x, p0_plus_xp1, -0.2121144),
-                       1.5707288);
+      nir_ffma_weak_imm2(b, abs_x,
+                            nir_ffma_weak_imm2(b, abs_x, p0_plus_xp1, -0.2121144),
+                            1.5707288);
 
    nir_def *result0 = nir_fmul(b, nir_fsign(b, x),
                       nir_a_minus_bc(b, nir_imm_floatN_t(b, M_PI_2f, x->bit_size),
@@ -217,7 +217,7 @@ build_asin(nir_builder *b, nir_def *x, bool piecewise)
       nir_def *x2 = nir_fmul(b, x, x);
       nir_def *result1 = nir_fmul(b,
                                   x,
-                                  nir_ffma_imm12(b, x2, (1.0/6.0), 1.0));
+                                  nir_ffma_weak_imm12(b, x2, (1.0/6.0), 1.0));
       return nir_bcsel(b,
                        nir_flt_imm(b, abs_x, 0.21502245),
                        result1,
@@ -277,7 +277,7 @@ nir_atan(nir_builder *b, nir_def *y_over_x)
    nir_def *res = nir_imm_floatN_t(b, coeffs[0], bit_size);
 
    for (unsigned i = 1; i < ARRAY_SIZE(coeffs); ++i) {
-      res = nir_ffma_imm2(b, res, x_2, coeffs[i]);
+      res = nir_ffma_weak_imm2(b, res, x_2, coeffs[i]);
    }
 
    /* range-reduction fixup value */
@@ -359,7 +359,7 @@ nir_atan2(nir_builder *b, nir_def *y, nir_def *x)
     * coordinate system.
     */
    nir_def *arc =
-      nir_ffma_imm1(b, nir_b2fN(b, flip, bit_size), M_PI_2, nir_atan(b, tan));
+      nir_ffma_weak_imm1(b, nir_b2fN(b, flip, bit_size), M_PI_2, nir_atan(b, tan));
 
    /* Rather convoluted calculation of the sign of the result.  When x < 0 we
     * cannot use fsign because we need to be able to distinguish between

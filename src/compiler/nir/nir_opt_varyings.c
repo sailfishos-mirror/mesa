@@ -1075,7 +1075,7 @@ static nir_def *
 build_convert_inf_to_nan(nir_builder *b, nir_def *x)
 {
    /* Do x*0 + x. The multiplication by 0 can't be optimized out. */
-   nir_def *fma = nir_ffma_imm1(b, x, 0, x);
+   nir_def *fma = nir_ffma_weak_imm1(b, x, 0, x);
    nir_def_as_alu(fma)->fp_math_ctrl = nir_fp_preserve_nan | nir_fp_preserve_inf | nir_fp_exact;
    return fma;
 }

@@ -413,8 +413,8 @@ BEGIN_TEST(d3d11_derivs.cube)
    pbld.add_vsfs(vs, fs);
 
    //>> v1: %face = v_cubeid_f32 (kill)%_, (kill)%_, (kill)%_
-   //>> v1: %x = v_fmaak_f32 (kill)%_, %_, 0x3fc00000
-   //>> v1: %y = v_fmaak_f32 (kill)%_, (kill)%_, 0x3fc00000
+   //>> v1: %y = v_fmaak_f32 (kill)%_, %_, 0x3fc00000
+   //>> v1: %x = v_fmaak_f32 (kill)%_, (kill)%_, 0x3fc00000
    //>> lv3: %wqm = p_start_linear_vgpr (kill)%x, (kill)%y, (kill)%face
    //>> BB1
    //>> v4: %_ = image_sample (kill)%_, (kill)%_, v1: undef, %wqm cube da
@@ -425,8 +425,8 @@ BEGIN_TEST(d3d11_derivs.cube)
 
    //>> v_cubeid_f32 v#rf_tmp, v#_, v#_, v#_                                                 ; $_ $_
    //>> v_mov_b32_e32 v#rf, v#rf_tmp                                                         ; $_
-   //>> v_fmaak_f32 v#rx_tmp, v#_, v#_, 0x3fc00000                                           ; $_ $_
    //>> v_fmaak_f32 v#ry_tmp, v#_, v#_, 0x3fc00000                                           ; $_ $_
+   //>> v_fmaak_f32 v#rx_tmp, v#_, v#_, 0x3fc00000                                           ; $_ $_
    //>> v_lshrrev_b64 v[#rx:#ry], 0, v[#rx_tmp:#ry_tmp]                                      ; $_ $_
    //; success = rx+1 == ry and rx+2 == rf
    //>> image_sample v[#_:#_], v[#rx:#rf], s[#_:#_], s[#_:#_] dmask:0xf dim:SQ_RSRC_IMG_CUBE ; $_ $_
@@ -458,10 +458,10 @@ BEGIN_TEST(d3d11_derivs.cube_array)
    pbld.add_vsfs(vs, fs);
 
    //>> v1: %face = v_cubeid_f32 (kill)%_, (kill)%_, (kill)%_
-   //>> v1: %x = v_fmaak_f32 (kill)%_, %_, 0x3fc00000
-   //>> v1: %y = v_fmaak_f32 (kill)%_, (kill)%_, 0x3fc00000
    //>> v1: %layer = v_rndne_f32 (kill)%_
    //>> v1: %face_layer = v_fmamk_f32 (kill)%layer, (kill)%face, 0x41000000
+   //>> v1: %x = v_fmaak_f32 (kill)%_, %_, 0x3fc00000
+   //>> v1: %y = v_fmaak_f32 (kill)%_, (kill)%_, 0x3fc00000
    //>> lv3: %wqm = p_start_linear_vgpr (kill)%x, (kill)%y, (kill)%face_layer
    //>> BB1
    //>> v4: %_ = image_sample (kill)%_, (kill)%_, v1: undef, %wqm cube da
@@ -655,8 +655,8 @@ BEGIN_TEST(d3d11_derivs.cube_txd_to_tex)
    pbld.add_vsfs(vs, fs);
 
    //>> v1: %face = v_cubeid_f32 (kill)%_, (kill)%_, (kill)%_
-   //>> v1: %x = v_fmaak_f32 (kill)%_, %_, 0x3fc00000
-   //>> v1: %y = v_fmaak_f32 (kill)%_, (kill)%_, 0x3fc00000
+   //>> v1: %y = v_fmaak_f32 (kill)%_, %_, 0x3fc00000
+   //>> v1: %x = v_fmaak_f32 (kill)%_, (kill)%_, 0x3fc00000
    //>> lv3: %wqm = p_start_linear_vgpr (kill)%x, (kill)%y, (kill)%face
    //>> BB1
    //>> v4: %_ = image_sample (kill)%_, (kill)%_, v1: undef, %wqm cube da
@@ -667,8 +667,8 @@ BEGIN_TEST(d3d11_derivs.cube_txd_to_tex)
 
    //>> v_cubeid_f32 v#rf_tmp, v#_, v#_, v#_                                                 ; $_ $_
    //>> v_mov_b32_e32 v#rf, v#rf_tmp                                                         ; $_
-   //>> v_fmaak_f32 v#rx_tmp, v#_, v#_, 0x3fc00000                                           ; $_ $_
    //>> v_fmaak_f32 v#ry_tmp, v#_, v#_, 0x3fc00000                                           ; $_ $_
+   //>> v_fmaak_f32 v#rx_tmp, v#_, v#_, 0x3fc00000                                           ; $_ $_
    //>> v_lshrrev_b64 v[#rx:#ry], 0, v[#rx_tmp:#ry_tmp]                                      ; $_ $_
    //; success = rx+1 == ry and rx+2 == rf
    //>> image_sample v[#_:#_], v[#rx:#rf], s[#_:#_], s[#_:#_] dmask:0xf dim:SQ_RSRC_IMG_CUBE ; $_ $_

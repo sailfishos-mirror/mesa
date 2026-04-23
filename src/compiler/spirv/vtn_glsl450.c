@@ -503,11 +503,11 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
    case GLSLstd450Asinh:
       dest->def = nir_fmul(nb, nir_fsign(nb, src[0]),
          nir_flog(nb, nir_fadd(nb, nir_fabs(nb, src[0]),
-                      nir_fsqrt(nb, nir_ffma_imm2(nb, src[0], src[0], 1.0f)))));
+                      nir_fsqrt(nb, nir_ffma_weak_imm2(nb, src[0], src[0], 1.0f)))));
       break;
    case GLSLstd450Acosh:
       dest->def = nir_flog(nb, nir_fadd(nb, src[0],
-         nir_fsqrt(nb, nir_ffma_imm2(nb, src[0], src[0], -1.0f))));
+         nir_fsqrt(nb, nir_ffma_weak_imm2(nb, src[0], src[0], -1.0f))));
       break;
    case GLSLstd450Atanh: {
       dest->def =

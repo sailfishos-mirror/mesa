@@ -214,7 +214,7 @@ static inline nir_def *cs_chroma_offset(struct cs_shader *s, nir_def *src, unsig
    nir_def *offset = nir_channels(b, s->params[3], 0x3 << 2);
    if (flags & COORDS_CHROMA)
       return nir_fadd(b, src, offset);
-   return nir_ffma_imm1(b, offset, -0.5f, src);
+   return nir_ffma_weak_imm1(b, offset, -0.5f, src);
 }
 
 static inline nir_def *cs_clamp(struct cs_shader *s, nir_def *src, unsigned flags)
