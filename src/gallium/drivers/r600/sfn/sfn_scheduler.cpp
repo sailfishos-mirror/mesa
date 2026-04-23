@@ -178,6 +178,7 @@ private:
       bool has_lds_ready{false};
       bool has_ar_read_ready{false};
       int expected_ar_uses{0};
+      bool had_kcache_failure_in_fill{false};
    };
 
    enum class AluGroupFillResult {
@@ -189,14 +190,13 @@ private:
    bool schedule_alu(Shader::ShaderBlocks& out_blocks);
    AluGroupFillResult fill_alu_group(Shader::ShaderBlocks& out_blocks,
                                      AluGroup& group,
-                                     const AluScheduleContext& alu_ctx);
+                                     AluScheduleContext& alu_ctx);
    bool try_schedule_alu_trans_slot(AluGroup& group,
-                                    const AluScheduleContext& alu_ctx,
+                                    AluScheduleContext& alu_ctx,
                                     int free_slots);
    AluGroupFillResult handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
                                                     AluGroup& group,
-                                                    const AluScheduleContext& alu_ctx,
-                                                    bool had_kcache_failure);
+                                                    const AluScheduleContext& alu_ctx);
    auto schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_blocks,
                                           bool& success,
                                           const AluScheduleContext& alu_ctx) -> AluGroup*;
@@ -206,9 +206,11 @@ private:
                                     int expected_ar_uses);
    void start_new_block(Shader::ShaderBlocks& out_blocks, Block::Type type);
 
-   bool schedule_alu_to_group_vec(AluGroup& group);
-   bool schedule_alu_multislot_to_group_vec(AluGroup& group);
-   bool schedule_alu_to_group_trans(AluGroup& group, std::list<AluInstr *>& readylist);
+   bool schedule_alu_to_group_vec(AluGroup& group, AluScheduleContext& alu_ctx);
+   bool schedule_alu_multislot_to_group_vec(AluGroup& group, AluScheduleContext& alu_ctx);
+   bool schedule_alu_to_group_trans(AluGroup& group,
+                                    std::list<AluInstr *>& readylist,
+                                    AluScheduleContext& alu_ctx);
    bool can_schedule_alu_vec_instr_to_group(const AluInstr& instr,
                                             bool group_has_kill,
                                             bool group_has_update_pred,
@@ -268,7 +270,6 @@ private:
    bool m_idx1_loading{false};
    bool m_idx0_pending{false};
    bool m_idx1_pending{false};
-   bool m_had_kcache_failure_in_fill{false};
 
    bool m_nop_after_rel_dest{false};
    bool m_nop_befor_rel_src{false};
@@ -606,7 +607,7 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
 BlockScheduler::AluGroupFillResult
 BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
                                AluGroup& group,
-                               const AluScheduleContext& alu_ctx)
+                               AluScheduleContext& alu_ctx)
 {
    auto result = AluGroupFillResult::retry;
    int free_slots = group.free_slot_mask();
@@ -614,13 +615,13 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
    while (free_slots && alu_ctx.has_alu_ready) {
 
       if (!alu_multi_slot_ready.empty()) {
-         if (schedule_alu_multislot_to_group_vec(group))
+         if (schedule_alu_multislot_to_group_vec(group, alu_ctx))
             result = AluGroupFillResult::scheduled;
          free_slots = group.free_slot_mask();
       }
 
       if (!alu_vec_ready.empty())
-         if (schedule_alu_to_group_vec(group))
+         if (schedule_alu_to_group_vec(group, alu_ctx))
             result = AluGroupFillResult::scheduled;
 
       if (group.has_kill_op())
@@ -634,8 +635,8 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
          return result;
       }
 
-      auto failure_type = handle_alu_group_fill_failure(out_blocks, group, alu_ctx, m_had_kcache_failure_in_fill);
-      m_had_kcache_failure_in_fill = false;
+      auto failure_type = handle_alu_group_fill_failure(out_blocks, group, alu_ctx);
+      alu_ctx.had_kcache_failure_in_fill = false;
       if (failure_type != AluGroupFillResult::retry)
          return failure_type;
 
@@ -647,7 +648,7 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
 
 bool
 BlockScheduler::try_schedule_alu_trans_slot(AluGroup& group,
-                                            const AluScheduleContext& alu_ctx,
+                                            AluScheduleContext& alu_ctx,
                                             int free_slots)
 {
    /* Apparently one can't schedule a t-slot if there is already
@@ -660,9 +661,9 @@ BlockScheduler::try_schedule_alu_trans_slot(AluGroup& group,
    if (free_slots & AluOp::t && !alu_ctx.has_lds_ready) {
       sfn_log << SfnLog::schedule << "Try schedule TRANS channel\n";
       if (!alu_trans_ready.empty())
-         scheduled |= schedule_alu_to_group_trans(group, alu_trans_ready);
+         scheduled |= schedule_alu_to_group_trans(group, alu_trans_ready, alu_ctx);
       if (!alu_vec_ready.empty())
-         scheduled |= schedule_alu_to_group_trans(group, alu_vec_ready);
+         scheduled |= schedule_alu_to_group_trans(group, alu_vec_ready, alu_ctx);
    }
 
    return scheduled;
@@ -671,10 +672,9 @@ BlockScheduler::try_schedule_alu_trans_slot(AluGroup& group,
 BlockScheduler::AluGroupFillResult
 BlockScheduler::handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
                                               AluGroup& group,
-                                              const AluScheduleContext& alu_ctx,
-                                              bool had_kcache_failure)
+                                              const AluScheduleContext& alu_ctx)
 {
-   if (had_kcache_failure) {
+   if (alu_ctx.had_kcache_failure_in_fill) {
       // LDS read groups should not lead to impossible
       // kcache constellations
       assert(!m_current_block->lds_group_active());
@@ -1051,7 +1051,7 @@ BlockScheduler::schedule_cf(Shader::ShaderBlocks& out_blocks, std::list<I *>& re
 }
 
 bool
-BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
+BlockScheduler::schedule_alu_to_group_vec(AluGroup& group, AluScheduleContext& alu_ctx)
 {
    assert(!alu_vec_ready.empty());
 
@@ -1075,7 +1075,7 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
       }
 
       auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
-      m_had_kcache_failure_in_fill = !reserved;
+      alu_ctx.had_kcache_failure_in_fill |= !reserved;
 
       if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
@@ -1171,7 +1171,7 @@ BlockScheduler::update_idx_load_state(const AluInstr& instr)
 }
 
 bool
-BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup& group)
+BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup& group, AluScheduleContext& alu_ctx)
 {
    assert(!alu_multi_slot_ready.empty());
 
@@ -1229,7 +1229,7 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup& group)
       }
 
       auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
-      m_had_kcache_failure_in_fill = !reserved;
+      alu_ctx.had_kcache_failure_in_fill |= !reserved;
 
       if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
@@ -1261,7 +1261,8 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup& group)
 
 bool
 BlockScheduler::schedule_alu_to_group_trans(AluGroup& group,
-                                            std::list<AluInstr *>& readylist)
+                                            std::list<AluInstr *>& readylist,
+                                            AluScheduleContext& alu_ctx)
 {
    bool success = false;
    auto i = readylist.begin();
@@ -1279,7 +1280,7 @@ BlockScheduler::schedule_alu_to_group_trans(AluGroup& group,
 
       sfn_log << SfnLog::schedule << "Try schedule to trans " << **i;
       auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
-      m_had_kcache_failure_in_fill = !reserved;
+      alu_ctx.had_kcache_failure_in_fill |= !reserved;
 
       if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
