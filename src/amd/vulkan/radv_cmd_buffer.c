@@ -16234,9 +16234,7 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
          radv_bind_shader(cmd_buffer, NULL, MESA_SHADER_COMPUTE);
          cmd_buffer->state.compute_pipeline = NULL;
       }
-      if (cmd_buffer->state.emitted_compute_pipeline) {
-         cmd_buffer->state.emitted_compute_pipeline = NULL;
-      }
+      cmd_buffer->state.emitted_compute_pipeline = NULL;
       break;
    case VK_PIPELINE_BIND_POINT_GRAPHICS:
       if (cmd_buffer->state.graphics_pipeline) {
@@ -16252,8 +16250,9 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
          cmd_buffer->state.ms.min_sample_shading = 1.0f;
          cmd_buffer->state.uses_out_of_order_rast = false;
          cmd_buffer->state.uses_vrs_attachment = false;
-      }
-      if (cmd_buffer->state.emitted_graphics_pipeline) {
+         cmd_buffer->state.uses_vrs = false;
+         cmd_buffer->state.uses_vrs_coarse_shading = false;
+
          radv_bind_custom_blend_mode(cmd_buffer, 0);
 
          if (cmd_buffer->state.spi_shader_col_format || cmd_buffer->state.spi_shader_z_format ||
@@ -16263,18 +16262,13 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
             cmd_buffer->state.cb_shader_mask = 0;
             cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FRAGMENT_OUTPUT;
          }
-
-         cmd_buffer->state.uses_vrs = false;
-         cmd_buffer->state.uses_vrs_coarse_shading = false;
-
-         cmd_buffer->state.emitted_graphics_pipeline = NULL;
       }
+      cmd_buffer->state.emitted_graphics_pipeline = NULL;
+      cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_PIPELINE;
       break;
    default:
       break;
    }
-
-   cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_PIPELINE;
 }
 
 static void
