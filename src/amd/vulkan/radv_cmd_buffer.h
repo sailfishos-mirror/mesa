@@ -191,6 +191,9 @@ struct radv_streamout_state {
 
    /* VA of the streamout state (GFX12+). */
    uint64_t state_va;
+
+   /* Whether streamout is suspended for internal driver operations. */
+   bool suspended;
 };
 
 /**
@@ -430,9 +433,6 @@ struct radv_cmd_state {
 
    struct radv_shader_part *ps_epilog;
 
-   /* Whether to suspend streamout for internal driver operations. */
-   bool suspend_streamout;
-
    struct radv_ia_multi_vgt_param_helpers ia_multi_vgt_param;
 
    /* Tessellation info when patch control points is dynamic. */
@@ -633,7 +633,7 @@ radv_is_streamout_enabled(struct radv_cmd_buffer *cmd_buffer)
    struct radv_streamout_state *so = &cmd_buffer->state.streamout;
 
    /* Streamout must be enabled for the PRIMITIVES_GENERATED query to work. */
-   return (so->streamout_enabled || cmd_buffer->state.active_prims_gen_queries) && !cmd_buffer->state.suspend_streamout;
+   return (so->streamout_enabled || cmd_buffer->state.active_prims_gen_queries) && !so->suspended;
 }
 
 ALWAYS_INLINE static unsigned

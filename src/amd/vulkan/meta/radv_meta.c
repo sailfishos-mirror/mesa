@@ -40,7 +40,7 @@ radv_suspend_queries(struct radv_meta_saved_state *state, struct radv_cmd_buffer
 
    /* Primitives generated queries (legacy). */
    if (cmd_buffer->state.active_prims_gen_queries) {
-      cmd_buffer->state.suspend_streamout = true;
+      cmd_buffer->state.streamout.suspended = true;
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_STREAMOUT_ENABLE;
    }
 
@@ -83,7 +83,7 @@ radv_resume_queries(const struct radv_meta_saved_state *state, struct radv_cmd_b
 
    /* Primitives generated queries (legacy). */
    if (cmd_buffer->state.active_prims_gen_queries) {
-      cmd_buffer->state.suspend_streamout = false;
+      cmd_buffer->state.streamout.suspended = false;
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_STREAMOUT_ENABLE;
    }
 
