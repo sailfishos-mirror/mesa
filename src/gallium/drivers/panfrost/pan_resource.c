@@ -1376,6 +1376,14 @@ panfrost_load_tiled_images(struct panfrost_transfer *transfer,
    }
 }
 
+bool
+panfrost_resource_wait(struct panfrost_resource *rsrc,
+                       UNUSED struct panfrost_context *ctx, int64_t timeout_ns,
+                       bool wait_readers)
+{
+   return panfrost_bo_wait(rsrc->bo, timeout_ns, wait_readers);
+}
+
 #if MESA_DEBUG
 
 void
@@ -1413,7 +1421,7 @@ pan_dump_resource(struct panfrost_context *ctx, struct panfrost_resource *rsc)
    }
 
    panfrost_flush_writer(ctx, linear, "dump image");
-   panfrost_bo_wait(linear->bo, INT64_MAX, false);
+   panfrost_resource_wait(linear, ctx, INT64_MAX, false);
 
    if (!panfrost_bo_mmap(linear->bo)) {
       static unsigned frame_count = 0;
@@ -1549,7 +1557,7 @@ panfrost_ptr_map(struct pipe_context *pctx, struct pipe_resource *resource,
           (valid || panfrost_any_batch_writes_rsrc(ctx, rsrc))) {
          pan_blit_to_staging(pctx, transfer);
          panfrost_flush_writer(ctx, staging, "AFBC/AFRC tex read staging blit");
-         panfrost_bo_wait(staging->bo, INT64_MAX, false);
+         panfrost_resource_wait(staging, ctx, INT64_MAX, false);
       }
 
       if (panfrost_bo_mmap(staging->bo))
@@ -1596,7 +1604,7 @@ panfrost_ptr_map(struct pipe_context *pctx, struct pipe_resource *resource,
        */
 
       panfrost_flush_writer(ctx, rsrc, "Shadow resource creation");
-      panfrost_bo_wait(bo, INT64_MAX, false);
+      panfrost_resource_wait(rsrc, ctx, INT64_MAX, false);
 
       create_new_bo = true;
       copy_resource = !(usage & PIPE_MAP_DISCARD_WHOLE_RESOURCE);
@@ -1621,7 +1629,7 @@ panfrost_ptr_map(struct pipe_context *pctx, struct pipe_resource *resource,
        * batches), we try to allocate a new one to avoid waiting.
        */
       if (panfrost_any_batch_reads_rsrc(ctx, rsrc) ||
-          !panfrost_bo_wait(bo, 0, true)) {
+          !panfrost_resource_wait(rsrc, ctx, 0, true)) {
          /* We want the BO to be MMAPed. */
          uint32_t flags = bo->flags & ~PAN_BO_DELAY_MMAP;
          struct panfrost_bo *newbo = NULL;
@@ -1662,16 +1670,16 @@ panfrost_ptr_map(struct pipe_context *pctx, struct pipe_resource *resource,
              */
             panfrost_flush_batches_accessing_rsrc(
                ctx, rsrc, "Resource access with high memory pressure");
-            panfrost_bo_wait(bo, INT64_MAX, true);
+            panfrost_resource_wait(rsrc, ctx, INT64_MAX, true);
          }
       }
    } else if (!(usage & PIPE_MAP_UNSYNCHRONIZED)) {
       if (usage & PIPE_MAP_WRITE) {
          panfrost_flush_batches_accessing_rsrc(ctx, rsrc, "Synchronized write");
-         panfrost_bo_wait(bo, INT64_MAX, true);
+         panfrost_resource_wait(rsrc, ctx, INT64_MAX, true);
       } else if (usage & PIPE_MAP_READ) {
          panfrost_flush_writer(ctx, rsrc, "Synchronized read");
-         panfrost_bo_wait(bo, INT64_MAX, false);
+         panfrost_resource_wait(rsrc, ctx, INT64_MAX, false);
       }
    }
 
@@ -2200,7 +2208,7 @@ pan_resource_afbcp_update(struct panfrost_context *ctx,
 
    /* 1st async AFBC-P step: get payload sizes. */
    if (!prsrc->afbcp->layout_bo) {
-      if (!panfrost_bo_wait(prsrc->bo, 0, false))
+      if (!panfrost_resource_wait(prsrc, ctx, 0, false))
          return;
       if (!pan_resource_afbcp_get_payload_sizes(ctx, prsrc))
          goto stop_packing;
@@ -2225,7 +2233,7 @@ pan_resource_afbcp_update(struct panfrost_context *ctx,
 
    /* 3rd async AFBC-P step: pack. */
    if (!prsrc->afbcp->packed_bo) {
-      if (!panfrost_bo_wait(prsrc->bo, 0, false) ||
+      if (!panfrost_resource_wait(prsrc, ctx, 0, false) ||
           !panfrost_bo_wait(prsrc->afbcp->layout_bo, 0, false))
          return;
       if (!pan_resource_afbcp_pack(ctx, prsrc))
