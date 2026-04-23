@@ -512,6 +512,7 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
       jay_BFI2(b, dst, src[0], src[1], src[2]);
       break;
 
+   case nir_op_ffma:
    case nir_op_ffma_old:
       jay_MAD(b, type, dst, src[0], src[1], src[2]);
       break;
