@@ -1066,6 +1066,11 @@ vk_common_GetAndroidHardwareBufferPropertiesANDROID(
          format_resolve->colorAttachmentFormat =
             num_bits == 8 ? VK_FORMAT_R8G8B8A8_UNORM
                           : VK_FORMAT_R16G16B16A16_UNORM;
+
+         format_prop2->formatFeatures |= VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT;
+         if (format_prop) {
+            format_prop->formatFeatures |= VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT;
+         }
       } else {
          format_resolve->colorAttachmentFormat = VK_FORMAT_UNDEFINED;
       }
