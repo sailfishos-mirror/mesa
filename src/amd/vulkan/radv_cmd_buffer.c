@@ -9147,7 +9147,7 @@ radv_bind_graphics_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_grap
 
    cmd_buffer->state.graphics_pipeline = graphics_pipeline;
 
-   cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PIPELINE;
+   cmd_buffer->state.dirty |= RADV_CMD_DIRTY_GRAPHICS_PIPELINE;
    cmd_buffer->push_constant_stages |= graphics_pipeline->active_stages;
 
    /* Prefetch all pipeline shaders at first draw time. */
@@ -10106,7 +10106,7 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
     * some states.
     */
    primary->state.dirty_dynamic |= RADV_DYNAMIC_ALL;
-   primary->state.dirty |= RADV_CMD_DIRTY_PIPELINE | RADV_CMD_DIRTY_INDEX_BUFFER | RADV_CMD_DIRTY_GUARDBAND |
+   primary->state.dirty |= RADV_CMD_DIRTY_GRAPHICS_PIPELINE | RADV_CMD_DIRTY_INDEX_BUFFER | RADV_CMD_DIRTY_GUARDBAND |
                            RADV_CMD_DIRTY_SHADER_QUERY | RADV_CMD_DIRTY_OCCLUSION_QUERY |
                            RADV_CMD_DIRTY_DB_SHADER_CONTROL | RADV_CMD_DIRTY_FRAGMENT_OUTPUT;
    radv_mark_descriptors_dirty(primary, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -12855,7 +12855,7 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
    const uint64_t dynamic_states = cmd_buffer->state.dirty_dynamic & radv_get_needed_dynamic_states(cmd_buffer);
-   if (((cmd_buffer->state.dirty & (RADV_CMD_DIRTY_PIPELINE | RADV_CMD_DIRTY_GRAPHICS_SHADERS)) ||
+   if (((cmd_buffer->state.dirty & (RADV_CMD_DIRTY_GRAPHICS_PIPELINE | RADV_CMD_DIRTY_GRAPHICS_SHADERS)) ||
         (dynamic_states & RADV_DYNAMIC_PATCH_CONTROL_POINTS))) {
       if (cmd_buffer->state.active_stages & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT) {
          const struct radv_shader *vs = radv_get_shader(cmd_buffer->state.shaders, MESA_SHADER_VERTEX);
@@ -12880,7 +12880,7 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
       }
    }
 
-   if ((cmd_buffer->state.dirty & (RADV_CMD_DIRTY_PIPELINE | RADV_CMD_DIRTY_GRAPHICS_SHADERS)) ||
+   if ((cmd_buffer->state.dirty & (RADV_CMD_DIRTY_GRAPHICS_PIPELINE | RADV_CMD_DIRTY_GRAPHICS_SHADERS)) ||
        (dynamic_states & (RADV_DYNAMIC_PRIMITIVE_TOPOLOGY | RADV_DYNAMIC_POLYGON_MODE |
                           RADV_DYNAMIC_LINE_RASTERIZATION_MODE | RADV_DYNAMIC_RASTERIZATION_SAMPLES))) {
       const uint32_t vgt_outprim_type = radv_get_vgt_outprim_type(cmd_buffer);
@@ -12948,9 +12948,9 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
       cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_BINNING_STATE;
    }
 
-   if (cmd_buffer->state.dirty & RADV_CMD_DIRTY_PIPELINE) {
+   if (cmd_buffer->state.dirty & RADV_CMD_DIRTY_GRAPHICS_PIPELINE) {
       radv_emit_graphics_pipeline(cmd_buffer);
-      cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_PIPELINE;
+      cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_GRAPHICS_PIPELINE;
    } else if (cmd_buffer->state.dirty & RADV_CMD_DIRTY_GRAPHICS_SHADERS) {
       radv_emit_graphics_shaders(cmd_buffer);
       cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_GRAPHICS_SHADERS;
@@ -16264,7 +16264,7 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
          }
       }
       cmd_buffer->state.emitted_graphics_pipeline = NULL;
-      cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_PIPELINE;
+      cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_GRAPHICS_PIPELINE;
       break;
    default:
       break;

@@ -85,7 +85,7 @@ enum radv_dynamic_state_bits {
 };
 
 enum radv_cmd_dirty_bits {
-   RADV_CMD_DIRTY_PIPELINE = 1ull << 0,
+   RADV_CMD_DIRTY_GRAPHICS_PIPELINE = 1ull << 0,
    RADV_CMD_DIRTY_INDEX_BUFFER = 1ull << 1,
    RADV_CMD_DIRTY_VERTEX_BUFFER = 1ull << 2,
    RADV_CMD_DIRTY_STREAMOUT_BUFFER = 1ull << 3,
