@@ -333,12 +333,16 @@ propagate_backwards(jay_function *f)
          continue;
       }
 
-      /* Fold UGPR->{GPR, FLAG} and UFLAG->FLAG copies coming out of NIR */
+      /* Fold UGPR->{GPR, FLAG} and UFLAG->FLAG copies coming out of NIR.
+       * Inverse-ballots are propagated only locally.
+       */
       if (use->type ==
              (flag ? JAY_TYPE_U1 : canonicalize_for_bit_compare(I->type)) &&
           I->op != JAY_OPCODE_PHI_DST &&
           use->op == JAY_OPCODE_MOV &&
-          use->dst.file != J_ADDRESS) {
+          use->dst.file != J_ADDRESS &&
+          (!jay_is_flag(use->dst) ||
+           def_block[jay_base_index(use->dst)] == block->index)) {
 
          *(flag ? &I->cond_flag : &I->dst) = use->dst;
          jay_remove_instruction(use);
