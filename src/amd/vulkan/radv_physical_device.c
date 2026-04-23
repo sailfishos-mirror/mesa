@@ -294,40 +294,11 @@ radv_physical_device_init_cache_key(struct radv_physical_device *pdev)
    STATIC_ASSERT(sizeof(enum radeon_family) == 4);
    STATIC_ASSERT(sizeof(struct radv_physical_device_cache_key) == 12);
 
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct radv_physical_device_cache_key *key = &pdev->cache_key;
 
    key->family = pdev->info.family;
    key->ptr_size = sizeof(void *);
    key->conformant_trunc_coord = pdev->info.compiler_info.conformant_trunc_coord;
-
-   key->clear_lds = instance->drirc.misc.clear_lds;
-   key->cs_wave32 = pdev->cs_wave_size == 32;
-   key->disable_aniso_single_level = instance->drirc.debug.disable_aniso_single_level;
-   key->disable_shrink_image_store = instance->drirc.debug.disable_shrink_image_store;
-   key->disable_sinking_load_input_fs = instance->drirc.debug.disable_sinking_load_input_fs;
-   key->disable_trunc_coord = instance->drirc.debug.disable_trunc_coord;
-   key->enable_mrt_output_nan_fixup = instance->drirc.debug.enable_mrt_output_nan_fixup;
-   key->emulate_rt = radv_emulate_rt(pdev);
-   key->bvh8 = radv_use_bvh8(pdev);
-   key->ge_wave32 = pdev->ge_wave_size == 32;
-   key->invariant_geom = instance->drirc.debug.invariant_geom;
-   key->no_fmask = !!(instance->debug_flags & RADV_DEBUG_NO_FMASK);
-   key->no_ngg_gs = instance->drirc.performance.disable_ngg_gs;
-   key->no_rt = !!(instance->debug_flags & RADV_DEBUG_NO_RT);
-   key->ps_wave32 = pdev->ps_wave_size == 32;
-   key->rt_wave64 = pdev->rt_wave_size == 64;
-   key->split_fma = instance->drirc.debug.split_fma;
-   key->ssbo_non_uniform = instance->drirc.debug.ssbo_non_uniform;
-   key->tex_non_uniform = instance->drirc.debug.tex_non_uniform;
-   key->lower_terminate_to_discard = instance->drirc.debug.lower_terminate_to_discard;
-   key->use_llvm = pdev->use_llvm;
-   key->use_ngg = pdev->use_ngg;
-   key->use_ngg_culling = pdev->use_ngg_culling;
-   key->no_implicit_varying_subgroup_size = instance->drirc.debug.no_implicit_varying_subgroup_size;
-   key->mitigate_smem_oob =
-      pdev->info.compiler_info.has_smem_oob_access_bug && !(instance->debug_flags & RADV_DEBUG_NO_SMEM_MITIGATION);
-   key->rt_cps = !!(instance->perftest_flags & RADV_PERFTEST_RT_CPS);
 }
 
 static int

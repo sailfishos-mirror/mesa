@@ -39,36 +39,8 @@ struct radv_binning_settings {
 struct radv_physical_device_cache_key {
    enum radeon_family family;
    uint32_t ptr_size;
-
    uint32_t conformant_trunc_coord : 1;
-   uint32_t clear_lds : 1;
-   uint32_t cs_wave32 : 1;
-   uint32_t disable_aniso_single_level : 1;
-   uint32_t disable_shrink_image_store : 1;
-   uint32_t disable_sinking_load_input_fs : 1;
-   uint32_t disable_trunc_coord : 1;
-   uint32_t enable_mrt_output_nan_fixup : 1;
-   uint32_t emulate_rt : 1;
-   uint32_t bvh8 : 1;
-   uint32_t ge_wave32 : 1;
-   uint32_t invariant_geom : 1;
-   uint32_t no_fmask : 1;
-   uint32_t no_ngg_gs : 1;
-   uint32_t no_rt : 1;
-   uint32_t ps_wave32 : 1;
-   uint32_t rt_wave64 : 1;
-   uint32_t split_fma : 1;
-   uint32_t ssbo_non_uniform : 1;
-   uint32_t tex_non_uniform : 1;
-   uint32_t lower_terminate_to_discard : 1;
-   uint32_t use_llvm : 1;
-   uint32_t use_ngg : 1;
-   uint32_t use_ngg_culling : 1;
-   uint32_t no_implicit_varying_subgroup_size : 1;
-   uint32_t mitigate_smem_oob : 1;
-   uint32_t rt_cps : 1;
-
-   uint32_t reserved : 5;
+   uint32_t reserved : 31;
 };
 
 enum radv_video_enc_hw_ver {

@@ -1135,9 +1135,7 @@ radv_device_init_compiler_info(struct radv_device *device)
    if (instance->debug_flags & RADV_DEBUG_DUMP_CS)
       dump_shaders |= VK_SHADER_STAGE_COMPUTE_BIT | RADV_RT_STAGE_BITS;
 
-   const struct radv_physical_device_cache_key *pdev_key = &pdev->cache_key;
-
-   if (pdev_key->use_ngg_culling) {
+   if (pdev->use_ngg_culling) {
       /* Shader based culling efficiency can depend on PS throughput.
        * Estimate an upper limit for PS input param count based on GPU info.
        */
@@ -1159,9 +1157,9 @@ radv_device_init_compiler_info(struct radv_device *device)
             /* Shader features */
             .use_llvm = pdev->use_llvm,
             .use_ngg = pdev->use_ngg,
-            .use_ngg_culling = pdev_key->use_ngg_culling,
+            .use_ngg_culling = pdev->use_ngg_culling,
             .nggc_max_ps_params = nggc_max_ps_params,
-            .no_ngg_gs = pdev_key->no_ngg_gs,
+            .no_ngg_gs = instance->drirc.performance.disable_ngg_gs,
             .load_grid_size_from_user_sgpr = pdev->load_grid_size_from_user_sgpr,
             .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
             .primitives_generated_query = device->cache_key.primitives_generated_query,
@@ -1170,23 +1168,24 @@ radv_device_init_compiler_info(struct radv_device *device)
             .use_fmask = pdev->use_fmask,
             .robust_buffer_access = pdev->use_llvm && (device->vk.enabled_features.robustBufferAccess2 ||
                                                        device->vk.enabled_features.robustBufferAccess),
-            .mitigate_smem_oob = pdev_key->mitigate_smem_oob,
-            .bvh8 = pdev_key->bvh8,
-            .no_rt = pdev_key->no_rt,
-            .rt_cps = pdev_key->rt_cps,
-            .clear_lds = pdev_key->clear_lds,
-            .disable_aniso_single_level = pdev_key->disable_aniso_single_level,
-            .disable_shrink_image_store = pdev_key->disable_shrink_image_store,
-            .disable_sinking_load_input_fs = pdev_key->disable_sinking_load_input_fs,
-            .disable_trunc_coord = pdev_key->disable_trunc_coord,
-            .enable_mrt_output_nan_fixup = pdev_key->enable_mrt_output_nan_fixup,
-            .emulate_rt = pdev_key->emulate_rt,
-            .invariant_geom = pdev_key->invariant_geom,
-            .split_fma = pdev_key->split_fma,
-            .ssbo_non_uniform = pdev_key->ssbo_non_uniform,
-            .tex_non_uniform = pdev_key->tex_non_uniform,
-            .lower_terminate_to_discard = pdev_key->lower_terminate_to_discard,
-            .no_implicit_varying_subgroup_size = pdev_key->no_implicit_varying_subgroup_size,
+            .mitigate_smem_oob = pdev->info.compiler_info.has_smem_oob_access_bug &&
+                                 !(instance->debug_flags & RADV_DEBUG_NO_SMEM_MITIGATION),
+            .bvh8 = radv_use_bvh8(pdev),
+            .no_rt = !!(instance->debug_flags & RADV_DEBUG_NO_RT),
+            .rt_cps = !!(instance->perftest_flags & RADV_PERFTEST_RT_CPS),
+            .clear_lds = instance->drirc.misc.clear_lds,
+            .disable_aniso_single_level = instance->drirc.debug.disable_aniso_single_level,
+            .disable_shrink_image_store = instance->drirc.debug.disable_shrink_image_store,
+            .disable_sinking_load_input_fs = instance->drirc.debug.disable_sinking_load_input_fs,
+            .disable_trunc_coord = instance->drirc.debug.disable_trunc_coord,
+            .enable_mrt_output_nan_fixup = instance->drirc.debug.enable_mrt_output_nan_fixup,
+            .emulate_rt = radv_emulate_rt(pdev),
+            .invariant_geom = instance->drirc.debug.invariant_geom,
+            .split_fma = instance->drirc.debug.split_fma,
+            .ssbo_non_uniform = instance->drirc.debug.ssbo_non_uniform,
+            .tex_non_uniform = instance->drirc.debug.tex_non_uniform,
+            .lower_terminate_to_discard = instance->drirc.debug.lower_terminate_to_discard,
+            .no_implicit_varying_subgroup_size = instance->drirc.debug.no_implicit_varying_subgroup_size,
             .force_aniso = device->force_aniso,
 
             /* Wave/subgroup sizes */
@@ -1568,7 +1567,7 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
        device->vk.enabled_features.extendedDynamicState3ColorBlendEquation)
       radv_shader_part_cache_init(&device->ps_epilogs, &ps_epilog_ops);
 
-   if (pdev->info.has_zero_index_buffer_bug || pdev->cache_key.mitigate_smem_oob) {
+   if (pdev->info.has_zero_index_buffer_bug || device->compiler_info.key.mitigate_smem_oob) {
       result = radv_bo_create(device, NULL, 4096, 4096, RADEON_DOMAIN_VRAM,
                               RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_READ_ONLY |
                                  RADEON_FLAG_ZERO_VRAM | RADEON_FLAG_32BIT,
