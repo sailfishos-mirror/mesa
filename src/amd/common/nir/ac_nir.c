@@ -14,6 +14,8 @@
 void ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
                         nir_shader_compiler_options *options)
 {
+   memset(options, 0, sizeof(*options));
+
    /*        |---------------------------------- Performance & Availability --------------------------------|
     *        |MAD/MAC/MADAK/MADMK|MAD_LEGACY|MAC_LEGACY|    FMA     |FMAC/FMAAK/FMAMK|FMA_LEGACY|PK_FMA_F16,|Best choice
     * Arch   |    F32,F16,F64    | F32,F16  | F32,F16  |F32,F16,F64 |    F32,F16     |   F32    |PK_FMAC_F16|F16,F32,F64
@@ -34,7 +36,17 @@ void ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
     * gfx10 and older prefer MAD for F32 because of the legacy instruction.
     */
 
-   memset(options, 0, sizeof(*options));
+   options->float_mul_add32 = nir_float_muladd_support_has_ffma;
+   if (info->has_mad32)
+      options->float_mul_add32 |= nir_float_muladd_support_prefers_split;
+
+   if (info->gfx_level >= GFX8) {
+      options->float_mul_add16 = nir_float_muladd_support_has_ffma;
+      if (info->gfx_level == GFX8)
+         options->float_mul_add16 |= nir_float_muladd_support_prefers_split;
+   }
+
+   options->float_mul_add64 = nir_float_muladd_support_has_ffma;
    options->vertex_id_zero_based = true;
    options->lower_scmp = true;
    options->lower_flrp16 = true;
@@ -972,6 +984,7 @@ ac_nir_op_supports_packed_math_16bit(const nir_alu_instr* alu)
    case nir_op_fadd:
    case nir_op_fsub:
    case nir_op_fmul:
+   case nir_op_ffma:
    case nir_op_ffma_old:
    case nir_op_fdiv:
    case nir_op_flrp:
