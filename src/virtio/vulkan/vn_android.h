@@ -17,6 +17,8 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_android.h>
 
+#include "vk_android.h"
+
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
 
 VkResult

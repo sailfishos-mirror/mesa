@@ -42,24 +42,16 @@ struct vn_image_reqs_cache {
    } debug;
 };
 
-struct vn_image_create_deferred_info {
-   VkImageCreateInfo create;
-   VkImageFormatListCreateInfo list;
-   VkImageStencilUsageCreateInfo stencil;
-
-   /* track whether vn_image_init_deferred succeeds */
-   bool initialized;
-};
-
 struct vn_image {
    struct vn_image_base base;
 
    struct vn_image_memory_requirements requirements[4];
 
-   /* For VK_ANDROID_external_memory_android_hardware_buffer, real image
-    * creation is deferred until bind image memory.
+   /* track whether the image init has been deferred and whether the deferred
+    * init has succeeded (renderer side image created)
     */
-   struct vn_image_create_deferred_info *deferred_info;
+   bool deferred;
+   bool deferred_initialized;
 
    struct {
       bool is_prime_blit_src;

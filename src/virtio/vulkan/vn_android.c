@@ -15,7 +15,6 @@
 
 #include "util/os_file.h"
 #include "util/u_gralloc/u_gralloc.h"
-#include "vk_android.h"
 
 #include "vn_buffer.h"
 #include "vn_device.h"
@@ -204,11 +203,7 @@ vn_android_get_image_builder(struct vn_device *dev,
    };
    out_builder->create.pNext = &out_builder->external;
 
-   /* fill VkImageFormatListCreateInfo if needed
-    *
-    * vn_image::deferred_info only stores VkImageFormatListCreateInfo with a
-    * non-zero viewFormatCount, and that stored struct will be respected.
-    */
+   /* fill VkImageFormatListCreateInfo if needed */
    if ((create_info->flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) &&
        !vk_find_struct_const(create_info->pNext,
                              IMAGE_FORMAT_LIST_CREATE_INFO)) {
@@ -388,7 +383,8 @@ vn_android_get_wsi_memory_from_bind_info(
 
    struct vn_image *img = vn_image_from_handle(bind_info->image);
    VkResult result = vn_android_image_from_anb_internal(
-      dev, &img->deferred_info->create, anb_info, &dev->base.vk.alloc, &img);
+      dev, img->base.vk.android_deferred_create_info, anb_info,
+      &dev->base.vk.alloc, &img);
    if (result != VK_SUCCESS)
       return NULL;
 
@@ -423,8 +419,8 @@ vn_android_device_import_ahb(struct vn_device *dev,
 
       /* If ahb is for an image, finish the deferred image creation first */
       struct vn_android_image_builder builder;
-      result = vn_android_get_image_builder(dev, &img->deferred_info->create,
-                                            handle, &builder);
+      result = vn_android_get_image_builder(
+         dev, img->base.vk.android_deferred_create_info, handle, &builder);
       if (result != VK_SUCCESS)
          return result;
 
