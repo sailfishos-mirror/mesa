@@ -660,8 +660,6 @@ kk_flush_pipeline(struct kk_cmd_buffer *cmd)
 
    /* Depth/stencil state may be dynamic, handle it as part of the pipeline. */
    if (cmd->state.gfx.is_depth_stencil_dynamic &&
-       (cmd->state.gfx.render.depth_att.vk_format != VK_FORMAT_UNDEFINED ||
-        cmd->state.gfx.render.stencil_att.vk_format != VK_FORMAT_UNDEFINED) &&
        (IS_DIRTY(DS_DEPTH_TEST_ENABLE) | IS_DIRTY(DS_DEPTH_WRITE_ENABLE) |
         IS_DIRTY(DS_DEPTH_COMPARE_OP) | IS_DIRTY(DS_STENCIL_TEST_ENABLE) |
         IS_DIRTY(DS_STENCIL_OP) | IS_DIRTY(DS_STENCIL_COMPARE_MASK) |
