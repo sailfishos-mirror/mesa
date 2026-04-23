@@ -893,18 +893,9 @@ radv_consider_culling(const struct radv_compiler_info *compiler_info, struct nir
    if (!compiler_info->cache_key->use_ngg_culling)
       return false;
 
-   /* Shader based culling efficiency can depend on PS throughput.
-    * Estimate an upper limit for PS input param count based on GPU info.
-    */
-   unsigned max_ps_params = 8;
-
-   if (compiler_info->ac->gfx_level >= GFX10_3 && compiler_info->hw.has_dedicated_vram)
-      max_ps_params = 12; /* GFX10.3 and newer discrete GPUs. */
-   else if (compiler_info->ac->gfx_level == GFX10 && compiler_info->hw.has_dedicated_vram)
-      max_ps_params = 12;
-
    /* TODO: consider other heuristics here, such as PS execution time */
-   if (util_bitcount64(ps_inputs_read) > max_ps_params)
+   assert(compiler_info->nggc_max_ps_params);
+   if (util_bitcount64(ps_inputs_read) > compiler_info->nggc_max_ps_params)
       return false;
 
    /* Only triangle culling is supported. */
