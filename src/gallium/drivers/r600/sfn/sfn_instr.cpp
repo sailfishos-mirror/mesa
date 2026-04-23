@@ -386,7 +386,6 @@ bool
 Block::update_kcache_reservation(const AluGroup& group)
 {
    auto [kcache, success] = try_reserve_kcache(group);
-   m_kcache_alloc_failed = !success;
 
    if (!success)
       return false;
@@ -428,7 +427,6 @@ bool
 Block::update_kcache_reservation(const AluInstr& instr)
 {
    auto [kcache, success] = try_reserve_kcache(instr);
-   m_kcache_alloc_failed = !success;
 
    if (!success)
       return false;
@@ -441,7 +439,6 @@ void
 Block::commit_kcache_reservation(const std::array<KCacheLine, 4>& kcache)
 {
    m_kcache = kcache;
-   m_kcache_alloc_failed = false;
 }
 
 void

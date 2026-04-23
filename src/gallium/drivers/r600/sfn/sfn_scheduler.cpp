@@ -195,7 +195,8 @@ private:
                                     int free_slots);
    AluGroupFillResult handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
                                                     AluGroup& group,
-                                                    const AluScheduleContext& alu_ctx);
+                                                    const AluScheduleContext& alu_ctx,
+                                                    bool had_kcache_failure);
    auto schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_blocks,
                                           bool& success,
                                           const AluScheduleContext& alu_ctx) -> AluGroup*;
@@ -267,6 +268,7 @@ private:
    bool m_idx1_loading{false};
    bool m_idx0_pending{false};
    bool m_idx1_pending{false};
+   bool m_had_kcache_failure_in_fill{false};
 
    bool m_nop_after_rel_dest{false};
    bool m_nop_befor_rel_src{false};
@@ -632,7 +634,8 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
          return result;
       }
 
-      auto failure_type = handle_alu_group_fill_failure(out_blocks, group, alu_ctx);
+      auto failure_type = handle_alu_group_fill_failure(out_blocks, group, alu_ctx, m_had_kcache_failure_in_fill);
+      m_had_kcache_failure_in_fill = false;
       if (failure_type != AluGroupFillResult::retry)
          return failure_type;
 
@@ -668,9 +671,10 @@ BlockScheduler::try_schedule_alu_trans_slot(AluGroup& group,
 BlockScheduler::AluGroupFillResult
 BlockScheduler::handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
                                               AluGroup& group,
-                                              const AluScheduleContext& alu_ctx)
+                                              const AluScheduleContext& alu_ctx,
+                                              bool had_kcache_failure)
 {
-   if (m_current_block->kcache_reservation_failed()) {
+   if (had_kcache_failure) {
       // LDS read groups should not lead to impossible
       // kcache constellations
       assert(!m_current_block->lds_group_active());
@@ -1071,7 +1075,7 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
       }
 
       auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
-      m_current_block->set_kcache_reservation_failed(!reserved);
+      m_had_kcache_failure_in_fill = !reserved;
 
       if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
@@ -1225,7 +1229,7 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup& group)
       }
 
       auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
-      m_current_block->set_kcache_reservation_failed(!reserved);
+      m_had_kcache_failure_in_fill = !reserved;
 
       if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
@@ -1275,7 +1279,7 @@ BlockScheduler::schedule_alu_to_group_trans(AluGroup& group,
 
       sfn_log << SfnLog::schedule << "Try schedule to trans " << **i;
       auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
-      m_current_block->set_kcache_reservation_failed(!reserved);
+      m_had_kcache_failure_in_fill = !reserved;
 
       if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
