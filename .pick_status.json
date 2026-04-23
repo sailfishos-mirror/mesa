@@ -8014,7 +8014,7 @@
         "description": "panfrost: Fix tiler_desc assignment",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "11fcb23f74c0b01942fa3d2e4bdd0a524bea444f",
         "notes": null
