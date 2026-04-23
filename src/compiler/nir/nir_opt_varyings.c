@@ -3253,7 +3253,7 @@ find_tes_triangle_interp_1fmul_2ffma(struct linkage_info *linkage, unsigned i)
       /* Reject exact ops because we are going to do an inexact transformation
        * with it.
        */
-      if (!alu || (alu->op != nir_op_fmul && alu->op != nir_op_ffma_old) ||
+      if (!alu || (alu->op != nir_op_fmul && !nir_alu_instr_is_mul_add(alu)) ||
           nir_alu_instr_is_exact(alu) ||
           !gather_fmul_tess_coord(iter->instr, alu, vertex_index,
                                   &tess_coord_swizzle, &tess_coord_used,
@@ -3263,7 +3263,7 @@ find_tes_triangle_interp_1fmul_2ffma(struct linkage_info *linkage, unsigned i)
       /* The multiplication must only be used by ffma. */
       if (alu->op == nir_op_fmul) {
          nir_alu_instr *ffma = get_single_use_as_alu(&alu->def);
-         if (!ffma || ffma->op != nir_op_ffma_old)
+         if (!nir_alu_instr_is_mul_add(ffma))
             return false;
 
          if (num_fmuls == 1)
@@ -3388,6 +3388,11 @@ can_move_alu_across_interp(struct linkage_info *linkage, nir_alu_instr *alu)
     */
    case nir_op_fmul:
    case nir_op_fmulz:
+   case nir_op_ffma:
+   case nir_op_ffma_weak:
+   case nir_op_ffmaz:
+   case nir_op_fmad:
+   case nir_op_fmadz:
    case nir_op_ffma_old:
    case nir_op_ffmaz_old:
       return GET_SRC_INTERP(alu, 0) == FLAG_INTERP_CONVERGENT ||

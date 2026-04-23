@@ -175,9 +175,14 @@ opt_alu_fp_math_ctrl(nir_alu_instr *alu, struct opt_fp_ctrl_state *state)
          break;
       }
 
+      case nir_op_ffmaz:
+      case nir_op_fmadz:
       case nir_op_ffmaz_old:
          src_mark_preserve_sz(&alu->src[2].src, NULL);
          break;
+      case nir_op_ffma:
+      case nir_op_ffma_weak:
+      case nir_op_fmad:
       case nir_op_ffma_old:
          if ((nir_analyze_fp_class(&state->fp_class_state, alu->src[2].src.ssa) & FP_CLASS_NEG_ZERO) &&
              !nir_alu_srcs_equal(alu, alu, 0, 1)) {
