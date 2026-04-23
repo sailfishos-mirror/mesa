@@ -1684,7 +1684,7 @@
         "description": "Revert \"d3d12: Video sliced encode: Use same ID3D12Fence/different per slice values as optimization\"",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b83a931cb17567e878b1fb135f8f12736b37ca13",
         "notes": null
