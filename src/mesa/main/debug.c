@@ -101,17 +101,11 @@ set_verbose_flags(const char *str)
       GLbitfield flag;
    };
    static const struct option opts[] = {
-      { "varray",    VERBOSE_VARRAY },
       { "tex",       VERBOSE_TEXTURE },
       { "mat",       VERBOSE_MATERIAL },
-      { "pipe",      VERBOSE_PIPELINE },
-      { "driver",    VERBOSE_DRIVER },
       { "state",     VERBOSE_STATE },
       { "api",       VERBOSE_API },
       { "list",      VERBOSE_DISPLAY_LIST },
-      { "lighting",  VERBOSE_LIGHTING },
-      { "disassem",  VERBOSE_DISASSEM },
-      { "swap",      VERBOSE_SWAPBUFFERS }
    };
    GLuint i;
 
