@@ -1408,7 +1408,7 @@ radv_link_shaders_info(const struct radv_compiler_info *compiler_info, struct ra
             compiler_info->ac->gfx_level, MESA_SHADER_VERTEX, tcs_stage->info.num_tess_patches,
             gfx_state->ts.patch_control_points, tcs_stage->info.tcs.tcs_vertices_out);
 
-         if (!compiler_info->debug.use_llvm) {
+         if (!compiler_info->key.use_llvm) {
             /* When the number of TCS input and output vertices are the same (typically 3):
              * - There is an equal amount of LS and HS invocations
              * - In case of merged LSHS shaders, the LS and HS halves of the shader always process

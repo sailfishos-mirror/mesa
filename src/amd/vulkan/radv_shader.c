@@ -59,7 +59,7 @@ get_nir_options_for_stage(struct radv_compiler_info *compiler_info, mesa_shader_
    const bool split_fma =
       (stage <= MESA_SHADER_GEOMETRY || stage == MESA_SHADER_MESH) && compiler_info->cache_key->split_fma;
 
-   ac_nir_set_options(compiler_info->ac, compiler_info->debug.use_llvm, options);
+   ac_nir_set_options(compiler_info->ac, compiler_info->key.use_llvm, options);
 
    options->lower_ffma16 = split_fma || compiler_info->ac->gfx_level < GFX9;
    options->lower_ffma32 = split_fma || compiler_info->ac->gfx_level < GFX10_3;
@@ -726,7 +726,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
    NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 
    bool gfx7minus = compiler_info->ac->gfx_level <= GFX7;
-   bool use_llvm = compiler_info->debug.use_llvm;
+   bool use_llvm = compiler_info->key.use_llvm;
 
    NIR_PASS(_, nir, nir_lower_subgroups,
             &(struct nir_lower_subgroups_options){
@@ -3318,10 +3318,10 @@ shader_compile(const struct radv_compiler_info *compiler_info, struct nir_shader
    struct radv_shader_binary *binary = NULL;
 
 #if AMD_LLVM_AVAILABLE
-   if (compiler_info->debug.use_llvm || options->dump_shader || options->record_ir)
+   if (compiler_info->key.use_llvm || options->dump_shader || options->record_ir)
       ac_init_llvm_once();
 
-   if (compiler_info->debug.use_llvm) {
+   if (compiler_info->key.use_llvm) {
       llvm_compile_shader(options, info, shader_count, shaders, &binary, args);
 #else
    if (false) {

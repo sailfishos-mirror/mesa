@@ -248,7 +248,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
                      struct radv_shader_stage *stage)
 {
    enum amd_gfx_level gfx_level = compiler_info->ac->gfx_level;
-   const bool use_llvm = compiler_info->debug.use_llvm;
+   const bool use_llvm = compiler_info->key.use_llvm;
    bool progress;
 
    /* Wave and workgroup size should already be filled. */

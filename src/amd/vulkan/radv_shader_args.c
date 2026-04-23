@@ -379,8 +379,8 @@ radv_init_shader_args(const struct radv_compiler_info *compiler_info, struct rad
 {
    memset(state->args, 0, sizeof(*state->args));
 
-   state->args->explicit_scratch_args = !compiler_info->debug.use_llvm;
-   state->args->remap_spi_ps_input = !compiler_info->debug.use_llvm;
+   state->args->explicit_scratch_args = !compiler_info->key.use_llvm;
+   state->args->remap_spi_ps_input = !compiler_info->key.use_llvm;
 
    for (int i = 0; i < MAX_SETS; i++)
       state->args->user_sgprs_locs.descriptor_sets[i].sgpr_idx = -1;

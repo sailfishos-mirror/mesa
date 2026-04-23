@@ -520,6 +520,10 @@ struct radv_compiler_info {
       bool rbplus_allowed;
    } hw;
 
+   struct {
+      bool use_llvm;
+   } key;
+
    /* Debug/tracing */
    struct {
       bool dump_spirv;
@@ -533,7 +537,6 @@ struct radv_compiler_info {
       VkShaderStageFlags dump_shaders;
       bool check_ir;
       bool printf_enabled;
-      bool use_llvm;
       bool trap_enabled;
       uint64_t trap_excp_flags;
       struct vk_debug_report *debug_report;

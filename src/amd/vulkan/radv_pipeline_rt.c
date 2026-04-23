@@ -421,7 +421,7 @@ radv_rt_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_r
          .stack_alignment = 16,
          .localized_loads = true,
          .vectorizer_callback = ac_nir_mem_vectorize_callback,
-         .vectorizer_data = &(struct ac_nir_config){compiler_info->ac->gfx_level, !compiler_info->debug.use_llvm},
+         .vectorizer_data = &(struct ac_nir_config){compiler_info->ac->gfx_level, !compiler_info->key.use_llvm},
       };
       nir_lower_shader_calls(stage->nir, &opts, &resume_shaders, &num_resume_shaders, mem_ctx);
    }

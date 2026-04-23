@@ -1149,6 +1149,10 @@ radv_device_init_compiler_info(struct radv_device *device)
             .address32_hi = pdev->info.address32_hi,
             .rbplus_allowed = pdev->info.rbplus_allowed,
          },
+      .key =
+         {
+            .use_llvm = pdev->use_llvm,
+         },
       /* Debug/tracing */
       .debug =
          {
@@ -1163,7 +1167,6 @@ radv_device_init_compiler_info(struct radv_device *device)
             .dump_shaders = dump_shaders,
             .check_ir = !!(instance->debug_flags & RADV_DEBUG_CHECKIR),
             .printf_enabled = !!device->debug_nir.printf.buffer_addr,
-            .use_llvm = pdev->use_llvm,
             .trap_enabled = !!device->trap_handler_shader,
             .trap_excp_flags = instance->trap_excp_flags,
             .debug_report = &instance->vk.debug_report,

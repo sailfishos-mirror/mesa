@@ -2074,14 +2074,13 @@ radv_create_gs_copy_shader(const struct radv_compiler_info *compiler_info, struc
    gs_copy_stage.info.user_sgprs_locs = gs_copy_stage.args.user_sgprs_locs;
    gs_copy_stage.info.inline_push_constant_mask = gs_copy_stage.args.ac.inline_push_const_mask;
 
-   NIR_PASS(
-      _, nir, ac_nir_lower_intrinsics_to_args, &gs_copy_stage.args.ac,
-      &(ac_nir_lower_intrinsics_to_args_options){.gfx_level = compiler_info->ac->gfx_level,
-                                                 .has_ls_vgpr_init_bug = compiler_info->ac->has_ls_vgpr_init_bug,
-                                                 .hw_stage = AC_HW_VERTEX_SHADER,
-                                                 .wave_size = 64,
-                                                 .workgroup_size = 64,
-                                                 .use_llvm = compiler_info->debug.use_llvm});
+   NIR_PASS(_, nir, ac_nir_lower_intrinsics_to_args, &gs_copy_stage.args.ac,
+            &(ac_nir_lower_intrinsics_to_args_options){.gfx_level = compiler_info->ac->gfx_level,
+                                                       .has_ls_vgpr_init_bug = compiler_info->ac->has_ls_vgpr_init_bug,
+                                                       .hw_stage = AC_HW_VERTEX_SHADER,
+                                                       .wave_size = 64,
+                                                       .workgroup_size = 64,
+                                                       .use_llvm = compiler_info->key.use_llvm});
    NIR_PASS(_, nir, radv_nir_lower_abi, compiler_info->ac->gfx_level, &gs_copy_stage, gfx_state, compiler_info->hw.address32_hi);
 
    NIR_PASS(_, nir, ac_nir_lower_global_access);
