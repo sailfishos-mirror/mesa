@@ -864,12 +864,17 @@ capture_trace(VkQueue _queue)
 static void
 radv_device_init_cache_key(struct radv_device *device)
 {
-   STATIC_ASSERT(sizeof(struct radv_device_cache_key) == 4);
+   STATIC_ASSERT(sizeof(enum radeon_family) == 4);
+   STATIC_ASSERT(sizeof(struct radv_device_cache_key) == 12);
    STATIC_ASSERT(sizeof(device->compiler_info.key) == 12);
 
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_device_cache_key *key = &device->cache_key;
    struct mesa_blake3 ctx;
+
+   key->family = pdev->info.family;
+   key->ptr_size = sizeof(void *);
+   key->conformant_trunc_coord = pdev->info.compiler_info.conformant_trunc_coord;
 
    key->image_2d_view_of_3d = device->vk.enabled_features.image2DViewOf3D && pdev->info.gfx_level == GFX9;
    key->mesh_shader_queries = device->vk.enabled_features.meshShaderQueries && pdev->emulate_mesh_shader_queries;
@@ -889,7 +894,6 @@ radv_device_init_cache_key(struct radv_device *device)
    }
 
    _mesa_blake3_init(&ctx);
-   _mesa_blake3_update(&ctx, &pdev->cache_key, sizeof(pdev->cache_key));
    _mesa_blake3_update(&ctx, &device->cache_key, sizeof(device->cache_key));
    _mesa_blake3_update(&ctx, &device->compiler_info.key, sizeof(device->compiler_info.key));
    _mesa_blake3_final(&ctx, device->cache_hash);

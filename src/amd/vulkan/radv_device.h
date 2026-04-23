@@ -55,11 +55,15 @@ struct radv_layer_dispatch_tables {
 };
 
 struct radv_device_cache_key {
+   enum radeon_family family;
+   uint32_t ptr_size;
+
+   uint32_t conformant_trunc_coord : 1;
    uint32_t image_2d_view_of_3d : 1;
    uint32_t mesh_shader_queries : 1;
    uint32_t primitives_generated_query : 1;
 
-   uint32_t reserved : 29;
+   uint32_t reserved : 28;
 };
 
 enum radv_force_vrs {

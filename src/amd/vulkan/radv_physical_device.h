@@ -36,13 +36,6 @@ struct radv_binning_settings {
    unsigned fpovs_per_batch;           /* allowed range: [0, 255], 0 = unlimited */
 };
 
-struct radv_physical_device_cache_key {
-   enum radeon_family family;
-   uint32_t ptr_size;
-   uint32_t conformant_trunc_coord : 1;
-   uint32_t reserved : 31;
-};
-
 enum radv_video_enc_hw_ver {
    RADV_VIDEO_ENC_HW_1_2,
    RADV_VIDEO_ENC_HW_2,
@@ -181,7 +174,6 @@ struct radv_physical_device {
    uint32_t encoder_interface_version;
    bool video_encode_enabled;
    bool video_decode_enabled;
-   struct radv_physical_device_cache_key cache_key;
 
    uint32_t tess_distribution_mode;
 

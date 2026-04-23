@@ -288,19 +288,6 @@ parse_hex(char *out, const char *in, unsigned length)
    }
 }
 
-static void
-radv_physical_device_init_cache_key(struct radv_physical_device *pdev)
-{
-   STATIC_ASSERT(sizeof(enum radeon_family) == 4);
-   STATIC_ASSERT(sizeof(struct radv_physical_device_cache_key) == 12);
-
-   struct radv_physical_device_cache_key *key = &pdev->cache_key;
-
-   key->family = pdev->info.family;
-   key->ptr_size = sizeof(void *);
-   key->conformant_trunc_coord = pdev->info.compiler_info.conformant_trunc_coord;
-}
-
 static int
 radv_device_get_cache_uuid(struct radv_physical_device *pdev, void *uuid)
 {
@@ -2659,8 +2646,6 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       }
       pdev->render_devid = render_stat.st_rdev;
    }
-
-   radv_physical_device_init_cache_key(pdev);
 
    if (radv_device_get_cache_uuid(pdev, pdev->cache_uuid)) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "cannot generate UUID");
