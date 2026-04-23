@@ -124,11 +124,10 @@ _mesa_GetGraphicsResetStatusARB( void )
     *     events, and GetGraphicsResetStatusARB will always return NO_ERROR."
     */
    if (ctx->Const.ResetStrategy == GL_NO_RESET_NOTIFICATION_ARB) {
-      if (MESA_VERBOSE & VERBOSE_API)
-         _mesa_debug(ctx,
-                     "glGetGraphicsResetStatusARB always returns GL_NO_ERROR "
-                     "because reset notifictation was not requested at context "
-                     "creation.\n");
+      _mesa_perf_debug(ctx, MESA_DEBUG_SEVERITY_LOW,
+                       "glGetGraphicsResetStatusARB always returns GL_NO_ERROR "
+                       "because reset notifictation was not requested at context "
+                       "creation.\n");
 
       return GL_NO_ERROR;
    }
