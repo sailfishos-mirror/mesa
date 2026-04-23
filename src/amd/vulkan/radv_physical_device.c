@@ -681,7 +681,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_performance_query = radv_perf_query_supported(pdev),
       .KHR_pipeline_binary = true,
       .KHR_pipeline_executable_properties = true,
-      .KHR_pipeline_library = !pdev->use_llvm,
+      .KHR_pipeline_library = true,
 #ifdef RADV_USE_WSI_PLATFORM
       .KHR_present_id = true,
       .KHR_present_id2 = true,
