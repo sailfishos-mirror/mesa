@@ -627,12 +627,9 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
          return result;
       }
 
-      auto failure = handle_alu_group_fill_failure(out_blocks, group, alu_ctx);
-      if (failure != AluGroupFillResult::failed)
-         return AluGroupFillResult::failed;
-
-      if (failure == AluGroupFillResult::scheduled)
-         return AluGroupFillResult::scheduled;
+      auto failure_type = handle_alu_group_fill_failure(out_blocks, group, alu_ctx);
+      if (failure_type != AluGroupFillResult::retry)
+         return failure_type;
 
       free_slots = group.free_slot_mask();
    }
