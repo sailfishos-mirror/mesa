@@ -381,7 +381,7 @@ lower_rt_call_monolithic(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       nir_pop_if(b, NULL);
 
       b->shader->info.shared_size =
-         MAX2(b->shader->info.shared_size, compiler_info->rt_wave_size * MAX_STACK_ENTRY_COUNT * sizeof(uint32_t));
+         MAX2(b->shader->info.shared_size, compiler_info->key.rt_wave_size * MAX_STACK_ENTRY_COUNT * sizeof(uint32_t));
 
       nir_instr_remove(&intr->instr);
       return true;

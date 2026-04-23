@@ -520,8 +520,28 @@ struct radv_compiler_info {
       bool rbplus_allowed;
    } hw;
 
+   /* Misc values included as part of the cache key */
    struct {
-      bool use_llvm;
+      /* Shader features */
+      uint32_t use_llvm : 1;
+      uint32_t use_ngg : 1;
+      uint32_t nggc_max_ps_params : 4;
+      uint32_t load_grid_size_from_user_sgpr : 1;
+      uint32_t emulate_ngg_gs_query_pipeline_stat : 1;
+      uint32_t primitives_generated_query : 1;
+      uint32_t mesh_shader_queries : 1;
+      uint32_t image_2d_view_of_3d : 1;
+      uint32_t use_fmask : 1;
+      uint32_t robust_buffer_access : 1; /* Only used by LLVM. */
+      uint32_t padding : 19;
+
+      int32_t force_aniso;
+
+      /* Wave/subgroup sizes */
+      uint8_t ge_wave_size;
+      uint8_t ps_wave_size;
+      uint8_t cs_wave_size;
+      uint8_t rt_wave_size;
    } key;
 
    /* Debug/tracing */
@@ -558,8 +578,7 @@ struct radv_compiler_info {
    uint8_t override_graphics_shader_version;
    uint8_t override_ray_tracing_shader_version;
 
-   /* Shader features */
-   const struct vk_pipeline_robustness_state *device_robustness_state;
+   /* Descriptors */
    uint8_t sampled_image_desc_size;
    uint8_t combined_image_sampler_desc_size;
    uint8_t combined_image_sampler_offset;
@@ -569,33 +588,21 @@ struct radv_compiler_info {
    uint32_t image_descriptor_alignment;
    uint32_t buffer_descriptor_size;
    uint32_t buffer_descriptor_alignment;
-   bool use_ngg;
-   bool load_grid_size_from_user_sgpr;
-   bool emulate_ngg_gs_query_pipeline_stat;
-   bool primitives_generated_query;
-   bool mesh_shader_queries;
-   bool image_2d_view_of_3d;
-   bool use_fmask;
+
+   /* Shader features, included as part of the pipeline key */
+   const struct vk_pipeline_robustness_state *device_robustness_state;
    bool smooth_lines;
    bool force_vrs_enabled;
-   bool robust_buffer_access; /* Only used by LLVM. */
-   int force_aniso;
-   uint8_t nggc_max_ps_params;
 
    /* Wave/subgroup sizes */
    uint32_t subgroup_size;
    uint32_t min_subgroup_size;
    uint32_t max_subgroup_size;
-   uint8_t ge_wave_size;
-   uint8_t ps_wave_size;
-   uint8_t cs_wave_size;
-   uint8_t rt_wave_size;
 
    /* NIR/SPIR-V */
    struct spirv_capabilities spirv_caps;
    nir_shader_compiler_options nir_options[MESA_VULKAN_SHADER_STAGES];
 };
-
 struct radv_shader_stage;
 
 void radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively);

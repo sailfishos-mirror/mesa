@@ -1216,12 +1216,12 @@ radv_build_traversal(const struct radv_compiler_info *compiler_info, struct radv
    uint32_t stack_stride;
 
    if (radv_use_bvh_stack_rtn(compiler_info)) {
-      stack_idx = radv_build_bvh_stack_rtn_addr(b, stack_idx, compiler_info, compiler_info->rt_wave_size, 0,
+      stack_idx = radv_build_bvh_stack_rtn_addr(b, stack_idx, compiler_info, compiler_info->key.rt_wave_size, 0,
                                                 MAX_STACK_ENTRY_COUNT);
       stack_stride = 1;
    } else {
       stack_idx = nir_imul_imm(b, stack_idx, sizeof(uint32_t));
-      stack_stride = compiler_info->rt_wave_size * sizeof(uint32_t);
+      stack_stride = compiler_info->key.rt_wave_size * sizeof(uint32_t);
    }
 
    nir_store_var(b, data.trav_vars.result.hit, nir_imm_false(b), 1);
@@ -1313,11 +1313,11 @@ radv_build_traversal_shader(const struct radv_compiler_info *compiler_info, stru
     * invalid variable modes.*/
    nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_INTERSECTION, "rt_traversal");
    b.shader->options = &compiler_info->nir_options[MESA_SHADER_INTERSECTION];
-   b.shader->info.workgroup_size[0] = compiler_info->rt_wave_size;
-   b.shader->info.api_subgroup_size = compiler_info->rt_wave_size;
-   b.shader->info.max_subgroup_size = compiler_info->rt_wave_size;
-   b.shader->info.min_subgroup_size = compiler_info->rt_wave_size;
-   b.shader->info.shared_size = compiler_info->rt_wave_size * MAX_STACK_ENTRY_COUNT * sizeof(uint32_t);
+   b.shader->info.workgroup_size[0] = compiler_info->key.rt_wave_size;
+   b.shader->info.api_subgroup_size = compiler_info->key.rt_wave_size;
+   b.shader->info.max_subgroup_size = compiler_info->key.rt_wave_size;
+   b.shader->info.min_subgroup_size = compiler_info->key.rt_wave_size;
+   b.shader->info.shared_size = compiler_info->key.rt_wave_size * MAX_STACK_ENTRY_COUNT * sizeof(uint32_t);
 
    struct radv_nir_rt_traversal_params params = {0};
 
@@ -1365,7 +1365,7 @@ radv_build_traversal_shader(const struct radv_compiler_info *compiler_info, stru
    }
    b.cursor = nir_after_impl(nir_shader_get_entrypoint(b.shader));
 
-   radv_nir_lower_rt_storage(b.shader, hit_attrib_derefs, NULL, NULL, compiler_info->rt_wave_size);
+   radv_nir_lower_rt_storage(b.shader, hit_attrib_derefs, NULL, NULL, compiler_info->key.rt_wave_size);
 
    nir_push_if(&b, nir_load_var(&b, result.hit));
    {

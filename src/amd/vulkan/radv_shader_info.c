@@ -484,9 +484,9 @@ static void
 gather_shader_info_ngg_query(const struct radv_compiler_info *compiler_info, struct radv_shader_info *info)
 {
    info->gs.has_pipeline_stat_query =
-      compiler_info->emulate_ngg_gs_query_pipeline_stat && info->stage == MESA_SHADER_GEOMETRY;
+      compiler_info->key.emulate_ngg_gs_query_pipeline_stat && info->stage == MESA_SHADER_GEOMETRY;
    info->has_xfb_query = !!info->so.enabled_stream_buffers_mask;
-   info->has_prim_query = compiler_info->primitives_generated_query || info->has_xfb_query;
+   info->has_prim_query = compiler_info->key.primitives_generated_query || info->has_xfb_query;
 }
 
 uint64_t
@@ -754,7 +754,7 @@ gather_shader_info_mesh(const struct radv_compiler_info *compiler_info, const ni
    ngg_info->prim_amp_factor = nir->info.mesh.max_primitives_out;
    ngg_info->vgt_esgs_ring_itemsize = 1;
 
-   info->ms.has_query = compiler_info->mesh_shader_queries;
+   info->ms.has_query = compiler_info->key.mesh_shader_queries;
    info->ms.has_task = stage_key->has_task_shader;
 }
 
@@ -900,7 +900,7 @@ gather_shader_info_task(const struct radv_compiler_info *compiler_info, const ni
    info->cs.linear_taskmesh_dispatch =
       nir->info.mesh.ts_mesh_dispatch_dimensions[1] == 1 && nir->info.mesh.ts_mesh_dispatch_dimensions[2] == 1;
 
-   info->cs.has_query = compiler_info->mesh_shader_queries;
+   info->cs.has_query = compiler_info->key.mesh_shader_queries;
 }
 
 static uint32_t

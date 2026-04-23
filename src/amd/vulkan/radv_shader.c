@@ -381,11 +381,11 @@ radv_shader_choose_subgroup_size(const struct radv_compiler_info *compiler_info,
 
       unsigned default_wave_size;
       if (nir->info.ray_queries)
-         default_wave_size = compiler_info->rt_wave_size;
+         default_wave_size = compiler_info->key.rt_wave_size;
       else if (nir->info.stage == MESA_SHADER_MESH)
-         default_wave_size = compiler_info->ge_wave_size;
+         default_wave_size = compiler_info->key.ge_wave_size;
       else
-         default_wave_size = compiler_info->cs_wave_size;
+         default_wave_size = compiler_info->key.cs_wave_size;
 
       /* Games don't always request full subgroups when they should, which can cause bugs if cswave32
        * is enabled. Furthermore, if cooperative matrices or subgroup info are used, we can't transparently change
@@ -410,13 +410,13 @@ radv_shader_choose_subgroup_size(const struct radv_compiler_info *compiler_info,
       wave_size = 64;
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       if (nir->info.ray_queries)
-         wave_size = compiler_info->rt_wave_size;
+         wave_size = compiler_info->key.rt_wave_size;
       else
-         wave_size = compiler_info->ps_wave_size;
+         wave_size = compiler_info->key.ps_wave_size;
    } else if (mesa_shader_stage_is_rt(nir->info.stage)) {
-      wave_size = compiler_info->rt_wave_size;
+      wave_size = compiler_info->key.rt_wave_size;
    } else {
-      wave_size = compiler_info->ge_wave_size;
+      wave_size = compiler_info->key.ge_wave_size;
    }
 
    if (nir->info.api_subgroup_size == 0) {
@@ -428,7 +428,7 @@ radv_shader_choose_subgroup_size(const struct radv_compiler_info *compiler_info,
 
    /* We might still decide to use ngg later. */
    if (nir->info.stage == MESA_SHADER_GEOMETRY)
-      nir->info.min_subgroup_size = compiler_info->ge_wave_size;
+      nir->info.min_subgroup_size = compiler_info->key.ge_wave_size;
    else
       nir->info.min_subgroup_size = wave_size;
 }
@@ -696,7 +696,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
       .lower_txf_offset = true,
       .lower_tg4_offsets = true,
       .lower_txs_cube_array = true,
-      .lower_to_fragment_fetch_amd = compiler_info->use_fmask,
+      .lower_to_fragment_fetch_amd = compiler_info->key.use_fmask,
       .lower_lod_zero_width = true,
       .lower_invalid_implicit_lod = true,
       .lower_1d = compiler_info->ac->gfx_level == GFX9,
@@ -895,8 +895,8 @@ radv_consider_culling(const struct radv_compiler_info *compiler_info, struct nir
       return false;
 
    /* TODO: consider other heuristics here, such as PS execution time */
-   assert(compiler_info->nggc_max_ps_params);
-   if (util_bitcount64(ps_inputs_read) > compiler_info->nggc_max_ps_params)
+   assert(compiler_info->key.nggc_max_ps_params);
+   if (util_bitcount64(ps_inputs_read) > compiler_info->key.nggc_max_ps_params)
       return false;
 
    /* Only triangle culling is supported. */
@@ -3284,7 +3284,7 @@ radv_fill_nir_compiler_options(const struct radv_compiler_info *compiler_info,
    options->family = compiler_info->hw.family;
    options->address32_hi = compiler_info->hw.address32_hi;
    /* robust_buffer_access_llvm here used by LLVM only, pipeline robustness is not exposed there. */
-   options->robust_buffer_access_llvm = compiler_info->robust_buffer_access;
+   options->robust_buffer_access_llvm = compiler_info->key.robust_buffer_access;
    options->wgp_mode = should_use_wgp;
    options->dump_shader = can_dump_shader;
    options->dump_ir = options->dump_shader && compiler_info->debug.dump_backend_ir;
@@ -3840,7 +3840,7 @@ radv_get_tess_wg_info(const struct radv_compiler_info *compiler_info, const ac_n
 {
    const uint32_t lds_input_vertex_size = get_tcs_input_vertex_stride(tcs_num_lds_inputs);
 
-   ac_nir_compute_tess_wg_info(compiler_info->ac, io_info, tcs_vertices_out, compiler_info->ge_wave_size, false,
+   ac_nir_compute_tess_wg_info(compiler_info->ac, io_info, tcs_vertices_out, compiler_info->key.ge_wave_size, false,
                                tcs_num_input_vertices, lds_input_vertex_size, 0, num_patches_per_wg, lds_size);
 }
 

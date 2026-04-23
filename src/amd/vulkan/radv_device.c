@@ -1149,9 +1149,28 @@ radv_device_init_compiler_info(struct radv_device *device)
             .address32_hi = pdev->info.address32_hi,
             .rbplus_allowed = pdev->info.rbplus_allowed,
          },
+      /* Misc values included as part of the cache key */
       .key =
          {
+            /* Shader features */
             .use_llvm = pdev->use_llvm,
+            .use_ngg = pdev->use_ngg,
+            .nggc_max_ps_params = nggc_max_ps_params,
+            .load_grid_size_from_user_sgpr = pdev->load_grid_size_from_user_sgpr,
+            .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
+            .primitives_generated_query = device->cache_key.primitives_generated_query,
+            .mesh_shader_queries = device->cache_key.mesh_shader_queries,
+            .image_2d_view_of_3d = device->cache_key.image_2d_view_of_3d,
+            .use_fmask = pdev->use_fmask,
+            .robust_buffer_access = pdev->use_llvm && (device->vk.enabled_features.robustBufferAccess2 ||
+                                                       device->vk.enabled_features.robustBufferAccess),
+            .force_aniso = device->force_aniso,
+
+            /* Wave/subgroup sizes */
+            .ge_wave_size = pdev->ge_wave_size,
+            .ps_wave_size = pdev->ps_wave_size,
+            .cs_wave_size = pdev->cs_wave_size,
+            .rt_wave_size = pdev->rt_wave_size,
          },
       /* Debug/tracing */
       .debug =
@@ -1197,29 +1216,14 @@ radv_device_init_compiler_info(struct radv_device *device)
       .image_descriptor_alignment = pdev->vk.properties.imageDescriptorAlignment,
       .buffer_descriptor_size = pdev->vk.properties.bufferDescriptorSize,
       .buffer_descriptor_alignment = pdev->vk.properties.bufferDescriptorAlignment,
-      /* Shader features */
+      /* Shader features, included as part of the pipeline key */
       .device_robustness_state = &device->vk.robustness_state,
-      .use_ngg = pdev->use_ngg,
-      .load_grid_size_from_user_sgpr = pdev->load_grid_size_from_user_sgpr,
-      .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
-      .primitives_generated_query = device->cache_key.primitives_generated_query,
-      .mesh_shader_queries = device->cache_key.mesh_shader_queries,
-      .image_2d_view_of_3d = device->cache_key.image_2d_view_of_3d,
-      .use_fmask = pdev->use_fmask,
       .smooth_lines = device->vk.enabled_features.smoothLines,
       .force_vrs_enabled = device->force_vrs_enabled,
-      .robust_buffer_access =
-         (device->vk.enabled_features.robustBufferAccess2 || device->vk.enabled_features.robustBufferAccess),
-      .force_aniso = device->force_aniso,
-      .nggc_max_ps_params = nggc_max_ps_params,
       /* Wave/subgroup sizes */
       .subgroup_size = device->vk.physical->properties.subgroupSize,
       .min_subgroup_size = device->vk.physical->properties.minSubgroupSize,
       .max_subgroup_size = device->vk.physical->properties.maxSubgroupSize,
-      .ge_wave_size = pdev->ge_wave_size,
-      .ps_wave_size = pdev->ps_wave_size,
-      .cs_wave_size = pdev->cs_wave_size,
-      .rt_wave_size = pdev->rt_wave_size,
       /* NIR/SPIR-V */
       .spirv_caps = vk_physical_device_get_spirv_capabilities(device->vk.physical),
    };

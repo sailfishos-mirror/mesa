@@ -268,11 +268,11 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
    stage->info.loads_dynamic_offsets = true;
    stage->info.force_indirect_descriptors = true;
    stage->info.descriptor_heap = uses_descriptor_heap;
-   stage->info.wave_size = compiler_info->rt_wave_size;
+   stage->info.wave_size = compiler_info->key.rt_wave_size;
    stage->info.workgroup_size = stage->info.wave_size;
    stage->info.user_data_0 = R_00B900_COMPUTE_USER_DATA_0;
    stage->info.type = RADV_SHADER_TYPE_RT_PROLOG;
-   stage->info.cs.block_size[0] = compiler_info->rt_wave_size;
+   stage->info.cs.block_size[0] = compiler_info->key.rt_wave_size;
    stage->info.cs.block_size[1] = 1;
    stage->info.cs.block_size[2] = 1;
    stage->info.cs.uses_thread_id[0] = true;
@@ -283,10 +283,10 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
                             debug);
    stage->info.user_sgprs_locs = stage->args.user_sgprs_locs;
 
-   b.shader->info.workgroup_size[0] = compiler_info->rt_wave_size;
-   b.shader->info.api_subgroup_size = compiler_info->rt_wave_size;
-   b.shader->info.max_subgroup_size = compiler_info->rt_wave_size;
-   b.shader->info.min_subgroup_size = compiler_info->rt_wave_size;
+   b.shader->info.workgroup_size[0] = compiler_info->key.rt_wave_size;
+   b.shader->info.api_subgroup_size = compiler_info->key.rt_wave_size;
+   b.shader->info.max_subgroup_size = compiler_info->key.rt_wave_size;
+   b.shader->info.min_subgroup_size = compiler_info->key.rt_wave_size;
 
    nir_function *raygen_function = nir_function_create(b.shader, "raygen_func");
    radv_nir_init_rt_function_params(raygen_function, MESA_SHADER_RAYGEN, 0, 0, uses_descriptor_heap);
@@ -319,7 +319,7 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
 
    nir_def *local_id = nir_channel(&b, nir_load_local_invocation_id(&b), 0);
 
-   nir_def *unswizzled_id_x = nir_iadd(&b, nir_imul_imm(&b, wg_ids[0], compiler_info->rt_wave_size), local_id);
+   nir_def *unswizzled_id_x = nir_iadd(&b, nir_imul_imm(&b, wg_ids[0], compiler_info->key.rt_wave_size), local_id);
    nir_def *unswizzled_id_y = wg_ids[1];
 
    /* Swizzle ray launch IDs. We dispatch a 1D 32x1/64x1 workgroup natively. Many games dispatch
@@ -365,7 +365,7 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
    swizzled_id_y = nir_bitfield_select(&b, nir_imm_int(&b, 0x3), swizzled_id_y, swizzled_id_shifted_y);
 
    uint32_t workgroup_width = 8;
-   uint32_t workgroup_height = compiler_info->rt_wave_size == 32 ? 4 : 8;
+   uint32_t workgroup_height = compiler_info->key.rt_wave_size == 32 ? 4 : 8;
    uint32_t workgroup_height_mask = workgroup_height - 1;
 
    /* Fix up the workgroup IDs after converting from 32x1/64x1 to 8x4/8x8. The X dimension of the
@@ -375,7 +375,7 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
     * the fact we divided the X component of the ID.
     */
    nir_def *wg_id_y_rem = nir_iand_imm(&b, wg_ids[1], workgroup_height_mask);
-   nir_def *new_wg_start_x = nir_imul_imm(&b, wg_ids[0], compiler_info->rt_wave_size);
+   nir_def *new_wg_start_x = nir_imul_imm(&b, wg_ids[0], compiler_info->key.rt_wave_size);
    new_wg_start_x = nir_iadd(&b, new_wg_start_x, nir_imul_imm(&b, wg_id_y_rem, workgroup_width));
 
    nir_def *new_wg_start_y = nir_iand_imm(&b, wg_ids[1], ~workgroup_height_mask);
@@ -392,7 +392,7 @@ radv_build_rt_prolog(const struct radv_compiler_info *compiler_info, struct radv
    /* If parts of this wave would've exceeded the launch size in the X dimension, their threads will be masked out and
     * exec won't equal -1. In that case, using swizzled IDs is invalid.
     */
-   nir_def *partial_oob_x = nir_ine_imm(&b, nir_ballot(&b, 1, compiler_info->rt_wave_size, nir_imm_true(&b)), -1);
+   nir_def *partial_oob_x = nir_ine_imm(&b, nir_ballot(&b, 1, compiler_info->key.rt_wave_size, nir_imm_true(&b)), -1);
    nir_def *partial_oob_y = nir_uge(&b, wg_ids[1], y_wg_bound);
 
    nir_def *partial_oob = nir_ior(&b, partial_oob_x, partial_oob_y);

@@ -1735,7 +1735,7 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
    key.dynamic_rasterization_samples = BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES) ||
                                        (!!(state->shader_stages & VK_SHADER_STAGE_FRAGMENT_BIT) && !state->ms);
 
-   if (compiler_info->use_ngg) {
+   if (compiler_info->key.use_ngg) {
       VkShaderStageFlags ngg_stage;
 
       if (state->shader_stages & VK_SHADER_STAGE_GEOMETRY_BIT) {

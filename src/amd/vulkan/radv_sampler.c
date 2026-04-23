@@ -134,8 +134,8 @@ radv_tex_filter_mode(VkSamplerReductionMode mode)
 static uint32_t
 radv_get_max_anisotropy(const struct radv_compiler_info *compiler_info, const struct vk_sampler_state *sampler_state)
 {
-   if (compiler_info->force_aniso >= 0)
-      return compiler_info->force_aniso;
+   if (compiler_info->key.force_aniso >= 0)
+      return compiler_info->key.force_aniso;
 
    if (sampler_state->anisotropy_enable && sampler_state->max_anisotropy > 1.0f)
       return (uint32_t)sampler_state->max_anisotropy;

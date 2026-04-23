@@ -612,7 +612,7 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
       declare_global_input_sgprs(state, gfx_level, info, user_sgpr_info);
 
       if (info->cs.uses_grid_size) {
-         if (compiler_info->load_grid_size_from_user_sgpr)
+         if (compiler_info->key.load_grid_size_from_user_sgpr)
             RADV_ADD_UD_ARG(state, 3, AC_ARG_VALUE, ac.num_work_groups, AC_UD_CS_GRID_SIZE);
          else
             RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.num_work_groups, AC_UD_CS_GRID_SIZE);
