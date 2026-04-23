@@ -91,7 +91,6 @@ panfrost-g52-vk:arm64:
     - .panfrost-vk-rules
   variables:
     DRIVER_NAME: panvk
-    FDO_CI_CONCURRENT: 6  # We get OOMkills if we go too wide since VKCTS 1.4.4.0
     MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
     PAN_I_WANT_A_BROKEN_VULKAN_DRIVER: 1
     PANVK_DEBUG: "sync,coherent_before_cached"
@@ -183,6 +182,10 @@ panfrost-g610-vk:arm64:
     DEQP_SUITE: panfrost-g610-vk
     DEQP_FRACTION: 3
     HWCI_START_WESTON: 1
+    # We get "weston: ../xwayland/window-manager.c:1291: weston_wm_handle_map_request: Assertion `!window->shsurf' failed" (resulting in x11 tests all UnexpectedSkipping) if we go too wide since VKCTS 1.4.5.3
+    # We see a lot of "dEQP error: MESA: error: failed to allocate a panthor_kmod_bo object" both before and after the uprev.
+    FDO_CI_CONCURRENT: 4
+
     LAVA_TAGS: at-least-8gb
 
 panfrost-g610-vk-asan:arm64:
@@ -214,6 +217,7 @@ panfrost-g925-vk:arm64:
     PANVK_DEBUG: "sync,cs,coherent_before_cached"
     DEQP_SUITE: panfrost-g925-vk
     HWCI_START_WESTON: 1
+    FDO_CI_CONCURRENT: 8  # We get OOMkills if we go too wide since VKCTS 1.4.5.3
 
 panfrost-g925-angle:arm64:
   extends:

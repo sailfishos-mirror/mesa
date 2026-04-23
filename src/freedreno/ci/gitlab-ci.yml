@@ -120,7 +120,6 @@ a618-vk:
   variables:
     DEQP_SUITE: freedreno-a618-vk
     FLAKES_CHANNEL: "#freedreno-ci"
-    FDO_CI_CONCURRENT: 7  # We get OOMkills if we go too wide since VKCTS 1.4.4.0
 
 a618-vk-asan:
   extends:

@@ -245,8 +245,10 @@ dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_counter_
 dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_counter_offset_508,Fail
 android-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_244,Fail
 asan-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_244,Fail
-gmem-dEQP-VK.transform_feedback.simple.draw_indirect_multiview_counter_offset_16,Fail
+gmem-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_16,Fail
 gmem-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_multiview_counter_offset_16,Fail
+gmem-dEQP-VK.transform_feedback.simple.draw_indirect_counter_offset_508,Fail
+gmem-dEQP-VK.transform_feedback.simple.draw_indirect_multiview_counter_offset_16,Fail
 nobin-dEQP-VK.transform_feedback.simple.draw_indirect_multiview_counter_offset_16,Fail
 nobin-dEQP-VK.transform_feedback.simple.draw_indirect_counter_offset_244,Fail
 nobin-dEQP-VK.transform_feedback.simple.draw_indirect_counter_offset_508,Fail
@@ -262,7 +264,6 @@ nobin-dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_co
 nobin-dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_counter_offset_244,Fail
 
 # New failures with VKCTS 1.4.4.0
-dEQP-VK.pipeline.monolithic.misc.identically_defined_layout,Fail
 dEQP-VK.tessellation.misc_draw.tess_factor_barrier_bug,Crash
 gmem-dEQP-VK.transform_feedback.simple.draw_indirect_counter_offset_16,Fail
 gmem-dEQP-VK.transform_feedback.simple.draw_indirect_multiview_counter_offset_508,Fail
@@ -274,25 +275,6 @@ nobin-dEQP-VK.transform_feedback.simple.draw_indirect_multiview_counter_offset_5
 nobin-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_244,Fail
 nobin-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_508,Fail
 nobin-dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_counter_offset_508,Fail
-
-dEQP-VK.wsi.direct_drm.incremental_present.scale_none.fifo.identity.opaque.incremental_present,Fail
-dEQP-VK.wsi.direct_drm.incremental_present.scale_none.fifo.identity.opaque.reference,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.deferred_alloc.fifo.basic,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.deferred_alloc.fifo.bind_image_multi_swapchain,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.deferred_alloc.fifo.bind_image,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.present_fence.fifo.basic,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.present_fence.fifo.mult_swapchain_ordering,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.present_fence.fifo.multi_swapchain,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.present_fence.fifo.null_handles,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.present_fence.fifo.ordering,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.present_modes.fifo.change_modes_multi_swapchain,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.present_modes.fifo.change_modes_with_deferred_alloc,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.present_modes.fifo.change_modes,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.release_images.fifo.no_scaling.basic,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.release_images.fifo.no_scaling.release_before_present,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.release_images.fifo.no_scaling.resize_window_after_acquire_release_before_retire,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.release_images.fifo.no_scaling.resize_window_after_acquire,Fail
-dEQP-VK.wsi.direct_drm.maintenance1.release_images.fifo.no_scaling.resize_window,Fail
 
 # OpenCL tests below
 #
@@ -513,3 +495,58 @@ dEQP-VK.fragment_operations.early_fragment.sample_count_early_fragment_tests_dep
 angle-dEQP-GLES3.functional.fbo.msaa.2_samples.rg8,Fail
 angle-dEQP-GLES3.functional.fbo.msaa.4_samples.rg8,Fail
 
+# VKCTS 1.4.4.2 -> 1.4.5.3 uprev.
+# [  118.945672] *** gpu fault: ttbr0=00000001d0f38000 iova=00000000040ff000 dir=READ type=TRANSLATION source=TP|VFD (0,0,0,1)
+# Not entirely reliable -- which ones crash vs pass may flip around, so clear the flakes entry when it's fixed.
+dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.fast_lib.fdm_subsampled_pre_resolve_info_frag_out_only_resolve_info_frag_shader_no_formats,Crash
+dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.fast_lib.fdm_subsampled_resolve_info_frag_shader_no_formats,Crash
+dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.fast_lib.fdm_subsampled,Crash
+dEQP-VK.renderpasses.renderpass1.custom_resolve.fast_lib.fdm_subsampled,Crash
+dEQP-VK.renderpasses.renderpass1.custom_resolve.monolithic.fdm_subsampled,Crash
+
+# VKCTS 1.4.4.2 -> 1.4.5.3 uprev
+dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_10,Fail
+dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_16,Fail
+dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_17,Fail
+dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_20,Fail
+dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_24,Fail
+gmem-dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_24,Fail
+
+# VKCTS 1.4.4.2 -> 1.4.5.3 uprev
+# Errors like "dEQP-VK.wsi.android.maintenance1.deferred_alloc.fifo.basic:
+#  vkd.acquireNextImageKHR(device, *swapchains[j], kAcquireImageTimeout,
+#  acquireSem.back(), VK_NULL_HANDLE, &imageIndex[j]): VK_TIMEOUT at
+#  vktWsiMaintenance1Tests.cpp:973 (Fail)"
+awsi-dEQP-VK.wsi.android.maintenance1.deferred_alloc.fifo.basic,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.deferred_alloc.fifo.bind_image,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.present_fence.fifo.basic,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.present_fence.fifo.ordering,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.present_modes.fifo.change_modes,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.basic,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.release_before_present,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.resize_window_after_acquire_release_before_retire,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.resize_window_after_acquire,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.resize_window,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.basic,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.release_before_present,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.resize_window_after_acquire_release_before_retire,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.resize_window_after_acquire,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.resize_window,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.same_size_and_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_bigger_same_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_bigger_taller_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_bigger_wider_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_smaller_same_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_smaller_taller_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_smaller_wider_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_taller,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_wider,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.same_size_and_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_bigger_same_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_bigger_taller_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_bigger_wider_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_smaller_same_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_smaller_taller_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_smaller_wider_aspect,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_taller,Fail
+awsi-dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_wider,Fail

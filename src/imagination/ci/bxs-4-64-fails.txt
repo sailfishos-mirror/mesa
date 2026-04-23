@@ -1,16 +1,6 @@
-dEQP-VK.binding_model.unused_invalid_descriptor.copy.combined_image_sampler,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.copy.sampled_image,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.copy.storage_buffer,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.copy.storage_image,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.copy.uniform_buffer,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.write.invalid.combined_image_sampler,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.write.invalid.sampled_image,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.write.invalid.storage_image,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.combined_image_sampler,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.sampled_image,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.storage_buffer,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.storage_image,Crash
-dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.uniform_buffer,Crash
 dEQP-VK.graphicsfuzz.cov-two-nested-loops-switch-case-matrix-array-increment,Fail
 dEQP-VK.graphicsfuzz.stable-binarysearch-tree-false-if-discard-loop,Fail
 dEQP-VK.memory.concurrent_access.shader_and_host,Crash
+
+# VKCTS 1.4.4.2 -> 1.4.5.3 uprev
+dEQP-VK.pipeline.monolithic.misc.no_rendering,Crash

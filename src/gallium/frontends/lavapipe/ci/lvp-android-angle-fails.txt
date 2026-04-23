@@ -143,3 +143,42 @@ dEQP-EGL.functional.robustness.reset_context.shaders.out_of_bounds_non_robust.re
 dEQP-EGL.functional.robustness.reset_context.shaders.out_of_bounds_non_robust.reset_status.writes.local_array.compute,Crash
 dEQP-EGL.functional.robustness.reset_context.shaders.out_of_bounds_non_robust.reset_status.writes.shader_storage_block.compute,Crash
 dEQP-EGL.functional.robustness.reset_context.shaders.out_of_bounds_non_robust.reset_status.writes.uniform_block.compute,Crash
+
+# VKCTS 1.4.4.2 -> 1.4.5.3 uprev
+# Errors like "dEQP-VK.wsi.android.maintenance1.deferred_alloc.fifo.basic:
+#  vkd.acquireNextImageKHR(device, *swapchains[j], kAcquireImageTimeout,
+#  acquireSem.back(), VK_NULL_HANDLE, &imageIndex[j]): VK_TIMEOUT at
+#  vktWsiMaintenance1Tests.cpp:973 (Fail)"
+dEQP-VK.wsi.android.maintenance1.deferred_alloc.fifo.basic,Fail
+dEQP-VK.wsi.android.maintenance1.deferred_alloc.fifo.bind_image,Fail
+dEQP-VK.wsi.android.maintenance1.present_fence.fifo.basic,Fail
+dEQP-VK.wsi.android.maintenance1.present_fence.fifo.ordering,Fail
+dEQP-VK.wsi.android.maintenance1.present_modes.fifo.change_modes,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.basic,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.release_before_present,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.resize_window_after_acquire_release_before_retire,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.resize_window_after_acquire,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.no_scaling.resize_window,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.basic,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.release_before_present,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.resize_window_after_acquire_release_before_retire,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.resize_window_after_acquire,Fail
+dEQP-VK.wsi.android.maintenance1.release_images.fifo.stretch.resize_window,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.same_size_and_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_bigger_same_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_bigger_taller_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_bigger_wider_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_smaller_same_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_smaller_taller_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_smaller_wider_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_taller,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.fifo.stretch.swapchain_wider,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.same_size_and_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_bigger_same_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_bigger_taller_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_bigger_wider_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_smaller_same_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_smaller_taller_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_smaller_wider_aspect,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_taller,Fail
+dEQP-VK.wsi.android.maintenance1.scaling.resize_window.fifo.stretch.swapchain_wider,Fail
