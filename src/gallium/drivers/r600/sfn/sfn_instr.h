@@ -202,9 +202,12 @@ public:
    void set_type(Type t, r600_chip_class chip_class);
    int32_t remaining_slots() const { return m_remaining_slots;}
 
-   bool try_reserve_kcache(const AluGroup& instr);
-   bool try_reserve_kcache(const AluInstr& group);
-   void commit_kcache_reservation();
+   auto try_reserve_kcache(const AluGroup& instr) const
+      -> std::pair<std::array<KCacheLine, 4>, bool>;
+   auto try_reserve_kcache(const AluInstr& group) const
+      -> std::pair<std::array<KCacheLine, 4>, bool>;
+   void commit_kcache_reservation(const std::array<KCacheLine, 4>& kcache);
+   void set_kcache_reservation_failed(bool failed) { m_kcache_alloc_failed = failed; }
    bool update_kcache_reservation(const AluGroup& instr);
    bool update_kcache_reservation(const AluInstr& instr);
 
@@ -247,8 +250,6 @@ private:
    uint32_t m_remaining_slots{0xffff};
 
    std::array<KCacheLine, 4> m_kcache;
-   std::array<KCacheLine, 4> m_pending_kcache;
-   bool m_has_pending_kcache{false};
    bool m_kcache_alloc_failed{false};
 
    Instr *m_last_lds_instr{nullptr};

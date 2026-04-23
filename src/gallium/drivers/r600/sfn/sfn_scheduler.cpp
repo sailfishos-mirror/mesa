@@ -1070,14 +1070,17 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
          continue;
       }
 
-      if (!m_current_block->try_reserve_kcache(**i)) {
+      auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
+      m_current_block->set_kcache_reservation_failed(!reserved);
+
+      if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
          ++i;
          continue;
       }
 
       if (group.add_vec_instructions(*i)) {
-         m_current_block->commit_kcache_reservation();
+         m_current_block->commit_kcache_reservation(kcache);
          (*i)->pin_dest_to_chan();
          group_has_update_pred |= (*i)->has_alu_flag(alu_update_pred);
          auto old_i = i;
@@ -1221,14 +1224,17 @@ BlockScheduler::schedule_alu_multislot_to_group_vec(AluGroup& group)
          continue;
       }
 
-      if (!m_current_block->try_reserve_kcache(**i)) {
+      auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
+      m_current_block->set_kcache_reservation_failed(!reserved);
+
+      if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
          ++i;
          continue;
       }
 
       if ((*i)->split(group)) {
-         m_current_block->commit_kcache_reservation();
+         m_current_block->commit_kcache_reservation(kcache);
          success = true;
          auto old_i = i;
          ++i;
@@ -1268,7 +1274,10 @@ BlockScheduler::schedule_alu_to_group_trans(AluGroup& group,
       }
 
       sfn_log << SfnLog::schedule << "Try schedule to trans " << **i;
-      if (!m_current_block->try_reserve_kcache(**i)) {
+      auto [kcache, reserved] = m_current_block->try_reserve_kcache(**i);
+      m_current_block->set_kcache_reservation_failed(!reserved);
+
+      if (!reserved) {
          sfn_log << SfnLog::schedule << " failed (kcache)\n";
          ++i;
          continue;
@@ -1281,7 +1290,7 @@ BlockScheduler::schedule_alu_to_group_trans(AluGroup& group,
       }
 
       if (group.add_trans_instructions(*i)) {
-         m_current_block->commit_kcache_reservation();
+         m_current_block->commit_kcache_reservation(kcache);
          (*i)->pin_dest_to_chan();
          auto old_i = i;
          ++i;

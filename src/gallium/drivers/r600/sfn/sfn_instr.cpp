@@ -364,8 +364,9 @@ Block::insert(const iterator pos, Instr *instr)
    return m_instructions.insert(pos, instr);
 }
 
-bool
-Block::try_reserve_kcache(const AluGroup& group)
+auto
+Block::try_reserve_kcache(const AluGroup& group) const
+   -> std::pair<std::array<KCacheLine, 4>, bool>
 {
    auto kcache = m_kcache;
 
@@ -374,25 +375,23 @@ Block::try_reserve_kcache(const AluGroup& group)
       auto u = kc->as_uniform();
       assert(u);
       if (!try_reserve_kcache(*u, kcache)) {
-         m_has_pending_kcache = false;
-         m_kcache_alloc_failed = true;
-         return false;
+         return {kcache, false};
       }
    }
 
-   m_pending_kcache = kcache;
-   m_has_pending_kcache = true;
-   m_kcache_alloc_failed = false;
-   return true;
+   return {kcache, true};
 }
 
 bool
 Block::update_kcache_reservation(const AluGroup& group)
 {
-   if (!try_reserve_kcache(group))
+   auto [kcache, success] = try_reserve_kcache(group);
+   m_kcache_alloc_failed = !success;
+
+   if (!success)
       return false;
 
-   commit_kcache_reservation();
+   commit_kcache_reservation(kcache);
    return true;
 }
 
@@ -408,8 +407,9 @@ Block::kcache_needs_extended() const
    return false;
 }
 
-bool
-Block::try_reserve_kcache(const AluInstr& instr)
+auto
+Block::try_reserve_kcache(const AluInstr& instr) const
+   -> std::pair<std::array<KCacheLine, 4>, bool>
 {
    auto kcache = m_kcache;
 
@@ -417,34 +417,31 @@ Block::try_reserve_kcache(const AluInstr& instr)
       auto u = src->as_uniform();
       if (u) {
          if (!try_reserve_kcache(*u, kcache)) {
-            m_has_pending_kcache = false;
-            m_kcache_alloc_failed = true;
-            return false;
+            return {kcache, false};
          }
       }
    }
-   m_pending_kcache = kcache;
-   m_has_pending_kcache = true;
-   m_kcache_alloc_failed = false;
-   return true;
+   return {kcache, true};
 }
 
 bool
 Block::update_kcache_reservation(const AluInstr& instr)
 {
-   if (!try_reserve_kcache(instr))
+   auto [kcache, success] = try_reserve_kcache(instr);
+   m_kcache_alloc_failed = !success;
+
+   if (!success)
       return false;
 
-   commit_kcache_reservation();
+   commit_kcache_reservation(kcache);
    return true;
 }
 
 void
-Block::commit_kcache_reservation()
+Block::commit_kcache_reservation(const std::array<KCacheLine, 4>& kcache)
 {
-   assert(m_has_pending_kcache);
-   m_kcache = m_pending_kcache;
-   m_has_pending_kcache = false;
+   m_kcache = kcache;
+   m_kcache_alloc_failed = false;
 }
 
 void
