@@ -459,6 +459,12 @@ jay_process_nir(const struct intel_device_info *devinfo,
    NIR_PASS(_, nir, nir_opt_copy_prop);
    NIR_PASS(_, nir, nir_opt_dce);
 
+   /* Jay requires LCSSA for correctness reading convergent loop-dependent
+    * values outside of a divergent loop. Converting to LCSSA inserts the
+    * required divergent 1-source phi after the loop.
+    */
+   NIR_PASS(_, nir, nir_convert_to_lcssa, true, true);
+
    /* Run divergence analysis at the end */
    nir_sweep(nir);
    nj_index_ssa_defs(nir);
