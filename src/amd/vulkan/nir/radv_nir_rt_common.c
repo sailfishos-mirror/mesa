@@ -18,8 +18,8 @@ radv_use_bvh_stack_rtn(const struct radv_compiler_info *compiler_info)
 {
    /* gfx12 requires using the bvh4 ds_bvh_stack_rtn differently - enable hw stack instrs on gfx12 only with bvh8 */
    return ((compiler_info->ac->gfx_level >= GFX11 && compiler_info->ac->gfx_level < GFX12) ||
-           compiler_info->cache_key->bvh8) &&
-          !compiler_info->cache_key->emulate_rt;
+           compiler_info->key.bvh8) &&
+          !compiler_info->key.emulate_rt;
 }
 
 nir_def *
@@ -388,7 +388,7 @@ build_addr_to_node(const struct radv_compiler_info *compiler_info, nir_builder *
    nir_def *node = nir_ushr_imm(b, addr, 3);
    node = nir_iand_imm(b, node, (bvh_size - 1) << 3);
 
-   if (compiler_info->cache_key->bvh8) {
+   if (compiler_info->key.bvh8) {
       /* The HW ray flags are the same bits as the API flags.
        * - SpvRayFlagsTerminateOnFirstHitKHRMask, SpvRayFlagsSkipClosestHitShaderKHRMask are handled in shader code.
        * - SpvRayFlagsSkipTrianglesKHRMask, SpvRayFlagsSkipAABBsKHRMask do not work.
@@ -433,7 +433,7 @@ nir_build_vec3_mat_mult(nir_builder *b, nir_def *vec, nir_def *matrix[], bool tr
 nir_def *
 radv_load_vertex_position(const struct radv_compiler_info *compiler_info, nir_builder *b, nir_def *primitive_addr, uint32_t index)
 {
-   if (compiler_info->cache_key->bvh8) {
+   if (compiler_info->key.bvh8) {
       /* Assume that vertices are uncompressed. */
       uint32_t offset = ROUND_DOWN_TO(RADV_GFX12_PRIMITIVE_NODE_HEADER_SIZE / 8, 4) + index * 3 * sizeof(float);
       nir_def *data[4];
@@ -462,7 +462,7 @@ void
 radv_load_wto_matrix(const struct radv_compiler_info *compiler_info, nir_builder *b, nir_def *instance_addr, nir_def **out)
 {
    unsigned offset = offsetof(struct radv_bvh_instance_node, wto_matrix);
-   if (compiler_info->cache_key->bvh8)
+   if (compiler_info->key.bvh8)
       offset = offsetof(struct radv_gfx12_instance_node, wto_matrix);
 
    for (unsigned i = 0; i < 3; ++i) {
@@ -475,7 +475,7 @@ void
 radv_load_otw_matrix(const struct radv_compiler_info *compiler_info, nir_builder *b, nir_def *instance_addr, nir_def **out)
 {
    unsigned offset = offsetof(struct radv_bvh_instance_node, otw_matrix);
-   if (compiler_info->cache_key->bvh8)
+   if (compiler_info->key.bvh8)
       offset =
          sizeof(struct radv_gfx12_instance_node) + offsetof(struct radv_gfx12_instance_node_user_data, otw_matrix);
 
@@ -488,7 +488,7 @@ radv_load_otw_matrix(const struct radv_compiler_info *compiler_info, nir_builder
 nir_def *
 radv_load_custom_instance(const struct radv_compiler_info *compiler_info, nir_builder *b, nir_def *instance_addr)
 {
-   if (compiler_info->cache_key->bvh8) {
+   if (compiler_info->key.bvh8) {
       return nir_load_global(b, 1, 32,
                              nir_iadd_imm(b, instance_addr,
                                           sizeof(struct radv_gfx12_instance_node) +
@@ -505,7 +505,7 @@ radv_load_custom_instance(const struct radv_compiler_info *compiler_info, nir_bu
 nir_def *
 radv_load_instance_id(const struct radv_compiler_info *compiler_info, nir_builder *b, nir_def *instance_addr)
 {
-   if (compiler_info->cache_key->bvh8) {
+   if (compiler_info->key.bvh8) {
       return nir_load_global(b, 1, 32,
                              nir_iadd_imm(b, instance_addr,
                                           sizeof(struct radv_gfx12_instance_node) +
@@ -537,7 +537,7 @@ create_bvh_descriptor(nir_builder *b, const struct radv_compiler_info *compiler_
     * instances at the cost of having to use 64-bit node ids. */
    const uint64_t bvh_size = 1ull << 42;
 
-   const uint32_t sort_triangles_first = compiler_info->cache_key->bvh8 ? BITFIELD_BIT(52 - 32) : 0;
+   const uint32_t sort_triangles_first = compiler_info->key.bvh8 ? BITFIELD_BIT(52 - 32) : 0;
    const uint32_t box_sort_enable = BITFIELD_BIT(63 - 32);
    const uint32_t triangle_return_mode = BITFIELD_BIT(120 - 96); /* Return IJ for triangles */
 
@@ -560,7 +560,7 @@ create_bvh_descriptor(nir_builder *b, const struct radv_compiler_info *compiler_
                          nir_imm_int(b, (box_sort_largest << 21) | sort_triangles_first | box_sort_enable), dword1);
    }
 
-   if (compiler_info->cache_key->bvh8) {
+   if (compiler_info->key.bvh8) {
       /* compressed_format_en */
       dword3 |= BITFIELD_BIT(115 - 96);
       /* wide_sort_en */
@@ -591,7 +591,7 @@ insert_traversal_triangle_case(const struct radv_compiler_info *compiler_info, n
    {
       intersection.frontface = nir_fgt_imm(b, div, 0);
       nir_def *not_cull;
-      if (compiler_info->ac->gfx_level < GFX11 || compiler_info->cache_key->emulate_rt) {
+      if (compiler_info->ac->gfx_level < GFX11 || compiler_info->key.emulate_rt) {
          nir_def *switch_ccw =
             nir_test_mask(b, nir_load_deref(b, args->vars.sbt_offset_and_flags), RADV_INSTANCE_TRIANGLE_FLIP_FACING);
          intersection.frontface = nir_ixor(b, intersection.frontface, switch_ccw);
@@ -749,7 +749,7 @@ insert_traversal_aabb_case_gfx12(const struct radv_compiler_info *compiler_info,
 static nir_def *
 fetch_parent_node(const struct radv_compiler_info *compiler_info, nir_builder *b, nir_def *bvh, nir_def *node)
 {
-   nir_def *offset = nir_iadd_imm(b, nir_imul_imm(b, nir_udiv_imm(b, node, compiler_info->cache_key->bvh8 ? 16 : 8), 4), 4);
+   nir_def *offset = nir_iadd_imm(b, nir_imul_imm(b, nir_udiv_imm(b, node, compiler_info->key.bvh8 ? 16 : 8), 4), 4);
    return nir_load_global(b, 1, 32, nir_isub(b, bvh, nir_u2u64(b, offset)), .align_mul = 4);
 }
 
@@ -771,7 +771,7 @@ static nir_def *
 build_bvh_base(nir_builder *b, const struct radv_compiler_info *compiler_info, nir_def *base_addr, nir_def *ptr_flags,
                bool overwrite)
 {
-   if (compiler_info->ac->gfx_level < GFX11 || compiler_info->cache_key->emulate_rt)
+   if (compiler_info->ac->gfx_level < GFX11 || compiler_info->key.emulate_rt)
       return base_addr;
 
    nir_def *base_addr_vec = nir_unpack_64_2x32(b, base_addr);
@@ -793,7 +793,7 @@ build_instance_exit(nir_builder *b, const struct radv_compiler_info *compiler_in
    nir_if *instance_exit = nir_push_if(b, nir_ior(b, stack_instance_exit, root_instance_exit));
    instance_exit->control = nir_selection_control_dont_flatten;
    {
-      if (compiler_info->cache_key->bvh8 && args->use_bvh_stack_rtn)
+      if (compiler_info->key.bvh8 && args->use_bvh_stack_rtn)
          nir_store_deref(b, args->vars.stack,
                          nir_ior_imm(b, nir_load_deref(b, args->vars.stack), RADV_BVH_STACK_FLAG_TLAS_POP), 0x1);
       else
@@ -801,8 +801,9 @@ build_instance_exit(nir_builder *b, const struct radv_compiler_info *compiler_in
       nir_store_deref(b, args->vars.previous_node, nir_load_deref(b, args->vars.instance_top_node), 1);
       nir_store_deref(b, args->vars.instance_bottom_node, nir_imm_int(b, RADV_BVH_NO_INSTANCE_ROOT), 1);
 
-      nir_def *root_bvh_base =
-         compiler_info->cache_key->bvh8 ? args->root_bvh_base : build_bvh_base(b, compiler_info, args->root_bvh_base, ptr_flags, true);
+      nir_def *root_bvh_base = compiler_info->key.bvh8
+                                  ? args->root_bvh_base
+                                  : build_bvh_base(b, compiler_info, args->root_bvh_base, ptr_flags, true);
 
       nir_store_deref(b, args->vars.bvh_base, root_bvh_base, 0x1);
       nir_store_deref(b, args->vars.origin, args->origin, 7);
@@ -932,7 +933,7 @@ radv_build_ray_traversal(const struct radv_compiler_info *compiler_info, nir_bui
       nir_def *global_bvh_node = nir_iadd(b, nir_load_deref(b, args->vars.bvh_base), nir_u2u64(b, bvh_node));
 
       bool has_result = false;
-      if (compiler_info->ac->has_image_bvh_intersect_ray && !compiler_info->cache_key->emulate_rt) {
+      if (compiler_info->ac->has_image_bvh_intersect_ray && !compiler_info->key.emulate_rt) {
          nir_store_var(
             b, intrinsic_result,
             nir_bvh64_intersect_ray_amd(b, 32, desc, nir_unpack_64_2x32(b, global_bvh_node),

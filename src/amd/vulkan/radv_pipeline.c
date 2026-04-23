@@ -299,7 +299,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
       NIR_PASS(progress, stage->nir, nir_opt_load_store_vectorize, &vectorize_opts);
       if (progress) {
          NIR_PASS(_, stage->nir, nir_opt_copy_prop);
-         NIR_PASS(_, stage->nir, nir_opt_shrink_stores, !compiler_info->cache_key->disable_shrink_image_store);
+         NIR_PASS(_, stage->nir, nir_opt_shrink_stores, !compiler_info->key.disable_shrink_image_store);
 
          constant_fold_for_push_const = true;
       }
@@ -338,7 +338,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
             &(ac_nir_lower_image_tex_options){
                .gfx_level = gfx_level,
                .lower_array_layer_round_even =
-                  !compiler_info->ac->conformant_trunc_coord && !compiler_info->cache_key->disable_trunc_coord,
+                  !compiler_info->ac->conformant_trunc_coord && !compiler_info->key.disable_trunc_coord,
                .fix_derivs_in_divergent_cf = stage->stage == MESA_SHADER_FRAGMENT && !use_llvm,
                .max_wqm_vgprs = 64, // TODO: improve spiller and RA support for linear VGPRs
             });
@@ -376,7 +376,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
          NIR_PASS(_, stage->nir, nir_opt_sink, sink_opts);
          NIR_PASS(_, stage->nir, nir_opt_move, sink_opts);
       } else {
-         if (stage->stage != MESA_SHADER_FRAGMENT || !compiler_info->cache_key->disable_sinking_load_input_fs)
+         if (stage->stage != MESA_SHADER_FRAGMENT || !compiler_info->key.disable_sinking_load_input_fs)
             sink_opts |= nir_move_load_input | nir_move_load_frag_coord;
 
          NIR_PASS(_, stage->nir, nir_opt_sink, sink_opts);
@@ -526,7 +526,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
    NIR_PASS(_, stage->nir, ac_nir_lower_global_access);
    NIR_PASS(_, stage->nir, nir_lower_int64);
 
-   if (compiler_info->cache_key->mitigate_smem_oob)
+   if (compiler_info->key.mitigate_smem_oob)
       NIR_PASS(_, stage->nir, ac_nir_fixup_mem_access_gfx6, &stage->args.ac, 4096, true, true);
 
    bool opt_intrinsics = false;
@@ -624,7 +624,7 @@ radv_shader_should_clear_lds(const struct radv_compiler_info *compiler_info, con
 {
    return (shader->info.stage == MESA_SHADER_COMPUTE || shader->info.stage == MESA_SHADER_MESH ||
            shader->info.stage == MESA_SHADER_TASK) &&
-          shader->info.shared_size > 0 && compiler_info->cache_key->clear_lds;
+          shader->info.shared_size > 0 && compiler_info->key.clear_lds;
 }
 
 static uint32_t

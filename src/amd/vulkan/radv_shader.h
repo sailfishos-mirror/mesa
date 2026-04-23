@@ -591,7 +591,6 @@ struct radv_compiler_info {
    bool cache_disabled;
    bool enable_nir_cache;
    struct vk_pipeline_cache *mem_cache;
-   const struct radv_physical_device_cache_key *cache_key;
    uint8_t override_compute_shader_version;
    uint8_t override_graphics_shader_version;
    uint8_t override_ray_tracing_shader_version;

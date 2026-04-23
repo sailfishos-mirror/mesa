@@ -1282,7 +1282,7 @@ radv_build_traversal(const struct radv_compiler_info *compiler_info, struct radv
       .data = &data,
    };
 
-   if (compiler_info->cache_key->bvh8)
+   if (compiler_info->key.bvh8)
       radv_build_ray_traversal_gfx12(compiler_info, b, &args);
    else
       radv_build_ray_traversal(compiler_info, b, &args);

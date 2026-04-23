@@ -209,7 +209,7 @@ radv_make_sampler_descriptor(const struct radv_compiler_info *compiler_info,
    const bool trunc_coord =
       ((sampler_state->min_filter == VK_FILTER_NEAREST && sampler_state->mag_filter == VK_FILTER_NEAREST) ||
        compiler_info->ac->conformant_trunc_coord) &&
-      !compiler_info->cache_key->disable_trunc_coord;
+      !compiler_info->key.disable_trunc_coord;
    const VkBorderColor border_color = radv_get_border_color(sampler_state);
    const bool disable_cube_wrap = sampler_state->flags & VK_SAMPLER_CREATE_NON_SEAMLESS_CUBE_MAP_BIT_EXT;
 
@@ -236,7 +236,7 @@ radv_make_sampler_descriptor(const struct radv_compiler_info *compiler_info,
       .min_lod = sampler_state->min_lod,
       .max_lod = sampler_state->max_lod,
       .lod_bias = sampler_state->mip_lod_bias,
-      .aniso_single_level = !compiler_info->cache_key->disable_aniso_single_level,
+      .aniso_single_level = !compiler_info->key.disable_aniso_single_level,
       .border_color_type = radv_tex_bordercolor(border_color),
       .border_color_ptr = border_color_ptr,
    };

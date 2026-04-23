@@ -685,10 +685,9 @@ radv_nir_lower_descriptors(nir_shader *shader, const struct radv_compiler_info *
       .combined_image_sampler_desc_size = compiler_info->combined_image_sampler_desc_size,
       .combined_image_sampler_offset = compiler_info->combined_image_sampler_offset,
       .disable_aniso_single_level =
-         compiler_info->cache_key->disable_aniso_single_level && compiler_info->ac->gfx_level < GFX8,
+         compiler_info->key.disable_aniso_single_level && compiler_info->ac->gfx_level < GFX8,
       .has_image_load_dcc_bug = compiler_info->ac->has_image_load_dcc_bug,
-      .disable_tg4_trunc_coord =
-         !compiler_info->ac->conformant_trunc_coord && !compiler_info->cache_key->disable_trunc_coord,
+      .disable_tg4_trunc_coord = !compiler_info->ac->conformant_trunc_coord && !compiler_info->key.disable_trunc_coord,
       .args = &stage->args,
       .info = &stage->info,
       .layout = &stage->layout,

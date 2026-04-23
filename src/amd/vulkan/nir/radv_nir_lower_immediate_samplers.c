@@ -30,7 +30,7 @@ lower_immediate_samplers(nir_builder *b, nir_tex_instr *tex, void *cb_data)
    b->cursor = nir_before_instr(&tex->instr);
 
    const bool disable_tg4_trunc_coord =
-      !state->compiler_info->ac->conformant_trunc_coord && !state->compiler_info->cache_key->disable_trunc_coord;
+      !state->compiler_info->ac->conformant_trunc_coord && !state->compiler_info->key.disable_trunc_coord;
    const uint32_t dword0_mask =
       tex->op == nir_texop_tg4 && disable_tg4_trunc_coord ? C_008F30_TRUNC_COORD : 0xffffffffu;
 

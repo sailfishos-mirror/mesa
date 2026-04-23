@@ -56,8 +56,7 @@ static void
 get_nir_options_for_stage(struct radv_compiler_info *compiler_info, mesa_shader_stage stage)
 {
    nir_shader_compiler_options *options = &compiler_info->nir_options[stage];
-   const bool split_fma =
-      (stage <= MESA_SHADER_GEOMETRY || stage == MESA_SHADER_MESH) && compiler_info->cache_key->split_fma;
+   const bool split_fma = (stage <= MESA_SHADER_GEOMETRY || stage == MESA_SHADER_MESH) && compiler_info->key.split_fma;
 
    ac_nir_set_options(compiler_info->ac, compiler_info->key.use_llvm, options);
 
@@ -361,7 +360,7 @@ radv_shader_choose_subgroup_size(const struct radv_compiler_info *compiler_info,
    };
 
    /* Do not allow for the SPIR-V 1.6 varying subgroup size rules. */
-   if (compiler_info->cache_key->no_implicit_varying_subgroup_size)
+   if (compiler_info->key.no_implicit_varying_subgroup_size)
       spirv_version = 0x10000;
 
    vk_set_subgroup_size(nir, compiler_info->subgroup_size, compiler_info->min_subgroup_size,
@@ -508,9 +507,9 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
             },
          .workarounds =
             {
-               .force_tex_non_uniform = compiler_info->cache_key->tex_non_uniform,
-               .force_ssbo_non_uniform = compiler_info->cache_key->ssbo_non_uniform,
-               .lower_terminate_to_discard = compiler_info->cache_key->lower_terminate_to_discard,
+               .force_tex_non_uniform = compiler_info->key.tex_non_uniform,
+               .force_ssbo_non_uniform = compiler_info->key.ssbo_non_uniform,
+               .lower_terminate_to_discard = compiler_info->key.lower_terminate_to_discard,
             },
          .emit_debug_break = compiler_info->debug.trap_enabled,
          .debug_info = compiler_info->debug.nir_debug_info,
@@ -613,7 +612,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
 
       NIR_PASS(_, nir, nir_lower_vars_to_ssa);
 
-      NIR_PASS(_, nir, nir_propagate_invariant, compiler_info->cache_key->invariant_geom);
+      NIR_PASS(_, nir, nir_propagate_invariant, compiler_info->key.invariant_geom);
 
       nir_gather_clip_cull_distance_sizes_from_vars(nir);
       NIR_PASS(_, nir, nir_merge_clip_cull_distance_vars);
@@ -750,7 +749,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
             });
 
    NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
-   NIR_PASS(_, nir, nir_opt_shrink_stores, !compiler_info->cache_key->disable_shrink_image_store);
+   NIR_PASS(_, nir, nir_opt_shrink_stores, !compiler_info->key.disable_shrink_image_store);
    if (nir->info.stage == MESA_SHADER_FRAGMENT && nir->info.fs.uses_discard)
       NIR_PASS(_, nir, nir_lower_discard_if, nir_move_terminate_out_of_loops);
 
@@ -891,7 +890,7 @@ radv_consider_culling(const struct radv_compiler_info *compiler_info, struct nir
    if (info->vs.has_prolog)
       return false;
 
-   if (!compiler_info->cache_key->use_ngg_culling)
+   if (!compiler_info->key.use_ngg_culling)
       return false;
 
    /* TODO: consider other heuristics here, such as PS execution time */

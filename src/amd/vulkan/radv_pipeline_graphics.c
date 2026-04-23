@@ -1522,7 +1522,7 @@ radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info, cons
    key.spi_shader_col_format = col_format;
    key.color_is_int8 = compiler_info->ac->has_cb_lt16bit_int_clamp_bug ? is_int8 : 0;
    key.color_is_int10 = compiler_info->ac->has_cb_lt16bit_int_clamp_bug ? is_int10 : 0;
-   key.enable_mrt_output_nan_fixup = compiler_info->cache_key->enable_mrt_output_nan_fixup ? is_float32 : 0;
+   key.enable_mrt_output_nan_fixup = compiler_info->key.enable_mrt_output_nan_fixup ? is_float32 : 0;
    key.no_signed_zero = no_signed_zero;
    key.colors_written = state->colors_written;
    key.mrt0_is_dual_src = state->mrt0_is_dual_src && key.colors_needed & 0xf;
@@ -1816,7 +1816,7 @@ static void
 radv_fill_shader_info_ngg(const struct radv_compiler_info *compiler_info, struct radv_shader_stage *stages,
                           VkShaderStageFlagBits active_nir_stages)
 {
-   if (!compiler_info->cache_key->use_ngg)
+   if (!compiler_info->key.use_ngg)
       return;
 
    if (stages[MESA_SHADER_VERTEX].nir && stages[MESA_SHADER_VERTEX].info.next_stage != MESA_SHADER_TESS_CTRL) {
@@ -1852,7 +1852,7 @@ radv_fill_shader_info_ngg(const struct radv_compiler_info *compiler_info, struct
       }
 
       if ((last_vgt_stage && last_vgt_stage->nir->xfb_info) ||
-          (compiler_info->cache_key->no_ngg_gs && stages[MESA_SHADER_GEOMETRY].nir)) {
+          (compiler_info->key.no_ngg_gs && stages[MESA_SHADER_GEOMETRY].nir)) {
          /* NGG needs to be disabled on GFX10/GFX10.3 when:
           * - streamout is used because NGG streamout isn't supported
           * - NGG GS is explictly disabled to workaround performance issues
