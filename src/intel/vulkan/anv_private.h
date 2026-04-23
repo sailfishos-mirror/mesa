@@ -1518,6 +1518,8 @@ struct anv_physical_device {
     bool                                        emu_astc_ldr;
     /* true if FCV optimization should be disabled. */
     bool                                        disable_fcv;
+    /* true if EXT_subgroup_size_control extension should be disabled. */
+    bool                                        brw_disable_subgroup_size_control;
     /**/
     bool                                        uses_ex_bso;
 
