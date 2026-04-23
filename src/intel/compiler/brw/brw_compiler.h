@@ -1321,6 +1321,10 @@ struct brw_compile_params {
    debug_archiver *archiver;
 };
 
+const unsigned *
+brw_compile(const struct brw_compiler *compiler,
+            struct brw_compile_params *params);
+
 /**
  * Parameters for compiling a vertex shader.
  *
@@ -1334,15 +1338,6 @@ struct brw_compile_vs_params {
 };
 
 /**
- * Compile a vertex shader.
- *
- * Returns the final assembly and updates the parameters structure.
- */
-const unsigned *
-brw_compile_vs(const struct brw_compiler *compiler,
-               struct brw_compile_vs_params *params);
-
-/**
  * Parameters for compiling a tessellation control shader.
  *
  * Some of these will be modified during the shader compilation.
@@ -1353,15 +1348,6 @@ struct brw_compile_tcs_params {
    const struct brw_tcs_prog_key *key;
    struct brw_tcs_prog_data *prog_data;
 };
-
-/**
- * Compile a tessellation control shader.
- *
- * Returns the final assembly and updates the parameters structure.
- */
-const unsigned *
-brw_compile_tcs(const struct brw_compiler *compiler,
-                struct brw_compile_tcs_params *params);
 
 /**
  * Parameters for compiling a tessellation evaluation shader.
@@ -1377,15 +1363,6 @@ struct brw_compile_tes_params {
 };
 
 /**
- * Compile a tessellation evaluation shader.
- *
- * Returns the final assembly and updates the parameters structure.
- */
-const unsigned *
-brw_compile_tes(const struct brw_compiler *compiler,
-                struct brw_compile_tes_params *params);
-
-/**
  * Parameters for compiling a geometry shader.
  *
  * Some of these will be modified during the shader compilation.
@@ -1397,25 +1374,12 @@ struct brw_compile_gs_params {
    struct brw_gs_prog_data *prog_data;
 };
 
-/**
- * Compile a geometry shader.
- *
- * Returns the final assembly and updates the parameters structure.
- */
-const unsigned *
-brw_compile_gs(const struct brw_compiler *compiler,
-               struct brw_compile_gs_params *params);
-
 struct brw_compile_task_params {
    struct brw_compile_params base;
 
    const struct brw_task_prog_key *key;
    struct brw_task_prog_data *prog_data;
 };
-
-const unsigned *
-brw_compile_task(const struct brw_compiler *compiler,
-                 struct brw_compile_task_params *params);
 
 struct brw_compile_mesh_params {
    struct brw_compile_params base;
@@ -1431,10 +1395,6 @@ struct brw_compile_mesh_params {
    void *wa_18019110168_data;
    nir_def *(*wa_18019110168_load_provoking_vertex)(nir_builder *b, void *data);
 };
-
-const unsigned *
-brw_compile_mesh(const struct brw_compiler *compiler,
-                 struct brw_compile_mesh_params *params);
 
 /**
  * Parameters for compiling a fragment shader.
@@ -1464,15 +1424,6 @@ struct brw_compile_fs_params {
 };
 
 /**
- * Compile a fragment shader.
- *
- * Returns the final assembly and updates the parameters structure.
- */
-const unsigned *
-brw_compile_fs(const struct brw_compiler *compiler,
-               struct brw_compile_fs_params *params);
-
-/**
  * Parameters for compiling a compute shader.
  *
  * Some of these will be modified during the shader compilation.
@@ -1483,15 +1434,6 @@ struct brw_compile_cs_params {
    const struct brw_cs_prog_key *key;
    struct brw_cs_prog_data *prog_data;
 };
-
-/**
- * Compile a compute shader.
- *
- * Returns the final assembly and updates the parameters structure.
- */
-const unsigned *
-brw_compile_cs(const struct brw_compiler *compiler,
-               struct brw_compile_cs_params *params);
 
 /**
  * Parameters for compiling a Bindless shader.
@@ -1508,14 +1450,18 @@ struct brw_compile_bs_params {
    struct nir_shader **resume_shaders;
 };
 
-/**
- * Compile a Bindless shader.
- *
- * Returns the final assembly and updates the parameters structure.
- */
-const unsigned *
-brw_compile_bs(const struct brw_compiler *compiler,
-               struct brw_compile_bs_params *params);
+union brw_any_compile_params {
+   struct brw_compile_params base;
+   struct brw_compile_vs_params vs;
+   struct brw_compile_tcs_params tcs;
+   struct brw_compile_tes_params tes;
+   struct brw_compile_gs_params gs;
+   struct brw_compile_fs_params fs;
+   struct brw_compile_cs_params cs;
+   struct brw_compile_bs_params bs;
+   struct brw_compile_task_params task;
+   struct brw_compile_mesh_params mesh;
+};
 
 unsigned
 brw_cs_push_const_total_size(const struct brw_cs_prog_data *cs_prog_data,

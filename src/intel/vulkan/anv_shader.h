@@ -112,7 +112,7 @@ struct anv_shader_data {
 
    bool uses_bt_for_push_descs;
 
-   unsigned *code;
+   const unsigned *code;
 
    debug_archiver *archiver;
 };

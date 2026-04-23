@@ -91,7 +91,7 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
       .max_polygons = 1,
    };
 
-   const unsigned *kernel = brw_compile_fs(compiler, &params);
+   const unsigned *kernel = brw_compile(compiler, &params.base);
 
    debug_archiver_close(archiver);
 
@@ -140,7 +140,7 @@ blorp_compile_vs_brw(struct blorp_context *blorp, void *mem_ctx,
       .prog_data = vs_prog_data,
    };
 
-   const unsigned *kernel = brw_compile_vs(compiler, &params);
+   const unsigned *kernel = brw_compile(compiler, &params.base);
 
    debug_archiver_close(archiver);
 
@@ -247,7 +247,7 @@ blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
       .prog_data = cs_prog_data,
    };
 
-   const unsigned *kernel = brw_compile_cs(compiler, &params);
+   const unsigned *kernel = brw_compile(compiler, &params.base);
 
    debug_archiver_close(archiver);
 

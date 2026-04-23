@@ -960,7 +960,7 @@ anv_shader_compile_vs(struct anv_device *device,
 
       shader_data->code = (void *) bin->kernel;
    } else {
-      shader_data->code = (void *) brw_compile_vs(compiler, &params);
+      shader_data->code = (void *) brw_compile(compiler, &params.base);
    }
 
    *error_str = params.base.error_str;
@@ -993,7 +993,7 @@ anv_shader_compile_tcs(struct anv_device *device,
       .prog_data = &shader_data->prog_data.tcs,
    };
 
-   shader_data->code = (void *)brw_compile_tcs(compiler, &params);
+   shader_data->code = (void *)brw_compile(compiler, &params.base);
    *error_str = params.base.error_str;
 }
 
@@ -1031,7 +1031,7 @@ anv_shader_compile_tes(struct anv_device *device,
                        &tcs_shader_data->prog_data.tcs.base.vue_map : NULL,
    };
 
-   tes_shader_data->code = (void *)brw_compile_tes(compiler, &params);
+   tes_shader_data->code = (void *)brw_compile(compiler, &params.base);
    *error_str = params.base.error_str;
 }
 
@@ -1059,7 +1059,7 @@ anv_shader_compile_gs(struct anv_device *device,
       .prog_data = &shader_data->prog_data.gs,
    };
 
-   shader_data->code = (void *)brw_compile_gs(compiler, &params);
+   shader_data->code = (void *)brw_compile(compiler, &params.base);
    *error_str = params.base.error_str;
 }
 
@@ -1087,7 +1087,7 @@ anv_shader_compile_task(struct anv_device *device,
       .prog_data = &shader_data->prog_data.task,
    };
 
-   shader_data->code = (void *)brw_compile_task(compiler, &params);
+   shader_data->code = (void *)brw_compile(compiler, &params.base);
    *error_str = params.base.error_str;
 }
 
@@ -1161,7 +1161,7 @@ anv_shader_compile_mesh(struct anv_device *device,
       .wa_18019110168_data = (void *)&mesh_shader_data->bind_map,
    };
 
-   mesh_shader_data->code = (void *)brw_compile_mesh(compiler, &params);
+   mesh_shader_data->code = (void *)brw_compile(compiler, &params.base);
    *error_str = params.base.error_str;
 }
 
@@ -1218,7 +1218,7 @@ anv_shader_compile_fs(struct anv_device *device,
 
       shader_data->code = (void *) bin->kernel;
    } else {
-      shader_data->code = (void *) brw_compile_fs(compiler, &params);
+      shader_data->code = (void *) brw_compile(compiler, &params.base);
    }
 
    *error_str = params.base.error_str;
@@ -1279,7 +1279,7 @@ anv_shader_compile_cs(struct anv_device *device,
        params.prog_data->local_size[1] = nir->info.workgroup_size[1];
        params.prog_data->local_size[2] = nir->info.workgroup_size[2];
    } else {
-       shader_data->code = (void*)brw_compile_cs(compiler, &params);
+       shader_data->code = (void*)brw_compile(compiler, &params.base);
    }
 
    *error_str = params.base.error_str;
@@ -1356,7 +1356,7 @@ anv_shader_compile_bs(struct anv_device *device,
       .resume_shaders = resume_shaders,
    };
 
-   shader_data->code = (void *)brw_compile_bs(compiler, &params);
+   shader_data->code = (void *)brw_compile(compiler, &params.base);
    *error_str = params.base.error_str;
 }
 

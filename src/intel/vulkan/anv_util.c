@@ -422,7 +422,7 @@ anv_device_init_rt_shaders(struct anv_device *device)
          .prog_data = &trampoline_prog_data,
       };
       const unsigned *tramp_data =
-         brw_compile_cs(device->physical->compiler, &params);
+         brw_compile(device->physical->compiler, &params.base);
 
       struct anv_shader_upload_params upload_params = {
          .stage               = MESA_SHADER_COMPUTE,
@@ -480,7 +480,7 @@ anv_device_init_rt_shaders(struct anv_device *device)
          .prog_data = &return_prog_data,
       };
       const unsigned *return_data =
-         brw_compile_bs(device->physical->compiler, &params);
+         brw_compile(device->physical->compiler, &params.base);
 
       struct anv_shader_upload_params upload_params = {
          .stage               = MESA_SHADER_CALLABLE,
@@ -538,7 +538,7 @@ anv_device_init_rt_shaders(struct anv_device *device)
          .prog_data = &return_prog_data,
       };
       const unsigned *return_data =
-         brw_compile_bs(device->physical->compiler, &params);
+         brw_compile(device->physical->compiler, &params.base);
 
       struct anv_shader_upload_params upload_params = {
          .stage               = MESA_SHADER_CALLABLE,

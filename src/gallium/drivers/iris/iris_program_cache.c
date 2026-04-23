@@ -443,7 +443,7 @@ iris_ensure_indirect_generation_shader(struct iris_batch *batch)
          .key = &prog_key.fs,
          .prog_data = prog_data,
       };
-      program = brw_compile_fs(screen->brw, &params);
+      program = brw_compile(screen->brw, &params.base);
       assert(program);
       iris_apply_brw_prog_data(shader, &prog_data->base, NULL);
    } else {

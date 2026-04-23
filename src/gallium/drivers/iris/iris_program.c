@@ -1934,7 +1934,7 @@ iris_compile_vs(struct iris_screen *screen,
 
          program = bin->kernel;
       } else {
-         program = brw_compile_vs(screen->brw, &params);
+         program = brw_compile(screen->brw, &params.base);
       }
 
       error = params.base.error_str;
@@ -2204,7 +2204,7 @@ iris_compile_tcs(struct iris_screen *screen,
          .prog_data = brw_prog_data,
       };
 
-      program = brw_compile_tcs(screen->brw, &params);
+      program = brw_compile(screen->brw, &params.base);
       error = params.base.error_str;
 
       if (program) {
@@ -2415,7 +2415,7 @@ iris_compile_tes(struct iris_screen *screen,
          .input_vue_map = &input_vue_map,
       };
 
-      program = brw_compile_tes(screen->brw, &params);
+      program = brw_compile(screen->brw, &params.base);
       error = params.base.error_str;
 
       if (program) {
@@ -2609,7 +2609,7 @@ iris_compile_gs(struct iris_screen *screen,
          .prog_data = brw_prog_data,
       };
 
-      program = brw_compile_gs(screen->brw, &params);
+      program = brw_compile(screen->brw, &params.base);
       error = params.base.error_str;
       if (program) {
          iris_debug_recompile(dbg, ish, key);
@@ -2824,7 +2824,7 @@ iris_compile_fs(struct iris_screen *screen,
 
          program = bin->kernel;
       } else {
-         program = brw_compile_fs(screen->brw, &params);
+         program = brw_compile(screen->brw, &params.base);
       }
 
       error = params.base.error_str;
@@ -3184,7 +3184,7 @@ iris_compile_cs(struct iris_screen *screen,
 
          program = bin->kernel;
       } else {
-         program = brw_compile_cs(screen->brw, &params);
+         program = brw_compile(screen->brw, &params.base);
       }
 
       error = params.base.error_str;
