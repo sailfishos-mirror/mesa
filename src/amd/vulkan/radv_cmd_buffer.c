@@ -10063,8 +10063,6 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
          primary->state.last_primitive_restart_index = secondary->state.last_primitive_restart_index;
       }
 
-      primary->state.rb_noncoherent_dirty |= secondary->state.rb_noncoherent_dirty;
-
       primary->state.uses_draw_indirect |= secondary->state.uses_draw_indirect;
 
       for (uint32_t reg = 0; reg < AC_NUM_ALL_TRACKED_REGS; reg++) {
