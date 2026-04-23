@@ -1994,6 +1994,7 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
                            IMAGE_FORMAT_LIST_CREATE_INFO);
 
    if ((image->vk.aspects & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV) &&
+       !vk_format_is_block_compressed(image->vk.format) &&
        image->vk.samples == 1) {
       if (image->n_planes != 1) {
          /* Multiplanar images seem to hit a sampler bug with CCS and R16G16
