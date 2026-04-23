@@ -464,6 +464,13 @@ Converter::getOperation(nir_op op)
       return OP_EX2;
    case nir_op_ffloor:
       return OP_FLOOR;
+   case nir_op_ffma:
+   case nir_op_ffmaz:
+      assert(info->target >= 0xc0);
+      return OP_FMA;
+   case nir_op_ffma_weak:
+      assert(info->target < 0xc0);
+      return OP_MAD;
    case nir_op_ffma_old:
    case nir_op_ffmaz_old:
       /* No FMA op pre-nvc0 */
@@ -2613,8 +2620,11 @@ Converter::visit(nir_alu_instr *insn)
    case nir_op_udiv:
    case nir_op_fexp2:
    case nir_op_ffloor:
+   case nir_op_ffma:
+   case nir_op_ffmaz:
    case nir_op_ffma_old:
    case nir_op_ffmaz_old:
+   case nir_op_ffma_weak:
    case nir_op_flog2:
    case nir_op_fmax:
    case nir_op_imax:
@@ -2668,10 +2678,13 @@ Converter::visit(nir_alu_instr *insn)
 
             switch (op) {
             case nir_op_fmul:
+            case nir_op_ffma:
+            case nir_op_ffma_weak:
             case nir_op_ffma_old:
               i->dnz = this->info->io.mul_zero_wins;
               break;
             case nir_op_fmulz:
+            case nir_op_ffmaz:
             case nir_op_ffmaz_old:
               i->dnz = true;
               break;
@@ -3561,6 +3574,14 @@ nvir_nir_shader_compiler_options(int chipset, uint8_t shader_type)
    op.fuse_ffma16 = false; /* nir doesn't track mad vs fma */
    op.fuse_ffma32 = false; /* nir doesn't track mad vs fma */
    op.fuse_ffma64 = false; /* nir doesn't track mad vs fma */
+   if (chipset >= NVISA_GF100_CHIPSET) {
+      op.float_mul_add32 = nir_float_muladd_support_has_ffma;
+      op.float_mul_add64 = nir_float_muladd_support_has_ffma;
+   } else {
+      /* TODO: SM13 supports FP64 ffma */
+      /* SM1x fmad is neither fused nor unfused, but something in-between. */
+      op.float_mul_add32 = nir_float_muladd_support_keep_weak_ffma;
+   }
    op.lower_flrp16 = (chipset >= NVISA_GV100_CHIPSET);
    op.lower_flrp32 = true;
    op.lower_flrp64 = true;
