@@ -50,6 +50,13 @@
 #define LUT_ENTRY_SIZE    (2)
 #define LUT_NUM_COMPONENT (3)
 #define LUT_BUFFER_SIZE   (LUT_NUM_ENTRIES * LUT_ENTRY_SIZE * LUT_NUM_COMPONENT)
+#define SHAPER_LUT_DATA_POINTS_PER_CHANNEL (256)
+#define SHAPER_LUT_DMA_DATA_SIZE           (0)
+#define SHAPER_LUT_DMA_CONFIG_SIZE         (0)
+#define SHAPER_LUT_DMA_DATA_ALIGNMENT      (0)
+#define SHAPER_LUT_DMA_CONFIG_ALIGNMENT    (0)
+#define SHAPER_LUT_DMA_CONFIG_PADDING      (0)
+#define LUT_3D_DMA_ALIGNMENT               (0)
 // set field/register/bitfield name
 #define SFRB(field_name, reg_name, post_fix) .field_name = reg_name##__##field_name##post_fix
 
@@ -188,6 +195,45 @@ static struct vpe_caps
                         .shared_3d_lut       = 1,
                         .global_alpha        = 1,
                         .top_bottom_blending = 0,
+                        .dma_3d_lut       = 0,
+                        .yuv_linear_blend = 0,
+                        .lut_dim_caps =
+                            {
+                                .dim_9  = 1,
+                                .dim_17 = 1,
+                                .dim_33 = 0,
+                            },
+                        .fast_load_caps =
+                            {
+                                .lut_3d_17 = 0,
+                                .lut_3d_33 = 0,
+                            },
+                        .lut_caps =
+                            {
+                                .lut_shaper_caps =
+                                    {
+                                        .dma_data             = 0,
+                                        .dma_config           = 0,
+                                        .non_monotonic        = 0,
+                                        .data_alignment       = SHAPER_LUT_DMA_DATA_ALIGNMENT,
+                                        .config_alignment     = SHAPER_LUT_DMA_CONFIG_ALIGNMENT,
+                                        .config_padding       = SHAPER_LUT_DMA_CONFIG_PADDING,
+                                        .data_size            = SHAPER_LUT_DMA_DATA_SIZE,
+                                        .config_size          = SHAPER_LUT_DMA_CONFIG_SIZE,
+                                        .data_pts_per_channel = SHAPER_LUT_DATA_POINTS_PER_CHANNEL,
+                                    },
+                                .lut_3dlut_caps =
+                                    {
+                                        .data_dim_9  = 1,
+                                        .data_dim_17 = 1,
+                                        .data_dim_33 = 0,
+                                        .dma_dim_9   = 0,
+                                        .dma_dim_17  = 0,
+                                        .dma_dim_33  = 0,
+                                        .alignment   = LUT_3D_DMA_ALIGNMENT,
+                                    },
+                                .lut_3d_compound = 0,
+                            },
                     }},
             .plane_caps =
                 {
@@ -201,6 +247,19 @@ static struct vpe_caps
                             .p016            = 0, /**< planar 4:2:0 16-bit */
                             .ayuv            = 0, /**< packed 4:4:4 */
                             .yuy2            = 0, /**< packed 4:2:2 */
+                            .y210            = 0, /**< packed 4:2:2 10-bit */
+                            .y216            = 0, /**< packed 4:2:2 16-bit */
+                            .p210            = 0, /**< planar 4:2:2 10-bit */
+                            .p216            = 0, /**< planar 4:2:2 16-bit */
+                            .rgb8_planar     = 0, /**< planar RGB 8-bit */
+                            .rgb16_planar    = 0, /**< planar RGB 16-bit */
+                            .yuv8_planar     = 0, /**< planar YUV 16-bit */
+                            .yuv16_planar    = 0, /**< planar YUV 16-bit */
+                            .fp16_planar     = 0, /**< planar RGB 8-bit */
+                            .rgbe            = 0, /**< shared exponent R9G9B9E5 */
+                            .rgb111110_fix   = 0, /**< fixed R11G11B10 */
+                            .rgb111110_float = 0, /**< float R11G11B10 */
+                            .argb_packed_64b = 0, /**< Packed RGBA formats 64-bits per pixel */
                         },
                     .output_pixel_format_support =
                         {
@@ -211,6 +270,19 @@ static struct vpe_caps
                             .p016            = 0, /**< planar 4:2:0 16-bit */
                             .ayuv            = 0, /**< packed 4:4:4 */
                             .yuy2            = 0, /**< packed 4:2:2 */
+                            .y210            = 0, /**< packed 4:2:2 10-bit */
+                            .y216            = 0, /**< packed 4:2:2 16-bit */
+                            .p210            = 0, /**< planar 4:2:2 10-bit */
+                            .p216            = 0, /**< planar 4:2:2 16-bit */
+                            .rgb8_planar     = 0, /**< planar RGB 8-bit */
+                            .rgb16_planar    = 0, /**< planar RGB 16-bit */
+                            .yuv8_planar     = 0, /**< planar YUV 16-bit */
+                            .yuv16_planar    = 0, /**< planar YUV 16-bit */
+                            .fp16_planar     = 0, /**< planar RGB 8-bit */
+                            .rgbe            = 0, /**< shared exponent R9G9B9E5 */
+                            .rgb111110_fix   = 0, /**< fixed R11G11B10 */
+                            .rgb111110_float = 0, /**< float R11G11B10 */
+                            .argb_packed_64b = 0, /**< Packed RGBA formats 64-bits per pixel */
                         },
                     .max_upscale_factor = 64000,
 
@@ -225,6 +297,24 @@ static struct vpe_caps
                     .addr_alignment     = 256,
                     .max_viewport_width = 1024,
                 },
+            .isharp_caps =
+                {
+                    .support = false,
+                    .range =
+                        {
+                            .min  = 0,
+                            .max  = 0,
+                            .step = 0,
+                        },
+                },
+            .easf_support           = 0,
+            .input_dcc_support      = 0,
+            .input_internal_dcc     = 0,
+            .output_dcc_support     = 0,
+            .output_internal_dcc    = 0,
+            .histogram_support      = 0,
+            .frod_support           = 0,
+            .alpha_blending_support = 0,
             .alpha_fill_caps =
                 {
                     .opaque        = 1,
@@ -453,6 +543,10 @@ enum vpe_status vpe10_construct_resource(struct vpe_priv *vpe_priv, struct resou
     res->update_output_gamma               = vpe10_update_output_gamma;
     res->validate_cached_param             = vpe10_validate_cached_param;
     res->check_alpha_fill_support          = vpe10_check_alpha_fill_support;
+    res->reset_pipes          = NULL;
+    res->populate_frod_param  = NULL;
+    res->check_lut3d_compound = NULL;
+    res->update_opp_adjust_and_boundary = NULL;
     res->calculate_shaper = vpe10_calculate_shaper;
 
     return VPE_STATUS_OK;

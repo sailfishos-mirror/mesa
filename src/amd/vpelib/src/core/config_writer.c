@@ -275,6 +275,23 @@ void config_writer_fill_indirect_destination(struct config_writer *writer,
     config_writer_fill(writer, VPEC_FIELD_VALUE(VPE_IND_CFG_PKT_REGISTER_OFFSET, offset_data));
 }
 
+void config_writer_fill_3dlut_fl_addr(struct config_writer *writer, const uint64_t data_gpuva,
+    enum vpe_3dlut_addr_mode addr_mode, enum vpe_3dlut_mem_align mem_align, uint32_t size,
+    bool comp_mode, uint8_t tmz)
+{
+    VPE_ASSERT(writer->type == CONFIG_TYPE_3DLUT_FL);
+    VPE_ASSERT(size > 0);
+    uint32_t tmp_code =
+            ((comp_mode <<VPE_3DLUT_CFG_COMP_MODE__SHIFT) & VPE_3DLUT_CFG_COMP_MODE_MASK) | (tmz & 0xf);
+    uint32_t *cmd_space = (uint32_t *)(uintptr_t)writer->base_cpu_va;
+
+    *cmd_space = VPE_3DLUT_CFG_CMD_HEADER(addr_mode, mem_align); //---> this is DW0
+
+    config_writer_fill(writer, ADDR_LO(data_gpuva) | tmp_code);  //----->This is DW1
+    config_writer_fill(writer, ADDR_HI(data_gpuva));             //---------------->This is DW2
+    config_writer_fill(writer, size - 1); //--------------------------->this is DW3
+}
+
 void config_writer_complete(struct config_writer *writer)
 {
     uint32_t *cmd_space = (uint32_t *)(uintptr_t)writer->base_cpu_va;
@@ -298,7 +315,7 @@ void config_writer_complete(struct config_writer *writer)
         // -4 for exclude header
         // VPEP_DIRECT_CONFIG_ARRAY_SIZE is 1-based, hence need -1
         *cmd_space = VPE_DIR_CFG_CMD_HEADER(((size - 4) / sizeof(uint32_t) - 1));
-    } else {
+    } else if (writer->type != CONFIG_TYPE_3DLUT_FL) {
         // -4 DW for header, data array size, data array lo and data array hi
         // /3 DW for each destination reg
         // NUM_DST is 1-based, hence need -1

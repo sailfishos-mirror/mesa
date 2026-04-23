@@ -41,6 +41,7 @@ enum config_type {
     CONFIG_TYPE_UNKNOWN,
     CONFIG_TYPE_DIRECT,
     CONFIG_TYPE_INDIRECT,
+    CONFIG_TYPE_3DLUT_FL,
 };
 
 typedef void (*config_callback_t)(
@@ -177,6 +178,10 @@ void config_writer_fill_indirect_data_array(
 
 void config_writer_fill_indirect_destination(struct config_writer *writer,
     const uint32_t offset_index, const uint32_t start_index, const uint32_t offset_data);
+
+void config_writer_fill_3dlut_fl_addr(struct config_writer *writer, const uint64_t data_gpuva,
+    enum vpe_3dlut_addr_mode addr_mode, enum vpe_3dlut_mem_align mem_align, uint32_t size,
+    bool comp_mode, uint8_t tmz);
 
 /** explicitly complete the config */
 void config_writer_complete(struct config_writer *writer);

@@ -57,6 +57,12 @@ static struct mpc_funcs mpc_funcs = {
     .set_blend_lut               = vpe10_mpc_set_blend_lut,
     .program_movable_cm          = vpe10_mpc_program_movable_cm,
     .program_crc                 = vpe10_mpc_program_crc,
+    .attach_3dlut_to_mpc_inst    = NULL,
+    .set_gamut_remap2            = NULL,
+    .update_3dlut_fl_bias_scale  = NULL,
+    .program_mpc_3dlut_fl_config = NULL,
+    .program_mpc_3dlut_fl        = NULL,
+    .shaper_bypass               = NULL,
 };
 
 void vpe10_construct_mpc(struct vpe_priv *vpe_priv, struct mpc *mpc)
