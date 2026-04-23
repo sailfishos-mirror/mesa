@@ -132,6 +132,9 @@ static void override_debug_option(
 
     if (user_debug->flags.disable_lut_caching)
         debug->disable_lut_caching = user_debug->disable_lut_caching;
+
+    if (user_debug->flags.disable_performance_mode)
+        debug->disable_performance_mode = user_debug->disable_performance_mode;
 }
 
 static void verify_collaboration_mode(struct vpe_priv *vpe_priv)
@@ -144,7 +147,7 @@ static void verify_collaboration_mode(struct vpe_priv *vpe_priv)
             randnum                          = randnum << 12;
             vpe_priv->collaborate_sync_index = (int32_t)randnum;
         }
-    } else if (vpe_priv->pub.level == VPE_IP_LEVEL_1_0) {
+    } else {
         vpe_priv->collaboration_mode = false;
     }
 }
@@ -448,7 +451,9 @@ static enum vpe_status populate_input_streams(struct vpe_priv *vpe_priv, const s
 
         if (vpe_priv->init.debug.bypass_per_pixel_alpha) {
             stream_ctx->per_pixel_alpha = false;
-        } else if (param->streams[i].enable_luma_key) {
+        }
+        else if (param->streams[i].enable_luma_key)
+        {
             stream_ctx->per_pixel_alpha = true;
         }
         if (param->streams[i].horizontal_mirror && !input_h_mirror && output_h_mirror)
@@ -552,6 +557,13 @@ enum vpe_status vpe_check_support(
             status = VPE_STATUS_NO_MEMORY;
     }
 
+    if (status == VPE_STATUS_OK) {
+        // alpha fill checking - support alpha fill mode in different stage
+        status = vpe_priv->resource.check_alpha_fill_support(vpe, param);
+        if (status != VPE_STATUS_OK) {
+            vpe_log("fail alplha fill check. status %d\n", (int)status);
+        }
+    }
 
     if (status == VPE_STATUS_OK) {
         // output checking - check per asic support
@@ -584,7 +596,6 @@ enum vpe_status vpe_check_support(
 
         }
     }
-
     if (status == VPE_STATUS_OK) {
         // output resource preparation for further checking (cache the result)
         output_ctx                     = &vpe_priv->output_ctx;
@@ -599,7 +610,6 @@ enum vpe_status vpe_check_support(
         vpe_vector_clear(vpe_priv->vpe_cmd_vector);
         output_ctx->clamping_params = vpe_priv->init.debug.clamping_params;
     }
-
 
     if (status == VPE_STATUS_OK) {
         status = populate_input_streams(vpe_priv, param, vpe_priv->stream_ctx);
@@ -692,13 +702,6 @@ enum vpe_status vpe_build_commands(
 
     vpe_priv = container_of(vpe, struct vpe_priv, pub);
 
-#ifdef VPE_REGISTER_PROFILE
-    vpe_priv->config_writer.total_register_count        = 0;
-    vpe_priv->config_writer.burstMode_register_count    = 0;
-    vpe_priv->config_writer.nonBurstMode_register_count = 0;
-    vpe_priv->config_writer.total_config_count = 0;
-    vpe_priv->config_writer.reused_config_count = 0;
-#endif
     if (!vpe_priv->ops_support) {
         if (vpe_priv->init.debug.assert_when_not_support) {
             VPE_ASSERT(vpe_priv->ops_support);
@@ -841,20 +844,7 @@ enum vpe_status vpe_build_commands(
                     }
                 }
             }
-#ifdef VPE_REGISTER_PROFILE
-            vpe_priv->config_writer.total_config_count += vpe_priv->vpe_desc_writer.num_config_desc;
-            vpe_priv->config_writer.reused_config_count += vpe_priv->vpe_desc_writer.reuse_num_config_dec;
-#endif
         }
-#ifdef VPE_REGISTER_PROFILE
-        vpe_log("Total Registers Accessed: % d\n", vpe_priv->config_writer.total_register_count);
-        vpe_log("Burst Mode Registers Accessed: % d\n",
-            vpe_priv->config_writer.burstMode_register_count);
-        vpe_log("Non-Burst Mode Registers Accessed: % d\n",
-            vpe_priv->config_writer.nonBurstMode_register_count);
-        vpe_log("Total Config Descriptors: % d\n", vpe_priv->config_writer.total_config_count);
-        vpe_log("Total Re-used Config Descriptors: % d\n", vpe_priv->config_writer.reused_config_count);
-#endif
         if ((status == VPE_STATUS_OK) && (vpe_priv->collaboration_mode == true)) {
             status = builder->build_collaborate_sync_cmd(vpe_priv, &curr_bufs);
             if (status != VPE_STATUS_OK) {

@@ -159,8 +159,8 @@ bool vpe_is_yuv420_10(enum vpe_surface_pixel_format format)
 bool vpe_is_yuv420_16(enum vpe_surface_pixel_format format)
 {
     switch (format) {
-    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_16bpc_YCrCb:
-    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_16bpc_YCbCr:
+    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_12bpc_YCrCb:
+    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_12bpc_YCbCr:
         return true;
     default:
         return false;
@@ -290,7 +290,6 @@ enum color_depth vpe_get_color_depth(enum vpe_surface_pixel_format format)
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBA16161616F:
     case VPE_SURFACE_PIXEL_FORMAT_GRPH_BGRA16161616F:
-    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_16bpc_YCrCb:
         c_depth = COLOR_DEPTH_161616;
         break;
     default:
@@ -620,8 +619,9 @@ enum vpe_status vpe_check_tone_map_support(
             status = VPE_STATUS_BAD_TONE_MAP_PARAMS;
         }
     } else {
-        if (is_hlg ||
-            (input_is_hdr && is_in_lum_greater_than_out_lum)) {
+        if ((is_hlg == true) ||
+            ((input_is_hdr == true) && (is_in_lum_greater_than_out_lum == true) &&
+                (stream->flags.geometric_scaling == false))) {
             status = VPE_STATUS_BAD_TONE_MAP_PARAMS;
         }
     }

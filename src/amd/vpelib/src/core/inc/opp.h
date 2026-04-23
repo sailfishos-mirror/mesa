@@ -128,6 +128,7 @@ struct opp_funcs {
     void (*program_pipe_control)(struct opp *opp, const struct opp_pipe_control_params *params);
 
     void (*program_pipe_crc)(struct opp *opp, bool enable);
+
 };
 
 struct opp {

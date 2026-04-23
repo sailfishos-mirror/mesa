@@ -68,7 +68,7 @@ static uint16_t vpe_get_visual_confirm_total_seg_count(
     uint32_t             alignment = vpe_get_recout_width_alignment(params);
 
     if (vpe_priv->init.debug.visual_confirm_params.input_format) {
-        for (stream_idx = 0; stream_idx < vpe_priv->num_streams; stream_idx++) {
+        for (stream_idx = 0; stream_idx < (uint16_t)vpe_priv->num_streams; stream_idx++) {
             stream_ctx = &vpe_priv->stream_ctx[stream_idx];
             if (should_generate_visual_confirm(stream_ctx->stream_type))
                 total_visual_confirm_segs += get_visual_confirm_segs_count(
@@ -209,7 +209,7 @@ enum vpe_status vpe_create_visual_confirm_segs(
     // Do visual confirm bg generation for input format
     if (vpe_priv->init.debug.visual_confirm_params.input_format &&
         params->target_rect.height > 2 * VISUAL_CONFIRM_HEIGHT) {
-        for (stream_idx = 0; stream_idx < params->num_streams; stream_idx++) {
+        for (stream_idx = 0; stream_idx < (uint16_t)params->num_streams; stream_idx++) {
             stream_ctx          = &vpe_priv->stream_ctx[stream_idx];
             visual_confirm_rect = stream_ctx->stream.scaling_info.dst_rect;
             visual_confirm_rect.y += 0;

@@ -47,7 +47,7 @@ struct vpe;
  *  VPE library supports up to 8 taps and 64 phases, only (32+1) phases needed
  */
 #define MAX_NB_POLYPHASE_COEFFS (8 * 33)
- 
+
 /** @enum vpe_status
  *  @brief The status of VPE to indicate whether it supports the given job or not.
  */
@@ -55,7 +55,7 @@ enum vpe_status {
     VPE_STATUS_OK = 1,                          /**<  VPE supports the job. */
     VPE_STATUS_ERROR,                           /**<  Unknown Error in VPE. */
     VPE_STATUS_NO_MEMORY,                       /**<  VPE is out of memory. */
-    VPE_STATUS_NOT_SUPPORTED,                   /**<  VPE is out of memory. */
+    VPE_STATUS_NOT_SUPPORTED,                   /**<  VPE is not supported. */
     VPE_STATUS_INPUT_DCC_NOT_SUPPORTED,         /**<  Input DCC is not supported. */
     VPE_STATUS_OUTPUT_DCC_NOT_SUPPORTED,        /**<  Output DCC is not supported. */
     VPE_STATUS_SWIZZLE_NOT_SUPPORTED,           /**<  Swizzle mode is not supported. */
@@ -251,6 +251,12 @@ struct vpe_caps {
     struct vpe_color_caps color_caps; /**< Color management caps */
     struct vpe_plane_caps plane_caps; /**< Plane capabilities */
 
+    struct {
+        uint32_t opaque        : 1;
+        uint32_t bg_color      : 1;
+        uint32_t destination   : 1;
+        uint32_t source_stream : 1;
+    } alpha_fill_caps;
 };
 
 /***********************************
@@ -429,7 +435,7 @@ struct vpe_debug_options {
     /** Struct to specify whether the debug flag for that
      *  corresponding field should be honored.
      */
-	struct {
+    struct {
         uint32_t cm_in_bypass             : 1; /**< Color management bypass */
         uint32_t vpcnvc_bypass            : 1; /**< VPCNVC bypass */
         uint32_t mpc_bypass               : 1; /**< MPC bypass */
@@ -479,14 +485,14 @@ struct vpe_debug_options {
     uint32_t skip_optimal_tap_check   : 1; /**< Skip optimal tap check */
     uint32_t disable_lut_caching      : 1; /**< disable config caching for all luts */
     uint32_t disable_performance_mode : 1; /**< disable performance mode */
-    uint32_t bg_bit_depth;                 /**< Background color bit depth. */
+    uint32_t bg_bit_depth;                /**< Background color bit depth. */
 
     struct vpe_mem_low_power_enable_options
-		enable_mem_low_power; /**< Component activation on low power mode. Only used for debugging.
+        enable_mem_low_power; /**< Component activation on low power mode. Only used for debugging.
                                */
-    enum vpe_expansion_mode                 expansion_mode;
-    struct vpe_clamping_params              clamping_params;
-    struct vpe_visual_confirm               visual_confirm_params;
+    enum vpe_expansion_mode    expansion_mode;        /**< Color component expansion mode */
+    struct vpe_clamping_params clamping_params;       /**< Color clamping */
+    struct vpe_visual_confirm  visual_confirm_params; /**< Visual confirm bar parameters */
 };
 
 /** @struct vpe_init_data
@@ -543,6 +549,7 @@ enum vpe_color_primaries {
     VPE_PRIMARIES_BT709,  /**< BT. 709, Rec. 709 */
     VPE_PRIMARIES_BT2020, /**< BT. 2020, Rec. 2020 */
     VPE_PRIMARIES_JFIF,   /**< JPEG File Interchange Format */
+    VPE_PRIMARIES_CUSTOM, /**< Custom / user controlled */
     VPE_PRIMARIES_COUNT
 };
 
@@ -558,6 +565,7 @@ enum vpe_transfer_function {
     VPE_TF_HLG,           /**< Hybrid Log-Gamma */
     VPE_TF_SRGB,          /**< Standard RGB */
     VPE_TF_BT709,         /**< BT 709 */
+    VPE_TF_CUSTOM,        /**< Custom / user controlled */
     VPE_TF_COUNT
 };
 
@@ -687,7 +695,6 @@ struct vpe_scaling_info {
                                        * If taps are set to 0, vpe internally calculates the
                                        * required number of taps based on the scaling ratio.
                                        */
-
 };
 
 /** @struct vpe_scaling_filter_coeffs
@@ -752,14 +759,9 @@ struct vpe_tonemap_params {
     uint16_t                   input_pq_norm_factor; /**< Perceptual Quantizer normalization
                                                         factor. */
     uint16_t                   lut_dim;              /**< Size of one dimension of the 3D-LUT data*/
-    uint16_t                   lut_container_dim;    /**< Size of one dimension of the 3D-LUT container*/
-    /** @brief 3D LUT settings
-     */
-    union {
-        uint16_t *lut_data;                          /**< Accessible to CPU */
-    };
-    bool is_dma_lut;   /**< Set to true if the 3D LUT is DMA LUT */
-    bool enable_3dlut; /**< Enable/Disable 3D-LUT */
+    uint16_t lut_container_dim; /**< Size of one dimension of the 3D-LUT container*/
+    uint16_t *lut_data;         /**< Accessible to CPU */
+    bool      enable_3dlut;     /**< Enable/Disable 3D-LUT */
 };
 
 /** @enum vpe_keyer_mode
@@ -789,6 +791,7 @@ struct vpe_color_keyer {
     float lower_a_bound; /**< Alpha Low Bound. Program 0.0f if no alpha channel in input format.*/
     float upper_a_bound; /**< Alpha High Bound. Program 1.0f if no alpha channel in input format.*/
 };
+
 /** @struct vpe_stream
  *  @brief Input stream/frame properties to be passed to vpelib
  */

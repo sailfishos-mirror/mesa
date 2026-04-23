@@ -200,7 +200,6 @@ struct output_ctx {
         };
         unsigned int u32All;
     } dirty_bits;
-
     struct transfer_func        *output_tf;
     const struct transfer_func  *in_shaper_func; // for shaper lut
     const struct vpe_3dlut      *lut3d_func;     // for 3dlut
@@ -280,7 +279,7 @@ struct vpe_priv {
     uint16_t vpe_num_instance;
     bool     collaboration_mode;
     enum vpe_expansion_mode expansion_mode;
-    const struct vpe_engine       *engine_handle; /**< vpe engine instance */
+    const struct vpe_engine *engine_handle; /**< vpe engine instance */
 };
 
 /** internal vpe engine instance */
@@ -288,10 +287,10 @@ struct vpe_engine_priv {
     struct vpe_engine pub; /**< public member */
 
     /** internal */
-    struct vpe_init_data           init;        /**< vpe init data */
-    uint8_t                        ver_major;   /**< vpe major version */
-    uint8_t                        ver_minor;   /**< vpe minor version */
-    uint8_t                        ver_rev;     /**< vpe revision version */
+    struct vpe_init_data init;      /**< vpe init data */
+    uint8_t              ver_major; /**< vpe major version */
+    uint8_t              ver_minor; /**< vpe minor version */
+    uint8_t              ver_rev;   /**< vpe revision version */
 };
 #ifdef __cplusplus
 }

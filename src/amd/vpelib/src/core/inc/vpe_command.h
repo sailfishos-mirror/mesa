@@ -87,8 +87,8 @@ enum VPE_CMD_OPCODE {
  * VPEP Config
  ************************/
 enum VPE_VPEP_CFG_SUBOP {
-    VPE_VPEP_CFG_SUBOP_DIR_CFG = 0x0,
-    VPE_VPEP_CFG_SUBOP_IND_CFG = 0x1
+    VPE_VPEP_CFG_SUBOP_DIR_CFG   = 0x0,
+    VPE_VPEP_CFG_SUBOP_IND_CFG   = 0x1,
 };
 
 // Direct Config Command Header

@@ -94,6 +94,7 @@ enum vpe_ip_level vpe_resource_parse_ip_version(
         ip_level = VPE_IP_LEVEL_UNKNOWN;
         break;
     }
+
     return ip_level;
 }
 
@@ -608,7 +609,8 @@ static enum vpe_status calculate_inits_and_viewports(struct segment_ctx *segment
 enum lut3d_type vpe_get_stream_lut3d_type(struct stream_ctx *stream_ctx)
 {
     enum lut3d_type lut3d;
-
+    // lut3d_type holds the 3dlut type NONE, CPU (Direct Config), or GPU (Fast Load)
+    // for Fast Load Enable/Disable
     if ((stream_ctx->stream.tm_params.UID == 0) || (!stream_ctx->stream.tm_params.enable_3dlut)) {
         lut3d = LUT3D_TYPE_NONE;
     } else {
@@ -734,7 +736,7 @@ void vpe_handle_output_h_mirror(struct vpe_priv *vpe_priv)
     struct stream_ctx *stream_ctx;
 
     // swap the stream output location
-    for (stream_idx = 0; stream_idx < vpe_priv->num_streams; stream_idx++) {
+    for (stream_idx = 0; stream_idx < (uint16_t)vpe_priv->num_streams; stream_idx++) {
         stream_ctx = &vpe_priv->stream_ctx[stream_idx];
         if (stream_ctx->flip_horizonal_output) {
             struct segment_ctx *first_seg, *last_seg;
@@ -784,6 +786,65 @@ void vpe_resource_build_bit_depth_reduction_params(
         break;
     default:
         break;
+    }
+}
+
+void vpe_build_clamping_params(struct opp *opp, struct clamping_and_pixel_encoding_params *clamping)
+{
+    struct vpe_priv         *vpe_priv     = opp->vpe_priv;
+    struct vpe_surface_info *dst_surface  = &vpe_priv->output_ctx.surface;
+    enum vpe_color_range     output_range = dst_surface->cs.range;
+
+    memset(clamping, 0, sizeof(*clamping));
+    clamping->clamping_level = CLAMPING_FULL_RANGE;
+    clamping->c_depth        = vpe_get_color_depth(dst_surface->format);
+    if (output_range == VPE_COLOR_RANGE_STUDIO) {
+        if (!vpe_priv->init.debug.clamping_setting) {
+            switch (clamping->c_depth) {
+            case COLOR_DEPTH_888:
+                clamping->clamping_level = CLAMPING_LIMITED_RANGE_8BPC;
+                break;
+            case COLOR_DEPTH_101010:
+                clamping->clamping_level = CLAMPING_LIMITED_RANGE_10BPC;
+                break;
+            case COLOR_DEPTH_121212:
+                clamping->clamping_level = CLAMPING_LIMITED_RANGE_12BPC;
+                break;
+            default:
+                clamping->clamping_level =
+                    CLAMPING_FULL_RANGE; // for all the others bit depths set the full range
+                break;
+            }
+        } else {
+            switch (vpe_priv->init.debug.clamping_params.clamping_range) {
+            case VPE_CLAMPING_LIMITED_RANGE_8BPC:
+                clamping->clamping_level = CLAMPING_LIMITED_RANGE_8BPC;
+                break;
+            case VPE_CLAMPING_LIMITED_RANGE_10BPC:
+                clamping->clamping_level = CLAMPING_LIMITED_RANGE_10BPC;
+                break;
+            case VPE_CLAMPING_LIMITED_RANGE_12BPC:
+                clamping->clamping_level = CLAMPING_LIMITED_RANGE_12BPC;
+                break;
+            default:
+                clamping->clamping_level =
+                    CLAMPING_LIMITED_RANGE_PROGRAMMABLE; // for all the others set to programmable
+                                                         // range
+                clamping->r_clamp_component_lower =
+                    vpe_priv->output_ctx.clamping_params.r_clamp_component_lower;
+                clamping->g_clamp_component_lower =
+                    vpe_priv->output_ctx.clamping_params.g_clamp_component_lower;
+                clamping->b_clamp_component_lower =
+                    vpe_priv->output_ctx.clamping_params.b_clamp_component_lower;
+                clamping->r_clamp_component_upper =
+                    vpe_priv->output_ctx.clamping_params.r_clamp_component_upper;
+                clamping->g_clamp_component_upper =
+                    vpe_priv->output_ctx.clamping_params.g_clamp_component_upper;
+                clamping->b_clamp_component_upper =
+                    vpe_priv->output_ctx.clamping_params.b_clamp_component_upper;
+                break;
+            }
+        }
     }
 }
 

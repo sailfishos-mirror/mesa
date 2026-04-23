@@ -195,6 +195,7 @@ static enum vpe_status vpe_allocate_cm_memory(
     }
 
     output_ctx = &vpe_priv->output_ctx;
+
     if (!output_ctx->output_tf) {
         output_ctx->output_tf = (struct transfer_func *)vpe_zalloc(sizeof(struct transfer_func));
         if (!output_ctx->output_tf) {

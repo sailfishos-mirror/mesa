@@ -68,6 +68,7 @@ static inline void config_writer_new(struct config_writer *writer)
     if (writer->status != VPE_STATUS_OK)
         return;
 
+    // For VPE 2.0 all config and plane descriptors gpu address must be 6 bit aligned
     uint16_t alignment           = writer->gpu_addr_alignment;
     uint64_t aligned_gpu_address = (writer->buf->gpu_va + alignment) & ~alignment;
     uint64_t alignment_offset    = aligned_gpu_address - writer->buf->gpu_va;
@@ -103,7 +104,8 @@ void config_writer_set_type(struct config_writer *writer, enum config_type type,
     if (writer->status != VPE_STATUS_OK)
         return;
 
-    if ((writer->type != type) || (writer->pipe_idx != pipe_idx)) {
+    if ((writer->type != type) || ((writer->pipe_idx != pipe_idx)
+                                      )) {
         if (writer->type == CONFIG_TYPE_UNKNOWN) {
             // new header or only pipe change. do not need to fill it yet until completion
             writer->pipe_idx = pipe_idx;
@@ -207,14 +209,6 @@ void config_writer_fill_direct_config_packet_header(
         return;
     }
 
-#ifdef VPE_REGISTER_PROFILE
-    writer->total_register_count += packet->bits.VPEP_CONFIG_DATA_SIZE + 1;
-    if (packet->bits.VPEP_CONFIG_DATA_SIZE == 0) {
-        writer->nonBurstMode_register_count++;
-    } else {
-        writer->burstMode_register_count += packet->bits.VPEP_CONFIG_DATA_SIZE + 1;
-    }
-#endif
     cmd_space    = (uint32_t *)(uintptr_t)writer->buf->cpu_va;
     *cmd_space++ = packet->u32all;
     writer->buf->cpu_va += w_size;
@@ -249,10 +243,6 @@ void config_writer_fill_direct_config_packet(
         return;
     }
 
-#ifdef VPE_REGISTER_PROFILE
-    writer->total_register_count++;
-    writer->nonBurstMode_register_count++;
-#endif
     cmd_space    = (uint32_t *)(uintptr_t)writer->buf->cpu_va;
     *cmd_space++ = packet->u32all; // Write header
     writer->buf->cpu_va += sizeof(uint32_t);

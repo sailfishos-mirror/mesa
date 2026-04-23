@@ -59,7 +59,8 @@
         reg##reg_name##_##DEFAULT, false}
 
 static struct vpe_caps
-   caps = {
+    caps =
+        {
             .max_input_size =
                 {
                     .width  = 16384,
@@ -158,6 +159,13 @@ static struct vpe_caps
                     .addr_alignment     = 256,
                     .max_viewport_width = 1024,
                 },
+            .alpha_fill_caps =
+                {
+                    .opaque        = 1,
+                    .bg_color      = 1,
+                    .destination   = 0,
+                    .source_stream = 0,
+                },
 };
 
 enum vpe_status vpe11_construct_resource(struct vpe_priv *vpe_priv, struct resource *res)
@@ -198,6 +206,7 @@ enum vpe_status vpe11_construct_resource(struct vpe_priv *vpe_priv, struct resou
 
     res->check_h_mirror_support            = vpe10_check_h_mirror_support;
     res->calculate_segments                = vpe10_calculate_segments;
+    res->get_max_seg_width                 = vpe10_get_max_seg_width;
     res->set_num_segments                  = vpe11_set_num_segments;
     res->split_bg_gap                      = vpe10_split_bg_gap;
     res->calculate_dst_viewport_and_active = vpe10_calculate_dst_viewport_and_active;
@@ -214,7 +223,8 @@ enum vpe_status vpe11_construct_resource(struct vpe_priv *vpe_priv, struct resou
     res->update_blnd_gamma                 = vpe10_update_blnd_gamma;
     res->update_output_gamma               = vpe10_update_output_gamma;
     res->validate_cached_param             = vpe11_validate_cached_param;
-    res->calculate_shaper                  = vpe10_calculate_shaper;
+    res->check_alpha_fill_support          = vpe10_check_alpha_fill_support;
+    res->calculate_shaper = vpe10_calculate_shaper;
 
     return VPE_STATUS_OK;
 err:

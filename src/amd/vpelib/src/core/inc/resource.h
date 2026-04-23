@@ -43,6 +43,7 @@ struct vpe_priv;
 struct vpe_cmd_output;
 struct vpe_cmd_info;
 struct segment_ctx;
+struct vpe_cmd_input;
 enum vpe_stream_type;
 
 #define MIN_VPE_CMD    (1024)
@@ -68,6 +69,9 @@ struct resource {
 
     enum vpe_status (*calculate_segments)(
         struct vpe_priv *vpe_priv, const struct vpe_build_param *params);
+
+    uint32_t (*get_max_seg_width)(struct output_ctx *output_ctx,
+        enum vpe_surface_pixel_format format, enum vpe_scan_direction scan);
 
     enum vpe_status(*check_bg_color_support)(struct vpe_priv* vpe_priv, struct vpe_color* bg_color);
 
@@ -114,6 +118,9 @@ struct resource {
         bool geometric_scaling);
 
     bool (*validate_cached_param)(struct vpe_priv *vpe_priv, const struct vpe_build_param *param);
+
+    enum vpe_status (*check_alpha_fill_support)(
+        struct vpe *vpe, const struct vpe_build_param *param);
 
     enum vpe_status (*calculate_shaper)(struct vpe_priv *vpe_priv, struct stream_ctx *stream_ctx);
 
@@ -176,6 +183,9 @@ void vpe_handle_output_h_mirror(struct vpe_priv *vpe_priv);
 
 void vpe_resource_build_bit_depth_reduction_params(
     struct opp *opp, struct bit_depth_reduction_params *fmt_bit_depth);
+
+void vpe_build_clamping_params(
+    struct opp *opp, struct clamping_and_pixel_encoding_params *clamping);
 
 /** resource function call backs*/
 void vpe_frontend_config_callback(
