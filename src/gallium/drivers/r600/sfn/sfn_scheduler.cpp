@@ -183,7 +183,6 @@ private:
    enum class AluGroupFillResult {
       scheduled,
       retry,
-      no_schedule,
       failed,
    };
 
@@ -590,8 +589,7 @@ BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
    if (fill_result == AluGroupFillResult::failed && !scheduled)
       return false;
 
-   if (fill_result == AluGroupFillResult::scheduled ||
-       fill_result == AluGroupFillResult::no_schedule)
+   if (fill_result == AluGroupFillResult::scheduled)
       scheduled = true;
 
    finalize_schedule_alu_group(out_blocks, *group, alu_ctx.expected_ar_uses);
@@ -603,7 +601,7 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
                                AluGroup& group,
                                const AluScheduleContext& alu_ctx)
 {
-   auto result = AluGroupFillResult::no_schedule;
+   auto result = AluGroupFillResult::retry;
    int free_slots = group.free_slot_mask();
 
    while (free_slots && alu_ctx.has_alu_ready) {
@@ -630,11 +628,11 @@ BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
       }
 
       auto failure = handle_alu_group_fill_failure(out_blocks, group, alu_ctx);
-      if (failure == AluGroupFillResult::failed)
+      if (failure != AluGroupFillResult::failed)
          return AluGroupFillResult::failed;
 
-      if (failure == AluGroupFillResult::no_schedule)
-         return AluGroupFillResult::no_schedule;
+      if (failure == AluGroupFillResult::scheduled)
+         return AluGroupFillResult::scheduled;
 
       free_slots = group.free_slot_mask();
    }
@@ -691,7 +689,7 @@ BlockScheduler::handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
    // can resolve with an extra group that has a NOP instruction
    if (!alu_trans_ready.empty() || !alu_vec_ready.empty()) {
       group.add_vec_instructions(new AluInstr(op0_nop, 0));
-      return AluGroupFillResult::no_schedule;
+      return AluGroupFillResult::scheduled;
    }
 
    return AluGroupFillResult::failed;
