@@ -91,7 +91,13 @@
             "THREE_A1_SRC2_NR":         [ 125, 118 ],
 
             "THREE_A1_SRC0_IMM":        [  82,  67 ],
-            "THREE_A1_SRC2_IMM":        [ 124, 109 ]
+            "THREE_A1_SRC2_IMM":        [ 124, 109 ],
+
+            "UNCOMP_CONTROL":           [  33,  31,
+                                           23,  12,
+                                           10,   9,
+                                           34,  34,
+                                            8,   8 ]
         },
         "sub-fields": {
             "# Relative to EU_INSTRUCTION_SOURCES_* sub-structures":"#",

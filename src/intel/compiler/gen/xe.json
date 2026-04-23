@@ -96,7 +96,18 @@
             "SEND_SFID":                [  95,  92 ],
 
             "SEND_SRC0_SUB_NR":         [ 103,  99 ],
-            "SEND_SRC1_LEN":            [ 103,  99 ]
+            "SEND_SRC1_LEN":            [ 103,  99 ],
+
+            "UNCOMP_CONTROL":           [  95,  92,
+                                           34,  34,
+                                           33,  33,
+                                           32,  32,
+                                           31,  31,
+                                           28,  28,
+                                           27,  24,
+                                           23,  22,
+                                           21,  19,
+                                           18,  16 ]
         },
         "sub-fields": {
             "# Relative to OPERAND sub-structures":"#",
@@ -156,7 +167,17 @@
 
             "ACC_WR_CONTROL":           null,
             "NIB_CONTROL":              null,
-            "SEND_FUSION_CONTROL":      null
+            "SEND_FUSION_CONTROL":      null,
+
+            "UNCOMP_CONTROL":           [  95,  92,
+                                           34,  34,
+                                           32,  32,
+                                           31,  31,
+                                           28,  28,
+                                           27,  26,
+                                           25,  24,
+                                           23,  21,
+                                           20,  18 ]
         },
         "compact-fields": {
             "DST_REG_NR":               [  39,  32 ],
