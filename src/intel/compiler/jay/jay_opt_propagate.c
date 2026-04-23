@@ -125,12 +125,14 @@ static void
 propagate_forwards(jay_function *f)
 {
    jay_inst **defs = calloc(f->ssa_alloc, sizeof(defs[0]));
+   uint32_t *def_block = malloc(f->ssa_alloc * sizeof(def_block[0]));
 
    jay_foreach_inst_in_func_safe(f, block, I) {
       jay_builder b = jay_init_builder(f, jay_before_inst(I));
 
       jay_foreach_dst_index(I, _, d) {
          defs[d] = I;
+         def_block[d] = block->index;
       }
 
       /* Copy propagate individual components into vectors */
@@ -167,14 +169,18 @@ propagate_forwards(jay_function *f)
          if (def->op == JAY_OPCODE_MOV) {
             /* Default values must have the same file as their dest, do not
              * propagate invalid there. Also don't propagate inverse-ballots.
-             * Also only source 0 can read ARF (i.e. ballotted flags).
+             *
+             * For balloted flags, only source 0 can read ARF (i.e. ballotted
+             * flags). Furthermore, we may only propagate ballots locally as the
+             * ballot is implicitly execmask'd which changes throughout the CFG.
              */
             if ((I->src[s].file == def->src[0].file) ||
                 ((!jay_inst_has_default(I) ||
                   &I->src[s] != jay_inst_get_default(I)) &&
                  !(I->src[s].file == UFLAG && !jay_is_imm(def->src[0])) &&
                  !(I->src[s].file == FLAG) &&
-                 (s == 0 || !jay_is_flag(def->src[0])) &&
+                 (!jay_is_flag(def->src[0]) ||
+                  (s == 0 && def_block[jay_base_index(src)] == block->index)) &&
                  !(jay_is_imm(def->src[0]) && I->src[s].negate))) {
 
                jay_replace_src(&I->src[s], def->src[0]);
@@ -199,6 +205,7 @@ propagate_forwards(jay_function *f)
    }
 
    free(defs);
+   free(def_block);
 }
 
 static bool
