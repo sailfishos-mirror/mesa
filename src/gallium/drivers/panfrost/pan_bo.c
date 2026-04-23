@@ -110,6 +110,7 @@ panfrost_bo_alloc(struct panfrost_device *dev, size_t size, uint32_t flags,
    bo->ptr.gpu = vm_op.va.start;
    bo->flags = flags;
    bo->dev = dev;
+   simple_mtx_init(&bo->lock, mtx_plain);
    return bo;
 
 err_bind:
@@ -127,6 +128,11 @@ panfrost_bo_free(struct panfrost_bo *bo)
    struct pan_kmod_bo *kmod_bo = bo->kmod_bo;
    struct pan_kmod_vm *vm = bo->dev->kmod.vm;
    uint64_t gpu_va = bo->ptr.gpu;
+
+   /* reset_bo_slot() will undo the poisoning done in simple_mtx_destroy(), but
+    * we need it for the valgrind annotation.
+    */
+   simple_mtx_destroy(&bo->lock);
 
    /* BO will be freed with the sparse array, but zero to indicate free */
    reset_bo_slot(bo);
@@ -533,8 +539,11 @@ panfrost_bo_export(struct panfrost_bo *bo)
    PAN_TRACE_FUNC(PAN_TRACE_GL_BO);
 
    int ret = pan_kmod_bo_export(bo->kmod_bo);
-   if (ret >= 0)
+   if (ret >= 0) {
+      simple_mtx_lock(&bo->lock);
       bo->flags |= PAN_BO_SHARED;
+      simple_mtx_unlock(&bo->lock);
+   }
 
    return ret;
 }
@@ -556,12 +565,15 @@ const char *
 panfrost_bo_replace_label(struct panfrost_bo *bo, const char *label,
                           bool set_kernel_label)
 {
+   simple_mtx_lock(&bo->lock);
    const char *old_label = bo->label;
 
    bo->label = label;
 
    if (set_kernel_label)
       pan_kmod_set_bo_label(bo->dev->kmod.dev, bo->kmod_bo, label);
+
+   simple_mtx_unlock(&bo->lock);
 
    return old_label;
 }

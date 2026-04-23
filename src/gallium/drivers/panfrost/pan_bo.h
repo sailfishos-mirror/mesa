@@ -76,6 +76,9 @@ struct panfrost_bo {
     * pixel format or buffer modifiers.
     */
    const char *label;
+
+   /* Lock used to protect concurrent access to flags and label. */
+   simple_mtx_t lock;
 };
 
 static inline size_t
