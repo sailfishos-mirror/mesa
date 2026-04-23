@@ -90,6 +90,22 @@ kk_preprocess_nir(UNUSED struct vk_physical_device *vk_pdev, nir_shader *nir,
    NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
 }
 
+static bool
+has_static_depth_stencil_state(const struct vk_graphics_pipeline_state *state)
+{
+   if (!state->ds)
+      return false;
+
+   return !(
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_DEPTH_TEST_ENABLE) |
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_DEPTH_WRITE_ENABLE) |
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_DEPTH_COMPARE_OP) |
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_TEST_ENABLE) |
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_OP) |
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_COMPARE_MASK) |
+      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_WRITE_MASK));
+}
+
 struct kk_vs_key {
    bool is_points;
    struct vk_vertex_input_state vi;
@@ -108,6 +124,7 @@ kk_populate_vs_key(struct kk_vs_key *key,
 struct kk_fs_key {
    VkFormat color_formats[MESA_VK_MAX_COLOR_ATTACHMENTS];
    struct vk_color_blend_state color_blend;
+   struct vk_depth_stencil_state ds;
    uint32_t rasterization_samples;
    uint16_t static_sample_mask;
    bool has_depth;
@@ -123,6 +140,9 @@ kk_populate_fs_key(struct kk_fs_key *key,
     * non-native formats */
    memcpy(key->color_formats, state->rp->color_attachment_formats,
           sizeof(key->color_formats));
+
+   if (has_static_depth_stencil_state(state))
+      key->ds = *(state->ds);
 
    /* Blend state gets [de]serialized, so we need to hash it */
    if (state->cb)
@@ -830,22 +850,6 @@ kk_compile_compute_pipeline(struct kk_device *device, struct kk_shader *shader)
       return VK_ERROR_INVALID_SHADER_NV;
 
    return VK_SUCCESS;
-}
-
-static bool
-has_static_depth_stencil_state(const struct vk_graphics_pipeline_state *state)
-{
-   if (!state->ds)
-      return false;
-
-   return !(
-      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_DEPTH_TEST_ENABLE) |
-      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_DEPTH_WRITE_ENABLE) |
-      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_DEPTH_COMPARE_OP) |
-      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_TEST_ENABLE) |
-      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_OP) |
-      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_COMPARE_MASK) |
-      BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_WRITE_MASK));
 }
 
 static mtl_depth_stencil_state *
