@@ -192,20 +192,16 @@ struct panfrost_batch *
 panfrost_get_fresh_batch_for_fbo(struct panfrost_context *ctx,
                                  const char *reason);
 
-void panfrost_batch_add_bo(struct panfrost_batch *batch, struct panfrost_bo *bo,
-                           mesa_shader_stage stage);
+void panfrost_batch_add_bo(struct panfrost_batch *batch, struct panfrost_bo *bo);
 
 void panfrost_batch_write_bo(struct panfrost_batch *batch,
-                             struct panfrost_bo *bo,
-                             mesa_shader_stage stage);
+                             struct panfrost_bo *bo);
 
 void panfrost_batch_read_rsrc(struct panfrost_batch *batch,
-                              struct panfrost_resource *rsrc,
-                              mesa_shader_stage stage);
+                              struct panfrost_resource *rsrc);
 
 void panfrost_batch_write_rsrc(struct panfrost_batch *batch,
-                               struct panfrost_resource *rsrc,
-                               mesa_shader_stage stage);
+                               struct panfrost_resource *rsrc);
 
 bool panfrost_any_batch_reads_rsrc(struct panfrost_context *ctx,
                                    struct panfrost_resource *rsrc);

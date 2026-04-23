@@ -49,7 +49,7 @@ panfrost_batch_add_surface(struct panfrost_batch *batch,
       struct panfrost_resource *rsrc = pan_resource(surf->texture);
       pan_resource_modifier_legalize(batch->ctx, rsrc, surf->format, true,
                                      false);
-      panfrost_batch_write_rsrc(batch, rsrc, MESA_SHADER_FRAGMENT);
+      panfrost_batch_write_rsrc(batch, rsrc);
    }
 }
 
@@ -336,35 +336,23 @@ panfrost_batch_add_bo_old(struct panfrost_batch *batch, struct panfrost_bo *bo,
    *entry = flags;
 }
 
-static uint32_t
-panfrost_access_for_stage(mesa_shader_stage stage)
+void
+panfrost_batch_add_bo(struct panfrost_batch *batch, struct panfrost_bo *bo)
 {
-   return (stage == MESA_SHADER_FRAGMENT) ? PAN_BO_ACCESS_FRAGMENT
-                                          : PAN_BO_ACCESS_VERTEX_TILER;
+   panfrost_batch_add_bo_old(batch, bo, PAN_BO_ACCESS_READ);
 }
 
 void
-panfrost_batch_add_bo(struct panfrost_batch *batch, struct panfrost_bo *bo,
-                      mesa_shader_stage stage)
+panfrost_batch_write_bo(struct panfrost_batch *batch, struct panfrost_bo *bo)
 {
-   panfrost_batch_add_bo_old(
-      batch, bo, PAN_BO_ACCESS_READ | panfrost_access_for_stage(stage));
-}
-
-void
-panfrost_batch_write_bo(struct panfrost_batch *batch, struct panfrost_bo *bo,
-                        mesa_shader_stage stage)
-{
-   panfrost_batch_add_bo_old(
-      batch, bo, PAN_BO_ACCESS_WRITE | panfrost_access_for_stage(stage));
+   panfrost_batch_add_bo_old(batch, bo, PAN_BO_ACCESS_WRITE);
 }
 
 void
 panfrost_batch_read_rsrc(struct panfrost_batch *batch,
-                         struct panfrost_resource *rsrc,
-                         mesa_shader_stage stage)
+                         struct panfrost_resource *rsrc)
 {
-   uint32_t access = PAN_BO_ACCESS_READ | panfrost_access_for_stage(stage);
+   uint32_t access = PAN_BO_ACCESS_READ;
 
    pan_resource_update_access(batch->ctx, rsrc, false);
 
@@ -380,10 +368,9 @@ panfrost_batch_read_rsrc(struct panfrost_batch *batch,
 
 void
 panfrost_batch_write_rsrc(struct panfrost_batch *batch,
-                          struct panfrost_resource *rsrc,
-                          mesa_shader_stage stage)
+                          struct panfrost_resource *rsrc)
 {
-   uint32_t access = PAN_BO_ACCESS_WRITE | panfrost_access_for_stage(stage);
+   uint32_t access = PAN_BO_ACCESS_WRITE;
 
    pan_resource_update_access(batch->ctx, rsrc, true);
 
@@ -407,7 +394,7 @@ panfrost_batch_create_bo(struct panfrost_batch *batch, size_t size,
    bo = panfrost_bo_create(pan_device(batch->ctx->base.screen), size,
                            create_flags, label);
    if (bo) {
-      panfrost_batch_add_bo(batch, bo, stage);
+      panfrost_batch_add_bo(batch, bo);
 
       /* panfrost_batch_add_bo() has retained a reference and
        * panfrost_bo_create() initialize the refcnt to 1, so let's
@@ -435,7 +422,7 @@ panfrost_batch_get_scratchpad(struct panfrost_batch *batch,
                                   MESA_SHADER_VERTEX, "Thread local storage");
 
       if (batch->scratchpad)
-         panfrost_batch_add_bo(batch, batch->scratchpad, MESA_SHADER_FRAGMENT);
+         panfrost_batch_add_bo(batch, batch->scratchpad);
    }
 
    return batch->scratchpad;

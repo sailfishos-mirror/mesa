@@ -40,21 +40,10 @@
 
 /* GPU access flags */
 
-/* BO is either shared (can be accessed by more than one GPU batch) or private
- * (reserved by a specific GPU job). */
-#define PAN_BO_ACCESS_PRIVATE (0 << 0)
-#define PAN_BO_ACCESS_SHARED  (1 << 0)
-
 /* BO is being read/written by the GPU */
-#define PAN_BO_ACCESS_READ  (1 << 1)
-#define PAN_BO_ACCESS_WRITE (1 << 2)
+#define PAN_BO_ACCESS_READ  (1 << 0)
+#define PAN_BO_ACCESS_WRITE (1 << 1)
 #define PAN_BO_ACCESS_RW    (PAN_BO_ACCESS_READ | PAN_BO_ACCESS_WRITE)
-
-/* BO is accessed by the vertex/tiler job. */
-#define PAN_BO_ACCESS_VERTEX_TILER (1 << 3)
-
-/* BO is accessed by the fragment job. */
-#define PAN_BO_ACCESS_FRAGMENT (1 << 4)
 
 typedef uint8_t pan_bo_access;
 

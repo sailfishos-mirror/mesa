@@ -1640,7 +1640,7 @@ csf_emit_draw_state(struct panfrost_batch *batch,
    if (panfrost_occlusion_query_active(ctx)) {
       struct panfrost_resource *rsrc = pan_resource(ctx->occlusion_query->rsrc);
       cs_move64_to(b, cs_sr_reg64(b, IDVS, OQ), rsrc->plane.base);
-      panfrost_batch_write_rsrc(ctx->batch, rsrc, MESA_SHADER_FRAGMENT);
+      panfrost_batch_write_rsrc(ctx->batch, rsrc);
    }
 
    cs_move32_to(b, cs_sr_reg32(b, IDVS, VARY_SIZE),
@@ -2185,7 +2185,7 @@ GENX(csf_emit_write_timestamp)(struct panfrost_batch *batch,
       : cs_now();
    cs_store_state(b, address, 0, MALI_CS_STATE_TIMESTAMP, async);
 
-   panfrost_batch_write_rsrc(batch, dst, MESA_SHADER_VERTEX);
+   panfrost_batch_write_rsrc(batch, dst);
 }
 
 void
@@ -2215,5 +2215,5 @@ GENX(csf_emit_copy_data)(struct panfrost_batch *batch,
    cs_wait_slot(b, 0);
    cs_store(b, data, dst_addr, BITFIELD_MASK(count), 0);
 
-   panfrost_batch_write_rsrc(batch, dst, MESA_SHADER_VERTEX);
+   panfrost_batch_write_rsrc(batch, dst);
 }

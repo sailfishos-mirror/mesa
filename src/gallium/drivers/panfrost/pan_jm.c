@@ -554,7 +554,7 @@ jm_emit_tiler_draw(struct mali_draw_packed *out, struct panfrost_batch *batch,
          struct panfrost_resource *rsrc =
             pan_resource(ctx->occlusion_query->rsrc);
          cfg.occlusion = rsrc->plane.base;
-         panfrost_batch_write_rsrc(ctx->batch, rsrc, MESA_SHADER_FRAGMENT);
+         panfrost_batch_write_rsrc(ctx->batch, rsrc);
       }
 
 #if PAN_ARCH >= 9
@@ -1104,7 +1104,7 @@ GENX(jm_emit_write_timestamp)(struct panfrost_batch *batch,
 
    pan_jc_add_job(&batch->jm.jobs.vtc_jc, MALI_JOB_TYPE_WRITE_VALUE, false,
                   false, 0, 0, &job, false);
-   panfrost_batch_write_rsrc(batch, dst, MESA_SHADER_VERTEX);
+   panfrost_batch_write_rsrc(batch, dst);
 }
 
 int
