@@ -21,6 +21,8 @@
 #include "vn_device_memory.h"
 #include "vn_image.h"
 
+#define VN_MAX_PLANES 4
+
 struct vn_android_gralloc_buffer_properties {
    uint32_t num_planes;
    uint64_t modifier;
@@ -391,6 +393,32 @@ vn_android_get_wsi_memory_from_bind_info(
    return img->wsi.anb_mem;
 }
 
+static VkResult
+vn_android_ahb_image_init(struct vn_device *dev,
+                          struct AHardwareBuffer *ahb,
+                          struct vn_image *img)
+{
+   VkImageCreateInfo *create_info = img->base.vk.android_deferred_create_info;
+   VkResult result;
+
+   assert(create_info);
+
+   VkImageDrmFormatModifierExplicitCreateInfoEXT mod_info;
+   VkSubresourceLayout layouts[VN_MAX_PLANES];
+   result = vk_android_get_ahb_layout(ahb, &mod_info, layouts, VN_MAX_PLANES);
+   if (result != VK_SUCCESS)
+      return result;
+   __vk_append_struct(create_info, &mod_info);
+
+   VkExternalMemoryImageCreateInfo external_info = {
+      .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+      .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
+   };
+   __vk_append_struct(create_info, &external_info);
+
+   return vn_image_init_deferred(dev, create_info, img);
+}
+
 VkResult
 vn_android_device_import_ahb(struct vn_device *dev,
                              struct vn_device_memory *mem,
@@ -416,15 +444,7 @@ vn_android_device_import_ahb(struct vn_device *dev,
    VkMemoryRequirements mem_reqs;
    if (dedicated_info && dedicated_info->image != VK_NULL_HANDLE) {
       struct vn_image *img = vn_image_from_handle(dedicated_info->image);
-
-      /* If ahb is for an image, finish the deferred image creation first */
-      struct vn_android_image_builder builder;
-      result = vn_android_get_image_builder(
-         dev, img->base.vk.android_deferred_create_info, handle, &builder);
-      if (result != VK_SUCCESS)
-         return result;
-
-      result = vn_image_init_deferred(dev, &builder.create, img);
+      result = vn_android_ahb_image_init(dev, mem_vk->ahardware_buffer, img);
       if (result != VK_SUCCESS)
          return result;
 
