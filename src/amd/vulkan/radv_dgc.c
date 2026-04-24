@@ -3240,7 +3240,7 @@ radv_prepare_dgc_graphics(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedC
    }
 
    params->vtx_base_sgpr = vtx_base_sgpr;
-   params->max_index_count = state_cmd_buffer->state.max_index_count;
+   params->max_index_count = state_cmd_buffer->state.index_buffer.max_index_count;
    params->max_draw_count = pGeneratedCommandsInfo->maxDrawCount;
    params->dynamic_vs_input =
       (layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_VB)) && first_shader->info.vs.dynamic_inputs;

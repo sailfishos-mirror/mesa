@@ -5854,9 +5854,9 @@ radv_emit_index_buffer(struct radv_cmd_buffer *cmd_buffer)
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   struct radv_cmd_state *state = &cmd_buffer->state;
-   uint32_t max_index_count = state->max_index_count;
-   uint64_t index_va = state->index_va;
+   const struct radv_index_buffer_state *index_buffer = &cmd_buffer->state.index_buffer;
+   uint32_t max_index_count = index_buffer->max_index_count;
+   uint64_t index_va = index_buffer->va;
 
    /* Handle indirect draw calls with NULL index buffer if the GPU doesn't support them. */
    if (!max_index_count && pdev->info.has_zero_index_buffer_bug) {
@@ -7401,11 +7401,12 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
       disable_instance_packing = true;
    }
 
-   if ((draw_info->indexed && state->index_type != state->last_index_type) ||
+   if ((draw_info->indexed && state->index_buffer.index_type != state->last_index_type) ||
        (gpu_info->gfx_level == GFX10_3 &&
         (state->last_index_type == -1 ||
          disable_instance_packing != G_028A7C_DISABLE_INSTANCE_PACKING(state->last_index_type)))) {
-      uint32_t index_type = state->index_type | S_028A7C_DISABLE_INSTANCE_PACKING(disable_instance_packing);
+      uint32_t index_type =
+         state->index_buffer.index_type | S_028A7C_DISABLE_INSTANCE_PACKING(disable_instance_packing);
 
       radeon_begin(cs);
 
@@ -8210,18 +8211,19 @@ VKAPI_ATTR void VKAPI_CALL
 radv_CmdBindIndexBuffer3KHR(VkCommandBuffer commandBuffer, const VkBindIndexBuffer3InfoKHR *pInfo)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_index_buffer_state *index_buffer = &cmd_buffer->state.index_buffer;
 
-   cmd_buffer->state.index_type = vk_to_index_type(pInfo->indexType);
+   index_buffer->index_type = vk_to_index_type(pInfo->indexType);
    cmd_buffer->state.primitive_restart_index = radv_get_primitive_restart_index(pInfo->indexType);
 
    if (pInfo->addressRange.size) {
-      cmd_buffer->state.index_va = pInfo->addressRange.address;
+      index_buffer->va = pInfo->addressRange.address;
 
       int index_size = radv_get_vgt_index_size(vk_to_index_type(pInfo->indexType));
-      cmd_buffer->state.max_index_count = pInfo->addressRange.size / index_size;
+      index_buffer->max_index_count = pInfo->addressRange.size / index_size;
    } else {
-      cmd_buffer->state.index_va = 0;
-      cmd_buffer->state.max_index_count = 0;
+      index_buffer->va = 0;
+      index_buffer->max_index_count = 0;
    }
 
    cmd_buffer->state.dirty |= RADV_CMD_DIRTY_INDEX_BUFFER;
@@ -11132,7 +11134,7 @@ radv_emit_draw_packets_indexed(struct radv_cmd_buffer *cmd_buffer, const struct 
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_state *state = &cmd_buffer->state;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   const int index_size = radv_get_vgt_index_size(state->index_type);
+   const int index_size = radv_get_vgt_index_size(state->index_buffer.index_type);
    unsigned i = 0;
    const bool uses_drawid = state->uses_drawid;
    const bool can_eop = !uses_drawid && pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level < GFX12;
@@ -11141,8 +11143,8 @@ radv_emit_draw_packets_indexed(struct radv_cmd_buffer *cmd_buffer, const struct 
       if (vertexOffset) {
          radv_emit_userdata_vertex(cmd_buffer, info, *vertexOffset);
          vk_foreach_multi_draw_indexed (draw, i, minfo, drawCount, stride) {
-            uint32_t remaining_indexes = MAX2(state->max_index_count, draw->firstIndex) - draw->firstIndex;
-            uint64_t index_va = state->index_va + draw->firstIndex * index_size;
+            uint32_t remaining_indexes = MAX2(state->index_buffer.max_index_count, draw->firstIndex) - draw->firstIndex;
+            uint64_t index_va = state->index_buffer.va + draw->firstIndex * index_size;
 
             /* Handle draw calls with 0-sized index buffers if the GPU can't support them. */
             if (!remaining_indexes && pdev->info.has_zero_index_buffer_bug)
@@ -11166,8 +11168,8 @@ radv_emit_draw_packets_indexed(struct radv_cmd_buffer *cmd_buffer, const struct 
          }
       } else {
          vk_foreach_multi_draw_indexed (draw, i, minfo, drawCount, stride) {
-            uint32_t remaining_indexes = MAX2(state->max_index_count, draw->firstIndex) - draw->firstIndex;
-            uint64_t index_va = state->index_va + draw->firstIndex * index_size;
+            uint32_t remaining_indexes = MAX2(state->index_buffer.max_index_count, draw->firstIndex) - draw->firstIndex;
+            uint64_t index_va = state->index_buffer.va + draw->firstIndex * index_size;
 
             /* Handle draw calls with 0-sized index buffers if the GPU can't support them. */
             if (!remaining_indexes && pdev->info.has_zero_index_buffer_bug)
@@ -11216,8 +11218,8 @@ radv_emit_draw_packets_indexed(struct radv_cmd_buffer *cmd_buffer, const struct 
 
          radv_emit_userdata_vertex(cmd_buffer, info, *vertexOffset);
          vk_foreach_multi_draw_indexed (draw, i, minfo, drawCount, stride) {
-            uint32_t remaining_indexes = MAX2(state->max_index_count, draw->firstIndex) - draw->firstIndex;
-            uint64_t index_va = state->index_va + draw->firstIndex * index_size;
+            uint32_t remaining_indexes = MAX2(state->index_buffer.max_index_count, draw->firstIndex) - draw->firstIndex;
+            uint64_t index_va = state->index_buffer.va + draw->firstIndex * index_size;
 
             /* Handle draw calls with 0-sized index buffers if the GPU can't support them. */
             if (!remaining_indexes && pdev->info.has_zero_index_buffer_bug)
@@ -11236,8 +11238,8 @@ radv_emit_draw_packets_indexed(struct radv_cmd_buffer *cmd_buffer, const struct 
          }
       } else {
          vk_foreach_multi_draw_indexed (draw, i, minfo, drawCount, stride) {
-            uint32_t remaining_indexes = MAX2(state->max_index_count, draw->firstIndex) - draw->firstIndex;
-            uint64_t index_va = state->index_va + draw->firstIndex * index_size;
+            uint32_t remaining_indexes = MAX2(state->index_buffer.max_index_count, draw->firstIndex) - draw->firstIndex;
+            uint64_t index_va = state->index_buffer.va + draw->firstIndex * index_size;
 
             /* Handle draw calls with 0-sized index buffers if the GPU can't support them. */
             if (!remaining_indexes && pdev->info.has_zero_index_buffer_bug)

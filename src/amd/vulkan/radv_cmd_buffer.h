@@ -328,6 +328,12 @@ struct radv_meta_saved_state {
    bool inside_meta_op;
 };
 
+struct radv_index_buffer_state {
+   uint64_t va;
+   uint32_t index_type;
+   uint32_t max_index_count;
+};
+
 struct radv_cmd_state {
    /* Vertex descriptors */
    uint64_t vb_va;
@@ -352,15 +358,12 @@ struct radv_cmd_state {
    struct radv_ray_tracing_pipeline *rt_pipeline;
    struct radv_dynamic_state dynamic;
    struct radv_streamout_state streamout;
+   struct radv_index_buffer_state index_buffer;
 
    struct radv_rendering_state render;
 
    struct radv_meta_saved_state meta;
 
-   /* Index buffer */
-   uint32_t index_type;
-   uint32_t max_index_count;
-   uint64_t index_va;
    int32_t last_index_type;
 
    /* Primitive restart */
