@@ -1698,6 +1698,12 @@ brw_nir_tag_speculative_access(nir_shader *nir)
                                      nir_metadata_all, NULL);
 }
 
+static uint8_t
+brw_nir_lower_phis_to_scalar_cb(const nir_instr *instr, const void *_)
+{
+   return 1;
+}
+
 #define OPT BRW_NIR_PASS
 #define LOOP_OPT BRW_NIR_LOOP_PASS
 #define LOOP_OPT_NOT_IDEMPOTENT BRW_NIR_LOOP_PASS_NOT_IDEMPOTENT
@@ -1735,7 +1741,7 @@ brw_nir_optimize(brw_pass_tracker *pt)
 
       LOOP_OPT(nir_opt_copy_prop);
 
-      LOOP_OPT(nir_lower_phis_to_scalar, NULL, NULL);
+      LOOP_OPT(nir_lower_phis_to_scalar, brw_nir_lower_phis_to_scalar_cb, NULL);
 
       LOOP_OPT(nir_opt_copy_prop);
       LOOP_OPT(nir_opt_dce);
