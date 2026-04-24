@@ -631,7 +631,8 @@ jay_num_isa_srcs(const jay_inst *I)
 static inline bool
 jay_uses_flag(const jay_inst *I)
 {
-   return I->predication ||
+   return jay_is_flag(I->dst) ||
+          I->predication ||
           !jay_is_null(I->cond_flag) ||
           I->op == JAY_OPCODE_SEL;
 }
