@@ -22,6 +22,7 @@ perfcntr_files = [
   [ 'a5xx.xml', 'a5xx_perfcntrs.json' ],
   [ 'a6xx.xml', 'a6xx_perfcntrs.json' ],
   [ 'a6xx.xml', 'a7xx_perfcntrs.json' ],
+  [ 'a6xx.xml', 'a8xx_perfcntrs.json' ],
 ]
 
 xml_files = xml_reg_files
