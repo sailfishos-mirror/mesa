@@ -1138,6 +1138,9 @@ spec@glsl-1.20@execution@clipping@vs-clip-vertex-primitives,Fail
 # Writes -NaN to the output and does not match the expected zero result.
 spec@glsl-1.20@execution@const-builtin@glsl-const-builtin-normalize,Fail
 
+# Loop unrolling regression
+spec@glsl-1.20@execution@fs-function-inout-array-of-structs,Fail
+
 # See issue:
 # https://gitlab.freedesktop.org/mesa/mesa/-/issues/8618
 spec@glsl-1.20@execution@fs-nan-builtin-max,Fail
