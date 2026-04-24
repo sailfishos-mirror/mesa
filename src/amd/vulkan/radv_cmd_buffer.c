@@ -6880,7 +6880,6 @@ radv_flush_vertex_descriptors(struct radv_cmd_buffer *cmd_buffer)
 {
    struct radv_shader *vs = radv_get_shader(cmd_buffer->state.shaders, MESA_SHADER_VERTEX);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   bool uses_dynamic_inputs = vs->info.vs.dynamic_inputs;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (!vs)
@@ -6889,6 +6888,7 @@ radv_flush_vertex_descriptors(struct radv_cmd_buffer *cmd_buffer)
    if (!vs->info.vs.vb_desc_usage_mask)
       return;
 
+   bool uses_dynamic_inputs = vs->info.vs.dynamic_inputs;
    unsigned vb_desc_alloc_size =
       (uses_dynamic_inputs ? vs->info.vs.num_attributes : util_bitcount(vs->info.vs.vb_desc_usage_mask)) * 16;
    unsigned vb_offset;
