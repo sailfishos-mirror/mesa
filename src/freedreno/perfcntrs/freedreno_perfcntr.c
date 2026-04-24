@@ -50,6 +50,9 @@ fd_perfcntrs(const struct fd_dev_id *id, unsigned *count)
    case 7:
       *count = a7xx_num_perfcntr_groups;
       return a7xx_perfcntr_groups;
+   case 8:
+      *count = a8xx_num_perfcntr_groups;
+      return a8xx_perfcntr_groups;
    default:
       *count = 0;
       return NULL;
