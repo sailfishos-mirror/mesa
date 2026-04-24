@@ -150,7 +150,23 @@ public:
    void finalize();
 
 private:
+   enum SchedulerState {
+      sched_alu,
+      sched_tex,
+      sched_fetch,
+      sched_free,
+      sched_gds,
+      sched_waitack,
+   };
+
    void schedule_block(Block& in_block, Shader::ShaderBlocks& out_blocks);
+   void log_ready_queues() const;
+      void maybe_select_tex_or_free_scheduler(SchedulerState& current_scheduler,
+                     SchedulerState last_scheduler);
+   bool dispatch_current_scheduler(Shader::ShaderBlocks& out_blocks,
+                  SchedulerState& current_scheduler,
+                  SchedulerState& last_scheduler);
+      void maybe_switch_to_waitack_scheduler(SchedulerState& current_scheduler);
 
    bool collect_ready(CollectInstructions& available);
 
@@ -251,15 +267,6 @@ private:
    std::list<Instr *> gds_ready;
    std::list<Instr *> waitacks_ready;
 
-   enum {
-      sched_alu,
-      sched_tex,
-      sched_fetch,
-      sched_free,
-      sched_gds,
-      sched_waitack,
-   } current_shed;
-
    ExportInstr *m_last_pos;
    ExportInstr *m_last_pixel;
    ExportInstr *m_last_param;
@@ -320,12 +327,11 @@ schedule(Shader *original)
 
 BlockScheduler::BlockScheduler(r600_chip_class chip_class,
                                radeon_family chip_family):
-    current_shed(sched_alu),
-    m_last_pos(nullptr),
-    m_last_pixel(nullptr),
-    m_last_param(nullptr),
-    m_current_block(nullptr),
-    m_chip_class(chip_class)
+   m_last_pos(nullptr), 
+   m_last_pixel(nullptr),
+   m_last_param(nullptr),
+   m_current_block(nullptr),
+   m_chip_class(chip_class)
 {
    m_nop_after_rel_dest = chip_family == CHIP_RV770;
 
@@ -360,8 +366,8 @@ BlockScheduler::schedule_block(Block& in_block, Shader::ShaderBlocks& out_blocks
 
    assert(in_block.id() >= 0);
 
-   current_shed = sched_fetch;
-   auto last_shed = sched_fetch;
+   SchedulerState current_scheduler = sched_fetch;
+   SchedulerState last_scheduler = sched_fetch;
 
    CollectInstructions cir(*m_vf);
    in_block.accept(cir);
@@ -373,93 +379,16 @@ BlockScheduler::schedule_block(Block& in_block, Shader::ShaderBlocks& out_blocks
    assert(m_current_block->id() >= 0);
 
    while (have_instr) {
+      log_ready_queues();
 
-      sfn_log << SfnLog::schedule << "Have ready instructions\n";
+      maybe_select_tex_or_free_scheduler(current_scheduler, last_scheduler);
 
-      if (alu_vec_ready.size())
-         sfn_log << SfnLog::schedule << "  ALU V:" << alu_vec_ready.size() << "\n";
-
-      if (alu_multi_slot_ready.size())
-         sfn_log << SfnLog::schedule << "  ALU M:" << alu_multi_slot_ready.size() << "\n";
-
-      if (alu_trans_ready.size())
-         sfn_log << SfnLog::schedule << "  ALU T:" << alu_trans_ready.size() << "\n";
-
-      if (alu_groups_ready.size())
-         sfn_log << SfnLog::schedule << "  ALU G:" << alu_groups_ready.size() << "\n";
-
-      if (exports_ready.size())
-         sfn_log << SfnLog::schedule << "  EXP:" << exports_ready.size() << "\n";
-      if (tex_ready.size())
-         sfn_log << SfnLog::schedule << "  TEX:" << tex_ready.size() << "\n";
-      if (fetches_ready.size())
-         sfn_log << SfnLog::schedule << "  FETCH:" << fetches_ready.size() << "\n";
-      if (free_ready.size())
-         sfn_log << SfnLog::schedule << "  GENERIC:" << free_ready.size() << "\n";
-      if (gds_ready.size())
-         sfn_log << SfnLog::schedule << "  GDS:" << gds_ready.size() << "\n";
-      if (waitacks_ready.size())
-         sfn_log << SfnLog::schedule << "  WAITACK:" << waitacks_ready.size() << "\n";
-
-      if (!m_current_block->lds_group_active() &&
-          m_current_block->expected_ar_uses() == 0) {
-         if (last_shed != sched_free && free_ready.size() >= 4)
-            current_shed = sched_free;
-         else if (tex_ready.size() > (m_chip_class >= ISA_CC_EVERGREEN ? 15 : 7))
-            current_shed = sched_tex;
-      }
-
-      switch (current_shed) {
-      case sched_waitack:
-         if (waitacks_ready.empty() || !schedule_cf(out_blocks, waitacks_ready)) {
-            current_shed = sched_alu;
-            break;
-         }
-         break;
-      case sched_alu:
-         if (!schedule_alu(out_blocks)) {
-            assert(!m_current_block->lds_group_active());
-            current_shed = sched_tex;
-            continue;
-         }
-         last_shed = current_shed;
-         break;
-      case sched_tex:
-         if (tex_ready.empty() || !schedule_tex(out_blocks)) {
-            current_shed = sched_fetch;
-            continue;
-         }
-         last_shed = current_shed;
-         break;
-      case sched_fetch:
-         if (!fetches_ready.empty()) {
-            schedule_vtx(out_blocks);
-            last_shed = current_shed;
-         }
-         current_shed = sched_gds;
+      if (dispatch_current_scheduler(out_blocks, current_scheduler, last_scheduler))
          continue;
-      case sched_gds:
-         if (!gds_ready.empty()) {
-            schedule_gds(out_blocks, gds_ready);
-            last_shed = current_shed;
-         }
-         current_shed = sched_free;
-         continue;
-      case sched_free:
-         if (free_ready.empty() || !schedule_cf(out_blocks, free_ready)) {
-            current_shed = sched_alu;
-            break;
-         }
-         last_shed = current_shed;
-      }
 
       have_instr = collect_ready(cir);
 
-      if (alu_vec_ready.empty() && alu_multi_slot_ready.empty() &&
-          alu_trans_ready.empty() && alu_groups_ready.empty() && tex_ready.empty() &&
-          exports_ready.empty() && fetches_ready.empty() && free_ready.empty() &&
-          gds_ready.empty())
-         current_shed = sched_waitack;
+      maybe_switch_to_waitack_scheduler(current_scheduler);
    }
 
    /* Emit exports always at end of a block */
@@ -563,6 +492,113 @@ BlockScheduler::schedule_block(Block& in_block, Shader::ShaderBlocks& out_blocks
       maybe_split_alu_block(out_blocks);
    else
       out_blocks.push_back(m_current_block);
+}
+
+void
+BlockScheduler::log_ready_queues() const
+{
+   sfn_log << SfnLog::schedule << "Have ready instructions\n";
+
+   if (alu_vec_ready.size())
+      sfn_log << SfnLog::schedule << "  ALU V:" << alu_vec_ready.size() << "\n";
+
+   if (alu_multi_slot_ready.size())
+      sfn_log << SfnLog::schedule << "  ALU M:" << alu_multi_slot_ready.size() << "\n";
+
+   if (alu_trans_ready.size())
+      sfn_log << SfnLog::schedule << "  ALU T:" << alu_trans_ready.size() << "\n";
+
+   if (alu_groups_ready.size())
+      sfn_log << SfnLog::schedule << "  ALU G:" << alu_groups_ready.size() << "\n";
+
+   if (exports_ready.size())
+      sfn_log << SfnLog::schedule << "  EXP:" << exports_ready.size() << "\n";
+   if (tex_ready.size())
+      sfn_log << SfnLog::schedule << "  TEX:" << tex_ready.size() << "\n";
+   if (fetches_ready.size())
+      sfn_log << SfnLog::schedule << "  FETCH:" << fetches_ready.size() << "\n";
+   if (free_ready.size())
+      sfn_log << SfnLog::schedule << "  GENERIC:" << free_ready.size() << "\n";
+   if (gds_ready.size())
+      sfn_log << SfnLog::schedule << "  GDS:" << gds_ready.size() << "\n";
+   if (waitacks_ready.size())
+      sfn_log << SfnLog::schedule << "  WAITACK:" << waitacks_ready.size() << "\n";
+}
+
+void
+BlockScheduler::maybe_select_tex_or_free_scheduler(SchedulerState& current_scheduler,
+                                                   SchedulerState last_scheduler)
+{
+   if (!m_current_block->lds_group_active() &&
+       m_current_block->expected_ar_uses() == 0) {
+      if (last_scheduler != sched_free && free_ready.size() >= 4)
+         current_scheduler = sched_free;
+      else if (tex_ready.size() > (m_chip_class >= ISA_CC_EVERGREEN ? 15 : 7))
+         current_scheduler = sched_tex;
+   }
+}
+
+bool
+BlockScheduler::dispatch_current_scheduler(Shader::ShaderBlocks& out_blocks,
+                                           SchedulerState& current_scheduler,
+                                           SchedulerState& last_scheduler)
+{
+   switch (current_scheduler) {
+   case sched_waitack:
+      if (waitacks_ready.empty() || !schedule_cf(out_blocks, waitacks_ready)) {
+         current_scheduler = sched_alu;
+      }
+      return false;
+   case sched_alu:
+      if (!schedule_alu(out_blocks)) {
+         assert(!m_current_block->lds_group_active());
+         current_scheduler = sched_tex;
+         return true;
+      }
+      last_scheduler = current_scheduler;
+      return false;
+   case sched_tex:
+      if (tex_ready.empty() || !schedule_tex(out_blocks)) {
+         current_scheduler = sched_fetch;
+         return true;
+      }
+      last_scheduler = current_scheduler;
+      return false;
+   case sched_fetch:
+      if (!fetches_ready.empty()) {
+         schedule_vtx(out_blocks);
+         last_scheduler = current_scheduler;
+      }
+      current_scheduler = sched_gds;
+      return true;
+   case sched_gds:
+      if (!gds_ready.empty()) {
+         schedule_gds(out_blocks, gds_ready);
+         last_scheduler = current_scheduler;
+      }
+      current_scheduler = sched_free;
+      return true;
+   case sched_free:
+      if (free_ready.empty() || !schedule_cf(out_blocks, free_ready)) {
+         current_scheduler = sched_alu;
+      } else {
+         last_scheduler = current_scheduler;
+      }
+      return false;
+   }
+
+   return false;
+}
+
+void
+BlockScheduler::maybe_switch_to_waitack_scheduler(SchedulerState& current_scheduler)
+{
+   if (alu_vec_ready.empty() && alu_multi_slot_ready.empty() &&
+       alu_trans_ready.empty() && alu_groups_ready.empty() && tex_ready.empty() &&
+       exports_ready.empty() && fetches_ready.empty() && free_ready.empty() &&
+       gds_ready.empty()) {
+      current_scheduler = sched_waitack;
+   }
 }
 
 void
