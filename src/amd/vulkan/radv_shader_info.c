@@ -69,7 +69,7 @@ gather_load_fs_input_info(const nir_shader *nir, const nir_intrinsic_instr *intr
 {
    const nir_io_semantics io_sem = nir_intrinsic_io_semantics(intrin);
    const unsigned location = io_sem.location;
-   const unsigned mapped_location = ac_nir_get_io_driver_location(nir, io_sem.location, true);
+   const unsigned mapped_location = nir_intrinsic_base(intrin);
    const unsigned attrib_count = io_sem.num_slots;
    const unsigned component = nir_intrinsic_component(intrin);
 

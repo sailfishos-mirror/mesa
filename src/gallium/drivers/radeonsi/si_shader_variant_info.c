@@ -90,6 +90,8 @@ void si_get_shader_variant_info(struct si_shader *shader,
    nir_divergence_analysis(nir);
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      NIR_PASS(_, nir, ac_nir_assign_fs_input_locations);
+
       /* Since flat+convergent and non-flat components can occur in the same vec4, start with
        * all PS inputs as flat and change them to smooth when we find a component that's
        * interpolated.
@@ -183,7 +185,7 @@ void si_get_shader_variant_info(struct si_shader *shader,
                   shader->info.uses_vmem_load_other = true;
                } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
                   nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
-                  unsigned index = ac_nir_get_io_driver_location(nir, sem.location, true);
+                  unsigned index = nir_intrinsic_base(intr);
                   assert(sem.num_slots == 1);
 
                   shader->info.num_ps_inputs = MAX2(shader->info.num_ps_inputs, index + 1);

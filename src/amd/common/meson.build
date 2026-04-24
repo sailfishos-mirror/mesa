@@ -151,6 +151,7 @@ amd_common_files = files(
   'ac_video_dec.c',
   'nir/ac_nir.c',
   'nir/ac_nir.h',
+  'nir/ac_nir_assign_io_locations.c',
   'nir/ac_nir_helpers.h',
   'nir/ac_nir_opt_outputs.c',
   'nir/ac_nir_cull.c',

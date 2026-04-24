@@ -1982,6 +1982,9 @@ radv_fill_shader_info(const struct radv_compiler_info *compiler_info, const enum
          consider_force_vrs = radv_consider_force_vrs(gfx_state, &stages[i], &stages[MESA_SHADER_FRAGMENT]);
       }
 
+      if (i == MESA_SHADER_FRAGMENT)
+         NIR_PASS(_, stages[i].nir, ac_nir_assign_fs_input_locations);
+
       radv_nir_shader_info_pass(compiler_info, stages[i].nir, &stages[i].layout, &stages[i].key, gfx_state,
                                 pipeline_type, consider_force_vrs, &stages[i].info);
    }
