@@ -225,7 +225,6 @@ lower_tex(nir_builder *b, nir_instr *instr, void *options_)
 }
 
 typedef struct {
-   nir_intrinsic_instr *bary;
    nir_intrinsic_instr *load;
 } coord_info;
 
@@ -252,7 +251,6 @@ static bool can_move_coord(nir_scalar scalar, coord_info *info, nir_block *tople
    nir_intrinsic_instr *intrin = nir_def_as_intrinsic(scalar.def);
    if (intrin->intrinsic == nir_intrinsic_load_input ||
        intrin->intrinsic == nir_intrinsic_load_per_primitive_input) {
-      info->bary = NULL;
       info->load = intrin;
       return true;
    }
@@ -275,7 +273,6 @@ static bool can_move_coord(nir_scalar scalar, coord_info *info, nir_block *tople
        nir_intrinsic_interp_mode(intrin_x) != nir_intrinsic_interp_mode(intrin_y))
       return false;
 
-   info->bary = intrin_x;
    info->load = intrin;
 
    return true;
@@ -305,22 +302,23 @@ build_coordinate(struct move_tex_coords_state *state, nir_scalar scalar, coord_i
 
    ASSERTED nir_src offset = *nir_get_io_offset_src(info.load);
    assert(nir_src_is_const(offset) && !nir_src_as_uint(offset));
+   nir_block *cursor_block = nir_cursor_current_block(b->cursor);
 
-   nir_def *zero = nir_imm_int(b, 0);
-   nir_def *res;
-   if (info.bary) {
-      enum glsl_interp_mode interp_mode = nir_intrinsic_interp_mode(info.bary);
-      nir_def *bary = nir_load_system_value(b, info.bary->intrinsic, interp_mode, 2, 32);
-      res = nir_load_interpolated_input(b, 1, 32, bary, zero);
-   } else {
-      res = nir_load_input(b, 1, 32, zero);
+   /* Move load_*input(barycentric, imm) to the cursor block if it's after that block. */
+   if (info.load->instr.block->index > cursor_block->index) {
+      nir_instr_move(b->cursor, &info.load->instr);
+
+      unsigned num_srcs = nir_intrinsic_infos[info.load->intrinsic].num_srcs;
+
+      for (unsigned i = 0; i < num_srcs; i++) {
+         if (nir_def_instr(info.load->src[i].ssa)->block->index > cursor_block->index) {
+            nir_instr_move(nir_before_instr(&info.load->instr),
+                           nir_def_instr(info.load->src[i].ssa));
+         }
+      }
    }
-   nir_intrinsic_instr *intrin = nir_def_as_intrinsic(res);
-   nir_intrinsic_set_base(intrin, nir_intrinsic_base(info.load));
-   nir_intrinsic_set_component(intrin, nir_intrinsic_component(info.load) + scalar.comp);
-   nir_intrinsic_set_dest_type(intrin, nir_intrinsic_dest_type(info.load));
-   nir_intrinsic_set_io_semantics(intrin, nir_intrinsic_io_semantics(info.load));
-   return res;
+
+   return &info.load->def;
 }
 
 static bool can_optimize_txd(nir_shader *shader, struct loop_if_state *loop_if, nir_tex_instr *tex,
@@ -571,7 +569,8 @@ ac_nir_lower_tex_coords(nir_shader *nir, const ac_nir_lower_tex_coords_options *
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       nir_function_impl *impl = nir_shader_get_entrypoint(nir);
       nir_metadata_require(
-         impl, nir_metadata_divergence | nir_metadata_dominance | nir_metadata_instr_index);
+         impl, nir_metadata_divergence | nir_metadata_dominance | nir_metadata_instr_index |
+               nir_metadata_block_index);
 
       struct move_tex_coords_state state;
       state.toplevel_b = nir_builder_create(impl);
