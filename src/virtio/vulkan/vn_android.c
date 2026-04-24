@@ -375,9 +375,9 @@ vn_android_image_from_anb(struct vn_device *dev,
    return VK_SUCCESS;
 }
 
-struct vn_device_memory *
-vn_android_get_wsi_memory_from_bind_info(
-   struct vn_device *dev, const VkBindImageMemoryInfo *bind_info)
+VkDeviceMemory
+vn_android_get_wsi_memory(struct vn_device *dev,
+                          const VkBindImageMemoryInfo *bind_info)
 {
    const VkNativeBufferANDROID *anb_info =
       vk_find_struct_const(bind_info->pNext, NATIVE_BUFFER_ANDROID);
@@ -388,9 +388,9 @@ vn_android_get_wsi_memory_from_bind_info(
       dev, img->base.vk.android_deferred_create_info, anb_info,
       &dev->base.vk.alloc, &img);
    if (result != VK_SUCCESS)
-      return NULL;
+      return VK_NULL_HANDLE;
 
-   return img->wsi.anb_mem;
+   return vn_device_memory_to_handle(img->wsi.anb_mem);
 }
 
 static VkResult

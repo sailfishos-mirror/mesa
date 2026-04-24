@@ -691,13 +691,11 @@ vn_image_bind_wsi_memory(struct vn_device *dev,
 
    for (uint32_t i = 0; i < count; i++) {
       VkBindImageMemoryInfo *info = &local_infos[i];
-      struct vn_device_memory *mem =
-         vn_device_memory_from_handle(info->memory);
 
-      if (!mem) {
+      if (info->memory == VK_NULL_HANDLE) {
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
-         mem = vn_android_get_wsi_memory_from_bind_info(dev, info);
-         if (!mem) {
+         info->memory = vn_android_get_wsi_memory(dev, info);
+         if (info->memory == VK_NULL_HANDLE) {
             STACK_ARRAY_FINISH(local_infos);
             return VK_ERROR_OUT_OF_HOST_MEMORY;
          }
@@ -707,13 +705,12 @@ vn_image_bind_wsi_memory(struct vn_device *dev,
                                  BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR);
          assert(swapchain_info);
 
-         mem = vn_device_memory_from_handle(wsi_common_get_memory(
-            swapchain_info->swapchain, swapchain_info->imageIndex));
+         info->memory = wsi_common_get_memory(swapchain_info->swapchain,
+                                              swapchain_info->imageIndex);
 #endif
-         info->memory = vn_device_memory_to_handle(mem);
          info->memoryOffset = 0;
       }
-      assert(mem && info->memory != VK_NULL_HANDLE);
+      assert(info->memory != VK_NULL_HANDLE);
    }
 
    vn_async_vkBindImageMemory2(dev->primary_ring, vn_device_to_handle(dev),
