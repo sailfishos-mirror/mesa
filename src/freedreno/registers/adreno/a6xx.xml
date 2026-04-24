@@ -4404,7 +4404,7 @@ by a particular renderpass/blit.
 	<reg64 offset="0xae3c" name="SP_SW_DEBUG_ADDR" variants="A7XX-"/>
 	<reg64 offset="0xae3e" name="SP_ISDB_DEBUG_ADDR" variants="A7XX-"/>
 
-	<array offset="0xaec0" name="SP_PERFCTR_HLSQ_SEL_2_0" stride="1" length="6" variants="A7XX-"/>
+	<array offset="0xaec0" name="SP_PERFCTR_HLSQ_SEL_2" stride="1" length="6" variants="A7XX-"/>
 
 	<!--
 	The downstream kernel calls the debug cluster of registers
