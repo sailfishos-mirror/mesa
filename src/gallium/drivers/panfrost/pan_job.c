@@ -352,6 +352,12 @@ void
 panfrost_batch_read_rsrc(struct panfrost_batch *batch,
                          struct panfrost_resource *rsrc)
 {
+   /* Recursive call to panfrost_batch_read_rsrc() to add all planes.
+    * The max recursion depth should be 3.
+    */
+   if (rsrc->base.next)
+      panfrost_batch_read_rsrc(batch, pan_resource(rsrc->base.next));
+
    uint32_t access = PAN_BO_ACCESS_READ;
 
    pan_resource_update_access(batch->ctx, rsrc, false);
@@ -370,6 +376,12 @@ void
 panfrost_batch_write_rsrc(struct panfrost_batch *batch,
                           struct panfrost_resource *rsrc)
 {
+   /* Recursive call to panfrost_batch_write_rsrc() to add all planes.
+    * The max recursion depth should be 3.
+    */
+   if (rsrc->base.next)
+      panfrost_batch_write_rsrc(batch, pan_resource(rsrc->base.next));
+
    uint32_t access = PAN_BO_ACCESS_WRITE;
 
    pan_resource_update_access(batch->ctx, rsrc, true);
