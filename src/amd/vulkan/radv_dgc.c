@@ -3092,16 +3092,11 @@ radv_CmdPreprocessGeneratedCommandsEXT(VkCommandBuffer commandBuffer,
 
    assert(layout->vk.usage & VK_INDIRECT_COMMANDS_LAYOUT_USAGE_EXPLICIT_PREPROCESS_BIT_EXT);
 
-   /* VK_EXT_conditional_rendering says that copy commands should not be
-    * affected by conditional rendering.
-    */
-   const bool old_predicating = cmd_buffer->state.predicating;
-   cmd_buffer->state.predicating = false;
+   radv_suspend_conditional_rendering(cmd_buffer);
 
    radv_prepare_dgc(cmd_buffer, pGeneratedCommandsInfo, state_cmd_buffer, execution_is_predicating);
 
-   /* Restore conditional rendering. */
-   cmd_buffer->state.predicating = old_predicating;
+   radv_resume_conditional_rendering(cmd_buffer);
 }
 
 static void
