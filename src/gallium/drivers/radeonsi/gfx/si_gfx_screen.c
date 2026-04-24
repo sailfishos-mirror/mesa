@@ -316,15 +316,10 @@ static void si_init_screen_nir_options(struct si_screen *sscreen)
     * gfx9 and newer prefer FMA for F16 because of the packed instruction.
     * gfx10 and older prefer MAD for F32 because of the legacy instruction.
     */
-   bool use_fma32 =
-      sscreen->info.gfx_level >= GFX10_3 ||
-      (sscreen->info.family >= CHIP_GFX940 && !sscreen->info.has_graphics) ||
-      /* fma32 is too slow for gpu < gfx9, so apply the option only for gpu >= gfx9 */
-      (sscreen->info.gfx_level >= GFX9 && sscreen->options.force_use_fma32);
+   nir_shader_compiler_options *options = sscreen->nir_options;
    /* GFX8 has precision issues with 16-bit PS outputs. */
    bool has_16bit_io = sscreen->info.gfx_level >= GFX9;
 
-   nir_shader_compiler_options *options = sscreen->nir_options;
    ac_nir_set_options(&sscreen->info.compiler_info, !sscreen->use_aco, options);
 
    options->ignore_none_interpolation_in_sysval_gathering = true;
@@ -334,6 +329,19 @@ static void si_init_screen_nir_options(struct si_screen *sscreen)
    options->fuse_ffma16 = sscreen->info.gfx_level >= GFX9;
    options->fuse_ffma32 = use_fma32;
    options->fuse_ffma64 = true;
+
+   bool use_fma32 = !(options->float_mul_add32 & nir_float_muladd_support_prefers_split) ||
+      (sscreen->info.gfx_level >= GFX9 && sscreen->options.force_use_fma32);
+
+   if (sscreen->info.gfx_level >= GFX9)
+      options->float_mul_add16 |= nir_float_muladd_support_fuse;
+   if (use_fma32) {
+      /* for force_use_fma32 handling */
+      options->float_mul_add32 &= ~nir_float_muladd_support_prefers_split;
+      options->float_mul_add32 |= nir_float_muladd_support_fuse;
+   }
+   options->float_mul_add64 |= nir_float_muladd_support_fuse;
+
    options->lower_uniforms_to_ubo = true;
    options->lower_to_scalar = true;
    options->lower_to_scalar_filter =
