@@ -5,3 +5,4 @@ VK_KHR_shader_constant_data on RADV
 VK_EXT_dynamic_rendering_unused_attachments on panvk
 protectedMemory support on RADV/GFX10+ and VEGA10
 VK_KHR_performance_query on RADV/GFX11
+VK_EXT_conservative_rasterization on panvk

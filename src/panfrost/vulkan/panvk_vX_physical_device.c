@@ -139,6 +139,7 @@ panvk_per_arch(get_physical_device_extensions)(
          device->kmod.dev->props.gpu_can_query_timestamp,
       .EXT_conditional_rendering = PAN_ARCH >= 10,
       .EXT_color_write_enable = true,
+      .EXT_conservative_rasterization = PAN_ARCH >= 11,
       .EXT_custom_border_color = true,
       .EXT_depth_bias_control = true,
       .EXT_depth_clamp_control = true,
@@ -1152,6 +1153,17 @@ panvk_per_arch(get_physical_device_properties)(
       /* Sparse binding not supported yet. */
       .image2DViewOf3DSparse = false,
       .defaultVertexAttributeValue = VK_DEFAULT_VERTEX_ATTRIBUTE_VALUE_ZERO_ZERO_ZERO_ZERO_KHR,
+
+      /* VK_EXT_conservative_rasterization */
+      .primitiveOverestimationSize = 1.0f / 512.0f,
+      .maxExtraPrimitiveOverestimationSize = 0.0f,
+      .extraPrimitiveOverestimationSizeGranularity = 0.0f,
+      .primitiveUnderestimation = false,
+      .conservativePointAndLineRasterization = false,
+      .degenerateTrianglesRasterized = PAN_ARCH >= 14,
+      .degenerateLinesRasterized = false,
+      .fullyCoveredFragmentShaderInputVariable = false,
+      .conservativeRasterizationPostDepthCoverage = false,
 
       /* VK_EXT_custom_border_color */
       .maxCustomBorderColorSamplers = 32768,

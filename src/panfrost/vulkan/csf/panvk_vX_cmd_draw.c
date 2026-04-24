@@ -1879,6 +1879,9 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
       dyn_gfx_state_dirty(cmdbuf, RS_CULL_MODE) ||
       dyn_gfx_state_dirty(cmdbuf, RS_LINE_MODE) ||
       dyn_gfx_state_dirty(cmdbuf, RS_FRONT_FACE) ||
+#if PAN_ARCH >= 11
+      dyn_gfx_state_dirty(cmdbuf, RS_CONSERVATIVE_MODE) ||
+#endif
       dyn_gfx_state_dirty(cmdbuf, MS_RASTERIZATION_SAMPLES) ||
       dyn_gfx_state_dirty(cmdbuf, MS_SAMPLE_MASK) ||
       dyn_gfx_state_dirty(cmdbuf, MS_ALPHA_TO_COVERAGE_ENABLE) ||
@@ -2009,6 +2012,15 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
          cfg.multisample_enable = msaa;
          cfg.occlusion_query = cmdbuf->state.gfx.occlusion_query.mode;
          cfg.alpha_to_coverage = alpha_to_coverage;
+#if PAN_ARCH >= 11
+         cfg.conservative_rast_mode =
+            rs->conservative_mode == VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT
+               ? MALI_CONSERVATIVE_RAST_MODE_OVER_ESTIMATE
+               : MALI_CONSERVATIVE_RAST_MODE_DISABLED;
+#if PAN_ARCH < 14
+         cfg.cull_zero_area = true;
+#endif
+#endif
       }
 
       cs_update_vt_ctx(b)
