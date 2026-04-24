@@ -6973,7 +6973,6 @@ radv_flush_streamout_descriptors(struct radv_cmd_buffer *cmd_buffer)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct radv_streamout_binding *sb = cmd_buffer->streamout_bindings;
    struct radv_streamout_state *so = &cmd_buffer->state.streamout;
    unsigned so_offset;
    uint64_t desc_va;
@@ -6989,7 +6988,7 @@ radv_flush_streamout_descriptors(struct radv_cmd_buffer *cmd_buffer)
       uint64_t va = 0;
 
       if (so->enabled_mask & (1 << i)) {
-         va = sb[i].va;
+         va = so->bindings[i].va;
 
          /* Set the descriptor.
           *
@@ -7003,7 +7002,7 @@ radv_flush_streamout_descriptors(struct radv_cmd_buffer *cmd_buffer)
             /* With NGG streamout, the buffer size is used to determine the max emit per buffer
              * and also acts as a disable bit when it's 0.
              */
-            size = radv_is_streamout_enabled(cmd_buffer) ? sb[i].size : 0;
+            size = radv_is_streamout_enabled(cmd_buffer) ? so->bindings[i].size : 0;
          }
       }
 
@@ -15656,15 +15655,15 @@ radv_CmdBindTransformFeedbackBuffers2EXT(VkCommandBuffer commandBuffer, uint32_t
                                          const VkBindTransformFeedbackBuffer2InfoEXT *pBindingInfos)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
-   struct radv_streamout_binding *sb = cmd_buffer->streamout_bindings;
+   struct radv_streamout_state *so = &cmd_buffer->state.streamout;
    uint8_t enabled_mask = 0;
 
    assert(firstBinding + bindingCount <= MAX_SO_BUFFERS);
    for (uint32_t i = 0; i < bindingCount; i++) {
       uint32_t idx = firstBinding + i;
 
-      sb[idx].va = pBindingInfos[i].addressRange.address;
-      sb[idx].size = pBindingInfos[i].addressRange.size;
+      so->bindings[idx].va = pBindingInfos[i].addressRange.address;
+      so->bindings[idx].size = pBindingInfos[i].addressRange.size;
 
       enabled_mask |= 1 << idx;
    }
@@ -15799,7 +15798,6 @@ radv_CmdBeginTransformFeedback2EXT(VkCommandBuffer commandBuffer, uint32_t first
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const enum amd_ip_type ring = radv_queue_family_to_ring(pdev, cmd_buffer->qf);
-   struct radv_streamout_binding *sb = cmd_buffer->streamout_bindings;
    struct radv_streamout_state *so = &cmd_buffer->state.streamout;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
@@ -15853,7 +15851,7 @@ radv_CmdBeginTransformFeedback2EXT(VkCommandBuffer commandBuffer, uint32_t first
           * VGT only counts primitives and tells the shader through
           * SGPRs what to do.
           */
-         radeon_set_context_reg(R_028AD0_VGT_STRMOUT_BUFFER_SIZE_0 + 16 * i, sb[i].size >> 2);
+         radeon_set_context_reg(R_028AD0_VGT_STRMOUT_BUFFER_SIZE_0 + 16 * i, so->bindings[i].size >> 2);
 
          cmd_buffer->cs->b->context_roll = true;
 

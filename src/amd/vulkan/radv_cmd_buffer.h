@@ -180,6 +180,9 @@ struct radv_streamout_binding {
 };
 
 struct radv_streamout_state {
+   /* Buffer bindings. */
+   struct radv_streamout_binding bindings[MAX_SO_BUFFERS];
+
    /* Mask of bound streamout buffers. */
    uint8_t enabled_mask;
 
@@ -531,7 +534,6 @@ struct radv_cmd_buffer {
    struct radv_cmd_stream *cs;
    struct radv_cmd_state state;
    struct radv_vertex_binding vertex_bindings[MAX_VBS];
-   struct radv_streamout_binding streamout_bindings[MAX_SO_BUFFERS];
    enum radv_queue_family qf;
 
    uint8_t push_constants[MAX_PUSH_CONSTANTS_SIZE];
