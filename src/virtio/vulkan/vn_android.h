@@ -24,7 +24,6 @@
 VkResult
 vn_android_image_from_anb(struct vn_device *dev,
                           const VkImageCreateInfo *image_info,
-                          const VkNativeBufferANDROID *anb_info,
                           const VkAllocationCallbacks *alloc,
                           struct vn_image **out_img);
 
@@ -42,7 +41,6 @@ vn_android_device_import_ahb(struct vn_device *dev,
 static inline VkResult
 vn_android_image_from_anb(UNUSED struct vn_device *dev,
                           UNUSED const VkImageCreateInfo *image_info,
-                          UNUSED const VkNativeBufferANDROID *anb_info,
                           UNUSED const VkAllocationCallbacks *alloc,
                           UNUSED struct vn_image **out_img)
 {
