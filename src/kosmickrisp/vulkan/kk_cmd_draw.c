@@ -903,8 +903,7 @@ kk_heap(struct kk_cmd_buffer *cmd)
 /* Unrolling will always be done through indirect rendering, so if this is
  * called from non-indirect calls, we will fake it. */
 static struct kk_draw_data
-kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data,
-                   bool promote_index_type)
+kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 {
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
    if (!data.indirect) {
@@ -946,8 +945,9 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data,
       .in_draw = mtl_buffer_get_gpu_address(data.indirect_buffer) +
                  data.indirect_buffer_offset,
       .out_draw = out_draw->gpu,
+      /* Handle primitive restart disable by forcing index to UINT32_MAX */
       .restart_index =
-         promote_index_type ? UINT32_MAX : cmd->state.gfx.index.restart,
+         !data.restart ? UINT32_MAX : cmd->state.gfx.index.restart,
       .index_buffer_size_el = data.index_buffer_range_B,
       .in_el_size_B = data.index_size,
       .out_el_size_B = 4u,
@@ -1030,16 +1030,19 @@ kk_dispatch_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 }
 
 static bool
-requires_index_promotion(struct kk_cmd_buffer *cmd)
+requires_index_promotion(struct kk_draw_data data)
 {
-   const struct vk_dynamic_graphics_state *dyn =
-      &cmd->vk.dynamic_graphics_state;
-   switch (dyn->ia.primitive_topology) {
-   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
-      return (!dyn->ia.primitive_restart_enable &&
-              cmd->state.gfx.index.bytes_per_index < sizeof(uint32_t));
+   /* For primitive types that support primitive restart, if restart is disabled
+    * and the index size is less than uint32_t, we need to make sure to perform
+    * unrolling as it automatically promotes the type to uint32_t, preventing
+    * valid indices from being treated as restarts. For uint32_t indices with
+    * restart disabled, we realistically will never have enough vertices for the
+    * restart index to be valid anyway. */
+   switch (data.prim) {
+   case MESA_PRIM_LINE_STRIP:
+   case MESA_PRIM_TRIANGLE_STRIP:
+   case MESA_PRIM_TRIANGLE_FAN:
+      return (!data.restart && data.index_size < sizeof(uint32_t));
    default:
       return false;
    }
@@ -1053,17 +1056,10 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
       return;
 
    kk_flush_gfx_state(cmd);
+   data.restart = cmd->vk.dynamic_graphics_state.ia.primitive_restart_enable;
 
-   /* If the restart bool is set, it means that primitive restart is disabled
-    * but index type is not uint32_t which requires promoting the type to
-    * uint32_t since we cannot disable primitive restart in Metal. */
-   bool promote_index_type = requires_index_promotion(cmd);
-
-   /* We always need to unroll triangle fans. */
-   data.restart = (data.prim == MESA_PRIM_TRIANGLE_FAN);
-
-   if (promote_index_type || data.restart)
-      data = kk_unroll_geometry(cmd, data, promote_index_type);
+   if (data.prim == MESA_PRIM_TRIANGLE_FAN || requires_index_promotion(data))
+      data = kk_unroll_geometry(cmd, data);
 
    kk_dispatch_draw(cmd, data);
 }
