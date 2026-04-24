@@ -43,31 +43,6 @@ panvk_android_is_gralloc_image(const VkImageCreateInfo *pCreateInfo)
    return false;
 }
 
-static VkResult
-panvk_android_create_deferred_image(VkDevice device,
-                                    const VkImageCreateInfo *pCreateInfo,
-                                    const VkAllocationCallbacks *pAllocator,
-                                    VkImage *pImage)
-{
-   VK_FROM_HANDLE(panvk_device, dev, device);
-
-   struct panvk_image *img =
-      vk_image_create(&dev->vk, pCreateInfo, pAllocator, sizeof(*img));
-   if (!img)
-      return panvk_error(dev, VK_ERROR_OUT_OF_HOST_MEMORY);
-
-   VkResult result = vk_android_init_deferred_image(&dev->vk, &img->vk,
-                                                    pCreateInfo, pAllocator);
-   if (result != VK_SUCCESS) {
-      vk_image_destroy(&dev->vk, pAllocator, &img->vk);
-      return panvk_error(dev, result);
-   }
-
-   *pImage = panvk_image_to_handle(img);
-
-   return VK_SUCCESS;
-}
-
 static inline uint32_t
 panvk_android_get_fd_mem_type_bits(VkDevice dev_handle, int dma_buf_fd)
 {
@@ -169,17 +144,22 @@ panvk_android_create_gralloc_image(VkDevice device,
    VK_FROM_HANDLE(panvk_device, dev, device);
    VkResult result;
 
-   const VkNativeBufferANDROID *anb =
-      vk_find_struct_const(pCreateInfo->pNext, NATIVE_BUFFER_ANDROID);
-   if (!anb) {
-      return panvk_android_create_deferred_image(device, pCreateInfo,
-                                                 pAllocator, pImage);
-   }
-
    struct panvk_image *img =
       vk_image_create(&dev->vk, pCreateInfo, pAllocator, sizeof(*img));
    if (!img)
       return panvk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+   if (!vk_image_is_android_native_buffer(&img->vk)) {
+      result = vk_android_init_deferred_image(&dev->vk, &img->vk, pCreateInfo,
+                                              pAllocator);
+      if (result != VK_SUCCESS) {
+         vk_image_destroy(&dev->vk, pAllocator, &img->vk);
+         return panvk_error(device, result);
+      }
+
+      *pImage = panvk_image_to_handle(img);
+      return VK_SUCCESS;
+   }
 
    VkImageCreateInfo create_info = *pCreateInfo;
    create_info.tiling = img->vk.tiling =
