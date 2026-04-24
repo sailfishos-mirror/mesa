@@ -2582,6 +2582,15 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
    }
 
    if (stages[MESA_SHADER_FRAGMENT].nir) {
+      /* Inter-shader code motion in nir_opt_varyings only works with FS inputs that are loaded only once,
+       * so move all input loads to the entry block, so that CSE can deduplicate them, which increases
+       * the likelihood of there being only one load per FS input component.
+       *
+       * This only moves FS input loads to the end of the entry block.
+       */
+      NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_move_to_top,
+               nir_move_to_entry_block_only | nir_move_to_top_input_loads_simple);
+
       if (gfx_state->dynamic_line_rast_mode)
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_poly_line_smooth, RADV_NUM_SMOOTH_AA_SAMPLES);
 
