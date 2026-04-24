@@ -3077,7 +3077,7 @@ radv_use_dgc_predication(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedCo
     * would be uninitialized).
     */
    return cmd_buffer->qf == RADV_QUEUE_GENERAL && !radv_dgc_get_shader(pipeline_info, eso_info, MESA_SHADER_TASK) &&
-          pGeneratedCommandsInfo->sequenceCountAddress != 0 && !cmd_buffer->state.predicating;
+          pGeneratedCommandsInfo->sequenceCountAddress != 0 && !cmd_buffer->state.cond_render.enabled;
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -3088,7 +3088,7 @@ radv_CmdPreprocessGeneratedCommandsEXT(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(radv_cmd_buffer, state_cmd_buffer, stateCommandBuffer);
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(radv_indirect_command_layout, layout, pGeneratedCommandsInfo->indirectCommandsLayout);
-   const bool execution_is_predicating = state_cmd_buffer->state.predicating;
+   const bool execution_is_predicating = state_cmd_buffer->state.cond_render.enabled;
 
    assert(layout->vk.usage & VK_INDIRECT_COMMANDS_LAYOUT_USAGE_EXPLICIT_PREPROCESS_BIT_EXT);
 
@@ -3118,8 +3118,8 @@ radv_prepare_dgc_compute(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedCo
 
    if (cond_render_enabled) {
       params->predicating = true;
-      params->predication_va = state_cmd_buffer->state.user_predication_va;
-      params->predication_type = state_cmd_buffer->state.predication_type;
+      params->predication_va = state_cmd_buffer->state.cond_render.user_va;
+      params->predication_type = state_cmd_buffer->state.cond_render.type;
    }
 
    if (ies) {

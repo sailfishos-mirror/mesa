@@ -334,12 +334,23 @@ struct radv_index_buffer_state {
    uint32_t max_index_count;
 };
 
+struct radv_cond_render_state {
+   uint64_t user_va;                 /* User predication VA. */
+   uint64_t emulated_va;             /* Emulated VA if no 32-bit predication support. */
+   uint64_t mec_inv_pred_va;         /* For inverted predication when using MEC. */
+   int8_t type;                      /* -1: disabled, 0: normal, 1: inverted */
+   uint8_t op;                       /* 32-bit or 64-bit predicate value */
+   bool enabled;
+   bool enabled_save;
+   bool mec_inv_pred_emitted;        /* To ensure we don't have to repeat inverting the VA. */
+   bool suspended;
+};
+
 struct radv_cmd_state {
    /* Vertex descriptors */
    uint64_t vb_va;
    unsigned vb_size;
 
-   bool predicating;
    uint64_t dirty_dynamic;
    uint64_t dirty;
 
@@ -359,6 +370,7 @@ struct radv_cmd_state {
    struct radv_dynamic_state dynamic;
    struct radv_streamout_state streamout;
    struct radv_index_buffer_state index_buffer;
+   struct radv_cond_render_state cond_render;
 
    struct radv_rendering_state render;
 
@@ -397,16 +409,6 @@ struct radv_cmd_state {
 
    /* Whether any images that are not L2 coherent are dirty from the CB. */
    bool rb_noncoherent_dirty;
-
-   /* Conditional rendering info. */
-   uint8_t predication_op;           /* 32-bit or 64-bit predicate value */
-   int predication_type;             /* -1: disabled, 0: normal, 1: inverted */
-   uint64_t user_predication_va;     /* User predication VA. */
-   uint64_t emulated_predication_va; /* Emulated VA if no 32-bit predication support. */
-   uint64_t mec_inv_pred_va;         /* For inverted predication when using MEC. */
-   bool mec_inv_pred_emitted;        /* To ensure we don't have to repeat inverting the VA. */
-   bool saved_user_cond_render;
-   bool is_user_cond_render_suspended;
 
    /* Inheritance info. */
    VkQueryPipelineStatisticFlags inherited_pipeline_statistics;
@@ -849,20 +851,24 @@ void radv_upload_indirect_descriptor_sets(struct radv_cmd_buffer *cmd_buffer,
 static inline void
 radv_suspend_conditional_rendering(struct radv_cmd_buffer *cmd_buffer)
 {
-   assert(!cmd_buffer->state.is_user_cond_render_suspended);
+   struct radv_cond_render_state *cond_render = &cmd_buffer->state.cond_render;
 
-   cmd_buffer->state.saved_user_cond_render = cmd_buffer->state.predicating;
-   cmd_buffer->state.predicating = false;
-   cmd_buffer->state.is_user_cond_render_suspended = true;
+   assert(!cond_render->suspended);
+
+   cond_render->enabled_save = cond_render->enabled;
+   cond_render->enabled = false;
+   cond_render->suspended = true;
 }
 
 static inline void
 radv_resume_conditional_rendering(struct radv_cmd_buffer *cmd_buffer)
 {
-   assert(cmd_buffer->state.is_user_cond_render_suspended);
+   struct radv_cond_render_state *cond_render = &cmd_buffer->state.cond_render;
 
-   cmd_buffer->state.predicating = cmd_buffer->state.saved_user_cond_render;
-   cmd_buffer->state.is_user_cond_render_suspended = false;
+   assert(cond_render->suspended);
+
+   cond_render->enabled = cond_render->enabled_save;
+   cond_render->suspended = false;
 }
 
 #endif /* RADV_CMD_BUFFER_H */
