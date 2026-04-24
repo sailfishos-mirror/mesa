@@ -1701,6 +1701,25 @@ brw_nir_tag_speculative_access(nir_shader *nir)
 static uint8_t
 brw_nir_lower_phis_to_scalar_cb(const nir_instr *instr, const void *_)
 {
+   nir_phi_instr *phi = nir_instr_as_phi(instr);
+
+   /* If a phi is used by DPAS or if a phi source is the result of a DPAS, do
+    * not scalarize.
+    */
+   nir_foreach_phi_src(src, phi) {
+      const nir_intrinsic_instr *intrin = nir_src_as_intrinsic(src->src);
+
+      if (intrin != NULL && intrin->intrinsic == nir_intrinsic_dpas_intel)
+         return 0;
+   }
+
+   nir_foreach_use(use_src, &phi->def) {
+      const nir_intrinsic_instr *intrin = nir_src_as_intrinsic(*use_src);
+
+      if (intrin != NULL && intrin->intrinsic == nir_intrinsic_dpas_intel)
+         return 0;
+   }
+
    return 1;
 }
 
