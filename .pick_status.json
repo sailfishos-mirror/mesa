@@ -1194,7 +1194,7 @@
         "description": "wgl: Use an hwnd xor hdc for framebuffers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2805822141bb392cc282d9ffaad2ff49f57a23e0",
         "notes": null
