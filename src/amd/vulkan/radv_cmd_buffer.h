@@ -418,9 +418,6 @@ struct radv_cmd_state {
    bool pending_sqtt_barrier_end;
    enum rgp_flush_bits sqtt_flush_bits;
 
-   /* Mesh shading state. */
-   bool mesh_shading;
-
    uint8_t cb_mip[MAX_RTS];
    uint8_t ds_mip;
 

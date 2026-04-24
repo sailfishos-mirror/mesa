@@ -4284,7 +4284,7 @@ radv_emit_vgt_prim_state(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   if (cmd_buffer->state.mesh_shading)
+   if (cmd_buffer->state.active_stages & VK_SHADER_STAGE_MESH_BIT_EXT)
       return;
 
    radeon_begin(cs);
@@ -4379,7 +4379,7 @@ radv_emit_fsr_state(struct radv_cmd_buffer *cmd_buffer)
    /* VERTEX_RATE_COMBINER_MODE controls the combiner mode between the
     * draw rate and the vertex rate.
     */
-   if (cmd_buffer->state.mesh_shading) {
+   if (cmd_buffer->state.active_stages & VK_SHADER_STAGE_MESH_BIT_EXT) {
       pa_cl_vrs_cntl |= S_028848_VERTEX_RATE_COMBINER_MODE(V_028848_SC_VRS_COMB_MODE_PASSTHRU) |
                         S_028848_PRIMITIVE_RATE_COMBINER_MODE(pipeline_comb_mode);
    } else {
@@ -8677,7 +8677,6 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   bool mesh_shading = shader->info.stage == MESA_SHADER_MESH;
    const struct radv_userdata_info *loc;
 
    assert(shader->info.stage == MESA_SHADER_VERTEX || shader->info.stage == MESA_SHADER_TESS_CTRL ||
@@ -8747,7 +8746,7 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
       cmd_buffer->state.last_drawid = -1;
    }
 
-   if (mesh_shading != cmd_buffer->state.mesh_shading) {
+   if ((shader->info.stage == MESA_SHADER_MESH) != !!(cmd_buffer->state.active_stages & VK_SHADER_STAGE_MESH_BIT_EXT)) {
       /* Re-emit VRS state because the combiner is different (vertex vs primitive). Re-emit
        * primitive topology because the mesh shading pipeline clobbered it.
        */
@@ -8767,8 +8766,6 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 
       cmd_buffer->state.last_vgt_shader = (struct radv_shader *)shader;
    }
-
-   cmd_buffer->state.mesh_shading = mesh_shading;
 }
 
 static void
