@@ -110,6 +110,7 @@ i915_get_name(struct pipe_screen *screen)
 static const nir_shader_compiler_options i915_compiler_options = {
    .fdot_replicates = true,
    .fuse_ffma32 = true,
+   .float_mul_add32 = nir_float_muladd_support_has_fmad | nir_float_muladd_support_fuse,
    .lower_bitops = true, /* required for !CAP_INTEGERS nir_to_tgsi */
    .lower_extract_byte = true,
    .lower_extract_word = true,
