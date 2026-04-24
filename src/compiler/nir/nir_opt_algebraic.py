@@ -410,22 +410,22 @@ for sz in (16, 32, 64):
 
 # Shorthand for the expansion of just the dot product part of the [iu]dp4a
 # instructions.
-sdot_4x8_a_b = ('iadd', ('iadd', ('imul', ('extract_i8', a, 0), ('extract_i8', b, 0)),
-                                 ('imul', ('extract_i8', a, 1), ('extract_i8', b, 1))),
-                        ('iadd', ('imul', ('extract_i8', a, 2), ('extract_i8', b, 2)),
-                                 ('imul', ('extract_i8', a, 3), ('extract_i8', b, 3))))
-udot_4x8_a_b = ('iadd', ('iadd', ('imul', ('extract_u8', a, 0), ('extract_u8', b, 0)),
-                                 ('imul', ('extract_u8', a, 1), ('extract_u8', b, 1))),
-                        ('iadd', ('imul', ('extract_u8', a, 2), ('extract_u8', b, 2)),
-                                 ('imul', ('extract_u8', a, 3), ('extract_u8', b, 3))))
-sudot_4x8_a_b = ('iadd', ('iadd', ('imul', ('extract_i8', a, 0), ('extract_u8', b, 0)),
-                                  ('imul', ('extract_i8', a, 1), ('extract_u8', b, 1))),
-                         ('iadd', ('imul', ('extract_i8', a, 2), ('extract_u8', b, 2)),
-                                  ('imul', ('extract_i8', a, 3), ('extract_u8', b, 3))))
-sdot_2x16_a_b = ('iadd', ('imul', ('extract_i16', a, 0), ('extract_i16', b, 0)),
-                         ('imul', ('extract_i16', a, 1), ('extract_i16', b, 1)))
-udot_2x16_a_b = ('iadd', ('imul', ('extract_u16', a, 0), ('extract_u16', b, 0)),
-                         ('imul', ('extract_u16', a, 1), ('extract_u16', b, 1)))
+sdot_4x8_a_b = ('iadd', ('iadd', ('imul24_relaxed', ('extract_i8', a, 0), ('extract_i8', b, 0)),
+                                 ('imul24_relaxed', ('extract_i8', a, 1), ('extract_i8', b, 1))),
+                        ('iadd', ('imul24_relaxed', ('extract_i8', a, 2), ('extract_i8', b, 2)),
+                                 ('imul24_relaxed', ('extract_i8', a, 3), ('extract_i8', b, 3))))
+udot_4x8_a_b = ('iadd', ('iadd', ('umul24_relaxed', ('extract_u8', a, 0), ('extract_u8', b, 0)),
+                                 ('umul24_relaxed', ('extract_u8', a, 1), ('extract_u8', b, 1))),
+                        ('iadd', ('umul24_relaxed', ('extract_u8', a, 2), ('extract_u8', b, 2)),
+                                 ('umul24_relaxed', ('extract_u8', a, 3), ('extract_u8', b, 3))))
+sudot_4x8_a_b = ('iadd', ('iadd', ('imul24_relaxed', ('extract_i8', a, 0), ('extract_u8', b, 0)),
+                                  ('imul24_relaxed', ('extract_i8', a, 1), ('extract_u8', b, 1))),
+                         ('iadd', ('imul24_relaxed', ('extract_i8', a, 2), ('extract_u8', b, 2)),
+                                  ('imul24_relaxed', ('extract_i8', a, 3), ('extract_u8', b, 3))))
+sdot_2x16_a_b = ('iadd', ('imul24_relaxed', ('extract_i16', a, 0), ('extract_i16', b, 0)),
+                         ('imul24_relaxed', ('extract_i16', a, 1), ('extract_i16', b, 1)))
+udot_2x16_a_b = ('iadd', ('umul24_relaxed', ('extract_u16', a, 0), ('extract_u16', b, 0)),
+                         ('umul24_relaxed', ('extract_u16', a, 1), ('extract_u16', b, 1)))
 
 optimizations.extend([
    (('sdot_4x8_iadd', a, b, c), ('iadd', sdot_4x8_a_b, c), '!options->has_sdot_4x8'),
