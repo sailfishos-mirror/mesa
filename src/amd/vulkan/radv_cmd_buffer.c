@@ -13908,7 +13908,8 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
       struct radv_draw_info info = {
          .count = pGeneratedCommandsInfo->maxSequenceCount,
          .indirect_va = (uintptr_t)&info,
-         .indexed = !!(layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_DRAW_INDEXED)),
+         .indexed = (layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_DRAW_INDEXED)) &&
+                    !(layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_IB)),
       };
 
       if (layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_DRAW_MESH)) {
