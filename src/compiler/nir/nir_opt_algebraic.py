@@ -178,6 +178,8 @@ optimizations = [
 
 
    (('imul', a, '#b(is_pos_power_of_two)'), ('ishl', a, ('find_lsb', b)), '!options->lower_bitops'),
+   (('imul24_relaxed', a, '#b(is_pos_power_of_two)'), ('ishl', a, ('find_lsb', b)), '!options->lower_bitops'),
+   (('umul24_relaxed', a, '#b(is_pos_power_of_two)'), ('ishl', a, ('find_lsb', b)), '!options->lower_bitops'),
    (('imul', 'a@8', 0x80), ('ishl', a, 7), '!options->lower_bitops'),
    (('imul', 'a@16', 0x8000), ('ishl', a, 15), '!options->lower_bitops'),
    (('imul', 'a@32', 0x80000000), ('ishl', a, 31), '!options->lower_bitops'),
@@ -287,12 +289,17 @@ optimizations += [
    (('ffmaz', 'a(is_finite)', 'b(is_finite)', c), ('ffma', a, b, c)),
    (('ffmaz', a, a, b), ('ffma', a, a, b)),
    (('imul', a, 0), 0),
+   (('imul24_relaxed', a, 0), 0),
+   (('umul24_relaxed', a, 0), 0),
    (('umul_unorm_4x8_vc4', a, 0), 0),
    (('umul_unorm_4x8_vc4', a, ~0), a),
    (('fmul', a, 1.0), ('fcanonicalize', a)),
    (('imul', a, 1), a),
+   (('imul24_relaxed', a, 1), a),
+   (('umul24_relaxed', a, 1), a),
    (('fmul', a, -1.0), ('fneg', a)),
    (('imul', a, -1), ('ineg', a)),
+   (('imul24_relaxed', a, -1), ('ineg', a)),
    # If a < 0: fsign(a)*a*a => -1*a*a => -a*a => abs(a)*a
    # If a > 0: fsign(a)*a*a => 1*a*a => a*a => abs(a)*a
    # If a == 0: fsign(a)*a*a => 0*0*0 => abs(0)*0
