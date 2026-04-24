@@ -64,7 +64,7 @@ pass(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
       nir_def *mul = nir_bcsel(b, cond, nir_imm_float(b, 0.0625f), nir_imm_float(b, -0.0));
 
       /* adjusted_frag_z = dFdxFine(frag_z) * 0.0625 + frag_z */
-      frag_z = nir_ffma_old(b, nir_ddx_fine(b, frag_z), mul, frag_z);
+      frag_z = nir_ffma_weak(b, nir_ddx_fine(b, frag_z), mul, frag_z);
 
       nir_def_rewrite_uses_after(&intrin->def, frag_z);
 

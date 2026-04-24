@@ -63,6 +63,11 @@ get_nir_options_for_stage(struct radv_compiler_info *compiler_info, mesa_shader_
    options->lower_ffma16 = split_fma || compiler_info->ac->gfx_level < GFX9;
    options->lower_ffma32 = split_fma || compiler_info->ac->gfx_level < GFX10_3;
    options->lower_ffma64 = split_fma;
+   if (split_fma) {
+      options->float_mul_add16 |= nir_float_muladd_support_prefers_split;
+      options->float_mul_add32 |= nir_float_muladd_support_prefers_split;
+      options->float_mul_add64 |= nir_float_muladd_support_prefers_split;
+   }
    options->max_unroll_iterations = 32;
    options->max_unroll_iterations_aggressive = 128;
    options->lower_doubles_options = nir_lower_drcp | nir_lower_dsqrt | nir_lower_drsq | nir_lower_ddiv;
