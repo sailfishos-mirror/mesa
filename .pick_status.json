@@ -964,7 +964,7 @@
         "description": "amd/radeonsi: dont clamp packed user varyings",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3777a5d7157f679be4afecb89313ea0d9db47a8e",
         "notes": null
