@@ -56,9 +56,10 @@ radv_perf_query_supported(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
-   /* SQTT / SPM interfere with the register states for perf counters, and
-    * the code has only been tested on GFX10.3 */
-   return pdev->info.gfx_level == GFX10_3 && !(instance->vk.trace_mode & RADV_TRACE_MODE_RGP);
+   /* SQTT / SPM interfere with the register states for perf counters. */
+   return (pdev->info.gfx_level == GFX10_3 ||
+           (pdev->info.gfx_level >= GFX11 && pdev->info.gfx_level < GFX12)) &&
+          !(instance->vk.trace_mode & RADV_TRACE_MODE_RGP);
 }
 
 static bool
