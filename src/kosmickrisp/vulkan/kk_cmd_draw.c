@@ -1032,6 +1032,10 @@ kk_dispatch_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 static bool
 requires_index_promotion(struct kk_draw_data data)
 {
+   /* uint8_t indices must be promoted since they are not natively supported. */
+   if (data.index_size == sizeof(uint8_t))
+      return true;
+
    /* For primitive types that support primitive restart, if restart is disabled
     * and the index size is less than uint32_t, we need to make sure to perform
     * unrolling as it automatically promotes the type to uint32_t, preventing

@@ -116,6 +116,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
 
       /* Vulkan 1.4 */
       .KHR_global_priority = true,
+      .KHR_index_type_uint8 = true,
       .KHR_load_store_op_none = true,
       .KHR_map_memory2 = true,
       .KHR_push_descriptor = true,
@@ -124,6 +125,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_vertex_attribute_divisor = true,
       .EXT_global_priority = true,
       .EXT_global_priority_query = true,
+      .EXT_index_type_uint8 = true,
       .EXT_vertex_attribute_divisor = true,
 
       /* Optional extensions */
@@ -283,6 +285,7 @@ kk_get_device_features(
 
       /* Vulkan 1.4 */
       .globalPriorityQuery = true,
+      .indexTypeUint8 = true,
       .pushDescriptor = true,
       .shaderSubgroupRotate = true,
       .shaderSubgroupRotateClustered = true,
