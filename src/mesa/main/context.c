@@ -906,6 +906,10 @@ _mesa_initialize_dispatch_tables(struct gl_context *ctx)
       _mesa_init_dispatch_save_begin_end(ctx);
    }
 
+   if ((MESA_VERBOSE & VERBOSE_API) &&
+       !_mesa_init_dispatch_trace(ctx))
+      return false;
+
    /* This binds the dispatch table to the context, but MakeCurrent will
     * bind it for the user. If glthread is enabled, it will override it.
     */
