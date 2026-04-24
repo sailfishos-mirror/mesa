@@ -169,11 +169,6 @@ enum radv_cmd_flush_bits {
                                  RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_WB_L2 | RADV_CMD_FLAG_CS_PARTIAL_FLUSH),
 };
 
-struct radv_vertex_binding {
-   uint64_t addr;
-   VkDeviceSize size;
-};
-
 struct radv_streamout_binding {
    uint64_t va;
    VkDeviceSize size;
@@ -328,6 +323,16 @@ struct radv_meta_saved_state {
    bool inside_meta_op;
 };
 
+struct radv_vertex_binding {
+   uint64_t addr;
+   VkDeviceSize size;
+};
+
+struct radv_vertex_buffer_state {
+   struct radv_vertex_binding bindings[MAX_VBS];
+   uint32_t bound_mask;
+};
+
 struct radv_index_buffer_state {
    uint64_t va;
    uint32_t index_type;
@@ -369,6 +374,7 @@ struct radv_cmd_state {
    struct radv_ray_tracing_pipeline *rt_pipeline;
    struct radv_dynamic_state dynamic;
    struct radv_streamout_state streamout;
+   struct radv_vertex_buffer_state vertex_buffer;
    struct radv_index_buffer_state index_buffer;
    struct radv_cond_render_state cond_render;
 
@@ -432,7 +438,6 @@ struct radv_cmd_state {
    uint32_t rt_stack_size;
 
    struct radv_shader_part *emitted_vs_prolog;
-   uint32_t vbo_bound_mask;
 
    struct radv_shader *emitted_ps;
 
@@ -535,7 +540,6 @@ struct radv_cmd_buffer {
    VkCommandBufferUsageFlags usage_flags;
    struct radv_cmd_stream *cs;
    struct radv_cmd_state state;
-   struct radv_vertex_binding vertex_bindings[MAX_VBS];
    enum radv_queue_family qf;
 
    uint8_t push_constants[MAX_PUSH_CONSTANTS_SIZE];
