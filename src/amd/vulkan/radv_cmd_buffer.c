@@ -10798,6 +10798,15 @@ radv_gfx12_emit_wa(const struct radv_device *device, const struct radv_cmd_state
 }
 
 static void
+radv_invalidate_vertex_draw_state(struct radv_cmd_buffer *cmd_buffer)
+{
+   cmd_buffer->state.last_first_instance = -1;
+   cmd_buffer->state.last_num_instances = -1;
+   cmd_buffer->state.last_drawid = -1;
+   cmd_buffer->state.last_vertex_offset_valid = false;
+}
+
+static void
 radv_cs_emit_draw_packet(struct radv_cmd_buffer *cmd_buffer, uint32_t vertex_count, uint32_t use_opaque)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -10857,11 +10866,7 @@ radv_cs_emit_indirect_draw_packet(struct radv_cmd_buffer *cmd_buffer, bool index
    bool predicating = cmd_buffer->state.predicating;
    assert(base_reg);
 
-   /* just reset draw state for vertex data */
-   cmd_buffer->state.last_first_instance = -1;
-   cmd_buffer->state.last_num_instances = -1;
-   cmd_buffer->state.last_drawid = -1;
-   cmd_buffer->state.last_vertex_offset_valid = false;
+   radv_invalidate_vertex_draw_state(cmd_buffer);
 
    vertex_offset_reg = (base_reg - SI_SH_REG_OFFSET) >> 2;
    if (cmd_buffer->state.uses_baseinstance)
@@ -10912,11 +10917,7 @@ radv_cs_emit_indirect_mesh_draw_packet(struct radv_cmd_buffer *cmd_buffer, uint3
 
    assert(base_reg || (!cmd_buffer->state.uses_drawid && !mesh_shader->info.cs.uses_grid_size));
 
-   /* Reset draw state. */
-   cmd_buffer->state.last_first_instance = -1;
-   cmd_buffer->state.last_num_instances = -1;
-   cmd_buffer->state.last_drawid = -1;
-   cmd_buffer->state.last_vertex_offset_valid = false;
+   radv_invalidate_vertex_draw_state(cmd_buffer);
 
    uint32_t xyz_dim_enable = mesh_shader->info.cs.uses_grid_size;
    uint32_t xyz_dim_reg = !xyz_dim_enable ? 0 : (base_reg - SI_SH_REG_OFFSET) >> 2;
@@ -13956,10 +13957,7 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
          cmd_buffer->state.last_index_type = -1;
       }
 
-      cmd_buffer->state.last_num_instances = -1;
-      cmd_buffer->state.last_vertex_offset_valid = false;
-      cmd_buffer->state.last_first_instance = -1;
-      cmd_buffer->state.last_drawid = -1;
+      radv_invalidate_vertex_draw_state(cmd_buffer);
 
       radv_after_draw(cmd_buffer);
    }
