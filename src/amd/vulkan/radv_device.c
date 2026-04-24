@@ -1146,7 +1146,6 @@ radv_device_init_compiler_info(struct radv_device *device)
             .family = pdev->info.family,
             .address32_hi = pdev->info.address32_hi,
             .rbplus_allowed = pdev->info.rbplus_allowed,
-            .has_cs_regalloc_hang_bug = pdev->info.has_cs_regalloc_hang_bug,
          },
       /* Debug/tracing */
       .debug =

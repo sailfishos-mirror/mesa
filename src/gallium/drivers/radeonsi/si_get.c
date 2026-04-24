@@ -413,7 +413,7 @@ void si_init_compute_caps(struct si_screen *sscreen)
       caps->subgroup_sizes = sscreen->info.gfx_level < GFX10 ? 64 : 64 | 32;
 
    caps->max_variable_threads_per_block =
-      sscreen->info.has_cs_regalloc_hang_bug ? 256 : SI_MAX_VARIABLE_THREADS_PER_BLOCK;
+      sscreen->info.compiler_info.has_cs_regalloc_hang_bug ? 256 : SI_MAX_VARIABLE_THREADS_PER_BLOCK;
 }
 
 static void si_init_mesh_caps(struct si_screen *sscreen)

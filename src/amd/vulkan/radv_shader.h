@@ -518,7 +518,6 @@ struct radv_compiler_info {
       uint32_t family;
       uint32_t address32_hi;
       bool rbplus_allowed;
-      bool has_cs_regalloc_hang_bug;
    } hw;
 
    /* Debug/tracing */

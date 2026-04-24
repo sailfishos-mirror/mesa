@@ -198,8 +198,10 @@ struct ac_compiler_info {
    uint32_t has_attr_ring_wait_bug : 1;
    /* GFX6: limit TCS workgroup to one patch if primitive ID is used. */
    uint32_t has_primid_instancing_bug : 1;
+   /* GFX6 and certain GFX7 chips: bug with compute workgroups larger 256 invocations. */
+   uint32_t has_cs_regalloc_hang_bug : 1;
 
-   uint32_t reserved : 5;
+   uint32_t reserved : 4;
 };
 
 struct radeon_info {
@@ -269,7 +271,6 @@ struct radeon_info {
    bool has_two_planes_iterate256_bug;
    bool has_vgt_flush_ngg_legacy_bug;
    bool has_prim_restart_sync_bug;
-   bool has_cs_regalloc_hang_bug;
    bool has_async_compute_threadgroup_bug;
    bool has_async_compute_align32_bug;
    bool has_32bit_predication;

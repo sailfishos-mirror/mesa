@@ -695,7 +695,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
    }
 
    if (mesa_shader_stage_is_compute(nir->info.stage)) {
-      if (sel->screen->info.has_cs_regalloc_hang_bug) {
+      if (sel->screen->info.compiler_info.has_cs_regalloc_hang_bug) {
          const uint32_t wg_size = nir->info.workgroup_size[0] *
                                   nir->info.workgroup_size[1] *
                                   nir->info.workgroup_size[2];

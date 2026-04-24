@@ -860,7 +860,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
    if (progress)
       nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
-   if (compiler_info->hw.has_cs_regalloc_hang_bug && mesa_shader_stage_is_compute(nir->info.stage)) {
+   if (compiler_info->ac->has_cs_regalloc_hang_bug && mesa_shader_stage_is_compute(nir->info.stage)) {
       const uint32_t wg_size = nir->info.workgroup_size[0] *
                                nir->info.workgroup_size[1] *
                                nir->info.workgroup_size[2];

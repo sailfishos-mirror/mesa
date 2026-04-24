@@ -401,6 +401,16 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
    out->has_attr_ring_wait_bug = info->gfx_level >= GFX11 && info->gfx_level < GFX12;
 
    out->has_primid_instancing_bug = info->gfx_level == GFX6 && info->max_se == 1;
+
+   /* HW bug workaround when CS threadgroups > 256 threads and async compute
+    * isn't used, i.e. only one compute job can run at a time.  If async
+    * compute is possible, the threadgroup size must be limited to 256 threads
+    * on all queues to avoid the bug.
+    * Only GFX6 and certain GFX7 chips are affected.
+    */
+   out->has_cs_regalloc_hang_bug = info->gfx_level == GFX6 ||
+                                   info->family == CHIP_BONAIRE ||
+                                   info->family == CHIP_KABINI;
 }
 
 void
@@ -947,16 +957,6 @@ void ac_fill_bug_info(struct radeon_info *info)
     * rates.
     */
    info->has_vrs_export_bug = info->gfx_level == GFX12;
-
-   /* HW bug workaround when CS threadgroups > 256 threads and async compute
-    * isn't used, i.e. only one compute job can run at a time.  If async
-    * compute is possible, the threadgroup size must be limited to 256 threads
-    * on all queues to avoid the bug.
-    * Only GFX6 and certain GFX7 chips are affected.
-    */
-   info->has_cs_regalloc_hang_bug = info->gfx_level == GFX6 ||
-                                    info->family == CHIP_BONAIRE ||
-                                    info->family == CHIP_KABINI;
 
    /* HW bug workaround with async compute dispatches when threadgroup > 4096.
     * The workaround is to change the "threadgroup" dimension mode to "thread"
@@ -2078,6 +2078,7 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    has_ngg_fully_culled_bug = %i\n", info->compiler_info.has_ngg_fully_culled_bug);
    fprintf(f, "    has_attr_ring_wait_bug = %i\n", info->compiler_info.has_attr_ring_wait_bug);
    fprintf(f, "    has_primid_instancing_bug = %i\n", info->compiler_info.has_primid_instancing_bug);
+   fprintf(f, "    has_cs_regalloc_hang_bug = %i\n", info->compiler_info.has_cs_regalloc_hang_bug);
 
    fprintf(f, "Ring info:\n");
    if (info->gfx_level >= GFX11) {
