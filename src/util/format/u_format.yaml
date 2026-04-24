@@ -2033,6 +2033,7 @@
   channels: []
   swizzles: [X, Y, Z, W]
 - name: Y8_400_UNORM
+  alias: Y8_UNORM
   layout: other
   colorspace: YUV
   block: {width: 1, height: 1, depth: 1}
@@ -2182,15 +2183,6 @@
   block: {width: 4, height: 2, depth: 1}
   channels: [X120]
   swizzles: [X, Y, Z, 1]
-
-# While most of Mesa uses R8 for Y, U, and V planes, freedreno requires
-# distinguishing between tiled Y8 data and tiled R8 data.
-- name: Y8_UNORM
-  layout: other
-  colorspace: YUV
-  block: {width: 1, height: 1, depth: 1}
-  channels: [UN8]
-  swizzles: [X, 0, 0, 1]
 
 # 10-bit channels stored in 16-bit containers (upper 10 bits used,
 # lower 6 bits are padding).

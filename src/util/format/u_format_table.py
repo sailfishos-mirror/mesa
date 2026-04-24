@@ -142,7 +142,6 @@ def has_access(format):
         'r8_g8_b8_444_unorm',
         'r8g8b8_420_unorm_packed',
         'r10g10b10_420_unorm_packed',
-        'y8_unorm',
         'y8u8v8_420_unorm_packed',
         'y10u10v10_420_unorm_packed',
         'g8_b8r8_444_unorm',
@@ -437,9 +436,6 @@ def write_get_plane_format(formats):
         'X4B12X4R12': 'X4R12X4G12',
     }
 
-    # On some YUV formats, we don't want RGB lowering
-    no_rgb_lowering = ['Y8_UNORM']
-
     print('static inline enum pipe_format', file=sys.stdout3)
     print('util_format_get_plane_format(enum pipe_format format, unsigned plane)', file=sys.stdout3)
     print('{', file=sys.stdout3)
@@ -447,10 +443,6 @@ def write_get_plane_format(formats):
     unhandled_formats = []
     for f in formats:
         if f.layout not in ['planar2', 'planar3'] and f.colorspace != 'YUV':
-            continue
-
-        if f.short_name().upper() in no_rgb_lowering:
-            unhandled_formats += [f.name]
             continue
 
         nplanes = int(f.layout[-1]) if f.layout.startswith('planar') else 1
