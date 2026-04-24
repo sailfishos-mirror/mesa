@@ -1114,7 +1114,7 @@
         "description": "radv: fix UB in radv_format_pack_clear_color for snorm formats",
         "nominated": false,
         "nomination_type": 2,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "585c25be1e1a96568829542f2765e97c63d79939",
         "notes": null
