@@ -374,6 +374,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
    case nir_op_ffloor:
       alu_funclike(ctx, instr, "floor");
       break;
+   case nir_op_ffma:
    case nir_op_ffma_old:
       alu_funclike(ctx, instr, "fma");
       break;
