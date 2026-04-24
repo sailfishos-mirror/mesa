@@ -352,42 +352,37 @@ struct radv_cond_render_state {
 };
 
 struct radv_cmd_state {
-   /* Vertex descriptors */
-   uint64_t vb_va;
-   unsigned vb_size;
-
-   uint64_t dirty_dynamic;
    uint64_t dirty;
+   uint64_t dirty_dynamic;
 
    VkShaderStageFlags active_stages;
    struct radv_shader *shaders[MESA_VULKAN_SHADER_STAGES];
-   struct radv_shader *gs_copy_shader;
-   struct radv_shader *last_vgt_shader;
-   struct radv_shader *rt_prolog;
-
    struct radv_shader_object *shader_objs[MESA_VULKAN_SHADER_STAGES];
 
    uint32_t prefetch_L2_mask;
+   uint64_t vb_va;
+   unsigned vb_size;
 
    struct radv_graphics_pipeline *graphics_pipeline;
+   struct radv_shader_part *emitted_vs_prolog;
+   struct radv_shader *gs_copy_shader;
+   struct radv_shader *last_vgt_shader;
+   struct radv_shader *emitted_ps;
+   struct radv_shader_part *ps_epilog;
+
    struct radv_compute_pipeline *compute_pipeline;
+
    struct radv_ray_tracing_pipeline *rt_pipeline;
+   struct radv_shader *rt_prolog;
+   uint32_t rt_stack_size;
+
    struct radv_dynamic_state dynamic;
    struct radv_streamout_state streamout;
    struct radv_vertex_buffer_state vertex_buffer;
    struct radv_index_buffer_state index_buffer;
    struct radv_cond_render_state cond_render;
-
    struct radv_rendering_state render;
-
    struct radv_meta_saved_state meta;
-
-   int32_t last_index_type;
-
-   /* Primitive restart */
-   int32_t last_primitive_restart_en;
-   uint32_t primitive_restart_index;
-   uint32_t last_primitive_restart_index;
 
    enum radv_cmd_flush_bits flush_bits;
    unsigned active_occlusion_queries;
@@ -399,16 +394,8 @@ struct radv_cmd_state {
    unsigned active_prims_xfb_queries;
    unsigned active_emulated_prims_gen_queries;
    unsigned active_emulated_prims_xfb_queries;
-   uint32_t trace_id;
-   uint32_t last_ia_multi_vgt_param;
-   uint32_t last_ge_cntl;
 
-   uint32_t last_num_instances;
-   uint32_t last_first_instance;
-   bool last_vertex_offset_valid;
-   uint32_t last_vertex_offset;
-   uint32_t last_drawid;
-   uint32_t last_subpass_color_count;
+   uint32_t primitive_restart_index;
 
    /* Whether CP DMA is busy/idle. */
    bool dma_is_busy;
@@ -421,27 +408,11 @@ struct radv_cmd_state {
    bool inherited_occlusion_queries;
    VkQueryControlFlags inherited_query_control_flags;
 
-   /* SQTT related state. */
-   uint32_t current_event_type;
-   uint32_t num_events;
-   uint32_t num_layout_transitions;
-   bool in_barrier;
-   bool pending_sqtt_barrier_end;
-   enum rgp_flush_bits sqtt_flush_bits;
-
    uint8_t cb_mip[MAX_RTS];
    uint8_t ds_mip;
 
    /* Whether DRAW_{INDEX}_INDIRECT_{MULTI} is emitted. */
    bool uses_draw_indirect;
-
-   uint32_t rt_stack_size;
-
-   struct radv_shader_part *emitted_vs_prolog;
-
-   struct radv_shader *emitted_ps;
-
-   struct radv_shader_part *ps_epilog;
 
    struct radv_ia_multi_vgt_param_helpers ia_multi_vgt_param;
 
@@ -458,8 +429,6 @@ struct radv_cmd_state {
 
    /* Custom blend mode for internal operations. */
    unsigned custom_blend_mode;
-
-   unsigned last_cb_target_mask;
 
    VkLineRasterizationModeEXT line_rast_mode;
    unsigned vgt_outprim_type;
@@ -479,6 +448,29 @@ struct radv_cmd_state {
 
    enum radv_depth_clamp_mode depth_clamp_mode;
    bool depth_clip_enable;
+
+   uint32_t last_cb_target_mask;
+   uint32_t last_ia_multi_vgt_param;
+   uint32_t last_ge_cntl;
+   uint32_t last_num_instances;
+   uint32_t last_first_instance;
+   uint32_t last_vertex_offset;
+   uint32_t last_drawid;
+   uint32_t last_subpass_color_count;
+   uint32_t last_primitive_restart_index;
+   int32_t last_index_type;
+   int32_t last_primitive_restart_en;
+   bool last_vertex_offset_valid;
+
+   /* SQTT related state. */
+   uint32_t current_event_type;
+   uint32_t num_events;
+   uint32_t num_layout_transitions;
+   bool in_barrier;
+   bool pending_sqtt_barrier_end;
+   enum rgp_flush_bits sqtt_flush_bits;
+
+   uint32_t trace_id;
 };
 
 struct radv_enc_state {
