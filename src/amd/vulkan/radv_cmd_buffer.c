@@ -13945,40 +13945,10 @@ radv_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer, VkBool32 isPr
    }
 
    if (rt) {
-      cmd_buffer->push_constant_stages |= RADV_RT_STAGE_BITS;
-
       radv_after_trace_rays(cmd_buffer);
    } else if (compute) {
-      cmd_buffer->push_constant_stages |= VK_SHADER_STAGE_COMPUTE_BIT;
-
-      if (ies)
-         radv_mark_descriptors_dirty(cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
-
       radv_after_dispatch(cmd_buffer);
    } else {
-      if (layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_IB)) {
-         cmd_buffer->state.last_index_type = -1;
-         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_INDEX_BUFFER;
-      }
-
-      if (layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_VB))
-         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VERTEX_BUFFER;
-
-      if (pipeline_info) {
-         VK_FROM_HANDLE(radv_pipeline, pipeline, pipeline_info->pipeline);
-         struct radv_graphics_pipeline *graphics_pipeline = radv_pipeline_to_graphics(pipeline);
-
-         cmd_buffer->push_constant_stages |= graphics_pipeline->active_stages;
-      } else {
-         assert(eso_info);
-
-         for (unsigned i = 0; i < eso_info->shaderCount; ++i) {
-            VK_FROM_HANDLE(radv_shader_object, shader_object, eso_info->pShaders[i]);
-
-            cmd_buffer->push_constant_stages |= mesa_to_vk_shader_stage(shader_object->stage);
-         }
-      }
-
       if (!(layout->vk.dgc_info & BITFIELD_BIT(MESA_VK_DGC_DRAW_INDEXED))) {
          /* Non-indexed draws overwrite VGT_INDEX_TYPE, so the state must be
           * re-emitted before the next indexed draw.
