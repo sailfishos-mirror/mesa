@@ -5863,11 +5863,6 @@ radv_emit_index_buffer(struct radv_cmd_buffer *cmd_buffer)
    uint32_t max_index_count = state->max_index_count;
    uint64_t index_va = state->index_va;
 
-   /* With indirect generated commands the index buffer bind may be part of the
-    * indirect command buffer, in which case the app may not have bound any yet. */
-   if (state->index_type < 0)
-      return;
-
    /* Handle indirect draw calls with NULL index buffer if the GPU doesn't support them. */
    if (!max_index_count && pdev->info.has_zero_index_buffer_bug) {
       radv_handle_zero_index_buffer_bug(cmd_buffer, &index_va, &max_index_count);
