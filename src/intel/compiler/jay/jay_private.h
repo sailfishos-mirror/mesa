@@ -66,7 +66,7 @@ jay_validate_ra(jay_function *func)
 void jay_opt_propagate_forwards(jay_shader *s);
 void jay_opt_propagate_backwards(jay_shader *s);
 void jay_opt_dead_code(jay_shader *s);
-void jay_opt_control_flow(jay_shader *s);
+void jay_opt_predicate(jay_shader *s);
 
 void jay_lower_pre_ra(jay_shader *s);
 void jay_lower_post_ra(jay_shader *s);

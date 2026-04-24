@@ -2687,7 +2687,7 @@ jay_compile(const struct intel_device_info *devinfo,
             nir->info.bit_sizes_float);
 
    if (!(jay_debug & JAY_DBG_NOOPT)) {
-      JAY_PASS(s, jay_opt_control_flow);
+      JAY_PASS(s, jay_opt_predicate);
    }
 
    JAY_PASS(s, jay_lower_scoreboard);
