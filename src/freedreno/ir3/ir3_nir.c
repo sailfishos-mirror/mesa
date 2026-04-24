@@ -728,8 +728,11 @@ ir3_finalize_nir(struct ir3_compiler *compiler,
     * more optimal at the top.
     */
    if (s->info.stage == MESA_SHADER_VERTEX ||
-       s->info.stage == MESA_SHADER_FRAGMENT)
-      NIR_PASS(_, s, nir_opt_move_to_top, nir_move_to_top_input_loads);
+       s->info.stage == MESA_SHADER_FRAGMENT) {
+      NIR_PASS(_, s, nir_opt_move_to_top,
+               nir_move_to_top_input_loads_simple |
+               nir_move_to_top_input_loads_complex_baryc);
+   }
 
    if (s->info.stage == MESA_SHADER_GEOMETRY) {
       /* nir_unlower_io_to_vars expects constant indirect offsets to be folded

@@ -914,7 +914,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
     */
    if (nir->info.stage == MESA_SHADER_VERTEX ||
        nir->info.stage == MESA_SHADER_FRAGMENT)
-      NIR_PASS(progress, nir, nir_opt_move_to_top, nir_move_to_top_input_loads);
+      NIR_PASS(progress, nir, nir_opt_move_to_top, nir_move_to_top_input_loads_simple);
 
    /* Remove dead temps before we lower indirect indexing. */
    NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);

@@ -5892,8 +5892,21 @@ typedef enum {
    nir_move_to_entry_block_only = BITFIELD_BIT(0),
 
    /* Instruction options. */
-   nir_move_to_top_input_loads = BITFIELD_BIT(1),
-   nir_move_to_top_load_smem_amd = BITFIELD_BIT(2),
+
+   /* Simple input loads are non-interpolated loads and interpolated loads
+    * with pixel, centroid, and sample barycentrics. Other barycentrics are
+    * excluded.
+    */
+   nir_move_to_top_input_loads_simple = BITFIELD_BIT(1),
+
+   /* Interpolated loads with non-trivial barycentrics, such as at_offset and
+    * at_sample. (this option is not recommended for Control (game) because
+    * it moves at_sample with complex ALU perspective-correct interpolation
+    * out of conditional blocks)
+    */
+   nir_move_to_top_input_loads_complex_baryc = BITFIELD_BIT(2),
+
+   nir_move_to_top_load_smem_amd = BITFIELD_BIT(3),
 } nir_opt_move_to_top_options;
 
 bool nir_opt_move_to_top(nir_shader *nir, nir_opt_move_to_top_options options);

@@ -5604,7 +5604,7 @@ nir_opt_varyings_bulk(nir_shader **shaders, uint32_t num_shaders, bool spirv,
       if (nir->info.stage == MESA_SHADER_FRAGMENT) {
          NIR_PASS(_, nir, nir_opt_move_to_top,
                   nir_move_to_entry_block_only |
-                     nir_move_to_top_input_loads);
+                     nir_move_to_top_input_loads_simple);
       }
 
       /* nir_opt_varyings requires scalar IO. Scalarize all varyings (not just

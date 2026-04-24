@@ -377,7 +377,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
          /* Always load all VS inputs at the top to eliminate needless VMEM->s_wait->VMEM sequences.
           * Each s_wait can cost 1000 cycles, so make sure all VS input loads are grouped.
           */
-         NIR_PASS(_, stage->nir, nir_opt_move_to_top, nir_move_to_top_input_loads);
+         NIR_PASS(_, stage->nir, nir_opt_move_to_top, nir_move_to_top_input_loads_simple);
          NIR_PASS(_, stage->nir, nir_opt_sink, sink_opts);
          NIR_PASS(_, stage->nir, nir_opt_move, sink_opts);
       } else {
