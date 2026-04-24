@@ -5704,7 +5704,8 @@ bool nir_lower_io(nir_shader *shader,
 
 void nir_lower_io_passes(nir_shader *nir, bool renumber_vs_inputs);
 bool nir_io_add_intrinsic_xfb_info(nir_shader *nir);
-bool nir_lower_io_indirect_loads(nir_shader *nir, nir_variable_mode modes);
+bool nir_lower_io_indirect_loads(nir_shader *nir, nir_variable_mode modes,
+                                 bool lower_indirect_vertex_index);
 bool nir_remove_outputs(nir_shader *shader, mesa_shader_stage next_stage,
                         uint64_t remove_varying, uint64_t remove_sysval);
 

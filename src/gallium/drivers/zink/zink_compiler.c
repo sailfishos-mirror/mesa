@@ -2981,7 +2981,7 @@ split_fs_indirect_arrays(nir_shader *nir)
       exec_node_remove(&var->node);
    }
    /* lower indirect loads to direct+temps and unlower back to convert arrays to slots */
-   NIR_PASS(_, nir, nir_lower_io_indirect_loads, nir_var_shader_in);
+   NIR_PASS(_, nir, nir_lower_io_indirect_loads, nir_var_shader_in, false);
    NIR_PASS(_, nir, nir_unlower_io_to_vars, false);
 }
 
@@ -5708,7 +5708,7 @@ zink_shader_init(struct zink_screen *screen, struct zink_shader *zs)
 
    if (!screen->info.feats.features.shaderClipDistance && nir->info.clip_distance_array_size) {
       if (nir->info.stage == MESA_SHADER_FRAGMENT)
-         NIR_PASS(_, nir, nir_lower_io_indirect_loads, nir_var_shader_in);
+         NIR_PASS(_, nir, nir_lower_io_indirect_loads, nir_var_shader_in, false);
       NIR_PASS(_, nir, nir_shader_intrinsics_pass, move_clip_intrins, nir_metadata_control_flow, NULL);
    }
 
