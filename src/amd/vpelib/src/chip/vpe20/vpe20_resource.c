@@ -65,7 +65,7 @@
 #define BYTES_PER_ENTRY                    (4)
 #define SHAPER_LUT_CHANNELS                (3)
 #define SHAPER_LUT_DATA_POINTS_PER_CHANNEL (256)
-#define SHAPER_LUT_CONFIG_ENTRIES          (28)
+#define SHAPER_LUT_CONFIG_ENTRIES          (29)
 #define SHAPER_LUT_DMA_DATA_SIZE                                                                   \
     (SHAPER_LUT_DATA_POINTS_PER_CHANNEL * SHAPER_LUT_CHANNELS * BYTES_PER_ENTRY)
 #define SHAPER_LUT_DMA_CONFIG_SIZE                                                                 \
