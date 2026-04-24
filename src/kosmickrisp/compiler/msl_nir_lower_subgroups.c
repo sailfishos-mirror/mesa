@@ -20,6 +20,7 @@ needs_bool_widening(nir_intrinsic_instr *intrin)
    case nir_intrinsic_quad_swap_horizontal:
    case nir_intrinsic_quad_swap_vertical:
    case nir_intrinsic_quad_swap_diagonal:
+   case nir_intrinsic_rotate:
    case nir_intrinsic_shuffle:
    case nir_intrinsic_shuffle_down:
    case nir_intrinsic_shuffle_up:
@@ -66,6 +67,8 @@ msl_nir_lower_subgroups(nir_shader *nir)
       .lower_relative_shuffle = true,
       /* Metal reduce operations do not support certain types or cluster size */
       .lower_reduce = true,
+      /* Metal rotate operations do not support cluster size */
+      .lower_rotate_clustered_to_shuffle = true,
    };
    NIR_PASS(_, nir, nir_lower_subgroups, &subgroups_options);
    NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_bool_ops,

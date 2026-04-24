@@ -183,6 +183,7 @@ update_instr_type(struct hash_table *types, nir_instr *instr, ti_type type)
       case nir_intrinsic_quad_swap_horizontal:
       case nir_intrinsic_quad_swap_vertical:
       case nir_intrinsic_quad_swap_diagonal:
+      case nir_intrinsic_rotate:
       case nir_intrinsic_shuffle:
       case nir_intrinsic_shuffle_down:
       case nir_intrinsic_shuffle_up:
@@ -462,6 +463,7 @@ infer_types_from_intrinsic(struct hash_table *types, nir_intrinsic_instr *instr)
       break;
    case nir_intrinsic_read_invocation:
    case nir_intrinsic_quad_broadcast:
+   case nir_intrinsic_rotate:
    case nir_intrinsic_shuffle:
    case nir_intrinsic_shuffle_down:
    case nir_intrinsic_shuffle_up:

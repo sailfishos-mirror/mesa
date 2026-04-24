@@ -1471,6 +1471,13 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       src_to_msl(ctx, &instr->src[1]);
       P(ctx, ");");
       break;
+   case nir_intrinsic_rotate:
+      P(ctx, "simd_shuffle_rotate_down(");
+      src_to_msl(ctx, &instr->src[0]);
+      P(ctx, ", ");
+      src_to_msl(ctx, &instr->src[1]);
+      P(ctx, ");\n");
+      break;
    case nir_intrinsic_shuffle:
       P(ctx, "simd_shuffle(");
       src_to_msl(ctx, &instr->src[0]);
