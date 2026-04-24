@@ -630,12 +630,6 @@ vn_DestroyImage(VkDevice device,
    if (!img)
       return;
 
-   if (img->wsi.anb_mem) {
-      VkDeviceMemory mem_handle =
-         vn_device_memory_to_handle(img->wsi.anb_mem);
-      vn_FreeMemory(device, mem_handle, pAllocator);
-   }
-
    /* must not ask renderer to destroy uninitialized deferred image */
    if (!img->deferred || img->deferred_initialized)
       vn_async_vkDestroyImage(dev->primary_ring, device, image, NULL);
