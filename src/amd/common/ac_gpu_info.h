@@ -116,6 +116,8 @@ struct ac_compiler_info {
    uint32_t max_vgpr_alloc;
    uint32_t wave64_vgpr_alloc_granularity;
 
+   uint32_t lds_size_per_workgroup;
+
    uint32_t hs_offchip_workgroup_dw_size;
 
    /* Flags */
@@ -323,7 +325,6 @@ struct radeon_info {
    bool cp_sdma_ge_use_system_memory_scope;
    bool cp_dma_use_L2;
    unsigned pc_lines;
-   uint32_t lds_size_per_workgroup;
 
    /* CP info. */
    bool gfx_ib_pad_with_type2;

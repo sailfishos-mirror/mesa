@@ -169,7 +169,7 @@ init_ray_query_vars(nir_shader *shader, const glsl_type *opaque_type, struct ray
    uint32_t shared_offset = align(shader->info.shared_size, 4);
 
    if (shader->info.stage != MESA_SHADER_COMPUTE || glsl_type_is_array(opaque_type) ||
-       shared_offset + shared_stack_size > compiler_info->hw.lds_size_per_workgroup) {
+       shared_offset + shared_stack_size > compiler_info->ac->lds_size_per_workgroup) {
       dst->stack_entries = MAX_SCRATCH_STACK_ENTRY_COUNT;
    } else {
       if (radv_use_bvh_stack_rtn(compiler_info)) {

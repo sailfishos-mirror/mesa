@@ -236,7 +236,7 @@ static bool handle_env_var_force_family(struct radeon_info *info)
 void
 ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)
 {
-   STATIC_ASSERT(sizeof(struct ac_compiler_info) == 52);
+   STATIC_ASSERT(sizeof(struct ac_compiler_info) == 56);
 
    struct ac_compiler_info *out = &info->compiler_info;
 
@@ -302,6 +302,14 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
    out->max_vgpr_alloc = 256;
 
    out->num_simd_per_compute_unit = info->gfx_level >= GFX10 ? 2 : 4;
+
+   /* LDS is 64KB per CU (4 SIMDs on GFX6-9, which is 16KB per SIMD).
+    *
+    * GFX10+: LDS is 128KB in WGP mode, but a workgroup can only use up to 64KB.
+    * GFX7+:  Workgroups can use up to 64KB.
+    * GFX6:   There is 64KB LDS per CU, but a workgroup can only use up to 32KB.
+    */
+   out->lds_size_per_workgroup = info->gfx_level >= GFX7 ? 64 * 1024 : 32 * 1024;
 
    out->hs_offchip_workgroup_dw_size = info->hs_offchip_workgroup_dw_size;
 
@@ -1146,14 +1154,6 @@ void ac_fill_hw_info(struct radeon_info *info, const struct drm_amdgpu_info_devi
    info->sqc_scalar_cache_size = device_info->sqc_data_cache_size * 1024;
    info->num_sqc_per_wgp = device_info->num_sqc_per_wgp;
 
-   /* LDS is 64KB per CU (4 SIMDs on GFX6-9, which is 16KB per SIMD).
-    *
-    * GFX10+: LDS is 128KB in WGP mode, but a workgroup can only use up to 64KB.
-    * GFX7+:  Workgroups can use up to 64KB.
-    * GFX6:   There is 64KB LDS per CU, but a workgroup can only use up to 32KB.
-    */
-   info->lds_size_per_workgroup = info->gfx_level >= GFX7 ? 64 * 1024 : 32 * 1024;
-
    /* Get the number of good compute units. */
    info->num_cu = 0;
    for (int i = 0; i < info->max_se; i++) {
@@ -1913,7 +1913,6 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    tcc_rb_non_coherent = %u\n", info->tcc_rb_non_coherent);
    fprintf(f, "    cp_sdma_ge_use_system_memory_scope = %u\n", info->cp_sdma_ge_use_system_memory_scope);
    fprintf(f, "    pc_lines = %u\n", info->pc_lines);
-   fprintf(f, "    lds_size_per_workgroup = %u\n", info->lds_size_per_workgroup);
    fprintf(f, "    lds_alloc_granularity = %i\n", ac_shader_get_lds_alloc_granularity(info->gfx_level));
    fprintf(f, "    max_memory_clock = %i MHz\n", info->memory_freq_mhz);
 
@@ -2053,6 +2052,7 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    max_vgpr_alloc = %i\n", info->compiler_info.max_vgpr_alloc);
    fprintf(f, "    wave64_vgpr_alloc_granularity = %i\n",
            info->compiler_info.wave64_vgpr_alloc_granularity);
+   fprintf(f, "    lds_size_per_workgroup = %u\n", info->compiler_info.lds_size_per_workgroup);
    fprintf(f, "    has_lds_bank_count_16 = %i\n", info->compiler_info.has_lds_bank_count_16);
    fprintf(f, "    has_sram_ecc_enabled = %i\n", info->compiler_info.has_sram_ecc_enabled);
    fprintf(f, "    has_point_sample_accel = %i\n", info->compiler_info.has_point_sample_accel);

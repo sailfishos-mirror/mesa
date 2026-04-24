@@ -218,7 +218,7 @@ unsigned si_calculate_needed_lds_size(enum amd_gfx_level gfx_level, struct si_sh
    }
 
    /* Check that the LDS size is within hw limits. */
-   assert(lds_size <= shader->selector->screen->info.lds_size_per_workgroup);
+   assert(lds_size <= shader->selector->screen->info.compiler_info.lds_size_per_workgroup);
    return lds_size;
 }
 
@@ -305,7 +305,7 @@ static void si_calculate_max_simd_waves(struct si_shader *shader)
       max_simd_waves = MIN2(max_simd_waves, max_vgprs / num_vgprs);
    }
 
-   unsigned max_lds_per_simd = sscreen->info.lds_size_per_workgroup / sscreen->info.compiler_info.num_simd_per_compute_unit;
+   unsigned max_lds_per_simd = sscreen->info.compiler_info.lds_size_per_workgroup / sscreen->info.compiler_info.num_simd_per_compute_unit;
    if (lds_per_wave)
       max_simd_waves = MIN2(max_simd_waves, max_lds_per_simd / lds_per_wave);
 

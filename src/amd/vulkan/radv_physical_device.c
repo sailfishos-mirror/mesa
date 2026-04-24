@@ -1803,7 +1803,7 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       .maxFragmentOutputAttachments = 8,
       .maxFragmentDualSrcAttachments = 1,
       .maxFragmentCombinedOutputResources = max_descriptor_set_size,
-      .maxComputeSharedMemorySize = pdev->info.lds_size_per_workgroup,
+      .maxComputeSharedMemorySize = pdev->info.compiler_info.lds_size_per_workgroup,
       .maxComputeWorkGroupCount = {4294967295, 65535, 65535},
       .maxComputeWorkGroupInvocations = 1024,
       .maxComputeWorkGroupSize = {1024, 1024, 1024},
