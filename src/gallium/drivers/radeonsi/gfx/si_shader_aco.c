@@ -253,6 +253,8 @@ si_aco_build_ps_prolog(struct aco_compiler_options *options,
       .force_linear_sample_interp = key->ps_prolog.states.force_linear_sample_interp,
       .force_persp_center_interp = key->ps_prolog.states.force_persp_center_interp,
       .force_linear_center_interp = key->ps_prolog.states.force_linear_center_interp,
+      .uses_persp_centroid = key->ps_prolog.uses_persp_centroid,
+      .uses_linear_centroid = key->ps_prolog.uses_linear_centroid,
 
       .samplemask_log_ps_iter = key->ps_prolog.states.samplemask_log_ps_iter,
       .force_samplemask_to_helper_invocation = key->ps_prolog.states.force_samplemask_to_helper_invocation,

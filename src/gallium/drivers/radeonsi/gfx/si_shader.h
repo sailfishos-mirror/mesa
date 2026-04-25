@@ -564,6 +564,8 @@ union si_shader_part_key {
       /* Color interpolation and two-side color selection. */
       unsigned colors_read : 8;       /* color input components read */
       unsigned num_interp_inputs : 5; /* BCOLOR is at this location */
+      unsigned uses_persp_centroid : 1;
+      unsigned uses_linear_centroid : 1;
       unsigned fragcoord_usage_mask : 4;
       unsigned wqm : 1;
       uint8_t color_attr_index[2];

@@ -1744,6 +1744,10 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
        key->ps_prolog.states.bc_optimize_for_persp || key->ps_prolog.states.bc_optimize_for_linear ||
        key->ps_prolog.states.samplemask_log_ps_iter ||
        key->ps_prolog.states.force_samplemask_to_helper_invocation);
+   key->ps_prolog.uses_persp_centroid =
+      G_0286CC_PERSP_CENTROID_ENA(shader->config.spi_ps_input_addr); /* addr because the PS prolog may use it */
+   key->ps_prolog.uses_linear_centroid =
+      G_0286CC_LINEAR_CENTROID_ENA(shader->config.spi_ps_input_addr); /* addr because the PS prolog may use it */
    key->ps_prolog.fragcoord_usage_mask =
       G_0286CC_POS_X_FLOAT_ENA(shader->config.spi_ps_input_ena) |
       (G_0286CC_POS_Y_FLOAT_ENA(shader->config.spi_ps_input_ena) << 1) |

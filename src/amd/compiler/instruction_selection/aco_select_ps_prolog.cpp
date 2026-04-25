@@ -64,6 +64,8 @@ overwrite_interp_args(isel_context* ctx, const struct aco_ps_prolog_info* finfo)
       cond = bool_to_vector_condition(ctx, cond);
 
       if (finfo->bc_optimize_for_persp) {
+         assert(finfo->uses_persp_centroid);
+
          Temp center = get_arg(ctx, ctx->args->persp_center);
          Temp centroid = get_arg(ctx, ctx->args->persp_centroid);
 
@@ -73,6 +75,8 @@ overwrite_interp_args(isel_context* ctx, const struct aco_ps_prolog_info* finfo)
       }
 
       if (finfo->bc_optimize_for_linear) {
+         assert(finfo->uses_linear_centroid);
+
          Temp center = get_arg(ctx, ctx->args->linear_center);
          Temp centroid = get_arg(ctx, ctx->args->linear_centroid);
 
@@ -85,25 +89,29 @@ overwrite_interp_args(isel_context* ctx, const struct aco_ps_prolog_info* finfo)
    if (finfo->force_persp_sample_interp) {
       Temp persp_sample = get_arg(ctx, ctx->args->persp_sample);
       ctx->arg_temps[ctx->args->persp_center.arg_index] = persp_sample;
-      ctx->arg_temps[ctx->args->persp_centroid.arg_index] = persp_sample;
+      if (finfo->uses_persp_centroid)
+         ctx->arg_temps[ctx->args->persp_centroid.arg_index] = persp_sample;
    }
 
    if (finfo->force_linear_sample_interp) {
       Temp linear_sample = get_arg(ctx, ctx->args->linear_sample);
       ctx->arg_temps[ctx->args->linear_center.arg_index] = linear_sample;
-      ctx->arg_temps[ctx->args->linear_centroid.arg_index] = linear_sample;
+      if (finfo->uses_linear_centroid)
+         ctx->arg_temps[ctx->args->linear_centroid.arg_index] = linear_sample;
    }
 
    if (finfo->force_persp_center_interp) {
       Temp persp_center = get_arg(ctx, ctx->args->persp_center);
       ctx->arg_temps[ctx->args->persp_sample.arg_index] = persp_center;
-      ctx->arg_temps[ctx->args->persp_centroid.arg_index] = persp_center;
+      if (finfo->uses_persp_centroid)
+         ctx->arg_temps[ctx->args->persp_centroid.arg_index] = persp_center;
    }
 
    if (finfo->force_linear_center_interp) {
       Temp linear_center = get_arg(ctx, ctx->args->linear_center);
       ctx->arg_temps[ctx->args->linear_sample.arg_index] = linear_center;
-      ctx->arg_temps[ctx->args->linear_centroid.arg_index] = linear_center;
+      if (finfo->uses_linear_centroid)
+         ctx->arg_temps[ctx->args->linear_centroid.arg_index] = linear_center;
    }
 }
 

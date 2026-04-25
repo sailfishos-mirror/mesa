@@ -550,15 +550,22 @@ void si_llvm_build_ps_prolog(struct si_shader_context *ctx, union si_shader_part
       bc_optimize = LLVMBuildTrunc(ctx->ac.builder, bc_optimize, ctx->ac.i1, "");
 
       if (key->ps_prolog.states.bc_optimize_for_persp) {
+         assert(key->ps_prolog.uses_persp_centroid);
+
          center = ac_to_float(&ctx->ac, ac_get_arg(&ctx->ac, args->ac.persp_center));
          centroid = ac_to_float(&ctx->ac, ac_get_arg(&ctx->ac, args->ac.persp_centroid));
+
          /* Select PERSP_CENTROID. */
          tmp = LLVMBuildSelect(ctx->ac.builder, bc_optimize, center, centroid, "");
          ret = insert_ret_of_arg(ctx, ret, tmp, args->ac.persp_centroid.arg_index);
       }
+
       if (key->ps_prolog.states.bc_optimize_for_linear) {
+         assert(key->ps_prolog.uses_linear_centroid);
+
          center = ac_to_float(&ctx->ac, ac_get_arg(&ctx->ac, args->ac.linear_center));
          centroid = ac_to_float(&ctx->ac, ac_get_arg(&ctx->ac, args->ac.linear_centroid));
+
          /* Select PERSP_CENTROID. */
          tmp = LLVMBuildSelect(ctx->ac.builder, bc_optimize, center, centroid, "");
          ret = insert_ret_of_arg(ctx, ret, tmp, args->ac.linear_centroid.arg_index);
@@ -570,15 +577,21 @@ void si_llvm_build_ps_prolog(struct si_shader_context *ctx, union si_shader_part
       LLVMValueRef persp_sample = ac_to_float(&ctx->ac, ac_get_arg(&ctx->ac, args->ac.persp_sample));
       /* Overwrite PERSP_CENTER. */
       ret = insert_ret_of_arg(ctx, ret, persp_sample, args->ac.persp_center.arg_index);
-      /* Overwrite PERSP_CENTROID. */
-      ret = insert_ret_of_arg(ctx, ret, persp_sample, args->ac.persp_centroid.arg_index);
+
+      if (key->ps_prolog.uses_persp_centroid) {
+         /* Overwrite PERSP_CENTROID. */
+         ret = insert_ret_of_arg(ctx, ret, persp_sample, args->ac.persp_centroid.arg_index);
+      }
    }
    if (key->ps_prolog.states.force_linear_sample_interp) {
       LLVMValueRef linear_sample = ac_to_float(&ctx->ac, ac_get_arg(&ctx->ac, args->ac.linear_sample));
       /* Overwrite LINEAR_CENTER. */
       ret = insert_ret_of_arg(ctx, ret, linear_sample, args->ac.linear_center.arg_index);
-      /* Overwrite LINEAR_CENTROID. */
-      ret = insert_ret_of_arg(ctx, ret, linear_sample, args->ac.linear_centroid.arg_index);
+
+      if (key->ps_prolog.uses_linear_centroid) {
+         /* Overwrite LINEAR_CENTROID. */
+         ret = insert_ret_of_arg(ctx, ret, linear_sample, args->ac.linear_centroid.arg_index);
+      }
    }
 
    /* Force center interpolation. */
@@ -586,15 +599,21 @@ void si_llvm_build_ps_prolog(struct si_shader_context *ctx, union si_shader_part
       LLVMValueRef persp_center = ac_to_float(&ctx->ac, ac_get_arg(&ctx->ac, args->ac.persp_center));
       /* Overwrite PERSP_SAMPLE. */
       ret = insert_ret_of_arg(ctx, ret, persp_center, args->ac.persp_sample.arg_index);
-      /* Overwrite PERSP_CENTROID. */
-      ret = insert_ret_of_arg(ctx, ret, persp_center, args->ac.persp_centroid.arg_index);
+
+      if (key->ps_prolog.uses_persp_centroid) {
+         /* Overwrite PERSP_CENTROID. */
+         ret = insert_ret_of_arg(ctx, ret, persp_center, args->ac.persp_centroid.arg_index);
+      }
    }
    if (key->ps_prolog.states.force_linear_center_interp) {
       LLVMValueRef linear_center = ac_to_float(&ctx->ac, ac_get_arg(&ctx->ac, args->ac.linear_center));
       /* Overwrite LINEAR_SAMPLE. */
       ret = insert_ret_of_arg(ctx, ret, linear_center, args->ac.linear_sample.arg_index);
-      /* Overwrite LINEAR_CENTROID. */
-      ret = insert_ret_of_arg(ctx, ret, linear_center, args->ac.linear_centroid.arg_index);
+
+      if (key->ps_prolog.uses_linear_centroid) {
+         /* Overwrite LINEAR_CENTROID. */
+         ret = insert_ret_of_arg(ctx, ret, linear_center, args->ac.linear_centroid.arg_index);
+      }
    }
 
    /* Interpolate colors. */

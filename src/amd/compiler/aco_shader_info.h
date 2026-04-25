@@ -91,6 +91,8 @@ struct aco_ps_prolog_info {
    bool force_linear_sample_interp;
    bool force_persp_center_interp;
    bool force_linear_center_interp;
+   bool uses_persp_centroid;
+   bool uses_linear_centroid;
 
    unsigned samplemask_log_ps_iter;
    bool force_samplemask_to_helper_invocation;
