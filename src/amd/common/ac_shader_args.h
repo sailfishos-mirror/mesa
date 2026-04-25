@@ -177,6 +177,7 @@ struct ac_shader_args {
    struct ac_arg linear_sample;
    struct ac_arg linear_center;
    struct ac_arg linear_centroid;
+   struct ac_arg line_stipple_tex_ena;
    struct ac_arg pos_fixed_pt;
 
    /* CS */

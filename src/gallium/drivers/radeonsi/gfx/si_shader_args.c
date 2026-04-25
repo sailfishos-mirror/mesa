@@ -459,7 +459,8 @@ void si_init_shader_args(struct si_shader *shader, struct si_shader_args *args,
                          SI_PARAM_LINEAR_CENTER);
       si_add_arg_checked(&args->ac, AC_ARG_VGPR, 2, AC_ARG_VALUE, &args->ac.linear_centroid,
                          SI_PARAM_LINEAR_CENTROID);
-      si_add_arg_checked(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, NULL, SI_PARAM_LINE_STIPPLE_TEX);
+      si_add_arg_checked(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.line_stipple_tex_ena,
+                         SI_PARAM_LINE_STIPPLE_TEX);
       si_add_arg_checked(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.frag_pos[0],
                          SI_PARAM_POS_X_FLOAT);
       si_add_arg_checked(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.frag_pos[1],
@@ -677,7 +678,7 @@ void si_get_ps_prolog_args(struct si_shader_args *args,
    ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_VALUE, &args->ac.linear_sample);
    ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_VALUE, &args->ac.linear_center);
    ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_VALUE, &args->ac.linear_centroid);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, NULL); /* LINE_STIPPLE_TEX */
+   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.line_stipple_tex_ena);
 
    /* POS_X|Y|Z|W_FLOAT */
    u_foreach_bit(i, key->ps_prolog.fragcoord_usage_mask)
