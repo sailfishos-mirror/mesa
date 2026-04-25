@@ -872,7 +872,8 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
             .alpha_to_one = key->ps.part.epilog.alpha_to_one,
             .alpha_func = key->ps.part.epilog.alpha_func,
             .keep_alpha_for_mrtz = key->ps.part.epilog.alpha_to_coverage_via_mrtz,
-            .spi_shader_col_format_hint = key->ps.part.epilog.spi_shader_col_format,
+            .color_mask = ac_get_cb_shader_mask(key->ps.part.epilog.spi_shader_col_format),
+            .color_no_signed_zero = ~0,
             .kill_z = key->ps.part.epilog.kill_z,
             .kill_stencil = key->ps.part.epilog.kill_stencil,
             .kill_samplemask = key->ps.part.epilog.kill_samplemask,
@@ -906,7 +907,8 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
             .sample_shading = nir->info.fs.uses_sample_shading,
             .lower_color_inputs_to_load_color01 = true,
             .alpha_func = COMPARE_FUNC_ALWAYS,
-            .spi_shader_col_format_hint = ~0,
+            .color_mask = ~0,
+            .color_no_signed_zero = ~0,
          };
          NIR_PASS(progress, nir, ac_nir_lower_ps_early, &early_options);
       }

@@ -178,16 +178,15 @@ optimize_lower_ps_outputs(nir_builder *b, nir_intrinsic_instr *intrin, lower_ps_
    }
 
    /* Trim the src according to the format and writemask. */
-   unsigned cb_shader_mask = ac_get_cb_shader_mask(s->options->spi_shader_col_format_hint);
    unsigned format_mask;
 
    if (slot == FRAG_RESULT_COLOR && !s->frag_color_is_frag_data0) {
-      /* cb_shader_mask is 0 for disabled color buffers, so combine all of them. */
+      /* color_mask is 0 for disabled color buffers, so combine all 8 color masks. */
       format_mask = 0;
       for (unsigned i = 0; i < 8; i++)
-         format_mask |= (cb_shader_mask >> (i * 4)) & 0xf;
+         format_mask |= (s->options->color_mask >> (i * 4)) & 0xf;
    } else {
-      format_mask = (cb_shader_mask >> (color_index * 4)) & 0xf;
+      format_mask = (s->options->color_mask >> (color_index * 4)) & 0xf;
    }
 
    if (s->options->keep_alpha_for_mrtz && color_index == 0)
@@ -227,6 +226,17 @@ optimize_lower_ps_outputs(nir_builder *b, nir_intrinsic_instr *intrin, lower_ps_
       intrin->num_components = value->num_components;
    } else {
       assert(intrin->src[0].ssa == value);
+   }
+
+   /* Set no_signed_zero if needed. */
+   if (s->options->color_no_signed_zero & BITFIELD_BIT(color_index)) {
+      nir_io_semantics sem = nir_intrinsic_io_semantics(intrin);
+
+      if (!sem.no_signed_zero) {
+         sem.no_signed_zero = 1;
+         nir_intrinsic_set_io_semantics(intrin, sem);
+         progress = true;
+      }
    }
 
    return progress;
