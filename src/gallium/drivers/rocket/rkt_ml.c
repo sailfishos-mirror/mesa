@@ -340,7 +340,6 @@ rkt_ml_subgraph_create(struct pipe_ml_device *pdevice,
          struct rkt_operation *input_op_2 =
             find_producer(subgraph, poperations[i].input_tensors[0]->index);
 
-         assert(input_op_1);
          assert(input_op_2);
 
          if (input_op_1 == NULL) {
