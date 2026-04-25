@@ -829,6 +829,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       case nir_op_fmax:
       case nir_op_fmin:
       case nir_op_fmul:
+      case nir_op_fmul_rtz:
       case nir_op_fmulz:
       case nir_op_fpow:
       case nir_op_vec2:
@@ -1030,6 +1031,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       break;
 
    case nir_op_fmul:
+   case nir_op_fmul_rtz:
    case nir_op_fmulz: {
       bool mulz = alu->op == nir_op_fmulz;
       bool src_eq = nir_alu_srcs_equal(alu, alu, 0, 1);
@@ -1815,6 +1817,7 @@ get_alu_uub(struct analysis_state *state, struct scalar_query q, uint32_t *resul
       break;
    case nir_op_fsat:
    case nir_op_fmul:
+   case nir_op_fmul_rtz:
    case nir_op_fmulz:
    case nir_op_f2u32:
    case nir_op_f2i32:
@@ -2019,6 +2022,7 @@ get_alu_uub(struct analysis_state *state, struct scalar_query q, uint32_t *resul
       }
       break;
    case nir_op_fmul:
+   case nir_op_fmul_rtz:
    case nir_op_fmulz:
       /* infinity/NaN starts at 0x7f800000u, negative numbers at 0x80000000 */
       if (src[0] < 0x7f800000u && src[1] < 0x7f800000u) {

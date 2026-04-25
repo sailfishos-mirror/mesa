@@ -376,7 +376,7 @@ is_not_fmul(const nir_search_state *state, const nir_alu_instr *instr, unsigned 
    if (src_alu->op == nir_op_fneg)
       return is_not_fmul(state, src_alu, 0, 0, NULL);
 
-   return src_alu->op != nir_op_fmul && src_alu->op != nir_op_fmulz;
+   return src_alu->op != nir_op_fmul && src_alu->op != nir_op_fmulz && src_alu->op != nir_op_fmul_rtz;
 }
 
 static inline bool
@@ -392,7 +392,7 @@ is_fmul(const nir_search_state *state, const nir_alu_instr *instr, unsigned src,
    if (src_alu->op == nir_op_fneg)
       return is_fmul(state, src_alu, 0, 0, NULL);
 
-   return src_alu->op == nir_op_fmul || src_alu->op == nir_op_fmulz;
+   return src_alu->op == nir_op_fmul || src_alu->op == nir_op_fmulz || src_alu->op == nir_op_fmul_rtz;
 }
 
 static inline bool
