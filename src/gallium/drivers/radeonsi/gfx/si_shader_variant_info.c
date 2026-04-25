@@ -390,7 +390,7 @@ void si_get_shader_variant_info(struct si_shader *shader,
           * Reserve register locations for VGPR inputs the PS prolog may need.
           */
          shader->config.spi_ps_input_addr = shader->config.spi_ps_input_ena |
-                                            SI_SPI_PS_INPUT_ADDR_FOR_PROLOG;
+                                            si_get_spi_ps_input_addr_for_prolog(shader->selector);
       }
    }
 
@@ -606,4 +606,21 @@ void si_fixup_spi_ps_input_config(struct si_shader *shader)
       else
          shader->config.spi_ps_input_ena |= S_0286CC_PERSP_SAMPLE_ENA(1);
    }
+}
+
+unsigned si_get_spi_ps_input_addr_for_prolog(struct si_shader_selector *sel)
+{
+   unsigned spi_ps_input_addr = S_0286D0_PERSP_SAMPLE_ENA(1) |
+                                S_0286D0_PERSP_CENTER_ENA(1) |
+                                S_0286D0_PERSP_CENTROID_ENA(1) |
+                                S_0286D0_LINEAR_SAMPLE_ENA(1) |
+                                S_0286D0_LINEAR_CENTER_ENA(1) |
+                                S_0286D0_LINEAR_CENTROID_ENA(1) |
+                                S_0286D0_LINE_STIPPLE_TEX_ENA(1) |
+                                S_0286D0_FRONT_FACE_ENA(1) |
+                                S_0286D0_ANCILLARY_ENA(1) |
+                                S_0286D0_SAMPLE_COVERAGE_ENA(1) |
+                                S_0286D0_POS_FIXED_PT_ENA(1);
+
+   return spi_ps_input_addr;
 }
