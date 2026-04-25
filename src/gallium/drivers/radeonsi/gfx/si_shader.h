@@ -566,6 +566,7 @@ union si_shader_part_key {
       unsigned num_interp_inputs : 5; /* BCOLOR is at this location */
       unsigned uses_persp_centroid : 1;
       unsigned uses_linear_centroid : 1;
+      unsigned reserve_line_stipple_tex_ena : 1; /* only reserve the VGPR, don't use it */
       unsigned fragcoord_usage_mask : 4;
       unsigned uses_ancillary : 1;
       unsigned uses_sample_coverage : 1;

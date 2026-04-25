@@ -684,7 +684,8 @@ void si_get_ps_prolog_args(struct si_shader_args *args,
    if (key->ps_prolog.uses_linear_centroid)
       ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_VALUE, &args->ac.linear_centroid);
 
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.line_stipple_tex_ena);
+   if (key->ps_prolog.reserve_line_stipple_tex_ena)
+      ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.line_stipple_tex_ena);
 
    /* POS_X|Y|Z|W_FLOAT */
    u_foreach_bit(i, key->ps_prolog.fragcoord_usage_mask)

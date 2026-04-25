@@ -150,6 +150,7 @@ struct si_shader_info {
    bool uses_sysval_primitive_id;
    bool uses_sysval_front_face;
    bool uses_sysval_invocation_id;
+   bool uses_sysval_frag_coord_w;
    bool uses_atomic_ordered_add;
    bool writes_psize;
    bool writes_primid;

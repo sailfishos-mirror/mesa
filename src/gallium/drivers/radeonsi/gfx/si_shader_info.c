@@ -369,6 +369,10 @@ static void gather_instruction(const struct nir_shader *nir, struct si_shader_in
          if (intr->intrinsic == nir_intrinsic_load_barycentric_at_sample)
             info->uses_interp_at_sample = true;
          break;
+      case nir_intrinsic_load_frag_coord:
+         if (nir_def_components_read(&intr->def) & BITFIELD_BIT(3))
+            info->uses_sysval_frag_coord_w = true;
+         break;
       case nir_intrinsic_load_input:
       case nir_intrinsic_load_per_vertex_input:
       case nir_intrinsic_load_per_primitive_input:
