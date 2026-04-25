@@ -597,11 +597,12 @@ void si_llvm_build_ps_prolog(struct si_shader_context *ctx, union si_shader_part
       if (!writemask)
          continue;
 
-      /* If the interpolation qualifier is not CONSTANT (-1). */
       LLVMValueRef interp_ij = NULL;
-      if (key->ps_prolog.color_interp_vgpr_index[i] != -1) {
-         unsigned index =
-            args->ac.num_sgprs_used + key->ps_prolog.color_interp_vgpr_index[i];
+
+      if (key->ps_prolog.color_interp[i] != AC_COLOR_INTERP_FLAT) {
+         unsigned index = ac_get_color_interp_arg(&args->ac, key->ps_prolog.color_interp[i]);
+
+         index = args->ac.num_sgprs_used + args->ac.args[index].offset;
 
          /* Get the (i,j) updated by bc_optimize handling. */
          LLVMValueRef interp[2] = {

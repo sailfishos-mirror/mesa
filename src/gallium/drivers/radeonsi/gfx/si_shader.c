@@ -1778,7 +1778,7 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
 
          switch (interp) {
          case INTERP_MODE_FLAT:
-            key->ps_prolog.color_interp_vgpr_index[i] = -1;
+            key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_FLAT;
             break;
          case INTERP_MODE_SMOOTH:
          case INTERP_MODE_COLOR:
@@ -1790,15 +1790,15 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
 
             switch (location) {
             case TGSI_INTERPOLATE_LOC_SAMPLE:
-               key->ps_prolog.color_interp_vgpr_index[i] = 0;
+               key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_PERSP_SAMPLE;
                shader->config.spi_ps_input_ena |= S_0286CC_PERSP_SAMPLE_ENA(1);
                break;
             case TGSI_INTERPOLATE_LOC_CENTER:
-               key->ps_prolog.color_interp_vgpr_index[i] = 2;
+               key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_PERSP_CENTER;
                shader->config.spi_ps_input_ena |= S_0286CC_PERSP_CENTER_ENA(1);
                break;
             case TGSI_INTERPOLATE_LOC_CENTROID:
-               key->ps_prolog.color_interp_vgpr_index[i] = 4;
+               key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_PERSP_CENTROID;
                shader->config.spi_ps_input_ena |= S_0286CC_PERSP_CENTROID_ENA(1);
                break;
             default:
@@ -1818,15 +1818,15 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
              */
             switch (location) {
             case TGSI_INTERPOLATE_LOC_SAMPLE:
-               key->ps_prolog.color_interp_vgpr_index[i] = 6;
+               key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_LINEAR_SAMPLE;
                shader->config.spi_ps_input_ena |= S_0286CC_LINEAR_SAMPLE_ENA(1);
                break;
             case TGSI_INTERPOLATE_LOC_CENTER:
-               key->ps_prolog.color_interp_vgpr_index[i] = 8;
+               key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_LINEAR_CENTER;
                shader->config.spi_ps_input_ena |= S_0286CC_LINEAR_CENTER_ENA(1);
                break;
             case TGSI_INTERPOLATE_LOC_CENTROID:
-               key->ps_prolog.color_interp_vgpr_index[i] = 10;
+               key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_LINEAR_CENTROID;
                shader->config.spi_ps_input_ena |= S_0286CC_LINEAR_CENTROID_ENA(1);
                break;
             default:

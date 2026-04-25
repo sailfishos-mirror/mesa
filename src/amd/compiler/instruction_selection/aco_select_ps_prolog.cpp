@@ -205,7 +205,7 @@ passthrough_all_args(isel_context* ctx, std::vector<Operand>& regs)
 }
 
 Temp
-get_interp_color(isel_context* ctx, int interp_vgpr, unsigned attr_index, unsigned comp)
+get_interp_color(isel_context* ctx, int interp_arg, unsigned attr_index, unsigned comp)
 {
    Builder bld(ctx->program, ctx->block);
 
@@ -213,10 +213,8 @@ get_interp_color(isel_context* ctx, int interp_vgpr, unsigned attr_index, unsign
 
    Temp prim_mask = get_arg(ctx, ctx->args->prim_mask);
 
-   if (interp_vgpr != -1) {
-      /* interp args are all 2 vgprs */
-      int arg_index = ctx->args->persp_sample.arg_index + interp_vgpr / 2;
-      Temp interp_ij = ctx->arg_temps[arg_index];
+   if (interp_arg != -1) {
+      Temp interp_ij = ctx->arg_temps[interp_arg];
 
       emit_interp_instr(ctx, attr_index, comp, interp_ij, dst, prim_mask, false);
    } else {
@@ -245,7 +243,9 @@ interpolate_color_args(isel_context* ctx, const struct aco_ps_prolog_info* finfo
       u_foreach_bit (i, finfo->colors_read) {
          unsigned color_index = i / 4;
          unsigned front_index = finfo->color_attr_index[color_index];
-         int interp_vgpr = finfo->color_interp_vgpr_index[color_index];
+         int interp_arg = finfo->color_interp[color_index] == AC_COLOR_INTERP_FLAT
+                             ? -1
+                             : ac_get_color_interp_arg(ctx->args, finfo->color_interp[color_index]);
 
          /* If BCOLOR0 is used, BCOLOR1 is at offset "num_inputs + 1",
           * otherwise it's at offset "num_inputs".
@@ -254,8 +254,8 @@ interpolate_color_args(isel_context* ctx, const struct aco_ps_prolog_info* finfo
          if (color_index == 1 && finfo->colors_read & 0xf)
             back_index++;
 
-         Temp front = get_interp_color(ctx, interp_vgpr, front_index, i % 4);
-         Temp back = get_interp_color(ctx, interp_vgpr, back_index, i % 4);
+         Temp front = get_interp_color(ctx, interp_arg, front_index, i % 4);
+         Temp back = get_interp_color(ctx, interp_arg, back_index, i % 4);
 
          Temp color =
             bld.vop2(aco_opcode::v_cndmask_b32, bld.def(v1), back, front, is_face_positive);
@@ -266,8 +266,10 @@ interpolate_color_args(isel_context* ctx, const struct aco_ps_prolog_info* finfo
       u_foreach_bit (i, finfo->colors_read) {
          unsigned color_index = i / 4;
          unsigned attr_index = finfo->color_attr_index[color_index];
-         int interp_vgpr = finfo->color_interp_vgpr_index[color_index];
-         Temp color = get_interp_color(ctx, interp_vgpr, attr_index, i % 4);
+         int interp_arg = finfo->color_interp[color_index] == AC_COLOR_INTERP_FLAT
+                             ? -1
+                             : ac_get_color_interp_arg(ctx->args, finfo->color_interp[color_index]);
+         Temp color = get_interp_color(ctx, interp_arg, attr_index, i % 4);
 
          regs.emplace_back(Operand(color, PhysReg{vgpr++}));
       }

@@ -568,8 +568,8 @@ union si_shader_part_key {
       unsigned fragcoord_usage_mask : 4;
       unsigned pixel_center_integer : 1;
       unsigned wqm : 1;
-      char color_attr_index[2];
-      signed char color_interp_vgpr_index[2]; /* -1 == constant */
+      uint8_t color_attr_index[2];
+      uint8_t color_interp[2]; /* AC_COLOR_INTERP_* */
    } ps_prolog;
    struct {
       struct si_ps_epilog_bits states;
