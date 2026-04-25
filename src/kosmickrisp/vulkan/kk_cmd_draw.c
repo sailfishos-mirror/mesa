@@ -639,6 +639,21 @@ kk_calculate_vbo_clamp(uint64_t vbuf, uint64_t sink, enum pipe_format format,
    }
 }
 
+static bool
+is_primitive_culled(VkPrimitiveTopology topology)
+{
+   switch (topology) {
+   case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
+   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
+   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
+   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
+   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY:
+      return false;
+   default:
+      return true;
+   }
+}
+
 static void
 set_empty_scissor(mtl_render_encoder *enc)
 {
@@ -706,9 +721,11 @@ kk_flush_dynamic_state(struct kk_cmd_buffer *cmd)
       }
    }
 
-   if (IS_DIRTY(RS_CULL_MODE)) {
+   if (IS_DIRTY(RS_CULL_MODE) || IS_DIRTY(IA_PRIMITIVE_TOPOLOGY)) {
+      /* Only disable rendering if primitive type is culled. */
       gfx->is_cull_front_and_back =
-         dyn->rs.cull_mode == VK_CULL_MODE_FRONT_AND_BACK;
+         dyn->rs.cull_mode == VK_CULL_MODE_FRONT_AND_BACK &&
+         is_primitive_culled(dyn->ia.primitive_topology);
       if (gfx->is_cull_front_and_back) {
          set_empty_scissor(enc);
       } else {
