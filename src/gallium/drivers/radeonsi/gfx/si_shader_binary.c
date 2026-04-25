@@ -607,8 +607,6 @@ static void si_dump_shader_key(const struct si_shader *shader, FILE *f)
               key->ps.part.prolog.bc_optimize_for_linear);
       fprintf(f, "  prolog.samplemask_log_ps_iter = %u\n",
               key->ps.part.prolog.samplemask_log_ps_iter);
-      fprintf(f, "  prolog.get_frag_coord_from_pixel_coord = %u\n",
-              key->ps.part.prolog.get_frag_coord_from_pixel_coord);
       fprintf(f, "  prolog.force_samplemask_to_helper_invocation = %u\n",
               key->ps.part.prolog.force_samplemask_to_helper_invocation);
       fprintf(f, "  epilog.spi_shader_col_format = 0x%x\n",

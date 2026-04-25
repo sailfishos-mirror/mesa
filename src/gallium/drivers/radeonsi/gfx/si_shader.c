@@ -856,8 +856,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
             .ps_iter_samples = key->ps.part.prolog.samplemask_log_ps_iter ?
                                  (1 << key->ps.part.prolog.samplemask_log_ps_iter) :
                                  (key->ps.part.prolog.force_persp_sample_interp ||
-                                  key->ps.part.prolog.force_linear_sample_interp ? 2 :
-                                  (key->ps.part.prolog.get_frag_coord_from_pixel_coord ? 1 : 0)),
+                                  key->ps.part.prolog.force_linear_sample_interp ? 2 : 0),
 
             .fbfetch_is_1D = key->ps.mono.fbfetch_is_1D,
             .fbfetch_layered = key->ps.mono.fbfetch_layered,
@@ -1742,15 +1741,12 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
        key->ps_prolog.states.force_linear_center_interp ||
        key->ps_prolog.states.bc_optimize_for_persp || key->ps_prolog.states.bc_optimize_for_linear ||
        key->ps_prolog.states.samplemask_log_ps_iter ||
-       key->ps_prolog.states.get_frag_coord_from_pixel_coord ||
        key->ps_prolog.states.force_samplemask_to_helper_invocation);
    key->ps_prolog.fragcoord_usage_mask =
       G_0286CC_POS_X_FLOAT_ENA(shader->config.spi_ps_input_ena) |
       (G_0286CC_POS_Y_FLOAT_ENA(shader->config.spi_ps_input_ena) << 1) |
       (G_0286CC_POS_Z_FLOAT_ENA(shader->config.spi_ps_input_ena) << 2) |
       (G_0286CC_POS_W_FLOAT_ENA(shader->config.spi_ps_input_ena) << 3);
-   key->ps_prolog.pixel_center_integer = key->ps_prolog.fragcoord_usage_mask &&
-                                         shader->selector->info.base.fs.pixel_center_integer;
 
    if (shader->key.ps.part.prolog.poly_stipple)
       shader->info.uses_vmem_load_other = true;
@@ -1852,7 +1848,6 @@ static bool si_need_ps_prolog(const union si_shader_part_key *key)
           key->ps_prolog.states.bc_optimize_for_persp ||
           key->ps_prolog.states.bc_optimize_for_linear || key->ps_prolog.states.poly_stipple ||
           key->ps_prolog.states.samplemask_log_ps_iter ||
-          key->ps_prolog.states.get_frag_coord_from_pixel_coord ||
           key->ps_prolog.states.force_samplemask_to_helper_invocation;
 }
 

@@ -167,32 +167,6 @@ overwrite_samplemask_arg(isel_context* ctx, const struct aco_ps_prolog_info* fin
                       is_helper_invoc);
    }
 }
-void
-overwrite_pos_xy_args(isel_context* ctx, const struct aco_ps_prolog_info* finfo)
-{
-   if (!finfo->get_frag_coord_from_pixel_coord)
-      return;
-
-   Builder bld(ctx->program, ctx->block);
-   Temp pos_fixed_pt = get_arg(ctx, ctx->args->pos_fixed_pt);
-
-   for (unsigned i = 0; i < 2; i++) {
-      if (!ctx->args->frag_pos[i].used)
-         continue;
-
-      Temp t;
-      if (i)
-         t = bld.vop2(aco_opcode::v_lshrrev_b32, bld.def(v1), Operand::c32(16), pos_fixed_pt);
-      else
-         t = bld.vop2(aco_opcode::v_and_b32, bld.def(v1), Operand::c32(0xffff), pos_fixed_pt);
-
-      t = bld.vop1(aco_opcode::v_cvt_f32_u32, bld.def(v1), t);
-      if (!finfo->pixel_center_integer)
-         t = bld.vop2(aco_opcode::v_add_f32, bld.def(v1), Operand::c32(0x3f000000 /*0.5*/), t);
-
-      ctx->arg_temps[ctx->args->frag_pos[i].arg_index] = t;
-   }
-}
 
 void
 passthrough_all_args(isel_context* ctx, std::vector<Operand>& regs)
@@ -297,7 +271,6 @@ select_ps_prolog(Program* program, void* pinfo, ac_shader_config* config,
 
    overwrite_interp_args(&ctx, finfo);
    overwrite_samplemask_arg(&ctx, finfo);
-   overwrite_pos_xy_args(&ctx, finfo);
 
    std::vector<Operand> regs;
    passthrough_all_args(&ctx, regs);

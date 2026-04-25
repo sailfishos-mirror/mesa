@@ -255,8 +255,6 @@ si_aco_build_ps_prolog(struct aco_compiler_options *options,
       .force_linear_center_interp = key->ps_prolog.states.force_linear_center_interp,
 
       .samplemask_log_ps_iter = key->ps_prolog.states.samplemask_log_ps_iter,
-      .get_frag_coord_from_pixel_coord = key->ps_prolog.states.get_frag_coord_from_pixel_coord,
-      .pixel_center_integer = key->ps_prolog.pixel_center_integer,
       .force_samplemask_to_helper_invocation = key->ps_prolog.states.force_samplemask_to_helper_invocation,
       .num_interp_inputs = key->ps_prolog.num_interp_inputs,
       .colors_read = key->ps_prolog.colors_read,

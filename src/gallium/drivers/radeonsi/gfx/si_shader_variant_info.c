@@ -580,12 +580,6 @@ void si_set_spi_ps_input_config_for_separate_prolog(struct si_shader *shader)
    /* The sample mask fixup has an optimization that replaces the sample mask with the sample ID. */
    if (key->ps.part.prolog.samplemask_log_ps_iter == 3)
       shader->config.spi_ps_input_ena &= C_0286CC_SAMPLE_COVERAGE_ENA;
-
-   if (key->ps.part.prolog.get_frag_coord_from_pixel_coord) {
-      shader->config.spi_ps_input_ena &= C_0286CC_POS_X_FLOAT_ENA;
-      shader->config.spi_ps_input_ena &= C_0286CC_POS_Y_FLOAT_ENA;
-      shader->config.spi_ps_input_ena |= S_0286CC_POS_FIXED_PT_ENA(1);
-   }
 }
 
 void si_fixup_spi_ps_input_config(struct si_shader *shader)

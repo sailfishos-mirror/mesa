@@ -536,7 +536,6 @@ struct si_ps_prolog_bits {
    unsigned bc_optimize_for_persp : 1;
    unsigned bc_optimize_for_linear : 1;
    unsigned samplemask_log_ps_iter : 2;
-   unsigned get_frag_coord_from_pixel_coord : 1;
    unsigned force_samplemask_to_helper_invocation : 1;
 };
 
@@ -566,7 +565,6 @@ union si_shader_part_key {
       unsigned colors_read : 8;       /* color input components read */
       unsigned num_interp_inputs : 5; /* BCOLOR is at this location */
       unsigned fragcoord_usage_mask : 4;
-      unsigned pixel_center_integer : 1;
       unsigned wqm : 1;
       uint8_t color_attr_index[2];
       uint8_t color_interp[2]; /* AC_COLOR_INTERP_* */

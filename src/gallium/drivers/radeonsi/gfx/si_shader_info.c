@@ -369,9 +369,6 @@ static void gather_instruction(const struct nir_shader *nir, struct si_shader_in
          if (intr->intrinsic == nir_intrinsic_load_barycentric_at_sample)
             info->uses_interp_at_sample = true;
          break;
-      case nir_intrinsic_load_frag_coord:
-         info->reads_frag_coord_mask |= nir_def_components_read(&intr->def);
-         break;
       case nir_intrinsic_load_input:
       case nir_intrinsic_load_per_vertex_input:
       case nir_intrinsic_load_per_primitive_input:
@@ -525,7 +522,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
       info->base.fs.uses_sample_shading = nir->info.fs.uses_sample_shading;
       info->base.fs.early_fragment_tests = nir->info.fs.early_fragment_tests;
       info->base.fs.post_depth_coverage = nir->info.fs.post_depth_coverage;
-      info->base.fs.pixel_center_integer = nir->info.fs.pixel_center_integer;
       info->base.fs.depth_layout = nir->info.fs.depth_layout;
       break;
 

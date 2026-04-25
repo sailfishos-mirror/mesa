@@ -70,7 +70,6 @@ struct si_shader_info {
             bool uses_sample_shading:1;
             bool early_fragment_tests:1;
             bool post_depth_coverage:1;
-            bool pixel_center_integer:1;
             enum gl_frag_depth_layout depth_layout:3;
          } fs;
 
@@ -171,9 +170,6 @@ struct si_shader_info {
     * texunit + 1.
     */
    uint8_t writes_1_if_tex_is_1;
-
-   /* frag coord and sample pos per component read mask. */
-   uint8_t reads_frag_coord_mask;
 
    unsigned ngg_cull_vert_threshold; /* UINT32_MAX = disabled */
    enum mesa_prim rast_prim;
