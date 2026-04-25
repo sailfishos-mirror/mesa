@@ -514,11 +514,20 @@ void si_llvm_build_ps_prolog(struct si_shader_context *ctx, union si_shader_part
    si_llvm_create_func(ctx, "ps_prolog", return_types, num_returns, 0);
    LLVMValueRef func = ctx->main_fn.value;
 
+   /* Disable elimination of unused inputs. */
+   ac_llvm_add_target_dep_function_attr(ctx->main_fn.value, "InitialPSInputAddr", 0xffffff);
+
    /* Copy inputs to outputs. This should be no-op, as the registers match,
     * but it will prevent the compiler from overwriting them unintentionally.
     */
    LLVMValueRef ret = ctx->return_value;
    for (int i = 0; i < args->ac.arg_count; i++) {
+      /* Don't pass LINE_STIPPLE_TEX_ENA to the next shader binary because it's unused.
+       * This saves 1 VGPR in the prolog.
+       */
+      if (args->ac.line_stipple_tex_ena.used && i == args->ac.line_stipple_tex_ena.arg_index)
+         continue;
+
       LLVMValueRef p = LLVMGetParam(func, i);
       ret = insert_ret_of_arg(ctx, ret, p, i);
    }

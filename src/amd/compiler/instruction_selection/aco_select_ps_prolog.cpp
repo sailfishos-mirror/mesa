@@ -174,8 +174,16 @@ passthrough_all_args(isel_context* ctx, std::vector<Operand>& regs)
    struct ac_arg arg;
    arg.used = true;
 
-   for (arg.arg_index = 0; arg.arg_index < ctx->args->arg_count; arg.arg_index++)
+   for (arg.arg_index = 0; arg.arg_index < ctx->args->arg_count; arg.arg_index++) {
+      /* Don't pass LINE_STIPPLE_TEX_ENA to the next shader binary because it's unused.
+       * This saves 1 VGPR in the prolog.
+       */
+      if (ctx->args->line_stipple_tex_ena.used &&
+          arg.arg_index == ctx->args->line_stipple_tex_ena.arg_index)
+         continue;
+
       regs.emplace_back(Operand(get_arg(ctx, arg), get_arg_reg(ctx->args, arg)));
+   }
 }
 
 Temp
