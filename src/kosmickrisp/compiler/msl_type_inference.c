@@ -347,10 +347,17 @@ infer_types_from_intrinsic(struct hash_table *types, nir_intrinsic_instr *instr)
       set_type(types, &instr->src[0], TYPE_UINT);
       set_type(types, &instr->src[1], TYPE_UINT);
       break;
+   case nir_intrinsic_load_first_vertex:
+   case nir_intrinsic_load_base_instance:
+   case nir_intrinsic_load_vertex_id:
+   case nir_intrinsic_load_instance_id:
+   case nir_intrinsic_load_primitive_id:
+   case nir_intrinsic_load_layer_id:
    case nir_intrinsic_load_workgroup_id:
    case nir_intrinsic_load_subgroup_id:
    case nir_intrinsic_load_local_invocation_id:
    case nir_intrinsic_load_global_invocation_id:
+   case nir_intrinsic_load_local_invocation_index:
    case nir_intrinsic_load_num_workgroups:
    case nir_intrinsic_load_num_subgroups:
    case nir_intrinsic_load_subgroup_size:
