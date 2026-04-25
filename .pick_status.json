@@ -1184,7 +1184,7 @@
         "description": "r300: dirty VS state when switching variants",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "806dcf9db7c03996794b52e833be86c77ce3d36f",
         "notes": null
