@@ -155,8 +155,10 @@ enum radv_trace_mode {
    /** Radeon Raytracing Analyzer */
    RADV_TRACE_MODE_RRA = 1 << (VK_TRACE_MODE_COUNT + 1),
 
+   RADV_TRACE_MODE_RTI = 1 << (VK_TRACE_MODE_COUNT + 2),
+
    /** Gather context rolls of submitted command buffers */
-   RADV_TRACE_MODE_CTX_ROLLS = 1 << (VK_TRACE_MODE_COUNT + 2),
+   RADV_TRACE_MODE_CTX_ROLLS = 1 << (VK_TRACE_MODE_COUNT + 3),
 };
 
 struct radv_instance {
@@ -197,7 +199,7 @@ static bool
 radv_bvh_dumping_enabled(const struct radv_instance *instance)
 {
    /* Gathering bvh stats uses a large part of the rra code for dumping bvhs. */
-   return (instance->vk.trace_mode & RADV_TRACE_MODE_RRA) || radv_bvh_stats_file();
+   return (instance->vk.trace_mode & (RADV_TRACE_MODE_RRA | RADV_TRACE_MODE_RTI)) || radv_bvh_stats_file();
 }
 
 #endif /* RADV_INSTANCE_H */

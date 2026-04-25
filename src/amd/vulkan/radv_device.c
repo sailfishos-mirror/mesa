@@ -854,7 +854,7 @@ capture_trace(VkQueue _queue)
 
    VkResult result = VK_SUCCESS;
 
-   if (instance->vk.trace_mode & RADV_TRACE_MODE_RRA)
+   if (instance->vk.trace_mode & (RADV_TRACE_MODE_RRA | RADV_TRACE_MODE_RTI))
       device->rra_trace.triggered = true;
 
    if (device->vk.memory_trace_data.is_enabled) {
