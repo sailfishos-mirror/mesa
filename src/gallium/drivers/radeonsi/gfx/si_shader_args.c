@@ -691,8 +691,13 @@ void si_get_ps_prolog_args(struct si_shader_args *args,
       ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.frag_pos[i]);
 
    ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.front_face);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.ancillary);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.sample_coverage);
+
+   if (key->ps_prolog.uses_ancillary)
+      ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.ancillary);
+
+   if (key->ps_prolog.uses_sample_coverage)
+      ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.sample_coverage);
+
    ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.pos_fixed_pt);
 }
 

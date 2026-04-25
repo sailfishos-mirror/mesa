@@ -588,6 +588,13 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
    info->uses_sysval_invocation_id = BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_INVOCATION_ID);
    info->uses_sysval_primitive_id = BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_PRIMITIVE_ID) ||
                                     nir->info.inputs_read & VARYING_BIT_PRIMITIVE_ID;
+   info->uses_sysval_ancillary = BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_ID) ||
+                                 BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_LAYER_ID) ||
+                                 BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_SHADING_RATE) ||
+                                 /* The PS prolog uses LAYER_ID for fbfetch. */
+                                 (nir->info.stage == MESA_SHADER_FRAGMENT && nir->info.fs.uses_fbfetch_output) ||
+                                 /* The PS prolog uses SAMPLE_ID for SAMPLE_MASK_IN. */
+                                 BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_MASK_IN);
    info->uses_sysval_sample_mask_in = BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_MASK_IN);
    info->uses_sysval_linear_sample = BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_BARYCENTRIC_LINEAR_SAMPLE);
    info->uses_sysval_linear_centroid = BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_BARYCENTRIC_LINEAR_CENTROID);

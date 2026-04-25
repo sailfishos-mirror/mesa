@@ -125,6 +125,7 @@ struct si_shader_info {
    uint8_t colors_written;
    uint16_t output_color_types; /**< Each bit pair is enum si_color_output_type */
    bool color0_writes_all_cbufs; /**< gl_FragColor */
+   bool uses_sysval_ancillary;
    bool uses_sysval_sample_mask_in;   /**< does fragment shader read sample mask? */
    bool reads_tess_factors; /**< If TES reads TESSINNER or TESSOUTER */
    bool writes_z;           /**< does fragment shader write Z value? */

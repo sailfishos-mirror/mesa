@@ -567,6 +567,8 @@ union si_shader_part_key {
       unsigned uses_persp_centroid : 1;
       unsigned uses_linear_centroid : 1;
       unsigned fragcoord_usage_mask : 4;
+      unsigned uses_ancillary : 1;
+      unsigned uses_sample_coverage : 1;
       unsigned wqm : 1;
       uint8_t color_attr_index[2];
       uint8_t color_interp[2]; /* AC_COLOR_INTERP_* */

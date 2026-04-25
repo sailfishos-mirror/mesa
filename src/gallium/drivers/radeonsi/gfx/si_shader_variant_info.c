@@ -616,8 +616,6 @@ unsigned si_get_spi_ps_input_addr_for_prolog(struct si_shader_selector *sel)
                                 S_0286D0_LINEAR_CENTER_ENA(1) |
                                 S_0286D0_LINE_STIPPLE_TEX_ENA(1) |
                                 S_0286D0_FRONT_FACE_ENA(1) |
-                                S_0286D0_ANCILLARY_ENA(1) |
-                                S_0286D0_SAMPLE_COVERAGE_ENA(1) |
                                 S_0286D0_POS_FIXED_PT_ENA(1);
 
    /* This includes color interpolation at centroid even if the main shader part doesn't
@@ -628,6 +626,12 @@ unsigned si_get_spi_ps_input_addr_for_prolog(struct si_shader_selector *sel)
 
    if (sel->info.uses_sysval_linear_centroid)
       spi_ps_input_addr |= S_0286D0_LINEAR_CENTROID_ENA(1);
+
+   if (sel->info.uses_sysval_ancillary)
+      spi_ps_input_addr |= S_0286D0_ANCILLARY_ENA(1);
+
+   if (sel->info.uses_sysval_sample_mask_in)
+      spi_ps_input_addr |= S_0286D0_SAMPLE_COVERAGE_ENA(1);
 
    return spi_ps_input_addr;
 }

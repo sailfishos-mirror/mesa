@@ -1753,6 +1753,10 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
       (G_0286CC_POS_Y_FLOAT_ENA(shader->config.spi_ps_input_ena) << 1) |
       (G_0286CC_POS_Z_FLOAT_ENA(shader->config.spi_ps_input_ena) << 2) |
       (G_0286CC_POS_W_FLOAT_ENA(shader->config.spi_ps_input_ena) << 3);
+   key->ps_prolog.uses_ancillary =
+      G_0286CC_ANCILLARY_ENA(shader->config.spi_ps_input_addr); /* addr because the PS prolog may use it */
+   key->ps_prolog.uses_sample_coverage =
+      G_0286CC_SAMPLE_COVERAGE_ENA(shader->config.spi_ps_input_addr); /* addr because the PS prolog may use it */
 
    if (shader->key.ps.part.prolog.poly_stipple)
       shader->info.uses_vmem_load_other = true;
