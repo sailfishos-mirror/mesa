@@ -612,8 +612,6 @@ unsigned si_get_spi_ps_input_addr_for_prolog(struct si_shader_selector *sel)
 {
    unsigned spi_ps_input_addr = S_0286D0_PERSP_SAMPLE_ENA(1) |
                                 S_0286D0_PERSP_CENTER_ENA(1) |
-                                S_0286D0_LINEAR_SAMPLE_ENA(1) |
-                                S_0286D0_LINEAR_CENTER_ENA(1) |
                                 S_0286D0_FRONT_FACE_ENA(1) |
                                 S_0286D0_POS_FIXED_PT_ENA(1);
 
@@ -622,6 +620,13 @@ unsigned si_get_spi_ps_input_addr_for_prolog(struct si_shader_selector *sel)
     */
    if (sel->info.uses_sysval_persp_centroid)
       spi_ps_input_addr |= S_0286D0_PERSP_CENTROID_ENA(1);
+
+   /* The PS prolog can change one to the other, so we need both. */
+   if (sel->info.uses_sysval_linear_sample ||
+       sel->info.uses_sysval_linear_center) {
+      spi_ps_input_addr |= S_0286D0_LINEAR_SAMPLE_ENA(1) |
+                           S_0286D0_LINEAR_CENTER_ENA(1);
+   }
 
    if (sel->info.uses_sysval_linear_centroid)
       spi_ps_input_addr |= S_0286D0_LINEAR_CENTROID_ENA(1);

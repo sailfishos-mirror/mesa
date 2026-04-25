@@ -1746,6 +1746,12 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
        key->ps_prolog.states.force_samplemask_to_helper_invocation);
    key->ps_prolog.uses_persp_centroid =
       G_0286CC_PERSP_CENTROID_ENA(shader->config.spi_ps_input_addr); /* addr because the PS prolog may use it */
+   /* The PS prolog can change one to the other, so we need both or neither to be set. */
+   assert(G_0286CC_LINEAR_SAMPLE_ENA(shader->config.spi_ps_input_addr) ==
+          G_0286CC_LINEAR_CENTER_ENA(shader->config.spi_ps_input_addr));
+   key->ps_prolog.uses_linear_sample_and_center =
+      G_0286CC_LINEAR_SAMPLE_ENA(shader->config.spi_ps_input_addr) || /* addr because the PS prolog may use it */
+      G_0286CC_LINEAR_CENTER_ENA(shader->config.spi_ps_input_addr);
    key->ps_prolog.uses_linear_centroid =
       G_0286CC_LINEAR_CENTROID_ENA(shader->config.spi_ps_input_addr); /* addr because the PS prolog may use it */
    key->ps_prolog.reserve_line_stipple_tex_ena =
