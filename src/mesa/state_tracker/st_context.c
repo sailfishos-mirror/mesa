@@ -593,9 +593,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
       break;
    default: break;
    }
-   st->allow_st_finalize_nir_twice =
-      screen->caps.call_finalize_nir_in_linker;
-
    st->has_hw_atomics =
       screen->shader_caps[MESA_SHADER_FRAGMENT].max_hw_atomic_counters
       ? true : false;

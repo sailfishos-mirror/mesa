@@ -368,7 +368,7 @@ st_glsl_to_nir_post_opts(struct st_context *st, struct gl_program *prog,
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
    st_update_state_param_locations(st->ctx, prog, nir);
 
-   if (st->allow_st_finalize_nir_twice) {
+   if (st->screen->caps.call_finalize_nir_in_linker) {
       st_serialize_base_nir(prog, nir);
       st_finalize_nir(st, prog, shader_program, nir, true, false);
 

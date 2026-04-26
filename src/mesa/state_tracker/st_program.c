@@ -397,7 +397,7 @@ st_prog_to_nir_postprocess(struct st_context *st, nir_shader *nir,
 
    st_update_state_param_locations(st->ctx, prog, nir);
 
-   if (st->allow_st_finalize_nir_twice) {
+   if (st->screen->caps.call_finalize_nir_in_linker) {
       st_serialize_base_nir(prog, nir);
       st_finalize_nir(st, prog, NULL, nir, true, false);
 
@@ -846,7 +846,7 @@ st_create_common_variant(struct st_context *st,
       NIR_PASS(finalize, state.ir.nir, nir_lower_tex, &tex_opts);
    }
 
-   if (finalize || !st->allow_st_finalize_nir_twice || key->is_draw_shader) {
+   if (finalize || !st->screen->caps.call_finalize_nir_in_linker || key->is_draw_shader) {
       st_finalize_nir(st, prog, prog->shader_program, state.ir.nir, false,
                       key->is_draw_shader);
    }
@@ -876,7 +876,7 @@ st_create_common_variant(struct st_context *st,
       finalize = true;
    }
 
-   if (finalize || !st->allow_st_finalize_nir_twice || key->is_draw_shader) {
+   if (finalize || !st->screen->caps.call_finalize_nir_in_linker || key->is_draw_shader) {
       struct pipe_screen *screen = st->screen;
       if (!key->is_draw_shader && screen->finalize_nir)
          screen->finalize_nir(screen, state.ir.nir, false);
@@ -1212,7 +1212,7 @@ st_create_fp_variant(struct st_context *st,
       need_lower_tex_src_plane = true;
    }
 
-   if (finalize || !st->allow_st_finalize_nir_twice)
+   if (finalize || !st->screen->caps.call_finalize_nir_in_linker)
       st_finalize_nir(st, fp, fp->shader_program, state.ir.nir, false, false);
 
    /* This pass needs to happen *after* nir_lower_sampler */
@@ -1254,7 +1254,7 @@ st_create_fp_variant(struct st_context *st,
                nir_var_shader_in | nir_var_shader_out);
    }
 
-   if (finalize || !st->allow_st_finalize_nir_twice) {
+   if (finalize || !st->screen->caps.call_finalize_nir_in_linker) {
       /* Some of the lowering above may have introduced new varyings */
       nir_shader_gather_info(state.ir.nir,
                               nir_shader_get_entrypoint(state.ir.nir));
