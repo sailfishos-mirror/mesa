@@ -593,8 +593,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
       break;
    default: break;
    }
-   st->prefer_real_buffer_in_constbuf0 =
-      screen->caps.prefer_real_buffer_in_constbuf0;
    st->has_conditional_render =
       screen->caps.conditional_render;
    st->lower_rect_tex =
