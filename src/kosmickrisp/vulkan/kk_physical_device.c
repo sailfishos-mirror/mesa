@@ -120,6 +120,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_map_memory2 = true,
       .KHR_push_descriptor = true,
       .KHR_shader_expect_assume = true,
+      .KHR_shader_subgroup_rotate = true,
       .KHR_vertex_attribute_divisor = true,
       .EXT_global_priority = true,
       .EXT_global_priority_query = true,
@@ -145,6 +146,8 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_mutable_descriptor_type = true,
       .EXT_shader_atomic_float = true,
       .EXT_shader_replicated_composites = true,
+      .EXT_shader_subgroup_ballot = true,
+      .EXT_shader_subgroup_vote = true,
 
       .GOOGLE_decorate_string = true,
       .GOOGLE_hlsl_functionality1 = true,
@@ -281,6 +284,8 @@ kk_get_device_features(
       /* Vulkan 1.4 */
       .globalPriorityQuery = true,
       .pushDescriptor = true,
+      .shaderSubgroupRotate = true,
+      .shaderSubgroupRotateClustered = true,
       .vertexAttributeInstanceRateDivisor = true,
       .vertexAttributeInstanceRateZeroDivisor = true,
 
@@ -482,14 +487,13 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .subgroupSupportedStages =
          VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
       .subgroupSupportedOperations =
-         VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_BALLOT_BIT |
-         VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT |
+         VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT |
+         VK_SUBGROUP_FEATURE_ARITHMETIC_BIT | VK_SUBGROUP_FEATURE_BALLOT_BIT |
          VK_SUBGROUP_FEATURE_SHUFFLE_BIT |
          VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT |
-         VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR, // | TODO_KOSMICKRISP
-      // VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
-      // VK_SUBGROUP_FEATURE_CLUSTERED_BIT |
-      // VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR,
+         VK_SUBGROUP_FEATURE_CLUSTERED_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT |
+         VK_SUBGROUP_FEATURE_ROTATE_BIT |
+         VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT,
       .subgroupQuadOperationsInAllStages = true,
       .pointClippingBehavior = VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY,
       .maxMultiviewViewCount = KK_MAX_MULTIVIEW_VIEW_COUNT,
