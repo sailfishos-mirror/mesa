@@ -581,8 +581,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
    st->alpha_border_color_is_not_w =
       !!(screen->caps.texture_border_color_quirk &
          PIPE_QUIRK_TEXTURE_BORDER_COLOR_SWIZZLE_ALPHA_NOT_W);
-   st->has_time_elapsed =
-      screen->caps.query_time_elapsed;
    ctx->Const.GLSLHasHalfFloatPacking =
       screen->caps.shader_pack_half_float;
    st->has_multi_draw_indirect =

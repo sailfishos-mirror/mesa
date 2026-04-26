@@ -183,7 +183,7 @@ begin_query(struct gl_context *ctx, struct gl_query_object *q)
       type = PIPE_QUERY_SO_OVERFLOW_ANY_PREDICATE;
       break;
    case GL_TIME_ELAPSED:
-      if (st->has_time_elapsed)
+      if (st->screen->caps.query_time_elapsed)
          type = PIPE_QUERY_TIME_ELAPSED;
       else
          type = PIPE_QUERY_TIMESTAMP;
