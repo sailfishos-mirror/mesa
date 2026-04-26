@@ -219,7 +219,7 @@ st_indirect_draw_vbo(struct gl_context *ctx,
    } else {
       indirect.draw_count = draw_count;
       indirect.stride = stride;
-      if (!st->has_indirect_partial_stride && stride &&
+      if (!st->screen->caps.multi_draw_indirect_partial_stride && stride &&
           (draw_count > 1 || indirect_draw_count)) {
          /* DrawElementsIndirectCommand or DrawArraysIndirectCommand */
          const size_t struct_size = info.index_size ? sizeof(uint32_t) * 5 : sizeof(uint32_t) * 4;

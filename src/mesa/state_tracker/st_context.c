@@ -583,8 +583,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
          PIPE_QUIRK_TEXTURE_BORDER_COLOR_SWIZZLE_ALPHA_NOT_W);
    ctx->Const.GLSLHasHalfFloatPacking =
       screen->caps.shader_pack_half_float;
-   st->has_indirect_partial_stride =
-      screen->caps.multi_draw_indirect_partial_stride;
    st->has_occlusion_query =
       screen->caps.occlusion_query;
    st->has_single_pipe_stat =
