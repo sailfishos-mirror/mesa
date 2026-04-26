@@ -853,10 +853,11 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
             .optimize_frag_coord = true,
             .frag_coord_is_center = true,
             /* This does a lot of things. See the description in ac_nir_lower_ps_early_options. */
-            .ps_iter_samples = key->ps.part.prolog.samplemask_log_ps_iter ?
-                                 (1 << key->ps.part.prolog.samplemask_log_ps_iter) :
-                                 (key->ps.part.prolog.force_persp_sample_interp ||
-                                  key->ps.part.prolog.force_linear_sample_interp ? 2 : 0),
+            .ps_iter_samples = nir->info.fs.uses_sample_shading ? 8 :
+                                  key->ps.part.prolog.samplemask_log_ps_iter ?
+                                     (1 << key->ps.part.prolog.samplemask_log_ps_iter) :
+                                     (key->ps.part.prolog.force_persp_sample_interp ||
+                                      key->ps.part.prolog.force_linear_sample_interp ? 2 : 0),
 
             .fbfetch_is_1D = key->ps.mono.fbfetch_is_1D,
             .fbfetch_layered = key->ps.mono.fbfetch_layered,
@@ -891,6 +892,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
          ac_nir_lower_ps_early_options early_options = {
             .optimize_frag_coord = true,
             .frag_coord_is_center = true,
+            .ps_iter_samples = nir->info.fs.uses_sample_shading ? 8 : 0,
             .lower_color_inputs_to_load_color01 = true,
             .alpha_func = COMPARE_FUNC_ALWAYS,
             .spi_shader_col_format_hint = ~0,
