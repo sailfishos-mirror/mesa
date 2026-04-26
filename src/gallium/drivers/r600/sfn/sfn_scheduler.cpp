@@ -169,6 +169,8 @@ private:
       void maybe_switch_to_waitack_scheduler(SchedulerState& current_scheduler);
    void emit_pending_exports(CollectInstructions& cir,
                              Shader::ShaderBlocks& out_blocks);
+      bool report_unscheduled_instructions(const CollectInstructions& cir,
+                                           const Block& in_block) const;
 
    bool collect_ready(CollectInstructions& available);
 
@@ -395,85 +397,7 @@ BlockScheduler::schedule_block(Block& in_block, Shader::ShaderBlocks& out_blocks
 
    emit_pending_exports(cir, out_blocks);
 
-   ASSERTED bool fail = false;
-
-   if (!cir.alu_groups.empty()) {
-      std::cerr << "Unscheduled ALU groups:\n";
-      for (auto& a : cir.alu_groups) {
-         std::cerr << "   " << *a << "\n";
-      }
-      fail = true;
-   }
-
-   if (!cir.alu_vec.empty()) {
-      std::cerr << "Unscheduled ALU vec ops:\n";
-      for (auto& a : cir.alu_vec) {
-         std::cerr << "   [" << a->block_id() << ":"
-                   << a->index() <<"]:" << *a << "\n";
-         for (auto& d : a->required_instr())
-            std::cerr << "      R["<< d->block_id() << ":" << d->index() <<"]:"
-                      << *d << "\n";
-      }
-      fail = true;
-   }
-
-   if (!cir.alu_multi_slot.empty()) {
-      std::cerr << "Unscheduled ALU multislot vec ops:\n";
-      for (auto& a : cir.alu_multi_slot) {
-         std::cerr << "   [" << a->block_id() << ":" << a->index() << "]:" << *a << "\n";
-         for (auto& d : a->required_instr())
-            std::cerr << "      R[" << d->block_id() << ":" << d->index() << "]:" << *d
-                      << "\n";
-      }
-      fail = true;
-   }
-
-   if (!cir.alu_trans.empty()) {
-      std::cerr << "Unscheduled ALU trans ops:\n";
-      for (auto& a : cir.alu_trans) {
-         std::cerr << "   " << "   [" << a->block_id() << ":"
-                   << a->index() <<"]:" << *a << "\n";
-         for (auto& d : a->required_instr())
-            std::cerr << "      R:" << *d << "\n";
-      }
-      fail = true;
-   }
-   if (!cir.free_instr.empty()) {
-      std::cerr << "Unscheduled MEM ops:\n";
-      for (auto& a : cir.free_instr) {
-         std::cerr << "   " << *a << "\n";
-      }
-      fail = true;
-   }
-
-   if (!cir.fetches.empty()) {
-      std::cerr << "Unscheduled Fetch ops:\n";
-      for (auto& a : cir.fetches) {
-         std::cerr << "   " << *a << "\n";
-      }
-      fail = true;
-   }
-
-   if (!cir.tex.empty()) {
-      std::cerr << "Unscheduled Tex ops:\n";
-      for (auto& a : cir.tex) {
-         std::cerr << "   " << *a << "\n";
-      }
-      fail = true;
-   }
-
-   if (fail) {
-      std::cerr << "Failing block:\n";
-      for (auto& i : in_block)
-         std::cerr << "[" << i->block_id() << ":" << i->index() << "] "
-                   << (i->is_scheduled() ? "S " : "")
-                   << *i << "\n";
-      std::cerr << "\nSo far scheduled: ";
-
-      for (auto i : *m_current_block)
-         std::cerr << "[" << i->block_id() << ":" << i->index() << "] " << *i << "\n";
-      std::cerr << "\n\n: ";
-   }
+   ASSERTED bool fail = report_unscheduled_instructions(cir, in_block);
 
    assert(cir.tex.empty());
    assert(cir.exports.empty());
@@ -608,6 +532,93 @@ BlockScheduler::emit_pending_exports(CollectInstructions& cir,
    /* Emit exports always at end of a block */
    while (collect_ready_type(exports_ready, cir.exports))
       schedule_exports(out_blocks, exports_ready);
+}
+
+bool
+BlockScheduler::report_unscheduled_instructions(const CollectInstructions& cir,
+                                                const Block& in_block) const
+{
+   bool fail = false;
+
+   if (!cir.alu_groups.empty()) {
+      std::cerr << "Unscheduled ALU groups:\n";
+      for (auto& a : cir.alu_groups) {
+         std::cerr << "   " << *a << "\n";
+      }
+      fail = true;
+   }
+
+   if (!cir.alu_vec.empty()) {
+      std::cerr << "Unscheduled ALU vec ops:\n";
+      for (auto& a : cir.alu_vec) {
+         std::cerr << "   [" << a->block_id() << ":"
+                   << a->index() <<"]:" << *a << "\n";
+         for (auto& d : a->required_instr())
+            std::cerr << "      R["<< d->block_id() << ":" << d->index() <<"]:"
+                      << *d << "\n";
+      }
+      fail = true;
+   }
+
+   if (!cir.alu_multi_slot.empty()) {
+      std::cerr << "Unscheduled ALU multislot vec ops:\n";
+      for (auto& a : cir.alu_multi_slot) {
+         std::cerr << "   [" << a->block_id() << ":" << a->index() << "]:" << *a << "\n";
+         for (auto& d : a->required_instr())
+            std::cerr << "      R[" << d->block_id() << ":" << d->index() << "]:" << *d
+                      << "\n";
+      }
+      fail = true;
+   }
+
+   if (!cir.alu_trans.empty()) {
+      std::cerr << "Unscheduled ALU trans ops:\n";
+      for (auto& a : cir.alu_trans) {
+         std::cerr << "   " << "   [" << a->block_id() << ":"
+                   << a->index() <<"]:" << *a << "\n";
+         for (auto& d : a->required_instr())
+            std::cerr << "      R:" << *d << "\n";
+      }
+      fail = true;
+   }
+   if (!cir.free_instr.empty()) {
+      std::cerr << "Unscheduled MEM ops:\n";
+      for (auto& a : cir.free_instr) {
+         std::cerr << "   " << *a << "\n";
+      }
+      fail = true;
+   }
+
+   if (!cir.fetches.empty()) {
+      std::cerr << "Unscheduled Fetch ops:\n";
+      for (auto& a : cir.fetches) {
+         std::cerr << "   " << *a << "\n";
+      }
+      fail = true;
+   }
+
+   if (!cir.tex.empty()) {
+      std::cerr << "Unscheduled Tex ops:\n";
+      for (auto& a : cir.tex) {
+         std::cerr << "   " << *a << "\n";
+      }
+      fail = true;
+   }
+
+   if (fail) {
+      std::cerr << "Failing block:\n";
+      for (auto& i : in_block)
+         std::cerr << "[" << i->block_id() << ":" << i->index() << "] "
+                   << (i->is_scheduled() ? "S " : "")
+                   << *i << "\n";
+      std::cerr << "\nSo far scheduled: ";
+
+      for (auto i : *m_current_block)
+         std::cerr << "[" << i->block_id() << ":" << i->index() << "] " << *i << "\n";
+      std::cerr << "\n\n: ";
+   }
+
+   return fail;
 }
 
 void
