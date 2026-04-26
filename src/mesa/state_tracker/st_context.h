@@ -176,7 +176,6 @@ struct st_context
    bool draw_needs_minmax_index;
    bool has_hw_atomics;
 
-   bool validate_all_dirty_states;
    bool can_null_texture;
    bool is_threaded_context;
 

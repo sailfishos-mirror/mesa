@@ -594,10 +594,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
    st->has_hw_atomics =
       screen->shader_caps[MESA_SHADER_FRAGMENT].max_hw_atomic_counters
       ? true : false;
-
-   st->validate_all_dirty_states =
-      screen->caps.validate_all_dirty_states
-      ? true : false;
    st->can_null_texture =
       screen->caps.null_textures
       ? true : false;
