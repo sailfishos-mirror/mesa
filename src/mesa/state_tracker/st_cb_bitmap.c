@@ -181,7 +181,7 @@ setup_render_state(struct gl_context *ctx,
    struct st_fp_variant_key key;
 
    memset(&key, 0, sizeof(key));
-   key.st = st->has_shareable_shaders ? NULL : st;
+   key.st = st->screen->caps.shareable_shaders ? NULL : st;
    key.bitmap = GL_TRUE;
    key.clamp_color = st->clamp_frag_color_in_shader &&
                      clamp_frag_color;

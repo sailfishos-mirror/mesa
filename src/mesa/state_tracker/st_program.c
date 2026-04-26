@@ -237,7 +237,7 @@ delete_variant(struct st_context *st, struct st_variant *v, unsigned stage)
           ((struct st_common_variant*)v)->key.is_draw_shader) {
          /* Draw shader. */
          draw_delete_vertex_shader(st->draw, v->driver_shader);
-      } else if (st->has_shareable_shaders || v->st == st) {
+      } else if (st->screen->caps.shareable_shaders || v->st == st) {
          /* The shader's context matches the calling context, or we
           * don't care.
           */
@@ -1424,7 +1424,7 @@ st_destroy_program_variants(struct st_context *st)
    /* If shaders can be shared with other contexts, the last context will
     * call DeleteProgram on all shaders, releasing everything.
     */
-   if (st->has_shareable_shaders)
+   if (st->screen->caps.shareable_shaders)
       return;
 
    /* ARB vert/frag program */
@@ -1467,7 +1467,7 @@ st_precompile_shader_variant(struct st_context *st,
          key.clamp_color = true;
       }
 
-      key.st = st->has_shareable_shaders ? NULL : st;
+      key.st = st->screen->caps.shareable_shaders ? NULL : st;
       st_get_common_variant(st, prog, &key, report_compile_error, &error);
       return error;
    }
@@ -1477,7 +1477,7 @@ st_precompile_shader_variant(struct st_context *st,
 
       memset(&key, 0, sizeof(key));
 
-      key.st = st->has_shareable_shaders ? NULL : st;
+      key.st = st->screen->caps.shareable_shaders ? NULL : st;
       key.lower_alpha_func = COMPARE_FUNC_ALWAYS;
       if (prog->ati_fs) {
          for (int i = 0; i < ARRAY_SIZE(key.texture_index); i++)

@@ -133,7 +133,7 @@ st_update_fp( struct st_context *st )
       /* use memset, not an initializer to be sure all memory is zeroed */
       memset(&key, 0, sizeof(key));
 
-      key.st = st->has_shareable_shaders ? NULL : st;
+      key.st = st->screen->caps.shareable_shaders ? NULL : st;
 
       key.lower_flatshade = st->lower_flatshade &&
                             st->ctx->Light.ShadeModel == GL_FLAT;
@@ -219,7 +219,7 @@ st_update_vp( struct st_context *st )
 
       memset(&key, 0, sizeof(key));
 
-      key.st = st->has_shareable_shaders ? NULL : st;
+      key.st = st->screen->caps.shareable_shaders ? NULL : st;
 
       /* When this is true, we will add an extra input to the vertex
        * shader translation (for edgeflags), an extra output with
@@ -280,7 +280,7 @@ st_update_common_program(struct st_context *st, struct gl_program *prog,
    /* use memset, not an initializer to be sure all memory is zeroed */
    memset(&key, 0, sizeof(key));
 
-   key.st = st->has_shareable_shaders ? NULL : st;
+   key.st = st->screen->caps.shareable_shaders ? NULL : st;
 
    if (pipe_shader == MESA_SHADER_GEOMETRY ||
        pipe_shader == MESA_SHADER_TESS_EVAL) {
