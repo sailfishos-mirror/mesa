@@ -149,7 +149,7 @@ allow_rgb_colormask_promotion(const struct st_context *st,
    /* We can support different per-RT promotion decisions if we driver
     * supports independent blending (but we must actually enable it).
     */
-   if (st->has_indep_blend_enable && !same) {
+   if (st->screen->caps.indep_blend_enable && !same) {
       *need_independent_blend = true;
       return true;
    }
