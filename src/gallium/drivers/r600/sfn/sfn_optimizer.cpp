@@ -22,17 +22,23 @@
 
 namespace r600 {
 
-bool
-optimize(Shader& shader)
+static void
+log_shader_dump(const Shader& shader, const char *header)
 {
-   bool progress;
-
-   sfn_log << SfnLog::opt << "Shader before optimization\n";
+   sfn_log << SfnLog::opt << header;
    if (sfn_log.has_debug_flag(SfnLog::opt)) {
       std::stringstream ss;
       shader.print(ss);
       sfn_log << ss.str() << "\n\n";
    }
+}
+
+bool
+optimize(Shader& shader)
+{
+   bool progress;
+
+   log_shader_dump(shader, "Shader before optimization\n");
 
    do {
       progress = false;
@@ -96,12 +102,7 @@ dead_code_elimination(Shader& shader)
 
    } while (dce.progress);
 
-   sfn_log << SfnLog::opt << "Shader after DCE\n";
-   if (sfn_log.has_debug_flag(SfnLog::opt)) {
-      std::stringstream ss;
-      shader.print(ss);
-      sfn_log << ss.str() << "\n\n";
-   }
+   log_shader_dump(shader, "Shader after DCE\n");
 
    return dce.progress;
 }
@@ -284,12 +285,7 @@ copy_propagation_fwd(Shader& shader)
          b->accept(copy_prop);
    } while (copy_prop.progress);
 
-   sfn_log << SfnLog::opt << "Shader after Copy Prop forward\n";
-   if (sfn_log.has_debug_flag(SfnLog::opt)) {
-      std::stringstream ss;
-      shader.print(ss);
-      sfn_log << ss.str() << "\n\n";
-   }
+   log_shader_dump(shader, "Shader after Copy Prop forward\n");
 
    return copy_prop.progress;
 }
@@ -305,12 +301,7 @@ copy_propagation_backward(Shader& shader)
          b->accept(copy_prop);
    } while (copy_prop.progress);
 
-   sfn_log << SfnLog::opt << "Shader after Copy Prop backwards\n";
-   if (sfn_log.has_debug_flag(SfnLog::opt)) {
-      std::stringstream ss;
-      shader.print(ss);
-      sfn_log << ss.str() << "\n\n";
-   }
+   log_shader_dump(shader, "Shader after Copy Prop backwards\n");
 
    return copy_prop.progress;
 }
