@@ -593,8 +593,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
       break;
    default: break;
    }
-   st->lower_rect_tex =
-      !screen->caps.texrect;
    st->allow_st_finalize_nir_twice =
       screen->caps.call_finalize_nir_in_linker;
 

@@ -594,7 +594,7 @@ init_bitmap_state(struct st_context *st)
    st->bitmap.sampler.mag_img_filter = PIPE_TEX_FILTER_NEAREST;
    st->bitmap.sampler.unnormalized_coords = !(st->internal_target == PIPE_TEXTURE_2D ||
                                               (st->internal_target == PIPE_TEXTURE_RECT &&
-                                               st->lower_rect_tex));
+                                               !st->screen->caps.texrect));
 
    /* init baseline rasterizer state once */
    memset(&st->bitmap.rasterizer, 0, sizeof(st->bitmap.rasterizer));

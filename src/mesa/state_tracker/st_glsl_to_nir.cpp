@@ -730,9 +730,9 @@ st_finalize_nir(struct st_context *st, struct gl_program *prog,
    const bool lower_tg4_offsets =
       !is_draw_shader && !st->screen->caps.texture_gather_offsets;
 
-   if (!is_draw_shader && (st->lower_rect_tex || lower_tg4_offsets)) {
+   if (!is_draw_shader && (!st->screen->caps.texrect || lower_tg4_offsets)) {
       struct nir_lower_tex_options opts = {0};
-      opts.lower_rect = !!st->lower_rect_tex;
+      opts.lower_rect = !st->screen->caps.texrect;
       opts.lower_tg4_offsets = lower_tg4_offsets;
 
       NIR_PASS(_, nir, nir_lower_tex, &opts);
