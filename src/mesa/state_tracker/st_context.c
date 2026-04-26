@@ -456,8 +456,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
    st->screen = screen;
    st->pipe = pipe;
 
-   st->can_bind_const_buffer_as_vertex =
-      screen->caps.can_bind_const_buffer_as_vertex;
 
    /* st/mesa always uploads zero-stride vertex attribs, and other user
     * vertex buffers are only possible with a compatibility profile.
