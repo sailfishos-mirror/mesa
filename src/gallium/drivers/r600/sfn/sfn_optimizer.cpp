@@ -299,6 +299,14 @@ public:
    void visit(LDSReadInstr *instr) override { (void)instr; };
    void visit(RatInstr *instr) override { (void)instr; };
 
+   void log_back_copy_prop_visit_begin(const AluInstr& instr) const;
+   bool can_propagate_back_dest(AluInstr *instr,
+                                PRegister& src_reg,
+                                PRegister& dest) const;
+   bool try_propagate_back_dest(AluInstr *instr,
+                                PRegister src_reg,
+                                PRegister dest);
+
    bool progress;
 };
 
@@ -750,49 +758,76 @@ CopyPropBackVisitor::CopyPropBackVisitor():
 void
 CopyPropBackVisitor::visit(AluInstr *instr)
 {
-   bool local_progress = false;
+   log_back_copy_prop_visit_begin(*instr);
 
-   sfn_log << SfnLog::opt << "CopyPropBackVisitor:[" << instr->block_id() << ":"
-           << instr->index() << "] " << *instr << "\n";
-
-   if (!instr->can_propagate_dest()) {
-      return;
-   }
-
-   auto src_reg = instr->psrc(0)->as_register();
-   if (!src_reg) {
-      return;
-   }
-
-   if (src_reg->uses().size() > 1)
+   PRegister src_reg;
+   PRegister dest;
+   if (!can_propagate_back_dest(instr, src_reg, dest))
       return;
 
-   auto dest = instr->dest();
-   if (!dest || !instr->has_alu_flag(alu_write)) {
-      return;
-   }
-
-   if (!dest->has_flag(Register::ssa) && dest->parents().size() > 1)
-      return;
-
-   for (auto& i : src_reg->parents()) {
-      sfn_log << SfnLog::opt << "Try replace dest in " << i->block_id() << ":"
-              << i->index() << *i << "\n";
-
-      if (i->replace_dest(dest, instr)) {
-         dest->del_parent(instr);
-         dest->add_parent(i);
-         for (auto d : instr->dependend_instr()) {
-            d->add_required_instr(i);
-         }
-         local_progress = true;
-      }
-   }
+   bool local_progress = try_propagate_back_dest(instr, src_reg, dest);
 
    if (local_progress)
       instr->set_dead();
 
    progress |= local_progress;
+}
+
+void
+CopyPropBackVisitor::log_back_copy_prop_visit_begin(const AluInstr& instr) const
+{
+   sfn_log << SfnLog::opt << "CopyPropBackVisitor:[" << instr.block_id() << ":"
+           << instr.index() << "] " << instr << "\n";
+}
+
+bool
+CopyPropBackVisitor::can_propagate_back_dest(AluInstr *instr,
+                                             PRegister& src_reg,
+                                             PRegister& dest) const
+{
+   if (!instr->can_propagate_dest())
+      return false;
+
+   src_reg = instr->psrc(0)->as_register();
+   if (!src_reg)
+      return false;
+
+   if (src_reg->uses().size() > 1)
+      return false;
+
+   dest = instr->dest();
+   if (!dest || !instr->has_alu_flag(alu_write))
+      return false;
+
+   if (!dest->has_flag(Register::ssa) && dest->parents().size() > 1)
+      return false;
+
+   return true;
+}
+
+bool
+CopyPropBackVisitor::try_propagate_back_dest(AluInstr *instr,
+                                             PRegister src_reg,
+                                             PRegister dest)
+{
+   bool local_progress = false;
+
+   for (auto& parent : src_reg->parents()) {
+      sfn_log << SfnLog::opt << "Try replace dest in " << parent->block_id() << ":"
+              << parent->index() << *parent << "\n";
+
+      if (!parent->replace_dest(dest, instr))
+         continue;
+
+      dest->del_parent(instr);
+      dest->add_parent(parent);
+      for (auto dep : instr->dependend_instr()) {
+         dep->add_required_instr(parent);
+      }
+      local_progress = true;
+   }
+
+   return local_progress;
 }
 
 void
