@@ -144,7 +144,6 @@ struct st_context
    GLboolean clamp_frag_color_in_shader;
    GLboolean clamp_vert_color_in_shader;
    bool thread_scheduler_disabled;
-   bool has_stencil_export; /**< can do shader stencil export? */
    bool has_time_elapsed;
    bool has_etc1;
    bool has_etc2;

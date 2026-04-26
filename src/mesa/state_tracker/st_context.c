@@ -532,8 +532,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
    ctx->Const.QueryCounterBits.Timestamp =
       screen->caps.query_timestamp_bits;
 
-   st->has_stencil_export =
-      screen->caps.shader_stencil_export;
    st->has_etc1 = screen->is_format_supported(screen, PIPE_FORMAT_ETC1_RGB8,
                                               PIPE_TEXTURE_2D, 0, 0,
                                               PIPE_BIND_SAMPLER_VIEW);
