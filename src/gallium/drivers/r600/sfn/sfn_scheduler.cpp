@@ -167,6 +167,8 @@ private:
                   SchedulerState& current_scheduler,
                   SchedulerState& last_scheduler);
       void maybe_switch_to_waitack_scheduler(SchedulerState& current_scheduler);
+   void emit_pending_exports(CollectInstructions& cir,
+                             Shader::ShaderBlocks& out_blocks);
 
    bool collect_ready(CollectInstructions& available);
 
@@ -391,9 +393,7 @@ BlockScheduler::schedule_block(Block& in_block, Shader::ShaderBlocks& out_blocks
       maybe_switch_to_waitack_scheduler(current_scheduler);
    }
 
-   /* Emit exports always at end of a block */
-   while (collect_ready_type(exports_ready, cir.exports))
-      schedule_exports(out_blocks, exports_ready);
+   emit_pending_exports(cir, out_blocks);
 
    ASSERTED bool fail = false;
 
@@ -599,6 +599,15 @@ BlockScheduler::maybe_switch_to_waitack_scheduler(SchedulerState& current_schedu
        gds_ready.empty()) {
       current_scheduler = sched_waitack;
    }
+}
+
+void
+BlockScheduler::emit_pending_exports(CollectInstructions& cir,
+                                     Shader::ShaderBlocks& out_blocks)
+{
+   /* Emit exports always at end of a block */
+   while (collect_ready_type(exports_ready, cir.exports))
+      schedule_exports(out_blocks, exports_ready);
 }
 
 void
