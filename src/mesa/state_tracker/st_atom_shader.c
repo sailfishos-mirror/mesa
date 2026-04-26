@@ -75,7 +75,7 @@ get_texture_index(struct gl_context *ctx, const unsigned unit)
 static void
 update_gl_clamp(struct st_context *st, struct gl_program *prog, uint32_t *gl_clamp)
 {
-   if (!st->emulate_gl_clamp)
+   if (st->screen->caps.gl_clamp)
       return;
 
    if (!st->ctx->Texture.NumSamplersWithClamp)

@@ -837,7 +837,7 @@ st_create_common_variant(struct st_context *st,
       finalize = true;
    }
 
-   if (st->emulate_gl_clamp &&
+   if (!st->screen->caps.gl_clamp &&
          (key->gl_clamp[0] || key->gl_clamp[1] || key->gl_clamp[2])) {
       nir_lower_tex_options tex_opts = {0};
       tex_opts.saturate_s = key->gl_clamp[0];
@@ -1118,7 +1118,7 @@ st_create_fp_variant(struct st_context *st,
       nir_lower_sample_shading(shader);
    }
 
-   if (st->emulate_gl_clamp &&
+   if (!st->screen->caps.gl_clamp &&
          (key->gl_clamp[0] || key->gl_clamp[1] || key->gl_clamp[2])) {
       nir_lower_tex_options tex_opts = {0};
       tex_opts.saturate_s = key->gl_clamp[0];

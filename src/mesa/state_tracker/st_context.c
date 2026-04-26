@@ -418,7 +418,7 @@ st_init_driver_flags(struct st_context *st)
                     ST_NEW_TES_STATE);
    }
 
-   if (st->emulate_gl_clamp) {
+   if (!st->screen->caps.gl_clamp) {
       ST_SET_SHADER_STATES(f->NewSamplersWithClamp, SAMPLERS);
       ST_SET_SHADER_STATES(f->NewSamplersWithClamp, STATE);
    }
@@ -581,8 +581,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
    st->alpha_border_color_is_not_w =
       !!(screen->caps.texture_border_color_quirk &
          PIPE_QUIRK_TEXTURE_BORDER_COLOR_SWIZZLE_ALPHA_NOT_W);
-   st->emulate_gl_clamp =
-      !screen->caps.gl_clamp;
    st->has_time_elapsed =
       screen->caps.query_time_elapsed;
    ctx->Const.GLSLHasHalfFloatPacking =

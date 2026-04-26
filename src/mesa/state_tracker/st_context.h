@@ -200,7 +200,6 @@ struct st_context
    bool apply_texture_swizzle_to_border_color;
    bool use_format_with_border_color;
    bool alpha_border_color_is_not_w;
-   bool emulate_gl_clamp;
 
    bool draw_needs_minmax_index;
    bool has_hw_atomics;
