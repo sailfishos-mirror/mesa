@@ -234,6 +234,12 @@ enum
    SI_NUM_PARAMS = SI_PARAM_POS_FIXED_PT + 9, /* +8 for COLOR[0..1] */
 };
 
+enum {
+   SI_INTERPOLATE_LOC_CENTER,
+   SI_INTERPOLATE_LOC_CENTROID,
+   SI_INTERPOLATE_LOC_SAMPLE,
+};
+
 /* These fields are only set in current_vs_state (except INDEXED) in si_context, and they are
  * accessible in the shader via vs_state_bits in VS, TES, and GS.
  */

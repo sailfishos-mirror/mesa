@@ -7,7 +7,6 @@
 #include "si_pipe.h"
 #include "si_shader_internal.h"
 #include "util/mesa-blake3.h"
-#include "pipe/p_shader_tokens.h"
 #include "nir.h"
 #include "nir_tcs_info.h"
 #include "nir_xfb_info.h"
@@ -67,7 +66,7 @@ get_color_input_interp_info(nir_intrinsic_instr *intr, enum glsl_interp_mode *in
 
    if (intr->intrinsic != nir_intrinsic_load_interpolated_input) {
       *interp_mode = INTERP_MODE_FLAT;
-      *interp_location = TGSI_INTERPOLATE_LOC_CENTER;
+      *interp_location = SI_INTERPOLATE_LOC_CENTER;
       return;
    }
 
@@ -82,13 +81,13 @@ get_color_input_interp_info(nir_intrinsic_instr *intr, enum glsl_interp_mode *in
 
    switch (baryc->intrinsic) {
    case nir_intrinsic_load_barycentric_pixel:
-      *interp_location = TGSI_INTERPOLATE_LOC_CENTER;
+      *interp_location = SI_INTERPOLATE_LOC_CENTER;
       break;
    case nir_intrinsic_load_barycentric_centroid:
-      *interp_location = TGSI_INTERPOLATE_LOC_CENTROID;
+      *interp_location = SI_INTERPOLATE_LOC_CENTROID;
       break;
    case nir_intrinsic_load_barycentric_sample:
-      *interp_location = TGSI_INTERPOLATE_LOC_SAMPLE;
+      *interp_location = SI_INTERPOLATE_LOC_SAMPLE;
       break;
    default:
       UNREACHABLE("unexpected baryc intrinsic");
@@ -161,19 +160,19 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
 
          switch (interp_mode) {
          case INTERP_MODE_SMOOTH:
-            if (interp_location == TGSI_INTERPOLATE_LOC_SAMPLE)
+            if (interp_location == SI_INTERPOLATE_LOC_SAMPLE)
                info->uses_sysval_persp_sample = true;
-            else if (interp_location == TGSI_INTERPOLATE_LOC_CENTROID)
+            else if (interp_location == SI_INTERPOLATE_LOC_CENTROID)
                info->uses_sysval_persp_centroid = true;
-            else if (interp_location == TGSI_INTERPOLATE_LOC_CENTER)
+            else if (interp_location == SI_INTERPOLATE_LOC_CENTER)
                info->uses_sysval_persp_center = true;
             break;
          case INTERP_MODE_NOPERSPECTIVE:
-            if (interp_location == TGSI_INTERPOLATE_LOC_SAMPLE)
+            if (interp_location == SI_INTERPOLATE_LOC_SAMPLE)
                info->uses_sysval_linear_sample = true;
-            else if (interp_location == TGSI_INTERPOLATE_LOC_CENTROID)
+            else if (interp_location == SI_INTERPOLATE_LOC_CENTROID)
                info->uses_sysval_linear_centroid = true;
-            else if (interp_location == TGSI_INTERPOLATE_LOC_CENTER)
+            else if (interp_location == SI_INTERPOLATE_LOC_CENTER)
                info->uses_sysval_linear_center = true;
             break;
          case INTERP_MODE_COLOR:
@@ -181,11 +180,11 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
              * in the rasterizer state, otherwise it will be SMOOTH.
              */
             info->uses_interp_color = true;
-            if (interp_location == TGSI_INTERPOLATE_LOC_SAMPLE)
+            if (interp_location == SI_INTERPOLATE_LOC_SAMPLE)
                info->uses_persp_sample_color = true;
-            else if (interp_location == TGSI_INTERPOLATE_LOC_CENTROID)
+            else if (interp_location == SI_INTERPOLATE_LOC_CENTROID)
                info->uses_persp_centroid_color = true;
-            else if (interp_location == TGSI_INTERPOLATE_LOC_CENTER)
+            else if (interp_location == SI_INTERPOLATE_LOC_CENTER)
                info->uses_persp_center_color = true;
             break;
          case INTERP_MODE_FLAT:

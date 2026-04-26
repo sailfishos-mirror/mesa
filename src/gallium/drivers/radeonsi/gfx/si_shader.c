@@ -13,7 +13,6 @@
 #include "nir_xfb_info.h"
 #include "si_pipe.h"
 #include "si_shader_internal.h"
-#include "pipe/p_shader_tokens.h"
 
 static void si_fix_resource_usage(struct si_screen *sscreen, struct si_shader *shader);
 
@@ -1798,20 +1797,20 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
          case INTERP_MODE_COLOR:
             /* Force the interpolation location for colors here. */
             if (shader->key.ps.part.prolog.force_persp_sample_interp)
-               location = TGSI_INTERPOLATE_LOC_SAMPLE;
+               location = SI_INTERPOLATE_LOC_SAMPLE;
             if (shader->key.ps.part.prolog.force_persp_center_interp)
-               location = TGSI_INTERPOLATE_LOC_CENTER;
+               location = SI_INTERPOLATE_LOC_CENTER;
 
             switch (location) {
-            case TGSI_INTERPOLATE_LOC_SAMPLE:
+            case SI_INTERPOLATE_LOC_SAMPLE:
                key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_PERSP_SAMPLE;
                shader->config.spi_ps_input_ena |= S_0286CC_PERSP_SAMPLE_ENA(1);
                break;
-            case TGSI_INTERPOLATE_LOC_CENTER:
+            case SI_INTERPOLATE_LOC_CENTER:
                key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_PERSP_CENTER;
                shader->config.spi_ps_input_ena |= S_0286CC_PERSP_CENTER_ENA(1);
                break;
-            case TGSI_INTERPOLATE_LOC_CENTROID:
+            case SI_INTERPOLATE_LOC_CENTROID:
                key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_PERSP_CENTROID;
                shader->config.spi_ps_input_ena |= S_0286CC_PERSP_CENTROID_ENA(1);
                break;
@@ -1822,24 +1821,24 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
          case INTERP_MODE_NOPERSPECTIVE:
             /* Force the interpolation location for colors here. */
             if (shader->key.ps.part.prolog.force_linear_sample_interp)
-               location = TGSI_INTERPOLATE_LOC_SAMPLE;
+               location = SI_INTERPOLATE_LOC_SAMPLE;
             if (shader->key.ps.part.prolog.force_linear_center_interp)
-               location = TGSI_INTERPOLATE_LOC_CENTER;
+               location = SI_INTERPOLATE_LOC_CENTER;
 
             /* The VGPR assignment for non-monolithic shaders
              * works because InitialPSInputAddr is set on the
              * main shader and PERSP_PULL_MODEL is never used.
              */
             switch (location) {
-            case TGSI_INTERPOLATE_LOC_SAMPLE:
+            case SI_INTERPOLATE_LOC_SAMPLE:
                key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_LINEAR_SAMPLE;
                shader->config.spi_ps_input_ena |= S_0286CC_LINEAR_SAMPLE_ENA(1);
                break;
-            case TGSI_INTERPOLATE_LOC_CENTER:
+            case SI_INTERPOLATE_LOC_CENTER:
                key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_LINEAR_CENTER;
                shader->config.spi_ps_input_ena |= S_0286CC_LINEAR_CENTER_ENA(1);
                break;
-            case TGSI_INTERPOLATE_LOC_CENTROID:
+            case SI_INTERPOLATE_LOC_CENTROID:
                key->ps_prolog.color_interp[i] = AC_COLOR_INTERP_LINEAR_CENTROID;
                shader->config.spi_ps_input_ena |= S_0286CC_LINEAR_CENTROID_ENA(1);
                break;
