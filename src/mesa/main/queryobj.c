@@ -142,7 +142,7 @@ query_type_is_dummy(struct gl_context *ctx, unsigned type)
    case PIPE_QUERY_PIPELINE_STATISTICS:
       return !st->has_pipeline_stat;
    case PIPE_QUERY_PIPELINE_STATISTICS_SINGLE:
-      return !st->has_single_pipe_stat;
+      return !st->screen->caps.query_pipeline_statistics_single;
    default:
       break;
    }
@@ -202,7 +202,7 @@ begin_query(struct gl_context *ctx, struct gl_query_object *q)
    case GL_TASK_SHADER_INVOCATIONS_EXT:
    case GL_MESH_SHADER_INVOCATIONS_EXT:
    case GL_MESH_PRIMITIVES_GENERATED_EXT:
-      type = st->has_single_pipe_stat ? PIPE_QUERY_PIPELINE_STATISTICS_SINGLE
+      type = st->screen->caps.query_pipeline_statistics_single ? PIPE_QUERY_PIPELINE_STATISTICS_SINGLE
                                       : PIPE_QUERY_PIPELINE_STATISTICS;
       break;
    default:
