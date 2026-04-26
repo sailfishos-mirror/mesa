@@ -262,29 +262,24 @@ lower_fragment_outputs(nir_function_impl *impl,
    nir_builder *b = &b_;
    assert(nr_color_regions <= ARRAY_SIZE(ctx.colour));
 
-   signed first = -1;
-   for (unsigned i = 0; i < ARRAY_SIZE(ctx.colour); ++i) {
+   signed last = -1;
+   for (signed i = nr_color_regions - 1; i >= 0; --i) {
       if (ctx.colour[i]) {
-         first = i;
+         last = i;
          break;
       }
    }
 
-   /* Do the later render targets first */
-   for (unsigned i = first + 1; i < nr_color_regions; ++i) {
+   for (signed i = 0; i < last; ++i) {
       if (ctx.colour[i]) {
-         insert_rt_store(b, devinfo, i, false, ctx.colour[i], NULL, NULL, NULL,
-                         NULL, dispatch_width);
+         insert_rt_store(b, devinfo, i, false, ctx.colour[i], NULL, ctx.depth,
+                         ctx.stencil, ctx.sample_mask, dispatch_width);
       }
    }
 
-   /* Finally do render target zero attaching all the sideband things and
-    * setting the LastRT bit. This needs to exist even if nothing is written
-    * since it also signals end-of-thread.
-    */
-   insert_rt_store(b, devinfo, first < nr_color_regions ? first : -1, true,
-                   first >= 0 ? ctx.colour[first] : NULL, NULL, ctx.depth,
-                   ctx.stencil, ctx.sample_mask, dispatch_width);
+   insert_rt_store(b, devinfo, last, true, last >= 0 ? ctx.colour[last] : NULL,
+                   NULL, ctx.depth, ctx.stencil, ctx.sample_mask,
+                   dispatch_width);
 }
 
 unsigned
