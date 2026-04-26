@@ -583,8 +583,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
          PIPE_QUIRK_TEXTURE_BORDER_COLOR_SWIZZLE_ALPHA_NOT_W);
    ctx->Const.GLSLHasHalfFloatPacking =
       screen->caps.shader_pack_half_float;
-   st->has_indep_blend_func =
-      screen->caps.indep_blend_func;
    st->can_dither =
       screen->caps.dithering;
    st->lower_flatshade =

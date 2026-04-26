@@ -186,7 +186,7 @@ blend_per_rt(const struct st_context *st, unsigned num_cb)
       /* Overriding requires independent blend functions (not just enables),
        * requiring drivers to expose pipe_caps.indep_blend_func.
        */
-      assert(st->has_indep_blend_func);
+      assert(st->screen->caps.indep_blend_func);
 
       /* If some of the buffers are RGB or emulated L/I, we may need to override blend
        * factors that reference destination-alpha to constants.  We may
