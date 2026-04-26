@@ -179,7 +179,7 @@ st_indirect_draw_vbo(struct gl_context *ctx,
       break;
    }
 
-   assert(st->has_multi_draw_indirect || !indirect_draw_count);
+   assert(st->screen->caps.multi_draw_indirect || !indirect_draw_count);
 
    if (info.index_size) {
       struct gl_buffer_object *bufobj = ctx->Array.VAO->IndexBufferObj;
@@ -208,7 +208,7 @@ st_indirect_draw_vbo(struct gl_context *ctx,
    if (!indirect.buffer)
       return;
 
-   if (!st->has_multi_draw_indirect) {
+   if (!st->screen->caps.multi_draw_indirect) {
       int i;
 
       indirect.draw_count = 1;
