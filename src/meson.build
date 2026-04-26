@@ -26,6 +26,10 @@ else
   inc_amd_common_llvm = []
 endif
 
+inc_radv_bvh = include_directories('amd/vulkan/bvh')
+inc_radv_tools = include_directories('amd/vulkan/tools')
+inc_vulkan_bvh = include_directories('vulkan/runtime/bvh')
+
 glsl_util_files = files(
     'mesa/main/extensions_table.c',
     'mesa/program/prog_parameter.c',
