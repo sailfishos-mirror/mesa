@@ -594,9 +594,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
    st->has_hw_atomics =
       screen->shader_caps[MESA_SHADER_FRAGMENT].max_hw_atomic_counters
       ? true : false;
-   st->can_null_texture =
-      screen->caps.null_textures
-      ? true : false;
 
    util_throttle_init(&st->throttle,
                       screen->caps.max_texture_upload_memory_budget);
