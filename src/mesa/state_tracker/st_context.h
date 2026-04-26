@@ -159,7 +159,6 @@ struct st_context
    bool force_compute_based_texture_transfer;
    bool force_specialized_compute_transfer;
    bool force_persample_in_shader;
-   bool has_occlusion_query;
    bool has_single_pipe_stat;
    bool has_pipeline_stat;
    bool has_indep_blend_enable;

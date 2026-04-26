@@ -138,7 +138,7 @@ query_type_is_dummy(struct gl_context *ctx, unsigned type)
    case PIPE_QUERY_OCCLUSION_COUNTER:
    case PIPE_QUERY_OCCLUSION_PREDICATE:
    case PIPE_QUERY_OCCLUSION_PREDICATE_CONSERVATIVE:
-      return !st->has_occlusion_query;
+      return !st->screen->caps.occlusion_query;
    case PIPE_QUERY_PIPELINE_STATISTICS:
       return !st->has_pipeline_stat;
    case PIPE_QUERY_PIPELINE_STATISTICS_SINGLE:
