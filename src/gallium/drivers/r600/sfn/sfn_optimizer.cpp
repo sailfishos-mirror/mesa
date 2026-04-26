@@ -33,6 +33,22 @@ log_shader_dump(const Shader& shader, const char *header)
    }
 }
 
+template <typename Visitor>
+static bool
+run_visitor_to_fixpoint(Shader& shader, Visitor& visitor, const char *dump_header = nullptr)
+{
+   do {
+      visitor.progress = false;
+      for (auto b : shader.func())
+         b->accept(visitor);
+   } while (visitor.progress);
+
+   if (dump_header)
+      log_shader_dump(shader, dump_header);
+
+   return visitor.progress;
+}
+
 bool
 optimize(Shader& shader)
 {
@@ -89,22 +105,7 @@ bool
 dead_code_elimination(Shader& shader)
 {
    DCEVisitor dce;
-
-   do {
-
-      sfn_log << SfnLog::opt << "start dce run\n";
-
-      dce.progress = false;
-      for (auto& b : shader.func())
-         b->accept(dce);
-
-      sfn_log << SfnLog::opt << "finished dce run\n\n";
-
-   } while (dce.progress);
-
-   log_shader_dump(shader, "Shader after DCE\n");
-
-   return dce.progress;
+   return run_visitor_to_fixpoint(shader, dce, "Shader after DCE\n");
 }
 
 DCEVisitor::DCEVisitor():
@@ -276,34 +277,19 @@ public:
 bool
 copy_propagation_fwd(Shader& shader)
 {
-   auto& root = shader.func();
    CopyPropFwdVisitor copy_prop(shader.value_factory());
-
-   do {
-      copy_prop.progress = false;
-      for (auto b : root)
-         b->accept(copy_prop);
-   } while (copy_prop.progress);
-
-   log_shader_dump(shader, "Shader after Copy Prop forward\n");
-
-   return copy_prop.progress;
+   return run_visitor_to_fixpoint(shader,
+                                  copy_prop,
+                                  "Shader after Copy Prop forward\n");
 }
 
 bool
 copy_propagation_backward(Shader& shader)
 {
    CopyPropBackVisitor copy_prop;
-
-   do {
-      copy_prop.progress = false;
-      for (auto b : shader.func())
-         b->accept(copy_prop);
-   } while (copy_prop.progress);
-
-   log_shader_dump(shader, "Shader after Copy Prop backwards\n");
-
-   return copy_prop.progress;
+   return run_visitor_to_fixpoint(shader,
+                                  copy_prop,
+                                  "Shader after Copy Prop backwards\n");
 }
 
 CopyPropFwdVisitor::CopyPropFwdVisitor(ValueFactory& vf):
