@@ -257,6 +257,8 @@ public:
                                      int new_chan[4],
                                      int new_sel,
                                      bool is_ssa);
+   void log_copy_prop_visit_begin(const AluInstr& instr) const;
+   void log_copy_prop_visit_end(const AluInstr& instr) const;
    bool can_propagate_dest_to_use(const AluInstr& move_instr,
                                   PRegister dest,
                                   Instr *use) const;
@@ -327,14 +329,7 @@ CopyPropFwdVisitor::CopyPropFwdVisitor(ValueFactory& vf):
 void
 CopyPropFwdVisitor::visit(AluInstr *instr)
 {
-   sfn_log << SfnLog::opt << "CopyPropFwdVisitor:[" << instr->block_id() << ":"
-           << instr->index() << "] " << *instr << " dset=" << instr->dest() << " ";
-
-   if (instr->dest()) {
-      sfn_log << SfnLog::opt << "has uses; " << instr->dest()->uses().size();
-   }
-
-   sfn_log << SfnLog::opt << "\n";
+   log_copy_prop_visit_begin(*instr);
 
    if (!instr->can_propagate_src()) {
       return;
@@ -375,9 +370,26 @@ CopyPropFwdVisitor::visit(AluInstr *instr)
 
       try_propagate_alu_source(instr, use, dest, src, move_addr_use);
    }
-   if (instr->dest()) {
-      sfn_log << SfnLog::opt << "has uses; " << instr->dest()->uses().size();
-   }
+   log_copy_prop_visit_end(*instr);
+}
+
+void
+CopyPropFwdVisitor::log_copy_prop_visit_begin(const AluInstr& instr) const
+{
+   sfn_log << SfnLog::opt << "CopyPropFwdVisitor:[" << instr.block_id() << ":"
+           << instr.index() << "] " << instr << " dset=" << instr.dest() << " ";
+
+   if (instr.dest())
+      sfn_log << SfnLog::opt << "has uses; " << instr.dest()->uses().size();
+
+   sfn_log << SfnLog::opt << "\n";
+}
+
+void
+CopyPropFwdVisitor::log_copy_prop_visit_end(const AluInstr& instr) const
+{
+   if (instr.dest())
+      sfn_log << SfnLog::opt << "has uses; " << instr.dest()->uses().size();
    sfn_log << SfnLog::opt << "  done\n";
 }
 
