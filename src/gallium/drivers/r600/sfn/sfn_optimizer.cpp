@@ -257,6 +257,18 @@ public:
                                      int new_chan[4],
                                      int new_sel,
                                      bool is_ssa);
+   bool can_propagate_dest_to_use(const AluInstr& move_instr,
+                                  PRegister dest,
+                                  Instr *use) const;
+   bool can_propagate_src_to_use(const AluInstr& move_instr,
+                                 PVirtualValue src,
+                                 Instr *use,
+                                 bool& move_addr_use) const;
+   bool try_propagate_alu_source(AluInstr *move_instr,
+                                 Instr *use,
+                                 PRegister dest,
+                                 PVirtualValue src,
+                                 bool move_addr_use);
    bool assigned_register_direct(PRegister reg);
 
    ValueFactory& value_factory;
@@ -344,96 +356,126 @@ CopyPropFwdVisitor::visit(AluInstr *instr)
    auto ii = dest->uses().begin();
    auto ie = dest->uses().end();
 
-   auto mov_block_id = instr->block_id();
-
    /** libc++ seems to invalidate the end iterator too if a std::set is
     *  made empty by an erase operation,
     *  https://gitlab.freedesktop.org/mesa/mesa/-/issues/7931
     */
    while(ii != ie && !dest->uses().empty()) {
-      auto i = *ii;
-      auto target_block_id = i->block_id();
+      auto use = *ii;
 
       ++ii;
-      /* SSA can always be propagated, registers only in the same block
-       * and only if they are assigned in the same block */
-      bool dest_can_propagate = dest->has_flag(Register::ssa);
 
-      if (!dest_can_propagate) {
-
-         /* Register can propagate if the assignment was in the same
-          * block, and we don't have a second assignment coming later
-          * (e.g. helper invocation evaluation does
-          *
-          * 1: MOV R0.x, -1
-          * 2: FETCH R0.0 VPM
-          * 3: MOV SN.x, R0.x
-          *
-          * Here we can't prpagate the move in 1 to SN.x in 3 */
-         if ((mov_block_id == target_block_id && instr->index() < i->index())) {
-            dest_can_propagate = true;
-            if (dest->parents().size() > 1) {
-               for (auto p : dest->parents()) {
-                  if (p->block_id() == i->block_id() && p->index() > instr->index()) {
-                     dest_can_propagate = false;
-                     break;
-                  }
-               }
-            }
-         }
-      }
       bool move_addr_use = false;
-      bool src_can_propagate = false;
-      if (auto rsrc = src->as_register()) {
-         if (rsrc->has_flag(Register::ssa)) {
-            src_can_propagate = true;
-         } else if (mov_block_id == target_block_id) {
-            if (auto a = rsrc->addr()) {
-               if (a->as_register() &&
-                   !a->as_register()->has_flag(Register::addr_or_idx) &&
-                   i->block_id() == mov_block_id &&
-                   i->index() == instr->index() + 1) {
-                  src_can_propagate = true;
-                  move_addr_use = true;
-               }
-            } else {
-               src_can_propagate = true;
-            }
-            for (auto p : rsrc->parents()) {
-               if (p->block_id() == mov_block_id &&
-                   p->index() > instr->index() &&
-                   p->index() < i->index()) {
-                  src_can_propagate = false;
-                  break;
-               }
-            }
-         }
-      } else {
-         src_can_propagate = true;
-      }
 
-      if (dest_can_propagate && src_can_propagate) {
-         sfn_log << SfnLog::opt << "   Try replace in " << i->block_id() << ":"
-                 << i->index() << *i << "\n";
+      if (!can_propagate_dest_to_use(*instr, dest, use))
+         continue;
 
-         if (i->as_alu() && i->as_alu()->parent_group()) {
-            progress |= i->as_alu()->parent_group()->replace_source(dest, src);
-         } else {
-            bool success = i->replace_source(dest, src);
-            if (success && move_addr_use) {
-               for (auto r : instr->required_instr()){
-                  std::cerr << "add " << *r << " to " << *i << "\n";
-                  i->add_required_instr(r);
-               }
-            }
-            progress |= success;
-         }
-      }
+      if (!can_propagate_src_to_use(*instr, src, use, move_addr_use))
+         continue;
+
+      try_propagate_alu_source(instr, use, dest, src, move_addr_use);
    }
    if (instr->dest()) {
       sfn_log << SfnLog::opt << "has uses; " << instr->dest()->uses().size();
    }
    sfn_log << SfnLog::opt << "  done\n";
+}
+
+bool
+CopyPropFwdVisitor::can_propagate_dest_to_use(const AluInstr& move_instr,
+                                              PRegister dest,
+                                              Instr *use) const
+{
+   /* SSA can always be propagated, registers only in the same block
+    * and only if they are assigned in the same block. */
+   if (dest->has_flag(Register::ssa))
+      return true;
+
+   /* Register can propagate if the assignment was in the same block, and we
+    * don't have a second assignment coming later.
+    *
+    * 1: MOV R0.x, -1
+    * 2: FETCH R0.0 VPM
+    * 3: MOV SN.x, R0.x
+    *
+    * Here we can't propagate the move in 1 to SN.x in 3. */
+   if (move_instr.block_id() != use->block_id() || move_instr.index() >= use->index())
+      return false;
+
+   if (dest->parents().size() <= 1)
+      return true;
+
+   for (auto parent : dest->parents()) {
+      if (parent->block_id() == use->block_id() && parent->index() > move_instr.index())
+         return false;
+   }
+
+   return true;
+}
+
+bool
+CopyPropFwdVisitor::can_propagate_src_to_use(const AluInstr& move_instr,
+                                             PVirtualValue src,
+                                             Instr *use,
+                                             bool& move_addr_use) const
+{
+   auto src_reg = src->as_register();
+   if (!src_reg)
+      return true;
+
+   if (src_reg->has_flag(Register::ssa))
+      return true;
+
+   if (move_instr.block_id() != use->block_id())
+      return false;
+
+   if (auto addr = src_reg->addr()) {
+      if (addr->as_register() &&
+          !addr->as_register()->has_flag(Register::addr_or_idx) &&
+          use->index() == move_instr.index() + 1) {
+         move_addr_use = true;
+      } else {
+         return false;
+      }
+   }
+
+   for (auto parent : src_reg->parents()) {
+      if (parent->block_id() == move_instr.block_id() &&
+          parent->index() > move_instr.index() &&
+          parent->index() < use->index()) {
+         return false;
+      }
+   }
+
+   return true;
+}
+
+bool
+CopyPropFwdVisitor::try_propagate_alu_source(AluInstr *move_instr,
+                                             Instr *use,
+                                             PRegister dest,
+                                             PVirtualValue src,
+                                             bool move_addr_use)
+{
+   sfn_log << SfnLog::opt << "   Try replace in " << use->block_id() << ":"
+           << use->index() << *use << "\n";
+
+   if (use->as_alu() && use->as_alu()->parent_group()) {
+      bool success = use->as_alu()->parent_group()->replace_source(dest, src);
+      progress |= success;
+      return success;
+   }
+
+   bool success = use->replace_source(dest, src);
+   if (success && move_addr_use) {
+      for (auto required : move_instr->required_instr()) {
+         std::cerr << "add " << *required << " to " << *use << "\n";
+         use->add_required_instr(required);
+      }
+   }
+   progress |= success;
+
+   return success;
 }
 
 void
