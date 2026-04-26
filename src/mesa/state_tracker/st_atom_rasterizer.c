@@ -94,7 +94,7 @@ st_update_rasterizer(struct st_context *st)
    }
 
    /* _NEW_LIGHT_STATE */
-   raster->flatshade = !st->lower_flatshade &&
+   raster->flatshade = st->screen->caps.flatshade &&
                        ctx->Light.ShadeModel == GL_FLAT;
 
    raster->flatshade_first = ctx->Light.ProvokingVertex ==

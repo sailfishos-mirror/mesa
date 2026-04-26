@@ -135,7 +135,7 @@ st_update_fp( struct st_context *st )
 
       key.st = st->screen->caps.shareable_shaders ? NULL : st;
 
-      key.lower_flatshade = st->lower_flatshade &&
+      key.lower_flatshade = !st->screen->caps.flatshade &&
                             st->ctx->Light.ShadeModel == GL_FLAT;
 
       /* _NEW_COLOR */
