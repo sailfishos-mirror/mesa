@@ -101,7 +101,7 @@ st_update_rasterizer(struct st_context *st)
                              GL_FIRST_VERTEX_CONVENTION_EXT;
 
    /* _NEW_LIGHT_STATE | _NEW_PROGRAM */
-   if (!st->lower_two_sided_color)
+   if (st->screen->caps.two_sided_color)
       raster->light_twoside = _mesa_vertex_program_two_side_enabled(ctx);
 
    /*_NEW_LIGHT_STATE | _NEW_BUFFERS */

@@ -118,7 +118,7 @@ st_invalidate_state(struct gl_context *ctx)
       ST_SET_STATE(ctx->NewDriverState, ST_NEW_RASTERIZER);
 
    if ((new_state & _NEW_LIGHT_STATE) &&
-       (!st->screen->caps.flatshade || st->lower_two_sided_color))
+       (!st->screen->caps.flatshade || !st->screen->caps.two_sided_color))
       ST_SET_STATE(ctx->NewDriverState, ST_NEW_FS_STATE);
 
    if (new_state & _NEW_PROJECTION &&
@@ -593,8 +593,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
       break;
    default: break;
    }
-   st->lower_two_sided_color =
-      !screen->caps.two_sided_color;
    st->lower_ucp =
       !screen->caps.clip_planes;
    st->prefer_real_buffer_in_constbuf0 =
@@ -683,7 +681,7 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
          (is_gles2 || st->screen->caps.alpha_test) &&
          !st->clamp_frag_color_in_shader &&
          !st->force_persample_in_shader &&
-         (is_gles2 || !st->lower_two_sided_color);
+         (is_gles2 || st->screen->caps.two_sided_color);
 
    st->shader_has_one_variant[MESA_SHADER_TESS_CTRL] = st->screen->caps.shareable_shaders;
    st->shader_has_one_variant[MESA_SHADER_TESS_EVAL] =

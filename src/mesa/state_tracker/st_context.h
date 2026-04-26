@@ -162,7 +162,6 @@ struct st_context
    bool can_bind_const_buffer_as_vertex;
    bool lower_point_size;
    bool add_point_size;
-   bool lower_two_sided_color;
    bool lower_ucp;
    bool prefer_real_buffer_in_constbuf0;
    bool has_conditional_render;

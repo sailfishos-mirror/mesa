@@ -144,7 +144,7 @@ st_update_fp( struct st_context *st )
          key.lower_alpha_func = st->ctx->Color.AlphaFunc;
 
       /* _NEW_LIGHT_STATE | _NEW_PROGRAM */
-      key.lower_two_sided_color = st->lower_two_sided_color &&
+      key.lower_two_sided_color = !st->screen->caps.two_sided_color &&
          _mesa_vertex_program_two_side_enabled(st->ctx);
 
       /* gl_driver_flags::NewFragClamp */
