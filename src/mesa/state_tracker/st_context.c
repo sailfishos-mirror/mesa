@@ -389,7 +389,7 @@ st_init_driver_flags(struct st_context *st)
    ST_SET_STATE(f->NewShaderConstants[MESA_SHADER_FRAGMENT], ST_NEW_FS_CONSTANTS);
    ST_SET_STATE(f->NewShaderConstants[MESA_SHADER_COMPUTE], ST_NEW_CS_CONSTANTS);
 
-   if (st->lower_alpha_test)
+   if (!st->screen->caps.alpha_test)
       ST_SET_STATE2(f->NewAlphaTest, ST_NEW_FS_STATE, ST_NEW_FS_CONSTANTS);
    else
       ST_SET_STATE(f->NewAlphaTest, ST_NEW_DSA);
@@ -583,8 +583,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
          PIPE_QUIRK_TEXTURE_BORDER_COLOR_SWIZZLE_ALPHA_NOT_W);
    ctx->Const.GLSLHasHalfFloatPacking =
       screen->caps.shader_pack_half_float;
-   st->lower_alpha_test =
-      !screen->caps.alpha_test;
    switch (screen->caps.point_size_fixed) {
    case PIPE_POINT_SIZE_LOWER_ALWAYS:
       st->lower_point_size = true;
@@ -682,7 +680,7 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
    st->shader_has_one_variant[MESA_SHADER_FRAGMENT] =
          st->screen->caps.shareable_shaders &&
          st->screen->caps.flatshade &&
-         (is_gles2 || !st->lower_alpha_test) &&
+         (is_gles2 || st->screen->caps.alpha_test) &&
          !st->clamp_frag_color_in_shader &&
          !st->force_persample_in_shader &&
          (is_gles2 || !st->lower_two_sided_color);

@@ -140,7 +140,7 @@ st_update_fp( struct st_context *st )
 
       /* _NEW_COLOR */
       key.lower_alpha_func = COMPARE_FUNC_ALWAYS;
-      if (st->lower_alpha_test && _mesa_is_alpha_test_enabled(st->ctx))
+      if (!st->screen->caps.alpha_test && _mesa_is_alpha_test_enabled(st->ctx))
          key.lower_alpha_func = st->ctx->Color.AlphaFunc;
 
       /* _NEW_LIGHT_STATE | _NEW_PROGRAM */
