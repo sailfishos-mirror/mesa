@@ -60,23 +60,24 @@ static const nir_src *get_texture_src(nir_tex_instr *instr, nir_tex_src_type typ
 }
 
 static void
-get_interp_info_from_input_load(nir_intrinsic_instr *intr, enum glsl_interp_mode *interp_mode,
+get_color_input_interp_info(nir_intrinsic_instr *intr, enum glsl_interp_mode *interp_mode,
                                 unsigned *interp_location)
 {
    assert(nir_is_input_load(intr));
 
-   *interp_mode = INTERP_MODE_FLAT;
-   *interp_location = TGSI_INTERPOLATE_LOC_CENTER;
-
-   if (intr->intrinsic != nir_intrinsic_load_interpolated_input)
+   if (intr->intrinsic != nir_intrinsic_load_interpolated_input) {
+      *interp_mode = INTERP_MODE_FLAT;
+      *interp_location = TGSI_INTERPOLATE_LOC_CENTER;
       return;
+   }
 
-   unsigned io_location = nir_intrinsic_io_semantics(intr).location;
+   ASSERTED unsigned io_location = nir_intrinsic_io_semantics(intr).location;
+   assert(io_location == VARYING_SLOT_COL0 || io_location == VARYING_SLOT_COL1);
+
    nir_intrinsic_instr *baryc = nir_def_as_intrinsic(intr->src[0].ssa);
    *interp_mode = nir_intrinsic_interp_mode(baryc);
-   bool is_color = io_location == VARYING_SLOT_COL0 || io_location == VARYING_SLOT_COL1;
 
-   if (*interp_mode == INTERP_MODE_NONE && is_color)
+   if (*interp_mode == INTERP_MODE_NONE)
       *interp_mode = INTERP_MODE_COLOR;
 
    switch (baryc->intrinsic) {
@@ -88,11 +89,6 @@ get_interp_info_from_input_load(nir_intrinsic_instr *intr, enum glsl_interp_mode
       break;
    case nir_intrinsic_load_barycentric_sample:
       *interp_location = TGSI_INTERPOLATE_LOC_SAMPLE;
-      break;
-   case nir_intrinsic_load_barycentric_at_offset:
-   case nir_intrinsic_load_barycentric_at_sample:
-      assert(!is_color);
-      *interp_location = TGSI_INTERPOLATE_LOC_CENTER;
       break;
    default:
       UNREACHABLE("unexpected baryc intrinsic");
@@ -151,7 +147,7 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
 
          enum glsl_interp_mode interp_mode;
          unsigned interp_location;
-         get_interp_info_from_input_load(intr, &interp_mode, &interp_location);
+         get_color_input_interp_info(intr, &interp_mode, &interp_location);
 
          /* Both flat and non-flat can occur with nir_io_mix_convergent_flat_with_interpolated,
           * but we want to save only the non-flat interp mode in that case.
