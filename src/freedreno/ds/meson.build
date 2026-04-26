@@ -2,6 +2,10 @@
 # Copyright © 2021 Google, Inc
 # SPDX-License-Identifier: MIT
 
+pps_freedreno_args = cpp.get_supported_arguments([
+  '-Wno-vla-cxx-extension',
+])
+
 pps_freedreno_lib = static_library(
   'freedreno-gpu',
   sources: [
@@ -22,6 +26,7 @@ pps_freedreno_lib = static_library(
     dep_perfetto,
     dep_valgrind,
   ],
+  cpp_args: pps_freedreno_args,
 )
 
 pps_freedreno_dep = declare_dependency(
