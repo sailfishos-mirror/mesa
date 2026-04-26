@@ -571,8 +571,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
    st->force_persample_in_shader =
       screen->caps.sample_shading &&
       !screen->caps.force_persample_interp;
-   st->needs_texcoord_semantic =
-      screen->caps.tgsi_texcoord;
    st->apply_texture_swizzle_to_border_color =
       !!(screen->caps.texture_border_color_quirk &
          (PIPE_QUIRK_TEXTURE_BORDER_COLOR_SWIZZLE_NV50 |

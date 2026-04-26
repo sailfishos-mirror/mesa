@@ -197,7 +197,6 @@ struct st_context
     */
    bool shader_has_one_variant[MESA_SHADER_MESH_STAGES];
 
-   bool needs_texcoord_semantic;
    bool apply_texture_swizzle_to_border_color;
    bool use_format_with_border_color;
    bool alpha_border_color_is_not_w;

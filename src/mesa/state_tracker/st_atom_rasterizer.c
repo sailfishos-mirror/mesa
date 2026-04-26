@@ -216,7 +216,7 @@ st_update_rasterizer(struct st_context *st)
        */
       raster->sprite_coord_enable = ctx->Point.CoordReplace &
          ((1u << MAX_TEXTURE_COORD_UNITS) - 1);
-      if (!st->needs_texcoord_semantic &&
+      if (!st->screen->caps.tgsi_texcoord &&
           fragProg->info.inputs_read & VARYING_BIT_PNTC) {
          raster->sprite_coord_enable |=
             1 << st_get_generic_varying_index(st, VARYING_SLOT_PNTC);

@@ -374,7 +374,7 @@ update_program(struct gl_context *ctx)
       if (ctx->FragmentProgram._Current)
          ST_SET_STATES(dirty, ctx->FragmentProgram._Current->affected_states);
 
-      if (!ctx->st->needs_texcoord_semantic)
+      if (!ctx->st->screen->caps.tgsi_texcoord)
          ST_SET_STATE(dirty, ST_NEW_RASTERIZER);
    }
 
