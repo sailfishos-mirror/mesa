@@ -243,7 +243,7 @@ st_update_vp( struct st_context *st )
          if (st->lower_point_size)
             key.export_point_size = !st->ctx->VertexProgram.PointSizeEnabled && !st->ctx->PointSizeIsSet;
          /* _NEW_TRANSFORM */
-         if (st->lower_ucp && st_user_clip_planes_enabled(st->ctx))
+         if (!st->screen->caps.clip_planes && st_user_clip_planes_enabled(st->ctx))
             key.lower_ucp = st->ctx->Transform.ClipPlanesEnabled;
       }
 
@@ -292,7 +292,7 @@ st_update_common_program(struct st_context *st, struct gl_program *prog,
                           VARYING_SLOT_BFC0 |
                           VARYING_SLOT_BFC1));
 
-      if (st->lower_ucp && st_user_clip_planes_enabled(st->ctx) &&
+      if (!st->screen->caps.clip_planes && st_user_clip_planes_enabled(st->ctx) &&
           (pipe_shader == MESA_SHADER_GEOMETRY ||
              !st->ctx->GeometryProgram._Current))
          key.lower_ucp = st->ctx->Transform.ClipPlanesEnabled;

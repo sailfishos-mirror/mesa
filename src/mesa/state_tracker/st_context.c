@@ -413,7 +413,7 @@ st_init_driver_flags(struct st_context *st)
    }
 
    ST_SET_STATE(f->NewClipPlaneEnable, ST_NEW_RASTERIZER);
-   if (st->lower_ucp) {
+   if (!st->screen->caps.clip_planes) {
       ST_SET_STATE3(f->NewClipPlaneEnable, ST_NEW_VS_STATE, ST_NEW_GS_STATE,
                     ST_NEW_TES_STATE);
    }
@@ -593,8 +593,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
       break;
    default: break;
    }
-   st->lower_ucp =
-      !screen->caps.clip_planes;
    st->prefer_real_buffer_in_constbuf0 =
       screen->caps.prefer_real_buffer_in_constbuf0;
    st->has_conditional_render =
@@ -673,7 +671,7 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
          st->screen->caps.shareable_shaders &&
          !st->clamp_vert_color_in_shader &&
          !st->lower_point_size &&
-         (is_gles2 || !st->lower_ucp);
+         (is_gles2 || st->screen->caps.clip_planes);
 
    st->shader_has_one_variant[MESA_SHADER_FRAGMENT] =
          st->screen->caps.shareable_shaders &&
@@ -688,13 +686,13 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
          st->screen->caps.shareable_shaders &&
          !st->clamp_vert_color_in_shader &&
          !st->lower_point_size &&
-         (is_gles2 || !st->lower_ucp);
+         (is_gles2 || st->screen->caps.clip_planes);
 
    st->shader_has_one_variant[MESA_SHADER_GEOMETRY] =
          st->screen->caps.shareable_shaders &&
          !st->clamp_vert_color_in_shader &&
          !st->lower_point_size &&
-         (is_gles2 || !st->lower_ucp);
+         (is_gles2 || st->screen->caps.clip_planes);
    st->shader_has_one_variant[MESA_SHADER_COMPUTE] = st->screen->caps.shareable_shaders;
 
    if (!st->pipe->set_context_param || !util_thread_scheduler_enabled())
