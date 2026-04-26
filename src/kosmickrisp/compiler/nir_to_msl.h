@@ -31,6 +31,11 @@ bool msl_optimize_nir(struct nir_shader *nir);
 /* Call this before all API-speicific lowerings, it will */
 void msl_preprocess_nir(struct nir_shader *nir);
 
+/* Call this before all API-specific lowerings. It will pre-process with
+ * instruction workarounds based on the disabled workarounds bitmask. */
+void msl_preprocess_nir_workarounds(struct nir_shader *nir,
+                                    uint64_t disabled_workarounds);
+
 enum msl_tex_access_flag {
    MSL_ACCESS_SAMPLE = 0,
    MSL_ACCESS_READ,

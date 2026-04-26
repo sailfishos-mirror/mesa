@@ -7,6 +7,7 @@
 #include "nir_to_msl.h"
 #include "msl_private.h"
 #include "nir.h"
+#include "nir_builder.h"
 
 static const char *
 get_stage_string(mesa_shader_stage stage)
@@ -1456,12 +1457,7 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       P(ctx, ");\n");
       break;
    case nir_intrinsic_elect:
-      /* KK_WORKAROUND_3 */
-      if (ctx->disabled_workarounds & BITFIELD64_BIT(3)) {
-         P(ctx, "simd_is_first();\n");
-      } else {
-         P(ctx, "simd_is_first() && (ulong)simd_ballot(true);\n");
-      }
+      P(ctx, "simd_is_first();\n");
       break;
    case nir_intrinsic_read_first_invocation:
       P(ctx, "simd_broadcast_first(");
@@ -1511,6 +1507,16 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       break;
    case nir_intrinsic_vote_any:
       P(ctx, "simd_any(");
+      src_to_msl(ctx, &instr->src[0]);
+      P(ctx, ");\n");
+      break;
+   case nir_intrinsic_quad_vote_all:
+      P(ctx, "quad_all(");
+      src_to_msl(ctx, &instr->src[0]);
+      P(ctx, ");\n");
+      break;
+   case nir_intrinsic_quad_vote_any:
+      P(ctx, "quad_any(");
       src_to_msl(ctx, &instr->src[0]);
       P(ctx, ");\n");
       break;
@@ -2055,6 +2061,39 @@ msl_optimize_nir(struct nir_shader *nir)
    NIR_PASS(_, nir, nir_opt_copy_prop);
 
    return progress;
+}
+
+static bool
+lower_ballot(nir_builder *b, nir_intrinsic_instr *intrin, void *_unused)
+{
+   if (intrin->intrinsic != nir_intrinsic_ballot)
+      return false;
+
+   b->cursor = nir_before_instr(&intrin->instr);
+   nir_def* invocation = nir_load_subgroup_invocation(b);
+   nir_def* mask = nir_ishl(b, nir_b2i32(b, intrin->src[0].ssa), invocation);
+   nir_def* reduce = nir_reduce(b, mask, .reduction_op = nir_op_ior);
+   nir_def_rewrite_uses(&intrin->def, reduce);
+
+   return true;
+}
+
+void msl_preprocess_nir_workarounds(struct nir_shader *nir,
+                                    uint64_t disabled_workarounds)
+{
+   /* KK_WORKAROUND_3 */
+   if (!(disabled_workarounds & BITFIELD64_BIT(3))) {
+      const nir_lower_subgroups_options subgroups_options = {
+         .subgroup_size = 32,
+         .ballot_bit_size = 32,
+         .ballot_components = 1,
+         .lower_vote = true,
+         .lower_quad_vote = true,
+      };
+      NIR_PASS(_, nir, nir_lower_subgroups, &subgroups_options);
+      NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_ballot,
+               nir_metadata_control_flow, NULL);
+   }
 }
 
 /* Scalarize stores to CLIP_DIST* varyings */

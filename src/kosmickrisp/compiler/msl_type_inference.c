@@ -177,6 +177,8 @@ update_instr_type(struct hash_table *types, nir_instr *instr, ti_type type)
          return true;
       case nir_intrinsic_read_first_invocation:
       case nir_intrinsic_read_invocation:
+      case nir_intrinsic_quad_vote_all:
+      case nir_intrinsic_quad_vote_any:
       case nir_intrinsic_quad_broadcast:
       case nir_intrinsic_quad_swap_horizontal:
       case nir_intrinsic_quad_swap_vertical:

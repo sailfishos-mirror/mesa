@@ -1121,6 +1121,7 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
       const struct vk_shader_compile_info *info = &infos[i];
       nir_shader *nir = info->nir;
 
+      msl_preprocess_nir_workarounds(nir, dev->disabled_workarounds);
       kk_lower_nir(dev, nir, info->robustness, info->set_layout_count,
                    info->set_layouts, state);
 

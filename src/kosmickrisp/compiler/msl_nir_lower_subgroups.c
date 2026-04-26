@@ -50,30 +50,6 @@ lower_bool_ops(nir_builder *b, nir_intrinsic_instr *intrin, void *_unused)
    return true;
 }
 
-static bool
-lower(nir_builder *b, nir_intrinsic_instr *intr, void *data)
-{
-   b->cursor = nir_before_instr(&intr->instr);
-
-   switch (intr->intrinsic) {
-   case nir_intrinsic_vote_any: {
-      /* We don't have vote instructions, but we have efficient ballots */
-      nir_def *ballot = nir_ballot(b, 1, 32, intr->src[0].ssa);
-      nir_def_rewrite_uses(&intr->def, nir_ine_imm(b, ballot, 0));
-      return true;
-   }
-
-   case nir_intrinsic_vote_all: {
-      nir_def *ballot = nir_ballot(b, 1, 32, nir_inot(b, intr->src[0].ssa));
-      nir_def_rewrite_uses(&intr->def, nir_ieq_imm(b, ballot, 0));
-      return true;
-   }
-
-   default:
-      return false;
-   }
-}
-
 void
 msl_nir_lower_subgroups(nir_shader *nir)
 {
@@ -86,13 +62,12 @@ msl_nir_lower_subgroups(nir_shader *nir)
       .lower_vote_feq = true,
       .lower_vote_bool_eq = true,
       .lower_inverse_ballot = true,
+      /* Metal requires relative shuffle operations to have uniform delta */
       .lower_relative_shuffle = true,
-      .lower_quad = true,
+      /* Metal reduce operations do not support certain types or cluster size */
       .lower_reduce = true,
    };
    NIR_PASS(_, nir, nir_lower_subgroups, &subgroups_options);
-   NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower,
-            nir_metadata_control_flow, NULL);
    NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_bool_ops,
             nir_metadata_control_flow, NULL);
 }
