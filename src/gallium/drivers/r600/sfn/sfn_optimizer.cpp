@@ -243,6 +243,20 @@ public:
    void visit(LDSReadInstr *instr) override { (void)instr; };
 
    void propagate_to(RegisterVec4& src, Instr *instr);
+   bool collect_vec4_copy_candidates(const RegisterVec4& value,
+                                     AluInstr *parents[4]) const;
+   bool build_rewritten_vec4_sources(AluInstr *parents[4],
+                                     PRegister new_src[4],
+                                     int new_chan[4],
+                                     int& new_sel,
+                                     bool& is_ssa);
+   bool apply_rewritten_vec4_sources(RegisterVec4& value,
+                                     Instr *instr,
+                                     AluInstr *parents[4],
+                                     PRegister new_src[4],
+                                     int new_chan[4],
+                                     int new_sel,
+                                     bool is_ssa);
    bool assigned_register_direct(PRegister reg);
 
    ValueFactory& value_factory;
@@ -461,159 +475,192 @@ static bool register_chan_is_pinned(Pin pin)
 void
 CopyPropFwdVisitor::propagate_to(RegisterVec4& value, Instr *instr)
 {
-   /* Collect parent instructions - only ALU move without modifiers
-    * and without indirect access are allowed. */
    AluInstr *parents[4] = {nullptr};
-   bool have_candidates = false;
-   for (int i = 0; i < 4; ++i) {
-      if (value[i]->chan() < 4 && value[i]->has_flag(Register::ssa)) {
-         /*  We have a pre-define value, so we can't propagate a copy */
-         if (value[i]->parents().empty())
-            return;
-
-         if (value[i]->uses().size() > 1)
-            return;
-
-         assert(value[i]->parents().size() == 1);
-         parents[i] = (*value[i]->parents().begin())->as_alu();
-
-         /* Parent op is not an ALU instruction, so we can't
-            copy-propagate */
-         if (!parents[i])
-             return;
-
-
-         if ((parents[i]->opcode() != op1_mov) ||
-             parents[i]->has_source_mod(0, AluInstr::mod_neg) ||
-             parents[i]->has_source_mod(0, AluInstr::mod_abs) ||
-             parents[i]->has_alu_flag(alu_dst_clamp) ||
-             parents[i]->has_alu_flag(alu_src0_rel))
-            return;
-
-         auto [addr, dummy0, index_reg_dummy] = parents[i]->indirect_addr();
-
-         /* Don't accept moves with indirect reads, because they are not
-          * supported with instructions that use vec4 values */
-         if (addr || index_reg_dummy)
-             return;
-
-         have_candidates = true;
-      }
-   }
-
-   if (!have_candidates)
+   if (!collect_vec4_copy_candidates(value, parents))
       return;
-
-   /* Collect the new source registers. We may have to move all registers
-    * to a new virtual sel index. */
 
    PRegister new_src[4] = {0};
    int new_chan[4] = {0,0,0,0};
-
-   uint8_t used_chan_mask = 0;
    int new_sel = -1;
-   bool all_sel_can_change = true;
-
    bool is_ssa = true;
 
-   for (int i = 0; i < 4; ++i) {
+   if (!build_rewritten_vec4_sources(parents, new_src, new_chan, new_sel, is_ssa))
+      return;
 
-      /* No parent means we either ignore the channel or insert 0 or 1.*/
-      if (!parents[i])
+   if (apply_rewritten_vec4_sources(value, instr, parents, new_src, new_chan, new_sel, is_ssa))
+      value.validate();
+}
+
+bool
+CopyPropFwdVisitor::collect_vec4_copy_candidates(const RegisterVec4& value,
+                                                 AluInstr *parents[4]) const
+{
+   bool have_candidates = false;
+
+   for (int chan = 0; chan < 4; ++chan) {
+      auto value_comp = value[chan];
+      if (value_comp->chan() >= 4 || !value_comp->has_flag(Register::ssa))
          continue;
 
-      unsigned allowed_mask = 0xf & ~used_chan_mask;
+      /* We have a pre-defined value, so we can't propagate a copy. */
+      if (value_comp->parents().empty())
+         return false;
 
-      auto src = parents[i]->src(0).as_register();
-      if (!src)
-         return;
+      if (value_comp->uses().size() > 1)
+         return false;
+
+      assert(value_comp->parents().size() == 1);
+      auto parent = (*value_comp->parents().begin())->as_alu();
+
+      /* Parent op is not an ALU instruction, so we can't copy-propagate. */
+      if (!parent)
+         return false;
+
+      if (parent->opcode() != op1_mov ||
+          parent->has_source_mod(0, AluInstr::mod_neg) ||
+          parent->has_source_mod(0, AluInstr::mod_abs) ||
+          parent->has_alu_flag(alu_dst_clamp) ||
+          parent->has_alu_flag(alu_src0_rel)) {
+         return false;
+      }
+
+      auto [addr, dummy0, index_reg_dummy] = parent->indirect_addr();
+
+      /* Don't accept moves with indirect reads, because they are not
+       * supported with instructions that use vec4 values. */
+      if (addr || index_reg_dummy)
+         return false;
+
+      parents[chan] = parent;
+      have_candidates = true;
+   }
+
+   return have_candidates;
+}
+
+bool
+CopyPropFwdVisitor::build_rewritten_vec4_sources(AluInstr *parents[4],
+                                                 PRegister new_src[4],
+                                                 int new_chan[4],
+                                                 int& new_sel,
+                                                 bool& is_ssa)
+{
+   uint8_t used_chan_mask = 0;
+   bool all_sel_can_change = true;
+
+   for (int chan = 0; chan < 4; ++chan) {
+      /* No parent means we either ignore the channel or insert 0 or 1. */
+      auto parent = parents[chan];
+      if (!parent)
+         continue;
+
+      unsigned allowed_chan_mask = 0xf & ~used_chan_mask;
+
+      auto source_reg = parent->src(0).as_register();
+      if (!source_reg)
+         return false;
 
       /* Don't accept an array element for now, we would need extra checking
-       * that the value is not overwritten by an indirect access */
-      if (src->pin() == pin_array)
-         return;
+       * that the value is not overwritten by an indirect access. */
+      if (source_reg->pin() == pin_array)
+         return false;
 
-      /* Is this check still needed ? */
-      if (!src->has_flag(Register::ssa) &&
-          !assigned_register_direct(src)) {
-         return;
-      }
+      const bool source_is_ssa = source_reg->has_flag(Register::ssa);
+      if (!source_is_ssa && !assigned_register_direct(source_reg))
+         return false;
 
-      /* If the channel chan't switch we have to update the channel mask
+      const bool source_sel_can_change = register_sel_can_change(source_reg->pin());
+
+      /* If the channel can't switch we have to update the channel mask.
        * TODO: assign channel pinned registers first might give more
-       *  opportunities for this optimization */
-      if (register_chan_is_pinned(src->pin()))
-         allowed_mask = 1 << src->chan();
+       * opportunities for this optimization. */
+      if (register_chan_is_pinned(source_reg->pin()))
+         allowed_chan_mask = 1 << source_reg->chan();
 
-      /* Update the possible channel mask based on the sourcee's parent
-       * instruction(s) */
-      for (auto p : src->parents()) {
+      /* Update the possible channel mask based on the source's parent
+       * instruction(s). */
+      for (auto p : source_reg->parents()) {
          auto alu = p->as_alu();
          if (alu)
-            allowed_mask &= alu->allowed_dest_chan_mask();
+            allowed_chan_mask &= alu->allowed_dest_chan_mask();
       }
 
-      for (auto u : src->uses()) {
+      for (auto u : source_reg->uses()) {
          auto alu = u->as_alu();
          if (alu)
-            allowed_mask &= alu->allowed_src_chan_mask();
+            allowed_chan_mask &= alu->allowed_src_chan_mask();
       }
 
-      if (!allowed_mask)
-         return;
+      if (!allowed_chan_mask)
+         return false;
 
-      /* Prefer keeping the channel, but if that's not possible
-       * i.e. if the sel has to change, then  pick the next free channel
-       * (see below) */
-      new_chan[i] = src->chan();
+      /* Prefer keeping the channel, but if that's not possible (i.e. if the
+       * sel has to change), then pick the next free channel. */
+      new_chan[chan] = source_reg->chan();
 
       if (new_sel < 0) {
-         new_sel = src->sel();
-         is_ssa = src->has_flag(Register::ssa);
-      } else if (new_sel != src->sel()) {
-         /* If we have to assign a new register sel index do so only
-          * if all already assigned source can get a new register index,
-          * and all registers are either SSA or registers.
-          * TODO: check whether this last restriction is required */
+         new_sel = source_reg->sel();
+         is_ssa = source_is_ssa;
+      } else if (new_sel != source_reg->sel()) {
+         /* If we have to assign a new register sel index do so only if all
+          * already assigned sources can get a new register index, and all
+          * registers are either SSA or registers.
+          * TODO: check whether this last restriction is required. */
          if (all_sel_can_change &&
-             register_sel_can_change(src->pin()) &&
-             (is_ssa == src->has_flag(Register::ssa))) {
+             source_sel_can_change &&
+             (is_ssa == source_is_ssa)) {
             new_sel = value_factory.new_register_index();
-            new_chan[i] = u_bit_scan(&allowed_mask);
-         } else /* Sources can't be combined to a vec4 so bail out */
-            return;
+            new_chan[chan] = u_bit_scan(&allowed_chan_mask);
+         } else {
+            return false;
+         }
       }
 
-      new_src[i] = src;
-      used_chan_mask |= 1 << new_chan[i];
-      if (!register_sel_can_change(src->pin()))
+      new_src[chan] = source_reg;
+      used_chan_mask |= 1 << new_chan[chan];
+      if (!source_sel_can_change)
          all_sel_can_change = false;
    }
 
-   /* Apply the changes to the vec4 source */
+   return true;
+}
+
+bool
+CopyPropFwdVisitor::apply_rewritten_vec4_sources(RegisterVec4& value,
+                                                 Instr *instr,
+                                                 AluInstr *parents[4],
+                                                 PRegister new_src[4],
+                                                 int new_chan[4],
+                                                 int new_sel,
+                                                 bool is_ssa)
+{
+   bool local_progress = false;
+
    value.del_use(instr);
-   for (int i = 0; i < 4; ++i) {
-      if (parents[i]) {
-         new_src[i]->set_sel(new_sel);
-         if (is_ssa)
-            new_src[i]->set_flag(Register::ssa);
-         new_src[i]->set_chan(new_chan[i]);
+   for (int chan = 0; chan < 4; ++chan) {
+      if (!parents[chan])
+         continue;
 
-         value.set_value(i, new_src[i]);
+      auto rewritten_reg = new_src[chan];
+      rewritten_reg->set_sel(new_sel);
+      if (is_ssa)
+         rewritten_reg->set_flag(Register::ssa);
+      rewritten_reg->set_chan(new_chan[chan]);
 
-         if (new_src[i]->pin() != pin_fully &&
-             new_src[i]->pin() != pin_chgr) {
-            if (new_src[i]->pin() == pin_chan)
-               new_src[i]->set_pin(pin_chgr);
-            else
-               new_src[i]->set_pin(pin_group);
-         }
-         progress |= true;
+      value.set_value(chan, rewritten_reg);
+
+      if (rewritten_reg->pin() != pin_fully && rewritten_reg->pin() != pin_chgr) {
+         if (rewritten_reg->pin() == pin_chan)
+            rewritten_reg->set_pin(pin_chgr);
+         else
+            rewritten_reg->set_pin(pin_group);
       }
+      local_progress = true;
    }
    value.add_use(instr);
-   if (progress)
-      value.validate();
+   progress |= local_progress;
+
+   return local_progress;
 }
 
 bool CopyPropFwdVisitor::assigned_register_direct(PRegister reg)
