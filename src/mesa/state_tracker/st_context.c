@@ -377,7 +377,7 @@ st_init_driver_flags(struct st_context *st)
    struct gl_driver_flags *f = &st->ctx->DriverFlags;
 
    /* Shader resources */
-   if (st->has_hw_atomics)
+   if (st->screen->shader_caps[MESA_SHADER_FRAGMENT].max_hw_atomic_counters != 0)
       ST_SET_STATE2(f->NewAtomicBuffer, ST_NEW_HW_ATOMICS, ST_NEW_CS_ATOMICS);
    else
       ST_SET_SHADER_STATES(f->NewAtomicBuffer, ATOMICS);
@@ -423,7 +423,8 @@ st_init_driver_flags(struct st_context *st)
       ST_SET_SHADER_STATES(f->NewSamplersWithClamp, STATE);
    }
 
-   if (!st->has_hw_atomics && st->ctx->Const.ShaderStorageBufferOffsetAlignment > 4)
+   if (st->screen->shader_caps[MESA_SHADER_FRAGMENT].max_hw_atomic_counters == 0
+       && st->ctx->Const.ShaderStorageBufferOffsetAlignment > 4)
       ST_SET_SHADER_STATES(f->NewAtomicBuffer, CONSTANTS);
 }
 
@@ -591,9 +592,6 @@ st_create_context_priv(struct gl_context *ctx, struct pipe_context *pipe,
       break;
    default: break;
    }
-   st->has_hw_atomics =
-      screen->shader_caps[MESA_SHADER_FRAGMENT].max_hw_atomic_counters
-      ? true : false;
 
    util_throttle_init(&st->throttle,
                       screen->caps.max_texture_upload_memory_budget);

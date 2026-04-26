@@ -174,8 +174,6 @@ struct st_context
    bool alpha_border_color_is_not_w;
 
    bool draw_needs_minmax_index;
-   bool has_hw_atomics;
-
    bool is_threaded_context;
 
    /* driver supports scissored clears */

@@ -349,7 +349,8 @@ st_glsl_to_nir_post_opts(struct st_context *st, struct gl_program *prog,
 
    nir_remove_dead_variables(nir, nir_var_function_temp, NULL);
 
-   if (!st->has_hw_atomics && !screen->caps.nir_atomics_as_deref) {
+   if (st->screen->shader_caps[MESA_SHADER_FRAGMENT].max_hw_atomic_counters == 0
+       && !screen->caps.nir_atomics_as_deref) {
       unsigned align_offset_state = 0;
       if (st->ctx->Const.ShaderStorageBufferOffsetAlignment > 4) {
          struct gl_program_parameter_list *params = prog->Parameters;
