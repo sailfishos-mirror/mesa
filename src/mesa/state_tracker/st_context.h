@@ -162,7 +162,6 @@ struct st_context
    bool can_bind_const_buffer_as_vertex;
    bool lower_point_size;
    bool add_point_size;
-   bool has_conditional_render;
    bool lower_rect_tex;
 
    /* There are consequences for drivers wanting to call st_finalize_nir
