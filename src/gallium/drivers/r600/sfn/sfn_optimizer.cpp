@@ -71,6 +71,11 @@ public:
    void visit(LDSReadInstr *instr) override;
    void visit(RatInstr *instr) override { (void)instr; };
 
+private:
+   template <typename T>
+   bool remove_unused_vec_dest_components(T *instr);
+
+public:
    bool progress;
 };
 
@@ -159,26 +164,23 @@ DCEVisitor::visit(AluGroup *instr)
 void
 DCEVisitor::visit(TexInstr *instr)
 {
-   auto& dest = instr->dst();
-
-   bool has_uses = false;
-   RegisterVec4::Swizzle swz = instr->all_dest_swizzle();
-   for (int i = 0; i < 4; ++i) {
-      if (!dest[i]->has_uses())
-         swz[i] = 7;
-      else
-         has_uses |= true;
-   }
-   instr->set_dest_swizzle(swz);
-
-   if (has_uses)
-      return;
-
-   progress |= instr->set_dead();
+   progress |= remove_unused_vec_dest_components(instr);
 }
 
 void
 DCEVisitor::visit(FetchInstr *instr)
+{
+   bool dead = remove_unused_vec_dest_components(instr);
+
+   if (dead)
+      sfn_log << SfnLog::opt << "set dead: " << *instr << "\n";
+
+   progress |= dead;
+}
+
+template <typename T>
+bool
+DCEVisitor::remove_unused_vec_dest_components(T *instr)
 {
    auto& dest = instr->dst();
 
@@ -193,11 +195,9 @@ DCEVisitor::visit(FetchInstr *instr)
    instr->set_dest_swizzle(swz);
 
    if (has_uses)
-      return;
+      return false;
 
-   sfn_log << SfnLog::opt << "set dead: " << *instr << "\n";
-
-   progress |= instr->set_dead();
+   return instr->set_dead();
 }
 
 void
