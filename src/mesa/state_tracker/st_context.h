@@ -151,7 +151,6 @@ struct st_context
    bool transcode_astc;
    bool has_astc_2d_ldr;
    bool has_astc_5x5_ldr;
-   bool astc_void_extents_need_denorm_flush;
    bool has_s3tc;
    bool has_rgtc;
    bool has_latc;
