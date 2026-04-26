@@ -159,7 +159,6 @@ struct st_context
    bool force_compute_based_texture_transfer;
    bool force_specialized_compute_transfer;
    bool force_persample_in_shader;
-   bool can_dither;
    bool can_bind_const_buffer_as_vertex;
    bool lower_flatshade;
    bool lower_alpha_test;

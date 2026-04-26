@@ -333,7 +333,7 @@ st_update_blend( struct st_context *st )
       /* no blending / logicop */
    }
 
-   if (st->can_dither)
+   if (st->screen->caps.dithering)
       blend->dither = ctx->Color.DitherFlag;
 
    if (_mesa_is_multisample_enabled(ctx) &&
