@@ -1198,7 +1198,6 @@ radv_device_init_compiler_info(struct radv_device *device)
       /* Shader features */
       .device_robustness_state = &device->vk.robustness_state,
       .use_ngg = pdev->use_ngg,
-      .use_ngg_streamout = pdev->use_ngg_streamout,
       .load_grid_size_from_user_sgpr = device->load_grid_size_from_user_sgpr,
       .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
       .primitives_generated_query = device->cache_key.primitives_generated_query,

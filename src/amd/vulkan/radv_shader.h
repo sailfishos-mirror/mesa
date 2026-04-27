@@ -570,7 +570,6 @@ struct radv_compiler_info {
    uint32_t buffer_descriptor_size;
    uint32_t buffer_descriptor_alignment;
    bool use_ngg;
-   bool use_ngg_streamout;
    bool load_grid_size_from_user_sgpr;
    bool emulate_ngg_gs_query_pipeline_stat;
    bool primitives_generated_query;

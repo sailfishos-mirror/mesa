@@ -967,7 +967,7 @@ radv_begin_tfb_query(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint32_t i
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   if (pdev->use_ngg_streamout) {
+   if (pdev->info.gfx_level >= GFX11) {
       /* generated prim counter */
       gfx10_copy_shader_query_gfx(cmd_buffer, false, RADV_SHADER_QUERY_PRIM_GEN_OFFSET(index), va);
       ac_emit_cp_write_data_imm(cs->b, V_371_MICRO_ENGINE, va + 4, 0x80000000);
@@ -996,7 +996,7 @@ radv_end_tfb_query(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint32_t ind
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   if (pdev->use_ngg_streamout) {
+   if (pdev->info.gfx_level >= GFX11) {
       /* generated prim counter */
       gfx10_copy_shader_query_gfx(cmd_buffer, false, RADV_SHADER_QUERY_PRIM_GEN_OFFSET(index), va + 16);
       ac_emit_cp_write_data_imm(cs->b, V_371_MICRO_ENGINE, va + 20, 0x80000000);
