@@ -774,7 +774,7 @@
         "description": "nir: disable fp class analysis for 64bit transcendentals",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5a298f3560629943e9140c74547183da1635352e",
         "notes": null
