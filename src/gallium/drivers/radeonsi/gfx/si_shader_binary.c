@@ -491,9 +491,10 @@ static void si_shader_dump_stats(struct si_screen *sscreen, struct si_shader *sh
    if (shader->selector->stage == MESA_SHADER_FRAGMENT) {
       fprintf(file,
               "*** SHADER CONFIG ***\n"
-              "SPI_PS_INPUT_ADDR = 0x%04x\n"
-              "SPI_PS_INPUT_ENA  = 0x%04x\n",
+              "SPI_PS_INPUT_ADDR     = 0x%04x\n"
+              "SPI_PS_INPUT_ENA      = 0x%04x\n",
               conf->spi_ps_input_addr, conf->spi_ps_input_ena);
+      ac_print_spi_ps_input_vgpr_list(conf->spi_ps_input_ena, conf->spi_ps_input_addr, file);
    }
 
    fprintf(file,

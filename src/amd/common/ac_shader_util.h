@@ -343,6 +343,9 @@ ac_ngg_compute_subgroup_info(enum amd_gfx_level gfx_level, mesa_shader_stage es_
                              unsigned ngg_lds_scratch_size, bool tess_turns_off_ngg,
                              unsigned max_esgs_lds_padding, ac_ngg_subgroup_info *out);
 
+void
+ac_print_spi_ps_input_vgpr_list(uint32_t spi_ps_input_ena, uint32_t spi_ps_input_addr, FILE *f);
+
 static unsigned inline
 ac_shader_get_lds_alloc_granularity(enum amd_gfx_level gfx_level)
 {
