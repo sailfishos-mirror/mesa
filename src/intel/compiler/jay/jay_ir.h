@@ -61,9 +61,6 @@ enum PACKED jay_file {
    /** Memory registers representing spilled values: 32-bits per SIMT lane. */
    MEM,
 
-   /** Memory registers representing spilled values: 32-bits uniform values */
-   UMEM,
-
    /** Non-uniform flags (predicates): 1-bit per SIMT lane */
    FLAG,
 
@@ -94,7 +91,7 @@ enum PACKED jay_file {
    JAY_NUM_SSA_FILES = J_ADDRESS + 1,
 
    /* Set of files that the main RA (and not eg flag RA) allocates. */
-   JAY_NUM_RA_FILES = UMEM + 1,
+   JAY_NUM_RA_FILES = MEM + 1,
    JAY_NUM_GRF_FILES = UGPR + 1,
 };
 static_assert(JAY_FILE_LAST <= 0b1111, "must fit in 4 bits (see jay_def)");
@@ -456,15 +453,6 @@ static inline bool
 jay_is_uniform(jay_def d)
 {
    return jay_file_is_uniform(d.file);
-}
-
-/**
- * Returns true if the given definition represents a spilled variable.
- */
-static inline bool
-jay_is_mem(jay_def x)
-{
-   return x.file == MEM || x.file == UMEM;
 }
 
 static inline uint32_t
@@ -858,7 +846,7 @@ static inline bool
 jay_is_send_like(const jay_inst *I)
 {
    if (I->op == JAY_OPCODE_MOV)
-      return jay_is_mem(I->dst) || jay_is_mem(I->src[0]);
+      return I->dst.file == MEM || I->src[0].file == MEM;
    else
       return I->op == JAY_OPCODE_SEND;
 }
@@ -880,11 +868,8 @@ jay_is_shuffle_like(const jay_inst *I)
 static inline unsigned
 jay_src_alignment(jay_shader *shader, const jay_inst *I, unsigned s)
 {
-   /* SENDs operate on entire GRFs at a time, so align UGPRs to GRFs. This
-    * includes UGPR->UMEM moves which lower to SENDs.
-    */
-   if ((I->op == JAY_OPCODE_SEND && I->src[s].file == UGPR) ||
-       (I->dst.file == UMEM)) {
+   /* SENDs operate on entire GRFs at a time, so align UGPRs to GRFs. */
+   if (I->op == JAY_OPCODE_SEND && I->src[s].file == UGPR) {
       return jay_ugpr_per_grf(shader);
    }
 
@@ -918,9 +903,7 @@ jay_dst_alignment(jay_shader *shader, const jay_inst *I)
     *    instruction. (TODO)
     */
    if (I->dst.file == UGPR &&
-       (I->op == JAY_OPCODE_SEND ||
-        (I->op == JAY_OPCODE_MOV && I->src[0].file == UMEM) ||
-        I->op == JAY_OPCODE_MUL_32)) {
+       (I->op == JAY_OPCODE_SEND || I->op == JAY_OPCODE_MUL_32)) {
 
       return jay_ugpr_per_grf(shader);
    }

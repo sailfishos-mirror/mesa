@@ -37,9 +37,9 @@ static const char *jay_arf_str[] = {
 };
 
 static const char *jay_file_str[JAY_FILE_LAST + 1] = {
-   [GPR] = "r",       [UGPR] = "u",    [FLAG] = "f",      [UFLAG] = "uf",
-   [J_ADDRESS] = "a", [ACCUM] = "acc", [UACCUM] = "uacc", [J_ARF] = "arf",
-   [MEM] = "m",       [UMEM] = "um",   [TEST_FILE] = "t",
+   [GPR] = "r",       [UGPR] = "u",      [FLAG] = "f",      [UFLAG] = "uf",
+   [J_ADDRESS] = "a", [ACCUM] = "acc",   [UACCUM] = "uacc", [J_ARF] = "arf",
+   [MEM] = "m",       [TEST_FILE] = "t",
 };
 
 static const char *jay_base_types[] = {

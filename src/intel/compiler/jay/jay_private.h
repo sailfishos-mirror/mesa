@@ -35,7 +35,7 @@ unsigned jay_process_nir(const struct intel_device_info *devinfo,
 void jay_compute_liveness(jay_function *f);
 void jay_calculate_register_demands(jay_function *f);
 
-void jay_spill(jay_function *func, enum jay_file file, unsigned limit);
+void jay_spill(jay_function *func, unsigned limit);
 void jay_partition_grf(jay_shader *shader);
 void jay_register_allocate(jay_shader *s);
 void jay_assign_flags(jay_shader *s);
