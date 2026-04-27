@@ -746,8 +746,10 @@ emit_src_component(struct nir_to_msl_ctx *ctx, nir_src *src, unsigned comp)
    switch (type) {
    case TYPE_FLOAT: {
       double v = nir_src_comp_as_float(*src, comp);
-      if (isinf(v)) {
+      if (v == INFINITY) {
          P(ctx, "(INFINITY");
+      } else if (v == -INFINITY) {
+         P(ctx, "(-INFINITY");
       } else if (isnan(v)) {
          P(ctx, "(NAN");
       } else {
