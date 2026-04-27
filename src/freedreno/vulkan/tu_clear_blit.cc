@@ -34,6 +34,15 @@ tu_pack_float32_for_unorm(float val, int bits)
    return _mesa_lroundevenf(CLAMP(val, 0.0f, 1.0f) * (float) ((1 << bits) - 1));
 }
 
+/* Quantize a float to exact UNORMn precision to avoid F32->UNORMn rounding
+ * mismatches between different HW paths (R2D blit engine, 3D pipeline, etc).
+ */
+static float
+tu_quantize_float_for_unorm(float val, int bits)
+{
+   return (float) tu_pack_float32_for_unorm(val, bits) / (float) ((1 << bits) - 1);
+}
+
 /* r2d_ = BLIT_OP_SCALE operations */
 
 static enum a6xx_2d_ifmt
@@ -183,6 +192,8 @@ r2d_clear_value(struct tu_cmd_buffer *cmd,
       clear_value[3] = val->depthStencil.stencil;
       break;
    case PIPE_FORMAT_Z16_UNORM:
+      clear_value[0] = fui(tu_quantize_float_for_unorm(val->depthStencil.depth, 16));
+      break;
    case PIPE_FORMAT_Z32_FLOAT:
       /* R2D_FLOAT32 */
       clear_value[0] = fui(val->depthStencil.depth);
@@ -1160,6 +1171,11 @@ r3d_clear_value(struct tu_cmd_buffer *cmd, struct tu_cs *cs, enum pipe_format fo
       coords[3] = fui((val->depthStencil.stencil & 0xff) / 255.0f);
    } break;
    case PIPE_FORMAT_Z16_UNORM:
+      coords[0] = fui(tu_quantize_float_for_unorm(val->depthStencil.depth, 16));
+      coords[1] = 0;
+      coords[2] = 0;
+      coords[3] = 0;
+      break;
    case PIPE_FORMAT_Z32_FLOAT:
       coords[0] = fui(val->depthStencil.depth);
       coords[1] = 0;
@@ -4337,6 +4353,8 @@ tu_clear_sysmem_attachments(struct tu_cmd_buffer *cmd,
          if (attachments[i].aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) {
             z_clear = true;
             z_clear_val = attachments[i].clearValue.depthStencil.depth;
+            if (cmd->state.pass->attachments[a].format == VK_FORMAT_D16_UNORM)
+               z_clear_val = tu_quantize_float_for_unorm(z_clear_val, 16);
          }
 
          if (attachments[i].aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT) {
