@@ -778,9 +778,9 @@ static bool pvr_physical_device_get_properties(
       .driverInfo = "Mesa " PACKAGE_VERSION MESA_GIT_SHA1,
       .conformanceVersion = {
          .major = 1,
-         .minor = 3,
-         .subminor = 8,
-         .patch = 4,
+         .minor = 4,
+         .subminor = 3,
+         .patch = 3,
       },
 
       /* VK_EXT_extended_dynamic_state3 */
