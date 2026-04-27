@@ -18,6 +18,7 @@
 
 #include "util/disk_cache.h"
 #include "util/ralloc.h"
+#include "util/os_misc.h"
 
 #include "vk_util.h"
 #include "vk_log.h"
@@ -1006,30 +1007,13 @@ static bool pvr_device_is_conformant(const struct pvr_device_info *info)
    return false;
 }
 
-/* Minimum required by the Vulkan 1.1 spec (see Table 32. Required Limits) */
+/* Minimum required by the Vulkan spec Limits (maxMemoryAllocationSize) */
 #define PVR_MAX_MEMORY_ALLOCATION_SIZE (1ull << 30)
 
-static uint64_t pvr_compute_heap_size(void)
+static inline uint64_t pvr_compute_heap_size(struct pvr_instance *instance)
 {
-   /* Query the total ram from the system */
-   uint64_t total_ram;
-   if (!os_get_total_physical_memory(&total_ram))
-      return 0;
-
-   if (total_ram < PVR_MAX_MEMORY_ALLOCATION_SIZE) {
-      mesa_logw(
-         "Warning: The available RAM is below the minimum required by the Vulkan specification!");
-   }
-
-   /* We don't want to burn too much ram with the GPU. If the user has 4GiB
-    * or less, we use at most half. If they have more than 4GiB, we use 3/4.
-    */
-   uint64_t available_ram;
-   if (total_ram <= 4ULL * 1024ULL * 1024ULL * 1024ULL)
-      available_ram = total_ram / 2U;
-   else
-      available_ram = total_ram * 3U / 4U;
-
+   uint64_t available_ram =
+      os_get_gpu_heap_size(instance->heap_memory_percent, NULL);
    return MAX2(available_ram, PVR_MAX_MEMORY_ALLOCATION_SIZE);
 }
 
@@ -1123,7 +1107,7 @@ VkResult pvr_physical_device_init(struct pvr_physical_device *pdevice,
 
    /* Setup available memory heaps and types */
    pdevice->memory.memoryHeapCount = 1;
-   pdevice->memory.memoryHeaps[0].size = pvr_compute_heap_size();
+   pdevice->memory.memoryHeaps[0].size = pvr_compute_heap_size(instance);
    pdevice->memory.memoryHeaps[0].flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT;
 
    pdevice->memory.memoryTypeCount = 1;
