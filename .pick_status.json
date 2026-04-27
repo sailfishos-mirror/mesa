@@ -744,7 +744,7 @@
         "description": "radv: add missing VkMemoryRangeBarriersInfoKHR from DAC",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a97c889a7b554009bb7c144d62437f35a593ad00",
         "notes": null
