@@ -65,8 +65,6 @@ public:
    bool copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool write);
    PVirtualValue copy_src(r600_bytecode_alu_src& src, const VirtualValue& s);
 
-   EBufferIndexMode emit_index_reg(const VirtualValue& addr, unsigned idx);
-
    void emit_endif();
    void emit_else();
    void emit_loop_begin(bool vpm);
@@ -732,67 +730,6 @@ AssemblerVisitor::visit(const LDSReadInstr& instr)
 {
    (void)instr;
    UNREACHABLE("LDSReadInstr must be lowered to ALUInstr");
-}
-
-EBufferIndexMode
-AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
-{
-   assert(idx < 2);
-
-   if (!m_bc.index_loaded[idx] || m_loop_nesting ||
-       m_bc.index_reg[idx] != (unsigned)addr.sel() ||
-       m_bc.index_reg_chan[idx] != (unsigned)addr.chan()) {
-      r600_bytecode_alu alu = {};
-
-      // Make sure MOVA is not last instr in clause
-
-      if (!m_bc.cf_last || (m_bc.cf_last->ndw >> 1) >= 110)
-         m_bc.force_add_cf = 1;
-
-      if (m_bc.gfx_level != CAYMAN) {
-
-         EAluOp idxop = idx ? op1_set_cf_idx1 : op1_set_cf_idx0;
-
-         alu.op = opcode_map.at(op1_mova_int);
-         alu.dst.chan = 0;
-         alu.src[0].sel = addr.sel();
-         alu.src[0].chan = addr.chan();
-         alu.last = 1;
-         sfn_log << SfnLog::assembly << "   mova_int, ";
-         int r = r600_bytecode_add_alu(&m_bc, &alu);
-         if (r)
-            return bim_invalid;
-
-         alu.op = opcode_map.at(idxop);
-         alu.dst.chan = 0;
-         alu.src[0].sel = 0;
-         alu.src[0].chan = 0;
-         alu.last = 1;
-         sfn_log << SfnLog::assembly << "op1_set_cf_idx" << idx;
-         r = r600_bytecode_add_alu(&m_bc, &alu);
-         if (r)
-            return bim_invalid;
-      } else {
-         alu.op = opcode_map.at(op1_mova_int);
-         alu.dst.sel = idx == 0 ? CM_V_SQ_MOVA_DST_CF_IDX0 : CM_V_SQ_MOVA_DST_CF_IDX1;
-         alu.dst.chan = 0;
-         alu.src[0].sel = addr.sel();
-         alu.src[0].chan = addr.chan();
-         alu.last = 1;
-         sfn_log << SfnLog::assembly << "   mova_int, ";
-         int r = r600_bytecode_add_alu(&m_bc, &alu);
-         if (r)
-            return bim_invalid;
-      }
-
-      m_bc.ar_loaded = 0;
-      m_bc.index_reg[idx] = addr.sel();
-      m_bc.index_reg_chan[idx] = addr.chan();
-      m_bc.index_loaded[idx] = true;
-      m_bc.force_add_cf = 1;
-      sfn_log << SfnLog::assembly << "\n";
-   }
-   return idx == 0 ? bim_zero : bim_one;
 }
 
 void
