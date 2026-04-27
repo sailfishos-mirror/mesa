@@ -505,6 +505,10 @@
    DRI_CONF_OPT_B(vertex_program_default_out, def, \
                   "Initialize outputs of vertex program to a default value vec4(0, 0, 0, 1)")
 
+#define DRI_CONF_HEAP_MEMORY_PERCENT(def) \
+   DRI_CONF_OPT_F(heap_memory_percent, def, 0.0, 1.0, \
+                  "Percentage of total system memory to report as gpu heap memory (0 = driver default)")
+
 #define DRI_CONF_VK_ZERO_VRAM(def) \
    DRI_CONF_OPT_B(vk_zero_vram, def, \
                   "Initialize to zero all VRAM allocations")
