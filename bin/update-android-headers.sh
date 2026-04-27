@@ -45,7 +45,7 @@ cp -av platform-hardware-libhardware/include/hardware/{hardware,gralloc,gralloc1
 cp -av platform-frameworks-native/vulkan/include/hardware/hwvulkan.h ${dest}/hardware
 
 mkdir ${dest}/cutils
-cp -av platform-system-core/libcutils/include/cutils/{log,native_handle,properties}.h ${dest}/cutils
+cp -av platform-system-core/libcutils/include/cutils/{log,native_handle}.h ${dest}/cutils
 
 
 # include/android has files from a few different projects
