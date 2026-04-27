@@ -471,16 +471,11 @@ static LLVMValueRef insert_ret_of_arg(struct si_shader_context *ctx, LLVMValueRe
    if (is_vgpr)
       data = ac_to_float(&ctx->ac, data);
 
-   if (ctx->args->ac.args[arg_index].size == 1) {
-      return LLVMBuildInsertValue(ctx->ac.builder, ret, data, index, "");
-   } else {
-      assert(ctx->args->ac.args[arg_index].size == 2);
-      LLVMValueRef tmp = LLVMBuildExtractElement(ctx->ac.builder, data, ctx->ac.i32_0, "");
-      ret = LLVMBuildInsertValue(ctx->ac.builder, ret, tmp, index, "");
-      tmp = LLVMBuildExtractElement(ctx->ac.builder, data, ctx->ac.i32_1, "");
-      ret = LLVMBuildInsertValue(ctx->ac.builder, ret, tmp, index + 1, "");
-      return ret;
+   for (unsigned i = 0; i < ctx->args->ac.args[arg_index].size; i++) {
+      ret = LLVMBuildInsertValue(ctx->ac.builder, ret,
+                                 ac_llvm_extract_elem(&ctx->ac, data, i), index + i, "");
    }
+   return ret;
 }
 
 /**
