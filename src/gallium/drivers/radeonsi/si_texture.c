@@ -1389,6 +1389,10 @@ static enum radeon_surf_mode si_choose_tiling(struct si_screen *sscreen,
    if (sscreen->info.gfx_level == GFX8 && tc_compatible_htile)
       return RADEON_SURF_MODE_2D;
 
+   /* Video DPB must be 2D tiled. */
+   if (templ->bind & (PIPE_BIND_VIDEO_DECODE_DPB | PIPE_BIND_VIDEO_ENCODE_DPB))
+      return RADEON_SURF_MODE_2D;
+
    /* Handle common candidates for the linear mode.
     * Compressed textures and DB surfaces must always be tiled.
     */
