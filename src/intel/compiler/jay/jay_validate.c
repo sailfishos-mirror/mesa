@@ -201,7 +201,7 @@ validate_inst(struct validate_state *validate, jay_inst *I)
    CHECK(!I->broadcast_flag ||
          (!jay_is_null(I->cond_flag) &&
           jay_is_null(I->dst) &&
-          I->cond_flag.file == FLAG &&
+          I->cond_flag.file == UFLAG &&
           (I->op == JAY_OPCODE_CMP || I->op == JAY_OPCODE_MOV)));
 
    /* Standard modifiers only allowed on some instructions */

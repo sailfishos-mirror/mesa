@@ -588,10 +588,9 @@ typedef struct jay_inst {
    uint8_t num_srcs;
 
    /**
-    * Indicates an instruction reading only uniform sources but writing a FLAG
-    * and no GPR/UGPR that expects the flag to replicate for all SIMD lanes.
-    * This is okay in our data model but cannot be inferred from the files, so
-    * we have a secondary bit to express this.
+    * Indicates a uniform instruction writing a UFLAG but no UGPR that expects
+    * the flag to replicate for all SIMD lanes. This is okay in our data model
+    * but cannot be inferred from the files, so we have this sideband bit.
     */
    bool broadcast_flag:1;
    bool saturate      :1;
@@ -932,7 +931,8 @@ unsigned jay_simd_split(const jay_shader *s, const jay_inst *I);
 static inline unsigned
 jay_simd_width_logical(const jay_shader *s, const jay_inst *I)
 {
-   unsigned base = jay_inst_is_uniform(I) ? 1 : s->dispatch_width;
+   bool simd1 = jay_inst_is_uniform(I) && !I->broadcast_flag;
+   unsigned base = simd1 ? 1 : s->dispatch_width;
 
    /* Handle vectors-of-UGPR operations with special care for 64-bit */
    unsigned vec_per_channel = jay_type_vector_length(I->type);
@@ -971,7 +971,6 @@ static inline bool
 jay_is_no_mask(const jay_inst *I)
 {
    return jay_inst_is_uniform(I) ||
-          I->broadcast_flag ||
           I->op == JAY_OPCODE_QUAD_SWIZZLE ||
           I->op == JAY_OPCODE_DESWIZZLE_EVEN ||
           I->op == JAY_OPCODE_DESWIZZLE_ODD ||

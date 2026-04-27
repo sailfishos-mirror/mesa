@@ -38,10 +38,11 @@ canonicalize_flag(jay_def x)
 
 struct var_info {
    unsigned flag           :3;
-   bool uniform            :1;
+   bool uflag              :1;
+   bool simd               :1;
    bool read_by_predication:1;
    bool free_canonical     :1;
-   unsigned pad            :2;
+   unsigned pad            :1;
 } PACKED;
 static_assert(sizeof(struct var_info) == 1);
 
@@ -60,6 +61,7 @@ static jay_def
 assign_flag(struct flag_ra *ra,
             jay_def flag,
             enum jay_file file,
+            bool broadcast,
             bool free_canonical,
             bool ballot,
             jay_def *tie)
@@ -86,7 +88,8 @@ assign_flag(struct flag_ra *ra,
 
    if (jay_index(canonical) < ra->nr_vars) {
       ra->vars[jay_index(canonical)] = (struct var_info) {
-         .uniform = tmp.file == UFLAG,
+         .uflag = tmp.file == UFLAG,
+         .simd = tmp.file == FLAG || broadcast,
          .flag = tmp.reg,
          .free_canonical = free_canonical,
       };
@@ -228,8 +231,9 @@ assign_block(struct flag_ra *ra)
                         (jay_is_null(I->dst) && I->cond_flag.file == UFLAG);
          enum jay_file file = uniform && !ballot ? UFLAG : FLAG;
 
-         bool in_flag = ra->flag_to_global[ra->vars[index].flag] == index &&
-                        ((file == UFLAG) == ra->vars[index].uniform);
+         bool in_flag =
+            ra->flag_to_global[ra->vars[index].flag] == index &&
+            ((file == UFLAG) ? ra->vars[index].uflag : ra->vars[index].simd);
 
          /* If we don't actually need the flag, we're done. */
          if (rewrite_without_flag(ra, I, s, in_flag)) {
@@ -238,7 +242,8 @@ assign_block(struct flag_ra *ra)
 
          /* Otherwise, ensure we have the value in a flag. */
          if (!in_flag) {
-            jay_def tmp = assign_flag(ra, I->src[s], file, false, ballot, NULL);
+            jay_def tmp =
+               assign_flag(ra, I->src[s], file, false, false, ballot, NULL);
 
             /* XXX: We need a more systematic approach to modifiers :/ */
             b->cursor = jay_before_inst(I);
@@ -250,7 +255,8 @@ assign_block(struct flag_ra *ra)
 
          /* ...and rewrite to use the flag */
          unsigned reg = ra->vars[index].flag;
-         jay_def flag = jay_scalar(file, ra->flag_to_local[reg]);
+         jay_def flag = jay_scalar(ra->vars[index].uflag ? UFLAG : FLAG,
+                                   ra->flag_to_local[reg]);
          flag.reg = reg;
          jay_replace_src(&I->src[s], flag);
       }
@@ -263,7 +269,8 @@ assign_block(struct flag_ra *ra)
        */
       if (!jay_is_null(I->dst) && jay_is_flag(I->dst)) {
          jay_def canonical = canonicalize_flag(I->dst);
-         I->dst = assign_flag(ra, I->dst, I->dst.file, false, false, NULL);
+         I->dst =
+            assign_flag(ra, I->dst, I->dst.file, false, false, false, NULL);
          jay_SEL(b, JAY_TYPE_U32, canonical, ~0, 0, I->dst);
       }
 
@@ -277,8 +284,7 @@ assign_block(struct flag_ra *ra)
 
          jay_def canonical = canonicalize_flag(I->cond_flag);
          I->cond_flag =
-            assign_flag(ra, I->cond_flag,
-                        I->broadcast_flag ? FLAG : I->cond_flag.file,
+            assign_flag(ra, I->cond_flag, I->cond_flag.file, I->broadcast_flag,
                         I->op == JAY_OPCODE_CMP, false, tie);
 
          if (I->op == JAY_OPCODE_CMP) {
@@ -313,7 +319,8 @@ assign_block(struct flag_ra *ra)
                jay_CMP(b, I->type, I->conditional_mod, canonical, I->dst, 0);
             cmp->cond_flag =
                assign_flag(ra, cmp->cond_flag, cmp->cond_flag.file,
-                           true /* free_canonical */, false /* ballot */, NULL);
+                           false /* broadcast */, true /* free_canonical */,
+                           false /* ballot */, NULL);
          }
       }
    }
