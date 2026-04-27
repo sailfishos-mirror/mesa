@@ -332,7 +332,7 @@ static void si_emit_draw_mesh_tasks_gfx_packets(struct si_context *sctx,
    radeon_emit(S_4D0_RING_ENTRY_REG(ring_entry_loc) | S_4D0_XYZ_DIM_REG(grid_size_loc));
    if (sctx->gfx_level >= GFX11)
       radeon_emit(S_4D1_XYZ_DIM_ENABLE(uses_grid_size) |
-                  S_4D1_MODE1_ENABLE(!sctx->screen->info.mesh_fast_launch_2) |
+                  S_4D1_MODE1_ENABLE((sctx->screen->info.gfx_level < GFX11)) |
                   S_4D1_LINEAR_DISPATCH_ENABLE(linear_taskmesh_dispatch));
    else
       radeon_emit(0);
@@ -420,7 +420,7 @@ static void si_emit_draw_mesh_shader_only_packets(struct si_context *sctx,
          radeon_emit(S_4C2_DRAW_INDEX_ENABLE(uses_draw_id) |
                      S_4C2_COUNT_INDIRECT_ENABLE(!!count_va) |
                      S_4C2_XYZ_DIM_ENABLE(uses_grid_size) |
-                     S_4C2_MODE1_ENABLE(!sctx->screen->info.mesh_fast_launch_2));
+                     S_4C2_MODE1_ENABLE((sctx->screen->info.gfx_level < GFX11)));
       else
          radeon_emit(S_4C2_DRAW_INDEX_ENABLE(uses_draw_id) |
                      S_4C2_COUNT_INDIRECT_ENABLE(!!count_va));
@@ -442,7 +442,7 @@ static void si_emit_draw_mesh_shader_only_packets(struct si_context *sctx,
       si_emit_buffered_gfx_sh_regs_for_mesh(sctx);
       radeon_begin_again(cs);
 
-      if (sctx->screen->info.mesh_fast_launch_2) {
+      if (sctx->screen->info.gfx_level >= GFX11) {
          radeon_emit(PKT3(PKT3_DISPATCH_MESH_DIRECT, 3, sctx->render_cond_enabled));
          radeon_emit(info->grid[0]);
          radeon_emit(info->grid[1]);

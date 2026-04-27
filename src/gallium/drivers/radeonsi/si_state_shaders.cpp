@@ -1569,7 +1569,7 @@ static void gfx10_shader_ngg(struct si_screen *sscreen, struct si_shader *shader
       shader->ngg.vgt_gs_max_vert_out = gs_sel->info.base.gs.vertices_out;
       shader->ngg.ge_ngg_subgrp_cntl = S_028B4C_PRIM_AMP_FACTOR(gs_sel->info.base.gs.vertices_out);
    } else if (gs_stage == MESA_SHADER_MESH) {
-      shader->ngg.vgt_gs_max_vert_out = sscreen->info.mesh_fast_launch_2 ?
+      shader->ngg.vgt_gs_max_vert_out = sscreen->info.gfx_level >= GFX11 ?
          gs_info->base.mesh.max_vertices_out : si_get_max_workgroup_size(shader);
       shader->ngg.ge_ngg_subgrp_cntl = gs_info->base.mesh.max_primitives_out;
    } else {
@@ -1730,7 +1730,7 @@ static void gfx10_shader_ngg(struct si_screen *sscreen, struct si_shader *shader
       if (gs_stage == MESA_SHADER_MESH) {
          shader->ngg.vgt_shader_stages_en =
             S_028B54_GS_EN(1) |
-            S_028B54_GS_FAST_LAUNCH(sscreen->info.mesh_fast_launch_2 ? 2 : 1);
+            S_028B54_GS_FAST_LAUNCH(sscreen->info.gfx_level >= GFX11 ? 2 : 1);
       } else {
          shader->ngg.vgt_shader_stages_en =
             S_028B54_ES_EN(es_stage == MESA_SHADER_TESS_EVAL ?
@@ -1747,7 +1747,7 @@ static void gfx10_shader_ngg(struct si_screen *sscreen, struct si_shader *shader
          S_028B54_MAX_PRIMGRP_IN_WAVE(2);
    }
 
-   if (gs_stage == MESA_SHADER_MESH && sscreen->info.mesh_fast_launch_2) {
+   if (gs_stage == MESA_SHADER_MESH && sscreen->info.gfx_level >= GFX11) {
       unsigned workgroup_threads =
          gs_info->base.workgroup_size[0] *
          gs_info->base.workgroup_size[1] *

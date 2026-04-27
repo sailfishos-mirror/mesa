@@ -165,7 +165,7 @@ unsigned si_get_max_workgroup_size(const struct si_shader *shader)
    /* Without multi-row export, we need at least number of output vertex/primitive
     * threads in workgroup for export (one vertex/primitive per thread).
     */
-   if (stage == MESA_SHADER_MESH && !sscreen->info.mesh_fast_launch_2) {
+   if (stage == MESA_SHADER_MESH && sscreen->info.gfx_level < GFX11) {
       max_work_group_size = MAX3(max_work_group_size,
                                  shader->selector->info.base.mesh.max_vertices_out,
                                  shader->selector->info.base.mesh.max_primitives_out);
@@ -739,7 +739,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
       }
    }
 
-   if (nir->info.stage == MESA_SHADER_MESH && !sel->screen->info.mesh_fast_launch_2) {
+   if (nir->info.stage == MESA_SHADER_MESH && sel->screen->info.gfx_level < GFX11) {
       NIR_PASS(progress, nir, nir_lower_compute_system_values,
                &(nir_lower_compute_system_values_options){
                   /* Mesh shaders run as NGG which can implement local_invocation_index from

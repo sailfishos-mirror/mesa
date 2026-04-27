@@ -2438,7 +2438,7 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
          active_nir_stages |= mesa_to_vk_shader_stage(i);
    }
 
-   if (!compiler_info->hw.mesh_fast_launch_2 && stages[MESA_SHADER_MESH].nir &&
+   if (compiler_info->ac->gfx_level < GFX11 && stages[MESA_SHADER_MESH].nir &&
        BITSET_TEST(stages[MESA_SHADER_MESH].nir->info.system_values_read, SYSTEM_VALUE_WORKGROUP_ID)) {
       nir_shader *mesh = stages[MESA_SHADER_MESH].nir;
       nir_shader *task = stages[MESA_SHADER_TASK].nir;

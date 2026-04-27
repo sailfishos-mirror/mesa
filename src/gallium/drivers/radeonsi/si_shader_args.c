@@ -635,7 +635,7 @@ void si_init_shader_args(struct si_shader *shader, struct si_shader_args *args,
       ac_add_arg(&args->ac, AC_ARG_SGPR, 1, AC_ARG_VALUE, &args->mesh_scratch_ring_addr);
 
       /* VGPRs */
-      if (sel->screen->info.mesh_fast_launch_2) {
+      if (sel->screen->info.gfx_level >= GFX11) {
          ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.local_invocation_ids_packed);
       } else {
          unsigned unused_args = sel->screen->info.gfx_level >= GFX12 ? 3 : 5;

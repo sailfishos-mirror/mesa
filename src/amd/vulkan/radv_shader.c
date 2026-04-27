@@ -657,7 +657,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
    bool lower_local_invocation_index = false;
 
    if (nir->info.stage == MESA_SHADER_COMPUTE || nir->info.stage == MESA_SHADER_TASK ||
-       (nir->info.stage == MESA_SHADER_MESH && compiler_info->hw.mesh_fast_launch_2)) {
+       (nir->info.stage == MESA_SHADER_MESH && compiler_info->ac->gfx_level >= GFX11)) {
       lower_local_invocation_index = nir->info.derivative_group == DERIVATIVE_GROUP_QUADS ||
                                      (((nir->info.workgroup_size[0] == 1) + (nir->info.workgroup_size[1] == 1) +
                                        (nir->info.workgroup_size[2] == 1)) == 2);
@@ -667,7 +667,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
       /* Mesh shaders run as NGG which can implement local_invocation_index from
        * the wave ID in merged_wave_info, but they don't have local_invocation_ids on GFX10.3.
        */
-      .lower_cs_local_id_to_index = nir->info.stage == MESA_SHADER_MESH && !compiler_info->hw.mesh_fast_launch_2,
+      .lower_cs_local_id_to_index = nir->info.stage == MESA_SHADER_MESH && compiler_info->ac->gfx_level < GFX11,
       .lower_local_invocation_index = lower_local_invocation_index,
    };
    NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
@@ -1881,7 +1881,7 @@ radv_precompute_registers_hw_ms(struct radv_device *device, struct radv_shader *
 
    radv_precompute_registers_hw_ngg(device, shader);
 
-   regs->vgt_gs_max_vert_out = pdev->info.mesh_fast_launch_2 ? info->ngg_info.max_out_verts : info->workgroup_size;
+   regs->vgt_gs_max_vert_out = pdev->info.gfx_level >= GFX11 ? info->ngg_info.max_out_verts : info->workgroup_size;
 
    regs->ngg.ms.spi_shader_gs_meshlet_dim = S_00B2B0_MESHLET_NUM_THREAD_X(info->cs.block_size[0] - 1) |
                                             S_00B2B0_MESHLET_NUM_THREAD_Y(info->cs.block_size[1] - 1) |
@@ -2398,7 +2398,7 @@ radv_postprocess_binary_config(const struct radv_compiler_info *compiler_info, s
          UNREACHABLE("Unexpected ES shader stage");
       }
 
-      if (stage == MESA_SHADER_MESH && compiler_info->hw.mesh_fast_launch_2) {
+      if (stage == MESA_SHADER_MESH && compiler_info->ac->gfx_level >= GFX11) {
          /* Only VGPR0 is used for X/Y/Z local invocation ID */
          gs_vgpr_comp_cnt = 0;
       } else if (gfx_level >= GFX12) {

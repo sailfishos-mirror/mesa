@@ -764,7 +764,7 @@ calc_mesh_workgroup_size(const struct radv_compiler_info *compiler_info, const n
 {
    unsigned api_workgroup_size = ac_compute_cs_workgroup_size(nir->info.workgroup_size, false, UINT32_MAX);
 
-   if (compiler_info->hw.mesh_fast_launch_2) {
+   if (compiler_info->ac->gfx_level >= GFX11) {
       /* Use multi-row export. It is also necessary to use the API workgroup size for non-emulated queries. */
       info->workgroup_size = api_workgroup_size;
    } else {

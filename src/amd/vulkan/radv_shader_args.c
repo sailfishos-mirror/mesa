@@ -322,7 +322,7 @@ declare_ms_input_sgprs(struct radv_shader_args_state *state, const struct radv_s
 static void
 declare_ms_input_vgprs(const struct radv_compiler_info *compiler_info, struct radv_shader_args_state *state)
 {
-   if (compiler_info->hw.mesh_fast_launch_2) {
+   if (compiler_info->ac->gfx_level >= GFX11) {
       RADV_ADD_ARG(state, AC_ARG_VGPR, 1, AC_ARG_VALUE, ac.local_invocation_ids_packed);
    } else {
       RADV_ADD_ARG(state, AC_ARG_VGPR, 1, AC_ARG_VALUE, ac.vertex_id);
@@ -829,7 +829,7 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
                   RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ngg_query_buf_va, AC_UD_NGG_QUERY_BUF_VA);
             }
 
-            if (previous_stage != MESA_SHADER_MESH || !compiler_info->hw.mesh_fast_launch_2) {
+            if (previous_stage != MESA_SHADER_MESH || compiler_info->ac->gfx_level < GFX11) {
                if (gfx_level >= GFX12) {
                   RADV_ADD_ARRAY_ARG(state, AC_ARG_VGPR, 1, AC_ARG_VALUE, ac.gs_vtx_offset, 0);
                   RADV_ADD_ARG(state, AC_ARG_VGPR, 1, AC_ARG_VALUE, ac.gs_prim_id);

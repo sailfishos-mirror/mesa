@@ -172,7 +172,6 @@ struct ac_compiler_info {
    uint32_t conformant_trunc_coord : 1;
 
    uint32_t has_attr_ring : 1;
-   uint32_t mesh_fast_launch_2 : 1;
 
    /* GFX6-7: limit TCS workgroup to 16 patches for better performance. */
    uint32_t smaller_tcs_workgroups : 1;
@@ -293,9 +292,6 @@ struct radeon_info {
    bool needs_llvm_wait_wa; /* True if the chip needs to workarounds based on s_waitcnt_deptr but
                              * the LLVM version doesn't work with multiparts shaders.
                              */
-
-   /* Support GS_FAST_LAUNCH(2) for mesh shaders. */
-   bool mesh_fast_launch_2;
 
    /* Display features. */
    /* There are 2 display DCC codepaths, because display expects unaligned DCC. */

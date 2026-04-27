@@ -518,7 +518,6 @@ struct radv_compiler_info {
       uint32_t family;
       uint32_t address32_hi;
       bool rbplus_allowed;
-      bool mesh_fast_launch_2;
       bool has_cs_regalloc_hang_bug;
       uint32_t lds_size_per_workgroup;
    } hw;
