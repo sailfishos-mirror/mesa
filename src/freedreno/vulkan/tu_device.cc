@@ -19,10 +19,12 @@
 #include "util/driconf.h"
 #include "util/hex.h"
 #include "util/os_misc.h"
+#include "util/u_atomic.h"
 #include "util/u_debug.h"
 #include "util/u_process.h"
 #include "vk_android.h"
 #include "vk_debug_utils.h"
+#include "vk_physical_device.h"
 #include "vk_shader_module.h"
 #include "vk_util.h"
 #include "vk_sampler.h"
@@ -1855,6 +1857,7 @@ static const driOptionDescription tu_dri_options[] = {
    DRI_CONF_SECTION_END
 
    DRI_CONF_SECTION_MISCELLANEOUS
+      DRI_CONF_HEAP_MEMORY_PERCENT(OS_GPU_HEAP_SIZE_HEURISTIC)
       DRI_CONF_DISABLE_CONSERVATIVE_LRZ(false)
       DRI_CONF_TU_DONT_RESERVE_DESCRIPTOR_SET(false)
       DRI_CONF_TU_ALLOW_OOB_INDIRECT_UBO_LOADS(false)
@@ -1888,6 +1891,9 @@ tu_init_dri_options(struct tu_instance *instance)
 
    instance->force_vk_vendor =
          driQueryOptioni(&instance->dri_options, "force_vk_vendor");
+   instance->heap_memory_percent =
+         driQueryOptionf(&instance->dri_options, "heap_memory_percent");
+
    instance->dont_care_as_load = driQueryOptionb(&instance->dri_options, "tu_dont_care_as_load");
    instance->conservative_lrz =
          !driQueryOptionb(&instance->dri_options, "disable_conservative_lrz");
@@ -2082,19 +2088,10 @@ tu_GetPhysicalDeviceQueueFamilyProperties2(
 uint64_t
 tu_get_system_heap_size(struct tu_physical_device *physical_device)
 {
-   uint64_t total_ram = 0;
-   ASSERTED bool has_physical_memory =
-      os_get_total_physical_memory(&total_ram);
-   assert(has_physical_memory);
+   float *percent = &physical_device->instance->heap_memory_percent;
 
-   /* We don't want to burn too much ram with the GPU.  If the user has 4GiB
-    * or less, we use at most half.  If they have more than 4GiB, we use 3/4.
-    */
-   uint64_t available_ram;
-   if (total_ram <= 4ull * 1024ull * 1024ull * 1024ull)
-      available_ram = total_ram / 2;
-   else
-      available_ram = total_ram * 3 / 4;
+   uint64_t available_ram = os_get_gpu_heap_size(*percent, percent);
+   assert(available_ram);
 
    if (physical_device->va_size)
       available_ram = MIN2(available_ram, physical_device->va_size);
@@ -2102,25 +2099,21 @@ tu_get_system_heap_size(struct tu_physical_device *physical_device)
    return available_ram;
 }
 
-static VkDeviceSize
+static inline VkDeviceSize
 tu_get_budget_memory(struct tu_physical_device *physical_device)
 {
    uint64_t heap_size = physical_device->heap.size;
-   uint64_t heap_used = physical_device->heap.used;
-   uint64_t sys_available;
-   ASSERTED bool has_available_memory =
-      os_get_available_system_memory(&sys_available);
-   assert(has_available_memory);
-
-   if (physical_device->va_size)
-      sys_available = MIN2(sys_available, physical_device->va_size);
+   uint64_t heap_used = p_atomic_read(&physical_device->heap.used);
 
    /*
     * Let's not incite the app to starve the system: report at most 90% of
     * available system memory.
     */
-   uint64_t heap_available = sys_available * 9 / 10;
-   return MIN2(heap_size, heap_used + heap_available);
+   const float percent = 0.9f;
+
+   return vk_physical_device_heap_budget_from_system(&physical_device->vk,
+                                                     percent, heap_size,
+                                                     heap_used);
 }
 
 VKAPI_ATTR void VKAPI_CALL

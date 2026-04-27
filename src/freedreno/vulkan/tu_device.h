@@ -196,6 +196,7 @@ struct tu_instance
 
    uint32_t force_vk_vendor;
    bool dont_care_as_load;
+   float heap_memory_percent;
 
    /* Conservative LRZ (default true) invalidates LRZ on draws with
     * blend and depth-write enabled, because this can lead to incorrect
