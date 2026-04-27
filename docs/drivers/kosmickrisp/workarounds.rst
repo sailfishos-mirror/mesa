@@ -79,6 +79,31 @@ presumably because it re-ordered the operations to after the loop.
 To work around this, we add a trivial, always-true runtime condition to the
 break to ensure that the prior logic is not re-ordered.
 
+KK_WORKAROUND_8
+---------------
+| macOS version: 26.4.1
+| Metal ticket: FB22579201 (@squidbus)
+| Metal ticket status: Waiting resolution
+| CTS test failure: N/A
+| Comments:
+
+Metal GPU capture uses ``currentAllocatedSize`` to create an internal buffer
+over ``MTLHeap`` for the purpose of capturing its contents.
+
+Suppose we have a heap whose size is under the memory page size. Under native
+ARM execution, both the heap ``size`` and ``currentAllocatedSize`` will be
+aligned up to 16K. However, it has been observed that under Rosetta 2, ``size``
+will be aligned up to 4K but ``currentAllocatedSize`` will still be aligned up
+to 16K.
+
+These two in combination mean that, when GPU capture attempts to create buffers
+for these small heaps, it will fail, as ``currentAllocatedSize`` is larger than
+the heap ``size``. This will cause Metal validation layer errors if they are
+enabled, and attempting to take a GPU capture will crash the application.
+
+This workaround ensures that under Rosetta 2, heap sizes will be aligned to a
+minimum of 16K, prevening this scenario from occurring.
+
 | Log:
 | 2026-04-27: Workaround implemented
 
