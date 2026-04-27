@@ -180,18 +180,23 @@ private:
       int expected_ar_uses{0};
    };
 
+   enum class AluGroupFillResult {
+      scheduled,
+      retry,
+      no_schedule,
+      failed,
+   };
+
    bool schedule_alu(Shader::ShaderBlocks& out_blocks);
-   bool fill_alu_group(Shader::ShaderBlocks& out_blocks,
-                       AluGroup& group,
-                       bool& success,
-                       const AluScheduleContext& alu_ctx);
-   void try_schedule_alu_trans_slot(AluGroup& group,
-                                    bool& success,
+   AluGroupFillResult fill_alu_group(Shader::ShaderBlocks& out_blocks,
+                                     AluGroup& group,
+                                     const AluScheduleContext& alu_ctx);
+   bool try_schedule_alu_trans_slot(AluGroup& group,
                                     const AluScheduleContext& alu_ctx,
                                     int free_slots);
-   bool handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
-                                      AluGroup& group,
-                                      const AluScheduleContext& alu_ctx);
+   AluGroupFillResult handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
+                                                    AluGroup& group,
+                                                    const AluScheduleContext& alu_ctx);
    auto schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_blocks,
                                           bool& success,
                                           const AluScheduleContext& alu_ctx) -> AluGroup*;
@@ -564,68 +569,81 @@ BlockScheduler::finalize()
 bool
 BlockScheduler::schedule_alu(Shader::ShaderBlocks& out_blocks)
 {
-   bool success = false;
+   bool scheduled = false;
    auto alu_ctx = prepare_schedule_alu(out_blocks);
 
-   AluGroup *group = schedule_prebuilt_alu_group_first(out_blocks, success, alu_ctx);
+   AluGroup *group = schedule_prebuilt_alu_group_first(out_blocks, scheduled, alu_ctx);
 
-   if (!group && alu_ctx.has_alu_ready) {
-      group = new AluGroup();
-      sfn_log << SfnLog::schedule << "START new ALU group\n";
-   } else if (!success) {
+   if (!group) {
+      if (alu_ctx.has_alu_ready) {
+         group = new AluGroup();
+         sfn_log << SfnLog::schedule << "START new ALU group\n";
+         
+      } else {
+         return false;
+      }
+   } 
+
+  assert(group);
+
+   auto fill_result = fill_alu_group(out_blocks, *group, alu_ctx);
+   if (fill_result == AluGroupFillResult::failed && !scheduled)
       return false;
-   }
 
-   assert(group);
-
-   if (!fill_alu_group(out_blocks, *group, success, alu_ctx))
-      return false;
+   if (fill_result == AluGroupFillResult::scheduled ||
+       fill_result == AluGroupFillResult::no_schedule)
+      scheduled = true;
 
    finalize_schedule_alu_group(out_blocks, *group, alu_ctx.expected_ar_uses);
-   return success;
+   return scheduled;
 }
 
-bool
+BlockScheduler::AluGroupFillResult
 BlockScheduler::fill_alu_group(Shader::ShaderBlocks& out_blocks,
                                AluGroup& group,
-                               bool& success,
                                const AluScheduleContext& alu_ctx)
 {
+   auto result = AluGroupFillResult::no_schedule;
    int free_slots = group.free_slot_mask();
 
    while (free_slots && alu_ctx.has_alu_ready) {
 
       if (!alu_multi_slot_ready.empty()) {
-         success |= schedule_alu_multislot_to_group_vec(group);
+         if (schedule_alu_multislot_to_group_vec(group))
+            result = AluGroupFillResult::scheduled;
          free_slots = group.free_slot_mask();
       }
 
       if (!alu_vec_ready.empty())
-         success |= schedule_alu_to_group_vec(group);
+         if (schedule_alu_to_group_vec(group))
+            result = AluGroupFillResult::scheduled;
 
       if (group.has_kill_op())
-         break;
+         return result;
 
-      try_schedule_alu_trans_slot(group, success, alu_ctx, free_slots);
+      if (try_schedule_alu_trans_slot(group, alu_ctx, free_slots))
+         result = AluGroupFillResult::scheduled;
 
-      if (success) {
+      if (result == AluGroupFillResult::scheduled) {
          ++m_alu_groups_scheduled;
-         break;
+         return result;
       }
 
-      if (!handle_alu_group_fill_failure(out_blocks, group, alu_ctx))
-         return false;
+      auto failure = handle_alu_group_fill_failure(out_blocks, group, alu_ctx);
+      if (failure == AluGroupFillResult::failed)
+         return AluGroupFillResult::failed;
 
-      if (!group.empty())
-         break;
+      if (failure == AluGroupFillResult::no_schedule)
+         return AluGroupFillResult::no_schedule;
+
+      free_slots = group.free_slot_mask();
    }
 
-   return true;
+   return result;
 }
 
-void
+bool
 BlockScheduler::try_schedule_alu_trans_slot(AluGroup& group,
-                                            bool& success,
                                             const AluScheduleContext& alu_ctx,
                                             int free_slots)
 {
@@ -634,16 +652,20 @@ BlockScheduler::try_schedule_alu_trans_slot(AluGroup& group,
     * TODO: check whether this is only relevant for actual LDS instructions
     * or also for instructions that read from the LDS return value queue */
 
+   bool scheduled = false;
+
    if (free_slots & AluOp::t && !alu_ctx.has_lds_ready) {
       sfn_log << SfnLog::schedule << "Try schedule TRANS channel\n";
       if (!alu_trans_ready.empty())
-         success |= schedule_alu_to_group_trans(group, alu_trans_ready);
+         scheduled |= schedule_alu_to_group_trans(group, alu_trans_ready);
       if (!alu_vec_ready.empty())
-         success |= schedule_alu_to_group_trans(group, alu_vec_ready);
+         scheduled |= schedule_alu_to_group_trans(group, alu_vec_ready);
    }
+
+   return scheduled;
 }
 
-bool
+BlockScheduler::AluGroupFillResult
 BlockScheduler::handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
                                               AluGroup& group,
                                               const AluScheduleContext& alu_ctx)
@@ -661,7 +683,7 @@ BlockScheduler::handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
 
       // kcache reservation failed, so we have to start a new CF
       start_new_block(out_blocks, Block::alu);
-      return true;
+      return AluGroupFillResult::retry;
    }
 
    // Ready is not empty, but we didn't schedule anything, this
@@ -669,10 +691,10 @@ BlockScheduler::handle_alu_group_fill_failure(Shader::ShaderBlocks& out_blocks,
    // can resolve with an extra group that has a NOP instruction
    if (!alu_trans_ready.empty() || !alu_vec_ready.empty()) {
       group.add_vec_instructions(new AluInstr(op0_nop, 0));
-      return true;
+      return AluGroupFillResult::no_schedule;
    }
 
-   return false;
+   return AluGroupFillResult::failed;
 }
 
 auto
