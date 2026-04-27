@@ -865,6 +865,7 @@ static void
 radv_device_init_cache_key(struct radv_device *device)
 {
    STATIC_ASSERT(sizeof(struct radv_device_cache_key) == 4);
+   STATIC_ASSERT(sizeof(device->compiler_info.key) == 12);
 
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_device_cache_key *key = &device->cache_key;
@@ -890,6 +891,7 @@ radv_device_init_cache_key(struct radv_device *device)
    _mesa_blake3_init(&ctx);
    _mesa_blake3_update(&ctx, &pdev->cache_key, sizeof(pdev->cache_key));
    _mesa_blake3_update(&ctx, &device->cache_key, sizeof(device->cache_key));
+   _mesa_blake3_update(&ctx, &device->compiler_info.key, sizeof(device->compiler_info.key));
    _mesa_blake3_final(&ctx, device->cache_hash);
 }
 
@@ -1373,9 +1375,6 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
 
    radv_init_shader_arenas(device);
 
-   /* Initialize the per-device cache key. */
-   radv_device_init_cache_key(device);
-
    if (!device->vk.disable_internal_cache) {
       result = radv_device_init_memory_cache(device);
       if (result != VK_SUCCESS)
@@ -1552,6 +1551,8 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
    }
 
    radv_device_init_compiler_info(device);
+
+   radv_device_init_cache_key(device);
 
    if (device->vk.enabled_features.vertexInputDynamicState || device->vk.enabled_features.graphicsPipelineLibrary ||
        device->vk.enabled_features.shaderObject) {
