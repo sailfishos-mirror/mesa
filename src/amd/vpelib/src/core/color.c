@@ -1062,7 +1062,6 @@ enum vpe_status vpe_color_update_movable_cm(
             vpe_color_get_color_space_and_tf(&tm_out_cs, &out_lut_cs, &tf);
             vpe_color_update_gamut(vpe_priv, out_lut_cs, vpe_priv->output_ctx.cs,
                 output_ctx->gamut_remap, !enable_3dlut);
-
         }
     }
 exit:

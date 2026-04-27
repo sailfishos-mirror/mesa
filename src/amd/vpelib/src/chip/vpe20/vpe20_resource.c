@@ -270,6 +270,8 @@ static struct vpe_caps
                             .yuy2            = 1, /**< packed 4:2:2 */
                             .y210            = 1, /**< packed 4:2:2 10-bit */
                             .y216            = 1, /**< packed 4:2:2 16-bit */
+                            .y410            = 1, /**< packed 4:4:4 10-bit */
+                            .y416            = 1, /**< packed 4:4:4 16-bit */
                             .p210            = 1, /**< planar 4:2:2 10-bit */
                             .p216            = 1, /**< planar 4:2:2 16-bit */
                             .rgb8_planar     = 1, /**< planar RGB 8-bit */
@@ -293,6 +295,8 @@ static struct vpe_caps
                             .yuy2            = 1, /**< packed 4:2:2 */
                             .y210            = 1, /**< packed 4:2:2 10-bit */
                             .y216            = 1, /**< packed 4:2:2 16-bit */
+                            .y410            = 1, /**< packed 4:4:4 10-bit */
+                            .y416            = 1, /**< packed 4:4:4 16-bit */
                             .p210            = 1, /**< planar 4:2:2 10-bit */
                             .p216            = 1, /**< planar 4:2:2 16-bit */
                             .rgb8_planar     = 1, /**< planar RGB 8-bit */

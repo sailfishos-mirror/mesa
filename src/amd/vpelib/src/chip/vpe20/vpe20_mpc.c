@@ -889,7 +889,7 @@ void vpe20_mpc_set_mpc_shaper_3dlut(
     if (stream_ctx->stream.lut_compound.enabled == true) {
         mpc->funcs->program_shaper_indirect(mpc, &stream_ctx->stream.dma_info.shaper);
     } else {
-        // get the shaper lut params
+    // get the shaper lut params
         if (func_shaper) {
             if (func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
                 vpe10_cm_helper_translate_curve_to_hw_format(func_shaper, &mpc->shaper_params, true,

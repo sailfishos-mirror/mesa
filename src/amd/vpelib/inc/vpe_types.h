@@ -186,6 +186,8 @@ struct vpe_pixel_format_support {
     uint32_t yuy2            : 1; /**< packed 4:2:2 8-bits */
     uint32_t y210            : 1; /**< packed 4:2:2 10-bit */
     uint32_t y216            : 1; /**< packed 4:2:2 16-bit */
+    uint32_t y410            : 1; /**< packed 4:4:4 10-bit */
+    uint32_t y416            : 1; /**< packed 4:4:4 16-bit */
     uint32_t p210            : 1; /**< planar 4:2:2 10-bit */
     uint32_t p216            : 1; /**< planar 4:2:2 16-bit */
     uint32_t rgb8_planar     : 1; /**< planar RGB 8-bit */
