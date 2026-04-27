@@ -204,6 +204,7 @@ private:
    bool schedule_alu_to_group_vec(AluGroup& group);
    bool schedule_alu_multislot_to_group_vec(AluGroup& group);
    bool schedule_alu_to_group_trans(AluGroup& group, std::list<AluInstr *>& readylist);
+   void update_idx_load_state(const AluInstr& instr);
 
    bool schedule_exports(Shader::ShaderBlocks& out_blocks,
                          std::list<ExportInstr *>& ready_list);
@@ -1074,34 +1075,8 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
 
          if ((*old_i)->num_ar_uses())
             m_current_block->set_expected_ar_uses((*old_i)->num_ar_uses());
-         auto addr = std::get<0>((*old_i)->indirect_addr());
-         bool has_indirect_reg_load = addr != nullptr && addr->has_flag(Register::addr_or_idx);
-
-         bool is_idx_load_on_eg = false;
-         if (!(*old_i)->has_alu_flag(alu_is_lds)) {
-            bool load_idx0_eg = (*old_i)->opcode() == op1_set_cf_idx0;
-            bool load_idx0_ca = ((*old_i)->opcode() == op1_mova_int &&
-                                 (*old_i)->dest()->sel() == AddressRegister::idx0);
-
-            bool load_idx1_eg = (*old_i)->opcode() == op1_set_cf_idx1;
-            bool load_idx1_ca = ((*old_i)->opcode() == op1_mova_int &&
-                                 (*old_i)->dest()->sel() == AddressRegister::idx1);
-
-            is_idx_load_on_eg = load_idx0_eg || load_idx1_eg;
-
-            bool load_idx0 = load_idx0_eg || load_idx0_ca;
-            bool load_idx1 = load_idx1_eg || load_idx1_ca;
-
-
-            assert(!m_idx0_pending || !load_idx0);
-            assert(!m_idx1_pending || !load_idx1);
-
-            m_idx0_loading |= load_idx0;
-            m_idx1_loading |= load_idx1;
-         }
-
-         if (has_indirect_reg_load || is_idx_load_on_eg)
-            m_current_block->dec_expected_ar_uses();
+            
+         update_idx_load_state(**old_i);  
 
          alu_vec_ready.erase(old_i);
          success = true;
@@ -1116,6 +1091,38 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group)
       }
    }
    return success;
+}
+
+void
+BlockScheduler::update_idx_load_state(const AluInstr& instr)
+{
+   auto addr = std::get<0>(instr.indirect_addr());
+   bool has_indirect_reg_load = addr != nullptr && addr->has_flag(Register::addr_or_idx);
+
+   bool is_idx_load_on_eg = false;
+   if (!instr.has_alu_flag(alu_is_lds)) {
+      bool load_idx0_eg = instr.opcode() == op1_set_cf_idx0;
+      bool load_idx0_ca = (instr.opcode() == op1_mova_int &&
+                           instr.dest()->sel() == AddressRegister::idx0);
+
+      bool load_idx1_eg = instr.opcode() == op1_set_cf_idx1;
+      bool load_idx1_ca = (instr.opcode() == op1_mova_int &&
+                           instr.dest()->sel() == AddressRegister::idx1);
+
+      is_idx_load_on_eg = load_idx0_eg || load_idx1_eg;
+
+      bool load_idx0 = load_idx0_eg || load_idx0_ca;
+      bool load_idx1 = load_idx1_eg || load_idx1_ca;
+
+      assert(!m_idx0_pending || !load_idx0);
+      assert(!m_idx1_pending || !load_idx1);
+
+      m_idx0_loading |= load_idx0;
+      m_idx1_loading |= load_idx1;
+   }
+
+   if (has_indirect_reg_load || is_idx_load_on_eg)
+      m_current_block->dec_expected_ar_uses();
 }
 
 bool
