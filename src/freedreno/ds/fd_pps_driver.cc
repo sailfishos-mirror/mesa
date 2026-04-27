@@ -262,6 +262,9 @@ FreedrenoDriver::init_perfcnt()
    case 7:
       setup_a7xx_counters();
       break;
+   case 8:
+      setup_a8xx_counters();
+      break;
    default:
       PERFETTO_FATAL("Unsupported GPU: a%03u", fd_dev_gpu_id(dev_id));
       return false;

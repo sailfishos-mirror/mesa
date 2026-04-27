@@ -11,6 +11,7 @@ pps_freedreno_lib = static_library(
   sources: [
     'fd_pps_a6xx.cc',
     'fd_pps_a7xx.cc',
+    'fd_pps_a8xx.cc',
     'fd_pps_driver.cc',
     'fd_pps_driver.h',
     freedreno_xml_header_files,

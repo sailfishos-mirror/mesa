@@ -92,6 +92,7 @@ private:
 
    void setup_a6xx_counters();
    void setup_a7xx_counters();
+   void setup_a8xx_counters();
 
    void configure_counters(bool reset, bool wait);
    void collect_countables();
