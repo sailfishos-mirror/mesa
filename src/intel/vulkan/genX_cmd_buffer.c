@@ -1369,9 +1369,18 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
           final_aux_usage == ISL_AUX_USAGE_NONE ||
           initial_aux_usage == final_aux_usage);
 
-   /* If initial aux usage is NONE, there is nothing to resolve */
-   if (initial_aux_usage == ISL_AUX_USAGE_NONE)
+   /* If initial aux usage is NONE, there is nothing to resolve. However, we
+    * need to ensure uncompressed cachelines don't interfere with compressed
+    * cachelines which may be generated in the final layout.
+    */
+   if (initial_aux_usage == ISL_AUX_USAGE_NONE) {
+      if (final_aux_usage != ISL_AUX_USAGE_NONE) {
+         genX(cmd_buffer_update_color_aux_op)(cmd_buffer, GFX_VER == 9 ?
+              ANV_COLOR_AUX_OP_CLASS_SW_AMBIGUATE :
+              ANV_COLOR_AUX_OP_CLASS_HW_AMBIGUATE);
+      }
       return;
+   }
 
    enum isl_aux_op resolve_op = ISL_AUX_OP_NONE;
 
