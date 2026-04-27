@@ -468,8 +468,7 @@ AssemblerVisitor::visit(const TexInstr& tex_instr)
       tex_fetch_results.clear();
    }
 
-   r600_bytecode_tex tex;
-   memset(&tex, 0, sizeof(struct r600_bytecode_tex));
+   r600_bytecode_tex tex = {};
    tex.op = tex_instr.opcode();
    tex.sampler_id = tex_instr.sampler_id();
    tex.resource_id = tex_instr.resource_id();
@@ -514,8 +513,7 @@ AssemblerVisitor::visit(const ExportInstr& exi)
 
    if (unlikely(ps_alpha_to_one_and_coverage && exi.export_type() == ExportInstr::pixel &&
                 exi.location() == 0)) {
-      r600_bytecode_output output;
-      memset(&output, 0, sizeof(output));
+      r600_bytecode_output output = {};
 
       output.gpr = value.sel();
       output.elem_size = 3;
@@ -537,8 +535,7 @@ AssemblerVisitor::visit(const ExportInstr& exi)
       }
    }
 
-   r600_bytecode_output output;
-   memset(&output, 0, sizeof(output));
+   r600_bytecode_output output = {};
 
    output.gpr = value.sel();
    output.elem_size = 3;
@@ -588,9 +585,7 @@ AssemblerVisitor::visit(const ScratchIOInstr& instr)
 {
    clear_states(sf_all);
 
-   struct r600_bytecode_output cf;
-
-   memset(&cf, 0, sizeof(struct r600_bytecode_output));
+   r600_bytecode_output cf = {};
 
    cf.op = CF_OP_MEM_SCRATCH;
    cf.elem_size = 3;
@@ -626,8 +621,7 @@ AssemblerVisitor::visit(const ScratchIOInstr& instr)
 void
 AssemblerVisitor::visit(const StreamOutInstr& instr)
 {
-   struct r600_bytecode_output output;
-   memset(&output, 0, sizeof(struct r600_bytecode_output));
+   r600_bytecode_output output = {};
 
    output.gpr = instr.value().sel();
    output.elem_size = instr.element_size();
@@ -647,8 +641,7 @@ AssemblerVisitor::visit(const StreamOutInstr& instr)
 void
 AssemblerVisitor::visit(const MemRingOutInstr& instr)
 {
-   struct r600_bytecode_output output;
-   memset(&output, 0, sizeof(struct r600_bytecode_output));
+   r600_bytecode_output output = {};
 
    output.gpr = instr.value().sel();
    output.type = instr.type();
@@ -711,8 +704,7 @@ AssemblerVisitor::visit(const FetchInstr& fetch_instr)
    else
       vtx_fetch_results.insert(fetch_instr.dst().sel());
 
-   struct r600_bytecode_vtx vtx;
-   memset(&vtx, 0, sizeof(vtx));
+   r600_bytecode_vtx vtx = {};
    vtx.op = fetch_instr.opcode();
    vtx.buffer_id = fetch_instr.resource_id();
    vtx.fetch_type = fetch_instr.fetch_type();
@@ -759,11 +751,10 @@ AssemblerVisitor::visit(const FetchInstr& fetch_instr)
 void
 AssemblerVisitor::visit(const WriteTFInstr& instr)
 {
-   struct r600_bytecode_gds gds;
+   r600_bytecode_gds gds = {};
 
    auto& value = instr.value();
 
-   memset(&gds, 0, sizeof(struct r600_bytecode_gds));
    gds.src_gpr = value.sel();
    gds.src_sel_x = value[0]->chan();
    gds.src_sel_y = value[1]->chan();
@@ -780,7 +771,7 @@ AssemblerVisitor::visit(const WriteTFInstr& instr)
    }
 
    if (value[2]->chan() != 7) {
-      memset(&gds, 0, sizeof(struct r600_bytecode_gds));
+      gds = {};
       gds.src_gpr = value.sel();
       gds.src_sel_x = value[2]->chan();
       gds.src_sel_y = value[3]->chan();
@@ -801,8 +792,6 @@ AssemblerVisitor::visit(const WriteTFInstr& instr)
 void
 AssemblerVisitor::visit(const RatInstr& instr)
 {
-   struct r600_bytecode_gds gds;
-
    /* The instruction writes to the retuen buffer location, and
     * the value will actually be read back, so make sure all previous writes
     * have been finished */
@@ -810,8 +799,6 @@ AssemblerVisitor::visit(const RatInstr& instr)
       emit_wait_ack();
 
    int rat_idx = instr.resource_id();
-
-   memset(&gds, 0, sizeof(struct r600_bytecode_gds));
 
    r600_bytecode_add_cfinst(&m_bc, instr.cf_opcode());
    auto cf = m_bc.cf_last;
@@ -952,9 +939,7 @@ AssemblerVisitor::visit(const ControlFlowInstr& instr)
 void
 AssemblerVisitor::visit(const GDSInstr& instr)
 {
-   struct r600_bytecode_gds gds;
-
-   memset(&gds, 0, sizeof(struct r600_bytecode_gds));
+   r600_bytecode_gds gds = {};
 
    gds.op = ds_opcode_map.at(instr.opcode());
    gds.uav_id = instr.resource_id();
@@ -1021,7 +1006,7 @@ AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
    if (!m_bc.index_loaded[idx] || m_loop_nesting ||
        m_bc.index_reg[idx] != (unsigned)addr.sel() ||
        m_bc.index_reg_chan[idx] != (unsigned)addr.chan()) {
-      struct r600_bytecode_alu alu;
+      r600_bytecode_alu alu = {};
 
       // Make sure MOVA is not last instr in clause
 
@@ -1032,7 +1017,6 @@ AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
 
          EAluOp idxop = idx ? op1_set_cf_idx1 : op1_set_cf_idx0;
 
-         memset(&alu, 0, sizeof(alu));
          alu.op = opcode_map.at(op1_mova_int);
          alu.dst.chan = 0;
          alu.src[0].sel = addr.sel();
@@ -1053,7 +1037,6 @@ AssemblerVisitor::emit_index_reg(const VirtualValue& addr, unsigned idx)
          if (r)
             return bim_invalid;
       } else {
-         memset(&alu, 0, sizeof(alu));
          alu.op = opcode_map.at(op1_mova_int);
          alu.dst.sel = idx == 0 ? CM_V_SQ_MOVA_DST_CF_IDX0 : CM_V_SQ_MOVA_DST_CF_IDX1;
          alu.dst.chan = 0;
