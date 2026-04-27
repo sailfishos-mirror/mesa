@@ -495,6 +495,11 @@ static void si_shader_dump_stats(struct si_screen *sscreen, struct si_shader *sh
               "SPI_PS_INPUT_ENA      = 0x%04x\n",
               conf->spi_ps_input_addr, conf->spi_ps_input_ena);
       ac_print_spi_ps_input_vgpr_list(conf->spi_ps_input_ena, conf->spi_ps_input_addr, file);
+
+      fprintf(file, "SPI_SHADER_Z_FORMAT   = 0x%x\n", shader->info.spi_shader_z_format);
+      ac_print_spi_ps_shader_z_format(shader->info.spi_shader_z_format, file);
+      fprintf(file, "SPI_SHADER_COL_FORMAT = 0x%x\n", shader->info.spi_shader_col_format);
+      ac_print_spi_ps_shader_col_format(shader->info.spi_shader_col_format, file);
    }
 
    fprintf(file,

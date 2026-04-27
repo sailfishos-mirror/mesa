@@ -1560,3 +1560,49 @@ ac_print_spi_ps_input_vgpr_list(uint32_t spi_ps_input_ena, uint32_t spi_ps_input
    PRINT_PS_INPUT_VGPR(1, POS_FIXED_PT);
 #undef PRINT_PS_INPUT_VGPR
 }
+
+static const char *
+get_spi_shader_format(unsigned format)
+{
+   switch (format) {
+#define PS_FORMAT(name) case V_028714_SPI_SHADER_##name: return #name;
+   PS_FORMAT(ZERO)
+   PS_FORMAT(32_R)
+   PS_FORMAT(32_GR)
+   PS_FORMAT(32_AR)
+   PS_FORMAT(FP16_ABGR)
+   PS_FORMAT(UNORM16_ABGR)
+   PS_FORMAT(SNORM16_ABGR)
+   PS_FORMAT(UINT16_ABGR)
+   PS_FORMAT(SINT16_ABGR)
+   PS_FORMAT(32_ABGR)
+#undef PS_FORMAT
+   default:
+      UNREACHABLE("invalid export format");
+   }
+}
+
+/* Print (example):
+ *   mrt0 = FP16_ABGR
+ *   mrt1 = 32_R
+ */
+void
+ac_print_spi_ps_shader_col_format(uint32_t spi_shader_col_format, FILE *f)
+{
+   for (unsigned i = 0; i < 8; i++) {
+      unsigned format = (spi_shader_col_format >> (i * 4)) & 0xf;
+
+      if (format)
+         fprintf(f, "  mrt%u = %s\n", i, get_spi_shader_format(format));
+   }
+}
+
+/* Print (example):
+ *   mrtz = 32_R
+ */
+void
+ac_print_spi_ps_shader_z_format(uint32_t spi_shader_z_format, FILE *f)
+{
+   if (spi_shader_z_format)
+      fprintf(f, "  mrtz = %s\n", get_spi_shader_format(spi_shader_z_format));
+}
