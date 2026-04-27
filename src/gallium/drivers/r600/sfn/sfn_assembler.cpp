@@ -926,16 +926,9 @@ AssemblerVisitor::visit(const ControlFlowInstr& instr)
    case ControlFlowInstr::cf_loop_continue:
       emit_loop_cont();
       break;
-   case ControlFlowInstr::cf_wait_ack: {
-      int r = r600_bytecode_add_cfinst(&m_bc, CF_OP_WAIT_ACK);
-      if (!r) {
-         m_bc.cf_last->cf_addr = 0;
-         m_bc.cf_last->barrier = 1;
-         m_ack_suggested = false;
-      } else {
-         m_result = false;
-      }
-   } break;
+   case ControlFlowInstr::cf_wait_ack:
+      emit_wait_ack();
+      break;
    case ControlFlowInstr::cf_alu:
       r600_bytecode_add_cfinst(&m_bc, CF_OP_ALU);
       break;
