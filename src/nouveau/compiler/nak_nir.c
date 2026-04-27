@@ -1328,6 +1328,7 @@ nak_postprocess_nir(nir_shader *nir,
    if (nak->sm >= 70)
       OPT(nir, nir_normalize_sin_cos);
 
+   OPT(nir, nir_opt_fp_math_ctrl);
    nak_optimize_nir(nir, nak);
 
    do {
