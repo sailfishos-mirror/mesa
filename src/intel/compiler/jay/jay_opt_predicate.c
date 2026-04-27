@@ -20,14 +20,14 @@ predicate_block(jay_builder *b,
     *
     * A few opcodes can't be predicated due to ISA restrictions.
     *
-    * Predicating NoMask instructions doesn't work if we are electing a nonzero
-    * lane but the NoMask forces lane 0. This should be optimized later.
+    * Predicating NoMask instructions only works with UFLAGs (where we know lane
+    * 0 controls the flag and we're not electing some other lane).
     */
    jay_foreach_inst_in_block(block, I) {
       if (jay_uses_flag(I) ||
           (I->op == JAY_OPCODE_MIN || I->op == JAY_OPCODE_MAX) ||
           I->op == JAY_OPCODE_CSEL ||
-          jay_is_no_mask(I) ||
+          (condition.file != UFLAG && jay_is_no_mask(I)) ||
           (--limit) < 0)
          return false;
    }
