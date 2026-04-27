@@ -343,7 +343,7 @@ anv_fill_buffer_surface_state(struct anv_device *device,
                               struct isl_swizzle swizzle,
                               isl_surf_usage_flags_t usage,
                               struct anv_address address,
-                              uint32_t range, uint32_t stride)
+                              uint64_t range, uint32_t stride)
 {
    if (address.bo && address.bo->alloc_flags & ANV_BO_ALLOC_PROTECTED)
       usage |= ISL_SURF_USAGE_PROTECTED_BIT;

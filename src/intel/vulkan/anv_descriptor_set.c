@@ -2834,7 +2834,7 @@ void anv_GetDescriptorEXT(
                                        format.isl_format, format.swizzle,
                                        ISL_SURF_USAGE_TEXTURE_BIT,
                                        anv_address_from_u64(addr_info->address),
-                                       align_down_npot_u32(addr_info->range, format_bs),
+                                       align_down_npot_u64(addr_info->range, format_bs),
                                        format_bs);
       } else {
          memcpy(pDescriptor, device->host_null_surface_state,
@@ -2859,7 +2859,7 @@ void anv_GetDescriptorEXT(
                                        format.isl_format, format.swizzle,
                                        ISL_SURF_USAGE_STORAGE_BIT,
                                        anv_address_from_u64(addr_info->address),
-                                       align_down_npot_u32(addr_info->range, format_bs),
+                                       align_down_npot_u64(addr_info->range, format_bs),
                                        format_bs);
       } else {
          memcpy(pDescriptor, device->host_null_surface_state,
