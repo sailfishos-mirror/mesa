@@ -12,6 +12,7 @@
 #include "sfn_callstack.h"
 #include "sfn_conditionaljumptracker.h"
 #include "sfn_debug.h"
+#include "sfn_fill_bytecode.h"
 #include "sfn_instr_alugroup.h"
 #include "sfn_instr_controlflow.h"
 #include "sfn_instr_export.h"
@@ -468,116 +469,23 @@ AssemblerVisitor::visit(const TexInstr& tex_instr)
       tex_fetch_results.clear();
    }
 
-   r600_bytecode_tex tex = {};
-   tex.op = tex_instr.opcode();
-   tex.sampler_id = tex_instr.sampler_id();
-   tex.resource_id = tex_instr.resource_id();
-   tex.src_gpr = tex_instr.src().sel();
-   tex.dst_gpr = tex_instr.dst().sel();
-   tex.dst_sel_x = tex_instr.dest_swizzle(0);
-   tex.dst_sel_y = tex_instr.dest_swizzle(1);
-   tex.dst_sel_z = tex_instr.dest_swizzle(2);
-   tex.dst_sel_w = tex_instr.dest_swizzle(3);
-   tex.src_sel_x = tex_instr.src()[0]->chan();
-   tex.src_sel_y = tex_instr.src()[1]->chan();
-   tex.src_sel_z = tex_instr.src()[2]->chan();
-   tex.src_sel_w = tex_instr.src()[3]->chan();
-   tex.coord_type_x = !tex_instr.has_tex_flag(TexInstr::x_unnormalized);
-   tex.coord_type_y = !tex_instr.has_tex_flag(TexInstr::y_unnormalized);
-   tex.coord_type_z = !tex_instr.has_tex_flag(TexInstr::z_unnormalized);
-   tex.coord_type_w = !tex_instr.has_tex_flag(TexInstr::w_unnormalized);
-   tex.offset_x = tex_instr.get_offset(0);
-   tex.offset_y = tex_instr.get_offset(1);
-   tex.offset_z = tex_instr.get_offset(2);
-   tex.resource_index_mode = tex_instr.resource_index_mode();
-   tex.sampler_index_mode = tex_instr.sampler_index_mode();
+   if (tex_instr.dest_swizzle(0) < 4 && tex_instr.dest_swizzle(1) < 4 &&
+       tex_instr.dest_swizzle(2) < 4 && tex_instr.dest_swizzle(3) < 4)
+      tex_fetch_results.insert(tex_instr.dst().sel());
 
-   if (tex.dst_sel_x < 4 && tex.dst_sel_y < 4 && tex.dst_sel_z < 4 && tex.dst_sel_w < 4)
-      tex_fetch_results.insert(tex.dst_gpr);
-
-   if (tex_instr.opcode() == TexInstr::get_gradient_h ||
-       tex_instr.opcode() == TexInstr::get_gradient_v)
-      tex.inst_mod = tex_instr.has_tex_flag(TexInstr::grad_fine) ? 1 : 0;
-   else
-      tex.inst_mod = tex_instr.inst_mode();
-   if (r600_bytecode_add_tex(&m_bc, &tex)) {
-      R600_ASM_ERR("shader_from_nir: Error creating tex assembly instruction\n");
-      m_result = false;
-   }
+   m_result &= emit_bytecode_tex(m_bc, tex_instr);
 }
 
 void
 AssemblerVisitor::visit(const ExportInstr& exi)
 {
-   const auto& value = exi.value();
-
    if (unlikely(ps_alpha_to_one_and_coverage && exi.export_type() == ExportInstr::pixel &&
                 exi.location() == 0)) {
-      r600_bytecode_output output = {};
-
-      output.gpr = value.sel();
-      output.elem_size = 3;
-      output.swizzle_x = 7;
-      output.swizzle_y = 7;
-      output.swizzle_z = 7;
-      output.swizzle_w = value[3]->chan();
-      output.array_base = 61;
-      output.burst_count = 1;
-      output.op = CF_OP_EXPORT;
-      output.type = exi.export_type();
-
-      int r = 0;
-      if ((r = r600_bytecode_add_output(&m_bc, &output))) {
-         R600_ASM_ERR("Error adding export at location %d : err: %d\n",
-                      output.array_base,
-                      r);
-         m_result = false;
-      }
+      m_result &= emit_bytecode_export_alpha_to_coverage(m_bc, exi);
    }
-
-   r600_bytecode_output output = {};
-
-   output.gpr = value.sel();
-   output.elem_size = 3;
-   output.swizzle_x = value[0]->chan();
-   output.swizzle_y = value[1]->chan();
-   output.swizzle_z = value[2]->chan();
-   output.burst_count = 1;
-   output.op = exi.is_last_export() ? CF_OP_EXPORT_DONE : CF_OP_EXPORT;
-   output.type = exi.export_type();
 
    clear_states(sf_all);
-   switch (exi.export_type()) {
-   case ExportInstr::pixel:
-      output.swizzle_w = ps_alpha_to_one ? 5 : exi.value()[3]->chan();
-      output.array_base = exi.location();
-      break;
-   case ExportInstr::pos:
-      output.swizzle_w = exi.value()[3]->chan();
-      output.array_base = 60 + exi.location();
-      break;
-   case ExportInstr::param:
-      output.swizzle_w = exi.value()[3]->chan();
-      output.array_base = exi.location();
-      break;
-   default:
-      R600_ASM_ERR("shader_from_nir: export %d type not yet supported\n",
-                   exi.export_type());
-      m_result = false;
-   }
-
-   /* If all register elements pinned to fixed values
-    * we can override the gpr (the register allocator doesn't see
-    * this because it doesn't take these channels into account. */
-   if (output.swizzle_x > 3 && output.swizzle_y > 3 && output.swizzle_z > 3 &&
-       output.swizzle_w > 3)
-      output.gpr = 0;
-
-   int r = 0;
-   if ((r = r600_bytecode_add_output(&m_bc, &output))) {
-      R600_ASM_ERR("Error adding export at location %d : err: %d\n", exi.location(), r);
-      m_result = false;
-   }
+   m_result &= emit_bytecode_export(m_bc, exi, ps_alpha_to_one);
 }
 
 void
@@ -585,81 +493,19 @@ AssemblerVisitor::visit(const ScratchIOInstr& instr)
 {
    clear_states(sf_all);
 
-   r600_bytecode_output cf = {};
-
-   cf.op = CF_OP_MEM_SCRATCH;
-   cf.elem_size = 3;
-   cf.gpr = instr.value().sel();
-   cf.mark = !instr.is_read();
-   cf.comp_mask = instr.is_read() ? 0xf : instr.write_mask();
-   cf.swizzle_x = 0;
-   cf.swizzle_y = 1;
-   cf.swizzle_z = 2;
-   cf.swizzle_w = 3;
-   cf.burst_count = 1;
-
-   assert(!instr.is_read() || m_bc.gfx_level < R700);
-
-   if (instr.address()) {
-      cf.type = instr.is_read() || m_bc.gfx_level > R600 ? 3 : 1;
-      cf.index_gpr = instr.address()->sel();
-
-      /* The docu seems to be wrong here: In indirect addressing the
-       * address_base seems to be the array_size */
-      cf.array_size = instr.array_size();
-   } else {
-      cf.type = instr.is_read() || m_bc.gfx_level > R600 ? 2 : 0;
-      cf.array_base = instr.location();
-   }
-
-   if (r600_bytecode_add_output(&m_bc, &cf)) {
-      R600_ASM_ERR("shader_from_nir: Error creating SCRATCH_WR assembly instruction\n");
-      m_result = false;
-   }
+   m_result &= emit_bytecode_scratch(m_bc, instr);
 }
 
 void
 AssemblerVisitor::visit(const StreamOutInstr& instr)
 {
-   r600_bytecode_output output = {};
-
-   output.gpr = instr.value().sel();
-   output.elem_size = instr.element_size();
-   output.array_base = instr.array_base();
-   output.type = V_SQ_CF_ALLOC_EXPORT_WORD0_SQ_EXPORT_WRITE;
-   output.burst_count = instr.burst_count();
-   output.array_size = instr.array_size();
-   output.comp_mask = instr.comp_mask();
-   output.op = instr.op(m_shader.bc.gfx_level);
-
-   if (r600_bytecode_add_output(&m_bc, &output)) {
-      R600_ASM_ERR("shader_from_nir: Error creating stream output instruction\n");
-      m_result = false;
-   }
+   m_result &= emit_bytecode_stream_out(m_bc, instr);
 }
 
 void
 AssemblerVisitor::visit(const MemRingOutInstr& instr)
 {
-   r600_bytecode_output output = {};
-
-   output.gpr = instr.value().sel();
-   output.type = instr.type();
-   output.elem_size = 3;
-   output.comp_mask = 0xf;
-   output.burst_count = 1;
-   output.op = instr.op();
-   if (instr.type() == MemRingOutInstr::mem_write_ind ||
-       instr.type() == MemRingOutInstr::mem_write_ind_ack) {
-      output.index_gpr = instr.index_reg();
-      output.array_size = 0xfff;
-   }
-   output.array_base = instr.array_base();
-
-   if (r600_bytecode_add_output(&m_bc, &output)) {
-      R600_ASM_ERR("shader_from_nir: Error creating mem ring write instruction\n");
-      m_result = false;
-   }
+   m_result &= emit_bytecode_mem_ring(m_bc, instr);
 }
 
 void
@@ -704,44 +550,7 @@ AssemblerVisitor::visit(const FetchInstr& fetch_instr)
    else
       vtx_fetch_results.insert(fetch_instr.dst().sel());
 
-   r600_bytecode_vtx vtx = {};
-   vtx.op = fetch_instr.opcode();
-   vtx.buffer_id = fetch_instr.resource_id();
-   vtx.fetch_type = fetch_instr.fetch_type();
-   vtx.src_gpr = fetch_instr.src().sel();
-   vtx.src_sel_x = fetch_instr.src().chan();
-   vtx.mega_fetch_count = fetch_instr.mega_fetch_count();
-   vtx.dst_gpr = fetch_instr.dst().sel();
-   vtx.dst_sel_x = fetch_instr.dest_swizzle(0); /* SEL_X */
-   vtx.dst_sel_y = fetch_instr.dest_swizzle(1); /* SEL_Y */
-   vtx.dst_sel_z = fetch_instr.dest_swizzle(2); /* SEL_Z */
-   vtx.dst_sel_w = fetch_instr.dest_swizzle(3); /* SEL_W */
-   vtx.use_const_fields = fetch_instr.has_fetch_flag(FetchInstr::use_const_field);
-   vtx.data_format = fetch_instr.data_format();
-   vtx.num_format_all = fetch_instr.num_format(); /* NUM_FORMAT_SCALED */
-   vtx.format_comp_all = fetch_instr.has_fetch_flag(FetchInstr::format_comp_signed);
-   vtx.endian = fetch_instr.endian_swap();
-   vtx.buffer_index_mode = fetch_instr.resource_index_mode();
-   vtx.offset = fetch_instr.src_offset();
-   vtx.indexed = fetch_instr.has_fetch_flag(FetchInstr::indexed);
-   vtx.uncached = fetch_instr.has_fetch_flag(FetchInstr::uncached);
-   vtx.elem_size = fetch_instr.elm_size();
-   vtx.array_base = fetch_instr.array_base();
-   vtx.array_size = fetch_instr.array_size();
-   vtx.srf_mode_all = fetch_instr.has_fetch_flag(FetchInstr::srf_mode);
-
-   if (fetch_instr.has_fetch_flag(FetchInstr::use_tc)) {
-      if ((r600_bytecode_add_vtx_tc(&m_bc, &vtx))) {
-         R600_ASM_ERR("shader_from_nir: Error creating tex assembly instruction\n");
-         m_result = false;
-      }
-
-   } else {
-      if ((r600_bytecode_add_vtx(&m_bc, &vtx))) {
-         R600_ASM_ERR("shader_from_nir: Error creating tex assembly instruction\n");
-         m_result = false;
-      }
-   }
+   m_result &= emit_bytecode_fetch(m_bc, fetch_instr, use_tc);
 
    m_bc.cf_last->vpm =
       (m_bc.type == MESA_SHADER_FRAGMENT) && fetch_instr.has_fetch_flag(FetchInstr::vpm);
@@ -751,42 +560,7 @@ AssemblerVisitor::visit(const FetchInstr& fetch_instr)
 void
 AssemblerVisitor::visit(const WriteTFInstr& instr)
 {
-   r600_bytecode_gds gds = {};
-
-   auto& value = instr.value();
-
-   gds.src_gpr = value.sel();
-   gds.src_sel_x = value[0]->chan();
-   gds.src_sel_y = value[1]->chan();
-   gds.src_sel_z = 4;
-   gds.dst_sel_x = 7;
-   gds.dst_sel_y = 7;
-   gds.dst_sel_z = 7;
-   gds.dst_sel_w = 7;
-   gds.op = FETCH_OP_TF_WRITE;
-
-   if (r600_bytecode_add_gds(&m_bc, &gds) != 0) {
-      m_result = false;
-      return;
-   }
-
-   if (value[2]->chan() != 7) {
-      gds = {};
-      gds.src_gpr = value.sel();
-      gds.src_sel_x = value[2]->chan();
-      gds.src_sel_y = value[3]->chan();
-      gds.src_sel_z = 4;
-      gds.dst_sel_x = 7;
-      gds.dst_sel_y = 7;
-      gds.dst_sel_z = 7;
-      gds.dst_sel_w = 7;
-      gds.op = FETCH_OP_TF_WRITE;
-
-      if (r600_bytecode_add_gds(&m_bc, &gds)) {
-         m_result = false;
-         return;
-      }
-   }
+   m_result &= emit_bytecode_tf_write(m_bc, instr);
 }
 
 void
@@ -939,47 +713,9 @@ AssemblerVisitor::visit(const ControlFlowInstr& instr)
 void
 AssemblerVisitor::visit(const GDSInstr& instr)
 {
-   r600_bytecode_gds gds = {};
-
-   gds.op = ds_opcode_map.at(instr.opcode());
-   gds.uav_id = instr.resource_id();
-   gds.uav_index_mode = instr.resource_index_mode();
-   gds.src_gpr = instr.src().sel();
-
-   gds.src_sel_x = instr.src()[0]->chan() < 7 ? instr.src()[0]->chan() : 4;
-   gds.src_sel_y = instr.src()[1]->chan() < 7 ? instr.src()[1]->chan() : 4;
-   gds.src_sel_z = instr.src()[2]->chan() < 7 ? instr.src()[2]->chan() : 4;
-
-   gds.dst_sel_x = 7;
-   gds.dst_sel_y = 7;
-   gds.dst_sel_z = 7;
-   gds.dst_sel_w = 7;
-
-   if (instr.dest()) {
-      gds.dst_gpr = instr.dest()->sel();
-      switch (instr.dest()->chan()) {
-      case 0:
-         gds.dst_sel_x = 0;
-         break;
-      case 1:
-         gds.dst_sel_y = 0;
-         break;
-      case 2:
-         gds.dst_sel_z = 0;
-         break;
-      case 3:
-         gds.dst_sel_w = 0;
-      }
-   }
-
-   gds.src_gpr2 = 0;
-   gds.alloc_consume = m_bc.gfx_level < CAYMAN ? 1 : 0; // Not Cayman
-
-   int r = r600_bytecode_add_gds(&m_bc, &gds);
-   if (r) {
-      m_result = false;
+   if (!(m_result &= emit_bytecode_gds(m_bc, instr)))
       return;
-   }
+
    m_bc.cf_last->vpm = MESA_SHADER_FRAGMENT == m_bc.type;
    m_bc.cf_last->barrier = 1;
 }
