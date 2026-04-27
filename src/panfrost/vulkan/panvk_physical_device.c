@@ -10,7 +10,6 @@
  */
 
 #include <sys/stat.h>
-#include <sys/sysinfo.h>
 
 #include "util/disk_cache.h"
 #include "util/os_misc.h"
@@ -22,6 +21,7 @@
 #include "vk_drm_syncobj.h"
 #include "vk_format.h"
 #include "vk_log.h"
+#include "vk_physical_device.h"
 #include "vk_util.h"
 
 #include "panvk_device.h"
@@ -221,36 +221,19 @@ get_core_masks(struct panvk_physical_device *device,
    return result;
 }
 
-static uint64_t
-get_system_heap_size()
-{
-   struct sysinfo info;
-   sysinfo(&info);
-
-   uint64_t total_ram = (uint64_t)info.totalram * info.mem_unit;
-
-   /* We don't want to burn too much ram with the GPU.  If the user has 4GiB
-    * or less, we use at most half.  If they have more than 4GiB, we use 3/4.
-    */
-   uint64_t available_ram;
-   if (total_ram <= 4ull * 1024 * 1024 * 1024)
-      available_ram = total_ram / 2;
-   else
-      available_ram = total_ram * 3 / 4;
-
-   return available_ram;
-}
-
 static VkResult
 get_device_heaps(struct panvk_physical_device *device,
-                 const struct panvk_instance *instance)
+                 struct panvk_instance *instance)
 {
    int host_coherent_not_cached_idx = -1;
    int host_cached_not_coherent_idx = -1;
 
+   const uint64_t heap_size = os_get_gpu_heap_size(
+      instance->heap_memory_percent, &instance->heap_memory_percent);
+
    device->memory.heap_count = 1;
-   device->memory.heaps[0] = (VkMemoryHeap) {
-      .size = get_system_heap_size(),
+   device->memory.heaps[0] = (VkMemoryHeap){
+      .size = heap_size,
       .flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
    };
 
@@ -632,10 +615,6 @@ panvk_GetPhysicalDeviceMemoryProperties2(
 
          uint64_t used = p_atomic_read(&physical_device->memory.heap_used);
          uint64_t heap_size = physical_device->memory.heaps[0].size;
-         uint64_t available;
-
-         if (!os_get_available_system_memory(&available))
-            available = heap_size;
 
          /* From the Vulkan 1.3.278 spec:
           *
@@ -646,29 +625,9 @@ panvk_GetPhysicalDeviceMemoryProperties2(
           */
          p->heapUsage[0] = used;
 
-         /* From the Vulkan 1.3.278 spec:
-          *
-          *    "heapBudget is an array of VK_MAX_MEMORY_HEAPS VkDeviceSize
-          *    values in which memory budgets are returned, with one
-          *    element for each memory heap. A heap’s budget is a rough
-          *    estimate of how much memory the process can allocate from
-          *    that heap before allocations may fail or cause performance
-          *    degradation. The budget includes any currently allocated
-          *    device memory."
-          *
-          * and
-          *
-          *    "The heapBudget value must be less than or equal to
-          *    VkMemoryHeap::size for each heap."
-          *
-          * available (queried above) is the total amount of free memory
-          * system-wide and does not include our allocations so we need
-          * to add that in.
-          */
-         uint64_t budget = MIN2(available + used, heap_size);
-
          /* Set the budget at 90% of available to avoid thrashing */
-         p->heapBudget[0] = ROUND_DOWN_TO(budget * 9 / 10, 1 << 20);
+         p->heapBudget[0] = vk_physical_device_heap_budget_from_system(
+            &physical_device->vk, 0.9f, heap_size, used);
 
          /* From the Vulkan 1.3.278 spec:
           *
