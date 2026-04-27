@@ -321,11 +321,13 @@ pvr_get_driver_build_sha(struct pvr_instance *instance)
    return true;
 }
 
+/* clang-format off */
 static const driOptionDescription pvr_dri_options[] = {
    DRI_CONF_SECTION_DEBUG
       DRI_CONF_FORCE_VK_VENDOR()
    DRI_CONF_SECTION_END
 };
+/* clang-format on */
 
 static void pvr_init_dri_options(struct pvr_instance *instance)
 {
