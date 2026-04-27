@@ -323,8 +323,20 @@ pvr_get_driver_build_sha(struct pvr_instance *instance)
 
 /* clang-format off */
 static const driOptionDescription pvr_dri_options[] = {
+   DRI_CONF_SECTION_PERFORMANCE
+      DRI_CONF_ADAPTIVE_SYNC(true)
+      DRI_CONF_VK_X11_OVERRIDE_MIN_IMAGE_COUNT(0)
+      DRI_CONF_VK_X11_STRICT_IMAGE_COUNT(false)
+      DRI_CONF_VK_X11_ENSURE_MIN_IMAGE_COUNT(false)
+      DRI_CONF_VK_XWAYLAND_WAIT_READY(false)
+   DRI_CONF_SECTION_END
+
    DRI_CONF_SECTION_DEBUG
       DRI_CONF_FORCE_VK_VENDOR()
+      DRI_CONF_VK_WSI_DISABLE_UNORDERED_SUBMITS(false)
+      DRI_CONF_VK_WSI_FORCE_BGRA8_UNORM_FIRST(false)
+      DRI_CONF_VK_WSI_FORCE_SWAPCHAIN_TO_CURRENT_EXTENT(false)
+      DRI_CONF_VK_X11_IGNORE_SUBOPTIMAL(false)
    DRI_CONF_SECTION_END
 };
 /* clang-format on */
