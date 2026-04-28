@@ -1552,23 +1552,6 @@ brw_float_controls_mode(struct brw_codegen *p,
       brw_SYNC(p, TGL_SYNC_NOP);
 }
 
-void
-brw_update_reloc_imm(const struct brw_isa_info *isa,
-                     brw_eu_inst *inst,
-                     uint32_t value)
-{
-   const struct intel_device_info *devinfo = isa->devinfo;
-
-   /* Sanity check that the instruction is a MOV of an immediate */
-   assert(brw_eu_inst_opcode(isa, inst) == BRW_OPCODE_MOV);
-   assert(brw_eu_inst_src0_reg_file(devinfo, inst) == IMM);
-
-   /* If it was compacted, we can't safely rewrite */
-   assert(brw_eu_inst_cmpt_control(devinfo, inst) == 0);
-
-   brw_eu_inst_set_imm_ud(devinfo, inst, value);
-}
-
 /* A default value for constants that will be patched at run-time.
  * We pick an arbitrary value that prevents instruction compaction.
  */

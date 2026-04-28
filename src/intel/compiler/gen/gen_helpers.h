@@ -695,6 +695,14 @@ gen_condition_swap_sources(gen_condition mod)
    }
 }
 
+/* Rewrite the immediate of an already-encoded uncompacted MOV imm
+ * instruction in place.  Used by shader relocation handling.
+ *
+ * See also GEN_UNCOMPACTABLE_PATCH_IMM.
+ */
+void gen_update_reloc_imm(const struct intel_device_info *devinfo,
+                          void *inst, uint32_t value);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

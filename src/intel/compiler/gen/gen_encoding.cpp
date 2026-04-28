@@ -16,6 +16,7 @@
 
 /* Generated instruction information */
 #include "gen_info_util.h"
+#include "gen_info_pre_xe.h"
 #include "gen_info_xe.h"
 #include "gen_info_xe2.h"
 
@@ -1829,4 +1830,26 @@ gen_decode(gen_decode_params *params)
       auto d = gen_decoder<gen_encoding_xe2>(devinfo, params->mem_ctx);
       return d.decode_many(params);
    }
+}
+
+void
+gen_update_reloc_imm(const struct intel_device_info *devinfo,
+                     void *inst, uint32_t value)
+{
+   assert(devinfo);
+   assert(!gen_raw_is_compact(inst));
+
+   static_assert(gen_encoding_xe ::gen_to_description[GEN_OP_MOV].hw_opcode ==
+                 gen_encoding_xe2::gen_to_description[GEN_OP_MOV].hw_opcode);
+
+   ASSERTED unsigned mov_opcode = devinfo->ver < 12
+      ? gen_encoding_pre_xe::gen_to_description[GEN_OP_MOV].hw_opcode
+      : gen_encoding_xe    ::gen_to_description[GEN_OP_MOV].hw_opcode;
+   assert(gen_raw_get_opcode(inst) == mov_opcode);
+
+   /* The position of the 32-bit immediate is the same across all
+    * versions, so we can just rewrite the bits here.
+    */
+   uint32_t *inst_dwords = (uint32_t *)inst;
+   inst_dwords[3] = value;
 }

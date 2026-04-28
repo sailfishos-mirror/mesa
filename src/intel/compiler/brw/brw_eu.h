@@ -1169,11 +1169,6 @@ brw_float_controls_mode(struct brw_codegen *p,
                         unsigned mode, unsigned mask);
 
 void
-brw_update_reloc_imm(const struct brw_isa_info *isa,
-                     brw_eu_inst *inst,
-                     uint32_t value);
-
-void
 brw_MOV_reloc_imm(struct brw_codegen *p,
                   struct brw_reg dst,
                   enum brw_reg_type src_type,
