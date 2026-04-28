@@ -1232,7 +1232,7 @@ fd6_clear_texture(struct pipe_context *pctx, struct pipe_resource *prsc,
 template <chip CHIP>
 static void
 resolve_tile_setup(struct fd_batch *batch, fd_cs &cs, uint32_t base,
-                   struct pipe_surface *psurf,
+                   uint32_t uv_base, struct pipe_surface *psurf,
                    BITMASK_ENUM(fd_buffer_mask) buffers)
 {
    const struct fd_gmem_stateobj *gmem = batch->gmem_state;
@@ -1240,7 +1240,8 @@ resolve_tile_setup(struct fd_batch *batch, fd_cs &cs, uint32_t base,
                          util_format_get_blocksize(psurf->format);
    unsigned width = pipe_surface_width(psurf);
    unsigned height = pipe_surface_height(psurf);
-   fd_ncrb<CHIP> ncrb(cs, 26);
+   /* Extra 8 DWORDs for YUV: BASE_1(2) + PITCH_1(1) + BASE_2(2) + FLAG_BASE(2) + FLAG_PITCH(1) */
+   fd_ncrb<CHIP> ncrb(cs, 34);
 
    ncrb.add(GRAS_A2D_DEST_TL(CHIP, .x = 0, .y = 0));
    ncrb.add(GRAS_A2D_DEST_BR(CHIP, .x = width - 1, .y = height - 1));
@@ -1283,20 +1284,39 @@ resolve_tile_setup(struct fd_batch *batch, fd_cs &cs, uint32_t base,
    ));
 
    /* gen8 simply uses gmem offset when GMEM tiling (TILE6_2) is specified: */
-   if (CHIP < A8XX)
+   if (CHIP < A8XX) {
       base += batch->ctx->screen->gmem_base;
+      if (uv_base)
+         uv_base += batch->ctx->screen->gmem_base;
+   }
 
    ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE(CHIP, .qword = base));
    ncrb.add(TPL1_A2D_SRC_TEXTURE_PITCH(CHIP, .pitch = gmem_pitch));
+
+   if (util_format_is_yuv(psurf->format)) {
+      /* For NV12/YUV GMEM resolves, the 2D blitter reads the UV plane from
+       * GMEM using BASE_1/PITCH_1. uv_base is the GMEM offset of the UV plane
+       * (gmem->cbuf_base[i+1]).
+       *
+       * The UV plane in GMEM uses the same pitch as the Y plane because GMEM
+       * tiles are always the same width (bin_w) regardless of plane.
+       */
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE_1(CHIP, .qword = uv_base));
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_PITCH_1(CHIP, gmem_pitch));
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE_2(CHIP, .qword = 0));
+      /* Always emit FLAG_BASE/PITCH for YUV to clear stale values */
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_FLAG_BASE(CHIP, .qword = 0));
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_FLAG_PITCH(CHIP, 0));
+   }
 }
 
 template <chip CHIP>
 void
 fd6_resolve_tile(struct fd_batch *batch, fd_cs &cs, uint32_t base,
-                 struct pipe_surface *psurf,
+                 uint32_t uv_base, struct pipe_surface *psurf,
                  BITMASK_ENUM(fd_buffer_mask) buffers)
 {
-   resolve_tile_setup<CHIP>(batch, cs, base, psurf, buffers);
+   resolve_tile_setup<CHIP>(batch, cs, base, uv_base, psurf, buffers);
 
    /* sync GMEM writes with CACHE. */
    fd6_cache_inv<CHIP>(batch->ctx, cs);

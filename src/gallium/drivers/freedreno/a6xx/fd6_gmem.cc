@@ -115,6 +115,48 @@ emit_mrt(fd_crb &crb, struct pipe_framebuffer_state *pfb,
          .array_pitch = rsc->layout.ubwc_layer_size >> 2,
       ));
 
+      /* Handle Multiplanar YUV (Linear NV12) - MRT1 for UV Plane.
+       */
+      if (util_format_is_yuv(pformat) &&
+          rsc->b.b.next) {
+
+         struct fd_resource *uv_rsc = fd_resource(rsc->b.b.next);
+         uint32_t uv_offset = fd_resource_offset(uv_rsc, psurf->level,
+                                                  psurf->first_layer);
+         uint32_t uv_stride = fd_resource_pitch(uv_rsc, psurf->level);
+         uint32_t uv_array_stride = fd_resource_layer_stride(uv_rsc, psurf->level);
+         int idx = i + 1; /* MRT1 for UV plane */
+         uint32_t uv_base_gmem = gmem ? gmem->cbuf_base[idx] : 0;
+
+         crb.attach_bo(uv_rsc->bo);
+
+         crb.add(RB_MRT_BUF_INFO(CHIP, idx,
+            .color_format = FMT6_NV12_4R, /* NV12 UV plane format */
+            .color_tile_mode = TILE6_LINEAR,
+            .color_swap = WZYX,
+            .losslesscompen = false,
+         ));
+
+         crb.add(A6XX_RB_MRT_PITCH(idx, uv_stride));
+         crb.add(A6XX_RB_MRT_ARRAY_PITCH(idx, uv_array_stride));
+         crb.add(A6XX_RB_MRT_BASE(idx, .bo = uv_rsc->bo, .bo_offset = uv_offset));
+         crb.add(A6XX_RB_MRT_BASE_GMEM(idx, uv_base_gmem));
+
+         crb.add(A6XX_SP_PS_MRT_REG(idx,
+            .color_format = (enum a6xx_format)0,
+            .color_sint = false,
+            .color_uint = false
+         ));
+
+         crb.add(A6XX_RB_COLOR_FLAG_BUFFER_ADDR(idx,
+            .bo_offset = 0,
+         ));
+         crb.add(A6XX_RB_COLOR_FLAG_BUFFER_PITCH(idx,
+            .pitch = 0,
+            .array_pitch = 0,
+         ));
+      }
+
       if (i == 0)
          mrt0_format = format;
    }
@@ -514,7 +556,16 @@ patch_fb_read_sysmem(struct fd_batch *batch)
          .chroma_offsets = {FDL_CHROMA_LOCATION_COSITED_EVEN,
                             FDL_CHROMA_LOCATION_COSITED_EVEN},
       };
-      const struct fdl_layout *layouts[3] = {&rsc->layout, NULL, NULL};
+      struct fd_resource *plane1 =
+         fd_resource(util_resource_at_index(prsc, 1));
+      struct fd_resource *plane2 =
+         fd_resource(util_resource_at_index(prsc, 2));
+      static const struct fdl_layout dummy_layout = {};
+      const struct fdl_layout *layouts[3] = {
+         &rsc->layout,
+         plane1 ? &plane1->layout : &dummy_layout,
+         plane2 ? &plane2->layout : &dummy_layout,
+      };
       struct fdl6_view view;
       fdl6_view_init<CHIP>(&view, layouts, &args,
                            batch->ctx->screen->info->props.has_z24uint_s8uint);
@@ -1522,17 +1573,18 @@ emit_blit(struct fd_batch *batch, fd_crb &crb, uint32_t base,
 template <chip CHIP>
 static void
 emit_restore_blit(struct fd_batch *batch, fd_cs &cs, uint32_t base,
-                  struct pipe_surface *psurf, unsigned buffer)
+                  struct pipe_surface *psurf, unsigned buffer, bool is_uv_plane = false)
 {
    bool stencil = (buffer == FD_BUFFER_STENCIL);
 
-   with_crb (cs, 11) {
+   with_crb (cs, 12) {
       crb.add(A6XX_RB_RESOLVE_OPERATION(
          .type = BLIT_EVENT_LOAD,
          .sample_0 = util_format_is_pure_integer(psurf->format),
          .depth = (buffer == FD_BUFFER_DEPTH),
       ));
 
+      crb.add(A6XX_RB_RESOLVE_CNTL_0(.yuv_plane_id = (uint32_t)(is_uv_plane ? 1 : 0)));
       emit_blit<CHIP>(batch, crb, base, psurf, stencil);
    }
 
@@ -1811,8 +1863,21 @@ emit_restore_blits(struct fd_batch *batch, fd_cs &cs)
             continue;
          if (!(batch->restore & (PIPE_CLEAR_COLOR0 << i)))
             continue;
-         emit_restore_blit<CHIP>(batch, cs, gmem->cbuf_base[i], &pfb->cbufs[i],
+
+         struct pipe_surface *psurf = &pfb->cbufs[i];
+         struct fd_resource *rsc = fd_resource(psurf->texture);
+
+         emit_restore_blit<CHIP>(batch, cs, gmem->cbuf_base[i], psurf,
                                  FD_BUFFER_COLOR);
+
+         if (util_format_is_yuv(psurf->format) &&
+             util_format_get_num_planes(psurf->format) == 2 &&
+             rsc->b.b.next) {
+            struct pipe_surface uv_surf = *psurf;
+            uv_surf.texture = rsc->b.b.next;
+            emit_restore_blit<CHIP>(batch, cs, gmem->cbuf_base[i + 1], &uv_surf,
+                                    FD_BUFFER_COLOR, true);
+         }
       }
    }
 
@@ -1890,6 +1955,13 @@ blit_can_resolve(enum pipe_format format)
    if (util_format_is_snorm(format) || util_format_is_srgb(format))
       return false;
 
+   /* YUV multiplanar formats require the A2D 2D blitter engine which supports
+    * BASE_1/PITCH_1 for the UV plane. BLIT_EVENT_STORE only has a single
+    * GMEM base register and cannot resolve both planes at once.
+    */
+   if (util_format_is_yuv(format))
+      return false;
+
    /* can't do formats with larger channel sizes
     * note: this includes all float formats
     * note2: single channel integer formats seem OK
@@ -1935,20 +2007,42 @@ emit_resolve_blit(struct fd_batch *batch, fd_cs &cs,
    if (!fd_resource(psurf->texture)->valid)
       return;
 
+   uint32_t uv_base = 0;
+   if (buffer == FD_BUFFER_COLOR) {
+      struct pipe_framebuffer_state *pfb = &batch->framebuffer;
+      const struct fd_gmem_stateobj *gmem = batch->gmem_state;
+      for (unsigned i = 0; i < pfb->nr_cbufs; i++) {
+         if (pfb->cbufs[i].texture == psurf->texture) {
+            struct fd_resource *rsc = fd_resource(psurf->texture);
+            if (util_format_is_yuv(psurf->format) &&
+                util_format_get_num_planes(psurf->format) == 2 &&
+                rsc->b.b.next) {
+               uv_base = gmem->cbuf_base[i + 1];
+            }
+            break;
+         }
+      }
+   }
+
    /* if we need to resolve, but cannot with BLIT event, we instead need
     * to generate per-tile CP_BLIT (r2d) commands:
     *
     * The separate-stencil is a special case, we might need to use CP_BLIT
     * for depth, but we can still resolve stencil with a BLIT event
+    *
+    * For YUV formats, we must use the 2D blitter (CP_BLIT) even without MSAA
+    * because BLIT_EVENT_STORE only supports a single GMEM base register and
+    * cannot resolve both Y and UV planes simultaneously.
     */
-   if (needs_resolve(psurf) && !blit_can_resolve(psurf->format) &&
+   if ((needs_resolve(psurf) || util_format_is_yuv(psurf->format)) &&
+       !blit_can_resolve(psurf->format) &&
        (buffer != FD_BUFFER_STENCIL)) {
       /* We could potentially use RB_A2D_PIXEL_CNTL to handle partial z/s
        * resolve to packed z/s, but we would need a corresponding ability in the
        * !resolve case below, so batch_draw_tracking_for_dirty_bits() has us
        * just do a restore of the other channel for partial packed z/s writes.
        */
-      fd6_resolve_tile<CHIP>(batch, cs, base, psurf, FD_BUFFER_ALL);
+      fd6_resolve_tile<CHIP>(batch, cs, base, uv_base, psurf, FD_BUFFER_ALL);
       return;
    }
 
@@ -1969,8 +2063,9 @@ emit_resolve_blit(struct fd_batch *batch, fd_cs &cs,
        util_format_is_depth_or_stencil(psurf->format))
       info |= A6XX_RB_RESOLVE_OPERATION_SAMPLE_0;
 
-   with_crb (cs, 11) {
+   with_crb (cs, 12) {
       crb.add(A6XX_RB_RESOLVE_OPERATION(.dword = info));
+      crb.add(A6XX_RB_RESOLVE_CNTL_0(.yuv_plane_id = 0));
       emit_blit<CHIP>(batch, crb, base, psurf, stencil);
    }
 
@@ -2016,6 +2111,7 @@ prepare_tile_fini(struct fd_batch *batch)
             continue;
          if (!(batch->resolve & (PIPE_CLEAR_COLOR0 << i)))
             continue;
+
          emit_resolve_blit<CHIP>(batch, cs, gmem->cbuf_base[i],
                                  &pfb->cbufs[i], FD_BUFFER_COLOR);
       }
