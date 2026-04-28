@@ -15,6 +15,7 @@ class ExportInstr;
 class FetchInstr;
 class GDSInstr;
 class MemRingOutInstr;
+class RatInstr;
 class ScratchIOInstr;
 class StreamOutInstr;
 class TexInstr;
@@ -40,6 +41,9 @@ bool emit_bytecode_fetch(r600_bytecode& bc, const FetchInstr& fetch_instr, bool 
 bool emit_bytecode_gds(r600_bytecode& bc, const GDSInstr& instr);
 
 bool emit_bytecode_tf_write(r600_bytecode& bc, const WriteTFInstr& instr);
+
+void fill_bytecode_rat(r600_bytecode_cf& cf, const RatInstr& instr,
+                       unsigned rat_base, unsigned shader_type);
 
 } // namespace r600
 

@@ -411,4 +411,32 @@ emit_bytecode_tf_write(r600_bytecode& bc, const WriteTFInstr& instr)
    return true;
 }
 
+void
+fill_bytecode_rat(r600_bytecode_cf& cf, const RatInstr& instr,
+                  unsigned rat_base, unsigned shader_type)
+{
+   int rat_idx = instr.resource_id();
+
+   cf.rat.id = rat_idx + rat_base;
+   cf.rat.inst = instr.rat_op();
+   cf.rat.index_mode = instr.resource_index_mode();
+   cf.output.type = instr.need_ack() ? 3 : 1;
+   cf.output.gpr = instr.data_gpr();
+   cf.output.index_gpr = instr.index_gpr();
+   cf.output.comp_mask = instr.comp_mask();
+   cf.output.burst_count = instr.burst_count();
+   assert(instr.data_swz(0) == PIPE_SWIZZLE_X);
+   if (cf.rat.inst != RatInstr::STORE_TYPED) {
+      assert(instr.data_swz(1) == PIPE_SWIZZLE_Y ||
+             instr.data_swz(1) == PIPE_SWIZZLE_MAX);
+      assert(instr.data_swz(2) == PIPE_SWIZZLE_Z ||
+             instr.data_swz(2) == PIPE_SWIZZLE_MAX);
+   }
+
+   cf.vpm = shader_type == MESA_SHADER_FRAGMENT;
+   cf.barrier = 1;
+   cf.mark = instr.need_ack();
+   cf.output.elem_size = instr.elm_size();
+}
+
 } // namespace r600

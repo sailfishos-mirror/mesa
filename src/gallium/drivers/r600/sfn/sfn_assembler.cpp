@@ -564,36 +564,14 @@ AssemblerVisitor::visit(const WriteTFInstr& instr)
 void
 AssemblerVisitor::visit(const RatInstr& instr)
 {
-   /* The instruction writes to the retuen buffer location, and
+   /* The instruction writes to the return buffer location, and
     * the value will actually be read back, so make sure all previous writes
     * have been finished */
-   if (m_ack_suggested /*&& instr.has_instr_flag(Instr::ack_rat_return_write)*/)
+   if (m_ack_suggested)
       emit_wait_ack();
 
-   int rat_idx = instr.resource_id();
-
    r600_bytecode_add_cfinst(&m_bc, instr.cf_opcode());
-   auto cf = m_bc.cf_last;
-   cf->rat.id = rat_idx + m_shader.rat_base;
-   cf->rat.inst = instr.rat_op();
-   cf->rat.index_mode = instr.resource_index_mode();
-   cf->output.type = instr.need_ack() ? 3 : 1;
-   cf->output.gpr = instr.data_gpr();
-   cf->output.index_gpr = instr.index_gpr();
-   cf->output.comp_mask = instr.comp_mask();
-   cf->output.burst_count = instr.burst_count();
-   assert(instr.data_swz(0) == PIPE_SWIZZLE_X);
-   if (cf->rat.inst != RatInstr::STORE_TYPED) {
-      assert(instr.data_swz(1) == PIPE_SWIZZLE_Y ||
-             instr.data_swz(1) == PIPE_SWIZZLE_MAX);
-      assert(instr.data_swz(2) == PIPE_SWIZZLE_Z ||
-             instr.data_swz(2) == PIPE_SWIZZLE_MAX);
-   }
-
-   cf->vpm = m_bc.type == MESA_SHADER_FRAGMENT;
-   cf->barrier = 1;
-   cf->mark = instr.need_ack();
-   cf->output.elem_size = instr.elm_size();
+   fill_bytecode_rat(*m_bc.cf_last, instr, m_shader.rat_base, m_bc.type);
 
    m_ack_suggested |= instr.need_ack();
 }
