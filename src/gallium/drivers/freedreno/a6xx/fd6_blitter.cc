@@ -41,6 +41,11 @@ fd6_ifmt(enum a6xx_format fmt)
    case FMT6_4_4_4_4_UNORM:
    case FMT6_5_5_5_1_UNORM:
    case FMT6_5_6_5_UNORM:
+   case FMT6_NV12_4R:
+   case FMT6_NV12_4R_Y:
+   case FMT6_NV12_4R_UV:
+   case FMT6_NV12_Y:
+   case FMT6_NV12_UV:
       return R2D_UNORM8;
 
    case FMT6_32_UINT:
@@ -236,7 +241,10 @@ can_do_blit(const struct fd_dev_info *dev_info, const struct pipe_blit_info *inf
    const int common_channels =
       MIN2(src_desc->nr_channels, dst_desc->nr_channels);
 
-   if (info->mask & PIPE_MASK_RGBA) {
+   bool is_yuv_blit = util_format_is_yuv(info->src.format) || 
+                      util_format_is_yuv(info->dst.format);
+
+   if (!is_yuv_blit && (info->mask & PIPE_MASK_RGBA)) {
       for (int i = 0; i < common_channels; i++) {
          fail_if(memcmp(&src_desc->channel[i], &dst_desc->channel[i],
                         sizeof(src_desc->channel[0])));
@@ -315,14 +323,17 @@ emit_blit_setup(fd_ncrb<CHIP> &ncrb, enum pipe_format pfmt,
       ifmt = R2D_UNORM8_SRGB;
    }
 
+   bool is_yuv = util_format_is_yuv(pfmt);
+
    ncrb.add(A6XX_RB_A2D_BLT_CNTL(
       .rotate = p.rotate,
       .solid_color = !!p.color,
       .color_format = fmt,
       .scissor = p.scissor_enable,
-      .is_src_yuv = fmt == FMT6_Z24_UNORM_S8_UINT_AS_R8G8B8A8 && !p.color,
+      .is_src_yuv = (fmt == FMT6_Z24_UNORM_S8_UINT_AS_R8G8B8A8 && !p.color) || is_yuv,
       .mask = p.mask,
       .ifmt = util_format_is_srgb(pfmt) ? R2D_UNORM8_SRGB : ifmt,
+      .linear_yuv = is_yuv,
    ));
 
    ncrb.add(GRAS_A2D_BLT_CNTL(CHIP,
@@ -330,9 +341,10 @@ emit_blit_setup(fd_ncrb<CHIP> &ncrb, enum pipe_format pfmt,
       .solid_color = !!p.color,
       .color_format = fmt,
       .scissor = p.scissor_enable,
-      .is_src_yuv = fmt == FMT6_Z24_UNORM_S8_UINT_AS_R8G8B8A8 && !p.color,
+      .is_src_yuv = (fmt == FMT6_Z24_UNORM_S8_UINT_AS_R8G8B8A8 && !p.color) || is_yuv,
       .mask = p.mask,
       .ifmt = util_format_is_srgb(pfmt) ? R2D_UNORM8_SRGB : ifmt,
+      .linear_yuv = is_yuv,
    ));
 
    if (CHIP >= A7XX) {
@@ -344,6 +356,10 @@ emit_blit_setup(fd_ncrb<CHIP> &ncrb, enum pipe_format pfmt,
 
    if (fmt == FMT6_10_10_10_2_UNORM_DEST)
       fmt = FMT6_16_16_16_16_FLOAT;
+
+   if (fd_format_is_planar_yuv(pfmt))
+      fmt = FMT6_8_8_8_8_UNORM;
+
 
    enum a6xx_sp_a2d_output_ifmt_type output_ifmt_type;
    if (util_format_is_pure_uint(pfmt))
@@ -605,7 +621,7 @@ fd6_clear_ubwc(struct fd_batch *batch, struct fd_resource *rsc) assert_dt
                           FD6_WAIT_FOR_IDLE);
 }
 
-/* nregs: 10 */
+/* nregs: 15 */
 template <chip CHIP>
 static void
 emit_blit_dst(fd_ncrb<CHIP> &ncrb, struct pipe_resource *prsc,
@@ -639,6 +655,22 @@ emit_blit_dst(fd_ncrb<CHIP> &ncrb, struct pipe_resource *prsc,
    ));
    ncrb.add(A6XX_RB_A2D_DEST_BUFFER_PITCH(pitch));
 
+   /* Only two-plane 4:2:0 formats (NV12/NV21) are handled here; a 3-plane
+    * format would need a third base/pitch pair for the V plane.
+    */
+   if (util_format_is_yuv(pfmt) && util_format_get_num_planes(pfmt) == 2) {
+      struct fd_resource *uv_rsc = dst->b.b.next ? fd_resource(dst->b.b.next) : dst;
+      uint32_t uv_pitch = fd_resource_pitch(uv_rsc, level);
+      unsigned uv_off = fd_resource_offset(uv_rsc, level, layer);
+
+      ncrb.add(A6XX_RB_A2D_DEST_BUFFER_BASE_1(
+         .bo = uv_rsc->bo,
+         .bo_offset = uv_off,
+      ));
+      ncrb.add(A6XX_RB_A2D_DEST_BUFFER_PITCH_1(uv_pitch));
+      ncrb.add(A6XX_RB_A2D_DEST_BUFFER_BASE_2(0));
+   }
+
    if (ubwc_enabled) {
       ncrb.add(A6XX_RB_A2D_DEST_FLAG_BUFFER_BASE(
          dst->bo, fd_resource_ubwc_offset(dst, level, layer)
@@ -652,7 +684,7 @@ emit_blit_dst(fd_ncrb<CHIP> &ncrb, struct pipe_resource *prsc,
    }
 }
 
-/* nregs: 8 */
+/* nregs: 16 */
 template <chip CHIP>
 static void
 emit_blit_src(fd_ncrb<CHIP> &ncrb, const struct pipe_blit_info *info,
@@ -693,6 +725,24 @@ emit_blit_src(fd_ncrb<CHIP> &ncrb, const struct pipe_blit_info *info,
    ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE(CHIP, .bo = src->bo, .bo_offset = soff));
    ncrb.add(TPL1_A2D_SRC_TEXTURE_PITCH(CHIP, .pitch = pitch));
 
+   if (util_format_is_yuv(info->src.format) &&
+       util_format_get_num_planes(info->src.format) == 2) {
+      /* Only two-plane 4:2:0 formats (NV12/NV21) are handled here; a 3-plane
+       * format would need a third base/pitch pair for the V plane. The UV
+       * resource is linked via rsc->b.b.next.
+       */
+      struct fd_resource *uv_rsc = src->b.b.next ? fd_resource(src->b.b.next) : src;
+      uint32_t uv_pitch = fd_resource_pitch(uv_rsc, info->src.level);
+      unsigned uv_off = fd_resource_offset(uv_rsc, info->src.level, layer);
+
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE_1(CHIP,
+         .bo = uv_rsc->bo,
+         .bo_offset = uv_off,
+      ));
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_PITCH_1(CHIP, uv_pitch));
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE_2(CHIP, 0));
+   }
+
    if (subwc_enabled && fd_resource_ubwc_enabled(src, info->src.level)) {
       ncrb.add(TPL1_A2D_SRC_TEXTURE_FLAG_BASE(CHIP,
          .bo = src->bo,
@@ -701,6 +751,9 @@ emit_blit_src(fd_ncrb<CHIP> &ncrb, const struct pipe_blit_info *info,
       ncrb.add(TPL1_A2D_SRC_TEXTURE_FLAG_PITCH(CHIP,
          fdl_ubwc_pitch(&src->layout, info->src.level),
       ));
+   } else {
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_FLAG_BASE(CHIP, .qword = 0));
+      ncrb.add(TPL1_A2D_SRC_TEXTURE_FLAG_PITCH(CHIP, 0));
    }
 }
 
@@ -792,7 +845,7 @@ emit_blit_texture(struct fd_context *ctx, fd_cs &cs, const struct pipe_blit_info
    uint32_t nr_samples = fd_resource_nr_samples(&dst->b.b);
 
    for (unsigned i = 0; i < info->dst.box.depth; i++) {
-      with_ncrb (cs, 18) {
+      with_ncrb (cs, 28) {
          emit_blit_src<CHIP>(ncrb, info, sbox->z + i, nr_samples);
          emit_blit_dst(ncrb, info->dst.resource, info->dst.format, info->dst.level,
                        dbox->z + i);
@@ -1133,7 +1186,7 @@ fd6_clear_surface(struct fd_context *ctx, fd_cs &cs,
    clear_surface_setup<CHIP>(cs, psurf, box2d, color, buffers);
 
    for (unsigned i = psurf->first_layer; i <= psurf->last_layer; i++) {
-      with_ncrb (cs, 10)
+      with_ncrb (cs, 15)
          emit_blit_dst(ncrb, psurf->texture, psurf->format, psurf->level, i);
 
       emit_blit_fini<CHIP>(ctx, cs);
