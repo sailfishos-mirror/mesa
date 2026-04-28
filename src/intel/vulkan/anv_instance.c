@@ -117,14 +117,14 @@ static const driOptionDescription anv_dri_options[] = {
 
 static const struct debug_control debug_control[] = {
    { "bindless",     ANV_DEBUG_BINDLESS},
+   { "desc-dirty",   ANV_DEBUG_DESCRIPTOR_DIRTY},
    { "no-gpl",       ANV_DEBUG_NO_GPL},
+   { "no-slab",      ANV_DEBUG_NO_SLAB},
    { "no-sparse",    ANV_DEBUG_NO_SPARSE},
    { "sparse-trtt",  ANV_DEBUG_SPARSE_TRTT},
    { "video-decode", ANV_DEBUG_VIDEO_DECODE},
    { "video-encode", ANV_DEBUG_VIDEO_ENCODE},
    { "shader-hash",  ANV_DEBUG_SHADER_HASH},
-   { "no-slab",      ANV_DEBUG_NO_SLAB},
-   { "desc-dirty",   ANV_DEBUG_DESCRIPTOR_DIRTY},
    { "shader-print", ANV_DEBUG_SHADER_PRINT},
    { NULL,    0 }
 };
