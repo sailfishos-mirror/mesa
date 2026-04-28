@@ -1190,7 +1190,7 @@ get_regs_for_copies(ra_ctx& ctx, RegisterFile& reg_file, std::vector<parallelcop
          res =
             get_reg_for_create_vector_copy(ctx, reg_file, parallelcopies, instr, def_reg, info, id);
       } else {
-         for (unsigned i = 0; !is_phi(instr) && i < instr->operands.size(); i++) {
+         for (unsigned i = 0; i < instr->operands.size(); i++) {
             if (instr->operands[i].isTemp() && instr->operands[i].tempId() == id) {
                info = DefInfo(ctx, instr, var.rc, i);
                if (instr->operands[i].isKillBeforeDef()) {
@@ -1334,7 +1334,7 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
    unsigned killed_ops = 0;
    std::bitset<256> is_killed_operand; /* per-register */
    std::bitset<256> is_precolored;     /* per-register */
-   for (unsigned j = 0; !is_phi(instr) && j < instr->operands.size(); j++) {
+   for (unsigned j = 0; j < instr->operands.size(); j++) {
       Operand& op = instr->operands[j];
       if (op.isTemp() && op.isPrecolored() && !op.isFirstKillBeforeDef() &&
           bounds.contains(op.physReg())) {
@@ -1353,7 +1353,7 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
          killed_ops += op.getTemp().size();
       }
    }
-   for (unsigned j = 0; !is_phi(instr) && j < instr->definitions.size(); j++) {
+   for (unsigned j = 0; j < instr->definitions.size(); j++) {
       Definition& def = instr->definitions[j];
       if (def.isTemp() && def.isPrecolored() && bounds.contains(def.physReg())) {
          for (unsigned i = 0; i < def.size(); ++i) {
@@ -1457,7 +1457,7 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
    std::vector<unsigned> vars = collect_vars(ctx, tmp_file, best_win);
 
    /* re-enable killed operands */
-   if (!is_phi(instr) && instr->opcode != aco_opcode::p_create_vector)
+   if (instr->opcode != aco_opcode::p_create_vector)
       tmp_file.fill_killed_operands(instr.get());
 
    std::vector<parallelcopy> pc;
@@ -1875,8 +1875,7 @@ get_reg_affinity(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
       collect_vars(ctx, tmp_file, vars);
 
       /* re-enable the killed operands, so that we don't move the blocking vars there */
-      if (!is_phi(instr))
-         tmp_file.fill_killed_operands(instr.get());
+      tmp_file.fill_killed_operands(instr.get());
 
       /* create parallelcopy to move blocking vars */
       std::vector<parallelcopy> pc;
@@ -2555,10 +2554,10 @@ resolve_vector_operands(ra_ctx& ctx, RegisterFile& reg_file,
 PhysReg
 get_reg_phi(ra_ctx& ctx, IDSet& live_in, RegisterFile& register_file,
             std::vector<aco_ptr<Instruction>>& instructions, Block& block,
-            aco_ptr<Instruction>& phi, Temp tmp)
+            Temp tmp)
 {
    std::vector<parallelcopy> parallelcopy;
-   PhysReg reg = get_reg(ctx, register_file, tmp, parallelcopy, phi);
+   PhysReg reg = get_reg(ctx, register_file, tmp, parallelcopy, ctx.phi_dummy);
    update_renames(ctx, register_file, parallelcopy, ctx.phi_dummy);
 
    /* process parallelcopy */
@@ -2699,7 +2698,7 @@ get_regs_for_phis(ra_ctx& ctx, Block& block, RegisterFile& register_file,
          continue;
 
       definition.setFixed(
-         get_reg_phi(ctx, live_in, register_file, instructions, block, phi, definition.getTemp()));
+         get_reg_phi(ctx, live_in, register_file, instructions, block, definition.getTemp()));
 
       register_file.fill(definition);
       ctx.assignments[definition.tempId()].set(definition);
@@ -2717,8 +2716,7 @@ get_regs_for_phis(ra_ctx& ctx, Block& block, RegisterFile& register_file,
    if (has_linear_phis || block.kind & block_kind_loop_header) {
       PhysReg scratch_reg = scc;
       if (register_file[scc]) {
-         scratch_reg = get_reg_phi(ctx, live_in, register_file, instructions, block, ctx.phi_dummy,
-                                   Temp(0, s1));
+         scratch_reg = get_reg_phi(ctx, live_in, register_file, instructions, block, Temp(0, s1));
          if (block.kind & block_kind_loop_header)
             ctx.loop_header.back().second = scratch_reg;
       }
