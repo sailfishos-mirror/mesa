@@ -201,7 +201,7 @@ if with_tools.contains('intel-ui')
   aubinator_viewer = executable(
     'aubinator_viewer',
     files('aubinator_viewer.cpp', 'aubinator_viewer_decoder.cpp'),
-    dependencies : [idep_mesautil, dep_zlib, dep_dl, dep_thread, dep_m, libintel_imgui_gtk_dep, idep_intel_dev,
+    dependencies : [idep_mesautil, dep_zlib, dep_dl, dep_thread, dep_m, libintel_imgui_dep, idep_intel_dev,
                     idep_libintel_common, idep_libintel_tools],
     include_directories : [inc_include, inc_src, inc_intel],
     c_args : [no_override_init_args],
@@ -219,7 +219,7 @@ if with_tools.contains('intel-ui')
       dep_dl,
       dep_thread,
       dep_m,
-      libintel_imgui_gtk_dep,
+      libintel_imgui_dep,
       idep_intel_dev,
       idep_libintel_common,
       idep_libintel_tools,
