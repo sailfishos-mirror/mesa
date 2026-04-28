@@ -1637,10 +1637,10 @@ nir_divergence_analysis(nir_shader *shader)
  * pass.
  */
 void
-nir_vertex_divergence_analysis(nir_shader *shader)
+nir_custom_divergence_analysis(nir_shader *shader,
+                               nir_divergence_options options)
 {
-   nir_divergence_options options =
-      shader->options->divergence_analysis_options | nir_divergence_vertex;
+   options |= shader->options->divergence_analysis_options;
 
    nir_foreach_function_impl(impl, shader) {
       nir_divergence_analysis_impl(impl, options);

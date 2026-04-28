@@ -5426,7 +5426,7 @@ nir_opt_varyings(nir_shader *producer, nir_shader *consumer, bool spirv,
     * divergence information.
     */
    if (consumer->info.stage == MESA_SHADER_FRAGMENT) {
-      nir_vertex_divergence_analysis(producer);
+      nir_custom_divergence_analysis(producer, nir_divergence_vertex);
    }
 
    /* This also removes dead varyings. */
