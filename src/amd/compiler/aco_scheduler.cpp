@@ -16,6 +16,7 @@
 #define VMEM_WINDOW_SIZE    (1024 - ctx.occupancy_factor * 64)
 #define LDS_WINDOW_SIZE     64
 #define POS_EXP_WINDOW_SIZE 512
+#define BARRIER_WINDOW_SIZE 128
 #define SMEM_MAX_MOVES      (128 - ctx.occupancy_factor * 8)
 #define VMEM_MAX_MOVES      (256 - ctx.occupancy_factor * 16)
 #define LDSDIR_MAX_MOVES    10
@@ -1262,6 +1263,84 @@ schedule_VMEM_store(sched_ctx& ctx, Block* block, Instruction* current, int idx)
 }
 
 void
+schedule_barrier_signal(sched_ctx& ctx, Block* block, Instruction* current, int idx)
+{
+   Pseudo_barrier_instruction& barrier = current->barrier();
+   /* Don't move a p_barrier_signal upwards if it might also move a waitcnt upwards. Release barriers
+    * separate from the control barrier are handled by stopping when the hazard query fails. */
+   if ((barrier.sync.semantics & semantic_release) && barrier.sync.scope >= scope_workgroup) {
+      bool needs_waitcnt = false;
+      if (barrier.sync.storage &
+          (storage_buffer | storage_image | storage_vmem_output | storage_task_payload))
+         needs_waitcnt |= barrier.sync.scope >= scope_device || ctx.program->wgp_mode;
+      if (barrier.sync.storage & storage_shared)
+         needs_waitcnt |= ctx.gfx_level < GFX10 || ctx.program->wgp_mode;
+
+      if (needs_waitcnt)
+         return;
+   }
+
+   DownwardsCursor cursor = ctx.mv.downwards_init(idx, true);
+
+   hazard_query hq;
+   init_hazard_query(ctx, &hq);
+   add_to_hazard_query(&hq, current);
+
+   for (unsigned i = 0; i < BARRIER_WINDOW_SIZE; i++) {
+      aco_ptr<Instruction>& candidate = block->instructions[cursor.source_idx];
+      if (!is_reorderable(candidate.get()))
+         break;
+
+      /* Don't steal from other barriers. */
+      if (candidate->opcode == aco_opcode::p_barrier_wait)
+         break;
+
+      /* Don't skip instructions, because if a skipped instruction waits for a memory load, then
+       * further scheduling decreases the def-use distance */
+      HazardResult haz = perform_hazard_query(&hq, candidate.get(), false);
+      if (haz != hazard_success || ctx.mv.downwards_move(cursor) != move_success)
+         break;
+   }
+}
+
+void
+schedule_barrier_wait(sched_ctx& ctx, Block* block, Instruction* current, int idx)
+{
+   UpwardsCursor cursor = ctx.mv.upwards_init(idx, true);
+   ctx.mv.upwards_update_insert_idx(cursor);
+   ctx.mv.upwards_skip(cursor);
+
+   hazard_query hq;
+   init_hazard_query(ctx, &hq);
+   add_to_hazard_query(&hq, current);
+
+   for (unsigned i = 0; i < BARRIER_WINDOW_SIZE; i++) {
+      aco_ptr<Instruction>& candidate = block->instructions[cursor.source_idx];
+      if (!is_reorderable(candidate.get()))
+         break;
+
+      /* Don't steal from other barriers */
+      if (candidate->opcode == aco_opcode::p_barrier_signal)
+         break;
+
+      HazardResult haz = perform_hazard_query(&hq, candidate.get(), true);
+      if (haz == hazard_fail_exec || haz == hazard_fail_unreorderable)
+         break;
+
+      if (haz != hazard_success || ctx.mv.upwards_move(cursor) != move_success) {
+         /* Don't steal from memory loads. */
+         bool is_memory = candidate->isVMEM() || candidate->isSMEM() || candidate->isFlatLike() ||
+                          candidate->isDS();
+         if (is_memory && !candidate->definitions.empty())
+            break;
+
+         add_to_hazard_query(&hq, candidate.get());
+         ctx.mv.upwards_skip(cursor);
+      }
+   }
+}
+
+void
 schedule_block(sched_ctx& ctx, Program* program, Block* block)
 {
    ctx.last_SMEM_dep_idx = 0;
@@ -1288,6 +1367,16 @@ schedule_block(sched_ctx& ctx, Program* program, Block* block)
          if ((current->isVMEM() || current->isFlatLike()) && program->gfx_level >= GFX11) {
             ctx.mv.current = current;
             schedule_VMEM_store(ctx, block, current, idx);
+         }
+
+         if (current->opcode == aco_opcode::p_barrier_signal) {
+            ctx.mv.current = current;
+            schedule_barrier_signal(ctx, block, current, idx);
+         }
+
+         if (current->opcode == aco_opcode::p_barrier_wait) {
+            ctx.mv.current = current;
+            schedule_barrier_wait(ctx, block, current, idx);
          }
          continue;
       }
