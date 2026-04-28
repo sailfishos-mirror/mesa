@@ -1971,11 +1971,11 @@ void anv_FreeMemory(
    pthread_mutex_unlock(&device->mutex);
 
    if (mem->map) {
-      const VkMemoryUnmapInfoKHR unmap = {
-         .sType = VK_STRUCTURE_TYPE_MEMORY_UNMAP_INFO_KHR,
+      const VkMemoryUnmapInfo unmap = {
+         .sType = VK_STRUCTURE_TYPE_MEMORY_UNMAP_INFO,
          .memory = _mem,
       };
-      anv_UnmapMemory2KHR(_device, &unmap);
+      anv_UnmapMemory2(_device, &unmap);
    }
 
    p_atomic_add(&device->physical->memory.heaps[mem->type->heapIndex].used,
@@ -1991,9 +1991,9 @@ void anv_FreeMemory(
    vk_device_memory_destroy(&device->vk, pAllocator, &mem->vk);
 }
 
-VkResult anv_MapMemory2KHR(
+VkResult anv_MapMemory2(
     VkDevice                                    _device,
-    const VkMemoryMapInfoKHR*                   pMemoryMapInfo,
+    const VkMemoryMapInfo*                      pMemoryMapInfo,
     void**                                      ppData)
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
@@ -2065,9 +2065,9 @@ VkResult anv_MapMemory2KHR(
    return VK_SUCCESS;
 }
 
-VkResult anv_UnmapMemory2KHR(
+VkResult anv_UnmapMemory2(
     VkDevice                                    _device,
-    const VkMemoryUnmapInfoKHR*                 pMemoryUnmapInfo)
+    const VkMemoryUnmapInfo*                    pMemoryUnmapInfo)
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_device_memory, mem, pMemoryUnmapInfo->memory);

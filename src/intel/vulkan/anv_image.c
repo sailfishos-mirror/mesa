@@ -3060,7 +3060,7 @@ anv_bind_image_memory(struct anv_device *device,
    ANV_FROM_HANDLE(anv_image, image, bind_info->image);
    bool did_bind = false;
    VkResult result = VK_SUCCESS;
-   const VkBindMemoryStatusKHR *bind_status = NULL;
+   const VkBindMemoryStatus *bind_status = NULL;
 
    assert(!anv_image_is_sparse(image));
 
@@ -3161,8 +3161,8 @@ anv_bind_image_memory(struct anv_device *device,
          break;
       }
 #pragma GCC diagnostic pop
-      case VK_STRUCTURE_TYPE_BIND_MEMORY_STATUS_KHR: {
-         bind_status = (const VkBindMemoryStatusKHR *)s;
+      case VK_STRUCTURE_TYPE_BIND_MEMORY_STATUS: {
+         bind_status = (const VkBindMemoryStatus *)s;
          break;
       }
       default:
@@ -3267,8 +3267,8 @@ VkResult anv_BindImageMemory2(
 static void
 anv_get_image_subresource_layout(struct anv_device *device,
                                  const struct anv_image *image,
-                                 const VkImageSubresource2KHR *subresource,
-                                 VkSubresourceLayout2KHR *layout)
+                                 const VkImageSubresource2 *subresource,
+                                 VkSubresourceLayout2 *layout)
 {
    const struct isl_surf *isl_surf = NULL;
    const struct anv_image_memory_range *mem_range;
@@ -3436,10 +3436,10 @@ anv_get_image_subresource_layout(struct anv_device *device,
    }
 }
 
-void anv_GetDeviceImageSubresourceLayoutKHR(
+void anv_GetDeviceImageSubresourceLayout(
     VkDevice                                    _device,
-    const VkDeviceImageSubresourceInfoKHR*      pInfo,
-    VkSubresourceLayout2KHR*                    pLayout)
+    const VkDeviceImageSubresourceInfo*         pInfo,
+    VkSubresourceLayout2*                       pLayout)
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
 
@@ -3454,11 +3454,11 @@ void anv_GetDeviceImageSubresourceLayoutKHR(
    anv_get_image_subresource_layout(device, &image, pInfo->pSubresource, pLayout);
 }
 
-void anv_GetImageSubresourceLayout2KHR(
+void anv_GetImageSubresourceLayout2(
     VkDevice                                    _device,
     VkImage                                     _image,
-    const VkImageSubresource2KHR*               pSubresource,
-    VkSubresourceLayout2KHR*                    pLayout)
+    const VkImageSubresource2*                  pSubresource,
+    VkSubresourceLayout2*                       pLayout)
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_image, image, _image);

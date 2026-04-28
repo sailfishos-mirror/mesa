@@ -461,8 +461,8 @@ static const struct anv_format ycbcr_formats[] = {
 };
 
 static const struct anv_format maintenance5_formats[] = {
-   fmt1(VK_FORMAT_A8_UNORM_KHR,                   ISL_FORMAT_A8_UNORM),
-   swiz_fmt1(VK_FORMAT_A1B5G5R5_UNORM_PACK16_KHR, ISL_FORMAT_B5G5R5A1_UNORM, BGRA)
+   fmt1(VK_FORMAT_A8_UNORM,                   ISL_FORMAT_A8_UNORM),
+   swiz_fmt1(VK_FORMAT_A1B5G5R5_UNORM_PACK16, ISL_FORMAT_B5G5R5A1_UNORM, BGRA)
 };
 
 #undef _fmt

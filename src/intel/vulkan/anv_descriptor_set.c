@@ -192,7 +192,7 @@ anv_direct_descriptor_data_for_type(const struct anv_physical_device *device,
    }
 
    if (layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) {
-      if (set_flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) {
+      if (set_flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT) {
          /* Push descriptors are special with descriptor buffers. On Gfx12.5+
           * they have their own pool and are not reachable by the binding
           * table. On previous generations, they are only reachable through
@@ -415,7 +415,7 @@ anv_descriptor_data_supports_bindless(const struct anv_physical_device *pdevice,
        * tables.
        */
       if (!intel_has_extended_bindless(&pdevice->info) &&
-          (set_flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR)) {
+          (set_flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT)) {
          return data & (ANV_DESCRIPTOR_INDIRECT_ADDRESS_RANGE |
                         ANV_DESCRIPTOR_INDIRECT_SAMPLED_IMAGE |
                         ANV_DESCRIPTOR_INDIRECT_STORAGE_IMAGE);
@@ -451,7 +451,7 @@ anv_descriptor_requires_bindless(const struct anv_physical_device *pdevice,
    if (ANV_DEBUG(BINDLESS))
       return anv_descriptor_supports_bindless(pdevice, set, binding);
 
-   if (set->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR)
+   if (set->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT)
       return false;
 
    if (set->vk.flags & (VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT |
@@ -812,14 +812,14 @@ VkResult anv_CreateDescriptorSetLayout(
          /* From the Vulkan spec:
           *
           *    "If VkDescriptorSetLayoutCreateInfo::flags includes
-          *    VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR, then
+          *    VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT, then
           *    all elements of pBindingFlags must not include
           *    VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
           *    VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT, or
           *    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT"
           */
          if (pCreateInfo->flags &
-             VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) {
+             VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT) {
             assert(!(set_layout->binding[b].flags &
                (VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT |
                 VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT |
@@ -1956,7 +1956,7 @@ anv_image_view_surface_data_for_plane_layout(struct anv_image_view *image_view,
        desc_type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
        desc_type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
       return (layout == VK_IMAGE_LAYOUT_GENERAL ||
-              layout == VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR) ?
+              layout == VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ) ?
          &image_view->planes[plane].general_sampler.state_data :
          &image_view->planes[plane].optimal_sampler.state_data;
    }

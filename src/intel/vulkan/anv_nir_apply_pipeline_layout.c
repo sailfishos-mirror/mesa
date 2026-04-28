@@ -197,7 +197,7 @@ add_binding_type(struct apply_pipeline_layout_state *state,
    /* We can't push descriptor buffers but we can for push descriptors */
    const bool is_set_pushable =
       (set_layout->vk.flags & non_pushable_set_flags) == 0 ||
-      set_layout->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+      set_layout->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
    const bool is_binding_pushable =
       (bind_layout->flags & non_pushable_binding_flags) == 0;
 
@@ -2014,7 +2014,7 @@ static bool
 binding_is_promotable_to_push(const struct anv_descriptor_set_layout *set_layout,
                               const struct anv_descriptor_set_binding_layout *bind_layout)
 {
-   if (set_layout->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR)
+   if (set_layout->vk.flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT)
       return true;
 
    if (set_layout->vk.flags &

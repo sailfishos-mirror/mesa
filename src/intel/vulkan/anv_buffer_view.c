@@ -37,8 +37,8 @@ anv_CreateBufferView(VkDevice _device,
    if (!view)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   const VkBufferUsageFlags2CreateInfoKHR *view_usage_info =
-      vk_find_struct_const(pCreateInfo->pNext, BUFFER_USAGE_FLAGS_2_CREATE_INFO_KHR);
+   const VkBufferUsageFlags2CreateInfo *view_usage_info =
+      vk_find_struct_const(pCreateInfo->pNext, BUFFER_USAGE_FLAGS_2_CREATE_INFO);
    const VkBufferUsageFlags buffer_usage =
       view_usage_info != NULL ? view_usage_info->usage : buffer->vk.usage;
 

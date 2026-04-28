@@ -14,8 +14,8 @@ anv_bind_buffer_memory(struct anv_device *device,
    assert(pBindInfo->sType == VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO);
    assert(!anv_buffer_is_sparse(buffer));
 
-   const VkBindMemoryStatusKHR *bind_status =
-      vk_find_struct_const(pBindInfo->pNext, BIND_MEMORY_STATUS_KHR);
+   const VkBindMemoryStatus *bind_status =
+      vk_find_struct_const(pBindInfo->pNext, BIND_MEMORY_STATUS);
 
    if (mem) {
       assert(pBindInfo->memoryOffset < mem->vk.size);
@@ -61,7 +61,7 @@ static void
 anv_get_buffer_memory_requirements(struct anv_device *device,
                                    VkBufferCreateFlags flags,
                                    VkDeviceSize size,
-                                   VkBufferUsageFlags2KHR usage,
+                                   VkBufferUsageFlags2 usage,
                                    bool is_sparse,
                                    VkMemoryRequirements2* pMemoryRequirements)
 {
@@ -135,12 +135,12 @@ anv_get_buffer_memory_requirements(struct anv_device *device,
    }
 }
 
-static VkBufferUsageFlags2KHR
+static VkBufferUsageFlags2
 get_buffer_usages(const VkBufferCreateInfo *create_info)
 {
-   const VkBufferUsageFlags2CreateInfoKHR *usage2_info =
+   const VkBufferUsageFlags2CreateInfo *usage2_info =
       vk_find_struct_const(create_info->pNext,
-                           BUFFER_USAGE_FLAGS_2_CREATE_INFO_KHR);
+                           BUFFER_USAGE_FLAGS_2_CREATE_INFO);
    return usage2_info != NULL ? usage2_info->usage : create_info->usage;
 }
 
@@ -152,7 +152,7 @@ void anv_GetDeviceBufferMemoryRequirements(
    ANV_FROM_HANDLE(anv_device, device, _device);
    const bool is_sparse =
       pInfo->pCreateInfo->flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT;
-   VkBufferUsageFlags2KHR usages = get_buffer_usages(pInfo->pCreateInfo);
+   VkBufferUsageFlags2 usages = get_buffer_usages(pInfo->pCreateInfo);
 
    if ((device->physical->sparse_type == ANV_SPARSE_TYPE_NOT_SUPPORTED) &&
        INTEL_DEBUG(DEBUG_SPARSE) &&
@@ -189,7 +189,7 @@ VkResult anv_CreateBuffer(
 
    if ((pCreateInfo->flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT) &&
        device->physical->sparse_type == ANV_SPARSE_TYPE_TRTT) {
-      VkBufferUsageFlags2KHR usages = get_buffer_usages(pCreateInfo);
+      VkBufferUsageFlags2 usages = get_buffer_usages(pCreateInfo);
       if (usages & (VK_BUFFER_USAGE_2_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
                     VK_BUFFER_USAGE_2_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT)) {
          return vk_errorf(device, VK_ERROR_UNKNOWN,

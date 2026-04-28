@@ -733,9 +733,9 @@ anv_cmd_buffer_bind_descriptor_set(struct anv_cmd_buffer *cmd_buffer,
    pipe_state->push_constants_data_dirty = true;
 }
 
-void anv_CmdBindDescriptorSets2KHR(
+void anv_CmdBindDescriptorSets2(
     VkCommandBuffer                             commandBuffer,
-    const VkBindDescriptorSetsInfoKHR*          pInfo)
+    const VkBindDescriptorSetsInfo*             pInfo)
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(vk_pipeline_layout, layout, pInfo->layout);
@@ -932,7 +932,7 @@ void anv_CmdBindVertexBuffers2(
    }
 }
 
-void anv_CmdBindIndexBuffer2KHR(
+void anv_CmdBindIndexBuffer2(
     VkCommandBuffer                             commandBuffer,
     VkBuffer                                    _buffer,
     VkDeviceSize                                offset,
@@ -1139,9 +1139,9 @@ anv_cmd_buffer_cs_push_constants(struct anv_cmd_buffer *cmd_buffer)
    return state;
 }
 
-void anv_CmdPushConstants2KHR(
+void anv_CmdPushConstants2(
     VkCommandBuffer                             commandBuffer,
-    const VkPushConstantsInfoKHR*               pInfo)
+    const VkPushConstantsInfo*                  pInfo)
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
 
@@ -1199,7 +1199,7 @@ anv_cmd_buffer_get_pipe_state(struct anv_cmd_buffer *cmd_buffer,
 static void
 anv_cmd_buffer_push_descriptor_sets(struct anv_cmd_buffer *cmd_buffer,
                                     VkPipelineBindPoint bind_point,
-                                    const VkPushDescriptorSetInfoKHR *pInfo)
+                                    const VkPushDescriptorSetInfo *pInfo)
 {
    VK_FROM_HANDLE(vk_pipeline_layout, layout, pInfo->layout);
 
@@ -1223,9 +1223,9 @@ anv_cmd_buffer_push_descriptor_sets(struct anv_cmd_buffer *cmd_buffer,
                                       NULL, NULL);
 }
 
-void anv_CmdPushDescriptorSet2KHR(
+void anv_CmdPushDescriptorSet2(
     VkCommandBuffer                            commandBuffer,
-    const VkPushDescriptorSetInfoKHR*          pInfo)
+    const VkPushDescriptorSetInfo*             pInfo)
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
 
@@ -1243,9 +1243,9 @@ void anv_CmdPushDescriptorSet2KHR(
                                           pInfo);
 }
 
-void anv_CmdPushDescriptorSetWithTemplate2KHR(
+void anv_CmdPushDescriptorSetWithTemplate2(
     VkCommandBuffer                                commandBuffer,
-    const VkPushDescriptorSetWithTemplateInfoKHR*  pInfo)
+    const VkPushDescriptorSetWithTemplateInfo*     pInfo)
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(vk_descriptor_update_template, template,
@@ -1425,15 +1425,15 @@ anv_cmd_buffer_restore_state(struct anv_cmd_buffer *cmd_buffer,
    }
 
    if (state->flags & ANV_CMD_SAVED_STATE_PUSH_CONSTANTS) {
-      VkPushConstantsInfoKHR push_info = {
-         .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
+      VkPushConstantsInfo push_info = {
+         .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
          .layout = VK_NULL_HANDLE,
          .stageFlags = stage_flags,
          .offset = 0,
          .size = sizeof(state->push_constants),
          .pValues = state->push_constants,
       };
-      anv_CmdPushConstants2KHR(cmd_buffer_, &push_info);
+      anv_CmdPushConstants2(cmd_buffer_, &push_info);
    }
 }
 

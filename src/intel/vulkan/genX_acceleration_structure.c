@@ -345,8 +345,8 @@ anv_bvh_build_set_args(VkCommandBuffer commandBuffer, const void *args,
    vk_get_bvh_build_pipeline_layout(&device->vk, &device->meta_device, size,
                                     &layout);
 
-   VkPushConstantsInfoKHR push_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
+   VkPushConstantsInfo push_info = {
+      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
       .layout = layout,
       .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
       .offset = 0,
@@ -354,7 +354,7 @@ anv_bvh_build_set_args(VkCommandBuffer commandBuffer, const void *args,
       .pValues = args,
    };
 
-   anv_CmdPushConstants2KHR(commandBuffer, &push_info);
+   anv_CmdPushConstants2(commandBuffer, &push_info);
 }
 
 static VkResult
