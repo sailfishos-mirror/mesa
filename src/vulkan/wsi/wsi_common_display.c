@@ -1997,6 +1997,12 @@ wsi_display_page_flip_handler2(int fd,
    /* If we're on VRR timing path, ensure we get a stable pace. */
    nsec = MAX2(nsec, image->minimum_ns);
 
+   /* Don't let time go backwards because this function has lower resolution
+    * (1 usec = 1000 nsec increments) than last_nsec 1 nsec increments from
+    * drmCrtcGetSequence calls.
+    */
+   nsec = MAX2(nsec, connector->last_nsec);
+
    uint64_t frame64 = widen_32_to_64(frame, connector->last_frame);
    connector->last_frame = frame64;
    connector->last_nsec = nsec;
@@ -4459,10 +4465,15 @@ wsi_GetSwapchainCounterEXT(VkDevice _device,
       return VK_SUCCESS;
    }
 
+   uint64_t nsec;
    int ret = drmCrtcGetSequence(wsi->fd, connector->crtc_id,
-                                pCounterValue, NULL);
-   if (ret)
+                                pCounterValue, &nsec);
+   if (ret) {
       *pCounterValue = 0;
+   } else {
+      connector->last_frame = *pCounterValue;
+      connector->last_nsec = nsec;
+   }
 
    return VK_SUCCESS;
 }
