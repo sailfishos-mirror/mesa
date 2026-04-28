@@ -5235,8 +5235,10 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
-   case nir_intrinsic_load_push_data_intel:
-   case nir_intrinsic_load_inline_data_intel: {
+   case nir_intrinsic_load_inline_data_intel:
+      assert(brw_shader_stage_has_inline_data(ntb.devinfo, ntb.s.stage));
+      FALLTHROUGH;
+   case nir_intrinsic_load_push_data_intel: {
       /* Offsets are in bytes but they should always aligned to
        * the type size
        */

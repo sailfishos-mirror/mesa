@@ -220,8 +220,6 @@ struct brw_base_prog_key {
 
    enum brw_robustness_flags robust_flags:2;
 
-   bool uses_inline_push_addr:1;
-
    enum intel_vue_layout vue_layout:2;
 
    /**
@@ -233,7 +231,7 @@ struct brw_base_prog_key {
 
    enum brw_divergent_atomics_flags divergent_atomics_flags:2;
 
-   uint32_t padding:24;
+   uint32_t padding:25;
 };
 
 /**
@@ -852,11 +850,6 @@ struct brw_cs_prog_data {
    unsigned prog_spilled;
 
    bool uses_barrier;
-   bool uses_inline_data;
-   /** Whether inline push data is used to provide a 64bit pointer to push
-    * constants
-    */
-   bool uses_inline_push_addr;
    bool uses_btd_stack_ids;
    bool uses_systolic;
    uint8_t generate_local_id;

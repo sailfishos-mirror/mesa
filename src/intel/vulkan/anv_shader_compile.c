@@ -385,8 +385,6 @@ populate_task_prog_key(struct brw_task_prog_key *key,
                        VkShaderStageFlags link_stages)
 {
    populate_base_gfx_prog_key(&key->base, device, rs, state, link_stages);
-
-   key->base.uses_inline_push_addr = true;
 }
 
 static void
@@ -397,8 +395,6 @@ populate_mesh_prog_key(struct brw_mesh_prog_key *key,
                        VkShaderStageFlags link_stages)
 {
    populate_base_gfx_prog_key(&key->base, device, rs, state, link_stages);
-
-   key->base.uses_inline_push_addr = true;
 }
 
 static bool
@@ -575,12 +571,7 @@ populate_cs_prog_key(struct brw_cs_prog_key *key,
                      const struct vk_physical_device *device,
                      const struct vk_pipeline_robustness_state *rs)
 {
-   const struct anv_physical_device *pdevice =
-      container_of(device, const struct anv_physical_device, vk);
-
    populate_base_prog_key(&key->base, device, rs);
-
-   key->base.uses_inline_push_addr = pdevice->info.verx10 >= 125;
 }
 
 static void

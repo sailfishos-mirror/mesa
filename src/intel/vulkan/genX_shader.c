@@ -914,12 +914,7 @@ emit_task_shader(struct anv_batch *batch,
                                                       task_dispatch.group_size,
                                                       task_dispatch.simd_size);
 
-      /*
-       * 3DSTATE_TASK_SHADER_DATA.InlineData[0:1] will be used for an address
-       * of a buffer with push constants and descriptor set table and
-       * InlineData[2:7] will be used for first few push constants.
-       */
-      task.EmitInlineParameter = true;
+      task.EmitInlineParameter = shader->bind_map.inline_dwords_count > 0;
       task.IndirectDataLength = align(shader->bind_map.push_ranges[0].length * 32, 64);
 
       task.XP0Required = task_prog_data->uses_drawid;
@@ -1018,12 +1013,7 @@ emit_mesh_shader(struct anv_batch *batch,
                                                       mesh_dispatch.group_size,
                                                       mesh_dispatch.simd_size);
 
-      /*
-       * 3DSTATE_MESH_SHADER_DATA.InlineData[0:1] will be used for an address
-       * of a buffer with push constants and descriptor set table and
-       * InlineData[2:7] will be used for first few push constants.
-       */
-      mesh.EmitInlineParameter = true;
+      mesh.EmitInlineParameter = shader->bind_map.inline_dwords_count > 0;
       mesh.IndirectDataLength = align(shader->bind_map.push_ranges[0].length * 32, 64);
 
       mesh.XP0Required = mesh_prog_data->uses_drawid;
@@ -1209,7 +1199,7 @@ emit_cs_shader(struct anv_batch *batch,
          .RegistersPerThread                = ptl_register_blocks(cs_prog_data->base.grf_used),
 #endif
       },
-      .EmitInlineParameter            = cs_prog_data->uses_inline_push_addr,
+      .EmitInlineParameter            = shader->bind_map.inline_dwords_count > 0,
    };
 
    assert(ARRAY_SIZE(shader->cs.gfx125.compute_walker_body) >=

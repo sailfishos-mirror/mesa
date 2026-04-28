@@ -131,9 +131,6 @@ brw_compile_cs(const struct brw_compiler *compiler,
                                    params->base.source_hash);
 
    brw_prog_data_init(&prog_data->base, &params->base);
-   prog_data->uses_inline_data = brw_nir_uses_inline_data(nir) ||
-                                 key->base.uses_inline_push_addr;
-   assert(compiler->devinfo->verx10 >= 125 || !prog_data->uses_inline_data);
 
    if (!nir->info.workgroup_size_variable) {
       prog_data->local_size[0] = nir->info.workgroup_size[0];

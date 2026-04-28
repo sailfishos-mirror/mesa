@@ -3568,27 +3568,6 @@ brw_nir_get_var_type(const struct nir_shader *nir, nir_variable *var)
    return type;
 }
 
-bool
-brw_nir_uses_inline_data(nir_shader *shader)
-{
-   nir_foreach_function_impl(impl, shader) {
-      nir_foreach_block(block, impl) {
-         nir_foreach_instr(instr, block) {
-            if (instr->type != nir_instr_type_intrinsic)
-               continue;
-
-            nir_intrinsic_instr *intrin  = nir_instr_as_intrinsic(instr);
-            if (intrin->intrinsic != nir_intrinsic_load_inline_data_intel)
-               continue;
-
-            return true;
-         }
-      }
-   }
-
-   return false;
-}
-
 /**
  * Move load_interpolated_input with simple (payload-based) barycentric modes
  * to the top of the program so we don't emit multiple PLNs for the same input.

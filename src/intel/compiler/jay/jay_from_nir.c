@@ -1475,7 +1475,6 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_inline_data_intel: {
       assert(cs && f->is_entrypoint && "todo: this needs ABI");
-      b->shader->prog_data->cs.uses_inline_data = true;
 
       unsigned offset = nir_intrinsic_base(intr) / 4;
       unsigned nr = jay_num_values(dst);

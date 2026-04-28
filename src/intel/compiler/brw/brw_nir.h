@@ -370,8 +370,6 @@ brw_nir_no_indirect_mask(mesa_shader_stage stage)
    return indirect_mask;
 }
 
-bool brw_nir_uses_inline_data(nir_shader *shader);
-
 nir_variable *
 brw_nir_find_complete_variable_with_location(nir_shader *shader,
                                              nir_variable_mode mode,
