@@ -1633,6 +1633,12 @@ get_reg_specified(ra_ctx& ctx, const RegisterFile& reg_file, RegClass rc,
    if (reg.reg_b % info.data_stride)
       return false;
 
+   /* In other cases, we assume the caller ensured that this is fine. */
+   if (info.rc.bytes() > rc.bytes()) {
+      if (reg_file.test(reg, info.rc.bytes()))
+         return false;
+   }
+
    assert(util_is_power_of_two_nonzero(info.stride));
    reg.reg_b &= ~(info.stride - 1);
 
