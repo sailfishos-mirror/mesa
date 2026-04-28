@@ -14,6 +14,7 @@
 
 #include "frontend/winsys_handle.h"
 #include "util/format/u_format.h"
+#include "util/os_misc.h"
 #include "util/u_debug_image.h"
 #include "util/u_drm.h"
 #include "util/u_gen_mipmap.h"
@@ -1049,10 +1050,10 @@ panfrost_can_create_resource(struct pipe_screen *screen,
    if (!os_get_total_physical_memory(&system_memory))
       return false;
 
-   /* Limit maximum texture size to a quarter of the system memory, to avoid
-    * allocating huge textures on systems with little memory.
-    */
-   return tmp.plane.layout.data_size_B <= system_memory / 4;
+   const float heap_memory_percent = pan_screen(screen)->heap_memory_percent;
+   uint64_t memory = os_get_gpu_heap_size(heap_memory_percent, NULL);
+
+   return tmp.plane.layout.data_size_B <= memory;
 }
 
 static struct pipe_resource *
