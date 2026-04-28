@@ -3030,11 +3030,11 @@ void anv_GetPhysicalDeviceQueueFamilyProperties2(
                   (VkQueueFamilyGlobalPriorityPropertiesKHR *)ext;
 
                /* Deliberately sorted low to high */
-               VkQueueGlobalPriorityKHR all_priorities[] = {
-                  VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR,
-                  VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR,
-                  VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR,
-                  VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR,
+               VkQueueGlobalPriority all_priorities[] = {
+                  VK_QUEUE_GLOBAL_PRIORITY_LOW,
+                  VK_QUEUE_GLOBAL_PRIORITY_MEDIUM,
+                  VK_QUEUE_GLOBAL_PRIORITY_HIGH,
+                  VK_QUEUE_GLOBAL_PRIORITY_REALTIME,
                };
 
                uint32_t count = 0;

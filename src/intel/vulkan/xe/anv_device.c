@@ -62,19 +62,19 @@ VkResult anv_xe_device_setup_vm(struct anv_device *device)
    return VK_SUCCESS;
 }
 
-static VkQueueGlobalPriorityKHR
+static VkQueueGlobalPriority
 drm_sched_priority_to_vk_priority(enum drm_sched_priority drm_sched_priority)
 {
    switch (drm_sched_priority) {
    case DRM_SCHED_PRIORITY_MIN:
-      return VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR;
+      return VK_QUEUE_GLOBAL_PRIORITY_LOW;
    case DRM_SCHED_PRIORITY_NORMAL:
-      return VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR;
+      return VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
    case DRM_SCHED_PRIORITY_HIGH:
-      return VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR;
+      return VK_QUEUE_GLOBAL_PRIORITY_HIGH;
    default:
       UNREACHABLE("Invalid drm_sched_priority");
-      return VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR;
+      return VK_QUEUE_GLOBAL_PRIORITY_LOW;
    }
 }
 

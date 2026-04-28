@@ -1513,7 +1513,7 @@ struct anv_physical_device {
      * end.
      */
     uint32_t                                    n_perf_query_commands;
-    VkQueueGlobalPriorityKHR                    max_context_priority;
+    VkQueueGlobalPriority                       max_context_priority;
     uint64_t                                    gtt_size;
 
     uint64_t                                    page_size;
