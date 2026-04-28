@@ -9,6 +9,7 @@
 
 #include <cassert>
 #include <map>
+#include <optional>
 
 #include "sfn_instr_export.h"
 #include "sfn_instr_fetch.h"
@@ -20,10 +21,10 @@ namespace r600 {
 
 extern const std::map<ESDOp, int> ds_opcode_map;
 
-static void
-fill_bytecode_tex(r600_bytecode_tex& tex, const TexInstr& tex_instr)
+static r600_bytecode_tex
+fill_bytecode_tex(const TexInstr& tex_instr)
 {
-   tex = {};
+   r600_bytecode_tex tex = {};
    tex.op = tex_instr.opcode();
    tex.sampler_id = tex_instr.sampler_id();
    tex.resource_id = tex_instr.resource_id();
@@ -52,15 +53,16 @@ fill_bytecode_tex(r600_bytecode_tex& tex, const TexInstr& tex_instr)
       tex.inst_mod = tex_instr.has_tex_flag(TexInstr::grad_fine) ? 1 : 0;
    else
       tex.inst_mod = tex_instr.inst_mode();
+
+   return tex;
 }
 
-static void
-fill_bytecode_export_alpha_to_coverage(r600_bytecode_output& output,
-                                       const ExportInstr& export_instr)
+static r600_bytecode_output
+fill_bytecode_export_alpha_to_coverage(const ExportInstr& export_instr)
 {
    const auto& value = export_instr.value();
 
-   output = {};
+   r600_bytecode_output output = {};
    output.gpr = value.sel();
    output.elem_size = 3;
    output.swizzle_x = 7;
@@ -71,16 +73,17 @@ fill_bytecode_export_alpha_to_coverage(r600_bytecode_output& output,
    output.burst_count = 1;
    output.op = CF_OP_EXPORT;
    output.type = export_instr.export_type();
+
+   return output;
 }
 
-static bool
-fill_bytecode_export(r600_bytecode_output& output,
-                     const ExportInstr& export_instr,
+static std::optional<r600_bytecode_output>
+fill_bytecode_export(const ExportInstr& export_instr,
                      bool ps_alpha_to_one)
 {
    const auto& value = export_instr.value();
 
-   output = {};
+   r600_bytecode_output output = {};
    output.gpr = value.sel();
    output.elem_size = 3;
    output.swizzle_x = value[0]->chan();
@@ -104,22 +107,21 @@ fill_bytecode_export(r600_bytecode_output& output,
       output.array_base = export_instr.location();
       break;
    default:
-      return false;
+      return std::nullopt;
    }
 
    if (output.swizzle_x > 3 && output.swizzle_y > 3 && output.swizzle_z > 3 &&
        output.swizzle_w > 3)
       output.gpr = 0;
 
-   return true;
+   return output;
 }
 
-static void
-fill_bytecode_scratch(r600_bytecode_output& output,
-                      const ScratchIOInstr& instr,
+static r600_bytecode_output
+fill_bytecode_scratch(const ScratchIOInstr& instr,
                       enum amd_gfx_level gfx_level)
 {
-   output = {};
+   r600_bytecode_output output = {};
    output.op = CF_OP_MEM_SCRATCH;
    output.elem_size = 3;
    output.gpr = instr.value().sel();
@@ -141,14 +143,15 @@ fill_bytecode_scratch(r600_bytecode_output& output,
       output.type = instr.is_read() || gfx_level > R600 ? 2 : 0;
       output.array_base = instr.location();
    }
+
+   return output;
 }
 
-static void
-fill_bytecode_stream_out(r600_bytecode_output& output,
-                         const StreamOutInstr& instr,
+static r600_bytecode_output
+fill_bytecode_stream_out(const StreamOutInstr& instr,
                          enum amd_gfx_level gfx_level)
 {
-   output = {};
+   r600_bytecode_output output = {};
    output.gpr = instr.value().sel();
    output.elem_size = instr.element_size();
    output.array_base = instr.array_base();
@@ -157,12 +160,14 @@ fill_bytecode_stream_out(r600_bytecode_output& output,
    output.array_size = instr.array_size();
    output.comp_mask = instr.comp_mask();
    output.op = instr.op(gfx_level);
+
+   return output;
 }
 
-static void
-fill_bytecode_mem_ring(r600_bytecode_output& output, const MemRingOutInstr& instr)
+static r600_bytecode_output
+fill_bytecode_mem_ring(const MemRingOutInstr& instr)
 {
-   output = {};
+   r600_bytecode_output output = {};
    output.gpr = instr.value().sel();
    output.type = instr.type();
    output.elem_size = 3;
@@ -175,12 +180,14 @@ fill_bytecode_mem_ring(r600_bytecode_output& output, const MemRingOutInstr& inst
       output.array_size = 0xfff;
    }
    output.array_base = instr.array_base();
+
+   return output;
 }
 
-static void
-fill_bytecode_fetch(r600_bytecode_vtx& vtx, const FetchInstr& fetch_instr)
+static r600_bytecode_vtx
+fill_bytecode_fetch(const FetchInstr& fetch_instr)
 {
-   vtx = {};
+   r600_bytecode_vtx vtx = {};
    vtx.op = fetch_instr.opcode();
    vtx.buffer_id = fetch_instr.resource_id();
    vtx.fetch_type = fetch_instr.fetch_type();
@@ -205,14 +212,15 @@ fill_bytecode_fetch(r600_bytecode_vtx& vtx, const FetchInstr& fetch_instr)
    vtx.array_base = fetch_instr.array_base();
    vtx.array_size = fetch_instr.array_size();
    vtx.srf_mode_all = fetch_instr.has_fetch_flag(FetchInstr::srf_mode);
+
+   return vtx;
 }
 
-static void
-fill_bytecode_gds(r600_bytecode_gds& gds,
-                  const GDSInstr& instr,
+static r600_bytecode_gds
+fill_bytecode_gds(const GDSInstr& instr,
                   enum amd_gfx_level gfx_level)
 {
-   gds = {};
+   r600_bytecode_gds gds = {};
    gds.op = ds_opcode_map.at(instr.opcode());
    gds.uav_id = instr.resource_id();
    gds.uav_index_mode = instr.resource_index_mode();
@@ -246,18 +254,19 @@ fill_bytecode_gds(r600_bytecode_gds& gds,
 
    gds.src_gpr2 = 0;
    gds.alloc_consume = gfx_level < CAYMAN ? 1 : 0;
+
+   return gds;
 }
 
-static void
-fill_bytecode_tf_write(r600_bytecode_gds& gds,
-                       const WriteTFInstr& instr,
+static r600_bytecode_gds
+fill_bytecode_tf_write(const WriteTFInstr& instr,
                        unsigned start_chan)
 {
    assert(start_chan == 0 || start_chan == 2);
 
    const auto& value = instr.value();
 
-   gds = {};
+   r600_bytecode_gds gds = {};
    gds.src_gpr = value.sel();
    gds.src_sel_x = value[start_chan]->chan();
    gds.src_sel_y = value[start_chan + 1]->chan();
@@ -267,13 +276,14 @@ fill_bytecode_tf_write(r600_bytecode_gds& gds,
    gds.dst_sel_z = 7;
    gds.dst_sel_w = 7;
    gds.op = FETCH_OP_TF_WRITE;
+
+   return gds;
 }
 
 bool
 emit_bytecode_tex(r600_bytecode& bc, const TexInstr& tex_instr)
 {
-   r600_bytecode_tex tex;
-   fill_bytecode_tex(tex, tex_instr);
+   r600_bytecode_tex tex = fill_bytecode_tex(tex_instr);
    if (r600_bytecode_add_tex(&bc, &tex)) {
       R600_ASM_ERR("shader_from_nir: Error creating tex assembly instruction\n");
       return false;
@@ -285,8 +295,7 @@ emit_bytecode_tex(r600_bytecode& bc, const TexInstr& tex_instr)
 bool
 emit_bytecode_export_alpha_to_coverage(r600_bytecode& bc, const ExportInstr& export_instr)
 {
-   r600_bytecode_output output;
-   fill_bytecode_export_alpha_to_coverage(output, export_instr);
+   r600_bytecode_output output = fill_bytecode_export_alpha_to_coverage(export_instr);
 
    if (r600_bytecode_add_output(&bc, &output)) {
       R600_ASM_ERR("Error adding export at location %d\n", output.array_base);
@@ -301,14 +310,14 @@ emit_bytecode_export(r600_bytecode& bc,
                      const ExportInstr& export_instr,
                      bool ps_alpha_to_one)
 {
-   r600_bytecode_output output;
-   if (!fill_bytecode_export(output, export_instr, ps_alpha_to_one)) {
+   auto output_opt = fill_bytecode_export(export_instr, ps_alpha_to_one);
+   if (!output_opt) {
       R600_ASM_ERR("shader_from_nir: export %d type not yet supported\n",
                    export_instr.export_type());
       return false;
    }
-
-   if (r600_bytecode_add_output(&bc, &output)) {
+   
+   if (r600_bytecode_add_output(&bc, &output_opt.value())) {
       R600_ASM_ERR("Error adding export at location %d\n", export_instr.location());
       return false;
    }
@@ -319,8 +328,7 @@ emit_bytecode_export(r600_bytecode& bc,
 bool
 emit_bytecode_scratch(r600_bytecode& bc, const ScratchIOInstr& instr)
 {
-   r600_bytecode_output output;
-   fill_bytecode_scratch(output, instr, bc.gfx_level);
+   r600_bytecode_output output = fill_bytecode_scratch(instr, bc.gfx_level);
 
    if (r600_bytecode_add_output(&bc, &output)) {
       R600_ASM_ERR("shader_from_nir: Error creating SCRATCH_WR assembly instruction\n");
@@ -334,8 +342,7 @@ bool
 emit_bytecode_stream_out(r600_bytecode& bc,
                          const StreamOutInstr& instr)
 {
-   r600_bytecode_output output;
-   fill_bytecode_stream_out(output, instr, bc.gfx_level);
+   r600_bytecode_output output = fill_bytecode_stream_out(instr, bc.gfx_level);
 
    if (r600_bytecode_add_output(&bc, &output)) {
       R600_ASM_ERR("shader_from_nir: Error creating stream output instruction\n");
@@ -348,8 +355,7 @@ emit_bytecode_stream_out(r600_bytecode& bc,
 bool
 emit_bytecode_mem_ring(r600_bytecode& bc, const MemRingOutInstr& instr)
 {
-   r600_bytecode_output output;
-   fill_bytecode_mem_ring(output, instr);
+   r600_bytecode_output output = fill_bytecode_mem_ring(instr);
 
    if (r600_bytecode_add_output(&bc, &output)) {
       R600_ASM_ERR("shader_from_nir: Error creating mem ring write instruction\n");
@@ -362,8 +368,7 @@ emit_bytecode_mem_ring(r600_bytecode& bc, const MemRingOutInstr& instr)
 bool
 emit_bytecode_fetch(r600_bytecode& bc, const FetchInstr& fetch_instr, bool use_tc)
 {
-   r600_bytecode_vtx vtx;
-   fill_bytecode_fetch(vtx, fetch_instr);
+   r600_bytecode_vtx vtx = fill_bytecode_fetch(fetch_instr);
 
    int r = use_tc ? r600_bytecode_add_vtx_tc(&bc, &vtx) : r600_bytecode_add_vtx(&bc, &vtx);
    if (r) {
@@ -377,8 +382,7 @@ emit_bytecode_fetch(r600_bytecode& bc, const FetchInstr& fetch_instr, bool use_t
 bool
 emit_bytecode_gds(r600_bytecode& bc, const GDSInstr& instr)
 {
-   r600_bytecode_gds gds;
-   fill_bytecode_gds(gds, instr, bc.gfx_level);
+   r600_bytecode_gds gds = fill_bytecode_gds(instr, bc.gfx_level);
 
    if (r600_bytecode_add_gds(&bc, &gds)) {
       R600_ASM_ERR("shader_from_nir: Error creating GDS instruction\n");
@@ -391,15 +395,14 @@ emit_bytecode_gds(r600_bytecode& bc, const GDSInstr& instr)
 bool
 emit_bytecode_tf_write(r600_bytecode& bc, const WriteTFInstr& instr)
 {
-   r600_bytecode_gds gds;
-   fill_bytecode_tf_write(gds, instr, 0);
+   r600_bytecode_gds gds = fill_bytecode_tf_write(instr, 0);
    if (r600_bytecode_add_gds(&bc, &gds) != 0) {
       R600_ASM_ERR("shader_from_nir: Error creating transform feedback write instruction\n");
       return false;
    }
 
    if (instr.value()[2]->chan() != 7) {
-      fill_bytecode_tf_write(gds, instr, 2);
+      gds = fill_bytecode_tf_write(instr, 2);
       if (r600_bytecode_add_gds(&bc, &gds) != 0) {
          R600_ASM_ERR("shader_from_nir: Error creating transform feedback write instruction\n");
          return false;
