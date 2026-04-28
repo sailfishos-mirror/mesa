@@ -188,21 +188,26 @@ enum barrier_info_kind {
 /* Used to keep track of wait imms that are yet to be emitted. */
 struct barrier_info {
    wait_imm imm[storage_count];
+   /* Whether vm_vsrc(0) should be emitted when a full waitcnt is not necessary. If this is false, a
+    * vm_vsrc(0) wait might not be a no-op, it just wouldn't do anything useful for this barrier. */
+   bool vm_vsrc[storage_count] = {};
    uint32_t events[storage_count] = {}; /* use wait_event notion */
    sync_scope scope[storage_count] = {};
    uint8_t storage = 0;
 
    bool join(const barrier_info& other)
    {
-      bool changed = false;
+      bool changed = (other.storage & ~storage);
+      storage |= other.storage;
       for (unsigned i = 0; i < storage_count; i++) {
          changed |= imm[i].combine(other.imm[i]);
          changed |= (other.events[i] & ~events[i]) != 0;
          events[i] |= other.events[i];
          changed |= other.scope[i] > scope[i];
          scope[i] = MAX2(scope[i], other.scope[i]);
+         changed |= other.vm_vsrc[i] && !vm_vsrc[i];
+         vm_vsrc[i] |= other.vm_vsrc[i];
       }
-      storage |= other.storage;
       return changed;
    }
 
@@ -211,6 +216,7 @@ struct barrier_info {
       u_foreach_bit (i, storage) {
          fprintf(output, "storage[%u] = {\n", i);
          imm[i].print(output);
+         fprintf(output, "vm_vsrc: %u\n", vm_vsrc[i]);
          fprintf(output, "events: %u\n", events[i]);
          fprintf(output, "scope: %u\n", scope[i]);
          fprintf(output, "}\n");
@@ -470,6 +476,7 @@ setup_barrier(wait_ctx& ctx, wait_imm& imm, memory_sync_info sync, bool is_acqui
    barrier_info& dst = ctx.bar[dst_index];
    u_foreach_bit (i, sync.storage) {
       dst.imm[i].combine(dst_imm);
+      dst.vm_vsrc[i] |= src.vm_vsrc[i];
       dst.events[i] |= dst_events;
       dst.scope[i] = MAX2(dst.scope[i], sync.scope);
    }
@@ -507,7 +514,7 @@ finish_barrier_internal(wait_ctx& ctx, wait_imm& imm, depctr_wait& depctr, Instr
 
    if (events)
       imm.combine(info->imm[storage_idx]);
-   if (vm_vsrc)
+   if (vm_vsrc && info->vm_vsrc[storage_idx])
       depctr.vm_vsrc = 0;
 }
 
@@ -536,11 +543,14 @@ force_waitcnt(wait_ctx& ctx, wait_imm& imm)
 }
 
 void
-update_barrier_info_for_wait(wait_ctx& ctx, unsigned idx, wait_imm imm)
+update_barrier_info_for_wait(wait_ctx& ctx, unsigned idx, wait_imm imm, depctr_wait depctr)
 {
+   static const uint32_t vm_vsrc_events =
+      event_lds | event_vmem | event_vmem_sample | event_vmem_bvh | event_vmem_store;
+
    barrier_info& info = ctx.bar[idx];
    for (unsigned i = 0; i < wait_type_num; i++) {
-      if (imm[i] == wait_imm::unset_counter)
+      if (imm[i] == wait_imm::unset_counter && depctr.vm_vsrc)
          continue;
 
       u_foreach_bit (j, info.storage) {
@@ -549,17 +559,21 @@ update_barrier_info_for_wait(wait_ctx& ctx, unsigned idx, wait_imm imm)
             /* Clear this counter */
             bar[i] = wait_imm::unset_counter;
             info.events[j] &= ~ctx.info->events[i];
+         }
 
-            if (!info.events[j]) {
-               assert(info.imm[j].empty());
-               info.scope[j] = scope_invocation;
-               info.storage &= ~(1 << j);
-               if (!info.storage)
-                  ctx.bar_nonempty &= ~(1 << idx);
-            }
+         if (depctr.vm_vsrc == 0 || !(info.events[j] & vm_vsrc_events))
+            info.vm_vsrc[j] = false;
+
+         if (!info.events[j]) {
+            assert(info.imm[j].empty() && !info.vm_vsrc[j]);
+            info.scope[j] = scope_invocation;
+            info.storage &= ~(1 << j);
          }
       }
    }
+
+   if (!info.storage)
+      ctx.bar_nonempty &= ~(1 << idx);
 }
 
 void
@@ -601,7 +615,7 @@ kill(wait_imm& imm, depctr_wait& depctr, Instruction* instr, wait_ctx& ctx,
 
    finish_barriers(ctx, imm, depctr, instr, sync_info);
 
-   if (!imm.empty()) {
+   if (!imm.empty() || !depctr.empty()) {
       if (ctx.pending_flat_vm && imm.vm != wait_imm::unset_counter)
          imm.vm = 0;
       if (ctx.pending_flat_lgkm && imm.lgkm != wait_imm::unset_counter)
@@ -612,7 +626,7 @@ kill(wait_imm& imm, depctr_wait& depctr, Instruction* instr, wait_ctx& ctx,
          ctx.nonzero &= imm[i] == 0 ? ~BITFIELD_BIT(i) : UINT32_MAX;
 
       u_foreach_bit (i, ctx.bar_nonempty)
-         update_barrier_info_for_wait(ctx, i, imm);
+         update_barrier_info_for_wait(ctx, i, imm, depctr);
 
       /* remove all gprs with higher counter from map */
       std::map<PhysReg, wait_entry>::iterator it = ctx.gpr_map.begin();
@@ -655,6 +669,8 @@ update_barrier_info_for_event(wait_ctx& ctx, uint8_t counters, wait_event event,
          bar_ev |= event;
          u_foreach_bit (j, counters)
             bar[j] = 0;
+         if (event & (event_lds | event_vmem | event_vmem_store))
+            info.vm_vsrc[i] = true;
       } else if (!(bar_ev & ctx.info->unordered_events) && !(ctx.info->unordered_events & event)) {
          /* Increase counters so that this instruction is ignored when waiting. */
          u_foreach_bit (j, counters) {
