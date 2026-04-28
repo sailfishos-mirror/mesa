@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 #include "pipe/p_state.h"
+#include "util/format/format_utils.h"
 #include "util/format/u_format.h"
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
@@ -1538,6 +1539,15 @@ emit_restore_blit(struct fd_batch *batch, fd_cs &cs, uint32_t base,
    fd6_event_write<CHIP>(batch->ctx, cs, FD_CCU_RESOLVE);
 }
 
+/* Pack YUVA clear color bytes in WZYX hardware order: A=byte3, V=byte2,
+ * U=byte1, Y=byte0.
+ */
+static inline uint32_t
+pack_yuva_wzyx(uint8_t y, uint8_t u, uint8_t v, uint8_t a)
+{
+   return ((uint32_t)a << 24) | ((uint32_t)v << 16) | ((uint32_t)u << 8) | (uint32_t)y;
+}
+
 template <chip CHIP>
 static void
 emit_subpass_clears(struct fd_batch *batch, fd_cs &cs, struct fd_batch_subpass *subpass)
@@ -1561,37 +1571,120 @@ emit_subpass_clears(struct fd_batch *batch, fd_cs &cs, struct fd_batch_subpass *
             continue;
 
          enum pipe_format pfmt = pfb->cbufs[i].format;
+         struct fd_resource *rsc = fd_resource(pfb->cbufs[i].texture);
 
          // XXX I think RB_CLEAR_COLOR_DWn wants to take into account SWAP??
          union pipe_color_union swapped;
-         switch (fd6_color_swap(pfmt, TILE6_LINEAR, false)) {
-         case WZYX:
-            swapped.ui[0] = color->ui[0];
-            swapped.ui[1] = color->ui[1];
-            swapped.ui[2] = color->ui[2];
-            swapped.ui[3] = color->ui[3];
-            break;
-         case WXYZ:
-            swapped.ui[2] = color->ui[0];
-            swapped.ui[1] = color->ui[1];
-            swapped.ui[0] = color->ui[2];
-            swapped.ui[3] = color->ui[3];
-            break;
-         case ZYXW:
-            swapped.ui[3] = color->ui[0];
-            swapped.ui[0] = color->ui[1];
-            swapped.ui[1] = color->ui[2];
-            swapped.ui[2] = color->ui[3];
-            break;
-         case XYZW:
-            swapped.ui[3] = color->ui[0];
-            swapped.ui[2] = color->ui[1];
-            swapped.ui[1] = color->ui[2];
-            swapped.ui[0] = color->ui[3];
-            break;
-         }
+         enum a3xx_color_swap swap = fd6_color_swap(pfmt, TILE6_LINEAR, false);
 
-         util_pack_color_union(pfmt, &uc, &swapped);
+         if (util_format_is_yuv(pfmt)) {
+            /* Per GL_EXT_YUV_target spec: "When clearing YUV Color Buffers,
+             * clear color should be defined in yuv color space and so floating
+             * point r, g, and b value will be mapped to corresponding y, u and v
+             * value and alpha channel will be ignored."
+             *
+             * Application passes YUV values directly via glClearColor(y, u, v, a):
+             *   color->f[0] = Y
+             *   color->f[1] = U
+             *   color->f[2] = V
+             *   color->f[3] = A (ignored)
+             */
+            uint8_t y = _mesa_float_to_unorm(color->f[0], 8);
+            uint8_t u = _mesa_float_to_unorm(color->f[1], 8);
+            uint8_t v = _mesa_float_to_unorm(color->f[2], 8);
+            uint8_t a = _mesa_float_to_unorm(color->f[3], 8);
+
+            bool ubwc = fd_resource_ubwc_enabled(rsc, pfb->cbufs[i].level);
+
+            /* Split clear for linear multi-planar YUV: the Y and UV planes are
+             * separate GMEM buffers but share a single clear color, so clear
+             * each plane in turn with RB_RESOLVE_CNTL_0.yuv_plane_id selecting
+             * the plane.
+             *
+             * Only the two-plane 4:2:0 formats (NV12/NV21) are handled here;
+             * 3-plane formats would need a third pass and a different
+             * clear-color packing, and packed YUV (YUYV & friends) has a
+             * single plane and falls through to the normal path below.
+             */
+            if (!ubwc && util_format_get_num_planes(pfmt) == 2 &&
+                rsc->b.b.next) {
+               /* Plane 0: Y */
+               with_crb (cs, 10) {
+                  crb.add(A6XX_RB_RESOLVE_SYSTEM_BUFFER_INFO(
+                     .tile_mode = TILE6_LINEAR,
+                     .samples = samples,
+                     .color_swap = WZYX,
+                     .color_format = fd6_color_format(pfmt, TILE6_LINEAR),
+                  ));
+
+                  crb.add(A6XX_RB_RESOLVE_OPERATION(
+                     .type = BLIT_EVENT_CLEAR,
+                     .clear_mask = 0xf,
+                  ));
+
+                  crb.add(A6XX_RB_RESOLVE_GMEM_BUFFER_INFO(.samples = samples));
+                  crb.add(A6XX_RB_RESOLVE_GMEM_BUFFER_BASE(gmem->cbuf_base[i]));
+                  crb.add(A6XX_RB_RESOLVE_CNTL_0());
+
+                  crb.add(A6XX_RB_RESOLVE_CLEAR_COLOR_DW0(pack_yuva_wzyx(y, u, v, a)));
+                  crb.add(A6XX_RB_RESOLVE_CLEAR_COLOR_DW1(0));
+                  crb.add(A6XX_RB_RESOLVE_CLEAR_COLOR_DW2(0));
+                  crb.add(A6XX_RB_RESOLVE_CLEAR_COLOR_DW3(0));
+
+                  if (CHIP >= A7XX)
+                     crb.add(RB_CLEAR_TARGET(CHIP, .clear_mode = CLEAR_MODE_GMEM));
+               }
+
+               fd6_event_write<CHIP>(batch->ctx, cs, FD_CCU_RESOLVE);
+
+               with_crb (cs, 4) {
+                  crb.add(A6XX_RB_RESOLVE_GMEM_BUFFER_INFO(.samples = samples));
+                  crb.add(A6XX_RB_RESOLVE_GMEM_BUFFER_BASE(gmem->cbuf_base[i + 1]));
+                  crb.add(A6XX_RB_RESOLVE_CNTL_0(.yuv_plane_id = 1));
+
+                  if (CHIP >= A7XX)
+                     crb.add(RB_CLEAR_TARGET(CHIP, .clear_mode = CLEAR_MODE_GMEM));
+               }
+
+               fd6_event_write<CHIP>(batch->ctx, cs, FD_CCU_RESOLVE);
+
+               continue;
+            }
+
+            if (swap == WZYX)
+               uc.ui[0] = pack_yuva_wzyx(y, u, v, a);
+            else
+               uc.ui[0] = pack_yuva_wzyx(a, v, u, y);
+         } else {
+            switch (swap) {
+            case WZYX:
+               swapped.ui[0] = color->ui[0];
+               swapped.ui[1] = color->ui[1];
+               swapped.ui[2] = color->ui[2];
+               swapped.ui[3] = color->ui[3];
+               break;
+            case WXYZ:
+               swapped.ui[2] = color->ui[0];
+               swapped.ui[1] = color->ui[1];
+               swapped.ui[0] = color->ui[2];
+               swapped.ui[3] = color->ui[3];
+               break;
+            case ZYXW:
+               swapped.ui[3] = color->ui[0];
+               swapped.ui[0] = color->ui[1];
+               swapped.ui[1] = color->ui[2];
+               swapped.ui[2] = color->ui[3];
+               break;
+            case XYZW:
+               swapped.ui[3] = color->ui[0];
+               swapped.ui[2] = color->ui[1];
+               swapped.ui[1] = color->ui[2];
+               swapped.ui[0] = color->ui[3];
+               break;
+            }
+
+            util_pack_color_union(pfmt, &uc, &swapped);
+         }
 
          with_crb (cs, 9) {
             crb.add(A6XX_RB_RESOLVE_SYSTEM_BUFFER_INFO(
@@ -2030,7 +2123,39 @@ emit_sysmem_clears(fd_cs &cs, struct fd_batch *batch, struct fd_batch_subpass *s
          if (!(buffers & (PIPE_CLEAR_COLOR0 << i)))
             continue;
 
-         fd6_clear_surface<CHIP>(ctx, cs, &pfb->cbufs[i], &box2d, &color, 0);
+         struct pipe_surface *psurf = &pfb->cbufs[i];
+         struct fd_resource *rsc = fd_resource(psurf->texture);
+         bool is_linear_nv12 = !fd_resource_ubwc_enabled(rsc, psurf->level) &&
+                              util_format_is_yuv(psurf->format) && rsc->b.b.next;
+
+         if (is_linear_nv12) {
+            /* Plane 0: Y plane cleared as R8_UNORM */
+            struct pipe_surface y_surf = *psurf;
+            y_surf.format = PIPE_FORMAT_R8_UNORM;
+            union pipe_color_union y_color = color; /* color.f[0] = Y value */
+            fd6_clear_surface<CHIP>(ctx, cs, &y_surf, &box2d, &y_color, 0);
+
+            /* Plane 1: UV plane cleared as R8G8_UNORM (if separate resource exists) */
+            if (rsc->b.b.next) {
+               struct pipe_surface uv_surf = *psurf;
+               uv_surf.format = PIPE_FORMAT_R8G8_UNORM;
+               uv_surf.texture = rsc->b.b.next;
+
+               struct pipe_box uv_box;
+               uv_box = box2d;
+               uv_box.height /= 2; /* UV plane is half height */
+               uv_box.width /= 2;  /* UV plane is half width in pairs */
+
+               union pipe_color_union uv_color;
+               memset(&uv_color, 0, sizeof(uv_color));
+               uv_color.f[0] = color.f[1]; 
+               uv_color.f[1] = color.f[2]; 
+
+               fd6_clear_surface<CHIP>(ctx, cs, &uv_surf, &uv_box, &uv_color, 0);
+            }
+         } else {
+            fd6_clear_surface<CHIP>(ctx, cs, &pfb->cbufs[i], &box2d, &color, 0);
+         }
       }
    }
 
