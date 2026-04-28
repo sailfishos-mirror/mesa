@@ -864,7 +864,7 @@
         "description": "anv: Support VK_ANDROID_native_buffer older than version 11",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0c523b66619616493233dddf5b28bd2140884a4f",
         "notes": null
