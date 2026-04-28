@@ -92,6 +92,14 @@ struct panfrost_vtable {
                          struct panfrost_resource *dst, uint64_t offset,
                          uint16_t sb_wait_mask);
 
+   /* Copy size_B bytes from an absolute GPU address (src_gpu_addr) into dst
+    * at dst_offset_B by emitting GPU commands. Only implemented for v10+ at
+    * present.
+    */
+   void (*emit_trace_copy)(struct panfrost_batch *batch,
+                           struct panfrost_resource *dst, uint64_t dst_offset_B,
+                           uint64_t src_gpu_addr, uint32_t size_B);
+
    /* Select the tile size and calculate the color buffer allocation size */
    void (*select_tile_size)(struct pan_fb_info *fb);
 

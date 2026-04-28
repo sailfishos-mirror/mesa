@@ -3742,8 +3742,11 @@ panfrost_launch_grid_on_batch(struct pipe_context *pipe,
 
    /* launch it */
 #if PAN_ARCH >= 10
-   trace_panfrost_start_compute(&batch->trace,
-                                &(struct panfrost_trace_cs_info){ .batch = batch });
+   struct panfrost_trace_cs_info start_tcs = { .batch = batch };
+   if (info->indirect)
+      trace_panfrost_start_compute_indirect(&batch->trace, &start_tcs);
+   else
+      trace_panfrost_start_compute(&batch->trace, &start_tcs);
 #endif
 
    JOBX(launch_grid)(batch, info);
@@ -3754,12 +3757,21 @@ panfrost_launch_grid_on_batch(struct pipe_context *pipe,
     */
 #if PAN_ARCH >= 10
    const uint16_t compute_end_wait = BITFIELD_BIT(PANFROST_SB_COMPUTE);
-   trace_panfrost_end_compute(&batch->trace,
-                              &(struct panfrost_trace_cs_info){ .batch = batch,
-                                                                .sb_wait_mask = compute_end_wait },
-                              info->indirect ? 1 : 0,
-                              info->block[0], info->block[1], info->block[2],
-                              info->grid[0], info->grid[1], info->grid[2]);
+   struct panfrost_trace_cs_info end_tcs = { .batch = batch,
+                                             .sb_wait_mask = compute_end_wait };
+   if (info->indirect) {
+      const uint64_t base = pan_resource(info->indirect)->plane.base +
+                            info->indirect_offset;
+      trace_panfrost_end_compute_indirect(&batch->trace, &end_tcs,
+         info->block[0], info->block[1], info->block[2],
+         (struct u_trace_address){ .bo = NULL, .offset = base },
+         (struct u_trace_address){ .bo = NULL, .offset = base + sizeof(uint32_t) },
+         (struct u_trace_address){ .bo = NULL, .offset = base + 2 * sizeof(uint32_t) });
+   } else {
+      trace_panfrost_end_compute(&batch->trace, &end_tcs,
+         info->block[0], info->block[1], info->block[2],
+         info->grid[0], info->grid[1], info->grid[2]);
+   }
 #endif
 
    batch->tls.gpu = saved_tls;
@@ -4745,6 +4757,18 @@ emit_trace_ts(struct panfrost_batch *batch,
 #endif
 }
 
+static void
+emit_trace_copy(struct panfrost_batch *batch,
+                struct panfrost_resource *dst, uint64_t dst_offset_B,
+                uint64_t src_gpu_addr, uint32_t size_B)
+{
+#if PAN_ARCH >= 10
+   GENX(csf_emit_copy_data)(batch, dst, dst_offset_B, src_gpu_addr, size_B);
+#else
+   UNREACHABLE("GPU-side trace copy only supported on CSF (arch >= 10)");
+#endif
+}
+
 static uint64_t
 get_conv_desc(enum pipe_format fmt, unsigned rt,
               unsigned force_size, bool dithered)
@@ -4776,6 +4800,9 @@ GENX(panfrost_cmdstream_screen_init)(struct panfrost_screen *screen)
    screen->vtbl.mtk_detile = panfrost_mtk_detile_compute;
    screen->vtbl.emit_write_timestamp = emit_write_timestamp;
    screen->vtbl.emit_trace_ts = emit_trace_ts;
+#if PAN_ARCH >= 10
+   screen->vtbl.emit_trace_copy = emit_trace_copy;
+#endif
    screen->vtbl.select_tile_size = GENX(pan_select_tile_size);
    screen->vtbl.get_conv_desc = get_conv_desc;
 

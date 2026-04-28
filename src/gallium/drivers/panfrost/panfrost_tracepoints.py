@@ -65,13 +65,24 @@ begin_end_tp('fragment',
 )
 
 begin_end_tp('compute',
-    args=[TracepointArg(type='uint8_t',  var='indirect',     c_format='%u'),
-          TracepointArg(type='uint16_t', var='local_size_x', c_format='%u'),
+    args=[TracepointArg(type='uint16_t', var='local_size_x', c_format='%u'),
           TracepointArg(type='uint16_t', var='local_size_y', c_format='%u'),
           TracepointArg(type='uint16_t', var='local_size_z', c_format='%u'),
           TracepointArg(type='uint32_t', var='num_groups_x', c_format='%u'),
           TracepointArg(type='uint32_t', var='num_groups_y', c_format='%u'),
           TracepointArg(type='uint32_t', var='num_groups_z', c_format='%u')],
+)
+
+# For indirect dispatches: local_size is known on the CPU size since it is
+# declared in the shader, but num_groups_* must be captured from the indirect
+# buffer at execution time.
+begin_end_tp('compute_indirect',
+    args=[TracepointArg(type='uint16_t', var='local_size_x', c_format='%u'),
+          TracepointArg(type='uint16_t', var='local_size_y', c_format='%u'),
+          TracepointArg(type='uint16_t', var='local_size_z', c_format='%u'),
+          TracepointArg(type='uint32_t', var='num_groups_x', c_format='%u', is_indirect=True),
+          TracepointArg(type='uint32_t', var='num_groups_y', c_format='%u', is_indirect=True),
+          TracepointArg(type='uint32_t', var='num_groups_z', c_format='%u', is_indirect=True)],
 )
 
 utrace_generate(cpath=args.src,

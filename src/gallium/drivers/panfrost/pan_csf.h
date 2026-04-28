@@ -158,6 +158,12 @@ void GENX(csf_emit_write_timestamp)(struct panfrost_batch *batch,
                                     unsigned offset,
                                     uint16_t sb_wait_mask);
 
+void GENX(csf_emit_copy_data)(struct panfrost_batch *batch,
+                              struct panfrost_resource *dst,
+                              uint64_t dst_offset_B,
+                              uint64_t src_gpu_addr,
+                              uint32_t size_B);
+
 #endif /* PAN_ARCH >= 10 */
 
 #if PAN_ARCH >= 14

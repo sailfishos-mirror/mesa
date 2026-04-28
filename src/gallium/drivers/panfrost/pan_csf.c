@@ -2024,3 +2024,33 @@ GENX(csf_emit_write_timestamp)(struct panfrost_batch *batch,
 
    panfrost_batch_write_rsrc(batch, dst, MESA_SHADER_VERTEX);
 }
+
+void
+GENX(csf_emit_copy_data)(struct panfrost_batch *batch,
+                         struct panfrost_resource *dst, uint64_t dst_offset_B,
+                         uint64_t src_gpu_addr, uint32_t size_B)
+{
+   assert(size_B > 0 && size_B % sizeof(uint32_t) == 0);
+
+   struct cs_builder *b = batch->csf.cs.builder;
+
+   /* FIXME: using 40 as the base register for scratch, using
+    * csf_emit_write_timestamp as reference, but not fully
+    * sure. cs_launch_draw_indirect uses 64, 66, that are values more similar
+    * to the PANVK_CS_REG_SCRATCH_START defined at panvk. Having something
+    * equivalent to panvk_cs_regs and cs_scratch_regXX on gallium would be
+    * really useful
+    */
+   const struct cs_index dst_addr = cs_reg64(b, 40);
+   const struct cs_index src_addr = cs_reg64(b, 42);
+   const uint32_t count = size_B / sizeof(uint32_t);
+   const struct cs_index data = cs_reg_tuple(b, 44, count);
+
+   cs_move64_to(b, src_addr, src_gpu_addr);
+   cs_move64_to(b, dst_addr, dst->plane.base + dst_offset_B);
+   cs_load_to(b, data, src_addr, BITFIELD_MASK(count), 0);
+   cs_wait_slot(b, 0);
+   cs_store(b, data, dst_addr, BITFIELD_MASK(count), 0);
+
+   panfrost_batch_write_rsrc(batch, dst, MESA_SHADER_VERTEX);
+}

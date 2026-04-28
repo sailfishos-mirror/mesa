@@ -558,6 +558,44 @@ panfrost_trace_record_ts(struct u_trace *ut, void *cs, void *timestamps,
    return true;
 }
 
+/* Called at tracepoint emit time (during batch recording) to copy indirect
+ * dispatch parameters into the u_trace indirects buffer.
+ *
+ * src_buffer is NULL and src_offset_B is an absolute GPU address. We emit CS
+ * instructions to copy at GPU execution time.
+ */
+static void
+panfrost_trace_capture_data(struct u_trace *ut, void *cs,
+                            void *dst_buffer, uint64_t dst_offset_B,
+                            void *src_buffer, uint64_t src_offset_B,
+                            uint32_t size_B)
+{
+   assert(!src_buffer);
+
+   struct panfrost_trace_cs_info *cs_info = cs;
+   struct panfrost_batch *batch = cs_info->batch;
+   struct panfrost_screen *screen = pan_screen(batch->ctx->base.screen);
+   struct panfrost_resource *dst_rsrc =
+      pan_resource((struct pipe_resource *)dst_buffer);
+
+   screen->vtbl.emit_trace_copy(batch, dst_rsrc, dst_offset_B, src_offset_B, size_B);
+}
+
+static const void *
+panfrost_trace_get_data(struct u_trace_context *utctx, void *buffer,
+                        uint64_t offset_B, uint32_t size_B)
+{
+   struct panfrost_resource *rsrc =
+      pan_resource((struct pipe_resource *)buffer);
+
+   panfrost_bo_wait(rsrc->bo, INT64_MAX, false);
+
+   if (panfrost_bo_mmap(rsrc->bo))
+      return NULL;
+
+   return (const uint8_t *)rsrc->bo->ptr.cpu + offset_B;
+}
+
 static uint64_t
 panfrost_trace_read_ts(struct u_trace_context *utctx, void *timestamps,
                        uint64_t offset_B, uint32_t flags, void *flush_data)
@@ -1190,10 +1228,12 @@ panfrost_create_context(struct pipe_screen *screen, void *priv, unsigned flags)
       panfrost_gpu_tracepoint_config_variable();
       u_trace_pipe_context_init(&ctx->trace_context, gallium,
                                 sizeof(uint64_t),
-                                0,
+                                3 * sizeof(uint32_t),
                                 panfrost_trace_record_ts,
                                 panfrost_trace_read_ts,
-                                NULL, NULL, NULL);
+                                panfrost_trace_capture_data,
+                                panfrost_trace_get_data,
+                                NULL);
    }
 
    ret = pan_screen(screen)->vtbl.context_init(ctx);

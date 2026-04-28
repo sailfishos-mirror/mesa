@@ -262,7 +262,8 @@ panfrost_perfetto_submit(struct panfrost_context *ctx)
 
 PANFROST_PERFETTO_PROCESS_EVENT(vertex_tiler, VERTEX_TILER)
 PANFROST_PERFETTO_PROCESS_EVENT(fragment,     FRAGMENT)
-PANFROST_PERFETTO_PROCESS_EVENT(compute,      COMPUTE)
+PANFROST_PERFETTO_PROCESS_EVENT(compute,          COMPUTE)
+PANFROST_PERFETTO_PROCESS_EVENT(compute_indirect, COMPUTE)
 
 #ifdef __cplusplus
 }
