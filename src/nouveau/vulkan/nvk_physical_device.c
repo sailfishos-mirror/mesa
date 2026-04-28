@@ -21,10 +21,12 @@
 #include "util/detect_os.h"
 #include "util/disk_cache.h"
 #include "util/mesa-blake3.h"
+#include "util/os_misc.h"
 
 #include "vk_android.h"
 #include "vk_device.h"
 #include "vk_drm_syncobj.h"
+#include "vk_physical_device.h"
 #include "vk_shader_module.h"
 #include "vulkan/wsi/wsi_common.h"
 
@@ -1402,17 +1404,6 @@ nvk_physical_device_free_disk_cache(struct nvk_physical_device *pdev)
 }
 
 static uint64_t
-nvk_get_sysmem_heap_size(void)
-{
-   uint64_t sysmem_size_B = 0;
-   if (!os_get_total_physical_memory(&sysmem_size_B))
-      return 0;
-
-   /* Use 3/4 of total size to avoid swapping */
-   return ROUND_DOWN_TO(sysmem_size_B * 3 / 4, 1 << 20);
-}
-
-static uint64_t
 nvk_get_sysmem_heap_available(struct nvk_physical_device *pdev)
 {
    uint64_t sysmem_size_B = 0;
@@ -1421,8 +1412,7 @@ nvk_get_sysmem_heap_available(struct nvk_physical_device *pdev)
       return 0;
    }
 
-   /* Use 3/4 of available to avoid swapping */
-   return ROUND_DOWN_TO(sysmem_size_B * 3 / 4, 1 << 20);
+   return ROUND_DOWN_TO(sysmem_size_B, 1 << 20);
 }
 
 static uint64_t
@@ -1531,8 +1521,10 @@ nvk_create_drm_physical_device(struct vk_instance *_instance,
 
    nvk_physical_device_init_pipeline_cache(pdev);
 
-   uint64_t sysmem_size_B = nvk_get_sysmem_heap_size();
-   if (sysmem_size_B == 0) {
+   uint64_t heap_size =
+      os_get_gpu_heap_size(instance->heap_memory_percent,
+                           &instance->heap_memory_percent);
+   if (heap_size == 0) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
                          "Failed to query total system memory");
       goto fail_disk_cache;
@@ -1577,7 +1569,7 @@ nvk_create_drm_physical_device(struct vk_instance *_instance,
 
    uint32_t sysmem_heap_idx = pdev->mem_heap_count++;
    pdev->mem_heaps[sysmem_heap_idx] = (struct nvk_memory_heap) {
-      .size = sysmem_size_B,
+      .size = heap_size,
       .flags = 0,
       .available = nvk_get_sysmem_heap_available,
    };
@@ -1699,6 +1691,8 @@ nvk_GetPhysicalDeviceMemoryProperties2(
       switch (ext->sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT: {
          VkPhysicalDeviceMemoryBudgetPropertiesEXT *p = (void *)ext;
+         const struct nvk_instance *instance =
+            nvk_physical_device_instance(pdev);
 
          for (unsigned i = 0; i < pdev->mem_heap_count; i++) {
             const struct nvk_memory_heap *heap = &pdev->mem_heaps[i];
@@ -1715,33 +1709,22 @@ nvk_GetPhysicalDeviceMemoryProperties2(
              */
             p->heapUsage[i] = used;
 
+            /* Set the budget at 90% to avoid thrashing */
+            float percent = 0.9f;
+
             uint64_t available = heap->size;
-            if (heap->available)
+            if (heap->available) {
                available = heap->available(pdev);
 
-            /* From the Vulkan 1.3.278 spec:
-             *
-             *    "heapBudget is an array of VK_MAX_MEMORY_HEAPS VkDeviceSize
-             *    values in which memory budgets are returned, with one
-             *    element for each memory heap. A heap’s budget is a rough
-             *    estimate of how much memory the process can allocate from
-             *    that heap before allocations may fail or cause performance
-             *    degradation. The budget includes any currently allocated
-             *    device memory."
-             *
-             * and
-             *
-             *    "The heapBudget value must be less than or equal to
-             *    VkMemoryHeap::size for each heap."
-             *
-             * available (queried above) is the total amount free memory
-             * system-wide and does not include our allocations so we need
-             * to add that in.
-             */
-            uint64_t budget = MIN2(available + used, heap->size);
+               if (heap->available == nvk_get_sysmem_heap_available) {
+                  /* Scale the budget the same way the heap was scaled. */
+                  percent *= instance->heap_memory_percent;
+               }
+            }
 
-            /* Set the budget at 90% of available to avoid thrashing */
-            p->heapBudget[i] = ROUND_DOWN_TO(budget * 9 / 10, 1 << 20);
+            p->heapBudget[i] =
+               vk_physical_device_heap_budget(available, percent, heap->size,
+                                              used);
          }
 
          /* From the Vulkan 1.3.278 spec:
