@@ -1201,10 +1201,10 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
          payload2 = data0;
          ex_mlen = DIV_ROUND_UP(components, 8);
       } else {
-         brw_reg data[8];
+         brw_reg data[NIR_MAX_VEC_COMPONENTS];
          unsigned size = 0;
 
-         assert(components < 8);
+         assert(components < NIR_MAX_VEC_COMPONENTS);
 
          for (unsigned i = 0; i < components; i++)
             data[size++] = offset(data0, bld, i);
