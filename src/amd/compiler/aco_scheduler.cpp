@@ -566,6 +566,8 @@ struct hazard_query {
    amd_gfx_level gfx_level;
    bool contains_spill;
    bool contains_sendmsg;
+   bool contains_signal;
+   bool contains_wait;
    bool uses_exec;
    bool writes_exec;
    memory_event_set mem_events;
@@ -580,6 +582,8 @@ init_hazard_query(const sched_ctx& ctx, hazard_query* query)
    query->gfx_level = ctx.gfx_level;
    query->contains_spill = false;
    query->contains_sendmsg = false;
+   query->contains_signal = false;
+   query->contains_wait = false;
    query->uses_exec = false;
    query->writes_exec = false;
    memset(&query->mem_events, 0, sizeof(query->mem_events));
@@ -591,7 +595,7 @@ void
 add_memory_event(Program* program, memory_event_set* set, Instruction* instr,
                  memory_sync_info* sync)
 {
-   if (instr->opcode == aco_opcode::p_barrier) {
+   if (instr->isBarrier()) {
       Pseudo_barrier_instruction& bar = instr->barrier();
       if (bar.sync.semantics & semantic_acquire)
          set->bar_acquire |= bar.sync.storage;
@@ -626,6 +630,8 @@ add_to_hazard_query(hazard_query* query, Instruction* instr)
    if (instr->opcode == aco_opcode::p_spill || instr->opcode == aco_opcode::p_reload)
       query->contains_spill = true;
    query->contains_sendmsg |= instr->opcode == aco_opcode::s_sendmsg;
+   query->contains_signal |= instr->opcode == aco_opcode::p_barrier_signal;
+   query->contains_wait |= instr->opcode == aco_opcode::p_barrier_wait;
    query->uses_exec |= needs_exec_mask(instr);
    for (const Definition& def : instr->definitions) {
       if (def.isFixed() && def.physReg() == exec)
@@ -763,6 +769,12 @@ perform_hazard_query(hazard_query* query, Instruction* instr, bool upwards)
 
    if (instr->opcode == aco_opcode::s_sendmsg && query->contains_sendmsg)
       return hazard_fail_reorder_sendmsg;
+
+   if (instr->opcode == aco_opcode::p_barrier_signal && query->contains_wait)
+      return hazard_fail_barrier;
+
+   if (instr->opcode == aco_opcode::p_barrier_wait && query->contains_signal)
+      return hazard_fail_barrier;
 
    return hazard_success;
 }

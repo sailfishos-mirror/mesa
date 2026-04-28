@@ -254,7 +254,15 @@ is_atomic_or_control_instr(Program* program, const Instruction* instr, memory_sy
       if (instr->opcode == aco_opcode::s_sethalt)
          return cls & ~storage_shared;
    }
-   return (instr->isBarrier() && instr->barrier().exec_scope > ignore_scope) ? cls : 0;
+
+   if (instr->isBarrier() && instr->barrier().exec_scope > ignore_scope) {
+      bool is_signal = instr->opcode != aco_opcode::p_barrier_wait;
+      bool is_wait = instr->opcode != aco_opcode::p_barrier_signal;
+      if ((is_acquire && is_wait) || (is_release && is_signal))
+         return cls;
+   }
+
+   return 0;
 }
 
 memory_sync_info

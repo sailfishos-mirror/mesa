@@ -177,7 +177,7 @@ enum barrier_info_kind {
    /* Waits for all atomics */
    barrier_info_acquire_dep,
    /* A wait that is to be emitted when an
-    * atomics/control_barriers/sendmsg_gs_done/position-primitive-export is encountered.
+    * atomics/barrier_signal/sendmsg_gs_done/position-primitive-export is encountered.
     */
    barrier_info_release,
    /* A wait that is to be emitted when any non-private access is encountered. */
@@ -606,7 +606,7 @@ kill(wait_imm& imm, depctr_wait& depctr, Instruction* instr, wait_ctx& ctx,
       imm.combine(bar.imm[ffs(storage_gds) - 1]);
    }
 
-   if (instr->opcode == aco_opcode::p_barrier) {
+   if (instr->isBarrier()) {
       if (instr->barrier().sync.semantics & semantic_release)
          setup_barrier(ctx, imm, instr->barrier().sync, false);
       if (instr->barrier().sync.semantics & semantic_acquire)
