@@ -2024,7 +2024,7 @@
         "description": "aco/ra: don't rename phi operands in get_reg_phi()",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
