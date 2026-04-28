@@ -1123,6 +1123,12 @@ VkResult anv_CreateDevice(
       goto fail_trtt;
    }
 
+   result = anv_device_init_shader_dump(device);
+   if (result != VK_SUCCESS) {
+      result = vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+      goto fail_rt_shaders;
+   }
+
    anv_device_init_blorp(device);
 
    anv_device_init_border_colors(device);
@@ -1215,6 +1221,8 @@ VkResult anv_CreateDevice(
    anv_device_finish_blorp(device);
    anv_device_finish_astc_emu(device);
    anv_device_finish_internal_kernels(device);
+   anv_device_finish_shader_dump(device);
+ fail_rt_shaders:
    anv_device_finish_rt_shaders(device);
  fail_trtt:
    anv_device_finish_trtt(device);

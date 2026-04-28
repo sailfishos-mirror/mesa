@@ -1296,9 +1296,10 @@ void anv_shader_heap_free(struct anv_shader_heap *heap, struct anv_shader_alloc 
 
 void anv_shader_heap_upload(struct anv_shader_heap *heap,
                             struct anv_shader_alloc alloc,
-                            const void *data,
-                            const struct brw_stage_prog_data *prog_data,
-                            uint32_t dispatch_width);
+                            const void *data, uint64_t size);
+
+VkResult anv_device_init_shader_dump(struct anv_device *device);
+void anv_device_finish_shader_dump(struct anv_device *device);
 
 struct anv_shader_group_rt_replay {
    uint64_t general;
@@ -1797,6 +1798,7 @@ enum anv_debug {
    ANV_DEBUG_NO_SLAB           = BITFIELD_BIT(8),
    ANV_DEBUG_DESCRIPTOR_DIRTY  = BITFIELD_BIT(9),
    ANV_DEBUG_SHADER_PRINT      = BITFIELD_BIT(10),
+   ANV_DEBUG_SHADER_DUMP       = BITFIELD_BIT(11),
 };
 
 extern enum anv_debug anv_debug;
@@ -2849,6 +2851,11 @@ struct anv_device {
        struct radix_sort_vk *radix_sort;
        struct vk_acceleration_structure_build_args build_args;
    } accel_struct_build;
+
+   struct {
+      simple_mtx_t    mutex;
+      debug_archiver *archive;
+   } shader_dump;
 
    struct vk_meta_device meta_device;
 
