@@ -2588,17 +2588,35 @@ v3dv_BindImageMemory2(VkDevice _device,
                       const VkBindImageMemoryInfo *pBindInfos)
 {
    for (uint32_t i = 0; i < bindInfoCount; i++) {
-      /* This section is removed by the optimizer for non-ANDROID builds */
+#if DETECT_OS_ANDROID
       V3DV_FROM_HANDLE(v3dv_image, image, pBindInfos[i].image);
-      if (vk_image_is_android_hardware_buffer(&image->vk)) {
+      if (vk_image_is_android_hardware_buffer(&image->vk) ||
+          vk_image_is_android_native_buffer_alias(&image->vk)) {
+         const VkNativeBufferANDROID *anb =
+            vk_find_struct_const(pBindInfos[i].pNext, NATIVE_BUFFER_ANDROID);
+
          V3DV_FROM_HANDLE(v3dv_device, device, _device);
-         V3DV_FROM_HANDLE(v3dv_device_memory, mem, pBindInfos[i].memory);
 
          VkImageDrmFormatModifierExplicitCreateInfoEXT eci;
          VkSubresourceLayout a_plane_layouts[V3DV_MAX_PLANE_COUNT];
-         VkResult result = vk_android_get_ahb_layout(mem->vk.ahardware_buffer,
-                                                     &eci, a_plane_layouts,
-                                                     V3DV_MAX_PLANE_COUNT);
+         VkResult result;
+
+         if (vk_image_is_android_native_buffer_alias(&image->vk)) {
+            assert(anb && image->vk.android_deferred_create_info);
+            VkNativeBufferANDROID local_anb = *anb;
+            local_anb.pNext = image->vk.android_deferred_create_info->pNext;
+            image->vk.android_deferred_create_info->pNext = &local_anb;
+
+            result = vk_android_get_anb_layout(image->vk.android_deferred_create_info,
+                                               &eci, a_plane_layouts, V3DV_MAX_PLANE_COUNT);
+            image->vk.android_deferred_create_info->pNext = NULL;
+         } else {
+            V3DV_FROM_HANDLE(v3dv_device_memory, mem, pBindInfos[i].memory);
+            result = vk_android_get_ahb_layout(mem->vk.ahardware_buffer,
+                                               &eci, a_plane_layouts,
+                                               V3DV_MAX_PLANE_COUNT);
+         }
+
          if (result != VK_SUCCESS)
             return result;
 
@@ -2607,7 +2625,21 @@ v3dv_BindImageMemory2(VkDevice _device,
                                            /* disjoint = */ false, &eci);
          if (result != VK_SUCCESS)
             return result;
+
+         if (vk_image_is_android_native_buffer_alias(&image->vk)) {
+            result = vk_android_import_anb_memory(&device->vk, &image->vk, anb,
+                                                  &device->vk.alloc);
+            if (result != VK_SUCCESS)
+               return result;
+
+            VkBindImageMemoryInfo local_bind = pBindInfos[i];
+            local_bind.memory = image->vk.anb_memory;
+            local_bind.memoryOffset = 0;
+            bind_image_memory(&local_bind);
+            continue;
+         }
       }
+#endif
 
       const VkBindImageMemorySwapchainInfoKHR *swapchain_info =
          vk_find_struct_const(pBindInfos[i].pNext,
