@@ -1458,7 +1458,8 @@ static void
 wsi_swapchain_present_timing_sample_query_pool(struct wsi_swapchain *chain,
                                                struct wsi_presentation_timing *timing,
                                                struct wsi_image *image,
-                                               uint64_t upper_bound)
+                                               uint64_t upper_bound,
+                                               bool want_host_timedomain)
 {
    /* Application can query for stages which are not supported. We need to return 0 here. */
    if (!(timing->requested_feedback & VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT) ||
@@ -1478,10 +1479,13 @@ wsi_swapchain_present_timing_sample_query_pool(struct wsi_swapchain *chain,
        * as host. This will lead to double calibration error, but nothing we can do about it.
        */
 
-      if (chain->wsi->timestamp_bits == 64)
+      if (!want_host_timedomain && chain->wsi->timestamp_bits == 64)
          timing->queue_done_time = (uint64_t)((double)queue_ts * (double)chain->wsi->timestamp_period);
       else
          timing->queue_done_time = wsi_swapchain_present_convert_device_to_cpu(chain, queue_ts, false);
+
+      if (want_host_timedomain && timing->queue_done_time > upper_bound)
+         timing->queue_done_time = upper_bound;
    }
 }
 
@@ -1498,7 +1502,7 @@ wsi_swapchain_present_timing_notify_recycle_locked(struct wsi_swapchain *chain,
          chain->present_timing.timings[i].queue_done_time = 0;
 
          /* We waited on progress fence, so the timestamp query is guaranteed to be done. */
-         wsi_swapchain_present_timing_sample_query_pool(chain, &chain->present_timing.timings[i], image, 0);
+         wsi_swapchain_present_timing_sample_query_pool(chain, &chain->present_timing.timings[i], image, 0, false);
          break;
       }
    }
@@ -1567,7 +1571,7 @@ wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
 
          /* 0 means unknown. Application can probably fall back to its own timestamps if it wants to. */
          chain->present_timing.timings[i].queue_done_time = 0;
-         wsi_swapchain_present_timing_sample_query_pool(chain, &chain->present_timing.timings[i], image, timestamp);
+         wsi_swapchain_present_timing_sample_query_pool(chain, &chain->present_timing.timings[i], image, timestamp, false);
          chain->present_timing.timings[i].image = NULL;
          break;
       }
