@@ -49,6 +49,39 @@ info on what was updated.
 Workarounds
 ===========
 
+KK_WORKAROUND_9
+---------------
+| macOS version: 26.4.1
+| Metal ticket: Not reported
+| Metal ticket status:
+| CTS test failure: ``dEQP-VK.reconvergence.maximal.compute.nesting*``
+| Comments:
+
+Metal seems to re-order the sole break case of a loop such that execution
+reconverges earlier than expected.
+
+From the above mentioned CTS test, consider the following, which is the
+only code path that breaks within a loop:
+
+.. code-block:: c
+
+   if (subgroupElect()) {
+      outputC.loc[gl_LocalInvocationIndex]++;
+      outputB.b[(outLoc++)*invocationStride + gl_LocalInvocationIndex] =
+         subgroupBallot(true);
+      break;
+   }
+
+The test expects the ``subgroupBallot`` to yield just one bit set for the
+thread picked by ``subgroupElect``; however, Metal returns the full 0xFFFFFFFF,
+presumably because it re-ordered the operations to after the loop.
+
+To work around this, we add a trivial, always-true runtime condition to the
+break to ensure that the prior logic is not re-ordered.
+
+| Log:
+| 2026-04-27: Workaround implemented
+
 KK_WORKAROUND_7
 ---------------
 | macOS version: 26.0.1

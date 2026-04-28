@@ -123,9 +123,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
 
       /* Optional extensions */
       .KHR_calibrated_timestamps = true,
-      /* Temporarily disabled due to failing tests in
-       * dEQP-VK.reconvergence.maximal.compute.nesting* */
-      .KHR_shader_maximal_reconvergence = false,
+      .KHR_shader_maximal_reconvergence = true,
       .KHR_shader_relaxed_extended_instruction = true,
       .KHR_shader_subgroup_uniform_control_flow = true,
 #ifdef KK_USE_WSI_PLATFORM
@@ -287,9 +285,7 @@ kk_get_device_features(
       .shaderExpectAssume = true,
 
       /* VK_KHR_shader_maximal_reconvergence */
-      /* Temporarily disabled due to failing tests in
-       * dEQP-VK.reconvergence.maximal.compute.nesting* */
-      .shaderMaximalReconvergence = false,
+      .shaderMaximalReconvergence = true,
 
       /* VK_KHR_shader_relaxed_extended_instruction */
       .shaderRelaxedExtendedInstruction = true,

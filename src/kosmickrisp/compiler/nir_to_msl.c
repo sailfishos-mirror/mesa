@@ -1809,7 +1809,13 @@ jump_instr_to_msl(struct nir_to_msl_ctx *ctx, nir_jump_instr *jump)
       assert(!"Unimplemented");
       break;
    case nir_jump_break:
-      P_IND(ctx, "break;\n");
+      /* KK_WORKAROUND_9 */
+      if (!ctx->shader->info.maximally_reconverges ||
+          (ctx->disabled_workarounds & BITFIELD64_BIT(9))) {
+         P_IND(ctx, "break;\n");
+      } else {
+         P_IND(ctx, "if ((ulong)simd_active_threads_mask()) break;\n");
+      }
       break;
    case nir_jump_continue:
       P_IND(ctx, "continue;\n");
