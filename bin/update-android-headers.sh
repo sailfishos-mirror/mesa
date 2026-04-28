@@ -33,7 +33,6 @@ cp -av                                                                  \
     platform-system-core/libsync/include/ndk                            \
     platform-system-core/libsync/include/sync                           \
     platform-system-core/libsystem/include/system                       \
-    platform-system-logging/liblog/include/log                          \
     platform-system-unwinding/libbacktrace/include/backtrace            \
     ${dest}
 
@@ -45,7 +44,7 @@ cp -av platform-hardware-libhardware/include/hardware/{hardware,gralloc,gralloc1
 cp -av platform-frameworks-native/vulkan/include/hardware/hwvulkan.h ${dest}/hardware
 
 mkdir ${dest}/cutils
-cp -av platform-system-core/libcutils/include/cutils/{log,native_handle}.h ${dest}/cutils
+cp -av platform-system-core/libcutils/include/cutils/native_handle.h ${dest}/cutils
 
 
 # include/android has files from a few different projects
@@ -55,6 +54,6 @@ cp -av                                                                  \
     platform-frameworks-native/libs/nativewindow/include/android/*      \
     platform-frameworks-native/libs/arect/include/android/*             \
     platform-system-core/libsync/include/android/*                      \
-    platform-system-logging/liblog/include/android/*                    \
+    platform-system-logging/liblog/include/android/log.h                \
     ${dest}/android
 
