@@ -3309,26 +3309,38 @@ radv_set_stage_key_robustness(const struct vk_pipeline_robustness_state *rs, mes
       key->vertex_robustness1 = 1u;
 }
 
-static struct radv_shader_binary *
-shader_compile(const struct radv_compiler_info *compiler_info, struct nir_shader *const *shaders, int shader_count,
-               mesa_shader_stage stage, const struct radv_shader_info *info, const struct radv_shader_args *args,
-               const struct radv_shader_stage_key *stage_key, struct radv_nir_compiler_options *options)
+struct radv_shader_binary *
+radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_shader_stage *pl_stage,
+                       struct nir_shader *const *shaders, int shader_count,
+                       const struct radv_graphics_state_key *gfx_state, bool keep_shader_info, bool keep_statistic_info)
 {
-   struct radv_shader_binary *binary = NULL;
+   mesa_shader_stage stage = shaders[shader_count - 1]->info.stage;
+   struct radv_shader_info *info = &pl_stage->info;
+   const struct radv_shader_args *args = &pl_stage->args;
 
+   bool dump_shader = false;
+   for (unsigned i = 0; i < shader_count; ++i)
+      dump_shader |= radv_can_dump_shader(compiler_info, shaders[i]);
+
+   struct radv_nir_compiler_options options = {0};
+   radv_fill_nir_compiler_options(compiler_info, &options, gfx_state,
+                                  radv_should_use_wgp_mode(compiler_info->ac->gfx_level, stage, info), dump_shader,
+                                  keep_shader_info, keep_statistic_info);
+
+   struct radv_shader_binary *binary = NULL;
 #if AMD_LLVM_AVAILABLE
-   if (compiler_info->key.use_llvm || options->dump_shader || options->record_ir)
+   if (compiler_info->key.use_llvm || options.dump_shader || options.record_ir)
       ac_init_llvm_once();
 
    if (compiler_info->key.use_llvm) {
-      llvm_compile_shader(options, info, shader_count, shaders, &binary, args);
+      llvm_compile_shader(&options, info, shader_count, shaders, &binary, args);
 #else
    if (false) {
 #endif
    } else {
       struct aco_shader_info ac_info;
       struct aco_compiler_options ac_opts;
-      radv_aco_convert_opts(&ac_opts, options, args, stage_key);
+      radv_aco_convert_opts(&ac_opts, &options, args, &pl_stage->key);
       radv_aco_convert_shader_info(&ac_info, info, args, compiler_info);
       aco_compile_shader(&ac_opts, &ac_info, shader_count, shaders, &args->ac, &radv_aco_build_shader_binary,
                          (void **)&binary);
@@ -3340,29 +3352,6 @@ shader_compile(const struct radv_compiler_info *compiler_info, struct nir_shader
       free(binary);
       return NULL;
    }
-
-   return binary;
-}
-
-struct radv_shader_binary *
-radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_shader_stage *pl_stage,
-                       struct nir_shader *const *shaders, int shader_count,
-                       const struct radv_graphics_state_key *gfx_state, bool keep_shader_info, bool keep_statistic_info)
-{
-   mesa_shader_stage stage = shaders[shader_count - 1]->info.stage;
-   struct radv_shader_info *info = &pl_stage->info;
-
-   bool dump_shader = false;
-   for (unsigned i = 0; i < shader_count; ++i)
-      dump_shader |= radv_can_dump_shader(compiler_info, shaders[i]);
-
-   struct radv_nir_compiler_options options = {0};
-   radv_fill_nir_compiler_options(compiler_info, &options, gfx_state,
-                                  radv_should_use_wgp_mode(compiler_info->ac->gfx_level, stage, info), dump_shader,
-                                  keep_shader_info, keep_statistic_info);
-
-   struct radv_shader_binary *binary =
-      shader_compile(compiler_info, shaders, shader_count, stage, info, &pl_stage->args, &pl_stage->key, &options);
 
    return binary;
 }
