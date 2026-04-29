@@ -718,6 +718,17 @@ nir_mov_alu(nir_builder *build, nir_alu_src src, unsigned num_components)
          return src.src.ssa;
    }
 
+   if (build->constant_fold_alu && nir_src_is_const(src.src)) {
+      nir_const_value dest[NIR_MAX_VEC_COMPONENTS];
+      nir_load_const_instr *load_const = nir_src_as_load_const(src.src);
+      for (unsigned i = 0; i < num_components; i++)
+         dest[i] = load_const->value[src.swizzle[i]];
+
+      return nir_build_imm(build, num_components,
+                           nir_src_bit_size(src.src),
+                           dest);
+   }
+
    nir_alu_instr *mov = nir_alu_instr_create(build->shader, nir_op_mov);
    nir_def_init(&mov->instr, &mov->def, num_components,
                 nir_src_bit_size(src.src));
