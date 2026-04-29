@@ -22,8 +22,6 @@
  */
 #if MFT_CODEC_H265ENC
 #include "hmft_entrypoints.h"
-#include "mfbufferhelp.h"
-#include "mfpipeinterop.h"
 #include "reference_frames_tracker_hevc.h"
 #include "wpptrace.h"
 
