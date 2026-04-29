@@ -1140,6 +1140,12 @@ v3d42_qpu_add_unpack(const struct v3d_device_info *devinfo, uint64_t packed_inst
                 }
                 break;
 
+        case V3D_QPU_A_ITOF:
+        case V3D_QPU_A_UTOF:
+                instr->alu.add.output_pack = mux_b & 0x3;
+                instr->alu.add.a.unpack = V3D_QPU_UNPACK_NONE;
+                break;
+
         case V3D_QPU_A_VFMIN:
         case V3D_QPU_A_VFMAX:
                 if (!v3d_qpu_float16_unpack_unpack(op & 0x7,
@@ -1290,6 +1296,12 @@ v3d71_qpu_add_unpack(const struct v3d_device_info *devinfo, uint64_t packed_inst
                                                    &instr->alu.add.a.unpack)) {
                         return false;
                 }
+                break;
+
+        case V3D_QPU_A_ITOF:
+        case V3D_QPU_A_UTOF:
+                instr->alu.add.output_pack = raddr_b & 0x3;
+                instr->alu.add.a.unpack = V3D_QPU_UNPACK_NONE;
                 break;
 
         case V3D_QPU_A_VFMIN:
@@ -1743,6 +1755,19 @@ v3d42_qpu_add_pack(const struct v3d_device_info *devinfo,
 
                 break;
 
+        case V3D_QPU_A_ITOF:
+        case V3D_QPU_A_UTOF: {
+                uint32_t pack_packed;
+                if (instr->alu.add.a.unpack != V3D_QPU_UNPACK_NONE)
+                        return false;
+                if (!v3d_qpu_float32_pack_pack(instr->alu.add.output_pack,
+                                               &pack_packed)) {
+                        return false;
+                }
+                mux_b |= pack_packed;
+                break;
+        }
+
         case V3D_QPU_A_VFMIN:
         case V3D_QPU_A_VFMAX:
                 if (instr->alu.add.output_pack != V3D_QPU_PACK_NONE ||
@@ -1980,6 +2005,19 @@ v3d71_qpu_add_pack(const struct v3d_device_info *devinfo,
                 raddr_b |= (raddr_b & ~(0x3 << 2)) | packed << 2;
 
                 break;
+
+        case V3D_QPU_A_ITOF:
+        case V3D_QPU_A_UTOF: {
+                uint32_t pack_packed;
+                if (instr->alu.add.a.unpack != V3D_QPU_UNPACK_NONE)
+                        return false;
+                if (!v3d_qpu_float32_pack_pack(instr->alu.add.output_pack,
+                                               &pack_packed)) {
+                        return false;
+                }
+                raddr_b |= pack_packed;
+                break;
+        }
 
         case V3D_QPU_A_VFMIN:
         case V3D_QPU_A_VFMAX:
