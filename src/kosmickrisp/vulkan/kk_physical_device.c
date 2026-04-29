@@ -80,6 +80,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_timeline_semaphore = true,
       .KHR_uniform_buffer_standard_layout = true,
       .KHR_vulkan_memory_model = true, /* Required in Vulkan 1.3 */
+      .EXT_buffer_device_address = true,
       .EXT_descriptor_indexing = true,
       .EXT_host_query_reset = true,
       .EXT_sampler_filter_minmax = false,
