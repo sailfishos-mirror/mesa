@@ -2348,6 +2348,9 @@ static LLVMValueRef visit_image_atomic(struct ac_nir_context *ctx, const nir_int
    case nir_atomic_op_iadd:
       atomic_subop = ac_atomic_add;
       break;
+   case nir_atomic_op_isub:
+      atomic_subop = ac_atomic_sub;
+      break;
    case nir_atomic_op_imin:
       atomic_subop = ac_atomic_smin;
       break;
