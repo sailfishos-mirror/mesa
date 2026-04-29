@@ -274,11 +274,20 @@ bi_optimize_nir(nir_shader *nir, uint64_t gpu_id,
 
    NIR_PASS(_, nir, nir_opt_shrink_vectors, false);
 
+   /* Why aren't we vectorizing nir_var_shader_temp?
+    * Basically, the current RA doesn't know rematerialization and is still
+    * learning spills, if we vectorize temp stores it might create long-lived
+    * COLLECTs that make the RA fall off the bicycle and create very scary spills.
+    * (spills that are just other temp STORE/LOADs).
+    *
+    * Really hope that a Metroid boss hears my prayer and saves the day soon!
+    * test case: dEQP-VK.subgroups.ballot_broadcast.compute.subgroupbroadcast_u8vec3
+    * TODO: Fix RA and re-enable temp vectorization.
+    */
    nir_load_store_vectorize_options vectorize_opts = {
       .modes = nir_var_mem_global |
                nir_var_mem_shared |
-               nir_var_mem_ubo |
-               nir_var_shader_temp,
+               nir_var_mem_ubo /* | nir_var_mem_temp */,
       .callback = mem_vectorize_cb,
       .robust_modes = robust_modes,
    };
@@ -396,22 +405,6 @@ bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
 
    /* Get rid of any global vars before we lower to scratch. */
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
-
-   /* Valhall introduces packed thread local storage, which improves cache
-    * locality of TLS access. However, access to packed TLS cannot
-    * straddle 16-byte boundaries. As such, when packed TLS is in use
-    * (currently unconditional for Valhall), we force vec4 alignment for
-    * scratch access.
-    */
-   glsl_type_size_align_func vars_to_scratch_size_align_func =
-      (pan_arch(gpu_id) >= 9) ? glsl_get_vec4_size_align_bytes
-                              : glsl_get_natural_size_align_bytes;
-   /* Lower large arrays to scratch and small arrays to bcsel */
-   NIR_PASS(_, nir, nir_lower_scratch_to_var);
-   NIR_PASS(_, nir, nir_lower_vars_to_scratch, 256,
-            vars_to_scratch_size_align_func, vars_to_scratch_size_align_func);
-   NIR_PASS(_, nir, nir_lower_indirect_derefs_to_if_else_trees,
-            nir_var_function_temp, ~0);
 
    bi_optimize_loop_nir(nir, gpu_id, true);
 
@@ -842,6 +835,17 @@ mem_access_size_align_cb(nir_intrinsic_op intrin, uint8_t bytes,
 static void bi_lower_texture_nir(nir_shader *nir, uint64_t gpu_id);
 static void bi_lower_texture_late_nir(nir_shader *nir, uint64_t gpu_id);
 
+static bool
+nir_shader_has_local_variables(const nir_shader *nir)
+{
+   nir_foreach_function(func, nir) {
+      if (func->impl && !exec_list_is_empty(&func->impl->locals))
+         return true;
+   }
+
+   return false;
+}
+
 void
 bifrost_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
 {
@@ -869,6 +873,44 @@ bifrost_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
       NIR_PASS(_, nir, nir_lower_viewport_transform);
       NIR_PASS(_, nir, nir_lower_point_size, 1.0, 0.0);
       NIR_PASS(_, nir, pan_nir_lower_noperspective_vs);
+   }
+
+   /* Our OpenCL compiler (src/panfrost/clc/pan_compile.c) has a very weird and
+    * suboptimal optimization pipeline that results in a lot of unoptimized
+    * memcpys and sparse scratch space.  That code is still being used for
+    * panlib, so we try to re-optimize it here.
+    * TODO: If you want to remove this pass, first optimize clc libpan on v9
+    *       until it doesn't emit kilobytes of scratch access.
+    */
+   NIR_PASS(_, nir, nir_lower_scratch_to_var);
+
+   if (nir_shader_has_local_variables(nir)) {
+      /* Lower indirect access on small arrays to if/else trees.  After
+       * vars_to_ssa and copy propagation, these will often end up as just a
+       * handful of MUX instructions instead of memory access.  The threshold
+       * of 8 array elements is chosen fairly arbitrarily.
+       */
+      NIR_PASS(_, nir, nir_lower_indirect_derefs_to_if_else_trees,
+               nir_var_function_temp, 8);
+
+      /* Turn the deref loads/stores we just made direct into SSA values */
+      NIR_PASS(_, nir, nir_opt_constant_folding);
+      NIR_PASS(_, nir, nir_lower_vars_to_ssa);
+      NIR_PASS(_, nir, nir_opt_dce);
+
+      /* Get rid of any dead function_temp variables so they don't get
+       * assigned scratch space by vars_to_explicit_types().
+       */
+      NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
+
+      /* This can create illegal memory accesses for TLS (Ex: struct with
+       * four uint32_t + memcpy).  Let nir_lower_mem_access_bit_sizes split it.
+       * bandwith is more important than instruction count.
+       */
+      NIR_PASS(_, nir, nir_lower_vars_to_explicit_types, nir_var_function_temp,
+               glsl_get_natural_size_align_bytes);
+      NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_function_temp,
+               nir_address_format_32bit_offset);
    }
 
    nir_lower_mem_access_bit_sizes_options mem_size_options = {
