@@ -1068,12 +1068,7 @@ nvk_image_init(struct nvk_device *dev,
    const VkImageUsageFlagBits ZCULL_COMPATIBLE_IMAGE_USAGE =
       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | READ_ONLY_IMAGE_USAGE;
 
-   /* Disable zcull save/restore regions until
-    * https://gitlab.freedesktop.org/mesa/mesa/-/work_items/15221
-    * is fixed.
-    */
-   if (false &&
-       (image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT) &&
+   if ((image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT) &&
        (image->vk.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) &&
        !(image->vk.usage & ~ZCULL_COMPATIBLE_IMAGE_USAGE) &&
        !(image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) &&
