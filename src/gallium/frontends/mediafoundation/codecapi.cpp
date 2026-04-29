@@ -958,7 +958,7 @@ CDX12EncHMFT::GetValue( const GUID *Api, VARIANT *Value )
       hevcDeltaQPSettings.dataType = CODEC_API_QP_MAP_INT8;
       hevcDeltaQPSettings.minValue = static_cast<INT16>( m_uiMinQP );
       hevcDeltaQPSettings.maxValue = static_cast<INT16>( m_uiMaxQP );
-#if defined(INPUTQPSETTINGS_HAS_STEPS)
+#if defined( INPUTQPSETTINGS_HAS_STEPS )
       hevcDeltaQPSettings.steps = 1;
 #else
       hevcDeltaQPSettings.step = 1;

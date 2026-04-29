@@ -1150,7 +1150,7 @@ CDX12EncHMFT::GetMaxReferences( unsigned int width, unsigned int height )
    if( width != 0 && height != 0 )
    {
       int maxDPBSize = GetMaxDPBSize( width, height, m_uiLevel );
-      uiMaxReferences = std::min( (int) m_EncoderCapabilities.m_uiMaxHWSupportedDPBCapacity, maxDPBSize );   
+      uiMaxReferences = std::min( (int) m_EncoderCapabilities.m_uiMaxHWSupportedDPBCapacity, maxDPBSize );
    }
    return uiMaxReferences;
 }
