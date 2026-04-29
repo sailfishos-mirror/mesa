@@ -2348,6 +2348,9 @@ nir_inverse_ballot_imm(nir_builder *build, uint64_t imm, unsigned bit_size)
 }
 
 nir_def *
+nir_build_frag_coord(nir_builder *b, unsigned num_components);
+
+nir_def *
 nir_build_string(nir_builder *build, const char *value);
 
 /*

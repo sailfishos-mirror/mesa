@@ -790,3 +790,40 @@ nir_call_serialized(nir_builder *b, const uint32_t *serialized,
    ralloc_free(memctx);
    return ret;
 }
+
+/* Build frag_coord according to NIR options. This should generate the final
+ * lowered form expected by drivers.
+ *
+ * The purpose of "num_components" is to generate less dead code for the split
+ * form if some components are not needed.
+ */
+nir_def *
+nir_build_frag_coord(nir_builder *b, unsigned num_components)
+{
+   assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
+   assert(num_components && num_components <= 4);
+
+   if (b->shader->options->frag_coord_form >= nir_frag_coord_xy_z_w_separate) {
+      nir_def *xy = nir_load_frag_coord_xy(b);
+
+      if (num_components <= 2)
+         return nir_trim_vector(b, xy, num_components);
+
+      nir_def *z = nir_load_frag_coord_z(b);
+
+      if (num_components == 3)
+         return nir_vec3(b, nir_channel(b, xy, 0), nir_channel(b, xy, 1), z);
+
+      nir_def *w;
+
+      if (b->shader->options->frag_coord_form ==
+          nir_frag_coord_xy_z_w_rcp_separate)
+         w = nir_frcp(b, nir_load_frag_coord_w_rcp(b));
+      else
+         w = nir_load_frag_coord_w(b);
+
+      return nir_vec4(b, nir_channel(b, xy, 0), nir_channel(b, xy, 1), z, w);
+   } else {
+      return nir_trim_vector(b, nir_load_frag_coord(b), num_components);
+   }
+}
