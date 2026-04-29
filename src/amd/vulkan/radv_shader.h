@@ -505,7 +505,6 @@ struct radv_compiler_info {
    const struct ac_compiler_info *ac;
 
    struct {
-      uint32_t family;
       uint32_t address32_hi;
       uint32_t rbplus_allowed : 1;
       uint32_t address_prt_wa_control_bit : 8;
@@ -549,6 +548,8 @@ struct radv_compiler_info {
 
       int32_t force_aniso;
 
+      uint32_t family;
+
       /* Wave/subgroup sizes */
       uint8_t ge_wave_size;
       uint8_t ps_wave_size;
@@ -577,6 +578,7 @@ struct radv_compiler_info {
       bool keep_shader_info;
       bool capture_shaders;
       bool capture_shader_stats;
+      uint32_t family; /* For ACO disassembly only */
    } debug;
 
    struct radv_rra_trace_data *rra_trace;

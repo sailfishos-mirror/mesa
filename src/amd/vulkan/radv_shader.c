@@ -3278,7 +3278,7 @@ radv_fill_llvm_compiler_options(struct radv_llvm_compiler_options *options,
                                 bool can_dump_shader, bool keep_shader_info)
 {
    options->compiler_info = compiler_info->ac;
-   options->family = compiler_info->hw.family;
+   options->family = compiler_info->key.family;
    options->address32_hi = compiler_info->hw.address32_hi;
    /* robust_buffer_access_llvm here used by LLVM only, pipeline robustness is not exposed there. */
    options->robust_buffer_access = compiler_info->key.robust_buffer_access;
@@ -3306,7 +3306,7 @@ radv_aco_fill_compiler_options(struct aco_compiler_options *aco_info, const stru
    aco_info->is_opengl = false;
    aco_info->optimisations_disabled = stage_key->optimisations_disabled;
    aco_info->gfx_level = compiler_info->ac->gfx_level;
-   aco_info->family = compiler_info->hw.family;
+   aco_info->family = compiler_info->debug.family;
    aco_info->address32_hi = compiler_info->hw.address32_hi;
 }
 

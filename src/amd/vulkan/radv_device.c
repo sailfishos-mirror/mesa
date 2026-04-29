@@ -864,8 +864,8 @@ capture_trace(VkQueue _queue)
 static void
 radv_device_init_cache_key(struct radv_device *device)
 {
-   STATIC_ASSERT(sizeof(device->compiler_info.hw) == 12);
-   STATIC_ASSERT(sizeof(device->compiler_info.key) == 16);
+   STATIC_ASSERT(sizeof(device->compiler_info.hw) == 8);
+   STATIC_ASSERT(sizeof(device->compiler_info.key) == 20);
 
    uint32_t ptr_size = sizeof(void *);
 
@@ -1147,7 +1147,6 @@ radv_device_init_compiler_info(struct radv_device *device)
       .ac = &pdev->info.compiler_info,
       .hw =
          {
-            .family = pdev->info.family,
             .address32_hi = pdev->info.address32_hi,
             .address_prt_wa_control_bit = pdev->info.address_prt_wa_control_bit,
             .rbplus_allowed = pdev->info.rbplus_allowed,
@@ -1190,6 +1189,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             .lower_terminate_to_discard = instance->drirc.debug.lower_terminate_to_discard,
             .no_implicit_varying_subgroup_size = instance->drirc.debug.no_implicit_varying_subgroup_size,
             .force_aniso = device->force_aniso,
+            .family = pdev->info.family,
 
             /* Wave/subgroup sizes */
             .ge_wave_size = pdev->ge_wave_size,
@@ -1221,6 +1221,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             /* Capture shader statistics when RGP is enabled to correlate shader hashes with Fossilize. */
             .capture_shader_stats = (instance->debug_flags & (RADV_DEBUG_DUMP_SHADER_STATS | RADV_DEBUG_PSO_HISTORY)) ||
                                     device->keep_shader_info || (instance->vk.trace_mode & RADV_TRACE_MODE_RGP),
+            .family = pdev->info.family,
          },
       .rra_trace = &device->rra_trace,
       /* Cache */
