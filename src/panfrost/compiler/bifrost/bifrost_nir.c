@@ -372,6 +372,8 @@ bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
 {
    MESA_TRACE_FUNC();
 
+   NIR_PASS(_, nir, nir_split_var_copies);
+
    /* The DISCARD instruction just flags the thread as discarded, but the
     * actual termination only happens when all threads in the quad are
     * discarded, or when an instruction with a .discard flow is
@@ -381,23 +383,16 @@ bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
     * for extra dead-code elimination when code sections are detected as
     * being unused after a termination is crossed.
     */
-   if (nir->info.stage == MESA_SHADER_FRAGMENT)
+   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       NIR_PASS(_, nir, nir_lower_terminate_to_demote);
-
-   /* Ensure that halt are translated to returns and get ride of them */
-   NIR_PASS(_, nir, nir_lower_halt_to_return);
-   NIR_PASS(_, nir, nir_lower_returns);
-
-   /* Lower gl_Position pre-optimisation, but after lowering vars to ssa
-    * (so we don't accidentally duplicate the epilogue since mesa/st has
-    * messed with our I/O quite a bit already) */
-
-   NIR_PASS(_, nir, nir_lower_vars_to_ssa);
-
-   if (nir->info.stage == MESA_SHADER_VERTEX) {
+   } else if (nir->info.stage == MESA_SHADER_VERTEX) {
       if (pan_arch(gpu_id) <= 7)
          NIR_PASS(_, nir, pan_nir_lower_vertex_id);
    }
+
+   /* Ensure that halt are translated to returns and get rid of them */
+   NIR_PASS(_, nir, nir_lower_halt_to_return);
+   NIR_PASS(_, nir, nir_lower_returns);
 
    /* Get rid of any global vars before we lower to scratch. */
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
@@ -418,15 +413,9 @@ bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
    NIR_PASS(_, nir, nir_lower_indirect_derefs_to_if_else_trees,
             nir_var_function_temp, ~0);
 
-   NIR_PASS(_, nir, nir_split_var_copies);
-   NIR_PASS(_, nir, nir_lower_var_copies);
-   NIR_PASS(_, nir, nir_lower_vars_to_ssa);
-
    bi_optimize_loop_nir(nir, gpu_id, true);
 
-   /* Lower away all variables for smaller shaders */
-   NIR_PASS(_, nir, nir_lower_vars_to_ssa);
-   NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
+   NIR_PASS(_, nir, nir_lower_var_copies);
 }
 
 /*
