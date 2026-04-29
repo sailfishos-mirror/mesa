@@ -2824,7 +2824,8 @@ isl_calc_phys_total_extent_el(const struct isl_device *dev,
 static uint32_t
 isl_calc_row_pitch_alignment(const struct isl_device *dev,
                              const struct isl_surf_init_info *surf_info,
-                             const struct isl_tile_info *tile_info)
+                             const struct isl_tile_info *tile_info,
+                             const struct isl_extent3d *image_align_el)
 {
    if (tile_info->tiling != ISL_TILING_LINEAR) {
 
@@ -2920,6 +2921,27 @@ isl_calc_row_pitch_alignment(const struct isl_device *dev,
       else
          alignment = isl_align(alignment, 64);
    }
+
+   /* SKL PRMs, Volume 5: Memory Views, Buffer Padding Requirements:
+    * BSpec 58780:
+    *
+    *    "It is possible that a cache line will straddle a page boundary if
+    *     the base address or pitch is not aligned"
+    *
+    * The row pitch of the surface needs to be aligned to HAlign if we want to
+    * avoid having the sampler cache straddling extra cachelines/pages.
+    *
+    * Empirical testing has shown that the straddle of each row is just
+    * relative to the start of the row, so we can take care of the necessary
+    * padding in isl_calc_sampler_padding_last_row to avoid page faults, and
+    * then just choose the minimum of either the horizontal alignment or 64B
+    * for the row pitch alignment as an extra optimization to minimize the
+    * number of total 64B cachelines in L3 that a sampler cacheline overlaps.
+    */
+   if (dev->requires_padding && surf_info->row_pitch_B == 0 &&
+        (surf_info->usage & ISL_SURF_USAGE_TEXTURE_BIT) &&
+       !(surf_info->usage & ISL_SURF_USAGE_NO_OVERFETCH_PADDING_BIT))
+      alignment = isl_lcm_u32(alignment, MIN(bs * image_align_el->w, 64));
 
    return alignment;
 }
@@ -3066,10 +3088,11 @@ isl_calc_row_pitch(const struct isl_device *dev,
                    const struct isl_tile_info *tile_info,
                    enum isl_dim_layout dim_layout,
                    const struct isl_extent4d *phys_total_el,
+                   const struct isl_extent3d *image_align_el,
                    uint32_t *out_row_pitch_B)
 {
    uint32_t alignment_B =
-      isl_calc_row_pitch_alignment(dev, surf_info, tile_info);
+      isl_calc_row_pitch_alignment(dev, surf_info, tile_info, image_align_el);
 
    const uint32_t min_row_pitch_B =
       isl_calc_min_row_pitch(dev, surf_info, tile_info, phys_total_el,
@@ -3448,6 +3471,15 @@ isl_calc_base_alignment(const struct isl_device *dev,
        */
       if (info->usage & ISL_SURF_USAGE_VIDEO_DECODE_BIT)
          base_alignment_B = MAX(base_alignment_B, 64);
+
+      /* Even though the sampler requirement is 1B, we should request at
+       * least 64B of alignment so that we don't end up straddling more
+       * cachelines/pages than needed in the next level.
+       */
+      if (dev->requires_padding &&
+           (info->usage & ISL_SURF_USAGE_TEXTURE_BIT) &&
+          !(info->usage & ISL_SURF_USAGE_NO_OVERFETCH_PADDING_BIT))
+         base_alignment_B = MAX(base_alignment_B, 64);
    } else {
       const uint32_t tile_size_B = tile_info->phys_extent_B.width *
                                    tile_info->phys_extent_B.height;
@@ -3575,7 +3607,8 @@ isl_surf_init_s_with_tiling(const struct isl_device *dev,
 
    uint32_t row_pitch_B;
    if (!isl_calc_row_pitch(dev, info, &tile_info, dim_layout,
-                           &phys_total_el, &row_pitch_B))
+                           &phys_total_el, &image_align_el,
+                           &row_pitch_B))
       return false;
 
    uint64_t size_B;
