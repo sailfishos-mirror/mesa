@@ -110,25 +110,6 @@ radv_aco_convert_ps_epilog_key(struct aco_ps_epilog_info *aco_info, const struct
 
    aco_info->alpha_func = COMPARE_FUNC_ALWAYS;
 }
-
-static inline void
-radv_aco_convert_opts(struct aco_compiler_options *aco_info, const struct radv_nir_compiler_options *radv,
-                      const struct radv_shader_args *radv_args, const struct radv_shader_stage_key *stage_key)
-{
-   ASSIGN_FIELD(dump_ir);
-   ASSIGN_FIELD(dump_preoptir);
-   ASSIGN_FIELD(record_asm);
-   ASSIGN_FIELD(record_ir);
-   ASSIGN_FIELD(record_stats);
-   ASSIGN_FIELD(enable_mrt_output_nan_fixup);
-   ASSIGN_FIELD(wgp_mode);
-   aco_info->compiler_info = radv->compiler_info;
-   aco_info->is_opengl = false;
-   aco_info->optimisations_disabled = stage_key->optimisations_disabled;
-   aco_info->gfx_level = radv->gfx_level;
-   aco_info->family = radv->family;
-   aco_info->address32_hi = radv->address32_hi;
-}
 #undef ASSIGN_VS_STATE_FIELD
 #undef ASSIGN_VS_STATE_FIELD_CP
 #undef ASSIGN_FIELD

@@ -3295,6 +3295,27 @@ radv_fill_nir_compiler_options(const struct radv_compiler_info *compiler_info,
    options->enable_mrt_output_nan_fixup = gfx_state ? gfx_state->ps.epilog.enable_mrt_output_nan_fixup : false;
 }
 
+static inline void
+radv_aco_fill_compiler_options(struct aco_compiler_options *aco_info, const struct radv_compiler_info *compiler_info,
+                               const struct radv_shader_stage_key *stage_key,
+                               const struct radv_graphics_state_key *gfx_state, bool should_use_wgp,
+                               bool can_dump_shader, bool keep_shader_info, bool keep_statistic_info)
+{
+   aco_info->dump_ir = can_dump_shader && compiler_info->debug.dump_backend_ir;
+   aco_info->dump_preoptir = can_dump_shader && compiler_info->debug.dump_preopt_ir;
+   aco_info->record_asm = keep_shader_info || can_dump_shader;
+   aco_info->record_ir = keep_shader_info;
+   aco_info->record_stats = keep_statistic_info;
+   aco_info->enable_mrt_output_nan_fixup = gfx_state ? gfx_state->ps.epilog.enable_mrt_output_nan_fixup : false;
+   aco_info->wgp_mode = should_use_wgp;
+   aco_info->compiler_info = compiler_info->ac;
+   aco_info->is_opengl = false;
+   aco_info->optimisations_disabled = stage_key->optimisations_disabled;
+   aco_info->gfx_level = compiler_info->ac->gfx_level;
+   aco_info->family = compiler_info->hw.family;
+   aco_info->address32_hi = compiler_info->hw.address32_hi;
+}
+
 void
 radv_set_stage_key_robustness(const struct vk_pipeline_robustness_state *rs, mesa_shader_stage stage,
                               struct radv_shader_stage_key *key)
@@ -3318,21 +3339,21 @@ radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info, struct ra
    struct radv_shader_info *info = &pl_stage->info;
    const struct radv_shader_args *args = &pl_stage->args;
 
+   bool wgp_mode = radv_should_use_wgp_mode(compiler_info->ac->gfx_level, stage, info);
    bool dump_shader = false;
    for (unsigned i = 0; i < shader_count; ++i)
       dump_shader |= radv_can_dump_shader(compiler_info, shaders[i]);
 
-   struct radv_nir_compiler_options options = {0};
-   radv_fill_nir_compiler_options(compiler_info, &options, gfx_state,
-                                  radv_should_use_wgp_mode(compiler_info->ac->gfx_level, stage, info), dump_shader,
-                                  keep_shader_info, keep_statistic_info);
-
    struct radv_shader_binary *binary = NULL;
 #if AMD_LLVM_AVAILABLE
-   if (compiler_info->key.use_llvm || options.dump_shader || options.record_ir)
+   if (compiler_info->key.use_llvm || dump_shader || keep_shader_info)
       ac_init_llvm_once();
 
    if (compiler_info->key.use_llvm) {
+      struct radv_nir_compiler_options options = {0};
+      radv_fill_nir_compiler_options(compiler_info, &options, gfx_state, wgp_mode, dump_shader, keep_shader_info,
+                                     keep_statistic_info);
+
       llvm_compile_shader(&options, info, shader_count, shaders, &binary, args);
 #else
    if (false) {
@@ -3340,7 +3361,8 @@ radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info, struct ra
    } else {
       struct aco_shader_info ac_info;
       struct aco_compiler_options ac_opts;
-      radv_aco_convert_opts(&ac_opts, &options, args, &pl_stage->key);
+      radv_aco_fill_compiler_options(&ac_opts, compiler_info, &pl_stage->key, gfx_state, wgp_mode, dump_shader,
+                                     keep_shader_info, keep_statistic_info);
       radv_aco_convert_shader_info(&ac_info, info, args, compiler_info);
       aco_compile_shader(&ac_opts, &ac_info, shader_count, shaders, &args->ac, &radv_aco_build_shader_binary,
                          (void **)&binary);
@@ -3381,12 +3403,7 @@ radv_create_trap_handler_shader(struct radv_device *device)
    mesa_shader_stage stage = MESA_SHADER_COMPUTE;
    struct radv_shader_stage_key stage_key = {0};
    struct radv_shader_info info = {0};
-   struct radv_nir_compiler_options options = {0};
    const bool dump_shader = !!(instance->debug_flags & RADV_DEBUG_DUMP_TRAP_HANDLER);
-
-   radv_fill_nir_compiler_options(&device->compiler_info, &options, NULL,
-                                  radv_should_use_wgp_mode(pdev->info.gfx_level, stage, &info), dump_shader, false,
-                                  false);
 
    nir_builder b = radv_meta_nir_init_shader(stage, "meta_trap_handler");
 
@@ -3400,16 +3417,19 @@ radv_create_trap_handler_shader(struct radv_device *device)
    radv_declare_shader_args(&device->compiler_info, NULL, &info, stage, MESA_SHADER_NONE, &args, &debug);
 
 #if AMD_LLVM_AVAILABLE
-   if (options.dump_shader || options.record_ir)
+   if (dump_shader)
       ac_init_llvm_once();
 #endif
 
    struct radv_shader_binary *binary = NULL;
-   struct aco_compiler_options ac_opts;
-   struct aco_shader_info ac_info;
 
+   struct aco_shader_info ac_info;
    radv_aco_convert_shader_info(&ac_info, &info, &args, &device->compiler_info);
-   radv_aco_convert_opts(&ac_opts, &options, &args, &stage_key);
+
+   struct aco_compiler_options ac_opts;
+   bool wgp_mode = radv_should_use_wgp_mode(pdev->info.gfx_level, stage, &info);
+   radv_aco_fill_compiler_options(&ac_opts, &device->compiler_info, &stage_key, NULL, wgp_mode, dump_shader, false,
+                                  false);
 
    aco_compile_trap_handler(&ac_opts, &ac_info, &args.ac, &radv_aco_build_shader_binary, (void **)&binary);
    binary->info = info;
@@ -3420,7 +3440,7 @@ radv_create_trap_handler_shader(struct radv_device *device)
    radv_shader_create_uncached(device, binary, false, NULL, &debug, &shader);
    radv_parse_binary_debug_info(&device->compiler_info, binary, &shader->dbg);
 
-   if (options.dump_shader) {
+   if (dump_shader) {
       fprintf(stderr, "Trap handler");
       fprintf(stderr, "\ndisasm:\n%s\n", shader->dbg.disasm_string);
    }
@@ -3462,14 +3482,12 @@ radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *sta
    const struct radv_compiler_info *compiler_info = &device->compiler_info;
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_instance *instance = radv_physical_device_instance(pdev);
+   bool dump_shader = instance->debug_flags & RADV_DEBUG_DUMP_PROLOGS;
+   bool keep_shader_info = radv_device_fault_detection_enabled(device);
 
    struct radv_shader *prolog;
 
-   struct radv_nir_compiler_options options = {0};
-   radv_fill_nir_compiler_options(compiler_info, &options, NULL, false, instance->debug_flags & RADV_DEBUG_DUMP_PROLOGS,
-                                  radv_device_fault_detection_enabled(device), false);
-
-   if (options.dump_shader) {
+   if (dump_shader) {
       simple_mtx_lock(compiler_info->debug.shader_dump_mtx);
 
       if (compiler_info->debug.dump_nir)
@@ -3477,7 +3495,7 @@ radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *sta
    }
 
 #if AMD_LLVM_AVAILABLE
-   if (options.dump_shader || options.record_ir)
+   if (dump_shader || keep_shader_info)
       ac_init_llvm_once();
 #endif
 
@@ -3486,7 +3504,8 @@ radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *sta
    struct aco_shader_info ac_info;
    struct aco_compiler_options ac_opts;
    radv_aco_convert_shader_info(&ac_info, &stage->info, &stage->args, compiler_info);
-   radv_aco_convert_opts(&ac_opts, &options, &stage->args, &stage_key);
+   radv_aco_fill_compiler_options(&ac_opts, compiler_info, &stage_key, NULL, false, dump_shader, keep_shader_info,
+                                  false);
    aco_compile_shader(&ac_opts, &ac_info, 1, &stage->nir, &stage->args.ac, &radv_aco_build_shader_binary,
                       (void **)&binary);
    binary->info = stage->info;
@@ -3496,7 +3515,7 @@ radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *sta
    if (!prolog || radv_parse_binary_debug_info(compiler_info, binary, &prolog->dbg) != VK_SUCCESS)
       goto done;
 
-   if (options.dump_shader) {
+   if (dump_shader) {
       fprintf(stderr, "Raytracing prolog");
       fprintf(stderr, "\ndisasm:\n%s\n", prolog->dbg.disasm_string);
       simple_mtx_unlock(compiler_info->debug.shader_dump_mtx);
@@ -3513,11 +3532,11 @@ radv_create_vs_prolog(struct radv_device *device, const struct radv_vs_prolog_ke
    const struct radv_compiler_info *compiler_info = &device->compiler_info;
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
+   bool dump_shader = instance->debug_flags & RADV_DEBUG_DUMP_PROLOGS;
+   bool keep_shader_info = radv_device_fault_detection_enabled(device);
+
    struct radv_shader_part *prolog;
    struct radv_shader_args args = {0};
-   struct radv_nir_compiler_options options = {0};
-   radv_fill_nir_compiler_options(compiler_info, &options, NULL, false, instance->debug_flags & RADV_DEBUG_DUMP_PROLOGS,
-                                  radv_device_fault_detection_enabled(device), false);
 
    struct radv_shader_info info = {0};
    info.stage = MESA_SHADER_VERTEX;
@@ -3540,7 +3559,7 @@ radv_create_vs_prolog(struct radv_device *device, const struct radv_vs_prolog_ke
    info.inline_push_constant_mask = args.ac.inline_push_const_mask;
 
 #if AMD_LLVM_AVAILABLE
-   if (options.dump_shader || options.record_ir)
+   if (dump_shader || keep_shader_info)
       ac_init_llvm_once();
 #endif
 
@@ -3550,7 +3569,8 @@ radv_create_vs_prolog(struct radv_device *device, const struct radv_vs_prolog_ke
    struct aco_vs_prolog_info ac_prolog_info;
    struct aco_compiler_options ac_opts;
    radv_aco_convert_shader_info(&ac_info, &info, &args, compiler_info);
-   radv_aco_convert_opts(&ac_opts, &options, &args, &stage_key);
+   radv_aco_fill_compiler_options(&ac_opts, compiler_info, &stage_key, &gfx_state, false, dump_shader, keep_shader_info,
+                                  false);
    radv_aco_convert_vs_prolog_key(&ac_prolog_info, key, &args);
    aco_compile_vs_prolog(&ac_opts, &ac_info, &ac_prolog_info, &args.ac, &radv_aco_build_shader_part, (void **)&binary);
 
@@ -3561,7 +3581,7 @@ radv_create_vs_prolog(struct radv_device *device, const struct radv_vs_prolog_ke
    prolog->key.vs = *key;
    prolog->nontrivial_divisors = key->nontrivial_divisors;
 
-   if (options.dump_shader) {
+   if (dump_shader) {
       fprintf(stderr, "Vertex prolog");
       fprintf(stderr, "\ndisasm:\n%s\n", prolog->disasm_string);
    }
@@ -3582,11 +3602,11 @@ radv_create_ps_epilog(struct radv_device *device, const struct radv_ps_epilog_ke
    const struct radv_compiler_info *compiler_info = &device->compiler_info;
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
+   bool dump_shader = instance->debug_flags & RADV_DEBUG_DUMP_EPILOGS;
+   bool keep_shader_info = radv_device_fault_detection_enabled(device);
+
    struct radv_shader_part *epilog;
    struct radv_shader_args args = {0};
-   struct radv_nir_compiler_options options = {0};
-   radv_fill_nir_compiler_options(compiler_info, &options, NULL, false, instance->debug_flags & RADV_DEBUG_DUMP_EPILOGS,
-                                  radv_device_fault_detection_enabled(device), false);
 
    struct radv_shader_info info = {0};
    info.stage = MESA_SHADER_FRAGMENT;
@@ -3596,7 +3616,7 @@ radv_create_ps_epilog(struct radv_device *device, const struct radv_ps_epilog_ke
    radv_declare_ps_epilog_args(compiler_info, key, &args);
 
 #if AMD_LLVM_AVAILABLE
-   if (options.dump_shader || options.record_ir)
+   if (dump_shader || keep_shader_info)
       ac_init_llvm_once();
 #endif
 
@@ -3606,7 +3626,8 @@ radv_create_ps_epilog(struct radv_device *device, const struct radv_ps_epilog_ke
    struct aco_ps_epilog_info ac_epilog_info = {0};
    struct aco_compiler_options ac_opts;
    radv_aco_convert_shader_info(&ac_info, &info, &args, compiler_info);
-   radv_aco_convert_opts(&ac_opts, &options, &args, &stage_key);
+   radv_aco_fill_compiler_options(&ac_opts, compiler_info, &stage_key, NULL, false, dump_shader, keep_shader_info,
+                                  false);
    radv_aco_convert_ps_epilog_key(&ac_epilog_info, key, &args);
    aco_compile_ps_epilog(&ac_opts, &ac_info, &ac_epilog_info, &args.ac, &radv_aco_build_shader_part, (void **)&binary);
 
@@ -3620,7 +3641,7 @@ radv_create_ps_epilog(struct radv_device *device, const struct radv_ps_epilog_ke
 
    epilog->key.ps = *key;
 
-   if (options.dump_shader) {
+   if (dump_shader) {
       fprintf(stderr, "Fragment epilog");
       fprintf(stderr, "\ndisasm:\n%s\n", epilog->disasm_string);
    }
