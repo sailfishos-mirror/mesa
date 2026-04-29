@@ -26,7 +26,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/sysinfo.h>
 #include <unistd.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -53,12 +52,15 @@
 #include "util/disk_cache.h"
 #include "util/driconf.h"
 #include "util/os_file.h"
+#include "util/os_misc.h"
+#include "util/u_atomic.h"
 #include "util/u_debug.h"
 #include "util/format/u_format.h"
 #include "perfcntrs/v3d_perfcntrs.h"
 #include "vk_shader_module.h"
 #include "vk_format.h"
 #include "vk_ycbcr_conversion.h"
+#include "vk_physical_device.h"
 
 #include <sys/stat.h>
 
@@ -592,6 +594,10 @@ static const driOptionDescription v3dv_dri_options[] = {
       DRI_CONF_VK_X11_ENSURE_MIN_IMAGE_COUNT(false)
       DRI_CONF_VK_XWAYLAND_WAIT_READY(true)
    DRI_CONF_SECTION_END
+
+   DRI_CONF_SECTION_MISCELLANEOUS
+      DRI_CONF_HEAP_MEMORY_PERCENT(OS_GPU_HEAP_SIZE_HEURISTIC)
+   DRI_CONF_SECTION_END
 };
 
 static void
@@ -607,6 +613,9 @@ v3dv_init_dri_options(struct v3dv_instance *instance)
                           .engineName = instance->vk.app_info.engine_name,
                           .engineVersion = instance->vk.app_info.engine_version,
                        });
+
+   instance->heap_memory_percent =
+            driQueryOptionf(&instance->dri_options, "heap_memory_percent");
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
@@ -757,51 +766,42 @@ v3dv_DestroyInstance(VkInstance _instance,
 }
 
 static uint64_t
-compute_heap_size()
+compute_heap_size(struct v3dv_instance *instance)
 {
-#if !USE_V3D_SIMULATOR
-   /* Query the total ram from the system */
-   struct sysinfo info;
-   sysinfo(&info);
+   const uint64_t MAX_HEAP_SIZE = 4ull * 1024ull * 1024ull * 1024ull;
+   uint64_t memory;
 
-   uint64_t total_ram = (uint64_t)info.totalram * (uint64_t)info.mem_unit;
+#if !USE_V3D_SIMULATOR
+   memory = os_get_gpu_heap_size(instance->heap_memory_percent,
+                                 &instance->heap_memory_percent);
 #else
    uint64_t total_ram = (uint64_t) v3d_simulator_get_mem_size();
+   memory = os_gpu_heap_size_calculate(total_ram,
+                                       instance->heap_memory_percent,
+                                       &instance->heap_memory_percent);
 #endif
 
-   /* We don't want to burn too much ram with the GPU.  If the user has 4GB
-    * or less, we use at most half.  If they have more than 4GB we limit it
-    * to 3/4 with a max. of 4GB since the GPU cannot address more than that.
-    */
-   const uint64_t MAX_HEAP_SIZE = 4ull * 1024ull * 1024ull * 1024ull;
-   uint64_t available;
-   if (total_ram <= MAX_HEAP_SIZE)
-      available = total_ram / 2;
-   else
-      available = MIN2(MAX_HEAP_SIZE, total_ram * 3 / 4);
-
-   return available;
+   return MIN2(MAX_HEAP_SIZE, memory);
 }
 
 static uint64_t
 compute_memory_budget(struct v3dv_physical_device *device)
 {
    uint64_t heap_size = device->memory.memoryHeaps[0].size;
-   uint64_t heap_used = device->heap_used;
-   uint64_t sys_available;
-#if !USE_V3D_SIMULATOR
-   ASSERTED bool has_available_memory =
-      os_get_available_system_memory(&sys_available);
-   assert(has_available_memory);
-#else
-   sys_available = (uint64_t) v3d_simulator_get_mem_free();
-#endif
+   uint64_t heap_used = p_atomic_read(&device->heap_used);
 
    /* Let's not incite the app to starve the system: report at most 90% of
     * available system memory.
     */
-   uint64_t heap_available = sys_available * 9 / 10;
-   return MIN2(heap_size, heap_used + heap_available);
+   const float percentage = 0.9f;
+
+#if !USE_V3D_SIMULATOR
+   return vk_physical_device_heap_budget_from_system(
+         &device->vk, percentage, heap_size, heap_used);
+#else
+   return vk_physical_device_heap_budget(v3d_simulator_get_mem_free(),
+         percentage, heap_size, heap_used);
+#endif
 }
 
 static bool
@@ -904,8 +904,11 @@ get_device_properties(const struct v3dv_physical_device *device,
    STATIC_ASSERT(MAX_UNIFORM_BUFFERS >= MAX_DYNAMIC_UNIFORM_BUFFERS);
    STATIC_ASSERT(MAX_STORAGE_BUFFERS >= MAX_DYNAMIC_STORAGE_BUFFERS);
 
+   struct v3dv_instance *instance =
+      container_of(device->vk.instance, struct v3dv_instance, vk);
+
    const uint32_t page_size = 4096;
-   const uint64_t mem_size = compute_heap_size();
+   const uint64_t mem_size = compute_heap_size(instance);
 
    const uint32_t max_varying_components = 16 * 4;
 
@@ -1446,7 +1449,7 @@ create_physical_device(struct v3dv_instance *instance,
    /* Setup available memory heaps and types */
    VkPhysicalDeviceMemoryProperties *mem = &device->memory;
    mem->memoryHeapCount = 1;
-   mem->memoryHeaps[0].size = compute_heap_size();
+   mem->memoryHeaps[0].size = compute_heap_size(instance);
    mem->memoryHeaps[0].flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT;
 
    /* This is the only combination required by the spec */

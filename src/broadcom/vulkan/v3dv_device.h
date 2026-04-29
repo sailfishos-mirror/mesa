@@ -160,6 +160,8 @@ struct v3dv_instance {
    struct driOptionCache dri_options;
    struct driOptionCache available_dri_options;
 
+   float heap_memory_percent;
+
    bool pipeline_cache_enabled;
    bool default_pipeline_cache_enabled;
    bool meta_cache_enabled;
