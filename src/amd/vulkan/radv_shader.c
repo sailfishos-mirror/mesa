@@ -3273,26 +3273,20 @@ radv_aco_build_shader_binary(void **bin, const struct ac_shader_config *config, 
 }
 
 static void
-radv_fill_nir_compiler_options(const struct radv_compiler_info *compiler_info,
-                               struct radv_nir_compiler_options *options,
-                               const struct radv_graphics_state_key *gfx_state, bool should_use_wgp,
-                               bool can_dump_shader, bool keep_shader_info, bool keep_statistic_info)
+radv_fill_llvm_compiler_options(struct radv_llvm_compiler_options *options,
+                                const struct radv_compiler_info *compiler_info, bool should_use_wgp,
+                                bool can_dump_shader, bool keep_shader_info)
 {
    options->compiler_info = compiler_info->ac;
-   options->gfx_level = compiler_info->ac->gfx_level;
    options->family = compiler_info->hw.family;
    options->address32_hi = compiler_info->hw.address32_hi;
    /* robust_buffer_access_llvm here used by LLVM only, pipeline robustness is not exposed there. */
-   options->robust_buffer_access_llvm = compiler_info->key.robust_buffer_access;
+   options->robust_buffer_access = compiler_info->key.robust_buffer_access;
    options->wgp_mode = should_use_wgp;
    options->dump_shader = can_dump_shader;
-   options->dump_ir = options->dump_shader && compiler_info->debug.dump_backend_ir;
    options->dump_preoptir = options->dump_shader && compiler_info->debug.dump_preopt_ir;
-   options->record_asm = keep_shader_info || options->dump_shader;
    options->record_ir = keep_shader_info;
-   options->record_stats = keep_statistic_info;
    options->check_ir = compiler_info->debug.check_ir;
-   options->enable_mrt_output_nan_fixup = gfx_state ? gfx_state->ps.epilog.enable_mrt_output_nan_fixup : false;
 }
 
 static inline void
@@ -3350,9 +3344,8 @@ radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info, struct ra
       ac_init_llvm_once();
 
    if (compiler_info->key.use_llvm) {
-      struct radv_nir_compiler_options options = {0};
-      radv_fill_nir_compiler_options(compiler_info, &options, gfx_state, wgp_mode, dump_shader, keep_shader_info,
-                                     keep_statistic_info);
+      struct radv_llvm_compiler_options options = {0};
+      radv_fill_llvm_compiler_options(&options, compiler_info, wgp_mode, dump_shader, keep_shader_info);
 
       llvm_compile_shader(&options, info, shader_count, shaders, &binary, args);
 #else

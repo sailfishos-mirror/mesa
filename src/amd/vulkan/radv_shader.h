@@ -190,26 +190,16 @@ struct radv_graphics_pipeline_key {
    struct radv_shader_stage_key stage_info[MESA_VULKAN_SHADER_STAGES];
 };
 
-struct radv_nir_compiler_options {
+struct radv_llvm_compiler_options {
    const struct ac_compiler_info *compiler_info;
-   enum amd_gfx_level gfx_level;
    enum radeon_family family;
    uint32_t address32_hi;
-   bool robust_buffer_access_llvm;
+   bool robust_buffer_access;
    bool dump_shader;
-   bool dump_ir;
    bool dump_preoptir;
-   bool record_asm;
    bool record_ir;
-   bool record_stats;
    bool check_ir;
-   uint8_t enable_mrt_output_nan_fixup;
    bool wgp_mode;
-
-   struct {
-      void (*func)(void *private_data, enum aco_compiler_debug_level level, const char *message);
-      void *private_data;
-   } debug;
 };
 
 #define SET_SGPR_FIELD(field, value) (((unsigned)(value) & field##__MASK) << field##__SHIFT)
