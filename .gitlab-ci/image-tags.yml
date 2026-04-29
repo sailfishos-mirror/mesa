@@ -30,7 +30,7 @@ variables:
 
   ALPINE_X86_64_BUILD_TAG: "20260429-libdrm"
 
-  FEDORA_X86_64_BUILD_TAG: "20260428-libdrm"
+  FEDORA_X86_64_BUILD_TAG: "20260429-staticcpp"
 
   KERNEL_TAG: "v6.19-mesa-8a6f"
   KERNEL_REPO: "gfx-ci/linux"
