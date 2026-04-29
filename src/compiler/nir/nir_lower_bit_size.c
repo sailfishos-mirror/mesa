@@ -324,6 +324,7 @@ lower_impl(nir_function_impl *impl,
            void *callback_data)
 {
    nir_builder b = nir_builder_create(impl);
+   b.constant_fold_alu = true;
    bool progress = false;
 
    nir_foreach_block(block, impl) {

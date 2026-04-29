@@ -556,9 +556,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
       if (gfx_level >= GFX8)
          nir_divergence_analysis(stage->nir);
 
-      if (nir_lower_bit_size(stage->nir, ac_nir_lower_bit_size_callback, &gfx_level)) {
-         NIR_PASS(_, stage->nir, nir_opt_constant_folding);
-      }
+      NIR_PASS(_, stage->nir, nir_lower_bit_size, ac_nir_lower_bit_size_callback, &gfx_level);
    }
    if (gfx_level >= GFX9) {
       bool separate_g16 = gfx_level >= GFX10;
