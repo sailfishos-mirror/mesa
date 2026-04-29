@@ -1330,7 +1330,7 @@ radv_meta_nir_build_resolve_fs(bool use_fmask, int samples, bool is_integer, VkI
    nir_variable *fs_out = nir_variable_create(b.shader, nir_var_shader_out, vec4, "f_out");
    fs_out->data.location = location;
 
-   nir_def *pos_in = nir_trim_vector(&b, nir_load_frag_coord(&b), 2);
+   nir_def *pos_in = nir_u2f32(&b, nir_load_pixel_coord(&b));
    nir_def *src_offset = nir_load_push_constant(&b, 2, 32, nir_imm_int(&b, 0), .range = 8);
 
    nir_def *pos_int = nir_f2i32(&b, pos_in);

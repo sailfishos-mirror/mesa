@@ -432,7 +432,7 @@ lower_ps_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
                                                                      num_samples));
       } else {
          /* sample_pos = ffract(frag_coord.xy); */
-         nir_def_replace(&intrin->def, nir_ffract(b, nir_channels(b, nir_load_frag_coord(b), 0x3)));
+         nir_def_replace(&intrin->def, nir_ffract(b, nir_build_frag_coord(b, 2)));
       }
       return true;
    case nir_intrinsic_load_sample_id:
@@ -505,7 +505,7 @@ lower_ps_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
          nir_def *new_fragcoord_xy = nir_u2f32(b, nir_load_pixel_coord(b));
          if (!b->shader->info.fs.pixel_center_integer)
             new_fragcoord_xy = nir_fadd_imm(b, new_fragcoord_xy, 0.5);
-         nir_def *fragcoord = nir_load_frag_coord(b);
+         nir_def *fragcoord = nir_build_frag_coord(b, 4);
          nir_def_replace(&intrin->def,
                          nir_vec4(b, nir_channel(b, new_fragcoord_xy, 0),
                                   nir_channel(b, new_fragcoord_xy, 1),
@@ -521,7 +521,7 @@ lower_ps_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
        * Instead, compute pixel_coord from frag_coord.
        */
       if (s->use_fragcoord) {
-         nir_def *new_pixel_coord = nir_f2u16(b, nir_channels(b, nir_load_frag_coord(b), 0x3));
+         nir_def *new_pixel_coord = nir_f2u16(b, nir_build_frag_coord(b, 2));
          nir_def_replace(&intrin->def, new_pixel_coord);
          return true;
       }

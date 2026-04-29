@@ -47,7 +47,7 @@ _load_param(nir_builder *b, unsigned bit_size, unsigned base, unsigned range)
 static nir_def *
 load_fragment_index(nir_builder *b)
 {
-   nir_def *pos_in = nir_f2i32(b, nir_trim_vector(b, nir_load_frag_coord(b), 2));
+   nir_def *pos_in = nir_f2i32(b, nir_build_frag_coord(b, 2));
    return nir_iadd(b,
                    nir_imul_imm(b, nir_channel(b, pos_in, 1), 8192),
                    nir_channel(b, pos_in, 0));

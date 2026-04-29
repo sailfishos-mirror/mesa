@@ -205,7 +205,7 @@ msl_ensure_depth_write(nir_shader *nir)
       nir_builder b = nir_builder_at(nir_before_impl(entrypoint));
 
       nir_deref_instr *depth_deref = nir_build_deref_var(&b, depth_var);
-      nir_def *position = nir_load_frag_coord(&b);
+      nir_def *position = nir_build_frag_coord(&b, 3);
       nir_store_deref(&b, depth_deref, nir_channel(&b, position, 2u),
                       0xFFFFFFFF);
 

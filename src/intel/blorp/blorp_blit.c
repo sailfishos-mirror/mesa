@@ -73,7 +73,7 @@ blorp_blit_get_frag_coords(nir_builder *b,
                            const struct blorp_blit_prog_key *key,
                            struct blorp_blit_vars *v)
 {
-   nir_def *coord = nir_f2i32(b, nir_load_frag_coord(b));
+   nir_def *coord = nir_f2i32(b, nir_build_frag_coord(b, 2));
 
    /* Account for destination surface intratile offset
     *
@@ -91,7 +91,7 @@ blorp_blit_get_frag_coords(nir_builder *b,
       return nir_vec3(b, nir_channel(b, coord, 0), nir_channel(b, coord, 1),
                       nir_load_sample_id(b));
    } else {
-      return nir_trim_vector(b, coord, 2);
+      return coord;
    }
 }
 
