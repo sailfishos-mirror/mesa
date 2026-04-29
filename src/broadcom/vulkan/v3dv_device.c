@@ -1022,8 +1022,10 @@ get_device_properties(const struct v3dv_physical_device *device,
       /* Compute limits */
       .maxComputeSharedMemorySize               = 32u * 1024u,
       .maxComputeWorkGroupCount                 = { 65535, 65535, 65535 },
-      .maxComputeWorkGroupInvocations           = 256,
-      .maxComputeWorkGroupSize                  = { 256, 256, 256 },
+      .maxComputeWorkGroupInvocations           = V3D_MAX_CSD_WG_SIZE,
+      .maxComputeWorkGroupSize                  = { V3D_MAX_CSD_WG_SIZE,
+                                                    V3D_MAX_CSD_WG_SIZE,
+                                                    V3D_MAX_CSD_WG_SIZE },
 
       .subPixelPrecisionBits                    = V3D_COORD_SHIFT,
       .subTexelPrecisionBits                    = 8,
@@ -1280,7 +1282,7 @@ get_device_properties(const struct v3dv_physical_device *device,
       /* VK_EXT_subgroup_size_control */
       .minSubgroupSize = V3D_CHANNELS,
       .maxSubgroupSize = V3D_CHANNELS,
-      .maxComputeWorkgroupSubgroups = 16, /* 256 / 16 */
+      .maxComputeWorkgroupSubgroups = V3D_MAX_CSD_WG_SIZE / V3D_CHANNELS,
       .requiredSubgroupSizeStages = VK_SHADER_STAGE_COMPUTE_BIT,
 
       /* VK_KHR_maintenance5 */
