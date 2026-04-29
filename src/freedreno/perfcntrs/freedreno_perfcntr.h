@@ -116,6 +116,21 @@ fd_perfcntrs_countable(const struct fd_perfcntr_group *group, const char *name)
    return NULL;
 }
 
+struct fd_perfcntr_state;
+
+struct fd_perfcntr_state *
+fd_perfcntr_state_alloc(const struct fd_dev_id *id, int fd);
+void fd_perfcntr_state_free(struct fd_perfcntr_state *perfcntrs);
+
+bool fd_perfcntr_has_reservation(struct fd_perfcntr_state *perfcntrs);
+
+const struct fd_perfcntr_counter *
+fd_perfcntr_reserve(struct fd_perfcntr_state *perfcntrs,
+                    const struct fd_perfcntr_group *group,
+                    const struct fd_perfcntr_countable *countable);
+void fd_perfcntr_release(struct fd_perfcntr_state *perfcntrs,
+                         const struct fd_perfcntr_counter *counter);
+
 #define FD_DERIVED_COUNTER_MAX_PERFCNTRS 8
 
 struct fd_derivation_context {
