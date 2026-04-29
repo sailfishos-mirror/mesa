@@ -867,6 +867,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_point_coord:
    case nir_intrinsic_load_line_coord:
    case nir_intrinsic_load_frag_coord:
+   case nir_intrinsic_load_frag_coord_xy:
    case nir_intrinsic_load_frag_coord_z:
    case nir_intrinsic_load_frag_coord_w:
    case nir_intrinsic_load_frag_coord_w_rcp:

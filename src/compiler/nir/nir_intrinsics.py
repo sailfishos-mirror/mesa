@@ -978,6 +978,8 @@ def system_value(name, dest_comp, indices=[], bit_sizes=[32], can_reorder=True):
               bit_sizes=bit_sizes)
 
 system_value("frag_coord", 4)
+# vec2 load of frag_coord.xy (float fragment coordinates, as opposed to load_pixel_coord).
+system_value("frag_coord_xy", 2)
 # 16-bit integer vec2 of the pixel X/Y in the framebuffer.
 system_value("pixel_coord", 2, bit_sizes=[16])
 # Scalar load of frag_coord Z/W component. Backends can lower frag_coord to
