@@ -1002,6 +1002,23 @@ Anvil(ANV) driver environment variables
    advertised queues to include 1 queue with compute-only support, and
    it would override the number of graphics+compute queues to be 0.
 
+.. envvar:: ANV_SYS_MEM_LIMIT
+
+   Changes the amount of system memory that is available for graphics usage in
+   the Vulkan system memory heap. The variable accepts an integer from 10 to
+   100, which represents the percentage of system memory that will be used as
+   the host memory heap size. The default value is 75 if the system has more
+   than 4GB of system RAM, 50 otherwise.
+
+   Note that this memory is shared between the application's Vulkan allocations
+   and the system's general needs. If a value too close to 100 is set and fully
+   used, the driver may not have enough memory for its data structures and the
+   application may fail to perform system allocations (e.g., malloc()), which
+   may lead to errors or excessive memory swapping.
+
+   This option can also be used to limit memory usage by memory-hungry
+   applications.
+
 Hasvk driver environment variables
 ---------------------------------------
 
