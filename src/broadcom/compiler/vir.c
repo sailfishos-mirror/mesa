@@ -688,6 +688,21 @@ v3d_nir_lower_null_pointers(nir_shader *s)
 static unsigned
 lower_bit_size_cb(const nir_instr *instr, void *_data)
 {
+        if (instr->type == nir_instr_type_intrinsic) {
+                /* Widen vote_feq/vote_ieq when the source operand is sub-32-bit:
+                 * the V3D backend lowers these to ALLFEQ/ALLEQ on full 32-bit
+                 * channels, so the comparison input must be 32-bit.
+                 */
+                nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+                if (intr->intrinsic != nir_intrinsic_vote_feq &&
+                    intr->intrinsic != nir_intrinsic_vote_ieq)
+                        return 0;
+                unsigned src_bit_size = intr->src[0].ssa->bit_size;
+                if (src_bit_size != 1 && src_bit_size < 32)
+                        return 32;
+                return 0;
+        }
+
         if (instr->type != nir_instr_type_alu)
                 return 0;
 
@@ -1982,6 +1997,13 @@ v3d_attempt_compile(struct v3d_compile *c)
                 .lower_reduce = true,
         };
         NIR_PASS(_, c->s, nir_lower_subgroups, &subgroup_opts);
+
+        /* nir_lower_subgroups can introduce sub-32-bit ALU ops that escape
+         * the bit_size lowering done in v3d_lower_nir. Re-run bit_size
+         * lowering so the new ops also get widened with proper sign/zero
+         * extension on inputs and the matching narrow on outputs.
+         */
+        NIR_PASS(_, c->s, nir_lower_bit_size, lower_bit_size_cb, NULL);
 
         v3d_optimize_nir(c, c->s);
 
