@@ -940,8 +940,6 @@ Anvil(ANV) driver environment variables
     Enable experimental features
   ``no-gpl``
     Disables `VK_KHR_graphics_pipeline_library` support
-  ``no-secondary-call``
-    Disables secondary command buffer calls
   ``no-sparse``
     Disables sparse support
   ``sparse-trtt``
@@ -954,6 +952,9 @@ Anvil(ANV) driver environment variables
     Emits dummy (MI_STORE_DATA_IMM) instructions containing the shader
     source hash, preceding shader programming instructions (internal
     shaders & ray-tracing shaders are omitted)
+  ``no-slab``
+    Disables the slab subsystem, which optimizes memory usage by allowing
+    application buffers to share GEM buffers.
   ``shader-print``
     Allow developer print traces added by `brw_nir_printf` to be
     printed out on the console
