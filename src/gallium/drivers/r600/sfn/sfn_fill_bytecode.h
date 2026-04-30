@@ -10,6 +10,8 @@
 #include "../r600_asm.h"
 #include "sfn_virtualvalues.h"
 
+#include <tuple>
+
 namespace r600 {
 
 class AluInstr;
@@ -58,6 +60,10 @@ void fill_alu_src_operands(r600_bytecode_alu& alu,
 void fill_alu_dst(r600_bytecode_alu& alu,
                   const AluInstr& ai,
                   r600_bytecode& bc);
+
+auto emit_bytecode_alu(r600_bytecode& bc,
+                       const AluInstr& ai,
+                       int hw_opcode) -> std::tuple<bool, int, int>;
 
 } // namespace r600
 

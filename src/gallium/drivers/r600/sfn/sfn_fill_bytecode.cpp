@@ -570,4 +570,26 @@ fill_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai, r600_bytecode& bc)
    alu.dst.clamp = ai.has_alu_flag(alu_dst_clamp);
 }
 
+auto
+emit_bytecode_alu(r600_bytecode& bc,
+                  const AluInstr& ai,
+                  int hw_opcode) -> std::tuple<bool, int, int>
+{
+   struct r600_bytecode_alu alu;
+   memset(&alu, 0, sizeof(alu));
+
+   alu.op = hw_opcode;
+   alu.is_op3 = ai.n_sources() == 3;
+   alu.omod = !alu.is_op3 ? ai.output_modifier() : 0;
+   alu.last = ai.has_alu_flag(alu_last_instr);
+   alu.execute_mask = ai.has_alu_flag(alu_update_exec);
+   if (ai.bank_swizzle() != alu_vec_unknown)
+      alu.bank_swizzle_force = ai.bank_swizzle();
+
+   fill_alu_dst(alu, ai, bc);
+   fill_alu_src_operands(alu, ai, bc);
+
+   return std::make_tuple(!r600_bytecode_add_alu(&bc, &alu), alu.dst.sel, alu.dst.chan);
+}
+
 } // namespace r600

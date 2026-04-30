@@ -324,22 +324,11 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    m_last_op_was_barrier = opcode == op0_group_barrier;
 
-   struct r600_bytecode_alu alu;
-   memset(&alu, 0, sizeof(alu));
-
-   alu.op = hw_opcode->second;
-   alu.is_op3 = ai.n_sources() == 3;
-   alu.omod = !alu.is_op3 ? ai.output_modifier() : 0;
-   alu.last = ai.has_alu_flag(alu_last_instr);
-   alu.execute_mask = ai.has_alu_flag(alu_update_exec);
-   if (ai.bank_swizzle() != alu_vec_unknown)
-      alu.bank_swizzle_force = ai.bank_swizzle();
-
-   fill_alu_dst(alu, ai, m_bc);
-
-   fill_alu_src_operands(alu, ai, m_bc);
-
-   m_result = !r600_bytecode_add_alu(&m_bc, &alu);
+   auto [emit_result, dst_sel, dst_chan] = emit_bytecode_alu(m_bc, ai, hw_opcode->second);
+   if (!emit_result) {
+      m_result = false;
+      return;
+   }
 
    if (ai.has_lds_queue_read()) {
       assert(m_bc.cf_last->nlds_read > 0);
@@ -350,7 +339,7 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
       sfn_log << SfnLog::assembly << "  Current address register is " << *m_last_addr
               << "\n";
 
-   update_alu_state_after_emit(opcode, alu.dst.sel, alu.dst.chan);
+   update_alu_state_after_emit(opcode, dst_sel, dst_chan);
 }
 
 void
