@@ -62,6 +62,9 @@ before_conversion(nir_builder *bld, nir_alu_type type, unsigned bit_size, nir_de
    case nir_op_ishl:
    case nir_op_isub:
    case nir_op_ixor:
+   case nir_op_inot:
+   case nir_op_bcsel:
+   case nir_op_bitfield_select:
    case nir_op_mov:
       break;
    default:
