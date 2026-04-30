@@ -284,12 +284,16 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    auto opcode = ai.opcode();
 
-   if (unlikely(opcode == op1_mova_int &&
-                (m_bc.gfx_level < CAYMAN ||
-                  (ai.dest() && ai.dest()->sel() == 0)))) {
-      m_last_addr = ai.psrc(0);
-      m_bc.ar_chan = m_last_addr->chan();
-      m_bc.ar_reg = m_last_addr->sel();
+   auto dst = ai.dest();
+
+   if (unlikely(opcode == op1_mova_int)) {
+      if (m_bc.gfx_level < CAYMAN || (dst && dst->sel() == 0)) {
+         m_last_addr = ai.psrc(0);
+         m_bc.ar_chan = m_last_addr->chan();
+         m_bc.ar_reg = m_last_addr->sel();
+      }
+   } else if (dst && m_last_addr && m_last_addr->equal_to(*dst)) {
+      m_last_addr = nullptr;
    }
 
    if (m_legacy_math_rules)
@@ -324,10 +328,6 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
       m_result = false;
       return;
    }
-
-   auto dst = ai.dest();
-   if (dst && ai.opcode() != op1_mova_int && m_last_addr && m_last_addr->equal_to(*dst))
-      m_last_addr = nullptr;
 
    fill_alu_src_operands(alu, ai, m_bc);
 
