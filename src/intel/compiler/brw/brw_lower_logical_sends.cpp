@@ -1302,37 +1302,39 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
     * residencyNonResidentStrict guarantees. Due to the above, we need to make
     * these operations uncached.
     */
-   unsigned cache_mode =
-      lsc_opcode_is_atomic(op) ? LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-      volatile_access ?
-         (devinfo->ver >= 20 ?
-            /* Xe2 has a better L3 that can deal with null tiles.*/
-            (lsc_opcode_is_store(op) ?
-               LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-               LSC_CACHE(devinfo, LOAD, L1UC_L3C)) :
-            /* On older platforms, all caches have to be bypassed. */
-            (lsc_opcode_is_store(op) ?
-               LSC_CACHE(devinfo, STORE, L1UC_L3UC) :
-               LSC_CACHE(devinfo, LOAD, L1UC_L3UC))) :
-      /* Skip L1 for coherent accesses */
-      coherent_access ? (lsc_opcode_is_store(op) ?
-                         LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-                         LSC_CACHE(devinfo, LOAD, L1UC_L3C)) :
-      lsc_opcode_is_store(op) ? LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS) :
-      LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
+   unsigned atomic_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+   unsigned store_cache_mode = LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS);
+   unsigned load_cache_mode = LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
+
+   if (volatile_access) {
+      if (devinfo->ver >= 20) {
+         /* Xe2 has a better L3 that can deal with null tiles. */
+         store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+         load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
+      } else {
+         /* On older platforms, all caches have to be bypassed. */
+         store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3UC);
+         load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3UC);
+      }
+   } else if (coherent_access) {
+      /* Skip L1 for coherent accesses. */
+      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
+   }
 
    /* Disable LSC data port L1 cache scheme for the TGM load/store for RT
     * shaders. (see HSD 18038444588)
     */
    if (devinfo->ver >= 20 && mesa_shader_stage_is_rt(bld.shader->stage) &&
-       send->sfid == GEN_SFID_TGM &&
-       !lsc_opcode_is_atomic(op)) {
-      if (lsc_opcode_is_store(op)) {
-         cache_mode = (unsigned) LSC_CACHE(devinfo, STORE, L1UC_L3WB);
-      } else {
-         cache_mode = (unsigned) LSC_CACHE(devinfo, LOAD, L1UC_L3C);
-      }
+       send->sfid == GEN_SFID_TGM) {
+      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
    }
+
+   const unsigned cache_mode =
+      lsc_opcode_is_atomic(op) ? atomic_cache_mode :
+      lsc_opcode_is_store(op) ? store_cache_mode :
+      load_cache_mode;
 
    send->desc = lsc_msg_desc(devinfo, op, binding_type, addr_size, data_size,
                              lsc_opcode_has_cmask(op) ?
