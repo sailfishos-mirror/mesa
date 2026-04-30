@@ -75,6 +75,7 @@ public:
    void emit_lds_op(const AluInstr& lds);
    auto get_lds_opcode_properties(const AluInstr& lds) const
       -> std::tuple<unsigned int, unsigned int, bool>;
+   bool update_alu_dst_state(const AluInstr& ai);
    void update_alu_state_after_emit(EAluOp opcode,
                                     int dst_sel,
                                     int dst_chan);
@@ -277,35 +278,43 @@ auto AssemblerVisitor::translate_for_mathrules(EAluOp op) -> EAluOp
    }
 }
 
-void
-AssemblerVisitor::emit_alu_op(const AluInstr& ai)
+bool
+AssemblerVisitor::update_alu_dst_state(const AluInstr& ai)
 {
-   sfn_log << SfnLog::assembly << "Emit ALU op " << ai << "\n";
-
-   auto opcode = ai.opcode();
-
    auto dst = ai.dest();
 
-   if (opcode != op1_mova_int) {
+   if (ai.opcode() != op1_mova_int) {
       if (ai.has_alu_flag(alu_write) && dst) {
          if (dst->sel() > g_clause_local_end && dst->sel() != g_registers_unused) {
             R600_ASM_ERR("shader_from_nir: Don't support more then 123 GPRs + 4 clause "
                          "local, but try using %d\n",
                          dst->sel());
-            m_result = false;
-            return;
+            return false;
          }
-         if (m_last_addr && m_last_addr->equal_to(*dst)) {
+
+         if (m_last_addr && m_last_addr->equal_to(*dst))
             m_last_addr = nullptr;
-         }
       }
-   } else {
-      if (m_bc.gfx_level < CAYMAN || (dst && dst->sel() == 0)) {
-         m_last_addr = ai.psrc(0);
-         m_bc.ar_chan = m_last_addr->chan();
-         m_bc.ar_reg = m_last_addr->sel();
-      }
+   } else if (m_bc.gfx_level < CAYMAN || (dst && dst->sel() == 0)) {
+      m_last_addr = ai.psrc(0);
+      m_bc.ar_chan = m_last_addr->chan();
+      m_bc.ar_reg = m_last_addr->sel();
    }
+
+   return true;
+}
+
+void
+AssemblerVisitor::emit_alu_op(const AluInstr& ai)
+{
+   sfn_log << SfnLog::assembly << "Emit ALU op " << ai << "\n";
+
+   if (!update_alu_dst_state(ai)) {
+      m_result = false;
+      return;
+   }
+
+   auto opcode = ai.opcode();
 
    if (m_legacy_math_rules)
        opcode = translate_for_mathrules(opcode);
