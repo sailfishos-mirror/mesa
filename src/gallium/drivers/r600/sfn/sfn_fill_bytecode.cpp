@@ -549,8 +549,7 @@ fill_alu_src_operands(r600_bytecode_alu& alu, const AluInstr& ai, r600_bytecode&
 }
 
 bool
-fill_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai, r600_bytecode& bc,
-             const VirtualValue *& last_addr)
+fill_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai, r600_bytecode& bc)
 {
    auto dst = ai.dest();
    if (dst) {
@@ -566,8 +565,6 @@ fill_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai, r600_bytecode& bc,
          }
          alu.dst.sel = dst->sel() != g_registers_unused ? dst->sel() : g_registers_end;
          alu.dst.chan = dst->chan();
-         if (last_addr && last_addr->equal_to(*dst))
-            last_addr = nullptr;
 
          alu.dst.write = write;
          alu.dst.rel = dst->addr() ? 1 : 0;

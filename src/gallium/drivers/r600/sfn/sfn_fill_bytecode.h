@@ -57,8 +57,7 @@ void fill_alu_src_operands(r600_bytecode_alu& alu,
 
 bool fill_alu_dst(r600_bytecode_alu& alu,
                   const AluInstr& ai,
-                  r600_bytecode& bc,
-                  const VirtualValue *& last_addr);
+                  r600_bytecode& bc);
 
 } // namespace r600
 

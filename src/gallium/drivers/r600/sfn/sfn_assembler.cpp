@@ -320,10 +320,14 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
    if (ai.bank_swizzle() != alu_vec_unknown)
       alu.bank_swizzle_force = ai.bank_swizzle();
 
-   if (!fill_alu_dst(alu, ai, m_bc, m_last_addr)) {
+   if (!fill_alu_dst(alu, ai, m_bc)) {
       m_result = false;
       return;
    }
+
+   auto dst = ai.dest();
+   if (dst && ai.opcode() != op1_mova_int && m_last_addr && m_last_addr->equal_to(*dst))
+      m_last_addr = nullptr;
 
    fill_alu_src_operands(alu, ai, m_bc);
 
