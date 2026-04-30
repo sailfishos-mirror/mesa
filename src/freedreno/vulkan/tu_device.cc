@@ -11,6 +11,7 @@
 
 #include "drm-uapi/drm_fourcc.h"
 #include "git_sha1.h"
+#include "perfcntrs/freedreno_perfcntr.h"
 
 #include "common/freedreno_stompable_regs.h"
 /* for fd_get_driver/device_uuid() */
@@ -3054,6 +3055,10 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
       }
    }
 
+   device->perfcntrs = fd_perfcntr_state_alloc(
+      &physical_device->dev_id,
+      is_kgsl(physical_device->instance) ? -1 : device->fd);
+
    device->autotune = new tu_autotune(device, result);
    if (result != VK_SUCCESS)
       goto fail_autotune;
@@ -3154,6 +3159,7 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
 fail_timeline_cond:
 fail_a725_workaround:
 fail_autotune:
+   fd_perfcntr_state_free(device->perfcntrs);
    delete device->autotune;
 fail_bin_preamble:
 fail_prepare_perfcntrs_pass_cs:
@@ -3259,6 +3265,8 @@ tu_DestroyDevice(VkDevice _device, const VkAllocationCallbacks *pAllocator)
    }
 
    delete device->autotune;
+
+   fd_perfcntr_state_free(device->perfcntrs);
 
    tu_bo_suballocator_finish(&device->pipeline_suballoc);
    tu_bo_suballocator_finish(&device->kgsl_profiling_suballoc);

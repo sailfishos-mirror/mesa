@@ -11,6 +11,7 @@
 #define TU_DEVICE_H
 
 #include "tu_common.h"
+#include "perfcntrs/freedreno_perfcntr.h"
 
 #include "radix_sort/radix_sort_vk.h"
 #include "util/rwlock.h"
@@ -439,6 +440,8 @@ struct tu_device
     * new submit is executed. */
    pthread_cond_t timeline_cond;
    pthread_mutex_t submit_mutex;
+
+   struct fd_perfcntr_state *perfcntrs;
 
    struct tu_autotune *autotune;
 
