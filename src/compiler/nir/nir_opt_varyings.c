@@ -1301,9 +1301,6 @@ gather_inputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_d
 
    nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
 
-   if (!can_remove_varying(linkage, sem.location))
-      return false;
-
    /* Insert the load into the list of loads for this scalar slot. */
    unsigned slot = intr_get_scalar_16bit_slot(intr);
    struct scalar_slot *in = &linkage->slot[slot];
@@ -1318,6 +1315,9 @@ gather_inputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_d
       for (unsigned i = 0; i < nsz_count; i++)
          BITSET_SET(linkage->signed_zero_mask, slot + i * 8);
    }
+
+   if (!can_remove_varying(linkage, sem.location))
+      return false;
 
    BITSET_SET(linkage->removable_mask, slot);
 
@@ -1549,9 +1549,6 @@ gather_outputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_
 
    nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
 
-   if (!can_remove_varying(linkage, sem.location))
-      return false;
-
    /* For "xx -> FS", treat BFCn stores as COLn to make dead varying
     * elimination do the right thing automatically. The rules are:
     * - COLn inputs can be removed only if both COLn and BFCn are not
@@ -1578,25 +1575,7 @@ gather_outputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_
    node->instr = intr;
    out->num_slots = MAX2(out->num_slots, sem.num_slots);
 
-   if (is_store) {
-      list_addtail(&node->head, &out->producer.stores);
-
-      if (has_xfb(intr)) {
-         BITSET_SET(linkage->xfb_mask, slot);
-
-         if (sem.no_varying &&
-             !is_active_sysval_output(linkage, slot, intr)) {
-            if (intr->src[0].ssa->bit_size == 32)
-               BITSET_SET(linkage->xfb32_only_mask, slot);
-            else if (intr->src[0].ssa->bit_size == 16)
-               BITSET_SET(linkage->xfb16_only_mask, slot);
-            else
-               UNREACHABLE("invalid load_input type");
-         }
-      }
-   } else {
-      list_addtail(&node->head, &out->producer.loads);
-   }
+   list_addtail(&node->head, is_store ? &out->producer.stores : &out->producer.loads);
 
    if (is_store ? (is_sz_sysval(linkage, slot, intr) || has_xfb(intr)) : !sem.no_signed_zero) {
       unsigned nsz_count = nir_src_is_const(offset) ? 1 : sem.num_slots;
@@ -1604,7 +1583,24 @@ gather_outputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_
          BITSET_SET(linkage->signed_zero_mask, slot + i * 8);
    }
 
+   if (!can_remove_varying(linkage, sem.location))
+      return false;
+
    BITSET_SET(linkage->removable_mask, slot);
+
+   if (is_store && has_xfb(intr)) {
+      BITSET_SET(linkage->xfb_mask, slot);
+
+      if (sem.no_varying &&
+          !is_active_sysval_output(linkage, slot, intr)) {
+         if (intr->src[0].ssa->bit_size == 32)
+            BITSET_SET(linkage->xfb32_only_mask, slot);
+         else if (intr->src[0].ssa->bit_size == 16)
+            BITSET_SET(linkage->xfb16_only_mask, slot);
+         else
+            UNREACHABLE("invalid load_input type");
+      }
+   }
 
    /* Indirect indexing. */
    if (!nir_src_is_const(offset)) {
