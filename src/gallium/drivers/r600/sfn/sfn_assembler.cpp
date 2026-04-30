@@ -93,8 +93,7 @@ public:
    bool ps_alpha_to_one;
    bool ps_alpha_to_one_and_coverage;
    /* End initialized in constructor */
-
-   std::set<uint32_t> m_nliterals_in_group;
+   
    std::set<int> vtx_fetch_results;
    std::set<int> tex_fetch_results;
 
@@ -336,8 +335,6 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
       sfn_log << SfnLog::assembly << "  Current address register is " << *m_last_addr
               << "\n";
 
-   if (alu.last)
-      m_nliterals_in_group.clear();
 
    m_result = !r600_bytecode_add_alu(&m_bc, &alu);
 
