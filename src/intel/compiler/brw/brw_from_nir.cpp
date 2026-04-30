@@ -254,6 +254,8 @@ brw_from_nir_emit_impl(nir_to_brw_state &ntb, nir_function_impl *impl)
    ntb.ssa_values = rzalloc_array(ntb.mem_ctx, brw_reg, impl->ssa_alloc);
    ntb.ssa_bind_infos = rzalloc_array(ntb.mem_ctx, struct brw_bind_info, impl->ssa_alloc);
 
+   assert(impl->valid_metadata & nir_metadata_divergence);
+
    brw_from_nir_emit_cf_list(ntb, &impl->body);
 }
 
