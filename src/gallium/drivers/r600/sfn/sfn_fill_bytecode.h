@@ -46,6 +46,8 @@ bool emit_bytecode_gds(r600_bytecode& bc, const GDSInstr& instr);
 
 bool emit_bytecode_tf_write(r600_bytecode& bc, const WriteTFInstr& instr);
 
+bool emit_bytecode_lds(r600_bytecode& bc, const AluInstr& lds);
+
 void fill_bytecode_rat(r600_bytecode_cf& cf, const RatInstr& instr,
                        unsigned rat_base, unsigned shader_type);
 

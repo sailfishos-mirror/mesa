@@ -282,6 +282,54 @@ fill_bytecode_tf_write(const WriteTFInstr& instr,
    return gds;
 }
 
+static auto
+get_lds_opcode_properties(const AluInstr& lds)
+   -> std::tuple<unsigned int, unsigned int, bool>
+{
+   unsigned int opcode = lds.lds_opcode();
+   unsigned int lds_idx = 0;
+   bool has_lds_fetch = false;
+
+   switch (opcode) {
+   case LDS_WRITE:
+      opcode = LDS_OP2_LDS_WRITE;
+      break;
+   case LDS_WRITE_REL:
+      opcode = LDS_OP3_LDS_WRITE_REL;
+      lds_idx = 1;
+      break;
+   case DS_OP_READ_RET:
+      opcode = LDS_OP1_LDS_READ_RET;
+      FALLTHROUGH;
+   case LDS_ADD_RET:
+   case LDS_AND_RET:
+   case LDS_OR_RET:
+   case LDS_MAX_INT_RET:
+   case LDS_MAX_UINT_RET:
+   case LDS_MIN_INT_RET:
+   case LDS_MIN_UINT_RET:
+   case LDS_XOR_RET:
+   case LDS_XCHG_RET:
+   case LDS_CMP_XCHG_RET:
+      has_lds_fetch = true;
+      break;
+   case LDS_ADD:
+   case LDS_AND:
+   case LDS_OR:
+   case LDS_MAX_INT:
+   case LDS_MAX_UINT:
+   case LDS_MIN_INT:
+   case LDS_MIN_UINT:
+   case LDS_XOR:
+      break;
+   default:
+      std::cerr << "\n R600: error op: " << lds << "\n";
+      UNREACHABLE("Unhandled LDS op");
+   }
+
+   return std::make_tuple(opcode, lds_idx, has_lds_fetch);
+}
+
 bool
 emit_bytecode_tex(r600_bytecode& bc, const TexInstr& tex_instr)
 {
@@ -411,6 +459,37 @@ emit_bytecode_tf_write(r600_bytecode& bc, const WriteTFInstr& instr)
       }
    }
    return true;
+}
+
+bool
+emit_bytecode_lds(r600_bytecode& bc, const AluInstr& lds)
+{
+   struct r600_bytecode_alu alu;
+   memset(&alu, 0, sizeof(alu));
+
+   alu.is_lds_idx_op = true;
+   auto [opcode, lds_idx, has_lds_fetch] = get_lds_opcode_properties(lds);
+   alu.op = opcode;
+   alu.lds_idx = lds_idx;
+
+   fill_alu_src(alu.src[0], lds.src(0), bc);
+
+   if (lds.n_sources() > 1)
+      fill_alu_src(alu.src[1], lds.src(1), bc);
+   else
+      alu.src[1].sel = V_SQ_ALU_SRC_0;
+
+   if (lds.n_sources() > 2)
+      fill_alu_src(alu.src[2], lds.src(2), bc);
+   else
+      alu.src[2].sel = V_SQ_ALU_SRC_0;
+
+   alu.last = lds.has_alu_flag(alu_last_instr);
+   int r = r600_bytecode_add_alu(&bc, &alu);
+   if (has_lds_fetch)
+      bc.cf_last->nlds_read++;
+
+   return r == 0;
 }
 
 void
