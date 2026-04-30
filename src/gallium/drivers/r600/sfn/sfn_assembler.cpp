@@ -75,6 +75,9 @@ public:
 
    void emit_alu_op(const AluInstr& ai);
    void emit_lds_op(const AluInstr& lds);
+   void update_alu_state_after_emit(const AluInstr& ai,
+                                    int dst_sel,
+                                    int dst_chan);
 
    auto translate_for_mathrules(EAluOp op) -> EAluOp;
 
@@ -324,18 +327,27 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    m_result = !r600_bytecode_add_alu(&m_bc, &alu);
 
+   update_alu_state_after_emit(ai, alu.dst.sel, alu.dst.chan);
+}
+
+void
+AssemblerVisitor::update_alu_state_after_emit(const AluInstr& ai,
+                                              int dst_sel,
+                                              int dst_chan)
+{
+
    if (unlikely(ai.opcode() == op1_mova_int)) {
-      if (m_bc.gfx_level < CAYMAN || alu.dst.sel == 0) {
+      if (m_bc.gfx_level < CAYMAN || dst_sel == 0) {
          m_bc.ar_loaded = 1;
       } else if (m_bc.gfx_level == CAYMAN) {
-         int idx = alu.dst.sel - 2;
+         int idx = dst_sel - 2;
          m_bc.index_loaded[idx] = 1;
          m_bc.index_reg[idx] = -1;
       }
    }
 
-   if (alu.dst.sel >= g_clause_local_start && alu.dst.sel < g_clause_local_end) {
-      int clidx = 4 * (alu.dst.sel - g_clause_local_start) + alu.dst.chan;
+   if (dst_sel >= g_clause_local_start && dst_sel < g_clause_local_end) {
+      int clidx = 4 * (dst_sel - g_clause_local_start) + dst_chan;
       m_bc.cf_last->clause_local_written |= 1 << clidx;
    }
 
