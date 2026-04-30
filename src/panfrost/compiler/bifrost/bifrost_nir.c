@@ -124,7 +124,8 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
    case nir_op_ball_iequal4:
    case nir_op_bany_inequal2:
    case nir_op_bany_inequal3:
-   case nir_op_bany_inequal4: return 1;
+   case nir_op_bany_inequal4:
+      return 1;
    case nir_op_pack_uvec2_to_uint:
    case nir_op_pack_uvec4_to_uint:
       return 0;
@@ -137,12 +138,16 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
    case nir_op_extract_i16:
    case nir_op_insert_u16:
       return 1;
-   /* On v11+, we lost all packed F16 conversions */
    case nir_op_f2f16:
    case nir_op_f2f16_rtz:
    case nir_op_f2f16_rtne:
    case nir_op_u2f16:
    case nir_op_i2f16:
+      /* On v10 and earlier we can take 2 32-bit floats as srcs, while on v11+
+       * we lost all packed F16 conversions.
+       */
+      return (pan_arch(gpu_id) >= 11) ? 1 : 2;
+   /* On v11+, we lost packed 16-bit frexp_*  */
    case nir_op_frexp_sig:
    case nir_op_frexp_exp:
       if (pan_arch(gpu_id) >= 11)
