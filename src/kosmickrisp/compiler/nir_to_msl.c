@@ -63,14 +63,27 @@ static const char *sysval_table[SYSTEM_VALUE_MAX] = {
       "uint mtl_AmplificationID [[amplification_id]]",
    [SYSTEM_VALUE_FIRST_VERTEX] = "uint gl_FirstVertex [[base_vertex]]",
 };
+static const char *sysval_sample_mask_in_post_depth_coverage =
+   "uint gl_SampleMask [[sample_mask, post_depth_coverage]]";
 
 static void
 emit_sysvals(struct nir_to_msl_ctx *ctx, nir_shader *shader)
 {
+   bool is_frag_with_post_depth_coverage =
+      ctx->shader->info.stage == MESA_SHADER_FRAGMENT &&
+      ctx->shader->info.fs.post_depth_coverage;
+
    unsigned i;
    BITSET_FOREACH_SET(i, shader->info.system_values_read, SYSTEM_VALUE_MAX) {
-      assert(sysval_table[i]);
-      P_IND(ctx, "%s,\n", sysval_table[i]);
+      const char *sysval;
+      if (is_frag_with_post_depth_coverage &&
+          i == SYSTEM_VALUE_SAMPLE_MASK_IN)
+         sysval = sysval_sample_mask_in_post_depth_coverage;
+      else
+         sysval = sysval_table[i];
+
+      assert(sysval);
+      P_IND(ctx, "%s,\n", sysval);
    }
 }
 
