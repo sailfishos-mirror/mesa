@@ -79,7 +79,7 @@ public:
    void emit_lds_op(const AluInstr& lds);
    auto get_lds_opcode_properties(const AluInstr& lds) const
       -> std::tuple<unsigned int, unsigned int, bool>;
-   void update_alu_state_after_emit(const AluInstr& ai,
+   void update_alu_state_after_emit(EAluOp opcode,
                                     int dst_sel,
                                     int dst_chan);
 
@@ -343,16 +343,17 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    m_result = !r600_bytecode_add_alu(&m_bc, &alu);
 
-   update_alu_state_after_emit(ai, alu.dst.sel, alu.dst.chan);
+   update_alu_state_after_emit(ai.opcode(), alu.dst.sel, alu.dst.chan);
 }
 
 void
-AssemblerVisitor::update_alu_state_after_emit(const AluInstr& ai,
+AssemblerVisitor::update_alu_state_after_emit(EAluOp opcode,
                                               int dst_sel,
                                               int dst_chan)
 {
 
-   if (unlikely(ai.opcode() == op1_mova_int)) {
+   switch (opcode) {
+   case op1_mova_int:
       if (m_bc.gfx_level < CAYMAN || dst_sel == 0) {
          m_bc.ar_loaded = 1;
       } else if (m_bc.gfx_level == CAYMAN) {
@@ -360,21 +361,22 @@ AssemblerVisitor::update_alu_state_after_emit(const AluInstr& ai,
          m_bc.index_loaded[idx] = 1;
          m_bc.index_reg[idx] = -1;
       }
+      break;
+   case op1_set_cf_idx0:
+      m_bc.index_loaded[0] = 1;
+      m_bc.index_reg[0] = -1;
+      break;
+   case op1_set_cf_idx1:
+      m_bc.index_loaded[1] = 1;
+      m_bc.index_reg[1] = -1;
+      break;
+   default:
+      break;
    }
 
    if (dst_sel >= g_clause_local_start && dst_sel < g_clause_local_end) {
       int clidx = 4 * (dst_sel - g_clause_local_start) + dst_chan;
       m_bc.cf_last->clause_local_written |= 1 << clidx;
-   }
-
-   if (ai.opcode() == op1_set_cf_idx0) {
-      m_bc.index_loaded[0] = 1;
-      m_bc.index_reg[0] = -1;
-   }
-
-   if (ai.opcode() == op1_set_cf_idx1) {
-      m_bc.index_loaded[1] = 1;
-      m_bc.index_reg[1] = -1;
    }
 }
 
