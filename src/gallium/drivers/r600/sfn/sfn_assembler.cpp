@@ -282,13 +282,11 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 {
    sfn_log << SfnLog::assembly << "Emit ALU op " << ai << "\n";
 
-   struct r600_bytecode_alu alu;
-   memset(&alu, 0, sizeof(alu));
-
    auto opcode = ai.opcode();
 
    if (unlikely(opcode == op1_mova_int &&
-                (m_bc.gfx_level < CAYMAN || alu.dst.sel == 0))) {
+                (m_bc.gfx_level < CAYMAN ||
+                  (ai.dest() && ai.dest()->sel() == 0)))) {
       m_last_addr = ai.psrc(0);
       m_bc.ar_chan = m_last_addr->chan();
       m_bc.ar_reg = m_last_addr->sel();
@@ -311,6 +309,9 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    m_last_op_was_barrier = opcode == op0_group_barrier;
 
+   struct r600_bytecode_alu alu;
+   memset(&alu, 0, sizeof(alu));
+
    alu.op = hw_opcode->second;
    alu.is_op3 = ai.n_sources() == 3;
    alu.omod = !alu.is_op3 ? ai.output_modifier() : 0;
@@ -326,6 +327,8 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    fill_alu_src_operands(alu, ai, m_bc);
 
+   m_result = !r600_bytecode_add_alu(&m_bc, &alu);
+
    if (ai.has_lds_queue_read()) {
       assert(m_bc.cf_last->nlds_read > 0);
       m_bc.cf_last->nlds_read--;
@@ -334,9 +337,6 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
    if (m_last_addr)
       sfn_log << SfnLog::assembly << "  Current address register is " << *m_last_addr
               << "\n";
-
-
-   m_result = !r600_bytecode_add_alu(&m_bc, &alu);
 
    update_alu_state_after_emit(opcode, alu.dst.sel, alu.dst.chan);
 }
