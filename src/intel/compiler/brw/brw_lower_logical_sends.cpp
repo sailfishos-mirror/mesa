@@ -1306,7 +1306,14 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
    unsigned store_cache_mode = LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS);
    unsigned load_cache_mode = LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
 
-   if (volatile_access) {
+   if (devinfo->ver >= 20 && mesa_shader_stage_is_rt(bld.shader->stage) &&
+       send->sfid == GEN_SFID_TGM) {
+      /* Disable LSC data port L1 cache scheme for the TGM load/store for RT
+       * shaders (see HSD 18038444588).
+       */
+      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
+   } else if (volatile_access) {
       if (devinfo->ver >= 20) {
          /* Xe2 has a better L3 that can deal with null tiles. */
          store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
@@ -1318,15 +1325,6 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       }
    } else if (coherent_access) {
       /* Skip L1 for coherent accesses. */
-      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
-      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
-   }
-
-   /* Disable LSC data port L1 cache scheme for the TGM load/store for RT
-    * shaders. (see HSD 18038444588)
-    */
-   if (devinfo->ver >= 20 && mesa_shader_stage_is_rt(bld.shader->stage) &&
-       send->sfid == GEN_SFID_TGM) {
       store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
       load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
    }
