@@ -548,4 +548,38 @@ fill_alu_src_operands(r600_bytecode_alu& alu, const AluInstr& ai, r600_bytecode&
    }
 }
 
+bool
+fill_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai, r600_bytecode& bc,
+             const VirtualValue *& last_addr)
+{
+   auto dst = ai.dest();
+   if (dst) {
+      sfn_log << SfnLog::assembly << "  Current dst register is " << *dst << "\n";
+      if (ai.opcode() != op1_mova_int) {
+         bool write = ai.has_alu_flag(alu_write);
+         if (write && dst->sel() > g_clause_local_end &&
+             dst->sel() != g_registers_unused) {
+            R600_ASM_ERR("shader_from_nir: Don't support more then 123 GPRs + 4 clause "
+                         "local, but try using %d\n",
+                         dst->sel());
+            return false;
+         }
+         alu.dst.sel = dst->sel() != g_registers_unused ? dst->sel() : g_registers_end;
+         alu.dst.chan = dst->chan();
+         if (last_addr && last_addr->equal_to(*dst))
+            last_addr = nullptr;
+
+         alu.dst.write = write;
+         alu.dst.rel = dst->addr() ? 1 : 0;
+      } else if (bc.gfx_level == CAYMAN && dst->sel() > 0) {
+         alu.dst.sel = dst->sel() + 1;
+      }
+   } else {
+      alu.dst.chan = ai.dest_chan();
+   }
+
+   alu.dst.clamp = ai.has_alu_flag(alu_dst_clamp);
+   return true;
+}
+
 } // namespace r600

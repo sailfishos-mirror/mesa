@@ -62,8 +62,6 @@ public:
    const uint32_t sf_all = 0xf;
 
    void clear_states(const uint32_t& states);
-   bool prepare_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai);
-   bool copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool write);
 
    void emit_endif();
    void emit_else();
@@ -322,7 +320,7 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
    if (ai.bank_swizzle() != alu_vec_unknown)
       alu.bank_swizzle_force = ai.bank_swizzle();
 
-   if (!prepare_alu_dst(alu, ai)) {
+   if (!fill_alu_dst(alu, ai, m_bc, m_last_addr)) {
       m_result = false;
       return;
    }
@@ -378,29 +376,6 @@ AssemblerVisitor::update_alu_state_after_emit(EAluOp opcode,
       int clidx = 4 * (dst_sel - g_clause_local_start) + dst_chan;
       m_bc.cf_last->clause_local_written |= 1 << clidx;
    }
-}
-
-bool
-AssemblerVisitor::prepare_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai)
-{
-   auto dst = ai.dest();
-   if (dst) {
-      sfn_log << SfnLog::assembly << "  Current dst register is " << *dst << "\n";
-      if (ai.opcode() != op1_mova_int) {
-         if (!copy_dst(alu.dst, *dst, ai.has_alu_flag(alu_write)))
-            return false;
-
-         alu.dst.write = ai.has_alu_flag(alu_write);
-         alu.dst.rel = dst->addr() ? 1 : 0;
-      } else if (m_bc.gfx_level == CAYMAN && dst->sel() > 0) {
-         alu.dst.sel = dst->sel() + 1;
-      }
-   } else {
-      alu.dst.chan = ai.dest_chan();
-   }
-
-   alu.dst.clamp = ai.has_alu_flag(alu_dst_clamp);
-   return true;
 }
 
 void
@@ -813,26 +788,6 @@ AssemblerVisitor::emit_loop_cont()
 {
    r600_bytecode_add_cfinst(&m_bc, CF_OP_LOOP_CONTINUE);
    m_result |= m_jump_tracker.add_mid(m_bc.cf_last, jt_loop);
-}
-
-bool
-AssemblerVisitor::copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool write)
-{
-   if (write && d.sel() > g_clause_local_end && d.sel() != g_registers_unused) {
-      R600_ASM_ERR("shader_from_nir: Don't support more then 123 GPRs + 4 clause "
-                   "local, but try using %d\n",
-                   d.sel());
-      m_result = false;
-      return false;
-   }
-
-   dst.sel = d.sel() != g_registers_unused ? d.sel() : g_registers_end;
-   dst.chan = d.chan();
-
-   if (m_last_addr && m_last_addr->equal_to(d))
-      m_last_addr = nullptr;
-
-   return true;
 }
 
 void
