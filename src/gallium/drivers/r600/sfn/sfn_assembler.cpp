@@ -20,6 +20,8 @@
 #include "sfn_instr_mem.h"
 #include "sfn_instr_tex.h"
 
+#include <tuple>
+
 namespace r600 {
 Assembler::Assembler(r600_shader *sh, const r600_shader_key& key):
     m_sh(sh),
@@ -75,6 +77,8 @@ public:
 
    void emit_alu_op(const AluInstr& ai);
    void emit_lds_op(const AluInstr& lds);
+   auto get_lds_opcode_properties(const AluInstr& lds) const
+      -> std::tuple<unsigned int, unsigned int, bool>;
    void update_alu_state_after_emit(const AluInstr& ai,
                                     int dst_sel,
                                     int dst_chan);
@@ -193,19 +197,49 @@ AssemblerVisitor::emit_lds_op(const AluInstr& lds)
    memset(&alu, 0, sizeof(alu));
 
    alu.is_lds_idx_op = true;
-   alu.op = lds.lds_opcode();
+   auto [opcode, lds_idx, has_lds_fetch] = get_lds_opcode_properties(lds);
+   alu.op = opcode;
+   alu.lds_idx = lds_idx;
 
+   copy_src(alu.src[0], lds.src(0));
+
+   if (lds.n_sources() > 1)
+      copy_src(alu.src[1], lds.src(1));
+   else
+      alu.src[1].sel = V_SQ_ALU_SRC_0;
+
+   if (lds.n_sources() > 2)
+      copy_src(alu.src[2], lds.src(2));
+   else
+      alu.src[2].sel = V_SQ_ALU_SRC_0;
+
+   alu.last = lds.has_alu_flag(alu_last_instr);
+   int r = r600_bytecode_add_alu(&m_bc, &alu);
+   if (has_lds_fetch)
+      m_bc.cf_last->nlds_read++;
+
+   if (r)
+      m_result = false;
+}
+
+auto
+AssemblerVisitor::get_lds_opcode_properties(const AluInstr& lds) const
+   -> std::tuple<unsigned int, unsigned int, bool>
+{
+   unsigned int opcode = lds.lds_opcode();
+   unsigned int lds_idx = 0;
    bool has_lds_fetch = false;
-   switch (alu.op) {
+
+   switch (opcode) {
    case LDS_WRITE:
-      alu.op = LDS_OP2_LDS_WRITE;
+      opcode = LDS_OP2_LDS_WRITE;
       break;
    case LDS_WRITE_REL:
-      alu.op = LDS_OP3_LDS_WRITE_REL;
-      alu.lds_idx = 1;
+      opcode = LDS_OP3_LDS_WRITE_REL;
+      lds_idx = 1;
       break;
    case DS_OP_READ_RET:
-      alu.op = LDS_OP1_LDS_READ_RET;
+      opcode = LDS_OP1_LDS_READ_RET;
       FALLTHROUGH;
    case LDS_ADD_RET:
    case LDS_AND_RET:
@@ -233,25 +267,7 @@ AssemblerVisitor::emit_lds_op(const AluInstr& lds)
       UNREACHABLE("Unhandled LDS op");
    }
 
-   copy_src(alu.src[0], lds.src(0));
-
-   if (lds.n_sources() > 1)
-      copy_src(alu.src[1], lds.src(1));
-   else
-      alu.src[1].sel = V_SQ_ALU_SRC_0;
-
-   if (lds.n_sources() > 2)
-      copy_src(alu.src[2], lds.src(2));
-   else
-      alu.src[2].sel = V_SQ_ALU_SRC_0;
-
-   alu.last = lds.has_alu_flag(alu_last_instr);
-   int r = r600_bytecode_add_alu(&m_bc, &alu);
-   if (has_lds_fetch)
-      m_bc.cf_last->nlds_read++;
-
-   if (r)
-      m_result = false;
+   return std::make_tuple(opcode, lds_idx, has_lds_fetch);
 }
 
 auto AssemblerVisitor::translate_for_mathrules(EAluOp op) -> EAluOp
