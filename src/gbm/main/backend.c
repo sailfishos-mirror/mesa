@@ -40,7 +40,6 @@
 #include "loader.h"
 #include "backend.h"
 
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
 #define VER_MIN(a, b) ((a) < (b) ? (a) : (b))
 
 struct gbm_backend_desc {
