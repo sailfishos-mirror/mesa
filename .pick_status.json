@@ -4174,7 +4174,7 @@
         "description": "anv: implement missing device image property compression filtering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c94cd1235f436098d3b0a27ad5d13b9d3ac830c3",
         "notes": null
