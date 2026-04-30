@@ -286,25 +286,25 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    auto dst = ai.dest();
 
-   if (unlikely(opcode == op1_mova_int)) {
+   if (opcode != op1_mova_int) {
+      if (ai.has_alu_flag(alu_write) && dst) {
+         if (dst->sel() > g_clause_local_end && dst->sel() != g_registers_unused) {
+            R600_ASM_ERR("shader_from_nir: Don't support more then 123 GPRs + 4 clause "
+                         "local, but try using %d\n",
+                         dst->sel());
+            m_result = false;
+            return;
+         }
+         if (m_last_addr && m_last_addr->equal_to(*dst)) {
+            m_last_addr = nullptr;
+         }
+      }
+   } else {
       if (m_bc.gfx_level < CAYMAN || (dst && dst->sel() == 0)) {
          m_last_addr = ai.psrc(0);
          m_bc.ar_chan = m_last_addr->chan();
          m_bc.ar_reg = m_last_addr->sel();
       }
-   } else if (dst && m_last_addr && m_last_addr->equal_to(*dst)) {
-      m_last_addr = nullptr;
-   }
-
-   if (ai.has_alu_flag(alu_write) &&
-       dst &&
-       dst->sel() > g_clause_local_end &&
-       dst->sel() != g_registers_unused) {
-      R600_ASM_ERR("shader_from_nir: Don't support more then 123 GPRs + 4 clause "
-                   "local, but try using %d\n",
-                   dst->sel());
-      m_result = false;
-      return;
    }
 
    if (m_legacy_math_rules)
