@@ -1428,14 +1428,14 @@ static const struct wsi_display_surface_format
  available_surface_formats[] = {
    {
       .surface_format = {
-         .format = VK_FORMAT_B8G8R8A8_SRGB,
+         .format = VK_FORMAT_B8G8R8A8_UNORM,
          .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
       },
       .drm_format = DRM_FORMAT_XRGB8888
    },
    {
       .surface_format = {
-         .format = VK_FORMAT_B8G8R8A8_UNORM,
+         .format = VK_FORMAT_B8G8R8A8_SRGB,
          .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
       },
       .drm_format = DRM_FORMAT_XRGB8888
