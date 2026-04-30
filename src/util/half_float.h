@@ -31,7 +31,6 @@
 #include <string.h>
 #include "util/detect_arch.h"
 #include "util/detect_cc.h"
-#include "util/double.h"
 #include "util/u_cpu_detect.h"
 #include "util/u_math.h"
 
@@ -146,66 +145,82 @@ _mesa_float_is_half(double val)
    return val == (double) _mesa_half_to_float(fp16_val) && !is_denorm;
 }
 
-/*
- * We round down from double to half float by going through float in between,
- * but this can give us inaccurate results in some cases.
- * One such case is 0x40ee6a0000000001, which should round to 0x7b9b, but
- * going through float first turns into 0x7b9a instead. This is because the
- * first non-fitting bit is set, so we get a tie, but with the least
- * significant bit of the original number set, the tie should break rounding
- * up.
- * The cast to float, however, turns into 0x47735000, which when going to half
- * still ties, but now we lost the tie-up bit, and instead we round to the
- * nearest even, which in this case is down.
+/** Returns a "reduced" double, suitable for conversion to f16
  *
- * To fix this, we check if the original would have tied, and if the tie would
- * have rounded up, and if both are true, set the least significant bit of the
- * intermediate float to 1, so that a tie on the next cast rounds up as well.
- * If the rounding already got rid of the tie, that set bit will just be
- * truncated anyway and the end result doesn't change.
+ * RTNE is tricky to get right through a double conversion.  To work around
+ * this, we do a little fixup of the fp64 value first.
  *
- * Another failing case is 0x40effdffffffffff. This one doesn't have the tie
- * from double to half, so it just rounds down to 0x7bff (65504.0), but going
- * through float first, it turns into 0x477ff000, which does have the tie bit
- * for half set, and when that one gets rounded it turns into 0x7c00
- * (Infinity).
- * The fix for that one is to make sure the intermediate float does not have
- * the tie bit set if the original didn't have it.
+ * For a 64-bit float, the mantissa bits are as follows:
+ *
+ *    HHHHHHHHHHHLTFFFFFFFFF FFFDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
+ *                           |                              |
+ *                           +------- bottom 32 bits -------+
+ *
+ * Where:
+ *  - D are only used for fp64
+ *  - T and F are used for fp64 and fp32
+ *  - H and L are used for fp64, fp32, and fp16
+ *  - L denotes the low bit of the fp16 mantissa
+ *  - T is the tie bit
+ *
+ * The RTNE tie-breaking rules for fp64 -> fp16 can then be described as
+ * follows:
+ *
+ *  - If any F or D bit is non-zero:
+ *     - If T == 1, round up
+ *     - If T == 0, round down
+ *  - If all F and D bits are zero:
+ *     - If T == 0, it's already fp16, do nothing
+ *     - If T != 0 and L == 0, round down
+ *     - If T != 0 and L != 0, round up
+ *
+ * What's important here is that the only way the F or D bits fit into the
+ * algorithm is if any are zero or none are zero.  So we will get the same
+ * result if we take all of the bits in the low dword, or them together, and
+ * then or that into the low F bits of the high dword.  The result of "all F
+ * and D bits are zero" will be the same.  We can also zero the low dword
+ * without affecting the final result.  Doing this accomplishes two useful
+ * things:
+ *
+ *  1. The resulting fp64 value is exactly representable as fp32 so we don't
+ *     have to care about the rounding of the fp64 -> fp32 conversion.
+ *
+ *  2. The fp32 -> fp16 conversion will round exactly the same as a full
+ *     fp64 -> fp16 conversion on the original data since it now takes all of
+ *     the D bits into account as well as the F bits.
+ *
+ * It's also correct for NaN/INF since those are delineated by the entire
+ * mantissa being either zero or non-zero.  For denorms, anything that might
+ * be a denorm in fp32 or fp64 will have a sufficiently negative exponent that
+ * it will flush to zero when converted to fp16, regardless of what we do
+ * here.
+ *
+ * This same trick works for all the rounding modes.  Even though the actual
+ * rounding logic is a bit different, they all treat the F and D bits together
+ * based on "all F and D bits are zero" or not.
  */
+static inline float
+_mesa_reduce_double_for_f16(double val)
+{
+   union di d;
+   d.d = val;
+   const uint32_t u_low = (uint32_t)d.ui;
+   d.ui &= 0xffffffff00000000ull;
+   if (u_low)
+      d.ui |= (1ull << 32);
+   return (float)d.d;
+}
+
 static inline uint16_t
 _mesa_double_to_float16_rtne(double val)
 {
-   int significand_bits16 = 10;
-   int significand_bits32 = 23;
-   int significand_bits64 = 52;
-   int f64_to_16_tie_bit = significand_bits64 - significand_bits16 - 1;
-   int f32_to_16_tie_bit = significand_bits32 - significand_bits16 - 1;
-   uint64_t f64_rounds_up_mask = ((1ULL << f64_to_16_tie_bit) - 1);
-
-   union di src;
-   union fi dst;
-
-   src.d = val;
-   dst.f = val;
-
-   bool f64_has_tie = (src.ui & (1ULL << f64_to_16_tie_bit)) != 0;
-   bool f64_rounds_up = (src.ui & f64_rounds_up_mask) != 0;
-
-   dst.ui |= (f64_has_tie && f64_rounds_up);
-   if (!f64_has_tie)
-      dst.ui &= ~(1U << f32_to_16_tie_bit);
-
-   return _mesa_float_to_float16_rtne(dst.f);
+   return _mesa_float_to_float16_rtne(_mesa_reduce_double_for_f16(val));
 }
 
-/*
- * double -> float -> half with RTZ doesn't have as many complications as
- * RTNE, but we do need to ensure that the double -> float cast also uses RTZ.
- */
 static inline uint16_t
 _mesa_double_to_float16_rtz(double val)
 {
-   return _mesa_float_to_float16_rtz(_mesa_double_to_float_rtz(val));
+   return _mesa_float_to_float16_rtz(_mesa_reduce_double_for_f16(val));
 }
 
 #ifdef __cplusplus
