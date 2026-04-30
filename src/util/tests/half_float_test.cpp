@@ -539,3 +539,13 @@ TEST(double_to_float16_rtz, rounding)
 {
    test_double_to_half_rounding(_mesa_double_to_float16_rtz, RTZ);
 }
+
+TEST(double_to_float16_ru, rounding)
+{
+   test_double_to_half_rounding(_mesa_double_to_float16_ru, RU);
+}
+
+TEST(double_to_float16_rd, rounding)
+{
+   test_double_to_half_rounding(_mesa_double_to_float16_rd, RD);
+}

@@ -223,6 +223,18 @@ _mesa_double_to_float16_rtz(double val)
    return _mesa_float_to_float16_rtz(_mesa_reduce_double_for_f16(val));
 }
 
+static inline uint16_t
+_mesa_double_to_float16_ru(double val)
+{
+   return _mesa_float_to_float16_ru(_mesa_reduce_double_for_f16(val));
+}
+
+static inline uint16_t
+_mesa_double_to_float16_rd(double val)
+{
+   return _mesa_float_to_float16_rd(_mesa_reduce_double_for_f16(val));
+}
+
 #ifdef __cplusplus
 
 namespace mesa
