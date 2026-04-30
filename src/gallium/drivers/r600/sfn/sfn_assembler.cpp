@@ -63,7 +63,6 @@ public:
 
    void clear_states(const uint32_t& states);
    bool prepare_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai);
-   void prepare_alu_src(r600_bytecode_alu& alu, const AluInstr& ai);
    bool copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool write);
 
    void emit_endif();
@@ -328,7 +327,7 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
       return;
    }
 
-   prepare_alu_src(alu, ai);
+   fill_alu_src_operands(alu, ai, m_bc);
 
    if (ai.has_lds_queue_read()) {
       assert(m_bc.cf_last->nlds_read > 0);
@@ -402,36 +401,6 @@ AssemblerVisitor::prepare_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai)
 
    alu.dst.clamp = ai.has_alu_flag(alu_dst_clamp);
    return true;
-}
-
-void
-AssemblerVisitor::prepare_alu_src(r600_bytecode_alu& alu, const AluInstr& ai)
-{
-   EBufferIndexMode kcache_index_mode = bim_none;
-   PVirtualValue buffer_offset = nullptr;
-
-   for (unsigned i = 0; i < ai.n_sources(); ++i) {
-      buffer_offset = fill_alu_src(alu.src[i], ai.src(i), m_bc);
-      alu.src[i].neg = ai.has_source_mod(i, AluInstr::mod_neg);
-      if (!alu.is_op3)
-         alu.src[i].abs = ai.has_source_mod(i, AluInstr::mod_abs);
-
-      if (buffer_offset && kcache_index_mode == bim_none) {
-         auto idx_reg = buffer_offset->as_register();
-         if (idx_reg && idx_reg->has_flag(Register::addr_or_idx)) {
-            switch (idx_reg->sel()) {
-            case 1: kcache_index_mode = bim_zero; break;
-            case 2: kcache_index_mode = bim_one; break;
-            default:
-               UNREACHABLE("Unsupported index mode");
-            }
-         } else {
-            kcache_index_mode = bim_zero;
-         }
-         alu.src[i].kc_rel = kcache_index_mode;
-      }
-
-   }
 }
 
 void

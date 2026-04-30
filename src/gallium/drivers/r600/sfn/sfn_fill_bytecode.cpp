@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "sfn_alu_defines.h"
+#include "sfn_instr_alu.h"
 #include "sfn_instr_export.h"
 #include "sfn_instr_fetch.h"
 #include "sfn_instr_mem.h"
@@ -516,6 +517,35 @@ void
 EncodeSourceVisitor::visit(const InlineConstant& value)
 {
    (void)value;
+}
+
+void
+fill_alu_src_operands(r600_bytecode_alu& alu, const AluInstr& ai, r600_bytecode& bc)
+{
+   EBufferIndexMode kcache_index_mode = bim_none;
+   PVirtualValue buffer_offset = nullptr;
+
+   for (unsigned i = 0; i < ai.n_sources(); ++i) {
+      buffer_offset = fill_alu_src(alu.src[i], ai.src(i), bc);
+      alu.src[i].neg = ai.has_source_mod(i, AluInstr::mod_neg);
+      if (!alu.is_op3)
+         alu.src[i].abs = ai.has_source_mod(i, AluInstr::mod_abs);
+
+      if (buffer_offset && kcache_index_mode == bim_none) {
+         auto idx_reg = buffer_offset->as_register();
+         if (idx_reg && idx_reg->has_flag(Register::addr_or_idx)) {
+            switch (idx_reg->sel()) {
+            case 1: kcache_index_mode = bim_zero; break;
+            case 2: kcache_index_mode = bim_one; break;
+            default:
+               UNREACHABLE("Unsupported index mode");
+            }
+         } else {
+            kcache_index_mode = bim_zero;
+         }
+         alu.src[i].kc_rel = kcache_index_mode;
+      }
+   }
 }
 
 } // namespace r600

@@ -12,6 +12,7 @@
 
 namespace r600 {
 
+class AluInstr;
 class ExportInstr;
 class FetchInstr;
 class GDSInstr;
@@ -48,6 +49,10 @@ void fill_bytecode_rat(r600_bytecode_cf& cf, const RatInstr& instr,
 
 PVirtualValue fill_alu_src(r600_bytecode_alu_src& src,
                            const VirtualValue& s,
+                           r600_bytecode& bc);
+
+void fill_alu_src_operands(r600_bytecode_alu& alu,
+                           const AluInstr& ai,
                            r600_bytecode& bc);
 
 } // namespace r600
