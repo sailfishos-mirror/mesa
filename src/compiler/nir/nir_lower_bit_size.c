@@ -169,9 +169,9 @@ lower_alu_instr(nir_builder *bld, nir_alu_instr *alu, unsigned bit_size)
        dst_bit_size != bit_size) {
       nir_alu_type type = nir_op_infos[op].output_type;
       nir_def *dst = nir_convert_to_bit_size(bld, lowered_dst, type, dst_bit_size);
-      nir_def_rewrite_uses(&alu->def, dst);
+      nir_def_replace(&alu->def, dst);
    } else {
-      nir_def_rewrite_uses(&alu->def, lowered_dst);
+      nir_def_replace(&alu->def, lowered_dst);
    }
 }
 
@@ -269,7 +269,7 @@ lower_intrinsic_instr(nir_builder *b, nir_intrinsic_instr *intrin,
 
       res = nir_convert_to_bit_size(b, res, type, old_bit_size);
 
-      nir_def_rewrite_uses(&intrin->def, res);
+      nir_def_replace(&intrin->def, res);
       break;
    }
 
