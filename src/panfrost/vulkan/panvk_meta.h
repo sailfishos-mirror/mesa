@@ -207,12 +207,4 @@ VkResult panvk_per_arch(meta_get_copy_desc_job)(
    const struct panvk_shader_desc_state *shader_desc_state,
    uint32_t attrib_buf_idx_offset, struct pan_ptr *job_desc);
 #endif
-
-void panvk_per_arch(transition_image_layout_sync_scope)(
-   const VkImageMemoryBarrier2 *barrier,
-   VkPipelineStageFlags2 *out_stages, VkAccessFlags2 *out_access);
-void panvk_per_arch(cmd_transition_image_layout)(
-   VkCommandBuffer _cmdbuf,
-   const VkImageMemoryBarrier2 *barrier);
-
 #endif

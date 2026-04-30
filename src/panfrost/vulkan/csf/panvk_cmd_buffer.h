@@ -203,7 +203,6 @@ struct panvk_cs_deps {
       enum mali_cs_condition cond;
       struct cs_index cond_value;
    } dst[PANVK_SUBQUEUE_COUNT];
-   bool needs_layout_transitions;
 };
 
 enum panvk_sb_ids {
@@ -774,14 +773,8 @@ cs_next_iter_sb(struct panvk_cmd_buffer *cmdbuf,
    }
 }
 
-enum panvk_barrier_stage {
-   PANVK_BARRIER_STAGE_FIRST,
-   PANVK_BARRIER_STAGE_AFTER_LAYOUT_TRANSITION,
-};
-
 void panvk_per_arch(add_cs_deps)(
    struct panvk_cmd_buffer *cmdbuf,
-   enum panvk_barrier_stage barrier_stage,
    const VkDependencyInfo *in,
    struct panvk_cs_deps *out,
    bool is_set_event);
