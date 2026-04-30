@@ -259,17 +259,8 @@ struct pan_kmod_allocator {
    void *priv;
 };
 
-/* Synchronization type. */
-enum pan_kmod_sync_type {
-   PAN_KMOD_SYNC_TYPE_WAIT = 0,
-   PAN_KMOD_SYNC_TYPE_SIGNAL,
-};
-
 /* Synchronization operation. */
 struct pan_kmod_sync_op {
-   /* Type of operation. */
-   enum pan_kmod_sync_type type;
-
    /* Syncobj handle. */
    uint32_t handle;
 
@@ -358,7 +349,7 @@ struct pan_kmod_vm_op {
 
       /* Array of synchronization operation descriptors. NULL if count is zero. */
       const struct pan_kmod_sync_op *array;
-   } syncs;
+   } signal, wait;
 };
 
 /* VM state. */

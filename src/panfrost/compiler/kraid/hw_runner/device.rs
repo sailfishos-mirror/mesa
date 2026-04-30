@@ -280,7 +280,8 @@ impl MemoryBuffer {
                     bo_offset: 0,
                 },
             },
-            syncs: Default::default(),
+            signal: Default::default(),
+            wait: Default::default(),
         }];
 
         let res = unsafe {

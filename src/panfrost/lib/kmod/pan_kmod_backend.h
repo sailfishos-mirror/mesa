@@ -125,7 +125,8 @@ pan_kmod_vm_op_check(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
                      struct pan_kmod_vm_op *op)
 {
    /* We should only have sync operations on an async VM bind request. */
-   if (mode != PAN_KMOD_VM_OP_MODE_ASYNC && op->syncs.count) {
+   if (mode != PAN_KMOD_VM_OP_MODE_ASYNC &&
+       (op->signal.count || op->wait.count)) {
       mesa_loge("only PAN_KMOD_VM_OP_MODE_ASYNC can be passed sync operations");
       return -1;
    }

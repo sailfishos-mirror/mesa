@@ -1003,7 +1003,7 @@ panthor_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
           ops[i].va.size)
          va_collect_cnt++;
 
-      syncop_cnt += ops[i].syncs.count;
+      syncop_cnt += ops[i].signal.count + ops[i].wait.count;
    }
 
    /* Pre-allocate the VA collection nodes. */
@@ -1075,6 +1075,16 @@ panthor_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
          };
       }
 
+      for (uint32_t j = 0; j < ops[i].signal.count; j++) {
+         sync_ops[syncop_ptr++] = (struct drm_panthor_sync_op){
+            .flags = DRM_PANTHOR_SYNC_OP_SIGNAL |
+                     DRM_PANTHOR_SYNC_OP_HANDLE_TYPE_TIMELINE_SYNCOBJ,
+            .handle = ops[i].signal.array[j].handle,
+            .timeline_value = ops[i].signal.array[j].point,
+         };
+      }
+      op_sync_cnt += ops[i].signal.count;
+
       if (mode == PAN_KMOD_VM_OP_MODE_DEFER_TO_NEXT_IDLE_POINT) {
          op_sync_cnt++;
          sync_ops[syncop_ptr++] = (struct drm_panthor_sync_op){
@@ -1099,17 +1109,15 @@ panthor_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
          }
       }
 
-      for (uint32_t j = 0; j < ops[i].syncs.count; j++) {
+      for (uint32_t j = 0; j < ops[i].wait.count; j++) {
          sync_ops[syncop_ptr++] = (struct drm_panthor_sync_op){
-            .flags = (ops[i].syncs.array[j].type == PAN_KMOD_SYNC_TYPE_WAIT
-                         ? DRM_PANTHOR_SYNC_OP_WAIT
-                         : DRM_PANTHOR_SYNC_OP_SIGNAL) |
+            .flags = DRM_PANTHOR_SYNC_OP_WAIT |
                      DRM_PANTHOR_SYNC_OP_HANDLE_TYPE_TIMELINE_SYNCOBJ,
-            .handle = ops[i].syncs.array[j].handle,
-            .timeline_value = ops[i].syncs.array[j].point,
+            .handle = ops[i].wait.array[j].handle,
+            .timeline_value = ops[i].wait.array[j].point,
          };
       }
-      op_sync_cnt += ops[i].syncs.count;
+      op_sync_cnt += ops[i].wait.count;
 
       bind_ops[i].syncs = (struct drm_panthor_obj_array)DRM_PANTHOR_OBJ_ARRAY(
          op_sync_cnt, op_sync_cnt ? &sync_ops[syncop_ptr - op_sync_cnt] : NULL);
