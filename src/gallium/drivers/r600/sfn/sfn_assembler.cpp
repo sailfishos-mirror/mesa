@@ -331,8 +331,10 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    prepare_alu_src(alu, ai);
 
-
-
+   if (ai.has_lds_queue_read()) {
+      assert(m_bc.cf_last->nlds_read > 0);
+      m_bc.cf_last->nlds_read--;
+   }
 
    if (m_last_addr)
       sfn_log << SfnLog::assembly << "  Current address register is " << *m_last_addr
@@ -430,10 +432,6 @@ AssemblerVisitor::prepare_alu_src(r600_bytecode_alu& alu, const AluInstr& ai)
          alu.src[i].kc_rel = kcache_index_mode;
       }
 
-      if (ai.has_lds_queue_read()) {
-         assert(m_bc.cf_last->nlds_read > 0);
-         m_bc.cf_last->nlds_read--;
-      }
    }
 }
 
