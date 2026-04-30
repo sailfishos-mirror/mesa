@@ -115,11 +115,14 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_ycbcr_2plane_444_formats = true,
 
       /* Vulkan 1.4 */
+      .KHR_global_priority = true,
       .KHR_load_store_op_none = true,
       .KHR_map_memory2 = true,
       .KHR_push_descriptor = true,
       .KHR_shader_expect_assume = true,
       .KHR_vertex_attribute_divisor = true,
+      .EXT_global_priority = true,
+      .EXT_global_priority_query = true,
       .EXT_vertex_attribute_divisor = true,
 
       /* Optional extensions */
@@ -276,6 +279,7 @@ kk_get_device_features(
       .vulkanMemoryModelDeviceScope = true,
 
       /* Vulkan 1.4 */
+      .globalPriorityQuery = true,
       .pushDescriptor = true,
       .vertexAttributeInstanceRateDivisor = true,
       .vertexAttributeInstanceRateZeroDivisor = true,
@@ -1039,6 +1043,22 @@ kk_GetPhysicalDeviceQueueFamilyProperties2(
             0; /* TODO_KOSMICKRISP Timestamp queries */
          p->queueFamilyProperties.minImageTransferGranularity =
             (VkExtent3D){1, 1, 1};
+
+         vk_foreach_struct(ext, p->pNext)
+         {
+            switch (ext->sType) {
+            case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES: {
+               VkQueueFamilyGlobalPriorityProperties *p = (void *)ext;
+               p->priorityCount = 1;
+               p->priorities[0] = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
+               break;
+            }
+
+            default:
+               vk_debug_ignored_stype(ext->sType);
+               break;
+            }
+         }
       }
    }
 }
