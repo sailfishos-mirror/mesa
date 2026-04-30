@@ -127,6 +127,7 @@ struct kk_fs_key {
    struct vk_depth_stencil_state ds;
    uint32_t rasterization_samples;
    uint16_t static_sample_mask;
+   bool sample_shading_enable;
    bool has_depth;
 };
 
@@ -151,6 +152,7 @@ kk_populate_fs_key(struct kk_fs_key *key,
    if (state->ms) {
       key->rasterization_samples = state->ms->rasterization_samples;
       key->static_sample_mask = state->ms->sample_mask;
+      key->sample_shading_enable = state->ms->sample_shading_enable;
    }
 
    /* Depth writes are removed unless there's an actual attachment */
@@ -400,6 +402,9 @@ static void
 kk_lower_fs(struct kk_device *dev, nir_shader *nir,
             const struct vk_graphics_pipeline_state *state)
 {
+   nir->info.fs.uses_sample_shading |= state->ms &&
+                                       state->ms->sample_shading_enable;
+
    /* msl_nir_lower_sample_shading needs to go before blending since
     * nir_lower_blend will always set uses_sample_shading to true if there's any
     * output read. I believe we do not need to lower it always, that is why it
@@ -440,8 +445,12 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
          if (!nir->info.fs.early_fragment_tests) {
             nir_function_impl *entrypoint = nir_shader_get_entrypoint(nir);
             nir_builder b = nir_builder_at(nir_after_impl(entrypoint));
-            nir_discard_if(&b,
-                           nir_ieq_imm(&b, nir_load_sample_mask_in(&b), 0u));
+
+            nir_def *sample_id = nir_load_sample_id(&b);
+            nir_def *sample_bit = nir_ishl(&b, nir_imm_int(&b, 1), sample_id);
+            nir_def *sample_mask_bit = nir_iand(&b, nir_load_sample_mask_in(&b),
+                                                sample_bit);
+            nir_discard_if(&b, nir_ieq_imm(&b, sample_mask_bit, 0u));
          }
       }
       NIR_PASS(_, nir, msl_lower_static_sample_mask, state->ms->sample_mask);

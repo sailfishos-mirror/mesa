@@ -1012,7 +1012,7 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       P(ctx, "gl_SampleID;\n");
       break;
    case nir_intrinsic_load_sample_mask_in:
-      P(ctx, "gl_SampleMask & (1u << gl_SampleID);\n");
+      P(ctx, "gl_SampleMask;\n");
       break;
    case nir_intrinsic_load_sample_pos:
       P(ctx, "get_sample_position(gl_SampleID);\n");

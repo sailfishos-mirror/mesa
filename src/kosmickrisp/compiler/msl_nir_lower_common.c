@@ -369,6 +369,15 @@ lower_sample_shading(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       return true;
    }
 
+   if (intr->intrinsic == nir_intrinsic_load_sample_mask_in) {
+      b->cursor = nir_after_instr(&intr->instr);
+      nir_def *sample_id = nir_load_sample_id(b);
+      nir_def *sample_bit = nir_ishl(b, nir_imm_int(b, 1), sample_id);
+      nir_def *sample_mask_bit = nir_iand(b, &intr->def, sample_bit);
+      nir_def_rewrite_uses_after(&intr->def, sample_mask_bit);
+      return true;
+   }
+
    if (intr->intrinsic != nir_intrinsic_load_interpolated_input)
       return false;
 
