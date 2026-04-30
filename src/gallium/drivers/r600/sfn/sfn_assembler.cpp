@@ -71,7 +71,7 @@ public:
    void emit_loop_cont();
    void emit_alu_push_before();
 
-   void emit_alu_op(const AluInstr& ai);
+   bool emit_alu_op(const AluInstr& ai);
    bool update_alu_dst_state(const AluInstr& ai);
    void update_alu_state_after_emit(EAluOp opcode,
                                     int dst_sel,
@@ -180,7 +180,7 @@ AssemblerVisitor::visit(const AluInstr& ai)
    if (unlikely(ai.has_alu_flag(alu_is_lds)))
       m_result &= emit_bytecode_lds(m_bc, ai);
    else
-      emit_alu_op(ai);
+      m_result &= emit_alu_op(ai);
 }
 
 auto AssemblerVisitor::translate_for_mathrules(EAluOp op) -> EAluOp
@@ -221,14 +221,13 @@ AssemblerVisitor::update_alu_dst_state(const AluInstr& ai)
    return true;
 }
 
-void
+bool
 AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 {
    sfn_log << SfnLog::assembly << "Emit ALU op " << ai << "\n";
 
    if (!update_alu_dst_state(ai)) {
-      m_result = false;
-      return;
+      return false;
    }
 
    auto opcode = ai.opcode();
@@ -240,21 +239,18 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
 
    if (hw_opcode == opcode_map.end()) {
       std::cerr << "Opcode not handled for " << ai << "\n";
-      m_result = false;
-      return;
+      return false;
    }
 
    // skip multiple barriers
    if (m_last_op_was_barrier && opcode == op0_group_barrier)
-      return;
+      return true;
 
    m_last_op_was_barrier = opcode == op0_group_barrier;
 
    auto [emit_result, dst_sel, dst_chan] = emit_bytecode_alu(m_bc, ai, hw_opcode->second);
-   if (!emit_result) {
-      m_result = false;
-      return;
-   }
+   if (!emit_result)
+      return false;
 
    if (ai.has_lds_queue_read()) {
       assert(m_bc.cf_last->nlds_read > 0);
@@ -266,6 +262,7 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
               << "\n";
 
    update_alu_state_after_emit(opcode, dst_sel, dst_chan);
+   return true;
 }
 
 void
