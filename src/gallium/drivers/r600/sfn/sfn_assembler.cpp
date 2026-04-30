@@ -296,6 +296,17 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
       m_last_addr = nullptr;
    }
 
+   if (ai.has_alu_flag(alu_write) &&
+       dst &&
+       dst->sel() > g_clause_local_end &&
+       dst->sel() != g_registers_unused) {
+      R600_ASM_ERR("shader_from_nir: Don't support more then 123 GPRs + 4 clause "
+                   "local, but try using %d\n",
+                   dst->sel());
+      m_result = false;
+      return;
+   }
+
    if (m_legacy_math_rules)
        opcode = translate_for_mathrules(opcode);
 
@@ -324,10 +335,7 @@ AssemblerVisitor::emit_alu_op(const AluInstr& ai)
    if (ai.bank_swizzle() != alu_vec_unknown)
       alu.bank_swizzle_force = ai.bank_swizzle();
 
-   if (!fill_alu_dst(alu, ai, m_bc)) {
-      m_result = false;
-      return;
-   }
+   fill_alu_dst(alu, ai, m_bc);
 
    fill_alu_src_operands(alu, ai, m_bc);
 

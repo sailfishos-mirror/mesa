@@ -55,7 +55,7 @@ void fill_alu_src_operands(r600_bytecode_alu& alu,
                            const AluInstr& ai,
                            r600_bytecode& bc);
 
-bool fill_alu_dst(r600_bytecode_alu& alu,
+void fill_alu_dst(r600_bytecode_alu& alu,
                   const AluInstr& ai,
                   r600_bytecode& bc);
 
