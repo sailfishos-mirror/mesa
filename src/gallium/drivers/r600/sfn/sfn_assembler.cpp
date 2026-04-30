@@ -65,7 +65,6 @@ public:
    bool prepare_alu_dst(r600_bytecode_alu& alu, const AluInstr& ai);
    void prepare_alu_src(r600_bytecode_alu& alu, const AluInstr& ai);
    bool copy_dst(r600_bytecode_alu_dst& dst, const Register& d, bool write);
-   PVirtualValue copy_src(r600_bytecode_alu_src& src, const VirtualValue& s);
 
    void emit_endif();
    void emit_else();
@@ -201,15 +200,15 @@ AssemblerVisitor::emit_lds_op(const AluInstr& lds)
    alu.op = opcode;
    alu.lds_idx = lds_idx;
 
-   copy_src(alu.src[0], lds.src(0));
+   fill_alu_src(alu.src[0], lds.src(0), m_bc);
 
    if (lds.n_sources() > 1)
-      copy_src(alu.src[1], lds.src(1));
+      fill_alu_src(alu.src[1], lds.src(1), m_bc);
    else
       alu.src[1].sel = V_SQ_ALU_SRC_0;
 
    if (lds.n_sources() > 2)
-      copy_src(alu.src[2], lds.src(2));
+      fill_alu_src(alu.src[2], lds.src(2), m_bc);
    else
       alu.src[2].sel = V_SQ_ALU_SRC_0;
 
@@ -412,7 +411,7 @@ AssemblerVisitor::prepare_alu_src(r600_bytecode_alu& alu, const AluInstr& ai)
    PVirtualValue buffer_offset = nullptr;
 
    for (unsigned i = 0; i < ai.n_sources(); ++i) {
-      buffer_offset = copy_src(alu.src[i], ai.src(i));
+      buffer_offset = fill_alu_src(alu.src[i], ai.src(i), m_bc);
       alu.src[i].neg = ai.has_source_mod(i, AluInstr::mod_neg);
       if (!alu.is_op3)
          alu.src[i].abs = ai.has_source_mod(i, AluInstr::mod_abs);
@@ -877,85 +876,6 @@ AssemblerVisitor::emit_wait_ack()
       m_ack_suggested = false;
    } else
       m_result = false;
-}
-
-class EncodeSourceVisitor : public ConstRegisterVisitor {
-public:
-   EncodeSourceVisitor(r600_bytecode_alu_src& s, r600_bytecode& bc);
-   void visit(const Register& value) override;
-   void visit(const LocalArray& value) override;
-   void visit(const LocalArrayValue& value) override;
-   void visit(const UniformValue& value) override;
-   void visit(const LiteralConstant& value) override;
-   void visit(const InlineConstant& value) override;
-
-   r600_bytecode_alu_src& src;
-   r600_bytecode& m_bc;
-   PVirtualValue m_buffer_offset{nullptr};
-};
-
-PVirtualValue
-AssemblerVisitor::copy_src(r600_bytecode_alu_src& src, const VirtualValue& s)
-{
-
-   EncodeSourceVisitor visitor(src, m_bc);
-   src.sel = s.sel();
-   src.chan = s.chan();
-
-   if (s.sel() >= g_clause_local_start && s.sel() < g_clause_local_end ) {
-      assert(m_bc.cf_last);
-      int clidx = 4 * (s.sel() - g_clause_local_start) + s.chan();
-      /* Ensure that the clause local register was already written */
-      assert(m_bc.cf_last->clause_local_written & (1 << clidx));
-   }
-
-   s.accept(visitor);
-   return visitor.m_buffer_offset;
-}
-
-EncodeSourceVisitor::EncodeSourceVisitor(r600_bytecode_alu_src& s, r600_bytecode& bc):
-    src(s),
-    m_bc(bc)
-{
-}
-
-void
-EncodeSourceVisitor::visit(const Register& value)
-{
-   assert(value.sel() < g_clause_local_end && "Only have 123 reisters + 4 clause local");
-}
-
-void
-EncodeSourceVisitor::visit(const LocalArray& value)
-{
-   (void)value;
-   UNREACHABLE("An array can't be a source register");
-}
-
-void
-EncodeSourceVisitor::visit(const LocalArrayValue& value)
-{
-   src.rel = value.addr() ? 1 : 0;
-}
-
-void
-EncodeSourceVisitor::visit(const UniformValue& value)
-{
-   assert(value.sel() >= 512 && "Uniform values must have a sel >= 512");
-   m_buffer_offset = value.buf_addr();
-   src.kc_bank = value.kcache_bank();
-}
-
-void
-EncodeSourceVisitor::visit(const LiteralConstant& value)
-{
-   src.value = value.value();
-}
-
-void
-EncodeSourceVisitor::visit(const InlineConstant& value)
-{
-   (void)value;
 }
 
 const std::map<EAluOp, int> opcode_map = {

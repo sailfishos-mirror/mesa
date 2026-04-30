@@ -11,6 +11,7 @@
 #include <map>
 #include <optional>
 
+#include "sfn_alu_defines.h"
 #include "sfn_instr_export.h"
 #include "sfn_instr_fetch.h"
 #include "sfn_instr_mem.h"
@@ -437,6 +438,84 @@ fill_bytecode_rat(r600_bytecode_cf& cf, const RatInstr& instr,
    cf.barrier = 1;
    cf.mark = instr.need_ack();
    cf.output.elem_size = instr.elm_size();
+}
+
+class EncodeSourceVisitor : public ConstRegisterVisitor {
+public:
+   EncodeSourceVisitor(r600_bytecode_alu_src& s, r600_bytecode& bc);
+   void visit(const Register& value) override;
+   void visit(const LocalArray& value) override;
+   void visit(const LocalArrayValue& value) override;
+   void visit(const UniformValue& value) override;
+   void visit(const LiteralConstant& value) override;
+   void visit(const InlineConstant& value) override;
+
+   r600_bytecode_alu_src& src;
+   r600_bytecode& m_bc;
+   PVirtualValue m_buffer_offset{nullptr};
+};
+
+PVirtualValue
+fill_alu_src(r600_bytecode_alu_src& src, const VirtualValue& s, r600_bytecode& bc)
+{
+   EncodeSourceVisitor visitor(src, bc);
+   src.sel = s.sel();
+   src.chan = s.chan();
+
+   if (s.sel() >= g_clause_local_start && s.sel() < g_clause_local_end) {
+      assert(bc.cf_last);
+      int clidx = 4 * (s.sel() - g_clause_local_start) + s.chan();
+      /* Ensure that the clause local register was already written */
+      assert(bc.cf_last->clause_local_written & (1 << clidx));
+   }
+
+   s.accept(visitor);
+   return visitor.m_buffer_offset;
+}
+
+EncodeSourceVisitor::EncodeSourceVisitor(r600_bytecode_alu_src& s, r600_bytecode& bc):
+    src(s),
+    m_bc(bc)
+{
+}
+
+void
+EncodeSourceVisitor::visit(const Register& value)
+{
+   assert(value.sel() < g_clause_local_end && "Only have 123 reisters + 4 clause local");
+}
+
+void
+EncodeSourceVisitor::visit(const LocalArray& value)
+{
+   (void)value;
+   UNREACHABLE("An array can't be a source register");
+}
+
+void
+EncodeSourceVisitor::visit(const LocalArrayValue& value)
+{
+   src.rel = value.addr() ? 1 : 0;
+}
+
+void
+EncodeSourceVisitor::visit(const UniformValue& value)
+{
+   assert(value.sel() >= 512 && "Uniform values must have a sel >= 512");
+   m_buffer_offset = value.buf_addr();
+   src.kc_bank = value.kcache_bank();
+}
+
+void
+EncodeSourceVisitor::visit(const LiteralConstant& value)
+{
+   src.value = value.value();
+}
+
+void
+EncodeSourceVisitor::visit(const InlineConstant& value)
+{
+   (void)value;
 }
 
 } // namespace r600

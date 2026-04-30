@@ -8,6 +8,7 @@
 #define SFN_FILL_BYTECODE_H
 
 #include "../r600_asm.h"
+#include "sfn_virtualvalues.h"
 
 namespace r600 {
 
@@ -44,6 +45,10 @@ bool emit_bytecode_tf_write(r600_bytecode& bc, const WriteTFInstr& instr);
 
 void fill_bytecode_rat(r600_bytecode_cf& cf, const RatInstr& instr,
                        unsigned rat_base, unsigned shader_type);
+
+PVirtualValue fill_alu_src(r600_bytecode_alu_src& src,
+                           const VirtualValue& s,
+                           r600_bytecode& bc);
 
 } // namespace r600
 
