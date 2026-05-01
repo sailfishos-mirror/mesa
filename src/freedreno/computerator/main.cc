@@ -134,13 +134,10 @@ setup_counter(const char *name, struct perfcntr *c)
 {
    for (int i = 0; i < num_groups; i++) {
       const struct fd_perfcntr_group *group = &groups[i];
+      const struct fd_perfcntr_countable *countable =
+         fd_perfcntrs_countable(group, name);
 
-      for (int j = 0; j < group->num_countables; j++) {
-         const struct fd_perfcntr_countable *countable = &group->countables[j];
-
-         if (strcmp(name, countable->name) != 0)
-            continue;
-
+      if (countable) {
          /*
           * Allocate a counter to use to monitor the requested countable:
           */

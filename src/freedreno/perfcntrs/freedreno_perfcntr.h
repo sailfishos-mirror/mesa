@@ -89,6 +89,33 @@ const struct fd_perfcntr_group *fd_perfcntrs(const struct fd_dev_id *id, unsigne
       .countables = _countables,                                               \
    }
 
+static inline const struct fd_perfcntr_group *
+fd_perfcntrs_group(const struct fd_dev_id *id, const char *name)
+{
+   const struct fd_perfcntr_group *groups;
+   unsigned count;
+
+   groups = fd_perfcntrs(id, &count);
+   if (!groups)
+      return NULL;
+
+   for (unsigned i = 0; i < count; i++)
+      if (!strcmp(groups[i].name, name))
+         return &groups[i];
+
+   return NULL;
+}
+
+static inline const struct fd_perfcntr_countable *
+fd_perfcntrs_countable(const struct fd_perfcntr_group *group, const char *name)
+{
+   for (unsigned i = 0; i < group->num_countables; i++)
+      if (!strcmp(group->countables[i].name, name))
+         return &group->countables[i];
+
+   return NULL;
+}
+
 #define FD_DERIVED_COUNTER_MAX_PERFCNTRS 8
 
 struct fd_derivation_context {

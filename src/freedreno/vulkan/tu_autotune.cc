@@ -1633,31 +1633,13 @@ tu_autotune::tu_autotune(struct tu_device *device, VkResult &result)
    tu_bo_suballocator_init(&suballoc, device, 128 * 1024, TU_BO_ALLOC_INTERNAL_RESOURCE, "autotune_suballoc");
 
    if (supports_preempt_latency_tracking()) {
-      uint32_t group_count;
-      const struct fd_perfcntr_group *groups = fd_perfcntrs(&device->physical_device->dev_id, &group_count);
       const char *fail_reason = nullptr;
 
-      const fd_perfcntr_group *cp_group = nullptr;
-      for (uint32_t i = 0; i < group_count; i++) {
-         if (strcmp(groups[i].name, "CP") == 0) {
-            cp_group = &groups[i];
-            break;
-         }
-      }
+      const fd_perfcntr_group *cp_group = fd_perfcntrs_group(&device->physical_device->dev_id, "CP");
 
       if (cp_group) {
-         auto get_perfcntr_countable = [](const struct fd_perfcntr_group *group,
-                                          const char *name) -> const struct fd_perfcntr_countable * {
-            for (uint32_t i = 0; i < group->num_countables; i++) {
-               if (strcmp(group->countables[i].name, name) == 0)
-                  return &group->countables[i];
-            }
-
-            return nullptr;
-         };
-
-         auto preemption_latency_countable = get_perfcntr_countable(cp_group, "PERF_CP_PREEMPTION_REACTION_DELAY");
-         auto always_count_countable = get_perfcntr_countable(cp_group, "PERF_CP_ALWAYS_COUNT");
+         auto preemption_latency_countable = fd_perfcntrs_countable(cp_group, "PERF_CP_PREEMPTION_REACTION_DELAY");
+         auto always_count_countable = fd_perfcntrs_countable(cp_group, "PERF_CP_ALWAYS_COUNT");
          if (preemption_latency_countable && always_count_countable) {
             if (cp_group->num_counters >= 2) {
                preemption_latency_selector_reg = cp_group->counters[0].select_reg;

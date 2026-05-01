@@ -539,11 +539,10 @@ FreedrenoDriver::Countable::resolve() const
       if (group != g->name)
          continue;
 
-      for (unsigned j = 0; j < g->num_countables; j++) {
-         const struct fd_perfcntr_countable *c = &g->countables[j];
-         if (name != c->name)
-            continue;
+      const struct fd_perfcntr_countable *c =
+         fd_perfcntrs_countable(g, name.c_str());
 
+      if (c) {
          d->state[id].countable = c;
 
          /* Assign counters from high to low to reduce conflicts with UMD-owned
