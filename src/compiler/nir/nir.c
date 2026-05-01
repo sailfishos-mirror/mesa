@@ -2441,6 +2441,8 @@ nir_intrinsic_from_system_value(gl_system_value val)
       return nir_intrinsic_load_frag_coord_z;
    case SYSTEM_VALUE_FRAG_COORD_W:
       return nir_intrinsic_load_frag_coord_w;
+   case SYSTEM_VALUE_FRAG_COORD_W_RCP:
+      return nir_intrinsic_load_frag_coord_w_rcp;
    case SYSTEM_VALUE_PIXEL_COORD:
       return nir_intrinsic_load_pixel_coord;
    case SYSTEM_VALUE_POINT_COORD:
@@ -2628,6 +2630,8 @@ nir_system_value_from_intrinsic(nir_intrinsic_op intrin)
       return SYSTEM_VALUE_FRAG_COORD_Z;
    case nir_intrinsic_load_frag_coord_w:
       return SYSTEM_VALUE_FRAG_COORD_W;
+   case nir_intrinsic_load_frag_coord_w_rcp:
+      return SYSTEM_VALUE_FRAG_COORD_W_RCP;
    case nir_intrinsic_load_pixel_coord:
       return SYSTEM_VALUE_PIXEL_COORD;
    case nir_intrinsic_load_point_coord:
