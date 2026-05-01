@@ -552,7 +552,7 @@ kk_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t firstBinding,
       const struct kk_addr_range addr_range =
          kk_buffer_addr_range(buffer, pOffsets[i], size);
       cmd->state.gfx.vb.addr_range[idx] = addr_range;
-      cmd->state.gfx.vb.handles[idx] = buffer->mtl_handle;
+      cmd->state.gfx.vb.handles[idx] = buffer ? buffer->mtl_handle : NULL;
       cmd->state.gfx.dirty |= KK_DIRTY_VB;
    }
 }

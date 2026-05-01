@@ -182,6 +182,9 @@ kk_hash_graphics_state(struct vk_physical_device *device,
                           sizeof(state->mv->view_mask));
    }
 
+   _mesa_blake3_update(&blake3_ctx, &enabled_features->nullDescriptor,
+                       sizeof(enabled_features->nullDescriptor));
+
    _mesa_blake3_final(&blake3_ctx, blake3_out);
 }
 
@@ -584,6 +587,9 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir,
    NIR_PASS(_, nir, kk_nir_lower_descriptors, rs, set_layout_count,
             set_layouts);
    NIR_PASS(_, nir, kk_nir_lower_textures);
+
+   if (dev->vk.enabled_features.nullDescriptor)
+      NIR_PASS(_, nir, kk_nir_lower_null_images);
 
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
 }
