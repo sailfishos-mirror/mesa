@@ -56,7 +56,6 @@ public:
    const uint32_t sf_vtx = 1;
    const uint32_t sf_tex = 2;
    const uint32_t sf_alu = 4;
-   const uint32_t sf_addr_register = 8;
    const uint32_t sf_all = 0xf;
 
    void clear_states(const uint32_t& states);
@@ -99,8 +98,6 @@ public:
    int m_loop_nesting{0};
 
    bool m_ack_suggested{false};
-   bool m_has_param_output{false};
-   bool m_has_pos_output{false};
    bool m_last_op_was_barrier{false};
    bool m_result{true};
    bool m_legacy_math_rules{false};
