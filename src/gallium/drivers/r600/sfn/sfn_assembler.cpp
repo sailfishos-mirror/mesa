@@ -29,8 +29,6 @@ Assembler::Assembler(r600_shader *sh, const r600_shader_key& key):
 {
 }
 
-extern const std::map<ESDOp, int> ds_opcode_map;
-
 class AssemblerVisitor : public ConstInstrVisitor {
 public:
    AssemblerVisitor(r600_shader& sh, const r600_shader_key& key, bool legacy_math_rules);
@@ -713,58 +711,5 @@ AssemblerVisitor::emit_wait_ack()
    } else
       m_result = false;
 }
-
-
-
-const std::map<ESDOp, int> ds_opcode_map = {
-   {DS_OP_ADD,                      FETCH_OP_GDS_ADD                 },
-   {DS_OP_SUB,                      FETCH_OP_GDS_SUB                 },
-   {DS_OP_RSUB,                     FETCH_OP_GDS_RSUB                },
-   {DS_OP_INC,                      FETCH_OP_GDS_INC                 },
-   {DS_OP_DEC,                      FETCH_OP_GDS_DEC                 },
-   {DS_OP_MIN_INT,                  FETCH_OP_GDS_MIN_INT             },
-   {DS_OP_MAX_INT,                  FETCH_OP_GDS_MAX_INT             },
-   {DS_OP_MIN_UINT,                 FETCH_OP_GDS_MIN_UINT            },
-   {DS_OP_MAX_UINT,                 FETCH_OP_GDS_MAX_UINT            },
-   {DS_OP_AND,                      FETCH_OP_GDS_AND                 },
-   {DS_OP_OR,                       FETCH_OP_GDS_OR                  },
-   {DS_OP_XOR,                      FETCH_OP_GDS_XOR                 },
-   {DS_OP_MSKOR,                    FETCH_OP_GDS_MSKOR               },
-   {DS_OP_WRITE,                    FETCH_OP_GDS_WRITE               },
-   {DS_OP_WRITE_REL,                FETCH_OP_GDS_WRITE_REL           },
-   {DS_OP_WRITE2,                   FETCH_OP_GDS_WRITE2              },
-   {DS_OP_CMP_STORE,                FETCH_OP_GDS_CMP_STORE           },
-   {DS_OP_CMP_STORE_SPF,            FETCH_OP_GDS_CMP_STORE_SPF       },
-   {DS_OP_BYTE_WRITE,               FETCH_OP_GDS_BYTE_WRITE          },
-   {DS_OP_SHORT_WRITE,              FETCH_OP_GDS_SHORT_WRITE         },
-   {DS_OP_ADD_RET,                  FETCH_OP_GDS_ADD_RET             },
-   {DS_OP_SUB_RET,                  FETCH_OP_GDS_SUB_RET             },
-   {DS_OP_RSUB_RET,                 FETCH_OP_GDS_RSUB_RET            },
-   {DS_OP_INC_RET,                  FETCH_OP_GDS_INC_RET             },
-   {DS_OP_DEC_RET,                  FETCH_OP_GDS_DEC_RET             },
-   {DS_OP_MIN_INT_RET,              FETCH_OP_GDS_MIN_INT_RET         },
-   {DS_OP_MAX_INT_RET,              FETCH_OP_GDS_MAX_INT_RET         },
-   {DS_OP_MIN_UINT_RET,             FETCH_OP_GDS_MIN_UINT_RET        },
-   {DS_OP_MAX_UINT_RET,             FETCH_OP_GDS_MAX_UINT_RET        },
-   {DS_OP_AND_RET,                  FETCH_OP_GDS_AND_RET             },
-   {DS_OP_OR_RET,                   FETCH_OP_GDS_OR_RET              },
-   {DS_OP_XOR_RET,                  FETCH_OP_GDS_XOR_RET             },
-   {DS_OP_MSKOR_RET,                FETCH_OP_GDS_MSKOR_RET           },
-   {DS_OP_XCHG_RET,                 FETCH_OP_GDS_XCHG_RET            },
-   {DS_OP_XCHG_REL_RET,             FETCH_OP_GDS_XCHG_REL_RET        },
-   {DS_OP_XCHG2_RET,                FETCH_OP_GDS_XCHG2_RET           },
-   {DS_OP_CMP_XCHG_RET,             FETCH_OP_GDS_CMP_XCHG_RET        },
-   {DS_OP_CMP_XCHG_SPF_RET,         FETCH_OP_GDS_CMP_XCHG_SPF_RET    },
-   {DS_OP_READ_RET,                 FETCH_OP_GDS_READ_RET            },
-   {DS_OP_READ_REL_RET,             FETCH_OP_GDS_READ_REL_RET        },
-   {DS_OP_READ2_RET,                FETCH_OP_GDS_READ2_RET           },
-   {DS_OP_READWRITE_RET,            FETCH_OP_GDS_READWRITE_RET       },
-   {DS_OP_BYTE_READ_RET,            FETCH_OP_GDS_BYTE_READ_RET       },
-   {DS_OP_UBYTE_READ_RET,           FETCH_OP_GDS_UBYTE_READ_RET      },
-   {DS_OP_SHORT_READ_RET,           FETCH_OP_GDS_SHORT_READ_RET      },
-   {DS_OP_USHORT_READ_RET,          FETCH_OP_GDS_USHORT_READ_RET     },
-   {DS_OP_ATOMIC_ORDERED_ALLOC_RET, FETCH_OP_GDS_ATOMIC_ORDERED_ALLOC},
-   {DS_OP_INVALID,                  0                                },
-};
 
 } // namespace r600
