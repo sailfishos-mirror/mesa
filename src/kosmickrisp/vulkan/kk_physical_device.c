@@ -126,10 +126,12 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_global_priority = true,
       .EXT_global_priority_query = true,
       .EXT_index_type_uint8 = true,
+      .EXT_pipeline_robustness = true,
       .EXT_vertex_attribute_divisor = true,
 
       /* Optional extensions */
       .KHR_calibrated_timestamps = true,
+      .KHR_robustness2 = true,
       .KHR_shader_maximal_reconvergence = true,
       .KHR_shader_relaxed_extended_instruction = true,
       .KHR_shader_subgroup_uniform_control_flow = true,
@@ -148,6 +150,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_multi_draw = true,
       .EXT_mutable_descriptor_type = true,
       .EXT_post_depth_coverage = true,
+      .EXT_robustness2 = true,
       .EXT_shader_atomic_float = true,
       .EXT_shader_replicated_composites = true,
       .EXT_shader_subgroup_ballot = true,
@@ -288,6 +291,7 @@ kk_get_device_features(
       /* Vulkan 1.4 */
       .globalPriorityQuery = true,
       .indexTypeUint8 = true,
+      .pipelineRobustness = true,
       .pushDescriptor = true,
       .shaderSubgroupRotate = true,
       .shaderSubgroupRotateClustered = true,
@@ -296,6 +300,11 @@ kk_get_device_features(
 
       /* VK_EXT_mutable_descriptor_type */
       .mutableDescriptorType = true,
+
+      /* VK_KHR_robustness2 */
+      .robustBufferAccess2 = true,
+      .robustImageAccess2 = true,
+      .nullDescriptor = true,
 
       /* VK_KHR_shader_expect_assume */
       .shaderExpectAssume = true,
@@ -644,13 +653,13 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
 
       /* VK_EXT_pipeline_robustness */
       .defaultRobustnessStorageBuffers =
-         VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT,
+         VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED,
       .defaultRobustnessUniformBuffers =
-         VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT,
+         VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED,
       .defaultRobustnessVertexInputs =
-         VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT,
+         VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED,
       .defaultRobustnessImages =
-         VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2_EXT,
+         VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2,
 
       /* VK_EXT_physical_device_drm gets populated later */
 
@@ -658,7 +667,7 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .provokingVertexModePerPipeline = true,
       .transformFeedbackPreservesTriangleFanProvokingVertex = true,
 
-      /* VK_EXT_robustness2 */
+      /* VK_KHR_robustness2 */
       .robustStorageBufferAccessSizeAlignment = KK_SSBO_BOUNDS_CHECK_ALIGNMENT,
       .robustUniformBufferAccessSizeAlignment = KK_MIN_UBO_ALIGNMENT,
 

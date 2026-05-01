@@ -775,10 +775,10 @@ kk_nir_lower_descriptors(nir_shader *nir,
    struct lower_descriptors_ctx ctx = {
       .clamp_desc_array_bounds =
          rs->storage_buffers !=
-            VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT ||
+            VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED ||
          rs->uniform_buffers !=
-            VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT ||
-         rs->images != VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DISABLED_EXT,
+            VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED ||
+         rs->images != VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DISABLED,
       .ssbo_addr_format = kk_buffer_addr_format(rs->storage_buffers),
       .ubo_addr_format = kk_buffer_addr_format(rs->uniform_buffers),
    };
