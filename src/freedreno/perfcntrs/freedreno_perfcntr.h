@@ -153,8 +153,8 @@ struct fd_derived_counter {
 };
 
 struct fd_derived_counter_perfcntr {
-   const struct fd_perfcntr_counter *counter;
-   unsigned countable;
+   const char *countable;
+   const char *group;
 };
 
 const struct fd_derived_counter **fd_derived_counters(const struct fd_dev_id *id, unsigned *count);
@@ -177,7 +177,8 @@ struct fd_derived_counter_collection {
    struct fd_derivation_context derivation_context;
 };
 
-void fd_generate_derived_counter_collection(const struct fd_dev_id *id, struct fd_derived_counter_collection *collection);
+void fd_reserve_derived_counter_collection(struct fd_perfcntr_state *perfcntrs, struct fd_derived_counter_collection *collection);
+void fd_release_derived_counter_collection(struct fd_perfcntr_state *perfcntrs, struct fd_derived_counter_collection *collection);
 
 #ifdef __cplusplus
 } /* end of extern "C" */

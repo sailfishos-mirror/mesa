@@ -266,6 +266,11 @@ tu_query_pool_destroy(struct tu_device *device, struct tu_query_pool *pool,
 
       for (uint32_t i = 0; i < perf_query->counter_index_count; i++)
          fd_perfcntr_release(device->perfcntrs, perf_query->data[i].counter);
+   } else if (is_perf_query_raw(pool)) {
+      struct tu_perf_query_derived *perf_query = &pool->perf_query.derived;
+      struct fd_derived_counter_collection *collection = perf_query->collection;
+
+      fd_release_derived_counter_collection(device->perfcntrs, collection);
    }
 
    if (pool->bo)
@@ -400,7 +405,7 @@ tu_CreateQueryPool(VkDevice _device,
          collection->counters[i] = perf_query->derived_counters[counter_index];
       }
 
-      fd_generate_derived_counter_collection(&device->physical_device->dev_id, collection);
+      fd_reserve_derived_counter_collection(device->perfcntrs, collection);
       slot_size += sizeof(struct perfcntr_query_slot) * collection->num_enabled_perfcntrs;
    }
 

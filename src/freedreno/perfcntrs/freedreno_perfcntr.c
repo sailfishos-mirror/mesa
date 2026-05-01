@@ -324,9 +324,10 @@ fd_derived_counters(const struct fd_dev_id *id, unsigned *count)
 }
 
 void
-fd_generate_derived_counter_collection(const struct fd_dev_id *id, struct fd_derived_counter_collection *collection)
+fd_reserve_derived_counter_collection(struct fd_perfcntr_state *perfcntrs, struct fd_derived_counter_collection *collection)
 {
    const struct fd_derived_counter_perfcntr *derived_counter_perfcntrs = NULL;
+   const struct fd_dev_id *id = perfcntrs->id;
 
    switch (fd_dev_gen(id)) {
    case 7:
@@ -364,10 +365,15 @@ fd_generate_derived_counter_collection(const struct fd_dev_id *id, struct fd_der
       uint8_t enabled_perfcntr_index = collection->num_enabled_perfcntrs++;
       collection->enabled_perfcntrs_map[i] = enabled_perfcntr_index;
 
-      collection->enabled_perfcntrs[enabled_perfcntr_index].counter =
-         derived_counter_perfcntrs[i].counter;
-      collection->enabled_perfcntrs[enabled_perfcntr_index].countable =
-         derived_counter_perfcntrs[i].countable;
+      const struct fd_perfcntr_group *group =
+         fd_perfcntrs_group(perfcntrs->id, derived_counter_perfcntrs[i].group);
+      const struct fd_perfcntr_countable *countable =
+         fd_perfcntrs_countable(group, derived_counter_perfcntrs[i].countable);
+      const struct fd_perfcntr_counter *counter =
+         fd_perfcntr_reserve(perfcntrs, group, countable);
+
+      collection->enabled_perfcntrs[enabled_perfcntr_index].counter = counter;
+      collection->enabled_perfcntrs[enabled_perfcntr_index].countable = countable->selector;
    }
 
    const struct fd_dev_info *info = fd_dev_info_raw(id);
@@ -379,4 +385,11 @@ fd_generate_derived_counter_collection(const struct fd_dev_id *id, struct fd_der
    default:
       break;
    }
+}
+
+void
+fd_release_derived_counter_collection(struct fd_perfcntr_state *perfcntrs, struct fd_derived_counter_collection *collection)
+{
+   for (unsigned i = 0; i < collection->num_enabled_perfcntrs; i++)
+      fd_perfcntr_release(perfcntrs, collection->enabled_perfcntrs[i].counter);
 }
