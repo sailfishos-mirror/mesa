@@ -107,6 +107,7 @@ struct fd_screen {
 
    unsigned num_perfcntr_groups;
    const struct fd_perfcntr_group *perfcntr_groups;
+   struct fd_perfcntr_state *perfcntrs;
 
    /* generated at startup from the perfcntr groups: */
    unsigned num_perfcntr_queries;

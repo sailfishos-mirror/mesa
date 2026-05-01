@@ -165,6 +165,8 @@ fd_screen_destroy(struct pipe_screen *pscreen)
    if (screen->ro)
       screen->ro->destroy(screen->ro);
 
+   fd_perfcntr_state_free(screen->perfcntrs);
+
    fd_bc_fini(&screen->batch_cache);
    fd_gmem_screen_fini(pscreen);
 
@@ -1089,7 +1091,10 @@ fd_screen_create(int fd,
       if (screen->primtypes[i])
          screen->primtypes_mask |= (1 << i);
 
-   if (FD_DBG(PERFC)) {
+   screen->perfcntrs = fd_perfcntr_state_alloc(screen->dev_id, fd);
+
+   if (FD_DBG(PERFC) ||
+       (screen->perfcntrs && fd_perfcntr_has_reservation(screen->perfcntrs))) {
       screen->perfcntr_groups =
          fd_perfcntrs(screen->dev_id, &screen->num_perfcntr_groups);
    }
