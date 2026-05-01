@@ -8,6 +8,7 @@
 #define SFN_FILL_BYTECODE_H
 
 #include "../r600_asm.h"
+#include "sfn_alu_defines.h"
 #include "sfn_virtualvalues.h"
 
 #include <tuple>
@@ -65,7 +66,7 @@ void fill_alu_dst(r600_bytecode_alu& alu,
 
 auto emit_bytecode_alu(r600_bytecode& bc,
                        const AluInstr& ai,
-                       int hw_opcode) -> std::tuple<bool, int, int>;
+                       EAluOp opcode) -> std::tuple<bool, int, int>;
 
 } // namespace r600
 
