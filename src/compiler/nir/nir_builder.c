@@ -809,7 +809,7 @@ nir_build_frag_coord(nir_builder *b, unsigned num_components)
    assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
    assert(num_components && num_components <= 4);
 
-   if (b->shader->options->frag_coord_form >= nir_frag_coord_xy_z_w_separate) {
+   if (b->shader->options->frag_coord_form & nir_frag_coord_xy_z_w_separate) {
       nir_def *xy = nir_load_frag_coord_xy(b);
 
       if (num_components <= 2)
@@ -822,8 +822,7 @@ nir_build_frag_coord(nir_builder *b, unsigned num_components)
 
       nir_def *w;
 
-      if (b->shader->options->frag_coord_form ==
-          nir_frag_coord_xy_z_w_rcp_separate)
+      if (b->shader->options->frag_coord_form & nir_frag_coord_use_w_rcp)
          w = nir_frcp(b, nir_load_frag_coord_w_rcp(b));
       else
          w = nir_load_frag_coord_w(b);

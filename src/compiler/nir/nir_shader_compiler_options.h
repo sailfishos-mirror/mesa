@@ -244,12 +244,13 @@ typedef enum {
 } nir_lower_packing_op;
 
 typedef enum {
-   /* Build: frag_coord */
-   nir_frag_coord_regular,
-   /* Build: frag_coord_xy, frag_coord_z, frag_coord_w */
-   nir_frag_coord_xy_z_w_separate,
-   /* Build: frag_coord_xy, frag_coord_z, frcp(frag_coord_w_rcp) */
-   nir_frag_coord_xy_z_w_rcp_separate,
+   /* When set: use frag_coord_xy, frag_coord_z, frag_coord_w
+    * When unset: use frag_coord
+    */
+   nir_frag_coord_xy_z_w_separate = BITFIELD_BIT(0),
+
+   /* Use frag_coord_w_rcp instead of frag_coord_w. */
+   nir_frag_coord_use_w_rcp = BITFIELD_BIT(1),
 } nir_frag_coord_form;
 
 typedef struct nir_shader_compiler_options {
