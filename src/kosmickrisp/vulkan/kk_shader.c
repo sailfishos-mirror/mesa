@@ -36,12 +36,11 @@ kk_get_nir_options(struct vk_physical_device *vk_pdev, mesa_shader_stage stage,
    return &kk_nir_options;
 }
 
-/* TODO_KOSMICKRISP Once we support robustness2, update these values. */
 static const struct vk_pipeline_robustness_state rs_all_supported = {
    .uniform_buffers =
-      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
+      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2,
    .storage_buffers =
-      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
+      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2,
    .images = VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2_EXT,
 };
 
@@ -287,7 +286,8 @@ kk_nir_swizzle_fragment_output(nir_builder *b, nir_intrinsic_instr *intrin,
 }
 
 static void
-kk_lower_vs_vbo(nir_shader *nir, const struct vk_graphics_pipeline_state *state)
+kk_lower_vs_vbo(nir_shader *nir, const struct vk_graphics_pipeline_state *state,
+                const struct vk_pipeline_robustness_state *rs)
 {
    assert(!(nir->info.inputs_read & BITFIELD64_MASK(VERT_ATTRIB_GENERIC0)) &&
           "Fixed-function attributes not used in Vulkan");
@@ -315,7 +315,9 @@ kk_lower_vs_vbo(nir_shader *nir, const struct vk_graphics_pipeline_state *state)
       attributes[slot].instanced =
          binding->input_rate == VK_VERTEX_INPUT_RATE_INSTANCE;
    }
-   NIR_PASS(_, nir, kk_nir_lower_vbo, attributes);
+   bool robustness2 = rs->vertex_inputs ==
+      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2;
+   NIR_PASS(_, nir, kk_nir_lower_vbo, attributes, robustness2);
 }
 
 static void
@@ -705,7 +707,7 @@ kk_compile_shader(struct kk_device *dev, struct vk_shader_compile_info *info,
    /* VBO lowering needs to go here otherwise, the linking step removes all
     * inputs since we read vertex attributes from UBOs. */
    if (info->stage == MESA_SHADER_VERTEX) {
-      kk_lower_vs_vbo(nir, state);
+      kk_lower_vs_vbo(nir, state, info->robustness);
    }
    msl_lower_nir_late(nir);
    msl_optimize_nir(nir);
