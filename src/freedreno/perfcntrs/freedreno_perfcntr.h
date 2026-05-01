@@ -152,6 +152,11 @@ struct fd_derived_counter {
    uint64_t (*derive)(struct fd_derivation_context *context, uint64_t *values);
 };
 
+struct fd_derived_counter_perfcntr {
+   const struct fd_perfcntr_counter *counter;
+   unsigned countable;
+};
+
 const struct fd_derived_counter **fd_derived_counters(const struct fd_dev_id *id, unsigned *count);
 
 #define FD_DERIVED_COUNTER_COLLECTION_MAX_DERIVED_COUNTERS 64

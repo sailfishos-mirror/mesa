@@ -306,6 +306,7 @@ fd_perfcntr_release(struct fd_perfcntr_state *perfcntrs,
    simple_mtx_unlock(&perfcntrs->lock);
 }
 
+extern const struct fd_derived_counter_perfcntr a7xx_derived_counter_perfcntrs[];
 extern const struct fd_derived_counter *a7xx_derived_counters[];
 extern const unsigned a7xx_num_derived_counters;
 
@@ -322,14 +323,58 @@ fd_derived_counters(const struct fd_dev_id *id, unsigned *count)
    }
 }
 
-extern void a7xx_generate_derived_counter_collection(const struct fd_dev_id *id, struct fd_derived_counter_collection *collection);
-
 void
 fd_generate_derived_counter_collection(const struct fd_dev_id *id, struct fd_derived_counter_collection *collection)
 {
+   const struct fd_derived_counter_perfcntr *derived_counter_perfcntrs = NULL;
+
    switch (fd_dev_gen(id)) {
    case 7:
-      a7xx_generate_derived_counter_collection(id, collection);
+      derived_counter_perfcntrs = a7xx_derived_counter_perfcntrs;
+      break;
+   default:
+      return;
+   }
+
+   /* The provided collection should already specify the derived counters that will be measured.
+    * This function will set up enabled_perfcntrs_map and enabled_perfcntrs array so that each
+    * used DERIVED_COUNTER_PERFCNTR_* enum value will map to the corresponding index in the
+    * array where the relevant fd_perfcntr_counter and fd_perfcntr_countable are stored.
+    */
+
+   collection->num_enabled_perfcntrs = 0;
+   memset(collection->enabled_perfcntrs_map, 0xff, ARRAY_SIZE(collection->enabled_perfcntrs_map));
+
+   for (unsigned i = 0; i < collection->num_counters; ++i) {
+      const struct fd_derived_counter *counter = collection->counters[i];
+
+      for (unsigned j = 0; j < counter->num_perfcntrs; ++j) {
+         uint8_t perfcntr = counter->perfcntrs[j];
+         collection->enabled_perfcntrs_map[perfcntr] = 0x00;
+      }
+   }
+
+   /* Note if CP_ALWAYS_COUNT is enabled. This is the zero-index perfcntr. */
+   collection->cp_always_count_enabled = !collection->enabled_perfcntrs_map[0];
+
+   for (unsigned i = 0; i < ARRAY_SIZE(collection->enabled_perfcntrs_map); ++i) {
+      if (collection->enabled_perfcntrs_map[i] == 0xff)
+         continue;
+
+      uint8_t enabled_perfcntr_index = collection->num_enabled_perfcntrs++;
+      collection->enabled_perfcntrs_map[i] = enabled_perfcntr_index;
+
+      collection->enabled_perfcntrs[enabled_perfcntr_index].counter =
+         derived_counter_perfcntrs[i].counter;
+      collection->enabled_perfcntrs[enabled_perfcntr_index].countable =
+         derived_counter_perfcntrs[i].countable;
+   }
+
+   const struct fd_dev_info *info = fd_dev_info_raw(id);
+   switch (fd_dev_gen(id)) {
+   case 7:
+      collection->derivation_context.a7xx.number_of_usptp = info->num_sp_cores * 2;
+      collection->derivation_context.a7xx.number_of_alus_per_usptp = 128;
       break;
    default:
       break;
