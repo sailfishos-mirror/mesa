@@ -455,10 +455,11 @@ compile_image_function(struct llvmpipe_context *ctx, struct lp_static_texture_st
       if (!outdata[i])
          outdata[i] = outdata[0];
 
-   if (outdata[4])
-      outdata[4] = LLVMBuildZExt(gallivm->builder, outdata[4], lp_build_int_vec_type(gallivm, lp_int_type(type)), "");
-   else
-      outdata[4] = lp_build_one(gallivm, lp_int_type(type));
+   if (!outdata[4]) {
+      struct lp_type residency_type = lp_int_type(type);
+      residency_type.width = 1;
+      outdata[4] = lp_build_one(gallivm, residency_type);
+   }
 
    if (params.img_op != LP_IMG_STORE)
       LLVMBuildAggregateRet(gallivm->builder, outdata, params.img_op == LP_IMG_LOAD_SPARSE ? 5 : 4);
@@ -623,10 +624,11 @@ compile_sample_function(struct llvmpipe_context *ctx, struct lp_texture_handle_s
       lp_build_sample_nop(gallivm, lp_build_texel_type(type, util_format_description(texture->static_state.format)), coords, texel_out);
    }
 
-   if (texel_out[4])
-      texel_out[4] = LLVMBuildZExt(gallivm->builder, texel_out[4], lp_build_int_vec_type(gallivm, lp_int_type(type)), "");
-   else
-      texel_out[4] = lp_build_one(gallivm, lp_int_type(type));
+   if (!texel_out[4]) {
+      struct lp_type residency_type = lp_int_type(type);
+      residency_type.width = 1;
+      texel_out[4] = lp_build_one(gallivm, residency_type);
+   }
 
    LLVMBuildAggregateRet(gallivm->builder, texel_out, 5);
 

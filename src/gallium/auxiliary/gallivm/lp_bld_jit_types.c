@@ -849,7 +849,9 @@ lp_build_sample_function_type(struct gallivm_state *gallivm, uint32_t sample_key
       arg_types[num_params++] = coord_type;
 
    val_type[0] = val_type[1] = val_type[2] = val_type[3] = lp_build_vec_type(gallivm, type);
-   val_type[4] = lp_build_int_vec_type(gallivm, type);
+   struct lp_type residency_type = type;
+   residency_type.width = 1;
+   val_type[4] = lp_build_int_vec_type(gallivm, residency_type);
    ret_type = LLVMStructTypeInContext(gallivm->context, val_type, 5, 0);
    return LLVMFunctionType(ret_type, arg_types, num_params, false);
 }
@@ -879,6 +881,28 @@ lp_build_size_function_type(struct gallivm_state *gallivm,
    val_type[0] = val_type[1] = val_type[2] = val_type[3] = lp_build_int_vec_type(gallivm, type);
    ret_type = LLVMStructTypeInContext(gallivm->context, val_type, 4, 0);
    return LLVMFunctionType(ret_type, arg_types, num_params, false);
+}
+
+LLVMTypeRef
+lp_build_image_function_component_type(struct gallivm_state *gallivm, const struct lp_img_params *params, bool is64, bool integer)
+{
+   struct lp_type type;
+   memset(&type, 0, sizeof type);
+   type.floating = true;      /* floating point values */
+   type.sign = true;          /* values are signed */
+   type.norm = false;         /* values are not limited to [0,1] or [-1,1] */
+   type.width = 32;           /* 32-bit float */
+   type.length = MIN2(lp_native_vector_width / 32, 16); /* n*4 elements per vector */
+
+   enum pipe_format format = params->format;
+   if (is64 && format == PIPE_FORMAT_NONE)
+      format = PIPE_FORMAT_R64G64B64A64_UINT;
+
+   const struct util_format_description *desc = util_format_description(format);
+   if (integer)
+      return lp_build_int_vec_type(gallivm, lp_build_texel_type(type, desc));
+   else
+      return lp_build_vec_type(gallivm, lp_build_texel_type(type, desc));
 }
 
 LLVMTypeRef
@@ -912,12 +936,7 @@ lp_build_image_function_type(struct gallivm_state *gallivm,
    if (params->img_op == LP_IMG_ATOMIC_CAS)
       num_inputs = 8;
 
-   enum pipe_format format = params->format;
-   if (is64 && format == PIPE_FORMAT_NONE)
-      format = PIPE_FORMAT_R64G64B64A64_UINT;
-
-   const struct util_format_description *desc = util_format_description(format);
-   LLVMTypeRef component_type = lp_build_vec_type(gallivm, lp_build_texel_type(type, desc));
+   LLVMTypeRef component_type = lp_build_image_function_component_type(gallivm, params, is64, false);
 
    for (uint32_t i = 0; i < num_inputs; i++)
       arg_types[num_params++] = component_type;
@@ -925,7 +944,9 @@ lp_build_image_function_type(struct gallivm_state *gallivm,
    if (params->img_op == LP_IMG_LOAD_SPARSE) {
       LLVMTypeRef val_type[5];
       val_type[0] = val_type[1] = val_type[2] = val_type[3] = component_type;
-      val_type[4] = lp_build_int_vec_type(gallivm, type);
+      struct lp_type residency_type = type;
+      residency_type.width = 1;
+      val_type[4] = lp_build_int_vec_type(gallivm, residency_type);
       ret_type = LLVMStructTypeInContext(gallivm->context, val_type, 5, 0);
    } else if (params->img_op != LP_IMG_STORE) {
       LLVMTypeRef val_type[4];
