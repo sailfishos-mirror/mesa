@@ -1176,6 +1176,7 @@ nir_get_io_data_src_number(const nir_intrinsic_instr *intr)
    case nir_intrinsic_store_pixel_local:
    case nir_intrinsic_store_per_vertex_output:
    case nir_intrinsic_store_per_primitive_output:
+   case nir_intrinsic_store_per_view_output:
    case nir_intrinsic_store_ssbo:
    case nir_intrinsic_store_ssbo_block_intel:
    case nir_intrinsic_store_ssbo_intel:
