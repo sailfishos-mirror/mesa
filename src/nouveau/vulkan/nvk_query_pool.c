@@ -282,20 +282,25 @@ nvk_CmdResetQueryPool(VkCommandBuffer commandBuffer,
    const struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
 
-   for (uint32_t i = 0; i < queryCount; i++) {
-      uint64_t addr = nvk_query_available_addr(pool, firstQuery + i);
+   if (queryCount > 1 && pool->layout == NVK_QUERY_POOL_LAYOUT_SEPARATE) {
+      uint64_t addr = nvk_query_available_addr(pool, firstQuery);
+      nvk_cmd_fill_memory(cmd, addr, queryCount * sizeof(uint32_t), 0);
+   } else {
+      for (uint32_t i = 0; i < queryCount; i++) {
+         uint64_t addr = nvk_query_available_addr(pool, firstQuery + i);
 
-      struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
-      P_MTHD(p, NV9097, SET_REPORT_SEMAPHORE_A);
-      P_NV9097_SET_REPORT_SEMAPHORE_A(p, addr >> 32);
-      P_NV9097_SET_REPORT_SEMAPHORE_B(p, addr);
-      P_NV9097_SET_REPORT_SEMAPHORE_C(p, 0);
-      P_NV9097_SET_REPORT_SEMAPHORE_D(p, {
-         .operation = OPERATION_RELEASE,
-         .release = RELEASE_AFTER_ALL_PRECEEDING_WRITES_COMPLETE,
-         .pipeline_location = PIPELINE_LOCATION_ALL,
-         .structure_size = STRUCTURE_SIZE_ONE_WORD,
-      });
+         struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
+         P_MTHD(p, NV9097, SET_REPORT_SEMAPHORE_A);
+         P_NV9097_SET_REPORT_SEMAPHORE_A(p, addr >> 32);
+         P_NV9097_SET_REPORT_SEMAPHORE_B(p, addr);
+         P_NV9097_SET_REPORT_SEMAPHORE_C(p, 0);
+         P_NV9097_SET_REPORT_SEMAPHORE_D(p, {
+            .operation = OPERATION_RELEASE,
+            .release = RELEASE_AFTER_ALL_PRECEEDING_WRITES_COMPLETE,
+            .pipeline_location = PIPELINE_LOCATION_ALL,
+            .structure_size = STRUCTURE_SIZE_ONE_WORD,
+         });
+      }
    }
 
    /* Wait for the above writes to complete.  This prevents WaW hazards on any
