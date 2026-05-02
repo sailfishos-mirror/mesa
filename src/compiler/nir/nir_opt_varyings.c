@@ -19,10 +19,7 @@
  * The pass operates on scalar varyings using 32-bit and 16-bit types. Vector
  * varyings are not allowed.
  *
- * Indirectly-indexed varying slots (not vertices) are not optimized or
- * compacted, but unused slots of indirectly-indexed varyings are still filled
- * with directly-indexed varyings during compaction. Indirectly-indexed
- * varyings are still removed if they are unused by the other shader.
+ * Certain optimizations skip indirectly-indexed varying slots.
  *
  * Indirectly-indexed vertices don't disallow optimizations, but compromises
  * are made depending on how they are accessed. They are common in TCS, TES,
@@ -107,15 +104,12 @@
  *        value.
  *    * Output loads that have no output stores anywhere in the shader are
  *      replaced with undef. (for TCS, though it works with any shader)
- *    * Output stores with transform feedback are preserved, but get
- *      the “no_varying” flag, meaning they are not consumed by the next
- *      shader stage. Later, transform-feedback-only varyings are compacted
- *      (relocated) such that they are always last.
- *    * TCS outputs that are read by TCS, but not used by TES get
- *      the "no_varying" flag to indicate that they are only read by TCS and
- *      not consumed by TES. Later, such TCS outputs are compacted (relocated)
- *      such that they are always last to keep all outputs consumed by TES
- *      consecutive without holes.
+ *    * Output stores not consumed by the next shader (e.g. used by transform
+ *      feedback or TCS output loads) are preserved, but get the “no_varying”
+ *      flag, meaning they are not consumed by the next shader stage. Such
+ *      varyings are compacted (relocated) such that they are always last.
+ *    * For indirect IO, if any array element is missing stores,
+ *      the corresponding element loads are eliminated, and vice versa.
  *
  * 3. Constant, uniform, UBO load, and uniform expression propagation
  *
@@ -440,6 +434,10 @@
  *    * 32-bit interpolated (not affected by the flat-shade state)
  *    * 32-bit flat (not affected by the flat-shade state)
  *
+ *    Indirectly-indexed varyings slots are moved, but unused slots of
+ *    indirectly-indexed varyings are still opportunistically filled with
+ *    directly-indexed varyings during compaction.
+ *
  *    To facilitate driver-specific output merging, color channels are
  *    assigned in a rotated order depending on which one the first unused VARn
  *    channel is. For example, if the first unused VARn channel is VAR0.z,
@@ -630,6 +628,12 @@ vec4_slot(unsigned scalar_slot)
    return scalar_slot / 8;
 }
 
+static unsigned
+get_array_elem(unsigned scalar_slot, unsigned index, bool compact)
+{
+   return scalar_slot + index * (compact ? 2 : 8);
+}
+
 struct list_node {
    struct list_head head;
    nir_intrinsic_instr *instr; /* load or store */
@@ -676,8 +680,19 @@ struct scalar_slot {
       nir_def *tes_load_tess_coord;
    } consumer;
 
-   /* The number of accessed slots if this slot has indirect indexing. */
+   /* The number of accessed slots if this slot has indirect indexing.
+    * If compact, this is the number of 32-bit components of the varying array,
+    * else it's the number of vec4s (but only 1 component of each vec4 is
+    * in the array).
+    */
    unsigned num_slots;
+
+   /* If indirect, this is the distance between this slot and the first slot.
+    * If compact, the distance is in 32-bit components, else it's in vec4s.
+    */
+   unsigned indirect_slot_index;
+
+   bool compact; /* nir_is_io_compact */
 };
 
 struct linkage_info {
@@ -736,6 +751,9 @@ struct linkage_info {
 
    /* Mask of all slots accessed with indirect indexing. */
    BITSET_DECLARE(indirect_mask, NUM_SCALAR_SLOTS);
+   BITSET_DECLARE(indirect_producer_store_mask, NUM_SCALAR_SLOTS);
+   BITSET_DECLARE(indirect_producer_load_mask, NUM_SCALAR_SLOTS);
+   BITSET_DECLARE(indirect_consumer_load_mask, NUM_SCALAR_SLOTS);
 
    /* The following masks only contain slots that can be compacted and
     * describe the groups in which they should be compacted. Non-fragment
@@ -835,6 +853,9 @@ print_linkage(struct linkage_info *linkage)
           list_is_empty(&slot->consumer.loads) &&
           !BITSET_TEST(linkage->removable_mask, i) &&
           !BITSET_TEST(linkage->indirect_mask, i) &&
+          !BITSET_TEST(linkage->indirect_producer_store_mask, i) &&
+          !BITSET_TEST(linkage->indirect_producer_load_mask, i) &&
+          !BITSET_TEST(linkage->indirect_consumer_load_mask, i) &&
           !BITSET_TEST(linkage->xfb32_only_mask, i) &&
           !BITSET_TEST(linkage->xfb16_only_mask, i) &&
           !BITSET_TEST(linkage->cross_invoc32_mask, i) &&
@@ -860,15 +881,20 @@ print_linkage(struct linkage_info *linkage)
           !BITSET_TEST(linkage->output_equal_mask, i))
          continue;
 
-      printf("  %7s.%c.%s: num_slots=%2u%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+      printf("  %7s.%c.%s: num_slots=%2u, indirect_slot_index=%2u"
+             "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
              gl_varying_slot_name_for_stage(vec4_slot(i),
                                             linkage->producer_stage) +
                 13,
              "xyzw"[(i / 2) % 4],
              i % 2 ? "hi" : "lo",
              slot->num_slots,
+             slot->indirect_slot_index,
              BITSET_TEST(linkage->removable_mask, i) ? " removable" : "",
              BITSET_TEST(linkage->indirect_mask, i) ? " indirect" : "",
+             BITSET_TEST(linkage->indirect_producer_store_mask, i) ? " indirect_producer_stores" : "",
+             BITSET_TEST(linkage->indirect_producer_load_mask, i) ? " indirect_producer_loads" : "",
+             BITSET_TEST(linkage->indirect_consumer_load_mask, i) ? " indirect_consumer_loads" : "",
              BITSET_TEST(linkage->xfb32_only_mask, i) ? " xfb32_only" : "",
              BITSET_TEST(linkage->xfb16_only_mask, i) ? " xfb16_only" : "",
              BITSET_TEST(linkage->cross_invoc32_mask, i) ? " cross_invoc32" : "",
@@ -951,6 +977,9 @@ clear_slot_info_after_removal(struct linkage_info *linkage, unsigned i, bool use
    linkage->slot[i].num_slots = 0;
 
    BITSET_CLEAR(linkage->indirect_mask, i);
+   BITSET_CLEAR(linkage->indirect_producer_store_mask, i);
+   BITSET_CLEAR(linkage->indirect_producer_load_mask, i);
+   BITSET_CLEAR(linkage->indirect_consumer_load_mask, i);
    BITSET_CLEAR(linkage->removable_mask, i);
 
    /* Transform feedback stores can't be removed. */
@@ -1337,11 +1366,14 @@ gather_inputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_d
    node->instr = intr;
    list_addtail(&node->head, &in->consumer.loads);
    in->num_slots = MAX2(in->num_slots, sem.num_slots);
+   in->compact |= nir_is_io_compact(linkage->consumer_builder.shader,
+                                    false, sem.location);
 
    if (!sem.no_signed_zero && intr->intrinsic != nir_intrinsic_load_interpolated_input) {
       unsigned nsz_count = nir_src_is_const(offset) ? 1 : sem.num_slots;
+
       for (unsigned i = 0; i < nsz_count; i++)
-         BITSET_SET(linkage->signed_zero_mask, slot + i * 8);
+         BITSET_SET(linkage->signed_zero_mask, get_array_elem(slot, i, in->compact));
    }
 
    if (!can_remove_varying(linkage, sem.location))
@@ -1392,15 +1424,18 @@ gather_inputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_d
 
    /* Indirect indexing. */
    if (!nir_src_is_const(offset)) {
-      /* Only the indirectly-indexed component is marked as indirect. */
-      for (unsigned i = 0; i < sem.num_slots; i++)
-         BITSET_SET(linkage->indirect_mask, slot + i * 8);
+      /* Only the indirectly-indexed component is marked as indirect in slots. */
+      for (unsigned i = 0; i < sem.num_slots; i++) {
+         BITSET_SET(linkage->indirect_mask, get_array_elem(slot, i, in->compact));
+         BITSET_SET(linkage->indirect_consumer_load_mask, get_array_elem(slot, i, in->compact));
+      }
 
       /* Set the same vec4 type as the first element in all slots. */
       if (linkage->consumer_stage == MESA_SHADER_FRAGMENT) {
          for (unsigned i = 1; i < sem.num_slots; i++)
-            linkage->fs_vec4_type[sem.location + i] = fs_vec4_type;
+            linkage->fs_vec4_type[vec4_slot(get_array_elem(slot, i, in->compact))] = fs_vec4_type;
       }
+
       return false;
    }
 
@@ -1619,6 +1654,8 @@ gather_outputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_
    node->instr = intr;
    node->gs_emit_index = linkage->gather_outputs_state.gs_emit_index;
    out->num_slots = MAX2(out->num_slots, sem.num_slots);
+   out->compact |= nir_is_io_compact(linkage->producer_builder.shader,
+                                     true, sem.location);
 
    list_addtail(&node->head, is_store ? &out->producer.stores : &out->producer.loads);
 
@@ -1650,17 +1687,22 @@ gather_outputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_
    /* Indirect indexing. */
    if (!nir_src_is_const(offset)) {
       /* Only the indirectly-indexed component is marked as indirect. */
-      for (unsigned i = 0; i < sem.num_slots; i++)
-         BITSET_SET(linkage->indirect_mask, slot + i * 8);
+      for (unsigned i = 0; i < sem.num_slots; i++) {
+         BITSET_SET(linkage->indirect_mask, get_array_elem(slot, i, out->compact));
+         if (is_store)
+            BITSET_SET(linkage->indirect_producer_store_mask, get_array_elem(slot, i, out->compact));
+         else
+            BITSET_SET(linkage->indirect_producer_load_mask, get_array_elem(slot, i, out->compact));
+      }
 
       /* Set the same vec4 type as the first element in all slots. */
       if (linkage->consumer_stage == MESA_SHADER_FRAGMENT) {
-         enum fs_vec4_type fs_vec4_type =
-            linkage->fs_vec4_type[sem.location];
+         enum fs_vec4_type fs_vec4_type = linkage->fs_vec4_type[sem.location];
 
          for (unsigned i = 1; i < sem.num_slots; i++)
-            linkage->fs_vec4_type[sem.location + i] = fs_vec4_type;
+            linkage->fs_vec4_type[vec4_slot(get_array_elem(slot, i, out->compact))] = fs_vec4_type;
       }
+
       return false;
    }
 
@@ -1767,35 +1809,22 @@ tidy_up_indirect_varyings(struct linkage_info *linkage)
       slot_disable_optimizations_and_compaction(linkage, i);
    }
 
-   /* If some slots have both direct and indirect accesses, move instructions
-    * of such slots to the slot representing the first array element, so that
-    * we can remove all loads/stores of dead indirectly-indexed varyings
-    * by only looking at the first element.
-    */
    BITSET_FOREACH_SET(i, linkage->indirect_mask, NUM_SCALAR_SLOTS) {
       struct scalar_slot *first = &linkage->slot[i];
 
-      /* Skip if this is not the first array element. The first element
-       * always sets num_slots to at least 2.
-       */
-      if (first->num_slots <= 1)
+      /* Skip if this is not the first array element. */
+      if (first->num_slots <= 1 || first->indirect_slot_index)
          continue;
 
-      /* Move instructions from other elements of the indirectly-accessed
-       * array to the first element (by merging the linked lists).
-       */
+      /* Set indirect_slot_index and num_slots in other elements. */
       for (unsigned elem = 1; elem < first->num_slots; elem++) {
-         /* The component slots are at 16-bit granularity, so we need to
-          * increment by 8 to get the same component in the next vec4 slot.
-          */
-         struct scalar_slot *other = &linkage->slot[i + elem * 8];
+         struct scalar_slot *other = &linkage->slot[get_array_elem(i, elem, first->compact)];
 
-         list_splicetail(&other->producer.stores, &first->producer.stores);
-         list_splicetail(&other->producer.loads, &first->producer.loads);
-         list_splicetail(&other->consumer.loads, &first->consumer.loads);
-         list_inithead(&other->producer.stores);
-         list_inithead(&other->producer.loads);
-         list_inithead(&other->consumer.loads);
+         other->num_slots = first->num_slots;
+         other->indirect_slot_index = elem;
+         other->compact = first->compact;
+
+         assert(BITSET_TEST(linkage->indirect_mask, get_array_elem(i, elem, first->compact)));
       }
    }
 }
@@ -2004,17 +2033,48 @@ determine_ubo_movability(struct linkage_info *linkage,
  ******************************************************************/
 
 static void
+get_slot_array_info(struct linkage_info *linkage, unsigned i,
+                    unsigned *producer_stores_mask,
+                    unsigned *producer_loads_mask,
+                    unsigned *consumer_loads_mask)
+{
+   struct scalar_slot *first_slot = &linkage->slot[i];
+
+   /* If the slot is indirect, it must be the first array element. */
+   assert(first_slot->indirect_slot_index == 0);
+
+   *producer_stores_mask = 0;
+   *producer_loads_mask = 0;
+   *consumer_loads_mask = 0;
+
+   /* If this fails, make the types uint64_t. */
+   assert(first_slot->num_slots <= MIN3(sizeof(*producer_stores_mask),
+                                        sizeof(*producer_loads_mask),
+                                        sizeof(*consumer_loads_mask)) * 8);
+
+   for (unsigned elem = 0; elem < first_slot->num_slots; elem++) {
+      unsigned elem_i = get_array_elem(i, elem, first_slot->compact);
+
+      if (!list_is_empty(&linkage->slot[elem_i].producer.stores))
+         *producer_stores_mask |= BITFIELD_BIT(elem);
+
+      if (!list_is_empty(&linkage->slot[elem_i].producer.loads))
+         *producer_loads_mask |= BITFIELD_BIT(elem);
+
+      if (!list_is_empty(&linkage->slot[elem_i].consumer.loads))
+         *consumer_loads_mask |= BITFIELD_BIT(elem);
+   }
+}
+
+static void
 remove_all_stores(struct linkage_info *linkage, unsigned i,
                   bool *uses_xfb, nir_opt_varyings_progress *progress)
 {
    struct scalar_slot *slot = &linkage->slot[i];
 
-   assert(!list_is_empty(&slot->producer.stores) &&
-          list_is_empty(&slot->producer.loads) &&
-          list_is_empty(&slot->consumer.loads));
-
    /* Remove all stores. */
-   list_for_each_entry_safe(struct list_node, iter, &slot->producer.stores, head) {
+   list_for_each_entry_safe(struct list_node, iter,
+                            &slot->producer.stores, head) {
       /* nir_remove_varying always makes progress. */
       *progress |= nir_progress_producer;
 
@@ -2047,128 +2107,172 @@ remove_dead_varyings(struct linkage_info *linkage,
    BITSET_FOREACH_SET(i, linkage->removable_mask, NUM_SCALAR_SLOTS) {
       struct scalar_slot *slot = &linkage->slot[i];
 
-      /* Only indirect access can have no loads and stores because we moved
-       * them to the first element in tidy_up_indirect_varyings().
+      /* For indirect indexing, we use the first array element to traverse
+       * all elements.
        */
-      assert(!list_is_empty(&slot->producer.stores) ||
-             !list_is_empty(&slot->producer.loads) ||
-             !list_is_empty(&slot->consumer.loads) ||
-             BITSET_TEST(linkage->indirect_mask, i));
+      if (slot->indirect_slot_index)
+         continue;
+
+      unsigned producer_stores_mask, producer_loads_mask, consumer_loads_mask;
+      get_slot_array_info(linkage, i, &producer_stores_mask,
+                          &producer_loads_mask, &consumer_loads_mask);
+
+      assert(producer_stores_mask || producer_loads_mask ||
+             consumer_loads_mask || BITSET_TEST(linkage->indirect_mask, i));
 
       /* Nothing to do if there are no loads and stores. */
-      if (list_is_empty(&slot->producer.stores) &&
-          list_is_empty(&slot->producer.loads) &&
-          list_is_empty(&slot->consumer.loads))
+      if (!producer_stores_mask && !producer_loads_mask &&
+          !consumer_loads_mask)
          continue;
+
+      bool any_indirect_consumer_loads =
+         BITSET_TEST(linkage->indirect_consumer_load_mask, i);
 
       /* If there are producer loads (e.g. TCS) but no consumer loads
        * (e.g. TES), set the "no_varying" flag to indicate that the outputs
        * are not consumed by the next shader stage (e.g. TES).
        */
-      if (!list_is_empty(&slot->producer.stores) &&
-          !list_is_empty(&slot->producer.loads) &&
-          list_is_empty(&slot->consumer.loads)) {
-         for (unsigned list_index = 0; list_index < 2; list_index++) {
-            struct list_head *list = list_index ? &slot->producer.stores : &slot->producer.loads;
+      if (!any_indirect_consumer_loads) {
+         for (unsigned elem = 0; elem < slot->num_slots; elem++) {
+            struct scalar_slot *elem_slot = &linkage->slot[get_array_elem(i, elem, slot->compact)];
 
-            list_for_each_entry(struct list_node, iter, list, head) {
-               nir_io_semantics sem = nir_intrinsic_io_semantics(iter->instr);
-               sem.no_varying = 1;
-               nir_intrinsic_set_io_semantics(iter->instr, sem);
-            }
-         }
-
-         /* This tells the compaction to move these varyings to the end. */
-         if (BITSET_TEST(linkage->flat32_mask, i)) {
-            assert(linkage->consumer_stage != MESA_SHADER_FRAGMENT);
-            BITSET_CLEAR(linkage->flat32_mask, i);
-            BITSET_SET(linkage->no_varying32_mask, i);
-         }
-         if (BITSET_TEST(linkage->flat16_mask, i)) {
-            assert(linkage->consumer_stage != MESA_SHADER_FRAGMENT);
-            BITSET_CLEAR(linkage->flat16_mask, i);
-            BITSET_SET(linkage->no_varying16_mask, i);
-         }
-         continue;
-      }
-
-      /* The varyings aren't dead if both loads and stores are present. */
-      if (!list_is_empty(&slot->producer.stores) &&
-          (!list_is_empty(&slot->producer.loads) ||
-           !list_is_empty(&slot->consumer.loads)))
-         continue;
-
-      bool uses_xfb = false;
-
-      if (list_is_empty(&slot->producer.stores)) {
-         /* There are no stores. */
-         assert(!list_is_empty(&slot->producer.loads) ||
-                !list_is_empty(&slot->consumer.loads));
-
-         /* TEXn.xy loads can't be removed in FS because of the coord
-          * replace state, but TEXn outputs can be removed if they are
-          * not read by FS.
-          *
-          * TEXn.zw loads can be eliminated and replaced by (0, 1), which
-          * is equal to the coord replace value.
-          */
-         if (is_interpolated_texcoord(linkage, i)) {
-            assert(i % 2 == 0); /* high 16-bit slots disallowed */
-            /* Keep TEXn.xy. */
-            if (i % 8 < 4)
+            /* Also check whether any direct consumer loads are present. */
+            if (!list_is_empty(&elem_slot->consumer.loads))
                continue;
-         }
 
-         /* Replace all loads with undef. Do that for both input loads
-          * in the consumer stage and output loads in the producer stage
-          * because we also want to eliminate TCS loads that have no
-          * corresponding TCS stores.
-          */
-         for (unsigned list_index = 0; list_index < 2; list_index++) {
-            struct list_head *list = list_index ? &slot->producer.loads : &slot->consumer.loads;
-            nir_builder *b = list_index ? &linkage->producer_builder : &linkage->consumer_builder;
+            for (unsigned list_index = 0; list_index < 2; list_index++) {
+               struct list_head *list =
+                  list_index ? &elem_slot->producer.stores :
+                               &elem_slot->producer.loads;
 
-            list_for_each_entry(struct list_node, iter, list, head) {
-               nir_intrinsic_instr *loadi = iter->instr;
-               nir_def *replacement = NULL;
-
-               b->cursor = nir_before_instr(&loadi->instr);
-
-               /* LAYER and VIEWPORT FS inputs should be replaced by 0
-                * instead of undef.
-                */
-               gl_varying_slot location = (gl_varying_slot)(vec4_slot(i));
-
-               if (linkage->consumer_stage == MESA_SHADER_FRAGMENT &&
-                   (location == VARYING_SLOT_LAYER ||
-                    location == VARYING_SLOT_VIEWPORT ||
-                    /* TEXn.z is replaced by 0 (matching coord replace) */
-                    (is_interpolated_texcoord(linkage, i) && i % 8 == 4)))
-                  replacement = nir_imm_intN_t(b, 0, loadi->def.bit_size);
-               else if (linkage->consumer_stage == MESA_SHADER_FRAGMENT &&
-                        /* TEXn.w is replaced by 1 (matching coord replace) */
-                        is_interpolated_texcoord(linkage, i) && i % 8 == 6)
-                  replacement = nir_imm_floatN_t(b, 1, loadi->def.bit_size);
-               else
-                  replacement = nir_undef(b, 1, loadi->def.bit_size);
-
-               nir_def_replace(&loadi->def, replacement);
-
-               *progress |= list_index ? nir_progress_producer : nir_progress_consumer;
+               list_for_each_entry(struct list_node, iter, list, head) {
+                  nir_io_semantics sem = nir_intrinsic_io_semantics(iter->instr);
+                  sem.no_varying = 1;
+                  nir_intrinsic_set_io_semantics(iter->instr, sem);
+               }
             }
          }
-
-         /* Clear the lists. */
-         list_inithead(&slot->producer.loads);
-         list_inithead(&slot->consumer.loads);
-      } else {
-         /* There are no loads. */
-         remove_all_stores(linkage, i, &uses_xfb, progress);
       }
 
-      /* Clear bitmasks associated with this varying slot or array. */
-      for (unsigned elem = 0; elem < slot->num_slots; elem++)
-         clear_slot_info_after_removal(linkage, i + elem, uses_xfb);
+      /* This tells the compaction to move the varyings that have
+       * no consumer loads to the end.
+       */
+      if (producer_stores_mask && producer_loads_mask &&
+          !consumer_loads_mask) {
+         for (unsigned elem = 0; elem < slot->num_slots; elem++) {
+            unsigned elem_i = get_array_elem(i, elem, slot->compact);
+
+            if (BITSET_TEST(linkage->flat32_mask, elem_i)) {
+               assert(linkage->consumer_stage != MESA_SHADER_FRAGMENT);
+               BITSET_CLEAR(linkage->flat32_mask, elem_i);
+               BITSET_SET(linkage->no_varying32_mask, elem_i);
+            }
+            if (BITSET_TEST(linkage->flat16_mask, elem_i)) {
+               assert(linkage->consumer_stage != MESA_SHADER_FRAGMENT);
+               BITSET_CLEAR(linkage->flat16_mask, elem_i);
+               BITSET_SET(linkage->no_varying16_mask, elem_i);
+            }
+         }
+         continue;
+      }
+
+      bool any_indirect_producer_stores =
+         BITSET_TEST(linkage->indirect_producer_store_mask, i);
+      bool any_indirect_producer_loads =
+         BITSET_TEST(linkage->indirect_producer_load_mask, i);
+
+      for (unsigned elem = 0; elem < slot->num_slots; elem++) {
+         unsigned elem_i = get_array_elem(i, elem, slot->compact);
+         struct scalar_slot *elem_slot = &linkage->slot[elem_i];
+         bool any_elem_producer_stores =
+            any_indirect_producer_stores ||
+            !list_is_empty(&elem_slot->producer.stores);
+         bool any_elem_producer_loads =
+            any_indirect_producer_loads ||
+            !list_is_empty(&elem_slot->producer.loads);
+         bool any_elem_consumer_loads =
+            any_indirect_consumer_loads ||
+            !list_is_empty(&elem_slot->consumer.loads);
+
+         /* The varyings aren't dead if both loads and stores are present. */
+         if (any_elem_producer_stores &&
+             (any_elem_producer_loads || any_elem_consumer_loads))
+            continue;
+
+         bool elem_uses_xfb = false;
+
+         if (!any_elem_producer_stores) {
+            /* There are no stores. */
+            assert(any_elem_producer_loads || any_elem_consumer_loads);
+
+            /* TEXn.xy loads can't be removed in FS because of the coord
+             * replace state, but TEXn outputs can be removed if they are
+             * not read by FS.
+             *
+             * TEXn.zw loads can be eliminated and replaced by (0, 1), which
+             * is equal to the coord replace value.
+             */
+            if (is_interpolated_texcoord(linkage, elem_i)) {
+               assert(elem_i % 2 == 0); /* high 16-bit slots disallowed */
+               /* Keep TEXn.xy. */
+               if (elem_i % 8 < 4)
+                  continue;
+            }
+
+            /* Replace all loads with undef. Do that for both input loads
+             * in the consumer stage and output loads in the producer stage
+             * because we also want to eliminate TCS loads that have no
+             * corresponding TCS stores.
+             */
+            for (unsigned list_index = 0; list_index < 2; list_index++) {
+               struct list_head *list =
+                  list_index ? &elem_slot->producer.loads :
+                               &elem_slot->consumer.loads;
+               nir_builder *b =
+                  list_index ? &linkage->producer_builder :
+                               &linkage->consumer_builder;
+
+               list_for_each_entry(struct list_node, iter, list, head) {
+                  nir_intrinsic_instr *loadi = iter->instr;
+                  nir_def *replacement = NULL;
+
+                  b->cursor = nir_before_instr(&loadi->instr);
+
+                  /* LAYER and VIEWPORT FS inputs should be replaced by 0
+                   * instead of undef.
+                   */
+                  gl_varying_slot location = (gl_varying_slot)(vec4_slot(elem_i));
+
+                  if (linkage->consumer_stage == MESA_SHADER_FRAGMENT &&
+                      (location == VARYING_SLOT_LAYER ||
+                       location == VARYING_SLOT_VIEWPORT ||
+                       /* TEXn.z is replaced by 0 (matching coord replace) */
+                       (is_interpolated_texcoord(linkage, elem_i) && elem_i % 8 == 4)))
+                     replacement = nir_imm_intN_t(b, 0, loadi->def.bit_size);
+                  else if (linkage->consumer_stage == MESA_SHADER_FRAGMENT &&
+                           /* TEXn.w is replaced by 1 (matching coord replace) */
+                           is_interpolated_texcoord(linkage, elem_i) && elem_i % 8 == 6)
+                     replacement = nir_imm_floatN_t(b, 1, loadi->def.bit_size);
+                  else
+                     replacement = nir_undef(b, 1, loadi->def.bit_size);
+
+                  nir_def_replace(&loadi->def, replacement);
+
+                  *progress |= list_index ? nir_progress_producer : nir_progress_consumer;
+               }
+            }
+
+            /* Clear the lists. */
+            list_inithead(&elem_slot->producer.loads);
+            list_inithead(&elem_slot->consumer.loads);
+         } else {
+            /* There are no loads. */
+            remove_all_stores(linkage, elem_i, &elem_uses_xfb, progress);
+         }
+
+         /* Clear bitmasks associated with this varying slot. */
+         clear_slot_info_after_removal(linkage, elem_i, elem_uses_xfb);
+      }
    }
 }
 
@@ -5151,16 +5255,17 @@ compact_varyings(struct linkage_info *linkage,
       BITSET_FOREACH_SET(i, linkage->indirect_mask, NUM_SCALAR_SLOTS) {
          struct scalar_slot *slot = &linkage->slot[i];
 
-         /* The slot of the first array element contains all loads for all
-          * elements, including all direct accesses, while all other array
-          * elements are empty (on purpose).
-          */
-         if (list_is_empty(&linkage->slot[i].consumer.loads))
+         /* We traverse all elements from the first element. */
+         if (slot->indirect_slot_index)
             continue;
 
-         assert(slot->num_slots >= 2);
+         unsigned num_slots = slot->num_slots;
+         assert(num_slots >= 2);
 
-         for (unsigned array_index = 0; array_index < slot->num_slots;
+         if (slot->compact)
+            num_slots = DIV_ROUND_UP(num_slots, 4);
+
+         for (unsigned array_index = 0; array_index < num_slots;
               array_index++) {
             unsigned vec4_index = vec4_slot(i) + array_index;
             unsigned scalar_index = i + array_index * 8;
