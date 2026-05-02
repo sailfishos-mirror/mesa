@@ -108,8 +108,12 @@
  *      feedback or TCS output loads) are preserved, but get the “no_varying”
  *      flag, meaning they are not consumed by the next shader stage. Such
  *      varyings are compacted (relocated) such that they are always last.
- *    * For indirect IO, if any array element is missing stores,
- *      the corresponding element loads are eliminated, and vice versa.
+ *    * For indirect IO:
+ *      * If any array element is missing direct stores and there are no
+ *        indirect stores, the corresponding direct loads are eliminated, and
+ *        vice versa.
+ *      * If only one slot has direct loads (or stores) and there are no loads
+ *        (or stores) for other slots, the varying array is shrunk to 1 element.
  *
  * 3. Constant, uniform, UBO load, and uniform expression propagation
  *
@@ -2105,9 +2109,12 @@ remove_all_stores(struct linkage_info *linkage, unsigned i,
 
 static void
 remove_dead_varyings(struct linkage_info *linkage,
-                     nir_opt_varyings_progress *progress)
+                     nir_opt_varyings_progress *progress,
+                     bool *regather_linkage)
 {
    unsigned i;
+
+   *regather_linkage = false;
 
    /* Remove dead inputs and outputs. */
    BITSET_FOREACH_SET(i, linkage->removable_mask, NUM_SCALAR_SLOTS) {
@@ -2278,6 +2285,247 @@ remove_dead_varyings(struct linkage_info *linkage,
 
          /* Clear bitmasks associated with this varying slot. */
          clear_slot_info_after_removal(linkage, elem_i, elem_uses_xfb);
+      }
+
+      /* After the removal, get this again for shrinking what's been left over. */
+      get_slot_array_info(linkage, i, &producer_stores_mask,
+                          &producer_loads_mask, &consumer_loads_mask);
+      any_indirect_consumer_loads =
+         BITSET_TEST(linkage->indirect_consumer_load_mask, i);
+      any_indirect_producer_stores =
+         BITSET_TEST(linkage->indirect_producer_store_mask, i);
+      any_indirect_producer_loads =
+         BITSET_TEST(linkage->indirect_producer_load_mask, i);
+
+      /* Shrink indirect varying arrays. Examples of cases that are handled:
+       *
+       * Case 1:
+       *    Producer:
+       *       output[i] = ...; // array of 3
+       *    Consumer:
+       *       ... = input[0];
+       *       ... = input[1]; // input[2] not read
+       *
+       * Case 2:
+       *    Producer:
+       *       output[0] = ...;
+       *       output[1] = ...; // output[2] not written
+       *    Consumer:
+       *       ... = input[i]; // array of 3
+       *
+       * TODO: Only shrinking to 1 element is implemented currently.
+       */
+      if (slot->num_slots >= 2 &&
+          !nir_slot_is_sysval_output(vec4_slot(i), linkage->consumer_stage)) {
+         unsigned num_store_slots =
+            any_indirect_producer_stores ? slot->num_slots :
+                                           util_last_bit(producer_stores_mask);
+         unsigned num_load_slots =
+            any_indirect_producer_loads || any_indirect_consumer_loads ?
+                  slot->num_slots : util_last_bit(producer_loads_mask |
+                                                  consumer_loads_mask);
+         unsigned num_shrunk_slots = MIN2(num_store_slots, num_load_slots);
+
+         if (num_shrunk_slots == 1) {
+            /* num_slots can be shrunk to 1. */
+            if (num_store_slots == 1) {
+               /* It's this indirect load case:
+                *
+                *    Before:
+                *       output[direct_index] = a;
+                *       --- next shader ---
+                *       b = input[indirect_index];
+                *
+                *    After:
+                *       output[0] = a;
+                *       --- next shader ---
+                *       b = input[0];
+                */
+               unsigned direct_slot =
+                  get_array_elem(i, ffs(producer_stores_mask) - 1, slot->compact);
+
+               if (direct_slot != i) {
+                  /* Relocate direct stores to index 0. */
+                  list_for_each_entry(struct list_node, entry,
+                                      &linkage->slot[direct_slot].producer.stores,
+                                      head) {
+                     nir_io_semantics sem =
+                        nir_intrinsic_io_semantics(entry->instr);
+                     sem.location = vec4_slot(i);
+                     assert(sem.high_16bits == i % 2);
+                     nir_intrinsic_set_io_semantics(entry->instr, sem);
+                     nir_intrinsic_set_component(entry->instr, (i / 2) % 4);
+                  }
+
+                  *progress |= nir_progress_producer;
+               }
+
+               /* Relocate direct loads to index 0 and replace indirect load
+                * offset srcs with 0.
+                */
+               for (unsigned elem = 0; elem < slot->num_slots; elem++) {
+                  unsigned elem_i = get_array_elem(i, elem, slot->compact);
+                  struct scalar_slot *elem_slot = &linkage->slot[elem_i];
+
+                  /* Do it for both producer loads and consumer loads. */
+                  for (unsigned list_index = 0; list_index < 2; list_index++) {
+                     struct list_head *list =
+                        list_index ? &elem_slot->producer.loads :
+                                     &elem_slot->consumer.loads;
+                     nir_builder *b =
+                        list_index ? &linkage->producer_builder :
+                                     &linkage->consumer_builder;
+
+                     list_for_each_entry(struct list_node, entry, list, head) {
+                        nir_intrinsic_instr *load = entry->instr;
+                        nir_src *offset_src = nir_get_io_offset_src(load);
+                        nir_scalar offset =
+                           nir_scalar_resolved(offset_src->ssa, 0);
+
+                        if (!nir_scalar_is_const(offset)) {
+                           /* Replace an indirect load index with 0. */
+                           assert(elem == 0);
+
+                           b->cursor = nir_before_instr(&load->instr);
+                           *offset_src = nir_src_for_ssa(nir_imm_int(b, 0));
+
+                           /* Reduce the number of slots to 1. */
+                           nir_io_semantics sem =
+                              nir_intrinsic_io_semantics(load);
+                           sem.num_slots = 1;
+                           nir_intrinsic_set_io_semantics(load, sem);
+
+                           *progress |= list_index ? nir_progress_producer :
+                                                     nir_progress_consumer;
+                        } else if (elem > 0) {
+                           /* Change the location of a direct load to index 0. */
+                           assert(nir_scalar_as_uint(offset) == 0);
+
+                           nir_io_semantics sem =
+                              nir_intrinsic_io_semantics(load);
+                           sem.location = vec4_slot(i);
+                           assert(sem.high_16bits == i % 2);
+                           nir_intrinsic_set_io_semantics(load, sem);
+                           nir_intrinsic_set_component(load, (i / 2) % 4);
+
+                           *progress |= list_index ? nir_progress_producer :
+                                                     nir_progress_consumer;
+                        }
+                     }
+                  }
+               }
+            } else {
+               /* It's this indirect store case:
+                *
+                *    Before:
+                *       output[indirect_index] = a;
+                *       --- next shader ---
+                *       b = input[direct_index];
+                *
+                *    After:
+                *       if (indirect_index == direct_index)
+                *          output[0] = a;
+                *       --- next shader ---
+                *       b = input[0];
+                */
+               assert(num_load_slots == 1);
+               unsigned direct_index = ffs(producer_loads_mask |
+                                           consumer_loads_mask) - 1;
+               unsigned direct_slot = get_array_elem(i, direct_index, slot->compact);
+
+               if (direct_slot != i) {
+                  /* Relocate direct loads to index 0.
+                   * Do it for both producer loads and consumer loads.
+                   */
+                  for (unsigned list_index = 0; list_index < 2; list_index++) {
+                     struct list_head *list =
+                        list_index ? &linkage->slot[direct_slot].producer.loads :
+                                     &linkage->slot[direct_slot].consumer.loads;
+
+                     list_for_each_entry(struct list_node, entry, list, head) {
+                        nir_io_semantics sem =
+                           nir_intrinsic_io_semantics(entry->instr);
+                        sem.location = vec4_slot(i);
+                        assert(sem.high_16bits == i % 2);
+                        nir_intrinsic_set_io_semantics(entry->instr, sem);
+                        nir_intrinsic_set_component(entry->instr, (i / 2) % 4);
+
+                        *progress |= list_index ? nir_progress_producer :
+                                                  nir_progress_consumer;
+                     }
+                  }
+               }
+
+               /* Keep only direct stores to direct_slot but relocate them
+                * to index 0, and replace indirect stores with conditional
+                * stores to index 0 where the condition is
+                * "indirect_index == direct_index", as per the example above.
+                */
+               for (unsigned elem = 0; elem < slot->num_slots; elem++) {
+                  unsigned elem_i = get_array_elem(i, elem, slot->compact);
+                  struct scalar_slot *elem_slot = &linkage->slot[elem_i];
+
+                  list_for_each_entry(struct list_node, entry,
+                                      &elem_slot->producer.stores, head) {
+                     nir_intrinsic_instr *store = entry->instr;
+                     nir_src *offset_src = nir_get_io_offset_src(store);
+                     nir_scalar offset =
+                        nir_scalar_resolved(offset_src->ssa, 0);
+                     nir_io_semantics sem = nir_intrinsic_io_semantics(store);
+
+                     if (!nir_scalar_is_const(offset)) {
+                        /* Replace an indirect store with a conditional direct
+                         * store.
+                         */
+                        assert(elem == 0);
+
+                        nir_builder *b = &linkage->producer_builder;
+                        b->cursor = nir_before_instr(&store->instr);
+
+                        /* Move the store into a new conditional block and
+                         * change the indirect index to 0.
+                         */
+                        nir_if *if_eq =
+                           nir_push_if(b, nir_ieq_imm(b, offset.def,
+                                                      direct_index));
+                        *offset_src = nir_src_for_ssa(nir_imm_int(b, 0));
+                        nir_instr_move(b->cursor, &store->instr);
+                        b->cursor = nir_after_instr(&store->instr);
+                        nir_pop_if(b, if_eq);
+
+                        /* Reduce the number of slots to 1. */
+                        sem.num_slots = 1;
+                        nir_intrinsic_set_io_semantics(store, sem);
+                     } else if (elem > 0) {
+                        /* Change the location of a direct store to index 0 if
+                         * it went to direct_slot, else remove it.
+                         */
+                        assert(nir_scalar_as_uint(offset) == 0);
+
+                        if (sem.location == vec4_slot(direct_slot)) {
+                           sem.location = vec4_slot(i);
+                           assert(sem.high_16bits == i % 2);
+                           nir_intrinsic_set_io_semantics(store, sem);
+                           nir_intrinsic_set_component(store, (i / 2) % 4);
+                        } else {
+                           nir_remove_varying(store, linkage->consumer_stage);
+                        }
+                     }
+
+                     *progress |= nir_progress_producer;
+                  }
+               }
+            }
+
+            /* Shrinking varying arrays invalidates linkage info. It's
+             * easier to re-gather it from scratch than trying to fix it.
+             */
+            *regather_linkage = true;
+         } else {
+            /* TODO: Implement shrinking the varying array from size N down to
+             * M where 2 <= M < N.
+             */
+         }
       }
    }
 }
@@ -5656,6 +5904,12 @@ default_varying_estimate_instr_cost(nir_instr *instr)
 }
 
 static void
+free_linkage(struct linkage_info *linkage)
+{
+   ralloc_free(ralloc_parent_of_linear_context(linkage->linear_mem_ctx));
+}
+
+static void
 init_linkage(nir_shader *producer, nir_shader *consumer, bool spirv,
              unsigned max_uniform_components, unsigned max_ubos_per_stage,
              struct linkage_info *linkage, nir_opt_varyings_progress *progress)
@@ -5708,16 +5962,20 @@ init_linkage(nir_shader *producer, nir_shader *consumer, bool spirv,
    init_indirect_varyings_info(linkage);
    determine_uniform_movability(linkage, max_uniform_components);
    determine_ubo_movability(linkage, max_ubos_per_stage);
+
    /* This must always be done because it also cleans up bitmasks. */
-   remove_dead_varyings(linkage, progress);
+   bool regather_linkage;
+   remove_dead_varyings(linkage, progress, &regather_linkage);
+
+   if (regather_linkage) {
+      free_linkage(linkage);
+      init_linkage(producer, consumer, spirv, max_uniform_components,
+                   max_ubos_per_stage, linkage, progress);
+      return;
+   }
+
    /* This must be after dead IO removal. */
    disable_unsafe_indirect_varying_opts(linkage);
-}
-
-static void
-free_linkage(struct linkage_info *linkage)
-{
-   ralloc_free(ralloc_parent_of_linear_context(linkage->linear_mem_ctx));
 }
 
 static void
