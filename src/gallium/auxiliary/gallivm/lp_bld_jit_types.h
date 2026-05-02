@@ -243,6 +243,7 @@ struct lp_jit_bindless_texture
    const void *base;
    const void *residency;
    uint32_t sampler_index;
+   uint32_t base_offset;
 };
 
 struct lp_descriptor {

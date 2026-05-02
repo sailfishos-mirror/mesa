@@ -464,6 +464,25 @@ lp_build_llvm_texture_residency(struct gallivm_state *gallivm,
    return LLVMBuildLoad2(builder, residency_type, residency_ptr_ptr, "");
 }
 
+static LLVMValueRef
+lp_build_llvm_texture_base_offset(struct gallivm_state *gallivm,
+                                      LLVMTypeRef resources_type,
+                                      LLVMValueRef resources_ptr,
+                                      unsigned texture_unit,
+                                      LLVMValueRef texture_unit_offset)
+{
+   LLVMBuilderRef builder = gallivm->builder;
+
+   LLVMValueRef base_offset_ptr = gallivm->texture_descriptor;
+   base_offset_ptr = LLVMBuildAdd(builder, base_offset_ptr,
+                                  lp_build_const_int64(gallivm, offsetof(struct lp_descriptor, texture.base_offset)), "");
+
+   LLVMTypeRef base_offset_type = LLVMInt32TypeInContext(gallivm->context);
+   base_offset_ptr = LLVMBuildIntToPtr(builder, base_offset_ptr, LLVMPointerType(base_offset_type, 0), "");
+
+   return LLVMBuildLoad2(builder, base_offset_type, base_offset_ptr, "");
+}
+
 
 /**
  * Helper macro to instantiate the functions that generate the code to
@@ -724,6 +743,7 @@ lp_build_jit_fill_sampler_dynamic_state(struct lp_sampler_dynamic_state *state)
    state->img_stride = lp_build_llvm_texture_img_stride;
    state->mip_offsets = lp_build_llvm_texture_mip_offsets;
    state->residency = lp_build_llvm_texture_residency;
+   state->base_offset = lp_build_llvm_texture_base_offset;
 
    state->min_lod = lp_build_llvm_sampler_min_lod;
    state->max_lod = lp_build_llvm_sampler_max_lod;
