@@ -1793,21 +1793,13 @@ gather_outputs(struct nir_builder *builder, nir_intrinsic_instr *intr, void *cb_
 }
 
 /******************************************************************
- * TIDYING UP INDIRECT VARYINGS (BEFORE DEAD VARYINGS REMOVAL)
+ * ADDITIONAL SETUP FOR INDIRECT VARYINGS
  ******************************************************************/
 
 static void
-tidy_up_indirect_varyings(struct linkage_info *linkage)
+init_indirect_varyings_info(struct linkage_info *linkage)
 {
    unsigned i;
-
-   /* Indirectly-indexed slots can have direct access too and thus set
-    * various bitmasks, so clear those bitmasks to make sure they are not
-    * touched.
-    */
-   BITSET_FOREACH_SET(i, linkage->indirect_mask, NUM_SCALAR_SLOTS) {
-      slot_disable_optimizations_and_compaction(linkage, i);
-   }
 
    BITSET_FOREACH_SET(i, linkage->indirect_mask, NUM_SCALAR_SLOTS) {
       struct scalar_slot *first = &linkage->slot[i];
@@ -1826,6 +1818,20 @@ tidy_up_indirect_varyings(struct linkage_info *linkage)
 
          assert(BITSET_TEST(linkage->indirect_mask, get_array_elem(i, elem, first->compact)));
       }
+   }
+}
+
+static void
+disable_unsafe_indirect_varying_opts(struct linkage_info *linkage)
+{
+   unsigned i;
+
+   /* Indirectly-indexed slots can have direct access too and thus set
+    * various bitmasks, so clear those bitmasks to make sure they are not
+    * touched.
+    */
+   BITSET_FOREACH_SET(i, linkage->indirect_mask, NUM_SCALAR_SLOTS) {
+      slot_disable_optimizations_and_compaction(linkage, i);
    }
 }
 
@@ -5699,11 +5705,13 @@ init_linkage(nir_shader *producer, nir_shader *consumer, bool spirv,
    /* Preparation. */
    nir_shader_intrinsics_pass(consumer, gather_inputs, 0, linkage);
    nir_shader_intrinsics_pass(producer, gather_outputs, 0, linkage);
-   tidy_up_indirect_varyings(linkage);
+   init_indirect_varyings_info(linkage);
    determine_uniform_movability(linkage, max_uniform_components);
    determine_ubo_movability(linkage, max_ubos_per_stage);
    /* This must always be done because it also cleans up bitmasks. */
    remove_dead_varyings(linkage, progress);
+   /* This must be after dead IO removal. */
+   disable_unsafe_indirect_varying_opts(linkage);
 }
 
 static void
