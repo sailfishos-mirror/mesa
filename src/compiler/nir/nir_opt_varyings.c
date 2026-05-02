@@ -2015,9 +2015,11 @@ remove_all_stores(struct linkage_info *linkage, unsigned i,
 
    /* Remove all stores. */
    list_for_each_entry_safe(struct list_node, iter, &slot->producer.stores, head) {
+      /* nir_remove_varying always makes progress. */
+      *progress |= nir_progress_producer;
+
       if (nir_remove_varying(iter->instr, linkage->consumer_stage)) {
          list_del(&iter->head);
-         *progress |= nir_progress_producer;
       } else {
          if (has_xfb(iter->instr)) {
             *uses_xfb = true;

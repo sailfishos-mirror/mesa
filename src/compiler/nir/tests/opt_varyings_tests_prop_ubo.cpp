@@ -61,7 +61,7 @@ TEST_F(nir_opt_varyings_test_prop_ubo, \
    SHADER_UBO_OUTPUT(producer_stage, consumer_stage, slot, comp, type, bitsize, 1, 1) \
    \
    if (nir_slot_is_sysval_output((gl_varying_slot)pindex, MESA_SHADER_##consumer_stage)) { \
-      ASSERT_TRUE(opt_varyings() & nir_progress_consumer); \
+      ASSERT_EQ(opt_varyings(), (nir_progress_producer | nir_progress_consumer)); \
       ASSERT_TRUE(b1->shader->info.outputs_written == BITFIELD64_BIT(pindex)); \
       ASSERT_TRUE(nir_intrinsic_io_semantics(store).no_varying); \
    } else { \
@@ -100,7 +100,7 @@ TEST_F(nir_opt_varyings_test_prop_ubo, \
    if (store3) \
       nir_intrinsic_set_io_xfb(store3, xfb); \
    \
-   ASSERT_TRUE(opt_varyings() == nir_progress_consumer); \
+   ASSERT_EQ(opt_varyings(), (nir_progress_producer | nir_progress_consumer)); \
    ASSERT_TRUE(b1->shader->info.outputs_written == BITFIELD64_BIT(pindex)); \
    ASSERT_TRUE(nir_intrinsic_io_semantics(store).no_varying); \
    ASSERT_TRUE(b2->shader->info.inputs_read == 0 && \

@@ -36,7 +36,7 @@ TEST_F(nir_opt_varyings_test_dead_output, \
       store_output(b1, VARYING_SLOT_##slot, 0, nir_type_float##bitsize, \
                    nir_imm_floatN_t(b1, 0, bitsize), 0); \
    \
-   opt_varyings(); \
+   ASSERT_EQ(opt_varyings(), nir_progress_producer); \
    ASSERT_TRUE(b1->shader->info.outputs_written == VARYING_BIT_##slot); \
    ASSERT_TRUE(shader_contains_instr(b1, &intr->instr)); \
    ASSERT_TRUE(nir_intrinsic_io_semantics(intr).no_varying == \
@@ -69,8 +69,13 @@ TEST_F(nir_opt_varyings_test_dead_output, \
    if (index == VARYING_SLOT_FOGC || index == VARYING_SLOT_PRIMITIVE_ID || \
        index == VARYING_SLOT_TEX0 || index == VARYING_SLOT_VAR0_16BIT) \
       index = VARYING_SLOT_VAR0; \
+      \
+   if (index == VARYING_SLOT_POS || index == VARYING_SLOT_PSIZ || \
+       index == VARYING_SLOT_CLIP_VERTEX) \
+      ASSERT_EQ(opt_varyings(), 0); \
+   else \
+      ASSERT_EQ(opt_varyings(), nir_progress_producer); \
    \
-   ASSERT_TRUE(opt_varyings() == 0); \
    if (index >= VARYING_SLOT_VAR0_16BIT) { \
       ASSERT_TRUE(b1->shader->info.outputs_written_16bit == \
                   BITFIELD_BIT(index - VARYING_SLOT_VAR0_16BIT)); \
