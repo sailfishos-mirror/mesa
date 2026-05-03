@@ -1242,8 +1242,7 @@ enum brw_sfid {
 #define XE2_SAMPLER_MESSAGE_SAMPLE_PO_LZ                  56
 #define XE2_SAMPLER_MESSAGE_SAMPLE_PO_C_LZ                57
 
-/* for GFX5 only */
-#define BRW_SAMPLER_SIMD_MODE_SIMD4X2                   0
+#define BRW_SAMPLER_SIMD_MODE_SIMD8D                    0
 #define BRW_SAMPLER_SIMD_MODE_SIMD8                     1
 #define BRW_SAMPLER_SIMD_MODE_SIMD16                    2
 #define BRW_SAMPLER_SIMD_MODE_SIMD32_64                 3
@@ -1255,11 +1254,6 @@ enum brw_sfid {
 #define XE2_SAMPLER_SIMD_MODE_SIMD32                  2
 #define XE2_SAMPLER_SIMD_MODE_SIMD16H                 5
 #define XE2_SAMPLER_SIMD_MODE_SIMD32H                 6
-
-/* GFX9 changes SIMD mode 0 to mean SIMD8D, but lets us get the SIMD4x2
- * behavior by setting bit 22 of dword 2 in the message header. */
-#define GFX9_SAMPLER_SIMD_MODE_SIMD8D                   0
-#define GFX9_SAMPLER_SIMD_MODE_EXTENSION_SIMD4X2        (1 << 22)
 
 #define BRW_DATAPORT_OWORD_BLOCK_1_OWORDLOW   0
 #define BRW_DATAPORT_OWORD_BLOCK_1_OWORDHIGH  1
