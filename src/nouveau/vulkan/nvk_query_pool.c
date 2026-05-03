@@ -29,6 +29,8 @@
 #include "nv_push_cla0c0.h"
 #include "nv_push_clc597.h"
 #include "nv_push_clc7c0.h"
+#include "nv_push_clc86f.h"
+#include "nv_push_clcb97.h"
 
 static uint32_t
 vk_query_pool_report_count(const struct vk_query_pool *vk_pool)
@@ -277,6 +279,8 @@ nvk_CmdResetQueryPool(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
+   const struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
 
    for (uint32_t i = 0; i < queryCount; i++) {
       uint64_t addr = nvk_query_available_addr(pool, firstQuery + i);
@@ -299,19 +303,17 @@ nvk_CmdResetQueryPool(VkCommandBuffer commandBuffer,
     * will see the query as unavailable if it happens before the query is
     * completed again.
     */
-   for (uint32_t i = 0; i < queryCount; i++) {
-      uint64_t addr = nvk_query_available_addr(pool, firstQuery + i);
-
-      struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
-      __push_mthd(p, SUBC_NV9097, NV906F_SEMAPHOREA);
-      P_NV906F_SEMAPHOREA(p, addr >> 32);
-      P_NV906F_SEMAPHOREB(p, (addr & UINT32_MAX) >> 2);
-      P_NV906F_SEMAPHOREC(p, 0);
-      P_NV906F_SEMAPHORED(p, {
-         .operation = OPERATION_ACQUIRE,
-         .acquire_switch = ACQUIRE_SWITCH_ENABLED,
-         .release_size = RELEASE_SIZE_4BYTE,
-      });
+   if (pdev->info.cls_eng3d >= HOPPER_A) {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
+      P_IMMD(p, NVC86F, WFI, 0);
+      P_MTHD(p, NVC86F, MEM_OP_A);
+      P_NVC86F_MEM_OP_A(p, {});
+      P_NVC86F_MEM_OP_B(p, 0);
+      P_NVC86F_MEM_OP_C(p, { .membar_type = 0 });
+      P_NVC86F_MEM_OP_D(p, { .operation = OPERATION_MEMBAR });
+   } else {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 1);
+      __push_immd(p, SUBC_NV9097, NV906F_SET_REFERENCE, 0);
    }
 }
 
