@@ -76,14 +76,8 @@ nvk_CreateQueryPool(VkDevice device,
    else
       pool->layout = NVK_QUERY_POOL_LAYOUT_SEPARATE;
 
-   uint32_t reports_per_query;
-   if (pool->vk.query_type == VK_QUERY_TYPE_TIMESTAMP) {
-      /* Timestamps are just a single timestamp */
-      reports_per_query = 1;
-   } else {
-      /* Everything else is two queries because we have to compute a delta */
-      reports_per_query = 2 * vk_query_pool_report_count(&pool->vk);
-   }
+   /* Everything is a single query per report */
+   uint32_t reports_per_query = vk_query_pool_report_count(&pool->vk);
 
    uint64_t mem_size = 0;
    switch (pool->layout) {
@@ -532,17 +526,50 @@ nvk_cmd_clear_report_value(struct nvk_cmd_buffer *cmd,
    }
 }
 
-static void
-nvk_cmd_begin_end_query(struct nvk_cmd_buffer *cmd,
-                        struct nvk_query_pool *pool,
-                        uint32_t query, uint32_t index,
-                        bool end)
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer,
+                            VkQueryPool queryPool,
+                            uint32_t query,
+                            VkQueryControlFlags flags,
+                            uint32_t index)
 {
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+   VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
+
+   /* From the Vulkan 1.4.350 spec, vkCmdBeginQuery:
+    *
+    *    VUID-vkCmdBeginQuery-queryPool-01922
+    *
+    *    "queryPool must have been created with a queryType that differs from
+    *    that of any queries that are active within commandBuffer"
+    *
+    * and
+    *
+    *    "After beginning a query, that query is considered active within the
+    *    command buffer it was called in until that same query is ended.
+    *    Queries active in a primary command buffer when secondary command
+    *    buffers are executed are considered active for those secondary command
+    *    buffers."
+    *
+    * This means we will never have two queries with the same type active and
+    * can rely on cleaning counters.
+    */
+   nvk_cmd_clear_report_value(cmd, pool);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer,
+                          VkQueryPool queryPool,
+                          uint32_t query,
+                          uint32_t index)
+{
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+   VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
+
    const struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
 
-   uint64_t report_addr = nvk_query_report_addr(pool, query) +
-                          end * sizeof(struct nvk_query_report);
+   uint64_t report_addr = nvk_query_report_addr(pool, query);
 
    switch (pool->vk.query_type) {
    case VK_QUERY_TYPE_OCCLUSION: {
@@ -596,7 +623,7 @@ nvk_cmd_begin_end_query(struct nvk_cmd_buffer *cmd,
             });
          }
 
-         report_addr += 2 * sizeof(struct nvk_query_report);
+         report_addr += sizeof(struct nvk_query_report);
          stats_left &= ~sq->flag;
       }
       break;
@@ -621,7 +648,7 @@ nvk_cmd_begin_end_query(struct nvk_cmd_buffer *cmd,
             .sub_report = index,
             .flush_disable = true,
          });
-         report_addr += 2 * sizeof(struct nvk_query_report);
+         report_addr += sizeof(struct nvk_query_report);
       }
       break;
    }
@@ -648,66 +675,21 @@ nvk_cmd_begin_end_query(struct nvk_cmd_buffer *cmd,
       UNREACHABLE("Unsupported query type");
    }
 
-   if (end) {
-      struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
-      P_IMMD(p, NV9097, FLUSH_PENDING_WRITES, 0);
 
-      uint64_t available_addr = nvk_query_available_addr(pool, query);
-      P_MTHD(p, NV9097, SET_REPORT_SEMAPHORE_A);
-      P_NV9097_SET_REPORT_SEMAPHORE_A(p, available_addr >> 32);
-      P_NV9097_SET_REPORT_SEMAPHORE_B(p, available_addr);
-      P_NV9097_SET_REPORT_SEMAPHORE_C(p, 1);
-      P_NV9097_SET_REPORT_SEMAPHORE_D(p, {
-         .operation = OPERATION_RELEASE,
-         .release = RELEASE_AFTER_ALL_PRECEEDING_WRITES_COMPLETE,
-         .pipeline_location = PIPELINE_LOCATION_ALL,
-         .structure_size = STRUCTURE_SIZE_ONE_WORD,
-      });
-   }
-}
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
+   P_IMMD(p, NV9097, FLUSH_PENDING_WRITES, 0);
 
-VKAPI_ATTR void VKAPI_CALL
-nvk_CmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer,
-                            VkQueryPool queryPool,
-                            uint32_t query,
-                            VkQueryControlFlags flags,
-                            uint32_t index)
-{
-   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
-
-   /* From the Vulkan 1.4.350 spec, vkCmdBeginQuery:
-    *
-    *    VUID-vkCmdBeginQuery-queryPool-01922
-    *
-    *    "queryPool must have been created with a queryType that differs from
-    *    that of any queries that are active within commandBuffer"
-    *
-    * and
-    *
-    *    "After beginning a query, that query is considered active within the
-    *    command buffer it was called in until that same query is ended.
-    *    Queries active in a primary command buffer when secondary command
-    *    buffers are executed are considered active for those secondary command
-    *    buffers."
-    *
-    * This means we will never have two queries with the same type active and
-    * can rely on cleaning counters.
-    */
-   nvk_cmd_clear_report_value(cmd, pool);
-   nvk_cmd_begin_end_query(cmd, pool, query, index, false);
-}
-
-VKAPI_ATTR void VKAPI_CALL
-nvk_CmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer,
-                          VkQueryPool queryPool,
-                          uint32_t query,
-                          uint32_t index)
-{
-   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
-
-   nvk_cmd_begin_end_query(cmd, pool, query, index, true);
+   uint64_t available_addr = nvk_query_available_addr(pool, query);
+   P_MTHD(p, NV9097, SET_REPORT_SEMAPHORE_A);
+   P_NV9097_SET_REPORT_SEMAPHORE_A(p, available_addr >> 32);
+   P_NV9097_SET_REPORT_SEMAPHORE_B(p, available_addr);
+   P_NV9097_SET_REPORT_SEMAPHORE_C(p, 1);
+   P_NV9097_SET_REPORT_SEMAPHORE_D(p, {
+      .operation = OPERATION_RELEASE,
+      .release = RELEASE_AFTER_ALL_PRECEEDING_WRITES_COMPLETE,
+      .pipeline_location = PIPELINE_LOCATION_ALL,
+      .structure_size = STRUCTURE_SIZE_ONE_WORD,
+   });
 
    /* From the Vulkan spec:
     *
@@ -775,14 +757,6 @@ cpu_write_query_result(void *dst, uint32_t idx,
    }
 }
 
-static void
-cpu_get_query_delta(void *dst, const struct nvk_query_report *src,
-                    uint32_t idx, VkQueryResultFlags flags)
-{
-   uint64_t delta = src[idx * 2 + 1].value - src[idx * 2].value;
-   cpu_write_query_result(dst, idx, flags, delta);
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 nvk_GetQueryPoolResults(VkDevice device,
                         VkQueryPool queryPool,
@@ -831,10 +805,10 @@ nvk_GetQueryPoolResults(VkDevice device,
          if (write_results)
             cpu_write_query_result(dst, 0, flags, src->timestamp);
       } else {
-         /* For everything else, we have to compute deltas */
+         /* For everything else, we can just write it */
          if (write_results) {
             for (uint32_t j = 0; j < report_count; j++)
-               cpu_get_query_delta(dst, src, j, flags);
+               cpu_write_query_result(dst, j, flags, src[j].value);
          }
       }
 

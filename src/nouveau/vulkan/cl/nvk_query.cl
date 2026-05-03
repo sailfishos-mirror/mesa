@@ -34,9 +34,7 @@ nvk_copy_queries(uint64_t pool_addr, uint available_stride,
    } else {
       if (write_results) {
          for (uint r = 0; r < report_count; ++r) {
-            uint delta = report[(r * 2) + 1].value - report[r * 2].value;
-
-            vk_write_query(dst_addr + dst_offset, r, flags, delta);
+            vk_write_query(dst_addr + dst_offset, r, flags, report[r].value);
          }
       }
    }
