@@ -7224,7 +7224,7 @@
         "description": "mesa/st: run the lower_opcodes pass for draw shaders",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5eb0136a3c561e25d3f274e33a86812cfb2af589",
         "notes": null

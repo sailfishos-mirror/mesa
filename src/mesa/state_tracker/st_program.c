@@ -818,6 +818,9 @@ st_create_common_variant(struct st_context *st,
    state.ir.nir = get_nir_shader(st, prog, key->is_draw_shader);
    const nir_shader_compiler_options *options = state.ir.nir->options;
 
+   if (key->is_draw_shader)
+      NIR_PASS(_, state.ir.nir, draw_nir_lower_opcodes);
+
    if (key->clamp_color) {
       NIR_PASS(_, state.ir.nir, nir_lower_clamp_color_outputs);
    }
