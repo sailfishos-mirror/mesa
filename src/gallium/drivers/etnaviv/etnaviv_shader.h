@@ -34,8 +34,10 @@
 #include "pipe/p_state.h"
 #include "util/disk_cache.h"
 #include "util/u_queue.h"
+#include "util/u_shader_variant_cache.h"
 
 struct etna_context;
+struct etna_screen;
 struct etna_shader_variant;
 struct nir_shader;
 
@@ -98,8 +100,9 @@ struct etna_shader {
    const struct etna_core_info *info;
    const struct etna_specs *specs;
    struct etna_compiler *compiler;
+   struct etna_screen *screen;
 
-   struct etna_shader_variant *variants;
+   struct util_shader_variant_list variants;
 
    cache_key cache_key;     /* shader disk-cache key */
 
