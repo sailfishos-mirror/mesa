@@ -37,6 +37,7 @@ struct nvk_query_pool {
 
    uint32_t reports_start;
    uint32_t query_stride;
+   uint32_t statistics_counter_mask;
 
    struct nvkmd_mem *mem;
 };

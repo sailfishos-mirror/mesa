@@ -52,6 +52,53 @@ vk_query_pool_report_count(const struct vk_query_pool *vk_pool)
    }
 }
 
+static uint32_t
+vk_query_pool_statistics_counter_mask(const struct vk_query_pool *vk_pool)
+{
+   uint32_t result = 0;
+
+   switch (vk_pool->query_type) {
+   case VK_QUERY_TYPE_OCCLUSION:
+   case VK_QUERY_TYPE_TIMESTAMP:
+      break;
+
+   case VK_QUERY_TYPE_PIPELINE_STATISTICS: {
+      const VkQueryPipelineStatisticFlags stats = vk_pool->pipeline_statistics;
+      V_NV9097_SET_STATISTICS_COUNTER(result, {
+         .da_vertices_generated_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT) != 0,
+         .da_primitives_generated_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT) != 0,
+         .vs_invocations_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT) != 0,
+         .gs_invocations_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT) != 0,
+         .gs_primitives_generated_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT) != 0,
+         .clipper_invocations_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT) != 0,
+         .clipper_primitives_generated_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT) != 0,
+         .ps_invocations_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT) != 0,
+         .ti_invocations_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT) != 0,
+         .ts_invocations_enable = (stats & VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT) != 0,
+      });
+      break;
+   }
+
+   case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
+      V_NV9097_SET_STATISTICS_COUNTER(result, {
+         .vtg_primitives_out_enable = true,
+      });
+      break;
+
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+      V_NV9097_SET_STATISTICS_COUNTER(result, {
+         .streaming_primitives_succeeded_enable = true,
+         .streaming_primitives_needed_enable = true,
+      });
+      break;
+
+   default:
+      UNREACHABLE("Unsupported query type");
+   }
+
+   return result;
+}
+
 VKAPI_ATTR VkResult VKAPI_CALL
 nvk_CreateQueryPool(VkDevice device,
                     const VkQueryPoolCreateInfo *pCreateInfo,
@@ -75,6 +122,8 @@ nvk_CreateQueryPool(VkDevice device,
       pool->layout = NVK_QUERY_POOL_LAYOUT_ALIGNED_INTERLEAVED;
    else
       pool->layout = NVK_QUERY_POOL_LAYOUT_SEPARATE;
+
+   pool->statistics_counter_mask = vk_query_pool_statistics_counter_mask(&pool->vk);
 
    /* Everything is a single query per report */
    uint32_t reports_per_query = vk_query_pool_report_count(&pool->vk);
@@ -526,6 +575,33 @@ nvk_cmd_clear_report_value(struct nvk_cmd_buffer *cmd,
    }
 }
 
+static void
+nvk_cmd_set_statistics_counters(struct nvk_cmd_buffer *cmd,
+                                struct nvk_query_pool *pool, bool enable)
+{
+   switch (pool->vk.query_type) {
+   case VK_QUERY_TYPE_OCCLUSION: {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
+      P_IMMD(p, NV9097, SET_ZPASS_PIXEL_COUNT, enable);
+      break;
+   }
+   case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
+   case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT: {
+      if (pool->statistics_counter_mask != 0) {
+         struct nv_push *p = nvk_cmd_buffer_push(cmd, 3);
+         P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_SET_STATISTICS_COUNTERS));
+         P_INLINE_DATA(p, enable);
+         P_INLINE_DATA(p, pool->statistics_counter_mask);
+      }
+      break;
+   }
+
+   default:
+      UNREACHABLE("Unsupported query type");
+   }
+}
+
 VKAPI_ATTR void VKAPI_CALL
 nvk_CmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer,
                             VkQueryPool queryPool,
@@ -552,9 +628,10 @@ nvk_CmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer,
     *    buffers."
     *
     * This means we will never have two queries with the same type active and
-    * can rely on cleaning counters.
+    * can rely on cleaning and toggling counters.
     */
    nvk_cmd_clear_report_value(cmd, pool);
+   nvk_cmd_set_statistics_counters(cmd, pool, true);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -676,10 +753,13 @@ nvk_CmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer,
    }
 
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
    P_IMMD(p, NV9097, FLUSH_PENDING_WRITES, 0);
 
+   nvk_cmd_set_statistics_counters(cmd, pool, false);
+
    uint64_t available_addr = nvk_query_available_addr(pool, query);
+   p = nvk_cmd_buffer_push(cmd, 5);
    P_MTHD(p, NV9097, SET_REPORT_SEMAPHORE_A);
    P_NV9097_SET_REPORT_SEMAPHORE_A(p, available_addr >> 32);
    P_NV9097_SET_REPORT_SEMAPHORE_B(p, available_addr);
@@ -990,3 +1070,61 @@ nvk_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer,
                                     dst_addr, stride, flags);
 }
 
+void
+nvk_mme_set_statistics_counters(struct mme_builder *b)
+{
+   struct mme_value enable = mme_load(b);
+   struct mme_value mask = mme_load(b);
+   struct mme_value state = nvk_mme_load_scratch(b, STATISTICS_COUNTER_STATE);
+
+   mme_if(b, ieq, enable, mme_imm(0)) {
+      mme_and_not_to(b, state, state, mask);
+   }
+
+   mme_if(b, ine, enable, mme_imm(0)) {
+      mme_or_to(b, state, state, mask);
+   }
+
+   nvk_mme_store_scratch(b, STATISTICS_COUNTER_STATE, state);
+   mme_mthd(b, NV9097_SET_STATISTICS_COUNTER);
+   mme_emit(b, state);
+}
+
+const struct nvk_mme_test_case nvk_mme_set_statistics_counters_tests[] = {{
+   /* This case doesn't change the state so it should do nothing */
+   .init =
+      (struct nvk_mme_mthd_data[]){
+         {NVK_SET_MME_SCRATCH(STATISTICS_COUNTER_STATE), 0},
+         {NV9097_SET_STATISTICS_COUNTER, 0},
+         {}},
+   .params = (uint32_t[]){1, 0},
+   .expected =
+      (struct nvk_mme_mthd_data[]){
+         {NVK_SET_MME_SCRATCH(STATISTICS_COUNTER_STATE), 0},
+         {NV9097_SET_STATISTICS_COUNTER, 0},
+         {}},
+}, {
+   .init =
+      (struct nvk_mme_mthd_data[]){
+         {NVK_SET_MME_SCRATCH(STATISTICS_COUNTER_STATE), 0x100},
+         {NV9097_SET_STATISTICS_COUNTER, 0x100},
+         {}},
+   .params = (uint32_t[]){1, 0x200},
+   .expected =
+      (struct nvk_mme_mthd_data[]){
+         {NVK_SET_MME_SCRATCH(STATISTICS_COUNTER_STATE), 0x300},
+         {NV9097_SET_STATISTICS_COUNTER, 0x300},
+         {}},
+}, {
+   .init =
+      (struct nvk_mme_mthd_data[]){
+         {NVK_SET_MME_SCRATCH(STATISTICS_COUNTER_STATE), 0x300},
+         {NV9097_SET_STATISTICS_COUNTER, 0x300},
+         {}},
+   .params = (uint32_t[]){0, 0x200},
+   .expected =
+      (struct nvk_mme_mthd_data[]){
+         {NVK_SET_MME_SCRATCH(STATISTICS_COUNTER_STATE), 0x100},
+         {NV9097_SET_STATISTICS_COUNTER, 0x100},
+         {}},
+}, {}};
