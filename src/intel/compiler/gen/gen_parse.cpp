@@ -18,14 +18,10 @@
 
 #include "util/bitscan.h"
 #include "util/ralloc.h"
-#include "util/u_debug.h"
 
 #include "gen_private.h"
 
 namespace {
-
-/* TODO(brw_asm-compat): Go away with the tests-regeneration commit. */
-DEBUG_GET_ONCE_BOOL_OPTION(brw_asm_compat_mode, "INTEL_BRW_ASM_COMPAT", false)
 
 #define SV_FMT(s) static_cast<int>((s).size()), (s).data()
 #define SV_ARGS(s) (s).data(), (s).size()

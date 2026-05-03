@@ -7,16 +7,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "util/u_debug.h"
-
 #include "gen_private.h"
 
 /* Generated instruction information */
 #include "gen_info_util.h"
 #include "gen_info_pre_xe.h"
-
-/* TODO(brw_asm-compat): Go away with the tests-regeneration commit. */
-DEBUG_GET_ONCE_BOOL_OPTION(brw_asm_compat_mode, "INTEL_BRW_ASM_COMPAT", false)
 
 #define WIDTH(width)   (1 << (width))
 
@@ -264,16 +259,6 @@ struct gen_encoder_pre_xe : public gen_encoding_pre_xe {
          } else {
             encode_operand_controls();
             encode_sources();
-
-            /* TODO(brw_asm-compat): The old brw_asm promotes the
-             * destination HSTRIDE from 0 to 1 for every Align1
-             * instruction in brw_set_dest().  Our SEND parser leaves
-             * the hstride at 0 because the hardware ignores it, so
-             * stamp it back to 1 here when we're round-tripping
-             * against the old brw_asm tests.
-             */
-            if (debug_get_option_brw_asm_compat_mode())
-               set(OPERAND_CONTROLS(DST_OPERAND)(DST_A1_HSTRIDE), cvt(1));
 
             if (inst->send.ex_desc_is_reg) {
                set(bits(82, 80), inst->send.ex_desc_subnr >> 2);

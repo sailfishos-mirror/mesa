@@ -36,16 +36,6 @@ if not args.gen_folder.is_dir():
           file=sys.stderr)
     exit(99)
 
-# TODO(brw_asm-compat): The old brw_asm encoded some fields that the
-# hardware ignores (e.g. it replicated narrow-type immediates into the
-# upper halves of the 32-bit field, and wrote register/type metadata into
-# SEND operand fields).  The test corpus here was captured with that
-# behaviour, so ask gentool to emulate it while we transition.  This env
-# var and the code it guards are temporary and go away as soon as the
-# expected outputs are regenerated.
-env = os.environ.copy()
-env['INTEL_BRW_ASM_COMPAT'] = '1'
-
 success = True
 
 for asm_file in args.gen_folder.glob('*.asm'):
@@ -58,7 +48,7 @@ for asm_file in args.gen_folder.glob('*.asm'):
             '-p', args.gen_name,
             asm_file.as_posix(),
         ]
-        raw = subprocess.check_output(command, timeout=5, env=env)
+        raw = subprocess.check_output(command, timeout=5)
     except OSError as e:
         if e.errno == errno.ENOEXEC:
             print('Skipping due to inability to run host binaries.',
