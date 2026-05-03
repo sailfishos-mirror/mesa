@@ -1,14 +1,14 @@
-send(8)         null<1>F        g123<8,8,1>F    0x8a080017
+send(8)         nullUD          g123<8,8,1>F    0x8a080017
                             urb MsgDesc: 1 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
-send(8)         null<1>F        g13<8,8,1>F     0x12080007
+send(8)         nullUD          g13<8,8,1>F     0x12080007
                             urb MsgDesc: 0 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080027
+send(8)         nullUD          g123<8,8,1>F    0x8a080027
                             urb MsgDesc: 2 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
 send(16)        g9<1>UD         g2<0,1,0>UD     0x02280300
                             hdc:ro MsgDesc: (0, 3, 0, 0) mlen 1 rlen 2       { align1 WE_all 1H };
-send(8)         null<1>F        g119<8,8,1>F    0x92080017
+send(8)         nullUD          g119<8,8,1>F    0x92080017
                             urb MsgDesc: 1 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
-send(16)        null<1>UW       g127<8,8,1>UW   0x82000010
+send(16)        nullUD          g127<8,8,1>UW   0x82000010
                             ts/btd MsgDesc: mlen 1 rlen 0           { align1 WE_all 1H EOT };
 send(8)         g124<1>UW       g13<8,8,1>UD    0x0643a001
                             sampler MsgDesc: ld_lz SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
@@ -16,31 +16,31 @@ send(16)        g120<1>UW       g23<8,8,1>UD    0x0c85a001
                             sampler MsgDesc: ld_lz SIMD16 Surface = 1 Sampler = 0 mlen 6 rlen 8 { align1 1H };
 send(8)         g10<1>UD        g2<8,8,1>UD     0x02480028
                             urb MsgDesc: 2 SIMD8 read mlen 1 rlen 4         { align1 1Q };
-send(8)         null<1>F        g8<8,8,1>F      0x140a0017
+send(8)         nullUD          g8<8,8,1>F      0x140a0017
                             urb MsgDesc: 1 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g118<8,8,1>F    0x940a0017
+send(8)         nullUD          g118<8,8,1>F    0x940a0017
                             urb MsgDesc: 1 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q EOT };
 send(8)         g2<1>UW         g10<8,8,1>UD    0x08427001
                             sampler MsgDesc: ld SIMD8 Surface = 1 Sampler = 0 mlen 4 rlen 4 { align1 1Q };
 send(16)        g2<1>UW         g18<8,8,1>UD    0x10847001
                             sampler MsgDesc: ld SIMD16 Surface = 1 Sampler = 0 mlen 8 rlen 8 { align1 1H };
-send(8)         null<1>F        g11<8,8,1>UD    0x0c0a0037
+send(8)         nullUD          g11<8,8,1>UD    0x0c0a0037
                             urb MsgDesc: 3 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0a080027
+send(8)         nullUD          g6<8,8,1>UD     0x0a080027
                             urb MsgDesc: 2 SIMD8 write mlen 5 rlen 0        { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0c088017
+send(8)         nullUD          g6<8,8,1>UD     0x0c088017
                             urb MsgDesc: 1 SIMD8 write masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0a088017
+send(8)         nullUD          g6<8,8,1>UD     0x0a088017
                             urb MsgDesc: 1 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x08088017
+send(8)         nullUD          g6<8,8,1>UD     0x08088017
                             urb MsgDesc: 1 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g2<8,8,1>UD     0x06088017
+send(8)         nullUD          g2<8,8,1>UD     0x06088017
                             urb MsgDesc: 1 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0c088007
+send(8)         nullUD          g6<8,8,1>UD     0x0c088007
                             urb MsgDesc: 0 SIMD8 write masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0a088007
+send(8)         nullUD          g6<8,8,1>UD     0x0a088007
                             urb MsgDesc: 0 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g125<8,8,1>UD   0x86088007
+send(8)         nullUD          g125<8,8,1>UD   0x86088007
                             urb MsgDesc: 0 SIMD8 write masked mlen 3 rlen 0 { align1 1Q EOT };
 send(8)         g7<1>UW         g7<8,8,1>UD     0x0443a000
                             sampler MsgDesc: ld_lz SIMD8 Surface = 0 Sampler = 0 mlen 2 rlen 4 { align1 1Q };
@@ -52,11 +52,11 @@ send(16)        g25<1>UW        g16<8,8,1>UD    0x0444a001
                             sampler MsgDesc: resinfo SIMD16 Surface = 1 Sampler = 0 mlen 2 rlen 4 { align1 1H };
 send(16)        g14<1>UW        g7<8,8,1>UD     0x0e8c8001
                             sampler MsgDesc: gather4 SIMD16 Surface = 1 Sampler = 0 mlen 7 rlen 8 { align1 1H };
-send(8)         null<1>F        g11<8,8,1>F     0x12080017
+send(8)         nullUD          g11<8,8,1>F     0x12080017
                             urb MsgDesc: 1 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>F     0x12080037
+send(8)         nullUD          g20<8,8,1>F     0x12080037
                             urb MsgDesc: 3 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080057
+send(8)         nullUD          g123<8,8,1>F    0x8a080057
                             urb MsgDesc: 5 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
 send(8)         g9<1>UW         g6<8,8,1>UD     0x0613d001
                             sampler MsgDesc: ld_mcs SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 1 { align1 1Q };
@@ -88,7 +88,7 @@ send(8)         g124<1>UW       g13<8,8,1>UD    0x064a8000
                             sampler MsgDesc: gather4 SIMD8 Surface = 0 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
 send(8)         g12<1>UW        g5<8,8,1>UD     0x02427000
                             sampler MsgDesc: ld SIMD8 Surface = 0 Sampler = 0 mlen 1 rlen 4 { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080037
+send(8)         nullUD          g123<8,8,1>F    0x8a080037
                             urb MsgDesc: 3 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
 send(8)         g6<1>UW         g11<8,8,1>UD    0x144a4001
                             sampler MsgDesc: sample_d SIMD8 Surface = 1 Sampler = 0 mlen 10 rlen 4 { align1 1Q };
@@ -114,17 +114,17 @@ send(16)        g12<1>UW        g21<8,8,1>UD    0x122c6102
                             sampler MsgDesc: sample_l_c SIMD16 Surface = 2 Sampler = 1 mlen 9 rlen 2 { align1 1H };
 send(8)         g124<1>UW       g3<8,8,1>UD     0x0a43e000
                             sampler MsgDesc: ld2dms SIMD8 Surface = 0 Sampler = 0 mlen 5 rlen 4 { align1 1Q };
-send(8)         null<1>F        g119<8,8,1>F    0x92080027
+send(8)         nullUD          g119<8,8,1>F    0x92080027
                             urb MsgDesc: 2 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
 send(8)         g2<1>UW         g3<8,8,1>UD     0x0643d000
                             sampler MsgDesc: ld_mcs SIMD8 Surface = 0 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
-send(8)         null<1>F        g7<8,8,1>UD     0x0a080037
+send(8)         nullUD          g7<8,8,1>UD     0x0a080037
                             urb MsgDesc: 3 SIMD8 write mlen 5 rlen 0        { align1 1Q };
-send(8)         null<1>F        g8<8,8,1>UD     0x0a080047
+send(8)         nullUD          g8<8,8,1>UD     0x0a080047
                             urb MsgDesc: 4 SIMD8 write mlen 5 rlen 0        { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>F     0x0c0a0017
+send(8)         nullUD          g29<8,8,1>F     0x0c0a0017
                             urb MsgDesc: 1 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g122<8,8,1>F    0x8c0a0017
+send(8)         nullUD          g122<8,8,1>F    0x8c0a0017
                             urb MsgDesc: 1 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
 send(8)         g13<1>UW        g10<8,8,1>UD    0x02320001
                             sampler MsgDesc: sample SIMD8 Surface = 1 Sampler = 0 mlen 1 rlen 3 { align1 1Q };
@@ -136,13 +136,13 @@ send(8)         g2<1>UW         g13<8,8,1>UD    0x0c4b1001
                             sampler MsgDesc: gather4_po SIMD8 Surface = 1 Sampler = 0 mlen 6 rlen 4 { align1 1Q };
 send(16)        g18<1>UW        g7<8,8,1>UD     0x168d1001
                             sampler MsgDesc: gather4_po SIMD16 Surface = 1 Sampler = 0 mlen 11 rlen 8 { align1 1H };
-send(8)         null<1>F        g6<8,8,1>UD     0x0a088027
+send(8)         nullUD          g6<8,8,1>UD     0x0a088027
                             urb MsgDesc: 2 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g7<8,8,1>UD     0x0a088037
+send(8)         nullUD          g7<8,8,1>UD     0x0a088037
                             urb MsgDesc: 3 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g8<8,8,1>UD     0x0a088047
+send(8)         nullUD          g8<8,8,1>UD     0x0a088047
                             urb MsgDesc: 4 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g9<8,8,1>UD     0x0a088057
+send(8)         nullUD          g9<8,8,1>UD     0x0a088057
                             urb MsgDesc: 5 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
 send(8)         g124<1>UW       g3<8,8,1>UD     0x06427000
                             sampler MsgDesc: ld SIMD8 Surface = 0 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
@@ -196,133 +196,133 @@ send(8)         g18<1>UD        g30<8,8,1>UD    0x02480608
                             urb MsgDesc: 96 SIMD8 read mlen 1 rlen 4        { align1 1Q };
 send(8)         g22<1>UD        g30<8,8,1>UD    0x02480808
                             urb MsgDesc: 128 SIMD8 read mlen 1 rlen 4       { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0a0a8217
+send(8)         nullUD          g6<8,8,1>UD     0x0a0a8217
                             urb MsgDesc: 33 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g11<8,8,1>UD    0x0a0a8227
+send(8)         nullUD          g11<8,8,1>UD    0x0a0a8227
                             urb MsgDesc: 34 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x0a0a8237
+send(8)         nullUD          g12<8,8,1>UD    0x0a0a8237
                             urb MsgDesc: 35 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>UD    0x0a0a8247
+send(8)         nullUD          g13<8,8,1>UD    0x0a0a8247
                             urb MsgDesc: 36 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x0a0a8257
+send(8)         nullUD          g14<8,8,1>UD    0x0a0a8257
                             urb MsgDesc: 37 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x0a0a8267
+send(8)         nullUD          g15<8,8,1>UD    0x0a0a8267
                             urb MsgDesc: 38 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0a0a8277
+send(8)         nullUD          g16<8,8,1>UD    0x0a0a8277
                             urb MsgDesc: 39 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x0a0a8287
+send(8)         nullUD          g17<8,8,1>UD    0x0a0a8287
                             urb MsgDesc: 40 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x0a0a8297
+send(8)         nullUD          g18<8,8,1>UD    0x0a0a8297
                             urb MsgDesc: 41 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x0a0a82a7
+send(8)         nullUD          g19<8,8,1>UD    0x0a0a82a7
                             urb MsgDesc: 42 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x0a0a82b7
+send(8)         nullUD          g20<8,8,1>UD    0x0a0a82b7
                             urb MsgDesc: 43 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x0a0a82c7
+send(8)         nullUD          g21<8,8,1>UD    0x0a0a82c7
                             urb MsgDesc: 44 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0a0a82d7
+send(8)         nullUD          g22<8,8,1>UD    0x0a0a82d7
                             urb MsgDesc: 45 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x0a0a82e7
+send(8)         nullUD          g23<8,8,1>UD    0x0a0a82e7
                             urb MsgDesc: 46 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x0a0a82f7
+send(8)         nullUD          g24<8,8,1>UD    0x0a0a82f7
                             urb MsgDesc: 47 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x0a0a8307
+send(8)         nullUD          g25<8,8,1>UD    0x0a0a8307
                             urb MsgDesc: 48 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x0a0a8317
+send(8)         nullUD          g26<8,8,1>UD    0x0a0a8317
                             urb MsgDesc: 49 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x0a0a8327
+send(8)         nullUD          g27<8,8,1>UD    0x0a0a8327
                             urb MsgDesc: 50 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x0a0a8337
+send(8)         nullUD          g28<8,8,1>UD    0x0a0a8337
                             urb MsgDesc: 51 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x0a0a8347
+send(8)         nullUD          g29<8,8,1>UD    0x0a0a8347
                             urb MsgDesc: 52 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x0a0a8357
+send(8)         nullUD          g30<8,8,1>UD    0x0a0a8357
                             urb MsgDesc: 53 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x0a0a8367
+send(8)         nullUD          g31<8,8,1>UD    0x0a0a8367
                             urb MsgDesc: 54 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x0a0a8377
+send(8)         nullUD          g32<8,8,1>UD    0x0a0a8377
                             urb MsgDesc: 55 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x0a0a8387
+send(8)         nullUD          g33<8,8,1>UD    0x0a0a8387
                             urb MsgDesc: 56 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x0a0a8397
+send(8)         nullUD          g34<8,8,1>UD    0x0a0a8397
                             urb MsgDesc: 57 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x0a0a83a7
+send(8)         nullUD          g35<8,8,1>UD    0x0a0a83a7
                             urb MsgDesc: 58 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0a0a83b7
+send(8)         nullUD          g36<8,8,1>UD    0x0a0a83b7
                             urb MsgDesc: 59 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x0a0a83c7
+send(8)         nullUD          g37<8,8,1>UD    0x0a0a83c7
                             urb MsgDesc: 60 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x0a0a83d7
+send(8)         nullUD          g38<8,8,1>UD    0x0a0a83d7
                             urb MsgDesc: 61 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x0a0a83e7
+send(8)         nullUD          g39<8,8,1>UD    0x0a0a83e7
                             urb MsgDesc: 62 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>UD    0x0a0a83f7
+send(8)         nullUD          g40<8,8,1>UD    0x0a0a83f7
                             urb MsgDesc: 63 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g11<8,8,1>UD    0x08088027
+send(8)         nullUD          g11<8,8,1>UD    0x08088027
                             urb MsgDesc: 2 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x08088037
+send(8)         nullUD          g12<8,8,1>UD    0x08088037
                             urb MsgDesc: 3 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>UD    0x08088047
+send(8)         nullUD          g13<8,8,1>UD    0x08088047
                             urb MsgDesc: 4 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x08088057
+send(8)         nullUD          g14<8,8,1>UD    0x08088057
                             urb MsgDesc: 5 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x08088067
+send(8)         nullUD          g15<8,8,1>UD    0x08088067
                             urb MsgDesc: 6 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x08088077
+send(8)         nullUD          g16<8,8,1>UD    0x08088077
                             urb MsgDesc: 7 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x08088087
+send(8)         nullUD          g17<8,8,1>UD    0x08088087
                             urb MsgDesc: 8 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x08088097
+send(8)         nullUD          g18<8,8,1>UD    0x08088097
                             urb MsgDesc: 9 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x080880a7
+send(8)         nullUD          g19<8,8,1>UD    0x080880a7
                             urb MsgDesc: 10 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x080880b7
+send(8)         nullUD          g20<8,8,1>UD    0x080880b7
                             urb MsgDesc: 11 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x080880c7
+send(8)         nullUD          g21<8,8,1>UD    0x080880c7
                             urb MsgDesc: 12 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x080880d7
+send(8)         nullUD          g22<8,8,1>UD    0x080880d7
                             urb MsgDesc: 13 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x080880e7
+send(8)         nullUD          g23<8,8,1>UD    0x080880e7
                             urb MsgDesc: 14 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x080880f7
+send(8)         nullUD          g24<8,8,1>UD    0x080880f7
                             urb MsgDesc: 15 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x08088107
+send(8)         nullUD          g25<8,8,1>UD    0x08088107
                             urb MsgDesc: 16 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x08088117
+send(8)         nullUD          g26<8,8,1>UD    0x08088117
                             urb MsgDesc: 17 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x08088127
+send(8)         nullUD          g27<8,8,1>UD    0x08088127
                             urb MsgDesc: 18 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x08088137
+send(8)         nullUD          g28<8,8,1>UD    0x08088137
                             urb MsgDesc: 19 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x08088147
+send(8)         nullUD          g29<8,8,1>UD    0x08088147
                             urb MsgDesc: 20 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x08088157
+send(8)         nullUD          g30<8,8,1>UD    0x08088157
                             urb MsgDesc: 21 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x08088167
+send(8)         nullUD          g31<8,8,1>UD    0x08088167
                             urb MsgDesc: 22 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x08088177
+send(8)         nullUD          g32<8,8,1>UD    0x08088177
                             urb MsgDesc: 23 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x08088187
+send(8)         nullUD          g33<8,8,1>UD    0x08088187
                             urb MsgDesc: 24 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x08088197
+send(8)         nullUD          g34<8,8,1>UD    0x08088197
                             urb MsgDesc: 25 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x080881a7
+send(8)         nullUD          g35<8,8,1>UD    0x080881a7
                             urb MsgDesc: 26 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x080881b7
+send(8)         nullUD          g36<8,8,1>UD    0x080881b7
                             urb MsgDesc: 27 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x080881c7
+send(8)         nullUD          g37<8,8,1>UD    0x080881c7
                             urb MsgDesc: 28 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x080881d7
+send(8)         nullUD          g38<8,8,1>UD    0x080881d7
                             urb MsgDesc: 29 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x080881e7
+send(8)         nullUD          g39<8,8,1>UD    0x080881e7
                             urb MsgDesc: 30 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>UD    0x080881f7
+send(8)         nullUD          g40<8,8,1>UD    0x080881f7
                             urb MsgDesc: 31 SIMD8 write masked mlen 4 rlen 0 { align1 1Q };
 send(8)         g13<1>UD        g1<8,8,1>UD     0x02480018
                             urb MsgDesc: 1 SIMD8 read mlen 1 rlen 4         { align1 1Q };
-send(8)         null<1>F        g11<8,8,1>UD    0x0c0a0207
+send(8)         nullUD          g11<8,8,1>UD    0x0c0a0207
                             urb MsgDesc: 32 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g119<8,8,1>F    0x92080057
+send(8)         nullUD          g119<8,8,1>F    0x92080057
                             urb MsgDesc: 5 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
 send(8)         g10<1>UW        g18<8,8,1>UD    0x084a8000
                             sampler MsgDesc: gather4 SIMD8 Surface = 0 Sampler = 0 mlen 4 rlen 4 { align1 1Q };
@@ -332,15 +332,15 @@ send(16)        g120<1>UW       g2<8,8,1>UD     0x08449001
                             sampler MsgDesc: lod SIMD16 Surface = 1 Sampler = 0 mlen 4 rlen 4 { align1 1H };
 send(16)        g32<1>UW        g44<8,8,1>UD    0x0865a001
                             sampler MsgDesc: ld_lz SIMD16 Surface = 1 Sampler = 0 mlen 4 rlen 6 { align1 1H };
-send(16)        null<1>UW       g5<8,8,1>UD     0x04008502
+send(16)        nullUD          g5<8,8,1>UD     0x04008502
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 2, SIMD16, inc) mlen 2 rlen 0 { align1 1H };
 send(8)         g5<1>UW         g3<8,8,1>UD     0x02427001
                             sampler MsgDesc: ld SIMD8 Surface = 1 Sampler = 0 mlen 1 rlen 4 { align1 1Q };
 send(16)        g8<1>UW         g5<8,8,1>UD     0x04847001
                             sampler MsgDesc: ld SIMD16 Surface = 1 Sampler = 0 mlen 2 rlen 8 { align1 1H };
-send(8)         null<1>F        g119<8,8,1>F    0x92080007
+send(8)         nullUD          g119<8,8,1>F    0x92080007
                             urb MsgDesc: 0 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
-send(8)         null<1>F        g126<8,8,1>UD   0x84080017
+send(8)         nullUD          g126<8,8,1>UD   0x84080017
                             urb MsgDesc: 1 SIMD8 write mlen 2 rlen 0        { align1 1Q EOT };
 send(8)         g2<1>UW         g13<8,8,1>UD    0x0a4b1001
                             sampler MsgDesc: gather4_po SIMD8 Surface = 1 Sampler = 0 mlen 5 rlen 4 { align1 1Q };
@@ -408,39 +408,39 @@ send(8)         g96<1>UD        g1<8,8,1>UD     0x021801f8
                             urb MsgDesc: 31 SIMD8 read mlen 1 rlen 1        { align1 1Q };
 send(8)         g98<1>UD        g1<8,8,1>UD     0x02180208
                             urb MsgDesc: 32 SIMD8 read mlen 1 rlen 1        { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x0c0a0027
+send(8)         nullUD          g12<8,8,1>UD    0x0c0a0027
                             urb MsgDesc: 2 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>UW       g126<0,1,0>UD   0x040a02fd
+send(8)         nullUD          g126<0,1,0>UD   0x040a02fd
                             hdc0 MsgDesc: ( DC OWORD block write, 253, 2) mlen 2 rlen 0 { align1 1Q };
 send(8)         g115<1>UW       g115<0,1,0>UD   0x021802fd
                             hdc0 MsgDesc: ( DC OWORD block read, 253, 2) mlen 1 rlen 1 { align1 WE_all 1Q };
-send(8)         null<1>F        g25<8,8,1>F     0x12080057
+send(8)         nullUD          g25<8,8,1>F     0x12080057
                             urb MsgDesc: 5 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>F     0x12080077
+send(8)         nullUD          g34<8,8,1>F     0x12080077
                             urb MsgDesc: 7 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g43<8,8,1>F     0x12080097
+send(8)         nullUD          g43<8,8,1>F     0x12080097
                             urb MsgDesc: 9 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g52<8,8,1>F     0x120800b7
+send(8)         nullUD          g52<8,8,1>F     0x120800b7
                             urb MsgDesc: 11 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g61<8,8,1>F     0x120800d7
+send(8)         nullUD          g61<8,8,1>F     0x120800d7
                             urb MsgDesc: 13 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g70<8,8,1>F     0x120800f7
+send(8)         nullUD          g70<8,8,1>F     0x120800f7
                             urb MsgDesc: 15 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g2<8,8,1>F      0x12080117
+send(8)         nullUD          g2<8,8,1>F      0x12080117
                             urb MsgDesc: 17 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g2<8,8,1>F      0x12080137
+send(8)         nullUD          g2<8,8,1>F      0x12080137
                             urb MsgDesc: 19 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g2<8,8,1>F      0x12080157
+send(8)         nullUD          g2<8,8,1>F      0x12080157
                             urb MsgDesc: 21 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g79<8,8,1>F     0x12080177
+send(8)         nullUD          g79<8,8,1>F     0x12080177
                             urb MsgDesc: 23 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g88<8,8,1>F     0x12080197
+send(8)         nullUD          g88<8,8,1>F     0x12080197
                             urb MsgDesc: 25 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g97<8,8,1>F     0x120801b7
+send(8)         nullUD          g97<8,8,1>F     0x120801b7
                             urb MsgDesc: 27 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g106<8,8,1>F    0x120801d7
+send(8)         nullUD          g106<8,8,1>F    0x120801d7
                             urb MsgDesc: 29 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g117<8,8,1>F    0x920801f7
+send(8)         nullUD          g117<8,8,1>F    0x920801f7
                             urb MsgDesc: 31 SIMD8 write mlen 9 rlen 0       { align1 1Q EOT };
 send(8)         g124<1>UW       g11<8,8,1>UD    0x02229001
                             sampler MsgDesc: lod SIMD8 Surface = 1 Sampler = 0 mlen 1 rlen 2 { align1 1Q };
@@ -448,9 +448,9 @@ send(16)        g120<1>UW       g11<8,8,1>UD    0x04449001
                             sampler MsgDesc: lod SIMD16 Surface = 1 Sampler = 0 mlen 2 rlen 4 { align1 1H };
 send(8)         g124<1>UW       g3<8,8,1>UD     0x08427000
                             sampler MsgDesc: ld SIMD8 Surface = 0 Sampler = 0 mlen 4 rlen 4 { align1 1Q };
-send(16)        null<1>UW       g40<8,8,1>UD    0x04008501
+send(16)        nullUD          g40<8,8,1>UD    0x04008501
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 1, SIMD16, inc) mlen 2 rlen 0 { align1 1H };
-send(8)         null<1>F        g127<8,8,1>UD   0x82080007
+send(8)         nullUD          g127<8,8,1>UD   0x82080007
                             urb MsgDesc: 0 SIMD8 write mlen 1 rlen 0        { align1 1Q EOT };
 send(8)         g124<1>UW       g9<8,8,1>UD     0x0a4a8000
                             sampler MsgDesc: gather4 SIMD8 Surface = 0 Sampler = 0 mlen 5 rlen 4 { align1 1Q };
@@ -460,23 +460,23 @@ send(16)        g4<1>UW         g12<8,8,1>UD    0x0c65a001
                             sampler MsgDesc: ld_lz SIMD16 Surface = 1 Sampler = 0 mlen 6 rlen 6 { align1 1H };
 send(8)         g2<1>UW         g16<8,8,1>UD    0x0e434001
                             sampler MsgDesc: sample_d_c SIMD8 Surface = 1 Sampler = 0 mlen 7 rlen 4 { align1 2Q };
-(+f1.0) send(8) null<1>UW       g4<8,8,1>UD     0x02009501
+(+f1.0) send(8) nullUD          g4<8,8,1>UD     0x02009501
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 1, SIMD8, inc) mlen 1 rlen 0 { align1 1Q };
 send(8)         g6<1>UW         g9<8,8,1>UD     0x08434001
                             sampler MsgDesc: sample_d_c SIMD8 Surface = 1 Sampler = 0 mlen 4 rlen 4 { align1 1Q };
-send(8)         null<1>F        g102<8,8,1>F    0x120801f7
+send(8)         nullUD          g102<8,8,1>F    0x120801f7
                             urb MsgDesc: 31 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g121<8,8,1>F    0x8a080217
+send(8)         nullUD          g121<8,8,1>F    0x8a080217
                             urb MsgDesc: 33 SIMD8 write mlen 5 rlen 0       { align1 1Q EOT };
-send(16)        null<1>UW       g3<0,1,0>UD     0x02008004
+send(16)        nullUD          g3<0,1,0>UD     0x02008004
                             gateway MsgDesc: (barrier msg) mlen 1 rlen 0    { align1 WE_all 1H };
 send(16)        g3<1>UW         g14<8,8,1>UD    0x04205efe
                             hdc1 MsgDesc: ( untyped surface read, Surface = 254, SIMD16, Mask = 0xe) mlen 2 rlen 2 { align1 1H };
-send(8)         null<1>F        g30<8,8,1>F     0x140a0027
+send(8)         nullUD          g30<8,8,1>F     0x140a0027
                             urb MsgDesc: 2 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>F     0x0c0a0047
+send(8)         nullUD          g40<8,8,1>F     0x0c0a0047
                             urb MsgDesc: 4 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g126<8,8,1>UD   0x84080007
+send(8)         nullUD          g126<8,8,1>UD   0x84080007
                             urb MsgDesc: 0 SIMD8 write mlen 2 rlen 0        { align1 1Q EOT };
 send(8)         g5<1>UW         g11<8,8,1>UD    0x04415001
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD16, Mask = 0x0) mlen 2 rlen 4 { align1 1Q };
@@ -484,15 +484,15 @@ send(8)         g2<1>UW         g3<8,8,1>UD     0x04416001
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD8, Mask = 0x0) mlen 2 rlen 4 { align1 2Q };
 send(8)         g13<1>UD        g3<8,8,1>UD     0x02480038
                             urb MsgDesc: 3 SIMD8 read mlen 1 rlen 4         { align1 1Q };
-send(8)         null<1>F        g7<8,8,1>F      0x140a0037
+send(8)         nullUD          g7<8,8,1>F      0x140a0037
                             urb MsgDesc: 3 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
 send(8)         g15<1>UD        g2<8,8,1>UD     0x02280038
                             urb MsgDesc: 3 SIMD8 read mlen 1 rlen 2         { align1 1Q };
-send(8)         null<1>F        g119<8,8,1>F    0x92080037
+send(8)         nullUD          g119<8,8,1>F    0x92080037
                             urb MsgDesc: 3 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
-send(8)         null<1>F        g8<8,8,1>F      0x140a0007
+send(8)         nullUD          g8<8,8,1>F      0x140a0007
                             urb MsgDesc: 0 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g118<8,8,1>F    0x940a0007
+send(8)         nullUD          g118<8,8,1>F    0x940a0007
                             urb MsgDesc: 0 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q EOT };
 send(8)         g124<1>UW       g12<8,8,1>UD    a0<0,1,0>UD     0x00000200
                             sampler MsgDesc: indirect                       { align1 1Q };
@@ -514,7 +514,7 @@ send(8)         g12<1>UD        g2<8,8,1>UD     0x024800b8
                             urb MsgDesc: 11 SIMD8 read mlen 1 rlen 4        { align1 1Q };
 send(8)         g7<1>UD         g2<8,8,1>UD     0x02480098
                             urb MsgDesc: 9 SIMD8 read mlen 1 rlen 4         { align1 1Q };
-send(8)         null<1>F        g119<8,8,1>F    0x920800b7
+send(8)         nullUD          g119<8,8,1>F    0x920800b7
                             urb MsgDesc: 11 SIMD8 write mlen 9 rlen 0       { align1 1Q EOT };
 send(8)         g6<1>UW         g8<8,8,1>UD     0x084b0000
                             sampler MsgDesc: gather4_c SIMD8 Surface = 0 Sampler = 0 mlen 4 rlen 4 { align1 1Q };
@@ -546,9 +546,9 @@ send(8)         g2<1>UW         g19<8,8,1>UD    0x0a4a8001
                             sampler MsgDesc: gather4 SIMD8 Surface = 1 Sampler = 0 mlen 5 rlen 4 { align1 1Q };
 send(16)        g7<1>UW         g16<8,8,1>UD    0x128c8001
                             sampler MsgDesc: gather4 SIMD16 Surface = 1 Sampler = 0 mlen 9 rlen 8 { align1 1H };
-send(8)         null<1>F        g2<8,8,1>F      0x0c0a0057
+send(8)         nullUD          g2<8,8,1>F      0x0c0a0057
                             urb MsgDesc: 5 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g9<8,8,1>UD     0x04080027
+send(8)         nullUD          g9<8,8,1>UD     0x04080027
                             urb MsgDesc: 2 SIMD8 write mlen 2 rlen 0        { align1 1Q };
 send(8)         g6<1>UW         g7<8,8,1>UD     0x08134001
                             sampler MsgDesc: sample_d_c SIMD8 Surface = 1 Sampler = 0 mlen 4 rlen 1 { align1 1Q };
@@ -556,13 +556,13 @@ send(8)         g7<1>UW         g11<8,8,1>UD    0x08134102
                             sampler MsgDesc: sample_d_c SIMD8 Surface = 2 Sampler = 1 mlen 4 rlen 1 { align1 1Q };
 send(8)         g13<1>UW        g17<8,8,1>UD    0x021ab000
                             sampler MsgDesc: sampleinfo SIMD8 Surface = 0 Sampler = 0 mlen 1 rlen 1 { align1 1Q };
-send(8)         null<1>F        g50<8,8,1>F     0x140a0057
+send(8)         nullUD          g50<8,8,1>F     0x140a0057
                             urb MsgDesc: 5 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g60<8,8,1>F     0x140a0077
+send(8)         nullUD          g60<8,8,1>F     0x140a0077
                             urb MsgDesc: 7 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g70<8,8,1>F     0x0c0a0097
+send(8)         nullUD          g70<8,8,1>F     0x0c0a0097
                             urb MsgDesc: 9 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g122<8,8,1>F    0x8c0a0097
+send(8)         nullUD          g122<8,8,1>F    0x8c0a0097
                             urb MsgDesc: 9 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
 send(8)         g124<1>UW       g6<8,8,1>UD     0x0a4b0000
                             sampler MsgDesc: gather4_c SIMD8 Surface = 0 Sampler = 0 mlen 5 rlen 4 { align1 1Q };
@@ -574,13 +574,13 @@ send(16)        g9<1>UW         g11<8,8,1>UD    0x0a2c3001
                             sampler MsgDesc: sample_c SIMD16 Surface = 1 Sampler = 0 mlen 5 rlen 2 { align1 1H };
 send(16)        g11<1>UW        g2<8,8,1>UD     0x0a2c3102
                             sampler MsgDesc: sample_c SIMD16 Surface = 2 Sampler = 1 mlen 5 rlen 2 { align1 1H };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080077
+send(8)         nullUD          g123<8,8,1>F    0x8a080077
                             urb MsgDesc: 7 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
-send(8)         null<1>F        g30<8,8,1>UD    0x0c0a0067
+send(8)         nullUD          g30<8,8,1>UD    0x0c0a0067
                             urb MsgDesc: 6 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0c0a0077
+send(8)         nullUD          g36<8,8,1>UD    0x0c0a0077
                             urb MsgDesc: 7 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g42<8,8,1>UD    0x0c0a0087
+send(8)         nullUD          g42<8,8,1>UD    0x0c0a0087
                             urb MsgDesc: 8 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
 send(8)         g6<1>UW         g6<8,8,1>UD     0x06420102
                             sampler MsgDesc: sample SIMD8 Surface = 2 Sampler = 1 mlen 3 rlen 4 { align1 1Q };
@@ -660,9 +660,9 @@ send(8)         g56<1>UD        g2<8,8,1>UD     0x024801e8
                             urb MsgDesc: 30 SIMD8 read mlen 1 rlen 4        { align1 1Q };
 send(8)         g57<1>UD        g2<8,8,1>UD     0x024801f8
                             urb MsgDesc: 31 SIMD8 read mlen 1 rlen 4        { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x080a8027
+send(8)         nullUD          g19<8,8,1>UD    0x080a8027
                             urb MsgDesc: 2 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g8<8,8,1>UD     0x0a0a8027
+send(8)         nullUD          g8<8,8,1>UD     0x0a0a8027
                             urb MsgDesc: 2 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
 send(8)         g6<1>UW         g11<8,8,1>UD    0x0e424001
                             sampler MsgDesc: sample_d SIMD8 Surface = 1 Sampler = 0 mlen 7 rlen 4 { align1 1Q };
@@ -672,9 +672,9 @@ send(8)         g8<1>UD         g14<8,8,1>UD    0x044a0128
                             urb MsgDesc: 18 SIMD8 read per-slot mlen 2 rlen 4 { align1 1Q };
 send(8)         g22<1>UD        g16<8,8,1>UD    0x044a0028
                             urb MsgDesc: 2 SIMD8 read per-slot mlen 2 rlen 4 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x0a080017
+send(8)         nullUD          g6<8,8,1>F      0x0a080017
                             urb MsgDesc: 1 SIMD8 write mlen 5 rlen 0        { align1 1Q };
-send(8)         null<1>F        g7<8,8,1>F      0x0a080057
+send(8)         nullUD          g7<8,8,1>F      0x0a080057
                             urb MsgDesc: 5 SIMD8 write mlen 5 rlen 0        { align1 1Q };
 send(8)         g4<1>UW         g2<8,8,1>UD     0x02406001
                             hdc1 MsgDesc: ( untyped surface read, Surface = 1, SIMD8, Mask = 0x0) mlen 1 rlen 4 { align1 1Q };
@@ -696,11 +696,11 @@ send(8)         g5<1>UW         g6<8,8,1>UD     0x021ab001
                             sampler MsgDesc: sampleinfo SIMD8 Surface = 1 Sampler = 0 mlen 1 rlen 1 { align1 1Q };
 send(16)        g6<1>UW         g3<8,8,1>UD     0x022cb001
                             sampler MsgDesc: sampleinfo SIMD16 Surface = 1 Sampler = 0 mlen 1 rlen 2 { align1 1H };
-send(8)         null<1>F        g122<8,8,1>F    0x8c0a0037
+send(8)         nullUD          g122<8,8,1>F    0x8c0a0037
                             urb MsgDesc: 3 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
-send(8)         null<1>F        g10<8,8,1>F     0x12080027
+send(8)         nullUD          g10<8,8,1>F     0x12080027
                             urb MsgDesc: 2 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080047
+send(8)         nullUD          g123<8,8,1>F    0x8a080047
                             urb MsgDesc: 4 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
 send(8)         g14<1>UW        g2<8,8,1>UD     0x04438000
                             sampler MsgDesc: sample_lz SIMD8 Surface = 0 Sampler = 0 mlen 2 rlen 4 { align1 1Q };
@@ -708,33 +708,33 @@ send(8)         g61<1>UD        g107<8,8,1>UD   0x02380048
                             urb MsgDesc: 4 SIMD8 read mlen 1 rlen 3         { align1 1Q };
 send(8)         g64<1>UD        g113<8,8,1>UD   0x02380058
                             urb MsgDesc: 5 SIMD8 read mlen 1 rlen 3         { align1 1Q };
-send(8)         null<1>F        g119<8,8,1>F    0x92080047
+send(8)         nullUD          g119<8,8,1>F    0x92080047
                             urb MsgDesc: 4 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
 send(8)         g5<1>UW         g4<8,8,1>UD     0x06415001
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD16, Mask = 0x0) mlen 3 rlen 4 { align1 1Q };
 send(8)         g2<1>UW         g10<8,8,1>UD    0x06416001
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD8, Mask = 0x0) mlen 3 rlen 4 { align1 2Q };
-send(8)         null<1>F        g119<8,8,1>F    0x92080077
+send(8)         nullUD          g119<8,8,1>F    0x92080077
                             urb MsgDesc: 7 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
 send(8)         g12<1>UD        g8<4,4,1>UD     0x044a0038
                             urb MsgDesc: 3 SIMD8 read per-slot mlen 2 rlen 4 { align1 1Q };
 send(8)         g21<1>UD        g8<4,4,1>UD     0x044a0048
                             urb MsgDesc: 4 SIMD8 read per-slot mlen 2 rlen 4 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0c0a00a7
+send(8)         nullUD          g22<8,8,1>UD    0x0c0a00a7
                             urb MsgDesc: 10 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
 send(16)        g1<1>UW         g9<8,8,1>UD     0x08858001
                             sampler MsgDesc: sample_lz SIMD16 Surface = 1 Sampler = 0 mlen 4 rlen 8 { align1 1H };
-send(8)         null<1>F        g56<8,8,1>F     0x140a0097
+send(8)         nullUD          g56<8,8,1>F     0x140a0097
                             urb MsgDesc: 9 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g76<8,8,1>F     0x0c0a00b7
+send(8)         nullUD          g76<8,8,1>F     0x0c0a00b7
                             urb MsgDesc: 11 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g122<8,8,1>F    0x8c0a00b7
+send(8)         nullUD          g122<8,8,1>F    0x8c0a00b7
                             urb MsgDesc: 11 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
 send(8)         g4<1>UW         g3<8,8,1>UD     0x0232a001
                             sampler MsgDesc: resinfo SIMD8 Surface = 1 Sampler = 0 mlen 1 rlen 3 { align1 1Q };
 send(16)        g8<1>UW         g3<8,8,1>UD     0x0464a001
                             sampler MsgDesc: resinfo SIMD16 Surface = 1 Sampler = 0 mlen 2 rlen 6 { align1 1H };
-send(8)         null<1>F        g6<8,8,1>UD     0x0a080007
+send(8)         nullUD          g6<8,8,1>UD     0x0a080007
                             urb MsgDesc: 0 SIMD8 write mlen 5 rlen 0        { align1 1Q };
 send(8)         g126<1>UW       g10<8,8,1>UD    0x08123001
                             sampler MsgDesc: sample_c SIMD8 Surface = 1 Sampler = 0 mlen 4 rlen 1 { align1 1Q };
@@ -760,7 +760,7 @@ send(8)         g2<1>UW         g15<8,8,1>UD    0x06422001
                             sampler MsgDesc: sample_l SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
 send(16)        g14<1>UW        g8<8,8,1>UD     0x0c842001
                             sampler MsgDesc: sample_l SIMD16 Surface = 1 Sampler = 0 mlen 6 rlen 8 { align1 1H };
-send(8)         null<1>F        g118<8,8,1>F    0x940a0037
+send(8)         nullUD          g118<8,8,1>F    0x940a0037
                             urb MsgDesc: 3 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q EOT };
 send(8)         g4<1>UW         g5<8,8,1>UD     0x0212a001
                             sampler MsgDesc: resinfo SIMD8 Surface = 1 Sampler = 0 mlen 1 rlen 1 { align1 1Q };
@@ -788,67 +788,67 @@ send(8)         g8<1>UD         g35<8,8,1>UD    0x02480428
                             urb MsgDesc: 66 SIMD8 read mlen 1 rlen 4        { align1 1Q };
 send(8)         g12<1>UD        g35<8,8,1>UD    0x02480628
                             urb MsgDesc: 98 SIMD8 read mlen 1 rlen 4        { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0a0a8037
+send(8)         nullUD          g6<8,8,1>UD     0x0a0a8037
                             urb MsgDesc: 3 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g11<8,8,1>UD    0x0a0a8047
+send(8)         nullUD          g11<8,8,1>UD    0x0a0a8047
                             urb MsgDesc: 4 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x0a0a8057
+send(8)         nullUD          g12<8,8,1>UD    0x0a0a8057
                             urb MsgDesc: 5 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>UD    0x0a0a8067
+send(8)         nullUD          g13<8,8,1>UD    0x0a0a8067
                             urb MsgDesc: 6 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x0a0a8077
+send(8)         nullUD          g14<8,8,1>UD    0x0a0a8077
                             urb MsgDesc: 7 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x0a0a8087
+send(8)         nullUD          g15<8,8,1>UD    0x0a0a8087
                             urb MsgDesc: 8 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0a0a8097
+send(8)         nullUD          g16<8,8,1>UD    0x0a0a8097
                             urb MsgDesc: 9 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x0a0a80a7
+send(8)         nullUD          g17<8,8,1>UD    0x0a0a80a7
                             urb MsgDesc: 10 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x0a0a80b7
+send(8)         nullUD          g18<8,8,1>UD    0x0a0a80b7
                             urb MsgDesc: 11 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x0a0a80c7
+send(8)         nullUD          g19<8,8,1>UD    0x0a0a80c7
                             urb MsgDesc: 12 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x0a0a80d7
+send(8)         nullUD          g20<8,8,1>UD    0x0a0a80d7
                             urb MsgDesc: 13 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x0a0a80e7
+send(8)         nullUD          g21<8,8,1>UD    0x0a0a80e7
                             urb MsgDesc: 14 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0a0a80f7
+send(8)         nullUD          g22<8,8,1>UD    0x0a0a80f7
                             urb MsgDesc: 15 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x0a0a8107
+send(8)         nullUD          g23<8,8,1>UD    0x0a0a8107
                             urb MsgDesc: 16 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x0a0a8117
+send(8)         nullUD          g24<8,8,1>UD    0x0a0a8117
                             urb MsgDesc: 17 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x0a0a8127
+send(8)         nullUD          g25<8,8,1>UD    0x0a0a8127
                             urb MsgDesc: 18 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x0a0a8137
+send(8)         nullUD          g26<8,8,1>UD    0x0a0a8137
                             urb MsgDesc: 19 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x0a0a8147
+send(8)         nullUD          g27<8,8,1>UD    0x0a0a8147
                             urb MsgDesc: 20 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x0a0a8157
+send(8)         nullUD          g28<8,8,1>UD    0x0a0a8157
                             urb MsgDesc: 21 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x0a0a8167
+send(8)         nullUD          g29<8,8,1>UD    0x0a0a8167
                             urb MsgDesc: 22 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x0a0a8177
+send(8)         nullUD          g30<8,8,1>UD    0x0a0a8177
                             urb MsgDesc: 23 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x0a0a8187
+send(8)         nullUD          g31<8,8,1>UD    0x0a0a8187
                             urb MsgDesc: 24 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x0a0a8197
+send(8)         nullUD          g32<8,8,1>UD    0x0a0a8197
                             urb MsgDesc: 25 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x0a0a81a7
+send(8)         nullUD          g33<8,8,1>UD    0x0a0a81a7
                             urb MsgDesc: 26 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x0a0a81b7
+send(8)         nullUD          g34<8,8,1>UD    0x0a0a81b7
                             urb MsgDesc: 27 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x0a0a81c7
+send(8)         nullUD          g35<8,8,1>UD    0x0a0a81c7
                             urb MsgDesc: 28 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0a0a81d7
+send(8)         nullUD          g36<8,8,1>UD    0x0a0a81d7
                             urb MsgDesc: 29 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x0a0a81e7
+send(8)         nullUD          g37<8,8,1>UD    0x0a0a81e7
                             urb MsgDesc: 30 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x0a0a81f7
+send(8)         nullUD          g38<8,8,1>UD    0x0a0a81f7
                             urb MsgDesc: 31 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x0a0a8207
+send(8)         nullUD          g39<8,8,1>UD    0x0a0a8207
                             urb MsgDesc: 32 SIMD8 write per-slot masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g122<8,8,1>F    0x8c0a0027
+send(8)         nullUD          g122<8,8,1>F    0x8c0a0027
                             urb MsgDesc: 2 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
 send(8)         g124<1>UW       g2<8,8,1>UD     0x06424001
                             sampler MsgDesc: sample_d SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
@@ -866,25 +866,25 @@ send(8)         g4<1>UW         g5<8,8,1>UD     0x04120001
                             sampler MsgDesc: sample SIMD8 Surface = 1 Sampler = 0 mlen 2 rlen 1 { align1 1Q };
 send(16)        g4<1>UW         g7<8,8,1>UD     0x08240001
                             sampler MsgDesc: sample SIMD16 Surface = 1 Sampler = 0 mlen 4 rlen 2 { align1 1H };
-send(8)         null<1>F        g118<8,8,1>F    0x940a0027
+send(8)         nullUD          g118<8,8,1>F    0x940a0027
                             urb MsgDesc: 2 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q EOT };
-send(8)         null<1>F        g2<8,8,1>F      0x12080067
+send(8)         nullUD          g2<8,8,1>F      0x12080067
                             urb MsgDesc: 6 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080087
+send(8)         nullUD          g123<8,8,1>F    0x8a080087
                             urb MsgDesc: 8 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
 send(8)         g21<1>UD        g2<8,8,1>UD     0x02380068
                             urb MsgDesc: 6 SIMD8 read mlen 1 rlen 3         { align1 1Q };
 send(8)         g35<1>UD        g2<8,8,1>UD     0x02380088
                             urb MsgDesc: 8 SIMD8 read mlen 1 rlen 3         { align1 1Q };
-send(8)         null<1>F        g5<8,8,1>F      0x140a0067
+send(8)         nullUD          g5<8,8,1>F      0x140a0067
                             urb MsgDesc: 6 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g118<8,8,1>F    0x940a0067
+send(8)         nullUD          g118<8,8,1>F    0x940a0067
                             urb MsgDesc: 6 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q EOT };
 send(8)         g2<1>UW         g8<8,8,1>UD     0x04220001
                             sampler MsgDesc: sample SIMD8 Surface = 1 Sampler = 0 mlen 2 rlen 2 { align1 1Q };
 send(16)        g2<1>UW         g14<8,8,1>UD    0x08440001
                             sampler MsgDesc: sample SIMD16 Surface = 1 Sampler = 0 mlen 4 rlen 4 { align1 1H };
-send(8)         null<1>F        g123<8,8,1>F    0x8a0800d7
+send(8)         nullUD          g123<8,8,1>F    0x8a0800d7
                             urb MsgDesc: 13 SIMD8 write mlen 5 rlen 0       { align1 1Q EOT };
 send(8)         g22<1>UW        g14<8,8,1>UD    0x064a8405
                             sampler MsgDesc: gather4 SIMD8 Surface = 5 Sampler = 4 mlen 3 rlen 4 { align1 1Q };
@@ -904,7 +904,7 @@ send(16)        g10<1>UW        g26<8,8,1>UD    0x128c8304
                             sampler MsgDesc: gather4 SIMD16 Surface = 4 Sampler = 3 mlen 9 rlen 8 { align1 1H };
 send(8)         g6<1>UW         g15<8,8,1>UD    0x0e4a4001
                             sampler MsgDesc: sample_d SIMD8 Surface = 1 Sampler = 0 mlen 7 rlen 4 { align1 1Q };
-send(16)        null<1>UW       g2<8,8,1>UD     0x04008601
+send(16)        nullUD          g2<8,8,1>UD     0x04008601
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 1, SIMD16, dec) mlen 2 rlen 0 { align1 1H };
 send(8)         g124<1>UW       g2<8,8,1>UD     0x08422001
                             sampler MsgDesc: sample_l SIMD8 Surface = 1 Sampler = 0 mlen 4 rlen 4 { align1 1Q };
@@ -918,7 +918,7 @@ send(16)        g10<1>UW        g12<8,8,1>UD    0x10246001
                             sampler MsgDesc: sample_l_c SIMD16 Surface = 1 Sampler = 0 mlen 8 rlen 2 { align1 1H };
 send(16)        g12<1>UW        g20<8,8,1>UD    0x10246102
                             sampler MsgDesc: sample_l_c SIMD16 Surface = 2 Sampler = 1 mlen 8 rlen 2 { align1 1H };
-send(8)         null<1>F        g18<8,8,1>UD    0x0e0a8047
+send(8)         nullUD          g18<8,8,1>UD    0x0e0a8047
                             urb MsgDesc: 4 SIMD8 write per-slot masked mlen 7 rlen 0 { align1 1Q };
 send(8)         g9<1>UD         g34<8,8,1>UD    0x02480218
                             urb MsgDesc: 33 SIMD8 read mlen 1 rlen 4        { align1 1Q };
@@ -928,65 +928,65 @@ send(8)         g2<1>UD         g6<8,8,1>UD     0x041a0128
                             urb MsgDesc: 18 SIMD8 read per-slot mlen 2 rlen 1 { align1 1Q };
 send(8)         g22<1>UD        g8<8,8,1>UD     0x041a0028
                             urb MsgDesc: 2 SIMD8 read per-slot mlen 2 rlen 1 { align1 1Q };
-send(8)         null<1>F        g2<8,8,1>UD     0x06088027
+send(8)         nullUD          g2<8,8,1>UD     0x06088027
                             urb MsgDesc: 2 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x06088037
+send(8)         nullUD          g12<8,8,1>UD    0x06088037
                             urb MsgDesc: 3 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>UD    0x06088047
+send(8)         nullUD          g13<8,8,1>UD    0x06088047
                             urb MsgDesc: 4 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x06088057
+send(8)         nullUD          g14<8,8,1>UD    0x06088057
                             urb MsgDesc: 5 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x06088067
+send(8)         nullUD          g15<8,8,1>UD    0x06088067
                             urb MsgDesc: 6 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x06088077
+send(8)         nullUD          g16<8,8,1>UD    0x06088077
                             urb MsgDesc: 7 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x06088087
+send(8)         nullUD          g17<8,8,1>UD    0x06088087
                             urb MsgDesc: 8 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x06088097
+send(8)         nullUD          g18<8,8,1>UD    0x06088097
                             urb MsgDesc: 9 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x060880a7
+send(8)         nullUD          g19<8,8,1>UD    0x060880a7
                             urb MsgDesc: 10 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x060880b7
+send(8)         nullUD          g20<8,8,1>UD    0x060880b7
                             urb MsgDesc: 11 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x060880c7
+send(8)         nullUD          g21<8,8,1>UD    0x060880c7
                             urb MsgDesc: 12 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x060880d7
+send(8)         nullUD          g22<8,8,1>UD    0x060880d7
                             urb MsgDesc: 13 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x060880e7
+send(8)         nullUD          g23<8,8,1>UD    0x060880e7
                             urb MsgDesc: 14 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x060880f7
+send(8)         nullUD          g24<8,8,1>UD    0x060880f7
                             urb MsgDesc: 15 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x06088107
+send(8)         nullUD          g25<8,8,1>UD    0x06088107
                             urb MsgDesc: 16 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x06088117
+send(8)         nullUD          g26<8,8,1>UD    0x06088117
                             urb MsgDesc: 17 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x06088127
+send(8)         nullUD          g27<8,8,1>UD    0x06088127
                             urb MsgDesc: 18 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x06088137
+send(8)         nullUD          g28<8,8,1>UD    0x06088137
                             urb MsgDesc: 19 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x06088147
+send(8)         nullUD          g29<8,8,1>UD    0x06088147
                             urb MsgDesc: 20 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x06088157
+send(8)         nullUD          g30<8,8,1>UD    0x06088157
                             urb MsgDesc: 21 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x06088167
+send(8)         nullUD          g31<8,8,1>UD    0x06088167
                             urb MsgDesc: 22 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x06088177
+send(8)         nullUD          g32<8,8,1>UD    0x06088177
                             urb MsgDesc: 23 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x06088187
+send(8)         nullUD          g33<8,8,1>UD    0x06088187
                             urb MsgDesc: 24 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x06088197
+send(8)         nullUD          g34<8,8,1>UD    0x06088197
                             urb MsgDesc: 25 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x060881a7
+send(8)         nullUD          g35<8,8,1>UD    0x060881a7
                             urb MsgDesc: 26 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x060881b7
+send(8)         nullUD          g36<8,8,1>UD    0x060881b7
                             urb MsgDesc: 27 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x060881c7
+send(8)         nullUD          g37<8,8,1>UD    0x060881c7
                             urb MsgDesc: 28 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x060881d7
+send(8)         nullUD          g38<8,8,1>UD    0x060881d7
                             urb MsgDesc: 29 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x060881e7
+send(8)         nullUD          g39<8,8,1>UD    0x060881e7
                             urb MsgDesc: 30 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>UD    0x060881f7
+send(8)         nullUD          g40<8,8,1>UD    0x060881f7
                             urb MsgDesc: 31 SIMD8 write masked mlen 3 rlen 0 { align1 1Q };
 send(8)         g3<1>UW         g10<8,8,1>UD    0x0242a001
                             sampler MsgDesc: resinfo SIMD8 Surface = 1 Sampler = 0 mlen 1 rlen 4 { align1 1Q };
@@ -1006,9 +1006,9 @@ send(8)         g23<1>UW        g2<8,8,1>UD     0x04115e01
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD16, Mask = 0xe) mlen 2 rlen 1 { align1 1Q };
 send(8)         g39<1>UW        g45<8,8,1>UD    0x04116e01
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD8, Mask = 0xe) mlen 2 rlen 1 { align1 2Q };
-(+f1.0) send(8) null<1>UW       g2<8,8,1>UD     0x04018501
+(+f1.0) send(8) nullUD          g2<8,8,1>UD     0x04018501
                             hdc1 MsgDesc: ( DC typed atomic, Surface = 1, SIMD16, inc) mlen 2 rlen 0 { align1 1Q };
-(+f1.0) send(8) null<1>UW       g42<8,8,1>UD    0x04019501
+(+f1.0) send(8) nullUD          g42<8,8,1>UD    0x04019501
                             hdc1 MsgDesc: ( DC typed atomic, Surface = 1, SIMD8, inc) mlen 2 rlen 0 { align1 2Q };
 send(8)         g2<1>UW         g6<8,8,1>UD     0x04423001
                             sampler MsgDesc: sample_c SIMD8 Surface = 1 Sampler = 0 mlen 2 rlen 4 { align1 1Q };
@@ -1034,119 +1034,119 @@ send(8)         g21<1>UD        g29<8,8,1>UD    0x044a0618
                             urb MsgDesc: 97 SIMD8 read per-slot mlen 2 rlen 4 { align1 1Q };
 send(8)         g25<1>UD        g29<8,8,1>UD    0x044a0818
                             urb MsgDesc: 129 SIMD8 read per-slot mlen 2 rlen 4 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0c0a0217
+send(8)         nullUD          g6<8,8,1>UD     0x0c0a0217
                             urb MsgDesc: 33 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x0c0a0227
+send(8)         nullUD          g12<8,8,1>UD    0x0c0a0227
                             urb MsgDesc: 34 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>UD    0x0c0a0237
+send(8)         nullUD          g13<8,8,1>UD    0x0c0a0237
                             urb MsgDesc: 35 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x0c0a0247
+send(8)         nullUD          g14<8,8,1>UD    0x0c0a0247
                             urb MsgDesc: 36 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x0c0a0257
+send(8)         nullUD          g15<8,8,1>UD    0x0c0a0257
                             urb MsgDesc: 37 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0c0a0267
+send(8)         nullUD          g16<8,8,1>UD    0x0c0a0267
                             urb MsgDesc: 38 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x0c0a0277
+send(8)         nullUD          g17<8,8,1>UD    0x0c0a0277
                             urb MsgDesc: 39 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x0c0a0287
+send(8)         nullUD          g18<8,8,1>UD    0x0c0a0287
                             urb MsgDesc: 40 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x0c0a0297
+send(8)         nullUD          g19<8,8,1>UD    0x0c0a0297
                             urb MsgDesc: 41 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x0c0a02a7
+send(8)         nullUD          g20<8,8,1>UD    0x0c0a02a7
                             urb MsgDesc: 42 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x0c0a02b7
+send(8)         nullUD          g21<8,8,1>UD    0x0c0a02b7
                             urb MsgDesc: 43 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0c0a02c7
+send(8)         nullUD          g22<8,8,1>UD    0x0c0a02c7
                             urb MsgDesc: 44 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x0c0a02d7
+send(8)         nullUD          g23<8,8,1>UD    0x0c0a02d7
                             urb MsgDesc: 45 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x0c0a02e7
+send(8)         nullUD          g24<8,8,1>UD    0x0c0a02e7
                             urb MsgDesc: 46 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x0c0a02f7
+send(8)         nullUD          g25<8,8,1>UD    0x0c0a02f7
                             urb MsgDesc: 47 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x0c0a0307
+send(8)         nullUD          g26<8,8,1>UD    0x0c0a0307
                             urb MsgDesc: 48 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x0c0a0317
+send(8)         nullUD          g27<8,8,1>UD    0x0c0a0317
                             urb MsgDesc: 49 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x0c0a0327
+send(8)         nullUD          g28<8,8,1>UD    0x0c0a0327
                             urb MsgDesc: 50 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x0c0a0337
+send(8)         nullUD          g29<8,8,1>UD    0x0c0a0337
                             urb MsgDesc: 51 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x0c0a0347
+send(8)         nullUD          g30<8,8,1>UD    0x0c0a0347
                             urb MsgDesc: 52 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x0c0a0357
+send(8)         nullUD          g31<8,8,1>UD    0x0c0a0357
                             urb MsgDesc: 53 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x0c0a0367
+send(8)         nullUD          g32<8,8,1>UD    0x0c0a0367
                             urb MsgDesc: 54 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x0c0a0377
+send(8)         nullUD          g33<8,8,1>UD    0x0c0a0377
                             urb MsgDesc: 55 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x0c0a0387
+send(8)         nullUD          g34<8,8,1>UD    0x0c0a0387
                             urb MsgDesc: 56 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x0c0a0397
+send(8)         nullUD          g35<8,8,1>UD    0x0c0a0397
                             urb MsgDesc: 57 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0c0a03a7
+send(8)         nullUD          g36<8,8,1>UD    0x0c0a03a7
                             urb MsgDesc: 58 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x0c0a03b7
+send(8)         nullUD          g37<8,8,1>UD    0x0c0a03b7
                             urb MsgDesc: 59 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x0c0a03c7
+send(8)         nullUD          g38<8,8,1>UD    0x0c0a03c7
                             urb MsgDesc: 60 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x0c0a03d7
+send(8)         nullUD          g39<8,8,1>UD    0x0c0a03d7
                             urb MsgDesc: 61 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>UD    0x0c0a03e7
+send(8)         nullUD          g40<8,8,1>UD    0x0c0a03e7
                             urb MsgDesc: 62 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g41<8,8,1>UD    0x0c0a03f7
+send(8)         nullUD          g41<8,8,1>UD    0x0c0a03f7
                             urb MsgDesc: 63 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0a080067
+send(8)         nullUD          g16<8,8,1>UD    0x0a080067
                             urb MsgDesc: 6 SIMD8 write mlen 5 rlen 0        { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x0a080077
+send(8)         nullUD          g17<8,8,1>UD    0x0a080077
                             urb MsgDesc: 7 SIMD8 write mlen 5 rlen 0        { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x0a080087
+send(8)         nullUD          g18<8,8,1>UD    0x0a080087
                             urb MsgDesc: 8 SIMD8 write mlen 5 rlen 0        { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x0a080097
+send(8)         nullUD          g19<8,8,1>UD    0x0a080097
                             urb MsgDesc: 9 SIMD8 write mlen 5 rlen 0        { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x0a0800a7
+send(8)         nullUD          g20<8,8,1>UD    0x0a0800a7
                             urb MsgDesc: 10 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x0a0800b7
+send(8)         nullUD          g21<8,8,1>UD    0x0a0800b7
                             urb MsgDesc: 11 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0a0800c7
+send(8)         nullUD          g22<8,8,1>UD    0x0a0800c7
                             urb MsgDesc: 12 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x0a0800d7
+send(8)         nullUD          g23<8,8,1>UD    0x0a0800d7
                             urb MsgDesc: 13 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x0a0800e7
+send(8)         nullUD          g24<8,8,1>UD    0x0a0800e7
                             urb MsgDesc: 14 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x0a0800f7
+send(8)         nullUD          g25<8,8,1>UD    0x0a0800f7
                             urb MsgDesc: 15 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x0a080107
+send(8)         nullUD          g26<8,8,1>UD    0x0a080107
                             urb MsgDesc: 16 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x0a080117
+send(8)         nullUD          g27<8,8,1>UD    0x0a080117
                             urb MsgDesc: 17 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x0a080127
+send(8)         nullUD          g28<8,8,1>UD    0x0a080127
                             urb MsgDesc: 18 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x0a080137
+send(8)         nullUD          g29<8,8,1>UD    0x0a080137
                             urb MsgDesc: 19 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x0a080147
+send(8)         nullUD          g30<8,8,1>UD    0x0a080147
                             urb MsgDesc: 20 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x0a080157
+send(8)         nullUD          g31<8,8,1>UD    0x0a080157
                             urb MsgDesc: 21 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x0a080167
+send(8)         nullUD          g32<8,8,1>UD    0x0a080167
                             urb MsgDesc: 22 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x0a080177
+send(8)         nullUD          g33<8,8,1>UD    0x0a080177
                             urb MsgDesc: 23 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x0a080187
+send(8)         nullUD          g34<8,8,1>UD    0x0a080187
                             urb MsgDesc: 24 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x0a080197
+send(8)         nullUD          g35<8,8,1>UD    0x0a080197
                             urb MsgDesc: 25 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0a0801a7
+send(8)         nullUD          g36<8,8,1>UD    0x0a0801a7
                             urb MsgDesc: 26 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x0a0801b7
+send(8)         nullUD          g37<8,8,1>UD    0x0a0801b7
                             urb MsgDesc: 27 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x0a0801c7
+send(8)         nullUD          g38<8,8,1>UD    0x0a0801c7
                             urb MsgDesc: 28 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x0a0801d7
+send(8)         nullUD          g39<8,8,1>UD    0x0a0801d7
                             urb MsgDesc: 29 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>UD    0x0a0801e7
+send(8)         nullUD          g40<8,8,1>UD    0x0a0801e7
                             urb MsgDesc: 30 SIMD8 write mlen 5 rlen 0       { align1 1Q };
-send(8)         null<1>F        g41<8,8,1>UD    0x0a0801f7
+send(8)         nullUD          g41<8,8,1>UD    0x0a0801f7
                             urb MsgDesc: 31 SIMD8 write mlen 5 rlen 0       { align1 1Q };
 send(8)         g13<1>UW        g2<8,8,1>UD     0x06123001
                             sampler MsgDesc: sample_c SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 1 { align1 1Q };
@@ -1162,15 +1162,15 @@ send(16)        g7<1>UW         g27<8,8,1>UD    0x08840203
                             sampler MsgDesc: sample SIMD16 Surface = 3 Sampler = 2 mlen 4 rlen 8 { align1 1H };
 send(16)        g4<1>UW         g17<8,8,1>UD    0x0420a503
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 3, SIMD16, inc) mlen 2 rlen 2 { align1 1H };
-send(16)        null<1>UW       g18<8,8,1>UD    0x04008504
+send(16)        nullUD          g18<8,8,1>UD    0x04008504
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 4, SIMD16, inc) mlen 2 rlen 0 { align1 1H };
 send(16)        g11<1>UW        g19<8,8,1>UD    0x0420a602
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 2, SIMD16, dec) mlen 2 rlen 2 { align1 1H };
-send(16)        null<1>UW       g20<8,8,1>UD    0x04008505
+send(16)        nullUD          g20<8,8,1>UD    0x04008505
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 5, SIMD16, inc) mlen 2 rlen 0 { align1 1H };
 send(16)        g16<1>UW        g21<8,8,1>UD    0x04205e01
                             hdc1 MsgDesc: ( untyped surface read, Surface = 1, SIMD16, Mask = 0xe) mlen 2 rlen 2 { align1 1H };
-send(16)        null<1>UW       g22<8,8,1>UD    0x04008506
+send(16)        nullUD          g22<8,8,1>UD    0x04008506
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 6, SIMD16, inc) mlen 2 rlen 0 { align1 1H };
 send(8)         g26<1>UW        g26<8,8,1>UD    0x0242a203
                             sampler MsgDesc: resinfo SIMD8 Surface = 3 Sampler = 2 mlen 1 rlen 4 { align1 1Q };
@@ -1220,9 +1220,9 @@ send(16)        g66<1>UW        g74<8,8,1>UD    0x0484a809
                             sampler MsgDesc: resinfo SIMD16 Surface = 9 Sampler = 8 mlen 2 rlen 8 { align1 1H };
 send(16)        g74<1>UW        g108<8,8,1>UD   0x0484a90a
                             sampler MsgDesc: resinfo SIMD16 Surface = 10 Sampler = 9 mlen 2 rlen 8 { align1 1H };
-send(16)        null<1>UW       g3<8,8,1>UD     0x040085fe
+send(16)        nullUD          g3<8,8,1>UD     0x040085fe
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 254, SIMD16, inc) mlen 2 rlen 0 { align1 1H };
-send(8)         null<1>F        g119<8,8,1>F    0x92080067
+send(8)         nullUD          g119<8,8,1>F    0x92080067
                             urb MsgDesc: 6 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
 send(8)         g6<1>UW         g20<8,8,1>UD    0x12424001
                             sampler MsgDesc: sample_d SIMD8 Surface = 1 Sampler = 0 mlen 9 rlen 4 { align1 1Q };
@@ -1232,11 +1232,11 @@ send(16)        g2<1>UW         g7<8,8,1>UD     0x0825a001
                             sampler MsgDesc: ld_lz SIMD16 Surface = 1 Sampler = 0 mlen 4 rlen 2 { align1 1H };
 send(8)         g9<1>UW         g17<8,8,1>UD    0x06422000
                             sampler MsgDesc: sample_l SIMD8 Surface = 0 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
-send(16)        null<1>UW       g123<0,1,0>UD   0x060a03fd
+send(16)        nullUD          g123<0,1,0>UD   0x060a03fd
                             hdc0 MsgDesc: ( DC OWORD block write, 253, 3) mlen 3 rlen 0 { align1 1H };
 send(16)        g114<1>UW       g114<0,1,0>UD   0x022803fd
                             hdc0 MsgDesc: ( DC OWORD block read, 253, 3) mlen 1 rlen 2 { align1 WE_all 1H };
-send(8)         null<1>F        g12<8,8,1>UD    0x0c0a0127
+send(8)         nullUD          g12<8,8,1>UD    0x0c0a0127
                             urb MsgDesc: 18 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
 send(8)         g2<1>UW         g11<8,8,1>UD    0x04420405
                             sampler MsgDesc: sample SIMD8 Surface = 5 Sampler = 4 mlen 2 rlen 4 { align1 1Q };
@@ -1362,11 +1362,11 @@ send(16)        g10<1>UW        g4<8,8,1>UD     0x04440102
                             sampler MsgDesc: sample SIMD16 Surface = 2 Sampler = 1 mlen 2 rlen 4 { align1 1H };
 send(16)        g14<1>UW        g6<8,8,1>UD     0x04640102
                             sampler MsgDesc: sample SIMD16 Surface = 2 Sampler = 1 mlen 2 rlen 6 { align1 1H };
-send(8)         null<1>F        g8<8,8,1>UD     0x0c0a8027
+send(8)         nullUD          g8<8,8,1>UD     0x0c0a8027
                             urb MsgDesc: 2 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>F     0x12080047
+send(8)         nullUD          g13<8,8,1>F     0x12080047
                             urb MsgDesc: 4 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g119<8,8,1>F    0x92080087
+send(8)         nullUD          g119<8,8,1>F    0x92080087
                             urb MsgDesc: 8 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
 send(8)         g5<1>UW         g10<8,8,1>UD    0x06420001
                             sampler MsgDesc: sample SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
@@ -1376,7 +1376,7 @@ send(8)         g1<1>UW         g125<8,8,1>UD   0x02106e02
                             hdc1 MsgDesc: ( untyped surface read, Surface = 2, SIMD8, Mask = 0xe) mlen 1 rlen 1 { align1 1Q };
 send(8)         g8<1>UW         g22<8,8,1>UD    0x02106efe
                             hdc1 MsgDesc: ( untyped surface read, Surface = 254, SIMD8, Mask = 0xe) mlen 1 rlen 1 { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080097
+send(8)         nullUD          g123<8,8,1>F    0x8a080097
                             urb MsgDesc: 9 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
 send(8)         g29<1>UW        g5<8,8,1>UD     0x0e4b2001
                             sampler MsgDesc: gather4_po_c SIMD8 Surface = 1 Sampler = 0 mlen 7 rlen 4 { align1 1Q };
@@ -1396,11 +1396,11 @@ send(8)         g125<1>UW       g5<8,8,1>UD     0x04220102
                             sampler MsgDesc: sample SIMD8 Surface = 2 Sampler = 1 mlen 2 rlen 2 { align1 1Q };
 send(16)        g122<1>UW       g7<8,8,1>UD     0x08440102
                             sampler MsgDesc: sample SIMD16 Surface = 2 Sampler = 1 mlen 4 rlen 4 { align1 1H };
-send(8)         null<1>F        g14<8,8,1>UD    0x0c0a8037
+send(8)         nullUD          g14<8,8,1>UD    0x0c0a8037
                             urb MsgDesc: 3 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x0c0a8047
+send(8)         nullUD          g15<8,8,1>UD    0x0c0a8047
                             urb MsgDesc: 4 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0c0a8057
+send(8)         nullUD          g16<8,8,1>UD    0x0c0a8057
                             urb MsgDesc: 5 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
 send(8)         g6<1>UW         g7<8,8,1>UD     0x081a5001
                             sampler MsgDesc: sample_b_c SIMD8 Surface = 1 Sampler = 0 mlen 4 rlen 1 { align1 1Q };
@@ -1460,15 +1460,15 @@ send(16)        g77<1>UW        g2<8,8,1>UD     0x0885a70f
                             sampler MsgDesc: ld_lz SIMD16 Surface = 15 Sampler = 7 mlen 4 rlen 8 { align1 1H };
 send(16)        g83<1>UW        g86<8,8,1>UD    0x04205e00
                             hdc1 MsgDesc: ( untyped surface read, Surface = 0, SIMD16, Mask = 0xe) mlen 2 rlen 2 { align1 1H };
-send(8)         null<1>F        g122<8,8,1>F    0x8c0a0047
+send(8)         nullUD          g122<8,8,1>F    0x8c0a0047
                             urb MsgDesc: 4 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
 send(8)         g14<1>UW        g11<8,8,1>UD    0x084b0202
                             sampler MsgDesc: gather4_c SIMD8 Surface = 2 Sampler = 2 mlen 4 rlen 4 { align1 1Q };
 send(8)         g6<1>UW         g6<8,8,1>UD     0x0a4b0101
                             sampler MsgDesc: gather4_c SIMD8 Surface = 1 Sampler = 1 mlen 5 rlen 4 { align1 1Q };
-send(8)         null<1>F        g3<8,8,1>F      0x12080087
+send(8)         nullUD          g3<8,8,1>F      0x12080087
                             urb MsgDesc: 8 SIMD8 write mlen 9 rlen 0        { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a0800a7
+send(8)         nullUD          g123<8,8,1>F    0x8a0800a7
                             urb MsgDesc: 10 SIMD8 write mlen 5 rlen 0       { align1 1Q EOT };
 send(8)         g6<1>UW         g7<8,8,1>UD     0x081a6001
                             sampler MsgDesc: sample_l_c SIMD8 Surface = 1 Sampler = 0 mlen 4 rlen 1 { align1 1Q };
@@ -1668,73 +1668,73 @@ send(8)         g14<1>UD        g60<8,8,1>UD    0x02380618
                             urb MsgDesc: 97 SIMD8 read mlen 1 rlen 3        { align1 1Q };
 send(8)         g17<1>UD        g60<8,8,1>UD    0x02380818
                             urb MsgDesc: 129 SIMD8 read mlen 1 rlen 3       { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x0c0a8067
+send(8)         nullUD          g14<8,8,1>UD    0x0c0a8067
                             urb MsgDesc: 6 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x0c0a8077
+send(8)         nullUD          g15<8,8,1>UD    0x0c0a8077
                             urb MsgDesc: 7 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0c0a8087
+send(8)         nullUD          g16<8,8,1>UD    0x0c0a8087
                             urb MsgDesc: 8 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x0c0a8097
+send(8)         nullUD          g17<8,8,1>UD    0x0c0a8097
                             urb MsgDesc: 9 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x0c0a80a7
+send(8)         nullUD          g18<8,8,1>UD    0x0c0a80a7
                             urb MsgDesc: 10 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x0c0a80b7
+send(8)         nullUD          g19<8,8,1>UD    0x0c0a80b7
                             urb MsgDesc: 11 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x0c0a80c7
+send(8)         nullUD          g20<8,8,1>UD    0x0c0a80c7
                             urb MsgDesc: 12 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x0c0a80d7
+send(8)         nullUD          g21<8,8,1>UD    0x0c0a80d7
                             urb MsgDesc: 13 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0c0a80e7
+send(8)         nullUD          g22<8,8,1>UD    0x0c0a80e7
                             urb MsgDesc: 14 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x0c0a80f7
+send(8)         nullUD          g23<8,8,1>UD    0x0c0a80f7
                             urb MsgDesc: 15 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x0c0a8107
+send(8)         nullUD          g24<8,8,1>UD    0x0c0a8107
                             urb MsgDesc: 16 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x0c0a8117
+send(8)         nullUD          g25<8,8,1>UD    0x0c0a8117
                             urb MsgDesc: 17 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x0c0a8127
+send(8)         nullUD          g26<8,8,1>UD    0x0c0a8127
                             urb MsgDesc: 18 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x0c0a8137
+send(8)         nullUD          g27<8,8,1>UD    0x0c0a8137
                             urb MsgDesc: 19 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x0c0a8147
+send(8)         nullUD          g28<8,8,1>UD    0x0c0a8147
                             urb MsgDesc: 20 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x0c0a8157
+send(8)         nullUD          g29<8,8,1>UD    0x0c0a8157
                             urb MsgDesc: 21 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x0c0a8167
+send(8)         nullUD          g30<8,8,1>UD    0x0c0a8167
                             urb MsgDesc: 22 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x0c0a8177
+send(8)         nullUD          g31<8,8,1>UD    0x0c0a8177
                             urb MsgDesc: 23 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x0c0a8187
+send(8)         nullUD          g32<8,8,1>UD    0x0c0a8187
                             urb MsgDesc: 24 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x0c0a8197
+send(8)         nullUD          g33<8,8,1>UD    0x0c0a8197
                             urb MsgDesc: 25 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x0c0a81a7
+send(8)         nullUD          g34<8,8,1>UD    0x0c0a81a7
                             urb MsgDesc: 26 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x0c0a81b7
+send(8)         nullUD          g35<8,8,1>UD    0x0c0a81b7
                             urb MsgDesc: 27 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0c0a81c7
+send(8)         nullUD          g36<8,8,1>UD    0x0c0a81c7
                             urb MsgDesc: 28 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x0c0a81d7
+send(8)         nullUD          g37<8,8,1>UD    0x0c0a81d7
                             urb MsgDesc: 29 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x0c0a81e7
+send(8)         nullUD          g38<8,8,1>UD    0x0c0a81e7
                             urb MsgDesc: 30 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x0c0a81f7
+send(8)         nullUD          g39<8,8,1>UD    0x0c0a81f7
                             urb MsgDesc: 31 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>UD    0x0c0a8207
+send(8)         nullUD          g40<8,8,1>UD    0x0c0a8207
                             urb MsgDesc: 32 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g41<8,8,1>UD    0x0c0a8217
+send(8)         nullUD          g41<8,8,1>UD    0x0c0a8217
                             urb MsgDesc: 33 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
 send(8)         g124<1>UW       g2<8,8,1>UD     0x02106e01
                             hdc1 MsgDesc: ( untyped surface read, Surface = 1, SIMD8, Mask = 0xe) mlen 1 rlen 1 { align1 1Q };
 send(16)        g11<1>UW        g19<8,8,1>UD    0x0420a601
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 1, SIMD16, dec) mlen 2 rlen 2 { align1 1H };
-send(16)        null<1>UW       g20<8,8,1>UD    0x04008503
+send(16)        nullUD          g20<8,8,1>UD    0x04008503
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 3, SIMD16, inc) mlen 2 rlen 0 { align1 1H };
 send(8)         g17<1>UW        g11<8,8,1>UD    0x0813e001
                             sampler MsgDesc: ld2dms SIMD8 Surface = 1 Sampler = 0 mlen 4 rlen 1 { align1 1Q };
 send(16)        g22<1>UW        g2<8,8,1>UD     0x1025e001
                             sampler MsgDesc: ld2dms SIMD16 Surface = 1 Sampler = 0 mlen 8 rlen 2 { align1 1H };
-send(8)         null<1>F        g122<8,8,1>UD   0x8c088007
+send(8)         nullUD          g122<8,8,1>UD   0x8c088007
                             urb MsgDesc: 0 SIMD8 write masked mlen 6 rlen 0 { align1 1Q EOT };
 send(8)         g2<1>UW         g2<8,8,1>UD     0x06423001
                             sampler MsgDesc: sample_c SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
@@ -1764,7 +1764,7 @@ send(16)        g2<1>UW         g15<8,8,1>UD    0x04840001
                             sampler MsgDesc: sample SIMD16 Surface = 1 Sampler = 0 mlen 2 rlen 8 { align1 1H };
 send(8)         g7<1>UW         g44<8,8,1>UD    0x02106e00
                             hdc1 MsgDesc: ( untyped surface read, Surface = 0, SIMD8, Mask = 0xe) mlen 1 rlen 1 { align1 1Q };
-send(8)         null<1>UW       g44<8,8,1>UD    0x02009500
+send(8)         nullUD          g44<8,8,1>UD    0x02009500
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 0, SIMD8, inc) mlen 1 rlen 0 { align1 1Q };
 send(8)         g7<1>UD         g37<8,8,1>UD    0x02480438
                             urb MsgDesc: 67 SIMD8 read mlen 1 rlen 4        { align1 1Q };
@@ -1822,59 +1822,59 @@ send(8)         g42<1>UW        g64<8,8,1>UD    0x0242700d
                             sampler MsgDesc: ld SIMD8 Surface = 13 Sampler = 0 mlen 1 rlen 4 { align1 1Q };
 send(8)         g124<1>UW       g6<8,8,1>UD     0x04438505
                             sampler MsgDesc: sample_lz SIMD8 Surface = 5 Sampler = 5 mlen 2 rlen 4 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0a088067
+send(8)         nullUD          g16<8,8,1>UD    0x0a088067
                             urb MsgDesc: 6 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x0a088077
+send(8)         nullUD          g17<8,8,1>UD    0x0a088077
                             urb MsgDesc: 7 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x0a088087
+send(8)         nullUD          g18<8,8,1>UD    0x0a088087
                             urb MsgDesc: 8 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x0a088097
+send(8)         nullUD          g19<8,8,1>UD    0x0a088097
                             urb MsgDesc: 9 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x0a0880a7
+send(8)         nullUD          g20<8,8,1>UD    0x0a0880a7
                             urb MsgDesc: 10 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x0a0880b7
+send(8)         nullUD          g21<8,8,1>UD    0x0a0880b7
                             urb MsgDesc: 11 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0a0880c7
+send(8)         nullUD          g22<8,8,1>UD    0x0a0880c7
                             urb MsgDesc: 12 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x0a0880d7
+send(8)         nullUD          g23<8,8,1>UD    0x0a0880d7
                             urb MsgDesc: 13 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x0a0880e7
+send(8)         nullUD          g24<8,8,1>UD    0x0a0880e7
                             urb MsgDesc: 14 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x0a0880f7
+send(8)         nullUD          g25<8,8,1>UD    0x0a0880f7
                             urb MsgDesc: 15 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x0a088107
+send(8)         nullUD          g26<8,8,1>UD    0x0a088107
                             urb MsgDesc: 16 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x0a088117
+send(8)         nullUD          g27<8,8,1>UD    0x0a088117
                             urb MsgDesc: 17 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x0a088127
+send(8)         nullUD          g28<8,8,1>UD    0x0a088127
                             urb MsgDesc: 18 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x0a088137
+send(8)         nullUD          g29<8,8,1>UD    0x0a088137
                             urb MsgDesc: 19 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x0a088147
+send(8)         nullUD          g30<8,8,1>UD    0x0a088147
                             urb MsgDesc: 20 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x0a088157
+send(8)         nullUD          g31<8,8,1>UD    0x0a088157
                             urb MsgDesc: 21 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x0a088167
+send(8)         nullUD          g32<8,8,1>UD    0x0a088167
                             urb MsgDesc: 22 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x0a088177
+send(8)         nullUD          g33<8,8,1>UD    0x0a088177
                             urb MsgDesc: 23 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x0a088187
+send(8)         nullUD          g34<8,8,1>UD    0x0a088187
                             urb MsgDesc: 24 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x0a088197
+send(8)         nullUD          g35<8,8,1>UD    0x0a088197
                             urb MsgDesc: 25 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0a0881a7
+send(8)         nullUD          g36<8,8,1>UD    0x0a0881a7
                             urb MsgDesc: 26 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x0a0881b7
+send(8)         nullUD          g37<8,8,1>UD    0x0a0881b7
                             urb MsgDesc: 27 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x0a0881c7
+send(8)         nullUD          g38<8,8,1>UD    0x0a0881c7
                             urb MsgDesc: 28 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x0a0881d7
+send(8)         nullUD          g39<8,8,1>UD    0x0a0881d7
                             urb MsgDesc: 29 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>UD    0x0a0881e7
+send(8)         nullUD          g40<8,8,1>UD    0x0a0881e7
                             urb MsgDesc: 30 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g41<8,8,1>UD    0x0a0881f7
+send(8)         nullUD          g41<8,8,1>UD    0x0a0881f7
                             urb MsgDesc: 31 SIMD8 write masked mlen 5 rlen 0 { align1 1Q };
-send(8)         null<1>F        g4<8,8,1>UD     0x0e0a8027
+send(8)         nullUD          g4<8,8,1>UD     0x0e0a8027
                             urb MsgDesc: 2 SIMD8 write per-slot masked mlen 7 rlen 0 { align1 1Q };
 send(8)         g5<1>UW         g6<8,8,1>UD     0x04123001
                             sampler MsgDesc: sample_c SIMD8 Surface = 1 Sampler = 0 mlen 2 rlen 1 { align1 1Q };
@@ -1920,15 +1920,15 @@ send(8)         g124<1>UW       g6<8,8,1>UD     0x04338000
                             sampler MsgDesc: sample_lz SIMD8 Surface = 0 Sampler = 0 mlen 2 rlen 3 { align1 1Q };
 send(8)         g12<1>UD        g1<8,8,1>UD     0x02280058
                             urb MsgDesc: 5 SIMD8 read mlen 1 rlen 2         { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x0e0a8067
+send(8)         nullUD          g12<8,8,1>UD    0x0e0a8067
                             urb MsgDesc: 6 SIMD8 write per-slot masked mlen 7 rlen 0 { align1 1Q };
 send(8)         g12<1>UD        g1<8,8,1>UD     0x02280078
                             urb MsgDesc: 7 SIMD8 read mlen 1 rlen 2         { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x0e0a8087
+send(8)         nullUD          g12<8,8,1>UD    0x0e0a8087
                             urb MsgDesc: 8 SIMD8 write per-slot masked mlen 7 rlen 0 { align1 1Q };
 send(8)         g12<1>UD        g1<8,8,1>UD     0x02280098
                             urb MsgDesc: 9 SIMD8 read mlen 1 rlen 2         { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x0e0a80a7
+send(8)         nullUD          g12<8,8,1>UD    0x0e0a80a7
                             urb MsgDesc: 10 SIMD8 write per-slot masked mlen 7 rlen 0 { align1 1Q };
 send(16)        g9<1>UW         g17<8,8,1>UD    0x04847002
                             sampler MsgDesc: ld SIMD16 Surface = 2 Sampler = 0 mlen 2 rlen 8 { align1 1H };
@@ -2012,13 +2012,13 @@ send(16)        g12<1>UW        g48<8,8,1>UD    0x08640405
                             sampler MsgDesc: sample SIMD16 Surface = 5 Sampler = 4 mlen 4 rlen 6 { align1 1H };
 send(16)        g38<1>UW        g44<8,8,1>UD    0x08640304
                             sampler MsgDesc: sample SIMD16 Surface = 4 Sampler = 3 mlen 4 rlen 6 { align1 1H };
-(+f1.0) send(8) null<1>UW       g94<8,8,1>UD    0x02009601
+(+f1.0) send(8) nullUD          g94<8,8,1>UD    0x02009601
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 1, SIMD8, dec) mlen 1 rlen 0 { align1 1Q };
 (+f1.0) send(8) g47<1>UW        g94<8,8,1>UD    0x0210b601
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 1, SIMD8, dec) mlen 1 rlen 1 { align1 1Q };
 send(16)        g4<1>UW         g1<8,8,1>UD     0x04405c02
                             hdc1 MsgDesc: ( untyped surface read, Surface = 2, SIMD16, Mask = 0xc) mlen 2 rlen 4 { align1 1H };
-send(8)         null<1>UW       g100<8,8,1>UD   0x02009600
+send(8)         nullUD          g100<8,8,1>UD   0x02009600
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 0, SIMD8, dec) mlen 1 rlen 0 { align1 1Q };
 send(8)         g51<1>UW        g100<8,8,1>UD   0x0210b600
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 0, SIMD8, dec) mlen 1 rlen 1 { align1 1Q };
@@ -2026,7 +2026,7 @@ send(8)         g5<1>UW         g11<8,8,1>UD    0x064a0001
                             sampler MsgDesc: sample SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 4 { align1 1Q };
 send(16)        g7<1>UW         g19<8,8,1>UD    0x0a8c0001
                             sampler MsgDesc: sample SIMD16 Surface = 1 Sampler = 0 mlen 5 rlen 8 { align1 1H };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080117
+send(8)         nullUD          g123<8,8,1>F    0x8a080117
                             urb MsgDesc: 17 SIMD8 write mlen 5 rlen 0       { align1 1Q EOT };
 send(8)         g3<1>UW         g3<8,8,1>UD     0x02415002
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 2, SIMD16, Mask = 0x0) mlen 1 rlen 4 { align1 1Q };
@@ -2034,13 +2034,13 @@ send(8)         g5<1>UW         g4<8,8,1>UD     0x02416002
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 2, SIMD8, Mask = 0x0) mlen 1 rlen 4 { align1 2Q };
 send(8)         g6<1>UW         g16<8,8,1>UD    0x0210b500
                             hdc1 MsgDesc: ( DC untyped atomic op, Surface = 0, SIMD8, inc) mlen 1 rlen 1 { align1 1Q };
-send(8)         null<1>F        g119<8,8,1>F    0x92080097
+send(8)         nullUD          g119<8,8,1>F    0x92080097
                             urb MsgDesc: 9 SIMD8 write mlen 9 rlen 0        { align1 1Q EOT };
-send(8)         null<1>F        g4<8,8,1>F      0x120800c7
+send(8)         nullUD          g4<8,8,1>F      0x120800c7
                             urb MsgDesc: 12 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g5<8,8,1>F      0x120800e7
+send(8)         nullUD          g5<8,8,1>F      0x120800e7
                             urb MsgDesc: 14 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080107
+send(8)         nullUD          g123<8,8,1>F    0x8a080107
                             urb MsgDesc: 16 SIMD8 write mlen 5 rlen 0       { align1 1Q EOT };
 send(8)         g6<1>UW         g11<8,8,1>UD    0x08434102
                             sampler MsgDesc: sample_d_c SIMD8 Surface = 2 Sampler = 1 mlen 4 rlen 4 { align1 1Q };
@@ -2082,35 +2082,35 @@ send(8)         g13<1>UD        g1<8,8,1>UD     0x02380108
                             urb MsgDesc: 16 SIMD8 read mlen 1 rlen 3        { align1 1Q };
 send(8)         g13<1>UD        g1<8,8,1>UD     0x02380118
                             urb MsgDesc: 17 SIMD8 read mlen 1 rlen 3        { align1 1Q };
-send(8)         null<1>F        g60<8,8,1>F     0x120800a7
+send(8)         nullUD          g60<8,8,1>F     0x120800a7
                             urb MsgDesc: 10 SIMD8 write mlen 9 rlen 0       { align1 1Q };
-send(8)         null<1>F        g119<8,8,1>F    0x92080107
+send(8)         nullUD          g119<8,8,1>F    0x92080107
                             urb MsgDesc: 16 SIMD8 write mlen 9 rlen 0       { align1 1Q EOT };
 send(8)         g3<1>UW         g7<8,8,1>UD     0x02115e01
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD16, Mask = 0xe) mlen 1 rlen 1 { align1 1Q };
 send(8)         g5<1>UW         g11<8,8,1>UD    0x02116e01
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD8, Mask = 0xe) mlen 1 rlen 1 { align1 2Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080067
+send(8)         nullUD          g123<8,8,1>F    0x8a080067
                             urb MsgDesc: 6 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
-send(8)         null<1>F        g80<8,8,1>F     0x140a00b7
+send(8)         nullUD          g80<8,8,1>F     0x140a00b7
                             urb MsgDesc: 11 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x140a00d7
+send(8)         nullUD          g6<8,8,1>F      0x140a00d7
                             urb MsgDesc: 13 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x140a00f7
+send(8)         nullUD          g6<8,8,1>F      0x140a00f7
                             urb MsgDesc: 15 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x140a0117
+send(8)         nullUD          g6<8,8,1>F      0x140a0117
                             urb MsgDesc: 17 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x140a0137
+send(8)         nullUD          g6<8,8,1>F      0x140a0137
                             urb MsgDesc: 19 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g90<8,8,1>F     0x140a0157
+send(8)         nullUD          g90<8,8,1>F     0x140a0157
                             urb MsgDesc: 21 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g100<8,8,1>F    0x140a0177
+send(8)         nullUD          g100<8,8,1>F    0x140a0177
                             urb MsgDesc: 23 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g110<8,8,1>F    0x0c0a0197
+send(8)         nullUD          g110<8,8,1>F    0x0c0a0197
                             urb MsgDesc: 25 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g120<8,8,1>F    0x8c0a0197
+send(8)         nullUD          g120<8,8,1>F    0x8c0a0197
                             urb MsgDesc: 25 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
-send(8)         null<1>F        g123<8,8,1>F    0x8a0800b7
+send(8)         nullUD          g123<8,8,1>F    0x8a0800b7
                             urb MsgDesc: 11 SIMD8 write mlen 5 rlen 0       { align1 1Q EOT };
 send(8)         g22<1>UD        g53<8,8,1>UD    0x02180238
                             urb MsgDesc: 35 SIMD8 read mlen 1 rlen 1        { align1 1Q };
@@ -2300,67 +2300,67 @@ send(8)         g37<1>UD        g22<8,8,1>UD    0x02180618
                             urb MsgDesc: 97 SIMD8 read mlen 1 rlen 1        { align1 1Q };
 send(8)         g38<1>UD        g22<8,8,1>UD    0x02180818
                             urb MsgDesc: 129 SIMD8 read mlen 1 rlen 1       { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x080a8037
+send(8)         nullUD          g6<8,8,1>UD     0x080a8037
                             urb MsgDesc: 3 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g10<8,8,1>UD    0x080a8047
+send(8)         nullUD          g10<8,8,1>UD    0x080a8047
                             urb MsgDesc: 4 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g11<8,8,1>UD    0x080a8057
+send(8)         nullUD          g11<8,8,1>UD    0x080a8057
                             urb MsgDesc: 5 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x080a8067
+send(8)         nullUD          g12<8,8,1>UD    0x080a8067
                             urb MsgDesc: 6 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>UD    0x080a8077
+send(8)         nullUD          g13<8,8,1>UD    0x080a8077
                             urb MsgDesc: 7 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x080a8087
+send(8)         nullUD          g14<8,8,1>UD    0x080a8087
                             urb MsgDesc: 8 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x080a8097
+send(8)         nullUD          g15<8,8,1>UD    0x080a8097
                             urb MsgDesc: 9 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x080a80a7
+send(8)         nullUD          g16<8,8,1>UD    0x080a80a7
                             urb MsgDesc: 10 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x080a80b7
+send(8)         nullUD          g17<8,8,1>UD    0x080a80b7
                             urb MsgDesc: 11 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x080a80c7
+send(8)         nullUD          g18<8,8,1>UD    0x080a80c7
                             urb MsgDesc: 12 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x080a80d7
+send(8)         nullUD          g19<8,8,1>UD    0x080a80d7
                             urb MsgDesc: 13 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x080a80e7
+send(8)         nullUD          g20<8,8,1>UD    0x080a80e7
                             urb MsgDesc: 14 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x080a80f7
+send(8)         nullUD          g21<8,8,1>UD    0x080a80f7
                             urb MsgDesc: 15 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x080a8107
+send(8)         nullUD          g22<8,8,1>UD    0x080a8107
                             urb MsgDesc: 16 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x080a8117
+send(8)         nullUD          g23<8,8,1>UD    0x080a8117
                             urb MsgDesc: 17 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x080a8127
+send(8)         nullUD          g24<8,8,1>UD    0x080a8127
                             urb MsgDesc: 18 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x080a8137
+send(8)         nullUD          g25<8,8,1>UD    0x080a8137
                             urb MsgDesc: 19 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x080a8147
+send(8)         nullUD          g26<8,8,1>UD    0x080a8147
                             urb MsgDesc: 20 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x080a8157
+send(8)         nullUD          g27<8,8,1>UD    0x080a8157
                             urb MsgDesc: 21 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x080a8167
+send(8)         nullUD          g28<8,8,1>UD    0x080a8167
                             urb MsgDesc: 22 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x080a8177
+send(8)         nullUD          g29<8,8,1>UD    0x080a8177
                             urb MsgDesc: 23 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x080a8187
+send(8)         nullUD          g30<8,8,1>UD    0x080a8187
                             urb MsgDesc: 24 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x080a8197
+send(8)         nullUD          g31<8,8,1>UD    0x080a8197
                             urb MsgDesc: 25 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x080a81a7
+send(8)         nullUD          g32<8,8,1>UD    0x080a81a7
                             urb MsgDesc: 26 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x080a81b7
+send(8)         nullUD          g33<8,8,1>UD    0x080a81b7
                             urb MsgDesc: 27 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x080a81c7
+send(8)         nullUD          g34<8,8,1>UD    0x080a81c7
                             urb MsgDesc: 28 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x080a81d7
+send(8)         nullUD          g35<8,8,1>UD    0x080a81d7
                             urb MsgDesc: 29 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x080a81e7
+send(8)         nullUD          g36<8,8,1>UD    0x080a81e7
                             urb MsgDesc: 30 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x080a81f7
+send(8)         nullUD          g37<8,8,1>UD    0x080a81f7
                             urb MsgDesc: 31 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x080a8207
+send(8)         nullUD          g38<8,8,1>UD    0x080a8207
                             urb MsgDesc: 32 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x080a8217
+send(8)         nullUD          g39<8,8,1>UD    0x080a8217
                             urb MsgDesc: 33 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
 send(8)         g18<1>UW        g19<8,8,1>UD    0x04115e00
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 0, SIMD16, Mask = 0xe) mlen 2 rlen 1 { align1 1Q };
@@ -2556,41 +2556,41 @@ send(8)         g16<1>UD        g75<8,8,1>UD    0x02480618
                             urb MsgDesc: 97 SIMD8 read mlen 1 rlen 4        { align1 1Q };
 send(8)         g20<1>UD        g75<8,8,1>UD    0x02480818
                             urb MsgDesc: 129 SIMD8 read mlen 1 rlen 4       { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x0c0a00c7
+send(8)         nullUD          g20<8,8,1>UD    0x0c0a00c7
                             urb MsgDesc: 12 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x0c0a00d7
+send(8)         nullUD          g21<8,8,1>UD    0x0c0a00d7
                             urb MsgDesc: 13 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0c0a00e7
+send(8)         nullUD          g22<8,8,1>UD    0x0c0a00e7
                             urb MsgDesc: 14 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x0c0a00f7
+send(8)         nullUD          g23<8,8,1>UD    0x0c0a00f7
                             urb MsgDesc: 15 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x0c0a0107
+send(8)         nullUD          g24<8,8,1>UD    0x0c0a0107
                             urb MsgDesc: 16 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x0c0a0117
+send(8)         nullUD          g25<8,8,1>UD    0x0c0a0117
                             urb MsgDesc: 17 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x0c0a0137
+send(8)         nullUD          g27<8,8,1>UD    0x0c0a0137
                             urb MsgDesc: 19 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x0c0a0147
+send(8)         nullUD          g28<8,8,1>UD    0x0c0a0147
                             urb MsgDesc: 20 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x0c0a0157
+send(8)         nullUD          g29<8,8,1>UD    0x0c0a0157
                             urb MsgDesc: 21 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x0c0a0167
+send(8)         nullUD          g30<8,8,1>UD    0x0c0a0167
                             urb MsgDesc: 22 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x0c0a0177
+send(8)         nullUD          g31<8,8,1>UD    0x0c0a0177
                             urb MsgDesc: 23 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x0c0a0187
+send(8)         nullUD          g32<8,8,1>UD    0x0c0a0187
                             urb MsgDesc: 24 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x0c0a01a7
+send(8)         nullUD          g34<8,8,1>UD    0x0c0a01a7
                             urb MsgDesc: 26 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x0c0a01b7
+send(8)         nullUD          g35<8,8,1>UD    0x0c0a01b7
                             urb MsgDesc: 27 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0c0a01c7
+send(8)         nullUD          g36<8,8,1>UD    0x0c0a01c7
                             urb MsgDesc: 28 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x0c0a01d7
+send(8)         nullUD          g37<8,8,1>UD    0x0c0a01d7
                             urb MsgDesc: 29 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x0c0a01e7
+send(8)         nullUD          g38<8,8,1>UD    0x0c0a01e7
                             urb MsgDesc: 30 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x0c0a01f7
+send(8)         nullUD          g39<8,8,1>UD    0x0c0a01f7
                             urb MsgDesc: 31 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q };
 send(16)        g46<1>UD        g12<0,1,0>UD    0x02280302
                             hdc:ro MsgDesc: (2, 3, 0, 0) mlen 1 rlen 2       { align1 WE_all 1H };
@@ -2622,27 +2622,27 @@ send(8)         g18<1>UW        g58<8,8,1>UD    0x0242ab0b
                             sampler MsgDesc: resinfo SIMD8 Surface = 11 Sampler = 11 mlen 1 rlen 4 { align1 1Q };
 send(8)         g22<1>UW        g59<8,8,1>UD    0x0242ac0c
                             sampler MsgDesc: resinfo SIMD8 Surface = 12 Sampler = 12 mlen 1 rlen 4 { align1 1Q };
-send(8)         null<1>F        g9<8,8,1>UD     0x0c088027
+send(8)         nullUD          g9<8,8,1>UD     0x0c088027
                             urb MsgDesc: 2 SIMD8 write masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g10<8,8,1>UD    0x0c088047
+send(8)         nullUD          g10<8,8,1>UD    0x0c088047
                             urb MsgDesc: 4 SIMD8 write masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g11<8,8,1>UD    0x0c088067
+send(8)         nullUD          g11<8,8,1>UD    0x0c088067
                             urb MsgDesc: 6 SIMD8 write masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>UD     0x0c088037
+send(8)         nullUD          g6<8,8,1>UD     0x0c088037
                             urb MsgDesc: 3 SIMD8 write masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g7<8,8,1>UD     0x0c088057
+send(8)         nullUD          g7<8,8,1>UD     0x0c088057
                             urb MsgDesc: 5 SIMD8 write masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g8<8,8,1>UD     0x0c088077
+send(8)         nullUD          g8<8,8,1>UD     0x0c088077
                             urb MsgDesc: 7 SIMD8 write masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x140a0197
+send(8)         nullUD          g6<8,8,1>F      0x140a0197
                             urb MsgDesc: 25 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x140a01b7
+send(8)         nullUD          g6<8,8,1>F      0x140a01b7
                             urb MsgDesc: 27 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x140a01d7
+send(8)         nullUD          g6<8,8,1>F      0x140a01d7
                             urb MsgDesc: 29 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g6<8,8,1>F      0x140a01f7
+send(8)         nullUD          g6<8,8,1>F      0x140a01f7
                             urb MsgDesc: 31 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g120<8,8,1>F    0x8c0a0217
+send(8)         nullUD          g120<8,8,1>F    0x8c0a0217
                             urb MsgDesc: 33 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
 send(8)         g8<1>UD         g6<8,8,1>UD     0x041a0318
                             urb MsgDesc: 49 SIMD8 read per-slot mlen 2 rlen 1 { align1 1Q };
@@ -2660,69 +2660,69 @@ send(8)         g9<1>UD         g11<8,8,1>UD    0x041a0618
                             urb MsgDesc: 97 SIMD8 read per-slot mlen 2 rlen 1 { align1 1Q };
 send(8)         g10<1>UD        g11<8,8,1>UD    0x041a0818
                             urb MsgDesc: 129 SIMD8 read per-slot mlen 2 rlen 1 { align1 1Q };
-send(8)         null<1>F        g10<8,8,1>UD    0x080a8227
+send(8)         nullUD          g10<8,8,1>UD    0x080a8227
                             urb MsgDesc: 34 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g11<8,8,1>UD    0x080a8237
+send(8)         nullUD          g11<8,8,1>UD    0x080a8237
                             urb MsgDesc: 35 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x080a8247
+send(8)         nullUD          g12<8,8,1>UD    0x080a8247
                             urb MsgDesc: 36 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>UD    0x080a8257
+send(8)         nullUD          g13<8,8,1>UD    0x080a8257
                             urb MsgDesc: 37 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x080a8267
+send(8)         nullUD          g14<8,8,1>UD    0x080a8267
                             urb MsgDesc: 38 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x080a8277
+send(8)         nullUD          g15<8,8,1>UD    0x080a8277
                             urb MsgDesc: 39 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x080a8287
+send(8)         nullUD          g16<8,8,1>UD    0x080a8287
                             urb MsgDesc: 40 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x080a8297
+send(8)         nullUD          g17<8,8,1>UD    0x080a8297
                             urb MsgDesc: 41 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x080a82a7
+send(8)         nullUD          g18<8,8,1>UD    0x080a82a7
                             urb MsgDesc: 42 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x080a82b7
+send(8)         nullUD          g19<8,8,1>UD    0x080a82b7
                             urb MsgDesc: 43 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x080a82c7
+send(8)         nullUD          g20<8,8,1>UD    0x080a82c7
                             urb MsgDesc: 44 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x080a82d7
+send(8)         nullUD          g21<8,8,1>UD    0x080a82d7
                             urb MsgDesc: 45 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x080a82e7
+send(8)         nullUD          g22<8,8,1>UD    0x080a82e7
                             urb MsgDesc: 46 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x080a82f7
+send(8)         nullUD          g23<8,8,1>UD    0x080a82f7
                             urb MsgDesc: 47 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x080a8307
+send(8)         nullUD          g24<8,8,1>UD    0x080a8307
                             urb MsgDesc: 48 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x080a8317
+send(8)         nullUD          g25<8,8,1>UD    0x080a8317
                             urb MsgDesc: 49 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x080a8327
+send(8)         nullUD          g26<8,8,1>UD    0x080a8327
                             urb MsgDesc: 50 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x080a8337
+send(8)         nullUD          g27<8,8,1>UD    0x080a8337
                             urb MsgDesc: 51 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x080a8347
+send(8)         nullUD          g28<8,8,1>UD    0x080a8347
                             urb MsgDesc: 52 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x080a8357
+send(8)         nullUD          g29<8,8,1>UD    0x080a8357
                             urb MsgDesc: 53 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x080a8367
+send(8)         nullUD          g30<8,8,1>UD    0x080a8367
                             urb MsgDesc: 54 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x080a8377
+send(8)         nullUD          g31<8,8,1>UD    0x080a8377
                             urb MsgDesc: 55 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x080a8387
+send(8)         nullUD          g32<8,8,1>UD    0x080a8387
                             urb MsgDesc: 56 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x080a8397
+send(8)         nullUD          g33<8,8,1>UD    0x080a8397
                             urb MsgDesc: 57 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x080a83a7
+send(8)         nullUD          g34<8,8,1>UD    0x080a83a7
                             urb MsgDesc: 58 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x080a83b7
+send(8)         nullUD          g35<8,8,1>UD    0x080a83b7
                             urb MsgDesc: 59 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x080a83c7
+send(8)         nullUD          g36<8,8,1>UD    0x080a83c7
                             urb MsgDesc: 60 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x080a83d7
+send(8)         nullUD          g37<8,8,1>UD    0x080a83d7
                             urb MsgDesc: 61 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x080a83e7
+send(8)         nullUD          g38<8,8,1>UD    0x080a83e7
                             urb MsgDesc: 62 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x080a83f7
+send(8)         nullUD          g39<8,8,1>UD    0x080a83f7
                             urb MsgDesc: 63 SIMD8 write per-slot masked mlen 4 rlen 0 { align1 1Q };
 send(8)         g8<1>UD         g9<8,8,1>UD     0x02480008
                             urb MsgDesc: 0 SIMD8 read mlen 1 rlen 4         { align1 1Q };
-send(8)         null<1>F        g123<8,8,1>F    0x8a080007
+send(8)         nullUD          g123<8,8,1>F    0x8a080007
                             urb MsgDesc: 0 SIMD8 write mlen 5 rlen 0        { align1 1Q EOT };
 send(8)         g4<1>UW         g2<8,8,1>UD     0x04215c01
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 1, SIMD16, Mask = 0xc) mlen 2 rlen 2 { align1 1Q };
@@ -2742,7 +2742,7 @@ send(16)        g2<1>UW         g11<8,8,1>UD    0x0c845001
                             sampler MsgDesc: sample_b_c SIMD16 Surface = 1 Sampler = 0 mlen 6 rlen 8 { align1 1H };
 send(16)        g10<1>UW        g18<8,8,1>UD    0x0c845102
                             sampler MsgDesc: sample_b_c SIMD16 Surface = 2 Sampler = 1 mlen 6 rlen 8 { align1 1H };
-send(8)         null<1>F        g121<8,8,1>F    0x8a080197
+send(8)         nullUD          g121<8,8,1>F    0x8a080197
                             urb MsgDesc: 25 SIMD8 write mlen 5 rlen 0       { align1 1Q EOT };
 send(8)         g124<1>UW       g6<8,8,1>UD     0x02415000
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 0, SIMD16, Mask = 0x0) mlen 1 rlen 4 { align1 1Q };
@@ -2974,7 +2974,7 @@ send(8)         g11<1>UW        g4<8,8,1>UD     0x04415002
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 2, SIMD16, Mask = 0x0) mlen 2 rlen 4 { align1 1Q };
 send(8)         g7<1>UW         g5<8,8,1>UD     0x04416002
                             hdc1 MsgDesc: ( DC typed surface read, Surface = 2, SIMD8, Mask = 0x0) mlen 2 rlen 4 { align1 2Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0e0a8057
+send(8)         nullUD          g16<8,8,1>UD    0x0e0a8057
                             urb MsgDesc: 5 SIMD8 write per-slot masked mlen 7 rlen 0 { align1 1Q };
 send(8)         g6<1>UD         g18<8,8,1>UD    0x043a0318
                             urb MsgDesc: 49 SIMD8 read per-slot mlen 2 rlen 3 { align1 1Q };
@@ -2992,65 +2992,65 @@ send(8)         g17<1>UD        g23<8,8,1>UD    0x043a0618
                             urb MsgDesc: 97 SIMD8 read per-slot mlen 2 rlen 3 { align1 1Q };
 send(8)         g20<1>UD        g23<8,8,1>UD    0x043a0818
                             urb MsgDesc: 129 SIMD8 read per-slot mlen 2 rlen 3 { align1 1Q };
-send(8)         null<1>F        g12<8,8,1>UD    0x0c0a8227
+send(8)         nullUD          g12<8,8,1>UD    0x0c0a8227
                             urb MsgDesc: 34 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g13<8,8,1>UD    0x0c0a8237
+send(8)         nullUD          g13<8,8,1>UD    0x0c0a8237
                             urb MsgDesc: 35 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g14<8,8,1>UD    0x0c0a8247
+send(8)         nullUD          g14<8,8,1>UD    0x0c0a8247
                             urb MsgDesc: 36 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g15<8,8,1>UD    0x0c0a8257
+send(8)         nullUD          g15<8,8,1>UD    0x0c0a8257
                             urb MsgDesc: 37 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g16<8,8,1>UD    0x0c0a8267
+send(8)         nullUD          g16<8,8,1>UD    0x0c0a8267
                             urb MsgDesc: 38 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g17<8,8,1>UD    0x0c0a8277
+send(8)         nullUD          g17<8,8,1>UD    0x0c0a8277
                             urb MsgDesc: 39 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g18<8,8,1>UD    0x0c0a8287
+send(8)         nullUD          g18<8,8,1>UD    0x0c0a8287
                             urb MsgDesc: 40 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g19<8,8,1>UD    0x0c0a8297
+send(8)         nullUD          g19<8,8,1>UD    0x0c0a8297
                             urb MsgDesc: 41 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g20<8,8,1>UD    0x0c0a82a7
+send(8)         nullUD          g20<8,8,1>UD    0x0c0a82a7
                             urb MsgDesc: 42 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g21<8,8,1>UD    0x0c0a82b7
+send(8)         nullUD          g21<8,8,1>UD    0x0c0a82b7
                             urb MsgDesc: 43 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g22<8,8,1>UD    0x0c0a82c7
+send(8)         nullUD          g22<8,8,1>UD    0x0c0a82c7
                             urb MsgDesc: 44 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g23<8,8,1>UD    0x0c0a82d7
+send(8)         nullUD          g23<8,8,1>UD    0x0c0a82d7
                             urb MsgDesc: 45 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g24<8,8,1>UD    0x0c0a82e7
+send(8)         nullUD          g24<8,8,1>UD    0x0c0a82e7
                             urb MsgDesc: 46 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g25<8,8,1>UD    0x0c0a82f7
+send(8)         nullUD          g25<8,8,1>UD    0x0c0a82f7
                             urb MsgDesc: 47 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g26<8,8,1>UD    0x0c0a8307
+send(8)         nullUD          g26<8,8,1>UD    0x0c0a8307
                             urb MsgDesc: 48 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g27<8,8,1>UD    0x0c0a8317
+send(8)         nullUD          g27<8,8,1>UD    0x0c0a8317
                             urb MsgDesc: 49 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g28<8,8,1>UD    0x0c0a8327
+send(8)         nullUD          g28<8,8,1>UD    0x0c0a8327
                             urb MsgDesc: 50 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g29<8,8,1>UD    0x0c0a8337
+send(8)         nullUD          g29<8,8,1>UD    0x0c0a8337
                             urb MsgDesc: 51 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g30<8,8,1>UD    0x0c0a8347
+send(8)         nullUD          g30<8,8,1>UD    0x0c0a8347
                             urb MsgDesc: 52 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>UD    0x0c0a8357
+send(8)         nullUD          g31<8,8,1>UD    0x0c0a8357
                             urb MsgDesc: 53 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g32<8,8,1>UD    0x0c0a8367
+send(8)         nullUD          g32<8,8,1>UD    0x0c0a8367
                             urb MsgDesc: 54 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g33<8,8,1>UD    0x0c0a8377
+send(8)         nullUD          g33<8,8,1>UD    0x0c0a8377
                             urb MsgDesc: 55 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g34<8,8,1>UD    0x0c0a8387
+send(8)         nullUD          g34<8,8,1>UD    0x0c0a8387
                             urb MsgDesc: 56 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g35<8,8,1>UD    0x0c0a8397
+send(8)         nullUD          g35<8,8,1>UD    0x0c0a8397
                             urb MsgDesc: 57 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g36<8,8,1>UD    0x0c0a83a7
+send(8)         nullUD          g36<8,8,1>UD    0x0c0a83a7
                             urb MsgDesc: 58 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g37<8,8,1>UD    0x0c0a83b7
+send(8)         nullUD          g37<8,8,1>UD    0x0c0a83b7
                             urb MsgDesc: 59 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g38<8,8,1>UD    0x0c0a83c7
+send(8)         nullUD          g38<8,8,1>UD    0x0c0a83c7
                             urb MsgDesc: 60 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g39<8,8,1>UD    0x0c0a83d7
+send(8)         nullUD          g39<8,8,1>UD    0x0c0a83d7
                             urb MsgDesc: 61 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g40<8,8,1>UD    0x0c0a83e7
+send(8)         nullUD          g40<8,8,1>UD    0x0c0a83e7
                             urb MsgDesc: 62 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
-send(8)         null<1>F        g41<8,8,1>UD    0x0c0a83f7
+send(8)         nullUD          g41<8,8,1>UD    0x0c0a83f7
                             urb MsgDesc: 63 SIMD8 write per-slot masked mlen 6 rlen 0 { align1 1Q };
 send(8)         g8<1>UW         g7<8,8,1>UD     0x10134001
                             sampler MsgDesc: sample_d_c SIMD8 Surface = 1 Sampler = 0 mlen 8 rlen 1 { align1 1Q };
@@ -3132,11 +3132,11 @@ send(8)         g2<1>UD         g2<8,8,1>UD     0x043a01f8
                             urb MsgDesc: 31 SIMD8 read per-slot mlen 2 rlen 3 { align1 1Q };
 send(8)         g2<1>UD         g2<8,8,1>UD     0x043a0208
                             urb MsgDesc: 32 SIMD8 read per-slot mlen 2 rlen 3 { align1 1Q };
-send(8)         null<1>F        g11<8,8,1>F     0x140a0047
+send(8)         nullUD          g11<8,8,1>F     0x140a0047
                             urb MsgDesc: 4 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g31<8,8,1>F     0x140a0087
+send(8)         nullUD          g31<8,8,1>F     0x140a0087
                             urb MsgDesc: 8 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q };
-send(8)         null<1>F        g118<8,8,1>F    0x940a0087
+send(8)         nullUD          g118<8,8,1>F    0x940a0087
                             urb MsgDesc: 8 SIMD8 write per-slot mlen 10 rlen 0 { align1 1Q EOT };
 send(8)         g14<1>UW        g11<8,8,1>UD    0x0a4b0202
                             sampler MsgDesc: gather4_c SIMD8 Surface = 2 Sampler = 2 mlen 5 rlen 4 { align1 1Q };
@@ -3482,7 +3482,7 @@ send(8)         g2<1>UW         g2<8,8,1>UD     0x06323001
                             sampler MsgDesc: sample_c SIMD8 Surface = 1 Sampler = 0 mlen 3 rlen 3 { align1 1Q };
 send(16)        g2<1>UW         g24<8,8,1>UD    0x0c643001
                             sampler MsgDesc: sample_c SIMD16 Surface = 1 Sampler = 0 mlen 6 rlen 6 { align1 1H };
-send(8)         null<1>F        g120<8,8,1>F    0x8c0a0117
+send(8)         nullUD          g120<8,8,1>F    0x8c0a0117
                             urb MsgDesc: 17 SIMD8 write per-slot mlen 6 rlen 0 { align1 1Q EOT };
 send(8)         g11<1>UD        g1<8,8,1>UD     0x02380128
                             urb MsgDesc: 18 SIMD8 read mlen 1 rlen 3        { align1 1Q };
