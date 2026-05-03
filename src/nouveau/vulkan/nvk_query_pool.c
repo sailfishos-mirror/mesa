@@ -384,49 +384,60 @@ struct nvk_3d_stat_query {
    VkQueryPipelineStatisticFlagBits flag;
    uint8_t loc;
    uint8_t report;
+   uint8_t clear_type;
 };
 
 /* This must remain sorted in flag order */
 static const struct nvk_3d_stat_query nvk_3d_stat_queries[] = {{
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_DATA_ASSEMBLER,
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_DA_VERTICES_GENERATED,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_DATA_ASSEMBLER,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_DA_VERTICES_GENERATED,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_DA_VERTICES_GENERATED,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_DATA_ASSEMBLER,
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_DA_PRIMITIVES_GENERATED,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_DATA_ASSEMBLER,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_DA_PRIMITIVES_GENERATED,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_DA_PRIMITIVES_GENERATED,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_VERTEX_SHADER,
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_VS_INVOCATIONS,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_VERTEX_SHADER,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_VS_INVOCATIONS,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_VS_INVOCATIONS,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_GEOMETRY_SHADER,
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_GS_INVOCATIONS,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_GEOMETRY_SHADER,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_GS_INVOCATIONS,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_GS_INVOCATIONS,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_GEOMETRY_SHADER,
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_GS_PRIMITIVES_GENERATED,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_GEOMETRY_SHADER,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_GS_PRIMITIVES_GENERATED,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_GS_PRIMITIVES_GENERATED,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_VPC, /* TODO */
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_CLIPPER_INVOCATIONS,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_VPC,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_CLIPPER_INVOCATIONS,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_CLIPPER_INVOCATIONS,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_VPC, /* TODO */
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_CLIPPER_PRIMITIVES_GENERATED,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_VPC,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_CLIPPER_PRIMITIVES_GENERATED,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_CLIPPER_PRIMITIVES_GENERATED,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_PIXEL_SHADER,
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_PS_INVOCATIONS,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_PIXEL_SHADER,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_PS_INVOCATIONS,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_PS_INVOCATIONS,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_TESSELATION_INIT_SHADER,
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_TI_INVOCATIONS,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_TESSELATION_INIT_SHADER,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_TI_INVOCATIONS,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_TI_INVOCATIONS,
 }, {
-   .flag    = VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT,
-   .loc     = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_TESSELATION_SHADER,
-   .report  = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_TS_INVOCATIONS,
+   .flag       = VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT,
+   .loc        = NV9097_SET_REPORT_SEMAPHORE_D_PIPELINE_LOCATION_TESSELATION_SHADER,
+   .report     = NV9097_SET_REPORT_SEMAPHORE_D_REPORT_TS_INVOCATIONS,
+   .clear_type = NV9097_CLEAR_REPORT_VALUE_TYPE_TS_INVOCATIONS,
 }, {
    .flag    = VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT,
    .loc     = UINT8_MAX,
@@ -457,6 +468,68 @@ nvk_mme_write_cs_invocations(struct mme_builder *b)
 
    mme_store_global(b, dst_addr, accum.lo);
    mme_store_global(b, mme_add64(b, dst_addr, mme_imm64(4)), accum.hi);
+}
+
+static void
+nvk_cmd_clear_report_value(struct nvk_cmd_buffer *cmd,
+                           struct nvk_query_pool *pool)
+{
+   const struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+
+   switch (pool->vk.query_type) {
+   case VK_QUERY_TYPE_OCCLUSION: {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
+      P_IMMD(p, NV9097, CLEAR_REPORT_VALUE, TYPE_ZPASS_PIXEL_CNT);
+      break;
+   }
+   case VK_QUERY_TYPE_PIPELINE_STATISTICS: {
+      uint32_t stat_count = util_bitcount(pool->vk.pipeline_statistics);
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, stat_count * 2);
+
+      ASSERTED uint32_t stats_left = pool->vk.pipeline_statistics;
+      for (uint32_t i = 0; i < ARRAY_SIZE(nvk_3d_stat_queries); i++) {
+         const struct nvk_3d_stat_query *sq = &nvk_3d_stat_queries[i];
+         if (!(stats_left & sq->flag))
+            continue;
+
+         /* The 3D stat queries array MUST be sorted */
+         assert(!(stats_left & (sq->flag - 1)));
+
+         if (sq->flag == VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT) {
+            if (pdev->info.cls_compute >= AMPERE_COMPUTE_B) {
+               P_IMMD_WORD(p, NVC7C0, SET_MME_SHADOW_SCRATCH(NVK_MME_SCRATCH_CS_INVOCATIONS_HI), 0);
+               P_IMMD_WORD(p, NVC7C0, SET_MME_SHADOW_SCRATCH(NVK_MME_SCRATCH_CS_INVOCATIONS_LO), 0);
+            }
+            else {
+               P_IMMD_WORD(p, NV9097, SET_MME_SHADOW_SCRATCH(NVK_MME_SCRATCH_CS_INVOCATIONS_HI), 0);
+               P_IMMD_WORD(p, NV9097, SET_MME_SHADOW_SCRATCH(NVK_MME_SCRATCH_CS_INVOCATIONS_LO), 0);
+            }
+         } else {
+            P_IMMD(p, NV9097, CLEAR_REPORT_VALUE, sq->clear_type);
+         }
+
+         stats_left &= ~sq->flag;
+      }
+      break;
+   }
+
+   case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT: {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 4);
+      P_IMMD(p, NV9097, CLEAR_REPORT_VALUE, TYPE_STREAMING_PRIMITIVES_SUCCEEDED);
+      P_IMMD(p, NV9097, CLEAR_REPORT_VALUE, TYPE_STREAMING_PRIMITIVES_NEEDED);
+      break;
+   }
+
+   case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT: {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
+      P_IMMD(p, NV9097, CLEAR_REPORT_VALUE, TYPE_VTG_PRIMITIVES_OUT);
+      break;
+   }
+
+   default:
+      UNREACHABLE("Unsupported query type");
+   }
 }
 
 static void
@@ -603,6 +676,25 @@ nvk_CmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
 
+   /* From the Vulkan 1.4.350 spec, vkCmdBeginQuery:
+    *
+    *    VUID-vkCmdBeginQuery-queryPool-01922
+    *
+    *    "queryPool must have been created with a queryType that differs from
+    *    that of any queries that are active within commandBuffer"
+    *
+    * and
+    *
+    *    "After beginning a query, that query is considered active within the
+    *    command buffer it was called in until that same query is ended.
+    *    Queries active in a primary command buffer when secondary command
+    *    buffers are executed are considered active for those secondary command
+    *    buffers."
+    *
+    * This means we will never have two queries with the same type active and
+    * can rely on cleaning counters.
+    */
+   nvk_cmd_clear_report_value(cmd, pool);
    nvk_cmd_begin_end_query(cmd, pool, query, index, false);
 }
 
