@@ -2992,6 +2992,7 @@ impl<'a> ShaderFromNir<'a> {
                         dst.clone().into()
                     },
                     addr: addr,
+                    uniform_address: Src::ZERO,
                     cmpr: 0.into(),
                     data: data,
                     atom_op: atom_op,
@@ -3018,6 +3019,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpAtom {
                     dst: dst.clone().into(),
                     addr: addr,
+                    uniform_address: Src::ZERO,
                     cmpr: cmpr,
                     data: data,
                     atom_op: AtomOp::CmpExch(AtomCmpSrc::Separate),
@@ -3224,6 +3226,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
+                    uniform_addr: Src::ZERO,
                     pred: pred,
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
@@ -3335,6 +3338,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
+                    uniform_addr: Src::ZERO,
                     pred: true.into(),
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
@@ -3358,6 +3362,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
+                    uniform_addr: Src::ZERO,
                     pred: true.into(),
                     offset: intrin.base(),
                     stride: intrin.offset_shift_nv().try_into().unwrap(),
@@ -3678,6 +3683,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpAtom {
                     dst: dst.clone().into(),
                     addr: addr,
+                    uniform_address: Src::ZERO,
                     cmpr: 0.into(),
                     data: data,
                     atom_op: atom_op,
@@ -3704,6 +3710,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpAtom {
                     dst: dst.clone().into(),
                     addr: addr,
+                    uniform_address: Src::ZERO,
                     cmpr: cmpr,
                     data: data,
                     atom_op: AtomOp::CmpExch(AtomCmpSrc::Separate),
@@ -3736,6 +3743,7 @@ impl<'a> ShaderFromNir<'a> {
 
                 b.push_op(OpSt {
                     addr: addr,
+                    uniform_addr: Src::ZERO,
                     data: data,
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
@@ -3767,6 +3775,7 @@ impl<'a> ShaderFromNir<'a> {
 
                 b.push_op(OpSt {
                     addr: addr,
+                    uniform_addr: Src::ZERO,
                     data: data,
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
@@ -3788,6 +3797,7 @@ impl<'a> ShaderFromNir<'a> {
 
                 b.push_op(OpSt {
                     addr: addr,
+                    uniform_addr: Src::ZERO,
                     data: data,
                     offset: intrin.base(),
                     stride: intrin.offset_shift_nv().try_into().unwrap(),
@@ -3907,6 +3917,7 @@ impl<'a> ShaderFromNir<'a> {
                     mat_size,
                     mat_count,
                     addr,
+                    uniform_addr: Src::ZERO,
                     offset: intrin.base(),
                 });
                 self.set_dst(&intrin.def, dst);

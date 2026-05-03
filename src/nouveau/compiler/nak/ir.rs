@@ -6517,6 +6517,9 @@ pub struct OpLd {
     #[src_type(GPR)]
     pub addr: Src,
 
+    #[src_type(GPR)]
+    pub uniform_addr: Src,
+
     /// On false the load returns 0
     #[src_type(Pred)]
     pub pred: Src,
@@ -6528,7 +6531,11 @@ pub struct OpLd {
 
 impl DisplayOp for OpLd {
     fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ld{} [{}{}", self.access, self.addr, self.stride)?;
+        write!(
+            f,
+            "ld{} [{}{}+{}",
+            self.access, self.addr, self.stride, self.uniform_addr
+        )?;
         if self.offset > 0 {
             write!(f, "+{:#x}", self.offset)?;
         }
@@ -6617,6 +6624,9 @@ pub struct OpLdsm {
     #[src_type(SSA)]
     pub addr: Src,
 
+    #[src_type(SSA)]
+    pub uniform_addr: Src,
+
     pub offset: i32,
 }
 
@@ -6673,6 +6683,9 @@ pub struct OpSt {
     #[src_type(SSA)]
     pub data: Src,
 
+    #[src_type(GPR)]
+    pub uniform_addr: Src,
+
     pub offset: i32,
     pub stride: OffsetStride,
     pub access: MemAccess,
@@ -6680,7 +6693,11 @@ pub struct OpSt {
 
 impl DisplayOp for OpSt {
     fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "st{} [{}{}", self.access, self.addr, self.stride)?;
+        write!(
+            f,
+            "st{} [{}{}+{}",
+            self.access, self.addr, self.stride, self.uniform_addr
+        )?;
         if self.offset > 0 {
             write!(f, "+{:#x}", self.offset)?;
         }
@@ -6727,6 +6744,9 @@ pub struct OpAtom {
     pub addr: Src,
 
     #[src_type(GPR)]
+    pub uniform_address: Src,
+
+    #[src_type(GPR)]
     pub cmpr: Src,
 
     #[src_type(SSA)]
@@ -6758,8 +6778,14 @@ impl DisplayOp for OpAtom {
         if !self.addr.is_zero() {
             write!(f, "{}{}", self.addr, self.addr_stride)?;
         }
-        if self.addr_offset > 0 {
+        if !self.uniform_address.is_zero() {
             if !self.addr.is_zero() {
+                write!(f, "+")?;
+            }
+            write!(f, "{}", self.uniform_address)?;
+        }
+        if self.addr_offset > 0 {
+            if !self.addr.is_zero() || !self.uniform_address.is_zero() {
                 write!(f, "+")?;
             }
             write!(f, "{:#x}", self.addr_offset)?;
