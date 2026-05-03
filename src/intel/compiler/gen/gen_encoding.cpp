@@ -10,7 +10,6 @@
 
 #include "util/ralloc.h"
 #include "util/bitpack_helpers.h"
-#include "util/u_debug.h"
 #include "util/u_math.h"
 
 #include "gen_private.h"
@@ -19,9 +18,6 @@
 #include "gen_info_util.h"
 #include "gen_info_xe.h"
 #include "gen_info_xe2.h"
-
-/* TODO(brw_asm-compat): Go away with the tests-regeneration commit. */
-DEBUG_GET_ONCE_BOOL_OPTION(brw_asm_compat_mode, "INTEL_BRW_ASM_COMPAT", false)
 
 enum {
    GEN_SYSTOLIC_DEPTH_16 = 0,
@@ -727,34 +723,9 @@ struct gen_encoder {
          if (imm_src != -1) {
             assert(inst->src[imm_src].file == GEN_IMM);
 
-            uint64_t imm = inst->src[imm_src].imm;
-            /* TODO(brw_asm-compat): For narrow immediate types the old
-             * brw_asm replicated the value into the upper halves of the
-             * 32-bit immediate field.  The hardware only looks at the
-             * low bits.  Drop this once the tests are regenerated.
-             */
-            if (debug_get_option_brw_asm_compat_mode() &&
-                gen_type_size_bytes(inst->src[imm_src].type) <= 4) {
-               const uint32_t imm32 = imm & 0xFFFFFFFF;
-               switch (inst->src[imm_src].type) {
-               case GEN_TYPE_UW:
-               case GEN_TYPE_W:
-                  imm = (imm32 & 0xFFFF) | ((imm32 & 0xFFFF) << 16);
-                  break;
-               case GEN_TYPE_UB:
-               case GEN_TYPE_B: {
-                  const uint32_t b = imm32 & 0xFF;
-                  imm = b | (b << 8) | (b << 16) | (b << 24);
-                  break;
-               }
-               default:
-                  break;
-               }
-            }
-
-            set(E::IMM_LO_32, imm & 0xFFFFFFFF);
+            set(E::IMM_LO_32, inst->src[imm_src].imm & 0xFFFFFFFF);
             if (gen_type_size_bytes(inst->src[imm_src].type) > 4)
-               set(E::IMM_HI_32, imm >> 32);
+               set(E::IMM_HI_32, inst->src[imm_src].imm >> 32);
          }
 
          break;

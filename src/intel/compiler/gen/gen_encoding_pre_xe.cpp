@@ -521,32 +521,7 @@ private:
 
       if (imm_src != -1) {
          if (gen_type_size_bytes(inst->src[imm_src].type) < 8) {
-            uint32_t imm32 = inst->src[imm_src].imm & 0xFFFFFFFF;
-
-            /* Compatibility with the old brw_asm: for narrow immediate
-             * types, replicate the value into the upper halves of the
-             * 32-bit immediate field.  The hardware only looks at the
-             * low bits, but the old assembler wrote the replicated form
-             * and existing tests check for it.
-             */
-            if (debug_get_option_brw_asm_compat_mode()) {
-               switch (inst->src[imm_src].type) {
-               case GEN_TYPE_UW:
-               case GEN_TYPE_W:
-                  imm32 = (imm32 & 0xFFFF) | ((imm32 & 0xFFFF) << 16);
-                  break;
-               case GEN_TYPE_UB:
-               case GEN_TYPE_B: {
-                  const uint32_t b = imm32 & 0xFF;
-                  imm32 = b | (b << 8) | (b << 16) | (b << 24);
-                  break;
-               }
-               default:
-                  break;
-               }
-            }
-
-            set(bits(IMM_32), imm32);
+            set(bits(IMM_32), inst->src[imm_src].imm & 0xFFFFFFFF);
 
             /* From SKL PRM in the Non-present Operands section:
              *
