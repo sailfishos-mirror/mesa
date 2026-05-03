@@ -459,6 +459,7 @@ if with_tests
           'tests/opt_varyings_tests_dead_input.cpp',
           'tests/opt_varyings_tests_dead_output.cpp',
           'tests/opt_varyings_tests_dedup.cpp',
+          'tests/opt_varyings_tests_dedup_multiple.cpp',
           'tests/opt_varyings_tests_prop_const.cpp',
           'tests/opt_varyings_tests_prop_ubo.cpp',
           'tests/opt_varyings_tests_prop_uniform.cpp',
