@@ -18,10 +18,14 @@
 
 #include "util/bitscan.h"
 #include "util/ralloc.h"
+#include "util/u_debug.h"
 
 #include "gen_private.h"
 
 namespace {
+
+/* TODO(brw_asm-compat): Go away with the tests-regeneration commit. */
+DEBUG_GET_ONCE_BOOL_OPTION(brw_asm_compat_mode, "INTEL_BRW_ASM_COMPAT", false)
 
 #define SV_FMT(s) static_cast<int>((s).size()), (s).data()
 #define SV_ARGS(s) (s).data(), (s).size()
@@ -1120,6 +1124,15 @@ struct gen_parser {
                if (!parse_src_region(src.region))
                   return false;
             }
+         } else if (src.file == GEN_ARF && src.nr == GEN_ARF_NULL &&
+                    debug_get_option_brw_asm_compat_mode()) {
+            /* TODO(brw_asm-compat): The hardware ignores region bits for
+             * null operands.  Use the all-zero form so we round-trip
+             * cleanly with the old brw_asm output, which encoded null
+             * with vstride=0.  Drop this gate when the test corpus is
+             * regenerated against the clean default below.
+             */
+            src.region = { 0, 1, 0 };
          } else {
             src.region = { 1, 1, 0 };
          }
