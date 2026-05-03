@@ -310,22 +310,22 @@ static const char *const end_of_thread[2] = {
    [1] = "EOT"
 };
 
-static const char *const brw_sfid[16] = {
-   [BRW_SFID_NULL]                  = "null",
-   [BRW_SFID_SAMPLER]               = "sampler",
-   [BRW_SFID_MESSAGE_GATEWAY]       = "gateway",
-   [BRW_SFID_HDC2]                  = "hdc2",
-   [BRW_SFID_RENDER_CACHE]          = "render",
-   [BRW_SFID_URB]                   = "urb",
-   [BRW_SFID_THREAD_SPAWNER]        = "ts/btd",
-   [BRW_SFID_RAY_TRACE_ACCELERATOR] = "rt accel",
-   [BRW_SFID_HDC_READ_ONLY]         = "hdc:ro",
-   [BRW_SFID_HDC0]                  = "hdc0",
-   [BRW_SFID_PIXEL_INTERPOLATOR]    = "pi",
-   [BRW_SFID_HDC1]                  = "hdc1",
-   [BRW_SFID_SLM]                   = "slm",
-   [BRW_SFID_TGM]                   = "tgm",
-   [BRW_SFID_UGM]                   = "ugm",
+static const char *const gen_sfid_names[16] = {
+   [GEN_SFID_NULL]                  = "null",
+   [GEN_SFID_SAMPLER]               = "sampler",
+   [GEN_SFID_MESSAGE_GATEWAY]       = "gateway",
+   [GEN_SFID_HDC2]                  = "hdc2",
+   [GEN_SFID_RENDER_CACHE]          = "render",
+   [GEN_SFID_URB]                   = "urb",
+   [GEN_SFID_THREAD_SPAWNER]        = "ts/btd",
+   [GEN_SFID_RAY_TRACE_ACCELERATOR] = "rt accel",
+   [GEN_SFID_HDC_READ_ONLY]         = "hdc:ro",
+   [GEN_SFID_HDC0]                  = "hdc0",
+   [GEN_SFID_PIXEL_INTERPOLATOR]    = "pi",
+   [GEN_SFID_HDC1]                  = "hdc1",
+   [GEN_SFID_SLM]                   = "slm",
+   [GEN_SFID_TGM]                   = "tgm",
+   [GEN_SFID_UGM]                   = "ugm",
 };
 
 static const char *const gfx7_gateway_subfuncid[8] = {
@@ -2006,12 +2006,12 @@ lsc_disassemble_ex_desc(const struct intel_device_info *devinfo,
 }
 
 static inline bool
-brw_sfid_is_lsc(unsigned sfid)
+gen_sfid_is_lsc(unsigned sfid)
 {
    switch (sfid) {
-   case BRW_SFID_UGM:
-   case BRW_SFID_SLM:
-   case BRW_SFID_TGM:
+   case GEN_SFID_UGM:
+   case GEN_SFID_SLM:
+   case GEN_SFID_TGM:
       return true;
    default:
       break;
@@ -2207,7 +2207,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
    }
 
    if (is_send(opcode)) {
-      enum brw_sfid sfid = brw_eu_inst_sfid(devinfo, inst);
+      enum gen_sfid sfid = brw_eu_inst_sfid(devinfo, inst);
 
       bool has_imm_desc = false, has_imm_ex_desc = false;
       uint32_t imm_desc = 0, imm_ex_desc = 0;
@@ -2261,7 +2261,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
       pad(file, 16);
       space = 0;
 
-      err |= control(file, "SFID", brw_sfid, sfid, &space);
+      err |= control(file, "SFID", gen_sfid_names, sfid, &space);
       string(file, " MsgDesc:");
 
       if (!has_imm_desc) {
@@ -2269,7 +2269,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
       } else {
          bool unsupported = false;
          switch (sfid) {
-         case BRW_SFID_SAMPLER:
+         case GEN_SFID_SAMPLER:
             if (devinfo->ver >= 20) {
                err |= control(file, "sampler message", xe2_sampler_msg_type,
                               brw_sampler_desc_msg_type(devinfo, imm_desc),
@@ -2300,15 +2300,15 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                       brw_sampler_desc_sampler(devinfo, imm_desc));
             }
             break;
-         case BRW_SFID_HDC2:
-         case BRW_SFID_HDC_READ_ONLY:
+         case GEN_SFID_HDC2:
+         case GEN_SFID_HDC_READ_ONLY:
             format(file, " (bti %u, msg_ctrl %u, msg_type %u)",
                    brw_dp_desc_binding_table_index(devinfo, imm_desc),
                    brw_dp_desc_msg_control(devinfo, imm_desc),
                    brw_dp_desc_msg_type(devinfo, imm_desc));
             break;
 
-         case BRW_SFID_RENDER_CACHE: {
+         case GEN_SFID_RENDER_CACHE: {
             unsigned msg_type = brw_fb_desc_msg_type(devinfo, imm_desc);
 
             err |= control(file, "DP rc message type",
@@ -2338,7 +2338,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
             break;
          }
 
-         case BRW_SFID_URB: {
+         case GEN_SFID_URB: {
             if (devinfo->ver >= 20) {
                format(file, " (");
                const gen_lsc_desc desc = gen_lsc_desc_decode(devinfo, imm_desc);
@@ -2427,17 +2427,17 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
             }
             break;
          }
-         case BRW_SFID_THREAD_SPAWNER:
+         case GEN_SFID_THREAD_SPAWNER:
             break;
 
-         case BRW_SFID_MESSAGE_GATEWAY:
+         case GEN_SFID_MESSAGE_GATEWAY:
             format(file, " (%s)",
                    gfx7_gateway_subfuncid[brw_eu_inst_gateway_subfuncid(devinfo, inst)]);
             break;
 
-         case BRW_SFID_SLM:
-         case BRW_SFID_TGM:
-         case BRW_SFID_UGM: {
+         case GEN_SFID_SLM:
+         case GEN_SFID_TGM:
+         case GEN_SFID_UGM: {
             assert(devinfo->has_lsc);
             format(file, " (");
             const gen_lsc_desc desc = gen_lsc_desc_decode(devinfo, imm_desc);
@@ -2520,7 +2520,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
             break;
          }
 
-         case BRW_SFID_HDC0:
+         case GEN_SFID_HDC0:
             format(file, " (");
             space = 0;
 
@@ -2552,7 +2552,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
             format(file, ")");
             break;
 
-         case BRW_SFID_HDC1: {
+         case GEN_SFID_HDC1: {
             format(file, " (");
             space = 0;
 
@@ -2609,14 +2609,14 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
             break;
          }
 
-         case BRW_SFID_PIXEL_INTERPOLATOR:
+         case GEN_SFID_PIXEL_INTERPOLATOR:
             format(file, " (%s, %s, 0x%02"PRIx64")",
                    brw_eu_inst_pi_nopersp(devinfo, inst) ? "linear" : "persp",
                    pixel_interpolator_msg_types[brw_eu_inst_pi_message_type(devinfo, inst)],
                    brw_eu_inst_pi_message_data(devinfo, inst));
             break;
 
-         case BRW_SFID_RAY_TRACE_ACCELERATOR:
+         case GEN_SFID_RAY_TRACE_ACCELERATOR:
             if (devinfo->has_ray_tracing) {
                format(file, " SIMD%d,",
                       brw_rt_trace_ray_desc_exec_size(devinfo, imm_desc));
@@ -2644,8 +2644,8 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
 
          format(file, " ex_bso");
       }
-      if (brw_sfid_is_lsc(sfid) ||
-          (sfid == BRW_SFID_URB && devinfo->ver >= 20)) {
+      if (gen_sfid_is_lsc(sfid) ||
+          (sfid == GEN_SFID_URB && devinfo->ver >= 20)) {
             lsc_disassemble_ex_desc(devinfo, imm_desc, imm_ex_desc, file);
       } else {
          if (has_imm_desc)

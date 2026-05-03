@@ -902,7 +902,7 @@ brw_reg_alloc::emit_unspill(const brw_builder &bld,
          unspill_inst->size_written = reg_size * REG_SIZE;
          unspill_inst->has_side_effects = false;
          unspill_inst->is_volatile = true;
-         unspill_inst->sfid = BRW_SFID_HDC0;
+         unspill_inst->sfid = GEN_SFID_HDC0;
 
          unspill_inst->src[0] = brw_imm_ud(
             brw_dp_desc(devinfo, bti,
@@ -968,7 +968,7 @@ brw_reg_alloc::emit_spill(const brw_builder &bld,
          spill_inst->header_size = 1;
          spill_inst->has_side_effects = true;
          spill_inst->is_volatile = false;
-         spill_inst->sfid = BRW_SFID_HDC0;
+         spill_inst->sfid = GEN_SFID_HDC0;
 
          spill_inst->src[0] = brw_imm_ud(
             brw_dp_desc(devinfo, bti,

@@ -51,7 +51,7 @@ lower_urb_read_logical_send(const brw_builder &bld, brw_urb_inst *urb)
 
    send->header_size = header_size;
 
-   send->sfid = BRW_SFID_URB;
+   send->sfid = GEN_SFID_URB;
    send->desc = brw_urb_desc(devinfo,
                              GFX8_URB_OPCODE_SIMD8_READ,
                              per_slot_present,
@@ -96,7 +96,7 @@ lower_urb_read_logical_send_xe2(const brw_builder &bld, brw_urb_inst *urb)
    brw_send_inst *send = brw_transform_inst_to_send(bld, urb);
    urb = NULL;
 
-   send->sfid = BRW_SFID_URB;
+   send->sfid = GEN_SFID_URB;
 
    assert((dst_comps >= 1 && dst_comps <= 4) || dst_comps == 8);
 
@@ -162,7 +162,7 @@ lower_urb_write_logical_send(const brw_builder &bld, brw_urb_inst *urb)
    send->header_size = header_size;
    send->dst = brw_null_reg();
 
-   send->sfid = BRW_SFID_URB;
+   send->sfid = GEN_SFID_URB;
    send->desc = brw_urb_desc(devinfo,
                              GFX8_URB_OPCODE_SIMD8_WRITE,
                              per_slot_present,
@@ -225,7 +225,7 @@ lower_urb_write_logical_send_xe2(const brw_builder &bld, brw_urb_inst *urb)
    brw_send_inst *send = brw_transform_inst_to_send(bld, urb);
    urb = NULL;
 
-   send->sfid = BRW_SFID_URB;
+   send->sfid = GEN_SFID_URB;
 
    enum lsc_opcode op = cmask.file != BAD_FILE ? LSC_OP_STORE_CMASK : LSC_OP_STORE;
    send->desc = lsc_msg_desc(devinfo, op,
@@ -471,7 +471,7 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
    send->desc = desc;
    send->ex_desc = ex_desc;
 
-   send->sfid = BRW_SFID_RENDER_CACHE;
+   send->sfid = GEN_SFID_RENDER_CACHE;
 
    send->src[SEND_SRC_DESC] = desc_reg;
    send->src[SEND_SRC_EX_DESC] = brw_imm_ud(0);
@@ -563,7 +563,7 @@ lower_fb_read_logical_send(const brw_builder &bld, brw_inst *inst,
    send->src[SEND_SRC_PAYLOAD2] = brw_reg();
    send->mlen = length;
    send->header_size = length;
-   send->sfid = BRW_SFID_RENDER_CACHE;
+   send->sfid = GEN_SFID_RENDER_CACHE;
    send->check_tdr = true;
    send->desc =
       (send->group / 16) << 11 | /* rt slot group */
@@ -929,7 +929,7 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
    send->fused_eu_disable = fused_eu_disable;
    send->mlen = mlen;
    send->header_size = header_size;
-   send->sfid = BRW_SFID_SAMPLER;
+   send->sfid = GEN_SFID_SAMPLER;
    send->bindless_surface = surface_bindless;
    uint sampler_ret_type = brw_type_size_bits(send->dst.type) == 16
       ? GFX8_SAMPLER_RETURN_FORMAT_16BITS
@@ -1310,13 +1310,13 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
    case MEMORY_MODE_UNTYPED:
    case MEMORY_MODE_CONSTANT:
    case MEMORY_MODE_SCRATCH:
-      send->sfid = BRW_SFID_UGM;
+      send->sfid = GEN_SFID_UGM;
       break;
    case MEMORY_MODE_TYPED:
-      send->sfid = BRW_SFID_TGM;
+      send->sfid = GEN_SFID_TGM;
       break;
    case MEMORY_MODE_SHARED_LOCAL:
-      send->sfid = BRW_SFID_SLM;
+      send->sfid = GEN_SFID_SLM;
       break;
    }
    assert(send->sfid);
@@ -1325,7 +1325,7 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
     * shaders. (see HSD 18038444588)
     */
    if (devinfo->ver >= 20 && mesa_shader_stage_is_rt(bld.shader->stage) &&
-       send->sfid == BRW_SFID_TGM &&
+       send->sfid == GEN_SFID_TGM &&
        !lsc_opcode_is_atomic(op)) {
       if (lsc_opcode_is_store(op)) {
          cache_mode = (unsigned) LSC_CACHE(devinfo, STORE, L1UC_L3WB);
@@ -1537,7 +1537,7 @@ lower_hdc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       assert(addr_size == LSC_ADDR_SIZE_A32);
       assert(!block);
 
-      sfid = BRW_SFID_HDC1;
+      sfid = GEN_SFID_HDC1;
 
       if (lsc_opcode_is_atomic(op)) {
          desc = brw_dp_typed_atomic_desc(devinfo, mem->exec_size, mem->group,
@@ -1550,12 +1550,12 @@ lower_hdc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
    } else if (mode == MEMORY_MODE_CONSTANT) {
       assert(block); /* non-block loads not yet handled */
 
-      sfid = BRW_SFID_HDC_READ_ONLY;
+      sfid = GEN_SFID_HDC_READ_ONLY;
       desc = brw_dp_oword_block_rw_desc(devinfo, false, components, !has_dest);
    } else if (addr_size == LSC_ADDR_SIZE_A64) {
       assert(binding_type == LSC_ADDR_SURFTYPE_FLAT);
 
-      sfid = BRW_SFID_HDC1;
+      sfid = GEN_SFID_HDC1;
 
       if (lsc_opcode_is_atomic(op)) {
          unsigned aop = brw_lsc_op_to_legacy_atomic(op);
@@ -1581,7 +1581,7 @@ lower_hdc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
    } else {
       assert(binding_type != LSC_ADDR_SURFTYPE_FLAT);
 
-      sfid = surface_access ? BRW_SFID_HDC1 : BRW_SFID_HDC0;
+      sfid = surface_access ? GEN_SFID_HDC1 : GEN_SFID_HDC0;
 
       if (lsc_opcode_is_atomic(op)) {
          unsigned aop = brw_lsc_op_to_legacy_atomic(op);
@@ -1690,7 +1690,7 @@ lower_lsc_varying_pull_constant_logical_send(const brw_builder &bld,
    brw_send_inst *send = brw_transform_inst_to_send(bld, inst);
    inst = NULL;
 
-   send->sfid = BRW_SFID_UGM;
+   send->sfid = GEN_SFID_UGM;
 
    assert(!intel_indirect_ubos_use_sampler(devinfo));
 
@@ -1777,7 +1777,7 @@ lower_varying_pull_constant_logical_send(const brw_builder &bld, brw_inst *inst)
                                              GFX5_SAMPLER_MESSAGE_SAMPLE_LD,
                                              simd_mode, 0);
 
-      send->sfid = BRW_SFID_SAMPLER;
+      send->sfid = GEN_SFID_SAMPLER;
       setup_surface_descriptors(bld, send, desc, surf_type, binding);
    } else if (alignment >= 4) {
       const uint32_t desc =
@@ -1785,7 +1785,7 @@ lower_varying_pull_constant_logical_send(const brw_builder &bld, brw_inst *inst)
                                         4, /* num_channels */
                                         false   /* write */);
 
-      send->sfid = BRW_SFID_HDC1;
+      send->sfid = GEN_SFID_HDC1;
       setup_surface_descriptors(bld, send, desc, surf_type, binding);
    } else {
       const uint32_t desc =
@@ -1793,7 +1793,7 @@ lower_varying_pull_constant_logical_send(const brw_builder &bld, brw_inst *inst)
                                        32,     /* bit_size */
                                        false   /* write */);
 
-      send->sfid = BRW_SFID_HDC0;
+      send->sfid = GEN_SFID_HDC0;
       setup_surface_descriptors(bld, send, desc, surf_type, binding);
 
       /* The byte scattered messages can only read one dword at a time so
@@ -1934,7 +1934,7 @@ lower_interpolator_logical_send(const brw_builder &bld, brw_inst *inst,
    brw_send_inst *send = brw_transform_inst_to_send(bld, inst);
    inst = NULL;
 
-   send->sfid = BRW_SFID_PIXEL_INTERPOLATOR;
+   send->sfid = GEN_SFID_PIXEL_INTERPOLATOR;
    send->desc = desc_imm;
    send->ex_desc = 0;
    send->mlen = mlen;
@@ -2026,7 +2026,7 @@ lower_btd_logical_send(const brw_builder &bld, brw_inst *inst)
    send->is_volatile = false;
 
    /* Set up SFID and descriptors */
-   send->sfid = BRW_SFID_BINDLESS_THREAD_DISPATCH;
+   send->sfid = GEN_SFID_BINDLESS_THREAD_DISPATCH;
    send->desc = brw_btd_spawn_desc(devinfo, send->exec_size,
                                    GEN_RT_BTD_MESSAGE_SPAWN);
 
@@ -2144,7 +2144,7 @@ lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
    send->is_volatile = false;
 
    /* Set up SFID and descriptors */
-   send->sfid = BRW_SFID_RAY_TRACE_ACCELERATOR;
+   send->sfid = GEN_SFID_RAY_TRACE_ACCELERATOR;
    send->desc = brw_rt_trace_ray_desc(devinfo, send->exec_size);
 
    send->src[SEND_SRC_DESC]     = brw_imm_ud(0);
@@ -2187,7 +2187,7 @@ lower_lsc_memory_fence_and_interlock(const brw_builder &bld, struct brw_send_ins
     * BSpec 53578 for Gfx12.5, BSpec 57330 for Gfx20), so we completely ignore
     * the descriptor value and rebuild a legacy URB fence descriptor.
     */
-   if (send->sfid == BRW_SFID_URB && devinfo->ver < 20) {
+   if (send->sfid == GEN_SFID_URB && devinfo->ver < 20) {
       send->desc = brw_urb_fence_desc(devinfo);
       send->header_size = 1;
    } else {
@@ -2229,14 +2229,14 @@ lower_hdc_memory_fence_and_interlock(const brw_builder &bld, brw_send_inst *inst
 
    bool slm = false;
 
-   if (inst->sfid == BRW_SFID_SLM) {
+   if (inst->sfid == GEN_SFID_SLM) {
       assert(devinfo->ver >= 11);
 
       /* This SFID doesn't exist on Gfx11-12.0, but we use it to represent
        * SLM fences, and map back here to the way Gfx11 represented that:
        * a special "SLM" binding table index and the data cache SFID.
        */
-      inst->sfid = BRW_SFID_HDC0;
+      inst->sfid = GEN_SFID_HDC0;
       slm = true;
    }
 
@@ -2259,7 +2259,7 @@ lower_hdc_memory_fence_and_interlock(const brw_builder &bld, brw_send_inst *inst
    send->header_size = 1;
 
    const unsigned msg_type =
-      send->sfid == BRW_SFID_RENDER_CACHE ? GFX7_DATAPORT_RC_MEMORY_FENCE :
+      send->sfid == GEN_SFID_RENDER_CACHE ? GFX7_DATAPORT_RC_MEMORY_FENCE :
                                             GFX7_DATAPORT_DC_MEMORY_FENCE;
 
    send->desc = brw_dp_desc(devinfo, slm ? GFX7_BTI_SLM : 0, msg_type,
@@ -2411,7 +2411,7 @@ brw_lower_uniform_pull_constant_loads(brw_shader &s)
          brw_send_inst *send = brw_transform_inst_to_send(ubld, inst);
          inst = NULL;
 
-         send->sfid = BRW_SFID_UGM;
+         send->sfid = GEN_SFID_UGM;
          send->desc = lsc_msg_desc(devinfo, LSC_OP_LOAD, surf_type,
                                    LSC_ADDR_SIZE_A32,
                                    LSC_DATA_SIZE_D32,
@@ -2444,7 +2444,7 @@ brw_lower_uniform_pull_constant_loads(brw_shader &s)
          brw_send_inst *send = brw_transform_inst_to_send(ubld, inst);
          inst = NULL;
 
-         send->sfid = BRW_SFID_HDC_READ_ONLY;
+         send->sfid = GEN_SFID_HDC_READ_ONLY;
          send->header_size = 1;
          send->mlen = 1;
 

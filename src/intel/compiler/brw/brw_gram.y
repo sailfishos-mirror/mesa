@@ -1064,21 +1064,21 @@ sendsopcode:
    ;
 
 sharedfunction:
-   NULL_TOKEN          { $$ = BRW_SFID_NULL; }
-   | GATEWAY           { $$ = BRW_SFID_MESSAGE_GATEWAY; }
-   | URB               { $$ = BRW_SFID_URB; }
-   | TS_BTD            { $$ = BRW_SFID_BINDLESS_THREAD_DISPATCH; }
-   | RENDER            { $$ = BRW_SFID_RENDER_CACHE; }
-   | HDC_RO            { $$ = BRW_SFID_HDC_READ_ONLY; }
-   | HDC0              { $$ = BRW_SFID_HDC0; }
-   | PIXEL_INTERP      { $$ = BRW_SFID_PIXEL_INTERPOLATOR; }
-   | HDC1              { $$ = BRW_SFID_HDC1; }
-   | SAMPLER           { $$ = BRW_SFID_SAMPLER; }
-   | HDC2              { $$ = BRW_SFID_HDC2; }
-   | RT_ACCEL          { $$ = BRW_SFID_RAY_TRACE_ACCELERATOR; }
-   | SLM               { $$ = BRW_SFID_SLM; }
-   | TGM               { $$ = BRW_SFID_TGM; }
-   | UGM               { $$ = BRW_SFID_UGM; }
+   NULL_TOKEN          { $$ = GEN_SFID_NULL; }
+   | GATEWAY           { $$ = GEN_SFID_MESSAGE_GATEWAY; }
+   | URB               { $$ = GEN_SFID_URB; }
+   | TS_BTD            { $$ = GEN_SFID_BINDLESS_THREAD_DISPATCH; }
+   | RENDER            { $$ = GEN_SFID_RENDER_CACHE; }
+   | HDC_RO            { $$ = GEN_SFID_HDC_READ_ONLY; }
+   | HDC0              { $$ = GEN_SFID_HDC0; }
+   | PIXEL_INTERP      { $$ = GEN_SFID_PIXEL_INTERPOLATOR; }
+   | HDC1              { $$ = GEN_SFID_HDC1; }
+   | SAMPLER           { $$ = GEN_SFID_SAMPLER; }
+   | HDC2              { $$ = GEN_SFID_HDC2; }
+   | RT_ACCEL          { $$ = GEN_SFID_RAY_TRACE_ACCELERATOR; }
+   | SLM               { $$ = GEN_SFID_SLM; }
+   | TGM               { $$ = GEN_SFID_TGM; }
+   | UGM               { $$ = GEN_SFID_UGM; }
    ;
 
 exp2:

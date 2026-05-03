@@ -132,8 +132,8 @@ brw_shader::emit_cs_terminate()
    /* On Alchemist and later, send an EOT message to the message gateway to
     * terminate a compute shader.  For older GPUs, send to the thread spawner.
     */
-   send->sfid = devinfo->verx10 >= 125 ? BRW_SFID_MESSAGE_GATEWAY
-                                       : BRW_SFID_THREAD_SPAWNER;
+   send->sfid = devinfo->verx10 >= 125 ? GEN_SFID_MESSAGE_GATEWAY
+                                       : GEN_SFID_THREAD_SPAWNER;
    send->mlen = reg_unit(devinfo);
    send->eot = true;
 }

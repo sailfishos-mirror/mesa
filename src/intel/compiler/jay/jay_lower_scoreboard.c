@@ -116,7 +116,7 @@ lower_send_local(jay_function *func, jay_block *block)
          }
 
          /* Barriers are non-EOT gateway messages. Insert the needed SYNC */
-         if (jay_send_sfid(I) == BRW_SFID_MESSAGE_GATEWAY) {
+         if (jay_send_sfid(I) == GEN_SFID_MESSAGE_GATEWAY) {
             b.cursor = jay_after_inst(I);
             jay_SYNC(&b, jay_null(), TGL_SYNC_BAR);
          }

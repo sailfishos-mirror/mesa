@@ -531,7 +531,7 @@ brw_emit_repclear_shader(brw_shader &s)
       write->header_size = i == 0 ? 0 : 2;
       write->mlen = 1 + write->header_size;
 
-      write->sfid = BRW_SFID_RENDER_CACHE;
+      write->sfid = GEN_SFID_RENDER_CACHE;
       write->src[SEND_SRC_DESC] = brw_imm_ud(
          brw_fb_write_desc(
             s.devinfo, i,

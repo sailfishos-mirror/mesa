@@ -2361,13 +2361,13 @@ send_descriptor_restrictions(const struct brw_isa_info *isa,
    const uint32_t desc = brw_eu_inst_send_desc(devinfo, inst->raw);
 
    switch (brw_eu_inst_sfid(devinfo, inst->raw)) {
-   case BRW_SFID_URB:
+   case GEN_SFID_URB:
       if (devinfo->ver < 20)
          break;
       FALLTHROUGH;
-   case BRW_SFID_TGM:
-   case BRW_SFID_SLM:
-   case BRW_SFID_UGM:
+   case GEN_SFID_TGM:
+   case GEN_SFID_SLM:
+   case GEN_SFID_UGM:
       ERROR_IF(!devinfo->has_lsc, "Platform does not support LSC");
 
       ERROR_IF(lsc_opcode_has_transpose(lsc_msg_desc_opcode(devinfo, desc)) &&
@@ -2380,7 +2380,7 @@ send_descriptor_restrictions(const struct brw_isa_info *isa,
       break;
    }
 
-   if (brw_eu_inst_sfid(devinfo, inst->raw) == BRW_SFID_URB && devinfo->ver < 20) {
+   if (brw_eu_inst_sfid(devinfo, inst->raw) == GEN_SFID_URB && devinfo->ver < 20) {
       ERROR_IF(!brw_eu_inst_header_present(devinfo, inst->raw),
                "Header must be present for all URB messages.");
 

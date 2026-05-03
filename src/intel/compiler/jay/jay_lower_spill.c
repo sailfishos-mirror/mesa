@@ -41,7 +41,7 @@ insert_spill_fill(jay_builder *b,
                                 LSC_DATA_SIZE_D32, 1, false, cache);
    jay_def srcs[] = { sp, gpr };
 
-   jay_SEND(b, .sfid = BRW_SFID_UGM, .msg_desc = desc, .srcs = srcs,
+   jay_SEND(b, .sfid = GEN_SFID_UGM, .msg_desc = desc, .srcs = srcs,
             .nr_srcs = load ? 1 : 2, .dst = load ? gpr : jay_null(),
             .type = JAY_TYPE_U32, .ex_desc = ADDRESS_REG);
 }

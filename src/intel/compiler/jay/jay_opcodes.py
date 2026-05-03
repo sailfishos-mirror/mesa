@@ -137,7 +137,7 @@ for n in ['brd', 'illegal', 'goto', 'join', 'if', 'else',
     op(n, 0, None, Props.NO_DEST)
 
 op('send', 4, None, Props.SIDE_EFFECTS, [
-    'enum brw_sfid sfid',
+    'gen_sfid sfid',
     'uint8_t sbid',
     'bool eot',
     'bool check_tdr',
@@ -147,7 +147,7 @@ op('send', 4, None, Props.SIDE_EFFECTS, [
     'enum jay_type type_0',
     'enum jay_type type_1',
     'uint8_t ex_mlen',
-    'bool pad[3]',
+    'bool pad[2]',
     'uint32_t ex_desc_imm',
 ])
 
@@ -249,7 +249,7 @@ ENUMS: 'Mapping[str, tuple[str, list[str]]]' = {
                                               'xyxy', 'zwzw', 'xxzz', 'yyww']),
     'jay_rounding_mode': ('JAY', ['round', 'rne', 'ru', 'rd', 'rtz']),
     'jay_math': ('JAY_MATH', ['_', 'inv', 'log', 'exp', 'sqrt', 'rsq', 'sin', 'cos']),
-    'brw_sfid': ('BRW_SFID', ['null', 'sampler', 'message_gateway',
+    'gen_sfid': ('GEN_SFID', ['null', 'sampler', 'message_gateway',
                               'render_cache', 'urb', 'bindless_thread_dispatch',
                               'ray_trace_accelerator', 'hdc0',
                               'pixel_interpolator', 'tgm', 'slm', 'ugm']),

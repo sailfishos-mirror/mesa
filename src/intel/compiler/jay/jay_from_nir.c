@@ -672,12 +672,12 @@ translate_flush_type(nir_intrinsic_instr *intr)
 static void
 emit_lsc_fence(struct nir_to_jay_state *nj,
                nir_intrinsic_instr *intr,
-               enum brw_sfid sfid)
+               enum gen_sfid sfid)
 {
    bool device = nir_intrinsic_memory_scope(intr) >= SCOPE_QUEUE_FAMILY;
    enum lsc_fence_scope scope = device ? LSC_FENCE_TILE : LSC_FENCE_THREADGROUP;
    enum lsc_flush_type type =
-      sfid == BRW_SFID_SLM ? LSC_FLUSH_TYPE_NONE : translate_flush_type(intr);
+      sfid == GEN_SFID_SLM ? LSC_FLUSH_TYPE_NONE : translate_flush_type(intr);
 
    jay_def notif = jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s));
    uint32_t desc = lsc_fence_msg_desc(nj->s->devinfo, scope, type, false);
@@ -692,21 +692,21 @@ jay_emit_memory_barrier(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    nir_variable_mode modes = nir_intrinsic_memory_modes(intr);
 
    if (modes & nir_var_image) {
-      emit_lsc_fence(nj, intr, BRW_SFID_TGM);
+      emit_lsc_fence(nj, intr, GEN_SFID_TGM);
       assert(!nj->nir->info.use_lowered_image_to_global && "fix common code");
    }
 
    if (modes & (nir_var_mem_ssbo | nir_var_mem_global)) {
-      emit_lsc_fence(nj, intr, BRW_SFID_UGM);
+      emit_lsc_fence(nj, intr, GEN_SFID_UGM);
    }
 
    if (modes & (nir_var_shader_out | nir_var_mem_task_payload)) {
-      emit_lsc_fence(nj, intr, BRW_SFID_URB);
+      emit_lsc_fence(nj, intr, GEN_SFID_URB);
    }
 
    if ((modes & nir_var_mem_shared) &&
        !jay_workgroup_is_one_subgroup(&nj->bld, nj->nir)) {
-      emit_lsc_fence(nj, intr, BRW_SFID_SLM);
+      emit_lsc_fence(nj, intr, GEN_SFID_SLM);
    }
 }
 
@@ -732,7 +732,7 @@ jay_emit_signal_barrier(jay_builder *b, struct nir_to_jay_state *nj)
    indices[2] = jay_index(m2);
    jay_def zipped = jay_collect(b, UGPR, indices, 3);
 
-   jay_SEND(b, .sfid = BRW_SFID_MESSAGE_GATEWAY,
+   jay_SEND(b, .sfid = GEN_SFID_MESSAGE_GATEWAY,
             .msg_desc = BRW_MESSAGE_GATEWAY_SFID_BARRIER_MSG, .srcs = &zipped,
             .nr_srcs = 1, .type = JAY_TYPE_U32, .uniform = true);
 }
@@ -851,7 +851,7 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
    }
 
    jay_inst *send =
-      jay_SEND(b, .sfid = BRW_SFID_RENDER_CACHE, .check_tdr = true,
+      jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
                .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
                .type = JAY_TYPE_U32, .eot = last, .split = split);
 
@@ -958,10 +958,10 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    bool tgm = nir_intrinsic_has_image_dim(intr);
    bool urb = intr->intrinsic == nir_intrinsic_store_urb_lsc_intel ||
               intr->intrinsic == nir_intrinsic_store_urb_vec4_intel;
-   enum brw_sfid sfid = slm ? BRW_SFID_SLM :
-                        tgm ? BRW_SFID_TGM :
-                        urb ? BRW_SFID_URB :
-                              BRW_SFID_UGM;
+   enum gen_sfid sfid = slm ? GEN_SFID_SLM :
+                        tgm ? GEN_SFID_TGM :
+                        urb ? GEN_SFID_URB :
+                              GEN_SFID_UGM;
 
    nir_src *data_src = nir_get_io_data_src(intr);
    bool scratch = intr->intrinsic == nir_intrinsic_load_scratch_intel ||
@@ -970,7 +970,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    enum lsc_opcode op;
    if (nir_intrinsic_has_atomic_op(intr))
       op = lsc_op_for_atomic(nir_intrinsic_atomic_op(intr));
-   else if (sfid == BRW_SFID_TGM)
+   else if (sfid == GEN_SFID_TGM)
       op = data_src ? LSC_OP_STORE_CMASK : LSC_OP_LOAD_CMASK;
    else
       op = data_src ? LSC_OP_STORE : LSC_OP_LOAD;
@@ -1020,7 +1020,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                                           (bti || ubo) ? LSC_ADDR_SURFTYPE_BTI :
                                                          LSC_ADDR_SURFTYPE_FLAT;
 
-   bool a64 = surf_type == LSC_ADDR_SURFTYPE_FLAT && sfid == BRW_SFID_UGM;
+   bool a64 = surf_type == LSC_ADDR_SURFTYPE_FLAT && sfid == GEN_SFID_UGM;
    enum lsc_addr_size addr_size = a64 ? LSC_ADDR_SIZE_A64 : LSC_ADDR_SIZE_A32;
    enum jay_type offset_type = a64 ? JAY_TYPE_U64 : JAY_TYPE_U32;
 
@@ -1091,7 +1091,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    ASSERTED const unsigned max_imm_bits = brw_max_immediate_offset_bits(surf_type);
    assert(base_offset >= u_intN_min(max_imm_bits));
    assert(base_offset <= u_intN_max(max_imm_bits));
-   assert(base_offset == 0 || sfid != BRW_SFID_TGM);
+   assert(base_offset == 0 || sfid != GEN_SFID_TGM);
 
    unsigned nr = ndata->num_components;
    uint64_t desc =
@@ -2137,7 +2137,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
    }
 
    enum jay_type src_type = jay_type(JAY_TYPE_U, payload_type_bit_size);
-   jay_SEND(b, .sfid = BRW_SFID_SAMPLER, .msg_desc = desc, .desc = desc_src,
+   jay_SEND(b, .sfid = GEN_SFID_SAMPLER, .msg_desc = desc, .desc = desc_src,
             .ex_desc = desc_ex_src, .header = header, .srcs = payload,
             .nr_srcs = n_sources, .type = JAY_TYPE_U32,
             .src_type = { src_type }, .dst = tmp, .uniform = payload_uniform,
@@ -2444,7 +2444,7 @@ jay_emit_eot(struct nir_to_jay_state *nj)
       jay_def copy = jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
       jay_MOV(b, copy, nj->payload.u0);
 
-      jay_SEND(b, .sfid = BRW_SFID_MESSAGE_GATEWAY, .eot = true, .msg_desc = 0,
+      jay_SEND(b, .sfid = GEN_SFID_MESSAGE_GATEWAY, .eot = true, .msg_desc = 0,
                .srcs = &copy, .nr_srcs = 1, .type = JAY_TYPE_U32,
                .uniform = true);
    } else if (nj->nir->info.stage == MESA_SHADER_VERTEX) {
@@ -2452,7 +2452,7 @@ jay_emit_eot(struct nir_to_jay_state *nj)
       jay_inst *I = jay_last_inst(block);
 
       /* TODO: What if this isn't the case? Do we need a no-op store...? */
-      assert(I && I->op == JAY_OPCODE_SEND && jay_send_sfid(I) == BRW_SFID_URB);
+      assert(I && I->op == JAY_OPCODE_SEND && jay_send_sfid(I) == GEN_SFID_URB);
       jay_set_send_eot(I, true);
    }
 }

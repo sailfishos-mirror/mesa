@@ -1335,7 +1335,7 @@ brw_SEND(struct brw_codegen *p,
          brw_eu_inst_set_bits(send, 47, 43, GET_BITS(ex_desc_imm_inst, 23, 19));
          brw_eu_inst_set_bits(send, 39, 36, GET_BITS(ex_desc_imm_inst, 15, 12));
       }
-      if (devinfo->ver >= 20 && sfid == BRW_SFID_UGM)
+      if (devinfo->ver >= 20 && sfid == GEN_SFID_UGM)
          brw_eu_inst_set_bits(send, 103, 99, ex_mlen / reg_unit(devinfo));
    }
 
@@ -1345,7 +1345,7 @@ brw_SEND(struct brw_codegen *p,
        *
        * BSpec 56890
        */
-      if (devinfo->ver < 20 || sfid != BRW_SFID_UGM)
+      if (devinfo->ver < 20 || sfid != GEN_SFID_UGM)
          brw_eu_inst_set_send_ex_bso(devinfo, send, true);
       brw_eu_inst_set_send_src1_len(devinfo, send, ex_mlen / reg_unit(devinfo));
    }
@@ -1480,7 +1480,7 @@ brw_barrier(struct brw_codegen *p, struct brw_reg src)
 
    brw_push_insn_state(p);
    brw_set_default_access_mode(p, BRW_ALIGN_1);
-   brw_SEND(p, BRW_SFID_MESSAGE_GATEWAY,
+   brw_SEND(p, GEN_SFID_MESSAGE_GATEWAY,
             retype(brw_null_reg(), BRW_TYPE_UW), src,
             brw_null_reg(),
             brw_imm_ud(brw_message_desc(devinfo,
