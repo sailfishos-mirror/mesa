@@ -8,6 +8,8 @@
 
 #include "nir_opt_varyings_test.h"
 
+namespace {
+
 class nir_opt_varyings_test_bicm_binary_alu : public nir_opt_varyings_test
 {};
 

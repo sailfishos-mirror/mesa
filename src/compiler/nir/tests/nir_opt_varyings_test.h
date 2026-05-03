@@ -664,3 +664,5 @@ movable_across_interp(nir_builder *b, nir_op op, unsigned interp[3],
       return false;
    }
 }
+
+}

@@ -6,6 +6,8 @@
 
 #include "nir_opt_varyings_test.h"
 
+namespace {
+
 class nir_opt_varyings_test_prop_ubo : public nir_opt_varyings_test
 {};
 
