@@ -16,10 +16,10 @@ except ImportError:
     from shlex import split as split_args
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--brw_asm',
-                    help='path to brw_asm binary')
+parser.add_argument('--gentool',
+                    help='path to gentool binary')
 parser.add_argument('--gen_name',
-                    help='name of the hardware generation (as understood by brw_asm)')
+                    help='3-letter platform name (as understood by gentool)')
 parser.add_argument('--gen_folder',
                     type=pathlib.Path,
                     help='name of the folder for the generation')
@@ -27,14 +27,24 @@ args = parser.parse_args()
 
 wrapper = os.environ.get('MESON_EXE_WRAPPER')
 if wrapper is not None:
-    brw_asm = split_args(wrapper) + [args.brw_asm]
+    gentool = split_args(wrapper) + [args.gentool]
 else:
-    brw_asm = [args.brw_asm]
+    gentool = [args.gentool]
 
 if not args.gen_folder.is_dir():
     print('Test files path does not exist or is not a directory.',
           file=sys.stderr)
     exit(99)
+
+# TODO(brw_asm-compat): The old brw_asm encoded some fields that the
+# hardware ignores (e.g. it replicated narrow-type immediates into the
+# upper halves of the 32-bit field, and wrote register/type metadata into
+# SEND operand fields).  The test corpus here was captured with that
+# behaviour, so ask gentool to emulate it while we transition.  This env
+# var and the code it guards are temporary and go away as soon as the
+# expected outputs are regenerated.
+env = os.environ.copy()
+env['INTEL_BRW_ASM_COMPAT'] = '1'
 
 success = True
 
@@ -43,19 +53,26 @@ for asm_file in args.gen_folder.glob('*.asm'):
     expected_path = args.gen_folder / expected_file
 
     try:
-        command = brw_asm + [
-            '--type', 'hex',
-            '--gen', args.gen_name,
-            asm_file.as_posix()
+        command = gentool + [
+            'asm',
+            '-p', args.gen_name,
+            asm_file.as_posix(),
         ]
-        stdout = subprocess.check_output(command, timeout=1).decode()
-        lines_after = stdout.splitlines(keepends=True)
+        raw = subprocess.check_output(command, timeout=5, env=env)
     except OSError as e:
         if e.errno == errno.ENOEXEC:
             print('Skipping due to inability to run host binaries.',
                   file=sys.stderr)
             exit(77)
         raise
+
+    # gentool asm writes raw binary instructions.  The expected files hold
+    # hex dumps with 16 bytes per line (matching the pre-xe/xe 128-bit
+    # instruction size), so convert on the fly.
+    lines_after = []
+    for i in range(0, len(raw), 16):
+        chunk = raw[i:i+16]
+        lines_after.append(' '.join('%02x' % b for b in chunk) + '\n')
 
     with expected_path.open() as f:
         lines_before = f.readlines()

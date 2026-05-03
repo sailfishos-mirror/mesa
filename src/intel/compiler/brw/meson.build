@@ -254,7 +254,7 @@ foreach testcase : asm_testcases
   test(
     'brw_asm_' + _gen_num, test_runner,
     args : [
-      '--brw_asm', brw_asm_tool,
+      '--gentool', gentool,
       '--gen_name', _gen_name,
       '--gen_folder', _gen_folder,
     ],

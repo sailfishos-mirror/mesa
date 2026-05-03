@@ -73,7 +73,7 @@ if with_tests
 endif
 
 if with_intel_tools
-  executable(
+  gentool = executable(
     'gentool',
     files('gentool.cpp'),
     include_directories : [inc_include, inc_src, inc_intel, inc_intel_compiler],
