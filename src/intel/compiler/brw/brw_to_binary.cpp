@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "brw_eu.h"
-#include "brw_disasm_info.h"
 #include "brw_shader.h"
 #include "brw_cfg.h"
 #include "dev/intel_debug.h"
@@ -237,20 +236,6 @@ brw_opcode_to_gen(enum opcode op)
 
    default:                  UNREACHABLE("invalid gen opcode");
    }
-}
-
-uint32_t
-brw_swsb_encode(const struct intel_device_info *devinfo,
-                gen_swsb swsb, enum opcode op)
-{
-   return gen_swsb_encode(devinfo, swsb, brw_opcode_to_gen(op));
-}
-
-gen_swsb
-brw_swsb_decode(const struct intel_device_info *devinfo,
-                bool is_unordered, uint32_t raw, enum opcode op)
-{
-   return gen_swsb_decode(devinfo, is_unordered, raw, brw_opcode_to_gen(op));
 }
 
 gen_opcode
