@@ -121,9 +121,6 @@ struct draw_vertex_buffer {
 #define UNDEFINED_VERTEX_ID 0xffff
 
 
-/* maximum number of shader variants we can cache */
-#define DRAW_MAX_SHADER_VARIANTS 512
-
 struct draw_buffer_info {
    const void *ptr;
    unsigned size;

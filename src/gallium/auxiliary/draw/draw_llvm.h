@@ -41,6 +41,7 @@
 
 #include "pipe/p_context.h"
 #include "util/list.h"
+#include "util/u_shader_variant_cache.h"
 
 
 struct draw_llvm;
@@ -353,32 +354,10 @@ draw_tes_llvm_variant_key_images(struct draw_tes_llvm_variant_key *key)
       &key->samplers[MAX2(key->nr_samplers, key->nr_sampler_views)];
 }
 
-struct draw_llvm_variant_list_item
-{
-   struct list_head list;
-   struct draw_llvm_variant *base;
-};
-
-struct draw_gs_llvm_variant_list_item
-{
-   struct list_head list;
-   struct draw_gs_llvm_variant *base;
-};
-
-struct draw_tcs_llvm_variant_list_item
-{
-   struct list_head list;
-   struct draw_tcs_llvm_variant *base;
-};
-
-struct draw_tes_llvm_variant_list_item
-{
-   struct list_head list;
-   struct draw_tes_llvm_variant *base;
-};
-
 struct draw_llvm_variant
 {
+   struct util_shader_variant base;
+
    struct gallivm_state *gallivm;
 
    /* LLVM JIT builder types */
@@ -404,8 +383,6 @@ struct draw_llvm_variant
    struct llvm_vertex_shader *shader;
 
    struct draw_llvm *llvm;
-   struct draw_llvm_variant_list_item list_item_global;
-   struct draw_llvm_variant_list_item list_item_local;
 
    /* key is variable-sized, must be last */
    struct draw_llvm_variant_key key;
@@ -414,6 +391,7 @@ struct draw_llvm_variant
 
 struct draw_gs_llvm_variant
 {
+   struct util_shader_variant base;
    struct gallivm_state *gallivm;
 
    /* LLVM JIT builder types */
@@ -438,8 +416,6 @@ struct draw_gs_llvm_variant
    struct llvm_geometry_shader *shader;
 
    struct draw_llvm *llvm;
-   struct draw_gs_llvm_variant_list_item list_item_global;
-   struct draw_gs_llvm_variant_list_item list_item_local;
 
    /* key is variable-sized, must be last */
    struct draw_gs_llvm_variant_key key;
@@ -447,6 +423,7 @@ struct draw_gs_llvm_variant
 
 struct draw_tcs_llvm_variant
 {
+   struct util_shader_variant base;
    struct gallivm_state *gallivm;
 
    /* LLVM JIT builder types */
@@ -465,8 +442,6 @@ struct draw_tcs_llvm_variant
    struct llvm_tess_ctrl_shader *shader;
 
    struct draw_llvm *llvm;
-   struct draw_tcs_llvm_variant_list_item list_item_global;
-   struct draw_tcs_llvm_variant_list_item list_item_local;
 
    /* key is variable-sized, must be last */
    struct draw_tcs_llvm_variant_key key;
@@ -474,6 +449,7 @@ struct draw_tcs_llvm_variant
 
 struct draw_tes_llvm_variant
 {
+   struct util_shader_variant base;
    struct gallivm_state *gallivm;
 
    /* LLVM JIT builder types */
@@ -496,8 +472,6 @@ struct draw_tes_llvm_variant
    struct llvm_tess_eval_shader *shader;
 
    struct draw_llvm *llvm;
-   struct draw_tes_llvm_variant_list_item list_item_global;
-   struct draw_tes_llvm_variant_list_item list_item_local;
 
    /* key is variable-sized, must be last */
    struct draw_tes_llvm_variant_key key;
@@ -507,36 +481,32 @@ struct llvm_vertex_shader {
    struct draw_vertex_shader base;
 
    unsigned variant_key_size;
-   struct draw_llvm_variant_list_item variants;
+   struct util_shader_variant_list variants;
    unsigned variants_created;
-   unsigned variants_cached;
 };
 
 struct llvm_geometry_shader {
    struct draw_geometry_shader base;
 
    unsigned variant_key_size;
-   struct draw_gs_llvm_variant_list_item variants;
+   struct util_shader_variant_list variants;
    unsigned variants_created;
-   unsigned variants_cached;
 };
 
 struct llvm_tess_ctrl_shader {
    struct draw_tess_ctrl_shader base;
 
    unsigned variant_key_size;
-   struct draw_tcs_llvm_variant_list_item variants;
+   struct util_shader_variant_list variants;
    unsigned variants_created;
-   unsigned variants_cached;
 };
 
 struct llvm_tess_eval_shader {
    struct draw_tess_eval_shader base;
 
    unsigned variant_key_size;
-   struct draw_tes_llvm_variant_list_item variants;
+   struct util_shader_variant_list variants;
    unsigned variants_created;
-   unsigned variants_cached;
 };
 
 struct draw_llvm {
@@ -549,17 +519,10 @@ struct draw_llvm {
 
    struct lp_jit_resources jit_resources[DRAW_MAX_SHADER_STAGE];
 
-   struct draw_llvm_variant_list_item vs_variants_list;
-   int nr_variants;
-
-   struct draw_gs_llvm_variant_list_item gs_variants_list;
-   int nr_gs_variants;
-
-   struct draw_tcs_llvm_variant_list_item tcs_variants_list;
-   int nr_tcs_variants;
-
-   struct draw_tes_llvm_variant_list_item tes_variants_list;
-   int nr_tes_variants;
+   struct util_shader_variant_cache_options vs_opts;
+   struct util_shader_variant_cache_options gs_opts;
+   struct util_shader_variant_cache_options tcs_opts;
+   struct util_shader_variant_cache_options tes_opts;
 };
 
 
@@ -593,14 +556,6 @@ draw_llvm_create(struct draw_context *draw, lp_context_ref *llvm_context);
 void
 draw_llvm_destroy(struct draw_llvm *llvm);
 
-struct draw_llvm_variant *
-draw_llvm_create_variant(struct draw_llvm *llvm,
-                         unsigned num_vertex_header_attribs,
-                         const struct draw_llvm_variant_key *key);
-
-void
-draw_llvm_destroy_variant(struct draw_llvm_variant *variant);
-
 struct draw_llvm_variant_key *
 draw_llvm_make_variant_key(struct draw_llvm *llvm, char *store);
 
@@ -608,41 +563,17 @@ void
 draw_llvm_dump_variant_key(struct draw_llvm_variant_key *key);
 
 
-struct draw_gs_llvm_variant *
-draw_gs_llvm_create_variant(struct draw_llvm *llvm,
-                            unsigned num_vertex_header_attribs,
-                            const struct draw_gs_llvm_variant_key *key);
-
-void
-draw_gs_llvm_destroy_variant(struct draw_gs_llvm_variant *variant);
-
 struct draw_gs_llvm_variant_key *
 draw_gs_llvm_make_variant_key(struct draw_llvm *llvm, char *store);
 
 void
 draw_gs_llvm_dump_variant_key(struct draw_gs_llvm_variant_key *key);
 
-struct draw_tcs_llvm_variant *
-draw_tcs_llvm_create_variant(struct draw_llvm *llvm,
-                             unsigned num_vertex_header_attribs,
-                             const struct draw_tcs_llvm_variant_key *key);
-
-void
-draw_tcs_llvm_destroy_variant(struct draw_tcs_llvm_variant *variant);
-
 struct draw_tcs_llvm_variant_key *
 draw_tcs_llvm_make_variant_key(struct draw_llvm *llvm, char *store);
 
 void
 draw_tcs_llvm_dump_variant_key(struct draw_tcs_llvm_variant_key *key);
-
-struct draw_tes_llvm_variant *
-draw_tes_llvm_create_variant(struct draw_llvm *llvm,
-                             unsigned num_vertex_header_attribs,
-                             const struct draw_tes_llvm_variant_key *key);
-
-void
-draw_tes_llvm_destroy_variant(struct draw_tes_llvm_variant *variant);
 
 struct draw_tes_llvm_variant_key *
 draw_tes_llvm_make_variant_key(struct draw_llvm *llvm, char *store);
