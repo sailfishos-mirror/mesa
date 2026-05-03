@@ -1491,7 +1491,7 @@ brw_barrier(struct brw_codegen *p, struct brw_reg src)
 
    brw_eu_inst *inst = brw_eu_last_inst(p);
    brw_eu_inst_set_gateway_subfuncid(devinfo, inst,
-                                     BRW_MESSAGE_GATEWAY_SFID_BARRIER_MSG);
+                                     GEN_MESSAGE_GATEWAY_SFID_BARRIER_MSG);
    brw_eu_inst_set_mask_control(devinfo, inst, BRW_MASK_DISABLE);
    brw_pop_insn_state(p);
 }

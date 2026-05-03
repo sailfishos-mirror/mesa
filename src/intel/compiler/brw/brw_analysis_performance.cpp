@@ -624,7 +624,7 @@ namespace {
          }
          case GEN_SFID_HDC0:
             switch (brw_dp_desc_msg_type(devinfo, info.desc)) {
-            case GFX7_DATAPORT_DC_MEMORY_FENCE:
+            case GEN_DATAPORT_DC_MEMORY_FENCE:
                return calculate_desc(info, EU_UNIT_DP_DC, 2, 0, 0,
                                      30 /* XXX */, 0,
                                      10 /* XXX */, 100 /* XXX */, 0, 0, 0, 0);
@@ -637,10 +637,10 @@ namespace {
 
          case GEN_SFID_HDC1:
             switch (brw_dp_desc_msg_type(devinfo, info.desc)) {
-            case HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP:
-            case HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2:
-            case HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2:
-            case HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP:
+            case GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP:
+            case GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2:
+            case GEN_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2:
+            case GEN_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP:
                return calculate_desc(info, EU_UNIT_DP_DC, 2, 0, 0,
                                      30 /* XXX */, 400 /* XXX */,
                                      10 /* XXX */, 100 /* XXX */, 0, 0,
@@ -712,7 +712,7 @@ namespace {
 
          case GEN_SFID_URB:
             if (brw_urb_desc_msg_type(devinfo, info.desc) ==
-                GFX125_URB_OPCODE_FENCE) {
+                GEN_GFX125_URB_OPCODE_FENCE) {
                return calculate_desc(info, EU_UNIT_DP_DC, 2, 0, 0,
                                      30 /* XXX */, 0,
                                      10 /* XXX */, 100 /* XXX */, 0, 0, 0, 0);

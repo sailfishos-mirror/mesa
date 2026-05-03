@@ -917,85 +917,18 @@ enum tgl_sync_function {
 #define GFX8_SAMPLER_RETURN_FORMAT_32BITS    0
 #define GFX8_SAMPLER_RETURN_FORMAT_16BITS    1
 
-#define GFX5_SAMPLER_MESSAGE_SAMPLE              0
-#define GFX5_SAMPLER_MESSAGE_SAMPLE_BIAS         1
-#define GFX5_SAMPLER_MESSAGE_SAMPLE_LOD          2
-#define GFX5_SAMPLER_MESSAGE_SAMPLE_COMPARE      3
-#define GFX5_SAMPLER_MESSAGE_SAMPLE_DERIVS       4
-#define GFX5_SAMPLER_MESSAGE_SAMPLE_BIAS_COMPARE 5
-#define GFX5_SAMPLER_MESSAGE_SAMPLE_LOD_COMPARE  6
-#define GFX5_SAMPLER_MESSAGE_SAMPLE_LD           7
-#define GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4      8
-#define GFX5_SAMPLER_MESSAGE_LOD                 9
-#define GFX5_SAMPLER_MESSAGE_SAMPLE_RESINFO      10
-#define GFX6_SAMPLER_MESSAGE_SAMPLE_SAMPLEINFO   11
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_L     13
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_B     14
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_I     15
-#define GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4_C    16
-#define GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO   17
-#define GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_C 18
-#define XE2_SAMPLER_MESSAGE_SAMPLE_MLOD          18
-#define XE2_SAMPLER_MESSAGE_SAMPLE_COMPARE_MLOD  19
-#define HSW_SAMPLER_MESSAGE_SAMPLE_DERIV_COMPARE 20
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_I_C   21
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_L_C   23
-#define GFX9_SAMPLER_MESSAGE_SAMPLE_LZ           24
-#define GFX9_SAMPLER_MESSAGE_SAMPLE_C_LZ         25
-#define GFX9_SAMPLER_MESSAGE_SAMPLE_LD_LZ        26
-#define GFX9_SAMPLER_MESSAGE_SAMPLE_LD2DMS_W     28
-#define GFX7_SAMPLER_MESSAGE_SAMPLE_LD_MCS       29
-#define GFX7_SAMPLER_MESSAGE_SAMPLE_LD2DMS       30
-#define GFX7_SAMPLER_MESSAGE_SAMPLE_LD2DSS       31
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO                     32
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO_BIAS                33
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO_LOD                 34
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO_COMPARE             35
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO_DERIVS              36
-#define XE3_SAMPLER_MESSAGE_SAMPLE_PO_BIAS_COMPARE        37
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO_LOD_COMPARE         38
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO             40
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_L           45
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_B           46
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_I           47
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_C           48
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO_D_C                 52
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_I_C         53
-#define XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_L_C         55
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO_LZ                  56
-#define XE2_SAMPLER_MESSAGE_SAMPLE_PO_C_LZ                57
-
-#define BRW_SAMPLER_SIMD_MODE_SIMD8D                    0
-#define BRW_SAMPLER_SIMD_MODE_SIMD8                     1
-#define BRW_SAMPLER_SIMD_MODE_SIMD16                    2
-#define BRW_SAMPLER_SIMD_MODE_SIMD32_64                 3
-
-#define GFX10_SAMPLER_SIMD_MODE_SIMD8H                  5
-#define GFX10_SAMPLER_SIMD_MODE_SIMD16H                 6
-
-#define XE2_SAMPLER_SIMD_MODE_SIMD16                  1
-#define XE2_SAMPLER_SIMD_MODE_SIMD32                  2
-#define XE2_SAMPLER_SIMD_MODE_SIMD16H                 5
-#define XE2_SAMPLER_SIMD_MODE_SIMD32H                 6
-
-#define BRW_DATAPORT_OWORD_BLOCK_1_OWORDLOW   0
-#define BRW_DATAPORT_OWORD_BLOCK_1_OWORDHIGH  1
-#define BRW_DATAPORT_OWORD_BLOCK_2_OWORDS     2
-#define BRW_DATAPORT_OWORD_BLOCK_4_OWORDS     3
-#define BRW_DATAPORT_OWORD_BLOCK_8_OWORDS     4
-#define GFX12_DATAPORT_OWORD_BLOCK_16_OWORDS  5
 #define BRW_DATAPORT_OWORD_BLOCK_OWORDS(n)              \
-   ((n) == 1 ? BRW_DATAPORT_OWORD_BLOCK_1_OWORDLOW :    \
-    (n) == 2 ? BRW_DATAPORT_OWORD_BLOCK_2_OWORDS :      \
-    (n) == 4 ? BRW_DATAPORT_OWORD_BLOCK_4_OWORDS :      \
-    (n) == 8 ? BRW_DATAPORT_OWORD_BLOCK_8_OWORDS :      \
-    (n) == 16 ? GFX12_DATAPORT_OWORD_BLOCK_16_OWORDS :  \
+   ((n) == 1 ? GEN_DATAPORT_OWORD_BLOCK_1_OWORDLOW :    \
+    (n) == 2 ? GEN_DATAPORT_OWORD_BLOCK_2_OWORDS :      \
+    (n) == 4 ? GEN_DATAPORT_OWORD_BLOCK_4_OWORDS :      \
+    (n) == 8 ? GEN_DATAPORT_OWORD_BLOCK_8_OWORDS :      \
+    (n) == 16 ? GEN_GFX12_DATAPORT_OWORD_BLOCK_16_OWORDS :  \
     (abort(), ~0))
 #define BRW_DATAPORT_OWORD_BLOCK_DWORDS(n)              \
-   ((n) == 4 ? BRW_DATAPORT_OWORD_BLOCK_1_OWORDLOW :    \
-    (n) == 8 ? BRW_DATAPORT_OWORD_BLOCK_2_OWORDS :      \
-    (n) == 16 ? BRW_DATAPORT_OWORD_BLOCK_4_OWORDS :     \
-    (n) == 32 ? BRW_DATAPORT_OWORD_BLOCK_8_OWORDS :     \
+   ((n) == 4 ? GEN_DATAPORT_OWORD_BLOCK_1_OWORDLOW :    \
+    (n) == 8 ? GEN_DATAPORT_OWORD_BLOCK_2_OWORDS :      \
+    (n) == 16 ? GEN_DATAPORT_OWORD_BLOCK_4_OWORDS :     \
+    (n) == 32 ? GEN_DATAPORT_OWORD_BLOCK_8_OWORDS :     \
     (abort(), ~0))
 
 #define BRW_DATAPORT_OWORD_DUAL_BLOCK_1OWORD     0
@@ -1028,7 +961,6 @@ enum tgl_sync_function {
 #define GFX6_DATAPORT_WRITE_MESSAGE_OWORD_DUAL_BLOCK_WRITE          9
 #define GFX6_DATAPORT_WRITE_MESSAGE_MEDIA_BLOCK_WRITE               10
 #define GFX6_DATAPORT_WRITE_MESSAGE_DWORD_SCATTERED_WRITE           11
-#define GFX6_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_WRITE             12
 #define GFX6_DATAPORT_WRITE_MESSAGE_STREAMED_VB_WRITE               13
 #define GFX6_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_UNORM_WRITE       14
 
@@ -1038,21 +970,7 @@ enum tgl_sync_function {
 #define GFX7_DATAPORT_RC_TYPED_ATOMIC_OP                            6
 #define GFX7_DATAPORT_RC_MEMORY_FENCE                               7
 #define GFX7_DATAPORT_RC_MEDIA_BLOCK_WRITE                          10
-#define GFX7_DATAPORT_RC_RENDER_TARGET_WRITE                        12
 #define GFX7_DATAPORT_RC_TYPED_SURFACE_WRITE                        13
-#define GFX7_DATAPORT_DC_OWORD_BLOCK_READ                           0
-#define GFX7_DATAPORT_DC_UNALIGNED_OWORD_BLOCK_READ                 1
-#define GFX7_DATAPORT_DC_OWORD_DUAL_BLOCK_READ                      2
-#define GFX7_DATAPORT_DC_DWORD_SCATTERED_READ                       3
-#define GFX7_DATAPORT_DC_BYTE_SCATTERED_READ                        4
-#define GFX7_DATAPORT_DC_UNTYPED_SURFACE_READ                       5
-#define GFX7_DATAPORT_DC_UNTYPED_ATOMIC_OP                          6
-#define GFX7_DATAPORT_DC_MEMORY_FENCE                               7
-#define GFX7_DATAPORT_DC_OWORD_BLOCK_WRITE                          8
-#define GFX7_DATAPORT_DC_OWORD_DUAL_BLOCK_WRITE                     10
-#define GFX7_DATAPORT_DC_DWORD_SCATTERED_WRITE                      11
-#define GFX7_DATAPORT_DC_BYTE_SCATTERED_WRITE                       12
-#define GFX7_DATAPORT_DC_UNTYPED_SURFACE_WRITE                      13
 
 #define GFX7_DATAPORT_SCRATCH_READ                            ((1 << 18) | \
                                                                (0 << 17))
@@ -1060,10 +978,6 @@ enum tgl_sync_function {
                                                                (1 << 17))
 #define GFX7_DATAPORT_SCRATCH_NUM_REGS_SHIFT                        12
 
-#define GFX7_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET     0
-#define GFX7_PIXEL_INTERPOLATOR_LOC_SAMPLE            1
-#define GFX7_PIXEL_INTERPOLATOR_LOC_CENTROID          2
-#define GFX7_PIXEL_INTERPOLATOR_LOC_PER_SLOT_OFFSET   3
 
 /* HSW */
 #define HSW_DATAPORT_DC_PORT0_OWORD_BLOCK_READ                      0
@@ -1077,33 +991,7 @@ enum tgl_sync_function {
 #define HSW_DATAPORT_DC_PORT0_DWORD_SCATTERED_WRITE                 11
 #define HSW_DATAPORT_DC_PORT0_BYTE_SCATTERED_WRITE                  12
 
-#define HSW_DATAPORT_DC_PORT1_UNTYPED_SURFACE_READ                  1
-#define HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP                     2
-#define HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2             3
-#define HSW_DATAPORT_DC_PORT1_MEDIA_BLOCK_READ                      4
-#define HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_READ                    5
-#define HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP                       6
-#define HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2               7
-#define HSW_DATAPORT_DC_PORT1_UNTYPED_SURFACE_WRITE                 9
-#define HSW_DATAPORT_DC_PORT1_MEDIA_BLOCK_WRITE                     10
-#define HSW_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP                     11
-#define HSW_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP_SIMD4X2             12
-#define HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_WRITE                   13
-#define GFX9_DATAPORT_DC_PORT1_A64_SCATTERED_READ                   0x10
-#define GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_READ             0x11
-#define GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_OP                0x12
-#define GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_INT_OP      0x13
-#define GFX9_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_READ                 0x14
-#define GFX9_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_WRITE                0x15
-#define GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_WRITE            0x19
-#define GFX8_DATAPORT_DC_PORT1_A64_SCATTERED_WRITE                  0x1a
-#define GFX9_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_OP              0x1b
-#define GFX9_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_FLOAT_OP          0x1d
-#define GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_FLOAT_OP    0x1e
-
 /* GFX9 */
-#define GFX9_DATAPORT_RC_RENDER_TARGET_WRITE                        12
-#define GFX9_DATAPORT_RC_RENDER_TARGET_READ                         13
 
 /* A64 scattered message subtype */
 #define GFX8_A64_SCATTERED_SUBTYPE_BYTE                             0
@@ -1111,97 +999,11 @@ enum tgl_sync_function {
 #define GFX8_A64_SCATTERED_SUBTYPE_QWORD                            2
 #define GFX8_A64_SCATTERED_SUBTYPE_HWORD                            3
 
-/* Dataport special binding table indices: */
-#define BRW_BTI_STATELESS                255
-#define GFX7_BTI_SLM                     254
-
-/* The hardware docs are a bit contradictory here.  On Haswell, where they
- * first added cache ability control, there were 5 different cache modes (see
- * HSW_BTI_STATELESS_* above).  On Broadwell, they reduced to two:
- *
- *  - IA-Coherent (BTI=255): Coherent within Gen and coherent within the
- *    entire IA cache memory hierarchy.
- *
- *  - Non-Coherent (BTI=253): Coherent within Gen, same cache type.
- *
- * Information about stateless cache coherency can be found in the "A32
- * Stateless" section of the "3D Media GPGPU" volume of the PRM for each
- * hardware generation.
- *
- * Unfortunately, the docs for MDC_STATELESS appear to have been copied and
- * pasted from Haswell and give the Haswell definitions for the BTI values of
- * 255 and 253 including a warning about accessing 253 surfaces from multiple
- * threads.  This seems to be a copy+paste error and the definitions from the
- * "A32 Stateless" section should be trusted instead.
- *
- * Note that because the DRM sets bit 4 of HDC_CHICKEN0 on BDW, CHV and at
- * least some pre-production steppings of SKL due to WaForceEnableNonCoherent,
- * HDC memory access may have been overridden by the kernel to be non-coherent
- * (matching the behavior of the same BTI on pre-Gfx8 hardware) and BTI 255
- * may actually be an alias for BTI 253.
- */
-#define GFX8_BTI_STATELESS_IA_COHERENT   255
-#define GFX8_BTI_STATELESS_NON_COHERENT  253
-#define GFX9_BTI_BINDLESS                252
-
-/* Dataport atomic operations for Untyped Atomic Integer Operation message
- * (and others).
- */
-#define BRW_AOP_AND                   1
-#define BRW_AOP_OR                    2
-#define BRW_AOP_XOR                   3
-#define BRW_AOP_MOV                   4
-#define BRW_AOP_INC                   5
-#define BRW_AOP_DEC                   6
-#define BRW_AOP_ADD                   7
-#define BRW_AOP_SUB                   8
-#define BRW_AOP_REVSUB                9
-#define BRW_AOP_IMAX                  10
-#define BRW_AOP_IMIN                  11
-#define BRW_AOP_UMAX                  12
-#define BRW_AOP_UMIN                  13
-#define BRW_AOP_CMPWR                 14
-#define BRW_AOP_PREDEC                15
-
-/* Dataport atomic operations for Untyped Atomic Float Operation message. */
-#define BRW_AOP_FMAX                  1
-#define BRW_AOP_FMIN                  2
-#define BRW_AOP_FCMPWR                3
-#define BRW_AOP_FADD                  4
-
-#define BRW_MATH_FUNCTION_INV                              1
-#define BRW_MATH_FUNCTION_LOG                              2
-#define BRW_MATH_FUNCTION_EXP                              3
-#define BRW_MATH_FUNCTION_SQRT                             4
-#define BRW_MATH_FUNCTION_RSQ                              5
-#define BRW_MATH_FUNCTION_SIN                              6
-#define BRW_MATH_FUNCTION_COS                              7
-#define BRW_MATH_FUNCTION_FDIV                             9 /* gfx6+ */
-#define BRW_MATH_FUNCTION_POW                              10
-#define BRW_MATH_FUNCTION_INT_DIV_QUOTIENT_AND_REMAINDER   11
-#define BRW_MATH_FUNCTION_INT_DIV_QUOTIENT                 12
-#define BRW_MATH_FUNCTION_INT_DIV_REMAINDER                13
-#define GFX8_MATH_FUNCTION_INVM                            14
-#define GFX8_MATH_FUNCTION_RSQRTM                          15
-
-#define GFX7_URB_OPCODE_ATOMIC_MOV  4
-#define GFX7_URB_OPCODE_ATOMIC_INC  5
-#define GFX8_URB_OPCODE_ATOMIC_ADD  6
-#define GFX8_URB_OPCODE_SIMD8_WRITE 7
-#define GFX8_URB_OPCODE_SIMD8_READ  8
-#define GFX125_URB_OPCODE_FENCE     9
 
 #define BRW_URB_SWIZZLE_NONE          0
 #define BRW_URB_SWIZZLE_INTERLEAVE    1
 #define BRW_URB_SWIZZLE_TRANSPOSE     2
 
-#define BRW_MESSAGE_GATEWAY_SFID_OPEN_GATEWAY         0
-#define BRW_MESSAGE_GATEWAY_SFID_CLOSE_GATEWAY        1
-#define BRW_MESSAGE_GATEWAY_SFID_FORWARD_MSG          2
-#define BRW_MESSAGE_GATEWAY_SFID_GET_TIMESTAMP        3
-#define BRW_MESSAGE_GATEWAY_SFID_BARRIER_MSG          4
-#define BRW_MESSAGE_GATEWAY_SFID_UPDATE_GATEWAY_STATE 5
-#define BRW_MESSAGE_GATEWAY_SFID_MMIO_READ_WRITE      6
 
 
 /* Gfx7 "GS URB Entry Allocation Size" is a U9-1 field, so the maximum gs_size
@@ -1256,16 +1058,4 @@ enum ENUM_PACKED brw_rnd_mode {
 #define GFX7_BYTE_SCATTERED_DATA_ELEMENT_BYTE     0
 #define GFX7_BYTE_SCATTERED_DATA_ELEMENT_WORD     1
 #define GFX7_BYTE_SCATTERED_DATA_ELEMENT_DWORD    2
-
-#define GEN_RT_BTD_MESSAGE_SPAWN 1
-
-#define GEN_RT_TRACE_RAY_INITAL       0
-#define GEN_RT_TRACE_RAY_INSTANCE     1
-#define GEN_RT_TRACE_RAY_COMMIT       2
-#define GEN_RT_TRACE_RAY_CONTINUE     3
-
-#define GEN_RT_BTD_SHADER_TYPE_ANY_HIT        0
-#define GEN_RT_BTD_SHADER_TYPE_CLOSEST_HIT    1
-#define GEN_RT_BTD_SHADER_TYPE_MISS           2
-#define GEN_RT_BTD_SHADER_TYPE_INTERSECTION   3
 

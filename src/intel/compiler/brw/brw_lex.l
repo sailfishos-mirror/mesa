@@ -144,30 +144,30 @@ sync            { yylval->integer = BRW_OPCODE_SYNC; return SYNC; }
 math            { yylval->integer = BRW_OPCODE_MATH; return MATH; }
 
  /* extended math functions */
-cos             { yylval->integer = BRW_MATH_FUNCTION_COS; return COS; }
-exp             { yylval->integer = BRW_MATH_FUNCTION_EXP; return EXP; }
-fdiv            { yylval->integer = BRW_MATH_FUNCTION_FDIV; return FDIV; }
-inv             { yylval->integer = BRW_MATH_FUNCTION_INV; return INV; }
-invm            { yylval->integer = GFX8_MATH_FUNCTION_INVM; return INVM; }
+cos             { yylval->integer = GEN_MATH_COS; return COS; }
+exp             { yylval->integer = GEN_MATH_EXP; return EXP; }
+fdiv            { yylval->integer = GEN_MATH_FDIV; return FDIV; }
+inv             { yylval->integer = GEN_MATH_INV; return INV; }
+invm            { yylval->integer = GEN_MATH_INVM; return INVM; }
 intdiv          {
-                   yylval->integer = BRW_MATH_FUNCTION_INT_DIV_QUOTIENT;
+                   yylval->integer = GEN_MATH_INT_DIV_QUOTIENT;
                    return INTDIV;
                 }
 intdivmod       {
                    yylval->integer =
-                      BRW_MATH_FUNCTION_INT_DIV_QUOTIENT_AND_REMAINDER;
+                      GEN_MATH_INT_DIV_BOTH;
                    return INTDIVMOD;
                 }
 intmod          {
-                   yylval->integer = BRW_MATH_FUNCTION_INT_DIV_REMAINDER;
+                   yylval->integer = GEN_MATH_INT_DIV_REMAINDER;
                    return INTMOD;
                 }
-log             { yylval->integer = BRW_MATH_FUNCTION_LOG; return LOG; }
-pow             { yylval->integer = BRW_MATH_FUNCTION_POW; return POW; }
-rsq             { yylval->integer = BRW_MATH_FUNCTION_RSQ; return RSQ; }
-rsqrtm          { yylval->integer = GFX8_MATH_FUNCTION_RSQRTM; return RSQRTM; }
-sin             { yylval->integer = BRW_MATH_FUNCTION_SIN; return SIN; }
-sqrt            { yylval->integer = BRW_MATH_FUNCTION_SQRT; return SQRT; }
+log             { yylval->integer = GEN_MATH_LOG; return LOG; }
+pow             { yylval->integer = GEN_MATH_POW; return POW; }
+rsq             { yylval->integer = GEN_MATH_RSQ; return RSQ; }
+rsqrtm          { yylval->integer = GEN_MATH_RSQRTM; return RSQRTM; }
+sin             { yylval->integer = GEN_MATH_SIN; return SIN; }
+sqrt            { yylval->integer = GEN_MATH_SQRT; return SQRT; }
 
  /* sync instruction */
 allrd           { yylval->integer = TGL_SYNC_ALLRD; return ALLRD; }

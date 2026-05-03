@@ -146,14 +146,14 @@ TEST_P(validation_test, src1_null_reg)
 
 TEST_P(validation_test, math_src0_null_reg)
 {
-   gfx6_math(p, g0, BRW_MATH_FUNCTION_SIN, null, null);
+   gfx6_math(p, g0, GEN_MATH_SIN, null, null);
 
    EXPECT_FALSE(validate(p));
 }
 
 TEST_P(validation_test, math_src1_null_reg)
 {
-   gfx6_math(p, g0, BRW_MATH_FUNCTION_POW, g0, null);
+   gfx6_math(p, g0, GEN_MATH_POW, g0, null);
    EXPECT_FALSE(validate(p));
 }
 
@@ -968,13 +968,13 @@ TEST_P(validation_test, dst_elements_must_be_evenly_split_between_registers)
 
    clear_instructions(p);
 
-   gfx6_math(p, g0, BRW_MATH_FUNCTION_SIN, g0, null);
+   gfx6_math(p, g0, GEN_MATH_SIN, g0, null);
 
    EXPECT_TRUE(validate(p));
 
    clear_instructions(p);
 
-   gfx6_math(p, g0, BRW_MATH_FUNCTION_SIN, g0, null);
+   gfx6_math(p, g0, GEN_MATH_SIN, g0, null);
    brw_eu_inst_set_dst_da1_subreg_nr(&devinfo, last_inst, 4);
 
    EXPECT_FALSE(validate(p));
@@ -1685,7 +1685,7 @@ TEST_P(validation_test, mixed_float_align1_math_strided_fp16_inputs)
 
    for (unsigned i = 0; i < ARRAY_SIZE(inst); i++) {
       gfx6_math(p, retype(g0, inst[i].dst_type),
-                   BRW_MATH_FUNCTION_POW,
+                   GEN_MATH_POW,
                    retype(g0, inst[i].src0_type),
                    retype(g0, inst[i].src1_type));
 
@@ -1988,7 +1988,7 @@ TEST_P(validation_test, mixed_float_align16_math_packed_format)
 
    for (unsigned i = 0; i < ARRAY_SIZE(inst); i++) {
       gfx6_math(p, retype(g0, inst[i].dst_type),
-                   BRW_MATH_FUNCTION_POW,
+                   GEN_MATH_POW,
                    retype(g0, inst[i].src0_type),
                    retype(g0, inst[i].src1_type));
 

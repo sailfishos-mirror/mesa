@@ -1894,9 +1894,9 @@ instruction_restrictions(const struct brw_isa_info *isa,
    if (inst->opcode == BRW_OPCODE_MATH) {
       unsigned math_function = brw_eu_inst_math_function(devinfo, inst->raw);
       switch (math_function) {
-      case BRW_MATH_FUNCTION_INT_DIV_QUOTIENT_AND_REMAINDER:
-      case BRW_MATH_FUNCTION_INT_DIV_QUOTIENT:
-      case BRW_MATH_FUNCTION_INT_DIV_REMAINDER: {
+      case GEN_MATH_INT_DIV_BOTH:
+      case GEN_MATH_INT_DIV_QUOTIENT:
+      case GEN_MATH_INT_DIV_REMAINDER: {
          ERROR_IF(devinfo->verx10 >= 125,
                   "INT DIV functions not supported in Gfx125+.");
 
@@ -1920,13 +1920,13 @@ instruction_restrictions(const struct brw_isa_info *isa,
 
       default: {
          ERROR_IF(devinfo->verx10 >= 125 &&
-                  (math_function == BRW_MATH_FUNCTION_POW ||
-                   math_function == BRW_MATH_FUNCTION_FDIV),
+                  (math_function == GEN_MATH_POW ||
+                   math_function == GEN_MATH_FDIV),
                   "POW/FDIV not supported in Gfx125+.");
 
          const bool ieee_macro =
-            math_function == GFX8_MATH_FUNCTION_INVM ||
-            math_function == GFX8_MATH_FUNCTION_RSQRTM;
+            math_function == GEN_MATH_INVM ||
+            math_function == GEN_MATH_RSQRTM;
 
          if (ieee_macro && devinfo->ver >= 125) {
             ERROR_IF(inst->src[0].type != BRW_TYPE_F &&
@@ -1940,9 +1940,9 @@ instruction_restrictions(const struct brw_isa_info *isa,
          }
 
          const bool two_srcs =
-            math_function == GFX8_MATH_FUNCTION_INVM ||
-            math_function == BRW_MATH_FUNCTION_POW ||
-            math_function == BRW_MATH_FUNCTION_FDIV;
+            math_function == GEN_MATH_INVM ||
+            math_function == GEN_MATH_POW ||
+            math_function == GEN_MATH_FDIV;
 
          if (devinfo->ver >= 125) {
             ERROR_IF(inst->src[0].type != inst->dst.type,
@@ -2385,18 +2385,18 @@ send_descriptor_restrictions(const struct brw_isa_info *isa,
                "Header must be present for all URB messages.");
 
       switch (brw_eu_inst_urb_opcode(devinfo, inst->raw)) {
-      case GFX7_URB_OPCODE_ATOMIC_INC:
-      case GFX7_URB_OPCODE_ATOMIC_MOV:
-      case GFX8_URB_OPCODE_ATOMIC_ADD:
-      case GFX8_URB_OPCODE_SIMD8_WRITE:
+      case GEN_URB_OPCODE_ATOMIC_INC:
+      case GEN_URB_OPCODE_ATOMIC_MOV:
+      case GEN_URB_OPCODE_ATOMIC_ADD:
+      case GEN_URB_OPCODE_SIMD8_WRITE:
          break;
 
-      case GFX8_URB_OPCODE_SIMD8_READ:
+      case GEN_URB_OPCODE_SIMD8_READ:
          ERROR_IF(brw_eu_inst_rlen(devinfo, inst->raw) == 0,
                   "URB SIMD8 read message must read some data.");
          break;
 
-      case GFX125_URB_OPCODE_FENCE:
+      case GEN_GFX125_URB_OPCODE_FENCE:
          ERROR_IF(devinfo->verx10 < 125,
                   "URB fence message only valid on gfx >= 12.5");
          break;

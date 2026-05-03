@@ -125,25 +125,25 @@ brw_math_function(enum opcode op)
 {
    switch (op) {
    case SHADER_OPCODE_RCP:
-      return BRW_MATH_FUNCTION_INV;
+      return GEN_MATH_INV;
    case SHADER_OPCODE_RSQ:
-      return BRW_MATH_FUNCTION_RSQ;
+      return GEN_MATH_RSQ;
    case SHADER_OPCODE_SQRT:
-      return BRW_MATH_FUNCTION_SQRT;
+      return GEN_MATH_SQRT;
    case SHADER_OPCODE_EXP2:
-      return BRW_MATH_FUNCTION_EXP;
+      return GEN_MATH_EXP;
    case SHADER_OPCODE_LOG2:
-      return BRW_MATH_FUNCTION_LOG;
+      return GEN_MATH_LOG;
    case SHADER_OPCODE_POW:
-      return BRW_MATH_FUNCTION_POW;
+      return GEN_MATH_POW;
    case SHADER_OPCODE_SIN:
-      return BRW_MATH_FUNCTION_SIN;
+      return GEN_MATH_SIN;
    case SHADER_OPCODE_COS:
-      return BRW_MATH_FUNCTION_COS;
+      return GEN_MATH_COS;
    case SHADER_OPCODE_INT_QUOTIENT:
-      return BRW_MATH_FUNCTION_INT_DIV_QUOTIENT;
+      return GEN_MATH_INT_DIV_QUOTIENT;
    case SHADER_OPCODE_INT_REMAINDER:
-      return BRW_MATH_FUNCTION_INT_DIV_REMAINDER;
+      return GEN_MATH_INT_DIV_REMAINDER;
    default:
       UNREACHABLE("not reached: unknown math function");
    }
@@ -798,7 +798,7 @@ brw_generator::generate_code(const brw_shader &s,
       if (devinfo->ver <= 9 &&
           p->nr_insn > 1 &&
           brw_eu_inst_opcode(p->isa, brw_eu_last_inst(p)) == BRW_OPCODE_MATH &&
-          brw_eu_inst_math_function(devinfo, brw_eu_last_inst(p)) == BRW_MATH_FUNCTION_POW &&
+          brw_eu_inst_math_function(devinfo, brw_eu_last_inst(p)) == GEN_MATH_POW &&
           inst->dst.component_size(inst->exec_size) > REG_SIZE) {
          brw_NOP(p);
          last_insn_offset = p->next_insn_offset;

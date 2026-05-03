@@ -329,18 +329,18 @@ static const char *const gen_sfid_names[16] = {
 };
 
 static const char *const gfx7_gateway_subfuncid[8] = {
-   [BRW_MESSAGE_GATEWAY_SFID_OPEN_GATEWAY] = "open",
-   [BRW_MESSAGE_GATEWAY_SFID_CLOSE_GATEWAY] = "close",
-   [BRW_MESSAGE_GATEWAY_SFID_FORWARD_MSG] = "forward msg",
-   [BRW_MESSAGE_GATEWAY_SFID_GET_TIMESTAMP] = "get timestamp",
-   [BRW_MESSAGE_GATEWAY_SFID_BARRIER_MSG] = "barrier msg",
-   [BRW_MESSAGE_GATEWAY_SFID_UPDATE_GATEWAY_STATE] = "update state",
-   [BRW_MESSAGE_GATEWAY_SFID_MMIO_READ_WRITE] = "mmio read/write",
+   [GEN_MESSAGE_GATEWAY_SFID_OPEN_GATEWAY] = "open",
+   [GEN_MESSAGE_GATEWAY_SFID_CLOSE_GATEWAY] = "close",
+   [GEN_MESSAGE_GATEWAY_SFID_FORWARD_MSG] = "forward msg",
+   [GEN_MESSAGE_GATEWAY_SFID_GET_TIMESTAMP] = "get timestamp",
+   [GEN_MESSAGE_GATEWAY_SFID_BARRIER_MSG] = "barrier msg",
+   [GEN_MESSAGE_GATEWAY_SFID_UPDATE_GATEWAY_STATE] = "update state",
+   [GEN_MESSAGE_GATEWAY_SFID_MMIO_READ_WRITE] = "mmio read/write",
 };
 
 static const char *const dp_rc_msg_type_gfx9[16] = {
-   [GFX9_DATAPORT_RC_RENDER_TARGET_WRITE] = "RT write",
-   [GFX9_DATAPORT_RC_RENDER_TARGET_READ] = "RT read"
+   [GEN_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_WRITE] = "RT write",
+   [GEN_DATAPORT_RC_RENDER_TARGET_READ] = "RT read"
 };
 
 static const char *const *
@@ -370,109 +370,109 @@ static const char *const m_rt_write_subtype_xe2[] = {
 };
 
 static const char *const dp_dc0_msg_type_gfx7[16] = {
-   [GFX7_DATAPORT_DC_OWORD_BLOCK_READ] = "DC OWORD block read",
-   [GFX7_DATAPORT_DC_UNALIGNED_OWORD_BLOCK_READ] =
+   [GEN_DATAPORT_DC_OWORD_BLOCK_READ] = "DC OWORD block read",
+   [GEN_DATAPORT_DC_UNALIGNED_OWORD_BLOCK_READ] =
       "DC unaligned OWORD block read",
-   [GFX7_DATAPORT_DC_OWORD_DUAL_BLOCK_READ] = "DC OWORD dual block read",
-   [GFX7_DATAPORT_DC_DWORD_SCATTERED_READ] = "DC DWORD scattered read",
-   [GFX7_DATAPORT_DC_BYTE_SCATTERED_READ] = "DC byte scattered read",
-   [GFX7_DATAPORT_DC_UNTYPED_SURFACE_READ] = "DC untyped surface read",
-   [GFX7_DATAPORT_DC_UNTYPED_ATOMIC_OP] = "DC untyped atomic",
-   [GFX7_DATAPORT_DC_MEMORY_FENCE] = "DC mfence",
-   [GFX7_DATAPORT_DC_OWORD_BLOCK_WRITE] = "DC OWORD block write",
-   [GFX7_DATAPORT_DC_OWORD_DUAL_BLOCK_WRITE] = "DC OWORD dual block write",
-   [GFX7_DATAPORT_DC_DWORD_SCATTERED_WRITE] = "DC DWORD scatterd write",
-   [GFX7_DATAPORT_DC_BYTE_SCATTERED_WRITE] = "DC byte scattered write",
-   [GFX7_DATAPORT_DC_UNTYPED_SURFACE_WRITE] = "DC untyped surface write",
+   [GEN_DATAPORT_DC_OWORD_DUAL_BLOCK_READ] = "DC OWORD dual block read",
+   [GEN_DATAPORT_DC_DWORD_SCATTERED_READ] = "DC DWORD scattered read",
+   [GEN_DATAPORT_DC_BYTE_SCATTERED_READ] = "DC byte scattered read",
+   [GEN_DATAPORT_DC_UNTYPED_SURFACE_READ] = "DC untyped surface read",
+   [GEN_DATAPORT_DC_UNTYPED_ATOMIC_OP] = "DC untyped atomic",
+   [GEN_DATAPORT_DC_MEMORY_FENCE] = "DC mfence",
+   [GEN_DATAPORT_DC_OWORD_BLOCK_WRITE] = "DC OWORD block write",
+   [GEN_DATAPORT_DC_OWORD_DUAL_BLOCK_WRITE] = "DC OWORD dual block write",
+   [GEN_DATAPORT_DC_DWORD_SCATTERED_WRITE] = "DC DWORD scatterd write",
+   [GEN_DATAPORT_DC_BYTE_SCATTERED_WRITE] = "DC byte scattered write",
+   [GEN_DATAPORT_DC_UNTYPED_SURFACE_WRITE] = "DC untyped surface write",
 };
 
 static const char *const dp_oword_block_rw[8] = {
-      [BRW_DATAPORT_OWORD_BLOCK_1_OWORDLOW]  = "1-low",
-      [BRW_DATAPORT_OWORD_BLOCK_1_OWORDHIGH] = "1-high",
-      [BRW_DATAPORT_OWORD_BLOCK_2_OWORDS]    = "2",
-      [BRW_DATAPORT_OWORD_BLOCK_4_OWORDS]    = "4",
-      [BRW_DATAPORT_OWORD_BLOCK_8_OWORDS]    = "8",
+      [GEN_DATAPORT_OWORD_BLOCK_1_OWORDLOW]  = "1-low",
+      [GEN_DATAPORT_OWORD_BLOCK_1_OWORDHIGH] = "1-high",
+      [GEN_DATAPORT_OWORD_BLOCK_2_OWORDS]    = "2",
+      [GEN_DATAPORT_OWORD_BLOCK_4_OWORDS]    = "4",
+      [GEN_DATAPORT_OWORD_BLOCK_8_OWORDS]    = "8",
 };
 
 static const char *const dp_dc1_msg_type_hsw[32] = {
-   [HSW_DATAPORT_DC_PORT1_UNTYPED_SURFACE_READ] = "untyped surface read",
-   [HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP] = "DC untyped atomic op",
-   [HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2] =
+   [GEN_DATAPORT_DC_PORT1_UNTYPED_SURFACE_READ] = "untyped surface read",
+   [GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP] = "DC untyped atomic op",
+   [GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2] =
       "DC untyped 4x2 atomic op",
-   [HSW_DATAPORT_DC_PORT1_MEDIA_BLOCK_READ] = "DC media block read",
-   [HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_READ] = "DC typed surface read",
-   [HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP] = "DC typed atomic",
-   [HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2] = "DC typed 4x2 atomic op",
-   [HSW_DATAPORT_DC_PORT1_UNTYPED_SURFACE_WRITE] = "DC untyped surface write",
-   [HSW_DATAPORT_DC_PORT1_MEDIA_BLOCK_WRITE] = "DC media block write",
-   [HSW_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP] = "DC atomic counter op",
-   [HSW_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP_SIMD4X2] =
+   [GEN_DATAPORT_DC_PORT1_MEDIA_BLOCK_READ] = "DC media block read",
+   [GEN_DATAPORT_DC_PORT1_TYPED_SURFACE_READ] = "DC typed surface read",
+   [GEN_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP] = "DC typed atomic",
+   [GEN_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2] = "DC typed 4x2 atomic op",
+   [GEN_DATAPORT_DC_PORT1_UNTYPED_SURFACE_WRITE] = "DC untyped surface write",
+   [GEN_DATAPORT_DC_PORT1_MEDIA_BLOCK_WRITE] = "DC media block write",
+   [GEN_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP] = "DC atomic counter op",
+   [GEN_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP_SIMD4X2] =
       "DC 4x2 atomic counter op",
-   [HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_WRITE] = "DC typed surface write",
-   [GFX9_DATAPORT_DC_PORT1_A64_SCATTERED_READ] = "DC A64 scattered read",
-   [GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_READ] = "DC A64 untyped surface read",
-   [GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_OP] = "DC A64 untyped atomic op",
-   [GFX9_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_READ] = "DC A64 oword block read",
-   [GFX9_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_WRITE] = "DC A64 oword block write",
-   [GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_WRITE] = "DC A64 untyped surface write",
-   [GFX8_DATAPORT_DC_PORT1_A64_SCATTERED_WRITE] = "DC A64 scattered write",
-   [GFX9_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_OP] =
+   [GEN_DATAPORT_DC_PORT1_TYPED_SURFACE_WRITE] = "DC typed surface write",
+   [GEN_DATAPORT_DC_PORT1_A64_SCATTERED_READ] = "DC A64 scattered read",
+   [GEN_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_READ] = "DC A64 untyped surface read",
+   [GEN_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_OP] = "DC A64 untyped atomic op",
+   [GEN_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_READ] = "DC A64 oword block read",
+   [GEN_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_WRITE] = "DC A64 oword block write",
+   [GEN_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_WRITE] = "DC A64 untyped surface write",
+   [GEN_DATAPORT_DC_PORT1_A64_SCATTERED_WRITE] = "DC A64 scattered write",
+   [GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_OP] =
       "DC untyped atomic float op",
-   [GFX9_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_FLOAT_OP] =
+   [GEN_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_FLOAT_OP] =
       "DC A64 untyped atomic float op",
-   [GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_INT_OP] =
+   [GEN_GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_INT_OP] =
       "DC A64 untyped atomic half-integer op",
-   [GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_FLOAT_OP] =
+   [GEN_GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_FLOAT_OP] =
       "DC A64 untyped atomic half-float op",
 };
 
 static const char *const aop[16] = {
-   [BRW_AOP_AND]    = "and",
-   [BRW_AOP_OR]     = "or",
-   [BRW_AOP_XOR]    = "xor",
-   [BRW_AOP_MOV]    = "mov",
-   [BRW_AOP_INC]    = "inc",
-   [BRW_AOP_DEC]    = "dec",
-   [BRW_AOP_ADD]    = "add",
-   [BRW_AOP_SUB]    = "sub",
-   [BRW_AOP_REVSUB] = "revsub",
-   [BRW_AOP_IMAX]   = "imax",
-   [BRW_AOP_IMIN]   = "imin",
-   [BRW_AOP_UMAX]   = "umax",
-   [BRW_AOP_UMIN]   = "umin",
-   [BRW_AOP_CMPWR]  = "cmpwr",
-   [BRW_AOP_PREDEC] = "predec",
+   [GEN_AOP_AND]    = "and",
+   [GEN_AOP_OR]     = "or",
+   [GEN_AOP_XOR]    = "xor",
+   [GEN_AOP_MOV]    = "mov",
+   [GEN_AOP_INC]    = "inc",
+   [GEN_AOP_DEC]    = "dec",
+   [GEN_AOP_ADD]    = "add",
+   [GEN_AOP_SUB]    = "sub",
+   [GEN_AOP_REVSUB] = "revsub",
+   [GEN_AOP_IMAX]   = "imax",
+   [GEN_AOP_IMIN]   = "imin",
+   [GEN_AOP_UMAX]   = "umax",
+   [GEN_AOP_UMIN]   = "umin",
+   [GEN_AOP_CMPWR]  = "cmpwr",
+   [GEN_AOP_PREDEC] = "predec",
 };
 
 static const char *const aop_float[5] = {
-   [BRW_AOP_FMAX]   = "fmax",
-   [BRW_AOP_FMIN]   = "fmin",
-   [BRW_AOP_FCMPWR] = "fcmpwr",
-   [BRW_AOP_FADD]   = "fadd",
+   [GEN_AOP_FMAX]   = "fmax",
+   [GEN_AOP_FMIN]   = "fmin",
+   [GEN_AOP_FCMPWR] = "fcmpwr",
+   [GEN_AOP_FADD]   = "fadd",
 };
 
 static const char * const pixel_interpolator_msg_types[4] = {
-    [GFX7_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET] = "per_message_offset",
-    [GFX7_PIXEL_INTERPOLATOR_LOC_SAMPLE] = "sample_position",
-    [GFX7_PIXEL_INTERPOLATOR_LOC_CENTROID] = "centroid",
-    [GFX7_PIXEL_INTERPOLATOR_LOC_PER_SLOT_OFFSET] = "per_slot_offset",
+    [GEN_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET] = "per_message_offset",
+    [GEN_PIXEL_INTERPOLATOR_LOC_SAMPLE] = "sample_position",
+    [GEN_PIXEL_INTERPOLATOR_LOC_CENTROID] = "centroid",
+    [GEN_PIXEL_INTERPOLATOR_LOC_PER_SLOT_OFFSET] = "per_slot_offset",
 };
 
 static const char *const math_function[16] = {
-   [BRW_MATH_FUNCTION_INV]    = "inv",
-   [BRW_MATH_FUNCTION_LOG]    = "log",
-   [BRW_MATH_FUNCTION_EXP]    = "exp",
-   [BRW_MATH_FUNCTION_SQRT]   = "sqrt",
-   [BRW_MATH_FUNCTION_RSQ]    = "rsq",
-   [BRW_MATH_FUNCTION_SIN]    = "sin",
-   [BRW_MATH_FUNCTION_COS]    = "cos",
-   [BRW_MATH_FUNCTION_FDIV]   = "fdiv",
-   [BRW_MATH_FUNCTION_POW]    = "pow",
-   [BRW_MATH_FUNCTION_INT_DIV_QUOTIENT_AND_REMAINDER] = "intdivmod",
-   [BRW_MATH_FUNCTION_INT_DIV_QUOTIENT]  = "intdiv",
-   [BRW_MATH_FUNCTION_INT_DIV_REMAINDER] = "intmod",
-   [GFX8_MATH_FUNCTION_INVM]  = "invm",
-   [GFX8_MATH_FUNCTION_RSQRTM] = "rsqrtm",
+   [GEN_MATH_INV]    = "inv",
+   [GEN_MATH_LOG]    = "log",
+   [GEN_MATH_EXP]    = "exp",
+   [GEN_MATH_SQRT]   = "sqrt",
+   [GEN_MATH_RSQ]    = "rsq",
+   [GEN_MATH_SIN]    = "sin",
+   [GEN_MATH_COS]    = "cos",
+   [GEN_MATH_FDIV]   = "fdiv",
+   [GEN_MATH_POW]    = "pow",
+   [GEN_MATH_INT_DIV_BOTH] = "intdivmod",
+   [GEN_MATH_INT_DIV_QUOTIENT]  = "intdiv",
+   [GEN_MATH_INT_DIV_REMAINDER] = "intmod",
+   [GEN_MATH_INVM]  = "invm",
+   [GEN_MATH_RSQRTM] = "rsqrtm",
 };
 
 static const char *const sync_function[16] = {
@@ -485,12 +485,12 @@ static const char *const sync_function[16] = {
 };
 
 static const char *const gfx7_urb_opcode[] = {
-   [GFX7_URB_OPCODE_ATOMIC_MOV] = "atomic mov",  /* Gfx7+ */
-   [GFX7_URB_OPCODE_ATOMIC_INC] = "atomic inc",  /* Gfx7+ */
-   [GFX8_URB_OPCODE_ATOMIC_ADD] = "atomic add",  /* Gfx8+ */
-   [GFX8_URB_OPCODE_SIMD8_WRITE] = "SIMD8 write", /* Gfx8+ */
-   [GFX8_URB_OPCODE_SIMD8_READ] = "SIMD8 read",  /* Gfx8+ */
-   [GFX125_URB_OPCODE_FENCE] = "fence",  /* Gfx12.5+ */
+   [GEN_URB_OPCODE_ATOMIC_MOV] = "atomic mov",  /* Gfx7+ */
+   [GEN_URB_OPCODE_ATOMIC_INC] = "atomic inc",  /* Gfx7+ */
+   [GEN_URB_OPCODE_ATOMIC_ADD] = "atomic add",  /* Gfx8+ */
+   [GEN_URB_OPCODE_SIMD8_WRITE] = "SIMD8 write", /* Gfx8+ */
+   [GEN_URB_OPCODE_SIMD8_READ] = "SIMD8 read",  /* Gfx8+ */
+   [GEN_GFX125_URB_OPCODE_FENCE] = "fence",  /* Gfx12.5+ */
    /* [10-15] - reserved */
 };
 
@@ -501,93 +501,93 @@ static const char *const urb_swizzle[4] = {
 };
 
 static const char *const gfx5_sampler_msg_type[] = {
-   [GFX5_SAMPLER_MESSAGE_SAMPLE]              = "sample",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_BIAS]         = "sample_b",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_LOD]          = "sample_l",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_COMPARE]      = "sample_c",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_DERIVS]       = "sample_d",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_BIAS_COMPARE] = "sample_b_c",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_LOD_COMPARE]  = "sample_l_c",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_LD]           = "ld",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4]      = "gather4",
-   [GFX5_SAMPLER_MESSAGE_LOD]                 = "lod",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_RESINFO]      = "resinfo",
-   [GFX6_SAMPLER_MESSAGE_SAMPLE_SAMPLEINFO]   = "sampleinfo",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4_C]    = "gather4_c",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO]   = "gather4_po",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_C] = "gather4_po_c",
-   [HSW_SAMPLER_MESSAGE_SAMPLE_DERIV_COMPARE] = "sample_d_c",
-   [GFX9_SAMPLER_MESSAGE_SAMPLE_LZ]           = "sample_lz",
-   [GFX9_SAMPLER_MESSAGE_SAMPLE_C_LZ]         = "sample_c_lz",
-   [GFX9_SAMPLER_MESSAGE_SAMPLE_LD_LZ]        = "ld_lz",
-   [GFX9_SAMPLER_MESSAGE_SAMPLE_LD2DMS_W]     = "ld2dms_w",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_LD_MCS]       = "ld_mcs",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_LD2DMS]       = "ld2dms",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_LD2DSS]       = "ld2dss",
+   [GEN_SAMPLER_MESSAGE_SAMPLE]              = "sample",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_BIAS]         = "sample_b",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LOD]          = "sample_l",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_COMPARE]      = "sample_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_DERIVS]       = "sample_d",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_BIAS_COMPARE] = "sample_b_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LOD_COMPARE]  = "sample_l_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD]           = "ld",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4]      = "gather4",
+   [GEN_SAMPLER_MESSAGE_LOD]                 = "lod",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_RESINFO]      = "resinfo",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_SAMPLEINFO]   = "sampleinfo",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4_C]    = "gather4_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO]   = "gather4_po",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_C] = "gather4_po_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_DERIV_COMPARE] = "sample_d_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LZ]           = "sample_lz",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_C_LZ]         = "sample_c_lz",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD_LZ]        = "ld_lz",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD2DMS_W]     = "ld2dms_w",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD_MCS]       = "ld_mcs",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD2DMS]       = "ld2dms",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD2DSS]       = "ld2dss",
 };
 
 static const char *const xe2_sampler_msg_type[] = {
-   [GFX5_SAMPLER_MESSAGE_SAMPLE]              = "sample",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_BIAS]         = "sample_b",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_LOD]          = "sample_l",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_COMPARE]      = "sample_c",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_DERIVS]       = "sample_d",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_BIAS_COMPARE] = "sample_b_c",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_LOD_COMPARE]  = "sample_l_c",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_LD]           = "ld",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4]      = "gather4",
-   [GFX5_SAMPLER_MESSAGE_LOD]                 = "lod",
-   [GFX5_SAMPLER_MESSAGE_SAMPLE_RESINFO]      = "resinfo",
-   [GFX6_SAMPLER_MESSAGE_SAMPLE_SAMPLEINFO]   = "sampleinfo",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4_C]    = "gather4_c",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO]   = "gather4_po",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_MLOD]          = "sample_mlod",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_COMPARE_MLOD]  = "sample_c_mlod",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_I]    = "gather4_i",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_L]    = "gather4_l",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_B]    = "gather4_b",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_I_C]  = "gather4_i_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_L_C]  = "gather4_l_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_C] = "gather4_po_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_I] = "gather4_po_i",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_L] = "gather4_po_l",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_I_C] = "gather4_po_i_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_L_C] = "gather4_po_l_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_B]  = "gather4_po_b",
-   [HSW_SAMPLER_MESSAGE_SAMPLE_DERIV_COMPARE] = "sample_d_c",
-   [GFX9_SAMPLER_MESSAGE_SAMPLE_LZ]           = "sample_lz",
-   [GFX9_SAMPLER_MESSAGE_SAMPLE_C_LZ]         = "sample_c_lz",
-   [GFX9_SAMPLER_MESSAGE_SAMPLE_LD_LZ]        = "ld_lz",
-   [GFX9_SAMPLER_MESSAGE_SAMPLE_LD2DMS_W]     = "ld2dms_w",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_LD_MCS]       = "ld_mcs",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_LD2DMS]       = "ld2dms",
-   [GFX7_SAMPLER_MESSAGE_SAMPLE_LD2DSS]       = "ld2dss",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO]                 = "sample_po",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO_BIAS]            = "sample_po_b",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO_LOD]             = "sample_po_l",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO_COMPARE]         = "sample_po_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO_DERIVS]          = "sample_po_d",
-   [XE3_SAMPLER_MESSAGE_SAMPLE_PO_BIAS_COMPARE]    = "sample_po_b_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO_LOD_COMPARE]     = "sample_po_l_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO_D_C]             = "sample_po_d_c",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO_LZ]              = "sample_po_lz",
-   [XE2_SAMPLER_MESSAGE_SAMPLE_PO_C_LZ]            = "sample_po_c_lz",
+   [GEN_SAMPLER_MESSAGE_SAMPLE]              = "sample",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_BIAS]         = "sample_b",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LOD]          = "sample_l",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_COMPARE]      = "sample_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_DERIVS]       = "sample_d",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_BIAS_COMPARE] = "sample_b_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LOD_COMPARE]  = "sample_l_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD]           = "ld",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4]      = "gather4",
+   [GEN_SAMPLER_MESSAGE_LOD]                 = "lod",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_RESINFO]      = "resinfo",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_SAMPLEINFO]   = "sampleinfo",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4_C]    = "gather4_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO]   = "gather4_po",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_MLOD]          = "sample_mlod",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_COMPARE_MLOD]  = "sample_c_mlod",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_I]    = "gather4_i",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_L]    = "gather4_l",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_B]    = "gather4_b",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_I_C]  = "gather4_i_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_L_C]  = "gather4_l_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_C] = "gather4_po_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_I] = "gather4_po_i",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_L] = "gather4_po_l",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_I_C] = "gather4_po_i_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_L_C] = "gather4_po_l_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_GATHER4_PO_B]  = "gather4_po_b",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_DERIV_COMPARE] = "sample_d_c",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LZ]           = "sample_lz",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_C_LZ]         = "sample_c_lz",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD_LZ]        = "ld_lz",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD2DMS_W]     = "ld2dms_w",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD_MCS]       = "ld_mcs",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD2DMS]       = "ld2dms",
+   [GEN_SAMPLER_MESSAGE_SAMPLE_LD2DSS]       = "ld2dss",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO]                 = "sample_po",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO_BIAS]            = "sample_po_b",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO_LOD]             = "sample_po_l",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO_COMPARE]         = "sample_po_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO_DERIVS]          = "sample_po_d",
+   [GEN_XE3_SAMPLER_MESSAGE_SAMPLE_PO_BIAS_COMPARE]    = "sample_po_b_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO_LOD_COMPARE]     = "sample_po_l_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO_D_C]             = "sample_po_d_c",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO_LZ]              = "sample_po_lz",
+   [GEN_XE2_SAMPLER_MESSAGE_SAMPLE_PO_C_LZ]            = "sample_po_c_lz",
 };
 
 static const char *const gfx9_sampler_simd_mode[7] = {
-   [BRW_SAMPLER_SIMD_MODE_SIMD8D]    = "SIMD8D",
-   [BRW_SAMPLER_SIMD_MODE_SIMD8]     = "SIMD8",
-   [BRW_SAMPLER_SIMD_MODE_SIMD16]    = "SIMD16",
-   [BRW_SAMPLER_SIMD_MODE_SIMD32_64] = "SIMD32/64",
-   [GFX10_SAMPLER_SIMD_MODE_SIMD8H]  = "SIMD8H",
-   [GFX10_SAMPLER_SIMD_MODE_SIMD16H] = "SIMD16H",
+   [GEN_SAMPLER_SIMD_MODE_SIMD8D]        = "SIMD8D",
+   [GEN_SAMPLER_SIMD_MODE_SIMD8]         = "SIMD8",
+   [GEN_SAMPLER_SIMD_MODE_SIMD16]        = "SIMD16",
+   [GEN_SAMPLER_SIMD_MODE_SIMD32_64]     = "SIMD32/64",
+   [GEN_GFX11_SAMPLER_SIMD_MODE_SIMD8H]  = "SIMD8H",
+   [GEN_GFX11_SAMPLER_SIMD_MODE_SIMD16H] = "SIMD16H",
 };
 
 static const char *const xe2_sampler_simd_mode[7] = {
-   [XE2_SAMPLER_SIMD_MODE_SIMD16]  = "SIMD16",
-   [XE2_SAMPLER_SIMD_MODE_SIMD32]  = "SIMD32",
-   [XE2_SAMPLER_SIMD_MODE_SIMD16H] = "SIMD16H",
-   [XE2_SAMPLER_SIMD_MODE_SIMD32H] = "SIMD32H",
+   [GEN_XE2_SAMPLER_SIMD_MODE_SIMD16]  = "SIMD16",
+   [GEN_XE2_SAMPLER_SIMD_MODE_SIMD32]  = "SIMD32",
+   [GEN_XE2_SAMPLER_SIMD_MODE_SIMD16H] = "SIMD16H",
+   [GEN_XE2_SAMPLER_SIMD_MODE_SIMD32H] = "SIMD32H",
 };
 
 static const char *const lsc_operation[] = {
@@ -2315,7 +2315,7 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                            dp_rc_msg_type(devinfo), msg_type, &space);
 
             bool is_rt_write = msg_type ==
-               GFX6_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_WRITE;
+               GEN_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_WRITE;
 
             if (is_rt_write) {
                err |= control(file, "RT message type",
@@ -2415,11 +2415,11 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                   string(file, " per-slot");
                }
 
-               if (urb_opcode == GFX8_URB_OPCODE_SIMD8_WRITE ||
-                   urb_opcode == GFX8_URB_OPCODE_SIMD8_READ) {
+               if (urb_opcode == GEN_URB_OPCODE_SIMD8_WRITE ||
+                   urb_opcode == GEN_URB_OPCODE_SIMD8_READ) {
                   if (brw_eu_inst_urb_channel_mask_present(devinfo, inst))
                      string(file, " masked");
-               } else if (urb_opcode != GFX125_URB_OPCODE_FENCE) {
+               } else if (urb_opcode != GEN_GFX125_URB_OPCODE_FENCE) {
                   err |= control(file, "urb swizzle", urb_swizzle,
                                  brw_eu_inst_urb_swizzle_control(devinfo, inst),
                                  &space);
@@ -2532,13 +2532,13 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                    brw_dp_desc_binding_table_index(devinfo, imm_desc));
 
             switch (brw_eu_inst_dp_msg_type(devinfo, inst)) {
-            case GFX7_DATAPORT_DC_UNTYPED_ATOMIC_OP:
+            case GEN_DATAPORT_DC_UNTYPED_ATOMIC_OP:
                control(file, "atomic op", aop,
                        brw_dp_desc_msg_control(devinfo, imm_desc) & 0xf,
                        &space);
                break;
-            case GFX7_DATAPORT_DC_OWORD_BLOCK_READ:
-            case GFX7_DATAPORT_DC_OWORD_BLOCK_WRITE: {
+            case GEN_DATAPORT_DC_OWORD_BLOCK_READ:
+            case GEN_DATAPORT_DC_OWORD_BLOCK_WRITE: {
                unsigned msg_ctrl = brw_dp_desc_msg_control(devinfo, imm_desc);
                assert(dp_oword_block_rw[msg_ctrl & 7]);
                format(file, "owords = %s, aligned = %d",
@@ -2566,38 +2566,38 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
                    brw_dp_desc_binding_table_index(devinfo, imm_desc));
 
             switch (brw_eu_inst_dp_msg_type(devinfo, inst)) {
-            case HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP:
-            case HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP:
-            case HSW_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP:
+            case GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP:
+            case GEN_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP:
+            case GEN_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP:
                format(file, "SIMD%d,", (msg_ctrl & (1 << 4)) ? 8 : 16);
                FALLTHROUGH;
-            case HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2:
-            case HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2:
-            case HSW_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP_SIMD4X2:
-            case GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_OP:
-            case GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_INT_OP:
+            case GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2:
+            case GEN_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2:
+            case GEN_DATAPORT_DC_PORT1_ATOMIC_COUNTER_OP_SIMD4X2:
+            case GEN_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_OP:
+            case GEN_GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_INT_OP:
                control(file, "atomic op", aop, msg_ctrl & 0xf, &space);
                break;
-            case HSW_DATAPORT_DC_PORT1_UNTYPED_SURFACE_READ:
-            case HSW_DATAPORT_DC_PORT1_UNTYPED_SURFACE_WRITE:
-            case HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_READ:
-            case HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_WRITE:
-            case GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_WRITE:
-            case GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_READ: {
+            case GEN_DATAPORT_DC_PORT1_UNTYPED_SURFACE_READ:
+            case GEN_DATAPORT_DC_PORT1_UNTYPED_SURFACE_WRITE:
+            case GEN_DATAPORT_DC_PORT1_TYPED_SURFACE_READ:
+            case GEN_DATAPORT_DC_PORT1_TYPED_SURFACE_WRITE:
+            case GEN_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_WRITE:
+            case GEN_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_READ: {
                static const char *simd_modes[] = { "4x2", "16", "8" };
                format(file, "SIMD%s, Mask = 0x%x",
                       simd_modes[msg_ctrl >> 4], msg_ctrl & 0xf);
                break;
             }
-            case GFX9_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_OP:
-            case GFX9_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_FLOAT_OP:
-            case GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_FLOAT_OP:
+            case GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_OP:
+            case GEN_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_FLOAT_OP:
+            case GEN_GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_FLOAT_OP:
                format(file, "SIMD%d,", (msg_ctrl & (1 << 4)) ? 8 : 16);
                control(file, "atomic float op", aop_float, msg_ctrl & 0xf,
                        &space);
                break;
-            case GFX9_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_WRITE:
-            case GFX9_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_READ:
+            case GEN_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_WRITE:
+            case GEN_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_READ:
                assert(dp_oword_block_rw[msg_ctrl & 7]);
                format(file, "owords = %s, aligned = %d",
                      dp_oword_block_rw[msg_ctrl & 7], (msg_ctrl >> 3) & 3);

@@ -53,7 +53,7 @@ lower_urb_read_logical_send(const brw_builder &bld, brw_urb_inst *urb)
 
    send->sfid = GEN_SFID_URB;
    send->desc = brw_urb_desc(devinfo,
-                             GFX8_URB_OPCODE_SIMD8_READ,
+                             GEN_URB_OPCODE_SIMD8_READ,
                              per_slot_present,
                              false,
                              offset);
@@ -164,7 +164,7 @@ lower_urb_write_logical_send(const brw_builder &bld, brw_urb_inst *urb)
 
    send->sfid = GEN_SFID_URB;
    send->desc = brw_urb_desc(devinfo,
-                             GFX8_URB_OPCODE_SIMD8_WRITE,
+                             GEN_URB_OPCODE_SIMD8_WRITE,
                              per_slot_present,
                              channel_mask_present,
                              offset);
@@ -905,19 +905,19 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
    if (devinfo->ver < 20) {
       if (payload_type_bit_size == 16) {
          assert(devinfo->ver >= 11);
-         simd_mode = tex->exec_size <= 8 ? GFX10_SAMPLER_SIMD_MODE_SIMD8H :
-            GFX10_SAMPLER_SIMD_MODE_SIMD16H;
+         simd_mode = tex->exec_size <= 8 ? GEN_GFX11_SAMPLER_SIMD_MODE_SIMD8H :
+            GEN_GFX11_SAMPLER_SIMD_MODE_SIMD16H;
       } else {
-         simd_mode = tex->exec_size <= 8 ? BRW_SAMPLER_SIMD_MODE_SIMD8 :
-            BRW_SAMPLER_SIMD_MODE_SIMD16;
+         simd_mode = tex->exec_size <= 8 ? GEN_SAMPLER_SIMD_MODE_SIMD8 :
+            GEN_SAMPLER_SIMD_MODE_SIMD16;
       }
    } else {
       if (payload_type_bit_size == 16) {
-         simd_mode = tex->exec_size <= 16 ? XE2_SAMPLER_SIMD_MODE_SIMD16H :
-            XE2_SAMPLER_SIMD_MODE_SIMD32H;
+         simd_mode = tex->exec_size <= 16 ? GEN_XE2_SAMPLER_SIMD_MODE_SIMD16H :
+            GEN_XE2_SAMPLER_SIMD_MODE_SIMD32H;
       } else {
-         simd_mode = tex->exec_size <= 16 ? XE2_SAMPLER_SIMD_MODE_SIMD16 :
-            XE2_SAMPLER_SIMD_MODE_SIMD32;
+         simd_mode = tex->exec_size <= 16 ? GEN_XE2_SAMPLER_SIMD_MODE_SIMD16 :
+            GEN_XE2_SAMPLER_SIMD_MODE_SIMD32;
       }
    }
 
@@ -947,7 +947,7 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
    } else if (surface_bindless) {
       /* Bindless surface */
       send->desc = brw_sampler_desc(devinfo,
-                                    GFX9_BTI_BINDLESS,
+                                    GEN_BTI_BINDLESS,
                                     (sampler.file == IMM && !sampler_bindless) ?
                                     sampler.ud % 16 : 0,
                                     msg_type,
@@ -1068,7 +1068,7 @@ setup_surface_descriptors(const brw_builder &bld, brw_send_inst *send,
       }
    } else {
       /* Bindless surface */
-      send->desc = desc | GFX9_BTI_BINDLESS;
+      send->desc = desc | GEN_BTI_BINDLESS;
       send->src[SEND_SRC_DESC] = brw_imm_ud(0);
 
       /* We assume that the driver provided the handle in the top 20 bits so
@@ -1526,10 +1526,10 @@ lower_hdc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
 
    if (mode == MEMORY_MODE_SHARED_LOCAL) {
       binding_type = LSC_ADDR_SURFTYPE_BTI;
-      binding = brw_imm_ud(GFX7_BTI_SLM);
+      binding = brw_imm_ud(GEN_BTI_SLM);
    } else if (mode == MEMORY_MODE_SCRATCH) {
       binding_type = LSC_ADDR_SURFTYPE_BTI;
-      binding = brw_imm_ud(GFX8_BTI_STATELESS_NON_COHERENT);
+      binding = brw_imm_ud(GEN_BTI_STATELESS_NON_COHERENT);
    }
 
    uint32_t sfid, desc;
@@ -1632,7 +1632,7 @@ lower_hdc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       break;
    case LSC_ADDR_SURFTYPE_BSS:
    case LSC_ADDR_SURFTYPE_SS:
-      desc |= GFX9_BTI_BINDLESS;
+      desc |= GEN_BTI_BINDLESS;
 
       /* We assume that the driver provided the handle in the top 20 bits so
        * we can use the surface handle directly as the extended descriptor.
@@ -1771,10 +1771,10 @@ lower_varying_pull_constant_logical_send(const brw_builder &bld, brw_inst *inst)
 
    if (intel_indirect_ubos_use_sampler(devinfo)) {
       const unsigned simd_mode =
-         send->exec_size <= 8 ? BRW_SAMPLER_SIMD_MODE_SIMD8 :
-                                BRW_SAMPLER_SIMD_MODE_SIMD16;
+         send->exec_size <= 8 ? GEN_SAMPLER_SIMD_MODE_SIMD8 :
+                                GEN_SAMPLER_SIMD_MODE_SIMD16;
       const uint32_t desc = brw_sampler_desc(devinfo, 0, 0,
-                                             GFX5_SAMPLER_MESSAGE_SAMPLE_LD,
+                                             GEN_SAMPLER_MESSAGE_SAMPLE_LD,
                                              simd_mode, 0);
 
       send->sfid = GEN_SFID_SAMPLER;
@@ -1837,18 +1837,18 @@ lower_interpolator_logical_send(const brw_builder &bld, brw_inst *inst,
    switch (inst->opcode) {
    case FS_OPCODE_INTERPOLATE_AT_SAMPLE:
       assert(inst->src[INTERP_SRC_OFFSET].file == BAD_FILE);
-      mode = GFX7_PIXEL_INTERPOLATOR_LOC_SAMPLE;
+      mode = GEN_PIXEL_INTERPOLATOR_LOC_SAMPLE;
       break;
 
    case FS_OPCODE_INTERPOLATE_AT_SHARED_OFFSET:
       assert(inst->src[INTERP_SRC_OFFSET].file == BAD_FILE);
-      mode = GFX7_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET;
+      mode = GEN_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET;
       break;
 
    case FS_OPCODE_INTERPOLATE_AT_PER_SLOT_OFFSET:
       payload = bld.move_to_vgrf(inst->src[INTERP_SRC_OFFSET], 2);
       mlen = 2 * inst->exec_size / 8;
-      mode = GFX7_PIXEL_INTERPOLATOR_LOC_PER_SLOT_OFFSET;
+      mode = GEN_PIXEL_INTERPOLATOR_LOC_PER_SLOT_OFFSET;
       break;
 
    default:
@@ -1917,17 +1917,17 @@ lower_interpolator_logical_send(const brw_builder &bld, brw_inst *inst,
           */
          set_predicate_inv(BRW_PREDICATE_NORMAL, false,
                            ubld.MOV(desc, brw_imm_ud(orig_desc.ud |
-                                                     GFX7_PIXEL_INTERPOLATOR_LOC_SAMPLE << 12)));
+                                                     GEN_PIXEL_INTERPOLATOR_LOC_SAMPLE << 12)));
          set_predicate_inv(BRW_PREDICATE_NORMAL, true,
                            ubld.MOV(desc, brw_imm_ud(orig_desc.ud |
-                                                     GFX7_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET << 12)));
+                                                     GEN_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET << 12)));
       } else {
          set_predicate_inv(BRW_PREDICATE_NORMAL, false,
                            ubld.OR(desc, orig_desc,
-                                   brw_imm_ud(GFX7_PIXEL_INTERPOLATOR_LOC_SAMPLE << 12)));
+                                   brw_imm_ud(GEN_PIXEL_INTERPOLATOR_LOC_SAMPLE << 12)));
          set_predicate_inv(BRW_PREDICATE_NORMAL, true,
                            ubld.OR(desc, orig_desc,
-                                   brw_imm_ud(GFX7_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET << 12)));
+                                   brw_imm_ud(GEN_PIXEL_INTERPOLATOR_LOC_SHARED_OFFSET << 12)));
       }
    }
 
@@ -2260,9 +2260,9 @@ lower_hdc_memory_fence_and_interlock(const brw_builder &bld, brw_send_inst *inst
 
    const unsigned msg_type =
       send->sfid == GEN_SFID_RENDER_CACHE ? GFX7_DATAPORT_RC_MEMORY_FENCE :
-                                            GFX7_DATAPORT_DC_MEMORY_FENCE;
+                                            GEN_DATAPORT_DC_MEMORY_FENCE;
 
-   send->desc = brw_dp_desc(devinfo, slm ? GFX7_BTI_SLM : 0, msg_type,
+   send->desc = brw_dp_desc(devinfo, slm ? GEN_BTI_SLM : 0, msg_type,
                             commit_enable ? 1 << 5 : 0);
 }
 

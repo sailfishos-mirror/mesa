@@ -322,7 +322,7 @@ static inline uint32_t
 brw_urb_fence_desc(const struct intel_device_info *devinfo)
 {
    assert(devinfo->has_lsc);
-   return brw_urb_desc(devinfo, GFX125_URB_OPCODE_FENCE, false, false, 0);
+   return brw_urb_desc(devinfo, GEN_GFX125_URB_OPCODE_FENCE, false, false, 0);
 }
 
 /**
@@ -504,9 +504,9 @@ brw_dp_untyped_atomic_desc(const struct intel_device_info *devinfo,
 
    unsigned msg_type;
    if (exec_size > 0) {
-      msg_type = HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP;
+      msg_type = GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP;
    } else {
-      msg_type = HSW_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2;
+      msg_type = GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_OP_SIMD4X2;
    }
 
    const unsigned msg_control =
@@ -526,7 +526,7 @@ brw_dp_untyped_atomic_float_desc(const struct intel_device_info *devinfo,
    assert(exec_size <= 8 || exec_size == 16);
 
    assert(exec_size > 0);
-   const unsigned msg_type = GFX9_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_OP;
+   const unsigned msg_type = GEN_DATAPORT_DC_PORT1_UNTYPED_ATOMIC_FLOAT_OP;
 
    const unsigned msg_control =
       SET_BITS(atomic_op, 1, 0) |
@@ -552,8 +552,8 @@ brw_dp_untyped_surface_rw_desc(const struct intel_device_info *devinfo,
    assert(exec_size <= 8 || exec_size == 16);
 
    const unsigned msg_type =
-      write ? HSW_DATAPORT_DC_PORT1_UNTYPED_SURFACE_WRITE :
-              HSW_DATAPORT_DC_PORT1_UNTYPED_SURFACE_READ;
+      write ? GEN_DATAPORT_DC_PORT1_UNTYPED_SURFACE_WRITE :
+              GEN_DATAPORT_DC_PORT1_UNTYPED_SURFACE_READ;
 
    /* See also MDC_SM3 in the SKL PRM Vol 2d. */
    const unsigned simd_mode = exec_size == 0 ? 0 : /* SIMD4x2 */
@@ -610,7 +610,7 @@ brw_dp_dword_scattered_rw_desc(const struct intel_device_info *devinfo,
 
    const unsigned msg_type =
       write ? GFX6_DATAPORT_WRITE_MESSAGE_DWORD_SCATTERED_WRITE :
-              GFX7_DATAPORT_DC_DWORD_SCATTERED_READ;
+              GEN_DATAPORT_DC_DWORD_SCATTERED_READ;
 
    const unsigned msg_control =
       SET_BITS(1, 1, 1) | /* Legacy SIMD Mode */
@@ -629,9 +629,9 @@ brw_dp_oword_block_rw_desc(const struct intel_device_info *devinfo,
    assert(!write || align_16B);
 
    const unsigned msg_type =
-      write ?     GFX7_DATAPORT_DC_OWORD_BLOCK_WRITE :
-      align_16B ? GFX7_DATAPORT_DC_OWORD_BLOCK_READ :
-                  GFX7_DATAPORT_DC_UNALIGNED_OWORD_BLOCK_READ;
+      write ?     GEN_DATAPORT_DC_OWORD_BLOCK_WRITE :
+      align_16B ? GEN_DATAPORT_DC_OWORD_BLOCK_READ :
+                  GEN_DATAPORT_DC_UNALIGNED_OWORD_BLOCK_READ;
 
    const unsigned msg_control =
       SET_BITS(BRW_DATAPORT_OWORD_BLOCK_DWORDS(num_dwords), 2, 0);
@@ -648,8 +648,8 @@ brw_dp_a64_untyped_surface_rw_desc(const struct intel_device_info *devinfo,
    assert(exec_size <= 8 || exec_size == 16);
 
    unsigned msg_type =
-      write ? GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_WRITE :
-              GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_READ;
+      write ? GEN_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_WRITE :
+              GEN_DATAPORT_DC_PORT1_A64_UNTYPED_SURFACE_READ;
 
    /* See also MDC_SM3 in the SKL PRM Vol 2d. */
    const unsigned simd_mode = exec_size == 0 ? 0 : /* SIMD4x2 */
@@ -659,7 +659,7 @@ brw_dp_a64_untyped_surface_rw_desc(const struct intel_device_info *devinfo,
       SET_BITS(brw_mdc_cmask(num_channels), 3, 0) |
       SET_BITS(simd_mode, 5, 4);
 
-   return brw_dp_desc(devinfo, GFX8_BTI_STATELESS_NON_COHERENT,
+   return brw_dp_desc(devinfo, GEN_BTI_STATELESS_NON_COHERENT,
                       msg_type, msg_control);
 }
 
@@ -673,14 +673,14 @@ brw_dp_a64_oword_block_rw_desc(const struct intel_device_info *devinfo,
    assert(!write || align_16B);
 
    unsigned msg_type =
-      write ? GFX9_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_WRITE :
-              GFX9_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_READ;
+      write ? GEN_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_WRITE :
+              GEN_DATAPORT_DC_PORT1_A64_OWORD_BLOCK_READ;
 
    unsigned msg_control =
       SET_BITS(!align_16B, 4, 3) |
       SET_BITS(BRW_DATAPORT_OWORD_BLOCK_DWORDS(num_dwords), 2, 0);
 
-   return brw_dp_desc(devinfo, GFX8_BTI_STATELESS_NON_COHERENT,
+   return brw_dp_desc(devinfo, GEN_BTI_STATELESS_NON_COHERENT,
                       msg_type, msg_control);
 }
 
@@ -710,15 +710,15 @@ brw_dp_a64_byte_scattered_rw_desc(const struct intel_device_info *devinfo,
    assert(exec_size <= 8 || exec_size == 16);
 
    unsigned msg_type =
-      write ? GFX8_DATAPORT_DC_PORT1_A64_SCATTERED_WRITE :
-              GFX9_DATAPORT_DC_PORT1_A64_SCATTERED_READ;
+      write ? GEN_DATAPORT_DC_PORT1_A64_SCATTERED_WRITE :
+              GEN_DATAPORT_DC_PORT1_A64_SCATTERED_READ;
 
    const unsigned msg_control =
       SET_BITS(GFX8_A64_SCATTERED_SUBTYPE_BYTE, 1, 0) |
       SET_BITS(brw_mdc_a64_ds(bit_size / 8), 3, 2) |
       SET_BITS(exec_size == 16, 4, 4);
 
-   return brw_dp_desc(devinfo, GFX8_BTI_STATELESS_NON_COHERENT,
+   return brw_dp_desc(devinfo, GEN_BTI_STATELESS_NON_COHERENT,
                       msg_type, msg_control);
 }
 
@@ -734,15 +734,15 @@ brw_dp_a64_untyped_atomic_desc(const struct intel_device_info *devinfo,
    assert(devinfo->ver >= 12 || bit_size >= 32);
 
    const unsigned msg_type = bit_size == 16 ?
-      GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_INT_OP :
-      GFX8_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_OP;
+      GEN_GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_INT_OP :
+      GEN_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_OP;
 
    const unsigned msg_control =
       SET_BITS(atomic_op, 3, 0) |
       SET_BITS(bit_size == 64, 4, 4) |
       SET_BITS(response_expected, 5, 5);
 
-   return brw_dp_desc(devinfo, GFX8_BTI_STATELESS_NON_COHERENT,
+   return brw_dp_desc(devinfo, GEN_BTI_STATELESS_NON_COHERENT,
                       msg_type, msg_control);
 }
 
@@ -759,14 +759,14 @@ brw_dp_a64_untyped_atomic_float_desc(const struct intel_device_info *devinfo,
 
    assert(exec_size > 0);
    const unsigned msg_type = bit_size == 32 ?
-      GFX9_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_FLOAT_OP :
-      GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_FLOAT_OP;
+      GEN_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_FLOAT_OP :
+      GEN_GFX12_DATAPORT_DC_PORT1_A64_UNTYPED_ATOMIC_HALF_FLOAT_OP;
 
    const unsigned msg_control =
       SET_BITS(atomic_op, 1, 0) |
       SET_BITS(response_expected, 5, 5);
 
-   return brw_dp_desc(devinfo, GFX8_BTI_STATELESS_NON_COHERENT,
+   return brw_dp_desc(devinfo, GEN_BTI_STATELESS_NON_COHERENT,
                       msg_type, msg_control);
 }
 
@@ -781,8 +781,8 @@ brw_dp_typed_atomic_desc(const struct intel_device_info *devinfo,
    assert(exec_group % 8 == 0);
 
    const unsigned msg_type =
-      exec_size == 0 ? HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2 :
-                       HSW_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP;
+      exec_size == 0 ? GEN_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP_SIMD4X2 :
+                       GEN_DATAPORT_DC_PORT1_TYPED_ATOMIC_OP;
 
    const bool high_sample_mask = (exec_group / 8) % 2 == 1;
 
@@ -808,8 +808,8 @@ brw_dp_typed_surface_rw_desc(const struct intel_device_info *devinfo,
    assert(exec_size <= 8);
 
    const unsigned msg_type =
-      write ? HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_WRITE :
-              HSW_DATAPORT_DC_PORT1_TYPED_SURFACE_READ;
+      write ? GEN_DATAPORT_DC_PORT1_TYPED_SURFACE_WRITE :
+              GEN_DATAPORT_DC_PORT1_TYPED_SURFACE_READ;
 
    /* See also MDC_SG3 in the SKL PRM Vol 2d. */
    const unsigned slot_group = exec_size == 0 ? 0 : /* SIMD4x2 */
@@ -862,7 +862,7 @@ brw_fb_read_desc(const struct intel_device_info *devinfo,
    assert(exec_size == 8 || exec_size == 16);
 
    return brw_fb_desc(devinfo, binding_table_index,
-                      GFX9_DATAPORT_RC_RENDER_TARGET_READ, msg_control) |
+                      GEN_DATAPORT_RC_RENDER_TARGET_READ, msg_control) |
           SET_BITS(per_sample, 13, 13) |
           SET_BITS(exec_size == 8, 8, 8) /* Render Target Message Subtype */;
 }
@@ -874,7 +874,7 @@ brw_fb_write_desc(const struct intel_device_info *devinfo,
                   bool last_render_target,
                   bool coarse_write)
 {
-   const unsigned msg_type = GFX6_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_WRITE;
+   const unsigned msg_type = GEN_DATAPORT_WRITE_MESSAGE_RENDER_TARGET_WRITE;
 
    assert(devinfo->ver >= 10 || !coarse_write);
 
@@ -905,40 +905,40 @@ brw_lsc_op_to_legacy_atomic(unsigned _op)
 
    switch (op) {
    case LSC_OP_ATOMIC_INC:
-      return BRW_AOP_INC;
+      return GEN_AOP_INC;
    case LSC_OP_ATOMIC_DEC:
-      return BRW_AOP_DEC;
+      return GEN_AOP_DEC;
    case LSC_OP_ATOMIC_STORE:
-      return BRW_AOP_MOV;
+      return GEN_AOP_MOV;
    case LSC_OP_ATOMIC_ADD:
-      return BRW_AOP_ADD;
+      return GEN_AOP_ADD;
    case LSC_OP_ATOMIC_SUB:
-      return BRW_AOP_SUB;
+      return GEN_AOP_SUB;
    case LSC_OP_ATOMIC_MIN:
-      return BRW_AOP_IMIN;
+      return GEN_AOP_IMIN;
    case LSC_OP_ATOMIC_MAX:
-      return BRW_AOP_IMAX;
+      return GEN_AOP_IMAX;
    case LSC_OP_ATOMIC_UMIN:
-      return BRW_AOP_UMIN;
+      return GEN_AOP_UMIN;
    case LSC_OP_ATOMIC_UMAX:
-      return BRW_AOP_UMAX;
+      return GEN_AOP_UMAX;
    case LSC_OP_ATOMIC_CMPXCHG:
-      return BRW_AOP_CMPWR;
+      return GEN_AOP_CMPWR;
    case LSC_OP_ATOMIC_FADD:
-      return BRW_AOP_FADD;
+      return GEN_AOP_FADD;
    case LSC_OP_ATOMIC_FMIN:
-      return BRW_AOP_FMIN;
+      return GEN_AOP_FMIN;
    case LSC_OP_ATOMIC_FMAX:
-      return BRW_AOP_FMAX;
+      return GEN_AOP_FMAX;
    case LSC_OP_ATOMIC_FCMPXCHG:
-      return BRW_AOP_FCMPWR;
+      return GEN_AOP_FCMPWR;
    case LSC_OP_ATOMIC_AND:
-      return BRW_AOP_AND;
+      return GEN_AOP_AND;
    case LSC_OP_ATOMIC_OR:
-      return BRW_AOP_OR;
+      return GEN_AOP_OR;
    case LSC_OP_ATOMIC_XOR:
-      return BRW_AOP_XOR;
-   /* No LSC op maps to BRW_AOP_PREDEC */
+      return GEN_AOP_XOR;
+   /* No LSC op maps to GEN_AOP_PREDEC */
    case LSC_OP_ATOMIC_LOAD:
    case LSC_OP_ATOMIC_FSUB:
       UNREACHABLE("no corresponding legacy atomic operation");

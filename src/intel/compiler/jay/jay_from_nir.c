@@ -733,7 +733,7 @@ jay_emit_signal_barrier(jay_builder *b, struct nir_to_jay_state *nj)
    jay_def zipped = jay_collect(b, UGPR, indices, 3);
 
    jay_SEND(b, .sfid = GEN_SFID_MESSAGE_GATEWAY,
-            .msg_desc = BRW_MESSAGE_GATEWAY_SFID_BARRIER_MSG, .srcs = &zipped,
+            .msg_desc = GEN_MESSAGE_GATEWAY_SFID_BARRIER_MSG, .srcs = &zipped,
             .nr_srcs = 1, .type = JAY_TYPE_U32, .uniform = true);
 }
 
@@ -2065,19 +2065,19 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
    if (nj->devinfo->ver < 20) {
       if (payload_type_bit_size == 16) {
          assert(nj->devinfo->ver >= 11);
-         simd_mode = simd_width <= 8 ? GFX10_SAMPLER_SIMD_MODE_SIMD8H :
-                                       GFX10_SAMPLER_SIMD_MODE_SIMD16H;
+         simd_mode = simd_width <= 8 ? GEN_GFX11_SAMPLER_SIMD_MODE_SIMD8H :
+                                       GEN_GFX11_SAMPLER_SIMD_MODE_SIMD16H;
       } else {
-         simd_mode = simd_width <= 8 ? BRW_SAMPLER_SIMD_MODE_SIMD8 :
-                                       BRW_SAMPLER_SIMD_MODE_SIMD16;
+         simd_mode = simd_width <= 8 ? GEN_SAMPLER_SIMD_MODE_SIMD8 :
+                                       GEN_SAMPLER_SIMD_MODE_SIMD16;
       }
    } else {
       if (payload_type_bit_size == 16) {
-         simd_mode = simd_width <= 16 ? XE2_SAMPLER_SIMD_MODE_SIMD16H :
-                                        XE2_SAMPLER_SIMD_MODE_SIMD32H;
+         simd_mode = simd_width <= 16 ? GEN_XE2_SAMPLER_SIMD_MODE_SIMD16H :
+                                        GEN_XE2_SAMPLER_SIMD_MODE_SIMD32H;
       } else {
-         simd_mode = simd_width <= 16 ? XE2_SAMPLER_SIMD_MODE_SIMD16 :
-                                        XE2_SAMPLER_SIMD_MODE_SIMD32;
+         simd_mode = simd_width <= 16 ? GEN_XE2_SAMPLER_SIMD_MODE_SIMD16 :
+                                        GEN_XE2_SAMPLER_SIMD_MODE_SIMD32;
       }
    }
 
@@ -2101,7 +2101,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
                               msg_type, simd_mode, ret_type);
    } else if (surface_bindless) {
       /* Bindless surface */
-      desc = brw_sampler_desc(nj->devinfo, GFX9_BTI_BINDLESS, sampler_imm,
+      desc = brw_sampler_desc(nj->devinfo, GEN_BTI_BINDLESS, sampler_imm,
                               msg_type, simd_mode, ret_type);
 
       /* For bindless samplers, the entire address is included in the message

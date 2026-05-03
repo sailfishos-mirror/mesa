@@ -697,21 +697,21 @@ brw_num_sources_from_inst(const struct brw_isa_info *isa,
    }
 
    switch (math_function) {
-   case BRW_MATH_FUNCTION_INV:
-   case BRW_MATH_FUNCTION_LOG:
-   case BRW_MATH_FUNCTION_EXP:
-   case BRW_MATH_FUNCTION_SQRT:
-   case BRW_MATH_FUNCTION_RSQ:
-   case BRW_MATH_FUNCTION_SIN:
-   case BRW_MATH_FUNCTION_COS:
-   case GFX8_MATH_FUNCTION_INVM:
-   case GFX8_MATH_FUNCTION_RSQRTM:
+   case GEN_MATH_INV:
+   case GEN_MATH_LOG:
+   case GEN_MATH_EXP:
+   case GEN_MATH_SQRT:
+   case GEN_MATH_RSQ:
+   case GEN_MATH_SIN:
+   case GEN_MATH_COS:
+   case GEN_MATH_INVM:
+   case GEN_MATH_RSQRTM:
       return 1;
-   case BRW_MATH_FUNCTION_FDIV:
-   case BRW_MATH_FUNCTION_POW:
-   case BRW_MATH_FUNCTION_INT_DIV_QUOTIENT_AND_REMAINDER:
-   case BRW_MATH_FUNCTION_INT_DIV_QUOTIENT:
-   case BRW_MATH_FUNCTION_INT_DIV_REMAINDER:
+   case GEN_MATH_FDIV:
+   case GEN_MATH_POW:
+   case GEN_MATH_INT_DIV_BOTH:
+   case GEN_MATH_INT_DIV_QUOTIENT:
+   case GEN_MATH_INT_DIV_REMAINDER:
       return 2;
    default:
       UNREACHABLE("not reached");
