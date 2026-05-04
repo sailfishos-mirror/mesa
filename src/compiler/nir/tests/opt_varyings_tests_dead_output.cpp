@@ -20,7 +20,7 @@ TEST_F(nir_opt_varyings_test_dead_output, \
       store_output(b1, VARYING_SLOT_##slot, 0, nir_type_float##bitsize, \
                    nir_imm_floatN_t(b1, 0, bitsize), 0); \
    \
-   ASSERT_TRUE(opt_varyings() == nir_progress_producer); \
+   ASSERT_EQ(opt_varyings(), nir_progress_producer); \
    ASSERT_TRUE(b1->shader->info.outputs_written == 0 && \
                b1->shader->info.patch_outputs_written == 0 && \
                b1->shader->info.outputs_written_16bit == 0); \
@@ -37,9 +37,9 @@ TEST_F(nir_opt_varyings_test_dead_output, \
                    nir_imm_floatN_t(b1, 0, bitsize), 0); \
    \
    ASSERT_EQ(opt_varyings(), nir_progress_producer); \
-   ASSERT_TRUE(b1->shader->info.outputs_written == VARYING_BIT_##slot); \
+   ASSERT_EQ(b1->shader->info.outputs_written, VARYING_BIT_##slot); \
    ASSERT_TRUE(shader_contains_instr(b1, &intr->instr)); \
-   ASSERT_TRUE(nir_intrinsic_io_semantics(intr).no_varying == \
+   ASSERT_EQ(nir_intrinsic_io_semantics(intr).no_varying, \
                (VARYING_SLOT_##slot != VARYING_SLOT_POS && \
                 VARYING_SLOT_##slot != VARYING_SLOT_PSIZ && \
                 VARYING_SLOT_##slot != VARYING_SLOT_CLIP_VERTEX)); \
@@ -77,17 +77,17 @@ TEST_F(nir_opt_varyings_test_dead_output, \
       ASSERT_EQ(opt_varyings(), nir_progress_producer); \
    \
    if (index >= VARYING_SLOT_VAR0_16BIT) { \
-      ASSERT_TRUE(b1->shader->info.outputs_written_16bit == \
+      ASSERT_EQ(b1->shader->info.outputs_written_16bit, \
                   BITFIELD_BIT(index - VARYING_SLOT_VAR0_16BIT)); \
    } else { \
-      ASSERT_TRUE(b1->shader->info.outputs_written == BITFIELD64_BIT(index)); \
+      ASSERT_EQ(b1->shader->info.outputs_written, BITFIELD64_BIT(index)); \
    } \
    ASSERT_TRUE(shader_contains_instr(b1, &intr->instr)); \
-   ASSERT_TRUE(nir_intrinsic_io_semantics(intr).no_varying == \
+   ASSERT_EQ(nir_intrinsic_io_semantics(intr).no_varying, \
                (VARYING_SLOT_##slot != VARYING_SLOT_POS && \
                 VARYING_SLOT_##slot != VARYING_SLOT_PSIZ && \
                 VARYING_SLOT_##slot != VARYING_SLOT_CLIP_VERTEX)); \
-   ASSERT_TRUE(nir_intrinsic_io_xfb(intr).out[0].num_components == 1); \
+   ASSERT_EQ(nir_intrinsic_io_xfb(intr).out[0].num_components, 1); \
 }
 
 #define TEST_DEAD_OUTPUT_LOAD_TO_UNDEF(producer_stage, consumer_stage, slot, bitsize) \
@@ -98,7 +98,7 @@ TEST_F(nir_opt_varyings_test_dead_output, \
    nir_def *output = load_output(b1, VARYING_SLOT_##slot, 0, nir_type_float##bitsize, 0); \
    store_ssbo(b1, output); \
    \
-   ASSERT_TRUE(opt_varyings() == nir_progress_producer); \
+   ASSERT_EQ(opt_varyings(), nir_progress_producer); \
    ASSERT_TRUE(b1->shader->info.outputs_read == 0 && \
                b1->shader->info.patch_outputs_read == 0 && \
                b1->shader->info.outputs_read_16bit == 0); \

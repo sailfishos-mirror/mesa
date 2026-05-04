@@ -62,10 +62,10 @@ TEST_F(nir_opt_varyings_test_prop_const, \
    \
    if (nir_slot_is_sysval_output((gl_varying_slot)pindex, MESA_SHADER_##consumer_stage)) { \
       ASSERT_EQ(opt_varyings(), (nir_progress_producer | nir_progress_consumer)); \
-      ASSERT_TRUE(b1->shader->info.outputs_written == BITFIELD64_BIT(pindex)); \
+      ASSERT_EQ(b1->shader->info.outputs_written, BITFIELD64_BIT(pindex)); \
       ASSERT_TRUE(nir_intrinsic_io_semantics(store).no_varying); \
    } else { \
-      ASSERT_TRUE(opt_varyings() == (nir_progress_producer | nir_progress_consumer)); \
+      ASSERT_EQ(opt_varyings(), (nir_progress_producer | nir_progress_consumer)); \
       ASSERT_TRUE(b1->shader->info.outputs_written == 0 && \
                   b1->shader->info.patch_outputs_written == 0 && \
                   b1->shader->info.outputs_written_16bit == 0); \
@@ -101,7 +101,7 @@ TEST_F(nir_opt_varyings_test_prop_const, \
       nir_intrinsic_set_io_xfb(store3, xfb); \
    \
    ASSERT_EQ(opt_varyings(), (nir_progress_producer | nir_progress_consumer)); \
-   ASSERT_TRUE(b1->shader->info.outputs_written == BITFIELD64_BIT(pindex)); \
+   ASSERT_EQ(b1->shader->info.outputs_written, BITFIELD64_BIT(pindex)); \
    ASSERT_TRUE(nir_intrinsic_io_semantics(store).no_varying); \
    ASSERT_TRUE(b2->shader->info.inputs_read == 0 && \
                b2->shader->info.patch_inputs_read == 0 && \
@@ -116,18 +116,18 @@ TEST_F(nir_opt_varyings_test_prop_const, \
 { \
    SHADER_CONST_OUTPUT(producer_stage, consumer_stage, slot, comp, type, bitsize, val0, val1) \
    \
-   ASSERT_TRUE(opt_varyings() == 0); \
+   ASSERT_EQ(opt_varyings(), 0); \
    if (pindex >= VARYING_SLOT_VAR0_16BIT) { \
-      ASSERT_TRUE(b1->shader->info.outputs_written_16bit == \
+      ASSERT_EQ(b1->shader->info.outputs_written_16bit, \
                   BITFIELD_BIT(pindex - VARYING_SLOT_VAR0_16BIT)); \
-      ASSERT_TRUE(b2->shader->info.inputs_read_16bit == \
+      ASSERT_EQ(b2->shader->info.inputs_read_16bit, \
                   BITFIELD_BIT(cindex - VARYING_SLOT_VAR0_16BIT)); \
    } else if (pindex >= VARYING_SLOT_PATCH0) { \
-      ASSERT_TRUE(b1->shader->info.patch_outputs_written == BITFIELD_BIT(pindex)); \
-      ASSERT_TRUE(b2->shader->info.patch_inputs_read == BITFIELD_BIT(cindex)); \
+      ASSERT_EQ(b1->shader->info.patch_outputs_written, BITFIELD_BIT(pindex)); \
+      ASSERT_EQ(b2->shader->info.patch_inputs_read, BITFIELD_BIT(cindex)); \
    } else { \
-      ASSERT_TRUE(b1->shader->info.outputs_written == BITFIELD64_BIT(pindex)); \
-      ASSERT_TRUE(b2->shader->info.inputs_read == BITFIELD64_BIT(cindex)); \
+      ASSERT_EQ(b1->shader->info.outputs_written, BITFIELD64_BIT(pindex)); \
+      ASSERT_EQ(b2->shader->info.inputs_read, BITFIELD64_BIT(cindex)); \
    } \
    ASSERT_TRUE(shader_contains_instr(b1, &store->instr)); \
    ASSERT_TRUE(shader_contains_def(b2, input)); \
