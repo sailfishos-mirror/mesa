@@ -22,6 +22,7 @@
 #include "sfn_nir_lower_tex.h"
 #include "sfn_optimizer.h"
 #include "sfn_ra.h"
+#include "sfn_shader_tess.h"
 #include "sfn_scheduler.h"
 #include "sfn_shader.h"
 #include "sfn_split_address_loads.h"
@@ -869,8 +870,11 @@ r600_lower_and_optimize_nir(nir_shader *sh,
       NIR_PASS(_, sh, r600_lower_tess_io, static_cast<mesa_prim>(prim_type));
    }
 
-   if (sh->info.stage == MESA_SHADER_TESS_CTRL)
+   if (sh->info.stage == MESA_SHADER_TESS_CTRL) {
+      NIR_PASS(_, sh, nir_lower_system_values);
+      NIR_PASS(_, sh, r600_lower_tess_level_default_to_ubo);
       NIR_PASS(_, sh, r600_append_tcs_TF_emission, (mesa_prim)key->tcs.prim_mode);
+   }
 
    if (sh->info.stage == MESA_SHADER_TESS_EVAL) {
       NIR_PASS(_,
