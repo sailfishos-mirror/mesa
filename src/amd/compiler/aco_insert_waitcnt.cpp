@@ -134,7 +134,7 @@ struct wait_entry {
 struct target_info {
    wait_imm max_cnt;
    uint32_t events[wait_type_num] = {};
-   uint16_t unordered_events;
+   uint32_t unordered_events;
 
    target_info(enum amd_gfx_level gfx_level)
    {
@@ -188,7 +188,7 @@ enum barrier_info_kind {
 /* Used to keep track of wait imms that are yet to be emitted. */
 struct barrier_info {
    wait_imm imm[storage_count];
-   uint16_t events[storage_count] = {}; /* use wait_event notion */
+   uint32_t events[storage_count] = {}; /* use wait_event notion */
    sync_scope scope[storage_count] = {};
    uint8_t storage = 0;
 
@@ -453,7 +453,7 @@ setup_barrier(wait_ctx& ctx, wait_imm& imm, memory_sync_info sync, bool is_acqui
    barrier_info& src = ctx.bar[is_acquire ? barrier_info_acquire_dep : barrier_info_release_dep];
 
    wait_imm dst_imm;
-   uint16_t dst_events = 0;
+   uint32_t dst_events = 0;
    u_foreach_bit (i, sync.storage & src.storage) {
       /* LDS is private to the workgroup, but sync.scope might be device scope. */
       if (src.events[i] == event_lds && ctx.program->workgroup_size <= ctx.program->wave_size)
@@ -481,7 +481,7 @@ void
 finish_barrier_internal(wait_ctx& ctx, wait_imm& imm, depctr_wait& depctr, Instruction* instr,
                         struct barrier_info* info, unsigned storage_idx)
 {
-   uint16_t events = info->events[storage_idx];
+   uint32_t events = info->events[storage_idx];
    bool vm_vsrc = false;
 
    if (info->scope[storage_idx] <= scope_workgroup) {
@@ -648,7 +648,7 @@ update_barrier_info_for_event(wait_ctx& ctx, uint8_t counters, wait_event event,
    while (storage_tmp) {
       unsigned i = u_bit_scan(&storage_tmp);
       wait_imm& bar = info.imm[i];
-      uint16_t& bar_ev = info.events[i];
+      uint32_t& bar_ev = info.events[i];
 
       if (storage & (1 << i)) {
          /* Reset counters to zero so that this instruction is waited on. */
