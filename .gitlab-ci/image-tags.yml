@@ -34,7 +34,7 @@ variables:
 
   KERNEL_TAG: "v6.19-mesa-8a6f"
   KERNEL_REPO: "gfx-ci/linux"
-  PKG_REPO_REV: "e930a803"
+  PKG_REPO_REV: "69788eae"
   FIRMWARE_TAG: "8fc31b97"
   FIRMWARE_REPO: "gfx-ci/firmware"
 
