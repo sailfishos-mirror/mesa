@@ -378,6 +378,9 @@ rc_remove_unused_constants(struct radeon_compiler *c, void *user)
    rc_constants_destroy(&c->Program.Constants);
    c->Program.Constants = s->new_constants;
 
+   if (c->Debug & RC_DBG_LOG)
+      rc_constants_print(&c->Program.Constants, s->remap_table);
+
    if (s->are_externals_remapped) {
       *out_remap_table = s->remap_table;
    } else {
@@ -387,7 +390,4 @@ rc_remove_unused_constants(struct radeon_compiler *c, void *user)
 
    free(s->inv_remap_table);
    free(s->is_used_as_vector);
-
-   if (c->Debug & RC_DBG_LOG)
-      rc_constants_print(&c->Program.Constants, s->remap_table);
 }
