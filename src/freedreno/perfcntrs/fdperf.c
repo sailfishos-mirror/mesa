@@ -45,6 +45,11 @@ static struct {
 struct counter_group {
    const struct fd_perfcntr_group *group;
 
+   /* We initially try to use all counters, but can reduce this if
+    * not all counters are available.
+    */
+   unsigned num_counters;
+
    struct {
       const struct fd_perfcntr_counter *counter;
       uint16_t select_val;
@@ -191,7 +196,7 @@ flush_ring(void)
 static void
 select_counter(struct counter_group *group, int ctr, int countable_val)
 {
-   assert(ctr < group->group->num_counters);
+   assert(ctr < group->num_counters);
 
    unsigned countable_idx = UINT32_MAX;
    for (unsigned i = 0; i < group->group->num_countables; i++) {
@@ -335,7 +340,7 @@ resample(void)
 
    for (unsigned i = 0; i < dev.ngroups; i++) {
       struct counter_group *group = &dev.groups[i];
-      for (unsigned j = 0; j < group->group->num_counters; j++) {
+      for (unsigned j = 0; j < group->num_counters; j++) {
          resample_counter(group, j, current_time);
          check_counter_invalid(group, j);
       }
@@ -523,13 +528,13 @@ redraw(WINDOW *win)
       if (group->counter[0].is_gpufreq_counter)
          j++;
 
-      if (j < group->group->num_counters) {
+      if (j < group->num_counters) {
          if ((scroll <= row) && ((row - scroll) < max))
             redraw_group_header(win, row - scroll, group->group->name);
          row++;
       }
 
-      for (; j < group->group->num_counters; j++) {
+      for (; j < group->num_counters; j++) {
          if ((scroll <= row) && ((row - scroll) < max))
             redraw_counter(win, row - scroll, group, j, row == current_cntr);
          row++;
@@ -564,7 +569,7 @@ current_counter(int *ctr)
          j++;
 
       /* account for group header: */
-      if (j < group->group->num_counters) {
+      if (j < group->num_counters) {
          /* cannot select group header.. return null to indicate this
           * main_ui():
           */
@@ -573,7 +578,7 @@ current_counter(int *ctr)
          n++;
       }
 
-      for (; j < group->group->num_counters; j++) {
+      for (; j < group->num_counters; j++) {
          if (n == current_cntr) {
             if (ctr)
                *ctr = j;
@@ -771,7 +776,7 @@ dump_counters(void)
 
    for (unsigned i = 0; i < dev.ngroups; i++) {
       const struct counter_group *group = &dev.groups[i];
-      for (unsigned j = 0; j < group->group->num_counters; j++) {
+      for (unsigned j = 0; j < group->num_counters; j++) {
          const char *label = group->label[j];
          float val = (float) group->value_delta[j] * 1000000.0 /
                      (float) group->sample_time_delta[j];
@@ -808,7 +813,7 @@ restore_counter_groups(void)
    for (unsigned i = 0; i < dev.ngroups; i++) {
       struct counter_group *group = &dev.groups[i];
 
-      for (unsigned j = 0; j < group->group->num_counters; j++) {
+      for (unsigned j = 0; j < group->num_counters; j++) {
          /* This should also write the CP_ALWAYS_COUNT selectable value into
           * the reserved CP counter we use for GPU frequency measurement,
           * avoiding someone else writing a different value there.
@@ -825,8 +830,9 @@ setup_counter_groups(const struct fd_perfcntr_group *groups)
       struct counter_group *group = &dev.groups[i];
 
       group->group = &groups[i];
+      group->num_counters = group->group->num_counters;
 
-      max_rows += group->group->num_counters + 1;
+      max_rows += group->num_counters + 1;
 
       /* We reserve the first counter of the CP group (first in the list) for
        * measuring GPU frequency that's displayed in the footer.
@@ -856,7 +862,7 @@ setup_counter_groups(const struct fd_perfcntr_group *groups)
          }
       }
 
-      for (unsigned j = 0; j < group->group->num_counters; j++) {
+      for (unsigned j = 0; j < group->num_counters; j++) {
          group->counter[j].counter = &group->group->counters[j];
 
          if (!group->counter[j].is_gpufreq_counter)
@@ -899,7 +905,7 @@ config_save(void)
       config_setting_t *sect =
          config_setting_get_member(setting, group->group->name);
 
-      for (unsigned j = 0; j < group->group->num_counters; j++) {
+      for (unsigned j = 0; j < group->num_counters; j++) {
          /* Don't save the GPU frequency measurement counter. */
          if (group->counter[j].is_gpufreq_counter)
             continue;
@@ -946,7 +952,7 @@ config_restore(void)
             config_setting_add(setting, group->group->name, CONFIG_TYPE_GROUP);
       }
 
-      for (unsigned j = 0; j < group->group->num_counters; j++) {
+      for (unsigned j = 0; j < group->num_counters; j++) {
          /* Don't restore the GPU frequency measurement counter. */
          if (group->counter[j].is_gpufreq_counter)
             continue;
