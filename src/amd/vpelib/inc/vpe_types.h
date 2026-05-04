@@ -188,13 +188,16 @@ struct vpe_pixel_format_support {
     uint32_t y216            : 1; /**< packed 4:2:2 16-bit */
     uint32_t y410            : 1; /**< packed 4:4:4 10-bit */
     uint32_t y416            : 1; /**< packed 4:4:4 16-bit */
+    uint32_t p208            : 1; /**< planar 4:2:2 8-bit */
     uint32_t p210            : 1; /**< planar 4:2:2 10-bit */
     uint32_t p216            : 1; /**< planar 4:2:2 16-bit */
+    uint32_t r8              : 1; /**< single channel RGB 8-bit */
+    uint32_t r16             : 1; /**< single channel RGB 16-bit */
     uint32_t rgb8_planar     : 1; /**< planar RGB 8-bit */
     uint32_t rgb16_planar    : 1; /**< planar RGB 16-bit */
-    uint32_t yuv8_planar     : 1; /**< planar YUV 16-bit */
+    uint32_t yuv8_planar     : 1; /**< planar YUV 8-bit */
     uint32_t yuv16_planar    : 1; /**< planar YUV 16-bit */
-    uint32_t fp16_planar     : 1; /**< planar RGB 8-bit */
+    uint32_t fp16_planar     : 1; /**< planar float 16-bit */
     uint32_t rgbe            : 1; /**< shared exponent R9G9B9E5 */
     uint32_t rgb111110_fix   : 1; /**< fixed R11G11B10 */
     uint32_t rgb111110_float : 1; /**< float R11G11B10 */
