@@ -230,10 +230,7 @@ is_atomic_or_control_instr(Program* program, const Instruction* instr, memory_sy
    bool is_acquire = semantic & semantic_acquire;
    bool is_release = semantic & semantic_release;
 
-   bool is_atomic = sync.semantics & semantic_atomic;
-   // TODO: NIR doesn't have any atomic load/store, so we assume any load/store is atomic
-   is_atomic |= !(sync.semantics & semantic_private) && sync.storage;
-   if (is_atomic) {
+   if (sync.semantics & semantic_atomic) {
       bool is_load = !instr->definitions.empty() || (sync.semantics & semantic_rmw);
       bool is_store = instr->definitions.empty() || (sync.semantics & semantic_rmw);
       return ((is_release && is_store) || (is_acquire && is_load)) ? sync.storage : 0;
