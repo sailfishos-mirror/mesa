@@ -1015,13 +1015,16 @@ nvk_meta_copy_query_pool_results(struct nvk_cmd_buffer *cmd,
       return;
    }
 
+   uint64_t reports_start = pool->reports_start;
    if (pool->vk.query_type == VK_QUERY_TYPE_TIMESTAMP)
-      flags |= NVK_QUERY_IS_TIMESTAMP;
+      reports_start += offsetof(struct nvk_query_report, timestamp);
+   else
+      reports_start += offsetof(struct nvk_query_report, value);
 
    const struct nvk_copy_query_push push = {
       .pool_addr = pool->mem->va->addr,
       .available_stride = nvk_query_available_stride_B(pool),
-      .reports_start = pool->reports_start,
+      .reports_start = reports_start,
       .report_count = vk_query_pool_report_count(&pool->vk),
       .query_stride = pool->query_stride,
       .first_query = first_query,
