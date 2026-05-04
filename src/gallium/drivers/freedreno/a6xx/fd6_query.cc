@@ -851,6 +851,15 @@ perfcntr_resume(struct fd_acc_query *aq, struct fd_batch *batch) assert_dt
          .reg = entry->counter->select_reg,
          .value = g->countables[entry->cid].selector,
       });
+
+      for (unsigned s = 0; s < ARRAY_SIZE(entry->counter->slice_select_regs); s++) {
+         if (!entry->counter->slice_select_regs[s])
+            break;
+         fd_pkt4(cs, 1).add((fd_reg_pair){
+            .reg = entry->counter->slice_select_regs[s],
+            .value = g->countables[entry->cid].selector,
+         });
+      }
    }
 
    /* and snapshot the start values */
