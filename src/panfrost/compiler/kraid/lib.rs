@@ -4,3 +4,4 @@
 mod compile;
 mod data_type;
 mod model;
+mod swizzle;
