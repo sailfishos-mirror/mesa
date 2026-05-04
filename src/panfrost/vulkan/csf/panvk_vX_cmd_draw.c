@@ -579,9 +579,13 @@ translate_prim_topology(VkPrimitiveTopology in)
    case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
       return MALI_DRAW_MODE_TRIANGLE_FAN;
    case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
+      return MALI_DRAW_MODE_LINES_ADJACENCY;
    case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY:
+      return MALI_DRAW_MODE_LINE_STRIP_ADJACENCY;
    case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY:
+      return MALI_DRAW_MODE_TRIANGLES_ADJACENCY;
    case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY:
+      return MALI_DRAW_MODE_TRIANGLE_STRIP_ADJACENCY;
    case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
    default:
       UNREACHABLE("Invalid primitive type");
@@ -875,7 +879,8 @@ prepare_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf)
        !gfx_state_dirty(cmdbuf, VS))
       return;
 
-   switch (ia->primitive_topology) {
+   enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
+   switch (u_reduced_prim(prim)) {
    /* From the Vulkan spec 1.3.293:
     *
     *    "If maintenance5 is enabled and a value is not written to a variable
@@ -886,7 +891,7 @@ prepare_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf)
     * On v13+, the point size default to 1.0f.
     */
 #if PAN_ARCH < 13
-   case VK_PRIMITIVE_TOPOLOGY_POINT_LIST: {
+   case MESA_PRIM_POINTS: {
       const struct panvk_shader_variant *vs =
          panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
 
@@ -897,8 +902,7 @@ prepare_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf)
       break;
    }
 #endif
-   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
-   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
+   case MESA_PRIM_LINES:
       primitive_size = cmdbuf->vk.dynamic_graphics_state.rs.line.width;
       break;
    default:
@@ -2085,8 +2089,8 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
    }
 
    bool msaa = dyns->ms.rasterization_samples > 1;
-   if ((ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ||
-        ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP) &&
+   enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
+   if (u_reduced_prim(prim) == MESA_PRIM_LINES &&
        rs->line.mode == VK_LINE_RASTERIZATION_MODE_BRESENHAM) {
       /* we need to disable MSAA when rendering bresenham lines.
        *
