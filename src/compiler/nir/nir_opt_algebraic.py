@@ -4246,6 +4246,23 @@ before_lower_int64_optimizations = [
     (('iadd', ('u2u64', a), ('u2u64', a)), ('ishl', ('u2u64', a), 1)),
 ]
 
+reassoc_fma_optimizations = [
+    # Try to reassociate fadd to make more adds have a fmul source
+    (('~fadd', ('fadd(is_used_once)', 'a(is_fmul)', ('fadd(is_used_once)', 'b(is_fmul)', ('fadd(is_used_once)', 'c(is_fmul)', 'd(is_fmul)'))), 'e(is_not_fmul)'),
+     ('fadd', a, ('fadd', b, ('fadd', c, ('fadd', d, e))))),
+    (('~fadd', ('fadd(is_used_once)', 'a(is_fmul)', ('fadd(is_used_once)', 'b(is_fmul)', 'c(is_fmul)')), 'd(is_not_fmul)'),
+     ('fadd', a, ('fadd', b, ('fadd', c, d)))),
+    (('~fadd', ('fadd(is_used_once)', 'a(is_fmul)', 'b(is_fmul)'), 'c(is_not_fmul)'),
+     ('fadd', a, ('fadd', b, c))),
+
+    (('~fadd', ('fneg(is_used_once)', ('fadd(is_used_once)', 'a(is_fmul)', ('fadd(is_used_once)', 'b(is_fmul)', ('fadd(is_used_once)', 'c(is_fmul)', 'd(is_fmul)')))), 'e(is_not_fmul)'),
+     ('fadd', ('fneg', a), ('fneg', ('fadd', b, ('fadd', c, ('fadd', d, ('fneg', e))))))),
+    (('~fadd', ('fneg(is_used_once)', ('fadd(is_used_once)', 'a(is_fmul)', ('fadd(is_used_once)', 'b(is_fmul)', 'c(is_fmul)'))), 'd(is_not_fmul)'),
+     ('fadd', ('fneg', a), ('fneg', ('fadd', b, ('fadd', c, ('fneg', d)))))),
+    (('~fadd', ('fneg(is_used_once)', ('fadd(is_used_once)', 'a(is_fmul)', 'b(is_fmul)')), 'c(is_not_fmul)'),
+     ('fadd', ('fneg', a), ('fadd', ('fneg', b), c))),
+]
+
 # Those optimizations try to reverse integer promotion found in e.g. OpenCL C. Those should be ran
 # before any bit_size lowering is done.
 integer_promotion_optimizations = []
@@ -4318,6 +4335,12 @@ passes.append(nir_algebraic.AlgebraicPass(
 passes.append(nir_algebraic.AlgebraicPass(
     "nir_opt_reassociate_matrix_mul",
     mat_mul_optimizations,
+    build_tests=build_tests
+))
+
+passes.append(nir_algebraic.AlgebraicPass(
+    "nir_opt_reassociate_for_fma",
+    reassoc_fma_optimizations,
     build_tests=build_tests
 ))
 

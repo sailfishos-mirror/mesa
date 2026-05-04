@@ -94,6 +94,9 @@ void si_nir_opts(struct si_screen *sscreen, struct nir_shader *nir, bool has_arr
 
 void si_nir_late_opts(nir_shader *nir)
 {
+   if (nir->info.stage != MESA_SHADER_VERTEX && nir->info.stage != MESA_SHADER_GEOMETRY)
+      NIR_PASS(_, nir, nir_opt_reassociate_for_fma);
+
    bool more_late_algebraic = true;
    while (more_late_algebraic) {
       more_late_algebraic = false;
