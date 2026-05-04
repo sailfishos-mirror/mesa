@@ -2300,6 +2300,29 @@ validate_function(nir_function *func, validate_state *state)
 }
 
 static void
+validate_float_mul_add(nir_float_muladd_support muladd_support, validate_state *state)
+{
+   if (muladd_support & nir_float_muladd_support_fuse) {
+      validate_assert(state, muladd_support &
+         (nir_float_muladd_support_has_ffma | nir_float_muladd_support_has_fmad));
+   }
+
+   if (muladd_support & nir_float_muladd_support_prefers_split)
+      validate_assert(state, muladd_support & nir_float_muladd_support_has_ffma);
+}
+
+static void
+validate_options(const nir_shader_compiler_options *options, validate_state *state)
+{
+   if (!options)
+      return;
+
+   validate_float_mul_add(options->float_mul_add16, state);
+   validate_float_mul_add(options->float_mul_add32, state);
+   validate_float_mul_add(options->float_mul_add64, state);
+}
+
+static void
 init_validate_state(validate_state *state)
 {
    state->mem_ctx = ralloc_context(NULL);
@@ -2402,6 +2425,8 @@ nir_validate_shader(nir_shader *shader, const char *when)
    if (shader->info.stage == MESA_SHADER_COMPUTE)
       valid_modes |= nir_var_mem_node_payload |
                      nir_var_mem_node_payload_in;
+
+   validate_options(shader->options, &state);
 
    exec_list_validate(&shader->variables);
    nir_foreach_variable_in_shader(var, shader)
