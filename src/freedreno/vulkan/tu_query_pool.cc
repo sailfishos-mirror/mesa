@@ -1260,6 +1260,13 @@ emit_begin_perf_query_raw(struct tu_cmd_buffer *cmdbuf,
 
       tu_cs_emit_pkt4(cs, data->counter->select_reg, 1);
       tu_cs_emit(cs, data->countable->selector);
+
+      for (unsigned s = 0; s < ARRAY_SIZE(data->counter->slice_select_regs); s++) {
+         if (!data->counter->slice_select_regs[s])
+            break;
+         tu_cs_emit_pkt4(cs, data->counter->slice_select_regs[s], 1);
+         tu_cs_emit(cs, data->countable->selector);
+      }
    }
    tu_cond_exec_end(cs);
 
@@ -1316,6 +1323,13 @@ emit_begin_perf_query_derived(struct tu_cmd_buffer *cmdbuf,
 
       tu_cs_emit_pkt4(cs, counter->select_reg, 1);
       tu_cs_emit(cs, countable);
+
+      for (unsigned s = 0; s < ARRAY_SIZE(counter->slice_select_regs); s++) {
+         if (!counter->slice_select_regs[s])
+            break;
+         tu_cs_emit_pkt4(cs, counter->slice_select_regs[s], 1);
+         tu_cs_emit(cs, countable);
+      }
    }
 
    emit_counter_barrier<CHIP>(cs);
