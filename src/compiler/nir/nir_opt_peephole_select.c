@@ -25,6 +25,7 @@
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_control_flow.h"
+#include "nir_search_helpers.h"
 
 /*
  * Implements a small peephole optimization that looks for
@@ -230,10 +231,10 @@ block_check_for_allowed_instrs(nir_block *block, unsigned *count,
          break;
 
       case nir_instr_type_alu: {
-         nir_alu_instr *mov = nir_instr_as_alu(instr);
+         nir_alu_instr *alu = nir_instr_as_alu(instr);
          bool movelike = false;
 
-         switch (mov->op) {
+         switch (alu->op) {
          case nir_op_mov:
          case nir_op_fneg:
          case nir_op_ineg:
@@ -280,11 +281,18 @@ block_check_for_allowed_instrs(nir_block *block, unsigned *count,
              * merged as a destination modifier or source modifier on some
              * other instruction.
              */
-            if (mov->op != nir_op_fsat && !movelike)
-               (*count)++;
+            if (alu->op != nir_op_fsat && !movelike) {
+               /* If this is a fmul that is only used by fadd, don't count it.
+                * It will likely be fused to fma/mad.
+                */
+               if ((alu->op != nir_op_fmul && alu->op != nir_op_fmulz) ||
+                   !is_only_used_by_fadd(alu)) {
+                  (*count)++;
+               }
+            }
          } else {
             /* The only uses of this definition must be phis in the successor */
-            nir_foreach_use_including_if(use, &mov->def) {
+            nir_foreach_use_including_if(use, &alu->def) {
                if (nir_src_is_if(use) ||
                    nir_src_use_instr(use)->type != nir_instr_type_phi ||
                    nir_src_use_instr(use)->block != block->successors[0])
