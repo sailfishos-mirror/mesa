@@ -1241,7 +1241,7 @@ emit_begin_perf_query_raw(struct tu_cmd_buffer *cmdbuf,
     * changes in perfcounter values should only apply to work done during
     * this query.
     */
-   if (CHIP == A7XX) {
+   if (CHIP >= A7XX) {
       tu_cs_emit_pkt7(cs, CP_SCOPE_CNTL, 1);
       tu_cs_emit(cs, CP_SCOPE_CNTL_0(.disable_preemption = true,
                                      .scope = INTERRUPTS).value);
@@ -1304,7 +1304,7 @@ emit_begin_perf_query_derived(struct tu_cmd_buffer *cmdbuf,
     * changes in perfcounter values should only apply to work done during
     * this query.
     */
-   if (CHIP == A7XX) {
+   if (CHIP >= A7XX) {
       tu_cs_emit_pkt7(cs, CP_SCOPE_CNTL, 1);
       tu_cs_emit(cs, CP_SCOPE_CNTL_0(.disable_preemption = true,
                                      .scope = INTERRUPTS).value);
@@ -1775,7 +1775,7 @@ emit_end_perf_query_raw(struct tu_cmd_buffer *cmdbuf,
    /* This reverts the preemption disablement done at the start
     * of the query.
     */
-   if (CHIP == A7XX) {
+   if (CHIP >= A7XX) {
       tu_cs_emit_pkt7(cs, CP_SCOPE_CNTL, 1);
       tu_cs_emit(cs, CP_SCOPE_CNTL_0(.disable_preemption = false,
                                      .scope = INTERRUPTS).value);
@@ -1852,7 +1852,7 @@ emit_end_perf_query_derived(struct tu_cmd_buffer *cmdbuf,
    /* This reverts the preemption disablement done at the start
     * of the query.
     */
-   if (CHIP == A7XX) {
+   if (CHIP >= A7XX) {
       tu_cs_emit_pkt7(cs, CP_SCOPE_CNTL, 1);
       tu_cs_emit(cs, CP_SCOPE_CNTL_0(.disable_preemption = false,
                                      .scope = INTERRUPTS).value);
