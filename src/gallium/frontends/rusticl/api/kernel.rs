@@ -602,8 +602,8 @@ fn set_kernel_exec_info(
     let k = unsafe { Kernel::mut_ref_from_raw(kernel) }?;
     let devs = &k.prog.devs;
 
-    // CL_INVALID_OPERATION for CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT if no device in the context
-    // associated with kernel support the cl_ext_buffer_device_address extension.
+    // CL_INVALID_OPERATION if param_name is CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT and no devices in
+    // the context associated with kernel support the cl_ext_buffer_device_address extension.
     let check_bda_support = || {
         if devs.iter().all(|dev| !dev.bda_supported()) {
             Err(CL_INVALID_OPERATION)
@@ -612,9 +612,8 @@ fn set_kernel_exec_info(
         }
     };
 
-    // CL_INVALID_OPERATION for CL_KERNEL_EXEC_INFO_SVM_PTRS and
-    // CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM if no devices in the context associated with kernel
-    // support SVM.
+    // CL_INVALID_OPERATION if param_name is CL_KERNEL_EXEC_INFO_SVM_PTRS and no devices in the
+    // context associated with kernel support SVM.
     let check_svm_support = || {
         if devs.iter().all(|dev| !dev.api_svm_supported()) {
             Err(CL_INVALID_OPERATION)
@@ -670,7 +669,6 @@ fn set_kernel_exec_info(
         }
         CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM
         | CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM_ARM => {
-            check_svm_support()?;
             let val = unsafe {
                 cl_slice::from_raw_parts_bytes_len::<cl_bool>(param_value, param_value_size)?
             };
@@ -681,7 +679,7 @@ fn set_kernel_exec_info(
             }
 
             // CL_INVALID_OPERATION if param_name is CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM and
-            // param_value is CL_TRUE but no devices in context associated with kernel support
+            // param_value is CL_TRUE and no devices in the context associated with kernel support
             // fine-grain system SVM allocations.
             if val[0] == CL_TRUE && devs.iter().all(|dev| !dev.system_svm_supported()) {
                 return Err(CL_INVALID_OPERATION);
