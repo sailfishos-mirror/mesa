@@ -699,7 +699,7 @@ fn enqueue_ndrange_kernel(
     work_dim: cl_uint,
     global_work_offset: *const usize,
     global_work_size: *const usize,
-    local_work_size: *const usize,
+    local_work_size_ptr: *const usize,
     num_events_in_wait_list: cl_uint,
     event_wait_list: *const cl_event,
     event: *mut cl_event,
@@ -732,8 +732,14 @@ fn enqueue_ndrange_kernel(
 
     // we assume the application gets it right and doesn't pass shorter arrays then actually needed.
     let global_work_size = unsafe { kernel_work_arr_or_default(global_work_size, work_dim) };
-    let local_work_size = unsafe { kernel_work_arr_or_default(local_work_size, work_dim) };
+    let local_work_size = unsafe { kernel_work_arr_or_default(local_work_size_ptr, work_dim) };
     let global_work_offset = unsafe { kernel_work_arr_or_default(global_work_offset, work_dim) };
+
+    // CL_INVALID_WORK_GROUP_SIZE if local_work_size is not NULL and if the total number of
+    // work-items in the work-group is zero
+    if !local_work_size_ptr.is_null() && local_work_size.iter().any(|&l| l == 0) {
+        return Err(CL_INVALID_WORK_GROUP_SIZE);
+    }
 
     let device_bits = q.device.address_bits();
     let device_max = u64::MAX >> (u64::BITS - device_bits);
