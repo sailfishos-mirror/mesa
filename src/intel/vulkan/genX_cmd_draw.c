@@ -1997,7 +1997,7 @@ cmd_buffer_set_indirect_stride(struct anv_cmd_buffer *cmd_buffer,
    }
 #endif
 
-   return aligned;
+   return aligned == U_TRISTATE_YES;
 }
 
 static void
