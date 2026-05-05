@@ -33,6 +33,7 @@
 #include "util/detect_cc.h"
 #include "util/double.h"
 #include "util/u_cpu_detect.h"
+#include "util/u_math.h"
 
 #if DETECT_ARCH_X86_64
 #include <xmmintrin.h>
