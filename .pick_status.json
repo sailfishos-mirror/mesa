@@ -15574,7 +15574,7 @@
         "description": "ir3: mark __alias_n as UNUSED in foreach_src_in_alias_group_n",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
