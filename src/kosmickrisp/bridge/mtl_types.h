@@ -234,6 +234,10 @@ struct mtl_size {
    size_t x, y, z;
 };
 
+struct mtl_sample_position {
+   float x, y;
+};
+
 struct mtl_viewport {
    double originX, originY, width, height, znear, zfar;
 };

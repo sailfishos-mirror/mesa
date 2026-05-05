@@ -116,6 +116,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
 
       /* Vulkan 1.4 */
       .KHR_global_priority = true,
+      .KHR_line_rasterization = true,
       .KHR_index_type_uint8 = true,
       .KHR_load_store_op_none = true,
       .KHR_map_memory2 = true,
@@ -126,6 +127,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_global_priority = true,
       .EXT_global_priority_query = true,
       .EXT_index_type_uint8 = true,
+      .EXT_line_rasterization = true,
       .EXT_pipeline_robustness = true,
       .EXT_vertex_attribute_divisor = true,
 
@@ -289,6 +291,7 @@ kk_get_device_features(
       .vulkanMemoryModelDeviceScope = true,
 
       /* Vulkan 1.4 */
+      .bresenhamLines = true,
       .globalPriorityQuery = true,
       .indexTypeUint8 = true,
       .pipelineRobustness = true,
@@ -331,6 +334,7 @@ kk_get_device_features(
       /* VK_EXT_extended_dynamic_state3 */
       .extendedDynamicState3DepthClampEnable = true,
       .extendedDynamicState3DepthClipNegativeOneToOne = true,
+      .extendedDynamicState3LineRasterizationMode = true,
 
       /* EXT_image_2d_view_of_3d */
       .image2DViewOf3D = true,

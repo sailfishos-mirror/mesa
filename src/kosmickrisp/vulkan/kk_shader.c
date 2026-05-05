@@ -1377,7 +1377,7 @@ kk_cmd_bind_graphics_shader(struct kk_cmd_buffer *cmd,
    cmd->state.gfx.is_depth_stencil_dynamic = requires_dynamic_depth_stencil;
    cmd->state.gfx.dirty |= KK_DIRTY_VB;
 
-   cmd->state.gfx.sample_count = shader->info.vs.sample_count;
+   cmd->state.gfx.pipeline_sample_count = shader->info.vs.sample_count;
 }
 
 static void
