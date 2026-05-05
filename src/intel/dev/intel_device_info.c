@@ -1136,6 +1136,7 @@ static const struct intel_device_info intel_device_info_arl_u = {
 static const struct intel_device_info intel_device_info_arl_h = {
    MTL_CONFIG(ARL_H),
    .has_bfloat16 = true,
+   .has_indirect_unroll = true,
    /* BSpec 55414 (r53716). */
    .has_systolic = true,
 };
