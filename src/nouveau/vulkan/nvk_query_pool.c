@@ -115,10 +115,12 @@ nvk_CreateQueryPool(VkDevice device,
    if (!pool)
       return vk_error(dev, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   /* Use interleaved layouts on Tegra so we can safely  handle non-coherent
-    * maps
+   /* Use a packed layout for timestamps.  For other queries, interleaved
+    * layouts on Tegra so we can safely handle non-coherent maps
     */
-   if (pdev->info.type == NV_DEVICE_TYPE_SOC)
+   if (pool->vk.query_type == VK_QUERY_TYPE_TIMESTAMP)
+      pool->layout = NVK_QUERY_POOL_LAYOUT_TIMESTAMP_PACKED;
+   else if (pdev->info.type == NV_DEVICE_TYPE_SOC)
       pool->layout = NVK_QUERY_POOL_LAYOUT_ALIGNED_INTERLEAVED;
    else
       pool->layout = NVK_QUERY_POOL_LAYOUT_SEPARATE;
@@ -143,6 +145,16 @@ nvk_CreateQueryPool(VkDevice device,
       pool->query_stride =
          align((reports_per_query + 1) * sizeof(struct nvk_query_report),
                pdev->info.nc_atom_size_B);
+      mem_size = pool->vk.query_count * (uint64_t)pool->query_stride;
+      break;
+
+   case NVK_QUERY_POOL_LAYOUT_TIMESTAMP_PACKED:
+      pool->reports_start = 0;
+      pool->query_stride = reports_per_query * sizeof(struct nvk_query_report);
+
+      if (pdev->info.type == NV_DEVICE_TYPE_SOC)
+         pool->query_stride = align(pool->query_stride, pdev->info.nc_atom_size_B);
+
       mem_size = pool->vk.query_count * (uint64_t)pool->query_stride;
       break;
 
@@ -241,7 +253,7 @@ nvk_sync_queries_to_gpu(struct nvk_query_pool *pool,
    if (pool->mem->flags & NVKMD_MEM_COHERENT)
       return;
 
-   assert(pool->layout == NVK_QUERY_POOL_LAYOUT_ALIGNED_INTERLEAVED);
+   assert(pool->layout != NVK_QUERY_POOL_LAYOUT_SEPARATE);
    nvkmd_mem_sync_map_to_gpu(pool->mem, first_query * pool->query_stride,
                              count * pool->query_stride);
 }
@@ -253,7 +265,7 @@ nvk_sync_queries_from_gpu(struct nvk_query_pool *pool,
    if (pool->mem->flags & NVKMD_MEM_COHERENT)
       return;
 
-   assert(pool->layout == NVK_QUERY_POOL_LAYOUT_ALIGNED_INTERLEAVED);
+   assert(pool->layout != NVK_QUERY_POOL_LAYOUT_SEPARATE);
    nvkmd_mem_sync_map_from_gpu(pool->mem, first_query * pool->query_stride,
                                count * pool->query_stride);
 }
@@ -305,6 +317,10 @@ nvk_ResetQueryPool(VkDevice device,
       assert(pool->mem->flags & NVKMD_MEM_COHERENT);
       uint32_t *available = nvk_query_available_map(pool, firstQuery);
       memset(available, 0, queryCount * sizeof(*available));
+   } else if (pool->layout == NVK_QUERY_POOL_LAYOUT_TIMESTAMP_PACKED) {
+      struct nvk_query_report *reports = nvk_query_report_map(pool, firstQuery);
+      memset(reports, 0, queryCount * pool->query_stride);
+      nvk_sync_queries_to_gpu(pool, firstQuery, queryCount);
    } else {
       for (uint32_t i = 0; i < queryCount; i++) {
          uint32_t *available = nvk_query_available_map(pool, firstQuery + i);
@@ -329,9 +345,17 @@ nvk_CmdResetQueryPool(VkCommandBuffer commandBuffer,
    const struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
 
-   if (queryCount > 1 && pool->layout == NVK_QUERY_POOL_LAYOUT_SEPARATE) {
+   if (queryCount > 1 && pool->layout != NVK_QUERY_POOL_LAYOUT_ALIGNED_INTERLEAVED) {
+      uint64_t clear_size;
+      if (pool->layout == NVK_QUERY_POOL_LAYOUT_SEPARATE)
+         clear_size = queryCount * sizeof(uint32_t);
+      else if (pool->layout == NVK_QUERY_POOL_LAYOUT_TIMESTAMP_PACKED)
+         clear_size = queryCount * pool->query_stride;
+      else
+         UNREACHABLE("Unsupported query type");
+
       uint64_t addr = nvk_query_available_addr(pool, firstQuery);
-      nvk_cmd_fill_memory(cmd, addr, queryCount * sizeof(uint32_t), 0);
+      nvk_cmd_fill_memory(cmd, addr, clear_size, 0);
    } else {
       for (uint32_t i = 0; i < queryCount; i++) {
          uint64_t addr = nvk_query_available_addr(pool, firstQuery + i);
@@ -378,29 +402,19 @@ nvk_CmdWriteTimestamp2(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 10);
+   assert(pool->layout == NVK_QUERY_POOL_LAYOUT_TIMESTAMP_PACKED);
 
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
    uint64_t report_addr = nvk_query_report_addr(pool, query);
    P_MTHD(p, NV9097, SET_REPORT_SEMAPHORE_A);
    P_NV9097_SET_REPORT_SEMAPHORE_A(p, report_addr >> 32);
    P_NV9097_SET_REPORT_SEMAPHORE_B(p, report_addr);
-   P_NV9097_SET_REPORT_SEMAPHORE_C(p, 0);
-   P_NV9097_SET_REPORT_SEMAPHORE_D(p, {
-      .operation = OPERATION_REPORT_ONLY,
-      .pipeline_location = vk_stage_flags_to_nv9097_pipeline_location(stage),
-      .structure_size = STRUCTURE_SIZE_FOUR_WORDS,
-   });
-
-   uint64_t available_addr = nvk_query_available_addr(pool, query);
-   P_MTHD(p, NV9097, SET_REPORT_SEMAPHORE_A);
-   P_NV9097_SET_REPORT_SEMAPHORE_A(p, available_addr >> 32);
-   P_NV9097_SET_REPORT_SEMAPHORE_B(p, available_addr);
    P_NV9097_SET_REPORT_SEMAPHORE_C(p, 1);
    P_NV9097_SET_REPORT_SEMAPHORE_D(p, {
       .operation = OPERATION_RELEASE,
       .release = RELEASE_AFTER_ALL_PRECEEDING_WRITES_COMPLETE,
-      .pipeline_location = PIPELINE_LOCATION_ALL,
-      .structure_size = STRUCTURE_SIZE_ONE_WORD,
+      .pipeline_location = vk_stage_flags_to_nv9097_pipeline_location(stage),
+      .structure_size = STRUCTURE_SIZE_FOUR_WORDS,
    });
 
    /* From the Vulkan spec:
