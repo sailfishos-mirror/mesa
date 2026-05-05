@@ -1574,6 +1574,11 @@ anv_vma_alloc(struct anv_device *device,
 done:
    pthread_mutex_unlock(&device->vma_mutex);
 
+   if (addr == 0 && client_address) {
+      mesa_logi("Virtual address allocation failed, "
+                "consider running with ANV_DEBUG=no-alloc-oversubscription");
+   }
+
    assert(addr == intel_48b_address(addr));
    return intel_canonical_address(addr);
 }
