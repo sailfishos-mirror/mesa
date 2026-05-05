@@ -110,9 +110,9 @@ TEST(half_to_float, DISABLED_limits)
 }
 
 #if IEEE754_2008_NAN
-TEST(half_to_float, limits_slow)
+TEST(half_to_float_slow, limits)
 #else
-TEST(half_to_float, DISABLED_limits_slow)
+TEST(half_to_float_slow, DISABLED_limits)
 #endif
 {
    test_half_to_float_limits(_mesa_half_to_float_slow);
@@ -134,6 +134,31 @@ test_float_to_half_limits(uint16_t (*func)(float))
 
    EXPECT_EQ(func(TEST_POS_INF), HALF_POS_INF);
    EXPECT_EQ(func(TEST_NEG_INF), HALF_NEG_INF);
+}
+
+TEST(float_to_half, limits)
+{
+   test_float_to_half_limits(_mesa_float_to_half);
+}
+
+TEST(float_to_half_slow, limits)
+{
+   test_float_to_half_limits(_mesa_float_to_half_slow);
+}
+
+TEST(float_to_float16_rtne, limits)
+{
+   test_float_to_half_limits(_mesa_float_to_float16_rtne);
+}
+
+TEST(float_to_float16_rtz, limits)
+{
+   test_float_to_half_limits(_mesa_float_to_float16_rtz);
+}
+
+TEST(float_to_float16_rtz_slow, limits)
+{
+   test_float_to_half_limits(_mesa_float_to_float16_rtz_slow);
 }
 
 static void
@@ -165,29 +190,22 @@ TEST(float_to_half, roundtrip)
    test_float_to_half_roundtrip(_mesa_float_to_half);
 }
 
-TEST(float_to_half, roundtrip_slow)
+TEST(float_to_half_slow, roundtrip)
 {
    test_float_to_half_roundtrip(_mesa_float_to_half_slow);
 }
 
-TEST(float_to_half, limits)
+TEST(float_to_float16_rtne, roundtrip)
 {
-   test_float_to_half_limits(_mesa_float_to_half);
+   test_float_to_half_roundtrip(_mesa_float_to_float16_rtne);
 }
 
-TEST(float_to_float16_rtne, limits)
+TEST(float_to_float16_rtz, roundtrip)
 {
-   test_float_to_half_limits(_mesa_float_to_float16_rtne);
+   test_float_to_half_roundtrip(_mesa_float_to_float16_rtz);
 }
 
-/* no rtne_slow variant -- rtne is just _mesa_float_to_half(). */
-
-TEST(float_to_float16_rtz, limits)
+TEST(float_to_float16_rtz_slow, roundtrip)
 {
-   test_float_to_half_limits(_mesa_float_to_float16_rtz);
-}
-
-TEST(float_to_float16_rtz_slow, limits)
-{
-   test_float_to_half_limits(_mesa_float_to_float16_rtz_slow);
+   test_float_to_half_roundtrip(_mesa_float_to_float16_rtz_slow);
 }
