@@ -17,6 +17,7 @@
 #include "util/macros.h"
 #include "util/u_math.h"
 #include "util/os_misc.h"
+#include "util/format/u_format.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -1861,6 +1862,32 @@ void ac_compute_device_uuid(const struct radeon_info *info, char *uuid, size_t s
    uint_uuid[3] = info->pci.func;
 }
 
+static void ac_print_gpu_modifiers(FILE *f, const struct radeon_info *const info,
+                                   const enum pipe_format format)
+{
+   const uint32_t bpp = util_format_get_blocksizebits(format);
+   struct ac_modifier_options modifier_options = {
+      .dcc = true,
+      .dcc_retile = true,
+   };
+   uint64_t modifiers[256];
+   unsigned modifier_count = ARRAY_SIZE(modifiers);
+
+   /* Get the number of modifiers. */
+   if (ac_get_supported_modifiers(info, &modifier_options, format,
+                                  &modifier_count, modifiers)) {
+      if (modifier_count)
+         fprintf(f, "Modifiers (%u bpp):\n", bpp);
+
+      for (unsigned i = 0; i < modifier_count; i++) {
+         char *name = drmGetFormatModifierName(modifiers[i]);
+
+         fprintf(f, "    0x%" PRIx64 " - %s\n", modifiers[i], name);
+         free(name);
+      }
+   }
+}
+
 void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
 {
    fprintf(f, "Device info:\n");
@@ -2205,26 +2232,9 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
       fprintf(f, "    num_lower_pipes = %u (raw)\n", G_0098F8_NUM_LOWER_PIPES(info->gb_addr_config));
    }
 
-   struct ac_modifier_options modifier_options = {
-      .dcc = true,
-      .dcc_retile = true,
-   };
-   uint64_t modifiers[256];
-   unsigned modifier_count = ARRAY_SIZE(modifiers);
-
-   /* Get the number of modifiers. */
-   if (ac_get_supported_modifiers(info, &modifier_options, PIPE_FORMAT_R8G8B8A8_UNORM,
-                                  &modifier_count, modifiers)) {
-      if (modifier_count)
-         fprintf(f, "Modifiers (32bpp):\n");
-
-      for (unsigned i = 0; i < modifier_count; i++) {
-         char *name = drmGetFormatModifierName(modifiers[i]);
-
-         fprintf(f, "    %s\n", name);
-         free(name);
-      }
-   }
+   ac_print_gpu_modifiers(f, info, PIPE_FORMAT_R8G8_UNORM);
+   ac_print_gpu_modifiers(f, info, PIPE_FORMAT_R8G8B8A8_UNORM);
+   ac_print_gpu_modifiers(f, info, PIPE_FORMAT_R16G16B16A16_UNORM);
 }
 
 int ac_get_gs_table_depth(enum amd_gfx_level gfx_level, enum radeon_family family)
