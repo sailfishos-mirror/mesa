@@ -322,6 +322,10 @@ nvk_CmdResetQueryPool(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
+
+   if (unlikely(!queryCount))
+      return;
+
    const struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
 
@@ -1050,6 +1054,9 @@ nvk_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_query_pool, pool, queryPool);
    VK_FROM_HANDLE(nvk_buffer, dst_buffer, dstBuffer);
+
+   if (unlikely(!queryCount))
+      return;
 
    if (flags & VK_QUERY_RESULT_WAIT_BIT) {
       for (uint32_t i = 0; i < queryCount; i++) {
