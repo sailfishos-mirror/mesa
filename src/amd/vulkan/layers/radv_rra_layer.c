@@ -5,9 +5,9 @@
  */
 
 #include "meta/radv_meta.h"
+#include "tools/radv_rra.h"
 #include "util/u_process.h"
 #include "radv_event.h"
-#include "radv_rra.h"
 #include "vk_acceleration_structure.h"
 
 VKAPI_ATTR VkResult VKAPI_CALL

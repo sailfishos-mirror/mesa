@@ -16,7 +16,7 @@
 #define VG(x) ((void)0)
 #endif
 
-#include "radv_debug.h"
+#include "tools/radv_debug.h"
 #include "radv_entrypoints.h"
 #include "radv_instance.h"
 #include "radv_wsi.h"

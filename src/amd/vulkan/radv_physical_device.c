@@ -20,11 +20,11 @@
 #include "vk_log.h"
 #include "vk_shader_module.h"
 
+#include "tools/radv_debug.h"
 #include "util/disk_cache.h"
 #include "util/hex.h"
 #include "util/u_debug.h"
 #include "radv_android.h"
-#include "radv_debug.h"
 #include "radv_entrypoints.h"
 #include "radv_instance.h"
 #include "radv_physical_device.h"

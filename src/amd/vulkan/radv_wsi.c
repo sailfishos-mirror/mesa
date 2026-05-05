@@ -18,7 +18,7 @@
 #include "radv_queue.h"
 #include "radv_shader.h"
 
-#include "radv_debug.h"
+#include "tools/radv_debug.h"
 #include "wsi_common.h"
 
 static VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL

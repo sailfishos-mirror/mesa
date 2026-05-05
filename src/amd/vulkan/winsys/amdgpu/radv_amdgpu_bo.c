@@ -11,8 +11,8 @@
 
 #include <stdio.h>
 
+#include "tools/radv_debug.h"
 #include "radv_amdgpu_bo.h"
-#include "radv_debug.h"
 
 #include <inttypes.h>
 #include <pthread.h>

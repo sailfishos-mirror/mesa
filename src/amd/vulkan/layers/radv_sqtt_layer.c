@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "tools/radv_spm.h"
+#include "tools/radv_sqtt.h"
 #include "ac_shader_util.h"
 #include "radv_cmd_buffer.h"
 #include "radv_cs.h"
@@ -11,7 +13,6 @@
 #include "radv_pipeline_rt.h"
 #include "radv_queue.h"
 #include "radv_shader.h"
-#include "radv_sqtt.h"
 #include "vk_semaphore.h"
 
 #include "ac_rgp.h"

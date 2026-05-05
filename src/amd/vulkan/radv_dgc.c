@@ -7,6 +7,7 @@
 #include "radv_dgc.h"
 #include "meta/radv_meta.h"
 #include "nir/radv_meta_nir.h"
+#include "tools/radv_debug.h"
 #include "radv_cs.h"
 #include "radv_entrypoints.h"
 #include "radv_pipeline_rt.h"

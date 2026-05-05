@@ -15,8 +15,8 @@
 #include "nir/radv_nir_rt_stage_functions.h"
 #include "nir/radv_nir_rt_stage_monolithic.h"
 #include "nir/radv_nir_rt_traversal_shader.h"
+#include "tools/radv_debug.h"
 #include "ac_nir.h"
-#include "radv_debug.h"
 #include "radv_descriptor_set.h"
 #include "radv_entrypoints.h"
 #include "radv_pipeline_binary.h"
@@ -25,8 +25,8 @@
 #include "radv_pipeline_rt.h"
 
 #include "nir/radv_nir_rt_stage_common.h"
+#include "tools/radv_rmv.h"
 #include "aco_interface.h"
-#include "radv_rmv.h"
 #include "radv_shader.h"
 
 struct rt_handle_hash_entry {

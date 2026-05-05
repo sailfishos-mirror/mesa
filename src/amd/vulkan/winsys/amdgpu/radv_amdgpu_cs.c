@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include "drm-uapi/amdgpu_drm.h"
 
+#include "tools/radv_debug.h"
 #include "util/detect_os.h"
 #include "util/os_time.h"
 #include "util/u_memory.h"
@@ -20,7 +21,6 @@
 #include "radv_amdgpu_bo.h"
 #include "radv_amdgpu_cs.h"
 #include "radv_amdgpu_winsys.h"
-#include "radv_debug.h"
 #include "radv_radeon_winsys.h"
 #include "sid.h"
 #include "vk_drm_syncobj.h"

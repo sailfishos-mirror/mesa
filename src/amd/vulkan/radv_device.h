@@ -16,11 +16,12 @@
 
 #include "util/mesa-blake3.h"
 
-#include "radv_debug_nir.h"
+#include "tools/radv_debug_nir.h"
+#include "tools/radv_rra.h"
+
 #include "radv_pipeline.h"
 #include "radv_queue.h"
 #include "radv_radeon_winsys.h"
-#include "radv_rra.h"
 #include "radv_shader.h"
 
 #include "vk_acceleration_structure.h"
