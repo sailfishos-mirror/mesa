@@ -137,7 +137,7 @@ test_float_to_half_limits(uint16_t (*func)(float))
 }
 
 static void
-u_half_test_test(void)
+test_float_to_half_roundtrip(uint16_t (*func)(float))
 {
    unsigned i;
    unsigned roundtrip_fails = 0;
@@ -149,7 +149,7 @@ u_half_test_test(void)
       uint16_t rh;
 
       f.f = _mesa_half_to_float(h);
-      rh = _mesa_float_to_half(f.f);
+      rh = func(f.f);
 
       if (h != rh && !(util_is_half_nan(h) && util_is_half_nan(rh))) {
          printf("Roundtrip failed: %x -> %x = %f -> %x\n", h, f.ui, f.f, rh);
@@ -162,13 +162,8 @@ u_half_test_test(void)
 
 TEST(u_half_test, u_half_test)
 {
-   u_half_test_test();
-
-   /* Test non-f16c. */
-   if (util_get_cpu_caps()->has_f16c) {
-      ((struct util_cpu_caps_t *)util_get_cpu_caps())->has_f16c = false;
-      u_half_test_test();
-   }
+   test_float_to_half_roundtrip(_mesa_float_to_half);
+   test_float_to_half_roundtrip(_mesa_float_to_half_slow);
 }
 
 TEST(float_to_half_test, float_to_half_test)
