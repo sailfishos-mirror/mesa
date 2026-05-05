@@ -2254,7 +2254,7 @@
         "description": "anv: fix return of cmd_buffer_set_indirect_stride() function",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2741ddd75ab258d1ef5ee9b160d4c20a1b0dc756",
         "notes": null
