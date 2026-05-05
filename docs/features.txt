@@ -804,6 +804,21 @@ Rusticl OpenCL 3.0 -- all DONE:
   CL_COMMAND_SVM_MIGRATE_MEM for clGetEventInfo         DONE
   OpenCL C 3.0                                          DONE
 
+Rusticl OpenCL 3.1 -- all DONE: asahi, iris, llvmpipe, radeonsi, zink
+  cl_khr_il_program                                     DONE
+  - Support SPIR-V 1.4                                  DONE
+  - Max SPIR-V version                                  DONE 1.6
+  - clSetProgramSpecializationConstant                  DONE
+  Sub-groups                                            DONE ()
+  cl_khr_device_uuid                                    DONE (freedreno)
+  cl_khr_extended_bit_ops                               DONE
+  cl_khr_integer_dot_product                            DONE
+  cl_khr_spirv_queries                                  DONE
+  cl_khr_subgroup_extended_types                        DONE ()
+  cl_khr_subgroup_rotate                                DONE ()
+  cl_khr_subgroup_shuffle                               DONE ()
+  cl_khr_subgroup_shuffle_relative                      DONE ()
+  cl_khr_suggested_local_work_size                      DONE
 
 Rusticl Optional Core Features:
   Optional features for OpenCL 1.0                      in progress
@@ -843,10 +858,6 @@ Rusticl Optional OpenCL 2.x Features:
   - Sub-groups                                          DONE (asahi, iris, llvmpipe, radeonsi, zink)
   - Work-group Collective Functions                     not started
   - Generic Address Space                               in progress
-  cl_khr_il_program                                     DONE
-  - Support SPIR-V 1.1 and 1.2                          DONE
-  - Max SPIR-V version                                  DONE 1.6
-  - clSetProgramSpecializationConstant                  DONE
   Program Initialization and Clean-Up Kernels           not started
   - clSetProgramReleaseCallback                         not started
   CL_MAX_SIZE_RESTRICTION_EXCEEDED for clSetKernelArg   not started
@@ -860,13 +871,11 @@ Rusticl extensions:
   cl_khr_d3d10_sharing                                  not started
   cl_khr_d3d11_sharing                                  not started
   cl_khr_device_enqueue_local_arg_types                 not started
-  cl_khr_device_uuid                                    DONE (freedreno, iris, llvmpipe, radeonsi, zink)
   cl_khr_dx9_media_sharing                              not started
   cl_khr_egl_event                                      not started
   cl_khr_egl_image                                      not started
   cl_khr_expect_assume                                  in progress (hints are ignored)
   cl_khr_extended_async_copies                          not started
-  cl_khr_extended_bit_ops                               DONE
   cl_khr_external_memory                                not started
   cl_khr_external_memory_dma_buf                        not started
   cl_khr_external_memory_opaque_fd                      not started
@@ -884,7 +893,6 @@ Rusticl extensions:
   cl_khr_initialize_memory                              not started
   cl_khr_int64_base_atomics                             not started
   cl_khr_int64_extended_atomics                         not started
-  cl_khr_integer_dot_product                            DONE
   cl_khr_kernel_clock                                   DONE (freedreno, iris, llvmpipe, nvc0, panfrost, radeonsi, zink, needs llvm-19)
   cl_khr_mipmap_image                                   not started
   cl_khr_mipmap_image_writes                            not started
@@ -894,19 +902,13 @@ Rusticl extensions:
   cl_khr_spirv_extended_debug_info                      not started
   cl_khr_spirv_linkonce_odr                             DONE
   cl_khr_spirv_no_integer_wrap_decoration               DONE
-  cl_khr_spirv_queries                                  DONE
   cl_khr_srgb_image_writes                              not started
   cl_khr_subgroup_ballot                                DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroup_clustered_reduce                      DONE (asahi, llvmpipe, radeonsi, zink)
-  cl_khr_subgroup_extended_types                        DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroup_named_barrier                         not started
   cl_khr_subgroup_non_uniform_arithmetic                DONE (asahi, llvmpipe, radeonsi, zink)
   cl_khr_subgroup_non_uniform_vote                      DONE (asahi, iris, llvmpipe, radeonsi, zink)
-  cl_khr_subgroup_rotate                                DONE (asahi, iris, llvmpipe, radeonsi, zink)
-  cl_khr_subgroup_shuffle                               DONE (asahi, iris, llvmpipe, radeonsi, zink)
-  cl_khr_subgroup_shuffle_relative                      DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroups                                      in progress
-  cl_khr_suggested_local_work_size                      DONE
   cl_khr_terminate_context                              not started
   cl_khr_throttle_hints                                 not started
   cl_khr_work_group_uniform_arithmetic                  not started
