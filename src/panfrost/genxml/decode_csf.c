@@ -90,6 +90,12 @@ static const char *defer_modes_str[] = {
 #define defer_mode_str(I) ""
 #endif
 
+#if PAN_ARCH <= 13
+#define assert_no_progress_inc(I) assert(!I.progress_increment)
+#else
+#define assert_no_progress_inc(I) do {} while (0)
+#endif
+
 static void
 print_cs_instr(FILE *fp, const uint64_t *instr)
 {
@@ -118,28 +124,27 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
 
    case MALI_CS_OPCODE_WAIT: {
       cs_unpack(instr, CS_WAIT, I);
-      fprintf(fp, "WAIT%s #%x", I.progress_increment ? ".progress_inc" : "",
-              I.wait_mask);
+      assert_no_progress_inc(I);
+      fprintf(fp, "WAIT #%x", I.wait_mask);
       break;
    }
 
    case MALI_CS_OPCODE_RUN_COMPUTE: {
       const char *axes[4] = {"x_axis", "y_axis", "z_axis"};
       cs_unpack(instr, CS_RUN_COMPUTE, I);
+      assert_no_progress_inc(I);
 
       /* Print the instruction. Ignore the selects and the flags override
        * since we'll print them implicitly later.
        */
 #if PAN_ARCH >= 12
-      fprintf(fp, "RUN_COMPUTE%s.%s.srt%d.spd%d.tsd%d.fau%d #%u, #%u",
-              I.progress_increment ? ".progress_inc" : "", axes[I.task_axis],
-              I.srt_select, I.spd_select, I.tsd_select, I.fau_select,
-              I.task_increment, I.ep_limit);
+      fprintf(fp, "RUN_COMPUTE.%s.srt%d.spd%d.tsd%d.fau%d #%u, #%u",
+              axes[I.task_axis], I.srt_select, I.spd_select, I.tsd_select,
+              I.fau_select, I.task_increment, I.ep_limit);
 #else
-      fprintf(fp, "RUN_COMPUTE%s.%s.srt%d.spd%d.tsd%d.fau%d #%u",
-              I.progress_increment ? ".progress_inc" : "", axes[I.task_axis],
-              I.srt_select, I.spd_select, I.tsd_select, I.fau_select,
-              I.task_increment);
+      fprintf(fp, "RUN_COMPUTE.%s.srt%d.spd%d.tsd%d.fau%d #%u",
+              axes[I.task_axis], I.srt_select, I.spd_select, I.tsd_select,
+              I.fau_select, I.task_increment);
 #endif
       break;
    }
@@ -147,8 +152,8 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
 #if PAN_ARCH == 10
    case MALI_CS_OPCODE_RUN_TILING: {
       cs_unpack(instr, CS_RUN_TILING, I);
-      fprintf(fp, "RUN_TILING%s.srt%d.spd%d.tsd%d.fau%d",
-              I.progress_increment ? ".progress_inc" : "", I.srt_select,
+      assert_no_progress_inc(I);
+      fprintf(fp, "RUN_TILING.srt%d.spd%d.tsd%d.fau%d", I.srt_select,
               I.spd_select, I.tsd_select, I.fau_select);
       break;
    }
@@ -157,10 +162,10 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
 #if PAN_ARCH < 12
    case MALI_CS_OPCODE_RUN_IDVS: {
       cs_unpack(instr, CS_RUN_IDVS, I);
+      assert_no_progress_inc(I);
       fprintf(
          fp,
-         "RUN_IDVS%s%s%s.varying_srt%d.varying_fau%d.varying_tsd%d.frag_srt%d.frag_tsd%d r%u, #%" PRIx64,
-         I.progress_increment ? ".progress_inc" : "",
+         "RUN_IDVS%s%s.varying_srt%d.varying_fau%d.varying_tsd%d.frag_srt%d.frag_tsd%d r%u, #%" PRIx64,
          I.malloc_enable ? "" : ".no_malloc",
          I.draw_id_register_enable ? ".draw_id_enable" : "",
          I.varying_srt_select, I.varying_fau_select, I.varying_tsd_select,
@@ -171,6 +176,7 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
 #else
    case MALI_CS_OPCODE_RUN_IDVS2: {
       cs_unpack(instr, CS_RUN_IDVS2, I);
+      assert_no_progress_inc(I);
 
       const char *vertex_shading_str[] = {
          ".early",
@@ -179,8 +185,7 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
          ".INVALID",
       };
 
-      fprintf(fp, "RUN_IDVS2%s%s%s%s r%u, #%" PRIx64,
-              I.progress_increment ? ".progress_inc" : "",
+      fprintf(fp, "RUN_IDVS2%s%s%s r%u, #%" PRIx64,
               I.malloc_enable ? "" : ".no_malloc",
               I.draw_id_register_enable ? ".draw_id_enable" : "",
               vertex_shading_str[I.vertex_shading_mode], I.draw_id,
@@ -318,28 +323,16 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
 
    case MALI_CS_OPCODE_SHARED_SB_INC: {
       cs_unpack(instr, CS_SHARED_SB_INC, I);
-
-      const char *progress_increment_name[] = {
-         ".no_increment",
-         ".increment",
-      };
-
-      fprintf(fp, "SHARED_SB_INC%s%s #%u, #%u",
-              progress_increment_name[I.progress_increment],
-              defer_mode_str(I), I.sb_mask, I.shared_entry);
+      assert_no_progress_inc(I);
+      fprintf(fp, "SHARED_SB_INC%s #%u, #%u", defer_mode_str(I), I.sb_mask,
+              I.shared_entry);
       break;
    }
 
    case MALI_CS_OPCODE_SHARED_SB_DEC: {
       cs_unpack(instr, CS_SHARED_SB_DEC, I);
-
-      const char *progress_increment_name[] = {
-         ".no_increment",
-         ".increment",
-      };
-
-      fprintf(fp, "SHARED_SB_DEC%s #%u",
-              progress_increment_name[I.progress_increment], I.shared_entry);
+      assert_no_progress_inc(I);
+      fprintf(fp, "SHARED_SB_DEC #%u", I.shared_entry);
       break;
    }
 #endif
@@ -370,9 +363,8 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
       };
 
       cs_unpack(instr, CS_RUN_FRAGMENT, I);
-
-      fprintf(fp, "RUN_FRAGMENT%s%s.tile_order=%s",
-              I.progress_increment ? ".progress_inc" : "",
+      assert_no_progress_inc(I);
+      fprintf(fp, "RUN_FRAGMENT%s.tile_order=%s",
               I.enable_tem ? ".tile_enable_map_enable" : "",
               tile_order[I.tile_order]);
       break;
@@ -381,16 +373,15 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
 
    case MALI_CS_OPCODE_RUN_FULLSCREEN: {
       cs_unpack(instr, CS_RUN_FULLSCREEN, I);
-      fprintf(fp, "RUN_FULLSCREEN%s r%u, #%" PRIx64,
-              I.progress_increment ? ".progress_inc" : "", I.dcd,
-              I.flags_override);
+      assert_no_progress_inc(I);
+      fprintf(fp, "RUN_FULLSCREEN r%u, #%" PRIx64, I.dcd, I.flags_override);
       break;
    }
 
    case MALI_CS_OPCODE_FINISH_TILING: {
       cs_unpack(instr, CS_FINISH_TILING, I);
-      fprintf(fp, "FINISH_TILING%s",
-              I.progress_increment ? ".progress_inc" : "");
+      assert_no_progress_inc(I);
+      fprintf(fp, "FINISH_TILING");
       break;
    }
 
@@ -460,12 +451,6 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
    case MALI_CS_OPCODE_SET_SB_ENTRY: {
       cs_unpack(instr, CS_SET_SB_ENTRY, I);
       fprintf(fp, "SET_SB_ENTRY #%u, #%u", I.endpoint_entry, I.other_entry);
-      break;
-   }
-
-   case MALI_CS_OPCODE_PROGRESS_WAIT: {
-      cs_unpack(instr, CS_PROGRESS_WAIT, I);
-      fprintf(fp, "PROGRESS_WAIT d%u, #%u", I.source, I.queue);
       break;
    }
 
@@ -567,29 +552,17 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
       break;
    }
 
-   case MALI_CS_OPCODE_PROGRESS_STORE: {
-      cs_unpack(instr, CS_PROGRESS_STORE, I);
-      fprintf(fp, "PROGRESS_STORE d%u", I.source);
-      break;
-   }
-
-   case MALI_CS_OPCODE_PROGRESS_LOAD: {
-      cs_unpack(instr, CS_PROGRESS_LOAD, I);
-      fprintf(fp, "PROGRESS_LOAD d%u", I.destination);
-      break;
-   }
-
    case MALI_CS_OPCODE_RUN_COMPUTE_INDIRECT: {
       cs_unpack(instr, CS_RUN_COMPUTE_INDIRECT, I);
+      assert_no_progress_inc(I);
 #if PAN_ARCH >= 12
-      fprintf(fp, "RUN_COMPUTE_INDIRECT%s.srt%d.spd%d.tsd%d.fau%d #%u, #%u",
-              I.progress_increment ? ".progress_inc" : "", I.srt_select,
-              I.spd_select, I.tsd_select, I.fau_select, I.workgroups_per_task,
-              I.ep_limit);
+      fprintf(fp, "RUN_COMPUTE_INDIRECT.srt%d.spd%d.tsd%d.fau%d #%u, #%u",
+              I.srt_select, I.spd_select, I.tsd_select, I.fau_select,
+              I.workgroups_per_task, I.ep_limit);
 #else
-      fprintf(fp, "RUN_COMPUTE_INDIRECT%s.srt%d.spd%d.tsd%d.fau%d #%u",
-              I.progress_increment ? ".progress_inc" : "", I.srt_select,
-              I.spd_select, I.tsd_select, I.fau_select, I.workgroups_per_task);
+      fprintf(fp, "RUN_COMPUTE_INDIRECT.srt%d.spd%d.tsd%d.fau%d #%u",
+              I.srt_select, I.spd_select, I.tsd_select, I.fau_select,
+              I.workgroups_per_task);
 #endif
 
       break;
@@ -2307,18 +2280,6 @@ collect_indirect_branch_targets_recurse(struct cs_code_cfg *cfg,
          for (unsigned i = 0; i < 16; i++) {
             if ((I.mask & BITFIELD_BIT(i)) &&
                 BITSET_TEST(track_map, I.base_register + i)) {
-               ibranch->has_unknown_targets = true;
-               return;
-            }
-         }
-         break;
-      }
-
-      case MALI_CS_OPCODE_PROGRESS_LOAD: {
-         cs_unpack(instr, CS_PROGRESS_LOAD, I);
-         for (unsigned i = 0; i < 16; i++) {
-            if (BITSET_TEST(track_map, I.destination) ||
-                BITSET_TEST(track_map, I.destination + 1)) {
                ibranch->has_unknown_targets = true;
                return;
             }
