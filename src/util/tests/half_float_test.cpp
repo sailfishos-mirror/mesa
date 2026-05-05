@@ -209,3 +209,161 @@ TEST(float_to_float16_rtz_slow, roundtrip)
 {
    test_float_to_half_roundtrip(_mesa_float_to_float16_rtz_slow);
 }
+
+enum rounding_mode {
+   RTNE,
+   RTZ,
+   RU,
+   RD,
+};
+
+static uint32_t
+rand_u32(uint32_t i)
+{
+   /* Use a prime to generate some pseudo-random bits */
+   return (i + 1) * 2811245417u;
+}
+
+static uint16_t
+rand_half(uint16_t i)
+{
+   /* Throw in an almost inf every so often */
+   if (i % 23 == 0)
+      return (i << 15) | 0x7bff;
+
+   /* Throw in a +/-0 every so often */
+   if (i % 23 == 1)
+      return (i << 15);
+
+   while (true) {
+      i = rand_u32(i);
+      if (!util_is_half_inf_or_nan(i))
+         return i;
+   }
+}
+
+/* Returns the next float16 value, away from zero */
+static uint16_t
+next_half(uint16_t h)
+{
+   /* If it's not inf or nan, we can just add one to the uint16_t */
+   assert(!util_is_half_inf_or_nan(h));
+   return h + 1;
+}
+
+static uint32_t
+rand_m_low13(unsigned i)
+{
+   uint32_t r = rand_u32(rand_u32(i));
+
+   uint32_t m_low13 = r & BITFIELD_MASK(13);
+
+   /* Smash off the bottom 12 every so often */
+   if (((r >> 13) & 0x3) == 0)
+      m_low13 &= ~BITFIELD_MASK(12);
+
+   return m_low13;
+}
+
+static void
+test_float_to_half_rounding(uint16_t (*func)(float),
+                            enum rounding_mode rounding)
+{
+   for (unsigned i = 0; i < 1024; ++i) {
+      const uint16_t h_rtz = rand_half(i);
+      const bool is_neg = h_rtz & BITFIELD_BIT(15);
+
+      /* Generate a float */
+      union fi f;
+      f.f = _mesa_half_to_float(h_rtz);
+      EXPECT_EQ(f.ui & BITFIELD_MASK(13), 0);
+
+      /* For an exactly representable value, we should get h_rtz back */
+      EXPECT_EQ(func(f.f), h_rtz);
+
+      /* Generate a random non-zero low 13 bits */
+      const uint32_t m_low13 = rand_m_low13(i);
+      if (m_low13 == 0)
+         continue;
+
+      if (h_rtz & 0x7c00) {
+         f.ui |= m_low13;
+      } else {
+         /* For zero or denormal, we can't just OR in our low bits */
+         float delta = ldexpf(m_low13, -(13 + 10 + 14));
+         if (is_neg)
+            delta = -delta;
+         f.f += delta;
+      }
+
+      uint16_t h_expected;
+      switch (rounding) {
+      case RTNE:
+         if (m_low13 & BITFIELD_MASK(12)) {
+            /* It's not a tie */
+            if (m_low13 & BITFIELD_BIT(12))
+               h_expected = next_half(h_rtz);
+            else
+               h_expected = h_rtz;
+         } else {
+            /* It's a tie because we know m_low13 != 0, round towards even */
+            assert(m_low13 & BITFIELD_BIT(12));
+            if (h_rtz & 1)
+               h_expected = next_half(h_rtz);
+            else
+               h_expected = h_rtz;
+         }
+         break;
+
+      case RTZ:
+         h_expected = h_rtz;
+         break;
+
+      case RU:
+         h_expected = is_neg ? h_rtz : next_half(h_rtz);
+         break;
+
+      case RD:
+         h_expected = is_neg ? next_half(h_rtz) : h_rtz;
+         break;
+      }
+
+      uint16_t h_actual = func(f.f);
+      EXPECT_EQ(h_actual, h_expected);
+   }
+}
+
+TEST(float_to_half, rounding)
+{
+   test_float_to_half_rounding(_mesa_float_to_half, RTNE);
+}
+
+TEST(float_to_half_slow, rounding)
+{
+   test_float_to_half_rounding(_mesa_float_to_half_slow, RTNE);
+}
+
+TEST(float_to_float16_rtne, rounding)
+{
+   test_float_to_half_rounding(_mesa_float_to_float16_rtne, RTNE);
+}
+
+TEST(float_to_float16_rtz, rounding)
+{
+   test_float_to_half_rounding(_mesa_float_to_float16_rtz, RTZ);
+}
+
+TEST(float_to_float16_rtz_slow, rounding)
+{
+   test_float_to_half_rounding(_mesa_float_to_float16_rtz_slow, RTZ);
+}
+
+TEST(float_to_float16_ru, rounding)
+{
+   test_float_to_half_rounding(_mesa_float_to_float16_ru, RU);
+}
+
+TEST(float_to_float16_rd, rounding)
+{
+   test_float_to_half_rounding(_mesa_float_to_float16_rd, RD);
+}
