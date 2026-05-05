@@ -60,7 +60,7 @@ static bool issignaling(float x)
 #endif
 
 /* Sanity test our inf test values */
-TEST(half_to_float_test, inf_test)
+TEST(half_to_float, inf_sanity)
 {
    EXPECT_TRUE(isinf(TEST_POS_INF));
    EXPECT_TRUE(isinf(TEST_NEG_INF));
@@ -70,9 +70,9 @@ TEST(half_to_float_test, inf_test)
  * non-signaling NaN.
  */
 #if IEEE754_2008_NAN
-TEST(half_to_float_test, nan_test)
+TEST(half_to_float, nan)
 #else
-TEST(half_to_float_test, DISABLED_nan_test)
+TEST(half_to_float, DISABLED_nan)
 #endif
 {
    EXPECT_TRUE(isnan(TEST_NAN));
@@ -101,18 +101,18 @@ test_half_to_float_limits(float (*func)(uint16_t))
 
 /* Test the optionally HW instruction-using path. */
 #if IEEE754_2008_NAN
-TEST(half_to_float_test, half_to_float_test)
+TEST(half_to_float, limits)
 #else
-TEST(half_to_float_test, DISABLED_half_to_float_test)
+TEST(half_to_float, DISABLED_limits)
 #endif
 {
    test_half_to_float_limits(_mesa_half_to_float);
 }
 
 #if IEEE754_2008_NAN
-TEST(half_to_float_test, half_to_float_slow_test)
+TEST(half_to_float, limits_slow)
 #else
-TEST(half_to_float_test, DISABLED_half_to_float_slow_test)
+TEST(half_to_float, DISABLED_limits_slow)
 #endif
 {
    test_half_to_float_limits(_mesa_half_to_float_slow);
@@ -160,30 +160,34 @@ test_float_to_half_roundtrip(uint16_t (*func)(float))
    EXPECT_EQ(roundtrip_fails, 0);
 }
 
-TEST(u_half_test, u_half_test)
+TEST(float_to_half, roundtrip)
 {
    test_float_to_half_roundtrip(_mesa_float_to_half);
+}
+
+TEST(float_to_half, roundtrip_slow)
+{
    test_float_to_half_roundtrip(_mesa_float_to_half_slow);
 }
 
-TEST(float_to_half_test, float_to_half_test)
+TEST(float_to_half, limits)
 {
    test_float_to_half_limits(_mesa_float_to_half);
 }
 
-TEST(float_to_float16_rtne_test, float_to_float16_rtne_test)
+TEST(float_to_float16_rtne, limits)
 {
    test_float_to_half_limits(_mesa_float_to_float16_rtne);
 }
 
 /* no rtne_slow variant -- rtne is just _mesa_float_to_half(). */
 
-TEST(float_to_float16_rtz_test, float_to_float16_rtz_test)
+TEST(float_to_float16_rtz, limits)
 {
    test_float_to_half_limits(_mesa_float_to_float16_rtz);
 }
 
-TEST(float_to_float16_rtz_slow_test, float_to_float16_rtz_test)
+TEST(float_to_float16_rtz_slow, limits)
 {
    test_float_to_half_limits(_mesa_float_to_float16_rtz_slow);
 }
