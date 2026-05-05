@@ -3505,8 +3505,9 @@ zink_shader_spirv_compile(struct zink_screen *screen, struct zink_shader *zs, st
    }
 
    sci.sType = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT;
+   sci.flags = VK_SHADER_CREATE_INDEPENDENT_SETS_BIT_KHR;
    if (zs->info.stage == MESA_SHADER_MESH && zs->info.prev_stage != MESA_SHADER_TASK)
-      sci.flags = VK_SHADER_CREATE_NO_TASK_SHADER_BIT_EXT;
+      sci.flags |= VK_SHADER_CREATE_NO_TASK_SHADER_BIT_EXT;
    sci.stage = mesa_to_vk_shader_stage(zs->info.stage);
    sci.nextStage = zink_get_next_stage(zs->info.stage);
    sci.codeType = VK_SHADER_CODE_TYPE_SPIRV_EXT;
