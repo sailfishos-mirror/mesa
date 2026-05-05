@@ -134,7 +134,8 @@ bool ac_modifier_has_dcc(uint64_t modifier)
 
 bool ac_modifier_has_dcc_retile(uint64_t modifier)
 {
-   return IS_AMD_FMT_MOD(modifier) && AMD_FMT_MOD_GET(DCC_RETILE, modifier);
+   return IS_AMD_FMT_MOD(modifier) && AMD_FMT_MOD_GET(DCC_RETILE, modifier) &&
+          AMD_FMT_MOD_GET(TILE_VERSION, modifier) >= AMD_FMT_MOD_TILE_VER_GFX9;
 }
 
 bool ac_modifier_supports_dcc_image_stores(enum amd_gfx_level gfx_level, uint64_t modifier)
