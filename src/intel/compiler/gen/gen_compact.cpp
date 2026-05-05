@@ -939,6 +939,10 @@ get_compact_tables(const struct intel_device_info *devinfo)
    case 300:
       return xe2_tables;
 
+   case 350:
+      /* empty_tables disables compaction */
+      return empty_tables;
+
    default:
       UNREACHABLE("Unknown platform in get_compact_tables()");
       return empty_tables;
