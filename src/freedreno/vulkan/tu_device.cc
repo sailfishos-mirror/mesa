@@ -1823,6 +1823,7 @@ static const driOptionDescription tu_dri_options[] = {
       DRI_CONF_VK_X11_STRICT_IMAGE_COUNT(false)
       DRI_CONF_VK_X11_ENSURE_MIN_IMAGE_COUNT(false)
       DRI_CONF_VK_XWAYLAND_WAIT_READY(false)
+      DRI_CONF_TU_ALLOW_CONCURRENT_BINNING(false)
    DRI_CONF_SECTION_END
 
    DRI_CONF_SECTION_DEBUG
@@ -1879,6 +1880,9 @@ tu_init_dri_options(struct tu_instance *instance)
    instance->autotune_algo =
          driQueryOptionstr(&instance->dri_options, "tu_autotune_algorithm");
    instance->restrict_subgroup_size_64 = driQueryOptionb(&instance->dri_options, "tu_restrict_subgroup_size_64");
+   instance->allow_concurrent_binning =
+      (driQueryOptionb(&instance->dri_options, "tu_allow_concurrent_binning") && !TU_DEBUG(NO_CONCURRENT_BINNING)) ||
+      TU_DEBUG(FORCE_CONCURRENT_BINNING);
 }
 
 static uint32_t instance_count = 0;
