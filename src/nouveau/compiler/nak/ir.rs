@@ -1390,6 +1390,7 @@ fn all_dsts_uniform(dsts: &[Dst]) -> bool {
 }
 
 #[repr(u8)]
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum DstType {
     Pred,
@@ -3190,18 +3191,16 @@ pub struct OpMuFu {
     pub op_type: FloatType,
 }
 
-impl AsSlice<Src> for OpMuFu {
-    type Attr = SrcType;
-
-    fn as_slice(&self) -> &[Src] {
+impl SrcsAsSlice for OpMuFu {
+    fn srcs_as_slice(&self) -> &[Src] {
         std::slice::from_ref(&self.src)
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Src] {
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src] {
         std::slice::from_mut(&mut self.src)
     }
 
-    fn attrs(&self) -> SrcTypeList {
+    fn src_types(&self) -> SrcTypeList {
         let src_type = match self.op_type {
             FloatType::F16 => SrcType::F16,
             FloatType::F32 => SrcType::F32,
@@ -4707,18 +4706,16 @@ pub struct OpF2F {
     pub integer_rnd: bool,
 }
 
-impl AsSlice<Src> for OpF2F {
-    type Attr = SrcType;
-
-    fn as_slice(&self) -> &[Src] {
+impl SrcsAsSlice for OpF2F {
+    fn srcs_as_slice(&self) -> &[Src] {
         std::slice::from_ref(&self.src)
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Src] {
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src] {
         std::slice::from_mut(&mut self.src)
     }
 
-    fn attrs(&self) -> SrcTypeList {
+    fn src_types(&self) -> SrcTypeList {
         let src_type = match self.src_type {
             FloatType::F16 => SrcType::F16,
             FloatType::F32 => SrcType::F32,
@@ -4728,18 +4725,16 @@ impl AsSlice<Src> for OpF2F {
     }
 }
 
-impl AsSlice<Dst> for OpF2F {
-    type Attr = DstType;
-
-    fn as_slice(&self) -> &[Dst] {
+impl DstsAsSlice for OpF2F {
+    fn dsts_as_slice(&self) -> &[Dst] {
         std::slice::from_ref(&self.dst)
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Dst] {
+    fn dsts_as_mut_slice(&mut self) -> &mut [Dst] {
         std::slice::from_mut(&mut self.dst)
     }
 
-    fn attrs(&self) -> DstTypeList {
+    fn dst_types(&self) -> DstTypeList {
         let dst_type = match self.dst_type {
             FloatType::F16 => DstType::F16,
             FloatType::F32 => DstType::F32,
@@ -4804,18 +4799,16 @@ pub struct OpF2I {
     pub ftz: bool,
 }
 
-impl AsSlice<Src> for OpF2I {
-    type Attr = SrcType;
-
-    fn as_slice(&self) -> &[Src] {
+impl SrcsAsSlice for OpF2I {
+    fn srcs_as_slice(&self) -> &[Src] {
         std::slice::from_ref(&self.src)
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Src] {
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src] {
         std::slice::from_mut(&mut self.src)
     }
 
-    fn attrs(&self) -> SrcTypeList {
+    fn src_types(&self) -> SrcTypeList {
         let src_type = match self.src_type {
             FloatType::F16 => SrcType::F16,
             FloatType::F32 => SrcType::F32,
@@ -4847,18 +4840,16 @@ pub struct OpI2F {
     pub rnd_mode: FRndMode,
 }
 
-impl AsSlice<Src> for OpI2F {
-    type Attr = SrcType;
-
-    fn as_slice(&self) -> &[Src] {
+impl SrcsAsSlice for OpI2F {
+    fn srcs_as_slice(&self) -> &[Src] {
         std::slice::from_ref(&self.src)
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Src] {
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src] {
         std::slice::from_mut(&mut self.src)
     }
 
-    fn attrs(&self) -> SrcTypeList {
+    fn src_types(&self) -> SrcTypeList {
         if self.src_type.bits() <= 32 {
             SrcTypeList::Uniform(SrcType::ALU)
         } else {
@@ -4867,18 +4858,16 @@ impl AsSlice<Src> for OpI2F {
     }
 }
 
-impl AsSlice<Dst> for OpI2F {
-    type Attr = DstType;
-
-    fn as_slice(&self) -> &[Dst] {
+impl DstsAsSlice for OpI2F {
+    fn dsts_as_slice(&self) -> &[Dst] {
         std::slice::from_ref(&self.dst)
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Dst] {
+    fn dsts_as_mut_slice(&mut self) -> &mut [Dst] {
         std::slice::from_mut(&mut self.dst)
     }
 
-    fn attrs(&self) -> DstTypeList {
+    fn dst_types(&self) -> DstTypeList {
         let dst_type = match self.dst_type {
             FloatType::F16 => DstType::F16,
             FloatType::F32 => DstType::F32,
@@ -4949,18 +4938,16 @@ pub struct OpFRnd {
     pub ftz: bool,
 }
 
-impl AsSlice<Src> for OpFRnd {
-    type Attr = SrcType;
-
-    fn as_slice(&self) -> &[Src] {
+impl SrcsAsSlice for OpFRnd {
+    fn srcs_as_slice(&self) -> &[Src] {
         std::slice::from_ref(&self.src)
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Src] {
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src] {
         std::slice::from_mut(&mut self.src)
     }
 
-    fn attrs(&self) -> SrcTypeList {
+    fn src_types(&self) -> SrcTypeList {
         let src_type = match self.src_type {
             FloatType::F16 => SrcType::F16,
             FloatType::F32 => SrcType::F32,
@@ -7799,18 +7786,16 @@ impl OpPhiSrcs {
     }
 }
 
-impl AsSlice<Src> for OpPhiSrcs {
-    type Attr = SrcType;
-
-    fn as_slice(&self) -> &[Src] {
+impl SrcsAsSlice for OpPhiSrcs {
+    fn srcs_as_slice(&self) -> &[Src] {
         &self.srcs.b
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Src] {
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src] {
         &mut self.srcs.b
     }
 
-    fn attrs(&self) -> SrcTypeList {
+    fn src_types(&self) -> SrcTypeList {
         SrcTypeList::Uniform(SrcType::GPR)
     }
 }
@@ -7848,18 +7833,16 @@ impl OpPhiDsts {
     }
 }
 
-impl AsSlice<Dst> for OpPhiDsts {
-    type Attr = DstType;
-
-    fn as_slice(&self) -> &[Dst] {
+impl DstsAsSlice for OpPhiDsts {
+    fn dsts_as_slice(&self) -> &[Dst] {
         &self.dsts.b
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Dst] {
+    fn dsts_as_mut_slice(&mut self) -> &mut [Dst] {
         &mut self.dsts.b
     }
 
-    fn attrs(&self) -> DstTypeList {
+    fn dst_types(&self) -> DstTypeList {
         DstTypeList::Uniform(DstType::Vec)
     }
 }
@@ -7965,34 +7948,30 @@ impl OpParCopy {
     }
 }
 
-impl AsSlice<Src> for OpParCopy {
-    type Attr = SrcType;
-
-    fn as_slice(&self) -> &[Src] {
+impl SrcsAsSlice for OpParCopy {
+    fn srcs_as_slice(&self) -> &[Src] {
         &self.dsts_srcs.b
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Src] {
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src] {
         &mut self.dsts_srcs.b
     }
 
-    fn attrs(&self) -> SrcTypeList {
+    fn src_types(&self) -> SrcTypeList {
         SrcTypeList::Uniform(SrcType::GPR)
     }
 }
 
-impl AsSlice<Dst> for OpParCopy {
-    type Attr = DstType;
-
-    fn as_slice(&self) -> &[Dst] {
+impl DstsAsSlice for OpParCopy {
+    fn dsts_as_slice(&self) -> &[Dst] {
         &self.dsts_srcs.a
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Dst] {
+    fn dsts_as_mut_slice(&mut self) -> &mut [Dst] {
         &mut self.dsts_srcs.a
     }
 
-    fn attrs(&self) -> DstTypeList {
+    fn dst_types(&self) -> DstTypeList {
         DstTypeList::Uniform(DstType::Vec)
     }
 }
@@ -8021,18 +8000,16 @@ pub struct OpRegOut {
     pub srcs: Vec<Src>,
 }
 
-impl AsSlice<Src> for OpRegOut {
-    type Attr = SrcType;
-
-    fn as_slice(&self) -> &[Src] {
+impl SrcsAsSlice for OpRegOut {
+    fn srcs_as_slice(&self) -> &[Src] {
         &self.srcs
     }
 
-    fn as_mut_slice(&mut self) -> &mut [Src] {
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src] {
         &mut self.srcs
     }
 
-    fn attrs(&self) -> SrcTypeList {
+    fn src_types(&self) -> SrcTypeList {
         SrcTypeList::Uniform(SrcType::GPR)
     }
 }
