@@ -262,6 +262,8 @@ struct tu_instance
     * with cached+coherent+host_visible when the hardware supports it.
     */
    bool override_uncached_as_cache_coherent;
+
+   bool allow_concurrent_binning;
 };
 VK_DEFINE_HANDLE_CASTS(tu_instance, vk.base, VkInstance,
                        VK_OBJECT_TYPE_INSTANCE)

@@ -679,6 +679,11 @@
 #define DRI_CONF_TU_OVERRIDE_UNCACHED_AS_CACHE_COHERENT(def) \
    DRI_CONF_OPT_B(tu_override_uncached_as_cache_coherent, def, \
                   "Replaces uncached-host allocations with cached-coherent-host when possible. Only useful under x86 emulation where memory accesses tend to be atomic")
+
+#define DRI_CONF_TU_ALLOW_CONCURRENT_BINNING(def) \
+   DRI_CONF_OPT_B(tu_allow_concurrent_binning, def, \
+                  "Allow concurrent binning on A7XX+, the CB is disabled by default because it regresses performance on desktop games")
+
 /**
  * \brief Honeykrisp specific configuration options
  */
