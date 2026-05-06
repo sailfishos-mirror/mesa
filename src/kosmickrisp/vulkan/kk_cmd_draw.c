@@ -1093,6 +1093,50 @@ kk_CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount,
 }
 
 VKAPI_ATTR void VKAPI_CALL
+kk_CmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCount,
+                   const VkMultiDrawInfoEXT *pVertexInfo,
+                   uint32_t instanceCount, uint32_t firstInstance,
+                   uint32_t stride)
+{
+   /* Metal validation dislikes empty calls */
+   if (instanceCount == 0)
+      return;
+
+   VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
+
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
+
+   struct kk_draw_data data = {
+      .count[1] = instanceCount,
+      .first_instance = firstInstance,
+      .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
+   };
+
+   for (uint32_t i = 0; i < drawCount; ++i) {
+      /* Metal validation dislikes empty calls */
+      if (pVertexInfo->vertexCount > 0) {
+         /* TODO_KOSMICKRISP
+          * Move this to a separate buffer from the root so we don't have to upload
+          * it every single loop. Pass it to the kk_draw call as a parameter that
+          * will later be uploaded.
+          */
+         cmd->state.gfx.descriptors.root_dirty = true;
+         cmd->state.gfx.descriptors.root.draw.draw_id = i;
+
+         data.count[0] = pVertexInfo->vertexCount;
+         data.first_vertex = pVertexInfo->firstVertex;
+         kk_draw(cmd, data);
+      }
+
+      pVertexInfo = ((void *)pVertexInfo) + stride;
+   }
+   /* TODO_KOSMICKRISP Remove once above is done */
+   cmd->state.gfx.descriptors.root_dirty = true;
+   cmd->state.gfx.descriptors.root.draw.draw_id = 0;
+}
+
+VKAPI_ATTR void VKAPI_CALL
 kk_CmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount,
                   uint32_t instanceCount, uint32_t firstIndex,
                   int32_t vertexOffset, uint32_t firstInstance)
@@ -1122,6 +1166,58 @@ kk_CmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount,
    };
 
    kk_draw(cmd, data);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+kk_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount,
+                          const VkMultiDrawIndexedInfoEXT *pIndexInfo,
+                          uint32_t instanceCount, uint32_t firstInstance,
+                          uint32_t stride, const int32_t *pVertexOffset)
+{
+   /* Metal validation dislikes empty calls */
+   if (instanceCount == 0)
+      return;
+
+   VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
+
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
+
+   struct kk_draw_data data = {
+      .count[1] = instanceCount,
+      .index_buffer = cmd->state.gfx.index.handle,
+      .index_buffer_offset = cmd->state.gfx.index.offset,
+      .index_buffer_range_B =
+         cmd->state.gfx.index.size - cmd->state.gfx.index.offset,
+      .first_instance = firstInstance,
+      .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
+      .index_size = cmd->state.gfx.index.bytes_per_index,
+      .indexed = true,
+   };
+
+   for (uint32_t i = 0; i < drawCount; ++i) {
+      /* Metal validation dislikes empty calls */
+      if (pIndexInfo->indexCount > 0) {
+         /* TODO_KOSMICKRISP
+          * Move this to a separate buffer from the root so we don't have to upload
+          * it every single loop. Pass it to the kk_draw call as a parameter that
+          * will later be uploaded.
+          */
+         cmd->state.gfx.descriptors.root_dirty = true;
+         cmd->state.gfx.descriptors.root.draw.draw_id = i;
+
+         data.count[0] = pIndexInfo->indexCount;
+         data.first_index = pIndexInfo->firstIndex;
+         data.first_vertex = pVertexOffset != NULL ? *pVertexOffset :
+                             pIndexInfo->vertexOffset;
+         kk_draw(cmd, data);
+      }
+
+      pIndexInfo = ((void *)pIndexInfo) + stride;
+   }
+   /* TODO_KOSMICKRISP Remove once above is done */
+   cmd->state.gfx.descriptors.root_dirty = true;
+   cmd->state.gfx.descriptors.root.draw.draw_id = 0;
 }
 
 VKAPI_ATTR void VKAPI_CALL
