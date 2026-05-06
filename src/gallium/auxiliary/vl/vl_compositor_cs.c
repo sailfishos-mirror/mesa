@@ -92,8 +92,8 @@ static nir_def *cs_create_shader(struct vl_compositor *c, struct cs_shader *s)
          vec2 subsample_ratio; // params[5].zw
          vec2 coord_clamp;     // params[6].xy
          vec2 chroma_clamp;    // params[6].zw
-         vec4 proj[3];         // params[7-8]
-         vec4 chroma_proj[3];  // params[9-10]
+         vec4 proj[2];         // params[7-8]
+         vec4 chroma_proj[2];  // params[9-10]
          vec4 rgb2yuv[3];      // params[11-13]
          vec4 primaries[3];    // params[14-16]
       };
