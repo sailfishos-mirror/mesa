@@ -811,6 +811,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_urb_vec4_intel:
    case nir_intrinsic_load_urb_lsc_intel:
    case nir_intrinsic_load_buffer_ptr_kk:
+   case nir_intrinsic_load_per_draw_ptr_kk:
    case nir_intrinsic_load_texture_handle_kk:
    case nir_intrinsic_load_depth_texture_kk:
    case nir_intrinsic_load_sampler_handle_kk:

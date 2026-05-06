@@ -622,6 +622,7 @@ gather_shader_info(struct kk_shader *shader, nir_shader *nir,
                    const struct vk_graphics_pipeline_state *state)
 {
    shader->info.stage = nir->info.stage;
+   shader->info.uses_per_draw_data = msl_gather_uses_per_draw_data(nir);
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       nir_shader_intrinsics_pass(nir, gather_vs_inputs, nir_metadata_all,
                                  &shader->info.vs.attribs_read);
@@ -951,15 +952,14 @@ kk_compile_depth_stencil_state(struct kk_device *device,
    return kk_compile_ds_state(device, &info);
 }
 
-static struct kk_shader_info
+static void
 gather_graphics_pipeline_create_info(
-   const struct vk_graphics_pipeline_state *state, uint32_t attribs_read,
+   const struct vk_graphics_pipeline_state *state, struct kk_shader_info *info,
    struct kk_shader *fs)
 {
    assert(state && fs && "state and fragment shader are a must");
-   struct kk_shader_info info = {.vs.attribs_read = attribs_read};
 
-   info.vs.topology = vk_primitive_topology_to_mtl_primitive_topology_class(
+   info->vs.topology = vk_primitive_topology_to_mtl_primitive_topology_class(
       state->ia->primitive_topology);
 
    /* Render pass data */
@@ -967,52 +967,50 @@ gather_graphics_pipeline_create_info(
    bool has_depth = rp->depth_attachment_format != VK_FORMAT_UNDEFINED;
    bool has_stencil = rp->stencil_attachment_format != VK_FORMAT_UNDEFINED;
    {
-      info.vs.color_attachment_count = rp->color_attachment_count;
-      for (uint8_t i = 0u; i < info.vs.color_attachment_count; ++i) {
+      info->vs.color_attachment_count = rp->color_attachment_count;
+      for (uint8_t i = 0u; i < info->vs.color_attachment_count; ++i) {
          VkFormat format = rp->color_attachment_formats[i];
-         info.vs.rt_formats[i] = format == VK_FORMAT_UNDEFINED
-                                    ? MTL_PIXEL_FORMAT_INVALID
-                                    : vk_format_to_mtl_pixel_format(format);
+         info->vs.rt_formats[i] = format == VK_FORMAT_UNDEFINED
+                                     ? MTL_PIXEL_FORMAT_INVALID
+                                     : vk_format_to_mtl_pixel_format(format);
       }
-      info.vs.d_format =
+      info->vs.d_format =
          has_depth ? vk_format_to_mtl_pixel_format(rp->depth_attachment_format)
                    : MTL_PIXEL_FORMAT_INVALID;
-      info.vs.s_format =
+      info->vs.s_format =
          has_stencil
             ? vk_format_to_mtl_pixel_format(rp->stencil_attachment_format)
             : MTL_PIXEL_FORMAT_INVALID;
 
-      info.vs.view_mask = state->mv->view_mask;
+      info->vs.view_mask = state->mv->view_mask;
    }
 
-   info.vs.has_ds = has_static_depth_stencil_state(state);
-   if (info.vs.has_ds)
-      kk_gather_ds_info(state->ds, has_depth, has_stencil, &info);
+   info->vs.has_ds = has_static_depth_stencil_state(state);
+   if (info->vs.has_ds)
+      kk_gather_ds_info(state->ds, has_depth, has_stencil, info);
 
-   info.vs.has_ms = state->ms != NULL;
-   info.vs.sample_count = 1u;
-   if (info.vs.has_ms) {
+   info->vs.has_ms = state->ms != NULL;
+   info->vs.sample_count = 1u;
+   if (info->vs.has_ms) {
       const struct vk_multisample_state *ms = state->ms;
-      info.vs.sample_count = ms->rasterization_samples;
-      info.vs.has_alpha_to_coverage_enabled = ms->alpha_to_coverage_enable;
-      info.vs.has_alpha_to_one_enabled = ms->alpha_to_one_enable;
+      info->vs.sample_count = ms->rasterization_samples;
+      info->vs.has_alpha_to_coverage_enabled = ms->alpha_to_coverage_enable;
+      info->vs.has_alpha_to_one_enabled = ms->alpha_to_one_enable;
    }
 
    /* We need to store the fragment source in the vertex too otherwise we won't
     * be able to create the whole pipeline correctly. */
    {
       uint32_t length = strlen(fs->msl_code);
-      info.vs.frag_msl_code = ralloc_size(NULL, length + 1u);
-      strcpy(info.vs.frag_msl_code, fs->msl_code);
-      info.vs.frag_msl_code[length] = '\0';
+      info->vs.frag_msl_code = ralloc_size(NULL, length + 1u);
+      strcpy(info->vs.frag_msl_code, fs->msl_code);
+      info->vs.frag_msl_code[length] = '\0';
 
       length = strlen(fs->entrypoint_name);
-      info.vs.frag_entrypoint_name = ralloc_size(NULL, length + 1u);
-      strcpy(info.vs.frag_entrypoint_name, fs->entrypoint_name);
-      info.vs.frag_entrypoint_name[length] = '\0';
+      info->vs.frag_entrypoint_name = ralloc_size(NULL, length + 1u);
+      strcpy(info->vs.frag_entrypoint_name, fs->entrypoint_name);
+      info->vs.frag_entrypoint_name[length] = '\0';
    }
-
-   return info;
 }
 
 /* TODO_KOSMICKRISP For now we just support vertex and fragment */
@@ -1202,8 +1200,8 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
          fs = container_of(frag_shader, struct kk_shader, vk);
       }
 
-      vs->info = gather_graphics_pipeline_create_info(
-         state, vs->info.vs.attribs_read, fs);
+      gather_graphics_pipeline_create_info(
+         state, &vs->info, fs);
       result = kk_compile_graphics_pipeline(
          dev, vs->msl_code, vs->entrypoint_name, fs->msl_code,
          fs->entrypoint_name, &vs->info, &vs->pipeline);

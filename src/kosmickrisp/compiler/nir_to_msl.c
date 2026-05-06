@@ -85,7 +85,13 @@ emit_inputs(struct nir_to_msl_ctx *ctx, nir_shader *shader)
       break;
    }
    P_IND(ctx, "constant Buffer &buf0 [[buffer(0)]],\n");
-   P_IND(ctx, "constant SamplerTable &sampler_table [[buffer(1)]]\n");
+   P_IND(ctx, "constant SamplerTable &sampler_table [[buffer(1)]]");
+   if (ctx->uses_per_draw_data) {
+      P(ctx, ",\n");
+      P_IND(ctx, "constant Buffer &per_draw [[buffer(2)]]\n");
+   } else {
+      P(ctx, "\n");
+   }
 }
 
 static const char *
@@ -1111,6 +1117,9 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_buffer_ptr_kk:
       P(ctx, "(ulong)&buf%d.contents[0];\n", nir_intrinsic_binding(instr));
       break;
+   case nir_intrinsic_load_per_draw_ptr_kk:
+      P(ctx, "(ulong)&per_draw.contents[0];\n");
+      break;
    case nir_intrinsic_load_global: {
       enum gl_access_qualifier access = nir_intrinsic_access(instr);
       const char *type = msl_type_for_def(ctx->types, &instr->def);
@@ -2128,6 +2137,7 @@ msl_gather_info(struct nir_to_msl_ctx *ctx, struct nir_to_msl_options *options)
 {
    nir_function_impl *impl = nir_shader_get_entrypoint(ctx->shader);
    ctx->types = msl_infer_types(ctx->shader);
+   ctx->uses_per_draw_data = msl_gather_uses_per_draw_data(ctx->shader);
 
    /* TODO_KOSMICKRISP
     * Reindex blocks and ssa. This allows us to optimize things we don't at the

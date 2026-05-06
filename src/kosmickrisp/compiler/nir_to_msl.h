@@ -78,6 +78,8 @@ bool msl_nir_fake_guard_for_discards(struct nir_shader *nir);
 bool msl_nir_lower_sample_shading(nir_shader *nir);
 void msl_lower_nir_late(nir_shader *nir);
 
+bool msl_gather_uses_per_draw_data(nir_shader *nir);
+
 static const nir_shader_compiler_options kk_nir_options = {
    .lower_fdph = true,
    .has_fsub = true,

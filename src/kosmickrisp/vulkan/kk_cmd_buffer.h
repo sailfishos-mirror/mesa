@@ -69,6 +69,13 @@ struct kk_descriptor_state {
    struct kk_push_descriptor_set *push[KK_MAX_SETS];
 };
 
+struct kk_per_draw_data {
+   /* Mask of stages that need per-draw data uploaded */
+   uint32_t upload_mask;
+
+   uint32_t draw_id;
+};
+
 struct kk_attachment {
    VkFormat vk_format;
    struct kk_image_view *iview;
