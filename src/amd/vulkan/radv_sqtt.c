@@ -346,18 +346,18 @@ radv_sqtt_init_bo(struct radv_device *device)
    VkDeviceMemory memory, staging_memory;
    VkBuffer buffer, staging_buffer;
    VkResult result;
-   uint64_t size;
+   uint64_t per_se_size, size;
    uint64_t va;
    void *ptr;
 
    /* The buffer size and address need to be aligned in HW regs. Align the
     * size as early as possible so that we do all the allocation & addressing
     * correctly. */
-   device->sqtt.buffer_size = align64(device->sqtt.buffer_size, 1ull << SQTT_BUFFER_ALIGN_SHIFT);
+   per_se_size = align64(device->sqtt.buffer_size, 1ull << SQTT_BUFFER_ALIGN_SHIFT);
 
    /* Compute total size of the thread trace BO for all SEs. */
    size = align64(sizeof(struct ac_sqtt_data_info) * max_se, 1ull << SQTT_BUFFER_ALIGN_SHIFT);
-   size += device->sqtt.buffer_size * (uint64_t)max_se;
+   size += per_se_size * (uint64_t)max_se;
 
    /* Allocate the SQTT buffer (it must be in VRAM). */
    const uint32_t memory_type_index = radv_find_memory_index(

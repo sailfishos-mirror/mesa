@@ -24,18 +24,17 @@ si_emit_spi_config_cntl(struct si_context *sctx,
 static bool si_sqtt_init_bo(struct si_context *sctx)
 {
    unsigned max_se = sctx->screen->info.max_se;
-   uint64_t size;
+   uint64_t per_se_size, size;
 
    /* The buffer size and address need to be aligned in HW regs. Align the
     * size as early as possible so that we do all the allocation & addressing
     * correctly. */
-   sctx->sqtt->buffer_size =
-      align64(sctx->sqtt->buffer_size, 1ull << SQTT_BUFFER_ALIGN_SHIFT);
+   per_se_size = align64(sctx->sqtt->buffer_size, 1ull << SQTT_BUFFER_ALIGN_SHIFT);
 
    /* Compute total size of the thread trace BO for all SEs. */
    size = align64(sizeof(struct ac_sqtt_data_info) * max_se,
                   1ull << SQTT_BUFFER_ALIGN_SHIFT);
-   size += sctx->sqtt->buffer_size * (uint64_t)max_se;
+   size += per_se_size * (uint64_t)max_se;
 
    if (size > UINT32_MAX)
       return false;
