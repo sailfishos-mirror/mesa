@@ -1,8 +1,8 @@
-Development Notes
-=================
+Developing Extensions
+=====================
 
-Adding Extensions
------------------
+Implementing OpenGL[ES] Extensions
+----------------------------------
 
 To add a new GL extension to Mesa you have to do at least the following.
 
@@ -17,7 +17,7 @@ To add a new GL extension to Mesa you have to do at least the following.
            /* prototype the new functions */
            /* TYPEDEFS for the new functions */
            #endif
-         
+
 
 -  In the ``src/mesa/glapi/glapi/gen/`` directory, add the new extension
    functions and enums to the ``gl_API.xml`` file. Then, a bunch of
