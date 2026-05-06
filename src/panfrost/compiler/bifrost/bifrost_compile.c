@@ -1437,6 +1437,88 @@ bi_emit_image_store(bi_builder *b, nir_intrinsic_instr *instr)
 }
 
 static void
+bi_emit_load_tex_to(bi_builder *b, bi_index dest, nir_intrinsic_instr *instr)
+{
+   bi_index coords = bi_src_index(&instr->src[0]);
+   bi_index xy = bi_extract(b, coords, 0);
+   bi_index zw = bi_extract(b, coords, 1);
+
+   nir_src handle = instr->src[1];
+
+   enum bi_register_format regfmt =
+      bi_reg_fmt_for_nir(nir_intrinsic_dest_type(instr));
+   enum bi_vecsize vecsize = instr->num_components - 1;
+
+   if (b->shader->arch >= 9) {
+      uint32_t imm_res = 0;
+      bool use_imm_form = false;
+
+      if (nir_src_is_const(handle)) {
+         imm_res = nir_src_as_uint(handle);
+         const unsigned table_index = pan_res_handle_get_table(imm_res);
+         const unsigned res_index = pan_res_handle_get_index(imm_res);
+         use_imm_form = va_is_valid_const_table(table_index) && res_index < 16;
+      }
+
+      if (use_imm_form) {
+         bi_instr *I = bi_ld_tex_imm_to(b, dest, xy, zw, regfmt, vecsize,
+                                        pan_res_handle_get_index(imm_res));
+         I->table = va_res_fold_table_idx(pan_res_handle_get_table(imm_res));
+      } else {
+         bi_ld_tex_to(b, dest, xy, zw, bi_src_index(&handle), regfmt, vecsize);
+      }
+   } else {
+      bi_ld_attr_tex_to(b, dest, xy, zw, bi_src_index(&handle), regfmt,
+                        vecsize);
+   }
+
+   bi_split_def(b, &instr->def);
+}
+
+static void
+bi_emit_lea_tex_to(bi_builder *b, bi_index dest, nir_intrinsic_instr *instr)
+{
+   bi_index coords = bi_src_index(&instr->src[0]);
+   bi_index xy = bi_extract(b, coords, 0);
+   bi_index zw = bi_extract(b, coords, 1);
+
+   nir_src handle = instr->src[1];
+   nir_alu_type src_type = nir_intrinsic_src_type(instr);
+   enum bi_register_format type =
+      src_type == 32 ? BI_REGISTER_FORMAT_AUTO : bi_reg_fmt_for_nir(src_type);
+
+   if (b->shader->arch >= 9) {
+      uint32_t imm_res = 0;
+      bool use_imm_form = false;
+
+      if (nir_src_is_const(handle)) {
+         imm_res = nir_src_as_uint(handle);
+         const unsigned table_index = pan_res_handle_get_table(imm_res);
+         const unsigned res_index = pan_res_handle_get_index(imm_res);
+         use_imm_form = va_is_valid_const_table(table_index) && res_index < 16;
+      }
+
+      if (use_imm_form) {
+         bi_instr *I = bi_lea_tex_imm_to(b, dest, xy, zw, false,
+                                         pan_res_handle_get_index(imm_res));
+         I->table = va_res_fold_table_idx(pan_res_handle_get_table(imm_res));
+      } else {
+         bi_lea_tex_to(b, dest, xy, zw, bi_src_index(&handle), false);
+      }
+   } else {
+      bi_instr *I = bi_lea_attr_tex_to(b, dest, xy, zw,
+                                       bi_src_index(&handle), type);
+
+      /* LEA_ATTR_TEX defaults to the secondary attribute table, but
+       * our ABI has all images in the primary attribute table
+       */
+      I->table = BI_TABLE_ATTRIBUTE_1;
+   }
+
+   bi_emit_cached_split(b, dest, 3 * 32);
+}
+
+static void
 bi_emit_load_cvt(bi_builder *b, bi_index dst, nir_intrinsic_instr *instr,
                  enum va_memory_access mem_access)
 {
@@ -1979,6 +2061,14 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
 
    case nir_intrinsic_image_store:
       bi_emit_image_store(b, instr);
+      break;
+
+   case nir_intrinsic_load_tex_pan:
+      bi_emit_load_tex_to(b, dst, instr);
+      break;
+
+   case nir_intrinsic_lea_tex_pan:
+      bi_emit_lea_tex_to(b, dst, instr);
       break;
 
    case nir_intrinsic_global_atomic_swap:

@@ -1794,6 +1794,11 @@ intrinsic("texc1_pan", [1, 1, 1, -1], dest_comp=4, bit_sizes=[16, 32],
 intrinsic("texc2_pan", [1, 1, 1, -1, -1], dest_comp=4, bit_sizes=[16, 32],
           indices=[DEST_TYPE, FLAGS], flags=[CAN_ELIMINATE, CAN_REORDER])
 
+# src = { coords, desc }
+load("tex_pan", [2, 1], indices=[ACCESS, DEST_TYPE], flags=[CAN_ELIMINATE])
+# src = { coords, desc }
+intrinsic("lea_tex_pan", [2, 1], dest_comp=3, indices=[SRC_TYPE], flags=[CAN_ELIMINATE, CAN_REORDER], bit_sizes=[32])
+
 # Loads the sampler paramaters <min_lod, max_lod, lod_bias>
 # src[] = { sampler_index }
 load("sampler_lod_parameters", [1], flags=[CAN_ELIMINATE, CAN_REORDER])

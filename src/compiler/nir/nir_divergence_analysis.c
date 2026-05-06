@@ -805,6 +805,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_texc0_pan:
    case nir_intrinsic_texc1_pan:
    case nir_intrinsic_texc2_pan:
+   case nir_intrinsic_load_tex_pan:
+   case nir_intrinsic_lea_tex_pan:
    case nir_intrinsic_atomic_counter_read:
    case nir_intrinsic_atomic_counter_read_deref:
    case nir_intrinsic_is_sparse_texels_resident:
