@@ -65,6 +65,9 @@ struct pan_tiler_context {
          /* A tiler descriptor can only handle a limited amount of layers.
           * If the number of layers is bigger than this, several tiler
           * descriptors will be issued, each with a different layer_offset.
+          *
+          * Note: on v14+, only up to one tiler descriptor is supported and
+          * layer_offset is deprecated.
           */
          uint8_t layer_offset;
       } valhall;

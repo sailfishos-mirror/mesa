@@ -1063,7 +1063,10 @@ get_tiler_desc(struct panvk_cmd_buffer *cmdbuf)
 
       /* This will be overloaded. */
       cfg.layer_count = 1;
+
+#if PAN_ARCH < 14
       cfg.layer_offset = 0;
+#endif
    }
 
    /* When simul_use=true, the tiler descriptors are allocated from the
@@ -1257,8 +1260,10 @@ init_layer_fragment_state(const struct pan_fb_desc_info *info,
     * have in frame_argument to pass other information to the fragment
     * shader at some point.
     */
-   assert(info->layer >= info->tiler_ctx->valhall.layer_offset);
    fbd_data.frame_argument = info->layer;
+
+   /* Layer offset is unused on v14+. */
+   assert(info->tiler_ctx->valhall.layer_offset == 0);
 
    pan_pack(&fbd_data.flags0, FRAGMENT_FLAGS_0, cfg) {
       cfg.pre_frame_0 = pan_fix_frame_shader_mode(info->frame_shaders.modes[0],
@@ -1276,8 +1281,7 @@ init_layer_fragment_state(const struct pan_fb_desc_info *info,
       cfg.hsr_prepass_filter_enable = true;
       cfg.hsr_hierarchical_optimizations_enable = true;
 
-      cfg.internal_layer_index =
-         info->layer - info->tiler_ctx->valhall.layer_offset;
+      cfg.internal_layer_index = info->layer;
    }
 
    pan_pack(&fbd_data.flags2, FRAGMENT_FLAGS_2, cfg) {

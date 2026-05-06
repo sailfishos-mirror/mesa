@@ -132,8 +132,10 @@ init_fragment_state(const struct pan_fb_info *fb, unsigned layer_idx,
     * use the extra 56-bits we have in frame_argument to pass other
     * information to the fragment shader at some point.
     */
-   assert(layer_idx >= tiler_ctx->valhall.layer_offset);
    fbd_data.frame_argument = layer_idx;
+
+   /* Layer offset is unused on v14+. */
+   assert(tiler_ctx->valhall.layer_offset == 0);
 
    pan_pack(&fbd_data.flags0, FRAGMENT_FLAGS_0, cfg) {
       cfg.pre_frame_0 =
@@ -159,7 +161,7 @@ init_fragment_state(const struct pan_fb_info *fb, unsigned layer_idx,
       cfg.hsr_prepass_filter_enable = true;
       cfg.hsr_hierarchical_optimizations_enable = true;
 
-      cfg.internal_layer_index = layer_idx - tiler_ctx->valhall.layer_offset;
+      cfg.internal_layer_index = layer_idx;
    }
 
    fbd_data.dcd_pointer = fb->bifrost.pre_post.dcds.gpu;
