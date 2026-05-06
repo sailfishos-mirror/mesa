@@ -4,6 +4,7 @@
 pub use crate::data_type::DataType;
 pub use crate::ssa_value::{SSARef, SSAValue};
 pub use crate::swizzle::Swizzle;
+use compiler::as_slice::*;
 
 use std::fmt;
 
@@ -347,5 +348,125 @@ impl<T: Into<SSARef>> From<T> for Dst {
 impl From<RegRef> for Dst {
     fn from(reg: RegRef) -> Dst {
         Dst::Reg(reg)
+    }
+}
+
+pub trait HasVariants {
+    const VARIANTS: &'static [DataType];
+
+    fn variant(&self) -> DataType;
+
+    fn is_valid_variant(&self) -> bool {
+        let v = self.variant();
+        Self::VARIANTS
+            .iter()
+            .find(|&&allowed| v == allowed)
+            .is_some()
+    }
+}
+
+#[derive(Clone)]
+pub struct DataTypeIter {
+    variant: Option<DataType>,
+    types: std::slice::Iter<'static, DataType>,
+}
+
+impl Iterator for DataTypeIter {
+    type Item = DataType;
+
+    fn next(&mut self) -> Option<DataType> {
+        let t = self.types.next()?;
+        if let Some(v) = self.variant {
+            Some(t.specialize(v))
+        } else {
+            Some(*t)
+        }
+    }
+}
+
+pub trait Opcode:
+    AsSlice<Src, Attr = DataType> + AsSlice<Dst, Attr = DataType>
+{
+    fn variant(&self) -> Option<DataType>;
+    fn is_valid_variant(&self) -> bool;
+
+    fn srcs(&self) -> &[Src] {
+        self.as_slice()
+    }
+
+    fn srcs_mut(&mut self) -> &mut [Src] {
+        self.as_mut_slice()
+    }
+
+    fn src_types(&self) -> DataTypeIter {
+        DataTypeIter {
+            variant: self.variant(),
+            types: AsSlice::<Src>::attrs(self).iter(),
+        }
+    }
+
+    fn srcs_types(&self) -> impl Iterator<Item = (&Src, DataType)> {
+        let t = self.src_types();
+        self.srcs().iter().zip(t)
+    }
+
+    fn srcs_types_mut(&mut self) -> impl Iterator<Item = (&mut Src, DataType)> {
+        let t = self.src_types();
+        self.srcs_mut().iter_mut().zip(t)
+    }
+
+    fn src_idx(&self, src: &Src) -> usize {
+        let r = self.srcs().as_ptr_range();
+        assert!(r.contains(&(src as *const Src)));
+        unsafe { (src as *const Src).offset_from(r.start) as usize }
+    }
+
+    fn src_type(&self, src: &Src) -> DataType {
+        let src_idx = self.src_idx(src);
+        let mut src_type = AsSlice::<Src>::attrs(self)[src_idx];
+        if let Some(v) = self.variant() {
+            src_type = src_type.specialize(v);
+        }
+        src_type
+    }
+
+    fn dsts(&self) -> &[Dst] {
+        self.as_slice()
+    }
+
+    fn dsts_mut(&mut self) -> &mut [Dst] {
+        self.as_mut_slice()
+    }
+
+    fn dst_types(&self) -> DataTypeIter {
+        DataTypeIter {
+            variant: self.variant(),
+            types: AsSlice::<Dst>::attrs(self).iter(),
+        }
+    }
+
+    fn dsts_types(&self) -> impl Iterator<Item = (&Dst, DataType)> {
+        let t = self.dst_types();
+        self.dsts().iter().zip(t)
+    }
+
+    fn dsts_types_mut(&mut self) -> impl Iterator<Item = (&mut Dst, DataType)> {
+        let t = self.dst_types();
+        self.dsts_mut().iter_mut().zip(t)
+    }
+
+    fn dst_idx(&self, dst: &Dst) -> usize {
+        let r = self.dsts().as_ptr_range();
+        assert!(r.contains(&(dst as *const Dst)));
+        unsafe { (dst as *const Dst).offset_from(r.start) as usize }
+    }
+
+    fn dst_type(&self, dst: &Dst) -> DataType {
+        let dst_idx = self.dst_idx(dst);
+        let mut dst_type = AsSlice::<Dst>::attrs(self)[dst_idx];
+        if let Some(v) = self.variant() {
+            dst_type = dst_type.specialize(v);
+        }
+        dst_type
     }
 }

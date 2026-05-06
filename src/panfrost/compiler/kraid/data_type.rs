@@ -49,6 +49,7 @@ pub enum DataType {
     I64,
     I96,
     I128,
+    IN,
     S8,
     S16,
     S32,
