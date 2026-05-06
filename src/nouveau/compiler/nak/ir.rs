@@ -1345,6 +1345,22 @@ impl SrcType {
     }
 }
 
+pub enum AttrList<T: 'static> {
+    Array(&'static [T]),
+    Uniform(T),
+}
+
+impl<T: 'static> Index<usize> for AttrList<T> {
+    type Output = T;
+
+    fn index(&self, idx: usize) -> &T {
+        match self {
+            AttrList::Array(arr) => &arr[idx],
+            AttrList::Uniform(typ) => typ,
+        }
+    }
+}
+
 pub type SrcTypeList = AttrList<SrcType>;
 
 pub trait SrcsAsSlice {
@@ -1371,7 +1387,7 @@ impl<T: AsSlice<Src, Attr = SrcType>> SrcsAsSlice for T {
     }
 
     fn src_types(&self) -> SrcTypeList {
-        self.attrs()
+        AttrList::Array(self.attrs())
     }
 }
 
@@ -1436,7 +1452,7 @@ impl<T: AsSlice<Dst, Attr = DstType>> DstsAsSlice for T {
     }
 
     fn dst_types(&self) -> DstTypeList {
-        self.attrs()
+        AttrList::Array(self.attrs())
     }
 }
 
