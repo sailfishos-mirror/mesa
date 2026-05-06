@@ -666,12 +666,21 @@ u_trace_context_process(struct u_trace_context *utctx, bool eof)
    util_dynarray_clear(&utctx->flushed_traces);
 }
 
+static linear_ctx *
+u_trace_get_linear_alloc(struct u_trace *ut)
+{
+   if (!ut->linear_alloc) {
+      ut->linear_alloc = linear_context(NULL);
+   }
+
+   return ut->linear_alloc;
+}
+
 void
 u_trace_init(struct u_trace *ut, struct u_trace_context *utctx)
 {
    memset(ut, 0, sizeof(struct u_trace));
    ut->utctx = utctx;
-   ut->linear_alloc = linear_context(NULL);
    ut->last_timestamp.buffer_index = UINT32_MAX;
    ut->events = UTIL_DYNARRAY_INIT;
    ut->buffers[0] = UTIL_DYNARRAY_INIT;
@@ -697,6 +706,7 @@ u_trace_fini(struct u_trace *ut)
    }
 
    linear_free_context(ut->linear_alloc);
+   ut->linear_alloc = NULL;
    ut->last_timestamp.buffer_index = UINT32_MAX;
    util_dynarray_fini(&ut->events);
 }
@@ -761,6 +771,11 @@ u_trace_clone_append(struct u_trace_iterator begin_it,
    assert(begin_it.ut == end_it.ut);
    struct u_trace *from = begin_it.ut;
 
+   if (u_trace_iterator_equal(begin_it, end_it))
+      return;
+
+   linear_ctx *linear_alloc = u_trace_get_linear_alloc(into);
+
    struct u_trace_buffer_view src_timestamp = {}, dst_timestamp = {}, src_indirect = {}, dst_indirect = {};
    src_timestamp.buffer_index = UINT32_MAX;
    src_indirect.buffer_index = UINT32_MAX;
@@ -789,7 +804,7 @@ u_trace_clone_append(struct u_trace_iterator begin_it,
          copy_buffer(into->utctx, cmdstream, src_buffer->buffer, 0, dst_buffer, dst_indirect.offset, src_buffer->size);
       }
 
-      struct u_trace_event *dst_event = linear_alloc_child(into->linear_alloc, sizeof(struct u_trace_event) + src_event->payload_size);
+      struct u_trace_event *dst_event = linear_alloc_child(linear_alloc, sizeof(struct u_trace_event) + src_event->payload_size);
       memcpy(dst_event, src_event, sizeof(struct u_trace_event) + src_event->payload_size);
       dst_event->timestamp.buffer_index = dst_timestamp.buffer_index;
       dst_event->timestamp.offset = dst_timestamp.offset + src_event->timestamp.offset;
@@ -864,7 +879,8 @@ u_trace_appendv(struct u_trace *ut,
 
    unsigned payload_sz = ALIGN_NPOT(tp->payload_sz + variable_sz, 8);
    struct u_trace_event *event =
-      linear_alloc_child(ut->linear_alloc, sizeof(struct u_trace_event) + payload_sz);
+      linear_alloc_child(u_trace_get_linear_alloc(ut),
+                         sizeof(struct u_trace_event) + payload_sz);
    event->tp = tp;
    event->payload_size = payload_sz;
 
