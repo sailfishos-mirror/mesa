@@ -260,21 +260,8 @@ si_sqtt_resize_bo(struct si_context *sctx)
    pipe_resource_reference(&bo, NULL);
    sctx->sqtt->bo = NULL;
 
-   if (sctx->sqtt->buffer_size < UINT32_MAX / 2) {
-      /* Double the size of the thread trace buffer per SE. */
-      sctx->sqtt->buffer_size *= 2;
-      mesa_loge("Failed to get the thread trace because the buffer "
-                "was too small, resizing to %d kB per se",
-                sctx->sqtt->buffer_size / 1024);
-   } else {
-      mesa_loge("Failed to get the thread trace because the buffer "
-                "was too small (%d kB per se). Cancelling trace capture.",
-                 sctx->sqtt->buffer_size / 1024);
-      if (sctx->sqtt->instruction_timing_enabled)
-         mesa_loge("Try again with AMD_THREAD_TRACE_INSTRUCTION_TIMING=false"
-                   " to reduce the size of the captured data.");
+   if (!ac_sqtt_update_bo_size(sctx->sqtt, "AMD"))
       return false;
-   }
 
    /* Re-create the thread trace BO. */
    return si_sqtt_init_bo(sctx);
@@ -335,10 +322,9 @@ bool si_init_sqtt(struct si_context *sctx)
       return false;
    }
 
-   /* Default buffer size set to 32MB per SE. */
-   sctx->sqtt->buffer_size =
-      debug_get_num_option("AMD_THREAD_TRACE_BUFFER_SIZE", 32 * 1024) * 1024;
-   assert(sctx->sqtt->buffer_size);
+   if (!ac_sqtt_update_bo_size(sctx->sqtt, "AMD"))
+      return false;
+
    sctx->sqtt->instruction_timing_enabled =
       debug_get_bool_option("AMD_THREAD_TRACE_INSTRUCTION_TIMING", true);
    sctx->sqtt->start_frame = 10;
