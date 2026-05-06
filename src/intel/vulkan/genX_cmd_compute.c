@@ -931,7 +931,8 @@ genX(cmd_buffer_ray_query_globals)(struct anv_cmd_buffer *cmd_buffer)
 
 #if GFX_VERx10 >= 125
 static void
-calc_local_trace_size(uint8_t local_shift[3], const uint32_t global[3])
+calc_local_trace_size(uint8_t local_shift[3], const uint32_t global[3],
+                      uint32_t max_shift)
 {
    unsigned total_shift = 0;
    memset(local_shift, 0, 3);
@@ -947,13 +948,13 @@ calc_local_trace_size(uint8_t local_shift[3], const uint32_t global[3])
             total_shift++;
          }
 
-         if (total_shift == 3)
+         if (total_shift == max_shift)
             return;
       }
    } while(progress);
 
    /* Assign whatever's left to x */
-   local_shift[0] += 3 - total_shift;
+   local_shift[0] += max_shift - total_shift;
 }
 
 static struct GENX(RT_SHADER_TABLE)
@@ -1390,6 +1391,10 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
 
    struct anv_address rtdg_addr =
       anv_cmd_buffer_temporary_state_address(cmd_buffer, rtdg_state);
+   const struct brw_cs_prog_data *cs_prog_data =
+      brw_cs_prog_data_const(device->rt_trampoline->prog_data);
+   struct intel_cs_dispatch_info dispatch =
+      brw_cs_get_dispatch_info(device->info, cs_prog_data, NULL);
 
    uint8_t local_size_log2[3];
    uint32_t global_size[3] = {};
@@ -1398,7 +1403,7 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
        * will use a two-dimensional dispatch size.  Worst case, our initial
        * dispatch will be a little slower than it has to be.
        */
-      local_size_log2[0] = 2;
+      local_size_log2[0] = util_logbase2(dispatch.simd_size) - 1;
       local_size_log2[1] = 1;
       local_size_log2[2] = 0;
 
@@ -1448,7 +1453,8 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
       mi_store(&b, mi_reg32(GENX(GPGPU_DISPATCHDIMZ_num)), launch_size[2]);
 
    } else {
-      calc_local_trace_size(local_size_log2, params->launch_size);
+      calc_local_trace_size(local_size_log2, params->launch_size,
+                            util_logbase2(dispatch.simd_size));
 
       for (unsigned i = 0; i < 3; i++) {
          /* We have to be a bit careful here because DIV_ROUND_UP adds to the
@@ -1458,11 +1464,6 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
          global_size[i] = DIV_ROUND_UP((uint64_t)params->launch_size[i], local_size);
       }
    }
-
-   const struct brw_cs_prog_data *cs_prog_data =
-      brw_cs_prog_data_const(device->rt_trampoline->prog_data);
-   struct intel_cs_dispatch_info dispatch =
-      brw_cs_get_dispatch_info(device->info, cs_prog_data, NULL);
 
    const mesa_shader_stage s = MESA_SHADER_RAYGEN;
    struct anv_state *surfaces = &cmd_buffer->state.binding_tables[s];
@@ -1494,7 +1495,7 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
       .ThreadGroupIDXDimension        = global_size[0],
       .ThreadGroupIDYDimension        = global_size[1],
       .ThreadGroupIDZDimension        = global_size[2],
-      .ExecutionMask                  = 0xff,
+      .ExecutionMask                  = dispatch.right_mask,
       .EmitInlineParameter            = true,
       .PostSync.MOCS                  = anv_mocs(cmd_buffer->device, NULL, 0),
 #if GFX_VER >= 30
