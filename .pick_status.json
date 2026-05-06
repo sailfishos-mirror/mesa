@@ -1904,7 +1904,7 @@
         "description": "asahi: fix dst range in buffer copy region",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4a3b905bb89b9ae9091586d1c090b548cf5451f7",
         "notes": null
