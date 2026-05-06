@@ -2000,11 +2000,6 @@ optimizations.extend([
    (('f2u32', ('f2fmp', 'a@32')), ('f2u32', a), 'true', TestStatus.UNSUPPORTED),
    (('i2f32', ('i2imp', 'a@32')), ('i2f32', a), 'true', TestStatus.UNSUPPORTED),
 
-   # f16 -> f2f32 -> fmul32 -> f2fmp when the second operand is a constant
-   # The optimization only works when the constant can be safely represented with 16 bits
-   (('f2fmp', ('fmul(is_used_once,contract)', ('f2f32', 'a@16'), '#b(is_representable_as_f16)')), ('fmul', a, ('f2fmp', b)), 'true', TestStatus.UNSUPPORTED),
-   (('f2fmp', ('fadd(is_used_once,contract)', ('f2f32', 'a@16'), '#b(is_representable_as_f16)')), ('fadd', a, ('f2fmp', b)), 'true', TestStatus.UNSUPPORTED),
-
    (('ffloor', 'a(is_integral)'), a),
    (('fceil', 'a(is_integral)'), a),
    (('ftrunc', 'a(is_integral)'), a),
@@ -2052,6 +2047,14 @@ optimizations.extend([
 
    (('ult', a, 0), False),
 ])
+
+# Doing a 32-bit fadd/fmul on 16-bit operands is equivalent to a 16-bit
+# fadd/fmul, contract is required for the double rounding.
+for op in ['fadd', 'fmul']:
+    optimizations += [
+        (('f2fmp', (f'{op}(is_used_once,contract)', ('f2f32', 'a@16'), '#b(is_representable_as_f16)')), (op, a, ('f2fmp', b)), 'true', TestStatus.UNSUPPORTED),
+        (('f2fmp', (f'{op}(is_used_once,contract)', ('f2f32', 'a@16'), ('f2f32', 'b@16'))), (op, a, b), 'true', TestStatus.UNSUPPORTED),
+    ]
 
 for bits in [16, 32, 64]:
     cond = '!(options->lower_doubles_options & nir_lower_fp64_full_software)' if bits == 64 else 'true'
