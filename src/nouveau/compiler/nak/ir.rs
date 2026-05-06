@@ -1347,7 +1347,21 @@ impl SrcType {
 
 pub type SrcTypeList = AttrList<SrcType>;
 
-pub trait SrcsAsSlice: AsSlice<Src, Attr = SrcType> {
+pub trait SrcsAsSlice {
+    fn srcs_as_slice(&self) -> &[Src];
+
+    fn srcs_as_mut_slice(&mut self) -> &mut [Src];
+
+    fn src_types(&self) -> SrcTypeList;
+
+    fn src_idx(&self, src: &Src) -> usize {
+        let r = self.srcs_as_slice().as_ptr_range();
+        assert!(r.contains(&(src as *const Src)));
+        unsafe { (src as *const Src).offset_from(r.start) as usize }
+    }
+}
+
+impl<T: AsSlice<Src, Attr = SrcType>> SrcsAsSlice for T {
     fn srcs_as_slice(&self) -> &[Src] {
         self.as_slice()
     }
@@ -1359,15 +1373,7 @@ pub trait SrcsAsSlice: AsSlice<Src, Attr = SrcType> {
     fn src_types(&self) -> SrcTypeList {
         self.attrs()
     }
-
-    fn src_idx(&self, src: &Src) -> usize {
-        let r = self.srcs_as_slice().as_ptr_range();
-        assert!(r.contains(&(src as *const Src)));
-        unsafe { (src as *const Src).offset_from(r.start) as usize }
-    }
 }
-
-impl<T: AsSlice<Src, Attr = SrcType>> SrcsAsSlice for T {}
 
 fn all_dsts_uniform(dsts: &[Dst]) -> bool {
     let mut uniform = None;
@@ -1403,20 +1409,14 @@ impl DstType {
 
 pub type DstTypeList = AttrList<DstType>;
 
-pub trait DstsAsSlice: AsSlice<Dst, Attr = DstType> {
-    fn dsts_as_slice(&self) -> &[Dst] {
-        self.as_slice()
-    }
+pub trait DstsAsSlice {
+    fn dsts_as_slice(&self) -> &[Dst];
 
-    fn dsts_as_mut_slice(&mut self) -> &mut [Dst] {
-        self.as_mut_slice()
-    }
+    fn dsts_as_mut_slice(&mut self) -> &mut [Dst];
 
     // Currently only used by test code
     #[allow(dead_code)]
-    fn dst_types(&self) -> DstTypeList {
-        self.attrs()
-    }
+    fn dst_types(&self) -> DstTypeList;
 
     fn dst_idx(&self, dst: &Dst) -> usize {
         let r = self.dsts_as_slice().as_ptr_range();
@@ -1425,7 +1425,19 @@ pub trait DstsAsSlice: AsSlice<Dst, Attr = DstType> {
     }
 }
 
-impl<T: AsSlice<Dst, Attr = DstType>> DstsAsSlice for T {}
+impl<T: AsSlice<Dst, Attr = DstType>> DstsAsSlice for T {
+    fn dsts_as_slice(&self) -> &[Dst] {
+        self.as_slice()
+    }
+
+    fn dsts_as_mut_slice(&mut self) -> &mut [Dst] {
+        self.as_mut_slice()
+    }
+
+    fn dst_types(&self) -> DstTypeList {
+        self.attrs()
+    }
+}
 
 pub trait IsUniform {
     fn is_uniform(&self) -> bool;
