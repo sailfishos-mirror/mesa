@@ -1,8 +1,74 @@
 Developing Extensions
 =====================
 
-Implementing OpenGL[ES] Extensions
-----------------------------------
+Implementing new extensions
+---------------------------
+
+Updating Khronos XML and headers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When implementing a brand new extension, Mesa's copies of the relevant spec
+assets may need to be updated:
+
+- For Vulkan, the headers are placed in ``include/vulkan/`` and the XML
+  description is placed in ``src/vulkan/registry/vk.xml``
+
+- For SPIR-V, the headers and JSON files are placed in
+  ``src/compiler/spirv/``.
+
+- For OpenGL and OpenGL ES, the headers are placed in ``include/GL/`` or
+  ``include/GLES*/`` and the XML description is placed in
+  ``src/mesa/glapi/glapi/registry/gl.xml``.
+
+- For EGL, the headers are placed in ``include/EGL/`` and the XML
+  description is placed in ``src/egl/generate/egl.xml``.
+
+- For OpenCL, the headers are placed in ``include/CL/``.
+
+All of these must be updated with the ``khronos_update.py`` script in
+``bin/``.  They should not be updated manually.  The script updates all
+headers and XML/JSON descriptions by default but only the changes for the
+relevant API need to be checked in.  When updating XML or headers, provide
+a descriptive commit message that specifies the new version.
+
+
+Implementing Vulkan extensions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As of today, implementing Vulkan extensions is a mostly per-driver process.
+Pulling a new XML and headers will automatically update all the dispatch
+table and other codegen.  It's then up to the driver to implement and
+advertise the extension.  When advertising a new extension, remember that
+there are generally three places that need updating:
+
+ - The driver's supported extensions table
+ - The driver's supported features table
+ - The driver's properties table
+
+The extensions and features tables are split in two: physical device and
+instance.  The instance tables are used for instance extensions and the
+physical device tables are used for physical device extensions.  Only
+physical device extensions have properties.
+
+
+Implementing SPIR-V capabilities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SPIR-V features are typically implemented in terms of capabilities, not
+extensions.  While SPIR-V does have extension strings, Mesa generally
+ignores them.  When implementing a new SPIR-V feature, the
+``implemented_capabilities`` table needs to be updated.  This table only
+describes the capabilities implemented by the SPIR-V parser.  There is also
+a ``supported_capabilities`` table that gets passed into the SPIR-V parser.
+
+For OpenGL or OpenCL, implementing a new SPIR-V capability requires also
+updating the ``supported_capabilities`` in the relevant state tracker.  For
+Vulkan, ``supported_capabilities`` is automatically populated based on the
+Vulkan device's physical device features.
+
+
+Implementing OpenGL[ES] extensions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To add a new GL extension to Mesa you have to do at least the following.
 
