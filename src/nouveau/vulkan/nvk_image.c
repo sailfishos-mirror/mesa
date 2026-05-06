@@ -1156,7 +1156,7 @@ nvk_image_init(struct nvk_device *dev,
       image->image_align_B = MAX2(image->stencil_copy_temp.plane_align_B,
                                   image->image_align_B);
    }
-   
+
    return VK_SUCCESS;
 }
 
@@ -1165,6 +1165,7 @@ nvk_image_plane_alloc_va(struct nvk_device *dev,
                          const struct nvk_image *image,
                          struct nvk_image_plane *plane)
 {
+   assert(plane->va == NULL);
    VkResult result;
 
    const bool sparse_bound =
@@ -1610,6 +1611,7 @@ nvk_image_plane_bind(struct nvk_device *dev,
          VkResult result = nvk_image_plane_alloc_va(dev, image, plane);
          if (result != VK_SUCCESS)
             return result;
+
          result = nvkmd_va_bind_mem(plane->va, &image->vk.base, 0,
                                     mem->mem, offset_B,
                                     plane->va->size_B);
