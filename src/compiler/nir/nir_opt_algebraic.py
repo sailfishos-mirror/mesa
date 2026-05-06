@@ -605,19 +605,24 @@ for s in [8, 16, 32, 64]:
    mask = s - 1
 
    ishl = "ishl@{}".format(s)
+   ishl_once = "ishl@{}(is_used_once)".format(s)
    ishr = "ishr@{}".format(s)
    ushr = "ushr@{}".format(s)
 
-   in_bounds = ('ult', ('iadd', ('iand', b, mask), ('iand', c, mask)), s)
+   in_bounds = lambda x, y: ('ult', ('iadd', ('iand', x, mask), ('iand', y, mask)), s)
 
    optimizations.extend([
-       ((ishl, (ishl, a, '#b'), '#c'), ('bcsel', in_bounds, (ishl, a, ('iadd', b, c)), 0)),
-       ((ushr, (ushr, a, '#b'), '#c'), ('bcsel', in_bounds, (ushr, a, ('iadd', b, c)), 0)),
+       ((ishl, (ishl, a, '#b'), '#c'), ('bcsel', in_bounds(b, c), (ishl, a, ('iadd', b, c)), 0)),
+       ((ushr, (ushr, a, '#b'), '#c'), ('bcsel', in_bounds(b, c), (ushr, a, ('iadd', b, c)), 0)),
 
        # To get get -1 for large shifts of negative values, ishr must instead
        # clamp the shift count to the maximum value.
        ((ishr, (ishr, a, '#b'), '#c'),
         (ishr, a, ('imin', ('iadd', ('iand', b, mask), ('iand', c, mask)), s - 1))),
+
+       ((ishl, ('iadd(is_used_once)', (ishl_once, a, '#b'), (ishl_once, c, '#d')), '#e'),
+        ('iadd', ('bcsel', in_bounds(b, e), ('ishl', a, ('iand', ('iadd', b, e), mask)), 0),
+                 ('bcsel', in_bounds(d, e), ('ishl', c, ('iand', ('iadd', d, e), mask)), 0))),
    ])
 
 # Optimize a pattern of address calculation created by DXVK where the offset is
