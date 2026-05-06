@@ -773,10 +773,10 @@ nvk_GetPhysicalDeviceSparseImageFormatProperties2(
 }
 
 static bool
-nvk_image_can_compress(const struct nvkmd_pdev *nvkmd_pdev,
+nvk_image_can_compress(const struct nvk_physical_device *pdev,
                        const struct nvk_image *image)
 {
-   if (!nvkmd_pdev->kmd_info.has_compression)
+   if (!pdev->nvkmd->kmd_info.has_compression)
       return false;
 
    /* Our host copy code does not understand compression */
@@ -887,7 +887,7 @@ nvk_image_init(struct nvk_device *dev,
     * in GetImageMemoryRequirements() we are able to detect it and specify that
     * we prefer a dedicated allocation for it.
     */
-   image->can_compress = nvk_image_can_compress(dev->nvkmd->pdev, image);
+   image->can_compress = nvk_image_can_compress(pdev, image);
    if (!image->can_compress)
       usage |= NIL_IMAGE_USAGE_UNCOMPRESSED_BIT;
 
