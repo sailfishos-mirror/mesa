@@ -4112,6 +4112,7 @@ tu_create_cmd_buffer(struct vk_command_pool *pool,
 
    u_trace_init(&cmd_buffer->trace, &device->trace_context);
    u_trace_init(&cmd_buffer->rp_trace, &device->trace_context);
+   u_trace_init(&cmd_buffer->pre_chain.rp_trace, &device->trace_context);
    cmd_buffer->trace_renderpass_start =
       u_trace_begin_iterator(&cmd_buffer->rp_trace);
    new (&cmd_buffer->autotune_ctx) tu_autotune::cmd_buf_ctx(*device->autotune);
@@ -4162,6 +4163,7 @@ tu_cmd_buffer_destroy(struct vk_command_buffer *vk_cmd_buffer)
 
    u_trace_fini(&cmd_buffer->trace);
    u_trace_fini(&cmd_buffer->rp_trace);
+   u_trace_fini(&cmd_buffer->pre_chain.rp_trace);
 
    cmd_buffer->autotune_ctx.~cmd_buf_ctx();
 
@@ -4270,6 +4272,9 @@ tu_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer,
    u_trace_init(&cmd_buffer->trace, &cmd_buffer->device->trace_context);
    u_trace_fini(&cmd_buffer->rp_trace);
    u_trace_init(&cmd_buffer->rp_trace, &cmd_buffer->device->trace_context);
+   u_trace_fini(&cmd_buffer->pre_chain.rp_trace);
+   u_trace_init(&cmd_buffer->pre_chain.rp_trace,
+                &cmd_buffer->device->trace_context);
    cmd_buffer->trace_renderpass_start =
       u_trace_begin_iterator(&cmd_buffer->rp_trace);
 
