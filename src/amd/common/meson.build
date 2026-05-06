@@ -242,6 +242,17 @@ executable(
   build_by_default: with_tools.contains('amd')
 )
 
+executable(
+  'ac_print_tiling_layouts',
+  ['tools/ac_print_tiling_layouts.c', 'amdgpu_devices.c'],
+  link_with: [libamd_common],
+  include_directories : [
+    inc_amd, inc_include, inc_src,
+  ],
+  dependencies : [idep_amd_generated_headers, idep_mesautil, idep_nir_headers],
+  build_by_default: with_tools.contains('amd')
+)
+
 if with_tests and not with_platform_windows
   test(
     'ac_surface_modifier_test',
