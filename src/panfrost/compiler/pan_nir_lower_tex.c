@@ -983,7 +983,7 @@ va_lower_lod(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
    struct pan_va_tex_flags flags = {
       .wide_indices = tex_h->num_components > 1,
       .derivative_enable = false,
-      .force_delta_enable = true,
+      .force_delta_enable = false,
    };
 
    tex_h = nir_pad_vector_imm_int(b, tex_h, 0, 2);
