@@ -861,11 +861,24 @@ ac_identify_chip(struct radeon_info *info, const struct drm_amdgpu_info_device *
       break;
    }
 
-    if (info->ip[AMD_IP_VPE].num_queues)
-      info->vpe_ip_version = (enum vpe_version)VPE_VERSION_VALUE(
-                                                info->ip[AMD_IP_VPE].ver_major,
-                                                info->ip[AMD_IP_VPE].ver_minor,
-                                                info->ip[AMD_IP_VPE].ver_rev);
+   switch(VPE_VERSION_VALUE(info->ip[AMD_IP_VPE].ver_major,
+                            info->ip[AMD_IP_VPE].ver_minor,
+                            info->ip[AMD_IP_VPE].ver_rev)) {
+   case VPE_VERSION_VALUE(6, 1, 0):
+   case VPE_VERSION_VALUE(6, 1, 3):
+      info->vpe_ip_version = VPE_1_0;
+      break;
+   case VPE_VERSION_VALUE(6, 1, 1):
+   case VPE_VERSION_VALUE(6, 1, 2):
+      info->vpe_ip_version = VPE_1_1;
+      break;
+   case VPE_VERSION_VALUE(2, 0, 0):
+      info->vpe_ip_version = VPE_2_0;
+      break;
+   default:
+      info->vpe_ip_version = VPE_UNKNOWN;
+      break;
+   }
 
    /* Convert the SDMA version in the current GPU to an enum. */
    info->sdma_ip_version =
