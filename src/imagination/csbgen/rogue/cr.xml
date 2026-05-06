@@ -64,12 +64,6 @@ SOFTWARE.
     <value name="TILED"      value="3"/>
   </enum>
 
-  <enum name="MODE_TYPE">
-    <value name="DX9"  value="0"/>
-    <value name="DX10" value="1"/>
-    <value name="OGL"  value="2"/>
-  </enum>
-
   <enum name="PIPE_NUM">
     <value name="PIPE_ONE"      value="0"/>
     <value name="PIPE_TWO"      value="1"/>
@@ -530,9 +524,6 @@ SOFTWARE.
     <field name="line_style_pix" start="29" end="29" type="bool"/>
     <field name="pair_tiles_vert" start="28" end="28" type="bool"/>
     <field name="pair_tiles" start="27" end="27" type="bool"/>
-    <field name="creq_buf_en" start="26" end="26" type="bool"/>
-    <field name="tile_age_en" start="25" end="25" type="bool"/>
-    <field name="isp_sample_pos_mode" start="23" end="24" type="MODE_TYPE"/>
     <field name="num_tiles_per_usc" start="21" end="22" type="uint"/>
     <field name="dbias_is_int" start="20" end="20" type="bool"/>
     <field name="overlap_check_mode" start="19" end="19" type="bool"/>
