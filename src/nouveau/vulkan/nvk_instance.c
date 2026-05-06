@@ -92,6 +92,7 @@ nvk_init_debug_flags(struct nvk_instance *instance)
       { "edb_bview", NVK_DEBUG_FORCE_EDB_BVIEW },
       { "gart", NVK_DEBUG_FORCE_GART },
       { "coherent", NVK_DEBUG_FORCE_COHERENT },
+      { "no_compression", NVK_DEBUG_NO_COMPRESSION },
       { NULL, 0 },
    };
 

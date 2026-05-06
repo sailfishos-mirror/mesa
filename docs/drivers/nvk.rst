@@ -76,6 +76,8 @@ specific to NVK:
    ``coherent``
       Forces all memory maps to be coherent with the CPU caches.  This only
       applies to Tegra devices.
+   ``no_compression``
+      Disables image compression.
 
 .. envvar:: NVK_EXPERIMENTAL
 

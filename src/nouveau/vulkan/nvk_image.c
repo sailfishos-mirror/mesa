@@ -776,6 +776,9 @@ static bool
 nvk_image_can_compress(const struct nvk_physical_device *pdev,
                        const struct nvk_image *image)
 {
+   if (pdev->debug_flags & NVK_DEBUG_NO_COMPRESSION)
+      return false;
+
    if (!pdev->nvkmd->kmd_info.has_compression)
       return false;
 
