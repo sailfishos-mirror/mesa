@@ -7,6 +7,7 @@ _compiler_rs_sources = [
   'cfg.rs',
   'dataflow.rs',
   'depth_first_search.rs',
+  'float16.rs',
   'memstream.rs',
   'nir_instr_printer.rs',
   'nir.rs',
@@ -64,6 +65,8 @@ _compiler_bindgen_args = [
   '--allowlist-var', 'rust_.*',
   '--allowlist-function', 'glsl_.*',
   '--allowlist-function', '_mesa_shader_stage_to_string',
+  '--allowlist-function', '_mesa_.*half.*',
+  '--allowlist-function', '_mesa_.*float16.*',
   '--allowlist-function', 'nir_.*',
   '--allowlist-function', 'compiler_rs.*',
   '--allowlist-function', 'u_memstream.*',
@@ -94,10 +97,25 @@ _idep_libcompiler_c = declare_dependency(
 _compiler_bindings_rs = rust.bindgen(
   input : ['bindings.h'],
   output : 'bindings.rs',
+  output_inline_wrapper : 'bindings.c',
   c_args : [
     pre_args,
   ],
   args : _compiler_bindgen_args,
+  dependencies : [
+    idep_nir_headers,
+    idep_mesautil,
+  ],
+)
+
+_libcompiler_bindings = static_library(
+  'compiler_bindings',
+  ['bindings.h', _compiler_bindings_rs[1]],
+  gnu_symbol_visibility : 'hidden',
+  c_args : [
+    pre_args,
+    cc.get_supported_arguments('-Wno-missing-prototypes'),
+  ],
   dependencies : [
     idep_nir_headers,
     idep_mesautil,
@@ -122,6 +140,7 @@ _libcompiler_rs = static_library(
   gnu_symbol_visibility : 'hidden',
   rust_abi : 'rust',
   dependencies: [_idep_libcompiler_c],
+  link_with: [_libcompiler_bindings],
   rust_args: _compiler_rust_args,
 )
 
