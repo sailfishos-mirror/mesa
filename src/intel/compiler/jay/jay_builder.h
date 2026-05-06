@@ -386,7 +386,7 @@ static inline jay_inst *
 jay_set_conditional_mod(jay_builder *b,
                         jay_inst *I,
                         jay_def cond_flag,
-                        enum jay_conditional_mod cmod)
+                        gen_condition cmod)
 {
    I->conditional_mod = cmod;
    return jay_set_cond_flag(b, I, cond_flag);
@@ -424,7 +424,7 @@ JAY_BUILD_SRC(uint32_t x)
 static inline jay_inst *
 _jay_CMP(jay_builder *b,
          enum jay_type src_type,
-         enum jay_conditional_mod cmod,
+         gen_condition cmod,
          jay_def dst,
          jay_def src0,
          jay_def src1)

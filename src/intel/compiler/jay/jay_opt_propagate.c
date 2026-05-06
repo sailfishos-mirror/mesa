@@ -21,7 +21,7 @@ static bool
 propagate_cmod(jay_function *func, jay_inst *I, jay_inst **defs)
 {
    enum jay_type cmp_type = I->type;
-   enum jay_conditional_mod cmod = I->conditional_mod;
+   gen_condition cmod = I->conditional_mod;
    jay_inst *def = NULL;
 
    /* TODO: Generalize cmod propagation */
@@ -34,7 +34,7 @@ propagate_cmod(jay_function *func, jay_inst *I, jay_inst **defs)
          def = defs[jay_base_index(I->src[s])];
 
          /* Canonicalize the cmod to have the zero second */
-         cmod = s == 1 ? jay_conditional_mod_swap_sources(cmod) : cmod;
+         cmod = s == 1 ? gen_condition_swap_sources(cmod) : cmod;
          break;
       }
    }
@@ -46,9 +46,9 @@ propagate_cmod(jay_function *func, jay_inst *I, jay_inst **defs)
    /* bfn bspec says "only zero(ze), greater-than(gt), and less-than(lt)
     * conditional modifiers are valid."
     */
-   if (def->op == JAY_OPCODE_BFN && !(cmod == JAY_CONDITIONAL_EQ ||
-                                      cmod == JAY_CONDITIONAL_GT ||
-                                      cmod == JAY_CONDITIONAL_LT)) {
+   if (def->op == JAY_OPCODE_BFN && !(cmod == GEN_CONDITION_EQ ||
+                                      cmod == GEN_CONDITION_GT ||
+                                      cmod == GEN_CONDITION_LT)) {
       return false;
    }
 
@@ -62,7 +62,7 @@ propagate_cmod(jay_function *func, jay_inst *I, jay_inst **defs)
 
    enum jay_type instr_type = def->type;
 
-   if (cmod == JAY_CONDITIONAL_NE || cmod == JAY_CONDITIONAL_EQ) {
+   if (cmod == GEN_CONDITION_NE || cmod == GEN_CONDITION_EQ) {
       cmp_type = canonicalize_for_bit_compare(cmp_type);
       instr_type = canonicalize_for_bit_compare(instr_type);
    }

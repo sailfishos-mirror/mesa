@@ -238,9 +238,9 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
    }
 
    switch (alu->op) {
-#define CMP(op, jay)                                                           \
+#define CMP(op, cmod)                                                          \
    case nir_op_##op:                                                           \
-      jay_CMP(b, jay_alu_source_type(alu, 0), JAY_CONDITIONAL_##jay, dst,      \
+      jay_CMP(b, jay_alu_source_type(alu, 0), GEN_CONDITION_##cmod, dst,       \
               src[0], src[1]);                                                 \
       break;
 
@@ -520,19 +520,19 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
    case nir_op_fcsel:
       jay_CSEL(b, type, dst, src[1], src[2], src[0])->conditional_mod =
-         JAY_CONDITIONAL_NE;
+         GEN_CONDITION_NE;
       break;
 
    case nir_op_fcsel_gt:
    case nir_op_i32csel_gt:
       jay_CSEL(b, type, dst, src[1], src[2], src[0])->conditional_mod =
-         JAY_CONDITIONAL_GT;
+         GEN_CONDITION_GT;
       break;
 
    case nir_op_fcsel_ge:
    case nir_op_i32csel_ge:
       jay_CSEL(b, type, dst, src[1], src[2], src[0])->conditional_mod =
-         JAY_CONDITIONAL_GE;
+         GEN_CONDITION_GE;
       break;
 
    case nir_op_bcsel:
@@ -1427,7 +1427,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       if (x.file == GPR) {
          jay_def shr = jay_SHR_u32(b, x, nj->payload.lane_id);
          jay_inst *and = jay_AND(b, JAY_TYPE_U32, jay_null(), shr, 1);
-         jay_set_conditional_mod(b, and, dst, JAY_CONDITIONAL_NE);
+         jay_set_conditional_mod(b, and, dst, GEN_CONDITION_NE);
       } else {
          jay_MOV(b, dst, x)->type = JAY_TYPE_U | b->shader->dispatch_width;
       }
@@ -1493,7 +1493,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                               jay_extract(nj->payload.u0, 9), BITFIELD_BIT(11));
 
       /* The bit is actually backfacingness so check for equality with 0 */
-      jay_set_conditional_mod(b, and, dst, JAY_CONDITIONAL_EQ);
+      jay_set_conditional_mod(b, and, dst, GEN_CONDITION_EQ);
       break;
    }
 

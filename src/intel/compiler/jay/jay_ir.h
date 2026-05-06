@@ -8,6 +8,7 @@
 #include "compiler/brw/brw_compiler.h"
 #include "compiler/brw/brw_eu.h"
 #include "compiler/brw/brw_eu_defines.h"
+#include "compiler/gen/gen_helpers.h"
 #include "compiler/shader_enums.h"
 #include "util/bitset.h"
 #include "util/list.h"
@@ -17,32 +18,6 @@
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
 #include "jay_opcodes.h"
-
-/* TODO: switch to brw_conditional_mod */
-enum PACKED jay_conditional_mod {
-   JAY_CONDITIONAL_EQ = 1,  /**< Equal to zero */
-   JAY_CONDITIONAL_NE = 2,  /**< Not equal to zero */
-   JAY_CONDITIONAL_GT = 3,  /**< Greater than zero */
-   JAY_CONDITIONAL_LT = 5,  /**< Less than zero */
-   JAY_CONDITIONAL_GE = 4,  /**< Greater than or equal to zero */
-   JAY_CONDITIONAL_LE = 6,  /**< Less than or equal to zero */
-   JAY_CONDITIONAL_OV = 8,  /**< Overflow has occurred */
-   JAY_CONDITIONAL_NAN = 9, /**< Result is NaN */
-};
-
-static inline enum jay_conditional_mod
-jay_conditional_mod_swap_sources(enum jay_conditional_mod mod)
-{
-   /* clang-format off */
-   switch (mod) {
-   case JAY_CONDITIONAL_GT: return JAY_CONDITIONAL_LT;
-   case JAY_CONDITIONAL_LT: return JAY_CONDITIONAL_GT;
-   case JAY_CONDITIONAL_GE: return JAY_CONDITIONAL_LE;
-   case JAY_CONDITIONAL_LE: return JAY_CONDITIONAL_GE;
-   default:                 return mod;
-   }
-   /* clang-format on */
-}
 
 enum PACKED jay_arf {
    JAY_ARF_NULL = 0,
@@ -599,7 +574,7 @@ typedef struct jay_inst {
    unsigned padding  :12;
 
    enum jay_predication predication;
-   enum jay_conditional_mod conditional_mod;
+   gen_condition conditional_mod;
 
    jay_def cond_flag; /**< conditional flag */
    jay_def dst;

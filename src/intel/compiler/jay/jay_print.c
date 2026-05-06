@@ -17,11 +17,11 @@
       arr[x];                                                                  \
    })
 
-static const char *jay_conditional_mod_str[] = {
-   [JAY_CONDITIONAL_EQ] = ".eq", [JAY_CONDITIONAL_NE] = ".ne",
-   [JAY_CONDITIONAL_GT] = ".gt", [JAY_CONDITIONAL_LT] = ".lt",
-   [JAY_CONDITIONAL_GE] = ".ge", [JAY_CONDITIONAL_LE] = ".le",
-   [JAY_CONDITIONAL_OV] = ".ov", [JAY_CONDITIONAL_NAN] = ".nan",
+static const char *gen_condition_str[] = {
+   [GEN_CONDITION_EQ] = ".eq", [GEN_CONDITION_NE] = ".ne",
+   [GEN_CONDITION_GT] = ".gt", [GEN_CONDITION_LT] = ".lt",
+   [GEN_CONDITION_GE] = ".ge", [GEN_CONDITION_LE] = ".le",
+   [GEN_CONDITION_OV] = ".ov", [GEN_CONDITION_UN] = ".nan",
 };
 
 static const char *jay_arf_str[] = {
@@ -174,7 +174,7 @@ jay_print_inst(FILE *fp, jay_inst *I)
       fprintf(fp, ".(%s)", util_lut3_to_str[jay_bfn_ctrl(I)]);
    }
 
-   const char *cmod = ENUM_TO_STR(I->conditional_mod, jay_conditional_mod_str);
+   const char *cmod = ENUM_TO_STR(I->conditional_mod, gen_condition_str);
    fprintf(fp, "%s%s ", I->saturate ? ".sat" : "", cmod ? cmod : "");
    sep = "";
 

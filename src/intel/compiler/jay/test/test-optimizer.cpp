@@ -109,7 +109,7 @@ TEST_F(Optimizer, SELToFloat)
       jay_def flag = jay_alloc_def(b, FLAG, 1);
       jay_def x = jay_alloc_def(b, GPR, 1);
       jay_ADD(b, JAY_TYPE_S32, x, wx, NEG(wy));
-      jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_LT, flag, 3, x);
+      jay_CMP(b, JAY_TYPE_S32, GEN_CONDITION_LT, flag, 3, x);
       jay_SEL(b, JAY_TYPE_F32, out, wx,
               after ? NEG(wy) : MOV(JAY_TYPE_F32, NEG(wy)), flag);
    });
@@ -192,9 +192,9 @@ TEST_F(Optimizer, GtZero)
       jay_def x = jay_alloc_def(b, GPR, 1);
       jay_inst *add = jay_ADD(b, JAY_TYPE_S32, x, wx, NEG(wy));
       if (after) {
-         jay_set_conditional_mod(b, add, flag, JAY_CONDITIONAL_GT);
+         jay_set_conditional_mod(b, add, flag, GEN_CONDITION_GT);
       } else {
-         jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_LT, flag, 0, x);
+         jay_CMP(b, JAY_TYPE_S32, GEN_CONDITION_LT, flag, 0, x);
       }
       jay_SEL(b, JAY_TYPE_U32, out, x, 123, flag);
    });
@@ -208,11 +208,11 @@ TEST_F(Optimizer, MultipleCmp)
       jay_def x = jay_alloc_def(b, GPR, 1);
       jay_inst *add = jay_ADD(b, JAY_TYPE_S32, x, wx, NEG(wy));
       if (after) {
-         jay_set_conditional_mod(b, add, flag, JAY_CONDITIONAL_GT);
+         jay_set_conditional_mod(b, add, flag, GEN_CONDITION_GT);
       } else {
-         jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_LT, flag, 0, x);
+         jay_CMP(b, JAY_TYPE_S32, GEN_CONDITION_LT, flag, 0, x);
       }
-      jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_GT, flag2, 0, x);
+      jay_CMP(b, JAY_TYPE_S32, GEN_CONDITION_GT, flag2, 0, x);
       jay_SEL(b, JAY_TYPE_U32, out, x, jay_SEL_u32(b, x, 123, flag), flag2);
    });
 }
@@ -223,7 +223,7 @@ TEST_F(Optimizer, IfNot)
       check_out = false;
       jay_def flag = jay_alloc_def(b, FLAG, 1);
       jay_def flag2 = jay_alloc_def(b, FLAG, 1);
-      jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_LT, flag, 0, wx);
+      jay_CMP(b, JAY_TYPE_S32, GEN_CONDITION_LT, flag, 0, wx);
 
       if (after) {
          jay_add_predicate(b, jay_IF(b), jay_negate(flag));
@@ -236,9 +236,9 @@ TEST_F(Optimizer, IfNot)
 
 TEST_F(Optimizer, TypeNeutralConditionalMods)
 {
-   enum jay_conditional_mod mods[] = {
-      JAY_CONDITIONAL_NE,
-      JAY_CONDITIONAL_EQ,
+   gen_condition mods[] = {
+      GEN_CONDITION_NE,
+      GEN_CONDITION_EQ,
    };
 
    for (unsigned i = 0; i < 2; ++i) {
@@ -248,7 +248,7 @@ TEST_F(Optimizer, TypeNeutralConditionalMods)
          jay_inst *bfn3 = jay_BFN(b, x, wx, wy, wz, UTIL_LUT3(a & b & c));
 
          /* BFN.ne is not permitted & should not be propagated */
-         if (after && mods[i] == JAY_CONDITIONAL_EQ) {
+         if (after && mods[i] == GEN_CONDITION_EQ) {
             jay_set_conditional_mod(b, bfn3, flag, mods[i]);
          } else {
             jay_CMP(b, JAY_TYPE_S32, mods[i], flag, x, 0);
@@ -273,9 +273,9 @@ TEST_F(Optimizer, TypeNeutralConditionalMods)
 
 TEST_F(Optimizer, SignednessMismatchConditionalMods)
 {
-   enum jay_conditional_mod mods[] = {
-      JAY_CONDITIONAL_LE,
-      JAY_CONDITIONAL_GT,
+   gen_condition mods[] = {
+      GEN_CONDITION_LE,
+      GEN_CONDITION_GT,
    };
 
    for (unsigned i = 0; i < 2; ++i) {
@@ -291,11 +291,11 @@ TEST_F(Optimizer, SignednessMismatchConditionalMods)
 
 TEST_F(Optimizer, FloatMismatchConditionalMods)
 {
-   enum jay_conditional_mod mods[] = {
-      JAY_CONDITIONAL_NAN,
-      JAY_CONDITIONAL_EQ,
-      JAY_CONDITIONAL_NE,
-      JAY_CONDITIONAL_LT,
+   gen_condition mods[] = {
+      GEN_CONDITION_UN,
+      GEN_CONDITION_EQ,
+      GEN_CONDITION_NE,
+      GEN_CONDITION_LT,
    };
 
    for (unsigned i = 0; i < 2; ++i) {
@@ -318,9 +318,9 @@ TEST_F(Optimizer, PredicateLogic)
          jay_def flag3 = jay_alloc_def(b, FLAG, 1);
          jay_def x = jay_alloc_def(b, GPR, 1);
          jay_ADD(b, JAY_TYPE_S32, x, wx, NEG(wy));
-         jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_LT, flag, 7, x);
+         jay_CMP(b, JAY_TYPE_S32, GEN_CONDITION_LT, flag, 7, x);
          jay_inst *cmp2 =
-            jay_CMP(b, JAY_TYPE_S32, JAY_CONDITIONAL_GT, flag2, 12, x);
+            jay_CMP(b, JAY_TYPE_S32, GEN_CONDITION_GT, flag2, 12, x);
 
          if (after) {
             cmp2->cond_flag = flag3;

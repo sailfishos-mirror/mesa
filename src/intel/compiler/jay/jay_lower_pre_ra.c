@@ -98,7 +98,7 @@ try_swap_src01(jay_inst *I)
       /* sel(a, b, p) = sel(b, a, !p) */
       I->src[2].negate ^= true;
    } else if (I->op == JAY_OPCODE_CMP) {
-      I->conditional_mod = jay_conditional_mod_swap_sources(I->conditional_mod);
+      I->conditional_mod = gen_condition_swap_sources(I->conditional_mod);
    } else if (I->op == JAY_OPCODE_BFN) {
       jay_set_bfn_ctrl(I, util_lut3_swap_sources(jay_bfn_ctrl(I), 0, 1));
    } else if (!jay_opcode_infos[I->op]._2src_commutative) {
