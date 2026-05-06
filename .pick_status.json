@@ -1914,7 +1914,7 @@
         "description": "nir/lower_alu: fix lower_fminmax_signed_zero for denorms",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d238d766c64eb1d440a28cba6451d4df7d1e8b27",
         "notes": null
