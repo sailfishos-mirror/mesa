@@ -1,6 +1,58 @@
 Developing Extensions
 =====================
 
+Drafting new MESA extensions
+----------------------------
+
+The Mesa project works closely with Khronos, the standards body that
+governs the OpenGL, OpenCL, EGL, and Vulkan specifications.  Mesa
+developers are often spec authors and not just implementors.  There are
+several ``GL_MESA_*`` and ``VK_MESA_`` extensions which serve the unique
+needs of the Linux graphics ecosystem as well as many other vendor, EXT,
+and even KHR extensions extensions with Mesa developers as authors.
+
+There are generally two processes for developing new extensions.  For
+developers who work for a Khronos member company, extensions can be
+developed via the normal Khronos process.  This means making a merge
+request to the Khronos internal repositories, responding to review feedback
+from the working group, and participating in the conference calls where
+in-development extensions are discussed.  This process happens under the
+Khronos NDA and is a little more heavy-weight than most Mesa discussions.
+However, this is generally the preferred method from a Khronos perspective
+because the NDA gives the hardware company representatives the freedom to be
+more involved with extension review.
+
+Alternatively, extensions can be developed in public.  This is done by
+opening a pull request against the ``KhronosGroup/Vulkan-Docs`` and related
+repositories on GitHub.  The advantage of this process is that it is
+publicly visible and more accessible to open-source developers.  This makes
+it the preferred process when developing something that needs broad Linux
+ecosystem consensus and where we need review from people who aren't under
+the Khronos NDA.  The downside is that hardware company representatives are
+much less likely to interact.  If the extension exposes hardware and not
+software details, it's better to go through the Khronos process.
+
+Regardless of which path is taken, any extensions bearing the MESA prefix,
+need to adhere to the following policy:
+
+ 1. The extension needs to be accompanied by a Mesa merge request and the
+    extension MR needs to link to the Mesa MR.  For public extensions, both
+    merge requests should be public and they should link to each other.
+    For extensions developed under the Khronos NDA, the Mesa merge request
+    can be made in the Khronos-internal Mesa repo.
+
+ 2. As with all other extensions, MESA extensions must be accompanied by
+    CTS tests to ensure we can regression test them in CI.
+
+ 3. Before the extension gets merged and released, the Mesa implementation
+    must be complete, passing the relevant CTS tests, and the code
+    reviewed.  For extensions developed under the Khronos NDA, further
+    review may happen when the implementation goes public.  However,
+    developers should make a good-faith effort to get enough relevant
+    review while the extension is still in development to find any issues
+    which may impact the specification itself.
+
+
 Implementing new extensions
 ---------------------------
 
