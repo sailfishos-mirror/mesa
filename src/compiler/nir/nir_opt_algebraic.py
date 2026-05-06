@@ -2128,13 +2128,6 @@ optimizations.extend([
    (('ior', ('bcsel', ('ine', ('iand', a, 0x00800000), 0), ~0xff, 0), ('extract_u8', a, 2)), ('extract_i8', a, 2)),
    (('ior', ('bcsel', ('ilt',          'a@32',         0), ~0xff, 0), ('extract_u8', a, 3)), ('extract_i8', a, 3)),
 
-   (('extract_i8', ('ushr', a, 8), 0), ('extract_i8', a, 1)),
-   (('extract_i8', ('ushr', a, 8), 1), ('extract_i8', a, 2)),
-   (('extract_i8', ('ushr', a, 8), 2), ('extract_i8', a, 3)),
-   (('extract_u8', ('ushr', a, 8), 0), ('extract_u8', a, 1)),
-   (('extract_u8', ('ushr', a, 8), 1), ('extract_u8', a, 2)),
-   (('extract_u8', ('ushr', a, 8), 2), ('extract_u8', a, 3)),
-
    (('extract_i8', ('extract_i16', a, 1), 0), ('extract_i8', a, 2)),
    (('extract_i8', ('extract_i16', a, 1), 1), ('extract_i8', a, 3)),
    (('extract_i8', ('extract_u16', a, 1), 0), ('extract_i8', a, 2)),
@@ -2304,12 +2297,11 @@ optimizations.extend([
 
 # After the ('extract_u8', a, 0) pattern, above, triggers, there will be
 # patterns like those below.
-for op in ('ushr', 'ishr'):
-   optimizations.extend([(('extract_u8', (op, 'a@16',  8),     0), ('extract_u8', a, 1))])
-   optimizations.extend([(('extract_u8', (op, 'a@32',  8 * i), 0), ('extract_u8', a, i)) for i in range(1, 4)])
-   optimizations.extend([(('extract_u8', (op, 'a@64',  8 * i), 0), ('extract_u8', a, i)) for i in range(1, 8)])
-
-optimizations.extend([(('extract_u8', ('extract_u16', a, 1), 0), ('extract_u8', a, 2))])
+for extract_op in ('extract_u8', 'extract_i8'):
+   for op in ('ushr', 'ishr'):
+      optimizations.extend([((extract_op, (op, a, 8), i), (extract_op, a, i + 1)) for i in range (0, 3)])
+      optimizations.extend([((extract_op, (op, 'a@32',  8 * i), 0), (extract_op, a, i)) for i in range(2, 4)])
+      optimizations.extend([((extract_op, (op, 'a@64',  8 * i), 0), (extract_op, a, i)) for i in range(2, 8)])
 
 # After the ('extract_[iu]8', a, 3) patterns, above, trigger, there will be
 # patterns like those below.
