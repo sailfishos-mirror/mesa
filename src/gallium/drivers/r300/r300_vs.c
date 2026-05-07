@@ -8,7 +8,6 @@
 
 #include "r300_context.h"
 #include "r300_screen.h"
-#include "r300_tgsi_to_rc.h"
 #include "r300_reg.h"
 
 #include "tgsi/tgsi_dump.h"
@@ -95,7 +94,7 @@ static void set_vertex_inputs_outputs(struct r300_vertex_program_compiler * c)
                            outputs->bcolor[1] != ATTR_UNUSED;
 
     /* Fill in the input mapping */
-    for (i = 0; i < vs->s->num_inputs; i++)
+    for (i = 0; i < vs->num_inputs; i++)
         c->code->inputs[i] = i;
 
     /* Position. */
@@ -193,7 +192,6 @@ void r300_translate_vertex_shader(struct r300_context *r300,
                                   struct r300_vertex_shader *shader)
 {
     struct r300_vertex_program_compiler compiler;
-    struct tgsi_to_rc ttr;
     unsigned i;
 
     struct r300_vertex_shader_code *vs = shader->shader;
@@ -204,28 +202,21 @@ void r300_translate_vertex_shader(struct r300_context *r300,
 
     r300_setup_vs_compiler(r300, &compiler, vs);
 
-    vs->s = nir_shader_clone(NULL, shader->state.ir.nir);
+    nir_shader *clone = nir_shader_clone(NULL, shader->state.ir.nir);
     struct r300_fragment_program_external_state external_state = {};
-    shader->state.tokens = nir_to_rc(vs->s, (struct pipe_screen *)r300->screen,
-                                     external_state, code);
+    nir_to_rc(clone, (struct pipe_screen *)r300->screen,
+              external_state, code, &compiler.Base);
     vs->outputs.wpos = vs->outputs.num_total;
 
     /* Nothing to do if the shader does not write gl_Position. */
     if (vs->outputs.pos == ATTR_UNUSED) {
         vs->dummy = true;
-        FREE((void*)shader->state.tokens);
         goto cleanup;
     }
 
-    /* Translate TGSI to our internal representation */
-    ttr.compiler = &compiler.Base;
-    ttr.shader = vs->s;
-
-    r300_tgsi_to_rc(&ttr, shader->state.tokens);
-    FREE((void*)shader->state.tokens);
-
-    if (ttr.error) {
-        vs->error = strdup("Cannot translate shader from TGSI");
+    if (compiler.Base.Error) {
+        vs->error = strdup(compiler.Base.ErrorMsg ? compiler.Base.ErrorMsg
+                                                  : "Cannot translate shader from NIR");
         vs->dummy = true;
         goto cleanup;
     }
@@ -263,6 +254,5 @@ void r300_translate_vertex_shader(struct r300_context *r300,
 
     /* And, finally... */
 cleanup:
-    ralloc_free(vs->s);
     rc_destroy(&compiler.Base);
 }

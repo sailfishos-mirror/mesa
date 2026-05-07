@@ -21,15 +21,16 @@
 struct nir_shader;
 struct pipe_screen;
 struct r300_fragment_program_external_state;
+struct radeon_compiler;
 union r300_shader_code {
    struct r300_fragment_shader_code *f;
    struct r300_vertex_shader_code *v;
 };
 
-const void *
+void
 nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
           struct r300_fragment_program_external_state state,
-          union r300_shader_code rc);
+          union r300_shader_code rc, struct radeon_compiler *compiler);
 
 void
 ntr_fixup_varying_slots(struct nir_shader *s, nir_variable_mode mode);

@@ -10,6 +10,8 @@
 #include "compiler/nir/nir_legacy.h"
 #include "compiler/nir/nir_worklist.h"
 #include "compiler/radeon_code.h"
+#include "compiler/radeon_compiler.h"
+#include "compiler/radeon_program.h"
 #include "compiler/radeon_program_constants.h"
 #include "pipe/p_screen.h"
 #include "pipe/p_state.h"
@@ -45,6 +47,10 @@ struct ntr_block {
    struct util_dynarray insns;
    int start_ip;
    int end_ip;
+};
+
+struct ntr_immediate {
+   float values[4];
 };
 
 struct ntr_reg_interval {
@@ -93,6 +99,20 @@ struct ntr_compile {
    uint64_t centroid_inputs;
 
    uint32_t first_ubo;
+
+   /* RC-side state for direct emission. */
+   struct radeon_compiler *compiler;
+   /* one struct ntr_immediate per NIR load_const */
+   struct util_dynarray immediates;
+   /* UBO size in vec4s (0 if no UBO) */
+   unsigned ubo_size;
+   /* offset for IMMEDIATE indices in the compiler's constants table */
+   unsigned immediate_offset;
+
+   /* FS output tracking. */
+   int fs_output_color_index[4];
+   int fs_output_depth_index;
+   unsigned num_outputs;
 };
 
 static struct ureg_dst
@@ -323,6 +343,14 @@ ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *fra
       }
 
       out = ureg_DECL_output(c->ureg, semantic_name, semantic_index);
+      if (semantics.location == FRAG_RESULT_DEPTH) {
+         c->fs_output_depth_index = out.Index;
+      } else if (semantic_name == TGSI_SEMANTIC_COLOR &&
+                 semantic_index < ARRAY_SIZE(c->fs_output_color_index)) {
+         c->fs_output_color_index[semantic_index] = out.Index;
+      }
+      if (out.Index >= c->num_outputs)
+         c->num_outputs = out.Index + 1;
    } else {
       unsigned semantic_name, semantic_index;
 
@@ -333,6 +361,8 @@ ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *fra
       uint32_t usage_mask = BITFIELD_RANGE(*frac, instr->num_components);
       out = ureg_DECL_output_layout(c->ureg, semantic_name, semantic_index, 0, base,
                                     usage_mask, 0, semantics.num_slots, false);
+      if (out.Index >= c->num_outputs)
+         c->num_outputs = out.Index + 1;
    }
 
    unsigned write_mask;
@@ -513,7 +543,15 @@ ntr_setup_outputs(struct ntr_compile *c)
       unsigned semantic_name, semantic_index;
       tgsi_get_gl_frag_result_semantic(var->data.location, &semantic_name, &semantic_index);
 
-      (void)ureg_DECL_output(c->ureg, semantic_name, semantic_index);
+      struct ureg_dst out = ureg_DECL_output(c->ureg, semantic_name, semantic_index);
+      if (var->data.location == FRAG_RESULT_DEPTH) {
+         c->fs_output_depth_index = out.Index;
+      } else if (semantic_name == TGSI_SEMANTIC_COLOR &&
+                 semantic_index < ARRAY_SIZE(c->fs_output_color_index)) {
+         c->fs_output_color_index[semantic_index] = out.Index;
+      }
+      if (out.Index >= c->num_outputs)
+         c->num_outputs = out.Index + 1;
    }
 }
 
@@ -590,8 +628,7 @@ ntr_setup_uniforms(struct ntr_compile *c)
       assert(ubo == 0 && size == 0);
       size = glsl_get_explicit_size(var->interface_type, false);
    }
-   if (size)
-      ureg_DECL_constant2D(c->ureg, 0, DIV_ROUND_UP(size, 16) - 1, 0);
+   c->ubo_size = size ? DIV_ROUND_UP(size, 16) : 0;
 }
 
 static void
@@ -630,7 +667,11 @@ ntr_get_load_const_src(struct ntr_compile *c, nir_load_const_instr *instr)
    for (int i = 0; i < num_components; i++)
       values[i] = uif(instr->value[i].u32);
 
-   return ureg_DECL_immediate(c->ureg, values, 4);
+   unsigned index = util_dynarray_num_elements(&c->immediates, struct ntr_immediate);
+   struct ntr_immediate *slot =
+      util_dynarray_grow(&c->immediates, struct ntr_immediate, 1);
+   memcpy(slot->values, values, sizeof(values));
+   return ureg_src_register(TGSI_FILE_IMMEDIATE, index);
 }
 
 static struct ureg_src
@@ -1466,14 +1507,6 @@ ntr_emit_block(struct ntr_compile *c, nir_block *block)
 
    nir_foreach_instr (instr, block) {
       ntr_emit_instr(c, instr);
-
-      /* Sanity check that we didn't accidentally ureg_OPCODE() instead of ntr_OPCODE(). */
-      if (ureg_get_instruction_number(c->ureg) != 0) {
-         fprintf(stderr, "Emitted ureg insn during: ");
-         nir_print_instr(instr, stderr);
-         fprintf(stderr, "\n");
-         UNREACHABLE("emitted ureg insn");
-      }
    }
 
    /* Set up the if condition for ntr_emit_if(), which we have to do before
@@ -1512,74 +1545,78 @@ ntr_emit_cf_list(struct ntr_compile *c, struct exec_list *list)
 }
 
 static void
-ntr_emit_block_ureg(struct ntr_compile *c, struct nir_block *block)
+ntr_translate_dst(struct ntr_compile *c, struct rc_dst_register *rc_dst,
+                  struct ureg_dst src)
+{
+   rc_dst->File = rc_translate_register_file(src.File);
+   rc_dst->Index = src.Index;
+   rc_dst->WriteMask = src.WriteMask;
+   if (src.Indirect)
+      rc_error(c->compiler,
+               "r300: Relative addressing of destination operands is unsupported.\n");
+}
+
+static void
+ntr_translate_src(struct ntr_compile *c, struct rc_src_register *rc_src,
+                  struct ureg_src src)
+{
+   rc_src->File = rc_translate_register_file(src.File);
+   int index = src.Index;
+   if (src.File == TGSI_FILE_IMMEDIATE)
+      index += c->immediate_offset;
+   /* Negative offsets to relative addressing should have been lowered in NIR */
+   assert(index >= 0);
+   if (index >= RC_REGISTER_MAX_INDEX)
+      rc_error(c->compiler, "r300: Register index too high.\n");
+   rc_src->Index = index;
+   rc_src->RelAddr = src.Indirect;
+   rc_src->Swizzle = src.SwizzleX;
+   rc_src->Swizzle |= src.SwizzleY << 3;
+   rc_src->Swizzle |= src.SwizzleZ << 6;
+   rc_src->Swizzle |= src.SwizzleW << 9;
+   rc_src->Abs = src.Absolute;
+   rc_src->Negate = src.Negate ? RC_MASK_XYZW : 0;
+}
+
+static void
+ntr_emit_block_rc(struct ntr_compile *c, struct nir_block *block)
 {
    struct ntr_block *ntr_block = ntr_block_from_nir(c, block);
 
-   /* Emit the ntr insns to tgsi_ureg. */
    util_dynarray_foreach (&ntr_block->insns, struct ntr_insn, insn) {
       const struct tgsi_opcode_info *opcode_info = tgsi_get_opcode_info(insn->opcode);
+      struct rc_instruction *rc_insn =
+         rc_insert_new_instruction(c->compiler, c->compiler->Program.Instructions.Prev);
 
-      switch (insn->opcode) {
-      case TGSI_OPCODE_IF:
-         ureg_IF(c->ureg, insn->src[0], &c->cf_label);
-         break;
+      rc_insn->U.I.Opcode = rc_translate_opcode(insn->opcode);
 
-      case TGSI_OPCODE_ELSE:
-         ureg_fixup_label(c->ureg, c->current_if_else, ureg_get_instruction_number(c->ureg));
-         ureg_ELSE(c->ureg, &c->cf_label);
-         c->current_if_else = c->cf_label;
-         break;
+      if (opcode_info->num_dst > 0) {
+         rc_insn->U.I.SaturateMode = rc_translate_saturate(insn->dst[0].Saturate);
+         ntr_translate_dst(c, &rc_insn->U.I.DstReg, insn->dst[0]);
+      }
 
-      case TGSI_OPCODE_ENDIF:
-         ureg_fixup_label(c->ureg, c->current_if_else, ureg_get_instruction_number(c->ureg));
-         ureg_ENDIF(c->ureg);
-         break;
-
-      case TGSI_OPCODE_BGNLOOP:
-         /* GLSL-to-TGSI never set the begin/end labels to anything, even though nvfx
-          * does reference BGNLOOP's.  Follow the former behavior unless something comes up
-          * with a need.
-          */
-         ureg_BGNLOOP(c->ureg, &c->cf_label);
-         break;
-
-      case TGSI_OPCODE_ENDLOOP:
-         ureg_ENDLOOP(c->ureg, &c->cf_label);
-         break;
-
-      default:
-         if (insn->is_tex) {
-            int num_offsets = 0;
-            for (int i = 0; i < ARRAY_SIZE(insn->tex_offset); i++) {
-               if (insn->tex_offset[i].File != TGSI_FILE_NULL)
-                  num_offsets = i + 1;
-            }
-            ureg_tex_insn(c->ureg, insn->opcode, insn->dst, opcode_info->num_dst, insn->tex_target,
-                          insn->tex_offset, num_offsets, insn->src, opcode_info->num_src);
+      for (unsigned i = 0; i < (unsigned)opcode_info->num_src; i++) {
+         if (insn->src[i].File == TGSI_FILE_SAMPLER) {
+            rc_insn->U.I.TexSrcUnit = insn->src[i].Index;
          } else {
-            ureg_insn(c->ureg, insn->opcode, insn->dst, opcode_info->num_dst, insn->src,
-                      opcode_info->num_src, insn->precise);
+            ntr_translate_src(c, &rc_insn->U.I.SrcReg[i], insn->src[i]);
          }
+      }
+
+      if (insn->is_tex) {
+         rc_insn->U.I.TexSrcTarget = rc_translate_tex_target(insn->tex_target);
+         rc_insn->U.I.TexSwizzle = RC_SWIZZLE_XYZW;
       }
    }
 }
 
 static void
-ntr_emit_if_ureg(struct ntr_compile *c, nir_if *if_stmt)
+ntr_emit_if_rc(struct ntr_compile *c, nir_if *if_stmt)
 {
-   /* Note: the last block emitted our IF opcode. */
-
-   int if_stack = c->current_if_else;
-   c->current_if_else = c->cf_label;
-
-   /* Either the then or else block includes the ENDIF, which will fix up the
-    * IF(/ELSE)'s label for jumping
-    */
+   /* The block before this if/else has already emitted the IF opcode into
+    * our ntr_insn list. RC is structural so it doesn't need label fixups. */
    ntr_emit_cf_list_ureg(c, &if_stmt->then_list);
    ntr_emit_cf_list_ureg(c, &if_stmt->else_list);
-
-   c->current_if_else = if_stack;
 }
 
 static void
@@ -1588,11 +1625,11 @@ ntr_emit_cf_list_ureg(struct ntr_compile *c, struct exec_list *list)
    foreach_list_typed (nir_cf_node, node, node, list) {
       switch (node->type) {
       case nir_cf_node_block:
-         ntr_emit_block_ureg(c, nir_cf_node_as_block(node));
+         ntr_emit_block_rc(c, nir_cf_node_as_block(node));
          break;
 
       case nir_cf_node_if:
-         ntr_emit_if_ureg(c, nir_cf_node_as_if(node));
+         ntr_emit_if_rc(c, nir_cf_node_as_if(node));
          break;
 
       case nir_cf_node_loop:
@@ -1606,6 +1643,32 @@ ntr_emit_cf_list_ureg(struct ntr_compile *c, struct exec_list *list)
       default:
          UNREACHABLE("unknown CF type");
       }
+   }
+}
+
+static void
+ntr_add_constants(struct ntr_compile *c)
+{
+   /* Add UBO constants first (they show up before immediates in the
+    * compiler's constants table; the immediate offset compensates for
+    * this). */
+   for (unsigned i = 0; i < c->ubo_size; i++) {
+      struct rc_constant constant;
+      memset(&constant, 0, sizeof(constant));
+      constant.Type = RC_CONSTANT_EXTERNAL;
+      constant.UseMask = RC_MASK_XYZW;
+      constant.u.External = i;
+      rc_constants_add(&c->compiler->Program.Constants, &constant);
+   }
+   c->immediate_offset = c->compiler->Program.Constants.Count;
+
+   util_dynarray_foreach (&c->immediates, struct ntr_immediate, imm) {
+      struct rc_constant constant;
+      constant.Type = RC_CONSTANT_IMMEDIATE;
+      constant.UseMask = RC_MASK_XYZW;
+      for (unsigned j = 0; j < 4; j++)
+         constant.u.Immediate[j] = imm->values[j];
+      rc_constants_add(&c->compiler->Program.Constants, &constant);
    }
 }
 
@@ -1637,7 +1700,8 @@ ntr_emit_impl(struct ntr_compile *c, nir_function_impl *impl)
 
    ntr_allocate_regs_unoptimized(c, impl);
 
-   /* Turn the ntr insns into actual TGSI tokens */
+   /* Add constants and emit RC instructions directly. */
+   ntr_add_constants(c);
    ntr_emit_cf_list_ureg(c, &impl->body);
 
    ralloc_free(c->liveness);
@@ -1841,23 +1905,27 @@ ntr_fixup_varying_slots(nir_shader *s, nir_variable_mode mode)
 }
 
 /**
- * Translates the NIR shader to TGSI.
+ * Translates the NIR shader to RC instructions on the given compiler.
  *
- * This requires some lowering of the NIR shader to prepare it for translation.
- * We take ownership of the NIR shader passed, returning a reference to the new
- * TGSI tokens instead.  If you need to keep the NIR, then pass us a clone.
+ * This requires some lowering of the NIR shader to prepare it for
+ * translation. We take ownership of the NIR shader passed; if you need to
+ * keep the NIR, then pass us a clone.
  */
-const void *
+void
 nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
           struct r300_fragment_program_external_state state,
-          union r300_shader_code rc)
+          union r300_shader_code rc, struct radeon_compiler *compiler)
 {
    struct ntr_compile *c;
-   const void *tgsi_tokens;
    bool is_r500 = r300_screen(screen)->caps.is_r500;
    c = rzalloc(NULL, struct ntr_compile);
    c->screen = screen;
+   c->compiler = compiler;
    c->lower_fabs = !is_r500 && s->info.stage == MESA_SHADER_VERTEX;
+   util_dynarray_init(&c->immediates, c);
+   for (unsigned i = 0; i < ARRAY_SIZE(c->fs_output_color_index); i++)
+      c->fs_output_color_index[i] = -1;
+   c->fs_output_depth_index = -1;
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
       c->semantics = &rc.f->inputs;
    } else {
@@ -2007,18 +2075,27 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    /* Emit the main function */
    nir_function_impl *impl = nir_shader_get_entrypoint(c->s);
    ntr_emit_impl(c, impl);
-   ureg_END(c->ureg);
 
-   tgsi_tokens = ureg_get_tokens(c->ureg, NULL);
-
-   if (NIR_DEBUG(TGSI)) {
-      fprintf(stderr, "TGSI after translation from NIR:\n");
-      tgsi_dump(tgsi_tokens, 0);
+   /* For FS, populate the FS-specific compiler outputs. */
+   if (s->info.stage == MESA_SHADER_FRAGMENT) {
+      struct r300_fragment_program_compiler *fc =
+         (struct r300_fragment_program_compiler *)compiler;
+      rc.f->uses_discard = s->info.fs.uses_discard;
+      fc->OutputDepth = c->fs_output_depth_index >= 0 ? c->fs_output_depth_index
+                                                      : c->num_outputs;
+      for (unsigned i = 0; i < ARRAY_SIZE(c->fs_output_color_index); i++) {
+         fc->OutputColor[i] = c->fs_output_color_index[i] >= 0
+                                ? c->fs_output_color_index[i]
+                                : c->num_outputs;
+      }
+   } else if (s->info.stage == MESA_SHADER_VERTEX) {
+      rc.v->num_inputs = s->num_inputs;
    }
+
+   rc_calculate_inputs_outputs(compiler);
 
    ureg_destroy(c->ureg);
 
    ralloc_free(c);
-
-   return tgsi_tokens;
+   ralloc_free(s);
 }

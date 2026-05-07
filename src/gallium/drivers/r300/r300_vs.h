@@ -20,7 +20,7 @@ struct r300_vertex_shader_code {
     /* Parent class */
 
     struct tgsi_shader_info info;
-    struct nir_shader *s;
+    unsigned num_inputs;
     struct r300_shader_semantics outputs;
 
     /* Whether the shader was replaced by a dummy one due to a shader
@@ -56,8 +56,6 @@ struct r300_vertex_shader {
     /* SWTCL-specific. */
     void *draw_vs;
 };
-
-struct nir_shader;
 
 void r300_init_vs_outputs(struct r300_context *r300,
                           struct r300_vertex_shader *vs);

@@ -18,37 +18,11 @@
 #include "r300_fs.h"
 #include "r300_reg.h"
 #include "r300_texture.h"
-#include "r300_tgsi_to_rc.h"
 
 #include "compiler/radeon_compiler.h"
 #include "compiler/nir_to_rc.h"
 #include "nir.h"
 #include "compiler/nir/nir_builder.h"
-
-static void find_output_registers(struct r300_fragment_program_compiler * compiler,
-                                  struct r300_fragment_shader_code *shader)
-{
-    unsigned i;
-
-    /* Mark the outputs as not present initially */
-    compiler->OutputColor[0] = shader->info.num_outputs;
-    compiler->OutputColor[1] = shader->info.num_outputs;
-    compiler->OutputColor[2] = shader->info.num_outputs;
-    compiler->OutputColor[3] = shader->info.num_outputs;
-    compiler->OutputDepth = shader->info.num_outputs;
-
-    /* Now see where they really are. */
-    for(i = 0; i < shader->info.num_outputs; ++i) {
-        switch(shader->info.output_semantic_name[i]) {
-            case TGSI_SEMANTIC_COLOR:
-                compiler->OutputColor[shader->info.output_semantic_index[i]] = i;
-                break;
-            case TGSI_SEMANTIC_POSITION:
-                compiler->OutputDepth = i;
-                break;
-        }
-    }
-}
 
 static void allocate_hardware_inputs(
     struct r300_fragment_program_compiler * c,
@@ -356,7 +330,6 @@ static void r300_translate_fragment_shader(
     struct pipe_shader_state state)
 {
     struct r300_fragment_program_compiler compiler;
-    struct tgsi_to_rc ttr;
     int wpos, face;
     unsigned i;
     union r300_shader_code code;
@@ -364,14 +337,15 @@ static void r300_translate_fragment_shader(
 
     r300_shader_semantics_reset(&shader->inputs);
 
-    nir_shader *clone = nir_shader_clone(NULL, state.ir.nir);
-    state.tokens = nir_to_rc(clone, (struct pipe_screen *)r300->screen, shader->compare_state,
-                             code);
-
-    tgsi_scan_shader(state.tokens, &shader->info);
-
-    wpos = shader->inputs.wpos;
-    face = shader->inputs.face;
+    /* gl_FragColor (vs. gl_FragData[0]) makes the FS write the same value
+     * to all bound color buffers. */
+    shader->write_all = false;
+    nir_foreach_shader_out_variable(var, state.ir.nir) {
+        if (var->data.location == FRAG_RESULT_COLOR) {
+            shader->write_all = true;
+            break;
+        }
+    }
 
     /* Setup the compiler. */
     memset(&compiler, 0, sizeof(compiler));
@@ -398,24 +372,20 @@ static void r300_translate_fragment_shader(
     compiler.AllocateHwInputs = &allocate_hardware_inputs;
     compiler.UserData = &shader->inputs;
 
-    find_output_registers(&compiler, shader);
+    nir_shader *clone = nir_shader_clone(NULL, state.ir.nir);
+    nir_to_rc(clone, (struct pipe_screen *)r300->screen, shader->compare_state,
+              code, &compiler.Base);
 
-    shader->write_all =
-          shader->info.properties[TGSI_PROPERTY_FS_COLOR0_WRITES_ALL_CBUFS];
-
-    /* Translate TGSI to our internal representation */
-    ttr.compiler = &compiler.Base;
-    ttr.shader = clone;
-
-    r300_tgsi_to_rc(&ttr, state.tokens);
-    ralloc_free(clone);
-    FREE((void*)state.tokens);
-
-    if (ttr.error) {
-        shader->error = strdup("Cannot translate a shader from TGSI.");
+    if (compiler.Base.Error) {
+        shader->error = strdup(compiler.Base.ErrorMsg ? compiler.Base.ErrorMsg
+                                                      : "Cannot translate shader from NIR.");
+        rc_destroy(&compiler.Base);
         r300_dummy_fragment_shader(r300, shader);
         return;
     }
+
+    wpos = shader->inputs.wpos;
+    face = shader->inputs.face;
 
     if (!r300->screen->caps.is_r500 ||
         compiler.Base.Program.Constants.Count > 200) {
