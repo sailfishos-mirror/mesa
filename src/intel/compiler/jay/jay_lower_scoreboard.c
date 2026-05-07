@@ -18,18 +18,18 @@
 #define NUM_TOKENS (16)
 
 /** SEND scoreboarding */
-struct gpr_range {
+struct key {
    unsigned base, width;
 };
 
-static inline struct gpr_range
-def_to_gpr(jay_function *func, jay_inst *I, jay_def x)
+static inline struct key
+def_to_key(jay_function *func, jay_inst *I, jay_def x)
 {
    if (x.file == GPR || x.file == UGPR) {
       unsigned base = x.file == UGPR ? func->shader->num_regs[GPR] : 0;
-      return (struct gpr_range) { base + x.reg, jay_num_values(x) };
+      return (struct key) { base + x.reg, jay_num_values(x) };
    } else {
-      return (struct gpr_range) { 0, 0 };
+      return (struct key) { 0, 0 };
    }
 }
 
@@ -61,7 +61,7 @@ lower_send_local(jay_function *func, jay_block *block)
 
       /* Read-after-write */
       jay_foreach_src(I, s) {
-         struct gpr_range src = def_to_gpr(func, I, I->src[s]);
+         struct key src = def_to_key(func, I, I->src[s]);
 
          u_foreach_bit(sbid, busy) {
             if (BITSET_TEST_COUNT(tokens[sbid].writing, src.base, src.width)) {
@@ -73,7 +73,7 @@ lower_send_local(jay_function *func, jay_block *block)
 
       /* Write-after-write & write-after-read */
       jay_foreach_dst(I, d) {
-         struct gpr_range dst = def_to_gpr(func, I, I->dst);
+         struct key dst = def_to_key(func, I, I->dst);
 
          u_foreach_bit(sbid, busy) {
             if (BITSET_TEST_COUNT(tokens[sbid].writing, dst.base, dst.width)) {
@@ -100,11 +100,11 @@ lower_send_local(jay_function *func, jay_block *block)
          sbid_dst &= ~BITFIELD_BIT(sbid);
          sbid_src &= ~BITFIELD_BIT(sbid);
 
-         struct gpr_range dst = def_to_gpr(func, I, I->dst);
+         struct key dst = def_to_key(func, I, I->dst);
          BITSET_SET_COUNT(tokens[sbid].writing, dst.base, dst.width);
 
          jay_foreach_src(I, s) {
-            struct gpr_range src = def_to_gpr(func, I, I->src[s]);
+            struct key src = def_to_key(func, I, I->src[s]);
             BITSET_SET_COUNT(tokens[sbid].reading, src.base, src.width);
          }
 
@@ -220,7 +220,7 @@ max_dependence(enum tgl_pipe pipe)
 
 static void
 depend_on_writer(struct swsb_state *state,
-                 struct gpr_range r,
+                 struct key r,
                  unsigned *dep,
                  enum tgl_pipe exec,
                  bool except_exec)
@@ -252,7 +252,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
    unsigned dep[TGL_NUM_PIPES] = { 0 };
 
    jay_foreach_dst(I, def) {
-      struct gpr_range r = def_to_gpr(func, I, def);
+      struct key r = def_to_key(func, I, def);
       depend_on_writer(ctx, r, dep, exec_pipe, true /* except_pipe */);
 
       for (unsigned i = 0; i < r.width; ++i) {
@@ -266,7 +266,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
 
    /* Read-after-write */
    jay_foreach_src(I, s) {
-      depend_on_writer(ctx, def_to_gpr(func, I, I->src[s]), dep, exec_pipe,
+      depend_on_writer(ctx, def_to_key(func, I, I->src[s]), dep, exec_pipe,
                        false);
    }
 
@@ -357,7 +357,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
       ctx->ip[exec_pipe] +=
          jay_macro_length(I) << jay_simd_split(func->shader, I);
 
-      struct gpr_range r = def_to_gpr(func, I, I->dst);
+      struct key r = def_to_key(func, I, I->dst);
       uint32_t now = make_writer(exec_pipe, ctx->ip[exec_pipe]);
 
       for (unsigned i = 0; i < r.width; ++i) {
@@ -365,7 +365,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
       }
 
       jay_foreach_src(I, s) {
-         struct gpr_range r = def_to_gpr(func, I, I->src[s]);
+         struct key r = def_to_key(func, I, I->src[s]);
          for (unsigned i = 0; i < r.width; ++i) {
             ctx->access[r.base + i][exec_pipe] = ctx->ip[exec_pipe];
          }
