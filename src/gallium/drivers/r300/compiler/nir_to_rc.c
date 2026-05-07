@@ -1243,17 +1243,11 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
       s.srcs[s.i++] = ntr_get_src(c, instr->src[ddy].src);
    }
 
-   struct ureg_dst tex_dst;
-   if (instr->op == nir_texop_query_levels)
-      tex_dst = ureg_writemask(ntr_temp(c), TGSI_WRITEMASK_W);
-   else
-      tex_dst = dst;
-
    while (s.i < 4)
       s.srcs[s.i++] = ureg_src_undef();
 
    struct ntr_insn *insn =
-      ntr_insn(c, tex_opcode, tex_dst, s.srcs[0], s.srcs[1], s.srcs[2], s.srcs[3]);
+      ntr_insn(c, tex_opcode, dst, s.srcs[0], s.srcs[1], s.srcs[2], s.srcs[3]);
    insn->tex_target = target;
    insn->tex_sampler = sampler;
    insn->is_tex = true;
@@ -1269,21 +1263,6 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
       insn->tex_offset[0].SwizzleZ = offset.SwizzleZ;
       insn->tex_offset[0].Padding = 0;
    }
-
-   if (nir_tex_instr_has_explicit_tg4_offsets(instr)) {
-      for (uint8_t i = 0; i < 4; ++i) {
-         struct ureg_src imm =
-            ureg_imm2i(c->ureg, instr->tg4_offsets[i][0], instr->tg4_offsets[i][1]);
-         insn->tex_offset[i].File = imm.File;
-         insn->tex_offset[i].Index = imm.Index;
-         insn->tex_offset[i].SwizzleX = imm.SwizzleX;
-         insn->tex_offset[i].SwizzleY = imm.SwizzleY;
-         insn->tex_offset[i].SwizzleZ = imm.SwizzleZ;
-      }
-   }
-
-   if (instr->op == nir_texop_query_levels)
-      ntr_MOV(c, dst, ureg_scalar(ureg_src(tex_dst), 3));
 }
 
 static void
