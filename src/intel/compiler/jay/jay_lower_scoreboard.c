@@ -159,6 +159,8 @@ struct swsb_state {
     */
    unsigned finished_ip[TGL_NUM_PIPES][TGL_NUM_PIPES];
    u32_per_pipe *access;
+
+   jay_inst *last_sync;
 };
 
 static enum tgl_pipe
@@ -250,144 +252,132 @@ depend_on_writer(struct swsb_state *state,
    for (unsigned pipe = 1; pipe < TGL_NUM_PIPES; ++pipe)
 
 static void
-lower_regdist_local(jay_function *func,
-                    jay_block *block,
-                    struct swsb_state *state)
+lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
 {
-   jay_inst *last_sync = NULL;
+   enum tgl_pipe exec_pipe = inst_exec_pipe(func->shader->devinfo, I);
+   unsigned dep[TGL_NUM_PIPES] = { 0 };
 
-   jay_foreach_inst_in_block_safe(block, I) {
-      enum tgl_pipe exec_pipe = inst_exec_pipe(func->shader->devinfo, I);
-      unsigned dep[TGL_NUM_PIPES] = { 0 };
-      if (I->op == JAY_OPCODE_SYNC) {
-         last_sync = I;
-         continue;
-      }
+   jay_foreach_dst(I, def) {
+      struct gpr_range r = def_to_gpr(func, I, def);
+      depend_on_writer(ctx, r, dep, exec_pipe, true /* except_pipe */);
 
-      jay_foreach_dst(I, def) {
-         struct gpr_range r = def_to_gpr(func, I, def);
-         depend_on_writer(state, r, dep, exec_pipe, true /* except_pipe */);
-
-         for (unsigned i = 0; i < r.width; ++i) {
-            jay_foreach_pipe(p) {
-               if (p != exec_pipe) {
-                  dep[p] = MAX2(dep[p], state->access[r.base + i][p]);
-               }
+      for (unsigned i = 0; i < r.width; ++i) {
+         jay_foreach_pipe(p) {
+            if (p != exec_pipe) {
+               dep[p] = MAX2(dep[p], ctx->access[r.base + i][p]);
             }
          }
       }
+   }
 
-      /* Read-after-write */
+   /* Read-after-write */
+   jay_foreach_src(I, s) {
+      depend_on_writer(ctx, def_to_gpr(func, I, I->src[s]), dep, exec_pipe,
+                       false);
+   }
+
+   /* If dependency P implies dependency Q, drop dependency Q to avoid
+    * unnecessary annotations.
+    */
+   jay_foreach_pipe(p) {
+      if (dep[p]) {
+         jay_foreach_pipe(q) {
+            if (p != q && dep[q] && ctx->finished_ip[p][q] >= dep[q]) {
+               dep[q] = 0;
+            }
+         }
+      }
+   }
+
+   uint32_t wait_pipes = 0;
+   unsigned min_delta = 7;
+
+   jay_foreach_pipe(p) {
+      if (dep[p] && (exec_pipe == TGL_PIPE_NONE /* TODO: Sends */ ||
+                     dep[p] > ctx->finished_ip[exec_pipe][p])) {
+
+         min_delta = MIN2(min_delta, ctx->ip[p] - dep[p] + 1);
+         wait_pipes |= BITFIELD_BIT(p);
+      }
+   }
+
+   /* We'll wait on the unioned dependency. Update the tracking for that. */
+   u_foreach_bit(p, wait_pipes) {
+      ctx->finished_ip[exec_pipe][p] = ctx->ip[p] + 1 - min_delta;
+   }
+
+   uint32_t last_pipe = util_logbase2(wait_pipes);
+   bool single_wait = wait_pipes == BITFIELD_BIT(last_pipe);
+
+   /* If we're SIMD split the same way as our dependency, we can relax the
+    * dependency to have each half wait in parallel. We could do even better
+    * with more tracking but this should be good enough for now.
+    */
+   unsigned simd_split = jay_simd_split(func->shader, I);
+   unsigned shape = ((simd_split << 2) | jay_macro_length(I)) + 1;
+   bool same_shape = ctx->last_shape[last_pipe] == shape;
+
+   if (simd_split && same_shape && single_wait && min_delta == 1) {
+      min_delta += ((1 << simd_split) - 1) * jay_macro_length(I);
+      I->replicate_dep = true;
+      I->decrement_dep = last_pipe != exec_pipe;
+   }
+
+   bool has_sbid = I->op == JAY_OPCODE_SEND && !jay_send_eot(I);
+   I->dep = (struct tgl_swsb) {
+      .sbid = has_sbid ? jay_send_sbid(I) : 0,
+      .mode = has_sbid ? TGL_SBID_SET : TGL_SBID_NULL,
+      .regdist = wait_pipes ? min_delta : 0,
+      .pipe = single_wait && (!has_sbid ||
+                              last_pipe == TGL_PIPE_FLOAT ||
+                              last_pipe == TGL_PIPE_INT) ?
+                 last_pipe :
+                 TGL_PIPE_ALL,
+   };
+
+   /* Fold the immediate preceding SYNC.nop into this instruction, allowing
+    * us to wait on both ALU and a SEND in the same annotation. We cannot do
+    * this safely in the presence of predication or SIMD splitting that could
+    * cause any part of the instruction to get shot down, skipping the sync
+    * for future instructions (at least not without more tricky logic).
+    */
+   if (ctx->last_sync &&
+       jay_sync_op(ctx->last_sync) == TGL_SYNC_NOP &&
+       I->dep.mode == TGL_SBID_NULL &&
+       !I->predication &&
+       !jay_simd_split(func->shader, I) &&
+       (I->dep.regdist == 0 ||
+        inferred_sync_pipe(func->shader->devinfo, I) == I->dep.pipe)) {
+
+      assert(ctx->last_sync->dep.regdist == 0);
+      assert(ctx->last_sync->dep.pipe == TGL_PIPE_NONE);
+
+      I->dep.mode = ctx->last_sync->dep.mode;
+      I->dep.sbid = ctx->last_sync->dep.sbid;
+
+      jay_remove_instruction(ctx->last_sync);
+   }
+
+   if (exec_pipe != TGL_PIPE_NONE) {
+      /* Advance the IP by the number of physical instructions emitted */
+      ctx->ip[exec_pipe] +=
+         jay_macro_length(I) << jay_simd_split(func->shader, I);
+
+      struct gpr_range r = def_to_gpr(func, I, I->dst);
+      uint32_t now = make_writer(exec_pipe, ctx->ip[exec_pipe]);
+
+      for (unsigned i = 0; i < r.width; ++i) {
+         ctx->access[r.base + i][0] = now;
+      }
+
       jay_foreach_src(I, s) {
-         depend_on_writer(state, def_to_gpr(func, I, I->src[s]), dep, exec_pipe,
-                          false);
-      }
-
-      /* If dependency P implies dependency Q, drop dependency Q to avoid
-       * unnecessary annotations.
-       */
-      jay_foreach_pipe(p) {
-         if (dep[p]) {
-            jay_foreach_pipe(q) {
-               if (p != q && dep[q] && state->finished_ip[p][q] >= dep[q]) {
-                  dep[q] = 0;
-               }
-            }
-         }
-      }
-
-      uint32_t wait_pipes = 0;
-      unsigned min_delta = 7;
-
-      jay_foreach_pipe(p) {
-         if (dep[p] && (exec_pipe == TGL_PIPE_NONE /* TODO: Sends */ ||
-                        dep[p] > state->finished_ip[exec_pipe][p])) {
-
-            min_delta = MIN2(min_delta, state->ip[p] - dep[p] + 1);
-            wait_pipes |= BITFIELD_BIT(p);
-         }
-      }
-
-      /* We'll wait on the unioned dependency. Update the tracking for that. */
-      u_foreach_bit(p, wait_pipes) {
-         state->finished_ip[exec_pipe][p] = state->ip[p] + 1 - min_delta;
-      }
-
-      uint32_t last_pipe = util_logbase2(wait_pipes);
-      bool single_wait = wait_pipes == BITFIELD_BIT(last_pipe);
-
-      /* If we're SIMD split the same way as our dependency, we can relax the
-       * dependency to have each half wait in parallel. We could do even better
-       * with more tracking but this should be good enough for now.
-       */
-      unsigned simd_split = jay_simd_split(func->shader, I);
-      unsigned shape = ((simd_split << 2) | jay_macro_length(I)) + 1;
-      bool same_shape = state->last_shape[last_pipe] == shape;
-
-      if (simd_split && same_shape && single_wait && min_delta == 1) {
-         min_delta += ((1 << simd_split) - 1) * jay_macro_length(I);
-         I->replicate_dep = true;
-         I->decrement_dep = last_pipe != exec_pipe;
-      }
-
-      bool has_sbid = I->op == JAY_OPCODE_SEND && !jay_send_eot(I);
-      I->dep = (struct tgl_swsb) {
-         .sbid = has_sbid ? jay_send_sbid(I) : 0,
-         .mode = has_sbid ? TGL_SBID_SET : TGL_SBID_NULL,
-         .regdist = wait_pipes ? min_delta : 0,
-         .pipe = single_wait && (!has_sbid ||
-                                 last_pipe == TGL_PIPE_FLOAT ||
-                                 last_pipe == TGL_PIPE_INT) ?
-                    last_pipe :
-                    TGL_PIPE_ALL,
-      };
-
-      /* Fold the immediate preceding SYNC.nop into this instruction, allowing
-       * us to wait on both ALU and a SEND in the same annotation. We cannot do
-       * this safely in the presence of predication or SIMD splitting that could
-       * cause any part of the instruction to get shot down, skipping the sync
-       * for future instructions (at least not without more tricky logic).
-       */
-      if (last_sync &&
-          jay_sync_op(last_sync) == TGL_SYNC_NOP &&
-          I->dep.mode == TGL_SBID_NULL &&
-          !I->predication &&
-          !jay_simd_split(func->shader, I) &&
-          (I->dep.regdist == 0 ||
-           inferred_sync_pipe(func->shader->devinfo, I) == I->dep.pipe)) {
-
-         assert(last_sync->dep.regdist == 0);
-         assert(last_sync->dep.pipe == TGL_PIPE_NONE);
-
-         I->dep.mode = last_sync->dep.mode;
-         I->dep.sbid = last_sync->dep.sbid;
-
-         jay_remove_instruction(last_sync);
-      }
-
-      if (exec_pipe != TGL_PIPE_NONE) {
-         /* Advance the IP by the number of physical instructions emitted */
-         state->ip[exec_pipe] +=
-            jay_macro_length(I) << jay_simd_split(func->shader, I);
-
-         struct gpr_range r = def_to_gpr(func, I, I->dst);
-         uint32_t now = make_writer(exec_pipe, state->ip[exec_pipe]);
-
+         struct gpr_range r = def_to_gpr(func, I, I->src[s]);
          for (unsigned i = 0; i < r.width; ++i) {
-            state->access[r.base + i][0] = now;
+            ctx->access[r.base + i][exec_pipe] = ctx->ip[exec_pipe];
          }
-
-         jay_foreach_src(I, s) {
-            struct gpr_range r = def_to_gpr(func, I, I->src[s]);
-            for (unsigned i = 0; i < r.width; ++i) {
-               state->access[r.base + i][exec_pipe] = state->ip[exec_pipe];
-            }
-         }
-
-         state->last_shape[exec_pipe] = shape;
       }
 
-      last_sync = NULL;
+      ctx->last_shape[exec_pipe] = shape;
    }
 }
 
@@ -428,7 +418,14 @@ jay_lower_scoreboard(jay_shader *shader)
       }
 
       jay_foreach_block(f, block) {
-         lower_regdist_local(f, block, &state);
+         jay_foreach_inst_in_block_safe(block, I) {
+            if (I->op == JAY_OPCODE_SYNC) {
+               state.last_sync = I;
+            } else {
+               lower_regdist(f, I, &state);
+               state.last_sync = NULL;
+            }
+         }
       }
    }
 
