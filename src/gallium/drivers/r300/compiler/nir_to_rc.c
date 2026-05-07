@@ -49,7 +49,6 @@ struct ntr_reg_interval {
 struct ntr_compile {
    nir_shader *s;
    nir_function_impl *impl;
-   struct ureg_program *ureg;
    struct r300_shader_semantics *semantics;
 
    /* Options */
@@ -1911,8 +1910,6 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    }
 
    c->s = s;
-   c->ureg = ureg_create(s->info.stage);
-   ureg_setup_shader_info(c->ureg, &s->info);
    /* Emit the main function */
    nir_function_impl *impl = nir_shader_get_entrypoint(c->s);
    ntr_emit_impl(c, impl);
@@ -1934,8 +1931,6 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    }
 
    rc_calculate_inputs_outputs(compiler);
-
-   ureg_destroy(c->ureg);
 
    ralloc_free(c);
    ralloc_free(s);
