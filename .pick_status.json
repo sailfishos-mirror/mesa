@@ -934,7 +934,7 @@
         "description": "panvk: Restore push descriptor dirty bit after meta operations",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f74dd596d5481625f7f3fe50a7aad9a21a7f113b",
         "notes": null
