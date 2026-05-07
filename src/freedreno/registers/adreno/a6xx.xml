@@ -2561,10 +2561,8 @@ by a particular renderpass/blit.
 		<reg32 offset="0" name="REG" type="float"/>
 	</array>
 
-	<!-- 0x88c2-0x88cf invalid-->
 	<reg32 offset="0x88d0" name="RB_RESOLVE_CNTL_0" usage="resolve">
-		<bitfield name="UNK0" low="0" high="12"/>
-		<bitfield name="UNK16" low="16" high="26"/>
+		<bitfield name="YUV_PLANE_ID" low="0" high="1"/>
 	</reg32>
 	<reg32 offset="0x88d1" name="RB_RESOLVE_CNTL_1" type="a6xx_reg_xy" usage="resolve"/>
 	<reg32 offset="0x88d2" name="RB_RESOLVE_CNTL_2" type="a6xx_reg_xy" usage="resolve"/>
