@@ -65,6 +65,7 @@ struct st_external_sampler_key
    GLuint bt709;
    GLuint bt2020;
    GLuint yuv_full_range;
+   GLuint external_y2y;
 };
 
 static inline struct st_external_sampler_key
@@ -74,6 +75,9 @@ st_get_external_sampler_key(struct st_context *st, struct gl_program *prog)
    struct st_external_sampler_key key;
 
    memset(&key, 0, sizeof(key));
+
+   /* Set Y2Y samplers from the stored bitfield */
+   key.external_y2y = prog->Y2YSamplersUsed;
 
    while (unlikely(mask)) {
       unsigned unit = u_bit_scan(&mask);
