@@ -2,16 +2,11 @@
 #define LP_STATE_SETUP_H
 
 #include "lp_bld_interp.h"
+#include "util/u_shader_variant_cache.h"
 
 
 struct llvmpipe_context;
 struct lp_setup_variant;
-
-struct lp_setup_variant_list_item
-{
-   struct list_head list;
-   struct lp_setup_variant *base;
-};
 
 
 struct lp_setup_variant_key {
@@ -53,9 +48,9 @@ typedef void (*lp_jit_setup_triangle)(const float (*v0)[4],
  * vertices.
  */
 struct lp_setup_variant {
-   struct lp_setup_variant_key key;
+   struct util_shader_variant base;
 
-   struct lp_setup_variant_list_item list_item_global;
+   struct lp_setup_variant_key key;
 
    struct gallivm_state *gallivm;
 
@@ -66,6 +61,9 @@ struct lp_setup_variant {
    unsigned no;
 };
 
+
+void
+lp_init_setup_variants(struct llvmpipe_context *lp);
 
 void
 lp_delete_setup_variants(struct llvmpipe_context *lp);

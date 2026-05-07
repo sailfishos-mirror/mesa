@@ -156,7 +156,7 @@ struct llvmpipe_context {
 
    /** The tiling engine */
    struct lp_setup_context *setup;
-   struct lp_setup_variant setup_variant;
+   struct lp_setup_variant_key cached_setup_key;
 
    /** The primitive drawing context */
    struct draw_context *draw;
@@ -171,8 +171,9 @@ struct llvmpipe_context {
    bool permit_linear_rasterizer;
    bool single_vp;
 
-   struct lp_setup_variant_list_item setup_variants_list;
-   unsigned nr_setup_variants;
+   struct util_shader_variant_cache_options setup_variant_opts;
+   struct util_shader_variant_list setup_variants;
+   struct util_shader_variant *setup_variant_pin;
 
    /** List of all compute shader variants */
    struct lp_cs_variant_list_item cs_variants_list;

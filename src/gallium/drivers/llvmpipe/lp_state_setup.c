@@ -633,7 +633,7 @@ init_args(struct gallivm_state *gallivm,
  *
  */
 static struct lp_setup_variant *
-generate_setup_variant(struct lp_setup_variant_key *key,
+generate_setup_variant(const struct lp_setup_variant_key *key,
                        struct llvmpipe_context *lp)
 {
    int64_t t0 = 0, t1;
@@ -664,7 +664,6 @@ generate_setup_variant(struct lp_setup_variant_key *key,
    }
 
    memcpy(&variant->key, key, key->size);
-   variant->list_item_global.base = variant;
 
    /* Currently always deal with full 4-wide vertex attributes from
     * the vertices.
@@ -826,50 +825,43 @@ lp_make_setup_variant_key(const struct llvmpipe_context *lp,
 
 
 static void
-remove_setup_variant(struct llvmpipe_context *lp,
-                     struct lp_setup_variant *variant)
+setup_destroy_cb(struct util_shader_variant *base)
 {
+   struct lp_setup_variant *variant =
+      container_of(base, struct lp_setup_variant, base);
+
    if (gallivm_debug & GALLIVM_DEBUG_IR) {
-      debug_printf("llvmpipe: del setup_variant #%u total %u\n",
-                   variant->no, lp->nr_setup_variants);
+      debug_printf("llvmpipe: del setup_variant #%u\n", variant->no);
    }
 
-   if (variant->gallivm) {
+   if (variant->gallivm)
       gallivm_destroy(variant->gallivm);
-   }
-
-   list_del(&variant->list_item_global.list);
-   lp->nr_setup_variants--;
    FREE(variant);
 }
 
 
-/* When the number of setup variants exceeds a threshold, cull a
- * fraction (currently a quarter) of them.
- */
-static void
-cull_setup_variants(struct llvmpipe_context *lp)
+static struct util_shader_variant *
+setup_compile_cb(void *user_data, UNUSED void *cso, const void *key)
 {
-   struct pipe_context *pipe = &lp->pipe;
+   struct llvmpipe_context *lp = user_data;
+   struct lp_setup_variant *variant = generate_setup_variant(key, lp);
 
-   /*
-    * XXX: we need to flush the context until we have some sort of reference
-    * counting in fragment shaders as they may still be binned
-    * Flushing alone might not be sufficient we need to wait on it too.
-    */
-   llvmpipe_finish(pipe, __func__);
+   return variant ? &variant->base : NULL;
+}
 
-   for (int i = 0; i < LP_MAX_SETUP_VARIANTS / 4; i++) {
-      struct lp_setup_variant_list_item *item;
-      if (list_is_empty(&lp->setup_variants_list.list)) {
-         break;
-      }
-      item = list_last_entry(&lp->setup_variants_list.list,
-                             struct lp_setup_variant_list_item, list);
-      assert(item);
-      assert(item->base);
-      remove_setup_variant(lp, item->base);
-   }
+
+void
+lp_init_setup_variants(struct llvmpipe_context *lp)
+{
+   const struct util_shader_variant_cache_options opts = {
+      .compile = setup_compile_cb,
+      .destroy = setup_destroy_cb,
+      .user_data = lp,
+      .cap = LP_MAX_SETUP_VARIANTS,
+   };
+
+   lp->setup_variant_opts = opts;
+   util_shader_variant_list_init(&lp->setup_variants);
 }
 
 
@@ -881,33 +873,17 @@ cull_setup_variants(struct llvmpipe_context *lp)
 void
 llvmpipe_update_setup(struct llvmpipe_context *lp)
 {
-   struct lp_setup_variant_key *key = &lp->setup_variant.key;
-   struct lp_setup_variant *variant = NULL;
-   struct lp_setup_variant_list_item *li;
+   struct lp_setup_variant_key *key = &lp->cached_setup_key;
 
    lp_make_setup_variant_key(lp, key);
 
-   LIST_FOR_EACH_ENTRY(li, &lp->setup_variants_list.list, list) {
-      if (li->base->key.size == key->size &&
-         memcmp(&li->base->key, key, key->size) == 0) {
-         variant = li->base;
-         break;
-      }
-   }
+   util_shader_variant_get_pinned(&lp->setup_variant_opts, &lp->setup_variants,
+                                  /*cso*/ NULL, key, key->size,
+                                  &lp->setup_variant_pin, NULL);
 
-   if (variant) {
-      list_move_to(&variant->list_item_global.list, &lp->setup_variants_list.list);
-   } else {
-      if (lp->nr_setup_variants >= LP_MAX_SETUP_VARIANTS) {
-         cull_setup_variants(lp);
-      }
-
-      variant = generate_setup_variant(key, lp);
-      if (variant) {
-         list_add(&variant->list_item_global.list, &lp->setup_variants_list.list);
-         lp->nr_setup_variants++;
-      }
-   }
+   struct lp_setup_variant *variant = lp->setup_variant_pin
+      ? container_of(lp->setup_variant_pin, struct lp_setup_variant, base)
+      : NULL;
 
    lp_setup_set_setup_variant(lp->setup, variant);
 }
@@ -916,10 +892,10 @@ llvmpipe_update_setup(struct llvmpipe_context *lp)
 void
 lp_delete_setup_variants(struct llvmpipe_context *lp)
 {
-   struct lp_setup_variant_list_item *li, *next;
-   LIST_FOR_EACH_ENTRY_SAFE(li, next, &lp->setup_variants_list.list, list) {
-      remove_setup_variant(lp, li->base);
-   }
+   util_shader_variant_reference(&lp->setup_variant_opts,
+                                 &lp->setup_variant_pin, NULL);
+   util_shader_variant_list_destroy(&lp->setup_variant_opts,
+                                    &lp->setup_variants);
 }
 
 

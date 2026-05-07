@@ -276,8 +276,6 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
    }
 #endif
 
-   list_inithead(&llvmpipe->setup_variants_list.list);
-
    list_inithead(&llvmpipe->cs_variants_list.list);
 
    llvmpipe->pipe.screen = screen;
@@ -310,6 +308,7 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
    llvmpipe_init_task_funcs(llvmpipe);
    llvmpipe_init_mesh_funcs(llvmpipe);
    llvmpipe_init_rasterizer_funcs(llvmpipe);
+   lp_init_setup_variants(llvmpipe);
    llvmpipe_init_context_resource_funcs(&llvmpipe->pipe);
    llvmpipe_init_surface_functions(llvmpipe);
 
