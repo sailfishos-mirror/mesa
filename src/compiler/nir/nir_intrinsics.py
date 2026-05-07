@@ -2299,6 +2299,16 @@ intrinsic("strict_wqm_coord_amd", src_comp=[0], dest_comp=0, bit_sizes=[32], ind
 intrinsic("cmat_muladd_amd", src_comp=[-1, -1, 0], dest_comp=0, bit_sizes=src2,
           indices=[SATURATE, NEG_LO_AMD, NEG_HI_AMD, SRC_BASE_TYPE, SRC_BASE_TYPE2], flags=SUBGROUP_FLAGS)
 
+# Global cooperative matrix load with combined cooperative matrix transpose.
+# This corresponds to RDNA4's global_load_tr_b{64,128}. Like typical cooperative matrix operations,
+# this has to be in subgroup uniform control flow with all invocations active.
+# The definition's component size may be 8-bit or 16-bit and matches the type of matrix to load.
+# The result has 8 components (wave32) or 4 components (wave64). The address is ignored for lanes
+# 32-63, and the actual address that's loaded from is probably offset from the values in lanes 0-31.
+# src[] = { address }.
+intrinsic("load_deref_transpose_amd", bit_sizes=[8, 16], dest_comp=0, src_comp=[1],
+          indices=[ACCESS], flags=SUBGROUP_FLAGS)
+
 # Get the debug log buffer descriptor.
 intrinsic("load_debug_log_desc_amd", bit_sizes=[32], dest_comp=4, flags=[CAN_ELIMINATE, CAN_REORDER])
 
