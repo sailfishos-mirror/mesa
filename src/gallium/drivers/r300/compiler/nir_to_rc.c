@@ -1120,37 +1120,10 @@ ntr_emit_store_output(struct ntr_compile *c, nir_intrinsic_instr *instr)
 static void
 ntr_emit_load_output(struct ntr_compile *c, nir_intrinsic_instr *instr)
 {
-   nir_io_semantics semantics = nir_intrinsic_io_semantics(instr);
-
-   /* ntr_try_store_in_tgsi_output() optimization is not valid if normal
-    * load_output is present.
+   /* r300 has no GS/tess stages and doesn't expose framebuffer fetch,
+    * so the only callers of nir_intrinsic_load_output are gone.
     */
-   assert(c->s->info.stage != MESA_SHADER_VERTEX &&
-          (c->s->info.stage != MESA_SHADER_FRAGMENT || semantics.fb_fetch_output));
-
-   uint32_t frac;
-   struct ureg_dst out = ntr_output_decl(c, instr, &frac);
-
-   out = ntr_ureg_dst_indirect(c, out, instr->src[0]);
-
-   struct ureg_dst dst = ntr_get_dest(c, &instr->def);
-   struct ureg_src out_src = ureg_src(out);
-
-   /* Don't swizzling unavailable channels of the output in the writemasked-out
-    * components. Avoids compile failures in virglrenderer with
-    * TESS_LEVEL_INNER.
-    */
-   int fill_channel = ffs(dst.WriteMask) - 1;
-   uint8_t swizzles[4] = {0, 1, 2, 3};
-   for (int i = 0; i < 4; i++)
-      if (!(dst.WriteMask & (1 << i)))
-         swizzles[i] = fill_channel;
-   out_src = ureg_swizzle(out_src, swizzles[0], swizzles[1], swizzles[2], swizzles[3]);
-
-   if (semantics.fb_fetch_output)
-      ntr_FBFETCH(c, dst, out_src);
-   else
-      ntr_MOV(c, dst, out_src);
+   UNREACHABLE("load_output not supported on r300");
 }
 
 static void
