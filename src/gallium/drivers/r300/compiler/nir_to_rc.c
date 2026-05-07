@@ -92,11 +92,7 @@ struct ntr_compile {
 
    unsigned num_temps;
 
-   /* Mappings from driver_location to TGSI input/output number.
-    *
-    * We'll be declaring TGSI input/outputs in an arbitrary order, and they get
-    * their numbers assigned incrementally, unlike inputs or constants.
-    */
+   /* Map from NIR driver_location to RC input register. */
    struct ureg_src *input_index_map;
    uint64_t centroid_inputs;
 
@@ -255,20 +251,6 @@ ntr_allocate_regs_unoptimized(struct ntr_compile *c, nir_function_impl *impl)
       ureg_DECL_temporary(c->ureg);
 }
 
-/* TGSI varying declarations have a component usage mask associated (used by
- * r600 and svga).
- */
-static uint32_t
-ntr_tgsi_var_usage_mask(const struct nir_variable *var)
-{
-   const struct glsl_type *type_without_array = glsl_without_array(var->type);
-   unsigned num_components = glsl_get_vector_elements(type_without_array);
-   if (num_components == 0) /* structs */
-      num_components = 4;
-
-   return BITFIELD_RANGE(var->data.location_frac, num_components);
-}
-
 static void
 ntr_read_input_output(struct ntr_compile *c, gl_varying_slot location, unsigned base)
 {
@@ -372,17 +354,10 @@ ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *fra
                               ntr_fs_output_index(c, semantics.location,
                                                   semantics.dual_source_blend_index));
    } else {
-      unsigned semantic_name, semantic_index;
-
-      tgsi_get_gl_varying_semantic(semantics.location, true, &semantic_name, &semantic_index);
-
       ntr_read_input_output(c, semantics.location, base);
 
-      uint32_t usage_mask = BITFIELD_RANGE(*frac, instr->num_components);
-      out = ureg_DECL_output_layout(c->ureg, semantic_name, semantic_index, 0, base,
-                                    usage_mask, 0, semantics.num_slots, false);
-      if (out.Index >= c->num_outputs)
-         c->num_outputs = out.Index + 1;
+      out = ureg_dst_register(TGSI_FILE_OUTPUT, base);
+      c->num_outputs = MAX2(c->num_outputs, base + semantics.num_slots);
    }
 
    unsigned write_mask;
@@ -487,37 +462,11 @@ ntr_setup_inputs(struct ntr_compile *c)
       const struct glsl_type *type = var->type;
       unsigned array_len = glsl_count_attribute_slots(type, false);
 
-      unsigned interpolation = TGSI_INTERPOLATE_CONSTANT;
-      unsigned sample_loc;
       struct ureg_src decl;
 
-      if (c->s->info.stage == MESA_SHADER_FRAGMENT) {
-         interpolation = tgsi_get_interp_mode(
-            var->data.interpolation,
-            var->data.location == VARYING_SLOT_COL0 || var->data.location == VARYING_SLOT_COL1);
+      decl = ureg_src_register(TGSI_FILE_INPUT, var->data.driver_location);
 
-         if (var->data.location == VARYING_SLOT_POS)
-            interpolation = TGSI_INTERPOLATE_LINEAR;
-      }
-
-      unsigned semantic_name, semantic_index;
-      tgsi_get_gl_varying_semantic(var->data.location, true, &semantic_name, &semantic_index);
-
-      if (var->data.sample) {
-         sample_loc = TGSI_INTERPOLATE_LOC_SAMPLE;
-      } else if (var->data.centroid) {
-         sample_loc = TGSI_INTERPOLATE_LOC_CENTROID;
-      } else {
-         sample_loc = TGSI_INTERPOLATE_LOC_CENTER;
-      }
-
-      uint32_t usage_mask = ntr_tgsi_var_usage_mask(var);
-
-      decl = ureg_DECL_fs_input_centroid_layout(
-         c->ureg, semantic_name, semantic_index, interpolation, sample_loc,
-         var->data.driver_location, usage_mask, 0, array_len);
-
-      if (semantic_name == TGSI_SEMANTIC_FACE) {
+      if (var->data.location == VARYING_SLOT_FACE) {
          struct ureg_dst temp = ntr_temp(c);
          /* tgsi docs say that floating point FACE will be positive for
           * frontface and negative for backface, but realistically
@@ -1144,9 +1093,9 @@ ntr_emit_load_input(struct ntr_compile *c, nir_intrinsic_instr *instr)
          break;
 
       case nir_intrinsic_load_barycentric_centroid:
-         /* On r300 interpolation is fixed at the input declaration; the
-          * NIR lowering pairs centroid intrinsics with centroid-declared
-          * inputs, so we never need an explicit INTERP instruction. */
+         /* On r300 interpolation is fixed by the rasterizer state; the NIR
+          * lowering pairs centroid intrinsics with centroid-declared inputs,
+          * so we never need an explicit INTERP instruction. */
          ntr_store(c, &instr->def, input);
          break;
 
