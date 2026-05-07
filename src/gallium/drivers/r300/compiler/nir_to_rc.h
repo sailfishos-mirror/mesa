@@ -59,20 +59,4 @@ rc_translate_saturate(bool saturate)
    return saturate ? RC_SATURATE_ZERO_ONE : RC_SATURATE_NONE;
 }
 
-static inline unsigned
-rc_translate_tex_target(unsigned tgsi_target)
-{
-   switch (tgsi_target) {
-   case TGSI_TEXTURE_1D:       return RC_TEXTURE_1D;
-   case TGSI_TEXTURE_2D:       return RC_TEXTURE_2D;
-   case TGSI_TEXTURE_3D:       return RC_TEXTURE_3D;
-   case TGSI_TEXTURE_CUBE:     return RC_TEXTURE_CUBE;
-   case TGSI_TEXTURE_RECT:     return RC_TEXTURE_RECT;
-   case TGSI_TEXTURE_1D_ARRAY: return RC_TEXTURE_1D_ARRAY;
-   case TGSI_TEXTURE_2D_ARRAY: return RC_TEXTURE_2D_ARRAY;
-   default:
-      UNREACHABLE("unsupported tex target");
-   }
-}
-
 #endif /* NIR_TO_RC_H */

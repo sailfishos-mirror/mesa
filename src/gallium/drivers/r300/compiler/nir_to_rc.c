@@ -33,7 +33,7 @@ struct ntr_insn {
    struct ureg_src src[4];
    /* Texture sampler unit is RC metadata, not a SrcReg[] operand. */
    struct ureg_src tex_sampler;
-   enum tgsi_texture_type tex_target;
+   rc_texture_target tex_target;
    struct tgsi_texture_offset tex_offset[4];
 
    unsigned mem_qualifier;
@@ -512,23 +512,23 @@ ntr_setup_outputs(struct ntr_compile *c)
    }
 }
 
-static enum tgsi_texture_type
-tgsi_texture_type_from_sampler_dim(enum glsl_sampler_dim dim, bool is_array)
+static rc_texture_target
+rc_texture_target_from_sampler_dim(enum glsl_sampler_dim dim, bool is_array)
 {
    /* r300 has no array, multisample or buffer textures. */
    assert(!is_array);
    switch (dim) {
    case GLSL_SAMPLER_DIM_1D:
-      return TGSI_TEXTURE_1D;
+      return RC_TEXTURE_1D;
    case GLSL_SAMPLER_DIM_2D:
    case GLSL_SAMPLER_DIM_EXTERNAL:
-      return TGSI_TEXTURE_2D;
+      return RC_TEXTURE_2D;
    case GLSL_SAMPLER_DIM_3D:
-      return TGSI_TEXTURE_3D;
+      return RC_TEXTURE_3D;
    case GLSL_SAMPLER_DIM_CUBE:
-      return TGSI_TEXTURE_CUBE;
+      return RC_TEXTURE_CUBE;
    case GLSL_SAMPLER_DIM_RECT:
-      return TGSI_TEXTURE_RECT;
+      return RC_TEXTURE_RECT;
    default:
       UNREACHABLE("unknown sampler dim");
    }
@@ -1199,8 +1199,8 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
 {
    struct ureg_dst dst = ntr_get_dest(c, &instr->def);
    assert(!instr->is_shadow);
-   enum tgsi_texture_type target =
-      tgsi_texture_type_from_sampler_dim(instr->sampler_dim, instr->is_array);
+   rc_texture_target target =
+      rc_texture_target_from_sampler_dim(instr->sampler_dim, instr->is_array);
    unsigned tex_opcode;
 
    int tex_handle_src = nir_tex_instr_src_index(instr, nir_tex_src_texture_handle);
@@ -1498,7 +1498,7 @@ ntr_emit_block_rc(struct ntr_compile *c, struct nir_block *block)
       if (insn->is_tex) {
          assert(insn->tex_sampler.File == TGSI_FILE_SAMPLER);
          rc_insn->U.I.TexSrcUnit = insn->tex_sampler.Index;
-         rc_insn->U.I.TexSrcTarget = rc_translate_tex_target(insn->tex_target);
+         rc_insn->U.I.TexSrcTarget = insn->tex_target;
          rc_insn->U.I.TexSwizzle = RC_SWIZZLE_XYZW;
       }
    }
