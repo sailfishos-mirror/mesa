@@ -27,6 +27,12 @@ SOFTWARE.
 
   <define name="PM_VHEAP_TABLE_SIZE" value="0x180" />
 
+  <enum name="CDM_ITEM_MODE">
+    <value name="FORCE_LINEAR" value="0"/>
+    <value name="2D_MORTON"    value="1"/>
+    <value name="3D_MORTON"    value="2"/>
+  </enum>
+
   <enum name="COMP_IADDR_TYPE">
     <value name="INDIRECT_1TILE" value="0"/>
     <value name="INDIRECT_4TILE" value="1"/>
@@ -256,7 +262,7 @@ SOFTWARE.
   </struct>
 
   <struct name="CDM_ITEM" length="1">
-    <field name="mode" start="0" end="1" type="uint"/>
+    <field name="mode" start="0" end="1" type="CDM_ITEM_MODE"/>
   </struct>
 
   <struct name="PDS_CTRL0" length="1">
