@@ -166,17 +166,11 @@ struct swsb_state {
 static enum tgl_pipe
 inst_exec_pipe(const struct intel_device_info *devinfo, jay_inst *I)
 {
-   if (I->op == JAY_OPCODE_SEND) {
-      return TGL_PIPE_NONE;
-   } else if (I->op == JAY_OPCODE_MATH) {
-      return TGL_PIPE_MATH;
-   } else if (I->type == JAY_TYPE_F64) {
-      return TGL_PIPE_LONG;
-   } else if (jay_type_is_any_float(I->type)) {
-      return TGL_PIPE_FLOAT;
-   } else {
-      return TGL_PIPE_INT;
-   }
+   return I->op == JAY_OPCODE_SEND       ? TGL_PIPE_NONE :
+          I->op == JAY_OPCODE_MATH       ? TGL_PIPE_MATH :
+          I->type == JAY_TYPE_F64        ? TGL_PIPE_LONG :
+          jay_type_is_any_float(I->type) ? TGL_PIPE_FLOAT :
+                                           TGL_PIPE_INT;
 }
 
 /**
