@@ -4224,7 +4224,7 @@
         "description": "nir: fix fp_math_ctrl in fisnan",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "63d199a01e831859c607d74162acc0754c552763",
         "notes": null
