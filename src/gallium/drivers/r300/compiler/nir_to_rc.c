@@ -16,7 +16,6 @@
 #include "pipe/p_screen.h"
 #include "pipe/p_state.h"
 #include "tgsi/tgsi_dump.h"
-#include "tgsi/tgsi_from_mesa.h"
 #include "tgsi/tgsi_info.h"
 #include "tgsi/tgsi_parse.h"
 #include "tgsi/tgsi_ureg.h"
@@ -755,7 +754,6 @@ ntr_store_def(struct ntr_compile *c, nir_def *def, struct ureg_src src)
       case TGSI_FILE_IMMEDIATE:
       case TGSI_FILE_INPUT:
       case TGSI_FILE_CONSTANT:
-      case TGSI_FILE_SYSTEM_VALUE:
          c->ssa_temp[def->index] = src;
          return;
       }
@@ -1108,23 +1106,6 @@ ntr_emit_load_output(struct ntr_compile *c, nir_intrinsic_instr *instr)
 }
 
 static void
-ntr_emit_load_sysval(struct ntr_compile *c, nir_intrinsic_instr *instr)
-{
-   gl_system_value sysval = nir_system_value_from_intrinsic(instr->intrinsic);
-   enum tgsi_semantic semantic = tgsi_get_sysval_semantic(sysval);
-   struct ureg_src sv = ureg_DECL_system_value(c->ureg, semantic, 0);
-
-   /* virglrenderer doesn't like references to channels of the sysval that
-    * aren't defined, even if they aren't really read.  (GLSL compile fails on
-    * gl_NumWorkGroups.w, for example).
-    */
-   uint32_t write_mask = BITSET_MASK(instr->def.num_components);
-   sv = ntr_swizzle_for_write_mask(sv, write_mask);
-
-   ntr_store(c, &instr->def, sv);
-}
-
-static void
 ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
 {
    switch (instr->intrinsic) {
@@ -1136,7 +1117,7 @@ ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_frag_coord:
    case nir_intrinsic_load_point_coord:
    case nir_intrinsic_load_front_face:
-      ntr_emit_load_sysval(c, instr);
+      UNREACHABLE("system value should have been lowered to a varying");
       break;
 
    case nir_intrinsic_load_input:
@@ -1845,6 +1826,15 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
       c->semantics = &rc.f->inputs;
    } else {
       c->semantics = &rc.v->outputs;
+   }
+
+   if (s->info.stage == MESA_SHADER_FRAGMENT) {
+      static const nir_lower_sysvals_to_varyings_options sysval_options = {
+         .frag_coord = true,
+         .point_coord = true,
+         .front_face = true,
+      };
+      NIR_PASS(_, s, nir_lower_sysvals_to_varyings, &sysval_options);
    }
 
    ntr_fixup_varying_slots(s, s->info.stage == MESA_SHADER_FRAGMENT ? nir_var_shader_in : nir_var_shader_out);
