@@ -2286,8 +2286,12 @@ vs_compile_cb(void *user_data, void *cso, const void *spec_key)
    const unsigned num_inputs = MAX2(shader->base.info.num_inputs,
                                     draw_total_vs_outputs(llvm->draw));
 
+   if (llvm->context.mutex)
+      simple_mtx_lock(llvm->context.mutex);
    struct draw_llvm_variant *variant =
       draw_llvm_create_variant(llvm, num_inputs, key);
+   if (llvm->context.mutex)
+      simple_mtx_unlock(llvm->context.mutex);
 
    return variant ? &variant->base : NULL;
 }
@@ -2621,8 +2625,12 @@ gs_compile_cb(void *user_data, UNUSED void *cso, const void *spec_key)
    struct draw_llvm *llvm = user_data;
    const struct draw_gs_llvm_variant_key *key = spec_key;
 
+   if (llvm->context.mutex)
+      simple_mtx_lock(llvm->context.mutex);
    struct draw_gs_llvm_variant *variant =
       draw_gs_llvm_create_variant(llvm, draw_total_gs_outputs(llvm->draw), key);
+   if (llvm->context.mutex)
+      simple_mtx_unlock(llvm->context.mutex);
 
    return variant ? &variant->base : NULL;
 }
@@ -3301,8 +3309,12 @@ tcs_compile_cb(void *user_data, UNUSED void *cso, const void *spec_key)
    struct draw_llvm *llvm = user_data;
    const struct draw_tcs_llvm_variant_key *key = spec_key;
 
+   if (llvm->context.mutex)
+      simple_mtx_lock(llvm->context.mutex);
    struct draw_tcs_llvm_variant *variant =
       draw_tcs_llvm_create_variant(llvm, 0, key);
+   if (llvm->context.mutex)
+      simple_mtx_unlock(llvm->context.mutex);
 
    return variant ? &variant->base : NULL;
 }
@@ -3846,8 +3858,12 @@ tes_compile_cb(void *user_data, UNUSED void *cso, const void *spec_key)
    struct draw_llvm *llvm = user_data;
    const struct draw_tes_llvm_variant_key *key = spec_key;
 
+   if (llvm->context.mutex)
+      simple_mtx_lock(llvm->context.mutex);
    struct draw_tes_llvm_variant *variant =
       draw_tes_llvm_create_variant(llvm, draw_total_tes_outputs(llvm->draw), key);
+   if (llvm->context.mutex)
+      simple_mtx_unlock(llvm->context.mutex);
 
    return variant ? &variant->base : NULL;
 }

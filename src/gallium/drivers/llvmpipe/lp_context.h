@@ -165,20 +165,16 @@ struct llvmpipe_context {
 
    unsigned tex_timestamp;
 
-   struct util_shader_variant_cache_options fs_variant_opts;
+   /** Currently bound FS variant; pinned via the screen's FS variant cache. */
    struct util_shader_variant *fs_variant_pin;
 
    bool permit_linear_rasterizer;
    bool single_vp;
 
-   struct util_shader_variant_cache_options setup_variant_opts;
-   struct util_shader_variant_list setup_variants;
+   /** Currently bound setup variant; pinned via the screen's setup cache. */
    struct util_shader_variant *setup_variant_pin;
 
-   /** Cache of compute shader variants (one list per CS/task/mesh CSO;
-    *  cap per CSO). */
-   struct util_shader_variant_cache_options cs_variant_opts;
-   /** Currently bound CS/task/mesh variants; the cache pins each via its slot. */
+   /** Currently bound CS/task/mesh variants; pinned via the screen's CS cache. */
    struct util_shader_variant *cs_variant_pin;
    struct util_shader_variant *task_variant_pin;
    struct util_shader_variant *mesh_variant_pin;

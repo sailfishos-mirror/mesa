@@ -753,7 +753,10 @@ generate_setup_variant(const struct lp_setup_variant_key *key,
 fail:
    if (variant) {
       if (variant->gallivm) {
-         gallivm_destroy(variant->gallivm);
+         /* Runs under the compile lock (setup_compile_cb); the plain
+          * gallivm_destroy would re-take that lock and deadlock.
+          */
+         gallivm_destroy_locked(variant->gallivm);
       }
       FREE(variant);
    }
@@ -841,27 +844,39 @@ setup_destroy_cb(struct util_shader_variant *base)
 
 
 static struct util_shader_variant *
-setup_compile_cb(void *user_data, UNUSED void *cso, const void *key)
+setup_compile_cb(void *user_data, void *cso, const void *key)
 {
-   struct llvmpipe_context *lp = user_data;
+   struct llvmpipe_screen *screen = user_data;
+   struct llvmpipe_context *lp = cso;
+
+   simple_mtx_lock(screen->llvm_context.mutex);
    struct lp_setup_variant *variant = generate_setup_variant(key, lp);
+   simple_mtx_unlock(screen->llvm_context.mutex);
 
    return variant ? &variant->base : NULL;
 }
 
 
 void
-lp_init_setup_variants(struct llvmpipe_context *lp)
+llvmpipe_screen_init_setup_cache(struct llvmpipe_screen *screen)
 {
    const struct util_shader_variant_cache_options opts = {
       .compile = setup_compile_cb,
       .destroy = setup_destroy_cb,
-      .user_data = lp,
+      .user_data = screen,
       .cap = LP_MAX_SETUP_VARIANTS,
    };
+   screen->setup_variant_opts = opts;
 
-   lp->setup_variant_opts = opts;
-   util_shader_variant_list_init(&lp->setup_variants);
+   util_shader_variant_list_init(&screen->setup_variants);
+}
+
+
+void
+llvmpipe_screen_destroy_setup_cache(struct llvmpipe_screen *screen)
+{
+   util_shader_variant_list_destroy(&screen->setup_variant_opts,
+                                    &screen->setup_variants);
 }
 
 
@@ -873,12 +888,14 @@ lp_init_setup_variants(struct llvmpipe_context *lp)
 void
 llvmpipe_update_setup(struct llvmpipe_context *lp)
 {
+   struct llvmpipe_screen *screen = llvmpipe_screen(lp->pipe.screen);
    struct lp_setup_variant_key *key = &lp->cached_setup_key;
 
    lp_make_setup_variant_key(lp, key);
 
-   util_shader_variant_get_pinned(&lp->setup_variant_opts, &lp->setup_variants,
-                                  /*cso*/ NULL, key, key->size,
+   util_shader_variant_get_pinned(&screen->setup_variant_opts,
+                                  &screen->setup_variants,
+                                  lp, key, key->size,
                                   &lp->setup_variant_pin, NULL);
 
    struct lp_setup_variant *variant = lp->setup_variant_pin
@@ -892,10 +909,9 @@ llvmpipe_update_setup(struct llvmpipe_context *lp)
 void
 lp_delete_setup_variants(struct llvmpipe_context *lp)
 {
-   util_shader_variant_reference(&lp->setup_variant_opts,
+   struct llvmpipe_screen *screen = llvmpipe_screen(lp->pipe.screen);
+   util_shader_variant_reference(&screen->setup_variant_opts,
                                  &lp->setup_variant_pin, NULL);
-   util_shader_variant_list_destroy(&lp->setup_variant_opts,
-                                    &lp->setup_variants);
 }
 
 

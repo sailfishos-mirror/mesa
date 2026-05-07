@@ -35,6 +35,7 @@
 #include "lp_fence.h"
 #include "lp_debug.h"
 #include "lp_context.h"
+#include "lp_screen.h"
 #include "lp_state_fs.h"
 #include "lp_setup_context.h"
 
@@ -281,7 +282,7 @@ lp_scene_end_rasterization(struct lp_scene *scene)
          if (LP_DEBUG & DEBUG_SETUP)
             debug_printf("shader %d: %p\n", j, (void *) ref->variant[i]);
          j++;
-         util_shader_variant_reference(&llvmpipe_context(scene->pipe)->fs_variant_opts,
+         util_shader_variant_reference(&llvmpipe_screen(scene->pipe->screen)->fs_variant_opts,
                                        &ref->variant[i], NULL);
       }
    }
@@ -492,7 +493,7 @@ lp_scene_add_frag_shader_reference(struct lp_scene *scene,
 
    /* Append the reference to the reference block.
     */
-   util_shader_variant_reference(&llvmpipe_context(scene->pipe)->fs_variant_opts,
+   util_shader_variant_reference(&llvmpipe_screen(scene->pipe->screen)->fs_variant_opts,
                                  &ref->variant[ref->count++], &variant->base);
 
    return true;

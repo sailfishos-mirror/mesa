@@ -63,9 +63,6 @@ struct lp_setup_variant {
 
 
 void
-lp_init_setup_variants(struct llvmpipe_context *lp);
-
-void
 lp_delete_setup_variants(struct llvmpipe_context *lp);
 
 void

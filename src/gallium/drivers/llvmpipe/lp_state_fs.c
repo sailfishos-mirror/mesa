@@ -4234,14 +4234,35 @@ fs_destroy_cb(struct util_shader_variant *base)
 }
 
 
+struct fs_compile_args {
+   struct llvmpipe_context *lp;
+   struct lp_fragment_shader *shader;
+};
+
+
 static struct util_shader_variant *
 fs_compile_cb(void *user_data, void *cso, const void *key)
 {
-   struct llvmpipe_context *lp = user_data;
-   struct lp_fragment_shader *shader = cso;
-   struct lp_fragment_shader_variant *variant = generate_variant(lp, shader, key);
-
+   struct llvmpipe_screen *screen = user_data;
+   struct fs_compile_args *args = cso;
+   simple_mtx_lock(screen->llvm_context.mutex);
+   struct lp_fragment_shader_variant *variant =
+      generate_variant(args->lp, args->shader, key);
+   simple_mtx_unlock(screen->llvm_context.mutex);
    return variant ? &variant->base : NULL;
+}
+
+
+void
+llvmpipe_screen_init_fs_cache(struct llvmpipe_screen *screen)
+{
+   const struct util_shader_variant_cache_options opts = {
+      .compile = fs_compile_cb,
+      .destroy = fs_destroy_cb,
+      .user_data = screen,
+      .cap = LP_MAX_VARIANTS_PER_FS,
+   };
+   screen->fs_variant_opts = opts;
 }
 
 
@@ -4249,8 +4270,9 @@ void
 llvmpipe_destroy_fs(struct llvmpipe_context *llvmpipe,
                     struct lp_fragment_shader *shader)
 {
-   /* Delete draw module's data */
-   draw_delete_fragment_shader(llvmpipe->draw, shader->draw_data);
+   /* NULL llvmpipe: variant outlives its originating context. */
+   draw_delete_fragment_shader(llvmpipe ? llvmpipe->draw : NULL,
+                               shader->draw_data);
 
    ralloc_free(shader->base.ir.nir);
    assert(shader->variants.count == 0);
@@ -4262,9 +4284,10 @@ static void
 llvmpipe_delete_fs_state(struct pipe_context *pipe, void *fs)
 {
    struct llvmpipe_context *llvmpipe = llvmpipe_context(pipe);
+   struct llvmpipe_screen *screen = llvmpipe_screen(pipe->screen);
    struct lp_fragment_shader *shader = fs;
 
-   util_shader_variant_list_destroy(&llvmpipe->fs_variant_opts,
+   util_shader_variant_list_destroy(&screen->fs_variant_opts,
                                     &shader->variants);
 
    lp_fs_reference(llvmpipe, &shader, NULL);
@@ -4746,6 +4769,7 @@ make_variant_key(struct llvmpipe_context *lp,
 void
 llvmpipe_update_fs(struct llvmpipe_context *lp)
 {
+   struct llvmpipe_screen *screen = llvmpipe_screen(lp->pipe.screen);
    struct lp_fragment_shader *shader = lp->fs;
 
    char store[LP_FS_MAX_VARIANT_KEY_SIZE];
@@ -4754,8 +4778,9 @@ llvmpipe_update_fs(struct llvmpipe_context *lp)
 
    int64_t t0 = os_time_get();
    bool was_miss = false;
-   util_shader_variant_get_pinned(&lp->fs_variant_opts, &shader->variants,
-                                  shader, key, shader->variant_key_size,
+   struct fs_compile_args args = { .lp = lp, .shader = shader };
+   util_shader_variant_get_pinned(&screen->fs_variant_opts, &shader->variants,
+                                  &args, key, shader->variant_key_size,
                                   &lp->fs_variant_pin, &was_miss);
    if (was_miss) {
       int64_t dt = os_time_get() - t0;
@@ -4782,21 +4807,13 @@ llvmpipe_init_fs_funcs(struct llvmpipe_context *llvmpipe)
    llvmpipe->pipe.set_constant_buffer = llvmpipe_set_constant_buffer;
    llvmpipe->pipe.set_shader_buffers = llvmpipe_set_shader_buffers;
    llvmpipe->pipe.set_shader_images = llvmpipe_set_shader_images;
-
-   const struct util_shader_variant_cache_options fs_cache_opts = {
-      .compile = fs_compile_cb,
-      .destroy = fs_destroy_cb,
-      .user_data = llvmpipe,
-      .cap = LP_MAX_VARIANTS_PER_FS,
-   };
-
-   llvmpipe->fs_variant_opts = fs_cache_opts;
 }
 
 
 void
 llvmpipe_destroy_fs_funcs(struct llvmpipe_context *llvmpipe)
 {
-   util_shader_variant_reference(&llvmpipe->fs_variant_opts,
+   struct llvmpipe_screen *screen = llvmpipe_screen(llvmpipe->pipe.screen);
+   util_shader_variant_reference(&screen->fs_variant_opts,
                                  &llvmpipe->fs_variant_pin, NULL);
 }

@@ -308,8 +308,6 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
    llvmpipe_init_task_funcs(llvmpipe);
    llvmpipe_init_mesh_funcs(llvmpipe);
    llvmpipe_init_rasterizer_funcs(llvmpipe);
-   lp_init_setup_variants(llvmpipe);
-   lp_init_cs_variants(llvmpipe);
    llvmpipe_init_context_resource_funcs(&llvmpipe->pipe);
    llvmpipe_init_surface_functions(llvmpipe);
 
@@ -319,7 +317,9 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
    llvmpipe_init_fence_funcs(&llvmpipe->pipe);
 #endif
 
-   lp_context_create(&llvmpipe->context);
+   /* Alias the screen's shared LLVMContext; aliases share the mutex. */
+   llvmpipe->context = lp_screen->llvm_context;
+   llvmpipe->context.owned = false;
 
    if (!llvmpipe->context.ref)
       goto fail;

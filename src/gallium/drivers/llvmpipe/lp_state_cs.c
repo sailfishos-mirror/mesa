@@ -1056,6 +1056,12 @@ llvmpipe_get_compute_state_info(struct pipe_context *pipe, void *cs,
 }
 
 
+struct cs_compile_args {
+   struct llvmpipe_context *lp;
+   struct lp_compute_shader *shader;
+};
+
+
 static void
 cs_destroy_cb(struct util_shader_variant *base)
 {
@@ -1085,40 +1091,43 @@ generate_variant(struct llvmpipe_context *lp,
 static struct util_shader_variant *
 cs_compile_cb(void *user_data, void *cso, const void *key)
 {
-   struct llvmpipe_context *lp = user_data;
-   struct lp_compute_shader *shader = cso;
+   struct llvmpipe_screen *screen = user_data;
+   struct cs_compile_args *args = cso;
    const mesa_shader_stage sh_type =
-      ((struct nir_shader *)shader->base.ir.nir)->info.stage;
+      ((struct nir_shader *)args->shader->base.ir.nir)->info.stage;
 
+   simple_mtx_lock(screen->llvm_context.mutex);
    struct lp_compute_shader_variant *variant =
-      generate_variant(lp, shader, sh_type, key);
+      generate_variant(args->lp, args->shader, sh_type, key);
+   simple_mtx_unlock(screen->llvm_context.mutex);
 
    return variant ? &variant->base : NULL;
 }
 
 
 void
-lp_init_cs_variants(struct llvmpipe_context *lp)
+llvmpipe_screen_init_cs_cache(struct llvmpipe_screen *screen)
 {
    const struct util_shader_variant_cache_options opts = {
       .compile = cs_compile_cb,
       .destroy = cs_destroy_cb,
-      .user_data = lp,
+      .user_data = screen,
       .cap = LP_MAX_VARIANTS_PER_CS,
    };
 
-   lp->cs_variant_opts = opts;
+   screen->cs_variant_opts = opts;
 }
 
 
 void
 lp_destroy_cs_variants(struct llvmpipe_context *lp)
 {
-   util_shader_variant_reference(&lp->cs_variant_opts,
+   struct llvmpipe_screen *screen = llvmpipe_screen(lp->pipe.screen);
+   util_shader_variant_reference(&screen->cs_variant_opts,
                                  &lp->cs_variant_pin, NULL);
-   util_shader_variant_reference(&lp->cs_variant_opts,
+   util_shader_variant_reference(&screen->cs_variant_opts,
                                  &lp->task_variant_pin, NULL);
-   util_shader_variant_reference(&lp->cs_variant_opts,
+   util_shader_variant_reference(&screen->cs_variant_opts,
                                  &lp->mesh_variant_pin, NULL);
 }
 
@@ -1128,6 +1137,7 @@ llvmpipe_delete_compute_state(struct pipe_context *pipe,
                               void *cs)
 {
    struct llvmpipe_context *llvmpipe = llvmpipe_context(pipe);
+   struct llvmpipe_screen *screen = llvmpipe_screen(pipe->screen);
    struct lp_compute_shader *shader = cs;
 
    if (llvmpipe->cs == cs)
@@ -1136,7 +1146,7 @@ llvmpipe_delete_compute_state(struct pipe_context *pipe,
       pipe_resource_reference(&shader->global_buffers[i], NULL);
    FREE(shader->global_buffers);
 
-   util_shader_variant_list_destroy(&llvmpipe->cs_variant_opts,
+   util_shader_variant_list_destroy(&screen->cs_variant_opts,
                                     &shader->variants);
    ralloc_free(shader->base.ir.nir);
    FREE(shader);
@@ -1410,14 +1420,16 @@ llvmpipe_update_cs_variant(struct llvmpipe_context *lp,
                            struct lp_compute_shader *shader,
                            struct util_shader_variant **pin_slot)
 {
+   struct llvmpipe_screen *screen = llvmpipe_screen(lp->pipe.screen);
    char store[LP_CS_MAX_VARIANT_KEY_SIZE];
    struct lp_compute_shader_variant_key *key =
       make_variant_key(lp, shader, sh_type, store);
 
    int64_t t0 = os_time_get();
    bool was_miss = false;
-   util_shader_variant_get_pinned(&lp->cs_variant_opts, &shader->variants,
-                                  shader, key, shader->variant_key_size,
+   struct cs_compile_args args = { .lp = lp, .shader = shader };
+   util_shader_variant_get_pinned(&screen->cs_variant_opts, &shader->variants,
+                                  &args, key, shader->variant_key_size,
                                   pin_slot, &was_miss);
    if (was_miss) {
       int64_t dt = os_time_get() - t0;
@@ -1926,10 +1938,10 @@ llvmpipe_bind_ts_state(struct pipe_context *pipe, void *_task)
 static void
 llvmpipe_delete_ts_state(struct pipe_context *pipe, void *_task)
 {
-   struct llvmpipe_context *llvmpipe = llvmpipe_context(pipe);
+   struct llvmpipe_screen *screen = llvmpipe_screen(pipe->screen);
    struct lp_compute_shader *shader = _task;
 
-   util_shader_variant_list_destroy(&llvmpipe->cs_variant_opts,
+   util_shader_variant_list_destroy(&screen->cs_variant_opts,
                                     &shader->variants);
    ralloc_free(shader->base.ir.nir);
    FREE(shader);
@@ -2006,9 +2018,10 @@ static void
 llvmpipe_delete_ms_state(struct pipe_context *pipe, void *_mesh)
 {
    struct llvmpipe_context *llvmpipe = llvmpipe_context(pipe);
+   struct llvmpipe_screen *screen = llvmpipe_screen(pipe->screen);
    struct lp_compute_shader *shader = _mesh;
 
-   util_shader_variant_list_destroy(&llvmpipe->cs_variant_opts,
+   util_shader_variant_list_destroy(&screen->cs_variant_opts,
                                     &shader->variants);
 
    draw_delete_mesh_shader(llvmpipe->draw, shader->draw_mesh_data);

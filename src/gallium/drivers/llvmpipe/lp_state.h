@@ -163,9 +163,6 @@ void
 llvmpipe_init_compute_funcs(struct llvmpipe_context *llvmpipe);
 
 void
-lp_init_cs_variants(struct llvmpipe_context *lp);
-
-void
 lp_destroy_cs_variants(struct llvmpipe_context *lp);
 
 void
