@@ -916,8 +916,7 @@ static void amdgpu_cs_destroy(struct radeon_cmdbuf *rcs)
 {
    struct amdgpu_cs *acs = amdgpu_cs(rcs);
 
-   if (!acs)
-      return;
+   assert(acs);
 
    amdgpu_cs_sync_flush(rcs);
    util_queue_fence_destroy(&acs->flush_completed);
@@ -1018,8 +1017,8 @@ amdgpu_cs_create(struct radeon_cmdbuf *rcs,
 
    return true;
 fail:
-   rcs->priv = NULL;
    amdgpu_cs_destroy(rcs);
+   rcs->priv = NULL;
    return false;
 }
 
