@@ -265,6 +265,17 @@ r300_optimize_nir(struct nir_shader *s, struct r300_screen *screen)
 
    NIR_PASS(_, s, nir_lower_var_copies);
    NIR_PASS(_, s, nir_remove_dead_variables, nir_var_function_temp, NULL);
+
+   /* FIXME: this could be probably moved earlier... */
+   if (s->info.stage == MESA_SHADER_FRAGMENT) {
+      if (is_r500) {
+         NIR_PASS(_, s, r300_transform_fs_trig_input);
+      }
+   } else if (screen->caps.has_tcl) {
+      if (is_r500 || screen->caps.is_r400) {
+         NIR_PASS(_, s, r300_transform_vs_trig_input);
+      }
+   }
 }
 
 char *
