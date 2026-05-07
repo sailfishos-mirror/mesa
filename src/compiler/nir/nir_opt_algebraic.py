@@ -235,6 +235,7 @@ optimizations += [
    (('iabs', ('ineg', a)), ('iabs', a)),
    (('fadd(nsz)', a, 0.0), ('fcanonicalize', a)),
    (('fadd', a, -0.0), ('fcanonicalize', a)),
+   (('fadd', ('b2f', a), 0.0), ('b2f', a)),
    (('iadd', a, 0), a),
    (('iadd_sat', a, 0), a),
    (('isub_sat', a, 0), a),
@@ -923,6 +924,31 @@ optimizations.extend([
    (('bcsel', a, ('b2f', 'b@1'), 1.0), ('b2f', ('bcsel', a, b, True))),
    (('bcsel', a, 0, ('b2f', 'b@1')), ('b2f', ('bcsel', a, False, b))),
    (('bcsel', a, 1.0, ('b2f', 'b@1')), ('b2f', ('bcsel', a, True, b))),
+
+   # These patterns can occur especially when continue statements are removed
+   # from loops like 'for (i = 0; i < x; i++)'.
+   (('bcsel', a, ('iadd', b, -1), b), ('iadd', b, ('ineg', ('b2i', a)))),
+   (('bcsel', a, ('iadd', b,  1), b), ('iadd', b,          ('b2i', a) )),
+   (('bcsel(is_only_used_as_float)',     a, ('fadd', b, -1.0), b), ('fadd', b, ('fneg', ('b2f', a)))),
+   (('bcsel(is_only_used_as_float_nsz)', a, ('fadd', b,  1.0), b), ('fadd', b,          ('b2f', a) )),
+
+   (('bcsel', a, b, ('iadd', b, -1)), ('iadd', b, ('ineg', ('b2i', ('inot', a))))),
+   (('bcsel', a, b, ('iadd', b,  1)), ('iadd', b,          ('b2i', ('inot', a)) )),
+   (('bcsel(is_only_used_as_float)',     a, b, ('fadd', b, -1.0)), ('fadd', b, ('fneg', ('b2f', ('inot', a))))),
+   (('bcsel(is_only_used_as_float_nsz)', a, b, ('fadd', b,  1.0)), ('fadd', b,          ('b2f', ('inot', a)) )),
+
+   # Since b2i(inot(a)) == 1 - b2i(a), 1 - b2i(inot(a)) == b2i(a).
+   (('iadd', '#a', ('ineg', ('b2i', ('inot', b)))), ('iadd', ('iadd', a, -1),          ('b2i', b) )),
+   (('iadd', '#a',          ('b2i', ('inot', b)) ), ('iadd', ('iadd', a,  1), ('ineg', ('b2i', b)))),
+   (('~fadd', '#a', ('fneg', ('b2f', ('inot', b)))), ('fadd', ('fadd', a, -1.0),          ('b2f', b) )),
+   (('~fadd', '#a',          ('b2f', ('inot', b)) ), ('fadd', ('fadd', a,  1.0), ('fneg', ('b2f', b)))),
+
+   # The preceeding patterns can create some messes that other patterns can't
+   # clean up.
+   (('fadd', ('fneg', ('b2f', b)), ('fneg', ('b2f', ('inot', b)))), -1.0),
+   (('fadd', ('b2f', b), ('b2f', ('inot', b))), 1.0),
+   (('fadd', ('fadd', a, ('fneg', ('b2f', b))), ('fneg', ('b2f', ('inot', b)))), ('fadd', a, -1.0)),
+   (('fadd', ('fadd', a, ('b2f', b)), ('b2f', ('inot', b))), ('fadd', a, 1.0)),
 
    # fmin(b2f(a), b)
    # bcsel(a, fmin(b2f(a), b), fmin(b2f(a), b))
@@ -3679,6 +3705,12 @@ late_optimizations = [
    # Drivers do not actually implement udiv_aligned_4, it is just used to
    # optimize scratch lowering.
    (('udiv_aligned_4', a), ('ushr', a, 2)),
+
+   # Since b2i(inot(a)) == 1 - b2i(a), 1 - b2i(inot(a)) == b2i(a).
+   (('iadd3', a,          ('b2i', ('inot', b)),  -1), ('iadd', a, ('ineg', ('b2i', b)))),
+   (('iadd3', a, ('ineg', ('b2i', ('inot', b))),  1), ('iadd', a,          ('b2i', b) )),
+   (('iadd', a, ('ineg', ('b2i', ('inot', b)))), ('iadd3', a,          ('b2i', b) , -1), 'options->has_iadd3'),
+   (('iadd', a,          ('b2i', ('inot', b)) ), ('iadd3', a, ('ineg', ('b2i', b)),  1), 'options->has_iadd3'),
 ]
 
 for int_sz in (8, 16, 32):
