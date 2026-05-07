@@ -1135,15 +1135,6 @@ ntr_emit_store_output(struct ntr_compile *c, nir_intrinsic_instr *instr)
 }
 
 static void
-ntr_emit_load_output(struct ntr_compile *c, nir_intrinsic_instr *instr)
-{
-   /* r300 has no GS/tess stages and doesn't expose framebuffer fetch,
-    * so the only callers of nir_intrinsic_load_output are gone.
-    */
-   UNREACHABLE("load_output not supported on r300");
-}
-
-static void
 ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
 {
    switch (instr->intrinsic) {
@@ -1165,10 +1156,6 @@ ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
 
    case nir_intrinsic_store_output:
       ntr_emit_store_output(c, instr);
-      break;
-
-   case nir_intrinsic_load_output:
-      ntr_emit_load_output(c, instr);
       break;
 
    case nir_intrinsic_terminate:
