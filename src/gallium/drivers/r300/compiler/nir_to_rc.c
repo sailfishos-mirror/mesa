@@ -465,22 +465,20 @@ ntr_setup_outputs(struct ntr_compile *c)
 static enum tgsi_texture_type
 tgsi_texture_type_from_sampler_dim(enum glsl_sampler_dim dim, bool is_array)
 {
+   /* r300 has no array, multisample or buffer textures. */
+   assert(!is_array);
    switch (dim) {
    case GLSL_SAMPLER_DIM_1D:
-      return is_array ? TGSI_TEXTURE_1D_ARRAY : TGSI_TEXTURE_1D;
+      return TGSI_TEXTURE_1D;
    case GLSL_SAMPLER_DIM_2D:
    case GLSL_SAMPLER_DIM_EXTERNAL:
-      return is_array ? TGSI_TEXTURE_2D_ARRAY : TGSI_TEXTURE_2D;
+      return TGSI_TEXTURE_2D;
    case GLSL_SAMPLER_DIM_3D:
       return TGSI_TEXTURE_3D;
    case GLSL_SAMPLER_DIM_CUBE:
-      return is_array ? TGSI_TEXTURE_CUBE_ARRAY : TGSI_TEXTURE_CUBE;
+      return TGSI_TEXTURE_CUBE;
    case GLSL_SAMPLER_DIM_RECT:
       return TGSI_TEXTURE_RECT;
-   case GLSL_SAMPLER_DIM_MS:
-      return is_array ? TGSI_TEXTURE_2D_ARRAY_MSAA : TGSI_TEXTURE_2D_MSAA;
-   case GLSL_SAMPLER_DIM_BUF:
-      return TGSI_TEXTURE_BUFFER;
    default:
       UNREACHABLE("unknown sampler dim");
    }
