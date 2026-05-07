@@ -1245,14 +1245,10 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
    ntr_push_tex_arg(c, instr, nir_tex_src_backend1, &s);
    ntr_push_tex_arg(c, instr, nir_tex_src_backend2, &s);
 
-   if (s.i > 1) {
-      if (tex_opcode == TGSI_OPCODE_TEX)
-         tex_opcode = TGSI_OPCODE_TEX2;
-      if (tex_opcode == TGSI_OPCODE_TXB)
-         tex_opcode = TGSI_OPCODE_TXB2;
-      if (tex_opcode == TGSI_OPCODE_TXL)
-         tex_opcode = TGSI_OPCODE_TXL2;
-   }
+   /* The RC backend doesn't have TEX2/TXB2/TXL2-style opcodes; the
+    * shadow comparator that would need a second backend slot is
+    * already lowered before nir_to_rc by nir_lower_tex_shadow. */
+   assert(s.i <= 1);
 
    if (instr->op == nir_texop_txd) {
       /* Derivs appear in their own src args */
