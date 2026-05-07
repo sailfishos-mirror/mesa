@@ -4644,7 +4644,7 @@
         "description": "vulkan/runtime: fix invalid address flags value for CmdCopyBufferToImage2",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a8e49be9d94ce229a5603332241ae1ea6b12f4f1",
         "notes": null
