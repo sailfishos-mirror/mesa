@@ -175,10 +175,13 @@ struct llvmpipe_context {
    struct util_shader_variant_list setup_variants;
    struct util_shader_variant *setup_variant_pin;
 
-   /** List of all compute shader variants */
-   struct lp_cs_variant_list_item cs_variants_list;
-   unsigned nr_cs_variants;
-   unsigned nr_cs_instrs;
+   /** Cache of compute shader variants (one list per CS/task/mesh CSO;
+    *  cap per CSO). */
+   struct util_shader_variant_cache_options cs_variant_opts;
+   /** Currently bound CS/task/mesh variants; the cache pins each via its slot. */
+   struct util_shader_variant *cs_variant_pin;
+   struct util_shader_variant *task_variant_pin;
+   struct util_shader_variant *mesh_variant_pin;
    struct lp_cs_context *csctx;
 
    struct lp_cs_context *task_ctx;

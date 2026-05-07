@@ -41,6 +41,7 @@
 #include "lp_setup_context.h"
 #include "lp_debug.h"
 #include "lp_state.h"
+#include "lp_limits.h"
 #include "lp_perf.h"
 #include "lp_screen.h"
 #include "lp_memory.h"
@@ -1016,7 +1017,7 @@ llvmpipe_create_compute_state(struct pipe_context *pipe,
 
    llvmpipe_register_shader(pipe, &shader->base);
 
-   list_inithead(&shader->variants.list);
+   util_shader_variant_list_init(&shader->variants);
 
    int nr_samplers = BITSET_LAST_BIT(nir->info.samplers_used);
    int nr_sampler_views = BITSET_LAST_BIT(nir->info.textures_used);
@@ -1055,35 +1056,70 @@ llvmpipe_get_compute_state_info(struct pipe_context *pipe, void *cs,
 }
 
 
-/**
- * Remove shader variant from two lists: the shader's variant list
- * and the context's variant list.
- */
 static void
-llvmpipe_remove_cs_shader_variant(struct llvmpipe_context *lp,
-                                  struct lp_compute_shader_variant *variant)
+cs_destroy_cb(struct util_shader_variant *base)
 {
+   struct lp_compute_shader_variant *variant =
+      container_of(base, struct lp_compute_shader_variant, base);
+
    if ((LP_DEBUG & DEBUG_CS) || (gallivm_debug & GALLIVM_DEBUG_IR)) {
       debug_printf("llvmpipe: del cs #%u var %u v created %u v cached %u "
-                   "v total cached %u inst %u total inst %u\n",
+                   "inst %u\n",
                    variant->shader->no, variant->no,
                    variant->shader->variants_created,
-                   variant->shader->variants_cached,
-                   lp->nr_cs_variants, variant->nr_instrs, lp->nr_cs_instrs);
+                   variant->shader->variants.count, variant->nr_instrs);
    }
 
    gallivm_destroy(variant->gallivm);
-
-   /* remove from shader's list */
-   list_del(&variant->list_item_local.list);
-   variant->shader->variants_cached--;
-
-   /* remove from context's list */
-   list_del(&variant->list_item_global.list);
-   lp->nr_cs_variants--;
-   lp->nr_cs_instrs -= variant->nr_instrs;
-
    FREE(variant);
+}
+
+
+static struct lp_compute_shader_variant *
+generate_variant(struct llvmpipe_context *lp,
+                 struct lp_compute_shader *shader,
+                 mesa_shader_stage sh_type,
+                 const struct lp_compute_shader_variant_key *key);
+
+
+static struct util_shader_variant *
+cs_compile_cb(void *user_data, void *cso, const void *key)
+{
+   struct llvmpipe_context *lp = user_data;
+   struct lp_compute_shader *shader = cso;
+   const mesa_shader_stage sh_type =
+      ((struct nir_shader *)shader->base.ir.nir)->info.stage;
+
+   struct lp_compute_shader_variant *variant =
+      generate_variant(lp, shader, sh_type, key);
+
+   return variant ? &variant->base : NULL;
+}
+
+
+void
+lp_init_cs_variants(struct llvmpipe_context *lp)
+{
+   const struct util_shader_variant_cache_options opts = {
+      .compile = cs_compile_cb,
+      .destroy = cs_destroy_cb,
+      .user_data = lp,
+      .cap = LP_MAX_VARIANTS_PER_CS,
+   };
+
+   lp->cs_variant_opts = opts;
+}
+
+
+void
+lp_destroy_cs_variants(struct llvmpipe_context *lp)
+{
+   util_shader_variant_reference(&lp->cs_variant_opts,
+                                 &lp->cs_variant_pin, NULL);
+   util_shader_variant_reference(&lp->cs_variant_opts,
+                                 &lp->task_variant_pin, NULL);
+   util_shader_variant_reference(&lp->cs_variant_opts,
+                                 &lp->mesh_variant_pin, NULL);
 }
 
 
@@ -1093,7 +1129,6 @@ llvmpipe_delete_compute_state(struct pipe_context *pipe,
 {
    struct llvmpipe_context *llvmpipe = llvmpipe_context(pipe);
    struct lp_compute_shader *shader = cs;
-   struct lp_cs_variant_list_item *li, *next;
 
    if (llvmpipe->cs == cs)
       llvmpipe->cs = NULL;
@@ -1101,10 +1136,8 @@ llvmpipe_delete_compute_state(struct pipe_context *pipe,
       pipe_resource_reference(&shader->global_buffers[i], NULL);
    FREE(shader->global_buffers);
 
-   /* Delete all the variants */
-   LIST_FOR_EACH_ENTRY_SAFE(li, next, &shader->variants.list, list) {
-      llvmpipe_remove_cs_shader_variant(llvmpipe, li->base);
-   }
+   util_shader_variant_list_destroy(&llvmpipe->cs_variant_opts,
+                                    &shader->variants);
    ralloc_free(shader->base.ir.nir);
    FREE(shader);
 }
@@ -1317,8 +1350,6 @@ generate_variant(struct llvmpipe_context *lp,
       return NULL;
    }
 
-   variant->list_item_global.base = variant;
-   variant->list_item_local.base = variant;
    variant->no = shader->variants_created++;
 
    if ((LP_DEBUG & DEBUG_CS) || (gallivm_debug & GALLIVM_DEBUG_IR)) {
@@ -1376,104 +1407,35 @@ lp_cs_ctx_set_cs_variant(struct lp_cs_context *csctx,
 static struct lp_compute_shader_variant *
 llvmpipe_update_cs_variant(struct llvmpipe_context *lp,
                            mesa_shader_stage sh_type,
-                           struct lp_compute_shader *shader)
+                           struct lp_compute_shader *shader,
+                           struct util_shader_variant **pin_slot)
 {
    char store[LP_CS_MAX_VARIANT_KEY_SIZE];
    struct lp_compute_shader_variant_key *key =
       make_variant_key(lp, shader, sh_type, store);
-   struct lp_compute_shader_variant *variant = NULL;
-   struct lp_cs_variant_list_item *li;
 
-   /* Search the variants for one which matches the key */
-   LIST_FOR_EACH_ENTRY(li, &shader->variants.list, list) {
-      if (memcmp(&li->base->key, key, shader->variant_key_size) == 0) {
-         variant = li->base;
-         break;
-      }
-   }
-
-   if (variant) {
-      /* Move this variant to the head of the list to implement LRU
-       * deletion of shader's when we have too many.
-       */
-      list_move_to(&variant->list_item_global.list,
-                   &lp->cs_variants_list.list);
-   } else {
-      /* variant not found, create it now */
-
-      if (LP_DEBUG & DEBUG_CS) {
-         debug_printf("%u variants,\t%u instrs,\t%u instrs/variant\n",
-                      lp->nr_cs_variants,
-                      lp->nr_cs_instrs,
-                      lp->nr_cs_variants
-                      ? lp->nr_cs_instrs / lp->nr_cs_variants : 0);
-      }
-
-      /* First, check if we've exceeded the max number of shader variants.
-       * If so, free 6.25% of them (the least recently used ones).
-       */
-      unsigned variants_to_cull = lp->nr_cs_variants >= LP_MAX_SHADER_VARIANTS
-         ? LP_MAX_SHADER_VARIANTS / 16 : 0;
-
-      if (variants_to_cull ||
-          lp->nr_cs_instrs >= LP_MAX_SHADER_INSTRUCTIONS) {
-         if (gallivm_debug & GALLIVM_DEBUG_PERF) {
-            debug_printf("Evicting CS: %u cs variants,\t%u total variants,"
-                         "\t%u instrs,\t%u instrs/variant\n",
-                         shader->variants_cached,
-                         lp->nr_cs_variants, lp->nr_cs_instrs,
-                         lp->nr_cs_variants
-                         ? lp->nr_cs_instrs / lp->nr_cs_variants : 0);
-         }
-
-         /*
-          * We need to re-check lp->nr_cs_variants because an arbitrarily large
-          * number of shader variants (potentially all of them) could be
-          * pending for destruction on flush.
-          */
-         for (unsigned i = 0;
-              i < variants_to_cull ||
-                 lp->nr_cs_instrs >= LP_MAX_SHADER_INSTRUCTIONS; i++) {
-            struct lp_cs_variant_list_item *item;
-            if (list_is_empty(&lp->cs_variants_list.list)) {
-               break;
-            }
-            item = list_last_entry(&lp->cs_variants_list.list,
-                                   struct lp_cs_variant_list_item, list);
-            assert(item);
-            assert(item->base);
-            llvmpipe_remove_cs_shader_variant(lp, item->base);
-         }
-      }
-
-      /*
-       * Generate the new variant.
-       */
-      int64_t t0, t1, dt;
-      t0 = os_time_get();
-      variant = generate_variant(lp, shader, sh_type, key);
-      t1 = os_time_get();
-      dt = t1 - t0;
+   int64_t t0 = os_time_get();
+   bool was_miss = false;
+   util_shader_variant_get_pinned(&lp->cs_variant_opts, &shader->variants,
+                                  shader, key, shader->variant_key_size,
+                                  pin_slot, &was_miss);
+   if (was_miss) {
+      int64_t dt = os_time_get() - t0;
       LP_COUNT_ADD(llvm_compile_time, dt);
       LP_COUNT_ADD(nr_llvm_compiles, 2);  /* emit vs. omit in/out test */
-
-      /* Put the new variant into the list */
-      if (variant) {
-         list_add(&variant->list_item_local.list, &shader->variants.list);
-         list_add(&variant->list_item_global.list, &lp->cs_variants_list.list);
-         lp->nr_cs_variants++;
-         lp->nr_cs_instrs += variant->nr_instrs;
-         shader->variants_cached++;
-      }
    }
-   return variant;
+
+   return *pin_slot
+      ? container_of(*pin_slot, struct lp_compute_shader_variant, base)
+      : NULL;
 }
 
 static void
 llvmpipe_update_cs(struct llvmpipe_context *lp)
 {
-   struct lp_compute_shader_variant *variant;
-   variant = llvmpipe_update_cs_variant(lp, MESA_SHADER_COMPUTE, lp->cs);
+   struct lp_compute_shader_variant *variant =
+      llvmpipe_update_cs_variant(lp, MESA_SHADER_COMPUTE, lp->cs,
+                                 &lp->cs_variant_pin);
    /* Bind this variant */
    lp_cs_ctx_set_cs_variant(lp->csctx, variant);
 }
@@ -1917,7 +1879,9 @@ llvmpipe_update_task_shader(struct llvmpipe_context *lp)
 {
    if (!lp->tss)
       return;
-   struct lp_compute_shader_variant *variant = llvmpipe_update_cs_variant(lp, MESA_SHADER_TASK, lp->tss);
+   struct lp_compute_shader_variant *variant =
+      llvmpipe_update_cs_variant(lp, MESA_SHADER_TASK, lp->tss,
+                                 &lp->task_variant_pin);
    lp_cs_ctx_set_cs_variant(lp->task_ctx, variant);
 }
 
@@ -1936,7 +1900,7 @@ llvmpipe_create_ts_state(struct pipe_context *pipe,
 
    shader->base.ir.nir = templ->ir.nir;
    shader->req_local_mem += ((struct nir_shader *)shader->base.ir.nir)->info.shared_size;
-   list_inithead(&shader->variants.list);
+   util_shader_variant_list_init(&shader->variants);
 
    struct nir_shader *nir = shader->base.ir.nir;
    int nr_samplers = BITSET_LAST_BIT(nir->info.samplers_used);
@@ -1964,12 +1928,9 @@ llvmpipe_delete_ts_state(struct pipe_context *pipe, void *_task)
 {
    struct llvmpipe_context *llvmpipe = llvmpipe_context(pipe);
    struct lp_compute_shader *shader = _task;
-   struct lp_cs_variant_list_item *li, *next;
 
-   /* Delete all the variants */
-   LIST_FOR_EACH_ENTRY_SAFE(li, next, &shader->variants.list, list) {
-      llvmpipe_remove_cs_shader_variant(llvmpipe, li->base);
-   }
+   util_shader_variant_list_destroy(&llvmpipe->cs_variant_opts,
+                                    &shader->variants);
    ralloc_free(shader->base.ir.nir);
    FREE(shader);
 }
@@ -1987,7 +1948,9 @@ llvmpipe_update_mesh_shader(struct llvmpipe_context *lp)
 {
    if (!lp->mhs)
       return;
-   struct lp_compute_shader_variant *variant = llvmpipe_update_cs_variant(lp, MESA_SHADER_MESH, lp->mhs);
+   struct lp_compute_shader_variant *variant =
+      llvmpipe_update_cs_variant(lp, MESA_SHADER_MESH, lp->mhs,
+                                 &lp->mesh_variant_pin);
    lp_cs_ctx_set_cs_variant(lp->mesh_ctx, variant);
 }
 
@@ -2007,7 +1970,7 @@ llvmpipe_create_ms_state(struct pipe_context *pipe,
 
    shader->base.ir.nir = templ->ir.nir;
    shader->req_local_mem += ((struct nir_shader *)shader->base.ir.nir)->info.shared_size;
-   list_inithead(&shader->variants.list);
+   util_shader_variant_list_init(&shader->variants);
 
    shader->draw_mesh_data = draw_create_mesh_shader(llvmpipe->draw, templ);
    if (shader->draw_mesh_data == NULL) {
@@ -2044,12 +2007,9 @@ llvmpipe_delete_ms_state(struct pipe_context *pipe, void *_mesh)
 {
    struct llvmpipe_context *llvmpipe = llvmpipe_context(pipe);
    struct lp_compute_shader *shader = _mesh;
-   struct lp_cs_variant_list_item *li, *next;
 
-   /* Delete all the variants */
-   LIST_FOR_EACH_ENTRY_SAFE(li, next, &shader->variants.list, list) {
-      llvmpipe_remove_cs_shader_variant(llvmpipe, li->base);
-   }
+   util_shader_variant_list_destroy(&llvmpipe->cs_variant_opts,
+                                    &shader->variants);
 
    draw_delete_mesh_shader(llvmpipe->draw, shader->draw_mesh_data);
    ralloc_free(shader->base.ir.nir);
