@@ -1874,7 +1874,7 @@
         "description": "asahi: fix fdiv lowering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d3adef316414bf94b61248c1a631fffcf21a9e52",
         "notes": null
