@@ -9,12 +9,25 @@
 #include "util/log.h"
 #include "util/macros.h"
 
-#include <gelf.h>
 #include <libelf.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* these symbols are not defined in the libelf lib used for android in CI */
+#ifndef ELF64_ST_VISIBILITY
+#define ELF64_ST_VISIBILITY(o)	((o)&0x3)
+#endif
+#ifndef STB_GLOBAL
+#define STB_GLOBAL	1
+#endif
+#ifndef STT_FUNC
+#define STT_FUNC	2
+#endif
+#ifndef STV_DEFAULT
+#define STV_DEFAULT	0
+#endif
 
 static bool
 nv_cubin_error(const char *what)
@@ -30,12 +43,12 @@ nv_cubin_module_get_section(struct nv_cubin_module *module,
 {
    Elf_Scn *section = NULL;
    while ((section = elf_nextscn(module->elf, section)) != NULL) {
-      GElf_Shdr header;
-      if (gelf_getshdr(section, &header) != &header)
+      Elf64_Shdr *header = elf64_getshdr(section);
+      if (!header)
          continue;
 
       const char *section_name =
-         elf_strptr(module->elf, module->shstrndx, header.sh_name);
+         elf_strptr(module->elf, module->shstrndx, header->sh_name);
       if (!section_name || !*section_name)
          continue;
 
@@ -194,14 +207,14 @@ static bool
 nv_cubin_function_init(struct nv_cubin_module *module,
                        struct nv_cubin_function *function,
                        uint32_t symbol_index, const char *symbol_name,
-                       GElf_Sym symbol)
+                       Elf64_Sym *symbol)
 {
    memset(function, 0, sizeof(*function));
 
-   if (symbol.st_size == 0)
+   if (symbol->st_size == 0)
       return nv_cubin_error("Function with no size!");
 
-   size_t code_section_index = symbol.st_shndx;
+   size_t code_section_index = symbol->st_shndx;
    if (code_section_index == SHN_UNDEF)
       return nv_cubin_error("Function with no code section!");
 
@@ -209,16 +222,17 @@ nv_cubin_function_init(struct nv_cubin_module *module,
    if (!code_section)
       return nv_cubin_error("Function with invalid code section!");
 
-   GElf_Shdr code_section_header;
-   if (gelf_getshdr(code_section, &code_section_header) != &code_section_header)
+   Elf64_Shdr *code_section_header = elf64_getshdr(code_section);
+
+   if (!code_section_header)
       return nv_cubin_error("Couldn't get code section header");
 
    Elf_Data *code_section_data = elf_getdata(code_section, NULL);
    if (!code_section_data)
       return nv_cubin_error("Couldn't get code section data");
 
-   size_t offset_in_section = symbol.st_value - code_section_header.sh_addr;
-   if (offset_in_section + symbol.st_size > code_section_data->d_size)
+   size_t offset_in_section = symbol->st_value - code_section_header->sh_addr;
+   if (offset_in_section + symbol->st_size > code_section_data->d_size)
       return nv_cubin_error("Function extends beyond section bounds");
 
    function->symbol_index = symbol_index;
@@ -233,7 +247,7 @@ nv_cubin_function_init(struct nv_cubin_module *module,
 
    if (module->abi < NV_ELF_OSABI_41) {
       /* old version has SHF_BARRIERS in .sectionheader */
-      const uint8_t shf_barriers = (code_section_header.sh_flags >> 20) & 0xf;
+      const uint8_t shf_barriers = (code_section_header->sh_flags >> 20) & 0xf;
       function->num_control_barriers = shf_barriers;
    }
 
@@ -252,19 +266,32 @@ nv_cubin_function_fini(struct nv_cubin_function *function)
    free(function->param_infos);
 }
 
+static Elf64_Sym *
+nv_cubin_get_symbol(Elf_Data *data, uint32_t index)
+{
+   Elf64_Sym *symbol = NULL;
+
+   if (index * sizeof(Elf64_Sym) < data->d_size) {
+      Elf64_Sym *symbols = (Elf64_Sym *)data->d_buf;
+      symbol = &symbols[index];
+   }
+
+    return symbol;
+}
+
 static bool
 nv_cubin_module_parse_functions(struct nv_cubin_module *module)
 {
    /* Iterate over the symbol table and extract the data about each function. */
    Elf_Scn *symtab_section = NULL;
-   GElf_Shdr symtab_section_header;
+   Elf64_Shdr *symtab_section_header;
    while ((symtab_section = elf_nextscn(module->elf, symtab_section)) != NULL) {
-      if (gelf_getshdr(symtab_section, &symtab_section_header) !=
-          &symtab_section_header)
+      symtab_section_header = elf64_getshdr(symtab_section);
+      if (!symtab_section_header)
          return nv_cubin_error("Couldn't get section header");
 
       /* We only care about symbol tables. */
-      if (symtab_section_header.sh_type != SHT_SYMTAB)
+      if (symtab_section_header->sh_type != SHT_SYMTAB)
          continue;
 
       Elf_Data *symtab_data = elf_getdata(symtab_section, NULL);
@@ -272,21 +299,21 @@ nv_cubin_module_parse_functions(struct nv_cubin_module *module)
          return nv_cubin_error("Couldn't get .symtab section data");
 
       uint32_t num_symbols =
-         symtab_section_header.sh_size / symtab_section_header.sh_entsize;
+         symtab_section_header->sh_size / symtab_section_header->sh_entsize;
       for (uint32_t i = 0; i < num_symbols; i++) {
-         GElf_Sym symbol;
-         if (gelf_getsym(symtab_data, i, &symbol) != &symbol)
+         Elf64_Sym *symbol = nv_cubin_get_symbol(symtab_data, i);
+         if (!symbol)
             return nv_cubin_error("Couldn't get symbol");
 
          char *symbol_name = elf_strptr(
-            module->elf, symtab_section_header.sh_link, symbol.st_name);
+            module->elf, symtab_section_header->sh_link, symbol->st_name);
          /* We don't care about any unnamed functions. */
          if (!symbol_name || symbol_name[0] == '\0')
             continue;
 
-         if (GELF_ST_TYPE(symbol.st_info) != STT_FUNC ||
-             GELF_ST_BIND(symbol.st_info) != STB_GLOBAL ||
-             GELF_ST_VISIBILITY(symbol.st_other) != STV_DEFAULT)
+         if (ELF64_ST_TYPE(symbol->st_info) != STT_FUNC ||
+             ELF64_ST_BIND(symbol->st_info) != STB_GLOBAL ||
+             ELF64_ST_VISIBILITY(symbol->st_other) != STV_DEFAULT)
             continue;
 
          uint32_t function_idx = module->function_count++;
@@ -322,20 +349,20 @@ nv_cubin_module_init(struct nv_cubin_module *module, const void *data,
    if (elf_getshdrstrndx(module->elf, &module->shstrndx) != 0)
       return nv_cubin_error("Couldn't get section header string table index");
 
-   GElf_Ehdr ehdr;
-   if (gelf_getehdr(module->elf, &ehdr) != &ehdr)
+   Elf64_Ehdr *ehdr = elf64_getehdr(module->elf);
+   if (!ehdr)
       return nv_cubin_error("Failed to get elf header");
 
-   if (ehdr.e_machine != 190 /* EM_CUDA */)
+   if (ehdr->e_machine != 190 /* EM_CUDA */)
       return nv_cubin_error("ELF is not targeting Cuda");
 
-   module->abi = ehdr.e_ident[EI_OSABI];
+   module->abi = ehdr->e_ident[EI_OSABI];
 
    /* new version encodes e_flags differently... */
    if (module->abi >= NV_ELF_OSABI_41)
-      module->sm = (ehdr.e_flags >> 8) & 0xFF;
+      module->sm = (ehdr->e_flags >> 8) & 0xFF;
    else
-      module->sm = (ehdr.e_flags >> 16) & 0xFF;
+      module->sm = (ehdr->e_flags >> 16) & 0xFF;
 
    if (!nv_cubin_module_parse_functions(module))
       return nv_cubin_error("Couldn't parse functions");
