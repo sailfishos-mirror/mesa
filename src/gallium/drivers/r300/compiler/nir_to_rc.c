@@ -622,12 +622,15 @@ ntr_get_load_const_src(struct ntr_compile *c, nir_load_const_instr *instr)
 {
    int num_components = instr->def.num_components;
 
-   float values[4];
+   /* Always emit a full vec4 immediate per load_const and let the
+    * RC backend's constant packing handle it later.
+    */
+   float values[4] = {0};
    assert(instr->def.bit_size == 32);
    for (int i = 0; i < num_components; i++)
       values[i] = uif(instr->value[i].u32);
 
-   return ureg_DECL_immediate(c->ureg, values, num_components);
+   return ureg_DECL_immediate(c->ureg, values, 4);
 }
 
 static struct ureg_src
