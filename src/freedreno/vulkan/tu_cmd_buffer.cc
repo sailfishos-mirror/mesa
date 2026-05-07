@@ -2415,7 +2415,7 @@ tu_init_hw_rp(struct tu_cs *cs)
 {
    if (CHIP >= A7XX) {
       tu_cs_emit_regs(cs, VPC_UNKNOWN_CNTL(CHIP));
-      tu_cs_emit_regs(cs, RB_A2D_UNKNOWN_8C34(CHIP));
+      tu_cs_emit_regs(cs, RB_A2D_DEST_BUFFER_ARRAY_PITCH(CHIP));
    }
 }
 TU_GENX(tu_init_hw_rp);
