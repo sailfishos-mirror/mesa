@@ -188,17 +188,17 @@ ntr_rc_tex_sampler_from_ureg(struct ntr_compile *c, struct rc_sub_instruction *i
 
 static struct ntr_insn *
 ntr_insn(struct ntr_compile *c, rc_opcode opcode, const struct ureg_dst *dst,
-         struct ureg_src src0, struct ureg_src src1, struct ureg_src src2)
+         const struct ureg_src *src0, const struct ureg_src *src1,
+         const struct ureg_src *src2)
 {
    const struct rc_opcode_info *opcode_info = rc_get_opcode_info(opcode);
    assert(opcode_info->NumSrcRegs <= 3);
    assert(opcode_info->HasDstReg == (dst != NULL));
+   assert(opcode_info->NumSrcRegs >= (src2 ? 3 : src1 ? 2 : src0 ? 1 : 0));
 
    struct ntr_insn insn = {
       .inst = {
          .Opcode = opcode,
-         .SrcReg = {ntr_rc_src_from_ureg(c, src0), ntr_rc_src_from_ureg(c, src1),
-                    ntr_rc_src_from_ureg(c, src2)},
       },
       .precise = c->precise,
    };
@@ -207,6 +207,12 @@ ntr_insn(struct ntr_compile *c, rc_opcode opcode, const struct ureg_dst *dst,
       insn.inst.SaturateMode = dst->Saturate ? RC_SATURATE_ZERO_ONE
                                              : RC_SATURATE_NONE;
    }
+   if (src0)
+      insn.inst.SrcReg[0] = ntr_rc_src_from_ureg(c, *src0);
+   if (src1)
+      insn.inst.SrcReg[1] = ntr_rc_src_from_ureg(c, *src1);
+   if (src2)
+      insn.inst.SrcReg[2] = ntr_rc_src_from_ureg(c, *src2);
 
    util_dynarray_append(&c->cur_block->insns, insn);
    return util_dynarray_top_ptr(&c->cur_block->insns, struct ntr_insn);
@@ -215,27 +221,27 @@ ntr_insn(struct ntr_compile *c, rc_opcode opcode, const struct ureg_dst *dst,
 #define NTR_OP00(name, op)                                                          \
    static inline void ntr_##name(struct ntr_compile *c)                             \
    {                                                                                \
-      ntr_insn(c, op, NULL, ureg_src_undef(), ureg_src_undef(), ureg_src_undef());  \
+      ntr_insn(c, op, NULL, NULL, NULL, NULL);                                      \
    }
 
 #define NTR_OP01(name, op)                                                          \
    static inline void ntr_##name(struct ntr_compile *c, struct ureg_src src0)       \
    {                                                                                \
-      ntr_insn(c, op, NULL, src0, ureg_src_undef(), ureg_src_undef());              \
+      ntr_insn(c, op, NULL, &src0, NULL, NULL);                                     \
    }
 
 #define NTR_OP11(name, op)                                                          \
    static inline void ntr_##name(struct ntr_compile *c, struct ureg_dst dst,        \
                                  struct ureg_src src0)                              \
    {                                                                                \
-      ntr_insn(c, op, &dst, src0, ureg_src_undef(), ureg_src_undef());              \
+      ntr_insn(c, op, &dst, &src0, NULL, NULL);                                     \
    }
 
 #define NTR_OP12(name, op)                                                          \
    static inline void ntr_##name(struct ntr_compile *c, struct ureg_dst dst,        \
                                  struct ureg_src src0, struct ureg_src src1)        \
    {                                                                                \
-      ntr_insn(c, op, &dst, src0, src1, ureg_src_undef());                          \
+      ntr_insn(c, op, &dst, &src0, &src1, NULL);                                    \
    }
 
 #define NTR_OP13(name, op)                                                          \
@@ -243,7 +249,7 @@ ntr_insn(struct ntr_compile *c, rc_opcode opcode, const struct ureg_dst *dst,
                                  struct ureg_src src0, struct ureg_src src1,        \
                                  struct ureg_src src2)                              \
    {                                                                                \
-      ntr_insn(c, op, &dst, src0, src1, src2);                                      \
+      ntr_insn(c, op, &dst, &src0, &src1, &src2);                                   \
    }
 
 NTR_OP00(KILL, RC_OPCODE_KILP)
@@ -814,19 +820,23 @@ ntr_store(struct ntr_compile *c, nir_def *def, struct ureg_src src)
 
 static void
 ntr_emit_scalar(struct ntr_compile *c, rc_opcode op, struct ureg_dst dst,
-                struct ureg_src src0, struct ureg_src src1)
+                struct ureg_src src0, const struct ureg_src *src1)
 {
    unsigned i;
+   bool has_src1 = op == RC_OPCODE_POW;
 
    /* POW is the only 2-operand scalar op. */
-   if (op != RC_OPCODE_POW)
-      src1 = src0;
+   assert(has_src1 == (src1 != NULL));
 
    for (i = 0; i < 4; i++) {
       if (dst.WriteMask & (1 << i)) {
          struct ureg_dst scalar_dst = ureg_writemask(dst, 1 << i);
-         ntr_insn(c, op, &scalar_dst, ureg_scalar(src0, i),
-                  ureg_scalar(src1, i), ureg_src_undef());
+         struct ureg_src scalar_src0 = ureg_scalar(src0, i);
+         struct ureg_src scalar_src1;
+         if (has_src1)
+            scalar_src1 = ureg_scalar(*src1, i);
+         ntr_insn(c, op, &scalar_dst, &scalar_src0,
+                  has_src1 ? &scalar_src1 : NULL, NULL);
       }
    }
 }
@@ -848,8 +858,6 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
    assert(num_srcs <= ARRAY_SIZE(src));
    for (i = 0; i < num_srcs; i++)
       src[i] = ntr_get_alu_src(c, instr, i);
-   for (; i < ARRAY_SIZE(src); i++)
-      src[i] = ureg_src_undef();
 
    dst = ntr_get_alu_dest(c, &instr->def);
 
@@ -877,7 +885,11 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
 
    if (instr->op < ARRAY_SIZE(op_map) && op_map[instr->op] > 0) {
       /* The normal path for NIR to TGSI ALU op translation */
-      ntr_insn(c, op_map[instr->op], &dst, src[0], src[1], src[2]);
+      const struct rc_opcode_info *opcode_info = rc_get_opcode_info(op_map[instr->op]);
+      ntr_insn(c, op_map[instr->op], &dst,
+               opcode_info->NumSrcRegs > 0 ? &src[0] : NULL,
+               opcode_info->NumSrcRegs > 1 ? &src[1] : NULL,
+               opcode_info->NumSrcRegs > 2 ? &src[2] : NULL);
    } else {
       /* Special cases for NIR to TGSI ALU op translation. */
 
@@ -914,27 +926,27 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
           * of src channels to dst.
           */
       case nir_op_frcp:
-         ntr_emit_scalar(c, RC_OPCODE_RCP, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_RCP, dst, src[0], NULL);
          break;
 
       case nir_op_frsq:
-         ntr_emit_scalar(c, RC_OPCODE_RSQ, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_RSQ, dst, src[0], NULL);
          break;
 
       case nir_op_fexp2:
-         ntr_emit_scalar(c, RC_OPCODE_EX2, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_EX2, dst, src[0], NULL);
          break;
 
       case nir_op_flog2:
-         ntr_emit_scalar(c, RC_OPCODE_LG2, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_LG2, dst, src[0], NULL);
          break;
 
       case nir_op_fsin:
-         ntr_emit_scalar(c, RC_OPCODE_SIN, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_SIN, dst, src[0], NULL);
          break;
 
       case nir_op_fcos:
-         ntr_emit_scalar(c, RC_OPCODE_COS, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_COS, dst, src[0], NULL);
          break;
 
       case nir_op_fsub:
@@ -946,7 +958,7 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
          break;
 
       case nir_op_fpow:
-         ntr_emit_scalar(c, RC_OPCODE_POW, dst, src[0], src[1]);
+         ntr_emit_scalar(c, RC_OPCODE_POW, dst, src[0], &src[1]);
          break;
 
       case nir_op_fcsel:
@@ -1285,11 +1297,11 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
       s.srcs[s.i++] = ntr_get_src(c, instr->src[ddy].src);
    }
 
-   while (s.i < ARRAY_SIZE(s.srcs))
-      s.srcs[s.i++] = ureg_src_undef();
+   assert(s.i == rc_get_opcode_info(tex_opcode)->NumSrcRegs);
 
    struct ntr_insn *insn =
-      ntr_insn(c, tex_opcode, &dst, s.srcs[0], s.srcs[1], s.srcs[2]);
+      ntr_insn(c, tex_opcode, &dst, &s.srcs[0],
+               s.i > 1 ? &s.srcs[1] : NULL, s.i > 2 ? &s.srcs[2] : NULL);
    insn->inst.TexSrcTarget = target;
    ntr_rc_tex_sampler_from_ureg(c, &insn->inst, sampler);
    insn->inst.TexSwizzle = RC_SWIZZLE_XYZW;
