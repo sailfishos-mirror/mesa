@@ -2107,7 +2107,7 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       .maxFragmentShadingRateAttachmentTexelSize = vrs_texel_extent,
       .maxFragmentShadingRateAttachmentTexelSizeAspectRatio = 1,
       .primitiveFragmentShadingRateWithMultipleViewports = true,
-      .layeredShadingRateAttachments = false, /* TODO */
+      .layeredShadingRateAttachments = false,
       .fragmentShadingRateNonTrivialCombinerOps = true,
       .maxFragmentSize = (VkExtent2D){2, 2},
       .maxFragmentSizeAspectRatio = 2,
