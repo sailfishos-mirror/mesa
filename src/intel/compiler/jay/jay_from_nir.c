@@ -483,8 +483,15 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
    }
 
    case nir_op_pack_32_2x16_split:
-      /* TODO: Optimize */
-      jay_BFI2(b, dst, 0xffff0000, src[1], src[0]);
+      if (nir_src_is_const(alu->src[0].src) &&
+          nir_alu_src_as_uint(alu->src[0]) == 0) {
+
+         /* pack_32_2x16_split(0, x) is just a shift. This saves a constant. */
+         jay_SHL(b, JAY_TYPE_U32, dst, src[1], 16);
+      } else {
+         /* TODO: Optimize */
+         jay_BFI2(b, dst, 0xffff0000, src[1], src[0]);
+      }
       break;
 
    case nir_op_pack_64_2x32_split:
