@@ -409,6 +409,8 @@ lower_trivial(jay_function *func)
 
          jay_builder b = jay_init_builder(func, jay_after_inst(I));
          sync_sbids(&b, BITFIELD_BIT(0), TGL_SBID_DST);
+      } else if (I->op == JAY_OPCODE_SCHEDULE_BARRIER) {
+         jay_remove_instruction(I);
       } else {
          I->dep = tgl_swsb_regdist(1);
       }
