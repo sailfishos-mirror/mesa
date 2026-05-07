@@ -10,7 +10,6 @@
 #include "util/u_memory.h"
 
 #include "tgsi/tgsi_dump.h"
-#include "tgsi/tgsi_ureg.h"
 
 #include "r300_cb.h"
 #include "r300_context.h"
@@ -24,7 +23,7 @@
 #include "compiler/radeon_compiler.h"
 #include "compiler/nir_to_rc.h"
 #include "nir.h"
-#include "nir/tgsi_to_nir.h"
+#include "compiler/nir/nir_builder.h"
 
 static void find_output_registers(struct r300_fragment_program_compiler * compiler,
                                   struct r300_fragment_shader_code *shader)
@@ -154,28 +153,22 @@ static void r300_dummy_fragment_shader(
     struct r300_fragment_shader_code* shader)
 {
     struct pipe_shader_state state = {};
-    struct ureg_program *ureg;
-    struct ureg_dst out;
-    struct ureg_src imm;
+    const nir_shader_compiler_options *options =
+        r300->screen->screen.nir_options[MESA_SHADER_FRAGMENT];
 
-    /* Make a simple fragment shader which outputs (0, 0, 0, 1) */
-    ureg = ureg_create(MESA_SHADER_FRAGMENT);
-    out = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0);
-    imm = ureg_imm4f(ureg, 0, 0, 0, 1);
-
-    ureg_MOV(ureg, out, imm);
-    ureg_END(ureg);
-
-    state.tokens = ureg_finalize(ureg);
+    /* Make a simple fragment shader which outputs (0, 0, 0, 1). */
+    nir_builder b = nir_builder_init_simple_shader(MESA_SHADER_FRAGMENT,
+                                                   options, "r300 dummy FS");
+    nir_variable *out = nir_variable_create(b.shader, nir_var_shader_out,
+                                            glsl_vec4_type(), "out_color");
+    out->data.location = FRAG_RESULT_COLOR;
+    nir_store_var(&b, out, nir_imm_vec4(&b, 0, 0, 0, 1), 0xf);
 
     shader->dummy = true;
     state.type = PIPE_SHADER_IR_NIR;
-    /* We could just build a NIR directly, was lazy to figure it out for now... */
-    state.ir.nir = tgsi_to_nir(state.tokens, &r300->screen->screen, false);
+    state.ir.nir = b.shader;
     r300_translate_fragment_shader(r300, shader, state);
     ralloc_free(state.ir.nir);
-
-    ureg_destroy(ureg);
 }
 
 static void r300_emit_fs_code_to_buffer(
