@@ -1295,21 +1295,6 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
    case nir_texop_txd:
       tex_opcode = TGSI_OPCODE_TXD;
       break;
-   case nir_texop_txs:
-      tex_opcode = TGSI_OPCODE_TXQ;
-      break;
-   case nir_texop_tg4:
-      tex_opcode = TGSI_OPCODE_TG4;
-      break;
-   case nir_texop_query_levels:
-      tex_opcode = TGSI_OPCODE_TXQ;
-      break;
-   case nir_texop_lod:
-      tex_opcode = TGSI_OPCODE_LODQ;
-      break;
-   case nir_texop_texture_samples:
-      tex_opcode = TGSI_OPCODE_TXQS;
-      break;
    default:
       UNREACHABLE("unsupported tex op");
    }
@@ -1317,15 +1302,6 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
    struct ntr_tex_operand_state s = {.i = 0};
    ntr_push_tex_arg(c, instr, nir_tex_src_backend1, &s);
    ntr_push_tex_arg(c, instr, nir_tex_src_backend2, &s);
-
-   /* non-coord arg for TXQ */
-   if (tex_opcode == TGSI_OPCODE_TXQ) {
-      ntr_push_tex_arg(c, instr, nir_tex_src_lod, &s);
-      /* virglrenderer mistakenly looks at .w instead of .x, so make sure it's
-       * scalar
-       */
-      s.srcs[s.i - 1] = ureg_scalar(s.srcs[s.i - 1], 0);
-   }
 
    if (s.i > 1) {
       if (tex_opcode == TGSI_OPCODE_TEX)
@@ -1342,15 +1318,6 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
       int ddy = nir_tex_instr_src_index(instr, nir_tex_src_ddy);
       s.srcs[s.i++] = ntr_get_src(c, instr->src[ddx].src);
       s.srcs[s.i++] = ntr_get_src(c, instr->src[ddy].src);
-   }
-
-   if (instr->op == nir_texop_tg4 && target != TGSI_TEXTURE_SHADOWCUBE_ARRAY) {
-      if (c->screen->caps.tgsi_tg4_component_in_swizzle) {
-         sampler = ureg_scalar(sampler, instr->component);
-         s.srcs[s.i++] = ureg_src_undef();
-      } else {
-         s.srcs[s.i++] = ureg_imm1u(c->ureg, instr->component);
-      }
    }
 
    s.srcs[s.i++] = sampler;
