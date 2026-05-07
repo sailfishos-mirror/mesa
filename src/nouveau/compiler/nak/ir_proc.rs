@@ -147,33 +147,5 @@ pub fn enum_derive_display_op(input: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(FromVariants)]
 pub fn derive_from_variants(input: TokenStream) -> TokenStream {
-    let DeriveInput { ident, data, .. } = parse_macro_input!(input);
-    let enum_type = ident;
-
-    let mut impls = TokenStream2::new();
-
-    if let Data::Enum(e) = data {
-        for v in e.variants {
-            let var_ident = v.ident;
-            let from_type = match v.fields {
-                Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => unnamed,
-                _ => panic!("Expected Op(OpFoo)"),
-            };
-
-            assert!(from_type.len() == 1, "Expected Op(OpFoo)");
-            let from_type = &from_type.first().unwrap().ty;
-
-            let quote = quote! {
-                impl From<#from_type> for #enum_type {
-                    fn from (op: #from_type) -> #enum_type {
-                        #enum_type::#var_ident(op)
-                    }
-                }
-            };
-
-            impls.extend(quote);
-        }
-    }
-
-    impls.into()
+    compiler_proc::from_variants::derive_from_variants(input)
 }
