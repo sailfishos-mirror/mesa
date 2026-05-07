@@ -107,6 +107,8 @@ llvmpipe_destroy(struct pipe_context *pipe)
 
    lp_delete_setup_variants(llvmpipe);
 
+   llvmpipe_destroy_fs_funcs(llvmpipe);
+
    llvmpipe_sampler_matrix_destroy(llvmpipe);
 
    lp_context_destroy(&llvmpipe->context);
@@ -273,8 +275,6 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
          (int64_t)ts_now.tv_sec * 1000000000LL + ts_now.tv_nsec;
    }
 #endif
-
-   list_inithead(&llvmpipe->fs_variants_list.list);
 
    list_inithead(&llvmpipe->setup_variants_list.list);
 

@@ -3853,7 +3853,6 @@ generate_variant(struct llvmpipe_context *lp,
 
    memset(variant, 0, sizeof(*variant));
 
-   pipe_reference_init(&variant->reference, 1);
    lp_fs_reference(lp, &variant->shader, shader);
 
    memcpy(&variant->key, key, shader->variant_key_size);
@@ -3881,8 +3880,6 @@ generate_variant(struct llvmpipe_context *lp,
       return NULL;
    }
 
-   variant->list_item_global.base = variant;
-   variant->list_item_local.base = variant;
    variant->no = shader->variants_created++;
 
    /*
@@ -4107,7 +4104,7 @@ llvmpipe_create_fs_state(struct pipe_context *pipe,
 
    pipe_reference_init(&shader->reference, 1);
    shader->no = fs_no++;
-   list_inithead(&shader->variants.list);
+   util_shader_variant_list_init(&shader->variants);
 
    shader->base.type = PIPE_SHADER_IR_NIR;
 
@@ -4217,41 +4214,34 @@ llvmpipe_bind_fs_state(struct pipe_context *pipe, void *fs)
 }
 
 
-/**
- * Remove shader variant from two lists: the shader's variant list
- * and the context's variant list.
- */
 static void
-llvmpipe_remove_shader_variant(struct llvmpipe_context *lp,
-                               struct lp_fragment_shader_variant *variant)
+fs_destroy_cb(struct util_shader_variant *base)
 {
+   struct lp_fragment_shader_variant *variant =
+      container_of(base, struct lp_fragment_shader_variant, base);
+
    if ((LP_DEBUG & DEBUG_FS) || (gallivm_debug & GALLIVM_DEBUG_IR)) {
       debug_printf("llvmpipe: del fs #%u var %u v created %u v cached %u "
-                   "v total cached %u inst %u total inst %u\n",
+                   "inst %u\n",
                    variant->shader->no, variant->no,
                    variant->shader->variants_created,
-                   variant->shader->variants_cached,
-                   lp->nr_fs_variants, variant->nr_instrs, lp->nr_fs_instrs);
+                   variant->shader->variants.count, variant->nr_instrs);
    }
 
-   /* remove from shader's list */
-   list_del(&variant->list_item_local.list);
-   variant->shader->variants_cached--;
-
-   /* remove from context's list */
-   list_del(&variant->list_item_global.list);
-   lp->nr_fs_variants--;
-   lp->nr_fs_instrs -= variant->nr_instrs;
+   gallivm_destroy(variant->gallivm);
+   lp_fs_reference(NULL, &variant->shader, NULL);
+   FREE(variant);
 }
 
 
-void
-llvmpipe_destroy_shader_variant(struct llvmpipe_context *lp,
-                                struct lp_fragment_shader_variant *variant)
+static struct util_shader_variant *
+fs_compile_cb(void *user_data, void *cso, const void *key)
 {
-   gallivm_destroy(variant->gallivm);
-   lp_fs_reference(lp, &variant->shader, NULL);
-   FREE(variant);
+   struct llvmpipe_context *lp = user_data;
+   struct lp_fragment_shader *shader = cso;
+   struct lp_fragment_shader_variant *variant = generate_variant(lp, shader, key);
+
+   return variant ? &variant->base : NULL;
 }
 
 
@@ -4263,7 +4253,7 @@ llvmpipe_destroy_fs(struct llvmpipe_context *llvmpipe,
    draw_delete_fragment_shader(llvmpipe->draw, shader->draw_data);
 
    ralloc_free(shader->base.ir.nir);
-   assert(shader->variants_cached == 0);
+   assert(shader->variants.count == 0);
    FREE(shader);
 }
 
@@ -4273,15 +4263,9 @@ llvmpipe_delete_fs_state(struct pipe_context *pipe, void *fs)
 {
    struct llvmpipe_context *llvmpipe = llvmpipe_context(pipe);
    struct lp_fragment_shader *shader = fs;
-   struct lp_fs_variant_list_item *li, *next;
 
-   /* Delete all the variants */
-   LIST_FOR_EACH_ENTRY_SAFE(li, next, &shader->variants.list, list) {
-      struct lp_fragment_shader_variant *variant;
-      variant = li->base;
-      llvmpipe_remove_shader_variant(llvmpipe, li->base);
-      lp_fs_variant_reference(llvmpipe, &variant, NULL);
-   }
+   util_shader_variant_list_destroy(&llvmpipe->fs_variant_opts,
+                                    &shader->variants);
 
    lp_fs_reference(llvmpipe, &shader, NULL);
 }
@@ -4768,91 +4752,21 @@ llvmpipe_update_fs(struct llvmpipe_context *lp)
    const struct lp_fragment_shader_variant_key *key =
       make_variant_key(lp, shader, store);
 
-   struct lp_fragment_shader_variant *variant = NULL;
-   struct lp_fs_variant_list_item *li;
-   /* Search the variants for one which matches the key */
-   LIST_FOR_EACH_ENTRY(li, &shader->variants.list, list) {
-      if (memcmp(&li->base->key, key, shader->variant_key_size) == 0) {
-         variant = li->base;
-         break;
-      }
-   }
-
-   if (variant) {
-      /* Move this variant to the head of the list to implement LRU
-       * deletion of shader's when we have too many.
-       */
-      list_move_to(&variant->list_item_global.list, &lp->fs_variants_list.list);
-   } else {
-      /* variant not found, create it now */
-
-      if (LP_DEBUG & DEBUG_FS) {
-         debug_printf("%u variants,\t%u instrs,\t%u instrs/variant\n",
-                      lp->nr_fs_variants,
-                      lp->nr_fs_instrs,
-                      lp->nr_fs_variants ? lp->nr_fs_instrs / lp->nr_fs_variants : 0);
-      }
-
-      /* First, check if we've exceeded the max number of shader variants.
-       * If so, free 6.25% of them (the least recently used ones).
-       */
-      const unsigned variants_to_cull =
-         lp->nr_fs_variants >= LP_MAX_SHADER_VARIANTS
-         ? LP_MAX_SHADER_VARIANTS / 16 : 0;
-
-      if (variants_to_cull ||
-          lp->nr_fs_instrs >= LP_MAX_SHADER_INSTRUCTIONS) {
-         if (gallivm_debug & GALLIVM_DEBUG_PERF) {
-            debug_printf("Evicting FS: %u fs variants,\t%u total variants,"
-                         "\t%u instrs,\t%u instrs/variant\n",
-                         shader->variants_cached,
-                         lp->nr_fs_variants, lp->nr_fs_instrs,
-                         lp->nr_fs_variants ? lp->nr_fs_instrs / lp->nr_fs_variants : 0);
-         }
-
-         /*
-          * We need to re-check lp->nr_fs_variants because an arbitrarily
-          * large number of shader variants (potentially all of them) could
-          * be pending for destruction on flush.
-          */
-
-         for (unsigned i = 0;
-              i < variants_to_cull ||
-                 lp->nr_fs_instrs >= LP_MAX_SHADER_INSTRUCTIONS;
-              i++) {
-            struct lp_fs_variant_list_item *item;
-            if (list_is_empty(&lp->fs_variants_list.list)) {
-               break;
-            }
-            item = list_last_entry(&lp->fs_variants_list.list,
-                                   struct lp_fs_variant_list_item, list);
-            assert(item);
-            assert(item->base);
-            llvmpipe_remove_shader_variant(lp, item->base);
-            struct lp_fragment_shader_variant *variant = item->base;
-            lp_fs_variant_reference(lp, &variant, NULL);
-         }
-      }
-
-      /*
-       * Generate the new variant.
-       */
-      int64_t t0 = os_time_get();
-      variant = generate_variant(lp, shader, key);
-      int64_t t1 = os_time_get();
-      int64_t dt = t1 - t0;
+   int64_t t0 = os_time_get();
+   bool was_miss = false;
+   util_shader_variant_get_pinned(&lp->fs_variant_opts, &shader->variants,
+                                  shader, key, shader->variant_key_size,
+                                  &lp->fs_variant_pin, &was_miss);
+   if (was_miss) {
+      int64_t dt = os_time_get() - t0;
       LP_COUNT_ADD(llvm_compile_time, dt);
       LP_COUNT_ADD(nr_llvm_compiles, 2);  /* emit vs. omit in/out test */
-
-      /* Put the new variant into the list */
-      if (variant) {
-         list_add(&variant->list_item_local.list, &shader->variants.list);
-         list_add(&variant->list_item_global.list, &lp->fs_variants_list.list);
-         lp->nr_fs_variants++;
-         lp->nr_fs_instrs += variant->nr_instrs;
-         shader->variants_cached++;
-      }
    }
+
+   struct lp_fragment_shader_variant *variant = lp->fs_variant_pin
+      ? container_of(lp->fs_variant_pin,
+                     struct lp_fragment_shader_variant, base)
+      : NULL;
 
    /* Bind this variant */
    lp_setup_set_fs_variant(lp->setup, variant);
@@ -4868,4 +4782,21 @@ llvmpipe_init_fs_funcs(struct llvmpipe_context *llvmpipe)
    llvmpipe->pipe.set_constant_buffer = llvmpipe_set_constant_buffer;
    llvmpipe->pipe.set_shader_buffers = llvmpipe_set_shader_buffers;
    llvmpipe->pipe.set_shader_images = llvmpipe_set_shader_images;
+
+   const struct util_shader_variant_cache_options fs_cache_opts = {
+      .compile = fs_compile_cb,
+      .destroy = fs_destroy_cb,
+      .user_data = llvmpipe,
+      .cap = LP_MAX_VARIANTS_PER_FS,
+   };
+
+   llvmpipe->fs_variant_opts = fs_cache_opts;
+}
+
+
+void
+llvmpipe_destroy_fs_funcs(struct llvmpipe_context *llvmpipe)
+{
+   util_shader_variant_reference(&llvmpipe->fs_variant_opts,
+                                 &llvmpipe->fs_variant_pin, NULL);
 }

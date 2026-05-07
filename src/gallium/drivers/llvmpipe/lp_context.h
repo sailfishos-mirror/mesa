@@ -165,10 +165,8 @@ struct llvmpipe_context {
 
    unsigned tex_timestamp;
 
-   /** List of all fragment shader variants */
-   struct lp_fs_variant_list_item fs_variants_list;
-   unsigned nr_fs_variants;
-   unsigned nr_fs_instrs;
+   struct util_shader_variant_cache_options fs_variant_opts;
+   struct util_shader_variant *fs_variant_pin;
 
    bool permit_linear_rasterizer;
    bool single_vp;

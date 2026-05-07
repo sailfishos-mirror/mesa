@@ -169,6 +169,9 @@ void
 llvmpipe_init_fs_funcs(struct llvmpipe_context *llvmpipe);
 
 void
+llvmpipe_destroy_fs_funcs(struct llvmpipe_context *llvmpipe);
+
+void
 llvmpipe_init_vs_funcs(struct llvmpipe_context *llvmpipe);
 
 void
