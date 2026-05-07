@@ -114,6 +114,7 @@ struct ntr_compile {
    /* FS output tracking. */
    int fs_output_color_index[4];
    int fs_output_depth_index;
+   int fs_output_index[FRAG_RESULT_MAX];
    unsigned num_outputs;
 };
 
@@ -321,6 +322,32 @@ ntr_read_input_output(struct ntr_compile *c, gl_varying_slot location, unsigned 
    }
 }
 
+static unsigned
+ntr_fs_output_index(struct ntr_compile *c, gl_frag_result location,
+                    unsigned dual_source_blend_index)
+{
+   int color_index = mesa_frag_result_get_color_index(location);
+   if (dual_source_blend_index) {
+      assert(location == FRAG_RESULT_COLOR || location == FRAG_RESULT_DATA0);
+      color_index += dual_source_blend_index;
+   }
+
+   int *output_index;
+   if (color_index >= 0 && color_index < ARRAY_SIZE(c->fs_output_color_index)) {
+      output_index = &c->fs_output_color_index[color_index];
+   } else if (location == FRAG_RESULT_DEPTH) {
+      output_index = &c->fs_output_depth_index;
+   } else {
+      assert(location < FRAG_RESULT_MAX);
+      output_index = &c->fs_output_index[location];
+   }
+
+   if (*output_index < 0)
+      *output_index = c->num_outputs++;
+
+   return *output_index;
+}
+
 static struct ureg_dst
 ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *frac)
 {
@@ -330,10 +357,6 @@ ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *fra
 
    struct ureg_dst out;
    if (c->s->info.stage == MESA_SHADER_FRAGMENT) {
-      unsigned semantic_name, semantic_index;
-      tgsi_get_gl_frag_result_semantic(semantics.location, &semantic_name, &semantic_index);
-      semantic_index += semantics.dual_source_blend_index;
-
       switch (semantics.location) {
       case FRAG_RESULT_DEPTH:
          *frac = 2; /* z write is the to the .z channel in TGSI */
@@ -345,15 +368,9 @@ ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *fra
          break;
       }
 
-      out = ureg_DECL_output(c->ureg, semantic_name, semantic_index);
-      if (semantics.location == FRAG_RESULT_DEPTH) {
-         c->fs_output_depth_index = out.Index;
-      } else if (semantic_name == TGSI_SEMANTIC_COLOR &&
-                 semantic_index < ARRAY_SIZE(c->fs_output_color_index)) {
-         c->fs_output_color_index[semantic_index] = out.Index;
-      }
-      if (out.Index >= c->num_outputs)
-         c->num_outputs = out.Index + 1;
+      out = ureg_dst_register(TGSI_FILE_OUTPUT,
+                              ntr_fs_output_index(c, semantics.location,
+                                                  semantics.dual_source_blend_index));
    } else {
       unsigned semantic_name, semantic_index;
 
@@ -543,18 +560,7 @@ ntr_setup_outputs(struct ntr_compile *c)
       if (var->data.location == FRAG_RESULT_COLOR)
          ureg_property(c->ureg, TGSI_PROPERTY_FS_COLOR0_WRITES_ALL_CBUFS, 1);
 
-      unsigned semantic_name, semantic_index;
-      tgsi_get_gl_frag_result_semantic(var->data.location, &semantic_name, &semantic_index);
-
-      struct ureg_dst out = ureg_DECL_output(c->ureg, semantic_name, semantic_index);
-      if (var->data.location == FRAG_RESULT_DEPTH) {
-         c->fs_output_depth_index = out.Index;
-      } else if (semantic_name == TGSI_SEMANTIC_COLOR &&
-                 semantic_index < ARRAY_SIZE(c->fs_output_color_index)) {
-         c->fs_output_color_index[semantic_index] = out.Index;
-      }
-      if (out.Index >= c->num_outputs)
-         c->num_outputs = out.Index + 1;
+      ntr_fs_output_index(c, var->data.location, var->data.index);
    }
 }
 
@@ -1925,6 +1931,8 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    for (unsigned i = 0; i < ARRAY_SIZE(c->fs_output_color_index); i++)
       c->fs_output_color_index[i] = -1;
    c->fs_output_depth_index = -1;
+   for (unsigned i = 0; i < ARRAY_SIZE(c->fs_output_index); i++)
+      c->fs_output_index[i] = -1;
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
       c->semantics = &rc.f->inputs;
    } else {
