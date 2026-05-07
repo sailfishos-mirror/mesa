@@ -401,7 +401,6 @@ ntr_setup_inputs(struct ntr_compile *c)
          sample_loc = TGSI_INTERPOLATE_LOC_SAMPLE;
       } else if (var->data.centroid) {
          sample_loc = TGSI_INTERPOLATE_LOC_CENTROID;
-         c->centroid_inputs |= (BITSET_MASK(array_len) << var->data.driver_location);
       } else {
          sample_loc = TGSI_INTERPOLATE_LOC_CENTER;
       }
@@ -807,9 +806,7 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
       [nir_op_fdot2_replicated] = TGSI_OPCODE_DP2,
       [nir_op_fdot3_replicated] = TGSI_OPCODE_DP3,
       [nir_op_fdot4_replicated] = TGSI_OPCODE_DP4,
-      [nir_op_ffloor] = TGSI_OPCODE_FLR,
       [nir_op_ffract] = TGSI_OPCODE_FRC,
-      [nir_op_fceil] = TGSI_OPCODE_CEIL,
       [nir_op_fround_even] = TGSI_OPCODE_ROUND,
 
       [nir_op_slt] = TGSI_OPCODE_SLT,
@@ -817,7 +814,6 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
       [nir_op_seq] = TGSI_OPCODE_SEQ,
       [nir_op_sne] = TGSI_OPCODE_SNE,
 
-      [nir_op_ftrunc] = TGSI_OPCODE_TRUNC,
       [nir_op_fadd] = TGSI_OPCODE_ADD,
       [nir_op_fmul] = TGSI_OPCODE_MUL,
 
@@ -900,10 +896,6 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
          ntr_emit_scalar(c, TGSI_OPCODE_POW, dst, src[0], src[1]);
          break;
 
-      case nir_op_flrp:
-         ntr_LRP(c, dst, src[2], src[1], src[0]);
-         break;
-
       case nir_op_fcsel:
          /* Implement this as CMP(-abs(src0), src1, src2). */
          ntr_CMP(c, dst, ureg_negate(ureg_abs(src[0])), src[1], src[2]);
@@ -978,23 +970,10 @@ ntr_emit_load_ubo(struct ntr_compile *c, nir_intrinsic_instr *instr)
 {
    struct ureg_src src = ureg_src_register(TGSI_FILE_CONSTANT, 0);
 
-   struct ureg_dst addr_temp = ureg_dst_undef();
-
-   if (nir_src_is_const(instr->src[0])) {
-      src = ureg_src_dimension(src, ntr_src_as_uint(c, instr->src[0]));
-   } else {
-      /* virglrenderer requires that indirect UBO references have the UBO
-       * array's base index in the Index field, not added to the indirect
-       * address.
-       *
-       * Many nir intrinsics have a base address const value for the start of
-       * their array indirection, but load_ubo doesn't.  We fake it by
-       * subtracting it off here.
-       */
-      addr_temp = ntr_temp(c);
-      ntr_UADD(c, addr_temp, ntr_get_src(c, instr->src[0]), ureg_imm1i(c->ureg, -c->first_ubo));
-      src = ureg_src_dimension_indirect(src, ntr_reladdr(c, ureg_src(addr_temp), 1), c->first_ubo);
-   }
+   /* r300 only exposes a single UBO and any indirect UBO array indexing
+    * has been lowered before we get here. */
+   assert(nir_src_is_const(instr->src[0]));
+   src = ureg_src_dimension(src, ntr_src_as_uint(c, instr->src[0]));
 
    /* !pipe_caps.load_constbuf: Just emit it as a vec4 reference to the const
     * file.
@@ -1053,15 +1032,10 @@ ntr_emit_load_input(struct ntr_compile *c, nir_intrinsic_instr *instr)
          break;
 
       case nir_intrinsic_load_barycentric_centroid:
-         /* If the input was declared centroid, then there's no need to
-          * emit the extra TGSI interp instruction, we can just read the
-          * input.
-          */
-         if (c->centroid_inputs & (1ull << nir_intrinsic_base(instr))) {
-            ntr_store(c, &instr->def, input);
-         } else {
-            ntr_INTERP_CENTROID(c, ntr_get_dest(c, &instr->def), input);
-         }
+         /* On r300 interpolation is fixed at the input declaration; the
+          * NIR lowering pairs centroid intrinsics with centroid-declared
+          * inputs, so we never need an explicit INTERP instruction. */
+         ntr_store(c, &instr->def, input);
          break;
 
       default:
