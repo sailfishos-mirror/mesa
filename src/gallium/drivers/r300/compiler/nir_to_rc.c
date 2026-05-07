@@ -1104,12 +1104,7 @@ ntr_emit_store_output(struct ntr_compile *c, nir_intrinsic_instr *instr)
    uint32_t frac;
    struct ureg_dst out = ntr_output_decl(c, instr, &frac);
 
-   if (instr->intrinsic == nir_intrinsic_store_per_vertex_output) {
-      out = ntr_ureg_dst_indirect(c, out, instr->src[2]);
-      out = ntr_ureg_dst_dimension_indirect(c, out, instr->src[1]);
-   } else {
-      out = ntr_ureg_dst_indirect(c, out, instr->src[1]);
-   }
+   out = ntr_ureg_dst_indirect(c, out, instr->src[1]);
 
    uint8_t swizzle[4] = {0, 0, 0, 0};
    for (int i = frac; i < 4; i++) {
@@ -1136,12 +1131,7 @@ ntr_emit_load_output(struct ntr_compile *c, nir_intrinsic_instr *instr)
    uint32_t frac;
    struct ureg_dst out = ntr_output_decl(c, instr, &frac);
 
-   if (instr->intrinsic == nir_intrinsic_load_per_vertex_output) {
-      out = ntr_ureg_dst_indirect(c, out, instr->src[1]);
-      out = ntr_ureg_dst_dimension_indirect(c, out, instr->src[0]);
-   } else {
-      out = ntr_ureg_dst_indirect(c, out, instr->src[0]);
-   }
+   out = ntr_ureg_dst_indirect(c, out, instr->src[0]);
 
    struct ureg_dst dst = ntr_get_dest(c, &instr->def);
    struct ureg_src out_src = ureg_src(out);
@@ -1204,9 +1194,6 @@ ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
       ntr_emit_load_ubo(c, instr);
       break;
 
-      /* Vertex */
-   case nir_intrinsic_load_draw_id:
-   case nir_intrinsic_load_invocation_id:
    case nir_intrinsic_load_frag_coord:
    case nir_intrinsic_load_point_coord:
    case nir_intrinsic_load_front_face:
@@ -1214,18 +1201,15 @@ ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
       break;
 
    case nir_intrinsic_load_input:
-   case nir_intrinsic_load_per_vertex_input:
    case nir_intrinsic_load_interpolated_input:
       ntr_emit_load_input(c, instr);
       break;
 
    case nir_intrinsic_store_output:
-   case nir_intrinsic_store_per_vertex_output:
       ntr_emit_store_output(c, instr);
       break;
 
    case nir_intrinsic_load_output:
-   case nir_intrinsic_load_per_vertex_output:
       ntr_emit_load_output(c, instr);
       break;
 
