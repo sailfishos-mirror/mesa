@@ -1046,9 +1046,8 @@ ntr_emit_load_input(struct ntr_compile *c, nir_intrinsic_instr *instr)
 
       switch (bary_instr->intrinsic) {
       case nir_intrinsic_load_barycentric_pixel:
-      case nir_intrinsic_load_barycentric_sample:
-         /* For these, we know that the barycentric load matches the
-          * interpolation on the input declaration, so we can use it directly.
+         /* The barycentric load matches the interpolation on the input
+          * declaration, so we can use it directly.
           */
          ntr_store(c, &instr->def, input);
          break;
@@ -1063,16 +1062,6 @@ ntr_emit_load_input(struct ntr_compile *c, nir_intrinsic_instr *instr)
          } else {
             ntr_INTERP_CENTROID(c, ntr_get_dest(c, &instr->def), input);
          }
-         break;
-
-      case nir_intrinsic_load_barycentric_at_sample:
-         /* We stored the sample in the fake "bary" dest. */
-         ntr_INTERP_SAMPLE(c, ntr_get_dest(c, &instr->def), input, ntr_get_src(c, instr->src[0]));
-         break;
-
-      case nir_intrinsic_load_barycentric_at_offset:
-         /* We stored the offset in the fake "bary" dest. */
-         ntr_INTERP_OFFSET(c, ntr_get_dest(c, &instr->def), input, ntr_get_src(c, instr->src[0]));
          break;
 
       default:
@@ -1179,17 +1168,13 @@ ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
       ntr_KILL_IF(c, ureg_negate(cond));
       break;
    }
-      /* In TGSI we don't actually generate the barycentric coords, and emit
-       * interp intrinsics later.  However, we do need to store the
-       * load_barycentric_at_* argument so that we can use it at that point.
+      /* In TGSI we don't actually generate the barycentric coords, and
+       * emit the corresponding INTERP_CENTROID instruction in
+       * ntr_emit_load_input. The barycentric loads themselves are
+       * therefore consumed there.
        */
    case nir_intrinsic_load_barycentric_pixel:
    case nir_intrinsic_load_barycentric_centroid:
-   case nir_intrinsic_load_barycentric_sample:
-      break;
-   case nir_intrinsic_load_barycentric_at_sample:
-   case nir_intrinsic_load_barycentric_at_offset:
-      ntr_store(c, &instr->def, ntr_get_src(c, instr->src[0]));
       break;
 
    case nir_intrinsic_ddx:
