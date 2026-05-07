@@ -1424,6 +1424,16 @@ build_partition(jay_shader *shader, unsigned *blocks, unsigned n)
    }
 }
 
+static unsigned
+gpr_limit(jay_shader *shader)
+{
+   /* If testing spilling, set limit tightly. */
+   bool test = (jay_debug & JAY_DBG_SPILL);
+   test &= shader->stage != MESA_SHADER_VERTEX;
+
+   return test ? 13 : shader->num_regs[GPR];
+}
+
 /*
  * Partition the register file for the entire shader. All functions must
  * share the same partition for correctness with non-uniform function calls.
@@ -1543,42 +1553,12 @@ jay_partition_grf(jay_shader *shader)
       }
    }
 
-   /* TODO: Arbitrary. Need to rework somehow, we have options. */
-   shader->num_regs[MEM] = 512;
-}
-
-static bool
-spill_gpr(jay_function *f)
-{
-   unsigned limit = f->shader->num_regs[GPR];
-
-   /* If testing spilling, set limit tightly. */
-   if ((jay_debug & JAY_DBG_SPILL) &&
-       f->shader->stage != MESA_SHADER_VERTEX) {
-      limit = 13;
+   /* This should be an acceptable upper limit since we assign memory tightly
+    * thanks to the usual SSA allocator guarantees.
+    */
+   if (demand[GPR] > gpr_limit(shader)) {
+      shader->num_regs[MEM] = demand[GPR];
    }
-
-   if (f->demand[GPR] <= limit) {
-      return false;
-   }
-
-   /* Spilling requires reserving UGPRs for spilling */
-   unsigned reservation = f->shader->dispatch_width + 1;
-   f->shader->num_regs[UGPR] -= reservation;
-   f->shader->partition.large_ugpr_block.len -= reservation;
-
-   jay_spill(f, limit);
-   jay_validate(f->shader, "spilling");
-   jay_compute_liveness(f);
-   jay_calculate_register_demands(f);
-
-   if (f->demand[GPR] > limit) {
-      fprintf(stderr, "limit %u but demand %u\n", limit, f->demand[GPR]);
-      fflush(stdout);
-      UNREACHABLE("spiller bug");
-   }
-
-   return true;
 }
 
 static void
@@ -1588,7 +1568,26 @@ jay_register_allocate_function(jay_function *f)
    jay_ra_state ra = { .b.shader = shader, .b.func = f };
 
    /* Spill as needed to fit within the limits. */
-   bool spilled = spill_gpr(f);
+   unsigned limit = gpr_limit(f->shader);
+   bool spilled = f->demand[GPR] > limit;
+
+   if (spilled) {
+      /* Spilling requires reserving UGPRs for spilling */
+      unsigned reservation = f->shader->dispatch_width + 1;
+      f->shader->num_regs[UGPR] -= reservation;
+      f->shader->partition.large_ugpr_block.len -= reservation;
+
+      jay_spill(f, limit);
+      jay_validate(f->shader, "spilling");
+      jay_compute_liveness(f);
+      jay_calculate_register_demands(f);
+   }
+
+   if (f->demand[GPR] > limit) {
+      fprintf(stderr, "limit %u but demand %u\n", limit, f->demand[GPR]);
+      fflush(stdout);
+      UNREACHABLE("spiller bug");
+   }
 
    /* The spiller/SSA repair does not work on UGPRs because it cannot tolerate
     * the critical edges on the physical CFG. Fortunately, dynamic GPR/UGPR
