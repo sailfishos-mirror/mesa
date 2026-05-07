@@ -283,3 +283,112 @@ TEST(u_shader_variant_cache, concurrent_get)
    util_shader_variant_list_destroy(&opts, &list);
    EXPECT_EQ(tctx.destroy_calls.load(), compiles);
 }
+
+static uint32_t test_hash_first_byte(const void *key)
+{
+   return *(const uint8_t *)key;
+}
+
+static bool test_equal_first_byte(const void *a, const void *b)
+{
+   return *(const uint8_t *)a == *(const uint8_t *)b;
+}
+
+TEST(u_shader_variant_cache, custom_callbacks_hit)
+{
+   struct test_ctx tctx;
+   struct util_shader_variant_list list;
+
+   struct util_shader_variant_cache_options opts = {};
+   opts.compile = test_compile;
+   opts.destroy = test_destroy;
+   opts.hash = test_hash_first_byte;
+   opts.equal = test_equal_first_byte;
+   opts.user_data = &tctx;
+
+   util_shader_variant_list_init(&list);
+
+   uint8_t key[4] = { 0x42, 1, 2, 3 };
+   struct util_shader_variant *a =
+      util_shader_variant_get(&opts, &list, nullptr,
+                              key, sizeof(key), nullptr);
+   ASSERT_NE(a, nullptr);
+
+   /* Same first byte -> custom equal returns true -> cache hit. */
+   uint8_t key2[4] = { 0x42, 9, 9, 9 };
+   struct util_shader_variant *b =
+      util_shader_variant_get(&opts, &list, nullptr,
+                              key2, sizeof(key2), nullptr);
+   EXPECT_EQ(a, b);
+
+   util_shader_variant_list_destroy(&opts, &list);
+}
+
+TEST(u_shader_variant_cache, custom_callbacks_miss)
+{
+   struct test_ctx tctx;
+   struct util_shader_variant_list list;
+
+   struct util_shader_variant_cache_options opts = {};
+   opts.compile = test_compile;
+   opts.destroy = test_destroy;
+   opts.hash = test_hash_first_byte;
+   opts.equal = test_equal_first_byte;
+   opts.user_data = &tctx;
+
+   util_shader_variant_list_init(&list);
+
+   uint8_t key1[4] = { 0x42, 1, 2, 3 };
+   uint8_t key2[4] = { 0x99, 4, 5, 6 };
+   struct util_shader_variant *a =
+      util_shader_variant_get(&opts, &list, nullptr,
+                              key1, sizeof(key1), nullptr);
+   struct util_shader_variant *b =
+      util_shader_variant_get(&opts, &list, nullptr,
+                              key2, sizeof(key2), nullptr);
+   EXPECT_NE(a, b);
+   EXPECT_EQ(list_length(&list.variants), 2);
+
+   util_shader_variant_list_destroy(&opts, &list);
+}
+
+/* The pairing invariant is checked with assert(), which is a no-op under
+ * NDEBUG, so these death tests only apply to debug builds.
+ */
+#ifndef NDEBUG
+TEST(u_shader_variant_cache_death, pair_invariant_hash_only)
+{
+   struct test_ctx tctx;
+   struct util_shader_variant_list list;
+
+   struct util_shader_variant_cache_options opts = {};
+   opts.compile = test_compile;
+   opts.destroy = test_destroy;
+   opts.hash = test_hash_first_byte;
+   opts.user_data = &tctx;
+
+   util_shader_variant_list_init(&list);
+
+   uint32_t k = 1;
+   ASSERT_DEATH(util_shader_variant_get(&opts, &list, nullptr,
+                                        &k, sizeof(k), nullptr), "");
+}
+
+TEST(u_shader_variant_cache_death, pair_invariant_equal_only)
+{
+   struct test_ctx tctx;
+   struct util_shader_variant_list list;
+
+   struct util_shader_variant_cache_options opts = {};
+   opts.compile = test_compile;
+   opts.destroy = test_destroy;
+   opts.equal = test_equal_first_byte;
+   opts.user_data = &tctx;
+
+   util_shader_variant_list_init(&list);
+
+   uint32_t k = 1;
+   ASSERT_DEATH(util_shader_variant_get(&opts, &list, nullptr,
+                                        &k, sizeof(k), nullptr), "");
+}
+#endif

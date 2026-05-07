@@ -9,10 +9,12 @@
 #include "util/u_atomic.h"
 #include "util/u_memory.h"
 
+#include <assert.h>
 #include <string.h>
 
 static struct util_shader_variant *
-find_locked(struct util_shader_variant_list *list,
+find_locked(const struct util_shader_variant_cache_options *options,
+            struct util_shader_variant_list *list,
             uint32_t hash,
             const void *key,
             size_t key_size)
@@ -23,7 +25,11 @@ find_locked(struct util_shader_variant_list *list,
       if (v->key_hash != hash)
          continue;
 
-      if (memcmp(v->key, key, key_size) == 0)
+      bool match = options->equal
+         ? options->equal(v->key, key)
+         : memcmp(v->key, key, key_size) == 0;
+
+      if (match)
          return v;
    }
 
@@ -70,13 +76,18 @@ util_shader_variant_get(const struct util_shader_variant_cache_options *options,
                         size_t key_size,
                         bool *was_cache_miss)
 {
+   assert((options->hash == NULL) == (options->equal == NULL));
+
    if (was_cache_miss)
       *was_cache_miss = false;
 
-   const uint32_t hash = _mesa_hash_data(key, key_size);
+   const uint32_t hash = options->hash
+      ? options->hash(key)
+      : _mesa_hash_data(key, key_size);
 
    simple_mtx_lock(&list->lock);
-   struct util_shader_variant *v = find_locked(list, hash, key, key_size);
+   struct util_shader_variant *v =
+      find_locked(options, list, hash, key, key_size);
    simple_mtx_unlock(&list->lock);
    if (v)
       return v;
@@ -99,7 +110,8 @@ util_shader_variant_get(const struct util_shader_variant_cache_options *options,
    new_v->key = key_copy;
 
    simple_mtx_lock(&list->lock);
-   struct util_shader_variant *dup = find_locked(list, hash, key, key_size);
+   struct util_shader_variant *dup =
+      find_locked(options, list, hash, key, key_size);
    if (dup) {
       /* Lost the race. Throw our compile away, return the winner. */
       simple_mtx_unlock(&list->lock);

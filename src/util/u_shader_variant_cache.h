@@ -23,6 +23,12 @@
  * refcount. util_shader_variant_list_destroy fires the destroy callback
  * for every variant in the list; the caller must guarantee no other
  * thread can reach the list at that point.
+ *
+ * Custom key hash and equality: drivers with a hand-rolled fast-path
+ * comparison can supply a hash + equal callback pair in the options. The
+ * util uses them in place of _mesa_hash_data and memcmp. Both must be set
+ * together or both NULL — the lookup path asserts otherwise, since a
+ * mismatched hash would drop matches the custom equality accepts.
  */
 
 #pragma once
@@ -59,9 +65,15 @@ typedef struct util_shader_variant *
 typedef void
 (*util_shader_variant_destroy_cb)(struct util_shader_variant *variant);
 
+typedef uint32_t (*util_shader_variant_hash_cb)(const void *key);
+
+typedef bool (*util_shader_variant_equal_cb)(const void *a, const void *b);
+
 struct util_shader_variant_cache_options {
    util_shader_variant_compile_cb compile;   /* required */
    util_shader_variant_destroy_cb destroy;   /* required */
+   util_shader_variant_hash_cb hash;
+   util_shader_variant_equal_cb equal;
    void *user_data;
 };
 
