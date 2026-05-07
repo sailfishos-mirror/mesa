@@ -10436,6 +10436,82 @@ should_enable_msrtss(bool msrtss, const VkRenderingAttachmentInfo *att_info)
    return iview->image->vk.samples == VK_SAMPLE_COUNT_1_BIT;
 }
 
+static inline bool
+radv_attachment_needs_msrtss_replicate(const VkRenderingAttachmentInfo *att_info)
+{
+   return att_info && att_info->imageView != VK_NULL_HANDLE && should_enable_msrtss(true, att_info) &&
+          att_info->loadOp == VK_ATTACHMENT_LOAD_OP_LOAD;
+}
+
+static void
+radv_cmd_buffer_replicate_msrtss_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRenderingInfo *pRenderingInfo,
+                                           const struct radv_attachment *color_att,
+                                           const struct radv_attachment *ds_att)
+{
+   bool needs_replicate = false;
+   uint32_t layer_count =
+      pRenderingInfo->viewMask ? util_last_bit(pRenderingInfo->viewMask) : pRenderingInfo->layerCount;
+
+   if (!layer_count || !pRenderingInfo->renderArea.extent.width || !pRenderingInfo->renderArea.extent.height)
+      return;
+
+   for (uint32_t i = 0; i < pRenderingInfo->colorAttachmentCount; ++i) {
+      if (radv_attachment_needs_msrtss_replicate(&pRenderingInfo->pColorAttachments[i])) {
+         needs_replicate = true;
+         break;
+      }
+   }
+   if (!needs_replicate && radv_attachment_needs_msrtss_replicate(pRenderingInfo->pDepthAttachment))
+      needs_replicate = true;
+   if (!needs_replicate && radv_attachment_needs_msrtss_replicate(pRenderingInfo->pStencilAttachment))
+      needs_replicate = true;
+
+   if (!needs_replicate)
+      return;
+
+   radv_meta_begin(cmd_buffer);
+   radv_meta_save(cmd_buffer,
+                  RADV_META_SAVE_GRAPHICS_PIPELINE | RADV_META_SAVE_CONSTANTS | RADV_META_SAVE_GRAPHICS_DESCRIPTORS);
+
+   cmd_buffer->state.flush_bits |=
+      radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0,
+                            NULL, NULL) |
+      radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT, 0,
+                            NULL, NULL);
+
+   for (uint32_t i = 0; i < pRenderingInfo->colorAttachmentCount; ++i) {
+      const VkRenderingAttachmentInfo *att_info = &pRenderingInfo->pColorAttachments[i];
+
+      if (!radv_attachment_needs_msrtss_replicate(att_info))
+         continue;
+
+      VK_FROM_HANDLE(radv_image_view, src_iview, att_info->imageView);
+
+      radv_meta_msrtss_replicate_attachment(cmd_buffer, src_iview, attachment_initial_layout(att_info),
+                                            color_att[i].iview, color_att[i].layout, VK_IMAGE_ASPECT_COLOR_BIT,
+                                            &pRenderingInfo->renderArea, layer_count);
+   }
+
+   if (radv_attachment_needs_msrtss_replicate(pRenderingInfo->pDepthAttachment)) {
+      VK_FROM_HANDLE(radv_image_view, src_iview, pRenderingInfo->pDepthAttachment->imageView);
+
+      radv_meta_msrtss_replicate_attachment(
+         cmd_buffer, src_iview, attachment_initial_layout(pRenderingInfo->pDepthAttachment), ds_att->iview,
+         ds_att->layout, VK_IMAGE_ASPECT_DEPTH_BIT, &pRenderingInfo->renderArea, layer_count);
+   }
+
+   if (radv_attachment_needs_msrtss_replicate(pRenderingInfo->pStencilAttachment)) {
+      VK_FROM_HANDLE(radv_image_view, src_iview, pRenderingInfo->pStencilAttachment->imageView);
+
+      radv_meta_msrtss_replicate_attachment(
+         cmd_buffer, src_iview, attachment_initial_layout(pRenderingInfo->pStencilAttachment), ds_att->iview,
+         ds_att->stencil_layout, VK_IMAGE_ASPECT_STENCIL_BIT, &pRenderingInfo->renderArea, layer_count);
+   }
+
+   radv_meta_end(cmd_buffer);
+}
+
 VKAPI_ATTR void VKAPI_CALL
 radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRenderingInfo)
 {
@@ -10737,6 +10813,9 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
 
    if (cmd_buffer->vk.render_pass)
       radv_describe_barrier_end(cmd_buffer);
+
+   if (!(pRenderingInfo->flags & VK_RENDERING_RESUMING_BIT) && msrtss)
+      radv_cmd_buffer_replicate_msrtss_rendering(cmd_buffer, pRenderingInfo, color_att, &ds_att);
 
    /* Now that we've done any layout transitions which may invoke meta, we can
     * fill out the actual rendering info and set up for the client's render pass.
