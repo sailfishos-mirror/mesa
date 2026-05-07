@@ -150,8 +150,6 @@ static int si_video_get_param(struct pipe_screen *screen, enum pipe_video_profil
             return (sscreen->info.family < CHIP_TONGA) ? 1152 : 2304;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return true;
-      case PIPE_VIDEO_CAP_STACKED_FRAMES:
-         return (sscreen->info.family < CHIP_TONGA) ? 1 : 2;
       case PIPE_VIDEO_CAP_MAX_TEMPORAL_LAYERS:
          return (sscreen->info.ip[AMD_IP_UVD_ENC].num_queues ||
                  sscreen->info.vcn_ip_version >= VCN_1_0_0) ? 4 : 0;

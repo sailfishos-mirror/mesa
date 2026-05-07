@@ -210,8 +210,6 @@ int rvid_get_video_param(struct pipe_screen *screen,
 			return 1152;
 		case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
 			return true;
-		case PIPE_VIDEO_CAP_STACKED_FRAMES:
-			return 1;
 		default:
 			return 0;
 		}
