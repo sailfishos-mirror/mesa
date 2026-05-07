@@ -3986,9 +3986,20 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data)
              *     It is INVALID to disable any components in these cases."
              *
              * Enable this XYZW for any > 128-bit format.
+             *
+             * SKL PRMs, Vol 2a: Command Reference: Instructions,
+             * 3DSTATE_VF_COMPONENT_PACKING:
+             *
+             *    "No enable bits are provided for Vertex Elements [32-33],
+             *     and therefore no packing is performed on these elements (if
+             *     Valid, all 4 components are stored)."
+             *
+             * Store all for components for anything above and including 32.
              */
             if (nir->info.dual_slot_inputs & BITFIELD64_BIT(io.location)) {
                attributes[io.location].component_mask |= 0xff;
+            } else if (io.location >= VERT_ATTRIB_GENERIC(32)) {
+               attributes[io.location].component_mask |= 0xf;
             } else {
                const uint8_t mask =
                   nir_component_mask(intrin->num_components) <<
@@ -4023,26 +4034,13 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data)
 
    /* Compute the register offsets */
    unsigned reg_offset = 0;
-   unsigned vertex_element = 0;
    for (unsigned a = 0; a < ARRAY_SIZE(attributes); a++) {
       if (!attributes[a].is_used)
          continue;
 
-      /* SKL PRMs, Vol 2a: Command Reference: Instructions,
-       * 3DSTATE_VF_COMPONENT_PACKING:
-       *
-       *    "No enable bits are provided for Vertex Elements [32-33],
-       *     and therefore no packing is performed on these elements (if
-       *     Valid, all 4 components are stored)."
-       */
-      if (vertex_element >= 32 ||
-          (prog_data->no_vf_slot_compaction && a >= VERT_ATTRIB_GENERIC(32)))
-         attributes[a].component_mask = 0xf;
-
       attributes[a].reg_offset = reg_offset;
 
       reg_offset += util_bitcount(attributes[a].component_mask);
-      vertex_element++;
    }
 
    /* Remap inputs */
