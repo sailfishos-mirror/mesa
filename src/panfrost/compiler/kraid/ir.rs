@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 pub use crate::data_type::DataType;
+pub use crate::model::Model;
+pub use crate::ops::Op;
+use crate::ssa_value::SSAValueAllocator;
 pub use crate::ssa_value::{SSARef, SSAValue};
 pub use crate::swizzle::Swizzle;
 use compiler::as_slice::*;
 
 use std::fmt;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum FAUPage {
@@ -468,5 +472,92 @@ pub trait Opcode:
             dst_type = dst_type.specialize(v);
         }
         dst_type
+    }
+}
+
+#[derive(Clone)]
+pub struct Instr {
+    pub op: Op,
+}
+
+impl Deref for Instr {
+    type Target = Op;
+
+    fn deref(&self) -> &Op {
+        &self.op
+    }
+}
+
+impl DerefMut for Instr {
+    fn deref_mut(&mut self) -> &mut Op {
+        &mut self.op
+    }
+}
+
+impl<T: Into<Op>> From<T> for Instr {
+    fn from(op: T) -> Instr {
+        let op = op.into();
+        assert!(op.is_valid_variant());
+        Instr { op }
+    }
+}
+
+impl fmt::Display for Instr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.op.fmt(f)
+    }
+}
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+pub struct Label {
+    idx: u32,
+}
+
+impl fmt::Display for Label {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "__label{}", self.idx)
+    }
+}
+
+#[derive(Default)]
+pub struct LabelAllocator {
+    count: u32,
+}
+
+impl LabelAllocator {
+    pub fn alloc(&mut self) -> Label {
+        let idx = self.count;
+        self.count += 1;
+        Label { idx }
+    }
+}
+
+pub struct BasicBlock {
+    pub label: Label,
+    pub instrs: Vec<Instr>,
+}
+
+impl fmt::Display for BasicBlock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:", self.label)?;
+        for i in &self.instrs {
+            write!(f, "\n    {i}")?;
+        }
+        Ok(())
+    }
+}
+
+pub struct Shader<'a> {
+    pub model: &'a dyn Model,
+    pub ssa_alloc: SSAValueAllocator,
+    pub blocks: Vec<BasicBlock>,
+}
+
+impl fmt::Display for Shader<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for b in &self.blocks {
+            write!(f, "{b}\n\n")?;
+        }
+        Ok(())
     }
 }
