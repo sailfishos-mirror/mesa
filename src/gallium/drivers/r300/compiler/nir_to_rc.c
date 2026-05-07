@@ -535,51 +535,10 @@ tgsi_texture_type_from_sampler_dim(enum glsl_sampler_dim dim, bool is_array)
    }
 }
 
-static enum tgsi_return_type
-tgsi_return_type_from_base_type(enum glsl_base_type type)
-{
-   switch (type) {
-   case GLSL_TYPE_INT:
-      return TGSI_RETURN_TYPE_SINT;
-   case GLSL_TYPE_UINT:
-      return TGSI_RETURN_TYPE_UINT;
-   case GLSL_TYPE_FLOAT:
-      return TGSI_RETURN_TYPE_FLOAT;
-   default:
-      UNREACHABLE("unexpected texture type");
-   }
-}
-
 static void
 ntr_setup_uniforms(struct ntr_compile *c)
 {
-   nir_foreach_uniform_variable (var, c->s) {
-      if (glsl_type_is_sampler(glsl_without_array(var->type)) ||
-          glsl_type_is_texture(glsl_without_array(var->type))) {
-         /* Don't use this size for the check for samplers -- arrays of structs
-          * containing samplers should be ignored, and just the separate lowered
-          * sampler uniform decl used.
-          */
-         int size = glsl_type_get_sampler_count(var->type) + glsl_type_get_texture_count(var->type);
-
-         const struct glsl_type *stype = glsl_without_array(var->type);
-         enum tgsi_texture_type target = tgsi_texture_type_from_sampler_dim(
-            glsl_get_sampler_dim(stype), glsl_sampler_type_is_array(stype));
-         enum tgsi_return_type ret_type =
-            tgsi_return_type_from_base_type(glsl_get_sampler_result_type(stype));
-         for (int i = 0; i < size; i++) {
-            ureg_DECL_sampler_view(c->ureg, var->data.binding + i, target, ret_type, ret_type,
-                                   ret_type, ret_type);
-            ureg_DECL_sampler(c->ureg, var->data.binding + i);
-         }
-
-         /* lower_uniforms_to_ubo lowered non-sampler uniforms to UBOs, so CB0
-          * size declaration happens with other UBOs below.
-          */
-      }
-   }
-
-   /* We expect only single ubo. */
+   /* lower_uniforms_to_ubo lowered non-sampler uniforms to UBOs. */
    unsigned size = 0;
    nir_foreach_variable_with_modes (var, c->s, nir_var_mem_ubo) {
       int ubo = var->data.driver_location;
@@ -1273,7 +1232,7 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
       assert(nir_tex_instr_src_index(instr, nir_tex_src_sampler_offset) == -1);
    } else {
       assert(tex_handle_src == -1 && sampler_handle_src == -1);
-      sampler = ureg_DECL_sampler(c->ureg, instr->sampler_index);
+      sampler = ureg_src_register(TGSI_FILE_SAMPLER, instr->sampler_index);
       int sampler_src = nir_tex_instr_src_index(instr, nir_tex_src_sampler_offset);
       if (sampler_src >= 0) {
          struct ureg_src reladdr = ntr_get_src(c, instr->src[sampler_src].src);
