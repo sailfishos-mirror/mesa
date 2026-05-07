@@ -1007,9 +1007,7 @@ ntr_emit_load_input(struct ntr_compile *c, nir_intrinsic_instr *instr)
       ntr_read_input_output(c, semantics.location, base);
 
    if (c->s->info.stage == MESA_SHADER_VERTEX) {
-      input = ureg_DECL_vs_input(c->ureg, base);
-      for (int i = 1; i < semantics.num_slots; i++)
-         ureg_DECL_vs_input(c->ureg, base + i);
+      input = ureg_src_register(TGSI_FILE_INPUT, base);
    } else {
       input = c->input_index_map[base];
    }
