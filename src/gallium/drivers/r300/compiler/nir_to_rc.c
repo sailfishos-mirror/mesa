@@ -29,9 +29,11 @@
 #include "r300_screen.h"
 
 struct ntr_insn {
-   enum tgsi_opcode opcode;
+   rc_opcode opcode;
    struct ureg_dst dst[2];
    struct ureg_src src[4];
+   /* Texture sampler unit is RC metadata, not a SrcReg[] operand. */
+   struct ureg_src tex_sampler;
    enum tgsi_texture_type tex_target;
    struct tgsi_texture_offset tex_offset[4];
 
@@ -132,76 +134,77 @@ static void ntr_emit_cf_list(struct ntr_compile *c, struct exec_list *list);
 static void ntr_emit_cf_list_ureg(struct ntr_compile *c, struct exec_list *list);
 
 static struct ntr_insn *
-ntr_insn(struct ntr_compile *c, enum tgsi_opcode opcode, struct ureg_dst dst, struct ureg_src src0,
+ntr_insn(struct ntr_compile *c, rc_opcode opcode, struct ureg_dst dst, struct ureg_src src0,
          struct ureg_src src1, struct ureg_src src2, struct ureg_src src3)
 {
    struct ntr_insn insn = {
       .opcode = opcode,
       .dst = {dst, ureg_dst_undef()},
       .src = {src0, src1, src2, src3},
+      .tex_sampler = ureg_src_undef(),
       .precise = c->precise,
    };
    util_dynarray_append(&c->cur_block->insns, insn);
    return util_dynarray_top_ptr(&c->cur_block->insns, struct ntr_insn);
 }
 
-#define OP00(op)                                                                          \
-   static inline void ntr_##op(struct ntr_compile *c)                                     \
-   {                                                                                      \
-      ntr_insn(c, TGSI_OPCODE_##op, ureg_dst_undef(), ureg_src_undef(), ureg_src_undef(), \
-               ureg_src_undef(), ureg_src_undef());                                       \
+#define NTR_OP00(name, op)                                                          \
+   static inline void ntr_##name(struct ntr_compile *c)                             \
+   {                                                                                \
+      ntr_insn(c, op, ureg_dst_undef(), ureg_src_undef(), ureg_src_undef(),         \
+               ureg_src_undef(), ureg_src_undef());                                 \
    }
 
-#define OP01(op)                                                                                \
-   static inline void ntr_##op(struct ntr_compile *c, struct ureg_src src0)                     \
-   {                                                                                            \
-      ntr_insn(c, TGSI_OPCODE_##op, ureg_dst_undef(), src0, ureg_src_undef(), ureg_src_undef(), \
-               ureg_src_undef());                                                               \
+#define NTR_OP01(name, op)                                                          \
+   static inline void ntr_##name(struct ntr_compile *c, struct ureg_src src0)       \
+   {                                                                                \
+      ntr_insn(c, op, ureg_dst_undef(), src0, ureg_src_undef(), ureg_src_undef(),   \
+               ureg_src_undef());                                                   \
    }
 
-#define OP10(op)                                                                               \
-   static inline void ntr_##op(struct ntr_compile *c, struct ureg_dst dst)                     \
-   {                                                                                           \
-      ntr_insn(c, TGSI_OPCODE_##op, dst, ureg_src_undef(), ureg_src_undef(), ureg_src_undef(), \
-               ureg_src_undef());                                                              \
+#define NTR_OP11(name, op)                                                          \
+   static inline void ntr_##name(struct ntr_compile *c, struct ureg_dst dst,        \
+                                 struct ureg_src src0)                              \
+   {                                                                                \
+      ntr_insn(c, op, dst, src0, ureg_src_undef(), ureg_src_undef(),                \
+               ureg_src_undef());                                                   \
    }
 
-#define OP11(op)                                                                                 \
-   static inline void ntr_##op(struct ntr_compile *c, struct ureg_dst dst, struct ureg_src src0) \
-   {                                                                                             \
-      ntr_insn(c, TGSI_OPCODE_##op, dst, src0, ureg_src_undef(), ureg_src_undef(),               \
-               ureg_src_undef());                                                                \
+#define NTR_OP12(name, op)                                                          \
+   static inline void ntr_##name(struct ntr_compile *c, struct ureg_dst dst,        \
+                                 struct ureg_src src0, struct ureg_src src1)        \
+   {                                                                                \
+      ntr_insn(c, op, dst, src0, src1, ureg_src_undef(), ureg_src_undef());         \
    }
 
-#define OP12(op)                                                                                 \
-   static inline void ntr_##op(struct ntr_compile *c, struct ureg_dst dst, struct ureg_src src0, \
-                               struct ureg_src src1)                                             \
-   {                                                                                             \
-      ntr_insn(c, TGSI_OPCODE_##op, dst, src0, src1, ureg_src_undef(), ureg_src_undef());        \
+#define NTR_OP13(name, op)                                                          \
+   static inline void ntr_##name(struct ntr_compile *c, struct ureg_dst dst,        \
+                                 struct ureg_src src0, struct ureg_src src1,        \
+                                 struct ureg_src src2)                              \
+   {                                                                                \
+      ntr_insn(c, op, dst, src0, src1, src2, ureg_src_undef());                     \
    }
 
-#define OP13(op)                                                                                 \
-   static inline void ntr_##op(struct ntr_compile *c, struct ureg_dst dst, struct ureg_src src0, \
-                               struct ureg_src src1, struct ureg_src src2)                       \
-   {                                                                                             \
-      ntr_insn(c, TGSI_OPCODE_##op, dst, src0, src1, src2, ureg_src_undef());                    \
-   }
+NTR_OP00(KILL, RC_OPCODE_KILP)
+NTR_OP00(BGNLOOP, RC_OPCODE_BGNLOOP)
+NTR_OP00(BRK, RC_OPCODE_BRK)
+NTR_OP00(CONT, RC_OPCODE_CONT)
+NTR_OP00(ELSE, RC_OPCODE_ELSE)
+NTR_OP00(ENDIF, RC_OPCODE_ENDIF)
+NTR_OP00(ENDLOOP, RC_OPCODE_ENDLOOP)
 
-#define OP14(op)                                                                                 \
-   static inline void ntr_##op(struct ntr_compile *c, struct ureg_dst dst, struct ureg_src src0, \
-                               struct ureg_src src1, struct ureg_src src2, struct ureg_src src3) \
-   {                                                                                             \
-      ntr_insn(c, TGSI_OPCODE_##op, dst, src0, src1, src2, src3);                                \
-   }
+NTR_OP01(KILL_IF, RC_OPCODE_KIL)
+NTR_OP01(IF, RC_OPCODE_IF)
 
-/* We hand-craft our tex instructions */
-#define OP12_TEX(op)
-#define OP14_TEX(op)
+NTR_OP11(MOV, RC_OPCODE_MOV)
+NTR_OP11(ARL, RC_OPCODE_ARL)
+NTR_OP11(DDX, RC_OPCODE_DDX)
+NTR_OP11(DDY, RC_OPCODE_DDY)
 
-/* Use a template include to generate a correctly-typed ntr_OP()
- * function for each TGSI opcode:
- */
-#include "gallium/auxiliary/tgsi/tgsi_opcode_tmp.h"
+NTR_OP12(ADD, RC_OPCODE_ADD)
+NTR_OP12(MAX, RC_OPCODE_MAX)
+
+NTR_OP13(CMP, RC_OPCODE_CMP)
 
 /**
  * Interprets a nir_load_const used as a NIR src as a uint.
@@ -861,18 +864,18 @@ ntr_store(struct ntr_compile *c, nir_def *def, struct ureg_src src)
 }
 
 static void
-ntr_emit_scalar(struct ntr_compile *c, unsigned tgsi_op, struct ureg_dst dst, struct ureg_src src0,
-                struct ureg_src src1)
+ntr_emit_scalar(struct ntr_compile *c, rc_opcode op, struct ureg_dst dst,
+                struct ureg_src src0, struct ureg_src src1)
 {
    unsigned i;
 
    /* POW is the only 2-operand scalar op. */
-   if (tgsi_op != TGSI_OPCODE_POW)
+   if (op != RC_OPCODE_POW)
       src1 = src0;
 
    for (i = 0; i < 4; i++) {
       if (dst.WriteMask & (1 << i)) {
-         ntr_insn(c, tgsi_op, ureg_writemask(dst, 1 << i), ureg_scalar(src0, i),
+         ntr_insn(c, op, ureg_writemask(dst, 1 << i), ureg_scalar(src0, i),
                   ureg_scalar(src1, i), ureg_src_undef(), ureg_src_undef());
       }
    }
@@ -900,26 +903,26 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
 
    dst = ntr_get_alu_dest(c, &instr->def);
 
-   static enum tgsi_opcode op_map[] = {
-      [nir_op_mov] = TGSI_OPCODE_MOV,
+   static const rc_opcode op_map[] = {
+      [nir_op_mov] = RC_OPCODE_MOV,
 
-      [nir_op_fdot2_replicated] = TGSI_OPCODE_DP2,
-      [nir_op_fdot3_replicated] = TGSI_OPCODE_DP3,
-      [nir_op_fdot4_replicated] = TGSI_OPCODE_DP4,
-      [nir_op_ffract] = TGSI_OPCODE_FRC,
-      [nir_op_fround_even] = TGSI_OPCODE_ROUND,
+      [nir_op_fdot2_replicated] = RC_OPCODE_DP2,
+      [nir_op_fdot3_replicated] = RC_OPCODE_DP3,
+      [nir_op_fdot4_replicated] = RC_OPCODE_DP4,
+      [nir_op_ffract] = RC_OPCODE_FRC,
+      [nir_op_fround_even] = RC_OPCODE_ROUND,
 
-      [nir_op_slt] = TGSI_OPCODE_SLT,
-      [nir_op_sge] = TGSI_OPCODE_SGE,
-      [nir_op_seq] = TGSI_OPCODE_SEQ,
-      [nir_op_sne] = TGSI_OPCODE_SNE,
+      [nir_op_slt] = RC_OPCODE_SLT,
+      [nir_op_sge] = RC_OPCODE_SGE,
+      [nir_op_seq] = RC_OPCODE_SEQ,
+      [nir_op_sne] = RC_OPCODE_SNE,
 
-      [nir_op_fadd] = TGSI_OPCODE_ADD,
-      [nir_op_fmul] = TGSI_OPCODE_MUL,
+      [nir_op_fadd] = RC_OPCODE_ADD,
+      [nir_op_fmul] = RC_OPCODE_MUL,
 
-      [nir_op_fmin] = TGSI_OPCODE_MIN,
-      [nir_op_fmax] = TGSI_OPCODE_MAX,
-      [nir_op_fmad] = TGSI_OPCODE_MAD,
+      [nir_op_fmin] = RC_OPCODE_MIN,
+      [nir_op_fmax] = RC_OPCODE_MAX,
+      [nir_op_fmad] = RC_OPCODE_MAD,
    };
 
    if (instr->op < ARRAY_SIZE(op_map) && op_map[instr->op] > 0) {
@@ -961,27 +964,27 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
           * of src channels to dst.
           */
       case nir_op_frcp:
-         ntr_emit_scalar(c, TGSI_OPCODE_RCP, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_RCP, dst, src[0], ureg_src_undef());
          break;
 
       case nir_op_frsq:
-         ntr_emit_scalar(c, TGSI_OPCODE_RSQ, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_RSQ, dst, src[0], ureg_src_undef());
          break;
 
       case nir_op_fexp2:
-         ntr_emit_scalar(c, TGSI_OPCODE_EX2, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_EX2, dst, src[0], ureg_src_undef());
          break;
 
       case nir_op_flog2:
-         ntr_emit_scalar(c, TGSI_OPCODE_LG2, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_LG2, dst, src[0], ureg_src_undef());
          break;
 
       case nir_op_fsin:
-         ntr_emit_scalar(c, TGSI_OPCODE_SIN, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_SIN, dst, src[0], ureg_src_undef());
          break;
 
       case nir_op_fcos:
-         ntr_emit_scalar(c, TGSI_OPCODE_COS, dst, src[0], ureg_src_undef());
+         ntr_emit_scalar(c, RC_OPCODE_COS, dst, src[0], ureg_src_undef());
          break;
 
       case nir_op_fsub:
@@ -993,7 +996,7 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
          break;
 
       case nir_op_fpow:
-         ntr_emit_scalar(c, TGSI_OPCODE_POW, dst, src[0], src[1]);
+         ntr_emit_scalar(c, RC_OPCODE_POW, dst, src[0], src[1]);
          break;
 
       case nir_op_fcsel:
@@ -1327,18 +1330,18 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
    case nir_texop_tex:
       if (nir_tex_instr_src_size(instr, nir_tex_instr_src_index(instr, nir_tex_src_backend1)) >
           MAX2(instr->coord_components, 2) + instr->is_shadow)
-         tex_opcode = TGSI_OPCODE_TXP;
+         tex_opcode = RC_OPCODE_TXP;
       else
-         tex_opcode = TGSI_OPCODE_TEX;
+         tex_opcode = RC_OPCODE_TEX;
       break;
    case nir_texop_txl:
-      tex_opcode = TGSI_OPCODE_TXL;
+      tex_opcode = RC_OPCODE_TXL;
       break;
    case nir_texop_txb:
-      tex_opcode = TGSI_OPCODE_TXB;
+      tex_opcode = RC_OPCODE_TXB;
       break;
    case nir_texop_txd:
-      tex_opcode = TGSI_OPCODE_TXD;
+      tex_opcode = RC_OPCODE_TXD;
       break;
    default:
       UNREACHABLE("unsupported tex op");
@@ -1361,8 +1364,6 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
       s.srcs[s.i++] = ntr_get_src(c, instr->src[ddy].src);
    }
 
-   s.srcs[s.i++] = sampler;
-
    struct ureg_dst tex_dst;
    if (instr->op == nir_texop_query_levels)
       tex_dst = ureg_writemask(ntr_temp(c), TGSI_WRITEMASK_W);
@@ -1375,6 +1376,7 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
    struct ntr_insn *insn =
       ntr_insn(c, tex_opcode, tex_dst, s.srcs[0], s.srcs[1], s.srcs[2], s.srcs[3]);
    insn->tex_target = target;
+   insn->tex_sampler = sampler;
    insn->is_tex = true;
 
    int tex_offset_src = nir_tex_instr_src_index(instr, nir_tex_src_offset);
@@ -1584,26 +1586,23 @@ ntr_emit_block_rc(struct ntr_compile *c, struct nir_block *block)
    struct ntr_block *ntr_block = ntr_block_from_nir(c, block);
 
    util_dynarray_foreach (&ntr_block->insns, struct ntr_insn, insn) {
-      const struct tgsi_opcode_info *opcode_info = tgsi_get_opcode_info(insn->opcode);
+      const struct rc_opcode_info *opcode_info = rc_get_opcode_info(insn->opcode);
       struct rc_instruction *rc_insn =
          rc_insert_new_instruction(c->compiler, c->compiler->Program.Instructions.Prev);
 
-      rc_insn->U.I.Opcode = rc_translate_opcode(insn->opcode);
+      rc_insn->U.I.Opcode = insn->opcode;
 
-      if (opcode_info->num_dst > 0) {
+      if (opcode_info->HasDstReg) {
          rc_insn->U.I.SaturateMode = rc_translate_saturate(insn->dst[0].Saturate);
          ntr_translate_dst(c, &rc_insn->U.I.DstReg, insn->dst[0]);
       }
 
-      for (unsigned i = 0; i < (unsigned)opcode_info->num_src; i++) {
-         if (insn->src[i].File == TGSI_FILE_SAMPLER) {
-            rc_insn->U.I.TexSrcUnit = insn->src[i].Index;
-         } else {
-            ntr_translate_src(c, &rc_insn->U.I.SrcReg[i], insn->src[i]);
-         }
-      }
+      for (unsigned i = 0; i < opcode_info->NumSrcRegs; i++)
+         ntr_translate_src(c, &rc_insn->U.I.SrcReg[i], insn->src[i]);
 
       if (insn->is_tex) {
+         assert(insn->tex_sampler.File == TGSI_FILE_SAMPLER);
+         rc_insn->U.I.TexSrcUnit = insn->tex_sampler.Index;
          rc_insn->U.I.TexSrcTarget = rc_translate_tex_target(insn->tex_target);
          rc_insn->U.I.TexSwizzle = RC_SWIZZLE_XYZW;
       }
@@ -1839,7 +1838,7 @@ nir_to_rc_lower_tex(nir_shader *s)
                               nir_metadata_control_flow, NULL);
 }
 
-/* Lowers texture projectors if we can't do them as TGSI_OPCODE_TXP. */
+/* Lowers texture projectors if we can't do them as RC_OPCODE_TXP. */
 static void
 nir_to_rc_lower_txp(nir_shader *s)
 {
