@@ -28,7 +28,6 @@
 
 struct ntr_insn {
    struct rc_sub_instruction inst;
-   bool precise : 1;
 };
 
 struct ntr_block {
@@ -72,9 +71,6 @@ struct ntr_compile {
    struct ntr_block *cur_block;
    unsigned current_if_else;
    unsigned cf_label;
-
-   /* Whether we're currently emitting instructiosn for a precise NIR instruction. */
-   bool precise;
 
    unsigned num_temps;
 
@@ -200,7 +196,6 @@ ntr_insn(struct ntr_compile *c, rc_opcode opcode, const struct ureg_dst *dst,
       .inst = {
          .Opcode = opcode,
       },
-      .precise = c->precise,
    };
    if (dst) {
       insn.inst.DstReg = ntr_rc_dst_from_ureg(c, *dst);
@@ -853,8 +848,6 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
    if (instr->op == nir_op_fsat && nir_legacy_fsat_folds(instr))
       return;
 
-   c->precise = nir_alu_instr_is_exact(instr);
-
    assert(num_srcs <= ARRAY_SIZE(src));
    for (i = 0; i < num_srcs; i++)
       src[i] = ntr_get_alu_src(c, instr, i);
@@ -985,8 +978,6 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
          UNREACHABLE("Unknown NIR opcode");
       }
    }
-
-   c->precise = false;
 }
 
 static struct ureg_src
