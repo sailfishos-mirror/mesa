@@ -1148,7 +1148,7 @@ Eric Engestrom (124):
 - Revert "meson: static link spirv-tools for darwin"
 - docs: update calendar for 26.0.0-rc3
 - pvr/drm-shim: avoid trying a random bvnc by default
-- pick-ui: add \`Backport-to: *` as a synonym to \`Cc: mesa-stable`
+- pick-ui: add \`Backport-to: \*\` as a synonym to \`Cc: mesa-stable\`
 - pvr/ci: rename deqp suite to a less generic name
 - pvr/ci: simplify the renderer string check
 - ci: split get_job_seconds() computation out of get_current_minsec() formatting
