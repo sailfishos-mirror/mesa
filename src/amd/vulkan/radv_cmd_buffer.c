@@ -1157,6 +1157,8 @@ radv_cmd_buffer_init_shader_part_cache(struct radv_device *device, struct radv_c
       _mesa_set_init(&cmd_buffer->ps_epilogs, NULL, device->ps_epilogs.ops->hash, device->ps_epilogs.ops->equals);
 }
 
+static void radv_destroy_msrtss_transients(struct radv_cmd_buffer *cmd_buffer);
+
 static void
 radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
 {
@@ -1170,6 +1172,8 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
 
    if (cmd_buffer->qf != RADV_QUEUE_SPARSE) {
       util_dynarray_fini(&cmd_buffer->ray_history);
+
+      radv_destroy_msrtss_transients(cmd_buffer);
 
       radv_rra_accel_struct_buffers_unref(device, cmd_buffer->accel_struct_buffers);
       _mesa_set_destroy(cmd_buffer->accel_struct_buffers, NULL);
@@ -1256,6 +1260,7 @@ radv_create_cmd_buffer(struct vk_command_pool *pool, VkCommandBufferLevel level,
 
       cmd_buffer->accel_struct_buffers = _mesa_pointer_set_create(NULL);
       cmd_buffer->ray_history = UTIL_DYNARRAY_INIT;
+      list_inithead(&cmd_buffer->msrtss_transients);
    }
 
    if (device->utrace.context) {
@@ -1308,6 +1313,8 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    }
 
    util_dynarray_clear(&cmd_buffer->ray_history);
+
+   radv_destroy_msrtss_transients(cmd_buffer);
 
    radv_rra_accel_struct_buffers_unref(device, cmd_buffer->accel_struct_buffers);
 
@@ -10277,6 +10284,158 @@ get_rendering_attachment_flags(const VkRenderingInfo *rendering_info, const VkRe
    return flags;
 }
 
+static void
+radv_destroy_msrtss_transient(struct radv_cmd_buffer *cmd_buffer, struct radv_msrtss_transient *t)
+{
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   VkDevice _device = radv_device_to_handle(device);
+   const VkAllocationCallbacks *alloc = &device->meta_state.alloc;
+
+   radv_DestroyImageView(_device, t->iview, alloc);
+   radv_DestroyImage(_device, t->image, alloc);
+   radv_FreeMemory(_device, t->memory, alloc);
+
+   list_del(&t->link);
+   free(t);
+}
+
+static void
+radv_destroy_msrtss_transients(struct radv_cmd_buffer *cmd_buffer)
+{
+   list_for_each_entry_safe (struct radv_msrtss_transient, t, &cmd_buffer->msrtss_transients, link)
+      radv_destroy_msrtss_transient(cmd_buffer, t);
+}
+
+static struct radv_image_view *
+radv_create_msrtss_transient_image_view(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *orig,
+                                        VkImageLayout dst_layout, VkSampleCountFlagBits samples)
+{
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   VkDevice _device = radv_device_to_handle(device);
+   const VkAllocationCallbacks *alloc = &device->meta_state.alloc;
+   struct radv_image *src_image = orig->image;
+   VkResult result;
+
+   /* MSRTSS only supports 2D images with a single mip level. */
+   assert(src_image->vk.image_type == VK_IMAGE_TYPE_2D);
+   assert(src_image->vk.mip_levels == 1);
+
+   struct radv_msrtss_transient *t = calloc(1, sizeof(*t));
+   if (!t) {
+      vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
+      return NULL;
+   }
+   list_inithead(&t->link);
+
+   const VkImageCreateInfo info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .imageType = VK_IMAGE_TYPE_2D,
+      .format = src_image->vk.format,
+      .extent = src_image->vk.extent,
+      .mipLevels = 1,
+      .arrayLayers = src_image->vk.array_layers,
+      .samples = samples,
+      .tiling = VK_IMAGE_TILING_OPTIMAL,
+      .usage = src_image->vk.usage,
+      .flags = src_image->vk.create_flags & ~VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+   };
+
+   result = radv_image_create(_device, &(struct radv_image_create_info){.vk_info = &info}, alloc, &t->image, true);
+   if (result != VK_SUCCESS)
+      goto fail;
+
+   const VkImageMemoryRequirementsInfo2 req_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+      .image = t->image,
+   };
+   VkMemoryRequirements2 reqs = {.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+   radv_GetImageMemoryRequirements2(_device, &req_info, &reqs);
+
+   const VkPhysicalDeviceMemoryProperties *mem_props = &radv_device_physical(device)->memory_properties;
+   const uint32_t type_bits = reqs.memoryRequirements.memoryTypeBits;
+   uint32_t mem_type_index = UINT32_MAX;
+   u_foreach_bit (i, type_bits) {
+      if (mem_props->memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+         mem_type_index = i;
+         break;
+      }
+   }
+   assert(mem_type_index != UINT32_MAX);
+
+   const VkMemoryAllocateInfo alloc_info = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize = reqs.memoryRequirements.size,
+      .memoryTypeIndex = mem_type_index,
+   };
+   result = radv_alloc_memory(device, &alloc_info, alloc, &t->memory, true);
+   if (result != VK_SUCCESS)
+      goto fail;
+
+   const VkBindImageMemoryInfo bind = {
+      .sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+      .image = t->image,
+      .memory = t->memory,
+   };
+   result = radv_BindImageMemory2(_device, 1, &bind);
+   if (result != VK_SUCCESS)
+      goto fail;
+
+   const VkImageViewCreateInfo view_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
+      .image = t->image,
+      .viewType = orig->vk.view_type,
+      .format = orig->vk.format,
+      .subresourceRange =
+         {
+            .aspectMask = orig->vk.aspects,
+            .baseMipLevel = orig->vk.base_mip_level,
+            .levelCount = orig->vk.level_count,
+            .baseArrayLayer = orig->vk.base_array_layer,
+            .layerCount = orig->vk.layer_count,
+         },
+   };
+   result = radv_CreateImageView(_device, &view_info, alloc, &t->iview);
+   if (result != VK_SUCCESS)
+      goto fail;
+
+   radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, radv_device_memory_from_handle(t->memory)->bo);
+
+   list_addtail(&t->link, &cmd_buffer->msrtss_transients);
+
+   struct radv_image_view *transient_iview = radv_image_view_from_handle(t->iview);
+
+   /* This transient image is driver-internal and is bound directly as a rendering attachment
+    * without the application ever transitioning it out of VK_IMAGE_LAYOUT_UNDEFINED. Its
+    * compression metadata (DCC/FMASK/CMASK for color, HTILE for depth/stencil) would therefore
+    * never be initialized. Emit the UNDEFINED -> dst_layout transition the image would normally
+    * receive, so the metadata is initialized before it is used as a render target.
+    */
+   radv_handle_rendering_image_transition(cmd_buffer, transient_iview, transient_iview->vk.layer_count, 0,
+                                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_UNDEFINED, dst_layout, dst_layout,
+                                          NULL);
+
+   return transient_iview;
+
+fail:
+   vk_command_buffer_set_error(&cmd_buffer->vk, result);
+   radv_destroy_msrtss_transient(cmd_buffer, t);
+   return NULL;
+}
+
+static bool
+should_enable_msrtss(bool msrtss, const VkRenderingAttachmentInfo *att_info)
+{
+   if (!msrtss || att_info->resolveImageView != VK_NULL_HANDLE)
+      return false;
+
+   VK_FROM_HANDLE(radv_image_view, iview, att_info->imageView);
+
+   return iview->image->vk.samples == VK_SAMPLE_COUNT_1_BIT;
+}
+
 VKAPI_ATTR void VKAPI_CALL
 radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRenderingInfo)
 {
@@ -10318,6 +10477,10 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
    if (!inside_meta_op)
       radv_meta_begin(cmd_buffer);
 
+   const struct VkMultisampledRenderToSingleSampledInfoEXT *msrtss_info =
+      vk_find_struct_const(pRenderingInfo->pNext, MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_INFO_EXT);
+   const bool msrtss = msrtss_info ? msrtss_info->multisampledRenderToSingleSampledEnable : false;
+
    uint32_t color_samples = 0, ds_samples = 0;
    struct radv_attachment color_att[MAX_RTS];
    for (uint32_t i = 0; i < pRenderingInfo->colorAttachmentCount; i++) {
@@ -10328,6 +10491,15 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
          continue;
 
       VK_FROM_HANDLE(radv_image_view, iview, att_info->imageView);
+      struct radv_image_view *iview_ss = NULL;
+
+      if (should_enable_msrtss(msrtss, att_info)) {
+         iview_ss = iview;
+         iview = radv_create_msrtss_transient_image_view(cmd_buffer, iview, get_image_layout(att_info),
+                                                         msrtss_info->rasterizationSamples);
+         if (!iview)
+            return;
+      }
 
       color_att[i].format = iview->vk.format;
       color_att[i].iview = iview;
@@ -10339,6 +10511,17 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
          color_att[i].resolve_mode = att_info->resolveMode;
          color_att[i].resolve_iview = radv_image_view_from_handle(att_info->resolveImageView);
          color_att[i].resolve_layout = att_info->resolveImageLayout;
+      }
+
+      if (iview_ss) {
+         color_att[i].resolve_iview = iview_ss;
+         color_att[i].resolve_mode = att_info->resolveMode;
+         if (color_att[i].resolve_mode == VK_RESOLVE_MODE_NONE) {
+            /* MSRTSS implies a resolve; integer formats only allow SAMPLE_ZERO. */
+            color_att[i].resolve_mode =
+               vk_format_is_int(iview_ss->vk.format) ? VK_RESOLVE_MODE_SAMPLE_ZERO_BIT : VK_RESOLVE_MODE_AVERAGE_BIT;
+         }
+         color_att[i].resolve_layout = get_image_layout(att_info);
       }
 
       color_samples = MAX2(color_samples, color_att[i].iview->vk.image->samples);
@@ -10392,6 +10575,21 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
             ds_att.resolve_layout = d_att_info->resolveImageLayout;
          }
 
+         if (should_enable_msrtss(msrtss, d_att_info)) {
+            struct radv_image_view *iview_ss = d_iview;
+
+            d_iview = radv_create_msrtss_transient_image_view(cmd_buffer, d_iview, get_image_layout(d_att_info),
+                                                              msrtss_info->rasterizationSamples);
+            if (!d_iview)
+               return;
+            d_res_iview = iview_ss;
+            ds_att.resolve_mode = d_att_info->resolveMode;
+            /* MSRTSS implies a resolve; SAMPLE_ZERO is the only mode always supported. */
+            if (ds_att.resolve_mode == VK_RESOLVE_MODE_NONE)
+               ds_att.resolve_mode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
+            ds_att.resolve_layout = get_image_layout(d_att_info);
+         }
+
          initial_depth_layout = vk_image_layout_depth_only(initial_depth_layout);
          ds_att.layout = vk_image_layout_depth_only(ds_att.layout);
          ds_att.resolve_layout = vk_image_layout_depth_only(ds_att.resolve_layout);
@@ -10406,6 +10604,24 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
             s_res_iview = radv_image_view_from_handle(s_att_info->resolveImageView);
             ds_att.stencil_resolve_mode = s_att_info->resolveMode;
             ds_att.stencil_resolve_layout = s_att_info->resolveImageLayout;
+         }
+
+         if (should_enable_msrtss(msrtss, s_att_info)) {
+            struct radv_image_view *iview_ss = s_iview;
+
+            /* If depth and stencil share the same iview, reuse the transient. */
+            if (d_iview && d_res_iview == s_iview)
+               s_iview = d_iview;
+            else
+               s_iview = radv_create_msrtss_transient_image_view(cmd_buffer, s_iview, get_image_layout(s_att_info),
+                                                                 msrtss_info->rasterizationSamples);
+            if (!s_iview)
+               return;
+            s_res_iview = iview_ss;
+            ds_att.stencil_resolve_mode = s_att_info->resolveMode;
+            if (ds_att.stencil_resolve_mode == VK_RESOLVE_MODE_NONE)
+               ds_att.stencil_resolve_mode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
+            ds_att.stencil_resolve_layout = get_image_layout(s_att_info);
          }
 
          initial_stencil_layout = vk_image_layout_stencil_only(initial_stencil_layout);

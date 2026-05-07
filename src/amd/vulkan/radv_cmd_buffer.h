@@ -623,6 +623,15 @@ struct radv_cmd_buffer {
 
    struct set *accel_struct_buffers;
    struct util_dynarray ray_history;
+
+   struct list_head msrtss_transients;
+};
+
+struct radv_msrtss_transient {
+   struct list_head link;
+   VkImage image;
+   VkDeviceMemory memory;
+   VkImageView iview;
 };
 
 VK_DEFINE_HANDLE_CASTS(radv_cmd_buffer, vk.base, VkCommandBuffer, VK_OBJECT_TYPE_COMMAND_BUFFER)
