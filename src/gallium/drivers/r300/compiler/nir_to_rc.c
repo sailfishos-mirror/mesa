@@ -243,13 +243,6 @@ struct ntr_live_reg_state {
 };
 
 static void
-ntr_allocate_regs_unoptimized(struct ntr_compile *c, nir_function_impl *impl)
-{
-   for (int i = 0; i < c->num_temps; i++)
-      ureg_DECL_temporary(c->ureg);
-}
-
-static void
 ntr_read_input_output(struct ntr_compile *c, gl_varying_slot location, unsigned base)
 {
    if (base >= c->semantics->num_total)
@@ -1584,8 +1577,6 @@ ntr_emit_impl(struct ntr_compile *c, nir_function_impl *impl)
 
    /* Emit the ntr insns */
    ntr_emit_cf_list(c, &impl->body);
-
-   ntr_allocate_regs_unoptimized(c, impl);
 
    /* Add constants and emit RC instructions directly. */
    ntr_add_constants(c);
