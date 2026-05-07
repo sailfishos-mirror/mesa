@@ -389,12 +389,6 @@ lower_regdist_local(jay_function *func,
 
       last_sync = NULL;
    }
-
-   /* Sync on block boundaries. */
-   jay_inst *first = jay_first_inst(block);
-   if (block != jay_first_block(func) && first && first->op != JAY_OPCODE_SEND) {
-      first->dep = tgl_swsb_regdist(1);
-   }
 }
 
 /*
@@ -426,6 +420,7 @@ jay_lower_scoreboard(jay_shader *shader)
    u32_per_pipe *access = malloc(sizeof(*access) * nr_keys);
 
    jay_foreach_function(shader, f) {
+      memset(access, 0, sizeof(*access) * nr_keys);
       struct swsb_state state = { .access = access };
 
       jay_foreach_block(f, block) {
@@ -433,7 +428,6 @@ jay_lower_scoreboard(jay_shader *shader)
       }
 
       jay_foreach_block(f, block) {
-         memset(access, 0, sizeof(*access) * nr_keys);
          lower_regdist_local(f, block, &state);
       }
    }
