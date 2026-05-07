@@ -1078,7 +1078,9 @@ panthor_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
       for (uint32_t j = 0; j < ops[i].signal.count; j++) {
          sync_ops[syncop_ptr++] = (struct drm_panthor_sync_op){
             .flags = DRM_PANTHOR_SYNC_OP_SIGNAL |
-                     DRM_PANTHOR_SYNC_OP_HANDLE_TYPE_TIMELINE_SYNCOBJ,
+                     (!ops[i].signal.array[j].point
+                         ? DRM_PANTHOR_SYNC_OP_HANDLE_TYPE_SYNCOBJ
+                         : DRM_PANTHOR_SYNC_OP_HANDLE_TYPE_TIMELINE_SYNCOBJ),
             .handle = ops[i].signal.array[j].handle,
             .timeline_value = ops[i].signal.array[j].point,
          };
@@ -1112,7 +1114,9 @@ panthor_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
       for (uint32_t j = 0; j < ops[i].wait.count; j++) {
          sync_ops[syncop_ptr++] = (struct drm_panthor_sync_op){
             .flags = DRM_PANTHOR_SYNC_OP_WAIT |
-                     DRM_PANTHOR_SYNC_OP_HANDLE_TYPE_TIMELINE_SYNCOBJ,
+                     (!ops[i].wait.array[j].point
+                         ? DRM_PANTHOR_SYNC_OP_HANDLE_TYPE_SYNCOBJ
+                         : DRM_PANTHOR_SYNC_OP_HANDLE_TYPE_TIMELINE_SYNCOBJ),
             .handle = ops[i].wait.array[j].handle,
             .timeline_value = ops[i].wait.array[j].point,
          };
