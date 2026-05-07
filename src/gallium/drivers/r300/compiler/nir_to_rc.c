@@ -67,8 +67,9 @@ struct ntr_compile {
    /* Options */
    bool lower_fabs;
 
-   bool addr_declared[3];
-   struct ureg_dst addr_reg[3];
+   /* r300's RC backend only tracks a single ADDR[0].x; logical address
+    * indexing collapses to that one register. */
+   struct ureg_dst addr_reg;
 
    /* if condition set up at the end of a block, for ntr_emit_if(). */
    struct ureg_src if_cond;
@@ -577,19 +578,10 @@ ntr_get_load_const_src(struct ntr_compile *c, nir_load_const_instr *instr)
 }
 
 static struct ureg_src
-ntr_reladdr(struct ntr_compile *c, struct ureg_src addr, int addr_index)
+ntr_reladdr(struct ntr_compile *c, struct ureg_src addr)
 {
-   assert(addr_index < ARRAY_SIZE(c->addr_reg));
-
-   for (int i = 0; i <= addr_index; i++) {
-      if (!c->addr_declared[i]) {
-         c->addr_reg[i] = ureg_writemask(ureg_DECL_address(c->ureg), TGSI_WRITEMASK_X);
-         c->addr_declared[i] = true;
-      }
-   }
-
-   ntr_ARL(c, c->addr_reg[addr_index], addr);
-   return ureg_scalar(ureg_src(c->addr_reg[addr_index]), 0);
+   ntr_ARL(c, c->addr_reg, addr);
+   return ureg_scalar(ureg_src(c->addr_reg), 0);
 }
 
 /* Forward declare for recursion with indirects */
@@ -609,7 +601,7 @@ ntr_get_chased_src(struct ntr_compile *c, nir_legacy_src *src)
 
       if (src->reg.indirect) {
          struct ureg_src offset = ntr_get_src(c, nir_src_for_ssa(src->reg.indirect));
-         return ureg_src_indirect(ureg_src(reg_temp), ntr_reladdr(c, offset, 0));
+         return ureg_src_indirect(ureg_src(reg_temp), ntr_reladdr(c, offset));
       } else {
          return ureg_src(reg_temp);
       }
@@ -699,7 +691,7 @@ ntr_get_chased_dest(struct ntr_compile *c, nir_legacy_dest *dest)
 
       if (dest->reg.indirect) {
          struct ureg_src offset = ntr_get_src(c, nir_src_for_ssa(dest->reg.indirect));
-         dst = ureg_dst_indirect(dst, ntr_reladdr(c, offset, 0));
+         dst = ureg_dst_indirect(dst, ntr_reladdr(c, offset));
       }
    }
 
@@ -926,13 +918,13 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
 }
 
 static struct ureg_src
-ntr_ureg_src_indirect(struct ntr_compile *c, struct ureg_src usrc, nir_src src, int addr_reg)
+ntr_ureg_src_indirect(struct ntr_compile *c, struct ureg_src usrc, nir_src src)
 {
    if (nir_src_is_const(src)) {
       usrc.Index += ntr_src_as_uint(c, src);
       return usrc;
    } else {
-      return ureg_src_indirect(usrc, ntr_reladdr(c, ntr_get_src(c, src), addr_reg));
+      return ureg_src_indirect(usrc, ntr_reladdr(c, ntr_get_src(c, src)));
    }
 }
 
@@ -943,17 +935,7 @@ ntr_ureg_dst_indirect(struct ntr_compile *c, struct ureg_dst dst, nir_src src)
       dst.Index += ntr_src_as_uint(c, src);
       return dst;
    } else {
-      return ureg_dst_indirect(dst, ntr_reladdr(c, ntr_get_src(c, src), 0));
-   }
-}
-
-static struct ureg_dst
-ntr_ureg_dst_dimension_indirect(struct ntr_compile *c, struct ureg_dst udst, nir_src src)
-{
-   if (nir_src_is_const(src)) {
-      return ureg_dst_dimension(udst, ntr_src_as_uint(c, src));
-   } else {
-      return ureg_dst_dimension_indirect(udst, ntr_reladdr(c, ntr_get_src(c, src), 1), 0);
+      return ureg_dst_indirect(dst, ntr_reladdr(c, ntr_get_src(c, src)));
    }
 }
 /* Some load operations in NIR will have a fractional offset that we need to
@@ -984,7 +966,7 @@ ntr_emit_load_ubo(struct ntr_compile *c, nir_intrinsic_instr *instr)
    if (nir_src_is_const(instr->src[1])) {
       src.Index += ntr_src_as_uint(c, instr->src[1]);
    } else {
-      src = ureg_src_indirect(src, ntr_reladdr(c, ntr_get_src(c, instr->src[1]), 0));
+      src = ureg_src_indirect(src, ntr_reladdr(c, ntr_get_src(c, instr->src[1])));
    }
 
    int start_component = nir_intrinsic_component(instr);
@@ -1016,12 +998,12 @@ ntr_emit_load_input(struct ntr_compile *c, nir_intrinsic_instr *instr)
 
    switch (instr->intrinsic) {
    case nir_intrinsic_load_input:
-      input = ntr_ureg_src_indirect(c, input, instr->src[0], 0);
+      input = ntr_ureg_src_indirect(c, input, instr->src[0]);
       ntr_store(c, &instr->def, input);
       break;
 
    case nir_intrinsic_load_interpolated_input: {
-      input = ntr_ureg_src_indirect(c, input, instr->src[1], 0);
+      input = ntr_ureg_src_indirect(c, input, instr->src[1]);
 
       nir_intrinsic_instr *bary_instr = nir_def_as_intrinsic(instr->src[0].ssa);
 
@@ -1201,7 +1183,7 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
       int sampler_src = nir_tex_instr_src_index(instr, nir_tex_src_sampler_offset);
       if (sampler_src >= 0) {
          struct ureg_src reladdr = ntr_get_src(c, instr->src[sampler_src].src);
-         sampler = ureg_src_indirect(sampler, ntr_reladdr(c, reladdr, 2));
+         sampler = ureg_src_indirect(sampler, ntr_reladdr(c, reladdr));
       }
    }
 
@@ -1776,6 +1758,8 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    c = rzalloc(NULL, struct ntr_compile);
    c->compiler = compiler;
    c->lower_fabs = !is_r500 && s->info.stage == MESA_SHADER_VERTEX;
+   c->addr_reg = ureg_writemask(ureg_dst_register(TGSI_FILE_ADDRESS, 0),
+                                TGSI_WRITEMASK_X);
    util_dynarray_init(&c->immediates, c);
    for (unsigned i = 0; i < ARRAY_SIZE(c->fs_output_color_index); i++)
       c->fs_output_color_index[i] = -1;
