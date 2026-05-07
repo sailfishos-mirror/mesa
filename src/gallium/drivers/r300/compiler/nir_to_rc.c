@@ -61,7 +61,6 @@ struct ntr_reg_interval {
 struct ntr_compile {
    nir_shader *s;
    nir_function_impl *impl;
-   struct pipe_screen *screen;
    struct ureg_program *ureg;
    struct r300_shader_semantics *semantics;
 
@@ -492,10 +491,7 @@ ntr_sort_by_location(const nir_variable *a, const nir_variable *b)
    return a->data.location - b->data.location;
 }
 
-/**
- * Workaround for virglrenderer requiring that TGSI FS output color variables
- * are declared in order.  Besides, it's a lot nicer to read the TGSI this way.
- */
+/* Preallocate FS output registers in a deterministic order. */
 static void
 ntr_setup_outputs(struct ntr_compile *c)
 {
@@ -505,9 +501,6 @@ ntr_setup_outputs(struct ntr_compile *c)
    nir_sort_variables_with_modes(c->s, ntr_sort_by_location, nir_var_shader_out);
 
    nir_foreach_shader_out_variable (var, c->s) {
-      if (var->data.location == FRAG_RESULT_COLOR)
-         ureg_property(c->ureg, TGSI_PROPERTY_FS_COLOR0_WRITES_ALL_CBUFS, 1);
-
       ntr_fs_output_index(c, var->data.location, var->data.index);
    }
 }
@@ -1813,7 +1806,6 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    struct ntr_compile *c;
    bool is_r500 = r300_screen(screen)->caps.is_r500;
    c = rzalloc(NULL, struct ntr_compile);
-   c->screen = screen;
    c->compiler = compiler;
    c->lower_fabs = !is_r500 && s->info.stage == MESA_SHADER_VERTEX;
    util_dynarray_init(&c->immediates, c);
@@ -1957,26 +1949,6 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    c->s = s;
    c->ureg = ureg_create(s->info.stage);
    ureg_setup_shader_info(c->ureg, &s->info);
-   if (s->info.use_legacy_math_rules && screen->caps.legacy_math_rules)
-      ureg_property(c->ureg, TGSI_PROPERTY_LEGACY_MATH_RULES, 1);
-
-   if (s->info.stage == MESA_SHADER_FRAGMENT) {
-      /* The draw module's polygon stipple layer doesn't respect the chosen
-       * coordinate mode, so leave it as unspecified unless we're actually
-       * reading the position in the shader already.  See
-       * gl-2.1-polygon-stipple-fs on softpipe.
-       */
-      if ((s->info.inputs_read & VARYING_BIT_POS) ||
-          BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_FRAG_COORD)) {
-         ureg_property(c->ureg, TGSI_PROPERTY_FS_COORD_ORIGIN,
-                       s->info.fs.origin_upper_left ? TGSI_FS_COORD_ORIGIN_UPPER_LEFT
-                                                    : TGSI_FS_COORD_ORIGIN_LOWER_LEFT);
-
-         ureg_property(c->ureg, TGSI_PROPERTY_FS_COORD_PIXEL_CENTER,
-                       s->info.fs.pixel_center_integer ? TGSI_FS_COORD_PIXEL_CENTER_INTEGER
-                                                       : TGSI_FS_COORD_PIXEL_CENTER_HALF_INTEGER);
-      }
-   }
    /* Emit the main function */
    nir_function_impl *impl = nir_shader_get_entrypoint(c->s);
    ntr_emit_impl(c, impl);
