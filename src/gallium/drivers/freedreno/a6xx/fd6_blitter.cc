@@ -348,19 +348,35 @@ emit_blit_setup(fd_ncrb<CHIP> &ncrb, enum pipe_format pfmt,
       .mask = 0xf,
    ));
 
+   enum a6xx_a2d_pixel_op pixel_op = PIXEL_OP_DISABLED;
+   enum adreno_rb_blend_factor color_src_factor = FACTOR_ZERO;
+   enum adreno_rb_blend_factor color_dst_factor = FACTOR_ZERO;
+   enum adreno_rb_blend_factor alpha_src_factor = FACTOR_ZERO;
+   enum adreno_rb_blend_factor alpha_dst_factor = FACTOR_ZERO;
+
    /* Handle D24S8 blits where we are only updating depth or stencil: */
    if (pfmt == PIPE_FORMAT_Z24_UNORM_S8_UINT) {
       buffers &= FD_BUFFER_DEPTH | FD_BUFFER_STENCIL;
       if (buffers == FD_BUFFER_DEPTH) {
-         ncrb.add(A6XX_RB_A2D_PIXEL_CNTL(.dword = 0x08000041));
+         /* preserve stencil channel */
+         pixel_op = PIXEL_OP_BLENDING;
+         color_src_factor = FACTOR_ONE;
+         alpha_dst_factor = FACTOR_ONE;
       } else if (buffers == FD_BUFFER_STENCIL) {
-         ncrb.add(A6XX_RB_A2D_PIXEL_CNTL(.dword = 0x00084001));
-      } else {
-         ncrb.add(A6XX_RB_A2D_PIXEL_CNTL());
+         /* preserve depth channels */
+         pixel_op = PIXEL_OP_BLENDING;
+         color_dst_factor = FACTOR_ONE;
+         alpha_src_factor = FACTOR_ONE;
       }
-   } else {
-      ncrb.add(A6XX_RB_A2D_PIXEL_CNTL());
    }
+
+   ncrb.add(A6XX_RB_A2D_PIXEL_CNTL(
+      .pixel_op = pixel_op,
+      .color_src_factor = color_src_factor,
+      .color_dst_factor = color_dst_factor,
+      .alpha_src_factor = alpha_src_factor,
+      .alpha_dst_factor = alpha_dst_factor,
+   ));
 }
 
 /* nregs: 4 */
