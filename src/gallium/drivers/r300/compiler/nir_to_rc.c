@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <stdio.h>
+
 #include "nir_to_rc.h"
 #include "compiler/nir/nir.h"
 #include "compiler/nir/nir_builder.h"
@@ -15,11 +17,8 @@
 #include "compiler/radeon_program_constants.h"
 #include "pipe/p_screen.h"
 #include "pipe/p_state.h"
-#include "tgsi/tgsi_dump.h"
-#include "tgsi/tgsi_info.h"
-#include "tgsi/tgsi_parse.h"
 #include "tgsi/tgsi_ureg.h"
-#include "tgsi/tgsi_util.h"
+#include "util/compiler.h"
 #include "util/u_debug.h"
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
@@ -28,18 +27,7 @@
 #include "r300_screen.h"
 
 struct ntr_insn {
-   rc_opcode opcode;
-   struct ureg_dst dst[2];
-   struct ureg_src src[4];
-   /* Texture sampler unit is RC metadata, not a SrcReg[] operand. */
-   struct ureg_src tex_sampler;
-   rc_texture_target tex_target;
-   struct tgsi_texture_offset tex_offset[4];
-
-   unsigned mem_qualifier;
-   enum pipe_format mem_format;
-
-   bool is_tex : 1;
+   struct rc_sub_instruction inst;
    bool precise : 1;
 };
 
@@ -129,15 +117,89 @@ ntr_block_from_nir(struct ntr_compile *c, struct nir_block *block)
 static void ntr_emit_cf_list(struct ntr_compile *c, struct exec_list *list);
 static void ntr_emit_cf_list_ureg(struct ntr_compile *c, struct exec_list *list);
 
+static rc_register_file
+ntr_rc_file_from_tgsi(unsigned file)
+{
+   switch (file) {
+   case TGSI_FILE_NULL:      return RC_FILE_NONE;
+   case TGSI_FILE_CONSTANT:  return RC_FILE_CONSTANT;
+   case TGSI_FILE_IMMEDIATE: return RC_FILE_CONSTANT;
+   case TGSI_FILE_INPUT:     return RC_FILE_INPUT;
+   case TGSI_FILE_OUTPUT:    return RC_FILE_OUTPUT;
+   case TGSI_FILE_ADDRESS:   return RC_FILE_ADDRESS;
+   default:
+      fprintf(stderr, "Unhandled register file: %i\n", file);
+      FALLTHROUGH;
+   case TGSI_FILE_TEMPORARY: return RC_FILE_TEMPORARY;
+   }
+}
+
+static unsigned
+ntr_rc_register_index(struct ntr_compile *c, int index)
+{
+   /* Negative offsets to relative addressing should have been lowered in NIR. */
+   assert(index >= 0);
+   if (index >= RC_REGISTER_MAX_INDEX)
+      rc_error(c->compiler, "r300: Register index too high.\n");
+   return index;
+}
+
+static struct rc_src_register
+ntr_rc_src_from_ureg(struct ntr_compile *c, struct ureg_src src)
+{
+   int index = src.Index;
+   if (src.File == TGSI_FILE_IMMEDIATE)
+      index += c->immediate_offset;
+
+   return (struct rc_src_register) {
+      .File = ntr_rc_file_from_tgsi(src.File),
+      .Index = ntr_rc_register_index(c, index),
+      .RelAddr = src.Indirect,
+      .Swizzle = RC_MAKE_SWIZZLE(src.SwizzleX, src.SwizzleY, src.SwizzleZ,
+                                 src.SwizzleW),
+      .Abs = src.Absolute,
+      .Negate = src.Negate ? RC_MASK_XYZW : RC_MASK_NONE,
+   };
+}
+
+static struct rc_dst_register
+ntr_rc_dst_from_ureg(struct ntr_compile *c, struct ureg_dst dst)
+{
+   if (dst.Indirect)
+      rc_error(c->compiler,
+               "r300: Relative addressing of destination operands is unsupported.\n");
+
+   return (struct rc_dst_register) {
+      .File = ntr_rc_file_from_tgsi(dst.File),
+      .Index = ntr_rc_register_index(c, dst.Index),
+      .WriteMask = dst.WriteMask,
+   };
+}
+
+static void
+ntr_rc_tex_sampler_from_ureg(struct ntr_compile *c, struct rc_sub_instruction *inst,
+                             struct ureg_src sampler)
+{
+   assert(sampler.File == TGSI_FILE_SAMPLER);
+   if (sampler.Indirect)
+      rc_error(c->compiler,
+               "r300: Relative addressing of sampler operands is unsupported.\n");
+   inst->TexSrcUnit = ntr_rc_register_index(c, sampler.Index);
+}
+
 static struct ntr_insn *
 ntr_insn(struct ntr_compile *c, rc_opcode opcode, struct ureg_dst dst, struct ureg_src src0,
-         struct ureg_src src1, struct ureg_src src2, struct ureg_src src3)
+         struct ureg_src src1, struct ureg_src src2)
 {
+   assert(rc_get_opcode_info(opcode)->NumSrcRegs <= 3);
    struct ntr_insn insn = {
-      .opcode = opcode,
-      .dst = {dst, ureg_dst_undef()},
-      .src = {src0, src1, src2, src3},
-      .tex_sampler = ureg_src_undef(),
+      .inst = {
+         .Opcode = opcode,
+         .DstReg = ntr_rc_dst_from_ureg(c, dst),
+         .SrcReg = {ntr_rc_src_from_ureg(c, src0), ntr_rc_src_from_ureg(c, src1),
+                    ntr_rc_src_from_ureg(c, src2)},
+         .SaturateMode = dst.Saturate ? RC_SATURATE_ZERO_ONE : RC_SATURATE_NONE,
+      },
       .precise = c->precise,
    };
    util_dynarray_append(&c->cur_block->insns, insn);
@@ -148,29 +210,27 @@ ntr_insn(struct ntr_compile *c, rc_opcode opcode, struct ureg_dst dst, struct ur
    static inline void ntr_##name(struct ntr_compile *c)                             \
    {                                                                                \
       ntr_insn(c, op, ureg_dst_undef(), ureg_src_undef(), ureg_src_undef(),         \
-               ureg_src_undef(), ureg_src_undef());                                 \
+               ureg_src_undef());                                                   \
    }
 
 #define NTR_OP01(name, op)                                                          \
    static inline void ntr_##name(struct ntr_compile *c, struct ureg_src src0)       \
    {                                                                                \
-      ntr_insn(c, op, ureg_dst_undef(), src0, ureg_src_undef(), ureg_src_undef(),   \
-               ureg_src_undef());                                                   \
+      ntr_insn(c, op, ureg_dst_undef(), src0, ureg_src_undef(), ureg_src_undef());  \
    }
 
 #define NTR_OP11(name, op)                                                          \
    static inline void ntr_##name(struct ntr_compile *c, struct ureg_dst dst,        \
                                  struct ureg_src src0)                              \
    {                                                                                \
-      ntr_insn(c, op, dst, src0, ureg_src_undef(), ureg_src_undef(),                \
-               ureg_src_undef());                                                   \
+      ntr_insn(c, op, dst, src0, ureg_src_undef(), ureg_src_undef());               \
    }
 
 #define NTR_OP12(name, op)                                                          \
    static inline void ntr_##name(struct ntr_compile *c, struct ureg_dst dst,        \
                                  struct ureg_src src0, struct ureg_src src1)        \
    {                                                                                \
-      ntr_insn(c, op, dst, src0, src1, ureg_src_undef(), ureg_src_undef());         \
+      ntr_insn(c, op, dst, src0, src1, ureg_src_undef());                           \
    }
 
 #define NTR_OP13(name, op)                                                          \
@@ -178,7 +238,7 @@ ntr_insn(struct ntr_compile *c, rc_opcode opcode, struct ureg_dst dst, struct ur
                                  struct ureg_src src0, struct ureg_src src1,        \
                                  struct ureg_src src2)                              \
    {                                                                                \
-      ntr_insn(c, op, dst, src0, src1, src2, ureg_src_undef());                     \
+      ntr_insn(c, op, dst, src0, src1, src2);                                       \
    }
 
 NTR_OP00(KILL, RC_OPCODE_KILP)
@@ -766,7 +826,7 @@ ntr_emit_scalar(struct ntr_compile *c, rc_opcode op, struct ureg_dst dst,
    for (i = 0; i < 4; i++) {
       if (dst.WriteMask & (1 << i)) {
          ntr_insn(c, op, ureg_writemask(dst, 1 << i), ureg_scalar(src0, i),
-                  ureg_scalar(src1, i), ureg_src_undef(), ureg_src_undef());
+                  ureg_scalar(src1, i), ureg_src_undef());
       }
    }
 }
@@ -817,7 +877,7 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
 
    if (instr->op < ARRAY_SIZE(op_map) && op_map[instr->op] > 0) {
       /* The normal path for NIR to TGSI ALU op translation */
-      ntr_insn(c, op_map[instr->op], dst, src[0], src[1], src[2], src[3]);
+      ntr_insn(c, op_map[instr->op], dst, src[0], src[1], src[2]);
    } else {
       /* Special cases for NIR to TGSI ALU op translation. */
 
@@ -1144,7 +1204,7 @@ ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
 }
 
 struct ntr_tex_operand_state {
-   struct ureg_src srcs[4];
+   struct ureg_src srcs[3];
    unsigned i;
 };
 
@@ -1225,26 +1285,14 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
       s.srcs[s.i++] = ntr_get_src(c, instr->src[ddy].src);
    }
 
-   while (s.i < 4)
+   while (s.i < ARRAY_SIZE(s.srcs))
       s.srcs[s.i++] = ureg_src_undef();
 
    struct ntr_insn *insn =
-      ntr_insn(c, tex_opcode, dst, s.srcs[0], s.srcs[1], s.srcs[2], s.srcs[3]);
-   insn->tex_target = target;
-   insn->tex_sampler = sampler;
-   insn->is_tex = true;
-
-   int tex_offset_src = nir_tex_instr_src_index(instr, nir_tex_src_offset);
-   if (tex_offset_src >= 0) {
-      struct ureg_src offset = ntr_get_src(c, instr->src[tex_offset_src].src);
-
-      insn->tex_offset[0].File = offset.File;
-      insn->tex_offset[0].Index = offset.Index;
-      insn->tex_offset[0].SwizzleX = offset.SwizzleX;
-      insn->tex_offset[0].SwizzleY = offset.SwizzleY;
-      insn->tex_offset[0].SwizzleZ = offset.SwizzleZ;
-      insn->tex_offset[0].Padding = 0;
-   }
+      ntr_insn(c, tex_opcode, dst, s.srcs[0], s.srcs[1], s.srcs[2]);
+   insn->inst.TexSrcTarget = target;
+   ntr_rc_tex_sampler_from_ureg(c, &insn->inst, sampler);
+   insn->inst.TexSwizzle = RC_SWIZZLE_XYZW;
 }
 
 static void
@@ -1387,64 +1435,26 @@ ntr_emit_cf_list(struct ntr_compile *c, struct exec_list *list)
 }
 
 static void
-ntr_translate_dst(struct ntr_compile *c, struct rc_dst_register *rc_dst,
-                  struct ureg_dst src)
-{
-   rc_dst->File = rc_translate_register_file(src.File);
-   rc_dst->Index = src.Index;
-   rc_dst->WriteMask = src.WriteMask;
-   if (src.Indirect)
-      rc_error(c->compiler,
-               "r300: Relative addressing of destination operands is unsupported.\n");
-}
-
-static void
-ntr_translate_src(struct ntr_compile *c, struct rc_src_register *rc_src,
-                  struct ureg_src src)
-{
-   rc_src->File = rc_translate_register_file(src.File);
-   int index = src.Index;
-   if (src.File == TGSI_FILE_IMMEDIATE)
-      index += c->immediate_offset;
-   /* Negative offsets to relative addressing should have been lowered in NIR */
-   assert(index >= 0);
-   if (index >= RC_REGISTER_MAX_INDEX)
-      rc_error(c->compiler, "r300: Register index too high.\n");
-   rc_src->Index = index;
-   rc_src->RelAddr = src.Indirect;
-   rc_src->Swizzle = src.SwizzleX;
-   rc_src->Swizzle |= src.SwizzleY << 3;
-   rc_src->Swizzle |= src.SwizzleZ << 6;
-   rc_src->Swizzle |= src.SwizzleW << 9;
-   rc_src->Abs = src.Absolute;
-   rc_src->Negate = src.Negate ? RC_MASK_XYZW : 0;
-}
-
-static void
 ntr_emit_block_rc(struct ntr_compile *c, struct nir_block *block)
 {
    struct ntr_block *ntr_block = ntr_block_from_nir(c, block);
 
    util_dynarray_foreach (&ntr_block->insns, struct ntr_insn, insn) {
-      const struct rc_opcode_info *opcode_info = rc_get_opcode_info(insn->opcode);
+      const struct rc_opcode_info *opcode_info = rc_get_opcode_info(insn->inst.Opcode);
       struct rc_instruction *rc_insn =
          rc_insert_new_instruction(c->compiler, c->compiler->Program.Instructions.Prev);
 
-      rc_insn->U.I.Opcode = insn->opcode;
-
+      rc_insn->U.I.Opcode = insn->inst.Opcode;
       if (opcode_info->HasDstReg) {
-         rc_insn->U.I.SaturateMode = rc_translate_saturate(insn->dst[0].Saturate);
-         ntr_translate_dst(c, &rc_insn->U.I.DstReg, insn->dst[0]);
+         rc_insn->U.I.DstReg = insn->inst.DstReg;
+         rc_insn->U.I.SaturateMode = insn->inst.SaturateMode;
       }
-
       for (unsigned i = 0; i < opcode_info->NumSrcRegs; i++)
-         ntr_translate_src(c, &rc_insn->U.I.SrcReg[i], insn->src[i]);
-
-      if (insn->is_tex) {
-         assert(insn->tex_sampler.File == TGSI_FILE_SAMPLER);
-         rc_insn->U.I.TexSrcUnit = insn->tex_sampler.Index;
-         rc_insn->U.I.TexSrcTarget = insn->tex_target;
-         rc_insn->U.I.TexSwizzle = RC_SWIZZLE_XYZW;
+         rc_insn->U.I.SrcReg[i] = insn->inst.SrcReg[i];
+      if (opcode_info->HasTexture) {
+         rc_insn->U.I.TexSrcUnit = insn->inst.TexSrcUnit;
+         rc_insn->U.I.TexSrcTarget = insn->inst.TexSrcTarget;
+         rc_insn->U.I.TexSwizzle = insn->inst.TexSwizzle;
       }
    }
 }
@@ -1499,7 +1509,7 @@ ntr_add_constants(struct ntr_compile *c)
       constant.u.External = i;
       rc_constants_add(&c->compiler->Program.Constants, &constant);
    }
-   c->immediate_offset = c->compiler->Program.Constants.Count;
+   assert(c->compiler->Program.Constants.Count == c->immediate_offset);
 
    util_dynarray_foreach (&c->immediates, struct ntr_immediate, imm) {
       struct rc_constant constant;
@@ -1530,9 +1540,10 @@ ntr_emit_impl(struct ntr_compile *c, nir_function_impl *impl)
    ntr_setup_registers(c);
 
    c->cur_block = ntr_block_from_nir(c, nir_start_block(impl));
+   ntr_setup_uniforms(c);
+   c->immediate_offset = c->compiler->Program.Constants.Count + c->ubo_size;
    ntr_setup_inputs(c);
    ntr_setup_outputs(c);
-   ntr_setup_uniforms(c);
 
    /* Emit the ntr insns */
    ntr_emit_cf_list(c, &impl->body);
