@@ -2704,7 +2704,11 @@ jay_compile(const struct intel_device_info *devinfo,
       JAY_PASS(s, jay_opt_predicate);
    }
 
-   JAY_PASS(s, jay_lower_scoreboard);
+   if (jay_debug & JAY_DBG_SYNC) {
+      JAY_PASS(s, jay_lower_scoreboard_trivial);
+   } else {
+      JAY_PASS(s, jay_lower_scoreboard);
+   }
 
    if (debug) {
       fprintf(stdout, "Jay shader (post-RA):\n\n");

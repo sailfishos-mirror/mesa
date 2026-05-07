@@ -250,9 +250,10 @@ depend_on_writer(struct swsb_state *state,
    for (unsigned pipe = 1; pipe < TGL_NUM_PIPES; ++pipe)
 
 static void
-lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
+lower_regdist_local(jay_function *func,
+                    jay_block *block,
+                    struct swsb_state *state)
 {
-   struct swsb_state state = { .access = access };
    jay_inst *last_sync = NULL;
 
    jay_foreach_inst_in_block_safe(block, I) {
@@ -265,12 +266,12 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
 
       jay_foreach_dst(I, def) {
          struct gpr_range r = def_to_gpr(func, I, def);
-         depend_on_writer(&state, r, dep, exec_pipe, true /* except_pipe */);
+         depend_on_writer(state, r, dep, exec_pipe, true /* except_pipe */);
 
          for (unsigned i = 0; i < r.width; ++i) {
             jay_foreach_pipe(p) {
                if (p != exec_pipe) {
-                  dep[p] = MAX2(dep[p], state.access[r.base + i][p]);
+                  dep[p] = MAX2(dep[p], state->access[r.base + i][p]);
                }
             }
          }
@@ -278,8 +279,8 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
 
       /* Read-after-write */
       jay_foreach_src(I, s) {
-         depend_on_writer(&state, def_to_gpr(func, I, I->src[s]), dep,
-                          exec_pipe, false);
+         depend_on_writer(state, def_to_gpr(func, I, I->src[s]), dep, exec_pipe,
+                          false);
       }
 
       /* If dependency P implies dependency Q, drop dependency Q to avoid
@@ -288,7 +289,7 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
       jay_foreach_pipe(p) {
          if (dep[p]) {
             jay_foreach_pipe(q) {
-               if (p != q && dep[q] && state.finished_ip[p][q] >= dep[q]) {
+               if (p != q && dep[q] && state->finished_ip[p][q] >= dep[q]) {
                   dep[q] = 0;
                }
             }
@@ -300,16 +301,16 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
 
       jay_foreach_pipe(p) {
          if (dep[p] && (exec_pipe == TGL_PIPE_NONE /* TODO: Sends */ ||
-                        dep[p] > state.finished_ip[exec_pipe][p])) {
+                        dep[p] > state->finished_ip[exec_pipe][p])) {
 
-            min_delta = MIN2(min_delta, state.ip[p] - dep[p] + 1);
+            min_delta = MIN2(min_delta, state->ip[p] - dep[p] + 1);
             wait_pipes |= BITFIELD_BIT(p);
          }
       }
 
       /* We'll wait on the unioned dependency. Update the tracking for that. */
       u_foreach_bit(p, wait_pipes) {
-         state.finished_ip[exec_pipe][p] = state.ip[p] + 1 - min_delta;
+         state->finished_ip[exec_pipe][p] = state->ip[p] + 1 - min_delta;
       }
 
       uint32_t last_pipe = util_logbase2(wait_pipes);
@@ -321,7 +322,7 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
        */
       unsigned simd_split = jay_simd_split(func->shader, I);
       unsigned shape = ((simd_split << 2) | jay_macro_length(I)) + 1;
-      bool same_shape = state.last_shape[last_pipe] == shape;
+      bool same_shape = state->last_shape[last_pipe] == shape;
 
       if (simd_split && same_shape && single_wait && min_delta == 1) {
          min_delta += ((1 << simd_split) - 1) * jay_macro_length(I);
@@ -366,24 +367,24 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
 
       if (exec_pipe != TGL_PIPE_NONE) {
          /* Advance the IP by the number of physical instructions emitted */
-         state.ip[exec_pipe] +=
+         state->ip[exec_pipe] +=
             jay_macro_length(I) << jay_simd_split(func->shader, I);
 
          struct gpr_range r = def_to_gpr(func, I, I->dst);
-         uint32_t now = make_writer(exec_pipe, state.ip[exec_pipe]);
+         uint32_t now = make_writer(exec_pipe, state->ip[exec_pipe]);
 
          for (unsigned i = 0; i < r.width; ++i) {
-            state.access[r.base + i][0] = now;
+            state->access[r.base + i][0] = now;
          }
 
          jay_foreach_src(I, s) {
             struct gpr_range r = def_to_gpr(func, I, I->src[s]);
             for (unsigned i = 0; i < r.width; ++i) {
-               state.access[r.base + i][exec_pipe] = state.ip[exec_pipe];
+               state->access[r.base + i][exec_pipe] = state->ip[exec_pipe];
             }
          }
 
-         state.last_shape[exec_pipe] = shape;
+         state->last_shape[exec_pipe] = shape;
       }
 
       last_sync = NULL;
@@ -400,10 +401,10 @@ lower_regdist_local(jay_function *func, jay_block *block, u32_per_pipe *access)
  * Trivial scoreboard lowering pass for debugging use. Stalls after every
  * instruction and assigns SBID zero to all messages.
  */
-static void
-lower_trivial(jay_function *func)
+void
+jay_lower_scoreboard_trivial(jay_shader *shader)
 {
-   jay_foreach_inst_in_func_safe(func, block, I) {
+   jay_foreach_inst_in_shader_safe(shader, func, I) {
       if (I->op == JAY_OPCODE_SEND && !jay_send_eot(I)) {
          I->dep = tgl_swsb_dst_dep(tgl_swsb_sbid(TGL_SBID_SET, 0), 1);
 
@@ -418,21 +419,22 @@ lower_trivial(jay_function *func)
 }
 
 void
-jay_lower_scoreboard(jay_shader *s)
+jay_lower_scoreboard(jay_shader *shader)
 {
-   uint32_t nr_keys = s->num_regs[GPR] + s->num_regs[UGPR];
+   uint32_t nr_keys = shader->num_regs[GPR] + shader->num_regs[UGPR];
    assert(nr_keys <= MAX_KEYS && "SENDs use uninitialized stack allocation");
    u32_per_pipe *access = malloc(sizeof(*access) * nr_keys);
 
-   jay_foreach_function(s, func) {
-      if (jay_debug & JAY_DBG_SYNC) {
-         lower_trivial(func);
-      } else {
-         jay_foreach_block(func, block) {
-            memset(access, 0, sizeof(*access) * nr_keys);
-            lower_send_local(func, block);
-            lower_regdist_local(func, block, access);
-         }
+   jay_foreach_function(shader, f) {
+      struct swsb_state state = { .access = access };
+
+      jay_foreach_block(f, block) {
+         lower_send_local(f, block);
+      }
+
+      jay_foreach_block(f, block) {
+         memset(access, 0, sizeof(*access) * nr_keys);
+         lower_regdist_local(f, block, &state);
       }
    }
 
