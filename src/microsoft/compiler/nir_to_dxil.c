@@ -3091,7 +3091,10 @@ emit_barrier_impl(struct ntd_context *ctx, nir_variable_mode modes, mesa_scope e
        (mem_scope > SCOPE_WORKGROUP || !is_compute)) {
       flags |= DXIL_BARRIER_MODE_UAV_FENCE_GLOBAL;
    } else {
-      flags |= DXIL_BARRIER_MODE_UAV_FENCE_THREAD_GROUP;
+      /* This used to be DXIL_BARRIER_MODE_UAV_FENCE_THREAD_GROUP. However, since 
+       * it's inaccessible in HLSL, certain drivers (eg. for Intel Iris Xe Graphics) 
+       * do not seem robust against it, and appear to ignore the barrier instruction. */
+      flags |= DXIL_BARRIER_MODE_UAV_FENCE_GLOBAL;
    }
 
    if ((modes & nir_var_mem_shared) && is_compute)
