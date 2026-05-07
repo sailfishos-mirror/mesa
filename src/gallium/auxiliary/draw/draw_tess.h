@@ -55,8 +55,6 @@ struct draw_tes_inputs {
 #endif
 
 struct draw_tess_ctrl_shader {
-   struct draw_context *draw;
-
    struct pipe_shader_state state;
    struct tgsi_shader_info info;
 
@@ -69,13 +67,11 @@ struct draw_tess_ctrl_shader {
 #if DRAW_LLVM_AVAILABLE
    struct draw_tcs_inputs *tcs_input;
    struct draw_tcs_outputs *tcs_output;
-   struct lp_jit_resources *jit_resources;
    struct draw_tcs_llvm_variant *current_variant;
 #endif
 };
 
 struct draw_tess_eval_shader {
-   struct draw_context *draw;
    struct pipe_shader_state state;
    struct tgsi_shader_info info;
 
@@ -96,21 +92,22 @@ struct draw_tess_eval_shader {
 
 #if DRAW_LLVM_AVAILABLE
    struct draw_tes_inputs *tes_input;
-   struct lp_jit_resources *jit_resources;
    struct draw_tes_llvm_variant *current_variant;
 #endif
 };
 
 enum mesa_prim get_tes_output_prim(struct draw_tess_eval_shader *shader);
 
-int draw_tess_ctrl_shader_run(struct draw_tess_ctrl_shader *shader,
+int draw_tess_ctrl_shader_run(struct draw_context *draw,
+                              struct draw_tess_ctrl_shader *shader,
                               const struct draw_vertex_info *input_verts,
                               const struct draw_prim_info *input_prim,
                               const struct tgsi_shader_info *input_info,
                               struct draw_vertex_info *output_verts,
                               struct draw_prim_info *output_prims );
 
-int draw_tess_eval_shader_run(struct draw_tess_eval_shader *shader,
+int draw_tess_eval_shader_run(struct draw_context *draw,
+                              struct draw_tess_eval_shader *shader,
                               unsigned num_input_vertices_per_patch,
                               const struct draw_vertex_info *input_verts,
                               const struct draw_prim_info *input_prim,

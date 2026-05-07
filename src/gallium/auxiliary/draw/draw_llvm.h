@@ -415,8 +415,6 @@ struct draw_gs_llvm_variant
 
    struct llvm_geometry_shader *shader;
 
-   struct draw_llvm *llvm;
-
    /* key is variable-sized, must be last */
    struct draw_gs_llvm_variant_key key;
 };
@@ -440,8 +438,6 @@ struct draw_tcs_llvm_variant
    draw_tcs_jit_func jit_func;
 
    struct llvm_tess_ctrl_shader *shader;
-
-   struct draw_llvm *llvm;
 
    /* key is variable-sized, must be last */
    struct draw_tcs_llvm_variant_key key;
@@ -470,8 +466,6 @@ struct draw_tes_llvm_variant
    draw_tes_jit_func jit_func;
 
    struct llvm_tess_eval_shader *shader;
-
-   struct draw_llvm *llvm;
 
    /* key is variable-sized, must be last */
    struct draw_tes_llvm_variant_key key;

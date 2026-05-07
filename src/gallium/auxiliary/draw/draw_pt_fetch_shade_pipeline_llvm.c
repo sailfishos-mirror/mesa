@@ -404,7 +404,7 @@ llvm_pipeline_generic(struct draw_pt_middle_end *middle,
    if (opt & PT_SHADE) {
       struct draw_vertex_shader *vshader = draw->vs.vertex_shader;
       if (tcs_shader) {
-         draw_tess_ctrl_shader_run(tcs_shader,
+         draw_tess_ctrl_shader_run(draw, tcs_shader,
                                    vert_info,
                                    prim_info,
                                    &vshader->info,
@@ -422,7 +422,7 @@ llvm_pipeline_generic(struct draw_pt_middle_end *middle,
       }
 
       if (tes_shader) {
-         draw_tess_eval_shader_run(tes_shader,
+         draw_tess_eval_shader_run(draw, tes_shader,
                                    tcs_shader ? tcs_shader->vertices_out : draw->pt.vertices_per_patch,
                                    vert_info,
                                    prim_info,
@@ -454,7 +454,7 @@ llvm_pipeline_generic(struct draw_pt_middle_end *middle,
 
    if ((opt & PT_SHADE) && gshader) {
       struct draw_vertex_shader *vshader = draw->vs.vertex_shader;
-      draw_geometry_shader_run(gshader,
+      draw_geometry_shader_run(draw, gshader,
                                draw->pt.user.constants[MESA_SHADER_GEOMETRY],
                                vert_info,
                                prim_info,

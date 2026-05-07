@@ -2561,7 +2561,6 @@ draw_gs_llvm_create_variant(struct draw_llvm *llvm,
    if (!variant)
       return NULL;
 
-   variant->llvm = llvm;
    variant->shader = shader;
 
    snprintf(module_name, sizeof(module_name), "draw_llvm_gs_variant%u",
@@ -3242,7 +3241,6 @@ draw_tcs_llvm_create_variant(struct draw_llvm *llvm,
    if (!variant)
       return NULL;
 
-   variant->llvm = llvm;
    variant->shader = shader;
 
    snprintf(module_name, sizeof(module_name), "draw_llvm_tcs_variant%u",
@@ -3790,7 +3788,6 @@ draw_tes_llvm_create_variant(struct draw_llvm *llvm,
    if (!variant)
       return NULL;
 
-   variant->llvm = llvm;
    variant->shader = shader;
 
    snprintf(module_name, sizeof(module_name), "draw_llvm_tes_variant%u",

@@ -206,7 +206,8 @@ tgsi_gs_prepare(struct draw_geometry_shader *shader,
 
 
 static void
-tgsi_gs_run(struct draw_geometry_shader *shader,
+tgsi_gs_run(UNUSED struct draw_context *draw,
+            struct draw_geometry_shader *shader,
             unsigned input_primitives,
             unsigned *out_prims)
 {
@@ -386,7 +387,8 @@ llvm_gs_prepare(struct draw_geometry_shader *shader,
 
 
 static void
-llvm_gs_run(struct draw_geometry_shader *shader,
+llvm_gs_run(struct draw_context *draw,
+            struct draw_geometry_shader *shader,
             unsigned input_primitives, unsigned *out_prims)
 {
    struct vertex_header *input[PIPE_MAX_VERTEX_STREAMS];
@@ -396,18 +398,19 @@ llvm_gs_run(struct draw_geometry_shader *shader,
       input[i] = (struct vertex_header *)tmp;
    }
 
-   shader->current_variant->jit_func(shader->jit_context,
-                                     shader->jit_resources,
+   struct draw_gs_jit_context *jit_context = &draw->llvm->gs_jit_context;
+   shader->current_variant->jit_func(jit_context,
+                                     &draw->llvm->jit_resources[MESA_SHADER_GEOMETRY],
                                      shader->gs_input->data,
                                      input,
                                      input_primitives,
-                                     shader->draw->instance_id,
+                                     draw->instance_id,
                                      shader->llvm_prim_ids,
                                      shader->invocation_id,
-                                     shader->draw->pt.user.viewid);
+                                     draw->pt.user.viewid);
 
    for (unsigned i = 0; i < shader->num_vertex_streams; i++) {
-      out_prims[i] = shader->jit_context->emitted_prims[i];
+      out_prims[i] = jit_context->emitted_prims[i];
    }
 }
 
@@ -415,14 +418,14 @@ llvm_gs_run(struct draw_geometry_shader *shader,
 
 
 static void
-gs_flush(struct draw_geometry_shader *shader)
+gs_flush(struct draw_context *draw, struct draw_geometry_shader *shader)
 {
    unsigned out_prim_count[TGSI_MAX_VERTEX_STREAMS];
    unsigned i;
    unsigned input_primitives = shader->fetched_prim_count;
 
-   if (shader->draw->collect_statistics) {
-      shader->draw->statistics.gs_invocations += input_primitives * shader->num_invocations;
+   if (draw->collect_statistics) {
+      draw->statistics.gs_invocations += input_primitives * shader->num_invocations;
    }
 
    assert(input_primitives > 0 &&
@@ -430,7 +433,7 @@ gs_flush(struct draw_geometry_shader *shader)
 
    for (unsigned invocation = 0; invocation < shader->num_invocations; invocation++) {
       shader->invocation_id = invocation;
-      shader->run(shader, input_primitives, out_prim_count);
+      shader->run(draw, shader, input_primitives, out_prim_count);
       for (i = 0; i < shader->num_vertex_streams; i++) {
          shader->fetch_outputs(shader, i, out_prim_count[i],
                                &shader->stream[i].tmp_output);
@@ -451,7 +454,7 @@ gs_flush(struct draw_geometry_shader *shader)
 
 
 static void
-increment_prim(struct draw_geometry_shader *shader)
+increment_prim(struct draw_context *draw, struct draw_geometry_shader *shader)
 {
    /* Primitive ID must be per-patch instead of per
     * tessellation primitive. If we have patch lengths
@@ -472,12 +475,12 @@ increment_prim(struct draw_geometry_shader *shader)
    }
 
    if (draw_gs_should_flush(shader))
-      gs_flush(shader);
+      gs_flush(draw, shader);
 }
 
 
 static void
-gs_point(struct draw_geometry_shader *shader, int idx)
+gs_point(struct draw_context *draw, struct draw_geometry_shader *shader, int idx)
 {
    unsigned indices[1];
 
@@ -486,12 +489,12 @@ gs_point(struct draw_geometry_shader *shader, int idx)
    shader->fetch_inputs(shader, indices, 1,
                         shader->fetched_prim_count);
 
-   increment_prim(shader);
+   increment_prim(draw, shader);
 }
 
 
 static void
-gs_line(struct draw_geometry_shader *shader, int i0, int i1)
+gs_line(struct draw_context *draw, struct draw_geometry_shader *shader, int i0, int i1)
 {
    unsigned indices[2];
 
@@ -501,12 +504,12 @@ gs_line(struct draw_geometry_shader *shader, int i0, int i1)
    shader->fetch_inputs(shader, indices, 2,
                         shader->fetched_prim_count);
 
-   increment_prim(shader);
+   increment_prim(draw, shader);
 }
 
 
 static void
-gs_line_adj(struct draw_geometry_shader *shader,
+gs_line_adj(struct draw_context *draw, struct draw_geometry_shader *shader,
             int i0, int i1, int i2, int i3)
 {
    unsigned indices[4];
@@ -519,12 +522,12 @@ gs_line_adj(struct draw_geometry_shader *shader,
    shader->fetch_inputs(shader, indices, 4,
                         shader->fetched_prim_count);
 
-   increment_prim(shader);
+   increment_prim(draw, shader);
 }
 
 
 static void
-gs_tri(struct draw_geometry_shader *shader,
+gs_tri(struct draw_context *draw, struct draw_geometry_shader *shader,
        int i0, int i1, int i2)
 {
    unsigned indices[3];
@@ -536,12 +539,12 @@ gs_tri(struct draw_geometry_shader *shader,
    shader->fetch_inputs(shader, indices, 3,
                         shader->fetched_prim_count);
 
-   increment_prim(shader);
+   increment_prim(draw, shader);
 }
 
 
 static void
-gs_tri_adj(struct draw_geometry_shader *shader,
+gs_tri_adj(struct draw_context *draw, struct draw_geometry_shader *shader,
            int i0, int i1, int i2,
            int i3, int i4, int i5)
 {
@@ -557,7 +560,7 @@ gs_tri_adj(struct draw_geometry_shader *shader,
    shader->fetch_inputs(shader, indices, 6,
                         shader->fetched_prim_count);
 
-   increment_prim(shader);
+   increment_prim(draw, shader);
 }
 
 #define FUNC         gs_run
@@ -575,7 +578,8 @@ gs_tri_adj(struct draw_geometry_shader *shader,
  * Execute geometry shader.
  */
 void
-draw_geometry_shader_run(struct draw_geometry_shader *shader,
+draw_geometry_shader_run(struct draw_context *draw,
+                         struct draw_geometry_shader *shader,
                          const struct draw_buffer_info *constants,
                          const struct draw_vertex_info *input_verts,
                          const struct draw_prim_info *input_prim,
@@ -586,7 +590,7 @@ draw_geometry_shader_run(struct draw_geometry_shader *shader,
 {
    const float (*input)[4] = (const float (*)[4])input_verts->verts->data;
    const unsigned input_stride = input_verts->vertex_size;
-   const unsigned num_outputs = draw_total_gs_outputs(shader->draw);
+   const unsigned num_outputs = draw_total_gs_outputs(draw);
    const unsigned vertex_size =
       sizeof(struct vertex_header) + num_outputs * 4 * sizeof(float);
    const unsigned num_input_verts =
@@ -654,7 +658,7 @@ draw_geometry_shader_run(struct draw_geometry_shader *shader,
    shader->next_patch_length = patch_lengths ? *patch_lengths : NULL;
 
 #if DRAW_LLVM_AVAILABLE
-   if (shader->draw->llvm) {
+   if (draw->llvm) {
       for (int i = 0; i < shader->num_vertex_streams; i++) {
          shader->gs_output[i] = output_verts[i].verts;
       }
@@ -675,26 +679,27 @@ draw_geometry_shader_run(struct draw_geometry_shader *shader,
 
          shader->max_out_prims = max_out_prims;
       }
-      shader->jit_context->prim_lengths = shader->llvm_prim_lengths;
-      shader->jit_context->emitted_vertices = shader->llvm_emitted_vertices;
-      shader->jit_context->emitted_prims = shader->llvm_emitted_primitives;
+      struct draw_gs_jit_context *jit_context = &draw->llvm->gs_jit_context;
+      jit_context->prim_lengths = shader->llvm_prim_lengths;
+      jit_context->emitted_vertices = shader->llvm_emitted_vertices;
+      jit_context->emitted_prims = shader->llvm_emitted_primitives;
    }
 #endif
 
    shader->prepare(shader, constants);
 
    if (input_prim->linear)
-      gs_run(shader, input_prim, input_verts,
+      gs_run(draw, shader, input_prim, input_verts,
              output_prims, output_verts);
    else
-      gs_run_elts(shader, input_prim, input_verts,
+      gs_run_elts(draw, shader, input_prim, input_verts,
                   output_prims, output_verts);
 
    /* Flush the remaining primitives. Will happen if
     * num_input_primitives % 4 != 0
     */
    if (shader->fetched_prim_count > 0) {
-      gs_flush(shader);
+      gs_flush(draw, shader);
    }
    assert(shader->fetched_prim_count == 0);
 
@@ -711,9 +716,9 @@ draw_geometry_shader_run(struct draw_geometry_shader *shader,
       output_prims[i].primitive_count = shader->stream[i].emitted_primitives;
       output_verts[i].count = shader->stream[i].emitted_vertices;
 
-      if (shader->draw->collect_statistics) {
+      if (draw->collect_statistics) {
          for (unsigned j = 0; j < shader->stream[i].emitted_primitives; ++j) {
-            shader->draw->statistics.gs_primitives +=
+            draw->statistics.gs_primitives +=
                u_decomposed_prims_for_vertices(shader->output_primitive,
                                     shader->stream[i].primitive_lengths[j]);
          }
@@ -815,7 +820,6 @@ draw_create_geometry_shader(struct draw_context *draw,
    if (!gs)
       return NULL;
 
-   gs->draw = draw;
    gs->state = *state;
 
    if (state->type == PIPE_SHADER_IR_TGSI) {
@@ -915,9 +919,6 @@ draw_create_geometry_shader(struct draw_context *draw,
       gs->fetch_inputs = llvm_fetch_gs_input;
       gs->prepare = llvm_gs_prepare;
       gs->run = llvm_gs_run;
-
-      gs->jit_context = &draw->llvm->gs_jit_context;
-      gs->jit_resources = &draw->llvm->jit_resources[MESA_SHADER_GEOMETRY];
 
       llvm_gs->variant_key_size =
          draw_gs_llvm_variant_key_size(

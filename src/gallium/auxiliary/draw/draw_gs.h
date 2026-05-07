@@ -38,7 +38,6 @@
 struct draw_context;
 
 #if DRAW_LLVM_AVAILABLE
-struct draw_gs_jit_context;
 struct draw_gs_llvm_variant;
 
 /**
@@ -66,8 +65,6 @@ struct draw_vertex_stream {
 };
 
 struct draw_geometry_shader {
-   struct draw_context *draw;
-
    struct tgsi_exec_machine *machine;
 
    /* This member will disappear shortly:*/
@@ -102,8 +99,6 @@ struct draw_geometry_shader {
    unsigned invocation_id;
 #if DRAW_LLVM_AVAILABLE
    struct draw_gs_inputs *gs_input;
-   struct draw_gs_jit_context *jit_context;
-   struct lp_jit_resources *jit_resources;
    struct draw_gs_llvm_variant *current_variant;
    struct vertex_header *gs_output[PIPE_MAX_VERTEX_STREAMS];
 
@@ -124,7 +119,8 @@ struct draw_geometry_shader {
 
    void (*prepare)(struct draw_geometry_shader *shader,
                    const struct draw_buffer_info *constants);
-   void (*run)(struct draw_geometry_shader *shader,
+   void (*run)(struct draw_context *draw,
+               struct draw_geometry_shader *shader,
                unsigned input_primitives, unsigned *out_prims);
 };
 
@@ -139,7 +135,8 @@ draw_geometry_shader_new_instance(struct draw_geometry_shader *gs);
  * smaller than the GS_MAX_OUTPUT_VERTICES shader property.
  */
 void
-draw_geometry_shader_run(struct draw_geometry_shader *shader,
+draw_geometry_shader_run(struct draw_context *draw,
+                         struct draw_geometry_shader *shader,
                          const struct draw_buffer_info *constants,
                          const struct draw_vertex_info *input_verts,
                          const struct draw_prim_info *input_prim,
