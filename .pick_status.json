@@ -484,7 +484,7 @@
         "description": "r600: Fix crash on R600/R700 with custom border color",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5bee7c0b122ed307430c12e3963830e30ead0248",
         "notes": null
