@@ -1409,6 +1409,113 @@ static uint64_t ac_estimate_size(const struct ac_surf_config *config,
 #define SI__GB_TILE_MODE__NUM_BANKS(x)          (((x) >> 20) & 0x3)
 
 /**
+ * Select the best tile mode that doesn't overallocate memory too much.
+ * The tile modes below are sorted from best to worst performance.
+ */
+static int gfx6_select_3d_tile_idx(struct ac_addrlib *const addrlib,
+                                   const struct radeon_info *const info,
+                                   const struct ac_surf_config *const config,
+                                   const struct radeon_surf *const surf)
+{
+   struct {
+      unsigned tile_mode;
+      unsigned gfx6_tile_mode_index;
+      unsigned gfx7_tile_mode_index;
+      unsigned microtile_width;
+      unsigned microtile_height;
+      unsigned microtile_depth;
+      bool supported; /* this comes from the tile mode arrays in the kernel */
+      /* Derived fields. */
+      unsigned bank_width;
+      unsigned bank_height;
+      unsigned num_banks;
+      unsigned macro_tile_aspect;
+      unsigned align_width;
+      unsigned align_height;
+      unsigned align_depth;
+   } modes[] = {
+      {ADDR_TM_3D_TILED_XTHICK, 0, 26, 8, 8, 8, info->gfx_level >= GFX7},
+      {ADDR_TM_2D_TILED_XTHICK, 19, 25, 8, 8, 8, true},
+      {ADDR_TM_3D_TILED_THICK, 0, 21, 8, 8, 4, info->gfx_level >= GFX7},
+      {ADDR_TM_2D_TILED_THICK, 20, 20, 8, 8, 4, true},
+      {ADDR_TM_3D_TILED_THIN1, 0, 15, 8, 8, 1, info->gfx_level >= GFX7},
+      {ADDR_TM_2D_TILED_THIN1, 14, 14, 8, 8, 1, true},
+      {ADDR_TM_1D_TILED_THICK, 18, 19, 8, 8, 4, true},
+      {ADDR_TM_1D_TILED_THIN1, 13, 13, 8, 8, 1, true},
+      /* Don't use LINEAR_ALIGNED. It doesn't work with BC formats. */
+   };
+
+   for (unsigned i = 0; i < ARRAY_SIZE(modes); i++) {
+      if (!modes[i].supported)
+         continue;
+
+      if (modes[i].tile_mode <= ADDR_TM_1D_TILED_THICK) {
+         modes[i].align_width = modes[i].microtile_width;
+         modes[i].align_height = modes[i].microtile_height;
+         modes[i].align_depth = modes[i].microtile_depth;
+         continue;
+      }
+
+      if (info->gfx_level >= GFX7) {
+         ADDR_GET_MACROMODEINDEX_INPUT in = {sizeof(in)};
+         ADDR_GET_MACROMODEINDEX_OUTPUT out = {sizeof(out)};
+
+         in.tileIndex = modes[i].gfx7_tile_mode_index;
+         in.bpp = surf->bpe * 8;
+         in.numFrags = 1;
+
+         if (AddrGetMacroModeIndex(addrlib->handle, &in, &out) != ADDR_OK) {
+            fprintf(stderr, "amdgpu: AddrGetMacroModeIndex failed.\n");
+            return -1;
+         }
+
+         uint32_t macro_mode_reg = info->cik_macrotile_mode_array[out.macroModeIndex];
+         modes[i].bank_width = 1 << G_009990_BANK_WIDTH(macro_mode_reg);
+         modes[i].bank_height = 1 << G_009990_BANK_HEIGHT(macro_mode_reg);
+         modes[i].num_banks = 2 << G_009990_NUM_BANKS(macro_mode_reg);
+         modes[i].macro_tile_aspect = 1 << G_009990_MACRO_TILE_ASPECT(macro_mode_reg);
+      } else {
+         /* GFX6. */
+         uint32_t tile_mode_reg = info->si_tile_mode_array[modes[i].gfx6_tile_mode_index];
+         modes[i].bank_width = 1 << SI__GB_TILE_MODE__BANK_WIDTH(tile_mode_reg);
+         modes[i].bank_height = 1 << SI__GB_TILE_MODE__BANK_HEIGHT(tile_mode_reg);
+         modes[i].num_banks = 2 << SI__GB_TILE_MODE__NUM_BANKS(tile_mode_reg);
+         modes[i].macro_tile_aspect = 1 << SI__GB_TILE_MODE__MACRO_TILE_ASPECT(tile_mode_reg);
+      }
+
+      modes[i].align_width = modes[i].microtile_width * modes[i].bank_width *
+                              info->num_tile_pipes * modes[i].macro_tile_aspect;
+      modes[i].align_height = modes[i].microtile_height * modes[i].bank_height *
+                              modes[i].num_banks / modes[i].macro_tile_aspect;
+      modes[i].align_depth = modes[i].microtile_depth;
+   }
+
+   uint64_t ideal_size = ac_estimate_size(config, surf->blk_w, surf->blk_h, surf->bpe * 8,
+                                          config->info.width, config->info.height, 1, 1, 1);
+   int tile_idx = ADDR_TM_1D_TILED_THIN1; /* used if everything else fails */
+
+   for (unsigned i = 0; i < ARRAY_SIZE(modes); i++) {
+      if (!modes[i].supported)
+         continue;
+
+      if (modes[i].align_depth > 1 && surf->flags & RADEON_SURF_VIEW_3D_AS_2D_ARRAY)
+         continue;
+
+      uint64_t size = ac_estimate_size(config, surf->blk_w, surf->blk_h, surf->bpe * 8,
+                                       config->info.width, config->info.height,
+                                       modes[i].align_width, modes[i].align_height,
+                                       modes[i].align_depth);
+
+      if (size <= ideal_size * 3) {
+         tile_idx = modes[i].tile_mode;
+         break;
+      }
+   }
+
+   return tile_idx;
+}
+
+/**
  * Fill in the tiling information in \p surf based on the given surface config.
  *
  * The following fields of \p surf must be initialized by the caller:
@@ -1468,108 +1575,10 @@ static int gfx6_compute_surface(struct ac_addrlib *addrlib, const struct radeon_
          } else {
             AddrSurfInfoIn.tileMode = ADDR_TM_PRT_TILED_THIN1;
          }
+      } else if (config->is_3d) {
+         AddrSurfInfoIn.tileMode = gfx6_select_3d_tile_idx(addrlib, info, config, surf);
       } else {
-         if (config->is_3d) {
-            /* Select the best tile mode that doesn't overallocate memory too much.
-             * The tile modes below are sorted from best to worst performance.
-             */
-            struct {
-               unsigned tile_mode;
-               unsigned gfx6_tile_mode_index;
-               unsigned gfx7_tile_mode_index;
-               unsigned microtile_width;
-               unsigned microtile_height;
-               unsigned microtile_depth;
-               bool supported; /* this comes from the tile mode arrays in the kernel */
-               /* Derived fields. */
-               unsigned bank_width;
-               unsigned bank_height;
-               unsigned num_banks;
-               unsigned macro_tile_aspect;
-               unsigned align_width;
-               unsigned align_height;
-               unsigned align_depth;
-            } modes[] = {
-               {ADDR_TM_3D_TILED_XTHICK, 0, 26, 8, 8, 8, info->gfx_level >= GFX7},
-               {ADDR_TM_2D_TILED_XTHICK, 19, 25, 8, 8, 8, true},
-               {ADDR_TM_3D_TILED_THICK, 0, 21, 8, 8, 4, info->gfx_level >= GFX7},
-               {ADDR_TM_2D_TILED_THICK, 20, 20, 8, 8, 4, true},
-               {ADDR_TM_3D_TILED_THIN1, 0, 15, 8, 8, 1, info->gfx_level >= GFX7},
-               {ADDR_TM_2D_TILED_THIN1, 14, 14, 8, 8, 1, true},
-               {ADDR_TM_1D_TILED_THICK, 18, 19, 8, 8, 4, true},
-               {ADDR_TM_1D_TILED_THIN1, 13, 13, 8, 8, 1, true},
-               /* Don't use LINEAR_ALIGNED. It doesn't work with BC formats. */
-            };
-
-            for (unsigned i = 0; i < ARRAY_SIZE(modes); i++) {
-               if (!modes[i].supported)
-                  continue;
-
-               if (modes[i].tile_mode <= ADDR_TM_1D_TILED_THICK) {
-                  modes[i].align_width = modes[i].microtile_width;
-                  modes[i].align_height = modes[i].microtile_height;
-                  modes[i].align_depth = modes[i].microtile_depth;
-                  continue;
-               }
-
-               if (info->gfx_level >= GFX7) {
-                  ADDR_GET_MACROMODEINDEX_INPUT in = {sizeof(in)};
-                  ADDR_GET_MACROMODEINDEX_OUTPUT out = {sizeof(out)};
-
-                  in.tileIndex = modes[i].gfx7_tile_mode_index;
-                  in.bpp = surf->bpe * 8;
-                  in.numFrags = 1;
-
-                  if (AddrGetMacroModeIndex(addrlib->handle, &in, &out) != ADDR_OK) {
-                     fprintf(stderr, "amdgpu: AddrGetMacroModeIndex failed.\n");
-                     return -1;
-                  }
-
-                  uint32_t macro_mode_reg = info->cik_macrotile_mode_array[out.macroModeIndex];
-                  modes[i].bank_width = 1 << G_009990_BANK_WIDTH(macro_mode_reg);
-                  modes[i].bank_height = 1 << G_009990_BANK_HEIGHT(macro_mode_reg);
-                  modes[i].num_banks = 2 << G_009990_NUM_BANKS(macro_mode_reg);
-                  modes[i].macro_tile_aspect = 1 << G_009990_MACRO_TILE_ASPECT(macro_mode_reg);
-               } else {
-                  /* GFX6. */
-                  uint32_t tile_mode_reg = info->si_tile_mode_array[modes[i].gfx6_tile_mode_index];
-                  modes[i].bank_width = 1 << SI__GB_TILE_MODE__BANK_WIDTH(tile_mode_reg);
-                  modes[i].bank_height = 1 << SI__GB_TILE_MODE__BANK_HEIGHT(tile_mode_reg);
-                  modes[i].num_banks = 2 << SI__GB_TILE_MODE__NUM_BANKS(tile_mode_reg);
-                  modes[i].macro_tile_aspect = 1 << SI__GB_TILE_MODE__MACRO_TILE_ASPECT(tile_mode_reg);
-               }
-
-               modes[i].align_width = modes[i].microtile_width * modes[i].bank_width *
-                                      info->num_tile_pipes * modes[i].macro_tile_aspect;
-               modes[i].align_height = modes[i].microtile_height * modes[i].bank_height *
-                                       modes[i].num_banks / modes[i].macro_tile_aspect;
-               modes[i].align_depth = modes[i].microtile_depth;
-            }
-
-            uint64_t ideal_size = ac_estimate_size(config, surf->blk_w, surf->blk_h, surf->bpe * 8,
-                                                   config->info.width, config->info.height, 1, 1, 1);
-            AddrSurfInfoIn.tileMode = ADDR_TM_1D_TILED_THIN1; /* used if everything else fails */
-
-            for (unsigned i = 0; i < ARRAY_SIZE(modes); i++) {
-               if (!modes[i].supported)
-                  continue;
-
-               if (modes[i].align_depth > 1 && surf->flags & RADEON_SURF_VIEW_3D_AS_2D_ARRAY)
-                  continue;
-
-               uint64_t size = ac_estimate_size(config, surf->blk_w, surf->blk_h, surf->bpe * 8,
-                                                config->info.width, config->info.height,
-                                                modes[i].align_width, modes[i].align_height,
-                                                modes[i].align_depth);
-
-               if (size <= ideal_size * 3) {
-                  AddrSurfInfoIn.tileMode = modes[i].tile_mode;
-                  break;
-               }
-            }
-         } else {
-            AddrSurfInfoIn.tileMode = ADDR_TM_2D_TILED_THIN1;
-         }
+         AddrSurfInfoIn.tileMode = ADDR_TM_2D_TILED_THIN1;
       }
       break;
    default:
