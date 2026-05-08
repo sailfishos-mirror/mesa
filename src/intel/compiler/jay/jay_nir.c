@@ -142,6 +142,7 @@ collect_fragment_output(nir_builder *b, nir_intrinsic_instr *intr, void *ctx_)
 
    gl_frag_result loc = nir_intrinsic_io_semantics(intr).location;
    assert(!nir_intrinsic_io_semantics(intr).dual_source_blend_index && "todo");
+   assert(loc != FRAG_RESULT_DUAL_SRC_BLEND && "todo");
    nir_def **out;
    if (loc == FRAG_RESULT_COLOR) {
       out = &ctx->colour[0];
