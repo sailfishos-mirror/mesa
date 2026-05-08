@@ -635,4 +635,8 @@ impl nir_shader {
     pub fn iter_variables(&self) -> ExecListIter<'_, nir_variable> {
         ExecListIter::new(&self.variables, offset_of!(nir_variable, node))
     }
+
+    pub fn get_entrypoint(&self) -> Option<&nir_function_impl> {
+        unsafe { nir_shader_get_entrypoint(self).as_ref() }
+    }
 }
