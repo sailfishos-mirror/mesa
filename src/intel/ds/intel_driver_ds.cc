@@ -583,12 +583,22 @@ CREATE_DUAL_EVENT_CALLBACK(sba, INTEL_DS_QUEUE_STAGE_CMD_BUFFER)
 CREATE_DUAL_EVENT_CALLBACK(btp, INTEL_DS_QUEUE_STAGE_CMD_BUFFER)
 CREATE_DUAL_EVENT_CALLBACK(render_pass, INTEL_DS_QUEUE_STAGE_RENDER_PASS)
 CREATE_DUAL_EVENT_CALLBACK(blorp, INTEL_DS_QUEUE_STAGE_BLORP)
-CREATE_DUAL_EVENT_CALLBACK(draw, INTEL_DS_QUEUE_STAGE_DRAW)
-CREATE_DUAL_EVENT_CALLBACK(draw_indexed, INTEL_DS_QUEUE_STAGE_DRAW)
+CREATE_DUAL_EVENT_CALLBACK_DYN(draw, INTEL_DS_QUEUE_STAGE_DRAW,
+                               "draw(%u)", payload->count)
+CREATE_DUAL_EVENT_CALLBACK_DYN(draw_indexed, INTEL_DS_QUEUE_STAGE_DRAW,
+                               "draw_indexed(%u)", payload->count)
 CREATE_DUAL_EVENT_CALLBACK(draw_indexed_multi, INTEL_DS_QUEUE_STAGE_DRAW)
-CREATE_DUAL_EVENT_CALLBACK(draw_indexed_indirect, INTEL_DS_QUEUE_STAGE_DRAW)
+CREATE_DUAL_EVENT_CALLBACK_DYN(draw_indexed_indirect, INTEL_DS_QUEUE_STAGE_DRAW,
+                               (p_atomic_read_relaxed(&device->trace_context.enabled_traces) &
+                                U_TRACE_TYPE_INDIRECTS) ?
+                               "draw_indexed_indirect(%u)" : "draw_indexed_indirect",
+                               payload->draw_count)
 CREATE_DUAL_EVENT_CALLBACK(draw_multi, INTEL_DS_QUEUE_STAGE_DRAW)
-CREATE_DUAL_EVENT_CALLBACK(draw_indirect, INTEL_DS_QUEUE_STAGE_DRAW)
+CREATE_DUAL_EVENT_CALLBACK_DYN(draw_indirect, INTEL_DS_QUEUE_STAGE_DRAW,
+                               (p_atomic_read_relaxed(&device->trace_context.enabled_traces) &
+                                U_TRACE_TYPE_INDIRECTS) ?
+                               "draw_indirect(%u)" : "draw_indirect",
+                               payload->draw_count)
 CREATE_DUAL_EVENT_CALLBACK(draw_indirect_count, INTEL_DS_QUEUE_STAGE_DRAW)
 CREATE_DUAL_EVENT_CALLBACK(draw_indirect_byte_count, INTEL_DS_QUEUE_STAGE_DRAW)
 CREATE_DUAL_EVENT_CALLBACK(draw_indexed_indirect_count, INTEL_DS_QUEUE_STAGE_DRAW)
