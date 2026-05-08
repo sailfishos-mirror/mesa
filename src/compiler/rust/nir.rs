@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::bindings::*;
+use crate::memstream::MemStream;
 
 use std::ffi::{c_void, CStr};
+use std::io;
 use std::marker::PhantomData;
 use std::mem::offset_of;
 use std::str;
@@ -638,5 +640,11 @@ impl nir_shader {
 
     pub fn get_entrypoint(&self) -> Option<&nir_function_impl> {
         unsafe { nir_shader_get_entrypoint(self).as_ref() }
+    }
+
+    pub fn to_string(&mut self) -> io::Result<String> {
+        let mut stream = MemStream::new()?;
+        unsafe { nir_print_shader(self, stream.c_file()) };
+        stream.take_utf8_string_lossy()
     }
 }
