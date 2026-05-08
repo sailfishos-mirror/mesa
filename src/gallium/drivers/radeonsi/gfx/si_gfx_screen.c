@@ -15,10 +15,9 @@
 #include "util/u_screen.h"
 
 #include <sys/utsname.h>
-#include <ctype.h>
 
 #if AMD_LLVM_AVAILABLE
-#include "ac_llvm_util.h"
+#include <llvm-c/TargetMachine.h>
 #endif
 
 #include <xf86drm.h>
