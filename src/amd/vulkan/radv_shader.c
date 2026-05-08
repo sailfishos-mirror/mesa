@@ -579,7 +579,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
          NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp | nir_var_shader_temp, NULL);
       }
 
-      NIR_PASS(progress, nir, radv_nir_lower_cooperative_matrix, compiler_info->ac->gfx_level,
+      NIR_PASS(progress, nir, radv_nir_lower_cooperative_matrix, compiler_info->ac->gfx_level, stage,
                nir->info.max_subgroup_size);
       if (progress) {
          NIR_PASS(_, nir, nir_opt_dce);
