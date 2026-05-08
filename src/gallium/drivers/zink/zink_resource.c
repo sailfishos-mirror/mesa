@@ -326,8 +326,7 @@ create_bci(struct zink_screen *screen, const struct pipe_resource *templ, unsign
    if (screen->info.have_KHR_buffer_device_address)
       bci.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-   if (bind & PIPE_BIND_SHADER_IMAGE)
-      bci.usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
+   bci.usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
 
    if (bind & PIPE_BIND_QUERY_BUFFER)
       bci.usage |= VK_BUFFER_USAGE_CONDITIONAL_RENDERING_BIT_EXT;
