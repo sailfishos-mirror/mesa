@@ -2491,7 +2491,7 @@ fail:
    return vk_error(device->instance, VK_ERROR_OUT_OF_HOST_MEMORY);
 }
 
-void
+static void
 tu_free_copy_timestamp_data(struct tu_device *device,
                             struct tu_copy_timestamp_data *data)
 {
@@ -2739,7 +2739,7 @@ tu_device_get_timestamp(struct vk_device *vk_device, uint64_t *timestamp)
    return ret == 0 ? VK_SUCCESS : VK_ERROR_UNKNOWN;
 }
 
-void
+static void
 tu_device_destroy_mutexes(struct tu_device *device)
 {
    mtx_destroy(&device->bo_mutex);
@@ -3984,7 +3984,7 @@ tu_get_msrtss_temporary(struct tu_device *dev,
  * framebuffer with render passes or the command buffer with dynamic
  * rendering.
  */
-VkResult
+static VkResult
 tu_init_msrtss_attachments(struct tu_device *device,
                            const struct tu_render_pass *pass,
                            const struct tu_framebuffer *fb,

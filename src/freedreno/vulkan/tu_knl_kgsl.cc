@@ -786,7 +786,7 @@ wait_timestamp_safe(int fd,
    }
 }
 
-VkResult
+static VkResult
 kgsl_queue_wait_fence(struct tu_queue *queue, uint32_t fence,
                       uint64_t timeout_ns)
 {
