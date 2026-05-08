@@ -2375,10 +2375,9 @@ tu_create_copy_timestamp_cs(struct tu_u_trace_submission_data *submission_data,
 
       tu_cs_init(&submission_data->timestamp_copy_data->cs, device,
                  TU_CS_MODE_GROW, cs_size, "trace copy timestamp cs");
+      u_trace_init(&submission_data->timestamp_copy_data->trace,
+                   &device->trace_context);
    }
-
-   u_trace_init(&submission_data->timestamp_copy_data->trace,
-                &device->trace_context);
 
    tu_cs *cs = &submission_data->timestamp_copy_data->cs;
 
@@ -2492,6 +2491,8 @@ tu_u_trace_submission_data_finish(
       if (u_trace_enabled(&device->trace_context)) {
          tu_cs_reset(&submission_data->timestamp_copy_data->cs);
          u_trace_fini(&submission_data->timestamp_copy_data->trace);
+         u_trace_init(&submission_data->timestamp_copy_data->trace,
+                      &device->trace_context);
 
          mtx_lock(&device->copy_timestamp_cs_pool_mutex);
          list_addtail(&submission_data->timestamp_copy_data->node,
