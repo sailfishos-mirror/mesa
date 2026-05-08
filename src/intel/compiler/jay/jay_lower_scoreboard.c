@@ -7,6 +7,7 @@
 #include "compiler/brw/brw_eu_defines.h"
 #include "util/bitscan.h"
 #include "util/bitset.h"
+#include "util/list.h"
 #include "util/macros.h"
 #include "util/u_math.h"
 #include "jay_builder.h"
@@ -411,7 +412,31 @@ jay_lower_scoreboard(jay_shader *shader)
          lower_send_local(f, block);
       }
 
+      /* RegDist scoreboarding is global but requires no dataflow analysis,
+       * because taking a branch stalls all ALU pipelines. Therefore, it
+       * suffices to propagate scoreboard state along fallthrough edges. We
+       * implement that backwards: state is preserved (correctness), except we
+       * clear access[] when entering blocks that are unreachable by falling
+       * through from the previous source-order block and hence must be branch
+       * targets coming in with a clear scoreboard. next[] tracks the
+       * fallthrough block for the logical & physical CFGs respectively.
+       */
+      jay_block *next[UGPR + 1] = { NULL };
+
       jay_foreach_block(f, block) {
+         /* Clear access[] for GPRs according to the logical CFG and for UGPRs
+          * according to the physical CFG. This is a bit pedantic but it ensures
+          * we keep the dependencies for UGPRs across halves of if-else.
+          */
+         for (unsigned f = GPR; f <= UGPR; f++) {
+            if (!list_is_empty(&block->instructions) && next[f] != block) {
+               memset(access + (f ? shader->num_regs[GPR] : 0), 0,
+                      sizeof(access[0]) * shader->num_regs[f]);
+            }
+
+            next[f] = jay_successors(block, f)[0];
+         }
+
          jay_foreach_inst_in_block_safe(block, I) {
             if (I->op == JAY_OPCODE_SYNC) {
                state.last_sync = I;
