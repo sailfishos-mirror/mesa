@@ -1882,6 +1882,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_KHR_maintenance7",
         "VK_KHR_maintenance8",
         "VK_KHR_maintenance9",
+        "VK_GOOGLE_display_timing",
     };
 
     VkEncoder* enc = (VkEncoder*)context;
