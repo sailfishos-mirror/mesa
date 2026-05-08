@@ -399,15 +399,15 @@ llvm_gs_run(struct draw_context *draw,
    }
 
    struct draw_gs_jit_context *jit_context = &draw->llvm->gs_jit_context;
-   shader->current_variant->jit_func(jit_context,
-                                     &draw->llvm->jit_resources[MESA_SHADER_GEOMETRY],
-                                     shader->gs_input->data,
-                                     input,
-                                     input_primitives,
-                                     draw->instance_id,
-                                     shader->llvm_prim_ids,
-                                     shader->invocation_id,
-                                     draw->pt.user.viewid);
+   draw->gs.current_variant->jit_func(jit_context,
+                     &draw->llvm->jit_resources[MESA_SHADER_GEOMETRY],
+                     shader->gs_input->data,
+                     input,
+                     input_primitives,
+                     draw->instance_id,
+                     shader->llvm_prim_ids,
+                     shader->invocation_id,
+                     draw->pt.user.viewid);
 
    for (unsigned i = 0; i < shader->num_vertex_streams; i++) {
       out_prims[i] = jit_context->emitted_prims[i];
@@ -997,15 +997,6 @@ draw_delete_geometry_shader(struct draw_context *draw,
    FREE(dgs);
 }
 
-
-#if DRAW_LLVM_AVAILABLE
-void
-draw_gs_set_current_variant(struct draw_geometry_shader *shader,
-                            struct draw_gs_llvm_variant *variant)
-{
-   shader->current_variant = variant;
-}
-#endif
 
 /*
  * Called at the very begin of the draw call with a new instance

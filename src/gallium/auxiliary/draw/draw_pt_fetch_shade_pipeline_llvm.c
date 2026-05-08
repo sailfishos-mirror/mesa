@@ -82,7 +82,7 @@ llvm_middle_end_prepare_gs(struct llvm_middle_end *fpme)
    struct util_shader_variant *base =
       util_shader_variant_get(&llvm->gs_opts, &shader->variants, shader,
                               key, shader->variant_key_size, NULL);
-   gs->current_variant = base
+   draw->gs.current_variant = base
       ? container_of(base, struct draw_gs_llvm_variant, base) : NULL;
 }
 
@@ -101,7 +101,7 @@ llvm_middle_end_prepare_tcs(struct llvm_middle_end *fpme)
    struct util_shader_variant *base =
       util_shader_variant_get(&llvm->tcs_opts, &shader->variants, shader,
                               key, shader->variant_key_size, NULL);
-   tcs->current_variant = base
+   draw->tcs.current_variant = base
       ? container_of(base, struct draw_tcs_llvm_variant, base) : NULL;
 }
 
@@ -120,7 +120,7 @@ llvm_middle_end_prepare_tes(struct llvm_middle_end *fpme)
    struct util_shader_variant *base =
       util_shader_variant_get(&llvm->tes_opts, &shader->variants, shader,
                               key, shader->variant_key_size, NULL);
-   tes->current_variant = base
+   draw->tes.current_variant = base
       ? container_of(base, struct draw_tes_llvm_variant, base) : NULL;
 }
 

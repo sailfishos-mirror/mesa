@@ -99,7 +99,6 @@ struct draw_geometry_shader {
    unsigned invocation_id;
 #if DRAW_LLVM_AVAILABLE
    struct draw_gs_inputs *gs_input;
-   struct draw_gs_llvm_variant *current_variant;
    struct vertex_header *gs_output[PIPE_MAX_VERTEX_STREAMS];
 
    int **llvm_prim_lengths;
@@ -152,11 +151,5 @@ draw_geometry_shader_prepare(struct draw_geometry_shader *shader,
 int
 draw_gs_max_output_vertices(struct draw_geometry_shader *shader,
                             unsigned pipe_prim);
-
-#if DRAW_LLVM_AVAILABLE
-void
-draw_gs_set_current_variant(struct draw_geometry_shader *shader,
-                            struct draw_gs_llvm_variant *variant);
-#endif
 
 #endif

@@ -146,9 +146,9 @@ static void
 llvm_tcs_run(struct draw_context *draw,
              struct draw_tess_ctrl_shader *shader, uint32_t prim_id)
 {
-   shader->current_variant->jit_func(&draw->llvm->jit_resources[MESA_SHADER_TESS_CTRL],
-                                     shader->tcs_input->data, shader->tcs_output->data, prim_id,
-                                     draw->pt.vertices_per_patch, draw->pt.user.viewid);
+   draw->tcs.current_variant->jit_func(&draw->llvm->jit_resources[MESA_SHADER_TESS_CTRL],
+                                       shader->tcs_input->data, shader->tcs_output->data, prim_id,
+                                       draw->pt.vertices_per_patch, draw->pt.user.viewid);
 }
 #endif
 
@@ -311,11 +311,11 @@ llvm_tes_run(struct draw_context *draw,
              struct pipe_tessellation_factors *tess_factors,
              struct vertex_header *output)
 {
-   shader->current_variant->jit_func(&draw->llvm->jit_resources[MESA_SHADER_TESS_EVAL],
-                                     shader->tes_input->data, output, prim_id,
-                                     tess_data->num_domain_points, tess_data->domain_points_u, tess_data->domain_points_v,
-                                     tess_factors->outer_tf, tess_factors->inner_tf, patch_vertices_in,
-                                     draw->pt.user.viewid);
+   draw->tes.current_variant->jit_func(&draw->llvm->jit_resources[MESA_SHADER_TESS_EVAL],
+                                       shader->tes_input->data, output, prim_id,
+                                       tess_data->num_domain_points, tess_data->domain_points_u, tess_data->domain_points_v,
+                                       tess_factors->outer_tf, tess_factors->inner_tf, patch_vertices_in,
+                                       draw->pt.user.viewid);
 }
 #endif
 
@@ -521,14 +521,6 @@ void draw_delete_tess_ctrl_shader(struct draw_context *draw,
    FREE(dtcs);
 }
 
-#if DRAW_LLVM_AVAILABLE
-void draw_tcs_set_current_variant(struct draw_tess_ctrl_shader *shader,
-                                  struct draw_tcs_llvm_variant *variant)
-{
-   shader->current_variant = variant;
-}
-#endif
-
 struct draw_tess_eval_shader *
 draw_create_tess_eval_shader(struct draw_context *draw,
                              const struct pipe_shader_state *state)
@@ -639,14 +631,6 @@ void draw_delete_tess_eval_shader(struct draw_context *draw,
       ralloc_free(dtes->state.ir.nir);
    FREE(dtes);
 }
-
-#if DRAW_LLVM_AVAILABLE
-void draw_tes_set_current_variant(struct draw_tess_eval_shader *shader,
-                                  struct draw_tes_llvm_variant *variant)
-{
-   shader->current_variant = variant;
-}
-#endif
 
 enum mesa_prim get_tes_output_prim(struct draw_tess_eval_shader *shader)
 {

@@ -67,7 +67,6 @@ struct draw_tess_ctrl_shader {
 #if DRAW_LLVM_AVAILABLE
    struct draw_tcs_inputs *tcs_input;
    struct draw_tcs_outputs *tcs_output;
-   struct draw_tcs_llvm_variant *current_variant;
 #endif
 };
 
@@ -92,7 +91,6 @@ struct draw_tess_eval_shader {
 
 #if DRAW_LLVM_AVAILABLE
    struct draw_tes_inputs *tes_input;
-   struct draw_tes_llvm_variant *current_variant;
 #endif
 };
 
@@ -116,12 +114,5 @@ int draw_tess_eval_shader_run(struct draw_context *draw,
                               struct draw_prim_info *output_prims,
                               uint32_t **patch_lengths,
                               uint16_t **elts_out);
-
-#if DRAW_LLVM_AVAILABLE
-void draw_tcs_set_current_variant(struct draw_tess_ctrl_shader *shader,
-                                  struct draw_tcs_llvm_variant *variant);
-void draw_tes_set_current_variant(struct draw_tess_eval_shader *shader,
-                                  struct draw_tes_llvm_variant *variant);
-#endif
 
 #endif

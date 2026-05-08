@@ -311,6 +311,10 @@ struct draw_context
       unsigned position_output;
       unsigned clipvertex_output;
 
+#if DRAW_LLVM_AVAILABLE
+      struct draw_gs_llvm_variant *current_variant;
+#endif
+
       /** Fields for TGSI interpreter / execution */
       struct {
          struct tgsi_exec_machine *machine;
@@ -324,6 +328,9 @@ struct draw_context
    /* Tessellation state */
    struct {
       struct draw_tess_ctrl_shader *tess_ctrl_shader;
+#if DRAW_LLVM_AVAILABLE
+      struct draw_tcs_llvm_variant *current_variant;
+#endif
    } tcs;
 
    struct {
@@ -331,6 +338,9 @@ struct draw_context
       unsigned num_tes_outputs;  /**< convenience, from tess_eval_shader */
       unsigned position_output;
       unsigned clipvertex_output;
+#if DRAW_LLVM_AVAILABLE
+      struct draw_tes_llvm_variant *current_variant;
+#endif
    } tes;
 
    /** Fragment shader state */
