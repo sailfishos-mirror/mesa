@@ -344,11 +344,7 @@ llvmpipe_init_screen_caps(struct pipe_screen *screen)
    caps->pci_device =
    caps->pci_function = 0;
    caps->allow_mapped_buffers_during_execution = false;
-
-   /* Can't expose shareable shaders because the draw shaders reference the
-    * draw module's state, which is per-context.
-    */
-   caps->shareable_shaders = false;
+   caps->shareable_shaders = true;
    caps->max_gs_invocations = 32;
    caps->max_shader_buffer_size = LP_MAX_TGSI_SHADER_BUFFER_SIZE;
    caps->framebuffer_no_attachment = true;
