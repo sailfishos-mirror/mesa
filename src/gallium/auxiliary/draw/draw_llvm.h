@@ -382,8 +382,6 @@ struct draw_llvm_variant
 
    struct llvm_vertex_shader *shader;
 
-   struct draw_llvm *llvm;
-
    /* key is variable-sized, must be last */
    struct draw_llvm_variant_key key;
 };

@@ -50,7 +50,8 @@ vs_llvm_prepare(struct draw_vertex_shader *shader,
 
 
 static void
-vs_llvm_run_linear(struct draw_vertex_shader *shader,
+vs_llvm_run_linear(struct draw_context *draw,
+                   struct draw_vertex_shader *shader,
                    const float (*input)[4],
                    float (*output)[4],
                    const struct draw_buffer_info *constants,
@@ -66,11 +67,11 @@ vs_llvm_run_linear(struct draw_vertex_shader *shader,
 
 
 static void
-vs_llvm_delete(struct draw_vertex_shader *dvs)
+vs_llvm_delete(struct draw_context *draw, struct draw_vertex_shader *dvs)
 {
    struct llvm_vertex_shader *shader = llvm_vertex_shader(dvs);
 
-   util_shader_variant_list_destroy(&dvs->draw->llvm->vs_opts,
+   util_shader_variant_list_destroy(&draw->llvm->vs_opts,
                                     &shader->variants);
    ralloc_free(dvs->state.ir.nir);
    FREE((void*) dvs->state.tokens);
@@ -113,7 +114,6 @@ draw_create_vs_llvm(struct draw_context *draw,
 
    vs->base.state.type = state->type;
    vs->base.state.stream_output = state->stream_output;
-   vs->base.draw = draw;
    vs->base.prepare = vs_llvm_prepare;
    vs->base.run_linear = vs_llvm_run_linear;
    vs->base.delete = vs_llvm_delete;

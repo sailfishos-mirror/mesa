@@ -518,7 +518,6 @@ draw_llvm_create_variant(struct draw_llvm *llvm,
    if (!variant)
       return NULL;
 
-   variant->llvm = llvm;
    variant->shader = shader;
    memcpy(&variant->key, key, shader->variant_key_size);
 
@@ -602,7 +601,8 @@ do_clamp_vertex_color(struct gallivm_state *gallivm,
 
 
 static void
-generate_vs(struct draw_llvm_variant *variant,
+generate_vs(struct draw_llvm *llvm,
+            struct draw_llvm_variant *variant,
             LLVMBuilderRef builder,
             struct lp_type vs_type,
             LLVMValueRef (*outputs)[TGSI_NUM_CHANNELS],
@@ -615,7 +615,6 @@ generate_vs(struct draw_llvm_variant *variant,
             bool clamp_vertex_color,
             struct lp_build_mask_context *bld_mask)
 {
-   struct draw_llvm *llvm = variant->llvm;
    const struct tgsi_token *tokens = llvm->draw->vs.vertex_shader->state.tokens;
    LLVMValueRef consts_ptr =
       lp_jit_resources_constants(variant->gallivm, variant->resources_type, resources_ptr);
@@ -1095,7 +1094,8 @@ store_clip(struct gallivm_state *gallivm,
  * Transforms the outputs for viewport mapping
  */
 static void
-generate_viewport(struct draw_llvm_variant *variant,
+generate_viewport(struct draw_llvm *llvm,
+                  struct draw_llvm_variant *variant,
                   LLVMBuilderRef builder,
                   struct lp_type vs_type,
                   LLVMValueRef (*outputs)[TGSI_NUM_CHANNELS],
@@ -1103,7 +1103,7 @@ generate_viewport(struct draw_llvm_variant *variant,
 {
    struct gallivm_state *gallivm = variant->gallivm;
    struct lp_type f32_type = vs_type;
-   const unsigned pos = variant->llvm->draw->vs.position_output;
+   const unsigned pos = llvm->draw->vs.position_output;
    LLVMTypeRef vs_type_llvm = lp_build_vec_type(gallivm, vs_type);
    LLVMValueRef out3 = LLVMBuildLoad2(builder, vs_type_llvm, outputs[pos][3], ""); /*w0 w1 .. wn*/
    LLVMValueRef const1 = lp_build_const_vec(gallivm, f32_type, 1.0);       /*1.0 1.0 1.0 1.0*/
@@ -1986,7 +1986,7 @@ draw_llvm_generate(struct draw_llvm *llvm, struct draw_llvm_variant *variant)
                                                     lp_build_broadcast_scalar(&blduivec, vertex_id_offset), "");
 
       ptr_aos = (const LLVMValueRef (*)[TGSI_NUM_CHANNELS]) inputs;
-      generate_vs(variant,
+      generate_vs(llvm, variant,
                   builder,
                   vs_type,
                   outputs,
@@ -2024,7 +2024,7 @@ draw_llvm_generate(struct draw_llvm *llvm, struct draw_llvm_variant *variant)
 
          /* do viewport mapping */
          if (!bypass_viewport) {
-            generate_viewport(variant, builder, vs_type, outputs, context_ptr);
+            generate_viewport(llvm, variant, builder, vs_type, outputs, context_ptr);
          }
       } else {
          clipmask = blduivec.zero;
