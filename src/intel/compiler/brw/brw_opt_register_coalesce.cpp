@@ -319,6 +319,9 @@ brw_opt_register_coalesce(brw_shader &s)
       if (channels_remaining)
          continue;
 
+      for (int i = 0; i < src_size; i++)
+         assert(mov[i]);
+
       bool can_coalesce = true;
       for (int i = 0; i < src_size; i++) {
          if (dst_reg_offset[i] != dst_reg_offset[0] + i) {
@@ -344,9 +347,9 @@ brw_opt_register_coalesce(brw_shader &s)
 
       progress = true;
 
-      for (int i = 0; i < src_size; i += regs_written(mov[i])) {
-         if (!mov[i])
-            continue;
+      for (int i = 0; i < src_size; ) {
+         assert(mov[i]);
+         const unsigned written = regs_written(mov[i]);
 
          if (mov[i]->conditional_mod == BRW_CONDITIONAL_NONE) {
             mov[i] = brw_transform_inst(s, mov[i], BRW_OPCODE_NOP);
@@ -366,6 +369,8 @@ brw_opt_register_coalesce(brw_shader &s)
             mov[i]->src[0] = mov[i]->dst;
             mov[i]->dst = retype(brw_null_reg(), mov[i]->dst.type);
          }
+
+         i += written;
       }
 
       foreach_block_and_inst(block, brw_inst, scan_inst, s.cfg) {
