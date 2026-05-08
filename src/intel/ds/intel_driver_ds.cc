@@ -596,8 +596,21 @@ CREATE_DUAL_EVENT_CALLBACK(draw_mesh, INTEL_DS_QUEUE_STAGE_DRAW_MESH)
 CREATE_DUAL_EVENT_CALLBACK(draw_mesh_indirect, INTEL_DS_QUEUE_STAGE_DRAW_MESH)
 CREATE_DUAL_EVENT_CALLBACK(draw_mesh_indirect_count, INTEL_DS_QUEUE_STAGE_DRAW_MESH)
 CREATE_DUAL_EVENT_CALLBACK(xfb, INTEL_DS_QUEUE_STAGE_CMD_BUFFER)
-CREATE_DUAL_EVENT_CALLBACK(compute, INTEL_DS_QUEUE_STAGE_COMPUTE)
-CREATE_DUAL_EVENT_CALLBACK(compute_indirect, INTEL_DS_QUEUE_STAGE_COMPUTE)
+CREATE_DUAL_EVENT_CALLBACK_DYN(compute, INTEL_DS_QUEUE_STAGE_COMPUTE,
+                               payload->group_z != 1 ? "compute(%u,%u,%u)" :
+                               payload->group_y != 1 ? "compute(%u,%u)" :
+                                                       "compute(%u)",
+                               payload->group_x, payload->group_y, payload->group_z)
+CREATE_DUAL_EVENT_CALLBACK_DYN(compute_indirect, INTEL_DS_QUEUE_STAGE_COMPUTE,
+                               ((p_atomic_read_relaxed(&device->trace_context.enabled_traces) &
+                                  U_TRACE_TYPE_INDIRECTS) && indirect) ?
+                               (indirect[2] != 1 ? "compute_indirect(%u,%u,%u)" :
+                                indirect[1] != 1 ? "compute_indirect(%u,%u)" :
+                                                   "compute_indirect(%u)") :
+                               "compute_indirect",
+                               indirect ? indirect[0] : 0,
+                               indirect ? indirect[1] : 0,
+                               indirect ? indirect[2] : 0)
 CREATE_DUAL_EVENT_CALLBACK(generate_draws, INTEL_DS_QUEUE_STAGE_INTERNAL_OPS)
 CREATE_DUAL_EVENT_CALLBACK(generate_cmds_pre, INTEL_DS_QUEUE_STAGE_INTERNAL_OPS)
 CREATE_DUAL_EVENT_CALLBACK(generate_cmds_post, INTEL_DS_QUEUE_STAGE_INTERNAL_OPS)
