@@ -89,7 +89,8 @@ brw_live_variables::setup_def_use()
                continue;
 
             const int var = var_from_reg(inst->src[i]);
-            for (unsigned j = 0; j < regs_read(devinfo, inst, i); j++)
+            const unsigned read = regs_read(devinfo, inst, i);
+            for (unsigned j = 0; j < read; j++)
                setup_one_read(bd, ip, var + j);
          }
 
@@ -98,7 +99,8 @@ brw_live_variables::setup_def_use()
          /* Set def[] for this instruction */
          if (inst->dst.file == VGRF) {
             const int var = var_from_reg(inst->dst);
-            for (unsigned j = 0; j < regs_written(inst); j++)
+            const unsigned written = regs_written(inst);
+            for (unsigned j = 0; j < written; j++)
                setup_one_write(bd, inst, ip, var + j);
          }
 

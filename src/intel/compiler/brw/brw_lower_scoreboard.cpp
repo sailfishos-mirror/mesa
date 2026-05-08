@@ -1020,7 +1020,8 @@ namespace {
             is_ordered ? dependency(TGL_REGDIST_SRC, jp, exec_all) :
             dependency::done;
 
-         for (unsigned j = 0; j < regs_read(devinfo, inst, i); j++) {
+         const unsigned read = regs_read(devinfo, inst, i);
+         for (unsigned j = 0; j < read; j++) {
             const brw_reg r = byte_offset(inst->src[i], REG_SIZE * j);
             sb.set(r, shadow(sb.get(r), rd_dep));
          }
@@ -1072,7 +1073,8 @@ namespace {
 
       if (is_valid(wr_dep) && inst->dst.file != BAD_FILE &&
           !inst->dst.is_null()) {
-         for (unsigned j = 0; j < regs_written(inst); j++)
+         const unsigned written = regs_written(inst);
+         for (unsigned j = 0; j < written; j++)
             sb.set(byte_offset(inst->dst, REG_SIZE * j), wr_dep);
       }
    }
@@ -1168,7 +1170,8 @@ namespace {
          std::vector<dependency> inst_deps;
 
          for (unsigned i = 0; i < inst->sources; i++) {
-            for (unsigned j = 0; j < regs_read(devinfo, inst, i); j++)
+            const unsigned read = regs_read(devinfo, inst, i);
+            for (unsigned j = 0; j < read; j++)
                add_dependency(ids, inst_deps, dependency_for_read(
                   sb.get(byte_offset(inst->src[i], REG_SIZE * j))));
          }
@@ -1214,7 +1217,8 @@ namespace {
          if (inst->dst.file != BAD_FILE && !inst->dst.is_null() &&
              !inst->dst.is_accumulator() &&
              inst->opcode != SHADER_OPCODE_UNDEF) {
-            for (unsigned j = 0; j < regs_written(inst); j++) {
+            const unsigned written = regs_written(inst);
+            for (unsigned j = 0; j < written; j++) {
                add_dependency(ids, inst_deps, dependency_for_write(devinfo, inst,
                   sb.get(byte_offset(inst->dst, REG_SIZE * j))));
             }
