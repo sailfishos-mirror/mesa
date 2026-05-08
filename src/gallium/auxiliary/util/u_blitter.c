@@ -968,7 +968,7 @@ static void *blitter_get_fs_texfetch_col(struct blitter_context_priv *ctx,
    enum tgsi_return_type dtype;
    unsigned type;
 
-   assert(target < PIPE_MAX_TEXTURE_TYPES);
+   assert(target >= 0 && target < PIPE_MAX_TEXTURE_TYPES);
 
    if (util_format_is_pure_uint(src_format)) {
       stype = TGSI_RETURN_TYPE_UINT;
