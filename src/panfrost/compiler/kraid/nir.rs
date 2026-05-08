@@ -425,17 +425,17 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
-            nir_op_feq16 | nir_op_feq32 | nir_op_fge16 | nir_op_fge32
-            | nir_op_flt16 | nir_op_flt32 | nir_op_fneu16 | nir_op_fneu32 => {
+            nir_op_feq_pan | nir_op_fge_pan | nir_op_flt_pan
+            | nir_op_fneu_pan => {
                 b.push_op(OpFCmp {
                     dst: dst.into(),
                     src_type: src_type(0, NumericType::Float),
                     res_type: CmpResultType::M1,
                     cmp_op: match alu.op {
-                        nir_op_feq16 | nir_op_feq32 => CmpOp::Eq,
-                        nir_op_fge16 | nir_op_fge32 => CmpOp::Ge,
-                        nir_op_flt16 | nir_op_flt32 => CmpOp::Lt,
-                        nir_op_fneu16 | nir_op_fneu32 => CmpOp::Ne,
+                        nir_op_feq_pan => CmpOp::Eq,
+                        nir_op_fge_pan => CmpOp::Ge,
+                        nir_op_flt_pan => CmpOp::Lt,
+                        nir_op_fneu_pan => CmpOp::Ne,
                         _ => panic!("Usupported float comparison"),
                     },
                     srcs: [srcs(0), srcs(1)],
@@ -489,9 +489,8 @@ impl<'a> ShaderFromNir<'a> {
                     src2: srcs(1),
                 });
             }
-            nir_op_ieq16 | nir_op_ieq32 | nir_op_ige16 | nir_op_ige32
-            | nir_op_ilt16 | nir_op_ilt32 | nir_op_ine16 | nir_op_ine32
-            | nir_op_uge16 | nir_op_uge32 | nir_op_ult16 | nir_op_ult32 => {
+            nir_op_ieq_pan | nir_op_ige_pan | nir_op_ilt_pan
+            | nir_op_ine_pan | nir_op_uge_pan | nir_op_ult_pan => {
                 let num_type = match alu.input_type(0).base_type() {
                     ALUType::INT => NumericType::SignedInteger,
                     ALUType::UINT => NumericType::UnsignedInteger,
@@ -502,12 +501,10 @@ impl<'a> ShaderFromNir<'a> {
                     src_type: src_type(0, num_type),
                     res_type: CmpResultType::M1,
                     cmp_op: match alu.op {
-                        nir_op_ieq16 | nir_op_ieq32 => CmpOp::Eq,
-                        nir_op_ige16 | nir_op_ige32 | nir_op_uge16
-                        | nir_op_uge32 => CmpOp::Ge,
-                        nir_op_ilt16 | nir_op_ilt32 | nir_op_ult16
-                        | nir_op_ult32 => CmpOp::Lt,
-                        nir_op_ine16 | nir_op_ine32 => CmpOp::Ne,
+                        nir_op_ieq_pan => CmpOp::Eq,
+                        nir_op_ige_pan | nir_op_uge_pan => CmpOp::Ge,
+                        nir_op_ilt_pan | nir_op_ult_pan => CmpOp::Lt,
+                        nir_op_ine_pan => CmpOp::Ne,
                         _ => panic!("Usupported integer comparison"),
                     },
                     srcs: [srcs(0), srcs(1)],

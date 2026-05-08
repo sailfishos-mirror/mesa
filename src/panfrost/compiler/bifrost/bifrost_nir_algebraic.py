@@ -38,10 +38,10 @@ algebraic_late = [
 
     # We don't have an 8-bit CSEL, so this is the best we can do.
     # Note that we use 8-bit booleans internally to preserve vectorization.
-    (('imin', 'a@8', 'b@8'), ('b8csel', ('ilt8', a, b), a, b)),
-    (('imax', 'a@8', 'b@8'), ('b8csel', ('ilt8', a, b), b, a)),
-    (('umin', 'a@8', 'b@8'), ('b8csel', ('ult8', a, b), a, b)),
-    (('umax', 'a@8', 'b@8'), ('b8csel', ('ult8', a, b), b, a)),
+    (('imin@8', a, b), ('b8csel', ('ilt_pan', a, b), a, b)),
+    (('imax@8', a, b), ('b8csel', ('ilt_pan', a, b), b, a)),
+    (('umin@8', a, b), ('b8csel', ('ult_pan', a, b), a, b)),
+    (('umax@8', a, b), ('b8csel', ('ult_pan', a, b), b, a)),
 
     # Floats are at minimum 16-bit, which means when converting to an 8-bit
     # integer, the vectorization changes. So there's no one-shot hardware
@@ -100,7 +100,7 @@ for cond in ['ilt', 'ige', 'ieq', 'ine', 'ult', 'uge']:
         convert_16bit = 'i2i16'
 
     algebraic_late += [
-        ((f'{cond}8', a, b), (convert_8bit, (f'{cond}16', (convert_16bit, a), (convert_16bit, b))), 'gpu_arch >= 11'),
+        ((f'{cond}_pan@8', a, b), (convert_8bit, (f'{cond}_pan', (convert_16bit, a), (convert_16bit, b))), 'gpu_arch >= 11'),
     ]
 
 # Handling all combinations of boolean and float sizes for b2f is nontrivial.

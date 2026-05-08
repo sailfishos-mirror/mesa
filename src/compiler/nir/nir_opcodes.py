@@ -649,26 +649,21 @@ def binop_compare(name, ty, alg_props, const_expr, description = "", ty2=None,
                   valid_fp_math_ctrl=None):
    binop_convert(name, tbool1, ty, alg_props, const_expr, description, ty2, False, valid_fp_math_ctrl)
 
-def binop_compare8(name, ty, alg_props, const_expr, description = "", ty2=None,
-                   valid_fp_math_ctrl=None):
-   binop_convert(name, tbool8, ty, alg_props, const_expr, description, ty2, False, valid_fp_math_ctrl)
-
-def binop_compare16(name, ty, alg_props, const_expr, description = "", ty2=None,
-                    valid_fp_math_ctrl=None):
-   binop_convert(name, tbool16, ty, alg_props, const_expr, description, ty2, False, valid_fp_math_ctrl)
-
 def binop_compare32(name, ty, alg_props, const_expr, description = "", ty2=None,
                     valid_fp_math_ctrl=None):
    binop_convert(name, tbool32, ty, alg_props, const_expr, description, ty2, False, valid_fp_math_ctrl)
+
+def binop_compare_pan(name, ty, alg_props, const_expr, description = "", ty2=None,
+                      valid_fp_math_ctrl=None):
+   binop_convert(name, tbool, ty, alg_props, const_expr, description, ty2, False, valid_fp_math_ctrl)
 
 def binop_compare_all_sizes(name, ty, alg_props, const_expr, description = "", ty2=None):
    valid_fp_math_ctrl = None
    if type_base_type(ty) == 'float':
       valid_fp_math_ctrl = preserve_inf + preserve_nan
    binop_compare(name, ty, alg_props, const_expr, description, ty2, valid_fp_math_ctrl)
-   binop_compare8(name + "8", ty, alg_props, const_expr, description, ty2, valid_fp_math_ctrl)
-   binop_compare16(name + "16", ty, alg_props, const_expr, description, ty2, valid_fp_math_ctrl)
    binop_compare32(name + "32", ty, alg_props, const_expr, description, ty2, valid_fp_math_ctrl)
+   binop_compare_pan(name + "_pan", ty, alg_props, const_expr, description, ty2, valid_fp_math_ctrl)
 
 def binop_horiz(name, out_size, out_type, src1_size, src1_type, src2_size,
                 src2_type, const_expr, description = ""):

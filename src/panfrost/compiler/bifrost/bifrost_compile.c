@@ -2707,38 +2707,22 @@ static enum bi_cmpf
 bi_translate_cmpf(nir_op op)
 {
    switch (op) {
-   case nir_op_ieq8:
-   case nir_op_ieq16:
-   case nir_op_ieq32:
-   case nir_op_feq16:
-   case nir_op_feq32:
+   case nir_op_ieq_pan:
+   case nir_op_feq_pan:
       return BI_CMPF_EQ;
 
-   case nir_op_ine8:
-   case nir_op_ine16:
-   case nir_op_ine32:
-   case nir_op_fneu16:
-   case nir_op_fneu32:
+   case nir_op_ine_pan:
+   case nir_op_fneu_pan:
       return BI_CMPF_NE;
 
-   case nir_op_ilt8:
-   case nir_op_ilt16:
-   case nir_op_ilt32:
-   case nir_op_flt16:
-   case nir_op_flt32:
-   case nir_op_ult8:
-   case nir_op_ult16:
-   case nir_op_ult32:
+   case nir_op_ilt_pan:
+   case nir_op_ult_pan:
+   case nir_op_flt_pan:
       return BI_CMPF_LT;
 
-   case nir_op_ige8:
-   case nir_op_ige16:
-   case nir_op_ige32:
-   case nir_op_fge16:
-   case nir_op_fge32:
-   case nir_op_uge8:
-   case nir_op_uge16:
-   case nir_op_uge32:
+   case nir_op_ige_pan:
+   case nir_op_uge_pan:
+   case nir_op_fge_pan:
       return BI_CMPF_GE;
 
    default:
@@ -3400,40 +3384,24 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
                 BI_MUX_INT_ZERO);
       break;
 
-   case nir_op_ieq8:
-   case nir_op_ine8:
-   case nir_op_ilt8:
-   case nir_op_ige8:
-   case nir_op_ieq16:
-   case nir_op_ine16:
-   case nir_op_ilt16:
-   case nir_op_ige16:
-   case nir_op_ieq32:
-   case nir_op_ine32:
-   case nir_op_ilt32:
-   case nir_op_ige32:
+   case nir_op_ieq_pan:
+   case nir_op_ine_pan:
+   case nir_op_ilt_pan:
+   case nir_op_ige_pan:
       bi_icmp_to(b, nir_type_int, sz, dst, s0, s1, bi_translate_cmpf(instr->op),
                  BI_RESULT_TYPE_M1);
       break;
 
-   case nir_op_ult8:
-   case nir_op_uge8:
-   case nir_op_ult16:
-   case nir_op_uge16:
-   case nir_op_ult32:
-   case nir_op_uge32:
+   case nir_op_ult_pan:
+   case nir_op_uge_pan:
       bi_icmp_to(b, nir_type_uint, sz, dst, s0, s1,
                  bi_translate_cmpf(instr->op), BI_RESULT_TYPE_M1);
       break;
 
-   case nir_op_feq32:
-   case nir_op_feq16:
-   case nir_op_flt32:
-   case nir_op_flt16:
-   case nir_op_fge32:
-   case nir_op_fge16:
-   case nir_op_fneu32:
-   case nir_op_fneu16:
+   case nir_op_feq_pan:
+   case nir_op_fneu_pan:
+   case nir_op_flt_pan:
+   case nir_op_fge_pan:
       bi_fcmp_to(b, sz, dst, s0, s1, bi_translate_cmpf(instr->op),
                  BI_RESULT_TYPE_M1);
       break;
