@@ -1355,7 +1355,9 @@ void iris_init_flush_functions(struct pipe_context *ctx);
 /* iris_nir_analyze_ubo_ranges.c */
 void iris_nir_analyze_ubo_ranges(const intel_device_info *devinfo,
                                  nir_shader *nir,
-                                 struct iris_ubo_range out_ranges[4]);
+                                 struct iris_ubo_range *out_ranges,
+                                 const uint8_t out_ranges_len,
+                                 const uint8_t used_push_regs);
 
 bool iris_nir_lower_ubo_ranges(nir_shader *nir,
                                struct iris_ubo_range ranges[4]);

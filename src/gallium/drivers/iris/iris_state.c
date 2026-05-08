@@ -6569,7 +6569,7 @@ setup_constant_buffers(struct iris_context *ice,
    if (iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr))
       setup_binding_tables_to_push_bos(ice, batch, stage, push_bos, &n, &push_range_sum);
 
-   for (int i = 0; i < 4; i++) {
+   for (int i = 0; i < 4 && n < 4; i++) {
       const struct iris_ubo_range *range = &shader->ubo_ranges[i];
 
       if (range->length == 0)

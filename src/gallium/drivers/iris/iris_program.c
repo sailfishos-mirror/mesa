@@ -1860,7 +1860,7 @@ brw_apply_ubo_ranges(const struct iris_screen *screen,
                      struct iris_ubo_range ubo_ranges[4],
                      struct brw_stage_prog_data *prog_data)
 {
-   iris_nir_analyze_ubo_ranges(screen->devinfo, nir, ubo_ranges);
+   iris_nir_analyze_ubo_ranges(screen->devinfo, nir, ubo_ranges, 4, 0);
    NIR_PASS(_, nir, iris_nir_lower_ubo_ranges, ubo_ranges);
 
    if (ubo_ranges[0].length == 0 &&
