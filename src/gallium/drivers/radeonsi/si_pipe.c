@@ -228,7 +228,6 @@ static struct pipe_screen *radeonsi_screen_create_impl(struct radeon_winsys *ws,
 
    si_init_screen_buffer_functions(sscreen);
    si_init_screen_fence_functions(sscreen);
-   si_init_screen_state_functions(sscreen);
    si_init_screen_texture_functions(sscreen);
 
    si_init_screen_get_functions(sscreen);
