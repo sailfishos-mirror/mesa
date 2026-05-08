@@ -81,6 +81,8 @@ struct radv_shader_stage_key {
    uint8_t storage_robustness2 : 1;
    uint8_t uniform_robustness2 : 1;
    uint8_t vertex_robustness1 : 1;
+   uint8_t coop_matrix_storage_robustness : 1;
+   uint8_t coop_matrix_uniform_robustness : 1;
 
    uint8_t optimisations_disabled : 1;
    uint8_t keep_statistic_info : 1;
@@ -97,7 +99,7 @@ struct radv_shader_stage_key {
    /* Whether the shader is used with indirect pipeline binds. */
    uint8_t indirect_bindable : 1;
 
-   uint32_t reserved : 17;
+   uint32_t reserved : 15;
 };
 
 struct radv_ps_epilog_key {
@@ -530,6 +532,7 @@ struct radv_compiler_info {
       uint32_t use_fmask : 1;
       uint32_t force_64_byte_sampled_image : 1;
       uint32_t robust_buffer_access : 1; /* Only used by LLVM. */
+      uint32_t coop_matrix_robust_buffer_access : 1;
       uint32_t mitigate_smem_oob : 1;
       uint32_t mitigate_smem_with_null_prt : 1;
       uint32_t bvh8 : 1;
@@ -548,7 +551,7 @@ struct radv_compiler_info {
       uint32_t tex_non_uniform : 1;
       uint32_t lower_terminate_to_discard : 1;
       uint32_t no_implicit_varying_subgroup_size : 1;
-      uint32_t padding : 30;
+      uint32_t padding : 29;
 
       int32_t force_aniso;
 
