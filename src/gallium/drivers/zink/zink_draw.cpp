@@ -718,7 +718,9 @@ zink_draw(struct pipe_context *pctx,
 
    if (!DRAW_STATE) {
       if (BATCH_CHANGED || ctx->vertex_buffers_dirty) {
-         if (DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT || DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT2 ||
+         if (screen->info.have_KHR_device_address_commands)
+            zink_bind_vertex_addresses(ctx);
+         else if (DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT || DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT2 ||
              DYNAMIC_STATE == ZINK_NO_DYNAMIC_STATE || !ctx->gfx_pipeline_state.uses_dynamic_stride)
             zink_bind_vertex_buffers(ctx, ctx->vertex_buffers);
          else

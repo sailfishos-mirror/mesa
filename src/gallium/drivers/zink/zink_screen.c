@@ -3178,6 +3178,9 @@ init_driver_workarounds(struct zink_screen *screen)
    if (zink_debug & ZINK_DEBUG_NOGENERAL)
       screen->driver_workarounds.general_layout = false;
 
+   if (!screen->info.have_EXT_vertex_input_dynamic_state || !screen->info.have_EXT_transform_feedback)
+      screen->info.have_KHR_device_address_commands = false;
+
    if (!screen->resizable_bar)
       screen->info.have_EXT_host_image_copy = false;
 

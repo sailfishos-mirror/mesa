@@ -1621,6 +1621,48 @@ zink_bind_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buff
    zink_bind_vertex_buffers_internal(ctx, vbuffers, false);
 }
 
+void
+zink_bind_vertex_addresses(struct zink_context *ctx)
+{
+#define DAC_VB_INIT \
+      {.sType = VK_STRUCTURE_TYPE_BIND_VERTEX_BUFFER_3_INFO_KHR, .setStride = VK_FALSE, \
+       .addressFlags = (VK_ADDRESS_COMMAND_STORAGE_BUFFER_USAGE_BIT_KHR | VK_ADDRESS_COMMAND_TRANSFORM_FEEDBACK_BUFFER_USAGE_BIT_KHR)}
+   VkBindVertexBuffer3InfoKHR dac_vbs[PIPE_MAX_ATTRIBS] = {
+      DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT,
+      DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT,
+      DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT,
+      DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT, DAC_VB_INIT,
+   };
+#undef DAC_VB_INIT
+   struct zink_vertex_elements_state *elems = ctx->element_state;
+
+   if (!elems->hw_state.num_bindings)
+      return;
+   for (unsigned i = 0; i < elems->hw_state.num_bindings; i++) {
+      const struct pipe_vertex_buffer *vb = &ctx->vertex_buffers[elems->hw_state.binding_map[i]];
+      if (vb->buffer.resource) {
+         struct zink_resource *res = zink_resource(vb->buffer.resource);
+         assert(res->obj->buffer);
+         dac_vbs[i].addressRange.address = res->obj->bda + vb->buffer_offset;
+         dac_vbs[i].addressRange.size = res->base.b.width0 - vb->buffer_offset;
+         if (res->base.b.flags & PIPE_RESOURCE_FLAG_SPARSE)
+            dac_vbs[i].addressFlags &= ~VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
+         else
+            dac_vbs[i].addressFlags |= VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
+      } else {
+         dac_vbs[i].addressRange.address = 0;
+         dac_vbs[i].addressRange.size = 0;
+         dac_vbs[i].addressFlags |= VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
+      }
+   }
+
+   VKCTX(CmdBindVertexBuffers3KHR)(ctx->bs->cmdbuf, 0,
+                                   elems->hw_state.num_bindings,
+                                   dac_vbs);
+
+   ctx->vertex_buffers_dirty = false;
+}
+
 static void
 zink_set_viewport_states(struct pipe_context *pctx,
                          unsigned start_slot,
