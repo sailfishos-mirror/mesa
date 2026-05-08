@@ -86,6 +86,8 @@ vk_cts_commits_to_backport=(
   e8f74066c15a2f94ec4457d75ab998d315a06bd7
   # Fix invalid descriptor test
   589820590126ca860dbbd0db26eb6bcdaa63dea0
+  # Fix validation errors found on qualcomm turnip
+  39ee33cd4be94216a9b657d089283b79767dc372
 )
 
 # shellcheck disable=SC2034
