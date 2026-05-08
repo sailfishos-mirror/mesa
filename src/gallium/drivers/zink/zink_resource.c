@@ -229,7 +229,6 @@ zink_destroy_resource_object(struct zink_screen *screen, struct zink_resource_ob
       util_dynarray_fini(&obj->copies[i]);
    if (obj->is_buffer) {
       VKSCR(DestroyBuffer)(screen->dev, obj->buffer, NULL);
-      VKSCR(DestroyBuffer)(screen->dev, obj->storage_buffer, NULL);
    } else if (obj->dt) {
       zink_kopper_displaytarget_destroy(screen, obj->dt);
    } else if (!obj->is_aux) {
@@ -1205,15 +1204,6 @@ create_buffer(struct zink_screen *screen, struct zink_resource_object *obj,
       return roc_fail_and_free_object;
    }
 
-   if (!(templ->bind & (PIPE_BIND_SHADER_IMAGE | ZINK_BIND_DESCRIPTOR))) {
-       bci.usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
-     if (VKSCR(CreateBuffer)(screen->dev, &bci, NULL, &obj->storage_buffer) != VK_SUCCESS) {
-        mesa_loge("ZINK: vkCreateBuffer failed");
-        VKSCR(DestroyBuffer)(screen->dev, obj->buffer, NULL);
-        return roc_fail_and_free_object;
-     }
-   }
-
    assert(!modifiers_count);
    VKSCR(GetBufferMemoryRequirements)(screen->dev, obj->buffer, &reqs);
 
@@ -1240,10 +1230,6 @@ create_buffer(struct zink_screen *screen, struct zink_resource_object *obj,
       if (VKSCR(BindBufferMemory)(screen->dev, obj->buffer, zink_bo_get_mem(obj->bo), obj->offset) != VK_SUCCESS) {
          mesa_loge("ZINK: vkBindBufferMemory failed");
          return roc_fail_and_cleanup_all ;
-      }
-      if (obj->storage_buffer && VKSCR(BindBufferMemory)(screen->dev, obj->storage_buffer, zink_bo_get_mem(obj->bo), obj->offset) != VK_SUCCESS) {
-         mesa_loge("ZINK: vkBindBufferMemory failed");
-         return roc_fail_and_cleanup_all;
       }
    }
    _mesa_set_init(&obj->surface_cache, NULL, NULL, equals_bufferview_key);
@@ -1566,7 +1552,6 @@ resource_object_create(struct zink_screen *screen, const struct pipe_resource *t
    case roc_fail_and_cleanup_object:
       if (templ->target == PIPE_BUFFER) {
          VKSCR(DestroyBuffer)(screen->dev, obj->buffer, NULL);
-         VKSCR(DestroyBuffer)(screen->dev, obj->storage_buffer, NULL);
       } else
          VKSCR(DestroyImage)(screen->dev, obj->image, NULL);
       FALLTHROUGH;
