@@ -281,7 +281,7 @@ static void
 bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
                 nir_variable_mode robust_modes)
 {
-   NIR_PASS(_, nir, nir_opt_shrink_stores, true);
+   NIR_PASS(_, nir, nir_opt_shrink_stores, false /* shrink_image_store */);
    bi_optimize_loop(nir, gpu_id, false /* allow_copies */);
 
    NIR_PASS(_, nir, nir_opt_shrink_vectors, false);
