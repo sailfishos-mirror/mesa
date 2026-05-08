@@ -946,10 +946,10 @@ binop_compare_all_sizes("ine", tint, _2src_commutative, "src0 != src1")
 binop_compare_all_sizes("ult", tuint, "", "src0 < src1")
 binop_compare_all_sizes("uge", tuint, "", "src0 >= src1")
 
-binop_compare_all_sizes("bitnz", tuint, "", "((uint64_t)src0 >> (src1 & (bit_size - 1)) & 0x1) == 0x1",
+binop_compare("bitnz", tuint, "", "((uint64_t)src0 >> (src1 & (bit_size - 1)) & 0x1) == 0x1",
    "only uses the least significant bits like SM5 shifts", tuint32)
 
-binop_compare_all_sizes("bitz", tuint, "", "((uint64_t)src0 >> (src1 & (bit_size - 1)) & 0x1) == 0x0",
+binop_compare("bitz", tuint, "", "((uint64_t)src0 >> (src1 & (bit_size - 1)) & 0x1) == 0x0",
    "only uses the least significant bits like SM5 shifts", tuint32)
 
 # integer-aware GLSL-style comparisons that compare floats and ints
