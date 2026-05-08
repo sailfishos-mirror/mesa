@@ -493,6 +493,11 @@ emit(struct brw_codegen *p,
               stride(retype(SRC(0), BRW_TYPE_UB), 4, 1, 0));
       break;
 
+   case JAY_OPCODE_WORD_PACK:
+      brw_set_default_exec_size(p, util_logbase2(2 * exec_size));
+      brw_MOV(p, retype(dst, BRW_TYPE_UW), subscript(SRC(0), BRW_TYPE_UW, 0));
+      break;
+
    case JAY_OPCODE_SHR_ODD_SUBSPANS_BY_4:
       brw_SHR(p, dst, SRC(0), brw_imm_uv(0x44440000));
       break;

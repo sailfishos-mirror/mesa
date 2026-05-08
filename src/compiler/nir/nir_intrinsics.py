@@ -2662,7 +2662,7 @@ intrinsic("load_reloc_const_intel", dest_comp=1, bit_sizes=[32],
 
 # Write a render target
 # src[] = { color, src0_alpha, omask, depth, stencil, predicate }
-intrinsic("store_render_target_intel", [4, 1, 1, 1, 1, 1], indices=[TARGET], bit_sizes=[32, 32, 16, 32, 32, 1])
+intrinsic("store_render_target_intel", [4, 1, 1, 1, 1, 1], indices=[TARGET], bit_sizes=[32, 32, 32, 32, 32, 1])
 
 # Shuffle with an offset in bytes instead of a lane index.
 # src[] = { payload, lane offset in bytes }

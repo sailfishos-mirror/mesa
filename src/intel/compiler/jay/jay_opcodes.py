@@ -172,6 +172,9 @@ op('and_u32_u16', 2, 'u32')
 # This is used for stencil outputs in render target write messages.
 op('byte_pack', 1, 'u32')
 
+# Similar to byte_pack, but for words
+op('word_pack', 1, 'u32')
+
 # Pixel coord calculations. expand_quad replicates out the per-2x2 values from
 # its source g0.[10...13] and - in the case of SIMD32 - g1.[10...13] into a
 # per-lane value. Then offset_packed_pixel_coords adds the appropriate packed

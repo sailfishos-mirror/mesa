@@ -809,7 +809,16 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
    if (!jay_is_null(src0_alpha))
       srcs[len++] = jay_as_gpr(b, src0_alpha);
 
-   assert(jay_is_null(omask) && "TODO: samplemask");
+   if (!jay_is_null(omask)) {
+      jay_def packed = jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
+      jay_WORD_PACK(b, packed, omask);
+
+      for (unsigned i = 0; i < jay_num_values(packed); i++)
+         srcs[len++] = jay_extract(packed, i);
+
+      /* Split send after omask due to file difference */
+      split = len;
+   }
 
    for (unsigned i = 0; i < 4; i++)
       srcs[len++] = jay_as_gpr(b, jay_extract(colour, i));
@@ -821,7 +830,8 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
       jay_def packed = jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
       jay_BYTE_PACK(b, packed, jay_as_gpr(b, stencil));
 
-      /* Split send before stencil */
+      /* Split send before stencil due to file difference */
+      assert(split == -1 && "TODO: samplemask and stencil outputs together");
       split = len;
 
       for (unsigned i = 0; i < jay_num_values(packed); i++)
