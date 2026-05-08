@@ -53,8 +53,6 @@ files_libradeonsi = files(
   'si_texture.c',
   'si_utrace.c',
   'si_utrace.h',
-  'si_vpe.c',
-  'si_vpe.h',
   'gfx/si_gfx.h',
   'mm/si_mm.h',
   'mm/radeon_bitstream.c',
@@ -79,6 +77,8 @@ files_libradeonsi = files(
   'mm/si_video_dec.h',
   'mm/si_video.c',
   'mm/si_video.h',
+  'mm/si_vpe.c',
+  'mm/si_vpe.h',
 )
 
 radeonsi_include_dirs = [inc_src, inc_include, inc_gallium, inc_gallium_aux, inc_amd_common,
