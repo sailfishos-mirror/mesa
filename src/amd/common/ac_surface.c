@@ -277,6 +277,65 @@ ac_modifier_fill_dcc_params(uint64_t modifier, struct radeon_surf *surf,
    surf->u.gfx9.color.dcc.max_compressed_block_size = AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier);
 }
 
+static uint32_t gfx6_get_tile_idx(const enum amd_gfx_level gfx_level, const uint32_t bpe, const uint32_t array_mode, const uint32_t micro_tile_mode)
+{
+   uint32_t bpp;
+
+   STATIC_ASSERT(V_009910_ADDR_SURF_DISPLAY_MICRO_TILING == ADDR_DISPLAYABLE);
+   STATIC_ASSERT(V_009910_ADDR_SURF_THIN_MICRO_TILING == ADDR_NON_DISPLAYABLE);
+   STATIC_ASSERT(V_009910_ADDR_SURF_DEPTH_MICRO_TILING == ADDR_DEPTH_SAMPLE_ORDER);
+   STATIC_ASSERT(V_009910_ADDR_SURF_ROTATED_MICRO_TILING == ADDR_ROTATED);
+   STATIC_ASSERT(V_009910_ADDR_SURF_THICK_MICRO_TILING == ADDR_THICK);
+
+   switch (array_mode) {
+   case V_009910_ARRAY_1D_TILED_THIN1:
+      switch (micro_tile_mode) {
+      case V_009910_ADDR_SURF_DISPLAY_MICRO_TILING:
+         return 9;
+      case V_009910_ADDR_SURF_THIN_MICRO_TILING:
+         return 13;
+      default:
+         UNREACHABLE("Unsupported micro tile mode.");
+      }
+   case V_009910_ARRAY_2D_TILED_THIN1:
+      switch (micro_tile_mode) {
+      case V_009910_ADDR_SURF_DISPLAY_MICRO_TILING:
+         if (gfx_level >= GFX7)
+            return 10;
+
+         bpp = MIN2(util_next_power_of_two(bpe * 8), 32);
+         return 10 + util_logbase2(bpp / 8);
+
+      case V_009910_ADDR_SURF_THIN_MICRO_TILING:
+         if (gfx_level >= GFX7)
+            return 14;
+
+         bpp = MIN2(util_next_power_of_two(bpe * 8), 64);
+         return 14 + util_logbase2(bpp / 8);
+
+      default:
+         UNREACHABLE("Unsupported micro tile mode.");
+      }
+   default:
+      UNREACHABLE("Unsupported array mode.");
+   }
+}
+
+static uint32_t gfx7_get_macrotile_idx(const uint32_t bpe,
+                                       const uint32_t tile_split_bytes,
+                                       const uint32_t thickness,
+                                       const uint32_t num_samples)
+{
+   /* See CiLib::HwlComputeMacroModeIndex() */
+   const uint32_t tile_size_pixels = 8 * 8;
+   const uint32_t tile_bytes_1x = thickness * tile_size_pixels * bpe;
+   const uint32_t tile_bytes = CLAMP(tile_bytes_1x * num_samples, 64, tile_split_bytes);
+   const uint32_t index = util_logbase2(tile_bytes / 64);
+
+   assert(index < 16);
+   return index;
+}
+
 static bool ac_is_modifier_supported_gfx9(const struct radeon_info *info,
                                           const struct ac_modifier_options *options,
                                           enum pipe_format format,
@@ -1169,20 +1228,6 @@ static void gfx6_set_micro_tile_mode(struct radeon_surf *surf, const struct rade
       surf->micro_tile_mode = G_009910_MICRO_TILE_MODE(tile_mode);
 }
 
-static unsigned cik_get_macro_tile_index(struct radeon_surf *surf)
-{
-   unsigned index, tileb;
-
-   tileb = 8 * 8 * surf->bpe;
-   tileb = MIN2(surf->u.legacy.tile_split, tileb);
-
-   for (index = 0; tileb > 64; index++)
-      tileb >>= 1;
-
-   assert(index < 16);
-   return index;
-}
-
 static bool get_display_flag(const struct ac_surf_config *config, const struct radeon_surf *surf)
 {
    unsigned num_channels = config->info.num_channels;
@@ -1695,35 +1740,15 @@ static int gfx6_compute_surface(struct ac_addrlib *addrlib, const struct radeon_
        * For now, just figure it out here.
        * Note that only 2D_TILE_THIN1 is handled here.
        */
-      assert(!(surf->flags & RADEON_SURF_Z_OR_SBUFFER));
-      assert(AddrSurfInfoIn.tileMode == ADDR_TM_2D_TILED_THIN1);
+      AddrSurfInfoIn.tileIndex = gfx6_get_tile_idx(info->gfx_level, surf->bpe,
+                                                   V_009910_ARRAY_2D_TILED_THIN1,
+                                                   AddrSurfInfoIn.tileType);
 
-      if (info->gfx_level == GFX6) {
-         if (AddrSurfInfoIn.tileType == ADDR_DISPLAYABLE) {
-            if (surf->bpe == 2)
-               AddrSurfInfoIn.tileIndex = 11; /* 16bpp */
-            else
-               AddrSurfInfoIn.tileIndex = 12; /* 32bpp */
-         } else {
-            if (surf->bpe == 1)
-               AddrSurfInfoIn.tileIndex = 14; /* 8bpp */
-            else if (surf->bpe == 2)
-               AddrSurfInfoIn.tileIndex = 15; /* 16bpp */
-            else if (surf->bpe == 4)
-               AddrSurfInfoIn.tileIndex = 16; /* 32bpp */
-            else
-               AddrSurfInfoIn.tileIndex = 17; /* 64bpp (and 128bpp) */
-         }
-      } else {
-         /* GFX7 - GFX8 */
-         if (AddrSurfInfoIn.tileType == ADDR_DISPLAYABLE)
-            AddrSurfInfoIn.tileIndex = 10; /* 2D displayable */
-         else
-            AddrSurfInfoIn.tileIndex = 14; /* 2D non-displayable */
-
-         /* Addrlib doesn't set this if tileIndex is forced like above. */
-         AddrSurfInfoOut.macroModeIndex = cik_get_macro_tile_index(surf);
-      }
+      /* Addrlib may not set this if tileIndex is forced. */
+      if (info->gfx_level >= GFX7)
+         AddrSurfInfoOut.macroModeIndex = gfx7_get_macrotile_idx(surf->bpe,
+                                                                 surf->u.legacy.tile_split, 1,
+                                                                 AddrSurfInfoIn.numSamples);
    }
 
    surf->has_stencil = !!(surf->flags & RADEON_SURF_SBUFFER);
