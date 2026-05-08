@@ -2016,6 +2016,9 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    if (info->ip[AMD_IP_VCN_JPEG].num_queues)
       fprintf(f, "    jpeg_decode = %u\n", info->ip[AMD_IP_VCN_JPEG].num_instances);
 
+   if (info->ip[AMD_IP_VPE].num_queues)
+      fprintf(f, "    vpe = %u\n", info->ip[AMD_IP_VPE].num_instances);
+
    ac_print_video_info(f, info);
 
    fprintf(f, "Kernel & winsys capabilities:\n");
