@@ -530,6 +530,7 @@ alloc_variant(struct ir3_shader *shader, const struct ir3_shader_key *key,
       v->fs.color_is_dual_source = info->fs.color_is_dual_source;
       v->fs.uses_fbfetch_output  = info->fs.uses_fbfetch_output;
       v->fs.fbfetch_coherent     = info->fs.fbfetch_coherent;
+      v->fs.yuv_color            = info->fs.yuv_color;
       break;
 
    case MESA_SHADER_COMPUTE:

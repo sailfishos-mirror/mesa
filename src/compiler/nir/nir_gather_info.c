@@ -1167,6 +1167,10 @@ nir_shader_gather_info(nir_shader *shader, nir_function_impl *entrypoint)
             glsl_count_attribute_slots(glsl_get_array_element(var->type), false);
          shader->info.per_view_outputs |= BITFIELD64_RANGE(var->data.location, slots);
       }
+      if (var->data.yuv) {
+         assert(shader->info.stage == MESA_SHADER_FRAGMENT);
+         shader->info.fs.yuv_color = true;
+      }
    }
 
    if (shader->info.stage == MESA_SHADER_FRAGMENT) {

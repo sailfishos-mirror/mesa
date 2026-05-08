@@ -969,6 +969,7 @@ struct ir3_shader_variant {
          bool color_is_dual_source : 1;
          bool uses_fbfetch_output  : 1;
          bool fbfetch_coherent     : 1;
+         bool yuv_color            : 1;
          enum gl_frag_depth_layout depth_layout;
       } fs;
       struct {
