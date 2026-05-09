@@ -3219,8 +3219,6 @@ do_alu_action(struct lp_build_nir_soa_context *bld,
    case nir_op_b2b1:
       result = LLVMBuildICmp(builder, LLVMIntNE, src[0], int_bld->zero, "");
       break;
-   case nir_op_b2b8:
-   case nir_op_b2b16:
    case nir_op_b2b32:
       if (src_bit_size[0] > instr->def.bit_size) {
          result = LLVMBuildTrunc(builder, src[0], dst_uint_bld->vec_type, "");

@@ -47,7 +47,7 @@ lower_bool = [
 
 for T, sizes, one in [('f', [16, 32], 1.0),
                       ('i', [8, 16, 32], 1),
-                      ('b', [8, 16, 32], -1)]:
+                      ('b', [32], -1)]:
     for sz in sizes:
         if T in ['f', 'i']:
             lower_bool.extend([

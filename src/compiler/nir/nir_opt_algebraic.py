@@ -1272,7 +1272,7 @@ for s in [16, 32, 64]:
        (('i2f{}'.format(s), ('f2i', ('fsign', 'a@{}'.format(s)))), ('fsign', a)),
     ])
 
-    if s < 64:
+    if s == 32:
         optimizations.extend([(('bcsel', a, ('b2f(is_used_once)', 'b@{}'.format(s)), ('b2f', 'c@{}'.format(s))), ('b2f', ('bcsel', a, b, c)))])
 
     for B in [32, 64]:
@@ -1417,7 +1417,7 @@ for s in [8, 16, 32, 64]:
     ])
 
     # There are no 64bit booleans in NIR
-    if s < 64:
+    if s == 32:
         # True/False are ~0 and 0 in NIR.  b2i of True is 1, and -1 is ~0 (True).
         optimizations.extend([(('ineg', ('b2i{}'.format(s), 'a@{}'.format(s))), a)])
 

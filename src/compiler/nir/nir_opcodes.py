@@ -128,8 +128,6 @@ tfloat = "float"
 tint = "int"
 tbool = "bool"
 tbool1 = "bool1"
-tbool8 = "bool8"
-tbool16 = "bool16"
 tbool32 = "bool32"
 tuint = "uint"
 tuint8 = "uint8"
@@ -161,7 +159,7 @@ def type_sizes(type_):
     if type_has_size(type_):
         return [type_size(type_)]
     elif type_ == 'bool':
-        return [1, 8, 16, 32]
+        return [1, 32]
     elif type_ == 'float':
         return [16, 32, 64]
     else:
@@ -655,7 +653,7 @@ def binop_compare32(name, ty, alg_props, const_expr, description = "", ty2=None,
 
 def binop_compare_pan(name, ty, alg_props, const_expr, description = "", ty2=None,
                       valid_fp_math_ctrl=None):
-   binop_convert(name, tbool, ty, alg_props, const_expr, description, ty2, False, valid_fp_math_ctrl)
+   binop_convert(name, tuint, ty, alg_props, const_expr, description, ty2, False, valid_fp_math_ctrl)
 
 def binop_compare_all_sizes(name, ty, alg_props, const_expr, description = "", ty2=None):
    valid_fp_math_ctrl = None
@@ -663,7 +661,7 @@ def binop_compare_all_sizes(name, ty, alg_props, const_expr, description = "", t
       valid_fp_math_ctrl = preserve_inf + preserve_nan
    binop_compare(name, ty, alg_props, const_expr, description, ty2, valid_fp_math_ctrl)
    binop_compare32(name + "32", ty, alg_props, const_expr, description, ty2, valid_fp_math_ctrl)
-   binop_compare_pan(name + "_pan", ty, alg_props, const_expr, description, ty2, valid_fp_math_ctrl)
+   binop_compare_pan(name + "_pan", ty, alg_props, const_expr + " ? -1 : 0", description, ty2, valid_fp_math_ctrl)
 
 def binop_horiz(name, out_size, out_type, src1_size, src1_type, src2_size,
                 src2_type, const_expr, description = ""):
@@ -1244,7 +1242,7 @@ opcode("b32csel", 0, tuint, [0, 0, 0],
        [tbool32, tuint, tuint], False, selection, "src0 ? src1 : src2",
        description = csel_description.format("a 32-bit", "0 vs ~0"))
 opcode("bcsel_pan", 0, tuint, [0, 0, 0],
-       [tbool, tuint, tuint], False, selection, "src0 ? src1 : src2",
+       [tuint, tuint, tuint], False, selection, "src0 ? src1 : src2",
        description = csel_description.format("a same-sized", "0 vs ~0"))
 
 triop("icsel_eqz", tint, selection, "(src0 == 0) ? src1 : src2")
