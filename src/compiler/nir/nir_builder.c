@@ -810,7 +810,17 @@ nir_build_frag_coord(nir_builder *b, unsigned num_components)
    assert(num_components && num_components <= 4);
 
    if (b->shader->options->frag_coord_form & nir_frag_coord_xy_z_w_separate) {
-      nir_def *xy = nir_load_frag_coord_xy(b);
+      nir_def *xy;
+
+      if (b->shader->options->frag_coord_form &
+          nir_frag_coord_use_pixel_coord) {
+         xy = nir_u2f32(b, nir_load_pixel_coord(b));
+
+         if (!b->shader->info.fs.pixel_center_integer)
+            xy = nir_fadd_imm(b, nir_u2f32(b, nir_load_pixel_coord(b)), 0.5);
+      } else {
+         xy = nir_load_frag_coord_xy(b);
+      }
 
       if (num_components <= 2)
          return nir_trim_vector(b, xy, num_components);

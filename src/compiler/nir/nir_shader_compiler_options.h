@@ -251,6 +251,12 @@ typedef enum {
 
    /* Use frag_coord_w_rcp instead of frag_coord_w. */
    nir_frag_coord_use_w_rcp = BITFIELD_BIT(1),
+
+   /* Use pixel_coord + (pixel_center_integer ? 0 : 0.5) instead of
+    * frag_coord_xy. This is always correct for OpenGL without VRS because
+    * even sample shading must have gl_FragCoord at pixel center.
+    */
+   nir_frag_coord_use_pixel_coord = BITFIELD_BIT(2),
 } nir_frag_coord_form;
 
 typedef struct nir_shader_compiler_options {
