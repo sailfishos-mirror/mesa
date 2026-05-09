@@ -710,10 +710,6 @@ def binop_reduce_all_sizes(name, output_size, src_type, prereduce_expr,
       valid_fp_math_ctrl = preserve_inf + preserve_nan
    binop_reduce(name, output_size, tbool1, src_type, prereduce_expr,
                 reduce_expr, final_expr, "", description, valid_fp_math_ctrl)
-   binop_reduce("b8" + name[1:], output_size, tbool8, src_type, prereduce_expr,
-                reduce_expr, final_expr, "", description, valid_fp_math_ctrl)
-   binop_reduce("b16" + name[1:], output_size, tbool16, src_type, prereduce_expr,
-                reduce_expr, final_expr, "", description, valid_fp_math_ctrl)
    binop_reduce("b32" + name[1:], output_size, tbool32, src_type, prereduce_expr,
                 reduce_expr, final_expr, "", description, valid_fp_math_ctrl)
 
