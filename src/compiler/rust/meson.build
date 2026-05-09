@@ -8,6 +8,7 @@ _compiler_rs_sources = [
   'dataflow.rs',
   'depth_first_search.rs',
   'float16.rs',
+  'lower_bounded.rs',
   'memstream.rs',
   'nir_instr_printer.rs',
   'nir.rs',
