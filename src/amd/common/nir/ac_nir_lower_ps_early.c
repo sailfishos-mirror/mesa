@@ -497,20 +497,15 @@ lower_ps_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
          return true;
       }
       break;
-   case nir_intrinsic_load_frag_coord:
+   case nir_intrinsic_load_frag_coord_xy:
       if (!s->options->optimize_frag_coord)
          break;
       /* Compute frag_coord.xy from pixel_coord. */
-      if (!s->use_fragcoord && nir_def_components_read(&intrin->def) & 0x3) {
+      if (!s->use_fragcoord) {
          nir_def *new_fragcoord_xy = nir_u2f32(b, nir_load_pixel_coord(b));
          if (!b->shader->info.fs.pixel_center_integer)
             new_fragcoord_xy = nir_fadd_imm(b, new_fragcoord_xy, 0.5);
-         nir_def *fragcoord = nir_build_frag_coord(b, 4);
-         nir_def_replace(&intrin->def,
-                         nir_vec4(b, nir_channel(b, new_fragcoord_xy, 0),
-                                  nir_channel(b, new_fragcoord_xy, 1),
-                                  nir_channel(b, fragcoord, 2),
-                                  nir_channel(b, fragcoord, 3)));
+         nir_def_replace(&intrin->def, new_fragcoord_xy);
          return true;
       }
       break;
@@ -521,8 +516,7 @@ lower_ps_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
        * Instead, compute pixel_coord from frag_coord.
        */
       if (s->use_fragcoord) {
-         nir_def *new_pixel_coord = nir_f2u16(b, nir_build_frag_coord(b, 2));
-         nir_def_replace(&intrin->def, new_pixel_coord);
+         nir_def_replace(&intrin->def, nir_f2u16(b, nir_load_frag_coord_xy(b)));
          return true;
       }
       break;
@@ -547,11 +541,10 @@ gather_info(nir_builder *b, nir_intrinsic_instr *intr, void *state)
       if (nir_intrinsic_io_semantics(intr).location == FRAG_RESULT_DUAL_SRC_BLEND)
          s->frag_color_is_frag_data0 = true;
       break;
-   case nir_intrinsic_load_frag_coord:
+   case nir_intrinsic_load_frag_coord_xy:
       assert(intr->def.bit_size == 32);
       nir_foreach_use(use, &intr->def) {
-         if (nir_src_use_instr(use)->type == nir_instr_type_alu &&
-             nir_src_components_read(use) & 0x3) {
+         if (nir_src_use_instr(use)->type == nir_instr_type_alu) {
             switch (nir_instr_as_alu(nir_src_use_instr(use))->op) {
             case nir_op_f2i8:
             case nir_op_f2i16:

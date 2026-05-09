@@ -161,9 +161,15 @@ void si_get_shader_variant_info(struct si_shader *shader,
             case nir_intrinsic_load_draw_id:
                shader->info.uses_sysval_draw_id = true;
                break;
-            case nir_intrinsic_load_frag_coord:
+            case nir_intrinsic_load_frag_coord_xy:
             case nir_intrinsic_load_sample_pos:
                frag_coord_mask |= nir_def_components_read(&intr->def);
+               break;
+            case nir_intrinsic_load_frag_coord_z:
+               frag_coord_mask |= BITFIELD_BIT(2);
+               break;
+            case nir_intrinsic_load_frag_coord_w_rcp:
+               frag_coord_mask |= BITFIELD_BIT(3);
                break;
             case nir_intrinsic_load_input:
             case nir_intrinsic_load_input_vertex:

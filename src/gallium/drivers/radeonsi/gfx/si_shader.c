@@ -960,9 +960,6 @@ static void si_postprocess_nir(struct si_nir_shader_ctx *ctx)
 
    si_init_shader_args(shader, &ctx->args, &nir->info);
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT)
-      NIR_PASS(progress, nir, nir_lower_fragcoord_wtrans);
-
    NIR_PASS(progress, nir, ac_nir_lower_tex_coords,
             &(ac_nir_lower_tex_coords_options){
                .gfx_level = sel->screen->info.gfx_level,
