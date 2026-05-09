@@ -46,3 +46,4 @@ VK_KHR_workgroup_memory_explicit_layout on panvk
 VK_EXT_device_memory_report on pvr
 VK_EXT_descriptor_heap enabled by default on anv, RADV
 VK_EXT_device_address_binding_report on panvk
+VK_EXT_multisampled_render_to_single_sampled on RADV/Android

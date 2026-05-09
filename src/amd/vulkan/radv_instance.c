@@ -139,6 +139,7 @@ static const struct debug_control radv_experimental_options[] = {
    {"hic", RADV_EXPERIMENTAL_HIC},
    {"sparse", RADV_EXPERIMENTAL_SPARSE},
    {"bfloat16", RADV_EXPERIMENTAL_BFLOAT16},
+   {"msrtss", RADV_EXPERIMENTAL_MSRTSS},
    {NULL, 0},
 };
 

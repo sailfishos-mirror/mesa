@@ -686,6 +686,14 @@ radv_get_binning_settings(const struct radv_physical_device *pdev, struct radv_b
    settings->fpovs_per_batch = 63;
 }
 
+static bool
+radv_msrtss_enabled(const struct radv_physical_device *pdev)
+{
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   return DETECT_OS_ANDROID || (instance->experimental_flags & RADV_EXPERIMENTAL_MSRTSS);
+}
+
 static void
 radv_physical_device_get_supported_extensions(const struct radv_physical_device *pdev,
                                               struct vk_device_extension_table *out_ext)
@@ -890,6 +898,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_memory_priority = true,
       .EXT_mesh_shader = radv_taskmesh_enabled(pdev),
       .EXT_multi_draw = true,
+      .EXT_multisampled_render_to_single_sampled = radv_msrtss_enabled(pdev),
       .EXT_mutable_descriptor_type = true, /* Trivial promotion from VALVE. */
       .EXT_nested_command_buffer = true,
       .EXT_non_seamless_cube_map = true,
@@ -1612,6 +1621,9 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_EXT_custom_resolve */
       .customResolve = true,
+
+      /* VK_EXT_multisampled_render_to_single_sampled */
+      .multisampledRenderToSingleSampled = radv_msrtss_enabled(pdev),
 
 #ifdef RADV_USE_WSI_PLATFORM
       /* VK_EXT_present_timing */

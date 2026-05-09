@@ -1650,6 +1650,9 @@ RADV driver environment variables
       rt extensions with older hardware.
    ``hic``
       enable experimental implementation of VK_EXT_host_image_copy on GFX10
+   ``msrtss``
+      enable experimental implementation of
+      VK_EXT_multisampled_render_to_single_sampled
    ``sparse``
       enable experimental sparse binding and sparse residency on GPUs where we don't support it by default (pre Polaris)
    ``transfer_queue``

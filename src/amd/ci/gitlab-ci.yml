@@ -212,7 +212,7 @@ radv-vega10-vkcts-full:
   timeout: 47m
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 45
-    RADV_EXPERIMENTAL: transfer_queue,video_decode,video_encode
+    RADV_EXPERIMENTAL: transfer_queue,video_decode,video_encode,msrtss
 
 radv-renoir-vkcts-full:
   extends:
@@ -222,7 +222,7 @@ radv-renoir-vkcts-full:
   timeout: 1h 10m
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 68
-    RADV_EXPERIMENTAL: transfer_queue
+    RADV_EXPERIMENTAL: transfer_queue,msrtss
 
 radv-navi10-vkcts-full:
   timeout: 30m
@@ -233,7 +233,7 @@ radv-navi10-vkcts-full:
     - .radv-valve-manual-rules
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 28
-    RADV_EXPERIMENTAL: transfer_queue,hic
+    RADV_EXPERIMENTAL: transfer_queue,hic,msrtss
 
 radv-navi21-vkcts:
   timeout: 18m
@@ -254,7 +254,7 @@ radv-navi21-vkcts-full:
     - .radv-valve-manual-rules
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 43
-    RADV_EXPERIMENTAL: transfer_queue
+    RADV_EXPERIMENTAL: transfer_queue,msrtss
 
 radv-vangogh-vkcts-full:
   parallel: 2
@@ -264,7 +264,7 @@ radv-vangogh-vkcts-full:
     - .radv-valve-manual-rules
   timeout: 65m
   variables:
-    RADV_EXPERIMENTAL: transfer_queue
+    RADV_EXPERIMENTAL: transfer_queue,msrtss
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 63
 
 radeonsi-vangogh-glcts:
@@ -298,7 +298,7 @@ radv-raphael-vkcts-full:
   timeout: 30m
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 28
-    RADV_EXPERIMENTAL: transfer_queue
+    RADV_EXPERIMENTAL: transfer_queue,msrtss
 
 radv-navi31-vkcts:
   timeout: 18m
@@ -319,7 +319,7 @@ radv-navi31-vkcts-full:
     - .navi31-test-valve
     - .radv-valve-manual-rules
   variables:
-    RADV_EXPERIMENTAL: transfer_queue
+    RADV_EXPERIMENTAL: transfer_queue,msrtss
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 25
 
 radv-gfx1201-vkcts:
@@ -342,7 +342,7 @@ radv-gfx1201-vkcts-full:
     - .gfx1201-test-valve
     - .radv-valve-manual-rules
   variables:
-    RADV_EXPERIMENTAL: transfer_queue
+    RADV_EXPERIMENTAL: transfer_queue,msrtss
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 26
 
 radv-gfx1201-fluster:
