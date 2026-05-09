@@ -34,14 +34,14 @@ algebraic_late = [
     (('fmax', ('fmin', a, 1.0), -1.0), ('fsat_signed', a)),
     (('fmax', a, 0.0), ('fclamp_pos', a)),
 
-    (('b32csel', 'b@32', ('iadd', 'a@32', 1), a), ('iadd', a, ('b2i32', b))),
+    (('bcsel_pan', 'b@32', ('iadd', 'a@32', 1), a), ('iadd', a, ('b2i32', b))),
 
     # We don't have an 8-bit CSEL, so this is the best we can do.
     # Note that we use 8-bit booleans internally to preserve vectorization.
-    (('imin@8', a, b), ('b8csel', ('ilt_pan', a, b), a, b)),
-    (('imax@8', a, b), ('b8csel', ('ilt_pan', a, b), b, a)),
-    (('umin@8', a, b), ('b8csel', ('ult_pan', a, b), a, b)),
-    (('umax@8', a, b), ('b8csel', ('ult_pan', a, b), b, a)),
+    (('imin@8', a, b), ('bcsel_pan', ('ilt_pan', a, b), a, b)),
+    (('imax@8', a, b), ('bcsel_pan', ('ilt_pan', a, b), b, a)),
+    (('umin@8', a, b), ('bcsel_pan', ('ult_pan', a, b), a, b)),
+    (('umax@8', a, b), ('bcsel_pan', ('ult_pan', a, b), b, a)),
 
     # Floats are at minimum 16-bit, which means when converting to an 8-bit
     # integer, the vectorization changes. So there's no one-shot hardware
@@ -110,17 +110,15 @@ for cond in ['ilt', 'ige', 'ieq', 'ine', 'ult', 'uge']:
 #
 # Because this lowering must happen late, NIR won't squash inot in
 # automatically. Do so explicitly. (The more specific pattern must be first.)
-for bsz in [8, 16, 32]:
-    for fsz in [16, 32]:
-        if bsz == fsz:
-            a_fsz = 'a'
-        else:
-            a_fsz = (f'i2i{fsz}', a)
+for fsz in [16, 32]:
+    a_fsz = (f'i2i{fsz}', a)
 
-        algebraic_late += [
-            ((f'b2f{fsz}', ('inot', f'a@{bsz}')), (f'b{fsz}csel', a_fsz, 0.0, 1.0)),
-            ((f'b2f{fsz}', f'a@{bsz}'), (f'b{fsz}csel', a_fsz, 1.0, 0.0)),
-        ]
+    algebraic_late += [
+        ((f'b2f{fsz}', ('inot', f'a@{fsz}')), ('bcsel_pan', a, 0.0, 1.0)),
+        ((f'b2f{fsz}', ('inot', a)), ('bcsel_pan', a_fsz, 0.0, 1.0)),
+        ((f'b2f{fsz}', f'a@{fsz}'), ('bcsel_pan', a, 1.0, 0.0)),
+        ((f'b2f{fsz}', a), ('bcsel_pan', a_fsz, 1.0, 0.0)),
+    ]
 
 # Bifrost LDEXP.v2f16 takes i16 exponent, while nir_op_ldexp takes i32. Lower
 # to nir_op_ldexp16_pan.

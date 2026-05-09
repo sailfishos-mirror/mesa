@@ -1240,15 +1240,12 @@ triop("fcsel", tfloat32, selection, "(src0 != 0.0f) ? src1 : src2",
 opcode("bcsel", 0, tuint, [0, 0, 0],
        [tbool1, tuint, tuint], False, selection, "src0 ? src1 : src2",
        description = csel_description.format("a 1-bit", "0 vs 1"))
-opcode("b8csel", 0, tuint, [0, 0, 0],
-       [tbool8, tuint, tuint], False, selection, "src0 ? src1 : src2",
-       description = csel_description.format("an 8-bit", "0 vs ~0"))
-opcode("b16csel", 0, tuint, [0, 0, 0],
-       [tbool16, tuint, tuint], False, selection, "src0 ? src1 : src2",
-       description = csel_description.format("a 16-bit", "0 vs ~0"))
 opcode("b32csel", 0, tuint, [0, 0, 0],
        [tbool32, tuint, tuint], False, selection, "src0 ? src1 : src2",
        description = csel_description.format("a 32-bit", "0 vs ~0"))
+opcode("bcsel_pan", 0, tuint, [0, 0, 0],
+       [tbool, tuint, tuint], False, selection, "src0 ? src1 : src2",
+       description = csel_description.format("a same-sized", "0 vs ~0"))
 
 triop("icsel_eqz", tint, selection, "(src0 == 0) ? src1 : src2")
 

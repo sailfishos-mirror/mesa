@@ -166,8 +166,7 @@ lower_alu_instr(nir_builder *b, nir_alu_instr *alu)
       break;
 
    case nir_op_bcsel:
-      opcode = bit_size == 8 ? nir_op_b8csel : bit_size == 16 ? nir_op_b16csel
-                                                              : nir_op_b32csel;
+      opcode = nir_op_bcsel_pan;
 
       /* The destination of the selection may have a different bit-size from
        * the bcsel condition.

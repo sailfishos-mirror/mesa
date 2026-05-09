@@ -3088,19 +3088,9 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       bi_ldexp_to(b, sz, dst, s0, s1);
       break;
 
-   case nir_op_b8csel:
-      assert(sz == 8);
-      bi_mux_v4i8_to(b, dst, s2, s1, s0, BI_MUX_INT_ZERO);
-      break;
-
-   case nir_op_b16csel:
-      assert(sz == 16);
-      bi_mux_v2i16_to(b, dst, s2, s1, s0, BI_MUX_INT_ZERO);
-      break;
-
-   case nir_op_b32csel:
-      assert(sz == 32);
-      bi_mux_i32_to(b, dst, s2, s1, s0, BI_MUX_INT_ZERO);
+   case nir_op_bcsel_pan:
+      assert(sz <= 32);
+      bi_mux_to(b, sz, dst, s2, s1, s0, BI_MUX_INT_ZERO);
       break;
 
    case nir_op_extract_u8:
