@@ -201,6 +201,16 @@ lower_intrinsic_to_arg(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
                              ac_nir_load_arg(b, s->args, s->args->frag_pos[2]),
                              ac_nir_load_arg(b, s->args, s->args->frag_pos[3]));
       break;
+   case nir_intrinsic_load_frag_coord_xy:
+      replacement = nir_vec2(b, ac_nir_load_arg(b, s->args, s->args->frag_pos[0]),
+                             ac_nir_load_arg(b, s->args, s->args->frag_pos[1]));
+      break;
+   case nir_intrinsic_load_frag_coord_z:
+      replacement = ac_nir_load_arg(b, s->args, s->args->frag_pos[2]);
+      break;
+   case nir_intrinsic_load_frag_coord_w_rcp:
+      replacement = ac_nir_load_arg(b, s->args, s->args->frag_pos[3]);
+      break;
    case nir_intrinsic_load_local_invocation_id: {
       unsigned num_bits[3];
       nir_def *vec[3];

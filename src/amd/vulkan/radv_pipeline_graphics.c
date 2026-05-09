@@ -1924,7 +1924,9 @@ radv_consider_force_vrs(const struct radv_graphics_state_key *gfx_state, const s
     * interpolator) as that'd result in races between adjacent primitives with no common fine pixels.
     */
    nir_shader *fs_shader = fs_stage->nir;
-   if (fs_shader && (BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD) ||
+   if (fs_shader && (BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_XY) ||
+                     BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_Z) ||
+                     BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_W_RCP) ||
                      BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_PIXEL_COORD) ||
                      fs_shader->info.fs.sample_interlock_ordered || fs_shader->info.fs.sample_interlock_unordered ||
                      fs_shader->info.fs.pixel_interlock_ordered || fs_shader->info.fs.pixel_interlock_unordered)) {
@@ -2496,8 +2498,6 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       unsigned vgt_outprim_type = radv_get_vgt_outprim_type(stages, gfx_state);
 
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_lower_fs_barycentric, gfx_state, vgt_outprim_type);
-
-      NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_fragcoord_wtrans);
 
       /* frag_depth = gl_FragCoord.z broadcasts to all samples of the fragment shader invocation,
        * so only optimize it away if we know there is only one sample per invocation.

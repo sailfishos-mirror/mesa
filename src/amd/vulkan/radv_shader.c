@@ -66,6 +66,7 @@ get_nir_options_for_stage(struct radv_compiler_info *compiler_info, mesa_shader_
    options->max_unroll_iterations = 32;
    options->max_unroll_iterations_aggressive = 128;
    options->lower_doubles_options = nir_lower_drcp | nir_lower_dsqrt | nir_lower_drsq | nir_lower_ddiv;
+   options->frag_coord_form = nir_frag_coord_xy_z_w_separate | nir_frag_coord_use_w_rcp;
    options->io_options |= nir_io_mediump_is_32bit | nir_io_radv_intrinsic_component_workaround;
    options->varying_expression_max_cost = ac_nir_varying_expression_max_cost;
 }
