@@ -115,7 +115,7 @@ struct wsi_wl_display {
 
    struct wp_color_manager_v1 *color_manager;
 
-   struct dmabuf_feedback_format_table format_table;
+   struct dmabuf_feedback dmabuf_feedback;
 
    struct u_vector color_primaries;
    struct u_vector color_transfer_funcs;
@@ -921,9 +921,10 @@ default_dmabuf_feedback_format_table(void *data,
                                      int32_t fd, uint32_t size)
 {
    struct wsi_wl_display *display = data;
+   struct dmabuf_feedback *feedback = &display->dmabuf_feedback;
 
-   display->format_table.size = size;
-   display->format_table.data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+   feedback->format_table.size = size;
+   feedback->format_table.data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
 
    close(fd);
 }
@@ -934,9 +935,10 @@ default_dmabuf_feedback_main_device(void *data,
                                     struct wl_array *device)
 {
    struct wsi_wl_display *display = data;
+   struct dmabuf_feedback *feedback = &display->dmabuf_feedback;
 
    assert(device->size == sizeof(dev_t));
-   memcpy(&display->main_device, device->data, device->size);
+   memcpy(&feedback->main_device, device->data, device->size);
 }
 
 static void
@@ -944,7 +946,11 @@ default_dmabuf_feedback_tranche_target_device(void *data,
                                               struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
                                               struct wl_array *device)
 {
-   /* ignore this event */
+   struct wsi_wl_display *display = data;
+   struct dmabuf_feedback *feedback = &display->dmabuf_feedback;
+
+   memcpy(&feedback->pending_tranche.target_device, device->data,
+          sizeof(feedback->pending_tranche.target_device));
 }
 
 static void
@@ -952,7 +958,10 @@ default_dmabuf_feedback_tranche_flags(void *data,
                                       struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
                                       uint32_t flags)
 {
-   /* ignore this event */
+   struct wsi_wl_display *display = data;
+   struct dmabuf_feedback *feedback = &display->dmabuf_feedback;
+
+   feedback->pending_tranche.flags = flags;
 }
 
 static void
@@ -961,19 +970,20 @@ default_dmabuf_feedback_tranche_formats(void *data,
                                         struct wl_array *indices)
 {
    struct wsi_wl_display *display = data;
+   struct dmabuf_feedback *feedback = &display->dmabuf_feedback;
    uint32_t format;
    uint64_t modifier;
    uint16_t *index;
 
    /* We couldn't map the format table or the compositor didn't advertise it,
     * so we have to ignore the feedback. */
-   if (display->format_table.data == MAP_FAILED ||
-       display->format_table.data == NULL)
+   if (feedback->format_table.data == MAP_FAILED ||
+       feedback->format_table.data == NULL)
       return;
 
    wl_array_for_each(index, indices) {
-      format = display->format_table.data[*index].format;
-      modifier = display->format_table.data[*index].modifier;
+      format = feedback->format_table.data[*index].format;
+      modifier = feedback->format_table.data[*index].modifier;
       wsi_wl_display_add_drm_format_modifier(display, &display->formats,
                                              format, modifier);
    }
@@ -983,14 +993,19 @@ static void
 default_dmabuf_feedback_tranche_done(void *data,
                                      struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback)
 {
-   /* ignore this event */
+   struct wsi_wl_display *display = data;
+   struct dmabuf_feedback *feedback = &display->dmabuf_feedback;
+
+   /* Add tranche to array of tranches. */
+   util_dynarray_append(&feedback->tranches, feedback->pending_tranche);
+
+   dmabuf_feedback_tranche_init(&feedback->pending_tranche);
 }
 
 static void
 default_dmabuf_feedback_done(void *data,
                              struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback)
 {
-   /* ignore this event */
 }
 
 static const struct zwp_linux_dmabuf_feedback_v1_listener
@@ -1661,7 +1676,7 @@ wsi_wl_display_init(struct wsi_wayland *wsi_wl,
    /* Get the default dma-buf feedback */
    if (display->wl_dmabuf && zwp_linux_dmabuf_v1_get_version(display->wl_dmabuf) >=
                              ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION) {
-         dmabuf_feedback_format_table_init(&display->format_table);
+         dmabuf_feedback_init(&display->dmabuf_feedback);
          display->wl_dmabuf_feedback =
             zwp_linux_dmabuf_v1_get_default_feedback(display->wl_dmabuf);
          zwp_linux_dmabuf_feedback_v1_add_listener(display->wl_dmabuf_feedback,
@@ -1719,7 +1734,7 @@ out:
    if (display->wl_dmabuf_feedback) {
       zwp_linux_dmabuf_feedback_v1_destroy(display->wl_dmabuf_feedback);
       display->wl_dmabuf_feedback = NULL;
-      dmabuf_feedback_format_table_fini(&display->format_table);
+      dmabuf_feedback_fini(&display->dmabuf_feedback);
    }
 
    return VK_SUCCESS;
