@@ -137,14 +137,24 @@ impl ProgramBuild {
                     continue;
                 }
 
-                let build_result =
-                    convert_spirv_to_nir(build, kernel_name, &args, &mut self.spec_constants, dev);
+                let Some(build_result) =
+                    convert_spirv_to_nir(build, kernel_name, &args, &mut self.spec_constants, dev)
+                else {
+                    build.status = CL_BUILD_ERROR;
+                    build.log = "Internal compilation error".to_owned();
+                    return;
+                };
                 kernel_info_set.insert(build_result.kernel_info);
 
                 self.builds_by_device.get_mut(dev).unwrap().kernels.insert(
                     kernel_name.clone(),
                     Arc::new(build_result.nir_kernel_builds),
                 );
+            }
+
+            // If all devices failed to rebuilt their kernels we simply return here.
+            if kernel_info_set.is_empty() {
+                return;
             }
 
             // we want the same (internal) args for every compiled kernel, for now
@@ -223,7 +233,7 @@ impl DeviceProgramBuild {
         kernel: &str,
         device: &Device,
         spec_constants: &mut HashMap<u32, Vec<u8>>,
-    ) -> NirShader {
+    ) -> Option<NirShader> {
         assert_eq!(self.status, CL_BUILD_SUCCESS as cl_build_status);
 
         let mut spec_constants: Vec<_> = spec_constants
@@ -260,7 +270,7 @@ impl DeviceProgramBuild {
             }
         };
 
-        nir.unwrap()
+        nir
     }
 
     fn is_success(&self) -> bool {
