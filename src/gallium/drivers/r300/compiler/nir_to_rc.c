@@ -10,7 +10,6 @@
 #include "compiler/nir/nir_builder.h"
 #include "compiler/nir/nir_deref.h"
 #include "compiler/nir/nir_legacy.h"
-#include "compiler/nir/nir_worklist.h"
 #include "compiler/radeon_code.h"
 #include "compiler/radeon_compiler.h"
 #include "compiler/radeon_program.h"
@@ -29,13 +28,8 @@ struct ntr_immediate {
    float values[4];
 };
 
-struct ntr_reg_interval {
-   uint32_t start, end;
-};
-
 struct ntr_compile {
    nir_shader *s;
-   nir_function_impl *impl;
    struct r300_shader_semantics *semantics;
 
    /* Options */
@@ -52,18 +46,10 @@ struct ntr_compile {
    struct rc_dst_register *reg_temp;
    struct rc_src_register *ssa_temp;
 
-   struct ntr_reg_interval *liveness;
-
-   unsigned current_if_else;
-   unsigned cf_label;
-
    unsigned num_temps;
 
    /* Map from NIR driver_location to RC input register. */
    struct rc_src_register *input_index_map;
-   uint64_t centroid_inputs;
-
-   uint32_t first_ubo;
 
    /* RC-side state for direct emission. */
    struct radeon_compiler *compiler;
@@ -356,26 +342,6 @@ ntr_src_as_uint(struct ntr_compile *c, nir_src src)
       val = (uint32_t)uif(val);
    return val;
 }
-
-/* Per-channel masks of def/use within the block, and the per-channel
- * livein/liveout for the block as a whole.
- */
-struct ntr_live_reg_block_state {
-   uint8_t *def, *use, *livein, *liveout, *defin, *defout;
-};
-
-struct ntr_live_reg_state {
-   unsigned bitset_words;
-
-   struct ntr_reg_interval *regs;
-
-   /* Used in propagate_across_edge() */
-   BITSET_WORD *tmp_live;
-
-   struct ntr_live_reg_block_state *blocks;
-
-   nir_block_worklist worklist;
-};
 
 static void
 ntr_read_input_output(struct ntr_compile *c, gl_varying_slot location, unsigned base)
@@ -748,9 +714,8 @@ ntr_get_src(struct ntr_compile *c, nir_src src)
 static struct rc_src_register
 ntr_get_alu_src(struct ntr_compile *c, nir_alu_instr *instr, int i)
 {
-   /* We only support 32-bit float modifiers.  The only other modifier type
-    * officially supported by TGSI is 32-bit integer negates, but even those are
-    * broken on virglrenderer, so skip lowering all integer and f64 float mods.
+   /* The RC source modifier fields we use here are 32-bit float modifiers.
+    * Keep integer and f64 modifiers explicit in NIR.
     *
     * The lower_fabs requests that we not have native source modifiers
     * for fabs, and instead emit MAX(a,-a) for nir_op_fabs.
@@ -1019,10 +984,6 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
          ntr_emit_alu_op2(c, RC_OPCODE_ADD, dst, src[0], ntr_negate(src[1]));
          break;
 
-      case nir_op_fmod:
-         UNREACHABLE("should be handled by .lower_fmod = true");
-         break;
-
       case nir_op_fpow:
          ntr_emit_scalar(c, RC_OPCODE_POW, dst, src[0], &src[1]);
          break;
@@ -1042,11 +1003,6 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
          /* Implement this as if !(src0 < 0.0) was identical to src0 >= 0.0. */
          ntr_emit_alu_op3(c, RC_OPCODE_CMP, dst, src[0], src[2], src[1]);
          break;
-
-      case nir_op_vec4:
-      case nir_op_vec3:
-      case nir_op_vec2:
-         UNREACHABLE("covered by nir_lower_vec_to_movs()");
 
       default:
          fprintf(stderr, "Unknown NIR opcode: %s\n", nir_op_infos[instr->op].name);
@@ -1465,16 +1421,10 @@ ntr_emit_block(struct ntr_compile *c, nir_block *block)
       ntr_emit_instr(c, instr);
    }
 
-   /* Set up the if condition for ntr_emit_if(), which we have to do before
-    * freeing up the temps (the "if" is treated as inside the block for liveness
-    * purposes, despite not being an instruction)
-    *
-    * Note that, while IF and UIF are supposed to look at only .x, virglrenderer
-    * looks at all of .xyzw.  No harm in working around the bug.
-    */
+   /* Set up the if condition for ntr_emit_if(). */
    nir_if *nif = nir_block_get_following_if(block);
    if (nif)
-      c->if_cond = ntr_scalar(ntr_get_src(c, nif->condition), RC_SWIZZLE_X);
+      c->if_cond = ntr_get_src(c, nif->condition);
 }
 
 static void
@@ -1529,8 +1479,6 @@ ntr_add_constants(struct ntr_compile *c)
 static void
 ntr_emit_impl(struct ntr_compile *c, nir_function_impl *impl)
 {
-   c->impl = impl;
-
    c->ssa_temp = rzalloc_array(c, struct rc_src_register, impl->ssa_alloc);
    c->reg_temp = rzalloc_array(c, struct rc_dst_register, impl->ssa_alloc);
 
@@ -1547,8 +1495,6 @@ ntr_emit_impl(struct ntr_compile *c, nir_function_impl *impl)
    /* Add constants referenced by the emitted RC instructions. */
    ntr_add_constants(c);
 
-   ralloc_free(c->liveness);
-   c->liveness = NULL;
 }
 
 static int
@@ -1566,42 +1512,6 @@ ntr_should_vectorize_instr(const nir_instr *instr, const void *data)
       return 0;
 
    return 4;
-}
-
-static bool
-ntr_should_vectorize_io(unsigned align, unsigned bit_size, unsigned num_components,
-                        unsigned high_offset, nir_intrinsic_instr *low, nir_intrinsic_instr *high,
-                        void *data)
-{
-   if (bit_size != 32)
-      return false;
-
-   /* Our offset alignment should always be at least 4 bytes */
-   if (align < 4)
-      return false;
-
-   /* No wrapping off the end of a TGSI reg.  We could do a bit better by
-    * looking at low's actual offset.  XXX: With LOAD_CONSTBUF maybe we don't
-    * need this restriction.
-    */
-   unsigned worst_start_component = align == 4 ? 3 : align / 4;
-   if (worst_start_component + num_components > 4)
-      return false;
-
-   return true;
-}
-
-static nir_variable_mode
-ntr_no_indirects_mask(nir_shader *s, struct pipe_screen *screen)
-{
-   unsigned pipe_stage = s->info.stage;
-   unsigned indirect_mask = nir_var_shader_in | nir_var_shader_out;
-
-   if (!screen->shader_caps[pipe_stage].indirect_temp_addr) {
-      indirect_mask |= nir_var_function_temp;
-   }
-
-   return indirect_mask;
 }
 
 struct ntr_lower_tex_state {
@@ -1788,14 +1698,9 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
 
    ntr_fixup_varying_slots(s, s->info.stage == MESA_SHADER_FRAGMENT ? nir_var_shader_in : nir_var_shader_out);
 
-   /* Lower array indexing on FS inputs.  Since we don't set
-    * ureg->supports_any_inout_decl_range, the TGSI input decls will be split to
-    * elements by ureg, and so dynamically indexing them would be invalid.
-    * Ideally we would set that ureg flag based on
-    * pipe_shader_caps.tgsi_any_inout_decl_range, but can't due to mesa/st
-    * splitting NIR VS outputs to elements even if the FS doesn't get the
-    * corresponding splitting, and virgl depends on TGSI across link boundaries
-    * having matching declarations.
+   /* The fragment backend doesn't support relative addressing of input
+    * sources, so lower array indexing on FS inputs before nir_lower_io turns
+    * derefs into load_input offsets.
     */
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
       NIR_PASS(_, s, nir_lower_indirect_derefs_to_if_else_trees,
