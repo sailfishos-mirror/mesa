@@ -306,8 +306,9 @@ impl SSAValueAllocator {
 
     /// Allocates an SSA value.
     pub fn alloc(&mut self, file: RegFile) -> SSAValue {
+        let idx = self.count;
         self.count += 1;
-        SSAValue::new(file, self.count)
+        SSAValue::new(file, idx)
     }
 
     /// Allocates multiple SSA values and returns them as an SSA reference.
