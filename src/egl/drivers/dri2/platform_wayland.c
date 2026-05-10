@@ -2131,26 +2131,24 @@ default_dmabuf_feedback_format_table(
    int32_t fd, uint32_t size)
 {
    struct dri2_egl_display *dri2_dpy = data;
+   struct dmabuf_feedback *feedback = &dri2_dpy->dmabuf_feedback;
 
-   dri2_dpy->format_table.size = size;
-   dri2_dpy->format_table.data =
+   feedback->format_table.size = size;
+   feedback->format_table.data =
       mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
 
    close(fd);
 }
 
 static void
-default_dmabuf_feedback_main_device(
-   void *data, struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
-   struct wl_array *device)
+dri2_wl_init_display_dev(
+   struct dri2_egl_display *dri2_dpy,
+   dev_t dev)
 {
-   struct dri2_egl_display *dri2_dpy = data;
    char *node;
    int fd;
-   dev_t dev;
 
    /* Given the device, look for a render node and try to open it. */
-   memcpy(&dev, device->data, sizeof(dev));
    node = loader_get_render_node(dev);
    if (!node)
       return;
@@ -2168,11 +2166,27 @@ default_dmabuf_feedback_main_device(
 }
 
 static void
+default_dmabuf_feedback_main_device(
+   void *data, struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
+   struct wl_array *device)
+{
+   struct dri2_egl_display *dri2_dpy = data;
+   struct dmabuf_feedback *feedback = &dri2_dpy->dmabuf_feedback;
+
+   memcpy(&feedback->main_device, device->data, sizeof(feedback->main_device));
+   dri2_wl_init_display_dev(dri2_dpy, feedback->main_device);
+}
+
+static void
 default_dmabuf_feedback_tranche_target_device(
    void *data, struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
    struct wl_array *device)
 {
-   /* ignore this event */
+   struct dri2_egl_display *dri2_dpy = data;
+   struct dmabuf_feedback *feedback = &dri2_dpy->dmabuf_feedback;
+
+   memcpy(&feedback->pending_tranche.target_device, device->data,
+          sizeof(feedback->pending_tranche.target_device));
 }
 
 static void
@@ -2180,7 +2194,10 @@ default_dmabuf_feedback_tranche_flags(
    void *data, struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback,
    uint32_t flags)
 {
-   /* ignore this event */
+   struct dri2_egl_display *dri2_dpy = data;
+   struct dmabuf_feedback *feedback = &dri2_dpy->dmabuf_feedback;
+
+   feedback->pending_tranche.flags = flags;
 }
 
 static void
@@ -2189,18 +2206,19 @@ default_dmabuf_feedback_tranche_formats(
    struct wl_array *indices)
 {
    struct dri2_egl_display *dri2_dpy = data;
+   struct dmabuf_feedback *feedback = &dri2_dpy->dmabuf_feedback;
    uint64_t *modifier_ptr, modifier;
    uint32_t format;
    uint16_t *index;
    int visual_idx;
 
-   if (dri2_dpy->format_table.data == MAP_FAILED) {
+   if (feedback->format_table.data == MAP_FAILED) {
       _eglLog(_EGL_WARNING, "wayland-egl: we could not map the format table "
                             "so we won't be able to use this batch of dma-buf "
                             "feedback events.");
       return;
    }
-   if (dri2_dpy->format_table.data == NULL) {
+   if (feedback->format_table.data == NULL) {
       _eglLog(_EGL_WARNING,
               "wayland-egl: compositor didn't advertise a format "
               "table, so we won't be able to use this batch of dma-buf "
@@ -2209,8 +2227,8 @@ default_dmabuf_feedback_tranche_formats(
    }
 
    wl_array_for_each (index, indices) {
-      format = dri2_dpy->format_table.data[*index].format;
-      modifier = dri2_dpy->format_table.data[*index].modifier;
+      format = feedback->format_table.data[*index].format;
+      modifier = feedback->format_table.data[*index].modifier;
 
       /* skip formats that we don't support */
       visual_idx = dri2_wl_visual_idx_from_fourcc(format);
@@ -2228,14 +2246,22 @@ static void
 default_dmabuf_feedback_tranche_done(
    void *data, struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback)
 {
-   /* ignore this event */
+   struct dri2_egl_display *dri2_dpy = data;
+   struct dmabuf_feedback *feedback = &dri2_dpy->dmabuf_feedback;
+
+   /* Add tranche to array of tranches. */
+   util_dynarray_append(&feedback->tranches, struct dmabuf_feedback_tranche,
+                        feedback->pending_tranche);
+
+   dmabuf_feedback_tranche_init(&feedback->pending_tranche);
 }
 
 static void
 default_dmabuf_feedback_done(
    void *data, struct zwp_linux_dmabuf_feedback_v1 *dmabuf_feedback)
 {
-   /* ignore this event */
+   struct dri2_egl_display *dri2_dpy = data;
+   dmabuf_feedback_fini(&dri2_dpy->dmabuf_feedback);
 }
 
 static const struct zwp_linux_dmabuf_feedback_v1_listener
@@ -2599,7 +2625,9 @@ dri2_initialize_wayland_drm_extensions(struct dri2_egl_display *dri2_dpy)
    if (dri2_dpy->wl_dmabuf &&
        zwp_linux_dmabuf_v1_get_version(dri2_dpy->wl_dmabuf) >=
           ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION) {
-      dmabuf_feedback_format_table_init(&dri2_dpy->format_table);
+      if (dmabuf_feedback_init(&dri2_dpy->dmabuf_feedback) < 0) {
+         return false;
+      }
       dri2_dpy->wl_dmabuf_feedback =
          zwp_linux_dmabuf_v1_get_default_feedback(dri2_dpy->wl_dmabuf);
       zwp_linux_dmabuf_feedback_v1_add_listener(
@@ -2609,11 +2637,10 @@ dri2_initialize_wayland_drm_extensions(struct dri2_egl_display *dri2_dpy)
    if (roundtrip(dri2_dpy) < 0)
       return false;
 
-   /* Destroy the default dma-buf feedback and the format table. */
+   /* Destroy the default dma-buf feedback. */
    if (dri2_dpy->wl_dmabuf_feedback) {
       zwp_linux_dmabuf_feedback_v1_destroy(dri2_dpy->wl_dmabuf_feedback);
       dri2_dpy->wl_dmabuf_feedback = NULL;
-      dmabuf_feedback_format_table_fini(&dri2_dpy->format_table);
    }
 
 #ifdef HAVE_BIND_WL_DISPLAY
