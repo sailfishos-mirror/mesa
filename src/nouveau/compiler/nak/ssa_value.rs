@@ -85,6 +85,31 @@ enum SSARefInner {
     Large(Box<SSARefLarge>),
 }
 
+impl SSARefInner {
+    fn push(&mut self, val: SSAValue) {
+        match self {
+            SSARefInner::Small(small) => {
+                if small.try_push(val.packed).is_ok() {
+                    return;
+                }
+
+                SSARef::cold();
+                let mut large: Box<SSARefLarge> = Default::default();
+                for s in small.into_iter() {
+                    large.try_push(s).expect("Small has to fit in large");
+                }
+                large.try_push(val.packed).unwrap();
+                *self = Self::Large(large);
+            }
+            SSARefInner::Large(arr) => {
+                SSARef::cold();
+                arr.try_push(val.packed)
+                    .expect("Too many vector components for SSARef");
+            }
+        }
+    }
+}
+
 /// A reference to one or more SSA values
 ///
 /// Because each SSA value represents a single 1 or 32-bit scalar, we need a way
@@ -122,16 +147,11 @@ impl SSARef {
     #[inline]
     pub fn new(comps: &[SSAValue]) -> SSARef {
         assert!(comps.len() > 0);
-        // SAFETY: SSAValue is repr(transparent) of SSAValueInner
-        let bounded: &[SSAValueInner] = unsafe { std::mem::transmute(comps) };
-        SSARef {
-            v: if comps.len() > SSARefSmall::MAX_LEN {
-                Self::cold();
-                SSARefInner::Large(Box::new(bounded.try_into().unwrap()))
-            } else {
-                SSARefInner::Small(bounded.try_into().unwrap())
-            },
+        let mut v = SSARefInner::Small(Default::default());
+        for ssa in comps {
+            v.push(*ssa);
         }
+        SSARef { v }
     }
 
     /// Constructs an SSA reference from an iterator of SSA values.
@@ -141,24 +161,12 @@ impl SSARef {
     /// This method will panic if the number of SSA values in the slice do not
     /// fit in an SSARef.
     fn from_iter(it: impl ExactSizeIterator<Item = SSAValue>) -> Self {
-        let len = it.len();
-        assert!(len > 0 && len <= SSARefLarge::MAX_LEN);
-        SSARef {
-            v: if len > SSARefSmall::MAX_LEN {
-                Self::cold();
-                let mut arr: SSARefLarge = Default::default();
-                for ssa in it {
-                    arr.try_push(ssa.packed).unwrap();
-                }
-                SSARefInner::Large(Box::new(arr))
-            } else {
-                let mut arr: SSARefSmall = Default::default();
-                for ssa in it {
-                    arr.try_push(ssa.packed).unwrap();
-                }
-                SSARefInner::Small(arr)
-            },
+        assert!(it.len() > 0);
+        let mut v = SSARefInner::Small(Default::default());
+        for ssa in it {
+            v.push(ssa);
         }
+        SSARef { v }
     }
 
     /// Returns the number of components in this SSA reference.
