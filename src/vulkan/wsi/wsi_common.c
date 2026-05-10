@@ -1667,7 +1667,7 @@ wsi_GetPastPresentationTimingEXT(
       vk_outarray_append_typed(VkPastPresentationTimingEXT, &timings, timing) {
          timing->targetTime = swapchain->present_timing.timings[i].target_time;
          timing->presentId = in_timing->present_id;
-         timing->timeDomain = swapchain->present_timing.time_domain;
+         timing->timeDomain = VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT;
          timing->timeDomainId = 0;
          timing->reportComplete = in_timing->complete;
 
