@@ -340,7 +340,8 @@ static void si_init_screen_nir_options(struct si_screen *sscreen)
       sscreen->info.compiler_info.has_packed_math_16bit ? si_alu_to_scalar_packed_math_filter : NULL;
    options->max_unroll_iterations = 128;
    options->max_unroll_iterations_aggressive = 128;
-   options->frag_coord_form = nir_frag_coord_xy_z_w_separate | nir_frag_coord_use_w_rcp;
+   options->frag_coord_form = nir_frag_coord_xy_z_w_separate | nir_frag_coord_use_w_rcp |
+                              nir_frag_coord_use_pixel_coord;
    /* For OpenGL, rounding mode is undefined. We want fast packing with v_cvt_pkrtz_f16,
     * but if we use it, all f32->f16 conversions have to round towards zero,
     * because both scalar and vec2 down-conversions have to round equally.

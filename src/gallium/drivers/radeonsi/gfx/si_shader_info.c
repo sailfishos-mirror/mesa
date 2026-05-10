@@ -637,6 +637,8 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
    }
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      assert(!BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_XY));
+
       info->output_z_equals_input_z &= !info->output_z_is_not_input_z;
       info->allow_flat_shading = !(info->uses_sysval_persp_center || info->uses_sysval_persp_centroid ||
                                    info->uses_sysval_persp_sample || info->uses_sysval_linear_center ||
@@ -647,6 +649,7 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_XY) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_Z) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_W_RCP) ||
+                                   BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_PIXEL_COORD) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_POINT_COORD) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_ID) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_POS) ||
