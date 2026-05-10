@@ -2125,26 +2125,6 @@ void msl_preprocess_nir_workarounds(struct nir_shader *nir,
    }
 }
 
-/* Scalarize stores to CLIP_DIST* varyings */
-static bool
-scalarize_clip_distance_filter(const nir_intrinsic_instr *intrin,
-                               UNUSED const void *_data)
-{
-   if (intrin->intrinsic != nir_intrinsic_store_output)
-      return false;
-   nir_io_semantics semantics = nir_intrinsic_io_semantics(intrin);
-   return semantics.location == VARYING_SLOT_CLIP_DIST0 ||
-          semantics.location == VARYING_SLOT_CLIP_DIST1;
-}
-
-void
-msl_lower_nir_late(nir_shader *nir)
-{
-   NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_out,
-            scalarize_clip_distance_filter, NULL);
-   NIR_PASS(_, nir, msl_nir_lower_clip_distance);
-}
-
 static void
 msl_gather_info(struct nir_to_msl_ctx *ctx, struct nir_to_msl_options *options)
 {

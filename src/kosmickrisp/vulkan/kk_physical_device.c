@@ -193,6 +193,7 @@ kk_get_device_features(
       .samplerAnisotropy = true,
       .sampleRateShading = true,
       .shaderClipDistance = true,
+      .shaderCullDistance = true,
       .shaderImageGatherExtended = true,
       .shaderInt16 = true,
       .shaderInt64 = true,

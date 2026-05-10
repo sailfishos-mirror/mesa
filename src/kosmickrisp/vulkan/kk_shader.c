@@ -643,6 +643,7 @@ gather_shader_info(struct kk_shader *shader, nir_shader *nir,
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       nir_shader_intrinsics_pass(nir, gather_vs_inputs, nir_metadata_all,
                                  &shader->info.vs.attribs_read);
+      shader->info.vs.num_cull_distances = nir->info.cull_distance_array_size;
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       /* Some meta shaders like vk-meta-resolve will have depth_layout as NONE
        * which is not a valid Metal layout */
@@ -687,6 +688,7 @@ modify_nir_info(nir_shader *nir)
 
 static VkResult
 kk_compile_shader(struct kk_device *dev, struct vk_shader_compile_info *info,
+                  struct kk_shader *prev_stage,
                   const struct vk_graphics_pipeline_state *state,
                   const VkAllocationCallbacks *pAllocator,
                   struct vk_shader **shader_out)
@@ -715,7 +717,9 @@ kk_compile_shader(struct kk_device *dev, struct vk_shader_compile_info *info,
    if (info->stage == MESA_SHADER_VERTEX) {
       kk_lower_vs_vbo(nir, state, info->robustness);
    }
-   msl_lower_nir_late(nir);
+   unsigned num_cull_distances =
+      prev_stage ? prev_stage->info.vs.num_cull_distances : 0;
+   msl_nir_lower_clip_cull_distance(nir, num_cull_distances);
    msl_optimize_nir(nir);
    modify_nir_info(nir);
 
@@ -780,7 +784,7 @@ kk_compile_nir_shader(struct kk_device *dev, nir_shader *nir,
 
    struct vk_shader *shader = NULL;
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
-   VkResult result = kk_compile_shader(dev, &info, NULL, alloc, &shader);
+   VkResult result = kk_compile_shader(dev, &info, NULL, NULL, alloc, &shader);
    if (result != VK_SUCCESS)
       return result;
 
@@ -1162,8 +1166,11 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
                          nir_opts, NULL);
 
    for (uint32_t i = 0; i < shader_count; i++) {
+      struct kk_shader *prev_stage = i > 0 ?
+         container_of(shaders_out[i - 1], struct kk_shader, vk) : NULL;
       result =
-         kk_compile_shader(dev, &infos[i], state, pAllocator, &shaders_out[i]);
+         kk_compile_shader(dev, &infos[i], prev_stage, state, pAllocator,
+                           &shaders_out[i]);
       if (result != VK_SUCCESS) {
          /* Clean up all the shaders before this point */
          for (uint32_t j = 0; j < i; j++)
@@ -1203,7 +1210,8 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
          };
          struct vk_shader *frag_shader;
          result =
-            kk_compile_shader(dev, &info, state, &dev->vk.alloc, &frag_shader);
+            kk_compile_shader(dev, &info, fs, state, &dev->vk.alloc,
+                              &frag_shader);
 
          if (result != VK_SUCCESS) {
             for (uint32_t i = 0; i < shader_count; i++)

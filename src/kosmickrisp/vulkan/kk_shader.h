@@ -33,6 +33,9 @@ struct kk_shader_info {
          uint32_t attribs_read;
          uint32_t sample_count;
 
+         /* Required for fragment shader cull distance discards. */
+         uint8_t num_cull_distances;
+
          /* Data needed for serialization. */
          enum mtl_primitive_topology_class topology;
          enum mtl_pixel_format rt_formats[MAX_DRAW_BUFFERS];
