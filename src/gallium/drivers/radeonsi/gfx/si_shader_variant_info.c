@@ -161,9 +161,6 @@ void si_get_shader_variant_info(struct si_shader *shader,
             case nir_intrinsic_load_draw_id:
                shader->info.uses_sysval_draw_id = true;
                break;
-            case nir_intrinsic_load_frag_coord_xy:
-               frag_coord_mask |= nir_def_components_read(&intr->def);
-               break;
             case nir_intrinsic_load_frag_coord_z:
                frag_coord_mask |= BITFIELD_BIT(2);
                break;
@@ -374,8 +371,6 @@ void si_get_shader_variant_info(struct si_shader *shader,
          S_0286CC_LINEAR_SAMPLE_ENA(BITSET_TEST(sysvals, SYSTEM_VALUE_BARYCENTRIC_LINEAR_SAMPLE)) |
          S_0286CC_LINEAR_CENTER_ENA(BITSET_TEST(sysvals, SYSTEM_VALUE_BARYCENTRIC_LINEAR_PIXEL)) |
          S_0286CC_LINEAR_CENTROID_ENA(BITSET_TEST(sysvals, SYSTEM_VALUE_BARYCENTRIC_LINEAR_CENTROID)) |
-         S_0286CC_POS_X_FLOAT_ENA(!!(frag_coord_mask & 0x1)) |
-         S_0286CC_POS_Y_FLOAT_ENA(!!(frag_coord_mask & 0x2)) |
          S_0286CC_POS_Z_FLOAT_ENA(!!(frag_coord_mask & 0x4)) |
          S_0286CC_POS_W_FLOAT_ENA(!!(frag_coord_mask & 0x8)) |
          S_0286CC_FRONT_FACE_ENA(BITSET_TEST(sysvals, SYSTEM_VALUE_FRONT_FACE) |

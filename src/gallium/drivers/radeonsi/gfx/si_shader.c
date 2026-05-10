@@ -849,7 +849,6 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
                              key->ps.mono.interpolate_at_sample_force_center,
             .load_sample_positions_always_loads_current_ones = true,
             .force_front_face = key->ps.opt.force_front_face_input,
-            .optimize_frag_coord = true,
             .frag_coord_is_center = true,
             /* This does a lot of things. See the description in ac_nir_lower_ps_early_options. */
             .ps_iter_samples = nir->info.fs.uses_sample_shading ? 8 :
@@ -889,7 +888,6 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
             NIR_PASS(progress, nir, si_nir_lower_polygon_stipple);
       } else {
          ac_nir_lower_ps_early_options early_options = {
-            .optimize_frag_coord = true,
             .frag_coord_is_center = true,
             .ps_iter_samples = nir->info.fs.uses_sample_shading ? 8 : 0,
             .lower_color_inputs_to_load_color01 = true,
@@ -1753,8 +1751,6 @@ static void si_get_ps_prolog_key(struct si_shader *shader, union si_shader_part_
    key->ps_prolog.reserve_line_stipple_tex_ena =
       G_0286CC_LINE_STIPPLE_TEX_ENA(shader->config.spi_ps_input_addr); /* unused but may need to be reserved */
    key->ps_prolog.fragcoord_usage_mask =
-      G_0286CC_POS_X_FLOAT_ENA(shader->config.spi_ps_input_ena) |
-      (G_0286CC_POS_Y_FLOAT_ENA(shader->config.spi_ps_input_ena) << 1) |
       (G_0286CC_POS_Z_FLOAT_ENA(shader->config.spi_ps_input_ena) << 2) |
       (G_0286CC_POS_W_FLOAT_ENA(shader->config.spi_ps_input_ena) << 3);
    key->ps_prolog.uses_ancillary =

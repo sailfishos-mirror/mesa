@@ -646,7 +646,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
                                    info->uses_interp_at_sample || nir->info.writes_memory ||
                                    nir->info.fs.uses_fbfetch_output ||
                                    nir->info.fs.needs_coarse_quad_helper_invocations ||
-                                   BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_XY) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_Z) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_W_RCP) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_PIXEL_COORD) ||
