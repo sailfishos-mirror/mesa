@@ -325,6 +325,8 @@ fn prepare_options(options: &str, dev: &Device) -> Vec<CString> {
             "-cl-denorms-are-zero" => Some("-fdenormal-fp-math=positive-zero"),
             // We can ignore it as long as we don't support ifp
             "-cl-no-subgroup-ifp" => None,
+            // This indicates how many registers per thread should be used, we just ignore it.
+            "-cl-intel-256-GRF-per-thread" => None,
             // Some applications use this argument when they detect Intel hardware.
             "-cl-intel-greater-than-4GB-buffer-required" => None,
             // Some applications use this when they detect QC hardware
