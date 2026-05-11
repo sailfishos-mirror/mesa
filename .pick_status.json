@@ -1594,7 +1594,7 @@
         "description": "zink: fix unbinding vertex buffers from null VS state",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f8c96df9d2748148f5c54bdeec18f91779c3cb9a",
         "notes": null
