@@ -235,6 +235,12 @@ radv_host_image_copy_enabled(const struct radv_physical_device *pdev)
           (pdev->info.gfx_level == GFX10 && (instance->experimental_flags & RADV_EXPERIMENTAL_HIC));
 }
 
+static bool
+radv_split_barrier_enabled(const struct radv_physical_device *pdev)
+{
+   return pdev->info.gfx_level >= GFX12 && !pdev->use_llvm;
+}
+
 bool
 radv_enable_rt(const struct radv_physical_device *pdev)
 {
@@ -900,6 +906,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_shader_module_identifier = true,
       .EXT_shader_object = !pdev->use_llvm && !(instance->debug_flags & RADV_DEBUG_NO_ESO),
       .EXT_shader_replicated_composites = true,
+      .EXT_shader_split_barrier = radv_split_barrier_enabled(pdev),
       .EXT_shader_stencil_export = true,
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
@@ -1631,6 +1638,9 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_KHR_shader_abort */
       .shaderAbort = true,
+
+      /* VK_EXT_shader_split_barrier */
+      .shaderSplitBarrier = radv_split_barrier_enabled(pdev),
    };
 }
 
@@ -2351,6 +2361,9 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
 
       /* VK_KHR_shader_abort */
       .maxShaderAbortMessageSize = RADV_MAX_SHADER_ABORT_MESSAGE_SIZE,
+
+      /* VK_EXT_shader_split_barrier */
+      .splitBarrierReservedSharedMemory = 0,
    };
 
    struct vk_properties *p = &pdev->vk.properties;

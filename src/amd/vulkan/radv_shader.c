@@ -594,6 +594,8 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
          NIR_PASS(_, nir, nir_opt_dce);
       }
 
+      NIR_PASS(_, nir, nir_lower_disordered_control_barriers);
+
       /* Split member structs.  We do this before lower_io_to_temporaries so that
        * it doesn't lower system values to temporaries by accident.
        */
