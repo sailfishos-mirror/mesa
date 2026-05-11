@@ -1014,7 +1014,7 @@ get_device_properties(const struct v3dv_physical_device *device,
 
       /* Fragment limits */
       .maxFragmentInputComponents               = max_varying_components,
-      .maxFragmentOutputAttachments             = 4,
+      .maxFragmentOutputAttachments             = max_rts,
       .maxFragmentDualSrcAttachments            = 1,
       .maxFragmentCombinedOutputResources       = max_rts +
                                                   MAX_STORAGE_BUFFERS +
