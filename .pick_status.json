@@ -564,7 +564,7 @@
         "description": "pan/bi: Propagate swizzle in bi_optimizer_result_type",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "501a66cb5ce76ffca6aa663ea9f8b31d2cd71f07",
         "notes": null
