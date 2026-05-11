@@ -6674,6 +6674,7 @@ bool nir_lower_discard_if(nir_shader *shader, nir_lower_discard_if_options optio
 bool nir_lower_terminate_to_demote(nir_shader *nir);
 
 bool nir_lower_memory_model(nir_shader *shader);
+bool nir_lower_disordered_control_barriers(nir_shader *shader);
 
 bool nir_lower_goto_ifs(nir_shader *shader);
 bool nir_lower_continue_constructs(nir_shader *shader);
