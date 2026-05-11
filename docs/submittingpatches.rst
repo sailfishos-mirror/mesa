@@ -213,7 +213,7 @@ You can produce those fixes lines by running this command once::
 After that, using ``git fixes <sha1>`` will print the full line for you.
 
 The stable tag
-~~~~~~~~~~~~~~
+--------------
 
 If you want a commit to be applied to a stable branch, you should add an
 appropriate note to the commit message.
