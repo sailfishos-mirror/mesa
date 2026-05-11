@@ -187,7 +187,7 @@ propagate_forwards(jay_function *f)
             }
          } else if (def->op == JAY_OPCODE_MODIFIER && !jay_uses_flag(def)) {
             propagate_modifier(I, s, def);
-         } else if (def->op == JAY_OPCODE_NOT && !jay_uses_flag(def)) {
+         } else if (def->op == JAY_OPCODE_NOT && !jay_uses_implicit_flag(def)) {
             propagate_not(I, s, def);
          }
       }
