@@ -101,6 +101,28 @@ struct ac_addrlib {
    uint32_t fmask_surf_index;
 };
 
+static bool is_displayable(const uint32_t bpe, const uint32_t blk_w, const uint32_t blk_h,
+                           const uint32_t num_channels)
+{
+   if (blk_h != 1)
+      return false;
+
+   /* subsampled */
+   if (blk_w == 2)
+       return true;
+
+   if (blk_w != 1)
+       return false;
+
+   return
+      /* RGBA8 or RGBA16F */
+      (bpe >= 4 && bpe <= 8 && num_channels == 4) ||
+      /* R5G6B5 or R5G5B5A1 */
+      (bpe == 2 && num_channels >= 3) ||
+      /* C8 palette */
+      (bpe == 1 && num_channels == 1);
+}
+
 unsigned ac_pipe_config_to_num_pipes(unsigned pipe_config)
 {
    switch (pipe_config) {
@@ -1230,9 +1252,6 @@ static void gfx6_set_micro_tile_mode(struct radeon_surf *surf, const struct rade
 
 static bool get_display_flag(const struct ac_surf_config *config, const struct radeon_surf *surf)
 {
-   unsigned num_channels = config->info.num_channels;
-   unsigned bpe = surf->bpe;
-
    /* With modifiers the kernel is in charge of whether it is displayable.
     * We need to ensure at least 32 pixels pitch alignment, but this is
     * always the case when the blocksize >= 4K.
@@ -1242,19 +1261,8 @@ static bool get_display_flag(const struct ac_surf_config *config, const struct r
 
    if (!config->is_1d && !config->is_3d && !config->is_cube &&
        !(surf->flags & RADEON_SURF_Z_OR_SBUFFER) &&
-       surf->flags & RADEON_SURF_SCANOUT && config->info.samples <= 1 && surf->blk_w <= 2 &&
-       surf->blk_h == 1) {
-      /* subsampled */
-      if (surf->blk_w == 2 && surf->blk_h == 1)
-         return true;
-
-      if (/* RGBA8 or RGBA16F */
-          (bpe >= 4 && bpe <= 8 && num_channels == 4) ||
-          /* R5G6B5 or R5G5B5A1 */
-          (bpe == 2 && num_channels >= 3) ||
-          /* C8 palette */
-          (bpe == 1 && num_channels == 1))
-         return true;
+       surf->flags & RADEON_SURF_SCANOUT && config->info.samples <= 1) {
+      return is_displayable(surf->bpe, surf->blk_w, surf->blk_h, config->info.num_channels);
    }
    return false;
 }
