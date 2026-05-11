@@ -191,7 +191,8 @@ struct affinity {
    /** If true, this UGPR needs full GRF alignment */
    unsigned align     :5;
    unsigned align_offs:4;
-   unsigned padding   :18;
+   unsigned nr        :4;
+   unsigned padding   :14;
 };
 static_assert(sizeof(struct affinity) == 8, "packed");
 
@@ -792,7 +793,12 @@ pick_regs(jay_ra_state *ra,
    unsigned nr = DIV_ROUND_UP((end + 1 - size - first), alignment);
    unsigned roundrobin = (ra->roundrobin[file]) % nr;
    unsigned rr_al = roundrobin * alignment, nr_al = nr * alignment;
-   ra->roundrobin[file] += size;
+
+   /* Heuristic: Advance the roundrobin by a whole vector if we are the
+    * representative. This leaves us registers for the rest of the vector.
+    */
+   ra->roundrobin[file] +=
+      affinity.repr == jay_channel(var, 0) ? MAX2(size, affinity.nr) : size;
 
    for (unsigned i = rr_al; i < rr_al + nr_al; i += alignment) {
       /* We select registers roundrobin. This has several benefits:
@@ -1664,6 +1670,7 @@ jay_register_allocate_function(jay_function *f)
 
             ra.affinities[index].repr = repr;
             ra.affinities[index].offset = repr == index ? c : c - repr_c;
+            ra.affinities[index].nr = MIN2(jay_num_values(I->src[s]), 15);
          }
 
          if (I->op == JAY_OPCODE_SEND && jay_send_eot(I)) {
