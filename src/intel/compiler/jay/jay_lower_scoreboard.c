@@ -155,10 +155,10 @@ struct swsb_state {
    unsigned ip[TGL_NUM_PIPES];
    unsigned last_shape[TGL_NUM_PIPES];
 
-   /* finished_ip[X][Y] = ip means from the perspective of pipe X, ip on pipe Y
-    * has already been waited on.
+   /* finished_ip[X / TGL_NUM_PIPES + SBID][Y] = ip means from the perspective
+    * of pipe X or send SBID X, ip on pipe Y has already been waited on.
     */
-   unsigned finished_ip[TGL_NUM_PIPES][TGL_NUM_PIPES];
+   unsigned finished_ip[TGL_NUM_PIPES + NUM_TOKENS][TGL_NUM_PIPES];
    u32_per_pipe *access;
 
    jay_inst *last_sync;
@@ -249,6 +249,32 @@ depend_on_writer(struct swsb_state *state,
 static void
 lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
 {
+   if (I->op == JAY_OPCODE_SYNC) {
+      ctx->last_sync = I;
+      uint32_t sbid_mask = 0;
+      if (jay_sync_op(I) == TGL_SYNC_NOP) {
+         sbid_mask = BITFIELD_BIT(I->dep.sbid);
+      } else if (jay_sync_op(I) == TGL_SYNC_ALLRD ||
+                 jay_sync_op(I) == TGL_SYNC_ALLWR) {
+         sbid_mask = jay_as_uint(I->src[0]);
+      }
+
+      /* Syncs execute on all pipes, so any regdist that the synced SEND waited
+       * on gets cleared for all pipes. This reduces annotations.
+       */
+      u_foreach_bit(sbid, sbid_mask) {
+         jay_foreach_pipe(p) {
+            jay_foreach_pipe(q) {
+               ctx->finished_ip[p][q] =
+                  MAX2(ctx->finished_ip[p][q],
+                       ctx->finished_ip[TGL_NUM_PIPES + sbid][q]);
+            }
+         }
+      }
+
+      return;
+   }
+
    enum tgl_pipe exec_pipe = inst_exec_pipe(func->shader->devinfo, I);
    unsigned dep[TGL_NUM_PIPES] = { 0 };
 
@@ -288,7 +314,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
    unsigned min_delta = 7;
 
    jay_foreach_pipe(p) {
-      if (dep[p] && (exec_pipe == TGL_PIPE_NONE /* TODO: Sends */ ||
+      if (dep[p] && (exec_pipe == TGL_PIPE_NONE ||
                      dep[p] > ctx->finished_ip[exec_pipe][p])) {
 
          min_delta = MIN2(min_delta, ctx->ip[p] - dep[p] + 1);
@@ -296,9 +322,15 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
       }
    }
 
+   /* SENDs are modelled as a pipe per SBID for finished_ip purposes */
+   unsigned generalized_pipe = exec_pipe;
+   if (I->op == JAY_OPCODE_SEND) {
+      generalized_pipe = TGL_NUM_PIPES + jay_send_sbid(I);
+   }
+
    /* We'll wait on the unioned dependency. Update the tracking for that. */
    u_foreach_bit(p, wait_pipes) {
-      ctx->finished_ip[exec_pipe][p] = ctx->ip[p] + 1 - min_delta;
+      ctx->finished_ip[generalized_pipe][p] = ctx->ip[p] + 1 - min_delta;
    }
 
    uint32_t last_pipe = util_logbase2(wait_pipes);
@@ -374,6 +406,8 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
 
       ctx->last_shape[exec_pipe] = shape;
    }
+
+   ctx->last_sync = NULL;
 }
 
 /*
@@ -438,12 +472,7 @@ jay_lower_scoreboard(jay_shader *shader)
          }
 
          jay_foreach_inst_in_block_safe(block, I) {
-            if (I->op == JAY_OPCODE_SYNC) {
-               state.last_sync = I;
-            } else {
-               lower_regdist(f, I, &state);
-               state.last_sync = NULL;
-            }
+            lower_regdist(f, I, &state);
          }
       }
    }
