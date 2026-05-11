@@ -2807,8 +2807,12 @@ load("push_data_intel", [1], [BASE, RANGE, ACCESS], [CAN_ELIMINATE, CAN_REORDER]
 # Dynamic tesselation parameters (see intel_tess_config).
 system_value("tess_config_intel", 1)
 
-# Dynamic fragment shader parameters (see intel_fs_config) .
+# Dynamic fragment shader parameters (see intel_fs_config).
 system_value("fs_config_intel", 1)
+
+# Test a bit in fs_config_intel.
+intrinsic("test_fs_config_intel", dest_comp=1, src_comp=[],
+          indices=[BASE], flags=[CAN_ELIMINATE, CAN_REORDER])
 
 # The (linear) local invocation index provided in the payload of mesh/task shaders.
 system_value("local_invocation_index_intel", 1)

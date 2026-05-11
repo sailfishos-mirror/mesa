@@ -392,26 +392,12 @@ jay_process_nir(const struct intel_device_info *devinfo,
       // TODO
       // NIR_PASS(_, nir, brw_nir_move_interpolation_to_top);
 
-      if (!brw_fs_prog_key_is_dynamic(&key->fs)) {
-         uint32_t f = 0;
+      /* Do this before lower_fs_config_intel so that the pass has the right
+       * information.
+       */
+      jay_populate_prog_data(devinfo, nir, prog_data, key, 0);
 
-         if (key->fs.multisample_fbo == INTEL_ALWAYS)
-            f |= INTEL_FS_CONFIG_MULTISAMPLE_FBO;
-
-         if (key->fs.alpha_to_coverage == INTEL_ALWAYS)
-            f |= INTEL_FS_CONFIG_ALPHA_TO_COVERAGE;
-
-         if (key->fs.provoking_vertex_last == INTEL_ALWAYS)
-            f |= INTEL_FS_CONFIG_PROVOKING_VERTEX_LAST;
-
-         if (key->fs.persample_interp == INTEL_ALWAYS) {
-            f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH |
-                 INTEL_FS_CONFIG_PERSAMPLE_INTERP;
-         }
-
-         NIR_PASS(_, nir, nir_inline_sysval, nir_intrinsic_load_fs_config_intel,
-                  f);
-      }
+      NIR_PASS(_, nir, brw_nir_lower_fs_config_intel, &key->fs, &prog_data->fs);
    } else {
       brw_nir_apply_key(pt, &key->base, simd_width);
    }
@@ -465,6 +451,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
    nj_index_ssa_defs(nir);
    nir_divergence_analysis(nir);
 
-   jay_populate_prog_data(devinfo, nir, prog_data, key, nr_packed_regs);
+   if (stage != MESA_SHADER_FRAGMENT)
+      jay_populate_prog_data(devinfo, nir, prog_data, key, nr_packed_regs);
    return simd_width;
 }

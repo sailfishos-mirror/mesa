@@ -366,6 +366,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_alpha_to_coverage_enable_ir3:
    case nir_intrinsic_load_frag_shading_rate_intel:
    case nir_intrinsic_load_msaa_rate_intel:
+   case nir_intrinsic_test_fs_config_intel:
       is_divergent = false;
       break;
 

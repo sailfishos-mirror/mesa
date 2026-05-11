@@ -39,9 +39,8 @@ lower_fully_covered(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
 
    nir_def *fully_covered = nir_ieq(b, coverage_mask, expected_mask);
 
-   nir_def *fs_config = nir_load_fs_config_intel(b);
-   nir_def *cons_raster_on =
-      nir_test_mask(b, fs_config, INTEL_FS_CONFIG_CONSERVATIVE_RASTER);
+   nir_def *cons_raster_on = nir_test_fs_config_intel(
+      b, 1, INTEL_FS_CONFIG_CONSERVATIVE_RASTER);
 
    fully_covered = nir_bcsel(b, cons_raster_on, fully_covered, nir_imm_false(b));
 

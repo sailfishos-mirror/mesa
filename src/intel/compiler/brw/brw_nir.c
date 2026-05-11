@@ -1484,7 +1484,12 @@ lower_frag_shading_rate(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
    nir_def *sr = nir_load_frag_shading_rate_intel(b);
    nir_def *int_rate_x = nir_ushr_imm(b, nir_channel(b, sr, 0), 1);
    nir_def *int_rate_y = nir_ushr_imm(b, nir_channel(b, sr, 1), 1);
-   nir_def *rate = nir_ior(b, nir_ishl_imm(b, int_rate_x, 2), int_rate_y);
+   nir_def *coarse_rate = nir_ior(b, nir_ishl_imm(b, int_rate_x, 2), int_rate_y);
+
+   nir_def *rate = nir_bcsel(
+      b,
+      nir_test_fs_config_intel(b, 1, INTEL_FS_CONFIG_COARSE_RT_WRITES),
+      coarse_rate, nir_imm_int(b, 0));
 
    nir_def_replace(&intrin->def, rate);
 
@@ -1496,6 +1501,76 @@ brw_nir_lower_frag_shading_rate(nir_shader *nir)
 {
    return nir_shader_intrinsics_pass(nir, lower_frag_shading_rate,
                                      nir_metadata_control_flow, NULL);
+}
+
+struct lower_fs_config_state {
+   uint32_t known_bits;
+   uint32_t enabled_bits;
+};
+
+static bool
+lower_fs_config_intel(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
+{
+   if (intrin->intrinsic != nir_intrinsic_test_fs_config_intel)
+      return false;
+
+   const uint32_t test_bit = nir_intrinsic_base(intrin);
+   const struct lower_fs_config_state *state = data;
+
+   b->cursor = nir_after_instr(&intrin->instr);
+
+   nir_def *new_val =
+      (test_bit & state->known_bits) ?
+      nir_imm_bool(b, test_bit & state->enabled_bits) :
+      nir_test_mask(b, nir_load_fs_config_intel(b), test_bit);
+   nir_def_replace(&intrin->def, new_val);
+
+   return true;
+}
+
+static uint32_t
+generate_fs_config_state_bits(const struct brw_fs_prog_key *key,
+                              const struct brw_fs_prog_data *prog_data,
+                              enum intel_sometimes comp_value)
+{
+   uint32_t f = 0;
+
+   if (key->multisample_fbo == comp_value)
+      f |= INTEL_FS_CONFIG_MULTISAMPLE_FBO;
+
+   if (prog_data->alpha_to_coverage == comp_value)
+      f |= INTEL_FS_CONFIG_ALPHA_TO_COVERAGE;
+
+   if (prog_data->provoking_vertex_last == comp_value)
+      f |= INTEL_FS_CONFIG_PROVOKING_VERTEX_LAST;
+
+   if (prog_data->persample_dispatch == comp_value) {
+      f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH |
+           INTEL_FS_CONFIG_PERSAMPLE_INTERP;
+   }
+
+   if (prog_data->coarse_pixel_dispatch == comp_value)
+      f |= INTEL_FS_CONFIG_COARSE_RT_WRITES;
+
+   if (prog_data->conservative_raster == comp_value)
+      f |= INTEL_FS_CONFIG_CONSERVATIVE_RASTER;
+
+   return f;
+}
+
+
+bool
+brw_nir_lower_fs_config_intel(nir_shader *nir,
+                              const struct brw_fs_prog_key *key,
+                              const struct brw_fs_prog_data *prog_data)
+{
+   struct lower_fs_config_state state = {
+      .known_bits = ~generate_fs_config_state_bits(key, prog_data, INTEL_SOMETIMES),
+      .enabled_bits = generate_fs_config_state_bits(key, prog_data, INTEL_ALWAYS),
+   };
+
+   return nir_shader_intrinsics_pass(nir, lower_fs_config_intel,
+                                     nir_metadata_control_flow, &state);
 }
 
 void

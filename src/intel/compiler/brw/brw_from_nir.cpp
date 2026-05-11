@@ -3599,23 +3599,9 @@ static void
 emit_frag_shading_rate_setup(nir_to_brw_state &ntb, brw_reg result)
 {
    const intel_device_info *devinfo = ntb.devinfo;
-   const brw_builder &bld = ntb.bld;
-
-   struct brw_fs_prog_data *fs_prog_data =
-      brw_fs_prog_data(bld.shader->prog_data);
-
-   const brw_builder abld = bld.annotate("compute fragment size");
+   const brw_builder &abld = ntb.bld.annotate("compute fragment size");
 
    result.type = BRW_TYPE_UD;
-
-   bld.MOV(offset(result, bld, 0), brw_imm_ud(1));
-   bld.MOV(offset(result, bld, 1), brw_imm_ud(1));
-
-   /* Coarse pixel shading size fields overlap with other fields of not in
-    * coarse pixel dispatch mode, so report (1, 1) when that's not the case.
-    */
-   if (fs_prog_data->coarse_pixel_dispatch == INTEL_NEVER)
-      return;
 
    assert(devinfo->ver >= 11);
 
@@ -3624,25 +3610,8 @@ emit_frag_shading_rate_setup(nir_to_brw_state &ntb, brw_reg result)
    /* r1.0 - 15:8 ActualCoarsePixelShadingSize.Y */
    brw_reg actual_y = byte_offset(actual_x, 1);
 
-   brw_reg coarse_size = abld.vgrf(BRW_TYPE_UD, 2);
-
-   bld.MOV(offset(coarse_size, bld, 0), actual_x);
-   bld.MOV(offset(coarse_size, bld, 1), actual_y);
-
-   if (fs_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS) {
-      for (unsigned i = 0; i < 2; i++)
-         bld.MOV(offset(result, bld, i), offset(coarse_size, bld, i));
-      return;
-   }
-
-   brw_check_dynamic_fs_config(abld, fs_prog_data,
-                               INTEL_FS_CONFIG_COARSE_RT_WRITES);
-   for (unsigned i = 0; i < 2; i++) {
-      set_predicate(BRW_PREDICATE_NORMAL,
-                    abld.SEL(offset(result, bld, i),
-                             offset(coarse_size, bld, i),
-                             offset(result, bld, i)));
-   }
+   abld.MOV(offset(result, abld, 0), actual_x);
+   abld.MOV(offset(result, abld, 1), actual_y);
 }
 
 /* Input data is organized with first the per-primitive values, followed

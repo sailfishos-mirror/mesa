@@ -1527,31 +1527,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
    if (prog_data->coarse_pixel_dispatch != INTEL_NEVER)
       BRW_NIR_PASS(brw_nir_lower_frag_coord_z, devinfo);
 
-   if (!brw_fs_prog_key_is_dynamic(key)) {
-      uint32_t f = 0;
-
-      if (key->multisample_fbo == INTEL_ALWAYS)
-         f |= INTEL_FS_CONFIG_MULTISAMPLE_FBO;
-
-      if (key->alpha_to_coverage == INTEL_ALWAYS)
-         f |= INTEL_FS_CONFIG_ALPHA_TO_COVERAGE;
-
-      if (key->provoking_vertex_last == INTEL_ALWAYS)
-         f |= INTEL_FS_CONFIG_PROVOKING_VERTEX_LAST;
-
-      if (key->persample_interp == INTEL_ALWAYS) {
-         f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH |
-              INTEL_FS_CONFIG_PERSAMPLE_INTERP;
-      }
-
-      if (prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
-         f |= INTEL_FS_CONFIG_COARSE_RT_WRITES;
-
-      if (key->conservative_raster == INTEL_ALWAYS)
-         f |= INTEL_FS_CONFIG_CONSERVATIVE_RASTER;
-
-      BRW_NIR_PASS(nir_inline_sysval, nir_intrinsic_load_fs_config_intel, f);
-   }
+   BRW_NIR_PASS(brw_nir_lower_fs_config_intel, key, prog_data);
 
    brw_postprocess_nir_opts(pt);
 

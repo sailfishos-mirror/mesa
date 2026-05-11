@@ -238,6 +238,9 @@ void brw_nir_lower_mesh_outputs(nir_shader *nir,
 void brw_nir_lower_fs_outputs(nir_shader *nir);
 bool brw_nir_lower_fs_load_output(nir_shader *shader,
                                   const struct brw_fs_prog_key *key);
+bool brw_nir_lower_fs_config_intel(nir_shader *nir,
+                                   const struct brw_fs_prog_key *key,
+                                   const struct brw_fs_prog_data *prog_data);
 
 bool brw_nir_lower_frag_coord_z(nir_shader *nir,
                                 const struct intel_device_info *devinfo);
