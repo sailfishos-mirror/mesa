@@ -87,7 +87,7 @@ to_brw_reg(jay_function *f,
       if (jay_type_size_bits(type) == 64) {
          type = jay_type_resize(type, 32);
       } else if (I->op == JAY_OPCODE_BFN) {
-         assert(jay_as_uint(d) < UINT16_MAX);
+         assert(jay_as_uint(d) <= UINT16_MAX);
          type = JAY_TYPE_U16;
       }
 
