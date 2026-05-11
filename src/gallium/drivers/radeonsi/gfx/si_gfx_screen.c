@@ -327,6 +327,7 @@ static void si_init_screen_nir_options(struct si_screen *sscreen)
    nir_shader_compiler_options *options = sscreen->nir_options;
    ac_nir_set_options(&sscreen->info.compiler_info, !sscreen->use_aco, options);
 
+   options->ignore_none_interpolation_in_sysval_gathering = true;
    options->lower_ffma16 = sscreen->info.gfx_level < GFX9;
    options->lower_ffma32 = !use_fma32;
    options->lower_ffma64 = false;

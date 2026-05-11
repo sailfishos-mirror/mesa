@@ -536,6 +536,11 @@ typedef struct nir_shader_compiler_options {
    bool unify_interfaces;
 
    /**
+    * Whether nir_shader_gather_info ignores INTERP_MODE_NONE.
+    */
+   bool ignore_none_interpolation_in_sysval_gathering;
+
+   /**
     * Whether nir_lower_io() will lower interpolateAt functions to
     * load_interpolated_input intrinsics.
     *
