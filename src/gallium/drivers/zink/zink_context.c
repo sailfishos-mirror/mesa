@@ -1642,9 +1642,10 @@ zink_bind_vertex_addresses(struct zink_context *ctx)
       const struct pipe_vertex_buffer *vb = &ctx->vertex_buffers[elems->hw_state.binding_map[i]];
       if (vb->buffer.resource) {
          struct zink_resource *res = zink_resource(vb->buffer.resource);
+         int offset = vb->buffer_offset;
          assert(res->obj->buffer);
-         dac_vbs[i].addressRange.address = res->obj->bda + vb->buffer_offset;
-         dac_vbs[i].addressRange.size = res->base.b.width0 - vb->buffer_offset;
+         dac_vbs[i].addressRange.address = res->obj->bda + offset;
+         dac_vbs[i].addressRange.size = res->base.b.width0 - offset;
          if (res->base.b.flags & PIPE_RESOURCE_FLAG_SPARSE)
             dac_vbs[i].addressFlags &= ~VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR;
          else
