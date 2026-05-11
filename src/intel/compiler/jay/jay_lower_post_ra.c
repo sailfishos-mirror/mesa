@@ -43,9 +43,9 @@ lower(jay_builder *b, jay_inst *I)
    switch (I->op) {
    case JAY_OPCODE_PRELOAD:
    case JAY_OPCODE_PHI_DST:
-   case JAY_OPCODE_INDETERMINATE:
+   case JAY_OPCODE_UNDEF:
       /* Delete instructions that only exist for RA. Uninitialized register
-       * contents is a perfectly cromulent indeterminate value.
+       * contents is a perfectly cromulent undefined value.
        */
       return true;
 

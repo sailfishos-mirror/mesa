@@ -760,8 +760,8 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
       nir_src_is_const(intr->src[2]) && nir_src_as_bool(intr->src[2]);
 
    for (unsigned i = 0; i < nir_src_num_components(intr->src[0]); ++i) {
-      srcs[i] = trivial ? jay_INDETERMINATE_u32(b) :
-                          jay_as_gpr(b, jay_extract(data, i));
+      srcs[i] =
+         trivial ? jay_UNDEF_u32(b) : jay_as_gpr(b, jay_extract(data, i));
    }
 
    jay_inst *send =
@@ -2091,7 +2091,7 @@ jay_emit_instr(struct nir_to_jay_state *nj, jay_block *block, nir_instr *instr)
          if (instr->type == nir_instr_type_phi) {
             jay_PHI_DST(&nj->bld, jay_extract(def, c));
          } else {
-            jay_INDETERMINATE(&nj->bld, jay_extract(def, c));
+            jay_UNDEF(&nj->bld, jay_extract(def, c));
          }
       }
 

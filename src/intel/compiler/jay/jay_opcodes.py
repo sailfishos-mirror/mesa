@@ -204,8 +204,8 @@ op('phi_dst', 0, 'u1 u32')
 # Output from a unit test to prevent dead code elimination.
 op('unit_test', 1, 'u32', Props.NO_DEST)
 
-# Produces a stable indeterminate value. Freeze(Poison) in LLVM parlance.
-op('indeterminate', 0, 'u1 u32')
+# Produces a unstable indeterminate value. Undef in LLVM parlance.
+op('undef', 0, 'u1 u32')
 
 op('not', 1, 'u1 u32', Props.CMOD)
 op('cast_canonical_to_flag', 1, 'u1')
