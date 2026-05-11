@@ -627,3 +627,50 @@ BEGIN_TEST(d3d11_derivs.nsa_max)
       finish_to_hw_instr_test();
    }
 END_TEST
+
+BEGIN_TEST(d3d11_derivs.cube_txd_to_tex)
+   // clang-format off
+   QoShaderModuleCreateInfo vs = qoShaderModuleCreateInfoGLSL(VERTEX,
+      layout(location = 0) in vec3 in_coord;
+      layout(location = 0) out vec3 out_coord;
+      void main() {
+         out_coord = in_coord;
+      }
+   );
+   QoShaderModuleCreateInfo fs = qoShaderModuleCreateInfoGLSL(FRAGMENT,
+      layout(location = 0) in vec3 in_coord;
+      layout(location = 0) out vec4 out_color;
+      layout(binding = 0) uniform samplerCube tex;
+      void main() {
+         out_color = vec4(0.0);
+         vec3 ddx = dFdxCoarse(in_coord);
+         vec3 ddy = dFdyCoarse(in_coord);
+         if (gl_FragCoord.x > 1.0)
+            out_color = textureGrad(tex, in_coord, ddx, ddy);
+      }
+   );
+   // clang-format on
+
+   PipelineBuilder pbld(get_vk_device(GFX10_3));
+   pbld.add_vsfs(vs, fs);
+
+   //>> v1: %face = v_cubeid_f32 (kill)%_, (kill)%_, (kill)%_
+   //>> v1: %x = v_fmaak_f32 (kill)%_, %_, 0x3fc00000
+   //>> v1: %y = v_fmaak_f32 (kill)%_, (kill)%_, 0x3fc00000
+   //>> lv3: %wqm = p_start_linear_vgpr (kill)%x, (kill)%y, (kill)%face
+   //>> BB1
+   //>> v4: %_ = image_sample (kill)%_, (kill)%_, v1: undef, %wqm cube da
+   //>> BB2
+   //>> BB6
+   //>> p_end_linear_vgpr (kill)%wqm
+   pbld.print_ir(VK_SHADER_STAGE_FRAGMENT_BIT, "ACO IR");
+
+   //>> v_cubeid_f32 v#rf_tmp, v#_, v#_, v#_                                                 ; $_ $_
+   //>> v_mov_b32_e32 v#rf, v#rf_tmp                                                         ; $_
+   //>> v_fmaak_f32 v#rx_tmp, v#_, v#_, 0x3fc00000                                           ; $_ $_
+   //>> v_fmaak_f32 v#ry_tmp, v#_, v#_, 0x3fc00000                                           ; $_ $_
+   //>> v_lshrrev_b64 v[#rx:#ry], 0, v[#rx_tmp:#ry_tmp]                                      ; $_ $_
+   //; success = rx+1 == ry and rx+2 == rf
+   //>> image_sample v[#_:#_], v[#rx:#rf], s[#_:#_], s[#_:#_] dmask:0xf dim:SQ_RSRC_IMG_CUBE ; $_ $_
+   pbld.print_ir(VK_SHADER_STAGE_FRAGMENT_BIT, "Assembly");
+END_TEST
