@@ -6284,7 +6284,10 @@ static void pvr_compute_update_kernel(
    info.local_size[2] = 1U;
 
    info.max_instances =
-      pvr_compute_flat_slot_size(pdevice, coeff_regs, false, work_size);
+      pvr_compute_flat_slot_size(pdevice,
+                                 coeff_regs,
+                                 cs_data->common.uses.barriers,
+                                 work_size);
 
    pvr_compute_generate_control_stream(csb, sub_cmd, &info);
 }
