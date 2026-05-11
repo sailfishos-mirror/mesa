@@ -40,6 +40,7 @@ static const struct debug_named_value jay_debug_options[] = {
    { "printdemand", JAY_DBG_PRINTDEMAND, "Print demand per instruction"          },
    { "spill",       JAY_DBG_SPILL,       "Shrink register file to test spilling" },
    { "sync",        JAY_DBG_SYNC,        "Sync after every instruction"          },
+   { "noacc",       JAY_DBG_NOACC,       "Disable accumulator substitution"      },
    DEBUG_NAMED_VALUE_END
 };
 
@@ -2681,7 +2682,10 @@ jay_compile(const struct intel_device_info *devinfo,
        * predication, so assign accumulators before predicating for better
        * results.
        */
-      JAY_PASS(s, jay_assign_accumulators);
+      if (!(jay_debug & JAY_DBG_NOACC)) {
+         JAY_PASS(s, jay_assign_accumulators);
+      }
+
       JAY_PASS(s, jay_opt_predicate);
    }
 
