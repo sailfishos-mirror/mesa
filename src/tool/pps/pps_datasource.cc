@@ -16,6 +16,7 @@
 #include <thread>
 #include <variant>
 #include <inttypes.h>
+#include <util/bitscan.h>
 
 // Minimum supported sampling period in nanoseconds
 #define MIN_SAMPLING_PERIOD_NS 5000
@@ -185,6 +186,11 @@ template <typename GpuCounterDescriptor> void add_descriptors(GpuCounterDescript
          assert(false && "Missing counter units type!");
          break;
       }
+
+      u_foreach_bit(b, counter.group_mask) {
+         spec->add_groups(static_cast<typename GpuCounterDescriptor::GpuCounterGroup>(b));
+      }
+
       spec->add_numerator_units(units);
       spec->set_select_by_default(true);
    }
