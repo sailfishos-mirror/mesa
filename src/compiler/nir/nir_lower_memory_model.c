@@ -115,8 +115,12 @@ visit_instr(nir_instr *instr, uint32_t *cur_modes, unsigned vis_avail_sem)
       nir_intrinsic_set_memory_semantics(
          intrin, semantics & ~vis_avail_sem);
 
+      bool is_split_control_barrier =
+         util_bitcount(semantics & NIR_MEMORY_CONTROL_ARRIVE_WAIT) == 1;
+      mesa_scope rm_scope = is_split_control_barrier ? SCOPE_NONE : SCOPE_INVOCATION;
+
       if (nir_intrinsic_memory_semantics(intrin) == 0 &&
-          nir_intrinsic_execution_scope(intrin) <= SCOPE_INVOCATION)
+          nir_intrinsic_execution_scope(intrin) <= rm_scope)
          nir_instr_remove(instr);
 
       return true;

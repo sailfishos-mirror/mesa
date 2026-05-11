@@ -551,6 +551,12 @@ typedef struct shader_info {
           */
          bool has_cooperative_matrix:1;
 
+         /*
+          * If the shader might have a control barrier with only one of
+          * NIR_MEMORY_CONTROL_ARRIVE/NIR_MEMORY_CONTROL_WAIT.
+          */
+         bool has_split_control_barriers:1;
+
          /**
           * Number of bytes of shared imageblock memory per thread. Currently,
           * this requires that the workgroup size is 32x32x1 and that
