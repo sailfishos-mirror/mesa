@@ -210,27 +210,30 @@ jay_collect(jay_builder *b,
 /*
  * Set the n'th channel of a def to index. This requires a copy-on-write.
  *
- * This implementation could likely be optimized.
+ * This implementation could likely be optimized. Right now, we just decompress
+ * the def, update in-place, then collect back.
  */
 static inline void
-jay_insert_channel(jay_builder *b, jay_def *d, unsigned c, jay_def scalar)
+jay_insert_channel_index(jay_builder *b, jay_def *d, unsigned c, uint32_t index)
 {
    uint32_t indices[JAY_MAX_DEF_LENGTH];
    uint32_t count = jay_num_values(*d);
 
-   assert(scalar.file == d->file && !scalar.negate && !scalar.abs);
    assert(c < count && count <= ARRAY_SIZE(indices));
 
-   /* First, decompress the def. */
    jay_foreach_comp(*d, i) {
       indices[i] = jay_channel(*d, i);
    }
 
-   /* Next, update the indices in place */
-   indices[c] = jay_index(scalar);
-
-   /* Now collect it back. */
+   indices[c] = index;
    jay_replace_src(d, jay_collect(b, d->file, indices, count));
+}
+
+static inline void
+jay_insert_channel(jay_builder *b, jay_def *d, unsigned c, jay_def scalar)
+{
+   assert(scalar.file == d->file && !scalar.negate && !scalar.abs);
+   jay_insert_channel_index(b, d, c, jay_index(scalar));
 }
 
 /*

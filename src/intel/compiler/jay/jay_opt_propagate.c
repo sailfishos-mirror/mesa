@@ -147,6 +147,8 @@ propagate_forwards(jay_function *f)
              I->src[s].file == def->src[0].file) {
 
             jay_insert_channel(&b, &I->src[s], c, def->src[0]);
+         } else if (def->op == JAY_OPCODE_UNDEF && c > 0) {
+            jay_insert_channel_index(&b, &I->src[s], c, 0);
          }
       }
 
@@ -189,6 +191,12 @@ propagate_forwards(jay_function *f)
             propagate_modifier(I, s, def);
          } else if (def->op == JAY_OPCODE_NOT && !jay_uses_implicit_flag(def)) {
             propagate_not(I, s, def);
+         } else if (def->op == JAY_OPCODE_UNDEF &&
+                    I->op == JAY_OPCODE_MOV &&
+                    !jay_uses_implicit_flag(I)) {
+
+            I->op = JAY_OPCODE_UNDEF;
+            jay_shrink_sources(I, 0);
          }
       }
 
