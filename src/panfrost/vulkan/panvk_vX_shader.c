@@ -582,6 +582,19 @@ valhall_pack_buf_idx(nir_builder *b, nir_instr *instr, UNUSED void *data)
 #endif
 
 static bool
+is_robust_ssbo_intr(const nir_intrinsic_instr *intr, UNUSED const void *data)
+{
+   switch (intr->intrinsic) {
+   case nir_intrinsic_store_ssbo:
+   case nir_intrinsic_ssbo_atomic:
+   case nir_intrinsic_ssbo_atomic_swap:
+      return true;
+   default:
+      return false;
+   }
+}
+
+static bool
 valhall_lower_get_ssbo_size(struct nir_builder *b,
                             nir_intrinsic_instr *intr, void *data)
 {
@@ -854,6 +867,16 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
             nir_address_format_32bit_offset);
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global,
             nir_address_format_64bit_global);
+
+   /* nir_lower_ssbo lowers SSBO writes to unbounded store_global, so the
+    * descriptor-level bounds check Mali HW does for native buffer
+    * loads/stores is bypassed. Insert software bounds checks here for SSBO
+    * accesses when robust storage buffer access is requested. */
+   if (rs->storage_buffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT) {
+      NIR_PASS(_, nir, nir_lower_robust_access, is_robust_ssbo_intr, NULL);
+      NIR_PASS(_, nir, nir_opt_constant_folding);
+      NIR_PASS(_, nir, nir_opt_dce);
+   }
 
 #if PAN_ARCH >= 10
    if (allow_merging_workgroups) {
