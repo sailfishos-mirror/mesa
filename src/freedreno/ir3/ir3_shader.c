@@ -436,8 +436,6 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
                  "Native code%s for unnamed %s shader %s with blake3 %s:\n",
                  shader_overridden ? " (overridden)" : "", ir3_shader_stage(v),
                  v->name, v->blake3_str);
-         if (v->type == MESA_SHADER_FRAGMENT)
-            fprintf(stream, "SIMD0\n");
          ir3_shader_disasm(v, v->bin, stream);
          fclose(stream);
 
