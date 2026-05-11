@@ -39,6 +39,7 @@ def bisect(args):
             'IR3_SHADER_BISECT_LO': str(lo),
             'IR3_SHADER_BISECT_HI': str(hi)
         }
+        print(f'Bisecting between {lo} and {hi} ({len(ids)} shaders remaining)')
         run(args.cmd, extra_env)
 
         if was_good():
