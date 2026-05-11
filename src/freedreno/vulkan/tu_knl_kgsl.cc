@@ -1452,7 +1452,8 @@ kgsl_queue_submit(struct tu_queue *queue, void *_submit,
 
    struct kgsl_command_object *objs = (struct kgsl_command_object *)
       vk_alloc(&queue->device->vk.alloc, sizeof(*objs) * obj_count,
-               alignof(*objs), VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
+               alignof(struct kgsl_command_object),
+               VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
 
    struct kgsl_cmdbatch_profiling_buffer *profiling_buffer = NULL;
    uint32_t obj_idx = 0;
