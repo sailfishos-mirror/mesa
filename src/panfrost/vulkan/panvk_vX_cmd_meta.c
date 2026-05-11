@@ -331,9 +331,15 @@ panvk_per_arch(CmdClearColorImage)(VkCommandBuffer commandBuffer, VkImage image,
    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
    struct panvk_cmd_meta_graphics_save_ctx save = {0};
 
+   /* Mali cannot render to R64; alias as RG32UI for vk_meta. */
+   VkFormat view_format = img->vk.format;
+   if (img->vk.format == VK_FORMAT_R64_UINT ||
+       img->vk.format == VK_FORMAT_R64_SINT)
+      view_format = VK_FORMAT_R32G32_UINT;
+
    meta_gfx_start(cmdbuf, &save);
    vk_meta_clear_color_image(&cmdbuf->vk, &dev->meta, &img->vk, imageLayout,
-                             img->vk.format, pColor, rangeCount, pRanges);
+                             view_format, pColor, rangeCount, pRanges);
    meta_gfx_end(cmdbuf, &save);
 }
 
