@@ -1437,7 +1437,7 @@ zink_bind_vertex_elements_state(struct pipe_context *pctx,
 {
    struct zink_context *ctx = zink_context(pctx);
    struct zink_gfx_pipeline_state *state = &ctx->gfx_pipeline_state;
-   unsigned old_num_bindings = state->element_state ? state->element_state->num_bindings : 0;
+   unsigned old_num_bindings = state->element_state ? state->element_state->num_bindings : ctx->vertex_buffers_count;
    ctx->element_state = cso;
    /* existing vbos will be replaced on next set_vb call */
    for (unsigned i = ctx->element_state ? ctx->element_state->hw_state.num_bindings : 0; i < old_num_bindings; i++) {
@@ -1547,6 +1547,7 @@ zink_set_vertex_buffers_internal(struct pipe_context *pctx,
          assert(ctx->vertex_buffers[b].buffer.resource);
 #endif
    }
+   ctx->vertex_buffers_count = num_buffers;
    ctx->vertex_buffers_dirty = num_buffers > 0;
 }
 
