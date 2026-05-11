@@ -2503,6 +2503,50 @@ setup_compute_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 static void
 setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 {
+   /* Summarizing the "PS Thread Payload for Normal Dispatch" docs, the
+    * physical thread payload layout is as follows:
+    *
+    * UGPRs:
+    * R0: All modes
+    * R1: SIMD32-only (not present for SIMD16)
+    *
+    * Barycentrics (optional, see "Barycentric Interpolation Mode" bits):
+    * (lanes 15:0 in first register, lanes 31:16 in higher register)
+    *
+    * GPRs:
+    * R2+R23:  pixel location[1]
+    * R3+R24:  pixel location[2]
+    * R4+R25:  centroid[1]
+    * R5+R26:  centroid[2]
+    * R6+R27:  sample[1]
+    * R7+R28:  sample[2]
+    * R8+R29:  noperspective pixel[1]
+    * R9+R30:  noperspective pixel[2]
+    * R10+R31: noperspective centroid[1]
+    * R11+R32: noperspective centroid[2]
+    * R12+R33: noperspective sample[1]
+    * R13+R34: noperspective sample[2]
+    *
+    * R14+R35: Source Depth (optional)
+    * R15+R36: Source W (optional)
+    * R16+R37: Input Coverage Mask (optional)
+    *
+    * R17-R18: (defeatured)
+    *
+    * UGPRs:
+    * R19: Sample Position Offsets (optional, see "XY Offset Select")
+    *      32 lanes in a single register, X/Y are 1 byte each.
+    *      (i.e. lane 7 is at coordinate (X, Y))
+    * R20: Centroid Position Offsets (see "Requires Centroid Offset")
+    *
+    * R21: Requested Coarse Pixel Shading Rate (optional)
+    *
+    * R22: Sample Offsets (optional, see "Requires Sample Offsets")
+    *      (i.e. sample 4 is at subpixel coordinate (X, Y))
+    *
+    * TODO: multipolygon, explicit barycentrics, ...
+    */
+
    jay_fs_payload *fs = &nj->payload.fs;
 
    if (nj->s->dispatch_width == 32) {
@@ -2545,9 +2589,7 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       fs->coord.xy = jay_OFFSET_PACKED_PIXEL_COORDS_u32(&nj->bld, t);
    }
 
-   /* Due to complexities of the physical payload, the logical payload is split
-    * into even/odd halves. Fix up the offsets and insert copies.
-    */
+   /* Renumber to match what jay_insert_payload_swizzle expects. */
    if (nj->s->dispatch_width == 32) {
       jay_foreach_inst_in_block(nj->after_block, I) {
          if (I->op == JAY_OPCODE_PRELOAD && I->dst.file == GPR) {
@@ -2558,6 +2600,17 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
    }
 }
 
+/*
+ * For SIMD32 dispatch, many fields come as pairs of discontiguous GRFs
+ * (i.e. R2+R23), where the first register contains the lanes 15:0, and
+ * the higher register contains lanes 31:16.  This doesn't map well to
+ * our assumption that GPRs hold 32 lanes of values and are stored in
+ * contiguous aligned pairs of GRFs.
+ *
+ * We insert copies to put both halves together.  Payload fields have
+ * both an even-numbered and an odd-numbered register (i.e. R2+R23).
+ * We use some tricks to reduce the number of copies.
+ */
 static void
 jay_insert_payload_swizzle(jay_shader *s)
 {
