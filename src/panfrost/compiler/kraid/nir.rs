@@ -4,6 +4,7 @@
 #![allow(non_upper_case_globals)]
 
 use crate::builder::*;
+use crate::data_type::*;
 use crate::ir::*;
 use crate::ops::*;
 use crate::ssa_value::SSAValueAllocator;
@@ -80,6 +81,53 @@ impl<'a> ShaderFromNir<'a> {
 
     fn get_src(&self, src: &nir_src) -> Src {
         self.get_src_ssa(src).into()
+    }
+
+    fn get_alu_src(&self, src: &nir_alu_src, comps: u8) -> Src {
+        let src_vec = self.get_ssa(src.src.as_def());
+
+        match src.src.as_def().bit_size {
+            8 => {
+                assert!(comps <= 4);
+                let w = src.swizzle[0] / 4;
+                let mut bytes = [src.swizzle[0] % 4; 4];
+                for i in 1..usize::from(comps) {
+                    assert!(src.swizzle[i] / 4 == w);
+                    bytes[i] = src.swizzle[i] % 4;
+                }
+                if comps == 2 {
+                    // For vec2's, make it symmetric
+                    bytes[2] = bytes[0];
+                    bytes[3] = bytes[1];
+                }
+                let swizzle = Swizzle::from_bytes(bytes);
+                Src::from(src_vec[usize::from(w)]).swizzle(swizzle)
+            }
+            16 => {
+                assert!(comps <= 2);
+                let w = src.swizzle[0] / 2;
+                let mut halves = [src.swizzle[0] % 2; 2];
+                if comps == 2 {
+                    assert!(src.swizzle[1] / 2 == w);
+                    halves[1] = src.swizzle[1] % 2;
+                }
+                let swizzle = Swizzle::from_halves(halves);
+                Src::from(src_vec[usize::from(w)]).swizzle(swizzle)
+            }
+            32 => {
+                assert!(comps == 1);
+                src_vec[usize::from(src.swizzle[0])].into()
+            }
+            64 => {
+                assert!(comps == 1);
+                [
+                    src_vec[usize::from(src.swizzle[0]) * 2],
+                    src_vec[usize::from(src.swizzle[0]) * 2 + 1],
+                ]
+                .into()
+            }
+            bit_size => panic!("Unsupported bit size: {bit_size}"),
+        }
     }
 
     fn parse_const(
@@ -246,7 +294,61 @@ impl<'a> ShaderFromNir<'a> {
             return;
         }
 
+        let mut srcs_vec = Vec::new();
+        for i in 0..alu.info().num_inputs {
+            let comps = alu.src_components(i);
+            srcs_vec.push(self.get_alu_src(alu.get_src(i.into()), comps));
+        }
+        let srcs_vec = srcs_vec;
+
+        // Cloning ALU sources should always be cheap but the helper makes
+        // things more ergonamic.
+        let srcs = |i: usize| srcs_vec[i].clone();
+        let src_type = |i, num_type| {
+            let comps = alu.src_components(i);
+            let bits = alu.get_src(i.into()).bit_size();
+            DataType::get(comps, num_type, bits)
+        };
+
+        let dst = self.alloc_ssa(b, &alu.def);
+        let dst_type = |num_type| {
+            DataType::get(alu.def.num_components, num_type, alu.def.bit_size)
+        };
+
         match alu.op {
+            nir_op_fabs => {
+                // TODO: Do we really want FAdd for this?
+                b.push_op(OpFAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    srcs: [srcs(0).fabs(), Src::from(0).fneg()],
+                });
+            }
+            nir_op_fadd => {
+                b.push_op(OpFAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    srcs: [srcs(0), srcs(1)],
+                });
+            }
+            nir_op_feq16 | nir_op_feq32 | nir_op_fge16 | nir_op_fge32
+            | nir_op_flt16 | nir_op_flt32 | nir_op_fneu16 | nir_op_fneu32 => {
+                b.push_op(OpFCmp {
+                    dst: dst.into(),
+                    src_type: src_type(0, NumericType::Float),
+                    res_type: CmpResultType::M1,
+                    cmp_op: match alu.op {
+                        nir_op_feq16 | nir_op_feq32 => CmpOp::Eq,
+                        nir_op_fge16 | nir_op_fge32 => CmpOp::Ge,
+                        nir_op_flt16 | nir_op_flt32 => CmpOp::Lt,
+                        nir_op_fneu16 | nir_op_fneu32 => CmpOp::Ne,
+                        _ => panic!("Usupported float comparison"),
+                    },
+                    srcs: [srcs(0), srcs(1)],
+                    accum: 0.into(),
+                    accum_op: CmpAccumOp::None,
+                });
+            }
             _ => panic!("Unsupported ALU instruction: {}", alu.info().name()),
         }
     }
