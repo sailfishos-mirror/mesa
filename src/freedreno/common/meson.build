@@ -10,6 +10,7 @@ freedreno_devices_h = custom_target(
     '-p', join_paths(meson.project_build_root(), 'src/freedreno/registers/adreno/')
   ],
   depends: freedreno_py_header_files,
+  depend_files: [files('freedreno_dev_info.py')],
   capture: true,
 )
 
