@@ -1274,7 +1274,7 @@
         "description": "pan/valhall: fuse_cmp skip when fusing the same instruction",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "800a86143131cbec4ff7dcc673c66b3a7216427d",
         "notes": null
