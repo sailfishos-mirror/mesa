@@ -361,6 +361,72 @@ impl<'a> ShaderFromNir<'a> {
         }
     }
 
+    fn parse_intrinsic(
+        &mut self,
+        b: &mut impl SSABuilder,
+        intrin: &nir_intrinsic_instr,
+    ) {
+        let srcs = intrin.srcs_as_slice();
+        match intrin.intrinsic {
+            nir_intrinsic_load_global => {
+                let bits = intrin.def.bit_size * intrin.def.num_components;
+                let addr = self.get_src(&srcs[0]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLoad {
+                    dst,
+                    dst_type: DataType::i(bits),
+                    access: MemAccess::None,
+                    addr,
+                    offset: 0,
+                });
+            }
+            nir_intrinsic_load_ssbo => {
+                let bits = intrin.def.bit_size * intrin.def.num_components;
+                let handle = self.get_src(&srcs[0]);
+                let offset = self.get_src(&srcs[1]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdPka {
+                    dst,
+                    dst_type: DataType::i(bits),
+                    access: MemAccess::None,
+                    offset,
+                    handle,
+                });
+            }
+            nir_intrinsic_load_ssbo_address => {
+                let handle = self.get_src(&srcs[0]);
+                let offset = self.get_src(&srcs[1]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLeaPka {
+                    dst,
+                    offset,
+                    handle,
+                });
+            }
+            nir_intrinsic_store_global => {
+                let bits = srcs[0].bit_size() * srcs[0].num_components();
+                let mut data = self.get_src(&srcs[0]);
+                if bits == 8 {
+                    data = data.byte(0);
+                } else if bits == 16 {
+                    data = data.half(0);
+                }
+                let addr = self.get_src(&srcs[1]);
+                b.push_op(OpStore {
+                    src_type: DataType::i(bits),
+                    access: MemAccess::None,
+                    data,
+                    addr,
+                    offset: 0,
+                });
+            }
+            _ => panic!(
+                "Unsupported intrinsic instruction: {}",
+                intrin.info().name()
+            ),
+        }
+    }
+
     fn parse_block(
         &mut self,
         ssa_alloc: &mut SSAValueAllocator,
@@ -376,6 +442,9 @@ impl<'a> ShaderFromNir<'a> {
                 }
                 nir_instr_type_alu => {
                     self.parse_alu(&mut b, ni.as_alu().unwrap())
+                }
+                nir_instr_type_intrinsic => {
+                    self.parse_intrinsic(&mut b, ni.as_intrinsic().unwrap())
                 }
                 _ => panic!("Unsupported instruction type"),
             }

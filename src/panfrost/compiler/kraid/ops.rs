@@ -202,6 +202,94 @@ impl fmt::Display for OpIAdd {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpLeaPka {
+    #[dst_type(I64)]
+    pub dst: Dst,
+    #[src_type(I32)]
+    pub offset: Src,
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpLeaPka {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LEA_PKA {} {}",
+            &self.dst, &self.offset, &self.handle,
+        )
+    }
+}
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+pub enum MemAccess {
+    None,
+    Istream,
+    Estream,
+    Force,
+}
+
+impl fmt::Display for MemAccess {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MemAccess::None => Ok(()),
+            MemAccess::Istream => write!(f, ".istream"),
+            MemAccess::Estream => write!(f, ".estream"),
+            MemAccess::Force => write!(f, ".force"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
+pub struct OpLdPka {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub access: MemAccess,
+
+    #[src_type(I32)]
+    pub offset: Src,
+
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpLdPka {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LD_PKA.{}{} {} {}",
+            &self.dst, self.dst_type, self.access, &self.offset, &self.handle,
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
+pub struct OpLoad {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub access: MemAccess,
+
+    #[src_type(I64)]
+    pub addr: Src,
+    pub offset: i16,
+}
+
+impl fmt::Display for OpLoad {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LOAD.{}{} {} #{}",
+            &self.dst, self.dst_type, self.access, &self.addr, self.offset,
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpMkVecV2I8 {
     #[dst_type(V2I8)]
     pub dst: Dst,
@@ -259,6 +347,30 @@ impl fmt::Display for OpMov {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
+pub struct OpStore {
+    pub src_type: DataType,
+    pub access: MemAccess,
+
+    pub data: Src,
+
+    #[src_type(I64)]
+    pub addr: Src,
+    pub offset: i16,
+}
+
+impl fmt::Display for OpStore {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "STORE.{}{} {} {} #{}",
+            self.src_type, self.access, &self.data, &self.addr, self.offset,
+        )
+    }
+}
+
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     Branch(OpBranch),
@@ -266,7 +378,11 @@ pub enum Op {
     FAdd(OpFAdd),
     FCmp(OpFCmp),
     IAdd(OpIAdd),
+    LeaPka(OpLeaPka),
+    LdPka(OpLdPka),
+    Load(OpLoad),
     MkVecV2I8(OpMkVecV2I8),
     MkVecV4I8(OpMkVecV4I8),
     Mov(OpMov),
+    Store(OpStore),
 }
