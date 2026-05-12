@@ -1782,6 +1782,13 @@ nvk_GetPhysicalDeviceQueueFamilyProperties2(
                p->priorities[0] = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
                break;
             }
+
+            case VK_STRUCTURE_TYPE_QUEUE_FAMILY_QUERY_RESULT_STATUS_PROPERTIES_KHR: {
+                VkQueueFamilyQueryResultStatusPropertiesKHR *p = (void *)ext;
+                p->queryResultStatusSupport = VK_FALSE;
+                break;
+            }
+
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OWNERSHIP_TRANSFER_PROPERTIES_KHR: {
                VkQueueFamilyOwnershipTransferPropertiesKHR *p = (void *)ext;
                p->optimalImageTransferToQueueFamilies = ~0;
