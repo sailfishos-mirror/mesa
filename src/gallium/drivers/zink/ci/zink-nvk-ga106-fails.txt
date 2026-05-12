@@ -2,6 +2,8 @@ dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.n
 dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.non_multisample_buffer.sample_n_singlesample_rbo,Fail
 dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.non_multisample_buffer.sample_n_singlesample_texture,Fail
 
+KHR-GL46.packed_depth_stencil.blit.depth24_stencil8,Fail
+KHR-GL46.packed_depth_stencil.blit.depth32f_stencil8,Fail
 KHR-GL46.shader_image_size.advanced-ms-cs-float,Fail
 KHR-GL46.shader_image_size.advanced-ms-cs-int,Fail
 KHR-GL46.shader_image_size.advanced-ms-cs-uint,Fail
@@ -75,7 +77,6 @@ spec@!opengl 2.1@pbo,Fail
 spec@!opengl 2.1@pbo@test_polygon_stip,Fail
 spec@!opengl 2.1@polygon-stipple-fs,Fail
 spec@!opengl 3.0@clearbuffer-depth-cs-probe,Fail
-spec@!opengl es 3.0@gles-3.0-transform-feedback-uniform-buffer-object,Fail
 spec@arb_framebuffer_object@fbo-blit-scaled-linear,Fail
 spec@arb_get_texture_sub_image@arb_get_texture_sub_image-get,Fail
 spec@arb_gpu_shader_fp64@execution@arb_gpu_shader_fp64-tf-separate,Fail
@@ -400,15 +401,11 @@ spec@ext_framebuffer_multisample@interpolation 8 centroid-deriv-disabled,Fail
 spec@ext_framebuffer_multisample@interpolation 8 centroid-disabled,Fail
 spec@ext_framebuffer_multisample@interpolation 8 non-centroid-deriv-disabled,Fail
 spec@ext_framebuffer_multisample@interpolation 8 non-centroid-disabled,Fail
-spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_nv12,Fail
-spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_nv21,Fail
-spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_p010,Fail
-spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_p012,Fail
-spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_p016,Fail
-spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yuv420,Fail
-spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yvu420,Fail
+spec@ext_framebuffer_multisample@upsample 2 stencil,Fail
+spec@ext_framebuffer_multisample@upsample 4 stencil,Fail
+spec@ext_framebuffer_multisample@upsample 6 stencil,Fail
+spec@ext_framebuffer_multisample@upsample 8 stencil,Fail
 spec@ext_texture_array@texsubimage array,Fail
-spec@ext_transform_feedback@immediate-reuse-uniform-buffer,Fail
 spec@ext_transform_feedback@tessellation quad_strip wireframe,Fail
 spec@ext_transform_feedback@tessellation quads wireframe,Fail
 spec@glsl-1.10@execution@samplers@glsl-fs-lots-of-tex,Fail
@@ -429,6 +426,7 @@ api@clgetcommandqueueinfo,Fail
 api@clgetdeviceinfo,Fail
 api@clgetextensionfunctionaddressforplatform,Fail
 api@clgetkernelarginfo,Fail
+api@clgetmemobjectinfo,Fail
 api@cllinkprogram,Fail
 api@clsetkernelarg@Input checks,Fail
 api@clsetkernelarg@Set kernel argument for array,Fail
