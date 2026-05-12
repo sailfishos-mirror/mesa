@@ -348,12 +348,17 @@ executor_alloc_bytes(executor_bo *bo, uint32_t size)
 void *
 executor_alloc_bytes_aligned(executor_bo *bo, uint32_t size, uint32_t alignment)
 {
-   void *r = bo->cursor;
-   if (alignment) {
-      r = (void *)(((uintptr_t)r + alignment-1) & ~((uintptr_t)alignment-1));
-   }
-   bo->cursor = r + size;
-   return r;
+   uintptr_t r = (uintptr_t)bo->cursor;
+   if (alignment)
+      r = (r + alignment - 1) & ~((uintptr_t)alignment - 1);
+
+   uint64_t offset = r - (uintptr_t)bo->map;
+   if (offset > bo->size || size > bo->size - offset)
+      failf("executor BO overflow");
+
+   void *ptr = (void *)r;
+   bo->cursor = ptr + size;
+   return ptr;
 }
 
 executor_address
