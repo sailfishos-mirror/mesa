@@ -279,17 +279,25 @@ static bool color_update_input_cs(struct vpe_priv *vpe_priv, enum color_space in
 
 static bool can_bypass_degamma(const struct stream_ctx *stream_ctx)
 {
-    if (vpe_is_fp16(stream_ctx->stream.surface_info.format))
-        return true;
-    if ((stream_ctx->stream.tm_params.UID != 0) || (stream_ctx->stream.tm_params.enable_3dlut))
-        return true;
-    if (stream_ctx->geometric_scaling)
-        return true;
+    bool can_bypass = false;
+    // Linear FP16
+    if ((vpe_is_fp16(stream_ctx->stream.surface_info.format) == true) &&
+        (stream_ctx->stream.surface_info.cs.tf == VPE_TF_G10)) {
+        can_bypass = true;
+    }
+    // 3D LUT
+    if ((stream_ctx->stream.tm_params.UID != 0) || (stream_ctx->stream.tm_params.enable_3dlut)) {
+        can_bypass = true;
+    }
+    // First and intermediate passes of multi-pass VPE
+    if (stream_ctx->geometric_scaling) {
+        can_bypass = true;
+    }
     if (stream_ctx->stream.surface_info.format == VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBE) {
-        return true;
+        can_bypass = true;
     }
 
-    return false;
+    return can_bypass;
 }
 
 bool vpe_use_csc_adjust(const struct vpe_color_adjust *adjustments)
@@ -1249,25 +1257,28 @@ enum vpe_status vpe_color_update_whitepoint(
     const struct vpe_priv *vpe_priv, const struct vpe_build_param *param)
 {
 
-    struct stream_ctx            *stream       = vpe_priv->stream_ctx;
-    const struct output_ctx      *output_ctx   = &vpe_priv->output_ctx;
-    const struct vpe_color_space *vpe_cs       = &stream->stream.surface_info.cs;
-    bool                          output_isHDR = vpe_is_HDR(vpe_priv->output_ctx.tf);
-    bool                          input_isHDR  = false;
-    bool                          is_yCbCr     = false;
-    bool                          is_g24       = false;
-    bool                          is_fp16      = false;
+    struct stream_ctx       *stream         = vpe_priv->stream_ctx;
+    const struct output_ctx *output_ctx     = &vpe_priv->output_ctx;
+    bool                     output_isHDR   = vpe_is_HDR(vpe_priv->output_ctx.tf);
+    bool                     input_isHDR    = false;
+    bool                     is_yCbCr       = false;
+    bool                     is_g24         = false;
+    bool                     is_fp16_linear = false;
     bool is_compound = stream->stream.lut_compound.enabled;
 
     for (unsigned int stream_index = 0; stream_index < vpe_priv->num_streams; stream_index++) {
 
         input_isHDR = vpe_is_HDR(stream->tf);
         is_yCbCr    = stream->is_yuv_input;
-        is_g24      = (vpe_cs->tf == VPE_TF_G24);
-        is_fp16     = vpe_is_fp16(stream->stream.surface_info.format);
+        is_g24      = (stream->stream.surface_info.cs.tf == VPE_TF_G24);
+        // Only FP16 G10 input has data in [0, CCCS_NORM] range
+        is_fp16_linear = (vpe_is_fp16(stream->stream.surface_info.format) &&
+                          (stream->stream.surface_info.cs.tf == VPE_TF_G10));
+
         if (is_compound) {
             stream->white_point_gain = vpe_fixpt_one;
         } else if (!input_isHDR && output_isHDR) {
+
             int sdrWhiteLevel = (is_yCbCr || is_g24) ? SDR_VIDEO_WHITE_POINT : SDR_WHITE_POINT;
             stream->white_point_gain = vpe_fixpt_from_fraction(sdrWhiteLevel, 10000);
         } else if (input_isHDR && !output_isHDR) {
@@ -1280,10 +1291,8 @@ enum vpe_status vpe_color_update_whitepoint(
             stream->white_point_gain = vpe_fixpt_one;
         }
 
-        if (is_fp16) {
-            stream->white_point_gain = vpe_fixpt_div_int(stream->white_point_gain, CCCS_NORM);
-        }
-        if (stream->stream.surface_info.format == VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBE) {
+        if ((is_fp16_linear == true) ||
+            (stream->stream.surface_info.format == VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBE)) {
             stream->white_point_gain = vpe_fixpt_div_int(stream->white_point_gain, CCCS_NORM);
         }
 

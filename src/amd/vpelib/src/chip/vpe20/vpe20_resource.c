@@ -2296,9 +2296,6 @@ bool vpe20_check_output_color_space(
     if (cs == COLOR_SPACE_UNKNOWN || tf == TRANSFER_FUNC_UNKNOWN)
         return false;
 
-    if (vpe_is_fp16(format) && tf != TRANSFER_FUNC_LINEAR)
-        return false;
-
     if ((cs == COLOR_SPACE_CUSTOM) || (tf == TRANSFER_FUNC_CUSTOM))
         return false;
 
@@ -2765,6 +2762,12 @@ enum vpe_status vpe20_update_blnd_gamma(struct vpe_priv *vpe_priv,
             if (lut3d_enabled) {
                 vpe_color_build_tm_cs(tm_params, &param->dst_surface, &tm_out_cs);
                 vpe_color_get_color_space_and_tf(&tm_out_cs, &cs, &tf);
+
+                // For HLG final output, use Linear TF to apply scaling without additional curve
+                if (output_ctx->tf == TRANSFER_FUNC_HLG) {
+                    tf = TRANSFER_FUNC_LINEAR;
+                }
+
             } else {
                 can_bypass = true;
             }
@@ -2802,14 +2805,14 @@ enum vpe_status vpe20_update_output_gamma(struct vpe_priv *vpe_priv,
     enum vpe_status    status     = VPE_STATUS_OK;
     struct fixed31_32  y_scale    = vpe_fixpt_one;
 
-    if (vpe_is_fp16(param->dst_surface.format)) {
-        y_scale = vpe_fixpt_mul_int(y_scale, CCCS_NORM);
+    if ((vpe_is_fp16(param->dst_surface.format) == true) &&
+        (param->dst_surface.cs.tf == VPE_TF_G10)) {
+        y_scale = vpe_fixpt_mul_int(vpe_fixpt_one, CCCS_NORM);
     }
 
-    if (!geometric_scaling && vpe_is_HDR(output_ctx->tf))
-        can_bypass = false;
-    else
+    if ((geometric_scaling == true) || (vpe_is_HDR(output_ctx->tf) == false)) {
         can_bypass = true;
+    }
 
     vpe_color_update_regamma_tf(
         vpe_priv, output_ctx->tf, vpe_fixpt_one, y_scale, vpe_fixpt_zero, can_bypass, output_tf);
