@@ -302,7 +302,7 @@ nvk_meta_resolve_rendering(struct nvk_cmd_buffer *cmd,
 }
 
 static bool
-nvk_meta_image_copy_supported(struct nvk_image *img)
+nvk_meta_image_copy_gfx_supported(struct nvk_image *img)
 {
    if (vk_format_is_depth_or_stencil(img->vk.format))
       return false;
@@ -324,8 +324,25 @@ nvk_meta_image_copy_supported(struct nvk_image *img)
           !nvk_image_plane_aligned_for_linear_attachment(plane, level))
          return false;
    }
+   return true;
+}
+
+static bool
+nvk_meta_image_copy_compute_supported(struct nvk_image *img)
+{
+   if (vk_format_is_depth_or_stencil(img->vk.format))
+      return false;
+   if (vk_format_is_compressed(img->vk.format))
+      return false;
+   if (vk_format_get_ycbcr_info(img->vk.format))
+      return false;
 
    return true;
+}
+
+static inline
+uint32_t extent_size(VkExtent3D e) {
+   return e.width * e.height * e.depth;
 }
 
 static struct vk_meta_copy_image_properties
@@ -340,31 +357,64 @@ nvk_meta_copy_get_image_properties(struct nvk_image *img,
    unsigned blk_sz = vk_format_get_blocksize(img->vk.format);
    props.color.view_format = vk_meta_get_uint_format_for_blk_size(blk_sz);
 
+   const struct nvk_image_plane *plane = &img->planes[0];
+   const struct nil_image *nil_image = &plane->nil;
+
+   const struct nil_image_level *level =
+      &nil_image->levels[0];
+
+   if (level->tiling.gob_type == NIL_GOB_TYPE_LINEAR) {
+      props.tile_size.width = 128;
+      props.tile_size.height = 1;
+      props.tile_size.depth = 1;
+   } else {
+      struct nil_Extent4D_Bytes gob_extent =
+         nil_gob_type_extent_B(level->tiling.gob_type);
+      props.tile_size.width = gob_extent.width / blk_sz;
+      props.tile_size.height = gob_extent.height;
+      props.tile_size.depth = gob_extent.depth;
+
+      const uint32_t MIN_SIZE = 128;
+
+      if (extent_size(props.tile_size) < MIN_SIZE)
+         props.tile_size.height *= MIN2(1 << level->tiling.y_log2,
+                                        MIN_SIZE / extent_size(props.tile_size));
+
+      if (extent_size(props.tile_size) < MIN_SIZE)
+         props.tile_size.depth *= MIN2(1 << level->tiling.z_log2,
+                                       MIN_SIZE / extent_size(props.tile_size));
+
+      if (extent_size(props.tile_size) < MIN_SIZE)
+         props.tile_size.width *= MIN_SIZE / extent_size(props.tile_size);
+   }
+   ASSERTED uint32_t wg_size = extent_size(props.tile_size);
+   /* We want the workgroup size to be in this range for occupancy */
+   assert(wg_size >= 128 && wg_size <= 512 &&
+          util_is_power_of_two_nonzero(wg_size));
+
    return props;
 }
 
 static void
 nvk_cmd_copy_image_meta(struct nvk_cmd_buffer *cmd,
-                        const VkCopyImageInfo2 *pCopyImageInfo)
+                        const VkCopyImageInfo2 *pCopyImageInfo,
+                        VkPipelineBindPoint engine)
 {
    VK_FROM_HANDLE(nvk_image, src, pCopyImageInfo->srcImage);
    VK_FROM_HANDLE(nvk_image, dst, pCopyImageInfo->dstImage);
 
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
 
-   struct vk_meta_copy_image_properties dst_img_props =
-      nvk_meta_copy_get_image_properties(src, true);
    struct vk_meta_copy_image_properties src_img_props =
-      nvk_meta_copy_get_image_properties(dst, false);
+      nvk_meta_copy_get_image_properties(src, false);
+   struct vk_meta_copy_image_properties dst_img_props =
+      nvk_meta_copy_get_image_properties(dst, true);
 
-   struct nvk_meta_save_gfx save;
-   nvk_meta_begin_gfx(cmd, &save);
-
+   union nvk_meta_save_generic save;
+   nvk_meta_begin_generic(cmd, &save, engine);
    vk_meta_copy_image(&cmd->vk, &dev->meta, pCopyImageInfo,
-                      &src_img_props, &dst_img_props,
-                      VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-   nvk_meta_end_gfx(cmd, &save);
+                      &src_img_props, &dst_img_props, engine);
+   nvk_meta_end_generic(cmd, &save, engine);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -377,9 +427,15 @@ nvk_CmdCopyImage2(VkCommandBuffer commandBuffer,
 
    VkQueueFlags queue_flags = nvk_cmd_buffer_queue_flags(cmd);
    if ((queue_flags & VK_QUEUE_GRAPHICS_BIT) &&
-       nvk_meta_image_copy_supported(src) &&
-       nvk_meta_image_copy_supported(dst)) {
-      nvk_cmd_copy_image_meta(cmd, pCopyImageInfo);
+       nvk_meta_image_copy_gfx_supported(src) &&
+       nvk_meta_image_copy_gfx_supported(dst)) {
+      nvk_cmd_copy_image_meta(cmd, pCopyImageInfo,
+                              VK_PIPELINE_BIND_POINT_GRAPHICS);
+   } else if ((queue_flags & VK_QUEUE_COMPUTE_BIT) &&
+       nvk_meta_image_copy_compute_supported(src) &&
+       nvk_meta_image_copy_compute_supported(dst)) {
+      nvk_cmd_copy_image_meta(cmd, pCopyImageInfo,
+                              VK_PIPELINE_BIND_POINT_COMPUTE);
    } else {
       nvk_cmd_copy_image_ce(cmd, pCopyImageInfo);
    }

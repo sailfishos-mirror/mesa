@@ -486,6 +486,10 @@ nvk_barrier_flushes_waits(VkPipelineStageFlags2 stages,
    if (access & VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT)
       barriers |= NVK_BARRIER_FLUSH_SHADER_DATA;
 
+   if ((access & VK_ACCESS_2_TRANSFER_WRITE_BIT) &&
+       (stages & VK_PIPELINE_STAGE_2_COPY_BIT))
+      barriers |= NVK_BARRIER_FLUSH_SHADER_DATA;
+
    if (access & VK_ACCESS_2_COMMAND_PREPROCESS_WRITE_BIT_EXT)
       barriers |= NVK_BARRIER_FLUSH_SHADER_DATA;
 
@@ -527,10 +531,14 @@ nvk_barrier_invalidates(VkPipelineStageFlags2 stages,
       barriers |= NVK_BARRIER_INVALIDATE_SHADER_DATA;
 
    if ((access & VK_ACCESS_2_TRANSFER_READ_BIT) &&
-       (stages & (VK_PIPELINE_STAGE_2_COPY_BIT |
-                  VK_PIPELINE_STAGE_2_RESOLVE_BIT |
+       (stages & (VK_PIPELINE_STAGE_2_RESOLVE_BIT |
                   VK_PIPELINE_STAGE_2_BLIT_BIT)))
       barriers |= NVK_BARRIER_INVALIDATE_TEX_DATA;
+
+   if ((access & VK_ACCESS_2_TRANSFER_READ_BIT) &&
+       (stages & VK_PIPELINE_STAGE_2_COPY_BIT))
+      barriers |= NVK_BARRIER_INVALIDATE_TEX_DATA |
+                  NVK_BARRIER_INVALIDATE_SHADER_DATA;
 
    if (access & VK_ACCESS_2_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR)
       barriers |= NVK_BARRIER_INVALIDATE_RASTER_CACHE;
