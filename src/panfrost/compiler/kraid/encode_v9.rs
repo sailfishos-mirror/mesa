@@ -10,6 +10,7 @@ use crate::isa::*;
 use crate::ops::*;
 use crate::swizzle::*;
 
+use paste::paste;
 use rustc_hash::FxHashMap;
 
 fn encode_src_ref(src: &SrcRef, last_use: bool) -> u8 {
@@ -298,6 +299,27 @@ impl From<MemAccess> for AccessStoreM {
     }
 }
 
+macro_rules! shift_lop_as {
+    ($op:expr, $Instr:ident) => {
+        paste! {
+            $Instr {
+                variant: match $op.dst_type {
+                    DataType::I32 => [<$Instr Variant>]::I32,
+                    DataType::I64 => [<$Instr Variant>]::I64,
+                    DataType::V2I16 => [<$Instr Variant>]::V2i16,
+                    DataType::V4I8 => [<$Instr Variant>]::V4i8,
+                    t => panic!("SHIFT_LOP.{t} not supported"),
+                },
+                dst: op_encode_dst($op, &$op.dst),
+                not_result: $op.not_result.into(),
+                src0: op_encode_src($op, &$op.src0),
+                src1: op_encode_src($op, &$op.shift),
+                src2: op_encode_src($op, &$op.src2),
+            }
+        }
+    };
+}
+
 struct InstrEnc {
     arch: u8,
     fau_page_index: u8,
@@ -507,6 +529,35 @@ fn encode_instr(
             }
         }
         Op::Nop(_) => enc.encode(Nop {}),
+        Op::ShiftLop(op) => {
+            use LogicOp::*;
+            use ShiftOp::*;
+            match (op.shift_op, op.logic_op) {
+                (LShift, And) => enc.encode(shift_lop_as!(op, LshiftAnd)),
+                (LShift, Or) => enc.encode(shift_lop_as!(op, LshiftOr)),
+                (LShift, Xor) => enc.encode(shift_lop_as!(op, LshiftXor)),
+                (RShift, And) => enc.encode(shift_lop_as!(op, RshiftAnd)),
+                (RShift, Or) => enc.encode(shift_lop_as!(op, RshiftOr)),
+                (RShift, Xor) => enc.encode(shift_lop_as!(op, RshiftXor)),
+                (ARShift, _) => {
+                    assert!(op.shift.is_zero());
+                    enc.encode(Arshift {
+                        variant: match op.dst_type {
+                            DataType::I32 => ArshiftVariant::I32,
+                            DataType::I64 => ArshiftVariant::I64,
+                            DataType::V2I16 => ArshiftVariant::V2i16,
+                            DataType::V4I8 => ArshiftVariant::V4i8,
+                            t => panic!("SHIFT_LOP.{t} not supported"),
+                        },
+                        dst: op_encode_dst(op, &op.dst),
+                        not_result: op.not_result.into(),
+                        src0: op_encode_src(op, &op.src0),
+                        src1: op_encode_src(op, &op.shift),
+                    })
+                }
+                _ => todo!("Implement [lr]rot"),
+            }
+        }
         Op::Store(op) => enc.encode(Store {
             variant: match op.src_type {
                 DataType::I8 => StoreVariant::I8,

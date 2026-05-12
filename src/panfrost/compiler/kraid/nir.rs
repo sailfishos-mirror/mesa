@@ -357,6 +357,43 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
+            nir_op_iand | nir_op_ior | nir_op_ixor => {
+                b.push_op(OpShiftLop {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Integer),
+                    shift_op: ShiftOp::LShift,
+                    logic_op: match alu.op {
+                        nir_op_iand => LogicOp::And,
+                        nir_op_ior => LogicOp::Or,
+                        nir_op_ixor => LogicOp::Xor,
+                        _ => panic!("Unhandled logic op"),
+                    },
+                    not_result: false,
+                    src0: srcs(0),
+                    shift: Src::from(0).byte(0),
+                    src2: srcs(1),
+                });
+            }
+            nir_op_ishl | nir_op_ishr | nir_op_ushr | nir_op_urol
+            | nir_op_uror => {
+                b.push_op(OpShiftLop {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Integer),
+                    shift_op: match alu.op {
+                        nir_op_ishl => ShiftOp::LShift,
+                        nir_op_ishr => ShiftOp::ARShift,
+                        nir_op_ushr => ShiftOp::RShift,
+                        nir_op_urol => ShiftOp::LRot,
+                        nir_op_uror => ShiftOp::RRot,
+                        _ => panic!("Unhandled shift op"),
+                    },
+                    logic_op: LogicOp::Or,
+                    not_result: false,
+                    src0: srcs(0),
+                    shift: srcs(1).byte(0),
+                    src2: 0.into(),
+                });
+            }
             _ => panic!("Unsupported ALU instruction: {}", alu.info().name()),
         }
     }

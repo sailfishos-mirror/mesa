@@ -89,6 +89,12 @@ impl fmt::Display for FAURef {
     }
 }
 
+impl FAURef {
+    pub fn is_zero(&self) -> bool {
+        self.page == FAUPage::SmallConst && self.idx == 0
+    }
+}
+
 impl From<&SmallConstant> for FAURef {
     fn from(sc: &SmallConstant) -> FAURef {
         FAURef {
@@ -354,6 +360,14 @@ impl Src {
 
     pub fn fneg(self) -> Src {
         self.modify(SrcMod::FNeg)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        match self.src_ref {
+            SrcRef::FAU(fau) => fau.is_zero(),
+            SrcRef::Imm32(imm) => imm == 0,
+            _ => false,
+        }
     }
 }
 

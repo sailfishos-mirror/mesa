@@ -371,6 +371,77 @@ impl fmt::Display for OpNop {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum ShiftOp {
+    LShift,
+    RShift,
+    ARShift,
+    RRot,
+    LRot,
+}
+
+impl fmt::Display for ShiftOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ShiftOp::LShift => write!(f, "LSHIFT"),
+            ShiftOp::RShift => write!(f, "RSHIFT"),
+            ShiftOp::ARShift => write!(f, "ARSHIFT"),
+            ShiftOp::RRot => write!(f, "RROT"),
+            ShiftOp::LRot => write!(f, "LROT"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum LogicOp {
+    And,
+    Or,
+    Xor,
+}
+
+impl fmt::Display for LogicOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LogicOp::And => write!(f, "AND"),
+            LogicOp::Or => write!(f, "OR"),
+            LogicOp::Xor => write!(f, "XOR"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [V4I8, V2I16, I32, I64])]
+pub struct OpShiftLop {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub shift_op: ShiftOp,
+    pub logic_op: LogicOp,
+    pub not_result: bool,
+
+    pub src0: Src,
+    #[src_type(VNI8)]
+    pub shift: Src,
+    pub src2: Src,
+}
+
+impl fmt::Display for OpShiftLop {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = {}_{}.{} {} {} {}",
+            &self.dst,
+            self.shift_op,
+            self.logic_op,
+            self.dst_type,
+            self.fmt_src(&self.src0),
+            self.fmt_src(&self.shift),
+            self.fmt_src(&self.src2),
+        )
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(src_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
@@ -412,5 +483,6 @@ pub enum Op {
     MkVecV4I8(OpMkVecV4I8),
     Nop(OpNop),
     Mov(OpMov),
+    ShiftLop(OpShiftLop),
     Store(OpStore),
 }
