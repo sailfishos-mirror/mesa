@@ -153,15 +153,12 @@ walk_varyings(UNUSED nir_builder *b, nir_instr *instr, void *data)
    unsigned size = nir_alu_type_get_type_size(type);
    assert(base_type & (nir_type_int | nir_type_uint | nir_type_float));
 
-   bool untrusted_type = !wv_data->trust_varying_flat_highp_types &&
-                         sem.location >= VARYING_SLOT_VAR0 &&
-                         !sem.medium_precision &&
-                         !b->shader->info.separate_shader;
+   bool untrusted_type = sem.location >= VARYING_SLOT_VAR0;
    if (untrusted_type) {
       /* Don't trust the type, varying_opts might have smashed everything
        * onto floats.  Replace all flat varyings with ints and smooth varyings
        * with floats, only exception is 16-bit flat varyings that should be
-       * stored/loaded as ints as the hardware cannot encode 16-bit flat ints.
+       * stored/loaded as floats as the hardware cannot encode 16-bit flat ints.
        * Read docs/drivers/panfrost/varyings.rst for details.
        */
       bool is_flat = intr->intrinsic != nir_intrinsic_load_interpolated_input;
