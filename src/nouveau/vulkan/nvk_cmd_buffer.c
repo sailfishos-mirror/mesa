@@ -523,7 +523,8 @@ nvk_barrier_invalidates(VkPipelineStageFlags2 stages,
       barriers |= NVK_BARRIER_INVALIDATE_SHADER_DATA;
 
    if ((access & VK_ACCESS_2_TRANSFER_READ_BIT) &&
-       (stages & (VK_PIPELINE_STAGE_2_RESOLVE_BIT |
+       (stages & (VK_PIPELINE_STAGE_2_COPY_BIT |
+                  VK_PIPELINE_STAGE_2_RESOLVE_BIT |
                   VK_PIPELINE_STAGE_2_BLIT_BIT)))
       barriers |= NVK_BARRIER_INVALIDATE_TEX_DATA;
 
