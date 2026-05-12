@@ -332,6 +332,12 @@ struct fd_dev_info {
       /* True if PC_DGEN_SO_CNTL is present. */
       bool has_pc_dgen_so_cntl;
 
+      /* Some GPUs have an errata where fair scheduling in round-robin mode is
+       * not guaranteed unless at most 8 waves are resident, out of a maximum
+       * of 16.
+       */
+      bool round_robin_errata;
+
       /*
        * A7XX / gen7
        */
