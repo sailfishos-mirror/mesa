@@ -287,6 +287,14 @@ impl Src {
         self.swizzle(Swizzle::replicate_half(half))
     }
 
+    pub fn imm_u8(u: u8) -> Src {
+        Src::from(u32::from(u)).byte(0)
+    }
+
+    pub fn imm_u16(u: u16) -> Src {
+        Src::from(u32::from(u)).half(0)
+    }
+
     pub fn modify(mut self, src_mod: SrcMod) -> Src {
         self.src_mod = self.src_mod.modify(src_mod);
         self

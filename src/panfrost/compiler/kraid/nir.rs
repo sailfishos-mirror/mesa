@@ -82,6 +82,64 @@ impl<'a> ShaderFromNir<'a> {
         self.get_src_ssa(src).into()
     }
 
+    fn parse_const(
+        &mut self,
+        b: &mut impl SSABuilder,
+        load: &nir_load_const_instr,
+    ) {
+        let mut imm_u32 = Vec::new();
+        match load.def.bit_size {
+            8 => {
+                // SAFETY: def.bit_size == 8
+                let mut i = load.values().iter().map(|v| unsafe { v.u8_ });
+                for _ in 0..load.def.num_components.div_ceil(4) {
+                    let v = [
+                        i.next().unwrap_or(0),
+                        i.next().unwrap_or(0),
+                        i.next().unwrap_or(0),
+                        i.next().unwrap_or(0),
+                    ];
+                    imm_u32.push(u32::from_le_bytes(v))
+                }
+            }
+            16 => {
+                // SAFETY: def.bit_size == 32
+                let mut i = load.values().iter().map(|v| unsafe { v.u16_ });
+                for _ in 0..load.def.num_components.div_ceil(2) {
+                    let x = i.next().unwrap_or(0);
+                    let y = i.next().unwrap_or(0);
+                    imm_u32.push((x as u32) | ((y as u32) << 16));
+                }
+            }
+            32 => {
+                // SAFETY: def.bit_size == 32
+                let i = load.values().iter().map(|v| unsafe { v.u32_ });
+                imm_u32 = i.collect();
+            }
+            64 => {
+                // SAFETY: def.bit_size == 64
+                for v in load.values().iter().map(|v| unsafe { v.u64_ }) {
+                    imm_u32.push(v as u32);
+                    imm_u32.push((v >> 32) as u32);
+                }
+            }
+            bit_size => panic!("Unsupported bit size: {bit_size}"),
+        }
+
+        let bits = load.def.bit_size * load.def.num_components;
+        assert_eq!(imm_u32.len(), usize::from(bits.div_ceil(32)));
+
+        if bits <= 16 {
+            let ssa = b.mov_i16(Src::imm_u16(imm_u32[0] as u16));
+            self.set_ssa(&load.def, vec![ssa]);
+        } else {
+            self.set_ssa(
+                &load.def,
+                imm_u32.into_iter().map(|u| b.mov_i32(u.into())).collect(),
+            );
+        }
+    }
+
     fn parse_block(
         &mut self,
         ssa_alloc: &mut SSAValueAllocator,
@@ -92,6 +150,9 @@ impl<'a> ShaderFromNir<'a> {
 
         for ni in nb.iter_instr_list() {
             match ni.type_ {
+                nir_instr_type_load_const => {
+                    self.parse_const(&mut b, ni.as_load_const().unwrap())
+                }
                 _ => panic!("Unsupported instruction type"),
             }
         }
