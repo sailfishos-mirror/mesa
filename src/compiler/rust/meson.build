@@ -39,6 +39,7 @@ _compiler_binding_types = [
   'shader_info',
   'tess_primitive_mode',
   'u_printf_info',
+  'util_dynarray',
 ]
 
 _compiler_rust_args = [
@@ -71,6 +72,7 @@ _compiler_bindgen_args = [
   '--allowlist-function', 'nir_.*',
   '--allowlist-function', 'compiler_rs.*',
   '--allowlist-function', 'u_memstream.*',
+  '--allowlist-function', 'util_dynarray.*',
   '--allowlist-type', 'u_memstream',
   '--no-prepend-enum-name',
   '--with-derive-default',
