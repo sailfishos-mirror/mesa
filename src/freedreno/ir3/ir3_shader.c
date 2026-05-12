@@ -604,6 +604,7 @@ create_variant(struct ir3_shader *shader, const struct ir3_shader_key *key,
 
    if (ir3_shader_compute(v)) {
       v->cs.force_linear_dispatch = shader->cs.force_linear_dispatch;
+      v->cs.round_robin_mode = shader->nir->info.occupancy_bounded_workgroup_fairness;
 
       v->local_size[0] = shader->nir->info.workgroup_size[0];
       v->local_size[1] = shader->nir->info.workgroup_size[1];

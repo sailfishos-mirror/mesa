@@ -230,6 +230,7 @@ emit_shader_regs(struct fd_screen *screen, fd_cs &cs, const struct ir3_shader_va
          .fullregfootprint = so->info.max_reg + 1,
          .branchstack = ir3_shader_branchstack_hw(so),
          .threadsize = thrsz,
+         .computerrmodeen = so->cs.round_robin_mode,
          .earlypreamble = so->early_preamble,
          .mergedregs = so->mergedregs,
       ));

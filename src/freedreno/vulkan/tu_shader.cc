@@ -1750,6 +1750,7 @@ tu6_emit_xs(struct tu_crb &crb,
                                 .fullregfootprint = xs->info.max_reg + 1,
                                 .branchstack = ir3_shader_branchstack_hw(xs),
                                 .threadsize = thrsz,
+                                .computerrmodeen = xs->cs.round_robin_mode,
                                 .earlypreamble = xs->early_preamble,
                                 .mergedregs = xs->mergedregs, ));
       crb.add(A6XX_SP_CS_INSTR_SIZE(xs->instrlen));

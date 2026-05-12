@@ -961,6 +961,7 @@ struct ir3_shader_variant {
       struct {
          unsigned req_local_mem;
          bool force_linear_dispatch;
+         bool round_robin_mode;
          uint32_t local_invocation_id;
          uint32_t work_group_id;
       } cs;
