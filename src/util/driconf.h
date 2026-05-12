@@ -648,9 +648,13 @@
    DRI_CONF_OPT_B(tu_allow_oob_indirect_ubo_loads, def, \
                   "Some D3D11 games rely on out-of-bounds indirect UBO loads to return real values from underlying bound descriptor, this prevents us from lowering indirectly accessed UBOs to consts")
 
-#define DRI_CONF_TU_DISABLE_D24S8_BORDER_COLOR_WORKAROUND(def) \
-   DRI_CONF_OPT_B(tu_disable_d24s8_border_color_workaround, def, \
-                  "Use UBWC for D24S8 images with VK_IMAGE_USAGE_SAMPLED_BIT when customBorderColorWithoutFormat is enabled")
+#define DRI_CONF_TU_ENABLE_D24S8_BORDER_COLOR_WORKAROUND(def) \
+   DRI_CONF_OPT_B(tu_enable_d24s8_border_color_workaround, def, \
+                  "Disable UBWC for D24S8 images with VK_IMAGE_USAGE_SAMPLED_BIT when customBorderColorWithoutFormat is enabled")
+
+#define DRI_CONF_TU_ENABLE_FAST_BORDER_COLOR_FOR_UNDEFINED_FORMATS(def) \
+   DRI_CONF_OPT_B(tu_enable_fast_border_color_for_undefined_formats, def, \
+                  "Enables fast border color HW feature for VK_FORMAT_UNDEFINED sampler formats.")
 
 #define DRI_CONF_TU_USE_TEX_COORD_ROUND_NEAREST_EVEN_MODE(def) \
    DRI_CONF_OPT_B(tu_use_tex_coord_round_nearest_even_mode, def, \

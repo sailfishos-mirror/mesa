@@ -25,6 +25,7 @@
 #include "vk_debug_utils.h"
 #include "vk_shader_module.h"
 #include "vk_util.h"
+#include "vk_sampler.h"
 
 #include "common/freedreno_uuid.h"
 #include "fdl/freedreno_layout.h"
@@ -1435,7 +1436,8 @@ tu_get_properties(struct tu_physical_device *pdevice,
    /* VK_KHR_maintenance5 */
    props->earlyFragmentMultisampleCoverageAfterSampleCounting = true;
    props->earlyFragmentSampleMaskTestBeforeSampleCounting = true;
-   props->depthStencilSwizzleOneSupport = true;
+   props->depthStencilSwizzleOneSupport =
+      pdevice->info->props.has_z24uint_s8uint && pdevice->instance->enable_d24s8_border_color_workaround;
    props->polygonModePointSize = true;
    props->nonStrictWideLinesUseParallelogram = false;
    props->nonStrictSinglePixelWideLinesUseParallelogram = false;
@@ -1852,7 +1854,8 @@ static const driOptionDescription tu_dri_options[] = {
       DRI_CONF_DISABLE_CONSERVATIVE_LRZ(false)
       DRI_CONF_TU_DONT_RESERVE_DESCRIPTOR_SET(false)
       DRI_CONF_TU_ALLOW_OOB_INDIRECT_UBO_LOADS(false)
-      DRI_CONF_TU_DISABLE_D24S8_BORDER_COLOR_WORKAROUND(false)
+      DRI_CONF_TU_ENABLE_D24S8_BORDER_COLOR_WORKAROUND(false)
+      DRI_CONF_TU_ENABLE_FAST_BORDER_COLOR_FOR_UNDEFINED_FORMATS(false)
       DRI_CONF_TU_USE_TEX_COORD_ROUND_NEAREST_EVEN_MODE(false)
       DRI_CONF_TU_IGNORE_FRAG_DEPTH_DIRECTION(false)
       DRI_CONF_TU_ENABLE_SOFTFLOAT32(false)
@@ -1881,8 +1884,10 @@ tu_init_dri_options(struct tu_instance *instance)
          !driQueryOptionb(&instance->dri_options, "tu_dont_reserve_descriptor_set");
    instance->allow_oob_indirect_ubo_loads =
          driQueryOptionb(&instance->dri_options, "tu_allow_oob_indirect_ubo_loads");
-   instance->disable_d24s8_border_color_workaround =
-         driQueryOptionb(&instance->dri_options, "tu_disable_d24s8_border_color_workaround");
+   instance->enable_d24s8_border_color_workaround =
+         driQueryOptionb(&instance->dri_options, "tu_enable_d24s8_border_color_workaround");
+   instance->enable_fast_border_color_for_undefined_formats =
+         driQueryOptionb(&instance->dri_options, "tu_enable_fast_border_color_for_undefined_formats");
    instance->use_tex_coord_round_nearest_even_mode =
          driQueryOptionb(&instance->dri_options, "tu_use_tex_coord_round_nearest_even_mode");
    instance->ignore_frag_depth_direction =
@@ -3042,6 +3047,12 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
 
    global->zero_64b = 0;
 
+   for (int i = 0; i < TU_BORDER_COLOR_BUILTIN; i++) {
+      VkClearColorValue border_color = vk_border_color_value((VkBorderColor) i);
+      tu6_pack_border_color(&global->bcolor_builtin[i], &border_color,
+                            vk_border_color_is_int((VkBorderColor) i));
+   }
+
    /* initialize to ones so ffs can be used to find unused slots */
    BITSET_ONES(device->custom_border_color);
 
@@ -3139,7 +3150,7 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
    device->use_z24uint_s8uint =
       physical_device->info->props.has_z24uint_s8uint &&
       (!border_color_without_format ||
-       physical_device->instance->disable_d24s8_border_color_workaround);
+       !physical_device->instance->enable_d24s8_border_color_workaround);
    device->use_lrz = !TU_DEBUG_START(NOLRZ);
 
    tu_gpu_tracepoint_config_variable();
