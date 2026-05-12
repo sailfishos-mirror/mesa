@@ -470,6 +470,26 @@ glsl_type_size(const struct glsl_type *type, bool bindless)
    return glsl_count_attribute_slots(type, false);
 }
 
+static struct panfrost_shader_key
+panfrost_default_shader_key(struct panfrost_uncompiled_shader *so)
+{
+   struct panfrost_shader_key key = {0};
+
+   if (so->nir->info.stage == MESA_SHADER_FRAGMENT) {
+      /* gl_FragColor lowering needs the number of colour buffers on desktop
+      * GL, where it acts as an implicit broadcast to all colour buffers.
+      *
+      * However, gl_FragColor is a legacy feature, so assume that if
+      * gl_FragColor is used, there is only a single render target. The
+      * implicit broadcast is neither especially useful nor required by GLES.
+      */
+      if (so->fragcolor_lowered)
+         key.fs.nr_cbufs_for_fragcolor = 1;
+   }
+
+   return key;
+}
+
 static void *
 panfrost_create_shader_state(struct pipe_context *pctx,
                              const struct pipe_shader_state *cso)
@@ -577,17 +597,7 @@ panfrost_create_shader_state(struct pipe_context *pctx,
     * keys, but we can still compile with a default key that will work most
     * of the time.
     */
-   struct panfrost_shader_key key = {0};
-
-   /* gl_FragColor lowering needs the number of colour buffers on desktop
-    * GL, where it acts as an implicit broadcast to all colour buffers.
-    *
-    * However, gl_FragColor is a legacy feature, so assume that if
-    * gl_FragColor is used, there is only a single render target. The
-    * implicit broadcast is neither especially useful nor required by GLES.
-    */
-   if (so->fragcolor_lowered)
-      key.fs.nr_cbufs_for_fragcolor = 1;
+   struct panfrost_shader_key key = panfrost_default_shader_key(so);
 
    /* Creating a CSO is single-threaded, so it's ok to use the
     * locked function without explicitly taking the lock. Creating a
