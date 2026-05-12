@@ -2344,7 +2344,7 @@
         "description": "intel/virtio: Preserve errno properly when handling ioctl",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b06d759a9365113758da4c2d03d05a8c8213fea5",
         "notes": null
