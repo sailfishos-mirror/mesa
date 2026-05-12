@@ -126,7 +126,10 @@ _libnak_rs = static_library(
 # TODO: Linking Rust executables (such as unit tests) doesn't play nicely
 # with the sanitizers because meson doesn't know to pass -fsanitize to the
 # Rust linker.  See also https://github.com/mesonbuild/meson/issues/11741
-if with_tests and get_option('b_sanitize') == 'none'
+#
+# Also, don't build on Android because we do cross-builds and, unlike most
+# tests, these depend on libdrm and that confuses the build system.
+if with_tests and get_option('b_sanitize') == 'none' and not with_platform_android
   rust.test(
     'nak',
     _libnak_rs,
