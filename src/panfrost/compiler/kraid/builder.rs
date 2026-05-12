@@ -37,6 +37,33 @@ pub trait SSABuilder: Builder {
         });
         def
     }
+
+    fn mkvec_v2i8(&mut self, x: Src, y: Src) -> SSAValue {
+        let def = self.alloc_ssa(16);
+        self.push_op(OpMkVecV2I8 {
+            dst: def.into(),
+            srcs: [x, y],
+        });
+        def
+    }
+
+    fn mkvec_v2i16(&mut self, x: Src, y: Src) -> SSAValue {
+        self.mkvec_v4i8(
+            x.clone().byte(0),
+            x.clone().byte(1),
+            y.clone().byte(0),
+            y.clone().byte(1),
+        )
+    }
+
+    fn mkvec_v4i8(&mut self, x: Src, y: Src, z: Src, w: Src) -> SSAValue {
+        let def = self.alloc_ssa(32);
+        self.push_op(OpMkVecV4I8 {
+            dst: def.into(),
+            srcs: [x, y, z, w],
+        });
+        def
+    }
 }
 
 pub struct InstrBuilder {
