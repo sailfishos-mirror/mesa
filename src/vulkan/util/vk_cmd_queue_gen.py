@@ -131,13 +131,6 @@ struct ${to_struct_name(c.name)} {
 
 struct vk_cmd_queue_entry;
 
-/* this ordering must match vk_cmd_queue_entry */
-struct vk_cmd_queue_entry_base {
-   struct list_head cmd_link;
-   enum vk_cmd_type type;
-};
-
-/* this ordering must match vk_cmd_queue_entry_base */
 struct vk_cmd_queue_entry {
    struct list_head cmd_link;
    enum vk_cmd_type type;
@@ -251,7 +244,7 @@ size_t vk_cmd_queue_type_sizes[] = {
 % if len(c.params) > 1:
    sizeof(struct ${to_struct_name(c.name)}) +
 % endif
-   sizeof(struct vk_cmd_queue_entry_base),
+   offsetof(struct vk_cmd_queue_entry, u),
 % if c.guard is not None:
 #endif // ${c.guard}
 % endif

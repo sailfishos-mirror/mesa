@@ -824,14 +824,12 @@ size_t
 lvp_ext_dgc_token_size(const struct lvp_indirect_command_layout_ext *elayout, const VkIndirectCommandsLayoutTokenEXT *token);
 
 struct lvp_cmd_write_buffer_cp {
-   struct vk_cmd_queue_entry_base base;
    VkDeviceAddress addr;
    void *data;
    uint32_t size;
 };
 
 struct lvp_cmd_fill_buffer_addr {
-   struct vk_cmd_queue_entry_base base;
    VkDeviceAddress addr;
    VkDeviceSize size;
    uint32_t data;
@@ -843,7 +841,6 @@ lvp_encode_as(struct vk_acceleration_structure *dst, VkDeviceAddress intermediat
               VkGeometryTypeKHR geometry_type);
 
 struct lvp_cmd_encode_as {
-   struct vk_cmd_queue_entry_base base;
    struct vk_acceleration_structure *dst;
    VkDeviceAddress intermediate_as_addr;
    VkDeviceAddress intermediate_header_addr;
