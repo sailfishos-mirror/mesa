@@ -2468,16 +2468,38 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
     * into even/odd halves. Fix up the offsets and insert copies.
     */
    if (nj->s->dispatch_width == 32) {
-      jay_builder *b = &nj->bld;
       jay_foreach_inst_in_block(nj->after_block, I) {
          if (I->op == JAY_OPCODE_PRELOAD && I->dst.file == GPR) {
             unsigned base = (jay_preload_reg(I) % 2) ? p->offsets[GPR] : 0;
             jay_set_preload_reg(I, base + (jay_preload_reg(I) / 2));
          }
       }
+   }
+}
 
-      b->cursor = jay_before_block(nj->after_block);
-      jay_DESWIZZLE(b, p->offsets[GPR]);
+static void
+jay_insert_payload_swizzle(jay_shader *s)
+{
+   jay_function *func = jay_shader_get_entrypoint(s);
+   jay_builder b = jay_init_builder(func, jay_before_function(func));
+
+   unsigned size = s->payload_gprs;
+   assert(s->partition.blocks[GPR][0].start == 1);
+
+   /* Odd: copy both halves to contiguous pair after payload */
+   for (unsigned i = 0; i < (size / 2); ++i) {
+      jay_DESWIZZLE_ODD(&b, jay_bare_reg(GPR, size + i), jay_bare_reg(GPR, i),
+                        jay_bare_reg(GPR, i + ((size + 1) / 2)), !(size & 1));
+   }
+
+   /* Even: leave the bottom half in place, copy top half. If size=1 (rare
+    * but possible), this would be a no-op move so skip it.
+    */
+   if (size > 1) {
+      for (unsigned i = 0; i < DIV_ROUND_UP(size, 2); ++i) {
+         jay_DESWIZZLE_EVEN(&b, jay_bare_reg(GPR, i),
+                            jay_bare_reg(GPR, (size / 2) + i), size & 1);
+      }
    }
 }
 
@@ -2693,6 +2715,10 @@ jay_compile(const struct intel_device_info *devinfo,
    JAY_PASS(s, jay_lower_post_ra);
    JAY_PASS(s, jay_insert_fp_mode, nir->info.float_controls_execution_mode,
             nir->info.bit_sizes_float);
+
+   if (s->dispatch_width == 32 && s->stage == MESA_SHADER_FRAGMENT) {
+      JAY_PASS(s, jay_insert_payload_swizzle);
+   }
 
    if (!(jay_debug & JAY_DBG_NOOPT)) {
       /* jay_assign_accumulators uses a conservative liveness analysis for
