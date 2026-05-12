@@ -2462,6 +2462,26 @@ nir_def_bits_used(nir_scalar def)
 }
 
 static void
+get_intrinsic_num_lsb(struct analysis_state *state, struct scalar_query q, uint32_t *result, const uint32_t *src)
+{
+   nir_intrinsic_instr *intrin = nir_def_as_intrinsic(q.scalar.def);
+
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_read_first_invocation:
+   case nir_intrinsic_read_invocation:
+   case nir_intrinsic_as_uniform:
+      if (!q.head.pushed_queries) {
+         push_scalar_query(state, nir_get_scalar(intrin->src[0].ssa, q.scalar.comp));
+      } else {
+         *result = src[0];
+      }
+      break;
+   default:
+      break;
+   }
+}
+
+static void
 get_alu_num_lsb(struct analysis_state *state, struct scalar_query q, uint32_t *result, const uint32_t *src)
 {
    nir_op op = nir_scalar_alu_op(q.scalar);
@@ -2553,6 +2573,8 @@ process_num_lsb_query(struct analysis_state *state, struct analysis_query *aq, u
       *result = val ? ffsll(val) - 1 : q.scalar.def->bit_size;
    } else if (nir_scalar_is_alu(q.scalar)) {
       get_alu_num_lsb(state, q, result, src);
+   } else if (nir_scalar_is_intrinsic(q.scalar)) {
+      get_intrinsic_num_lsb(state, q, result, src);
    }
 }
 
