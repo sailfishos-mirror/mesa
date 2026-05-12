@@ -366,6 +366,16 @@ typedef struct shader_info {
     */
    bool assume_no_data_races:1;
 
+   /* This shader requires occupancy-bounded forward progress guarantees
+    * between workgroups in order to be executed correctly. This means that
+    * each workgroup which has already executed at least one step (here
+    * defined as an atomic memory operation) must eventually execute another
+    * step or terminate. Algorithms that require this guarantee include
+    * spin-loops where each workgroup only waits for workgroups with a lower
+    * index and indices are assigned via atomicAdd() of a counter.
+    */
+   bool occupancy_bounded_workgroup_fairness:1;
+
    union {
       struct {
          /* Which inputs are doubles */
