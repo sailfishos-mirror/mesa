@@ -1014,6 +1014,13 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                    lsc_bits_to_data_size(ndata->bit_size),
                    cmask ? BITFIELD_MASK(nr) : nr, transpose, cache);
 
+   /* Unlike most SENDs, we may skip the destination of atomics. We do this here
+    * instead of DCE so we don't need to fix up message descriptors later.
+    */
+   if (nir_intrinsic_has_atomic_op(intr) && nir_def_is_unused(&intr->def)) {
+      dst = jay_null();
+   }
+
    jay_def tmp = dst;
 
    if (dst.file == UGPR) {
