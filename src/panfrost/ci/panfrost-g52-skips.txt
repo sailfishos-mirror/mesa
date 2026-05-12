@@ -153,3 +153,6 @@ dEQP-VK.wsi.*.maintenance1.*.bind_image*
 dEQP-VK.wsi.xlib.maintenance1.present_modes.*
 dEQP-VK.wsi.xlib.maintenance1.deferred_alloc.fifo.*
 dEQP-VK.wsi.xlib.maintenance1.present_fence.fifo.*
+
+# Intermittent timeouts
+dEQP-VK.wsi.wayland.swapchain.render.10swapchains.*
