@@ -57,8 +57,12 @@ pub extern "C" fn kraid_compile_nir(
 
     eprint!("{}", nir.to_string().unwrap());
 
-    let s = Shader::from_nir(model.as_ref(), nir);
+    let mut s = Shader::from_nir(model.as_ref(), nir);
     dump_shader(&s, "after translation from NIR");
+    s.validate();
+
+    s.assign_registers();
+    dump_shader(&s, "after register assignment");
     s.validate();
 
     todo!("Compile to binaries");

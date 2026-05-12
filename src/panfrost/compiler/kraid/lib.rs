@@ -8,6 +8,7 @@ mod ir;
 mod model;
 mod nir;
 mod ops;
+mod ra;
 mod ssa_value;
 mod swizzle;
 mod validate;
