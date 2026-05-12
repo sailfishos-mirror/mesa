@@ -5514,7 +5514,7 @@
         "description": "tu/a8xx: Fix reading border_color from sampler memory",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "77e83d1449ba9de56c1ce444f27e43b529e5d433",
         "notes": null
