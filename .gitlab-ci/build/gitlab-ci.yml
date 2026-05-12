@@ -45,6 +45,7 @@ debian-x86_64:
       -D tools=drm-shim
       -D valgrind=disabled
       -D perfetto=true
+      -D vulkan-layers=screenshot
     S3_ARTIFACT_NAME: mesa-x86_64-default-${BUILDTYPE}
     RUN_MESON_TESTS: "false"  # debian-build-x86_64 already runs these
   artifacts:
@@ -471,6 +472,7 @@ debian-arm64:
       -D freedreno-kmds=msm,virtio
       -D teflon=true
       -D perfetto=true
+      -D vulkan-layers=screenshot
     GALLIUM_ST:
       -D gallium-rusticl=true
       -D legacy-wayland=bind-wayland-display
