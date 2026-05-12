@@ -10,3 +10,4 @@ mod nir;
 mod ops;
 mod ssa_value;
 mod swizzle;
+mod validate;

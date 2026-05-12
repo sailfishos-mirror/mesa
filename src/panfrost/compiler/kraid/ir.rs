@@ -112,7 +112,7 @@ impl fmt::Display for RegRef {
 }
 
 impl RegRef {
-    fn bytes(&self) -> u8 {
+    pub fn bytes(&self) -> u8 {
         match self.range {
             RegRange::Half0 | RegRange::Half1 => 2,
             RegRange::Regs(n) => n * 4,
