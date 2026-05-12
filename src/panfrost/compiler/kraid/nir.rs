@@ -349,6 +349,14 @@ impl<'a> ShaderFromNir<'a> {
                     accum_op: CmpAccumOp::None,
                 });
             }
+            nir_op_iadd => {
+                b.push_op(OpIAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::UnsignedInteger),
+                    saturate: false,
+                    srcs: [srcs(0), srcs(1)],
+                });
+            }
             _ => panic!("Unsupported ALU instruction: {}", alu.info().name()),
         }
     }

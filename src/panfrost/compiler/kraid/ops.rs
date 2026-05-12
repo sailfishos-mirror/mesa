@@ -181,6 +181,27 @@ impl fmt::Display for OpFCmp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [S16, U16, V2S16, V2U16, S32, U32])]
+pub struct OpIAdd {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub saturate: bool,
+    pub srcs: [Src; 2],
+}
+
+impl fmt::Display for OpIAdd {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sat = if self.saturate { ".sat" } else { "" };
+        write!(
+            f,
+            "{} = IADD.{}{sat} {} {}",
+            &self.dst, self.dst_type, &self.srcs[0], &self.srcs[1],
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpMkVecV2I8 {
     #[dst_type(V2I8)]
     pub dst: Dst,
@@ -244,6 +265,7 @@ pub enum Op {
     End(OpEnd),
     FAdd(OpFAdd),
     FCmp(OpFCmp),
+    IAdd(OpIAdd),
     MkVecV2I8(OpMkVecV2I8),
     MkVecV4I8(OpMkVecV4I8),
     Mov(OpMov),
