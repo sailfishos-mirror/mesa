@@ -4099,8 +4099,8 @@ by a particular renderpass/blit.
 		<bitfield name="THREADSIZE" pos="20" type="a6xx_threadsize"/>
 		<!-- seems to make SP use less concurrent threads when possible? -->
 		<bitfield name="UNK21" pos="21" type="boolean"/>
-		<!-- has a small impact on performance, not clear what it does -->
-		<bitfield name="UNK22" pos="22" type="boolean"/>
+		<!-- Enables round-robin mode, which guarantees fair scheduling -->
+		<bitfield name="COMPUTERRMODEEN" pos="22" type="boolean"/>
 		<bitfield name="EARLYPREAMBLE" pos="23" type="boolean"/>
 		<bitfield name="MERGEDREGS" pos="31" type="boolean"/>
 	</reg32>
