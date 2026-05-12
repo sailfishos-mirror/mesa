@@ -2508,6 +2508,8 @@ jay_setup_payload(struct nir_to_jay_state *nj)
       UNREACHABLE("unimplemented shader stages");
    }
 
+   s->payload_gprs = p.offsets[GPR];
+
    /* Lane ID calculations require &W and therefore are calculated in
     * uniform control flow to sidestep RA problems. The easy solution is
     * calculating the lane ID in the first block.

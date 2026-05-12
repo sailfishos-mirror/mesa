@@ -783,7 +783,7 @@ typedef struct jay_shader {
    union brw_any_prog_data *prog_data;
    unsigned spills, fills;
    unsigned scratch_size;
-   unsigned push_grfs;
+   unsigned payload_gprs, push_grfs;
 
    /**
     * Ralloc linear context. Since we don't typically free as we go,

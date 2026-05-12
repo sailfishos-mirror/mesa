@@ -763,6 +763,8 @@ pick_regs(jay_ra_state *ra,
    if (file == UGPR && size > 16) {
       first = partition->large_ugpr_block.start;
       end = partition->large_ugpr_block.start + partition->large_ugpr_block.len;
+   } else if (file == GPR && size > 1 && ra->b.shader->payload_gprs < 8) {
+      first = align(ra->b.shader->payload_gprs, MAX2(size, alignment));
    }
 
    /* Sources used by end-of-thread sends must be at the end of the file */
@@ -1421,12 +1423,6 @@ build_partition(jay_shader *shader, unsigned *blocks, unsigned n)
       if (file == UGPR) {
          ugpr_base += blocks[i];
       }
-
-      /* GPR partition blocks must be vector size aligned to avoid crossing */
-      if (file == GPR && i != (n - 1)) {
-         unsigned max_vec = 8;
-         assert(util_is_aligned(blocks[i], max_vec * jay_grf_per_gpr(shader)));
-      }
    }
 }
 
@@ -1516,11 +1512,13 @@ jay_partition_grf(jay_shader *shader)
       stride4_header_size = blocks[1] + blocks[3];
    } else if (shader->stage == MESA_SHADER_FRAGMENT) {
       unsigned len0 = jay_grf_per_gpr(shader);
+      unsigned payload_grfs = shader->payload_gprs * len0;
+
       unsigned blocks[] = {
          len0,                /* UGPR: g0 (and maybe g1) */
-         len0 * 8,            /* GPR: Barycentrics */
+         payload_grfs,        /* GPR: Barycentrics */
          uniform_grfs - len0, /* UGPR: Dispatch (eg push constants) & general */
-         nonuniform_grfs - (len0 * 8), /* GPR: General & end-of-thread */
+         nonuniform_grfs - payload_grfs, /* GPR: General & EOT */
       };
       build_partition(shader, blocks, ARRAY_SIZE(blocks));
       dispatch_grf = blocks[0] + blocks[1];
