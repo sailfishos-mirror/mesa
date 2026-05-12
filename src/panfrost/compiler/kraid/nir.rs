@@ -13,7 +13,22 @@ use rustc_hash::FxHashMap;
 use std::cmp::max;
 
 #[derive(Default)]
-struct PhiAllocMap {}
+struct BlockLabelMap {
+    map: FxHashMap<u32, Label>,
+}
+
+impl BlockLabelMap {
+    fn add(&mut self, block: &nir_block, label: Label) {
+        self.map
+            .entry(block.index)
+            .and_modify(|_| panic!("Cannot set an block label twice"))
+            .or_insert(label);
+    }
+
+    fn get(&self, block: &nir_block) -> Label {
+        *self.map.get(&block.index).expect("Unknown block")
+    }
+}
 
 struct ShaderFromNir<'a> {
     model: &'a dyn Model,
@@ -67,14 +82,70 @@ impl<'a> ShaderFromNir<'a> {
         self.get_src_ssa(src).into()
     }
 
-    fn parse_shader(self) -> Shader<'a> {
-        let _nfi = self.nir.get_entrypoint().unwrap();
-        let ssa_alloc = Default::default();
+    fn parse_block(
+        &mut self,
+        ssa_alloc: &mut SSAValueAllocator,
+        block_map: &BlockLabelMap,
+        nb: &nir_block,
+    ) -> BasicBlock {
+        let mut b = SSAInstrBuilder::new(self.model.arch(), ssa_alloc);
+
+        for ni in nb.iter_instr_list() {
+            match ni.type_ {
+                _ => panic!("Unsupported instruction type"),
+            }
+        }
+
+        let succ = nb.successors();
+        if nb.cf_tree_next().is_none() {
+            b.push_op(OpEnd {});
+        } else if let Some(nif) = nb.following_if() {
+            let succ = [succ[0].unwrap(), succ[1].unwrap()];
+
+            b.push_op(OpBranch {
+                not: true,
+                cond: self.get_src(&nif.condition),
+                combine_op: BranchCombineOp::None,
+                label: block_map.get(succ[1]),
+            });
+        } else {
+            assert!(succ[1].is_none());
+            if let Some(succ) = succ[0] {
+                b.push_op(OpBranch {
+                    not: true,
+                    cond: 0.into(),
+                    combine_op: BranchCombineOp::None,
+                    label: block_map.get(succ),
+                });
+            }
+        }
+
+        BasicBlock {
+            label: block_map.get(nb),
+            instrs: b.into_vec(),
+        }
+    }
+
+    fn parse_shader(mut self) -> Shader<'a> {
+        let nfi = self.nir.get_entrypoint().unwrap();
+        let mut ssa_alloc = Default::default();
+
+        // Pre-populate the block table so we have the same numbering as NIR
+        let mut label_alloc: LabelAllocator = Default::default();
+        let mut block_map: BlockLabelMap = Default::default();
+        for nb in nfi.iter_blocks() {
+            block_map.add(nb, label_alloc.alloc());
+        }
+
+        let blocks = nfi
+            .iter_blocks()
+            .map(|nb| self.parse_block(&mut ssa_alloc, &block_map, nb))
+            .collect();
 
         Shader {
             model: self.model,
             ssa_alloc,
-            blocks: Default::default(),
+            blocks,
         }
     }
 }
