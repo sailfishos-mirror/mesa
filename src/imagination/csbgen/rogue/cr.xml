@@ -522,12 +522,20 @@ SOFTWARE.
   </struct>
 
   <struct name="ISP_CTL" length="1">
-    <field name="skip_init_hdrs" start="31" end="31" type="bool"/>
-    <field name="line_style" start="30" end="30" type="bool"/>
-    <field name="line_style_pix" start="29" end="29" type="bool"/>
-    <field name="pair_tiles_vert" start="28" end="28" type="bool"/>
-    <field name="pair_tiles" start="27" end="27" type="bool"/>
-    <field name="num_tiles_per_usc" start="21" end="22" type="uint"/>
+    <condition type="if" check="GPU_MULTICORE_SUPPORT &amp;&amp; SIMPLE_INTERNAL_PARAMETER_FORMAT" />
+      <field name="skip_init_hdrs" start="31" end="31" type="bool"/>
+    <condition type="endif" check="GPU_MULTICORE_SUPPORT &amp;&amp; SIMPLE_INTERNAL_PARAMETER_FORMAT"/>
+    <condition type="if" check="WIDELINES_AS_RECTANGLES" />
+      <field name="line_style" start="30" end="30" type="bool"/>
+      <field name="line_style_pix" start="29" end="29" type="bool"/>
+    <condition type="endif" check="WIDELINES_AS_RECTANGLES" />
+    <condition type="if" check="PAIRED_TILES" />
+      <field name="pair_tiles_vert" start="28" end="28" type="bool"/>
+      <field name="pair_tiles" start="27" end="27" type="bool"/>
+    <condition type="endif" check="PAIRED_TILES" />
+    <condition type="if" check="!ROGUE_XE" />
+      <field name="num_tiles_per_usc" start="21" end="22" type="uint"/>
+    <condition type="endif" check="!ROGUE_XE" />
     <field name="dbias_is_int" start="20" end="20" type="bool"/>
     <field name="overlap_check_mode" start="19" end="19" type="bool"/>
     <field name="pt_upfront_depth_disable" start="18" end="18" type="bool"/>
@@ -549,11 +557,15 @@ SOFTWARE.
     <field name="zloadformat" start="23" end="24" type="ZLS_FORMAT_TYPE"/>
     <field name="fb_storeen" start="22" end="22" type="bool"/>
     <field name="fb_loaden" start="21" end="21" type="bool"/>
-    <field name="mstoreen" start="20" end="20" type="bool"/>
+    <condition type="if" check="!ROGUE_XE" />
+      <field name="mstoreen" start="20" end="20" type="bool"/>
+    <condition type="endif" check="!ROGUE_XE" />
     <field name="zstoreen" start="19" end="19" type="bool"/>
     <field name="sstoreen" start="18" end="18" type="bool"/>
     <field name="storetwiddled" start="17" end="17" type="bool"/>
-    <field name="mloaden" start="16" end="16" type="bool"/>
+    <condition type="if" check="!ROGUE_XE" />
+      <field name="mloaden" start="16" end="16" type="bool"/>
+    <condition type="endif" check="!ROGUE_XE" />
     <field name="zloaden" start="15" end="15" type="bool"/>
     <field name="sloaden" start="14" end="14" type="bool"/>
     <field name="loadtwiddled" start="13" end="13" type="bool"/>
@@ -592,12 +604,16 @@ SOFTWARE.
   <struct name="PBE_WORD0_MRT0" length="2">
     <condition type="if" check="TFBC"/>
       <field name="tfbc_lossy" start="62" end="63" type="TFBC_LOSSY"/>
+    <condition type="else" check="TFBC"/>
+      <field name="x_rsrvd" start="63" end="63" type="bool"/>
     <condition type="endif" check="TFBC"/>
-    <field name="x_rsrvd" start="63" end="63" type="bool"/>
-    <field name="pair_tiles" start="60" end="60" type="uint"/>
-    <field name="comp_iaddr_mode" start="60" end="60" type="COMP_IADDR_TYPE"/>
-    <field name="x_rsrvd2" start="59" end="59" type="bool"/>
-    <field name="comp_cor_enable" start="59" end="59" type="bool"/>
+    <condition type="if" check="TFBC"/>
+      <field name="pair_tiles" start="60" end="60" type="uint"/>
+      <field name="x_rsrvd2" start="59" end="59" type="bool"/>
+    <condition type="else" check="TFBC"/>
+      <field name="comp_iaddr_mode" start="60" end="60" type="COMP_IADDR_TYPE"/>
+      <field name="comp_cor_enable" start="59" end="59" type="bool"/>
+    <condition type="endif" check="TFBC"/>
     <field name="dither" start="58" end="58" type="bool"/>
     <field name="tilerelative" start="57" end="57" type="bool"/>
     <field name="downscale" start="56" end="56" type="bool"/>
@@ -683,10 +699,10 @@ SOFTWARE.
       <field name="fbc_iaddr_mode" start="42" end="42" type="bool"/>
       <field name="fbdc_iaddr_mode" start="41" end="41" type="bool"/>
     <condition type="endif" check="!ROGUEXE"/>
-    <!-- FIXME: should be dependent on !ROGUEXE || (ROGUEXE && FB_CDC_V4) -->
-    <field name="fbdc_stencil_fmt" start="34" end="40" type="uint"/>
-    <!-- FIXME: should be dependent on !ROGUEXE || (ROGUEXE && FB_CDC_V4) -->
-    <field name="fbdc_depth_fmt" start="27" end="33" type="uint"/>
+    <condition type="if" check="!ROGUEXE || (ROGUEXE &amp;&amp; FB_CDC_V4)"/>
+      <field name="fbdc_stencil_fmt" start="34" end="40" type="uint"/>
+      <field name="fbdc_depth_fmt" start="27" end="33" type="uint"/>
+    <condition type="endif" check="!ROGUEXE || (ROGUEXE &amp;&amp; FB_CDC_V4)"/>
     <field name="fbc_num_tiles" start="4" end="26" type="uint"/>
     <field name="fbc_iaddr" start="1" end="1" type="bool"/>
     <field name="fbdc_iaddr" start="0" end="0" type="bool"/>
