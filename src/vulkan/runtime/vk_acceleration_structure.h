@@ -41,7 +41,6 @@ extern "C" {
 enum vk_acceleration_structure_build_step {
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_TOP,
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_BUILD_LEAVES,
-   VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_GENERATE,
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT,
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_PAIR_TRIANGLES,
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_ID_PREFIX_SUM,
@@ -140,6 +139,8 @@ struct vk_acceleration_structure_build_state {
    uint32_t scratch_offset;
    bool processed;
 
+   uint32_t morton_sort_dispatch_size;
+   uint32_t morton_sort_passes;
    /* Radix sort state */
    uint32_t scatter_blocks;
    uint32_t count_ru_scatter;
@@ -154,6 +155,8 @@ struct vk_acceleration_structure_build_args {
    uint32_t subgroup_size;
    uint32_t bvh_bounds_offset;
    uint32_t root_flags_offset;
+   uint32_t morton_sort_workgroup_size;
+   uint32_t morton_sort_kvs_per_thread;
    bool propagate_cull_flags;
    bool emit_markers;
    bool has_update;

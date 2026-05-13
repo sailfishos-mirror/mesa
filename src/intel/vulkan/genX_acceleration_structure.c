@@ -50,9 +50,6 @@ begin_debug_marker(VkCommandBuffer commandBuffer,
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_BUILD_LEAVES:
       trace_intel_begin_as_build_leaves(&cmd_buffer->trace);
       break;
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_GENERATE:
-      trace_intel_begin_as_morton_generate(&cmd_buffer->trace);
-      break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
       trace_intel_begin_as_morton_sort(&cmd_buffer->trace);
       break;
@@ -90,9 +87,6 @@ end_debug_marker(VkCommandBuffer commandBuffer,
       break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_BUILD_LEAVES:
       trace_intel_end_as_build_leaves(&cmd_buffer->trace);
-      break;
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_GENERATE:
-      trace_intel_end_as_morton_generate(&cmd_buffer->trace);
       break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
       trace_intel_end_as_morton_sort(&cmd_buffer->trace);
@@ -988,6 +982,8 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
          .has_update = true,
          .propagate_cull_flags = true,
          .subgroup_size = device->info->ver >= 20 ? 32 : 16,
+         .morton_sort_workgroup_size = 512,
+         .morton_sort_kvs_per_thread = 2,
          .radix_sort_64 = device->accel_struct_build.radix_sort_64,
          .radix_sort_96 = device->accel_struct_build.radix_sort_96,
          /* See struct anv_accel_struct_header from anv_bvh_defines.h

@@ -634,6 +634,8 @@ VkResult
 lvp_device_init_accel_struct_state(struct lvp_device *device)
 {
    device->accel_struct_args.subgroup_size = lp_native_vector_width / 32;
+   device->accel_struct_args.morton_sort_workgroup_size = 512;
+   device->accel_struct_args.morton_sort_kvs_per_thread = 2;
 
    device->vk.as_build_ops = &accel_struct_ops;
    device->vk.write_buffer_cp = lvp_write_buffer_cp;

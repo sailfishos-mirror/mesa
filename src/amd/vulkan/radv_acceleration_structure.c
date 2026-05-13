@@ -1153,9 +1153,6 @@ radv_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_BUILD_LEAVES:
       radv_utrace_begin_leaves(cmd_buffer);
       break;
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_GENERATE:
-      radv_utrace_begin_morton_generate(cmd_buffer);
-      break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
       radv_utrace_begin_morton_sort(cmd_buffer);
       break;
@@ -1188,9 +1185,6 @@ radv_accel_struct_cmd_end_debug_marker(VkCommandBuffer commandBuffer,
       break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_BUILD_LEAVES:
       radv_utrace_end_leaves(cmd_buffer);
-      break;
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_GENERATE:
-      radv_utrace_end_morton_generate(cmd_buffer);
       break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
       radv_utrace_end_morton_sort(cmd_buffer);
@@ -1259,6 +1253,8 @@ radv_device_init_accel_struct_build_state(struct radv_device *device)
    build_args->propagate_cull_flags = pdev->info.gfx_level >= GFX11;
    build_args->emit_markers = device->sqtt.bo || device->utrace.context;
    build_args->has_update = true;
+   build_args->morton_sort_workgroup_size = 512;
+   build_args->morton_sort_kvs_per_thread = 2;
    build_args->radix_sort_64 = device->meta_state.accel_struct_build.radix_sort_64;
    build_args->radix_sort_96 = device->meta_state.accel_struct_build.radix_sort_96;
 
