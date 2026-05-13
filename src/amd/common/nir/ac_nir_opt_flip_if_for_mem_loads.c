@@ -92,6 +92,7 @@ is_vmem_or_lds_load(nir_def *def, unsigned depth, unsigned begin, unsigned end)
       case nir_intrinsic_load_global_constant:
       case nir_intrinsic_load_global_amd:
       case nir_intrinsic_load_global_transpose_amd:
+      case nir_intrinsic_load_global_tr_amd:
       case nir_intrinsic_load_scratch:
       case nir_intrinsic_load_shared:
       case nir_intrinsic_load_shared2_amd:
