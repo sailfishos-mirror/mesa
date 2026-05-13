@@ -9929,3 +9929,12 @@ VkResult PVR_PER_ARCH(EndCommandBuffer)(VkCommandBuffer commandBuffer)
 
    return vk_command_buffer_end(&cmd_buffer->vk);
 }
+
+void PVR_PER_ARCH(GetRenderingAreaGranularity)(
+   VkDevice _device,
+   const VkRenderingAreaInfoKHR *pRenderingAreaInfo,
+   VkExtent2D *pGranularity)
+{
+   VK_FROM_HANDLE(pvr_device, device, _device);
+   pvr_get_render_area_granularity(device->pdevice, pGranularity);
+}
