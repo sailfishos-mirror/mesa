@@ -143,9 +143,11 @@ op('send', 4, None, Props.SIDE_EFFECTS, [
     'bool check_tdr',
     'bool uniform',
     'bool bindless',
+    'bool pure',
     'enum jay_type type_0',
     'enum jay_type type_1',
     'uint8_t ex_mlen',
+    'bool pad[3]',
     'uint32_t ex_desc_imm',
 ])
 

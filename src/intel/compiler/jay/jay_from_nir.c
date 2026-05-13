@@ -1092,6 +1092,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_SEND(b, .sfid = sfid, .msg_desc = desc, .srcs = srcs,
             .nr_srcs = jay_is_null(data) ? 1 : 2, .dst = tmp, .type = data_type,
             .src_type = { offset_type, data_type }, .uniform = uniform,
+            .pure = nir_intrinsic_can_reorder(intr),
             .bindless = surf_type == LSC_ADDR_SURFTYPE_BSS, .ex_desc = ex_desc,
             .ex_desc_imm = ex_desc_imm);
 
@@ -2025,7 +2026,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
             .ex_desc = desc_ex_src, .header = header, .srcs = payload,
             .nr_srcs = n_sources, .type = JAY_TYPE_U32,
             .src_type = { src_type }, .dst = tmp, .uniform = payload_uniform,
-            .bindless = surface_bindless);
+            .bindless = surface_bindless, .pure = true);
 
    /* If we sampled into a temporary, copy out to the final */
    if (residency) {
