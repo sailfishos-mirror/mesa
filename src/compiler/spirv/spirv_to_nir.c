@@ -5653,21 +5653,6 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
       vtn_handle_decoration(b, opcode, w, count);
       break;
 
-   case SpvOpExtInst:
-   case SpvOpExtInstWithForwardRefsKHR: {
-      struct vtn_value *val = vtn_value(b, w[3], vtn_value_type_extension);
-      if (val->ext_handler == vtn_handle_non_semantic_instruction) {
-         /* NonSemantic extended instructions are acceptable in preamble. */
-         vtn_handle_non_semantic_instruction(b, w[4], w, count);
-         return true;
-      } else if (val->ext_handler == vtn_handle_non_semantic_debug_info) {
-         vtn_handle_non_semantic_debug_info(b, w[4], w, count);
-         return true;
-      } else {
-         return false; /* End of preamble. */
-      }
-   }
-
    default:
       return false; /* End of preamble */
    }
