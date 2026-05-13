@@ -2284,7 +2284,7 @@
         "description": "pan/ci: add missing gitlab rules",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "20970bcd9652ea8727a307ced9b372fad4b89991",
         "notes": null
