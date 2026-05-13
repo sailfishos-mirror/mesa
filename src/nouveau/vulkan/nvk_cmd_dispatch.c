@@ -265,8 +265,23 @@ nvk_cmd_flush_cs_qmd(struct nvk_cmd_buffer *cmd,
 
 static void
 nvk_build_mme_add_cs_invocations(struct mme_builder *b,
-                                 struct mme_value64 count)
+                                 struct mme_value group_count_x,
+                                 struct mme_value group_count_y,
+                                 struct mme_value group_count_z,
+                                 struct mme_value local_size)
 {
+   /* Y and Z are 16b, so this cant't overflow */
+   struct mme_value cs1 =
+      mme_mul_32x32_32_free_srcs(b, group_count_y, group_count_z);
+   struct mme_value64 cs2 =
+      mme_umul_32x32_64_free_srcs(b, group_count_x, cs1);
+
+   /* If the local size isn't provided, load it */
+   if (local_size.type == MME_VALUE_TYPE_ZERO)
+      local_size = mme_load(b);
+   struct mme_value64 count =
+      mme_umul_32x64_64_free_srcs(b, local_size, cs2);
+
    struct mme_value accum_hi = nvk_mme_load_scratch(b, CS_INVOCATIONS_HI);
    struct mme_value accum_lo = nvk_mme_load_scratch(b, CS_INVOCATIONS_LO);
    struct mme_value64 accum = mme_value64(accum_lo, accum_hi);
@@ -286,9 +301,13 @@ nvk_build_mme_add_cs_invocations(struct mme_builder *b,
 void
 nvk_mme_add_cs_invocations(struct mme_builder *b)
 {
-   struct mme_value64 count = mme_load_addr64(b);
+   struct mme_value group_count_x = mme_load(b);
+   struct mme_value group_count_y = mme_load(b);
+   struct mme_value group_count_z = mme_load(b);
 
-   nvk_build_mme_add_cs_invocations(b, count);
+   /* Arguments will be freed and local_size is loaded by the function */
+   nvk_build_mme_add_cs_invocations(b, group_count_x, group_count_y,
+                                    group_count_z, mme_zero());
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -319,17 +338,16 @@ nvk_CmdDispatchBase(VkCommandBuffer commandBuffer,
        cmd->state.inherited_pipeline_statistics &
           VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT) {
       const uint32_t local_size = nvk_compute_local_size(cmd);
-      const uint64_t cs_invocations =
-         (uint64_t)local_size * (uint64_t)groupCountX *
-         (uint64_t)groupCountY * (uint64_t)groupCountZ;
 
-      struct nv_push *p = nvk_cmd_buffer_push(cmd, 3);
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
       if (nvk_cmd_buffer_compute_cls(cmd) >= AMPERE_COMPUTE_B)
          P_1INC(p, NVC7C0, CALL_MME_MACRO(NVK_MME_ADD_CS_INVOCATIONS));
       else
          P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_ADD_CS_INVOCATIONS));
-      P_INLINE_DATA(p, cs_invocations >> 32);
-      P_INLINE_DATA(p, cs_invocations);
+      P_INLINE_DATA(p, groupCountX);
+      P_INLINE_DATA(p, groupCountY);
+      P_INLINE_DATA(p, groupCountZ);
+      P_INLINE_DATA(p, local_size);
    }
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 4);
@@ -530,15 +548,9 @@ nvk_mme_dispatch_indirect(struct mme_builder *b)
                                   group_count_y,
                                   group_count_z);
 
-      struct mme_value64 cs1 = mme_umul_32x32_64(b, group_count_y,
-                                                    group_count_z);
-      struct mme_value64 cs2 = mme_umul_32x32_64(b, group_count_x,
-                                                    local_size);
-      struct mme_value64 count = mme_mul64(b, cs1, cs2);
-      mme_free_reg64(b, cs1);
-      mme_free_reg64(b, cs2);
-
-      nvk_build_mme_add_cs_invocations(b, count);
+      /* Arguments will be freed by this function */
+      nvk_build_mme_add_cs_invocations(b, group_count_x, group_count_y,
+                                       group_count_z, local_size);
    } else {
       struct mme_value group_count_x = mme_load(b);
       struct mme_value group_count_y = mme_load(b);
@@ -556,16 +568,9 @@ nvk_mme_dispatch_indirect(struct mme_builder *b)
                                   group_count_y,
                                   group_count_z);
 
-      /* Y and Z are 16b, so this cant't overflow */
-      struct mme_value cs1 =
-         mme_mul_32x32_32_free_srcs(b, group_count_y, group_count_z);
-      struct mme_value64 cs2 =
-         mme_umul_32x32_64_free_srcs(b, group_count_x, cs1);
-      struct mme_value local_size = mme_load(b);
-      struct mme_value64 count =
-         mme_umul_32x64_64_free_srcs(b, local_size, cs2);
-
-      nvk_build_mme_add_cs_invocations(b, count);
+      /* Arguments will be freed and local_size is loaded by the function */
+      nvk_build_mme_add_cs_invocations(b, group_count_x, group_count_y,
+                                       group_count_z, mme_zero());
    }
 }
 
