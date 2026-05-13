@@ -157,6 +157,7 @@ lower_send_local(jay_function *func, jay_block *block)
 typedef uint32_t u32_per_pipe[TGL_NUM_PIPES];
 
 struct swsb_state {
+   uint32_t nr_keys;
    unsigned ip[TGL_NUM_PIPES];
    unsigned last_shape[TGL_NUM_PIPES];
 
@@ -232,6 +233,7 @@ depend_on_writer(struct swsb_state *state,
                  bool except_exec)
 {
    for (unsigned i = 0; i < r.width; ++i) {
+      assert(r.base + i < state->nr_keys);
       uint32_t w = state->access[r.base + i][0];
       enum tgl_pipe write = writer_pipe(w);
 
@@ -466,7 +468,7 @@ jay_lower_scoreboard(jay_shader *shader)
 
    jay_foreach_function(shader, f) {
       memset(access, 0, sizeof(*access) * nr_keys);
-      struct swsb_state state = { .access = access };
+      struct swsb_state state = { .nr_keys = nr_keys, .access = access };
 
       jay_foreach_block(f, block) {
          lower_send_local(f, block);
