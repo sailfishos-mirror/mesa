@@ -625,11 +625,6 @@
     <value name="Propagate" value="1"/>
   </enum>
 
-  <enum name="CS Sync Error Reject">
-    <value name="Inherit" value="0"/>
-    <value name="Reject" value="1"/>
-  </enum>
-
   <enum name="CS Sync Scope">
     <value name="System" value="0"/>
     <value name="CSG" value="2"/>
@@ -937,7 +932,7 @@
   </struct>
 
   <struct name="CS SYNC_WAIT32" size="2">
-    <field name="Error Reject" size="1" start="0" type="CS Sync Error Reject" default="Inherit"/>
+    <field name="Error Reject" size="1" start="0" type="bool"/>
     <field name="Condition" size="4" start="28" type="CS Condition"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
@@ -1030,7 +1025,7 @@
   </struct>
 
   <struct name="CS SYNC_WAIT64" size="2">
-    <field name="Error Reject" size="1" start="0" type="CS Sync Error Reject" default="Inherit"/>
+    <field name="Error Reject" size="1" start="0" type="bool"/>
     <field name="Condition" size="4" start="28" type="CS Condition"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
