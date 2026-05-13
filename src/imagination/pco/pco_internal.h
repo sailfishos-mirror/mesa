@@ -37,6 +37,9 @@ typedef struct _pco_ctx {
    /** Device information. */
    const struct pvr_device_info *dev_info;
 
+   /** Device runtime information. */
+   const struct pvr_device_runtime_info *dev_runtime_info;
+
    /** Device-specific NIR options. */
    nir_shader_compiler_options nir_options;
 
@@ -47,10 +50,14 @@ typedef struct _pco_ctx {
    const nir_shader *usclib;
 } pco_ctx;
 
-void pco_setup_spirv_options(const struct pvr_device_info *dev_info,
-                             struct spirv_to_nir_options *spirv_options);
-void pco_setup_nir_options(const struct pvr_device_info *dev_info,
-                           nir_shader_compiler_options *nir_options);
+void pco_setup_spirv_options(
+   const struct pvr_device_info *dev_info,
+   const struct pvr_device_runtime_info *dev_runtime_info,
+   struct spirv_to_nir_options *spirv_options);
+void pco_setup_nir_options(
+   const struct pvr_device_info *dev_info,
+   const struct pvr_device_runtime_info *dev_runtime_info,
+   nir_shader_compiler_options *nir_options);
 
 /* Debug. */
 enum pco_debug {

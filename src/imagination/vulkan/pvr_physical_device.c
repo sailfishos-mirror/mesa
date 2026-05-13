@@ -1156,7 +1156,8 @@ VkResult pvr_physical_device_init(struct pvr_physical_device *pdevice,
 
    pdevice->vk.supported_sync_types = ws->sync_types;
 
-   pdevice->pco_ctx = pco_ctx_create(&pdevice->dev_info, NULL);
+   pdevice->pco_ctx =
+      pco_ctx_create(&pdevice->dev_info, &pdevice->dev_runtime_info, NULL);
    if (!pdevice->pco_ctx) {
       result = vk_errorf(instance,
                          VK_ERROR_INITIALIZATION_FAILED,
