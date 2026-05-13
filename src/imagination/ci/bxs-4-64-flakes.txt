@@ -18,11 +18,9 @@ dEQP-VK.glsl.matrix.mul.const.highp_mat3x2_vec3_fragment
 dEQP-VK.glsl.switch.switch_in_switch_uniform_vertex
 dEQP-VK.glsl.texture_functions.query.texturequerylevels.usampler2d_fragment
 dEQP-VK.graphicsfuzz.cov-nested-loop-not-greater-than-increment-array-element
-dEQP-VK.graphicsfuzz.cov-two-nested-loops-switch-case-matrix-array-increment
 dEQP-VK.graphicsfuzz.find-msb-from-lsb
 dEQP-VK.graphicsfuzz.function-with-float-comparison
 dEQP-VK.graphicsfuzz.increment-value-in-nested-for-loop
-dEQP-VK.graphicsfuzz.stable-binarysearch-tree-false-if-discard-loop
 dEQP-VK.graphicsfuzz.stable-mergesort-clamped-conditional-bit-shift
 dEQP-VK.image.atomic_operations.dec.3d.notransfer.normal_read.normal_img.r32i_intermediate_values
 dEQP-VK.image.atomic_operations.exchange.3d.transfer.normal_read.normal_img.r32ui_intermediate_values

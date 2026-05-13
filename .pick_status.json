@@ -4414,7 +4414,7 @@
         "description": "pvr/ci: drop two tests from bxs-4-64-{fails,flakes}",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ef860bcaa1aa5f13515532adbbc6d1dbb044a4a4",
         "notes": null

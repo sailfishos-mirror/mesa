@@ -11,8 +11,6 @@ dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.sampled_image,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.storage_buffer,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.storage_image,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.uniform_buffer,Crash
-dEQP-VK.graphicsfuzz.cov-two-nested-loops-switch-case-matrix-array-increment,Fail
-dEQP-VK.graphicsfuzz.stable-binarysearch-tree-false-if-discard-loop,Fail
 dEQP-VK.memory.concurrent_access.shader_and_host,Crash
 dEQP-VK.multiview.input_attachments.no_queries.1_2_4_8_16_32,Fail
 dEQP-VK.multiview.input_attachments.no_queries.1_2_4_8,Fail
