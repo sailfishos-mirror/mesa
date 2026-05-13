@@ -1291,6 +1291,8 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    cmd_buffer->push_constant_stages = 0;
    cmd_buffer->gang.sem.leader_value = 0;
    cmd_buffer->gang.sem.emitted_leader_value = 0;
+   cmd_buffer->gang.sem.follower_value = 0;
+   cmd_buffer->gang.sem.emitted_follower_value = 0;
    cmd_buffer->gang.sem.va = 0;
    memset(&cmd_buffer->queue_state, 0, sizeof(cmd_buffer->queue_state));
    memset(&cmd_buffer->state, 0, sizeof(cmd_buffer->state));
