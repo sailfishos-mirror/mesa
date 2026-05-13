@@ -6984,7 +6984,7 @@
         "description": "llvmpipe: stub other functions inside compute shaders for ORCJIT",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bb0efdd4d8968a71957b563e7dbf98cefa80a986",
         "notes": null
