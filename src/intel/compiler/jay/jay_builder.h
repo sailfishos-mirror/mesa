@@ -52,13 +52,26 @@ jay_after_inst(jay_inst *I)
    return (jay_cursor) { .inst = I, .option = jay_cursor_after_inst };
 }
 
+static inline bool
+jay_op_starts_block(enum jay_opcode op)
+{
+   return op == JAY_OPCODE_PHI_DST ||
+          op == JAY_OPCODE_PRELOAD ||
+          op == JAY_OPCODE_ELSE;
+}
+
+static inline bool
+jay_op_ends_block(enum jay_opcode op)
+{
+   return op == JAY_OPCODE_PHI_SRC ||
+          (jay_op_is_control_flow(op) && op != JAY_OPCODE_ELSE);
+}
+
 static inline jay_cursor
 jay_before_block(jay_block *block)
 {
    jay_foreach_inst_in_block(block, I) {
-      if (I->op != JAY_OPCODE_PHI_DST &&
-          I->op != JAY_OPCODE_PRELOAD &&
-          I->op != JAY_OPCODE_ELSE)
+      if (!jay_op_starts_block(I->op))
          return jay_before_inst(I);
    }
 
@@ -70,7 +83,7 @@ static inline jay_cursor
 jay_after_block_logical(jay_block *block)
 {
    jay_foreach_inst_in_block_rev(block, I) {
-      if (I->op != JAY_OPCODE_PHI_SRC && !jay_op_is_control_flow(I->op))
+      if (!jay_op_ends_block(I->op))
          return jay_after_inst(I);
    }
 
