@@ -46,11 +46,23 @@ fn dump_shader(s: &Shader, suffix: &str) {
     eprintln!("Kraid shader {suffix}:{out}");
 }
 
+fn dynarray_append_vec<T: Copy>(buf: &mut util_dynarray, vec: Vec<T>) {
+    unsafe {
+        let p = util_dynarray_grow_bytes(
+            buf,
+            vec.len().try_into().unwrap(),
+            std::mem::size_of::<T>(),
+        );
+        assert!(!p.is_null(), "util_dynarray_grow_bytes() failed");
+        std::ptr::copy_nonoverlapping(vec.as_ptr(), p as *mut T, vec.len());
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn kraid_compile_nir(
     nir: &mut nir_shader,
     inputs: &pan_compile_inputs,
-    _binary: &mut util_dynarray,
+    binary: &mut util_dynarray,
     _info: &mut pan_shader_info,
 ) {
     let model = model_for_gpu_id(inputs.gpu_id).unwrap();
@@ -65,5 +77,6 @@ pub extern "C" fn kraid_compile_nir(
     dump_shader(&s, "after register assignment");
     s.validate();
 
-    todo!("Compile to binaries");
+    let bin = model.encode_shader(&s);
+    dynarray_append_vec(binary, bin);
 }

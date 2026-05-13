@@ -1,10 +1,13 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::ir::*;
 use kraid_bindings::*;
 
 pub trait Model {
     fn arch(&self) -> u8;
+
+    fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32>;
 }
 
 struct ValhallModel {
@@ -14,6 +17,10 @@ struct ValhallModel {
 impl Model for ValhallModel {
     fn arch(&self) -> u8 {
         self.arch
+    }
+
+    fn encode_shader(&self, _s: &Shader<'_>) -> Vec<u32> {
+        todo!("Implement Valhall shader encoding");
     }
 }
 
