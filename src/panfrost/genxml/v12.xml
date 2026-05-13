@@ -712,7 +712,7 @@
   </struct>
 
   <struct name="CS WAIT" size="2">
-    <field name="Wait mask" size="16" start="16" type="hex"/>
+    <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="Wait Mode" size="1" start="33" type="CS Wait Mode" default="Immediate"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="WAIT"/>
@@ -838,7 +838,7 @@
   </struct>
 
   <struct name="CS SET_EXCEPTION_HANDLER" size="2">
-    <field name="Exception type" size="8" start="0" type="CS Exception Type" default="Tiler OOM"/>
+    <field name="Exception Type" size="8" start="0" type="CS Exception Type" default="Tiler OOM"/>
     <field name="Length" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SET_EXCEPTION_HANDLER"/>
@@ -912,7 +912,7 @@
   <struct name="CS SYNC_ADD32" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
     <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
-    <field name="Wait mask" size="16" start="16" type="hex"/>
+    <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
@@ -923,7 +923,7 @@
   <struct name="CS SYNC_SET32" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
     <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
-    <field name="Wait mask" size="16" start="16" type="hex"/>
+    <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
@@ -986,7 +986,7 @@
   </struct>
 
   <struct name="CS HEAP_OPERATION" size="2">
-    <field name="Wait mask" size="16" start="16" type="hex"/>
+    <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Operation" size="3" start="32" type="CS Heap Operation"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
@@ -994,7 +994,7 @@
   </struct>
 
   <struct name="CS TRACE_POINT" size="2">
-    <field name="Wait mask" size="16" start="16" type="hex"/>
+    <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Base Register" size="8" start="32" type="uint"/>
     <field name="Register count" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
@@ -1005,7 +1005,7 @@
   <struct name="CS SYNC_ADD64" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
     <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
-    <field name="Wait mask" size="16" start="16" type="hex"/>
+    <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
@@ -1016,7 +1016,7 @@
   <struct name="CS SYNC_SET64" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
     <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
-    <field name="Wait mask" size="16" start="16" type="hex"/>
+    <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
@@ -2389,7 +2389,7 @@
     <field name="Shader Modifies Coverage" size="1" start="20" type="bool"/>
     <field name="Alpha To Coverage Invert" size="1" start="21" type="bool"/>
     <field name="Alpha To Coverage" size="1" start="22" type="bool"/>
-    <field name="Scissor to bounding box" size="1" start="23" type="bool"/>
+    <field name="Scissor To Bounding Box" size="1" start="23" type="bool"/>
     <field name="Conservative Rast Mode" size="2" start="24" type="Conservative Rast Mode"/>
     <field name="Cull Zero Area" size="1" start="26" type="bool"/>
     <field name="Conservative Tracking" size="1" start="27" type="bool"/>
