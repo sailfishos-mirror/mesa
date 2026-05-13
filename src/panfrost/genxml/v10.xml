@@ -2146,7 +2146,7 @@
   </struct>
 
   <struct name="DCD Flags 1" size="1">
-    <field name="Sample mask" size="16" start="0" type="uint"/>
+    <field name="Sample mask" size="16" start="0" type="hex"/>
     <field name="Render target mask" start="16" size="8" type="hex"/>
   </struct>
 
