@@ -19,13 +19,13 @@
         - src/panfrost/ci/$DRIVER_NAME-skips.txt
         - src/panfrost/ci/$PIGLIT_TRACES_FILE
         - src/panfrost/clc/*
+        - src/panfrost/compiler/*
         - src/panfrost/genxml/*
         - src/panfrost/lib/*
         - src/panfrost/lib/kmod/*
         - src/panfrost/libpan/*
         - src/panfrost/model/*
         - src/panfrost/shared/*
-        - src/panfrost/util/*
       when: on_success
     - changes:
         - src/panfrost/compiler/midgard/**/*
