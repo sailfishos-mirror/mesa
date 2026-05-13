@@ -4824,7 +4824,7 @@
         "description": "pan/genxml: correct size of field",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2e9450f49fec2ce1bf9ea32194f164d946ffdeb5",
         "notes": null
