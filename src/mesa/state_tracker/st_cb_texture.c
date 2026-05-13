@@ -2753,17 +2753,22 @@ st_GetTexSubImage(struct gl_context * ctx,
    if (!dst)
       goto non_blit_transfer;
 
+   GLint zoffset_g = zoffset;
+   GLint yoffset_g = yoffset;
+   GLint depth_g = depth;
+   GLsizei height_g = height;
+
    /* From now on, we need the gallium representation of dimensions. */
    if (gl_target == GL_TEXTURE_1D_ARRAY) {
-      zoffset = yoffset;
-      yoffset = 0;
-      depth = height;
-      height = 1;
+      zoffset_g = yoffset_g;
+      yoffset_g = 0;
+      depth_g = height_g;
+      height_g = 1;
    }
 
    assert(texImage->Face == 0 ||
           texImage->TexObject->Attrib.MinLayer == 0 ||
-          zoffset == 0);
+          zoffset_g == 0);
 
    memset(&blit, 0, sizeof(blit));
    blit.src.resource = src;
@@ -2774,13 +2779,13 @@ st_GetTexSubImage(struct gl_context * ctx,
    blit.dst.format = dst->format;
    blit.src.box.x = xoffset;
    blit.dst.box.x = 0;
-   blit.src.box.y = yoffset;
+   blit.src.box.y = yoffset_g;
    blit.dst.box.y = 0;
-   blit.src.box.z = texImage->Face + texImage->TexObject->Attrib.MinLayer + zoffset;
+   blit.src.box.z = texImage->Face + texImage->TexObject->Attrib.MinLayer + zoffset_g;
    blit.dst.box.z = 0;
    blit.src.box.width = blit.dst.box.width = width;
-   blit.src.box.height = blit.dst.box.height = height;
-   blit.src.box.depth = blit.dst.box.depth = depth;
+   blit.src.box.height = blit.dst.box.height = height_g;
+   blit.src.box.depth = blit.dst.box.depth = depth_g;
    blit.mask = st_get_blit_mask(texImage->_BaseFormat, format);
    blit.filter = PIPE_TEX_FILTER_NEAREST;
    blit.scissor_enable = false;
@@ -2788,8 +2793,8 @@ st_GetTexSubImage(struct gl_context * ctx,
    /* blit/render/decompress */
    st->pipe->blit(st->pipe, &blit);
 
-   done = copy_to_staging_dest(ctx, dst, xoffset, yoffset, zoffset, width, height,
-                           depth, format, type, pixels, texImage);
+   done = copy_to_staging_dest(ctx, dst, xoffset, yoffset_g, zoffset_g, width, height_g,
+                           depth_g, format, type, pixels, texImage);
    pipe_resource_reference(&dst, NULL);
 
 non_blit_transfer:
