@@ -1573,6 +1573,41 @@ brw_nir_lower_fs_config_intel(nir_shader *nir,
                                      nir_metadata_control_flow, &state);
 }
 
+static bool
+lower_sample_mask_in_instr(nir_builder *b,
+                           nir_intrinsic_instr *intrin,
+                           void *data)
+{
+   if (intrin->intrinsic != nir_intrinsic_load_sample_mask_in)
+      return false;
+
+   b->cursor = nir_before_instr(&intrin->instr);
+
+   nir_def *sample_mask_in_reg = nir_load_coverage_mask_intel(b);
+
+   nir_def *sample_id = nir_load_sample_id(b);
+   nir_def *sample_mask_in_msaa =
+      nir_iand(b,
+               nir_ishl(b, nir_imm_int(b, 1), sample_id),
+               sample_mask_in_reg);
+
+   nir_def *sample_mask_in = nir_bcsel(
+      b,
+      nir_test_fs_config_intel(b, 1, INTEL_FS_CONFIG_PERSAMPLE_DISPATCH),
+      sample_mask_in_msaa, sample_mask_in_reg);
+
+   nir_def_replace(&intrin->def, sample_mask_in);
+
+   return true;
+}
+
+static bool
+brw_nir_lower_sample_mask_in(nir_shader *nir)
+{
+   return nir_shader_intrinsics_pass(nir, lower_sample_mask_in_instr,
+                                     nir_metadata_control_flow, NULL);
+}
+
 void
 brw_nir_lower_fs_inputs(nir_shader *nir,
                         const struct intel_device_info *devinfo,
@@ -1656,6 +1691,9 @@ brw_nir_lower_fs_inputs(nir_shader *nir,
                nir_metadata_control_flow,
                NULL);
    }
+
+   /* Do this after nir_lower_single_sampled */
+   NIR_PASS(_, nir, brw_nir_lower_sample_mask_in);
 
    if (devinfo->ver < 20) {
       NIR_PASS(_, nir, nir_shader_intrinsics_pass,

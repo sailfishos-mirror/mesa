@@ -53,7 +53,6 @@ static nir_component_mask_t get_nir_write_mask(const nir_def &def);
 static void brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb, const brw_builder &bld, nir_intrinsic_instr *instr);
 static brw_reg emit_samplepos_setup(nir_to_brw_state &ntb);
 static brw_reg emit_sampleid_setup(nir_to_brw_state &ntb);
-static brw_reg emit_samplemaskin_setup(nir_to_brw_state &ntb);
 
 static void brw_from_nir_emit_impl(nir_to_brw_state &ntb, nir_function_impl *impl);
 static void brw_from_nir_emit_cf_list(nir_to_brw_state &ntb, exec_list *list);
@@ -146,13 +145,6 @@ emit_system_values_block(nir_to_brw_state &ntb, nir_block *block)
          reg = &ntb.system_values[SYSTEM_VALUE_SAMPLE_ID];
          if (reg->file == BAD_FILE)
             *reg = emit_sampleid_setup(ntb);
-         break;
-
-      case nir_intrinsic_load_sample_mask_in:
-         assert(s.stage == MESA_SHADER_FRAGMENT);
-         reg = &ntb.system_values[SYSTEM_VALUE_SAMPLE_MASK_IN];
-         if (reg->file == BAD_FILE)
-            *reg = emit_samplemaskin_setup(ntb);
          break;
 
       case nir_intrinsic_load_workgroup_id:
@@ -3544,57 +3536,6 @@ emit_sampleid_setup(nir_to_brw_state &ntb)
    return sample_id;
 }
 
-static brw_reg
-emit_samplemaskin_setup(nir_to_brw_state &ntb)
-{
-   const intel_device_info *devinfo = ntb.devinfo;
-   const brw_builder &bld = ntb.bld;
-   brw_shader &s = ntb.s;
-
-   assert(s.stage == MESA_SHADER_FRAGMENT);
-   struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
-
-   /* DG2 should support this, but Wa_22012766191 says there are issues
-    * with CPS 1x1 + MSAA + FS writing to oMask.
-    */
-   assert(devinfo->verx10 >= 200 ||
-          fs_prog_data->coarse_pixel_dispatch != INTEL_ALWAYS);
-
-   brw_reg coverage_mask =
-      brw_fetch_payload_reg(bld, s.fs_payload().sample_mask_in_reg, BRW_TYPE_UD);
-
-   if (fs_prog_data->persample_dispatch == INTEL_NEVER)
-      return coverage_mask;
-
-   /* gl_SampleMaskIn[] comes from two sources: the input coverage mask,
-    * and a mask representing which sample is being processed by the
-    * current shader invocation.
-    *
-    * From the OES_sample_variables specification:
-    * "When per-sample shading is active due to the use of a fragment input
-    *  qualified by "sample" or due to the use of the gl_SampleID or
-    *  gl_SamplePosition variables, only the bit for the current sample is
-    *  set in gl_SampleMaskIn."
-    */
-   const brw_builder abld = bld.annotate("compute gl_SampleMaskIn");
-
-   if (ntb.system_values[SYSTEM_VALUE_SAMPLE_ID].file == BAD_FILE)
-      ntb.system_values[SYSTEM_VALUE_SAMPLE_ID] = emit_sampleid_setup(ntb);
-
-   brw_reg enabled_mask =
-      abld.SHL(brw_imm_ud(1), ntb.system_values[SYSTEM_VALUE_SAMPLE_ID]);
-   brw_reg mask = abld.AND(enabled_mask, coverage_mask);
-
-   if (fs_prog_data->persample_dispatch == INTEL_ALWAYS)
-      return mask;
-
-   brw_check_dynamic_fs_config(abld, fs_prog_data,
-                               INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
-   set_predicate(BRW_PREDICATE_NORMAL, abld.SEL(mask, mask, coverage_mask));
-
-   return mask;
-}
-
 static void
 emit_frag_shading_rate_setup(nir_to_brw_state &ntb, brw_reg result)
 {
@@ -3761,7 +3702,6 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
       break;
 
    case nir_intrinsic_load_helper_invocation:
-   case nir_intrinsic_load_sample_mask_in:
    case nir_intrinsic_load_sample_id: {
       gl_system_value sv = nir_system_value_from_intrinsic(instr->intrinsic);
       brw_reg val = ntb.system_values[sv];
