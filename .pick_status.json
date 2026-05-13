@@ -2274,7 +2274,7 @@
         "description": "pan/ci: remove outdated gitlab rule",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e55de285cc1e6a8a722cd78c821304e4fa51759d",
         "notes": null
