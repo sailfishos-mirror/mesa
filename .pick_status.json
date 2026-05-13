@@ -1724,7 +1724,7 @@
         "description": "freedreno/computerator: fix UAV view size",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "469a19f66bb3179e7f6292ac034723adb5ad6f21",
         "notes": null
