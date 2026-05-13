@@ -1,2 +1,1 @@
-dEQP-VK.graphicsfuzz.cov-two-nested-loops-switch-case-matrix-array-increment,Fail
-dEQP-VK.graphicsfuzz.stable-binarysearch-tree-false-if-discard-loop,Fail
+
