@@ -360,6 +360,10 @@ nvk_BeginCommandBuffer(VkCommandBuffer commandBuffer,
 
    nvk_reset_cmd_buffer(&cmd->vk, 0);
 
+   if (cmd->vk.level == VK_COMMAND_BUFFER_LEVEL_SECONDARY)
+      cmd->state.inherited_pipeline_statistics =
+         pBeginInfo->pInheritanceInfo->pipelineStatistics;
+
    /* Start with a nop so we have at least something to submit */
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
    P_MTHD(p, NV90B5, NOP);

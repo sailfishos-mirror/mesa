@@ -221,6 +221,7 @@ struct nvk_graphics_state {
 struct nvk_compute_state {
    struct nvk_descriptor_state descriptors;
    struct nvk_shader *shader;
+   bool active_compute_invocations_query;
 };
 
 struct nvk_cmd_push {
@@ -238,6 +239,7 @@ struct nvk_cmd_buffer {
       uint64_t descriptor_buffers[NVK_MAX_SETS];
       struct nvk_graphics_state gfx;
       struct nvk_compute_state cs;
+      VkQueryPipelineStatisticFlags inherited_pipeline_statistics;
    } state;
 
    /** List of nvk_cmd_mem
