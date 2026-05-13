@@ -5524,7 +5524,7 @@
         "description": "pan/ci: fix gitlab rules after move",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b02bc53261bd5ba51f004edea2d2296b37c3361d",
         "notes": null
