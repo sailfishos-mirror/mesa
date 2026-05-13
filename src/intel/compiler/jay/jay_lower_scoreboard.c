@@ -29,6 +29,11 @@ def_to_key(jay_function *func, jay_inst *I, jay_def x)
    if (x.file == GPR || x.file == UGPR) {
       unsigned base = x.file == UGPR ? func->shader->num_regs[GPR] : 0;
       return (struct key) { base + x.reg, jay_num_values(x) };
+   } else if (x.file == ACCUM || x.file == UACCUM) {
+      unsigned base =
+         func->shader->num_regs[GPR] + func->shader->num_regs[UGPR];
+
+      return (struct key) { base + (x.reg / 2), jay_num_values(x) };
    } else {
       return (struct key) { 0, 0 };
    }
@@ -277,9 +282,18 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
 
    enum tgl_pipe exec_pipe = inst_exec_pipe(func->shader->devinfo, I);
    unsigned dep[TGL_NUM_PIPES] = { 0 };
+   jay_def dsts[3] = { I->dst, I->cond_flag };
 
-   jay_foreach_dst(I, def) {
-      struct key r = def_to_key(func, I, def);
+   /* MUL_32 is a macro implicitly clobbering acc0/acc1 */
+   if (I->op == JAY_OPCODE_MUL_32) {
+      unsigned n = func->shader->dispatch_width < 32 ? 2 : 1;
+
+      dsts[2] = jay_bare_reg(ACCUM, 0);
+      dsts[2].num_values_m1 = n - 1;
+   }
+
+   for (unsigned i = 0; i < ARRAY_SIZE(dsts); ++i) {
+      struct key r = def_to_key(func, I, dsts[i]);
       depend_on_writer(ctx, r, dep, exec_pipe, true /* except_pipe */);
 
       for (unsigned i = 0; i < r.width; ++i) {
@@ -291,10 +305,18 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
       }
    }
 
-   /* Read-after-write */
+   /* Read-after-write. The hardware scoreboards accumulators within a pipe, so
+    * we set except_pipe for that to omit those annotations. The hardware does
+    * *not* scoreboard accumulators across pipes so we can't just ignore
+    * accumulators when scoreboarding. For example, the I@1 annotation is
+    * required in the following code:
+    *
+    * (16)        mul.s32 acc0, g26, g24<16,8,2>:u16                  │
+    * (32)        mad.f32 acc0, u8.6, u8.8, g20                       │ I@1
+    */
    jay_foreach_src(I, s) {
       depend_on_writer(ctx, def_to_key(func, I, I->src[s]), dep, exec_pipe,
-                       false);
+                       I->src[s].file == ACCUM /* except_pipe */);
    }
 
    /* If dependency P implies dependency Q, drop dependency Q to avoid
@@ -390,11 +412,14 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
       ctx->ip[exec_pipe] +=
          jay_macro_length(I) << jay_simd_split(func->shader, I);
 
-      struct key r = def_to_key(func, I, I->dst);
       uint32_t now = make_writer(exec_pipe, ctx->ip[exec_pipe]);
 
-      for (unsigned i = 0; i < r.width; ++i) {
-         ctx->access[r.base + i][0] = now;
+      for (unsigned i = 0; i < ARRAY_SIZE(dsts); ++i) {
+         struct key r = def_to_key(func, I, dsts[i]);
+
+         for (unsigned i = 0; i < r.width; ++i) {
+            ctx->access[r.base + i][0] = now;
+         }
       }
 
       jay_foreach_src(I, s) {
@@ -434,7 +459,8 @@ jay_lower_scoreboard_trivial(jay_shader *shader)
 void
 jay_lower_scoreboard(jay_shader *shader)
 {
-   uint32_t nr_keys = shader->num_regs[GPR] + shader->num_regs[UGPR];
+   unsigned accums = 4;
+   uint32_t nr_keys = shader->num_regs[GPR] + shader->num_regs[UGPR] + accums;
    assert(nr_keys <= MAX_KEYS && "SENDs use uninitialized stack allocation");
    u32_per_pipe *access = malloc(sizeof(*access) * nr_keys);
 
