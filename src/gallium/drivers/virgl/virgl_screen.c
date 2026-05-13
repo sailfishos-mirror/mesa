@@ -1056,6 +1056,9 @@ virgl_create_screen(struct virgl_winsys *vws, const struct pipe_screen_config *c
        */
       screen->compiler_options.lower_ffloor = true;
       screen->compiler_options.lower_fneg = true;
+      /* We implement TGSI's MAD as fmul + fadd in virglrenderer */
+      screen->compiler_options.float_mul_add64 = nir_float_muladd_support_has_fmad |
+         nir_float_muladd_support_fuse;
    }
    screen->compiler_options.no_integers = screen->caps.caps.v1.glsl_level < 130;
    screen->compiler_options.lower_ffma32 = true;
