@@ -18,6 +18,10 @@
 
 #include <stdio.h>
 
+/* TODO: Spill only if needed rather than requiring on a threshold. */
+/** Shared memory spill threshold (0.0f-1.0f). */
+#define PCO_SHMEM_THRESHOLD (0.75f)
+
 /** SPIR-V to NIR options. */
 static const struct spirv_to_nir_options spirv_options = {
    .environment = NIR_SPIRV_VULKAN,
@@ -783,6 +787,28 @@ static bool robustness_filter(const nir_intrinsic_instr *intr,
 }
 
 /**
+ * \brief Returns if shared memory should be spilled according to the threshold.
+ *
+ * \param[in,out] ctx PCO compiler context.
+ * \param[in] shared_size The shared memory size in bytes.
+ * \return True if shared memory should be spilled, else false.
+ */
+static inline bool should_spill_shmem(const pco_ctx *ctx, unsigned shared_size)
+{
+   if (!shared_size)
+      return false;
+
+   const unsigned max_shmem_regs =
+      ctx->dev_runtime_info->cdm_max_local_mem_size_regs;
+   assert(max_shmem_regs);
+
+   /* Dword -> byte granularity. */
+   const unsigned max_shmem = max_shmem_regs << 2u;
+
+   return ((float)shared_size / (float)max_shmem) > PCO_SHMEM_THRESHOLD;
+}
+
+/**
  * \brief Lowers a NIR shader.
  *
  * \param[in] ctx PCO compiler context.
@@ -852,7 +878,9 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
    if (data->common.robust_buffer_access)
       NIR_PASS(_, nir, nir_lower_robust_access, robustness_filter, NULL);
 
-   if (nir->info.stage == MESA_SHADER_COMPUTE && PCO_DEBUG(GLOBAL_SHMEM)) {
+   if (nir->info.stage == MESA_SHADER_COMPUTE &&
+       (PCO_DEBUG(GLOBAL_SHMEM) ||
+        should_spill_shmem(ctx, nir->info.shared_size))) {
       unsigned usc_slots = PVR_GET_FEATURE_VALUE(ctx->dev_info, usc_slots, 0U);
       NIR_PASS(_, nir, pco_nir_lower_shared_io_to_global, usc_slots);
       data->cs.global_shmem = true;
