@@ -362,6 +362,10 @@ program@execute@vector-conversion,Fail
 # Piglit doesn't check subbuffer alignment requirements
 api@clgetmemobjectinfo,Fail
 
+# Piglit checks the pre 3.1 behavior
+api@clsetkernelarg,Fail
+api@clsetkernelarg@Input checks,Fail
+
 # piles of new fails since updating skqp; to be re-evaluated with new upstream
 gl_all_bitmap_configs,Fail
 gl_androidblendmodes,Fail
