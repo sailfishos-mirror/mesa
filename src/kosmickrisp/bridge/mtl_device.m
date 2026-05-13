@@ -118,6 +118,15 @@ mtl_device_get_registry_id(mtl_device *dev)
    }
 }
 
+bool
+mtl_device_supports_sample_count(mtl_device *dev, uint32_t sample_count)
+{
+   @autoreleasepool {
+      id<MTLDevice> device = (id<MTLDevice>)dev;
+      return [device supportsTextureSampleCount:sample_count];
+   }
+}
+
 struct mtl_size
 mtl_device_max_threads_per_threadgroup(mtl_device *dev)
 {

@@ -365,12 +365,13 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
                          const struct kk_instance *instance,
                          struct vk_properties *properties)
 {
-   const VkSampleCountFlagBits sample_counts =
-      VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT |
-      // TODO_KOSMICKRISP Modify sample count based on what pdev supports
-      VK_SAMPLE_COUNT_4_BIT /* |
-       VK_SAMPLE_COUNT_8_BIT */
-      ;
+   VkSampleCountFlagBits sample_counts = VK_SAMPLE_COUNT_1_BIT;
+   for (uint32_t sample_count = VK_SAMPLE_COUNT_2_BIT;
+      sample_count <= VK_SAMPLE_COUNT_8_BIT; sample_count <<= 1) {
+      if (mtl_device_supports_sample_count(pdev->mtl_dev_handle,
+                                           sample_count))
+         sample_counts |= sample_count;
+   }
 
    assert(sample_counts <= (KK_MAX_SAMPLES << 1) - 1);
 

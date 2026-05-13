@@ -9,6 +9,7 @@
 
 #include "mtl_types.h"
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /* TODO_KOSMICKRISP Remove */
@@ -27,6 +28,7 @@ void mtl_device_get_architecture_name(mtl_device *dev, char buffer[256]);
 uint64_t mtl_device_get_peer_group_id(mtl_device *dev);
 uint32_t mtl_device_get_peer_index(mtl_device *dev);
 uint64_t mtl_device_get_registry_id(mtl_device *dev);
+bool mtl_device_supports_sample_count(mtl_device *dev, uint32_t sample_count);
 struct mtl_size mtl_device_max_threads_per_threadgroup(mtl_device *dev);
 uint32_t mtl_device_max_threadgroup_memory_length(mtl_device *dev);
 uint64_t mtl_device_max_buffer_length(mtl_device *dev);
