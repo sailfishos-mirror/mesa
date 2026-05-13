@@ -440,6 +440,26 @@ void pvr_GetImageSubresourceLayout2(VkDevice device,
                                     &pLayout->subresourceLayout);
 }
 
+void pvr_GetDeviceImageSubresourceLayout(
+   VkDevice _device,
+   const VkDeviceImageSubresourceInfo *pInfo,
+   VkSubresourceLayout2 *pLayout)
+{
+   VK_FROM_HANDLE(pvr_device, device, _device);
+   struct pvr_image image = { 0 };
+
+   vk_image_init(&device->vk, &image.vk, pInfo->pCreateInfo);
+   pvr_image_init(device, pInfo->pCreateInfo, &image);
+
+   pvr_GetImageSubresourceLayout2(_device,
+                                  pvr_image_to_handle(&image),
+                                  pInfo->pSubresource,
+                                  pLayout);
+
+   pvr_image_fini(device, &image);
+   vk_image_finish(&image.vk);
+}
+
 /* Leave this at the very end, to avoid leakage of HW-defs here */
 #define PVR_BUILD_ARCH_ROGUE
 #include "pvr_csb.h"
