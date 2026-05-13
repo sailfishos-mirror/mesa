@@ -1174,7 +1174,7 @@
         "description": "gallium: fix type size in z24_unorm_packed_pack_z_32unorm",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "18f352090d442d7ca5c3e01047eb58c5f52c26d9",
         "notes": null
