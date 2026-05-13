@@ -171,8 +171,7 @@ tu_encode(VkCommandBuffer commandBuffer,
    VkPipelineLayout layout;
 
    /* Insert barrier so that build data gets reflected properly for encode pass */
-   vk_barrier_compute_w_to_compute_r(commandBuffer);
-   vk_barrier_compute_w_to_indirect_compute_r(commandBuffer);
+   vk_bvh_build_barrier_compute_to_compute(commandBuffer, true);
 
    result = get_pipeline_spv(device, "encode", encode_spv, sizeof(encode_spv), sizeof(encode_args), &pipeline, &layout);
    if (result != VK_SUCCESS) {

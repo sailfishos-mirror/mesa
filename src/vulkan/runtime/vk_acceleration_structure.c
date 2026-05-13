@@ -73,6 +73,75 @@ static const uint32_t hploc_spv[] = {
 #include "bvh/hploc_internal.spv.h"
 };
 
+void
+vk_bvh_build_barrier_compute_to_compute(VkCommandBuffer commandBuffer, bool indirect_dst)
+{
+  VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
+  const struct vk_device_dispatch_table *disp =
+    &cmd_buffer->base.device->dispatch_table;
+
+  VkMemoryBarrier2 barrier = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+      .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+      .srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
+      .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+      .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
+   };
+   if (indirect_dst) {
+      barrier.dstStageMask |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+      barrier.dstAccessMask |= VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT_KHR;
+   }
+
+   VkDependencyInfo dep = {
+      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .memoryBarrierCount = 1,
+      .pMemoryBarriers = &barrier,
+   };
+   disp->CmdPipelineBarrier2(commandBuffer, &dep);
+}
+
+void
+vk_bvh_build_barrier_transfer_to_compute(VkCommandBuffer commandBuffer)
+{
+  VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
+  const struct vk_device_dispatch_table *disp =
+    &cmd_buffer->base.device->dispatch_table;
+
+   VkDependencyInfo dep = {
+      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .memoryBarrierCount = 1,
+      .pMemoryBarriers = &(VkMemoryBarrier2){
+         .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+         .srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT,
+         .srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT,
+         .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+         .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
+      },
+   };
+   disp->CmdPipelineBarrier2(commandBuffer, &dep);
+}
+
+void
+vk_bvh_build_barrier_compute_to_host(VkCommandBuffer commandBuffer)
+{
+  VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
+  const struct vk_device_dispatch_table *disp =
+    &cmd_buffer->base.device->dispatch_table;
+
+   VkDependencyInfo dep = {
+      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .memoryBarrierCount = 1,
+      .pMemoryBarriers = &(VkMemoryBarrier2){
+         .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+         .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+         .srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
+         .dstStageMask = VK_PIPELINE_STAGE_2_HOST_BIT,
+         .dstAccessMask = VK_ACCESS_2_HOST_READ_BIT | VK_ACCESS_2_HOST_WRITE_BIT,
+      },
+   };
+   disp->CmdPipelineBarrier2(commandBuffer, &dep);
+}
+
 VKAPI_ATTR VkResult VKAPI_CALL
 vk_common_CreateAccelerationStructureKHR(VkDevice _device,
                                          const VkAccelerationStructureCreateInfoKHR *pCreateInfo,
@@ -1270,8 +1339,8 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
          }
       }
 
-      vk_barrier_transfer_w_to_compute_r(commandBuffer);
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+      vk_bvh_build_barrier_transfer_to_compute(commandBuffer);
+      vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
       result = vk_build_stage(morton_generate, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_BUILD_FLAGS, false);
       if (result != VK_SUCCESS) {
@@ -1280,14 +1349,14 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
          return;
       }
 
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+      vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
 
       if (batch_state.any_late_pair_compression) {
          vk_build_stage(pair_triangles, commandBuffer, device, meta, args, states, infoCount, VK_PAIR_TRIANGLES_BUILD_FLAGS, false);
-         vk_barrier_compute_w_to_compute_r(commandBuffer);
+         vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
          vk_build_stage(id_prefix_sum, commandBuffer, device, meta, args, states, infoCount, VK_ID_PREFIX_SUM_BUILD_FLAGS, false);
-         vk_barrier_compute_w_to_compute_r(commandBuffer);
+         vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
       }
 
       if (batch_state.any_lbvh) {
@@ -1299,7 +1368,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
             return;
          }
 
-         vk_barrier_compute_w_to_compute_r(commandBuffer);
+         vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
          result = vk_build_stage(lbvh_generate_ir, commandBuffer, device, meta, args, states, infoCount,
                                  VK_LBVH_GENERATE_IR_BUILD_FLAGS, false);

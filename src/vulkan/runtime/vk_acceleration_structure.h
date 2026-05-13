@@ -204,6 +204,10 @@ vk_build_stage(vk_build_stage_cb cb, VkCommandBuffer commandBuffer, struct vk_de
                struct vk_acceleration_structure_build_state *states, uint32_t build_count,
                uint32_t build_flags_mask, bool update);
 
+void vk_bvh_build_barrier_compute_to_compute(VkCommandBuffer commandBuffer, bool indirect_dst);
+void vk_bvh_build_barrier_transfer_to_compute(VkCommandBuffer commandBuffer);
+void vk_bvh_build_barrier_compute_to_host(VkCommandBuffer commandBuffer);
+
 VkResult vk_get_bvh_build_pipeline_layout(struct vk_device *device, struct vk_meta_device *meta,
                                           unsigned push_constant_size, VkPipelineLayout *layout);
 

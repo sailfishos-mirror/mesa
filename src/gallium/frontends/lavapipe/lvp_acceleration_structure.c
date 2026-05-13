@@ -169,7 +169,7 @@ lvp_enqueue_encode(VkCommandBuffer commandBuffer, struct vk_device *device, stru
    VK_FROM_HANDLE(lvp_cmd_buffer, cmd_buffer, commandBuffer);
 
    /* Insert barrier so that build data gets reflected properly for encode pass */
-   vk_barrier_compute_w_to_compute_r(commandBuffer);
+   vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
    for (uint32_t i = 0; i < build_count; i++) {
       struct vk_acceleration_structure_build_state *state = &states[i];

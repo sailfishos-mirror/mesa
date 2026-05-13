@@ -146,11 +146,11 @@ add_bvh_dump(struct anv_cmd_buffer *cmd_buffer,
    struct anv_address dst_addr = { .bo = bvh_dump->bo, .offset = 0 };
    struct anv_address src_addr = anv_address_from_u64(src);
 
-   vk_barrier_compute_w_to_compute_r(vk_command_buffer_to_handle(&cmd_buffer->vk));
+   vk_bvh_build_barrier_compute_to_compute(vk_command_buffer_to_handle(&cmd_buffer->vk), false);
    anv_cmd_copy_addr(cmd_buffer, src_addr, dst_addr, bvh_dump->dump_size);
 
    /* Add host barrier to read BVH data. */
-   vk_barrier_compute_w_to_host_r(vk_command_buffer_to_handle(&cmd_buffer->vk));
+   vk_bvh_build_barrier_compute_to_host(vk_command_buffer_to_handle(&cmd_buffer->vk));
    genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
 
    list_addtail(&bvh_dump->link, &cmd_buffer->bvh_dumps);
@@ -414,7 +414,7 @@ anv_clear_out_bvh(struct anv_cmd_buffer *cmd_buffer,
 
    anv_cmd_buffer_fill_area(cmd_buffer, anv_bvh_addr, bvh_size, 0 /* data */);
 
-   vk_barrier_compute_w_to_compute_r(vk_command_buffer_to_handle(&cmd_buffer->vk));
+   vk_bvh_build_barrier_compute_to_compute(vk_command_buffer_to_handle(&cmd_buffer->vk), false);
    genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
 }
 
@@ -603,7 +603,7 @@ anv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct
       return vk_errorf(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY,
                        "Failed to allocate batch buffer for AS encode");
    }
-   vk_barrier_compute_w_to_compute_r(vk_command_buffer_to_handle(&cmd_buffer->vk));
+   vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
    anv_bvh_build_bind_pipeline(commandBuffer, ANV_OBJECT_KEY_BVH_ENCODE, encode_spv,
                                sizeof(encode_spv), sizeof(struct encode_args), build_flags);
@@ -791,7 +791,7 @@ anv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
    }
 
    if (barrier_needed)
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+         vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
    for (uint32_t i = 0; i < build_count; i++) {
       struct vk_acceleration_structure_build_state *state = &states[i];
@@ -875,7 +875,7 @@ anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_me
 
    if (has_update) {
       if (!flushed_compute_after_init_update_scratch) {
-         vk_barrier_compute_w_to_compute_r(commandBuffer);
+         vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
          flushed_compute = true;
       }
 
@@ -887,14 +887,14 @@ anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_me
       return;
 
    if (!flushed_compute)
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+      vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
    
    vk_build_stage(anv_encode_as, commandBuffer, device, meta, args, states, build_count, ANV_ENCODE_BUILD_FLAGS, false);
 
    /* Add a barrier to ensure the writes from encode.comp is ready to be
     * read by header.comp
     */
-   vk_barrier_compute_w_to_compute_r(commandBuffer);
+   vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
    vk_build_stage(anv_init_header, commandBuffer, device, meta, args, states, build_count, 0, false);
 }

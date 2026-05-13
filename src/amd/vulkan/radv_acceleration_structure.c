@@ -986,7 +986,7 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
 
    if (has_update) {
       if (!flushed_compute_after_init_update_scratch) {
-         vk_barrier_compute_w_to_compute_r(commandBuffer);
+         vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
          flushed_compute = true;
       }
 
@@ -1025,7 +1025,7 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
       return;
 
    if (!flushed_compute)
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+      vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
    if (radv_use_bvh8(pdev)) {
       vk_build_stage(radv_encode_as_gfx12, commandBuffer, vk_device, meta, args, states, build_count,
@@ -1037,21 +1037,20 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
 
    if (has_batch_compress) {
       /* Wait for internal encoding to finish. */
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+      vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
       vk_build_stage(radv_encode_triangles_gfx12, commandBuffer, vk_device, meta, args, states, build_count,
                      RADV_ENCODE_TRIANGLES_GFX12_BUILD_FLAGS, false);
 
       /* Wait for the first triangle compression pass to finish. */
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
-      vk_barrier_compute_w_to_indirect_compute_r(commandBuffer);
+      vk_bvh_build_barrier_compute_to_compute(commandBuffer, true);
 
       vk_build_stage(radv_encode_triangles_retry_gfx12, commandBuffer, vk_device, meta, args, states, build_count,
                      RADV_ENCODE_TRIANGLES_GFX12_BUILD_FLAGS, false);
    }
 
    /* Wait for encoding to finish. */
-   vk_barrier_compute_w_to_compute_r(commandBuffer);
+   vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
    vk_build_stage(radv_init_header, commandBuffer, vk_device, meta, args, states, build_count, RADV_HEADER_BUILD_FLAGS,
                   false);
@@ -1366,7 +1365,7 @@ radv_CmdCopyMemoryToAccelerationStructureKHR(VkCommandBuffer commandBuffer,
    radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 512, 1, 1);
 
    /* Wait for the main copy dispatch to finish. */
-   vk_barrier_compute_w_to_compute_r(commandBuffer);
+   vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_addrs_spv,
                                 sizeof(copy_addrs_spv), sizeof(struct copy_args),
@@ -1414,7 +1413,7 @@ radv_CmdCopyAccelerationStructureToMemoryKHR(VkCommandBuffer commandBuffer,
    radv_CmdDispatchIndirect2KHR(commandBuffer, &info);
 
    /* Wait for the main copy dispatch to finish. */
-   vk_barrier_compute_w_to_compute_r(commandBuffer);
+   vk_bvh_build_barrier_compute_to_compute(commandBuffer, false);
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_addrs_spv,
                                 sizeof(copy_addrs_spv), sizeof(struct copy_args),
