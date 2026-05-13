@@ -4814,7 +4814,7 @@
         "description": "pan/genxml: add missing modifier",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b6d5e01120741fe9107dec7cc2ec2bc4b4f2bca4",
         "notes": null
