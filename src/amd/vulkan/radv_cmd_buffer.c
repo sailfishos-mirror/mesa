@@ -1274,8 +1274,10 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
       return;
 
    radv_reset_cmd_stream(device, cs);
-   if (cmd_buffer->gang.cs)
-      radv_reset_cmd_stream(device, cmd_buffer->gang.cs);
+   if (cmd_buffer->gang.cs) {
+      radv_destroy_cmd_stream(device, cmd_buffer->gang.cs);
+      cmd_buffer->gang.cs = NULL;
+   }
 
    list_for_each_entry_safe (struct radv_cmd_buffer_upload, up, &cmd_buffer->upload.list, list) {
       radv_rmv_log_command_buffer_bo_destroy(device, up->upload_bo);
