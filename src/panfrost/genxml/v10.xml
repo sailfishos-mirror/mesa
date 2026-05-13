@@ -687,7 +687,7 @@
 
   <struct name="CS BRANCH" size="2">
     <field name="Offset" size="16" start="0" type="int"/>
-    <field name="Condition" size="3" start="28" type="CS Condition"/>
+    <field name="Condition" size="4" start="28" type="CS Condition"/>
     <field name="Value" size="8" start="40" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="BRANCH"/>
   </struct>
