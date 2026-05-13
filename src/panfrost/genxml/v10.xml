@@ -627,7 +627,7 @@
 
   <struct name="CS RUN_FRAGMENT" size="2">
     <field name="Enable TEM" size="1" start="0" type="bool"/>
-    <field name="Tile order" size="4" start="4" type="Tile Render Order" default="Z Order"/>
+    <field name="Tile order" size="4" start="4" type="Tile Render Order"/>
     <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="RUN_FRAGMENT"/>
   </struct>
@@ -2050,7 +2050,7 @@
     <field name="Bound Min Y" size="12" start="0:16" type="uint"/>
     <field name="Bound Max X" size="12" start="1:0" type="uint"/>
     <field name="Bound Max Y" size="12" start="1:16" type="uint"/>
-    <field name="Tile render order" size="3" start="1:28" type="Tile Render Order" default="Z Order"/>
+    <field name="Tile render order" size="3" start="1:28" type="Tile Render Order"/>
     <field name="Has Tile Enable Map" size="1" start="1:31" type="bool"/>
     <field name="Framebuffer" size="64" start="2:0" type="address"/>
     <field name="Tile Enable Map" size="64" start="4:0" type="address"/>
@@ -2134,7 +2134,7 @@
     <field name="Primitive Barrier" size="1" start="10" type="bool"/>
     <field name="Evaluate per-sample" size="1" start="11" type="bool"/>
     <field name="Aligned line-ends" size="1" start="13" type="bool"/>
-    <field name="Occlusion query" size="2" start="14" type="Occlusion Mode" default="Disabled"/>
+    <field name="Occlusion query" size="2" start="14" type="Occlusion Mode"/>
     <field name="Front face CCW" size="1" start="16" type="bool"/>
     <field name="Cull front face" size="1" start="17" type="bool"/>
     <field name="Cull back face" size="1" start="18" type="bool"/>

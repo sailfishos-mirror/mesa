@@ -757,7 +757,7 @@
     <field name="Last Heap Chunk" size="8" start="32" type="uint"/>
     <field name="First Heap Chunk" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="FINISH_FRAGMENT"/>
   </struct>
 
@@ -867,7 +867,7 @@
     <field name="SB Mask" size="16" start="16" type="hex"/>
     <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="Shared Entry" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Shared SB Increment Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Shared SB Increment Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SHARED_SB_INC"/>
   </struct>
 
@@ -905,29 +905,29 @@
     <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Latest Flush ID" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="FLUSH_CACHE2"/>
   </struct>
 
   <struct name="CS SYNC_ADD32" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <field name="Scope" size="2" start="1" type="CS Sync Scope" default="System"/>
+    <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SYNC_ADD32"/>
   </struct>
 
   <struct name="CS SYNC_SET32" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <field name="Scope" size="2" start="1" type="CS Sync Scope" default="System"/>
+    <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SYNC_SET32"/>
   </struct>
 
@@ -945,7 +945,7 @@
     <field name="State" size="8" start="32" type="CS State"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="STORE_STATE"/>
   </struct>
 
@@ -989,7 +989,7 @@
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Operation" size="3" start="32" type="CS Heap Operation"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="HEAP_OPERATION"/>
   </struct>
 
@@ -998,29 +998,29 @@
     <field name="Base Register" size="8" start="32" type="uint"/>
     <field name="Register count" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="TRACE_POINT"/>
   </struct>
 
   <struct name="CS SYNC_ADD64" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <field name="Scope" size="2" start="1" type="CS Sync Scope" default="System"/>
+    <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SYNC_ADD64"/>
   </struct>
 
   <struct name="CS SYNC_SET64" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <field name="Scope" size="2" start="1" type="CS Sync Scope" default="System"/>
+    <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
-    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
+    <field name="Defer Mode" size="1" start="52" type="CS Defer Mode"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SYNC_SET64"/>
   </struct>
 

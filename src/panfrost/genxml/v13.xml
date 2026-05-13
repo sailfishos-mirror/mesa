@@ -957,7 +957,7 @@
 
   <struct name="CS SYNC_ADD32" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <field name="Scope" size="2" start="1" type="CS Sync Scope" default="System"/>
+    <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
@@ -968,7 +968,7 @@
 
   <struct name="CS SYNC_SET32" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <field name="Scope" size="2" start="1" type="CS Sync Scope" default="System"/>
+    <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
@@ -1050,7 +1050,7 @@
 
   <struct name="CS SYNC_ADD64" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <field name="Scope" size="2" start="1" type="CS Sync Scope" default="System"/>
+    <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
@@ -1061,7 +1061,7 @@
 
   <struct name="CS SYNC_SET64" size="2">
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <field name="Scope" size="2" start="1" type="CS Sync Scope" default="System"/>
+    <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
