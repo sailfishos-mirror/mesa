@@ -325,7 +325,8 @@ propagate_backwards(jay_function *f)
       if (!use || BITSET_TEST(multiple, jay_base_index(dst)))
          continue;
 
-      if (def_block[jay_base_index(use->dst)] == block->index &&
+      if (!jay_is_null(use->dst) &&
+          def_block[jay_base_index(use->dst)] == block->index &&
           local_fuse_flag_and_or(f, I, use, defined)) {
 
          jay_remove_instruction(use);
