@@ -505,6 +505,15 @@
     <value name="Invalidate" value="2"/>
   </enum>
 
+  <enum name="CS Sync Scope">
+    <value name="System" value="0"/>
+    <value name="CSG" value="2"/>
+  </enum>
+
+  <enum name="CS Exception Type">
+    <value name="Tiler OOM" value="2"/>
+  </enum>
+
   <enum name="CS Draw ID Register Enable">
     <value name="No Drawid" value="0"/>
     <value name="Drawid" value="1"/>
@@ -659,18 +668,9 @@
     <value name="TEM" value="1"/>
   </enum>
 
-  <enum name="CS Exception Type">
-    <value name="Tiler OOM" value="2"/>
-  </enum>
-
   <enum name="CS Sync Error Propagate">
     <value name="Clear" value="0"/>
     <value name="Propagate" value="1"/>
-  </enum>
-
-  <enum name="CS Sync Scope">
-    <value name="System" value="0"/>
-    <value name="CSG" value="2"/>
   </enum>
 
   <enum name="CS Wait Mode">
