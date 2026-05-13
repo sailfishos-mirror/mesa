@@ -6287,7 +6287,7 @@ vtn_handle_variable_or_type_instruction(struct vtn_builder *b, SpvOp opcode,
       struct vtn_value *val = vtn_value(b, w[3], vtn_value_type_extension);
 
       if (val->ext_handler == vtn_handle_non_semantic_debug_info)
-         return vtn_handle_non_semantic_debug_info(b, opcode, w, count);
+         return vtn_handle_non_semantic_debug_info(b, w[4], w, count);
 
       /* NonSemantic extended instructions are acceptable in preamble, others
        * will indicate the end of preamble.
