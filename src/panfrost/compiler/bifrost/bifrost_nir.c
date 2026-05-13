@@ -938,7 +938,6 @@ bifrost_postprocess_nir(nir_shader *nir,
       /* Collect format varyings */
       pan_varying_collect_formats(&info->varyings.formats,
                                   nir, inputs->gpu_id,
-                                  inputs->trust_varying_flat_highp_types,
                                   false /* lower mediump */);
 
       if (!inputs->is_blend)

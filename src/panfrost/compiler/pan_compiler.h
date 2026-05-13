@@ -51,11 +51,6 @@ struct pan_compile_inputs {
    /* Varying layout in memory, if known */
    const struct pan_varying_layout *varying_layout;
 
-   /* Optimizations as nir_opt_varyings can erase all flat types to float, when
-    * this field is false, varying types are inferred from their usage.
-    */
-   bool trust_varying_flat_highp_types;
-
    /* Settings to move constants into the FAU. */
    struct {
       /* Driver-reserved range at the start of the FAU */
@@ -361,7 +356,6 @@ void pan_build_varying_layout_compact(struct pan_varying_layout *layout,
 
 void pan_varying_collect_formats(struct pan_varying_layout *registry,
                                  nir_shader *nir, uint64_t gpu_id,
-                                 bool trust_varying_flat_highp_types,
                                  bool lower_mediump);
 
 struct pan_shader_varying {

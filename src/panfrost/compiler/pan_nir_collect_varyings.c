@@ -101,7 +101,6 @@ struct slot_info {
 
 struct walk_varyings_data {
    struct slot_info *slots;
-   bool trust_varying_flat_highp_types;
 };
 
 static bool
@@ -335,7 +334,6 @@ hw_varying_slot(unsigned arch, mesa_shader_stage stage, gl_varying_slot slot)
 void
 pan_varying_collect_formats(struct pan_varying_layout *layout, nir_shader *nir,
                             uint64_t gpu_id,
-                            bool trust_varying_flat_highp_types,
                             bool lower_mediump)
 {
    assert(nir->info.stage == MESA_SHADER_VERTEX ||
@@ -345,7 +343,6 @@ pan_varying_collect_formats(struct pan_varying_layout *layout, nir_shader *nir,
    struct slot_info slots[64] = {0};
    struct walk_varyings_data wv_data = {
       .slots = slots,
-      .trust_varying_flat_highp_types = trust_varying_flat_highp_types,
    };
 
    nir_shader_instructions_pass(nir, walk_varyings, nir_metadata_all, &wv_data);

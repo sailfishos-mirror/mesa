@@ -1432,11 +1432,9 @@ panvk_compile_shader(struct panvk_device *dev,
          /* This somehow folds the location for multi-slot nir_load/nir_store */
          NIR_PASS(_, nir, nir_opt_constant_folding);
 
-         inputs.trust_varying_flat_highp_types = true;
          struct pan_varying_layout varying_layout;
          if (v == PANVK_VS_VARIANT_HW) {
             pan_varying_collect_formats(&varying_layout, nir, inputs.gpu_id,
-                                        inputs.trust_varying_flat_highp_types,
                                         true);
             pan_build_varying_layout_compact(&varying_layout, nir,
                                              inputs.gpu_id);

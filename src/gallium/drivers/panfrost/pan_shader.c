@@ -135,9 +135,6 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       }
    }
 
-   /* nir_opt_varyings is replacing all flat highp types with float32, we need
-    * to figure out the varying types ourselves */
-   inputs.trust_varying_flat_highp_types = false;
    inputs.varying_layout = varying_layout;
 
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
@@ -590,7 +587,6 @@ panfrost_create_shader_state(struct pipe_context *pctx,
       struct pan_varying_layout *varying_layout = &so->vs_varying_layout;
       pan_varying_collect_formats(varying_layout, nir,
                                   panfrost_device_gpu_id(dev),
-                                  false, /* trust_varying_flat_highp_types */
                                   false /* lower_mediump */);
       pan_build_varying_layout_compact(varying_layout, nir,
                                        panfrost_device_gpu_id(dev));
