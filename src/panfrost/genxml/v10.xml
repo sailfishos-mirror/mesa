@@ -557,6 +557,11 @@
     <value name="SYNC_WAIT64" value="53"/>
   </enum>
 
+  <enum name="CS Progress Increment">
+    <value name="No Increment" value="0"/>
+    <value name="Increment" value="1"/>
+  </enum>
+
   <struct name="CS Base" size="2">
     <field name="Data" size="56" start="0" type="hex"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode"/>
@@ -581,14 +586,14 @@
 
   <struct name="CS WAIT" size="2">
     <field name="Wait mask" size="16" start="16" type="hex"/>
-    <field name="Progress increment" size="1" start="32" type="bool" default="false"/>
+    <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="WAIT"/>
   </struct>
 
   <struct name="CS RUN_COMPUTE" size="2">
     <field name="Task increment" size="14" start="0" type="uint"/>
     <field name="Task axis" size="2" start="14" type="Task Axis"/>
-    <field name="Progress increment" size="1" start="32" type="bool" default="false"/>
+    <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="SRT select" size="2" start="40" type="uint"/>
     <field name="SPD select" size="2" start="42" type="uint"/>
     <field name="TSD select" size="2" start="44" type="uint"/>
@@ -598,7 +603,7 @@
 
   <struct name="CS RUN_TILING" size="2">
     <field name="Flags override" size="32" start="0" type="hex"/>
-    <field name="Progress increment" size="1" start="32" type="bool" default="false"/>
+    <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="SRT select" size="2" start="40" type="uint"/>
     <field name="SPD select" size="2" start="42" type="uint"/>
     <field name="TSD select" size="2" start="44" type="uint"/>
@@ -608,7 +613,7 @@
 
   <struct name="CS RUN_IDVS" size="2">
     <field name="Flags override" size="32" start="0" type="hex"/>
-    <field name="Progress increment" size="1" start="32" type="bool" default="false"/>
+    <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="Malloc enable" size="1" start="33" type="bool"/>
     <field name="Draw ID register enable" size="1" start="34" type="bool"/>
     <field name="Varying SRT select" size="1" start="35" type="bool"/>
@@ -623,19 +628,19 @@
   <struct name="CS RUN_FRAGMENT" size="2">
     <field name="Enable TEM" size="1" start="0" type="bool"/>
     <field name="Tile order" size="4" start="4" type="Tile Render Order" default="Z Order"/>
-    <field name="Progress increment" size="1" start="32" type="bool" default="false"/>
+    <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="RUN_FRAGMENT"/>
   </struct>
 
   <struct name="CS RUN_FULLSCREEN" size="2">
     <field name="Flags override" size="32" start="0" type="hex"/>
-    <field name="Progress increment" size="1" start="32" type="bool" default="false"/>
+    <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="DCD" size="8" start="40" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="RUN_FULLSCREEN"/>
   </struct>
 
   <struct name="CS FINISH_TILING" size="2">
-    <field name="Progress increment" size="1" start="32" type="bool" default="false"/>
+    <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="FINISH_TILING"/>
   </struct>
 
@@ -798,7 +803,7 @@
 
   <struct name="CS RUN_COMPUTE_INDIRECT" size="2">
     <field name="Workgroups per task" size="16" start="0" type="uint"/>
-    <field name="Progress increment" size="1" start="32" type="bool" default="false"/>
+    <field name="Progress Increment" size="1" start="32" type="CS Progress Increment" default="No Increment"/>
     <field name="SRT select" size="2" start="40" type="uint"/>
     <field name="SPD select" size="2" start="42" type="uint"/>
     <field name="TSD select" size="2" start="44" type="uint"/>
