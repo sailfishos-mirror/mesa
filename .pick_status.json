@@ -5394,7 +5394,7 @@
         "description": "intel/blorp: fix blorp base key initialization",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "22ecb4a10f310d4bc621dc45992cab2921c12e39",
         "notes": null
