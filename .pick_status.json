@@ -1994,7 +1994,7 @@
         "description": "egl/dri2: require valid render fd before advertising EGL_WL_bind_wayland_display",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "718ef151f2e13aedbf54432b6f53962795f88cd5",
         "notes": null
