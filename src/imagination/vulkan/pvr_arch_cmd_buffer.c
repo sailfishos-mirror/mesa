@@ -3057,16 +3057,18 @@ void PVR_PER_ARCH(CmdBindVertexBuffers2)(VkCommandBuffer commandBuffer,
    cmd_buffer->state.dirty.vertex_bindings = true;
 }
 
-void PVR_PER_ARCH(CmdBindIndexBuffer)(VkCommandBuffer commandBuffer,
-                                      VkBuffer buffer,
-                                      VkDeviceSize offset,
-                                      VkIndexType indexType)
+void PVR_PER_ARCH(CmdBindIndexBuffer2)(VkCommandBuffer commandBuffer,
+                                       VkBuffer buffer,
+                                       VkDeviceSize offset,
+                                       ASSERTED VkDeviceSize size,
+                                       VkIndexType indexType)
 {
    VK_FROM_HANDLE(pvr_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(pvr_buffer, index_buffer, buffer);
    struct pvr_cmd_buffer_state *const state = &cmd_buffer->state;
 
    assert(offset < index_buffer->vk.size);
+   assert(size == VK_WHOLE_SIZE || offset + size <= index_buffer->vk.size);
    assert(indexType == VK_INDEX_TYPE_UINT32 ||
           indexType == VK_INDEX_TYPE_UINT16 ||
           indexType == VK_INDEX_TYPE_UINT8_KHR);
