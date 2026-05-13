@@ -743,13 +743,13 @@
   </struct>
 
   <struct name="CS MOVE48" size="2">
-    <field name="Immediate" size="48" start="0" type="uint"/>
+    <field name="Immediate" size="48" start="0" type="hex"/>
     <field name="Destination" size="8" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="MOVE48"/>
   </struct>
 
   <struct name="CS MOVE32" size="2">
-    <field name="Immediate" size="32" start="0" type="uint"/>
+    <field name="Immediate" size="32" start="0" type="hex"/>
     <field name="Destination" size="8" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="MOVE32"/>
   </struct>
@@ -1386,7 +1386,7 @@
   </struct>
 
   <struct name="CS UMIN_IMM64" size="2">
-    <field name="Immediate" size="32" start="0" type="uint"/>
+    <field name="Immediate" size="32" start="0" type="hex"/>
     <field name="Sub Opcode" size="8" start="32" type="CS ARITH_IMM64 Sub Opcode" default="UMIN_IMM64"/>
     <field name="Source" size="8" start="40" type="uint"/>
     <field name="Destination" size="8" start="48" type="uint"/>
@@ -1394,7 +1394,7 @@
   </struct>
 
   <struct name="CS UMIN_IMM32" size="2">
-    <field name="Immediate" size="32" start="0" type="uint"/>
+    <field name="Immediate" size="32" start="0" type="hex"/>
     <field name="Sub Opcode" size="8" start="32" type="CS ARITH_IMM32 Sub Opcode" default="UMIN_IMM32"/>
     <field name="Source" size="8" start="40" type="uint"/>
     <field name="Destination" size="8" start="48" type="uint"/>

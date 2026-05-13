@@ -700,13 +700,13 @@
   </struct>
 
   <struct name="CS MOVE48" size="2">
-    <field name="Immediate" size="48" start="0" type="uint"/>
+    <field name="Immediate" size="48" start="0" type="hex"/>
     <field name="Destination" size="8" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="MOVE48"/>
   </struct>
 
   <struct name="CS MOVE32" size="2">
-    <field name="Immediate" size="32" start="0" type="uint"/>
+    <field name="Immediate" size="32" start="0" type="hex"/>
     <field name="Destination" size="8" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="MOVE32"/>
   </struct>
