@@ -240,7 +240,6 @@ create_dst_texture(struct gl_context *ctx,
 
 static bool
 copy_to_staging_dest(struct gl_context * ctx, struct pipe_resource *dst,
-                 GLint xoffset, GLint yoffset, GLint zoffset,
                  GLsizei width, GLsizei height, GLint depth,
                  GLenum format, GLenum type, void * pixels,
                  struct gl_texture_image *texImage)
@@ -2793,7 +2792,7 @@ st_GetTexSubImage(struct gl_context * ctx,
    /* blit/render/decompress */
    st->pipe->blit(st->pipe, &blit);
 
-   done = copy_to_staging_dest(ctx, dst, xoffset, yoffset_g, zoffset_g, width, height_g,
+   done = copy_to_staging_dest(ctx, dst, width, height_g,
                            depth_g, format, type, pixels, texImage);
    pipe_resource_reference(&dst, NULL);
 
