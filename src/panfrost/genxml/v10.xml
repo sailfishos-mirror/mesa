@@ -649,7 +649,7 @@
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Last Heap Chunk" size="8" start="32" type="hex"/>
     <field name="First Heap Chunk" size="8" start="40" type="hex"/>
-    <field name="Signal slot" size="4" start="48" type="hex"/>
+    <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="FINISH_FRAGMENT"/>
   </struct>
 
@@ -753,7 +753,7 @@
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
-    <field name="Signal slot" size="4" start="48" type="hex"/>
+    <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SYNC_ADD32"/>
   </struct>
 
@@ -764,7 +764,7 @@
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
-    <field name="Signal slot" size="4" start="48" type="hex"/>
+    <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SYNC_SET32"/>
   </struct>
 
@@ -782,7 +782,7 @@
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="State" size="8" start="32" type="CS State"/>
     <field name="Address" size="8" start="40" type="uint"/>
-    <field name="Signal slot" size="4" start="48" type="hex"/>
+    <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="STORE_STATE"/>
   </struct>
 
@@ -831,7 +831,7 @@
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Base Register" size="8" start="32" type="uint"/>
     <field name="Register Count" size="8" start="40" type="uint"/>
-    <field name="Signal slot" size="4" start="48" type="hex"/>
+    <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="TRACE_POINT"/>
   </struct>
 
@@ -843,7 +843,7 @@
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
-    <field name="Signal slot" size="4" start="48" type="hex"/>
+    <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SYNC_ADD64"/>
   </struct>
 
@@ -854,7 +854,7 @@
     <field name="Wait mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
     <field name="Address" size="8" start="40" type="uint"/>
-    <field name="Signal slot" size="4" start="48" type="hex"/>
+    <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="SYNC_SET64"/>
   </struct>
 

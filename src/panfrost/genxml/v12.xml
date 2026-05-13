@@ -756,7 +756,7 @@
     <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Last Heap Chunk" size="8" start="32" type="uint"/>
     <field name="First Heap Chunk" size="8" start="40" type="uint"/>
-    <field name="Signal slot" size="4" start="48" type="hex"/>
+    <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Defer Mode" size="1" start="52" type="CS Defer Mode" default="Defer Immediate"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="FINISH_FRAGMENT"/>
   </struct>
