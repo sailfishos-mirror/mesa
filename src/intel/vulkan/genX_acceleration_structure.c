@@ -18,9 +18,6 @@
 
 #include "bvh/anv_bvh_defines.h"
 #include "vk_acceleration_structure.h"
-#include "radix_sort/radix_sort_u64.h"
-#include "radix_sort/radix_sort_u96.h"
-#include "radix_sort/common/vk/barrier.h"
 
 #include "vk_common_entrypoints.h"
 #include "genX_mi_builder.h"
@@ -917,58 +914,8 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
    VkResult result = VK_SUCCESS;
    simple_mtx_lock(&device->accel_struct_build.mutex);
 
-   if (device->accel_struct_build.radix_sort_64)
+   if (device->vk.as_build_ops == &anv_build_ops)
       goto exit;
-
-   const struct radix_sort_vk_target_config radix_sort_config64 = {
-      .keyval_dwords = 2,
-      .init = { .workgroup_size_log2 = 8, },
-      .fill = { .workgroup_size_log2 = 8, .block_rows = 8 },
-      .histogram = {
-         .workgroup_size_log2 = 8,
-         .subgroup_size_log2 = device->info->ver >= 20 ? 5 : 4,
-         .block_rows = 14,
-      },
-      .prefix = {
-         .workgroup_size_log2 = 8,
-         .subgroup_size_log2 = device->info->ver >= 20 ? 5 : 4,
-      },
-      .scatter = {
-         .workgroup_size_log2 = 8,
-         .subgroup_size_log2 = device->info->ver >= 20 ? 4 : 3,
-         .block_rows = 14,
-      },
-   };
-
-   const struct radix_sort_vk_target_config radix_sort_config96 = {
-      .keyval_dwords = 3,
-      .init = { .workgroup_size_log2 = 8, },
-      .fill = { .workgroup_size_log2 = 8, .block_rows = 8 },
-      .histogram = {
-         .workgroup_size_log2 = 8,
-         .subgroup_size_log2 = device->info->ver >= 20 ? 5 : 4,
-         .block_rows = 14,
-      },
-      .prefix = {
-         .workgroup_size_log2 = 8,
-         .subgroup_size_log2 = device->info->ver >= 20 ? 5 : 4,
-      },
-      .scatter = {
-         .workgroup_size_log2 = 8,
-         .subgroup_size_log2 = device->info->ver >= 20 ? 4 : 3,
-         .block_rows = 14,
-      },
-   };
-
-   device->accel_struct_build.radix_sort_64 =
-      vk_create_radix_sort_u64(anv_device_to_handle(device),
-                               &device->vk.alloc,
-                               VK_NULL_HANDLE, radix_sort_config64);
-
-   device->accel_struct_build.radix_sort_96 =
-      vk_create_radix_sort_u96(anv_device_to_handle(device),
-                               &device->vk.alloc,
-                               VK_NULL_HANDLE, radix_sort_config96);
 
    device->vk.as_build_ops = &anv_build_ops;
    device->vk.write_buffer_cp = anv_cmd_write_buffer_cp;
@@ -984,8 +931,6 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
          .subgroup_size = device->info->ver >= 20 ? 32 : 16,
          .morton_sort_workgroup_size = 512,
          .morton_sort_kvs_per_thread = 2,
-         .radix_sort_64 = device->accel_struct_build.radix_sort_64,
-         .radix_sort_96 = device->accel_struct_build.radix_sort_96,
          /* See struct anv_accel_struct_header from anv_bvh_defines.h
           */
          .bvh_bounds_offset = 0,

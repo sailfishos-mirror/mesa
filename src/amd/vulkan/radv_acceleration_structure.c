@@ -9,10 +9,6 @@
 #include "radv_entrypoints.h"
 #include "radv_tracepoints.h"
 
-#include "radix_sort/common/vk/barrier.h"
-#include "radix_sort/radix_sort_u64.h"
-#include "radix_sort/radix_sort_u96.h"
-
 #include "bvh/bvh_defines.h"
 
 #include "vk_acceleration_structure.h"
@@ -214,23 +210,8 @@ radv_GetAccelerationStructureBuildSizesKHR(VkDevice _device, VkAccelerationStruc
    STATIC_ASSERT(sizeof(struct radv_gfx12_instance_node) == RADV_GFX12_BVH_NODE_SIZE);
    STATIC_ASSERT(sizeof(struct radv_gfx12_instance_node_user_data) == RADV_GFX12_BVH_NODE_SIZE);
 
-   if (radv_device_init_accel_struct_build_state(device) != VK_SUCCESS)
-      return;
-
    vk_get_as_build_sizes(_device, buildType, pBuildInfo, pMaxPrimitiveCounts, pSizeInfo,
                          &device->meta_state.accel_struct_build.build_args);
-}
-
-void
-radv_device_finish_accel_struct_build_state(struct radv_device *device)
-{
-   VkDevice _device = radv_device_to_handle(device);
-   struct radv_meta_state *state = &device->meta_state;
-
-   if (state->accel_struct_build.radix_sort_64)
-      radix_sort_vk_destroy(state->accel_struct_build.radix_sort_64, _device, &state->alloc);
-   if (state->accel_struct_build.radix_sort_96)
-      radix_sort_vk_destroy(state->accel_struct_build.radix_sort_96, _device, &state->alloc);
 }
 
 static VkDeviceSize
@@ -1076,33 +1057,6 @@ pack_geometry_id_and_flags(uint32_t geometry_id, uint32_t flags)
    return geometry_id_and_flags;
 }
 
-static const struct radix_sort_vk_target_config radix_sort_64_config = {
-   .keyval_dwords = 2,
-   .fill.workgroup_size_log2 = 7,
-   .fill.block_rows = 8,
-   .histogram.workgroup_size_log2 = 8,
-   .histogram.subgroup_size_log2 = 6,
-   .histogram.block_rows = 14,
-   .prefix.workgroup_size_log2 = 8,
-   .prefix.subgroup_size_log2 = 6,
-   .scatter.workgroup_size_log2 = 8,
-   .scatter.subgroup_size_log2 = 6,
-   .scatter.block_rows = 14,
-};
-
-static const struct radix_sort_vk_target_config radix_sort_96_config = {
-   .keyval_dwords = 3,
-   .fill.workgroup_size_log2 = 7,
-   .fill.block_rows = 8,
-   .histogram.workgroup_size_log2 = 8,
-   .histogram.subgroup_size_log2 = 6,
-   .histogram.block_rows = 14,
-   .prefix.workgroup_size_log2 = 8,
-   .prefix.subgroup_size_log2 = 6,
-   .scatter.workgroup_size_log2 = 8,
-   .scatter.subgroup_size_log2 = 6,
-   .scatter.block_rows = 14,
-};
 
 static void
 radv_write_buffer_cp(VkCommandBuffer commandBuffer, VkDeviceAddress addr, void *data, uint32_t size)
@@ -1208,20 +1162,10 @@ radv_accel_struct_cmd_end_debug_marker(VkCommandBuffer commandBuffer,
       vk_accel_struct_cmd_end_debug_marker(commandBuffer, marker);
 }
 
-VkResult
+void
 radv_device_init_accel_struct_build_state(struct radv_device *device)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   mtx_lock(&device->meta_state.mtx);
-
-   if (device->meta_state.accel_struct_build.radix_sort_64)
-      goto exit;
-
-   device->meta_state.accel_struct_build.radix_sort_64 = vk_create_radix_sort_u64(
-      radv_device_to_handle(device), &device->meta_state.alloc, device->meta_state.cache, radix_sort_64_config);
-   device->meta_state.accel_struct_build.radix_sort_96 = vk_create_radix_sort_u96(
-      radv_device_to_handle(device), &device->meta_state.alloc, device->meta_state.cache, radix_sort_96_config);
 
    device->meta_state.accel_struct_build.build_ops = (struct vk_acceleration_structure_build_ops){
       .begin_debug_marker = radv_accel_struct_cmd_begin_debug_marker,
@@ -1254,12 +1198,6 @@ radv_device_init_accel_struct_build_state(struct radv_device *device)
    build_args->has_update = true;
    build_args->morton_sort_workgroup_size = 512;
    build_args->morton_sort_kvs_per_thread = 2;
-   build_args->radix_sort_64 = device->meta_state.accel_struct_build.radix_sort_64;
-   build_args->radix_sort_96 = device->meta_state.accel_struct_build.radix_sort_96;
-
-exit:
-   mtx_unlock(&device->meta_state.mtx);
-   return VK_SUCCESS;
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -1269,12 +1207,6 @@ radv_CmdBuildAccelerationStructuresKHR(VkCommandBuffer commandBuffer, uint32_t i
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-
-   VkResult result = radv_device_init_accel_struct_build_state(device);
-   if (result != VK_SUCCESS) {
-      vk_command_buffer_set_error(&cmd_buffer->vk, result);
-      return;
-   }
 
    radv_meta_begin(cmd_buffer);
    radv_meta_save(cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);

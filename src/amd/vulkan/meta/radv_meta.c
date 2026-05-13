@@ -398,8 +398,6 @@ radv_device_finish_meta(struct radv_device *device)
          vk_texcompress_astc_finish(&device->vk, &device->meta_state.alloc, device->meta_state.astc_decode);
    }
 
-   radv_device_finish_accel_struct_build_state(device);
-
    vk_common_DestroyPipelineCache(radv_device_to_handle(device), device->meta_state.cache, NULL);
    mtx_destroy(&device->meta_state.mtx);
 

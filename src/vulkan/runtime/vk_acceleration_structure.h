@@ -28,9 +28,6 @@
 #include "vk_buffer.h"
 #include "vk_meta.h"
 #include "vk_object.h"
-#include "radix_sort/radix_sort_vk.h"
-#include "radix_sort/common/vk/barrier.h"
-#include "radix_sort/shaders/push.h"
 
 #include "bvh/vk_bvh_defines.h"
 
@@ -141,12 +138,6 @@ struct vk_acceleration_structure_build_state {
 
    uint32_t morton_sort_dispatch_size;
    uint32_t morton_sort_passes;
-   /* Radix sort state */
-   uint32_t scatter_blocks;
-   uint32_t count_ru_scatter;
-   uint32_t histo_blocks;
-   uint32_t count_ru_histo;
-   struct rs_push_scatter push_scatter;
 
    uint32_t last_encode_pass;
 };
@@ -160,8 +151,6 @@ struct vk_acceleration_structure_build_args {
    bool propagate_cull_flags;
    bool emit_markers;
    bool has_update;
-   const radix_sort_vk_t *radix_sort_64;
-   const radix_sort_vk_t *radix_sort_96;
 };
 
 struct vk_acceleration_structure_build_ops {
