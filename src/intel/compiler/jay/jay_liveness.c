@@ -211,6 +211,11 @@ jay_calculate_register_demands(jay_function *func)
             jay_print_inst(stdout, I);
          }
       }
+
+      jay_foreach_ssa_file(f) {
+         block->demand_max[f] = max_demand[f];
+         block->demand_out[f] = demands[f];
+      }
    }
 
    free(files);

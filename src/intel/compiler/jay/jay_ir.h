@@ -1098,6 +1098,10 @@ typedef struct jay_block {
 
    /** Pretty printing based on original structured control flow */
    uint8_t indent;
+
+   /* Register demand metadata calculated for scheduling use */
+   unsigned demand_max[JAY_NUM_SSA_FILES];
+   unsigned demand_out[JAY_NUM_SSA_FILES];
 } jay_block;
 
 static inline jay_block *

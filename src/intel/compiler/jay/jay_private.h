@@ -17,6 +17,7 @@ extern "C" {
 #define JAY_DBG_SPILL       BITFIELD_BIT(2)
 #define JAY_DBG_SYNC        BITFIELD_BIT(3)
 #define JAY_DBG_NOACC       BITFIELD_BIT(4)
+#define JAY_DBG_NOSCHED     BITFIELD_BIT(5)
 extern int jay_debug;
 
 bool jay_nir_lower_bool(nir_shader *nir);
@@ -69,6 +70,8 @@ void jay_opt_propagate_forwards(jay_shader *s);
 void jay_opt_propagate_backwards(jay_shader *s);
 void jay_opt_dead_code(jay_shader *s);
 void jay_opt_predicate(jay_shader *s);
+
+void jay_schedule_pressure(jay_shader *s);
 
 void jay_lower_pre_ra(jay_shader *s);
 void jay_lower_post_ra(jay_shader *s);

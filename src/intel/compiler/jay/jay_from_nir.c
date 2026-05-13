@@ -41,6 +41,7 @@ static const struct debug_named_value jay_debug_options[] = {
    { "spill",       JAY_DBG_SPILL,       "Shrink register file to test spilling" },
    { "sync",        JAY_DBG_SYNC,        "Sync after every instruction"          },
    { "noacc",       JAY_DBG_NOACC,       "Disable accumulator substitution"      },
+   { "nosched",     JAY_DBG_NOSCHED,     "Disable scheduling"                    },
    DEBUG_NAMED_VALUE_END
 };
 
@@ -2703,6 +2704,10 @@ jay_compile(const struct intel_device_info *devinfo,
    if (debug) {
       fprintf(stdout, "Jay shader:\n\n");
       jay_print(stdout, s);
+   }
+
+   if (!(jay_debug & JAY_DBG_NOSCHED)) {
+      JAY_PASS(s, jay_schedule_pressure);
    }
 
    JAY_PASS(s, jay_assign_flags);
