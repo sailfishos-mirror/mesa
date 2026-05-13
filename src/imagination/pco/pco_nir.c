@@ -855,13 +855,11 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
    NIR_PASS(_, nir, nir_opt_sink, move_options);
    NIR_PASS(_, nir, nir_opt_move, move_options);
 
-   if (!nir->info.shared_memory_explicit_layout) {
-      NIR_PASS(_,
-               nir,
-               nir_lower_vars_to_explicit_types,
-               nir_var_mem_shared,
-               shared_var_info);
-   }
+   NIR_PASS(_,
+            nir,
+            nir_lower_vars_to_explicit_types,
+            nir_var_mem_shared,
+            shared_var_info);
 
    NIR_PASS(_,
             nir,
