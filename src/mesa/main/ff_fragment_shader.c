@@ -961,7 +961,7 @@ create_new_program(struct gl_context *ctx, struct state_key *key,
    if (key->num_draw_buffers)
       emit_instructions(&p);
 
-   nir_validate_shader(b.shader, "after generating ff-vertex shader");
+   nir_validate_shader(b.shader, "after generating ff-fragment shader");
 
    if (key->fog_mode) {
       NIR_PASS(_, b.shader, st_nir_lower_fog, key->fog_mode, p.state_params,
