@@ -96,6 +96,7 @@ get_info(nir_intrinsic_op op)
       INFO(nir_var_mem_shared, load_shared2_amd, true, -1, 0, -1, -1, 1);
       INFO(nir_var_mem_shared, store_shared2_amd, true, -1, 1, -1, 0, 1)
       LOAD(nir_var_mem_global, global, -1, 0, -1, 1)
+      INFO(nir_var_mem_global, load_global_transpose_amd, true, -1, 0, -1, -1, 1)
       STORE(nir_var_mem_global, global, -1, 1, -1, 0, 1)
       LOAD(nir_var_mem_global, global_constant, -1, 0, -1, 1)
       LOAD(nir_var_mem_task_payload, task_payload, -1, 0, -1, 1)
@@ -1253,8 +1254,10 @@ may_alias_internal(struct entry *a, struct entry *b, uint32_t a_offset, uint32_t
    int64_t diff = get_offset_diff(a, b) + b_offset - a_offset;
 
    struct entry *first = diff < 0 ? b : a;
-   if (first->intrin->intrinsic == nir_intrinsic_load_deref_transpose_amd)
+   if (first->intrin->intrinsic == nir_intrinsic_load_deref_transpose_amd ||
+       first->intrin->intrinsic == nir_intrinsic_load_global_transpose_amd) {
       return true;
+   }
 
    uint64_t size = get_bit_size(first) / 8u * first->num_components;
    return llabs(diff) < size;

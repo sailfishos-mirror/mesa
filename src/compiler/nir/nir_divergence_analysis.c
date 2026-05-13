@@ -1075,6 +1075,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_zs_emit_pan:
    case nir_intrinsic_load_return_param_amd:
    case nir_intrinsic_load_local_invocation_index_intel:
+   case nir_intrinsic_load_global_transpose_amd:
    case nir_intrinsic_load_deref_transpose_amd:
       is_divergent = true;
       break;

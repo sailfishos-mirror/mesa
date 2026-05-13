@@ -991,6 +991,7 @@ nir_get_io_offset_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_load_global_constant:
    case nir_intrinsic_load_global_etna:
    case nir_intrinsic_load_global_nv:
+   case nir_intrinsic_load_global_transpose_amd:
    case nir_intrinsic_load_scratch:
    case nir_intrinsic_load_scratch_nv:
    case nir_intrinsic_load_scratch_intel:

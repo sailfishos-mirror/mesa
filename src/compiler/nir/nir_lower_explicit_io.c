@@ -726,6 +726,13 @@ build_explicit_io_load(nir_builder *b, nir_intrinsic_instr *intrin,
       }
       break;
 
+   case nir_intrinsic_load_deref_transpose_amd:
+      if (mode != nir_var_mem_global)
+         UNREACHABLE("Unsupported explicit IO variable mode");
+      assert(addr_format == nir_address_format_64bit_global);
+      op = nir_intrinsic_load_global_transpose_amd;
+      break;
+
    default:
       UNREACHABLE("Invalid intrinsic");
    }

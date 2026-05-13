@@ -757,6 +757,14 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
       break;
    }
 
+   case nir_intrinsic_load_global_transpose_amd: {
+      unsigned disallow_access = ACCESS_ATOMIC | ACCESS_SKIP_HELPERS | ACCESS_SMEM_AMD;
+      validate_assert(state, !(nir_intrinsic_access(instr) & disallow_access));
+      validate_assert(state, instr->num_components == 8 || instr->num_components == 4);
+      src_bit_sizes[0] = 64;
+      break;
+   }
+
    case nir_intrinsic_global_atomic_nv:
    case nir_intrinsic_global_atomic_swap_nv:
    case nir_intrinsic_shared_atomic_nv:
