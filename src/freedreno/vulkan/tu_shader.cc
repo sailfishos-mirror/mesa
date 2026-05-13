@@ -218,6 +218,10 @@ tu_spirv_to_nir(struct tu_device *dev,
    nir->info.num_ubos = 0;
    nir->info.num_ssbos = 0;
 
+   if (TU_DEBUG(COMPUTE_ROUND_ROBIN)) {
+      nir->info.occupancy_bounded_workgroup_fairness = true;
+   }
+
    if (TU_DEBUG(NIR)) {
       fprintf(stderr, "translated nir:\n");
       nir_print_shader(nir, stderr);

@@ -84,7 +84,8 @@ tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
     * shader hash instead, since the compiler is only created with the logical
     * device.
     */
-   uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);
+   uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) |
+      (TU_DEBUG(COMPUTE_ROUND_ROBIN) << 1u);
 
    /* Note: we intentionally drop the upper 32 bits since they contain fuse
     * values that don't affect compilation.
