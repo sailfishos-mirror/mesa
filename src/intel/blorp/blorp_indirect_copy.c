@@ -298,7 +298,8 @@ blorp_copy_memory_to_image_indirect(struct blorp_batch *batch,
    int dimensions = img_blorp_surf->surf->dim + 1;
 
    struct blorp_indirect_copy_mem2img_key key = {
-      .base = BLORP_BASE_KEY_INIT(BLORP_SHADER_TYPE_COPY_INDIRECT),
+      .base = BLORP_BASE_KEY_INIT(BLORP_SHADER_TYPE_COPY_INDIRECT,
+                                  BLORP_SHADER_PIPELINE_COMPUTE),
       .dimensions = dimensions,
       .forced_layer_or_z = forced_layer_or_z,
       .format_Bpb = fmtl->bpb / 8,
