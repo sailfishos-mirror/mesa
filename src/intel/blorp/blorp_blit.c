@@ -1624,6 +1624,7 @@ blorp_get_blit_kernel_fs(struct blorp_batch *batch,
                            p.kernel, p.kernel_size,
                            p.prog_data, p.prog_data_size,
                            &params->wm_prog_kernel, &params->fs_prog_data);
+   assert(result);
 
    ralloc_free(mem_ctx);
    return result;
@@ -1660,6 +1661,7 @@ blorp_get_blit_kernel_cs(struct blorp_batch *batch,
                            p.kernel, p.kernel_size,
                            p.prog_data, p.prog_data_size,
                            &params->cs_prog_kernel, &params->cs_prog_data);
+   assert(result);
 
    ralloc_free(mem_ctx);
    return result;
@@ -2467,14 +2469,20 @@ try_blorp_blit(struct blorp_batch *batch,
    }
 
    if (compute) {
-      if (!blorp_get_blit_kernel_cs(batch, params, key))
+      if (!blorp_get_blit_kernel_cs(batch, params, key)) {
+         mesa_loge("%s: failed to get CS kernel", __func__);
          return 0;
+      }
    } else {
-      if (!blorp_get_blit_kernel_fs(batch, params, key))
+      if (!blorp_get_blit_kernel_fs(batch, params, key)) {
+         mesa_loge("%s: failed to get FS kernel", __func__);
          return 0;
+      }
 
-      if (!blorp_ensure_sf_program(batch, params))
+      if (!blorp_ensure_sf_program(batch, params)) {
+         mesa_loge("%s: failed to get SF kernel", __func__);
          return 0;
+      }
    }
 
    unsigned result = 0;

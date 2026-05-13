@@ -214,10 +214,10 @@ blorp_get_copy_mem_indirect_kernel_cs(struct blorp_batch *batch,
                                       prog.prog_data, prog.prog_data_size,
                                       &params->cs_prog_kernel,
                                       &params->cs_prog_data);
+   assert(result);
 
    ralloc_free(mem_ctx);
    return result;
-
 }
 
 static bool
@@ -245,6 +245,7 @@ blorp_get_copy_mem2img_indirect_kernel_cs(struct blorp_batch *batch,
                                       prog.prog_data, prog.prog_data_size,
                                       &params->cs_prog_kernel,
                                       &params->cs_prog_data);
+   assert(result);
 
    ralloc_free(mem_ctx);
    return result;
@@ -273,8 +274,7 @@ blorp_copy_memory_indirect(struct blorp_batch *batch,
    params.wm_inputs.indirect.copy_count = copy_count;
 
    if (!blorp_get_copy_mem_indirect_kernel_cs(batch, &params)) {
-      mesa_loge("failed to get copy_memory_indirect CS kernel");
-      assert(false);
+      mesa_loge("%s: failed to get CS kernel", __func__);
       return;
    }
 
@@ -364,8 +364,7 @@ blorp_copy_memory_to_image_indirect(struct blorp_batch *batch,
    }
 
    if (!blorp_get_copy_mem2img_indirect_kernel_cs(batch, &params, &key)) {
-      mesa_loge("failed to get copy_memory_to_image_indirect CS kernel");
-      assert(false);
+      mesa_loge("%s: failed to get CS kernel", __func__);
       return;
    }
 
