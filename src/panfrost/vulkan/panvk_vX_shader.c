@@ -969,6 +969,8 @@ panvk_lower_nir_io(nir_shader *nir)
     * instructions.
     */
    NIR_PASS(_, nir, nir_opt_constant_folding);
+
+   pan_nir_lower_mediump_io(nir);
 }
 
 static VkResult
@@ -1434,8 +1436,7 @@ panvk_compile_shader(struct panvk_device *dev,
 
          struct pan_varying_layout varying_layout;
          if (v == PANVK_VS_VARIANT_HW) {
-            pan_varying_collect_formats(&varying_layout, nir, inputs.gpu_id,
-                                        true);
+            pan_varying_collect_formats(&varying_layout, nir, inputs.gpu_id);
             pan_build_varying_layout_compact(&varying_layout, nir,
                                              inputs.gpu_id);
             inputs.varying_layout = &varying_layout;

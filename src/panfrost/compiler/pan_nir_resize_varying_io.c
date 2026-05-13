@@ -74,23 +74,9 @@ resize_io_intr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    /* We trust the base type in the shader and only adjust the bit size */
    const nir_alu_type slot_type = slot_base_type | slot_bit_size;
 
-   if (slot_type == data_type) {
-      if (!sem.medium_precision)
-         return false;
-
-      /* There's nothing to actually lower but we still want to smash off
-       * mediump so the back-end doesn't screw anything up on us.
-       *
-       * TODO: This is a hack to work around the back-end.  It really
-       * shouldn't care and should just do whatever load it's told.
-       */
-      sem.medium_precision = false;
-      nir_intrinsic_set_io_semantics(intr, sem);
-      return true;
-   }
-
-   sem.medium_precision = false;
-   nir_intrinsic_set_io_semantics(intr, sem);
+   /* If the bit size already agrees, then we're already done */
+   if (slot_type == data_type)
+      return false;
 
    /* Fix the alu type */
    if (is_load)
@@ -125,6 +111,12 @@ resize_io_intr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    return true;
 }
 
+/* The varying layout (if any) may have different bit sizes for some
+ * varyings than we have in the shader.  Resize the shader instructions to match
+ * what the varying layout specifies.  This also handles the case where we do a
+ * load from the fragment shader of something that isn't written by the vertex
+ * shader.  In that case, we just return zero.
+ */
 bool
 pan_nir_resize_varying_io(nir_shader *nir,
                           const struct pan_varying_layout *varying_fmt,

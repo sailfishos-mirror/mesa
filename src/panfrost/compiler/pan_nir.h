@@ -252,6 +252,8 @@ struct pan_va_tex_flags {
 PRAGMA_DIAGNOSTIC_POP
 static_assert(sizeof(struct pan_va_tex_flags) == 4, "Must fit in uint32_t");
 
+void pan_nir_lower_mediump_io(nir_shader *nir);
+
 bool pan_nir_lower_tex(nir_shader *nir, uint64_t gpu_id);
 bool pan_nir_lower_image(nir_shader *nir, uint64_t gpu_id);
 

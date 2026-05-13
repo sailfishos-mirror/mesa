@@ -94,7 +94,6 @@ pan_print_varying_layout(FILE *f, nir_shader *s,
 
 struct slot_info {
    nir_alu_type type;
-   bool any_highp;
    unsigned count;
    unsigned index;
 };
@@ -208,9 +207,6 @@ walk_varyings(UNUSED nir_builder *b, nir_instr *instr, void *data)
          slots[location].type = type;
          slots[location].index = index;
       }
-
-      if (size == 32 && !sem.medium_precision)
-         slots[location].any_highp = true;
 
       slots[location].count = MAX2(slots[location].count, count);
    }
@@ -352,8 +348,7 @@ hw_varying_slot(unsigned arch, mesa_shader_stage stage, gl_varying_slot slot)
 
 void
 pan_varying_collect_formats(struct pan_varying_layout *layout, nir_shader *nir,
-                            uint64_t gpu_id,
-                            bool lower_mediump)
+                            uint64_t gpu_id)
 {
    assert(nir->info.stage == MESA_SHADER_VERTEX ||
           nir->info.stage == MESA_SHADER_FRAGMENT);
@@ -387,22 +382,6 @@ pan_varying_collect_formats(struct pan_varying_layout *layout, nir_shader *nir,
       } else {
          nir_alu_type type = nir_alu_type_get_base_type(slots[i].type);
          unsigned bit_size = nir_alu_type_get_type_size(slots[i].type);
-
-         /* The Vulkan spec requires types to match across all uses of a
-          * location but doesn't actually require RelaxedPrecision to match
-          * for the whole location.  So we can only apply mediump if every use
-          * of the location is mediump.
-          * Don't lower mediump integers, it has no measured impact and causes
-          * lots of bugs due to gallium shenanigans.
-          * Also allow the client to remove mediump lowering and keep the
-          * original types
-          */
-         bool can_lower_size = lower_mediump &&
-                               bit_size == 32 &&
-                               type == nir_type_float &&
-                               !slots[i].any_highp;
-         if (can_lower_size)
-            bit_size = 16;
 
          layout->slots[idx] = (struct pan_varying_slot){
             .location = i,

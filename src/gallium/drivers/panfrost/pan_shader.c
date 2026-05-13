@@ -589,8 +589,7 @@ panfrost_create_shader_state(struct pipe_context *pctx,
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       struct pan_varying_layout *varying_layout = &so->vs_varying_layout;
       pan_varying_collect_formats(varying_layout, nir,
-                                  panfrost_device_gpu_id(dev),
-                                  false /* lower_mediump */);
+                                  panfrost_device_gpu_id(dev));
       pan_build_varying_layout_compact(varying_layout, nir,
                                        panfrost_device_gpu_id(dev));
    }

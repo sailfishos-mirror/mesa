@@ -4,6 +4,7 @@
  */
 
 #include "pan_compiler.h"
+#include "nir_xfb_info.h"
 #include "pan_nir.h"
 
 #include "bifrost/bi_debug.h"
@@ -380,6 +381,139 @@ pan_shader_compile(nir_shader *s, struct pan_compile_inputs *inputs,
       midgard_compile_shader_nir(s, inputs, binary, info);
       pan_shader_update_info(info, s, inputs);
    }
+}
+
+static uint64_t
+pan_fixed_varying_mask(nir_shader *nir)
+{
+   uint64_t mask = 0;
+
+   assert(nir->info.stage == MESA_SHADER_FRAGMENT ||
+          nir->info.stage == MESA_SHADER_VERTEX);
+
+   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
+   assert(impl);
+
+   nir_foreach_block(block, impl) {
+      nir_foreach_instr(instr, block) {
+         nir_variable_mode modes = nir_var_shader_in | nir_var_shader_out;
+         nir_variable_mode mode;
+         nir_intrinsic_instr *intr = nir_get_io_intrinsic(instr, modes, &mode);
+         if (!intr)
+            continue;
+
+         bool is_varying = !(nir->info.stage == MESA_SHADER_VERTEX &&
+                             mode == nir_var_shader_in) &&
+                           !(nir->info.stage == MESA_SHADER_FRAGMENT &&
+                             mode == nir_var_shader_out);
+
+         nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
+
+         if (!is_varying || sem.location < VARYING_SLOT_VAR0)
+            continue;
+
+         nir_alu_type type = nir_intrinsic_has_src_type(intr) ?
+            nir_intrinsic_src_type(intr) : nir_intrinsic_dest_type(intr);
+         bool is_float = nir_alu_type_get_base_type(type) == nir_type_float;
+
+         /* Only lower mediump floats, they must agree on ALL load/stores */
+         if (!(sem.medium_precision && is_float)) {
+            mask |= BITFIELD64_RANGE(sem.location, sem.num_slots);
+         }
+      }
+   }
+
+   return mask;
+}
+
+static bool
+clear_flat_mediump_io_flag(struct nir_builder *b, nir_intrinsic_instr *intr,
+                           void *data)
+{
+   /* The mediump flag must be preserved for XFB, we can remove it for all other
+    * flat IO.  It is still useful for interpolated input because of
+    * pan_nir_fuse_io_16.
+    */
+   bool is_flat = intr->intrinsic == nir_intrinsic_load_input ||
+                  (intr->intrinsic == nir_intrinsic_store_output &&
+                   b->shader->info.stage == MESA_SHADER_VERTEX);
+
+   if (nir_intrinsic_has_io_semantics(intr) &&
+       !nir_instr_xfb_write_mask(intr) && is_flat) {
+      nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
+
+      if (sem.medium_precision) {
+         sem.medium_precision = 0;
+         nir_intrinsic_set_io_semantics(intr, sem);
+         return true;
+      }
+   }
+   return false;
+}
+
+static bool
+is_mediump_varying_instr(const nir_intrinsic_instr *intr, const void *data)
+{
+   if (!nir_intrinsic_has_io_semantics(intr))
+      return false;
+
+   nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
+   uint64_t loc_mask = *(uint64_t *)data;
+
+   if (sem.location < VARYING_SLOT_VAR0 || sem.location > VARYING_SLOT_VAR31)
+      return false;
+
+   return loc_mask & BITFIELD64_RANGE(sem.location, sem.num_slots);
+}
+
+/* Lower VS/FS varyings early for linked shader, this permits us to do crazy
+ * compactions in nir_opt_varyings (and might save us from lots of bugs).
+ * Used by lower_mediump_io
+ */
+void
+pan_nir_lower_mediump_io(nir_shader *nir)
+{
+   /* I don't want to get headaches, XFB gets slowed down */
+   if (nir->info.prev_stage_has_xfb ||
+       nir->info.has_transform_feedback_varyings)
+      return;
+
+   nir_variable_mode modes = 0;
+
+   switch (nir->info.stage) {
+   case MESA_SHADER_VERTEX:
+      modes = nir_var_shader_out;
+      break;
+   case MESA_SHADER_FRAGMENT:
+      modes = nir_var_shader_in;
+      break;
+   default:
+      assert(!"Unsupported shader");
+      return;
+   }
+
+   uint64_t lower_mask = ~pan_fixed_varying_mask(nir);
+
+   /* nir_opt_varyings can see thorugh vecs but not through f2f16 of vecs, i.e.
+    * it can see a vec2(x, 1.0) but not through f2f16(vec2(x, 1.0)), if we
+    * scalarize it will only see f2f16(x) and f2f16(1.0).  nir_opt_varyings will
+    * scalarize IO internally anyways.
+    */
+   NIR_PASS(_, nir, nir_lower_io_to_scalar, modes, is_mediump_varying_instr,
+            &lower_mask);
+
+   NIR_PASS(_, nir, nir_lower_mediump_io, modes, lower_mask, false);
+
+   NIR_PASS(_, nir, nir_opt_cse);
+   NIR_PASS(_, nir, nir_opt_constant_folding);
+
+   /* By shrinking vectors we help nir_opt_varyings DCE unused FS loads even
+    * in the VS, it also helps collect a smaller varying layout in the future
+    */
+   NIR_PASS(_, nir, nir_opt_shrink_vectors, false);
+
+   NIR_PASS(_, nir, nir_shader_intrinsics_pass,
+            clear_flat_mediump_io_flag, nir_metadata_all, NULL);
 }
 
 void

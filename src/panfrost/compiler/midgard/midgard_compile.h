@@ -9,6 +9,7 @@
 
 #include "compiler/nir/nir.h"
 #include "panfrost/compiler/pan_compiler.h"
+#include "panfrost/compiler/pan_nir.h"
 #include "util/u_dynarray.h"
 
 void midgard_preprocess_nir(nir_shader *nir, uint64_t gpu_id);
@@ -87,6 +88,7 @@ static const nir_shader_compiler_options midgard_nir_options = {
    .lower_doubles_options = nir_lower_dmod,
    .support_indirect_inputs = 0 /* TODO support indirect varyings */,
    .max_samples = 16,
+   .lower_mediump_io = pan_nir_lower_mediump_io,
 };
 
 #endif

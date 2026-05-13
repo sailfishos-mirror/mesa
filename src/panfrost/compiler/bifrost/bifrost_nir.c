@@ -443,77 +443,6 @@ bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
    NIR_PASS(_, nir, nir_lower_var_copies);
 }
 
-/*
- * Build a bit mask of varyings (by location) that are flatshaded. This
- * information is needed by lower_mediump_io, as we don't yet support 16-bit
- * flat varyings.
- *
- * Also varyings that are used as texture coordinates should be kept at fp32 so
- * the texture instruction may be promoted to VAR_TEX. In general this is a good
- * idea, as fp16 texture coordinates are not supported by the hardware and are
- * usually inappropriate. (There are both relevant CTS bugs here, even.)
- *
- * TODO: If we compacted the varyings with some fixup code in the vertex shader,
- * we could implement 16-bit flat varyings. Consider if this case matters.
- *
- * TODO: The texture coordinate handling could be less heavyhanded.
- */
-static bool
-bi_gather_texcoords(nir_builder *b, nir_instr *instr, void *data)
-{
-   uint64_t *mask = data;
-
-   if (instr->type != nir_instr_type_tex)
-      return false;
-
-   nir_tex_instr *tex = nir_instr_as_tex(instr);
-
-   int coord_idx = nir_tex_instr_src_index(tex, nir_tex_src_coord);
-   if (coord_idx < 0)
-      return false;
-
-   nir_src src = tex->src[coord_idx].src;
-   nir_scalar x = nir_scalar_resolved(src.ssa, 0);
-   nir_scalar y = nir_scalar_resolved(src.ssa, 1);
-
-   if (x.def != y.def)
-      return false;
-
-   nir_instr *parent = nir_def_instr(x.def);
-
-   if (parent->type != nir_instr_type_intrinsic)
-      return false;
-
-   nir_intrinsic_instr *intr = nir_instr_as_intrinsic(parent);
-
-   if (intr->intrinsic != nir_intrinsic_load_interpolated_input)
-      return false;
-
-   nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
-   *mask |= BITFIELD64_BIT(sem.location);
-   return false;
-}
-
-static uint64_t
-bi_fp32_varying_mask(nir_shader *nir)
-{
-   uint64_t mask = 0;
-
-   assert(nir->info.stage == MESA_SHADER_FRAGMENT);
-
-   nir_foreach_shader_in_variable(var, nir) {
-      if (var->data.interpolation == INTERP_MODE_FLAT) {
-         unsigned slots = glsl_count_attribute_slots(var->type, false);
-         mask |= BITFIELD64_RANGE(var->data.location, slots);
-      }
-   }
-
-   nir_shader_instructions_pass(nir, bi_gather_texcoords, nir_metadata_all,
-                                &mask);
-
-   return mask;
-}
-
 static bool
 bi_lower_subgroups(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 {
@@ -907,19 +836,6 @@ bifrost_postprocess_nir(nir_shader *nir,
    NIR_PASS(_, nir, nir_opt_sink, move_all);
    NIR_PASS(_, nir, nir_opt_move, move_all);
 
-   /* The varying layout (if any) may have different bit sizes for some
-    * varyings than we have in the shader.  For descriptors, this isn't a
-    * problem as it's handled by the descriptor layout.  However, for direct
-    * loads and stores on Valhall+, we need the right bit sizes in the shader.
-    * We could do this in the back-end as we emit but it's easier for now to
-    * lower in NIR.  This also handles the case where we do a load from the
-    * fragment shader of something that isn't written by the vertex shader.
-    * In that case, we just return zero.
-    */
-   if (pan_arch(inputs->gpu_id) >= 9 && inputs->varying_layout)
-      NIR_PASS(_, nir, pan_nir_resize_varying_io, inputs->varying_layout,
-               inputs->varying_layout);
-
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       NIR_PASS(_, nir, nir_lower_is_helper_invocation);
       NIR_PASS(_, nir, pan_nir_lower_helper_invocation);
@@ -929,18 +845,15 @@ bifrost_postprocess_nir(nir_shader *nir,
       NIR_PASS(_, nir, nir_lower_frag_coord_to_pixel_coord);
       NIR_PASS(_, nir, pan_nir_lower_var_special_pan);
 
-      /* TODO: should we do this in VS too? Should we do this earlier? */
-      NIR_PASS(_, nir, nir_lower_mediump_io,
-               nir_var_shader_in | nir_var_shader_out,
-               ~bi_fp32_varying_mask(nir), false);
+      NIR_PASS(_, nir, nir_lower_mediump_io, nir_var_shader_out, 0, false);
 
       NIR_PASS(_, nir, bifrost_nir_lower_load_output);
 
       /* Collect format varyings */
-      pan_varying_collect_formats(&info->varyings.formats,
-                                  nir, inputs->gpu_id,
-                                  false /* lower mediump */);
+      pan_varying_collect_formats(&info->varyings.formats, nir, inputs->gpu_id);
 
+      NIR_PASS(_, nir, pan_nir_resize_varying_io, &info->varyings.formats,
+               inputs->varying_layout ?: &info->varyings.formats);
       NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_in, NULL, NULL);
       NIR_PASS(_, nir, nir_opt_vectorize_io, nir_var_shader_in, false);
 
@@ -968,6 +881,9 @@ bifrost_postprocess_nir(nir_shader *nir,
       assert(inputs->varying_layout);
       memcpy(&info->varyings.formats, inputs->varying_layout,
              sizeof(*inputs->varying_layout));
+
+      NIR_PASS(_, nir, pan_nir_resize_varying_io, &info->varyings.formats,
+               &info->varyings.formats);
 
       info->vs.idvs = bi_should_idvs(nir, inputs);
 

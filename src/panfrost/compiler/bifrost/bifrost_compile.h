@@ -10,6 +10,7 @@
 #include <string.h>
 #include "compiler/nir/nir.h"
 #include "panfrost/compiler/pan_compiler.h"
+#include "panfrost/compiler/pan_nir.h"
 #include "util/u_dynarray.h"
 
 struct bifrost_precompiled_kernel_sysvals {
@@ -162,6 +163,8 @@ bool valhall_can_merge_workgroups(nir_shader *nir);
          (nir_divergence_across_subgroups |                                    \
           nir_divergence_multiple_workgroup_per_compute_subgroup)              \
          : 0,                                                                  \
+      .lower_mediump_io = pan_nir_lower_mediump_io,                            \
+      .io_options = nir_io_has_intrinsics, /* Skip unlowering IO to vars */    \
    };
 
 DEFINE_OPTIONS(bifrost_nir_options_v6, 6, false);
