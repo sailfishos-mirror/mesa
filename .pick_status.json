@@ -1504,7 +1504,7 @@
         "description": "nak: fix image size for multisample arrays",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "65d836fb26c53cb3681f55b2536068ace5380709",
         "notes": null
