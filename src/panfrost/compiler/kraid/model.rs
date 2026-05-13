@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::encode_v9::*;
 use crate::ir::*;
 use kraid_bindings::*;
 
@@ -19,8 +20,8 @@ impl Model for ValhallModel {
         self.arch
     }
 
-    fn encode_shader(&self, _s: &Shader<'_>) -> Vec<u32> {
-        todo!("Implement Valhall shader encoding");
+    fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32> {
+        encode_v9(s, self.arch)
     }
 }
 

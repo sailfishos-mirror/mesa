@@ -120,6 +120,13 @@ impl RegRef {
             RegRange::Regs(n) => n * 4,
         }
     }
+
+    pub fn byte_offset(&self) -> u8 {
+        match self.range {
+            RegRange::Half0 | RegRange::Regs(_) => 0,
+            RegRange::Half1 => 2,
+        }
+    }
 }
 
 #[derive(Clone)]

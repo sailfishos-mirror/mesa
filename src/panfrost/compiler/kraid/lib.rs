@@ -5,6 +5,7 @@ mod bitview;
 mod builder;
 mod compile;
 mod data_type;
+mod encode_v9;
 mod flow;
 mod ir;
 mod isa;
