@@ -2364,7 +2364,7 @@
         "description": "Revert \"intel/decoder: make libvulkan_intel to depend on stub decoder when buildtyle=release.\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2ee6b4d96e02d5bb63276bc5a2f8bfa60423b785",
         "notes": null
