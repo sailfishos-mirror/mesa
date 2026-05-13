@@ -23,6 +23,7 @@
         - src/panfrost/lib/*
         - src/panfrost/lib/kmod/*
         - src/panfrost/libpan/*
+        - src/panfrost/model/*
         - src/panfrost/shared/*
         - src/panfrost/util/*
       when: on_success
