@@ -634,11 +634,11 @@ pan_mod_interleaved_64k_test_props(const struct pan_kmod_dev_props *dprops,
       return PAN_MOD_NOT_SUPPORTED;
 
    /* We don't implement tiling/detiling of this layout on host. */
-   if (iusage->host_copy)
+   if (iusage && iusage->host_copy)
       return PAN_MOD_NOT_SUPPORTED;
 
    /* We don't respect wsi_row_pitch_B so this layout is not usable for WSI. */
-   if (iusage->wsi)
+   if (iusage && iusage->wsi)
       return PAN_MOD_NOT_SUPPORTED;
 
    struct pan_image_block_size tile_extent_el =
