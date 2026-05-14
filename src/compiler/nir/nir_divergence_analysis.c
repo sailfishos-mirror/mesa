@@ -184,9 +184,6 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_shader_clock:
    case nir_intrinsic_ballot:
    case nir_intrinsic_ballot_relaxed:
-   case nir_intrinsic_as_uniform:
-   case nir_intrinsic_read_invocation:
-   case nir_intrinsic_read_first_invocation:
    case nir_intrinsic_read_invocation_cond_ir3:
    case nir_intrinsic_read_getlast_ir3:
    case nir_intrinsic_vote_any:
@@ -208,6 +205,22 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
        */
       is_divergent = (state->options & nir_divergence_vertex) ||
                      (state->options & nir_divergence_across_subgroups);
+      break;
+
+   case nir_intrinsic_as_uniform:
+   case nir_intrinsic_read_invocation:
+   case nir_intrinsic_read_first_invocation:
+      is_divergent = false;
+
+      if ((state->options & nir_divergence_vertex) ||
+          (state->options & nir_divergence_across_subgroups)) {
+         /* These intrinsics are generally divergent between different
+          * subgroups, but they can be uniform when all their sources
+          * are also uniform.
+          */
+         for (unsigned i = 0; i < nir_intrinsic_infos[instr->intrinsic].num_srcs; ++i)
+            is_divergent |= src_divergent(instr->src[i], state);
+      }
       break;
 
    /* Intrinsics which are always uniform */
