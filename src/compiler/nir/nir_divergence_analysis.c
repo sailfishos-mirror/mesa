@@ -1075,8 +1075,13 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
        (nir_intrinsic_access(instr) & ACCESS_SKIP_HELPERS))
       is_divergent = true;
 
+   /* SMEM access is always subgroup uniform.
+    * Note, it's only uniform across vertices/subgroups when
+    * all its sources are uniform (already taken into account above).
+    */
    if (nir_intrinsic_has_access(instr) &&
-       (nir_intrinsic_access(instr) & ACCESS_SMEM_AMD))
+       (nir_intrinsic_access(instr) & ACCESS_SMEM_AMD) &&
+       !(state->options & (nir_divergence_vertex | nir_divergence_across_subgroups)))
       is_divergent = false;
 
    instr->def.divergent = is_divergent;
