@@ -65,6 +65,7 @@ typedef struct jay_fs_payload {
    } coord;
 
    jay_def pixel_sample_mask;
+   jay_def sample_pos;
    jay_def deltas[64];
 } jay_fs_payload;
 
@@ -1206,6 +1207,8 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_builder *b = &nj->bld;
    jay_cs_payload *cs =
       mesa_shader_stage_is_compute(s->stage) ? &nj->payload.cs : NULL;
+   jay_fs_payload *fs =
+      s->stage == MESA_SHADER_FRAGMENT ? &nj->payload.fs : NULL;
 
    const bool has_dest = nir_intrinsic_infos[intr->intrinsic].has_dest;
    jay_def dst = has_dest ? nj_def(&intr->def) : jay_null();
@@ -1439,6 +1442,19 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_frag_coord_w_rcp:
       jay_MOV(b, dst, nj->payload.fs.coord.w);
+      break;
+
+   case nir_intrinsic_load_sample_pos:
+   case nir_intrinsic_load_sample_pos_or_center:
+      assert(fs);
+
+      jay_foreach_comp(dst, c) {
+         jay_def gpr =
+            jay_GPR_FROM_UGPRS_u32(b, fs->sample_pos, JAY_TYPE_U8, 2, c);
+         jay_MUL(b, JAY_TYPE_F32, jay_extract(dst, c),
+                 jay_CVT_f32(b, gpr, JAY_TYPE_U32, JAY_ROUND, 0),
+                 jay_imm_f(1 / 16.0f));
+      }
       break;
 
    case nir_intrinsic_load_urb_output_handle_intel:
@@ -2584,6 +2600,10 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    if (nj->s->prog_data->fs.uses_src_w) {
       fs->coord.w = read_payload(p, GPR);
+   }
+
+   if (nj->s->prog_data->fs.uses_pos_offset) {
+      fs->sample_pos = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
    }
 
    setup_payload_dispatch_start(nj, p);
