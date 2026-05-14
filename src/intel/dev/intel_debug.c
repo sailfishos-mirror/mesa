@@ -68,13 +68,11 @@ static const struct debug_control_bitset debug_control[] = {
    OPT1("urb",               DEBUG_URB),
    OPT1("vs",                DEBUG_VS),
    OPT1("clip",              DEBUG_CLIP),
-   OPT1("no16",              DEBUG_NO16),
    OPT1("blorp",             DEBUG_BLORP),
    OPT1("nodualobj",         DEBUG_NO_DUAL_OBJECT_GS),
    OPT1("optimizer",         DEBUG_OPTIMIZER),
    OPT1("mda",               DEBUG_MDA),
    OPT1("ann",               DEBUG_ANNOTATION),
-   OPT1("no8",               DEBUG_NO8),
    OPT1("no-oaconfig",       DEBUG_NO_OACONFIG),
    OPT1("no-fill-opt",       DEBUG_NO_FILL_OPT),
    OPT1("spill_fs",          DEBUG_SPILL_FS),
@@ -98,7 +96,6 @@ static const struct debug_control_bitset debug_control[] = {
    OPT1("bt",                DEBUG_BT),
    OPT1("pc",                DEBUG_PIPE_CONTROL),
    OPT1("nofc",              DEBUG_NO_FAST_CLEAR),
-   OPT1("no32",              DEBUG_NO32),
    OPT2("shaders",           DEBUG_VS, DEBUG_RT),
    OPT1("rt",                DEBUG_RT),
    OPT1("rt_notrace",        DEBUG_RT_NO_TRACE),
@@ -190,27 +187,6 @@ intel_debug_flag_for_shader_stage(mesa_shader_stage stage)
 #define DEBUG_MS_SIMD  (DEBUG_MS_SIMD8  | DEBUG_MS_SIMD16  | DEBUG_MS_SIMD32)
 #define DEBUG_RT_SIMD  (DEBUG_RT_SIMD8  | DEBUG_RT_SIMD16  | DEBUG_RT_SIMD32)
 
-#define DEBUG_SIMD8_ALL \
-   (DEBUG_FS_SIMD8  | \
-    DEBUG_CS_SIMD8  | \
-    DEBUG_TS_SIMD8  | \
-    DEBUG_MS_SIMD8  | \
-    DEBUG_RT_SIMD8)
-
-#define DEBUG_SIMD16_ALL \
-   (DEBUG_FS_SIMD16 | \
-    DEBUG_CS_SIMD16 | \
-    DEBUG_TS_SIMD16 | \
-    DEBUG_MS_SIMD16 | \
-    DEBUG_RT_SIMD16)
-
-#define DEBUG_SIMD32_ALL \
-   (DEBUG_FS_SIMD32 | \
-    DEBUG_CS_SIMD32 | \
-    DEBUG_TS_SIMD32 | \
-    DEBUG_MS_SIMD32 | \
-    DEBUG_RT_SIMD32)
-
 uint64_t intel_debug_batch_frame_start = 0;
 uint64_t intel_debug_batch_frame_stop = -1;
 
@@ -290,19 +266,6 @@ process_intel_debug_variable_once(void)
       intel_simd |=   DEBUG_MS_SIMD;
    if (!(intel_simd & DEBUG_RT_SIMD))
       intel_simd |=   DEBUG_RT_SIMD;
-
-   if (BITSET_TEST(intel_debug, DEBUG_NO8))
-      intel_simd &= ~DEBUG_SIMD8_ALL;
-
-   if (BITSET_TEST(intel_debug, DEBUG_NO16))
-      intel_simd &= ~DEBUG_SIMD16_ALL;
-
-   if (BITSET_TEST(intel_debug, DEBUG_NO32))
-      intel_simd &= ~DEBUG_SIMD32_ALL;
-
-   BITSET_CLEAR(intel_debug, DEBUG_NO8);
-   BITSET_CLEAR(intel_debug, DEBUG_NO16);
-   BITSET_CLEAR(intel_debug, DEBUG_NO32);
 }
 
 static const struct debug_named_value use_jay_options[] = {

@@ -164,7 +164,7 @@ brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
    static_assert(ARRAY_SIZE(env_skip) == SIMD_COUNT);
 
    if (unlikely(env_skip[simd])) {
-      state.error[simd] = "Disabled by INTEL_DEBUG environment variable";
+      state.error[simd] = "Disabled by INTEL_SIMD_DEBUG environment variable";
       return false;
    }
 

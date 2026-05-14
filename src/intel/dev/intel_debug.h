@@ -111,10 +111,7 @@ enum intel_debug_flag {
    DEBUG_MESH,
    DEBUG_CS,
    DEBUG_RT,
-   DEBUG_NO8,
 
-   DEBUG_NO16,
-   DEBUG_NO32,
    DEBUG_DO32,
 
    /* Must be the last entry */
