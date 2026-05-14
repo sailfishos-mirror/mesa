@@ -7,6 +7,7 @@ _compiler_rs_sources = [
   'cfg.rs',
   'dataflow.rs',
   'depth_first_search.rs',
+  'enum_as_u8.rs',
   'float16.rs',
   'lower_bounded.rs',
   'memstream.rs',
