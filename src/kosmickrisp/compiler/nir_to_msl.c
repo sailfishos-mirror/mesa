@@ -1494,7 +1494,7 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       src_to_msl(ctx, &instr->src[0]);
       P(ctx, ", ");
       src_to_msl(ctx, &instr->src[1]);
-      P(ctx, ");");
+      P(ctx, ");\n");
       break;
    case nir_intrinsic_rotate:
       P(ctx, "simd_shuffle_rotate_down(");
@@ -1614,6 +1614,10 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       P_IND(ctx, "out.gl_ClipDistance[%d] = ", nir_intrinsic_base(instr));
       src_to_msl(ctx, &instr->src[0]);
       P(ctx, ";\n");
+      break;
+   case nir_intrinsic_load_ro_sink_address_poly:
+      /* Point to NULL, not really used currently */
+      P(ctx, "0x0;\n");
       break;
    default:
       P_IND(ctx, "Unknown intrinsic %s\n", info->name);

@@ -1001,7 +1001,7 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    if (unlikely(!out_draw.gpu))
       return data;
 
-   struct libkk_unroll_geometry_and_restart_args info = {
+   struct libkk_unroll_geometry_args info = {
       .index_buffer = mtl_buffer_get_gpu_address(data.index_buffer) +
                       data.index_buffer_offset,
       .heap = kk_heap(cmd),
@@ -1018,8 +1018,8 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
       .mode = data.prim,
    };
 
-   struct mtl_size grid = {1, 1, 1};
-   libkk_unroll_geometry_and_restart_struct(cmd, grid, true, info);
+   struct mtl_size grid = {1024, 1, 1};
+   libkk_unroll_geometry_struct(cmd, grid, true, info);
 
    data.indirect_buffer = out_draw.buffer;
    data.indirect_buffer_offset = out_draw.offset;
