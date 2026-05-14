@@ -69,10 +69,7 @@ jay_compute_liveness(jay_function *f)
    BITSET_WORD *uniform = BITSET_CALLOC(f->ssa_alloc);
 
    jay_foreach_block(f, block) {
-      u_sparse_bitset_free(&block->live_in);
       u_sparse_bitset_free(&block->live_out);
-
-      u_sparse_bitset_init(&block->live_in, f->ssa_alloc, block);
       u_sparse_bitset_init(&block->live_out, f->ssa_alloc, block);
 
       jay_worklist_push_head(&worklist, block);
@@ -94,6 +91,7 @@ jay_compute_liveness(jay_function *f)
        * 1. Assume everything liveout from this block was live_in
        * 2. Clear live_in for anything defined in this block
        */
+      u_sparse_bitset_free(&block->live_in);
       u_sparse_bitset_dup(&block->live_in, &block->live_out);
 
       jay_foreach_inst_in_block_rev(block, inst) {
