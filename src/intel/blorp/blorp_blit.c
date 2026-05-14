@@ -29,7 +29,6 @@
 #include "dev/intel_debug.h"
 #include "dev/intel_device_info.h"
 
-#include "util/format_rgb9e5.h"
 #include "util/u_math.h"
 
 #define FILE_DEBUG_FLAG DEBUG_BLORP
