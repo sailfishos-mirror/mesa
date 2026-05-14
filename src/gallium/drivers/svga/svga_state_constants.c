@@ -241,8 +241,9 @@ svga_get_extra_vs_constants(const struct svga_context *svga, float *dest)
    if (variant->key.vs.undo_viewport) {
       /* Used to convert window coords back to NDC coords */
       if (dest) {
+         float flip = svga->curr.viewport[0].scale[1] > 0.0f ? -1.0 : 1.0;
          dest[0] = 1.0f / svga->curr.viewport[0].scale[0];
-         dest[1] = -1.0f / svga->curr.viewport[0].scale[1];
+         dest[1] = flip / svga->curr.viewport[0].scale[1];
          dest[2] = -svga->curr.viewport[0].translate[0];
          dest[3] = -svga->curr.viewport[0].translate[1];
          dest += 4;

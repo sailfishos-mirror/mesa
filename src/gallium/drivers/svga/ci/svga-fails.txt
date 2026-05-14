@@ -8,15 +8,6 @@ glx@glx_arb_sync_control@waitformsc,Fail
 shaders@glsl-max-varyings >max_varying_components,Fail
 shaders@glsl-uniform-interstage-limits@subdivide 5,Fail
 shaders@glsl-uniform-interstage-limits@subdivide 5- statechanges,Fail
-shaders@point-vertex-id divisor,Fail
-shaders@point-vertex-id gl_instanceid,Fail
-shaders@point-vertex-id gl_instanceid divisor,Fail
-shaders@point-vertex-id gl_vertexid,Fail
-shaders@point-vertex-id gl_vertexid divisor,Fail
-shaders@point-vertex-id gl_vertexid gl_instanceid,Fail
-shaders@point-vertex-id gl_vertexid gl_instanceid divisor,Fail
-spec@!opengl 1.0@gl-1.0-edgeflag,Fail
-spec@!opengl 1.0@gl-1.0-edgeflag-quads,Fail
 spec@!opengl 1.0@rasterpos,Fail
 spec@!opengl 1.0@rasterpos@glsl_vs_gs_linked,Fail
 spec@!opengl 1.0@rasterpos@glsl_vs_tes_linked,Fail
