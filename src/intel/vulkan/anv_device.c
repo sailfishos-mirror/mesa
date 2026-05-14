@@ -1180,8 +1180,13 @@ VkResult anv_CreateDevice(
    anv_device_init_descriptors_view(device);
 
    BITSET_ONES(device->gfx_dirty_state);
+   /* Only dirtied when the index buffer is changing */
    BITSET_CLEAR(device->gfx_dirty_state, ANV_GFX_STATE_INDEX_BUFFER);
+   /* Only programmed if streamout is enabled */
    BITSET_CLEAR(device->gfx_dirty_state, ANV_GFX_STATE_SO_DECL_LIST);
+   /* Only programmed when line stipple is enabled, avoids PIPE_CONTROL */
+   BITSET_CLEAR(device->gfx_dirty_state, ANV_GFX_STATE_LINE_STIPPLE);
+
    if (device->info->ver < 11)
       BITSET_CLEAR(device->gfx_dirty_state, ANV_GFX_STATE_VF_SGVS_2);
    if (device->info->ver < 12) {

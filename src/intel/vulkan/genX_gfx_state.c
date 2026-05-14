@@ -1721,10 +1721,12 @@ ALWAYS_INLINE static void
 update_line_stipple(struct anv_gfx_dynamic_state *hw_state,
                     const struct vk_dynamic_graphics_state *dyn)
 {
-   SET(LINE_STIPPLE, ls.LineStipplePattern, dyn->rs.line.stipple.pattern);
-   SET(LINE_STIPPLE, ls.LineStippleInverseRepeatCount,
-                     1.0f / MAX2(1, dyn->rs.line.stipple.factor));
-   SET(LINE_STIPPLE, ls.LineStippleRepeatCount, dyn->rs.line.stipple.factor);
+   if (dyn->rs.line.stipple.enable) {
+      SET(LINE_STIPPLE, ls.LineStipplePattern, dyn->rs.line.stipple.pattern);
+      SET(LINE_STIPPLE, ls.LineStippleInverseRepeatCount,
+                        1.0f / MAX2(1, dyn->rs.line.stipple.factor));
+      SET(LINE_STIPPLE, ls.LineStippleRepeatCount, dyn->rs.line.stipple.factor);
+   }
 
    SET(WM,           wm.LineStippleEnable, dyn->rs.line.stipple.enable);
 }
