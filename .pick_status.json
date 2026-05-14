@@ -1114,7 +1114,7 @@
         "description": "nak: add more sizes to assert in bindless_image_sparse_load",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "410de4bf69a0ba92a9ec56ff3d24497bb7adef10",
         "notes": null
