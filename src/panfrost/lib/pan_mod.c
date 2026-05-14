@@ -678,24 +678,26 @@ pan_mod_linear_test_props(const struct pan_kmod_dev_props *dprops,
 {
    assert(GENX(pan_format_from_pipe_format)(iprops->format)->hw);
 
+   switch (iprops->format) {
+   case PIPE_FORMAT_R8G8B8_420_UNORM_PACKED:
+   case PIPE_FORMAT_R10G10B10_420_UNORM_PACKED:
+   case PIPE_FORMAT_X6R10X6G10_X6R10X6B10_422_UNORM:
+      /* These formats have no linear representation. */
+      return PAN_MOD_NOT_SUPPORTED;
+   default:
+      break;
+   }
+
    /* We can't implement mapping of tiles at standard sparse granularity using
     * this layout. */
    if (iusage && iusage->standard_sparse_mapping_granularity)
       return PAN_MOD_NOT_SUPPORTED;
 
-   switch (iprops->format) {
-   /* AFBC-only formats. */
-   case PIPE_FORMAT_R8G8B8_420_UNORM_PACKED:
-   case PIPE_FORMAT_R10G10B10_420_UNORM_PACKED:
-   case PIPE_FORMAT_X6R10X6G10_X6R10X6B10_422_UNORM:
-      return PAN_MOD_NOT_SUPPORTED;
-   default:
-      /* We assume that all "better" mods have been tested before linear, and
-       * declare it as optimal so it's always picked when tested, unless it's
-       * not supported.
-       */
-      return PAN_MOD_OPTIMAL;
-   }
+   /* We assume that all "better" mods have been tested before linear, and
+    * declare it as optimal so it's always picked when tested, unless it's
+    * not supported.
+    */
+   return PAN_MOD_OPTIMAL;
 }
 
 static uint32_t
