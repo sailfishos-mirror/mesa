@@ -324,11 +324,9 @@ static struct vpe_caps
                             .step = 1,
                         },
                 },
-            .easf_support           = 1,
-            .input_dcc_support      = 1,
-            .input_internal_dcc     = 1,
-            .output_dcc_support     = 0,
-            .output_internal_dcc    = 0,
+            .easf_support                = 1,
+            .input_internal_dcc_support  = 1,
+            .output_internal_dcc_support = 0,
             .histogram_support      = 1,
             .frod_support           = 1,
             .alpha_blending_support = 1,
@@ -557,6 +555,4 @@ void vpe22_setup_check_funcs(struct vpe_check_support_funcs *funcs)
     funcs->check_output_format            = vpe20_check_output_format;
     funcs->check_input_color_space        = vpe10_check_input_color_space;
     funcs->check_output_color_space       = vpe20_check_output_color_space;
-    funcs->get_dcc_compression_input_cap  = vpe20_get_dcc_compression_input_cap;
-    funcs->get_dcc_compression_output_cap = vpe20_get_dcc_compression_output_cap;
 }

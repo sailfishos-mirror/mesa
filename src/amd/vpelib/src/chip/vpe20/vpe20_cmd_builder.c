@@ -287,11 +287,14 @@ enum vpe_status vpe20_build_plane_descriptor(
             src.base_addr_hi = (uint32_t)addrloc->u.high_part;
             src.pitch        = (uint16_t)surface_info->plane_size.surface_pitch;
 
-            addrloc               = &surface_info->address.video_progressive.luma_meta_addr;
-            src.meta_base_addr_lo = addrloc->u.low_part;
-            src.meta_base_addr_hi = (uint32_t)addrloc->u.high_part;
-            src.meta_pitch        = (uint16_t)surface_info->dcc.src.meta_pitch;
-            src.dcc_ind_blk       = surface_info->dcc.src.dcc_ind_blk_c;
+            src.meta_base_addr_lo =
+                (uint32_t)surface_info->dcc.internal_dcc.meta_offset + addrloc->u.low_part;
+            src.meta_base_addr_hi = (uint32_t)addrloc->u.high_part +
+                                    (uint32_t)((surface_info->dcc.internal_dcc.meta_offset +
+                                                   (uint64_t)addrloc->u.low_part) >>
+                                               32);
+            src.meta_pitch        = (uint16_t)surface_info->dcc.internal_dcc.meta_pitch;
+            src.dcc_ind_blk       = surface_info->dcc.internal_dcc.dcc_indp_blk;
             src.comp_mode         = surface_info->dcc.enable;
 
             src.viewport_x = (uint16_t)dscl_data->viewport.x;
@@ -399,20 +402,25 @@ enum vpe_status vpe20_build_plane_descriptor(
         }
     }
 
-    if (plane_desc_writer->add_meta && (header.dcomp0 || header.dcomp1)) {
+    if (plane_desc_writer->add_src_internal_dcc && (header.dcomp0 || header.dcomp1)) {
         for (int i = 0; i < cmd_info->num_inputs && i < MAX_INPUT_PIPE; i++) {
-            if ((header.dcomp0 && i == 0) || (header.dcomp1 && i == 1)) {
-                stream_idx            = cmd_info->inputs[i].stream_idx;
-                stream_ctx            = &vpe_priv->stream_ctx[stream_idx];
-                surface_info          = &stream_ctx->stream.surface_info;
-                addrloc               = &surface_info->address.video_progressive.luma_meta_addr;
-                src.meta_base_addr_lo = addrloc->u.low_part;
-                src.meta_base_addr_hi = (uint32_t)addrloc->u.high_part;
-                src.meta_pitch        = (uint16_t)surface_info->dcc.src.meta_pitch;
-                src.dcc_ind_blk       = surface_info->dcc.src.dcc_ind_blk_c;
+            if ((header.dcomp0 && (i == 0)) || (header.dcomp1 && (i == 1))) {
+                stream_idx   = cmd_info->inputs[i].stream_idx;
+                stream_ctx   = &vpe_priv->stream_ctx[stream_idx];
+                surface_info = &stream_ctx->stream.surface_info;
+                addrloc      = &surface_info->address.grph.addr;
+
+                src.meta_base_addr_lo =
+                    (uint32_t)surface_info->dcc.internal_dcc.meta_offset + addrloc->u.low_part;
+                src.meta_base_addr_hi = (uint32_t)addrloc->u.high_part +
+                                        (uint32_t)((surface_info->dcc.internal_dcc.meta_offset +
+                                                       (uint64_t)addrloc->u.low_part) >>
+                                                   32);
+                src.meta_pitch        = (uint16_t)surface_info->dcc.internal_dcc.meta_pitch;
+                src.dcc_ind_blk       = surface_info->dcc.internal_dcc.dcc_indp_blk;
                 src.comp_mode         = surface_info->dcc.enable;
                 src.format            = vpe20_get_hw_surface_format(surface_info->format);
-                plane_desc_writer->add_meta(&vpe_priv->plane_desc_writer, &src);
+                plane_desc_writer->add_src_internal_dcc(&vpe_priv->plane_desc_writer, &src);
             }
         }
     }
@@ -449,7 +457,7 @@ enum vpe_status vpe20_build_plane_descriptor(
             log_plane_desc_event(
                 vpe_priv, cmd_info, &header, &src, &dst, cmd_idx, i, 0, LOG_OUTPUT_PLANE);
             if (vpe_is_dual_plane_format(surface_info->format)) {
-                addrloc = &surface_info->address.video_progressive.chroma_addr;
+                addrloc     = &surface_info->address.video_progressive.chroma_addr;
                 dst.tmz     = surface_info->address.tmz_surface;
                 dst.swizzle = surface_info->swizzle;
 
@@ -512,7 +520,7 @@ enum vpe_status vpe20_build_plane_descriptor(
             log_plane_desc_event(
                 vpe_priv, cmd_info, &header, &src, &dst, cmd_idx, i, 2, LOG_OUTPUT_PLANE);
         } else {
-            addrloc = &surface_info->address.grph.addr;
+            addrloc     = &surface_info->address.grph.addr;
             dst.tmz     = surface_info->address.tmz_surface;
             dst.swizzle = surface_info->swizzle;
 

@@ -317,11 +317,9 @@ static struct vpe_caps
                             .step = 0,
                         },
                 },
-            .easf_support           = 0,
-            .input_dcc_support      = 0,
-            .input_internal_dcc     = 0,
-            .output_dcc_support     = 0,
-            .output_internal_dcc    = 0,
+            .easf_support                = 0,
+            .input_internal_dcc_support  = 0,
+            .output_internal_dcc_support = 0,
             .histogram_support      = 0,
             .frod_support           = 0,
             .alpha_blending_support = 0,
@@ -400,20 +398,6 @@ enum vpe_status vpe10_set_num_segments(struct vpe_priv *vpe_priv, struct stream_
     }
 
     return res;
-}
-
-bool vpe10_get_dcc_compression_output_cap(
-    const struct vpe_dcc_surface_param *params, struct vpe_surface_dcc_cap *cap)
-{
-    cap->capable = false;
-    return cap->capable;
-}
-
-bool vpe10_get_dcc_compression_input_cap(
-    const struct vpe_dcc_surface_param *params, struct vpe_surface_dcc_cap *cap)
-{
-    cap->capable = false;
-    return cap->capable;
 }
 
 struct cdc_fe *vpe10_cdc_fe_create(struct vpe_priv *vpe_priv, int inst)
@@ -1630,8 +1614,6 @@ void vpe10_setup_check_funcs(struct vpe_check_support_funcs *funcs)
     funcs->check_output_format            = vpe10_check_output_format;
     funcs->check_input_color_space        = vpe10_check_input_color_space;
     funcs->check_output_color_space       = vpe10_check_output_color_space;
-    funcs->get_dcc_compression_input_cap  = vpe10_get_dcc_compression_input_cap;
-    funcs->get_dcc_compression_output_cap = vpe10_get_dcc_compression_output_cap;
 }
 
 enum vpe_status vpe10_calculate_shaper(struct vpe_priv *vpe_priv, struct stream_ctx *stream_ctx)

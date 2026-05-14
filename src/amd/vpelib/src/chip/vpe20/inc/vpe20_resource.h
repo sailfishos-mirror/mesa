@@ -75,12 +75,6 @@ int32_t vpe20_program_frontend_frame(
 int32_t vpe20_program_frontend_segment(
     struct vpe_priv *vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx, uint32_t cmd_input_idx);
 
-bool vpe20_get_dcc_compression_output_cap(
-    const struct vpe_dcc_surface_param *params, struct vpe_surface_dcc_cap *cap);
-
-bool vpe20_get_dcc_compression_input_cap(
-    const struct vpe_dcc_surface_param *params, struct vpe_surface_dcc_cap *cap);
-
 int32_t vpe20_program_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe_idx,
     uint32_t cmd_input_idx, struct stream_ctx *stream_ctx, struct vpe_cmd_info *cmd_info);
 

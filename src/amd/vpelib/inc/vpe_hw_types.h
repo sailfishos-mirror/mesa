@@ -93,47 +93,31 @@ struct vpe_plane_address {
      *  @brief Union of plane address types
      */
     union {
-        /** @brief Only used for RGB planes. Struct of two \ref PHYSICAL_ADDRESS_LOC to store
-         * address and meta address, and one \ref large_integer to store dcc constant color.
+        /** @brief Only used for RGB planes. Struct of \ref PHYSICAL_ADDRESS_LOC to store address.
          */
         struct {
-            PHYSICAL_ADDRESS_LOC addr;            /**< Address of the plane */
-            PHYSICAL_ADDRESS_LOC meta_addr;       /**< Meta address of the plane */
-            union large_integer  dcc_const_color; /**< DCC constant color of the plane */
+            PHYSICAL_ADDRESS_LOC addr; /**< Address of the plane */
         } grph;
 
-        /** @brief Only used for YUV planes. Struct of four \ref PHYSICAL_ADDRESS_LOC to store
-         *  address and meta addresses of both luma and chroma planes, and two \ref large_integer
-         *  to store dcc constant color for each plane. For packed YUV formats, the chroma plane
+        /** @brief Only used for YUV planes. Struct of two \ref PHYSICAL_ADDRESS_LOC to store
+         *  address of both luma and chroma planes. For packed YUV formats, the chroma plane
          *  addresses should be blank.
          */
         struct {
-            PHYSICAL_ADDRESS_LOC luma_addr;            /**< Address of the luma plane */
-            PHYSICAL_ADDRESS_LOC luma_meta_addr;       /**< Meta address of the luma plane */
-            union large_integer  luma_dcc_const_color; /**< DCC constant color of the luma plane */
+            PHYSICAL_ADDRESS_LOC luma_addr;   /**< Address of the luma plane */
 
-            PHYSICAL_ADDRESS_LOC chroma_addr;          /**< Address of the chroma plane */
-            PHYSICAL_ADDRESS_LOC chroma_meta_addr;     /**< Meta address of the chroma plane */
-            union large_integer
-                chroma_dcc_const_color; /**< DCC constant color of the chroma plane */
+            PHYSICAL_ADDRESS_LOC chroma_addr; /**< Address of the chroma plane */
         } video_progressive;
 
-        /** @brief Only used for RGB 3-planar case. Each plane is a struct of two \ref
-         *  PHYSICAL_ADDRESS_LOC to store address and meta address, and one \ref large_integer to
-         *  store dcc constant color.
+        /** @brief Only used for RGB 3-planar case. Each plane is a struct of one \ref
+         *  PHYSICAL_ADDRESS_LOC to store address.
          */
         struct {
-            PHYSICAL_ADDRESS_LOC y_g_addr;             /**< Address of the Y/G plane */
-            PHYSICAL_ADDRESS_LOC y_g_meta_addr;        /**< Meta address of the Y/G plane */
-            union large_integer  y_g_dcc_const_color;  /**< DCC constant color of the Y/G plane */
+            PHYSICAL_ADDRESS_LOC y_g_addr;  /**< Address of the Y/G plane */
 
-            PHYSICAL_ADDRESS_LOC cb_b_addr;            /**< Address of the Cb/B plane */
-            PHYSICAL_ADDRESS_LOC cb_b_meta_addr;       /**< Meta address of the Cb/B plane */
-            union large_integer  cb_b_dcc_const_color; /**< DCC constant color of the Cb/B plane */
+            PHYSICAL_ADDRESS_LOC cb_b_addr; /**< Address of the Cb/B plane */
 
-            PHYSICAL_ADDRESS_LOC cr_r_addr;            /**< Address of the Cr/R plane */
-            PHYSICAL_ADDRESS_LOC cr_r_meta_addr;       /**< Meta address of the Cr/R plane */
-            union large_integer  cr_r_dcc_const_color; /**< DCC constant color of the Cr/R plane */
+            PHYSICAL_ADDRESS_LOC cr_r_addr; /**< Address of the Cr/R plane */
         } planar;
     };
 };
@@ -213,25 +197,21 @@ struct vpe_plane_size {
                                         YUV formats in pixels */
 };
 
+/** @struct vpe_plane_internal_dcc_param
+ *  @brief DCC params for source, required for display DCC only
+ */
+struct vpe_plane_internal_dcc_param {
+    uint8_t  dcc_indp_blk; /**< Size of DCC key in blocks */
+    uint32_t meta_pitch;   /**< Pitch of the DCC meta data surface */
+    uint64_t meta_offset;  /**< Offset of meta surface addr from first display surface */
+};
+
 /** @struct vpe_plane_dcc_param
- *  @brief dcc params
+ *  @brief dcc params - DCC parameters for vpe plane
  */
 struct vpe_plane_dcc_param {
-    bool enable;                     /**< Enable DCC */
-
-    union {
-        /** @brief DCC params for source, required for display DCC only */
-        struct {
-            uint32_t meta_pitch;           /**< DCC meta surface pitch in bytes */
-            bool     independent_64b_blks; /**< DCC independent 64 byte blocks */
-            uint8_t  dcc_ind_blk;          /**< DCC independent block size */
-
-            uint32_t meta_pitch_c;         /**< DCC meta surface pitch for chroma plane in bytes */
-            bool     independent_64b_blks_c; /**< DCC independent 64 byte blocks for chroma plane */
-            uint8_t  dcc_ind_blk_c;          /**< DCC independent block size for chroma plane */
-        } src;
-
-    };
+    bool enable; /**< Enable DCC */
+    struct vpe_plane_internal_dcc_param internal_dcc; /**< Internal DCC parameters */
 };
 
 /** @enum vpe_surface_pixel_format

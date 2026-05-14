@@ -38,6 +38,12 @@ bool vpe_find_color_space_from_table(
     return false;
 }
 
+bool vpe_is_video_format(enum vpe_surface_pixel_format format)
+{
+    return (format >= VPE_SURFACE_PIXEL_FORMAT_VIDEO_BEGIN &&
+            format <= VPE_SURFACE_PIXEL_FORMAT_VIDEO_END);
+}
+
 bool vpe_is_subsampled_format(enum vpe_surface_pixel_format format)
 {
     return (format >= VPE_SURFACE_PIXEL_FORMAT_VIDEO_BEGIN &&
@@ -165,6 +171,11 @@ bool vpe_is_planar_format(enum vpe_surface_pixel_format format)
 {
     return (format >= VPE_SURFACE_PIXEL_FORMAT_PLANAR_BEGIN) &&
            (format <= VPE_SURFACE_PIXEL_FORMAT_PLANAR_END);
+}
+
+bool vpe_is_single_plane_format(enum vpe_surface_pixel_format format)
+{
+    return !vpe_is_planar_format(format) && !vpe_is_dual_plane_format(format);
 }
 
 bool vpe_is_fp16(enum vpe_surface_pixel_format format)
@@ -656,8 +667,6 @@ enum vpe_status vpe_check_output_support(struct vpe *vpe, const struct vpe_build
     struct dpp                    *dpp;
     struct cdc_be                 *cdc_be;
     const struct vpe_surface_info *surface_info = &param->dst_surface;
-    struct vpe_dcc_surface_param   params;
-    struct vpe_surface_dcc_cap     cap;
     bool                           support;
 
     vpec   = &vpe_priv->resource.vpec;
@@ -714,15 +723,11 @@ enum vpe_status vpe_check_output_support(struct vpe *vpe, const struct vpe_build
     }
 
     // output dcc
+    // interal dcc only support non dual plane formats
     if (surface_info->dcc.enable) {
-
-        params.surface_size.width  = surface_info->plane_size.surface_size.width;
-        params.surface_size.height = surface_info->plane_size.surface_size.height;
-        params.format              = surface_info->format;
-        params.swizzle_mode        = surface_info->swizzle;
-        params.scan                = VPE_SCAN_PATTERN_0_DEGREE;
-        support = vpe_priv->pub.check_funcs.get_dcc_compression_output_cap(&params, &cap);
-        if (!support) {
+        if (!vpe->caps->output_internal_dcc_support ||
+            (vpe->caps->output_internal_dcc_support &&
+                !vpe_is_single_plane_format(surface_info->format))) {
             vpe_log("output dcc not supported\n");
             return VPE_STATUS_OUTPUT_DCC_NOT_SUPPORTED;
         }
@@ -757,8 +762,6 @@ enum vpe_status vpe_check_input_support(struct vpe *vpe, const struct vpe_stream
     struct dpp                    *dpp;
     struct cdc_fe                 *cdc_fe;
     const struct vpe_surface_info *surface_info = &stream->surface_info;
-    struct vpe_dcc_surface_param   params;
-    struct vpe_surface_dcc_cap     cap;
     bool                           support;
     const PHYSICAL_ADDRESS_LOC    *addrloc;
     bool                           use_adj = vpe_use_csc_adjust(&stream->color_adj);
@@ -834,19 +837,13 @@ enum vpe_status vpe_check_input_support(struct vpe *vpe, const struct vpe_stream
     }
 
     // input dcc
+    // interal dcc only support non dual plane formats
+
     if (surface_info->dcc.enable) {
-
-        params.surface_size.width  = surface_info->plane_size.surface_size.width;
-        params.surface_size.height = surface_info->plane_size.surface_size.height;
-        params.format              = surface_info->format;
-        params.swizzle_mode        = surface_info->swizzle;
-
-        params.scan = vpe_get_scan_direction(
-            stream->rotation, stream->horizontal_mirror, stream->vertical_mirror);
-        support = vpe_priv->pub.check_funcs.get_dcc_compression_input_cap(&params, &cap);
-        //only support non dual plane formats
-        if (!support) {
-            vpe_log("input internal dcc not supported\n");
+        if (!vpe->caps->input_internal_dcc_support ||
+            (vpe->caps->input_internal_dcc_support &&
+                !vpe_is_single_plane_format(surface_info->format))) {
+            vpe_log("input dcc not supported\n");
             return VPE_STATUS_INPUT_DCC_NOT_SUPPORTED;
         }
     }
