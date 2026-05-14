@@ -383,6 +383,8 @@ nvk_cmd_buffer_last_subchannel(const struct nvk_cmd_buffer *cmd)
    }
 }
 
+VkQueueFlags nvk_cmd_buffer_queue_flags(struct nvk_cmd_buffer *cmd);
+
 VkResult nvk_cmd_buffer_alloc_mem(struct nvk_cmd_buffer *cmd,
                                   bool force_gart,
                                   struct nvk_cmd_mem **mem_out);

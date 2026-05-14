@@ -134,7 +134,7 @@ nvk_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer,
    memset(&cmd->state, 0, sizeof(cmd->state));
 }
 
-static VkQueueFlags
+VkQueueFlags
 nvk_cmd_buffer_queue_flags(struct nvk_cmd_buffer *cmd)
 {
    const struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
