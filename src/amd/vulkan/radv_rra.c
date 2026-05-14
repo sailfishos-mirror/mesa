@@ -173,7 +173,7 @@ rra_dump_asic_info(const struct radeon_info *gpu_info, FILE *output)
       .mem_ops_per_clk = ac_memory_ops_per_clock(gpu_info->vram_type),
       .bus_width = gpu_info->memory_bus_width,
 
-      .device_id = gpu_info->pci.dev,
+      .device_id = gpu_info->pci_id,
       .rev_id = gpu_info->pci_rev_id,
    };
 

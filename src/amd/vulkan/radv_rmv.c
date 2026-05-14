@@ -426,7 +426,7 @@ radv_rmv_fill_device_info(const struct radv_physical_device *pdev, struct vk_rmv
    strncpy(info->device_name, gpu_info->marketing_name, sizeof(info->device_name) - 1);
    info->pcie_family_id = gpu_info->family_id;
    info->pcie_revision_id = gpu_info->pci_rev_id;
-   info->pcie_device_id = gpu_info->pci.dev;
+   info->pcie_device_id = gpu_info->pci_id;
    info->minimum_shader_clock = 0;
    info->maximum_shader_clock = gpu_info->max_gpu_freq_mhz;
    info->vram_type = memory_type_from_vram_type(gpu_info->vram_type);
