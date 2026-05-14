@@ -7384,7 +7384,7 @@ void genX(cmd_emit_timestamp)(struct anv_batch *batch,
 
       GENX(EXECUTE_INDIRECT_DISPATCH_pack)
       (batch, dwords, &(struct GENX(EXECUTE_INDIRECT_DISPATCH)) {
-            .MOCS = anv_mocs(device, NULL, 0),
+            .MOCSIndex = MOCS_GET_INDEX(anv_mocs(device, NULL, 0)),
             .body = {
                .PostSync = (struct GENX(POSTSYNC_DATA)) {
                   .Operation = WriteTimestamp,
