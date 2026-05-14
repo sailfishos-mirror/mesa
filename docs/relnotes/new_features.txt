@@ -54,3 +54,4 @@ VK_EXT_primitive_topology_list_restart on pvr
 VK_KHR_incremental_present on panvk
 VK_EXT_swapchain_colorspace on panvk
 VK_KHR_push_descriptor on pvr
+VK_EXT_image_sliced_view_of_3d on pvr

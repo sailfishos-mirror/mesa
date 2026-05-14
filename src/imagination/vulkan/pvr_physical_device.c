@@ -207,6 +207,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_external_memory_dma_buf = true,
       .EXT_host_query_reset = true,
       .EXT_image_2d_view_of_3d = true,
+      .EXT_image_sliced_view_of_3d = true,
       .EXT_index_type_uint8 = true,
       .EXT_inline_uniform_block = true,
       .EXT_line_rasterization = true,
@@ -467,6 +468,9 @@ static void pvr_physical_device_get_supported_features(
       /* VK_EXT_image_2d_view_of_3d */
       .image2DViewOf3D = true,
       .sampler2DViewOf3D = true,
+
+      /* VK_EXT_image_sliced_view_of_3d */
+      .imageSlicedViewOf3D = true,
 
       /* VK_EXT_map_memory_placed */
       .memoryMapPlaced = true,
