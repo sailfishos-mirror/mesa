@@ -182,29 +182,35 @@ pan_mod_afbc_test_props(const struct pan_kmod_dev_props *dprops,
                         const struct pan_image_props *iprops,
                         const struct pan_image_usage *iusage)
 {
-   /* No image store. */
-   if (iusage && iusage->bind & PAN_BIND_STORAGE_IMAGE)
-      return PAN_MOD_NOT_SUPPORTED;
-
-   /* We don't implement mapping individual tiles with AFBC. */
-   if (iusage && iusage->standard_sparse_mapping_granularity)
-      return PAN_MOD_NOT_SUPPORTED;
-
    /* AFBC not supported. */
    if (!pan_query_afbc(dprops))
+      return PAN_MOD_NOT_SUPPORTED;
+
+   /* Not all architectures support tiled mode */
+   if ((iprops->modifier & AFBC_FORMAT_MOD_TILED) && !pan_afbc_can_tile(PAN_ARCH))
       return PAN_MOD_NOT_SUPPORTED;
 
    unsigned plane_count = util_format_get_num_planes(iprops->format);
    const struct util_format_description *fdesc =
       util_format_description(iprops->format);
 
-   /* Check if the format is supported first. */
+   /* Check if the format supports AFBC */
    enum pan_afbc_mode plane_modes[3];
    for (unsigned p = 0; p < plane_count; p++) {
       plane_modes[p] = pan_afbc_format(PAN_ARCH, iprops->format, p);
       if (plane_modes[p] == PAN_AFBC_MODE_INVALID)
          return PAN_MOD_NOT_SUPPORTED;
+
+      if ((iprops->modifier & AFBC_FORMAT_MOD_SPLIT) &&
+          !pan_afbc_can_split(PAN_ARCH, plane_modes[p], iprops->modifier)) {
+         return PAN_MOD_NOT_SUPPORTED;
+      }
    }
+
+   /* YTR is only useful on RGB formats. */
+   if ((iprops->modifier & AFBC_FORMAT_MOD_YTR) &&
+       (pan_format_is_yuv(iprops->format) || fdesc->nr_channels < 3))
+      return PAN_MOD_NOT_SUPPORTED;
 
    /* AFBC can't do multisampling. */
    if (iprops->nr_samples > 1)
@@ -215,32 +221,23 @@ pan_mod_afbc_test_props(const struct pan_kmod_dev_props *dprops,
        iprops->dim != MALI_TEXTURE_DIMENSION_2D)
       return PAN_MOD_NOT_SUPPORTED;
 
+   /* No image store. */
+   if (iusage && iusage->bind & PAN_BIND_STORAGE_IMAGE)
+      return PAN_MOD_NOT_SUPPORTED;
+
    /* ZS buffer descriptors can't pass split/wide/YTR modifiers. */
    if (iusage && (iusage->bind & PAN_BIND_DEPTH_STENCIL) &&
        (pan_afbc_superblock_width(iprops->modifier) != 16 ||
         (iprops->modifier & (AFBC_FORMAT_MOD_SPLIT | AFBC_FORMAT_MOD_YTR))))
       return PAN_MOD_NOT_SUPPORTED;
 
-   /* YTR is only useful on RGB formats. */
-   if ((iprops->modifier & AFBC_FORMAT_MOD_YTR) &&
-       (pan_format_is_yuv(iprops->format) || fdesc->nr_channels < 3))
+   /* We don't implement mapping individual tiles with AFBC. */
+   if (iusage && iusage->standard_sparse_mapping_granularity)
       return PAN_MOD_NOT_SUPPORTED;
-
-   /* Make sure all planes support split mode. */
-   if ((iprops->modifier & AFBC_FORMAT_MOD_SPLIT)) {
-      for (unsigned p = 0; p < plane_count; p++) {
-         if (!pan_afbc_can_split(PAN_ARCH, plane_modes[p], iprops->modifier))
-            return PAN_MOD_NOT_SUPPORTED;
-      }
-   }
 
    struct pan_image_block_size superblock_extent_px = pan_afbc_superblock_size(iprops->modifier);
 
    if (iprops->modifier & AFBC_FORMAT_MOD_TILED) {
-      /* Make sure tiled mode is supported. */
-      if (!pan_afbc_can_tile(PAN_ARCH))
-         return PAN_MOD_NOT_SUPPORTED;
-
       struct pan_image_block_size tile_extent_px = {
          superblock_extent_px.width * pan_afbc_tile_size(iprops->format, iprops->modifier),
          superblock_extent_px.height * pan_afbc_tile_size(iprops->format, iprops->modifier),
