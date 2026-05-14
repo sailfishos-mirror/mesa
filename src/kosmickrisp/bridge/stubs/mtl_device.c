@@ -77,6 +77,18 @@ mtl_device_max_buffer_length(mtl_device *dev)
    return 0u;
 }
 
+uint64_t
+mtl_device_recommended_max_working_set_size(mtl_device *dev)
+{
+   return 0u;
+}
+
+uint64_t
+mtl_device_current_allocated_size(mtl_device *dev)
+{
+   return 0u;
+}
+
 /* Timestamp query */
 uint64_t
 mtl_device_get_gpu_timestamp(mtl_device *dev)

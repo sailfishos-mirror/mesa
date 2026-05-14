@@ -149,6 +149,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_external_memory_metal = true,
       .EXT_image_2d_view_of_3d = true,
       .EXT_load_store_op_none = true,
+      .EXT_memory_budget = true,
       .EXT_multi_draw = true,
       .EXT_mutable_descriptor_type = true,
       .EXT_post_depth_coverage = true,
@@ -806,25 +807,80 @@ kk_physical_device_free_disk_cache(struct kk_physical_device *pdev)
 static uint64_t
 kk_get_sysmem_heap_size(void)
 {
+   /* Report the total amount of system memory as the actual heap size */
    uint64_t sysmem_size_B = 0;
    if (!os_get_total_physical_memory(&sysmem_size_B))
       return 0;
 
-   /* Use 3/4 of total size to avoid swapping */
-   return ROUND_DOWN_TO(sysmem_size_B * 3 / 4, 1 << 20);
+   return sysmem_size_B;
 }
 
 static uint64_t
-kk_get_sysmem_heap_available(struct kk_physical_device *pdev)
+kk_get_sysmem_heap_budget(struct kk_physical_device *pdev)
 {
+   /* From the Vulkan 1.3.278 spec:
+    *
+    *    "heapBudget is an array of VK_MAX_MEMORY_HEAPS VkDeviceSize
+    *    values in which memory budgets are returned, with one
+    *    element for each memory heap. A heap’s budget is a rough
+    *    estimate of how much memory the process can allocate from
+    *    that heap before allocations may fail or cause performance
+    *    degradation. The budget includes any currently allocated
+    *    device memory."
+    *
+    * and
+    *
+    *    "The heapBudget value must be less than or equal to
+    *    VkMemoryHeap::size for each heap."
+    *
+    * From Metal documentation for recommendedMaxWorkingSetSize:
+    *
+    *     An approximation of how much memory, in bytes, this GPU device can
+    *     allocate without affecting its runtime performance.
+    *
+    * From Metal documentation for currentAllocatedSize:
+    *
+    *     The total amount of memory, in bytes, the GPU device is using for all
+    *     of its resources.
+    *
+    * First, determine the total and available system memory to calculate the
+    * amount of used memory. Then, subtract this from the Metal-defined budget,
+    * and add back the current used memory by this device.
+    */
    uint64_t sysmem_size_B = 0;
-   if (!os_get_available_system_memory(&sysmem_size_B)) {
-      vk_loge(VK_LOG_OBJS(pdev), "Failed to query available system memory");
+   uint64_t sysmem_available_B = 0;
+   if (!os_get_total_physical_memory(&sysmem_size_B) ||
+       !os_get_available_system_memory(&sysmem_available_B))
       return 0;
-   }
 
-   /* Use 3/4 of available to avoid swapping */
-   return ROUND_DOWN_TO(sysmem_size_B * 3 / 4, 1 << 20);
+   uint64_t sysmem_used_B = sysmem_size_B - sysmem_available_B;
+   uint64_t sysmem_budget_B =
+      mtl_device_recommended_max_working_set_size(pdev->mtl_dev_handle);
+   uint64_t remaining_budget_B = sysmem_budget_B > sysmem_used_B ?
+                                 sysmem_budget_B - sysmem_used_B : 0u;
+   return remaining_budget_B +
+          mtl_device_current_allocated_size(pdev->mtl_dev_handle);
+}
+
+static uint64_t
+kk_get_sysmem_heap_used(struct kk_physical_device *pdev)
+{
+   /* From the Vulkan 1.3.278 spec:
+    *
+    *    "heapUsage is an array of VK_MAX_MEMORY_HEAPS VkDeviceSize
+    *    values in which memory usages are returned, with one element
+    *    for each memory heap. A heap’s usage is an estimate of how
+    *    much memory the process is currently using in that heap."
+    *
+    * From Metal documentation for currentAllocatedSize:
+    *
+    *     The total amount of memory, in bytes, the GPU device is using for all
+    *     of its resources.
+    *
+    * We can trivially report estimated heap usage using Metal's reported
+    * allocated size
+    */
+   return mtl_device_current_allocated_size(pdev->mtl_dev_handle);
 }
 
 static void
@@ -901,7 +957,8 @@ kk_enumerate_physical_devices(struct vk_instance *_instance)
    pdev->mem_heaps[sysmem_heap_idx] = (struct kk_memory_heap){
       .size = sysmem_size_B,
       .flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
-      .available = kk_get_sysmem_heap_available,
+      .budget = kk_get_sysmem_heap_budget,
+      .used = kk_get_sysmem_heap_used,
    };
 
    pdev->mem_types[pdev->mem_type_count++] = (VkMemoryType){
@@ -987,46 +1044,8 @@ kk_GetPhysicalDeviceMemoryProperties2(
 
          for (unsigned i = 0; i < pdev->mem_heap_count; i++) {
             const struct kk_memory_heap *heap = &pdev->mem_heaps[i];
-            uint64_t used = p_atomic_read(&heap->used);
-
-            /* From the Vulkan 1.3.278 spec:
-             *
-             *    "heapUsage is an array of VK_MAX_MEMORY_HEAPS VkDeviceSize
-             *    values in which memory usages are returned, with one element
-             *    for each memory heap. A heap’s usage is an estimate of how
-             *    much memory the process is currently using in that heap."
-             *
-             * TODO: Include internal allocations?
-             */
-            p->heapUsage[i] = used;
-
-            uint64_t available = heap->size;
-            if (heap->available)
-               available = heap->available(pdev);
-
-            /* From the Vulkan 1.3.278 spec:
-             *
-             *    "heapBudget is an array of VK_MAX_MEMORY_HEAPS VkDeviceSize
-             *    values in which memory budgets are returned, with one
-             *    element for each memory heap. A heap’s budget is a rough
-             *    estimate of how much memory the process can allocate from
-             *    that heap before allocations may fail or cause performance
-             *    degradation. The budget includes any currently allocated
-             *    device memory."
-             *
-             * and
-             *
-             *    "The heapBudget value must be less than or equal to
-             *    VkMemoryHeap::size for each heap."
-             *
-             * available (queried above) is the total amount free memory
-             * system-wide and does not include our allocations so we need
-             * to add that in.
-             */
-            uint64_t budget = MIN2(available + used, heap->size);
-
-            /* Set the budget at 90% of available to avoid thrashing */
-            p->heapBudget[i] = ROUND_DOWN_TO(budget * 9 / 10, 1 << 20);
+            p->heapBudget[i] = heap->budget ? heap->budget(pdev) : 0;
+            p->heapUsage[i] = heap->used ? heap->used(pdev) : 0;
          }
 
          /* From the Vulkan 1.3.278 spec:
