@@ -34,6 +34,23 @@ brw_device_sha1_gen_src = custom_target('brw_device_sha1_gen.c',
                                         output : ['brw_device_sha1_gen.c'],
                                         command : [prog_python, '@INPUT0@', '--out', '@OUTPUT@'])
 
+if with_intel_tools
+
+bison_command = []
+if yacc_is_bison
+  bison_command = [
+    prog_bison, '@INPUT@', '--defines=@OUTPUT1@',
+    '--output=@OUTPUT0@'
+  ]
+else
+  bison_command = [
+    prog_bison, '-H', '@OUTPUT1@',
+    '-o', '@OUTPUT0@', '@INPUT@'
+  ]
+endif
+
+endif
+
 subdir('brw')
 subdir('jay')
 

@@ -192,19 +192,6 @@ endif
 
 if with_intel_tools
 
-bison_command = []
-if yacc_is_bison
-  bison_command = [
-    prog_bison, '@INPUT@', '--defines=@OUTPUT1@',
-    '--output=@OUTPUT0@'
-  ]
-else
-  bison_command = [
-    prog_bison, '-H', '@OUTPUT1@',
-    '-o', '@OUTPUT0@', '@INPUT@'
-  ]
-endif
-
 brw_gram_tab = custom_target(
   'brw_gram.tab.[ch]',
   input : 'brw_gram.y',
