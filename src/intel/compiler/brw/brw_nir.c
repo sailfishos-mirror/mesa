@@ -1573,14 +1573,9 @@ brw_nir_lower_fs_config_intel(nir_shader *nir,
                                      nir_metadata_control_flow, &state);
 }
 
-static bool
-lower_sample_mask_in_instr(nir_builder *b,
-                           nir_intrinsic_instr *intrin,
-                           void *data)
+static void
+lower_sample_mask_in(nir_builder *b, nir_intrinsic_instr *intrin)
 {
-   if (intrin->intrinsic != nir_intrinsic_load_sample_mask_in)
-      return false;
-
    b->cursor = nir_before_instr(&intrin->instr);
 
    nir_def *sample_mask_in_reg = nir_load_coverage_mask_intel(b);
@@ -1597,14 +1592,41 @@ lower_sample_mask_in_instr(nir_builder *b,
       sample_mask_in_msaa, sample_mask_in_reg);
 
    nir_def_replace(&intrin->def, sample_mask_in);
+}
 
-   return true;
+static void
+lower_sample_pos(nir_builder *b, nir_intrinsic_instr *intrin)
+{
+   b->cursor = nir_after_instr(&intrin->instr);
+
+   nir_def *pos = nir_bcsel(
+      b,
+      nir_test_fs_config_intel(b, 1, INTEL_FS_CONFIG_PERSAMPLE_DISPATCH),
+      &intrin->def, nir_imm_vec2(b, 0.5, 0.5));
+
+   nir_def_rewrite_uses_after(&intrin->def, pos);
 }
 
 static bool
-brw_nir_lower_sample_mask_in(nir_shader *nir)
+lower_msaa_config(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
 {
-   return nir_shader_intrinsics_pass(nir, lower_sample_mask_in_instr,
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_load_sample_mask_in:
+      lower_sample_mask_in(b, intrin);
+      return true;
+   case nir_intrinsic_load_sample_pos:
+   case nir_intrinsic_load_sample_pos_or_center:
+      lower_sample_pos(b, intrin);
+      return true;
+   default:
+      return false;
+   }
+}
+
+static bool
+brw_nir_lower_msaa_config(nir_shader *nir)
+{
+   return nir_shader_intrinsics_pass(nir, lower_msaa_config,
                                      nir_metadata_control_flow, NULL);
 }
 
@@ -1693,7 +1715,7 @@ brw_nir_lower_fs_inputs(nir_shader *nir,
    }
 
    /* Do this after nir_lower_single_sampled */
-   NIR_PASS(_, nir, brw_nir_lower_sample_mask_in);
+   NIR_PASS(_, nir, brw_nir_lower_msaa_config);
 
    if (devinfo->ver < 20) {
       NIR_PASS(_, nir, nir_shader_intrinsics_pass,

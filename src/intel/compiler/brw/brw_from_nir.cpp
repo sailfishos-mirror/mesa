@@ -3409,21 +3409,10 @@ emit_samplepos_setup(nir_to_brw_state &ntb)
    brw_shader &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
+   assert(brw_fs_prog_data(s.prog_data)->persample_dispatch != INTEL_NEVER);
 
    const brw_builder abld = bld.annotate("compute sample position");
    brw_reg pos = abld.vgrf(BRW_TYPE_F, 2);
-
-   if (fs_prog_data->persample_dispatch == INTEL_NEVER) {
-      /* From ARB_sample_shading specification:
-       * "When rendering to a non-multisample buffer, or if multisample
-       *  rasterization is disabled, gl_SamplePosition will always be
-       *  (0.5, 0.5).
-       */
-      bld.MOV(offset(pos, bld, 0), brw_imm_f(0.5f));
-      bld.MOV(offset(pos, bld, 1), brw_imm_f(0.5f));
-      return pos;
-   }
 
    /* WM will be run in MSDISPMODE_PERSAMPLE. So, only one of SIMD8 or SIMD16
     * mode will be enabled.
@@ -3447,16 +3436,6 @@ emit_samplepos_setup(nir_to_brw_state &ntb)
       abld.MOV(tmp_f, tmp_d);
       /* Scale to the range [0, 1] */
       abld.MUL(offset(pos, abld, i), tmp_f, brw_imm_f(1 / 16.0f));
-   }
-
-   if (fs_prog_data->persample_dispatch == INTEL_SOMETIMES) {
-      brw_check_dynamic_fs_config(abld, fs_prog_data,
-                                  INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
-      for (unsigned i = 0; i < 2; i++) {
-         set_predicate(BRW_PREDICATE_NORMAL,
-                       bld.SEL(offset(pos, abld, i), offset(pos, abld, i),
-                               brw_imm_f(0.5f)));
-      }
    }
 
    return pos;
