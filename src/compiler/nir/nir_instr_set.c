@@ -763,7 +763,7 @@ nir_instrs_equal(const nir_instr *instr1, const nir_instr *instr2)
             if (memcmp(&sem1, &sem2, sizeof(sem1)))
                return false;
          } else {
-            unsigned size = nir_intrinsic_index_size(i);
+            unsigned size = nir_intrinsic_index_size(index);
             unsigned offset = info->index_map[index] - 1;
 
             if (memcmp(&intrinsic1->const_index[offset],
