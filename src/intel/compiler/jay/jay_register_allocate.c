@@ -1493,7 +1493,6 @@ jay_partition_grf(jay_shader *shader)
    assert((uniform_grfs + nonuniform_grfs) == JAY_NUM_PHYS_GRF);
 
    /* Partition GRFs between GPR & UGPR */
-   unsigned dispatch_grf = 0;
    unsigned stride4_header_size = 0;
 
    if (shader->stage == MESA_SHADER_VERTEX) {
@@ -1508,7 +1507,6 @@ jay_partition_grf(jay_shader *shader)
       };
 
       build_partition(shader, blocks, ARRAY_SIZE(blocks));
-      dispatch_grf = blocks[0] + blocks[1];
       stride4_header_size = blocks[1] + blocks[3];
    } else if (shader->stage == MESA_SHADER_FRAGMENT) {
       unsigned len0 = jay_grf_per_gpr(shader);
@@ -1521,7 +1519,6 @@ jay_partition_grf(jay_shader *shader)
          nonuniform_grfs - payload_grfs, /* GPR: General & EOT */
       };
       build_partition(shader, blocks, ARRAY_SIZE(blocks));
-      dispatch_grf = blocks[0] + blocks[1];
       stride4_header_size = blocks[1];
    } else {
       unsigned blocks[] = { uniform_grfs - 4, nonuniform_grfs, 4 };
@@ -1537,15 +1534,6 @@ jay_partition_grf(jay_shader *shader)
 
    // print_partition(p);
    validate_partition(p, stride4_header_size, nonuniform_gprs);
-
-   if (shader->stage == MESA_SHADER_FRAGMENT && shader->dispatch_width == 32) {
-      shader->prog_data->fs.dispatch_grf_start_reg_32 = dispatch_grf;
-   } else if (shader->stage == MESA_SHADER_FRAGMENT &&
-              shader->dispatch_width == 16) {
-      shader->prog_data->fs.dispatch_grf_start_reg_16 = dispatch_grf;
-   } else {
-      shader->prog_data->base.dispatch_grf_start_reg = dispatch_grf;
-   }
 
    /* By construction of our partition, the entire GRF is used. */
    shader->prog_data->base.grf_used = JAY_NUM_PHYS_GRF;

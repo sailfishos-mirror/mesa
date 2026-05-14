@@ -2457,6 +2457,24 @@ read_vector_payload(struct payload_builder *b, enum jay_file file, unsigned len)
 }
 
 static void
+setup_payload_dispatch_start(struct nir_to_jay_state *nj,
+                             struct payload_builder *p)
+{
+   jay_shader *s = nj->s;
+
+   const unsigned start_grf = p->offsets[GPR] * jay_grf_per_gpr(nj->s) +
+                              p->offsets[UGPR] / jay_ugpr_per_grf(nj->s);
+
+   if (s->stage == MESA_SHADER_FRAGMENT && s->dispatch_width == 32) {
+      s->prog_data->fs.dispatch_grf_start_reg_32 = start_grf;
+   } else if (s->stage == MESA_SHADER_FRAGMENT && s->dispatch_width == 16) {
+      s->prog_data->fs.dispatch_grf_start_reg_16 = start_grf;
+   } else {
+      s->prog_data->base.dispatch_grf_start_reg = start_grf;
+   }
+}
+
+static void
 setup_payload_push(struct nir_to_jay_state *nj, struct payload_builder *p)
 {
    unsigned push_size_B = 0;
@@ -2482,12 +2500,13 @@ setup_vertex_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
     */
    p->offsets[GPR] += 7;
 
+   setup_payload_dispatch_start(nj, p);
+   setup_payload_push(nj, p);
+
    for (unsigned i = 0; i < (8 * nj->s->prog_data->vue.urb_read_length); ++i) {
       assert(i < ARRAY_SIZE(nj->payload.vs.attributes));
       nj->payload.vs.attributes[i] = read_payload(p, GPR);
    }
-
-   setup_payload_push(nj, p);
 }
 
 static void
@@ -2498,6 +2517,8 @@ setup_compute_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    nj->payload.inline_data =
       read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+
+   setup_payload_dispatch_start(nj, p);
 }
 
 static void
@@ -2553,8 +2574,6 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       nj->payload.u1 = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
    }
 
-   setup_payload_push(nj, p);
-
    u_foreach_bit(i, nj->s->prog_data->fs.barycentric_interp_modes) {
       fs->bary[i] = read_vector_payload(p, GPR, 2);
    }
@@ -2566,6 +2585,9 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
    if (nj->s->prog_data->fs.uses_src_w) {
       fs->coord.w = read_payload(p, GPR);
    }
+
+   setup_payload_dispatch_start(nj, p);
+   setup_payload_push(nj, p);
 
    unsigned nr_attribs = 16 * 4; /* TODO */
    for (unsigned i = 0; i < nr_attribs; ++i) {
