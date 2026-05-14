@@ -8114,7 +8114,7 @@
         "description": "anv, iris: fix MOCS Index setting of EXECUTE_INDIRECT_* commands",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d1109f67bb0269915dacbddb26a1ce29f2cb83e6",
         "notes": null
