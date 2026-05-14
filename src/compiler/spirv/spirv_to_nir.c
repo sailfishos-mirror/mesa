@@ -843,6 +843,7 @@ vtn_handle_debug_printf(struct vtn_builder *b, SpvOp ext_opcode,
 
    if (argc) {
       glsl_struct_field *fields = calloc(argc, sizeof(glsl_struct_field));
+      int next_offset = 0;
       for (uint32_t i = 0; i < argc; i++) {
          struct vtn_ssa_value *arg = vtn_ssa_value(b, w[6 + i]);
 
@@ -851,8 +852,11 @@ vtn_handle_debug_printf(struct vtn_builder *b, SpvOp ext_opcode,
             fields[i].type = glsl_vector_type(fields[i].type->base_type, arg->def->num_components);
 
          fields[i].name = "";
+         fields[i].offset = next_offset;
 
-         info->arg_sizes[i] = arg->def->bit_size / 8;
+         int size = (int) arg->def->bit_size * arg->def->num_components / 8;
+         info->arg_sizes[i] = size;
+         next_offset += size;
       }
 
       nir_variable *packed_args = nir_local_variable_create(
