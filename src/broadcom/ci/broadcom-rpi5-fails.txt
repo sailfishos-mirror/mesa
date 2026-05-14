@@ -353,6 +353,10 @@ program@execute@scalar-load-long,Crash
 program@execute@scalar-load-ulong,Crash
 program@run kernel with max work item sizes,Fail
 
+# Bisected to 626ec83855a ("rusticl: implement CL 3.1 platform features")
+api@clsetkernelarg,Fail
+api@clsetkernelarg@Input checks,Fail
+
 # Bisected to 6bc47e65 ("rusticl: Fix work group size validation")
 program@bitcoin: phatk kernel,Fail
 
