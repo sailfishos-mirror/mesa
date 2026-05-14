@@ -1554,8 +1554,10 @@ struct anv_physical_device {
 
     bool                                        has_scratch_page;
 
-    /** Whether we allow the application to control compression */
+    /** Whether the device can support compression control */
     bool                                        has_compression_control;
+    /** Whether the device expose support for compression control */
+    bool                                        expose_compression_control;
 
     struct {
       uint32_t                                  family_count;

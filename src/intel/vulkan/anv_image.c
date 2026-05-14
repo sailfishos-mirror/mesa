@@ -331,7 +331,9 @@ anv_image_choose_isl_surf_usage(struct anv_physical_device *device,
       isl_usage |= ISL_SURF_USAGE_RENDER_TARGET_BIT;
    }
 
-   if (comp_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) {
+   if (device->has_compression_control &&
+       device->expose_compression_control &&
+       (comp_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT)) {
       anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
                     "Disabling aux: "
                     "image compression disabled via create flags");
@@ -3467,7 +3469,7 @@ anv_get_image_subresource_layout(struct anv_device *device,
 
    VkImageCompressionPropertiesEXT *comp_props =
       vk_find_struct(layout->pNext, IMAGE_COMPRESSION_PROPERTIES_EXT);
-   if (comp_props) {
+   if (comp_props && device->physical->expose_compression_control) {
       comp_props->imageCompressionFixedRateFlags =
          VK_IMAGE_COMPRESSION_FIXED_RATE_NONE_EXT;
       comp_props->imageCompressionFlags = VK_IMAGE_COMPRESSION_DISABLED_EXT;
