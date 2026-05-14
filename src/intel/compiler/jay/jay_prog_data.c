@@ -88,11 +88,8 @@ gather_fs_info(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       prog_data->uses_src_w = true;
       break;
 
-   case nir_intrinsic_load_sample_mask_in:
-      /* TODO: Sample masks are broken and discards are broken and simd32
-       * layouts are broken too. XXX.
-       */
-      // prog_data->uses_sample_mask = true;
+   case nir_intrinsic_load_coverage_mask_intel:
+      prog_data->uses_sample_mask = true;
       break;
 
    case nir_intrinsic_load_pixel_coord_intel:

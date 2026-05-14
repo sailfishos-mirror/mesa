@@ -64,7 +64,7 @@ typedef struct jay_fs_payload {
       jay_def xy, z, w;
    } coord;
 
-   jay_def pixel_sample_mask;
+   jay_def coverage_mask;
    jay_def sample_pos;
    jay_def deltas[64];
 } jay_fs_payload;
@@ -1325,6 +1325,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       assert(dst.file == UGPR && "required for vectorization");
       jay_MOV(b, dst, jay_contiguous_def(J_ARF, JAY_ARF_TIMESTAMP, 2))->type =
          JAY_TYPE_U32;
+      break;
+
+   case nir_intrinsic_load_coverage_mask_intel:
+      jay_MOV(b, dst, fs->coverage_mask);
       break;
 
    case nir_intrinsic_load_dispatch_mask_intel: {
@@ -2600,6 +2604,10 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    if (nj->s->prog_data->fs.uses_src_w) {
       fs->coord.w = read_payload(p, GPR);
+   }
+
+   if (nj->s->prog_data->fs.uses_sample_mask) {
+      fs->coverage_mask = read_payload(p, GPR);
    }
 
    if (nj->s->prog_data->fs.uses_pos_offset) {
