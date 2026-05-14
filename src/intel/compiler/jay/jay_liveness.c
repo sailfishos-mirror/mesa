@@ -145,7 +145,6 @@ void
 jay_calculate_register_demands(jay_function *func)
 {
    enum jay_file *files = calloc(func->ssa_alloc, sizeof(enum jay_file));
-   BITSET_WORD *killed = BITSET_CALLOC(func->ssa_alloc);
    unsigned *max_demand = func->demand;
    memset(max_demand, 0, sizeof(func->demand));
 
@@ -174,11 +173,6 @@ jay_calculate_register_demands(jay_function *func)
             max_demand[I->dst.file] = MAX2(max_demand[I->dst.file], max);
          }
 
-         /* Collect source values to kill */
-         jay_foreach_killed(I, s, c) {
-            BITSET_SET(killed, jay_channel(I->src[s], c));
-         }
-
          /* Make destinations live */
          jay_foreach_dst(I, d) {
             demands[d.file] += util_next_power_of_two(jay_num_values(d));
@@ -204,16 +198,12 @@ jay_calculate_register_demands(jay_function *func)
             demands[d.file] -= util_next_power_of_two(n) - n;
          }
 
-         /* Late-kill sources */
+         /* Late-kill sources. Duplicated sources are only marked killed once,
+          * so we do not need to filter out duplicates.
+          */
          jay_foreach_killed(I, s, c) {
-            uint32_t index = jay_channel(I->src[s], c);
-
-            if (BITSET_TEST(killed, index)) {
-               BITSET_CLEAR(killed, index);
-
-               assert(demands[I->src[s].file] > 0);
-               --demands[I->src[s].file];
-            }
+            assert(demands[I->src[s].file] > 0);
+            --demands[I->src[s].file];
          }
 
          if (jay_debug & JAY_DBG_PRINTDEMAND) {
@@ -224,5 +214,4 @@ jay_calculate_register_demands(jay_function *func)
    }
 
    free(files);
-   free(killed);
 }
