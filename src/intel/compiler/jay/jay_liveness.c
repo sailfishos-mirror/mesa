@@ -100,21 +100,27 @@ jay_compute_liveness(jay_function *f)
 
       /* Propagate block->live_in[] to the live_out[] of predecessors. Since
        * phis are split, they are handled naturally without special cases.
+       *
+       * The physical control flow graph is a subset of the logical control flow
+       * graph. So, edges that are in both can use the fast merge, and other
+       * edges are physical-only and need to merge only UGPRs.
        */
-      for (enum jay_file file = GPR; file <= UGPR; ++file) {
-         jay_foreach_predecessor(block, p, file) {
-            bool progress = false;
+      jay_foreach_predecessor(block, p, UGPR) {
+         bool progress = false;
 
+         if (jay_cfg_has_edge(*p, block, GPR)) {
+            progress = u_sparse_bitset_merge(&(*p)->live_out, &block->live_in);
+         } else {
             U_SPARSE_BITSET_FOREACH_SET(&block->live_in, i) {
-               if ((file == UGPR) == BITSET_TEST(uniform, i)) {
+               if (BITSET_TEST(uniform, i)) {
                   progress |= !u_sparse_bitset_test(&(*p)->live_out, i);
                   u_sparse_bitset_set(&(*p)->live_out, i);
                }
             }
+         }
 
-            if (progress) {
-               jay_worklist_push_tail(&worklist, *p);
-            }
+         if (progress) {
+            jay_worklist_push_tail(&worklist, *p);
          }
       }
    }

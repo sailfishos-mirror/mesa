@@ -1379,6 +1379,13 @@ jay_block_add_successor(jay_block *block, jay_block *succ, enum jay_file file)
    }
 }
 
+static inline bool
+jay_cfg_has_edge(jay_block *pred, jay_block *succ, enum jay_file file)
+{
+   return jay_successors(pred, file)[0] == succ ||
+          jay_successors(pred, file)[1] == succ;
+}
+
 static inline unsigned
 jay_source_last_use_bit(const jay_def *srcs, unsigned src_idx)
 {
