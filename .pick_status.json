@@ -7044,7 +7044,7 @@
         "description": "nir: Add print for other cmat_description slots",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "102d7409ef3e6e70ecb1eb682659d9f2a77c7f9d",
         "notes": null
