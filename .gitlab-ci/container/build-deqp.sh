@@ -88,12 +88,13 @@ vk_cts_commits_to_backport=(
   589820590126ca860dbbd0db26eb6bcdaa63dea0
   # Fix validation errors found on qualcomm turnip
   39ee33cd4be94216a9b657d089283b79767dc372
+  # Wait for sparse memory binds to finish in host image copy tests
+  976d729ae7982a32d117b0132e2bb8d3cd0df4d2
 )
 
 # shellcheck disable=SC2034
 vk_cts_patch_files=(
   build-deqp-android-Implement-headless-WSI-fallback-using-AImageR.patch
-  build-deqp-vk_Wait-for-sparse-memory-binds-to-finish-in-host-image.patch
   build-deqp-Delay-SPIR-V-assembly-type-test-case-creation-to-ini.patch
 )
 
