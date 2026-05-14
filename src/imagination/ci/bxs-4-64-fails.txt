@@ -1,5 +1,2 @@
 dEQP-VK.graphicsfuzz.cov-two-nested-loops-switch-case-matrix-array-increment,Fail
 dEQP-VK.graphicsfuzz.stable-binarysearch-tree-false-if-discard-loop,Fail
-
-# VKCTS 1.4.4.2 -> 1.4.5.3 uprev
-dEQP-VK.pipeline.monolithic.misc.no_rendering,Crash
