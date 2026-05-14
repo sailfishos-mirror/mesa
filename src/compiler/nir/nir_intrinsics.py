@@ -360,7 +360,7 @@ index("bool", "legacy_fneg")
 index("bool", "legacy_fsat")
 
 # For Cooperative Matrix intrinsics.
-index("struct glsl_cmat_description", "cmat_desc")
+index("struct glsl_cmat_description", "cmat_desc", size = 2)
 index("enum glsl_matrix_layout", "matrix_layout")
 index("nir_cmat_signed", "cmat_signed_mask")
 index("nir_op", "alu_op")
@@ -372,8 +372,8 @@ index("unsigned", "systolic_depth")
 index("unsigned", "repeat_count")
 
 # For Intel convert_cmat_intel intrinsic.
-index("struct glsl_cmat_description", "dst_cmat_desc")
-index("struct glsl_cmat_description", "src_cmat_desc")
+index("struct glsl_cmat_description", "dst_cmat_desc", size = 2)
+index("struct glsl_cmat_description", "src_cmat_desc", size = 2)
 
 # For an AGX tilebuffer intrinsics, whether the coordinates are implicit or
 # explicit. Implicit coordinates are used in fragment shaders, explicit
