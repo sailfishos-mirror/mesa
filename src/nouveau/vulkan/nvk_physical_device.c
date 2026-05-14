@@ -942,7 +942,7 @@ nvk_get_device_properties(const struct nvk_instance *instance,
                                      VK_SUBGROUP_FEATURE_SHUFFLE_BIT |
                                      VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT |
                                      VK_SUBGROUP_FEATURE_VOTE_BIT,
-      .subgroupQuadOperationsInAllStages = false,
+      .subgroupQuadOperationsInAllStages = true,
       .pointClippingBehavior = VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY,
       .maxMultiviewViewCount = NVK_MAX_MULTIVIEW_VIEW_COUNT,
       .maxMultiviewInstanceIndex = UINT32_MAX,
