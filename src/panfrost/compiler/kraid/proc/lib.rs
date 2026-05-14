@@ -12,6 +12,7 @@ use proc_macro::TokenStream;
 
 mod data_type;
 mod ir;
+mod swizzle;
 
 #[proc_macro_attribute]
 pub fn variants(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -40,6 +41,16 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(DataType)]
 pub fn derive_data_type(input: TokenStream) -> TokenStream {
     data_type::derive_data_type(input)
+}
+
+#[proc_macro_derive(AsmSwizzleWiden)]
+pub fn derive_asm_swizzle_widen(input: TokenStream) -> TokenStream {
+    swizzle::derive_asm_swizzle_widen(input)
+}
+
+#[proc_macro_derive(EnumAsU8)]
+pub fn derive_enum_as_u8(input: TokenStream) -> TokenStream {
+    compiler_proc::enum_as_u8::derive_enum_as_u8(input)
 }
 
 #[proc_macro_derive(FromVariants)]

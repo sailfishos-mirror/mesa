@@ -101,6 +101,11 @@ impl DataType {
         DataType::from_pieces(comps, num_type, bits)
     }
 
+    pub const fn scalar_type(self) -> DataType {
+        let (_, num_type, bits) = self.to_pieces();
+        DataType::from_pieces(1, num_type, bits)
+    }
+
     pub fn bits(&self) -> Option<NonZeroU8> {
         NonZeroU8::new(self.to_pieces().2)
     }

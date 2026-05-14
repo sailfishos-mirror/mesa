@@ -12,7 +12,7 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
             }
         }
 
-        if src.swizzle == Swizzle::ALL64 {
+        if src.swizzle.is_word_swizzle() {
             assert!(src_type.bits().unwrap().get() == 64);
         }
 
