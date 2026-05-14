@@ -161,6 +161,16 @@ op('deswizzle_even', 1, 'f32', 0, ['bool src_hi'])
 op('lane_id_8', 0, 'u16')
 op('lane_id_expand', 1, 'u16', 0, ['unsigned width'])
 
+# Fill a scalar GPR from a contiguous UGPR[16] range containing words or bytes.
+# src_type can be either U8 or U16 (only).  For U8, stride can be 1 or 2, and
+# index can be either 0 or 1.  For U16, both stride and index must be 0.
+op('gpr_from_ugprs', 1, 'u32', 0, [
+    'enum jay_type src_type',
+    'uint8_t stride',
+    'uint8_t index',
+    'uint8_t pad',
+])
+
 # Sample ID calculation
 op('extract_byte_per_8lanes', 2, 'u32')
 op('shr_odd_subspans_by_4', 1, 'u16')

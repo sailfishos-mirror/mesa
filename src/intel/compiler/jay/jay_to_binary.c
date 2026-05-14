@@ -484,6 +484,12 @@ emit(struct brw_codegen *p,
               brw_imm_uw(jay_lane_id_expand_width(I)));
       break;
 
+   case JAY_OPCODE_GPR_FROM_UGPRS:
+      brw_MOV(p, dst,
+              byte_offset(stride(SRC(0), jay_gpr_from_ugprs_stride(I), 1, 0),
+                          jay_gpr_from_ugprs_index(I)));
+      break;
+
    case JAY_OPCODE_EXTRACT_BYTE_PER_8LANES:
       brw_MOV(p, dst, stride(retype(SRC(simd_offs), BRW_TYPE_UB), 1, 8, 0));
       break;
