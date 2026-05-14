@@ -269,6 +269,8 @@ struct draw_tes_llvm_variant_key
     PIPE_MAX_SHADER_IMAGES * sizeof(struct lp_image_static_state) + \
     PIPE_MAX_SHADER_SAMPLER_VIEWS * sizeof(struct lp_sampler_static_state))
 
+#define DRAW_MAX_VARIANTS_PER_STAGE 64
+
 
 static inline size_t
 draw_llvm_variant_key_size(unsigned nr_vertex_elements,

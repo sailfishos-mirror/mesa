@@ -58,6 +58,11 @@ struct llvm_middle_end {
 
    struct draw_llvm *llvm;
    struct draw_llvm_variant *current_variant;
+
+   struct util_shader_variant *vs_variant_pin;
+   struct util_shader_variant *gs_variant_pin;
+   struct util_shader_variant *tcs_variant_pin;
+   struct util_shader_variant *tes_variant_pin;
 };
 
 
@@ -79,11 +84,13 @@ llvm_middle_end_prepare_gs(struct llvm_middle_end *fpme)
    char store[DRAW_GS_LLVM_MAX_VARIANT_KEY_SIZE];
    struct draw_gs_llvm_variant_key *key = draw_gs_llvm_make_variant_key(llvm, store);
 
-   struct util_shader_variant *base =
-      util_shader_variant_get(&llvm->gs_opts, &shader->variants, shader,
-                              key, shader->variant_key_size, NULL);
-   draw->gs.current_variant = base
-      ? container_of(base, struct draw_gs_llvm_variant, base) : NULL;
+   util_shader_variant_get_pinned(&llvm->gs_opts, &shader->variants, shader,
+                                  key, shader->variant_key_size,
+                                  &fpme->gs_variant_pin, NULL);
+
+   draw->gs.current_variant = fpme->gs_variant_pin
+      ? container_of(fpme->gs_variant_pin, struct draw_gs_llvm_variant, base)
+      : NULL;
 }
 
 
@@ -98,11 +105,13 @@ llvm_middle_end_prepare_tcs(struct llvm_middle_end *fpme)
    const struct draw_tcs_llvm_variant_key *key =
       draw_tcs_llvm_make_variant_key(llvm, store);
 
-   struct util_shader_variant *base =
-      util_shader_variant_get(&llvm->tcs_opts, &shader->variants, shader,
-                              key, shader->variant_key_size, NULL);
-   draw->tcs.current_variant = base
-      ? container_of(base, struct draw_tcs_llvm_variant, base) : NULL;
+   util_shader_variant_get_pinned(&llvm->tcs_opts, &shader->variants, shader,
+                                  key, shader->variant_key_size,
+                                  &fpme->tcs_variant_pin, NULL);
+
+   draw->tcs.current_variant = fpme->tcs_variant_pin
+      ? container_of(fpme->tcs_variant_pin, struct draw_tcs_llvm_variant, base)
+      : NULL;
 }
 
 
@@ -117,11 +126,13 @@ llvm_middle_end_prepare_tes(struct llvm_middle_end *fpme)
    const struct draw_tes_llvm_variant_key *key =
       draw_tes_llvm_make_variant_key(llvm, store);
 
-   struct util_shader_variant *base =
-      util_shader_variant_get(&llvm->tes_opts, &shader->variants, shader,
-                              key, shader->variant_key_size, NULL);
-   draw->tes.current_variant = base
-      ? container_of(base, struct draw_tes_llvm_variant, base) : NULL;
+   util_shader_variant_get_pinned(&llvm->tes_opts, &shader->variants, shader,
+                                  key, shader->variant_key_size,
+                                  &fpme->tes_variant_pin, NULL);
+
+   draw->tes.current_variant = fpme->tes_variant_pin
+      ? container_of(fpme->tes_variant_pin, struct draw_tes_llvm_variant, base)
+      : NULL;
 }
 
 
@@ -196,11 +207,13 @@ llvm_middle_end_prepare(struct draw_pt_middle_end *middle,
       char store[DRAW_LLVM_MAX_VARIANT_KEY_SIZE];
       struct draw_llvm_variant_key *key = draw_llvm_make_variant_key(llvm, store);
 
-      struct util_shader_variant *base =
-         util_shader_variant_get(&llvm->vs_opts, &shader->variants, shader,
-                                 key, shader->variant_key_size, NULL);
-      fpme->current_variant = base
-         ? container_of(base, struct draw_llvm_variant, base) : NULL;
+      util_shader_variant_get_pinned(&llvm->vs_opts, &shader->variants,
+                                     shader, key, shader->variant_key_size,
+                                     &fpme->vs_variant_pin, NULL);
+
+      fpme->current_variant = fpme->vs_variant_pin
+         ? container_of(fpme->vs_variant_pin, struct draw_llvm_variant, base)
+         : NULL;
    }
 
    if (gs) {
@@ -670,6 +683,17 @@ static void
 llvm_middle_end_destroy(struct draw_pt_middle_end *middle)
 {
    struct llvm_middle_end *fpme = llvm_middle_end(middle);
+
+   if (fpme->llvm) {
+      util_shader_variant_reference(&fpme->llvm->vs_opts,
+                                    &fpme->vs_variant_pin, NULL);
+      util_shader_variant_reference(&fpme->llvm->gs_opts,
+                                    &fpme->gs_variant_pin, NULL);
+      util_shader_variant_reference(&fpme->llvm->tcs_opts,
+                                    &fpme->tcs_variant_pin, NULL);
+      util_shader_variant_reference(&fpme->llvm->tes_opts,
+                                    &fpme->tes_variant_pin, NULL);
+   }
 
    if (fpme->fetch)
       draw_pt_fetch_destroy(fpme->fetch);

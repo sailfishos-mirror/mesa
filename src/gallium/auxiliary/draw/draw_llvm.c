@@ -426,6 +426,7 @@ draw_llvm_create(struct draw_context *draw, lp_context_ref *context)
       .compile = vs_compile_cb,
       .destroy = vs_destroy_cb,
       .user_data = llvm,
+      .cap = DRAW_MAX_VARIANTS_PER_STAGE,
    };
    llvm->vs_opts = vs_opts;
 
@@ -433,6 +434,7 @@ draw_llvm_create(struct draw_context *draw, lp_context_ref *context)
       .compile = gs_compile_cb,
       .destroy = gs_destroy_cb,
       .user_data = llvm,
+      .cap = DRAW_MAX_VARIANTS_PER_STAGE,
    };
    llvm->gs_opts = gs_opts;
 
@@ -440,6 +442,7 @@ draw_llvm_create(struct draw_context *draw, lp_context_ref *context)
       .compile = tcs_compile_cb,
       .destroy = tcs_destroy_cb,
       .user_data = llvm,
+      .cap = DRAW_MAX_VARIANTS_PER_STAGE,
    };
    llvm->tcs_opts = tcs_opts;
 
@@ -447,6 +450,7 @@ draw_llvm_create(struct draw_context *draw, lp_context_ref *context)
       .compile = tes_compile_cb,
       .destroy = tes_destroy_cb,
       .user_data = llvm,
+      .cap = DRAW_MAX_VARIANTS_PER_STAGE,
    };
    llvm->tes_opts = tes_opts;
 
