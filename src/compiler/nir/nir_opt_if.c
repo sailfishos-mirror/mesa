@@ -514,13 +514,7 @@ opt_split_alu_of_phi(nir_builder *b, nir_loop *loop, nir_opt_if_options options)
       /* Modify all readers of the original ALU instruction to read the
        * result of the phi.
        */
-      nir_def_rewrite_uses(&alu->def,
-                           &phi->def);
-
-      /* Since the original ALU instruction no longer has any readers, just
-       * remove it.
-       */
-      nir_instr_remove_v(&alu->instr);
+      nir_def_replace(&alu->def, &phi->def);
       nir_instr_free(&alu->instr);
 
       progress = true;
@@ -679,13 +673,7 @@ opt_simplify_bcsel_of_phi(nir_builder *b, nir_loop *loop)
       /* Modify all readers of the bcsel instruction to read the result of
        * the phi.
        */
-      nir_def_rewrite_uses(&bcsel->def,
-                           &phi->def);
-
-      /* Since the original bcsel instruction no longer has any readers,
-       * just remove it.
-       */
-      nir_instr_remove_v(&bcsel->instr);
+      nir_def_replace(&bcsel->def, &phi->def);
       nir_instr_free(&bcsel->instr);
 
       progress = true;
@@ -834,11 +822,11 @@ opt_if_phi_is_condition(nir_builder *b, nir_if *nif)
             break;
       }
       if (then_val == T && else_val == F) {
-         nir_def_rewrite_uses(&phi->def, cond);
+         nir_def_replace(&phi->def, cond);
          progress = true;
       } else if (then_val == F && else_val == T) {
          b->cursor = nir_before_cf_node(&nif->cf_node);
-         nir_def_rewrite_uses(&phi->def, nir_inot(b, cond));
+         nir_def_replace(&phi->def, nir_inot(b, cond));
          progress = true;
       }
    }
