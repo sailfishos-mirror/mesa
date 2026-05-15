@@ -8234,7 +8234,7 @@
         "description": "intel/brw: Fix nir_intrinsic_load_inline_data_intel register offset calculation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7f19814414695ef91aa99e7787c3740c02a0b2a7",
         "notes": null
