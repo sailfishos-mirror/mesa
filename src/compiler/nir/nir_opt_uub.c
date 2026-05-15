@@ -401,6 +401,19 @@ opt_uub_shr(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
    return false;
 }
 
+/* i2i64 -> u2u64 */
+static bool
+opt_uub_i2i64(nir_builder *b, nir_alu_instr *alu, opt_uub_state *state)
+{
+   nir_scalar src;
+   get_srcs(alu, &src);
+   if (src.def->bit_size != 64 && uub(state, src) <= (uint32_t)u_intN_max(src.def->bit_size)) {
+      alu->op = nir_op_u2u64;
+      return true;
+   }
+   return false;
+}
+
 static bool
 src_is_const(nir_src *src, void *data)
 {
@@ -410,10 +423,8 @@ src_is_const(nir_src *src, void *data)
 static bool
 opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
 {
-   /* nir_unsigned_upper_bound calculates 32-bit upper bounds so ignore 64-bit
-    * instructions. Also ignore non-scalar instructions to simplify the code.
-    */
-   if (alu->def.bit_size > 32 || alu->def.num_components > 1)
+   /* Ignore non-scalar instructions to simplify the code. */
+   if (alu->def.num_components > 1)
       return false;
 
    /* If all sources are constant, let constant folding handle this. */
@@ -422,8 +433,11 @@ opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
 
    opt_uub_state *state = data;
 
-   /* If the upper bound is zero, zero is the only possible value. */
-   if (uub(state, nir_get_scalar(&alu->def, 0)) == 0) {
+   /* If the upper bound is zero, zero is the only possible value.
+    * nir_unsigned_upper_bound calculates 32-bit upper bounds so ignore 64-bit
+    * instructions.
+    */
+   if (alu->def.bit_size <= 32 && uub(state, nir_get_scalar(&alu->def, 0)) == 0) {
       b->cursor = nir_after_def(&alu->def);
       nir_def_replace(&alu->def, nir_imm_zero(b, 1, alu->def.bit_size));
       return true;
@@ -431,22 +445,24 @@ opt_uub(nir_builder *b, nir_alu_instr *alu, void *data)
 
    switch (alu->op) {
    case nir_op_iand:
-      return opt_uub_iand(b, alu, state);
+      return alu->def.bit_size <= 32 && opt_uub_iand(b, alu, state);
    case nir_op_ult:
    case nir_op_uge:
    case nir_op_ilt:
    case nir_op_ige:
-      return opt_uub_cmp(b, alu, state);
+      return alu->def.bit_size <= 32 && opt_uub_cmp(b, alu, state);
    case nir_op_umin:
    case nir_op_umax:
    case nir_op_imin:
    case nir_op_imax:
-      return opt_uub_minmax(b, alu, state);
+      return alu->def.bit_size <= 32 && opt_uub_minmax(b, alu, state);
    case nir_op_imul:
-      return opt_uub_imul(b, alu, state);
+      return alu->def.bit_size <= 32 && opt_uub_imul(b, alu, state);
    case nir_op_ishr:
    case nir_op_ushr:
-      return opt_uub_shr(b, alu, state);
+      return alu->def.bit_size <= 32 && opt_uub_shr(b, alu, state);
+   case nir_op_i2i64:
+      return opt_uub_i2i64(b, alu, state);
    default:
       return false;
    }
