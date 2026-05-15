@@ -5254,7 +5254,7 @@
         "description": "pvr: re-use texture state words for each load op",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e089166776d90634d7b384b4b279ee7ce1930318",
         "notes": null
