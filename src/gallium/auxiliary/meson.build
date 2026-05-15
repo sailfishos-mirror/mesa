@@ -140,8 +140,6 @@ files_libgallium = files(
   'tgsi/tgsi_info_opcodes.h',
   'tgsi/tgsi_iterate.c',
   'tgsi/tgsi_iterate.h',
-  'tgsi/tgsi_lowering.c',
-  'tgsi/tgsi_lowering.h',
   'tgsi/tgsi_opcode_tmp.h',
   'tgsi/tgsi_parse.c',
   'tgsi/tgsi_parse.h',
