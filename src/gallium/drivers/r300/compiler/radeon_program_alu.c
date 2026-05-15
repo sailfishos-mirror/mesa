@@ -198,46 +198,6 @@ transform_r300_vertex_DP3(struct radeon_compiler *c, struct rc_instruction *inst
    rc_remove_instruction(inst);
 }
 
-static void
-transform_r300_vertex_SEQ(struct radeon_compiler *c, struct rc_instruction *inst)
-{
-   /* x = y  <==>  x >= y && y >= x */
-   /* x <= y */
-   struct rc_dst_register dst0 = new_dst_reg(c, inst);
-   emit2(c, inst->Prev, RC_OPCODE_SGE, NULL, dst0, inst->U.I.SrcReg[0], inst->U.I.SrcReg[1]);
-
-   /* y <= x */
-   int tmp = rc_find_free_temporary(c);
-   emit2(c, inst->Prev, RC_OPCODE_SGE, NULL, dstregtmpmask(tmp, inst->U.I.DstReg.WriteMask),
-         inst->U.I.SrcReg[1], inst->U.I.SrcReg[0]);
-
-   /* x && y  =  x * y */
-   emit2(c, inst->Prev, RC_OPCODE_MUL, NULL, inst->U.I.DstReg, srcreg(dst0.File, dst0.Index),
-         srcreg(RC_FILE_TEMPORARY, tmp));
-
-   rc_remove_instruction(inst);
-}
-
-static void
-transform_r300_vertex_SNE(struct radeon_compiler *c, struct rc_instruction *inst)
-{
-   /* x != y  <==>  x < y || y < x */
-   /* x < y */
-   struct rc_dst_register dst0 = new_dst_reg(c, inst);
-   emit2(c, inst->Prev, RC_OPCODE_SLT, NULL, dst0, inst->U.I.SrcReg[0], inst->U.I.SrcReg[1]);
-
-   /* y < x */
-   int tmp = rc_find_free_temporary(c);
-   emit2(c, inst->Prev, RC_OPCODE_SLT, NULL, dstregtmpmask(tmp, inst->U.I.DstReg.WriteMask),
-         inst->U.I.SrcReg[1], inst->U.I.SrcReg[0]);
-
-   /* x || y  =  max(x, y) */
-   emit2(c, inst->Prev, RC_OPCODE_MAX, NULL, inst->U.I.DstReg, srcreg(dst0.File, dst0.Index),
-         srcreg(RC_FILE_TEMPORARY, tmp));
-
-   rc_remove_instruction(inst);
-}
-
 /**
  * For use with rc_local_transform, this transforms non-native ALU
  * instructions of the r300 up to r500 vertex engine.
@@ -255,18 +215,6 @@ r300_transform_vertex_alu(struct radeon_compiler *c, struct rc_instruction *inst
    case RC_OPCODE_DP3:
       transform_r300_vertex_DP3(c, inst);
       return 1;
-   case RC_OPCODE_SEQ:
-      if (!c->is_r500) {
-         transform_r300_vertex_SEQ(c, inst);
-         return 1;
-      }
-      return 0;
-   case RC_OPCODE_SNE:
-      if (!c->is_r500) {
-         transform_r300_vertex_SNE(c, inst);
-         return 1;
-      }
-      return 0;
    default:
       return 0;
    }

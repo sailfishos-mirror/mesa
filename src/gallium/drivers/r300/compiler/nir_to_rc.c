@@ -2042,15 +2042,15 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    NIR_PASS(_, s, nir_opt_copy_prop);
    /* CSE cleanup after late ftrunc lowering. */
    NIR_PASS(_, s, nir_opt_cse);
-   /* At this point we need to clean;
-    *  a) fcsel_gt that come from the ftrunc lowering on R300,
+   /* At this point we need to clean up:
+    *  a) R300/R400 VS fcsel_ge from ftrunc and seq/sne from bool/int lowering,
     *  b) all flavours of fcsels that read three different temp sources on R500.
     */
    if (s->info.stage == MESA_SHADER_VERTEX) {
       if (is_r500)
          NIR_PASS(_, s, r300_nir_lower_fcsel_r500);
       else
-         NIR_PASS(_, s, r300_nir_lower_fcsel_r300);
+         NIR_PASS(_, s, r300_nir_lower_vs_alu_r300);
       NIR_PASS(_, s, r300_nir_lower_flrp);
    } else {
       NIR_PASS(_, s, r300_nir_lower_comparison_fs);
