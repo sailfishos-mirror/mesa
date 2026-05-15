@@ -1287,6 +1287,11 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
    }
 
+   case nir_intrinsic_load_fs_config_intel:
+      jay_MOV(b, dst,
+              nj->payload.push_data[s->prog_data->fs.fs_config_param / 4]);
+      break;
+
    case nir_intrinsic_barrier: {
       jay_SCHEDULE_BARRIER(b);
 
