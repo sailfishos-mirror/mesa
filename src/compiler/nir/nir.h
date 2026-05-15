@@ -4884,7 +4884,7 @@ static inline void
 nir_def_replace(nir_def *def, nir_def *new_ssa)
 {
    nir_def_rewrite_uses(def, new_ssa);
-   nir_instr_remove(nir_def_instr(def));
+   nir_instr_remove_v(nir_def_instr(def));
 }
 
 nir_component_mask_t nir_src_components_read(const nir_src *src);
