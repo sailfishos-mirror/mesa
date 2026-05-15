@@ -141,13 +141,9 @@ r3xx_compile_fragment_program(struct r300_fragment_program_compiler *c)
 {
    int is_r500 = c->Base.is_r500;
    int opt = !c->Base.disable_optimizations;
-   int alpha2one = c->state.alpha_to_one;
    bool dbg = c->Base.Debug & RC_DBG_LOG;
 
    /* Lists of instruction transformations. */
-   struct radeon_program_transformation force_alpha_to_one[] = {{&rc_force_output_alpha_to_one, c},
-                                                                {NULL, NULL}};
-
    struct radeon_program_transformation native_rewrite_r500[] = {{&radeonTransformALU, NULL},
                                                                  {&radeonTransformDeriv, NULL},
                                                                  {NULL, NULL}};
@@ -164,7 +160,6 @@ r3xx_compile_fragment_program(struct r300_fragment_program_compiler *c)
    struct radeon_compiler_pass fs_list[] = {
       /* NAME                     DUMP PREDICATE        FUNCTION                        PARAM */
       {"rewrite depth out",       1,   1,               rc_rewrite_depth_out,           NULL},
-      {"force alpha to one",      1,   alpha2one,       rc_local_transform,             force_alpha_to_one},
       {"transform IF",            1,   is_r500,         r500_transform_IF,              NULL},
       {"native rewrite",          1,   is_r500,         rc_local_transform,             native_rewrite_r500},
       {"native rewrite",          1,   !is_r500,        rc_local_transform,             native_rewrite_r300},

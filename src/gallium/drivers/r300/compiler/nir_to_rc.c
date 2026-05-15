@@ -1932,6 +1932,43 @@ ntr_fixup_varying_slots(nir_shader *s, nir_variable_mode mode)
    }
 }
 
+static bool
+r300_nir_lower_alpha_to_one_instr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
+{
+   if (intr->intrinsic != nir_intrinsic_store_output)
+      return false;
+
+   nir_io_semantics semantics = nir_intrinsic_io_semantics(intr);
+   if (mesa_frag_result_get_color_index(semantics.location) < 0)
+      return false;
+
+   unsigned component = nir_intrinsic_component(intr);
+   if (component > 3)
+      return false;
+
+   nir_def *src = intr->src[0].ssa;
+   unsigned num_comp = src->num_components;
+   unsigned alpha_src_idx = 3 - component;
+   if (alpha_src_idx >= num_comp ||
+       !(nir_intrinsic_write_mask(intr) & BITFIELD_BIT(alpha_src_idx)))
+      return false;
+
+   b->cursor = nir_before_instr(&intr->instr);
+   nir_def *one = nir_imm_floatN_t(b, 1.0f, src->bit_size);
+   nir_src_rewrite(&intr->src[0], nir_vector_insert_imm(b, src, one, alpha_src_idx));
+   return true;
+}
+
+/* The common nir_lower_alpha_to_one() only handles DATA outputs with
+ * full-vec4 sources. r300 also needs FRAG_RESULT_COLOR and partial stores.
+ */
+static bool
+r300_nir_lower_alpha_to_one(nir_shader *s)
+{
+   return nir_shader_intrinsics_pass(s, r300_nir_lower_alpha_to_one_instr,
+                                     nir_metadata_control_flow, NULL);
+}
+
 /**
  * Translates the NIR shader to RC instructions on the given compiler.
  *
@@ -2010,6 +2047,9 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
       NIR_PASS(_, s, ntr_lower_backend_tex, c, &state, is_r500);
       nir_to_rc_lower_txp(s);
       NIR_PASS(_, s, nir_to_rc_lower_tex);
+
+      if (state.alpha_to_one)
+         NIR_PASS(_, s, r300_nir_lower_alpha_to_one);
    }
 
    bool progress;

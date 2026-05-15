@@ -241,7 +241,6 @@ radeonStubDeriv(struct radeon_compiler *c, struct rc_instruction *inst, void *un
 
    return 1;
 }
-
 /**
  * Rewrite DDX/DDY instructions to properly work with r5xx shaders.
  * The r5xx MDH/MDV instruction provides per-quad partial derivatives.
@@ -259,33 +258,5 @@ radeonTransformDeriv(struct radeon_compiler *c, struct rc_instruction *inst, voi
    inst->U.I.SrcReg[1].Swizzle = RC_SWIZZLE_1111;
    inst->U.I.SrcReg[1].Negate = RC_MASK_XYZW;
 
-   return 1;
-}
-
-int
-rc_force_output_alpha_to_one(struct radeon_compiler *c, struct rc_instruction *inst, void *data)
-{
-   struct r300_fragment_program_compiler *fragc = (struct r300_fragment_program_compiler *)c;
-   const struct rc_opcode_info *info = rc_get_opcode_info(inst->U.I.Opcode);
-   unsigned tmp;
-
-   if (!info->HasDstReg || inst->U.I.DstReg.File != RC_FILE_OUTPUT ||
-       inst->U.I.DstReg.Index == fragc->OutputDepth)
-      return 1;
-
-   tmp = rc_find_free_temporary(c);
-
-   /* Insert MOV after inst, set alpha to 1. */
-   emit1(c, inst, RC_OPCODE_MOV, NULL, inst->U.I.DstReg,
-         srcregswz(RC_FILE_TEMPORARY, tmp, RC_SWIZZLE_XYZ1));
-
-   /* Re-route the destination of inst to the source of mov. */
-   inst->U.I.DstReg.File = RC_FILE_TEMPORARY;
-   inst->U.I.DstReg.Index = tmp;
-
-   /* Move the saturate output modifier to the MOV instruction
-    * (for better copy propagation). */
-   inst->Next->U.I.SaturateMode = inst->U.I.SaturateMode;
-   inst->U.I.SaturateMode = RC_SATURATE_NONE;
    return 1;
 }
