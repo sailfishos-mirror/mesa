@@ -828,7 +828,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_descriptor_heap = instance->experimental_flags & RADV_EXPERIMENTAL_DESCRIPTOR_HEAP,
       .EXT_descriptor_indexing = true,
       .EXT_device_address_binding_report = true,
-      .EXT_device_fault = pdev->info.has_gpuvm_fault_query,
+      .EXT_device_fault = true,
       .EXT_device_generated_commands = pdev->info.gfx_level >= GFX8,
       .EXT_device_memory_report = true,
       .EXT_discard_rectangles = true,
