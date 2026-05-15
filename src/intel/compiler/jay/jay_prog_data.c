@@ -23,10 +23,12 @@ brw_barycentric_mode(const struct brw_fs_prog_key *key,
    case nir_intrinsic_load_barycentric_at_offset:
       /* When per sample interpolation is dynamic, assume sample interpolation.
        * We'll dynamically remap things so that the FS payload is not affected.
+       *
+       * TODO: Implement this mechanism properly, this is a hack for now.
        */
-      bary = key->persample_interp == INTEL_SOMETIMES ?
-                INTEL_BARYCENTRIC_PERSPECTIVE_SAMPLE :
-                INTEL_BARYCENTRIC_PERSPECTIVE_PIXEL;
+      bary = // key->persample_interp == INTEL_SOMETIMES ?
+             //   INTEL_BARYCENTRIC_PERSPECTIVE_SAMPLE :
+         INTEL_BARYCENTRIC_PERSPECTIVE_PIXEL;
       break;
    case nir_intrinsic_load_barycentric_centroid:
       bary = INTEL_BARYCENTRIC_PERSPECTIVE_CENTROID;
