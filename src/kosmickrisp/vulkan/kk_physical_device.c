@@ -129,6 +129,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_vertex_attribute_divisor = true,
       .EXT_global_priority = true,
       .EXT_global_priority_query = true,
+      .EXT_host_image_copy = true,
       .EXT_index_type_uint8 = true,
       .EXT_line_rasterization = true,
       .EXT_pipeline_robustness = true,
@@ -302,6 +303,7 @@ kk_get_device_features(
       /* Vulkan 1.4 */
       .bresenhamLines = true,
       .globalPriorityQuery = true,
+      .hostImageCopy = true,
       .indexTypeUint8 = true,
       .maintenance5 = true,
       .maintenance6 = true,
@@ -778,7 +780,8 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
    memcpy(properties->optimalTilingLayoutUUID, instance->driver_build_sha,
           VK_UUID_SIZE);
 
-   properties->identicalMemoryTypeRequirements = false;
+   /* We're a UMR so we can always map every kind of memory */
+   properties->identicalMemoryTypeRequirements = true;
 
    /* VK_EXT_shader_module_identifier */
    STATIC_ASSERT(sizeof(vk_shaderModuleIdentifierAlgorithmUUID) ==

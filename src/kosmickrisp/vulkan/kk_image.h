@@ -51,6 +51,13 @@ struct kk_image {
    struct kk_image_plane planes[3];
 };
 
+#define kk_foreach_slice(ndx, image, subresource_member)                       \
+   for (uint32_t ndx = region->subresource_member.baseArrayLayer;              \
+        ndx < (region->subresource_member.baseArrayLayer +                     \
+               vk_image_subresource_layer_count(&image->vk,                    \
+                                                &region->subresource_member)); \
+        ++ndx)
+
 static inline mtl_resource *
 kk_image_to_mtl_resource(const struct kk_image *image, int plane)
 {

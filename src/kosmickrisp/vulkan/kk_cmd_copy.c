@@ -83,13 +83,6 @@ vk_buffer_image_copy_to_mtl_buffer_image_copy(
    return copy;
 }
 
-#define kk_foreach_slice(ndx, image, subresource_member)                       \
-   for (uint32_t ndx = region->subresource_member.baseArrayLayer;              \
-        ndx < (region->subresource_member.baseArrayLayer +                     \
-               vk_image_subresource_layer_count(&image->vk,                    \
-                                                &region->subresource_member)); \
-        ++ndx)
-
 VKAPI_ATTR void VKAPI_CALL
 kk_CmdCopyBufferToImage2(VkCommandBuffer commandBuffer,
                          const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo)

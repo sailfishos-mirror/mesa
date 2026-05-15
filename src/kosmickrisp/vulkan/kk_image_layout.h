@@ -137,8 +137,8 @@ struct kk_view_layout {
    uint16_t min_lod_clamp;
 };
 
-bool kk_image_layout_can_optimize(VkImageUsageFlags usage,
-                                  VkImageTiling tiling);
+bool kk_image_layout_can_optimize(VkImageUsageFlags usage, VkImageTiling tiling,
+                                  enum pipe_format format);
 
 void kk_image_layout_init(const struct kk_device *dev,
                           const struct vk_image *image,
