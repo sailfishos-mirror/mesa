@@ -739,17 +739,9 @@ AluInstr::replace_dest(PRegister new_dest, UNUSED AluInstr *move_instr)
 void
 AluInstr::pin_dest_to_chan()
 {
-   if (!m_dest)
-      return;
+   if (m_dest)
+      m_dest->pin_to_chan();
 
-   auto p = m_dest->pin();
-   if (p == pin_fully || p == pin_chan || p == pin_chgr || p == pin_array)
-      return;
-
-   if (p != pin_group)
-      m_dest->set_pin(pin_chan);
-   else
-      m_dest->set_pin(pin_chgr);
 }
 
 bool
