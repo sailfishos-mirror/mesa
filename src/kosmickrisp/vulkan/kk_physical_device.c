@@ -152,6 +152,8 @@ kk_get_device_extensions(const struct kk_instance *instance,
 #endif
       .KHR_workgroup_memory_explicit_layout = true,
 
+      .EXT_attachment_feedback_loop_layout = true,
+      .EXT_attachment_feedback_loop_dynamic_state = true,
       .EXT_calibrated_timestamps = true,
       .EXT_depth_clip_control = true,
       .EXT_extended_dynamic_state3 = true,
@@ -358,6 +360,12 @@ kk_get_device_features(
       /* EXT_4444_formats */
       .formatA4R4G4B4 = true,
       .formatA4B4G4R4 = true,
+
+      /* VK_EXT_attachment_feedback_loop_layout */
+      .attachmentFeedbackLoopLayout = true,
+
+      /* VK_EXT_attachment_feedback_loop_dynamic_state */
+      .attachmentFeedbackLoopDynamicState = true,
 
       /* VK_EXT_depth_clip_control */
       .depthClipControl = true,

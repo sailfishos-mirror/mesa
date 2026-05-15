@@ -92,6 +92,16 @@ kk_image_layout_can_optimize(VkImageUsageFlags usage, VkImageTiling tiling,
        !util_format_is_compressed(format))
       return false;
 
+   /* Attachment feedback usage may produce incorrect results with
+    * optimization, causing flakes in CTS
+    *
+    * E.g. `dEQP-VK.pipeline.monolithic.attachment_feedback_loop_layout.sampler.
+    * attachment_feedback_loop_optimal.sampled_image.image_type.2d_unnormalized.
+    * format.d16_unorm_depth_read_write_different_areas_dynamic_bad_static`
+    */
+   if (usage & VK_IMAGE_USAGE_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT)
+      return false;
+
    return true;
 }
 
