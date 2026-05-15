@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 pub use crate::data_type::DataType;
+pub use crate::flow::FlowCtrl;
 pub use crate::model::Model;
 pub use crate::ops::Op;
 use crate::ssa_value::SSAValueAllocator;
@@ -507,6 +508,7 @@ pub trait Opcode:
 #[derive(Clone)]
 pub struct Instr {
     pub op: Op,
+    pub flow: FlowCtrl,
 }
 
 impl Deref for Instr {
@@ -527,7 +529,10 @@ impl<T: Into<Op>> From<T> for Instr {
     fn from(op: T) -> Instr {
         let op = op.into();
         assert!(op.is_valid_variant());
-        Instr { op }
+        Instr {
+            op,
+            flow: Default::default(),
+        }
     }
 }
 

@@ -5,6 +5,7 @@ mod bitview;
 mod builder;
 mod compile;
 mod data_type;
+mod flow;
 mod ir;
 mod model;
 mod nir;
