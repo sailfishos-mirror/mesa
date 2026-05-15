@@ -942,6 +942,18 @@ calc_render_descs_size(struct panvk_cmd_buffer *cmdbuf)
    uint32_t td_count = DIV_ROUND_UP(cmdbuf->state.gfx.render.layer_count,
                                     MAX_LAYERS_PER_TILER_DESC);
 
+   /* v14+ supports a maximum of one tiler descriptor.
+    * This should be enough since the driver reports maxFramebufferLayers
+    * and maxMultiviewViewCount lower or equal to MAX_LAYERS_PER_TILER_DESC. */
+   assert(PAN_ARCH < 14 || td_count <= 1);
+   static_assert(
+      PAN_ARCH < 14 || MAX_FRAMEBUFFER_LAYERS <= MAX_LAYERS_PER_TILER_DESC,
+      "MAX_FRAMEBUFFER_LAYERS must be <= max amount of layers a Tiler descriptor can index");
+   static_assert(
+      PAN_ARCH < 14 ||
+         PAN_MAX_MULTIVIEW_VIEW_COUNT <= MAX_LAYERS_PER_TILER_DESC,
+      "PAN_MAX_MULTIVIEW_VIEW_COUNT must be <= max amount of layers a Tiler descriptor can index");
+
    return (calc_fbd_size(cmdbuf) * fbd_count) +
           (td_count * pan_size(TILER_CONTEXT));
 }

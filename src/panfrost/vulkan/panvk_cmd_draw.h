@@ -27,6 +27,7 @@
 #include "pan_props.h"
 
 #define MAX_VBS 16
+#define MAX_FRAMEBUFFER_LAYERS 256
 
 struct panvk_cmd_buffer;
 

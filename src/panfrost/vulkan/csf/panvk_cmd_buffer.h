@@ -34,7 +34,11 @@ struct panvk_sync_scope {
 
 #define MAX_VBS 16
 #define MAX_RTS 8
+#if PAN_ARCH >= 14
+#define MAX_LAYERS_PER_TILER_DESC 256
+#else
 #define MAX_LAYERS_PER_TILER_DESC 8
+#endif
 
 struct panvk_cs_sync32 {
    uint32_t seqno;
