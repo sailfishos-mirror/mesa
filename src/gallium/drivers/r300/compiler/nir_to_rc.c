@@ -28,6 +28,11 @@ struct ntr_immediate {
    float values[4];
 };
 
+struct ntr_state_constant {
+   unsigned rc_state;
+   unsigned sampler;
+};
+
 struct ntr_compile {
    nir_shader *s;
    struct r300_shader_semantics *semantics;
@@ -55,8 +60,12 @@ struct ntr_compile {
    struct radeon_compiler *compiler;
    /* one struct ntr_immediate per NIR load_const */
    struct util_dynarray immediates;
+   /* one struct ntr_state_constant per private state load */
+   struct util_dynarray state_constants;
    /* UBO size in vec4s (0 if no UBO) */
    unsigned ubo_size;
+   /* offset for RC_CONSTANT_STATE indices in the compiler's constants table */
+   unsigned state_offset;
    /* offset for IMMEDIATE indices in the compiler's constants table */
    unsigned immediate_offset;
 
@@ -209,6 +218,43 @@ ntr_src_indirect(struct rc_src_register src)
 {
    src.RelAddr = true;
    return src;
+}
+
+static unsigned
+ntr_add_state_constant(struct ntr_compile *c, unsigned rc_state, unsigned sampler)
+{
+   assert(rc_state <= RC_STATE_R300_VIEWPORT_OFFSET);
+
+   unsigned index = 0;
+   util_dynarray_foreach (&c->state_constants, struct ntr_state_constant, state) {
+      if (state->rc_state == rc_state && state->sampler == sampler)
+         return index;
+      index++;
+   }
+
+   struct ntr_state_constant *state =
+      util_dynarray_grow(&c->state_constants, struct ntr_state_constant, 1);
+   state->rc_state = rc_state;
+   state->sampler = sampler;
+
+   return index;
+}
+
+static nir_def *
+ntr_load_state_constant(struct ntr_compile *c, nir_builder *b,
+                        unsigned rc_state, unsigned sampler,
+                        unsigned num_components)
+{
+   unsigned index = ntr_add_state_constant(c, rc_state, sampler);
+   /* This is a private marker consumed by ntr_emit_load_uniform, not a user
+    * uniform. Real uniforms were already lowered to UBOs before r300 inserts
+    * these state loads, so there should be no other load_uniform intrinsics
+    * and base here encodes the state constant table index.
+    */
+   return nir_load_uniform(b, num_components, 32, nir_imm_int(b, 0),
+                           .base = index,
+                           .range = num_components,
+                           .dest_type = nir_type_float32);
 }
 
 static void
@@ -1072,6 +1118,20 @@ ntr_emit_load_ubo(struct ntr_compile *c, nir_intrinsic_instr *instr)
 }
 
 static void
+ntr_emit_load_uniform(struct ntr_compile *c, nir_intrinsic_instr *instr)
+{
+   unsigned index = nir_intrinsic_base(instr);
+   assert(index < util_dynarray_num_elements(&c->state_constants,
+                                             struct ntr_state_constant));
+   assert(nir_src_is_const(instr->src[0]));
+   assert(ntr_src_as_uint(c, instr->src[0]) == 0);
+
+   struct rc_src_register src =
+      ntr_src_register(c, RC_FILE_CONSTANT, c->state_offset + index);
+   ntr_store(c, &instr->def, src);
+}
+
+static void
 ntr_emit_load_input(struct ntr_compile *c, nir_intrinsic_instr *instr)
 {
    uint32_t frac = nir_intrinsic_component(instr);
@@ -1164,6 +1224,10 @@ ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_ubo:
    case nir_intrinsic_load_ubo_vec4:
       ntr_emit_load_ubo(c, instr);
+      break;
+
+   case nir_intrinsic_load_uniform:
+      ntr_emit_load_uniform(c, instr);
       break;
 
    case nir_intrinsic_load_frag_coord:
@@ -1464,6 +1528,17 @@ ntr_add_constants(struct ntr_compile *c)
       constant.u.External = i;
       rc_constants_add(&c->compiler->Program.Constants, &constant);
    }
+   assert(c->compiler->Program.Constants.Count == c->state_offset);
+
+   util_dynarray_foreach (&c->state_constants, struct ntr_state_constant, state) {
+      struct rc_constant constant;
+      memset(&constant, 0, sizeof(constant));
+      constant.Type = RC_CONSTANT_STATE;
+      constant.UseMask = RC_MASK_XYZW;
+      constant.u.State[0] = state->rc_state;
+      constant.u.State[1] = state->sampler;
+      rc_constants_add(&c->compiler->Program.Constants, &constant);
+   }
    assert(c->compiler->Program.Constants.Count == c->immediate_offset);
 
    util_dynarray_foreach (&c->immediates, struct ntr_immediate, imm) {
@@ -1485,7 +1560,10 @@ ntr_emit_impl(struct ntr_compile *c, nir_function_impl *impl)
    ntr_setup_registers(c);
 
    ntr_setup_uniforms(c);
-   c->immediate_offset = c->compiler->Program.Constants.Count + c->ubo_size;
+   c->state_offset = c->compiler->Program.Constants.Count + c->ubo_size;
+   c->immediate_offset =
+      c->state_offset + util_dynarray_num_elements(&c->state_constants,
+                                                   struct ntr_state_constant);
    ntr_setup_inputs(c);
    ntr_setup_outputs(c);
 
@@ -1676,6 +1754,7 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    c->lower_fabs = !is_r500 && s->info.stage == MESA_SHADER_VERTEX;
    c->addr_reg = ntr_writemask(ntr_dst_register(c, RC_FILE_ADDRESS, 0), RC_MASK_X);
    util_dynarray_init(&c->immediates, c);
+   util_dynarray_init(&c->state_constants, c);
    for (unsigned i = 0; i < ARRAY_SIZE(c->fs_output_color_index); i++)
       c->fs_output_color_index[i] = -1;
    c->fs_output_depth_index = -1;
@@ -1781,8 +1860,10 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    NIR_PASS(_, s, nir_opt_shrink_vectors, false);
    NIR_PASS(_, s, nir_opt_dce);
 
-   nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo | nir_move_load_input | nir_move_load_frag_coord |
-                               nir_move_comparisons | nir_move_copies | nir_move_load_ssbo;
+   nir_move_options move_all = nir_move_const_undef | nir_move_load_uniform |
+                               nir_move_load_ubo | nir_move_load_input |
+                               nir_move_load_frag_coord | nir_move_comparisons |
+                               nir_move_copies | nir_move_load_ssbo;
 
    NIR_PASS(_, s, nir_opt_move, move_all);
    NIR_PASS(_, s, nir_move_vec_src_uses_to_dest, true);
