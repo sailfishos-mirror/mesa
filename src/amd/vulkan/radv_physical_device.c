@@ -218,7 +218,7 @@ radv_shader_fp16_enabled(const struct radv_physical_device *pdev)
     * that by default because it can sometimes hurt perf.
     */
    return pdev->info.compiler_info.has_packed_math_16bit ||
-          (pdev->info.gfx_level == GFX8 && instance->drirc.features.expose_float16_gfx8);
+          (pdev->info.gfx_level == GFX8 && instance->drirc.features.enable_float16_gfx8);
 }
 
 bool
@@ -2577,8 +2577,8 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    pdev->emulate_etc2 = !pdev->info.has_etc_support;
    pdev->emulate_astc = true;
 #else
-   pdev->emulate_etc2 = !pdev->info.has_etc_support && instance->drirc.features.vk_require_etc2;
-   pdev->emulate_astc = instance->drirc.features.vk_require_astc;
+   pdev->emulate_etc2 = !pdev->info.has_etc_support && instance->drirc.features.require_etc2;
+   pdev->emulate_astc = instance->drirc.features.require_astc;
 #endif
 
    const char *name = ac_get_family_name(pdev->info.family);

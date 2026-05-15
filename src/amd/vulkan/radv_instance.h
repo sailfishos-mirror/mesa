@@ -45,7 +45,7 @@ struct radv_drirc {
       bool disable_dcc_stores;
       bool disable_shrink_image_store;
       bool disable_sinking_load_input_fs;
-      bool disable_tc_compat_htile_in_general;
+      bool disable_tc_compat_htile_general;
       bool disable_trunc_coord;
       bool enable_mrt_output_nan_fixup;
       bool flush_before_query_copy;
@@ -77,9 +77,9 @@ struct radv_drirc {
    struct {
       bool cooperative_matrix2_nv;
       bool emulate_rt;
-      bool expose_float16_gfx8;
-      bool vk_require_astc;
-      bool vk_require_etc2;
+      bool enable_float16_gfx8;
+      bool require_astc;
+      bool require_etc2;
    } features;
 
    struct {

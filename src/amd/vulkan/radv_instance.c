@@ -250,7 +250,7 @@ radv_init_dri_debug_options(struct radv_instance *instance)
    drirc->debug.disable_dcc_stores = driQueryOptionb(&drirc->options, "radv_disable_dcc_stores");
    drirc->debug.disable_shrink_image_store = driQueryOptionb(&drirc->options, "radv_disable_shrink_image_store");
    drirc->debug.disable_sinking_load_input_fs = driQueryOptionb(&drirc->options, "radv_disable_sinking_load_input_fs");
-   drirc->debug.disable_tc_compat_htile_in_general =
+   drirc->debug.disable_tc_compat_htile_general =
       driQueryOptionb(&drirc->options, "radv_disable_tc_compat_htile_general");
 
    drirc->debug.disable_trunc_coord = driQueryOptionb(&drirc->options, "radv_disable_trunc_coord");
@@ -305,9 +305,9 @@ radv_init_dri_features_options(struct radv_instance *instance)
 
    drirc->features.cooperative_matrix2_nv = driQueryOptionb(&drirc->options, "radv_cooperative_matrix2_nv");
    drirc->features.emulate_rt = driQueryOptionb(&drirc->options, "radv_emulate_rt");
-   drirc->features.expose_float16_gfx8 = driQueryOptionb(&drirc->options, "radv_enable_float16_gfx8");
-   drirc->features.vk_require_etc2 = driQueryOptionb(&drirc->options, "vk_require_etc2");
-   drirc->features.vk_require_astc = driQueryOptionb(&drirc->options, "vk_require_astc");
+   drirc->features.enable_float16_gfx8 = driQueryOptionb(&drirc->options, "radv_enable_float16_gfx8");
+   drirc->features.require_etc2 = driQueryOptionb(&drirc->options, "vk_require_etc2");
+   drirc->features.require_astc = driQueryOptionb(&drirc->options, "vk_require_astc");
 }
 
 static void
