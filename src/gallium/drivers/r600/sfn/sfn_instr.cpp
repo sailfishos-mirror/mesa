@@ -558,7 +558,7 @@ void InstrWithVectorResult::update_indirect_addr(UNUSED PRegister old_reg, PRegi
 }
 
 void
-InstrWithVectorResult::pin_dest_to_chan()
+InstrWithVectorResult::pin_registers()
 {
    for (int i = 0; i < 4; ++i) {
       if (m_dest[i]->chan() < 4)

@@ -786,7 +786,7 @@ BlockScheduler::schedule_prebuilt_alu_group_first(Shader::ShaderBlocks& out_bloc
 
             for (auto i : *group) {
                if (i)
-                  i->pin_dest_to_chan();
+                  i->pin_registers();
             }
             success = true;
          } else {
@@ -917,7 +917,7 @@ BlockScheduler::schedule_tex(Shader::ShaderBlocks& out_blocks)
          prep->set_scheduled();
          m_current_block->push_back(prep);
       }
-      (*ii)->pin_dest_to_chan();
+      (*ii)->pin_registers();
       (*ii)->set_scheduled();
       m_current_block->push_back(*ii);
       tex_ready.erase(ii);
@@ -1142,7 +1142,7 @@ BlockScheduler::schedule_alu_to_group_vec(AluGroup& group, AluScheduleContext& a
 
       if (group.add_vec_instructions(*i)) {
          m_current_block->commit_kcache_reservation(kcache);
-         (*i)->pin_dest_to_chan();
+         (*i)->pin_registers();
          group_has_update_pred |= (*i)->has_alu_flag(alu_update_pred);
          auto old_i = i;
          ++i;
@@ -1367,7 +1367,7 @@ BlockScheduler::schedule_alu_to_group_trans(AluGroup& group,
 
       if (group.add_trans_instructions(*i)) {
          m_current_block->commit_kcache_reservation(kcache);
-         (*i)->pin_dest_to_chan();
+         (*i)->pin_registers();
          auto old_i = i;
          ++i;
          auto addr = std::get<0>((*old_i)->indirect_addr());
@@ -1410,7 +1410,7 @@ BlockScheduler::schedule_block(std::list<I *>& ready_list)
       auto ii = ready_list.begin();
       sfn_log << SfnLog::schedule << "Schedule: " << **ii << " "
               << m_current_block->remaining_slots() << "\n";
-      (*ii)->pin_dest_to_chan();
+      (*ii)->pin_registers();
       (*ii)->set_scheduled();
       m_current_block->push_back(*ii);
       ready_list.erase(ii);

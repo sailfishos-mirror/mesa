@@ -127,7 +127,7 @@ public:
 
    virtual AluGroup *as_alu_group() { return nullptr;}
 
-   virtual void pin_dest_to_chan() {}
+   virtual void pin_registers() {}
 
 protected:
 
@@ -349,7 +349,7 @@ public:
 
    void update_indirect_addr(PRegister old_reg, PRegister addr) override;
 
-   void pin_dest_to_chan() override;
+   void pin_registers() override;
 
    virtual Block::Instructions prepare_instr() const { return Block::Instructions(); }
 

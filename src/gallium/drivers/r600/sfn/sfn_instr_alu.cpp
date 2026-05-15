@@ -737,7 +737,7 @@ AluInstr::replace_dest(PRegister new_dest, UNUSED AluInstr *move_instr)
 }
 
 void
-AluInstr::pin_dest_to_chan()
+AluInstr::pin_registers()
 {
    if (m_dest)
       m_dest->pin_to_chan();
@@ -955,7 +955,7 @@ AluInstr::split(AluGroup& group)
       else
          instr = new AluInstr(opcode, dest_slot, src, {});
       instr->set_blockid(block_id(), index());
-      instr->pin_dest_to_chan();
+      instr->pin_registers();
 
       if (k == 0 || !m_alu_flags.test(alu_64bit_op)) {
          if (has_source_mod(nsrc * k + 0, mod_neg))
