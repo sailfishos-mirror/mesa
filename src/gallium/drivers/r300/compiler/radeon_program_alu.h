@@ -12,6 +12,4 @@ int radeonTransformALU(struct radeon_compiler *c, struct rc_instruction *inst, v
 
 int r300_transform_vertex_alu(struct radeon_compiler *c, struct rc_instruction *inst, void *);
 
-int radeonTransformDeriv(struct radeon_compiler *c, struct rc_instruction *inst, void *);
-
 #endif /* __RADEON_PROGRAM_ALU_H_ */

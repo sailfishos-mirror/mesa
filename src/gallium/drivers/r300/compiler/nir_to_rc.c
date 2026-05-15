@@ -365,8 +365,6 @@ NTR_OP01(IF, RC_OPCODE_IF)
 
 NTR_OP11(MOV, RC_OPCODE_MOV)
 NTR_OP11(ARL, RC_OPCODE_ARL)
-NTR_OP11(DDX, RC_OPCODE_DDX)
-NTR_OP11(DDY, RC_OPCODE_DDY)
 
 /**
  * Interprets a nir_load_const used as a NIR src as a uint.
@@ -1266,12 +1264,18 @@ ntr_emit_intrinsic(struct ntr_compile *c, nir_intrinsic_instr *instr)
 
    case nir_intrinsic_ddx:
    case nir_intrinsic_ddx_coarse:
-      ntr_DDX(c, ntr_get_dest(c, &instr->def), ntr_get_src(c, instr->src[0]));
-      return;
    case nir_intrinsic_ddy:
-   case nir_intrinsic_ddy_coarse:
-      ntr_DDY(c, ntr_get_dest(c, &instr->def), ntr_get_src(c, instr->src[0]));
+   case nir_intrinsic_ddy_coarse: {
+      bool is_ddx = instr->intrinsic == nir_intrinsic_ddx ||
+                    instr->intrinsic == nir_intrinsic_ddx_coarse;
+      rc_opcode opcode = is_ddx ? RC_OPCODE_DDX : RC_OPCODE_DDY;
+      struct rc_dst_register dst = ntr_get_dest(c, &instr->def);
+      struct rc_src_register src0 = ntr_get_src(c, instr->src[0]);
+      /* r500 MDH/MDV takes the form A*B+C; B=-1 encodes as src1 = {1111, negate}. */
+      struct rc_src_register src1 = {.Swizzle = RC_SWIZZLE_1111, .Negate = RC_MASK_XYZW};
+      rc_sub_instruction(c, opcode, &dst, RC_SATURATE_NONE, &src0, &src1, NULL);
       return;
+   }
 
    case nir_intrinsic_decl_reg:
    case nir_intrinsic_load_reg:

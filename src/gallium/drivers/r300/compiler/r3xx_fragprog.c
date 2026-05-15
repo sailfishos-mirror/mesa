@@ -112,12 +112,8 @@ r3xx_compile_fragment_program(struct r300_fragment_program_compiler *c)
    bool dbg = c->Base.Debug & RC_DBG_LOG;
 
    /* Lists of instruction transformations. */
-   struct radeon_program_transformation native_rewrite_r500[] = {{&radeonTransformALU, NULL},
-                                                                 {&radeonTransformDeriv, NULL},
-                                                                 {NULL, NULL}};
-
-   struct radeon_program_transformation native_rewrite_r300[] = {{&radeonTransformALU, NULL},
-                                                                 {NULL, NULL}};
+   struct radeon_program_transformation native_rewrite[] = {{&radeonTransformALU, NULL},
+                                                           {NULL, NULL}};
 
    struct radeon_program_transformation opt_presubtract[] = {{&rc_opt_presubtract, NULL},
                                                              {NULL, NULL}};
@@ -127,8 +123,7 @@ r3xx_compile_fragment_program(struct r300_fragment_program_compiler *c)
    struct radeon_compiler_pass fs_list[] = {
       /* NAME                     DUMP PREDICATE        FUNCTION                        PARAM */
       {"transform IF",            1,   is_r500,         r500_transform_IF,              NULL},
-      {"native rewrite",          1,   is_r500,         rc_local_transform,             native_rewrite_r500},
-      {"native rewrite",          1,   !is_r500,        rc_local_transform,             native_rewrite_r300},
+      {"native rewrite",          1,   1,               rc_local_transform,             native_rewrite},
       {"deadcode",                1,   opt,             rc_dataflow_deadcode,           NULL},
       {"convert rgb<->alpha",     1,   opt,             rc_convert_rgb_alpha,           NULL},
       {"dataflow optimize",       1,   opt,             rc_optimize,                    NULL},
