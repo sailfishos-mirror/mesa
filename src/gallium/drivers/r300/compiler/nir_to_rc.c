@@ -1608,6 +1608,52 @@ struct ntr_lower_backend_tex_state {
    bool is_r500;
 };
 
+static bool
+ntr_lower_wpos_instr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
+{
+   if (intr->intrinsic != nir_intrinsic_load_interpolated_input)
+      return false;
+
+   nir_io_semantics semantics = nir_intrinsic_io_semantics(intr);
+   if (semantics.location != VARYING_SLOT_POS)
+      return false;
+
+   struct ntr_compile *c = data;
+   assert(intr->def.bit_size == 32);
+
+   b->cursor = nir_after_instr(&intr->instr);
+   nir_def *raw_wpos =
+      nir_load_interpolated_input(b, 4, 32, intr->src[0].ssa, intr->src[1].ssa,
+                                  .base = nir_intrinsic_base(intr),
+                                  .component = 0,
+                                  .io_semantics = semantics,
+                                  .dest_type = nir_type_float32);
+
+   nir_def *rcp_w = nir_frcp(b, nir_channel(b, raw_wpos, 3));
+   nir_def *xyz = nir_fmul(b, nir_channels(b, raw_wpos, nir_component_mask(3)), rcp_w);
+   nir_def *scale = ntr_load_state_constant(c, b, RC_STATE_R300_VIEWPORT_SCALE, 0, 4);
+   nir_def *offset_state =
+      ntr_load_state_constant(c, b, RC_STATE_R300_VIEWPORT_OFFSET, 0, 4);
+   xyz = nir_fadd(b, nir_fmul(b, xyz, nir_channels(b, scale, nir_component_mask(3))),
+                  nir_channels(b, offset_state, nir_component_mask(3)));
+
+   nir_def *wpos = nir_vec4(b, nir_channel(b, xyz, 0), nir_channel(b, xyz, 1),
+                            nir_channel(b, xyz, 2), rcp_w);
+
+   unsigned component = nir_intrinsic_component(intr);
+   nir_def *replacement =
+      nir_channels(b, wpos, nir_component_mask(intr->num_components) << component);
+   nir_def_rewrite_uses_after(&intr->def, replacement);
+   return true;
+}
+
+static bool
+ntr_lower_wpos(nir_shader *s, struct ntr_compile *c)
+{
+   return nir_shader_intrinsics_pass(s, ntr_lower_wpos_instr,
+                                     nir_metadata_control_flow, c);
+}
+
 static nir_def *
 ntr_tex_coord_replace_xyz(nir_builder *b, nir_def *coord, nir_def *xyz)
 {
@@ -1942,6 +1988,8 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
             nir_lower_io_use_interpolated_input_intrinsics);
 
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
+      NIR_PASS(_, s, ntr_lower_wpos, c);
+
       /* Shadow lowering. */
       int num_texture_states = state.sampler_state_count;
       if (num_texture_states > 0) {
