@@ -1244,7 +1244,7 @@
         "description": "brw: Fix ordered dependency exec_all handling on Xe2+",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "47a6ef3fef8f60cfa2247b342aac97593b44aa05",
         "notes": null
