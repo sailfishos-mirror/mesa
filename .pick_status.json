@@ -274,7 +274,7 @@
         "description": "pan/decode: Support INTERLEAVED_64K Z/S target dumps",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "69d067fe1c34338718b20aa22b03dad314ad18fb",
         "notes": null
