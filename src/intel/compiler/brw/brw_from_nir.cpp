@@ -5164,10 +5164,9 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       unsigned base_offset = nir_intrinsic_base(instr);
       assert(base_offset % 4 == 0 || base_offset % brw_type_size_bytes(dest.type) == 0);
 
-      brw_reg src = brw_uniform_reg(
-         instr->intrinsic == nir_intrinsic_load_inline_data_intel ?
-         BRW_INLINE_PARAM_REG : (base_offset / REG_SIZE),
-         dest.type);
+      unsigned nr = base_offset / REG_SIZE;
+      nr += instr->intrinsic == nir_intrinsic_load_inline_data_intel ? BRW_INLINE_PARAM_REG : 0;
+      brw_reg src = brw_uniform_reg(nr, dest.type);
 
       if (nir_src_is_const(instr->src[0])) {
          unsigned load_offset = nir_src_as_uint(instr->src[0]);
