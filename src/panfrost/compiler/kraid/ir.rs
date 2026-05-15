@@ -6,6 +6,7 @@ pub use crate::model::Model;
 pub use crate::ops::Op;
 use crate::ssa_value::SSAValueAllocator;
 pub use crate::ssa_value::{SSARef, SSAValue};
+use crate::swizzle::AsmSwizzleWiden;
 pub use crate::swizzle::Swizzle;
 use compiler::as_slice::*;
 
@@ -266,10 +267,23 @@ pub struct Src {
     pub last_use: bool,
 }
 
-impl fmt::Display for Src {
+pub struct FmtSrc<'a> {
+    src: &'a Src,
+    src_type: DataType,
+}
+
+impl fmt::Display for FmtSrc<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let lu = if self.last_use { "^" } else { "" };
-        write!(f, "{}{lu}{}{}", self.src_ref, self.swizzle, self.src_mod)
+        let lu = if self.src.last_use { "^" } else { "" };
+        write!(f, "{}{lu}", self.src.src_ref)?;
+        if let Some(asm_swz) =
+            AsmSwizzleWiden::from_swizzle(self.src_type, self.src.swizzle)
+        {
+            write!(f, "{asm_swz}")?;
+        } else {
+            write!(f, "{}", self.src.swizzle)?;
+        }
+        write!(f, "{}", self.src.src_mod)
     }
 }
 
@@ -440,6 +454,13 @@ pub trait Opcode:
             src_type = src_type.specialize(v);
         }
         src_type
+    }
+
+    fn fmt_src<'a>(&self, src: &'a Src) -> FmtSrc<'a> {
+        FmtSrc {
+            src,
+            src_type: self.src_type(src),
+        }
     }
 
     fn dsts(&self) -> &[Dst] {

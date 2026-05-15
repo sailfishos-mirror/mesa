@@ -49,7 +49,7 @@ impl fmt::Display for OpBranch {
             f,
             "BRANCH{} {}{} {}",
             bool_as_mod_str!(self, not),
-            &self.cond,
+            self.fmt_src(&self.cond),
             self.combine_op,
             self.label,
         )
@@ -80,7 +80,10 @@ impl fmt::Display for OpFAdd {
         write!(
             f,
             "{} = FADD.{} {} {}",
-            &self.dst, &self.dst_type, &self.srcs[0], &self.srcs[1]
+            &self.dst,
+            &self.dst_type,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
         )
     }
 }
@@ -173,8 +176,8 @@ impl fmt::Display for OpFCmp {
             self.src_type,
             self.res_type,
             self.cmp_op,
-            &self.srcs[0],
-            &self.srcs[1],
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
         )
     }
 }
@@ -195,7 +198,10 @@ impl fmt::Display for OpIAdd {
         write!(
             f,
             "{} = IADD.{}{sat} {} {}",
-            &self.dst, self.dst_type, &self.srcs[0], &self.srcs[1],
+            &self.dst,
+            self.dst_type,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
         )
     }
 }
@@ -216,7 +222,9 @@ impl fmt::Display for OpLeaPka {
         write!(
             f,
             "{} = LEA_PKA {} {}",
-            &self.dst, &self.offset, &self.handle,
+            &self.dst,
+            self.fmt_src(&self.offset),
+            self.fmt_src(&self.handle),
         )
     }
 }
@@ -260,7 +268,11 @@ impl fmt::Display for OpLdPka {
         write!(
             f,
             "{} = LD_PKA.{}{} {} {}",
-            &self.dst, self.dst_type, self.access, &self.offset, &self.handle,
+            &self.dst,
+            self.dst_type,
+            self.access,
+            self.fmt_src(&self.offset),
+            self.fmt_src(&self.handle),
         )
     }
 }
@@ -283,7 +295,11 @@ impl fmt::Display for OpLoad {
         write!(
             f,
             "{} = LOAD.{}{} {} #{}",
-            &self.dst, self.dst_type, self.access, &self.addr, self.offset,
+            &self.dst,
+            self.dst_type,
+            self.access,
+            self.fmt_src(&self.addr),
+            self.offset,
         )
     }
 }
@@ -303,7 +319,9 @@ impl fmt::Display for OpMkVecV2I8 {
         write!(
             f,
             "{} = MKVEC.v4i8 {} {}",
-            &self.dst, &self.srcs[0], &self.srcs[1],
+            &self.dst,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
         )
     }
 }
@@ -324,10 +342,10 @@ impl fmt::Display for OpMkVecV4I8 {
             f,
             "{} = MKVEC.v4i8 {} {} {} {}",
             &self.dst,
-            &self.srcs[0],
-            &self.srcs[1],
-            &self.srcs[2],
-            &self.srcs[3],
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+            self.fmt_src(&self.srcs[2]),
+            self.fmt_src(&self.srcs[3]),
         )
     }
 }
@@ -343,7 +361,13 @@ pub struct OpMov {
 
 impl fmt::Display for OpMov {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = MOV.{} {}", &self.dst, self.dst_type, &self.src,)
+        write!(
+            f,
+            "{} = MOV.{} {}",
+            &self.dst,
+            self.dst_type,
+            self.fmt_src(&self.src),
+        )
     }
 }
 
@@ -366,7 +390,11 @@ impl fmt::Display for OpStore {
         write!(
             f,
             "STORE.{}{} {} {} #{}",
-            self.src_type, self.access, &self.data, &self.addr, self.offset,
+            self.src_type,
+            self.access,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.addr),
+            self.offset,
         )
     }
 }
