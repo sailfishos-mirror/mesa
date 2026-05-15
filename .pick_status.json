@@ -374,7 +374,7 @@
         "description": "tu: Always lazy_init_vsc for tiler rendering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "49191f46e605e2aa7257cd7327f55f20d7202720",
         "notes": null
