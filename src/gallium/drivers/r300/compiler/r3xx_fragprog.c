@@ -17,38 +17,6 @@
 #include "radeon_remove_constants.h"
 #include "radeon_variable.h"
 
-static void
-rc_rewrite_depth_out(struct radeon_compiler *cc, void *user)
-{
-   struct r300_fragment_program_compiler *c = (struct r300_fragment_program_compiler *)cc;
-   struct rc_instruction *rci;
-
-   for (rci = c->Base.Program.Instructions.Next; rci != &c->Base.Program.Instructions;
-        rci = rci->Next) {
-      struct rc_sub_instruction *inst = &rci->U.I;
-      unsigned i;
-      const struct rc_opcode_info *info = rc_get_opcode_info(inst->Opcode);
-
-      if (inst->DstReg.File != RC_FILE_OUTPUT || inst->DstReg.Index != c->OutputDepth)
-         continue;
-
-      if (inst->DstReg.WriteMask & RC_MASK_Z) {
-         inst->DstReg.WriteMask = RC_MASK_W;
-      } else {
-         inst->DstReg.WriteMask = 0;
-         continue;
-      }
-
-      if (!info->IsComponentwise) {
-         continue;
-      }
-
-      for (i = 0; i < info->NumSrcRegs; i++) {
-         inst->SrcReg[i] = lmul_swizzle(RC_SWIZZLE_ZZZZ, inst->SrcReg[i]);
-      }
-   }
-}
-
 /**
  * This function will try to convert rgb instructions into alpha instructions
  * and vice versa. While this is already attempted during the pair scheduling,
@@ -159,7 +127,6 @@ r3xx_compile_fragment_program(struct r300_fragment_program_compiler *c)
    /* clang-format off */
    struct radeon_compiler_pass fs_list[] = {
       /* NAME                     DUMP PREDICATE        FUNCTION                        PARAM */
-      {"rewrite depth out",       1,   1,               rc_rewrite_depth_out,           NULL},
       {"transform IF",            1,   is_r500,         r500_transform_IF,              NULL},
       {"native rewrite",          1,   is_r500,         rc_local_transform,             native_rewrite_r500},
       {"native rewrite",          1,   !is_r500,        rc_local_transform,             native_rewrite_r300},

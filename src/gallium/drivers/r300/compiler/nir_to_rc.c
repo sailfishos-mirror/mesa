@@ -479,7 +479,7 @@ ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *fra
    if (c->s->info.stage == MESA_SHADER_FRAGMENT) {
       switch (semantics.location) {
       case FRAG_RESULT_DEPTH:
-         *frac = 2; /* z write is the to the .z channel in TGSI */
+         *frac = 3; /* depth is written to the .w channel in the backend */
          break;
       case FRAG_RESULT_STENCIL:
          *frac = 1;
