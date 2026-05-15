@@ -117,7 +117,6 @@ r3xx_compile_fragment_program(struct r300_fragment_program_compiler *c)
                                                                  {NULL, NULL}};
 
    struct radeon_program_transformation native_rewrite_r300[] = {{&radeonTransformALU, NULL},
-                                                                 {&radeonStubDeriv, NULL},
                                                                  {NULL, NULL}};
 
    struct radeon_program_transformation opt_presubtract[] = {{&rc_opt_presubtract, NULL},

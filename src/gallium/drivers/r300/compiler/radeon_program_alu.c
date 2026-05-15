@@ -16,8 +16,7 @@
 #include "radeon_compiler.h"
 #include "radeon_compiler_util.h"
 #include "radeon_dataflow.h"
-
-#include "util/log.h"
+#include "util/compiler.h"
 
 static struct rc_instruction *
 emit1(struct radeon_compiler *c, struct rc_instruction *after, rc_opcode Opcode,
@@ -220,27 +219,6 @@ r300_transform_vertex_alu(struct radeon_compiler *c, struct rc_instruction *inst
    }
 }
 
-/**
- * Replaces DDX/DDY instructions with MOV 0 to avoid using dummy shaders on r300/r400.
- *
- * @warning This explicitly changes the form of DDX and DDY!
- */
-
-int
-radeonStubDeriv(struct radeon_compiler *c, struct rc_instruction *inst, void *unused)
-{
-   if (inst->U.I.Opcode != RC_OPCODE_DDX && inst->U.I.Opcode != RC_OPCODE_DDY)
-      return 0;
-
-   inst->U.I.Opcode = RC_OPCODE_MOV;
-   inst->U.I.SrcReg[0].Swizzle = RC_SWIZZLE_0000;
-
-   mesa_logw_once("r300: WARNING: Shader is trying to use derivatives, "
-                  "but the hardware doesn't support it. "
-                  "Expect possible misrendering (it's not a bug, do not report it).");
-
-   return 1;
-}
 /**
  * Rewrite DDX/DDY instructions to properly work with r5xx shaders.
  * The r5xx MDH/MDV instruction provides per-quad partial derivatives.
