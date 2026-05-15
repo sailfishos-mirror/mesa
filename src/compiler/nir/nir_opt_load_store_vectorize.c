@@ -404,7 +404,7 @@ parse_alu(nir_scalar *def, nir_op op, uint64_t *c, bool require_nuw)
 
 /* Parses an offset expression such as "a * 16 + 4" and "(a * 16 + 4) * 64 + 32". */
 static struct offset_term
-parse_offset(nir_scalar base, uint64_t *offset)
+parse_offset(nir_scalar base, uint64_t *offset, bool require_nuw)
 {
    struct offset_term term;
    if (nir_scalar_is_const(base)) {
@@ -417,7 +417,6 @@ parse_offset(nir_scalar base, uint64_t *offset)
    uint64_t mul = 1;
    uint64_t add = 0;
    bool progress = false;
-   bool require_nuw = false;
    uint64_t uub = u_uintN_max(base.def->bit_size);
    do {
       uint64_t mul2 = 1, add2 = 0;
@@ -598,7 +597,7 @@ create_entry_key_from_deref(struct vectorize_ctx *ctx, struct entry *entry,
          uint32_t stride = nir_deref_instr_array_stride(deref);
 
          uint64_t offset = 0;
-         struct offset_term term = parse_offset(nir_get_scalar(index, 0), &offset);
+         struct offset_term term = parse_offset(nir_get_scalar(index, 0), &offset, false);
          offset = util_mask_sign_extend(offset, index->bit_size);
 
          entry->offset += offset * stride;
@@ -634,10 +633,11 @@ create_entry_key_from_deref(struct vectorize_ctx *ctx, struct entry *entry,
 
 static unsigned
 parse_entry_key_from_offset(struct offset_term *terms, unsigned size, unsigned left,
-                            nir_scalar base, uint64_t base_mul, uint64_t *offset)
+                            nir_scalar base, uint64_t base_mul, bool require_nuw,
+                            uint64_t *offset)
 {
    uint64_t new_offset;
-   struct offset_term term = parse_offset(base, &new_offset);
+   struct offset_term term = parse_offset(base, &new_offset, require_nuw);
    *offset += new_offset * base_mul;
 
    if (!term.s.def)
@@ -647,12 +647,17 @@ parse_entry_key_from_offset(struct offset_term *terms, unsigned size, unsigned l
 
    assert(left >= 1);
 
-   if (left >= 2 && base.def->bit_size == term.s.def->bit_size) {
-      if (nir_scalar_is_alu(term.s) && nir_scalar_alu_op(term.s) == nir_op_iadd) {
+   if (left >= 2) {
+      bool upcast = term.s.def->bit_size < base.def->bit_size;
+      require_nuw |= upcast;
+      if (nir_scalar_is_alu(term.s) && nir_scalar_alu_op(term.s) == nir_op_iadd &&
+          (!require_nuw || nir_def_as_alu(term.s.def)->no_unsigned_wrap)) {
          nir_scalar src0 = nir_scalar_chase_alu_src(term.s, 0);
          nir_scalar src1 = nir_scalar_chase_alu_src(term.s, 1);
-         unsigned amount = parse_entry_key_from_offset(terms, size, left - 1, src0, term.mul, offset);
-         amount += parse_entry_key_from_offset(terms, size + amount, left - amount, src1, term.mul, offset);
+         unsigned amount = parse_entry_key_from_offset(
+            terms, size, left - 1, src0, term.mul, require_nuw, offset);
+         amount += parse_entry_key_from_offset(
+            terms, size + amount, left - amount, src1, term.mul, require_nuw, offset);
          return amount;
       }
    }
@@ -677,7 +682,8 @@ create_entry_key_from_offset(struct vectorize_ctx *ctx, struct entry *entry,
    if (base) {
       nir_scalar scalar = { .def = base, .comp = 0 };
       uint64_t offset = 0;
-      key->offset_def_count = parse_entry_key_from_offset(terms, 0, 32, scalar, base_mul, &offset);
+      key->offset_def_count = parse_entry_key_from_offset(
+         terms, 0, 32, scalar, base_mul, false, &offset);
       entry->offset += offset;
    }
 
