@@ -742,6 +742,10 @@ AluInstr::pin_registers()
    if (m_dest)
       m_dest->pin_to_chan();
 
+   for (auto& src : m_src) {
+      if (auto reg = src->as_register())
+         reg->pin_to_chan();
+   }
 }
 
 bool
