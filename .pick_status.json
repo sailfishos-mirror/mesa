@@ -3654,7 +3654,7 @@
         "description": "etnaviv: initialize value before calling etna_gpu_get_param(), in case it fails",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "358e1f10c5263d4bacd7fea28540cf6b36d76772",
         "notes": null
