@@ -3834,7 +3834,7 @@
         "description": "v3dv: avoid duplicate bo_handles between cpu_job and CSD lists",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e404ccba5b4b0f8f0c43ae29c102aed7b2e6afff",
         "notes": null
