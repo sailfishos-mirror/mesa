@@ -70,9 +70,7 @@ poly_nir_passthrough_gs(nir_builder *b, const void *key_)
          nir_def *offset = zero;
          unsigned num_slots = 1;
 
-         bool scalar = loc == VARYING_SLOT_LAYER ||
-                       loc == VARYING_SLOT_VIEW_INDEX ||
-                       loc == VARYING_SLOT_VIEWPORT || loc == VARYING_SLOT_PSIZ;
+         bool scalar = nir_slot_num_components(loc, MESA_SHADER_GEOMETRY) == 1;
          unsigned comps = scalar ? 1 : 4;
 
          /* We use combined, compact clip/cull */
