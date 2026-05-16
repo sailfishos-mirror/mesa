@@ -63,6 +63,7 @@ typedef struct {
 
 typedef struct {
    slice original_src;
+   uint32_t hw_threads;
 
    void *kernel_bin;
    uint32_t kernel_size;
@@ -88,6 +89,7 @@ void failf(const char *fmt, ...) PRINTFLIKE(1, 2);
 
 slice strip_spaces(slice s);
 slice trim_comments(slice s);
+bool parse_int64(slice s, int64_t *value);
 
 const char *executor_apply_macros(executor_context *ec, slice original_src);
 

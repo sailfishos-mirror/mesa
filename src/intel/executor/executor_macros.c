@@ -4,7 +4,9 @@
  */
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "util/ralloc.h"
 
@@ -36,6 +38,27 @@ trim_comments(slice s)
          return slice_substr_to(s, i);
    }
    return s;
+}
+
+bool
+parse_int64(slice s, int64_t *value)
+{
+   char str[64];
+
+   if (slice_is_empty(s) || s.len >= sizeof(str))
+      return false;
+
+   memcpy(str, s.data, s.len);
+   str[s.len] = '\0';
+
+   errno = 0;
+   char *end = NULL;
+   long long parsed = strtoll(str, &end, 0);
+   if (errno == ERANGE || !str[0] || *end)
+      return false;
+
+   *value = parsed;
+   return true;
 }
 
 static unsigned
@@ -218,7 +241,8 @@ executor_macro_id(executor_context *ec, char **src, slice args)
    case 120: {
       ralloc_asprintf_append(src,
          "(W) mov (8) r127:uw 0x76543210:v\n"
-         "(W) mov (8) r%u r127:uw {@1}\n",
+         "(W) shl (8) r126 r1<0>:ud 3:ud {@1}\n"
+         "(W) add (8) r%u r127:uw r126 {@1}\n",
          reg);
       break;
    }
@@ -226,7 +250,9 @@ executor_macro_id(executor_context *ec, char **src, slice args)
    case 125: {
       ralloc_asprintf_append(src,
          "(W) mov (8) r127:uw 0x76543210:v\n"
-         "(W) mov (8) r%u r127:uw {A@1}\n",
+         "(W) and (8) r126 r0.2<0>:ud 0xff:ud {A@1}\n"
+         "(W) shl (8) r126 r126 3:ud {A@1}\n"
+         "(W) add (8) r%u r127:uw r126 {A@1}\n",
          reg);
       break;
    }
@@ -237,7 +263,9 @@ executor_macro_id(executor_context *ec, char **src, slice args)
       ralloc_asprintf_append(src,
          "(W) mov (8) r127:uw 0x76543210:v\n"
          "(W) add (8) r127.8:uw r127:uw 8:uw {A@1}\n"
-         "(W) mov (16) r%u r127:uw {A@1}\n",
+         "(W) and (16) r126 r0.2<0>:ud 0xff:ud {A@1}\n"
+         "(W) shl (16) r126 r126 4:ud {A@1}\n"
+         "(W) add (16) r%u r127:uw r126 {A@1}\n",
          reg);
       break;
    }
@@ -394,6 +422,7 @@ executor_apply_macros(executor_context *ec, slice original_src)
       { "@write",    executor_macro_write },
       { "@read",     executor_macro_read },
       { "@id",       executor_macro_id },
+      { "@param",    NULL },
       { "@syncnop",  executor_macro_syncnop },
    };
 
@@ -411,7 +440,8 @@ executor_apply_macros(executor_context *ec, slice original_src)
             if (match_macro_name(macros[i].name, macro)) {
                slice args = slice_strip_prefix(macro, slice_from_cstr(macros[i].name));
                args = strip_spaces(args);
-               macros[i].func(ec, &src, args);
+               if (macros[i].func)
+                  macros[i].func(ec, &src, args);
                found = true;
                break;
             }

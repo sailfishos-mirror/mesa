@@ -5,6 +5,8 @@
 
 #include "executor.h"
 
+#include "util/u_math.h"
+
 #ifdef HAVE_VALGRIND
 #include <valgrind.h>
 #include <memcheck.h>
@@ -154,7 +156,12 @@ genX(emit_execute)(executor_context *ec, const executor_params *params)
 
    struct GENX(INTERFACE_DESCRIPTOR_DATA) desc = {
       .KernelStartPointer = kernel_addr.offset,
-      .NumberofThreadsinGPGPUThreadGroup = 1,
+      .NumberofThreadsinGPGPUThreadGroup = params->hw_threads,
+#if GFX_VERx10 < 125
+      .ConstantURBEntryReadOffset = 0,
+      .ConstantURBEntryReadLength = 1,
+      .CrossThreadConstantDataReadLength = 0,
+#endif
    };
 
    void *b = executor_alloc_bytes_aligned(&ec->bo.batch, 0, 256);
@@ -174,6 +181,9 @@ genX(emit_execute)(executor_context *ec, const executor_params *params)
 
    emit_state_base_address(ec, mocs);
 
+   const uint32_t max_cs_threads =
+      ec->devinfo->max_cs_threads * ec->devinfo->subslice_total;
+
 #if GFX_VERx10 >= 125
    executor_batch_emit(GENX(STATE_COMPUTE_MODE), cm) {
       cm.Mask1 = 0xffff;
@@ -183,12 +193,13 @@ genX(emit_execute)(executor_context *ec, const executor_params *params)
    }
 
    executor_batch_emit(GENX(CFE_STATE), cfe) {
-      cfe.MaximumNumberofThreads = 64;
+      cfe.MaximumNumberofThreads = max_cs_threads;
    }
 #else
    executor_batch_emit(GENX(MEDIA_VFE_STATE), vfe) {
       vfe.NumberofURBEntries = 2;
-      vfe.MaximumNumberofThreads = 64;
+      vfe.MaximumNumberofThreads = max_cs_threads - 1;
+      vfe.CURBEAllocationSize = align(params->hw_threads, 2);
    }
 #endif
 
@@ -230,10 +241,31 @@ genX(emit_execute)(executor_context *ec, const executor_params *params)
       load.InterfaceDescriptorTotalLength = 8 * 4;
    }
 
+   /* Pre-Gfx12.5, the hardware thread id is not part of the thread
+    * payload. Pass it through per-thread CURBE data instead: one GRF per
+    * hardware thread, with the id in the first dword.
+    */
+   const uint32_t curbe_size =
+      align(ec->devinfo->grf_size * params->hw_threads, 64);
+   void *curbe = executor_alloc_bytes_aligned(&ec->bo.extra, curbe_size, 64);
+   memset(curbe, 0, curbe_size);
+
+   for (uint32_t t = 0; t < params->hw_threads; t++) {
+      uint32_t *record = (uint32_t *)((char *)curbe + t * ec->devinfo->grf_size);
+      record[0] = t;
+   }
+   executor_address curbe_addr = executor_address_of_ptr(&ec->bo.extra, curbe);
+
+   executor_batch_emit(GENX(MEDIA_CURBE_LOAD), load) {
+      load.CURBEDataStartAddress = curbe_addr.offset;
+      load.CURBETotalDataLength = curbe_size;
+   }
+
    if (ec->perf_enabled)
       executor_perf_begin(ec);
 
    executor_batch_emit(GENX(GPGPU_WALKER), gw) {
+      gw.ThreadWidthCounterMaximum = params->hw_threads - 1;
       gw.ThreadGroupIDXDimension = 1;
       gw.ThreadGroupIDYDimension = 1;
       gw.ThreadGroupIDZDimension = 1;

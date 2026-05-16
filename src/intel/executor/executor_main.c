@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <inttypes.h>
@@ -100,6 +101,7 @@ print_help()
       "- @id REG\n"
       "- @read DST_REG OFFSET_REG\n"
       "- @write OFFSET_REG SRC_REG\n"
+      "- @param hw_threads N\n"
       "\n"
       "PERFORMANCE COUNTERS:\n"
       "- --oa PROFILE[:COUNTER1,COUNTER2]\n"
@@ -849,6 +851,83 @@ parse_execute_data(executor_context *ec, lua_State *L, int table_idx)
 }
 
 static void
+handle_param_hw_threads(executor_context *ec, executor_params *params,
+                        slice name, slice args)
+{
+   slice_cut_result cut = slice_cut_any(args, " \t");
+   slice value = cut.before;
+   slice extra = strip_spaces(cut.after);
+
+   if (!slice_is_empty(extra))
+      failf("@param %.*s has extra arguments", SLICE_FMT(name));
+   if (slice_is_empty(value))
+      failf("@param %.*s needs a value", SLICE_FMT(name));
+
+   int64_t v;
+   if (!parse_int64(value, &v))
+      failf("@param %.*s must be an integer", SLICE_FMT(name));
+   if (v < 1 || v > ec->devinfo->max_cs_workgroup_threads)
+      failf("@param %.*s out of range [1, %u]", SLICE_FMT(name),
+            ec->devinfo->max_cs_workgroup_threads);
+
+   const uint32_t hw_threads = (uint32_t)v;
+   /* TODO: Use ThreadGroupDispatchSize to support more. */
+   if (ec->devinfo->verx10 >= 125 && hw_threads > 16)
+      failf("hw_threads > 16 not supported");
+
+   params->hw_threads = hw_threads;
+}
+
+static void
+executor_parse_source_params(executor_context *ec, executor_params *params,
+                             slice src)
+{
+   static const struct {
+      const char *name;
+      void (*handle)(executor_context *ec, executor_params *params,
+                     slice name, slice args);
+   } param_handlers[] = {
+      { "hw_threads", handle_param_hw_threads },
+   };
+
+   slice rest = src;
+   const slice param = slice_from_cstr("@param");
+
+   while (!slice_is_empty(rest)) {
+      slice_cut_result line_cut = slice_cut_any(rest, "\n\r");
+      slice line = strip_spaces(line_cut.before);
+      rest = line_cut.after;
+
+      if (!slice_starts_with(line, param) ||
+          (line.len > param.len &&
+           !isspace((unsigned char)line.data[param.len])))
+         continue;
+
+      line = strip_spaces(
+         trim_comments(slice_strip_prefix(line, param)));
+      slice_cut_result cut = slice_cut_any(line, " \t");
+      slice name = cut.before;
+
+      slice args = strip_spaces(cut.after);
+
+      if (slice_is_empty(name))
+         failf("@param needs a name");
+
+      bool found = false;
+      for (int i = 0; i < ARRAY_SIZE(param_handlers); i++) {
+         if (slice_equal_cstr(name, param_handlers[i].name)) {
+            param_handlers[i].handle(ec, params, name, args);
+            found = true;
+            break;
+         }
+      }
+
+      if (!found)
+         failf("unknown @param '%.*s'", SLICE_FMT(name));
+   }
+}
+
+static void
 parse_execute_args(executor_context *ec, lua_State *L, executor_params *params)
 {
    int opts = lua_gettop(L);
@@ -1236,7 +1315,9 @@ l_execute(lua_State *L)
 
    executor_context_setup(&ec);
 
-   executor_params params = {0};
+   executor_params params = {
+      .hw_threads = 1,
+   };
    executor_perf_create_query(&ec);
 
    {
@@ -1244,6 +1325,8 @@ l_execute(lua_State *L)
          failf("execute() must have a single table argument");
 
       parse_execute_args(&ec, L, &params);
+
+      executor_parse_source_params(&ec, &params, params.original_src);
 
       const char *src = executor_apply_macros(&ec, params.original_src);
 

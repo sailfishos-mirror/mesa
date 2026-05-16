@@ -90,7 +90,11 @@ regions, or immediates).
   floating-point.
 
 - @id REG
-  Write a local invocation index into REG.
+  Write a linear local invocation index into REG.  The index is
+  hw_thread_id * SIMD_WIDTH + lane_id.
+
+- @param hw_threads N
+  Set the number of hardware threads for execute().
 
 - @read DST_REG OFFSET_REG
   Read 32-bit values from the memory buffer at OFFSET_REG into DST_REG.
@@ -105,9 +109,10 @@ regions, or immediates).
 .SH GPU EXECUTION
 
 Compute shaders are dispatched with SIMD8 for Gfx9-125 and SIMD16
-for Xe2+.  Only a single thread is dispatched.  A data buffer is used to
-pipe data into the shader and out of it, it is bound to the graphics
-address 0x30000000.
+for Xe2+.  By default one hardware thread is dispatched.  Use
+@param hw_threads N in the shader to execute N hardware threads.  A data
+buffer is used to pipe data into the shader and out of it, it is bound
+to the graphics address 0x30000000.
 
 The executor reserves r0..r1 for its own payload and r124..r127 for
 macros.  Macro operands are checked for overlap, but raw assembly
