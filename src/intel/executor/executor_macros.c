@@ -38,21 +38,39 @@ trim_comments(slice s)
    return s;
 }
 
-static bool
-slice_parse_grf(slice reg, unsigned *nr)
+static unsigned
+parse_macro_grf(slice reg)
 {
    if (reg.len < 2 || reg.data[0] != 'r' ||
        !isdigit((unsigned char)reg.data[1]))
-      return false;
+      failf("operand %.*s must be a non-reserved valid register",
+            SLICE_FMT(reg));
 
-   unsigned value = 0;
-   for (int i = 1; i < reg.len && isdigit((unsigned char)reg.data[i]); i++)
-      value = value * 10 + reg.data[i] - '0';
+   unsigned nr = 0;
+   for (int i = 1; i < reg.len; i++) {
+      if (!isdigit((unsigned char)reg.data[i]))
+         failf("operand %.*s must be a non-reserved valid register",
+               SLICE_FMT(reg));
 
-   *nr = value;
-   return true;
+      const unsigned digit = reg.data[i] - '0';
+      if (nr > (EXECUTOR_GRF_COUNT - 1 - digit) / 10)
+         failf("operand %.*s must be a non-reserved valid register",
+               SLICE_FMT(reg));
+
+      nr = nr * 10 + digit;
+   }
+
+   if (nr < 2)
+      failf("operand %.*s must be a non-reserved valid register",
+            SLICE_FMT(reg));
+
+   if (MAX2(nr, EXECUTOR_RESERVED_GRF_START) <
+       MIN2(nr + 1, EXECUTOR_RESERVED_GRF_END))
+      failf("operand %.*s must be a non-reserved valid register",
+            SLICE_FMT(reg));
+
+   return nr;
 }
-
 
 typedef struct {
    slice *args;
@@ -89,7 +107,7 @@ executor_macro_mov(executor_context *ec, char **src, slice line)
    if (r.count != 2)
       failf("@mov needs 2 arguments, found %d\n", r.count);
 
-   slice reg = r.args[0];
+   unsigned reg = parse_macro_grf(r.args[0]);
    char *value = slice_to_cstr(ec->mem_ctx, r.args[1]);
    const unsigned width = ec->devinfo->ver >= 20 ? 16 : 8;
 
@@ -101,15 +119,15 @@ executor_macro_mov(executor_context *ec, char **src, slice line)
 
       val.f = strtof(value, NULL);
       ralloc_asprintf_append(src,
-         "mov (%u) %.*s:f 0x%08x:f\n",
-         width, SLICE_FMT(reg), val.u);
+         "mov (%u) r%u:f 0x%08x:f\n",
+         width, reg, val.u);
    } else {
       for (char *x = value; *x; x++)
          *x = tolower(*x);
 
       ralloc_asprintf_append(src,
-         "mov (%u) %.*s %s\n",
-         width, SLICE_FMT(reg), value);
+         "mov (%u) r%u %s\n",
+         width, reg, value);
    }
 }
 
@@ -194,8 +212,7 @@ executor_macro_id(executor_context *ec, char **src, slice line)
    if (r.count != 1)
       failf("@id needs 1 argument, found %d", r.count);
 
-   slice reg = r.args[0];
-
+   unsigned reg = parse_macro_grf(r.args[0]);
 
    switch (ec->devinfo->verx10) {
    case 90:
@@ -203,16 +220,16 @@ executor_macro_id(executor_context *ec, char **src, slice line)
    case 120: {
       ralloc_asprintf_append(src,
          "(W) mov (8) r127:uw 0x76543210:v\n"
-         "(W) mov (8) %.*s r127:uw {@1}\n",
-         SLICE_FMT(reg));
+         "(W) mov (8) r%u r127:uw {@1}\n",
+         reg);
       break;
    }
 
    case 125: {
       ralloc_asprintf_append(src,
          "(W) mov (8) r127:uw 0x76543210:v\n"
-         "(W) mov (8) %.*s r127:uw {A@1}\n",
-         SLICE_FMT(reg));
+         "(W) mov (8) r%u r127:uw {A@1}\n",
+         reg);
       break;
    }
 
@@ -222,8 +239,8 @@ executor_macro_id(executor_context *ec, char **src, slice line)
       ralloc_asprintf_append(src,
          "(W) mov (8) r127:uw 0x76543210:v\n"
          "(W) add (8) r127.8:uw r127:uw 8:uw {A@1}\n"
-         "(W) mov (16) %.*s r127:uw {A@1}\n",
-         SLICE_FMT(reg));
+         "(W) mov (16) r%u r127:uw {A@1}\n",
+         reg);
       break;
    }
 
@@ -241,8 +258,8 @@ executor_macro_write(executor_context *ec, char **src, slice line)
    if (r.count != 2)
       failf("@write needs 2 arguments, found %d\n", r.count);
 
-   slice offset_reg = r.args[0];
-   slice data_reg   = r.args[1];
+   unsigned offset_reg = parse_macro_grf(r.args[0]);
+   unsigned data_reg   = parse_macro_grf(r.args[1]);
 
    assert(ec->bo.data.addr <= 0xFFFFFFFF);
    uint32_t base_addr = ec->bo.data.addr;
@@ -253,20 +270,20 @@ executor_macro_write(executor_context *ec, char **src, slice line)
    case 120: {
       const char *send_op = ec->devinfo->verx10 < 120 ? "sends.hdc1" : "send.hdc1";
       ralloc_asprintf_append(src,
-         "mul (8) r127 %.*s 0x4:uw {@1}\n"
+         "mul (8) r127 r%u 0x4:uw {@1}\n"
          "add (8) r127 r127 0x%08x {@1}\n"
-         "%s (8) null r127:1 %.*s:1 0x00000040 0x02026efd {@1,$1}\n",
-         SLICE_FMT(offset_reg), base_addr, send_op, SLICE_FMT(data_reg));
+         "%s (8) null r127:1 r%u:1 0x00000040 0x02026efd {@1,$1}\n",
+         offset_reg, base_addr, send_op, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
 
    case 125: {
       ralloc_asprintf_append(src,
-         "mul (8) r127 %.*s 0x4:uw {A@1}\n"
+         "mul (8) r127 r%u 0x4:uw {A@1}\n"
          "add (8) r127 r127 0x%08x {A@1}\n"
-         "store.ugm.d32.a32 (8) r127:1 %.*s:1 {A@1,$1}\n",
-         SLICE_FMT(offset_reg), base_addr, SLICE_FMT(data_reg));
+         "store.ugm.d32.a32 (8) r127:1 r%u:1 {A@1,$1}\n",
+         offset_reg, base_addr, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
@@ -275,10 +292,10 @@ executor_macro_write(executor_context *ec, char **src, slice line)
    case 300:
    case 350: {
       ralloc_asprintf_append(src,
-         "mul (16) r127 %.*s 0x4:uw {A@1}\n"
+         "mul (16) r127 r%u 0x4:uw {A@1}\n"
          "add (16) r127 r127 0x%08x {A@1}\n"
-         "store.ugm.d32.a32 (16) r127:1 %.*s:1 {A@1,$1}\n",
-         SLICE_FMT(offset_reg), base_addr, SLICE_FMT(data_reg));
+         "store.ugm.d32.a32 (16) r127:1 r%u:1 {A@1,$1}\n",
+         offset_reg, base_addr, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
@@ -298,8 +315,8 @@ executor_macro_read(executor_context *ec, char **src, slice line)
       failf("@read needs 2 arguments, found %d\n", r.count);
 
    /* Order follows underlying SEND, destination first. */
-   slice data_reg   = r.args[0];
-   slice offset_reg = r.args[1];
+   unsigned data_reg   = parse_macro_grf(r.args[0]);
+   unsigned offset_reg = parse_macro_grf(r.args[1]);
 
    assert(ec->bo.data.addr <= 0xFFFFFFFF);
    uint32_t base_addr = ec->bo.data.addr;
@@ -310,20 +327,20 @@ executor_macro_read(executor_context *ec, char **src, slice line)
    case 120: {
       const char *send_op = ec->devinfo->verx10 < 120 ? "sends.hdc1" : "send.hdc1";
       ralloc_asprintf_append(src,
-         "mul (8) r127 %.*s 0x4:uw {@1}\n"
+         "mul (8) r127 r%u 0x4:uw {@1}\n"
          "add (8) r127 r127 0x%08x {@1}\n"
-         "%s (8) %.*s r127:1 null:0 0x00000000 0x02106efd {@1,$1}\n",
-         SLICE_FMT(offset_reg), base_addr, send_op, SLICE_FMT(data_reg));
+         "%s (8) r%u r127:1 null:0 0x00000000 0x02106efd {@1,$1}\n",
+         offset_reg, base_addr, send_op, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
 
    case 125: {
       ralloc_asprintf_append(src,
-         "mul (8) r127 %.*s 0x4:uw {A@1}\n"
+         "mul (8) r127 r%u 0x4:uw {A@1}\n"
          "add (8) r127 r127 0x%08x {A@1}\n"
-         "load.ugm.d32.a32 (8) %.*s:1 r127:1 {A@1,$1}\n",
-         SLICE_FMT(offset_reg), base_addr, SLICE_FMT(data_reg));
+         "load.ugm.d32.a32 (8) r%u:1 r127:1 {A@1,$1}\n",
+         offset_reg, base_addr, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
@@ -332,10 +349,10 @@ executor_macro_read(executor_context *ec, char **src, slice line)
    case 300:
    case 350: {
       ralloc_asprintf_append(src,
-         "mul (16) r127 %.*s 0x4:uw {A@1}\n"
+         "mul (16) r127 r%u 0x4:uw {A@1}\n"
          "add (16) r127 r127 0x%08x {A@1}\n"
-         "load.ugm.d32.a32 (16) %.*s:1 r127:1 {A@1,$1}\n",
-         SLICE_FMT(offset_reg), base_addr, SLICE_FMT(data_reg));
+         "load.ugm.d32.a32 (16) r%u:1 r127:1 {A@1,$1}\n",
+         offset_reg, base_addr, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }

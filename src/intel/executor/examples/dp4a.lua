@@ -29,12 +29,12 @@ local r = execute {
   src = [[
     @id   r9
 
-    @mov  r1  0x0102037F
-    @mov  r2  50
+    @mov  r2  0x0102037F
+    @mov  r3  50
 
-    dp4a (8) r3      r2      r1      r1      {A@1}
+    dp4a (8) r4      r3      r2      r2      {A@1}
 
-    @write r9 r3
+    @write r9 r4
     @eot
   ]],
 }

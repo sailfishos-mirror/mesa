@@ -20,15 +20,15 @@ function BFI(a, b, c, d)
       @mov  r13  2
       @mov  r14  3
 
-      @read r1 r11
-      @read r2 r12
-      @read r3 r13
-      @read r4 r14
+      @read r2 r11
+      @read r3 r12
+      @read r4 r13
+      @read r5 r14
 
-      bfi1 (8) r5      r1      r2              {A@1}
-      bfi2 (8) r6      r5      r3      r4      {A@1}
+      bfi1 (8) r6      r2      r3              {A@1}
+      bfi2 (8) r7      r6      r4      r5      {A@1}
 
-      @write r9 r6
+      @write r9 r7
       @eot
     ]],
   }

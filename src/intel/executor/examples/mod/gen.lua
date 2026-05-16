@@ -50,12 +50,12 @@ M.mov_grf = function(fmt, grf, values)
 end
 
 M.write_grfs = function(grf, count)
-  local s = "@id  r126\n"
+  local s = "@id  r119\n"
   local width = devinfo.ver >= 20 and 16 or 8
   for i = 1, count do
     s = s .. string.format([[
-    @write   r126       r%d
-    add (%d) r126 r126 %d {A@1}
+    @write   r119       r%d
+    add (%d) r119 r119 %d {A@1}
     ]], grf + i - 1, width, GRF_SLOTS)
   end
   return s
