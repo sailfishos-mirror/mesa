@@ -89,6 +89,9 @@ struct radv_physical_device {
    /* Whether to enable FMASK compression for MSAA textures (GFX6-GFX10.3) */
    bool use_fmask;
 
+   /* Whether to use space for 2 descriptors for sampled image descriptors, even when fmask is disabled. */
+   bool force_64_byte_sampled_image;
+
    /* Whether to enable HTILE compression for depth/stencil images. */
    bool use_hiz;
 
@@ -274,7 +277,7 @@ static inline uint32_t
 radv_get_sampled_image_desc_size(const struct radv_physical_device *pdev)
 {
    /* Main descriptor + FMASK desccriptor if needed. */
-   return 32 + (pdev->use_fmask ? 32 : 0);
+   return 32 + (pdev->use_fmask || pdev->force_64_byte_sampled_image ? 32 : 0);
 }
 
 static inline uint32_t

@@ -2591,6 +2591,8 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
 
    pdev->use_fmask = pdev->info.compiler_info.has_fmask && !(instance->debug_flags & RADV_DEBUG_NO_FMASK);
 
+   pdev->force_64_byte_sampled_image = !pdev->use_fmask && instance->drirc.debug.force_64_byte_sampled_image;
+
    pdev->use_hiz = !(instance->debug_flags & RADV_DEBUG_NO_HIZ);
 
    if (pdev->info.gfx_level == GFX12) {

@@ -1166,6 +1166,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             .mesh_shader_queries = mesh_shader_queries,
             .image_2d_view_of_3d = image_2d_view_of_3d,
             .use_fmask = pdev->use_fmask,
+            .force_64_byte_sampled_image = pdev->force_64_byte_sampled_image,
             .robust_buffer_access = pdev->use_llvm && (device->vk.enabled_features.robustBufferAccess2 ||
                                                        device->vk.enabled_features.robustBufferAccess),
             .mitigate_smem_oob = pdev->info.compiler_info.has_smem_oob_access_bug &&

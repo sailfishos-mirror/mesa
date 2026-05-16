@@ -525,6 +525,7 @@ struct radv_compiler_info {
       uint32_t mesh_shader_queries : 1;
       uint32_t image_2d_view_of_3d : 1;
       uint32_t use_fmask : 1;
+      uint32_t force_64_byte_sampled_image : 1;
       uint32_t robust_buffer_access : 1; /* Only used by LLVM. */
       uint32_t mitigate_smem_oob : 1;
       uint32_t mitigate_smem_with_null_prt : 1;
@@ -544,7 +545,7 @@ struct radv_compiler_info {
       uint32_t tex_non_uniform : 1;
       uint32_t lower_terminate_to_discard : 1;
       uint32_t no_implicit_varying_subgroup_size : 1;
-      uint32_t padding : 31;
+      uint32_t padding : 30;
 
       int32_t force_aniso;
 
