@@ -49,14 +49,6 @@ struct kk_image {
 
    uint8_t plane_count;
    struct kk_image_plane planes[3];
-
-   /* In order to support D32_SFLOAT_S8_UINT, a temp area is
-    * needed. The stencil plane can't be a copied using the DMA
-    * engine in a single pass since it would need 8 components support.
-    * Instead we allocate a 16-bit temp, that gets copied into, then
-    * copied again down to the 8-bit result.
-    */
-   struct kk_image_plane stencil_copy_temp;
 };
 
 static inline mtl_resource *

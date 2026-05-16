@@ -545,14 +545,9 @@ kk_image_init(struct kk_device *dev, struct kk_image *image,
          ycbcr_info ? ycbcr_info->planes[plane].denominator_scales[0] : 1;
       const uint8_t height_scale =
          ycbcr_info ? ycbcr_info->planes[plane].denominator_scales[1] : 1;
-      kk_image_layout_init(dev, pCreateInfo, vk_format_to_pipe_format(format),
+      kk_image_layout_init(dev, &image->vk, vk_format_to_pipe_format(format),
                            width_scale, height_scale,
                            &image->planes[plane].layout);
-   }
-
-   if (image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-      kk_image_layout_init(dev, pCreateInfo, PIPE_FORMAT_R32_UINT, 1, 1,
-                           &image->stencil_copy_temp.layout);
    }
 
    return VK_SUCCESS;
@@ -585,11 +580,6 @@ kk_image_finish(struct kk_device *dev, struct kk_image *image,
    for (uint8_t plane = 0; plane < image->plane_count; plane++) {
       kk_image_plane_finish(dev, &image->planes[plane], image->vk.create_flags,
                             pAllocator);
-   }
-
-   if (image->stencil_copy_temp.layout.size_B > 0) {
-      kk_image_plane_finish(dev, &image->stencil_copy_temp,
-                            image->vk.create_flags, pAllocator);
    }
 
    vk_image_finish(&image->vk);
@@ -685,11 +675,6 @@ kk_get_image_memory_requirements(struct kk_device *dev, struct kk_image *image,
          kk_image_plane_add_req(dev, image, &image->planes[plane], &size_B,
                                 &align_B);
       }
-   }
-
-   if (image->stencil_copy_temp.layout.size_B > 0) {
-      kk_image_plane_add_req(dev, image, &image->stencil_copy_temp, &size_B,
-                             &align_B);
    }
 
    pMemoryRequirements->memoryRequirements.memoryTypeBits = memory_types;
@@ -916,13 +901,6 @@ kk_bind_image_memory(struct kk_device *dev, const VkBindImageMemoryInfo *info)
          if (result != VK_SUCCESS)
             return result;
       }
-   }
-
-   if (image->stencil_copy_temp.layout.size_B > 0) {
-      result = kk_image_plane_bind(dev, image, &image->stencil_copy_temp, mem,
-                                   &offset_B);
-      if (result != VK_SUCCESS)
-         return result;
    }
 
    return VK_SUCCESS;

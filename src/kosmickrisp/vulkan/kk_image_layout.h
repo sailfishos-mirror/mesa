@@ -12,7 +12,7 @@
 
 #include "util/format/u_formats.h"
 
-#include "vulkan/vulkan.h"
+#include "vk_image.h"
 
 #define KK_MAX_MIP_LEVELS 16
 
@@ -132,7 +132,7 @@ struct kk_view_layout {
 };
 
 void kk_image_layout_init(const struct kk_device *dev,
-                          const struct VkImageCreateInfo *create_info,
+                          const struct vk_image *image,
                           enum pipe_format format, const uint8_t width_scale,
                           const uint8_t height_scale,
                           struct kk_image_layout *layout);

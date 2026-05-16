@@ -15,17 +15,17 @@
 #include "util/format/u_format.h"
 
 static enum mtl_texture_type
-vk_image_create_info_to_mtl_texture_type(
-   const struct VkImageCreateInfo *create_info)
+vk_image_to_mtl_texture_type(
+   const struct vk_image *image)
 {
-   uint32_t array_layers = create_info->arrayLayers;
-   uint32_t samples = create_info->samples;
-   switch (create_info->imageType) {
+   uint32_t array_layers = image->array_layers;
+   uint32_t samples = image->samples;
+   switch (image->image_type) {
    case VK_IMAGE_TYPE_1D:
    case VK_IMAGE_TYPE_2D:
       /* We require input attachments to be arrays */
       if (array_layers > 1 ||
-          (create_info->usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
+          (image->usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
          return samples > 1u ? MTL_TEXTURE_TYPE_2D_ARRAY_MULTISAMPLE
                              : MTL_TEXTURE_TYPE_2D_ARRAY;
       return samples > 1u ? MTL_TEXTURE_TYPE_2D_MULTISAMPLE
@@ -78,27 +78,27 @@ vk_image_usage_flags_to_mtl_texture_usage(VkImageUsageFlags usage_flags,
 
 void
 kk_image_layout_init(const struct kk_device *dev,
-                     const struct VkImageCreateInfo *create_info,
+                     const struct vk_image *image,
                      enum pipe_format format, const uint8_t width_scale,
                      const uint8_t height_scale, struct kk_image_layout *layout)
 {
    const struct kk_va_format *supported_format = kk_get_va_format(format);
-   layout->type = vk_image_create_info_to_mtl_texture_type(create_info);
-   layout->width_px = create_info->extent.width / width_scale;
-   layout->height_px = create_info->extent.height / height_scale;
-   layout->depth_px = create_info->extent.depth;
-   layout->layers = create_info->arrayLayers;
-   layout->levels = create_info->mipLevels;
-   layout->optimized_layout = create_info->tiling == VK_IMAGE_TILING_OPTIMAL;
+   layout->type = vk_image_to_mtl_texture_type(image);
+   layout->width_px = image->extent.width / width_scale;
+   layout->height_px = image->extent.height / height_scale;
+   layout->depth_px = image->extent.depth;
+   layout->layers = image->array_layers;
+   layout->levels = image->mip_levels;
+   layout->optimized_layout = image->tiling == VK_IMAGE_TILING_OPTIMAL;
    layout->usage = vk_image_usage_flags_to_mtl_texture_usage(
-      create_info->usage, create_info->flags, supported_format->atomic);
+      image->usage, image->create_flags, supported_format->atomic);
    layout->format.pipe = format;
    layout->format.mtl = supported_format->mtl_pixel_format;
    layout->swizzle.red = supported_format->unswizzle.red;
    layout->swizzle.green = supported_format->unswizzle.green;
    layout->swizzle.blue = supported_format->unswizzle.blue;
    layout->swizzle.alpha = supported_format->unswizzle.alpha;
-   layout->sample_count_sa = create_info->samples;
+   layout->sample_count_sa = image->samples;
    mtl_heap_texture_size_and_align_with_descriptor(dev->mtl_handle, layout);
 
    /*
@@ -111,7 +111,7 @@ kk_image_layout_init(const struct kk_device *dev,
    }
 
    // TODO_KOSMICKRISP Fill remaining offsets and strides whenever possible
-   if (create_info->tiling == VK_IMAGE_TILING_LINEAR) {
+   if (image->tiling == VK_IMAGE_TILING_LINEAR) {
       const struct util_format_description *format_desc =
          util_format_description(layout->format.pipe);
       size_t bytes_per_texel = format_desc->block.bits / 8;
