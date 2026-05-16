@@ -30,7 +30,7 @@ variables:
 
   ALPINE_X86_64_BUILD_TAG: "20260604-rust196"
 
-  FEDORA_X86_64_BUILD_TAG: "20260604-bindgen"
+  FEDORA_X86_64_BUILD_TAG: "20260604-f44"
 
   KERNEL_TAG: "v6.19-mesa-712d"
   KERNEL_REPO: "gfx-ci/linux"
