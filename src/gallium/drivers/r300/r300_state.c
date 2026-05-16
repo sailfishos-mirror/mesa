@@ -2299,6 +2299,7 @@ static void r300_delete_vs_state(struct pipe_context* pipe, void* shader)
     } else {
         draw_delete_vertex_shader(r300->draw,
                 (struct draw_vertex_shader*)vs->draw_vs);
+        FREE(vs->first);
     }
 
     if (vs->state.type == PIPE_SHADER_IR_NIR) {
