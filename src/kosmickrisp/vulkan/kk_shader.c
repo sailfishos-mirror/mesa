@@ -503,6 +503,7 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir,
                glsl_get_natural_size_align_bytes);
 
       NIR_PASS(_, nir, msl_ensure_vertex_position_output);
+      NIR_PASS(_, nir, msl_ensure_vertex_point_size_output);
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       NIR_PASS(_, nir, kk_nir_lower_fs_multiview, state->mv->view_mask);
 

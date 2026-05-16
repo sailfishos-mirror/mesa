@@ -72,6 +72,7 @@ bool msl_lower_textures(nir_shader *s);
 bool msl_lower_static_sample_mask(nir_shader *nir, uint32_t sample_mask);
 bool msl_ensure_depth_write(nir_shader *nir);
 bool msl_ensure_vertex_position_output(nir_shader *nir);
+bool msl_ensure_vertex_point_size_output(nir_shader *nir);
 bool msl_nir_fs_io_types(nir_shader *nir);
 bool msl_nir_vs_io_types(nir_shader *nir);
 bool msl_nir_fake_guard_for_discards(struct nir_shader *nir);

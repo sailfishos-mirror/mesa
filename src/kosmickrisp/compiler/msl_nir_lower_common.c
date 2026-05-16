@@ -242,6 +242,30 @@ msl_ensure_vertex_position_output(nir_shader *nir)
    return false;
 }
 
+bool
+msl_ensure_vertex_point_size_output(nir_shader *nir)
+{
+   assert(nir->info.stage == MESA_SHADER_VERTEX);
+
+   bool has_point_size_write =
+      nir->info.outputs_written & BITFIELD64_BIT(VARYING_SLOT_PSIZ);
+   if (!has_point_size_write) {
+      nir_function_impl *entrypoint = nir_shader_get_entrypoint(nir);
+      nir_builder b = nir_builder_at(nir_before_impl(entrypoint));
+
+      struct nir_io_semantics io_semantics = {
+         .location = VARYING_SLOT_PSIZ,
+         .num_slots = 1u,
+      };
+      nir_store_output(&b, nir_imm_float(&b, 1.0f), nir_imm_int(&b, 0u),
+                       .base = 0u, .range = 1u, .write_mask = 0x1, .component = 0u,
+                       .src_type = nir_type_float32, .io_semantics = io_semantics);
+      nir->info.outputs_written |= BITFIELD64_BIT(VARYING_SLOT_PSIZ);
+   }
+
+   return true;
+}
+
 static bool
 msl_fs_io_types(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 {
