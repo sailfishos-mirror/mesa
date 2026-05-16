@@ -79,7 +79,7 @@ if with_intel_elk
       idep_nir_headers, idep_genxml, idep_mesautil, idep_intel_dev,
       idep_blorp_shaders
     ],
-    build_by_default: true, # FIXME XXX
+    build_by_default: false,
   )
 
   idep_intel_blorp_elk = declare_dependency(
