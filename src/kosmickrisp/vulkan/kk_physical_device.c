@@ -150,6 +150,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_swapchain = true,
       .KHR_swapchain_mutable_format = true,
 #endif
+      .KHR_unified_image_layouts = true,
       .KHR_workgroup_memory_explicit_layout = true,
 
       .EXT_attachment_feedback_loop_layout = true,
@@ -350,6 +351,10 @@ kk_get_device_features(
 
       /* VK_KHR_shader_relaxed_extended_instruction */
       .shaderRelaxedExtendedInstruction = true,
+
+      /* VK_KHR_unified_image_layouts */
+      .unifiedImageLayouts = true,
+      .unifiedImageLayoutsVideo = false,
 
       /* VK_KHR_workgroup_memory_explicit_layout */
       .workgroupMemoryExplicitLayout = true,
