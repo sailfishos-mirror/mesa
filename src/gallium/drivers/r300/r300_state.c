@@ -15,10 +15,7 @@
 #include "util/u_transfer.h"
 #include "util/u_blend.h"
 
-#include "nir/nir_to_tgsi.h"
 #include "nir/tgsi_to_nir.h"
-
-#include "tgsi/tgsi_parse.h"
 
 #include "util/detect.h"
 
@@ -33,7 +30,6 @@
 #include "r300_texture.h"
 #include "r300_vs.h"
 #include "compiler/r300_nir.h"
-#include "compiler/nir_to_rc.h"
 
 /* r300_state: Functions used to initialize state context by translating
  * Gallium state objects into semi-native r300 state objects. */
@@ -2175,16 +2171,7 @@ static void* r300_create_vs_state(struct pipe_context* pipe,
        vs->state.type = PIPE_SHADER_IR_NIR;
     }
 
-    /* Run the same NIR optimization/lowering for both HW and SW TCL.
-     * The LLVM-based draw emulation likely doesn't need the full
-     * hardware-targeted set of passes (e.g. the scalar/vector
-     * vectorization-or-scalarization choices, or much of the algebraic
-     * lowering); we could trim this for the draw path later to just
-     * what nir_to_rc actually requires - notably scalarizing vector
-     * comparisons (otherwise nir_lower_bool_to_float asserts) and
-     * keeping VS outputs aligned with FS inputs via the +9 varying-slot
-     * shift.
-     */
+    /* Run the same NIR optimization/lowering for both HW and SW TCL. */
     r300_optimize_nir(vs->state.ir.nir, r300->screen);
 
     if (r300->screen->caps.has_tcl) {
@@ -2199,17 +2186,6 @@ static void* r300_create_vs_state(struct pipe_context* pipe,
                 return NULL;
             }
         }
-    } else {
-       /* r300_draw_init_vertex_shader needs TGSI tokens.
-        * Apply the +9 varying shift to keep VS outputs aligned with the
-        * FS inputs (which always go through nir_to_rc and pick up the
-        * same shift), then go through the stock gallium nir_to_tgsi.
-        */
-       nir_shader *clone = nir_shader_clone(NULL, vs->state.ir.nir);
-       ralloc_free(vs->state.ir.nir);
-       ntr_fixup_varying_slots(clone, nir_var_shader_out);
-       vs->state.tokens = nir_to_tgsi(clone, pipe->screen);
-       vs->state.type = PIPE_SHADER_IR_TGSI;
     }
 
     if (!vs->first)

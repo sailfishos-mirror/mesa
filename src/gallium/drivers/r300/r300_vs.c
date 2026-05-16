@@ -10,80 +10,10 @@
 #include "r300_screen.h"
 #include "r300_reg.h"
 
-#include "tgsi/tgsi_dump.h"
-
 #include "compiler/nir_to_rc.h"
 #include "compiler/radeon_compiler.h"
 #include "nir/nir.h"
 
-/* Convert info about VS output semantics into r300_shader_semantics. */
-static void r300_shader_read_vs_outputs(
-    struct r300_context *r300,
-    struct tgsi_shader_info* info,
-    struct r300_shader_semantics* vs_outputs)
-{
-    int i;
-    unsigned index;
-
-    r300_shader_semantics_reset(vs_outputs);
-
-    for (i = 0; i < info->num_outputs; i++) {
-        index = info->output_semantic_index[i];
-
-        switch (info->output_semantic_name[i]) {
-            case TGSI_SEMANTIC_POSITION:
-                assert(index == 0);
-                vs_outputs->pos = i;
-                break;
-
-            case TGSI_SEMANTIC_PSIZE:
-                assert(index == 0);
-                vs_outputs->psize = i;
-                break;
-
-            case TGSI_SEMANTIC_COLOR:
-                assert(index < ATTR_COLOR_COUNT);
-                vs_outputs->color[index] = i;
-                break;
-
-            case TGSI_SEMANTIC_BCOLOR:
-                assert(index < ATTR_COLOR_COUNT);
-                vs_outputs->bcolor[index] = i;
-                break;
-
-            case TGSI_SEMANTIC_GENERIC:
-                assert(index < ATTR_GENERIC_COUNT);
-                vs_outputs->generic[index] = i;
-                vs_outputs->num_generic++;
-                break;
-
-            case TGSI_SEMANTIC_FOG:
-                assert(index == 0);
-                vs_outputs->fog = i;
-                break;
-
-            case TGSI_SEMANTIC_EDGEFLAG:
-                assert(index == 0);
-                fprintf(stderr, "r300 VP: cannot handle edgeflag output.\n");
-                break;
-
-            case TGSI_SEMANTIC_CLIPVERTEX:
-                assert(index == 0);
-                /* Draw does clip vertex for us. */
-                if (r300->screen->caps.has_tcl) {
-                    UNREACHABLE("");
-                }
-                break;
-
-            default:
-                fprintf(stderr, "r300 VP: unknown vertex output semantic: %i.\n",
-                        info->output_semantic_name[i]);
-        }
-    }
-
-    /* WPOS is a straight copy of POSITION */
-    vs_outputs->wpos = i;
-}
 
 static void set_vertex_inputs_outputs(struct r300_vertex_program_compiler * c)
 {
@@ -150,13 +80,6 @@ static void set_vertex_inputs_outputs(struct r300_vertex_program_compiler * c)
     /* WPOS. */
     if (vs->wpos)
         c->code->outputs[outputs->wpos] = reg++;
-}
-
-void r300_init_vs_outputs(struct r300_context *r300,
-                          struct r300_vertex_shader *vs)
-{
-    tgsi_scan_shader(vs->state.tokens, &vs->shader->info);
-    r300_shader_read_vs_outputs(r300, &vs->shader->info, &vs->shader->outputs);
 }
 
 static void r300_setup_vs_compiler(struct r300_context *r300,
