@@ -2,9 +2,11 @@ if not devinfo.has_bfloat16 then
   error("BF16 not supported in this platform.")
 end
 
-local r = execute {
-  src=[[
+local buf = alloc(16)
+
+execute [[
     @id      r3
+    @addr    r6        buf0 r3
 
     mov (8)   r4:f      r3                         {A@1}
     mov (8)   r5:f      r4.1<0>:f                  {A@1}
@@ -38,22 +40,21 @@ local r = execute {
     shl (8)   r42       r41:uw       16:uw         {A@1} // BF -> F.
 
     mov (8)   r43       r42:f                      {A@1}
-    @write   r3        r43
+    @store   r6        r43
 
     @eot
-  ]]
-}
+]]
 
 expected = {[0] = 0, 4, 8, 12, 16, 20, 24, 28}
 
 print("result")
-dump(r, 8)
+dump(buf, 8)
 
 print("expected")
 dump(expected, 8)
 
 for i=0,7 do
-  if r[i] ~= expected[i] then
+  if buf[i] ~= expected[i] then
     print("FAIL")
     return
   end

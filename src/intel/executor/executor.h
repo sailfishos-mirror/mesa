@@ -13,6 +13,7 @@
 #include "intel/isl/isl.h"
 #include "perf/intel_perf.h"
 #include "perf/intel_perf_query.h"
+#include "util/u_dynarray.h"
 /* TODO: Move slice.h into a proper common place. */
 #include "../mda/slice.h"
 
@@ -27,6 +28,14 @@ typedef struct {
    void *cursor;
    uint64_t addr;
 } executor_bo;
+
+typedef struct {
+   executor_bo *bo;
+   uint32_t offset;
+   uint32_t size;
+   void *map;
+   const char *name;
+} executor_mem_region;
 
 typedef struct {
    void *mem_ctx;
@@ -59,6 +68,9 @@ typedef struct {
    } perf_query;
 
    uint64_t batch_start;
+
+   struct util_dynarray mem_regions;
+   uint32_t next_mem_name_id;
 } executor_context;
 
 typedef struct {
@@ -87,6 +99,8 @@ executor_address executor_address_of_ptr(executor_bo *bo, void *ptr);
 
 void *executor_alloc_bytes(executor_bo *bo, uint32_t size);
 void *executor_alloc_bytes_aligned(executor_bo *bo, uint32_t size, uint32_t alignment);
+executor_mem_region *executor_find_mem_region(executor_context *ec,
+                                              const char *key);
 
 void failf(const char *fmt, ...) PRINTFLIKE(1, 2);
 

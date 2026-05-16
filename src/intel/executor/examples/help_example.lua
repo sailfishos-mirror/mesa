@@ -1,18 +1,18 @@
 -- Example from the help message.
 
-local r = execute {
-  data={ [42] = 0x100 },
-  src=[[
-    @mov     r2      42
-    @read    r3      r2
+local buf = alloc({ [42] = 0x100 })
+
+execute [[
+    @addr    r2      buf0 42
+    @load    r3      r2
 
     @id      r4
+    @addr    r5      buf0 r4
 
-    add (8)  r5      r3      r4      {A@1}
+    add (8)  r6      r3      r4      {A@1}
 
-    @write   r4       r5
+    @store   r5      r6
     @eot
-  ]]
-}
+]]
 
-dump(r, 4)
+dump(buf, 4)

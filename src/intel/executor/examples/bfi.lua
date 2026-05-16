@@ -10,29 +10,32 @@ function BFI_simulation(a, b, c, d)
   return ((c << offset) & mask) | (d & ~mask)
 end
 
-function BFI(a, b, c, d)
-  local r = execute {
-    data = { [0] = a, b, c, d },
-    src = [[
-      @id   r9
-      @mov  r11  0
-      @mov  r12  1
-      @mov  r13  2
-      @mov  r14  3
+local buf = alloc(16, { fill = 0 })
 
-      @read r2 r11
-      @read r3 r12
-      @read r4 r13
-      @read r5 r14
+function BFI(a, b, c, d)
+  buf:set({ [0] = a, b, c, d })
+
+  execute [[
+      @id   r9
+      @addr r9  buf0 r9
+
+      @addr r11 buf0 0
+      @addr r12 buf0 1
+      @addr r13 buf0 2
+      @addr r14 buf0 3
+
+      @load r2 r11
+      @load r3 r12
+      @load r4 r13
+      @load r5 r14
 
       bfi1 (8) r6      r2      r3              {A@1}
       bfi2 (8) r7      r6      r4      r5      {A@1}
 
-      @write r9 r7
+      @store r9 r7
       @eot
-    ]],
-  }
-  return r[0]
+  ]]
+  return buf[0]
 end
 
 function Hex(v) return string.format("0x%08x", v) end

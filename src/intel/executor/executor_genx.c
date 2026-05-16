@@ -47,6 +47,25 @@ emit_pipe_control(executor_context *ec)
    }
 }
 
+static void
+emit_state_invalidate(executor_context *ec)
+{
+   executor_batch_emit(GENX(PIPE_CONTROL), pc) {
+      pc.CommandStreamerStallEnable       = true;
+      pc.TextureCacheInvalidationEnable   = true;
+#if GFX_VERx10 == 120
+      /* Wa_14010840176: HDC flush plus state invalidation replaces constant
+       * cache invalidation when invalidating constants from L1.
+       */
+      pc.HDCPipelineFlushEnable           = true;
+#else
+      pc.ConstantCacheInvalidationEnable  = true;
+#endif
+      pc.StateCacheInvalidationEnable     = true;
+      pc.InstructionCacheInvalidateEnable = true;
+   }
+}
+
 void
 genX(emit_perf_stall)(executor_context *ec)
 {
@@ -181,6 +200,7 @@ genX(emit_execute)(const executor_run *run)
    const uint32_t mocs = isl_mocs(ec->isl_dev, 0, false);
 
    emit_state_base_address(ec, mocs);
+   emit_state_invalidate(ec);
 
    const uint32_t max_cs_threads =
       ec->devinfo->max_cs_threads * ec->devinfo->subslice_total;

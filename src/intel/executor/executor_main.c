@@ -90,17 +90,21 @@ print_help()
       "%s\n"
       "\n"
       "SCRIPTING ENVIRONMENT:\n"
-      "- execute({src=STR, data=ARRAY}) -> ARRAY\n"
+      "- alloc(SIZE_DWORDS|TABLE[, NAME|{name=STR, align=POWER_OF_TWO_BYTES, fill=VALUE}]) -> mem\n"
+      "- execute(SRC|{src=SRC})\n"
+      "- mem:fill(VALUE), mem:set(TABLE, offset?), mem:read(COUNT, offset?), mem:to_table()\n"
+      "- mem:dump(COUNT, offset?), mem:offset(), mem:addr(), mem:name(), mem[IDX], #mem\n"
       "- arg (table with command line arguments)\n"
-      "- dump(ARRAY, COUNT)\n"
+      "- dump(ARRAY|MEM, COUNT)\n"
       "- devinfo = { ver, verx10, has_dpas, has_bfloat16 }\n"
       "\n"
       "ASSEMBLY MACROS:\n"
       "- @eot, @syncnop\n"
       "- @mov REG IMM\n"
       "- @id REG\n"
-      "- @read DST_REG OFFSET_REG\n"
-      "- @write OFFSET_REG SRC_REG\n"
+      "- @addr DST_REG MEM [DWORD_INDEX|REG]\n"
+      "- @load DST_REG ADDR_REG\n"
+      "- @store ADDR_REG SRC_REG\n"
       "- @param hw_threads N\n"
       "\n"
       "PERFORMANCE COUNTERS:\n"
@@ -133,7 +137,13 @@ static struct {
    FILE *oa_csv_file;
    char *oa_csv_mem;
    size_t oa_csv_mem_size;
+
+   executor_context ec;
 } E;
+
+#define EXECUTOR_MEM_MT "executor.mem"
+
+typedef uint32_t executor_mem_userdata;
 
 #define genX_call(func, ...)                                \
    switch (E.devinfo.verx10) {                              \
@@ -205,6 +215,9 @@ executor_create_bo(executor_context *ec, executor_bo *bo, uint64_t addr, uint32_
    bo->size   = size_in_bytes;
    bo->addr   = addr;
    bo->cursor = bo->map;
+
+   assert(bo->addr % 4096 == 0);
+   assert((uintptr_t)bo->map % 4096 == 0);
 }
 
 static void
@@ -251,17 +264,120 @@ executor_alloc_bytes(executor_bo *bo, uint32_t size)
 void *
 executor_alloc_bytes_aligned(executor_bo *bo, uint32_t size, uint32_t alignment)
 {
-   uintptr_t r = (uintptr_t)bo->cursor;
-   if (alignment)
-      r = (r + alignment - 1) & ~((uintptr_t)alignment - 1);
+   uint64_t offset = (uintptr_t)bo->cursor - (uintptr_t)bo->map;
+   if (alignment) {
+      uint64_t gpu_addr = bo->addr + offset;
+      uint64_t aligned_gpu_addr = align64(gpu_addr, alignment);
+      offset = aligned_gpu_addr - bo->addr;
+   }
 
-   uint64_t offset = r - (uintptr_t)bo->map;
    if (offset > bo->size || size > bo->size - offset)
       failf("executor BO overflow");
 
-   void *ptr = (void *)r;
-   bo->cursor = ptr + size;
+   void *ptr = (char *)bo->map + offset;
+   bo->cursor = (char *)ptr + size;
    return ptr;
+}
+
+static bool
+executor_mem_name_is_valid(const char *name)
+{
+   if (!name || !name[0])
+      return false;
+
+   if (!(isalpha((unsigned char)name[0]) || name[0] == '_'))
+      return false;
+
+   for (const char *c = name + 1; *c; c++) {
+      if (!(isalnum((unsigned char)*c) || *c == '_'))
+         return false;
+   }
+
+   return true;
+}
+
+executor_mem_region *
+executor_find_mem_region(executor_context *ec, const char *key)
+{
+   util_dynarray_foreach(&ec->mem_regions, executor_mem_region, region) {
+      if (region->name && !strcmp(region->name, key))
+         return region;
+   }
+
+   return NULL;
+}
+
+static executor_mem_region *
+executor_get_mem_region(executor_context *ec, uint32_t idx)
+{
+   if (idx >= util_dynarray_num_elements(&ec->mem_regions,
+                                         executor_mem_region))
+      failf("invalid memory object %u", idx);
+
+   return util_dynarray_element(&ec->mem_regions, executor_mem_region, idx);
+}
+
+static uint32_t
+executor_data_alloc(executor_context *ec, uint32_t size_dw, uint32_t alignment,
+                    const char *name)
+{
+   if (size_dw > UINT32_MAX / 4)
+      failf("data allocation too large");
+
+   uint32_t size_bytes = size_dw * 4;
+
+   if (alignment) {
+      if (!util_is_power_of_two_nonzero(alignment))
+         failf("allocation alignment must be a power of two");
+      if (alignment < 4)
+         alignment = 4;
+   }
+
+   void *ptr = executor_alloc_bytes_aligned(&ec->bo.data, size_bytes, alignment);
+   executor_mem_region region = {
+      .bo = &ec->bo.data,
+      .offset = (uint32_t)((uintptr_t)ptr - (uintptr_t)ec->bo.data.map),
+      .size = size_bytes,
+      .map = ptr,
+      .name = NULL,
+   };
+
+   uint64_t addr = ec->bo.data.addr + (uint64_t)region.offset;
+   if (region.size > 0 && addr + region.size - 1 > UINT32_MAX)
+      failf("data allocation exceeds 32-bit GPU address space required for a32 messages");
+
+   if (name) {
+      if (!executor_mem_name_is_valid(name))
+         failf("invalid memory name '%s'", name);
+      if (executor_find_mem_region(ec, name))
+         failf("memory name '%s' already exists", name);
+
+      region.name = ralloc_strdup(ec->mem_ctx, name);
+      if (!region.name)
+         failf("failed to allocate memory name");
+   } else {
+      while (true) {
+         char generated[32];
+         snprintf(generated, sizeof(generated), "buf%u", ec->next_mem_name_id++);
+         if (executor_find_mem_region(ec, generated))
+            continue;
+
+         region.name = ralloc_strdup(ec->mem_ctx, generated);
+         if (!region.name)
+            failf("failed to allocate memory name");
+         break;
+      }
+   }
+
+   uint32_t idx = util_dynarray_num_elements(&ec->mem_regions,
+                                             executor_mem_region);
+   executor_mem_region *registered =
+      util_dynarray_grow(&ec->mem_regions, executor_mem_region, 1);
+   if (!registered)
+      failf("failed to allocate memory region table");
+
+   *registered = region;
+   return idx;
 }
 
 executor_address
@@ -275,24 +391,10 @@ executor_perf_bo_alloc(void *bufmgr, const char *name, uint64_t size)
 {
    executor_context *ec = bufmgr;
 
-   executor_bo *bo = rzalloc(ec->mem_ctx, executor_bo);
-   if (!bo)
-      failf("failed to allocate perf BO wrapper");
+   if (size > ec->bo.perf.size)
+      failf("perf query BO allocation too large");
 
-   /* Sub-allocate from a single BO. */
-   size = align64(size, 4096);
-   void *map = executor_alloc_bytes_aligned(&ec->bo.perf, size, 4096);
-   uint64_t offset = (char *)map - (char *)ec->bo.perf.map;
-
-   *bo = (executor_bo) {
-      .size = size,
-      .handle = ec->bo.perf.handle,
-      .map = map,
-      .cursor = map,
-      .addr = ec->bo.perf.addr + offset,
-   };
-
-   return bo;
+   return &ec->bo.perf;
 }
 
 /* intel_perf vtbl: executor has no live batch object to inspect and owns the
@@ -590,7 +692,8 @@ executor_perf_create_query(executor_context *ec)
 
    const uint32_t hw_ctx = ec->devinfo->kmd_type == INTEL_KMD_TYPE_I915 ?
       ec->i915.ctx_id : ec->xe.queue_id;
-   intel_perf_init_context(ec->perf_query.ctx, E.perf_cfg, ec->mem_ctx,
+   intel_perf_init_context(ec->perf_query.ctx, E.perf_cfg,
+                           ec->perf_query.ctx,
                            ec, ec, ec->devinfo, hw_ctx, ec->fd);
 
    ec->perf_query.obj = intel_perf_new_query(ec->perf_query.ctx, E.perf_query_index);
@@ -699,7 +802,9 @@ executor_perf_finish_query(executor_context *ec)
    free(data);
 
    intel_perf_delete_query(ec->perf_query.ctx, ec->perf_query.obj);
+   ec->perf_query.obj = NULL;
    intel_perf_free_context(ec->perf_query.ctx);
+   ec->perf_query.ctx = NULL;
 }
 
 static bool
@@ -825,10 +930,18 @@ decode_get_state_size(void *_ec, uint64_t address, uint64_t base_address)
 }
 
 static void
-parse_execute_data(executor_context *ec, lua_State *L, int table_idx)
+executor_check_bounds(uint32_t size_dw, uint32_t offset_dw, uint32_t count,
+                      const char *what)
 {
-   uint32_t *data = ec->bo.data.map;
+   uint64_t end = (uint64_t)offset_dw + count;
+   if (offset_dw > size_dw || end > size_dw)
+      failf("%s out of bounds", what);
+}
 
+static void
+executor_fill_table(uint32_t *data, uint32_t size_dw, lua_State *L, int table_idx,
+                    uint32_t base_offset, const char *what)
+{
    lua_pushvalue(L, table_idx);
 
    lua_pushnil(L);
@@ -837,17 +950,75 @@ parse_execute_data(executor_context *ec, lua_State *L, int table_idx)
       int key_idx = val_idx - 1;
 
       if (lua_type(L, key_idx) != LUA_TNUMBER || !lua_isinteger(L, key_idx))
-         failf("invalid key for data in execute call");
+         failf("invalid key for %s", what);
 
       lua_Integer key = lua_tointeger(L, key_idx);
-      assert(key <= 10 * 1024 * 1024 / 4);
-      lua_Integer val = lua_tointeger(L, val_idx);
-      data[key] = val;
+      if (key < 0)
+         failf("invalid key for %s", what);
+
+      uint64_t idx = (uint64_t)base_offset + (uint64_t)key;
+      if (idx >= size_dw)
+         failf("%s out of bounds", what);
+
+      lua_Integer val = luaL_checkinteger(L, val_idx);
+      data[idx] = (uint32_t)val;
 
       lua_pop(L, 1);
    }
 
    lua_pop(L, 1);
+}
+
+static void
+executor_fill_value(uint32_t *data, uint32_t size_dw, uint32_t value)
+{
+   for (uint32_t i = 0; i < size_dw; i++)
+      data[i] = value;
+}
+
+static uint32_t
+executor_table_size(lua_State *L, int table_idx)
+{
+   uint32_t size = 0;
+   bool found = false;
+
+   lua_pushvalue(L, table_idx);
+
+   lua_pushnil(L);
+   while (lua_next(L, -2) != 0) {
+      int key_idx = lua_gettop(L) - 1;
+
+      if (lua_type(L, key_idx) != LUA_TNUMBER || !lua_isinteger(L, key_idx))
+         failf("invalid allocation data key");
+
+      lua_Integer key = lua_tointeger(L, key_idx);
+      if (key < 0 || key >= UINT32_MAX)
+         failf("invalid allocation data key");
+
+      if ((uint32_t)key + 1 > size)
+         size = (uint32_t)key + 1;
+      found = true;
+
+      lua_pop(L, 1);
+   }
+
+   lua_pop(L, 1);
+
+   if (!found)
+      failf("cannot infer allocation size from empty table");
+
+   return size;
+}
+
+static void
+executor_push_table(lua_State *L, const uint32_t *data, uint32_t count,
+                    uint32_t offset_dw)
+{
+   lua_createtable(L, count, 0);
+   for (uint32_t i = 0; i < count; i++) {
+      lua_pushinteger(L, data[offset_dw + i]);
+      lua_seti(L, -2, i);
+   }
 }
 
 static void
@@ -928,11 +1099,22 @@ executor_parse_source_params(executor_run *run, slice src)
 static void
 parse_execute_args(executor_run *run, lua_State *L)
 {
-   int opts = lua_gettop(L);
+   if (lua_gettop(L) != 1)
+      failf("execute() expects a shader string or one table argument");
+
+   if (lua_type(L, 1) == LUA_TSTRING) {
+      size_t len;
+      const char *src = lua_tolstring(L, 1, &len);
+      run->original_src = (slice) { src, len };
+      return;
+   }
+
+   if (lua_type(L, 1) != LUA_TTABLE)
+      failf("execute() expects a shader string or table");
 
    lua_pushnil(L);
 
-   while (lua_next(L, opts) != 0) {
+   while (lua_next(L, 1) != 0) {
       int val_idx = lua_gettop(L);
       int key_idx = val_idx - 1;
 
@@ -947,19 +1129,30 @@ parse_execute_args(executor_run *run, lua_State *L)
          size_t len;
          const char *src = luaL_checklstring(L, val_idx, &len);
          run->original_src = (slice) { src, len };
-      } else if (!strcmp(key, "data")) {
-         parse_execute_data(run->ec, L, val_idx);
       } else {
          failf("unknown parameter '%s' for execute()", key);
       }
 
       lua_pop(L, 1);
    }
+
+   if (!run->original_src.data)
+      failf("execute() missing 'src'");
 }
 
 static void
 executor_context_setup(executor_context *ec)
 {
+   *ec = (executor_context) {
+      .mem_ctx = ralloc_context(NULL),
+      .devinfo = &E.devinfo,
+      .isl_dev = &E.isl_dev,
+      .fd = E.fd,
+      .perf_enabled = E.oa_csv_path != NULL || E.oa_spec != NULL,
+   };
+   if (!ec->mem_ctx)
+      failf("failed to allocate executor context");
+
    if (ec->devinfo->kmd_type == INTEL_KMD_TYPE_I915) {
       struct drm_i915_gem_context_create create = {0};
       int err = intel_ioctl(ec->fd, DRM_IOCTL_I915_GEM_CONTEXT_CREATE, &create);
@@ -1007,6 +1200,8 @@ executor_context_setup(executor_context *ec)
          failf("xe_exec_queue_create");
       ec->xe.queue_id = queue_create.exec_queue_id;
    }
+
+   util_dynarray_init(&ec->mem_regions, ec->mem_ctx);
 
    executor_create_bo(ec, &ec->bo.batch, EXECUTOR_BO_BATCH_ADDR, EXECUTOR_BO_SIZE);
    executor_create_bo(ec, &ec->bo.extra, EXECUTOR_BO_EXTRA_ADDR, EXECUTOR_BO_SIZE);
@@ -1222,6 +1417,9 @@ executor_context_teardown(executor_context *ec)
       if (err)
          failf("xe_vm_destroy");
    }
+
+   ralloc_free(ec->mem_ctx);
+   ec->mem_ctx = NULL;
 }
 
 static void
@@ -1301,34 +1499,135 @@ executor_assemble(executor_run *run, const char *src)
    return true;
 }
 
+static executor_mem_region *
+executor_mem_get_from_lua(lua_State *L, int idx)
+{
+   executor_mem_userdata *region_idx = luaL_checkudata(L, idx, EXECUTOR_MEM_MT);
+   return executor_get_mem_region(&E.ec, *region_idx);
+}
+
+static void
+executor_mem_push(lua_State *L, uint32_t region_idx)
+{
+   executor_mem_region *region = executor_get_mem_region(&E.ec, region_idx);
+   assert(region->bo);
+   assert(region->offset % 4 == 0);
+   assert(region->size % 4 == 0);
+
+   executor_mem_userdata *mem = lua_newuserdata(L, sizeof(*mem));
+   *mem = region_idx;
+
+   luaL_getmetatable(L, EXECUTOR_MEM_MT);
+   lua_setmetatable(L, -2);
+}
+
+static void
+executor_dump_values(const uint32_t *data, uint32_t count, uint32_t base_index)
+{
+   for (uint32_t i = 0; i < count; i++) {
+      if (i % 8 == 0)
+         printf("[0x%08x]", (base_index + i) * 4);
+      printf(" 0x%08x", data[i]);
+      if (i % 8 == 7)
+         printf("\n");
+   }
+   if (count % 8 != 0)
+      printf("\n");
+}
+
+static void
+parse_alloc_options(lua_State *L, int idx, uint32_t *alignment,
+                    const char **name, bool *has_fill, uint32_t *fill_value)
+{
+   if (idx > lua_gettop(L) || lua_isnil(L, idx))
+      return;
+
+   if (lua_type(L, idx) == LUA_TSTRING) {
+      *name = lua_tostring(L, idx);
+      return;
+   }
+
+   luaL_checktype(L, idx, LUA_TTABLE);
+
+   lua_getfield(L, idx, "align");
+   if (!lua_isnil(L, -1)) {
+      lua_Integer align_val = luaL_checkinteger(L, -1);
+      if (align_val < 0 || align_val > UINT32_MAX)
+         failf("invalid alignment");
+      *alignment = (uint32_t)align_val;
+   }
+   lua_pop(L, 1);
+
+   lua_getfield(L, idx, "name");
+   if (!lua_isnil(L, -1))
+      *name = luaL_checkstring(L, -1);
+   lua_pop(L, 1);
+
+   lua_getfield(L, idx, "fill");
+   if (!lua_isnil(L, -1)) {
+      lua_Integer fill_val = luaL_checkinteger(L, -1);
+      *fill_value = (uint32_t)fill_val;
+      *has_fill = true;
+   }
+   lua_pop(L, 1);
+}
+
+static int
+l_executor_alloc(lua_State *L)
+{
+   executor_context *ec = &E.ec;
+   if (lua_gettop(L) < 1 || lua_gettop(L) > 2)
+      failf("alloc() expects data/size and optional name/options");
+
+   uint32_t alignment = 0;
+   const char *name = NULL;
+   bool has_fill = false;
+   uint32_t fill_value = 0;
+   parse_alloc_options(L, 2, &alignment, &name, &has_fill, &fill_value);
+
+   uint32_t size_dw;
+   bool fill_from_table = false;
+
+   if (lua_type(L, 1) == LUA_TTABLE) {
+      size_dw = executor_table_size(L, 1);
+      fill_from_table = true;
+   } else {
+      lua_Integer size_val = luaL_checkinteger(L, 1);
+      if (size_val < 0 || size_val > UINT32_MAX)
+         failf("invalid allocation size");
+      size_dw = (uint32_t)size_val;
+   }
+
+   uint32_t region_idx = executor_data_alloc(ec, size_dw, alignment, name);
+   executor_mem_region *region = executor_get_mem_region(ec, region_idx);
+   if (fill_from_table || has_fill) {
+      executor_fill_value(region->map, size_dw, has_fill ? fill_value : 0);
+      if (fill_from_table)
+         executor_fill_table(region->map, size_dw, L, 1, 0, "allocation data");
+   }
+
+   executor_mem_push(L, region_idx);
+   return 1;
+}
+
 static int
 l_execute(lua_State *L)
 {
-   executor_context ec = {
-      .mem_ctx = ralloc_context(NULL),
-      .devinfo = &E.devinfo,
-      .isl_dev = &E.isl_dev,
-      .fd      = E.fd,
-      .perf_enabled = E.oa_csv_path != NULL || E.oa_spec != NULL,
-   };
-
-   executor_context_setup(&ec);
-
+   executor_context *ec = &E.ec;
    executor_run run = {
-      .ec = &ec,
-      .tmp_ctx = ralloc_context(ec.mem_ctx),
+      .ec = ec,
+      .tmp_ctx = ralloc_context(ec->mem_ctx),
       .hw_threads = 1,
    };
    if (!run.tmp_ctx)
       failf("failed to allocate execute scratch context");
 
-   executor_perf_create_query(&ec);
-
    {
-      if (lua_gettop(L) != 1)
-         failf("execute() must have a single table argument");
-
       parse_execute_args(&run, L);
+
+      /* Reset the cursors for a new dispatch. */
+      ec->bo.batch.cursor = ec->bo.batch.map;
+      ec->bo.extra.cursor = ec->bo.extra.map;
 
       executor_parse_source_params(&run, run.original_src);
 
@@ -1340,10 +1639,13 @@ l_execute(lua_State *L)
                 "=================================\n\n", src);
       }
 
-      if (!executor_assemble(&run, src))
+      if (!executor_assemble(&run, src)) {
+         ralloc_free(run.tmp_ctx);
          failf("assembler failure");
+      }
    }
 
+   executor_perf_create_query(ec);
    genX_call(emit_execute, &run);
 
    if (INTEL_DEBUG(DEBUG_BATCH)) {
@@ -1352,41 +1654,191 @@ l_execute(lua_State *L)
       if (INTEL_DEBUG(DEBUG_COLOR))
          flags |= INTEL_BATCH_DECODE_IN_COLOR;
 
-      intel_batch_decode_ctx_init_gen(&decoder, &E.devinfo, stdout,
-                                      flags, NULL, decode_get_bo, decode_get_state_size, &ec);
+      intel_batch_decode_ctx_init_gen(&decoder, ec->devinfo, stdout,
+                                      flags, NULL, decode_get_bo,
+                                      decode_get_state_size, ec);
 
-      assert(ec.bo.batch.cursor > ec.bo.batch.map);
-      const int batch_offset = ec.batch_start - ec.bo.batch.addr;
-      const int batch_size = (ec.bo.batch.cursor - ec.bo.batch.map) - batch_offset;
+      assert(ec->bo.batch.cursor > ec->bo.batch.map);
+      const int batch_offset = ec->batch_start - ec->bo.batch.addr;
+      const int batch_size = (ec->bo.batch.cursor - ec->bo.batch.map) - batch_offset;
       assert(batch_offset < batch_size);
 
-      intel_print_batch(&decoder, ec.bo.batch.map, batch_size, ec.batch_start, false);
+      intel_print_batch(&decoder, ec->bo.batch.map, batch_size, ec->batch_start, false);
 
       intel_batch_decode_ctx_finish(&decoder);
    }
 
-   executor_context_dispatch(&ec);
-
-   executor_perf_finish_query(&ec);
-
-   {
-      /* TODO: Use userdata to return a wrapped C array instead of building
-       * values.  Could make integration with array operations better.
-       */
-      uint32_t *data = ec.bo.data.map;
-      const int n = ec.bo.data.size / 4;
-      lua_createtable(L, n, 0);
-      for (int i = 0; i < n; i++) {
-         lua_pushinteger(L, data[i]);
-         lua_seti(L, -2, i);
-      }
-   }
+   executor_context_dispatch(ec);
+   executor_perf_finish_query(ec);
 
    ralloc_free(run.tmp_ctx);
+   return 0;
+}
 
-   executor_context_teardown(&ec);
-   ralloc_free(ec.mem_ctx);
+static int
+l_mem_fill(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
 
+   if (lua_gettop(L) != 2)
+      failf("mem:fill() expects one value");
+
+   lua_Integer val = luaL_checkinteger(L, 2);
+   uint32_t size_dw = mem->size / 4;
+   executor_fill_value(mem->map, size_dw, (uint32_t)val);
+
+   return 0;
+}
+
+static int
+l_mem_set(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   luaL_checktype(L, 2, LUA_TTABLE);
+
+   lua_Integer offset_val = luaL_optinteger(L, 3, 0);
+   if (offset_val < 0 || offset_val > UINT32_MAX)
+      failf("invalid set offset");
+
+   uint32_t offset_dw = (uint32_t)offset_val;
+   uint32_t size_dw = mem->size / 4;
+   executor_check_bounds(size_dw, offset_dw, 0, "memory set");
+   executor_fill_table(mem->map, size_dw, L, 2, offset_dw, "memory set");
+   return 0;
+}
+
+static int
+l_mem_read(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   lua_Integer count_val = luaL_checkinteger(L, 2);
+   lua_Integer offset_val = luaL_optinteger(L, 3, 0);
+
+   if (count_val < 0 || count_val > UINT32_MAX)
+      failf("invalid read count");
+   if (offset_val < 0 || offset_val > UINT32_MAX)
+      failf("invalid read offset");
+
+   uint32_t count = (uint32_t)count_val;
+   uint32_t offset_dw = (uint32_t)offset_val;
+   uint32_t size_dw = mem->size / 4;
+
+   executor_check_bounds(size_dw, offset_dw, count, "memory read");
+   executor_push_table(L, mem->map, count, offset_dw);
+   return 1;
+}
+
+static int
+l_mem_to_table(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   uint32_t size_dw = mem->size / 4;
+   executor_push_table(L, mem->map, size_dw, 0);
+   return 1;
+}
+
+static int
+l_mem_offset(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   uint32_t offset_dw = mem->offset / 4;
+   lua_pushinteger(L, offset_dw);
+   return 1;
+}
+
+static int
+l_mem_addr(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   uint64_t addr = mem->bo->addr + mem->offset;
+   if (addr > UINT32_MAX)
+      failf("memory address 0x%llx exceeds 32-bit limit for a32 messages",
+            (unsigned long long)addr);
+   lua_pushinteger(L, addr);
+   return 1;
+}
+
+static int
+l_mem_name(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   if (mem->name)
+      lua_pushstring(L, mem->name);
+   else
+      lua_pushnil(L);
+   return 1;
+}
+
+static int
+l_mem_dump(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   lua_Integer count_val = luaL_checkinteger(L, 2);
+   lua_Integer offset_val = luaL_optinteger(L, 3, 0);
+
+   if (count_val < 0 || count_val > UINT32_MAX)
+      failf("invalid dump count");
+   if (offset_val < 0 || offset_val > UINT32_MAX)
+      failf("invalid dump offset");
+
+   uint32_t count = (uint32_t)count_val;
+   uint32_t offset_dw = (uint32_t)offset_val;
+   uint32_t size_dw = mem->size / 4;
+
+   executor_check_bounds(size_dw, offset_dw, count, "memory dump");
+
+   uint32_t *data = mem->map;
+   executor_dump_values(data + offset_dw, count, offset_dw);
+   return 0;
+}
+
+static int
+l_mem_index(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+
+   if (lua_type(L, 2) == LUA_TNUMBER && lua_isinteger(L, 2)) {
+      lua_Integer idx = lua_tointeger(L, 2);
+      uint32_t size_dw = mem->size / 4;
+      if (idx < 0 || idx >= (lua_Integer)size_dw)
+         failf("memory index out of bounds");
+      uint32_t *data = mem->map;
+      lua_pushinteger(L, data[idx]);
+      return 1;
+   }
+
+   luaL_getmetatable(L, EXECUTOR_MEM_MT);
+   lua_pushvalue(L, 2);
+   lua_rawget(L, -2);
+   lua_remove(L, -2);
+   return 1;
+}
+
+static int
+l_mem_newindex(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+
+   if (lua_type(L, 2) != LUA_TNUMBER || !lua_isinteger(L, 2))
+      failf("invalid memory index");
+
+   lua_Integer idx = lua_tointeger(L, 2);
+   uint32_t size_dw = mem->size / 4;
+   if (idx < 0 || idx >= (lua_Integer)size_dw)
+      failf("memory index out of bounds");
+
+   lua_Integer val = luaL_checkinteger(L, 3);
+   uint32_t *data = mem->map;
+   data[idx] = (uint32_t)val;
+   return 0;
+}
+
+static int
+l_mem_len(lua_State *L)
+{
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   uint32_t size_dw = mem->size / 4;
+   lua_pushinteger(L, size_dw);
    return 1;
 }
 
@@ -1397,26 +1849,41 @@ l_dump(lua_State *L)
     * starting offset, format, etc.
     */
 
-   assert(lua_type(L, 1) == LUA_TTABLE);
-   assert(lua_type(L, 2) == LUA_TNUMBER);
-   assert(lua_isinteger(L, 2));
+   if (lua_type(L, 2) != LUA_TNUMBER || !lua_isinteger(L, 2))
+      failf("dump() expects a count");
 
    lua_Integer len_ = lua_tointeger(L, 2);
-   assert(len_ >= 0 && len_ <= INT_MAX);
-   int len = len_;
+   if (len_ < 0 || len_ > UINT32_MAX)
+      failf("invalid dump count");
 
-   int i;
-   for (i = 0; i < len; i++) {
-      if (i%8 == 0) printf("[0x%08x]", i * 4);
-      lua_rawgeti(L, 1, i);
-      lua_Integer val = lua_tointeger(L, -1);
-      printf(" 0x%08x", (uint32_t)val);
-      lua_pop(L, 1);
-      if (i%8 == 7) printf("\n");
+   uint32_t len = (uint32_t)len_;
+
+   if (lua_type(L, 1) == LUA_TTABLE) {
+      for (uint32_t i = 0; i < len; i++) {
+         if (i % 8 == 0)
+            printf("[0x%08x]", i * 4);
+         lua_rawgeti(L, 1, i);
+         lua_Integer val = lua_tointeger(L, -1);
+         printf(" 0x%08x", (uint32_t)val);
+         lua_pop(L, 1);
+         if (i % 8 == 7)
+            printf("\n");
+      }
+      if (len % 8 != 0)
+         printf("\n");
+      return 0;
    }
-   if (i%8 != 0) printf("\n");
+
+   if (!luaL_testudata(L, 1, EXECUTOR_MEM_MT))
+      failf("dump() expects a table or memory object");
+
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+   uint32_t size_dw = mem->size / 4;
+   executor_check_bounds(size_dw, 0, len, "dump");
+   executor_dump_values(mem->map, len, 0);
    return 0;
 }
+
 
 
 /* TODO: Review numeric limits in the code, specially around Lua integer
@@ -1563,6 +2030,8 @@ main(int argc, char *argv[])
               executor_perf_count_selected_counters(query), query->n_counters);
    }
 
+   executor_context_setup(&E.ec);
+
    lua_State *L = luaL_newstate();
 
    /* TODO: Could be nice to export some kind of builder interface,
@@ -1618,11 +2087,35 @@ main(int argc, char *argv[])
    }
    lua_setglobal(L, "devinfo");
 
-   lua_pushcfunction(L, l_execute);
-   lua_setglobal(L, "execute");
+   static const luaL_Reg mem_methods[] = {
+      {"fill",     l_mem_fill},
+      {"set",      l_mem_set},
+      {"read",     l_mem_read},
+      {"to_table", l_mem_to_table},
+      {"offset",   l_mem_offset},
+      {"addr",     l_mem_addr},
+      {"name",     l_mem_name},
+      {"dump",     l_mem_dump},
+      {"__index",    l_mem_index},
+      {"__newindex", l_mem_newindex},
+      {"__len",      l_mem_len},
+      {NULL, NULL},
+   };
 
-   lua_pushcfunction(L, l_dump);
-   lua_setglobal(L, "dump");
+   luaL_newmetatable(L, EXECUTOR_MEM_MT);
+   luaL_setfuncs(L, mem_methods, 0);
+   lua_pop(L, 1);
+
+   static const luaL_Reg executor_globals[] = {
+      {"alloc",   l_executor_alloc},
+      {"execute", l_execute},
+      {"dump",    l_dump},
+      {NULL, NULL},
+   };
+
+   lua_pushglobaltable(L);
+   luaL_setfuncs(L, executor_globals, 0);
+   lua_pop(L, 1);
 
    int err = luaL_loadfile(L, filename);
    if (err)
@@ -1633,6 +2126,8 @@ main(int argc, char *argv[])
       failf("failed to run script: %s", lua_tostring(L, -1));
 
    lua_close(L);
+
+   executor_context_teardown(&E.ec);
 
    if (E.oa_csv_file) {
       fclose(E.oa_csv_file);

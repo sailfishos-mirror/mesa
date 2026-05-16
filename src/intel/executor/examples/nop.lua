@@ -1,6 +1,4 @@
-execute {
-  src = [[
+execute [[
     nop (8)
     @eot
-  ]],
-}
+]]

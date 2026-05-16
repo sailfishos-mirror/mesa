@@ -56,19 +56,44 @@ For example:
 In addition to the regular Lua standard library the following variables and
 functions are available
 
-- execute({src=STR, data=ARRAY}) -> ARRAY
-  Takes a table as argument.  The 'src' in the table contains the shader to be
-  executed.  The 'data' argument will be used to fill the data buffer with 32-bit
-  values.  The function returns an ARRAY with the contents of the data buffer
-  after the shader completes.
+- alloc(SIZE_DWORDS|TABLE, opts?) -> mem
+  Allocate from the implicit default context data buffer.  If the first
+  argument is a table, infer the size from its largest integer key, zero
+  the allocation, and fill it from the table.  opts may be a string name
+  or a table containing name=STR (for use with @addr), fill=VALUE, and
+  align=BYTES (a power-of-two GPU byte address alignment).  If no name
+  is provided, allocations are named buf0, buf1, ... in creation order.
+
+- execute(SRC)
+- execute{src=SRC}
+  Assemble and execute SRC.  The shader source can use @param hw_threads
+  to select the number of hardware threads.
+
+- mem:fill(VALUE)
+  Fill all dwords with a constant value.
+
+- mem:set(TABLE, offset?)
+  Write dwords from a sparse table (0-based indexing).
+
+- mem:read(COUNT, offset?) -> TABLE
+- mem:to_table() -> TABLE
+  Read dwords into a Lua table.
+
+- mem:dump(COUNT, offset?)
+  Pretty print COUNT dwords starting at the given dword offset.
+
+- mem:offset(), mem:addr(), mem:name()
+  Return the dword offset relative to the data buffer, GPU byte address,
+  or memory name.  Indexing (mem[IDX]) is 0-based, #mem returns the
+  size in dwords.
 
 - arg
   Table containing the command line arguments passed to the script, arg[0]
   is the script filename, followed by the ARGS.  Arguments consumed by
   executor itself are not in this table.
 
-- dump(ARRAY, COUNT)
-  Pretty print the COUNT first elements of an array of 32-bit values.
+- dump(ARRAY|MEM, COUNT)
+  Pretty print the first COUNT dwords from an array or memory object.
 
 - devinfo
   Table containing device information:
@@ -93,14 +118,18 @@ regions, or immediates).
   Write a linear local invocation index into REG.  The index is
   hw_thread_id * SIMD_WIDTH + lane_id.
 
+- @addr DST_REG MEM [DWORD_INDEX]
+  Move the GPU byte address of MEM into DST_REG.  MEM is a memory name.
+  DWORD_INDEX may be an immediate or register dword index.
+
+- @load DST_REG ADDR_REG
+  Read dwords from the GPU byte address in ADDR_REG (a32).
+
+- @store ADDR_REG SRC_REG
+  Write dwords to the GPU byte address in ADDR_REG (a32).
+
 - @param hw_threads N
-  Set the number of hardware threads for execute().
-
-- @read DST_REG OFFSET_REG
-  Read 32-bit values from the memory buffer at OFFSET_REG into DST_REG.
-
-- @write OFFSET_REG SRC_REG
-  Write 32-bit values from SRC_REG to the memory buffer at OFFSET_REG.
+  Set the number of hardware threads for execute(SRC).
 
 - @syncnop
   Produce a coarse grained sync.nop (when applicable) to ensure data from
@@ -110,9 +139,10 @@ regions, or immediates).
 
 Compute shaders are dispatched with SIMD8 for Gfx9-125 and SIMD16
 for Xe2+.  By default one hardware thread is dispatched.  Use
-@param hw_threads N in the shader to execute N hardware threads.  A data
-buffer is used to pipe data into the shader and out of it, it is bound
-to the graphics address 0x30000000.
+@param hw_threads N in the shader to execute N hardware threads.
+Context allocations are sub-allocated from a data buffer bound at graphics
+address 0x30000000.  @addr produces a32 byte addresses for @load/@store
+messages.
 
 The executor reserves r0..r1 for its own payload and r124..r127 for
 macros.  Macro operands are checked for overlap, but raw assembly
@@ -135,22 +165,22 @@ The following INTEL_DEBUG values (comma separated) are used:
 
 The script
 
-  local r = execute {
-    data={ [42] = 0x100 },
-    src=[[
-      @mov     r2      42
-      @read    r3      r2
+  local buf = alloc({ [42] = 0x100 })  -- gets default name buf0
 
-      @id      r4
+  execute [[
+    @addr    r2      buf0 42
+    @load    r3      r2
 
-      add (8)  r5      r3      r4      {A@1}
+    @id      r4
+    @addr    r5      buf0 r4
 
-      @write   r4       r5
-      @eot
-    ]]
-  }
+    add (8)  r6      r3      r4      {A@1}
 
-  dump(r, 4)
+    @store   r5      r6
+    @eot
+  ]]
+
+  dump(buf, 4)
 
 Will produce the output
 

@@ -121,6 +121,14 @@ parse_args(void *mem_ctx, slice args)
    return r;
 }
 
+static const char *
+executor_macro_swsb(const executor_run *run)
+{
+   executor_context *ec = run->ec;
+   return ec->devinfo->verx10 < 120 ? "" :
+          ec->devinfo->verx10 < 125 ? "@1" : "A@1";
+}
+
 static void
 executor_macro_mov(executor_run *run, char **src, slice args)
 {
@@ -280,19 +288,16 @@ executor_macro_id(executor_run *run, char **src, slice args)
 }
 
 static void
-executor_macro_write(executor_run *run, char **src, slice args)
+executor_macro_store(executor_run *run, char **src, slice args)
 {
    executor_context *ec = run->ec;
    parse_args_result r = parse_args(run->tmp_ctx, args);
 
    if (r.count != 2)
-      failf("@write needs 2 arguments, found %d\n", r.count);
+      failf("@store needs 2 arguments, found %d\n", r.count);
 
-   unsigned offset_reg = parse_macro_grf(r.args[0]);
-   unsigned data_reg   = parse_macro_grf(r.args[1]);
-
-   assert(ec->bo.data.addr <= 0xFFFFFFFF);
-   uint32_t base_addr = ec->bo.data.addr;
+   unsigned addr_reg = parse_macro_grf(r.args[0]);
+   unsigned data_reg = parse_macro_grf(r.args[1]);
 
    switch (ec->devinfo->verx10) {
    case 90:
@@ -300,20 +305,16 @@ executor_macro_write(executor_run *run, char **src, slice args)
    case 120: {
       const char *send_op = ec->devinfo->verx10 < 120 ? "sends.hdc1" : "send.hdc1";
       ralloc_asprintf_append(src,
-         "mul (8) r127 r%u 0x4:uw {@1}\n"
-         "add (8) r127 r127 0x%08x {@1}\n"
-         "%s (8) null r127:1 r%u:1 0x00000040 0x02026efd {@1,$1}\n",
-         offset_reg, base_addr, send_op, data_reg);
+         "%s (8) null r%u:1 r%u:1 0x00000040 0x02026efd {@1,$1}\n",
+         send_op, addr_reg, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
 
    case 125: {
       ralloc_asprintf_append(src,
-         "mul (8) r127 r%u 0x4:uw {A@1}\n"
-         "add (8) r127 r127 0x%08x {A@1}\n"
-         "store.ugm.d32.a32 (8) r127:1 r%u:1 {A@1,$1}\n",
-         offset_reg, base_addr, data_reg);
+         "store.ugm.d32.a32 (8) r%u:1 r%u:1 {A@1,$1}\n",
+         addr_reg, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
@@ -322,10 +323,8 @@ executor_macro_write(executor_run *run, char **src, slice args)
    case 300:
    case 350: {
       ralloc_asprintf_append(src,
-         "mul (16) r127 r%u 0x4:uw {A@1}\n"
-         "add (16) r127 r127 0x%08x {A@1}\n"
-         "store.ugm.d32.a32 (16) r127:1 r%u:1 {A@1,$1}\n",
-         offset_reg, base_addr, data_reg);
+         "store.ugm.d32.a32 (16) r%u:1 r%u:1 {A@1,$1}\n",
+         addr_reg, data_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
@@ -336,20 +335,17 @@ executor_macro_write(executor_run *run, char **src, slice args)
 }
 
 static void
-executor_macro_read(executor_run *run, char **src, slice args)
+executor_macro_load(executor_run *run, char **src, slice args)
 {
    executor_context *ec = run->ec;
    parse_args_result r = parse_args(run->tmp_ctx, args);
 
    if (r.count != 2)
-      failf("@read needs 2 arguments, found %d\n", r.count);
+      failf("@load needs 2 arguments, found %d\n", r.count);
 
    /* Order follows underlying SEND, destination first. */
-   unsigned data_reg   = parse_macro_grf(r.args[0]);
-   unsigned offset_reg = parse_macro_grf(r.args[1]);
-
-   assert(ec->bo.data.addr <= 0xFFFFFFFF);
-   uint32_t base_addr = ec->bo.data.addr;
+   unsigned data_reg = parse_macro_grf(r.args[0]);
+   unsigned addr_reg = parse_macro_grf(r.args[1]);
 
    switch (ec->devinfo->verx10) {
    case 90:
@@ -357,20 +353,16 @@ executor_macro_read(executor_run *run, char **src, slice args)
    case 120: {
       const char *send_op = ec->devinfo->verx10 < 120 ? "sends.hdc1" : "send.hdc1";
       ralloc_asprintf_append(src,
-         "mul (8) r127 r%u 0x4:uw {@1}\n"
-         "add (8) r127 r127 0x%08x {@1}\n"
-         "%s (8) r%u r127:1 null:0 0x00000000 0x02106efd {@1,$1}\n",
-         offset_reg, base_addr, send_op, data_reg);
+         "%s (8) r%u r%u:1 null:0 0x00000000 0x02106efd {@1,$1}\n",
+         send_op, data_reg, addr_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
 
    case 125: {
       ralloc_asprintf_append(src,
-         "mul (8) r127 r%u 0x4:uw {A@1}\n"
-         "add (8) r127 r127 0x%08x {A@1}\n"
-         "load.ugm.d32.a32 (8) r%u:1 r127:1 {A@1,$1}\n",
-         offset_reg, base_addr, data_reg);
+         "load.ugm.d32.a32 (8) r%u:1 r%u:1 {A@1,$1}\n",
+         data_reg, addr_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
@@ -379,10 +371,8 @@ executor_macro_read(executor_run *run, char **src, slice args)
    case 300:
    case 350: {
       ralloc_asprintf_append(src,
-         "mul (16) r127 r%u 0x4:uw {A@1}\n"
-         "add (16) r127 r127 0x%08x {A@1}\n"
-         "load.ugm.d32.a32 (16) r%u:1 r127:1 {A@1,$1}\n",
-         offset_reg, base_addr, data_reg);
+         "load.ugm.d32.a32 (16) r%u:1 r%u:1 {A@1,$1}\n",
+         data_reg, addr_reg);
       executor_emit_syncnop(ec, src);
       break;
    }
@@ -390,6 +380,69 @@ executor_macro_read(executor_run *run, char **src, slice args)
    default:
       UNREACHABLE("invalid gfx version");
    }
+}
+
+static void
+executor_macro_addr(executor_run *run, char **src, slice args)
+{
+   executor_context *ec = run->ec;
+   parse_args_result r = parse_args(run->tmp_ctx, args);
+
+   if (r.count != 2 && r.count != 3)
+      failf("@addr needs 2 or 3 arguments, found %d\n", r.count);
+
+   unsigned dst_reg = parse_macro_grf(r.args[0]);
+   char *mem_key = slice_to_cstr(run->tmp_ctx, r.args[1]);
+
+   const executor_mem_region *region = executor_find_mem_region(ec, mem_key);
+   if (!region)
+      failf("unknown memory object '%s'", mem_key);
+
+   uint64_t base_addr = ec->bo.data.addr + region->offset;
+   if (base_addr > UINT32_MAX)
+      failf("@addr result 0x%llx exceeds 32-bit limit for a32 messages",
+            (unsigned long long)base_addr);
+
+   const unsigned exec_size = ec->devinfo->ver >= 20 ? 16 : 8;
+
+   if (r.count == 2) {
+      ralloc_asprintf_append(src,
+         "mov (%u) r%u 0x%08x\n",
+         exec_size, dst_reg, (uint32_t)base_addr);
+      return;
+   }
+
+   slice offset_slice = r.args[2];
+   int64_t offset_dw = 0;
+   if (parse_int64(offset_slice, &offset_dw) &&
+       offset_dw >= 0 && offset_dw <= UINT32_MAX) {
+      uint64_t byte_offset = (uint64_t)offset_dw * 4;
+      if (byte_offset >= region->size)
+         failf("@addr offset out of bounds");
+
+      uint64_t addr = base_addr + byte_offset;
+      if (addr > UINT32_MAX)
+         failf("@addr result 0x%llx exceeds 32-bit limit for a32 messages",
+               (unsigned long long)addr);
+
+      ralloc_asprintf_append(src,
+         "mov (%u) r%u 0x%08x\n",
+         exec_size, dst_reg, (uint32_t)addr);
+      return;
+   }
+
+   unsigned offset_reg = parse_macro_grf(offset_slice);
+
+   ralloc_asprintf_append(src,
+      "mov (%u) r127 0x%08x\n",
+      exec_size, (uint32_t)base_addr);
+
+   const char *swsb = executor_macro_swsb(run);
+   ralloc_asprintf_append(src,
+      "mul (%u) r%u r%u 0x4:uw {%s}\n"
+      "add (%u) r%u r%u r127 {%s}\n",
+      exec_size, dst_reg, offset_reg, swsb,
+      exec_size, dst_reg, dst_reg, swsb);
 }
 
 static slice
@@ -425,8 +478,9 @@ executor_apply_macros(executor_run *run)
    } macros[] = {
       { "@eot",      executor_macro_eot },
       { "@mov",      executor_macro_mov },
-      { "@write",    executor_macro_write },
-      { "@read",     executor_macro_read },
+      { "@store",    executor_macro_store },
+      { "@load",     executor_macro_load },
+      { "@addr",     executor_macro_addr },
       { "@id",       executor_macro_id },
       { "@param",    NULL },
       { "@syncnop",  executor_macro_syncnop },

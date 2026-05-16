@@ -2,9 +2,11 @@ if devinfo.ver < 20 then
   error("SRND instruction requires Gfx20+")
 end
 
-local r = execute {
-  src = [[
+local buf = alloc(8)
+
+execute [[
     @id      r2
+    @addr    r7        buf0 r2
 
     // Prepare F32 input data in r3
     mov (8) r3.0 0x00000000 {A@1}   // 0.0f
@@ -24,14 +26,13 @@ local r = execute {
     // Convert back to F32 for checking, using supported regioning
     mov (8) r6:f r5<2>:hf {A@1}
 
-    @write   r2        r6
+    @store   r7        r6
 
     @eot
-  ]],
-}
+]]
 
 print("result")
-dump(r, 8)
+dump(buf, 8)
 
 print("expected")
 expected = {
@@ -48,8 +49,8 @@ expected = {
 dump(expected, 8)
 
 for i=0,7 do
-  if r[i] ~= expected[i] then
-    print("FAIL at index", i, string.format("got 0x%08x expected 0x%08x", r[i], expected[i]))
+  if buf[i] ~= expected[i] then
+    print("FAIL at index", i, string.format("got 0x%08x expected 0x%08x", buf[i], expected[i]))
     return
   end
 end

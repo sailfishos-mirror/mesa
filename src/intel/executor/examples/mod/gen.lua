@@ -49,14 +49,16 @@ M.mov_grf = function(fmt, grf, values)
   return s
 end
 
-M.write_grfs = function(grf, count)
-  local s = "@id  r119\n"
+M.write_grfs = function(grf, count, mem)
+  mem = mem or "buf0"
+  local s = "@id  r118\n"
   local width = devinfo.ver >= 20 and 16 or 8
   for i = 1, count do
     s = s .. string.format([[
-    @write   r119       r%d
-    add (%d) r119 r119 %d {A@1}
-    ]], grf + i - 1, width, GRF_SLOTS)
+    @addr    r119       %s r118
+    @store   r119       r%d
+    add (%d) r118 r118 %d {A@1}
+    ]], mem, grf + i - 1, width, GRF_SLOTS)
   end
   return s
 end

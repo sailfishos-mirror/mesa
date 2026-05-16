@@ -2,7 +2,9 @@
 -- spell out JIP/UIP for IF/ELSE/ENDIF.  WHILE still needs an explicit JIP,
 -- but the common structured branch labels are inferred automatically.
 
-local src = [[
+local buf = alloc(16, { fill = 0 })
+
+execute [[
   @id   r2
   @mov  r3 0
   @mov  r4 0
@@ -30,22 +32,21 @@ LOOP:
   // WHILE still needs an explicit loop-start label for its JIP back-edge.
   (f0.0) while(1) jip:LOOP
 
-  @write r2 r3
+  @addr r6 buf0 r2
+  @store r6 r3
   @eot
 ]]
 
-local r = execute { src = src }
-
-local expected = {[0] = 18}
+local expected = 18
 
 print("result")
-dump(r, 1)
+dump(buf, 1)
 
 print("expected")
-dump(expected, 1)
+print(expected)
 
-if r[0] ~= expected[0] then
-  error(string.format("got %u expected %u", r[0], expected[0]))
+if buf[0] ~= expected then
+  error(string.format("got %u expected %u", buf[0], expected))
 end
 
 print("OK")

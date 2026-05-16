@@ -23,7 +23,9 @@ local C = matrix.new(M, N, 0)
 
 -- Calculate A * B + C.  A and B are HF values, C and the result
 -- are F values.
-local buf = execute {
+local buf = alloc(M * N, { fill = 0 })
+
+execute {
   src =
     [[]]
     .. gen.mov_grf("hf", 10, A:to_row_major())
@@ -51,7 +53,7 @@ local buf = execute {
 
     ]])
 
-    .. gen.write_grfs(40, 8)
+    .. gen.write_grfs(40, 8, "buf0")
     .. [[
 
     @eot
@@ -59,5 +61,5 @@ local buf = execute {
     ]],
 }
 
-local r = matrix.from_row_major_buffer(M, N, buf)
+local r = matrix.from_row_major_buffer(M, N, buf:read(M * N))
 r:print("0x%08x")

@@ -204,7 +204,10 @@ encode(a, format_ab)
 encode(b, format_ab)
 encode(c, format_cd)
 
-local buf = execute {
+local output_size = 8 * exec_size
+local buf = alloc(output_size, { fill = 0 })
+
+execute {
   src =
     [[]]
     .. gen.mov_grf(format_ab, 10, a:to_row_major())
@@ -216,13 +219,13 @@ local buf = execute {
     @syncnop
 
     ]], exec_size, format_cd, format_cd, format_ab, format_ab)
-    .. gen.write_grfs(40, 8)
+    .. gen.write_grfs(40, 8, "buf0")
     .. [[
     @eot
     ]],
 }
 
-local d = matrix.from_row_major_buffer(8, exec_size, buf)
+local d = matrix.from_row_major_buffer(8, exec_size, buf:read(output_size))
 
 local d_print_fmt = nil
 if string.find(format_cd, "f") then

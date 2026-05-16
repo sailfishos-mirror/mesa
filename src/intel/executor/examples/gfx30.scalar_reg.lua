@@ -5,8 +5,9 @@ if devinfo.ver < 30 then
   error("Scalar register requires Gfx30+")
 end
 
-local r = execute {
-  src=[[
+local buf = alloc(4, { fill = 0 })
+
+execute [[
     // The new scalar register s0 has 32 bytes.
     //
     // Only MOV can have scalar as destination.  Offsets in scalar
@@ -15,8 +16,8 @@ local r = execute {
 
     mov (1)  s0.0:uw   0x1111:uw
 
-    mov (1)  r2:uw     0x2222:uw
-    mov (1)  s0.2:uw   r2<0>:uw      {I@1}
+    mov (1)  r5:uw     0x2222:uw
+    mov (1)  s0.2:uw   r5<0>:uw      {I@1}
 
     mov (1)  s0.4:ud   0x33333333:ud {I@1}
 
@@ -37,8 +38,8 @@ local r = execute {
     // SEND.  Note the scalar will contain the hex value for r11 and r20.
     // And the scalar register is indexed as bytes in the send source.
 
-    mov (16) r11:ud    0x30000000:ud
-    mov (1)  s0.16:ud  0x0000140b:ud {I@1}
+    @addr    r11          buf0
+    mov (1)  s0.16:ud     0x0000140b:ud {I@1}
 
     send.ugm (16) null r[s0.16] null:0 0x00000000 0x04000504 {I@1,$1}
 
@@ -52,19 +53,18 @@ local r = execute {
     send.ugm (16) null r[s0.16] null:0 0x00000000 0x08002504 {I@1,$1}
 
     @eot
-  ]]
-}
+]]
 
 expected = {[0] = 0x22221111, 0x33333333, 0x44444444, 0x44444444}
 
 print("result")
-dump(r, 4)
+dump(buf, 4)
 
 print("expected")
 dump(expected, 4)
 
 for i=0,3 do
-  if r[i] ~= expected[i] then
+  if buf[i] ~= expected[i] then
     print("FAIL")
     return
   end

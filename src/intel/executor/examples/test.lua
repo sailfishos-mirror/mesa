@@ -1,20 +1,20 @@
 local data = {}
-for i = 0, 8-1 do
+for i = 0, 15 do
   data[i] = i * 4
 end
 
-local r = execute {
-  data = data,
-  src = [[
+local buf = alloc(data)
+
+execute [[
     @id    r2
-    @read  r3 r2
+    @addr  r3 buf0 r2
+    @load  r4 r3
 
-    add (8) r3 r3 0x100
+    add (8) r4 r4 0x100
 
-    @write r2 r3
+    @store r3 r4
 
     @eot
-  ]],
-}
+]]
 
-dump(r, 8)
+dump(buf, 8)
