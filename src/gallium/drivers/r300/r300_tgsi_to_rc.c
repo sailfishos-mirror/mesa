@@ -20,7 +20,6 @@ static unsigned translate_opcode(unsigned opcode)
     switch(opcode) {
         case TGSI_OPCODE_ARL: return RC_OPCODE_ARL;
         case TGSI_OPCODE_MOV: return RC_OPCODE_MOV;
-        case TGSI_OPCODE_LIT: return RC_OPCODE_LIT;
         case TGSI_OPCODE_RCP: return RC_OPCODE_RCP;
         case TGSI_OPCODE_RSQ: return RC_OPCODE_RSQ;
         case TGSI_OPCODE_EXP: return RC_OPCODE_EXP;
