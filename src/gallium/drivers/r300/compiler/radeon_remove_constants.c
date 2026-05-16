@@ -40,6 +40,10 @@ remap_regs(struct rc_instruction *inst, struct const_remap *inv_remap_table)
             inst->U.I.SrcReg[src].Index = inv_remap_table[old_index].index[old_swz];
             SET_SWZ(inst->U.I.SrcReg[src].Swizzle, chan,
                     inv_remap_table[old_index].swizzle[old_swz]);
+            if (inv_remap_table[old_index].negate[old_swz]) {
+               assert(!inst->U.I.SrcReg[src].Abs);
+               inst->U.I.SrcReg[src].Negate ^= 1 << chan;
+            }
          }
       }
    }
@@ -238,8 +242,8 @@ init_constant_remap_state(struct radeon_compiler *c, struct const_remap_state *s
    s->constants = c->Program.Constants.Constants;
    memset(s->is_used_as_vector, 0, c->Program.Constants.Count);
 
-   s->remap_table = malloc(c->Program.Constants.Count * sizeof(struct const_remap));
-   s->inv_remap_table = malloc(c->Program.Constants.Count * sizeof(struct const_remap));
+   s->remap_table = calloc(c->Program.Constants.Count, sizeof(struct const_remap));
+   s->inv_remap_table = calloc(c->Program.Constants.Count, sizeof(struct const_remap));
    for (unsigned i = 0; i < c->Program.Constants.Count; i++) {
       /* Clear the UseMask, we will update it later. */
       s->constants[i].UseMask = 0;
@@ -346,10 +350,11 @@ rc_remove_unused_constants(struct radeon_compiler *c, void *user)
       for (unsigned chan = 0; chan < 4; chan++) {
          if ((s->constants[i].UseMask) & (1 << chan) &&
              (~(s->is_used_as_vector[i]) & (1 << chan))) {
-            unsigned swz;
+            unsigned swz, neg;
             s->inv_remap_table[i].index[chan] = rc_constants_add_immediate_scalar(
-               &s->new_constants, constants[i].u.Immediate[chan], &swz);
+               &s->new_constants, constants[i].u.Immediate[chan], &swz, &neg);
             s->inv_remap_table[i].swizzle[chan] = GET_SWZ(swz, 0);
+            s->inv_remap_table[i].negate[chan] = GET_BIT(neg, 0);
             s->is_identity = false;
          }
       }
