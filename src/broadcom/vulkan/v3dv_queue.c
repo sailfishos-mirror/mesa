@@ -578,6 +578,10 @@ handle_copy_query_results_cpu_job(struct v3dv_queue *queue,
       uintptr_t *kperfmon_ids = NULL;
 
       if (info->pool->query_type == VK_QUERY_TYPE_TIMESTAMP) {
+         /* timestamp pool BO is V3DV-internal, never aliased by user BO. If
+          * that could happen we would need to dedupe them
+          */
+         assert(bo->handle != info->pool->timestamp.bo->handle);
          submit.bo_handle_count = 2;
 
          bo_handles = (uint32_t *)
