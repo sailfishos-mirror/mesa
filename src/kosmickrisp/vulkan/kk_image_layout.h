@@ -14,6 +14,8 @@
 
 #include "vk_image.h"
 
+#include <stdbool.h>
+
 #define KK_MAX_MIP_LEVELS 16
 
 struct kk_device;
@@ -32,6 +34,10 @@ struct kk_image_layout {
    /** Number of miplevels. 1 if no mipmapping is used. */
    uint8_t levels;
 
+   /** Whether the image has linear tiling */
+   uint8_t linear;
+
+   /** Whether to allow Metal to optimize image contents for the GPU */
    uint8_t optimized_layout;
 
    enum mtl_texture_usage usage;
@@ -130,6 +136,9 @@ struct kk_view_layout {
 
    uint16_t min_lod_clamp;
 };
+
+bool kk_image_layout_can_optimize(VkImageUsageFlags usage,
+                                  VkImageTiling tiling);
 
 void kk_image_layout_init(const struct kk_device *dev,
                           const struct vk_image *image,

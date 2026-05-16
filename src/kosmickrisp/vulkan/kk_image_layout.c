@@ -76,6 +76,16 @@ vk_image_usage_flags_to_mtl_texture_usage(VkImageUsageFlags usage_flags,
    return usage;
 }
 
+bool
+kk_image_layout_can_optimize(VkImageUsageFlags usage, VkImageTiling tiling)
+{
+   /* Can only optimize if tiling is optimal */
+   if (tiling != VK_IMAGE_TILING_OPTIMAL)
+      return false;
+
+   return true;
+}
+
 void
 kk_image_layout_init(const struct kk_device *dev,
                      const struct vk_image *image,
@@ -89,7 +99,9 @@ kk_image_layout_init(const struct kk_device *dev,
    layout->depth_px = image->extent.depth;
    layout->layers = image->array_layers;
    layout->levels = image->mip_levels;
-   layout->optimized_layout = image->tiling == VK_IMAGE_TILING_OPTIMAL;
+   layout->linear = image->tiling != VK_IMAGE_TILING_OPTIMAL;
+   layout->optimized_layout = kk_image_layout_can_optimize(
+      image->usage, image->tiling);
    layout->usage = vk_image_usage_flags_to_mtl_texture_usage(
       image->usage, image->create_flags, supported_format->atomic);
    layout->format.pipe = format;

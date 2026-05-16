@@ -230,15 +230,15 @@ mtl_heap_texture_size_and_align_with_descriptor(mtl_device *device,
 {
    @autoreleasepool {
       id<MTLDevice> dev = (id<MTLDevice>)device;
-      if (layout->optimized_layout) {
+      if (layout->linear) {
+         /* Linear textures have different alignment since they are allocated on top of MTLBuffers */
+         layout->align_B = [dev minimumLinearTextureAlignmentForPixelFormat:layout->format.mtl];
+      } else {
          MTLTextureDescriptor *descriptor = [mtl_new_texture_descriptor(layout) autorelease];
          descriptor.resourceOptions = KK_MTL_RESOURCE_OPTIONS;
          MTLSizeAndAlign size_align = [dev heapTextureSizeAndAlignWithDescriptor:descriptor];
          layout->size_B = size_align.size;
          layout->align_B = size_align.align;
-      } else {
-         /* Linear textures have different alignment since they are allocated on top of MTLBuffers */
-         layout->align_B = [dev minimumLinearTextureAlignmentForPixelFormat:layout->format.mtl];
       }
    }
 }

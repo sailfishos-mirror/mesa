@@ -819,12 +819,12 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
    *offset_B = align64(*offset_B, plane_align_B);
 
    /* Linear textures in Metal need to be allocated through a buffer... */
-   if (plane->layout.optimized_layout)
-      plane->mtl_handle = mtl_new_texture_with_descriptor(
-         mem->bo->mtl_handle, &plane->layout, *offset_B);
-   else
+   if (plane->layout.linear)
       plane->mtl_handle = mtl_new_texture_with_descriptor_linear(
          mem->bo->map, &plane->layout, *offset_B);
+   else
+      plane->mtl_handle = mtl_new_texture_with_descriptor(
+         mem->bo->mtl_handle, &plane->layout, *offset_B);
    plane->addr = mem->bo->gpu + *offset_B;
 
    /* Create auxiliary 2D array texture for 3D images so we can use 2D views of
