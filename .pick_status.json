@@ -7924,7 +7924,7 @@
         "description": "radv: use radv_get_sampled_image_desc_size instead of open coding it",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
