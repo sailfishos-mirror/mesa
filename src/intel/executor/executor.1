@@ -66,8 +66,8 @@ functions are available
 
 - execute(SRC)
 - execute{src=SRC}
-  Assemble and execute SRC.  The shader source can use @param hw_threads
-  to select the number of hardware threads.
+  Assemble and execute SRC.  The shader source can use @param directives;
+  see the parameter list below.
 
 - mem:fill(VALUE)
   Fill all dwords with a constant value.
@@ -128,8 +128,13 @@ regions, or immediates).
 - @store ADDR_REG SRC_REG
   Write dwords to the GPU byte address in ADDR_REG (a32).
 
+
 - @param hw_threads N
   Set the number of hardware threads for execute(SRC).
+
+- @param simd 8|16|32
+  Set the SIMD width for execute(SRC).  Xe2+ accepts SIMD16/SIMD32;
+  earlier platforms accept SIMD8/SIMD16/SIMD32.
 
 - @syncnop
   Produce a coarse grained sync.nop (when applicable) to ensure data from
@@ -137,9 +142,11 @@ regions, or immediates).
 
 .SH GPU EXECUTION
 
-Compute shaders are dispatched with SIMD8 for Gfx9-125 and SIMD16
-for Xe2+.  By default one hardware thread is dispatched.  Use
-@param hw_threads N in the shader to execute N hardware threads.
+Compute shaders are dispatched with SIMD8 before Xe2 and SIMD16 on Xe2+
+by default.  Use @param simd WIDTH in the shader to select another
+supported SIMD width.  Xe2+ supports SIMD16 and SIMD32; earlier platforms
+support SIMD8/SIMD16/SIMD32.  By default one hardware thread is dispatched.
+Use @param hw_threads N in the shader to execute N hardware threads.
 Context allocations are sub-allocated from a data buffer bound at graphics
 address 0x30000000.  @addr produces a32 byte addresses for @load/@store
 messages.

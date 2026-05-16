@@ -62,7 +62,20 @@ parse_int64(slice s, int64_t *value)
 }
 
 static unsigned
-parse_macro_grf(slice reg)
+slots_per_grf(const executor_run *run)
+{
+   executor_context *ec = run->ec;
+   return ec->devinfo->grf_size / sizeof(uint32_t);
+}
+
+static unsigned
+grfs_per_macro_operand(const executor_run *run)
+{
+   return run->simd / slots_per_grf(run);
+}
+
+static unsigned
+parse_macro_grf(const executor_run *run, slice reg)
 {
    if (reg.len < 2 || reg.data[0] != 'r' ||
        !isdigit((unsigned char)reg.data[1]))
@@ -83,16 +96,39 @@ parse_macro_grf(slice reg)
       nr = nr * 10 + digit;
    }
 
-   if (nr < 2)
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
+   if (nr < 2 || operand_grfs == 0 || nr + operand_grfs > EXECUTOR_GRF_COUNT)
       failf("operand %.*s must be a non-reserved valid register",
             SLICE_FMT(reg));
 
    if (MAX2(nr, EXECUTOR_RESERVED_GRF_START) <
-       MIN2(nr + 1, EXECUTOR_RESERVED_GRF_END))
+       MIN2(nr + operand_grfs, EXECUTOR_RESERVED_GRF_END))
       failf("operand %.*s must be a non-reserved valid register",
             SLICE_FMT(reg));
 
    return nr;
+}
+
+static bool
+executor_macro_grf_ranges_overlap(unsigned a, unsigned b, unsigned count)
+{
+   return MAX2(a, b) < MIN2(a + count, b + count);
+}
+
+static void
+check_macro_grf_no_partial_overlap(const executor_run *run,
+                                   const char *macro,
+                                   slice dst, unsigned dst_nr,
+                                   slice src, unsigned src_nr)
+{
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
+
+   if (operand_grfs <= 1 || dst_nr == src_nr)
+      return;
+
+   if (executor_macro_grf_ranges_overlap(dst_nr, src_nr, operand_grfs))
+      failf("%s operands %.*s and %.*s partially overlap for simd%u",
+            macro, SLICE_FMT(dst), SLICE_FMT(src), run->simd);
 }
 
 typedef struct {
@@ -129,18 +165,25 @@ executor_macro_swsb(const executor_run *run)
           ec->devinfo->verx10 < 125 ? "@1" : "A@1";
 }
 
+static const char *
+hw_thread_id_reg(const executor_run *run)
+{
+   executor_context *ec = run->ec;
+   return ec->devinfo->verx10 < 125 ? "r1<0>:ud" : "r0.2<0>:ud";
+}
+
 static void
 executor_macro_mov(executor_run *run, char **src, slice args)
 {
-   executor_context *ec = run->ec;
    parse_args_result r = parse_args(run->tmp_ctx, args);
 
    if (r.count != 2)
       failf("@mov needs 2 arguments, found %d\n", r.count);
 
-   unsigned reg = parse_macro_grf(r.args[0]);
+   unsigned reg = parse_macro_grf(run, r.args[0]);
    char *value = slice_to_cstr(run->tmp_ctx, r.args[1]);
-   const unsigned width = ec->devinfo->ver >= 20 ? 16 : 8;
+   const unsigned width = run->simd;
+   const char *swsb = executor_macro_swsb(run);
 
    if (strchr(value, '.')) {
       union {
@@ -150,15 +193,15 @@ executor_macro_mov(executor_run *run, char **src, slice args)
 
       val.f = strtof(value, NULL);
       ralloc_asprintf_append(src,
-         "mov (%u) r%u:f 0x%08x:f\n",
-         width, reg, val.u);
+         "mov (%u) r%u:f 0x%08x:f {%s}\n",
+         width, reg, val.u, swsb);
    } else {
       for (char *x = value; *x; x++)
          *x = tolower(*x);
 
       ralloc_asprintf_append(src,
-         "mov (%u) r%u %s\n",
-         width, reg, value);
+         "mov (%u) r%u %s {%s}\n",
+         width, reg, value, swsb);
    }
 }
 
@@ -239,52 +282,53 @@ executor_macro_eot(executor_run *run, char **src, slice line)
 static void
 executor_macro_id(executor_run *run, char **src, slice args)
 {
-   executor_context *ec = run->ec;
    parse_args_result r = parse_args(run->tmp_ctx, args);
 
    if (r.count != 1)
       failf("@id needs 1 argument, found %d", r.count);
 
-   unsigned reg = parse_macro_grf(r.args[0]);
+   const unsigned slots = slots_per_grf(run);
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
+   const char *swsb = executor_macro_swsb(run);
+   unsigned nr = parse_macro_grf(run, r.args[0]);
 
-   switch (ec->devinfo->verx10) {
-   case 90:
-   case 110:
-   case 120: {
-      ralloc_asprintf_append(src,
-         "(W) mov (8) r127:uw 0x76543210:v\n"
-         "(W) shl (8) r126 r1<0>:ud 3:ud {@1}\n"
-         "(W) add (8) r%u r127:uw r126 {@1}\n",
-         reg);
-      break;
+   ralloc_asprintf_append(src, "(W) mov (8) r127:uw 0x76543210:v {%s}\n", swsb);
+   if (slots > 8)
+      ralloc_asprintf_append(src, "(W) add (8) r127.8:uw r127:uw 8:uw {%s}\n", swsb);
+
+   for (unsigned i = 0; i < operand_grfs; i++) {
+      ralloc_asprintf_append(src, "(W) mov (%u) r%u r127:uw {%s}\n",
+                             slots, nr + i, swsb);
+      if (i > 0)
+         ralloc_asprintf_append(src, "(W) add (%u) r%u r%u 0x%x:ud {%s}\n",
+                                slots, nr + i, nr + i, i * slots, swsb);
    }
 
-   case 125: {
-      ralloc_asprintf_append(src,
-         "(W) mov (8) r127:uw 0x76543210:v\n"
-         "(W) and (8) r126 r0.2<0>:ud 0xff:ud {A@1}\n"
-         "(W) shl (8) r126 r126 3:ud {A@1}\n"
-         "(W) add (8) r%u r127:uw r126 {A@1}\n",
-         reg);
-      break;
-   }
+   if (run->hw_threads <= 1)
+      return;
 
-   case 200:
-   case 300:
-   case 350: {
-      ralloc_asprintf_append(src,
-         "(W) mov (8) r127:uw 0x76543210:v\n"
-         "(W) add (8) r127.8:uw r127:uw 8:uw {A@1}\n"
-         "(W) and (16) r126 r0.2<0>:ud 0xff:ud {A@1}\n"
-         "(W) shl (16) r126 r126 4:ud {A@1}\n"
-         "(W) add (16) r%u r127:uw r126 {A@1}\n",
-         reg);
-      break;
-   }
+   const unsigned shift = run->simd == 32 ? 5 : run->simd == 16 ? 4 : 3;
+   ralloc_asprintf_append(src,
+      "(W) and (8) r126 %s 0xff:ud {%s}\n"
+      "(W) shl (8) r126 r126 %u:ud {%s}\n",
+      hw_thread_id_reg(run), swsb, shift, swsb);
 
-   default:
-      UNREACHABLE("invalid gfx version");
-   }
+   for (unsigned i = 0; i < operand_grfs; i++)
+      ralloc_asprintf_append(src, "(W) add (%u) r%u r%u r126.0<0>:ud {%s}\n",
+                             slots, nr + i, nr + i, swsb);
+}
+
+static void
+executor_macro_emit_mov_u32(const executor_run *run,
+                            char **src, unsigned nr, uint32_t value)
+{
+   const unsigned exec_size = slots_per_grf(run);
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
+   const char *swsb = executor_macro_swsb(run);
+
+   for (unsigned i = 0; i < operand_grfs; i++)
+      ralloc_asprintf_append(src, "mov (%u) r%u 0x%08x {%s}\n",
+                             exec_size, nr + i, value, swsb);
 }
 
 static void
@@ -296,42 +340,39 @@ executor_macro_store(executor_run *run, char **src, slice args)
    if (r.count != 2)
       failf("@store needs 2 arguments, found %d\n", r.count);
 
-   unsigned addr_reg = parse_macro_grf(r.args[0]);
-   unsigned data_reg = parse_macro_grf(r.args[1]);
+   unsigned addr_reg = parse_macro_grf(run, r.args[0]);
+   unsigned data_reg = parse_macro_grf(run, r.args[1]);
+   const unsigned exec_size = slots_per_grf(run);
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
 
-   switch (ec->devinfo->verx10) {
-   case 90:
-   case 110:
-   case 120: {
-      const char *send_op = ec->devinfo->verx10 < 120 ? "sends.hdc1" : "send.hdc1";
-      ralloc_asprintf_append(src,
-         "%s (8) null r%u:1 r%u:1 0x00000040 0x02026efd {@1,$1}\n",
-         send_op, addr_reg, data_reg);
-      executor_emit_syncnop(ec, src);
-      break;
+   for (unsigned i = 0; i < operand_grfs; i++) {
+      switch (ec->devinfo->verx10) {
+      case 90:
+      case 110:
+      case 120: {
+         const char *send_op = ec->devinfo->verx10 < 120 ? "sends.hdc1" : "send.hdc1";
+         ralloc_asprintf_append(src,
+            "%s (%u) null r%u:1 r%u:1 0x00000040 0x02026efd {@1,$1}\n",
+            send_op, exec_size, addr_reg + i, data_reg + i);
+         break;
+      }
+
+      case 125:
+      case 200:
+      case 300:
+      case 350: {
+         ralloc_asprintf_append(src,
+            "store.ugm.d32.a32 (%u) r%u:1 r%u:1 {A@1,$1}\n",
+            exec_size, addr_reg + i, data_reg + i);
+         break;
+      }
+
+      default:
+         UNREACHABLE("invalid gfx version");
+      }
    }
 
-   case 125: {
-      ralloc_asprintf_append(src,
-         "store.ugm.d32.a32 (8) r%u:1 r%u:1 {A@1,$1}\n",
-         addr_reg, data_reg);
-      executor_emit_syncnop(ec, src);
-      break;
-   }
-
-   case 200:
-   case 300:
-   case 350: {
-      ralloc_asprintf_append(src,
-         "store.ugm.d32.a32 (16) r%u:1 r%u:1 {A@1,$1}\n",
-         addr_reg, data_reg);
-      executor_emit_syncnop(ec, src);
-      break;
-   }
-
-   default:
-      UNREACHABLE("invalid gfx version");
-   }
+   executor_emit_syncnop(ec, src);
 }
 
 static void
@@ -344,42 +385,43 @@ executor_macro_load(executor_run *run, char **src, slice args)
       failf("@load needs 2 arguments, found %d\n", r.count);
 
    /* Order follows underlying SEND, destination first. */
-   unsigned data_reg = parse_macro_grf(r.args[0]);
-   unsigned addr_reg = parse_macro_grf(r.args[1]);
+   unsigned data_reg = parse_macro_grf(run, r.args[0]);
+   unsigned addr_reg = parse_macro_grf(run, r.args[1]);
+   check_macro_grf_no_partial_overlap(run, "@load",
+                                      r.args[0], data_reg,
+                                      r.args[1], addr_reg);
 
-   switch (ec->devinfo->verx10) {
-   case 90:
-   case 110:
-   case 120: {
-      const char *send_op = ec->devinfo->verx10 < 120 ? "sends.hdc1" : "send.hdc1";
-      ralloc_asprintf_append(src,
-         "%s (8) r%u r%u:1 null:0 0x00000000 0x02106efd {@1,$1}\n",
-         send_op, data_reg, addr_reg);
-      executor_emit_syncnop(ec, src);
-      break;
+   const unsigned exec_size = slots_per_grf(run);
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
+
+   for (unsigned i = 0; i < operand_grfs; i++) {
+      switch (ec->devinfo->verx10) {
+      case 90:
+      case 110:
+      case 120: {
+         const char *send_op = ec->devinfo->verx10 < 120 ? "sends.hdc1" : "send.hdc1";
+         ralloc_asprintf_append(src,
+            "%s (%u) r%u r%u:1 null:0 0x00000000 0x02106efd {@1,$1}\n",
+            send_op, exec_size, data_reg + i, addr_reg + i);
+         break;
+      }
+
+      case 125:
+      case 200:
+      case 300:
+      case 350: {
+         ralloc_asprintf_append(src,
+            "load.ugm.d32.a32 (%u) r%u:1 r%u:1 {A@1,$1}\n",
+            exec_size, data_reg + i, addr_reg + i);
+         break;
+      }
+
+      default:
+         UNREACHABLE("invalid gfx version");
+      }
    }
 
-   case 125: {
-      ralloc_asprintf_append(src,
-         "load.ugm.d32.a32 (8) r%u:1 r%u:1 {A@1,$1}\n",
-         data_reg, addr_reg);
-      executor_emit_syncnop(ec, src);
-      break;
-   }
-
-   case 200:
-   case 300:
-   case 350: {
-      ralloc_asprintf_append(src,
-         "load.ugm.d32.a32 (16) r%u:1 r%u:1 {A@1,$1}\n",
-         data_reg, addr_reg);
-      executor_emit_syncnop(ec, src);
-      break;
-   }
-
-   default:
-      UNREACHABLE("invalid gfx version");
-   }
+   executor_emit_syncnop(ec, src);
 }
 
 static void
@@ -391,7 +433,6 @@ executor_macro_addr(executor_run *run, char **src, slice args)
    if (r.count != 2 && r.count != 3)
       failf("@addr needs 2 or 3 arguments, found %d\n", r.count);
 
-   unsigned dst_reg = parse_macro_grf(r.args[0]);
    char *mem_key = slice_to_cstr(run->tmp_ctx, r.args[1]);
 
    const executor_mem_region *region = executor_find_mem_region(ec, mem_key);
@@ -403,12 +444,13 @@ executor_macro_addr(executor_run *run, char **src, slice args)
       failf("@addr result 0x%llx exceeds 32-bit limit for a32 messages",
             (unsigned long long)base_addr);
 
-   const unsigned exec_size = ec->devinfo->ver >= 20 ? 16 : 8;
+   const unsigned exec_size = slots_per_grf(run);
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
 
+   unsigned dst_nr = parse_macro_grf(run, r.args[0]);
    if (r.count == 2) {
-      ralloc_asprintf_append(src,
-         "mov (%u) r%u 0x%08x\n",
-         exec_size, dst_reg, (uint32_t)base_addr);
+      executor_macro_emit_mov_u32(run, src, dst_nr,
+                                  (uint32_t)base_addr);
       return;
    }
 
@@ -425,24 +467,29 @@ executor_macro_addr(executor_run *run, char **src, slice args)
          failf("@addr result 0x%llx exceeds 32-bit limit for a32 messages",
                (unsigned long long)addr);
 
-      ralloc_asprintf_append(src,
-         "mov (%u) r%u 0x%08x\n",
-         exec_size, dst_reg, (uint32_t)addr);
+      executor_macro_emit_mov_u32(run, src, dst_nr,
+                                  (uint32_t)addr);
       return;
    }
 
-   unsigned offset_reg = parse_macro_grf(offset_slice);
-
-   ralloc_asprintf_append(src,
-      "mov (%u) r127 0x%08x\n",
-      exec_size, (uint32_t)base_addr);
-
    const char *swsb = executor_macro_swsb(run);
-   ralloc_asprintf_append(src,
-      "mul (%u) r%u r%u 0x4:uw {%s}\n"
-      "add (%u) r%u r%u r127 {%s}\n",
-      exec_size, dst_reg, offset_reg, swsb,
-      exec_size, dst_reg, dst_reg, swsb);
+
+   unsigned offset_nr = parse_macro_grf(run, offset_slice);
+   check_macro_grf_no_partial_overlap(run, "@addr",
+                                      r.args[0], dst_nr,
+                                      offset_slice, offset_nr);
+
+   /* Broadcast the uniform buffer base address into r127.0 once. */
+   ralloc_asprintf_append(src, "mov (8) r127 0x%08x {%s}\n",
+                          (uint32_t)base_addr, swsb);
+
+   /* addr[lane] = base + index[lane] * 4, one GRF at a time. */
+   for (unsigned i = 0; i < operand_grfs; i++)
+      ralloc_asprintf_append(src,
+         "mul (%u) r%u r%u 0x4:uw {%s}\n"
+         "add (%u) r%u r%u r127.0<0>:ud {%s}\n",
+         exec_size, dst_nr + i, offset_nr + i, swsb,
+         exec_size, dst_nr + i, dst_nr + i, swsb);
 }
 
 static slice
@@ -490,7 +537,6 @@ executor_apply_macros(executor_run *run)
       slice_cut_result cut = slice_cut_any(remaining, "\n\r");
       slice line = cut.before;
       remaining = cut.after;
-
       slice macro = find_macro_symbol(line);
       if (slice_is_empty(macro)) {
          ralloc_asprintf_append(&src, "%.*s\n", SLICE_FMT(line));

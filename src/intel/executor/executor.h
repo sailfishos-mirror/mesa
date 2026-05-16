@@ -79,6 +79,7 @@ typedef struct {
 
    slice original_src;
    uint32_t hw_threads;
+   uint32_t simd;
 
    void *kernel_bin;
    uint32_t kernel_size;

@@ -2,7 +2,8 @@ if devinfo.ver < 20 then
   error("SRND instruction requires Gfx20+")
 end
 
-local buf = alloc(8)
+local exec_size = devinfo.ver >= 20 and 16 or 8
+local buf = alloc(exec_size)
 
 execute [[
     @id      r2

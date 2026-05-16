@@ -1,14 +1,14 @@
 local hw_threads = 4
-local simd_width = devinfo.ver >= 20 and 16 or 8
-local total_lanes = hw_threads * simd_width
+local total_lanes = hw_threads * 16
 
 local buf = alloc(total_lanes)
 
 execute(string.format([[
     @param hw_threads %d
-    @id r4
-    @addr r5 buf0 r4
-    @store r5 r4
+    @param simd 16
+    @id      r4
+    @addr    r8 buf0 r4
+    @store   r8 r4
     @eot
 ]], hw_threads))
 

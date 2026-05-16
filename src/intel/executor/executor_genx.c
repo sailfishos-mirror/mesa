@@ -172,7 +172,7 @@ genX(emit_execute)(const executor_run *run)
    memcpy(kernel, run->kernel_bin, run->kernel_size);
    executor_address kernel_addr = executor_address_of_ptr(&ec->bo.extra, kernel);
 
-   /* TODO: Let SIMD be a parameter. */
+   const uint32_t simd_size = run->simd / 16;
 
    struct GENX(INTERFACE_DESCRIPTOR_DATA) desc = {
       .KernelStartPointer = kernel_addr.offset,
@@ -228,9 +228,9 @@ genX(emit_execute)(const executor_run *run)
 
 #if GFX_VERx10 >= 125
    struct GENX(COMPUTE_WALKER_BODY) body = {
+      .SIMDSize                = simd_size,
 #if GFX_VERx10 >= 200
-      .SIMDSize                = 1,
-      .MessageSIMD             = 1,
+      .MessageSIMD             = simd_size,
 #endif
       .ThreadGroupIDXDimension = 1,
       .ThreadGroupIDYDimension = 1,
@@ -286,6 +286,7 @@ genX(emit_execute)(const executor_run *run)
       executor_perf_begin(ec);
 
    executor_batch_emit(GENX(GPGPU_WALKER), gw) {
+      gw.SIMDSize = simd_size;
       gw.ThreadWidthCounterMaximum = run->hw_threads - 1;
       gw.ThreadGroupIDXDimension = 1;
       gw.ThreadGroupIDYDimension = 1;

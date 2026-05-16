@@ -105,7 +105,7 @@ print_help()
       "- @addr DST_REG MEM [DWORD_INDEX|REG]\n"
       "- @load DST_REG ADDR_REG\n"
       "- @store ADDR_REG SRC_REG\n"
-      "- @param hw_threads N\n"
+      "- @param hw_threads N, @param simd 8|16|32\n"
       "\n"
       "PERFORMANCE COUNTERS:\n"
       "- --oa PROFILE[:COUNTER1,COUNTER2]\n"
@@ -1021,6 +1021,12 @@ executor_push_table(lua_State *L, const uint32_t *data, uint32_t count,
    }
 }
 
+static uint32_t
+executor_default_simd(const struct intel_device_info *devinfo)
+{
+   return devinfo->ver >= 20 ? 16 : 8;
+}
+
 static void
 handle_param_hw_threads(executor_run *run, slice name, slice args)
 {
@@ -1050,6 +1056,33 @@ handle_param_hw_threads(executor_run *run, slice name, slice args)
 }
 
 static void
+handle_param_simd(executor_run *run, slice name, slice args)
+{
+   executor_context *ec = run->ec;
+   slice_cut_result cut = slice_cut_any(args, " \t");
+   slice value = cut.before;
+   slice extra = strip_spaces(cut.after);
+
+   if (!slice_is_empty(extra))
+      failf("@param %.*s has extra arguments", SLICE_FMT(name));
+   if (slice_is_empty(value))
+      failf("@param %.*s needs a value", SLICE_FMT(name));
+
+   int64_t simd;
+   if (!parse_int64(value, &simd))
+      failf("@param %.*s must be an integer", SLICE_FMT(name));
+
+   char *name_str = slice_to_cstr(run->tmp_ctx, name);
+   if (simd != 8 && simd != 16 && simd != 32)
+      failf("%s must be 8, 16, or 32", name_str);
+
+   if (ec->devinfo->ver >= 20 && simd != 16 && simd != 32)
+      failf("%s must be 16 or 32 on Xe2+", name_str);
+
+   run->simd = simd;
+}
+
+static void
 executor_parse_source_params(executor_run *run, slice src)
 {
    static const struct {
@@ -1057,6 +1090,7 @@ executor_parse_source_params(executor_run *run, slice src)
       void (*handle)(executor_run *run, slice name, slice args);
    } param_handlers[] = {
       { "hw_threads", handle_param_hw_threads },
+      { "simd",       handle_param_simd },
    };
 
    slice rest = src;
@@ -1618,6 +1652,7 @@ l_execute(lua_State *L)
       .ec = ec,
       .tmp_ctx = ralloc_context(ec->mem_ctx),
       .hw_threads = 1,
+      .simd = executor_default_simd(ec->devinfo),
    };
    if (!run.tmp_ctx)
       failf("failed to allocate execute scratch context");
@@ -1630,6 +1665,9 @@ l_execute(lua_State *L)
       ec->bo.extra.cursor = ec->bo.extra.map;
 
       executor_parse_source_params(&run, run.original_src);
+
+      if (!run.simd)
+         run.simd = executor_default_simd(ec->devinfo);
 
       const char *src = executor_apply_macros(&run);
 
