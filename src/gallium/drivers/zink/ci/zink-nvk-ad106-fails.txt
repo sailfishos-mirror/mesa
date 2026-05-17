@@ -2,9 +2,6 @@ dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.n
 dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.non_multisample_buffer.sample_n_singlesample_rbo,Fail
 dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.non_multisample_buffer.sample_n_singlesample_texture,Fail
 
-KHR-GL46.packed_depth_stencil.blit.depth24_stencil8,Fail
-KHR-GL46.packed_depth_stencil.blit.depth32f_stencil8,Fail
-
 glx@glx-multi-window-single-context,Fail
 glx@glx-swap-pixmap-bad,Fail
 glx@glx_arb_sync_control@swapbuffersmsc-divisor-zero,Fail

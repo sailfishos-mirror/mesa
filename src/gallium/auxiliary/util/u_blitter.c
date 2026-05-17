@@ -869,7 +869,8 @@ static void get_texcoords(struct pipe_sampler_view *src,
 
    case PIPE_TEXTURE_2D_ARRAY:
       out->texcoord.z = layer;
-      out->texcoord.w = sample;
+      if (util_res_sample_count(src->texture) > 1)
+         out->texcoord.w = sample;
       break;
 
    case PIPE_TEXTURE_CUBE_ARRAY:
@@ -877,7 +878,8 @@ static void get_texcoords(struct pipe_sampler_view *src,
       break;
 
    case PIPE_TEXTURE_2D:
-      out->texcoord.w = sample;
+      if (util_res_sample_count(src->texture) > 1)
+         out->texcoord.w = sample;
       break;
 
    default:;
