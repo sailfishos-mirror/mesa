@@ -16,7 +16,7 @@ load_index(uintptr_t index_buffer, uint32_t index_buffer_range_el, uint id,
            uint index_size)
 {
    /* We have no index buffer, index is the id. Required for index promotion. */
-   if (index_buffer == 0u)
+   if (index_size == 0u)
       return id;
 
    return poly_load_index(index_buffer, index_buffer_range_el, id, index_size);
@@ -70,7 +70,7 @@ libkk_unroll_geometry_and_restart(
 
    uintptr_t out_ptr;
    if (tid == 0) {
-      if (index_buffer)
+      if (in_el_size_B)
          out_ptr = (uintptr_t)poly_setup_unroll_for_draw(
             heap, in_draw, out_draw, mode, out_el_size_B);
       else
@@ -81,6 +81,9 @@ libkk_unroll_geometry_and_restart(
    uintptr_t in_ptr = index_buffer
                          ? (uintptr_t)index_buffer + (in_draw[2] * in_el_size_B)
                          : (uintptr_t)index_buffer;
+   uint in_size_el = index_buffer_size_el > in_draw[2]
+                        ? index_buffer_size_el - in_draw[2]
+                        : 0;
 
    /* TODO_KOSMICKRISP local uint scratch[32]; */
 
@@ -93,7 +96,7 @@ libkk_unroll_geometry_and_restart(
       for (;;) {
          uint idx = next_restart + tid;
          bool restart =
-            idx >= count || load_index(in_ptr, index_buffer_size_el, idx,
+            idx >= count || load_index(in_ptr, in_size_el, idx,
                                        in_el_size_B) == restart_index;
 
          /* TODO_KOSMICKRISP Uncomment this when subgroups are reliable
@@ -120,7 +123,7 @@ libkk_unroll_geometry_and_restart(
 
             uint x = ((out_prims_base + i) * per_prim) + vtx;
             uint y =
-               load_index(in_ptr, index_buffer_size_el, offset, in_el_size_B);
+               load_index(in_ptr, in_size_el, offset, in_el_size_B);
 
             poly_store_index(out_ptr, out_el_size_B, x, y);
          }

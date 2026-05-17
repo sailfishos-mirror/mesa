@@ -517,15 +517,17 @@ kk_CmdEndRendering(VkCommandBuffer commandBuffer)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-kk_CmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer, VkBuffer _buffer,
-                          VkDeviceSize offset, VkDeviceSize size,
-                          VkIndexType indexType)
+kk_CmdBindIndexBuffer2(VkCommandBuffer commandBuffer, VkBuffer _buffer,
+                       VkDeviceSize offset, VkDeviceSize size,
+                       VkIndexType indexType)
 {
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(kk_buffer, buffer, _buffer);
 
-   cmd->state.gfx.index.handle = buffer->mtl_handle;
-   cmd->state.gfx.index.size = size;
+   cmd->state.gfx.index.handle = buffer ? buffer->mtl_handle : NULL;
+   cmd->state.gfx.index.buffer_size = buffer ? buffer->vk.size : 0u;
+   cmd->state.gfx.index.range =
+      buffer ? vk_buffer_range(&buffer->vk, offset, size) : 0;
    cmd->state.gfx.index.offset = offset;
    cmd->state.gfx.index.bytes_per_index = vk_index_type_to_bytes(indexType);
    cmd->state.gfx.index.restart = vk_index_to_restart(indexType);
@@ -848,6 +850,7 @@ struct kk_draw_data {
       mtl_buffer *indirect_buffer;
    };
    mtl_buffer *index_buffer;
+   uint64_t index_buffer_size_B;
    uint64_t index_buffer_offset;
    uint64_t indirect_buffer_offset;
    uint32_t index_buffer_range_B;
@@ -949,7 +952,7 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
       /* Handle primitive restart disable by forcing index to UINT32_MAX */
       .restart_index =
          !data.restart ? UINT32_MAX : cmd->state.gfx.index.restart,
-      .index_buffer_size_el = data.index_buffer_range_B,
+      .index_buffer_size_el = data.index_buffer_range_B / data.index_size,
       .in_el_size_B = data.index_size,
       .out_el_size_B = 4u,
       .flatshade_first = true,
@@ -961,6 +964,7 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 
    data.indirect_buffer = out_draw->map;
    data.index_buffer = dev->heap->map;
+   data.index_buffer_size_B = dev->heap->size_B;
    /* TODO_KOSMICKRISP Self-contained until we have rodata at the device. */
    data.index_buffer_offset = sizeof(struct poly_heap);
    data.indirect_buffer_offset = 0u;
@@ -1082,12 +1086,55 @@ requires_index_promotion(struct kk_draw_data data)
    }
 }
 
+/* TODO_KOSMICKRISP: Index robustness should not need special handling with
+ * Metal 4 command encoders */
+static bool
+kk_needs_index_robustness(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
+{
+   struct kk_device *dev = kk_cmd_buffer_device(cmd);
+
+   /* No need for robustness if the draw does not use an index buffer */
+   if (!data.indexed)
+      return false;
+
+   /* Geometry or tessellation use robust software index buffer fetch anyway */
+   if (cmd->state.shaders[MESA_SHADER_GEOMETRY] ||
+       cmd->state.shaders[MESA_SHADER_TESS_EVAL])
+      return false;
+
+   /* Metal indexed draw commands require a non-null index buffer */
+   if (data.index_buffer == NULL)
+      return true;
+
+   /* No need to for robustness if robustBufferAccess2 is not enabled
+    * TODO_KOSMICKRISP: Which pipeline robustness option controls this? */
+   if (!dev->vk.enabled_features.robustBufferAccess2 &&
+       !dev->vk.enabled_features.pipelineRobustness)
+      return false;
+
+   /* Metal handles index robustness beyond the buffer size, so we only need to
+    * deal with it if a subset of the buffer is bound */
+   if (data.index_buffer_offset + data.index_buffer_range_B >=
+       data.index_buffer_size_B)
+      return false;
+
+   /* We can't tell if the draw over-reads up-front with indirect draws, so we
+    * always have to handle it */
+   if (data.indirect)
+      return true;
+
+   /* For direct draws, we can check now if it over-reads the index buffer */
+   return (data.first_index + data.count[0]) * data.index_size >
+          data.index_buffer_range_B;
+}
+
 static void
 kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 {
    data.restart = cmd->vk.dynamic_graphics_state.ia.primitive_restart_enable;
 
-   if (data.prim == MESA_PRIM_TRIANGLE_FAN || requires_index_promotion(data))
+   if (data.prim == MESA_PRIM_TRIANGLE_FAN || requires_index_promotion(data) ||
+       kk_needs_index_robustness(cmd, data))
       data = kk_unroll_geometry(cmd, data);
 
    kk_dispatch_draw(cmd, data);
@@ -1177,9 +1224,9 @@ kk_CmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount,
       .count[0] = indexCount,
       .count[1] = instanceCount,
       .index_buffer = cmd->state.gfx.index.handle,
+      .index_buffer_size_B = cmd->state.gfx.index.buffer_size,
       .index_buffer_offset = cmd->state.gfx.index.offset,
-      .index_buffer_range_B =
-         cmd->state.gfx.index.size - cmd->state.gfx.index.offset,
+      .index_buffer_range_B = cmd->state.gfx.index.range,
       .first_index = firstIndex,
       .first_vertex = vertexOffset,
       .first_instance = firstInstance,
@@ -1212,9 +1259,9 @@ kk_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount,
    struct kk_draw_data data = {
       .count[1] = instanceCount,
       .index_buffer = cmd->state.gfx.index.handle,
+      .index_buffer_size_B = cmd->state.gfx.index.buffer_size,
       .index_buffer_offset = cmd->state.gfx.index.offset,
-      .index_buffer_range_B =
-         cmd->state.gfx.index.size - cmd->state.gfx.index.offset,
+      .index_buffer_range_B = cmd->state.gfx.index.range,
       .first_instance = firstInstance,
       .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
       .index_size = cmd->state.gfx.index.bytes_per_index,
@@ -1279,9 +1326,9 @@ kk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
 
    struct kk_draw_data data = {
       .index_buffer = cmd->state.gfx.index.handle,
+      .index_buffer_size_B = cmd->state.gfx.index.buffer_size,
       .index_buffer_offset = cmd->state.gfx.index.offset,
-      .index_buffer_range_B =
-         cmd->state.gfx.index.size - cmd->state.gfx.index.offset,
+      .index_buffer_range_B = cmd->state.gfx.index.range,
       .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
       .index_size = cmd->state.gfx.index.bytes_per_index,
       .indirect = true,
@@ -1371,9 +1418,9 @@ kk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
 
    struct kk_draw_data data = {
       .index_buffer = cmd->state.gfx.index.handle,
+      .index_buffer_size_B = cmd->state.gfx.index.buffer_size,
       .index_buffer_offset = cmd->state.gfx.index.offset,
-      .index_buffer_range_B =
-         cmd->state.gfx.index.size - cmd->state.gfx.index.offset,
+      .index_buffer_range_B = cmd->state.gfx.index.range,
       .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
       .index_size = cmd->state.gfx.index.bytes_per_index,
       .indirect = true,
