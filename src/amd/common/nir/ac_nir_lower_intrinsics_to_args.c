@@ -339,10 +339,6 @@ lower_intrinsic_to_arg(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
    case nir_intrinsic_load_sample_id:
       replacement = ac_nir_unpack_arg(b, s->args, s->args->ancillary, 8, 4);
       break;
-   case nir_intrinsic_load_sample_pos:
-      replacement = nir_vec2(b, nir_ffract(b, ac_nir_load_arg(b, s->args, s->args->frag_pos[0])),
-                             nir_ffract(b, ac_nir_load_arg(b, s->args, s->args->frag_pos[1])));
-      break;
    case nir_intrinsic_load_frag_shading_rate: {
       /* VRS Rate X = Ancillary[2:3]
        * VRS Rate Y = Ancillary[4:5]

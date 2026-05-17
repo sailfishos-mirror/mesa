@@ -3770,8 +3770,8 @@ radv_compute_spi_ps_input(enum amd_gfx_level gfx_level, const struct radv_graphi
                   S_0286CC_FRONT_FACE_ENA(info->ps.reads_front_face) |
                   S_0286CC_POS_FIXED_PT_ENA(info->ps.reads_pixel_coord);
 
-   if (info->ps.reads_frag_coord_mask || info->ps.reads_sample_pos_mask) {
-      uint8_t mask = info->ps.reads_frag_coord_mask | info->ps.reads_sample_pos_mask;
+   if (info->ps.reads_frag_coord_mask) {
+      uint8_t mask = info->ps.reads_frag_coord_mask;
 
       for (unsigned i = 0; i < 4; i++) {
          if (mask & (1 << i))
