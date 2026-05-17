@@ -51,7 +51,7 @@ lower_helper_invocation(nir_builder *b, nir_intrinsic_instr *intr, void *_)
    /* TODO: Is this right for multisampling? */
    b->cursor = nir_before_instr(&intr->instr);
    nir_def *active =
-      nir_inot(b, nir_inverse_ballot(b, nir_load_coverage_mask_intel(b)));
+      nir_inot(b, nir_inverse_ballot(b, nir_load_dispatch_mask_intel(b)));
 
    nir_def_replace(&intr->def, active);
    return true;

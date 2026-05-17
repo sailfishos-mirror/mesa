@@ -1327,7 +1327,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          JAY_TYPE_U32;
       break;
 
-   case nir_intrinsic_load_coverage_mask_intel: {
+   case nir_intrinsic_load_dispatch_mask_intel: {
       jay_def mask = jay_extract(nj->payload.u0, 15);
 
       if (nj->s->dispatch_width == 32) {

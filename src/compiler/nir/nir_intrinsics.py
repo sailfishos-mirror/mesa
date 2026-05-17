@@ -2646,6 +2646,9 @@ system_value("simd_width_intel", 1)
 # IndirectDataStartAddress
 system_value("indirect_address_intel", 1)
 
+# The dispatch mask as provided in the FS payload.
+system_value("dispatch_mask_intel", 1)
+
 # The raw coverage mask as provided in the FS payload.
 # The semantics of it depend on the HW state.
 system_value("coverage_mask_intel", 1)
