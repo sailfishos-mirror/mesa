@@ -21,6 +21,7 @@
 
 #include "poly/geometry.h"
 
+#include "vulkan/runtime/vk_render_pass.h"
 #include "vulkan/util/vk_format.h"
 
 static void
@@ -60,6 +61,7 @@ kk_attachment_init(struct kk_attachment *att,
 
    VK_FROM_HANDLE(kk_image_view, iview, info->imageView);
    *att = (struct kk_attachment){
+      .flags = vk_get_rendering_attachment_flags(info),
       .vk_format = iview->vk.format,
       .iview = iview,
    };
@@ -443,7 +445,8 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-kk_CmdEndRendering(VkCommandBuffer commandBuffer)
+kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
+                       UNUSED const VkRenderingEndInfoKHR *pRenderingEndInfo)
 {
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
    struct kk_rendering_state *render = &cmd->state.gfx.render;
@@ -451,12 +454,19 @@ kk_CmdEndRendering(VkCommandBuffer commandBuffer)
 
    /* Translate render state back to VK for meta */
    VkRenderingAttachmentInfo vk_color_att[KK_MAX_RTS];
+   VkRenderingAttachmentFlagsInfoKHR vk_color_att_flags[KK_MAX_RTS];
    for (uint32_t i = 0; i < render->color_att_count; i++) {
       if (render->color_att[i].resolve_mode != VK_RESOLVE_MODE_NONE)
          need_resolve = true;
 
+      vk_color_att_flags[i] = (VkRenderingAttachmentFlagsInfoKHR) {
+         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
+         .flags = render->color_att[i].flags,
+      };
+
       vk_color_att[i] = (VkRenderingAttachmentInfo){
          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+         .pNext = &vk_color_att_flags[i],
          .imageView = kk_image_view_to_handle(render->color_att[i].iview),
          .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
          .resolveMode = render->color_att[i].resolve_mode,
@@ -466,8 +476,13 @@ kk_CmdEndRendering(VkCommandBuffer commandBuffer)
       };
    }
 
+   const VkRenderingAttachmentFlagsInfoKHR vk_depth_att_flags = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
+      .flags = render->depth_att.flags,
+   };
    const VkRenderingAttachmentInfo vk_depth_att = {
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .pNext = &vk_depth_att_flags,
       .imageView = kk_image_view_to_handle(render->depth_att.iview),
       .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
       .resolveMode = render->depth_att.resolve_mode,
@@ -478,8 +493,13 @@ kk_CmdEndRendering(VkCommandBuffer commandBuffer)
    if (render->depth_att.resolve_mode != VK_RESOLVE_MODE_NONE)
       need_resolve = true;
 
+   const VkRenderingAttachmentFlagsInfoKHR vk_stencil_att_flags = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
+      .flags = render->stencil_att.flags,
+   };
    const VkRenderingAttachmentInfo vk_stencil_att = {
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .pNext = &vk_stencil_att_flags,
       .imageView = kk_image_view_to_handle(render->stencil_att.iview),
       .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
       .resolveMode = render->stencil_att.resolve_mode,

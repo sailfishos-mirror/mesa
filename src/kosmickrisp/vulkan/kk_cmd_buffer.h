@@ -77,6 +77,7 @@ struct kk_per_draw_data {
 };
 
 struct kk_attachment {
+   VkRenderingAttachmentFlagsKHR flags;
    VkFormat vk_format;
    struct kk_image_view *iview;
 
