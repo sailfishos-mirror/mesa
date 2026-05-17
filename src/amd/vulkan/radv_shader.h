@@ -133,6 +133,7 @@ struct radv_graphics_state_key {
    uint32_t lib_flags : 4; /* VkGraphicsPipelineLibraryFlagBitsEXT */
 
    uint32_t has_multiview_view_index : 1;
+   uint32_t vrs_may_be_enabled : 1;
    uint32_t adjust_frag_coord_z : 1;
    uint32_t dynamic_rasterization_samples : 1;
    uint32_t dynamic_provoking_vtx_mode : 1;
