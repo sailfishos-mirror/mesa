@@ -1308,6 +1308,9 @@ struct brw_compile_params {
 
    nir_shader *nir;
 
+   const struct brw_base_prog_key *key;
+   struct brw_stage_prog_data *prog_data;
+
    struct genisa_stats *stats;
 
    void *log_data;
@@ -1332,9 +1335,6 @@ brw_compile(const struct brw_compiler *compiler,
  */
 struct brw_compile_vs_params {
    struct brw_compile_params base;
-
-   const struct brw_vs_prog_key *key;
-   struct brw_vs_prog_data *prog_data;
 };
 
 /**
@@ -1344,9 +1344,6 @@ struct brw_compile_vs_params {
  */
 struct brw_compile_tcs_params {
    struct brw_compile_params base;
-
-   const struct brw_tcs_prog_key *key;
-   struct brw_tcs_prog_data *prog_data;
 };
 
 /**
@@ -1357,8 +1354,6 @@ struct brw_compile_tcs_params {
 struct brw_compile_tes_params {
    struct brw_compile_params base;
 
-   const struct brw_tes_prog_key *key;
-   struct brw_tes_prog_data *prog_data;
    const struct intel_vue_map *input_vue_map;
 };
 
@@ -1369,23 +1364,15 @@ struct brw_compile_tes_params {
  */
 struct brw_compile_gs_params {
    struct brw_compile_params base;
-
-   const struct brw_gs_prog_key *key;
-   struct brw_gs_prog_data *prog_data;
 };
 
 struct brw_compile_task_params {
    struct brw_compile_params base;
-
-   const struct brw_task_prog_key *key;
-   struct brw_task_prog_data *prog_data;
 };
 
 struct brw_compile_mesh_params {
    struct brw_compile_params base;
 
-   const struct brw_mesh_prog_key *key;
-   struct brw_mesh_prog_data *prog_data;
    const struct brw_tue_map *tue_map;
 
    /** Load provoking vertex for wa_18019110168
@@ -1403,9 +1390,6 @@ struct brw_compile_mesh_params {
  */
 struct brw_compile_fs_params {
    struct brw_compile_params base;
-
-   const struct brw_fs_prog_key *key;
-   struct brw_fs_prog_data *prog_data;
 
    const struct intel_vue_map *vue_map;
    const struct brw_mue_map *mue_map;
@@ -1430,9 +1414,6 @@ struct brw_compile_fs_params {
  */
 struct brw_compile_cs_params {
    struct brw_compile_params base;
-
-   const struct brw_cs_prog_key *key;
-   struct brw_cs_prog_data *prog_data;
 };
 
 /**
@@ -1442,9 +1423,6 @@ struct brw_compile_cs_params {
  */
 struct brw_compile_bs_params {
    struct brw_compile_params base;
-
-   const struct brw_bs_prog_key *key;
-   struct brw_bs_prog_data *prog_data;
 
    unsigned num_resume_shaders;
    struct nir_shader **resume_shaders;

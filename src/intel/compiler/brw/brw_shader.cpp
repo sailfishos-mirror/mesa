@@ -1056,6 +1056,8 @@ brw_compile(const struct brw_compiler *compiler,
 {
    assert(params);
    assert(params->nir);
+   assert(params->key);
+   assert(params->prog_data);
 
    switch (params->nir->info.stage) {
    case MESA_SHADER_VERTEX:

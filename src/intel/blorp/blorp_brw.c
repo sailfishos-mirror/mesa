@@ -80,12 +80,12 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
       .base = {
          .mem_ctx = mem_ctx,
          .nir = nir,
+         .key = &wm_key.base,
+         .prog_data = (struct brw_stage_prog_data *)fs_prog_data,
          .log_data = blorp->driver_ctx,
          .debug_flag = DEBUG_BLORP,
          .archiver = archiver,
       },
-      .key = &wm_key,
-      .prog_data = fs_prog_data,
 
       .use_rep_send = use_repclear,
       .max_polygons = 1,
@@ -132,12 +132,12 @@ blorp_compile_vs_brw(struct blorp_context *blorp, void *mem_ctx,
       .base = {
          .mem_ctx = mem_ctx,
          .nir = nir,
+         .key = &vs_key.base,
+         .prog_data = (struct brw_stage_prog_data *)vs_prog_data,
          .log_data = blorp->driver_ctx,
          .debug_flag = DEBUG_BLORP,
          .archiver = archiver,
       },
-      .key = &vs_key,
-      .prog_data = vs_prog_data,
    };
 
    const unsigned *kernel = brw_compile(compiler, &params.base);
@@ -239,12 +239,12 @@ blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
       .base = {
          .mem_ctx = mem_ctx,
          .nir = nir,
+         .key = &cs_key.base,
+         .prog_data = (struct brw_stage_prog_data *)cs_prog_data,
          .log_data = blorp->driver_ctx,
          .debug_flag = DEBUG_BLORP,
          .archiver = archiver,
       },
-      .key = &cs_key,
-      .prog_data = cs_prog_data,
    };
 
    const unsigned *kernel = brw_compile(compiler, &params.base);

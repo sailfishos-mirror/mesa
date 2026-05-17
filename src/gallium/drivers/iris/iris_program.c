@@ -1918,12 +1918,12 @@ iris_compile_vs(struct iris_screen *screen,
          .base = {
             .mem_ctx = mem_ctx,
             .nir = nir,
+            .key = &brw_key.base,
+            .prog_data = (struct brw_stage_prog_data *)brw_prog_data,
             .log_data = dbg,
             .source_hash = ish->source_hash,
             .archiver = debug_archiver,
          },
-         .key = &brw_key,
-         .prog_data = brw_prog_data,
       };
 
       if (intel_use_jay(devinfo, nir->info.stage)) {
@@ -2196,12 +2196,12 @@ iris_compile_tcs(struct iris_screen *screen,
          .base = {
             .mem_ctx = mem_ctx,
             .nir = nir,
+            .key = &brw_key.base,
+            .prog_data = (struct brw_stage_prog_data *)brw_prog_data,
             .log_data = dbg,
             .source_hash = source_hash,
             .archiver = debug_archiver,
          },
-         .key = &brw_key,
-         .prog_data = brw_prog_data,
       };
 
       program = brw_compile(screen->brw, &params.base);
@@ -2406,12 +2406,12 @@ iris_compile_tes(struct iris_screen *screen,
          .base = {
             .mem_ctx = mem_ctx,
             .nir = nir,
+            .key = &brw_key.base,
+            .prog_data = (struct brw_stage_prog_data *)brw_prog_data,
             .log_data = dbg,
             .source_hash = ish->source_hash,
             .archiver = debug_archiver,
          },
-         .key = &brw_key,
-         .prog_data = brw_prog_data,
          .input_vue_map = &input_vue_map,
       };
 
@@ -2601,12 +2601,12 @@ iris_compile_gs(struct iris_screen *screen,
          .base = {
             .mem_ctx = mem_ctx,
             .nir = nir,
+            .key = &brw_key.base,
+            .prog_data = (struct brw_stage_prog_data *)brw_prog_data,
             .log_data = dbg,
             .source_hash = ish->source_hash,
             .archiver = debug_archiver,
          },
-         .key = &brw_key,
-         .prog_data = brw_prog_data,
       };
 
       program = brw_compile(screen->brw, &params.base);
@@ -2804,12 +2804,12 @@ iris_compile_fs(struct iris_screen *screen,
          .base = {
             .mem_ctx = mem_ctx,
             .nir = nir,
+            .key = &brw_key.base,
+            .prog_data = (struct brw_stage_prog_data *)brw_prog_data,
             .log_data = dbg,
             .source_hash = ish->source_hash,
             .archiver = debug_archiver,
          },
-         .key = &brw_key,
-         .prog_data = brw_prog_data,
 
          .allow_spilling = true,
          .max_polygons = UCHAR_MAX,
@@ -3168,12 +3168,12 @@ iris_compile_cs(struct iris_screen *screen,
          .base = {
             .mem_ctx = mem_ctx,
             .nir = nir,
+            .key = &brw_key.base,
+            .prog_data = (struct brw_stage_prog_data *)brw_prog_data,
             .log_data = dbg,
             .source_hash = ish->source_hash,
             .archiver = debug_archiver,
          },
-         .key = &brw_key,
-         .prog_data = brw_prog_data,
       };
 
       if (intel_use_jay(devinfo, nir->info.stage)) {

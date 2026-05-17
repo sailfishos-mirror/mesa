@@ -1448,8 +1448,10 @@ brw_compile_fs(const struct brw_compiler *compiler,
                struct brw_compile_fs_params *params)
 {
    struct nir_shader *nir = params->base.nir;
-   const struct brw_fs_prog_key *key = params->key;
-   struct brw_fs_prog_data *prog_data = params->prog_data;
+   const struct brw_fs_prog_key *key =
+      (const struct brw_fs_prog_key *)params->base.key;
+   struct brw_fs_prog_data *prog_data =
+      (struct brw_fs_prog_data *)params->base.prog_data;
    bool allow_spilling = params->allow_spilling;
    const bool debug_enabled =
       brw_should_print_shader(nir, params->base.debug_flag ?

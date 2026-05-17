@@ -942,21 +942,21 @@ anv_shader_compile_vs(struct anv_device *device,
    struct brw_compile_vs_params params = {
       .base = {
          .nir = nir,
+         .key = &shader_data->key.vs.base,
+         .prog_data = (struct brw_stage_prog_data *)&shader_data->prog_data.vs,
          .stats = shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       },
-      .key = &shader_data->key.vs,
-      .prog_data = &shader_data->prog_data.vs,
    };
 
    if (intel_use_jay(devinfo, nir->info.stage)) {
       struct jay_shader_bin *bin =
          jay_compile(devinfo, mem_ctx, nir,
-                     (union brw_any_prog_data *) params.prog_data,
-                     (union brw_any_prog_key *) params.key);
+                     (union brw_any_prog_data *) params.base.prog_data,
+                     (union brw_any_prog_key *) params.base.key);
 
       shader_data->code = (void *) bin->kernel;
    } else {
@@ -983,14 +983,14 @@ anv_shader_compile_tcs(struct anv_device *device,
    struct brw_compile_tcs_params params = {
       .base = {
          .nir = nir,
+         .key = &shader_data->key.tcs.base,
+         .prog_data = (struct brw_stage_prog_data *)&shader_data->prog_data.tcs,
          .stats = shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       },
-      .key = &shader_data->key.tcs,
-      .prog_data = &shader_data->prog_data.tcs,
    };
 
    shader_data->code = (void *)brw_compile(compiler, &params.base);
@@ -1019,14 +1019,14 @@ anv_shader_compile_tes(struct anv_device *device,
    struct brw_compile_tes_params params = {
       .base = {
          .nir = nir,
+         .key = &tes_shader_data->key.tes.base,
+         .prog_data = (struct brw_stage_prog_data *)&tes_shader_data->prog_data.tes,
          .stats = tes_shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = tes_shader_data->source_hash,
          .archiver = tes_shader_data->archiver,
       },
-      .key = &tes_shader_data->key.tes,
-      .prog_data = &tes_shader_data->prog_data.tes,
       .input_vue_map = tcs_shader_data ?
                        &tcs_shader_data->prog_data.tcs.base.vue_map : NULL,
    };
@@ -1049,14 +1049,14 @@ anv_shader_compile_gs(struct anv_device *device,
    struct brw_compile_gs_params params = {
       .base = {
          .nir = nir,
+         .key = &shader_data->key.gs.base,
+         .prog_data = (struct brw_stage_prog_data *)&shader_data->prog_data.gs,
          .stats = shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       },
-      .key = &shader_data->key.gs,
-      .prog_data = &shader_data->prog_data.gs,
    };
 
    shader_data->code = (void *)brw_compile(compiler, &params.base);
@@ -1077,14 +1077,14 @@ anv_shader_compile_task(struct anv_device *device,
    struct brw_compile_task_params params = {
       .base = {
          .nir = nir,
+         .key = &shader_data->key.task.base,
+         .prog_data = (struct brw_stage_prog_data *)&shader_data->prog_data.task,
          .stats = shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       },
-      .key = &shader_data->key.task,
-      .prog_data = &shader_data->prog_data.task,
    };
 
    shader_data->code = (void *)brw_compile(compiler, &params.base);
@@ -1145,14 +1145,14 @@ anv_shader_compile_mesh(struct anv_device *device,
    struct brw_compile_mesh_params params = {
       .base = {
          .nir = nir,
+         .key = &mesh_shader_data->key.mesh.base,
+         .prog_data = (struct brw_stage_prog_data *)&mesh_shader_data->prog_data.mesh,
          .stats = mesh_shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = mesh_shader_data->source_hash,
          .archiver = mesh_shader_data->archiver,
       },
-      .key = &mesh_shader_data->key.mesh,
-      .prog_data = &mesh_shader_data->prog_data.mesh,
       .tue_map = task_shader_data ?
                  &task_shader_data->prog_data.task.map :
                  NULL,
@@ -1192,14 +1192,15 @@ anv_shader_compile_fs(struct anv_device *device,
    struct brw_compile_fs_params params = {
       .base = {
          .nir = nir,
+         .key = &shader_data->key.fs.base,
+         .prog_data = (struct brw_stage_prog_data *)&shader_data->prog_data.fs,
          .stats = shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       },
-      .key = &shader_data->key.fs,
-      .prog_data = &shader_data->prog_data.fs,
+
       .mue_map = shader_data->mue_map,
 
       .allow_spilling = true,
@@ -1213,8 +1214,8 @@ anv_shader_compile_fs(struct anv_device *device,
    if (intel_use_jay(devinfo, nir->info.stage)) {
       struct jay_shader_bin *bin =
          jay_compile(devinfo, mem_ctx, nir,
-                     (union brw_any_prog_data *) params.prog_data,
-                     (union brw_any_prog_key *) params.key);
+                     (union brw_any_prog_data *) params.base.prog_data,
+                     (union brw_any_prog_key *) params.base.key);
 
       shader_data->code = (void *) bin->kernel;
    } else {
@@ -1257,27 +1258,30 @@ anv_shader_compile_cs(struct anv_device *device,
    struct brw_compile_cs_params params = {
       .base = {
          .nir = nir,
+         .key = &shader_data->key.cs.base,
+         .prog_data = (struct brw_stage_prog_data *)&shader_data->prog_data.cs,
          .stats = shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       },
-      .key = &shader_data->key.cs,
-      .prog_data = &shader_data->prog_data.cs,
    };
 
    if (intel_use_jay(devinfo, nir->info.stage)) {
       struct jay_shader_bin *bin = jay_compile(devinfo, mem_ctx, nir,
-                             (union brw_any_prog_data*)params.prog_data,
-                             (union brw_any_prog_key*)params.key);
+                             (union brw_any_prog_data*)params.base.prog_data,
+                             (union brw_any_prog_key*)params.base.key);
+
+       struct brw_cs_prog_data *prog_data =
+          (struct brw_cs_prog_data *)params.base.prog_data;
 
        shader_data->code = (void*)bin->kernel;
        shader_data->stats[0] = bin->stats;
 
-       params.prog_data->local_size[0] = nir->info.workgroup_size[0];
-       params.prog_data->local_size[1] = nir->info.workgroup_size[1];
-       params.prog_data->local_size[2] = nir->info.workgroup_size[2];
+       prog_data->local_size[0] = nir->info.workgroup_size[0];
+       prog_data->local_size[1] = nir->info.workgroup_size[1];
+       prog_data->local_size[2] = nir->info.workgroup_size[2];
    } else {
        shader_data->code = (void*)brw_compile(compiler, &params.base);
    }
@@ -1344,14 +1348,14 @@ anv_shader_compile_bs(struct anv_device *device,
    struct brw_compile_bs_params params = {
       .base = {
          .nir = nir,
+         .key = &shader_data->key.bs.base,
+         .prog_data = (struct brw_stage_prog_data *)&shader_data->prog_data.bs,
          .stats = shader_data->stats,
          .log_data = device,
          .mem_ctx = mem_ctx,
          .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       },
-      .key = &shader_data->key.bs,
-      .prog_data = &shader_data->prog_data.bs,
       .num_resume_shaders = num_resume_shaders,
       .resume_shaders = resume_shaders,
    };
