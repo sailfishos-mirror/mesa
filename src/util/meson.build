@@ -217,6 +217,8 @@ if with_amd_vk
   files_drirc += files('00-radv-defaults.conf')
 endif
 
+drirc_gen = files('drirc_gen.py')
+
 if with_tests
   prog_xmllint = find_program('xmllint', required : false, native : true)
   if prog_xmllint.found()
