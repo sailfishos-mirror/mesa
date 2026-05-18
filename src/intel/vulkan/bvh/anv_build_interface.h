@@ -24,9 +24,6 @@ struct encode_args {
 
    REF(vk_ir_header) header;
 
-   /* The offset from start of anv header to output_bvh */
-   uint32_t output_bvh_offset;
-
    /* This tracks pointers to all anv_instance_leaves for BLAS */
    VOID_REF instance_leaves_addr;
 

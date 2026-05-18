@@ -27,16 +27,8 @@ typedef struct instance_leaf_part1 instance_leaf_part1;
 /* This header is stored at the beginning of ANV BVH, i.e. the return value of
  * vk_acceleration_structure_get_va(). The compiler will look for a specific location
  * defined in this header, so the order in which the members are defined is important.
- * Eg. The first qword is currently rootNodeOffset, where the compiler uses to find the
- * TLAS and provide it for the shader.
  */
 struct anv_accel_struct_header {
-   /* 64-bit offset from the start of this header to the location where the
-    * root node resides. That is, the address of root node can be calculated
-    * as address of header + header.rootNodeOffset.
-    */
-   uint64_t rootNodeOffset;
-
    /* The bounding box that encloses this bvh. */
    vk_aabb aabb;
 
@@ -76,7 +68,7 @@ struct anv_accel_struct_header {
 
    uint32_t instance_leaves_offset;
 
-   uint32_t padding[40];
+   uint32_t padding[42];
 };
 
 /* Mixed internal node with type per child */

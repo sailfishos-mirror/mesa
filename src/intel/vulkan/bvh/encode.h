@@ -110,7 +110,7 @@ anv_encode_instance(VOID_REF dst_addr, vk_ir_instance_node src)
 {
    REF(anv_instance_leaf) dst = REF(anv_instance_leaf)(dst_addr);
    REF(anv_accel_struct_header) blas_header = REF(anv_accel_struct_header)(src.base_ptr);
-   uint64_t start_node_ptr = uint64_t(src.base_ptr) + DEREF(blas_header).rootNodeOffset;
+   uint64_t start_node_ptr = uint64_t(src.base_ptr) + ANV_RT_BVH_HEADER_SIZE;
 
 #if GFX_VERx10 >= 300
    DEREF(dst).part0.QW_startNodePtr = start_node_ptr;

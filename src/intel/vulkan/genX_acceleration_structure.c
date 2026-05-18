@@ -417,7 +417,6 @@ anv_encode_as(VkCommandBuffer commandBuffer, const struct vk_acceleration_struct
       .output_bvh = vk_acceleration_structure_get_va(dst) +
                     bvh_layout.bvh_offset,
       .header = intermediate_header_addr,
-      .output_bvh_offset = bvh_layout.bvh_offset,
       .leaf_node_count = state->leaf_node_count,
       .geometry_type = geometry_type,
       .instance_leaves_addr = vk_acceleration_structure_get_va(dst) +
@@ -539,10 +538,8 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
          .subgroup_size = device->info->ver >= 20 ? 16 : 8,
          .radix_sort_64 = device->accel_struct_build.radix_sort,
          /* See struct anv_accel_struct_header from anv_bvh.h
-          *
-          * Root pointer starts at offset 0 and bound box start at offset 8.
           */
-         .bvh_bounds_offset = 8,
+         .bvh_bounds_offset = 0,
    };
 
 exit:

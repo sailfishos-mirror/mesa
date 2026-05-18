@@ -353,7 +353,7 @@ main()
    bool is_root_node = gl_GlobalInvocationID.x == 0;
 
    REF(anv_accel_struct_header) header =
-      REF(anv_accel_struct_header)(args.output_bvh - args.output_bvh_offset);
+      REF(anv_accel_struct_header)(args.output_bvh - ANV_RT_BVH_HEADER_SIZE);
 
    if (is_root_node) {
       /* Tracks BLOCK where the next children should be encoded. */
@@ -514,6 +514,5 @@ main()
 
    if (is_root_node) {
       DEREF(header).aabb = src.base.aabb;
-      DEREF(header).rootNodeOffset = args.output_bvh_offset;
    }
 }
