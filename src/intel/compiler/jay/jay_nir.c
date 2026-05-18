@@ -332,6 +332,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_frag_coord,
                nir_metadata_control_flow, NULL);
       NIR_PASS(_, nir, nir_opt_barycentric, true);
+      NIR_PASS(_, nir, nir_opt_constant_folding);
 
       lower_fragment_outputs(nir_shader_get_entrypoint(nir), devinfo,
                              key->fs.nr_color_regions, simd_width);
