@@ -9134,7 +9134,7 @@
         "description": "v3dv: avoid 16F TLB usage for B10G11R11_UFLOAT copies",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
