@@ -9004,7 +9004,7 @@
         "description": "anv: Add transfer_src usage for ANDROID_external_format_resolve",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "465c186fc5f72c51bda943ac0e19f6512f8e6262",
         "notes": null

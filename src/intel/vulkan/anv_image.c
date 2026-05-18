@@ -1655,13 +1655,14 @@ choose_drm_format_mod(const struct anv_physical_device *device,
 }
 
 static VkImageUsageFlags
-anv_image_create_usage(const VkImageCreateInfo *pCreateInfo,
+anv_image_create_usage(const struct anv_device *device,
+                       const VkImageCreateInfo *pCreateInfo,
                        VkImageUsageFlags usage)
 {
-   /* Add TRANSFER_SRC usage for multisample attachment images. This is
-    * because we might internally use the TRANSFER_SRC layout on them for
-    * blorp operations associated with resolving those into other attachments
-    * at the end of a subpass.
+   /* Add TRANSFER_SRC usage for some attachments. This is because we might
+    * internally use the TRANSFER_SRC layout on them for blorp operations
+    * associated with resolving those into other attachments at the end of a
+    * subpass.
     *
     * Without this additional usage, we compute an incorrect AUX state in
     * anv_layout_to_aux_state().
@@ -1670,6 +1671,12 @@ anv_image_create_usage(const VkImageCreateInfo *pCreateInfo,
        (usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)))
       usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+   if (device->vk.enabled_extensions.ANDROID_external_format_resolve &&
+       pCreateInfo->samples == VK_SAMPLE_COUNT_1_BIT &&
+       (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
+      usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
    return usage;
 }
 
@@ -1841,9 +1848,10 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
 
    vk_image_init(&device->vk, &image->vk, pCreateInfo);
 
-   image->vk.usage = anv_image_create_usage(pCreateInfo, image->vk.usage);
+   image->vk.usage =
+      anv_image_create_usage(device, pCreateInfo, image->vk.usage);
    image->vk.stencil_usage =
-      anv_image_create_usage(pCreateInfo, image->vk.stencil_usage);
+      anv_image_create_usage(device, pCreateInfo, image->vk.stencil_usage);
 
    isl_surf_usage_flags_t isl_extra_usage_flags =
       create_info->isl_extra_usage_flags;
