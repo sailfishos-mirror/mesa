@@ -99,6 +99,7 @@ void ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
    options->has_pack_half_2x16_rtz = true;
    options->has_bit_test = !use_llvm;
    options->has_fmulz = true;
+   options->has_ffmaz_no_denorms = info->gfx_level >= GFX10_3;
    options->has_msad = true;
    options->has_shfr32 = true;
    options->has_mul24_relaxed = true;

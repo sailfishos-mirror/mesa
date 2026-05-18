@@ -179,6 +179,7 @@ fn nir_options(dev: &nv_device_info) -> nir_shader_compiler_options {
         // We set .ftz on f32 by default so we can support fmulz whenever the client
         // doesn't explicitly request denorms.
         has_fmulz_no_denorms: true,
+        has_ffmaz_no_denorms: true,
         has_find_msb_rev: true,
         has_pack_half_2x16_rtz: true,
         has_bfm: dev.sm >= 70,
