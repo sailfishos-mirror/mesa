@@ -1522,9 +1522,8 @@ select_shader(isel_context& ctx, nir_shader* nir, const bool need_startpgm, cons
                                   ? scope_subgroup
                                   : scope_workgroup;
 
-      Builder(ctx.program, ctx.block)
-         .barrier(aco_opcode::p_barrier, memory_sync_info(storage_shared, semantic_acqrel, scope),
-                  scope);
+      Builder bld(ctx.program, ctx.block);
+      emit_barrier(bld, memory_sync_info(storage_shared, semantic_acqrel, scope), scope);
    }
 
    nir_function_impl* func = nir_shader_get_entrypoint(nir);

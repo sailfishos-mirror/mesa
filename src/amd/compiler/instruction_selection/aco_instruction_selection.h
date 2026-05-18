@@ -301,6 +301,7 @@ struct aco_export_mrt {
 void create_fs_dual_src_export_gfx11(isel_context* ctx, const struct aco_export_mrt* mrt0,
                                      const struct aco_export_mrt* mrt1);
 Temp lanecount_to_mask(isel_context* ctx, Temp count, unsigned bit_offset);
+void emit_barrier(Builder& bld, memory_sync_info sync, sync_scope exec_scope);
 void build_end_with_regs(isel_context* ctx, std::vector<Operand>& regs);
 Instruction* add_startpgm(struct isel_context* ctx, bool is_callee = false);
 void finish_program(isel_context* ctx);

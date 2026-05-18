@@ -2895,7 +2895,7 @@ translate_nir_scope(mesa_scope scope)
 }
 
 void
-emit_barrier(isel_context* ctx, nir_intrinsic_instr* instr)
+visit_barrier(isel_context* ctx, nir_intrinsic_instr* instr)
 {
    Builder bld(ctx->program, ctx->block);
 
@@ -2948,15 +2948,9 @@ emit_barrier(isel_context* ctx, nir_intrinsic_instr* instr)
    assert(!(nir_semantics & (NIR_MEMORY_MAKE_AVAILABLE | NIR_MEMORY_MAKE_VISIBLE)));
    assert(exec_scope != scope_workgroup || workgroup_scope_allowed);
 
-   if (ctx->program->workgroup_size <= ctx->program->wave_size) {
-      exec_scope = scope_subgroup;
-      if (mem_scope == scope_workgroup)
-         mem_scope = scope_subgroup;
-   }
-
-   bld.barrier(aco_opcode::p_barrier,
-               memory_sync_info((storage_class)storage, (memory_semantics)semantics, mem_scope),
-               exec_scope);
+   emit_barrier(bld,
+                memory_sync_info((storage_class)storage, (memory_semantics)semantics, mem_scope),
+                exec_scope);
 }
 
 /* The two 32 wide halves of a gfx10+ wave64 LDS instruction might be executed interleaved
@@ -4056,7 +4050,7 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
    case nir_intrinsic_ssbo_atomic_swap: visit_atomic_ssbo(ctx, instr); break;
    case nir_intrinsic_load_scratch: visit_load_scratch(ctx, instr); break;
    case nir_intrinsic_store_scratch: visit_store_scratch(ctx, instr); break;
-   case nir_intrinsic_barrier: emit_barrier(ctx, instr); break;
+   case nir_intrinsic_barrier: visit_barrier(ctx, instr); break;
    case nir_intrinsic_ddx:
    case nir_intrinsic_ddy:
    case nir_intrinsic_ddx_fine:
