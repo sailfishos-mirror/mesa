@@ -4415,6 +4415,20 @@ genX(CmdExecuteCommands)(
 
       container->state.compute.trace_rays_active |=
          secondary->state.compute.trace_rays_active;
+
+      /* For each GFX instruction emitted in the secondary, mark it dirty in
+       * the container, so it's reemited. Even though Vulkan spec says that
+       * after a secondary command buffer is executed the state in the primary
+       * is undefined, our emission optimization code will avoid dirtying an
+       * instruction if the values inside an instruction haven't changed, but
+       * it doesn't see that this was potentially changed by the secondary.
+       *
+       * TODO: do an ultimate version of this by diffing secondary/container
+       *       emitted instructions
+       */
+      BITSET_OR(container->state.gfx.dyn_state.emit_dirty,
+                container->state.gfx.dyn_state.emit_dirty,
+                secondary->state.gfx.dyn_state.emitted);
    }
 
    /* The secondary isn't counted in our VF cache tracking so we need to
@@ -4446,10 +4460,6 @@ genX(CmdExecuteCommands)(
 
    memset(&container->state.gfx.urb_cfg, 0, sizeof(struct intel_urb_config));
 
-   /* Reemit all GFX instructions in container */
-   BITSET_OR(container->state.gfx.dyn_state.emit_dirty,
-             container->state.gfx.dyn_state.emit_dirty,
-             device->gfx_dirty_state);
    if (container->device->vk.enabled_extensions.KHR_fragment_shading_rate) {
       /* Also recompute the CPS_STATE offset */
       struct vk_dynamic_graphics_state *dyn =

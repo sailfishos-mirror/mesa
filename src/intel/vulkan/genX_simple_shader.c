@@ -358,6 +358,9 @@ genX(emit_simpler_shader_init_fragment)(struct anv_simple_shader *state)
       BITSET_SET(hw_state->emit_dirty, ANV_GFX_STATE_TASK_CONTROL);
    }
 
+   /* Add the flagged instructions as emitted */
+   BITSET_OR(hw_state->emitted, hw_state->emitted, hw_state->emit_dirty);
+
    /* Update urb config after simple shader. */
    memcpy(&state->cmd_buffer->state.gfx.urb_cfg, &urb_cfg,
           sizeof(urb_cfg));

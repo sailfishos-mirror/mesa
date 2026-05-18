@@ -373,6 +373,9 @@ genX(emit_so_memcpy_fini)(struct anv_memcpy_state *state,
          BITSET_SET(hw_state->emit_dirty, ANV_GFX_STATE_TASK_CONTROL);
       }
 
+      /* Add the flagged instructions as emitted */
+      BITSET_OR(hw_state->emitted, hw_state->emitted, hw_state->emit_dirty);
+
       state->cmd_buffer->state.gfx.dirty |=
          ~(ANV_CMD_DIRTY_ALL_SHADERS(state->device) |
            ANV_CMD_DIRTY_INDEX_BUFFER |

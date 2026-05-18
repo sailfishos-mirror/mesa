@@ -3646,6 +3646,9 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
       mi_builder_set_mocs(&b, isl_mocs(&device->isl_dev, 0, false));
    }
 
+   /* Save all the instructions we're about to emit */
+   BITSET_OR(hw_state->emitted, hw_state->emitted, hw_state->emit_dirty);
+
 #if INTEL_WA_16011107343_GFX_VER
    /* Will be emitted in front of every draw instead */
    if (intel_needs_workaround(device->info, 16011107343) &&

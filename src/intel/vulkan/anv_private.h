@@ -1984,6 +1984,7 @@ enum anv_gfx_state_bits {
    ANV_GFX_STATE_WM,
    ANV_GFX_STATE_WM_DEPTH_STENCIL,
    ANV_GFX_STATE_PS_EXTRA,
+
    ANV_GFX_STATE_PMA_FIX, /* Fake state to implement workaround */
    ANV_GFX_STATE_WA_18019816803, /* Fake state to implement workaround */
    ANV_GFX_STATE_WA_14018283232, /* Fake state to implement workaround */
@@ -2492,6 +2493,9 @@ struct anv_gfx_dynamic_state {
 
    /** Dirty bits of what needs to be reemitted */
    BITSET_DECLARE(emit_dirty, ANV_GFX_STATE_MAX);
+
+   /** Emitted bits */
+   BITSET_DECLARE(emitted, ANV_GFX_STATE_MAX);
 };
 
 enum anv_internal_kernel_name {
