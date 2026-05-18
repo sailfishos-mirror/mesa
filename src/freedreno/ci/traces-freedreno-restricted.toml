@@ -192,12 +192,16 @@ freedreno-a750 = { checksum = "4881e457239cf97c5beb529ecfe4d6e828cc374d1c86cac69
 path = "steam-d3d8/hod3pc_unkown_dx8_unknown_unknown_none.trace"
 [traces.devices]
 # a660: vc-win64\bin\d3dretrace.exe:
+# "Validation Error: [ VUID-VkCopyBufferToImageInfo2-dstImage-07973 ] | MessageID = 0xbb970c9d
+#  vkCmdCopyBufferToImage2(): pCopyBufferToImageInfo->dstImage VkImage 0x170000000017 was created with a sample count of VK_SAMPLE_COUNT_2_BIT but must be VK_SAMPLE_COUNT_1_BIT.
+#  The Vulkan spec states: dstImage must have a sample count equal to VK_SAMPLE_COUNT_1_BIT (https://docs.vulkan.org/spec/latest/chapters/copies.html#VUID-VkCopyBufferToImageInfo2-dstImage-07973)
+#
 #  ../src/freedreno/vulkan/tu_clear_blit.cc:553: void r2d_setup(tu_cmd_buffer*,
 #  tu_cs*, pipe_format, pipe_format, VkImageAspectFlags, unsigned int, bool,
 #  bool, VkSampleCountFlagBits, VkSampleCountFlagBits) [with chip CHIP = A6XX;
 #  VkImageAspectFlags = unsigned int; VkSampleCountFlagBits =
 #  VkSampleCountFlagBits]: Assertion `dst_samples == VK_SAMPLE_COUNT_1_BIT'
-#  failed.
+#  failed."
 freedreno-a750 = { checksum = "4a74817ec7271b26251a1f0a678cae95b6e3cf140b1bf7b0e882256e740683aa" }
 
 [[traces]]
