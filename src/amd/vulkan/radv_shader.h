@@ -237,14 +237,16 @@ struct radv_llvm_compiler_options {
 #define NGG_STATE_QUERY__SHIFT              6
 #define NGG_STATE_QUERY__MASK               0x7
 
-#define PS_STATE_NUM_SAMPLES__SHIFT    0
-#define PS_STATE_NUM_SAMPLES__MASK     0xf
-#define PS_STATE_LINE_RAST_MODE__SHIFT 4
-#define PS_STATE_LINE_RAST_MODE__MASK  0x3
-#define PS_STATE_PS_ITER_MASK__SHIFT   6
-#define PS_STATE_PS_ITER_MASK__MASK    0xffff
-#define PS_STATE_RAST_PRIM__SHIFT      22
-#define PS_STATE_RAST_PRIM__MASK       0x3
+#define PS_STATE_NUM_SAMPLES__SHIFT             0
+#define PS_STATE_NUM_SAMPLES__MASK              0xf
+#define PS_STATE_LINE_RAST_MODE__SHIFT          4
+#define PS_STATE_LINE_RAST_MODE__MASK           0x3
+#define PS_STATE_PS_ITER_MASK__SHIFT            6
+#define PS_STATE_PS_ITER_MASK__MASK             0xffff
+#define PS_STATE_RAST_PRIM__SHIFT               22
+#define PS_STATE_RAST_PRIM__MASK                0x3
+#define PS_STATE_USE_FLOAT_FRAG_COORD_XY__SHIFT 24
+#define PS_STATE_USE_FLOAT_FRAG_COORD_XY__MASK  0x1
 
 struct radv_shader_layout {
    uint32_t num_sets;

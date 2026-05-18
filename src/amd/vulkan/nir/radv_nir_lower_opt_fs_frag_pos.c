@@ -9,6 +9,20 @@
  * not both.
  *
  * sample_pos counts as a frag_coord_xy use and is lowered to frag_coord_xy here.
+ *
+ * If frag_coord_xy survives and both components are used and sample_pos isn't used, it becomes:
+ *    load_use_float_frag_coord_xy_amd() ? load_frag_coord_xy() : u2f32(load_pixel_coord()) + 0.5;
+ *
+ *    If load_use_float_frag_coord_xy_amd==false, load_frag_coord_xy() returns uninitialized values.
+ *    If load_use_float_frag_coord_xy_amd==true, load_pixel_coord() returns uninitialized values.
+ *
+ *    SPI_PS_INPUT_ENA is used to disable VGPR initialization for frag_coord_xy (POS_X_FLOAT,
+ *    POS_Y_FLOAT) or pixel_coord (POS_FIXED_PT) while SPI_PS_INPUT_ADDR keeps them at the same
+ *    VGPR locations. Reducing the number of initialized VGPRs increases the PS wave launch rate,
+ *    which increases observed pixel throughput depending on other states.
+ *
+ *    load_use_float_frag_coord_xy_amd() comes from a user SGPR, and determines which VGPRs are
+ *    initialized at PS wave launch.
  */
 
 #include "nir_builder.h"
@@ -21,10 +35,12 @@ typedef struct {
    bool has_frag_coord_xy_float_use;
    bool has_pixel_coord;
    bool has_sample_pos;
+   uint8_t comp_usage_mask;
 
    /* lower_frag_coord_and_pixel_coord */
    bool lower_to_pixel_coord;
    bool lower_to_frag_coord_xy;
+   bool select_frag_coord_xy_dynamically;
 } opt_fs_frag_coord_and_pixel_coord_state;
 
 static bool
@@ -45,10 +61,12 @@ gather_fs_frag_pos(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
       state->has_frag_coord_xy |= intr->intrinsic == nir_intrinsic_load_frag_coord_xy;
       state->has_sample_pos |= intr->intrinsic == nir_intrinsic_load_sample_pos;
+      state->comp_usage_mask |= nir_def_components_read(&intr->def);
       return false;
 
    case nir_intrinsic_load_pixel_coord:
       state->has_pixel_coord = true;
+      state->comp_usage_mask |= nir_def_components_read(&intr->def);
       return false;
 
    default:
@@ -68,6 +86,10 @@ lower_fs_frag_pos(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       if (state->lower_to_pixel_coord) {
          nir_def_replace(&intr->def, nir_fadd_imm(b, nir_u2f32(b, nir_load_pixel_coord(b)), 0.5));
          return true;
+      } else if (state->select_frag_coord_xy_dynamically) {
+         nir_def_replace(&intr->def, nir_bcsel(b, nir_load_use_float_frag_coord_xy_amd(b), nir_load_frag_coord_xy(b),
+                                               nir_fadd_imm(b, nir_u2f32(b, nir_load_pixel_coord(b)), 0.5)));
+         return true;
       }
       return false;
 
@@ -82,7 +104,12 @@ lower_fs_frag_pos(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
    case nir_intrinsic_load_pixel_coord:
       if (state->lower_to_frag_coord_xy) {
-         nir_def_replace(&intr->def, nir_f2u16(b, nir_load_frag_coord_xy(b)));
+         if (state->select_frag_coord_xy_dynamically) {
+            nir_def_replace(&intr->def, nir_bcsel(b, nir_load_use_float_frag_coord_xy_amd(b),
+                                                  nir_f2u16(b, nir_load_frag_coord_xy(b)), nir_load_pixel_coord(b)));
+         } else {
+            nir_def_replace(&intr->def, nir_f2u16(b, nir_load_frag_coord_xy(b)));
+         }
          return true;
       }
       return false;
@@ -109,8 +136,10 @@ radv_nir_lower_opt_fs_frag_pos(nir_shader *shader, bool force_pixel_coord)
          (state.has_frag_coord_xy || state.has_sample_pos) && !state.has_frag_coord_xy_float_use;
       state.lower_to_frag_coord_xy =
          (state.has_pixel_coord || state.has_sample_pos) && state.has_frag_coord_xy_float_use;
+      state.select_frag_coord_xy_dynamically =
+         state.has_frag_coord_xy_float_use && !state.has_sample_pos && state.comp_usage_mask == 0x3;
 
-      if (!state.lower_to_pixel_coord && !state.lower_to_frag_coord_xy)
+      if (!state.lower_to_pixel_coord && !state.lower_to_frag_coord_xy && !state.select_frag_coord_xy_dynamically)
          return false;
 
       return nir_shader_intrinsics_pass(shader, lower_fs_frag_pos, nir_metadata_control_flow, &state);

@@ -213,6 +213,7 @@ struct radv_shader_info {
       bool load_rasterization_prim : 1;
       bool force_sample_iter_shading_rate : 1;
       bool allow_flat_shading : 1;
+      bool selects_frag_coord_xy_dynamically : 1;
 
       bool has_epilog : 1;
    } ps;

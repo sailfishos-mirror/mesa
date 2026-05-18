@@ -1143,6 +1143,10 @@ system_value("blend_const_color_aaaa8888_unorm", 1)
 # System value for internal compute shaders in radeonsi.
 system_value("user_data_amd", 8)
 
+# Whether to use load_frag_coord_x() or load_pixel_coord() based on dynamic states.
+intrinsic("load_use_float_frag_coord_xy_amd", dest_comp=1, bit_sizes=[1],
+          flags=[CAN_ELIMINATE, CAN_REORDER])
+
 # Loads for gl_Color, for radeonsi which interpolates these in the shader
 # prolog to handle flatshading and front/back color selection without
 # recompiles and therefore doesn't handle them like normal varyings.

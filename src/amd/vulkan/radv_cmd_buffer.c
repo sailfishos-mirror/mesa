@@ -8786,6 +8786,16 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
          cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VGT_FLUSH;
       }
 
+      if (cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT] &&
+          cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT]->info.ps.selects_frag_coord_xy_dynamically &&
+          (!cmd_buffer->state.last_vgt_shader ||
+           /* We just want to know whether the VRS output changes between enabled and disabled. */
+           (cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate ||
+            cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate_per_primitive) !=
+              (shader->info.outinfo.writes_primitive_shading_rate ||
+               shader->info.outinfo.writes_primitive_shading_rate_per_primitive)))
+         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_STATE;
+
       cmd_buffer->state.last_vgt_shader = (struct radv_shader *)shader;
    }
 }
@@ -11691,7 +11701,29 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    if (!ps)
       return;
 
-   const uint32_t spi_ps_input_ena = ps->config.spi_ps_input_ena;
+   uint32_t spi_ps_input_ena = ps->config.spi_ps_input_ena;
+   bool use_float_frag_coord_xy = false;
+
+   if (ps->info.ps.selects_frag_coord_xy_dynamically) {
+      /* The shader selects frag_coord_xy/pixel_coord dynamically depending on a flag in PS_STATE
+       * that depends on the following dynamic state while preferring pixel_coord (POS_FIXED_PT)
+       * if possible due to lower VGPR initialization cost.
+       */
+      use_float_frag_coord_xy =
+         /* Whether VRS can be other than 1x1. */
+         cmd_buffer->state.dynamic.vk.fsr.fragment_size.width != 1 ||
+         cmd_buffer->state.dynamic.vk.fsr.fragment_size.height != 1 || cmd_buffer->state.render.vrs_att.iview ||
+         cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate ||
+         cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate_per_primitive ||
+         radv_is_sample_shading_enabled(cmd_buffer, NULL);
+
+      /* Disable the initialized PS VGPRs that the shader doesn't use. */
+      if (use_float_frag_coord_xy)
+         spi_ps_input_ena &= C_0286CC_POS_FIXED_PT_ENA;
+      else
+         spi_ps_input_ena &= C_0286CC_POS_X_FLOAT_ENA & C_0286CC_POS_Y_FLOAT_ENA;
+   }
+
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radeon_begin(cs);
@@ -11711,7 +11743,8 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
       const unsigned ps_state = SET_SGPR_FIELD(PS_STATE_NUM_SAMPLES, rasterization_samples) |
                                 SET_SGPR_FIELD(PS_STATE_PS_ITER_MASK, ps_iter_mask) |
                                 SET_SGPR_FIELD(PS_STATE_LINE_RAST_MODE, line_rast_mode) |
-                                SET_SGPR_FIELD(PS_STATE_RAST_PRIM, vgt_outprim_type);
+                                SET_SGPR_FIELD(PS_STATE_RAST_PRIM, vgt_outprim_type) |
+                                SET_SGPR_FIELD(PS_STATE_USE_FLOAT_FRAG_COORD_XY, use_float_frag_coord_xy);
 
       if (pdev->info.gfx_level >= GFX12) {
          gfx12_push_sh_reg(ps_state_offset, ps_state);
@@ -12830,7 +12863,7 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_DB_SHADER_CONTROL;
 
    if (dynamic_states & RADV_DYNAMIC_FRAGMENT_SHADING_RATE)
-      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;
+      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_PS_STATE;
 
    if (dynamic_states & RADV_DYNAMIC_SAMPLE_LOCATIONS_ENABLE)
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_RAST_SAMPLES_STATE;
