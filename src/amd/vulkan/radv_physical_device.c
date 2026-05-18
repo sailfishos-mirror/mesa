@@ -763,6 +763,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_shader_float16_int8 = true,
       .KHR_shader_float_controls = true,
       .KHR_shader_float_controls2 = true,
+      .KHR_shader_fma = true,
       .KHR_shader_integer_dot_product = true,
       .KHR_shader_maximal_reconvergence = true,
       .KHR_shader_non_semantic_info = true,
@@ -1621,6 +1622,11 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_KHR_maintenance11 */
       .maintenance11 = true,
+
+      /* VK_KHR_shader_fma */
+      .shaderFmaFloat16 = radv_shader_fp16_enabled(pdev),
+      .shaderFmaFloat32 = true,
+      .shaderFmaFloat64 = true,
    };
 }
 
