@@ -306,7 +306,8 @@ struct vpe_priv {
     struct vpe_stream      *dummy_stream;
     bool scale_yuv_matrix; // this is a flag that forces scaling the yuv->rgb matrix
                            //  when embedding the color adjustments
-
+    bool is_new_context;   // this is a flag for fw detecting if new context comes in,
+                           // used to decide whether to calculate FPS or not.
     // collaborate sync data counter
     int32_t  collaborate_sync_index;
     uint16_t vpe_num_instance;

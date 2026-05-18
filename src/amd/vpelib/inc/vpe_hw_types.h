@@ -393,6 +393,14 @@ enum vpe_3dlut_mem_align {
     VPE_3DLUT_ALIGNMENT_128 = 0, /**< 32 bytes alignment */
     VPE_3DLUT_ALIGNMENT_256 = 1, /**< 64 bytes alignment */
 };
+/** @enum vpe_fw_msg_type
+ *  @brief Firmware message type identifiers
+ */
+enum vpe_fw_msg_type {
+    VPE_FW_MSG_NEW_CONTEXT = 0x0000,
+    // Additional message types can be defined here for future use
+    VPE_FW_MSG_MAX = 0xFFFF, // Maximum message type
+};
 #ifdef __cplusplus
 }
 #endif

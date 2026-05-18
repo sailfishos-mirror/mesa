@@ -1,4 +1,4 @@
-/* Copyright 2022 Advanced Micro Devices, Inc.
+﻿/* Copyright 2022-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -82,6 +82,31 @@ enum VPE_CMD_OPCODE {
 #define VPE_RESOLVE_QUERY_ADDR_SHIFT     32
 #define VPE_RESOLVE_QUERY_HIGH_ADDR_MASK 0xFFFFFFFF00000000
 #define VPE_RESOLVE_QUERY_LOW_ADDR_MASK  0x00000000FFFFFFFF
+
+#define VPE_FW_MSG_NEW_CONTEXT_DW_COUNT 2
+#define VPE_FW_MSG_NEW_CONTEXT_SIZE     (sizeof(uint32_t) * VPE_FW_MSG_NEW_CONTEXT_DW_COUNT)
+
+#define VPE_NOP_COUNT_DATA__SHIFT 16
+#define VPE_NOP_COUNT_DATA_MASK   0x3FFF0000
+
+#define VPE_FW_MSG_SIGNATURE_BASE 0xBEEF0000
+#define VPE_FW_MSG_SIGNATURE_MASK 0xFFFF0000
+#define VPE_FW_MSG_MESSAGE_MASK   0x0000FFFF
+#define VPE_FW_MSG_MESSAGE_SHIFT  0
+
+// Macro to create a fw msg signature with a specific message
+#define VPE_FW_MSG_SIGNATURE_WITH_MSG(msg)                                                         \
+    ((VPE_FW_MSG_SIGNATURE_BASE & VPE_FW_MSG_SIGNATURE_MASK) |                                     \
+        (((msg) << VPE_FW_MSG_MESSAGE_SHIFT) & VPE_FW_MSG_MESSAGE_MASK))
+
+// Macro to extract the message from a fw msg signature
+#define VPE_FW_MSG_GET_MESSAGE(sig) (((sig) & VPE_FW_MSG_MESSAGE_MASK) >> VPE_FW_MSG_MESSAGE_SHIFT)
+
+// Macro to check if a value is a valid fw msg signature
+#define VPE_IS_FW_MSG_SIGNATURE(sig)                                                               \
+    (((sig) & VPE_FW_MSG_SIGNATURE_MASK) == VPE_FW_MSG_SIGNATURE_BASE)
+
+#define VPE_NOP_COUNT_DATA(count) (((count) << VPE_NOP_COUNT_DATA__SHIFT) & VPE_NOP_COUNT_DATA_MASK)
 
 /************************
  * VPEP Config
