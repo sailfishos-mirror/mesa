@@ -61,7 +61,7 @@ nvk_device_finish_meta(struct nvk_device *dev)
    vk_meta_device_finish(&dev->vk, &dev->meta);
 }
 
-struct nvk_meta_save {
+struct nvk_meta_save_gfx {
    struct vk_vertex_input_state _dynamic_vi;
    struct vk_sample_locations_state _dynamic_sl;
    struct vk_dynamic_graphics_state dynamic;
@@ -75,8 +75,8 @@ struct nvk_meta_save {
 };
 
 static void
-nvk_meta_begin(struct nvk_cmd_buffer *cmd,
-               struct nvk_meta_save *save)
+nvk_meta_begin_gfx(struct nvk_cmd_buffer *cmd,
+                   struct nvk_meta_save_gfx *save)
 {
    const struct nvk_descriptor_state *desc = &cmd->state.gfx.descriptors;
 
@@ -125,8 +125,8 @@ nvk_meta_begin(struct nvk_cmd_buffer *cmd,
 }
 
 static void
-nvk_meta_end(struct nvk_cmd_buffer *cmd,
-             struct nvk_meta_save *save)
+nvk_meta_end_gfx(struct nvk_cmd_buffer *cmd,
+                 struct nvk_meta_save_gfx *save)
 {
    struct nvk_descriptor_state *desc = &cmd->state.gfx.descriptors;
 
@@ -206,12 +206,12 @@ nvk_CmdBlitImage2(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
 
-   struct nvk_meta_save save;
-   nvk_meta_begin(cmd, &save);
+   struct nvk_meta_save_gfx save;
+   nvk_meta_begin_gfx(cmd, &save);
 
    vk_meta_blit_image2(&cmd->vk, &dev->meta, pBlitImageInfo);
 
-   nvk_meta_end(cmd, &save);
+   nvk_meta_end_gfx(cmd, &save);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -221,12 +221,12 @@ nvk_CmdResolveImage2(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
 
-   struct nvk_meta_save save;
-   nvk_meta_begin(cmd, &save);
+   struct nvk_meta_save_gfx save;
+   nvk_meta_begin_gfx(cmd, &save);
 
    vk_meta_resolve_image2(&cmd->vk, &dev->meta, pResolveImageInfo);
 
-   nvk_meta_end(cmd, &save);
+   nvk_meta_end_gfx(cmd, &save);
 }
 
 void
@@ -235,12 +235,12 @@ nvk_meta_resolve_rendering(struct nvk_cmd_buffer *cmd,
 {
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
 
-   struct nvk_meta_save save;
-   nvk_meta_begin(cmd, &save);
+   struct nvk_meta_save_gfx save;
+   nvk_meta_begin_gfx(cmd, &save);
 
    vk_meta_resolve_rendering(&cmd->vk, &dev->meta, pRenderingInfo);
 
-   nvk_meta_end(cmd, &save);
+   nvk_meta_end_gfx(cmd, &save);
 }
 
 static bool
@@ -299,14 +299,14 @@ nvk_cmd_copy_image_meta(struct nvk_cmd_buffer *cmd,
    struct vk_meta_copy_image_properties src_img_props =
       nvk_meta_copy_get_image_properties(dst, false);
 
-   struct nvk_meta_save save;
-   nvk_meta_begin(cmd, &save);
+   struct nvk_meta_save_gfx save;
+   nvk_meta_begin_gfx(cmd, &save);
 
    vk_meta_copy_image(&cmd->vk, &dev->meta, pCopyImageInfo,
                       &src_img_props, &dst_img_props,
                       VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-   nvk_meta_end(cmd, &save);
+   nvk_meta_end_gfx(cmd, &save);
 }
 
 VKAPI_ATTR void VKAPI_CALL
