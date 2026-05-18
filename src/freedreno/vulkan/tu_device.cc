@@ -1869,11 +1869,18 @@ static const driOptionDescription tu_dri_options[] = {
 static void
 tu_init_dri_options(struct tu_instance *instance)
 {
+   driConfigFileParseParams params = {
+      .driverName = "turnip",
+      .applicationName = instance->vk.app_info.app_name,
+      .applicationVersion = instance->vk.app_info.app_version,
+      .engineName = instance->vk.app_info.engine_name,
+      .engineVersion = instance->vk.app_info.engine_version,
+   };
+
    driParseOptionInfo(&instance->available_dri_options, tu_dri_options,
                       ARRAY_SIZE(tu_dri_options));
-   driParseConfigFiles(&instance->dri_options, &instance->available_dri_options, 0, "turnip", NULL, NULL,
-                       instance->vk.app_info.app_name, instance->vk.app_info.app_version,
-                       instance->vk.app_info.engine_name, instance->vk.app_info.engine_version);
+   driParseConfigFiles(&instance->dri_options, &instance->available_dri_options,
+                       &params);
 
    instance->force_vk_vendor =
          driQueryOptioni(&instance->dri_options, "force_vk_vendor");

@@ -329,9 +329,14 @@ radv_init_dri_options(struct radv_instance *instance)
    struct radv_drirc *drirc = &instance->drirc;
 
    driParseOptionInfo(&drirc->available_options, radv_dri_options, ARRAY_SIZE(radv_dri_options));
-   driParseConfigFiles(&drirc->options, &drirc->available_options, 0, "radv", NULL, NULL,
-                       instance->vk.app_info.app_name, instance->vk.app_info.app_version,
-                       instance->vk.app_info.engine_name, instance->vk.app_info.engine_version);
+   driParseConfigFiles(&drirc->options, &drirc->available_options,
+                       &(driConfigFileParseParams){
+                          .driverName = "radv",
+                          .applicationName = instance->vk.app_info.app_name,
+                          .applicationVersion = instance->vk.app_info.app_version,
+                          .engineName = instance->vk.app_info.engine_name,
+                          .engineVersion = instance->vk.app_info.engine_version,
+                       });
 
    radv_init_dri_debug_options(instance);
    radv_init_dri_performance_options(instance);

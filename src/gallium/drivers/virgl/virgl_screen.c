@@ -990,8 +990,8 @@ virgl_create_screen(struct virgl_winsys *vws, const struct pipe_screen_config *c
    virgl_debug = debug_get_option_virgl_debug();
 
    if (config && config->options) {
-      driParseConfigFiles(config->options, config->options_info, 0, "virtio_gpu",
-                          NULL, NULL, NULL, 0, NULL, 0);
+      driParseConfigFiles(config->options, config->options_info,
+                          &(driConfigFileParseParams) { .driverName = "virtio_gpu" });
 
       screen->tweak_gles_emulate_bgra =
             driQueryOptionb(config->options, VIRGL_GLES_EMULATE_BGRA);

@@ -1025,8 +1025,8 @@ panfrost_create_screen(int fd, const struct pipe_screen_config *config,
 
    struct panfrost_device *dev = pan_device(&screen->base);
 
-   driParseConfigFiles(config->options, config->options_info, 0,
-                       "panfrost", NULL, NULL, NULL, 0, NULL, 0);
+   driParseConfigFiles(config->options, config->options_info,
+                       &(driConfigFileParseParams) { .driverName = "panfrost" });
 
    /* Debug must be set first for pandecode to work correctly */
    dev->debug =

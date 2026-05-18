@@ -598,9 +598,14 @@ v3dv_init_dri_options(struct v3dv_instance *instance)
 {
    driParseOptionInfo(&instance->available_dri_options, v3dv_dri_options,
                       ARRAY_SIZE(v3dv_dri_options));
-   driParseConfigFiles(&instance->dri_options, &instance->available_dri_options, 0, "v3dv", NULL, NULL,
-                       instance->vk.app_info.app_name, instance->vk.app_info.app_version,
-                       instance->vk.app_info.engine_name, instance->vk.app_info.engine_version);
+   driParseConfigFiles(&instance->dri_options, &instance->available_dri_options,
+                       &(driConfigFileParseParams) {
+                          .driverName = "v3dv",
+                          .applicationName = instance->vk.app_info.app_name,
+                          .applicationVersion = instance->vk.app_info.app_version,
+                          .engineName = instance->vk.app_info.engine_name,
+                          .engineVersion = instance->vk.app_info.engine_version,
+                       });
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL

@@ -3412,8 +3412,8 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
    }
 
    if (config) {
-      driParseConfigFiles(config->options, config->options_info, 0, "zink",
-                          NULL, NULL, NULL, 0, NULL, 0);
+      driParseConfigFiles(config->options, config->options_info,
+                          &(driConfigFileParseParams) { .driverName = "zink" });
       screen->driconf.dual_color_blend_by_location = driQueryOptionb(config->options, "dual_color_blend_by_location");
       //screen->driconf.inline_uniforms = driQueryOptionb(config->options, "radeonsi_inline_uniforms");
       screen->driconf.emulate_point_smooth = driQueryOptionb(config->options, "zink_emulate_point_smooth");

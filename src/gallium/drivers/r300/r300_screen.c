@@ -657,8 +657,8 @@ struct pipe_screen* r300_screen_create(struct radeon_winsys *rws,
     r300_init_debug(r300screen);
     r300_parse_chipset(r300screen->info.pci_id, &r300screen->caps);
 
-    driParseConfigFiles(config->options, config->options_info, 0, "r300", NULL,
-                        NULL, NULL, 0, NULL, 0);
+    driParseConfigFiles(config->options, config->options_info,
+                        &(driConfigFileParseParams) { .driverName = "r300" });
 
 #define OPT_BOOL(name, dflt, description)                                                          \
     r300screen->options.name = driQueryOptionb(config->options, "r300_" #name);

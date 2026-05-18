@@ -209,12 +209,14 @@ anv_init_dri_options(struct anv_instance *instance)
 {
    driParseOptionInfo(&instance->available_dri_options, anv_dri_options,
                       ARRAY_SIZE(anv_dri_options));
-   driParseConfigFiles(&instance->dri_options,
-                       &instance->available_dri_options, 0, "anv", NULL, NULL,
-                       instance->vk.app_info.app_name,
-                       instance->vk.app_info.app_version,
-                       instance->vk.app_info.engine_name,
-                       instance->vk.app_info.engine_version);
+   driParseConfigFiles(&instance->dri_options, &instance->available_dri_options,
+                       &(driConfigFileParseParams) {
+                          .driverName = "anv",
+                          .applicationName = instance->vk.app_info.app_name,
+                          .applicationVersion = instance->vk.app_info.app_version,
+                          .engineName = instance->vk.app_info.engine_name,
+                          .engineVersion = instance->vk.app_info.engine_version,
+                       });
 
     instance->assume_full_subgroups =
        driQueryOptioni(&instance->dri_options, "anv_assume_full_subgroups");
