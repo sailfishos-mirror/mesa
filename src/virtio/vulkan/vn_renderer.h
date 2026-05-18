@@ -37,7 +37,12 @@ struct vn_renderer_bo {
  * The main difference is that drm_syncobj can have unsignaled value 0.
  */
 struct vn_renderer_sync {
-   uint32_t sync_id;
+   union {
+      /* for virtgpu backend */
+      uint32_t syncobj_handle;
+      /* for vtest backend */
+      uint32_t sync_id;
+   };
 };
 
 struct vn_renderer_info {

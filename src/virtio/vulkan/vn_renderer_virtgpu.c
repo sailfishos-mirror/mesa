@@ -56,27 +56,6 @@ struct virtgpu_bo {
    uint32_t blob_flags;
 };
 
-struct virtgpu_sync {
-   struct vn_renderer_sync base;
-
-   /*
-    * drm_syncobj is in one of these states
-    *
-    *  - value N:      drm_syncobj has a signaled fence chain with seqno N
-    *  - pending N->M: drm_syncobj has an unsignaled fence chain with seqno M
-    *                  (which may point to another unsignaled fence chain with
-    *                   seqno between N and M, and so on)
-    *
-    * TODO Do we want to use binary drm_syncobjs?  They would be
-    *
-    *  - value 0: drm_syncobj has no fence
-    *  - value 1: drm_syncobj has a signaled fence with seqno 0
-    *
-    * They are cheaper but require special care.
-    */
-   uint32_t syncobj_handle;
-};
-
 struct virtgpu {
    struct vn_renderer base;
 
@@ -408,11 +387,10 @@ sim_syncobj_wait(struct virtgpu *gpu,
 
    /* TODO poll all fds at the same time */
    for (uint32_t i = 0; i < wait->sync_count; i++) {
-      struct virtgpu_sync *sync = (struct virtgpu_sync *)wait->syncs[i];
       const uint64_t point = wait->sync_values[i];
 
       struct sim_syncobj *syncobj =
-         sim_syncobj_lookup(gpu, sync->syncobj_handle);
+         sim_syncobj_lookup(gpu, wait->syncs[i]->syncobj_handle);
       if (!syncobj)
          return -1;
 
@@ -487,11 +465,10 @@ sim_submit_signal_syncs(struct virtgpu *gpu,
                         bool cpu)
 {
    for (uint32_t i = 0; i < sync_count; i++) {
-      struct virtgpu_sync *sync = (struct virtgpu_sync *)syncs[i];
       const uint64_t pending_point = sync_values[i];
 
 #ifdef SIMULATE_SYNCOBJ
-      int ret = sim_syncobj_submit(gpu, sync->syncobj_handle, sync_fd,
+      int ret = sim_syncobj_submit(gpu, syncs[i]->syncobj_handle, sync_fd,
                                    pending_point, cpu);
       if (ret)
          return ret;
@@ -885,10 +862,8 @@ virtgpu_ioctl_syncobj_timeline_wait(struct virtgpu *gpu,
       malloc(sizeof(*syncobj_handles) * wait->sync_count);
    if (!syncobj_handles)
       return -1;
-   for (uint32_t i = 0; i < wait->sync_count; i++) {
-      struct virtgpu_sync *sync = (struct virtgpu_sync *)wait->syncs[i];
-      syncobj_handles[i] = sync->syncobj_handle;
-   }
+   for (uint32_t i = 0; i < wait->sync_count; i++)
+      syncobj_handles[i] = wait->syncs[i]->syncobj_handle;
 
    struct drm_syncobj_timeline_wait args = {
       .handles = (uintptr_t)syncobj_handles,
@@ -917,11 +892,10 @@ virtgpu_ioctl_submit(struct virtgpu *gpu,
 
 static VkResult
 virtgpu_sync_write(struct vn_renderer *renderer,
-                   struct vn_renderer_sync *_sync,
+                   struct vn_renderer_sync *sync,
                    uint64_t val)
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
-   struct virtgpu_sync *sync = (struct virtgpu_sync *)_sync;
 
    const int ret =
       virtgpu_ioctl_syncobj_timeline_signal(gpu, sync->syncobj_handle, val);
@@ -931,11 +905,10 @@ virtgpu_sync_write(struct vn_renderer *renderer,
 
 static VkResult
 virtgpu_sync_read(struct vn_renderer *renderer,
-                  struct vn_renderer_sync *_sync,
+                  struct vn_renderer_sync *sync,
                   uint64_t *val)
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
-   struct virtgpu_sync *sync = (struct virtgpu_sync *)_sync;
 
    const int ret =
       virtgpu_ioctl_syncobj_query(gpu, sync->syncobj_handle, val);
@@ -945,11 +918,10 @@ virtgpu_sync_read(struct vn_renderer *renderer,
 
 static VkResult
 virtgpu_sync_reset(struct vn_renderer *renderer,
-                   struct vn_renderer_sync *_sync,
+                   struct vn_renderer_sync *sync,
                    uint64_t initial_val)
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
-   struct virtgpu_sync *sync = (struct virtgpu_sync *)_sync;
 
    int ret = virtgpu_ioctl_syncobj_reset(gpu, sync->syncobj_handle);
    if (!ret) {
@@ -962,11 +934,10 @@ virtgpu_sync_reset(struct vn_renderer *renderer,
 
 static int
 virtgpu_sync_export_syncobj(struct vn_renderer *renderer,
-                            struct vn_renderer_sync *_sync,
+                            struct vn_renderer_sync *sync,
                             bool sync_file)
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
-   struct virtgpu_sync *sync = (struct virtgpu_sync *)_sync;
 
    return virtgpu_ioctl_syncobj_handle_to_fd(gpu, sync->syncobj_handle,
                                              sync_file);
@@ -974,10 +945,9 @@ virtgpu_sync_export_syncobj(struct vn_renderer *renderer,
 
 static void
 virtgpu_sync_destroy(struct vn_renderer *renderer,
-                     struct vn_renderer_sync *_sync)
+                     struct vn_renderer_sync *sync)
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
-   struct virtgpu_sync *sync = (struct virtgpu_sync *)_sync;
 
    virtgpu_ioctl_syncobj_destroy(gpu, sync->syncobj_handle);
 
@@ -1007,16 +977,14 @@ virtgpu_sync_create_from_syncobj(struct vn_renderer *renderer,
          return VK_ERROR_INVALID_EXTERNAL_HANDLE;
    }
 
-   struct virtgpu_sync *sync = calloc(1, sizeof(*sync));
+   struct vn_renderer_sync *sync = calloc(1, sizeof(*sync));
    if (!sync) {
       virtgpu_ioctl_syncobj_destroy(gpu, syncobj_handle);
       return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
 
    sync->syncobj_handle = syncobj_handle;
-   sync->base.sync_id = 0; /* TODO */
-
-   *out_sync = &sync->base;
+   *out_sync = sync;
 
    return VK_SUCCESS;
 }
@@ -1048,19 +1016,14 @@ virtgpu_sync_create(struct vn_renderer *renderer,
       return VK_ERROR_OUT_OF_DEVICE_MEMORY;
    }
 
-   struct virtgpu_sync *sync = calloc(1, sizeof(*sync));
+   struct vn_renderer_sync *sync = calloc(1, sizeof(*sync));
    if (!sync) {
       virtgpu_ioctl_syncobj_destroy(gpu, syncobj_handle);
       return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
 
    sync->syncobj_handle = syncobj_handle;
-   /* we will have a sync_id when shareable is true and virtio-gpu associates
-    * a host sync object with guest drm_syncobj
-    */
-   sync->base.sync_id = 0;
-
-   *out_sync = &sync->base;
+   *out_sync = sync;
 
    return VK_SUCCESS;
 }
