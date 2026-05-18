@@ -170,7 +170,7 @@ foreach arch : [6, 7, 10, 12, 13, 14]
       dep_valgrind,
       idep_libpan_per_arch[arch.to_string()],
     ],
-    c_args : [no_override_init_args, panvk_flags, '-DPAN_ARCH=@0@'.format(arch)],
+    c_args : [no_override_init_args, panvk_flags, soong_compat_c_args, '-DPAN_ARCH=@0@'.format(arch)],
     gnu_symbol_visibility : 'hidden',
   )
 endforeach
@@ -218,7 +218,7 @@ libvulkan_panfrost = shared_library(
     idep_vulkan_wsi,
     idep_mesautil,
   ],
-  c_args : [no_override_init_args, panvk_flags],
+  c_args : [no_override_init_args, panvk_flags, soong_compat_c_args],
   link_args : [vulkan_icd_link_args, ld_args_bsymbolic, ld_args_gc_sections, ld_args_build_id],
   gnu_symbol_visibility : 'hidden',
   install : true,

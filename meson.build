@@ -1247,6 +1247,8 @@ endif
 c_msvc_compat_args = []
 no_override_init_args = []
 cpp_msvc_compat_args = []
+soong_compat_c_args = []
+soong_compat_cpp_args = []
 ld_args_gc_sections = []
 if cc.get_argument_syntax() == 'msvc'
   _trial = [
@@ -1366,6 +1368,40 @@ else
   ]
   c_msvc_compat_args += cc.get_supported_arguments(_trial_msvc)
   cpp_msvc_compat_args += cpp.get_supported_arguments(_trial_msvc)
+
+  # Check for C and C++ arguments for Soong compatibility.
+  _trial_soong_c = [
+    '-Werror=date-time',
+    '-Werror=gnu-alignof-expression',
+    '-Werror=ignored-qualifiers',
+    '-Werror=implicit-fallthrough',
+    '-Werror=int-conversion',
+    '-Werror=missing-prototypes',
+    '-Werror=pragma-pack',
+    '-Werror=pragma-pack-suspicious-include',
+    '-Werror=sizeof-array-div',
+    '-Werror=string-plus-int',
+    '-Werror=unreachable-code-loop-increment',
+  ]
+  _trial_soong_cpp = [
+    '-D_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS',
+    '-Werror=date-time',
+    '-Werror=gnu-alignof-expression',
+    '-Werror=ignored-qualifiers',
+    '-Werror=implicit-fallthrough',
+    '-Werror=pragma-pack',
+    '-Werror=pragma-pack-suspicious-include',
+    '-Werror=sizeof-array-div',
+    '-Werror=string-plus-int',
+    '-Werror=unreachable-code-loop-increment',
+  ]
+  if cpp.get_id() == 'gcc'
+    _trial_soong_cpp += '-Werror=missing-declarations'
+  else
+    _trial_soong_cpp += '-Werror=missing-prototypes'
+  endif
+  soong_compat_c_args += cc.get_supported_arguments(_trial_soong_c)
+  soong_compat_cpp_args += cpp.get_supported_arguments(_trial_soong_cpp)
 endif
 
 # set linker arguments

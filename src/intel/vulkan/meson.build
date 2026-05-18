@@ -6,9 +6,12 @@ inc_anv = include_directories('.')
 anv_flags = [
   no_override_init_args,
   sse2_args,
+  soong_compat_c_args,
 ]
 
-anv_cpp_flags = []
+anv_cpp_flags = [
+  soong_compat_cpp_args,
+]
 
 anv_entrypoints = custom_target(
   'anv_entrypoints',

@@ -26,7 +26,7 @@ foreach ver : ['4', '5', '6', '7', '9', '10', '12', '13', '14']
     ['decode.c', 'decode_jm.c', 'decode_csf.c', pan_packers],
     include_directories : [inc_include, inc_src, inc_panfrost],
     dependencies : [dep_libdrm, idep_pan_packers, idep_nir, idep_mesautil],
-    c_args : [no_override_init_args, '-DPAN_ARCH=' + ver],
+    c_args : [no_override_init_args, soong_compat_c_args, '-DPAN_ARCH=' + ver],
     gnu_symbol_visibility : 'hidden',
     build_by_default : false,
   )
@@ -40,7 +40,7 @@ libpanfrost_decode = static_library(
   ],
   include_directories : [inc_include, inc_src, inc_panfrost],
   dependencies : idep_mesautil,
-  c_args : [no_override_init_args],
+  c_args : [no_override_init_args, soong_compat_c_args],
   gnu_symbol_visibility : 'hidden',
   build_by_default : false,
   link_with: [libpanfrost_decode_per_arch],

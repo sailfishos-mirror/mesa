@@ -61,7 +61,7 @@ libpanfrost_lib = static_library(
   'panfrost_lib',
   [libpanfrost_lib_files, pan_packers],
   include_directories : [inc_include, inc_src, inc_panfrost],
-  c_args : [no_override_init_args],
+  c_args : [no_override_init_args, soong_compat_c_args],
   gnu_symbol_visibility : 'hidden',
   dependencies: [dep_libdrm, idep_nir, idep_mesautil, libpanfrost_model_dep],
   build_by_default : false,

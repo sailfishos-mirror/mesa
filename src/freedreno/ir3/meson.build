@@ -143,7 +143,7 @@ libfreedreno_ir3 = static_library(
     ir3_lexer,
   ],
   include_directories : [inc_freedreno, inc_include, inc_src],
-  c_args : [no_override_init_args],
+  c_args : [no_override_init_args, soong_compat_c_args],
   gnu_symbol_visibility : 'hidden',
   link_with: [libir3encode, libfreedreno_common],
   dependencies : [idep_libir3decode, idep_nir_headers, dep_dl, idep_mesautil],

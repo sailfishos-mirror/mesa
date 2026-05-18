@@ -34,7 +34,7 @@ libfreedreno_common = static_library(
     'redump.h'
   ],
   include_directories : [inc_freedreno, inc_include, inc_src],
-  c_args : [no_override_init_args],
+  c_args : [no_override_init_args, soong_compat_c_args],
   build_by_default : false,
   dependencies: [idep_mesautil],
   gnu_symbol_visibility : 'hidden',

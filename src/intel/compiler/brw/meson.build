@@ -138,7 +138,7 @@ libintel_compiler_brw = static_library(
   'intel_compiler',
   [libintel_compiler_brw_files, brw_nir_lower_fsign, brw_nir_workarounds, [brw_device_sha1_gen_src]],
   include_directories : [inc_include, inc_src, inc_intel, inc_intel_compiler],
-  c_args : [no_override_init_args],
+  c_args : [no_override_init_args, soong_compat_c_args],
   cpp_args : ['-Werror=vla'],
   gnu_symbol_visibility : 'hidden',
   link_with : libintel_compiler_nir,
@@ -218,7 +218,7 @@ brw_asm = static_library(
   ['brw_asm.c', brw_gram_tab[0], brw_gram_tab[1], brw_lex_yy_c],
   dependencies : brw_asm_deps,
   include_directories : [inc_include, inc_src, inc_intel],
-  c_args : [no_override_init_args],
+  c_args : [no_override_init_args, soong_compat_c_args],
   gnu_symbol_visibility : 'hidden',
   build_by_default : false,
 )
@@ -233,7 +233,7 @@ brw_asm_tool = executable(
   ['brw_asm_tool.c'],
   dependencies : idep_brw_asm,
   include_directories : [inc_include, inc_src, inc_intel],
-  c_args : [no_override_init_args],
+  c_args : [no_override_init_args, soong_compat_c_args],
   gnu_symbol_visibility : 'hidden',
   install : true
 )
@@ -268,7 +268,7 @@ brw_disasm_tool = executable(
   dependencies : [idep_mesautil, dep_thread, idep_intel_dev,
                   idep_intel_compiler_brw],
   include_directories : [inc_include, inc_src, inc_intel],
-  c_args : [no_override_init_args],
+  c_args : [no_override_init_args, soong_compat_c_args],
   gnu_symbol_visibility : 'hidden',
   install : true
 )
