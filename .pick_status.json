@@ -4864,7 +4864,7 @@
         "description": "r600/sfn: Avoid creating group-tagged registers for ALU dests",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "13b1069a8760b0ebe08c608900c517b613c72bd1",
         "notes": null
