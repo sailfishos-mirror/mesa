@@ -2955,8 +2955,7 @@ lower_to_hw_instr(Program* program)
             /* Anything larger than a workgroup isn't possible. Anything
              * smaller requires no instructions and this pseudo instruction
              * would only be included to control optimizations. */
-            bool emit_s_barrier = barrier.exec_scope == scope_workgroup &&
-                                  program->workgroup_size > program->wave_size;
+            bool emit_s_barrier = barrier.exec_scope == scope_workgroup;
 
             bld.insert(std::move(instr));
             if (emit_s_barrier && ctx.program->gfx_level >= GFX12) {

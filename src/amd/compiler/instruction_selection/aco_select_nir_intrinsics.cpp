@@ -2948,6 +2948,12 @@ emit_barrier(isel_context* ctx, nir_intrinsic_instr* instr)
    assert(!(nir_semantics & (NIR_MEMORY_MAKE_AVAILABLE | NIR_MEMORY_MAKE_VISIBLE)));
    assert(exec_scope != scope_workgroup || workgroup_scope_allowed);
 
+   if (ctx->program->workgroup_size <= ctx->program->wave_size) {
+      exec_scope = scope_subgroup;
+      if (mem_scope == scope_workgroup)
+         mem_scope = scope_subgroup;
+   }
+
    bld.barrier(aco_opcode::p_barrier,
                memory_sync_info((storage_class)storage, (memory_semantics)semantics, mem_scope),
                exec_scope);

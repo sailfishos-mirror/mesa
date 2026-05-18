@@ -447,9 +447,7 @@ check_instr(wait_ctx& ctx, wait_imm& wait, Instruction* instr)
 void
 setup_barrier(wait_ctx& ctx, wait_imm& imm, memory_sync_info sync, bool is_acquire)
 {
-   sync_scope subgroup_scope =
-      ctx.program->workgroup_size <= ctx.program->wave_size ? scope_workgroup : scope_subgroup;
-   if (sync.scope <= subgroup_scope)
+   if (sync.scope <= scope_subgroup)
       return;
 
    barrier_info& src = ctx.bar[is_acquire ? barrier_info_acquire_dep : barrier_info_release_dep];
@@ -457,8 +455,8 @@ setup_barrier(wait_ctx& ctx, wait_imm& imm, memory_sync_info sync, bool is_acqui
    wait_imm dst_imm;
    uint16_t dst_events = 0;
    u_foreach_bit (i, sync.storage & src.storage) {
-      /* LDS is private to the workgroup, so reduce the scope in that case. */
-      if (src.events[i] == event_lds && MIN2(sync.scope, scope_workgroup) <= subgroup_scope)
+      /* LDS is private to the workgroup, but sync.scope might be device scope. */
+      if (src.events[i] == event_lds && ctx.program->workgroup_size <= ctx.program->wave_size)
          continue;
 
       dst_imm.combine(src.imm[i]);

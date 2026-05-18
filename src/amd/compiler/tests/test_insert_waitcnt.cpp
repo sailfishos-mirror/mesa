@@ -1215,6 +1215,9 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       if (!setup_cs(NULL, GFX10, CHIP_UNKNOWN, var.name))
          continue;
 
+      sync_scope workgroup_scope =
+         var.workgroup_size > program->wave_size ? scope_workgroup : scope_subgroup;
+
       program->workgroup_size = var.workgroup_size;
       program->wgp_mode = var.wgp;
 
@@ -1252,7 +1255,7 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(2));
       store_global();
-      barrier(storage_buffer, semantic_release, scope_workgroup);
+      barrier(storage_buffer, semantic_release, workgroup_scope);
       store_global(semantic_atomic);
 
       //>> p_unit_test 3
@@ -1262,7 +1265,7 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(3));
       load_global();
-      barrier(storage_buffer, semantic_release, scope_workgroup);
+      barrier(storage_buffer, semantic_release, workgroup_scope);
       store_global(semantic_atomic);
 
       /* shared->shared */
@@ -1272,7 +1275,7 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(4));
       store_shared();
-      barrier(storage_shared, semantic_release, scope_workgroup);
+      barrier(storage_shared, semantic_release, workgroup_scope);
       store_shared(semantic_atomic);
 
       //>> p_unit_test 5
@@ -1281,7 +1284,7 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(5));
       load_shared();
-      barrier(storage_shared, semantic_release, scope_workgroup);
+      barrier(storage_shared, semantic_release, workgroup_scope);
       store_shared(semantic_atomic);
 
       /* shared->global */
@@ -1292,7 +1295,7 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(6));
       store_shared();
-      barrier(storage_buffer | storage_shared, semantic_release, scope_workgroup);
+      barrier(storage_buffer | storage_shared, semantic_release, workgroup_scope);
       store_global(semantic_atomic);
 
       /* global->shared */
@@ -1303,7 +1306,7 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(7));
       store_global();
-      barrier(storage_buffer | storage_shared, semantic_release, scope_workgroup);
+      barrier(storage_buffer | storage_shared, semantic_release, workgroup_scope);
       store_shared(semantic_atomic);
 
       /* global->global, device scope, release in the atomic */
@@ -1325,8 +1328,8 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(9));
       store_global();
-      barrier(storage_buffer, semantic_release, scope_workgroup);
-      barrier(0, 0, scope_invocation, scope_workgroup);
+      barrier(storage_buffer, semantic_release, workgroup_scope);
+      barrier(0, 0, scope_invocation, workgroup_scope);
       bld.sopp(aco_opcode::s_barrier);
 
       /* shared->shared, workgroup scope, control barrier */
@@ -1338,8 +1341,8 @@ BEGIN_TEST(insert_waitcnt.barrier.release)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(10));
       store_shared();
-      barrier(storage_shared, semantic_release, scope_workgroup);
-      barrier(0, 0, scope_invocation, scope_workgroup);
+      barrier(storage_shared, semantic_release, workgroup_scope);
+      barrier(0, 0, scope_invocation, workgroup_scope);
       bld.sopp(aco_opcode::s_barrier);
 
       /* global->global, device scope, delayed waitcnt */
@@ -1395,6 +1398,9 @@ BEGIN_TEST(insert_waitcnt.barrier.acquire)
       if (!setup_cs(NULL, GFX10, CHIP_UNKNOWN, var.name))
          continue;
 
+      sync_scope workgroup_scope =
+         var.workgroup_size > program->wave_size ? scope_workgroup : scope_subgroup;
+
       program->workgroup_size = var.workgroup_size;
       program->wgp_mode = var.wgp;
 
@@ -1433,7 +1439,7 @@ BEGIN_TEST(insert_waitcnt.barrier.acquire)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(2));
       load_global(semantic_atomic);
-      barrier(storage_buffer, semantic_acquire, scope_workgroup);
+      barrier(storage_buffer, semantic_acquire, workgroup_scope);
       load_global() = dest1;
 
       //>> p_unit_test 3
@@ -1443,7 +1449,7 @@ BEGIN_TEST(insert_waitcnt.barrier.acquire)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(3));
       load_global(semantic_atomic);
-      barrier(storage_buffer, semantic_acquire, scope_workgroup);
+      barrier(storage_buffer, semantic_acquire, workgroup_scope);
       store_global();
 
       /* shared->shared */
@@ -1453,7 +1459,7 @@ BEGIN_TEST(insert_waitcnt.barrier.acquire)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(4));
       load_shared(semantic_atomic);
-      barrier(storage_shared, semantic_acquire, scope_workgroup);
+      barrier(storage_shared, semantic_acquire, workgroup_scope);
       load_shared() = dest1;
 
       //>> p_unit_test 5
@@ -1462,7 +1468,7 @@ BEGIN_TEST(insert_waitcnt.barrier.acquire)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(5));
       load_shared(semantic_atomic);
-      barrier(storage_shared, semantic_acquire, scope_workgroup);
+      barrier(storage_shared, semantic_acquire, workgroup_scope);
       store_shared();
 
       /* shared->global */
@@ -1473,7 +1479,7 @@ BEGIN_TEST(insert_waitcnt.barrier.acquire)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(6));
       load_shared(semantic_atomic);
-      barrier(storage_buffer | storage_shared, semantic_acquire, scope_workgroup);
+      barrier(storage_buffer | storage_shared, semantic_acquire, workgroup_scope);
       load_global() = dest1;
 
       /* global->shared */
@@ -1484,7 +1490,7 @@ BEGIN_TEST(insert_waitcnt.barrier.acquire)
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(7));
       load_global(semantic_atomic);
-      barrier(storage_buffer | storage_shared, semantic_acquire, scope_workgroup);
+      barrier(storage_buffer | storage_shared, semantic_acquire, workgroup_scope);
       load_shared() = dest1;
 
       /* global->global, device scope, acquire in the atomic */
@@ -1503,9 +1509,9 @@ BEGIN_TEST(insert_waitcnt.barrier.acquire)
       //! v1: %0:v[4] = global_load_dword %0:v[0-1], s1: undef storage:buffer
       bld.reset(program->create_and_insert_block());
       bld.pseudo(aco_opcode::p_unit_test, Operand::c32(9));
-      barrier(0, 0, scope_invocation, scope_workgroup);
+      barrier(0, 0, scope_invocation, workgroup_scope);
       bld.sopp(aco_opcode::s_barrier);
-      barrier(storage_buffer, semantic_acquire, scope_workgroup);
+      barrier(storage_buffer, semantic_acquire, workgroup_scope);
       load_global();
 
       /* global->global, device scope, delayed waitcnt */
