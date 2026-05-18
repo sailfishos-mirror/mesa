@@ -43,6 +43,7 @@ static const driOptionDescription anv_dri_options[] = {
       DRI_CONF_ANV_FORCE_INDIRECT_DESCRIPTORS(false)
       DRI_CONF_ANV_DISABLE_LINK_TIME_OPTIMIZATION(false)
       DRI_CONF_ANV_ENABLE_OPT_DIVERGENT_ATOMICS(0)
+      DRI_CONF_ANV_ENABLE_OPT_DIVERGENT_ATOMICS_COMPUTE_ONLY(0)
       DRI_CONF_ANV_BRW_DISABLE_SUBGROUP_SIZE_CONTROL(false)
       DRI_CONF_SHADER_SPILLING_RATE(11)
       DRI_CONFIG_INTEL_FORCE_COMPUTE_SURFACE_PREFETCH(true)
@@ -318,6 +319,8 @@ anv_init_dri_options(struct anv_instance *instance)
         driQueryOptionb(&instance->dri_options, "anv_disable_link_time_optimization");
     instance->enable_opt_divergent_atomics =
         driQueryOptioni(&instance->dri_options, "anv_enable_opt_divergent_atomics");
+    instance->enable_opt_divergent_atomics_compute_only =
+        driQueryOptioni(&instance->dri_options, "anv_enable_opt_divergent_atomics_compute_only");
 
     instance->stack_ids = driQueryOptioni(&instance->dri_options, "intel_stack_id");
     switch (instance->stack_ids) {

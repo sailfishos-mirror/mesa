@@ -980,6 +980,10 @@
    DRI_CONF_OPT_I(anv_enable_opt_divergent_atomics, def, 0, 3,\
                   "Enable fusion of divergent atomics (see brw_divergent_atomics_flags)")
 
+#define DRI_CONF_ANV_ENABLE_OPT_DIVERGENT_ATOMICS_COMPUTE_ONLY(def) \
+   DRI_CONF_OPT_I(anv_enable_opt_divergent_atomics_compute_only, def, 0, 3,\
+                  "Enable fusion of divergent atomics for compute shaders only (see brw_divergent_atomics_flags)")
+
 #define DRI_CONF_ANV_BRW_DISABLE_SUBGROUP_SIZE_CONTROL(def) \
    DRI_CONF_OPT_B(anv_brw_disable_subgroup_size_control, def, \
                   "Disable EXT_subgroup_size_control support when using brw compiler.")

@@ -1813,6 +1813,7 @@ struct anv_instance {
     bool                                        disable_lto;
     bool                                        disable_push_constant_alloc;
     enum brw_divergent_atomics_flags            enable_opt_divergent_atomics;
+    enum brw_divergent_atomics_flags            enable_opt_divergent_atomics_compute_only;
     bool                                        force_sampler_prefetch;
     bool                                        force_compute_surface_prefetch;
     unsigned                                    generated_indirect_threshold;

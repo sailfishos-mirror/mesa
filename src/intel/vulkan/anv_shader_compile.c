@@ -665,7 +665,14 @@ populate_cs_prog_key(struct brw_cs_prog_key *key,
                      const struct vk_physical_device *device,
                      const struct vk_pipeline_robustness_state *rs)
 {
+
+   const struct anv_physical_device *pdevice =
+      container_of(device, const struct anv_physical_device, vk);
+
    populate_base_prog_key(&key->base, device, rs);
+
+   key->base.divergent_atomics_flags |=
+      pdevice->instance->enable_opt_divergent_atomics_compute_only;
 }
 
 static void
