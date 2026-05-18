@@ -696,6 +696,10 @@
    DRI_CONF_OPT_S_NODEF(tu_autotune_algorithm, \
                         "Set the preferred autotune algorithm")
 
+#define DRI_CONF_TU_RESTRICT_SUBGROUP_SIZE_64(def) \
+   DRI_CONF_OPT_B(tu_restrict_subgroup_size_64, def, \
+                  "Restrict subgroup size to 64 (instead of a max of 128) to work around games assuming desktop GPU 32/64 sizes")
+
 /**
  * \brief Honeykrisp specific configuration options
  */
