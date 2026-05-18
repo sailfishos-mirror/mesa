@@ -145,6 +145,8 @@ struct tu_physical_device
 
    bool has_preemption;
 
+   bool expose_double_threadsize;
+
    /* Whether performance counter selector registers can be written by userspace CSes. */
    bool is_perf_cntr_selectable;
 
@@ -230,6 +232,11 @@ struct tu_instance
     * aware of this.
     */
    bool enable_d24s8_border_color_workaround;
+
+   /* Various games assume that gl_SubgroupSize is either 32 or 64, and we hide
+    * our 128-invocation subgroup support for them.
+    */
+   bool restrict_subgroup_size_64;
 
    /* When D24S8 is used without enable_d24s8_border_color_workaround, the
     * fast border color HW feature results in an incorrect color being used.

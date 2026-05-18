@@ -885,8 +885,8 @@ tu_get_physical_device_properties_1_1(struct tu_physical_device *pdevice,
    p->deviceNodeMask = 0;
    p->deviceLUIDValid = false;
 
-   p->subgroupSize = pdevice->info->props.supports_double_threadsize ?
-      pdevice->info->threadsize_base * 2 : pdevice->info->threadsize_base;
+   p->subgroupSize =
+      pdevice->expose_double_threadsize ? pdevice->info->threadsize_base * 2 : pdevice->info->threadsize_base;
    p->subgroupSupportedStages = VK_SHADER_STAGE_COMPUTE_BIT;
    p->subgroupSupportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT |
                                     VK_SUBGROUP_FEATURE_VOTE_BIT |
@@ -1034,8 +1034,8 @@ tu_get_physical_device_properties_1_3(struct tu_physical_device *pdevice,
                                       struct vk_properties *p)
 {
    p->minSubgroupSize = pdevice->info->threadsize_base;
-   p->maxSubgroupSize = pdevice->info->props.supports_double_threadsize ?
-      pdevice->info->threadsize_base * 2 : pdevice->info->threadsize_base;
+   p->maxSubgroupSize =
+      pdevice->expose_double_threadsize ? pdevice->info->threadsize_base * 2 : pdevice->info->threadsize_base;
    p->maxComputeWorkgroupSubgroups = pdevice->info->max_waves;
    p->requiredSubgroupSizeStages = VK_SHADER_STAGE_ALL;
 
@@ -1164,9 +1164,9 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->maxComputeWorkGroupCount[0] =
       props->maxComputeWorkGroupCount[1] =
       props->maxComputeWorkGroupCount[2] = 65535;
-   props->maxComputeWorkGroupInvocations = pdevice->info->props.supports_double_threadsize ?
-      pdevice->info->threadsize_base * 2 * pdevice->info->max_waves :
-      pdevice->info->threadsize_base * pdevice->info->max_waves;
+   props->maxComputeWorkGroupInvocations = pdevice->expose_double_threadsize
+                                              ? pdevice->info->threadsize_base * 2 * pdevice->info->max_waves
+                                              : pdevice->info->threadsize_base * pdevice->info->max_waves;
    if (pdevice->info->props.is_a702) {
       props->maxComputeWorkGroupSize[0] =
          props->maxComputeWorkGroupSize[1] = 512;
@@ -1687,6 +1687,8 @@ tu_physical_device_init(struct tu_physical_device *device,
       goto fail_free_name;
    }
 
+   device->expose_double_threadsize = info.props.supports_double_threadsize && !instance->restrict_subgroup_size_64;
+
    device->level1_dcache_size = util_cache_granularity();
    device->has_cached_non_coherent_memory =
       device->level1_dcache_size > 0 && !DETECT_ARCH_ARM;
@@ -1863,6 +1865,7 @@ static const driOptionDescription tu_dri_options[] = {
       DRI_CONF_TU_EMULATE_ALPHA_TO_COVERAGE(false)
       DRI_CONF_TU_AUTOTUNE_ALGORITHM()
       DRI_CONF_TU_OVERRIDE_UNCACHED_AS_CACHE_COHERENT(false)
+      DRI_CONF_TU_RESTRICT_SUBGROUP_SIZE_64(false)
    DRI_CONF_SECTION_END
 };
 
@@ -1911,6 +1914,7 @@ tu_init_dri_options(struct tu_instance *instance)
    instance->allow_concurrent_binning =
       (driQueryOptionb(&instance->dri_options, "tu_allow_concurrent_binning") && !TU_DEBUG(NO_CONCURRENT_BINNING)) ||
       TU_DEBUG(FORCE_CONCURRENT_BINNING);
+   instance->restrict_subgroup_size_64 = driQueryOptionb(&instance->dri_options, "tu_restrict_subgroup_size_64");
 }
 
 static uint32_t instance_count = 0;
