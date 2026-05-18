@@ -353,18 +353,6 @@
 #define DRI_CONF_FORCE_VK_VENDOR() \
    DRI_CONF_OPT_I(force_vk_vendor, 0, -1, 2147483647, "Override GPU vendor id")
 
-#define DRI_CONF_FAKE_SPARSE(def) \
-   DRI_CONF_OPT_B(fake_sparse, def, \
-                  "Advertise support for sparse binding of textures regardless of real support")
-
-#define DRI_CONF_INTEL_BINDING_TABLE_BLOCK_SIZE(def,min,max) \
-   DRI_CONF_OPT_I(intel_binding_table_block_size, def, min, max, \
-                  "Intel binding table block allocation size (3DSTATE_BINDING_TABLE_POOL_ALLOC)")
-
-#define DRI_CONF_INTEL_DISABLE_PUSH_CONSTANT_ALLOC(def) \
-   DRI_CONF_OPT_B(intel_disable_push_constant_alloc, def, \
-                  "Disable push constant space allocations")
-
 #define DRI_CONFIG_INTEL_TBIMR(def) \
    DRI_CONF_OPT_B(intel_tbimr, def, "Enable TBIMR tiled rendering")
 
@@ -536,10 +524,6 @@
 #define DRI_CONF_VERTEX_PROGRAM_DEFAULT_OUT(def) \
    DRI_CONF_OPT_B(vertex_program_default_out, def, \
                   "Initialize outputs of vertex program to a default value vec4(0, 0, 0, 1)")
-
-#define DRI_CONF_CUSTOM_BORDER_COLORS_WITHOUT_FORMAT(def) \
-   DRI_CONF_OPT_B(custom_border_colors_without_format, def, \
-                  "Enable custom border colors without format")
 
 #define DRI_CONF_NO_FP16(def) \
    DRI_CONF_OPT_B(no_fp16, def, \
@@ -714,136 +698,6 @@
 #define DRI_CONF_VENUS_WSI_MULTI_PLANE_MODIFIERS(def) \
    DRI_CONF_OPT_B(venus_wsi_multi_plane_modifiers, def, \
                   "Enable support of multi-plane format modifiers for wsi images")
-
-/**
- * \brief ANV specific configuration options
- */
-
-#define DRI_CONF_ANV_ASSUME_FULL_SUBGROUPS(def) \
-   DRI_CONF_OPT_I(anv_assume_full_subgroups, def, 0, 32, \
-                  "Allow assuming full subgroups requirement even when it's not specified explicitly and set the given size")
-
-#define DRI_CONF_ANV_ASSUME_FULL_SUBGROUPS_WITH_BARRIER(def) \
-   DRI_CONF_OPT_B(anv_assume_full_subgroups_with_barrier, def, \
-                  "Assume full subgroups requirement for compute shaders that use control barriers")
-
-#define DRI_CONF_ANV_ASSUME_FULL_SUBGROUPS_WITH_SHARED_MEMORY(def) \
-   DRI_CONF_OPT_B(anv_assume_full_subgroups_with_shared_memory, def, \
-                  "Allow assuming full subgroups requirement for shaders using shared memory even when it's not specified explicitly")
-
-#define DRI_CONF_ANV_EMULATE_READ_WITHOUT_FORMAT(def) \
-   DRI_CONF_OPT_B(anv_emulate_read_without_format, def, \
-                  "Emulate shaderStorageImageReadWithoutFormat with shader conversions")
-
-#define DRI_CONF_ANV_SAMPLE_MASK_OUT_OPENGL_BEHAVIOUR(def) \
-   DRI_CONF_OPT_B(anv_sample_mask_out_opengl_behaviour, def, \
-                  "Ignore sample mask out when having single sampled target")
-
-#define DRI_CONF_ANV_FORCE_FILTER_ADDR_ROUNDING(def) \
-   DRI_CONF_OPT_B(anv_force_filter_addr_rounding, def, \
-                  "Force min/mag filter address rounding to be enabled even for NEAREST sampling")
-
-#define DRI_CONF_ANV_FP64_WORKAROUND_ENABLED(def) \
-   DRI_CONF_OPT_B(fp64_workaround_enabled, def, \
-                  "Use softpf64 when the shader uses float64, but the device doesn't support that type")
-
-#define DRI_CONF_ANV_GENERATED_INDIRECT_THRESHOLD(def) \
-   DRI_CONF_OPT_I(generated_indirect_threshold, def, 0, INT32_MAX, \
-                  "Indirect threshold count above which we start generating commands")
-
-#define DRI_CONF_ANV_GENERATED_INDIRECT_RING_THRESHOLD(def) \
-   DRI_CONF_OPT_I(generated_indirect_ring_threshold, def, 0, INT32_MAX, \
-                  "Indirect threshold count above which we start generating commands in a ring buffer")
-
-#define DRI_CONF_ANV_QUERY_CLEAR_WITH_BLORP_THRESHOLD(def) \
-   DRI_CONF_OPT_I(query_clear_with_blorp_threshold, def, 0, INT32_MAX, \
-                  "Query threshold count above which query buffers are cleared with blorp")
-
-#define DRI_CONF_ANV_QUERY_COPY_WITH_SHADER_THRESHOLD(def) \
-   DRI_CONF_OPT_I(query_copy_with_shader_threshold, def, 0, INT32_MAX, \
-                  "Query threshold count above which query copies are executed with a shader")
-
-#define DRI_CONF_ANV_FORCE_INDIRECT_DESCRIPTORS(def) \
-   DRI_CONF_OPT_B(force_indirect_descriptors, def, \
-                  "Use an indirection to access buffer/image/texture/sampler handles")
-
-#define DRI_CONF_ANV_DISABLE_FCV(def) \
-   DRI_CONF_OPT_B(anv_disable_fcv, def, \
-                  "Disable FCV optimization")
-
-#define DRI_CONF_ANV_ENABLE_BUFFER_COMP(def) \
-   DRI_CONF_OPT_B(anv_enable_buffer_comp, def, \
-                  "Enable CCS on buffers where possible")
-
-#define DRI_CONF_ANV_EXTERNAL_MEMORY_IMPLICIT_SYNC(def) \
-   DRI_CONF_OPT_B(anv_external_memory_implicit_sync, def, "Implicit sync on external BOs")
-
-#define DRI_CONF_ANV_PROMOTE_CBV_TO_PUSH_BUFFERS(def) \
-   DRI_CONF_OPT_B(anv_promote_cbv_to_push_buffers, def, \
-                  "Promote CBV 64bit pointers in push constant data to push buffers")
-
-#define DRI_CONF_ANV_STATE_CACHE_PERF_FIX(def) \
-   DRI_CONF_OPT_B(anv_state_cache_perf_fix, def, \
-                  "Whether COMMON_SLICE_CHICKEN3 bit13 should be programmed to enable BTP+BTI RCC keying")
-
-#define DRI_CONF_ANV_COMPRESSION_CONTROL_ENABLED(def) \
-   DRI_CONF_OPT_B(compression_control_enabled, def, "Enable VK_EXT_image_compression_control support")
-
-#define DRI_CONF_ANV_FAKE_NONLOCAL_MEMORY(def) \
-   DRI_CONF_OPT_B(anv_fake_nonlocal_memory, def, \
-                  "Present host-visible device-local memory types as non device-local")
-
-#define DRI_CONF_ANV_UPPER_BOUND_DESCRIPTOR_POOL_SAMPLER(def) \
-   DRI_CONF_OPT_B(anv_upper_bound_descriptor_pool_sampler, def, \
-                  "Overallocate samplers in descriptor pools to workaround app bug")
-
-#define DRI_CONF_ANV_VF_COMPONENT_PACKING(def) \
-   DRI_CONF_OPT_B(anv_vf_component_packing, def, \
-                  "Vertex fetching component packing")
-
-#define DRI_CONF_ANV_LARGE_WORKGROUP_NON_COHERENT_IMAGE_WORKAROUND(def) \
-   DRI_CONF_OPT_B(anv_large_workgroup_non_coherent_image_workaround, def, \
-                  "Fixup image coherency qualifier for certain shaders.")
-
-#define DRI_CONF_ANV_FORCE_GUC_LOW_LATENCY(def) \
-   DRI_CONF_OPT_B(force_guc_low_latency, def, \
-                  "Enable low latency GuC strategy.")
-
-#define DRI_CONF_ANV_DISABLE_DRM_AUX_MODIFIERS(def) \
-   DRI_CONF_OPT_B(anv_disable_drm_ccs_modifiers, def, \
-                  "Disable DRM CCS modifier usage")
-
-#define DRI_CONF_ANV_DISABLE_LINK_TIME_OPTIMIZATION(def) \
-   DRI_CONF_OPT_B(anv_disable_link_time_optimization, def, \
-                  "Disable linking of graphics pipeline shaders")
-
-#define DRI_CONF_ANV_BARRIER_POST_UNTYPED_CLEAR_SHADER(def) \
-   DRI_CONF_OPT_B(anv_barrier_post_untyped_clear_shader, def, \
-                  "Insert pipeline barriers post clearing shader on untyped data")
-
-#define DRI_CONF_ANV_BARRIER_POST_TYPED_CLEAR_SHADER(def) \
-   DRI_CONF_OPT_B(anv_barrier_post_typed_clear_shader, def, \
-                  "Insert pipeline barriers post clearing shader on typed data")
-
-#define DRI_CONF_ANV_ENABLE_OPT_DIVERGENT_ATOMICS(def) \
-   DRI_CONF_OPT_I(anv_enable_opt_divergent_atomics, def, 0, 3,\
-                  "Enable fusion of divergent atomics (see brw_divergent_atomics_flags)")
-
-#define DRI_CONF_ANV_ENABLE_OPT_DIVERGENT_ATOMICS_COMPUTE_ONLY(def) \
-   DRI_CONF_OPT_I(anv_enable_opt_divergent_atomics_compute_only, def, 0, 3,\
-                  "Enable fusion of divergent atomics for compute shaders only (see brw_divergent_atomics_flags)")
-
-#define DRI_CONF_ANV_BRW_DISABLE_SUBGROUP_SIZE_CONTROL(def) \
-   DRI_CONF_OPT_B(anv_brw_disable_subgroup_size_control, def, \
-                  "Disable EXT_subgroup_size_control support when using brw compiler.")
-
-#define DRI_CONF_ANV_ENABLE_SCRATCH_PAGE(def) \
-   DRI_CONF_OPT_B(anv_enable_scratch_page, def, \
-                  "Disables surface padding and suppresses all page faults, drops writes and returns zeros on reads.")
-
-#define DRI_CONF_ANV_ENABLE_FULLY_COVERED(def) \
-   DRI_CONF_OPT_B(anv_enable_fully_covered, def, \
-                  "Enable fullyCoveredFragmentShaderInputVariable (Alchemist and newer only).")
 
 /**
  * \brief HASVK specific configuration options

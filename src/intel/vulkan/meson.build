@@ -85,6 +85,38 @@ _dev_icd = custom_target(
 
 devenv.append('VK_DRIVER_FILES', _dev_icd.full_path())
 
+libanv_drirc_args = []
+if with_platform_android
+  libanv_drirc_args += [ '--android-ver', get_option('platform-sdk-version').to_string() ]
+endif
+
+libanv_drirc_files = custom_target(
+  'libanv_drirc',
+  input : ['anv_dricrc_gen.py', drirc_gen],
+  output : ['anv_drirc.c', 'anv_drirc.h'],
+  command : [prog_python, '@INPUT0@',
+             '-p', join_paths(dir_source_root, 'src/util/'),
+             libanv_drirc_args,
+             '--drirc-src', '@OUTPUT0@',
+             '--drirc-hdr', '@OUTPUT1@',
+             '--validate', join_paths(dir_source_root, 'src/util/00-mesa-defaults.conf')],
+)
+
+libanv_drirc = static_library(
+  'libanv_drirc',
+  libanv_drirc_files,
+    include_directories : [
+      inc_include, inc_src, inc_intel,
+    ],
+    c_args : anv_flags,
+    gnu_symbol_visibility : 'hidden',
+    dependencies : idep_mesautil)
+
+idep_anv_drirc = declare_dependency(
+  sources : libanv_drirc_files[1],
+  link_with : libanv_drirc,
+)
+
 libanv_per_hw_ver_libs = []
 anv_per_hw_ver_files = files(
   'genX_blorp_exec.c',
@@ -125,6 +157,7 @@ foreach _gfx_ver : ['90', '110', '120', '125', '200', '300', '350']
       idep_vulkan_runtime_headers, idep_mesautil,
       idep_intel_dev, idep_intel_driver_ds_headers,
       idep_intel_shaders, idep_intel_blorp,
+      idep_anv_drirc,
     ],
   )
 endforeach
@@ -225,6 +258,7 @@ anv_deps = [
   idep_intel_shaders,
   idep_intel_blorp,
   idep_mda,
+  idep_anv_drirc,
 ]
 
 if with_platform_x11

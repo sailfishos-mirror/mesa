@@ -583,7 +583,7 @@ anv_state_pools_init(struct anv_device *device)
                                    &(struct anv_state_pool_params) {
                                       .name         = "binding table pool",
                                       .base_address = device->physical->va.binding_table_pool.addr,
-                                      .block_size   = device->physical->instance->binding_table_block_size,
+                                      .block_size   = device->physical->instance->drirc.perf.bt_block_size,
                                       .max_size     = device->physical->va.binding_table_pool.size,
                                    });
    } else {
@@ -1242,7 +1242,7 @@ VkResult anv_CreateDevice(
    if (result != VK_SUCCESS)
       goto fail_meta_device;
 
-   device->vk.disable_lto = device->physical->instance->disable_lto;
+   device->vk.disable_lto = device->physical->instance->drirc.debug.disable_lto;
 
    simple_mtx_init(&device->accel_struct_build.mutex, mtx_plain);
    simple_mtx_init(&device->fp64_mutex, mtx_plain);
@@ -1783,7 +1783,7 @@ VkResult anv_AllocateMemory(
           * consumer side relying on implicit fencing can have a fence to
           * wait for render complete.
           */
-         if (pdevice->instance->external_memory_implicit_sync &&
+         if (pdevice->instance->drirc.debug.external_memory_implicit_sync &&
              (image->vk.usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
             alloc_flags |= ANV_BO_ALLOC_IMPLICIT_WRITE;
       }

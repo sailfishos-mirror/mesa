@@ -245,32 +245,32 @@ anv_shader_init_uuid(struct anv_physical_device *device)
    const int spilling_rate = device->compiler->spilling_rate;
    _mesa_blake3_update(&ctx, &spilling_rate, sizeof(spilling_rate));
 
-   const uint8_t afs = device->instance->assume_full_subgroups;
+   const uint8_t afs = device->instance->drirc.debug.assume_full_subgroups;
    _mesa_blake3_update(&ctx, &afs, sizeof(afs));
 
-   const bool afswb = device->instance->assume_full_subgroups_with_barrier;
+   const bool afswb = device->instance->drirc.debug.assume_full_subgroups_with_barrier;
    _mesa_blake3_update(&ctx, &afswb, sizeof(afswb));
 
-   const bool afs_shm = device->instance->assume_full_subgroups_with_shared_memory;
+   const bool afs_shm = device->instance->drirc.debug.assume_full_subgroups_with_shared_memory;
    _mesa_blake3_update(&ctx, &afs_shm, sizeof(afs_shm));
 
-   const bool erwf = device->instance->emulate_read_without_format;
-   _mesa_blake3_update(&ctx, &erwf, sizeof(erwf));
+   const bool rwfe = device->instance->drirc.debug.read_without_format_emu;
+   _mesa_blake3_update(&ctx, &rwfe, sizeof(rwfe));
 
-   const bool lttd = device->instance->lower_terminate_to_discard;
+   const bool lttd = device->instance->drirc.debug.lower_terminate_to_discard;
    _mesa_blake3_update(&ctx, &lttd, sizeof(lttd));
 
    const bool large_wg_wa =
-      device->instance->large_workgroup_non_coherent_image_workaround;
+      device->instance->drirc.debug.large_workgroup_non_coherent_image_workaround;
    _mesa_blake3_update(&ctx, &large_wg_wa, sizeof(large_wg_wa));
 
-   const bool lto_disable = device->instance->disable_lto;
+   const bool lto_disable = device->instance->drirc.debug.disable_lto;
    _mesa_blake3_update(&ctx, &lto_disable, sizeof(lto_disable));
 
    const bool btp_bti_rcc = device->rt_change_needs_flush;
    _mesa_blake3_update(&ctx, &btp_bti_rcc, sizeof(btp_bti_rcc));
 
-   const bool cbv_push_buffer = device->instance->promote_cbv_to_push_buffers;
+   const bool cbv_push_buffer = device->instance->drirc.perf.promote_cbv_push_buffer;
    _mesa_blake3_update(&ctx, &cbv_push_buffer, sizeof(cbv_push_buffer));
 
    uint8_t blake3[BLAKE3_KEY_LEN];
@@ -318,7 +318,7 @@ anv_shader_get_spirv_options(struct vk_physical_device *device,
       .min_ssbo_alignment = ANV_SSBO_ALIGNMENT,
 
       .workarounds = {
-         .lower_terminate_to_discard = pdevice->instance->lower_terminate_to_discard,
+         .lower_terminate_to_discard = pdevice->instance->drirc.debug.lower_terminate_to_discard,
       },
    };
 }
@@ -381,8 +381,8 @@ populate_base_prog_key(struct brw_base_prog_key *key,
     */
    if (rs != NULL)
       key->robust_flags = anv_get_robust_flags(rs);
-   key->divergent_atomics_flags = pdevice->instance->enable_opt_divergent_atomics;
-   key->limit_trig_input_range = pdevice->instance->limit_trig_input_range;
+   key->divergent_atomics_flags = pdevice->instance->drirc.perf.opt_divergent_atomics;
+   key->limit_trig_input_range = pdevice->instance->drirc.debug.limit_trig_input_range;
 }
 
 static void
@@ -418,7 +418,7 @@ populate_vs_prog_key(struct brw_vs_prog_key *key,
 
    populate_base_gfx_prog_key(&key->base, device, rs, state, link_stages);
 
-   key->vf_component_packing = pdevice->instance->vf_component_packing;
+   key->vf_component_packing = pdevice->instance->drirc.perf.vf_comp_packing;
 }
 
 static void
@@ -609,7 +609,7 @@ populate_fs_prog_key(struct brw_fs_prog_key *key,
          (state->ms->alpha_to_coverage_enable ? INTEL_ALWAYS : INTEL_NEVER);
 
       /* TODO: We should make this dynamic */
-      if (pdevice->instance->sample_mask_out_opengl_behaviour)
+      if (pdevice->instance->drirc.debug.sample_mask_out_opengl_behaviour)
          key->ignore_sample_mask_out = !key->multisample_fbo;
    } else {
       /* Consider all inputs as valid until we look at the NIR variables. */
@@ -672,7 +672,7 @@ populate_cs_prog_key(struct brw_cs_prog_key *key,
    populate_base_prog_key(&key->base, device, rs);
 
    key->base.divergent_atomics_flags |=
-      pdevice->instance->enable_opt_divergent_atomics_compute_only;
+      pdevice->instance->drirc.perf.opt_divergent_atomics_compute_only;
 }
 
 static void
@@ -872,7 +872,7 @@ anv_fixup_subgroup_size(struct anv_device *device, nir_shader *shader)
     * which can cause bugs, as they may expect bigger size of the
     * subgroup than we choose for the execution.
     */
-   if (instance->assume_full_subgroups &&
+   if (instance->drirc.debug.assume_full_subgroups &&
        info->uses_wide_subgroup_intrinsics &&
        info->api_subgroup_size == BRW_SUBGROUP_SIZE &&
        local_size &&
@@ -881,7 +881,7 @@ anv_fixup_subgroup_size(struct anv_device *device, nir_shader *shader)
       info->min_subgroup_size = BRW_SUBGROUP_SIZE;
    }
 
-   if (instance->assume_full_subgroups_with_barrier &&
+   if (instance->drirc.debug.assume_full_subgroups_with_barrier &&
        info->stage == MESA_SHADER_COMPUTE &&
        device->info->verx10 <= 125 &&
        info->uses_control_barrier &&
@@ -895,7 +895,7 @@ anv_fixup_subgroup_size(struct anv_device *device, nir_shader *shader)
    /* Similarly, sometimes games rely on the implicit synchronization of
     * the shared memory accesses, and choosing smaller subgroups than the game
     * expects will cause bugs. */
-   if (instance->assume_full_subgroups_with_shared_memory &&
+   if (instance->drirc.debug.assume_full_subgroups_with_shared_memory &&
        info->shared_size > 0 &&
        info->min_subgroup_size != info->max_subgroup_size &&
        local_size &&
@@ -1550,7 +1550,7 @@ anv_shader_lower_nir(struct anv_device *device,
    }
 
    if (nir->info.stage == MESA_SHADER_COMPUTE &&
-       pdevice->instance->large_workgroup_non_coherent_image_workaround) {
+       pdevice->instance->drirc.debug.large_workgroup_non_coherent_image_workaround) {
       const unsigned local_size = nir->info.workgroup_size[0] *
                                   nir->info.workgroup_size[1] *
                                   nir->info.workgroup_size[2];
@@ -1653,7 +1653,7 @@ anv_shader_lower_nir(struct anv_device *device,
                .lower_loads = true,
                .lower_stores_64bit = true,
                .lower_loads_without_formats =
-                  pdevice->instance->emulate_read_without_format,
+                  pdevice->instance->drirc.debug.read_without_format_emu,
             });
 
    if (lower_64bit_atomics) {
@@ -1674,7 +1674,7 @@ anv_shader_lower_nir(struct anv_device *device,
             nir_address_format_32bit_offset);
 
    /* Realign pointers to CBV on stages that can promote to push buffers. */
-   if (pdevice->instance->promote_cbv_to_push_buffers &&
+   if (pdevice->instance->drirc.perf.promote_cbv_push_buffer &&
        nir->info.stage <= MESA_SHADER_FRAGMENT) {
       /* Cleanup for the analysis, we don't want any ALU */
       cleanup_nir(nir);

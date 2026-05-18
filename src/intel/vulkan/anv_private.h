@@ -113,6 +113,8 @@
 #include "vk_video.h"
 #include "vk_meta.h"
 
+#include "anv_drirc.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1764,73 +1766,7 @@ static inline bool anv_needs_printf_buffer(void)
 struct anv_instance {
     struct vk_instance                          vk;
 
-    struct driOptionCache                       dri_options;
-    struct driOptionCache                       available_dri_options;
-
-    bool                                        enable_tbimr;
-    bool                                        enable_vf_distribution;
-    bool                                        enable_te_distribution;
-    bool                                        external_memory_implicit_sync;
-    bool                                        force_guc_low_latency;
-    bool                                        emulate_read_without_format;
-    bool                                        promote_cbv_to_push_buffers;
-    bool                                        enable_fully_covered;
-
-    /**
-     * Workarounds for game bugs.
-     */
-    uint8_t                                     assume_full_subgroups;
-    bool                                        assume_full_subgroups_with_barrier;
-    bool                                        assume_full_subgroups_with_shared_memory;
-    bool                                        limit_trig_input_range;
-    bool                                        lower_terminate_to_discard;
-    bool                                        sample_mask_out_opengl_behaviour;
-    bool                                        force_filter_addr_rounding;
-    bool                                        fp64_workaround_enabled;
-    float                                       lower_depth_range_rate;
-    unsigned                                    force_vk_vendor;
-    bool                                        has_fake_sparse;
-    bool                                        disable_fcv;
-    bool                                        enable_buffer_comp;
-    bool                                        disable_xe2_drm_ccs_modifiers;
-    bool                                        compression_control_enabled;
-    bool                                        anv_fake_nonlocal_memory;
-    bool                                        anv_upper_bound_descriptor_pool_sampler;
-    bool                                        custom_border_colors_without_format;
-    bool                                        large_workgroup_non_coherent_image_workaround;
-    bool                                        barrier_post_typed_clear_shader;
-    bool                                        barrier_post_untyped_clear_shader;
-
-    /* HW workarounds */
-    bool                                        no_16bit;
-    bool                                        intel_enable_wa_14018912822;
-    bool                                        intel_enable_wa_14024015672_msaa;
-
-    /**
-     * Performance workarounds
-     */
-    unsigned                                    binding_table_block_size;
-    bool                                        disable_lto;
-    bool                                        disable_push_constant_alloc;
-    enum brw_divergent_atomics_flags            enable_opt_divergent_atomics;
-    enum brw_divergent_atomics_flags            enable_opt_divergent_atomics_compute_only;
-    bool                                        force_sampler_prefetch;
-    bool                                        force_compute_surface_prefetch;
-    unsigned                                    generated_indirect_threshold;
-    unsigned                                    generated_indirect_ring_threshold;
-    unsigned                                    query_clear_with_blorp_threshold;
-    unsigned                                    query_copy_with_shader_threshold;
-    bool                                        state_cache_perf_fix;
-    bool                                        vf_component_packing;
-
-    /**
-     * Ray tracing configuration.
-     */
-    unsigned                                    stack_ids;
-    /**
-     * 3DSTATE_BTD dispatch timeout counter configuration.
-     */
-    unsigned                                    dispatch_timeout_counter;
+    struct anv_drirc                            drirc;
 };
 
 VkResult anv_init_wsi(struct anv_physical_device *physical_device);
