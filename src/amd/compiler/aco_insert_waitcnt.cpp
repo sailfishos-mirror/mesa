@@ -523,8 +523,10 @@ finish_barriers(wait_ctx& ctx, wait_imm& imm, depctr_wait& depctr, Instruction* 
                 memory_sync_info sync)
 {
    if (ctx.bar_nonempty & (1 << barrier_info_release)) {
+      /* s_waitcnt are subgroup-wide and no waitcnts are necessary within a subgroup, so we can
+       * delay this until we reach a workgroup or larger scope atomic. */
       uint16_t storage_release =
-         is_atomic_or_control_instr(ctx.program, instr, sync, semantic_release);
+         is_atomic_or_control_instr(ctx.program, instr, sync, semantic_release, scope_subgroup);
       u_foreach_bit (i, storage_release & ctx.bar[barrier_info_release].storage)
          finish_barrier_internal(ctx, imm, depctr, instr, &ctx.bar[barrier_info_release], i);
    }

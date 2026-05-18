@@ -2028,7 +2028,8 @@ bool is_wait_export_ready(amd_gfx_level gfx_level, const Instruction* instr);
 class Program;
 
 uint16_t is_atomic_or_control_instr(Program* program, const Instruction* instr,
-                                    memory_sync_info sync, unsigned semantic);
+                                    memory_sync_info sync, unsigned semantic,
+                                    sync_scope ignore_scope = scope_invocation);
 
 memory_sync_info get_sync_info(const Instruction* instr);
 

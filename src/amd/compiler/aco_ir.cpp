@@ -225,7 +225,7 @@ is_ordered_ps_done_sendmsg(const Instruction* instr)
 
 uint16_t
 is_atomic_or_control_instr(Program* program, const Instruction* instr, memory_sync_info sync,
-                           unsigned semantic)
+                           unsigned semantic, sync_scope ignore_scope)
 {
    bool is_acquire = semantic & semantic_acquire;
    bool is_release = semantic & semantic_release;
@@ -254,7 +254,7 @@ is_atomic_or_control_instr(Program* program, const Instruction* instr, memory_sy
       if (instr->opcode == aco_opcode::s_sethalt)
          return cls & ~storage_shared;
    }
-   return (instr->isBarrier() && instr->barrier().exec_scope > scope_invocation) ? cls : 0;
+   return (instr->isBarrier() && instr->barrier().exec_scope > ignore_scope) ? cls : 0;
 }
 
 memory_sync_info
