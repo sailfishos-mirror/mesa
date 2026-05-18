@@ -13,6 +13,7 @@
 #include "vk_format.h"
 
 #include "nv_push_cl9097.h"
+#include "nv_push_cl90c0.h"
 #include "nv_push_clb197.h"
 
 static VkResult
@@ -72,6 +73,10 @@ struct nvk_meta_save_gfx {
    struct nvk_push_descriptor_set push_desc0;
    uint8_t set_dynamic_buffer_start[NVK_MAX_SETS];
    uint8_t push[NVK_MAX_PUSH_SIZE];
+};
+
+struct nvk_meta_save_compute {
+   struct nvk_compute_state state;
 };
 
 static void
@@ -197,6 +202,28 @@ nvk_meta_end_gfx(struct nvk_cmd_buffer *cmd,
    P_IMMD(p, NV9097, SET_STATISTICS_COUNTER, {});
    P_IMMD(p, NV9097, SET_RENDER_ENABLE_OVERRIDE, MODE_USE_RENDER_ENABLE);
    P_IMMD(p, NV9097, SET_MME_SHADOW_RAM_CONTROL, MODE_METHOD_TRACK_WITH_FILTER);
+}
+
+static void
+nvk_meta_begin_compute(struct nvk_cmd_buffer *cmd,
+                       struct nvk_meta_save_compute *save)
+{
+   assert(cmd->state.cs.descriptors.flush_root == NULL);
+   save->state = cmd->state.cs;
+   nvk_cmd_invalidate_compute_state(cmd);
+
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 1);
+   P_IMMD_WORD(p, NV90C0, SET_RENDER_ENABLE_OVERRIDE, MODE_ALWAYS_RENDER);
+}
+
+static void
+nvk_meta_end_compute(struct nvk_cmd_buffer *cmd,
+                     struct nvk_meta_save_compute *save)
+{
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 1);
+   P_IMMD_WORD(p, NV90C0, SET_RENDER_ENABLE_OVERRIDE, MODE_USE_RENDER_ENABLE);
+
+   cmd->state.cs = save->state;
 }
 
 VKAPI_ATTR void VKAPI_CALL
