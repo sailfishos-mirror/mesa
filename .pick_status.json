@@ -9014,7 +9014,7 @@
         "description": "intel/blorp: Halve max bpp for some redescribed blits",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "eb8883f3ef932b0d771ce485e6e682548964ded7",
         "notes": null
