@@ -21,6 +21,7 @@
 #include "git_sha1.h"
 
 #include "vulkan/wsi/wsi_common.h"
+#include "vk_common_entrypoints.h"
 #include "vk_device.h"
 #include "vk_drm_syncobj.h"
 #include "vk_shader_module.h"
@@ -119,6 +120,8 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_line_rasterization = true,
       .KHR_index_type_uint8 = true,
       .KHR_load_store_op_none = true,
+      .KHR_maintenance5 = true,
+      .KHR_maintenance6 = true,
       .KHR_map_memory2 = true,
       .KHR_push_descriptor = true,
       .KHR_shader_expect_assume = true,
@@ -133,6 +136,10 @@ kk_get_device_extensions(const struct kk_instance *instance,
 
       /* Optional extensions */
       .KHR_calibrated_timestamps = true,
+      .KHR_maintenance7 = true,
+      .KHR_maintenance8 = true,
+      .KHR_maintenance9 = true,
+      .KHR_maintenance10 = true,
       .KHR_robustness2 = true,
       .KHR_shader_maximal_reconvergence = true,
       .KHR_shader_relaxed_extended_instruction = true,
@@ -296,6 +303,8 @@ kk_get_device_features(
       .bresenhamLines = true,
       .globalPriorityQuery = true,
       .indexTypeUint8 = true,
+      .maintenance5 = true,
+      .maintenance6 = true,
       .pipelineRobustness = true,
       .pushDescriptor = true,
       .shaderSubgroupRotate = true,
@@ -305,6 +314,18 @@ kk_get_device_features(
 
       /* VK_EXT_mutable_descriptor_type */
       .mutableDescriptorType = true,
+
+      /* VK_KHR_maintenance7 */
+      .maintenance7 = true,
+
+      /* VK_KHR_maintenance8 */
+      .maintenance8 = true,
+
+      /* VK_KHR_maintenance9 */
+      .maintenance9 = true,
+
+      /* VK_KHR_maintenance10 */
+      .maintenance10 = true,
 
       /* VK_KHR_robustness2 */
       .robustBufferAccess2 = true,
@@ -621,9 +642,9 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .lineSubPixelPrecisionBits = 8,
 
       /* VK_KHR_maintenance5 */
-      .earlyFragmentMultisampleCoverageAfterSampleCounting = false,
-      .earlyFragmentSampleMaskTestBeforeSampleCounting = true,
-      .depthStencilSwizzleOneSupport = false,
+      .earlyFragmentMultisampleCoverageAfterSampleCounting = true,
+      .earlyFragmentSampleMaskTestBeforeSampleCounting = false,
+      .depthStencilSwizzleOneSupport = true,
       .polygonModePointSize = false,
       .nonStrictSinglePixelWideLinesUseParallelogram = false,
       .nonStrictWideLinesUseParallelogram = false,
@@ -635,7 +656,7 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
 
       /* VK_KHR_maintenance7 */
       .robustFragmentShadingRateAttachmentAccess = false,
-      .separateDepthStencilAttachmentAccess = false,
+      .separateDepthStencilAttachmentAccess = true,
       .maxDescriptorSetTotalUniformBuffersDynamic = KK_MAX_DYNAMIC_BUFFERS / 2,
       .maxDescriptorSetTotalStorageBuffersDynamic = KK_MAX_DYNAMIC_BUFFERS / 2,
       .maxDescriptorSetTotalBuffersDynamic = KK_MAX_DYNAMIC_BUFFERS,
@@ -645,6 +666,16 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
          KK_MAX_DYNAMIC_BUFFERS / 2,
       .maxDescriptorSetUpdateAfterBindTotalBuffersDynamic =
          KK_MAX_DYNAMIC_BUFFERS,
+
+      /* VK_KHR_maintenance9 */
+      .image2DViewOf3DSparse = false,
+      .defaultVertexAttributeValue =
+         VK_DEFAULT_VERTEX_ATTRIBUTE_VALUE_ZERO_ZERO_ZERO_ONE_KHR,
+
+      /* VK_KHR_maintenance10 */
+      .rgba4OpaqueBlackSwizzled = false,
+      .resolveSrgbFormatAppliesTransferFunction = true,
+      .resolveSrgbFormatSupportsTransferFunctionControl = true,
 
       /* VK_EXT_legacy_vertex_attributes */
       .nativeUnalignedPerformance = true,
@@ -1018,6 +1049,32 @@ kk_physical_device_destroy(struct vk_physical_device *vk_pdev)
 }
 
 VKAPI_ATTR void VKAPI_CALL
+kk_GetPhysicalDeviceProperties2(VkPhysicalDevice physicalDevice,
+                                VkPhysicalDeviceProperties2 *pProperties)
+{
+   vk_common_GetPhysicalDeviceProperties2(physicalDevice, pProperties);
+
+   /* Properly populate layered API properties */
+   VkPhysicalDeviceLayeredApiPropertiesListKHR *layered_props_list =
+      vk_find_struct(pProperties->pNext,
+                     PHYSICAL_DEVICE_LAYERED_API_PROPERTIES_LIST_KHR);
+   if (!layered_props_list)
+      return;
+
+   layered_props_list->layeredApiCount = 1;
+   if (!layered_props_list->pLayeredApis)
+      return;
+
+   VkPhysicalDeviceLayeredApiPropertiesKHR *layered_props =
+      &layered_props_list->pLayeredApis[0];
+   layered_props->vendorID = pProperties->properties.vendorID;
+   layered_props->deviceID = pProperties->properties.deviceID;
+   layered_props->layeredAPI = VK_PHYSICAL_DEVICE_LAYERED_API_METAL_KHR;
+   strncpy(layered_props->deviceName, pProperties->properties.deviceName,
+           VK_MAX_PHYSICAL_DEVICE_NAME_SIZE);
+}
+
+VKAPI_ATTR void VKAPI_CALL
 kk_GetPhysicalDeviceMemoryProperties2(
    VkPhysicalDevice physicalDevice,
    VkPhysicalDeviceMemoryProperties2 *pMemoryProperties)
@@ -1094,9 +1151,17 @@ kk_GetPhysicalDeviceQueueFamilyProperties2(
          {
             switch (ext->sType) {
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES: {
-               VkQueueFamilyGlobalPriorityProperties *p = (void *)ext;
-               p->priorityCount = 1;
-               p->priorities[0] = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
+               VkQueueFamilyGlobalPriorityProperties *pSub = (void *)ext;
+               pSub->priorityCount = 1;
+               pSub->priorities[0] = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
+               break;
+            }
+
+            case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OPTIMAL_IMAGE_TRANSFER_GRANULARITY_PROPERTIES_KHR: {
+               VkQueueFamilyOptimalImageTransferGranularityPropertiesKHR *pSub =
+                  (void *)ext;
+               pSub->optimalImageTransferGranularity =
+                  p->queueFamilyProperties.minImageTransferGranularity;
                break;
             }
 
