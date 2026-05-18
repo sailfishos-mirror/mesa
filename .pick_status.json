@@ -8094,7 +8094,7 @@
         "description": "wsi: correct the erroneous assertion",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d50937f137201e1d90ce18bbea1383af7a7ebd5d",
         "notes": null
