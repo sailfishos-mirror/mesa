@@ -330,6 +330,7 @@ build_coordinate(struct move_tex_coords_state *state, nir_scalar scalar, coord_i
    /* Move load_*input(barycentric, imm) to the cursor location if nessecary. */
    if (instr_needs_move(b->cursor, &info.load->instr)) {
       nir_instr_move(b->cursor, &info.load->instr);
+      b->cursor = nir_after_instr(&info.load->instr);
 
       unsigned num_srcs = nir_intrinsic_infos[info.load->intrinsic].num_srcs;
 
