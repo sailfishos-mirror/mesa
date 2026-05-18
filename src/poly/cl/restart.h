@@ -197,6 +197,8 @@ poly_unroll_geometry(global uint32_t *out_draw,
 
    uintptr_t in_ptr = (uintptr_t)(poly_index_buffer(
       index_buffer, index_buffer_range_el, in_draw[2], in_index_size_B));
+   uint in_range_el = poly_index_buffer_range_el(
+      index_buffer_range_el, in_draw[2]);
 
    uint out_prims = 0;
    uint needle = 0;
@@ -207,7 +209,7 @@ poly_unroll_geometry(global uint32_t *out_draw,
       for (;;) {
          uint idx = next_restart + tid;
          bool restart =
-            idx >= count || poly_load_index(in_ptr, index_buffer_range_el, idx,
+            idx >= count || poly_load_index(in_ptr, in_range_el, idx,
                                             in_index_size_B) == restart_index;
 
          uint next_offs = poly_work_group_first_true(restart, scratch);
@@ -228,7 +230,7 @@ poly_unroll_geometry(global uint32_t *out_draw,
             uint offset = needle + id;
 
             uint x = ((out_prims_base + i) * per_prim) + vtx;
-            uint y = poly_load_index(in_ptr, index_buffer_range_el, offset,
+            uint y = poly_load_index(in_ptr, in_range_el, offset,
                                      in_index_size_B);
 
             poly_store_index(out_ptr, out_index_size_B, x, y);
@@ -274,6 +276,8 @@ poly_count_restart_prims(constant uint *in_draw,
 
    uintptr_t in_ptr = (uintptr_t)(poly_index_buffer(
       index_buffer, index_buffer_range_el, in_draw[2], index_size_B));
+   uint in_range_el = poly_index_buffer_range_el(
+      index_buffer_range_el, in_draw[2]);
 
    uint out_prims = 0;
    uint needle = 0;
@@ -284,7 +288,7 @@ poly_count_restart_prims(constant uint *in_draw,
       for (;;) {
          uint idx = next_restart + tid;
          bool restart =
-            idx >= count || poly_load_index(in_ptr, index_buffer_range_el, idx,
+            idx >= count || poly_load_index(in_ptr, in_range_el, idx,
                                             index_size_B) == restart_index;
 
          uint next_offs = poly_work_group_first_true(restart, scratch);
