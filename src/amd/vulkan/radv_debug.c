@@ -1470,7 +1470,6 @@ radv_GetDeviceFaultInfoEXT(VkDevice _device, VkDeviceFaultCountsEXT *pFaultCount
    /* Query if a GPUVM fault happened. */
    vm_fault_occurred = radv_vm_fault_occurred(device, &fault_info);
 
-   /* No vendor-specific crash dumps yet. */
    pFaultCounts->vendorInfoCount = 0;
    pFaultCounts->vendorBinarySize = 0;
 
