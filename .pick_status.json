@@ -4,7 +4,7 @@
         "description": "radv: enable radv_wait_for_vm_map_updates for Forza Horizon 6",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
