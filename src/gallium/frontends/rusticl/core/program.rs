@@ -257,10 +257,9 @@ impl DeviceProgramBuild {
             device
                 .screen
                 .nir_shader_compiler_options(mesa_shader_stage::MESA_SHADER_COMPUTE),
-            &device.spirv_caps,
+            device.spirv_to_nir_opts(),
             &device.lib_clc,
             &mut spec_constants,
-            device.address_bits(),
             log.as_mut(),
         );
 
