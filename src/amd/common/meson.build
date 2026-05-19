@@ -301,6 +301,7 @@ if with_tests
       'ac_nir_tests',
       files(
         'nir/tests/ac_nir_lower_mem_access_test.cpp',
+        'nir/tests/ac_nir_lower_tex_coords_test.cpp',
       ),
       cpp_args : [cpp_msvc_compat_args],
       gnu_symbol_visibility : 'hidden',
