@@ -6726,6 +6726,14 @@ typedef struct nir_lower_printf_options {
 
 bool nir_lower_printf(nir_shader *nir, const nir_lower_printf_options *options);
 
+typedef struct nir_lower_abort_options {
+   uint64_t buffer_addr;
+   unsigned max_buffer_size;
+   unsigned ptr_bit_size;
+} nir_lower_abort_options;
+
+bool nir_lower_abort(nir_shader *nir, const nir_lower_abort_options *options);
+
 /* This is here for unit tests. */
 bool nir_opt_comparison_pre_impl(nir_function_impl *impl);
 
