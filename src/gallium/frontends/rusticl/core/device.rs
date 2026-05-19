@@ -1454,6 +1454,7 @@ impl Device {
         let mut spirv_caps = *spirv_to_nir_opts.caps;
         spirv_caps.Float64 = true;
         spirv_caps.Int64 = true;
+        spirv_caps.GenericPointer = true;
         spirv_to_nir_opts.caps = &spirv_caps;
 
         let lib_clc = spirv::SPIRVBin::get_lib_clc(dev_base.screen(), spirv_to_nir_opts);
