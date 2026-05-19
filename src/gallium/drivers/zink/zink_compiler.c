@@ -1389,6 +1389,15 @@ zink_screen_init_compiler(struct zink_screen *screen)
    }
    screen->ntv_info.have_float_controls2 = screen->info.have_KHR_shader_float_controls2;
    screen->ntv_info.bindless_set_idx = screen->desc_set_id[ZINK_DESCRIPTOR_BINDLESS];
+
+   if (screen->info.have_KHR_shader_fma) {
+      if (screen->info.fma_feats.shaderFmaFloat16)
+         screen->nir_options.float_mul_add16 |= nir_float_muladd_support_has_ffma;
+      if (screen->info.fma_feats.shaderFmaFloat32)
+         screen->nir_options.float_mul_add32 |= nir_float_muladd_support_has_ffma;
+      if (screen->info.fma_feats.shaderFmaFloat64)
+         screen->nir_options.float_mul_add64 |= nir_float_muladd_support_has_ffma;
+   }
 }
 
 struct nir_shader *
