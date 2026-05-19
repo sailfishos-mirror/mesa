@@ -1851,15 +1851,12 @@ v3dv_CmdUpdateBuffer(VkCommandBuffer commandBuffer,
       .dstOffset = dstOffset,
       .size = dataSize,
    };
-   struct v3dv_job *copy_job =
-      v3d_X((&cmd_buffer->device->devinfo), meta_copy_buffer)
+   v3d_X((&cmd_buffer->device->devinfo), meta_copy_buffer)
       (cmd_buffer, dst_buffer->mem->bo, dst_buffer->mem_offset,
        src_bo, 0, &region);
 
-   if (copy_job) {
-      v3dv_cmd_buffer_add_private_obj(
-         cmd_buffer, (uint64_t)(uintptr_t)src_bo, destroy_update_buffer_cb);
-   }
+   v3dv_cmd_buffer_add_private_obj(
+      cmd_buffer, (uint64_t)(uintptr_t)src_bo, destroy_update_buffer_cb);
 
    cmd_buffer->state.is_transfer = false;
 }

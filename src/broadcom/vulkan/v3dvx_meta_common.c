@@ -1363,6 +1363,75 @@ v3dX(meta_copy_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
                        uint32_t src_offset,
                        const VkBufferCopy2 *region)
 {
+#if V3D_VERSION >= 71
+   /* Use TFU raster-to-raster copy on V3D 7.1+.  Treat the buffer data
+    * as a raster texture and copy via the TFU, avoiding the expensive
+    * CL render job.  Pick the largest cpp such that src/dst offsets
+    * and size are all cpp-aligned: cpp=4 (R8G8B8A8_UINT) is the
+    * expected common case; cpp=2 (R8G8_UINT) and cpp=1 (R8_UINT)
+    * handle Vulkan-permitted unaligned vkCmdCopyBuffer regions.
+    */
+   if (!V3D_DBG(DISABLE_TFU)) {
+      const uint64_t abs_src = (uint64_t)src_offset + region->srcOffset;
+      const uint64_t abs_dst = (uint64_t)dst_offset + region->dstOffset;
+      const uint64_t align_mask =
+         abs_src | abs_dst | (uint64_t)region->size;
+
+      uint32_t cpp;
+      VkFormat vk_format;
+      if ((align_mask & 3) == 0) {
+         cpp = 4;
+         vk_format = VK_FORMAT_R8G8B8A8_UINT;
+      } else if ((align_mask & 1) == 0) {
+         cpp = 2;
+         vk_format = VK_FORMAT_R8G8_UINT;
+      } else {
+         cpp = 1;
+         vk_format = VK_FORMAT_R8_UINT;
+      }
+
+      if (cpp != 4) {
+         perf_debug("meta_copy_buffer: TFU cpp=%u fallback "
+                    "(src=%" PRIu64 " dst=%" PRIu64
+                    " size=%" PRIu64 ").\n",
+                    cpp, abs_src, abs_dst, (uint64_t)region->size);
+      }
+
+      const struct v3dv_format *format = v3dX(get_format)(vk_format);
+      assert(format && format->plane_count == 1);
+
+      uint32_t num_pixels = region->size / cpp;
+      uint32_t cur_src = src_offset + region->srcOffset;
+      uint32_t cur_dst = dst_offset + region->dstOffset;
+
+      while (num_pixels > 0) {
+         uint32_t width = MIN2(num_pixels, V3D_TFU_MAX_DIM);
+         uint32_t height = MAX2(1, MIN2(num_pixels / width, V3D_TFU_MAX_DIM));
+         uint32_t pixels_this_job = width * height;
+         assert(pixels_this_job <= num_pixels);
+
+         v3dX(meta_emit_tfu_job)(cmd_buffer,
+                                 dst->handle,
+                                 dst->offset + cur_dst,
+                                 V3D_TILING_RASTER,
+                                 width * cpp, cpp,
+                                 src->handle,
+                                 src->offset + cur_src,
+                                 V3D_TILING_RASTER,
+                                 width * cpp, cpp,
+                                 width, height,
+                                 &format->planes[0]);
+
+         num_pixels -= pixels_this_job;
+         cur_src += pixels_this_job * cpp;
+         cur_dst += pixels_this_job * cpp;
+      }
+      return NULL;
+   }
+   if (V3D_DBG(DISABLE_TFU))
+      perf_debug("meta_copy_buffer: TFU disabled, using TLB.\n");
+#endif
+
    const uint32_t internal_bpp = V3D_INTERNAL_BPP_32;
    const uint32_t internal_type = V3D_INTERNAL_TYPE_8UI;
 
