@@ -131,6 +131,12 @@ struct radv_pso_cache_stats {
    uint32_t misses;
 };
 
+struct radv_shader_abort_data {
+   uint32_t buffer_size;
+   struct radv_backed_buffer buffer;
+   VkDeviceAddress buffer_addr;
+};
+
 struct radv_device {
    struct vk_device vk;
 
@@ -313,6 +319,8 @@ struct radv_device {
    struct radv_address_binding_tracker *addr_binding_tracker;
 
    struct radv_compiler_info compiler_info;
+
+   struct radv_shader_abort_data shader_abort;
 };
 
 VK_DEFINE_HANDLE_CASTS(radv_device, vk.base, VkDevice, VK_OBJECT_TYPE_DEVICE)

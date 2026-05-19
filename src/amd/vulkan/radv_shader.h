@@ -33,6 +33,7 @@ struct radv_physical_device;
 struct radv_device;
 struct radv_pipeline;
 struct radv_ray_tracing_pipeline;
+struct radv_shader_abort_data;
 struct radv_shader_args;
 struct radv_shader_args;
 struct radv_serialized_shader_arena_block;
@@ -585,6 +586,7 @@ struct radv_compiler_info {
       uint64_t trap_excp_flags;
       struct vk_debug_report *debug_report;
       struct radv_debug_nir *debug_nir;
+      struct radv_shader_abort_data *shader_abort;
       simple_mtx_t *shader_dump_mtx;
       bool keep_shader_info;
       bool capture_shaders;

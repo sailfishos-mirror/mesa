@@ -660,6 +660,36 @@ radv_device_finish_device_fault_detection(struct radv_device *device)
 }
 
 static VkResult
+radv_shader_abort_data_init(struct radv_device *device)
+{
+   struct radv_shader_abort_data *shader_abort = &device->shader_abort;
+
+   shader_abort->buffer_size = sizeof(uint32_t) + sizeof(uint64_t) + RADV_MAX_SHADER_ABORT_MESSAGE_SIZE;
+
+   VkResult result =
+      radv_backed_buffer_init(device, &shader_abort->buffer, shader_abort->buffer_size, radv_memory_type_visible_vram,
+                              VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT, true);
+   if (result != VK_SUCCESS)
+      return result;
+
+   shader_abort->buffer_addr = radv_backed_buffer_get_va(device, &shader_abort->buffer);
+
+   /* Initialize the offset to write in the buffer header. */
+   uint32_t *data = shader_abort->buffer.map;
+   data[0] = sizeof(uint32_t);
+
+   return VK_SUCCESS;
+}
+
+static void
+radv_shader_abort_data_finish(struct radv_device *device)
+{
+   struct radv_shader_abort_data *shader_abort = &device->shader_abort;
+
+   radv_backed_buffer_finish(device, &shader_abort->buffer);
+}
+
+static VkResult
 radv_device_init_tools(struct radv_device *device)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -696,12 +726,19 @@ radv_device_init_tools(struct radv_device *device)
    if (result != VK_SUCCESS)
       return result;
 
+   if (device->vk.enabled_features.shaderAbort) {
+      result = radv_shader_abort_data_init(device);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+
    return VK_SUCCESS;
 }
 
 static void
 radv_device_finish_tools(struct radv_device *device)
 {
+   radv_shader_abort_data_finish(device);
    radv_printf_data_finish(device);
    radv_rra_trace_finish(radv_device_to_handle(device), &device->rra_trace);
    radv_trap_handler_finish(device);
@@ -1067,6 +1104,10 @@ radv_device_is_cache_disabled(const struct radv_device *device)
    if (device->debug_nir.valid_va.buffer_addr)
       return true;
 
+   /* The buffer address used for shader abort is hardcoded. */
+   if (device->shader_abort.buffer_addr)
+      return true;
+
    /* Pipeline caches can be disabled with RADV_DEBUG=nocache, with MESA_GLSL_CACHE_DISABLE=1 and
     * when ACO_DEBUG is used. MESA_GLSL_CACHE_DISABLE is done elsewhere.
     */
@@ -1201,6 +1242,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             .trap_excp_flags = instance->trap_excp_flags,
             .debug_report = &instance->vk.debug_report,
             .debug_nir = &device->debug_nir,
+            .shader_abort = &device->shader_abort,
             .shader_dump_mtx = &instance->shader_dump_mtx,
             .keep_shader_info = device->keep_shader_info,
             .capture_shaders = (instance->debug_flags & RADV_DEBUG_DUMP_SHADERS) || device->keep_shader_info,
@@ -1965,12 +2007,44 @@ radv_GetDeviceFaultInfoEXT(VkDevice _device, VkDeviceFaultCountsEXT *pFaultCount
 }
 
 /* VK_KHR_device_fault */
+static void
+radv_shader_abort_get_data(struct radv_device *device, uint64_t *msg_data_size, uint8_t **msg_data)
+{
+   struct radv_shader_abort_data *shader_abort = &device->shader_abort;
+
+   *msg_data_size = 0;
+   *msg_data = NULL;
+
+   if (!shader_abort->buffer.map)
+      return;
+
+   device->vk.dispatch_table.DeviceWaitIdle(radv_device_to_handle(device));
+
+   uint32_t *data = shader_abort->buffer.map;
+
+   *msg_data_size = data[0] - sizeof(uint32_t); /* substract original offset */
+   *msg_data = (uint8_t *)shader_abort->buffer.map + sizeof(uint32_t);
+}
+
 VKAPI_ATTR VkResult VKAPI_CALL
 radv_GetDeviceFaultDebugInfoKHR(VkDevice _device, VkDeviceFaultDebugInfoKHR *pDebugInfo)
 {
    VK_FROM_HANDLE(radv_device, device, _device);
 
    pDebugInfo->vendorBinarySize = 0;
+
+   VkDeviceFaultShaderAbortMessageInfoKHR *abort_msg_info =
+      vk_find_struct(pDebugInfo->pNext, DEVICE_FAULT_SHADER_ABORT_MESSAGE_INFO_KHR);
+   if (abort_msg_info) {
+      uint64_t msg_data_size;
+      uint8_t *msg_data;
+
+      radv_shader_abort_get_data(device, &msg_data_size, &msg_data);
+
+      abort_msg_info->messageDataSize = msg_data_size;
+      if (abort_msg_info->pMessageData && msg_data && msg_data_size > 0)
+         memcpy((uint8_t *)abort_msg_info->pMessageData, msg_data, msg_data_size);
+   }
 
    if (device->gpu_hang_report) {
       VkDeviceFaultVendorBinaryHeaderVersionOneKHR hdr = radv_get_device_fault_vendor_binary_header(device);

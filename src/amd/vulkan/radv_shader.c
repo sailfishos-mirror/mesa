@@ -635,6 +635,16 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
    if (nir->info.uses_printf)
       NIR_PASS(_, nir, radv_nir_lower_printf, compiler_info->debug.debug_nir);
 
+   if (nir->info.uses_abort) {
+      nir_lower_abort_options abort_options = {
+         .buffer_addr = compiler_info->debug.shader_abort->buffer_addr,
+         .max_buffer_size = compiler_info->debug.shader_abort->buffer_size,
+         .ptr_bit_size = 64,
+      };
+
+      NIR_PASS(_, nir, nir_lower_abort, &abort_options);
+   }
+
    if (options && options->lower_view_index_to_device_index)
       NIR_PASS(_, nir, nir_lower_view_index_to_device_index);
 
