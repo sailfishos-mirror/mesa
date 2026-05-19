@@ -1414,6 +1414,12 @@ system_value("printf_buffer_size", 1, bit_sizes=[32])
 # buffer. This avoids a separate abort buffer.
 intrinsic("printf_abort")
 
+# SPV_KHR_abort
+# The source is a deref to the message type.
+intrinsic("abort", src_comp=[1])
+system_value("abort_buffer_address", 1, bit_sizes=[32,64])
+system_value("abort_buffer_size", 1, bit_sizes=[32])
+
 # Mesh shading MultiView intrinsics
 system_value("mesh_view_count", 1)
 load("mesh_view_indices", [1], [BASE, RANGE], [CAN_ELIMINATE, CAN_REORDER])

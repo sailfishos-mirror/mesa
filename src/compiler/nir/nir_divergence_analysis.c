@@ -355,6 +355,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_tcs_mem_attrib_stride:
    case nir_intrinsic_load_printf_buffer_address:
    case nir_intrinsic_load_printf_buffer_size:
+   case nir_intrinsic_load_abort_buffer_address:
+   case nir_intrinsic_load_abort_buffer_size:
    case nir_intrinsic_load_samples_log2_agx:
    case nir_intrinsic_load_active_subgroup_count_agx:
    case nir_intrinsic_load_root_agx:
@@ -1042,6 +1044,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_ldtram_nv:
    case nir_intrinsic_cmat_muladd_nv:
    case nir_intrinsic_printf:
+   case nir_intrinsic_abort:
    case nir_intrinsic_load_gs_header_ir3:
    case nir_intrinsic_load_tcs_header_ir3:
    case nir_intrinsic_load_rel_patch_id_ir3:
