@@ -2290,6 +2290,13 @@ emit_alu(struct ntv_context *ctx, nir_alu_instr *alu)
       break;
    }
 
+   case nir_op_ffma_weak: {
+      assert(nir_op_infos[alu->op].num_inputs == 3);
+      result = emit_builtin_triop(ctx, GLSLstd450Fma, dest_type,
+                                  src[0], src[1], src[2]);
+      break;
+   }
+
    default:
       fprintf(stderr, "emit_alu: not implemented (%s)\n",
               nir_op_infos[alu->op].name);

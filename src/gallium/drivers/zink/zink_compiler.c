@@ -1304,6 +1304,7 @@ zink_screen_init_compiler(struct zink_screen *screen)
       .lower_mul_2x32_64 = true,
       .support_16bit_alu = true, /* not quite what it sounds like */
       .max_unroll_iterations = 0,
+      .float_mul_add32 = nir_float_muladd_support_keep_weak_ffma,
    };
 
    screen->nir_options = default_options;
@@ -1318,7 +1319,12 @@ zink_screen_init_compiler(struct zink_screen *screen)
        * stop Vulkan drivers from unrolling the loops.
        */
       screen->nir_options.max_unroll_iterations_fp64 = 32;
+   } else {
+      screen->nir_options.float_mul_add64 |= nir_float_muladd_support_keep_weak_ffma;
    }
+
+   if (screen->base.caps.fp16)
+      screen->nir_options.float_mul_add16 |= nir_float_muladd_support_keep_weak_ffma;
 
    /* XXX: do any drivers need different estimates? */
    screen->nir_options.varying_expression_max_cost = amd_varying_expression_max_cost;
