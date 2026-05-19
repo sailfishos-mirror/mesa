@@ -3055,8 +3055,6 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
 {
    unsigned clear_buffers = 0;
    struct zink_screen *screen = zink_screen(ctx->base.screen);
-   if (ctx->gfx_pipeline_state.custom_sample_locations && ctx->sample_locations_changed)
-      zink_update_vk_sample_locations(ctx);
    if (ctx->has_swapchain)
       zink_render_fixup_swapchain(ctx);
    bool has_depth = false;
@@ -3677,6 +3675,8 @@ void
 zink_init_vk_sample_locations(struct zink_context *ctx, VkSampleLocationsInfoEXT *loc)
 {
    struct zink_screen *screen = zink_screen(ctx->base.screen);
+   if (ctx->sample_locations_changed)
+      zink_update_vk_sample_locations(ctx);
    unsigned idx = util_logbase2_ceil(MAX2(ctx->gfx_pipeline_state.rast_samples + 1, 1));
    loc->sType = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT;
    loc->pNext = NULL;
@@ -4203,7 +4203,7 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
    uint8_t rast_samples = ctx->fb_state.samples - 1;
    if (rast_samples != ctx->gfx_pipeline_state.rast_samples) {
       zink_update_fs_key_samples(ctx);
-      ctx->sample_locations_changed |= ctx->gfx_pipeline_state.custom_sample_locations;
+      ctx->sample_locations_changed |= ctx->sample_locations_enabled;
       if (screen->have_full_ds3)
          ctx->sample_mask_changed = true;
       else
@@ -4258,7 +4258,7 @@ zink_set_sample_locations(struct pipe_context *pctx, size_t size, const uint8_t 
 {
    struct zink_context *ctx = zink_context(pctx);
 
-   ctx->gfx_pipeline_state.custom_sample_locations = size && locations;
+   ctx->sample_locations_enabled = size && locations;
    ctx->sample_locations_changed = true;
    if (size > sizeof(ctx->sample_locations))
       size = sizeof(ctx->sample_locations);

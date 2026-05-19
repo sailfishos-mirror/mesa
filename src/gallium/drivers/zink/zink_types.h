@@ -881,7 +881,7 @@ struct zink_gfx_pipeline_state {
    uint32_t feedback_loop : 1;
    uint32_t feedback_loop_zs : 1;
    uint32_t rast_attachment_order : 1;
-   uint32_t custom_sample_locations : 1;
+   uint32_t pad : 1;
    uint32_t rp_state : 16;
    VkSampleMask sample_mask;
    uint32_t blend_id;
@@ -1851,6 +1851,7 @@ struct zink_context {
    float blend_constants[4];
 
    bool sample_locations_changed;
+   bool sample_locations_enabled;
    VkSampleLocationEXT vk_sample_locations[PIPE_MAX_SAMPLE_LOCATION_GRID_SIZE * PIPE_MAX_SAMPLE_LOCATION_GRID_SIZE];
    uint8_t sample_locations[2 * 4 * 8 * 16];
    unsigned num_sample_locations;

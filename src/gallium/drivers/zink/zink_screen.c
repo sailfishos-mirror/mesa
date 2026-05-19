@@ -883,7 +883,8 @@ zink_init_screen_caps(struct zink_screen *screen)
 
    caps->programmable_sample_locations =
       screen->info.have_EXT_sample_locations &&
-      screen->info.sample_locations_props.variableSampleLocations;
+      screen->info.sample_locations_props.variableSampleLocations &&
+      screen->info.dynamic_state3_feats.extendedDynamicState3SampleLocationsEnable;
 
    caps->query_time_elapsed = screen->timestamp_valid_bits > 0;
 
