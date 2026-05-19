@@ -748,9 +748,11 @@ add_aux_surface_if_supported(struct anv_device *device,
       }
 
       if (!isl_surf_supports_ccs(&device->isl_dev, main_surf)) {
-         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
-                       "Depth surface does not support CCS, "
-                       "falling back to HIZ without compression");
+         if (device->info->ver >= 12) {
+            anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                          "Depth surface does not support CCS, "
+                          "falling back to HIZ without compression");
+         }
          image->planes[plane].aux_usage = ISL_AUX_USAGE_HIZ;
       } else if (want_hiz_wt_for_image(device->info, image)) {
          assert(device->info->ver >= 12);
@@ -782,9 +784,11 @@ add_aux_surface_if_supported(struct anv_device *device,
       }
    } else if (main_surf->usage & (ISL_SURF_USAGE_STENCIL_BIT | ISL_SURF_USAGE_CPB_BIT)) {
       if (!isl_surf_supports_ccs(&device->isl_dev, main_surf)) {
-         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
-                       "Skipping aux surface creation: "
-                       "stencil/cpb surface does not support CCS");
+         if (device->info->ver >= 12) {
+            anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                          "Skipping aux surface creation: "
+                          "stencil/cpb surface does not support CCS");
+         }
          return VK_SUCCESS;
       }
 
@@ -878,9 +882,11 @@ add_aux_surface_if_supported(struct anv_device *device,
       if (isl_surf_supports_ccs(&device->isl_dev, main_surf)) {
          image->planes[plane].aux_usage = ISL_AUX_USAGE_MCS_CCS;
       } else {
-         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
-                       "MSAA color surface does not support CCS, "
-                       "falling back to MCS without compression");
+         if (device->info->ver >= 12) {
+            anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                          "MSAA color surface does not support CCS, "
+                          "falling back to MCS without compression");
+         }
          image->planes[plane].aux_usage = ISL_AUX_USAGE_MCS;
       }
 
