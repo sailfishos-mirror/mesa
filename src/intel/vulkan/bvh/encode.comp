@@ -349,20 +349,10 @@ main()
 {
    /* Each lane will process one vk_ir_node_internal. The root node is sitting
     * at the end of the IR BVH, and we let the lane with
-    * gl_GlobalInvocationID.x == 0 to take care of it. To improve performance,
-    * we remap globalID to reduce chances that the same HW thread will
-    * need to handle it's immediate children too, reducing latency. This hashing
-    * algorithm spreads handling of a node's children to other threads.
+    * gl_GlobalInvocationID.x == 0 to take care of it.
     */
-   uint32_t global_id_hash = (gl_GlobalInvocationID.x <
-                              (DEREF(args.header).ir_internal_node_count & ~0xFF))
-      ? (gl_GlobalInvocationID.x & 0xFFFFFF00)  |
-        ((gl_GlobalInvocationID.x & 0x0F) << 4) |
-        ((gl_GlobalInvocationID.x & 0xF0) >> 4)
-      : gl_GlobalInvocationID.x;
    uint32_t global_id =
-      DEREF(args.header).ir_internal_node_count - 1 -
-      min(global_id_hash, DEREF(args.header).ir_internal_node_count - 1);
+      DEREF(args.header).ir_internal_node_count - 1 - gl_GlobalInvocationID.x;
 
    uint32_t intermediate_leaf_node_size = vk_ir_node_size(args.geometry_type);
 
