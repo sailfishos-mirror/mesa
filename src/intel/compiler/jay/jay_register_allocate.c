@@ -115,6 +115,10 @@ jay_dst_stride_minmax(jay_inst *I, bool do_max)
       min = MAX2(min, jay_min_stride_for_type(jay_src_type(I, 0)));
    }
 
+   if (I->op == JAY_OPCODE_EXPAND_QUAD) {
+      return JAY_STRIDE_4;
+   }
+
    /* V/UV types are restricted */
    if (I->op == JAY_OPCODE_SHR_ODD_SUBSPANS_BY_4) {
       return JAY_STRIDE_2;
