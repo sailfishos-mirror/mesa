@@ -751,8 +751,6 @@ radv_sqtt_wsi_submit(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *
       FREE(new_cmdbufs);
    }
 
-   if (submitCount == 0 && _fence != VK_NULL_HANDLE)
-      result = device->layer_dispatch.rgp.QueueSubmit2(_queue, 0, NULL, _fence);
 
    return result;
 
@@ -772,6 +770,14 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
    struct util_dynarray gpu_timestamps, timed_cmdbufs;
    VkCommandBufferSubmitInfo *new_cmdbufs = NULL;
    VkResult result = VK_SUCCESS;
+
+   /* Vulkan apps use vkQueueSubmit2(submitCount=0, fence) to signal per-image
+    * throttle fences. During SQTT capture, our wrap loop iterates 0 times
+    * and would never forward this call, leaving the fence unsignaled and
+    * hanging the next frame's vkWaitForFences. Always forward such calls.
+    */
+   if (submitCount == 0 && _fence != VK_NULL_HANDLE)
+      return device->layer_dispatch.rgp.QueueSubmit2(_queue, 0, NULL, _fence);
 
    /* Only consider queue events on graphics/compute when enabled. */
    if (((!device->sqtt_enabled || !radv_sqtt_queue_events_enabled()) && !instance->vk.trace_per_submit) ||
