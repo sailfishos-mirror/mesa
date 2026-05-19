@@ -275,6 +275,7 @@ fd_init_shader_caps(struct fd_screen *screen)
          (is_a5xx(screen) || is_a6xx(screen)) &&
          (i == MESA_SHADER_COMPUTE || i == MESA_SHADER_FRAGMENT) &&
          !FD_DBG(NOFP16);
+      caps->fp16_no_denorms = caps->fp16 && screen->gen < 8;
       caps->glsl_16bit_load_dst = true;
 
       caps->max_texture_samplers =

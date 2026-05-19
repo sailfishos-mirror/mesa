@@ -1389,11 +1389,16 @@ impl DeviceBase {
     }
 
     pub fn spirv_to_nir_opts(&self) -> SPIRVToNirOptions {
-        let spirv_float_controls = float_controls::FLOAT_CONTROLS_DENORM_PRESERVE_FP16
-            | float_controls::FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP32
+        let mut spirv_float_controls = float_controls::FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP32
             | float_controls::FLOAT_CONTROLS_ROUNDING_MODE_RTE_FP16
             | float_controls::FLOAT_CONTROLS_ROUNDING_MODE_RTE_FP32
             | float_controls::FLOAT_CONTROLS_ROUNDING_MODE_RTE_FP64;
+
+        if self.shader_caps().fp16_no_denorms {
+            spirv_float_controls |= float_controls::FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP16;
+        } else {
+            spirv_float_controls |= float_controls::FLOAT_CONTROLS_DENORM_PRESERVE_FP16;
+        }
 
         SPIRVToNirOptions {
             caps: &self.spirv_caps,
