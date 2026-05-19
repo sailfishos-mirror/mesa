@@ -1807,6 +1807,11 @@ SPDX-License-Identifier: MIT
 	<pattern pos="80">0</pattern> <!-- OPCODE_BIT6 -->
 </bitset>
 
+<bitset name="img_addr" extends="#instruction-load">
+	<pattern low="0" high="5">110111</pattern> <!-- OPC -->
+	<pattern pos="80">0</pattern> <!-- OPCODE_BIT6 -->
+</bitset>
+
 <bitset name="img_store" extends="#instruction-store">
 	<pattern low="0" high="5">111010</pattern> <!-- OPC -->
 	<pattern pos="80">1</pattern> <!-- OPCODE_BIT6 -->
