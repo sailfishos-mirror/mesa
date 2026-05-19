@@ -2078,6 +2078,11 @@ r600 driver environment variables
 
    If set to ``false``, disables HyperZ optimizations. Defaults to ``true``.
 
+.. envvar:: R600_TRACE
+
+   If set to a file, print a trace of the commmand stream.
+   For debugging only. The file will quickly become huge.
+
 .. envvar:: R600_NIR_DEBUG
 
    a comma-separated list of named flags, which do various things:
