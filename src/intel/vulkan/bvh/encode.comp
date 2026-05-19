@@ -350,18 +350,7 @@ main()
       DEREF(args.header).ir_internal_node_count - 1 -
       min(global_id_hash, DEREF(args.header).ir_internal_node_count - 1);
 
-   uint32_t intermediate_leaf_node_size;
-   switch (args.geometry_type) {
-   case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
-      intermediate_leaf_node_size = SIZEOF(vk_ir_triangle_node);
-      break;
-   case VK_GEOMETRY_TYPE_AABBS_KHR:
-      intermediate_leaf_node_size = SIZEOF(vk_ir_aabb_node);
-      break;
-   default: /* instances */
-      intermediate_leaf_node_size = SIZEOF(vk_ir_instance_node);
-      break;
-   }
+   uint32_t intermediate_leaf_node_size = vk_ir_node_size(args.geometry_type);
 
    /* Each invocation cluster encodes one internal node. */
    anv_cluster cluster;

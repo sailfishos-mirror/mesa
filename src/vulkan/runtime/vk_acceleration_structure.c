@@ -177,20 +177,7 @@ vk_acceleration_structure_build_state_init(struct vk_acceleration_structure_buil
    radix_sort_vk_get_memory_requirements(state->config.u64_keys ? args->radix_sort_96 : args->radix_sort_64, leaf_count,
                                          &requirements);
 
-   uint32_t ir_leaf_size;
-   switch (vk_get_as_geometry_type(build_info)) {
-   case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
-      ir_leaf_size = sizeof(struct vk_ir_triangle_node);
-      break;
-   case VK_GEOMETRY_TYPE_AABBS_KHR:
-      ir_leaf_size = sizeof(struct vk_ir_aabb_node);
-      break;
-   case VK_GEOMETRY_TYPE_INSTANCES_KHR:
-      ir_leaf_size = sizeof(struct vk_ir_instance_node);
-      break;
-   default:
-      UNREACHABLE("Unknown VkGeometryTypeKHR");
-   }
+   uint32_t ir_leaf_size = vk_ir_node_size(vk_get_as_geometry_type(build_info), state->config.build_flags);
 
    uint32_t offset = 0;
 

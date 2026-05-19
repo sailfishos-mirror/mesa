@@ -203,19 +203,7 @@ debug_record_as_to_bvh_dump(struct anv_cmd_buffer *cmd_buffer,
 
    if (INTEL_DEBUG(DEBUG_BVH_BLAS_IR_AS) &&
        geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR) {
-      uint64_t leaf_total_size;
-
-      switch (geometry_type) {
-      case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
-         leaf_total_size = sizeof(struct vk_ir_triangle_node) * leaf_count;
-         break;
-      case VK_GEOMETRY_TYPE_AABBS_KHR:
-         leaf_total_size = sizeof(struct vk_ir_aabb_node) * leaf_count;
-         break;
-      default:
-         UNREACHABLE("invalid geometry type");
-      }
-
+      uint64_t leaf_total_size = vk_ir_node_size(geometry_type, 0) * leaf_count;
       add_bvh_dump(cmd_buffer, intermediate_as_addr, internal_node_total_size +
                    leaf_total_size, geometry_type, BVH_IR_AS);
    }

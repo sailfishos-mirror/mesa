@@ -247,6 +247,20 @@ void vk_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
 void vk_accel_struct_cmd_end_debug_marker(VkCommandBuffer commandBuffer,
                                           struct vk_acceleration_structure_build_marker *marker);
 
+static inline uint32_t
+vk_ir_node_size(VkGeometryTypeKHR geometry_type, uint32_t build_flags)
+{
+   uint32_t size = 0;
+   if (geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
+      size = sizeof(struct vk_ir_triangle_node);
+   } else if (geometry_type == VK_GEOMETRY_TYPE_AABBS_KHR) {
+      size = sizeof(struct vk_ir_aabb_node);
+   } else {
+      size = sizeof(struct vk_ir_instance_node);
+   }
+   return size;
+}
+
 #ifdef __cplusplus
 }
 #endif

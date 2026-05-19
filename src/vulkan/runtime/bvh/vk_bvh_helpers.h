@@ -367,4 +367,18 @@ should_execute_phase()
 #define VK_TEST_BUILD_FLAG_64BIT_KEYS ((BUILD_FLAGS & VK_BUILD_FLAG_64BIT_KEYS) != 0)
 #endif
 
+uint32_t
+vk_ir_node_size(uint32_t geometry_type)
+{
+   uint32_t size = 0;
+   if (geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
+      size = SIZEOF(vk_ir_triangle_node);
+   } else if (geometry_type == VK_GEOMETRY_TYPE_AABBS_KHR) {
+      size = SIZEOF(vk_ir_aabb_node);
+   } else {
+      size = SIZEOF(vk_ir_instance_node);
+   }
+   return size;
+}
+
 #endif

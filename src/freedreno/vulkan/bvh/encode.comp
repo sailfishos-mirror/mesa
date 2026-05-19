@@ -329,19 +329,7 @@ main()
    /* Revert the order so we start at the root */
    uint32_t global_id = DEREF(args.header).ir_internal_node_count - 1 - gl_GlobalInvocationID.x;
 
-   uint32_t intermediate_leaf_node_size;
-   switch (args.geometry_type) {
-   case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
-      intermediate_leaf_node_size = SIZEOF(vk_ir_triangle_node);
-      break;
-   case VK_GEOMETRY_TYPE_AABBS_KHR:
-      intermediate_leaf_node_size = SIZEOF(vk_ir_aabb_node);
-      break;
-   default: /* instances */
-      intermediate_leaf_node_size = SIZEOF(vk_ir_instance_node);
-      break;
-   }
-
+   uint32_t intermediate_leaf_node_size = vk_ir_node_size(args.geometry_type);
    uint32_t intermediate_leaf_nodes_size = args.leaf_node_count * intermediate_leaf_node_size;
 
    REF(vk_ir_box_node) intermediate_internal_nodes =
