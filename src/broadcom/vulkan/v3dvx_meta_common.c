@@ -1505,6 +1505,88 @@ v3dX(meta_copy_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
    return job;
 }
 
+#if V3D_VERSION >= 71 && !USE_V3D_SIMULATOR
+/**
+ * Fill a buffer using TFU with stride-0 raster input (V3D 7.1+).
+ *
+ * Allocates a single staging BO (cached on the command buffer) filled with
+ * the pattern, then uses stride-0 to broadcast the first row across the
+ * output.
+ */
+static void
+meta_fill_buffer_tfu_stride0(struct v3dv_cmd_buffer *cmd_buffer,
+                             struct v3dv_bo *bo,
+                             uint32_t offset,
+                             uint32_t size,
+                             uint32_t data)
+{
+   struct v3dv_device *device = cmd_buffer->device;
+
+   const uint32_t cpp = 4;
+   uint32_t num_pixels = size / cpp;
+
+   const struct v3dv_format *format =
+      v3dX(get_format)(VK_FORMAT_R8G8B8A8_UINT);
+   assert(format && format->plane_count == 1);
+
+   /* Get or create the cached staging BO for this command buffer.
+    * Always allocate for V3D_TFU_MAX_DIM width so we can reuse the
+    * same staging BO regardless of fill size. The BO is owned by the
+    * command buffer's private_objs list; the meta.tfu_fill.src_bo
+    * pointer is just a cache slot for reuse and does not own the BO.
+    */
+   struct v3dv_bo *src_bo = cmd_buffer->meta.tfu_fill.src_bo;
+   if (!src_bo || cmd_buffer->meta.tfu_fill.data != data) {
+      uint32_t src_size = V3D_TFU_MAX_DIM * cpp;
+      src_bo = v3dv_bo_alloc(device, src_size, "tfu_fill_src", true);
+      if (!src_bo) {
+         v3dv_flag_oom(cmd_buffer, NULL);
+         return;
+      }
+      if (!v3dv_bo_map(device, src_bo, src_size)) {
+         v3dv_bo_free(device, src_bo);
+         v3dv_flag_oom(cmd_buffer, NULL);
+         return;
+      }
+      uint32_t *map = (uint32_t *)src_bo->map;
+      for (uint32_t i = 0; i < V3D_TFU_MAX_DIM; i++)
+         map[i] = data;
+
+      v3dv_cmd_buffer_add_private_obj(
+         cmd_buffer, (uint64_t)(uintptr_t)src_bo, v3dv_cmd_buffer_destroy_bo_cb);
+      cmd_buffer->meta.tfu_fill.src_bo = src_bo;
+      cmd_buffer->meta.tfu_fill.data = data;
+   }
+
+   uint32_t remaining = num_pixels;
+   while (remaining > 0) {
+      uint32_t width = MIN2(remaining, V3D_TFU_MAX_DIM);
+      uint32_t height = MAX2(1, MIN2(remaining / width, V3D_TFU_MAX_DIM));
+      uint32_t pixels_this_job = width * height;
+      assert(pixels_this_job <= remaining);
+
+      /* src stride passed as 0 makes the TFU broadcast the first
+       * row of the staging BO across all output rows (iis = 0).
+       */
+      v3dX(meta_emit_tfu_job)(cmd_buffer,
+                              bo->handle,
+                              bo->offset + offset,
+                              V3D_TILING_RASTER,
+                              width * cpp, cpp,
+                              src_bo->handle,
+                              src_bo->offset,
+                              V3D_TILING_RASTER,
+                              0, cpp,
+                              width, height,
+                              &format->planes[0]);
+
+      remaining -= pixels_this_job;
+      offset += pixels_this_job * cpp;
+   }
+}
+
+#endif
+
 void
 v3dX(meta_fill_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
                        struct v3dv_bo *bo,
@@ -1514,6 +1596,16 @@ v3dX(meta_fill_buffer)(struct v3dv_cmd_buffer *cmd_buffer,
 {
    assert(size > 0 && size % 4 == 0);
    assert(offset + size <= bo->size);
+
+#if V3D_VERSION >= 71 && !USE_V3D_SIMULATOR
+   /* The V3D simulator does not implement TFU stride-0 input and would
+    * assert on this path, so fall back to the TLB-based fill there.
+    */
+   if (!V3D_DBG(DISABLE_TFU)) {
+      meta_fill_buffer_tfu_stride0(cmd_buffer, bo, offset, size, data);
+      return;
+   }
+#endif
 
    const uint32_t internal_bpp = V3D_INTERNAL_BPP_32;
    const uint32_t internal_type = V3D_INTERNAL_TYPE_8UI;

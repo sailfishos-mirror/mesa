@@ -655,6 +655,11 @@ struct v3dv_cmd_buffer {
          /* The current descriptor pool for the copy query results output buffer */
          VkDescriptorPool dspool;
       } query;
+      struct {
+         /* Cached TFU stride-0 fill source BO. */
+         struct v3dv_bo *src_bo;
+         uint32_t data;
+      } tfu_fill;
    } meta;
 
    /* List of jobs in the command buffer. For primary command buffers it
