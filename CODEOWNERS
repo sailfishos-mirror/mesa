@@ -112,6 +112,8 @@ gitlab-ci*.yml @eric
 # Broadcom
 /src/broadcom/ci/ @jasuarez @chema
 
+# Lima
+/src/gallium/drivers/lima/ci/ @enunes
 
 ###########
 # Drivers #
@@ -146,6 +148,9 @@ gitlab-ci*.yml @eric
 # KosmicKrisp
 /src/kosmickrisp @aitor
 /src/kosmickrisp/compiler @agoldmints
+
+# Lima
+/src/gallium/drivers/lima/ @enunes @anarsoul
 
 # Microsoft
 /src/microsoft/ @jenatali
