@@ -779,6 +779,11 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
    const int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
    const bool last = !nir_instr_next(&intr->instr);
 
+   /* The hardware freaks out if we give it an omask without multisampling. */
+   if (!b->shader->prog_data->fs.uses_omask) {
+      omask = jay_null();
+   }
+
    /* If our alpha happens to match src0_alpha, we can skip sending it,
     * as the hardware will use our alpha in that case.
     */
