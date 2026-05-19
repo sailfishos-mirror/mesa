@@ -9,4 +9,5 @@ extern crate syn;
 
 pub mod data_type;
 pub mod ir;
+pub mod isa;
 pub mod swizzle;

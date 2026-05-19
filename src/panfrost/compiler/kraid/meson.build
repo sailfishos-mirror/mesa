@@ -13,6 +13,12 @@ dep_rustc_hash = dependency('rustc-hash',
   required: true,
 )
 
+dep_xml_rs = dependency('xml',
+  version: '>= 1.2.1',
+  fallback: ['xml-rs', 'dep_xml_rs'],
+  required: true,
+)
+
 _kraid_bindings_deps = [
   idep_mesautil,
   idep_nir_headers,
@@ -68,6 +74,7 @@ _libkraid_proc_rs = static_library(
   dependencies : [
     dep_syn,
     dep_paste,
+    dep_xml_rs,
   ],
   rust_args : rust_global_args,
   rust_abi : 'rust',
@@ -78,6 +85,7 @@ _libkraid_proc_macros_rs = rust.proc_macro(
   files('proc/macros.rs'),
   dependencies : [
     idep_compiler_proc_rs,
+    dep_syn,
   ],
   link_with : [
     _libkraid_proc_rs
@@ -92,6 +100,7 @@ libpanfrost_kraid = static_library(
   rust_abi : 'c',
   rust_args : [
     panfrost_rust_args,
+    '--cfg', 'kraid_isa_xml_path="' + meson.current_source_dir() + '"',
     # Disable dead code warnings for now
     '-A', 'dead_code',
     # Otherwise, rustc trips up on -pthread
@@ -107,6 +116,17 @@ libpanfrost_kraid = static_library(
     _libkraid_proc_macros_rs,
   ],
 )
+
+if with_tools.contains('panfrost')
+  executable(
+    'isa-gen',
+    files('tools/isa-gen.rs'),
+    link_with : [
+      _libkraid_proc_rs,
+    ],
+    native : true,
+  )
+endif
 
 # TODO: Linking Rust executables (such as unit tests) doesn't play nicely
 # with the sanitizers because meson doesn't know to pass -fsanitize to the

@@ -7,6 +7,7 @@ mod compile;
 mod data_type;
 mod flow;
 mod ir;
+mod isa;
 mod model;
 mod nir;
 mod ops;
