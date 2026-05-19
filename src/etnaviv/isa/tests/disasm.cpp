@@ -453,6 +453,7 @@ INSTANTIATE_TEST_SUITE_P(Image, DisasmTest,
       disasm_state{ {0x0780083a, 0x39000c00, 0x40a90050, 0x00390018}, "img_store.sat.denorm.s32.pack mem, u0.xyzw, t0.xyyy, t1.xyzw\n"},
       disasm_state{ {0x0780083a, 0x39200c00, 0x80a90050, 0x00390018}, "img_store.sat.denorm.u32.pack mem, u0.xyzw, t0.xyyy, t1.xyzw\n"},
       disasm_state{ {0x07800835, 0x39001800, 0x41480150, 0x00390018}, "img_store_3d.sat.s32.pack mem, u1.xyzw, t2.xyzz, t1.xyzw\n"},
+      disasm_state{ {0x00811034, 0x39001800, 0x414800d0, 0x00000000}, "img_load_3d.s32.pack t1.x___, u1.xyzw, t1.xyzz, void\n"},
       disasm_state{ {0x07801039, 0x39004c00, 0x00a90050, 0x00000000}, "img_load.denorm.pack t0, u4.xyzw, t0.xyyy, void\n"},
       disasm_state{ {0x07801039, 0x39004c00, 0x40a90050, 0x00000000}, "img_load.denorm.s32.pack t0, u4.xyzw, t0.xyyy, void\n"},
       disasm_state{ {0x07801039, 0x39204c00, 0x80a90050, 0x00000000}, "img_load.denorm.u32.pack t0, u4.xyzw, t0.xyyy, void\n"}
