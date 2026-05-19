@@ -4237,7 +4237,7 @@ anv_can_hiz_clear_image(struct anv_cmd_buffer *cmd_buffer,
                   "HiZ CCS WT + MSAA unsupported before Xe2. "
                   "Slow depth clearing.");
       return false;
-      }
+   }
 
    /* If we're just clearing stencil, we can always HiZ clear */
    if (!(clear_aspects & VK_IMAGE_ASPECT_DEPTH_BIT))
