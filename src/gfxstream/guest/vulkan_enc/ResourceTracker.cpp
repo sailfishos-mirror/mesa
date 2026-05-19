@@ -4705,7 +4705,7 @@ VkResult ResourceTracker::on_vkCreateSampler(void* context, VkResult, VkDevice d
     VkSamplerCreateInfo localCreateInfo = vk_make_orphan_copy(*pCreateInfo);
 
     vk_struct_chain_iterator structChainIter = vk_make_chain_iterator(&localCreateInfo);
-#if defined(VK_USE_PLATFORM_ANDROID_KHR) || defined(VK_USE_PLATFORM_FUCHSIA)
+
     VkSamplerYcbcrConversionInfo localVkSamplerYcbcrConversionInfo;
     const VkSamplerYcbcrConversionInfo* samplerYcbcrConversionInfo =
         vk_find_struct_const(pCreateInfo, SAMPLER_YCBCR_CONVERSION_INFO);
@@ -4724,7 +4724,6 @@ VkResult ResourceTracker::on_vkCreateSampler(void* context, VkResult, VkDevice d
             vk_make_orphan_copy(*samplerCustomBorderColorCreateInfo);
         vk_append_struct(&structChainIter, &localVkSamplerCustomBorderColorCreateInfo);
     }
-#endif
 
     VkSamplerReductionModeCreateInfo localVkSamplerReductionModeCreateInfo;
     const VkSamplerReductionModeCreateInfo* samplerReductionModeCreateInfo =
