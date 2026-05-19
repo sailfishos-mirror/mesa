@@ -4,7 +4,7 @@
 use crate::data_type::DataType;
 use compiler::enum_as_u8::EnumAsU8;
 use compiler::float16::F16;
-use kraid_proc::{AsmSwizzleWiden, EnumAsU8};
+use kraid_proc_macros::{AsmSwizzleWiden, EnumAsU8};
 use std::fmt;
 use std::num::NonZeroU16;
 

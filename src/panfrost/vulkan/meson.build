@@ -225,7 +225,7 @@ libvulkan_panfrost = shared_library(
 )
 
 # TODO: Re-enable the symbol check with Kraid
-if with_symbols_check and not with_panfrost_rust
+if with_symbols_check
   test(
     'panvk symbols check',
     symbols_check,

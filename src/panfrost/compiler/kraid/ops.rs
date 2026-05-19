@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::ir::*;
-use kraid_proc::{variants, FromVariants, Opcode};
+use kraid_proc_macros::{variants, FromVariants, Opcode};
 use std::fmt;
 
 macro_rules! bool_as_mod_str {

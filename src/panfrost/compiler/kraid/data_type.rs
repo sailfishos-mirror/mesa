@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use kraid_proc_macros::DataType;
 use std::num::NonZeroU8;
 
 /// Numeric type
@@ -36,7 +37,7 @@ pub enum NumericType {
 }
 
 /// Data type
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, kraid_proc::DataType)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, DataType)]
 pub enum DataType {
     None,
     F16,

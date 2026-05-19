@@ -61,10 +61,27 @@ _libkraid_bindings_rs = static_library(
   rust_abi : 'rust',
 )
 
-_libkraid_proc_rs = rust.proc_macro(
+_libkraid_proc_rs = static_library(
   'kraid_proc',
   files('proc/lib.rs'),
-  dependencies : [idep_compiler_proc_rs],
+  gnu_symbol_visibility : 'hidden',
+  dependencies : [
+    dep_syn,
+    dep_paste,
+  ],
+  rust_args : rust_global_args,
+  rust_abi : 'rust',
+)
+
+_libkraid_proc_macros_rs = rust.proc_macro(
+  'kraid_proc_macros',
+  files('proc/macros.rs'),
+  dependencies : [
+    idep_compiler_proc_rs,
+  ],
+  link_with : [
+    _libkraid_proc_rs
+  ],
   rust_args : rust_global_args,
 )
 
@@ -87,7 +104,7 @@ libpanfrost_kraid = static_library(
   ],
   link_with : [
     _libkraid_bindings_rs,
-    _libkraid_proc_rs,
+    _libkraid_proc_macros_rs,
   ],
 )
 
