@@ -861,6 +861,9 @@ class BumpPool;
         # Start processing in superclass
         OutputGenerator.beginFeature(self, interface, emit)
 
+        self.featureSupported = False
+        self.supportedModules = None
+
         for supportedFeature in SUPPORTED_FEATURES:
             if self.featureName == supportedFeature:
                 self.featureSupported = True
