@@ -142,6 +142,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_maintenance9 = true,
       .KHR_maintenance10 = true,
       .KHR_robustness2 = true,
+      .KHR_shader_fma = true,
       .KHR_shader_maximal_reconvergence = true,
       .KHR_shader_relaxed_extended_instruction = true,
       .KHR_shader_subgroup_uniform_control_flow = true,
@@ -336,6 +337,11 @@ kk_get_device_features(
 
       /* VK_KHR_shader_expect_assume */
       .shaderExpectAssume = true,
+
+      /* VK_KHR_shader_fma */
+      .shaderFmaFloat16 = true,
+      .shaderFmaFloat32 = true,
+      .shaderFmaFloat64 = false,
 
       /* VK_KHR_shader_maximal_reconvergence */
       .shaderMaximalReconvergence = true,
