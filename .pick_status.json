@@ -84,7 +84,7 @@
         "description": "intel/isl: Fix the initial state HiZ state for Xe2+",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a13aab1859b1065a2c655a260e2bf01703dfe96c",
         "notes": null
