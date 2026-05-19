@@ -93,6 +93,7 @@ fn create_clc_logger(msgs: &mut Vec<String>) -> clc_logger {
 pub struct SPIRVToNirOptions<'a> {
     pub caps: &'a spirv_capabilities,
     pub address_bits: u32,
+    pub float_controls: float_controls,
 }
 
 impl SPIRVBin {
@@ -305,12 +306,11 @@ impl SPIRVBin {
             private_data: ptr::from_mut(log).cast(),
         });
 
-        let float_controls = float_controls::FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP32 as u32;
         spirv_to_nir_options {
             create_library: library,
             environment: nir_spirv_execution_environment::NIR_SPIRV_OPENCL,
             clc_shader: clc_shader,
-            float_controls_execution_mode: float_controls,
+            float_controls_execution_mode: options.float_controls.0,
             printf: true,
             capabilities: options.caps,
             constant_addr_format: global_addr_format,

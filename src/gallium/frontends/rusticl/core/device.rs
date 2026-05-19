@@ -1389,9 +1389,16 @@ impl DeviceBase {
     }
 
     pub fn spirv_to_nir_opts(&self) -> SPIRVToNirOptions {
+        let spirv_float_controls = float_controls::FLOAT_CONTROLS_DENORM_PRESERVE_FP16
+            | float_controls::FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP32
+            | float_controls::FLOAT_CONTROLS_ROUNDING_MODE_RTE_FP16
+            | float_controls::FLOAT_CONTROLS_ROUNDING_MODE_RTE_FP32
+            | float_controls::FLOAT_CONTROLS_ROUNDING_MODE_RTE_FP64;
+
         SPIRVToNirOptions {
             caps: &self.spirv_caps,
             address_bits: self.address_bits(),
+            float_controls: spirv_float_controls,
         }
     }
 }

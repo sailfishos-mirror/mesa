@@ -698,13 +698,6 @@ fn compile_nir_to_args(
     args: &[spirv::SPIRVKernelArg],
     lib_clc: &NirShader,
 ) -> (Vec<KernelArg>, NirShader) {
-    // this is a hack until we support fp16 properly and check for denorms inside vstore/vload_half
-    nir.preserve_fp16_denorms();
-
-    // Set to rtne for now until drivers are able to report their preferred rounding mode, that also
-    // matches what we report via the API.
-    nir.set_fp_rounding_mode_rtne();
-
     nir_pass!(nir, nir_scale_fdiv);
     nir.structurize();
     nir_pass!(
