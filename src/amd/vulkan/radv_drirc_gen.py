@@ -183,8 +183,12 @@ def main():
     parser.add_argument('-p', '--import-path', required=True)
     parser.add_argument('--drirc-src', required=True)
     parser.add_argument('--drirc-hdr', required=True)
+    parser.add_argument('--validate', required=True)
     args = parser.parse_args()
     sys.path.insert(0, args.import_path)
+
+    from drirc_gen import drirc_validate
+    drirc_validate([args.validate], declare_options())
 
     from drirc_gen import drirc_generate
     drirc_generate(args.drirc_src, args.drirc_hdr, "radv", declare_options())

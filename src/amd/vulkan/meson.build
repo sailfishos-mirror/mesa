@@ -38,8 +38,12 @@ radv_drirc = custom_target(
     '--import-path', join_paths(dir_source_root, 'src/util'),
     '--drirc-src', '@OUTPUT0@',
     '--drirc-hdr', '@OUTPUT1@',
+    '--validate', join_paths(dir_source_root, 'src/util/00-radv-defaults.conf'),
   ],
-  depend_files : files(join_paths(dir_source_root, 'src/util/drirc_gen.py')),
+  depend_files : files(
+    join_paths(dir_source_root, 'src/util/drirc_gen.py'),
+    join_paths(dir_source_root, 'src/util/00-radv-defaults.conf'),
+  ),
 )
 
 libradv_files = files(
