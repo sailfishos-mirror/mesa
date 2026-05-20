@@ -1550,6 +1550,11 @@ encode_map(O_EMITPIX,
    op_ref_maps=[('backend', [], ['s0', 's2'])]
 )
 
+encode_map(O_SETL,
+   encodings=[(I_SETL, [('ressel', 'w0')])],
+   op_ref_maps=[('backend', [], ['w0'])]
+)
+
 encode_map(O_BBYP0BM,
    encodings=[
       (I_PHASE0_SRC, [
@@ -1820,6 +1825,11 @@ encode_map(O_MUTEX,
       ])
    ],
    op_ref_maps=[('ctrl', [], ['imm'])]
+)
+
+encode_map(O_SAVL,
+   encodings=[(I_SAVL, [])],
+   op_ref_maps=[('ctrl', ['w0'], [])]
 )
 
 # Group mappings.
@@ -3386,6 +3396,25 @@ group_map(O_EMITPIX,
    ]
 )
 
+group_map(O_SETL,
+   hdr=(I_IGRP_HDR_MAIN, [
+      ('oporg', 'be'),
+      ('olchk', False),
+      ('w1p', False),
+      ('w0p', False),
+      ('cc', OM_EXEC_CND),
+      ('end', False),
+      ('atom', False),
+      ('rpt', 1)
+   ]),
+   enc_ops=[('backend', O_SETL)],
+   srcs=[('s[2]', ('backend', SRC(0)), 'w0')],
+   iss=[
+      ('is[0]', 's2'),
+      ('is[4]', 'fte')
+   ]
+)
+
 group_map(O_MOVI32,
    hdr=(I_IGRP_HDR_BITWISE, [
       ('opcnt', 'p0'),
@@ -3792,4 +3821,17 @@ group_map(O_MUTEX,
       ('ctrlop', 'mutex')
    ]),
    enc_ops=[('ctrl', O_MUTEX)]
+)
+
+group_map(O_SAVL,
+   hdr=(I_IGRP_HDR_CONTROL, [
+      ('olchk', False),
+      ('w1p', False),
+      ('w0p', True),
+      ('cc', OM_EXEC_CND),
+      ('miscctl', False),
+      ('ctrlop', 'savl')
+   ]),
+   enc_ops=[('ctrl', O_SAVL)],
+   dests=[('w[0]', ('ctrl', DEST(0)), 'w0')]
 )

@@ -429,6 +429,8 @@ O_SAVMSK = hw_op('savmsk', OM_ALU_RPT1 + [OM_SAVMSK_MODE], 2)
 
 O_EMITPIX = hw_op('emitpix', OM_ALU_RPT1 + [OM_FREEP], 0, 2)
 
+O_SETL = hw_op('setl', [OM_EXEC_CND], 0, 1)
+
 ## Bitwise.
 O_MOVI32 = hw_op('movi32', OM_ALU, 1, 1)
 
@@ -473,6 +475,8 @@ O_BR = hw_op('br', [OM_EXEC_CND, OM_BRANCH_CND, OM_LINK], has_target_cf_node=Tru
 O_BR_NEXT = hw_op('br.next', [OM_EXEC_CND])
 
 O_MUTEX = hw_op('mutex', [OM_MUTEX_OP], 0, 1)
+
+O_SAVL = hw_op('savl', [OM_EXEC_CND], 1, 0)
 
 # Combination (> 1 instructions per group).
 O_SCMP = hw_op('scmp', OM_ALU + [OM_TST_OP_MAIN], 1, 2, [], [[RM_ABS, RM_NEG], [RM_ABS, RM_NEG]])
