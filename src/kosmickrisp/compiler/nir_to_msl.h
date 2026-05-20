@@ -99,6 +99,7 @@ static const nir_shader_compiler_options kk_nir_options = {
    .lower_pack_64_2x32_split = true,
    .lower_unpack_64_2x32_split = true,
    .lower_pack_64_2x32 = true,
+   .lower_pack_64_4x16 = true,
    .lower_pack_half_2x16 = true,
    .lower_pack_split = true,
    .lower_unpack_half_2x16 = true,

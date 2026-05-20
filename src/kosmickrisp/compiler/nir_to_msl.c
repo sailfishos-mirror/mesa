@@ -2035,6 +2035,7 @@ msl_preprocess_nir(struct nir_shader *nir)
    NIR_PASS(_, nir, nir_opt_combine_barriers, NULL, NULL);
    NIR_PASS(_, nir, nir_lower_var_copies);
    NIR_PASS(_, nir, nir_split_var_copies);
+   NIR_PASS(_, nir, nir_lower_memcpy);
 
    NIR_PASS(_, nir, nir_split_array_vars,
             nir_var_function_temp | nir_var_shader_in | nir_var_shader_out);

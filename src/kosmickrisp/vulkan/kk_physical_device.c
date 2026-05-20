@@ -146,6 +146,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_shader_maximal_reconvergence = true,
       .KHR_shader_relaxed_extended_instruction = true,
       .KHR_shader_subgroup_uniform_control_flow = true,
+      .KHR_shader_untyped_pointers = true,
 #ifdef KK_USE_WSI_PLATFORM
       .KHR_swapchain = true,
       .KHR_swapchain_mutable_format = true,
@@ -351,6 +352,9 @@ kk_get_device_features(
 
       /* VK_KHR_shader_relaxed_extended_instruction */
       .shaderRelaxedExtendedInstruction = true,
+
+      /* VK_KHR_shader_untyped_pointers */
+      .shaderUntypedPointers = true,
 
       /* VK_KHR_unified_image_layouts */
       .unifiedImageLayouts = true,
