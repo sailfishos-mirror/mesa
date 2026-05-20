@@ -238,6 +238,9 @@ anv_shader_init_uuid(struct anv_physical_device *device)
    struct mesa_sha1 ctx;
    _mesa_sha1_init(&ctx);
 
+   const bool always_bindless = unlikely(device->instance->debug & ANV_DEBUG_BINDLESS);
+   _mesa_sha1_update(&ctx, &always_bindless, sizeof(always_bindless));
+
    const bool indirect_descriptors = device->indirect_descriptors;
    _mesa_sha1_update(&ctx, &indirect_descriptors, sizeof(indirect_descriptors));
 
