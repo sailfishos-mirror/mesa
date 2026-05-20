@@ -260,7 +260,7 @@ lower_store_to_var(nir_builder *b, nir_intrinsic_instr *intr,
    struct lower_output_to_var_slot *output = &outputs[slot];
    if (!output->output_var) {
       assert(sem.location == VARYING_SLOT_PSIZ &&
-             "otherwise in outputs_written");
+             "all outputs except psiz should be in outputs_written");
       return;
    }
 
