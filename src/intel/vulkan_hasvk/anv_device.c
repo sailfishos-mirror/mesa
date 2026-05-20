@@ -1932,7 +1932,7 @@ anv_init_dri_options(struct anv_instance *instance)
                       ARRAY_SIZE(anv_dri_options));
    driParseConfigFiles(&instance->dri_options, &instance->available_dri_options,
                        &(driConfigFileParseParams) {
-                          .driverName = "anv",
+                          .driverName = "hasvk",
                           .applicationName = instance->vk.app_info.app_name,
                           .applicationVersion = instance->vk.app_info.app_version,
                           .engineName = instance->vk.app_info.engine_name,
