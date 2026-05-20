@@ -630,9 +630,11 @@ tu_queue_init(struct tu_device *device,
    queue->type = type;
 
    int ret = tu_drm_submitqueue_new(device, queue);
-   if (ret)
+   if (ret) {
+      vk_queue_finish(&queue->vk);
       return vk_startup_errorf(device->instance, VK_ERROR_INITIALIZATION_FAILED,
                                "submitqueue create failed");
+   }
 
    queue->fence = -1;
 
