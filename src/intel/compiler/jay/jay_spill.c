@@ -476,15 +476,15 @@ min_algorithm(struct spill_ctx *ctx,
       /* Any source that is not in W needs to be reloaded. Gather the set R of
        * such values, and add them to the register file.
        */
-      unsigned R[JAY_MAX_SRCS], nR = 0;
+      unsigned R[JAY_MAX_SRCS * JAY_MAX_DEF_LENGTH], nR = 0;
 
       jay_foreach_src_index(I, s, c, v) {
          if (I->src[s].file == GPR && !u_sparse_bitset_test(&ctx->W, v)) {
+            assert(nR < ARRAY_SIZE(R) && "maximum source count");
+            assert(u_sparse_bitset_test(&ctx->S, v) && "must have spilled");
+
             R[nR++] = v;
             insert_W(ctx, v);
-
-            assert(u_sparse_bitset_test(&ctx->S, v) && "must have spilled");
-            assert(nR <= ARRAY_SIZE(R) && "maximum source count");
          }
       }
 
