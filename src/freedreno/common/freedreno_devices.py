@@ -12,6 +12,7 @@ add_gpus([
         GPUId(201),
         GPUId(205),
         GPUId(220),
+        GPUId(225),
     ], GPUInfo(
         CHIP.A2XX,
         gmem_align_w = 32,  gmem_align_h = 32,
