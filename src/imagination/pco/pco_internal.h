@@ -105,6 +105,7 @@ typedef struct _pco_cf_node pco_cf_node;
 typedef struct _pco_func pco_func;
 typedef struct _pco_block pco_block;
 typedef struct _pco_instr pco_instr;
+typedef struct _pco_builder pco_builder;
 
 #define PCO_REF_VAL_BITS (32U)
 
@@ -3235,5 +3236,15 @@ pco_unpack_desc(uint32_t packed, unsigned *desc_set, unsigned *binding)
    *desc_set = packed & 0xffff;
    *binding = packed >> 16;
 }
+
+/**
+ * \brief Returns a reference to the execution mask counter,
+ *        allocating and initialising one if it doesn't exist.
+ *
+ * \param[in,out] func The PCO function.
+ * \param[in,out] b The PCO builder.
+ * \return The execution mask counter reference.
+ */
+pco_ref pco_emc_ref(pco_func *func, pco_builder *b);
 
 #endif /* PCO_INTERNAL_H */
