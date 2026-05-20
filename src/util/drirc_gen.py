@@ -89,10 +89,13 @@ class DrircFloat(DrircOption):
 
 class DrircString(DrircOption):
     def __init__(self, name, value=None, description="", c_name=None):
-        super().__init__(DrircOptionType.STRING if value is not None else DrircOptionType.STRING_NODEF,
-                         "char *", name, description, c_name)
+        dtype = DrircOptionType.STRING if value is not None else DrircOptionType.STRING_NODEF
+        super().__init__(dtype, name, description, c_name)
         self.value = value
-        self.c_args = [f"{value}", f"\"{self.description}\""]
+        if value is not None:
+            self.c_args = [f'"{value}"', f'"{self.description}"']
+        else:
+            self.c_args = [f'"{self.description}"']
 
 class DrircEnumValue(object):
     def __init__(self, value, description=""):
