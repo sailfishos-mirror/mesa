@@ -97,6 +97,9 @@ def declare_options():
         B("tu_restrict_subgroup_size_64", False,
           "Restrict subgroup size to 64 (instead of a max of 128) to work around games assuming desktop GPU 32/64 sizes",
           c_name="restrict_subgroup_size_64"),
+        B("tu_emulate_second_queue", False,
+          "Provide a second queue for applications that require it, like the Android framework",
+          c_name="emulate_second_queue"),
 
         F("heap_memory_percent", 0.0, 0.0, 1.0, "Percentage of total system memory to report as gpu heap memory (0 = driver default)",
           c_name="heap_memory_percent"),

@@ -609,7 +609,8 @@ tu_queue_init(struct tu_device *device,
               enum tu_queue_type type,
               const VkQueueGlobalPriorityKHR global_priority,
               int idx,
-              const VkDeviceQueueCreateInfo *create_info)
+              const VkDeviceQueueCreateInfo *create_info,
+              struct tu_queue *shared_queue)
 {
    const int priority = tu_get_submitqueue_priority(
          device->physical_device, global_priority, type,
@@ -624,10 +625,26 @@ tu_queue_init(struct tu_device *device,
       return result;
 
    queue->device = device;
+   queue->type = type;
+   queue->fence = -1;
+   queue->priority = -1;
+   queue->msm_queue_id = 0;
+
+   if (shared_queue) {
+      /* Emulated queue: submissions are redirected to the real queue by
+       * the common runtime, so no kernel submitqueue is needed. The real
+       * queue's priority is what actually takes effect on the hardware;
+       * the priority requested for the alias has already been validated
+       * above.
+       */
+      assert(shared_queue->type == type);
+      vk_queue_set_emulated(&queue->vk, &shared_queue->vk);
+      return VK_SUCCESS;
+   }
+
    queue->priority = priority;
    queue->vk.driver_submit =
       (type == TU_QUEUE_SPARSE) ? queue_submit_sparse : queue_submit;
-   queue->type = type;
 
    int ret = tu_drm_submitqueue_new(device, queue);
    if (ret) {
@@ -636,15 +653,15 @@ tu_queue_init(struct tu_device *device,
                                "submitqueue create failed");
    }
 
-   queue->fence = -1;
-
    return VK_SUCCESS;
 }
 
 void
 tu_queue_finish(struct tu_queue *queue)
 {
+   bool emulated = vk_queue_is_emulated(&queue->vk);
    vk_queue_finish(&queue->vk);
-   tu_drm_submitqueue_close(queue->device, queue);
+   if (!emulated)
+      tu_drm_submitqueue_close(queue->device, queue);
 }
 

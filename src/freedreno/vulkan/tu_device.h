@@ -161,6 +161,9 @@ struct tu_physical_device
    struct tu_queue_family queue_families[TU_MAX_QUEUE_FAMILIES];
    unsigned num_queue_families;
 
+   /** Queue family index with an emulated second queue, or -1 if none */
+   int emulate_second_queue;
+
    struct fd_dev_id dev_id;
    struct fd_dev_info dev_info;
    const struct fd_dev_info *info;

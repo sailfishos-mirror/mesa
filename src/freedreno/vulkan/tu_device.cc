@@ -1819,6 +1819,17 @@ tu_physical_device_init(struct tu_physical_device *device,
          };
    }
 
+   device->emulate_second_queue = -1;
+   if (instance->drirc.misc.emulate_second_queue) {
+      for (unsigned i = 0; i < device->num_queue_families; i++) {
+         if (device->queue_families[i].properties->queueFlags &
+             VK_QUEUE_GRAPHICS_BIT) {
+            device->emulate_second_queue = i;
+            break;
+         }
+      }
+   }
+
 #ifdef TU_USE_WSI_PLATFORM
    result = tu_wsi_init(device);
    if (result != VK_SUCCESS) {
@@ -2027,6 +2038,9 @@ tu_GetPhysicalDeviceQueueFamilyProperties2(
 
       vk_outarray_append_typed(VkQueueFamilyProperties2, &out, p) {
          p->queueFamilyProperties = *family->properties;
+
+         if (pdevice->emulate_second_queue == (int) i)
+            p->queueFamilyProperties.queueCount = 2;
 
          vk_foreach_struct(ext, p->pNext) {
             switch (ext->sType) {
@@ -2903,8 +2917,15 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
       device->queue_count[qfi] = queue_create->queueCount;
 
       for (unsigned q = 0; q < queue_create->queueCount; q++) {
+         /* For the emulated second queue, share the first queue's kernel
+          * submitqueue rather than creating a new one.
+          */
+         bool emulated = (q > 0 &&
+                          (int) qfi == physical_device->emulate_second_queue);
+
          result = tu_queue_init(device, &device->queues[qfi][q], type,
-                                global_priority, q, queue_create);
+                                global_priority, q, queue_create,
+                                emulated ? &device->queues[qfi][0] : NULL);
          if (result != VK_SUCCESS) {
             device->queue_count[qfi] = q;
             goto fail_queues;
@@ -3222,7 +3243,7 @@ fail_compiler:
    vk_meta_device_finish(&device->vk, &device->meta);
 fail_queues:
    for (unsigned i = 0; i < TU_MAX_QUEUE_FAMILIES; i++) {
-      for (unsigned q = 0; q < device->queue_count[i]; q++)
+      for (int q = device->queue_count[i] - 1; q >= 0; q--)
          tu_queue_finish(&device->queues[i][q]);
       if (device->queues[i])
          vk_free(&device->vk.alloc, device->queues[i]);
@@ -3331,7 +3352,7 @@ tu_DestroyDevice(VkDevice _device, const VkAllocationCallbacks *pAllocator)
       tu_destroy_memory(device, device->msrtss_depth_temporary);
 
    for (unsigned i = 0; i < TU_MAX_QUEUE_FAMILIES; i++) {
-      for (unsigned q = 0; q < device->queue_count[i]; q++)
+      for (int q = device->queue_count[i] - 1; q >= 0; q--)
          tu_queue_finish(&device->queues[i][q]);
       if (device->queue_count[i])
          vk_free(&device->vk.alloc, device->queues[i]);
