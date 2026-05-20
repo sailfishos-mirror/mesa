@@ -204,6 +204,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_shader_demote_to_helper_invocation = true,
       .EXT_shader_replicated_composites = true,
       .EXT_shader_subgroup_ballot = true,
+      .EXT_shader_subgroup_vote = true,
       .EXT_texel_buffer_alignment = false,
       .EXT_tooling_info = true,
       .EXT_vertex_attribute_divisor = true,
@@ -734,6 +735,7 @@ static bool pvr_physical_device_get_properties(
       .subgroupSize = ROGUE_MAX_INSTANCES_PER_TASK,
       .subgroupSupportedStages = VK_SHADER_STAGE_COMPUTE_BIT,
       .subgroupSupportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT |
+                                     VK_SUBGROUP_FEATURE_VOTE_BIT |
                                      VK_SUBGROUP_FEATURE_BALLOT_BIT,
       .subgroupQuadOperationsInAllStages = false,
       .protectedNoFault = false,
