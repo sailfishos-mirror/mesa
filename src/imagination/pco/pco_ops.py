@@ -474,6 +474,8 @@ O_BR = hw_op('br', [OM_EXEC_CND, OM_BRANCH_CND, OM_LINK], has_target_cf_node=Tru
 
 O_BR_NEXT = hw_op('br.next', [OM_EXEC_CND])
 
+O_BR_SKIP_NEXT = hw_op('br.skip_next', [OM_EXEC_CND, OM_BRANCH_CND])
+
 O_MUTEX = hw_op('mutex', [OM_MUTEX_OP], 0, 1)
 
 O_SAVL = hw_op('savl', [OM_EXEC_CND], 1, 0)

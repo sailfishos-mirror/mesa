@@ -403,7 +403,9 @@ def encode_map(op, encodings, op_ref_maps):
 
                encode_variant += f'pco_branch_rel_offset({{1}}->parent_igrp, {{1}}->target_cf_node)'
             elif val_spec == 'target_next_igrp':
-               encode_variant += f'pco_branch_rel_offset_next_igrp({{1}}->parent_igrp)'
+               encode_variant += f'pco_branch_rel_offset_next_igrp({{1}}->parent_igrp, false)'
+            elif val_spec == 'target_skip_next_igrp':
+               encode_variant += f'pco_branch_rel_offset_next_igrp({{1}}->parent_igrp, true)'
             else:
                assert struct_field.type.base_type == BaseType.enum
 
@@ -1812,6 +1814,18 @@ encode_map(O_BR_NEXT,
          ('bpred', 'cc'),
          ('abs', False),
          ('offset', 'target_next_igrp')
+      ])
+   ],
+   op_ref_maps=[('ctrl', [], [])]
+)
+
+encode_map(O_BR_SKIP_NEXT,
+   encodings=[
+      (I_BRANCH, [
+         ('link', False),
+         ('bpred', OM_BRANCH_CND),
+         ('abs', False),
+         ('offset', 'target_skip_next_igrp')
       ])
    ],
    op_ref_maps=[('ctrl', [], [])]
@@ -3809,6 +3823,18 @@ group_map(O_BR_NEXT,
       ('ctrlop', 'b')
    ]),
    enc_ops=[('ctrl', O_BR_NEXT)]
+)
+
+group_map(O_BR_SKIP_NEXT,
+   hdr=(I_IGRP_HDR_CONTROL, [
+      ('olchk', False),
+      ('w1p', False),
+      ('w0p', False),
+      ('cc', OM_EXEC_CND),
+      ('miscctl', False),
+      ('ctrlop', 'b')
+   ]),
+   enc_ops=[('ctrl', O_BR_SKIP_NEXT)]
 )
 
 group_map(O_MUTEX,

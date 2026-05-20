@@ -3117,10 +3117,15 @@ static inline unsigned pco_branch_rel_offset(pco_igrp *br, pco_cf_node *cf_node)
    return pco_cf_node_offset(cf_node) - pco_igrp_offset(br);
 }
 
-static inline unsigned pco_branch_rel_offset_next_igrp(pco_igrp *br)
+static inline unsigned pco_branch_rel_offset_next_igrp(pco_igrp *br, bool skip_next)
 {
    pco_igrp *next_igrp = pco_next_igrp(br);
    assert(next_igrp);
+
+   if (skip_next) {
+      next_igrp = pco_next_igrp(next_igrp);
+      assert(next_igrp);
+   }
 
    return pco_igrp_offset(next_igrp) - pco_igrp_offset(br);
 }
