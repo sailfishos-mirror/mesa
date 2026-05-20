@@ -124,9 +124,9 @@ gitlab-ci*.yml @eric
 /src/gallium/drivers/asahi/ @alyssa
 
 # Broadcom
-/src/broadcom/ @itoral @apinheiro
-/src/gallium/drivers/v3d/ @itoral @chema @jasuarez
-/src/gallium/drivers/vc4/ @itoral @chema @jasuarez
+/src/broadcom/ @chema @jasuarez @itoral @apinheiro
+/src/gallium/drivers/v3d/ @chema @jasuarez @itoral @apinheiro
+/src/gallium/drivers/vc4/ @chema @jasuarez @itoral @apinheiro
 
 # Freedreno
 /src/gallium/drivers/freedreno/ @robclark
