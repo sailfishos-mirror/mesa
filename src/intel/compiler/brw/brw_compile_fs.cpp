@@ -58,7 +58,6 @@ brw_emit_single_fb_write(brw_shader &s, const brw_builder &bld,
 static void
 brw_do_emit_fb_writes(brw_shader &s, int nr_color_regions, bool replicate_alpha)
 {
-   struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
    const brw_builder bld = brw_builder(&s);
 
    brw_fb_write_inst *write = NULL;
@@ -89,15 +88,14 @@ brw_do_emit_fb_writes(brw_shader &s, int nr_color_regions, bool replicate_alpha)
    }
 
    if (write == NULL) {
-      struct brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
-      /* Disable null_rt if any non color output is written or if
-       * alpha_to_coverage can be enabled. Since the alpha_to_coverage bit is
-       * coming from the BLEND_STATE structure and the HW will avoid reading
-       * it if null_rt is enabled.
+      /* Disable null_rt if the shader doesn't write any relevant output.
        */
       const bool use_null_rt =
-         key->alpha_to_coverage == INTEL_NEVER &&
-         !prog_data->uses_omask;
+         (s.nir->info.outputs_written &
+          (BITFIELD_RANGE(FRAG_RESULT_DATA0, 8) |
+           BITFIELD_BIT(FRAG_RESULT_DEPTH) |
+           BITFIELD_BIT(FRAG_RESULT_STENCIL) |
+           BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK))) == 0;
 
       /* Even if there's no color buffers enabled, we still need to send alpha
        * out the pipeline to our null renderbuffer to support alpha-testing,

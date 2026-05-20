@@ -131,7 +131,9 @@ brw_nir_fs_needs_null_rt(const struct intel_device_info *devinfo,
                                     BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK)))
       return true;
 
-   return alpha_to_coverage;
+   return alpha_to_coverage &&
+          (nir->info.outputs_written &
+           BITFIELD_RANGE(FRAG_RESULT_DATA0, 8)) != 0;
 }
 
 void brw_preprocess_nir(const struct brw_compiler *compiler,
