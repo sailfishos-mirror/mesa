@@ -39,18 +39,12 @@
  * Finally, we deconstruct SSA.
  */
 
-static inline bool
-is_ra_src(jay_def d)
-{
-   return d.file < JAY_NUM_RA_FILES;
-}
-
 #define jay_foreach_ra_file(file)                                              \
    for (enum jay_file file = 0; file < JAY_NUM_RA_FILES; ++file)
 
 #define jay_foreach_ra_src(I, s)                                               \
    jay_foreach_src(I, s)                                                       \
-      if (is_ra_src(I->src[s]) && !jay_is_null(I->src[s]))
+      if (I->src[s].file < JAY_NUM_RA_FILES && !jay_is_null(I->src[s]))
 
 static enum jay_stride
 jay_min_stride_for_type(enum jay_type T)
@@ -1137,7 +1131,9 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
    unsigned kill_idx = 0;
    jay_foreach_ssa_src(I, s) {
       jay_foreach_index(saved_srcs[s], c, idx) {
-         if (is_ra_src(I->src[s]) && BITSET_TEST(I->last_use, kill_idx)) {
+         if (I->src[s].file < JAY_NUM_RA_FILES &&
+             BITSET_TEST(I->last_use, kill_idx)) {
+
             release_reg(ra, make_reg(I->src[s].file, I->src[s].reg + c));
          }
 
