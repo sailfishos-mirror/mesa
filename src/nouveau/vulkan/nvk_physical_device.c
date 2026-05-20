@@ -834,8 +834,8 @@ nvk_get_device_properties(const struct nvk_instance *instance,
    *properties = (struct vk_properties) {
       .apiVersion = nvk_get_vk_version(info),
       .driverVersion = vk_get_driver_version(),
-      .vendorID = instance->force_vk_vendor != 0 ?
-                  instance->force_vk_vendor : NVIDIA_VENDOR_ID,
+      .vendorID = instance->drirc.debug.force_vk_vendor != 0 ?
+                  instance->drirc.debug.force_vk_vendor : NVIDIA_VENDOR_ID,
       .deviceID = info->device_id,
       .deviceType = info->type == NV_DEVICE_TYPE_DIS ?
                     VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU :
@@ -1560,8 +1560,8 @@ nvk_create_drm_physical_device(struct vk_instance *_instance,
    nvk_physical_device_init_pipeline_cache(pdev);
 
    uint64_t heap_size =
-      os_get_gpu_heap_size(instance->heap_memory_percent,
-                           &instance->heap_memory_percent);
+      os_get_gpu_heap_size(instance->drirc.misc.heap_memory_percent,
+                           &instance->drirc.misc.heap_memory_percent);
    if (heap_size == 0) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
                          "Failed to query total system memory");
@@ -1756,7 +1756,7 @@ nvk_GetPhysicalDeviceMemoryProperties2(
 
                if (heap->available == nvk_get_sysmem_heap_available) {
                   /* Scale the budget the same way the heap was scaled. */
-                  percent *= instance->heap_memory_percent;
+                  percent *= instance->drirc.misc.heap_memory_percent;
                }
             }
 

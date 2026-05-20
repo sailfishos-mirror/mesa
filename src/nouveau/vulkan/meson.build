@@ -119,6 +119,19 @@ nvkcl = custom_target(
   command : [prog_vtn_bindgen2, '@INPUT@', '@OUTPUT@'],
 )
 
+nvk_drirc = custom_target(
+  'nvk_drirc',
+  input  : [files('nvk_drirc_gen.py'), drirc_gen, join_paths(dir_source_root, 'src/util/00-nvk-defaults.conf')],
+  output : ['nvk_drirc.c', 'nvk_drirc.h'],
+  command : [
+    prog_python, '@INPUT0@',
+    '--import-path', join_paths(dir_source_root, 'src/util'),
+    '--drirc-src', '@OUTPUT0@',
+    '--drirc-hdr', '@OUTPUT1@',
+    '--validate', '@INPUT2@',
+  ],
+)
+
 nvk_deps = [
   dep_libdrm,
   idep_nak,
@@ -144,6 +157,7 @@ libnvk = static_library(
   'nvk',
   [
     nvk_entrypoints,
+    nvk_drirc,
     cl_generated,
     nvk_files,
     nvkcl,

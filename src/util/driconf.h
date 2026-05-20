@@ -605,12 +605,6 @@
                   "Ignore sample mask out when having single sampled target")
 
 /**
- * \brief NVK specific configuration options
- */
-
- #define DRI_CONF_NVK_APP_LAYER() DRI_CONF_OPT_S_NODEF(nvk_app_layer, "Select an application layer.")
-
-/**
  * \brief Asahi specific configuration options
  */
 #define DRI_CONF_ASAHI_NO_FP16(def) \
