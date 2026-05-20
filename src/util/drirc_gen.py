@@ -6,6 +6,7 @@ import argparse
 import os
 import re
 import sys
+import xml.etree.ElementTree as ET
 
 from enum import Enum
 from mako.template import Template
@@ -192,6 +193,22 @@ ${driver_prefix}_parse_dri_options(struct ${driver_prefix}_drirc *drirc,
 % endfor
 }
 """
+
+def drirc_validate(conf_paths, sections):
+    declared = {opt.name for section in sections for opt in section.options}
+    conf_names = set()
+    for conf_path in conf_paths:
+        tree = ET.parse(conf_path)
+        for option in tree.iter('option'):
+            name = option.get('name')
+            if name:
+                conf_names.add(name)
+    missing = conf_names - declared
+    if missing:
+        print('ERROR: options used in conf but not declared:', file=sys.stderr)
+        for name in sorted(missing):
+            print(f'  {name}', file=sys.stderr)
+        sys.exit(1)
 
 def drirc_generate(cpath, hpath, driver_prefix, sections):
     environment = {
