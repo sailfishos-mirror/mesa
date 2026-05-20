@@ -776,7 +776,7 @@ u_trace_clone_append(struct u_trace_iterator begin_it,
 
    linear_ctx *linear_alloc = u_trace_get_linear_alloc(into);
 
-   struct u_trace_buffer_view src_timestamp = {}, dst_timestamp = {}, src_indirect = {}, dst_indirect = {};
+   struct u_trace_buffer_view src_timestamp = {0}, dst_timestamp = {0}, src_indirect = {0}, dst_indirect = {0};
    src_timestamp.buffer_index = UINT32_MAX;
    src_indirect.buffer_index = UINT32_MAX;
 
@@ -824,7 +824,7 @@ u_trace_clone_append_copy_count(struct u_trace_iterator begin_it,
    assert(begin_it.ut == end_it.ut);
    struct u_trace *from = begin_it.ut;
 
-   struct u_trace_buffer_view src_timestamp = {}, src_indirect = {};
+   struct u_trace_buffer_view src_timestamp = {0}, src_indirect = {0};
    src_timestamp.buffer_index = UINT32_MAX;
    src_indirect.buffer_index = UINT32_MAX;
 
