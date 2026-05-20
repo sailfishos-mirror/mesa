@@ -54,7 +54,7 @@ class DrircOption(object):
         self.dtype = dtype
         self.name = name
         self.description = description
-        self.c_name = c_name if c_name is not None else name.lower()
+        self.c_name = c_name
         self.c_args = []
 
 class DrircBool(DrircOption):
@@ -140,7 +140,9 @@ struct ${driver_prefix}_drirc {
 % for section in sections:
    struct {
 %   for option in section.options:
+%     if option.c_name is not None:
       ${type_to_ctype(option.dtype)} ${option.c_name};
+%     endif
 %   endfor
    } ${section.c_name};
 % endfor
@@ -180,7 +182,9 @@ ${driver_prefix}_parse_dri_options(struct ${driver_prefix}_drirc *drirc,
 
 % for section in sections:
 %   for option in section.options:
+%     if option.c_name is not None:
    drirc->${section.c_name}.${option.c_name} = ${type_to_queryfn(option.dtype)}(&drirc->options, "${option.name}");
+%     endif
 %   endfor
 % endfor
 }
