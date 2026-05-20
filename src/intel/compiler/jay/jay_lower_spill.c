@@ -53,10 +53,9 @@ jay_lower_spill(jay_function *func)
 
    /* We reserve the top UGPRs for spilling by ABI */
    unsigned ugpr_reservation = func->shader->num_regs[UGPR];
-   assert(util_is_aligned(ugpr_reservation + 1, func->shader->dispatch_width));
+   assert(util_is_aligned(ugpr_reservation, func->shader->dispatch_width));
 
-   jay_def surf = jay_bare_reg(UGPR, ugpr_reservation);
-   jay_def sp = jay_bare_reg(UGPR, ugpr_reservation + 1);
+   jay_def sp = jay_bare_reg(UGPR, ugpr_reservation);
    sp.num_values_m1 = func->shader->dispatch_width - 1;
 
    /* Calculate how much stack space we need */
@@ -76,8 +75,9 @@ jay_lower_spill(jay_function *func)
     * TODO: Need ABI for multi-function.
     */
    assert(func->is_entrypoint);
-   jay_AND(&b, JAY_TYPE_U32, surf, jay_bare_reg(UGPR, 5), ~BITFIELD_MASK(10));
-   jay_SHR(&b, JAY_TYPE_U32, ADDRESS_REG, surf, 4);
+   jay_def tmpu = jay_bare_reg(UGPR, ugpr_reservation);
+   jay_AND(&b, JAY_TYPE_U32, tmpu, jay_bare_reg(UGPR, 5), ~BITFIELD_MASK(10));
+   jay_SHR(&b, JAY_TYPE_U32, ADDRESS_REG, tmpu, 4);
 
    /* We use a 32-bit strided stack: SP = scratch + (lane ID * 4) */
    jay_def tmp2 = jay_bare_reg(GPR, func->shader->partition.base2);
@@ -104,7 +104,8 @@ jay_lower_spill(jay_function *func)
 
          if (I->op == JAY_OPCODE_MOV && jay_is_send_like(I)) {
             if (!address_valid) {
-               jay_SHR(&b, JAY_TYPE_U32, ADDRESS_REG, surf, 4);
+               jay_MOV(&b, ADDRESS_REG, tmpu);
+               jay_MOV(&b, tmpu, b.shader->scratch_size);
                address_valid = true;
             }
 
@@ -118,9 +119,8 @@ jay_lower_spill(jay_function *func)
 
             jay_remove_instruction(I);
          } else if (I->op == JAY_OPCODE_SHUFFLE) {
-            /* Shuffles implicitly clobber the address register so we'll need to
-             * rematerialize the surface state (but be lazy).
-             */
+            /* Shuffles implicitly clobber the address register. Spill it. */
+            jay_MOV(&b, tmpu, ADDRESS_REG);
             address_valid = false;
          }
       }
@@ -128,7 +128,8 @@ jay_lower_spill(jay_function *func)
       /* Canonicalize our internal registers at block boundaries */
       if (jay_num_successors(block, GPR) > 0) {
          if (!address_valid) {
-            jay_SHR(&b, JAY_TYPE_U32, ADDRESS_REG, surf, 4);
+            jay_MOV(&b, ADDRESS_REG, tmpu);
+            jay_MOV(&b, tmpu, b.shader->scratch_size);
          }
 
          if (sp_delta_B > 0) {

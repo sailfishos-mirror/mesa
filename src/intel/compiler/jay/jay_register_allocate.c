@@ -1460,7 +1460,7 @@ jay_partition_grf(jay_shader *shader)
     */
    jay_foreach_preload(jay_shader_get_entrypoint(shader), I) {
       unsigned end = jay_preload_reg(I) + jay_num_values(I->dst);
-      unsigned extra = I->dst.file == UGPR ? shader->dispatch_width + 1 : 0;
+      unsigned extra = I->dst.file == UGPR ? shader->dispatch_width : 0;
       assert(I->dst.file < JAY_NUM_GRF_FILES);
       demand[I->dst.file] = MAX2(demand[I->dst.file], end + extra);
    }
@@ -1561,7 +1561,7 @@ jay_register_allocate_function(jay_function *f)
 
    if (spilled) {
       /* Spilling requires reserving UGPRs for spilling */
-      unsigned reservation = f->shader->dispatch_width + 1;
+      unsigned reservation = f->shader->dispatch_width;
       f->shader->num_regs[UGPR] -= reservation;
       f->shader->partition.large_ugpr_block.len -= reservation;
 
@@ -1685,7 +1685,7 @@ jay_register_allocate_function(jay_function *f)
     */
    if (spilled) {
       jay_lower_spill(f);
-      f->shader->num_regs[UGPR] += f->shader->dispatch_width + 1;
+      f->shader->num_regs[UGPR] += f->shader->dispatch_width;
    }
 }
 
