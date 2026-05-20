@@ -692,10 +692,6 @@ try_find_free_reg(jay_ra_state *ra,
                   bool stride4)
 {
    unsigned i;
-
-   /* Prefer stride 4 temporaries, since they are more compatible and thus
-    * should reduce swapping on average.
-    */
    BITSET_FOREACH_SET(i, ra->available_regs[file], ra->num_regs[file]) {
       if (i != except &&
           (!stride4 ||
