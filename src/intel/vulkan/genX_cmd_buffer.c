@@ -6530,6 +6530,9 @@ void genX(CmdBeginRendering)(
     */
    gfx->dirty |= ANV_CMD_DIRTY_ALL_SHADERS(cmd_buffer->device);
 
+   memset(gfx->color_output_mapping, ANV_COLOR_OUTPUT_UNKNOWN,
+          sizeof(gfx->color_output_mapping));
+
 #if GFX_VER >= 11
    if (render_target_change && cmd_buffer->device->physical->rt_change_needs_flush) {
       /* The PIPE_CONTROL command description says:
