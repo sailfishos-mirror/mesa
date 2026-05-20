@@ -360,6 +360,11 @@ OM_ALU = [OM_OLCHK, OM_EXEC_CND, OM_END, OM_ATOM, OM_RPT]
 OM_ALU_RPT1 = [OM_OLCHK, OM_EXEC_CND, OM_END, OM_ATOM]
 OM_ALU_ATOMEXT = [OM_OLCHK, OM_EXEC_CND, OM_END, OM_RPT]
 
+OM_VOTE_OP = op_mod_enum('vote_op', [
+   'all',
+   'any',
+])
+
 ## Main.
 O_FADD = hw_op('fadd', OM_ALU + [OM_SAT], 1, 2, [], [[RM_ABS, RM_NEG, RM_FLR], [RM_ABS]])
 O_FMUL = hw_op('fmul', OM_ALU + [OM_SAT], 1, 2, [], [[RM_ABS, RM_NEG, RM_FLR], [RM_ABS]])
@@ -533,3 +538,5 @@ O_OP_ATOMIC_OFFSET = pseudo_op('op.atomic.offset', OM_ALU_ATOMEXT + [OM_ATOM_OP]
 
 O_BREAK = pseudo_op('break', [OM_EXEC_CND])
 O_CONTINUE = pseudo_op('continue', [OM_EXEC_CND])
+
+O_VOTE = pseudo_op('vote', [OM_EXEC_CND, OM_VOTE_OP], 1, 1)

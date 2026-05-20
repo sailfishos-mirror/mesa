@@ -2541,6 +2541,16 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
       instr = trans_subgroup_first_invocation(tctx, dest);
       break;
 
+   case nir_intrinsic_vote_any:
+   case nir_intrinsic_vote_all:
+      instr = pco_vote(&tctx->b,
+                       dest,
+                       src[0],
+                       .vote_op = intr->intrinsic == nir_intrinsic_vote_all
+                                     ? PCO_VOTE_OP_ALL
+                                     : PCO_VOTE_OP_ANY);
+      break;
+
    default:
       printf("Unsupported intrinsic: \"");
       nir_print_instr(&intr->instr, stdout);

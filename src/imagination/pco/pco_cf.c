@@ -82,6 +82,10 @@ static inline bool body_has_non_preds(struct list_head *body)
       if (!pco_instr_has_default_exec(instr))
          return true;
 
+      /* Vote is implemented using predicates and control flow. */
+      if (instr->op == PCO_OP_VOTE)
+         return true;
+
       last_instr = instr;
    }
 
