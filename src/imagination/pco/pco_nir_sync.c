@@ -206,38 +206,34 @@ bool pco_nir_lower_atomics(nir_shader *shader, pco_data *data)
 
 static bool lower_subgroup_intrinsic(nir_builder *b,
                                      nir_intrinsic_instr *intr,
-                                     void *cb_data)
+                                     UNUSED void *cb_data)
 {
+   const struct shader_info *info = &b->shader->info;
    nir_def *new_def;
 
    b->cursor = nir_before_instr(&intr->instr);
 
    switch (intr->intrinsic) {
    case nir_intrinsic_load_subgroup_size:
-      new_def = nir_imm_int(b, 1);
-      break;
-
-   case nir_intrinsic_load_subgroup_invocation:
-      new_def = nir_imm_int(b, 0);
+      new_def = nir_imm_int(b, info->api_subgroup_size);
       break;
 
    case nir_intrinsic_load_num_subgroups:
       new_def = nir_imm_int(b,
-                            b->shader->info.workgroup_size[0] *
-                               b->shader->info.workgroup_size[1] *
-                               b->shader->info.workgroup_size[2]);
+                            DIV_ROUND_UP(info->workgroup_size[0] *
+                                            info->workgroup_size[1] *
+                                            info->workgroup_size[2],
+                                         ROGUE_MAX_INSTANCES_PER_TASK));
+      break;
+
+   case nir_intrinsic_load_subgroup_invocation:
+      new_def = nir_load_instance_num_pco(b);
       break;
 
    case nir_intrinsic_load_subgroup_id:
-      new_def = nir_load_local_invocation_index(b);
-      break;
-
-   case nir_intrinsic_first_invocation:
-      new_def = nir_imm_int(b, 0);
-      break;
-
-   case nir_intrinsic_elect:
-      new_def = nir_imm_true(b);
+      new_def = nir_udiv_imm(b,
+                             nir_load_local_invocation_index(b),
+                             ROGUE_MAX_INSTANCES_PER_TASK);
       break;
 
    default:
@@ -252,9 +248,10 @@ static bool lower_subgroup_intrinsic(nir_builder *b,
 
 bool pco_nir_lower_subgroups(nir_shader *shader)
 {
-   shader->info.api_subgroup_size = 1;
-   shader->info.min_subgroup_size = 1;
-   shader->info.max_subgroup_size = 1;
+   if (shader->info.internal)
+      return false;
+
+   assert(shader->info.api_subgroup_size == ROGUE_MAX_INSTANCES_PER_TASK);
 
    return nir_shader_intrinsics_pass(shader,
                                      lower_subgroup_intrinsic,

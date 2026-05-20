@@ -563,6 +563,14 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
                });
    }
 
+   NIR_PASS(_, nir, nir_lower_subgroups, &(nir_lower_subgroups_options){
+         .subgroup_size = ROGUE_MAX_INSTANCES_PER_TASK,
+         .ballot_bit_size = 32,
+         .ballot_components = 1,
+         .lower_to_scalar = true,
+         .lower_elect = true,
+      });
+
    NIR_PASS(_, nir, pco_nir_lower_subgroups);
 
    NIR_PASS(_,
@@ -1099,6 +1107,7 @@ void pco_postprocess_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
       NIR_PASS(_, nir, pco_nir_lower_algebraic_late);
       NIR_PASS(_, nir, nir_opt_constant_folding);
       NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
+      NIR_PASS(_, nir, nir_lower_all_phis_to_scalar);
       NIR_PASS(_, nir, nir_opt_copy_prop);
       NIR_PASS(_, nir, nir_opt_dce);
       NIR_PASS(_, nir, nir_opt_cse);
