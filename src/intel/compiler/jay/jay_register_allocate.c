@@ -1042,13 +1042,8 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
       bool killed = false;
       jay_def var = *(vars[i]);
       unsigned size = jay_num_values(var);
-      if (is_src) {
-         assert(util_is_power_of_two_nonzero(size) && "NPOT sources lowered");
-      } else {
-         size = util_next_power_of_two(size);
-      }
-
-      unsigned alignment = I->op == JAY_OPCODE_EXPAND_QUAD ? 1 : size;
+      unsigned alignment =
+         I->op == JAY_OPCODE_EXPAND_QUAD ? 1 : util_next_power_of_two(size);
       enum jay_file file = var.file;
       enum jay_stride min_stride = JAY_STRIDE_2, max_stride = JAY_STRIDE_8;
 
@@ -1169,9 +1164,8 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
    /* Reset data structures */
    for (unsigned i = 0; i < nr_vars; ++i) {
       jay_def var = *(vars[i]);
-      unsigned n = util_next_power_of_two(jay_num_values(var));
-      BITSET_CLEAR_COUNT(ra->pinned[var.file], var.reg, n);
-      BITSET_CLEAR_COUNT(ra->killed[var.file], var.reg, n);
+      BITSET_CLEAR_COUNT(ra->pinned[var.file], var.reg, jay_num_values(var));
+      BITSET_CLEAR_COUNT(ra->killed[var.file], var.reg, jay_num_values(var));
    }
 
    /* Sources selected for early-kill have had their last_use fields cleared.

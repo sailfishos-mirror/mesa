@@ -6,7 +6,6 @@
 #include "util/bitset.h"
 #include "util/macros.h"
 #include "util/sparse_bitset.h"
-#include "util/u_math.h"
 #include "util/u_worklist.h"
 #include "jay_ir.h"
 #include "jay_opcodes.h"
@@ -183,7 +182,7 @@ jay_calculate_register_demands(jay_function *func)
       jay_foreach_inst_in_block(block, I) {
          /* Make destinations live */
          jay_foreach_dst(I, d) {
-            demands[d.file] += util_next_power_of_two(jay_num_values(d));
+            demands[d.file] += jay_num_values(d);
          }
 
          /* Update maximum demands */
@@ -199,11 +198,6 @@ jay_calculate_register_demands(jay_function *func)
                assert(demands[d.file] > 0);
                --demands[d.file];
             }
-         }
-
-         jay_foreach_dst(I, d) {
-            unsigned n = jay_num_values(d);
-            demands[d.file] -= util_next_power_of_two(n) - n;
          }
 
          /* Late-kill sources. Duplicated sources are only marked killed once,

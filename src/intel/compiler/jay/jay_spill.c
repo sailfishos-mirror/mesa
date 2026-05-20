@@ -10,7 +10,6 @@
 #include "util/ralloc.h"
 #include "util/sparse_bitset.h"
 #include "util/u_dynarray.h"
-#include "util/u_math.h"
 #include "util/u_qsort.h"
 #include "util/u_worklist.h"
 #include "jay_builder.h"
@@ -488,14 +487,8 @@ min_algorithm(struct spill_ctx *ctx,
          }
       }
 
-      /* Limit W to make space for the operands.
-       *
-       * We need to round up to power-of-two destination sizes to match the
-       * rounding in demand calculation.
-       */
-      bool has_dst = I->dst.file == GPR;
-      unsigned dst_size = util_next_power_of_two(jay_num_values(I->dst));
-      limit(ctx, I, ctx->k - (has_dst ? dst_size : 0));
+      /* Limit W to make space for the operands. */
+      limit(ctx, I, ctx->k - (I->dst.file == GPR ? jay_num_values(I->dst) : 0));
 
       /* Add destinations to the register file */
       if (I->dst.file == GPR) {

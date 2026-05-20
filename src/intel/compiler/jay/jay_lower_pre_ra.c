@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "util/bitscan.h"
 #include "util/hash_table.h"
 #include "util/lut.h"
 #include "util/macros.h"
@@ -14,37 +13,12 @@
 #include "jay_opcodes.h"
 #include "jay_private.h"
 
-/*
- * Register allocation operates only on power-of-two vectors. Pad out
- * non-power-of-two vectors with null values to simplify RA.
- */
-static jay_def
-lower_npot_vector(jay_builder *b, jay_def x)
-{
-   unsigned n = jay_num_values(x);
-
-   if (!util_is_power_of_two_or_zero(n)) {
-      uint32_t indices[JAY_MAX_DEF_LENGTH] = { 0 };
-
-      for (unsigned i = 0; i < n; ++i) {
-         indices[i] = jay_channel(x, i);
-      }
-
-      x = jay_collect(b, x.file, indices, util_next_power_of_two(n));
-   }
-
-   assert(util_is_power_of_two_or_zero(jay_num_values(x)) && "post-cond");
-   return x;
-}
-
 /**
- * Vectors need to be allocated to contiguous registers. Furthermore, we
- * require power-of-two sizes in certain cases, that's handled here too.
- *
- * This means that a value cannot appear in multiple channels of an
- * instruction, as register allocation would need to assign the same value to
- * locations <X+i> and <X+j>. Scalars don't have this restriction, except for
- * SENDs because the hardware bans repeated sources.
+ * Vectors need to be allocated to contiguous registers. This means that a value
+ * cannot appear in multiple channels of an instruction, as register allocation
+ * would need to assign the same value to locations <X+i> and <X+j>. Scalars
+ * don't have this restriction, except for SENDs because the hardware bans
+ * repeated sources.
  *
  * If a value appears in multiple positions, we emit copies so that each
  * can be register allocated in the correct position.
@@ -75,7 +49,7 @@ lower_contiguous_sources(jay_builder *b, jay_inst *I)
             }
          }
 
-         jay_replace_src(&I->src[s], lower_npot_vector(b, I->src[s]));
+         jay_replace_src(&I->src[s], I->src[s]);
       }
    }
 }
