@@ -4091,7 +4091,9 @@ late_optimizations += [
    (('fmulz@32', a, b),
     ('bcsel', ('feq', ('fmin', ('fabs', a), ('fabs', b)), 0.0), 0.0, ('fmul', a, b)), 'options->lower_fmulz_with_abs_min'),
    (('ffmaz@32', a, b, c),
-    ('bcsel', ('feq', ('fmin', ('fabs', a), ('fabs', b)), 0.0), c, ('ffma@32', a, b, c)), 'options->lower_fmulz_with_abs_min')
+    ('bcsel', ('feq', ('fmin', ('fabs', a), ('fabs', b)), 0.0), c, ('ffma@32', a, b, c)), 'options->lower_fmulz_with_abs_min'),
+   (('fmadz@32', a, b, c),
+    ('bcsel', ('feq', ('fmin', ('fabs', a), ('fabs', b)), 0.0), c, ('fmad@32', a, b, c)), 'options->lower_fmulz_with_abs_min'),
 ]
 
 # mediump: If an opcode is surrounded by conversions, remove the conversions.
