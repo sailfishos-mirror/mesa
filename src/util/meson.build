@@ -225,6 +225,10 @@ if with_nouveau_vk
   files_drirc += files('00-nvk-defaults.conf')
 endif
 
+if with_microsoft_vk
+  files_drirc += files('00-dzn-defaults.conf')
+endif
+
 if with_freedreno_vk
   files_drirc += files('00-turnip-defaults.conf')
 endif
