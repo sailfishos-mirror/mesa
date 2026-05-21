@@ -181,10 +181,13 @@ impl<K: IntoBitIndex> BitSet<K> {
 
     pub fn remove(&mut self, key: K) -> bool {
         let idx = BitIndex::from(key);
-        self.reserve_words(idx.word + 1);
-        let exists = self.words[idx.word] & (1_u32 << idx.bit) != 0;
-        self.words[idx.word] &= !(1_u32 << idx.bit);
-        exists
+        if idx.word < self.words.len() {
+            let exists = self.words[idx.word] & (1_u32 << idx.bit) != 0;
+            self.words[idx.word] &= !(1_u32 << idx.bit);
+            exists
+        } else {
+            false
+        }
     }
 }
 
