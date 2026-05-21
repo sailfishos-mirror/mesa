@@ -119,12 +119,7 @@ struct ac_vcn_decoder {
    uint32_t feedback_offset;
    uint32_t subsample_offset;
 
-   struct {
-      uint32_t data0;
-      uint32_t data1;
-      uint32_t cmd;
-      uint32_t cntl;
-   } reg;
+   struct ac_vcn_dec_reg reg;
    uint32_t addr_mode;
 };
 
@@ -2208,6 +2203,30 @@ vcn_dec_destroy(struct ac_video_dec *decoder)
    FREE(dec);
 }
 
+void
+ac_vcn_dec_init_regs(struct ac_vcn_dec_reg *reg, enum vcn_version version)
+{
+   if (version >= VCN_2_5_0) {
+      reg->data0 = RDECODE_VCN2_5_GPCOM_VCPU_DATA0;
+      reg->data1 = RDECODE_VCN2_5_GPCOM_VCPU_DATA1;
+      reg->data2 = RDECODE_VCN2_5_GPCOM_VCPU_DATA2;
+      reg->cmd = RDECODE_VCN2_5_GPCOM_VCPU_CMD;
+      reg->cntl = RDECODE_VCN2_5_ENGINE_CNTL;
+   } else if (version >= VCN_2_0_0) {
+      reg->data0 = RDECODE_VCN2_GPCOM_VCPU_DATA0;
+      reg->data1 = RDECODE_VCN2_GPCOM_VCPU_DATA1;
+      reg->data2 = RDECODE_VCN2_GPCOM_VCPU_DATA2;
+      reg->cmd = RDECODE_VCN2_GPCOM_VCPU_CMD;
+      reg->cntl = RDECODE_VCN2_ENGINE_CNTL;
+   } else if (version >= VCN_1_0_0) {
+      reg->data0 = RDECODE_VCN1_GPCOM_VCPU_DATA0;
+      reg->data1 = RDECODE_VCN1_GPCOM_VCPU_DATA1;
+      reg->data2 = 0;
+      reg->cmd = RDECODE_VCN1_GPCOM_VCPU_CMD;
+      reg->cntl = RDECODE_VCN1_ENGINE_CNTL;
+   }
+}
+
 uint32_t
 ac_vcn_dec_dpb_size(const struct radeon_info *info, struct ac_video_dec_session_param *param)
 {
@@ -2300,20 +2319,10 @@ ac_vcn_create_video_decoder(const struct radeon_info *info, struct ac_video_dec_
    switch (dec->vcn_version) {
    case VCN_1_0_0:
    case VCN_1_0_1:
-      dec->reg.data0 = RDECODE_VCN1_GPCOM_VCPU_DATA0;
-      dec->reg.data1 = RDECODE_VCN1_GPCOM_VCPU_DATA1;
-      dec->reg.cmd = RDECODE_VCN1_GPCOM_VCPU_CMD;
-      dec->reg.cntl = RDECODE_VCN1_ENGINE_CNTL;
-      break;
    case VCN_2_0_0:
    case VCN_2_0_2:
    case VCN_2_0_3:
    case VCN_2_2_0:
-      dec->reg.data0 = RDECODE_VCN2_GPCOM_VCPU_DATA0;
-      dec->reg.data1 = RDECODE_VCN2_GPCOM_VCPU_DATA1;
-      dec->reg.cmd = RDECODE_VCN2_GPCOM_VCPU_CMD;
-      dec->reg.cntl = RDECODE_VCN2_ENGINE_CNTL;
-      break;
    case VCN_2_5_0:
    case VCN_2_6_0:
    case VCN_3_0_0:
@@ -2322,10 +2331,8 @@ ac_vcn_create_video_decoder(const struct radeon_info *info, struct ac_video_dec_
    case VCN_3_0_33:
    case VCN_3_1_1:
    case VCN_3_1_2:
-      dec->reg.data0 = RDECODE_VCN2_5_GPCOM_VCPU_DATA0;
-      dec->reg.data1 = RDECODE_VCN2_5_GPCOM_VCPU_DATA1;
-      dec->reg.cmd = RDECODE_VCN2_5_GPCOM_VCPU_CMD;
-      dec->reg.cntl = RDECODE_VCN2_5_ENGINE_CNTL;
+      dec->addr_mode = RDECODE_ARRAY_MODE_ADDRLIB_SEL_GFX10;
+      ac_vcn_dec_init_regs(&dec->reg, dec->vcn_version);
       break;
    case VCN_4_0_3:
       dec->addr_mode = RDECODE_ARRAY_MODE_ADDRLIB_SEL_GFX9;
