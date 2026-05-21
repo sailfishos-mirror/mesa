@@ -180,8 +180,7 @@ intel_debug_flag_for_shader_stage(mesa_shader_stage stage)
    return flags[stage];
 }
 
-#define DEBUG_FS_SIMD  (DEBUG_FS_SIMD8  | DEBUG_FS_SIMD16  | \
-                        DEBUG_FS_SIMD32)
+#define DEBUG_FS_SIMD  BITFIELD_MASK(DEBUG_CS_SIMD8)
 #define DEBUG_CS_SIMD  (DEBUG_CS_SIMD8  | DEBUG_CS_SIMD16  | DEBUG_CS_SIMD32)
 #define DEBUG_TS_SIMD  (DEBUG_TS_SIMD8  | DEBUG_TS_SIMD16  | DEBUG_TS_SIMD32)
 #define DEBUG_MS_SIMD  (DEBUG_MS_SIMD8  | DEBUG_MS_SIMD16  | DEBUG_MS_SIMD32)
@@ -256,8 +255,11 @@ process_intel_debug_variable_once(void)
    intel_debug_bkp_after_dispatch_count =
       debug_get_num_option("INTEL_DEBUG_BKP_AFTER_DISPATCH_COUNT", 0);
 
+   /* If INTEL_SIMD_DEBUG doesn't specify any options for a stage, then all
+    * are allowed, except FS currently disables multipolygon modes by default.
+    */
    if (!(intel_simd & DEBUG_FS_SIMD))
-      intel_simd |=   DEBUG_FS_SIMD;
+      intel_simd |=   DEBUG_FS_SIMD8 | DEBUG_FS_SIMD16 | DEBUG_FS_SIMD32;
    if (!(intel_simd & DEBUG_CS_SIMD))
       intel_simd |=   DEBUG_CS_SIMD;
    if (!(intel_simd & DEBUG_TS_SIMD))
