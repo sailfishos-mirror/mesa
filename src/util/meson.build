@@ -249,6 +249,10 @@ if with_panfrost_vk
   files_drirc += files('00-panvk-defaults.conf')
 endif
 
+if with_gallium_panfrost
+  files_drirc += files('00-panfrost-defaults.conf')
+endif
+
 if with_gallium_radeonsi
   files_drirc += files('00-radeonsi-defaults.conf')
 endif
