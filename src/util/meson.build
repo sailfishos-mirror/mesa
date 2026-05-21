@@ -257,6 +257,10 @@ if with_panfrost_vk
   files_drirc += files('00-panvk-defaults.conf')
 endif
 
+if with_gallium_virgl
+  files_drirc += files('00-virtio_gpu-defaults.conf')
+endif
+
 if with_gallium_panfrost
   files_drirc += files('00-panfrost-defaults.conf')
 endif
