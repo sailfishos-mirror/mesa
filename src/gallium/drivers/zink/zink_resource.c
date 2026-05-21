@@ -1583,10 +1583,8 @@ resource_create(struct pipe_screen *pscreen,
       /* for rebinds */
       res->modifiers_count = modifiers_count;
       res->modifiers = mem_dup(modifiers, modifiers_count * sizeof(uint64_t));
-      if (!res->modifiers) {
-         FREE_CL(res);
-         return NULL;
-      }
+      if (!res->modifiers)
+         goto fail;
    }
 
    res->base.b = *templ;
@@ -1622,21 +1620,14 @@ resource_create(struct pipe_screen *pscreen,
          }
       }
 
-      if (modifiers_count > 0 && res->modifiers[0] != DRM_FORMAT_MOD_LINEAR) {
-         /* Failed to find LINEAR in the modifier list */
-         free(res->modifiers);
-         FREE_CL(res);
-         return NULL;
-      }
+      if (modifiers_count > 0 && res->modifiers[0] != DRM_FORMAT_MOD_LINEAR)
+         goto fail;
 
       res->ro_scanout =
          renderonly_scanout_for_resource(&templ2, screen->ro, &handle);
 
-      if (!res->ro_scanout) {
-         free(res->modifiers);
-         FREE_CL(res);
-         return NULL;
-      }
+      if (!res->ro_scanout)
+         goto fail;
       assert(handle.type == WINSYS_HANDLE_TYPE_FD);
       assert(handle.modifier == DRM_FORMAT_MOD_LINEAR);
       whandle = &handle;
@@ -1644,15 +1635,8 @@ resource_create(struct pipe_screen *pscreen,
 #endif
 
    res->obj = resource_object_create(screen, &templ2, whandle, &linear, res->modifiers, res->modifiers_count, loader_private, user_mem);
-   if (!res->obj) {
-#ifdef HAVE_LIBDRM
-      if (res->ro_scanout)
-         renderonly_scanout_destroy(res->ro_scanout, screen->ro);
-#endif
-      free(res->modifiers);
-      FREE_CL(res);
-      return NULL;
-   }
+   if (!res->obj)
+      goto fail;
 
    res->queue = VK_QUEUE_FAMILY_IGNORED;
    res->internal_format = templ->format;
@@ -1704,10 +1688,7 @@ resource_create(struct pipe_screen *pscreen,
                                                          &res->dt_stride);
          if (!res->obj->dt) {
             mesa_loge("zink: could not create swapchain");
-            FREE(res->obj);
-            free(res->modifiers);
-            FREE_CL(res);
-            return NULL;
+            goto fail_obj;
          }
          struct kopper_displaytarget *cdt = res->obj->dt;
          if (cdt->swapchain->num_acquires) {
@@ -1754,6 +1735,17 @@ resource_create(struct pipe_screen *pscreen,
    if (res->obj->exportable)
       res->base.b.bind |= ZINK_BIND_DMABUF;
    return &res->base.b;
+
+fail_obj:
+   FREE(res->obj);
+fail:
+#ifdef HAVE_LIBDRM
+   if (res->ro_scanout)
+      renderonly_scanout_destroy(res->ro_scanout, screen->ro);
+#endif
+   free(res->modifiers);
+   FREE_CL(res);
+   return NULL;
 }
 
 static struct pipe_resource *
