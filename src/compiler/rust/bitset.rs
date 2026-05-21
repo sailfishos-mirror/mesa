@@ -24,7 +24,7 @@ use std::cmp::{max, min};
 use std::marker::PhantomData;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor,
-    BitXorAssign, RangeFull, Sub, SubAssign,
+    BitXorAssign, Range, RangeFull, Sub, SubAssign,
 };
 
 /// Converts a value into a bit index
@@ -178,6 +178,228 @@ fn find_next_unset(words: &[u32], start: BitIndex) -> BitIndex {
 
     BitIndex::from_word(words.len())
 }
+
+/// A set implemented as an array of bits, able to be used as constant data
+///
+/// The fixed size W is in units of 32-bit words.  This is due to a Rust
+/// restriction which prevents us from doing math on constants which size
+/// arrays.
+#[derive(Clone, Copy)]
+pub struct ConstBitSet<const W: usize, K = usize> {
+    words: [u32; W],
+    phantom: PhantomData<K>,
+}
+
+impl<const W: usize, K> ConstBitSet<W, K> {
+    pub const fn new() -> Self {
+        ConstBitSet {
+            words: [0_u32; W],
+            phantom: PhantomData,
+        }
+    }
+
+    pub const fn clear(&mut self) {
+        let mut w = 0_usize;
+        while w < W {
+            self.words[w] = 0;
+            w += 1;
+        }
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        let mut w = 0_usize;
+        while w < W {
+            if self.words[w] != 0 {
+                return false;
+            }
+            w += 1;
+        }
+        true
+    }
+}
+
+macro_rules! impl_const_bit_set_binop {
+    (
+        $K:ident,
+        $BinOp:ident,
+        $bin_op:ident,
+        $AssignBinOp:ident,
+        $assign_bin_op:ident,
+        |$a:ident, $b:ident| $impl:expr,
+    ) => {
+        impl<const W: usize> $AssignBinOp<&ConstBitSet<W, $K>>
+            for ConstBitSet<W, $K>
+        {
+            fn $assign_bin_op(&mut self, rhs: &ConstBitSet<W, $K>) {
+                for w in 0..W {
+                    let $a = self.words[w];
+                    let $b = rhs.words[w];
+                    self.words[w] = $impl;
+                }
+            }
+        }
+
+        impl<const W: usize> $AssignBinOp<ConstBitSet<W, $K>>
+            for ConstBitSet<W, $K>
+        {
+            fn $assign_bin_op(&mut self, rhs: ConstBitSet<W, $K>) {
+                self.$assign_bin_op(&rhs);
+            }
+        }
+
+        impl<const W: usize> $BinOp<&ConstBitSet<W, $K>>
+            for ConstBitSet<W, $K>
+        {
+            type Output = ConstBitSet<W, $K>;
+
+            fn $bin_op(
+                mut self,
+                rhs: &ConstBitSet<W, $K>,
+            ) -> ConstBitSet<W, $K> {
+                self.$assign_bin_op(rhs);
+                self
+            }
+        }
+
+        impl<const W: usize> $BinOp<ConstBitSet<W, $K>> for ConstBitSet<W, $K> {
+            type Output = ConstBitSet<W, $K>;
+
+            fn $bin_op(
+                mut self,
+                rhs: ConstBitSet<W, $K>,
+            ) -> ConstBitSet<W, $K> {
+                self.$assign_bin_op(rhs);
+                self
+            }
+        }
+    };
+}
+
+macro_rules! impl_const_bit_set {
+    ($K:ident) => {
+        impl<const W: usize> ConstBitSet<W, $K> {
+            pub const fn contains(&self, key: $K) -> bool {
+                let idx = BitIndex::from_flat_index(key as usize);
+                if idx.word < self.words.len() {
+                    self.words[idx.word] & (1_u32 << idx.bit) != 0
+                } else {
+                    false
+                }
+            }
+
+            pub const fn insert(&mut self, key: $K) -> bool {
+                let idx = BitIndex::from_flat_index(key as usize);
+                assert!(idx.word < W, "ConstBitSet index out of bounds");
+                let exists = self.contains(key);
+                self.words[idx.word] |= 1_u32 << idx.bit;
+                !exists
+            }
+
+            pub const fn insert_range(&mut self, range: Range<$K>) {
+                assert!(
+                    range.end as usize <= W * 32,
+                    "ConstBitSet index out of bounds",
+                );
+
+                if range.start >= range.end {
+                    return;
+                }
+
+                let start = BitIndex::from_flat_index(range.start as usize);
+                let end = BitIndex::from_flat_index(range.end as usize);
+
+                let mut word = start.word;
+                let mut mask = u32::MAX << start.bit;
+                while word < end.word {
+                    self.words[word] |= mask;
+                    mask = u32::MAX;
+                    word += 1;
+                }
+
+                debug_assert!(word == end.word);
+                mask &= !(u32::MAX << end.bit);
+                self.words[word] |= mask;
+            }
+
+            pub const fn remove(&mut self, key: $K) -> bool {
+                let idx = BitIndex::from_flat_index(key as usize);
+                if idx.word < self.words.len() {
+                    let exists = self.contains(key);
+                    self.words[idx.word] &= !(1_u32 << idx.bit);
+                    exists
+                } else {
+                    false
+                }
+            }
+
+            pub const fn from_array<const N: usize>(arr: [$K; N]) -> Self {
+                let mut set = ConstBitSet::<W, $K>::new();
+                let mut i = 0_usize;
+                while i < N {
+                    set.insert(arr[i]);
+                    i += 1;
+                }
+                set
+            }
+
+            pub const fn from_range(range: Range<$K>) -> Self {
+                let mut set = ConstBitSet::<W, $K>::new();
+                set.insert_range(range);
+                set
+            }
+
+            pub fn iter(&self) -> impl '_ + Iterator<Item = $K> {
+                BitSetIter::new(&self.words)
+            }
+        }
+
+        impl<const W: usize> From<Range<$K>> for ConstBitSet<W, $K> {
+            fn from(range: Range<$K>) -> ConstBitSet<W, $K> {
+                ConstBitSet::<W, $K>::from_range(range)
+            }
+        }
+
+        impl_const_bit_set_binop!(
+            $K,
+            BitAnd,
+            bitand,
+            BitAndAssign,
+            bitand_assign,
+            |a, b| a & b,
+        );
+
+        impl_const_bit_set_binop!(
+            $K,
+            BitOr,
+            bitor,
+            BitOrAssign,
+            bitor_assign,
+            |a, b| a | b,
+        );
+
+        impl_const_bit_set_binop!(
+            $K,
+            BitXor,
+            bitxor,
+            BitXorAssign,
+            bitxor_assign,
+            |a, b| a ^ b,
+        );
+
+        impl_const_bit_set_binop!(
+            $K,
+            Sub,
+            sub,
+            SubAssign,
+            sub_assign,
+            |a, b| a & !b,
+        );
+    };
+}
+
+impl_const_bit_set!(u8);
+impl_const_bit_set!(u16);
+impl_const_bit_set!(usize);
 
 /// A set implemented as an array of bits
 ///
