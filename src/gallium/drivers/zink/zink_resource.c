@@ -1303,16 +1303,52 @@ setup_image_pnext(struct zink_screen *screen, const struct pipe_resource *templ,
          alloc_info->shared = false;
       }
    } else if (alloc_info->user_mem) {
-      s->emici.sType =
-         VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
+      s->emici.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
       s->emici.pNext = ici->pNext;
-      s->emici.handleTypes =
-         VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
+      s->emici.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
       ici->pNext = &s->emici;
    } else {
-      assert(ici->tiling !=
-             VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT);
+      assert(ici->tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT);
    }
+}
+
+static enum resource_object_create_result
+bind_image_memory(struct zink_screen *screen, struct zink_resource_object *obj,
+                  const struct pipe_resource *templ, const VkImageCreateInfo *ici,
+                  unsigned num_planes, const struct mem_alloc_info *alloc_info)
+{
+   if (ici->flags & VK_IMAGE_CREATE_DISJOINT_BIT) {
+      VkBindImageMemoryInfo infos[3];
+      VkBindImagePlaneMemoryInfo planes[3];
+      for (unsigned i = 0; i < num_planes; i++) {
+         infos[i].sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
+         infos[i].image = obj->image;
+         infos[i].memory = zink_bo_get_mem(obj->bo);
+         infos[i].memoryOffset = obj->plane_offsets[i];
+         assert(!alloc_info->need_dedicated || obj->plane_offsets[i] == 0);
+         if (templ->bind & ZINK_BIND_VIDEO) {
+            infos[i].pNext = &planes[i];
+            planes[i].sType = VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO;
+            planes[i].pNext = NULL;
+            planes[i].planeAspect = plane_aspects[i];
+         }
+      }
+      if (VKSCR(BindImageMemory2)(screen->dev, num_planes, infos) != VK_SUCCESS) {
+         mesa_loge("ZINK: vkBindImageMemory2 failed");
+         return roc_fail_and_cleanup_all;
+      }
+   } else {
+      if (!(templ->flags & PIPE_RESOURCE_FLAG_SPARSE)) {
+         assert(!alloc_info->need_dedicated || obj->offset == 0);
+         if (VKSCR(BindImageMemory)(screen->dev, obj->image,
+                                    zink_bo_get_mem(obj->bo), obj->offset) != VK_SUCCESS) {
+            mesa_loge("ZINK: vkBindImageMemory failed");
+            return roc_fail_and_cleanup_all;
+         }
+      }
+   }
+   _mesa_set_init(&obj->surface_cache, NULL, NULL, equals_surface_key);
+   return roc_success;
 }
 
 static enum pipe_format
@@ -1323,12 +1359,10 @@ setup_format_list(struct zink_screen *screen, const struct pipe_resource *templ,
    unsigned num_planes = util_format_get_num_planes(templ->format);
    enum pipe_format srgb = PIPE_FORMAT_NONE;
    bool can_srgb = screen->driver_workarounds.srgb_dmabufs ||
-      (!alloc_info->whandle ||
-       alloc_info->whandle->type == ZINK_EXTERNAL_MEMORY_HANDLE);
+      (!alloc_info->whandle || alloc_info->whandle->type == ZINK_EXTERNAL_MEMORY_HANDLE);
    if (!(templ->bind & ZINK_BIND_MUTABLE) && can_srgb) {
-      srgb = util_format_is_srgb(templ->format) ?
-         util_format_linear(templ->format) :
-         util_format_srgb(templ->format);
+      srgb = util_format_is_srgb(templ->format) ? util_format_linear(templ->format) :
+                                                   util_format_srgb(templ->format);
       if (srgb == templ->format)
          srgb = PIPE_FORMAT_NONE;
    }
@@ -1468,37 +1502,7 @@ create_image(struct zink_screen *screen, struct zink_resource_object *obj,
    if (retval != roc_success)
       return retval;
 
-   if (ici.flags & VK_IMAGE_CREATE_DISJOINT_BIT) {
-      VkBindImageMemoryInfo infos[3];
-      VkBindImagePlaneMemoryInfo planes[3];
-      for (unsigned i = 0; i < num_planes; i++) {
-         infos[i].sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
-         infos[i].image = obj->image;
-         infos[i].memory = zink_bo_get_mem(obj->bo);
-         infos[i].memoryOffset = obj->plane_offsets[i];
-         assert(!alloc_info->need_dedicated || obj->plane_offsets[i] == 0);
-         if (templ->bind & ZINK_BIND_VIDEO) {
-            infos[i].pNext = &planes[i];
-            planes[i].sType = VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO;
-            planes[i].pNext = NULL;
-            planes[i].planeAspect = plane_aspects[i];
-         }
-      }
-      if (VKSCR(BindImageMemory2)(screen->dev, num_planes, infos) != VK_SUCCESS) {
-         mesa_loge("ZINK: vkBindImageMemory2 failed");
-         return roc_fail_and_cleanup_all;
-      }
-   } else {
-      if (!(templ->flags & PIPE_RESOURCE_FLAG_SPARSE)) {
-         assert(!alloc_info->need_dedicated || obj->offset == 0);
-         if (VKSCR(BindImageMemory)(screen->dev, obj->image, zink_bo_get_mem(obj->bo), obj->offset) != VK_SUCCESS) {
-            mesa_loge("ZINK: vkBindImageMemory failed");
-            return roc_fail_and_cleanup_all;
-         }
-      }
-   }
-   _mesa_set_init(&obj->surface_cache, NULL, NULL, equals_surface_key);
-   return roc_success;
+   return bind_image_memory(screen, obj, templ, &ici, num_planes, alloc_info);
 }
 
 static struct zink_resource_object *
