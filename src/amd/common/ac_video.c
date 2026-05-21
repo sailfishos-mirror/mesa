@@ -18,7 +18,8 @@ check_vcn_fw_version(struct radeon_info *info, uint32_t dec, uint32_t enc, uint3
 static bool
 vcn_dec_only(struct radeon_info *info)
 {
-   return info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1;
+   return info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1 ||
+          info->vcn_ip_version == VCN_5_0_2;
 }
 
 static bool
@@ -534,15 +535,19 @@ vcn_jpeg_caps(struct radeon_info *info)
    cap->max_active_refs = 0;
    cap->bitstream_size_alignment = 128;
    cap->bitstream_address_alignment = 256;
-   cap->mjpeg.roi_crop = info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1;
+   cap->mjpeg.roi_crop = info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1 ||
+                         info->vcn_ip_version == VCN_5_0_2;
    cap->formats.nv12 = 1;
    cap->formats.y8u8y8v8_422 = 1;
    cap->formats.y8_400 = 1;
    cap->formats.y8_u8_v8_444 = info->vcn_ip_version >= VCN_2_0_0;
    cap->formats.y8_u8_v8_440 = info->vcn_ip_version >= VCN_2_0_0;
-   cap->formats.r8g8b8a8 = info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1;
-   cap->formats.a8r8g8b8 = info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1;
-   cap->formats.r8_g8_b8 = info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1;
+   cap->formats.r8g8b8a8 = info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1 ||
+                           info->vcn_ip_version == VCN_5_0_2;
+   cap->formats.a8r8g8b8 = info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1 ||
+                           info->vcn_ip_version == VCN_5_0_2;
+   cap->formats.r8_g8_b8 = info->vcn_ip_version == VCN_4_0_3 || info->vcn_ip_version == VCN_5_0_1 ||
+                           info->vcn_ip_version == VCN_5_0_2;
 }
 
 static void
