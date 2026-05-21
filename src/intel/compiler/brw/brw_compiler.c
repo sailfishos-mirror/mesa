@@ -267,7 +267,6 @@ brw_get_compiler_config_value(const struct brw_compiler *compiler)
       DEBUG_SPILL_FS,
       DEBUG_SPILL_VEC4,
       DEBUG_NO_COMPACTION,
-      DEBUG_DO32,
       DEBUG_SOFT64,
       DEBUG_NO_SEND_GATHER,
       DEBUG_NO_VRT,
@@ -285,6 +284,9 @@ brw_get_compiler_config_value(const struct brw_compiler *compiler)
       insert_u64_bit(&config, (intel_simd & (1ULL << bit)) != 0);
 
    for (unsigned i = 0; i < MESA_VULKAN_SHADER_STAGES; i++) {
+      insert_u64_bit(&config, (intel_simd_overridden & (1 << i)) != 0);
+      bits++;
+
       insert_u64_bit(&config, intel_use_jay(compiler->devinfo, i) != 0);
       bits++;
    }

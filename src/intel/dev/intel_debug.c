@@ -85,7 +85,6 @@ static const struct debug_control_bitset debug_control[] = {
    OPT1("ds",                DEBUG_TES),
    OPT1("tes",               DEBUG_TES),
    OPT1("l3",                DEBUG_L3),
-   OPT1("do32",              DEBUG_DO32),
    OPT1("norbc",             DEBUG_NO_CCS),
    OPT1("noccs",             DEBUG_NO_CCS),
    OPT1("noccs-modifier",    DEBUG_NO_CCS_MODIFIER),
@@ -132,6 +131,7 @@ static const struct debug_control_bitset debug_control[] = {
 #undef OPT2
 };
 uint64_t intel_simd = 0;
+unsigned intel_simd_overridden = 0;
 
 static const struct debug_control simd_control[] = {
    { "fs8",    DEBUG_FS_SIMD8 },
@@ -258,6 +258,18 @@ process_intel_debug_variable_once(void)
    /* If INTEL_SIMD_DEBUG doesn't specify any options for a stage, then all
     * are allowed, except FS currently disables multipolygon modes by default.
     */
+   intel_simd_overridden =
+      (intel_simd & DEBUG_FS_SIMD) ? (1 << MESA_SHADER_FRAGMENT) : 0 |
+      (intel_simd & DEBUG_CS_SIMD) ? (1 << MESA_SHADER_COMPUTE)  : 0 |
+      (intel_simd & DEBUG_TS_SIMD) ? (1 << MESA_SHADER_TASK)     : 0 |
+      (intel_simd & DEBUG_MS_SIMD) ? (1 << MESA_SHADER_MESH)     : 0 |
+      (intel_simd & DEBUG_RT_SIMD) ? (1 << MESA_SHADER_RAYGEN |
+                                      1 << MESA_SHADER_ANY_HIT |
+                                      1 << MESA_SHADER_CLOSEST_HIT |
+                                      1 << MESA_SHADER_MISS |
+                                      1 << MESA_SHADER_INTERSECTION |
+                                      1 << MESA_SHADER_CALLABLE) : 0;
+
    if (!(intel_simd & DEBUG_FS_SIMD))
       intel_simd |=   DEBUG_FS_SIMD8 | DEBUG_FS_SIMD16 | DEBUG_FS_SIMD32;
    if (!(intel_simd & DEBUG_CS_SIMD))

@@ -89,6 +89,16 @@ simd_debug_allowed(mesa_shader_stage stage, unsigned simd)
    return intel_simd & (start << simd);
 }
 
+/**
+ * Return true if INTEL_SIMD_DEBUG force-enables the given SIMD mode.
+ */
+static bool
+simd_debug_forced(mesa_shader_stage stage, unsigned simd)
+{
+   return (intel_simd_overridden & (1 << stage)) &&
+          simd_debug_allowed(stage, simd);
+}
+
 bool
 brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
 {
@@ -147,11 +157,11 @@ brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
        *
        * TODO: Use performance_analysis and drop this rule.
        */
-      if (width == 32 && state.devinfo->ver < 20) {
-         if (!INTEL_DEBUG(DEBUG_DO32) && (state.compiled[0] || state.compiled[1])) {
-            state.error[simd] = "SIMD32 not required (use INTEL_DEBUG=do32 to force)";
-            return false;
-         }
+      if (width == 32 && state.devinfo->ver < 20 &&
+          (state.compiled[0] || state.compiled[1]) &&
+          !simd_debug_forced(prog_data->stage, 2)) {
+         state.error[simd] = "SIMD32 not required (use INTEL_SIMD_DEBUG to force)";
+         return false;
       }
    }
 

@@ -112,8 +112,6 @@ enum intel_debug_flag {
    DEBUG_CS,
    DEBUG_RT,
 
-   DEBUG_DO32,
-
    /* Must be the last entry */
    INTEL_DEBUG_MAX,
 };
@@ -138,6 +136,7 @@ extern BITSET_WORD intel_debug[BITSET_WORDS(INTEL_DEBUG_MAX)];
                                       INTEL_DEBUG(DEBUG_BVH_PCREL_MAP)))
 
 extern uint64_t intel_simd;
+extern uint32_t intel_simd_overridden; /**< bit per stage if overridden */
 extern uint32_t intel_debug_bkp_before_draw_count;
 extern uint32_t intel_debug_bkp_after_draw_count;
 extern uint32_t intel_debug_bkp_before_dispatch_count;

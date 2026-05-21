@@ -47,6 +47,16 @@ simd_debug_allowed(unsigned simd)
    return intel_simd & (DEBUG_CS_SIMD8 << simd);
 }
 
+/**
+ * Return true if INTEL_SIMD_DEBUG force-enables the given SIMD mode.
+ */
+static bool
+simd_debug_forced(unsigned simd)
+{
+   return (intel_simd_overridden & (1 << MESA_SHADER_COMPUTE)) &&
+          simd_debug_allowed(simd);
+}
+
 bool
 elk_simd_should_compile(elk_simd_selection_state &state, unsigned simd)
 {
@@ -97,8 +107,9 @@ elk_simd_should_compile(elk_simd_selection_state &state, unsigned simd)
        * TODO: Use performance_analysis and drop this rule.
        */
       if (width == 32) {
-         if (!INTEL_DEBUG(DEBUG_DO32) && (state.compiled[0] || state.compiled[1])) {
-            state.error[simd] = "SIMD32 not required (use INTEL_DEBUG=do32 to force)";
+         if (!simd_debug_forced(2) &&
+             (state.compiled[0] || state.compiled[1])) {
+            state.error[simd] = "SIMD32 not required (use INTEL_SIMD_DEBUG=cs32 to force)";
             return false;
          }
       }
