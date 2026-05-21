@@ -237,6 +237,10 @@ if with_gallium_iris
   files_drirc += files('00-iris-defaults.conf')
 endif
 
+if with_gallium_crocus
+  files_drirc += files('00-crocus-defaults.conf')
+endif
+
 if with_gallium_asahi
   files_drirc += files('00-asahi-defaults.conf')
 endif
