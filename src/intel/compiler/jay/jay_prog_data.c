@@ -95,7 +95,7 @@ gather_fs_info(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       break;
 
    case nir_intrinsic_load_pixel_coord_intel:
-      BITSET_SET(b->shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD);
+      prog_data->uses_src_xy = true;
       break;
 
    default:

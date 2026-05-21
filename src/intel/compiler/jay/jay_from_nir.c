@@ -2642,7 +2642,7 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       }
    }
 
-   if (BITSET_TEST(nj->nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD)) {
+   if (nj->s->prog_data->fs.uses_src_xy) {
       jay_def t = jay_alloc_def(&nj->bld, GPR, 1);
       jay_def lo = jay_extract_range(nj->payload.u0, 10, 4);
       jay_EXPAND_QUAD(&nj->bld, t, lo, payload_u1(nj, 10, 4));
