@@ -2445,7 +2445,7 @@ agx_screen_create(int fd, struct renderonly *ro,
    /* Forward no16 flag from driconf. This must happen after opening the device,
     * since agx_open_device sets debug.
     */
-   if (driQueryOptionb(config->options, "no_fp16"))
+   if (driQueryOptionb(config->options, "asahi_no_fp16"))
       agx_screen->dev.debug |= AGX_DBG_NO16;
 
    int ret =

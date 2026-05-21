@@ -521,10 +521,6 @@
    DRI_CONF_OPT_B(vertex_program_default_out, def, \
                   "Initialize outputs of vertex program to a default value vec4(0, 0, 0, 1)")
 
-#define DRI_CONF_NO_FP16(def) \
-   DRI_CONF_OPT_B(no_fp16, def, \
-                  "Disable 16-bit float support")
-
 #define DRI_CONF_VK_ZERO_VRAM(def) \
    DRI_CONF_OPT_B(vk_zero_vram, def, \
                   "Initialize to zero all VRAM allocations")
@@ -737,5 +733,12 @@
  */
 
  #define DRI_CONF_NVK_APP_LAYER() DRI_CONF_OPT_S_NODEF(nvk_app_layer, "Select an application layer.")
+
+/**
+ * \brief Asahi specific configuration options
+ */
+#define DRI_CONF_ASAHI_NO_FP16(def) \
+   DRI_CONF_OPT_B(asahi_no_fp16, def, \
+                  "Disable 16-bit float support")
 
 #endif
