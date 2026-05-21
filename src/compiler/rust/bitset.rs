@@ -71,6 +71,8 @@ struct BitIndex {
 }
 
 impl BitIndex {
+    const ZERO: BitIndex = BitIndex { word: 0, bit: 0 };
+
     const fn flatten(self) -> usize {
         self.word * 32 + (self.bit as usize)
     }
@@ -80,6 +82,10 @@ impl BitIndex {
             word: idx / 32,
             bit: (idx % 32) as u8,
         }
+    }
+
+    const fn from_word(word: usize) -> BitIndex {
+        BitIndex { word, bit: 0 }
     }
 }
 
@@ -110,6 +116,52 @@ impl Add<usize> for BitIndex {
         self += rhs;
         self
     }
+}
+
+#[inline]
+fn find_next_set(words: &[u32], start: BitIndex) -> Option<BitIndex> {
+    if start.word >= words.len() {
+        return None;
+    }
+
+    let mut word = start.word;
+    let mut mask = u32::MAX << start.bit;
+    while word < words.len() {
+        let bit = (words[word] & mask).trailing_zeros();
+        if bit < 32 {
+            return Some(BitIndex {
+                word,
+                bit: bit as u8,
+            });
+        }
+        mask = u32::MAX;
+        word += 1;
+    }
+
+    None
+}
+
+#[inline]
+fn find_next_unset(words: &[u32], start: BitIndex) -> BitIndex {
+    if start.word >= words.len() {
+        return start;
+    }
+
+    let mut word = start.word;
+    let mut mask = !(u32::MAX << start.bit);
+    while word < words.len() {
+        let bit = (words[word] | mask).trailing_ones();
+        if bit < 32 {
+            return BitIndex {
+                word,
+                bit: bit as u8,
+            };
+        }
+        mask = 0;
+        word += 1;
+    }
+
+    BitIndex::from_word(words.len())
 }
 
 /// A set implemented as an array of bits
@@ -199,21 +251,7 @@ impl<K: FromBitIndex> BitSet<K> {
 
 impl BitSet<usize> {
     pub fn next_unset(&self, start: usize) -> usize {
-        if start >= self.words.len() * 32 {
-            return start;
-        }
-
-        let mut w = start / 32;
-        let mut mask = !(u32::MAX << (start % 32));
-        while w < self.words.len() {
-            let b = (self.words[w] | mask).trailing_ones();
-            if b < 32 {
-                return w * 32 + usize::try_from(b).unwrap();
-            }
-            mask = 0;
-            w += 1;
-        }
-        self.words.len() * 32
+        find_next_unset(&self.words, start.into()).into()
     }
 
     /// Search for a set of `count` consecutive elements that are not present in
@@ -513,16 +551,14 @@ binop!(
 
 struct BitSetIter<'a, K> {
     set: &'a BitSet<K>,
-    w: usize,
-    mask: u32,
+    idx: BitIndex,
 }
 
 impl<'a, K> BitSetIter<'a, K> {
     fn new(set: &'a BitSet<K>) -> Self {
         Self {
             set,
-            w: 0,
-            mask: u32::MAX,
+            idx: BitIndex::ZERO,
         }
     }
 }
@@ -531,17 +567,13 @@ impl<'a, K: FromBitIndex> Iterator for BitSetIter<'a, K> {
     type Item = K;
 
     fn next(&mut self) -> Option<K> {
-        while self.w < self.set.words.len() {
-            let b = (self.set.words[self.w] & self.mask).trailing_zeros();
-            if b < 32 {
-                self.mask &= !(1 << b);
-                let idx = self.w * 32 + usize::try_from(b).unwrap();
-                return Some(K::from_bit_index(idx));
-            }
-            self.mask = u32::MAX;
-            self.w += 1;
+        if let Some(idx) = find_next_set(&self.set.words, self.idx) {
+            self.idx = idx + 1;
+            Some(K::from_bit_index(idx.into()))
+        } else {
+            self.idx = BitIndex::from_word(self.set.words.len());
+            None
         }
-        None
     }
 }
 
