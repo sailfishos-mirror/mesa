@@ -43,12 +43,6 @@ pub trait IntoBitIndex {
     fn into_bit_index(self) -> usize;
 }
 
-impl IntoBitIndex for usize {
-    fn into_bit_index(self) -> usize {
-        self
-    }
-}
-
 /// Converts a bit index back into a value
 ///
 /// The implementation must ensure that
@@ -58,11 +52,32 @@ pub trait FromBitIndex: IntoBitIndex {
     fn from_bit_index(i: usize) -> Self;
 }
 
-impl FromBitIndex for usize {
-    fn from_bit_index(i: usize) -> Self {
-        i
-    }
+/// Implements IntoBitIndex and FromBitIndex for the given basic data type.
+///
+/// This can only be used on data types with less than or fewer bits than
+/// usize, guaranteeing that the conversion in both directions is lossless.
+/// See also the invariant specified on FromBitIndex.
+macro_rules! impl_into_from_bit_index {
+    ($t:ident) => {
+        impl IntoBitIndex for $t {
+            fn into_bit_index(self) -> usize {
+                usize::from(self)
+            }
+        }
+
+        impl FromBitIndex for $t {
+            fn from_bit_index(i: usize) -> Self {
+                // We know i will alweays have come from into_bit_index() so
+                // it's safe to do an `as` cast here.
+                i as $t
+            }
+        }
+    };
 }
+
+impl_into_from_bit_index!(u8);
+impl_into_from_bit_index!(u16);
+impl_into_from_bit_index!(usize);
 
 #[derive(Clone, Copy)]
 struct BitIndex {
