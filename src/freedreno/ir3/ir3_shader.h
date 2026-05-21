@@ -165,6 +165,7 @@ struct ir3_ubo_range {
    struct ir3_ubo_info ubo;
    uint32_t offset;     /* start offset to push in the const register file */
    uint32_t start, end; /* range of block that's actually used */
+   bool can_speculate;
 };
 
 struct ir3_ubo_analysis_state {
