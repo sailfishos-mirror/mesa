@@ -141,6 +141,8 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    inputs.varying_layout = varying_layout;
 
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
+      inputs.fragcolor_nr_cbufs = key->fs.nr_cbufs_for_fragcolor;
+
       if (key->fs.nr_cbufs_for_fragcolor) {
          NIR_PASS(_, s, panfrost_nir_remove_fragcolor_stores,
                   key->fs.nr_cbufs_for_fragcolor);

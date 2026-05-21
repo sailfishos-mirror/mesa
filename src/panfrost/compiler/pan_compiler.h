@@ -38,6 +38,11 @@ struct pan_compile_inputs {
    bool no_idvs;
    uint32_t view_mask;
 
+   /* Number of colour buffers gl_FragColor broadcasts to.  Only useful for
+    * OpenGL shaders, leave at 0 otherwise.
+    */
+   uint8_t fragcolor_nr_cbufs;
+
    nir_variable_mode robust_modes;
    /* Whether or not descriptor accesses should add additional robustness
     * checks. */
