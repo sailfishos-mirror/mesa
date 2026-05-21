@@ -245,7 +245,7 @@ impl<K: IntoBitIndex> BitSet<K> {
 
 impl<K: FromBitIndex> BitSet<K> {
     pub fn iter(&self) -> impl '_ + Iterator<Item = K> {
-        BitSetIter::new(self)
+        BitSetIter::new(&self.words)
     }
 }
 
@@ -550,15 +550,17 @@ binop!(
 );
 
 struct BitSetIter<'a, K> {
-    set: &'a BitSet<K>,
+    words: &'a [u32],
     idx: BitIndex,
+    phantom: PhantomData<K>,
 }
 
 impl<'a, K> BitSetIter<'a, K> {
-    fn new(set: &'a BitSet<K>) -> Self {
+    fn new(words: &'a [u32]) -> Self {
         Self {
-            set,
+            words,
             idx: BitIndex::ZERO,
+            phantom: PhantomData,
         }
     }
 }
@@ -567,11 +569,11 @@ impl<'a, K: FromBitIndex> Iterator for BitSetIter<'a, K> {
     type Item = K;
 
     fn next(&mut self) -> Option<K> {
-        if let Some(idx) = find_next_set(&self.set.words, self.idx) {
+        if let Some(idx) = find_next_set(self.words, self.idx) {
             self.idx = idx + 1;
             Some(K::from_bit_index(idx.into()))
         } else {
-            self.idx = BitIndex::from_word(self.set.words.len());
+            self.idx = BitIndex::from_word(self.words.len());
             None
         }
     }
