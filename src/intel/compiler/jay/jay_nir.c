@@ -260,8 +260,9 @@ jay_process_nir(const struct intel_device_info *devinfo,
    prog_data->base.total_shared = nir->info.shared_size;
 
    /* TODO: Real heuristic */
-   bool do_simd32 = INTEL_SIMD(FS, 32);
-   do_simd32 &= stage == MESA_SHADER_COMPUTE || stage == MESA_SHADER_FRAGMENT;
+   bool do_simd32 = stage == MESA_SHADER_FRAGMENT ? INTEL_SIMD(FS, 32) :
+                    stage == MESA_SHADER_COMPUTE  ? INTEL_SIMD(CS, 32) :
+                                                    false;
 
    /* The 'Render Target Write message' section of the docs says:
     *
