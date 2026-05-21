@@ -23,8 +23,8 @@
 use std::cmp::{max, min};
 use std::marker::PhantomData;
 use std::ops::{
-    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, RangeFull,
-    Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor,
+    BitXorAssign, RangeFull, Sub, SubAssign,
 };
 
 /// Converts a value into a bit index
@@ -61,6 +61,54 @@ pub trait FromBitIndex: IntoBitIndex {
 impl FromBitIndex for usize {
     fn from_bit_index(i: usize) -> Self {
         i
+    }
+}
+
+#[derive(Clone, Copy)]
+struct BitIndex {
+    word: usize,
+    bit: u8,
+}
+
+impl BitIndex {
+    const fn flatten(self) -> usize {
+        self.word * 32 + (self.bit as usize)
+    }
+
+    const fn from_flat_index(idx: usize) -> BitIndex {
+        BitIndex {
+            word: idx / 32,
+            bit: (idx % 32) as u8,
+        }
+    }
+}
+
+impl<K: IntoBitIndex> From<K> for BitIndex {
+    fn from(key: K) -> BitIndex {
+        BitIndex::from_flat_index(key.into_bit_index())
+    }
+}
+
+impl From<BitIndex> for usize {
+    fn from(idx: BitIndex) -> usize {
+        idx.flatten()
+    }
+}
+
+impl AddAssign<usize> for BitIndex {
+    fn add_assign(&mut self, rhs: usize) {
+        let bit = usize::from(self.bit) + rhs;
+        self.bit = (bit % 32) as u8;
+        self.word += bit / 32;
+    }
+}
+
+impl Add<usize> for BitIndex {
+    type Output = BitIndex;
+
+    fn add(mut self, rhs: usize) -> BitIndex {
+        self += rhs;
+        self
     }
 }
 
@@ -115,33 +163,27 @@ impl<K> BitSet<K> {
 
 impl<K: IntoBitIndex> BitSet<K> {
     pub fn contains(&self, key: K) -> bool {
-        let idx = key.into_bit_index();
-        let w = idx / 32;
-        let b = idx % 32;
-        if w < self.words.len() {
-            self.words[w] & (1_u32 << b) != 0
+        let idx = BitIndex::from(key);
+        if idx.word < self.words.len() {
+            self.words[idx.word] & (1_u32 << idx.bit) != 0
         } else {
             false
         }
     }
 
     pub fn insert(&mut self, key: K) -> bool {
-        let idx = key.into_bit_index();
-        let w = idx / 32;
-        let b = idx % 32;
-        self.reserve_words(w + 1);
-        let exists = self.words[w] & (1_u32 << b) != 0;
-        self.words[w] |= 1_u32 << b;
+        let idx = BitIndex::from(key);
+        self.reserve_words(idx.word + 1);
+        let exists = self.words[idx.word] & (1_u32 << idx.bit) != 0;
+        self.words[idx.word] |= 1_u32 << idx.bit;
         !exists
     }
 
     pub fn remove(&mut self, key: K) -> bool {
-        let idx = key.into_bit_index();
-        let w = idx / 32;
-        let b = idx % 32;
-        self.reserve_words(w + 1);
-        let exists = self.words[w] & (1_u32 << b) != 0;
-        self.words[w] &= !(1_u32 << b);
+        let idx = BitIndex::from(key);
+        self.reserve_words(idx.word + 1);
+        let exists = self.words[idx.word] & (1_u32 << idx.bit) != 0;
+        self.words[idx.word] &= !(1_u32 << idx.bit);
         exists
     }
 }
