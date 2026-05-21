@@ -23,6 +23,27 @@
 #define CMAC_SIZE AES_BLOCK_SIZE
 #define MAX_SUBSAMPLES 288 /* Maximum subsamples in a sample */
 
+#define RDECODE_VCN1_GPCOM_VCPU_CMD   0x2070c
+#define RDECODE_VCN1_GPCOM_VCPU_DATA0 0x20710
+#define RDECODE_VCN1_GPCOM_VCPU_DATA1 0x20714
+#define RDECODE_VCN1_ENGINE_CNTL      0x20718
+
+#define RDECODE_VCN2_GPCOM_VCPU_CMD       (0x503 << 2)
+#define RDECODE_VCN2_GPCOM_VCPU_DATA0     (0x504 << 2)
+#define RDECODE_VCN2_GPCOM_VCPU_DATA1     (0x505 << 2)
+#define RDECODE_VCN2_GPCOM_VCPU_DATA2     (0x54C << 2)
+#define RDECODE_VCN2_ENGINE_CNTL          (0x506 << 2)
+
+#define RDECODE_VCN2_5_GPCOM_VCPU_CMD       0x3c
+#define RDECODE_VCN2_5_GPCOM_VCPU_DATA0     0x40
+#define RDECODE_VCN2_5_GPCOM_VCPU_DATA1     0x44
+#define RDECODE_VCN2_5_GPCOM_VCPU_DATA2     0x1A0
+#define RDECODE_VCN2_5_ENGINE_CNTL          0x9b4
+
+#define RDECODE_SESSION_CONTEXT_SIZE (128 * 1024)
+#define RDECODE_MAX_SUBSAMPLE_SIZE   (2048 * 2 * 4)
+#define RDECODE_IT_SCALING_TABLE_SIZE       992
+
 typedef struct PACKED _secure_buffer_header
 {
    uint8_t cookie[8];     /* 8-byte cookie with value 'wvcencsb' */
