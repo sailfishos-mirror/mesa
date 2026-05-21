@@ -1447,15 +1447,15 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_pixel_coord_intel:
-      jay_MOV(b, dst, nj->payload.fs.coord.xy);
+      jay_MOV(b, dst, fs->coord.xy);
       break;
 
    case nir_intrinsic_load_frag_coord_z:
-      jay_MOV(b, dst, nj->payload.fs.coord.z);
+      jay_MOV(b, dst, fs->coord.z);
       break;
 
    case nir_intrinsic_load_frag_coord_w_rcp:
-      jay_MOV(b, dst, nj->payload.fs.coord.w);
+      jay_MOV(b, dst, fs->coord.w);
       break;
 
    case nir_intrinsic_load_sample_pos:
@@ -1549,7 +1549,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       }
 
       /* Zeroth delta is the flat value */
-      jay_copy(b, dst, nj->payload.fs.deltas[i]);
+      jay_copy(b, dst, fs->deltas[i]);
       break;
    }
 
