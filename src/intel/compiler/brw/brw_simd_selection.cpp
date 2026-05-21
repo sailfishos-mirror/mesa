@@ -134,7 +134,8 @@ brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
     */
    const bool workgroup_size_variable = cs_prog_data && cs_prog_data->local_size[0] == 0;
 
-   if (!workgroup_size_variable) {
+   if (!workgroup_size_variable &&
+       likely(!simd_debug_forced(prog_data->stage, simd))) {
       if (state.spilled[simd]) {
          state.error[simd] = "Would spill";
          return false;
@@ -172,8 +173,7 @@ brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
        * TODO: Use performance_analysis and drop this rule.
        */
       if (width == 32 && state.devinfo->ver < 20 &&
-          (state.compiled[0] || state.compiled[1]) &&
-          !simd_debug_forced(prog_data->stage, 2)) {
+          (state.compiled[0] || state.compiled[1])) {
          state.error[simd] = "SIMD32 not required (use INTEL_SIMD_DEBUG to force)";
          return false;
       }
