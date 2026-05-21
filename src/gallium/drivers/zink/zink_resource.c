@@ -1236,6 +1236,85 @@ create_buffer(struct zink_screen *screen, struct zink_resource_object *obj,
    return roc_success;
 }
 
+struct image_pnext_state {
+   VkExternalMemoryImageCreateInfo emici;
+   VkImageDrmFormatModifierExplicitCreateInfoEXT idfmeci;
+   VkImageDrmFormatModifierListCreateInfoEXT idfmlci;
+   VkSubresourceLayout plane_layouts[4];
+};
+
+static void
+setup_image_pnext(struct zink_screen *screen, const struct pipe_resource *templ,
+                  struct zink_resource_object *obj, struct mem_alloc_info *alloc_info,
+                  VkImageCreateInfo *ici, uint64_t mod, bool winsys_modifier,
+                  uint64_t *modifiers, int modifiers_count, struct image_pnext_state *s)
+{
+   VkSubresourceLayout plane_layout = {
+      .offset = alloc_info->whandle ? alloc_info->whandle->offset : 0,
+      .size = 0,
+      .rowPitch = alloc_info->whandle ? alloc_info->whandle->stride : 0,
+      .arrayPitch = 0,
+      .depthPitch = 0,
+   };
+
+   obj->render_target = (ici->usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) != 0;
+
+   if (ici->tiling == VK_IMAGE_TILING_OPTIMAL) {
+      alloc_info->external &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+      alloc_info->export_types &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+   }
+
+   if (alloc_info->shared || alloc_info->external) {
+      s->emici.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
+      s->emici.pNext = ici->pNext;
+      s->emici.handleTypes = alloc_info->export_types;
+      assert(!(s->emici.handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) ||
+             ici->tiling != VK_IMAGE_TILING_OPTIMAL);
+      ici->pNext = &s->emici;
+
+      assert(ici->tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT || mod != DRM_FORMAT_MOD_INVALID);
+      if (alloc_info->whandle && ici->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+         assert(mod == alloc_info->whandle->modifier || !winsys_modifier);
+         s->idfmeci.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT;
+         s->idfmeci.pNext = ici->pNext;
+         s->idfmeci.drmFormatModifier = mod;
+         s->idfmeci.drmFormatModifierPlaneCount = obj->plane_count;
+
+         s->plane_layouts[0] = plane_layout;
+         struct pipe_resource *pnext = templ->next;
+         for (unsigned i = 1; i < obj->plane_count; i++, pnext = pnext->next) {
+            struct zink_resource *next = zink_resource(pnext);
+            obj->plane_offsets[i] = s->plane_layouts[i].offset = next->obj->plane_offsets[i];
+            obj->plane_strides[i] = s->plane_layouts[i].rowPitch = next->obj->plane_strides[i];
+            s->plane_layouts[i].size = 0;
+            s->plane_layouts[i].arrayPitch = 0;
+            s->plane_layouts[i].depthPitch = 0;
+         }
+         s->idfmeci.pPlaneLayouts = s->plane_layouts;
+
+         ici->pNext = &s->idfmeci;
+      } else if (ici->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+         s->idfmlci.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT;
+         s->idfmlci.pNext = ici->pNext;
+         s->idfmlci.drmFormatModifierCount = modifiers_count;
+         s->idfmlci.pDrmFormatModifiers = modifiers;
+         ici->pNext = &s->idfmlci;
+      } else if (ici->tiling == VK_IMAGE_TILING_OPTIMAL) {
+         alloc_info->shared = false;
+      }
+   } else if (alloc_info->user_mem) {
+      s->emici.sType =
+         VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
+      s->emici.pNext = ici->pNext;
+      s->emici.handleTypes =
+         VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
+      ici->pNext = &s->emici;
+   } else {
+      assert(ici->tiling !=
+             VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT);
+   }
+}
+
 static enum pipe_format
 setup_format_list(struct zink_screen *screen, const struct pipe_resource *templ,
                   const struct mem_alloc_info *alloc_info, VkFormat *formats,
@@ -1314,73 +1393,9 @@ create_image(struct zink_screen *screen, struct zink_resource_object *obj,
          mesa_loge("zink: refusing to create possibly-srgb dmabuf due to missing driver support: %s not supported!", util_format_name(srgb));
          return roc_fail_and_free_object;
    }
-   VkExternalMemoryImageCreateInfo emici;
-   VkImageDrmFormatModifierExplicitCreateInfoEXT idfmeci;
-   VkImageDrmFormatModifierListCreateInfoEXT idfmlci;
-   VkSubresourceLayout plane_layouts[4];
-   VkSubresourceLayout plane_layout = {
-      .offset = alloc_info->whandle ? alloc_info->whandle->offset : 0,
-      .size = 0,
-      .rowPitch = alloc_info->whandle ? alloc_info->whandle->stride : 0,
-      .arrayPitch = 0,
-      .depthPitch = 0,
-   };
-
-   obj->render_target = (ici.usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) != 0;
-
-   if (ici.tiling == VK_IMAGE_TILING_OPTIMAL) {
-      alloc_info->external &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
-      alloc_info->export_types &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
-   }
-
-   if (alloc_info->shared || alloc_info->external) {
-      emici.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
-      emici.pNext = ici.pNext;
-      emici.handleTypes = alloc_info->export_types;
-      assert(!(emici.handleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) || ici.tiling != VK_IMAGE_TILING_OPTIMAL);
-      ici.pNext = &emici;
-
-      assert(ici.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT || mod != DRM_FORMAT_MOD_INVALID);
-      if (alloc_info->whandle && ici.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
-         assert(mod == alloc_info->whandle->modifier || !winsys_modifier);
-         idfmeci.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT;
-         idfmeci.pNext = ici.pNext;
-         idfmeci.drmFormatModifier = mod;
-         idfmeci.drmFormatModifierPlaneCount = obj->plane_count;
-
-         plane_layouts[0] = plane_layout;
-         struct pipe_resource *pnext = templ->next;
-         for (unsigned i = 1; i < obj->plane_count; i++, pnext = pnext->next) {
-            struct zink_resource *next = zink_resource(pnext);
-            obj->plane_offsets[i] = plane_layouts[i].offset = next->obj->plane_offsets[i];
-            obj->plane_strides[i] = plane_layouts[i].rowPitch = next->obj->plane_strides[i];
-            plane_layouts[i].size = 0;
-            plane_layouts[i].arrayPitch = 0;
-            plane_layouts[i].depthPitch = 0;
-         }
-         idfmeci.pPlaneLayouts = plane_layouts;
-
-         ici.pNext = &idfmeci;
-      } else if (ici.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
-         idfmlci.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT;
-         idfmlci.pNext = ici.pNext;
-         idfmlci.drmFormatModifierCount = modifiers_count;
-         idfmlci.pDrmFormatModifiers = modifiers;
-         ici.pNext = &idfmlci;
-      } else if (ici.tiling == VK_IMAGE_TILING_OPTIMAL) {
-         alloc_info->shared = false;
-      }
-   } else if (alloc_info->user_mem) {
-      emici.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
-      emici.pNext = ici.pNext;
-      emici.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
-      ici.pNext = &emici;
-   } else {
-      /* If the frontend passed modifiers it should have also passed
-       * PIPE_BIND_SHARED
-       */
-      assert(ici.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT);
-   }
+   struct image_pnext_state pnext_state;
+   setup_image_pnext(screen, templ, obj, alloc_info, &ici, mod, winsys_modifier,
+                     modifiers, modifiers_count, &pnext_state);
 
    if (linear)
       *linear = ici.tiling == VK_IMAGE_TILING_LINEAR;
