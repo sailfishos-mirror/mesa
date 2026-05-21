@@ -184,6 +184,7 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
       .KHR_shader_float_controls = true,
       .KHR_shader_float_controls2 = true,
       .KHR_shader_float16_int8 = true,
+      .KHR_shader_fma = true,
       .KHR_shader_integer_dot_product = true,
       .KHR_shader_maximal_reconvergence = true,
       .KHR_shader_non_semantic_info = true,
@@ -772,6 +773,11 @@ nvk_get_device_features(const struct nv_device_info *info,
       .presentAtRelativeTime = true,
       .presentAtAbsoluteTime = true,
 #endif
+
+      /* VK_KHR_shader_fma */
+      .shaderFmaFloat16 = info->sm >= 70,
+      .shaderFmaFloat32 = true,
+      .shaderFmaFloat64 = true,
    };
 }
 
