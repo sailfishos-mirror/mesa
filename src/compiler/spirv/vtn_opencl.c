@@ -732,6 +732,14 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
       break;
    }
 
+   /* Sinpi expects a resulting zero to be of the same sign as the input */
+   case OpenCLstd_Sinpi: {
+      if (nb->fp_math_ctrl & nir_fp_preserve_signed_zero) {
+         ret = nir_bcsel(nb, nir_feq_imm(nb, ret, 0.0), nir_copysign(nb, ret, srcs[0]), ret);
+      }
+      break;
+   }
+
    default:
       break;
    }
