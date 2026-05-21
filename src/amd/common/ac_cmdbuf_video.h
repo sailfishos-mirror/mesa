@@ -22,6 +22,9 @@ void
 ac_emit_video_write_memory(struct ac_cmdbuf *cs, const struct radeon_info *info,
                            enum amd_ip_type ip_type, uint64_t va, uint64_t value);
 
+void
+ac_emit_video_write_timestamp(struct ac_cmdbuf *cs, enum amd_ip_type ip_type, uint64_t va);
+
 #ifdef __cplusplus
 }
 #endif

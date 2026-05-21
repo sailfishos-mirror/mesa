@@ -55,3 +55,14 @@ ac_emit_video_write_memory(struct ac_cmdbuf *cs, const struct radeon_info *info,
       write_memory->data = value;
    }
 }
+
+void
+ac_emit_video_write_timestamp(struct ac_cmdbuf *cs, enum amd_ip_type ip_type, uint64_t va)
+{
+   if (ip_type == AMD_IP_VCN_ENC) {
+      struct rvcn_cmn_engine_op_timestamp *timestamp =
+         vcn_common_cmd(cs, RADEON_VCN_IB_COMMON_OP_TIMESTAMP, sizeof(struct rvcn_cmn_engine_op_timestamp));
+      timestamp->timestamp_addr_lo = va & 0xffffffff;
+      timestamp->timestamp_addr_hi = va >> 32;
+   }
+}

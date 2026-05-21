@@ -36,6 +36,7 @@
 #define RADEON_VCN_SIGNATURE_SIZE                                     (0x00000010)
 
 #define RADEON_VCN_IB_COMMON_OP_WRITEMEMORY                           (0x33000001)
+#define RADEON_VCN_IB_COMMON_OP_TIMESTAMP                             (0x31000001)
 #define RADEON_VCN_IB_COMMON_OP_RESOLVEINPUTPARAMLAYOUT               (0x31000007)
 
 #define RADEON_VCN_RESOLVE_INPUT_PARAM_LAYOUT_TYPE_QPMAP_INT8         1
@@ -50,6 +51,11 @@ struct rvcn_sq_var {
 struct rvcn_cmn_engine_ib_package {
    unsigned int package_size;
    unsigned int package_type;
+};
+
+struct rvcn_cmn_engine_op_timestamp {
+   unsigned int timestamp_addr_lo;       /* Low address of Timestamp */
+   unsigned int timestamp_addr_hi;       /* High address of Timestamp */
 };
 
 struct rvcn_cmn_engine_op_writememory {
