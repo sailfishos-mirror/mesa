@@ -1323,7 +1323,8 @@ zink_screen_init_compiler(struct zink_screen *screen)
       screen->nir_options.float_mul_add64 |= nir_float_muladd_support_keep_weak_ffma;
    }
 
-   if (screen->base.caps.fp16)
+   if (screen->info.feats12.shaderFloat16 ||
+       (screen->info.have_KHR_shader_float16_int8 && screen->info.shader_float16_int8_feats.shaderFloat16))
       screen->nir_options.float_mul_add16 |= nir_float_muladd_support_keep_weak_ffma;
 
    /* XXX: do any drivers need different estimates? */
