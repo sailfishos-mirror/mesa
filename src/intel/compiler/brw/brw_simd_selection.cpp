@@ -109,7 +109,21 @@ brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
    const auto prog_data = get_prog_data(state);
    const unsigned width = 8u << simd;
 
-   if (state.required_width && state.required_width != width) {
+   /* Hard requirements */
+   if (width == 8 && state.devinfo->ver >= 20) {
+      state.error[simd] = "SIMD8 not supported on Xe2+";
+      return false;
+   }
+
+   if (width == 32 && cs_prog_data && cs_prog_data->uses_btd_stack_ids) {
+      state.error[simd] = "Bindless shader calls not supported";
+      return false;
+   }
+
+   if (state.required_width) {
+      if (state.required_width == width)
+         return true;
+
       state.error[simd] = "Different than required dispatch width";
       return false;
    }
@@ -120,7 +134,7 @@ brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
     */
    const bool workgroup_size_variable = cs_prog_data && cs_prog_data->local_size[0] == 0;
 
-   if (!workgroup_size_variable && !state.required_width) {
+   if (!workgroup_size_variable) {
       if (state.spilled[simd]) {
          state.error[simd] = "Would spill";
          return false;
@@ -163,16 +177,6 @@ brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
          state.error[simd] = "SIMD32 not required (use INTEL_SIMD_DEBUG to force)";
          return false;
       }
-   }
-
-   if (width == 8 && state.devinfo->ver >= 20) {
-      state.error[simd] = "SIMD8 not supported on Xe2+";
-      return false;
-   }
-
-   if (width == 32 && cs_prog_data && cs_prog_data->uses_btd_stack_ids) {
-      state.error[simd] = "Bindless shader calls not supported";
-      return false;
    }
 
    if (unlikely(!simd_debug_allowed(prog_data->stage, simd))) {
