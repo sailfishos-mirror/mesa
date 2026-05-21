@@ -1236,6 +1236,43 @@ create_buffer(struct zink_screen *screen, struct zink_resource_object *obj,
    return roc_success;
 }
 
+static enum pipe_format
+setup_format_list(struct zink_screen *screen, const struct pipe_resource *templ,
+                  const struct mem_alloc_info *alloc_info, VkFormat *formats,
+                  VkImageFormatListCreateInfo *format_list, VkImageCreateInfo *ici)
+{
+   unsigned num_planes = util_format_get_num_planes(templ->format);
+   enum pipe_format srgb = PIPE_FORMAT_NONE;
+   bool can_srgb = screen->driver_workarounds.srgb_dmabufs ||
+      (!alloc_info->whandle ||
+       alloc_info->whandle->type == ZINK_EXTERNAL_MEMORY_HANDLE);
+   if (!(templ->bind & ZINK_BIND_MUTABLE) && can_srgb) {
+      srgb = util_format_is_srgb(templ->format) ?
+         util_format_linear(templ->format) :
+         util_format_srgb(templ->format);
+      if (srgb == templ->format)
+         srgb = PIPE_FORMAT_NONE;
+   }
+   if (srgb) {
+      formats[0] = zink_get_format(screen, templ->format);
+      formats[1] = zink_get_format(screen, srgb);
+   } else if (templ->bind & ZINK_BIND_VIDEO) {
+      formats[0] = zink_get_format(screen, templ->format);
+      for (unsigned i = 0; i < num_planes; i++)
+         formats[i + 1] = zink_get_format(screen, util_format_get_plane_format(templ->format, i));
+   }
+   if (formats[0] && formats[1]) {
+      format_list->sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO;
+      format_list->pNext = NULL;
+      format_list->viewFormatCount = formats[2] ? 3 : 2;
+      format_list->pViewFormats = formats;
+      ici->pNext = format_list;
+   } else {
+      ici->pNext = NULL;
+   }
+   return srgb;
+}
+
 static inline enum resource_object_create_result
 create_image(struct zink_screen *screen, struct zink_resource_object *obj,
              const struct pipe_resource *templ, bool *linear,
@@ -1250,37 +1287,9 @@ create_image(struct zink_screen *screen, struct zink_resource_object *obj,
    unsigned ici_modifier_count = winsys_modifier ? 1 : modifiers_count;
    unsigned num_planes = util_format_get_num_planes(templ->format);
    VkImageCreateInfo ici;
-   enum pipe_format srgb = PIPE_FORMAT_NONE;
-   /* we often need to be able to mutate between srgb and linear, but we don't need general
-    * image view/shader image format compatibility (that path means losing fast clears or compression on some hardware).
-    */
-   bool can_srgb = screen->driver_workarounds.srgb_dmabufs || (!alloc_info->whandle || alloc_info->whandle->type == ZINK_EXTERNAL_MEMORY_HANDLE);
-   if (!(templ->bind & ZINK_BIND_MUTABLE) && can_srgb) {
-      srgb = util_format_is_srgb(templ->format) ? util_format_linear(templ->format) : util_format_srgb(templ->format);
-      /* why do these helpers have different default return values? */
-      if (srgb == templ->format)
-         srgb = PIPE_FORMAT_NONE;
-   }
    VkFormat formats[4] = {VK_FORMAT_UNDEFINED};
    VkImageFormatListCreateInfo format_list;
-   if (srgb) {
-      formats[0] = zink_get_format(screen, templ->format);
-      formats[1] = zink_get_format(screen, srgb);
-   } else if (templ->bind & ZINK_BIND_VIDEO) {
-      formats[0] = zink_get_format(screen, templ->format);
-      for (unsigned i = 0; i < num_planes; i++)
-         formats[i + 1] = zink_get_format(screen, util_format_get_plane_format(templ->format, i));
-   }
-   /* only use format list if multiple formats have supported vk equivalents */
-   if (formats[0] && formats[1]) {
-      format_list.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO;
-      format_list.pNext = NULL;
-      format_list.viewFormatCount = formats[2] ? 3 : 2;
-      format_list.pViewFormats = formats;
-      ici.pNext = &format_list;
-   } else {
-      ici.pNext = NULL;
-   }
+   enum pipe_format srgb = setup_format_list(screen, templ, alloc_info, formats, &format_list, &ici);
    init_ici(screen, &ici, templ, templ->bind, ici_modifier_count);
 
    bool success = false;
