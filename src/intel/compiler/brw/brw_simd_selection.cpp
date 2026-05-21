@@ -56,6 +56,39 @@ get_prog_data(brw_simd_selection_state &state)
 
 }
 
+/**
+ * Return true if INTEL_SIMD_DEBUG allows the given SIMD mode.
+ */
+static bool
+simd_debug_allowed(mesa_shader_stage stage, unsigned simd)
+{
+   uint64_t start;
+   switch (stage) {
+   case MESA_SHADER_COMPUTE:
+      start = DEBUG_CS_SIMD8;
+      break;
+   case MESA_SHADER_TASK:
+      start = DEBUG_TS_SIMD8;
+      break;
+   case MESA_SHADER_MESH:
+      start = DEBUG_MS_SIMD8;
+      break;
+   case MESA_SHADER_RAYGEN:
+   case MESA_SHADER_ANY_HIT:
+   case MESA_SHADER_CLOSEST_HIT:
+   case MESA_SHADER_MISS:
+   case MESA_SHADER_INTERSECTION:
+   case MESA_SHADER_CALLABLE:
+      start = DEBUG_RT_SIMD8;
+      break;
+   default:
+      UNREACHABLE("unknown shader stage in INTEL_SIMD_DEBUG");
+   }
+
+   assert(simd <= 2);
+   return intel_simd & (start << simd);
+}
+
 bool
 brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
 {
@@ -132,38 +165,7 @@ brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd)
       return false;
    }
 
-   uint64_t start;
-   switch (prog_data->stage) {
-   case MESA_SHADER_COMPUTE:
-      start = DEBUG_CS_SIMD8;
-      break;
-   case MESA_SHADER_TASK:
-      start = DEBUG_TS_SIMD8;
-      break;
-   case MESA_SHADER_MESH:
-      start = DEBUG_MS_SIMD8;
-      break;
-   case MESA_SHADER_RAYGEN:
-   case MESA_SHADER_ANY_HIT:
-   case MESA_SHADER_CLOSEST_HIT:
-   case MESA_SHADER_MISS:
-   case MESA_SHADER_INTERSECTION:
-   case MESA_SHADER_CALLABLE:
-      start = DEBUG_RT_SIMD8;
-      break;
-   default:
-      UNREACHABLE("unknown shader stage in brw_simd_should_compile");
-   }
-
-   const bool env_skip[] = {
-      (intel_simd & (start << 0)) == 0,
-      (intel_simd & (start << 1)) == 0,
-      (intel_simd & (start << 2)) == 0,
-   };
-
-   static_assert(ARRAY_SIZE(env_skip) == SIMD_COUNT);
-
-   if (unlikely(env_skip[simd])) {
+   if (unlikely(!simd_debug_allowed(prog_data->stage, simd))) {
       state.error[simd] = "Disabled by INTEL_SIMD_DEBUG environment variable";
       return false;
    }

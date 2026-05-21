@@ -35,15 +35,16 @@ get_cs_prog_data(elk_simd_selection_state &state)
       return nullptr;
 }
 
-struct elk_stage_prog_data *
-get_prog_data(elk_simd_selection_state &state)
-{
-   if (std::holds_alternative<struct elk_cs_prog_data *>(state.prog_data))
-      return &std::get<struct elk_cs_prog_data *>(state.prog_data)->base;
-   else
-      return nullptr;
 }
 
+/**
+ * Return true if INTEL_SIMD_DEBUG allows the given SIMD mode.
+ */
+static bool
+simd_debug_allowed(unsigned simd)
+{
+   assert(simd <= 2);
+   return intel_simd & (DEBUG_CS_SIMD8 << simd);
 }
 
 bool
@@ -53,7 +54,6 @@ elk_simd_should_compile(elk_simd_selection_state &state, unsigned simd)
    assert(!state.compiled[simd]);
 
    const auto cs_prog_data = get_cs_prog_data(state);
-   const auto prog_data = get_prog_data(state);
    const unsigned width = 8u << simd;
 
    /* For shaders with variable size workgroup, in most cases we can compile
@@ -104,24 +104,7 @@ elk_simd_should_compile(elk_simd_selection_state &state, unsigned simd)
       }
    }
 
-   uint64_t start;
-   switch (prog_data->stage) {
-   case MESA_SHADER_COMPUTE:
-      start = DEBUG_CS_SIMD8;
-      break;
-   default:
-      UNREACHABLE("unknown shader stage in elk_simd_should_compile");
-   }
-
-   const bool env_skip[] = {
-      (intel_simd & (start << 0)) == 0,
-      (intel_simd & (start << 1)) == 0,
-      (intel_simd & (start << 2)) == 0,
-   };
-
-   static_assert(ARRAY_SIZE(env_skip) == SIMD_COUNT);
-
-   if (unlikely(env_skip[simd])) {
+   if (unlikely(!simd_debug_allowed(simd))) {
       state.error[simd] = "Disabled by INTEL_SIMD_DEBUG environment variable";
       return false;
    }
