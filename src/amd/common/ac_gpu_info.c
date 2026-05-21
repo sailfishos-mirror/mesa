@@ -725,6 +725,7 @@ ac_identify_chip(struct radeon_info *info, const struct drm_amdgpu_info_device *
       case FAMILY_STX:
          identify_chip(STRIX1);
          identify_chip(STRIX_HALO);
+         identify_chip(GFX1156);
          identify_chip(KRACKAN1);
          identify_chip(GFX1153);
          break;
