@@ -217,6 +217,10 @@ if with_amd_vk
   files_drirc += files('00-radv-defaults.conf')
 endif
 
+if with_gallium_radeonsi
+  files_drirc += files('00-radeonsi-defaults.conf')
+endif
+
 if with_gallium_zink
   files_drirc += files('00-zink-defaults.conf')
 endif
