@@ -1954,7 +1954,7 @@
         "description": "Revert \"pipe-loader: fallback to zink instead of kmsro for render nodes\"",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
