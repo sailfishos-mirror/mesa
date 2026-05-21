@@ -1822,6 +1822,8 @@
     <value name="R16G16B16" value="16"/>
     <value name="R16G16B16A16" value="17"/>
 
+    <value name="R10G10B10A10" value="23"/>
+
     <value name="YUV420 6c8" value="32"/>
     <value name="YUV420 2c8" value="34"/>
     <value name="YUV420 1c8" value="35"/>
