@@ -277,6 +277,10 @@ if with_gallium_r600
   files_drirc += files('00-r600-defaults.conf')
 endif
 
+if with_gallium_freedreno
+  files_drirc += files('00-msm-defaults.conf')
+endif
+
 drirc_gen = files('drirc_gen.py')
 
 if with_tests
