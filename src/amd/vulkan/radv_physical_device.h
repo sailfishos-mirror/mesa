@@ -164,13 +164,6 @@ struct radv_physical_device {
    uint32_t num_perfcounters;
    struct radv_perfcounter_desc *perfcounters;
 
-   struct {
-      unsigned data0;
-      unsigned data1;
-      unsigned data2;
-      unsigned cmd;
-      unsigned cntl;
-   } vid_dec_reg;
    enum amd_ip_type vid_decode_ip;
    rvcn_enc_cmd_t vcn_enc_cmds;
    enum radv_video_enc_hw_ver enc_hw_ver;

@@ -34,6 +34,7 @@
 #include "vk_synchronization.h"
 #include "vk_util.h"
 
+#include "ac_cmdbuf_video.h"
 #include "ac_debug.h"
 #include "ac_descriptors.h"
 #include "ac_guardband.h"
@@ -15402,7 +15403,8 @@ write_event(struct radv_cmd_buffer *cmd_buffer, struct radv_event *event, VkPipe
    radv_cs_add_buffer(device->ws, cs->b, event->bo);
 
    if (cmd_buffer->qf == RADV_QUEUE_VIDEO_DEC || cmd_buffer->qf == RADV_QUEUE_VIDEO_ENC) {
-      radv_vcn_write_memory(cmd_buffer, va, value);
+      radeon_check_space(device->ws, cs->b, 9);
+      ac_emit_video_write_memory(cs->b, &pdev->info, cs->hw_ip, va, value);
       return;
    }
 
