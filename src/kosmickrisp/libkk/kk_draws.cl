@@ -12,17 +12,16 @@
  */
 KERNEL(32)
 libkk_predicate_indirect(global uint32_t *out, constant uint32_t *in,
-                         constant uint32_t *draw_count, uint32_t stride_el,
-                         uint indexed__2)
+                         constant uint32_t *draw_count, uint32_t out_stride_el,
+                         uint32_t in_stride_el)
 {
    uint draw = cl_global_id.x;
-   uint words = indexed__2 ? 5 : 4;
    bool enabled = draw < *draw_count;
-   out += draw * words;
-   in += draw * stride_el;
+   out += draw * out_stride_el;
+   in += draw * in_stride_el;
 
    /* Copy enabled draws, zero predicated draws. */
-   for (uint i = 0; i < words; ++i) {
+   for (uint i = 0; i < out_stride_el; ++i) {
       out[i] = enabled ? in[i] : 0;
    }
 }

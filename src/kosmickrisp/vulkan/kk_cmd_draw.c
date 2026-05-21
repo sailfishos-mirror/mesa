@@ -459,7 +459,7 @@ kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
       if (render->color_att[i].resolve_mode != VK_RESOLVE_MODE_NONE)
          need_resolve = true;
 
-      vk_color_att_flags[i] = (VkRenderingAttachmentFlagsInfoKHR) {
+      vk_color_att_flags[i] = (VkRenderingAttachmentFlagsInfoKHR){
          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
          .flags = render->color_att[i].flags,
       };
@@ -831,10 +831,10 @@ kk_flush_dynamic_state(struct kk_cmd_buffer *cmd)
    if (desc->root_dirty)
       kk_upload_descriptor_root(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-   struct kk_bo *root_buffer = desc->root.root_buffer;
-   if (root_buffer) {
-      mtl_set_vertex_buffer(enc, root_buffer->map, 0, 0);
-      mtl_set_fragment_buffer(enc, root_buffer->map, 0, 0);
+   struct kk_ptr root_buffer = desc->root.root_buffer;
+   if (root_buffer.gpu) {
+      mtl_set_vertex_buffer(enc, root_buffer.buffer, root_buffer.offset, 0);
+      mtl_set_fragment_buffer(enc, root_buffer.buffer, root_buffer.offset, 0);
    }
 
    if (gfx->dirty & KK_DIRTY_OCCLUSION) {
@@ -924,42 +924,81 @@ kk_heap(struct kk_cmd_buffer *cmd)
    return dev->heap->gpu;
 }
 
+static struct kk_ptr
+kk_predicate_indirect_draws(struct kk_cmd_buffer *cmd, struct kk_buffer *buffer,
+                            uint64_t offset, struct kk_buffer *predicate_buffer,
+                            uint64_t predicate_offset, uint32_t max_draw_count,
+                            uint32_t in_stride, uint32_t out_stride)
+{
+   assert((in_stride % sizeof(uint32_t)) == 0 && "in_stride is not aligned");
+   assert((out_stride % sizeof(uint32_t)) == 0 && "out_stride is not aligned");
+
+   struct kk_ptr patched = kk_pool_alloc(cmd, out_stride * max_draw_count, 4u);
+   if (unlikely(!patched.gpu))
+      return (struct kk_ptr){0};
+
+   uint64_t in_addr = vk_buffer_address(&buffer->vk, offset);
+   uint64_t predicate_addr =
+      vk_buffer_address(&predicate_buffer->vk, predicate_offset);
+
+   struct mtl_size grid = {max_draw_count, 1u, 1u};
+   libkk_predicate_indirect(cmd, grid, true, patched.gpu, in_addr,
+                            predicate_addr, out_stride / sizeof(uint32_t),
+                            in_stride / sizeof(uint32_t));
+
+   return patched;
+}
+
+static struct kk_draw_data
+kk_convert_to_indirect_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
+{
+   if (data.indirect)
+      return data;
+
+   struct kk_ptr indirect_draw;
+   if (data.indexed) {
+      VkDrawIndexedIndirectCommand draw = {
+         .indexCount = data.count[0],
+         .instanceCount = data.count[1],
+         .firstIndex = data.first_index,
+         .vertexOffset = data.first_vertex,
+         .firstInstance = data.first_instance,
+      };
+      indirect_draw = kk_pool_upload(cmd, &draw, sizeof(draw), 4u);
+   } else {
+      VkDrawIndirectCommand draw = {
+         .vertexCount = data.count[0],
+         .instanceCount = data.count[1],
+         .firstVertex = data.first_vertex,
+         .firstInstance = data.first_instance,
+      };
+      indirect_draw = kk_pool_upload(cmd, &draw, sizeof(draw), 4u);
+   }
+
+   if (unlikely(!indirect_draw.gpu))
+      return data;
+
+   data.indirect_buffer = indirect_draw.buffer;
+   data.indirect_buffer_offset = indirect_draw.offset;
+   data.indirect = true;
+
+   return data;
+}
+
 /* Unrolling will always be done through indirect rendering, so if this is
  * called from non-indirect calls, we will fake it. */
 static struct kk_draw_data
 kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 {
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
-   if (!data.indirect) {
-      if (data.indexed) {
-         VkDrawIndexedIndirectCommand draw = {
-            .indexCount = data.count[0],
-            .instanceCount = data.count[1],
-            .firstIndex = data.first_index,
-            .vertexOffset = data.first_vertex,
-            .firstInstance = data.first_instance,
-         };
 
-         data.indirect_buffer =
-            kk_pool_upload(cmd, &draw, sizeof(draw), 4u).handle;
-         data.indirect = true;
-      } else {
-         VkDrawIndirectCommand draw = {
-            .vertexCount = data.count[0],
-            .instanceCount = data.count[1],
-            .firstVertex = data.first_vertex,
-            .firstInstance = data.first_instance,
-         };
-         data.indirect_buffer =
-            kk_pool_upload(cmd, &draw, sizeof(draw), 4u).handle;
-         data.indirect = true;
-      }
-   }
+   data = kk_convert_to_indirect_draw(cmd, data);
+   if (unlikely(!data.indirect))
+      return data;
 
-   struct kk_bo *out_draw =
-      kk_cmd_allocate_buffer(cmd, sizeof(VkDrawIndexedIndirectCommand), 4u);
-
-   if (!out_draw)
+   struct kk_ptr out_draw =
+      kk_pool_alloc(cmd, sizeof(VkDrawIndexedIndirectCommand), 4u);
+   if (unlikely(!out_draw.gpu))
       return data;
 
    struct libkk_unroll_geometry_and_restart_args info = {
@@ -968,7 +1007,7 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
       .heap = kk_heap(cmd),
       .in_draw = mtl_buffer_get_gpu_address(data.indirect_buffer) +
                  data.indirect_buffer_offset,
-      .out_draw = out_draw->gpu,
+      .out_draw = out_draw.gpu,
       /* Handle primitive restart disable by forcing index to UINT32_MAX */
       .restart_index =
          !data.restart ? UINT32_MAX : cmd->state.gfx.index.restart,
@@ -982,12 +1021,12 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    struct mtl_size grid = {1, 1, 1};
    libkk_unroll_geometry_and_restart_struct(cmd, grid, true, info);
 
-   data.indirect_buffer = out_draw->map;
+   data.indirect_buffer = out_draw.buffer;
+   data.indirect_buffer_offset = out_draw.offset;
    data.index_buffer = dev->heap->map;
    data.index_buffer_size_B = dev->heap->size_B;
    /* TODO_KOSMICKRISP Self-contained until we have rodata at the device. */
    data.index_buffer_offset = sizeof(struct poly_heap);
-   data.indirect_buffer_offset = 0u;
    data.index_buffer_range_B = dev->heap->size_B - sizeof(struct poly_heap);
    data.first_index = 0u;
    data.prim = u_decomposed_prim(data.prim);
@@ -1024,12 +1063,12 @@ build_per_draw_upload_mask(struct kk_cmd_buffer *cmd)
 
    struct kk_shader *vertex = cmd->state.shaders[MESA_SHADER_VERTEX];
    if (vertex && vertex->info.uses_per_draw_data) {
-      mask |= BITSET_BIT(MESA_SHADER_VERTEX);
+      mask |= BITFIELD_BIT(MESA_SHADER_VERTEX);
    }
 
    struct kk_shader *fragment = cmd->state.shaders[MESA_SHADER_FRAGMENT];
    if (fragment && fragment->info.uses_per_draw_data) {
-      mask |= BITSET_BIT(MESA_SHADER_FRAGMENT);
+      mask |= BITFIELD_BIT(MESA_SHADER_FRAGMENT);
    }
 
    return mask;
@@ -1039,16 +1078,6 @@ static void
 kk_dispatch_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 {
    mtl_render_encoder *enc = kk_render_encoder(cmd);
-
-   /* Upload per-draw data to shaders if needed */
-   if (data.shader_data.upload_mask & BITSET_BIT(MESA_SHADER_VERTEX)) {
-      mtl_set_vertex_bytes(enc, &data.shader_data,
-                           sizeof(struct kk_per_draw_data), 2);
-   }
-   if (data.shader_data.upload_mask & BITSET_BIT(MESA_SHADER_FRAGMENT)) {
-      mtl_set_fragment_bytes(enc, &data.shader_data,
-                             sizeof(struct kk_per_draw_data), 2);
-   }
 
    enum mtl_primitive_type primitive_type =
       mesa_prim_to_mtl_primitive_type(data.prim);
@@ -1086,6 +1115,9 @@ kk_dispatch_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 static bool
 requires_index_promotion(struct kk_draw_data data)
 {
+   if (!data.indexed)
+      return false;
+
    /* uint8_t indices must be promoted since they are not natively supported. */
    if (data.index_size == sizeof(uint8_t))
       return true;
@@ -1149,6 +1181,26 @@ kk_needs_index_robustness(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 }
 
 static void
+kk_upload_per_draw_data(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
+{
+   mtl_render_encoder *enc = kk_render_encoder(cmd);
+
+   struct kk_ptr shader_data_gpu =
+      kk_pool_upload(cmd, &data.shader_data, sizeof(data.shader_data), 8u);
+   if (unlikely(!shader_data_gpu.gpu))
+      return;
+
+   if (data.shader_data.upload_mask & BITFIELD_BIT(MESA_SHADER_VERTEX)) {
+      mtl_set_vertex_buffer(enc, shader_data_gpu.buffer, shader_data_gpu.offset,
+                            2);
+   }
+   if (data.shader_data.upload_mask & BITFIELD_BIT(MESA_SHADER_FRAGMENT)) {
+      mtl_set_fragment_buffer(enc, shader_data_gpu.buffer,
+                              shader_data_gpu.offset, 2);
+   }
+}
+
+static void
 kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 {
    data.restart = cmd->vk.dynamic_graphics_state.ia.primitive_restart_enable;
@@ -1156,6 +1208,9 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    if (data.prim == MESA_PRIM_TRIANGLE_FAN || requires_index_promotion(data) ||
        kk_needs_index_robustness(cmd, data))
       data = kk_unroll_geometry(cmd, data);
+
+   if (data.shader_data.upload_mask)
+      kk_upload_per_draw_data(cmd, data);
 
    kk_dispatch_draw(cmd, data);
 }
@@ -1294,8 +1349,8 @@ kk_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount,
       if (pIndexInfo->indexCount > 0) {
          data.count[0] = pIndexInfo->indexCount;
          data.first_index = pIndexInfo->firstIndex;
-         data.first_vertex = pVertexOffset != NULL ? *pVertexOffset :
-                             pIndexInfo->vertexOffset;
+         data.first_vertex =
+            pVertexOffset != NULL ? *pVertexOffset : pIndexInfo->vertexOffset;
          data.shader_data.draw_id = i;
          kk_draw(cmd, data);
       }
@@ -1317,13 +1372,13 @@ kk_CmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    kk_flush_gfx_state(cmd);
 
    struct kk_draw_data data = {
+      .indirect_buffer = buffer->mtl_handle,
       .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
       .indirect = true,
       .shader_data.upload_mask = build_per_draw_upload_mask(cmd),
    };
 
    for (uint32_t i = 0u; i < drawCount; ++i, offset += stride) {
-      data.indirect_buffer = buffer->mtl_handle;
       data.indirect_buffer_offset = offset;
       data.shader_data.draw_id = i;
 
@@ -1345,6 +1400,7 @@ kk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    kk_flush_gfx_state(cmd);
 
    struct kk_draw_data data = {
+      .indirect_buffer = buffer->mtl_handle,
       .index_buffer = cmd->state.gfx.index.handle,
       .index_buffer_size_B = cmd->state.gfx.index.buffer_size,
       .index_buffer_offset = cmd->state.gfx.index.offset,
@@ -1357,7 +1413,6 @@ kk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    };
 
    for (uint32_t i = 0u; i < drawCount; ++i, offset += stride) {
-      data.indirect_buffer = buffer->mtl_handle;
       data.indirect_buffer_offset = offset;
       data.shader_data.draw_id = i;
 
@@ -1375,33 +1430,27 @@ kk_CmdDrawIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    VK_FROM_HANDLE(kk_buffer, buffer, _buffer);
    VK_FROM_HANDLE(kk_buffer, count_buffer, countBuffer);
 
-   assert((stride % 4) == 0 && "aligned");
-
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
    kk_flush_gfx_state(cmd);
 
-   size_t out_stride = sizeof(uint32_t) * 4;
-   struct kk_bo *patched =
-      kk_cmd_allocate_buffer(cmd, out_stride * maxDrawCount, 4);
-   uint64_t in = vk_buffer_address(&buffer->vk, offset);
-   uint64_t count_addr =
-      vk_buffer_address(&count_buffer->vk, countBufferOffset);
-
-   struct mtl_size grid = {maxDrawCount, 1u, 1u};
-   libkk_predicate_indirect(cmd, grid, true, patched->gpu, in, count_addr,
-                            stride / 4, false);
+   struct kk_ptr patched = kk_predicate_indirect_draws(
+      cmd, buffer, offset, count_buffer, countBufferOffset, maxDrawCount,
+      stride, sizeof(VkDrawIndirectCommand));
+   if (unlikely(!patched.gpu))
+      return;
 
    struct kk_draw_data data = {
+      .indirect_buffer = patched.buffer,
       .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
       .indirect = true,
       .shader_data.upload_mask = build_per_draw_upload_mask(cmd),
    };
 
    for (unsigned i = 0; i < maxDrawCount; ++i) {
-      data.indirect_buffer = patched->map;
-      data.indirect_buffer_offset = out_stride * i;
+      data.indirect_buffer_offset =
+         patched.offset + i * sizeof(VkDrawIndirectCommand);
       data.shader_data.draw_id = i;
 
       kk_draw(cmd, data);
@@ -1418,25 +1467,19 @@ kk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    VK_FROM_HANDLE(kk_buffer, buffer, _buffer);
    VK_FROM_HANDLE(kk_buffer, count_buffer, countBuffer);
 
-   assert((stride % 4) == 0 && "aligned");
-
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
    kk_flush_gfx_state(cmd);
 
-   size_t out_stride = sizeof(uint32_t) * 5;
-   struct kk_bo *patched =
-      kk_cmd_allocate_buffer(cmd, out_stride * maxDrawCount, 4);
-   uint64_t in = vk_buffer_address(&buffer->vk, offset);
-   uint64_t count_addr =
-      vk_buffer_address(&count_buffer->vk, countBufferOffset);
-
-   struct mtl_size grid = {maxDrawCount, 1u, 1u};
-   libkk_predicate_indirect(cmd, grid, true, patched->gpu, in, count_addr,
-                            stride / 4, true);
+   struct kk_ptr patched = kk_predicate_indirect_draws(
+      cmd, buffer, offset, count_buffer, countBufferOffset, maxDrawCount,
+      stride, sizeof(VkDrawIndexedIndirectCommand));
+   if (unlikely(!patched.gpu))
+      return;
 
    struct kk_draw_data data = {
+      .indirect_buffer = patched.buffer,
       .index_buffer = cmd->state.gfx.index.handle,
       .index_buffer_size_B = cmd->state.gfx.index.buffer_size,
       .index_buffer_offset = cmd->state.gfx.index.offset,
@@ -1449,8 +1492,8 @@ kk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    };
 
    for (unsigned i = 0; i < maxDrawCount; ++i) {
-      data.indirect_buffer = patched->map;
-      data.indirect_buffer_offset = out_stride * i;
+      data.indirect_buffer_offset =
+         patched.offset + i * sizeof(VkDrawIndexedIndirectCommand);
       data.shader_data.draw_id = i;
 
       kk_draw(cmd, data);

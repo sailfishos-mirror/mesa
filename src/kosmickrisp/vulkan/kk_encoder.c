@@ -141,15 +141,14 @@ upload_queue_writes(struct kk_cmd_buffer *cmd)
    uint32_t count =
       util_dynarray_num_elements(&enc->imm_writes, struct libkk_imm_write);
    if (count != 0) {
-      uint64_t addr =
+      struct kk_ptr data_gpu =
          kk_pool_upload(cmd, enc->imm_writes.data, enc->imm_writes.size,
-                        sizeof(struct libkk_imm_write))
-            .gpu;
+                        sizeof(struct libkk_imm_write));
       /* kk_cmd_allocate_buffer sets the cmd buffer error so we can just exit */
-      if (!addr)
+      if (unlikely(!data_gpu.gpu))
          return;
       struct mtl_size grid = {count, 1, 1};
-      libkk_write_u32_array(cmd, grid, false, addr);
+      libkk_write_u32_array(cmd, grid, false, data_gpu.gpu);
       enc->imm_writes.size = 0u;
    }
 
@@ -289,11 +288,9 @@ kk_try_configure_line_ms(struct kk_cmd_buffer *cmd)
    if (was_ms_bresenham_lines != gfx->is_ms_bresenham_lines) {
       if (gfx->is_ms_bresenham_lines) {
          /* Set all sample positions to center for bresenham lines */
-         static const struct mtl_sample_position center =
-            {0.5f, 0.5f};
+         static const struct mtl_sample_position center = {0.5f, 0.5f};
          static const struct mtl_sample_position center_all[8] = {
-            center, center, center, center, center, center, center, center
-         };
+            center, center, center, center, center, center, center, center};
          mtl_render_pass_descriptor_set_sample_positions(
             gfx->render_pass_descriptor, center_all, gfx->render.samples);
       } else {

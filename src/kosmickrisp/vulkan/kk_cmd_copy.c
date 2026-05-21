@@ -160,7 +160,8 @@ copy_through_buffer(struct kk_cmd_buffer *cmd, struct kk_image *src,
    if (region->srcSubresource.aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT) {
       src_format = util_format_get_depth_only(src_format);
       src_options = MTL_BLIT_OPTION_DEPTH_FROM_DEPTH_STENCIL;
-   } else if (region->srcSubresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT) {
+   } else if (region->srcSubresource.aspectMask ==
+              VK_IMAGE_ASPECT_STENCIL_BIT) {
       src_format = PIPE_FORMAT_S8_UINT;
       src_options = MTL_BLIT_OPTION_STENCIL_FROM_DEPTH_STENCIL;
    }
@@ -170,7 +171,8 @@ copy_through_buffer(struct kk_cmd_buffer *cmd, struct kk_image *src,
    if (region->dstSubresource.aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT) {
       dst_format = util_format_get_depth_only(dst_format);
       dst_options = MTL_BLIT_OPTION_DEPTH_FROM_DEPTH_STENCIL;
-   } else if (region->dstSubresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT) {
+   } else if (region->dstSubresource.aspectMask ==
+              VK_IMAGE_ASPECT_STENCIL_BIT) {
       dst_format = PIPE_FORMAT_S8_UINT;
       dst_options = MTL_BLIT_OPTION_STENCIL_FROM_DEPTH_STENCIL;
    }
@@ -215,7 +217,8 @@ copy_through_buffer(struct kk_cmd_buffer *cmd, struct kk_image *src,
    /* Texture->Buffer->Texture */
    // TODO_KOSMICKRISP We don't handle 3D to 2D array nor vice-versa in this
    // path. Unsure if it's even needed, can compressed textures be 3D?
-   for (uint32_t slice_idx = 0; slice_idx <
+   for (uint32_t slice_idx = 0;
+        slice_idx <
         vk_image_subresource_layer_count(&src->vk, &region->srcSubresource);
         ++slice_idx) {
       info.mtl_data.image = src_plane->mtl_handle;
@@ -350,8 +353,11 @@ kk_CmdCopyImage2(VkCommandBuffer commandBuffer,
    /* Copy source image to buffer then to the destination image for those
     * regions that image to image was not possible. */
    if (buffer_size) {
-      struct kk_bo *bo = kk_cmd_allocate_buffer(cmd, buffer_size, 8);
-      size_t buffer_offset = 0u;
+      struct kk_ptr buf = kk_pool_alloc(cmd, buffer_size, 8);
+      if (unlikely(!buf.gpu))
+         return;
+
+      size_t buffer_offset = buf.offset;
       for (uint32_t i = 0u; i < pCopyImageInfo->regionCount; ++i) {
          const VkImageCopy2 *region = &pCopyImageInfo->pRegions[i];
          uint8_t src_index =
@@ -360,8 +366,8 @@ kk_CmdCopyImage2(VkCommandBuffer commandBuffer,
             kk_image_aspects_to_plane(dst, region->dstSubresource.aspectMask);
          if (!can_do_image_to_image_copy(src, src_index, dst, dst_index))
             buffer_offset =
-               copy_through_buffer(cmd, src, src_index, dst, dst_index, bo->map,
-                                   buffer_offset, region);
+               copy_through_buffer(cmd, src, src_index, dst, dst_index,
+                                   buf.buffer, buffer_offset, region);
       }
    }
 }
