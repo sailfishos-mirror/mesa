@@ -141,6 +141,8 @@ amd_common_files = files(
   'ac_perfcounter.h',
   'ac_pm4.c',
   'ac_pm4.h',
+  'ac_vcn.c',
+  'ac_vcn.h',
   'ac_vcn_av1_default.h',
   'ac_vcn_vp9_default.h',
   'ac_vcn_dec.c',

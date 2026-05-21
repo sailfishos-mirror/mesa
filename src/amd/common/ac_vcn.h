@@ -41,6 +41,8 @@
 #define RADEON_VCN_RESOLVE_INPUT_PARAM_LAYOUT_TYPE_QPMAP_INT8         1
 #define RADEON_VCN_RESOLVE_INPUT_PARAM_LAYOUT_TYPE_QPMAP_INT16        2
 
+struct ac_cmdbuf;
+
 struct rvcn_sq_var {
    unsigned int *engine_ib_size_of_packages;
 };
@@ -67,5 +69,8 @@ struct rvcn_cmn_engine_op_resolveinputparamlayout {
    unsigned int output_buffer_address_lo;  /* Low address of output buffer */
    unsigned int output_buffer_address_hi;  /* High address of output buffer */
 };
+
+void ac_vcn_sq_header(struct ac_cmdbuf *cs, struct rvcn_sq_var *sq, unsigned type);
+void ac_vcn_sq_tail(struct ac_cmdbuf *cs, struct rvcn_sq_var *sq);
 
 #endif

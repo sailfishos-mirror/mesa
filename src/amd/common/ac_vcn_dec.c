@@ -930,29 +930,6 @@ stream_type(enum ac_video_codec codec)
 }
 
 static void
-sq_header(struct ac_cmdbuf *cs, struct rvcn_sq_var *sq)
-{
-   ac_cmdbuf_begin(cs);
-   ac_cmdbuf_emit(RADEON_VCN_ENGINE_INFO_SIZE);
-   ac_cmdbuf_emit(RADEON_VCN_ENGINE_INFO);
-   ac_cmdbuf_emit(RADEON_VCN_ENGINE_TYPE_DECODE);
-   ac_cmdbuf_emit(0);
-   ac_cmdbuf_end();
-
-   sq->engine_ib_size_of_packages = &cs->buf[cs->cdw - 1];
-}
-
-static void
-sq_tail(struct ac_cmdbuf *cs, struct rvcn_sq_var *sq)
-{
-   uint32_t *end = &cs->buf[cs->cdw];
-   uint32_t size_in_dw = end - sq->engine_ib_size_of_packages + 3;
-
-   assert(cs->cdw <= cs->max_dw);
-   *sq->engine_ib_size_of_packages = size_in_dw * sizeof(uint32_t);
-}
-
-static void
 send_cmd(struct cmd_buffer *cmd_buf, uint32_t cmd, uint64_t va)
 {
    if (cmd_buf->dec->base.ip_type == AMD_IP_VCN_DEC) {
@@ -1086,7 +1063,7 @@ vcn_build_create_cmd(struct ac_video_dec *decoder, struct ac_video_dec_create_cm
    };
 
    if (decoder->ip_type == AMD_IP_VCN_UNIFIED) {
-      sq_header(&cmd_buf.cs, &cmd_buf.sq);
+      ac_vcn_sq_header(&cmd_buf.cs, &cmd_buf.sq, RADEON_VCN_ENGINE_TYPE_DECODE);
       cmd_buf.decode_buffer = add_ib_decode_buffer(&cmd_buf.cs);
    }
 
@@ -1095,7 +1072,7 @@ vcn_build_create_cmd(struct ac_video_dec *decoder, struct ac_video_dec_create_cm
 
    if (decoder->ip_type == AMD_IP_VCN_UNIFIED) {
       cmd_buf.decode_buffer->valid_buf_flag = cmd_buf.decode_buffer_flags;
-      sq_tail(&cmd_buf.cs, &cmd_buf.sq);
+      ac_vcn_sq_tail(&cmd_buf.cs, &cmd_buf.sq);
    }
 
    cmd->out.cmd_dw = cmd_buf.cs.cdw;
@@ -1951,7 +1928,7 @@ vcn_build_decode_cmd(struct ac_video_dec *decoder, struct ac_video_dec_decode_cm
    };
 
    if (decoder->ip_type == AMD_IP_VCN_UNIFIED) {
-      sq_header(&cmd_buf.cs, &cmd_buf.sq);
+      ac_vcn_sq_header(&cmd_buf.cs, &cmd_buf.sq, RADEON_VCN_ENGINE_TYPE_DECODE);
       cmd_buf.decode_buffer = add_ib_decode_buffer(&cmd_buf.cs);
    }
 
@@ -2183,7 +2160,7 @@ vcn_build_decode_cmd(struct ac_video_dec *decoder, struct ac_video_dec_decode_cm
 
    if (decoder->ip_type == AMD_IP_VCN_UNIFIED) {
       cmd_buf.decode_buffer->valid_buf_flag = cmd_buf.decode_buffer_flags;
-      sq_tail(&cmd_buf.cs, &cmd_buf.sq);
+      ac_vcn_sq_tail(&cmd_buf.cs, &cmd_buf.sq);
    } else {
       ac_cmdbuf_begin(&cmd_buf.cs);
       ac_cmdbuf_emit(RDECODE_PKT0(dec->reg.cntl >> 2, 0));
