@@ -740,6 +740,21 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
       break;
    }
 
+   case OpenCLstd_Tanpi: {
+      if (nb->fp_math_ctrl & nir_fp_preserve_signed_zero) {
+         nir_def *remainder = nir_fmod(nb, nir_fabs(nb, srcs[0]), nir_imm_floatN_t(nb, 2.0, ret->bit_size));
+         nir_def *is_odd = nir_feq_imm(nb, remainder, 1.0);
+         nir_def *is_even = nir_feq_imm(nb, remainder, 0.0);
+
+         /* tanpi(n) is copysign(0.0, - n) for odd integers n. */
+         ret = nir_bcsel(nb, is_odd, nir_copysign(nb, ret, nir_fneg(nb, srcs[0])), ret);
+
+         /* tanpi(n) is copysign(0.0, n) for even integers n. */
+         ret = nir_bcsel(nb, is_even, nir_copysign(nb, ret, srcs[0]), ret);
+      }
+      break;
+   }
+
    default:
       break;
    }
