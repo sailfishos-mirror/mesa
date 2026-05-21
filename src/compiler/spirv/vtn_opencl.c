@@ -725,6 +725,13 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
       ret = nir_fcanonicalize(nb, ret);
       break;
 
+   /* Cospi is always expected to return +0.0 instead of -0.0 */
+   case OpenCLstd_Cospi: {
+      if (nb->fp_math_ctrl & nir_fp_preserve_signed_zero)
+         ret = nir_fadd_imm(nb, ret, 0.0);
+      break;
+   }
+
    default:
       break;
    }
