@@ -85,9 +85,7 @@ static const nir_shader_compiler_options midgard_nir_options = {
       (nir_var_shader_in | nir_var_shader_out | nir_var_function_temp),
    .lower_int64_options = nir_lower_imul_2x32_64,
    .lower_doubles_options = nir_lower_dmod,
-   .support_indirect_inputs = BITFIELD_BIT(MESA_SHADER_TESS_CTRL) |
-                              BITFIELD_BIT(MESA_SHADER_TESS_EVAL) |
-                              BITFIELD_BIT(MESA_SHADER_FRAGMENT),
+   .support_indirect_inputs = 0 /* TODO support indirect varyings */,
    .max_samples = 16,
 };
 

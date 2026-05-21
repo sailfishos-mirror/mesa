@@ -149,9 +149,7 @@ bool valhall_can_merge_workgroups(nir_shader *nir);
          (nir_var_shader_in | nir_var_shader_out | nir_var_function_temp),     \
       .force_indirect_unrolling_sampler = true,                                \
       .scalarize_ddx = true,                                                   \
-      .support_indirect_inputs = BITFIELD_BIT(MESA_SHADER_TESS_CTRL) |         \
-                                 BITFIELD_BIT(MESA_SHADER_TESS_EVAL) |         \
-                                 BITFIELD_BIT(MESA_SHADER_FRAGMENT),           \
+      .support_indirect_inputs = 0 /* TODO support indirect varyings */,       \
       .lower_hadd = arch >= 11,                                                \
       .lower_hadd64 = true,                                                    \
       .discard_is_demote = true,                                               \
