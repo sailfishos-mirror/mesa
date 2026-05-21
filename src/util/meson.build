@@ -233,6 +233,10 @@ if with_gallium_r300
   files_drirc += files('00-r300-defaults.conf')
 endif
 
+if with_gallium_iris
+  files_drirc += files('00-iris-defaults.conf')
+endif
+
 if with_gallium_radeonsi
   files_drirc += files('00-radeonsi-defaults.conf')
 endif
