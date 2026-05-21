@@ -281,6 +281,10 @@ if with_gallium_freedreno
   files_drirc += files('00-msm-defaults.conf')
 endif
 
+if with_gallium_d3d12
+  files_drirc += files('00-d3d12-defaults.conf')
+endif
+
 drirc_gen = files('drirc_gen.py')
 
 if with_tests
