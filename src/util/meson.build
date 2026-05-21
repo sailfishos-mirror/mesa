@@ -245,6 +245,10 @@ if with_asahi_vk
   files_drirc += files('00-hk-defaults.conf')
 endif
 
+if with_panfrost_vk
+  files_drirc += files('00-panvk-defaults.conf')
+endif
+
 if with_gallium_radeonsi
   files_drirc += files('00-radeonsi-defaults.conf')
 endif
