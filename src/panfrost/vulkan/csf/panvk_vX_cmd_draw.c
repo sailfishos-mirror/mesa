@@ -273,14 +273,13 @@ vs_driver_set_is_dirty(struct panvk_cmd_buffer *cmdbuf)
 
 static VkResult
 prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf,
-                      const struct panvk_draw_info *draw)
+                      const struct panvk_draw_info *draw,
+                      const struct panvk_shader_variant *vs)
 {
    if (!vs_driver_set_is_dirty(cmdbuf))
       return VK_SUCCESS;
 
    struct panvk_shader_desc_state *vs_desc_state = &cmdbuf->state.gfx.vs.desc;
-   const struct panvk_shader_variant *vs =
-      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
    const struct vk_dynamic_graphics_state *dyns =
       &cmdbuf->vk.dynamic_graphics_state;
    const struct vk_vertex_input_state *vi = dyns->vi;
@@ -648,6 +647,35 @@ index_size_to_index_type(uint32_t size)
 }
 
 static VkResult
+build_blend(struct panvk_cmd_buffer *cmdbuf,
+            const struct panvk_shader_variant *fs, uint64_t *bds_gpu)
+{
+   uint32_t bd_count = cmdbuf->state.gfx.render.fb.layout.rt_count;
+   struct pan_ptr ptr = panvk_cmd_alloc_desc_array(cmdbuf, bd_count, BLEND);
+   struct mali_blend_packed *bds = ptr.cpu;
+
+   if (bd_count && !ptr.gpu)
+      return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+
+   if (fs) {
+      VkResult result = panvk_per_arch(blend_emit_descs)(cmdbuf, bds);
+      if (result != VK_SUCCESS)
+         return result;
+   } else {
+      for (unsigned i = 0; i < bd_count; i++) {
+         pan_pack(&bds[i], BLEND, cfg) {
+            cfg.enable = false;
+            cfg.internal.mode = MALI_BLEND_MODE_OFF;
+         }
+      }
+   }
+
+   *bds_gpu = ptr.gpu;
+
+   return VK_SUCCESS;
+}
+
+static VkResult
 prepare_blend(struct panvk_cmd_buffer *cmdbuf)
 {
    bool dirty = dyn_gfx_state_dirty(cmdbuf, MS_ALPHA_TO_ONE_ENABLE) ||
@@ -665,30 +693,18 @@ prepare_blend(struct panvk_cmd_buffer *cmdbuf)
    if (!dirty)
       return VK_SUCCESS;
 
+   uint64_t bds_gpu;
+   uint32_t bd_count = cmdbuf->state.gfx.render.fb.layout.rt_count;
    const struct panvk_shader_variant *fs =
       panvk_shader_only_variant(get_fs(cmdbuf));
-   uint32_t bd_count = cmdbuf->state.gfx.render.fb.layout.rt_count;
+   VkResult result = build_blend(cmdbuf, fs, &bds_gpu);
+   if (result != VK_SUCCESS)
+      return result;
+
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-   struct pan_ptr ptr = panvk_cmd_alloc_desc_array(cmdbuf, bd_count, BLEND);
-   struct mali_blend_packed *bds = ptr.cpu;
-
-   if (bd_count && !ptr.gpu)
-      return VK_ERROR_OUT_OF_DEVICE_MEMORY;
-
-   if (fs) {
-      panvk_per_arch(blend_emit_descs)(cmdbuf, bds);
-   } else {
-      for (unsigned i = 0; i < bd_count; i++) {
-         pan_pack(&bds[i], BLEND, cfg) {
-            cfg.enable = false;
-            cfg.internal.mode = MALI_BLEND_MODE_OFF;
-         }
-      }
-   }
-
    cs_update_vt_ctx(b)
-      cs_move64_to(b, cs_sr_reg64(b, IDVS, BLEND_DESC), ptr.gpu | bd_count);
+      cs_move64_to(b, cs_sr_reg64(b, IDVS, BLEND_DESC), bds_gpu | bd_count);
 
    return VK_SUCCESS;
 }
@@ -1688,19 +1704,18 @@ get_render_ctx(struct panvk_cmd_buffer *cmdbuf)
 }
 
 static VkResult
-prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw)
+prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw,
+           const struct panvk_shader_variant *vs)
 {
    const struct vk_input_assembly_state *ia =
       &cmdbuf->vk.dynamic_graphics_state.ia;
    struct panvk_descriptor_state *desc_state = &cmdbuf->state.gfx.desc_state;
    struct panvk_shader_desc_state *vs_desc_state = &cmdbuf->state.gfx.vs.desc;
-   const struct panvk_shader_variant *vs =
-      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
    bool upd_res_table = false;
 
-   VkResult result = prepare_vs_driver_set(cmdbuf, draw);
+   VkResult result = prepare_vs_driver_set(cmdbuf, draw, vs);
    if (result != VK_SUCCESS)
       return result;
 
@@ -1754,10 +1769,9 @@ prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw)
 }
 
 static VkResult
-prepare_fs(struct panvk_cmd_buffer *cmdbuf)
+prepare_fs(struct panvk_cmd_buffer *cmdbuf,
+           const struct panvk_shader_variant *fs)
 {
-   const struct panvk_shader_variant *fs =
-      panvk_shader_only_variant(get_fs(cmdbuf));
    struct panvk_shader_desc_state *fs_desc_state = &cmdbuf->state.gfx.fs.desc;
    struct panvk_descriptor_state *desc_state = &cmdbuf->state.gfx.desc_state;
    struct cs_builder *b =
@@ -1791,14 +1805,12 @@ prepare_fs(struct panvk_cmd_buffer *cmdbuf)
 
 static VkResult
 prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
-                      const struct panvk_draw_info *draw)
+                      const struct panvk_draw_info *draw,
+                      const struct panvk_shader_variant *vs,
+                      const struct panvk_shader_variant *fs)
 {
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-   const struct panvk_shader_variant *vs =
-      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
-   const struct panvk_shader_variant *fs =
-      panvk_shader_only_variant(get_fs(cmdbuf));
    VkResult result;
 
    if (gfx_state_dirty(cmdbuf, VS_PUSH_UNIFORMS)) {
@@ -1841,29 +1853,9 @@ prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
 }
 
 static VkResult
-prepare_ds(struct panvk_cmd_buffer *cmdbuf, struct pan_earlyzs_state earlyzs)
+build_zsd(struct panvk_cmd_buffer *cmdbuf, struct pan_earlyzs_state earlyzs,
+          uint64_t *zsd_gpu)
 {
-   bool dirty = dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_TEST_ENABLE) ||
-                dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_WRITE_ENABLE) ||
-                dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_COMPARE_OP) ||
-                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_TEST_ENABLE) ||
-                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_OP) ||
-                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_COMPARE_MASK) ||
-                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_WRITE_MASK) ||
-                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_REFERENCE) ||
-                dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_CLAMP_ENABLE) ||
-                dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_CLIP_ENABLE) ||
-                dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_BIAS_ENABLE) ||
-                dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_BIAS_FACTORS) ||
-                dyn_gfx_state_dirty(cmdbuf, MS_ALPHA_TO_COVERAGE_ENABLE) ||
-                dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP) ||
-                fs_user_dirty(cmdbuf) || gfx_state_dirty(cmdbuf, OQ);
-
-   if (!dirty)
-      return VK_SUCCESS;
-
-   struct cs_builder *b =
-      panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
    const struct vk_dynamic_graphics_state *dyns =
       &cmdbuf->vk.dynamic_graphics_state;
    const struct vk_depth_stencil_state *ds = &dyns->ds;
@@ -1925,8 +1917,42 @@ prepare_ds(struct panvk_cmd_buffer *cmdbuf, struct pan_earlyzs_state earlyzs)
       cfg.depth_bias_clamp = rs->depth_bias.clamp;
    }
 
+   *zsd_gpu = zsd.gpu;
+
+   return VK_SUCCESS;
+}
+
+static VkResult
+prepare_ds(struct panvk_cmd_buffer *cmdbuf, struct pan_earlyzs_state earlyzs)
+{
+   bool dirty = dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_TEST_ENABLE) ||
+                dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_WRITE_ENABLE) ||
+                dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_COMPARE_OP) ||
+                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_TEST_ENABLE) ||
+                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_OP) ||
+                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_COMPARE_MASK) ||
+                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_WRITE_MASK) ||
+                dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_REFERENCE) ||
+                dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_CLAMP_ENABLE) ||
+                dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_CLIP_ENABLE) ||
+                dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_BIAS_ENABLE) ||
+                dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_BIAS_FACTORS) ||
+                dyn_gfx_state_dirty(cmdbuf, MS_ALPHA_TO_COVERAGE_ENABLE) ||
+                dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP) ||
+                fs_user_dirty(cmdbuf) || gfx_state_dirty(cmdbuf, OQ);
+
+   if (!dirty)
+      return VK_SUCCESS;
+
+   uint64_t zsd_gpu;
+   VkResult result = build_zsd(cmdbuf, earlyzs, &zsd_gpu);
+   if (result != VK_SUCCESS)
+      return result;
+
+   struct cs_builder *b =
+      panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
    cs_update_vt_ctx(b)
-      cs_move64_to(b, cs_sr_reg64(b, IDVS, ZSD), zsd.gpu);
+      cs_move64_to(b, cs_sr_reg64(b, IDVS, ZSD), zsd_gpu);
 
    return VK_SUCCESS;
 }
@@ -1996,18 +2022,211 @@ prepare_oq(struct panvk_cmd_buffer *cmdbuf)
    return VK_SUCCESS;
 }
 
+struct panvk_dcd_flags {
+   struct mali_dcd_flags_0_packed flags_0;
+   struct mali_dcd_flags_1_packed flags_1;
+   struct mali_dcd_flags_2_packed flags_2;
+   struct pan_earlyzs_state earlyzs;
+   uint8_t rt_written;
+   uint8_t rt_read;
+};
+
+static void
+build_dcd_flags(struct panvk_cmd_buffer *cmdbuf,
+                const struct panvk_shader_variant *fs,
+                struct panvk_dcd_flags *out)
+{
+   memset(out, 0, sizeof(*out));
+   const struct vk_dynamic_graphics_state *dyns =
+      &cmdbuf->vk.dynamic_graphics_state;
+   const struct vk_rasterization_state *rs =
+      &cmdbuf->vk.dynamic_graphics_state.rs;
+   const struct vk_input_assembly_state *ia =
+      &cmdbuf->vk.dynamic_graphics_state.ia;
+
+   bool alpha_to_coverage = dyns->ms.alpha_to_coverage_enable;
+   bool writes_z = writes_depth(cmdbuf);
+   bool writes_s = writes_stencil(cmdbuf);
+   bool shader_modifies_coverage = false;
+   uint8_t rt_mask = cmdbuf->state.gfx.render.bound_attachments &
+                     MESA_VK_RP_ATTACHMENT_ANY_COLOR_BITS;
+
+   if (fs) {
+      out->rt_written = color_attachment_written_mask(fs, &dyns->cal);
+      out->rt_read = color_attachment_read_mask(fs, &dyns->ial, rt_mask);
+      shader_modifies_coverage = fs->info.fs.writes_coverage ||
+                                 fs->info.fs.can_discard || alpha_to_coverage;
+   }
+
+   bool msaa = dyns->ms.rasterization_samples > 1;
+   enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
+   if (u_reduced_prim(prim) == MESA_PRIM_LINES &&
+       rs->line.mode == VK_LINE_RASTERIZATION_MODE_BRESENHAM) {
+      /* we need to disable MSAA when rendering bresenham lines.
+       *
+       * From the Vulkan spec:
+       *   "When Bresenham lines are being rasterized, sample locations may
+       *    all be treated as being at the pixel center (this may affect
+       *    attribute and depth interpolation).""
+       */
+      msaa = false;
+   }
+
+   pan_pack(&out->flags_0, DCD_FLAGS_0, cfg) {
+      if (fs) {
+         enum pan_earlyzs_zs_tilebuf_read zs_read =
+            PAN_EARLYZS_ZS_TILEBUF_NOT_READ;
+
+         if (z_attachment_read(fs, &dyns->ial) ||
+             s_attachment_read(fs, &dyns->ial)) {
+            if (writes_z || writes_s || PAN_ARCH != 10)
+               zs_read = PAN_EARLYZS_ZS_TILEBUF_READ_NO_OPT;
+            else
+               zs_read = PAN_EARLYZS_ZS_TILEBUF_READ_OPT;
+         }
+
+         cfg.allow_forward_pixel_to_kill =
+            fs->info.fs.can_fpk && !(rt_mask & ~out->rt_written) &&
+            !(out->rt_read & out->rt_written) && !alpha_to_coverage &&
+            !cmdbuf->state.gfx.cb.info.any_dest_read;
+
+         cfg.allow_forward_pixel_to_be_killed = !fs->info.writes_global;
+
+         bool writes_zs = writes_z || writes_s;
+         bool zs_always_passes = ds_test_always_passes(cmdbuf);
+         bool oq = cmdbuf->state.gfx.occlusion_query.mode !=
+                   MALI_OCCLUSION_MODE_DISABLED;
+
+         out->earlyzs =
+            pan_earlyzs_get(fs->fs.earlyzs_lut, writes_zs || oq,
+                            alpha_to_coverage, zs_always_passes, zs_read);
+
+         cfg.pixel_kill_operation = (enum mali_pixel_kill)out->earlyzs.kill;
+         cfg.zs_update_operation = (enum mali_pixel_kill)out->earlyzs.update;
+
+         /* Use per-sample shading if required by API. Also use it when a
+          * blend shader is used with multisampling, as this is handled by a
+          * single ST_TILE in the blend shader with the current sample ID,
+          * requiring per-sample shading.
+          */
+         cfg.evaluate_per_sample = (fs->info.fs.sample_shading ||
+                                    cmdbuf->state.gfx.cb.info.needs_shader) &&
+                                   (dyns->ms.rasterization_samples > 1);
+
+         cfg.shader_modifies_coverage = shader_modifies_coverage;
+      } else {
+         cfg.allow_forward_pixel_to_kill = true;
+         cfg.allow_forward_pixel_to_be_killed = true;
+         cfg.pixel_kill_operation = MALI_PIXEL_KILL_FORCE_EARLY;
+         cfg.zs_update_operation = MALI_PIXEL_KILL_FORCE_EARLY;
+         cfg.overdraw_alpha0 = true;
+         cfg.overdraw_alpha1 = true;
+      }
+
+      if (rs->line.mode == VK_LINE_RASTERIZATION_MODE_BRESENHAM)
+         cfg.aligned_line_ends = true;
+
+      cfg.front_face_ccw = rs->front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE;
+      cfg.cull_front_face = (rs->cull_mode & VK_CULL_MODE_FRONT_BIT) != 0;
+      cfg.cull_back_face = (rs->cull_mode & VK_CULL_MODE_BACK_BIT) != 0;
+
+      cfg.multisample_enable = msaa;
+      cfg.occlusion_query = cmdbuf->state.gfx.occlusion_query.mode;
+      cfg.alpha_to_coverage = alpha_to_coverage;
+      cfg.scissor_to_bounding_box = true;
+#if PAN_ARCH >= 11
+      cfg.conservative_rast_mode =
+         rs->conservative_mode ==
+               VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT
+            ? MALI_CONSERVATIVE_RAST_MODE_OVER_ESTIMATE
+            : MALI_CONSERVATIVE_RAST_MODE_DISABLED;
+#if PAN_ARCH < 14
+      cfg.cull_zero_area = true;
+#endif
+#endif
+   }
+
+   pan_pack(&out->flags_1, DCD_FLAGS_1, cfg) {
+      cfg.sample_mask = dyns->ms.sample_mask;
+      cfg.render_target_mask = out->rt_written;
+   }
+
+   pan_pack(&out->flags_2, DCD_FLAGS_2, cfg) {
+      cfg.read_mask = out->rt_read;
+      cfg.write_mask = out->rt_written;
+#if PAN_ARCH >= 11
+      if (fs) {
+         cfg.no_shader_depth_read = !z_attachment_read(fs, &dyns->ial);
+         cfg.no_shader_stencil_read = !s_attachment_read(fs, &dyns->ial);
+      }
+#endif
+#if PAN_ARCH >= 13
+      if (fs) {
+         /* HSR can cull */
+         cfg.hsr_can_cull = !fs->info.fs.hsr.ld_tile && out->rt_written &&
+                              !(out->rt_read & out->rt_written) &&
+                              !cmdbuf->state.gfx.cb.info.any_dest_read;
+
+         /* HSR can_be_culled
+            * - FUTURE: We could allow write-only side effects.
+            * - FUTURE: we could allow any LD_TILE that's not used in CLPER or
+            *   tex_lod operations. */
+         bool late_zs = out->earlyzs.update == MALI_PIXEL_KILL_FORCE_LATE;
+         cfg.hsr_can_be_culled =
+            !fs->info.fs.sidefx &&
+            !fs->info.fs.hsr.wait_or_tile_access_before_atest_zsemit &&
+            !fs->info.fs.hsr.rasterizer_coverage_read &&
+            !fs->info.fs.hsr.ld_tile &&
+            !fs->info.fs.hsr.centroid_interpolation &&
+            (!shader_modifies_coverage || !cfg.z_write_or_stencil ||
+               late_zs);
+
+         /* Late HSR update */
+         cfg.hsr_update_operation = shader_modifies_coverage || late_zs
+                                       ? MALI_HSR_UPDATE_LATE
+                                       : MALI_HSR_UPDATE_EARLY;
+
+         /* Since we do not allow side effects for HSR, we can always have
+            * the HSR kill op follow HSR update. */
+         cfg.hsr_prepass_kill_operation =
+            MALI_HSR_PREPASS_KILL_FOLLOW_HSR_UPDATE;
+
+         /* Whether prepass must run varyings. */
+         cfg.enable_varying_shading_in_pre_pass =
+            fs->info.fs.hsr.varying_before_atest_zsemit &&
+            (cfg.hsr_update_operation == MALI_HSR_UPDATE_LATE ||
+             cfg.hsr_prepass_kill_operation == MALI_HSR_PREPASS_KILL_LATE ||
+             out->earlyzs.update == MALI_PIXEL_KILL_FORCE_LATE ||
+             out->earlyzs.kill == MALI_PIXEL_KILL_FORCE_LATE);
+
+         /* Whether depth is written or stencil is used */
+         const struct vk_depth_stencil_state *ds =
+            &cmdbuf->vk.dynamic_graphics_state.ds;
+         cfg.z_write_or_stencil =
+            writes_z || (has_stencil_att(cmdbuf) && ds->stencil.test_enable);
+      } else {
+         cfg.hsr_can_cull = false;
+         cfg.hsr_can_be_culled = false;
+         cfg.z_write_or_stencil = false;
+         cfg.enable_varying_shading_in_pre_pass = false;
+         cfg.hsr_update_operation = MALI_HSR_UPDATE_EARLY;
+         cfg.hsr_prepass_kill_operation =
+            MALI_HSR_PREPASS_KILL_FOLLOW_HSR_UPDATE;
+      }
+#endif
+   }
+}
+
 static void
 prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
+            const struct panvk_shader_variant *fs,
             struct pan_earlyzs_state *earlyzs)
 {
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-   const struct panvk_shader_variant *fs =
-      panvk_shader_only_variant(get_fs(cmdbuf));
-   bool dcd2_dirty =
-      fs_user_dirty(cmdbuf) ||
-      dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP) ||
-      dyn_gfx_state_dirty(cmdbuf, COLOR_ATTACHMENT_MAP);
+   bool dcd2_dirty = fs_user_dirty(cmdbuf) ||
+                     dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP) ||
+                     dyn_gfx_state_dirty(cmdbuf, COLOR_ATTACHMENT_MAP);
 #if PAN_ARCH >= 13
    dcd2_dirty |= dyn_gfx_state_dirty(cmdbuf, MS_ALPHA_TO_COVERAGE_ENABLE) ||
                  dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_TEST_ENABLE) ||
@@ -2058,204 +2277,27 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
                      fs_user_dirty(cmdbuf) ||
                      gfx_state_dirty(cmdbuf, RENDER_STATE);
 
-   const struct vk_dynamic_graphics_state *dyns =
-      &cmdbuf->vk.dynamic_graphics_state;
-   const struct vk_rasterization_state *rs =
-      &cmdbuf->vk.dynamic_graphics_state.rs;
-   const struct vk_input_assembly_state *ia =
-      &cmdbuf->vk.dynamic_graphics_state.ia;
+   if (!dcd0_dirty && !dcd1_dirty && !dcd2_dirty)
+      return;
 
-   bool alpha_to_coverage = dyns->ms.alpha_to_coverage_enable;
-   bool writes_z = writes_depth(cmdbuf);
-   bool writes_s = writes_stencil(cmdbuf);
-   bool shader_modifies_coverage = false;
-   uint8_t rt_mask = cmdbuf->state.gfx.render.bound_attachments &
-                     MESA_VK_RP_ATTACHMENT_ANY_COLOR_BITS;
-   uint8_t rt_written = 0, rt_read = 0;
-
-   if (fs) {
-      rt_written = color_attachment_written_mask(fs, &dyns->cal);
-      rt_read = color_attachment_read_mask(fs, &dyns->ial, rt_mask);
-      shader_modifies_coverage = fs->info.fs.writes_coverage ||
-                                 fs->info.fs.can_discard || alpha_to_coverage;
-   }
-
-   bool msaa = dyns->ms.rasterization_samples > 1;
-   enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
-   if (u_reduced_prim(prim) == MESA_PRIM_LINES &&
-       rs->line.mode == VK_LINE_RASTERIZATION_MODE_BRESENHAM) {
-      /* we need to disable MSAA when rendering bresenham lines.
-       *
-       * From the Vulkan spec:
-       *   "When Bresenham lines are being rasterized, sample locations may
-       *    all be treated as being at the pixel center (this may affect
-       *    attribute and depth interpolation).""
-       */
-       msaa = false;
-   }
+   struct panvk_dcd_flags dcd_flags;
+   build_dcd_flags(cmdbuf, fs, &dcd_flags);
+   *earlyzs = dcd_flags.earlyzs;
 
    if (dcd0_dirty) {
-      struct mali_dcd_flags_0_packed dcd0;
-      pan_pack(&dcd0, DCD_FLAGS_0, cfg) {
-         if (fs) {
-            enum pan_earlyzs_zs_tilebuf_read zs_read =
-               PAN_EARLYZS_ZS_TILEBUF_NOT_READ;
-
-            if (z_attachment_read(fs, &dyns->ial) ||
-                s_attachment_read(fs, &dyns->ial)) {
-               if (writes_z || writes_s || PAN_ARCH != 10)
-                  zs_read = PAN_EARLYZS_ZS_TILEBUF_READ_NO_OPT;
-               else
-                  zs_read = PAN_EARLYZS_ZS_TILEBUF_READ_OPT;
-            }
-
-            cfg.allow_forward_pixel_to_kill =
-               fs->info.fs.can_fpk && !(rt_mask & ~rt_written) &&
-               !(rt_read & rt_written) && !alpha_to_coverage &&
-               !cmdbuf->state.gfx.cb.info.any_dest_read;
-
-            cfg.allow_forward_pixel_to_be_killed = !fs->info.writes_global;
-
-            bool writes_zs = writes_z || writes_s;
-            bool zs_always_passes = ds_test_always_passes(cmdbuf);
-            bool oq = cmdbuf->state.gfx.occlusion_query.mode !=
-                      MALI_OCCLUSION_MODE_DISABLED;
-
-            *earlyzs =
-               pan_earlyzs_get(fs->fs.earlyzs_lut, writes_zs || oq,
-                               alpha_to_coverage, zs_always_passes, zs_read);
-
-            cfg.pixel_kill_operation = (enum mali_pixel_kill)earlyzs->kill;
-            cfg.zs_update_operation = (enum mali_pixel_kill)earlyzs->update;
-
-            /* Use per-sample shading if required by API. Also use it when a
-             * blend shader is used with multisampling, as this is handled by a
-             * single ST_TILE in the blend shader with the current sample ID,
-             * requiring per-sample shading.
-             */
-            cfg.evaluate_per_sample =
-               (fs->info.fs.sample_shading ||
-                cmdbuf->state.gfx.cb.info.needs_shader) &&
-               (dyns->ms.rasterization_samples > 1);
-
-            cfg.shader_modifies_coverage = shader_modifies_coverage;
-         } else {
-            cfg.allow_forward_pixel_to_kill = true;
-            cfg.allow_forward_pixel_to_be_killed = true;
-            cfg.pixel_kill_operation = MALI_PIXEL_KILL_FORCE_EARLY;
-            cfg.zs_update_operation = MALI_PIXEL_KILL_FORCE_EARLY;
-            cfg.overdraw_alpha0 = true;
-            cfg.overdraw_alpha1 = true;
-         }
-
-         if (rs->line.mode == VK_LINE_RASTERIZATION_MODE_BRESENHAM)
-            cfg.aligned_line_ends = true;
-
-         cfg.front_face_ccw = rs->front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE;
-         cfg.cull_front_face = (rs->cull_mode & VK_CULL_MODE_FRONT_BIT) != 0;
-         cfg.cull_back_face = (rs->cull_mode & VK_CULL_MODE_BACK_BIT) != 0;
-
-         cfg.multisample_enable = msaa;
-         cfg.occlusion_query = cmdbuf->state.gfx.occlusion_query.mode;
-         cfg.alpha_to_coverage = alpha_to_coverage;
-         cfg.scissor_to_bounding_box = true;
-#if PAN_ARCH >= 11
-         cfg.conservative_rast_mode =
-            rs->conservative_mode == VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT
-               ? MALI_CONSERVATIVE_RAST_MODE_OVER_ESTIMATE
-               : MALI_CONSERVATIVE_RAST_MODE_DISABLED;
-#if PAN_ARCH < 14
-         cfg.cull_zero_area = true;
-#endif
-#endif
-      }
-
       cs_update_vt_ctx(b)
-         cs_move32_to(b, cs_sr_reg32(b, IDVS, DCD0), dcd0.opaque[0]);
+         cs_move32_to(b, cs_sr_reg32(b, IDVS, DCD0),
+                      dcd_flags.flags_0.opaque[0]);
    }
-
    if (dcd1_dirty) {
-      struct mali_dcd_flags_1_packed dcd1;
-      pan_pack(&dcd1, DCD_FLAGS_1, cfg) {
-         cfg.sample_mask = dyns->ms.sample_mask;
-         cfg.render_target_mask = rt_written;
-      }
-
       cs_update_vt_ctx(b)
-         cs_move32_to(b, cs_sr_reg32(b, IDVS, DCD1), dcd1.opaque[0]);
+         cs_move32_to(b, cs_sr_reg32(b, IDVS, DCD1),
+                      dcd_flags.flags_1.opaque[0]);
    }
-
    if (dcd2_dirty) {
-      struct mali_dcd_flags_2_packed dcd2;
-      pan_pack(&dcd2, DCD_FLAGS_2, cfg) {
-         cfg.read_mask = rt_read;
-         cfg.write_mask = rt_written;
-#if PAN_ARCH >= 11
-         if (fs) {
-            cfg.no_shader_depth_read = !z_attachment_read(fs, &dyns->ial);
-            cfg.no_shader_stencil_read = !s_attachment_read(fs, &dyns->ial);
-         }
-#endif
-#if PAN_ARCH >= 13
-         if (fs) {
-            /* HSR can cull */
-            cfg.hsr_can_cull = !fs->info.fs.hsr.ld_tile && rt_written &&
-                               !(rt_read & rt_written) &&
-                               !cmdbuf->state.gfx.cb.info.any_dest_read;
-
-
-            /* HSR can_be_culled
-             * - FUTURE: We could allow write-only side effects.
-             * - FUTURE: we could allow any LD_TILE that's not used in CLPER or
-             *   tex_lod operations. */
-            assert(dcd0_dirty && "earlyzs was never filled");
-            bool late_zs = earlyzs->update == MALI_PIXEL_KILL_FORCE_LATE;
-            cfg.hsr_can_be_culled =
-               !fs->info.fs.sidefx &&
-               !fs->info.fs.hsr.wait_or_tile_access_before_atest_zsemit &&
-               !fs->info.fs.hsr.rasterizer_coverage_read &&
-               !fs->info.fs.hsr.ld_tile &&
-               !fs->info.fs.hsr.centroid_interpolation &&
-               (!shader_modifies_coverage || !cfg.z_write_or_stencil ||
-                late_zs);
-
-            /* Late HSR update */
-            cfg.hsr_update_operation = shader_modifies_coverage || late_zs
-                                          ? MALI_HSR_UPDATE_LATE
-                                          : MALI_HSR_UPDATE_EARLY;
-
-            /* Since we do not allow side effects for HSR, we can always have
-             * the HSR kill op follow HSR update. */
-            cfg.hsr_prepass_kill_operation =
-               MALI_HSR_PREPASS_KILL_FOLLOW_HSR_UPDATE;
-
-            /* Whether prepass must run varyings. */
-            cfg.enable_varying_shading_in_pre_pass =
-               fs->info.fs.hsr.varying_before_atest_zsemit &&
-               (cfg.hsr_update_operation == MALI_HSR_UPDATE_LATE ||
-                cfg.hsr_prepass_kill_operation == MALI_HSR_PREPASS_KILL_LATE ||
-                earlyzs->update == MALI_PIXEL_KILL_FORCE_LATE ||
-                earlyzs->kill == MALI_PIXEL_KILL_FORCE_LATE);
-
-            /* Whether depth is written or stencil is used */
-            const struct vk_depth_stencil_state *ds =
-               &cmdbuf->vk.dynamic_graphics_state.ds;
-            cfg.z_write_or_stencil =
-               writes_z || (has_stencil_att(cmdbuf) && ds->stencil.test_enable);
-         } else {
-            cfg.hsr_can_cull = false;
-            cfg.hsr_can_be_culled = false;
-            cfg.z_write_or_stencil = false;
-            cfg.enable_varying_shading_in_pre_pass = false;
-            cfg.hsr_update_operation = MALI_HSR_UPDATE_EARLY;
-            cfg.hsr_prepass_kill_operation =
-               MALI_HSR_PREPASS_KILL_FOLLOW_HSR_UPDATE;
-         }
-#endif
-      }
-
       cs_update_vt_ctx(b)
-         cs_move32_to(b, cs_sr_reg32(b, IDVS, DCD2), dcd2.opaque[0]);
+         cs_move32_to(b, cs_sr_reg32(b, IDVS, DCD2),
+                      dcd_flags.flags_2.opaque[0]);
    }
 }
 
@@ -2448,17 +2490,17 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
        cmdbuf->state.gfx.vi.attribs_changing_on_base_instance != 0)
       BITSET_SET(cmdbuf->vk.dynamic_graphics_state.dirty, MESA_VK_DYNAMIC_VI);
 
-   panvk_per_arch(cmd_prepare_draw_sysvals)(cmdbuf, draw);
+   panvk_per_arch(cmd_prepare_draw_sysvals)(cmdbuf, draw, fs);
 
-   result = prepare_push_uniforms(cmdbuf, draw);
+   result = prepare_push_uniforms(cmdbuf, draw, vs, fs);
    if (result != VK_SUCCESS)
       return result;
 
-   result = prepare_vs(cmdbuf, draw);
+   result = prepare_vs(cmdbuf, draw, vs);
    if (result != VK_SUCCESS)
       return result;
 
-   result = prepare_fs(cmdbuf);
+   result = prepare_fs(cmdbuf, fs);
    if (result != VK_SUCCESS)
       return result;
 
@@ -2472,7 +2514,7 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
 
       struct pan_earlyzs_state earlyzs = {0};
 
-      prepare_dcd(cmdbuf, &earlyzs);
+      prepare_dcd(cmdbuf, fs, &earlyzs);
 
       result = prepare_ds(cmdbuf, earlyzs);
       if (result != VK_SUCCESS)

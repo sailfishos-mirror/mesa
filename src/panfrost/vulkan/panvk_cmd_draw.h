@@ -424,7 +424,8 @@ struct panvk_draw_info {
 
 void
 panvk_per_arch(cmd_prepare_draw_sysvals)(struct panvk_cmd_buffer *cmdbuf,
-                                         const struct panvk_draw_info *info);
+                                         const struct panvk_draw_info *info,
+                                         const struct panvk_shader_variant *fs);
 
 static inline uint32_t
 color_attachment_written_mask(
