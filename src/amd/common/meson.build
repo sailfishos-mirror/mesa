@@ -103,6 +103,8 @@ amd_common_files = files(
   'ac_cmdbuf_cp.h',
   'ac_cmdbuf_sdma.c',
   'ac_cmdbuf_sdma.h',
+  'ac_cmdbuf_video.c',
+  'ac_cmdbuf_video.h',
   'ac_shader_args.c',
   'ac_shader_args.h',
   'ac_shader_util.c',
