@@ -225,7 +225,7 @@ if with_tests
     test(
       'drirc xml validation',
       prog_xmllint,
-      args : ['--noout', '--valid', files_drirc],
+      args : ['--noout', '--dtdvalid', files('driconf.dtd'), files_drirc],
       suite : ['util'],
     )
   endif
