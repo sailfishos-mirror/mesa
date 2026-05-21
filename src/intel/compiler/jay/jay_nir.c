@@ -350,6 +350,12 @@ jay_process_nir(const struct intel_device_info *devinfo,
          NIR_PASS(_, nir, brw_nir_lower_alpha_to_coverage);
       }
 
+      /* We want to run the standard opt loop after lowering but before
+       * gathering prog data, so we have accurate information about which system
+       * values are actually used (vs DCE'd away).
+       */
+      brw_nir_optimize(pt);
+
       // TODO
       // NIR_PASS(_, nir, brw_nir_move_interpolation_to_top);
 
