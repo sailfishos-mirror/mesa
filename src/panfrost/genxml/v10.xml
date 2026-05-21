@@ -775,7 +775,7 @@
     <!-- Iter status is written at [Address + 4], 0 == NO_FAULT, 1 == FAULT -->
     <field name="Offset" size="16" start="0" type="int"/>
     <field name="Wait mask" size="16" start="16" type="hex"/>
-    <field name="State" size="2" start="32" type="CS State"/>
+    <field name="State" size="8" start="32" type="CS State"/>
     <field name="Address" size="8" start="40" type="uint"/>
     <field name="Signal slot" size="4" start="48" type="hex"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="STORE_STATE"/>
