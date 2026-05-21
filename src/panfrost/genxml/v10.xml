@@ -817,7 +817,7 @@
 
   <struct name="CS HEAP_OPERATION" size="2">
     <field name="Wait mask" size="16" start="16" type="hex"/>
-    <field name="Operation" size="2" start="32" type="CS Heap Operation"/>
+    <field name="Operation" size="3" start="32" type="CS Heap Operation"/>
     <field name="Signal slot" size="4" start="48" type="uint"/>
     <field name="Opcode" size="8" start="56" type="CS Opcode" default="HEAP_OPERATION"/>
   </struct>
