@@ -147,6 +147,9 @@ panvk_meta_init(struct panvk_device *device)
    device->meta.use_rect_list_pipeline = true;
    device->meta.max_bind_map_buffer_size_B = 64 * 1024;
    device->meta.cmd_bind_map_buffer = panvk_meta_cmd_bind_map_buffer;
+#if PAN_ARCH >= 10
+   device->meta.cmd_draw_rects = panvk_per_arch(cmd_draw_rects);
+#endif
 
    /* Assume a maximum of 1024 bytes per worgroup and choose the workgroup size
     * accordingly. */

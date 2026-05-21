@@ -21,6 +21,7 @@
 
 #include "vk_command_buffer.h"
 #include "vk_format.h"
+#include "vk_meta.h"
 #include "util/u_tristate.h"
 
 #include "pan_fb.h"
@@ -498,5 +499,12 @@ s_attachment_read(const struct panvk_shader_variant *fs,
 
    return stencil_mask & fs->fs.input_attachment_read;
 }
+
+#if PAN_ARCH >= 10
+void panvk_per_arch(cmd_draw_rects)(struct vk_command_buffer *cmd,
+                                    struct vk_meta_device *meta,
+                                    uint32_t rect_count,
+                                    const struct vk_meta_rect *rects);
+#endif
 
 #endif
