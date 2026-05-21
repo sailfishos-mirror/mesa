@@ -249,6 +249,10 @@ if with_gallium_asahi
   files_drirc += files('00-asahi-defaults.conf')
 endif
 
+if with_gallium_v3d
+  files_drirc += files('00-v3d-defaults.conf')
+endif
+
 if with_asahi_vk
   files_drirc += files('00-hk-defaults.conf')
 endif
