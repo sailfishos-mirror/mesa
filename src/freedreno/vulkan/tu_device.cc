@@ -1850,7 +1850,7 @@ static const driOptionDescription tu_dri_options[] = {
       DRI_CONF_VK_WSI_FORCE_BGRA8_UNORM_FIRST(false)
       DRI_CONF_VK_WSI_FORCE_SWAPCHAIN_TO_CURRENT_EXTENT(false)
       DRI_CONF_VK_X11_IGNORE_SUBOPTIMAL(false)
-      DRI_CONF_VK_DONT_CARE_AS_LOAD(false)
+      DRI_CONF_TU_DONT_CARE_AS_LOAD(false)
    DRI_CONF_SECTION_END
 
    DRI_CONF_SECTION_MISCELLANEOUS
@@ -1887,8 +1887,7 @@ tu_init_dri_options(struct tu_instance *instance)
 
    instance->force_vk_vendor =
          driQueryOptioni(&instance->dri_options, "force_vk_vendor");
-   instance->dont_care_as_load =
-         driQueryOptionb(&instance->dri_options, "vk_dont_care_as_load");
+   instance->dont_care_as_load = driQueryOptionb(&instance->dri_options, "tu_dont_care_as_load");
    instance->conservative_lrz =
          !driQueryOptionb(&instance->dri_options, "disable_conservative_lrz");
    instance->reserve_descriptor_set =
