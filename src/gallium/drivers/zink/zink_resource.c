@@ -632,10 +632,10 @@ try_usage_mutable(struct zink_screen *screen, VkImageCreateInfo *ici, VkImageUsa
 }
 
 static bool
-find_good_mod(struct zink_screen *screen, VkImageCreateInfo *ici, const struct pipe_resource *templ, unsigned bind, unsigned modifiers_count, uint64_t *modifiers, uint64_t *good_mod)
+find_good_mod(struct zink_screen *screen, VkImageCreateInfo *ici, const struct pipe_resource *templ, unsigned bind, unsigned modifiers_count, uint64_t *modifiers, uint64_t *out_mod, VkImageUsageFlags *out_usage, VkImageCreateFlags *out_flags)
 {
    bool found = false;
-   VkImageUsageFlags good_usage = 0;
+   VkImageCreateFlags saved_flags = ici->flags;
    const struct zink_modifier_props *prop = zink_get_modifier_props(screen, templ->format);
    for (unsigned i = 0; i < modifiers_count; i++) {
       bool need_extended = false;
@@ -647,18 +647,21 @@ find_good_mod(struct zink_screen *screen, VkImageCreateInfo *ici, const struct p
       if (!feats)
          continue;
 
+      VkImageCreateFlags try_flags = saved_flags;
       if (feats & VK_FORMAT_FEATURE_DISJOINT_BIT && util_format_get_num_planes(templ->format))
-         ici->flags |= VK_IMAGE_CREATE_DISJOINT_BIT;
+         try_flags |= VK_IMAGE_CREATE_DISJOINT_BIT;
+      ici->flags = try_flags;
+
       VkImageUsageFlags usage = get_image_usage_for_feats(screen, feats, templ, bind, &need_extended);
       assert(!need_extended);
       if (try_usage_mutable(screen, ici, usage, modifiers[i])) {
          found = true;
-         *good_mod = modifiers[i];
-         good_usage = usage;
+         *out_mod = modifiers[i];
+         *out_usage = usage;
+         *out_flags = try_flags;
       }
    }
-   if (found)
-      ici->usage = good_usage;
+   ici->flags = saved_flags;
    return found;
 }
 
@@ -703,9 +706,13 @@ negotiate_image_config(struct zink_screen *screen, VkImageCreateInfo *ici, const
    /* modifier path */
    if (modifiers_count) {
       uint64_t good_mod = 0;
+      VkImageUsageFlags good_usage = 0;
+      VkImageCreateFlags good_flags = 0;
       if (screen->info.have_EXT_image_drm_format_modifier &&
-          find_good_mod(screen, ici, templ, bind, modifiers_count, modifiers, &good_mod)) {
+          find_good_mod(screen, ici, templ, bind, modifiers_count, modifiers, &good_mod, &good_usage, &good_flags)) {
          mod = good_mod;
+         ici->usage = good_usage;
+         ici->flags = good_flags;
          goto found;
       }
       /* try LINEAR modifier as last resort */
@@ -713,6 +720,7 @@ negotiate_image_config(struct zink_screen *screen, VkImageCreateInfo *ici, const
       VkFormatFeatureFlags feats = find_modifier_feats(prop, DRM_FORMAT_MOD_LINEAR);
       if (feats) {
          bool need_extended = false;
+         VkImageCreateFlags saved_flags = ici->flags;
          if (feats & VK_FORMAT_FEATURE_DISJOINT_BIT && util_format_get_num_planes(templ->format) > 1)
             ici->flags |= VK_IMAGE_CREATE_DISJOINT_BIT;
          VkImageUsageFlags usage = get_image_usage_for_feats(screen, feats, templ, bind, &need_extended);
@@ -721,6 +729,7 @@ negotiate_image_config(struct zink_screen *screen, VkImageCreateInfo *ici, const
             mod = DRM_FORMAT_MOD_LINEAR;
             goto found;
          }
+         ici->flags = saved_flags;
       }
       /* fall through to non-modifier LINEAR path */
       ici->tiling = VK_IMAGE_TILING_LINEAR;
