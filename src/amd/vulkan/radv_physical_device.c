@@ -3070,6 +3070,28 @@ radv_GetPhysicalDeviceQueueFamilyProperties2(VkPhysicalDevice physicalDevice, ui
    }
 }
 
+struct radv_heap_budget {
+   uint64_t allocated_vram;
+   uint64_t vram_usage;
+   uint64_t allocated_vram_vis;
+   uint64_t vram_vis_usage;
+   uint64_t allocated_gtt;
+   uint64_t gtt_usage;
+};
+
+static void
+radv_get_heap_budget(struct radv_physical_device *pdev, struct radv_heap_budget *budget)
+{
+   memset(budget, 0, sizeof(*budget));
+
+   budget->allocated_vram = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM);
+   budget->vram_usage = pdev->ws->query_value(pdev->ws, RADEON_VRAM_USAGE);
+   budget->allocated_vram_vis = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM_VIS);
+   budget->vram_vis_usage = pdev->ws->query_value(pdev->ws, RADEON_VRAM_VIS_USAGE);
+   budget->allocated_gtt = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_GTT);
+   budget->gtt_usage = pdev->ws->query_value(pdev->ws, RADEON_GTT_USAGE);
+}
+
 static void
 radv_get_memory_budget_properties(VkPhysicalDevice physicalDevice,
                                   VkPhysicalDeviceMemoryBudgetPropertiesEXT *memoryBudget)
@@ -3077,6 +3099,9 @@ radv_get_memory_budget_properties(VkPhysicalDevice physicalDevice,
    VK_FROM_HANDLE(radv_physical_device, pdev, physicalDevice);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    VkPhysicalDeviceMemoryProperties *memory_properties = &pdev->memory_properties;
+   struct radv_heap_budget budget;
+
+   radv_get_heap_budget(pdev, &budget);
 
    /* For all memory heaps, the computation of budget is as follow:
     *	heap_budget = heap_size - global_heap_usage + app_heap_usage
@@ -3098,12 +3123,10 @@ radv_get_memory_budget_properties(VkPhysicalDevice physicalDevice,
          uint64_t total_heap_size = pdev->memory_properties.memoryHeaps[vram_vis_heap_idx].size;
 
          /* Get the different memory usages. */
-         uint64_t vram_vis_internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM_VIS) +
-                                            pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM);
-         uint64_t gtt_internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_GTT);
+         uint64_t vram_vis_internal_usage = budget.allocated_vram_vis + budget.allocated_vram;
+         uint64_t gtt_internal_usage = budget.allocated_gtt;
          uint64_t total_internal_usage = vram_vis_internal_usage + gtt_internal_usage;
-         uint64_t total_system_usage =
-            pdev->ws->query_value(pdev->ws, RADEON_VRAM_VIS_USAGE) + pdev->ws->query_value(pdev->ws, RADEON_GTT_USAGE);
+         uint64_t total_system_usage = budget.vram_vis_usage + budget.gtt_usage;
          uint64_t total_usage = MAX2(total_internal_usage, total_system_usage);
 
          /* Compute the total free space that can be allocated for this process across all heaps. */
@@ -3124,15 +3147,13 @@ radv_get_memory_budget_properties(VkPhysicalDevice physicalDevice,
          uint64_t gtt_heap_size = pdev->memory_properties.memoryHeaps[gtt_heap_idx].size;
          uint64_t vram_vis_heap_size = pdev->memory_properties.memoryHeaps[vram_vis_heap_idx].size;
 
-         uint64_t vram_vis_internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM_VIS) +
-                                            pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM);
-         uint64_t gtt_internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_GTT);
+         uint64_t vram_vis_internal_usage = budget.allocated_vram_vis + budget.allocated_vram;
+         uint64_t gtt_internal_usage = budget.allocated_gtt;
 
          /* Compute the total heap size, internal and system usage. */
          uint64_t total_heap_size = vram_vis_heap_size + gtt_heap_size;
          uint64_t total_internal_usage = vram_vis_internal_usage + gtt_internal_usage;
-         uint64_t total_system_usage =
-            pdev->ws->query_value(pdev->ws, RADEON_VRAM_VIS_USAGE) + pdev->ws->query_value(pdev->ws, RADEON_GTT_USAGE);
+         uint64_t total_system_usage = budget.vram_vis_usage + budget.gtt_usage;
 
          uint64_t total_usage = MAX2(total_internal_usage, total_system_usage);
 
@@ -3164,17 +3185,17 @@ radv_get_memory_budget_properties(VkPhysicalDevice physicalDevice,
          const uint8_t vram_heap_idx = 0, gtt_heap_idx = 1, vram_vis_heap_idx = 2;
 
          /* GTT */
-         const uint64_t gtt_internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_GTT);
-         const uint64_t gtt_system_usage = pdev->ws->query_value(pdev->ws, RADEON_GTT_USAGE);
+         const uint64_t gtt_internal_usage = budget.allocated_gtt;
+         const uint64_t gtt_system_usage = budget.gtt_usage;
          const uint64_t gtt_total_usage = MAX2(gtt_internal_usage, gtt_system_usage);
 
          const uint64_t gtt_free_space = pdev->memory_properties.memoryHeaps[gtt_heap_idx].size -
                                          MIN2(pdev->memory_properties.memoryHeaps[gtt_heap_idx].size, gtt_total_usage);
 
          /* VRAM visible/invisible */
-         const uint64_t vram_internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM);
-         const uint64_t vram_vis_internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM_VIS);
-         uint64_t vram_system_usage = pdev->ws->query_value(pdev->ws, RADEON_VRAM_USAGE);
+         const uint64_t vram_internal_usage = budget.allocated_vram;
+         const uint64_t vram_vis_internal_usage = budget.allocated_vram_vis;
+         uint64_t vram_system_usage = budget.vram_usage;
          const uint64_t vram_vis_system_usage =
             MIN2(vram_system_usage, pdev->memory_properties.memoryHeaps[vram_vis_heap_idx].size);
 
@@ -3205,18 +3226,18 @@ radv_get_memory_budget_properties(VkPhysicalDevice physicalDevice,
 
             switch (type) {
             case RADV_HEAP_VRAM:
-               internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM);
-               system_usage = pdev->ws->query_value(pdev->ws, RADEON_VRAM_USAGE);
+               internal_usage = budget.allocated_vram;
+               system_usage = budget.vram_usage;
                break;
             case RADV_HEAP_VRAM_VIS:
-               internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM_VIS);
+               internal_usage = budget.allocated_vram_vis;
                if (!(pdev->heaps & RADV_HEAP_VRAM))
-                  internal_usage += pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_VRAM);
-               system_usage = pdev->ws->query_value(pdev->ws, RADEON_VRAM_VIS_USAGE);
+                  internal_usage += budget.allocated_vram;
+               system_usage = budget.vram_vis_usage;
                break;
             case RADV_HEAP_GTT:
-               internal_usage = pdev->ws->query_value(pdev->ws, RADEON_ALLOCATED_GTT);
-               system_usage = pdev->ws->query_value(pdev->ws, RADEON_GTT_USAGE);
+               internal_usage = budget.allocated_gtt;
+               system_usage = budget.gtt_usage;
                break;
             }
 
