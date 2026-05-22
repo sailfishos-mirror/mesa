@@ -2124,11 +2124,9 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
       desc_src = jay_AND_u32(b, desc_src, 0xfff);
    }
 
-   if (n_sources > 2 || !jay_is_null(header)) {
-      for (unsigned i = 0; i < n_sources; ++i) {
-         payload[i] =
-            jay_src_as_strided(b, payload[i], 1, payload_uniform ? UGPR : GPR);
-      }
+   for (unsigned i = 0; i < n_sources; ++i) {
+      payload[i] =
+         jay_src_as_strided(b, payload[i], 1, payload_uniform ? UGPR : GPR);
    }
 
    enum jay_type src_type = jay_type(JAY_TYPE_U, payload_type_bit_size);
