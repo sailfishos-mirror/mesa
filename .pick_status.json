@@ -15644,7 +15644,7 @@
         "description": "ci/panfrost: Switch T860 jobs to another RK3399 device type",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
