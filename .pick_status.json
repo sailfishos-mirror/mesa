@@ -6764,7 +6764,7 @@
         "description": "spirv: fixup infinite recursion with shader replacement",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "97b4a6d0e3300edaa1b894e834fa1bf881b1769e",
         "notes": null
