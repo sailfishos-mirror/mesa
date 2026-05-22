@@ -310,15 +310,7 @@ typedef struct {
    int force_front_face; /* 0 -> keep, 1 -> set to true, -1 -> set to false */
    bool frag_coord_is_center; /* GL requirement for sample shading */
 
-   /* frag_coord/pixel_coord:
-    *    allow_pixel_coord && (frag_coord_is_center || ps_iter_samples == 1 || msaa_disabled ||
-    *                          the fractional part of frag_coord.xy isn't used):
-    *       * frag_coord.xy is replaced by u2f(pixel_coord) + 0.5.
-    *    else:
-    *       * pixel_coord is replaced by f2u16(frag_coord.xy)
-    *       * ps_iter_samples == 0 means the state is unknown.
-    *
-    * barycentrics:
+   /* barycentrics:
     *    msaa_disabled:
     *       * All barycentrics including at_sample but excluding at_offset are changed to
     *         barycentric_pixel
