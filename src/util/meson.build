@@ -221,6 +221,10 @@ if with_intel_vk
   files_drirc += files('00-anv-defaults.conf')
 endif
 
+if with_intel_hasvk
+  files_drirc += files('00-hasvk-defaults.conf')
+endif
+
 if with_nouveau_vk
   files_drirc += files('00-nvk-defaults.conf')
 endif
