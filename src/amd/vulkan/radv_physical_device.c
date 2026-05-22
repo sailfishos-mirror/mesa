@@ -2533,6 +2533,13 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       pdev->vk.supported_sync_types = pdev->ws->get_sync_types(pdev->ws);
       pdev->ws->query_info(pdev->ws, &pdev->info);
 
+      for (uint32_t p = VK_QUEUE_GLOBAL_PRIORITY_LOW; p <= VK_QUEUE_GLOBAL_PRIORITY_REALTIME; p <<= 1) {
+         if (pdev->ws->ctx_is_priority_permitted(pdev->ws, vk_to_radeon_priority(p)) != VK_SUCCESS)
+            continue;
+
+         pdev->global_priority_mask |= p;
+      }
+
       if (instance->vk.enabled_extensions.KHR_display) {
          master_fd = open(drm_device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
          if (master_fd >= 0) {
@@ -2975,12 +2982,10 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
 static void
 radv_get_global_queue_priorities(struct radv_physical_device *pdev, VkQueueFamilyGlobalPriorityProperties *prop)
 {
-   struct radeon_winsys *ws = pdev->ws;
-
    prop->priorityCount = 0;
 
    for (uint32_t p = VK_QUEUE_GLOBAL_PRIORITY_LOW; p <= VK_QUEUE_GLOBAL_PRIORITY_REALTIME; p <<= 1) {
-      if (ws->ctx_is_priority_permitted(ws, vk_to_radeon_priority(p)) != VK_SUCCESS)
+      if (!(pdev->global_priority_mask & p))
          continue;
 
       prop->priorities[prop->priorityCount++] = p;

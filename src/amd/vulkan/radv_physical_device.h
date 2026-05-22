@@ -152,6 +152,9 @@ struct radv_physical_device {
    enum radv_queue_family vk_queue_to_radv[RADV_MAX_QUEUE_FAMILIES];
    uint32_t num_queues;
 
+   /* Mask of supported global queue priorities. */
+   uint32_t global_priority_mask;
+
    uint32_t gs_table_depth;
 
    struct ac_task_info task_info;
