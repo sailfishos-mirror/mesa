@@ -70,13 +70,14 @@ kk_CmdDispatchBase(VkCommandBuffer commandBuffer, uint32_t baseGroupX,
    kk_flush_compute_state(cmd);
 
    struct kk_shader *cs = cmd->state.shaders[MESA_SHADER_COMPUTE];
+   struct mtl_size local_size = cs->info.cs.local_size;
    struct mtl_size grid_size = {
-      .x = groupCountX,
-      .y = groupCountY,
-      .z = groupCountZ,
+      .x = groupCountX * local_size.x,
+      .y = groupCountY * local_size.y,
+      .z = groupCountZ * local_size.z,
    };
    mtl_compute_encoder *enc = kk_compute_encoder(cmd);
-   mtl_dispatch_threads(enc, grid_size, cs->info.cs.local_size);
+   mtl_dispatch_threads(enc, grid_size, local_size);
 }
 
 VKAPI_ATTR void VKAPI_CALL
