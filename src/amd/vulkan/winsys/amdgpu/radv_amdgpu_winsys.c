@@ -374,3 +374,41 @@ fail:
    ac_drm_device_deinitialize(dev);
    return result;
 }
+
+int
+radv_amdgpu_winsys_query_heap_info(ac_drm_device *dev, struct radeon_winsys_heap_info *heap_info)
+{
+   struct amdgpu_heap_info heap_vram = {0}, heap_vram_vis = {0}, heap_gtt = {0};
+   struct radv_amdgpu_alloc_tracker *alloc_tracker;
+   int r;
+
+   memset(heap_info, 0, sizeof(*heap_info));
+
+   alloc_tracker = radv_amdgpu_alloc_tracker_acquire(ac_drm_device_get_cookie(dev));
+   if (!alloc_tracker)
+      return -1;
+
+   /* Allocated memory for the current process. */
+   heap_info->allocated_vram = alloc_tracker->allocated_vram;
+   heap_info->allocated_vram_vis = alloc_tracker->allocated_vram_vis;
+   heap_info->allocated_gtt = alloc_tracker->allocated_gtt;
+
+   /* VRAM usage. */
+   r = ac_drm_query_heap_info(dev, AMDGPU_GEM_DOMAIN_VRAM, 0, &heap_vram);
+   if (!r)
+      heap_info->vram_usage = heap_vram.heap_usage;
+
+   /* VRAM visible usage. */
+   r = ac_drm_query_heap_info(dev, AMDGPU_GEM_DOMAIN_VRAM, AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED, &heap_vram_vis);
+   if (!r)
+      heap_info->vram_vis_usage = heap_vram_vis.heap_usage;
+
+   /* GTT usage. */
+   r = ac_drm_query_heap_info(dev, AMDGPU_GEM_DOMAIN_GTT, 0, &heap_gtt);
+   if (!r)
+      heap_info->gtt_usage = heap_gtt.heap_usage;
+
+   radv_amdgpu_alloc_tracker_release(alloc_tracker);
+
+   return 0;
+}

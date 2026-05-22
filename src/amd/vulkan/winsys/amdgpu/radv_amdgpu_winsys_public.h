@@ -13,6 +13,7 @@
 #define RADV_AMDGPU_WINSYS_PUBLIC_H
 
 #include "ac_gpu_info.h"
+#include "ac_linux_drm.h"
 
 #include "vk_sync.h"
 
@@ -26,5 +27,16 @@ struct radeon_winsys_info {
 };
 
 VkResult radv_amdgpu_winsys_query_info(int fd, uint64_t debug_flags, bool is_virtio, struct radeon_winsys_info *info);
+
+struct radeon_winsys_heap_info {
+   uint64_t allocated_vram;
+   uint64_t vram_usage;
+   uint64_t allocated_vram_vis;
+   uint64_t vram_vis_usage;
+   uint64_t allocated_gtt;
+   uint64_t gtt_usage;
+};
+
+int radv_amdgpu_winsys_query_heap_info(ac_drm_device *dev, struct radeon_winsys_heap_info *heap_info);
 
 #endif /* RADV_AMDGPU_WINSYS_PUBLIC_H */
