@@ -300,7 +300,7 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    ws->info.is_virtio = is_virtio;
 
    enum ac_query_gpu_info_result info_result =
-      ac_query_gpu_info(fd, ws->dev, &ws->info, true, !(debug_flags & RADV_DEBUG_NO_CACHE_COMPAT));
+      ac_query_gpu_info(ws->fd, ws->dev, &ws->info, true, !(debug_flags & RADV_DEBUG_NO_CACHE_COMPAT));
    if (info_result != AC_QUERY_GPU_INFO_SUCCESS) {
       result = info_result == AC_QUERY_GPU_INFO_FAIL ? VK_ERROR_INITIALIZATION_FAILED : VK_ERROR_INCOMPATIBLE_DRIVER;
       goto winsys_fail;

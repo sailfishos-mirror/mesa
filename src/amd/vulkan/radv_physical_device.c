@@ -2521,6 +2521,10 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    if (drm_device) {
       result = radv_amdgpu_winsys_create(fd, instance->debug_flags, instance->perftest_flags, is_virtio, &pdev->ws);
 
+      /* Close the fd immediately because libdrm dups it internally. */
+      close(fd);
+      fd = -1;
+
       if (result != VK_SUCCESS) {
          result = vk_errorf(instance, result, "failed to initialize winsys");
          goto fail_base;
@@ -2562,7 +2566,6 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    }
 
    pdev->master_fd = master_fd;
-   pdev->local_fd = fd;
 
    pdev->use_llvm = instance->debug_flags & RADV_DEBUG_LLVM;
 #if !AMD_LLVM_AVAILABLE
@@ -2718,7 +2721,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    radv_get_physical_device_properties(pdev);
 
    if ((instance->debug_flags & RADV_DEBUG_INFO))
-      ac_print_gpu_info(stdout, &pdev->info, pdev->local_fd);
+      ac_print_gpu_info(stdout, &pdev->info, pdev->ws->get_fd(pdev->ws));
 
    radv_init_physical_device_decoder(pdev);
    radv_init_physical_device_encoder(pdev);
@@ -2832,8 +2835,6 @@ radv_physical_device_destroy(struct vk_physical_device *vk_device)
       pdev->ws->destroy(pdev->ws);
    disk_cache_destroy(pdev->vk.disk_cache);
    disk_cache_destroy(pdev->disk_cache_meta);
-   if (pdev->local_fd != -1)
-      close(pdev->local_fd);
    if (pdev->master_fd != -1)
       close(pdev->master_fd);
    vk_physical_device_finish(&pdev->vk);

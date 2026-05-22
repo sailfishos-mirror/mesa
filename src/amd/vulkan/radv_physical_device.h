@@ -79,7 +79,6 @@ struct radv_physical_device {
 
    struct ac_addrlib *addrlib;
 
-   int local_fd;
    int master_fd;
    struct wsi_device wsi_device;
 
