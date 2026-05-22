@@ -1981,16 +1981,30 @@ copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
    const uint32_t mip_level = region->imageSubresource.mipLevel;
    const struct v3d_resource_slice *slice = &image->planes[plane].slices[mip_level];
 
-   if (width != slice->width || height != slice->height)
-      return false;
-
    /* Handle region semantics for compressed images */
    const uint32_t block_w =
       vk_format_get_blockwidth(image->planes[plane].vk_format);
    const uint32_t block_h =
       vk_format_get_blockheight(image->planes[plane].vk_format);
+
+   /* The TFU writes/reads the full slice from its origin, so the copy
+    * region must span it. The buffer side may have trailing row/height
+    * padding (bufferRowLength, bufferImageHeight) that the TFU never
+    * touches. For compressed formats, require tight packing since
+    * block-level stride semantics are more complex.
+    */
+   if (region->imageExtent.width != slice->width ||
+       region->imageExtent.height != slice->height) {
+      return false;
+   }
+
+   const bool is_compressed = block_w > 1 || block_h > 1;
+   if (is_compressed && (width != slice->width || height != slice->height))
+      return false;
+
    width = DIV_ROUND_UP(width, block_w);
    height = DIV_ROUND_UP(height, block_h);
+   const uint32_t tfu_height = is_compressed ? height : slice->height;
 
    /* Format must be supported for texturing via the TFU. Since we are just
     * copying raw data and not converting between pixel formats, we can ignore
@@ -2032,6 +2046,8 @@ copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
          buffer->mem_offset + region->bufferOffset +
          height * buffer_stride * i;
 
+      const uint32_t tfu_width = is_compressed ? width : slice->width;
+
       if (to_buffer) {
          v3d_X((&cmd_buffer->device->devinfo), meta_emit_tfu_job)(
                 cmd_buffer,
@@ -2039,7 +2055,7 @@ copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
                 V3D_TILING_RASTER, width, 1,
                 image_bo->handle, image_offset,
                 slice->tiling, tfu_slice_stride_arg(slice), cpp,
-                width, height, format_plane);
+                tfu_width, tfu_height, format_plane);
       } else {
          v3d_X((&cmd_buffer->device->devinfo), meta_emit_tfu_job)(
                 cmd_buffer,
@@ -2047,7 +2063,7 @@ copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
                 slice->tiling, tfu_slice_stride_arg(slice), cpp,
                 buffer_bo->handle, buffer_offset,
                 V3D_TILING_RASTER, width, 1,
-                width, height, format_plane);
+                tfu_width, tfu_height, format_plane);
       }
    }
 
