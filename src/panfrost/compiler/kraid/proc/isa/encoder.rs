@@ -14,6 +14,7 @@ pub fn gen_encoder(
     let mut ts = quote! {
         use crate::isa::*;
     };
+    declare_expr_helpers(&mut ts);
 
     isa.enums
         .add_meta_enum(

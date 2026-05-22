@@ -3,6 +3,7 @@
 
 pub mod encoder;
 pub mod enums;
+pub mod expr;
 mod xml;
 
 use proc_macro2::TokenStream as TokenStream2;
@@ -11,6 +12,7 @@ use std::ops::Range;
 use xml::XmlElement;
 
 pub use enums::*;
+pub use expr::*;
 
 #[macro_export]
 macro_rules! ident {
