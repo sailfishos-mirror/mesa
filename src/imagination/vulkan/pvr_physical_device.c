@@ -168,6 +168,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_shader_non_semantic_info = true,
       .KHR_shader_relaxed_extended_instruction = true,
       .KHR_shader_subgroup_extended_types = true,
+      .KHR_shader_subgroup_rotate = true,
       .KHR_shader_terminate_invocation = true,
       .KHR_spirv_1_4 = true,
       .KHR_storage_buffer_storage_class = true,
@@ -362,6 +363,10 @@ static void pvr_physical_device_get_supported_features(
 
       /* Vulkan 1.2 / VK_KHR_shader_subgroup_extended_types */
       .shaderSubgroupExtendedTypes = true,
+
+      /* Vulkan 1.4 / VK_KHR_shader_subgroup_rotate */
+      .shaderSubgroupRotate = true,
+      .shaderSubgroupRotateClustered = true,
 
       /* Vulkan 1.1 / VK_KHR_robustness2 */
       .robustBufferAccess2 = false,
@@ -740,7 +745,9 @@ static bool pvr_physical_device_get_properties(
                                      VK_SUBGROUP_FEATURE_BALLOT_BIT |
                                      VK_SUBGROUP_FEATURE_SHUFFLE_BIT |
                                      VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT |
-                                     VK_SUBGROUP_FEATURE_CLUSTERED_BIT,
+                                     VK_SUBGROUP_FEATURE_CLUSTERED_BIT |
+                                     VK_SUBGROUP_FEATURE_ROTATE_BIT |
+                                     VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT,
       .subgroupQuadOperationsInAllStages = false,
       .protectedNoFault = false,
 

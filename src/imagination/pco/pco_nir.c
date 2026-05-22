@@ -576,6 +576,8 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
          .lower_relative_shuffle = true,
          .lower_quad_vote = true,
          .lower_elect = true,
+         .lower_rotate_to_shuffle = true,
+         .lower_rotate_clustered_to_shuffle = true,
          .lower_inverse_ballot = true,
          .lower_boolean_reduce = true,
          .lower_boolean_shuffle = true,
