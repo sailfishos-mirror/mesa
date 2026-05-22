@@ -754,7 +754,7 @@
         "description": "tu/kgsl: Fix memory type support detection for unsupported flags",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5a594109623fff43fcd3b874b160c711e81bf55d",
         "notes": null
