@@ -3524,7 +3524,7 @@
         "description": "ir3/spill: extract child intervals for live-in reloads",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "613eaac7b53bfbfcd6ef536412be6c9c63cdea4f",
         "notes": null
