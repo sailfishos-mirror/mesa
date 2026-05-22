@@ -11699,26 +11699,38 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
       return;
 
    uint32_t spi_ps_input_ena = ps->config.spi_ps_input_ena;
+   bool vrs_enabled = false;
    bool use_float_frag_coord_xy = false;
+   bool use_sample_mask_in = false;
+
+   if (ps->info.ps.selects_frag_coord_xy_dynamically || ps->info.ps.selects_sample_mask_in_dynamically) {
+      /* Whether VRS can be other than 1x1. */
+      vrs_enabled = cmd_buffer->state.dynamic.vk.fsr.fragment_size.width != 1 ||
+                    cmd_buffer->state.dynamic.vk.fsr.fragment_size.height != 1 ||
+                    cmd_buffer->state.render.vrs_att.iview ||
+                    cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate ||
+                    cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate_per_primitive;
+   }
 
    if (ps->info.ps.selects_frag_coord_xy_dynamically) {
       /* The shader selects frag_coord_xy/pixel_coord dynamically depending on a flag in PS_STATE
        * that depends on the following dynamic state while preferring pixel_coord (POS_FIXED_PT)
        * if possible due to lower VGPR initialization cost.
        */
-      use_float_frag_coord_xy =
-         /* Whether VRS can be other than 1x1. */
-         cmd_buffer->state.dynamic.vk.fsr.fragment_size.width != 1 ||
-         cmd_buffer->state.dynamic.vk.fsr.fragment_size.height != 1 || cmd_buffer->state.render.vrs_att.iview ||
-         cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate ||
-         cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate_per_primitive ||
-         radv_is_sample_shading_enabled(cmd_buffer, NULL);
+      use_float_frag_coord_xy = vrs_enabled || radv_is_sample_shading_enabled(cmd_buffer, NULL);
 
       /* Disable the initialized PS VGPRs that the shader doesn't use. */
       if (use_float_frag_coord_xy)
          spi_ps_input_ena &= C_0286CC_POS_FIXED_PT_ENA;
       else
          spi_ps_input_ena &= C_0286CC_POS_X_FLOAT_ENA & C_0286CC_POS_Y_FLOAT_ENA;
+   }
+
+   if (ps->info.ps.selects_sample_mask_in_dynamically) {
+      use_sample_mask_in = vrs_enabled || cmd_buffer->state.num_rast_samples != 1;
+
+      if (!use_sample_mask_in)
+         spi_ps_input_ena &= C_0286CC_SAMPLE_COVERAGE_ENA;
    }
 
    struct radv_cmd_stream *cs = cmd_buffer->cs;
@@ -11741,7 +11753,8 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
                                 SET_SGPR_FIELD(PS_STATE_PS_ITER_MASK, ps_iter_mask) |
                                 SET_SGPR_FIELD(PS_STATE_LINE_RAST_MODE, line_rast_mode) |
                                 SET_SGPR_FIELD(PS_STATE_RAST_PRIM, vgt_outprim_type) |
-                                SET_SGPR_FIELD(PS_STATE_USE_FLOAT_FRAG_COORD_XY, use_float_frag_coord_xy);
+                                SET_SGPR_FIELD(PS_STATE_USE_FLOAT_FRAG_COORD_XY, use_float_frag_coord_xy) |
+                                SET_SGPR_FIELD(PS_STATE_USE_SAMPLE_MASK_IN, use_sample_mask_in);
 
       if (pdev->info.gfx_level >= GFX12) {
          gfx12_push_sh_reg(ps_state_offset, ps_state);
