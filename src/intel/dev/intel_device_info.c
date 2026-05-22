@@ -1676,13 +1676,6 @@ intel_get_device_info_from_pci_id(int pci_id,
 }
 
 bool
-intel_get_device_info_for_build(int pci_id,
-                                struct intel_device_info *devinfo)
-{
-   return intel_get_device_info_from_pci_id_common(pci_id, true, devinfo);
-}
-
-bool
 intel_device_info_compute_system_memory(struct intel_device_info *devinfo, bool update)
 {
    if (!update) {
