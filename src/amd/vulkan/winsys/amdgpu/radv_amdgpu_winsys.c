@@ -188,13 +188,6 @@ radv_amdgpu_winsys_get_fd(struct radeon_winsys *rws)
    return ws->fd;
 }
 
-static const struct vk_sync_type *const *
-radv_amdgpu_winsys_get_sync_types(struct radeon_winsys *rws)
-{
-   struct radv_amdgpu_winsys *ws = (struct radv_amdgpu_winsys *)rws;
-   return ws->sync_types;
-}
-
 static struct util_sync_provider *
 radv_amdgpu_winsys_get_sync_provider(struct radeon_winsys *rws)
 {
@@ -332,27 +325,6 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
          fprintf(stderr, "radv/amdgpu: Failed to create /tmp/radv_bo_history.log.\n");
    }
 
-   int num_sync_types = 0;
-
-   ws->syncobj_sync_type = vk_drm_syncobj_get_type_from_provider(ac_drm_device_get_sync_provider(dev));
-   if (ws->syncobj_sync_type.features) {
-      if (!ws->info.has_timeline_syncobj && ws->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE) {
-         /* Disable timeline feature if it was disabled in the driver. */
-         assert(is_virtio);
-         ws->syncobj_sync_type.get_value = NULL;
-         ws->syncobj_sync_type.features &= ~VK_SYNC_FEATURE_TIMELINE;
-      }
-
-      ws->sync_types[num_sync_types++] = &ws->syncobj_sync_type;
-      if (!(ws->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE)) {
-         ws->emulated_timeline_sync_type = vk_sync_timeline_get_type(&ws->syncobj_sync_type);
-         ws->sync_types[num_sync_types++] = &ws->emulated_timeline_sync_type.sync;
-      }
-   }
-
-   ws->sync_types[num_sync_types++] = NULL;
-   assert(num_sync_types <= ARRAY_SIZE(ws->sync_types));
-
    if (ac_drm_cs_create_syncobj2(ws->dev, 0, &ws->vm_timeline_syncobj))
       goto winsys_fail;
 
@@ -370,7 +342,6 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    ws->base.query_gpuvm_fault = radv_amdgpu_winsys_query_gpuvm_fault;
    ws->base.destroy = radv_amdgpu_winsys_destroy;
    ws->base.get_fd = radv_amdgpu_winsys_get_fd;
-   ws->base.get_sync_types = radv_amdgpu_winsys_get_sync_types;
    ws->base.get_sync_provider = radv_amdgpu_winsys_get_sync_provider;
    ws->base.copy_sync_payloads = vk_drm_syncobj_copy_payloads;
    ws->base.reserve_vmid = radv_amdgpu_winsys_reserve_vmid;

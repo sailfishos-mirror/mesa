@@ -16,6 +16,7 @@
 #include <sys/sysmacros.h>
 #endif
 
+#include "vk_drm_syncobj.h"
 #include "vk_log.h"
 #include "vk_shader_module.h"
 
@@ -2530,8 +2531,24 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
          goto fail_base;
       }
 
-      pdev->vk.supported_sync_types = pdev->ws->get_sync_types(pdev->ws);
       pdev->ws->query_info(pdev->ws, &pdev->info);
+
+      pdev->syncobj_sync_type = vk_drm_syncobj_get_type(pdev->ws->get_fd(pdev->ws));
+
+      int num_sync_types = 0;
+      if (pdev->syncobj_sync_type.features) {
+         if (!pdev->info.has_timeline_syncobj && pdev->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE) {
+            pdev->syncobj_sync_type.get_value = NULL;
+            pdev->syncobj_sync_type.features &= ~VK_SYNC_FEATURE_TIMELINE;
+         }
+         pdev->sync_types[num_sync_types++] = &pdev->syncobj_sync_type;
+         if (!(pdev->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE)) {
+            pdev->emulated_timeline_sync_type = vk_sync_timeline_get_type(&pdev->syncobj_sync_type);
+            pdev->sync_types[num_sync_types++] = &pdev->emulated_timeline_sync_type.sync;
+         }
+      }
+      pdev->sync_types[num_sync_types++] = NULL;
+      pdev->vk.supported_sync_types = pdev->sync_types;
 
       for (uint32_t p = VK_QUEUE_GLOBAL_PRIORITY_LOW; p <= VK_QUEUE_GLOBAL_PRIORITY_REALTIME; p <<= 1) {
          if (pdev->ws->ctx_is_priority_permitted(pdev->ws, vk_to_radeon_priority(p)) != VK_SUCCESS)

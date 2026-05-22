@@ -25,6 +25,8 @@
 #include "nir_shader_compiler_options.h"
 
 #include "vk_physical_device.h"
+#include "vk_sync.h"
+#include "vk_sync_timeline.h"
 
 #ifndef _WIN32
 #include <xf86drm.h>
@@ -185,6 +187,10 @@ struct radv_physical_device {
 
       uint32_t max_array_layers;
    } image_props;
+
+   struct vk_sync_type syncobj_sync_type;
+   struct vk_sync_timeline_type emulated_timeline_sync_type;
+   const struct vk_sync_type *sync_types[3];
 };
 
 VK_DEFINE_HANDLE_CASTS(radv_physical_device, vk.base, VkPhysicalDevice, VK_OBJECT_TYPE_PHYSICAL_DEVICE)
