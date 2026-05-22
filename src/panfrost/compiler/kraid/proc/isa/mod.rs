@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 pub mod encoder;
+mod xml;
 
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
 use std::ops::Range;
+use xml::XmlElement;
 
 #[macro_export]
 macro_rules! ident {
@@ -163,7 +165,13 @@ pub struct ISA {
 }
 
 impl ISA {
-    pub fn from_xml_file(file: std::fs::File, arch: Range<u8>) -> Result<ISA> {
+    fn from_xml(xml: XmlElement, arch: Range<u8>) -> Result<ISA> {
+        assert_eq!(xml.name.local_name, "mali-isa");
+
         Ok(ISA { arch })
+    }
+
+    pub fn from_xml_file(file: std::fs::File, arch: Range<u8>) -> Result<ISA> {
+        ISA::from_xml(xml::XmlElement::from_xml_file(file)?, arch)
     }
 }
