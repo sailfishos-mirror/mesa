@@ -352,6 +352,54 @@ typedef struct {
 bool
 ac_nir_lower_ps_early(nir_shader *nir, const ac_nir_lower_ps_early_options *options);
 
+typedef enum {
+   /* sample_mask_in is replaced with b2i32(inot(load_helper_invocation)).
+    *
+    * API VRS can't use this because its sample mask is the combined sample mask of all pixels
+    * in the fragment area. Driver-internal forced VRS can use this if such VRS is also allowed
+    * to be enabled with helper_invocation.
+    */
+   ac_nir_lower_samplemask_1sample_no_vrs,
+
+   /* sample_mask_in is replaced with:
+    *    nir_load_use_sample_mask_in_amd ? load_sample_mask_in : b2i32(inot(load_helper_invocation))
+    *
+    * Sample shading can't use this.
+    */
+   ac_nir_lower_samplemask_unknown_states_no_sample_shading,
+
+   /* ps_iter_samples == 0 means that the value is unknown (dependent on dynamic rasterization
+    * samples), and the real value is one of: 1, 2, 4. That requires loading PS_ITER_MASK from
+    * a user SGPR to compute sample_mask_in.
+    *
+    * If (ps_iter_samples)
+    *    sample_mask_in is ANDed with (nir_imm_int(ac_get_ps_iter_mask(num_samples)) << sample_id);
+    * else
+    *    sample_mask_in is ANDed with (load_ps_iter_mask_amd << sample_id);
+    *
+    * This is only used with min_sample_shading < 1.
+    */
+   ac_nir_lower_samplemask_sample_shading_partial,
+
+   /* sample_mask_in is replaced with b2i32(inot(load_helper_invocation)) << sample_id.
+    *
+    * This is only used with min_sample_shading == 1.
+    */
+   ac_nir_lower_samplemask_sample_shading_max,
+} ac_nir_lower_sample_mask_in_behavior;
+
+typedef struct {
+   ac_nir_lower_sample_mask_in_behavior behavior;
+
+   /* The number of sample shading samples. Only for ac_nir_lower_samplemask_sample_shading_partial.
+    * Set to 0 if unknown.
+    */
+   unsigned ps_iter_samples;
+} ac_nir_lower_sample_mask_in_options;
+
+bool
+ac_nir_lower_sample_mask_in(nir_shader *nir, const ac_nir_lower_sample_mask_in_options *options);
+
 /* This is a post-link pass. It shouldn't eliminate any code and it shouldn't affect shader_info
  * (those should be done in the early pass).
  */

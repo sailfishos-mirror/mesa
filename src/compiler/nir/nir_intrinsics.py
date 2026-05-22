@@ -1147,6 +1147,15 @@ system_value("user_data_amd", 8)
 intrinsic("load_use_float_frag_coord_xy_amd", dest_comp=1, bit_sizes=[1],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 
+# If true, derive sample_mask_in from helper_invocation because sample_mask_in
+# is uninitialized.
+intrinsic("load_use_sample_mask_in_amd", dest_comp=1, bit_sizes=[1],
+          flags=[CAN_ELIMINATE, CAN_REORDER])
+
+# The result of ac_get_ps_iter_mask from dynamic state.
+intrinsic("load_ps_iter_mask_amd", dest_comp=1, bit_sizes=[32],
+          flags=[CAN_ELIMINATE, CAN_REORDER])
+
 # Loads for gl_Color, for radeonsi which interpolates these in the shader
 # prolog to handle flatshading and front/back color selection without
 # recompiles and therefore doesn't handle them like normal varyings.
