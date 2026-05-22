@@ -1000,26 +1000,23 @@ populate_compile_params_mesh(union brw_any_compile_params *params,
 
 static void
 populate_compile_params_fs(union brw_any_compile_params *params,
-                           const struct intel_device_info *devinfo,
-                           struct anv_shader_data *shader_data)
+                           struct anv_shader_data *shader_data,
+                           struct anv_shader_data *prev_shader_data)
 {
-   nir_shader *nir = shader_data->info->nir;
-
-   /* When using Primitive Replication for multiview, each view gets its own
-    * position slot.
-    */
-   uint32_t pos_slots = shader_data->use_primitive_replication ?
-      MAX2(1, util_bitcount(shader_data->key.base.view_mask)) : 1;
-
-   /* TODO: Should we find a way to pass this to brw_compile? */
-   struct intel_vue_map prev_vue_map;
-   brw_compute_vue_map(devinfo,
-                       &prev_vue_map,
-                       nir->info.inputs_read,
-                       nir->info.separate_shader,
-                       pos_slots);
-
-   params->fs.mue_map = shader_data->mue_map;
+   if (prev_shader_data) {
+      switch (prev_shader_data->info->stage) {
+      case MESA_SHADER_VERTEX:
+      case MESA_SHADER_TESS_EVAL:
+      case MESA_SHADER_GEOMETRY:
+         params->fs.vue_map = &prev_shader_data->prog_data.vue.vue_map;
+         break;
+      case MESA_SHADER_MESH:
+         params->fs.mue_map = shader_data->mue_map;
+         break;
+      default:
+         break;
+      }
+   }
 
    params->fs.allow_spilling = true;
    params->fs.max_polygons = UCHAR_MAX;
@@ -2051,7 +2048,7 @@ anv_shader_compile(struct vk_device *vk_device,
                                       prev_shader_data);
          break;
       case MESA_SHADER_FRAGMENT:
-         populate_compile_params_fs(&params, devinfo, shader_data);
+         populate_compile_params_fs(&params, shader_data, prev_shader_data);
          break;
       case MESA_SHADER_RAYGEN:
       case MESA_SHADER_ANY_HIT:

@@ -563,6 +563,7 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
                     const struct brw_fs_prog_key *key,
                     struct brw_fs_prog_data *prog_data,
                     nir_shader *nir,
+                    const struct intel_vue_map *prev_stage_vue_map,
                     const struct brw_mue_map *mue_map,
                     int *per_primitive_offsets)
 {
@@ -614,9 +615,12 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
          first_read_offset = per_primitive_stride = 0;
       }
    } else {
-      brw_compute_vue_map(devinfo, &vue_map, inputs_read,
-                          key->base.vue_layout,
-                          1 /* pos_slots, TODO */);
+      if (prev_stage_vue_map) {
+         memcpy(&vue_map, prev_stage_vue_map, sizeof(vue_map));
+      } else {
+         brw_compute_vue_map(devinfo, &vue_map, inputs_read,
+                             key->base.vue_layout, 1 /* pos_slots */);
+      }
       brw_compute_per_primitive_map(per_primitive_offsets,
                                     &per_primitive_stride,
                                     &first_read_offset,
@@ -677,13 +681,15 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
          }
       }
 
+      int last_slot = first_slot;
       for (int slot = first_slot; slot < vue_map.num_slots; slot++) {
          int varying = vue_map.slot_to_varying[slot];
          if (varying > 0 && (inputs_read & BITFIELD64_BIT(varying))) {
             prog_data->urb_setup[varying] = slot - first_slot;
+            last_slot = slot;
          }
       }
-      urb_next = vue_map.num_slots - first_slot;
+      urb_next = last_slot - first_slot + 1;
    }
 
    prog_data->num_varying_inputs = urb_next;
@@ -824,6 +830,7 @@ brw_nir_populate_fs_prog_data(nir_shader *shader,
                               const struct intel_device_info *devinfo,
                               const struct brw_fs_prog_key *key,
                               struct brw_fs_prog_data *prog_data,
+                              const struct intel_vue_map *prev_stage_vue_map,
                               const struct brw_mue_map *mue_map,
                               int *per_primitive_offsets)
 {
@@ -999,7 +1006,8 @@ brw_nir_populate_fs_prog_data(nir_shader *shader,
       (BITSET_TEST(shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_Z) &&
        prog_data->coarse_pixel_dispatch != INTEL_NEVER);
 
-   calculate_urb_setup(devinfo, key, prog_data, shader, mue_map, per_primitive_offsets);
+   calculate_urb_setup(devinfo, key, prog_data, shader, prev_stage_vue_map,
+                       mue_map, per_primitive_offsets);
    brw_compute_flat_inputs(prog_data, shader);
 }
 
@@ -1508,7 +1516,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
    memset(per_primitive_offsets, -1, sizeof(per_primitive_offsets));
 
    brw_nir_populate_fs_prog_data(nir, compiler->devinfo, key, prog_data,
-                                 params->mue_map,
+                                 params->vue_map, params->mue_map,
                                  per_primitive_offsets);
 
    /* From the SKL PRM, Volume 7, "Alpha Coverage":
