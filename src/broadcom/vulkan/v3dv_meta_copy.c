@@ -1907,10 +1907,10 @@ v3dv_CmdFillBuffer(VkCommandBuffer commandBuffer,
  * it failed to process it, for example, due to an out-of-memory error).
  */
 static bool
-copy_buffer_to_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
-                         struct v3dv_image *image,
-                         struct v3dv_buffer *buffer,
-                         const VkBufferImageCopy2 *region)
+copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
+                      struct v3dv_image *image,
+                      struct v3dv_buffer *buffer,
+                      const VkBufferImageCopy2 *region)
 {
    if (V3D_DBG(DISABLE_TFU)) {
       perf_debug("Copy buffer to image: TFU disabled, fallbacks could be slower.\n");
@@ -2132,7 +2132,7 @@ create_tiled_image_from_buffer(struct v3dv_cmd_buffer *cmd_buffer,
                                struct v3dv_buffer *buffer,
                                const VkBufferImageCopy2 *region)
 {
-   if (copy_buffer_to_image_tfu(cmd_buffer, image, buffer, region))
+   if (copy_buffer_image_tfu(cmd_buffer, image, buffer, region))
       return true;
    if (copy_buffer_to_image_tlb(cmd_buffer, image, buffer, region))
       return true;
@@ -3361,7 +3361,7 @@ v3dv_CmdCopyBufferToImage2(VkCommandBuffer commandBuffer,
        * where we are copying full images, since they should be the fastest.
        */
       uint32_t batch_size = 1;
-      if (copy_buffer_to_image_tfu(cmd_buffer, image, buffer, &info->pRegions[r]))
+      if (copy_buffer_image_tfu(cmd_buffer, image, buffer, &info->pRegions[r]))
          goto handled;
 
       if (copy_buffer_to_image_tlb(cmd_buffer, image, buffer, &info->pRegions[r]))
