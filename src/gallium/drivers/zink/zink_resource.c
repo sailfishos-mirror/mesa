@@ -1328,6 +1328,118 @@ create_buffer(struct zink_screen *screen, struct zink_resource_object *obj,
    return roc_success;
 }
 
+/* Query external memory support with the exact VkImageCreateInfo which will be
+ * used for vkCreateImage. This has to happen after eval_ici(), since tiling,
+ * usage, flags, and the selected DRM modifier may change while Zink searches
+ * for a supported image configuration.
+ */
+static bool
+get_external_image_handle_type_props(struct zink_screen *screen,
+                                     const VkImageCreateInfo *ici,
+                                     uint64_t modifier,
+                                     VkExternalMemoryHandleTypeFlagBits handle_type,
+                                     VkExternalMemoryProperties *external_props)
+{
+   if (!VKSCR(GetPhysicalDeviceImageFormatProperties2))
+      return false;
+ 
+   VkPhysicalDeviceExternalImageFormatInfo external_info = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
+      .pNext = ici->pNext,
+      .handleType = handle_type,
+   };
+   VkPhysicalDeviceImageFormatInfo2 format_info = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+      .pNext = &external_info,
+      .format = ici->format,
+      .type = ici->imageType,
+      .tiling = ici->tiling,
+      .usage = ici->usage,
+      .flags = ici->flags,
+   };
+   VkPhysicalDeviceImageDrmFormatModifierInfoEXT modifier_info;
+   if (modifier != DRM_FORMAT_MOD_INVALID) {
+      modifier_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT;
+      modifier_info.pNext = format_info.pNext;
+      modifier_info.drmFormatModifier = modifier;
+      modifier_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      modifier_info.queueFamilyIndexCount = 0;
+      modifier_info.pQueueFamilyIndices = NULL;
+      format_info.pNext = &modifier_info;
+   }
+ 
+   VkExternalImageFormatProperties external_format_props = {
+      .sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES,
+   };
+   VkImageFormatProperties2 format_props = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
+      .pNext = &external_format_props,
+   };
+ 
+   VkResult result = VKSCR(GetPhysicalDeviceImageFormatProperties2)(screen->pdev,
+                                                                    &format_info,
+                                                                    &format_props);
+   if (result != VK_SUCCESS)
+      return false;
+ 
+   *external_props = external_format_props.externalMemoryProperties;
+   return true;
+}
+ 
+/* Only keep combined OPAQUE_FD|DMA_BUF image exports when the Vulkan driver
+ * reports that the two handle types are compatible for this final image
+ * configuration. The filtered export_types are later used by vkAllocateMemory.
+ */
+static void
+filter_external_image_export_types(struct zink_screen *screen,
+                                   const VkImageCreateInfo *ici,
+                                   uint64_t modifier,
+                                   struct mem_alloc_info *alloc_info)
+{
+   const VkExternalMemoryHandleTypeFlags opaque =
+      ZINK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_BIT;
+   const VkExternalMemoryHandleTypeFlags dmabuf =
+      VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+ 
+   if ((alloc_info->export_types & (opaque | dmabuf)) != (opaque | dmabuf))
+      return;
+ 
+   VkExternalMemoryProperties dmabuf_props = {0};
+   bool dmabuf_supported = get_external_image_handle_type_props(screen, ici,
+                                                                modifier,
+                                                                dmabuf,
+                                                                &dmabuf_props) &&
+                                                                (dmabuf_props.externalMemoryFeatures &
+                                                                VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT);
+   bool compatible = dmabuf_supported &&
+                     (dmabuf_props.compatibleHandleTypes & opaque);
+ 
+   /* If this image imports external memory, external is the handle type used
+    * for the import while export_types may also request extra export handles.
+    * Check that memory imported with external can be re-exported with those
+    * extra handle types before keeping the combined export_types mask.
+    */
+   if (compatible && alloc_info->external) {
+      VkExternalMemoryProperties import_props = {0};
+      compatible = get_external_image_handle_type_props(screen, ici, modifier,
+                                                        alloc_info->external,
+                                                        &import_props) &&
+                                                        (import_props.exportFromImportedHandleTypes &
+                                                        (alloc_info->export_types & ~alloc_info->external));
+   }
+ 
+   if (compatible)
+      return;
+ 
+   /* Imported memory must keep its original handle type. Replacing an opaque-fd
+    * import with dma-buf would make vkAllocateMemory import the fd incorrectly.
+    */
+   if (alloc_info->external)
+      alloc_info->export_types &= alloc_info->external;
+   else
+      alloc_info->export_types &= dmabuf_supported ? dmabuf : opaque;
+}
+ 
 struct image_pnext_state {
    VkExternalMemoryImageCreateInfo emici;
    VkImageDrmFormatModifierExplicitCreateInfoEXT idfmeci;
@@ -1355,6 +1467,8 @@ setup_image_pnext(struct zink_screen *screen, const struct pipe_resource *templ,
       alloc_info->external &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
       alloc_info->export_types &= ~VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
    }
+
+   filter_external_image_export_types(screen, ici, mod, alloc_info);
 
    if (alloc_info->shared || alloc_info->external) {
       s->emici.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
