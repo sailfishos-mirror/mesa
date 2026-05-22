@@ -84,6 +84,9 @@ def declare_options(android_version):
         I("shader_spilling_rate", 11, 0, 100,
           "Speed up shader compilation by increasing number of spilled registers after ra_allocate failure",
           c_name="shader_spilling_rate"),
+        B("anv_fs_sampler_undef_derivatives_workaround", False,
+          "Fixes samplers in fragment shaders computing undefined values for derivatives with lanes disabled by control flow",
+          c_name="fs_sampler_undef_derivatives_workaround"),
 
         # Workaround various driver
         B("always_flush_cache", False,
