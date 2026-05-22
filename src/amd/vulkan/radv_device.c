@@ -1418,7 +1418,7 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
     */
    device->vk.copy_sync_payloads = ((instance->vk.trace_mode & RADV_TRACE_MODE_RGP) && radv_sqtt_queue_events_enabled())
                                       ? NULL
-                                      : pdev->ws->copy_sync_payloads;
+                                      : device->ws->copy_sync_payloads;
 
    /* VM_ALWAYS_VALID must be supported. */
    assert(pdev->info.has_vm_always_valid);
