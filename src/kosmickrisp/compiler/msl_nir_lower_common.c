@@ -261,9 +261,9 @@ msl_ensure_vertex_point_size_output(nir_shader *nir)
                        .base = 0u, .range = 1u, .write_mask = 0x1, .component = 0u,
                        .src_type = nir_type_float32, .io_semantics = io_semantics);
       nir->info.outputs_written |= BITFIELD64_BIT(VARYING_SLOT_PSIZ);
+      return nir_progress(true, entrypoint, nir_metadata_control_flow);
    }
-
-   return true;
+   return false;
 }
 
 static bool
