@@ -951,9 +951,13 @@ namespace {
       else if (inst->is_send() && devinfo->ver >= 20)
          return GEN_SBID_NULL;
       else if (find_unordered_dependency(deps, GEN_SBID_DST, exec_all) &&
-               (!has_ordered || ordered_pipe == inferred_sync_pipe(devinfo, inst)))
+               (!has_ordered ||
+                ordered_pipe == inferred_sync_pipe(devinfo, inst) ||
+                (devinfo->ver >= 20 && ordered_pipe == GEN_PIPE_ALL)))
          return find_unordered_dependency(deps, GEN_SBID_DST, exec_all);
-      else if (!has_ordered)
+      else if (!has_ordered ||
+               (devinfo->ver >= 20 &&
+                ordered_pipe == inferred_sync_pipe(devinfo, inst)))
          return find_unordered_dependency(deps, GEN_SBID_SRC, exec_all);
       else
          return GEN_SBID_NULL;
