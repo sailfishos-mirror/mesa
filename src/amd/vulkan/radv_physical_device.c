@@ -2789,20 +2789,6 @@ fail_fd:
 }
 
 VkResult
-create_null_physical_device(struct vk_instance *vk_instance)
-{
-   struct radv_instance *instance = container_of(vk_instance, struct radv_instance, vk);
-   struct radv_physical_device *pdev;
-
-   VkResult result = radv_physical_device_try_create(instance, NULL, &pdev);
-   if (result != VK_SUCCESS)
-      return result;
-
-   list_addtail(&pdev->vk.link, &instance->vk.physical_devices.list);
-   return VK_SUCCESS;
-}
-
-VkResult
 create_drm_physical_device(struct vk_instance *vk_instance, struct _drmDevice *device, struct vk_physical_device **out)
 {
 #ifndef _WIN32

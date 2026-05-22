@@ -253,8 +253,6 @@ bool radv_are_dcc_mips_disabled(const struct radv_physical_device *pdev);
 
 uint32_t radv_find_memory_index(const struct radv_physical_device *pdev, VkMemoryPropertyFlags flags);
 
-VkResult create_null_physical_device(struct vk_instance *vk_instance);
-
 VkResult create_drm_physical_device(struct vk_instance *vk_instance, struct _drmDevice *device,
                                     struct vk_physical_device **out);
 
