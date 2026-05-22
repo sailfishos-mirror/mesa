@@ -1666,6 +1666,7 @@ anv_get_image_format_properties(
    VkTextureLODGatherFormatPropertiesAMD *texture_lod_gather_props = NULL;
    VkImageCompressionPropertiesEXT *comp_props = NULL;
    VkHostImageCopyDevicePerformanceQueryEXT *host_props = NULL;
+   const struct wsi_image_create_info *wsi_info = NULL;
    const bool is_sparse = info->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT;
 
    /* Extract input structs */
@@ -1684,7 +1685,7 @@ anv_get_image_format_properties(
          /* Ignore but don't warn */
          break;
       case VK_STRUCTURE_TYPE_WSI_IMAGE_CREATE_INFO_MESA:
-         /* Ignore but don't warn */
+         wsi_info = (const void *)s;
          break;
       case VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR:
          /* Ignore but don't warn */
@@ -2129,6 +2130,15 @@ anv_get_image_format_properties(
           */
          goto unsupported;
       }
+   }
+
+   /* Ensure applications query the requirement of the dedicated allocation
+    * for scanout images from WSI without a modifier. Refer to the places of
+    * 'vk.wsi_legacy_scanout' flag.
+    */
+   if (wsi_info && wsi_info->scanout && external_props) {
+      external_props->externalMemoryProperties.externalMemoryFeatures |=
+         VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT;
    }
 
    const bool aux_supported =
