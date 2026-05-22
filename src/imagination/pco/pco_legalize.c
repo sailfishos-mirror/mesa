@@ -209,7 +209,11 @@ static bool legalize_pseudo(pco_instr *instr)
       else
          dest = pco_ref_hwreg_idx_from(idx_reg_num, dest);
 
-      pco_instr *mbyp = pco_mbyp(&b, dest, src);
+      pco_instr *mbyp =
+         pco_ref_is_reg(src) && pco_ref_get_reg_class(src) == PCO_REG_CLASS_SPEC ?
+            pco_movs1(&b, dest, src) :
+            pco_mbyp(&b, dest, src);
+
       xfer_op_mods(mbyp, instr);
 
       pco_instr_delete(instr);
