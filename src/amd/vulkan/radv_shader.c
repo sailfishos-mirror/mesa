@@ -3773,8 +3773,7 @@ radv_compute_spi_ps_input(enum amd_gfx_level gfx_level, const struct radv_graphi
       }
    }
 
-   if (info->ps.reads_sample_id || info->ps.reads_frag_shading_rate || info->ps.reads_sample_mask_in ||
-       info->ps.reads_layer) {
+   if (info->ps.reads_sample_id || info->ps.reads_frag_shading_rate || info->ps.reads_layer) {
       spi_ps_input |= S_0286CC_ANCILLARY_ENA(1);
    }
 
