@@ -627,6 +627,97 @@ call_reduce_2x2(nir_builder *b,
    nir_builder_instr_insert(b, &ncall->instr);
 }
 
+static void
+split_cmat_reduce_row_col(nir_builder *b,
+                          nir_cmat_call_instr *call,
+                          struct split_mat *src_split,
+                          struct split_mat *dst_split,
+                          nir_deref_instr **temp_derefs)
+{
+   nir_instr *instr = &call->instr;
+   nir_cmat_reduce reduce = nir_cmat_call_reduce_flags(call);
+   int src_splits = 1;
+   if (src_split)
+      src_splits = get_num_splits(src_split);
+   if (src_splits > 1) {
+      if ((reduce & (NIR_CMAT_REDUCE_ROW | NIR_CMAT_REDUCE_COLUMN)) == (NIR_CMAT_REDUCE_ROW | NIR_CMAT_REDUCE_COLUMN)) {
+         for (unsigned i = 1; i < src_splits; i++) {
+            nir_deref_instr *second_deref = temp_derefs[i];
+            b->cursor = nir_before_instr(instr);
+            call_reduce_finish(b, call, reduce, &temp_derefs[0]->def, &temp_derefs[0]->def, &second_deref->def);
+         }
+      } else if (reduce & NIR_CMAT_REDUCE_ROW) {
+         for (unsigned i = 1; i < src_split->box.outer_cols; i++) {
+            nir_deref_instr *second_deref = temp_derefs[i];
+            b->cursor = nir_before_instr(instr);
+            call_reduce_finish(b, call, reduce, &temp_derefs[0]->def, &temp_derefs[0]->def, &second_deref->def);
+         }
+      } else if (reduce & NIR_CMAT_REDUCE_COLUMN) {
+         for (unsigned i = 1; i < src_split->box.outer_rows; i++) {
+            nir_deref_instr *second_deref = temp_derefs[i * src_split->box.outer_cols];
+            b->cursor = nir_before_instr(instr);
+            call_reduce_finish(b, call, reduce, &temp_derefs[0]->def, &temp_derefs[0]->def, &second_deref->def);
+         }
+      }
+   }
+
+   /* at this point temp_derefs should contain all the split reduced src matrices
+      now to store them */
+   if (dst_split) {
+      for (unsigned r = 0; r < dst_split->box.outer_rows; r++) {
+         for (unsigned c = 0; c < dst_split->box.outer_cols; c++) {
+            int didx = r * dst_split->box.outer_cols + c;
+            int idx;
+            if ((reduce & (NIR_CMAT_REDUCE_ROW | NIR_CMAT_REDUCE_COLUMN)) == (NIR_CMAT_REDUCE_ROW | NIR_CMAT_REDUCE_COLUMN))
+               idx = 0;
+            else if (reduce & NIR_CMAT_REDUCE_ROW)
+               idx = r % (src_split ? src_split->box.outer_rows : 1);
+            else if (reduce & NIR_CMAT_REDUCE_COLUMN)
+               idx = c % (src_split ? src_split->box.outer_cols : 1);
+            else
+               UNREACHABLE("Unknown NIR_CMAT_REDUCE_*");
+
+            nir_deref_instr *deref = recreate_derefs(b, &call->params[0], dst_split->split_vars[didx]);
+            b->cursor = nir_before_instr(instr);
+            nir_cmat_copy(b, &deref->def, &temp_derefs[idx]->def);
+         }
+      }
+   } else {
+      nir_cmat_copy(b, call->params[0].ssa, &temp_derefs[0]->def);
+   }
+}
+
+static void
+split_cmat_reduce_2x2(nir_builder *b,
+                      nir_cmat_call_instr *call,
+                      struct split_mat *src_split,
+                      struct split_mat *dst_split)
+{
+   nir_instr *instr = &call->instr;
+   int rows = 1, cols = 1;
+   if (dst_split) {
+      rows = dst_split->box.outer_rows;
+      cols = dst_split->box.outer_cols;
+   }
+
+   for (unsigned r = 0; r < rows; r++) {
+      for (unsigned c = 0; c < cols; c++) {
+         int d_idx = c + r * cols;
+         int src_top_left_col = c * 2;
+         int src_top_left_row = r * 2;
+         int src_top_idx = src_top_left_col + src_top_left_row * src_split->box.outer_cols;
+         int src_bottom_idx = src_top_left_col + (src_top_left_row + 1) * src_split->box.outer_cols;
+         nir_deref_instr *src0_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[src_top_idx]);
+         nir_deref_instr *src1_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[src_top_idx + 1]);
+         nir_deref_instr *src2_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[src_bottom_idx]);
+         nir_deref_instr *src3_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[src_bottom_idx + 1]);
+         nir_deref_instr *dst_deref = dst_split ? recreate_derefs(b, &call->params[0], dst_split->split_vars[d_idx]) : nir_src_as_deref(call->params[0]);
+         b->cursor = nir_before_instr(instr);
+         call_reduce_2x2(b, call, &dst_deref->def, &src0_deref->def, &src1_deref->def, &src2_deref->def, &src3_deref->def);
+      }
+   }
+}
+
 static bool
 split_cmat_call_reduce(nir_builder *b,
                        nir_function_impl *impl,
@@ -656,62 +747,16 @@ split_cmat_call_reduce(nir_builder *b,
          temp_derefs[i] = nir_build_deref_var(b, temp_var);
       }
 
-      if (src_splits > 1) {
-         /* reduce each individual src matrix */
-         for (unsigned i = 0; i < src_splits; i++) {
-            nir_deref_instr *src_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[i]);
-            b->cursor = nir_before_instr(instr);
-            call_reduce(b, call, reduce, &temp_derefs[i]->def, &src_deref->def);
-         }
-
-         if ((reduce & (NIR_CMAT_REDUCE_ROW | NIR_CMAT_REDUCE_COLUMN)) == (NIR_CMAT_REDUCE_ROW | NIR_CMAT_REDUCE_COLUMN)) {
-            for (unsigned i = 1; i < src_splits; i++) {
-               nir_deref_instr *second_deref = temp_derefs[i];
-               b->cursor = nir_before_instr(instr);
-               call_reduce_finish(b, call, reduce, &temp_derefs[0]->def, &temp_derefs[0]->def, &second_deref->def);
-            }
-         } else if (reduce & NIR_CMAT_REDUCE_ROW) {
-            for (unsigned i = 1; i < src_split->box.outer_cols; i++) {
-               nir_deref_instr *second_deref = temp_derefs[i];
-               b->cursor = nir_before_instr(instr);
-               call_reduce_finish(b, call, reduce, &temp_derefs[0]->def, &temp_derefs[0]->def, &second_deref->def);
-            }
-         } else if (reduce & NIR_CMAT_REDUCE_COLUMN) {
-            for (unsigned i = 1; i < src_split->box.outer_rows; i++) {
-               nir_deref_instr *second_deref = temp_derefs[i * src_split->box.outer_cols];
-               b->cursor = nir_before_instr(instr);
-               call_reduce_finish(b, call, reduce, &temp_derefs[0]->def, &temp_derefs[0]->def, &second_deref->def);
-            }
-         }
-      } else {
-         call_reduce(b, call, reduce, &temp_derefs[0]->def, &nir_src_as_deref(call->params[1])->def);
+      /* reduce each individual src matrix */
+      for (unsigned i = 0; i < src_splits; i++) {
+         nir_deref_instr *src_deref = src_split ?
+            recreate_derefs(b, &call->params[1], src_split->split_vars[i]) :
+            nir_src_as_deref(call->params[1]);
+         b->cursor = nir_before_instr(instr);
+         call_reduce(b, call, reduce, &temp_derefs[i]->def, &src_deref->def);
       }
 
-      /* at this point temp_derefs should contain all the split reduced src matrices
-         now to store them */
-      if (dst_split) {
-         for (unsigned r = 0; r < dst_split->box.outer_rows; r++) {
-            for (unsigned c = 0; c < dst_split->box.outer_cols; c++) {
-               int didx = r * dst_split->box.outer_cols + c;
-               int idx;
-               if ((reduce & (NIR_CMAT_REDUCE_ROW | NIR_CMAT_REDUCE_COLUMN)) == (NIR_CMAT_REDUCE_ROW | NIR_CMAT_REDUCE_COLUMN))
-                  idx = 0;
-               else if (reduce & NIR_CMAT_REDUCE_ROW)
-                  idx = r % (src_split ? src_split->box.outer_rows : 1);
-               else if (reduce & NIR_CMAT_REDUCE_COLUMN)
-                  idx = c % (src_split ? src_split->box.outer_cols : 1);
-               else
-                  UNREACHABLE("Unknown NIR_CMAT_REDUCE_*");
-
-               nir_deref_instr *deref = recreate_derefs(b, &call->params[0], dst_split->split_vars[didx]);
-               b->cursor = nir_before_instr(instr);
-               nir_cmat_copy(b, &deref->def, &temp_derefs[idx]->def);
-            }
-         }
-      } else {
-         nir_cmat_copy(b, call->params[0].ssa, &temp_derefs[0]->def);
-      }
-
+      split_cmat_reduce_row_col(b, call, src_split, dst_split, temp_derefs);
       ralloc_free(temp_derefs);
    } else if (reduce & NIR_CMAT_REDUCE_2X2) {
       assert(reduce == NIR_CMAT_REDUCE_2X2);
@@ -719,28 +764,7 @@ split_cmat_call_reduce(nir_builder *b,
       /* dst can have target dimensions, but src but be at least twice as large */
       assert (src_split);
 
-      int rows = 1, cols = 1;
-      if (dst_split) {
-         rows = dst_split->box.outer_rows;
-         cols = dst_split->box.outer_cols;
-      }
-
-      for (unsigned r = 0; r < rows; r++) {
-         for (unsigned c = 0; c < cols; c++) {
-            int d_idx = c + r * cols;
-            int src_top_left_col = c * 2;
-            int src_top_left_row = r * 2;
-            int src_top_idx = src_top_left_col + src_top_left_row * src_split->box.outer_cols;
-            int src_bottom_idx = src_top_left_col + (src_top_left_row + 1) * src_split->box.outer_cols;
-            nir_deref_instr *src0_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[src_top_idx]);
-            nir_deref_instr *src1_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[src_top_idx + 1]);
-            nir_deref_instr *src2_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[src_bottom_idx]);
-            nir_deref_instr *src3_deref = recreate_derefs(b, &call->params[1], src_split->split_vars[src_bottom_idx + 1]);
-            nir_deref_instr *dst_deref = dst_split ? recreate_derefs(b, &call->params[0], dst_split->split_vars[d_idx]) : nir_src_as_deref(call->params[0]);
-            b->cursor = nir_before_instr(instr);
-            call_reduce_2x2(b, call, &dst_deref->def, &src0_deref->def, &src1_deref->def, &src2_deref->def, &src3_deref->def);
-         }
-      }
+      split_cmat_reduce_2x2(b, call, src_split, dst_split);
    }
 
    nir_instr_remove(instr);
