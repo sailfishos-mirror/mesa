@@ -1126,6 +1126,13 @@ copy_image_to_buffer_texel_buffer(struct v3dv_cmd_buffer *cmd_buffer,
    return handled;
 }
 
+static bool
+copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
+                      struct v3dv_image *image,
+                      struct v3dv_buffer *buffer,
+                      const VkBufferImageCopy2 *region,
+                      bool to_buffer);
+
 VKAPI_ATTR void VKAPI_CALL
 v3dv_CmdCopyImageToBuffer2(VkCommandBuffer commandBuffer,
                               const VkCopyImageToBufferInfo2 *info)
@@ -1141,6 +1148,10 @@ v3dv_CmdCopyImageToBuffer2(VkCommandBuffer commandBuffer,
 
    for (uint32_t i = 0; i < info->regionCount; i++) {
       const VkBufferImageCopy2 *region = &info->pRegions[i];
+
+      if (copy_buffer_image_tfu(cmd_buffer, image, buffer, region,
+                                true /* to_buffer */))
+         continue;
 
       if (copy_image_to_buffer_tlb(cmd_buffer, buffer, image, region))
          continue;
@@ -1903,32 +1914,44 @@ v3dv_CmdFillBuffer(VkCommandBuffer commandBuffer,
 }
 
 /**
- * Returns true if the implementation supports the requested operation (even if
- * it failed to process it, for example, due to an out-of-memory error).
+ * Shared TFU implementation for buffer<->image copies. When to_buffer is
+ * false the image is the destination (buffer-to-image); when true the
+ * buffer is the destination (image-to-buffer). Returns true if the
+ * implementation supports the requested operation (even if it failed to
+ * process it, for example, due to an out-of-memory error).
  */
 static bool
 copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
                       struct v3dv_image *image,
                       struct v3dv_buffer *buffer,
-                      const VkBufferImageCopy2 *region)
+                      const VkBufferImageCopy2 *region,
+                      bool to_buffer)
 {
    if (V3D_DBG(DISABLE_TFU)) {
-      perf_debug("Copy buffer to image: TFU disabled, fallbacks could be slower.\n");
+      perf_debug("TFU disabled, fallbacks could be slower: %s.\n",
+                 to_buffer ? "Copy image to buffer"
+                           : "Copy buffer to image");
       return false;
    }
 
    assert(image->vk.samples == VK_SAMPLE_COUNT_1_BIT);
 
-   /* Destination can't be raster format on V3D 4.2 */
-   if (cmd_buffer->device->devinfo.ver < 71 && !image->tiled)
+   /* The TFU on V3D 4.2 cannot produce raster output. For buffer-to-image
+    * that only matters when the destination image is linear-tiled; for
+    * image-to-buffer the destination is always a raster buffer, so V3D 4.2
+    * is unsupported.
+    */
+   if (cmd_buffer->device->devinfo.ver < 71 &&
+       (to_buffer || !image->tiled)) {
       return false;
+   }
 
-   /* We can't copy D24S8 because buffer to image copies only copy one aspect
-    * at a time, and the TFU copies full images. Also, V3D depth bits for
-    * both D24S8 and D24X8 stored in the 24-bit MSB of each 32-bit word, but
-    * the Vulkan spec has the buffer data specified the other way around, so it
-    * is not a straight copy, we would have to swizzle the channels, which the
-    * TFU can't do.
+   /* We can't copy D24S8 because buffer<->image copies only copy one
+    * aspect at a time, and the TFU copies full images. Also, V3D depth
+    * bits for both D24S8 and D24X8 are stored in the 24-bit MSB of each
+    * 32-bit word, but the Vulkan spec has the buffer data specified the
+    * other way around, so it is not a straight copy, we would have to
+    * swizzle the channels, which the TFU can't do.
     */
    if (image->vk.format == VK_FORMAT_D24_UNORM_S8_UINT ||
        image->vk.format == VK_FORMAT_X8_D24_UNORM_PACK32) {
@@ -1988,13 +2011,14 @@ copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
    assert(num_layers > 0);
 
    assert(image->planes[plane].mem && image->planes[plane].mem->bo);
-   const struct v3dv_bo *dst_bo = image->planes[plane].mem->bo;
-
    assert(buffer->mem && buffer->mem->bo);
-   const struct v3dv_bo *src_bo = buffer->mem->bo;
+   const struct v3dv_bo *image_bo = image->planes[plane].mem->bo;
+   const struct v3dv_bo *buffer_bo = buffer->mem->bo;
+
+   const uint32_t cpp = image->planes[plane].cpp;
 
    /* Emit a TFU job per layer to copy */
-   const uint32_t buffer_stride = width * image->planes[plane].cpp;
+   const uint32_t buffer_stride = width * cpp;
    for (int i = 0; i < num_layers; i++) {
       uint32_t layer;
       if (image->vk.image_type != VK_IMAGE_TYPE_3D)
@@ -2002,27 +2026,29 @@ copy_buffer_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
       else
          layer = region->imageOffset.z + i;
 
-      const uint32_t buffer_offset =
+      const uint32_t image_offset = image_bo->offset +
+         v3dv_layer_offset(image, mip_level, layer, plane);
+      const uint32_t buffer_offset = buffer_bo->offset +
          buffer->mem_offset + region->bufferOffset +
          height * buffer_stride * i;
-      const uint32_t src_offset = src_bo->offset + buffer_offset;
 
-      const uint32_t dst_offset =
-         dst_bo->offset + v3dv_layer_offset(image, mip_level, layer, plane);
-
-      v3d_X((&cmd_buffer->device->devinfo), meta_emit_tfu_job)(
-             cmd_buffer,
-             dst_bo->handle,
-             dst_offset,
-             slice->tiling,
-             tfu_slice_stride_arg(slice),
-             image->planes[plane].cpp,
-             src_bo->handle,
-             src_offset,
-             V3D_TILING_RASTER,
-             width,
-             1,
-             width, height, format_plane);
+      if (to_buffer) {
+         v3d_X((&cmd_buffer->device->devinfo), meta_emit_tfu_job)(
+                cmd_buffer,
+                buffer_bo->handle, buffer_offset,
+                V3D_TILING_RASTER, width, 1,
+                image_bo->handle, image_offset,
+                slice->tiling, tfu_slice_stride_arg(slice), cpp,
+                width, height, format_plane);
+      } else {
+         v3d_X((&cmd_buffer->device->devinfo), meta_emit_tfu_job)(
+                cmd_buffer,
+                image_bo->handle, image_offset,
+                slice->tiling, tfu_slice_stride_arg(slice), cpp,
+                buffer_bo->handle, buffer_offset,
+                V3D_TILING_RASTER, width, 1,
+                width, height, format_plane);
+      }
    }
 
    return true;
@@ -2132,7 +2158,8 @@ create_tiled_image_from_buffer(struct v3dv_cmd_buffer *cmd_buffer,
                                struct v3dv_buffer *buffer,
                                const VkBufferImageCopy2 *region)
 {
-   if (copy_buffer_image_tfu(cmd_buffer, image, buffer, region))
+   if (copy_buffer_image_tfu(cmd_buffer, image, buffer, region,
+                             false /* to_buffer */))
       return true;
    if (copy_buffer_to_image_tlb(cmd_buffer, image, buffer, region))
       return true;
@@ -3361,7 +3388,8 @@ v3dv_CmdCopyBufferToImage2(VkCommandBuffer commandBuffer,
        * where we are copying full images, since they should be the fastest.
        */
       uint32_t batch_size = 1;
-      if (copy_buffer_image_tfu(cmd_buffer, image, buffer, &info->pRegions[r]))
+      if (copy_buffer_image_tfu(cmd_buffer, image, buffer, &info->pRegions[r],
+                                false /* to_buffer */))
          goto handled;
 
       if (copy_buffer_to_image_tlb(cmd_buffer, image, buffer, &info->pRegions[r]))
