@@ -1022,8 +1022,11 @@ static const struct intel_device_info intel_device_info_sg1 = {
       .size = 768, /* For intel_stub_gpu */                \
       .min_entries = {                                     \
          [MESA_SHADER_VERTEX]    = 64,                     \
+         [MESA_SHADER_TESS_CTRL] = 0,                      \
          [MESA_SHADER_TESS_EVAL] = 34,                     \
          [MESA_SHADER_GEOMETRY]  = 2,                      \
+         [MESA_SHADER_TASK]      = 0,                      \
+         [MESA_SHADER_MESH]      = 0,                      \
       },                                                   \
       .max_entries = {                                     \
          [MESA_SHADER_VERTEX]    = 3832, /* BSpec 47138 */ \
@@ -1176,9 +1179,31 @@ static const struct intel_device_info intel_device_info_arl_h = {
       .compressed = PAT_ENTRY(9, INVALID)                            \
    }
 
+#define XE2_URB_MIN_MAX_ENTRIES  \
+   .urb = {                                                \
+      .size = 768, /* For intel_stub_gpu */                \
+      .min_entries = {                                     \
+         [MESA_SHADER_VERTEX]    = 64,                     \
+         [MESA_SHADER_TESS_CTRL] = 0,                      \
+         [MESA_SHADER_TESS_EVAL] = 50,                     \
+         [MESA_SHADER_GEOMETRY]  = 2,                      \
+         [MESA_SHADER_TASK]      = 0,                      \
+         [MESA_SHADER_MESH]      = 1,                      \
+      },                                                   \
+      .max_entries = {                                     \
+         [MESA_SHADER_VERTEX]    = 4800, /* BSpec 56268 */ \
+         [MESA_SHADER_TESS_CTRL] = 1548, /* BSpec 56265 */ \
+         [MESA_SHADER_TESS_EVAL] = 4480, /* BSpec 56263 */ \
+         [MESA_SHADER_GEOMETRY]  = 1952, /* BSpec 56264 */ \
+         [MESA_SHADER_TASK]      = 1548, /* BSpec 56267 */ \
+         [MESA_SHADER_MESH]      = 1952, /* BSpec 56266 */ \
+      }                                                    \
+   }
+
 #define XE2_CONFIG(platform_suffix)                             \
    XE2_FEATURES, XE2_PAT_ENTRIES,                               \
    XEHP_PLACEHOLDER_THREADS_AND_URB,                            \
+   XE2_URB_MIN_MAX_ENTRIES,                                     \
    .platform = INTEL_PLATFORM_ ## platform_suffix
 
 static const struct intel_device_info intel_device_info_bmg = {
@@ -1197,7 +1222,7 @@ static const struct intel_device_info intel_device_info_lnl = {
    .verx10 = 300
 
 #define XE3_URB_MIN_MAX_ENTRIES                                 \
-   XEHP_URB_MIN_MAX_ENTRIES
+   XE2_URB_MIN_MAX_ENTRIES
 
 #define XE3_PLACEHOLDER_THREADS_AND_URB                         \
    XEHP_PLACEHOLDER_THREADS_AND_URB,                            \
