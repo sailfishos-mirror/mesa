@@ -2021,15 +2021,11 @@ radv_is_sample_shading_enabled(struct radv_cmd_buffer *cmd_buffer, float *min_sa
 static ALWAYS_INLINE unsigned
 radv_get_ps_iter_samples(struct radv_cmd_buffer *cmd_buffer)
 {
-   const struct radv_rendering_state *render = &cmd_buffer->state.render;
    unsigned ps_iter_samples = 1;
    float min_sample_shading;
 
    if (radv_is_sample_shading_enabled(cmd_buffer, &min_sample_shading)) {
-      unsigned rasterization_samples = cmd_buffer->state.num_rast_samples;
-      unsigned color_samples = MAX2(render->color_samples, rasterization_samples);
-
-      ps_iter_samples = ceilf(min_sample_shading * color_samples);
+      ps_iter_samples = ceilf(min_sample_shading * cmd_buffer->state.num_rast_samples);
       ps_iter_samples = util_next_power_of_two(ps_iter_samples);
    }
 
