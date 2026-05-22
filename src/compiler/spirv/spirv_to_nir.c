@@ -1509,14 +1509,19 @@ array_stride_decoration_cb(struct vtn_builder *b,
       if (type->base_type == vtn_base_type_pointer &&
           type->pointed != NULL &&
           (type->pointed->block || type->pointed->buffer_block)) {
-         vtn_warn("A pointer to a structure decorated with *Block* or "
-                  "*BufferBlock* must not have an *ArrayStride* decoration");
-         /* Ignore the decoration */
+         /* Ignore invalid decoration:
+          *
+          *    A pointer to a structure decorated with *Block* or
+          *    *BufferBlock* must not have an *ArrayStride* decoration
+          */
       } else if (vtn_type_contains_block(b, type)) {
-         vtn_warn("The ArrayStride decoration cannot be applied to an array "
-                  "type which contains a structure type decorated Block "
-                  "or BufferBlock");
-         /* Ignore the decoration */
+         /* Ignore invalid decoration:
+          *
+          *    Each array type must have an ArrayStride decoration,
+          *    unless it is an array that contains a structure decorated
+          *    with Block or BufferBlock, in which case it must not have
+          *    an ArrayStride decoration.
+          */
       } else {
          vtn_fail_if(dec->operands[0] == 0, "ArrayStride must be non-zero");
          type->stride = dec->operands[0];
