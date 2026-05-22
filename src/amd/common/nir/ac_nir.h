@@ -308,7 +308,6 @@ typedef struct {
    bool load_sample_positions_always_loads_current_ones;
    bool dynamic_rasterization_samples;
    int force_front_face; /* 0 -> keep, 1 -> set to true, -1 -> set to false */
-   bool frag_coord_is_center; /* GL requirement for sample shading */
 
    /* barycentrics:
     *    msaa_disabled:

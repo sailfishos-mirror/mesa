@@ -849,7 +849,6 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
                              key->ps.mono.interpolate_at_sample_force_center,
             .load_sample_positions_always_loads_current_ones = true,
             .force_front_face = key->ps.opt.force_front_face_input,
-            .frag_coord_is_center = true,
             /* This does a lot of things. See the description in ac_nir_lower_ps_early_options. */
             .ps_iter_samples = nir->info.fs.uses_sample_shading ? 8 :
                                   key->ps.part.prolog.samplemask_log_ps_iter ?
@@ -888,7 +887,6 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
             NIR_PASS(progress, nir, si_nir_lower_polygon_stipple);
       } else {
          ac_nir_lower_ps_early_options early_options = {
-            .frag_coord_is_center = true,
             .ps_iter_samples = nir->info.fs.uses_sample_shading ? 8 : 0,
             .lower_color_inputs_to_load_color01 = true,
             .alpha_func = COMPARE_FUNC_ALWAYS,

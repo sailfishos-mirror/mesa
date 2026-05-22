@@ -422,15 +422,12 @@ lower_ps_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
    case nir_intrinsic_load_sample_pos:
       if (s->options->msaa_disabled) {
          nir_def_replace(&intrin->def, nir_imm_vec2(b, 0.5, 0.5));
-      } else if (s->options->frag_coord_is_center) {
+      } else {
          /* We have to use the alternative way to get sample_pos. */
          nir_def *num_samples = s->options->load_sample_positions_always_loads_current_ones ?
                                    nir_undef(b, 1, 32) : nir_load_rasterization_samples_amd(b);
          nir_def_replace(&intrin->def, nir_load_sample_positions_amd(b, 32, nir_load_sample_id(b),
                                                                      num_samples));
-      } else {
-         /* sample_pos = ffract(frag_coord.xy); */
-         nir_def_replace(&intrin->def, nir_ffract(b, nir_build_frag_coord(b, 2)));
       }
       return true;
    case nir_intrinsic_load_sample_id:
