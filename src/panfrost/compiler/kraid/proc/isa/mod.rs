@@ -4,6 +4,7 @@
 pub mod encoder;
 pub mod enums;
 pub mod expr;
+pub mod instr;
 mod xml;
 
 use proc_macro2::TokenStream as TokenStream2;
@@ -13,6 +14,7 @@ use xml::XmlElement;
 
 pub use enums::*;
 pub use expr::*;
+pub use instr::*;
 
 #[macro_export]
 macro_rules! ident {
@@ -168,6 +170,7 @@ impl std::ops::BitOrAssign<ArchSet> for ArchSet {
 pub struct ISA {
     pub arch: Range<u8>,
     pub enums: EnumSet,
+    pub instrs: Vec<Instr>,
 }
 
 impl ISA {
@@ -176,13 +179,33 @@ impl ISA {
 
         // Process enums first since we need those for everything else
         let mut enums = EnumSet::new();
+        let mut children = Vec::new();
         for child in xml.children.into_iter() {
             if child.name.local_name == "enum" {
                 enums.add_xml_enum(child, arch.clone())?;
+            } else {
+                children.push(child);
             }
         }
 
-        Ok(ISA { arch, enums })
+        let mut instrs = Vec::new();
+        for child in children {
+            match child.name.local_name.as_str() {
+                "instruction" => {
+                    let i = Instr::from_xml(child, arch.clone(), &enums)?;
+                    if !i.arch.is_empty() {
+                        instrs.push(i);
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        Ok(ISA {
+            arch,
+            enums,
+            instrs,
+        })
     }
 
     pub fn from_xml_file(file: std::fs::File, arch: Range<u8>) -> Result<ISA> {

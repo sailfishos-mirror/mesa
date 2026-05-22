@@ -221,6 +221,30 @@ impl Enum {
             });
         }
 
+        if self.name == "ls_multi_sr_count_m" {
+            let mut sr_cases_ts = TokenStream2::new();
+            for EnumValue { ident, name, .. } in self.values.values() {
+                let bits = u16::from_str_radix(&name[1..], 10).unwrap();
+                assert!(bits % 32 == 0);
+                let regs = u8::try_from(bits / 32).unwrap();
+                sr_cases_ts.extend(quote! {
+                    #regs => Ok(#e_ident::#ident),
+                });
+            }
+            ts.extend(quote! {
+                impl #e_ident {
+                    fn from_sr_count(
+                        regs: u8
+                    ) -> Result<#e_ident, &'static str> {
+                        match regs {
+                            #sr_cases_ts
+                            _ => Err("Invalid ls_multi_sr_count_m"),
+                        }
+                    }
+                }
+            });
+        }
+
         // Add a per-value arch array which we'll use for TryEncode/Decode
 
         if unique_values {

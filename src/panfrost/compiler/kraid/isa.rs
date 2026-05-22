@@ -64,6 +64,35 @@ pub trait TryDecode<T>: Sized {
     fn try_decode(value: T, arch: u8) -> Result<Self, Self::Error>;
 }
 
+#[derive(Clone, Copy)]
+pub struct EncodedSrc<S: Copy> {
+    pub encoded: u8,
+    pub swizzle: S,
+    pub abs: bool,
+    pub neg: bool,
+    pub not: bool,
+}
+
+#[derive(Clone, Copy)]
+pub struct EncodedDst<L: Copy> {
+    pub reg: u8,
+    pub lanes: L,
+}
+
+#[derive(Clone, Copy)]
+pub struct SrRead<S: Copy> {
+    pub index: u8,
+    pub count: u8,
+    pub swizzle: S,
+}
+
+#[derive(Clone, Copy)]
+pub struct SrWrite<L: Copy> {
+    pub index: u8,
+    pub count: u8,
+    pub lanes: L,
+}
+
 pub mod v9 {
     use kraid_proc_macros::gen_isa_encode;
     gen_isa_encode!("isa-v9-v14.xml", 9..=14);

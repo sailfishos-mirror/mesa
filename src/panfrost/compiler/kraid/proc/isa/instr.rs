@@ -1,0 +1,279 @@
+// Copyright © 2026 Collabora, Ltd.
+// SPDX-License-Identifier: MIT
+
+use crate::isa::xml::XmlElement;
+use crate::isa::*;
+use proc_macro2::{Ident, Span};
+use std::rc::Rc;
+
+impl XmlElement {
+    fn get_bit_range(&self) -> Result<Range<u8>> {
+        let pos = self
+            .get_u8_attr("pos")
+            .ok_or(err("Instruction field has no pos attribute"))?;
+        let width = self
+            .get_u8_attr("width")
+            .ok_or(err("Instruction field has no width attribute"))?;
+        Ok(pos..(pos + width))
+    }
+}
+
+#[derive(Clone)]
+pub enum FieldType {
+    Enum(Rc<Enum>),
+    PcRelOffsetSigned,
+    PcRelOffsetUnsigned,
+    Source,
+    Source64,
+    Int(u8),
+    Uint(u8),
+}
+
+impl FieldType {
+    fn from_name(type_: &str, bits: u8, enums: &EnumSet) -> Result<FieldType> {
+        if let Some(e) = enums.get_enum(type_) {
+            return Ok(FieldType::Enum(e.clone()));
+        }
+
+        match type_ {
+            "pc_rel_label_signed" => Ok(FieldType::PcRelOffsetSigned),
+            "pc_rel_label_unsigned" => Ok(FieldType::PcRelOffsetUnsigned),
+            "SourceEncoding" => Ok(FieldType::Source),
+            "SourceEncoding64" => Ok(FieldType::Source64),
+            "float" | "V2F16" | "V2I16" | "V4I8" => {
+                if bits != 32 {
+                    return Err(err(
+                        "Vector and float immediates should be 32-bit",
+                    ));
+                }
+                Ok(FieldType::Uint(32))
+            }
+            "int" => Ok(FieldType::Int(bits)),
+            "uint" => Ok(FieldType::Uint(bits)),
+            _ => Err(err("Unknown field type")),
+        }
+    }
+
+    pub fn is_enum(&self, name: &str) -> bool {
+        if let FieldType::Enum(e) = self {
+            e.name == name
+        } else {
+            false
+        }
+    }
+}
+
+pub struct VirtualField {
+    pub name: String,
+    pub ident: Ident,
+    pub type_: FieldType,
+    pub expr: Box<Expr>,
+}
+
+impl VirtualField {
+    fn from_xml(
+        xml: XmlElement,
+        _arch: Range<u8>,
+        enums: &EnumSet,
+    ) -> Result<VirtualField> {
+        assert_eq!(xml.name.local_name, "virtual");
+
+        let name = xml
+            .attrs
+            .get("name")
+            .ok_or(err("Instruction virtual has no name"))?
+            .to_string();
+        let snake_name = to_snake_case(&name);
+        let ident = Ident::new(&snake_name, Span::call_site());
+
+        let type_ = xml
+            .attrs
+            .get("type")
+            .ok_or(err("Instruction virtual has no type"))?;
+
+        let expr = if let Some(exact) = xml.attrs.get("exact") {
+            Box::new(Expr::literal(Some(type_), exact, enums)?)
+        } else {
+            let mut children = xml.children;
+            if children.len() != 1 {
+                return Err(err("Virtual fields must have a single expr"));
+            }
+            let child = children.pop().unwrap();
+            Box::new(Expr::from_xml(child, enums)?)
+        };
+
+        Ok(VirtualField {
+            name,
+            ident,
+            type_: FieldType::from_name(type_, 32, enums)?,
+            expr,
+        })
+    }
+}
+
+pub struct PhysicalField {
+    pub name: String,
+    pub ident: Ident,
+    pub bits: Range<u8>,
+    pub type_: Option<FieldType>,
+    pub expr: Option<Box<Expr>>,
+}
+
+impl PhysicalField {
+    fn from_xml(
+        xml: XmlElement,
+        _arch: Range<u8>,
+        enums: &EnumSet,
+    ) -> Result<PhysicalField> {
+        assert_eq!(xml.name.local_name, "field");
+
+        let name = xml
+            .attrs
+            .get("name")
+            .ok_or(err("Instruction virtual has no name"))?
+            .to_string();
+        let snake_name = to_snake_case(&name);
+        let ident = Ident::new(&snake_name, Span::call_site());
+        let bits = xml.get_bit_range()?;
+
+        let type_name = xml.attrs.get("type");
+        let type_ = match type_name {
+            Some(name) => Some(FieldType::from_name(
+                name,
+                bits.len().try_into().unwrap(),
+                enums,
+            )?),
+            None => None,
+        };
+
+        let mut expr = if let Some(exact) = xml.attrs.get("exact") {
+            Some(Box::new(Expr::literal(
+                type_name.map(String::as_str),
+                exact,
+                enums,
+            )?))
+        } else {
+            None
+        };
+
+        for child in xml.children {
+            match child.name.local_name.as_str() {
+                "expression" => {
+                    let e = Box::new(Expr::from_xml(child, enums)?);
+                    if expr.replace(e).is_some() {
+                        return Err(err(
+                            "Instruction field has multiple expressions",
+                        ));
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        if type_.is_none() && expr.is_none() {
+            return Err(err(
+                "Field must have at least one of type, exact, or expression",
+            ));
+        }
+
+        Ok(PhysicalField {
+            name,
+            ident,
+            bits,
+            type_,
+            expr,
+        })
+    }
+}
+
+pub struct ReservedField {
+    pub bits: Range<u8>,
+    pub zero: bool,
+}
+
+impl ReservedField {
+    fn from_xml(xml: XmlElement, _arch: Range<u8>) -> Result<ReservedField> {
+        assert_eq!(xml.name.local_name, "reserved");
+
+        let type_ = xml
+            .attrs
+            .get("type")
+            .ok_or(err("Instruction virtual has no type"))?;
+        let zero = match type_.as_str() {
+            "zero" => true,
+            "ignore" => false,
+            _ => return Err(err("Unknown reserved bits type")),
+        };
+
+        Ok(ReservedField {
+            bits: xml.get_bit_range()?,
+            zero,
+        })
+    }
+}
+
+pub enum InstrField {
+    Virtual(VirtualField),
+    Physical(PhysicalField),
+    Reserved(ReservedField),
+}
+
+pub struct Instr {
+    pub name: String,
+    pub arch: Range<u8>,
+    pub variant: Option<String>,
+    pub fields: Vec<InstrField>,
+    pub total_bits: u8,
+}
+
+pub fn instr_field_ident(name: &str) -> Ident {
+    let snake_name = to_snake_case(name);
+    Ident::new(&snake_name, Span::call_site())
+}
+
+impl Instr {
+    pub(super) fn from_xml(
+        xml: XmlElement,
+        arch: Range<u8>,
+        enums: &EnumSet,
+    ) -> Result<Instr> {
+        assert_eq!(xml.name.local_name, "instruction");
+
+        let name = xml
+            .attrs
+            .get("name")
+            .ok_or(err("Enum has no name"))?
+            .to_string();
+
+        let mut i = Instr {
+            name,
+            arch: xml.get_arch(arch.clone()),
+            variant: xml.attrs.get("variant").cloned(),
+            fields: Default::default(),
+            total_bits: 0,
+        };
+
+        for child in xml.children.into_iter() {
+            let arch = i.arch.clone();
+            match child.name.local_name.as_str() {
+                "field" => {
+                    let f = PhysicalField::from_xml(child, arch, enums)?;
+                    i.total_bits = i.total_bits.max(f.bits.end);
+                    i.fields.push(InstrField::Physical(f));
+                }
+                "virtual" => {
+                    let f = VirtualField::from_xml(child, arch, enums)?;
+                    i.fields.push(InstrField::Virtual(f));
+                }
+                "reserved" => {
+                    let f = ReservedField::from_xml(child, arch)?;
+                    i.total_bits = i.total_bits.max(f.bits.end);
+                    i.fields.push(InstrField::Reserved(f));
+                }
+                _ => (),
+            }
+        }
+
+        Ok(i)
+    }
+}
