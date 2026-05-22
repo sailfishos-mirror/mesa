@@ -627,6 +627,7 @@ st_bind_egl_image(struct gl_context *ctx,
          UNREACHABLE("unexpected emulated format");
          break;
       }
+      assert(texFormat != MESA_FORMAT_NONE);
    } else {
       texFormat = st_pipe_format_to_mesa_format(stimg->format);
 
@@ -641,8 +642,9 @@ st_bind_egl_image(struct gl_context *ctx,
             return;
          }
       }
+
+      assert(texFormat != MESA_FORMAT_NONE || util_format_is_yuv(stimg->format));
    }
-   assert(texFormat != MESA_FORMAT_NONE);
 
 
    /* Minify texture size based on level set on the EGLImage. */
