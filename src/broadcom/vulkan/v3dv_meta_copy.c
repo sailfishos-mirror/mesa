@@ -1156,6 +1156,30 @@ v3dv_CmdCopyImageToBuffer2(VkCommandBuffer commandBuffer,
    cmd_buffer->state.is_transfer = false;
 }
 
+/* Return the single-plane TFU-compatible format for the given texel size.
+ * All compatible TFU formats are single-plane; the assert documents that
+ * invariant so callers can use the plane directly.
+ */
+static const struct v3dv_format_plane *
+tfu_format_plane_for_cpp(struct v3dv_device *device, uint32_t cpp)
+{
+   const struct v3dv_format *format =
+      v3dv_get_compatible_tfu_format(device, cpp, NULL);
+   assert(format->plane_count == 1);
+   return &format->planes[0];
+}
+
+/* Return the value to pass as src/dst_padded_height_or_stride to
+ * meta_emit_tfu_job for the given image slice: raster slices use the
+ * row stride; tiled slices use the padded height.
+ */
+static uint32_t
+tfu_slice_stride_arg(const struct v3d_resource_slice *slice)
+{
+   return slice->tiling == V3D_TILING_RASTER ? slice->stride
+                                             : slice->padded_height;
+}
+
 /**
  * Returns true if the implementation supports the requested operation (even if
  * it failed to process it, for example, due to an out-of-memory error).
@@ -1253,9 +1277,9 @@ copy_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
     * to use compatible formats that are supported with the TFU unit.
     */
    assert(dst->planes[dst_plane].cpp == src->planes[src_plane].cpp);
-   const struct v3dv_format *format =
-      v3dv_get_compatible_tfu_format(cmd_buffer->device,
-                                     dst->planes[dst_plane].cpp, NULL);
+   const struct v3dv_format_plane *format_plane =
+      tfu_format_plane_for_cpp(cmd_buffer->device,
+                               dst->planes[dst_plane].cpp);
 
    /* Emit a TFU job for each layer to blit */
    const uint32_t layer_count = dst->vk.image_type != VK_IMAGE_TYPE_3D ?
@@ -1285,17 +1309,14 @@ copy_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
          dst->planes[dst_plane].mem->bo->handle,
          dst_offset,
          dst_slice->tiling,
-         dst_slice->tiling == V3D_TILING_RASTER ?
-                              dst_slice->stride : dst_slice->padded_height,
+         tfu_slice_stride_arg(dst_slice),
          dst->planes[dst_plane].cpp,
          src->planes[src_plane].mem->bo->handle,
          src_offset,
          src_slice->tiling,
-         src_slice->tiling == V3D_TILING_RASTER ?
-                              src_slice->stride : src_slice->padded_height,
+         tfu_slice_stride_arg(src_slice),
          src->planes[src_plane].cpp,
-         /* All compatible TFU formats are single-plane */
-         width, height, &format->planes[0]);
+         width, height, format_plane);
    }
 
    return true;
@@ -1953,12 +1974,9 @@ copy_buffer_to_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
     * the image's format and choose a compatible TFU format for the image
     * texel size instead, which expands the list of formats we can handle here.
     */
-   const struct v3dv_format *format =
-      v3dv_get_compatible_tfu_format(cmd_buffer->device,
-                                     image->planes[plane].cpp, NULL);
-   /* We only use single-plane formats with the TFU */
-   assert(format->plane_count == 1);
-   const struct v3dv_format_plane *format_plane = &format->planes[0];
+   const struct v3dv_format_plane *format_plane =
+      tfu_format_plane_for_cpp(cmd_buffer->device,
+                               image->planes[plane].cpp);
 
    uint32_t num_layers;
    if (image->vk.image_type != VK_IMAGE_TYPE_3D) {
@@ -1997,8 +2015,7 @@ copy_buffer_to_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
              dst_bo->handle,
              dst_offset,
              slice->tiling,
-             slice->tiling == V3D_TILING_RASTER ?
-                              slice->stride : slice->padded_height,
+             tfu_slice_stride_arg(slice),
              image->planes[plane].cpp,
              src_bo->handle,
              src_offset,
@@ -3481,9 +3498,8 @@ blit_tfu(struct v3dv_cmd_buffer *cmd_buffer,
     * conversions and we can rewrite the format to use one that is TFU
     * compatible based on its texel size.
     */
-   const struct v3dv_format *format =
-      v3dv_get_compatible_tfu_format(cmd_buffer->device,
-                                     dst->planes[0].cpp, NULL);
+   const struct v3dv_format_plane *format_plane =
+      tfu_format_plane_for_cpp(cmd_buffer->device, dst->planes[0].cpp);
 
    /* Emit a TFU job for each layer to blit */
    assert(vk_image_subresource_layer_count(&dst->vk, &region->dstSubresource) ==
@@ -3549,16 +3565,14 @@ blit_tfu(struct v3dv_cmd_buffer *cmd_buffer,
          dst->planes[0].mem->bo->handle,
          dst_offset,
          dst_slice->tiling,
-         dst_slice->tiling == V3D_TILING_RASTER ?
-                              dst_slice->stride : dst_slice->padded_height,
+         tfu_slice_stride_arg(dst_slice),
          dst->planes[0].cpp,
          src->planes[0].mem->bo->handle,
          src_offset,
          src_slice->tiling,
-         src_slice->tiling == V3D_TILING_RASTER ?
-                              src_slice->stride : src_slice->padded_height,
+         tfu_slice_stride_arg(src_slice),
          src->planes[0].cpp,
-         dst_width, dst_height, &format->planes[0]);
+         dst_width, dst_height, format_plane);
    }
 
    return true;
