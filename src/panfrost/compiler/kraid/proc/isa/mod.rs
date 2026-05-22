@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 pub mod encoder;
+pub mod enums;
 mod xml;
 
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
 use std::ops::Range;
 use xml::XmlElement;
+
+pub use enums::*;
 
 #[macro_export]
 macro_rules! ident {
@@ -162,13 +165,22 @@ impl std::ops::BitOrAssign<ArchSet> for ArchSet {
 
 pub struct ISA {
     pub arch: Range<u8>,
+    pub enums: EnumSet,
 }
 
 impl ISA {
     fn from_xml(xml: XmlElement, arch: Range<u8>) -> Result<ISA> {
         assert_eq!(xml.name.local_name, "mali-isa");
 
-        Ok(ISA { arch })
+        // Process enums first since we need those for everything else
+        let mut enums = EnumSet::new();
+        for child in xml.children.into_iter() {
+            if child.name.local_name == "enum" {
+                enums.add_xml_enum(child, arch.clone())?;
+            }
+        }
+
+        Ok(ISA { arch, enums })
     }
 
     pub fn from_xml_file(file: std::fs::File, arch: Range<u8>) -> Result<ISA> {
