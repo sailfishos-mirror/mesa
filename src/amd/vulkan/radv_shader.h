@@ -170,9 +170,11 @@ struct radv_graphics_state_key {
    } rs;
 
    struct {
-      bool sample_shading_enable;
-      bool alpha_to_coverage_via_mrtz; /* GFX11+ */
+      bool sample_shading_enable : 1;
+      bool max_sample_shading_enable : 1;
+      bool alpha_to_coverage_via_mrtz : 1; /* GFX11+ */
       uint8_t rasterization_samples;
+      uint8_t ps_iter_samples; /* 0 if dynamic */
    } ms;
 
    struct vs {
