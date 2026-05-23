@@ -697,6 +697,8 @@ r600_finalize_nir_common(nir_shader *nir, enum amd_gfx_level gfx_level)
 
    NIR_PASS(_, nir, nir_lower_flrp, nir_lower_flrp_mask, false);
 
+   NIR_PASS(_, nir, nir_opt_idiv_const, 64);
+   NIR_PASS(_, nir, nir_opt_idiv_const, 32);
    nir_lower_idiv_options idiv_options = {0};
    NIR_PASS(_, nir, nir_lower_idiv, &idiv_options);
 
@@ -718,6 +720,7 @@ r600_finalize_nir_common(nir_shader *nir, enum amd_gfx_level gfx_level)
 
    NIR_PASS(_, nir, r600_lower_shared_io);
    NIR_PASS(_, nir, r600_nir_lower_atomics);
+
 
    static const nir_lower_subgroups_options r600_nir_subgroups_options = {
       .ballot_bit_size = 32,
