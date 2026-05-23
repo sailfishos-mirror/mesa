@@ -5214,7 +5214,7 @@
         "description": "pan/bi: Fix MKVEC.v2i8 src2 swizzle lowering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bc7053a9767c9c0f8169bf9e7c69377053ca5f82",
         "notes": null
