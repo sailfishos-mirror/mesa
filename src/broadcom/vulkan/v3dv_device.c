@@ -1359,10 +1359,10 @@ create_physical_device(struct v3dv_instance *instance,
    if (fstat(primary_fd, &primary_stat) != 0) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
                          "failed to stat DRM primary node");
-      goto fail;
+   } else {
+      device->has_primary = true;
+      device->primary_devid = primary_stat.st_rdev;
    }
-   device->has_primary = true;
-   device->primary_devid = primary_stat.st_rdev;
 
    if (fstat(render_fd, &render_stat) != 0) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
@@ -1664,7 +1664,7 @@ enumerate_devices(struct vk_instance *vk_instance)
          break;
    }
 
-   if (render_fd < 0 || primary_fd < 0)
+   if (render_fd < 0)
       result = VK_ERROR_INCOMPATIBLE_DRIVER;
    else
       result = create_physical_device(instance, primary_fd, render_fd, display_fd);
