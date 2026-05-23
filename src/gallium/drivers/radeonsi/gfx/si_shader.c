@@ -869,12 +869,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
             .msaa_disabled = msaa_disabled,
             .load_sample_positions_always_loads_current_ones = true,
             .force_front_face = key->ps.opt.force_front_face_input,
-            /* This does a lot of things. See the description in ac_nir_lower_ps_early_options. */
-            .ps_iter_samples = nir->info.fs.uses_sample_shading ? 8 :
-                                  key->ps.part.prolog.samplemask_log_ps_iter ?
-                                     (1 << key->ps.part.prolog.samplemask_log_ps_iter) :
-                                     (key->ps.part.prolog.force_persp_sample_interp ||
-                                      key->ps.part.prolog.force_linear_sample_interp ? 2 : 0),
+            .sample_shading = sample_shading,
 
             .fbfetch_is_1D = key->ps.mono.fbfetch_is_1D,
             .fbfetch_layered = key->ps.mono.fbfetch_layered,
@@ -917,7 +912,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
          NIR_PASS(progress, nir, ac_nir_lower_sample_mask_in, &lower_sample_mask_in_options);
 
          ac_nir_lower_ps_early_options early_options = {
-            .ps_iter_samples = nir->info.fs.uses_sample_shading ? 8 : 0,
+            .sample_shading = nir->info.fs.uses_sample_shading,
             .lower_color_inputs_to_load_color01 = true,
             .alpha_func = COMPARE_FUNC_ALWAYS,
             .spi_shader_col_format_hint = ~0,

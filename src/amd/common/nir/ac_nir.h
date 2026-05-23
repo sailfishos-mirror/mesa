@@ -304,30 +304,19 @@ ac_nir_lower_legacy_gs(nir_shader *nir, ac_nir_lower_legacy_gs_options *options,
 typedef struct {
    /* System values. */
    bool msaa_disabled; /* true if MSAA is disabled, false may mean that the state is unknown */
-   bool uses_vrs_coarse_shading;
-   bool load_sample_positions_always_loads_current_ones;
-   bool dynamic_rasterization_samples;
+   bool load_sample_positions_always_loads_current_ones; /* TODO: unify with RADV or remove */
+   bool dynamic_rasterization_samples; /* TODO: unify with RADV or remove */
    int force_front_face; /* 0 -> keep, 1 -> set to true, -1 -> set to false */
+   bool sample_shading;
 
    /* barycentrics:
     *    msaa_disabled:
     *       * All barycentrics including at_sample but excluding at_offset are changed to
     *         barycentric_pixel
-    *    ps_iter_samples >= 2:
+    *    sample_shading:
     *       * All barycentrics are changed to per-sample interpolation except at_offset/at_sample.
     *       * barycentric_at_sample(sample_id) is replaced by barycentric_sample.
-    *
-    * sample_mask_in:
-    *    msaa_disabled && !uses_vrs_coarse_shading:
-    *       * sample_mask_in is replaced by b2i32(!helper_invocation)
-    *    ps_iter_samples == 2, 4:
-    *       * sample_mask_in is changed to (sample_mask_in & (ps_iter_mask << sample_id))
-    *    ps_iter_samples == 8:
-    *       * sample_mask_in is replaced by 1 << sample_id.
-    *
-    * When ps_iter_samples is equal to rasterization samples, set ps_iter_samples = 8 for this pass.
     */
-   unsigned ps_iter_samples;
 
    /* fbfetch_output */
    bool fbfetch_is_1D;
