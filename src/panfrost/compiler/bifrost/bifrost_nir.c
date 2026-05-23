@@ -984,8 +984,13 @@ bifrost_postprocess_nir(nir_shader *nir,
        */
       NIR_PASS(_, nir, nir_lower_vars_to_explicit_types, nir_var_function_temp,
                glsl_get_natural_size_align_bytes);
+
+      nir_address_format scratch_addr_format =
+         nir_get_ptr_bitsize(nir) == 64 ? nir_address_format_32bit_offset_as_64bit
+                                        : nir_address_format_32bit_offset;
+
       NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_function_temp,
-               nir_address_format_32bit_offset);
+               scratch_addr_format);
    }
 
    nir_lower_mem_access_bit_sizes_options mem_size_options = {
