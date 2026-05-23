@@ -5264,7 +5264,7 @@
         "description": "pan/nir: Fix 8 and 16 bool reduction lowering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5de59876784ce80b9398757e346be1e85b413362",
         "notes": null
