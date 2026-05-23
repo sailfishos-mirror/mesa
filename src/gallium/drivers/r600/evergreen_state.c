@@ -881,6 +881,7 @@ static int evergreen_fill_tex_resource_words(struct r600_context *rctx,
 		u_box_3d(0, 0, params->first_layer, texture->width0, texture->height0, 1, &box);
 		r600_copy_region_with_blit(&rctx->b.b, replacement, 0, 0, 0, 0,
 					   texture, 0, &box);
+		va = r600_as_texture(replacement)->resource.gpu_address;
 		*replace_resource = replacement;
 	}
 
