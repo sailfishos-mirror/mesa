@@ -125,6 +125,8 @@ struct v3dv_physical_device {
       bool multisync;
       bool perfmon;
    } caps;
+
+   bool is_shim;
 };
 
 static inline struct v3dv_bo *

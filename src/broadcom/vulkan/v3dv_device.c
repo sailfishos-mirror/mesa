@@ -1381,6 +1381,12 @@ create_physical_device(struct v3dv_instance *instance,
    device->render_fd = render_fd;
    device->display_fd = display_fd;
 
+   drmVersionPtr version = drmGetVersion(render_fd);
+   if (version) {
+      device->is_shim = version->desc && strcmp(version->desc, "shim") == 0;
+      drmFreeVersion(version);
+   }
+
    if (!v3d_get_device_info(device->render_fd, &device->devinfo, &v3d_ioctl)) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
                          "Failed to get info from device.");
@@ -1831,9 +1837,14 @@ queue_init(struct v3dv_device *device, struct v3dv_queue *queue,
    if (result != VK_SUCCESS)
       return result;
 
-   result = vk_queue_enable_submit_thread(&queue->vk);
-   if (result != VK_SUCCESS)
-      goto fail_submit_thread;
+   /* Threaded submit requires an implementation of syncobj which is not
+    * available on the shim driver.
+    */
+   if (!device->pdevice->is_shim) {
+      result = vk_queue_enable_submit_thread(&queue->vk);
+      if (result != VK_SUCCESS)
+         goto fail_submit_thread;
+   }
 
    queue->device = device;
    queue->vk.driver_submit = v3dv_queue_driver_submit;
@@ -1962,7 +1973,12 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
    device->vk.copy_sync_payloads = vk_drm_syncobj_copy_payloads;
 
    vk_device_set_drm_fd(&device->vk, physical_device->render_fd);
-   vk_device_enable_threaded_submit(&device->vk);
+
+   /* Threaded submit requires an implementation of syncobj which is not
+    * available on the shim driver.
+    */
+   if (!physical_device->is_shim)
+      vk_device_enable_threaded_submit(&device->vk);
 
    device->queues = vk_zalloc2(&device->vk.alloc, pAllocator,
                                sizeof(*device->queues) * total_queues, 8,
