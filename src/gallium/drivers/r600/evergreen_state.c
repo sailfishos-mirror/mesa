@@ -667,6 +667,7 @@ static void evergreen_fill_buffer_resource_words(struct r600_context *rctx,
 						 struct pipe_resource *buffer,
 						 struct eg_buf_res_params *params,
 						 bool *skip_mip_address_reloc,
+						 bool fill_address_fields,
 						 unsigned tex_resource_words[8])
 {
 	struct r600_texture *tmp = r600_as_texture(buffer);
@@ -689,9 +690,9 @@ static void evergreen_fill_buffer_resource_words(struct r600_context *rctx,
 
 	va = tmp->resource.gpu_address + params->offset;
 	*skip_mip_address_reloc = true;
-	tex_resource_words[0] = va;
+	tex_resource_words[0] = fill_address_fields ? va : 0;
 	tex_resource_words[1] = params->size - 1;
-	tex_resource_words[2] = S_030008_BASE_ADDRESS_HI(va >> 32UL) |
+	tex_resource_words[2] = S_030008_BASE_ADDRESS_HI(fill_address_fields ? (va >> 32UL) : 0) |
 		S_030008_STRIDE(stride) |
 		S_030008_DATA_FORMAT(format) |
 		S_030008_NUM_FORMAT_ALL(num_format) |
@@ -730,7 +731,7 @@ texture_buffer_sampler_view(struct r600_context *rctx,
 
 	evergreen_fill_buffer_resource_words(rctx, view->base.texture,
 					     &params, &view->skip_mip_address_reloc,
-					     view->tex_resource_words);
+					     true, view->tex_resource_words);
 	view->tex_resource = &tmp->resource;
 
 	if (tmp->resource.gpu_address)
@@ -1924,7 +1925,18 @@ static void evergreen_emit_image_state(struct r600_context *rctx, struct r600_at
 
 		radeon_emit(cs, PKT3(PKT3_SET_RESOURCE, 8, 0) | pkt_flags);
 		radeon_emit(cs, (res_id_base + i + offset) * 8);
-		radeon_emit_array(cs, image->resource_words, 8);
+		if (!rtex) {
+			/* Write address at emit time in case it's different from set_buffer()
+			 * ex: After calling glBufferSubData()
+			 */
+			uint64_t va = resource->gpu_address + image->va_offset;
+			radeon_emit(cs, va);
+			radeon_emit(cs, image->resource_words[1]);
+			radeon_emit(cs, image->resource_words[2] |= S_030008_BASE_ADDRESS_HI(va >> 32UL));
+		} else {
+			radeon_emit_array(cs, image->resource_words, 3);
+		}
+		radeon_emit_array(cs, &image->resource_words[3], 5);
 		r600_emit_reloc_packets(cs, reloc, has_vm, pkt_flags);
 
 		if (!image->skip_mip_address_reloc && !has_vm) {
@@ -4448,7 +4460,7 @@ static void evergreen_setup_immed_buffer(struct r600_context *rctx,
 	buf_params.uncached = 1;
 	evergreen_fill_buffer_resource_words(rctx, &resource->immed_buffer->b.b,
 					     &buf_params, &skip_reloc,
-					     rview->immed_resource_words);
+					     true, rview->immed_resource_words);
 }
 
 static void evergreen_set_hw_atomic_buffers(struct pipe_context *ctx,
@@ -4548,6 +4560,7 @@ static void evergreen_set_shader_buffers(struct pipe_context *ctx,
 		rview->cb_color_attrib = color.attrib;
 		rview->cb_color_fmask = color.fmask;
 		rview->cb_color_fmask_slice = color.fmask_slice;
+		rview->va_offset = buf->buffer_offset;
 
 		memset(&buf_params, 0, sizeof(buf_params));
 		buf_params.pipe_format = PIPE_FORMAT_R32_UINT;
@@ -4563,7 +4576,7 @@ static void evergreen_set_shader_buffers(struct pipe_context *ctx,
 		evergreen_fill_buffer_resource_words(rctx, &resource->b.b,
 						     &buf_params,
 						     &rview->skip_mip_address_reloc,
-						     rview->resource_words);
+						     false, rview->resource_words);
 
 		if (!has_vm && !rview->skip_mip_address_reloc)
 			istate->atom.num_dw += 2;
@@ -4738,6 +4751,7 @@ static void evergreen_set_shader_images(struct pipe_context *ctx,
 		rview->cb_color_attrib = color.attrib;
 		rview->cb_color_fmask = color.fmask;
 		rview->cb_color_fmask_slice = color.fmask_slice;
+		rview->va_offset = 0;
 
 		if (image->target != PIPE_BUFFER) {
 			memset(&tex_params, 0, sizeof(tex_params));
@@ -4770,7 +4784,7 @@ static void evergreen_set_shader_images(struct pipe_context *ctx,
 			evergreen_fill_buffer_resource_words(rctx, &resource->b.b,
 							     &buf_params,
 							     &rview->skip_mip_address_reloc,
-							     rview->resource_words);
+							     true, rview->resource_words);
 		}
 		if (!has_vm && !rview->skip_mip_address_reloc)
 			istate->atom.num_dw += 2;
