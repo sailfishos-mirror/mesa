@@ -5594,7 +5594,7 @@
         "description": "nir: fix vectorising phis with mixed chased sources",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6b611dbe7975023395172988f37c9ae1bb63c375",
         "notes": null
