@@ -139,8 +139,8 @@ struct kk_graphics_state {
    struct {
       mtl_buffer *handle;
       uint64_t buffer_size;
-      uint32_t range;
-      uint32_t offset;
+      uint64_t range;
+      uint64_t offset;
       uint32_t restart;
       uint8_t bytes_per_index;
    } index;
