@@ -6484,7 +6484,7 @@
         "description": "nak: Allow YY swizzle for SM20 and SM32 asserts",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "67bfbc7535528ee4f2de8471bd506077f7966c8d",
         "notes": null
