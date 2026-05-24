@@ -2144,7 +2144,7 @@
         "description": "Revert \"lavapipe: Don't advertise support for multiplane drm formats\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0941af995ac0cb4d33e9d26e6b9b866d2224cd9a",
         "notes": null
