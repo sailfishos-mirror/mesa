@@ -6754,7 +6754,7 @@
         "description": "etnaviv: blt: Use block-layout offset for 128-bit second-plane blit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1f60a0397bbcabccd645762cb24b8ff56ec4bdff",
         "notes": null

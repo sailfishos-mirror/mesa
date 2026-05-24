@@ -848,8 +848,8 @@ etna_try_blt_blit(struct pipe_context *pctx,
       emit_blt_copyimage(ctx->stream, &op);
 
       if (format_is_128bit(blit_info->dst.format)) {
-         op.src.addr.offset += src_lev->layer_stride;
-         op.dest.addr.offset += dst_lev->layer_stride;
+         op.src.addr.offset += etna_resource_level_second_plane_offset(src_lev);
+         op.dest.addr.offset += etna_resource_level_second_plane_offset(dst_lev);
 
          emit_blt_copyimage(ctx->stream, &op);
       }
