@@ -988,10 +988,13 @@ radv_check_gpu_hangs(struct radv_queue *queue, const struct radv_winsys_submit_i
    if (!hang_occurred)
       return VK_SUCCESS;
 
+   struct radv_device *device = radv_queue_device(queue);
+
+   radv_dump_printf_data(device, stderr, false);
+
    fprintf(stderr, "radv: GPU hang detected...\n");
 
 #ifndef _WIN32
-   struct radv_device *device = radv_queue_device(queue);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    const bool save_hang_report = !device->vk.enabled_features.deviceFaultVendorBinaryEXT;
