@@ -304,6 +304,47 @@ TEST(u_ycbcr_test, narrow_range)
    }
 }
 
+TEST(u_ycbcr_test, narrow_range_rgb)
+{
+   float range[3][2];
+   unsigned bpc[3] = {8, 8, 8};
+   util_get_narrow_range_rgb_coeffs(range, bpc);
+
+   const struct {
+      uint8_t input[3];
+      float expected[3];
+   } test_data[] = { {
+         { 16, 16, 16 },
+         { 0.0f, 0.0f, 0.0f },
+      },  {
+         { 235, 235, 235 },
+         { 1.0f, 1.0f, 1.0f },
+      },  {
+         { 16, 89, 89 },
+         { 0.0f, 1/3.0f, 1/3.0f },
+      },  {
+         { 89, 16, 16 },
+         { 1/3.0f, 0.0f, 0.0f },
+      }
+   };
+
+   for (size_t i = 0; i < ARRAY_SIZE(test_data); ++i) {
+      float input[3] = {
+         test_data[i].input[0] / 255.0f,
+         test_data[i].input[1] / 255.0f,
+         test_data[i].input[2] / 255.0f,
+      };
+
+      float result[3];
+      for (int c = 0; c < 3; ++c)
+         result[c] = input[c] * range[c][0] + range[c][1];
+
+      EXPECT_NEAR(test_data[i].expected[0], result[0], 1e-7);
+      EXPECT_NEAR(test_data[i].expected[1], result[1], 1e-7);
+      EXPECT_NEAR(test_data[i].expected[2], result[2], 1e-7);
+   }
+}
+
 static void
 test_to_rgb_narrow_range_coeffs(const float coeffs[3])
 {
