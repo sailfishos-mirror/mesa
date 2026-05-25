@@ -4944,7 +4944,7 @@
         "description": "gallium/vl: Fix RGB narrow range conversions",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "224a336bf06a1ddef16b8d4bc951e8099c3a185b",
         "notes": null
