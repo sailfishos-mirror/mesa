@@ -1000,6 +1000,9 @@ split_var(nir_shader *shader,
    if (!glsl_type_is_cmat(glsl_without_array(var->type)))
       return;
 
+   if (var->data.how_declared == nir_var_hidden)
+      return;
+
    const struct glsl_type *type = var->type;
    if (glsl_type_is_array(type)) {
       type = glsl_without_array(var->type);
@@ -1027,6 +1030,7 @@ split_var(nir_shader *shader,
          split_mat->split_vars[i] = nir_variable_create(shader, var->data.mode,
                                                         new_type, var->name);
       }
+      split_mat->split_vars[i]->data.how_declared = nir_var_hidden;
    }
 
    _mesa_hash_table_insert(info->split_mats, var, split_mat);
