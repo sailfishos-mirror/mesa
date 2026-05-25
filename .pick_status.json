@@ -8584,7 +8584,7 @@
         "description": "panvk: fix flags2-only bit leak in legacy format features",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null

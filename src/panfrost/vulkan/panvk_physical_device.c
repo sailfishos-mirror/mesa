@@ -20,6 +20,7 @@
 #include "vk_android.h"
 #include "vk_device.h"
 #include "vk_drm_syncobj.h"
+#include "vk_enum_defines.h"
 #include "vk_format.h"
 #include "vk_log.h"
 #include "vk_util.h"
@@ -963,10 +964,14 @@ panvk_GetPhysicalDeviceFormatProperties2(VkPhysicalDevice physicalDevice,
    VkFormatFeatureFlags2 buffer =
       get_buffer_format_features(physical_device, format);
 
+   VkFormatFeatureFlags tex_legacy = vk_format_features2_to_features(tex);
+   VkFormatFeatureFlags buffer_legacy =
+      vk_format_features2_to_features(buffer);
+
    pFormatProperties->formatProperties = (VkFormatProperties){
-      .linearTilingFeatures = tex,
-      .optimalTilingFeatures = tex,
-      .bufferFeatures = buffer,
+      .linearTilingFeatures = tex_legacy,
+      .optimalTilingFeatures = tex_legacy,
+      .bufferFeatures = buffer_legacy,
    };
 
    VkFormatProperties3 *formatProperties3 =
