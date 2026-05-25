@@ -1899,6 +1899,10 @@ init_device_meta(struct v3dv_device *device)
 static void
 destroy_device_meta(struct v3dv_device *device)
 {
+   if (device->meta.tfu_fill_zero.src_bo) {
+      v3dv_bo_free(device, device->meta.tfu_fill_zero.src_bo);
+      device->meta.tfu_fill_zero.src_bo = NULL;
+   }
    mtx_destroy(&device->meta.mtx);
    v3dv_meta_clear_finish(device);
    v3dv_meta_blit_finish(device);

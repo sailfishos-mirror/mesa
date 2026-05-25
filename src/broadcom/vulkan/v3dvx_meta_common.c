@@ -1529,33 +1529,63 @@ meta_fill_buffer_tfu_stride0(struct v3dv_cmd_buffer *cmd_buffer,
       v3dX(get_format)(VK_FORMAT_R8G8B8A8_UINT);
    assert(format && format->plane_count == 1);
 
-   /* Get or create the cached staging BO for this command buffer.
-    * Always allocate for V3D_TFU_MAX_DIM width so we can reuse the
-    * same staging BO regardless of fill size. The BO is owned by the
-    * command buffer's private_objs list; the meta.tfu_fill.src_bo
-    * pointer is just a cache slot for reuse and does not own the BO.
+   /* To pick the staging BO that backs the TFU stride-0 source row. There
+    * are two sources, in order of preference:
+    *   1. data == 0: device-wide shared BO pre-filled with zeros. Lazily
+    *      allocated under meta.mtx. Zero is the common case (Vulkan
+    *      implementations zero-init a lot of resources, and WebGPU lazy
+    *      buffer init issues many zero-fills across separate command
+    *      buffers), so a device-wide BO removes the alloc+map+memcpy from
+    *      those hot paths.
+    *   2. per-cmd-buffer cached BO (data matches a previous fill in this
+    *      cmd buffer). On miss, a fresh BO is allocated, mapped, filled
+    *      with the pattern, and cached.
     */
-   struct v3dv_bo *src_bo = cmd_buffer->meta.tfu_fill.src_bo;
-   if (!src_bo || cmd_buffer->meta.tfu_fill.data != data) {
-      uint32_t src_size = V3D_TFU_MAX_DIM * cpp;
-      src_bo = v3dv_bo_alloc(device, src_size, "tfu_fill_src", true);
-      if (!src_bo) {
-         v3dv_flag_oom(cmd_buffer, NULL);
-         return;
-      }
-      if (!v3dv_bo_map(device, src_bo, src_size)) {
-         v3dv_bo_free(device, src_bo);
-         v3dv_flag_oom(cmd_buffer, NULL);
-         return;
-      }
-      uint32_t *map = (uint32_t *)src_bo->map;
-      for (uint32_t i = 0; i < V3D_TFU_MAX_DIM; i++)
-         map[i] = data;
+   const uint32_t src_size = V3D_TFU_MAX_DIM * cpp;
+   struct v3dv_bo *src_bo = NULL;
 
-      v3dv_cmd_buffer_add_private_obj(
-         cmd_buffer, (uint64_t)(uintptr_t)src_bo, v3dv_cmd_buffer_destroy_bo_cb);
-      cmd_buffer->meta.tfu_fill.src_bo = src_bo;
-      cmd_buffer->meta.tfu_fill.data = data;
+   if (data == 0) {
+      mtx_lock(&device->meta.mtx);
+      struct v3dv_bo *zero_bo = device->meta.tfu_fill_zero.src_bo;
+      if (!zero_bo) {
+         zero_bo = v3dv_bo_alloc(device, src_size, "tfu_fill_zero", true);
+         if (zero_bo && !v3dv_bo_map(device, zero_bo, src_size)) {
+            v3dv_bo_free(device, zero_bo);
+            zero_bo = NULL;
+         }
+         if (zero_bo) {
+            memset(zero_bo->map, 0, src_size);
+            device->meta.tfu_fill_zero.src_bo = zero_bo;
+         }
+      }
+      mtx_unlock(&device->meta.mtx);
+      if (!zero_bo) {
+         v3dv_flag_oom(cmd_buffer, NULL);
+         return;
+      }
+      src_bo = zero_bo;
+   } else {
+      src_bo = cmd_buffer->meta.tfu_fill.src_bo;
+      if (!src_bo || cmd_buffer->meta.tfu_fill.data != data) {
+         src_bo = v3dv_bo_alloc(device, src_size, "tfu_fill_src", true);
+         if (!src_bo) {
+            v3dv_flag_oom(cmd_buffer, NULL);
+            return;
+         }
+         if (!v3dv_bo_map(device, src_bo, src_size)) {
+            v3dv_bo_free(device, src_bo);
+            v3dv_flag_oom(cmd_buffer, NULL);
+            return;
+         }
+         uint32_t *map = (uint32_t *)src_bo->map;
+         for (uint32_t i = 0; i < V3D_TFU_MAX_DIM; i++)
+            map[i] = data;
+
+         v3dv_cmd_buffer_add_private_obj(
+            cmd_buffer, (uint64_t)(uintptr_t)src_bo, v3dv_cmd_buffer_destroy_bo_cb);
+         cmd_buffer->meta.tfu_fill.src_bo = src_bo;
+         cmd_buffer->meta.tfu_fill.data = data;
+      }
    }
 
    uint32_t remaining = num_pixels;
