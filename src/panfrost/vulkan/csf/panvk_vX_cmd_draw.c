@@ -4091,14 +4091,13 @@ emit_scissor_box(struct panvk_cmd_buffer *cmdbuf, struct vk_meta_rect rect)
    }
 }
 
-void
-panvk_per_arch(cmd_draw_rects)(struct vk_command_buffer *cmd,
-                               struct vk_meta_device *meta, uint32_t rect_count,
-                               const struct vk_meta_rect *rects)
+static void
+panvk_per_arch(cmd_draw_fullscreen)(struct vk_command_buffer *cmd,
+                                    struct vk_meta_device *meta,
+                                    uint32_t rect_count,
+                                    const struct vk_meta_rect *rects,
+                                    uint32_t layer_count)
 {
-   if (rect_count == 0)
-      return;
-
    VkResult result;
    uint64_t bds_gpu, zsd_gpu;
    struct panvk_dcd_flags dcd_flags;
@@ -4222,7 +4221,28 @@ panvk_per_arch(cmd_draw_rects)(struct vk_command_buffer *cmd,
 
       panvk_cond_render(cmdbuf, b) {
          emit_scissor_box(cmdbuf, rect);
-         cmd_run_fullscreen(cmdbuf, dcd.gpu, false, rect.layer, 1);
+         cmd_run_fullscreen(cmdbuf, dcd.gpu, false, rect.layer, layer_count);
       }
    }
+}
+
+void
+panvk_per_arch(cmd_draw_rects)(struct vk_command_buffer *cmd,
+                               struct vk_meta_device *meta, uint32_t rect_count,
+                               const struct vk_meta_rect *rects)
+{
+   if (rect_count == 0)
+      return;
+   panvk_per_arch(cmd_draw_fullscreen)(cmd, meta, rect_count, rects, 1);
+}
+
+void
+panvk_per_arch(cmd_draw_volume)(struct vk_command_buffer *cmd,
+                                struct vk_meta_device *meta,
+                                const struct vk_meta_rect *rect,
+                                uint32_t layer_count)
+{
+   if (layer_count == 0)
+      return;
+   panvk_per_arch(cmd_draw_fullscreen)(cmd, meta, 1, rect, layer_count);
 }

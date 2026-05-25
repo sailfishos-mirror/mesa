@@ -505,6 +505,11 @@ void panvk_per_arch(cmd_draw_rects)(struct vk_command_buffer *cmd,
                                     struct vk_meta_device *meta,
                                     uint32_t rect_count,
                                     const struct vk_meta_rect *rects);
+
+void panvk_per_arch(cmd_draw_volume)(struct vk_command_buffer *cmd,
+                                     struct vk_meta_device *meta,
+                                     const struct vk_meta_rect *rect,
+                                     uint32_t layer_count);
 #endif
 
 #endif
