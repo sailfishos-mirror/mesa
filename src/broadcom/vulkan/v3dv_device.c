@@ -1027,8 +1027,10 @@ get_device_properties(const struct v3dv_physical_device *device,
                                                   MAX_STORAGE_IMAGES,
 
       /* Compute limits */
-      .maxComputeSharedMemorySize               = 32u * 1024u,
-      .maxComputeWorkGroupCount                 = { 65535, 65535, 65535 },
+      .maxComputeSharedMemorySize               = V3D_MAX_COMPUTE_SHARED_MEMORY_SIZE,
+      .maxComputeWorkGroupCount                 = { V3D_MAX_CSD_WG_COUNT,
+                                                    V3D_MAX_CSD_WG_COUNT,
+                                                    V3D_MAX_CSD_WG_COUNT },
       .maxComputeWorkGroupInvocations           = V3D_MAX_CSD_WG_SIZE,
       .maxComputeWorkGroupSize                  = { V3D_MAX_CSD_WG_SIZE,
                                                     V3D_MAX_CSD_WG_SIZE,

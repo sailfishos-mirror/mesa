@@ -202,7 +202,7 @@ v3d_init_compute_caps(struct v3d_screen *screen)
          */
         caps->max_grid_size[0] =
         caps->max_grid_size[1] =
-        caps->max_grid_size[2] = 65535;
+        caps->max_grid_size[2] = V3D_MAX_CSD_WG_COUNT;
 
         /* GL_MAX_COMPUTE_WORK_GROUP_SIZE */
         caps->max_block_size[0] =
@@ -216,7 +216,7 @@ v3d_init_compute_caps(struct v3d_screen *screen)
         caps->max_variable_threads_per_block = V3D_MAX_CSD_WG_SIZE;
 
         /* GL_MAX_COMPUTE_SHARED_MEMORY_SIZE */
-        caps->max_local_size = 32768;
+        caps->max_local_size = V3D_MAX_COMPUTE_SHARED_MEMORY_SIZE;
 
         struct sysinfo si;
         sysinfo(&si);
