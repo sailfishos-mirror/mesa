@@ -151,7 +151,7 @@ util_ycbcr_adjust_to_range(float mat[3][4],
       mat[i][0] = mat[i][0] * tmp;
       mat[i][1] = mat[i][1] * tmp;
       mat[i][2] = mat[i][2] * tmp;
-      mat[i][3] -= range[i][1] * tmp;
+      mat[i][3] = mat[i][3] * tmp - range[i][1] * tmp;
    }
 }
 

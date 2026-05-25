@@ -4964,7 +4964,7 @@
         "description": "util/ycbcr: Fix adjust_to_range",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f6f2e16e35195f0a7f8ec1f7e60b19b8e8b10f09",
         "notes": null
