@@ -15,8 +15,7 @@
 #include "util/format/u_format.h"
 
 static enum mtl_texture_type
-vk_image_to_mtl_texture_type(
-   const struct vk_image *image)
+vk_image_to_mtl_texture_type(const struct vk_image *image)
 {
    uint32_t array_layers = image->array_layers;
    uint32_t samples = image->samples;
@@ -106,8 +105,7 @@ kk_image_layout_can_optimize(VkImageUsageFlags usage, VkImageTiling tiling,
 }
 
 void
-kk_image_layout_init(const struct kk_device *dev,
-                     const struct vk_image *image,
+kk_image_layout_init(const struct kk_device *dev, const struct vk_image *image,
                      enum pipe_format format, const uint8_t width_scale,
                      const uint8_t height_scale, struct kk_image_layout *layout)
 {
@@ -119,8 +117,8 @@ kk_image_layout_init(const struct kk_device *dev,
    layout->layers = image->array_layers;
    layout->levels = image->mip_levels;
    layout->linear = image->tiling != VK_IMAGE_TILING_OPTIMAL;
-   layout->optimized_layout = kk_image_layout_can_optimize(
-      image->usage, image->tiling, format);
+   layout->optimized_layout =
+      kk_image_layout_can_optimize(image->usage, image->tiling, format);
    layout->usage = vk_image_usage_flags_to_mtl_texture_usage(
       image->usage, image->create_flags, supported_format->atomic);
    layout->format.pipe = format;

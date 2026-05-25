@@ -318,7 +318,8 @@ kk_lower_vs_vbo(nir_shader *nir, const struct vk_graphics_pipeline_state *state,
       attributes[slot].instanced =
          binding->input_rate == VK_VERTEX_INPUT_RATE_INSTANCE;
    }
-   bool robustness2 = rs->vertex_inputs ==
+   bool robustness2 =
+      rs->vertex_inputs ==
       VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2;
    NIR_PASS(_, nir, kk_nir_lower_vbo, attributes, robustness2);
 }
@@ -407,8 +408,8 @@ static void
 kk_lower_fs(struct kk_device *dev, nir_shader *nir,
             const struct vk_graphics_pipeline_state *state)
 {
-   nir->info.fs.uses_sample_shading |= state->ms &&
-                                       state->ms->sample_shading_enable;
+   nir->info.fs.uses_sample_shading |=
+      state->ms && state->ms->sample_shading_enable;
 
    /* msl_nir_lower_sample_shading needs to go before blending since
     * nir_lower_blend will always set uses_sample_shading to true if there's any
@@ -453,8 +454,8 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
 
             nir_def *sample_id = nir_load_sample_id(&b);
             nir_def *sample_bit = nir_ishl(&b, nir_imm_int(&b, 1), sample_id);
-            nir_def *sample_mask_bit = nir_iand(&b, nir_load_sample_mask_in(&b),
-                                                sample_bit);
+            nir_def *sample_mask_bit =
+               nir_iand(&b, nir_load_sample_mask_in(&b), sample_bit);
             nir_discard_if(&b, nir_ieq_imm(&b, sample_mask_bit, 0u));
          }
       }
@@ -1168,11 +1169,10 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
                          nir_opts, NULL);
 
    for (uint32_t i = 0; i < shader_count; i++) {
-      struct kk_shader *prev_stage = i > 0 ?
-         container_of(shaders_out[i - 1], struct kk_shader, vk) : NULL;
-      result =
-         kk_compile_shader(dev, &infos[i], prev_stage, state, pAllocator,
-                           &shaders_out[i]);
+      struct kk_shader *prev_stage =
+         i > 0 ? container_of(shaders_out[i - 1], struct kk_shader, vk) : NULL;
+      result = kk_compile_shader(dev, &infos[i], prev_stage, state, pAllocator,
+                                 &shaders_out[i]);
       if (result != VK_SUCCESS) {
          /* Clean up all the shaders before this point */
          for (uint32_t j = 0; j < i; j++)
@@ -1211,9 +1211,8 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
             .robustness = &rs_none,
          };
          struct vk_shader *frag_shader;
-         result =
-            kk_compile_shader(dev, &info, fs, state, &dev->vk.alloc,
-                              &frag_shader);
+         result = kk_compile_shader(dev, &info, fs, state, &dev->vk.alloc,
+                                    &frag_shader);
 
          if (result != VK_SUCCESS) {
             for (uint32_t i = 0; i < shader_count; i++)
@@ -1227,8 +1226,7 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
          fs = container_of(frag_shader, struct kk_shader, vk);
       }
 
-      gather_graphics_pipeline_create_info(
-         state, &vs->info, fs);
+      gather_graphics_pipeline_create_info(state, &vs->info, fs);
       result = kk_compile_graphics_pipeline(
          dev, vs->msl_code, vs->entrypoint_name, fs->msl_code,
          fs->entrypoint_name, &vs->info, &vs->pipeline);

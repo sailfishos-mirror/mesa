@@ -141,9 +141,8 @@ bool kk_image_layout_can_optimize(VkImageUsageFlags usage, VkImageTiling tiling,
                                   enum pipe_format format);
 
 void kk_image_layout_init(const struct kk_device *dev,
-                          const struct vk_image *image,
-                          enum pipe_format format, const uint8_t width_scale,
-                          const uint8_t height_scale,
+                          const struct vk_image *image, enum pipe_format format,
+                          const uint8_t width_scale, const uint8_t height_scale,
                           struct kk_image_layout *layout);
 
 #endif /* KK_IMAGE_LAYOUT_H */

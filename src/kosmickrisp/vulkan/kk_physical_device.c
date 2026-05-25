@@ -410,9 +410,8 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
 {
    VkSampleCountFlagBits sample_counts = VK_SAMPLE_COUNT_1_BIT;
    for (uint32_t sample_count = VK_SAMPLE_COUNT_2_BIT;
-      sample_count <= VK_SAMPLE_COUNT_8_BIT; sample_count <<= 1) {
-      if (mtl_device_supports_sample_count(pdev->mtl_dev_handle,
-                                           sample_count))
+        sample_count <= VK_SAMPLE_COUNT_8_BIT; sample_count <<= 1) {
+      if (mtl_device_supports_sample_count(pdev->mtl_dev_handle, sample_count))
          sample_counts |= sample_count;
    }
 
@@ -909,8 +908,8 @@ kk_get_sysmem_heap_budget(struct kk_physical_device *pdev)
    uint64_t sysmem_used_B = sysmem_size_B - sysmem_available_B;
    uint64_t sysmem_budget_B =
       mtl_device_recommended_max_working_set_size(pdev->mtl_dev_handle);
-   uint64_t remaining_budget_B = sysmem_budget_B > sysmem_used_B ?
-                                 sysmem_budget_B - sysmem_used_B : 0u;
+   uint64_t remaining_budget_B =
+      sysmem_budget_B > sysmem_used_B ? sysmem_budget_B - sysmem_used_B : 0u;
    return remaining_budget_B +
           mtl_device_current_allocated_size(pdev->mtl_dev_handle);
 }
@@ -1169,8 +1168,7 @@ kk_GetPhysicalDeviceQueueFamilyProperties2(
          p->queueFamilyProperties.minImageTransferGranularity =
             (VkExtent3D){1, 1, 1};
 
-         vk_foreach_struct(ext, p->pNext)
-         {
+         vk_foreach_struct(ext, p->pNext) {
             switch (ext->sType) {
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES: {
                VkQueueFamilyGlobalPriorityProperties *pSub = (void *)ext;

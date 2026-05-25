@@ -203,8 +203,8 @@ pass(struct nir_builder *b, nir_intrinsic_instr *intr, void *data)
       .format = interchange_format, .base = 0u);
 
    if (ctx->requires_robustness2) {
-      uint64_t attrib_clamp_offset = offsetof(
-         struct kk_root_descriptor_table, draw.attrib_clamps[index]);
+      uint64_t attrib_clamp_offset =
+         offsetof(struct kk_root_descriptor_table, draw.attrib_clamps[index]);
       nir_def *bounds = nir_load_global_constant(
          b, 1, 32, nir_iadd_imm(b, argbuf, attrib_clamp_offset));
       nir_def *oob = nir_ult(b, bounds, el);

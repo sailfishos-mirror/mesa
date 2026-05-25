@@ -258,8 +258,9 @@ msl_ensure_vertex_point_size_output(nir_shader *nir)
          .num_slots = 1u,
       };
       nir_store_output(&b, nir_imm_float(&b, 1.0f), nir_imm_int(&b, 0u),
-                       .base = 0u, .range = 1u, .write_mask = 0x1, .component = 0u,
-                       .src_type = nir_type_float32, .io_semantics = io_semantics);
+                       .base = 0u, .range = 1u, .write_mask = 0x1,
+                       .component = 0u, .src_type = nir_type_float32,
+                       .io_semantics = io_semantics);
       nir->info.outputs_written |= BITFIELD64_BIT(VARYING_SLOT_PSIZ);
       return nir_progress(true, entrypoint, nir_metadata_control_flow);
    }
@@ -457,9 +458,8 @@ lower_clip_cull_distance_write(nir_builder *b, nir_intrinsic_instr *intr,
    if (sem.location == VARYING_SLOT_CLIP_DIST0 ||
        sem.location == VARYING_SLOT_CLIP_DIST1) {
       /* Clip distance, add write to MSL clip_distance output */
-      unsigned component =
-         (location - VARYING_SLOT_CLIP_DIST0) * 4 +
-         nir_intrinsic_component(intr);
+      unsigned component = (location - VARYING_SLOT_CLIP_DIST0) * 4 +
+                           nir_intrinsic_component(intr);
 
       b->cursor = nir_after_instr(&intr->instr);
       nir_store_clip_distance_kk(b, intr->src[0].ssa, .base = component);
@@ -469,9 +469,8 @@ lower_clip_cull_distance_write(nir_builder *b, nir_intrinsic_instr *intr,
    if (sem.location == VARYING_SLOT_CULL_DIST0 ||
        sem.location == VARYING_SLOT_CULL_DIST1) {
       /* Cull distance, add write to cull primitive output */
-      unsigned component =
-         (location - VARYING_SLOT_CULL_DIST0) * 4 +
-         nir_intrinsic_component(intr);
+      unsigned component = (location - VARYING_SLOT_CULL_DIST0) * 4 +
+                           nir_intrinsic_component(intr);
 
       b->cursor = nir_before_instr(&intr->instr);
       nir_def *offs = nir_imm_int(b, component / 4);
@@ -525,8 +524,7 @@ msl_nir_lower_cull_distance_fs(nir_shader *s, unsigned nr_distances)
       nir_def *baryc = nir_load_barycentric_pixel(
          b, 32, .interp_mode = INTERP_MODE_NOPERSPECTIVE);
       nir_def *cull = nir_load_interpolated_input(
-         b, 1, 32, baryc, nir_imm_int(b, 0),
-         .component = i & 3,
+         b, 1, 32, baryc, nir_imm_int(b, 0), .component = i & 3,
          .io_semantics.location = VARYING_SLOT_CULL_PRIMITIVE + (i / 4),
          .io_semantics.num_slots = nr_distances / 4);
 
@@ -537,7 +535,6 @@ msl_nir_lower_cull_distance_fs(nir_shader *s, unsigned nr_distances)
        * Note that, since the value is interpolated at the pixel center, we
        * don't have to worry about corner values. */
       culled = nir_ior(b, culled, nir_ball(b, nir_feq_imm(b, cull, 0)));
-
    }
 
    /* Emulate primitive culling by discarding fragments */
