@@ -1994,6 +1994,33 @@ wsi_display_page_flip_handler2(int fd,
    wsi_display_connector *connector = display_mode->connector;
 
    uint64_t nsec = 1000000000ull * sec + 1000ull * usec;
+
+   /* Pageflip event with invalid frame and timestamp received? */
+   if (nsec == 0 && frame == 0) {
+      /* This happens on amdgpu driven AMD gpu's on the first (full modesetting) atomic commit
+       * if the output was turned off before, and the modeset activates the display engine.
+       * It doesn't happen for other modesets, only if the output was completely off before.
+       * The driver sends a fake pageflip event after hw and flip programming for this case,
+       * with all zero vblank count and timestamp, whereas the regular pageflip completion handler
+       * no-ops. The following heuristic allows to get a good enough vblank timestamp back for this
+       * special case, as vblank counts and timestamps of the vblank of flip completion must always
+       * be identical to the ones reported by the corresponding pageflip event.
+       */
+      uint64_t last_vblank_frame;
+
+      if (!drmCrtcGetSequence(chain->wsi->fd, connector->crtc_id, &last_vblank_frame, &nsec) &&
+          (nsec > image->minimum_ns) && (nsec > connector->last_nsec)) {
+         frame = (unsigned int) last_vblank_frame;
+         wsi_display_debug("pf-workaround: use last vblank frame %u %lu nsec [delta to now %f msecs, to commit %f msecs]\n",
+                           frame, nsec, (nsec - (double) os_time_get_nano()) / 1e6, (nsec - (double) image->minimum_ns) / 1e6);
+      } else {
+         /* Fallback for the fallback. Use now time as at least some noisy baseline. */
+         frame = (unsigned int) connector->last_frame;
+         nsec = os_time_get_nano();
+         wsi_display_debug("pf-workaround: use vblank frame %u and now time %lu nsec\n", frame, nsec);
+      }
+   }
+
    /* If we're on VRR timing path, ensure we get a stable pace. */
    nsec = MAX2(nsec, image->minimum_ns);
 
@@ -3124,6 +3151,17 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
       }
 
       image->state = WSI_IMAGE_QUEUED;
+
+      /* Some kms drivers (e.g., amdgpu) send too early pageflip events with all-zero completion
+       * timestamp and count for the very first pageflip after enabling a connector. Try to make sure
+       * that the returned timestamps to clients are at least not earlier than the time of the commit
+       * that triggered the pageflip. This prevents some bits of the CTS from premature failure and
+       * allows a more fair assessment by the CTS for all presents after the initial "power up the crtc"
+       * present. See also some refined workaround in the page_flip_handler2() for this issue, as this
+       * is just another "last ressort" fail-safe.
+       */
+      if (!connector->active && !image->minimum_ns)
+         image->minimum_ns = os_time_get_nano();
 
       int ret = drm_atomic_commit(connector, image, false);
       if (ret == 0) {
