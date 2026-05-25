@@ -6964,7 +6964,7 @@
         "description": "wsi/display: Add workaround for all-zero valued pageflip events.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5e2814c8a4758b3c3910e21d245869e6f6939eee",
         "notes": null
