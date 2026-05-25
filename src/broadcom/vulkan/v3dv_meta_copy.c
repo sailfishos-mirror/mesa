@@ -1806,16 +1806,6 @@ v3dv_CmdCopyBuffer2(VkCommandBuffer commandBuffer,
    cmd_buffer->state.is_transfer = false;
 }
 
-static void
-destroy_update_buffer_cb(VkDevice _device,
-                         uint64_t pobj,
-                         VkAllocationCallbacks *alloc)
-{
-   V3DV_FROM_HANDLE(v3dv_device, device, _device);
-   struct v3dv_bo *bo = (struct v3dv_bo *)((uintptr_t) pobj);
-   v3dv_bo_free(device, bo);
-}
-
 VKAPI_ATTR void VKAPI_CALL
 v3dv_CmdUpdateBuffer(VkCommandBuffer commandBuffer,
                      VkBuffer dstBuffer,
@@ -1856,7 +1846,7 @@ v3dv_CmdUpdateBuffer(VkCommandBuffer commandBuffer,
        src_bo, 0, &region);
 
    v3dv_cmd_buffer_add_private_obj(
-      cmd_buffer, (uint64_t)(uintptr_t)src_bo, destroy_update_buffer_cb);
+      cmd_buffer, (uint64_t)(uintptr_t)src_bo, v3dv_cmd_buffer_destroy_bo_cb);
 
    cmd_buffer->state.is_transfer = false;
 }

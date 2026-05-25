@@ -714,6 +714,13 @@ void v3dv_cmd_buffer_add_private_obj(struct v3dv_cmd_buffer *cmd_buffer,
                                      uint64_t obj,
                                      v3dv_cmd_buffer_private_obj_destroy_cb destroy_cb);
 
+/* Generic destroy callback for v3dv_bo private objects added via
+ * v3dv_cmd_buffer_add_private_obj.
+ */
+void v3dv_cmd_buffer_destroy_bo_cb(VkDevice _device,
+                                   uint64_t pobj,
+                                   VkAllocationCallbacks *alloc);
+
 void v3dv_merge_barrier_state(struct v3dv_barrier_state *dst,
                               struct v3dv_barrier_state *src);
 
