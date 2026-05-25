@@ -1030,6 +1030,8 @@ static const struct intel_device_info intel_device_info_sg1 = {
          [MESA_SHADER_TESS_CTRL] = 1548, /* BSpec 47137 */ \
          [MESA_SHADER_TESS_EVAL] = 3576, /* BSpec 47135 */ \
          [MESA_SHADER_GEOMETRY]  = 1548, /* BSpec 47136 */ \
+         [MESA_SHADER_TASK]      = 1548, /* BSpec 47133 */ \
+         [MESA_SHADER_MESH]      = 1548, /* Bspec 47132 */ \
       }                                                    \
    }
 
