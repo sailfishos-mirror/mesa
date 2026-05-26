@@ -201,11 +201,6 @@ static bool si_vcn_need_context(struct si_context *ctx)
    /* Kernel does VCN instance scheduling per context, so when we have
     * multiple instances we should use new context to be able to utilize
     * all of them.
-    * Another issue is with AV1, VCN 3 and VCN 4 only support AV1 on
-    * first instance. Kernel parses IBs and switches to first instance when
-    * it detects AV1, but this only works for first submitted IB in context.
-    * The CS would be rejected if we first decode/encode other codecs, kernel
-    * schedules on second instance (default) and then we try to decode/encode AV1.
     */
    return ctx->screen->info.ip[AMD_IP_VCN_ENC].num_instances > 1;
 }
