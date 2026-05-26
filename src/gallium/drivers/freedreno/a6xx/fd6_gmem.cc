@@ -68,6 +68,18 @@ emit_mrt(fd_crb &crb, struct pipe_framebuffer_state *pfb,
       enum a6xx_tile_mode tile_mode = (enum a6xx_tile_mode)
             fd_resource_tile_mode(psurf->texture, psurf->level);
       enum a6xx_format format = fd6_color_format(pformat, tile_mode);
+
+      /* Multi-planar YUV (NV12 & friends) renders the chroma plane as a second
+       * MRT, and needs its own pipe_resource per plane (chained via
+       * pipe_resource::next).  Packed YUV (YUYV & friends) interleaves chroma
+       * in a single plane and needs none of this.
+       */
+      bool planar_yuv = util_format_is_yuv(pformat) &&
+                        util_format_get_num_planes(pformat) >= 2 &&
+                        rsc->b.b.next;
+      if (fd_resource_ubwc_enabled(rsc, psurf->level) && planar_yuv)
+         format = FMT6_R8_G8B8_2PLANE_420_UNORM;
+
       sint = util_format_is_pure_sint(pformat);
       uint = util_format_is_pure_uint(pformat);
 
@@ -79,7 +91,36 @@ emit_mrt(fd_crb &crb, struct pipe_framebuffer_state *pfb,
 
       stride = fd_resource_pitch(rsc, psurf->level);
       array_stride = fd_resource_layer_stride(rsc, psurf->level);
+      uint32_t ubwc_offset = fd_resource_ubwc_offset(rsc, psurf->level, psurf->first_layer);
+      uint32_t flag_array_stride = rsc->layout.ubwc_layer_size;
       swap = fd6_color_swap(pformat, (enum a6xx_tile_mode)rsc->layout.tile_mode, false);
+
+      /* Handle Multiplanar YUV (Linear and UBWC NV12) */
+      struct fd_resource *uv_rsc = planar_yuv ? fd_resource(rsc->b.b.next) : NULL;
+      uint32_t uv_offset = 0;
+      uint32_t uv_stride = 0;
+      uint32_t uv_array_stride = 0;
+      uint32_t uv_ubwc_offset = 0;
+      uint32_t uv_flag_array_stride = 0;
+      bool uv_ubwc = false;
+
+      if (planar_yuv) {
+         uv_offset = fd_resource_offset(uv_rsc, psurf->level, psurf->first_layer);
+         uv_stride = fd_resource_pitch(uv_rsc, psurf->level);
+         uv_array_stride = fd_resource_layer_stride(uv_rsc, psurf->level);
+         uv_ubwc = fd_resource_ubwc_enabled(uv_rsc, psurf->level);
+         if (uv_ubwc) {
+            uv_ubwc_offset = fd_resource_ubwc_offset(uv_rsc, psurf->level, psurf->first_layer);
+            uv_flag_array_stride = uv_rsc->layout.ubwc_layer_size;
+            array_stride = uv_offset - offset;
+            flag_array_stride = uv_ubwc_offset - ubwc_offset;
+
+            /* The UV plane array pitch must match the Y plane array pitch */
+            uv_array_stride = array_stride;
+            /* For the UV flag array pitch, it's just the size of the UV plane (color+flag) */
+            uv_flag_array_stride = uv_rsc->layout.layer_size + uv_rsc->layout.ubwc_layer_size;
+         }
+      }
 
       max_layer_index = psurf->last_layer - psurf->first_layer;
 
@@ -108,33 +149,24 @@ emit_mrt(fd_crb &crb, struct pipe_framebuffer_state *pfb,
 
       crb.add(A6XX_RB_COLOR_FLAG_BUFFER_ADDR(i,
          .bo = rsc->bo,
-         .bo_offset = fd_resource_ubwc_offset(rsc, psurf->level, psurf->first_layer),
+         .bo_offset = ubwc_offset,
       ));
       crb.add(A6XX_RB_COLOR_FLAG_BUFFER_PITCH(i,
          .pitch = fdl_ubwc_pitch(&rsc->layout, psurf->level),
-         .array_pitch = rsc->layout.ubwc_layer_size >> 2,
+         .array_pitch = flag_array_stride >> 2,
       ));
 
-      /* Handle Multiplanar YUV (Linear NV12) - MRT1 for UV Plane.
-       */
-      if (util_format_is_yuv(pformat) &&
-          rsc->b.b.next) {
-
-         struct fd_resource *uv_rsc = fd_resource(rsc->b.b.next);
-         uint32_t uv_offset = fd_resource_offset(uv_rsc, psurf->level,
-                                                  psurf->first_layer);
-         uint32_t uv_stride = fd_resource_pitch(uv_rsc, psurf->level);
-         uint32_t uv_array_stride = fd_resource_layer_stride(uv_rsc, psurf->level);
+      if (planar_yuv) {
          int idx = i + 1; /* MRT1 for UV plane */
          uint32_t uv_base_gmem = gmem ? gmem->cbuf_base[idx] : 0;
 
          crb.attach_bo(uv_rsc->bo);
 
          crb.add(RB_MRT_BUF_INFO(CHIP, idx,
-            .color_format = FMT6_NV12_4R, /* NV12 UV plane format */
-            .color_tile_mode = TILE6_LINEAR,
+            .color_format = format,
+            .color_tile_mode = tile_mode,
             .color_swap = WZYX,
-            .losslesscompen = false,
+            .losslesscompen = uv_ubwc,
          ));
 
          crb.add(A6XX_RB_MRT_PITCH(idx, uv_stride));
@@ -148,12 +180,15 @@ emit_mrt(fd_crb &crb, struct pipe_framebuffer_state *pfb,
             .color_uint = false
          ));
 
+         /* For UBWC, set the UV plane's UBWC flag buffer address and pitch.
+         */
          crb.add(A6XX_RB_COLOR_FLAG_BUFFER_ADDR(idx,
-            .bo_offset = 0,
+            .bo = uv_ubwc ? uv_rsc->bo : NULL,
+            .bo_offset = uv_ubwc ? uv_ubwc_offset : 0,
          ));
          crb.add(A6XX_RB_COLOR_FLAG_BUFFER_PITCH(idx,
-            .pitch = 0,
-            .array_pitch = 0,
+            .pitch = uv_ubwc ? fdl_ubwc_pitch(&uv_rsc->layout, psurf->level) : 0,
+            .array_pitch = uv_ubwc ? uv_flag_array_stride >> 2 : 0,
          ));
       }
 
@@ -614,6 +649,18 @@ update_render_cntl(fd_cs &cs, struct fd_screen *screen,
 
       if (fd_resource_ubwc_enabled(rsc, psurf->level))
          mrts_ubwc_enable |= 1 << i;
+
+      /* For multi-planar YUV, the chroma plane is rendered as MRT(i+1).  Check
+       * if the chroma plane resource is also UBWC and set its FLAG_MRTS bit
+       * accordingly.  Only two-plane 4:2:0 formats (NV12/NV21) are handled
+       * here; a 3-plane format would need a second chroma MRT as well.
+       */
+      if (util_format_is_yuv(psurf->format) &&
+          util_format_get_num_planes(psurf->format) == 2 && rsc->b.b.next) {
+         struct fd_resource *uv_rsc = fd_resource(rsc->b.b.next);
+         if (fd_resource_ubwc_enabled(uv_rsc, psurf->level))
+            mrts_ubwc_enable |= 1 << (i + 1);
+      }
    }
 
    struct fd_reg_pair rb_render_cntl = RB_RENDER_CNTL(
