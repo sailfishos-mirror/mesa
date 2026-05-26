@@ -58,18 +58,15 @@ print_regfile(struct regfile *rf, FILE *fp)
 }
 
 static bool
-validate_src(struct jay_partition *partition,
-             jay_inst *I,
-             unsigned s,
-             struct regfile *rf,
-             jay_def def)
+validate_src(
+   jay_shader *shader, jay_inst *I, unsigned s, struct regfile *rf, jay_def def)
 {
    jay_foreach_comp(def, c) {
       uint32_t actual = *def_reg(rf, def, c);
 
       if (def.file == GPR) {
-         assert(jay_gpr_to_stride(partition, def.reg) ==
-                jay_gpr_to_stride(partition, def.reg + c));
+         assert(jay_def_stride(shader, def) ==
+                jay_def_stride(shader, jay_extract_post_ra(def, c)));
       }
 
       if (actual == 0 || actual != jay_channel(def, c)) {
@@ -93,6 +90,7 @@ validate_src(struct jay_partition *partition,
 static bool
 validate_block(jay_function *func, jay_block *block, struct regfile *blocks)
 {
+   jay_shader *shader = func->shader;
    struct regfile *rf = &blocks[block->index];
    bool success = true;
 
@@ -138,8 +136,7 @@ validate_block(jay_function *func, jay_block *block, struct regfile *blocks)
       /* Validate sources */
       jay_foreach_ssa_src(I, s) {
          if (jay_channel(I->src[s], 0) != JAY_SENTINEL) {
-            success &=
-               validate_src(&func->shader->partition, I, s, rf, I->src[s]);
+            success &= validate_src(shader, I, s, rf, I->src[s]);
          }
       }
 
@@ -150,9 +147,8 @@ validate_block(jay_function *func, jay_block *block, struct regfile *blocks)
                *def_reg(rf, dst, c) = jay_channel(dst, c);
 
                if (dst.file == GPR) {
-                  struct jay_partition *p = &func->shader->partition;
-                  assert(jay_gpr_to_stride(p, dst.reg) ==
-                         jay_gpr_to_stride(p, dst.reg + c));
+                  assert(jay_def_stride(shader, dst) ==
+                         jay_def_stride(shader, jay_extract_post_ra(dst, c)));
                }
             }
          }
