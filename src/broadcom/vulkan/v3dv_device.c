@@ -275,10 +275,26 @@ get_device_extensions(const struct v3dv_physical_device *device,
 #endif
 }
 
+/* V3D_WEBGPU_OVERRIDE=1 advertises higher limits and features required by
+ * Dawn/WebGPU implementation that is over what V3D actually supports. Turn
+ * on for WebGPU usage with the understanding that the over-advertised paths
+ * may fail or assert.
+ */
+bool
+v3dv_webgpu_override_enabled(void)
+{
+   static int cached = -1;
+   if (unlikely(cached < 0))
+      cached = debug_get_bool_option("V3D_WEBGPU_OVERRIDE", false) ? 1 : 0;
+   return cached != 0;
+}
+
 static void
 get_features(const struct v3dv_physical_device *physical_device,
              struct vk_features *features)
 {
+   const bool webgpu = v3dv_webgpu_override_enabled();
+
    *features = (struct vk_features) {
       /* Vulkan 1.0 */
       .robustBufferAccess = true, /* This feature is mandatory */
@@ -319,10 +335,14 @@ get_features(const struct v3dv_physical_device *physical_device,
       .shaderStorageImageMultisample = false,
       .shaderStorageImageReadWithoutFormat = true,
       .shaderStorageImageWriteWithoutFormat = false,
-      .shaderUniformBufferArrayDynamicIndexing = false,
-      .shaderSampledImageArrayDynamicIndexing = false,
-      .shaderStorageBufferArrayDynamicIndexing = false,
-      .shaderStorageImageArrayDynamicIndexing = false,
+      /* Next four features are not actually implemented yet; advertise them
+       * only under V3D_WEBGPU_OVERRIDE=1 so Dawn/WebGPU setups can claim they
+       * are available. Debug build will assert if feature is really used.
+       */
+      .shaderUniformBufferArrayDynamicIndexing = webgpu,
+      .shaderSampledImageArrayDynamicIndexing = webgpu,
+      .shaderStorageBufferArrayDynamicIndexing = webgpu,
+      .shaderStorageImageArrayDynamicIndexing = webgpu,
       .shaderClipDistance = true,
       .shaderCullDistance = false,
       .shaderFloat16 = physical_device->devinfo.ver >= 71,
@@ -905,19 +925,38 @@ get_device_properties(const struct v3dv_physical_device *device,
    const uint32_t page_size = 4096;
    const uint64_t mem_size = compute_heap_size(instance);
 
-   const uint32_t max_varying_components = 16 * 4;
+   const bool webgpu = v3dv_webgpu_override_enabled();
+
+   /* HW supports 64 varying components; Dawn requires 72, so we
+    * over-advertise the extra 8 only when V3D_WEBGPU_OVERRIDE=1. Of those 8:
+    * 4 are used for the position, which in V3D is mapped to dedicated
+    * registers (rf2/rf3) so it doesn't draw from the 64 varying pool; the
+    * other 4 are needed by a Dawn polyfill that V3DV shouldn't actually need.
+    * TODO: lower the polyfill pattern to avoid the extra varyings, or modify
+    *       Dawn to skip the usage of this varying for Broadcom.
+    */
+   const uint32_t max_varying_components = webgpu ? 16 * 4 + 8 : 16 * 4;
 
    const uint32_t max_per_stage_resources = 128;
 
    const float v3d_point_line_granularity = 2.0f / (1 << V3D_COORD_SHIFT);
-   const uint32_t max_fb_size = device->devinfo.max_framebuffer_size;
+   /* With V3D_WEBGPU_OVERRIDE=1 advertise the minimal dawn required dimension
+    * of 8192 for the framebuffer.
+    */
+   const uint32_t max_fb_size =
+      webgpu ? 8192u : device->devinfo.max_framebuffer_size;
    /* The TMU supports image dimensions up to 16384x16384 at single sample
     * (halved to 8192x8192 for 2D images, the only ones that can be
     * multisampled). For now we still cap maxImageDimension* at the framebuffer
     * size because copy/blit/clear go through the TLB and blit-shader paths,
     * which are bounded by the framebuffer size.
+    *
+    * With V3D_WEBGPU_OVERRIDE=1 expose larger limits for texture-only
+    * dimensions; the error in job_compute_frame_tiling() will fire if we
+    * ever actually render above the HW limit.
     */
-   const uint32_t max_image_dim = max_fb_size;
+   const uint32_t max_image_dim = webgpu ? 16384u : max_fb_size;
+   const uint32_t max_image_2d_dim = webgpu ? 8192u : max_fb_size;
 
    /* Note: update nir_shader_compiler_options.max_samples when changing this. */
    const VkSampleCountFlags supported_sample_counts =
@@ -965,7 +1004,7 @@ get_device_properties(const struct v3dv_physical_device *device,
 
       /* Vulkan 1.0 limits */
       .maxImageDimension1D = max_image_dim,
-      .maxImageDimension2D = max_image_dim,
+      .maxImageDimension2D = max_image_2d_dim,
       .maxImageDimension3D = max_image_dim,
       .maxImageDimensionCube = max_image_dim,
       .maxImageArrayLayers = V3D_MAX_ARRAY_LAYERS,

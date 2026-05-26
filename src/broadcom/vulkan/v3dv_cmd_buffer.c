@@ -407,6 +407,21 @@ job_compute_frame_tiling(struct v3dv_job *job,
    assert(job);
    struct v3dv_frame_tiling *tiling = &job->frame_tiling;
 
+   /* With V3D_WEBGPU_OVERRIDE=1 the advertised framebuffer width/height
+    * is 8192 (to satisfy Dawn/Chromium) but the actual HW rendering
+    * limit is lower (7680 on RPi5, 4096 on RPi4). Warn when a render
+    * job exceeds the real limit — meta fill/copy paths are already
+    * clamped by framebuffer_size_for_pixel_count, but image blits and
+    * render passes may legitimately use the advertised limit.
+    */
+   const uint32_t max_fb_dim =
+      job->device->devinfo.max_framebuffer_size;
+   if (width > max_fb_dim || height > max_fb_dim) {
+      mesa_loge("V3D_WEBGPU_OVERRIDE:"
+                " job_compute_frame_tiling: %ux%u exceeds real HW limit %ux%u",
+                width, height, max_fb_dim, max_fb_dim);
+   }
+
    tiling->width = width;
    tiling->height = height;
    tiling->layers = layers;

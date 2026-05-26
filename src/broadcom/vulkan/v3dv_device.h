@@ -146,6 +146,8 @@ void v3dv_meta_blit_finish(struct v3dv_device *device);
 void v3dv_meta_texel_buffer_copy_init(struct v3dv_device *device);
 void v3dv_meta_texel_buffer_copy_finish(struct v3dv_device *device);
 
+bool v3dv_webgpu_override_enabled(void);
+
 bool v3dv_meta_can_use_tlb(struct v3dv_image *image,
                            uint8_t plane,
                            uint8_t miplevel,

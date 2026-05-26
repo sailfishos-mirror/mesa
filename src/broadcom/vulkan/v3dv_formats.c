@@ -531,8 +531,18 @@ get_image_format_properties(
     * multisampled). For now we still cap maxImageDimension* at the framebuffer
     * size because copy/blit/clear go through the TLB and blit-shader paths,
     * which are bounded by the framebuffer size.
+    *
+    * With V3D_WEBGPU_OVERRIDE=1 expose larger limits for texture-only
+    * dimensions; the error in job_compute_frame_tiling() will fire if we
+    * ever actually render above the HW limit.
     */
-   const uint32_t max_image_dim = physical_device->devinfo.max_framebuffer_size;
+   const bool webgpu = v3dv_webgpu_override_enabled();
+   const uint32_t max_image_dim =
+      webgpu ? 16384u : physical_device->devinfo.max_framebuffer_size;
+   const uint32_t max_image_2d_dim =
+      webgpu ? 8192u : physical_device->devinfo.max_framebuffer_size;
+   const uint32_t max_image_mip = webgpu ? 15 : V3D_MAX_MIP_LEVELS;
+   const uint32_t max_image_2d_mip = webgpu ? 14 : V3D_MAX_MIP_LEVELS;
 
    switch (info->type) {
    case VK_IMAGE_TYPE_1D:
@@ -540,22 +550,22 @@ get_image_format_properties(
       pImageFormatProperties->maxExtent.height = 1;
       pImageFormatProperties->maxExtent.depth = 1;
       pImageFormatProperties->maxArrayLayers = V3D_MAX_ARRAY_LAYERS;
-      pImageFormatProperties->maxMipLevels = V3D_MAX_MIP_LEVELS;
+      pImageFormatProperties->maxMipLevels = max_image_mip;
       break;
    case VK_IMAGE_TYPE_2D:
-      pImageFormatProperties->maxExtent.width = max_image_dim;
-      pImageFormatProperties->maxExtent.height = max_image_dim;
+      pImageFormatProperties->maxExtent.width = max_image_2d_dim;
+      pImageFormatProperties->maxExtent.height = max_image_2d_dim;
       pImageFormatProperties->maxExtent.depth = 1;
       pImageFormatProperties->maxArrayLayers =
          v3dv_format->plane_count == 1 ? V3D_MAX_ARRAY_LAYERS : 1;
-      pImageFormatProperties->maxMipLevels = V3D_MAX_MIP_LEVELS;
+      pImageFormatProperties->maxMipLevels = max_image_2d_mip;
       break;
    case VK_IMAGE_TYPE_3D:
       pImageFormatProperties->maxExtent.width = max_image_dim;
       pImageFormatProperties->maxExtent.height = max_image_dim;
       pImageFormatProperties->maxExtent.depth = max_image_dim;
       pImageFormatProperties->maxArrayLayers = 1;
-      pImageFormatProperties->maxMipLevels = V3D_MAX_MIP_LEVELS;
+      pImageFormatProperties->maxMipLevels = max_image_mip;
       break;
    default:
       UNREACHABLE("bad VkImageType");
