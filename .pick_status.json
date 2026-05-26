@@ -3934,7 +3934,7 @@
         "description": "panfrost: Fix wrong layout reuse in user clip planes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "32ca5f7515d895ce222b3ee7e4bf15ad973290dd",
         "notes": null
