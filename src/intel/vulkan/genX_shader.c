@@ -331,16 +331,9 @@ emit_ves_vf_instancing(struct anv_batch *batch,
        *
        * TODO: Compact vertex elements so we never end up with holes.
        */
-      struct GENX(VERTEX_ELEMENT_STATE) element = {
-         .Valid = true,
-         .Component0Control = VFCOMP_STORE_0,
-         .Component1Control = VFCOMP_STORE_0,
-         .Component2Control = VFCOMP_STORE_0,
-         .Component3Control = VFCOMP_STORE_0,
-      };
-      GENX(VERTEX_ELEMENT_STATE_pack)(NULL,
-                                      &vertex_element_dws[i * 2],
-                                      &element);
+      memcpy(&vertex_element_dws[i * 2],
+             device->physical->gfx_default.empty_vs_input,
+             sizeof(device->physical->gfx_default.empty_vs_input));
    }
 
    u_foreach_bit(a, vi->attributes_valid & elements) {
