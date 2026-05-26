@@ -2524,15 +2524,28 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       goto fail_alloc;
    }
 
-   result = radv_amdgpu_winsys_create(fd, instance->debug_flags, instance->perftest_flags, is_virtio, &pdev->ws);
+   struct radeon_winsys_info winsys_info;
+
+   result = radv_amdgpu_winsys_query_info(fd, instance->debug_flags, is_virtio, &winsys_info);
+   if (result != VK_SUCCESS) {
+      result = vk_errorf(instance, result, "failed to query GPU info");
+      goto fail_base;
+   }
+
+   memcpy(&pdev->info, &winsys_info.base, sizeof(pdev->info));
+   memcpy(&pdev->syncobj_sync_type, &winsys_info.syncobj_sync_type, sizeof(pdev->syncobj_sync_type));
+
+   for (uint32_t p = RADEON_CTX_PRIORITY_LOW; p <= RADEON_CTX_PRIORITY_REALTIME; p++) {
+      if (winsys_info.global_priority_mask & BITFIELD_BIT(p))
+         pdev->global_priority_mask |= radeon_to_vk_priority(p);
+   }
+
+   result = radv_amdgpu_winsys_create(fd, &winsys_info.base, instance->debug_flags, instance->perftest_flags, is_virtio,
+                                      &pdev->ws);
    if (result != VK_SUCCESS) {
       result = vk_errorf(instance, result, "failed to initialize winsys");
       goto fail_base;
    }
-
-   pdev->ws->query_info(pdev->ws, &pdev->info);
-
-   pdev->syncobj_sync_type = vk_drm_syncobj_get_type(pdev->ws->get_fd(pdev->ws));
 
    int num_sync_types = 0;
    if (pdev->syncobj_sync_type.features) {
@@ -2548,13 +2561,6 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    }
    pdev->sync_types[num_sync_types++] = NULL;
    pdev->vk.supported_sync_types = pdev->sync_types;
-
-   for (uint32_t p = VK_QUEUE_GLOBAL_PRIORITY_LOW; p <= VK_QUEUE_GLOBAL_PRIORITY_REALTIME; p <<= 1) {
-      if (pdev->ws->ctx_is_priority_permitted(pdev->ws, vk_to_radeon_priority(p)) != VK_SUCCESS)
-         continue;
-
-      pdev->global_priority_mask |= p;
-   }
 
    if (instance->vk.enabled_extensions.KHR_display) {
       wsi_master_fd = open(drm_device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);

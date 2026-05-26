@@ -22,12 +22,6 @@
 #include "radv_amdgpu_winsys_public.h"
 #include "vk_drm_syncobj.h"
 
-static void
-radv_amdgpu_winsys_query_info(struct radeon_winsys *rws, struct radeon_info *gpu_info)
-{
-   *gpu_info = ((struct radv_amdgpu_winsys *)rws)->info;
-}
-
 static uint64_t
 radv_amdgpu_winsys_query_value(struct radeon_winsys *rws, enum radeon_value_id value)
 {
@@ -225,8 +219,8 @@ radv_amdgpu_winsys_unreserve_vmid(struct radeon_winsys *rws)
 }
 
 VkResult
-radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags, bool is_virtio,
-                          struct radeon_winsys **winsys)
+radv_amdgpu_winsys_create(int fd, const struct radeon_info *info, uint64_t debug_flags, uint64_t perftest_flags,
+                          bool is_virtio, struct radeon_winsys **winsys)
 {
    VkResult result = VK_SUCCESS;
 
@@ -248,9 +242,6 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
 
    ws->dev = dev;
    ws->fd = ac_drm_device_get_fd(dev);
-   ws->info.drm_major = drm_major;
-   ws->info.drm_minor = drm_minor;
-   ws->info.is_virtio = is_virtio;
 
    ws->alloc_tracker = radv_amdgpu_alloc_tracker_acquire(ac_drm_device_get_cookie(dev));
    if (!ws->alloc_tracker) {
@@ -258,27 +249,7 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
       goto winsys_fail;
    }
 
-   enum ac_query_gpu_info_result info_result =
-      ac_query_gpu_info(ws->fd, ws->dev, &ws->info, true, !(debug_flags & RADV_DEBUG_NO_CACHE_COMPAT));
-   if (info_result != AC_QUERY_GPU_INFO_SUCCESS) {
-      result = info_result == AC_QUERY_GPU_INFO_FAIL ? VK_ERROR_INITIALIZATION_FAILED : VK_ERROR_INCOMPATIBLE_DRIVER;
-      goto winsys_fail;
-   }
-
-   /*
-    * Override the max submits on video queues.
-    * If you submit multiple session contexts in the same IB sequence the
-    * hardware gets upset as it expects a kernel fence to be emitted to reset
-    * the session context in the hardware.
-    * Avoid this problem by never submitted more than one IB at a time.
-    * This possibly should be fixed in the kernel, and if it is this can be
-    * resolved.
-    */
-   for (enum amd_ip_type ip_type = AMD_IP_UVD; ip_type <= AMD_IP_VCN_ENC; ip_type++)
-      ws->info.max_submitted_ibs[ip_type] = 1;
-
-   ws->info.ip[AMD_IP_SDMA].num_queues = MIN2(ws->info.ip[AMD_IP_SDMA].num_queues, MAX_RINGS_PER_TYPE);
-   ws->info.ip[AMD_IP_COMPUTE].num_queues = MIN2(ws->info.ip[AMD_IP_COMPUTE].num_queues, MAX_RINGS_PER_TYPE);
+   memcpy(&ws->info, info, sizeof(ws->info));
 
    ws->chain_ib = !(debug_flags & RADV_DEBUG_NO_IB_CHAINING);
    ws->debug_all_bos = !!(debug_flags & RADV_DEBUG_ALL_BOS);
@@ -302,7 +273,6 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    u_rwlock_init(&ws->global_bo_list.lock);
    list_inithead(&ws->log_bo_list);
    u_rwlock_init(&ws->log_bo_list_lock);
-   ws->base.query_info = radv_amdgpu_winsys_query_info;
    ws->base.query_value = radv_amdgpu_winsys_query_value;
    ws->base.read_registers = radv_amdgpu_winsys_read_registers;
    ws->base.query_gpuvm_fault = radv_amdgpu_winsys_query_gpuvm_fault;
@@ -326,6 +296,80 @@ winsys_fail:
    if (ws->alloc_tracker)
       radv_amdgpu_alloc_tracker_release(ws->alloc_tracker);
    free(ws);
+fail:
+   ac_drm_device_deinitialize(dev);
+   return result;
+}
+
+static VkResult
+radv_amdgpu_ctx_is_priority_permitted(ac_drm_device *dev, enum radeon_ctx_priority priority)
+{
+   uint32_t amdgpu_priority = radeon_to_amdgpu_priority(priority);
+   uint32_t ctx_handle;
+   int r;
+
+   r = ac_drm_cs_ctx_create2(dev, amdgpu_priority, &ctx_handle);
+   if (r && r == -EACCES) {
+      return VK_ERROR_NOT_PERMITTED;
+   } else if (r) {
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
+   }
+
+   ac_drm_cs_ctx_free(dev, ctx_handle);
+   return VK_SUCCESS;
+}
+
+VkResult
+radv_amdgpu_winsys_query_info(int fd, uint64_t debug_flags, bool is_virtio, struct radeon_winsys_info *info)
+{
+   uint32_t drm_major, drm_minor, r;
+   VkResult result = VK_SUCCESS;
+   ac_drm_device *dev;
+
+   memset(info, 0, sizeof(*info));
+
+   r = ac_drm_device_initialize(fd, is_virtio, &drm_major, &drm_minor, &dev);
+   if (r) {
+      fprintf(stderr, "radv/amdgpu: failed to initialize device.\n");
+      return VK_ERROR_INITIALIZATION_FAILED;
+   }
+
+   info->base.drm_major = drm_major;
+   info->base.drm_minor = drm_minor;
+   info->base.is_virtio = is_virtio;
+
+   enum ac_query_gpu_info_result info_result =
+      ac_query_gpu_info(fd, dev, &info->base, true, !(debug_flags & RADV_DEBUG_NO_CACHE_COMPAT));
+   if (info_result != AC_QUERY_GPU_INFO_SUCCESS) {
+      result = info_result == AC_QUERY_GPU_INFO_FAIL ? VK_ERROR_INITIALIZATION_FAILED : VK_ERROR_INCOMPATIBLE_DRIVER;
+      goto fail;
+   }
+
+   /*
+    * Override the max submits on video queues.
+    * If you submit multiple session contexts in the same IB sequence the
+    * hardware gets upset as it expects a kernel fence to be emitted to reset
+    * the session context in the hardware.
+    * Avoid this problem by never submitted more than one IB at a time.
+    * This possibly should be fixed in the kernel, and if it is this can be
+    * resolved.
+    */
+   for (enum amd_ip_type ip_type = AMD_IP_UVD; ip_type <= AMD_IP_VCN_ENC; ip_type++)
+      info->base.max_submitted_ibs[ip_type] = 1;
+
+   info->base.ip[AMD_IP_SDMA].num_queues = MIN2(info->base.ip[AMD_IP_SDMA].num_queues, MAX_RINGS_PER_TYPE);
+   info->base.ip[AMD_IP_COMPUTE].num_queues = MIN2(info->base.ip[AMD_IP_COMPUTE].num_queues, MAX_RINGS_PER_TYPE);
+
+   info->syncobj_sync_type = vk_drm_syncobj_get_type(fd);
+
+   /* Determine which context priorities are supported. */
+   for (uint32_t p = RADEON_CTX_PRIORITY_LOW; p <= RADEON_CTX_PRIORITY_REALTIME; p++) {
+      if (radv_amdgpu_ctx_is_priority_permitted(dev, p) != VK_SUCCESS)
+         continue;
+
+      info->global_priority_mask |= BITFIELD_BIT(p);
+   }
+
 fail:
    ac_drm_device_deinitialize(dev);
    return result;
