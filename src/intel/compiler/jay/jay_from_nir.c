@@ -849,11 +849,6 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
          srcs[i] = jay_UNDEF_u32(b);
    }
 
-   /* Our current send splitting heuristic is bad, override it. */
-   if (split == -1) {
-      split = len;
-   }
-
    jay_inst *send =
       jay_SEND(b, .sfid = BRW_SFID_RENDER_CACHE, .check_tdr = true,
                .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
