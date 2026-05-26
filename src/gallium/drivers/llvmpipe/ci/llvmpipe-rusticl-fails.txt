@@ -27,9 +27,6 @@ program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float8,F
 program@execute@global-offset,Fail
 program@execute@global-offset@3d- input dependent,Fail
 
-# Debian bookworm fails
-program@build@vector-data-types,Fail
-
 # fails to query queue size with CL_INVALID_COMMAND_QUEUE
 api@clgetcommandqueueinfo,Fail
 

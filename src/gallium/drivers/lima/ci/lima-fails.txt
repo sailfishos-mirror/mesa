@@ -105,14 +105,10 @@ spec@arb_shader_texture_lod@execution@glsl-fs-shadow2dgradarb-07,Fail
 spec@arb_shader_texture_lod@execution@glsl-fs-shadow2dgradarb-08,Fail
 spec@arb_shader_texture_lod@execution@glsl-fs-shadow2dgradarb-cumulative,Fail
 spec@arb_texture_cube_map@copyteximage cube,Fail
-spec@arb_texture_cube_map@copyteximage cube samples=2,Fail
-spec@arb_texture_cube_map@copyteximage cube samples=4,Fail
 spec@arb_texture_cube_map@cubemap,Fail
 spec@arb_texture_cube_map@cubemap npot,Fail
 spec@arb_texture_cube_map@cubemap-shader,Fail
 spec@arb_texture_rectangle@1-1-linear-texture,Fail
-spec@arb_texture_rectangle@copyteximage rect samples=2,Fail
-spec@arb_texture_rectangle@copyteximage rect samples=4,Fail
 spec@arb_texture_rectangle@glsl-fs-shadow2drect-01,Fail
 spec@arb_texture_rectangle@glsl-fs-shadow2drect-02,Fail
 spec@arb_texture_rectangle@glsl-fs-shadow2drect-03,Fail
@@ -1032,6 +1028,10 @@ dEQP-GLES2.functional.shaders.texture_functions.fragment.texture2dproj_vec4_bias
 # uprev Piglit in Mesa
 spec@!opengl 1.4@triangle-rasterization-fbo,Fail
 spec@arb_color_buffer_float@gl_rgba8-drawpixels,Fail
+spec@arb_texture_cube_map@copyteximage cube samples=2,Fail
+spec@arb_texture_cube_map@copyteximage cube samples=4,Fail
+spec@arb_texture_rectangle@copyteximage rect samples=2,Fail
+spec@arb_texture_rectangle@copyteximage rect samples=4,Fail
 spec@arb_texture_rg@rg-draw-pixels,Fail
 spec@arb_texture_rg@texture-rg,Fail
 spec@ext_framebuffer_blit@fbo-readdrawpix,Fail
@@ -1042,6 +1042,7 @@ spec@!opengl 1.4@triangle-rasterization,Fail
 spec@!opengl 2.1@pbo@test_draw_pixels,Fail
 spec@arb_pixel_buffer_object@pbo-drawpixels,Fail
 spec@ext_framebuffer_object@fbo-fragcoord2,Fail
+spec@glsl-1.10@execution@samplers@glsl-fs-shadow2d-consecutive-draws,Fail
 spec@glsl-1.10@execution@variable-indexing@vs-temp-array-mat4-index-col-row-wr,Crash
 
 # With linux kernel 6.13-rc4 uprev

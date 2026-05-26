@@ -281,9 +281,6 @@ spec@ext_texture_array@compressed teximage,Fail
 spec@ext_texture_array@compressed teximage pbo,Fail
 spec@ext_texture_array@compressed texsubimage,Fail
 spec@ext_texture_array@compressed texsubimage pbo,Fail
-spec@ext_texture_array@copyteximage 1d_array samples=2,Crash
-spec@ext_texture_array@copyteximage 1d_array samples=4,Crash
-spec@ext_texture_array@copyteximage 1d_array,Crash
 spec@ext_texture_array@fbo-generatemipmap-array,Fail
 spec@ext_texture_array@glsl-fs-shadow1darray-07,Fail
 spec@ext_texture_array@glsl-fs-shadow2darray-07,Fail
@@ -637,11 +634,14 @@ spec@glsl-1.10@execution@variable-indexing@fs-input-array-float-index-rd,Fail
 spec@glsl-1.10@execution@variable-indexing@fs-input-array-vec2-index-rd,Fail
 
 # uprev Piglit in Mesa
-spec@!opengl 1.1@line-smooth-coverage,Fail
+shaders@glsl-vs-texturematrix-1,Fail
+spec@!opengl 1.1@dlist-clear,Fail
+spec@!opengl 1.1@polygon-mode-offset@config 3: Expected blue pixel in center,Fail
+spec@!opengl 1.1@polygon-mode-offset@config 4: Expected blue pixel in center,Fail
 spec@!opengl 1.1@push-pop-color-material,Fail
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats,Fail
 spec@glsl-1.10@execution@built-in-functions@vs-sign-vec4,Fail
-spec@glsl-1.10@execution@fs-texture-select,Fail
+spec@nv_half_float@attribs-half-float,Fail
 
 # Nightly run expectations update
 hiz@hiz-depth-read-fbo-d24-s0,Fail
