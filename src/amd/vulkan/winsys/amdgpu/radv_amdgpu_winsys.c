@@ -166,9 +166,6 @@ radv_amdgpu_alloc_tracker_release(struct radv_amdgpu_alloc_tracker *tracker)
    simple_mtx_unlock(&tracker_mutex);
 }
 
-static simple_mtx_t winsys_creation_mutex = SIMPLE_MTX_INITIALIZER;
-static struct hash_table *winsyses = NULL;
-
 static VkResult
 radv_amdgpu_null_prt_bug_init(struct radeon_winsys *rws)
 {
@@ -201,24 +198,6 @@ static void
 radv_amdgpu_winsys_destroy(struct radeon_winsys *rws)
 {
    struct radv_amdgpu_winsys *ws = (struct radv_amdgpu_winsys *)rws;
-   bool destroy = false;
-
-   simple_mtx_lock(&winsys_creation_mutex);
-   if (!--ws->refcount) {
-      _mesa_hash_table_remove_key(winsyses, (void *)ac_drm_device_get_cookie(ws->dev));
-
-      /* Clean the hashtable up if empty, though there is no
-       * empty function. */
-      if (_mesa_hash_table_num_entries(winsyses) == 0) {
-         _mesa_hash_table_destroy(winsyses, NULL);
-         winsyses = NULL;
-      }
-
-      destroy = true;
-   }
-   simple_mtx_unlock(&winsys_creation_mutex);
-   if (!destroy)
-      return;
 
    u_rwlock_destroy(&ws->global_bo_list.lock);
    free(ws->global_bo_list.bos);
@@ -269,13 +248,6 @@ radv_amdgpu_winsys_unreserve_vmid(struct radeon_winsys *rws)
    ac_drm_vm_unreserve_vmid(ws->dev, 0);
 }
 
-static uint64_t
-radv_amdgpu_winsys_filter_perftest_flags(uint64_t perftest_flags)
-{
-   return perftest_flags &
-          (RADV_PERFTEST_NO_GTT_SPILL | RADV_PERFTEST_LOCAL_BOS | RADV_PERFTEST_NO_SAM | RADV_PERFTEST_SAM);
-}
-
 VkResult
 radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags, bool is_virtio,
                           struct radeon_winsys **winsys)
@@ -286,28 +258,10 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    ac_drm_device *dev;
    struct radv_amdgpu_winsys *ws = NULL;
 
-   perftest_flags = radv_amdgpu_winsys_filter_perftest_flags(perftest_flags);
-
    r = ac_drm_device_initialize(fd, is_virtio, &drm_major, &drm_minor, &dev);
    if (r) {
       fprintf(stderr, "radv/amdgpu: failed to initialize device.\n");
       return VK_ERROR_INITIALIZATION_FAILED;
-   }
-
-   /* We have to keep this lock till insertion. */
-   simple_mtx_lock(&winsys_creation_mutex);
-   if (!winsyses)
-      winsyses = _mesa_pointer_hash_table_create(NULL);
-   if (!winsyses) {
-      fprintf(stderr, "radv/amdgpu: failed to alloc winsys hash table.\n");
-      result = VK_ERROR_OUT_OF_HOST_MEMORY;
-      goto fail;
-   }
-
-   struct hash_entry *entry = _mesa_hash_table_search(winsyses, (void *)ac_drm_device_get_cookie(dev));
-   if (entry) {
-      ws = (struct radv_amdgpu_winsys *)entry->data;
-      ++ws->refcount;
    }
 
    if (is_virtio && (perftest_flags & RADV_PERFTEST_LOCAL_BOS)) {
@@ -317,34 +271,12 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
       goto fail;
    }
 
-   if (ws) {
-      simple_mtx_unlock(&winsys_creation_mutex);
-      ac_drm_device_deinitialize(dev);
-
-      /* Check that options don't differ from the existing winsys. */
-      if (((debug_flags & RADV_DEBUG_ALL_BOS) && !ws->debug_all_bos) ||
-          ((debug_flags & RADV_DEBUG_HANG) && !ws->debug_log_bos) ||
-          ((debug_flags & RADV_DEBUG_NO_IB_CHAINING) && ws->chain_ib) ||
-          ((debug_flags & RADV_DEBUG_VM) && !ws->debug_vm) || (perftest_flags != ws->perftest)) {
-         fprintf(stderr, "radv/amdgpu: Found options that differ from the existing winsys.\n");
-         return VK_ERROR_INITIALIZATION_FAILED;
-      }
-
-      /* RADV_DEBUG_ZERO_VRAM is the only option that is allowed to be set again. */
-      if (debug_flags & RADV_DEBUG_ZERO_VRAM)
-         ws->zero_all_vram_allocs = true;
-
-      *winsys = &ws->base;
-      return VK_SUCCESS;
-   }
-
    ws = calloc(1, sizeof(struct radv_amdgpu_winsys));
    if (!ws) {
       result = VK_ERROR_OUT_OF_HOST_MEMORY;
       goto fail;
    }
 
-   ws->refcount = 1;
    ws->dev = dev;
    ws->fd = ac_drm_device_get_fd(dev);
    ws->info.drm_major = drm_major;
@@ -418,9 +350,6 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    if (result != VK_SUCCESS)
       goto winsys_fail;
 
-   _mesa_hash_table_insert(winsyses, (void *)ac_drm_device_get_cookie(dev), ws);
-   simple_mtx_unlock(&winsys_creation_mutex);
-
    *winsys = &ws->base;
 
    return result;
@@ -430,11 +359,6 @@ winsys_fail:
       radv_amdgpu_alloc_tracker_release(ws->alloc_tracker);
    free(ws);
 fail:
-   if (winsyses && _mesa_hash_table_num_entries(winsyses) == 0) {
-      _mesa_hash_table_destroy(winsyses, NULL);
-      winsyses = NULL;
-   }
-   simple_mtx_unlock(&winsys_creation_mutex);
    ac_drm_device_deinitialize(dev);
    return result;
 }
