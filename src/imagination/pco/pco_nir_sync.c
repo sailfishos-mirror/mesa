@@ -208,19 +208,10 @@ struct subgroup_state {
    nir_variable *per_subgroup_var;
 };
 
-static nir_def *
-lower_read_invocation(nir_builder *b,
-                      nir_intrinsic_instr *intr,
-                      struct subgroup_state *state)
+static nir_variable *
+per_subgroup_var(nir_shader *shader, struct subgroup_state *state)
 {
-   struct shader_info *info = &b->shader->info;
-   nir_def *subgroup_id =
-      nir_udiv_imm(b,
-                   nir_load_local_invocation_index(b),
-                   ROGUE_MAX_INSTANCES_PER_TASK);
-
-   nir_def *value = intr->src[0].ssa;
-   nir_def *invoc = intr->src[1].ssa;
+   struct shader_info *info = &shader->info;
 
    /* Allocate a 32-bit var for each subgroup. */
    if (!state->per_subgroup_var) {
@@ -233,13 +224,30 @@ lower_read_invocation(nir_builder *b,
       const glsl_type *var_type =
          glsl_array_type(glsl_uint_type(), num_subgroups, 0);
 
-      state->per_subgroup_var = nir_variable_create(b->shader,
+      state->per_subgroup_var = nir_variable_create(shader,
                                                     nir_var_mem_shared,
                                                     var_type,
                                                     "per_subgroup_var");
    }
 
-   nir_deref_instr *deref = nir_build_deref_var(b, state->per_subgroup_var);
+   return state->per_subgroup_var;
+}
+
+static nir_def *
+lower_read_invocation(nir_builder *b,
+                      nir_intrinsic_instr *intr,
+                      struct subgroup_state *state)
+{
+   nir_def *subgroup_id =
+      nir_udiv_imm(b,
+                   nir_load_local_invocation_index(b),
+                   ROGUE_MAX_INSTANCES_PER_TASK);
+
+   nir_def *value = intr->src[0].ssa;
+   nir_def *invoc = intr->src[1].ssa;
+
+   nir_variable *var = per_subgroup_var(b->shader, state);
+   nir_deref_instr *deref = nir_build_deref_var(b, var);
    deref = nir_build_deref_array(b, deref, subgroup_id);
 
    nir_def *invocation_id = nir_load_instance_num_pco(b);
@@ -249,6 +257,47 @@ lower_read_invocation(nir_builder *b,
       nir_store_deref(b, deref, value, 1);
    }
    nir_pop_if(b, nif);
+
+   /* Retrieve the value. */
+   return nir_load_deref(b, deref);
+}
+
+static inline nir_def *elect(nir_builder *b)
+{
+   return nir_ieq(b, nir_load_instance_num_pco(b), nir_first_invocation(b));
+}
+
+static nir_def *
+lower_ballot(nir_builder *b,
+             nir_intrinsic_instr *intr,
+             struct subgroup_state *state)
+{
+   nir_def *subgroup_id =
+      nir_udiv_imm(b,
+                   nir_load_local_invocation_index(b),
+                   ROGUE_MAX_INSTANCES_PER_TASK);
+
+   nir_variable *var = per_subgroup_var(b->shader, state);
+   nir_deref_instr *deref = nir_build_deref_var(b, var);
+   deref = nir_build_deref_array(b, deref, subgroup_id);
+
+   /* Initialize the ballot shared var to zero. */
+   nir_if *nif = nir_push_if(b, elect(b));
+   {
+      nir_store_deref(b, deref, nir_imm_int(b, 0), 1);
+   }
+   nir_pop_if(b, nif);
+
+   /* Each mask = value << invocation_num */
+   nir_def *ballot_mask =
+      nir_ishl(b, nir_b2i32(b, intr->src[0].ssa), nir_load_instance_num_pco(b));
+
+   /* OR all the masks together. */
+   nir_deref_atomic(b,
+                    intr->def.bit_size,
+                    &deref->def,
+                    ballot_mask,
+                    .atomic_op = nir_atomic_op_ior);
 
    /* Retrieve the value. */
    return nir_load_deref(b, deref);
@@ -289,6 +338,11 @@ static bool lower_subgroup_intrinsic(nir_builder *b,
 
    case nir_intrinsic_read_invocation:
       new_def = lower_read_invocation(b, intr, state);
+      break;
+
+   case nir_intrinsic_ballot:
+   case nir_intrinsic_ballot_relaxed:
+      new_def = lower_ballot(b, intr, state);
       break;
 
    default:

@@ -569,7 +569,10 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
          .ballot_components = 1,
          .lower_to_scalar = true,
          .lower_read_first_invocation = true,
+         .lower_subgroup_masks = true,
          .lower_elect = true,
+         .lower_inverse_ballot = true,
+         .lower_boolean_shuffle = true,
       });
 
    NIR_PASS(_, nir, pco_nir_lower_subgroups);
