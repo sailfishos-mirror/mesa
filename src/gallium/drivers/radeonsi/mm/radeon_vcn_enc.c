@@ -551,6 +551,21 @@ static void radeon_vcn_enc_h264_get_param(struct radeon_encoder *enc,
       enc->enc_pic.enc_params.reference_picture_index = 0xffffffff;
    }
 
+   if (pic->ref_list1[0] == PIPE_H2645_LIST_REF_INVALID_ENTRY &&
+       pic->ref_list0[1] != PIPE_H2645_LIST_REF_INVALID_ENTRY) {
+      uint8_t ref_l0_1 = pic->ref_list0[1];
+
+      enc->enc_pic.h264_enc_params.l0_reference_picture1_index = ref_l0_1;
+      enc->enc_pic.h264_enc_params.picture_info_l0_reference_picture1.pic_type =
+         radeon_enc_h2645_picture_type(pic->dpb[ref_l0_1].picture_type);
+      enc->enc_pic.h264_enc_params.picture_info_l0_reference_picture1.pic_order_cnt =
+         pic->dpb[ref_l0_1].pic_order_cnt;
+      enc->enc_pic.h264_enc_params.picture_info_l0_reference_picture1.is_long_term =
+         pic->dpb[ref_l0_1].is_ltr;
+   } else {
+      enc->enc_pic.h264_enc_params.l0_reference_picture1_index = 0xffffffff;
+   }
+
    if (pic->ref_list1[0] != PIPE_H2645_LIST_REF_INVALID_ENTRY) {
       uint8_t ref_l1 = pic->ref_list1[0];
 

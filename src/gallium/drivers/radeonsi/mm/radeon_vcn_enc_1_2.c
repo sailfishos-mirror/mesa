@@ -223,6 +223,7 @@ unsigned int radeon_enc_write_sps_hevc(struct radeon_encoder *enc, uint8_t *out)
 unsigned int radeon_enc_write_pps(struct radeon_encoder *enc, uint8_t nal_byte, uint8_t *out)
 {
    struct pipe_h264_enc_pic_control pps = enc->enc_pic.h264.desc->pic_ctrl;
+   pps.num_ref_idx_l0_default_active_minus1 = 0;
    pps.weighted_bipred_idc = enc->enc_pic.spec_misc.weighted_bipred_idc;
    pps.transform_8x8_mode_flag = enc->enc_pic.spec_misc.transform_8x8_mode;
 
@@ -333,15 +334,17 @@ static void radeon_enc_slice_header(struct radeon_encoder *enc)
 
    if (enc->enc_pic.picture_type == PIPE_H2645_ENC_PICTURE_TYPE_P ||
        enc->enc_pic.picture_type == PIPE_H2645_ENC_PICTURE_TYPE_B) {
-      radeon_bs_code_fixed_bits(&bs, slice->num_ref_idx_active_override_flag, 1);
-      if (slice->num_ref_idx_active_override_flag) {
-         radeon_bs_code_ue(&bs, slice->num_ref_idx_l0_active_minus1);
+      uint32_t num_l0 =
+         enc->enc_pic.h264_enc_params.l0_reference_picture1_index != 0xffffffff ? 2 : 1;
+      radeon_bs_code_fixed_bits(&bs, num_l0 == 2 ? 1 : 0, 1); /* num_ref_idx_active_override_flag */
+      if (num_l0 == 2) {
+         radeon_bs_code_ue(&bs, 1); /* num_ref_idx_l0_active_minus1 */
          if (enc->enc_pic.picture_type == PIPE_H2645_ENC_PICTURE_TYPE_B)
             radeon_bs_code_ue(&bs, slice->num_ref_idx_l1_active_minus1);
       }
       radeon_bs_code_fixed_bits(&bs, slice->ref_pic_list_modification_flag_l0, 1);
       if (slice->ref_pic_list_modification_flag_l0) {
-         for (unsigned i = 0; i < slice->num_ref_list0_mod_operations; i++) {
+         for (unsigned i = 0; i < MIN2(num_l0, slice->num_ref_list0_mod_operations); i++) {
             struct pipe_h264_ref_list_mod_entry *op =
                &slice->ref_list0_mod_operations[i];
             radeon_bs_code_ue(&bs, op->modification_of_pic_nums_idc);
