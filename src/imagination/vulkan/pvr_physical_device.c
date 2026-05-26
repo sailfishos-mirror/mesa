@@ -736,7 +736,9 @@ static bool pvr_physical_device_get_properties(
       .subgroupSupportedStages = VK_SHADER_STAGE_COMPUTE_BIT,
       .subgroupSupportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT |
                                      VK_SUBGROUP_FEATURE_VOTE_BIT |
-                                     VK_SUBGROUP_FEATURE_BALLOT_BIT,
+                                     VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
+                                     VK_SUBGROUP_FEATURE_BALLOT_BIT |
+                                     VK_SUBGROUP_FEATURE_CLUSTERED_BIT,
       .subgroupQuadOperationsInAllStages = false,
       .protectedNoFault = false,
 
