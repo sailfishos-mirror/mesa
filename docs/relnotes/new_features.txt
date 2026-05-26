@@ -28,3 +28,4 @@ VK_KHR_shader_abort on RADV
 VK_KHR_shader_fma on panvk
 VK_NV_shader_atomic_float16_vector on NVK
 VK_KHR_compute_shader_derivatives on panvk
+VK_EXT_shader_subgroup_ballot on pvr
