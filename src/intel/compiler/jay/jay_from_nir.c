@@ -904,7 +904,9 @@ jay_src_as_strided(jay_builder *b,
                    unsigned element_sz,
                    enum jay_file dst_file)
 {
-   if (dst_file == UGPR) {
+   if (jay_is_null(x)) {
+      return x;
+   } else if (dst_file == UGPR) {
       assert(jay_is_uniform(x) && "Uniform dests require uniform sources");
 
       if (x.file != UGPR) {
@@ -1031,21 +1033,19 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    if (!has_dest) {
       uniform &= jay_is_null(data) || data.file == UGPR;
       uniform &= jay_is_null(offset) || offset.file == UGPR;
-      uniform &= !(cmask || urb);
+      uniform &= !urb;
    }
 
    /* Per bspec 57330, 8-bit/16-bit are not supported for transpose */
    bool transpose = uniform && !cmask && ndata->bit_size >= 32;
-   bool scalar_uniform = uniform && !cmask && ndata->bit_size < 32;
 
    if (!uniform) {
       offset = jay_as_gpr(b, offset);
+      data = jay_as_gpr(b, data);
    } else if (!transpose) {
       offset = jay_src_as_strided(b, offset, a64 ? 2 : 1, UGPR);
+      data = jay_src_as_strided(b, data, 1, UGPR);
    }
-
-   if (!jay_is_null(data) && !transpose && !scalar_uniform)
-      data = jay_as_gpr(b, data);
 
    unsigned access =
       nir_intrinsic_has_access(intr) ? nir_intrinsic_access(intr) : 0;
