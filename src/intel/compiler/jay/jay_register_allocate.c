@@ -174,7 +174,7 @@ struct affinity {
    /** If the representative: offset in registers from the base.
     *
     * If not the representative: offset in registers from the representative. */
-   signed offset:4;
+   signed offset:7;
 
    /**
     * If true, this value is used in an end-of-thread SEND and requires high
@@ -187,10 +187,10 @@ struct affinity {
     * form (k * align) + align_offs for some integer k. In other words, align is
     * the alignment of the whole vector and align_offs is this def's channel.
     */
-   unsigned align     :5;
-   unsigned align_offs:4;
+   unsigned align     :7;
+   unsigned align_offs:7;
    unsigned nr        :4;
-   unsigned padding   :14;
+   unsigned padding   :6;
 };
 static_assert(sizeof(struct affinity) == 8, "packed");
 
@@ -1469,8 +1469,11 @@ jay_register_allocate_function(jay_function *f)
             ra.affinities[index].eot = true;
          }
 
-         if (jay_src_alignment(shader, I, s) >= ra.affinities[index].align) {
-            ra.affinities[index].align = jay_src_alignment(shader, I, s);
+         unsigned al = jay_src_alignment(shader, I, s);
+         al = MAX2(al, util_next_power_of_two(jay_num_values(I->src[s])));
+
+         if (al >= ra.affinities[index].align) {
+            ra.affinities[index].align = al;
             ra.affinities[index].align_offs = c;
          }
 
