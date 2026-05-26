@@ -129,13 +129,14 @@ if with_tools.contains('all')
     'nir',
     'nouveau',
     'panfrost',
+    'rti',
     'zink',
   ]
 endif
 
 with_any_vulkan_layers = get_option('vulkan-layers').length() != 0
 with_intel_tools = with_tools.contains('intel') or with_tools.contains('intel-ui')
-with_imgui = with_intel_tools or with_vulkan_overlay_layer
+with_imgui = with_intel_tools or with_vulkan_overlay_layer or with_tools.contains('rti')
 
 dri_drivers_path = get_option('dri-drivers-path')
 if dri_drivers_path == ''
