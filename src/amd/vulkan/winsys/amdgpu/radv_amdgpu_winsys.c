@@ -19,6 +19,7 @@
 #include "radv_amdgpu_winsys_public.h"
 #include "radv_debug.h"
 #include "vk_drm_syncobj.h"
+#include "util/hash_table.h"
 #include "util/u_memory.h"
 
 static void
@@ -36,11 +37,11 @@ radv_amdgpu_winsys_query_value(struct radeon_winsys *rws, enum radeon_value_id v
 
    switch (value) {
    case RADEON_ALLOCATED_VRAM:
-      return ws->allocated_vram;
+      return ws->alloc_tracker->allocated_vram;
    case RADEON_ALLOCATED_VRAM_VIS:
-      return ws->allocated_vram_vis;
+      return ws->alloc_tracker->allocated_vram_vis;
    case RADEON_ALLOCATED_GTT:
-      return ws->allocated_gtt;
+      return ws->alloc_tracker->allocated_gtt;
    case RADEON_TIMESTAMP:
       ac_drm_query_info(ws->dev, AMDGPU_INFO_TIMESTAMP, 8, &retval);
       return retval;
@@ -110,6 +111,61 @@ radv_amdgpu_winsys_query_gpuvm_fault(struct radeon_winsys *rws, struct radv_wins
    return true;
 }
 
+static simple_mtx_t tracker_mutex = SIMPLE_MTX_INITIALIZER;
+static struct hash_table *alloc_trackers = NULL;
+
+static struct radv_amdgpu_alloc_tracker *
+radv_amdgpu_alloc_tracker_acquire(uintptr_t cookie)
+{
+   struct radv_amdgpu_alloc_tracker *tracker = NULL;
+
+   simple_mtx_lock(&tracker_mutex);
+
+   if (!alloc_trackers)
+      alloc_trackers = _mesa_pointer_hash_table_create(NULL);
+   if (!alloc_trackers) {
+      simple_mtx_unlock(&tracker_mutex);
+      return NULL;
+   }
+
+   struct hash_entry *entry = _mesa_hash_table_search(alloc_trackers, (void *)cookie);
+   if (entry) {
+      tracker = entry->data;
+      tracker->refcount++;
+   } else {
+      tracker = calloc(1, sizeof(*tracker));
+      if (!tracker) {
+         simple_mtx_unlock(&tracker_mutex);
+         return NULL;
+      }
+
+      tracker->refcount = 1;
+      tracker->cookie = cookie; /* used for release. */
+      _mesa_hash_table_insert(alloc_trackers, (void *)cookie, tracker);
+   }
+
+   simple_mtx_unlock(&tracker_mutex);
+   return tracker;
+}
+
+static void
+radv_amdgpu_alloc_tracker_release(struct radv_amdgpu_alloc_tracker *tracker)
+{
+   simple_mtx_lock(&tracker_mutex);
+
+   if (!--tracker->refcount) {
+      _mesa_hash_table_remove_key(alloc_trackers, (void *)tracker->cookie);
+      free(tracker);
+
+      if (_mesa_hash_table_num_entries(alloc_trackers) == 0) {
+         _mesa_hash_table_destroy(alloc_trackers, NULL);
+         alloc_trackers = NULL;
+      }
+   }
+
+   simple_mtx_unlock(&tracker_mutex);
+}
+
 static simple_mtx_t winsys_creation_mutex = SIMPLE_MTX_INITIALIZER;
 static struct hash_table *winsyses = NULL;
 
@@ -176,6 +232,8 @@ radv_amdgpu_winsys_destroy(struct radeon_winsys *rws)
    u_rwlock_destroy(&ws->log_bo_list_lock);
 
    radv_amdgpu_null_prt_bug_finish(rws);
+
+   radv_amdgpu_alloc_tracker_release(ws->alloc_tracker);
 
    ac_drm_device_deinitialize(ws->dev);
    FREE(rws);
@@ -293,6 +351,12 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    ws->info.drm_minor = drm_minor;
    ws->info.is_virtio = is_virtio;
 
+   ws->alloc_tracker = radv_amdgpu_alloc_tracker_acquire(ac_drm_device_get_cookie(dev));
+   if (!ws->alloc_tracker) {
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
+      goto winsys_fail;
+   }
+
    enum ac_query_gpu_info_result info_result =
       ac_query_gpu_info(ws->fd, ws->dev, &ws->info, true, !(debug_flags & RADV_DEBUG_NO_CACHE_COMPAT));
    if (info_result != AC_QUERY_GPU_INFO_SUCCESS) {
@@ -362,6 +426,8 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    return result;
 
 winsys_fail:
+   if (ws->alloc_tracker)
+      radv_amdgpu_alloc_tracker_release(ws->alloc_tracker);
    free(ws);
 fail:
    if (winsyses && _mesa_hash_table_num_entries(winsyses) == 0) {

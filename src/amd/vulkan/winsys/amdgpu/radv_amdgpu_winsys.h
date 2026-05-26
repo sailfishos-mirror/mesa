@@ -22,6 +22,21 @@
 #include "vk_sync.h"
 #include "vk_sync_timeline.h"
 
+/**
+ * Process-global per-GPU allocation tracker.
+ *
+ * Tracks userspace BO allocation counters across all winsys instances for
+ * the same GPU within this process. This ensures VK_EXT_memory_budget
+ * reports correct process-wide usage even with multiple VkInstance objects.
+ */
+struct radv_amdgpu_alloc_tracker {
+   uintptr_t cookie;
+   alignas(8) uint64_t allocated_vram;
+   alignas(8) uint64_t allocated_vram_vis;
+   alignas(8) uint64_t allocated_gtt;
+   uint32_t refcount;
+};
+
 struct radv_amdgpu_winsys {
    struct radeon_winsys base;
    ac_drm_device *dev;
@@ -38,9 +53,7 @@ struct radv_amdgpu_winsys {
    bool debug_vm;
    uint64_t perftest;
 
-   alignas(8) uint64_t allocated_vram;
-   alignas(8) uint64_t allocated_vram_vis;
-   alignas(8) uint64_t allocated_gtt;
+   struct radv_amdgpu_alloc_tracker *alloc_tracker;
 
    /* Global BO list */
    struct {
