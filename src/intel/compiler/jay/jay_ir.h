@@ -731,7 +731,7 @@ jay_src_type(const jay_inst *I, unsigned s)
    return I->type;
 }
 
-enum jay_stride {
+enum PACKED jay_stride {
    JAY_STRIDE_2 = 0,
    JAY_STRIDE_4,
    JAY_STRIDE_8,
