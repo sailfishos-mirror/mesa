@@ -747,7 +747,6 @@
   </struct>
 
   <struct name="CS SYNC_ADD32" size="2">
-    <!-- Iter status is written at [Address + 4], 0 == NO_FAULT, 1 == FAULT -->
     <field name="Error Propagate" size="1" start="0" type="bool"/>
     <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait Mask" size="16" start="16" type="hex"/>
@@ -758,7 +757,6 @@
   </struct>
 
   <struct name="CS SYNC_SET32" size="2">
-    <!-- Iter status is written at [Address + 4], 0 == NO_FAULT, 1 == FAULT -->
     <field name="Error Propagate" size="1" start="0" type="bool"/>
     <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait Mask" size="16" start="16" type="hex"/>
@@ -777,7 +775,6 @@
   </struct>
 
   <struct name="CS STORE_STATE" size="2">
-    <!-- Iter status is written at [Address + 4], 0 == NO_FAULT, 1 == FAULT -->
     <field name="Offset" size="16" start="0" type="int"/>
     <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="State" size="8" start="32" type="CS State"/>
@@ -836,9 +833,7 @@
   </struct>
 
   <struct name="CS SYNC_ADD64" size="2">
-    <!-- Iter status is written at [Address + 8], 0 == NO_FAULT, 1 == FAULT -->
     <field name="Error Propagate" size="1" start="0" type="bool"/>
-    <!-- Used for inter-queue synchronization (unblocking a queue waiting on a mem-based fence) -->
     <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait Mask" size="16" start="16" type="hex"/>
     <field name="Data" size="8" start="32" type="uint"/>
@@ -848,7 +843,6 @@
   </struct>
 
   <struct name="CS SYNC_SET64" size="2">
-    <!-- Iter status is written at [Address + 8], 0 == NO_FAULT, 1 == FAULT -->
     <field name="Error Propagate" size="1" start="0" type="bool"/>
     <field name="Scope" size="2" start="1" type="CS Sync Scope"/>
     <field name="Wait Mask" size="16" start="16" type="hex"/>
