@@ -14,7 +14,6 @@
 #include "intel/dev/intel_debug.h"
 #include "util/bitpack_helpers.h"
 #include "util/bitscan.h"
-#include "util/bitset.h"
 #include "util/lut.h"
 #include "util/macros.h"
 #include "util/u_math.h"
