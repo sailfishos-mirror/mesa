@@ -573,6 +573,7 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
          .lower_vote_bool_eq = true,
          .lower_read_first_invocation = true,
          .lower_subgroup_masks = true,
+         .lower_relative_shuffle = true,
          .lower_quad_vote = true,
          .lower_elect = true,
          .lower_inverse_ballot = true,

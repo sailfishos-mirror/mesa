@@ -551,6 +551,48 @@ lower_reduction(nir_builder *b,
    return nir_load_var(b, accum_var);
 }
 
+static nir_def *
+lower_shuffle(nir_builder *b,
+              nir_intrinsic_instr *intr,
+              struct subgroup_state *state)
+{
+   nir_def *value = intr->src[0].ssa;
+   nir_def *index = intr->src[1].ssa;
+
+   unsigned bit_size = value->bit_size;
+   assert(bit_size == 32);
+
+   nir_def *subgroup_id =
+      nir_udiv_imm(b,
+                   nir_load_local_invocation_index(b),
+                   ROGUE_MAX_INSTANCES_PER_TASK);
+
+   nir_def *invocation_id = nir_load_instance_num_pco(b);
+
+   nir_variable *var = subgroup_var(b->shader, state, true);
+   nir_deref_instr *deref = nir_build_deref_var(b, var);
+
+   nir_def *subgroup_base =
+      nir_imul_imm(b, subgroup_id, ROGUE_MAX_INSTANCES_PER_TASK);
+
+   /* Have each running invocation store its value. */
+   nir_deref_instr *deref_invoc =
+      nir_build_deref_array(b,
+                            deref,
+                            nir_iadd(b, subgroup_base, invocation_id));
+
+   nir_store_deref(b, deref_invoc, value, 1);
+
+   /* Load the value from the specified invocation. */
+   nir_def *invoc_index = nir_iadd(b, subgroup_base, index);
+
+   deref_invoc = nir_build_deref_array(b, deref, invoc_index);
+
+   nir_def *iter_value = nir_load_deref(b, deref_invoc);
+
+   return iter_value;
+}
+
 static bool lower_subgroup_intrinsic(nir_builder *b,
                                      nir_intrinsic_instr *intr,
                                      void *cb_data)
@@ -597,6 +639,10 @@ static bool lower_subgroup_intrinsic(nir_builder *b,
    case nir_intrinsic_inclusive_scan:
    case nir_intrinsic_exclusive_scan:
       new_def = lower_reduction(b, intr, state);
+      break;
+
+   case nir_intrinsic_shuffle:
+      new_def = lower_shuffle(b, intr, state);
       break;
 
    default:
