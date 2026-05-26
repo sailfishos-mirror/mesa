@@ -2456,7 +2456,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
 #else
    VkResult result;
    int fd = -1;
-   int master_fd = -1;
+   int wsi_master_fd = -1;
    bool is_virtio = false;
    const char *path = drm_device->nodes[DRM_NODE_RENDER];
    drmVersionPtr version;
@@ -2549,17 +2549,17 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    }
 
    if (instance->vk.enabled_extensions.KHR_display) {
-      master_fd = open(drm_device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
-      if (master_fd >= 0) {
+      wsi_master_fd = open(drm_device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
+      if (wsi_master_fd >= 0) {
          uint32_t accel_working = 0;
          struct drm_amdgpu_info request = {.return_pointer = (uintptr_t)&accel_working,
                                            .return_size = sizeof(accel_working),
                                            .query = AMDGPU_INFO_ACCEL_WORKING};
 
-         if (drm_ioctl_write(master_fd, DRM_AMDGPU_INFO, &request, sizeof(struct drm_amdgpu_info)) < 0 ||
+         if (drm_ioctl_write(wsi_master_fd, DRM_AMDGPU_INFO, &request, sizeof(struct drm_amdgpu_info)) < 0 ||
              !accel_working) {
-            close(master_fd);
-            master_fd = -1;
+            close(wsi_master_fd);
+            wsi_master_fd = -1;
          }
       }
    }
@@ -2578,7 +2578,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       goto fail_wsi;
    }
 
-   pdev->master_fd = master_fd;
+   pdev->wsi_master_fd = wsi_master_fd;
 
    pdev->use_llvm = instance->debug_flags & RADV_DEBUG_LLVM;
 #if !AMD_LLVM_AVAILABLE
@@ -2789,8 +2789,8 @@ fail_alloc:
 fail_fd:
    if (fd != -1)
       close(fd);
-   if (master_fd != -1)
-      close(master_fd);
+   if (wsi_master_fd != -1)
+      close(wsi_master_fd);
    return result;
 #endif
 }
@@ -2835,8 +2835,8 @@ radv_physical_device_destroy(struct vk_physical_device *vk_device)
       pdev->ws->destroy(pdev->ws);
    disk_cache_destroy(pdev->vk.disk_cache);
    disk_cache_destroy(pdev->disk_cache_meta);
-   if (pdev->master_fd != -1)
-      close(pdev->master_fd);
+   if (pdev->wsi_master_fd != -1)
+      close(pdev->wsi_master_fd);
    vk_physical_device_finish(&pdev->vk);
    vk_free(&instance->vk.alloc, pdev);
 }

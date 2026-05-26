@@ -81,7 +81,7 @@ struct radv_physical_device {
 
    struct ac_addrlib *addrlib;
 
-   int master_fd;
+   int wsi_master_fd;
    struct wsi_device wsi_device;
 
    /* Whether DCC should be enabled for MSAA textures. */
