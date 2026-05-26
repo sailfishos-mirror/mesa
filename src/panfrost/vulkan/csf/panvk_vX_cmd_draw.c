@@ -2166,10 +2166,8 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
          cfg.multisample_enable = msaa;
          cfg.occlusion_query = cmdbuf->state.gfx.occlusion_query.mode;
          cfg.alpha_to_coverage = alpha_to_coverage;
-#if PAN_ARCH == 10
          cfg.scissor_to_bounding_box = true;
-#elif PAN_ARCH >= 11
-         cfg.scissor_mode = true;
+#if PAN_ARCH >= 11
          cfg.conservative_rast_mode =
             rs->conservative_mode == VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT
                ? MALI_CONSERVATIVE_RAST_MODE_OVER_ESTIMATE
