@@ -171,6 +171,9 @@ op('gpr_from_ugprs', 1, 'u32', 0, [
     'uint8_t pad',
 ])
 
+# Build a GPR from two UGPR[16] ranges.
+op('zip_ugpr16', 2, 'u32')
+
 # Sample ID calculation
 op('extract_byte_per_8lanes', 2, 'u32')
 op('shr_odd_subspans_by_4', 1, 'u16')

@@ -490,6 +490,10 @@ emit(struct brw_codegen *p,
                           jay_gpr_from_ugprs_index(I)));
       break;
 
+   case JAY_OPCODE_ZIP_UGPR16:
+      brw_MOV(p, dst, to_brw_reg(f, I, simd_offs, 0, false));
+      break;
+
    case JAY_OPCODE_EXTRACT_BYTE_PER_8LANES:
       brw_MOV(p, dst, stride(retype(SRC(simd_offs), BRW_TYPE_UB), 1, 8, 0));
       break;
