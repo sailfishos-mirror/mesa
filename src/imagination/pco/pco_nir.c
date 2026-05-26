@@ -568,6 +568,7 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
          .ballot_bit_size = 32,
          .ballot_components = 1,
          .lower_to_scalar = true,
+         .lower_read_first_invocation = true,
          .lower_elect = true,
       });
 

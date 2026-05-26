@@ -204,11 +204,62 @@ bool pco_nir_lower_atomics(nir_shader *shader, pco_data *data)
    return progress;
 }
 
+struct subgroup_state {
+   nir_variable *per_subgroup_var;
+};
+
+static nir_def *
+lower_read_invocation(nir_builder *b,
+                      nir_intrinsic_instr *intr,
+                      struct subgroup_state *state)
+{
+   struct shader_info *info = &b->shader->info;
+   nir_def *subgroup_id =
+      nir_udiv_imm(b,
+                   nir_load_local_invocation_index(b),
+                   ROGUE_MAX_INSTANCES_PER_TASK);
+
+   nir_def *value = intr->src[0].ssa;
+   nir_def *invoc = intr->src[1].ssa;
+
+   /* Allocate a 32-bit var for each subgroup. */
+   if (!state->per_subgroup_var) {
+      unsigned num_subgroups =
+         DIV_ROUND_UP(info->workgroup_size[0] *
+                      info->workgroup_size[1] *
+                      info->workgroup_size[2],
+                      ROGUE_MAX_INSTANCES_PER_TASK);
+
+      const glsl_type *var_type =
+         glsl_array_type(glsl_uint_type(), num_subgroups, 0);
+
+      state->per_subgroup_var = nir_variable_create(b->shader,
+                                                    nir_var_mem_shared,
+                                                    var_type,
+                                                    "per_subgroup_var");
+   }
+
+   nir_deref_instr *deref = nir_build_deref_var(b, state->per_subgroup_var);
+   deref = nir_build_deref_array(b, deref, subgroup_id);
+
+   nir_def *invocation_id = nir_load_instance_num_pco(b);
+
+   nir_if *nif = nir_push_if(b, nir_ieq(b, invoc, invocation_id));
+   {
+      nir_store_deref(b, deref, value, 1);
+   }
+   nir_pop_if(b, nif);
+
+   /* Retrieve the value. */
+   return nir_load_deref(b, deref);
+}
+
 static bool lower_subgroup_intrinsic(nir_builder *b,
                                      nir_intrinsic_instr *intr,
-                                     UNUSED void *cb_data)
+                                     void *cb_data)
 {
    const struct shader_info *info = &b->shader->info;
+   struct subgroup_state *state = cb_data;
    nir_def *new_def;
 
    b->cursor = nir_before_instr(&intr->instr);
@@ -236,6 +287,10 @@ static bool lower_subgroup_intrinsic(nir_builder *b,
                              ROGUE_MAX_INSTANCES_PER_TASK);
       break;
 
+   case nir_intrinsic_read_invocation:
+      new_def = lower_read_invocation(b, intr, state);
+      break;
+
    default:
       return false;
    }
@@ -253,8 +308,9 @@ bool pco_nir_lower_subgroups(nir_shader *shader)
 
    assert(shader->info.api_subgroup_size == ROGUE_MAX_INSTANCES_PER_TASK);
 
+   struct subgroup_state state = { 0 };
    return nir_shader_intrinsics_pass(shader,
                                      lower_subgroup_intrinsic,
-                                     nir_metadata_control_flow,
-                                     NULL);
+                                     nir_metadata_none,
+                                     &state);
 }
