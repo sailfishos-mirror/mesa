@@ -611,7 +611,7 @@ panfrost_create_shader_state(struct pipe_context *pctx,
       /* Since transform feedback is handled via the transform
        * feedback program, the original program no longer uses XFB
        */
-      nir->info.has_transform_feedback_varyings = false;
+      pan_nir_remove_xfb(nir);
    }
 
    /* If we're not using separate shaders, the FS can use VS varying_layout to
