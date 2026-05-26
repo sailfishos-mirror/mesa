@@ -2458,50 +2458,47 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    int fd = -1;
    int master_fd = -1;
    bool is_virtio = false;
+   const char *path = drm_device->nodes[DRM_NODE_RENDER];
+   drmVersionPtr version;
 
-   if (drm_device) {
-      const char *path = drm_device->nodes[DRM_NODE_RENDER];
-      drmVersionPtr version;
-
-      fd = open(path, O_RDWR | O_CLOEXEC);
-      if (fd < 0) {
-         return vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER, "Could not open device %s: %m", path);
-      }
-
-      version = drmGetVersion(fd);
-      if (!version) {
-         close(fd);
-
-         return vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
-                          "Could not get the kernel driver version for device %s: %m", path);
-      }
-
-      if (!strcmp(version->name, "amdgpu")) {
-#ifdef HAVE_AMDGPU_VIRTIO
-         if (debug_get_bool_option("AMD_FORCE_VPIPE", false)) {
-            is_virtio = true;
-            close(fd);
-            fd = -1;
-         }
-#endif
-      } else
-#ifdef HAVE_AMDGPU_VIRTIO
-         if (!strcmp(version->name, "virtio_gpu")) {
-         is_virtio = true;
-      } else
-#endif
-      {
-         drmFreeVersion(version);
-         close(fd);
-
-         return vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
-                          "Device '%s' is not using the AMDGPU kernel driver: %m", path);
-      }
-      drmFreeVersion(version);
-
-      if (instance->debug_flags & RADV_DEBUG_STARTUP)
-         fprintf(stderr, "radv: info: Found device '%s'.\n", path);
+   fd = open(path, O_RDWR | O_CLOEXEC);
+   if (fd < 0) {
+      return vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER, "Could not open device %s: %m", path);
    }
+
+   version = drmGetVersion(fd);
+   if (!version) {
+      close(fd);
+
+      return vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
+                       "Could not get the kernel driver version for device %s: %m", path);
+   }
+
+   if (!strcmp(version->name, "amdgpu")) {
+#ifdef HAVE_AMDGPU_VIRTIO
+      if (debug_get_bool_option("AMD_FORCE_VPIPE", false)) {
+         is_virtio = true;
+         close(fd);
+         fd = -1;
+      }
+#endif
+   } else
+#ifdef HAVE_AMDGPU_VIRTIO
+      if (!strcmp(version->name, "virtio_gpu")) {
+      is_virtio = true;
+   } else
+#endif
+   {
+      drmFreeVersion(version);
+      close(fd);
+
+      return vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER, "Device '%s' is not using the AMDGPU kernel driver: %m",
+                       path);
+   }
+   drmFreeVersion(version);
+
+   if (instance->debug_flags & RADV_DEBUG_STARTUP)
+      fprintf(stderr, "radv: info: Found device '%s'.\n", path);
 
    struct radv_physical_device *pdev =
       vk_zalloc2(&instance->vk.alloc, NULL, sizeof(*pdev), 8, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
@@ -2519,69 +2516,66 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       goto fail_alloc;
    }
 
-   if (drm_device) {
-      result = radv_amdgpu_winsys_create(fd, instance->debug_flags, instance->perftest_flags, is_virtio, &pdev->ws);
-      if (result != VK_SUCCESS) {
-         result = vk_errorf(instance, result, "failed to initialize winsys");
-         goto fail_base;
+   result = radv_amdgpu_winsys_create(fd, instance->debug_flags, instance->perftest_flags, is_virtio, &pdev->ws);
+   if (result != VK_SUCCESS) {
+      result = vk_errorf(instance, result, "failed to initialize winsys");
+      goto fail_base;
+   }
+
+   pdev->ws->query_info(pdev->ws, &pdev->info);
+
+   pdev->syncobj_sync_type = vk_drm_syncobj_get_type(pdev->ws->get_fd(pdev->ws));
+
+   int num_sync_types = 0;
+   if (pdev->syncobj_sync_type.features) {
+      if (!pdev->info.has_timeline_syncobj && pdev->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE) {
+         pdev->syncobj_sync_type.get_value = NULL;
+         pdev->syncobj_sync_type.features &= ~VK_SYNC_FEATURE_TIMELINE;
       }
-
-      pdev->ws->query_info(pdev->ws, &pdev->info);
-
-      pdev->syncobj_sync_type = vk_drm_syncobj_get_type(pdev->ws->get_fd(pdev->ws));
-
-      int num_sync_types = 0;
-      if (pdev->syncobj_sync_type.features) {
-         if (!pdev->info.has_timeline_syncobj && pdev->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE) {
-            pdev->syncobj_sync_type.get_value = NULL;
-            pdev->syncobj_sync_type.features &= ~VK_SYNC_FEATURE_TIMELINE;
-         }
-         pdev->sync_types[num_sync_types++] = &pdev->syncobj_sync_type;
-         if (!(pdev->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE)) {
-            pdev->emulated_timeline_sync_type = vk_sync_timeline_get_type(&pdev->syncobj_sync_type);
-            pdev->sync_types[num_sync_types++] = &pdev->emulated_timeline_sync_type.sync;
-         }
+      pdev->sync_types[num_sync_types++] = &pdev->syncobj_sync_type;
+      if (!(pdev->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE)) {
+         pdev->emulated_timeline_sync_type = vk_sync_timeline_get_type(&pdev->syncobj_sync_type);
+         pdev->sync_types[num_sync_types++] = &pdev->emulated_timeline_sync_type.sync;
       }
-      pdev->sync_types[num_sync_types++] = NULL;
-      pdev->vk.supported_sync_types = pdev->sync_types;
+   }
+   pdev->sync_types[num_sync_types++] = NULL;
+   pdev->vk.supported_sync_types = pdev->sync_types;
 
-      for (uint32_t p = VK_QUEUE_GLOBAL_PRIORITY_LOW; p <= VK_QUEUE_GLOBAL_PRIORITY_REALTIME; p <<= 1) {
-         if (pdev->ws->ctx_is_priority_permitted(pdev->ws, vk_to_radeon_priority(p)) != VK_SUCCESS)
-            continue;
+   for (uint32_t p = VK_QUEUE_GLOBAL_PRIORITY_LOW; p <= VK_QUEUE_GLOBAL_PRIORITY_REALTIME; p <<= 1) {
+      if (pdev->ws->ctx_is_priority_permitted(pdev->ws, vk_to_radeon_priority(p)) != VK_SUCCESS)
+         continue;
 
-         pdev->global_priority_mask |= p;
-      }
+      pdev->global_priority_mask |= p;
+   }
 
-      if (instance->vk.enabled_extensions.KHR_display) {
-         master_fd = open(drm_device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
-         if (master_fd >= 0) {
-            uint32_t accel_working = 0;
-            struct drm_amdgpu_info request = {.return_pointer = (uintptr_t)&accel_working,
-                                              .return_size = sizeof(accel_working),
-                                              .query = AMDGPU_INFO_ACCEL_WORKING};
+   if (instance->vk.enabled_extensions.KHR_display) {
+      master_fd = open(drm_device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
+      if (master_fd >= 0) {
+         uint32_t accel_working = 0;
+         struct drm_amdgpu_info request = {.return_pointer = (uintptr_t)&accel_working,
+                                           .return_size = sizeof(accel_working),
+                                           .query = AMDGPU_INFO_ACCEL_WORKING};
 
-            if (drm_ioctl_write(master_fd, DRM_AMDGPU_INFO, &request, sizeof(struct drm_amdgpu_info)) < 0 ||
-                !accel_working) {
-               close(master_fd);
-               master_fd = -1;
-            }
+         if (drm_ioctl_write(master_fd, DRM_AMDGPU_INFO, &request, sizeof(struct drm_amdgpu_info)) < 0 ||
+             !accel_working) {
+            close(master_fd);
+            master_fd = -1;
          }
       }
+   }
 
-      /* Allow all devices on a virtual winsys, otherwise do a basic support check. */
-      if (!radv_is_gpu_supported(&pdev->info)) {
-         if (instance->debug_flags & RADV_DEBUG_STARTUP)
-            fprintf(stderr, "radv: info: device '%s' is not supported by RADV.\n",
-                    ac_get_family_name(pdev->info.family));
-         result = VK_ERROR_INCOMPATIBLE_DRIVER;
-         goto fail_wsi;
-      }
+   /* Allow all devices on a virtual winsys, otherwise do a basic support check. */
+   if (!radv_is_gpu_supported(&pdev->info)) {
+      if (instance->debug_flags & RADV_DEBUG_STARTUP)
+         fprintf(stderr, "radv: info: device '%s' is not supported by RADV.\n", ac_get_family_name(pdev->info.family));
+      result = VK_ERROR_INCOMPATIBLE_DRIVER;
+      goto fail_wsi;
+   }
 
-      pdev->addrlib = ac_addrlib_create(&pdev->info, &pdev->info.max_alignment);
-      if (!pdev->addrlib) {
-         result = VK_ERROR_INITIALIZATION_FAILED;
-         goto fail_wsi;
-      }
+   pdev->addrlib = ac_addrlib_create(&pdev->info, &pdev->info.max_alignment);
+   if (!pdev->addrlib) {
+      result = VK_ERROR_INITIALIZATION_FAILED;
+      goto fail_wsi;
    }
 
    pdev->master_fd = master_fd;
@@ -2699,28 +2693,26 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    radv_physical_device_get_supported_extensions(pdev, &pdev->vk.supported_extensions);
    radv_physical_device_get_features(pdev, &pdev->vk.supported_features);
 
-   if (drm_device) {
-      struct stat primary_stat = {0}, render_stat = {0};
+   struct stat primary_stat = {0}, render_stat = {0};
 
-      pdev->available_nodes = drm_device->available_nodes;
-      pdev->bus_info = *drm_device->businfo.pci;
+   pdev->available_nodes = drm_device->available_nodes;
+   pdev->bus_info = *drm_device->businfo.pci;
 
-      if ((drm_device->available_nodes & (1 << DRM_NODE_PRIMARY)) &&
-          stat(drm_device->nodes[DRM_NODE_PRIMARY], &primary_stat) != 0) {
-         result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "failed to stat DRM primary node %s",
-                            drm_device->nodes[DRM_NODE_PRIMARY]);
-         goto fail_perfcounters;
-      }
-      pdev->primary_devid = primary_stat.st_rdev;
-
-      if ((drm_device->available_nodes & (1 << DRM_NODE_RENDER)) &&
-          stat(drm_device->nodes[DRM_NODE_RENDER], &render_stat) != 0) {
-         result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "failed to stat DRM render node %s",
-                            drm_device->nodes[DRM_NODE_RENDER]);
-         goto fail_perfcounters;
-      }
-      pdev->render_devid = render_stat.st_rdev;
+   if ((drm_device->available_nodes & (1 << DRM_NODE_PRIMARY)) &&
+       stat(drm_device->nodes[DRM_NODE_PRIMARY], &primary_stat) != 0) {
+      result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "failed to stat DRM primary node %s",
+                         drm_device->nodes[DRM_NODE_PRIMARY]);
+      goto fail_perfcounters;
    }
+   pdev->primary_devid = primary_stat.st_rdev;
+
+   if ((drm_device->available_nodes & (1 << DRM_NODE_RENDER)) &&
+       stat(drm_device->nodes[DRM_NODE_RENDER], &render_stat) != 0) {
+      result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "failed to stat DRM render node %s",
+                         drm_device->nodes[DRM_NODE_RENDER]);
+      goto fail_perfcounters;
+   }
+   pdev->render_devid = render_stat.st_rdev;
 
    if (radv_device_get_cache_uuid(pdev, pdev->cache_uuid)) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED, "cannot generate UUID");
