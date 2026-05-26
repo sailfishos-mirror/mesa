@@ -9,6 +9,7 @@
  */
 
 #include <fcntl.h>
+#include "util/os_file.h"
 #include "util/os_misc.h"
 #include "vulkan/vulkan_core.h"
 
@@ -2464,7 +2465,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
 #else
    VkResult result;
    int fd = -1;
-   int wsi_master_fd = -1;
+   int wsi_master_fd = -1, wsi_syncobj_fd = -1;
    const char *path = drm_device->nodes[DRM_NODE_RENDER];
    enum radv_drm_device_type drm_device_type;
    drmVersionPtr version;
@@ -2582,6 +2583,9 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
             wsi_master_fd = -1;
          }
       }
+
+      if (fd != -1)
+         wsi_syncobj_fd = os_dupfd_cloexec(fd);
    }
 
    /* Allow all devices on a virtual winsys, otherwise do a basic support check. */
@@ -2599,6 +2603,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    }
 
    pdev->wsi_master_fd = wsi_master_fd;
+   pdev->wsi_syncobj_fd = wsi_syncobj_fd;
 
    pdev->use_llvm = instance->debug_flags & RADV_DEBUG_LLVM;
 #if !AMD_LLVM_AVAILABLE
@@ -2814,6 +2819,8 @@ fail_fd:
       close(fd);
    if (wsi_master_fd != -1)
       close(wsi_master_fd);
+   if (wsi_syncobj_fd != -1)
+      close(wsi_syncobj_fd);
    return result;
 #endif
 }
@@ -2861,6 +2868,8 @@ radv_physical_device_destroy(struct vk_physical_device *vk_device)
    disk_cache_destroy(pdev->disk_cache_meta);
    if (pdev->wsi_master_fd != -1)
       close(pdev->wsi_master_fd);
+   if (pdev->wsi_syncobj_fd != -1)
+      close(pdev->wsi_syncobj_fd);
    simple_mtx_destroy(&pdev->drm_device_mtx);
 #ifndef _WIN32
    if (pdev->drm_device)
