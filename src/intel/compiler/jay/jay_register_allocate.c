@@ -722,13 +722,13 @@ find_temp_regs(jay_ra_state *ra)
 {
    /* For efficiency we only bother using stride=4 temporaries */
    jay_reg gpr = try_find_free_reg(ra, GPR, ~0, true);
-   jay_reg ugpr = try_find_free_reg(ra, UGPR, ~0, true);
+   jay_reg ugpr = try_find_free_reg(ra, UGPR, ~0, false);
 
    return (struct jay_temp_regs) {
       .gpr = gpr,
       .ugpr = ugpr,
       .gpr2 = try_find_free_reg(ra, GPR, gpr, true),
-      .ugpr2 = try_find_free_reg(ra, UGPR, ugpr, true),
+      .ugpr2 = try_find_free_reg(ra, UGPR, ugpr, false),
    };
 }
 
