@@ -51,9 +51,26 @@ jay_lower_spill(jay_function *func)
 {
    jay_builder b = jay_init_builder(func, jay_before_function(func));
 
-   /* We reserve the top UGPRs for spilling by ABI */
-   unsigned ugpr_reservation = func->shader->num_regs[UGPR];
-   assert(util_is_aligned(ugpr_reservation, func->shader->dispatch_width));
+   /* We reserved a block of UGPRs for our use */
+   signed ugpr_reservation = -1, gpr2 = -1;
+   for (unsigned i = 0; i < func->shader->partition.nr_blocks[GPR]; ++i) {
+      struct jay_register_block B = func->shader->partition.blocks[GPR][i];
+
+      if (B.stride == JAY_STRIDE_2) {
+         gpr2 = B.start_gpr;
+      }
+   }
+
+   for (unsigned i = 0; i < func->shader->partition.nr_blocks[UGPR]; ++i) {
+      struct jay_register_block B = func->shader->partition.blocks[UGPR][i];
+
+      if (B.type == JAY_BLOCK_SPILL) {
+         ugpr_reservation = B.start_gpr;
+      }
+   }
+
+   assert(ugpr_reservation >= 0 && "must have reserved something");
+   assert(gpr2 >= 0 && "must have a stride-2 gpr");
 
    jay_def sp = jay_bare_reg(UGPR, ugpr_reservation);
    sp.num_values_m1 = func->shader->dispatch_width - 1;
@@ -80,7 +97,7 @@ jay_lower_spill(jay_function *func)
    jay_SHR(&b, JAY_TYPE_U32, ADDRESS_REG, tmpu, 4);
 
    /* We use a 32-bit strided stack: SP = scratch + (lane ID * 4) */
-   jay_def tmp2 = jay_bare_reg(GPR, func->shader->partition.base2);
+   jay_def tmp2 = jay_bare_reg(GPR, gpr2);
    jay_LANE_ID_8(&b, tmp2);
    for (unsigned i = 8; i < b.shader->dispatch_width; i *= 2) {
       jay_LANE_ID_EXPAND(&b, tmp2, tmp2, i);

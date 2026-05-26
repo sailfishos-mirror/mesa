@@ -39,6 +39,7 @@ void jay_calculate_register_demands(jay_function *f);
 
 void jay_spill(jay_function *func, unsigned limit);
 void jay_partition_grf(jay_shader *shader);
+void jay_print_partition(struct jay_partition *p);
 void jay_register_allocate(jay_shader *s);
 void jay_assign_flags(jay_shader *s);
 void jay_assign_accumulators(jay_shader *s);
@@ -85,6 +86,16 @@ struct jay_shader_bin *jay_to_binary(jay_shader *s,
                                      void *const_data,
                                      size_t const_data_size,
                                      bool debug);
+
+static inline unsigned
+jay_gpr_limit(jay_shader *shader)
+{
+   /* If testing spilling, set limit tightly. */
+   bool test = (jay_debug & JAY_DBG_SPILL);
+   test &= shader->stage != MESA_SHADER_VERTEX;
+
+   return test ? 13 : shader->num_regs[GPR];
+}
 
 #ifdef __cplusplus
 } /* extern C */

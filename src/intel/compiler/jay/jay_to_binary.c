@@ -10,7 +10,6 @@
 #include "compiler/brw/brw_eu_inst.h"
 #include "compiler/brw/brw_reg.h"
 #include "compiler/brw/brw_reg_type.h"
-#include "dev/intel_debug.h"
 #include "util/macros.h"
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
@@ -42,45 +41,29 @@ to_brw_reg_type(enum jay_type type)
    /* clang-format on */
 }
 
-static inline unsigned
-to_def_grf_16(struct jay_partition *p, jay_def d)
-{
-   unsigned count = jay_num_values(d);
-   if (count == 0 || !(d.file == GPR || d.file == UGPR)) {
-      return d.reg;
-   }
-
-   unsigned base = 0;
-   for (unsigned i = 0; i < JAY_PARTITION_BLOCKS; ++i) {
-      unsigned offset = d.reg - base;
-
-      if (offset < p->blocks[d.file][i].len) {
-         assert(offset + count <= p->blocks[d.file][i].len &&
-                "vectors must not cross partition boundaries");
-
-         return (p->blocks[d.file][i].start + offset) * 2 + d.hi;
-      }
-
-      base += p->blocks[d.file][i].len;
-   }
-
-   UNREACHABLE("virtual register must be in a block");
-}
-
 static inline brw_reg
-to_brw_reg(jay_function *f,
-           const jay_inst *I,
-           signed idx,
-           unsigned simd_offs,
-           bool force_hi)
+to_brw_reg(
+   jay_function *f, const jay_inst *I, signed idx, unsigned simd_offs, bool hi)
 {
    bool is_dest = idx < 0;
    enum jay_type type = is_dest ? I->type : jay_src_type(I, idx);
    jay_def d = is_dest ? I->dst : I->src[idx];
-   d.hi |= force_hi;
+   hi |= d.hi;
 
    struct brw_reg R;
-   unsigned reg = to_def_grf_16(&f->shader->partition, d), offset_B = 0;
+   unsigned reg = d.reg, count = jay_num_values(d);
+   unsigned offset_B = 0, grf = 0;
+   assert(!hi || d.file == GPR);
+
+   if (count && (d.file == GPR || d.file == UGPR)) {
+      struct jay_register_block block =
+         jay_lookup_block(&f->shader->partition, d.reg, d.file);
+
+      grf = block.start_grf;
+      reg -= block.start_gpr;
+
+      assert(reg + count <= block.len_gpr && "must not cross partitions");
+   }
 
    if (jay_is_imm(d)) {
       /* Immediates have size restrictions but can zero extend */
@@ -95,13 +78,13 @@ to_brw_reg(jay_function *f,
    } else if (jay_is_null(d)) {
       R = brw_null_reg();
    } else if (d.file == UGPR || d.file == UACCUM) {
-      unsigned phys_reg = (reg >> 1) / 8;
-      offset_B = ((reg >> 1) % 8) * 4;
+      grf += (reg / jay_ugpr_per_grf(f->shader));
+      offset_B = (reg % jay_ugpr_per_grf(f->shader)) * 4;
 
       if (d.file == UGPR) {
-         R = brw_ud1_grf(phys_reg, 0);
+         R = brw_ud1_grf(grf * 2, 0);
       } else {
-         R = brw_ud1_reg(ARF, BRW_ARF_ACCUMULATOR + (phys_reg * 2), 0);
+         R = brw_ud1_reg(ARF, BRW_ARF_ACCUMULATOR + (grf * 2), 0);
       }
 
       /* Handle 3-src restrictions and vectorized uniform code. */
@@ -140,22 +123,22 @@ to_brw_reg(jay_function *f,
       unsigned stride_bits = jay_stride_to_bits(def_stride);
       unsigned simd_width = jay_simd_width_physical(f->shader, I);
 
-      unsigned phys_reg;
       if (def_stride == JAY_STRIDE_2) {
-         /* Bit 0 selects between lo/hi halves of the GPR */
-         phys_reg = (reg / 2) * jay_grf_per_gpr(f->shader);
-         offset_B = (reg & 1) * 2 * f->shader->dispatch_width;
+         /* Select between lo/hi halves of the GPR */
+         grf += reg * jay_grf_per_gpr(f->shader);
+         offset_B = hi ? 2 * f->shader->dispatch_width : 0;
       } else {
-         /* Low bits are an offset in 2-byte words into the GRF */
+         /* Treat low bits as an offset in 2-byte words into the GRF */
+         unsigned r = (reg * 2) + hi;
          unsigned mask = BITFIELD_MASK(stride_bits / 32);
-         phys_reg = ((reg & ~mask) / 2) * jay_grf_per_gpr(f->shader);
-         offset_B = (reg & mask) * 2;
+         grf += ((r & ~mask) / 2) * jay_grf_per_gpr(f->shader);
+         offset_B = (r & mask) * 2;
       }
 
       if (d.file == GPR) {
-         R = xe2_vec8_grf(phys_reg, 0);
+         R = xe2_vec8_grf(grf, 0);
       } else {
-         R = brw_vecn_reg(8, ARF, BRW_ARF_ACCUMULATOR + (phys_reg * 2), 0);
+         R = brw_vecn_reg(8, ARF, BRW_ARF_ACCUMULATOR + grf, 0);
       }
 
       R = byte_offset(R, simd_offs * simd_width * stride_bits / 8);
@@ -524,8 +507,13 @@ emit(struct brw_codegen *p,
 
    case JAY_OPCODE_SHUFFLE: {
       struct brw_reg a0 = brw_address_reg(0);
-      unsigned grf_16 = to_def_grf_16(&f->shader->partition, I->src[0]);
-      unsigned offset_B = grf_16 * 2 * f->shader->dispatch_width;
+      assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
+      struct jay_register_block block =
+         jay_lookup_block(&f->shader->partition, I->src[0].reg, GPR);
+
+      unsigned offset_B =
+         (block.start_grf * 64) +
+         ((I->src[0].reg - block.start_gpr) * 4 * f->shader->dispatch_width);
 
       brw_ADD(p, a0, subscript(SRC(1), BRW_TYPE_UW, 0), brw_imm_uw(offset_B));
       brw_MOV(p, dst, retype(brw_VxH_indirect(0, 0), BRW_TYPE_UD));

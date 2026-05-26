@@ -745,35 +745,66 @@ jay_stride_to_bits(enum jay_stride s)
    return 16 << s;
 }
 
-#define JAY_PARTITION_BLOCKS (3)
+#define jay_foreach_ra_file(file)                                              \
+   for (enum jay_file file = 0; file < JAY_NUM_RA_FILES; ++file)
+
+#define JAY_PARTITION_BLOCKS (6)
+
+enum jay_block_type {
+   JAY_BLOCK_NORMAL,
+
+   /** A block suitable for EOT sends */
+   JAY_BLOCK_EOT,
+
+   /** A block reserved for post-RA spill lowering */
+   JAY_BLOCK_SPILL,
+
+   JAY_BLOCK_TYPES,
+};
 
 struct jay_register_block {
-   uint16_t start, len;
+   /** First GRF mapped by this block */
+   uint16_t start_grf;
+
+   /** First GPR/UGPR mapped by this block */
+   uint16_t start_gpr;
+
+   /** Length of this block in GPRs/UGPRs */
+   uint16_t len_gpr;
+
+   /** For GPR blocks, stride of GPRs in this block. */
+   enum jay_stride stride;
+
+   /** Special feature of the block */
+   enum jay_block_type type:2;
 };
+static_assert(sizeof(struct jay_register_block) == 8, "packed");
 
 struct jay_partition {
-   /** Consecutive ranges of GRFs in GPR/UGPRs. */
-   struct jay_register_block blocks[JAY_NUM_GRF_FILES][JAY_PARTITION_BLOCKS];
+   struct jay_register_block blocks[JAY_NUM_RA_FILES][JAY_PARTITION_BLOCKS];
+   unsigned nr_blocks[JAY_NUM_RA_FILES];
 
    /** Number of GPR/UGPRs per GRF, times 16. For example, 16 encodes SIMD16
-    * 32-bit GPRs on Xe2 (1 GRF = 1 GPR). 256 encodes UGPRs (1 GRF = 16 UGPRs).
-    * 8 encodes SIMD32 32-bit GPRs on Xe2 (2 GRF = 1 GPR).
+    * 32-bit GPRs on Xe2 (1 GRF = 1 GPR). 256 encodes UGPRs (1 GRF = 16
+    * UGPRs). 8 encodes SIMD32 32-bit GPRs on Xe2 (2 GRF = 1 GPR).
     */
-   unsigned units_x16[JAY_NUM_GRF_FILES];
-
-   /** Base GPR for each stride. The file is partitioned (4, 8, 2, 4=EOT). */
-   unsigned base8, base2, base_eot;
-
-   /** Region of the UGPR partition suitable for large UGPR vectors */
-   struct jay_register_block large_ugpr_block;
+   unsigned units_x16[JAY_NUM_RA_FILES];
 };
 
-static inline enum jay_stride
-jay_gpr_to_stride(const struct jay_partition *p, unsigned reg)
+static inline struct jay_register_block
+jay_lookup_block(const struct jay_partition *p,
+                 unsigned reg,
+                 enum jay_file file)
 {
-   return (reg < p->base8 || reg >= p->base_eot) ? JAY_STRIDE_4 :
-          reg >= p->base2                        ? JAY_STRIDE_2 :
-                                                   JAY_STRIDE_8;
+   for (unsigned i = 0; i < p->nr_blocks[file]; ++i) {
+      struct jay_register_block B = p->blocks[file][i];
+
+      if (reg >= B.start_gpr && reg < B.start_gpr + B.len_gpr) {
+         return B;
+      }
+   }
+
+   UNREACHABLE("invalid reg");
 }
 
 /**
@@ -786,7 +817,7 @@ typedef struct jay_shader {
    union brw_any_prog_data *prog_data;
    unsigned spills, fills;
    unsigned scratch_size;
-   unsigned payload_gprs, push_grfs;
+   unsigned payload_gprs, payload_ugprs, push_grfs;
 
    /**
     * Ralloc linear context. Since we don't typically free as we go,
@@ -1051,7 +1082,7 @@ static inline enum jay_stride
 jay_def_stride(const jay_shader *shader, jay_def x)
 {
    assert(x.file == GPR);
-   return jay_gpr_to_stride(&shader->partition, x.reg);
+   return jay_lookup_block(&shader->partition, x.reg, GPR).stride;
 }
 
 /* Represents an allocated register number with file in the top 3 bits. */
