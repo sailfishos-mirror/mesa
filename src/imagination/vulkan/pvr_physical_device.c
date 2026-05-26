@@ -207,6 +207,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_shader_replicated_composites = true,
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
+      .EXT_subgroup_size_control = true,
       .EXT_texel_buffer_alignment = false,
       .EXT_tooling_info = true,
       .EXT_vertex_attribute_divisor = true,
@@ -468,6 +469,10 @@ static void pvr_physical_device_get_supported_features(
 
       /* VK_KHR_shader_terminate_invocation */
       .shaderTerminateInvocation = true,
+
+      /* Vulkan 1.3 / VK_EXT_subgroup_size_control */
+      .subgroupSizeControl = true,
+      .computeFullSubgroups = true,
 
       /* VK_KHR_present_id2 */
       .presentId2 = PVR_USE_WSI_PLATFORM,
@@ -872,6 +877,12 @@ static bool pvr_physical_device_get_properties(
       .integerDotProductAccumulatingSaturating64BitUnsignedAccelerated = false,
       .integerDotProductAccumulatingSaturating64BitSignedAccelerated = false,
       .integerDotProductAccumulatingSaturating64BitMixedSignednessAccelerated = false,
+
+      /* Vulkan 1.3 / VK_EXT_subgroup_size_control */
+      .minSubgroupSize = ROGUE_MAX_INSTANCES_PER_TASK,
+      .maxSubgroupSize = ROGUE_MAX_INSTANCES_PER_TASK,
+      .maxComputeWorkgroupSubgroups = 128U / ROGUE_MAX_INSTANCES_PER_TASK,
+      .requiredSubgroupSizeStages = VK_SHADER_STAGE_COMPUTE_BIT,
 
       /* Vulkan 1.2 / VK_KHR_timeline_semaphore */
       .maxTimelineSemaphoreValueDifference = UINT64_MAX,

@@ -660,7 +660,8 @@ bool pco_nir_lower_subgroups(nir_shader *shader)
    if (shader->info.internal)
       return false;
 
-   assert(shader->info.api_subgroup_size == ROGUE_MAX_INSTANCES_PER_TASK);
+   assert(!shader->info.api_subgroup_size ||
+          shader->info.api_subgroup_size == ROGUE_MAX_INSTANCES_PER_TASK);
 
    struct subgroup_state state = { 0 };
    return nir_shader_intrinsics_pass(shader,

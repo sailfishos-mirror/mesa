@@ -511,7 +511,7 @@ Vulkan 1.3 -- all DONE: anv, hk, kk, lvp, nvk, panvk/v10+, radv, tu, vn, v3dv
   VK_EXT_pipeline_creation_feedback                     DONE (anv, hasvk, lvp, nvk, panvk, radv, tu, v3dv, vn)
   VK_EXT_private_data                                   DONE (anv, hasvk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_EXT_shader_demote_to_helper_invocation             DONE (anv, hasvk, lvp, nvk, panvk, radv, tu, v3dv, vn)
-  VK_EXT_subgroup_size_control                          DONE (anv, dzn, hasvk, lvp, nvk, panvk/v10+, radv, tu, v3dv, vn)
+  VK_EXT_subgroup_size_control                          DONE (anv, dzn, hasvk, lvp, nvk, panvk/v10+, pvr, radv, tu, v3dv, vn)
   VK_EXT_texel_buffer_alignment                         DONE (anv, hasvk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_EXT_texture_compression_astc_hdr                   DONE (panvk, tu, vn)
   VK_EXT_tooling_info                                   DONE (anv, hasvk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
