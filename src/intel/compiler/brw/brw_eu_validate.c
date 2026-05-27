@@ -292,7 +292,7 @@ send_restrictions(const struct brw_isa_info *isa,
                inst->src[1].nr != BRW_ARF_NULL,
                "src1 of split send must be a GRF or NULL");
 
-      if (devinfo->ver < 30) {
+      if (devinfo->ver < 20) {
          ERROR_IF(brw_eu_inst_eot(devinfo, inst->raw) &&
                   inst->src[0].nr < 112,
                   "send with EOT must use g112-g127");
