@@ -131,7 +131,9 @@ void vpe20_set_frod_output_viewport(struct vpe_cmd_output *dst_output,
     struct vpe_cmd_output *src_output, uint32_t viewport_divider,
     enum vpe_surface_pixel_format format);
 
-void vpe20_reset_pipes(struct vpe_priv *vpe_priv);
+void vpe20_pipe_setup(struct vpe_priv *vpe_priv, uint32_t cmd_idx);
+
+void vpe20_mpc_reset(struct vpe_priv *vpe_priv, uint32_t cmd_idx);
 
 enum vpe_status vpe20_populate_frod_param(
     struct vpe_priv *vpe_priv, const struct vpe_build_param *param);

@@ -498,10 +498,11 @@ enum vpe_status vpe22_construct_resource(struct vpe_priv *vpe_priv, struct resou
     res->get_num_pipes_available            = vpe20_get_num_pipes_available;
     res->set_frod_output_viewport           = vpe20_set_frod_output_viewport;
     res->check_alpha_fill_support           = vpe10_check_alpha_fill_support;
-    res->reset_pipes                        = vpe20_reset_pipes;
     res->populate_frod_param                = vpe20_populate_frod_param;
     res->set_lls_pref                       = vpe20_set_lls_pref;
     res->program_fastload     = vpe20_program_3dlut_fl;
+    res->pipe_setup           = vpe20_pipe_setup;
+    res->mpc_reset            = vpe20_mpc_reset;
     res->calculate_shaper     = vpe10_calculate_shaper;
     res->check_lut3d_compound = vpe20_check_lut3d_compound;
 

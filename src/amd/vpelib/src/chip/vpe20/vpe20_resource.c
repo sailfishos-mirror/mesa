@@ -706,6 +706,19 @@ static void set_dst_cmd_boundary_mode_and_opp_adjust(struct vpe_priv *vpe_priv,
     }
 }
 
+static void opp_bg_reset(struct vpe_priv *vpe_priv)
+{
+    struct opp      *opp;
+    struct vpe_rect  zero_dim_rect = {0, 0, 0, 0};
+    struct vpe_color bg_color      = {.is_ycbcr = false, .rgba = {0, 0, 0}};
+
+    for (uint32_t opp_idx = 0; opp_idx < vpe_priv->pub.caps->resource_caps.num_opp; opp_idx++) {
+        opp = vpe_priv->resource.opp[opp_idx];
+        opp->funcs->set_bg(
+            opp, zero_dim_rect, zero_dim_rect, VPE_SURFACE_PIXEL_FORMAT_INVALID, bg_color);
+    }
+}
+
 static void update_pipe_ctrl_param(struct opp_pipe_control_params *param,
     struct output_ctx *output_ctx, struct vpe_surface_info *surface_info,
     struct vpe_cmd_info *cmd_info)
@@ -1363,11 +1376,12 @@ enum vpe_status vpe20_construct_resource(struct vpe_priv *vpe_priv, struct resou
     res->get_num_pipes_available            = vpe20_get_num_pipes_available;
     res->set_frod_output_viewport           = vpe20_set_frod_output_viewport;
     res->check_alpha_fill_support           = vpe10_check_alpha_fill_support;
-    res->reset_pipes                        = vpe20_reset_pipes;
     res->populate_frod_param                = vpe20_populate_frod_param;
     res->check_lut3d_compound               = vpe20_check_lut3d_compound;
     res->set_lls_pref                       = vpe20_set_lls_pref;
     res->program_fastload = vpe20_program_3dlut_fl;
+    res->mpc_reset        = vpe20_mpc_reset;
+    res->pipe_setup       = vpe20_pipe_setup;
     res->calculate_shaper = vpe10_calculate_shaper;
     res->set_dst_cmd_info_scaler        = vpe20_set_dst_cmd_info_scaler;
     res->update_opp_adjust_and_boundary = vpe20_update_opp_adjust_and_boundary;
@@ -1551,8 +1565,8 @@ int32_t vpe20_program_backend(
     struct stream_ctx       *stream_ctx   = vpe_priv->stream_ctx;
     struct cdc_be           *cdc_be       = vpe_priv->resource.cdc_be[pipe_idx];
     struct vpe_cmd_info     *cmd_info     = vpe_vector_get(vpe_priv->vpe_cmd_vector, cmd_idx);
-    struct opp              *opp          = vpe_priv->resource.opp[pipe_idx];
     struct mpc              *mpc          = vpe_priv->resource.mpc[pipe_idx];
+    struct opp              *opp          = vpe_priv->resource.opp[pipe_idx];
 
     struct bit_depth_reduction_params         fmt_bit_depth;
     struct clamping_and_pixel_encoding_params clamp_param;
@@ -1567,6 +1581,8 @@ int32_t vpe20_program_backend(
         return -1;
 
     vpe_priv->be_cb_ctx.vpe_priv = vpe_priv;
+    vpe_priv->be_cb_ctx.share    = false;
+
     config_writer_set_callback(
         &vpe_priv->config_writer, &vpe_priv->be_cb_ctx, vpe_backend_config_callback);
 
@@ -1604,7 +1620,19 @@ int32_t vpe20_program_backend(
     }
 
     // Segment Specific programming
-    vpe_priv->be_cb_ctx.share = false;
+    vpe_priv->be_cb_ctx.vpe_priv = vpe_priv;
+    vpe_priv->be_cb_ctx.share    = false;
+
+    /*
+     * Because we only touch the back end of the output pipes associated with the current command,
+     * and the number of output pipes can vary between commands, there is a need to reset certain
+     * registers in the back end that may have been leftover from a previous job. Specfically the
+     * OPP BG Gen registers need to be reset because this block can generate its own signal. This
+     * is not the case for the other back end blocks, so we don't need to reset them.
+     */
+    if ((pipe_idx == 0) && (vpe_priv->init.debug.opp_background_gen == 1)) {
+        opp_bg_reset(vpe_priv);
+    }
 
     // Segment specific programming that should be skipped for FROD.
     //  In the blending case there is only one output so the entire back end programming is skipped
@@ -1873,38 +1901,83 @@ void vpe20_set_lls_pref(struct vpe_priv *vpe_priv, struct spl_in *spl_input,
     }
 }
 
-void vpe20_program_3dlut_fl(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
+void vpe20_pipe_setup(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
+{
+    if (vpe_priv->resource.mpc_reset != NULL) {
+        vpe_priv->resource.mpc_reset(vpe_priv, cmd_idx);
+    }
+
+    if (vpe_priv->resource.program_fastload != NULL) {
+        vpe_priv->resource.program_fastload(vpe_priv, cmd_idx);
+    }
+}
+
+void vpe20_mpc_reset(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
 {
     struct vpe_cmd_info *cmd_info = vpe_vector_get(vpe_priv->vpe_cmd_vector, cmd_idx);
+    struct mpc          *mpc;
     VPE_ASSERT(cmd_info);
     if (!cmd_info)
         return;
 
+    vpe_priv->fe_cb_ctx.vpe_priv          = vpe_priv;
+    vpe_priv->fe_cb_ctx.stream_sharing    = false;
+    vpe_priv->fe_cb_ctx.stream_op_sharing = false;
+    vpe_priv->fe_cb_ctx.cmd_type          = cmd_info->ops;
+
+    /* There is no mechanism to detach RMCM at the end of each VPE descriptor.
+    This is why we detach RMCM at the beginning of every job to reset the leftover
+    programming, otherwise the RMCM stays attached to the previous pipe.*/
+
+    config_writer_set_callback(
+        &vpe_priv->config_writer, &vpe_priv->fe_cb_ctx, vpe_frontend_config_callback);
+    config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, 0);
+
+    for (uint32_t rmcm_idx = 0; rmcm_idx < vpe_priv->pub.caps->resource_caps.num_mpc_3dlut;
+         rmcm_idx++) {
+
+        mpc = vpe_priv->resource.mpc[rmcm_idx];
+        mpc->funcs->attach_3dlut_to_mpc_inst(mpc, RMCM_MPCC_DISCONNECTED);
+        mpc->funcs->program_shaper(mpc, NULL);
+        mpc->funcs->program_3dlut(mpc, NULL);
+    }
+
+    // Visual confirm requires the MPCC Mux to be disabled as well before frontend programming
+    for (uint32_t opp_idx = 0; opp_idx < vpe_priv->pub.caps->resource_caps.num_opp; opp_idx++) {
+        mpc = vpe_priv->resource.mpc[opp_idx];
+        mpc->funcs->program_mpcc_mux(mpc, opp_idx, MPC_MUX_TOPSEL_DISABLE, MPC_MUX_BOTSEL_DISABLE,
+            MPC_MUX_OUTMUX_DISABLE, MPC_MUX_OPPID_DISABLE);
+    }
+
+    config_writer_complete(&vpe_priv->config_writer);
+}
+
+void vpe20_program_3dlut_fl(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
+{
+    struct vpe_cmd_info *cmd_info = vpe_vector_get(vpe_priv->vpe_cmd_vector, cmd_idx);
+    struct mpc          *mpc;
+    VPE_ASSERT(cmd_info);
+    if (!cmd_info)
+        return;
     uint32_t num_3dluts =
         min(vpe_priv->pub.caps->resource_caps.num_mpc_3dlut, cmd_info->num_inputs);
     uint32_t used_3dluts = 0;
     uint32_t pipe_idx    = 0;
 
-    vpe_priv->fe_cb_ctx.stream_sharing    = false;
-    vpe_priv->fe_cb_ctx.stream_op_sharing = false;
-    vpe_priv->fe_cb_ctx.vpe_priv          = vpe_priv;
-
-    config_writer_set_callback(
-        &vpe_priv->config_writer, &vpe_priv->fe_cb_ctx, vpe_frontend_config_callback);
-
-    // Program CDC & mpc for 3DLUT FL
+    // Program CDC & mpc fast load registers
     for (pipe_idx = 0; pipe_idx < cmd_info->num_inputs; pipe_idx++) {
 
         struct stream_ctx *stream_ctx =
             &vpe_priv->stream_ctx[cmd_info->inputs[pipe_idx].stream_idx];
-        struct cdc_fe           *cdc_fe       = vpe_priv->resource.cdc_fe[pipe_idx];
-        struct mpc              *mpc          = vpe_priv->resource.mpc[pipe_idx];
+        struct cdc_fe *cdc_fe                 = vpe_priv->resource.cdc_fe[pipe_idx];
+        mpc                                   = vpe_priv->resource.mpc[pipe_idx];
         struct vpe_surface_info *surface_info = &stream_ctx->stream.surface_info;
         struct vpe_cmd_input    *cmd_input    = &cmd_info->inputs[pipe_idx];
         uint16_t                 lut3d_bias   = 0x0;
         uint16_t                 lut3d_scale  = 0x3C00;
 
         vpe_priv->fe_cb_ctx.stream_idx = cmd_input->stream_idx;
+        vpe_priv->fe_cb_ctx.vpe_priv   = vpe_priv;
 
         if ((stream_ctx->stream.tm_params.UID != 0 || stream_ctx->stream.tm_params.enable_3dlut) &&
             (stream_ctx->stream.tm_params.lut_type > VPE_LUT_TYPE_CPU) &&
@@ -1931,7 +2004,29 @@ void vpe20_program_3dlut_fl(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
             mpc->funcs->program_mpc_3dlut_fl(
                 mpc, LUT_DIM_33, stream_ctx->lut3d_func->lut_3d.use_12bits);
 
-            config_writer_complete(&vpe_priv->config_writer);
+        } else {
+            if (mpc->funcs->program_mpc_3dlut_fl_config != NULL) {
+                mpc->funcs->program_mpc_3dlut_fl_config(mpc, VPE_3DLUT_MEM_LAYOUT_DISABLE,
+                    VPE_3DLUT_MEM_FORMAT_16161616_UNORM_12MSB, false);
+            }
+        }
+    }
+    config_writer_complete(&vpe_priv->config_writer);
+
+    // Program 3DLUT Descriptors
+    for (pipe_idx = 0; pipe_idx < cmd_info->num_inputs; pipe_idx++) {
+
+        struct stream_ctx *stream_ctx =
+            &vpe_priv->stream_ctx[cmd_info->inputs[pipe_idx].stream_idx];
+        struct vpe_surface_info *surface_info = &stream_ctx->stream.surface_info;
+        struct vpe_cmd_input    *cmd_input    = &cmd_info->inputs[pipe_idx];
+
+        vpe_priv->fe_cb_ctx.stream_idx = cmd_input->stream_idx;
+        vpe_priv->fe_cb_ctx.vpe_priv   = vpe_priv;
+
+        if ((stream_ctx->stream.tm_params.UID != 0 || stream_ctx->stream.tm_params.enable_3dlut) &&
+            (stream_ctx->stream.tm_params.lut_type > VPE_LUT_TYPE_CPU) &&
+            stream_ctx->lut3d_func->state.bits.is_dma) {
 
             // Start 3dlut Config
             config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_3DLUT_FL, pipe_idx);
@@ -1940,16 +2035,8 @@ void vpe20_program_3dlut_fl(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
                 (uint64_t)stream_ctx->stream.dma_info.lut3d.data,
                 stream_ctx->lut3d_func->dma_params.addr_mode,
                 stream_ctx->stream.dma_info.lut3d.mem_align, LUT_FL_SIZE_33X33X33, false,
-                stream_ctx->stream.dma_info.lut3d.tmz);
+                stream_ctx->stream.surface_info.address.tmz_surface);
             config_writer_complete(&vpe_priv->config_writer);
-
-        } else {
-            if (mpc->funcs->program_mpc_3dlut_fl_config != NULL) {
-                config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, pipe_idx);
-                mpc->funcs->program_mpc_3dlut_fl_config(mpc, VPE_3DLUT_MEM_LAYOUT_DISABLE,
-                    VPE_3DLUT_MEM_FORMAT_16161616_UNORM_12MSB, false);
-                config_writer_complete(&vpe_priv->config_writer);
-            }
         }
     }
 }
@@ -3267,58 +3354,6 @@ void vpe20_set_frod_output_viewport(struct vpe_cmd_output *dst_output,
             }
         }
     }
-}
-
-/*
- * Because we only touch the back end of the output pipes associated with the current command,
- * and the number of output pipes can vary between commands, there is a need to reset certain
- * registers in the back end that may have been leftover from a previous job. Specfically the
- * OPP BG Gen registers need to be reset because this block can generate its own signal. This
- * is not the case for the other back end blocks, so we don't need to reset them.
- */
-void vpe20_reset_pipes(struct vpe_priv *vpe_priv)
-{
-    struct mpc      *mpc;
-    struct opp      *opp;
-    struct vpe_rect  zero_dim_rect = {0, 0, 0, 0};
-    struct vpe_color bg_color      = {.is_ycbcr = false, .rgba = {0, 0, 0}};
-
-    // Reset necessary frontend registers
-    vpe_priv->fe_cb_ctx.vpe_priv          = vpe_priv;
-    vpe_priv->fe_cb_ctx.stream_sharing    = false;
-    vpe_priv->fe_cb_ctx.stream_op_sharing = false;
-    config_writer_set_callback(
-        &vpe_priv->config_writer, &vpe_priv->fe_cb_ctx, vpe_frontend_config_callback);
-
-    for (uint32_t rmcm_idx = 0; rmcm_idx < vpe_priv->pub.caps->resource_caps.num_mpc_3dlut;
-         rmcm_idx++) {
-        config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, rmcm_idx);
-        mpc = vpe_priv->resource.mpc[rmcm_idx];
-        mpc->funcs->attach_3dlut_to_mpc_inst(mpc, RMCM_MPCC_DISCONNECTED);
-        mpc->funcs->shaper_bypass(mpc, true);
-        mpc->funcs->program_3dlut(mpc, NULL);
-    }
-
-    config_writer_complete(&vpe_priv->config_writer);
-
-    // Reset necessary backend registers
-    vpe_priv->be_cb_ctx.vpe_priv = vpe_priv;
-    vpe_priv->be_cb_ctx.share    = false;
-    config_writer_set_callback(
-        &vpe_priv->config_writer, &vpe_priv->be_cb_ctx, vpe_backend_config_callback);
-
-    for (uint32_t pipe_idx = 0; pipe_idx < vpe_priv->pub.caps->resource_caps.num_opp; pipe_idx++) {
-        config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, pipe_idx);
-        opp = vpe_priv->resource.opp[pipe_idx];
-        opp->funcs->set_bg(
-            opp, zero_dim_rect, zero_dim_rect, VPE_SURFACE_PIXEL_FORMAT_INVALID, bg_color);
-
-        mpc = vpe_priv->resource.mpc[pipe_idx];
-        mpc->funcs->program_mpcc_mux(mpc, pipe_idx, MPC_MUX_TOPSEL_DISABLE, MPC_MUX_BOTSEL_DISABLE,
-            MPC_MUX_OUTMUX_DISABLE, MPC_MUX_OPPID_DISABLE);
-    }
-
-    config_writer_complete(&vpe_priv->config_writer);
 }
 
 enum vpe_status vpe20_populate_frod_param(

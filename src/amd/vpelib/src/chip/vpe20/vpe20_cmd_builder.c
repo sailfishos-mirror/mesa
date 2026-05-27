@@ -81,10 +81,8 @@ enum vpe_status vpe20_build_vpe_cmd(
 
     config_writer_init(&vpe_priv->config_writer, emb_buf);
 
-    vpe_priv->resource.reset_pipes(vpe_priv);
-
-    /* 3D LUT FL programming */
-    vpe_priv->resource.program_fastload(vpe_priv, cmd_idx);
+    /*Pipe Setup: 3DLUT FL programming, RMCM detachment, and MPCC Mux disable*/
+    vpe_priv->resource.pipe_setup(vpe_priv, cmd_idx);
 
     // frontend programming
     for (pipe_idx = 0; pipe_idx < cmd_info->num_inputs; pipe_idx++) {

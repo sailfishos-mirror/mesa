@@ -537,7 +537,6 @@ enum vpe_status vpe10_construct_resource(struct vpe_priv *vpe_priv, struct resou
     res->update_output_gamma               = vpe10_update_output_gamma;
     res->validate_cached_param             = vpe10_validate_cached_param;
     res->check_alpha_fill_support          = vpe10_check_alpha_fill_support;
-    res->reset_pipes          = NULL;
     res->populate_frod_param  = NULL;
     res->check_lut3d_compound = NULL;
     res->update_opp_adjust_and_boundary = NULL;
