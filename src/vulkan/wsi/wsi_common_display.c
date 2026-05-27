@@ -196,6 +196,7 @@ typedef struct wsi_display_connector {
    uint32_t                     *formats;
    enum vrr_tristate            vrr_capable;
    enum vrr_tristate            vrr_enabled;
+   bool                         has_vblank;
    uint64_t                     last_frame;
    uint64_t                     last_nsec;
 } wsi_display_connector;
@@ -518,6 +519,8 @@ struct wsi_display_swapchain {
    VkHdrMetadataEXT                hdr_metadata;
 
    struct wsi_image_timing_request timing_request;
+   uint64_t                        last_presented_vblank;
+   uint64_t                        last_presented_nsec;
 
    struct wsi_display_image        images[0];
 };
@@ -690,6 +693,7 @@ wsi_display_alloc_connector(struct wsi_display *wsi,
    connector->wsi = wsi;
    connector->active = false;
    connector->imported = imported;
+   connector->has_vblank = true;
    list_inithead(&connector->display_modes);
    list_addtail(&connector->list, &wsi->connectors);
 
@@ -2031,7 +2035,9 @@ wsi_display_page_flip_handler2(int fd,
    nsec = MAX2(nsec, connector->last_nsec);
 
    uint64_t frame64 = widen_32_to_64(frame, connector->last_frame);
+   chain->last_presented_vblank = frame64;
    connector->last_frame = frame64;
+   chain->last_presented_nsec = nsec;
    connector->last_nsec = nsec;
 
    /* Never update the refresh rate estimate. It's static based on the mode.
@@ -3071,16 +3077,31 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
 
       unsigned num_cycles_to_skip = 0;
       int64_t target_relative_ns = 0;
-      bool skip_timing = false;
+      uint64_t base_time_ns;
+      uint64_t base_last_frame;
+      bool skip_timing = true;
       bool nearest_cycle =
             (image->timing_request.flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT) != 0;
+      bool is_absolute_time = !(image->timing_request.flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_RELATIVE_TIME_BIT_EXT);
 
-      if (image->timing_request.time != 0) {
+      if (image->state == WSI_IMAGE_QUEUED && image->timing_request.time != 0 &&
+          (is_absolute_time || chain->last_presented_nsec)) {
+         skip_timing = false;
+      }
+
+      if (!skip_timing) {
          /* Ensure we have some kind of timebase to work from. */
-         if (!connector->last_frame)
-            drmCrtcGetSequence(wsi->fd, connector->crtc_id, &connector->last_frame, &connector->last_nsec);
+         if (connector->has_vblank && !connector->last_frame) {
+            int ret = drmCrtcGetSequence(wsi->fd, connector->crtc_id, &connector->last_frame, &connector->last_nsec);
+            if (ret == -EOPNOTSUPP) {
+               connector->has_vblank = false;
+               connector->last_frame = 0;
+               connector->last_nsec = 0;
+               wsi_display_debug("Driver without vblank + event dispatch. Fallback to non-vblank timing.\n");
+            }
+         }
 
-         if (!connector->last_frame || chain->base.present_timing.refresh_duration == 0) {
+         if ((!connector->last_frame && connector->has_vblank) || chain->base.present_timing.refresh_duration == 0) {
             /* Something has gone very wrong. Just ignore present timing for safety. */
             skip_timing = true;
             wsi_display_debug("Cannot get a stable timebase, last frame = %"PRIu64", refresh_duration = %"PRIu64".\n",
@@ -3088,12 +3109,27 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
          }
       }
 
-      if (!skip_timing && image->state == WSI_IMAGE_QUEUED && image->timing_request.time != 0) {
+      if (!skip_timing) {
+         /* We need to estimate number of refresh cycles or time to wait for. */
          target_relative_ns = (int64_t)image->timing_request.time;
 
-         /* We need to estimate number of refresh cycles to wait for. */
-         if (!(image->timing_request.flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_RELATIVE_TIME_BIT_EXT)) {
-            target_relative_ns -= (int64_t)connector->last_nsec;
+         /* Choose baseline for absolute or relative timing. */
+         if (is_absolute_time) {
+            /* For absolute target time, use the count and timestamp of the connectors most
+             * recent known vblank, to minimize potential absolute time -> absolute target
+             * vblank count conversion error.
+             */
+            base_time_ns = connector->last_nsec;
+            base_last_frame = connector->last_frame;
+
+            /* Convert absolute requested time to relative time (wrt. last known vblank). */
+            target_relative_ns -= (int64_t) base_time_ns;
+         } else {
+            /* For a requested relative time to the most recent presented image on the swapchain,
+             * use the count and timestamp of the swapchains most recently presented image.
+             */
+            base_time_ns = chain->last_presented_nsec;
+            base_last_frame = chain->last_presented_vblank;
          }
 
          if (nearest_cycle) {
@@ -3115,7 +3151,7 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
                     connector->vrr_capable == VRR_TRISTATE_ENABLED;
 
       if (num_cycles_to_skip) {
-         if (!is_vrr) {
+         if (!is_vrr && connector->has_vblank) {
             /* On FRR, we can rely on vblank events to guide time progression. */
             VkDisplayKHR display = wsi_display_connector_to_handle(connector);
             image->fence = wsi_display_fence_alloc(wsi, -1);
@@ -3125,7 +3161,7 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
                image->fence->image = image;
 
                uint64_t frame_queued;
-               uint64_t target_frame = connector->last_frame + num_cycles_to_skip;
+               uint64_t target_frame = base_last_frame + num_cycles_to_skip;
                VkResult result = wsi_register_vblank_event(image->fence, chain->base.wsi, display,
                                                            0, target_frame, &frame_queued);
 
@@ -3138,7 +3174,7 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
          } else {
             /* On a VRR display, applications can request frame times which are fractional,
              * and there is no good way to target absolute time with atomic commits it seems ... */
-            int64_t target_ns = target_relative_ns + (int64_t)connector->last_nsec;
+            int64_t target_ns = target_relative_ns + (int64_t)base_time_ns;
             image->minimum_ns = target_ns;
 
             /* Account for some minimum delay in submitting a page flip until it's processed and sleep jitter.
@@ -3256,7 +3292,7 @@ wsi_display_queue_present(struct wsi_swapchain *drv_chain,
 
    /* Make sure that the page flip handler is processed in finite time if using present wait
     * or presentation time. */
-   if (present_id || chain->timing_request.serial)
+   if (present_id || chain->base.present_timing.active)
       wsi_display_start_wait_thread(wsi);
 
    memset(&chain->timing_request, 0, sizeof(chain->timing_request));
