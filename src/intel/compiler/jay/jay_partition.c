@@ -36,25 +36,42 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
       .units_x16[MEM] = 16 / jay_grf_per_gpr(shader),
    };
 
+   /* Drop empty blocks and merge the resulting neighbours. This avoids needless
+    * partition boundaries that would unnecessarily constrain RA, while allowing
+    * the caller the convenience of passing in holes sometimes.
+    */
+   signed j = -1;
    for (unsigned i = 0; i < n; ++i) {
-      if (b[i].len_grf) {
-         enum jay_file file = b[i].file;
-         unsigned len_gpr = (b[i].len_grf * p->units_x16[file]) / 16;
-         bool grf = file < JAY_NUM_GRF_FILES;
-         assert(p->nr_blocks[file] < JAY_PARTITION_BLOCKS);
+      struct jay_partition_builder B = b[i];
+      if (j >= 0 &&
+          B.file == b[j].file &&
+          B.stride == b[j].stride &&
+          B.type == b[j].type) {
 
-         p->blocks[file][p->nr_blocks[file]++] = (struct jay_register_block) {
-            .start_grf = grf ? base_grf : 0,
-            .start_gpr = base_gpr[file],
-            .len_gpr = (b[i].len_grf * p->units_x16[file]) / 16,
-            .stride = b[i].stride,
-            .type = b[i].type,
-         };
+         b[j].len_grf += B.len_grf;
+      } else if (B.len_grf) {
+         b[++j] = B;
+      }
+   }
 
-         if (file < JAY_NUM_GRF_FILES) {
-            base_grf += b[i].len_grf;
-            base_gpr[file] += len_gpr;
-         }
+   /* Translate to jay_register_block */
+   for (signed i = 0; i <= j; ++i) {
+      enum jay_file file = b[i].file;
+      unsigned len_gpr = (b[i].len_grf * p->units_x16[file]) / 16;
+      bool grf = file < JAY_NUM_GRF_FILES;
+      assert(p->nr_blocks[file] < JAY_PARTITION_BLOCKS);
+
+      p->blocks[file][p->nr_blocks[file]++] = (struct jay_register_block) {
+         .start_grf = grf ? base_grf : 0,
+         .start_gpr = base_gpr[file],
+         .len_gpr = (b[i].len_grf * p->units_x16[file]) / 16,
+         .stride = b[i].stride,
+         .type = b[i].type,
+      };
+
+      if (file < JAY_NUM_GRF_FILES) {
+         base_grf += b[i].len_grf;
+         base_gpr[file] += len_gpr;
       }
    }
 
