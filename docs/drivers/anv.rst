@@ -422,7 +422,7 @@ paths in the shaders. To make use of this feature :
 3. Exit the application once enough data is captured
 
 4. Untar the ``anv-shaders.mda.tar`` file created in the directory the
-   application was launched
+   application was launched (or in MDA_OUTPUT_DIR if it was set)
 
 .. code-block:: sh
 

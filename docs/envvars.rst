@@ -912,7 +912,7 @@ Intel driver environment variables
 
 .. envvar:: MDA_OUTPUT_DIR
 
-   Directory where the mda.tar files generated when using INTEL_DEBUG=mda are
+   Directory where the mda.tar files generated when using INTEL_DEBUG=mda or ANV_DEBUG=shader-dump are
    going to be written to.  If not set, use the current directory.
 
 .. envvar:: MDA_PREFIX
