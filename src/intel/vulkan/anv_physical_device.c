@@ -2951,7 +2951,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       }
    }
    if (device->sparse_type == ANV_SPARSE_TYPE_NOT_SUPPORTED) {
-      if (instance->drirc.debug.fake_sparse)
+      if (instance->drirc.features.fake_sparse)
          device->sparse_type = ANV_SPARSE_TYPE_FAKE;
    }
 

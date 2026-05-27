@@ -118,9 +118,6 @@ def declare_options(android_version):
         B("custom_border_colors_without_format", android_version == 0,
           "Enable custom border colors without format",
           c_name="custom_border_colors_without_format"),
-        B("fake_sparse", False,
-          "Advertise support for sparse binding of textures regardless of real support",
-          c_name="fake_sparse"),
         I("force_vk_vendor", 0, -1, 2147483647,
           "Override GPU vendor id",
           c_name="force_vk_vendor"),
@@ -240,6 +237,9 @@ def declare_options(android_version):
     ]
 
     feature_options = [
+        B("fake_sparse", False,
+          "Advertise support for sparse binding of textures regardless of real support",
+          c_name="fake_sparse"),
         B("anv_enable_scratch_page", True,
           "Disables surface padding and suppresses all page faults, drops writes and returns zeros on reads.",
           c_name="scratch_page"),
