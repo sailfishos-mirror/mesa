@@ -3634,7 +3634,7 @@
         "description": "intel/isl: Define a CMF for ASTC formats",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "27d515772e0bbcba86752503c53c141b72881318",
         "notes": null
