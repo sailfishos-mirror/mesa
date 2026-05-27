@@ -2158,7 +2158,8 @@ tu6_emit_fs_inputs(struct tu_cs *cs, const struct ir3_shader_variant *fs)
    enum a6xx_threadsize thrsz = fs->info.double_threadsize ? THREAD128 : THREAD64;
    tu_cs_emit_regs(cs, SP_PS_WAVE_CNTL(CHIP, .threadsize = thrsz, .varyings = enable_varyings));
 
-   bool need_size = fs->frag_face || fs->fragcoord_compmask != 0;
+   bool need_size = !cs->device->physical_device->info->props.has_implicit_fragface_fragcoord_ij_linear &&
+                    (fs->frag_face || fs->fragcoord_compmask != 0);
    bool need_size_persamp = false;
    if (VALIDREG(ij_regid[IJ_PERSP_CENTER_RHW])) {
       if (sample_shading)
@@ -2176,6 +2177,8 @@ tu6_emit_fs_inputs(struct tu_cs *cs, const struct ir3_shader_variant *fs)
          .ij_linear_centroid    = VALIDREG(ij_regid[IJ_LINEAR_CENTROID]),
          .ij_linear_sample      = VALIDREG(ij_regid[IJ_LINEAR_SAMPLE]) || need_size_persamp,
          .coord_mask            = fs->fragcoord_compmask,
+         .faceness              = fs->frag_face,
+         .centerrhw             = VALIDREG(ij_regid[IJ_PERSP_CENTER_RHW]),
       )
    );
 
