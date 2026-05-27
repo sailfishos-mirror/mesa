@@ -2121,7 +2121,7 @@
     <field name="Pixel Kill Operation" size="2" start="2" type="Pixel Kill"/>
     <field name="ZS Update Operation" size="2" start="4" type="Pixel Kill"/>
     <field name="Allow Primitive Reorder" size="1" start="6" type="bool"/>
-    <field name="Overdraw Alpha0" start="7" size="1" type="bool"/>
+    <field name="Overdraw Alpha0" size="1" start="7" type="bool"/>
     <field name="Overdraw Alpha1" size="1" start="8" type="bool"/>
     <field name="Clean Fragment Write" size="1" start="9" type="bool"/>
     <field name="Primitive Barrier" size="1" start="10" type="bool"/>
@@ -2140,7 +2140,7 @@
 
   <struct name="DCD Flags 1" size="1">
     <field name="Sample Mask" size="16" start="0" type="hex"/>
-    <field name="Render Target Mask" start="16" size="8" type="hex"/>
+    <field name="Render Target Mask" size="8" start="16" type="hex"/>
   </struct>
 
   <struct name="DCD Flags 2" size="1">
