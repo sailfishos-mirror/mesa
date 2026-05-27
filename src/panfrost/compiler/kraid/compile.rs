@@ -81,6 +81,10 @@ pub extern "C" fn kraid_compile_nir(
     dump_shader(&s, "after register assignment");
     s.validate();
 
+    s.assign_message_slots();
+    dump_shader(&s, "after message slot assignment");
+    s.validate();
+
     let bin = model.encode_shader(&s);
     dynarray_append_vec(binary, bin);
 }

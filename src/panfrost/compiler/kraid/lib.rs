@@ -9,6 +9,7 @@ mod encode_v9;
 mod flow;
 mod ir;
 mod isa;
+mod message_slots;
 mod model;
 mod nir;
 mod ops;
