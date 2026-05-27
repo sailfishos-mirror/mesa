@@ -187,6 +187,8 @@ stage_end(struct pipe_context *pctx, uint64_t ts_ns, enum fd_stage_id stage)
             data->set_name("binHeight");
             data->set_value(std::to_string(p->binh));
          }
+      } else if (stage == NONDRAW_STAGE_ID) {
+         event->set_submission_id(p->submit_id);
       } else if (stage == COMPUTE_STAGE_ID) {
          {
             auto data = event->add_extra_data();
@@ -366,6 +368,28 @@ fd_end_render_pass(struct pipe_context *pctx, uint64_t ts_ns,
                    const void *indirect_data)
 {
    stage_end(pctx, ts_ns, SURFACE_STAGE_ID);
+}
+
+void
+fd_start_nondraw(struct pipe_context *pctx, uint64_t ts_ns,
+                 uint16_t tp_idx, const void *flush_data,
+                 const struct trace_start_nondraw *payload,
+                 const void *indirect_data)
+{
+   stage_start(pctx, ts_ns, NONDRAW_STAGE_ID);
+
+   struct fd_perfetto_state *p = &fd_context(pctx)->perfetto;
+
+   p->submit_id = payload->submit_id;
+}
+
+void
+fd_end_nondraw(struct pipe_context *pctx, uint64_t ts_ns,
+               uint16_t tp_idx, const void *flush_data,
+               const struct trace_end_nondraw *payload,
+               const void *indirect_data)
+{
+   stage_end(pctx, ts_ns, NONDRAW_STAGE_ID);
 }
 
 void
