@@ -140,11 +140,6 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
       inputs.fragcolor_nr_cbufs = key->fs.nr_cbufs_for_fragcolor;
 
-      if (key->fs.nr_cbufs_for_fragcolor) {
-         NIR_PASS(_, s, panfrost_nir_remove_fragcolor_stores,
-                  key->fs.nr_cbufs_for_fragcolor);
-      }
-
       if (key->fs.sprite_coord_enable) {
          NIR_PASS(_, s, nir_lower_texcoord_replace_late,
                   key->fs.sprite_coord_enable,
@@ -174,6 +169,11 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    }
 
    if (dev->arch <= 5 && s->info.stage == MESA_SHADER_FRAGMENT) {
+      if (key->fs.nr_cbufs_for_fragcolor) {
+         NIR_PASS(_, s, panfrost_nir_remove_fragcolor_stores,
+                  key->fs.nr_cbufs_for_fragcolor);
+      }
+
       NIR_PASS(_, s, pan_nir_lower_framebuffer, key->fs.rt_formats,
                pan_raw_format_mask_midgard(key->fs.rt_formats), 0,
                panfrost_device_gpu_prod_id(dev) < 0x700);
@@ -555,17 +555,22 @@ panfrost_create_shader_state(struct pipe_context *pctx,
       nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
    }
 
-   /* gl_FragColor needs to be lowered before lowering I/O, do that now */
+   struct panfrost_device *dev = pan_device(pctx->screen);
+
    if (nir->info.stage == MESA_SHADER_FRAGMENT &&
        nir->info.outputs_written & BITFIELD_BIT(FRAG_RESULT_COLOR)) {
-
-      NIR_PASS(_, nir, nir_lower_fragcolor,
-               nir->info.fs.color_is_dual_source ? 1 : 8);
+      /* Bifrost and newer handle gl_FragColor in the backend, but Midgard
+       * still needs the frontend lowering.  Must happen before IO lowering
+       */
+      if (dev->arch <= 5) {
+         assert(!nir->info.io_lowered);
+         NIR_PASS(_, nir, nir_lower_fragcolor,
+                  nir->info.fs.color_is_dual_source ? 1 : 8);
+      }
       so->fragcolor_lowered = true;
    }
 
    /* Then run the suite of lowering and optimization, including I/O lowering */
-   struct panfrost_device *dev = pan_device(pctx->screen);
    pan_preprocess_nir(nir, panfrost_device_gpu_id(dev));
 
    /* Usually IO is lowered by gallium, but TTN doesn't */
