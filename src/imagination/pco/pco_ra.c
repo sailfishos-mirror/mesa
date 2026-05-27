@@ -117,8 +117,9 @@ typedef struct _pco_use {
    pco_ref *ref;
 } pco_use;
 
-static void preproc_vecs(pco_func *func)
+static bool preproc_vecs(pco_func *func)
 {
+   bool progress = false;
    unsigned num_ssas = func->next_ssa;
 
    void *mem_ctx = ralloc_context(NULL);
@@ -214,6 +215,7 @@ static void preproc_vecs(pco_func *func)
             pco_instr_delete(use->instr);
             needs_reindex = true;
          }
+         progress = true;
       }
    }
 
@@ -221,6 +223,8 @@ static void preproc_vecs(pco_func *func)
 
    if (needs_reindex)
       pco_index(func->parent_shader, false);
+
+   return progress;
 }
 
 typedef struct _pco_copy {
@@ -445,9 +449,7 @@ static void spill(unsigned spill_index, pco_func *func, pco_ra_ctx *ctx)
  * \brief Performs register allocation on a function.
  *
  * \param[in,out] func PCO shader.
- * \param[in] allocable_temps Number of allocatable temp registers.
- * \param[in] allocable_vtxins Number of allocatable vertex input registers.
- * \param[in] allocable_interns Number of allocatable internal registers.
+ * \param[in,out] ctx Register allocation context.
  * \return True if registers were allocated.
  */
 static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
@@ -458,8 +460,6 @@ static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
    /* TODO: loop lifetime extension.
     * TODO: track successors/predecessors.
     */
-
-   preproc_vecs(func);
 
    unsigned num_rsvd_vtxins = func->parent_shader->data.common.vtxins;
    unsigned num_ssas = func->next_ssa;
@@ -1173,6 +1173,7 @@ bool pco_ra(pco_shader *shader)
    bool progress = false;
    pco_foreach_func_in_shader (func, shader) {
       ctx.done = false;
+      progress |= preproc_vecs(func);
       while (!ctx.done)
          progress |= pco_ra_func(func, &ctx);
 
