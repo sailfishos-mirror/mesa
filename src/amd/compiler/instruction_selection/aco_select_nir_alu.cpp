@@ -1927,7 +1927,10 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
    }
    case nir_op_ffma: {
       if (dst.regClass() == v2b) {
-         emit_vop3a_instruction(ctx, instr, aco_opcode::v_fma_f16, dst, false, 3);
+         if (ctx->options->gfx_level >= GFX9)
+            emit_vop3a_instruction(ctx, instr, aco_opcode::v_fma_f16, dst, false, 3);
+         else
+            emit_vop3a_instruction(ctx, instr, aco_opcode::v_fma_legacy_f16, dst, false, 3);
       } else if (dst.regClass() == v1 && instr->def.bit_size == 16) {
          assert(instr->def.num_components == 2);
 
