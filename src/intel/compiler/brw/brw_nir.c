@@ -1754,6 +1754,9 @@ brw_nir_lower_vue_outputs(nir_shader *nir)
             nir_lower_io_lower_64bit_to_32);
 
    NIR_PASS(_, nir, brw_nir_lower_16bit_io, nir_var_shader_out);
+
+   /* Fold constant offset srcs for IO. */
+   NIR_PASS(_, nir, nir_opt_constant_folding);
 }
 
 void
