@@ -157,6 +157,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_attachment_feedback_loop_layout = true,
       .EXT_attachment_feedback_loop_dynamic_state = true,
       .EXT_calibrated_timestamps = true,
+      .EXT_conditional_rendering = true,
       .EXT_depth_clip_control = true,
       .EXT_extended_dynamic_state3 = true,
       .EXT_external_memory_metal = true,
@@ -376,6 +377,10 @@ kk_get_device_features(
 
       /* VK_EXT_attachment_feedback_loop_dynamic_state */
       .attachmentFeedbackLoopDynamicState = true,
+
+      /* VK_EXT_conditional_rendering */
+      .conditionalRendering = true,
+      .inheritedConditionalRendering = true,
 
       /* VK_EXT_depth_clip_control */
       .depthClipControl = true,

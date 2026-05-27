@@ -970,6 +970,17 @@ kk_convert_to_indirect_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    return data;
 }
 
+static struct kk_draw_predicate
+kk_cond_render_predicate(struct kk_cmd_buffer *cmd)
+{
+   struct kk_draw_predicate predicate = {
+      .gpu_addr = cmd->state.cond_render.address,
+      .op = cmd->state.cond_render.inverted ? KK_PREDICATE_EQ_ZERO
+                                            : KK_PREDICATE_NEQ_ZERO,
+   };
+   return predicate;
+}
+
 static struct kk_draw_data
 kk_predicate_draws(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 {
@@ -993,6 +1004,10 @@ kk_predicate_draws(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    uint32_t out_stride_el = out_stride / sizeof(uint32_t);
    uint32_t in_stride_el = data.indirect_draws.stride / sizeof(uint32_t);
 
+   /* TODO_KOSMICKRISP: This can be accomplished more efficiently using device
+    * generated commands, constructing an indirect command buffer on the GPU
+    * which only contains the commands to run if the condition is true. For the
+    * time being, we apply predicates by zeroing out disabled indirect data */
    struct mtl_size grid = {data.draw_count, 1u, 1u};
    for (uint32_t i = 0; i < data.predicate_count; i++) {
       uint64_t addr = data.predicates[i].gpu_addr;
@@ -1309,9 +1324,12 @@ kk_CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount,
       .firstVertex = firstVertex,
       .firstInstance = firstInstance,
    };
+   struct kk_draw_predicate cr_predicate = kk_cond_render_predicate(cmd);
    struct kk_draw_data data = {
       .draws = &draw,
+      .predicates = &cr_predicate,
       .draw_count = 1,
+      .predicate_count = cmd->state.cond_render.enabled ? 1u : 0u,
       .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
       .shader_data.upload_mask = build_per_draw_upload_mask(cmd),
    };
@@ -1357,9 +1375,12 @@ kk_CmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCount,
    }
 
    if (draw_idx > 0) {
+      struct kk_draw_predicate cr_predicate = kk_cond_render_predicate(cmd);
       struct kk_draw_data data = {
          .draws = draws,
+         .predicates = &cr_predicate,
          .draw_count = draw_idx,
+         .predicate_count = cmd->state.cond_render.enabled ? 1u : 0u,
          .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
          .shader_data.upload_mask = build_per_draw_upload_mask(cmd),
       };
@@ -1391,9 +1412,12 @@ kk_CmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount,
       .vertexOffset = vertexOffset,
       .firstInstance = firstInstance,
    };
+   struct kk_draw_predicate cr_predicate = kk_cond_render_predicate(cmd);
    struct kk_draw_data data = {
       .indexed_draws = &draw,
+      .predicates = &cr_predicate,
       .draw_count = 1,
+      .predicate_count = cmd->state.cond_render.enabled ? 1u : 0u,
       .index_buffer = cmd->state.gfx.index.handle,
       .index_buffer_offset = cmd->state.gfx.index.offset,
       .index_buffer_range_B = cmd->state.gfx.index.range,
@@ -1447,9 +1471,12 @@ kk_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount,
    }
 
    if (draw_idx > 0) {
+      struct kk_draw_predicate cr_predicate = kk_cond_render_predicate(cmd);
       struct kk_draw_data data = {
          .indexed_draws = draws,
+         .predicates = &cr_predicate,
          .draw_count = draw_idx,
+         .predicate_count = cmd->state.cond_render.enabled ? 1u : 0u,
          .index_buffer = cmd->state.gfx.index.handle,
          .index_buffer_offset = cmd->state.gfx.index.offset,
          .index_buffer_range_B = cmd->state.gfx.index.range,
@@ -1479,11 +1506,14 @@ kk_CmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
+   struct kk_draw_predicate cr_predicate = kk_cond_render_predicate(cmd);
    struct kk_draw_data data = {
       .indirect_draws.buffer = buffer->mtl_handle,
       .indirect_draws.offset = offset,
       .indirect_draws.stride = stride,
+      .predicates = &cr_predicate,
       .draw_count = drawCount,
+      .predicate_count = cmd->state.cond_render.enabled ? 1u : 0u,
       .indirect = true,
       .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
       .shader_data.upload_mask = build_per_draw_upload_mask(cmd),
@@ -1506,11 +1536,14 @@ kk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
+   struct kk_draw_predicate cr_predicate = kk_cond_render_predicate(cmd);
    struct kk_draw_data data = {
       .indirect_draws.buffer = buffer->mtl_handle,
       .indirect_draws.offset = offset,
       .indirect_draws.stride = stride,
+      .predicates = &cr_predicate,
       .draw_count = drawCount,
+      .predicate_count = cmd->state.cond_render.enabled ? 1u : 0u,
       .index_buffer = cmd->state.gfx.index.handle,
       .index_buffer_offset = cmd->state.gfx.index.offset,
       .index_buffer_range_B = cmd->state.gfx.index.range,
@@ -1541,17 +1574,22 @@ kk_CmdDrawIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
+   struct kk_draw_predicate cr_predicate = kk_cond_render_predicate(cmd);
    struct kk_draw_predicate count_predicate = {
       .gpu_addr = vk_buffer_address(&count_buffer->vk, countBufferOffset),
       .op = KK_PREDICATE_GT_DRAW_ID,
+   };
+   struct kk_draw_predicate predicates[2] = {
+      count_predicate,
+      cr_predicate,
    };
    struct kk_draw_data data = {
       .indirect_draws.buffer = buffer->mtl_handle,
       .indirect_draws.offset = offset,
       .indirect_draws.stride = stride,
-      .predicates = &count_predicate,
+      .predicates = predicates,
       .draw_count = maxDrawCount,
-      .predicate_count = 1,
+      .predicate_count = cmd->state.cond_render.enabled ? 2u : 1u,
       .indirect = true,
       .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
       .shader_data.upload_mask = build_per_draw_upload_mask(cmd),
@@ -1576,17 +1614,22 @@ kk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
+   struct kk_draw_predicate cr_predicate = kk_cond_render_predicate(cmd);
    struct kk_draw_predicate count_predicate = {
       .gpu_addr = vk_buffer_address(&count_buffer->vk, countBufferOffset),
       .op = KK_PREDICATE_GT_DRAW_ID,
+   };
+   struct kk_draw_predicate predicates[2] = {
+      count_predicate,
+      cr_predicate,
    };
    struct kk_draw_data data = {
       .indirect_draws.buffer = buffer->mtl_handle,
       .indirect_draws.offset = offset,
       .indirect_draws.stride = stride,
-      .predicates = &count_predicate,
+      .predicates = predicates,
       .draw_count = maxDrawCount,
-      .predicate_count = 1,
+      .predicate_count = cmd->state.cond_render.enabled ? 2u : 1u,
       .index_buffer = cmd->state.gfx.index.handle,
       .index_buffer_offset = cmd->state.gfx.index.offset,
       .index_buffer_range_B = cmd->state.gfx.index.range,

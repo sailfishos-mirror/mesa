@@ -38,7 +38,6 @@ struct kk_root_descriptor_table {
          uint32_t attrib_clamps[KK_MAX_ATTRIBS];
          float blend_constant[4];
          float clip_z_coeff;
-         uint32_t draw_id;
       } draw;
       struct {
          uint32_t base_group[3];
@@ -160,6 +159,12 @@ struct kk_compute_state {
    struct kk_descriptor_state descriptors;
 };
 
+struct kk_conditional_rendering_state {
+   uint64_t address;
+   bool inverted;
+   bool enabled;
+};
+
 struct kk_encoder;
 
 struct kk_uploader {
@@ -180,6 +185,7 @@ struct kk_cmd_buffer {
    struct {
       struct kk_graphics_state gfx;
       struct kk_compute_state cs;
+      struct kk_conditional_rendering_state cond_render;
       struct kk_shader *shaders[MESA_SHADER_STAGES];
       /* Only tracks graphics shaders since compute is always bound for now. */
       uint32_t dirty_shaders;

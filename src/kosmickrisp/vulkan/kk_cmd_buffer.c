@@ -550,3 +550,25 @@ kk_CmdPushDescriptorSetWithTemplate2KHR(
       push_set, set_layout, template,
       pPushDescriptorSetWithTemplateInfo->pData);
 }
+
+VKAPI_ATTR void VKAPI_CALL
+kk_CmdBeginConditionalRendering2EXT(
+   VkCommandBuffer commandBuffer,
+   const VkConditionalRenderingBeginInfo2EXT *pConditionalRenderingBegin)
+{
+   VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
+
+   cmd->state.cond_render.address =
+      pConditionalRenderingBegin->addressRange.address;
+   cmd->state.cond_render.inverted = pConditionalRenderingBegin->flags &
+                                     VK_CONDITIONAL_RENDERING_INVERTED_BIT_EXT;
+   cmd->state.cond_render.enabled = true;
+}
+
+VKAPI_ATTR void VKAPI_CALL
+kk_CmdEndConditionalRenderingEXT(VkCommandBuffer commandBuffer)
+{
+   VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
+
+   cmd->state.cond_render.enabled = false;
+}
