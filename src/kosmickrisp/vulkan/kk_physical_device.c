@@ -165,6 +165,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_memory_budget = true,
       .EXT_multi_draw = true,
       .EXT_mutable_descriptor_type = true,
+      .EXT_nested_command_buffer = true,
       .EXT_post_depth_coverage = true,
       .EXT_robustness2 = true,
       .EXT_shader_atomic_float = true,
@@ -390,6 +391,11 @@ kk_get_device_features(
 
       /* VK_EXT_multi_draw */
       .multiDraw = true,
+
+      /* VK_EXT_nested_command_buffer */
+      .nestedCommandBuffer = true,
+      .nestedCommandBufferRendering = true,
+      .nestedCommandBufferSimultaneousUse = true,
 
       /* VK_EXT_shader_replicated_composites */
       .shaderReplicatedComposites = true,
