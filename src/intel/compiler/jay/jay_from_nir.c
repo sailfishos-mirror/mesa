@@ -1728,6 +1728,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
    }
 
+   case nir_intrinsic_load_topology_id_intel:
+      jay_MOV(b, dst, jay_scalar(J_ARF, GEN_ARF_STATE));
+      break;
+
    default:
 #ifndef NDEBUG
       assert(intr->intrinsic < nir_num_intrinsics);
