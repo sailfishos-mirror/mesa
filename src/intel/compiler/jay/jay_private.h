@@ -18,6 +18,7 @@ extern "C" {
 #define JAY_DBG_SYNC        BITFIELD_BIT(3)
 #define JAY_DBG_NOACC       BITFIELD_BIT(4)
 #define JAY_DBG_NOSCHED     BITFIELD_BIT(5)
+#define JAY_DBG_STRICT      BITFIELD_BIT(6)
 extern int jay_debug;
 
 bool jay_nir_lower_bool(nir_shader *nir);

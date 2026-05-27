@@ -41,6 +41,7 @@ static const struct debug_named_value jay_debug_options[] = {
    { "sync",        JAY_DBG_SYNC,        "Sync after every instruction"          },
    { "noacc",       JAY_DBG_NOACC,       "Disable accumulator substitution"      },
    { "nosched",     JAY_DBG_NOSCHED,     "Disable scheduling"                    },
+   { "strict",      JAY_DBG_STRICT,      "Strictly conform to bspec/fulsim"      },
    DEBUG_NAMED_VALUE_END
 };
 
