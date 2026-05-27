@@ -9,10 +9,21 @@ pub trait Model {
     fn arch(&self) -> u8;
 
     fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32>;
+
+    fn small_constants(&self) -> &[SmallConstant];
 }
 
 struct ValhallModel {
     arch: u8,
+    sc_table: Vec<SmallConstant>,
+}
+
+impl ValhallModel {
+    fn new(arch: u8) -> ValhallModel {
+        use crate::isa::{v9, SmallConstantTable};
+        let sc_table = v9::SmallConstantT::collect(arch);
+        ValhallModel { arch, sc_table }
+    }
 }
 
 impl Model for ValhallModel {
@@ -23,6 +34,10 @@ impl Model for ValhallModel {
     fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32> {
         encode_v9(s, self.arch)
     }
+
+    fn small_constants(&self) -> &[SmallConstant] {
+        &self.sc_table
+    }
 }
 
 pub fn model_for_gpu_id(gpu_id: u64) -> Result<Box<dyn Model>, &'static str> {
@@ -32,7 +47,7 @@ pub fn model_for_gpu_id(gpu_id: u64) -> Result<Box<dyn Model>, &'static str> {
     if arch >= 15 {
         Err("Kraid does not yet support this GPU")
     } else if arch >= 9 {
-        Ok(Box::new(ValhallModel { arch }))
+        Ok(Box::new(ValhallModel::new(arch)))
     } else {
         Err("Kraid only supports Valhall (v9) and later GPUs")
     }

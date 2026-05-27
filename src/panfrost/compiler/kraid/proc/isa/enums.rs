@@ -15,7 +15,7 @@ pub struct EnumValue {
     pub arch: ArchSet,
     pub canonical: bool,
     pub value: u8,
-    pub const_value: Option<u32>,
+    pub bit_pattern: Option<u32>,
 }
 
 impl EnumValue {
@@ -39,7 +39,7 @@ impl EnumValue {
                 .get_u8_attr("value")
                 .ok_or(err("Enum value has no value"))?
                 .into(),
-            const_value: xml.get_u32_attr("const_value"),
+            bit_pattern: xml.get_u32_attr("bit_pattern"),
         })
     }
 
@@ -248,17 +248,17 @@ impl Enum {
         }
 
         if self.name == "small_constant_t" {
-            let mut const_name_cases_ts = TokenStream2::new();
-            let mut const_value_cases_ts = TokenStream2::new();
+            let mut name_cases_ts = TokenStream2::new();
+            let mut bit_pattern_cases_ts = TokenStream2::new();
             for v in self.values.values() {
                 let v_name = &v.name;
                 let v_ident = &v.ident;
-                let const_value = v.const_value.unwrap();
-                const_name_cases_ts.extend(quote! {
+                let bit_pattern = v.bit_pattern.unwrap();
+                name_cases_ts.extend(quote! {
                     #e_ident::#v_ident => #v_name,
                 });
-                const_value_cases_ts.extend(quote! {
-                    #e_ident::#v_ident => #const_value,
+                bit_pattern_cases_ts.extend(quote! {
+                    #e_ident::#v_ident => #bit_pattern,
                 });
             }
             let table_len = max_value + 1;
@@ -268,13 +268,13 @@ impl Enum {
 
                     fn name(&self) -> &'static str {
                         match self {
-                            #const_name_cases_ts
+                            #name_cases_ts
                         }
                     }
 
-                    fn const_value(&self) -> u32 {
+                    fn bit_pattern(&self) -> u32 {
                         match self {
-                            #const_value_cases_ts
+                            #bit_pattern_cases_ts
                         }
                     }
                 }

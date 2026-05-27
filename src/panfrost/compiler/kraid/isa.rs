@@ -1,6 +1,8 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::ir::SmallConstant;
+
 #[derive(Debug)]
 pub enum EncodeError {
     Int(std::num::TryFromIntError),
@@ -67,7 +69,21 @@ pub trait TryDecode<T>: Sized {
 pub trait SmallConstantTable: TryDecode<u8> {
     const TABLE_LEN: u8;
     fn name(&self) -> &'static str;
-    fn const_value(&self) -> u32;
+    fn bit_pattern(&self) -> u32;
+
+    fn collect(arch: u8) -> Vec<SmallConstant> {
+        let mut vec = Vec::new();
+        for idx in 0..Self::TABLE_LEN {
+            if let Ok(sc) = Self::try_decode(idx, arch) {
+                vec.push(SmallConstant {
+                    idx,
+                    imm32: sc.bit_pattern(),
+                    name: sc.name(),
+                });
+            }
+        }
+        vec
+    }
 }
 
 #[derive(Clone, Copy)]

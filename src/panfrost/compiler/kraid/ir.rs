@@ -14,6 +14,18 @@ use compiler::as_slice::*;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
+pub struct SmallConstant {
+    pub idx: u8,
+    pub imm32: u32,
+    pub name: &'static str,
+}
+
+impl fmt::Display for SmallConstant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum FAUPage {
     /// The user FAU table.  This assumes a single, flat table, unlike the
@@ -74,6 +86,16 @@ impl fmt::Display for FAURef {
             write!(f, ".w{w}")?;
         }
         Ok(())
+    }
+}
+
+impl From<&SmallConstant> for FAURef {
+    fn from(sc: &SmallConstant) -> FAURef {
+        FAURef {
+            page: FAUPage::SmallConst,
+            idx: sc.idx.into(),
+            load64: false,
+        }
     }
 }
 
