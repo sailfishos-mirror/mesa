@@ -111,10 +111,46 @@ impl VirtualField {
     }
 }
 
+pub enum FieldMod {
+    None,
+    Align(u8),
+    Shr(u8),
+    Minus(u8),
+}
+
+impl FieldMod {
+    fn args_as_u8(a: &str) -> Result<u8> {
+        let a = a.strip_prefix("(").ok_or(err("Invalid modifier"))?;
+        let a = a.strip_suffix(")").ok_or(err("Invalid modifier"))?;
+        u8::from_str_radix(a, 10).map_err(|_| err("Invalid modifier"))
+    }
+
+    fn from_attr(attr: &str) -> Result<FieldMod> {
+        if let Some(a) = attr.strip_prefix("align") {
+            Ok(FieldMod::Align(FieldMod::args_as_u8(a)?))
+        } else if let Some(a) = attr.strip_prefix("minus") {
+            Ok(FieldMod::Minus(FieldMod::args_as_u8(a)?))
+        } else if let Some(a) = attr.strip_prefix("shr") {
+            Ok(FieldMod::Shr(FieldMod::args_as_u8(a)?))
+        } else {
+            Err(err("Invalid modifier"))
+        }
+    }
+
+    pub fn extra_bits(&self) -> u8 {
+        match self {
+            FieldMod::None | FieldMod::Align(_) => 0,
+            FieldMod::Minus(_) => 1,
+            FieldMod::Shr(n) => *n,
+        }
+    }
+}
+
 pub struct PhysicalField {
     pub name: String,
     pub ident: Ident,
     pub bits: Range<u8>,
+    pub mod_: FieldMod,
     pub type_: Option<FieldType>,
     pub expr: Option<Box<Expr>>,
 }
@@ -136,11 +172,17 @@ impl PhysicalField {
         let ident = Ident::new(&snake_name, Span::call_site());
         let bits = xml.get_bit_range()?;
 
+        let mod_ = if let Some(attr) = xml.attrs.get("modifier") {
+            FieldMod::from_attr(attr)?
+        } else {
+            FieldMod::None
+        };
+
         let type_name = xml.attrs.get("type");
         let type_ = match type_name {
             Some(name) => Some(FieldType::from_name(
                 name,
-                bits.len().try_into().unwrap(),
+                u8::try_from(bits.len()).unwrap() + mod_.extra_bits(),
                 enums,
             )?),
             None => None,
@@ -180,6 +222,7 @@ impl PhysicalField {
             name,
             ident,
             bits,
+            mod_,
             type_,
             expr,
         })

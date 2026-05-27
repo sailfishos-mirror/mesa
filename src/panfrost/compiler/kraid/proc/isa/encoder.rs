@@ -725,6 +725,30 @@ impl InstrEncVariant {
             };
 
             let f_ident = instr_field_ident(&field.name);
+            match field.mod_ {
+                FieldMod::None => (),
+                FieldMod::Align(n) => {
+                    let n = proc_macro2::Literal::u8_unsuffixed(n);
+                    ts.extend(quote! {
+                        assert!(#f_ident % #n == 0);
+                    });
+                }
+                FieldMod::Minus(n) => {
+                    let n = proc_macro2::Literal::u8_unsuffixed(n);
+                    ts.extend(quote! {
+                        assert!(#f_ident >= #n);
+                        let #f_ident = #f_ident - #n;
+                    });
+                }
+                FieldMod::Shr(n) => {
+                    let n = proc_macro2::Literal::u8_unsuffixed(n);
+                    ts.extend(quote! {
+                        assert!(#f_ident % (1 << #n) == 0);
+                        let #f_ident = #f_ident >> #n;
+                    });
+                }
+            }
+
             let start_bit = usize::from(field.bits.start);
             let end_bit = usize::from(field.bits.end);
             ts.extend(quote! {
