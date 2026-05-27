@@ -43,22 +43,28 @@ struct vec_override {
    unsigned offset;
 };
 
+enum pco_ra_ctx_state {
+   PCO_RA_CTX_STATE_OPTIMAL,
+   PCO_RA_CTX_STATE_MAXIMUM,
+   PCO_RA_CTX_STATE_SPILLING,
+   PCO_RA_CTX_STATE_DONE
+};
+
 typedef struct _pco_ra_ctx {
+   enum pco_ra_ctx_state state;
+
    unsigned allocable_temps;
    unsigned allocable_vtxins;
    unsigned allocable_interns;
 
    unsigned temp_alloc_offset;
+   unsigned spilled_temps;
 
-   bool spilling_setup;
    pco_ref spill_inst_addr_comps[2];
    pco_ref spill_addr_comps[2];
    pco_ref spill_data;
    pco_ref spill_addr;
    pco_ref spill_addr_data;
-   unsigned spilled_temps;
-
-   bool done;
 } pco_ra_ctx;
 
 /**
@@ -481,7 +487,7 @@ static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
 
    /* No registers to allocate. */
    if (!used_bits) {
-      ctx->done = true;
+      ctx->state = PCO_RA_CTX_STATE_DONE;
       return false;
    }
 
@@ -810,7 +816,7 @@ static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
    bool allocated = ra_allocate(ra_graph);
    bool force_spill = PCO_DEBUG(RA_FORCE_SPILL);
    if (!allocated || force_spill) {
-      if (!ctx->spilling_setup) {
+      if (ctx->state < PCO_RA_CTX_STATE_SPILLING) {
          ctx->spill_inst_addr_comps[0] = pco_ref_hwreg(0, PCO_REG_CLASS_TEMP);
          ctx->spill_inst_addr_comps[1] = pco_ref_hwreg(1, PCO_REG_CLASS_TEMP);
 
@@ -826,7 +832,7 @@ static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
          ctx->temp_alloc_offset = 5;
 
          setup_spill_base(func->parent_shader, ctx->spill_inst_addr_comps);
-         ctx->spilling_setup = true;
+         ctx->state = PCO_RA_CTX_STATE_SPILLING;
       }
 
       unsigned *uses = rzalloc_array_size(ra_regs, sizeof(*uses), num_ssas);
@@ -1112,7 +1118,7 @@ static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
          num_vregs);
    }
 
-   ctx->done = true;
+   ctx->state = PCO_RA_CTX_STATE_DONE;
    return true;
 }
 
@@ -1172,15 +1178,16 @@ bool pco_ra(pco_shader *shader)
    /* Perform register allocation for each function. */
    bool progress = false;
    pco_foreach_func_in_shader (func, shader) {
-      ctx.done = false;
+      ctx.state = PCO_RA_CTX_STATE_MAXIMUM;
       progress |= preproc_vecs(func);
-      while (!ctx.done)
+      while (ctx.state != PCO_RA_CTX_STATE_DONE)
          progress |= pco_ra_func(func, &ctx);
 
       shader->data.common.temps = MAX2(shader->data.common.temps, func->temps);
       shader->data.common.vtxins =
          MAX2(shader->data.common.vtxins, func->vtxins);
    }
+
    shader->data.common.spilled_temps = ctx.spilled_temps;
    return progress;
 }
