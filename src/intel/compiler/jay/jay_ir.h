@@ -438,19 +438,13 @@ jay_abs(jay_def src)
    return src;
 }
 
-static inline bool
-jay_file_is_uniform(enum jay_file file)
-{
-   return file == UGPR || file == UFLAG || file == UACCUM || file == J_IMM;
-}
-
 /**
  * Returns true if the given source reads the same value in all lanes.
  */
 static inline bool
 jay_is_uniform(jay_def d)
 {
-   return jay_file_is_uniform(d.file);
+   return d.file & JAY_UNIFORM;
 }
 
 static inline uint32_t
@@ -954,12 +948,10 @@ jay_inst_is_uniform(const jay_inst *I)
    if (I->op == JAY_OPCODE_SEND)
       return jay_send_uniform(I);
 
-   return jay_is_uniform(I->dst) ||
-          (I->dst.file == J_ADDRESS && jay_is_uniform(I->src[0])) ||
+   return (jay_is_uniform(I->dst) && !jay_is_null(I->dst)) ||
           I->cond_flag.file == UFLAG ||
           I->op == JAY_OPCODE_SYNC ||
-          I->dst.file == FLAG ||
-          (I->dst.file == J_ARF && !jay_is_null(I->dst));
+          I->dst.file == FLAG;
 }
 
 unsigned jay_simd_split(const jay_shader *s, const jay_inst *I);
@@ -1170,14 +1162,13 @@ jay_block_ending_jump(jay_block *block)
 static inline struct util_dynarray *
 jay_predecessors(jay_block *blk, enum jay_file file)
 {
-   return jay_file_is_uniform(file) ? &blk->physical_preds :
-                                      &blk->logical_preds;
+   return file & JAY_UNIFORM ? &blk->physical_preds : &blk->logical_preds;
 }
 
 static inline jay_block **
 jay_successors(jay_block *blk, enum jay_file file)
 {
-   return jay_file_is_uniform(file) ? blk->physical_succs : blk->logical_succs;
+   return file & JAY_UNIFORM ? blk->physical_succs : blk->logical_succs;
 }
 
 static inline unsigned
