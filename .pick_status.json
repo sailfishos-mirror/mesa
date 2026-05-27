@@ -3624,7 +3624,7 @@
         "description": "nir/deref: consider atomics that store derefs as complex use",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bb311ce370d2243d9441618a99bce66c837d9444",
         "notes": null
