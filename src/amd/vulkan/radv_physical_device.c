@@ -2547,13 +2547,6 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
          pdev->global_priority_mask |= radeon_to_vk_priority(p);
    }
 
-   result = radv_amdgpu_winsys_create(fd, &winsys_info.base, instance->debug_flags, instance->perftest_flags, is_virtio,
-                                      &pdev->ws);
-   if (result != VK_SUCCESS) {
-      result = vk_errorf(instance, result, "failed to initialize winsys");
-      goto fail_base;
-   }
-
    int num_sync_types = 0;
    if (pdev->syncobj_sync_type.features) {
       if (!pdev->info.has_timeline_syncobj && pdev->syncobj_sync_type.features & VK_SYNC_FEATURE_TIMELINE) {
@@ -2808,8 +2801,6 @@ fail_perfcounters:
 fail_wsi:
    if (pdev->addrlib)
       ac_addrlib_destroy(pdev->addrlib);
-   if (pdev->ws)
-      pdev->ws->destroy(pdev->ws);
 fail_base:
    vk_physical_device_finish(&pdev->vk);
 fail_alloc:
@@ -2862,8 +2853,6 @@ radv_physical_device_destroy(struct vk_physical_device *vk_device)
    free(pdev->perfcounters);
    if (pdev->addrlib)
       ac_addrlib_destroy(pdev->addrlib);
-   if (pdev->ws)
-      pdev->ws->destroy(pdev->ws);
    disk_cache_destroy(pdev->vk.disk_cache);
    disk_cache_destroy(pdev->disk_cache_meta);
    if (pdev->wsi_master_fd != -1)

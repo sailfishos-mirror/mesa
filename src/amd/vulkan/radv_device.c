@@ -31,6 +31,9 @@
 #include "vk_common_entrypoints.h"
 #include "vk_pipeline_cache.h"
 #include "vk_util.h"
+#ifndef _WIN32
+#include "winsys/amdgpu/radv_amdgpu_winsys_public.h"
+#endif
 #include "util/mesa-blake3.h"
 #include "util/u_atomic.h"
 #include "util/u_process.h"
@@ -1289,6 +1292,45 @@ radv_device_init_compiler_info(struct radv_device *device)
    device->compiler_info = info;
 }
 
+static VkResult
+radv_create_winsys(struct radv_device *device)
+{
+#ifdef _WIN32
+   return VK_ERROR_INCOMPATIBLE_DRIVER;
+#else
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+   drmDevicePtr drm_device;
+   VkResult result;
+   int fd = -1;
+   int r;
+
+   if (pdev->drm_device_type == RADV_DRM_DEVICE_AMDGPU || pdev->drm_device_type == RADV_DRM_DEVICE_VIRTIO) {
+      r = drmGetDeviceFromDevId(pdev->render_devid, 0, &drm_device);
+      if (r)
+         return VK_ERROR_INITIALIZATION_FAILED;
+
+      const char *path = drm_device->nodes[DRM_NODE_RENDER];
+
+      fd = open(path, O_RDWR | O_CLOEXEC);
+      drmFreeDevice(&drm_device);
+      if (fd < 0)
+         return VK_ERROR_INITIALIZATION_FAILED;
+   }
+
+   const bool is_virtio =
+      pdev->drm_device_type == RADV_DRM_DEVICE_AMDGPU_VPIPE || pdev->drm_device_type == RADV_DRM_DEVICE_VIRTIO;
+
+   result = radv_amdgpu_winsys_create(fd, &pdev->info, instance->debug_flags, instance->perftest_flags, is_virtio,
+                                      &device->ws);
+
+   if (fd != -1)
+      close(fd);
+
+   return result;
+#endif
+}
+
 static void
 radv_destroy_device(struct radv_device *device, const VkAllocationCallbacks *pAllocator)
 {
@@ -1351,6 +1393,9 @@ radv_destroy_device(struct radv_device *device, const VkAllocationCallbacks *pAl
    if (device->capture_replay_arena_vas)
       _mesa_hash_table_u64_destroy(device->capture_replay_arena_vas);
 
+   if (device->ws)
+      device->ws->destroy(device->ws);
+
    vk_device_finish(&device->vk);
    vk_free(&device->vk.alloc, device);
 }
@@ -1388,6 +1433,10 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
       vk_free(&device->vk.alloc, device);
       return result;
    }
+
+   result = radv_create_winsys(device);
+   if (result != VK_SUCCESS)
+      goto fail;
 
    device->vk.get_timestamp = get_timestamp;
    device->vk.capture_trace = capture_trace;
@@ -1439,7 +1488,6 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
       fprintf(stderr, "radv: Forcing anisotropy filter to %ix\n", 1 << util_logbase2(device->force_aniso));
    }
 
-   device->ws = pdev->ws;
    device->vk.sync = device->ws->get_sync_provider(device->ws);
 
    /* Disable unordered submits when SQTT queue events are enabled because queue present events

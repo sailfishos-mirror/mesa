@@ -76,7 +76,6 @@ enum radv_drm_device_type {
 struct radv_physical_device {
    struct vk_physical_device vk;
 
-   struct radeon_winsys *ws;
    struct radeon_info info;
    char name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
    char marketing_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
