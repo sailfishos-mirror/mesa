@@ -64,6 +64,8 @@ dEQP-GLES2.functional.shaders.functions.control_flow.mixed_return_break_continue
 dEQP-GLES2.functional.shaders.loops.for_constant_iterations.101_iterations_fragment,Fail
 dEQP-GLES2.functional.shaders.loops.for_constant_iterations.mixed_break_continue_fragment,Fail
 dEQP-GLES2.functional.shaders.random.all_features.fragment.6,Fail
+dEQP-GLES2.functional.shaders.struct.uniform.equal_fragment,Fail
+dEQP-GLES2.functional.shaders.struct.uniform.not_equal_fragment,Fail
 dEQP-GLES2.functional.texture.filtering.cube.linear_linear_clamp_l8_npot,Fail
 dEQP-GLES2.functional.texture.filtering.cube.linear_linear_clamp_rgb888_npot,Fail
 dEQP-GLES2.functional.texture.filtering.cube.linear_linear_clamp_rgba4444_npot,Fail

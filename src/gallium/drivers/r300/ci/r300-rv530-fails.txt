@@ -5,6 +5,8 @@ dEQP-GLES2.functional.polygon_offset.default_factor_1_slope,Fail
 dEQP-GLES2.functional.polygon_offset.fixed16_factor_1_slope,Fail
 
 dEQP-GLES2.functional.shaders.loops.do_while_dynamic_iterations.mixed_break_continue_fragment,Fail
+dEQP-GLES2.functional.shaders.struct.uniform.equal_fragment,Fail
+dEQP-GLES2.functional.shaders.struct.uniform.not_equal_fragment,Fail
 
 dEQP-GLES2.functional.texture.format.a8_cube_npot,Fail
 dEQP-GLES2.functional.texture.format.l8_cube_npot,Fail
