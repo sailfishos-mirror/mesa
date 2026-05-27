@@ -815,8 +815,12 @@ static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
 
    bool allocated = ra_allocate(ra_graph);
    bool force_spill = PCO_DEBUG(RA_FORCE_SPILL);
+   if (ctx->state == PCO_RA_CTX_STATE_OPTIMAL && !allocated && !force_spill) {
+      ralloc_free(ra_regs);
+      return false;
+   }
    if (!allocated || force_spill) {
-      if (ctx->state < PCO_RA_CTX_STATE_SPILLING) {
+      if (ctx->state < PCO_RA_CTX_STATE_SPILLING && !ctx->temp_alloc_offset) {
          ctx->spill_inst_addr_comps[0] = pco_ref_hwreg(0, PCO_REG_CLASS_TEMP);
          ctx->spill_inst_addr_comps[1] = pco_ref_hwreg(1, PCO_REG_CLASS_TEMP);
 
@@ -1110,8 +1114,9 @@ static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
 
    if (pco_should_print_shader(func->parent_shader) && PCO_DEBUG_PRINT(RA)) {
       printf(
-         "RA allocated %u temps, %u vtxins, %u interns from %u SSA vars, %u vregs.\n",
+         "RA allocated %u (%s) temps, %u vtxins, %u interns from %u SSA vars, %u vregs.\n",
          temps,
+         (ctx->state == PCO_RA_CTX_STATE_OPTIMAL ? "opt" : "max"),
          vtxins,
          interns,
          num_ssas,
@@ -1135,10 +1140,9 @@ bool pco_ra(pco_shader *shader)
    /* Instruction indices need to be ordered for live ranges. */
    pco_index(shader, false);
 
-   unsigned hw_temps = rogue_get_temps(shader->ctx->dev_info);
-   /* TODO:
-    * unsigned opt_temps = rogue_get_optimal_temps(shader->ctx->dev_info);
-    */
+   unsigned max_temps = rogue_get_temps(shader->ctx->dev_info);
+   unsigned opt_temps = rogue_get_optimal_temps(shader->ctx->dev_info);
+   bool alloc_max = PCO_DEBUG(RA_SKIP_OPT);
 
    /* If any vertex input registers are already used, round up to the nearest
     * multiple of 4 as vertex input registers are allocated in blocks of 4.
@@ -1159,7 +1163,6 @@ bool pco_ra(pco_shader *shader)
    /* TODO: different number of temps available if barriers are in use. */
    /* TODO: support for internal registers. */
    pco_ra_ctx ctx = {
-      .allocable_temps = hw_temps,
       .allocable_vtxins = hw_vtxins,
       .allocable_interns = 0,
    };
@@ -1168,21 +1171,34 @@ bool pco_ra(pco_shader *shader)
       unsigned wg_size = shader->data.cs.workgroup_size[0] *
                          shader->data.cs.workgroup_size[1] *
                          shader->data.cs.workgroup_size[2];
-      ctx.allocable_temps =
-         rogue_max_wg_temps(shader->ctx->dev_info,
-                            ctx.allocable_temps,
-                            wg_size,
-                            shader->data.common.uses.barriers);
+      max_temps = rogue_max_wg_temps(shader->ctx->dev_info,
+                                     max_temps,
+                                     wg_size,
+                                     shader->data.common.uses.barriers);
+      if (max_temps <= opt_temps)
+         alloc_max |= true;
    }
 
    /* Perform register allocation for each function. */
    bool progress = false;
    pco_foreach_func_in_shader (func, shader) {
-      ctx.state = PCO_RA_CTX_STATE_MAXIMUM;
+      ctx.state = PCO_RA_CTX_STATE_OPTIMAL;
+      ctx.allocable_temps = opt_temps;
+      if (alloc_max) {
+         ctx.state = PCO_RA_CTX_STATE_MAXIMUM;
+         ctx.allocable_temps = max_temps;
+      }
       progress |= preproc_vecs(func);
-      while (ctx.state != PCO_RA_CTX_STATE_DONE)
+      while (ctx.state != PCO_RA_CTX_STATE_DONE) {
          progress |= pco_ra_func(func, &ctx);
-
+         if (ctx.state == PCO_RA_CTX_STATE_OPTIMAL) {
+            /* Fallback to maximum temp allocation in case optimal allocation
+             * fails
+             */
+            ctx.allocable_temps = max_temps;
+            ctx.state = PCO_RA_CTX_STATE_MAXIMUM;
+         }
+      }
       shader->data.common.temps = MAX2(shader->data.common.temps, func->temps);
       shader->data.common.vtxins =
          MAX2(shader->data.common.vtxins, func->vtxins);
