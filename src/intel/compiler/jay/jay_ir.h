@@ -52,40 +52,38 @@ enum PACKED jay_arf {
 };
 
 enum PACKED jay_file {
-   /** Non-uniform general purpose registers: 32-bits per SIMT lane. */
-   GPR,
+   /** Bit 0 of each file indicates whether it is uniform or not */
+   JAY_UNIFORM = 0x1,
 
-   /** Uniform general purpose registers: 32-bit uniform values */
-   UGPR,
+   /** General purpose registers: 32-bits values (per SIMT lane or uniform). */
+   GPR = 0,
+   UGPR = GPR | JAY_UNIFORM,
 
    /** Memory registers representing spilled values: 32-bits per SIMT lane. */
-   MEM,
+   MEM = 2,
+   /* UMEM defeatured */
 
-   /** Non-uniform flags (predicates): 1-bit per SIMT lane */
-   FLAG,
-
-   /** Uniform flags (predicates): 1-bit uniform value */
-   UFLAG,
+   /** Flags (predicates): 1-bit values (per SIMT lane or uniform) */
+   FLAG = 4,
+   UFLAG = FLAG | JAY_UNIFORM,
 
    /** Address registers */
-   J_ADDRESS,
+   J_ADDRESS = 6 | JAY_UNIFORM,
 
    /* Non-SSA files below: */
 
-   /** Accumulators: 32-bits per SIMT lane */
-   ACCUM,
-
-   /** Uniform accumulators: 32-bit uniform value */
-   UACCUM,
-
-   /** Architecture registers: direct access scalar */
-   J_ARF,
+   /** Accumulators: 32-bits values (per SIMT lane or uniform) */
+   ACCUM = 8,
+   UACCUM = ACCUM | JAY_UNIFORM,
 
    /** Inputs within Jay unit tests */
-   TEST_FILE,
+   TEST_FILE = 10,
+
+   /** Architecture registers: direct access scalar */
+   J_ARF = 10 | JAY_UNIFORM,
 
    /* Immediate value */
-   J_IMM,
+   J_IMM = 12 | JAY_UNIFORM,
 
    JAY_FILE_LAST = J_IMM,
    JAY_NUM_SSA_FILES = J_ADDRESS + 1,
