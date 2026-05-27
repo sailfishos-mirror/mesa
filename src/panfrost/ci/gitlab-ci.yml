@@ -26,7 +26,7 @@ panfrost-t760-gles:arm32:
 
 panfrost-t760-traces:arm32:
   extends:
-    - .lava-arm32-piglit-traces
+    - .lava-arm32-test-gl
     - .panfrost-midgard-manual-rules
     - .panfrost-test
     - .lava-rk3288-veyron-jaq:arm32
@@ -71,7 +71,7 @@ panfrost-t860-egl:arm64:
 
 panfrost-t860-traces:arm64:
   extends:
-    - .lava-arm64-piglit-traces
+    - .lava-arm64-test-gl
     - .panfrost-midgard-manual-rules
     - .panfrost-test
     - .lava-rk3399-rock-pi-4b:arm64
