@@ -3394,7 +3394,7 @@
         "description": "mesa: flush bitmap cache when scissor box changes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "33ca53ac79ad954b72afeb14142d179c313fe4e3",
         "notes": null
