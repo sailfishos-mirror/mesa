@@ -194,6 +194,16 @@ jay_lower_pre_ra(jay_shader *s)
       jay_foreach_inst_in_func(f, block, I) {
          jay_builder b = { .shader = s, .func = f };
 
+         /* Shuffle(UGPR) can result from copyprop if there's a mismatch between
+          * isel and divergence analysis (e.g. because multipolygon is
+          * disabled). Legalize.
+          */
+         if (I->op == JAY_OPCODE_SHUFFLE && I->src[0].file == UGPR) {
+            assert(!I->predication);
+            I->op = JAY_OPCODE_MOV;
+            jay_shrink_sources(I, 1);
+         }
+
          /* lower_immediates must be last since it consumes I */
          lower_contiguous_sources(&b, I);
          lower_immediates(&b, I, constants);
