@@ -1679,10 +1679,13 @@ llvmpipe_resource_bind_sparse(struct llvmpipe_resource *lpr,
       uint64_t residency_granularity = 64;
       os_get_page_size(&residency_granularity);
 
+      uint32_t start = offset / residency_granularity;
+      uint32_t end = start + size / residency_granularity - 1;
+
       if (mem)
-         BITSET_SET(lpr->residency, offset / residency_granularity);
+         BITSET_SET_RANGE(lpr->residency, start, end);
       else
-         BITSET_CLEAR(lpr->residency, offset / residency_granularity);
+         BITSET_CLEAR_RANGE(lpr->residency, start, end);
    }
 
    return true;
