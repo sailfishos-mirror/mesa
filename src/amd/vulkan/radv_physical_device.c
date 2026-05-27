@@ -2776,7 +2776,8 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
 
    *pdev_out = pdev;
 
-   close(fd);
+   if (fd != -1)
+      close(fd);
    fd = -1;
 
    return VK_SUCCESS;
