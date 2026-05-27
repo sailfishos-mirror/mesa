@@ -217,6 +217,36 @@ vir_set_pack(struct qinst *inst, enum v3d_qpu_output_pack pack)
         }
 }
 
+/* Return the input unpack mode applied to source src of inst.
+ * For non-ALU instructions (TMU writes, signals, etc.) we conservatively
+ * return UNPACK_NONE (the source is read as a full 32-bit value).
+ */
+enum v3d_qpu_input_unpack
+vir_get_unpack(struct qinst *inst, int src)
+{
+        if (inst->qpu.type != V3D_QPU_INSTR_TYPE_ALU)
+                return V3D_QPU_UNPACK_NONE;
+
+        assert(src == 0 || src == 1);
+
+        if (vir_is_add(inst))
+                return src == 0 ? inst->qpu.alu.add.a.unpack
+                                : inst->qpu.alu.add.b.unpack;
+        else
+                return src == 0 ? inst->qpu.alu.mul.a.unpack
+                                : inst->qpu.alu.mul.b.unpack;
+}
+
+/* Return the output pack mode for the pipe that writes inst's destination. */
+enum v3d_qpu_output_pack
+vir_get_pack(struct qinst *inst)
+{
+        if (vir_is_mul(inst))
+                return inst->qpu.alu.mul.output_pack;
+        else
+                return inst->qpu.alu.add.output_pack;
+}
+
 void
 vir_set_cond(struct qinst *inst, enum v3d_qpu_cond cond)
 {
