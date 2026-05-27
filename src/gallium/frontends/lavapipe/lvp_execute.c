@@ -100,6 +100,7 @@ struct rendering_state {
    bool rs_dirty;
    bool dsa_dirty;
    bool dsa_no_stencil;
+   bool dsa_no_depth;
    bool stencil_ref_dirty;
    bool clip_state_dirty;
    bool blend_color_dirty;
@@ -584,14 +585,18 @@ static void emit_state(struct rendering_state *state)
    if (state->dsa_dirty) {
       bool s0_enabled = state->dsa_state.stencil[0].enabled;
       bool s1_enabled = state->dsa_state.stencil[1].enabled;
+      bool d_enabled = state->dsa_state.depth_enabled;
       if (state->dsa_no_stencil) {
          state->dsa_state.stencil[0].enabled = false;
          state->dsa_state.stencil[1].enabled = false;
       }
+      if (state->dsa_no_depth)
+         state->dsa_state.depth_enabled = false;
       cso_set_depth_stencil_alpha(state->cso, &state->dsa_state);
       state->dsa_dirty = false;
       state->dsa_state.stencil[0].enabled = s0_enabled;
       state->dsa_state.stencil[1].enabled = s1_enabled;
+      state->dsa_state.depth_enabled = d_enabled;
    }
 
    if (state->sample_mask_dirty) {
@@ -1959,6 +1964,7 @@ handle_begin_rendering(struct vk_cmd_queue_entry *cmd,
 
    render_att_init(&state->depth_att, info->pDepthAttachment, state->poison_mem, false);
    render_att_init(&state->stencil_att, info->pStencilAttachment, state->poison_mem, true);
+   state->dsa_no_depth = !state->depth_att.imgv;
    state->dsa_no_stencil = !state->stencil_att.imgv;
    state->dsa_dirty = true;
    if (state->depth_att.imgv || state->stencil_att.imgv) {
@@ -3144,7 +3150,14 @@ static void handle_execute_commands(struct vk_cmd_queue_entry *cmd,
 {
    for (unsigned i = 0; i < cmd->u.execute_commands.command_buffer_count; i++) {
       VK_FROM_HANDLE(lvp_cmd_buffer, secondary_buf, cmd->u.execute_commands.command_buffers[i]);
+      bool dsa_no_depth = !secondary_buf->rendering_info.depthAttachmentFormat;
+      bool dsa_no_stencil = !secondary_buf->rendering_info.stencilAttachmentFormat;
+      state->dsa_dirty |= dsa_no_depth != state->dsa_no_depth || dsa_no_stencil != state->dsa_no_stencil;
+      state->dsa_no_depth = dsa_no_depth;
+      state->dsa_no_stencil = dsa_no_stencil;
       lvp_execute_cmd_buffer(&secondary_buf->vk.cmd_queue.cmds, state, print_cmds);
+      state->dsa_no_depth = !state->depth_att.imgv;
+      state->dsa_no_stencil = !state->stencil_att.imgv;
    }
 }
 
