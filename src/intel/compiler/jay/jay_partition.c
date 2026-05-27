@@ -187,6 +187,13 @@ jay_partition_grf(jay_shader *shader)
       eot_u = 1;
    }
 
+   /* EOT blocks are only relevant for platforms with Early EOT, otherwise any
+    * register works fine.
+    */
+   if (!jay_has_early_eot(shader)) {
+      eot_4 = eot_u = 0;
+   }
+
    unsigned special_u = payload_u[0] + payload_u[1] + spill_reservation + eot_u;
    unsigned special_4 = payload_4[0] + payload_4[1] + eot_4;
 

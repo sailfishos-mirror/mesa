@@ -177,8 +177,8 @@ struct affinity {
    signed offset:7;
 
    /**
-    * If true, this value is used in an end-of-thread SEND and requires high
-    * registers.
+    * If true, this value is used in an early end-of-thread SEND and requires
+    * high registers.
     */
    bool eot:1;
 
@@ -864,7 +864,7 @@ pick_regs(jay_ra_state *ra,
           bool is_src)
 {
    struct jay_partition *partition = &ra->b.shader->partition;
-   bool eot = I->op == JAY_OPCODE_SEND && jay_send_eot(I);
+   bool eot = jay_is_early_eot_send(ra->b.shader, I);
 
    /* If possible, keep sources in place to avoid shuffles. */
    if (is_src && jay_channel(var, 0) != 0) {
@@ -1465,7 +1465,7 @@ jay_register_allocate_function(jay_function *f)
             ra.affinities[index].nr = MIN2(jay_num_values(I->src[s]), 15);
          }
 
-         if (I->op == JAY_OPCODE_SEND && jay_send_eot(I)) {
+         if (jay_is_early_eot_send(shader, I)) {
             ra.affinities[index].eot = true;
          }
 

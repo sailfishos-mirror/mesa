@@ -98,6 +98,25 @@ jay_gpr_limit(jay_shader *shader)
    return test ? 13 : shader->num_regs[GPR];
 }
 
+/*
+ * Check whether the Early EOT feature is possibly enabled. This feature was
+ * removed in Xe3+. It exists on Xe2+ and fulsim enables it but real hardware
+ * under xe.ko does not, so we gate on strict mode there. Pre-Xe2, it is always
+ * enabled right now.
+ */
+static inline bool
+jay_has_early_eot(jay_shader *s)
+{
+   return (s->devinfo->ver == 20 && (jay_debug & JAY_DBG_STRICT)) ||
+          (s->devinfo->ver < 20);
+}
+
+static inline bool
+jay_is_early_eot_send(jay_shader *s, const jay_inst *I)
+{
+   return I->op == JAY_OPCODE_SEND && jay_send_eot(I) && jay_has_early_eot(s);
+}
+
 #ifdef __cplusplus
 } /* extern C */
 #endif
