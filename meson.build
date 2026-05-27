@@ -952,6 +952,7 @@ with_gfx_compute = [
   with_any_vk,
   with_clc,
   with_gallium_va and with_video_encode,
+  with_gallium_mediafoundation and with_video_encode,
 ].contains(true)
 if with_gfx_compute
   pre_args += '-DHAVE_GFX_COMPUTE'
