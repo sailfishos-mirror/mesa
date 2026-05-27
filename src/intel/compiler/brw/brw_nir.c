@@ -633,7 +633,7 @@ brw_nir_lower_deferred_urb_writes(nir_shader *nir,
             const nir_io_semantics sem = nir_intrinsic_io_semantics(intrin);
             const unsigned slot =
                vue_map->varying_to_slot[sem.location] +
-               (view_index ? nir_src_as_uint(*view_index) : 0);
+               (view_index ? nir_src_as_uint(*view_index) : 0) +
                nir_src_as_uint(*offset);
             const unsigned c = io_component(intrin, NULL);
             const unsigned mask = nir_intrinsic_write_mask(intrin);

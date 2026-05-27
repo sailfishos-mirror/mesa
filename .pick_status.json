@@ -1994,7 +1994,7 @@
         "description": "brw: Fix mistake in brw_nir_lower_deferred_urb_writes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6fbe201a12d81d0327ef0966f540055fc47db374",
         "notes": null
