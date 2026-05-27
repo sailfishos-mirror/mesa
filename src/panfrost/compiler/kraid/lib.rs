@@ -13,6 +13,7 @@ mod model;
 mod nir;
 mod ops;
 mod ra;
+mod small_constants;
 mod ssa_value;
 mod swizzle;
 mod validate;

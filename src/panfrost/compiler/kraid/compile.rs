@@ -73,6 +73,10 @@ pub extern "C" fn kraid_compile_nir(
     dump_shader(&s, "after translation from NIR");
     s.validate();
 
+    s.lower_small_constants();
+    dump_shader(&s, "after lowering small constants");
+    s.validate();
+
     s.assign_registers();
     dump_shader(&s, "after register assignment");
     s.validate();
