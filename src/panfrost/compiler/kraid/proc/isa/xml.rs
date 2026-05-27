@@ -7,6 +7,16 @@ use xml::attribute::OwnedAttribute;
 use xml::name::OwnedName;
 use xml::reader::{EventReader, XmlEvent};
 
+fn split_str_radix(s: &str) -> (&str, u32) {
+    if s.starts_with("0x") || s.starts_with("0X") {
+        (&s[2..], 16)
+    } else if s.starts_with("0b") || s.starts_with("0B") {
+        (&s[2..], 2)
+    } else {
+        (s, 10)
+    }
+}
+
 /// A very simpl DOM
 pub struct XmlElement {
     pub name: OwnedName,
@@ -73,7 +83,15 @@ impl XmlElement {
 
     pub fn get_u8_attr(&self, name: &str) -> Option<u8> {
         let s = self.attrs.get(name)?;
-        let u = u8::from_str_radix(s, 10).unwrap();
+        let (s, r) = split_str_radix(s);
+        let u = u8::from_str_radix(s, r).unwrap();
+        Some(u)
+    }
+
+    pub fn get_u32_attr(&self, name: &str) -> Option<u32> {
+        let s = self.attrs.get(name)?;
+        let (s, r) = split_str_radix(s);
+        let u = u32::from_str_radix(s, r).unwrap();
         Some(u)
     }
 

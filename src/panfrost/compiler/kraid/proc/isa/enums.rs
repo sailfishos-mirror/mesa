@@ -15,6 +15,7 @@ pub struct EnumValue {
     pub arch: ArchSet,
     pub canonical: bool,
     pub value: u8,
+    pub const_value: Option<u32>,
 }
 
 impl EnumValue {
@@ -38,6 +39,7 @@ impl EnumValue {
                 .get_u8_attr("value")
                 .ok_or(err("Enum value has no value"))?
                 .into(),
+            const_value: xml.get_u32_attr("const_value"),
         })
     }
 
@@ -239,6 +241,40 @@ impl Enum {
                         match regs {
                             #sr_cases_ts
                             _ => Err("Invalid ls_multi_sr_count_m"),
+                        }
+                    }
+                }
+            });
+        }
+
+        if self.name == "small_constant_t" {
+            let mut const_name_cases_ts = TokenStream2::new();
+            let mut const_value_cases_ts = TokenStream2::new();
+            for v in self.values.values() {
+                let v_name = &v.name;
+                let v_ident = &v.ident;
+                let const_value = v.const_value.unwrap();
+                const_name_cases_ts.extend(quote! {
+                    #e_ident::#v_ident => #v_name,
+                });
+                const_value_cases_ts.extend(quote! {
+                    #e_ident::#v_ident => #const_value,
+                });
+            }
+            let table_len = max_value + 1;
+            ts.extend(quote! {
+                impl SmallConstantTable for #e_ident {
+                    const TABLE_LEN: u8 = #table_len;
+
+                    fn name(&self) -> &'static str {
+                        match self {
+                            #const_name_cases_ts
+                        }
+                    }
+
+                    fn const_value(&self) -> u32 {
+                        match self {
+                            #const_value_cases_ts
                         }
                     }
                 }

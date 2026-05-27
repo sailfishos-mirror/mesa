@@ -64,6 +64,12 @@ pub trait TryDecode<T>: Sized {
     fn try_decode(value: T, arch: u8) -> Result<Self, Self::Error>;
 }
 
+pub trait SmallConstantTable: TryDecode<u8> {
+    const TABLE_LEN: u8;
+    fn name(&self) -> &'static str;
+    fn const_value(&self) -> u32;
+}
+
 #[derive(Clone, Copy)]
 pub struct EncodedSrc<S: Copy> {
     pub encoded: u8,
