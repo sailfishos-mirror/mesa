@@ -1992,6 +1992,7 @@ brw_nir_optimize(brw_pass_tracker *pt)
       LOOP_OPT(nir_lower_pack);
    } while (pt->progress);
 
+   OPT(nir_opt_shrink_stores, true);
    OPT(nir_remove_dead_variables, nir_var_function_temp, NULL);
 }
 
