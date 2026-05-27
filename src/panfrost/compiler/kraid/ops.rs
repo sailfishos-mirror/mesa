@@ -58,16 +58,6 @@ impl fmt::Display for OpBranch {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-pub struct OpEnd {}
-
-impl fmt::Display for OpEnd {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "END")
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Opcode)]
 #[variants(dst_type in [F16, V2F16, F32])]
 pub struct OpFAdd {
     pub dst: Dst,
@@ -373,6 +363,16 @@ impl fmt::Display for OpMov {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpNop {}
+
+impl fmt::Display for OpNop {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NOP")
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(src_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
 pub struct OpStore {
     pub src_type: DataType,
@@ -402,7 +402,6 @@ impl fmt::Display for OpStore {
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     Branch(OpBranch),
-    End(OpEnd),
     FAdd(OpFAdd),
     FCmp(OpFCmp),
     IAdd(OpIAdd),
@@ -411,6 +410,7 @@ pub enum Op {
     Load(OpLoad),
     MkVecV2I8(OpMkVecV2I8),
     MkVecV4I8(OpMkVecV4I8),
+    Nop(OpNop),
     Mov(OpMov),
     Store(OpStore),
 }

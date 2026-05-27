@@ -452,7 +452,8 @@ impl<'a> ShaderFromNir<'a> {
 
         let succ = nb.successors();
         if nb.cf_tree_next().is_none() {
-            b.push_op(OpEnd {});
+            let i = b.push_op(OpNop {});
+            i.flow.set_end_shader();
         } else if let Some(nif) = nb.following_if() {
             let succ = [succ[0].unwrap(), succ[1].unwrap()];
 
