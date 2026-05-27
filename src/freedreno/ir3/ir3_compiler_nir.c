@@ -6225,9 +6225,9 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
    if (so->type == MESA_SHADER_FRAGMENT) {
       so->empty = is_empty(ir) && so->outputs_count == 0 &&
                   so->num_sampler_prefetch == 0;
-      so->writes_only_color = !ctx->s->info.writes_memory && !so->has_kill &&
-                              !so->writes_pos && !so->writes_smask &&
-                              !so->writes_stencilref;
+      so->has_no_side_effects = !ctx->s->info.writes_memory;
+      so->has_no_ds_effects = !so->has_kill && !so->writes_pos &&
+                              !so->writes_smask && !so->writes_stencilref;
    }
 
    if (mesa_shader_stage_is_compute(so->type)) {

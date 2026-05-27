@@ -5508,7 +5508,7 @@ tu_CmdBindPipeline(VkCommandBuffer commandBuffer,
    if (pipeline->disable_fs.valid) {
       if (cmd->state.disable_fs != pipeline->disable_fs.disable_fs) {
          cmd->state.disable_fs = pipeline->disable_fs.disable_fs;
-         cmd->state.dirty |= TU_CMD_DIRTY_DISABLE_FS;
+         cmd->state.dirty |= TU_CMD_DIRTY_RAST | TU_CMD_DIRTY_LRZ;
       }
    }
    cmd->state.pipeline_disable_fs = pipeline->disable_fs.valid;
