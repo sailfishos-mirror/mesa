@@ -263,6 +263,23 @@ can_do_image_to_image_copy(struct kk_image *src, uint32_t src_index,
    enum pipe_format src_format = src_plane->layout.format.pipe;
    enum pipe_format dst_format = dst_plane->layout.format.pipe;
 
+   /* Metal validation fails for image-to-image copies if the dimension is
+    * relevant to the image type and not a multiple of the block dimension.
+    * Since 1D textures are emulated as 2D, this causes problems with
+    * compressed 1D textures.
+    *
+    * However, Metal documentation also states:
+    *
+    *    If the block extends outside the bounds of the texture, clamp
+    *    sourceSize to the edge of the texture.
+    *
+    * So this may be a bug in the validation layer. Routing to the buffer copy
+    * path avoids it.
+    */
+   if (src->vk.image_type == VK_IMAGE_TYPE_1D &&
+       util_format_is_compressed(src_format))
+      return false;
+
    return src_format == dst_format && src_plane->layout.sample_count_sa ==
                                          dst_plane->layout.sample_count_sa;
 }
