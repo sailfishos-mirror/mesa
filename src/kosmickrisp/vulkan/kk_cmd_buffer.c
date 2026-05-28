@@ -505,7 +505,7 @@ kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct kk_grid grid,
    mtl_compute_encoder *encoder =
       pre_gfx ? kk_encoder_pre_gfx_encoder(cmd) : kk_compute_encoder(cmd);
 
-   struct kk_ptr data_gpu = kk_pool_upload(cmd, data, data_size, 4u);
+   struct kk_ptr data_gpu = kk_pool_upload(cmd, data, data_size, 8u);
    if (unlikely(!data_gpu.gpu))
       return;
 
