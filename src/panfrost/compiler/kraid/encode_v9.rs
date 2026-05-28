@@ -376,14 +376,14 @@ impl V9Instr for OpFAdd {
         if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
             let variant = match self.dst_type {
                 DataType::F32 => FaddImmVariant::F32,
-                DataType::V2F16 => FaddImmVariant::V2f16,
+                DataType::V2F16 => FaddImmVariant::V2F16,
                 _ => return None,
             };
             FaddImm::get_info(variant, arch)
         } else {
             let variant = match self.dst_type {
                 DataType::F32 => FaddVariant::F32,
-                DataType::V2F16 => FaddVariant::V2f16,
+                DataType::V2F16 => FaddVariant::V2F16,
                 _ => return None,
             };
             Fadd::get_info(variant, arch)
@@ -395,7 +395,7 @@ impl V9Instr for OpFAdd {
             e.encode(FaddImm {
                 variant: match self.dst_type {
                     DataType::F32 => FaddImmVariant::F32,
-                    DataType::V2F16 => FaddImmVariant::V2f16,
+                    DataType::V2F16 => FaddImmVariant::V2F16,
                     t => panic!("FADD_IMM.{t} not supported"),
                 },
                 dst: op_encode_dst(self, &self.dst),
@@ -406,7 +406,7 @@ impl V9Instr for OpFAdd {
             e.encode(Fadd {
                 variant: match self.dst_type {
                     DataType::F32 => FaddVariant::F32,
-                    DataType::V2F16 => FaddVariant::V2f16,
+                    DataType::V2F16 => FaddVariant::V2F16,
                     t => panic!("FADD.{t} not supported"),
                 },
                 dst: op_encode_dst(self, &self.dst),
@@ -424,7 +424,7 @@ impl V9Instr for OpFCmp {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
         let variant = match self.src_type {
             DataType::F32 => FcmpVariant::F32,
-            DataType::V2F16 => FcmpVariant::V2f16,
+            DataType::V2F16 => FcmpVariant::V2F16,
             _ => return None,
         };
         Fcmp::get_info(variant, arch)
@@ -434,7 +434,7 @@ impl V9Instr for OpFCmp {
         e.encode(Fcmp {
             variant: match self.src_type {
                 DataType::F32 => FcmpVariant::F32,
-                DataType::V2F16 => FcmpVariant::V2f16,
+                DataType::V2F16 => FcmpVariant::V2F16,
                 t => panic!("FCMP.{t} not supported"),
             },
             dst: op_encode_dst(self, &self.dst),
@@ -460,8 +460,8 @@ impl V9Instr for OpIAdd {
         if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
             let variant = match self.dst_type {
                 DataType::I32 => IaddImmVariant::I32,
-                DataType::V2I16 => IaddImmVariant::V2i16,
-                DataType::V4I8 => IaddImmVariant::V4i8,
+                DataType::V2I16 => IaddImmVariant::V2I16,
+                DataType::V4I8 => IaddImmVariant::V4I8,
                 _ => return None,
             };
             IaddImm::get_info(variant, arch)
@@ -471,10 +471,10 @@ impl V9Instr for OpIAdd {
                 DataType::S64 => IaddVariant::S64,
                 DataType::U32 => IaddVariant::U32,
                 DataType::U64 => IaddVariant::U64,
-                DataType::V2S16 => IaddVariant::V2s16,
-                DataType::V2U16 => IaddVariant::V2u16,
-                DataType::V4S8 => IaddVariant::V4s8,
-                DataType::V4U8 => IaddVariant::V4u8,
+                DataType::V2S16 => IaddVariant::V2S16,
+                DataType::V2U16 => IaddVariant::V2U16,
+                DataType::V4S8 => IaddVariant::V4S8,
+                DataType::V4U8 => IaddVariant::V4U8,
                 _ => return None,
             };
             Iadd::get_info(variant, arch)
@@ -486,8 +486,8 @@ impl V9Instr for OpIAdd {
             e.encode(IaddImm {
                 variant: match self.dst_type {
                     DataType::I32 => IaddImmVariant::I32,
-                    DataType::V2I16 => IaddImmVariant::V2i16,
-                    DataType::V4I8 => IaddImmVariant::V4i8,
+                    DataType::V2I16 => IaddImmVariant::V2I16,
+                    DataType::V4I8 => IaddImmVariant::V4I8,
                     t => panic!("IADD_IMM.{t} not supported"),
                 },
                 dst: op_encode_dst(self, &self.dst),
@@ -501,10 +501,10 @@ impl V9Instr for OpIAdd {
                     DataType::S64 => IaddVariant::S64,
                     DataType::U32 => IaddVariant::U32,
                     DataType::U64 => IaddVariant::U64,
-                    DataType::V2S16 => IaddVariant::V2s16,
-                    DataType::V2U16 => IaddVariant::V2u16,
-                    DataType::V4S8 => IaddVariant::V4s8,
-                    DataType::V4U8 => IaddVariant::V4u8,
+                    DataType::V2S16 => IaddVariant::V2S16,
+                    DataType::V2U16 => IaddVariant::V2U16,
+                    DataType::V4S8 => IaddVariant::V4S8,
+                    DataType::V4U8 => IaddVariant::V4U8,
                     t => panic!("IADD.{t} not supported"),
                 },
                 dst: op_encode_dst(self, &self.dst),
@@ -521,8 +521,8 @@ impl V9Instr for OpICmp {
         let variant = match self.src_type {
             DataType::S32 => IcmpVariant::S32,
             DataType::U32 => IcmpVariant::U32,
-            DataType::V2S16 => IcmpVariant::V2s16,
-            DataType::V2U16 => IcmpVariant::V2u16,
+            DataType::V2S16 => IcmpVariant::V2S16,
+            DataType::V2U16 => IcmpVariant::V2U16,
             _ => return None,
         };
         Icmp::get_info(variant, arch)
@@ -533,8 +533,8 @@ impl V9Instr for OpICmp {
             variant: match self.src_type {
                 DataType::S32 => IcmpVariant::S32,
                 DataType::U32 => IcmpVariant::U32,
-                DataType::V2S16 => IcmpVariant::V2s16,
-                DataType::V2U16 => IcmpVariant::V2u16,
+                DataType::V2S16 => IcmpVariant::V2S16,
+                DataType::V2U16 => IcmpVariant::V2U16,
                 t => panic!("FCMP.{t} not supported"),
             },
             dst: op_encode_dst(self, &self.dst),
@@ -651,7 +651,7 @@ impl V9Instr for OpMov {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
         if let SrcRef::Imm32(_) = &self.src.src_ref {
             let variant = match self.dst_type {
-                DataType::I16 => MovImmVariant::V2i16,
+                DataType::I16 => MovImmVariant::V2I16,
                 DataType::I32 => MovImmVariant::I32,
                 _ => return None,
             };
@@ -669,7 +669,7 @@ impl V9Instr for OpMov {
         if let SrcRef::Imm32(imm) = &self.src.src_ref {
             e.encode(MovImm {
                 variant: match self.dst_type {
-                    DataType::I16 => MovImmVariant::V2i16,
+                    DataType::I16 => MovImmVariant::V2I16,
                     DataType::I32 => MovImmVariant::I32,
                     t => panic!("MOV_IMM.{t} not supported"),
                 },
@@ -705,8 +705,8 @@ macro_rules! shift_lop_info {
             let variant = match $op.dst_type {
                 DataType::I32 => [<$Instr Variant>]::I32,
                 DataType::I64 => [<$Instr Variant>]::I64,
-                DataType::V2I16 => [<$Instr Variant>]::V2i16,
-                DataType::V4I8 => [<$Instr Variant>]::V4i8,
+                DataType::V2I16 => [<$Instr Variant>]::V2I16,
+                DataType::V4I8 => [<$Instr Variant>]::V4I8,
                 _ => return None,
             };
             $Instr::get_info(variant, $arch)
@@ -721,8 +721,8 @@ macro_rules! shift_lop_as {
                 variant: match $op.dst_type {
                     DataType::I32 => [<$Instr Variant>]::I32,
                     DataType::I64 => [<$Instr Variant>]::I64,
-                    DataType::V2I16 => [<$Instr Variant>]::V2i16,
-                    DataType::V4I8 => [<$Instr Variant>]::V4i8,
+                    DataType::V2I16 => [<$Instr Variant>]::V2I16,
+                    DataType::V4I8 => [<$Instr Variant>]::V4I8,
                     t => panic!("SHIFT_LOP.{t} not supported"),
                 },
                 dst: op_encode_dst($op, &$op.dst),
@@ -767,8 +767,8 @@ impl V9Instr for OpShiftLop {
                     variant: match self.dst_type {
                         DataType::I32 => ArshiftVariant::I32,
                         DataType::I64 => ArshiftVariant::I64,
-                        DataType::V2I16 => ArshiftVariant::V2i16,
-                        DataType::V4I8 => ArshiftVariant::V4i8,
+                        DataType::V2I16 => ArshiftVariant::V2I16,
+                        DataType::V4I8 => ArshiftVariant::V4I8,
                         t => panic!("SHIFT_LOP.{t} not supported"),
                     },
                     dst: op_encode_dst(self, &self.dst),

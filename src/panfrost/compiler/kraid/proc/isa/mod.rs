@@ -70,7 +70,42 @@ mod result {
 
 pub use result::{err, Error, Result};
 
+pub fn is_data_type_name(s: &str) -> bool {
+    let mut s = s.as_bytes();
+    if s.len() < 2 {
+        return false;
+    }
+    if s[0].to_ascii_lowercase() == b'v' {
+        if s[1] != b'2' && s[1] != b'4' {
+            return false;
+        }
+        s = &s[2..];
+    }
+
+    // We've taken care of any V2 or V4, check for a float or integer type
+    if s.len() < 2 {
+        return false;
+    }
+    if !b"fisu".contains(&s[0].to_ascii_lowercase()) {
+        return false;
+    }
+    let mut bits = 0_u32;
+    for b in &s[1..] {
+        if !b.is_ascii_digit() {
+            return false;
+        }
+        bits = bits * 10 + u32::from(b - b'0');
+    }
+    bits >= 8
+        && (bits.is_power_of_two()
+            || (bits % 3 == 0 && (bits / 3).is_power_of_two()))
+}
+
 pub(self) fn to_camel_case(s: &str) -> String {
+    if is_data_type_name(s) {
+        return s.to_uppercase();
+    }
+
     let mut out = String::new();
     let mut next_upper = true;
     for c in s.chars() {
@@ -87,6 +122,10 @@ pub(self) fn to_camel_case(s: &str) -> String {
 }
 
 pub(self) fn to_snake_case(s: &str) -> String {
+    if is_data_type_name(s) {
+        return s.to_lowercase();
+    }
+
     let mut out = String::new();
     for c in s.chars() {
         if c.is_uppercase() {
