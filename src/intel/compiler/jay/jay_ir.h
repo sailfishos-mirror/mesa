@@ -712,6 +712,9 @@ jay_stride_to_bits(enum jay_stride s)
    return 16 << s;
 }
 
+enum jay_stride jay_dst_stride_minmax(jay_inst *I, bool do_max);
+enum jay_stride jay_src_stride_minmax(jay_inst *I, unsigned s, bool do_max);
+
 #define jay_foreach_ra_file(file)                                              \
    for (enum jay_file file = 0; file < JAY_NUM_RA_FILES; ++file)
 

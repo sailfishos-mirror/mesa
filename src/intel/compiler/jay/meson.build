@@ -70,6 +70,7 @@ libintel_compiler_jay_files = files(
   'jay_register_allocate.c',
   'jay_simd_width.c',
   'jay_schedule.c',
+  'jay_stride.c',
   'jay_spill.c',
   'jay_to_binary.c',
   'jay_validate.c',
