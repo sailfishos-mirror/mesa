@@ -254,3 +254,31 @@ def drirc_generate(cpath, hpath, driver_prefix, sections):
             from mako import exceptions
             print(exceptions.text_error_template().render(), file=sys.stderr)
             sys.exit(1)
+
+def add_common_vk_wsi_options(debug_options, performance_options):
+    B = DrircBool
+    I = DrircInt
+
+    performance_options.extend([
+        B("adaptive_sync", True,
+          "Adapt the monitor sync to the application performance (when possible)"),
+        I("vk_x11_override_min_image_count", 0, 0, 999,
+          "Override the VkSurfaceCapabilitiesKHR::minImageCount (0 = no override)"),
+        B("vk_x11_strict_image_count", False,
+          "Force the X11 WSI to create exactly the number of image specified by the application in VkSwapchainCreateInfoKHR::minImageCount"),
+        B("vk_x11_ensure_min_image_count", False,
+          "Force the X11 WSI to create at least the number of image specified by the driver in VkSurfaceCapabilitiesKHR::minImageCount"),
+        B("vk_xwayland_wait_ready", False,
+          "Wait for fences before submitting buffers to Xwayland"),
+    ])
+
+    debug_options.extend([
+        B("vk_wsi_force_bgra8_unorm_first", False,
+          "Force vkGetPhysicalDeviceSurfaceFormatsKHR to return VK_FORMAT_B8G8R8A8_UNORM as the first format"),
+        B("vk_wsi_force_swapchain_to_current_extent", False,
+          "Force VkSwapchainCreateInfoKHR::imageExtent to be VkSurfaceCapabilities2KHR::currentExtent"),
+        B("vk_wsi_disable_unordered_submits", False,
+          "Disable unordered WSI submits to workaround application synchronization bugs"),
+        B("vk_x11_ignore_suboptimal", False,
+          "Force the X11 WSI to never report VK_SUBOPTIMAL_KHR"),
+    ])

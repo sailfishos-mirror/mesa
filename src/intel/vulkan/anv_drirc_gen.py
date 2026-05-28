@@ -16,26 +16,6 @@ def declare_options(android_version):
     EV = drirc_gen.DrircEnumValue
 
     debug_options = [
-        # WSI stuff
-        I("vk_x11_override_min_image_count", 0, 0, 999,
-          "Override the VkSurfaceCapabilitiesKHR::minImageCount (0 = no override)"),
-        B("vk_x11_strict_image_count", False,
-          "Force the X11 WSI to create exactly the number of image specified "
-          "by the application in VkSwapchainCreateInfoKHR::minImageCount"),
-        B("vk_x11_ensure_min_image_count", False,
-          "Force the X11 WSI to create at least the number of image specified "
-          "by the driver in VkSurfaceCapabilitiesKHR::minImageCount"),
-        B("vk_xwayland_wait_ready", False,
-          "Wait for fences before submitting buffers to Xwayland"),
-        B("vk_wsi_force_bgra8_unorm_first", False,
-          "Force vkGetPhysicalDeviceSurfaceFormatsKHR to return VK_FORMAT_B8G8R8A8_UNORM as the first format"),
-        B("vk_wsi_force_swapchain_to_current_extent", False,
-          "Force VkSwapchainCreateInfoKHR::imageExtent to be VkSurfaceCapabilities2KHR::currentExtent"),
-        B("vk_wsi_disable_unordered_submits", False,
-          "Disable unordered WSI submits to workaround application synchronization bugs"),
-        B("vk_x11_ignore_suboptimal", False,
-          "Force the X11 WSI to never report VK_SUBOPTIMAL_KHR"),
-
         # Workaround subgroups
         I("anv_assume_full_subgroups", 0, 0, 32,
           "Allow assuming full subgroups requirement even when it's not specified explicitly and set the given size",
@@ -250,6 +230,8 @@ def declare_options(android_version):
           "Enable VK_EXT_image_compression_control support",
           c_name="compression_control_enabled"),
     ]
+
+    drirc_gen.add_common_vk_wsi_options(debug_options, perf_options)
 
     return [drirc_gen.DrircSection("Debugging",   debug_options,   c_name="debug"),
             drirc_gen.DrircSection("Features",    feature_options, c_name="features"),

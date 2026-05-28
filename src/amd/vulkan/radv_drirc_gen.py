@@ -13,16 +13,6 @@ def declare_options():
     S = drirc_gen.DrircString
 
     debug_options = [
-        # WSI options.
-        B("vk_wsi_force_bgra8_unorm_first", False,
-          "Force vkGetPhysicalDeviceSurfaceFormatsKHR to return VK_FORMAT_B8G8R8A8_UNORM as the first format"),
-        B("vk_wsi_force_swapchain_to_current_extent", False,
-          "Force VkSwapchainCreateInfoKHR::imageExtent to be VkSurfaceCapabilities2KHR::currentExtent"),
-        B("vk_wsi_disable_unordered_submits", False,
-          "Disable unordered WSI submits to workaround application synchronization bugs"),
-        B("vk_x11_ignore_suboptimal", False,
-          "Force the X11 WSI to never report VK_SUBOPTIMAL_KHR"),
-
         B("vk_zero_vram", False,
           "Initialize to zero all VRAM allocations",
           c_name="zero_vram"),
@@ -101,18 +91,6 @@ def declare_options():
     ]
 
     performance_options = [
-        # WSI options.
-        B("adaptive_sync", True,
-          "Adapt the monitor sync to the application performance (when possible)"),
-        I("vk_x11_override_min_image_count", 0, 0, 999,
-          "Override the VkSurfaceCapabilitiesKHR::minImageCount (0 = no override)"),
-        B("vk_x11_strict_image_count", False,
-          "Force the X11 WSI to create exactly the number of image specified by the application in VkSwapchainCreateInfoKHR::minImageCount"),
-        B("vk_x11_ensure_min_image_count", False,
-          "Force the X11 WSI to create at least the number of image specified by the driver in VkSurfaceCapabilitiesKHR::minImageCount"),
-        B("vk_xwayland_wait_ready", False,
-          "Wait for fences before submitting buffers to Xwayland"),
-
         B("radv_disable_ngg_gs", False,
           "Disable NGG GS on GFX10/GFX10.3.",
           c_name="disable_ngg_gs"),
@@ -170,6 +148,8 @@ def declare_options():
           "Override the shader version of ray tracing pipelines to force re-compilation. (0 = default)",
           c_name="override_ray_tracing_shader_version"),
     ]
+
+    drirc_gen.add_common_vk_wsi_options(debug_options, performance_options)
 
     return [
         drirc_gen.DrircSection("Debugging", debug_options, c_name="debug"),
