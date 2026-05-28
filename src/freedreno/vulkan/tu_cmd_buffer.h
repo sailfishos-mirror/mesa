@@ -84,7 +84,7 @@ enum tu_cmd_dirty_bits
    TU_CMD_DIRTY_VS = BIT(18),
 
    /* all draw states were disabled and need to be re-enabled: */
-   TU_CMD_DIRTY_DRAW_STATE = BIT(18)
+   TU_CMD_DIRTY_DRAW_STATE = BIT(19)
 };
 
 /* There are only three cache domains we have to care about: the CCU, or
