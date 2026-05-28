@@ -87,6 +87,12 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
          assert(B.start_grf + len_grf <= JAY_NUM_PHYS_GRF && "GRF file size");
          assert(!BITSET_TEST_COUNT(regs, B.start_grf, len_grf) && "uniqueness");
 
+         /* This requirement avoids invalid constructions like g127<2> */
+         if (file == GPR && B.stride == JAY_STRIDE_8) {
+            assert(util_is_aligned(len_grf, 2 * jay_grf_per_gpr(shader)) &&
+                   "must be a multiple of 2 GPRs");
+         }
+
          BITSET_SET_COUNT(regs, B.start_grf, len_grf);
       }
    }
