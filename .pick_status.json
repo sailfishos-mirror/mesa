@@ -3054,7 +3054,7 @@
         "description": "radv: enable radv_force_64_byte_sampled_image for Crimson Desert",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
