@@ -224,6 +224,14 @@ impl nir_alu_instr {
     pub fn get_src(&self, idx: usize) -> &nir_alu_src {
         &self.srcs_as_slice()[idx]
     }
+
+    pub fn output_type(&self) -> ALUType {
+        ALUType(self.info().output_type)
+    }
+
+    pub fn input_type(&self, src_idx: usize) -> ALUType {
+        ALUType(self.info().input_types[src_idx])
+    }
 }
 
 impl nir_op_info {
