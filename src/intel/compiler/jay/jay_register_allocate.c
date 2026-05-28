@@ -1491,12 +1491,8 @@ jay_register_allocate_function(jay_function *f)
 
    insert_parallel_copies_for_phis(f);
 
-   /* Lower spills using the UGPRs we stole above. We need to update num_regs
-    * for correct scoreboarding calculations.
-    */
    if (spilled) {
       jay_lower_spill(f);
-      f->shader->num_regs[UGPR] += f->shader->dispatch_width;
    }
 }
 
