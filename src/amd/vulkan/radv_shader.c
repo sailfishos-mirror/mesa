@@ -627,17 +627,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
           nir->info.stage == MESA_SHADER_GEOMETRY)
          nir_shader_gather_xfb_info(nir);
 
-      nir_lower_doubles_options lower_doubles = nir->options->lower_doubles_options;
-
-      if (compiler_info->ac->gfx_level == GFX6) {
-         /* GFX6 doesn't support v_floor_f64 and the precision
-          * of v_fract_f64 which is used to implement 64-bit
-          * floor is less than what Vulkan requires.
-          */
-         lower_doubles |= nir_lower_dfloor;
-      }
-
-      NIR_PASS(_, nir, nir_lower_doubles, NULL, lower_doubles);
+      NIR_PASS(_, nir, nir_lower_doubles, NULL, nir->options->lower_doubles_options);
 
       NIR_PASS(_, nir, nir_normalize_sin_cos);
    }
