@@ -213,89 +213,33 @@ endif
 
 files_drirc = files('00-mesa-defaults.conf')
 
-if with_amd_vk
-  files_drirc += files('00-radv-defaults.conf')
-endif
-
-if with_intel_vk
-  files_drirc += files('00-anv-defaults.conf')
-endif
-
-if with_intel_hasvk
-  files_drirc += files('00-hasvk-defaults.conf')
-endif
-
-if with_nouveau_vk
-  files_drirc += files('00-nvk-defaults.conf')
-endif
-
-if with_microsoft_vk
-  files_drirc += files('00-dzn-defaults.conf')
-endif
-
-if with_freedreno_vk
-  files_drirc += files('00-turnip-defaults.conf')
-endif
-
-if with_gallium_r300
-  files_drirc += files('00-r300-defaults.conf')
-endif
-
-if with_gallium_iris
-  files_drirc += files('00-iris-defaults.conf')
-endif
-
-if with_gallium_crocus
-  files_drirc += files('00-crocus-defaults.conf')
-endif
-
-if with_gallium_asahi
-  files_drirc += files('00-asahi-defaults.conf')
-endif
-
-if with_gallium_v3d
-  files_drirc += files('00-v3d-defaults.conf')
-endif
-
-if with_asahi_vk
-  files_drirc += files('00-hk-defaults.conf')
-endif
-
-if with_panfrost_vk
-  files_drirc += files('00-panvk-defaults.conf')
-endif
-
-if with_gallium_virgl
-  files_drirc += files('00-virtio_gpu-defaults.conf')
-endif
-
-if with_gallium_panfrost
-  files_drirc += files('00-panfrost-defaults.conf')
-endif
-
-if with_gallium_radeonsi
-  files_drirc += files('00-radeonsi-defaults.conf')
-endif
-
-if with_gallium_zink
-  files_drirc += files('00-zink-defaults.conf')
-endif
-
-if with_gallium_r600
-  files_drirc += files('00-r600-defaults.conf')
-endif
-
-if with_gallium_freedreno
-  files_drirc += files('00-msm-defaults.conf')
-endif
-
-if with_gallium_d3d12
-  files_drirc += files('00-d3d12-defaults.conf')
-endif
-
-if with_gallium_svga
-  files_drirc += files('00-vmwgfx-defaults.conf')
-endif
+foreach i : [
+  [with_amd_vk, '00-radv-defaults.conf'],
+  [with_intel_vk, '00-anv-defaults.conf'],
+  [with_intel_hasvk, '00-hasvk-defaults.conf'],
+  [with_nouveau_vk, '00-nvk-defaults.conf'],
+  [with_microsoft_vk, '00-dzn-defaults.conf'],
+  [with_freedreno_vk, '00-turnip-defaults.conf'],
+  [with_gallium_r300, '00-r300-defaults.conf'],
+  [with_gallium_iris, '00-iris-defaults.conf'],
+  [with_gallium_crocus, '00-crocus-defaults.conf'],
+  [with_gallium_asahi, '00-asahi-defaults.conf'],
+  [with_gallium_v3d, '00-v3d-defaults.conf'],
+  [with_asahi_vk, '00-hk-defaults.conf'],
+  [with_panfrost_vk, '00-panvk-defaults.conf'],
+  [with_gallium_virgl, '00-virtio_gpu-defaults.conf'],
+  [with_gallium_panfrost, '00-panfrost-defaults.conf'],
+  [with_gallium_radeonsi, '00-radeonsi-defaults.conf'],
+  [with_gallium_zink, '00-zink-defaults.conf'],
+  [with_gallium_r600, '00-r600-defaults.conf'],
+  [with_gallium_freedreno, '00-msm-defaults.conf'],
+  [with_gallium_d3d12, '00-d3d12-defaults.conf'],
+  [with_gallium_svga, '00-vmwgfx-defaults.conf'],
+]
+  if i[0]
+    files_drirc += files(i[1])
+  endif
+endforeach
 
 drirc_gen = files('drirc_gen.py')
 
