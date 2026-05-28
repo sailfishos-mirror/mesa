@@ -4,6 +4,7 @@
  */
 
 #include "gen.h"
+#include "gen_names.h"
 
 #include "dev/intel_device_info.h"
 

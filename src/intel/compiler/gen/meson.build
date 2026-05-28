@@ -6,9 +6,11 @@ libintel_compiler_gen_files = files(
   'gen_enums.h',
   'gen_types.h',
   'gen_helpers.h',
+  'gen_names.h',
 
   'gen_private.h',
 
+  'gen_names.c',
   'gen_encoding.cpp',
   'gen_encoding_pre_xe.cpp',
 )
