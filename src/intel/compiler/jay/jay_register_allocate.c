@@ -4,7 +4,6 @@
  */
 
 #include <assert.h>
-#include "util/bitscan.h"
 #include "util/bitset.h"
 #include "util/macros.h"
 #include "util/ralloc.h"
