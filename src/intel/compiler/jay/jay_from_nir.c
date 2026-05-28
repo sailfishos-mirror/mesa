@@ -1562,6 +1562,15 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          break;
       }
 
+      if (fs &&
+          nir_intrinsic_io_semantics(intr).location == VARYING_SLOT_VIEWPORT) {
+         jay_def x = jay_alloc_def(b, GPR, 1);
+         jay_EXTRACT_SUBSPAN_INFO(b, x, jay_extract(nj->payload.u0, 9),
+                                  payload_u1(nj, 9, 1), BITFIELD_RANGE(12, 4));
+         jay_SHR(b, JAY_TYPE_U32, dst, x, 12);
+         break;
+      }
+
       FALLTHROUGH;
    case nir_intrinsic_load_fs_input_interp_deltas: {
       assert(s->stage == MESA_SHADER_FRAGMENT);
