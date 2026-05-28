@@ -1916,8 +1916,7 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
          bld.vop3p(aco_opcode::v_pk_fma_f16, Definition(dst), src0, src1, src2, opsel_lo, opsel_hi);
          emit_split_vector(ctx, dst, 2);
       } else if (dst.regClass() == v1) {
-         emit_vop3a_instruction(ctx, instr, aco_opcode::v_fma_f32, dst,
-                                ctx->block->fp_mode.must_flush_denorms32, 3);
+         emit_vop3a_instruction(ctx, instr, aco_opcode::v_fma_f32, dst, false, 3);
       } else if (dst.regClass() == v2) {
          emit_vop3a_instruction(ctx, instr, aco_opcode::v_fma_f64, dst, false, 3);
       } else if (dst.regClass() == s1) {
@@ -1934,8 +1933,7 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
    }
    case nir_op_ffmaz: {
       if (dst.regClass() == v1) {
-         emit_vop3a_instruction(ctx, instr, aco_opcode::v_fma_legacy_f32, dst,
-                                ctx->block->fp_mode.must_flush_denorms32, 3);
+         emit_vop3a_instruction(ctx, instr, aco_opcode::v_fma_legacy_f32, dst, false, 3);
       } else {
          isel_err(&instr->instr, "Unimplemented NIR instr bit size");
       }
