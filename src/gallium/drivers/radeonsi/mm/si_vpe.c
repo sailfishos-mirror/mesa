@@ -263,7 +263,7 @@ si_vpe_get_format_str(enum vpe_surface_pixel_format format)
    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
       return "NV12(420 YCrCb)";
    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
-      return "NV21(420 YCrCb)";
+      return "NV21(420 YCbCr)";
    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
       return "P010(420 10bpc YCrCb)";
    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_420_12bpc_YCrCb:
@@ -275,7 +275,7 @@ si_vpe_get_format_str(enum vpe_surface_pixel_format format)
    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_422_YCrYCb:
       return "UYVY(422 YCrYCb)";
    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_422_YCbYCr:
-      return "VYUY(422 YCrYCb)";
+      return "VYUY(422 YCbYCr)";
    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_CrYCbY:
       return "Y210(422 10bpc YCrYCb)";
    case VPE_SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_YCrYCb:
