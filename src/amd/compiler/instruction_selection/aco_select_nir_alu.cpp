@@ -702,7 +702,12 @@ emit_floor_ceil_trunc_f64(isel_context* ctx, Builder& bld, aco_opcode opcode, De
     */
    Temp src0 = as_vgpr(ctx, val);
 
-   Builder::Result fract = bld.vop1_e64(aco_opcode::v_fract_f64, bld.def(v2), src0);
+   /* Without rtne, we would get a value slightly above -1.0 for floor(-DBL_MIN). */
+   bool force_rtne = ctx->block->fp_mode.round16_64 != fp_round_ne;
+   ctx->program->needs_fp_mode_insertion |= force_rtne;
+
+   Builder::Result fract = bld.vop1_e64(
+      force_rtne ? aco_opcode::p_v_fract_f64_rtne : aco_opcode::v_fract_f64, bld.def(v2), src0);
    /* fract(Inf) is NaN, clamp turns it into zero to make the subtract a nop.
     * For all other values, fract is already in [0.0, 1.0] anyway.
     */
@@ -712,7 +717,9 @@ emit_floor_ceil_trunc_f64(isel_context* ctx, Builder& bld, aco_opcode opcode, De
 
    Temp tmp = opcode == aco_opcode::v_floor_f64 ? dst.getTemp() : bld.tmp(v2);
 
-   Builder::Result add = bld.vop3(aco_opcode::v_add_f64_e64, Definition(tmp), src0, fract);
+   Builder::Result add =
+      bld.vop3(force_rtne ? aco_opcode::p_v_add_f64_rtne : aco_opcode::v_add_f64_e64,
+               Definition(tmp), src0, fract);
    add->valu().neg[0] = opcode == aco_opcode::v_ceil_f64;
    add->valu().abs[0] = opcode == aco_opcode::v_trunc_f64;
    add->valu().neg[1] = true;
