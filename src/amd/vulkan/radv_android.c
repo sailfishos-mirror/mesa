@@ -13,7 +13,6 @@
 #include "radv_physical_device.h"
 
 #if DETECT_OS_ANDROID
-#include <libsync.h>
 #include <vulkan/vk_android_native_buffer.h>
 #endif /* DETECT_OS_ANDROID */
 

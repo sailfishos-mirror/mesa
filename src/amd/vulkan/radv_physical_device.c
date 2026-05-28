@@ -35,7 +35,6 @@
 
 #ifdef _WIN32
 typedef void *drmDevicePtr;
-#include <io.h>
 #else
 #include "drm-uapi/amdgpu_drm.h"
 #include "util/os_drm.h"

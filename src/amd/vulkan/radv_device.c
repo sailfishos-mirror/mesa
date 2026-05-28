@@ -12,16 +12,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#endif
-#ifdef MAJOR_IN_MKDEV
-#include <sys/mkdev.h>
-#endif
-#ifdef MAJOR_IN_SYSMACROS
-#include <sys/sysmacros.h>
-#endif
-
 #ifdef __linux__
 #include <sys/inotify.h>
 #endif
@@ -41,12 +31,6 @@
 #include "vk_common_entrypoints.h"
 #include "vk_pipeline_cache.h"
 #include "vk_util.h"
-#ifdef _WIN32
-typedef void *drmDevicePtr;
-#include <io.h>
-#else
-#include <xf86drm.h>
-#endif
 #include "util/mesa-blake3.h"
 #include "util/u_atomic.h"
 #include "util/u_process.h"

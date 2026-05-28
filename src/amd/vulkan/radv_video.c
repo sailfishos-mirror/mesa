@@ -6,10 +6,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef _WIN32
-#include "drm-uapi/amdgpu_drm.h"
-#endif
-
 #include "util/vl_zscan_data.h"
 #include "ac_vcn_dec.h"
 
