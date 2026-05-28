@@ -2,6 +2,17 @@
 # Copyright (C) 2026 Valve Corporation
 # SPDX-License-Identifier: MIT
 
+# Generates the C header and source files for parsing a driver's list of
+# supported DRI config options and their default values into a struct of values
+# for the config options.  This generates the old DRI_CONF_SECTION /
+# DRI_CONF_OPT_* macros internally, and supports validation that the driver
+# config files don't refer to options that the driver doesn't use (e.g. due to
+# typos).
+#
+# To use it, call <driver>_parse_dri_options() with the appropriate
+# driConfigFileParseParams, and destroy it at teardown with
+# driDestroyOptionCache() and driDestroyOptionInfo().
+
 import argparse
 import os
 import re
