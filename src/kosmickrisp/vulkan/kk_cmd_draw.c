@@ -1236,12 +1236,6 @@ kk_needs_index_robustness(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
        !dev->vk.enabled_features.pipelineRobustness)
       return false;
 
-   /* Metal handles index robustness beyond the buffer size, so we only need to
-    * deal with it if a subset of the buffer is bound */
-   if (data.index_buffer_offset + data.index_buffer_range_B >=
-       data.index_buffer_size_B)
-      return false;
-
    /* We can't tell if the draw over-reads up-front with indirect draws, so we
     * always have to handle it */
    if (data.indirect)
