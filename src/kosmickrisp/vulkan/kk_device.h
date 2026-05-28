@@ -79,6 +79,7 @@ struct kk_device {
    struct vk_device vk;
 
    mtl_device *mtl_handle;
+   mtl_compiler *mtl_compiler_handle;
 
    /* Dispatch table exposed to the user. Required since we need to record all
     * commands due to Metal limitations */

@@ -30,7 +30,7 @@ typedef void mtl_sampler;
 typedef void mtl_compute_pipeline_state;
 typedef void mtl_library;
 typedef void mtl_render_pipeline_state;
-typedef void mtl_function;
+typedef void mtl_function_descriptor;
 typedef void mtl_resource;
 typedef void mtl_render_pass_descriptor;
 typedef void mtl_render_pipeline_descriptor;
@@ -41,6 +41,7 @@ typedef void mtl_depth_stencil_state;
 typedef void mtl_render_pass_attachment_descriptor;
 typedef void mtl_residency_set;
 typedef void mtl_allocation;
+typedef void mtl_compiler;
 
 /** ENUMS */
 enum mtl_cpu_cache_mode {

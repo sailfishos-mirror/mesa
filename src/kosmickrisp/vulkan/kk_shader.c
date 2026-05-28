@@ -617,6 +617,7 @@ kk_shader_destroy(struct vk_device *vk_dev, struct kk_shader *shader,
 
    if (shader->info.stage == MESA_SHADER_COMPUTE) {
       mtl_release(pipe->cs);
+      pipe->cs = NULL;
    } else if (shader->info.stage == MESA_SHADER_VERTEX) {
       /* Pre-render compute pipelines. */
       for (uint32_t i = 0u; i < pipe->gfx.pre_render_count; ++i) {
@@ -948,14 +949,14 @@ kk_compile_compute_pipeline(struct kk_device *device, const char *msl,
                             uint32_t local_size_threads,
                             mtl_compute_pipeline_state **pipe)
 {
-   mtl_library *library = mtl_new_library(device->mtl_handle, msl);
+   mtl_library *library = mtl_new_library(device->mtl_compiler_handle, msl);
    if (library == NULL)
       return VK_ERROR_INVALID_SHADER_NV;
 
-   mtl_function *function =
-      mtl_new_function_with_name(library, entrypoint_name);
+   mtl_function_descriptor *function =
+      mtl_new_library_function_descriptor(library, entrypoint_name);
    mtl_compute_pipeline_state *pipeline = mtl_new_compute_pipeline_state(
-      device->mtl_handle, function, local_size_threads);
+      device->mtl_compiler_handle, function, local_size_threads);
    mtl_release(function);
    mtl_release(library);
 
@@ -1183,21 +1184,23 @@ kk_compile_graphics_pipeline(struct kk_device *device, struct kk_shader *vs)
    }
 
    mtl_library *vertex_library =
-      mtl_new_library(device->mtl_handle, vs->msl_shaders[vs_stage]);
+      mtl_new_library(device->mtl_compiler_handle, vs->msl_shaders[vs_stage]);
    if (vertex_library == NULL)
       return VK_ERROR_INVALID_SHADER_NV;
 
-   mtl_function *vertex_function = mtl_new_function_with_name(
-      vertex_library, vs->entrypoint_names[vs_stage]);
+   mtl_function_descriptor *vertex_function =
+      mtl_new_library_function_descriptor(vertex_library,
+                                          vs->entrypoint_names[vs_stage]);
 
    mtl_library *fragment_library = mtl_new_library(
-      device->mtl_handle, vs->msl_shaders[MESA_SHADER_FRAGMENT]);
+      device->mtl_compiler_handle, vs->msl_shaders[MESA_SHADER_FRAGMENT]);
    if (fragment_library == NULL) {
       result = VK_ERROR_INVALID_SHADER_NV;
       goto destroy_vertex;
    }
-   mtl_function *fragment_function = mtl_new_function_with_name(
-      fragment_library, vs->entrypoint_names[MESA_SHADER_FRAGMENT]);
+   mtl_function_descriptor *fragment_function =
+      mtl_new_library_function_descriptor(
+         fragment_library, vs->entrypoint_names[MESA_SHADER_FRAGMENT]);
 
    mtl_render_pipeline_descriptor *pipeline_descriptor =
       mtl_new_render_pipeline_descriptor();
@@ -1215,14 +1218,6 @@ kk_compile_graphics_pipeline(struct kk_device *device, struct kk_shader *vs)
          mtl_render_pipeline_descriptor_set_color_attachment_format(
             pipeline_descriptor, i, vs->info.vs.rt_formats[i]);
    }
-
-   if (vs->info.vs.d_format != MTL_PIXEL_FORMAT_INVALID)
-      mtl_render_pipeline_descriptor_set_depth_attachment_format(
-         pipeline_descriptor, vs->info.vs.d_format);
-
-   if (vs->info.vs.s_format != MTL_PIXEL_FORMAT_INVALID)
-      mtl_render_pipeline_descriptor_set_stencil_attachment_format(
-         pipeline_descriptor, vs->info.vs.s_format);
 
    if (vs->info.vs.has_ds) {
       pipe->gfx.ds_handle = kk_compile_ds_state(device, &vs->info);
@@ -1244,7 +1239,7 @@ kk_compile_graphics_pipeline(struct kk_device *device, struct kk_shader *vs)
    }
 
    pipe->gfx.render =
-      mtl_new_render_pipeline(device->mtl_handle, pipeline_descriptor);
+      mtl_new_render_pipeline(device->mtl_compiler_handle, pipeline_descriptor);
    if (pipe->gfx.render == NULL)
       result = VK_ERROR_INVALID_SHADER_NV;
 

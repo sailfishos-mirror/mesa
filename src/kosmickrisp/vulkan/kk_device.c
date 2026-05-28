@@ -215,11 +215,16 @@ kk_CreateDevice(VkPhysicalDevice physicalDevice,
    dev->vk.command_dispatch_table = &dev->vk.dispatch_table;
    dev->vk.get_timestamp = kk_get_timestamp;
 
+   /* Create a new Metal pipeline compiler for the device */
+   dev->mtl_compiler_handle = mtl_new_compiler(dev->mtl_handle);
+   if (dev->mtl_compiler_handle == NULL)
+      goto fail_init;
+
    /* We need to initialize the device residency set before any bo is created. */
    simple_mtx_init(&dev->residency_set.mutex, mtx_plain);
    dev->residency_set.handle = mtl_new_residency_set(dev->mtl_handle);
    if (dev->residency_set.handle == NULL)
-      goto fail_init;
+      goto fail_compiler;
 
    if (pCreateInfo->queueCreateInfoCount > 0) {
       result =
@@ -266,6 +271,8 @@ fail_mem_cache:
 fail_vab_memory:
    mtl_release(dev->residency_set.handle);
    simple_mtx_destroy(&dev->residency_set.mutex);
+fail_compiler:
+   mtl_release(dev->mtl_compiler_handle);
 fail_init:
    vk_device_finish(&dev->vk);
 fail_alloc:
@@ -305,6 +312,8 @@ kk_DestroyDevice(VkDevice _device, const VkAllocationCallbacks *pAllocator)
    /* Release the residency set last once all BOs are released. */
    mtl_release(dev->residency_set.handle);
    simple_mtx_destroy(&dev->residency_set.mutex);
+
+   mtl_release(dev->mtl_compiler_handle);
 
    vk_device_finish(&dev->vk);
 

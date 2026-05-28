@@ -17,18 +17,16 @@
 mtl_device *
 mtl_device_create()
 {
-   mtl_device *device = 0u;
+   mtl_device *device = nil;
 
    @autoreleasepool {
       NSArray<id<MTLDevice>> *devs = [MTLCopyAllDevices() autorelease];
       uint32_t device_count = [devs count];
       
       for (uint32_t i = 0u; i < device_count; ++i) {
-         if (@available(macOS 10.15, *)) {
-            if (!device && [devs[i] supportsFamily:MTLGPUFamilyMetal3]) {
-               device = (mtl_device *)[devs[i] retain];
-               break;
-            }
+         if ([devs[i] supportsFamily:MTLGPUFamilyMetal4]) {
+            device = (mtl_device *)[devs[i] retain];
+            break;
          }
       }
    }
