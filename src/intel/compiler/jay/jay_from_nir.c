@@ -1601,6 +1601,19 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
    }
 
+   case nir_intrinsic_load_input_vertex: {
+      assert(fs);
+      unsigned location = nir_intrinsic_io_semantics(intr).location;
+      unsigned i = (s->prog_data->fs.urb_setup[location] * 4) +
+                   nir_intrinsic_component(intr);
+      unsigned vtx = nir_src_as_uint(intr->src[0]);
+
+      for (unsigned j = 0; j < intr->num_components; j++) {
+         jay_copy(b, jay_extract(dst, j), jay_extract(fs->deltas[i + j], vtx));
+      }
+      break;
+   }
+
    case nir_intrinsic_load_subgroup_id:
       assert(cs && f->is_entrypoint && "todo: this needs ABI");
       /* Subgroup ID in Thread Group is u0.2 bits 7:0 */
