@@ -686,19 +686,36 @@ register_demand(jay_ra_state *ra, enum jay_file f)
    return n - __bitset_prefix_sum(ra->available_regs[f], n, BITSET_WORDS(n));
 }
 
+static bool
+is_block_compatible(struct jay_register_block block,
+                    enum jay_file file,
+                    enum jay_stride min_stride,
+                    enum jay_stride max_stride,
+                    bool eot)
+{
+   return block.type != JAY_BLOCK_SPILL &&
+          (file != GPR ||
+           (min_stride <= block.stride && block.stride <= max_stride)) &&
+          (!eot || block.type == JAY_BLOCK_EOT);
+}
+
 static jay_reg
 try_find_free_reg(jay_ra_state *ra,
                   enum jay_file file,
                   unsigned except,
                   bool stride4)
 {
-   struct jay_partition *p = &ra->b.shader->partition;
+   for (unsigned b = 0; b < ra->b.shader->partition.nr_blocks[file]; ++b) {
+      struct jay_register_block B = ra->b.shader->partition.blocks[file][b];
 
-   unsigned i;
-   BITSET_FOREACH_SET(i, ra->available_regs[file], ra->num_regs[file]) {
-      if (i != except &&
-          (!stride4 || jay_lookup_block(p, i, GPR).stride == JAY_STRIDE_4)) {
-         return make_reg(file, i);
+      if (is_block_compatible(B, file, stride4 ? JAY_STRIDE_4 : 0,
+                              stride4 ? JAY_STRIDE_4 : ~0, false)) {
+
+         for (unsigned i = B.start_gpr; i < B.start_gpr + B.len_gpr; ++i) {
+            if (BITSET_TEST(ra->available_regs[file], i) && i != except) {
+               return make_reg(file, i);
+            }
+         }
       }
    }
 
@@ -837,19 +854,6 @@ pick_regs_from_block(jay_ra_state *ra,
          }
       }
    }
-}
-
-static bool
-is_block_compatible(struct jay_register_block block,
-                    enum jay_file file,
-                    enum jay_stride min_stride,
-                    enum jay_stride max_stride,
-                    bool eot)
-{
-   return block.type != JAY_BLOCK_SPILL &&
-          (file != GPR ||
-           (min_stride <= block.stride && block.stride <= max_stride)) &&
-          (!eot || block.type == JAY_BLOCK_EOT);
 }
 
 static unsigned
