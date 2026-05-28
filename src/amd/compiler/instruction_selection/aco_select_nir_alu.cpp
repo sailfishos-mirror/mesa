@@ -2431,10 +2431,18 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
             Temp two_p52 =
                bld.pseudo(aco_opcode::p_create_vector, bld.def(s2), Operand::c32(0), two_p52_exp);
 
-            Builder::Result add = bld.vop3(aco_opcode::v_add_f64_e64, bld.def(v2), src0, two_p52);
+            /* We need the adds to round towards nearest even to get overall round towards
+             * nearest even behavior.
+             */
+            bool force_rtne = ctx->block->fp_mode.round16_64 != fp_round_ne;
+            ctx->program->needs_fp_mode_insertion |= force_rtne;
+            aco_opcode add_opc =
+               force_rtne ? aco_opcode::p_v_add_f64_rtne : aco_opcode::v_add_f64_e64;
+
+            Builder::Result add = bld.vop3(add_opc, bld.def(v2), src0, two_p52);
             add->valu().abs[0] = true;
 
-            Builder::Result sub = bld.vop3(aco_opcode::v_add_f64_e64, bld.def(v2), add, two_p52);
+            Builder::Result sub = bld.vop3(add_opc, bld.def(v2), add, two_p52);
             sub->valu().neg[1] = true;
 
             Builder::Result cond =
