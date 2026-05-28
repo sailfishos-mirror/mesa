@@ -1236,6 +1236,89 @@ jay_emit_barycentric(struct nir_to_jay_state *nj,
 }
 
 static void
+jay_emit_rt_lsc_fence(struct nir_to_jay_state *nj,
+                      enum lsc_fence_scope scope,
+                      enum lsc_flush_type type)
+{
+   jay_def notif = jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s));
+   uint32_t desc = lsc_fence_msg_desc(nj->s->devinfo, scope, type, true);
+
+   jay_SEND(&nj->bld, .sfid = GEN_SFID_UGM, .msg_desc = desc,
+            .srcs = &nj->payload.u0, .nr_srcs = 1, .type = JAY_TYPE_U32,
+            .uniform = true, .dst = notif);
+
+   /* There is no implicit ordering between messages to the dataport, the
+    * thread sorting unit, and the raytracing accelerator. We need to manually
+    * wait on the SBIDs of these fence messages to ensure all pending writes
+    * have landed before sending messages to the BTD/RTA units.
+    */
+   jay_SCHEDULE_BARRIER(&nj->bld);
+}
+
+static void
+jay_emit_rt_trace_ray(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
+{
+   jay_shader *s = nj->s;
+   jay_builder *b = &nj->bld;
+
+   const bool synchronous = nir_intrinsic_synchronous(instr);
+   assert(nj->s->dispatch_width <= 16 || synchronous);
+
+   assert(nj->s->dispatch_width <= 16 && "TODO: Ray query SIMD splitting");
+
+   /* Make sure all the previous RT structure writes are visible to the RT
+    * fixed function within the DSS, as well as stack pointers to resume
+    * shaders.
+    */
+   jay_emit_rt_lsc_fence(nj, LSC_FENCE_LOCAL, LSC_FLUSH_TYPE_NONE);
+
+   jay_def globals = nj_src(instr->src[0]);
+   assert(globals.file == UGPR);
+
+   /* Only dword 0-1 and 4 matter for the header. The rest of the GRF is
+    * defined as "reserved - must be zero". In practice, it doesn't matter and
+    * we pass garbage to avoid moves. In strict mode, we do the
+    * obvious/inefficient thing to comply with the bspec.
+    */
+   bool strict = (jay_debug & JAY_DBG_STRICT);
+   jay_def reserved = strict ? jay_MOV_u32(b, 0) : jay_null();
+   unsigned length = strict ? jay_ugpr_per_grf(nj->s) : 6;
+   jay_def ugprs[JAY_MAX_DEF_LENGTH] = {};
+   for (unsigned i = 0; i < length; ++i) {
+      ugprs[i] = reserved;
+   }
+
+   ugprs[0] = jay_extract(globals, 0);
+   ugprs[1] = jay_extract(globals, 1);
+   ugprs[4] = jay_MOV_u32(b, (unsigned) synchronous);
+
+   jay_def header = jay_collect_vectors(b, ugprs, length);
+   jay_def data = jay_as_gpr(b, nj_src(instr->src[1]));
+   jay_def srcs[] = { header, data };
+
+   /* Bspec 57508, 47937: Structure_SIMD16TraceRayMessage:: RayQuery Enable
+    *
+    *    "When this bit is set in the header, Trace Ray Message behaves like
+    *    a Ray Query. This message requires a write-back message indicating
+    *    RayQuery for all valid Rays (SIMD lanes) have completed."
+    */
+   jay_def notif = synchronous ?
+      jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s)) : jay_null();
+
+   uint32_t desc = brw_rt_trace_ray_desc(s->devinfo, nj->s->dispatch_width);
+
+   jay_SEND(&nj->bld, .sfid = GEN_SFID_RAY_TRACE_ACCELERATOR, .msg_desc = desc,
+            .type = JAY_TYPE_U32, .srcs = srcs, .nr_srcs = 2, .dst = notif);
+
+   /* There is no implicit ordering between messages to the dataport and the
+    * raytracing accelerator. We need to manually wait on the SBIDs of ray
+    * queries first before the shader can load the result using the dataport.
+    */
+   if (synchronous)
+      jay_SCHEDULE_BARRIER(&nj->bld);
+}
+
+static void
 jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
    jay_shader *s = nj->s;
@@ -1730,6 +1813,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_topology_id_intel:
       jay_MOV(b, dst, jay_scalar(J_ARF, GEN_ARF_STATE));
+      break;
+
+   case nir_intrinsic_trace_ray_intel:
+      jay_emit_rt_trace_ray(nj, intr);
       break;
 
    default:
