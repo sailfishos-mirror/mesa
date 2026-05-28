@@ -808,7 +808,7 @@ static bool pco_ra_func(pco_func *func, pco_ra_ctx *ctx)
    }
 
    bool allocated = ra_allocate(ra_graph);
-   bool force_spill = false;
+   bool force_spill = PCO_DEBUG(RA_FORCE_SPILL);
    if (!allocated || force_spill) {
       if (!ctx->spilling_setup) {
          ctx->spill_inst_addr_comps[0] = pco_ref_hwreg(0, PCO_REG_CLASS_TEMP);
@@ -1181,7 +1181,6 @@ bool pco_ra(pco_shader *shader)
       shader->data.common.vtxins =
          MAX2(shader->data.common.vtxins, func->vtxins);
    }
-
    shader->data.common.spilled_temps = ctx.spilled_temps;
    return progress;
 }

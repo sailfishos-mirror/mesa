@@ -2214,6 +2214,12 @@ PowerVR driver environment variables
    ``global_shmem``
       Force spill shared memory to global memory.
 
+   ``ra_force_spill``
+      Force spilling of temps during register allocation.
+
+   ``ra_skip_opt``
+      Skip attempting to allocate temps with the optimal amount during RA.
+
 .. envvar:: PCO_SKIP_PASSES
 
    A comma-separated list of passes to skip.
