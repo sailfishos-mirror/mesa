@@ -462,6 +462,28 @@ fn encode_instr(
                 })
             }
         }
+        Op::ICmp(op) => enc.encode(Icmp {
+            variant: match op.src_type {
+                DataType::S32 => IcmpVariant::S32,
+                DataType::U32 => IcmpVariant::U32,
+                DataType::V2S16 => IcmpVariant::V2s16,
+                DataType::V2U16 => IcmpVariant::V2u16,
+                t => panic!("FCMP.{t} not supported"),
+            },
+            dst: op_encode_dst(op, &op.dst),
+            src0: op_encode_src(op, &op.srcs[0]),
+            src1: op_encode_src(op, &op.srcs[1]),
+            cmpf: match op.cmp_op {
+                CmpOp::Eq => CmpfM::Eq,
+                CmpOp::Gt => CmpfM::Gt,
+                CmpOp::Ge => CmpfM::Ge,
+                CmpOp::Ne => CmpfM::Ne,
+                CmpOp::Lt => CmpfM::Lt,
+                CmpOp::Le => CmpfM::Le,
+                cmp_op => panic!("Unsupported comparison: {cmp_op}"),
+            },
+            result_type: CmpResultTypeM::M1,
+        }),
         Op::LdPka(op) => enc.encode(LdPka {
             variant: match op.dst_type {
                 DataType::I8 => LdPkaVariant::I8,

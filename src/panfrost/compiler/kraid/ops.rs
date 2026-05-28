@@ -198,6 +198,39 @@ impl fmt::Display for OpIAdd {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [S16, U16, V2S16, V2U16, S32, U32])]
+pub struct OpICmp {
+    pub dst: Dst,
+
+    pub src_type: DataType,
+    pub res_type: CmpResultType,
+    pub cmp_op: CmpOp,
+
+    pub srcs: [Src; 2],
+
+    #[src_type(VNIN)]
+    pub accum: Src,
+    pub accum_op: CmpAccumOp,
+}
+
+impl fmt::Display for OpICmp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = ICMP{}.{}{}{} {} {}",
+            &self.dst,
+            self.accum_op,
+            self.src_type,
+            self.res_type,
+            self.cmp_op,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpLeaPka {
     #[dst_type(I64)]
     pub dst: Dst,
@@ -476,6 +509,7 @@ pub enum Op {
     FAdd(OpFAdd),
     FCmp(OpFCmp),
     IAdd(OpIAdd),
+    ICmp(OpICmp),
     LeaPka(OpLeaPka),
     LdPka(OpLdPka),
     Load(OpLoad),

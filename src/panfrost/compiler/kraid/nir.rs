@@ -374,6 +374,32 @@ impl<'a> ShaderFromNir<'a> {
                     src2: srcs(1),
                 });
             }
+            nir_op_ieq16 | nir_op_ieq32 | nir_op_ige16 | nir_op_ige32
+            | nir_op_ilt16 | nir_op_ilt32 | nir_op_ine16 | nir_op_ine32
+            | nir_op_uge16 | nir_op_uge32 | nir_op_ult16 | nir_op_ult32 => {
+                let num_type = match alu.input_type(0).base_type() {
+                    ALUType::INT => NumericType::SignedInteger,
+                    ALUType::UINT => NumericType::UnsignedInteger,
+                    _ => panic!("Invalid integer base type"),
+                };
+                b.push_op(OpICmp {
+                    dst: dst.into(),
+                    src_type: src_type(0, num_type),
+                    res_type: CmpResultType::M1,
+                    cmp_op: match alu.op {
+                        nir_op_ieq16 | nir_op_ieq32 => CmpOp::Eq,
+                        nir_op_ige16 | nir_op_ige32 | nir_op_uge16
+                        | nir_op_uge32 => CmpOp::Ge,
+                        nir_op_ilt16 | nir_op_ilt32 | nir_op_ult16
+                        | nir_op_ult32 => CmpOp::Lt,
+                        nir_op_ine16 | nir_op_ine32 => CmpOp::Ne,
+                        _ => panic!("Usupported integer comparison"),
+                    },
+                    srcs: [srcs(0), srcs(1)],
+                    accum: 0.into(),
+                    accum_op: CmpAccumOp::None,
+                });
+            }
             nir_op_ishl | nir_op_ishr | nir_op_ushr | nir_op_urol
             | nir_op_uror => {
                 b.push_op(OpShiftLop {
