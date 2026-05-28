@@ -6,11 +6,11 @@ import argparse
 import sys
 
 def declare_options():
-    from drirc_gen import DrircBool      as B
-    from drirc_gen import DrircInt       as I
-    from drirc_gen import DrircString    as S
+    import drirc_gen
 
-    from drirc_gen import DrircSection   as Section
+    B = drirc_gen.DrircBool
+    I = drirc_gen.DrircInt
+    S = drirc_gen.DrircString
 
     debug_options = [
         # WSI options.
@@ -172,10 +172,10 @@ def declare_options():
     ]
 
     return [
-        Section("Debugging", debug_options, c_name="debug"),
-        Section("Performance", performance_options, c_name="performance"),
-        Section("Features", features_options, c_name="features"),
-        Section("Miscellaneous", misc_options, c_name="misc"),
+        drirc_gen.DrircSection("Debugging", debug_options, c_name="debug"),
+        drirc_gen.DrircSection("Performance", performance_options, c_name="performance"),
+        drirc_gen.DrircSection("Features", features_options, c_name="features"),
+        drirc_gen.DrircSection("Miscellaneous", misc_options, c_name="misc"),
     ]
 
 def main():
@@ -185,13 +185,13 @@ def main():
     parser.add_argument('--drirc-hdr', required=True)
     parser.add_argument('--validate', required=True)
     args = parser.parse_args()
+
     sys.path.insert(0, args.import_path)
+    import drirc_gen
 
-    from drirc_gen import drirc_validate
-    drirc_validate([args.validate], declare_options())
+    drirc_gen.drirc_validate([args.validate], declare_options())
 
-    from drirc_gen import drirc_generate
-    drirc_generate(args.drirc_src, args.drirc_hdr, "radv", declare_options())
+    drirc_gen.drirc_generate(args.drirc_src, args.drirc_hdr, "radv", declare_options())
 
 if __name__ == '__main__':
     main()

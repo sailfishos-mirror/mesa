@@ -6,14 +6,14 @@ import argparse
 import sys
 
 def declare_options(android_version):
-    from drirc_gen import DrircBool      as B
-    from drirc_gen import DrircInt       as I
-    from drirc_gen import DrircFloat     as F
-    from drirc_gen import DrircUint64    as U64
-    from drirc_gen import DrircEnum      as E
-    from drirc_gen import DrircEnumValue as EV
+    import drirc_gen
 
-    from drirc_gen import DrircSection   as Section
+    B = drirc_gen.DrircBool
+    I = drirc_gen.DrircInt
+    F = drirc_gen.DrircFloat
+    U64 = drirc_gen.DrircUint64
+    E = drirc_gen.DrircEnum
+    EV = drirc_gen.DrircEnumValue
 
     debug_options = [
         # WSI stuff
@@ -251,9 +251,9 @@ def declare_options(android_version):
           c_name="compression_control_enabled"),
     ]
 
-    return [Section("Debugging",   debug_options,   c_name="debug"),
-            Section("Features",    feature_options, c_name="features"),
-            Section("Performance", perf_options,    c_name="perf")]
+    return [drirc_gen.DrircSection("Debugging",   debug_options,   c_name="debug"),
+            drirc_gen.DrircSection("Features",    feature_options, c_name="features"),
+            drirc_gen.DrircSection("Performance", perf_options,    c_name="perf")]
 
 def main():
     parser = argparse.ArgumentParser()
@@ -263,15 +263,15 @@ def main():
     parser.add_argument('--android-ver', type=int, default=0, required=False)
     parser.add_argument('--validate', required=True)
     args = parser.parse_args()
+
     sys.path.insert(0, args.import_path)
+    import drirc_gen
 
     options = declare_options(args.android_ver)
 
-    from drirc_gen import drirc_validate
-    drirc_validate([args.validate], options, driver="anv")
+    drirc_gen.drirc_validate([args.validate], options, driver="anv")
 
-    from drirc_gen import drirc_generate
-    drirc_generate(args.drirc_src, args.drirc_hdr, "anv", options)
+    drirc_gen.drirc_generate(args.drirc_src, args.drirc_hdr, "anv", options)
 
 
 if __name__ == '__main__':
