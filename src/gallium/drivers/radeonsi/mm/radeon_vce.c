@@ -803,7 +803,7 @@ static void rvce_begin_frame(struct pipe_video_codec *encoder, struct pipe_video
 
       dpb_size = get_dpb_size(enc, dpb_slots);
       if (!enc->dpb) {
-         enc->dpb = si_vid_create_buffer(enc->screen, PIPE_USAGE_DEFAULT, 0, dpb_size);
+         enc->dpb = si_vid_create_buffer(enc->screen, PIPE_USAGE_DEFAULT, PIPE_RESOURCE_FLAG_UNMAPPABLE, dpb_size);
          if (!enc->dpb) {
             RVID_ERR("Can't create DPB buffer.\n");
             return;

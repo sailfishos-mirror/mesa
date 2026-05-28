@@ -186,7 +186,8 @@ static int si_dec_init_decoder(struct si_video_dec *vid, struct ac_video_dec_ses
    }
 
    if (vid->dec->session_size) {
-      vid->session_buffer = si_vid_create_buffer(vid->screen, PIPE_USAGE_DEFAULT, 0, vid->dec->session_size);
+      unsigned flags = vid->dec->init_session_buf ? 0 : PIPE_RESOURCE_FLAG_UNMAPPABLE;
+      vid->session_buffer = si_vid_create_buffer(vid->screen, PIPE_USAGE_DEFAULT, flags, vid->dec->session_size);
       if (!vid->session_buffer) {
          ret = -ENOMEM;
          goto err;
@@ -195,7 +196,8 @@ static int si_dec_init_decoder(struct si_video_dec *vid, struct ac_video_dec_ses
 
    if (protected && vid->dec->session_tmz_size) {
       vid->session_tmz_buffer = si_vid_create_buffer(vid->screen, PIPE_USAGE_DEFAULT,
-                                                     PIPE_RESOURCE_FLAG_ENCRYPTED, vid->dec->session_tmz_size);
+                                                     PIPE_RESOURCE_FLAG_UNMAPPABLE | PIPE_RESOURCE_FLAG_ENCRYPTED,
+                                                     vid->dec->session_tmz_size);
       if (!vid->session_tmz_buffer) {
          ret = -ENOMEM;
          goto err;
@@ -383,7 +385,9 @@ static int decode_cmd_build(struct si_video_dec *vid, struct pipe_picture_desc *
 
    if (cmd->tier == AC_VIDEO_DEC_TIER0 && vid->dpb_size) {
       if (!vid->dpb_buffer) {
-         unsigned flags = pic->protected_playback ? PIPE_RESOURCE_FLAG_ENCRYPTED : 0;
+         unsigned flags = PIPE_RESOURCE_FLAG_UNMAPPABLE;
+         if (pic->protected_playback)
+            flags |= PIPE_RESOURCE_FLAG_ENCRYPTED;
          vid->dpb_buffer = si_vid_create_buffer(vid->screen, PIPE_USAGE_DEFAULT, flags, vid->dpb_size);
          if (!vid->dpb_buffer)
             return -ENOMEM;
