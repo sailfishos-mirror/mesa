@@ -112,9 +112,6 @@ def declare_options(android_version):
         B("anv_disable_drm_ccs_modifiers", False,
           "Disable DRM CCS modifier usage",
           c_name="disable_xe2_ccs_modifiers"),
-        B("compression_control_enabled", android_version >= 37,
-          "Enable VK_EXT_image_compression_control support",
-          c_name="compression_control_enabled"),
         B("custom_border_colors_without_format", android_version == 0,
           "Enable custom border colors without format",
           c_name="custom_border_colors_without_format"),
@@ -246,6 +243,9 @@ def declare_options(android_version):
         B("anv_enable_fully_covered", False,
           "Enable fullyCoveredFragmentShaderInputVariable (Alchemist and newer only).",
           c_name="fully_covered"),
+        B("compression_control_enabled", android_version >= 37,
+          "Enable VK_EXT_image_compression_control support",
+          c_name="compression_control_enabled"),
     ]
 
     return [Section("Debugging",   debug_options,   c_name="debug"),

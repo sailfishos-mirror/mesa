@@ -2904,7 +2904,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
     * we can't support EXT_image_compression_control on Xe2+.
     */
    device->has_compression_control =
-      instance->drirc.debug.compression_control_enabled &&
+      instance->drirc.features.compression_control_enabled &&
       device->info.ver < 20;
 
    if (is_virtio) {
