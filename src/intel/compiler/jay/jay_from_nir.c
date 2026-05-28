@@ -1501,8 +1501,8 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_layer_id:
-      jay_EXTRACT_LAYER(b, dst, jay_extract(nj->payload.u0, 9),
-                        payload_u1(nj, 9, 1));
+      jay_EXTRACT_SUBSPAN_INFO(b, dst, jay_extract(nj->payload.u0, 9),
+                               payload_u1(nj, 9, 1), 0x7ff);
       break;
 
    case nir_intrinsic_load_front_face: {

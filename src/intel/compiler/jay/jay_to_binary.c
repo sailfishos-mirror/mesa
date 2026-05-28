@@ -260,7 +260,7 @@ static const struct {
    OP(ENDIF, ENDIF, 0),
    OP(EXPAND_QUAD, MOV, 2),
    OP(EXTRACT_BYTE_PER_8LANES, MOV, 2),
-   OP(EXTRACT_LAYER, AND, 2),
+   OP(EXTRACT_SUBSPAN_INFO, AND, 2),
    OP(FBH, FBH, 1),
    OP(FBL, FBL, 1),
    OP(FRC, FRC, 1),
@@ -503,14 +503,16 @@ emit(struct jay_codegen *jc,
       break;
    }
 
-   /* Gfx20+ has separate Render Target Array indices for each pair of subspans
-    * in order to support multiple polygons, so we need to use a <1;8,0> region
-    * in order to select the word for each channel.
+   /* On Gfx20+, the viewport index, render target array index, and facing
+    * fields come together in consecutive words for each pair of subspans.
+    * We use a <1;8,0>W region so that each pair of 4-lane subspans reads
+    * the right value, and split to SIMD16 since the high subspans come
+    * in a separate register.
     */
-   case JAY_OPCODE_EXTRACT_LAYER:
+   case JAY_OPCODE_EXTRACT_SUBSPAN_INFO:
       gen->src[0] =
          gen_restride(gen_retype(gen->src[simd_offs], GEN_TYPE_UW), 1, 8, 0);
-      gen->src[1] = gen_imm_uw(0x7ff);
+      gen->src[1] = gen_imm_uw(jay_extract_subspan_info_mask(I));
       break;
 
    case JAY_OPCODE_EXPAND_QUAD:

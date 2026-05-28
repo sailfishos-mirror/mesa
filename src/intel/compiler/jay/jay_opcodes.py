@@ -174,7 +174,7 @@ op('and_u32_u16', 2, 'u32')
 # 2x16-bit offset within each quad, giving 2x16-bit per-lane coordinates.
 op('expand_quad', 2, 'u32')
 op('offset_packed_pixel_coords', 1, 'u32')
-op('extract_layer', 2, 'u32')
+op('extract_subspan_info', 2, 'u32', Props.CMOD, ['uint16_t mask'])
 
 # Phi function representations
 #
