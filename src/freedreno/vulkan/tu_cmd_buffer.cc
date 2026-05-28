@@ -8054,6 +8054,11 @@ tu6_build_depth_plane_z_mode(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
       zmode = A6XX_LATE_Z;
    }
 
+   /* A630/A650 hangs with this combination of states. */
+   if (CHIP == A6XX && zmode == A6XX_EARLY_Z_LATE_Z && depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT &&
+       fs_kill_fragments)
+      zmode = A6XX_LATE_Z;
+
    if ((stencil_test_enable && depth_format == VK_FORMAT_S8_UINT) ||
        (ds_test_enable &&
         (fs->fs.lrz.force_late_z || cmd->state.lrz.force_late_z)))
