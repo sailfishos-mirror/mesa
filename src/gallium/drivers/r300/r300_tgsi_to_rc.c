@@ -178,15 +178,6 @@ static void transform_instruction(struct tgsi_to_rc * ttr, struct tgsi_full_inst
 
     dst = rc_insert_new_instruction(ttr->compiler, ttr->compiler->Program.Instructions.Prev);
     dst->U.I.Opcode = translate_opcode(src->Instruction.Opcode);
-    if (!ttr->compiler->is_r500 && dst->U.I.Opcode == RC_OPCODE_BGNLOOP && ttr->error == false) {
-        ttr->error = true;
-        fprintf(stderr, "r300: Dynamic loops are not supported on R3xx/R4xx.\n");
-    }
-    if (!ttr->compiler->is_r500 && dst->U.I.Opcode == RC_OPCODE_IF && ttr->error == false) {
-        ttr->error = true;
-        fprintf(stderr, "r300: Branches are not supported on R3xx/R4xx.\n");
-    }
-
     dst->U.I.SaturateMode = translate_saturate(src->Instruction.Saturate);
 
     if (src->Instruction.NumDstRegs)
