@@ -745,31 +745,19 @@ emit_floor_f64(isel_context* ctx, Builder& bld, Definition dst, Temp val)
    if (ctx->options->gfx_level >= GFX7)
       return bld.vop1(aco_opcode::v_floor_f64, Definition(dst), val);
 
-   /* GFX6 doesn't support V_FLOOR_F64, lower it (note that it's actually
-    * lowered at NIR level for precision reasons). */
+   /* GFX6 only supports fract, use it to lower floor. */
    Temp src0 = as_vgpr(ctx, val);
 
-   Temp min_val = bld.pseudo(aco_opcode::p_create_vector, bld.def(s2), Operand::c32(-1u),
-                             Operand::c32(0x3fefffffu));
+   Builder::Result fract = bld.vop1_e64(aco_opcode::v_fract_f64, bld.def(v2), src0);
+   /* fract(Inf) is NaN, clamp turns it into zero to make the subtract a nop.
+    * For all other values, fract is already in [0.0, 1.0] anyway.
+    */
+   fract->valu().clamp = true;
 
-   Temp isnan = bld.vopc(aco_opcode::v_cmp_neq_f64, bld.def(bld.lm), src0, src0);
-   Temp fract = bld.vop1(aco_opcode::v_fract_f64, bld.def(v2), src0);
-   Temp min = bld.vop3(aco_opcode::v_min_f64_e64, bld.def(v2), fract, min_val);
-
-   Temp then_lo = bld.tmp(v1), then_hi = bld.tmp(v1);
-   bld.pseudo(aco_opcode::p_split_vector, Definition(then_lo), Definition(then_hi), src0);
-   Temp else_lo = bld.tmp(v1), else_hi = bld.tmp(v1);
-   bld.pseudo(aco_opcode::p_split_vector, Definition(else_lo), Definition(else_hi), min);
-
-   Temp dst0 = bld.vop2(aco_opcode::v_cndmask_b32, bld.def(v1), else_lo, then_lo, isnan);
-   Temp dst1 = bld.vop2(aco_opcode::v_cndmask_b32, bld.def(v1), else_hi, then_hi, isnan);
-
-   Temp v = bld.pseudo(aco_opcode::p_create_vector, bld.def(v2), dst0, dst1);
-
-   Instruction* add = bld.vop3(aco_opcode::v_add_f64_e64, Definition(dst), src0, v);
+   Builder::Result add = bld.vop3(aco_opcode::v_add_f64_e64, Definition(dst), src0, fract);
    add->valu().neg[1] = true;
 
-   return add->definitions[0].getTemp();
+   return add;
 }
 
 Temp
