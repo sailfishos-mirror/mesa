@@ -718,6 +718,9 @@ v3d_nir_lower_null_pointers(nir_shader *s)
 static unsigned
 lower_bit_size_cb(const nir_instr *instr, void *_data)
 {
+        const struct v3d_compile *c = _data;
+        assert(c);
+
         if (instr->type == nir_instr_type_intrinsic) {
                 /* Widen vote_feq/vote_ieq when the source operand is sub-32-bit:
                  * the V3D backend lowers these to ALLFEQ/ALLEQ on full 32-bit
@@ -737,6 +740,18 @@ lower_bit_size_cb(const nir_instr *instr, void *_data)
                 return 0;
 
         nir_alu_instr *alu = nir_instr_as_alu(instr);
+
+        /* On V3D 7.1+ we have native 16-bit float instructions */
+        if (c->devinfo->ver >= 71 && alu->def.bit_size == 16 &&
+            (alu->op == nir_op_fsub ||
+             alu->op == nir_op_fadd ||
+             alu->op == nir_op_fneg ||
+             alu->op == nir_op_fabs ||
+             alu->op == nir_op_fmul ||
+             alu->op == nir_op_fmin ||
+             alu->op == nir_op_fmax)) {
+                return 0;
+        }
 
         switch (alu->op) {
         case nir_op_mov:
@@ -816,7 +831,7 @@ v3d_lower_nir(struct v3d_compile *c)
         NIR_PASS(_, c->s, nir_lower_compute_system_values, NULL);
         NIR_PASS(_, c->s, nir_lower_is_helper_invocation);
         NIR_PASS(_, c->s, v3d_nir_lower_null_pointers);
-        NIR_PASS(_, c->s, nir_lower_bit_size, lower_bit_size_cb, NULL);
+        NIR_PASS(_, c->s, nir_lower_bit_size, lower_bit_size_cb, c);
 
         /* Lower frexp after bit_size so the decomposition operates at 32-bit.
          * If lowered at 16-bit, the widening pass applies f2f32 to float ops
@@ -2033,7 +2048,7 @@ v3d_attempt_compile(struct v3d_compile *c)
          * lowering so the new ops also get widened with proper sign/zero
          * extension on inputs and the matching narrow on outputs.
          */
-        NIR_PASS(_, c->s, nir_lower_bit_size, lower_bit_size_cb, NULL);
+        NIR_PASS(_, c->s, nir_lower_bit_size, lower_bit_size_cb, c);
 
         v3d_optimize_nir(c, c->s);
 
