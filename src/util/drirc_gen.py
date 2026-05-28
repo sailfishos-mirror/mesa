@@ -146,6 +146,10 @@ TEMPLATE_H = """\
 #ifndef ${driver_prefix.upper()}_DRIRC_H
 #define ${driver_prefix.upper()}_DRIRC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "util/driconf.h"
 
 struct ${driver_prefix}_drirc {
@@ -165,6 +169,10 @@ struct ${driver_prefix}_drirc {
 
 void ${driver_prefix}_parse_dri_options(struct ${driver_prefix}_drirc *drirc,
                                         const driConfigFileParseParams *params);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ${driver_prefix.upper()}_DRIRC_H */
 """
