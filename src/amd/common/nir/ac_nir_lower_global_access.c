@@ -64,6 +64,7 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar scalar, uin
          if (offset_scalar.def->bit_size != 32)
             continue;
 
+         b->cursor = nir_after_instr(&alu->instr);
          *out_offset = nir_mov_scalar(b, offset_scalar);
          nir_def *replace_offset = try_extract_additions(state, b, offset_scalar, out_const, out_offset, true);
          *out_offset = replace_offset ? replace_offset : *out_offset;
@@ -73,6 +74,7 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar scalar, uin
 
       nir_def *replace_src =
          try_extract_additions(state, b, i == 1 ? src0 : src1, out_const, out_offset, require_nuw);
+      b->cursor = nir_after_instr(&alu->instr);
       return replace_src ? replace_src : nir_ssa_for_alu_src(b, alu, 1 - i);
    }
 
@@ -81,6 +83,7 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar scalar, uin
    if (!replace_src0 && !replace_src1)
       return NULL;
 
+   b->cursor = nir_after_instr(&alu->instr);
    replace_src0 = replace_src0 ? replace_src0 : nir_mov_scalar(b, src0);
    replace_src1 = replace_src1 ? replace_src1 : nir_mov_scalar(b, src1);
    return nir_iadd(b, replace_src0, replace_src1);
@@ -121,7 +124,6 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
    uint64_t off_const = 0;
    nir_def *offset = NULL;
    nir_scalar src = {addr_src->ssa, 0};
-   b->cursor = nir_after_def(addr_src->ssa);
    nir_def *addr = try_extract_additions(state, b, src, &off_const, &offset, false);
    addr = addr ? addr : addr_src->ssa;
 
