@@ -45,10 +45,11 @@
 static void
 radv_dump_address_binding_report(const struct radv_address_binding_report *report, FILE *f)
 {
-   fprintf(f, "timestamp=%llu, VA=%.16llx-%.16llx, binding_type=%s, object_type=%s, object_handle=0x%llx\n",
+   fprintf(f, "timestamp=%llu, VA=%.16llx-%.16llx, binding_type=%s, object_type=%s, object_handle=0x%llx (%s)\n",
            (long long)report->timestamp, (long long)report->va, (long long)(report->va + report->size),
            (report->binding_type == VK_DEVICE_ADDRESS_BINDING_TYPE_BIND_EXT) ? "bind" : "unbind",
-           vk_ObjectType_to_str(report->object_type), (long long)report->object_handle);
+           vk_ObjectType_to_str(report->object_type), (long long)report->object_handle,
+           report->object_name ? report->object_name : "<unnamed>");
 }
 
 static void
@@ -120,6 +121,11 @@ radv_address_binding_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_sev
    simple_mtx_lock(&tracker->mtx);
 
    for (uint32_t i = 0; i < callback_data->objectCount; i++) {
+      struct vk_object_base *pObject =
+         vk_object_base_from_u64_handle(callback_data->pObjects[i].objectHandle, callback_data->pObjects[i].objectType);
+      char *name = pObject->object_name ? vk_strdup(&tracker->instance->vk.alloc, pObject->object_name,
+                                                    VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE)
+                                        : NULL;
       struct radv_address_binding_report report = {
          .timestamp = os_time_get_nano(),
          .va = data->baseAddress & ((1ull << 48) - 1),
@@ -128,6 +134,7 @@ radv_address_binding_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_sev
          .binding_type = data->bindingType,
          .object_handle = callback_data->pObjects[i].objectHandle,
          .object_type = callback_data->pObjects[i].objectType,
+         .object_name = name,
       };
 
       util_dynarray_append(&tracker->reports, report);
@@ -151,6 +158,7 @@ radv_init_adress_binding_report(struct radv_device *device)
 
    simple_mtx_init(&device->addr_binding_tracker->mtx, mtx_plain);
    device->addr_binding_tracker->reports = UTIL_DYNARRAY_INIT;
+   device->addr_binding_tracker->instance = instance;
 
    VkDebugUtilsMessengerCreateInfoEXT create_info = {
       .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
@@ -174,6 +182,9 @@ radv_finish_address_binding_report(struct radv_device *device)
    struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct radv_address_binding_tracker *tracker = device->addr_binding_tracker;
 
+   util_dynarray_foreach (&tracker->reports, struct radv_address_binding_report *, iter) {
+      vk_free(&instance->vk.alloc, (*iter)->object_name);
+   }
    util_dynarray_fini(&tracker->reports);
    simple_mtx_destroy(&tracker->mtx);
 
