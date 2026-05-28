@@ -35,12 +35,25 @@ public:
    {
       MesaRenderpassDataSource<FdRenderpassDataSource, FdRenderpassTraits>::OnStart(args);
 
-      /* Note: clock_id's below 128 are reserved.. for custom clock sources,
-       * using the hash of a namespaced string is the recommended approach.
-       * See: https://perfetto.dev/docs/concepts/clock-sync
+      /* See: https://perfetto.dev/docs/concepts/clock-sync
+       *
+       * Use sequence-scoped clock (64 <= ID < 128) for GPU clock because
+       * there's no central daemon emitting consistent snapshots for
+       * synchronization between CPU and GPU clocks on behalf of renderstages
+       * and counters producers.
+       *
+       * When CPU clock is the same with the authoritative trace clock
+       * (normally default to CLOCK_BOOTTIME), perfetto drops the
+       * non-monotonic snapshots to ensure validity of the global source clock
+       * in the resolution graph. When they are different, the clocks are
+       * marked invalid and the rest of the clock syncs will fail during trace
+       * processing.
+       *
+       * Meanwhile, since the clock is now sequence-scoped (unique per
+       * producer + writer pair within the tracing session), we can simply
+       * pick 64.
        */
-      gpu_clock_id =
-         _mesa_hash_string("org.freedesktop.mesa.freedreno") | 0x80000000;
+      gpu_clock_id = 64;
    }
 };
 
