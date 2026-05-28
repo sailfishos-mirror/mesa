@@ -10,6 +10,8 @@ pub trait Model {
 
     fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32>;
 
+    fn op_is_message(&self, op: &Op) -> bool;
+
     fn small_constants(&self) -> &[SmallConstant];
 }
 
@@ -33,6 +35,10 @@ impl Model for ValhallModel {
 
     fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32> {
         encode_v9(s, self.arch)
+    }
+
+    fn op_is_message(&self, op: &Op) -> bool {
+        v9_op_is_message(op, self.arch)
     }
 
     fn small_constants(&self) -> &[SmallConstant] {

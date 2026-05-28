@@ -840,6 +840,14 @@ macro_rules! v9_op_match {
     };
 }
 
+fn v9_op_info(op: &Op, arch: u8) -> Option<&InstructionInfo> {
+    v9_op_match!(op, |op| op.get_info(arch))
+}
+
+pub fn v9_op_is_message(op: &Op, arch: u8) -> bool {
+    v9_op_info(op, arch).is_some_and(|info| info.is_message)
+}
+
 fn encode_instr(
     ip: i64,
     instr: &Instr,
