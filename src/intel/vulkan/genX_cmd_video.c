@@ -1347,6 +1347,7 @@ struct av1_refs_info {
    uint8_t frame_type;
    uint32_t frame_width;
    uint32_t frame_height;
+   uint32_t coded_width;       /* To handle super resolution */
    uint8_t default_cdf_index;
 };
 
@@ -1990,6 +1991,8 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
    ref_info[AV1_INTRA_FRAME].array_layer = dpb_array_layer;
    ref_info[AV1_INTRA_FRAME].frame_width = frameExtent.width;
    ref_info[AV1_INTRA_FRAME].frame_height = frameExtent.height;
+   ref_info[AV1_INTRA_FRAME].coded_width = std_pic_info->flags.use_superres ?
+                                           downscaled_width : frameExtent.width;
 
    if (dpb_img && frame_info->referenceSlotCount) {
       ref_info[AV1_INTRA_FRAME].order_hint = std_pic_info->OrderHint;
@@ -2015,6 +2018,15 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
             ref_info[i + 1].frame_type = std_ref_info->frame_type;
             ref_info[i + 1].frame_width = frameExtent.width;
             ref_info[i + 1].frame_height = frameExtent.height;
+            ref_info[i + 1].coded_width = frameExtent.width;
+            for (uint32_t k = 0; k < STD_VIDEO_AV1_NUM_REF_FRAMES; k++) {
+               /* Recover this reference's coded dimensions from the cached prev_refs. */
+               if (vid->prev_refs[k].iv == ref_iv && vid->prev_refs[k].array_layer == ref_array_layer) {
+                  if (vid->prev_refs[k].coded_width)
+                     ref_info[i + 1].coded_width = vid->prev_refs[k].coded_width;
+                  break;
+               }
+            }
             ref_info[i + 1].iv = ref_iv;
             ref_info[i + 1].array_layer = ref_array_layer;
             ref_info[i + 1].order_hint = std_ref_info->OrderHint;
@@ -2619,6 +2631,9 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
          std_pic_info->flags.use_ref_frame_mvs &&
          seq_hdr->order_hint_bits_minus_1 + 1) {
 
+      const uint32_t cur_cw = ref_info[AV1_INTRA_FRAME].coded_width;
+#define MFMV_SIZE_OK(R) (ref_info[(R)].coded_width == cur_cw)
+
       assert (seq_hdr->flags.enable_order_hint);
 
       int total = av1_mfmv_stack_size - 1;
@@ -2626,7 +2641,7 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
       if (ref_info[AV1_LAST_FRAME].ref_order_hints[AV1_ALTREF_FRAME - AV1_LAST_FRAME + 1] !=
           ref_info[AV1_GOLDEN_FRAME].order_hint) {
 
-         if (!frame_is_key_or_intra(ref_info[0 + 1].frame_type)) {
+         if (!frame_is_key_or_intra(ref_info[0 + 1].frame_type) && MFMV_SIZE_OK(AV1_LAST_FRAME)) {
             total = av1_mfmv_stack_size;
             mfmv_ref[num_mfmv++] = AV1_LAST_FRAME - AV1_LAST_FRAME;
          }
@@ -2635,14 +2650,16 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
       if (get_relative_dist(av1_pic_info, seq_hdr,
                             ref_info[AV1_BWDREF_FRAME].order_hint,
                             ref_info[AV1_INTRA_FRAME].order_hint) > 0 &&
-          !frame_is_key_or_intra(ref_info[AV1_BWDREF_FRAME - AV1_LAST_FRAME + 1].frame_type)) {
+          !frame_is_key_or_intra(ref_info[AV1_BWDREF_FRAME - AV1_LAST_FRAME + 1].frame_type) &&
+          MFMV_SIZE_OK(AV1_BWDREF_FRAME)) {
          mfmv_ref[num_mfmv++] = AV1_BWDREF_FRAME - AV1_LAST_FRAME;
       }
 
       if (get_relative_dist(av1_pic_info, seq_hdr,
                             ref_info[AV1_ALTREF2_FRAME].order_hint,
                             ref_info[AV1_INTRA_FRAME].order_hint) > 0 &&
-          !frame_is_key_or_intra(ref_info[AV1_ALTREF2_FRAME - AV1_LAST_FRAME + 1].frame_type)) {
+          !frame_is_key_or_intra(ref_info[AV1_ALTREF2_FRAME - AV1_LAST_FRAME + 1].frame_type) &&
+          MFMV_SIZE_OK(AV1_ALTREF2_FRAME)) {
          mfmv_ref[num_mfmv++] = AV1_ALTREF2_FRAME - AV1_LAST_FRAME;
       }
 
@@ -2650,14 +2667,17 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
           get_relative_dist(av1_pic_info, seq_hdr,
                             ref_info[AV1_ALTREF_FRAME].order_hint,
                             ref_info[AV1_INTRA_FRAME].order_hint) > 0 &&
-          !frame_is_key_or_intra(ref_info[AV1_ALTREF_FRAME - AV1_LAST_FRAME + 1].frame_type)) {
+          !frame_is_key_or_intra(ref_info[AV1_ALTREF_FRAME - AV1_LAST_FRAME + 1].frame_type) &&
+          MFMV_SIZE_OK(AV1_ALTREF_FRAME)) {
          mfmv_ref[num_mfmv++] = AV1_ALTREF_FRAME - AV1_LAST_FRAME;
       }
 
       if (num_mfmv < total &&
-          !frame_is_key_or_intra(ref_info[AV1_LAST2_FRAME - AV1_LAST_FRAME + 1].frame_type)) {
+          !frame_is_key_or_intra(ref_info[AV1_LAST2_FRAME - AV1_LAST_FRAME + 1].frame_type) &&
+          MFMV_SIZE_OK(AV1_LAST2_FRAME)) {
          mfmv_ref[num_mfmv++] = AV1_LAST2_FRAME - AV1_LAST_FRAME;
       }
+#undef MFMV_SIZE_OK
    }
 
    assert(num_mfmv <= 7);
@@ -3135,6 +3155,7 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
    for (int i = 0; i < STD_VIDEO_AV1_NUM_REF_FRAMES; ++i) {
       vid->prev_refs[i].iv = ref_info[i].iv;
       vid->prev_refs[i].array_layer = ref_info[i].array_layer;
+      vid->prev_refs[i].coded_width = ref_info[i].coded_width;
       vid->prev_refs[i].default_cdf_index =
          i == 0 ? ref_info[i].default_cdf_index :
                   find_cdf_index(NULL, ref_info, ref_info[i].iv,

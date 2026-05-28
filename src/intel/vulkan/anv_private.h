@@ -6754,6 +6754,7 @@ struct anv_av1_video_refs_info {
    const struct anv_image_view *iv;
    uint32_t array_layer;
    uint8_t default_cdf_index;
+   uint32_t coded_width;
 };
 
 struct anv_vp9_last_frame_info {
