@@ -7,6 +7,7 @@
 
 #include "util/perf/u_perfetto.h"
 #include "util/perf/u_perfetto_renderpass.h"
+#include "util/simple_mtx.h"
 
 #include "freedreno_tracepoints.h"
 
@@ -21,6 +22,7 @@ static uint64_t next_clock_sync_ns; /* cpu time of next clk sync */
  * the GPU traces with timestamps before this.
  */
 static uint64_t sync_gpu_ts;
+static simple_mtx_t clock_sync_mtx = SIMPLE_MTX_INITIALIZER;
 
 struct FdRenderpassTraits : public perfetto::DefaultDataSourceTraits {
    using IncrementalStateType = MesaRenderpassIncrementalState;
@@ -87,17 +89,53 @@ stage_start(struct pipe_context *pctx, uint64_t ts_ns, enum fd_stage_id stage)
 }
 
 static void
+sync_timestamp(struct fd_context *ctx)
+{
+   uint64_t cpu_ts = perfetto::base::GetBootTimeNs().count();
+   uint64_t gpu_ts;
+
+   if (!ctx->ts_to_ns)
+      return;
+
+   /* optimistically check without lock: */
+   if (cpu_ts < next_clock_sync_ns)
+      return;
+
+   if (fd_pipe_get_param(ctx->pipe, FD_TIMESTAMP, &gpu_ts)) {
+      PERFETTO_ELOG("Could not sync CPU and GPU clocks");
+      return;
+   }
+
+   simple_mtx_lock(&clock_sync_mtx);
+
+   if (cpu_ts >= next_clock_sync_ns) {
+      /* get cpu timestamp again because FD_TIMESTAMP can take >100us */
+      uint32_t cpu_clock_id = perfetto::protos::pbzero::BUILTIN_CLOCK_BOOTTIME;
+      cpu_ts = perfetto::base::GetBootTimeNs().count();
+
+      /* convert GPU ts into ns: */
+      gpu_ts = ctx->ts_to_ns(gpu_ts);
+
+      FdRenderpassDataSource::Trace([=](auto tctx) {
+         MesaRenderpassDataSource<FdRenderpassDataSource,
+                                 FdRenderpassTraits>::EmitClockSync(tctx, cpu_ts,
+                                                                     gpu_ts, cpu_clock_id,
+                                                                     gpu_clock_id);
+         sync_gpu_ts = gpu_ts;
+         next_clock_sync_ns = cpu_ts + 30000000;
+      });
+   }
+
+   simple_mtx_unlock(&clock_sync_mtx);
+}
+
+static void
 stage_end(struct pipe_context *pctx, uint64_t ts_ns, enum fd_stage_id stage)
 {
    struct fd_context *ctx = fd_context(pctx);
    struct fd_perfetto_state *p = &ctx->perfetto;
 
-   /* If we haven't managed to calibrate the alignment between GPU and CPU
-    * timestamps yet, then skip this trace, otherwise perfetto won't know
-    * what to do with it.
-    */
-   if (!sync_gpu_ts)
-      return;
+   sync_timestamp(ctx);
 
    FdRenderpassDataSource::Trace([=](FdRenderpassDataSource::TraceContext tctx) {
       if (auto state = tctx.GetIncrementalState(); state->was_cleared) {
@@ -274,41 +312,6 @@ fd_perfetto_init(void)
 }
 
 static void
-sync_timestamp(struct fd_context *ctx)
-{
-   uint64_t cpu_ts = perfetto::base::GetBootTimeNs().count();
-   uint64_t gpu_ts;
-
-   if (!ctx->ts_to_ns)
-      return;
-
-   if (cpu_ts < next_clock_sync_ns)
-      return;
-
-   if (fd_pipe_get_param(ctx->pipe, FD_TIMESTAMP, &gpu_ts)) {
-      PERFETTO_ELOG("Could not sync CPU and GPU clocks");
-      return;
-   }
-
-   /* get cpu timestamp again because FD_TIMESTAMP can take >100us */
-   uint32_t cpu_clock_id = perfetto::protos::pbzero::BUILTIN_CLOCK_BOOTTIME;
-   cpu_ts = perfetto::base::GetBootTimeNs().count();
-
-   /* convert GPU ts into ns: */
-   gpu_ts = ctx->ts_to_ns(gpu_ts);
-
-   FdRenderpassDataSource::Trace([=](auto tctx) {
-      MesaRenderpassDataSource<FdRenderpassDataSource,
-                               FdRenderpassTraits>::EmitClockSync(tctx, cpu_ts,
-                                                                  gpu_ts, cpu_clock_id,
-                                                                  gpu_clock_id);
-   });
-
-   sync_gpu_ts = gpu_ts;
-   next_clock_sync_ns = cpu_ts + 30000000;
-}
-
-static void
 emit_submit_id(struct fd_context *ctx)
 {
    FdRenderpassDataSource::Trace([=](FdRenderpassDataSource::TraceContext tctx) {
@@ -330,7 +333,6 @@ fd_perfetto_submit(struct fd_context *ctx)
    if (!u_trace_perfetto_active(&ctx->trace_context))
       return;
 
-   sync_timestamp(ctx);
    emit_submit_id(ctx);
 }
 
