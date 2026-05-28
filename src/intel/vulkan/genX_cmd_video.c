@@ -1353,26 +1353,16 @@ struct av1_refs_info {
 
 static int
 find_cdf_index(const struct anv_video_session *vid,
-               const struct av1_refs_info *refs_info,
                const struct anv_image_view *iv,
                uint32_t array_layer)
 {
-   for (uint32_t i = 0; i < STD_VIDEO_AV1_NUM_REF_FRAMES; i++) {
-      if (vid) {
-         if (!vid->prev_refs[i].iv)
-            continue;
+   for (uint32_t i = 0; i < ANV_VIDEO_AV1_MAX_DPB_SLOTS; i++) {
+      if (!vid->prev_refs[i].iv)
+         continue;
 
-         if (vid->prev_refs[i].iv == iv &&
-             vid->prev_refs[i].array_layer == array_layer)
-            return vid->prev_refs[i].default_cdf_index;
-      } else {
-         if (!refs_info[i].iv)
-            continue;
-
-         if (refs_info[i].iv == iv &&
-             refs_info[i].array_layer == array_layer)
-            return refs_info[i].default_cdf_index;
-      }
+      if (vid->prev_refs[i].iv == iv &&
+          vid->prev_refs[i].array_layer == array_layer)
+         return vid->prev_refs[i].default_cdf_index;
    }
 
    return 0;
@@ -2014,25 +2004,22 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
                vk_find_struct_const(frame_info->pReferenceSlots[j].pNext, VIDEO_DECODE_AV1_DPB_SLOT_INFO_KHR);
             const struct StdVideoDecodeAV1ReferenceInfo *std_ref_info = dpb_slot->pStdReferenceInfo;
 
+            assert (idx >= 0 && idx < ANV_VIDEO_AV1_MAX_DPB_SLOTS);
+
             ref_info[i + 1].idx = idx;
             ref_info[i + 1].frame_type = std_ref_info->frame_type;
             ref_info[i + 1].frame_width = frameExtent.width;
             ref_info[i + 1].frame_height = frameExtent.height;
             ref_info[i + 1].coded_width = frameExtent.width;
-            for (uint32_t k = 0; k < STD_VIDEO_AV1_NUM_REF_FRAMES; k++) {
-               /* Recover this reference's coded dimensions from the cached prev_refs. */
-               if (vid->prev_refs[k].iv == ref_iv && vid->prev_refs[k].array_layer == ref_array_layer) {
-                  if (vid->prev_refs[k].coded_width)
-                     ref_info[i + 1].coded_width = vid->prev_refs[k].coded_width;
-                  break;
-               }
-            }
+            /* Recover this reference's coded width from prev_refs */
+            if (vid->prev_refs[idx].coded_width)
+               ref_info[i + 1].coded_width = vid->prev_refs[idx].coded_width;
             ref_info[i + 1].iv = ref_iv;
             ref_info[i + 1].array_layer = ref_array_layer;
             ref_info[i + 1].order_hint = std_ref_info->OrderHint;
             memcpy(ref_info[i + 1].ref_order_hints, std_ref_info->SavedOrderHints, STD_VIDEO_AV1_NUM_REF_FRAMES);
             ref_info[i + 1].disable_frame_end_update_cdf = std_ref_info->flags.disable_frame_end_update_cdf;
-            ref_info[i + 1].default_cdf_index = find_cdf_index(vid, NULL, ref_iv, ref_array_layer);
+            ref_info[i + 1].default_cdf_index = find_cdf_index(vid, ref_iv, ref_array_layer);
          }
       }
    }
@@ -2493,7 +2480,7 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
 
             const struct anv_image_view *ref_iv = ref_info[std_pic_info->primary_ref_frame + 1].iv;
             const uint32_t ref_layer = ref_info[std_pic_info->primary_ref_frame + 1].array_layer;
-            cdf_index = find_cdf_index(vid, NULL, ref_iv, ref_layer);
+            cdf_index = find_cdf_index(vid, ref_iv, ref_layer);
          }
       }
 
@@ -3151,15 +3138,19 @@ anv_av1_decode_video_tile(struct anv_cmd_buffer *cmd_buffer,
       }
    }
 
-   /* Set necessary info from current refs to the prev_refs */
-   for (int i = 0; i < STD_VIDEO_AV1_NUM_REF_FRAMES; ++i) {
-      vid->prev_refs[i].iv = ref_info[i].iv;
-      vid->prev_refs[i].array_layer = ref_info[i].array_layer;
-      vid->prev_refs[i].coded_width = ref_info[i].coded_width;
-      vid->prev_refs[i].default_cdf_index =
-         i == 0 ? ref_info[i].default_cdf_index :
-                  find_cdf_index(NULL, ref_info, ref_info[i].iv,
-                                 ref_info[i].array_layer);
+   /* prev_refs is now indexed by DPB slot, so each entry holds the last
+    * frame written to that slot (used both in find_cdf_index
+    * and to keep coded width).
+    */
+   if (frame_info->pSetupReferenceSlot) {
+      int32_t slot = frame_info->pSetupReferenceSlot->slotIndex;
+      if (slot >= 0 && slot < ANV_VIDEO_AV1_MAX_DPB_SLOTS) {
+         vid->prev_refs[slot].iv = ref_info[AV1_INTRA_FRAME].iv;
+         vid->prev_refs[slot].array_layer = ref_info[AV1_INTRA_FRAME].array_layer;
+         vid->prev_refs[slot].coded_width = ref_info[AV1_INTRA_FRAME].coded_width;
+         vid->prev_refs[slot].default_cdf_index =
+            ref_info[AV1_INTRA_FRAME].default_cdf_index;
+      }
    }
 }
 
