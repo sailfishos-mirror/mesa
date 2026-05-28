@@ -832,12 +832,22 @@ impl ToTokens for InstrEnc {
         let mut v_idents = Vec::new();
         if let Some(ve_ident) = &self.srcs.variants {
             let mut vars_ts = TokenStream2::new();
+            let mut is_data_type = true;
+            let mut dt_cases_ts = TokenStream2::new();
             for v_name in self.variants.keys() {
                 let v_camel_name = to_camel_case(v_name.as_ref().unwrap());
                 let v_ident = Ident::new(&v_camel_name, Span::call_site());
                 vars_ts.extend(quote! {
                     #v_ident,
                 });
+
+                if v_name.as_ref().is_some_and(|s| is_data_type_name(s)) {
+                    dt_cases_ts.extend(quote! {
+                        DataType::#v_ident => Ok(#ve_ident::#v_ident),
+                    });
+                } else {
+                    is_data_type = false;
+                }
                 v_idents.push(v_ident);
             }
 
@@ -847,6 +857,23 @@ impl ToTokens for InstrEnc {
                     #vars_ts
                 }
             });
+            if is_data_type {
+                let err = format!("Unsupported {} variant", self.name);
+                ts.extend(quote! {
+                    impl TryFrom<DataType> for #ve_ident {
+                        type Error = &'static str;
+
+                        fn try_from(
+                            dt: DataType
+                        ) -> Result<#ve_ident, &'static str> {
+                            match dt {
+                                #dt_cases_ts
+                                _ => Err(#err),
+                            }
+                        }
+                    }
+                });
+            }
             assert_eq!(v_idents.len(), self.variants.len());
         } else {
             assert_eq!(self.variants.len(), 1);
@@ -1013,6 +1040,7 @@ pub fn gen_encoder(
     let mut ts = quote! {
         use crate::isa::*;
         use crate::bitview::*;
+        use crate::data_type::DataType;
         use compiler::bitset::ConstBitSet;
 
         pub type EncodedSrc = super::EncodedSrc<SrcSwizzle>;
@@ -1059,7 +1087,7 @@ pub fn gen_encoder(
         )
         .expect("Failed to create sample_position meta-enum");
 
-    isa.enums.declare(&mut ts);
+    isa.enums.declare(&mut ts, true);
 
     let mut instrs: BTreeMap<_, InstrEnc> = Default::default();
     for i in isa.instrs {

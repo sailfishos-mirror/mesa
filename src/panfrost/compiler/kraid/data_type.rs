@@ -42,6 +42,7 @@ pub enum DataType {
     None,
     F16,
     F32,
+    F64,
     I8,
     I16,
     I24,

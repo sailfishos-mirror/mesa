@@ -57,6 +57,7 @@ pub struct Enum {
     pub arch: ArchSet,
     pub has_none: bool,
     pub is_bool: bool,
+    pub is_data_type: bool,
     pub values: BTreeMap<String, EnumValue>,
     meta: OnceCell<String>,
 }
@@ -77,12 +78,19 @@ impl Enum {
         let camel_name = to_camel_case(&name);
         let ident = Ident::new(&camel_name, Span::call_site());
 
+        // ls_multi_sr_count_m looks like a data type enum but isn't one.
+        // Or at least, our data type enum doesn't have enough integer types
+        // to satisfy it.
+        let may_be_data_type =
+            xml.children.len() > 0 && name != "ls_multi_sr_count_m";
+
         let mut e = Enum {
             name,
             ident,
             arch: xml.get_arch(arch.clone()).into(),
             has_none: false,
             is_bool: xml.children.len() == 2,
+            is_data_type: may_be_data_type,
             values: Default::default(),
             meta: Default::default(),
         };
@@ -100,6 +108,10 @@ impl Enum {
                 e.is_bool = false;
             }
 
+            if !is_data_type_name(v.name.as_str()) {
+                e.is_data_type = false;
+            }
+
             if !v.arch.is_empty() {
                 e.values.insert(v.name.clone(), v);
             }
@@ -113,6 +125,7 @@ impl Enum {
         self.arch |= other.arch;
         self.has_none |= other.has_none;
         self.is_bool &= other.is_bool;
+        self.is_data_type &= other.is_data_type;
 
         for (name, value) in other.values.into_iter() {
             use btree_map::Entry;
@@ -127,7 +140,7 @@ impl Enum {
         }
     }
 
-    pub fn declare(&self, ts: &mut TokenStream2) {
+    pub fn declare(&self, ts: &mut TokenStream2, data_type_casts: bool) {
         let mut unique_values = true;
         let mut all_same_arch = true;
         let mut max_value = 0_u8;
@@ -218,6 +231,30 @@ impl Enum {
                 impl From<#e_ident> for bool {
                     fn from(e: #e_ident) -> bool {
                         (e as u8) != 0
+                    }
+                }
+            });
+        }
+
+        let err = format!("Unsupported {e_ident}");
+        if self.is_data_type && data_type_casts {
+            let mut cases_ts = TokenStream2::new();
+            for EnumValue { ident, .. } in self.values.values() {
+                cases_ts.extend(quote! {
+                    DataType::#ident => Ok(#e_ident::#ident),
+                });
+            }
+            ts.extend(quote! {
+                impl TryFrom<DataType> for #e_ident {
+                    type Error = &'static str;
+
+                    fn try_from(
+                        dt: DataType
+                    ) -> Result<#e_ident, &'static str> {
+                        match dt {
+                            #cases_ts
+                            _ => Err(#err),
+                        }
                     }
                 }
             });
@@ -329,7 +366,6 @@ impl Enum {
 
         // Implement [Try]Encode
 
-        let err = format!("Unsupported {e_ident}");
         if all_same_arch {
             let encode_impl = if unique_values {
                 quote! {
@@ -685,9 +721,9 @@ impl EnumSet {
         Ok(())
     }
 
-    pub fn declare(&self, ts: &mut TokenStream2) {
+    pub fn declare(&self, ts: &mut TokenStream2, data_type_casts: bool) {
         for e in self.enums.values() {
-            e.declare(ts);
+            e.declare(ts, data_type_casts);
         }
 
         for me in self.meta_enums.values() {
