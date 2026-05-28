@@ -2044,22 +2044,9 @@ static void
 lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
-   /* The emit_uniformize() in brw_from_nir.cpp will generate an horizontal
-    * stride of 0. Below we're doing a MOV() in SIMD2. Since we can't use UQ/Q
-    * types in on Gfx12.5, we need to tweak the stride with a value of 1 dword
-    * so that the MOV operates on 2 components rather than twice the same
-    * component.
-    */
-   const brw_reg bvh_level =
-      inst->src[RT_LOGICAL_SRC_BVH_LEVEL].file == IMM ?
-      inst->src[RT_LOGICAL_SRC_BVH_LEVEL] :
-      bld.move_to_vgrf(inst->src[RT_LOGICAL_SRC_BVH_LEVEL],
-                       inst->components_read(RT_LOGICAL_SRC_BVH_LEVEL));
-   const brw_reg trace_ray_control =
-      inst->src[RT_LOGICAL_SRC_TRACE_RAY_CONTROL].file == IMM ?
-      inst->src[RT_LOGICAL_SRC_TRACE_RAY_CONTROL] :
-      bld.move_to_vgrf(inst->src[RT_LOGICAL_SRC_TRACE_RAY_CONTROL],
-                       inst->components_read(RT_LOGICAL_SRC_TRACE_RAY_CONTROL));
+   const brw_reg payload =
+      bld.move_to_vgrf(inst->src[RT_LOGICAL_SRC_PAYLOADS],
+                       inst->components_read(RT_LOGICAL_SRC_PAYLOADS));
    const brw_reg synchronous_src = inst->src[RT_LOGICAL_SRC_SYNCHRONOUS];
    assert(synchronous_src.file == IMM);
    const bool synchronous = synchronous_src.ud;
@@ -2075,6 +2062,12 @@ lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
 
    const brw_reg globals_addr = inst->src[RT_LOGICAL_SRC_GLOBALS];
    if (globals_addr.file != UNIFORM) {
+      /* The emit_uniformize() in brw_from_nir.cpp will generate an horizontal
+       * stride of 0. Below we're doing a MOV() in SIMD2. Since we can't use UQ/Q
+       * types in on Gfx12.5, we need to tweak the stride with a value of 1 dword
+       * so that the MOV operates on 2 components rather than twice the same
+       * component.
+       */
       brw_reg addr_ud = retype(globals_addr, BRW_TYPE_UD);
       addr_ud.stride = 1;
       ubld.group(2, 0).MOV(header, addr_ud);
@@ -2105,16 +2098,6 @@ lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
       ubld.group(1, 0).MOV(byte_offset(header, 16), brw_imm_ud(synchronous));
 
    const unsigned ex_mlen = inst->exec_size / 8;
-   brw_reg payload = bld.vgrf(BRW_TYPE_UD);
-   if (bvh_level.file == IMM &&
-       trace_ray_control.file == IMM) {
-      uint32_t high = devinfo->ver >= 20 ? 10 : 9;
-      bld.MOV(payload, brw_imm_ud(SET_BITS(trace_ray_control.ud, high, 8) |
-                                  (bvh_level.ud & 0x7)));
-   } else {
-      bld.SHL(payload, trace_ray_control, brw_imm_ud(8));
-      bld.OR(payload, payload, bvh_level);
-   }
 
    /* When doing synchronous traversal, the HW implicitly computes the
     * stack_id using the following formula :

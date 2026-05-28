@@ -5746,8 +5746,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
 
       brw_reg globals = get_nir_src(ntb, instr->src[0], -1);
       srcs[RT_LOGICAL_SRC_GLOBALS] = bld.emit_uniformize(globals);
-      srcs[RT_LOGICAL_SRC_BVH_LEVEL] = get_nir_src(ntb, instr->src[1], 0);
-      srcs[RT_LOGICAL_SRC_TRACE_RAY_CONTROL] = get_nir_src(ntb, instr->src[2], 0);
+      srcs[RT_LOGICAL_SRC_PAYLOADS] = get_nir_src(ntb, instr->src[1], 0);
       srcs[RT_LOGICAL_SRC_SYNCHRONOUS] = brw_imm_ud(synchronous);
 
       /* Bspec 57508, 47937: Structure_SIMD16TraceRayMessage:: RayQuery Enable

@@ -319,8 +319,8 @@ lower_ray_query_intrinsic(nir_builder *b,
          /* Do not use state->rq_globals, we want a uniform value for the
           * tracing call.
           */
-         nir_trace_ray_intel(b, nir_load_ray_query_global_intel(b),
-                             level, ctrl, .synchronous = true);
+         brw_nir_trace_ray(b, nir_load_ray_query_global_intel(b),
+                           level, ctrl, true);
 
          struct brw_nir_rt_mem_hit_defs hit_in = {};
          brw_nir_rt_load_mem_hit_from_addr(b, &hit_in, hw_stack_addr, false,

@@ -127,6 +127,22 @@ brw_nir_btd_return(struct nir_builder *b)
 }
 
 static inline void
+brw_nir_trace_ray(nir_builder *b,
+                  nir_def *globals,
+                  nir_def *bvh_level,
+                  nir_def *trace_ray_control,
+                  bool synchronous)
+{
+   nir_trace_ray_intel(b,
+                       globals,
+                       nir_bfi(b,
+                               nir_imm_int(b, INTEL_MASK(10, 8)),
+                               nir_u2u32(b, trace_ray_control),
+                               nir_u2u32(b, bvh_level)),
+                       .synchronous = synchronous);
+}
+
+static inline void
 assert_def_size(nir_def *def, unsigned num_components, unsigned bit_size)
 {
    assert(def->num_components == num_components);
