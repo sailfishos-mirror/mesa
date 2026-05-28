@@ -1849,7 +1849,7 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
       keys[MESA_SHADER_FRAGMENT].custom_resolve =
          builder->graphics_state.rp->custom_resolve;
 
-      if (builder->device->physical_device->instance->emulate_alpha_to_coverage) {
+      if (builder->device->physical_device->instance->drirc.misc.emulate_alpha_to_coverage) {
          keys[MESA_SHADER_FRAGMENT].emulate_alpha_to_coverage = true;
 
          /* Don't emulate if we know it won't be enabled. */
@@ -3305,7 +3305,7 @@ tu6_emit_blend(struct tu_cs *cs,
 {
    bool rop_reads_dst = cb->logic_op_enable && tu_logic_op_reads_dst((VkLogicOp)cb->logic_op);
    enum a3xx_rop_code rop = tu6_rop((VkLogicOp)cb->logic_op);
-   if (cs->device->physical_device->instance->emulate_alpha_to_coverage)
+   if (cs->device->physical_device->instance->drirc.misc.emulate_alpha_to_coverage)
       alpha_to_coverage_enable = false;
 
    uint32_t blend_enable_mask = 0;

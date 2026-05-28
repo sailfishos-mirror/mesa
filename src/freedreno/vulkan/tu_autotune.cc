@@ -279,8 +279,8 @@ tu_autotune::get_env_config()
 
       if (algo_str)
          algo_strv = algo_str;
-      else if (device->instance->autotune_algo)
-         algo_strv = device->instance->autotune_algo;
+      else if (device->instance->drirc.perf.autotune_algo)
+         algo_strv = device->instance->drirc.perf.autotune_algo;
 
       if (!algo_strv.empty()) {
          if (algo_strv == "bandwidth") {

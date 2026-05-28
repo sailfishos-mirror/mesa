@@ -17,6 +17,18 @@ tu_entrypoints = custom_target(
   depend_files : vk_entrypoints_gen_depend_files,
 )
 
+tu_drirc = custom_target(
+  'tu_drirc',
+  input  : [files('tu_drirc_gen.py'), drirc_gen, join_paths(dir_source_root, 'src/util/00-turnip-defaults.conf')],
+  output : ['tu_drirc.c', 'tu_drirc.h'],
+  command : [
+    prog_python, '@INPUT0@',
+    '--import-path', join_paths(dir_source_root, 'src/util'),
+    '--drirc-src', '@OUTPUT0@',
+    '--drirc-hdr', '@OUTPUT1@',
+    '--validate', '@INPUT2@',
+  ],
+)
 
 libtu_files = files(
   'bvh/tu_bvh.h',
@@ -184,7 +196,7 @@ endif
 
 libvulkan_freedreno = shared_library(
   'vulkan_freedreno',
-  [libtu_files, tu_entrypoints, tu_tracepoints, freedreno_xml_header_files, sha1_h, u_format_pack_h, bvh_spv],
+  [libtu_files, tu_drirc, tu_entrypoints, tu_tracepoints, freedreno_xml_header_files, sha1_h, u_format_pack_h, bvh_spv],
   include_directories : libtu_includes,
   link_with : [
     libfreedreno_ir3,
