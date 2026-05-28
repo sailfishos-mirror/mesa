@@ -8234,7 +8234,7 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
    }
 
    bool dirty_lrz =
-      (dirty & TU_CMD_DIRTY_LRZ) ||
+      (dirty & (TU_CMD_DIRTY_LRZ | TU_CMD_DIRTY_DISABLE_FS)) ||
       BITSET_TEST(cmd->vk.dynamic_graphics_state.dirty,
                   MESA_VK_DYNAMIC_DS_DEPTH_TEST_ENABLE) ||
       BITSET_TEST(cmd->vk.dynamic_graphics_state.dirty,
