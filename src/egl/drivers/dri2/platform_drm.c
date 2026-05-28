@@ -219,7 +219,6 @@ dri2_drm_destroy_surface(_EGLDisplay *disp, _EGLSurface *surf)
 static void
 destroy_oldest_unused_bo(struct dri2_egl_surface *dri2_surf)
 {
-   int max_age = 0;
    struct dri2_egl_buffer *oldest_buffer = NULL;
 
    for (unsigned i = 0; i < ARRAY_SIZE(dri2_surf->color_buffers); i++) {
@@ -230,10 +229,8 @@ destroy_oldest_unused_bo(struct dri2_egl_surface *dri2_surf)
           buffer == dri2_surf->current)
          continue;
 
-      if (!max_age || buffer->age > max_age) {
+      if (!oldest_buffer || buffer->age > oldest_buffer->age)
          oldest_buffer = buffer;
-         max_age = buffer->age;
-      }
    }
 
    gbm_bo_destroy(oldest_buffer->bo);
