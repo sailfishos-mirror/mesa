@@ -333,6 +333,9 @@ populate_fs_prog_data(nir_shader *shader,
    prog_data->computed_stencil =
       shader->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL);
 
+   prog_data->dual_src_blend =
+      shader->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DUAL_SRC_BLEND);
+
    prog_data->sample_shading = shader->info.fs.uses_sample_shading;
    prog_data->api_sample_shading = key->api_sample_shading;
    prog_data->min_sample_shading = key->min_sample_shading;

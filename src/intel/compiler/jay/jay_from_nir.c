@@ -771,10 +771,11 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
 {
    const struct intel_device_info *devinfo = b->shader->devinfo;
    jay_def colour = nj_src(intr->src[0]);
-   jay_def src0_alpha = optional_src(intr->src[1]);
-   jay_def omask = optional_src(intr->src[2]);
-   jay_def depth = optional_src(intr->src[3]);
-   jay_def stencil = optional_src(intr->src[4]);
+   jay_def dual_colour = jay_null();
+   jay_def src0_alpha = optional_src(intr->src[2]);
+   jay_def omask = optional_src(intr->src[3]);
+   jay_def depth = optional_src(intr->src[4]);
+   jay_def stencil = optional_src(intr->src[5]);
    const bool null_rt = ((signed) nir_intrinsic_target(intr)) < 0;
    const int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
    const bool last = !nir_instr_next(&intr->instr);
@@ -787,13 +788,22 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
    /* If our alpha happens to match src0_alpha, we can skip sending it,
     * as the hardware will use our alpha in that case.
     */
-   if (scalars_equal(nir_scalar_resolved(intr->src[1].ssa, 0),
+   if (scalars_equal(nir_scalar_resolved(intr->src[2].ssa, 0),
                      nir_scalar_resolved(intr->src[0].ssa, 3)))
       src0_alpha = jay_null();
 
-   unsigned op = b->shader->dispatch_width == 32 ?
+   if (b->shader->prog_data->fs.dual_src_blend) {
+      assert(b->shader->dispatch_width == 16);
+      dual_colour = nj_src(intr->src[1]);
+      src0_alpha = jay_null();
+   }
+
+   unsigned op = !jay_is_null(dual_colour) ?
+                    XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD16_DUAL_SOURCE :
+                 b->shader->dispatch_width == 32 ?
                     XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :
                     BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD16_SINGLE_SOURCE;
+
    uint64_t desc =
       brw_fb_write_desc(devinfo, target, op, last, false /* coarse write */);
 
@@ -829,6 +839,11 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
    for (unsigned i = 0; i < 4; i++)
       srcs[len++] = jay_as_gpr(b, jay_extract(colour, i));
 
+   if (!jay_is_null(dual_colour)) {
+      for (unsigned i = 0; i < 4; i++)
+         srcs[len++] = jay_as_gpr(b, jay_extract(dual_colour, i));
+   }
+
    if (!jay_is_null(depth))
       srcs[len++] = jay_as_gpr(b, depth);
 
@@ -850,8 +865,8 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
                .type = JAY_TYPE_U32, .eot = last, .split = split);
 
    /* Handle the disable predicate. It is logically inverted. */
-   if (!nir_src_is_zero(intr->src[5])) {
-      jay_add_predicate(b, send, jay_negate(nj_src(intr->src[5])));
+   if (!nir_src_is_zero(intr->src[6])) {
+      jay_add_predicate(b, send, jay_negate(nj_src(intr->src[6])));
    }
 }
 

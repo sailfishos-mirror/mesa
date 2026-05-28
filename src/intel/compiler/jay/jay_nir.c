@@ -128,6 +128,7 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
 
 struct frag_out_ctx {
    nir_def *colour[8], *depth, *stencil, *sample_mask;
+   bool dual_blend;
 };
 
 static bool
@@ -145,13 +146,14 @@ collect_fragment_output(nir_builder *b, nir_intrinsic_instr *intr, void *ctx_)
    /* TODO: Optimize with write mask? */
 
    gl_frag_result loc = nir_intrinsic_io_semantics(intr).location;
-   assert(!nir_intrinsic_io_semantics(intr).dual_source_blend_index && "todo");
-   assert(loc != FRAG_RESULT_DUAL_SRC_BLEND && "todo");
    nir_def **out;
    if (loc == FRAG_RESULT_COLOR) {
       out = &ctx->colour[0];
    } else if (loc >= FRAG_RESULT_DATA0 && loc <= FRAG_RESULT_DATA7) {
       out = &ctx->colour[loc - FRAG_RESULT_DATA0];
+   } else if (loc == FRAG_RESULT_DUAL_SRC_BLEND) {
+      out = &ctx->colour[1];
+      ctx->dual_blend = true;
    } else if (loc == FRAG_RESULT_DEPTH) {
       out = &ctx->depth;
    } else if (loc == FRAG_RESULT_STENCIL) {
@@ -172,6 +174,7 @@ static void
 insert_rt_store(nir_builder *b,
                 signed target,
                 nir_def *colour,
+                nir_def *dual_colour,
                 nir_def *src0_colour,
                 nir_def *depth,
                 nir_def *stencil,
@@ -180,6 +183,7 @@ insert_rt_store(nir_builder *b,
    bool null_rt = target < 0;
 
    colour = nir_pad_vec4(b, colour ?: nir_undef(b, 4, 32));
+   dual_colour = nir_pad_vec4(b, dual_colour ?: nir_undef(b, 4, 32));
 
    if (null_rt) {
       /* Even if we don't write a RT, we still need to write alpha for
@@ -195,8 +199,9 @@ insert_rt_store(nir_builder *b,
                          nir_is_helper_invocation(b, 1) :
                          nir_imm_false(b);
 
-   nir_store_render_target_intel(b, colour, src0_alpha, sample_mask, depth,
-                                 stencil, disable, .target = target);
+   nir_store_render_target_intel(b, colour, dual_colour, src0_alpha,
+                                 sample_mask, depth, stencil, disable,
+                                 .target = target);
 }
 
 static void
@@ -212,6 +217,15 @@ lower_fragment_outputs(nir_function_impl *impl,
    nir_builder *b = &b_;
    assert(nr_color_regions <= ARRAY_SIZE(ctx.colour));
 
+   nir_def *undef = nir_undef(b, 1, 32);
+
+   if (ctx.dual_blend) {
+      insert_rt_store(b, 0, ctx.colour[0], ctx.colour[1], NULL,
+                      ctx.depth ?: undef, ctx.stencil ?: undef,
+                      ctx.sample_mask ?: undef);
+      return;
+   }
+
    signed last = -1;
    for (signed i = nr_color_regions - 1; i >= 0; --i) {
       if (ctx.colour[i]) {
@@ -220,16 +234,15 @@ lower_fragment_outputs(nir_function_impl *impl,
       }
    }
 
-   nir_def *undef = nir_undef(b, 1, 32);
    for (signed i = 0; i < last; ++i) {
       if (ctx.colour[i]) {
-         insert_rt_store(b, i, ctx.colour[i], i > 0 ? ctx.colour[0] : NULL,
-                         ctx.depth ?: undef, ctx.stencil ?: undef,
-                         ctx.sample_mask ?: undef);
+         insert_rt_store(b, i, ctx.colour[i], NULL,
+                         i > 0 ? ctx.colour[0] : NULL, ctx.depth ?: undef,
+                         ctx.stencil ?: undef, ctx.sample_mask ?: undef);
       }
    }
 
-   insert_rt_store(b, last, last >= 0 ? ctx.colour[last] : NULL,
+   insert_rt_store(b, last, last >= 0 ? ctx.colour[last] : NULL, NULL,
                    last > 0 ? ctx.colour[0] : NULL, ctx.depth ?: undef,
                    ctx.stencil ?: undef, ctx.sample_mask ?: undef);
 }
@@ -282,7 +295,7 @@ opt_unconditional_discards(nir_shader *nir)
       if (intr->intrinsic != nir_intrinsic_store_render_target_intel)
          continue;
 
-      nir_scalar discard = nir_scalar_resolved(intr->src[5].ssa, 0);
+      nir_scalar discard = nir_scalar_resolved(intr->src[6].ssa, 0);
       if (nir_scalar_is_const(discard) && nir_scalar_as_uint(discard) != 0) {
          /* Drop store with unconditional discard */
          nir_instr_remove(instr);
@@ -302,7 +315,7 @@ opt_unconditional_discards(nir_shader *nir)
    if (!any_remaining_rt_writes) {
       nir_builder b = nir_builder_at(nir_after_impl(impl));
       nir_def *undef = nir_undef(&b, 1, 32);
-      insert_rt_store(&b, -1, NULL, NULL, undef, undef, undef);
+      insert_rt_store(&b, -1, NULL, NULL, NULL, undef, undef, undef);
    }
 
    return nir_progress(progress, impl, nir_metadata_control_flow);
@@ -338,6 +351,9 @@ jay_process_nir(const struct intel_device_info *devinfo,
     */
    if (stage == MESA_SHADER_FRAGMENT &&
        (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL)))
+      do_simd32 = false;
+
+   if (stage == MESA_SHADER_FRAGMENT && nir->info.fs.color_is_dual_source)
       do_simd32 = false;
 
    unsigned simd_width = do_simd32 ? (nir->info.api_subgroup_size ?: 32) : 16;
