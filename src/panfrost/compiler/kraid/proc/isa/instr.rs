@@ -319,4 +319,22 @@ impl Instr {
 
         Ok(i)
     }
+
+    pub fn get_named_field(&self, name: &str) -> Option<&InstrField> {
+        for f in &self.fields {
+            let f_name = match f {
+                InstrField::Virtual(f) => &f.name,
+                InstrField::Physical(f) => &f.name,
+                InstrField::Reserved(_) => continue,
+            };
+            if f_name == name {
+                return Some(f);
+            }
+        }
+        None
+    }
+
+    pub fn has_field_named(&self, name: &str) -> bool {
+        self.get_named_field(name).is_some()
+    }
 }

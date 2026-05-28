@@ -589,9 +589,44 @@ impl InstrEncSources {
     }
 }
 
+struct InstrVariantInfo {
+    ident: Ident,
+    is_message: bool,
+}
+
+impl InstrVariantInfo {
+    fn new(instr: &Instr) -> InstrVariantInfo {
+        let mut name = format!("instruction_info_v{}", instr.arch.start);
+        if let Some(variant) = &instr.variant {
+            name += "_";
+            name += &to_snake_case(variant);
+        }
+        let name = name.to_uppercase();
+        let ident = Ident::new(&name, Span::call_site());
+
+        InstrVariantInfo {
+            ident,
+            is_message: instr.has_field_named("message_slot_index"),
+        }
+    }
+}
+
+impl ToTokens for InstrVariantInfo {
+    fn to_tokens(&self, ts: &mut TokenStream2) {
+        let InstrVariantInfo { ident, is_message } = self;
+
+        ts.extend(quote! {
+            const #ident: InstructionInfo = InstructionInfo {
+                is_message: #is_message,
+            };
+        });
+    }
+}
+
 struct InstrEncVariant {
     instr: Instr,
     field_srcs: Vec<Option<InstrEncFieldSrc>>,
+    info: InstrVariantInfo,
 }
 
 impl InstrEncVariant {
@@ -600,6 +635,7 @@ impl InstrEncVariant {
         srcs: &mut InstrEncSources,
         enums: &EnumSet,
     ) -> InstrEncVariant {
+        let info = InstrVariantInfo::new(&instr);
         let sr_control = get_instr_sr_control(&instr);
 
         let mut field_srcs = Vec::new();
@@ -666,7 +702,11 @@ impl InstrEncVariant {
             .collect();
         srcs.add_instr_src_set(&src_names);
 
-        InstrEncVariant { instr, field_srcs }
+        InstrEncVariant {
+            instr,
+            field_srcs,
+            info,
+        }
     }
 
     fn to_tokens(&self, ts: &mut TokenStream2, srcs: &InstrEncSources) {
@@ -830,9 +870,12 @@ impl ToTokens for InstrEnc {
         });
 
         let mut total_bits = 0_u8;
-        let mut per_variant_ts = TokenStream2::new();
+        let mut info_const_decls_ts = TokenStream2::new();
+        let mut per_variant_info_ts = TokenStream2::new();
+        let mut per_variant_enc_ts = TokenStream2::new();
         for (i, (v_name, per_arch)) in self.variants.iter().enumerate() {
-            let mut per_arch_ts = TokenStream2::new();
+            let mut per_arch_enc_ts = TokenStream2::new();
+            let mut per_arch_info_ts = TokenStream2::new();
             for enc in per_arch.iter() {
                 if total_bits == 0 {
                     total_bits = enc.instr.total_bits;
@@ -840,12 +883,20 @@ impl ToTokens for InstrEnc {
                     assert_eq!(total_bits, enc.instr.total_bits);
                 }
 
-                let mut enc_ts = TokenStream2::new();
-                enc.to_tokens(&mut enc_ts, &self.srcs);
+                enc.info.to_tokens(&mut info_const_decls_ts);
 
+                let info_ident = &enc.info.ident;
                 let arch_start = enc.instr.arch.start;
                 let arch_end = enc.instr.arch.end;
-                per_arch_ts.extend(quote! {
+                per_arch_info_ts.extend(quote! {
+                    if (#arch_start..#arch_end).contains(&arch) {
+                        Some(&#s_ident::#info_ident)
+                    } else
+                });
+
+                let mut enc_ts = TokenStream2::new();
+                enc.to_tokens(&mut enc_ts, &self.srcs);
+                per_arch_enc_ts.extend(quote! {
                     if (#arch_start..#arch_end).contains(&arch) {
                         #enc_ts
                     } else
@@ -859,40 +910,82 @@ impl ToTokens for InstrEnc {
             }
             let err = format!("{} not supported on this arch", instr_name);
 
-            let err = format!("{} not supported on this arch", &self.name);
-            let per_arch_ts = quote! {
-                #per_arch_ts {
+            let per_arch_info_ts = quote! {
+                #per_arch_info_ts {
+                    None
+                }
+            };
+            let per_arch_enc_ts = quote! {
+                #per_arch_enc_ts {
                     return Err(#err.into());
                 }
             };
 
             if let Some(v_ident) = v_idents.get(i) {
                 let ve_ident = self.srcs.variants.as_ref().unwrap();
-                per_variant_ts.extend(quote! {
+                per_variant_info_ts.extend(quote! {
                     #ve_ident::#v_ident => {
-                        #per_arch_ts
+                        #per_arch_info_ts
+                    }
+                });
+                per_variant_enc_ts.extend(quote! {
+                    #ve_ident::#v_ident => {
+                        #per_arch_enc_ts
                     }
                 });
             } else {
-                assert!(per_variant_ts.is_empty());
-                per_variant_ts = per_arch_ts;
+                assert!(per_variant_info_ts.is_empty());
+                assert!(per_variant_enc_ts.is_empty());
+                per_variant_info_ts = per_arch_info_ts;
+                per_variant_enc_ts = per_arch_enc_ts;
             }
         }
+
+        let variant_type_ts = if let Some(v) = &self.srcs.variants {
+            quote! { #v }
+        } else {
+            quote! { () }
+        };
+
+        let get_info_impl_ts = if self.srcs.variants.is_some() {
+            quote! {
+                match variant {
+                    #per_variant_info_ts
+                }
+            }
+        } else {
+            per_variant_info_ts
+        };
 
         let try_encode_impl_ts = if self.srcs.variants.is_some() {
             quote! {
                 match self.variant {
-                    #per_variant_ts
+                    #per_variant_enc_ts
                 }
             }
         } else {
-            per_variant_ts
+            per_variant_enc_ts
         };
 
         assert!(total_bits % 32 == 0);
         let total_words = usize::from(total_bits / 32);
 
         ts.extend(quote! {
+            impl #s_ident {
+                #info_const_decls_ts
+            }
+
+            impl Instruction for #s_ident {
+                type Variant = #variant_type_ts;
+
+                fn get_info(
+                    variant: Self::Variant,
+                    arch: u8,
+                ) -> Option<&'static InstructionInfo> {
+                    #get_info_impl_ts
+                }
+            }
+
             impl TryEncode for #s_ident {
                 type Encoded = [u32; #total_words];
                 type Error = EncodeError;

@@ -86,6 +86,19 @@ pub trait SmallConstantTable: TryDecode<u8> {
     }
 }
 
+pub struct InstructionInfo {
+    pub is_message: bool,
+}
+
+pub trait Instruction {
+    type Variant;
+
+    fn get_info(
+        variant: Self::Variant,
+        arch: u8,
+    ) -> Option<&'static InstructionInfo>;
+}
+
 #[derive(Clone, Copy)]
 pub struct EncodedSrc<S: Copy> {
     pub encoded: u8,
