@@ -2345,14 +2345,19 @@ static void parse_vcn_ib(FILE *f, struct ac_ib_parser *ib)
             break;
          }
          case RADEON_VCN_IB_COMMON_OP_WRITEMEMORY: {
-            fprintf(f, "%sOP_WRITEMEMORY%s\n", O_COLOR_CYAN, O_COLOR_RESET);
+            fprintf(f, "%sWRITEMEMORY%s\n", O_COLOR_CYAN, O_COLOR_RESET);
             print_vcn_addr(f, ib, false, "    dest");
             uint32_t data = ac_ib_get(ib);
             fprintf(f, "    data = %u\n", data);
             break;
          }
+         case RADEON_VCN_IB_COMMON_OP_TIMESTAMP: {
+            fprintf(f, "%sTIMESTAMP%s\n", O_COLOR_CYAN, O_COLOR_RESET);
+            print_vcn_addr(f, ib, false, "    dest");
+            break;
+         }
          case RADEON_VCN_IB_COMMON_OP_RESOLVEINPUTPARAMLAYOUT: {
-            fprintf(f, "%sOP_RESOLVEINPUTPARAMLAYOUT%s\n", O_COLOR_CYAN, O_COLOR_RESET);
+            fprintf(f, "%sRESOLVEINPUTPARAMLAYOUT%s\n", O_COLOR_CYAN, O_COLOR_RESET);
             uint32_t type = ac_ib_get(ib);
             fprintf(f, "    map type = %u\n", type);
             uint32_t width = ac_ib_get(ib);
