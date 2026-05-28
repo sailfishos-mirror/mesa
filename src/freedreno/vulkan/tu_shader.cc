@@ -2914,7 +2914,8 @@ tu_upload_variant(struct tu_cs *cs,
     * and total size is always aligned correctly
     * note: an assert in tu6_emit_xs_config validates the alignment
     */
-   tu_cs_alloc(cs, variant->info.size / 4, 1, &memory);
+   if (tu_cs_alloc(cs, variant->info.size / 4, 1, &memory) != VK_SUCCESS)
+      return 0;
 
    memcpy(memory.map, variant->bin, variant->info.size);
    return memory.iova;

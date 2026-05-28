@@ -4388,6 +4388,9 @@ tu_BeginCommandBuffer(VkCommandBuffer commandBuffer,
       switch (cmd_buffer->queue_family_index) {
       case TU_QUEUE_GENERAL:
          TU_CALLX(cmd_buffer->device, tu_init_hw)(cmd_buffer, &cmd_buffer->cs);
+         result = tu_cs_get_status(&cmd_buffer->cs);
+         if (result != VK_SUCCESS)
+            return vk_command_buffer_set_error(&cmd_buffer->vk, result);
          break;
       default:
          break;
@@ -5351,6 +5354,15 @@ tu_EndCommandBuffer(VkCommandBuffer commandBuffer)
    tu_cs_end(&cmd_buffer->cs);
    tu_cs_end(&cmd_buffer->draw_cs);
    tu_cs_end(&cmd_buffer->draw_epilogue_cs);
+
+   for (struct tu_cs *cs : { &cmd_buffer->cs, &cmd_buffer->draw_cs, &cmd_buffer->draw_epilogue_cs,
+                             &cmd_buffer->tile_store_cs, &cmd_buffer->sub_cs }) {
+      VkResult result = tu_cs_get_status(cs);
+      if (result != VK_SUCCESS) {
+         vk_command_buffer_set_error(&cmd_buffer->vk, result);
+         break;
+      }
+   }
 
    return vk_command_buffer_end(&cmd_buffer->vk);
 }
