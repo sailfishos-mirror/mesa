@@ -3544,7 +3544,7 @@
         "description": "tu: Start/End occlusion query should force depth state recalculation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8f5d433840209e6380ffef6a9a2ba0f59675d2de",
         "notes": null
