@@ -1990,6 +1990,9 @@ brw_nir_optimize(brw_pass_tracker *pt)
       LOOP_OPT(nir_opt_gcm, false);
       LOOP_OPT(nir_opt_undef);
       LOOP_OPT(nir_lower_pack);
+
+      if (pt->compiler->devinfo->verx10 >= 125)
+         LOOP_OPT(nir_opt_shrink_vectors, true);
    } while (pt->progress);
 
    OPT(nir_opt_shrink_stores, true);
