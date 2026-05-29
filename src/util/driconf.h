@@ -644,19 +644,6 @@
                   "Ignore sample mask out when having single sampled target")
 
 /**
- * \brief DZN specific configuration options
- */
-
-#define DRI_CONF_DZN_CLAIM_WIDE_LINES(def) \
-   DRI_CONF_OPT_B(dzn_claim_wide_lines, def, "Claim wide line support")
-
-#define DRI_CONF_DZN_ENABLE_8BIT_LOADS_STORES(def) \
-   DRI_CONF_OPT_B(dzn_enable_8bit_loads_stores, def, "Enable VK_KHR_8bit_loads_stores")
-
-#define DRI_CONF_DZN_DISABLE(def) \
-   DRI_CONF_OPT_B(dzn_disable, def, "Fail instance creation")
-
-/**
  * \brief NVK specific configuration options
  */
 
