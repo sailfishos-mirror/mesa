@@ -155,16 +155,16 @@ zink_bo_has_usage(const struct zink_bo *bo)
 {
    return zink_bo_has_unflushed_usage(bo) ||
           /* submit_count increments on batch submit and reset, so diff<=1 means same batch submission */
-          (zink_batch_usage_exists(bo->reads.u) && bo->reads.u->submit_count - bo->reads.submit_count <= 1) ||
-          (zink_batch_usage_exists(bo->writes.u) && bo->writes.u->submit_count - bo->writes.submit_count <= 1);
+          (zink_batch_usage_exists(bo->reads.u) && zink_batch_submit_count_diff(bo->reads.u->submit_count, bo->reads.submit_count) <= 1) ||
+          (zink_batch_usage_exists(bo->writes.u) && zink_batch_submit_count_diff(bo->writes.u->submit_count, bo->writes.submit_count) <= 1);
 }
 
 static ALWAYS_INLINE bool
 zink_bo_usage_matches(const struct zink_bo *bo, const struct zink_batch_state *bs)
 {
    /* submit_count increments on batch submit and reset, so diff<=1 means same batch submission */
-   return (zink_batch_usage_matches(bo->reads.u, bs) && bo->reads.u->submit_count - bo->reads.submit_count <= 1) ||
-          (zink_batch_usage_matches(bo->writes.u, bs) && bo->writes.u->submit_count - bo->writes.submit_count <= 1);
+   return (zink_batch_usage_matches(bo->reads.u, bs) && zink_batch_submit_count_diff(bo->reads.u->submit_count, bo->reads.submit_count) <= 1) ||
+          (zink_batch_usage_matches(bo->writes.u, bs) && zink_batch_submit_count_diff(bo->writes.u->submit_count, bo->writes.submit_count) <= 1);
 }
 
 static ALWAYS_INLINE bool
