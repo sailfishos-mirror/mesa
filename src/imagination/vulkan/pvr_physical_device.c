@@ -179,6 +179,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_border_color_swizzle = true,
       .EXT_color_write_enable = true,
       .EXT_custom_border_color = true,
+      .EXT_debug_marker = true,
       .EXT_depth_clamp_zero_one = true,
       .EXT_depth_clip_enable = true,
       .EXT_image_drm_format_modifier = true,

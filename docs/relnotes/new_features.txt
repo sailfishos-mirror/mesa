@@ -20,3 +20,4 @@ VK_KHR_shader_fma on nvk
 Support for G1-Ultra, G1-Premium and G1-Pro GPUs on Panfrost and PanVK
 VK_EXT_shader_atomic_float on nvk
 VK_{KHR,EXT}_index_type_uint8 on pvr
+VK_EXT_debug_marker in vulkan runtime

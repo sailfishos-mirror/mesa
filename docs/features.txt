@@ -615,7 +615,7 @@ Khronos extensions that are not part of any Vulkan version:
   VK_EXT_conservative_rasterization                     DONE (anv, nvk, panvk/v11+, radv, vn, tu/a7xx+)
   VK_EXT_custom_border_color                            DONE (anv, hasvk, hk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_EXT_custom_resolve                                 DONE (radv, tu)
-  VK_EXT_debug_marker                                   DONE (radv)
+  VK_EXT_debug_marker                                   DONE (anv, dzn, hasvk, hk, kk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_EXT_debug_report                                   DONE (anv, dzn, hasvk, hk, kk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_EXT_debug_utils                                    DONE (anv, dzn, hasvk, hk, kk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_EXT_depth_bias_control                             DONE (anv, hk, lvp, nvk, panvk, radv, vn)
