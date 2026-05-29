@@ -2913,7 +2913,7 @@ pipeline_init_dynamic_state(struct v3dv_device *device,
    }
 
    v3dv_dyn->color_write_enable =
-      (1ull << (4 * V3D_MAX_RENDER_TARGETS(device->devinfo.ver))) - 1;
+      (1ull << (4 * device->devinfo.max_render_targets)) - 1;
    if (pipeline_state->cb) {
       const uint8_t color_writes = pipeline_state->cb->color_write_enables;
       v3dv_dyn->color_write_enable = 0;

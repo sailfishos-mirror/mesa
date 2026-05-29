@@ -916,7 +916,7 @@ get_device_properties(const struct v3dv_physical_device *device,
    const VkSampleCountFlags supported_sample_counts =
       VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_4_BIT;
 
-   const uint8_t max_rts = V3D_MAX_RENDER_TARGETS(device->devinfo.ver);
+   const uint8_t max_rts = device->devinfo.max_render_targets;
 
    struct timespec clock_res;
    clock_getres(CLOCK_MONOTONIC, &clock_res);
@@ -3005,7 +3005,7 @@ v3dv_setup_dynamic_framebuffer(struct v3dv_cmd_buffer *cmd_buffer,
     * MSAA resolves.
     */
    const uint32_t max_attachments =
-      2 * (V3D_MAX_RENDER_TARGETS(device->devinfo.ver) + 1);
+      2 * device->devinfo.max_render_targets + 1;
    const uint32_t attachments_alloc_size =
       sizeof(struct v3dv_image_view *) * max_attachments;
 
