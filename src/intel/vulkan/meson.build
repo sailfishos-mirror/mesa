@@ -95,14 +95,14 @@ endif
 
 libanv_drirc_files = custom_target(
   'libanv_drirc',
-  input : ['anv_dricrc_gen.py', drirc_gen],
+  input : ['anv_dricrc_gen.py', drirc_gen, '00-anv-defaults.conf'],
   output : ['anv_drirc.c', 'anv_drirc.h'],
   command : [prog_python, '@INPUT0@',
              '-p', join_paths(dir_source_root, 'src/util/'),
              libanv_drirc_args,
              '--drirc-src', '@OUTPUT0@',
              '--drirc-hdr', '@OUTPUT1@',
-             '--validate', join_paths(dir_source_root, 'src/util/00-mesa-defaults.conf')],
+             '--validate', '@INPUT2@'],
 )
 
 libanv_drirc = static_library(
