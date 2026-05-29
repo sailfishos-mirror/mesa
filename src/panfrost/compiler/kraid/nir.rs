@@ -349,6 +349,47 @@ impl<'a> ShaderFromNir<'a> {
                     accum_op: CmpAccumOp::None,
                 });
             }
+            nir_op_i2i8 | nir_op_i2i16 | nir_op_i2i32 => {
+                let dst_bits = alu.def.bit_size;
+                let src_bits = alu.get_src(0).bit_size();
+                let swz = match (dst_bits, src_bits) {
+                    (8, 8) => Swizzle::NONE,
+                    (8, 16) => Swizzle::from_bytes([0, 2, 0, 2]),
+                    (8, 32) => Swizzle::replicate_byte(0),
+                    (16, 8) => Swizzle::widen_v2s8(0, 1),
+                    (16, 16) => Swizzle::NONE,
+                    (16, 32) => Swizzle::replicate_half(0),
+                    (32, 8) => Swizzle::widen_s8(0),
+                    (32, 16) => Swizzle::widen_s16(0),
+                    (32, 32) => Swizzle::NONE,
+                    (d, s) => panic!("u{s}_to_u{d} unsupported"),
+                };
+                if dst_bits == 8 {
+                    // We don't have IADD.v4i8 but that's okay because
+                    // 8-bit destinations don't need us to widen.
+                    b.push_op(OpShiftLop {
+                        dst: dst.into(),
+                        dst_type: dst_type(NumericType::Integer),
+                        shift_op: ShiftOp::LShift,
+                        logic_op: LogicOp::Or,
+                        not_result: false,
+                        src0: srcs(0).swizzle(swz),
+                        shift: 0.into(),
+                        src2: 0.into(),
+                    });
+                } else {
+                    b.push_op(OpIAdd {
+                        dst: dst.into(),
+                        dst_type: dst_type(if dst_bits > src_bits {
+                            NumericType::SignedInteger
+                        } else {
+                            NumericType::Integer
+                        }),
+                        saturate: false,
+                        srcs: [srcs(0).swizzle(swz), 0.into()],
+                    });
+                }
+            }
             nir_op_iadd => {
                 b.push_op(OpIAdd {
                     dst: dst.into(),
@@ -437,6 +478,47 @@ impl<'a> ShaderFromNir<'a> {
                     shift: srcs(1).byte(0),
                     src2: 0.into(),
                 });
+            }
+            nir_op_u2u8 | nir_op_u2u16 | nir_op_u2u32 => {
+                let dst_bits = alu.def.bit_size;
+                let src_bits = alu.get_src(0).bit_size();
+                let swz = match (dst_bits, src_bits) {
+                    (8, 8) => Swizzle::NONE,
+                    (8, 16) => Swizzle::from_bytes([0, 2, 0, 2]),
+                    (8, 32) => Swizzle::replicate_byte(0),
+                    (16, 8) => Swizzle::widen_v2u8(0, 1),
+                    (16, 16) => Swizzle::NONE,
+                    (16, 32) => Swizzle::replicate_half(0),
+                    (32, 8) => Swizzle::widen_u8(0),
+                    (32, 16) => Swizzle::widen_u16(0),
+                    (32, 32) => Swizzle::NONE,
+                    (d, s) => panic!("u{s}_to_u{d} unsupported"),
+                };
+                if dst_bits == 8 {
+                    // We don't have IADD.v4i8 but that's okay because
+                    // 8-bit destinations don't need us to widen.
+                    b.push_op(OpShiftLop {
+                        dst: dst.into(),
+                        dst_type: dst_type(NumericType::Integer),
+                        shift_op: ShiftOp::LShift,
+                        logic_op: LogicOp::Or,
+                        not_result: false,
+                        src0: srcs(0).swizzle(swz),
+                        shift: 0.into(),
+                        src2: 0.into(),
+                    });
+                } else {
+                    b.push_op(OpIAdd {
+                        dst: dst.into(),
+                        dst_type: dst_type(if dst_bits > src_bits {
+                            NumericType::UnsignedInteger
+                        } else {
+                            NumericType::Integer
+                        }),
+                        saturate: false,
+                        srcs: [srcs(0).swizzle(swz), 0.into()],
+                    });
+                }
             }
             _ => panic!("Unsupported ALU instruction: {}", alu.info().name()),
         }

@@ -475,7 +475,7 @@ impl fmt::Display for LogicOp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [V4I8, V2I16, I32, I64])]
+#[variants(dst_type in [I8, I16, V4I8, V2I16, I32, I64])]
 pub struct OpShiftLop {
     pub dst: Dst,
     pub dst_type: DataType,
