@@ -700,12 +700,10 @@ pick_regs_from_block(jay_ra_state *ra,
          }
 
          /* Model the cost of shuffling for phis */
-         if (c < jay_num_values(var)) {
-            struct phi_web_node *phi_web =
-               &ra->phi_web[phi_web_find(ra->phi_web, jay_channel(var, c))];
-            if (phi_web->reg != NO_REG && r_reg(phi_web->reg) != j) {
-               cost += 2;
-            }
+         struct phi_web_node *phi_web =
+            &ra->phi_web[phi_web_find(ra->phi_web, jay_channel(var, c))];
+         if (phi_web->reg != NO_REG && r_reg(phi_web->reg) != j) {
+            cost += 2;
          }
 
          /* Choosing this register will pin it, leaving it unavailable to later
