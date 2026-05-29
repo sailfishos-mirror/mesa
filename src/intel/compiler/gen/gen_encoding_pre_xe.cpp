@@ -564,8 +564,7 @@ private:
    encode_operand_src(const gen_range &bits, const gen_operand &src)
    {
       if (inst->align16) {
-         set(bits(SRC_A16_SWIZZLE_LO), (src.swizzle >> 0) & 0xf);
-         set(bits(SRC_A16_SWIZZLE_HI), (src.swizzle >> 4) & 0xf);
+         set(bits, SRC_A16_SWIZZLE, src.swizzle);
 
          if (src.indirect) {
             set(bits(SRC_A16_ADDR_IMM), (src.addr_imm >> 4) & 0x1f);
@@ -1347,8 +1346,7 @@ private:
       src.indirect = get(bits(SRC_ADDRESS_MODE));
 
       if (inst->align16) {
-         src.swizzle = (get(bits(SRC_A16_SWIZZLE_LO)) << 0) |
-                       (get(bits(SRC_A16_SWIZZLE_HI)) << 4);
+         src.swizzle = get(bits, SRC_A16_SWIZZLE);
 
          if (src.indirect) {
             src.addr_imm = get(bits(SRC_A16_ADDR_IMM)) << 4;

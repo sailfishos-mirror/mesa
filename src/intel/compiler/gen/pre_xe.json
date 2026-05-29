@@ -176,10 +176,10 @@
             "SRC_A1_HSTRIDE":           [  17,  16 ],
             "SRC_A1_WIDTH":             [  20,  18 ],
 
-            "SRC_A16_SWIZZLE_LO":       [   3,   0 ],
+            "SRC_A16_SWIZZLE":          [  19,  16,
+                                            3,   0 ],
             "SRC_A16_SUBNR":            [   4,   4 ],
             "SRC_A16_ADDR_IMM":         [   8,   4 ],
-            "SRC_A16_SWIZZLE_HI":       [  19,  16 ],
 
             "# Relative to EU_INSTRUCTION_OPERAND_DST_* sub-structures":"#",
             "DST_ADDR_MODE":            [  15,  15 ],
