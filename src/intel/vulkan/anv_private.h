@@ -74,7 +74,6 @@
 #include "util/u_math.h"
 #include "util/u_tristate.h"
 #include "util/vma.h"
-#include "util/xmlconfig.h"
 #include "vk_acceleration_structure.h"
 #include "vk_alloc.h"
 #include "vk_android.h"
