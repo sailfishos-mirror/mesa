@@ -559,6 +559,12 @@ panfrost_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
             return -1;
          }
 
+         if (ops[i].flags & PAN_KMOD_VM_OP_OP_MAP_SPARSE) {
+            mesa_loge("panfrost_kmod doesn't support sparse mappings");
+            assert(0);
+            return -1;
+         }
+
          ops[i].va.start = panfrost_bo->offset;
       } else if (ops[i].type == PAN_KMOD_VM_OP_TYPE_UNMAP) {
          /* Do nothing, unmapping is done at BO destruction time. */

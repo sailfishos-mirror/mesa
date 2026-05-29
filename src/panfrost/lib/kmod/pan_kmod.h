@@ -136,6 +136,12 @@ enum pan_kmod_group_allow_priority_flags {
    PAN_KMOD_GROUP_ALLOW_PRIORITY_REALTIME = BITFIELD_BIT(3),
 };
 
+/* vm_bind operation specific flags. */
+enum supported_vm_op_flags {
+   /* Flag the operation as sparse, so that it doesn't need a backing BO */
+   PAN_KMOD_VM_OP_OP_MAP_SPARSE = BITFIELD_BIT(0),
+};
+
 /* Buffer object. */
 struct pan_kmod_bo {
    /* Atomic reference count. The only reason we need to refcnt BOs at this
@@ -236,6 +242,9 @@ struct pan_kmod_dev_props {
 
    /* Mask of BO flags supported by the KMD. */
    uint32_t supported_bo_flags;
+
+   /* Mask of VM OP flags supported by the KMD. */
+   uint32_t supported_vm_op_flags;
 
    /* GPU is IO coherent, meaning BOs can be created with WB_MMAP without
     * requiring explicit CPU cache maintenance.
@@ -350,6 +359,9 @@ struct pan_kmod_vm_op {
       /* Array of synchronization operation descriptors. NULL if count is zero. */
       const struct pan_kmod_sync_op *array;
    } signal, wait;
+
+   /* Combination of supported_vm_op_flags flags. */
+   uint32_t flags;
 };
 
 /* VM state. */

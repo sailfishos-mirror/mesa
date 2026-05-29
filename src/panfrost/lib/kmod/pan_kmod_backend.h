@@ -139,5 +139,21 @@ pan_kmod_vm_op_check(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
       return -1;
    }
 
+   if ((op->flags & ~vm->dev->props.supported_vm_op_flags) != 0) {
+      mesa_loge("incompatible VM operation flags");
+      return -1;
+   }
+
+   if ((op->flags & PAN_KMOD_VM_OP_OP_MAP_SPARSE) && op->map.bo) {
+      mesa_loge("sparse operations cannot have attached BOs");
+      return -1;
+   }
+
+   if ((op->flags & PAN_KMOD_VM_OP_OP_MAP_SPARSE) &&
+       op->va.start == PAN_KMOD_VM_MAP_AUTO_VA) {
+      mesa_loge("sparse operations cannot have an automatic VA assigned");
+      return -1;
+   }
+
    return 0;
 }

@@ -188,6 +188,9 @@ panthor_dev_query_props(struct panthor_kmod_dev *panthor_dev)
       props->supported_bo_flags |= PAN_KMOD_BO_FLAG_WB_MMAP;
    }
 
+   if (pan_kmod_driver_version_at_least(&panthor_dev->base.driver, 1, 9))
+      props->supported_vm_op_flags |= PAN_KMOD_VM_OP_OP_MAP_SPARSE;
+
    static_assert(sizeof(props->texture_features) ==
                     sizeof(panthor_dev->props.gpu.texture_features),
                  "Mismatch in texture_features array size");
@@ -1129,8 +1132,10 @@ panthor_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
       if (ops[i].type == PAN_KMOD_VM_OP_TYPE_MAP) {
          bind_ops[i].flags = DRM_PANTHOR_VM_BIND_OP_TYPE_MAP;
          bind_ops[i].size = ops[i].va.size;
-         bind_ops[i].bo_handle = ops[i].map.bo->handle;
-         bind_ops[i].bo_offset = ops[i].map.bo_offset;
+         if (!(ops[i].flags & PAN_KMOD_VM_OP_OP_MAP_SPARSE)) {
+            bind_ops[i].bo_handle = ops[i].map.bo->handle;
+            bind_ops[i].bo_offset = ops[i].map.bo_offset;
+         }
 
          if (ops[i].va.start == PAN_KMOD_VM_MAP_AUTO_VA) {
             bind_ops[i].va =
@@ -1144,13 +1149,18 @@ panthor_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
             bind_ops[i].va = ops[i].va.start;
          }
 
-         if (ops[i].map.bo->flags & PAN_KMOD_BO_FLAG_EXECUTABLE)
-            bind_ops[i].flags |= DRM_PANTHOR_VM_BIND_OP_MAP_READONLY;
-         else
-            bind_ops[i].flags |= DRM_PANTHOR_VM_BIND_OP_MAP_NOEXEC;
+         if (!(ops[i].flags & PAN_KMOD_VM_OP_OP_MAP_SPARSE)) {
+            if (ops[i].map.bo->flags & PAN_KMOD_BO_FLAG_EXECUTABLE)
+               bind_ops[i].flags |= DRM_PANTHOR_VM_BIND_OP_MAP_READONLY;
+            else
+               bind_ops[i].flags |= DRM_PANTHOR_VM_BIND_OP_MAP_NOEXEC;
 
-         if (ops[i].map.bo->flags & PAN_KMOD_BO_FLAG_GPU_UNCACHED)
-            bind_ops[i].flags |= DRM_PANTHOR_VM_BIND_OP_MAP_UNCACHED;
+            if (ops[i].map.bo->flags & PAN_KMOD_BO_FLAG_GPU_UNCACHED)
+               bind_ops[i].flags |= DRM_PANTHOR_VM_BIND_OP_MAP_UNCACHED;
+         } else {
+            bind_ops[i].flags |= DRM_PANTHOR_VM_BIND_OP_MAP_NOEXEC;
+            bind_ops[i].flags |= DRM_PANTHOR_VM_BIND_OP_MAP_SPARSE;
+         }
 
       } else if (ops[i].type == PAN_KMOD_VM_OP_TYPE_UNMAP) {
          bind_ops[i].flags = DRM_PANTHOR_VM_BIND_OP_TYPE_UNMAP;

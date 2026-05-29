@@ -282,6 +282,7 @@ impl MemoryBuffer {
             },
             signal: Default::default(),
             wait: Default::default(),
+            flags: 0,
         }];
 
         let res = unsafe {
