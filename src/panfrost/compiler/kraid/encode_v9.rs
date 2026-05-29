@@ -13,6 +13,56 @@ use crate::swizzle::*;
 use paste::paste;
 use rustc_hash::FxHashMap;
 
+type EncodedInstr = [u32; 2];
+const INSTR_SIZE: i64 = size_of::<EncodedInstr>() as i64;
+
+trait V9Instr {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo>;
+    fn encode(&self, encoder: V9Encoder<'_>) -> EncodedInstr;
+}
+
+struct V9Encoder<'a> {
+    ip: i64,
+    instr: &'a Instr,
+    arch: u8,
+    labels: &'a FxHashMap<Label, i64>,
+}
+
+impl V9Encoder<'_> {
+    fn encode(
+        &self,
+        isa_instr: impl TryEncode<Encoded = [u32; 2], Error: std::fmt::Debug>,
+    ) -> [u32; 2] {
+        let fau_page_index = instr_fau_page(&self.instr).unwrap_or(0);
+        let flow = encode_flow(self.instr.flow, self.arch)
+            .try_encode(self.arch)
+            .expect("Failed to encode flow");
+
+        let mut bits = isa_instr
+            .try_encode(self.arch)
+            .expect("Failed to encode instruction");
+
+        let mut b = BitMutView::new(&mut bits);
+        b.set_field(57..59, fau_page_index);
+        b.set_field(59..63, flow);
+
+        bits
+    }
+
+    fn get_msg_slot_idx(&self) -> Option<MessageSlotIndexM> {
+        self.instr.flow.get_msg_slot_idx().map(|idx| match idx {
+            0 => MessageSlotIndexM::Slot0,
+            1 => MessageSlotIndexM::Slot1,
+            2 => MessageSlotIndexM::Slot2,
+            _ => panic!("Invalid message slot index"),
+        })
+    }
+
+    fn get_pc_rel_offset(&self, label: &Label) -> i64 {
+        self.labels.get(label).unwrap() - (self.ip + INSTR_SIZE)
+    }
+}
+
 fn encode_src_ref(src: &SrcRef, last_use: bool) -> u8 {
     match src {
         SrcRef::FAU(fau) => match fau.page {
@@ -299,6 +349,371 @@ impl From<MemAccess> for AccessStoreM {
     }
 }
 
+impl V9Instr for OpBranch {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        Branch::get_info((), arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Branch {
+            not: self.not.into(),
+            src0: op_encode_src(self, &self.cond),
+            combine: match self.combine_op {
+                BranchCombineOp::None => BranchCombineM::And,
+                BranchCombineOp::H0 => BranchCombineM::H0,
+                BranchCombineOp::H1 => BranchCombineM::H1,
+                BranchCombineOp::And => BranchCombineM::Lowbits,
+                BranchCombineOp::LowBits => BranchCombineM::None,
+            },
+            conservative: false.into(),
+            offset: e.get_pc_rel_offset(&self.label),
+        })
+    }
+}
+
+impl V9Instr for OpFAdd {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
+            let variant = match self.dst_type {
+                DataType::F32 => FaddImmVariant::F32,
+                DataType::V2F16 => FaddImmVariant::V2f16,
+                _ => return None,
+            };
+            FaddImm::get_info(variant, arch)
+        } else {
+            let variant = match self.dst_type {
+                DataType::F32 => FaddVariant::F32,
+                DataType::V2F16 => FaddVariant::V2f16,
+                _ => return None,
+            };
+            Fadd::get_info(variant, arch)
+        }
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if let SrcRef::Imm32(imm) = &self.srcs[1].src_ref {
+            e.encode(FaddImm {
+                variant: match self.dst_type {
+                    DataType::F32 => FaddImmVariant::F32,
+                    DataType::V2F16 => FaddImmVariant::V2f16,
+                    t => panic!("FADD_IMM.{t} not supported"),
+                },
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.srcs[0]),
+                imm1w: *imm,
+            })
+        } else {
+            e.encode(Fadd {
+                variant: match self.dst_type {
+                    DataType::F32 => FaddVariant::F32,
+                    DataType::V2F16 => FaddVariant::V2f16,
+                    t => panic!("FADD.{t} not supported"),
+                },
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.srcs[0]),
+                src1: op_encode_src(self, &self.srcs[1]),
+                clamp: ClampM::None,
+                round: Round::None,
+                sticky: false.into(),
+            })
+        }
+    }
+}
+
+impl V9Instr for OpFCmp {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        let variant = match self.src_type {
+            DataType::F32 => FcmpVariant::F32,
+            DataType::V2F16 => FcmpVariant::V2f16,
+            _ => return None,
+        };
+        Fcmp::get_info(variant, arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Fcmp {
+            variant: match self.src_type {
+                DataType::F32 => FcmpVariant::F32,
+                DataType::V2F16 => FcmpVariant::V2f16,
+                t => panic!("FCMP.{t} not supported"),
+            },
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            cmpf: match self.cmp_op {
+                CmpOp::Eq => CmpfM::Eq,
+                CmpOp::Gt => CmpfM::Gt,
+                CmpOp::Ge => CmpfM::Ge,
+                CmpOp::Ne => CmpfM::Ne,
+                CmpOp::Lt => CmpfM::Lt,
+                CmpOp::Le => CmpfM::Le,
+                CmpOp::GtLt => CmpfM::Gtlt,
+                CmpOp::Total => CmpfM::Total,
+            },
+            result_type: CmpResultTypeM::M1,
+        })
+    }
+}
+
+impl V9Instr for OpIAdd {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
+            let variant = match self.dst_type {
+                DataType::I32 => IaddImmVariant::I32,
+                DataType::V2I16 => IaddImmVariant::V2i16,
+                DataType::V4I8 => IaddImmVariant::V4i8,
+                _ => return None,
+            };
+            IaddImm::get_info(variant, arch)
+        } else {
+            let variant = match self.dst_type {
+                DataType::S32 => IaddVariant::S32,
+                DataType::S64 => IaddVariant::S64,
+                DataType::U32 => IaddVariant::U32,
+                DataType::U64 => IaddVariant::U64,
+                DataType::V2S16 => IaddVariant::V2s16,
+                DataType::V2U16 => IaddVariant::V2u16,
+                DataType::V4S8 => IaddVariant::V4s8,
+                DataType::V4U8 => IaddVariant::V4u8,
+                _ => return None,
+            };
+            Iadd::get_info(variant, arch)
+        }
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if let SrcRef::Imm32(imm) = &self.srcs[1].src_ref {
+            e.encode(IaddImm {
+                variant: match self.dst_type {
+                    DataType::I32 => IaddImmVariant::I32,
+                    DataType::V2I16 => IaddImmVariant::V2i16,
+                    DataType::V4I8 => IaddImmVariant::V4i8,
+                    t => panic!("IADD_IMM.{t} not supported"),
+                },
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.srcs[0]),
+                imm1w: *imm,
+            })
+        } else {
+            e.encode(Iadd {
+                variant: match self.dst_type {
+                    DataType::S32 => IaddVariant::S32,
+                    DataType::S64 => IaddVariant::S64,
+                    DataType::U32 => IaddVariant::U32,
+                    DataType::U64 => IaddVariant::U64,
+                    DataType::V2S16 => IaddVariant::V2s16,
+                    DataType::V2U16 => IaddVariant::V2u16,
+                    DataType::V4S8 => IaddVariant::V4s8,
+                    DataType::V4U8 => IaddVariant::V4u8,
+                    t => panic!("IADD.{t} not supported"),
+                },
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.srcs[0]),
+                src1: op_encode_src(self, &self.srcs[1]),
+                saturate: self.saturate.into(),
+            })
+        }
+    }
+}
+
+impl V9Instr for OpICmp {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        let variant = match self.src_type {
+            DataType::S32 => IcmpVariant::S32,
+            DataType::U32 => IcmpVariant::U32,
+            DataType::V2S16 => IcmpVariant::V2s16,
+            DataType::V2U16 => IcmpVariant::V2u16,
+            _ => return None,
+        };
+        Icmp::get_info(variant, arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Icmp {
+            variant: match self.src_type {
+                DataType::S32 => IcmpVariant::S32,
+                DataType::U32 => IcmpVariant::U32,
+                DataType::V2S16 => IcmpVariant::V2s16,
+                DataType::V2U16 => IcmpVariant::V2u16,
+                t => panic!("FCMP.{t} not supported"),
+            },
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            cmpf: match self.cmp_op {
+                CmpOp::Eq => CmpfM::Eq,
+                CmpOp::Gt => CmpfM::Gt,
+                CmpOp::Ge => CmpfM::Ge,
+                CmpOp::Ne => CmpfM::Ne,
+                CmpOp::Lt => CmpfM::Lt,
+                CmpOp::Le => CmpfM::Le,
+                cmp_op => panic!("Unsupported comparison: {cmp_op}"),
+            },
+            result_type: CmpResultTypeM::M1,
+        })
+    }
+}
+
+impl V9Instr for OpLdPka {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        let variant = match self.dst_type {
+            DataType::I8 => LdPkaVariant::I8,
+            DataType::I16 => LdPkaVariant::I16,
+            DataType::I24 => LdPkaVariant::I24,
+            DataType::I32 => LdPkaVariant::I32,
+            DataType::I48 => LdPkaVariant::I48,
+            DataType::I64 => LdPkaVariant::I64,
+            DataType::I96 => LdPkaVariant::I96,
+            DataType::I128 => LdPkaVariant::I128,
+            _ => return None,
+        };
+        LdPka::get_info(variant, arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(LdPka {
+            variant: match self.dst_type {
+                DataType::I8 => LdPkaVariant::I8,
+                DataType::I16 => LdPkaVariant::I16,
+                DataType::I24 => LdPkaVariant::I24,
+                DataType::I32 => LdPkaVariant::I32,
+                DataType::I48 => LdPkaVariant::I48,
+                DataType::I64 => LdPkaVariant::I64,
+                DataType::I96 => LdPkaVariant::I96,
+                DataType::I128 => LdPkaVariant::I128,
+                t => panic!("LD_PKA.{t} not supported"),
+            },
+            access: self.access.into(),
+            extend: SignExtendOrNoneM::None,
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.offset),
+            src1: op_encode_src(self, &self.handle),
+        })
+    }
+}
+
+impl V9Instr for OpLeaPka {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        LeaPka::get_info((), arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(LeaPka {
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.offset),
+            src1: op_encode_src(self, &self.handle),
+        })
+    }
+}
+
+impl V9Instr for OpLoad {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        let variant = match self.dst_type {
+            DataType::I8 => LoadVariant::I8,
+            DataType::I16 => LoadVariant::I16,
+            DataType::I24 => LoadVariant::I24,
+            DataType::I32 => LoadVariant::I32,
+            DataType::I48 => LoadVariant::I48,
+            DataType::I64 => LoadVariant::I64,
+            DataType::I96 => LoadVariant::I96,
+            DataType::I128 => LoadVariant::I128,
+            _ => return None,
+        };
+        Load::get_info(variant, arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Load {
+            variant: match self.dst_type {
+                DataType::I8 => LoadVariant::I8,
+                DataType::I16 => LoadVariant::I16,
+                DataType::I24 => LoadVariant::I24,
+                DataType::I32 => LoadVariant::I32,
+                DataType::I48 => LoadVariant::I48,
+                DataType::I64 => LoadVariant::I64,
+                DataType::I96 => LoadVariant::I96,
+                DataType::I128 => LoadVariant::I128,
+                t => panic!("LOAD.{t} not supported"),
+            },
+            access: self.access.into(),
+            extend: SignExtendOrNoneM::None,
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.addr),
+            offset: self.offset,
+        })
+    }
+}
+
+impl V9Instr for OpMov {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        if let SrcRef::Imm32(_) = &self.src.src_ref {
+            let variant = match self.dst_type {
+                DataType::I16 => MovImmVariant::V2i16,
+                DataType::I32 => MovImmVariant::I32,
+                _ => return None,
+            };
+            MovImm::get_info(variant, arch)
+        } else {
+            let variant = match self.dst_type {
+                DataType::I32 => MovVariant::I32,
+                _ => return None,
+            };
+            Mov::get_info(variant, arch)
+        }
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if let SrcRef::Imm32(imm) = &self.src.src_ref {
+            e.encode(MovImm {
+                variant: match self.dst_type {
+                    DataType::I16 => MovImmVariant::V2i16,
+                    DataType::I32 => MovImmVariant::I32,
+                    t => panic!("MOV_IMM.{t} not supported"),
+                },
+                dst: op_encode_dst(self, &self.dst),
+                imm1w: *imm,
+            })
+        } else {
+            e.encode(Mov {
+                variant: match self.dst_type {
+                    DataType::I32 => MovVariant::I32,
+                    t => panic!("MOV.{t} not supported"),
+                },
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+            })
+        }
+    }
+}
+
+impl V9Instr for OpNop {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        Nop::get_info((), arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Nop {})
+    }
+}
+
+macro_rules! shift_lop_info {
+    ($op:expr, $Instr:ident, $arch:expr) => {
+        paste! {{
+            let variant = match $op.dst_type {
+                DataType::I32 => [<$Instr Variant>]::I32,
+                DataType::I64 => [<$Instr Variant>]::I64,
+                DataType::V2I16 => [<$Instr Variant>]::V2i16,
+                DataType::V4I8 => [<$Instr Variant>]::V4i8,
+                _ => return None,
+            };
+            $Instr::get_info(variant, $arch)
+        }}
+    };
+}
+
 macro_rules! shift_lop_as {
     ($op:expr, $Instr:ident) => {
         paste! {
@@ -320,268 +735,72 @@ macro_rules! shift_lop_as {
     };
 }
 
-struct InstrEnc {
-    arch: u8,
-    fau_page_index: u8,
-    flow: FlowControlM,
-}
+impl V9Instr for OpShiftLop {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        use LogicOp::*;
+        use ShiftOp::*;
+        match (self.shift_op, self.logic_op) {
+            (LShift, And) => shift_lop_info!(self, LshiftAnd, arch),
+            (LShift, Or) => shift_lop_info!(self, LshiftOr, arch),
+            (LShift, Xor) => shift_lop_info!(self, LshiftXor, arch),
+            (RShift, And) => shift_lop_info!(self, RshiftAnd, arch),
+            (RShift, Or) => shift_lop_info!(self, RshiftOr, arch),
+            (RShift, Xor) => shift_lop_info!(self, RshiftXor, arch),
+            (ARShift, _) => shift_lop_info!(self, Arshift, arch),
+            _ => None,
+        }
+    }
 
-impl InstrEnc {
-    fn encode(
-        self,
-        instr: impl TryEncode<Encoded = [u32; 2], Error: std::fmt::Debug>,
-    ) -> [u32; 2] {
-        let mut bits = instr
-            .try_encode(self.arch)
-            .expect("Failed to encode instruction");
-        let flow = self
-            .flow
-            .try_encode(self.arch)
-            .expect("Failed to encode flow");
-
-        let mut b = BitMutView::new(&mut bits);
-        b.set_field(57..59, self.fau_page_index);
-        b.set_field(59..63, flow);
-
-        bits
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        use LogicOp::*;
+        use ShiftOp::*;
+        match (self.shift_op, self.logic_op) {
+            (LShift, And) => e.encode(shift_lop_as!(self, LshiftAnd)),
+            (LShift, Or) => e.encode(shift_lop_as!(self, LshiftOr)),
+            (LShift, Xor) => e.encode(shift_lop_as!(self, LshiftXor)),
+            (RShift, And) => e.encode(shift_lop_as!(self, RshiftAnd)),
+            (RShift, Or) => e.encode(shift_lop_as!(self, RshiftOr)),
+            (RShift, Xor) => e.encode(shift_lop_as!(self, RshiftXor)),
+            (ARShift, _) => {
+                assert!(self.shift.is_zero());
+                e.encode(Arshift {
+                    variant: match self.dst_type {
+                        DataType::I32 => ArshiftVariant::I32,
+                        DataType::I64 => ArshiftVariant::I64,
+                        DataType::V2I16 => ArshiftVariant::V2i16,
+                        DataType::V4I8 => ArshiftVariant::V4i8,
+                        t => panic!("SHIFT_LOP.{t} not supported"),
+                    },
+                    dst: op_encode_dst(self, &self.dst),
+                    not_result: self.not_result.into(),
+                    src0: op_encode_src(self, &self.src0),
+                    src1: op_encode_src(self, &self.shift),
+                })
+            }
+            _ => todo!("Implement [lr]rot"),
+        }
     }
 }
 
-fn encode_instr(
-    ip: i64,
-    instr: &Instr,
-    arch: u8,
-    labels: &FxHashMap<Label, i64>,
-) -> [u32; 2] {
-    let msg_slot_idx = instr.flow.get_msg_slot_idx().map(|idx| match idx {
-        0 => MessageSlotIndexM::Slot0,
-        1 => MessageSlotIndexM::Slot1,
-        2 => MessageSlotIndexM::Slot2,
-        _ => panic!("Invalid message slot"),
-    });
+impl V9Instr for OpStore {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        let variant = match self.src_type {
+            DataType::I8 => StoreVariant::I8,
+            DataType::I16 => StoreVariant::I16,
+            DataType::I24 => StoreVariant::I24,
+            DataType::I32 => StoreVariant::I32,
+            DataType::I48 => StoreVariant::I48,
+            DataType::I64 => StoreVariant::I64,
+            DataType::I96 => StoreVariant::I96,
+            DataType::I128 => StoreVariant::I128,
+            _ => return None,
+        };
+        Store::get_info(variant, arch)
+    }
 
-    let enc = InstrEnc {
-        arch,
-        fau_page_index: instr_fau_page(instr).unwrap_or(0),
-        flow: encode_flow(instr.flow, arch),
-    };
-
-    match &instr.op {
-        Op::Branch(op) => enc.encode(Branch {
-            not: op.not.into(),
-            src0: op_encode_src(op, &op.cond),
-            combine: match op.combine_op {
-                BranchCombineOp::None => BranchCombineM::And,
-                BranchCombineOp::H0 => BranchCombineM::H0,
-                BranchCombineOp::H1 => BranchCombineM::H1,
-                BranchCombineOp::And => BranchCombineM::Lowbits,
-                BranchCombineOp::LowBits => BranchCombineM::None,
-            },
-            conservative: false.into(),
-            offset: labels.get(&op.label).unwrap() - (ip + INSTR_SIZE),
-        }),
-        Op::FAdd(op) => {
-            if let SrcRef::Imm32(imm) = &op.srcs[1].src_ref {
-                enc.encode(FaddImm {
-                    variant: match op.dst_type {
-                        DataType::F32 => FaddImmVariant::F32,
-                        DataType::V2F16 => FaddImmVariant::V2f16,
-                        t => panic!("FADD_IMM.{t} not supported"),
-                    },
-                    dst: op_encode_dst(op, &op.dst),
-                    src0: op_encode_src(op, &op.srcs[0]),
-                    imm1w: *imm,
-                })
-            } else {
-                enc.encode(Fadd {
-                    variant: match op.dst_type {
-                        DataType::F32 => FaddVariant::F32,
-                        DataType::V2F16 => FaddVariant::V2f16,
-                        t => panic!("FADD.{t} not supported"),
-                    },
-                    dst: op_encode_dst(op, &op.dst),
-                    src0: op_encode_src(op, &op.srcs[0]),
-                    src1: op_encode_src(op, &op.srcs[1]),
-                    clamp: ClampM::None,
-                    round: Round::None,
-                    sticky: false.into(),
-                })
-            }
-        }
-        Op::FCmp(op) => enc.encode(Fcmp {
-            variant: match op.src_type {
-                DataType::F32 => FcmpVariant::F32,
-                DataType::V2F16 => FcmpVariant::V2f16,
-                t => panic!("FCMP.{t} not supported"),
-            },
-            dst: op_encode_dst(op, &op.dst),
-            src0: op_encode_src(op, &op.srcs[0]),
-            src1: op_encode_src(op, &op.srcs[1]),
-            cmpf: match op.cmp_op {
-                CmpOp::Eq => CmpfM::Eq,
-                CmpOp::Gt => CmpfM::Gt,
-                CmpOp::Ge => CmpfM::Ge,
-                CmpOp::Ne => CmpfM::Ne,
-                CmpOp::Lt => CmpfM::Lt,
-                CmpOp::Le => CmpfM::Le,
-                CmpOp::GtLt => CmpfM::Gtlt,
-                CmpOp::Total => CmpfM::Total,
-            },
-            result_type: CmpResultTypeM::M1,
-        }),
-        Op::IAdd(op) => {
-            if let SrcRef::Imm32(imm) = &op.srcs[1].src_ref {
-                enc.encode(IaddImm {
-                    variant: match op.dst_type {
-                        DataType::I32 => IaddImmVariant::I32,
-                        DataType::V2I16 => IaddImmVariant::V2i16,
-                        DataType::V4I8 => IaddImmVariant::V4i8,
-                        t => panic!("IADD_IMM.{t} not supported"),
-                    },
-                    dst: op_encode_dst(op, &op.dst),
-                    src0: op_encode_src(op, &op.srcs[0]),
-                    imm1w: *imm,
-                })
-            } else {
-                enc.encode(Iadd {
-                    variant: match op.dst_type {
-                        DataType::S32 => IaddVariant::S32,
-                        DataType::S64 => IaddVariant::S64,
-                        DataType::U32 => IaddVariant::U32,
-                        DataType::U64 => IaddVariant::U64,
-                        DataType::V2S16 => IaddVariant::V2s16,
-                        DataType::V2U16 => IaddVariant::V2u16,
-                        DataType::V4S8 => IaddVariant::V4s8,
-                        DataType::V4U8 => IaddVariant::V4u8,
-                        t => panic!("IADD.{t} not supported"),
-                    },
-                    dst: op_encode_dst(op, &op.dst),
-                    src0: op_encode_src(op, &op.srcs[0]),
-                    src1: op_encode_src(op, &op.srcs[1]),
-                    saturate: op.saturate.into(),
-                })
-            }
-        }
-        Op::ICmp(op) => enc.encode(Icmp {
-            variant: match op.src_type {
-                DataType::S32 => IcmpVariant::S32,
-                DataType::U32 => IcmpVariant::U32,
-                DataType::V2S16 => IcmpVariant::V2s16,
-                DataType::V2U16 => IcmpVariant::V2u16,
-                t => panic!("FCMP.{t} not supported"),
-            },
-            dst: op_encode_dst(op, &op.dst),
-            src0: op_encode_src(op, &op.srcs[0]),
-            src1: op_encode_src(op, &op.srcs[1]),
-            cmpf: match op.cmp_op {
-                CmpOp::Eq => CmpfM::Eq,
-                CmpOp::Gt => CmpfM::Gt,
-                CmpOp::Ge => CmpfM::Ge,
-                CmpOp::Ne => CmpfM::Ne,
-                CmpOp::Lt => CmpfM::Lt,
-                CmpOp::Le => CmpfM::Le,
-                cmp_op => panic!("Unsupported comparison: {cmp_op}"),
-            },
-            result_type: CmpResultTypeM::M1,
-        }),
-        Op::LdPka(op) => enc.encode(LdPka {
-            variant: match op.dst_type {
-                DataType::I8 => LdPkaVariant::I8,
-                DataType::I16 => LdPkaVariant::I16,
-                DataType::I24 => LdPkaVariant::I24,
-                DataType::I32 => LdPkaVariant::I32,
-                DataType::I48 => LdPkaVariant::I48,
-                DataType::I64 => LdPkaVariant::I64,
-                DataType::I96 => LdPkaVariant::I96,
-                DataType::I128 => LdPkaVariant::I128,
-                t => panic!("LD_PKA.{t} not supported"),
-            },
-            access: op.access.into(),
-            extend: SignExtendOrNoneM::None,
-            message_slot_index: msg_slot_idx.unwrap(),
-            sr_dst: op_encode_sr_write(op, &op.dst),
-            src0: op_encode_src(op, &op.offset),
-            src1: op_encode_src(op, &op.handle),
-        }),
-        Op::LeaPka(op) => enc.encode(LeaPka {
-            message_slot_index: msg_slot_idx.unwrap(),
-            sr_dst: op_encode_sr_write(op, &op.dst),
-            src0: op_encode_src(op, &op.offset),
-            src1: op_encode_src(op, &op.handle),
-        }),
-        Op::Load(op) => enc.encode(Load {
-            variant: match op.dst_type {
-                DataType::I8 => LoadVariant::I8,
-                DataType::I16 => LoadVariant::I16,
-                DataType::I24 => LoadVariant::I24,
-                DataType::I32 => LoadVariant::I32,
-                DataType::I48 => LoadVariant::I48,
-                DataType::I64 => LoadVariant::I64,
-                DataType::I96 => LoadVariant::I96,
-                DataType::I128 => LoadVariant::I128,
-                t => panic!("LOAD.{t} not supported"),
-            },
-            access: op.access.into(),
-            extend: SignExtendOrNoneM::None,
-            message_slot_index: msg_slot_idx.unwrap(),
-            sr_dst: op_encode_sr_write(op, &op.dst),
-            src0: op_encode_src(op, &op.addr),
-            offset: op.offset,
-        }),
-        Op::Mov(op) => {
-            if let SrcRef::Imm32(imm) = &op.src.src_ref {
-                enc.encode(MovImm {
-                    variant: match op.dst_type {
-                        DataType::I16 => MovImmVariant::V2i16,
-                        DataType::I32 => MovImmVariant::I32,
-                        t => panic!("MOV_IMM.{t} not supported"),
-                    },
-                    dst: op_encode_dst(op, &op.dst),
-                    imm1w: *imm,
-                })
-            } else {
-                enc.encode(Mov {
-                    variant: match op.dst_type {
-                        DataType::I32 => MovVariant::I32,
-                        t => panic!("MOV.{t} not supported"),
-                    },
-                    dst: op_encode_dst(op, &op.dst),
-                    src0: op_encode_src(op, &op.src),
-                })
-            }
-        }
-        Op::Nop(_) => enc.encode(Nop {}),
-        Op::ShiftLop(op) => {
-            use LogicOp::*;
-            use ShiftOp::*;
-            match (op.shift_op, op.logic_op) {
-                (LShift, And) => enc.encode(shift_lop_as!(op, LshiftAnd)),
-                (LShift, Or) => enc.encode(shift_lop_as!(op, LshiftOr)),
-                (LShift, Xor) => enc.encode(shift_lop_as!(op, LshiftXor)),
-                (RShift, And) => enc.encode(shift_lop_as!(op, RshiftAnd)),
-                (RShift, Or) => enc.encode(shift_lop_as!(op, RshiftOr)),
-                (RShift, Xor) => enc.encode(shift_lop_as!(op, RshiftXor)),
-                (ARShift, _) => {
-                    assert!(op.shift.is_zero());
-                    enc.encode(Arshift {
-                        variant: match op.dst_type {
-                            DataType::I32 => ArshiftVariant::I32,
-                            DataType::I64 => ArshiftVariant::I64,
-                            DataType::V2I16 => ArshiftVariant::V2i16,
-                            DataType::V4I8 => ArshiftVariant::V4i8,
-                            t => panic!("SHIFT_LOP.{t} not supported"),
-                        },
-                        dst: op_encode_dst(op, &op.dst),
-                        not_result: op.not_result.into(),
-                        src0: op_encode_src(op, &op.src0),
-                        src1: op_encode_src(op, &op.shift),
-                    })
-                }
-                _ => todo!("Implement [lr]rot"),
-            }
-        }
-        Op::Store(op) => enc.encode(Store {
-            variant: match op.src_type {
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Store {
+            variant: match self.src_type {
                 DataType::I8 => StoreVariant::I8,
                 DataType::I16 => StoreVariant::I16,
                 DataType::I24 => StoreVariant::I24,
@@ -592,17 +811,49 @@ fn encode_instr(
                 DataType::I128 => StoreVariant::I128,
                 t => panic!("LOAD.{t} not supported"),
             },
-            access: op.access.into(),
-            message_slot_index: msg_slot_idx.unwrap(),
-            sr_src: op_encode_sr_read(op, &op.data),
-            src0: op_encode_src(op, &op.addr),
-            offset: op.offset,
-        }),
-        op => panic!("Instruction not encoded: {op}"),
+            access: self.access.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.addr),
+            offset: self.offset,
+        })
     }
 }
 
-const INSTR_SIZE: i64 = size_of::<<Mov as TryEncode>::Encoded>() as i64;
+macro_rules! v9_op_match {
+    ($op: expr, |$x: ident| $y: expr) => {
+        match $op {
+            Op::Branch($x) => $y,
+            Op::FAdd($x) => $y,
+            Op::FCmp($x) => $y,
+            Op::IAdd($x) => $y,
+            Op::ICmp($x) => $y,
+            Op::LdPka($x) => $y,
+            Op::LeaPka($x) => $y,
+            Op::Load($x) => $y,
+            Op::Mov($x) => $y,
+            Op::Nop($x) => $y,
+            Op::ShiftLop($x) => $y,
+            Op::Store($x) => $y,
+            _ => panic!("Unsupported op: {}", $op),
+        }
+    };
+}
+
+fn encode_instr(
+    ip: i64,
+    instr: &Instr,
+    arch: u8,
+    labels: &FxHashMap<Label, i64>,
+) -> [u32; 2] {
+    let e = V9Encoder {
+        ip,
+        instr,
+        arch,
+        labels,
+    };
+    v9_op_match!(&instr.op, |op| op.encode(e))
+}
 
 pub fn encode_v9(s: &Shader<'_>, arch: u8) -> Vec<u32> {
     let mut labels = FxHashMap::default();
