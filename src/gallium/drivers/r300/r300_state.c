@@ -1332,11 +1332,7 @@ static void r300_delete_fs_state(struct pipe_context* pipe, void* shader)
         free(tmp->error);
         FREE(tmp);
     }
-    if (fs->state.type == PIPE_SHADER_IR_NIR) {
-        ralloc_free(fs->state.ir.nir);
-    } else {
-        FREE((void*)fs->state.tokens);
-    }
+    ralloc_free(fs->state.ir.nir);
     FREE(shader);
 }
 
@@ -2188,8 +2184,7 @@ static void* r300_create_vs_state(struct pipe_context* pipe,
         }
     }
 
-    if (!vs->first)
-        vs->first = vs->shader = CALLOC_STRUCT(r300_vertex_shader_code);
+    vs->first = vs->shader = CALLOC_STRUCT(r300_vertex_shader_code);
     if (r300->screen->caps.has_tcl) {
         r300_translate_vertex_shader(r300, vs);
     } else {
@@ -2278,11 +2273,7 @@ static void r300_delete_vs_state(struct pipe_context* pipe, void* shader)
         FREE(vs->first);
     }
 
-    if (vs->state.type == PIPE_SHADER_IR_NIR) {
-        ralloc_free(vs->state.ir.nir);
-    } else {
-        FREE((void*)vs->state.tokens);
-    }
+    ralloc_free(vs->state.ir.nir);
     FREE(shader);
 }
 
