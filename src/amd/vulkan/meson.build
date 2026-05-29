@@ -38,11 +38,11 @@ radv_drirc = custom_target(
     '--import-path', join_paths(dir_source_root, 'src/util'),
     '--drirc-src', '@OUTPUT0@',
     '--drirc-hdr', '@OUTPUT1@',
-    '--validate', join_paths(dir_source_root, 'src/amd/vulkan/00-radv-defaults.conf'),
+    '--validate', join_paths(dir_source_root, 'src/util/00-radv-defaults.conf'),
   ],
   depend_files : files(
     join_paths(dir_source_root, 'src/util/drirc_gen.py'),
-    '00-radv-defaults.conf',
+    join_paths(dir_source_root, 'src/util/00-radv-defaults.conf'),
   ),
 )
 
