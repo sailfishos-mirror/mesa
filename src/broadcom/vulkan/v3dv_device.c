@@ -50,7 +50,7 @@
 
 #include "util/build_id.h"
 #include "util/disk_cache.h"
-#include "util/driconf.h"
+#include "v3dv_drirc.h"
 #include "util/os_file.h"
 #include "util/os_misc.h"
 #include "util/u_atomic.h"
@@ -594,35 +594,17 @@ static const struct debug_control v3dv_pipeline_cache_control[] = {
    { NULL, 0 },
 };
 
-static const driOptionDescription v3dv_dri_options[] = {
-   DRI_CONF_SECTION_PERFORMANCE
-      DRI_CONF_VK_X11_OVERRIDE_MIN_IMAGE_COUNT(0)
-      DRI_CONF_VK_X11_STRICT_IMAGE_COUNT(false)
-      DRI_CONF_VK_X11_ENSURE_MIN_IMAGE_COUNT(false)
-      DRI_CONF_VK_XWAYLAND_WAIT_READY(true)
-   DRI_CONF_SECTION_END
-
-   DRI_CONF_SECTION_MISCELLANEOUS
-      DRI_CONF_HEAP_MEMORY_PERCENT(OS_GPU_HEAP_SIZE_HEURISTIC)
-   DRI_CONF_SECTION_END
-};
-
 static void
 v3dv_init_dri_options(struct v3dv_instance *instance)
 {
-   driParseOptionInfo(&instance->available_dri_options, v3dv_dri_options,
-                      ARRAY_SIZE(v3dv_dri_options));
-   driParseConfigFiles(&instance->dri_options, &instance->available_dri_options,
-                       &(driConfigFileParseParams) {
-                          .driverName = "v3dv",
-                          .applicationName = instance->vk.app_info.app_name,
-                          .applicationVersion = instance->vk.app_info.app_version,
-                          .engineName = instance->vk.app_info.engine_name,
-                          .engineVersion = instance->vk.app_info.engine_version,
-                       });
-
-   instance->heap_memory_percent =
-            driQueryOptionf(&instance->dri_options, "heap_memory_percent");
+   v3dv_parse_dri_options(&instance->drirc,
+                          &(driConfigFileParseParams) {
+                             .driverName = "v3dv",
+                             .applicationName = instance->vk.app_info.app_name,
+                             .applicationVersion = instance->vk.app_info.app_version,
+                             .engineName = instance->vk.app_info.engine_name,
+                             .engineVersion = instance->vk.app_info.engine_version,
+                          });
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
@@ -765,8 +747,8 @@ v3dv_DestroyInstance(VkInstance _instance,
 
    VG(VALGRIND_DESTROY_MEMPOOL(instance));
 
-   driDestroyOptionCache(&instance->dri_options);
-   driDestroyOptionInfo(&instance->available_dri_options);
+   driDestroyOptionCache(&instance->drirc.options);
+   driDestroyOptionInfo(&instance->drirc.available_options);
 
    vk_instance_finish(&instance->vk);
    vk_free(&instance->vk.alloc, instance);
@@ -779,8 +761,8 @@ compute_heap_size(struct v3dv_instance *instance)
    ASSERTED const uint64_t MAX_HEAP_SIZE = 4ull * 1024ull * 1024ull * 1024ull;
    uint64_t memory;
 #if !USE_V3D_SIMULATOR
-   memory = os_get_gpu_heap_size(instance->heap_memory_percent,
-                                 &instance->heap_memory_percent);
+   memory = os_get_gpu_heap_size(instance->drirc.misc.heap_memory_percent,
+                                 &instance->drirc.misc.heap_memory_percent);
    return MIN2(MAX_HEAP_SIZE, memory);
 #else
    /* Memory allocated by the simulator is fully dedicated for the GPU so we

@@ -37,7 +37,7 @@
 #include "common/v3d_device_info.h"
 #include "wsi_common.h"
 #include "util/sparse_array.h"
-#include "util/xmlconfig.h"
+#include "v3dv_drirc.h"
 
 struct v3dv_event;
 struct v3dv_format;
@@ -156,10 +156,7 @@ bool v3dv_meta_can_use_tlb(struct v3dv_image *image,
 struct v3dv_instance {
    struct vk_instance vk;
 
-   struct driOptionCache dri_options;
-   struct driOptionCache available_dri_options;
-
-   float heap_memory_percent;
+   struct v3dv_drirc drirc;
 
    bool pipeline_cache_enabled;
    bool default_pipeline_cache_enabled;
