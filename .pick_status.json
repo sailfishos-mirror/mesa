@@ -1234,7 +1234,7 @@
         "description": "nir/algebraic: prevent ffract optimization on lowered ffloor",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c6aaafa3a1745c0c5a3b4cc0e023b74e2eccbaf4",
         "notes": null
