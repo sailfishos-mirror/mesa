@@ -650,17 +650,6 @@ emit(struct jay_codegen *jc,
       break;
    }
 
-   case JAY_OPCODE_BYTE_PACK:
-      jc_MOV(jc, gen_restride(gen_retype(dst, GEN_TYPE_UB), 1, 1, 0),
-             gen_restride(gen_retype(SRC(0), GEN_TYPE_UB), 4, 1, 0));
-      break;
-
-   case JAY_OPCODE_WORD_PACK:
-      jc->state.exec_size = 2 * exec_size;
-      jc_MOV(jc, gen_retype(dst, GEN_TYPE_UW),
-             gen_subscript(jc->devinfo, SRC(0), GEN_TYPE_UW, 0));
-      break;
-
    case JAY_OPCODE_SHR_ODD_SUBSPANS_BY_4:
       jc_append2(GEN_OP_SHR, dst, SRC(0), gen_imm_uv(0x44440000));
       break;
