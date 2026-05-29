@@ -574,8 +574,8 @@ static bool pvr_physical_device_get_properties(
       /* Vulkan 1.0 */
       .apiVersion = get_api_version(),
       .driverVersion = vk_get_driver_version(),
-      .vendorID = pdevice->instance->force_vk_vendor ?
-                  pdevice->instance->force_vk_vendor : VK_VENDOR_ID_IMAGINATION,
+      .vendorID = pdevice->instance->drirc.debug.force_vk_vendor ?
+                  pdevice->instance->drirc.debug.force_vk_vendor : VK_VENDOR_ID_IMAGINATION,
       .deviceID = dev_info->ident.device_id,
       .deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
       /* deviceName and pipelineCacheUUID are filled below .*/
@@ -1016,7 +1016,7 @@ static bool pvr_device_is_conformant(const struct pvr_device_info *info)
 static inline uint64_t pvr_compute_heap_size(struct pvr_instance *instance)
 {
    uint64_t available_ram =
-      os_get_gpu_heap_size(instance->heap_memory_percent, NULL);
+      os_get_gpu_heap_size(instance->drirc.misc.heap_memory_percent, NULL);
    return MAX2(available_ram, PVR_MAX_MEMORY_ALLOCATION_SIZE);
 }
 
