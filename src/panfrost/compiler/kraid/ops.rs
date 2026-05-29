@@ -58,6 +58,37 @@ impl fmt::Display for OpBranch {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(cmp_type in [F32, S32, U32, V2F16, V2S16, V2U16])]
+pub struct OpCSel {
+    #[dst_type(VNIN)]
+    pub dst: Dst,
+
+    pub cmp_type: DataType,
+    pub cmp_op: CmpOp,
+
+    pub cmp_srcs: [Src; 2],
+    #[src_type(VNIN)]
+    pub sel_srcs: [Src; 2],
+}
+
+impl fmt::Display for OpCSel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = CSEL{}{} {} {} {} {}",
+            &self.dst,
+            self.cmp_type,
+            self.cmp_op,
+            self.fmt_src(&self.cmp_srcs[0]),
+            self.fmt_src(&self.cmp_srcs[1]),
+            self.fmt_src(&self.sel_srcs[0]),
+            self.fmt_src(&self.sel_srcs[1]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [F16, V2F16, F32])]
 pub struct OpFAdd {
     pub dst: Dst,
@@ -506,6 +537,7 @@ impl fmt::Display for OpStore {
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     Branch(OpBranch),
+    CSel(OpCSel),
     FAdd(OpFAdd),
     FCmp(OpFCmp),
     IAdd(OpIAdd),

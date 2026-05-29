@@ -371,6 +371,41 @@ impl V9Instr for OpBranch {
     }
 }
 
+impl TryFrom<CmpOp> for CmpfM {
+    type Error = &'static str;
+
+    fn try_from(cmp_op: CmpOp) -> Result<CmpfM, &'static str> {
+        match cmp_op {
+            CmpOp::Eq => Ok(CmpfM::Eq),
+            CmpOp::Gt => Ok(CmpfM::Gt),
+            CmpOp::Ge => Ok(CmpfM::Ge),
+            CmpOp::Ne => Ok(CmpfM::Ne),
+            CmpOp::Lt => Ok(CmpfM::Lt),
+            CmpOp::Le => Ok(CmpfM::Le),
+            CmpOp::GtLt => Ok(CmpfM::Gtlt),
+            CmpOp::Total => Ok(CmpfM::Total),
+        }
+    }
+}
+
+impl V9Instr for OpCSel {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        Csel::get_info(self.cmp_type.try_into().ok()?, arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Csel {
+            variant: self.cmp_type.try_into().unwrap(),
+            cmpf: self.cmp_op.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.cmp_srcs[0]),
+            src1: op_encode_src(self, &self.cmp_srcs[1]),
+            src2: op_encode_src(self, &self.sel_srcs[0]),
+            src3: op_encode_src(self, &self.sel_srcs[1]),
+        })
+    }
+}
+
 impl V9Instr for OpFAdd {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
         if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
@@ -413,16 +448,7 @@ impl V9Instr for OpFCmp {
             dst: op_encode_dst(self, &self.dst),
             src0: op_encode_src(self, &self.srcs[0]),
             src1: op_encode_src(self, &self.srcs[1]),
-            cmpf: match self.cmp_op {
-                CmpOp::Eq => CmpfM::Eq,
-                CmpOp::Gt => CmpfM::Gt,
-                CmpOp::Ge => CmpfM::Ge,
-                CmpOp::Ne => CmpfM::Ne,
-                CmpOp::Lt => CmpfM::Lt,
-                CmpOp::Le => CmpfM::Le,
-                CmpOp::GtLt => CmpfM::Gtlt,
-                CmpOp::Total => CmpfM::Total,
-            },
+            cmpf: self.cmp_op.try_into().unwrap(),
             result_type: CmpResultTypeM::M1,
         })
     }
@@ -468,15 +494,7 @@ impl V9Instr for OpICmp {
             dst: op_encode_dst(self, &self.dst),
             src0: op_encode_src(self, &self.srcs[0]),
             src1: op_encode_src(self, &self.srcs[1]),
-            cmpf: match self.cmp_op {
-                CmpOp::Eq => CmpfM::Eq,
-                CmpOp::Gt => CmpfM::Gt,
-                CmpOp::Ge => CmpfM::Ge,
-                CmpOp::Ne => CmpfM::Ne,
-                CmpOp::Lt => CmpfM::Lt,
-                CmpOp::Le => CmpfM::Le,
-                cmp_op => panic!("Unsupported comparison: {cmp_op}"),
-            },
+            cmpf: self.cmp_op.try_into().unwrap(),
             result_type: CmpResultTypeM::M1,
         })
     }
@@ -647,6 +665,7 @@ macro_rules! v9_op_match {
     ($op: expr, |$x: ident| $y: expr) => {
         match $op {
             Op::Branch($x) => $y,
+            Op::CSel($x) => $y,
             Op::FAdd($x) => $y,
             Op::FCmp($x) => $y,
             Op::IAdd($x) => $y,

@@ -400,6 +400,24 @@ impl<'a> ShaderFromNir<'a> {
                     accum_op: CmpAccumOp::None,
                 });
             }
+            nir_op_imin | nir_op_imax | nir_op_umin | nir_op_umax => {
+                let num_type = match alu.input_type(0).base_type() {
+                    ALUType::INT => NumericType::SignedInteger,
+                    ALUType::UINT => NumericType::UnsignedInteger,
+                    _ => panic!("Invalid integer base type"),
+                };
+                b.push_op(OpCSel {
+                    dst: dst.into(),
+                    cmp_type: dst_type(num_type),
+                    cmp_op: match alu.op {
+                        nir_op_imin | nir_op_umin => CmpOp::Lt,
+                        nir_op_imax | nir_op_umax => CmpOp::Gt,
+                        _ => panic!("Unsupported integer min/max op"),
+                    },
+                    cmp_srcs: [srcs(0), srcs(1)],
+                    sel_srcs: [srcs(0), srcs(1)],
+                });
+            }
             nir_op_ishl | nir_op_ishr | nir_op_ushr | nir_op_urol
             | nir_op_uror => {
                 b.push_op(OpShiftLop {
