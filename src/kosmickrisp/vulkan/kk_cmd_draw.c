@@ -614,7 +614,8 @@ kk_CmdBindIndexBuffer2(VkCommandBuffer commandBuffer, VkBuffer _buffer,
       buffer ? vk_buffer_range(&buffer->vk, offset, size) : 0;
    cmd->state.gfx.index.offset = offset;
    cmd->state.gfx.index.bytes_per_index = vk_index_type_to_bytes(indexType);
-   cmd->state.gfx.index.restart = vk_index_to_restart(indexType);
+
+   vk_cmd_set_index_buffer_type(&cmd->vk, indexType);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -958,6 +959,7 @@ struct kk_draw_data {
    uint64_t index_buffer_offset;
    uint64_t index_buffer_range_B;
    uint64_t index_buffer_size_B;
+   uint32_t restart_index;
    uint8_t index_size;
    bool indirect;
    bool indexed;
@@ -1138,8 +1140,7 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
       .out_draw = out_draws.gpu,
       .in_draw_stride_el = data.indirect_draws.stride / sizeof(uint32_t),
       /* Handle primitive restart disable by forcing index to UINT32_MAX */
-      .restart_index =
-         !data.restart ? UINT32_MAX : cmd->state.gfx.index.restart,
+      .restart_index = !data.restart ? UINT32_MAX : data.restart_index,
       .index_buffer_size_el = data.index_buffer_range_B / data.index_size,
       .in_el_size_B = data.index_size,
       .out_el_size_B = 4u,
@@ -1158,6 +1159,7 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    data.index_buffer_offset = sizeof(struct poly_heap);
    data.index_buffer_range_B = dev->heap->size_B - sizeof(struct poly_heap);
    data.index_buffer_size_B = dev->heap->size_B;
+   data.restart_index = UINT32_MAX;
    data.index_size = 4u;
    data.indirect = true;
    data.indexed = true;
@@ -1274,10 +1276,21 @@ requires_index_promotion(struct kk_draw_data data)
    }
 }
 
+static bool
+requires_unroll_restart(struct kk_draw_data data)
+{
+   if (!data.restart || !data.indexed)
+      return false;
+
+   /* Unroll if unusual primitive restart index is set */
+   uint32_t default_idx = BITFIELD_RANGE(0, data.index_size * 8);
+   return data.restart_index != default_idx;
+}
+
 /* TODO_KOSMICKRISP: Index robustness should not need special handling with
  * Metal 4 command encoders */
 static bool
-kk_needs_index_robustness(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
+requires_index_robustness(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 {
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
 
@@ -1347,12 +1360,14 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    kk_flush_gfx_state(cmd);
 
    data.restart = cmd->vk.dynamic_graphics_state.ia.primitive_restart_enable;
+   data.restart_index =
+      cmd->vk.dynamic_graphics_state.ia.primitive_restart_index;
 
    if (data.predicate_count > 0)
       data = kk_predicate_draws(cmd, data);
 
    if (data.prim == MESA_PRIM_TRIANGLE_FAN || requires_index_promotion(data) ||
-       kk_needs_index_robustness(cmd, data))
+       requires_unroll_restart(data) || requires_index_robustness(cmd, data))
       data = kk_unroll_geometry(cmd, data);
 
    for (uint32_t i = 0; i < data.draw_count; i++) {

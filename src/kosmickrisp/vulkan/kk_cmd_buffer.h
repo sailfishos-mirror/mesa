@@ -140,7 +140,6 @@ struct kk_graphics_state {
       uint64_t buffer_size;
       uint64_t range;
       uint64_t offset;
-      uint32_t restart;
       uint8_t bytes_per_index;
    } index;
 
