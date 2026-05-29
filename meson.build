@@ -844,8 +844,8 @@ if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv') or 
   rust = import('rust')
 
   # Keep this in sync with the `msrv` in clippy.toml
-  if rustc.version().version_compare('< 1.82')
-    error('Mesa requires Rust 1.82.0 or newer')
+  if rustc.version().version_compare('< 1.85')
+    error('Mesa requires Rust 1.85.0 or newer')
   endif
 
   # bindgen 0.71 is the first version that knows about `editions`
