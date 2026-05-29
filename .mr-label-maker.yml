@@ -309,7 +309,7 @@ merge_requests:
         '^src/virtio/ci/': ['venus']
         '^src/virtio/magma-gpu-rs/': ['gfxstream']
         '^src/util/': ['util']
-        '^src/util/00-.*-defaults.conf': ['drirc']
+        '^src/.*/00-.*-defaults.conf': ['drirc']
         '^src/vulkan/': ['vulkan']
         '^src/vulkan/wsi/': ['wsi']
         '^src/vulkan/wsi/wsi_common_metal': ['macOS']

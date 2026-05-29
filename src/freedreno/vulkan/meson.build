@@ -19,7 +19,7 @@ tu_entrypoints = custom_target(
 
 tu_drirc = custom_target(
   'tu_drirc',
-  input  : [files('tu_drirc_gen.py'), drirc_gen, join_paths(dir_source_root, 'src/util/00-turnip-defaults.conf')],
+  input  : [files('tu_drirc_gen.py'), drirc_gen, '00-turnip-defaults.conf'],
   output : ['tu_drirc.c', 'tu_drirc.h'],
   command : [
     prog_python, '@INPUT0@',

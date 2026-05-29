@@ -6,7 +6,7 @@
 
 vn_drirc = custom_target(
   'vn_drirc',
-  input  : [files('vn_drirc_gen.py'), drirc_gen, join_paths(dir_source_root, 'src/util/00-venus-defaults.conf')],
+  input  : [files('vn_drirc_gen.py'), drirc_gen, '00-venus-defaults.conf'],
   output : ['vn_drirc.c', 'vn_drirc.h'],
   command : [
     prog_python, '@INPUT0@',

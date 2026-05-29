@@ -52,7 +52,7 @@ radv_entrypoints = custom_target(
 
 radv_drirc = custom_target(
   'radv_drirc',
-  input  : [files('radv_drirc_gen.py'), drirc_gen, join_paths(dir_source_root, 'src/util/00-radv-defaults.conf')],
+  input  : [files('radv_drirc_gen.py'), drirc_gen, '00-radv-defaults.conf'],
   output : ['radv_drirc.c', 'radv_drirc.h'],
   command : [
     prog_python, '@INPUT0@',

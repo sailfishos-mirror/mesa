@@ -51,7 +51,7 @@ hk_files = files(
 
 hk_drirc = custom_target(
   'hk_drirc',
-  input  : [files('hk_drirc_gen.py'), drirc_gen, join_paths(dir_source_root, 'src/util/00-hk-defaults.conf')],
+  input  : [files('hk_drirc_gen.py'), drirc_gen, '00-hk-defaults.conf'],
   output : ['hk_drirc.c', 'hk_drirc.h'],
   command : [
     prog_python, '@INPUT0@',

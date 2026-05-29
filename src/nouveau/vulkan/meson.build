@@ -123,7 +123,7 @@ nvkcl = custom_target(
 
 nvk_drirc = custom_target(
   'nvk_drirc',
-  input  : [files('nvk_drirc_gen.py'), drirc_gen, join_paths(dir_source_root, 'src/util/00-nvk-defaults.conf')],
+  input  : [files('nvk_drirc_gen.py'), drirc_gen, '00-nvk-defaults.conf'],
   output : ['nvk_drirc.c', 'nvk_drirc.h'],
   command : [
     prog_python, '@INPUT0@',
