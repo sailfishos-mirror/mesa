@@ -217,8 +217,7 @@ to_gen_operand(jay_function *f,
          }
 
          /* Packed floats have restrictions on mixed sizes.  Use <2>. */
-         if (jay_type_size_bits(I->type) == 16 &&
-             jay_type_size_bits(jay_src_type(I, 0)) != 16) {
+         if (I->type == JAY_TYPE_F16 && jay_type_size_bits(src0_type) != 16) {
             assert(jay_num_values(d) == 1 && "must not vectorize mixed float");
             R = gen_restride(R, 4, 2, 2);
          }
