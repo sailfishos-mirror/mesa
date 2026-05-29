@@ -1540,6 +1540,13 @@ wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
 
    for (size_t i = 0; i < chain->present_timing.timings_count; i++) {
       if (chain->present_timing.timings[i].serial == timing_serial) {
+         /* Prevent re-processing old records if same timing_serial is passed in multiple times. This
+          * is prep for future work and a safe-guard that should not get hit in the current state of
+          * things.
+          */
+         if (chain->present_timing.timings[i].complete)
+            break;
+
          chain->present_timing.timings[i].complete_time = timestamp;
          chain->present_timing.timings[i].complete = VK_TRUE;
 
@@ -2171,18 +2178,24 @@ wsi_common_queue_present(const struct wsi_device *wsi,
       for (uint32_t i = 0; i < present_timings_info->swapchainCount; i++) {
          const VkPresentTimingInfoEXT *info = &present_timings_info->pTimingInfos[i];
          VK_FROM_HANDLE(wsi_swapchain, swapchain, pPresentInfo->pSwapchains[i]);
-         if (results[i] != VK_SUCCESS || !swapchain->set_timing_request || info->presentStageQueries == 0)
+         if (results[i] != VK_SUCCESS || !swapchain->set_timing_request)
             continue;
 
          assert(swapchain->present_timing.active);
 
-         uint32_t image_index = pPresentInfo->pImageIndices[i];
+         /* Only alloc timing record if present timing feedback is requested. */
+         if (info->presentStageQueries) {
+            uint32_t image_index = pPresentInfo->pImageIndices[i];
 
-         /* EXT_present_timing is defined to only work with present_id2.
-          * It's only used when reporting back timings. */
-         results[i] = wsi_common_allocate_timing_request(
-               swapchain, info, present_ids2 ? present_ids2->pPresentIds[i] : 0,
-               swapchain->get_wsi_image(swapchain, image_index));
+            /* EXT_present_timing is defined to only work with present_id2.
+            * It's only used when reporting back timings. */
+            results[i] = wsi_common_allocate_timing_request(
+                  swapchain, info, present_ids2 ? present_ids2->pPresentIds[i] : 0,
+                  swapchain->get_wsi_image(swapchain, image_index));
+         } else {
+            /* Make sure it is non-zero / incrementing, to keep wsi backends happy. */
+            ++swapchain->present_timing.serial;
+         }
 
          /* Application is responsible for allocating sufficient size here.
           * We fail with VK_ERROR_PRESENT_TIMING_QUEUE_FULL_EXT if application is bugged. */
