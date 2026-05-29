@@ -1277,12 +1277,31 @@ requires_index_promotion(struct kk_draw_data data)
 }
 
 static bool
-requires_unroll_restart(struct kk_draw_data data)
+requires_unroll_restart(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 {
+   struct kk_device *dev = kk_cmd_buffer_device(cmd);
+
    if (!data.restart || !data.indexed)
       return false;
 
-   /* Unroll if unusual primitive restart index is set */
+   switch (data.prim) {
+   case MESA_PRIM_POINTS:
+   case MESA_PRIM_LINES:
+   case MESA_PRIM_TRIANGLES:
+   case MESA_PRIM_LINES_ADJACENCY:
+   case MESA_PRIM_TRIANGLES_ADJACENCY:
+      /* Unroll list restart only if the user requests it, to avoid associated
+       * cost otherwise. Some applications unintentionally leave the primitive
+       * restart flag enabled while using list primitives without any restarts,
+       * and in these cases we can avoid the cost of unroll, even though they
+       * are technically against spec. */
+      return dev->vk.enabled_features.primitiveTopologyListRestart;
+   default:
+      break;
+   }
+
+   /* For topologies that natively support restart, unroll if unusual primitive
+    * restart index is set by user */
    uint32_t default_idx = BITFIELD_RANGE(0, data.index_size * 8);
    return data.restart_index != default_idx;
 }
@@ -1367,7 +1386,8 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
       data = kk_predicate_draws(cmd, data);
 
    if (data.prim == MESA_PRIM_TRIANGLE_FAN || requires_index_promotion(data) ||
-       requires_unroll_restart(data) || requires_index_robustness(cmd, data))
+       requires_unroll_restart(cmd, data) ||
+       requires_index_robustness(cmd, data))
       data = kk_unroll_geometry(cmd, data);
 
    for (uint32_t i = 0; i < data.draw_count; i++) {
