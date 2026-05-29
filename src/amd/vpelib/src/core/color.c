@@ -629,8 +629,6 @@ enum vpe_status vpe_color_update_3dlut(
         stream_ctx->lut3d_func->state.bits.is_dma = 0;
     }
 
-    stream_ctx->uid_3dlut = stream_ctx->stream.tm_params.UID;
-
     return VPE_STATUS_OK;
 }
 
@@ -1081,6 +1079,8 @@ enum vpe_status vpe_color_update_movable_cm(
                 vpe_color_update_gamut(vpe_priv, out_lut_cs, vpe_priv->output_ctx.cs,
                     output_ctx->gamut_remap, !enable_3dlut);
             }
+
+            stream_ctx->uid_3dlut = stream_ctx->stream.tm_params.UID;
         }
     }
 exit:
