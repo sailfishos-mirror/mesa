@@ -8714,7 +8714,7 @@
         "description": "pvr: Fix load-op shader when loading from a 2d image view of a 3d image",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7b28b6c43d5f5e5b51f709b57e44c1f187f6a21c",
         "notes": null
