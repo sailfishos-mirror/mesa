@@ -352,42 +352,39 @@ kk_lower_fs_blend(nir_shader *nir,
    static_assert(ARRAY_SIZE(opts.rt) == 8, "max RTs out of sync");
 
    for (unsigned i = 0; i < ARRAY_SIZE(opts.rt); ++i) {
-      enum pipe_format format =
+      const struct vk_color_blend_attachment_state *att =
+         &state->cb->attachments[i];
+      nir_lower_blend_rt *rt = &opts.rt[i];
+
+      rt->format =
          vk_format_to_pipe_format(state->rp->color_attachment_formats[i]);
-      if (state->cb->attachments[i].blend_enable) {
-         opts.rt[i] = (nir_lower_blend_rt){
-            .format = format,
+      rt->colormask = att->write_mask;
 
-            .rgb.src_factor = vk_blend_factor_to_pipe(
-               state->cb->attachments[i].src_color_blend_factor),
-            .rgb.dst_factor = vk_blend_factor_to_pipe(
-               state->cb->attachments[i].dst_color_blend_factor),
-            .rgb.func =
-               vk_blend_op_to_pipe(state->cb->attachments[i].color_blend_op),
+      if (!att->blend_enable) {
+         rt->rgb.src_factor = rt->alpha.src_factor = PIPE_BLENDFACTOR_ONE;
+         rt->rgb.dst_factor = rt->alpha.dst_factor = PIPE_BLENDFACTOR_ZERO;
+         rt->rgb.func = rt->alpha.func = PIPE_BLEND_ADD;
+      } else if (att->color_blend_op >= VK_BLEND_OP_ZERO_EXT) {
+         rt->advanced_blend = true;
+         rt->blend_mode = vk_advanced_blend_op_to_pipe(att->color_blend_op);
+         rt->src_premultiplied = att->src_premultiplied;
+         rt->dst_premultiplied = att->dst_premultiplied;
+         rt->overlap = vk_blend_overlap_to_pipe(att->blend_overlap);
 
-            .alpha.src_factor = vk_blend_factor_to_pipe(
-               state->cb->attachments[i].src_alpha_blend_factor),
-            .alpha.dst_factor = vk_blend_factor_to_pipe(
-               state->cb->attachments[i].dst_alpha_blend_factor),
-            .alpha.func =
-               vk_blend_op_to_pipe(state->cb->attachments[i].alpha_blend_op),
-
-            .colormask = state->cb->attachments[i].write_mask,
-         };
+         /* Unused by runtime and not supported */
+         assert(!att->clamp_results);
       } else {
-         opts.rt[i] = (nir_lower_blend_rt){
-            .format = format,
+         rt->rgb.src_factor =
+            vk_blend_factor_to_pipe(att->src_color_blend_factor);
+         rt->rgb.dst_factor =
+            vk_blend_factor_to_pipe(att->dst_color_blend_factor);
+         rt->rgb.func = vk_blend_op_to_pipe(att->color_blend_op);
 
-            .rgb.src_factor = PIPE_BLENDFACTOR_ONE,
-            .rgb.dst_factor = PIPE_BLENDFACTOR_ZERO,
-            .rgb.func = PIPE_BLEND_ADD,
-
-            .alpha.src_factor = PIPE_BLENDFACTOR_ONE,
-            .alpha.dst_factor = PIPE_BLENDFACTOR_ZERO,
-            .alpha.func = PIPE_BLEND_ADD,
-
-            .colormask = state->cb->attachments[i].write_mask,
-         };
+         rt->alpha.src_factor =
+            vk_blend_factor_to_pipe(att->src_alpha_blend_factor);
+         rt->alpha.dst_factor =
+            vk_blend_factor_to_pipe(att->dst_alpha_blend_factor);
+         rt->alpha.func = vk_blend_op_to_pipe(att->alpha_blend_op);
       }
    }
    /* Fold constant offset srcs for IO. */

@@ -156,6 +156,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
 
       .EXT_attachment_feedback_loop_layout = true,
       .EXT_attachment_feedback_loop_dynamic_state = true,
+      .EXT_blend_operation_advanced = true,
       .EXT_calibrated_timestamps = true,
       .EXT_conditional_rendering = true,
       .EXT_debug_marker = true,
@@ -379,6 +380,9 @@ kk_get_device_features(
 
       /* VK_EXT_attachment_feedback_loop_dynamic_state */
       .attachmentFeedbackLoopDynamicState = true,
+
+      /* VK_EXT_blend_operation_advanced */
+      .advancedBlendCoherentOperations = true,
 
       /* VK_EXT_conditional_rendering */
       .conditionalRendering = true,
@@ -660,6 +664,14 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
 
       /* VK_KHR_push_descriptor */
       .maxPushDescriptors = KK_MAX_PUSH_DESCRIPTORS,
+
+      /* VK_EXT_blend_operation_advanced */
+      .advancedBlendMaxColorAttachments = KK_MAX_RTS,
+      .advancedBlendIndependentBlend = true,
+      .advancedBlendNonPremultipliedSrcColor = true,
+      .advancedBlendNonPremultipliedDstColor = true,
+      .advancedBlendCorrelatedOverlap = true,
+      .advancedBlendAllOperations = true,
 
       /* VK_EXT_custom_border_color */
       .maxCustomBorderColorSamplers = 4000,
