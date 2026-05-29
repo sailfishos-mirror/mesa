@@ -63,7 +63,7 @@ pub extern "C" fn kraid_compile_nir(
     nir: &mut nir_shader,
     inputs: &pan_compile_inputs,
     binary: &mut util_dynarray,
-    _info: &mut pan_shader_info,
+    info: &mut pan_shader_info,
 ) {
     let model = model_for_gpu_id(inputs.gpu_id).unwrap();
 
@@ -87,4 +87,6 @@ pub extern "C" fn kraid_compile_nir(
 
     let bin = model.encode_shader(&s);
     dynarray_append_vec(binary, bin);
+
+    info.work_reg_count = 64;
 }
