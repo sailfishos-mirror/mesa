@@ -777,8 +777,12 @@ pick_regs(jay_ra_state *ra,
 
    /* Make sure we use the optimal stride for roundrobin RA */
    if (file == GPR) {
-      while (partition->blocks[GPR][rr->block].stride != stride) {
-         rr->block = (rr->block + 1 == nr_blocks) ? 0 : rr->block + 1;
+      for (unsigned i = 0; i < nr_blocks; ++i) {
+         if (partition->blocks[GPR][rr->block].stride == stride) {
+            break;
+         } else {
+            rr->block = (rr->block + 1 == nr_blocks) ? 0 : rr->block + 1;
+         }
       }
    }
 
