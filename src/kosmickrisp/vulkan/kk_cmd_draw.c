@@ -526,7 +526,8 @@ kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
    mtl_release(cmd->state.gfx.render_pass_descriptor);
    cmd->state.gfx.render_pass_descriptor = NULL;
 
-   if (render->flags & VK_RENDERING_SUSPENDING_BIT)
+   if (render->flags &
+       (VK_RENDERING_SUSPENDING_BIT | VK_RENDERING_CUSTOM_RESOLVE_BIT_EXT))
       need_resolve = false;
 
    memset(render, 0, sizeof(*render));
@@ -534,6 +535,69 @@ kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
    if (need_resolve) {
       kk_meta_resolve_rendering(cmd, &vk_render);
    }
+}
+
+VKAPI_ATTR void VKAPI_CALL
+kk_CmdBeginCustomResolveEXT(
+   VkCommandBuffer commandBuffer,
+   UNUSED const VkBeginCustomResolveInfoEXT *pBeginCustomResolveInfo)
+{
+   VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
+   struct kk_rendering_state *render = &cmd->state.gfx.render;
+
+   VkRenderingAttachmentInfo color_atts[KK_MAX_RTS];
+   for (uint32_t i = 0; i < render->color_att_count; i++) {
+      color_atts[i] = (VkRenderingAttachmentInfo){
+         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      };
+
+      if (render->color_att[i].resolve_mode != VK_RESOLVE_MODE_CUSTOM_BIT_EXT)
+         continue;
+
+      struct kk_image_view *iview = render->color_att[i].resolve_iview;
+
+      color_atts[i].imageView = kk_image_view_to_handle(iview);
+      color_atts[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+   }
+
+   VkRenderingAttachmentInfo depth_att = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+   };
+   if (render->depth_att.resolve_mode == VK_RESOLVE_MODE_CUSTOM_BIT_EXT) {
+      struct kk_image_view *iview = render->depth_att.resolve_iview;
+
+      depth_att.imageView = kk_image_view_to_handle(iview);
+      depth_att.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+   }
+
+   VkRenderingAttachmentInfo stencil_att = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+   };
+   if (render->stencil_att.resolve_mode == VK_RESOLVE_MODE_CUSTOM_BIT_EXT) {
+      struct kk_image_view *iview = render->stencil_att.resolve_iview;
+
+      stencil_att.imageView = kk_image_view_to_handle(iview);
+      stencil_att.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+   }
+
+   VkRenderingInfo rendering_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+      .flags = VK_RENDERING_LOCAL_READ_CONCURRENT_ACCESS_CONTROL_BIT_KHR,
+      .renderArea = render->area,
+      .layerCount = render->layer_count,
+      .viewMask = render->view_mask,
+      .colorAttachmentCount = render->color_att_count,
+      .pColorAttachments = color_atts,
+      .pDepthAttachment = &depth_att,
+      .pStencilAttachment = &stencil_att,
+   };
+
+   const VkRenderingEndInfoKHR end_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_END_INFO_KHR,
+   };
+
+   kk_CmdEndRendering2KHR(commandBuffer, &end_info);
+   kk_CmdBeginRendering(commandBuffer, &rendering_info);
 }
 
 VKAPI_ATTR void VKAPI_CALL

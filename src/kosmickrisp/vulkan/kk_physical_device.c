@@ -159,6 +159,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_blend_operation_advanced = true,
       .EXT_calibrated_timestamps = true,
       .EXT_conditional_rendering = true,
+      .EXT_custom_resolve = true,
       .EXT_debug_marker = true,
       .EXT_depth_clip_control = true,
       .EXT_extended_dynamic_state3 = true,
@@ -388,6 +389,9 @@ kk_get_device_features(
       .conditionalRendering = true,
       .inheritedConditionalRendering = true,
 
+      /* VK_EXT_custom_resolve */
+      .customResolve = true,
+
       /* VK_EXT_depth_clip_control */
       .depthClipControl = true,
 
@@ -586,10 +590,11 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       /* Vulkan 1.2 properties */
       .supportedDepthResolveModes =
          VK_RESOLVE_MODE_SAMPLE_ZERO_BIT | VK_RESOLVE_MODE_AVERAGE_BIT |
-         VK_RESOLVE_MODE_MIN_BIT | VK_RESOLVE_MODE_MAX_BIT,
-      .supportedStencilResolveModes = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT |
-                                      VK_RESOLVE_MODE_MIN_BIT |
-                                      VK_RESOLVE_MODE_MAX_BIT,
+         VK_RESOLVE_MODE_MIN_BIT | VK_RESOLVE_MODE_MAX_BIT |
+         VK_RESOLVE_MODE_CUSTOM_BIT_EXT,
+      .supportedStencilResolveModes =
+         VK_RESOLVE_MODE_SAMPLE_ZERO_BIT | VK_RESOLVE_MODE_MIN_BIT |
+         VK_RESOLVE_MODE_MAX_BIT | VK_RESOLVE_MODE_CUSTOM_BIT_EXT,
       .independentResolveNone = true,
       .independentResolve = true,
       .driverID = VK_DRIVER_ID_MESA_KOSMICKRISP,
