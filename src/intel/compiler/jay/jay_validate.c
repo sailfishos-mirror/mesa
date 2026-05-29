@@ -92,7 +92,7 @@ get_src_words(struct validate_state *validate, jay_inst *I, unsigned s)
       return 4;
    }
 
-   if (I->op == JAY_OPCODE_GPR_FROM_UGPRS || I->op == JAY_OPCODE_ZIP_UGPR16) {
+   if (I->op == JAY_OPCODE_ZIP_UGPR16) {
       return jay_ugpr_per_grf(validate->func->shader);
    }
 
@@ -263,14 +263,6 @@ validate_inst(struct validate_state *validate, jay_inst *I)
       CHECK(jay_is_flag(I->src[2]) && "SEL src[2] (selector) must be a flag");
    } else if (I->op == JAY_OPCODE_SYNC) {
       CHECK(validate->post_ra && "SYNC does not exist while scheduling");
-   } else if (I->op == JAY_OPCODE_GPR_FROM_UGPRS) {
-      enum jay_type src_type = jay_gpr_from_ugprs_src_type(I);
-      CHECK(I->dst.file == GPR);
-      CHECK(I->src[0].file == UGPR);
-      CHECK(jay_num_values(I->src[0]) == 16);
-      CHECK(src_type == JAY_TYPE_U8 || src_type == JAY_TYPE_U16);
-      CHECK(jay_gpr_from_ugprs_stride(I) <= 16 / jay_type_size_bits(src_type));
-      CHECK(jay_gpr_from_ugprs_index(I) < 16 / jay_type_size_bits(src_type));
    } else if (I->op == JAY_OPCODE_ZIP_UGPR16) {
       CHECK(I->dst.file == GPR);
       CHECK(I->src[0].file == UGPR && I->src[1].file == UGPR);

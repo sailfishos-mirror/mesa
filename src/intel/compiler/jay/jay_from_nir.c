@@ -1476,12 +1476,19 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_load_sample_pos:
    case nir_intrinsic_load_sample_pos_or_center:
       assert(fs);
+      jay_def gpr = jay_alloc_def(b, GPR, 1);
+      jay_CVT(b, JAY_TYPE_U32, gpr, fs->sample_pos, JAY_TYPE_U16, JAY_ROUND, 0);
 
       jay_foreach_comp(dst, c) {
-         jay_def gpr =
-            jay_GPR_FROM_UGPRS_u32(b, fs->sample_pos, JAY_TYPE_U8, 2, c);
+         /* We do this in two steps because regioning restrictions forbid
+          * g14.1<4>:u8 as an operand to a float instruction.
+          */
+         if (c) {
+            gpr = jay_CVT_u32(b, gpr, JAY_TYPE_U8, JAY_ROUND, 1);
+         }
+
          jay_MUL(b, JAY_TYPE_F32, jay_extract(dst, c),
-                 jay_CVT_f32(b, gpr, JAY_TYPE_U32, JAY_ROUND, 0),
+                 jay_CVT_f32(b, gpr, JAY_TYPE_U8, JAY_ROUND, 0),
                  jay_imm_f(1 / 16.0f));
       }
       break;
@@ -2650,6 +2657,10 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    if (nj->s->prog_data->fs.uses_pos_offset) {
       fs->sample_pos = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+
+      /* 2 bytes per lane, divided into 4 byte UGPRs */
+      fs->sample_pos =
+         jay_extract_range(fs->sample_pos, 0, nj->s->dispatch_width / 2);
    }
 
    nj->s->payload_ugprs = p->offsets[UGPR];

@@ -159,16 +159,6 @@ op('deswizzle_even', 1, 'f32', 0, ['bool src_hi'])
 # Return the UGPR[4] vector (0, 1, 2, 3, 4, 5, 6, 7) as packed 16-bit.
 op('lane_id_8', 0, 'u16')
 
-# Fill a scalar GPR from a contiguous UGPR[16] range containing words or bytes.
-# src_type can be either U8 or U16 (only).  For U8, stride can be 1 or 2, and
-# index can be either 0 or 1.  For U16, both stride and index must be 0.
-op('gpr_from_ugprs', 1, 'u32', 0, [
-    'enum jay_type src_type',
-    'uint8_t stride',
-    'uint8_t index',
-    'uint8_t pad',
-])
-
 # Build a GPR from two UGPR[16] ranges.
 op('zip_ugpr16', 2, 'u32')
 

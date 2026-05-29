@@ -639,14 +639,6 @@ emit(struct jay_codegen *jc,
       jc_MOV(jc, dst, gen_imm_uv(0x76543210));
       break;
 
-   case JAY_OPCODE_GPR_FROM_UGPRS:
-      jc_MOV(jc, dst,
-             gen_byte_offset(jc->devinfo,
-                             gen_restride(SRC(0),
-                                          jay_gpr_from_ugprs_stride(I), 1, 0),
-                             jay_gpr_from_ugprs_index(I)));
-      break;
-
    case JAY_OPCODE_ZIP_UGPR16:
       jc_MOV(jc, dst, to_gen_operand(f, I, simd_offs, 0, false));
       break;
