@@ -3214,7 +3214,7 @@
         "description": "lavapipe: Lower advanced blend at draw time when its state is dynamic",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0444b5877f0697ac7b8dcb9485f96199b102dd75",
         "notes": null
