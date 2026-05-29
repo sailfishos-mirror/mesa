@@ -6604,7 +6604,7 @@
         "description": "etnaviv: Use integer texture formats for R32/RG32 integer textures",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "64c7cdcae51ecd315f27f15382c31350c97d632b",
         "notes": null
