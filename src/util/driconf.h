@@ -589,17 +589,6 @@
                     "Bitmask of shader cores that may be used for fragment jobs. If unset, defaults to scheduling across all available cores.")
 
 /**
- * \brief venus specific configuration options
- */
-#define DRI_CONF_VENUS_IMPLICIT_FENCING(def) \
-   DRI_CONF_OPT_B(venus_implicit_fencing, def, \
-                  "Assume the virtio-gpu kernel driver supports implicit fencing")
-
-#define DRI_CONF_VENUS_WSI_MULTI_PLANE_MODIFIERS(def) \
-   DRI_CONF_OPT_B(venus_wsi_multi_plane_modifiers, def, \
-                  "Enable support of multi-plane format modifiers for wsi images")
-
-/**
  * \brief HASVK specific configuration options
  */
 

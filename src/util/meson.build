@@ -222,6 +222,7 @@ foreach i : [
   [with_imagination_vk, '00-pvr-defaults.conf'],
   [with_broadcom_vk, '00-v3dv-defaults.conf'],
   [with_freedreno_vk, '00-turnip-defaults.conf'],
+  [with_virtio_vk, '00-venus-defaults.conf'],
   [with_gallium_r300, '00-r300-defaults.conf'],
   [with_gallium_iris, '00-iris-defaults.conf'],
   [with_gallium_crocus, '00-crocus-defaults.conf'],
