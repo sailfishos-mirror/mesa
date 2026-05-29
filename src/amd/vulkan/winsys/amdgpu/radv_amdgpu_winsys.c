@@ -166,40 +166,16 @@ radv_amdgpu_alloc_tracker_release(struct radv_amdgpu_alloc_tracker *tracker)
    simple_mtx_unlock(&tracker_mutex);
 }
 
-static VkResult
-radv_amdgpu_null_prt_bug_init(struct radeon_winsys *rws)
-{
-   struct radv_amdgpu_winsys *ws = (struct radv_amdgpu_winsys *)rws;
-
-   if (!ws->info.compiler_info.has_smem_with_null_prt_bug)
-      return VK_SUCCESS;
-
-   /* Create a zero-allocated 8MiB BO that will be used to map partially resident sparse buffers at
-    * creation or when explicitly unmapped.
-    */
-   return ws->base.buffer_create(&ws->base, 8 * 1024 * 1024 /* 8MiB */, 4096, RADEON_DOMAIN_VRAM,
-                                 RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_ZERO_VRAM | RADEON_FLAG_READ_ONLY |
-                                    RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_PREFER_LOCAL_BO,
-                                 RADV_BO_PRIORITY_VIRTUAL, 0, &ws->null_prt_bug.bo);
-}
-
-static void
-radv_amdgpu_null_prt_bug_finish(struct radeon_winsys *rws)
-{
-   struct radv_amdgpu_winsys *ws = (struct radv_amdgpu_winsys *)rws;
-
-   if (!ws->info.compiler_info.has_smem_with_null_prt_bug)
-      return;
-
-   ws->base.buffer_destroy(&ws->base, ws->null_prt_bug.bo);
-}
-
 static void
 radv_amdgpu_winsys_destroy(struct radeon_winsys *rws)
 {
    struct radv_amdgpu_winsys *ws = (struct radv_amdgpu_winsys *)rws;
 
-   radv_amdgpu_null_prt_bug_finish(rws);
+   if (ws->info.compiler_info.has_smem_with_null_prt_bug) {
+      simple_mtx_destroy(&ws->null_prt_bug.lock);
+      if (ws->null_prt_bug.bo)
+         ws->base.buffer_destroy(&ws->base, ws->null_prt_bug.bo);
+   }
 
    u_rwlock_destroy(&ws->global_bo_list.lock);
    free(ws->global_bo_list.bos);
@@ -339,9 +315,8 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
    radv_amdgpu_bo_init_functions(ws);
    radv_amdgpu_cs_init_functions(ws);
 
-   result = radv_amdgpu_null_prt_bug_init(&ws->base);
-   if (result != VK_SUCCESS)
-      goto winsys_fail;
+   if (ws->info.compiler_info.has_smem_with_null_prt_bug)
+      simple_mtx_init(&ws->null_prt_bug.lock, mtx_plain);
 
    *winsys = &ws->base;
 

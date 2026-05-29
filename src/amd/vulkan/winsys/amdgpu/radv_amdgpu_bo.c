@@ -402,6 +402,37 @@ radv_amdgpu_winsys_bo_destroy(struct radeon_winsys *_ws, struct radeon_winsys_bo
 }
 
 static VkResult
+radv_amdgpu_init_null_prt_bo(struct radv_amdgpu_winsys *ws)
+{
+   VkResult result = VK_SUCCESS;
+
+   if (p_atomic_read(&ws->null_prt_bug.bo))
+      return result;
+
+   simple_mtx_lock(&ws->null_prt_bug.lock);
+   if (!ws->null_prt_bug.bo) {
+      struct radeon_winsys_bo *bo;
+
+      /* Create a zero-allocated 8MiB BO that will be used to map partially resident sparse buffers
+       * at creation or when explicitly unmapped.
+       */
+      result = ws->base.buffer_create(&ws->base, 8 * 1024 * 1024 /* 8MiB */, 4096, RADEON_DOMAIN_VRAM,
+                                      RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_ZERO_VRAM | RADEON_FLAG_READ_ONLY |
+                                         RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_PREFER_LOCAL_BO,
+                                      RADV_BO_PRIORITY_VIRTUAL, 0, &bo);
+      if (result != VK_SUCCESS) {
+         simple_mtx_unlock(&ws->null_prt_bug.lock);
+         return result;
+      }
+
+      p_atomic_set(&ws->null_prt_bug.bo, bo);
+   }
+   simple_mtx_unlock(&ws->null_prt_bug.lock);
+
+   return result;
+}
+
+static VkResult
 radv_amdgpu_winsys_virtual_bo_create(struct radeon_winsys *_ws, uint64_t size, unsigned alignment,
                                      enum radeon_bo_flag flags, uint64_t replay_address,
                                      struct radeon_winsys_bo **out_bo)
@@ -449,8 +480,15 @@ radv_amdgpu_winsys_virtual_bo_create(struct radeon_winsys *_ws, uint64_t size, u
    bo->emulate_sparse_residency = !!(flags & RADEON_FLAG_EMULATE_SPARSE_RESIDENCY);
    bo->base.is_virtual = true;
 
-   if (bo->emulate_sparse_residency)
+   if (bo->emulate_sparse_residency) {
+      result = radv_amdgpu_init_null_prt_bo(ws);
+      if (result != VK_SUCCESS) {
+         fprintf(stderr, "radv/amdgpu: Failed to allocate the BO for the NULL PRT workaround.\n");
+         goto error_ranges_alloc;
+      }
+
       bo->base.va |= 1ull << ws->info.address_prt_wa_control_bit;
+   }
 
    /* Reserve a PRT VA region. */
    r = radv_amdgpu_virtual_bo_init_mapping(ws, bo, va_size);

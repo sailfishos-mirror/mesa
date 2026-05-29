@@ -74,6 +74,7 @@ struct radv_amdgpu_winsys {
    struct {
       /* A zero-allocated BO used to map the LOW address space of virtual allocations. */
       struct radeon_winsys_bo *bo;
+      simple_mtx_t lock;
    } null_prt_bug;
 };
 
