@@ -910,7 +910,14 @@ get_device_properties(const struct v3dv_physical_device *device,
    const uint32_t max_per_stage_resources = 128;
 
    const float v3d_point_line_granularity = 2.0f / (1 << V3D_COORD_SHIFT);
-   const uint32_t max_fb_size = V3D_MAX_IMAGE_DIMENSION;
+   const uint32_t max_fb_size = device->devinfo.max_framebuffer_size;
+   /* The TMU supports image dimensions up to 16384x16384 at single sample
+    * (halved to 8192x8192 for 2D images, the only ones that can be
+    * multisampled). For now we still cap maxImageDimension* at the framebuffer
+    * size because copy/blit/clear go through the TLB and blit-shader paths,
+    * which are bounded by the framebuffer size.
+    */
+   const uint32_t max_image_dim = max_fb_size;
 
    /* Note: update nir_shader_compiler_options.max_samples when changing this. */
    const VkSampleCountFlags supported_sample_counts =
@@ -957,10 +964,10 @@ get_device_properties(const struct v3dv_physical_device *device,
       .deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
 
       /* Vulkan 1.0 limits */
-      .maxImageDimension1D = V3D_MAX_IMAGE_DIMENSION,
-      .maxImageDimension2D = V3D_MAX_IMAGE_DIMENSION,
-      .maxImageDimension3D = V3D_MAX_IMAGE_DIMENSION,
-      .maxImageDimensionCube = V3D_MAX_IMAGE_DIMENSION,
+      .maxImageDimension1D = max_image_dim,
+      .maxImageDimension2D = max_image_dim,
+      .maxImageDimension3D = max_image_dim,
+      .maxImageDimensionCube = max_image_dim,
       .maxImageArrayLayers = V3D_MAX_ARRAY_LAYERS,
       .maxTexelBufferElements = (1ul << 28),
       .maxUniformBufferRange = V3D_MAX_BUFFER_RANGE,
@@ -1045,8 +1052,8 @@ get_device_properties(const struct v3dv_physical_device *device,
       .maxSamplerAnisotropy                     = 16.0f,
       .maxViewports                             = MAX_VIEWPORTS,
       .maxViewportDimensions                    = { max_fb_size, max_fb_size },
-      .viewportBoundsRange                      = { -2.0 * max_fb_size,
-                                                    2.0 * max_fb_size - 1 },
+      .viewportBoundsRange                      = { -2.0f * (float)max_fb_size,
+                                                     2.0f * (float)max_fb_size - 1.0f },
       .viewportSubPixelBits                     = 0,
       .minMemoryMapAlignment                    = page_size,
       .minTexelBufferOffsetAlignment            = V3D_TMU_TEXEL_ALIGN,
