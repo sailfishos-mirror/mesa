@@ -255,6 +255,18 @@ jay_process_nir(const struct intel_device_info *devinfo,
    /* TODO: Real heuristic */
    bool do_simd32 = INTEL_SIMD(FS, 32);
    do_simd32 &= stage == MESA_SHADER_COMPUTE || stage == MESA_SHADER_FRAGMENT;
+
+   /* The 'Render Target Write message' section of the docs says:
+    *
+    *    "Output Stencil is not supported with SIMD16 Render Target
+    *     Write Messages."
+    *
+    * Likewise for Xe2 at SIMD32.
+    */
+   if (stage == MESA_SHADER_FRAGMENT &&
+       (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL)))
+      do_simd32 = false;
+
    unsigned simd_width = do_simd32 ? (nir->info.api_subgroup_size ?: 32) : 16;
 
    brw_pass_tracker pt_ = {
