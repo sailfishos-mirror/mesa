@@ -589,26 +589,6 @@
                     "Bitmask of shader cores that may be used for fragment jobs. If unset, defaults to scheduling across all available cores.")
 
 /**
- * \brief Honeykrisp specific configuration options
- */
-
-#define DRI_CONF_HK_DISABLE_BORDER_EMULATION(def) \
-   DRI_CONF_OPT_B(hk_disable_border_emulation, def, \
-                  "Disable custom border colour emulation")
-
-#define DRI_CONF_HK_FAKE_MINMAX(def) \
-   DRI_CONF_OPT_B(hk_fake_minmax, def, \
-                  "Fake support for min/max filtering")
-
-#define DRI_CONF_HK_IMAGE_VIEW_MIN_LOD(def) \
-   DRI_CONF_OPT_B(hk_image_view_min_lod, def, \
-                  "Emulate VK_EXT_image_view_min_lod (conformant but slower)")
-
-#define DRI_CONF_HK_ENABLE_VERTEX_PIPELINE_STORES_ATOMICS(def) \
-   DRI_CONF_OPT_B(hk_enable_vertex_pipeline_stores_atomics, def, \
-                  "Enable vertexPipelineStoresAndAtomics")
-
-/**
  * \brief venus specific configuration options
  */
 #define DRI_CONF_VENUS_IMPLICIT_FENCING(def) \
