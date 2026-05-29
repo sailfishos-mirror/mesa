@@ -174,6 +174,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_shader_replicated_composites = true,
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
+      .EXT_vertex_attribute_robustness = true,
 
       .GOOGLE_decorate_string = true,
       .GOOGLE_hlsl_functionality1 = true,
@@ -413,6 +414,9 @@ kk_get_device_features(
       .shaderBufferFloat32Atomics = true,
       .shaderBufferFloat32AtomicAdd = true,
       .shaderSharedFloat32Atomics = true,
+
+      /* VK_EXT_vertex_attribute_robustness */
+      .vertexAttributeRobustness = true,
 
       /* EXT_ycbcr_2plane_444_formats */
       .ycbcr2plane444Formats = true,
