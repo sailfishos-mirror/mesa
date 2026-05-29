@@ -50,17 +50,9 @@ void
 jay_lower_spill(jay_function *func)
 {
    jay_builder b = jay_init_builder(func, jay_before_function(func));
+   signed ugpr_reservation = -1;
 
    /* We reserved a block of UGPRs for our use */
-   signed ugpr_reservation = -1, gpr2 = -1;
-   for (unsigned i = 0; i < func->shader->partition.nr_blocks[GPR]; ++i) {
-      struct jay_register_block B = func->shader->partition.blocks[GPR][i];
-
-      if (B.stride == JAY_STRIDE_2) {
-         gpr2 = B.start_gpr;
-      }
-   }
-
    for (unsigned i = 0; i < func->shader->partition.nr_blocks[UGPR]; ++i) {
       struct jay_register_block B = func->shader->partition.blocks[UGPR][i];
 
@@ -70,7 +62,6 @@ jay_lower_spill(jay_function *func)
    }
 
    assert(ugpr_reservation >= 0 && "must have reserved something");
-   assert(gpr2 >= 0 && "must have a stride-2 gpr");
 
    jay_def sp = jay_bare_reg(UGPR, ugpr_reservation);
    sp.num_values_m1 = func->shader->dispatch_width - 1;
@@ -97,14 +88,17 @@ jay_lower_spill(jay_function *func)
    jay_SHR(&b, JAY_TYPE_U32, ADDRESS_REG, tmpu, 4);
 
    /* We use a 32-bit strided stack: SP = scratch + (lane ID * 4) */
-   jay_def tmp2 = jay_bare_reg(GPR, gpr2);
-   jay_LANE_ID_8(&b, tmp2);
-   for (unsigned i = 8; i < b.shader->dispatch_width; i *= 2) {
-      jay_LANE_ID_EXPAND(&b, tmp2, tmp2, i);
+   unsigned disp_width = b.shader->dispatch_width;
+   jay_LANE_ID_8(&b, jay_extract_range_post_ra(sp, 0, 4));
+
+   for (unsigned i = 8; i < disp_width; i *= 2) {
+      jay_ADD(&b, JAY_TYPE_U16, jay_extract_range_post_ra(sp, i / 2, i / 2),
+              jay_extract_range_post_ra(sp, 0, i / 2), i);
    }
 
-   jay_SHL(&b, JAY_TYPE_U16, tmp2, tmp2, util_logbase2(4));
-   jay_CVT(&b, JAY_TYPE_U32, sp, tmp2, JAY_TYPE_U16, JAY_ROUND, 0);
+   jay_def lid = jay_extract_range_post_ra(sp, 0, disp_width / 2);
+   jay_SHL(&b, JAY_TYPE_U16, lid, lid, util_logbase2(4));
+   jay_CVT(&b, JAY_TYPE_U32, sp, lid, JAY_TYPE_U16, JAY_ROUND, 0);
    if (b.shader->scratch_size) {
       jay_ADD(&b, JAY_TYPE_U32, sp, sp, b.shader->scratch_size);
    }

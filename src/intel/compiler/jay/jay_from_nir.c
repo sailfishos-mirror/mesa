@@ -98,7 +98,6 @@ struct nir_to_jay_state {
       jay_def sampler_state_pointer, scratch_surface;
       jay_def inline_data;
       jay_def push_data[512];
-      jay_def lane_id;
       jay_def urb_handle;
 
       union {
@@ -1365,11 +1364,19 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
    }
 
-   case nir_intrinsic_load_subgroup_invocation:
+   case nir_intrinsic_load_subgroup_invocation: {
+      jay_def lid = jay_alloc_def(b, UGPR, s->dispatch_width / 2);
+      jay_LANE_ID_8(b, jay_extract_range(lid, 0, 4));
+
+      for (unsigned i = 8; i < s->dispatch_width; i *= 2) {
+         jay_ADD(b, JAY_TYPE_U16, jay_extract_range(lid, i / 2, i / 2),
+                 jay_extract_range(lid, 0, i / 2), i);
+      }
+
       /* TODO: Lower this in NIR? */
-      jay_CVT(b, JAY_TYPE_U32, dst, nj->payload.lane_id, JAY_TYPE_U16,
-              JAY_ROUND, 0);
+      jay_CVT(b, JAY_TYPE_U32, dst, lid, JAY_TYPE_U16, JAY_ROUND, 0);
       break;
+   }
 
    case nir_intrinsic_demote:
    case nir_intrinsic_demote_if:
@@ -1422,20 +1429,17 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 
    /* We prefer to inverse_ballot by copying a UGPR to the flag. If we have a
-    * GPR input, we could uniformize (as behaviour is undefined for
-    * non-uniform inputs) but a lowered bit extract is cheaper than uniformize.
+    * GPR input, behaviour is undefined for non-uniform inputs. TODO: a lowered
+    * bit extract is cheaper than uniformize, but maybe lower in NIR..?
     */
    case nir_intrinsic_inverse_ballot: {
       assert(dst.file == FLAG);
       jay_def x = nj_src(intr->src[0]);
       if (x.file == GPR) {
-         jay_def shr = jay_SHR_u32(b, x, nj->payload.lane_id);
-         jay_inst *and = jay_AND(b, JAY_TYPE_U32, jay_null(), shr, 1);
-         jay_set_conditional_mod(b, and, dst, GEN_CONDITION_NE);
-      } else {
-         jay_MOV(b, dst, x)->type = JAY_TYPE_U | b->shader->dispatch_width;
+         x = emit_uniformize(nj, x);
       }
 
+      jay_MOV(b, dst, x)->type = JAY_TYPE_U | b->shader->dispatch_width;
       break;
    }
 
@@ -2765,18 +2769,6 @@ jay_setup_payload(struct nir_to_jay_state *nj)
    }
 
    s->payload_gprs = p.offsets[GPR];
-
-   /* Lane ID calculations require &W and therefore are calculated in
-    * uniform control flow to sidestep RA problems. The easy solution is
-    * calculating the lane ID in the first block.
-    *
-    * XXX: This doesn't work for multi-function. Reconsider.
-    */
-   nj->payload.lane_id = jay_LANE_ID_8_u16(b);
-
-   for (unsigned i = 8; i < s->dispatch_width; i *= 2) {
-      nj->payload.lane_id = jay_LANE_ID_EXPAND_u16(b, nj->payload.lane_id, i);
-   }
 }
 
 /*

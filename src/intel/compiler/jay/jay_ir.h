@@ -945,7 +945,7 @@ jay_simd_width_logical(const jay_shader *s, const jay_inst *I)
    bool simd1 = jay_inst_is_uniform(I) && !I->broadcast_flag;
    unsigned base = simd1 ? 1 : s->dispatch_width;
 
-   /* Handle vectors-of-UGPR operations with special care for 64-bit */
+   /* Handle vectors-of-UGPR operations with special care for bitsizes */
    unsigned vec_per_channel = jay_type_vector_length(I->type);
    unsigned dst_size = jay_num_values(I->dst);
    assert(util_is_aligned(dst_size, vec_per_channel));
@@ -953,6 +953,12 @@ jay_simd_width_logical(const jay_shader *s, const jay_inst *I)
    if (base == 1 && dst_size > vec_per_channel && I->op != JAY_OPCODE_SEND) {
       assert(util_is_power_of_two_nonzero(dst_size) && vec_per_channel == 1);
       base = dst_size;
+
+      if (jay_type_size_bits(I->type) == 8) {
+         base *= 4;
+      } else if (jay_type_size_bits(I->type) == 16) {
+         base *= 2;
+      }
    }
 
    return base;
@@ -985,9 +991,7 @@ jay_is_no_mask(const jay_inst *I)
           I->op == JAY_OPCODE_QUAD_SWIZZLE ||
           I->op == JAY_OPCODE_DESWIZZLE_EVEN ||
           I->op == JAY_OPCODE_DESWIZZLE_ODD ||
-          I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS ||
-          I->op == JAY_OPCODE_LANE_ID_8 ||
-          I->op == JAY_OPCODE_LANE_ID_EXPAND;
+          I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS;
 }
 
 /**

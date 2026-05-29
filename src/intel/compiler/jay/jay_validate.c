@@ -79,8 +79,15 @@ validate_flagness(struct validate_state *validate,
 }
 
 static unsigned
+adjust_width_for_type(unsigned width, enum jay_type type)
+{
+   return (width * jay_type_size_bits(type)) / 32;
+}
+
+static unsigned
 get_src_words(struct validate_state *validate, jay_inst *I, unsigned s)
 {
+   /* TODO: I think this can be simplified */
    if (I->op == JAY_OPCODE_EXPAND_QUAD) {
       return 4;
    }
@@ -89,19 +96,19 @@ get_src_words(struct validate_state *validate, jay_inst *I, unsigned s)
       return jay_ugpr_per_grf(validate->func->shader);
    }
 
-   bool vectorized = I->dst.file == UGPR &&
-                     jay_num_values(I->dst) > jay_type_vector_length(I->type) &&
-                     I->op != JAY_OPCODE_SEND &&
-                     jay_num_values(I->src[s]) > 1;
-
+   unsigned simd_width = jay_simd_width_logical(validate->func->shader, I);
    unsigned elsize = jay_type_vector_length(jay_src_type(I, s));
-   unsigned words = elsize * (vectorized ? jay_num_values(I->dst) : 1);
 
-   if (vectorized && I->src[s].file == GPR) {
-      CHECK(words == validate->func->shader->dispatch_width);
+   if (I->src[s].file == GPR && I->dst.file == UGPR) {
+      CHECK(jay_num_values(I->dst) ==
+               adjust_width_for_type(simd_width, I->type) ||
+            I->op == JAY_OPCODE_SEND);
+
       return 1;
+   } else if (I->src[s].file == UGPR && jay_num_values(I->src[s]) > elsize) {
+      return adjust_width_for_type(simd_width, jay_src_type(I, s));
    } else {
-      return words;
+      return elsize;
    }
 }
 

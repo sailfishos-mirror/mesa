@@ -110,13 +110,6 @@ jay_src_stride_minmax(jay_inst *I, unsigned s, bool do_max)
       max = JAY_STRIDE_4;
    }
 
-   /* "add.u16 r0.8, g1<2>" is not legal. We don't generate this normally yet
-    * (preferring to burn the upper bits) but it is used internally.
-    */
-   if (I->op == JAY_OPCODE_LANE_ID_EXPAND) {
-      max = JAY_STRIDE_2;
-   }
-
    if (restrict_mixed_strides(I, s) &&
        jay_type_size_bits(jay_src_type(I, s)) < jay_type_size_bits(I->type)) {
 

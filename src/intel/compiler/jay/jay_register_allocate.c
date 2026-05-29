@@ -643,9 +643,6 @@ pick_regs_from_block(jay_ra_state *ra,
                      unsigned *best_reg,
                      unsigned first)
 {
-   bool must_tie = I->op == JAY_OPCODE_LANE_ID_EXPAND;
-   must_tie &= !is_src;
-
    /* Cross-lane access cannot be SIMD split if the source/destination registers
     * overlap, but as long as we don't tie those destinations, we're ok.
     */
@@ -657,9 +654,7 @@ pick_regs_from_block(jay_ra_state *ra,
 
       unsigned cost = block_cost;
       bool tied = !is_src && BITSET_TEST(ra->killed[file], r);
-
-      if (tied ? !may_tie :
-                 (must_tie || BITSET_TEST_COUNT(ra->pinned[file], r, size)))
+      if (tied ? !may_tie : BITSET_TEST_COUNT(ra->pinned[file], r, size))
          continue;
 
       /* Try to tie predicated default values, otherwise post-RA lowering needs

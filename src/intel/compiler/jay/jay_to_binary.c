@@ -195,7 +195,7 @@ to_gen_operand(jay_function *f,
       R = gen_retype(gen_restride(R, 0, 1, 0), GEN_TYPE_UD);
 
       /* Handle 3-src restrictions and vectorized uniform code. */
-      if (is_dest || jay_num_values(d) >= 8) {
+      if (is_dest || jay_num_values(d) >= 4) {
          R = gen_restride(R, 8, 8, 1);
       }
 
@@ -203,7 +203,7 @@ to_gen_operand(jay_function *f,
        * but if we write a single UGPR the stride is ignored..  Specify
        * whatever stride is needed to satisfy the rules.
        */
-      if (is_dest) {
+      if (is_dest && I->num_srcs > 0) {
          /* BSpec 56640 "Special Restrictions" says:
           *
           *    "Conversion between HF and Integer must be DWord-aligned
@@ -636,18 +636,8 @@ emit(struct jay_codegen *jc,
       break;
 
    case JAY_OPCODE_LANE_ID_8:
-      jc->state.exec_size = 8;
       jc_MOV(jc, dst, gen_imm_uv(0x76543210));
       break;
-
-   case JAY_OPCODE_LANE_ID_EXPAND: {
-      unsigned width = jay_lane_id_expand_width(I);
-      jc->state.exec_size = width;
-      jc_append2(GEN_OP_ADD,
-                 gen_element_offset(jc->devinfo, dst, width),
-                 SRC(0), gen_imm_uw(width));
-      break;
-   }
 
    case JAY_OPCODE_GPR_FROM_UGPRS:
       jc_MOV(jc, dst,

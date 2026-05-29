@@ -156,10 +156,8 @@ op('preload', 0, 'u32',     0, ['unsigned reg'])
 op('deswizzle_odd', 2, 'f32', 0, ['bool src2_hi'])
 op('deswizzle_even', 1, 'f32', 0, ['bool src_hi'])
 
-# Calculating the lane ID requires multiple power-of-two steps each involving
-# complex architectural features not modelled in the IR.
+# Return the UGPR[4] vector (0, 1, 2, 3, 4, 5, 6, 7) as packed 16-bit.
 op('lane_id_8', 0, 'u16')
-op('lane_id_expand', 1, 'u16', 0, ['unsigned width'])
 
 # Fill a scalar GPR from a contiguous UGPR[16] range containing words or bytes.
 # src_type can be either U8 or U16 (only).  For U8, stride can be 1 or 2, and
