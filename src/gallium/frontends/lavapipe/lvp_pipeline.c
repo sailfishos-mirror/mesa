@@ -139,6 +139,9 @@ lvp_needs_advanced_blend_lowering(struct lvp_pipeline *pipeline)
    if (!cb)
       return false;
 
+   if (BITSET_TEST(pipeline->graphics_state.dynamic, MESA_VK_DYNAMIC_CB_BLEND_ADVANCED))
+      return false;
+
    for (uint32_t i = 0; i < cb->attachment_count; i++)
       if (cb->attachments[i].blend_enable &&
           cb->attachments[i].color_blend_op >= VK_BLEND_OP_ZERO_EXT)

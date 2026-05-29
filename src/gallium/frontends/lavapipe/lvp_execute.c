@@ -1030,6 +1030,19 @@ static void handle_graphics_pipeline(struct lvp_pipeline *pipeline,
          if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_CB_BLEND_ENABLES))
             state->blend_state.rt[i].blend_enable = att->blend_enable;
 
+         /* An advanced blend op with dynamic advanced state is lowered in the
+          * fragment shader at draw time. Track the enable for that lowering and
+          * keep HW blending as passthrough. The advanced op must not reach
+          * vk_blend_op_to_pipe() below.
+          */
+         if (att->color_blend_op >= VK_BLEND_OP_ZERO_EXT) {
+            if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_CB_BLEND_ENABLES))
+               state->advanced_blend[i].blend_enable = att->blend_enable;
+
+            state->blend_state.rt[i].blend_enable = false;
+            continue;
+         }
+
          if (!att->blend_enable) {
             state->blend_state.rt[i].rgb_func = 0;
             state->blend_state.rt[i].rgb_src_factor = 0;
