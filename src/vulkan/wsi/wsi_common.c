@@ -2163,7 +2163,7 @@ wsi_common_queue_present(const struct wsi_device *wsi,
 
    bool needs_timing_command_buffer = false;
 
-   if (present_timings_info) {
+   if (present_timings_info && present_timings_info->pTimingInfos) {
       /* If we fail a present due to full queue, it's a little unclear from
        * spec if we should treat it as OUT_OF_DATE or OUT_OF_HOST_MEMORY for
        * purposes of signaling. Validation layers and at least one other implementation
@@ -2194,7 +2194,7 @@ wsi_common_queue_present(const struct wsi_device *wsi,
             /* If timestamp_bits < 64, we have to do time wrapping ourselves at GetPastPresentTimings time,
              * and there is nothing to do here. */
             if (info->targetTimeDomainPresentStage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT &&
-                wsi->timestamp_bits == 64 &&
+                wsi->timestamp_bits == 64 && target_time != 0 &&
                 !(info->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_RELATIVE_TIME_BIT_EXT)) {
                /* For relative, it's all nanoseconds anyway, so no need to do anything. */
                target_time = wsi_swapchain_present_convert_device_to_cpu(swapchain, target_time, true);

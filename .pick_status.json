@@ -6944,7 +6944,7 @@
         "description": "wsi/common: Small compliance fixes for VK_EXT_present_timing.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "47d69664d8f3393ecb895fa9a678f88c78b3505a",
         "notes": null
