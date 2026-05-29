@@ -455,7 +455,7 @@ Core Mesa environment variables
 
    If set, overrides the global search-directories used when searching for
    drirc config files. The user-local one will still be used. Mostly useful for
-   internal debugging.
+   internal debugging. Multiple entries must be separated by ``:``.
 
 NIR passes environment variables
 --------------------------------

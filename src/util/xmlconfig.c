@@ -1362,9 +1362,16 @@ driParseConfigFiles(driOptionCache *cache, const driOptionCache *info,
    const char *home;
 
    /* parse from either $DRIRC_CONFIGDIR or $datadir/drirc.d */
-   if ((configdir = os_get_option("DRIRC_CONFIGDIR")))
-      parseConfigDir(&userData, configdir);
-   else {
+   if ((configdir = os_get_option("DRIRC_CONFIGDIR"))) {
+      for (size_t len; len = strcspn(configdir, ":"), *configdir; configdir += MAX2(1, len)) {
+         if (!len)
+            continue;
+
+         char *dir = strndup(configdir, len);
+         parseConfigDir(&userData, dir);
+         free(dir);
+      }
+   } else {
       parseConfigDir(&userData, DATADIR "/drirc.d");
       parseOneConfigFile(&userData, SYSCONFDIR "/drirc");
    }
