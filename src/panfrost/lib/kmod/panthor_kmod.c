@@ -912,6 +912,7 @@ panthor_kmod_vm_destroy(struct pan_kmod_vm *vm)
       simple_mtx_destroy(&panthor_vm->auto_va.lock);
    }
 
+   pan_kmod_vm_cleanup(vm);
    pan_kmod_dev_free(vm->dev, panthor_vm);
 }
 

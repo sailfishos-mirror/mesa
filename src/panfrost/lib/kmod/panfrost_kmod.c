@@ -518,6 +518,7 @@ panfrost_kmod_vm_destroy(struct pan_kmod_vm *vm)
       container_of(vm->dev, struct panfrost_kmod_dev, base);
 
    panfrost_dev->vm = NULL;
+   pan_kmod_vm_cleanup(vm);
    pan_kmod_dev_free(vm->dev, vm);
 }
 

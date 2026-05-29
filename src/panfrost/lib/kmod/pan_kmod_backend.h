@@ -118,6 +118,15 @@ pan_kmod_vm_init(struct pan_kmod_vm *vm, struct pan_kmod_dev *dev,
    vm->handle = handle;
    vm->flags = flags;
    vm->pgsize_bitmap = dev->props.pgsize_bitmap;
+
+   simple_mtx_init(&vm->sparse_dummy.lock, mtx_plain);
+}
+
+static inline void
+pan_kmod_vm_cleanup(struct pan_kmod_vm *vm)
+{
+   pan_kmod_bo_put(vm->sparse_dummy.bo);
+   simple_mtx_destroy(&vm->sparse_dummy.lock);
 }
 
 static inline int
