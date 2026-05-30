@@ -164,6 +164,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_depth_clip_control = true,
       .EXT_extended_dynamic_state3 = true,
       .EXT_external_memory_metal = true,
+      .EXT_external_memory_host = true,
       .EXT_image_2d_view_of_3d = true,
       .EXT_load_store_op_none = true,
       .EXT_memory_budget = true,
@@ -693,6 +694,9 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
 
       /* VK_EXT_extended_dynamic_state3 */
       .dynamicPrimitiveTopologyUnrestricted = false,
+
+      /* VK_EXT_external_memory_metal */
+      .minImportedHostPointerAlignment = os_page_size,
 
       /* VK_EXT_graphics_pipeline_library */
       .graphicsPipelineLibraryFastLinking = true,

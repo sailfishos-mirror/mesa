@@ -290,3 +290,14 @@ mtl_sparse_tile_count(mtl_device *device, struct kk_image_layout *layout,
                                tile_region.size.depth};
    }
 }
+
+/* Resource creation */
+mtl_buffer *
+mtl_new_buffer_with_bytes_no_copy(mtl_device *device, void* ptr,
+                                  uint64_t size_B)
+{
+   @autoreleasepool {
+      id<MTLDevice> dev = (id<MTLDevice>)device;
+      return [dev newBufferWithBytesNoCopy:ptr length:size_B options:KK_MTL_RESOURCE_OPTIONS deallocator:nil];
+   }
+}

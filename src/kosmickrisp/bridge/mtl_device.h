@@ -56,4 +56,8 @@ struct mtl_size mtl_sparse_tile_count(mtl_device *device,
                                       struct kk_image_layout *layout,
                                       struct mtl_size tile_size);
 
+/* Resource creation */
+mtl_buffer *mtl_new_buffer_with_bytes_no_copy(mtl_device *device, void *ptr,
+                                              uint64_t size_B);
+
 #endif /* MTL_DEVICE_H */

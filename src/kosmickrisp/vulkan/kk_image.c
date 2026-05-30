@@ -398,6 +398,15 @@ kk_GetPhysicalDeviceImageFormatProperties2(
       case VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT:
          ext_mem_props = &kk_mtlheap_mem_props;
          break;
+      case VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT:
+      case VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_MAPPED_FOREIGN_MEMORY_BIT_EXT: {
+         if (pImageFormatInfo->tiling != VK_IMAGE_TILING_LINEAR) {
+            return vk_errorf(pdev, VK_ERROR_FORMAT_NOT_SUPPORTED,
+                             "host memory import image must be linear");
+         }
+         ext_mem_props = &kk_host_mem_props;
+         break;
+      }
       default:
          /* From the Vulkan 1.3.256 spec:
           *
@@ -841,6 +850,8 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
    kk_image_plane_size_align_B(dev, image, plane, &plane_size_B,
                                &plane_align_B);
    *offset_B = align64(*offset_B, plane_align_B);
+
+   assert(plane->layout.linear || mem->bo->mtl_handle);
 
    /* Linear textures in Metal need to be allocated through a buffer... */
    plane->mem = mem;
