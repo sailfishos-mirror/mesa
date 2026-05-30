@@ -104,6 +104,10 @@ pub trait Instruction {
     ) -> Option<&'static InstructionInfo> {
         Self::get_info_for_variant(variant.try_into().ok()?, arch)
     }
+
+    fn is_supported(variant: impl TryInto<Self::Variant>, arch: u8) -> bool {
+        Self::get_info(variant, arch).is_some()
+    }
 }
 
 #[derive(Clone, Copy)]

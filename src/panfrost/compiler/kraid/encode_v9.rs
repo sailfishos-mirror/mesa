@@ -18,6 +18,11 @@ const INSTR_SIZE: i64 = size_of::<EncodedInstr>() as i64;
 
 trait V9Instr {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo>;
+
+    fn src_supports_imm32(&self, _src: &Src, _arch: u8) -> bool {
+        false
+    }
+
     fn encode(&self, encoder: V9Encoder<'_>) -> EncodedInstr;
 }
 
@@ -61,6 +66,10 @@ impl V9Encoder<'_> {
     fn get_pc_rel_offset(&self, label: &Label) -> i64 {
         self.labels.get(label).unwrap() - (self.ip + INSTR_SIZE)
     }
+}
+
+fn ptr_eq<T>(a: &T, b: &T) -> bool {
+    (a as *const T) == (b as *const T)
 }
 
 fn encode_src_ref(src: &SrcRef, last_use: bool) -> u8 {
@@ -457,11 +466,11 @@ impl V9Instr for OpF32ToF16 {
 
 impl V9Instr for OpFAdd {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
-            FaddImm::get_info(self.dst_type, arch)
-        } else {
-            Fadd::get_info(self.dst_type, arch)
-        }
+        Fadd::get_info(self.dst_type, arch)
+    }
+
+    fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
+        ptr_eq(src, &self.srcs[1]) && FaddImm::is_supported(self.dst_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -505,11 +514,11 @@ impl V9Instr for OpFCmp {
 
 impl V9Instr for OpIAdd {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
-            IaddImm::get_info(self.dst_type, arch)
-        } else {
-            Iadd::get_info(self.dst_type.i_as_u(), arch)
-        }
+        Iadd::get_info(self.dst_type.i_as_u(), arch)
+    }
+
+    fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
+        ptr_eq(src, &self.srcs[1]) && IaddImm::is_supported(self.dst_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -602,11 +611,11 @@ impl V9Instr for OpLoad {
 
 impl V9Instr for OpMov {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        if let SrcRef::Imm32(_) = &self.src.src_ref {
-            MovImm::get_info(self.dst_type, arch)
-        } else {
-            Mov::get_info(self.dst_type, arch)
-        }
+        Mov::get_info(self.dst_type, arch)
+    }
+
+    fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
+        ptr_eq(src, &self.src) && MovImm::is_supported(self.dst_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -738,6 +747,10 @@ fn v9_op_info(op: &Op, arch: u8) -> Option<&InstructionInfo> {
 
 pub fn v9_op_is_message(op: &Op, arch: u8) -> bool {
     v9_op_info(op, arch).is_some_and(|info| info.is_message)
+}
+
+pub fn v9_op_src_supports_imm32(op: &Op, src: &Src, arch: u8) -> bool {
+    v9_op_match!(op, |op| op.src_supports_imm32(src, arch))
 }
 
 fn encode_instr(
