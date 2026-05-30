@@ -6704,7 +6704,7 @@
         "description": "etnaviv: Disable TS per render target on mixed TS modes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d70531ca93155f1567dfe6a274880e9d82129733",
         "notes": null

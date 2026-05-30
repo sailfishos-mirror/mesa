@@ -325,6 +325,7 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color);
    const uint64_t clear_bits = etna_calculate_clear_bits(dst->format, clear_mask);
    bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state, clear_mask, 0xf);
+   bool use_ts = etna_framebuffer_rt_use_ts(ctx, idx);
    int msaa_xscale = 1, msaa_yscale = 1;
    bool is_128bit_format = format_is_128bit(dst->format);
 
@@ -342,7 +343,7 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    clr.dest.stride = dst_level->stride;
    clr.dest.tiling = dst_res->layout;
 
-   if (dst_level->ts_size) {
+   if (use_ts) {
       clr.dest.use_ts = 1;
       clr.dest.ts_addr.bo = dst_res->ts_bo;
       clr.dest.ts_addr.offset = dst_level->ts_offset;
@@ -386,7 +387,7 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    }
 
    /* This made the TS valid */
-   if (dst_level->ts_size) {
+   if (use_ts) {
       if (idx == 0) {
          ctx->framebuffer.TS_COLOR_CLEAR_VALUE = dst_level->clear_value;
          ctx->framebuffer.TS_COLOR_CLEAR_VALUE_EXT = dst_level->clear_value >> 32;
