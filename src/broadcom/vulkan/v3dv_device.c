@@ -768,20 +768,23 @@ v3dv_DestroyInstance(VkInstance _instance,
 static uint64_t
 compute_heap_size(struct v3dv_instance *instance)
 {
-   const uint64_t MAX_HEAP_SIZE = 4ull * 1024ull * 1024ull * 1024ull;
+   /* The GPU has a 32-bit MMU and cannot address more than 4GB. */
+   ASSERTED const uint64_t MAX_HEAP_SIZE = 4ull * 1024ull * 1024ull * 1024ull;
    uint64_t memory;
-
 #if !USE_V3D_SIMULATOR
    memory = os_get_gpu_heap_size(instance->heap_memory_percent,
                                  &instance->heap_memory_percent);
-#else
-   uint64_t total_ram = (uint64_t) v3d_simulator_get_mem_size();
-   memory = os_gpu_heap_size_calculate(total_ram,
-                                       instance->heap_memory_percent,
-                                       &instance->heap_memory_percent);
-#endif
-
    return MIN2(MAX_HEAP_SIZE, memory);
+#else
+   /* Memory allocated by the simulator is fully dedicated for the GPU so we
+    * expose all of it instead of reserving a fraction for the rest of the
+    * system as we do for real, shared RAM. The simulator never allocates more
+    * than the GPU can address.
+    */
+   memory = (uint64_t) v3d_simulator_get_mem_size();
+   assert(MAX_HEAP_SIZE >= memory);
+   return memory;
+#endif
 }
 
 static uint64_t
@@ -790,17 +793,19 @@ compute_memory_budget(struct v3dv_physical_device *device)
    uint64_t heap_size = device->memory.memoryHeaps[0].size;
    uint64_t heap_used = p_atomic_read(&device->heap_used);
 
+#if !USE_V3D_SIMULATOR
    /* Let's not incite the app to starve the system: report at most 90% of
     * available system memory.
     */
    const float percentage = 0.9f;
-
-#if !USE_V3D_SIMULATOR
    return vk_physical_device_heap_budget_from_system(
          &device->vk, percentage, heap_size, heap_used);
 #else
-   return vk_physical_device_heap_budget(v3d_simulator_get_mem_free(),
-         percentage, heap_size, heap_used);
+   /* The simulator memory is fully dedicated to the GPU, so the whole free
+    * pool is available to applications.
+    */
+   uint64_t heap_available = (uint64_t) v3d_simulator_get_mem_free();
+   return MIN2(heap_size, heap_used + heap_available);
 #endif
 }
 
