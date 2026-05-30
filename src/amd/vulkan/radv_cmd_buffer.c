@@ -3872,7 +3872,7 @@ gfx103_emit_vrs_state(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const bool enable_vrs_coarse_shading = cmd_buffer->state.uses_vrs_coarse_shading;
+   const bool enable_vrs_flat_shading = cmd_buffer->state.uses_vrs_flat_shading;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (pdev->info.gfx_level >= GFX11) {
@@ -3881,7 +3881,7 @@ gfx103_emit_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       uint8_t mode = V_0283D0_SC_VRS_COMB_MODE_PASSTHRU;
       uint8_t rate = V_0283D0_VRS_SHADING_RATE_1X1;
 
-      if (enable_vrs_coarse_shading) {
+      if (enable_vrs_flat_shading) {
          mode = V_0283D0_SC_VRS_COMB_MODE_OVERRIDE;
          rate = V_0283D0_VRS_SHADING_RATE_2X2;
       }
@@ -3911,7 +3911,7 @@ gfx103_emit_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       uint32_t mode = V_028064_SC_VRS_COMB_MODE_PASSTHRU;
       uint8_t rate_x = 0, rate_y = 0;
 
-      if (enable_vrs_coarse_shading) {
+      if (enable_vrs_flat_shading) {
          /* When per-draw VRS is not enabled at all, try enabling VRS coarse shading 2x2 if the driver
           * determined that it's safe to enable.
           */
@@ -9225,7 +9225,7 @@ radv_bind_graphics_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_grap
    cmd_buffer->state.ia_multi_vgt_param = graphics_pipeline->ia_multi_vgt_param;
 
    cmd_buffer->state.uses_vrs = graphics_pipeline->uses_vrs;
-   cmd_buffer->state.uses_vrs_coarse_shading = graphics_pipeline->uses_vrs_coarse_shading;
+   cmd_buffer->state.uses_vrs_flat_shading = graphics_pipeline->uses_vrs_flat_shading;
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -16361,7 +16361,7 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
          cmd_buffer->state.uses_out_of_order_rast = false;
          cmd_buffer->state.uses_vrs_attachment = false;
          cmd_buffer->state.uses_vrs = false;
-         cmd_buffer->state.uses_vrs_coarse_shading = false;
+         cmd_buffer->state.uses_vrs_flat_shading = false;
 
          radv_bind_custom_blend_mode(cmd_buffer, 0);
 
