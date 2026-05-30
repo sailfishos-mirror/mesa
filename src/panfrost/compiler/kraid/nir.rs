@@ -316,6 +316,78 @@ impl<'a> ShaderFromNir<'a> {
         };
 
         match alu.op {
+            nir_op_extract_i8 | nir_op_extract_u8 => {
+                assert!(alu.def.bit_size >= 16);
+                assert!(alu.def.num_components <= 2);
+
+                let mut sel = [0_u8; 2];
+                for c in 0..alu.def.num_components {
+                    sel[usize::from(c)] = alu
+                        .get_src(1)
+                        .comp_as_uint(c)
+                        .expect("nir_op_extract.src[1] should be constant")
+                        .try_into()
+                        .unwrap();
+                }
+                if alu.def.num_components == 1 {
+                    sel[1] = sel[0];
+                }
+
+                let (swz, num_type) = match alu.op {
+                    nir_op_extract_i8 => {
+                        let swz = match alu.def.bit_size {
+                            16 => Swizzle::widen_v2s8(sel[0], sel[1]),
+                            32 => Swizzle::widen_s8(sel[0]),
+                            _ => panic!("Invalid 8-bit extract"),
+                        };
+                        (swz, NumericType::SignedInteger)
+                    }
+                    nir_op_extract_u8 => {
+                        let swz = match alu.def.bit_size {
+                            16 => Swizzle::widen_v2u8(sel[0], sel[1]),
+                            32 => Swizzle::widen_u8(sel[0]),
+                            _ => panic!("Invalid 8-bit extract"),
+                        };
+                        (swz, NumericType::UnsignedInteger)
+                    }
+                    _ => panic!("Invalid 8-bit extract"),
+                };
+
+                b.push_op(OpIAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(num_type),
+                    saturate: false,
+                    srcs: [srcs(0).swizzle(swz), 0.into()],
+                });
+            }
+            nir_op_extract_i16 | nir_op_extract_u16 => {
+                assert!(alu.def.bit_size == 32);
+                assert!(alu.def.num_components == 1);
+
+                let sel = alu
+                    .get_src(1)
+                    .comp_as_uint(0)
+                    .expect("nir_op_extract.src[1] should be constant")
+                    .try_into()
+                    .unwrap();
+
+                let (swz, num_type) = match alu.op {
+                    nir_op_extract_i8 => {
+                        (Swizzle::widen_s16(sel), NumericType::SignedInteger)
+                    }
+                    nir_op_extract_u8 => {
+                        (Swizzle::widen_u16(sel), NumericType::UnsignedInteger)
+                    }
+                    _ => panic!("Invalid 8-bit extract"),
+                };
+
+                b.push_op(OpIAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(num_type),
+                    saturate: false,
+                    srcs: [srcs(0).swizzle(swz), 0.into()],
+                });
+            }
             nir_op_fabs => {
                 // TODO: Do we really want FAdd for this?
                 b.push_op(OpFAdd {
