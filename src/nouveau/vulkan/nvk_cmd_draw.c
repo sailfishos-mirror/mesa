@@ -1022,6 +1022,15 @@ nvk_GetRenderingAreaGranularityKHR(
    *pGranularity = (VkExtent2D) { .width = 1, .height = 1 };
 }
 
+bool
+nvk_image_plane_aligned_for_linear_attachment(const struct nvk_image_plane *plane,
+                                              const struct nil_image_level *level)
+{
+   assert(level->tiling.gob_type == NIL_GOB_TYPE_LINEAR);
+   uint64_t addr = nvk_image_plane_base_address(plane) + level->offset_B;
+   return addr % 128 == 0 && level->row_stride_B % 128 == 0;
+}
+
 static bool
 nvk_rendering_linear(const struct nvk_rendering_state *render)
 {
@@ -1046,8 +1055,7 @@ nvk_rendering_linear(const struct nvk_rendering_state *render)
       /* We can't render to a linear image unless the address and row stride
        * are multiples of 128B.  Fall back to tiled shadows in this case.
        */
-      uint64_t addr = nvk_image_plane_base_address(plane) + level->offset_B;
-      if (addr % 128 != 0 || level->row_stride_B % 128 != 0)
+      if (!nvk_image_plane_aligned_for_linear_attachment(plane, level))
          return false;
    }
 
