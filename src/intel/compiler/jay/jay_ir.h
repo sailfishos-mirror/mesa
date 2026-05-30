@@ -981,7 +981,8 @@ jay_is_no_mask(const jay_inst *I)
           I->op == JAY_OPCODE_QUAD_SWIZZLE ||
           I->op == JAY_OPCODE_DESWIZZLE_EVEN ||
           I->op == JAY_OPCODE_DESWIZZLE_ODD ||
-          I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS;
+          I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS ||
+          I->op == JAY_OPCODE_DPAS;
 }
 
 /**

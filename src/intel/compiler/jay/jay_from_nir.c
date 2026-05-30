@@ -212,6 +212,27 @@ jay_alu_source_type(nir_alu_instr *alu, unsigned i)
                    nir_src_bit_size(alu->src[i].src));
 }
 
+static enum jay_type
+jay_type_for_glsl_base_type(enum glsl_base_type t)
+{
+   switch (t) {
+   case GLSL_TYPE_UINT:         return JAY_TYPE_U32;
+   case GLSL_TYPE_INT:          return JAY_TYPE_S32;
+   case GLSL_TYPE_FLOAT:        return JAY_TYPE_F32;
+   case GLSL_TYPE_FLOAT16:      return JAY_TYPE_F16;
+   case GLSL_TYPE_BFLOAT16:     return JAY_TYPE_BF16;
+   case GLSL_TYPE_DOUBLE:       return JAY_TYPE_F64;
+   case GLSL_TYPE_UINT16:       return JAY_TYPE_U16;
+   case GLSL_TYPE_INT16:        return JAY_TYPE_S16;
+   case GLSL_TYPE_UINT8:        return JAY_TYPE_U8;
+   case GLSL_TYPE_INT8:         return JAY_TYPE_S8;
+   case GLSL_TYPE_UINT64:       return JAY_TYPE_U64;
+   case GLSL_TYPE_INT64:        return JAY_TYPE_S64;
+   default:
+      UNREACHABLE("invalid base type");
+   }
+}
+
 static inline jay_def
 nj_def(nir_def *def)
 {
@@ -1336,6 +1357,39 @@ jay_emit_rt_trace_ray(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
 }
 
 static void
+jay_emit_dpas(struct nir_to_jay_state *nj,
+              nir_intrinsic_instr *intr)
+{
+   assert(mesa_shader_stage_uses_workgroup(nj->nir->info.stage));
+
+   /* For Accumulator source we can use null register. */
+   bool src0_use_null = true;
+   for (unsigned c = 0; c < nir_src_num_components(intr->src[0]); c++) {
+      nir_scalar val = nir_scalar_resolved(intr->src[0].ssa, c);
+      src0_use_null &= nir_scalar_is_zero(val);
+   }
+
+   jay_builder *b = &nj->bld;
+   jay_def dst = nj_def(&intr->def);
+   jay_def src[3] = {
+      src0_use_null ? jay_null()
+                    : jay_as_gpr(b, nj_src(intr->src[0])),
+      jay_as_gpr(b, nj_src(intr->src[1])),
+      jay_as_gpr(b, nj_src(intr->src[2])),
+   };
+
+   /* Jay follows HW source order. */
+   jay_DPAS(b, dst, src[0], src[2], src[1],
+            nir_intrinsic_systolic_depth(intr),
+            nir_intrinsic_repeat_count(intr),
+            jay_type_for_glsl_base_type(nir_intrinsic_dest_base_type(intr)),
+            jay_type_for_glsl_base_type(nir_intrinsic_src_base_type(intr)),
+            /* sbid */ 0)->saturate = nir_intrinsic_saturate(intr);
+
+   nj->s->prog_data->cs.uses_systolic = true;
+}
+
+static void
 jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
    jay_shader *s = nj->s;
@@ -1834,6 +1888,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_trace_ray_intel:
       jay_emit_rt_trace_ray(nj, intr);
+      break;
+
+   case nir_intrinsic_dpas_intel:
+      jay_emit_dpas(nj, intr);
       break;
 
    default:

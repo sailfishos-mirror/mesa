@@ -87,13 +87,32 @@ adjust_width_for_type(unsigned width, enum jay_type type)
 static unsigned
 get_src_words(struct validate_state *validate, jay_inst *I, unsigned s)
 {
+   jay_shader *shader = validate->func->shader;
+
    /* TODO: I think this can be simplified */
    if (I->op == JAY_OPCODE_EXPAND_QUAD) {
       return 4;
    }
 
    if (I->op == JAY_OPCODE_ZIP_UGPR16) {
-      return jay_ugpr_per_grf(validate->func->shader);
+      return jay_ugpr_per_grf(shader);
+   }
+
+   if (I->op == JAY_OPCODE_DPAS) {
+      const unsigned dpas_exec_size = 8 * reg_unit(shader->devinfo);
+      const unsigned grf_size = shader->devinfo->grf_size;
+      const unsigned acc_size_B = jay_type_size_bits(jay_dpas_acc_type(I)) / 8;
+
+      unsigned bytes;
+      switch (s) {
+      case 0: bytes = jay_dpas_rcount(I) * dpas_exec_size * acc_size_B; break;
+      case 1: bytes = jay_dpas_sdepth(I) * grf_size;                    break;
+      case 2: bytes = jay_dpas_rcount(I) * jay_dpas_sdepth(I) * 4;      break;
+      default:
+         UNREACHABLE("invalid DPAS source");
+      }
+
+      return bytes / (shader->dispatch_width * 4);
    }
 
    unsigned simd_width = jay_simd_width_logical(validate->func->shader, I);
@@ -263,7 +282,9 @@ validate_inst(struct validate_state *validate, jay_inst *I)
       CHECK(!I->src[s].negate || jay_has_src_mods(I, s));
    }
 
-   if (I->op == JAY_OPCODE_SEL) {
+   if (I->op == JAY_OPCODE_DPAS) {
+      CHECK(jay_num_values(I->dst) == get_src_words(validate, I, 0));
+   } else if (I->op == JAY_OPCODE_SEL) {
       CHECK(jay_is_flag(I->src[2]) && "SEL src[2] (selector) must be a flag");
    } else if (I->op == JAY_OPCODE_SYNC) {
       CHECK(validate->post_ra && "SYNC does not exist while scheduling");

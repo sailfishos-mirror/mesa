@@ -222,6 +222,17 @@ op('shuffle', 2, 'u1 u32')
 # Shuffle with a constant lane index.
 op('broadcast_imm', 1, 'u1 u32', 0, ['unsigned lane'])
 
+# Follows hardware source order: C B A.  Data is already packed u32 slots
+# by NIR, types are used when making the gen_inst.
+op('dpas', 3, 'u32', 0, [
+    'uint8_t sdepth',
+    'uint8_t rcount',
+    'enum jay_type acc_type',
+    'enum jay_type src_type',
+    'uint8_t sbid',
+    'uint8_t pad[3]',
+])
+
 OPCODES = _opcodes
 
 ENUMS: 'Mapping[str, tuple[str, list[str]]]' = {

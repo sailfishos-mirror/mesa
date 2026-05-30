@@ -2900,9 +2900,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       goto fail_base;
 
    device->has_cooperative_matrix =
-      (device->info.has_systolic ||
-       debug_get_bool_option("INTEL_LOWER_DPAS", false)) &&
-      !intel_use_jay_any_stage(&device->info);
+      device->info.has_systolic || debug_get_bool_option("INTEL_LOWER_DPAS", false);
 
    /* Because of Xe2 PAT selected compression and the Vulkan spec requirement
     * to always return the same memory types for Images with same properties

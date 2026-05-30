@@ -54,25 +54,31 @@ sync_sbids(jay_builder *b, uint32_t mask, gen_sbid_mode mode)
 static inline bool
 jay_inst_is_unordered(const jay_inst *I)
 {
-   return I->op == JAY_OPCODE_SEND;
+   return I->op == JAY_OPCODE_SEND ||
+          I->op == JAY_OPCODE_DPAS;
 }
 
 static inline bool
 jay_inst_has_sbid(const jay_inst *I)
 {
-   return I->op == JAY_OPCODE_SEND && !jay_send_eot(I);
+   return jay_inst_is_unordered(I) &&
+          !(I->op == JAY_OPCODE_SEND && jay_send_eot(I));
 }
 
 static inline unsigned
 jay_inst_sbid(const jay_inst *I)
 {
-   return jay_send_sbid(I);
+   return I->op == JAY_OPCODE_SEND ? jay_send_sbid(I)
+                                   : jay_dpas_sbid(I);
 }
 
 static inline void
 jay_inst_set_sbid(jay_inst *I, unsigned sbid)
 {
-   jay_set_send_sbid(I, sbid);
+   if (I->op == JAY_OPCODE_SEND)
+      jay_set_send_sbid(I, sbid);
+   else
+      jay_set_dpas_sbid(I, sbid);
 }
 
 static void
@@ -218,6 +224,9 @@ inferred_sync_pipe(const struct intel_device_info *devinfo, const jay_inst *I)
 
    if (I->op == JAY_OPCODE_SEND) {
       return GEN_PIPE_NONE;
+   } else if (I->op == JAY_OPCODE_DPAS) {
+      return jay_type_is_any_float(jay_dpas_acc_type(I)) ? GEN_PIPE_FLOAT
+                                                         : GEN_PIPE_INT;
    } else if (devinfo->verx10 >= 125 && type == JAY_TYPE_F64) {
       /* Avoid emitting (RegDist, SWSB) annotations for long instructions on
        * platforms where they are unordered as they may not be allowed.
@@ -286,6 +295,10 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
       ctx->last_sync = I;
       uint32_t sbid_mask = 0;
       if (jay_sync_op(I) == TGL_SYNC_NOP) {
+         /* The SYNC.nops added by this function that are RegDist-only, are
+          * added *before* the instruction so are not seen here.
+          */
+         assert(I->dep.mode != GEN_SBID_NULL);
          sbid_mask = BITFIELD_BIT(I->dep.sbid);
       } else if (jay_sync_op(I) == TGL_SYNC_ALLRD ||
                  jay_sync_op(I) == TGL_SYNC_ALLWR) {
@@ -415,6 +428,24 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
                            GEN_PIPE_NONE,
    };
 
+   /* DPAS can only represent in-order dependency for its inferred pipe,
+    * so if it depends on something else, add an extra SYNC.nop for that.
+    */
+   if (I->op == JAY_OPCODE_DPAS &&
+       wait_pipes &&
+       (!single_wait ||
+        last_pipe != inferred_sync_pipe(func->shader->devinfo, I))) {
+      assert(I->dep.regdist > 0);
+      jay_builder b = jay_init_builder(func, jay_before_inst(I));
+
+      jay_inst *sync = jay_SYNC(&b, jay_null(), TGL_SYNC_NOP);
+      sync->dep.regdist = I->dep.regdist;
+      sync->dep.pipe = I->dep.pipe;
+
+      I->dep.regdist = 0;
+      I->dep.pipe = GEN_PIPE_NONE;
+   }
+
    /* Fold the immediate preceding SYNC.nop into this instruction, allowing
     * us to wait on both ALU and a SBID in the same annotation. We cannot do
     * this safely in the presence of predication or SIMD splitting that could
@@ -475,7 +506,14 @@ jay_lower_scoreboard_trivial(jay_shader *shader)
 {
    jay_foreach_inst_in_shader_safe(shader, func, I) {
       if (jay_inst_has_sbid(I)) {
-         I->dep = gen_swsb_dst_dep(gen_swsb_sbid(GEN_SBID_SET, 0), 1);
+         if (I->op == JAY_OPCODE_DPAS) {
+            /* DPAS can't have an A@1, so insert an extra SYNC.nop. */
+            jay_builder before = jay_init_builder(func, jay_before_inst(I));
+            jay_SYNC(&before, jay_null(), TGL_SYNC_NOP)->dep = gen_swsb_regdist(1);
+            I->dep = gen_swsb_sbid(GEN_SBID_SET, 0);
+         } else {
+            I->dep = gen_swsb_dst_dep(gen_swsb_sbid(GEN_SBID_SET, 0), 1);
+         }
 
          jay_builder b = jay_init_builder(func, jay_after_inst(I));
          sync_sbids(&b, BITFIELD_BIT(0), GEN_SBID_DST);

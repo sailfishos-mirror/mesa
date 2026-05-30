@@ -259,6 +259,7 @@ static const struct {
    OP(DP4A_SS, DP4A, 3),
    OP(DP4A_SU, DP4A, 3),
    OP(DP4A_UU, DP4A, 3),
+   OP(DPAS, DPAS, 3),
    OP(ELSE, ELSE, 0),
    OP(ENDIF, ENDIF, 0),
    OP(EXPAND_QUAD, MOV, 2),
@@ -591,6 +592,21 @@ emit(struct jay_codegen *jc,
       jc->final_halt_offset = jc->num_insts - 1;
       gen->opcode = GEN_OP_HALT;
       break;
+
+   case JAY_OPCODE_DPAS: {
+      gen_reg_type acc_type = to_gen_reg_type(jay_dpas_acc_type(I));
+      gen_reg_type src_type = to_gen_reg_type(jay_dpas_src_type(I));
+
+      gen->dst    = gen_retype(gen->dst, acc_type);
+      gen->src[0] = gen_retype(gen->src[0], acc_type);
+      gen->src[1] = gen_retype(gen->src[1], src_type);
+      gen->src[2] = gen_retype(gen->src[2], src_type);
+
+      gen->dpas.sdepth = jay_dpas_sdepth(I);
+      gen->dpas.rcount = jay_dpas_rcount(I);
+      gen->exec_size   = jc->devinfo->ver >= 20 ? 16 : 8;
+      break;
+   }
 
    default:
       break;
