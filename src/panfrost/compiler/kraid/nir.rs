@@ -388,6 +388,28 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0).swizzle(swz), 0.into()],
                 });
             }
+            nir_op_f2f16 | nir_op_f2f16_rtz | nir_op_f2f16_rtne => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(alu.def.num_components == 1);
+                b.push_op(OpF32ToF16 {
+                    dst: dst.into(),
+                    src: srcs(0),
+                    round: match alu.op {
+                        nir_op_f2f16 | nir_op_f2f16_rtne => FRound::NearestEven,
+                        nir_op_f2f16_rtz => FRound::TowardsZero,
+                        _ => panic!("Invalid f2f16 op"),
+                    },
+                    clamp: FClamp::None,
+                });
+            }
+            nir_op_f2f32 => {
+                assert!(alu.get_src(0).bit_size() == 16);
+                assert!(alu.def.num_components == 1);
+                b.push_op(OpF16ToF32 {
+                    dst: dst.into(),
+                    src: srcs(0),
+                });
+            }
             nir_op_fabs => {
                 // TODO: Do we really want FAdd for this?
                 b.push_op(OpFAdd {

@@ -405,6 +405,56 @@ impl V9Instr for OpCSel {
     }
 }
 
+impl V9Instr for OpF16ToF32 {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        F16ToF32::get_info((), arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(F16ToF32 {
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
+impl From<FRound> for Round {
+    fn from(round: FRound) -> Round {
+        match round {
+            FRound::NearestEven => Round::None,
+            FRound::Up => Round::RoundUp,
+            FRound::Down => Round::RoundDown,
+            FRound::TowardsZero => Round::RoundZero,
+        }
+    }
+}
+
+impl From<FClamp> for ClampM {
+    fn from(clamp: FClamp) -> ClampM {
+        match clamp {
+            FClamp::None => ClampM::None,
+            FClamp::ZeroToInf => ClampM::Clamp0Inf,
+            FClamp::NegOneToOne => ClampM::ClampM11,
+            FClamp::ZeroToOne => ClampM::Clamp01,
+        }
+    }
+}
+
+impl V9Instr for OpF32ToF16 {
+    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
+        F32ToF16::get_info((), arch)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(F32ToF16 {
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+            round: self.round.into(),
+            clamp: self.clamp.into(),
+        })
+    }
+}
+
 impl V9Instr for OpFAdd {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
         if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
@@ -665,6 +715,8 @@ macro_rules! v9_op_match {
         match $op {
             Op::Branch($x) => $y,
             Op::CSel($x) => $y,
+            Op::F16ToF32($x) => $y,
+            Op::F32ToF16($x) => $y,
             Op::FAdd($x) => $y,
             Op::FCmp($x) => $y,
             Op::IAdd($x) => $y,

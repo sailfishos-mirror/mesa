@@ -89,6 +89,78 @@ impl fmt::Display for OpCSel {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpF16ToF32 {
+    #[dst_type(F32)]
+    pub dst: Dst,
+    #[src_type(F16)]
+    pub src: Src,
+}
+
+impl fmt::Display for OpF16ToF32 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = F16_TO_F32 {}", &self.dst, self.fmt_src(&self.src))
+    }
+}
+
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+pub enum FRound {
+    #[default]
+    NearestEven,
+    Up,
+    Down,
+    TowardsZero,
+}
+
+impl fmt::Display for FRound {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FRound::NearestEven => Ok(()),
+            FRound::Up => write!(f, ".round_up"),
+            FRound::Down => write!(f, ".round_down"),
+            FRound::TowardsZero => write!(f, ".round_zero"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+pub enum FClamp {
+    #[default]
+    None,
+    ZeroToInf,
+    NegOneToOne,
+    ZeroToOne,
+}
+
+impl fmt::Display for FClamp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FClamp::None => Ok(()),
+            FClamp::ZeroToInf => write!(f, ".clamp_0_inf"),
+            FClamp::NegOneToOne => write!(f, ".clamp_m1_1"),
+            FClamp::ZeroToOne => write!(f, ".clamp_0_1"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpF32ToF16 {
+    #[dst_type(F16)]
+    pub dst: Dst,
+    #[src_type(F32)]
+    pub src: Src,
+    pub round: FRound,
+    pub clamp: FClamp,
+}
+
+impl fmt::Display for OpF32ToF16 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = F32_TO_F16 {}", &self.dst, self.fmt_src(&self.src))
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [F16, V2F16, F32])]
 pub struct OpFAdd {
     pub dst: Dst,
@@ -538,6 +610,8 @@ impl fmt::Display for OpStore {
 pub enum Op {
     Branch(OpBranch),
     CSel(OpCSel),
+    F16ToF32(OpF16ToF32),
+    F32ToF16(OpF32ToF16),
     FAdd(OpFAdd),
     FCmp(OpFCmp),
     IAdd(OpIAdd),
