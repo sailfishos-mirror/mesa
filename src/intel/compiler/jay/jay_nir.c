@@ -232,6 +232,9 @@ lower_fragment_outputs(nir_function_impl *impl,
                    ctx.stencil ?: undef, ctx.sample_mask ?: undef);
 }
 
+#define JAY_NIR_SNAPSHOT(name)  BRW_NIR_SNAPSHOT(name)
+#define JAY_NIR_PASS(pass, ...) BRW_NIR_PASS(pass, ##__VA_ARGS__)
+
 unsigned
 jay_process_nir(const struct intel_device_info *devinfo,
                 nir_shader *nir,
@@ -250,7 +253,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       .archiver = NULL, //params->base.archiver,
    }, *pt = &pt_;
 
-   BRW_NIR_SNAPSHOT("first");
+   JAY_NIR_SNAPSHOT("first");
 
    prog_data->base.ray_queries = nir->info.ray_queries;
    prog_data->base.stage = stage;
@@ -294,7 +297,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
       brw_nir_lower_vs_inputs(nir);
       brw_nir_lower_vue_outputs(nir);
-      BRW_NIR_SNAPSHOT("after_lower_io");
+      JAY_NIR_SNAPSHOT("after_lower_io");
 
       memset(prog_data->vs.vf_component_packing, 0,
              sizeof(prog_data->vs.vf_component_packing));
@@ -303,31 +306,32 @@ jay_process_nir(const struct intel_device_info *devinfo,
       }
 
       /* Get constant offsets out of the way for proper clip/cull handling */
-      BRW_NIR_PASS(nir_lower_io_to_scalar, nir_var_shader_out, NULL, NULL);
-      BRW_NIR_PASS(nir_opt_constant_folding);
-      BRW_NIR_PASS(brw_nir_lower_deferred_urb_writes, devinfo,
+      JAY_NIR_PASS(nir_lower_io_to_scalar, nir_var_shader_out, NULL, NULL);
+      JAY_NIR_PASS(nir_opt_constant_folding);
+      JAY_NIR_PASS(brw_nir_lower_deferred_urb_writes, devinfo,
                    &prog_data->vue.vue_map, 0, 0);
    } else if (stage == MESA_SHADER_FRAGMENT) {
       assert(key->fs.mesh_input == INTEL_NEVER && "todo");
       brw_nir_apply_key(pt, &key->base, 32);
       brw_nir_lower_fs_inputs(nir, devinfo, &key->fs);
       brw_nir_lower_fs_outputs(nir);
-      NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_in, NULL, NULL);
+      JAY_NIR_SNAPSHOT("after_lower_io");
+      JAY_NIR_PASS(nir_lower_io_to_scalar, nir_var_shader_in, NULL, NULL);
 
       if (!brw_can_coherent_fb_fetch(devinfo))
-         NIR_PASS(_, nir, brw_nir_lower_fs_load_output, &key->fs);
+         JAY_NIR_PASS(brw_nir_lower_fs_load_output, &key->fs);
 
-      NIR_PASS(_, nir, nir_opt_frag_coord_to_pixel_coord);
-      NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_frag_coord,
+      JAY_NIR_PASS(nir_opt_frag_coord_to_pixel_coord);
+      JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_frag_coord,
                nir_metadata_control_flow, NULL);
-      NIR_PASS(_, nir, nir_opt_barycentric, true);
-      NIR_PASS(_, nir, nir_opt_constant_folding);
+      JAY_NIR_PASS(nir_opt_barycentric, true);
+      JAY_NIR_PASS(nir_opt_constant_folding);
 
       lower_fragment_outputs(nir_shader_get_entrypoint(nir), devinfo,
                              key->fs.nr_color_regions, simd_width);
-      NIR_PASS(_, nir, nir_lower_helper_writes, true);
-      NIR_PASS(_, nir, nir_lower_is_helper_invocation);
-      NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_helper_invocation,
+      JAY_NIR_PASS(nir_lower_helper_writes, true);
+      JAY_NIR_PASS(nir_lower_is_helper_invocation);
+      JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_helper_invocation,
                nir_metadata_control_flow, NULL);
 
       if (key->fs.alpha_to_coverage != INTEL_NEVER) {
@@ -335,8 +339,8 @@ jay_process_nir(const struct intel_device_info *devinfo,
           * offset to determine render target 0 store instruction in
           * emit_alpha_to_coverage pass.
           */
-         NIR_PASS(_, nir, nir_opt_constant_folding);
-         NIR_PASS(_, nir, brw_nir_lower_alpha_to_coverage);
+         JAY_NIR_PASS(nir_opt_constant_folding);
+         JAY_NIR_PASS(brw_nir_lower_alpha_to_coverage);
       }
 
       /* We want to run the standard opt loop after lowering but before
@@ -346,35 +350,35 @@ jay_process_nir(const struct intel_device_info *devinfo,
       brw_nir_optimize(pt);
 
       // TODO
-      // NIR_PASS(_, nir, brw_nir_move_interpolation_to_top);
+      // JAY_NIR_PASS(brw_nir_move_interpolation_to_top);
 
       /* Do this before lower_fs_config_intel so that the pass has the right
        * information.
        */
       jay_populate_prog_data(devinfo, nir, prog_data, key, 0);
 
-      NIR_PASS(_, nir, brw_nir_lower_fs_config_intel, &key->fs, &prog_data->fs);
+      JAY_NIR_PASS(brw_nir_lower_fs_config_intel, &key->fs, &prog_data->fs);
    } else {
       brw_nir_apply_key(pt, &key->base, simd_width);
    }
 
    brw_postprocess_nir_opts(pt);
 
-   NIR_PASS(_, nir, nir_shader_intrinsics_pass, jay_nir_lower_simd,
+   JAY_NIR_PASS(nir_shader_intrinsics_pass, jay_nir_lower_simd,
             nir_metadata_control_flow, &simd_width);
-   NIR_PASS(_, nir, nir_opt_algebraic_late);
-   NIR_PASS(_, nir, intel_nir_opt_peephole_imul32x16);
+   JAY_NIR_PASS(nir_opt_algebraic_late);
+   JAY_NIR_PASS(intel_nir_opt_peephole_imul32x16);
 
    /* Late postprocess while remaining in SSA */
    /* Run fsign lowering again after the last time brw_nir_optimize is called.
     * As is the case with conversion lowering (below), brw_nir_optimize can
     * create additional fsign instructions.
     */
-   NIR_PASS(_, nir, jay_nir_lower_fsign);
-   NIR_PASS(_, nir, jay_nir_lower_bool);
-   NIR_PASS(_, nir, nir_opt_cse);
-   NIR_PASS(_, nir, nir_opt_dce);
-   NIR_PASS(_, nir, jay_nir_opt_sel_zero);
+   JAY_NIR_PASS(jay_nir_lower_fsign);
+   JAY_NIR_PASS(jay_nir_lower_bool);
+   JAY_NIR_PASS(nir_opt_cse);
+   JAY_NIR_PASS(nir_opt_dce);
+   JAY_NIR_PASS(jay_nir_opt_sel_zero);
 
    /* Run nir_split_conversions only after the last tiem
     * brw_nir_optimize is called. Various optimizations invoked there can
@@ -383,24 +387,24 @@ jay_process_nir(const struct intel_device_info *devinfo,
    const nir_split_conversions_options split_conv_opts = {
       .callback = intel_nir_split_conversions_cb,
    };
-   NIR_PASS(_, nir, nir_split_conversions, &split_conv_opts);
+   JAY_NIR_PASS(nir_split_conversions, &split_conv_opts);
 
    /* Do this only after the last opt_gcm. GCM will undo this lowering. */
    if (stage == MESA_SHADER_FRAGMENT) {
-      NIR_PASS(_, nir, intel_nir_lower_non_uniform_barycentric_at_sample);
+      JAY_NIR_PASS(intel_nir_lower_non_uniform_barycentric_at_sample);
    }
 
-   NIR_PASS(_, nir, nir_opt_constant_folding);
-   NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
-   NIR_PASS(_, nir, nir_lower_all_phis_to_scalar);
-   NIR_PASS(_, nir, nir_opt_copy_prop);
-   NIR_PASS(_, nir, nir_opt_dce);
+   JAY_NIR_PASS(nir_opt_constant_folding);
+   JAY_NIR_PASS(nir_lower_load_const_to_scalar);
+   JAY_NIR_PASS(nir_lower_all_phis_to_scalar);
+   JAY_NIR_PASS(nir_opt_copy_prop);
+   JAY_NIR_PASS(nir_opt_dce);
 
    /* Jay requires LCSSA for correctness reading convergent loop-dependent
     * values outside of a divergent loop. Converting to LCSSA inserts the
     * required divergent 1-source phi after the loop.
     */
-   NIR_PASS(_, nir, nir_convert_to_lcssa, true, true);
+   JAY_NIR_PASS(nir_convert_to_lcssa, true, true);
 
    /* Run divergence analysis at the end */
    nir_sweep(nir);
