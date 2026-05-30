@@ -424,14 +424,7 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
                          const struct kk_instance *instance,
                          struct vk_properties *properties)
 {
-   VkSampleCountFlagBits sample_counts = VK_SAMPLE_COUNT_1_BIT;
-   for (uint32_t sample_count = VK_SAMPLE_COUNT_2_BIT;
-        sample_count <= VK_SAMPLE_COUNT_8_BIT; sample_count <<= 1) {
-      if (mtl_device_supports_sample_count(pdev->mtl_dev_handle, sample_count))
-         sample_counts |= sample_count;
-   }
-
-   assert(sample_counts <= (KK_MAX_SAMPLES << 1) - 1);
+   VkSampleCountFlags sample_counts = pdev->supported_sample_counts;
 
    uint64_t os_page_size = 4096;
    os_get_page_size(&os_page_size);
@@ -966,6 +959,14 @@ get_metal_limits(struct kk_physical_device *pdev)
       mtl_device_max_threadgroup_memory_length(pdev->mtl_dev_handle);
    pdev->info.max_buffer_size =
       mtl_device_max_buffer_length(pdev->mtl_dev_handle);
+
+   pdev->supported_sample_counts = VK_SAMPLE_COUNT_1_BIT;
+   for (uint32_t sample_count = VK_SAMPLE_COUNT_2_BIT;
+        sample_count <= VK_SAMPLE_COUNT_8_BIT; sample_count <<= 1) {
+      if (mtl_device_supports_sample_count(pdev->mtl_dev_handle, sample_count))
+         pdev->supported_sample_counts |= sample_count;
+   }
+   assert(pdev->supported_sample_counts <= (KK_MAX_SAMPLES << 1) - 1);
 }
 
 VkResult

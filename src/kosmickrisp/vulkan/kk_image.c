@@ -279,10 +279,11 @@ kk_GetPhysicalDeviceImageFormatProperties2(
        pImageFormatInfo->type == VK_IMAGE_TYPE_3D)
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
-   /* TODO_KOSMICKRISP We could allow linear images that are used as render
-    * target as long as they are not used as input attachments. Main reason for
-    * this is that we expect arrays when rendering and reading from input
-    * attachments and Metal disallows arrays for linear textures.
+   /* TODO_KOSMICKRISP Linear images cannot be used as color attachments as long
+    * as input attachments are changed to arrays. Vulkan specifies that any
+    * image format supporting the color attachment feature also supports being
+    * used as an input attachment, and Metal disallows arrays for linear
+    * textures.
     */
    if (pImageFormatInfo->tiling == VK_IMAGE_TILING_LINEAR &&
        (pImageFormatInfo->usage &
@@ -371,12 +372,7 @@ kk_GetPhysicalDeviceImageFormatProperties2(
        (features & (VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT |
                     VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) &&
        !(pImageFormatInfo->flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)) {
-      sampleCounts =
-         VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT |
-         // TODO_KOSMICKRISP Modify sample count based on what pdev supports
-         VK_SAMPLE_COUNT_4_BIT /* |
-          VK_SAMPLE_COUNT_8_BIT */
-         ;
+      sampleCounts = pdev->supported_sample_counts;
    }
 
    /* From the Vulkan 1.2.199 spec:
