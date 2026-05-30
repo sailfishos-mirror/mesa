@@ -389,7 +389,7 @@ impl TryFrom<CmpOp> for CmpfM {
 
 impl V9Instr for OpCSel {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Csel::get_info(self.cmp_type.try_into().ok()?, arch)
+        Csel::get_info(self.cmp_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -458,9 +458,9 @@ impl V9Instr for OpF32ToF16 {
 impl V9Instr for OpFAdd {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
         if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
-            FaddImm::get_info(self.dst_type.try_into().ok()?, arch)
+            FaddImm::get_info(self.dst_type, arch)
         } else {
-            Fadd::get_info(self.dst_type.try_into().ok()?, arch)
+            Fadd::get_info(self.dst_type, arch)
         }
     }
 
@@ -488,7 +488,7 @@ impl V9Instr for OpFAdd {
 
 impl V9Instr for OpFCmp {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Fcmp::get_info(self.src_type.try_into().ok()?, arch)
+        Fcmp::get_info(self.src_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -506,9 +506,9 @@ impl V9Instr for OpFCmp {
 impl V9Instr for OpIAdd {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
         if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
-            IaddImm::get_info(self.dst_type.try_into().ok()?, arch)
+            IaddImm::get_info(self.dst_type, arch)
         } else {
-            Iadd::get_info(self.dst_type.i_as_u().try_into().ok()?, arch)
+            Iadd::get_info(self.dst_type.i_as_u(), arch)
         }
     }
 
@@ -534,7 +534,7 @@ impl V9Instr for OpIAdd {
 
 impl V9Instr for OpICmp {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Icmp::get_info(self.src_type.try_into().ok()?, arch)
+        Icmp::get_info(self.src_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -551,7 +551,7 @@ impl V9Instr for OpICmp {
 
 impl V9Instr for OpLdPka {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        LdPka::get_info(self.dst_type.try_into().ok()?, arch)
+        LdPka::get_info(self.dst_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -584,7 +584,7 @@ impl V9Instr for OpLeaPka {
 
 impl V9Instr for OpLoad {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Load::get_info(self.dst_type.try_into().ok()?, arch)
+        Load::get_info(self.dst_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -603,9 +603,9 @@ impl V9Instr for OpLoad {
 impl V9Instr for OpMov {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
         if let SrcRef::Imm32(_) = &self.src.src_ref {
-            MovImm::get_info(self.dst_type.try_into().ok()?, arch)
+            MovImm::get_info(self.dst_type, arch)
         } else {
-            Mov::get_info(self.dst_type.try_into().ok()?, arch)
+            Mov::get_info(self.dst_type, arch)
         }
     }
 
@@ -655,15 +655,14 @@ impl V9Instr for OpShiftLop {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
         use LogicOp::*;
         use ShiftOp::*;
-        let dt = self.dst_type;
         match (self.shift_op, self.logic_op) {
-            (LShift, And) => LshiftAnd::get_info(dt.try_into().ok()?, arch),
-            (LShift, Or) => LshiftOr::get_info(dt.try_into().ok()?, arch),
-            (LShift, Xor) => LshiftXor::get_info(dt.try_into().ok()?, arch),
-            (RShift, And) => RshiftAnd::get_info(dt.try_into().ok()?, arch),
-            (RShift, Or) => RshiftOr::get_info(dt.try_into().ok()?, arch),
-            (RShift, Xor) => RshiftXor::get_info(dt.try_into().ok()?, arch),
-            (ARShift, _) => Arshift::get_info(dt.try_into().ok()?, arch),
+            (LShift, And) => LshiftAnd::get_info(self.dst_type, arch),
+            (LShift, Or) => LshiftOr::get_info(self.dst_type, arch),
+            (LShift, Xor) => LshiftXor::get_info(self.dst_type, arch),
+            (RShift, And) => RshiftAnd::get_info(self.dst_type, arch),
+            (RShift, Or) => RshiftOr::get_info(self.dst_type, arch),
+            (RShift, Xor) => RshiftXor::get_info(self.dst_type, arch),
+            (ARShift, _) => Arshift::get_info(self.dst_type, arch),
             _ => None,
         }
     }
@@ -695,7 +694,7 @@ impl V9Instr for OpShiftLop {
 
 impl V9Instr for OpStore {
     fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Store::get_info(self.src_type.try_into().ok()?, arch)
+        Store::get_info(self.src_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {

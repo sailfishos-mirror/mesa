@@ -1005,7 +1005,7 @@ impl ToTokens for InstrEnc {
             impl Instruction for #s_ident {
                 type Variant = #variant_type_ts;
 
-                fn get_info(
+                fn get_info_for_variant(
                     variant: Self::Variant,
                     arch: u8,
                 ) -> Option<&'static InstructionInfo> {

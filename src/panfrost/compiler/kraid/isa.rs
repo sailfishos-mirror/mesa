@@ -93,10 +93,17 @@ pub struct InstructionInfo {
 pub trait Instruction {
     type Variant;
 
-    fn get_info(
+    fn get_info_for_variant(
         variant: Self::Variant,
         arch: u8,
     ) -> Option<&'static InstructionInfo>;
+
+    fn get_info(
+        variant: impl TryInto<Self::Variant>,
+        arch: u8,
+    ) -> Option<&'static InstructionInfo> {
+        Self::get_info_for_variant(variant.try_into().ok()?, arch)
+    }
 }
 
 #[derive(Clone, Copy)]
