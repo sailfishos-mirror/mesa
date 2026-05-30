@@ -243,14 +243,6 @@ kk_GetPhysicalDeviceImageFormatProperties2(
        pImageFormatInfo->type == VK_IMAGE_TYPE_3D)
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
-   /* Metal disallows reading compressed formats as uncompressed format.
-    * VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT is only used with
-    * compressed formats.
-    */
-   if (pImageFormatInfo->flags &
-       VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT)
-      return VK_ERROR_FORMAT_NOT_SUPPORTED;
-
    const struct vk_format_ycbcr_info *ycbcr_info =
       vk_format_get_ycbcr_info(pImageFormatInfo->format);
 
@@ -491,10 +483,11 @@ kk_GetPhysicalDeviceImageFormatProperties2(
          /* Optimal device access and identical memory layout if optimization
           * is the same both with and without host transfer usage */
          bool with_host_transfer = kk_image_layout_can_optimize(
-            pImageFormatInfo->usage, pImageFormatInfo->tiling, p_format);
+            pImageFormatInfo->usage, pImageFormatInfo->tiling,
+            pImageFormatInfo->flags, p_format);
          bool without_host_transfer = kk_image_layout_can_optimize(
             pImageFormatInfo->usage & ~VK_IMAGE_USAGE_HOST_TRANSFER_BIT,
-            pImageFormatInfo->tiling, p_format);
+            pImageFormatInfo->tiling, pImageFormatInfo->flags, p_format);
          host_props->optimalDeviceAccess =
             with_host_transfer == without_host_transfer;
          host_props->identicalMemoryLayout = host_props->optimalDeviceAccess;
@@ -826,6 +819,19 @@ kk_GetDeviceImageSubresourceLayoutKHR(
    kk_image_finish(dev, &image, NULL);
 }
 
+mtl_texture *
+kk_image_plane_create_texture(struct kk_image_plane *plane,
+                              struct kk_image_layout *layout, uint64_t offset_B)
+{
+   uint64_t mem_offset_B = plane->mem_offset_B + offset_B;
+   if (plane->layout.linear)
+      return mtl_new_texture_with_descriptor_linear(plane->mem->bo->map, layout,
+                                                    mem_offset_B);
+
+   return mtl_new_texture_with_descriptor(plane->mem->bo->mtl_handle, layout,
+                                          mem_offset_B);
+}
+
 static VkResult
 kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
                     struct kk_image_plane *plane, struct kk_device_memory *mem,
@@ -837,12 +843,9 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
    *offset_B = align64(*offset_B, plane_align_B);
 
    /* Linear textures in Metal need to be allocated through a buffer... */
-   if (plane->layout.linear)
-      plane->mtl_handle = mtl_new_texture_with_descriptor_linear(
-         mem->bo->map, &plane->layout, *offset_B);
-   else
-      plane->mtl_handle = mtl_new_texture_with_descriptor(
-         mem->bo->mtl_handle, &plane->layout, *offset_B);
+   plane->mem = mem;
+   plane->mem_offset_B = *offset_B;
+   plane->mtl_handle = kk_image_plane_create_texture(plane, &plane->layout, 0u);
    plane->addr = mem->bo->gpu + *offset_B;
 
    /* Create auxiliary 2D array texture for 3D images so we can use 2D views of

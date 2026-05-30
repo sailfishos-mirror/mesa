@@ -7,6 +7,7 @@
 #ifndef MTL_DEVICE_H
 #define MTL_DEVICE_H 1
 
+#include "mtl_format.h"
 #include "mtl_types.h"
 
 #include <stdbool.h>
@@ -42,8 +43,17 @@ uint64_t mtl_device_get_gpu_timestamp(mtl_device *dev);
 void mtl_heap_buffer_size_and_align_with_length(mtl_device *device,
                                                 uint64_t *size_B,
                                                 uint64_t *align_B);
-void
-mtl_heap_texture_size_and_align_with_descriptor(mtl_device *device,
-                                                struct kk_image_layout *layout);
+uint64_t mtl_minimum_linear_texture_alignment_for_pixel_format(
+   mtl_device *device, enum mtl_pixel_format format);
+void mtl_heap_texture_size_and_align_with_descriptor(
+   mtl_device *device, struct kk_image_layout *layout, uint64_t *size_B,
+   uint64_t *align_B);
+
+uint32_t mtl_sparse_tile_size_in_bytes(mtl_device *device);
+struct mtl_size mtl_sparse_tile_size(mtl_device *device,
+                                     struct kk_image_layout *layout);
+struct mtl_size mtl_sparse_tile_count(mtl_device *device,
+                                      struct kk_image_layout *layout,
+                                      struct mtl_size tile_size);
 
 #endif /* MTL_DEVICE_H */
