@@ -858,16 +858,27 @@ jay_to_binary(jay_shader *s,
       reloc->offset = inst_offsets[inst_idx];
    }
 
-   if (debug) {
+   if (debug || s->archiver) {
       gen_print_params print_params = {
          .devinfo = jc.devinfo,
-         .fp = stdout,
          .insts = jc.insts,
          .num_insts = jc.num_insts,
          .raw_bytes = jc.output,
          .raw_bytes_size = code_size,
       };
-      gen_print(&print_params);
+
+      if (debug) {
+         print_params.fp = stdout;
+         gen_print(&print_params);
+      }
+
+      if (s->archiver) {
+         const char *filename =
+            ralloc_asprintf(s, "GEN%u/0", s->dispatch_width);
+         print_params.fp = debug_archiver_start_file(s->archiver, filename);
+         gen_print(&print_params);
+         debug_archiver_finish_file(s->archiver);
+      }
    }
 
    assert(prog_data->const_data_size == 0);

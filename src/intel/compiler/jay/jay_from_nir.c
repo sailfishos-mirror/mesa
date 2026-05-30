@@ -24,6 +24,7 @@
 #include "jay_ir.h"
 #include "jay_opcodes.h"
 #include "jay_private.h"
+#include "mda/debug_archiver.h"
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_defines.h"
@@ -2880,14 +2881,15 @@ jay_compile(const struct intel_device_info *devinfo,
             void *mem_ctx,
             nir_shader *nir,
             union brw_any_prog_data *prog_data,
-            union brw_any_prog_key *key)
+            union brw_any_prog_key *key,
+            debug_archiver *archiver)
 {
    jay_debug = debug_get_option_jay_debug();
    bool debug =
       INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage)) &&
       !(nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
 
-   unsigned simd_width = jay_process_nir(devinfo, nir, prog_data, key);
+   unsigned simd_width = jay_process_nir(devinfo, nir, prog_data, key, archiver);
 
    if (debug) {
       /* We can't use nir_print_shader since it reindexes SSA defs. */
@@ -2901,6 +2903,7 @@ jay_compile(const struct intel_device_info *devinfo,
    s->scratch_size = align(nir->scratch_size, 4) * s->dispatch_width;
    s->devinfo = devinfo;
    s->prog_data = prog_data;
+   s->archiver = archiver;
 
    nir_foreach_function_impl(impl, nir) {
       jay_from_nir_function(devinfo, nir, s, impl);

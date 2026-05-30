@@ -2074,7 +2074,8 @@ anv_shader_compile(struct vk_device *vk_device,
          struct jay_shader_bin *bin =
             jay_compile(devinfo, mem_ctx, nir,
                         (union brw_any_prog_data *)compile_params->prog_data,
-                        (union brw_any_prog_key *)compile_params->key);
+                        (union brw_any_prog_key *)compile_params->key,
+                        shader_data->archiver);
          shader_data->code = bin->kernel;
 
          if (mesa_shader_stage_uses_workgroup(nir->info.stage)) {

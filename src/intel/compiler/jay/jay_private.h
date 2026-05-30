@@ -33,7 +33,8 @@ void jay_populate_prog_data(const struct intel_device_info *devinfo,
 unsigned jay_process_nir(const struct intel_device_info *devinfo,
                          nir_shader *nir,
                          union brw_any_prog_data *prog_data,
-                         union brw_any_prog_key *key);
+                         union brw_any_prog_key *key,
+                         debug_archiver *archiver);
 
 void jay_compute_liveness(jay_function *f);
 void jay_calculate_register_demands(jay_function *f);
@@ -54,9 +55,15 @@ void jay_print_func(FILE *fp, jay_function *func);
 void jay_print(FILE *f, jay_shader *s);
 
 #ifndef NDEBUG
+void jay_archive(jay_shader *s, const char *name, unsigned idx);
 void jay_validate(jay_shader *s, const char *when);
 void jay_validate_ra(jay_function *func);
 #else
+static inline void
+jay_archive(jay_shader *s, const char *name, unsigned idx)
+{
+}
+
 static inline void
 jay_validate(jay_shader *s, const char *when)
 {

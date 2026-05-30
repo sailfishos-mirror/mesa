@@ -239,21 +239,12 @@ unsigned
 jay_process_nir(const struct intel_device_info *devinfo,
                 nir_shader *nir,
                 union brw_any_prog_data *prog_data,
-                union brw_any_prog_key *key)
+                union brw_any_prog_key *key,
+                debug_archiver *archiver)
 {
    enum mesa_shader_stage stage = nir->info.stage;
    struct brw_compiler compiler = { .devinfo = devinfo };
    unsigned nr_packed_regs = 0;
-
-   brw_pass_tracker pt_ = {
-      .nir = nir,
-      .key = &key->base,
-      .dispatch_width = 0,
-      .compiler = &compiler,
-      .archiver = NULL, //params->base.archiver,
-   }, *pt = &pt_;
-
-   JAY_NIR_SNAPSHOT("first");
 
    prog_data->base.ray_queries = nir->info.ray_queries;
    prog_data->base.stage = stage;
@@ -265,6 +256,16 @@ jay_process_nir(const struct intel_device_info *devinfo,
    bool do_simd32 = INTEL_SIMD(FS, 32);
    do_simd32 &= stage == MESA_SHADER_COMPUTE || stage == MESA_SHADER_FRAGMENT;
    unsigned simd_width = do_simd32 ? (nir->info.api_subgroup_size ?: 32) : 16;
+
+   brw_pass_tracker pt_ = {
+      .nir = nir,
+      .key = &key->base,
+      .dispatch_width = simd_width,
+      .compiler = &compiler,
+      .archiver = archiver,
+   }, *pt = &pt_;
+
+   JAY_NIR_SNAPSHOT("first");
 
    if (stage == MESA_SHADER_VERTEX) {
       /* We only expect slot compaction to be disabled when using device

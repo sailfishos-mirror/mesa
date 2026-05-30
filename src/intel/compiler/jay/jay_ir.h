@@ -782,6 +782,7 @@ typedef struct jay_shader {
    struct list_head functions;
    const struct intel_device_info *devinfo;
    union brw_any_prog_data *prog_data;
+   debug_archiver *archiver;
    unsigned spills, fills;
    unsigned scratch_size;
    unsigned payload_gprs, payload_ugprs, push_grfs;
@@ -1413,6 +1414,7 @@ jay_source_last_use_bit(const jay_def *srcs, unsigned src_idx)
 #define JAY_PASS(shader, pass, ...)                                            \
    do {                                                                        \
       pass(shader, ##__VA_ARGS__);                                             \
+      jay_archive(shader, #pass, __COUNTER__);                                 \
       jay_validate(shader, #pass);                                             \
    } while (0)
 

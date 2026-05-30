@@ -295,3 +295,21 @@ jay_print(FILE *fp, jay_shader *s)
       jay_print_func(fp, f);
    }
 }
+
+#ifndef NDEBUG
+
+void
+jay_archive(jay_shader *s, const char *name, unsigned idx)
+{
+   if (!s->archiver)
+      return;
+
+   const char *filename =
+      ralloc_asprintf(s, "JAY%u/%02u-%s", s->dispatch_width, idx, name);
+
+   FILE *f = debug_archiver_start_file(s->archiver, filename);
+   jay_print(f, s);
+   debug_archiver_finish_file(s->archiver);
+}
+
+#endif
