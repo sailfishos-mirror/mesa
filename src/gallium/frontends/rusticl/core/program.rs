@@ -19,6 +19,7 @@ use rusticl_opencl_gen::*;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::ffi::CStr;
 use std::ffi::CString;
 use std::ptr::addr_of;
 use std::slice;
@@ -95,13 +96,13 @@ impl_cl_type_trait!(cl_program, Program, CL_INVALID_PROGRAM);
 
 pub struct ProgramBuild {
     pub builds_by_device: HashMap<&'static Device, DeviceProgramBuild>,
-    pub kernel_info: HashMap<String, Arc<KernelInfo>>,
+    pub kernel_info: HashMap<CString, Arc<KernelInfo>>,
     spec_constants: HashMap<u32, Vec<u8>>,
-    kernels: Vec<String>,
+    kernels: Vec<CString>,
 }
 
 impl ProgramBuild {
-    fn args(&self, dev: &Device, kernel: &str) -> Option<Vec<spirv::SPIRVKernelArg>> {
+    fn args(&self, dev: &Device, kernel: &CStr) -> Option<Vec<spirv::SPIRVKernelArg>> {
         self.dev_build(dev).spirv.as_ref().map(|s| s.args(kernel))
     }
 
@@ -180,7 +181,7 @@ impl ProgramBuild {
         self.builds_by_device.get_mut(dev).unwrap()
     }
 
-    pub fn kernels(&self) -> &[String] {
+    pub fn kernels(&self) -> &[CString] {
         &self.kernels
     }
 
@@ -196,14 +197,14 @@ pub struct DeviceProgramBuild {
     options: String,
     log: String,
     bin_type: cl_program_binary_type,
-    pub kernels: HashMap<String, Arc<NirKernelBuilds>>,
+    pub kernels: HashMap<CString, Arc<NirKernelBuilds>>,
 }
 
 impl DeviceProgramBuild {
     pub fn hash_key(
         &self,
         cache: Option<&DiskCacheBorrowed>,
-        name: &str,
+        name: &CStr,
         spec_constants: &HashMap<u32, Vec<u8>>,
     ) -> Option<cache_key> {
         if let Some(cache) = cache {
@@ -211,7 +212,7 @@ impl DeviceProgramBuild {
 
             let spirv = self.spirv.as_ref().unwrap();
             let mut bin = spirv.to_bin().to_vec();
-            bin.extend_from_slice(name.as_bytes());
+            bin.extend_from_slice(name.to_bytes());
 
             for (k, v) in spec_constants {
                 bin.extend_from_slice(&k.to_ne_bytes());
@@ -224,13 +225,13 @@ impl DeviceProgramBuild {
         }
     }
 
-    pub fn kernel_info(&self, kernel_name: &str) -> Option<&clc_kernel_info> {
+    pub fn kernel_info(&self, kernel_name: &CStr) -> Option<&clc_kernel_info> {
         self.spirv.as_ref()?.kernel_info(kernel_name)
     }
 
     pub fn to_nir(
         &self,
-        kernel: &str,
+        kernel: &CStr,
         device: &Device,
         spec_constants: &mut HashMap<u32, Vec<u8>>,
     ) -> Option<NirShader> {
@@ -582,7 +583,7 @@ impl Program {
 
     // TODO: at the moment we do not support compiling programs with different signatures across
     // devices. If we do in the future, this needs to be properly implemented.
-    pub fn has_unique_kernel_signatures(&self, _kernel_name: &str) -> bool {
+    pub fn has_unique_kernel_signatures(&self, _kernel_name: &CStr) -> bool {
         true
     }
 

@@ -243,21 +243,22 @@ impl SPIRVBin {
         }
     }
 
-    pub fn kernel_info(&self, name: &str) -> Option<&clc_kernel_info> {
+    pub fn kernel_info(&self, name: &CStr) -> Option<&clc_kernel_info> {
         self.kernel_infos()
             .iter()
-            .find(|i| c_string_to_string(i.name) == name)
+            // SAFETY: name always points to a valid C string.
+            .find(|i| unsafe { CStr::from_ptr(i.name) } == name)
     }
 
-    pub fn kernels(&self) -> Vec<String> {
+    pub fn kernels(&self) -> Vec<CString> {
         self.kernel_infos()
             .iter()
-            .map(|i| i.name)
-            .map(c_string_to_string)
+            // SAFETY: name always points to a valid C string.
+            .map(|i| unsafe { CStr::from_ptr(i.name) }.to_owned())
             .collect()
     }
 
-    pub fn args(&self, name: &str) -> Vec<SPIRVKernelArg> {
+    pub fn args(&self, name: &CStr) -> Vec<SPIRVKernelArg> {
         match self.kernel_info(name) {
             Some(info) if info.num_args > 0 => {
                 unsafe { slice::from_raw_parts(info.args, info.num_args) }
@@ -325,14 +326,13 @@ impl SPIRVBin {
 
     pub fn to_nir(
         &self,
-        entry_point: &str,
+        entry_point: &CStr,
         nir_options: *const nir_shader_compiler_options,
         spirv_to_nir_options: SPIRVToNirOptions,
         libclc: &NirShader,
         spec_constants: &mut nir_spirv_specialization,
         log: Option<&mut Vec<String>>,
     ) -> Option<NirShader> {
-        let c_entry = CString::new(entry_point.as_bytes()).unwrap();
         let spirv_options =
             Self::get_spirv_options(false, libclc.get_nir(), spirv_to_nir_options, log);
 
@@ -342,7 +342,7 @@ impl SPIRVBin {
                 self.spirv.size / 4,
                 spec_constants,
                 mesa_shader_stage::MESA_SHADER_KERNEL,
-                c_entry.as_ptr(),
+                entry_point.as_ptr(),
                 &spirv_options,
                 nir_options,
             )
