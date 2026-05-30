@@ -130,30 +130,26 @@ executor_macro_eot(executor_context *ec, char **src, char *line)
    case 110: {
       ralloc_strcat(src,
          "(W) mov (8) r127 r0\n"
-         "(W) send.ts (8) null r127:1 null:0 0x00000000 0x82000010 {EOT}\n");
+         "(W) sends.ts (1) null r127:1 null:0 0x00000000 0x82000010 {EOT}\n");
       break;
    }
 
    case 120: {
       ralloc_strcat(src,
          "(W) mov (8) r127 r0\n"
-         "(W) send.ts (8) null r127:1 null:0 0x00000000 0x02000000 {@1,EOT}\n");
+         "(W) send.ts (1) null r127:1 null:0 0x00000000 0x02000000 {@1,EOT}\n");
       break;
    }
 
-   case 125: {
-      ralloc_strcat(src,
-         "(W) mov (8) r127 r0\n"
-         "(W) send.gtwy (8) null r127:1 null:0 0x00000000 0x02000000 {A@1,EOT}\n");
-      break;
-   }
-
+   case 125:
    case 200:
    case 300:
    case 350: {
-      ralloc_strcat(src,
-         "(W) mov (16) r127 r0\n"
-         "(W) send.gtwy (16) null r127:1 null:0 0x00000000 0x02000000 {I@1,EOT}\n");
+      const unsigned slots = ec->devinfo->verx10 >= 200 ? 16 : 8;
+      ralloc_asprintf_append(src,
+         "(W) mov (%u) r127 r0\n"
+         "(W) send.gtwy (1) null r127:1 null:0 0x00000000 0x02000000 {A@1,EOT}\n",
+         slots);
       break;
    }
 
