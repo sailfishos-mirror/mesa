@@ -895,6 +895,8 @@ if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv') or 
     '-Dkeyword_idents_2024',
     '-Dmissing_unsafe_on_extern',
     '-Dnever_type_fallback_flowing_into_unsafe',
+    '-Drust_2024_guarded_string_incompatible_syntax',
+    '-Drust_2024_incompatible_pat',
     '-Drust_2024_prelude_collisions',
     '-Dstatic_mut_refs',
     '-Dunsafe_op_in_unsafe_fn',
@@ -904,8 +906,6 @@ if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv') or 
 
     # 1.83+
     # '-Dif_let_rescope',
-    # '-Drust_2024_guarded_string_incompatible_syntax',
-    # '-Drust_2024_incompatible_pat',
   ]
 endif
 
