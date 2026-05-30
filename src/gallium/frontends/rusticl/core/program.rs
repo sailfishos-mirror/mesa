@@ -14,6 +14,8 @@ use mesa_rust::compiler::clc::*;
 use mesa_rust::compiler::nir::*;
 use mesa_rust::util::disk_cache::*;
 use mesa_rust_gen::*;
+use mesa_rust_util::string::CStringExt;
+use mesa_rust_util::string::Join;
 use rusticl_llvm_gen::*;
 use rusticl_opencl_gen::*;
 
@@ -142,7 +144,7 @@ impl ProgramBuild {
                     convert_spirv_to_nir(build, kernel_name, &args, &mut self.spec_constants, dev)
                 else {
                     build.status = CL_BUILD_ERROR;
-                    build.log = "Internal compilation error".to_owned();
+                    build.log = c"Internal compilation error".to_owned();
                     return;
                 };
                 kernel_info_set.insert(build_result.kernel_info);
@@ -195,7 +197,7 @@ pub struct DeviceProgramBuild {
     spirv: Option<spirv::SPIRVBin>,
     status: cl_build_status,
     options: String,
-    log: String,
+    log: CString,
     bin_type: cl_program_binary_type,
     pub kernels: HashMap<CString, Arc<NirKernelBuilds>>,
 }
@@ -266,7 +268,7 @@ impl DeviceProgramBuild {
 
         if let Some(log) = log {
             for line in log {
-                eprintln!("{}", line);
+                eprintln!("{line:?}");
             }
         };
 
@@ -504,7 +506,7 @@ impl Program {
         self.build_info().dev_build(dev).status
     }
 
-    pub fn log(&self, dev: &Device) -> String {
+    pub fn log(&self, dev: &Device) -> CString {
         self.build_info().dev_build(dev).log.clone()
     }
 
@@ -646,7 +648,7 @@ impl Program {
         let (spirv, log) = match &self.src {
             ProgramSourceType::Il(spirv) => {
                 if Platform::dbg().allow_invalid_spirv {
-                    (Some(spirv.clone()), String::new())
+                    (Some(spirv.clone()), CString::default())
                 } else {
                     spirv.clone_on_validate(&val_options)
                 }
@@ -692,7 +694,7 @@ impl Program {
                 if Platform::dbg().validate_spirv {
                     if let Some(spirv) = spirv {
                         let (res, spirv_msgs) = spirv.validate(&val_options);
-                        (res.then_some(spirv), format!("{}\n{}", msgs, spirv_msgs))
+                        (res.then_some(spirv), [msgs, spirv_msgs].join(c"\n"))
                     } else {
                         (None, msgs)
                     }
@@ -854,7 +856,7 @@ impl Program {
             if let Some(spirv) = spirv {
                 let val_options = clc_validator_options(device);
                 let (res, spirv_msgs) = spirv.validate(&val_options);
-                (res.then_some(spirv), format!("{}\n{}", log, spirv_msgs))
+                (res.then_some(spirv), [log, spirv_msgs].join(c"\n"))
             } else {
                 (None, log)
             }
@@ -863,7 +865,7 @@ impl Program {
         };
 
         build.spirv = spirv;
-        build.log.push_str(&log);
+        build.log.push_cstr(&log);
 
         if build.spirv.is_some() {
             build.status = CL_BUILD_SUCCESS as cl_build_status;
@@ -942,7 +944,7 @@ fn debug_logging(p: &Program, devs: &[&Device]) {
         for dev in devs {
             let msg = p.log(dev);
             if !msg.is_empty() {
-                eprintln!("{}", msg);
+                eprintln!("{msg:?}");
             }
         }
     }
