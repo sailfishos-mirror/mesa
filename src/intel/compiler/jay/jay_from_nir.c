@@ -844,19 +844,13 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
          srcs[len++] = jay_extract(packed, i);
    }
 
-   /* Optimize out unconditional discards (probably should do this in NIR) */
-   if (nir_src_is_const(intr->src[5]) && nir_src_as_bool(intr->src[5])) {
-      for (unsigned i = 0; i < len; i++)
-         srcs[i] = jay_UNDEF_u32(b);
-   }
-
    jay_inst *send =
       jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
                .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
                .type = JAY_TYPE_U32, .eot = last, .split = split);
 
    /* Handle the disable predicate. It is logically inverted. */
-   if (!nir_src_is_const(intr->src[5]) || nir_src_as_bool(intr->src[5])) {
+   if (!nir_src_is_zero(intr->src[5])) {
       jay_add_predicate(b, send, jay_negate(nj_src(intr->src[5])));
    }
 }

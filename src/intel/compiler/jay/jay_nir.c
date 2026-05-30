@@ -13,6 +13,9 @@
 #include "nir_intrinsics.h"
 #include "shader_enums.h"
 
+#define JAY_NIR_SNAPSHOT(name)  BRW_NIR_SNAPSHOT(name)
+#define JAY_NIR_PASS(pass, ...) BRW_NIR_PASS(pass, ##__VA_ARGS__)
+
 /*
  * Jay-to-NIR relies on a careful indexing of defs: every 32-bit word has
  * its own index. Vectors/64-bit use contiguous indices. We therefore run a
@@ -231,8 +234,79 @@ lower_fragment_outputs(nir_function_impl *impl,
                    ctx.stencil ?: undef, ctx.sample_mask ?: undef);
 }
 
-#define JAY_NIR_SNAPSHOT(name)  BRW_NIR_SNAPSHOT(name)
-#define JAY_NIR_PASS(pass, ...) BRW_NIR_PASS(pass, ##__VA_ARGS__)
+/**
+ * If we've optimized the entire program down to only "demote"
+ * or "terminate" with no other instructions, delete it entirely.
+ *
+ * We're already not writing outputs and ending the program.
+ */
+static void
+delete_solo_discard(nir_shader *nir)
+{
+   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
+   nir_block *start_block = nir_start_block(impl);
+   nir_instr *instr = nir_block_first_instr(start_block);
+
+   if (start_block != nir_impl_last_block(impl) ||
+       !exec_list_is_singular(&start_block->instr_list) ||
+       instr->type != nir_instr_type_intrinsic)
+      return;
+
+   nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+
+   if (intrin->intrinsic == nir_intrinsic_demote ||
+       intrin->intrinsic == nir_intrinsic_terminate) {
+      nir_instr_remove(instr);
+      nir->info.fs.uses_discard = false;
+   }
+}
+
+/**
+ * Drop render target stores with unconditional discards.
+ */
+static bool
+opt_unconditional_discards(nir_shader *nir)
+{
+   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
+   nir_block *block = nir_impl_last_block(impl);
+
+   bool progress = false;
+   bool any_remaining_rt_writes = false;
+
+   nir_foreach_instr_reverse_safe(instr, block) {
+      if (instr->type != nir_instr_type_intrinsic)
+         continue;
+
+      nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+
+      if (intr->intrinsic != nir_intrinsic_store_render_target_intel)
+         continue;
+
+      nir_scalar discard = nir_scalar_resolved(intr->src[5].ssa, 0);
+      if (nir_scalar_is_const(discard) && nir_scalar_as_uint(discard) != 0) {
+         /* Drop store with unconditional discard */
+         nir_instr_remove(instr);
+         progress = true;
+      } else {
+         /* This RT store might actually happen */
+         any_remaining_rt_writes = true;
+      }
+   }
+
+   if (progress) {
+      nir_opt_dce_impl(impl);
+      delete_solo_discard(nir);
+   }
+
+   /* If we eliminated all RT stores, add a Null RT store to end the thread. */
+   if (!any_remaining_rt_writes) {
+      nir_builder b = nir_builder_at(nir_after_impl(impl));
+      nir_def *undef = nir_undef(&b, 1, 32);
+      insert_rt_store(&b, -1, NULL, NULL, undef, undef, undef);
+   }
+
+   return nir_progress(progress, impl, nir_metadata_control_flow);
+}
 
 unsigned
 jay_process_nir(const struct intel_device_info *devinfo,
@@ -360,6 +434,8 @@ jay_process_nir(const struct intel_device_info *devinfo,
        * values are actually used (vs DCE'd away).
        */
       brw_nir_optimize(pt);
+
+      NIR_PASS(_, nir, opt_unconditional_discards);
 
       // TODO
       // JAY_NIR_PASS(brw_nir_move_interpolation_to_top);
