@@ -196,7 +196,7 @@ impl ProgramBuild {
 pub struct DeviceProgramBuild {
     spirv: Option<spirv::SPIRVBin>,
     status: cl_build_status,
-    options: String,
+    options: ParsedCompileOptions,
     log: CString,
     bin_type: cl_program_binary_type,
     pub kernels: HashMap<CString, Arc<NirKernelBuilds>>,
@@ -285,59 +285,86 @@ pub struct HeaderProgram {
     pub program: Arc<Program>,
 }
 
-fn prepare_options(options: &str, dev: &Device) -> Vec<CString> {
-    let mut options = options.to_owned();
-    if !options.contains("-cl-std=") {
-        options.push_str(" -cl-std=CL");
-        options.push_str(dev.clc_version.api_str());
-    }
-    options.push_str(" -D__OPENCL_VERSION__=");
-    options.push_str(dev.cl_version.clc_str());
+#[derive(Default)]
+struct ParsedCompileOptions {
+    raw_string: String,
+}
 
-    let mut res = Vec::new();
-
-    // we seperate on a ' ' unless we hit a "
-    let mut sep = ' ';
-    let mut old = 0;
-    for (i, c) in options.char_indices() {
-        if c == '"' {
-            if sep == ' ' {
-                sep = '"';
-            } else {
-                sep = ' ';
-            }
-        }
-
-        if c == '"' || c == sep {
-            // beware of double seps
-            if old != i {
-                res.push(&options[old..i]);
-            }
-            old = i + c.len_utf8();
+impl ParsedCompileOptions {
+    fn from_option_str(options: &str) -> Self {
+        Self {
+            raw_string: options.to_owned(),
         }
     }
-    // add end of the string
-    res.push(&options[old..]);
+}
 
-    res.iter()
-        .filter_map(|&a| match a {
-            // CL3.1 doesn't add anything that's not already supported in clang, so just replace
-            // the argument with 3.0 so we'll be fine with an older version of clang.
-            "-cl-std=CL3.1" => Some("-cl-std=CL3.0"),
-            "-cl-denorms-are-zero" => Some("-fdenormal-fp-math=positive-zero"),
-            // We can ignore it as long as we don't support ifp
-            "-cl-no-subgroup-ifp" => None,
-            // This indicates how many registers per thread should be used, we just ignore it.
-            "-cl-intel-256-GRF-per-thread" => None,
-            // Some applications use this argument when they detect Intel hardware.
-            "-cl-intel-greater-than-4GB-buffer-required" => None,
-            // Some applications use this when they detect QC hardware
-            "-qcom-accelerate-16-bit" => None,
-            _ => Some(a),
-        })
-        .map(CString::new)
-        .map(Result::unwrap)
-        .collect()
+struct CompileOptions {
+    clang_args: Vec<CString>,
+    parsed: ParsedCompileOptions,
+}
+
+impl CompileOptions {
+    fn new(options: &str, dev: &Device) -> Self {
+        let parsed_options = ParsedCompileOptions::from_option_str(options);
+        let mut options = options.to_owned();
+        if !options.contains("-cl-std=") {
+            options.push_str(" -cl-std=CL");
+            options.push_str(dev.clc_version.api_str());
+        }
+        options.push_str(" -D__OPENCL_VERSION__=");
+        options.push_str(dev.cl_version.clc_str());
+
+        let mut res = Vec::new();
+
+        // we seperate on a ' ' unless we hit a "
+        let mut sep = ' ';
+        let mut old = 0;
+        for (i, c) in options.char_indices() {
+            if c == '"' {
+                if sep == ' ' {
+                    sep = '"';
+                } else {
+                    sep = ' ';
+                }
+            }
+
+            if c == '"' || c == sep {
+                // beware of double seps
+                if old != i {
+                    res.push(&options[old..i]);
+                }
+                old = i + c.len_utf8();
+            }
+        }
+        // add end of the string
+        res.push(&options[old..]);
+
+        let strings = res
+            .iter()
+            .filter_map(|&a| match a {
+                // CL3.1 doesn't add anything that's not already supported in clang, so just replace
+                // the argument with 3.0 so we'll be fine with an older version of clang.
+                "-cl-std=CL3.1" => Some("-cl-std=CL3.0"),
+                "-cl-denorms-are-zero" => Some("-fdenormal-fp-math=positive-zero"),
+                // We can ignore it as long as we don't support ifp
+                "-cl-no-subgroup-ifp" => None,
+                // This indicates how many registers per thread should be used, we just ignore it.
+                "-cl-intel-256-GRF-per-thread" => None,
+                // Some applications use this argument when they detect Intel hardware.
+                "-cl-intel-greater-than-4GB-buffer-required" => None,
+                // Some applications use this when they detect QC hardware
+                "-qcom-accelerate-16-bit" => None,
+                _ => Some(a),
+            })
+            .map(CString::new)
+            .map(Result::unwrap)
+            .collect();
+
+        Self {
+            parsed: parsed_options,
+            clang_args: strings,
+        }
+    }
 }
 
 impl Program {
@@ -515,7 +542,7 @@ impl Program {
     }
 
     pub fn options(&self, dev: &Device) -> String {
-        self.build_info().dev_build(dev).options.clone()
+        self.build_info().dev_build(dev).options.raw_string.clone()
     }
 
     // we need to precalculate the size
@@ -642,6 +669,7 @@ impl Program {
         headers: &[HeaderProgram],
         build_info: &mut MutexGuard<ProgramBuild>,
     ) -> bool {
+        let options = CompileOptions::new(options, device);
         let device_build = build_info.dev_build_mut(device);
 
         let val_options = clc_validator_options(device);
@@ -654,7 +682,7 @@ impl Program {
                 }
             }
             ProgramSourceType::Src(src) => {
-                let args = prepare_options(options, device);
+                let clang_args = &options.clang_args;
                 let headers: Vec<_> = headers
                     .iter()
                     .map(|header| {
@@ -673,8 +701,9 @@ impl Program {
 
                 if Platform::dbg().clc {
                     let src = src.to_string_lossy();
+
                     eprintln!("dumping compilation inputs:");
-                    eprintln!("compilation arguments: {args:?}");
+                    eprintln!("compilation arguments: {clang_args:?}");
                     if !headers.is_empty() {
                         eprintln!("headers: {headers:#?}");
                     }
@@ -683,7 +712,7 @@ impl Program {
 
                 let (spirv, msgs) = spirv::SPIRVBin::from_clc(
                     src,
-                    &args,
+                    clang_args,
                     &headers,
                     get_disk_cache(),
                     device.cl_features(),
@@ -710,7 +739,7 @@ impl Program {
 
         device_build.spirv = spirv;
         device_build.log = log;
-        options.clone_into(&mut device_build.options);
+        device_build.options = options.parsed;
 
         if device_build.spirv.is_some() {
             device_build.status = CL_BUILD_SUCCESS as cl_build_status;
