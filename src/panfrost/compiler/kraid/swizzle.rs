@@ -649,7 +649,7 @@ pub enum AsmSwizzleWiden {
     B0000,
     B0011,
     B0101,
-    B0123,
+    // B0123 is intentionally missing. Use None instead.
     B1032,
     B1111,
     B2222,
@@ -665,7 +665,7 @@ pub enum AsmSwizzleWiden {
 
     // 16-bit vec2 swizzles
     H00,
-    H01,
+    // H01 is intentionally missing. Use None instead.
     H10,
     H11,
 

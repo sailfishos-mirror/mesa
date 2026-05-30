@@ -534,20 +534,29 @@ impl Enum {
 }
 
 pub struct MetaEnum {
+    pub name: String,
     pub ident: Ident,
     pub has_none: bool,
     enums: Vec<Rc<Enum>>,
+    none_values: HashSet<String>,
 }
 
 impl MetaEnum {
-    fn new(name: &str, enums: Vec<Rc<Enum>>) -> MetaEnum {
+    fn new(
+        name: &str,
+        enums: Vec<Rc<Enum>>,
+        none_values: HashSet<String>,
+    ) -> MetaEnum {
         let camel_name = to_camel_case(&name);
         let ident = Ident::new(&camel_name, Span::call_site());
         let has_none = enums.iter().find(|e| e.has_none).is_some();
+        assert!(has_none || none_values.is_empty());
         MetaEnum {
+            name: name.to_string(),
             ident,
             has_none,
             enums,
+            none_values,
         }
     }
 
@@ -563,6 +572,9 @@ impl MetaEnum {
         let mut values_ts = TokenStream2::new();
         let mut fmt_cases_ts = TokenStream2::new();
         for (v_name, v_ident) in &values {
+            if self.none_values.contains(*v_name) {
+                continue;
+            }
             values_ts.extend(quote! {
                 #v_ident,
             });
@@ -603,13 +615,22 @@ impl MetaEnum {
             let e_ident = &e.ident;
             let mut from_cases_ts = TokenStream2::new();
             let mut into_cases_ts = TokenStream2::new();
-            for EnumValue { ident, .. } in e.values.values() {
-                from_cases_ts.extend(quote! {
-                    #e_ident::#ident => #me_ident::#ident,
-                });
-                into_cases_ts.extend(quote! {
-                    #me_ident::#ident => Ok(#e_ident::#ident),
-                });
+            for EnumValue { name, ident, .. } in e.values.values() {
+                if self.none_values.contains(name) {
+                    from_cases_ts.extend(quote! {
+                        #e_ident::#ident => #me_ident::None,
+                    });
+                    into_cases_ts.extend(quote! {
+                        #me_ident::None => Ok(#e_ident::#ident),
+                    });
+                } else {
+                    from_cases_ts.extend(quote! {
+                        #e_ident::#ident => #me_ident::#ident,
+                    });
+                    into_cases_ts.extend(quote! {
+                        #me_ident::#ident => Ok(#e_ident::#ident),
+                    });
+                }
             }
 
             let err = format!("Unsupported {e_ident}");
@@ -698,6 +719,7 @@ impl EnumSet {
         &mut self,
         name: &str,
         enums: impl IntoIterator<Item = &'a str>,
+        none_values: impl IntoIterator<Item = &'a str>,
     ) -> Result<()> {
         if self.enums.contains_key(name) {
             return Err(err("Enum and meta enum cannot have the same name"));
@@ -716,7 +738,9 @@ impl EnumSet {
             enum_vec.push(e.clone());
         }
 
-        let me = MetaEnum::new(name, enum_vec);
+        let none_values = none_values.into_iter().map(str::to_string).collect();
+
+        let me = MetaEnum::new(name, enum_vec, none_values);
         self.meta_enums.insert(name.to_string(), Rc::new(me));
         Ok(())
     }

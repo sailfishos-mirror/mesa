@@ -1051,10 +1051,14 @@ pub fn gen_encoder(
     declare_expr_helpers(&mut ts);
 
     isa.enums
-        .add_meta_enum("src_swizzle", SRC_SWIZZLE_ENUMS.iter().cloned())
+        .add_meta_enum(
+            "src_swizzle",
+            SRC_SWIZZLE_ENUMS.iter().cloned(),
+            ["h01", "b0123"],
+        )
         .expect("Failed to create src_swizzle meta-enum");
     isa.enums
-        .add_meta_enum("dst_lanes", DST_LANES_ENUMS.iter().cloned())
+        .add_meta_enum("dst_lanes", DST_LANES_ENUMS.iter().cloned(), [])
         .expect("Failed to create dst_lanes meta-enum");
     isa.enums
         .add_meta_enum(
@@ -1066,6 +1070,7 @@ pub fn gen_encoder(
                 "hadd_round_m",
                 "fma_rscale_round_m",
             ],
+            [],
         )
         .expect("Failed to create round meta-enum");
 
@@ -1077,6 +1082,7 @@ pub fn gen_encoder(
                 "update_mode_none_m",
                 "update_mode_special_m",
             ],
+            [],
         )
         .expect("Failed to create update_mode meta-enum");
 
@@ -1084,6 +1090,7 @@ pub fn gen_encoder(
         .add_meta_enum(
             "sample_position",
             ["sample_position_m", "sample_position_none_m"],
+            [],
         )
         .expect("Failed to create sample_position meta-enum");
 
