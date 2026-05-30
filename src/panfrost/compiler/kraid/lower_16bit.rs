@@ -24,13 +24,13 @@ macro_rules! lower_op {
         match $op.$variant.total_bits() {
             SOME_8 => {
                 for src in $op.srcs() {
-                    debug_assert!(src.swizzle.replicates_byte());
+                    debug_assert!(src.replicates_byte());
                 }
                 $op.$variant = replicate_type($op.$variant, 4);
             }
             SOME_16 => {
                 for src in $op.srcs() {
-                    debug_assert!(src.swizzle.replicates_half());
+                    debug_assert!(src.replicates_half());
                 }
                 $op.$variant = replicate_type($op.$variant, 2);
             }

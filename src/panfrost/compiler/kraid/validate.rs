@@ -18,9 +18,9 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
 
         if src_type.comps().unwrap().get() == 1 {
             if src_type.bits().unwrap().get() == 8 {
-                assert!(src.swizzle.replicates_byte());
+                assert!(src.replicates_byte());
             } else if src_type.bits().unwrap().get() == 16 {
-                assert!(src.swizzle.replicates_half());
+                assert!(src.replicates_half());
             }
         }
 

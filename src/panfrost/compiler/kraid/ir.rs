@@ -367,6 +367,28 @@ impl Src {
     pub fn is_zero(&self) -> bool {
         matches!(self.src_ref, SrcRef::Zero | SrcRef::Imm32(0))
     }
+
+    pub fn replicates_byte(&self) -> bool {
+        match self.src_ref {
+            SrcRef::Zero => true,
+            SrcRef::Imm32(u) => self.swizzle.fold_u32(u).is_some_and(|u| {
+                let b = u.to_le_bytes();
+                b[0] == b[1] && b[0] == b[2] && b[0] == b[3]
+            }),
+            _ => self.swizzle.replicates_byte(),
+        }
+    }
+
+    pub fn replicates_half(&self) -> bool {
+        match self.src_ref {
+            SrcRef::Zero => true,
+            SrcRef::Imm32(u) => self
+                .swizzle
+                .fold_u32(u)
+                .is_some_and(|u| (u & 0xffff) == (u >> 16)),
+            _ => self.swizzle.replicates_half(),
+        }
+    }
 }
 
 impl<T: Into<SrcRef>> From<T> for Src {
