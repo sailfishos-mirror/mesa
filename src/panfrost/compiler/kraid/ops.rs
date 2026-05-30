@@ -205,7 +205,7 @@ impl fmt::Display for OpFCmp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [S16, U16, V2S16, V2U16, S32, U32])]
+#[variants(dst_type in [I16, S16, U16, V2I16, V2S16, V2U16, I32, S32, U32])]
 pub struct OpIAdd {
     pub dst: Dst,
     pub dst_type: DataType,

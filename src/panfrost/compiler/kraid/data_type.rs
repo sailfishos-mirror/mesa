@@ -108,6 +108,14 @@ impl DataType {
         DataType::from_pieces(1, num_type, bits)
     }
 
+    pub const fn i_as_u(self) -> DataType {
+        let (comps, mut num_type, bits) = self.to_pieces();
+        if matches!(num_type, Some(NumericType::Integer)) {
+            num_type = Some(NumericType::UnsignedInteger);
+        }
+        DataType::from_pieces(comps, num_type, bits)
+    }
+
     pub fn bits(&self) -> Option<NonZeroU8> {
         NonZeroU8::new(self.to_pieces().2)
     }

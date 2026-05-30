@@ -459,7 +459,7 @@ impl V9Instr for OpIAdd {
         if let SrcRef::Imm32(_) = &self.srcs[1].src_ref {
             IaddImm::get_info(self.dst_type.try_into().ok()?, arch)
         } else {
-            Iadd::get_info(self.dst_type.try_into().ok()?, arch)
+            Iadd::get_info(self.dst_type.i_as_u().try_into().ok()?, arch)
         }
     }
 
@@ -473,7 +473,7 @@ impl V9Instr for OpIAdd {
             })
         } else {
             e.encode(Iadd {
-                variant: self.dst_type.try_into().unwrap(),
+                variant: self.dst_type.i_as_u().try_into().unwrap(),
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.srcs[0]),
                 src1: op_encode_src(self, &self.srcs[1]),

@@ -352,7 +352,7 @@ impl<'a> ShaderFromNir<'a> {
             nir_op_iadd => {
                 b.push_op(OpIAdd {
                     dst: dst.into(),
-                    dst_type: dst_type(NumericType::UnsignedInteger),
+                    dst_type: dst_type(NumericType::Integer),
                     saturate: false,
                     srcs: [srcs(0), srcs(1)],
                 });
