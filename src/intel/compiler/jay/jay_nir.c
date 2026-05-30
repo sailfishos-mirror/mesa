@@ -175,7 +175,6 @@ insert_rt_store(nir_builder *b,
                 nir_def *sample_mask)
 {
    bool null_rt = target < 0;
-   target = MAX2(target, 0);
 
    colour = nir_pad_vec4(b, colour ?: nir_undef(b, 4, 32));
 
