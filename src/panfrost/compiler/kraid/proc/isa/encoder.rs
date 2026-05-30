@@ -420,6 +420,7 @@ impl InstrEncSrc {
 struct InstrEncFieldSrc {
     ident: Ident,
     field_type: FieldType,
+    field_restrict: Option<Rc<FieldRestrict>>,
     src_name: String,
     src_field: SrcField,
 }
@@ -428,6 +429,7 @@ impl InstrEncFieldSrc {
     fn new(
         field_name: &str,
         field_type: FieldType,
+        field_restrict: Option<Rc<FieldRestrict>>,
         src_name: &str,
         src_field: SrcField,
     ) -> InstrEncFieldSrc {
@@ -436,6 +438,7 @@ impl InstrEncFieldSrc {
         InstrEncFieldSrc {
             ident,
             field_type,
+            field_restrict,
             src_name,
             src_field,
         }
@@ -456,6 +459,15 @@ impl InstrEncFieldSrc {
         } else {
             ts.extend(quote! {
                 let #f_ident = #f_type::try_from(#src)?;
+            });
+        }
+
+        if let Some(restrict) = &self.field_restrict {
+            let err = format!("Unsupported {f_ident} value");
+            ts.extend(quote! {
+                if !#restrict.contains(&#f_ident) {
+                    return Err(#err.into());
+                }
             });
         }
 
@@ -509,6 +521,7 @@ impl InstrEncSources {
         instr_name: &str,
         field_name: &str,
         field_type: &FieldType,
+        field_restrict: &Option<Rc<FieldRestrict>>,
         sr_control: SrControl,
         enums: &EnumSet,
     ) -> Option<InstrEncFieldSrc> {
@@ -529,6 +542,7 @@ impl InstrEncSources {
         Some(InstrEncFieldSrc::new(
             field_name,
             field_type.clone(),
+            field_restrict.clone(),
             &src.name,
             src_field,
         ))
@@ -539,6 +553,7 @@ impl InstrEncSources {
         instr_name: &str,
         field_name: &str,
         field_type: &FieldType,
+        field_restrict: &Option<Rc<FieldRestrict>>,
         sr_control: SrControl,
         enums: &EnumSet,
     ) -> InstrEncFieldSrc {
@@ -557,6 +572,7 @@ impl InstrEncSources {
                 return InstrEncFieldSrc::new(
                     field_name,
                     field_type.clone(),
+                    field_restrict.clone(),
                     &src.name,
                     src_field,
                 );
@@ -574,6 +590,7 @@ impl InstrEncSources {
         InstrEncFieldSrc::new(
             field_name,
             field_type.clone(),
+            field_restrict.clone(),
             &src.name,
             src_field,
         )
@@ -648,11 +665,11 @@ impl InstrEncVariant {
                 continue;
             }
 
-            let (field_name, field_type) = match field {
+            let (field_name, field_type, restrict) = match field {
                 InstrField::Virtual(f) => {
                     // Virtual fields are always sources since they're used to
                     // calculate computed physical fields.
-                    (&f.name, &f.type_)
+                    (&f.name, &f.type_, &f.restrict)
                 }
                 InstrField::Physical(f) => {
                     // Physical fields only show up as sources if we can't
@@ -660,27 +677,28 @@ impl InstrEncVariant {
                     if f.expr.is_some() {
                         continue;
                     }
-                    (&f.name, f.type_.as_ref().unwrap())
+                    (&f.name, f.type_.as_ref().unwrap(), &f.restrict)
                 }
                 InstrField::Reserved(_) => continue,
             };
 
-            fields.push((i, field_name, field_type));
+            fields.push((i, field_name, field_type, restrict));
         }
 
         // Add the sources and destinations first
-        for (i, field_name, field_type) in fields.iter().cloned() {
+        for (i, field_name, field_type, restrict) in fields.iter().cloned() {
             field_srcs[i] = srcs.add_src_for_src_dst_field(
                 &instr.name,
                 field_name,
                 &field_type,
+                restrict,
                 sr_control,
                 enums,
             );
         }
 
         // Add all the other sources
-        for (i, field_name, field_type) in fields.iter().cloned() {
+        for (i, field_name, field_type, restrict) in fields.iter().cloned() {
             if field_srcs[i].is_some() {
                 continue;
             }
@@ -689,6 +707,7 @@ impl InstrEncVariant {
                 &instr.name,
                 field_name,
                 &field_type,
+                restrict,
                 sr_control,
                 enums,
             ));

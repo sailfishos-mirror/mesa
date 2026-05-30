@@ -63,10 +63,53 @@ impl FieldType {
     }
 }
 
+pub struct FieldRestrict {
+    values: Vec<LiteralEnum>,
+}
+
+impl FieldRestrict {
+    fn from_xml_attr(
+        attr: &str,
+        type_: Option<&FieldType>,
+    ) -> Result<Rc<FieldRestrict>> {
+        let Some(FieldType::Enum(e)) = type_ else {
+            return Err(err("restrict= requires an enum type"));
+        };
+
+        let mut values = Vec::new();
+        for v_name in attr.split(' ') {
+            if v_name.trim().is_empty() {
+                continue;
+            }
+
+            let Some(v) = e.get_value(v_name) else {
+                return Err(err("Invalid enum value in restrict"));
+            };
+            values.push(LiteralEnum {
+                enum_type: e.clone(),
+                value_name: v.name.clone(),
+                value_ident: v.ident.clone(),
+            });
+        }
+        Ok(Rc::new(FieldRestrict { values }))
+    }
+}
+
+impl ToTokens for FieldRestrict {
+    fn to_tokens(&self, ts: &mut TokenStream2) {
+        let mut values_ts = TokenStream2::new();
+        for i in &self.values {
+            values_ts.extend(quote! { #i, });
+        }
+        ts.extend(quote! { [#values_ts] });
+    }
+}
+
 pub struct VirtualField {
     pub name: String,
     pub ident: Ident,
     pub type_: FieldType,
+    pub restrict: Option<Rc<FieldRestrict>>,
     pub expr: Box<Expr>,
 }
 
@@ -86,13 +129,20 @@ impl VirtualField {
         let snake_name = to_snake_case(&name);
         let ident = Ident::new(&snake_name, Span::call_site());
 
-        let type_ = xml
+        let type_name = xml
             .attrs
             .get("type")
             .ok_or(err("Instruction virtual has no type"))?;
+        let type_ = FieldType::from_name(type_name, 32, enums)?;
+
+        let restrict = if let Some(res_attr) = xml.attrs.get("restrict") {
+            Some(FieldRestrict::from_xml_attr(res_attr, Some(&type_))?)
+        } else {
+            None
+        };
 
         let expr = if let Some(exact) = xml.attrs.get("exact") {
-            Box::new(Expr::literal(Some(type_), exact, enums)?)
+            Box::new(Expr::literal(Some(type_name), exact, enums)?)
         } else {
             let mut children = xml.children;
             if children.len() != 1 {
@@ -105,7 +155,8 @@ impl VirtualField {
         Ok(VirtualField {
             name,
             ident,
-            type_: FieldType::from_name(type_, 32, enums)?,
+            type_,
+            restrict,
             expr,
         })
     }
@@ -152,6 +203,7 @@ pub struct PhysicalField {
     pub bits: Range<u8>,
     pub mod_: FieldMod,
     pub type_: Option<FieldType>,
+    pub restrict: Option<Rc<FieldRestrict>>,
     pub expr: Option<Box<Expr>>,
 }
 
@@ -186,6 +238,12 @@ impl PhysicalField {
                 enums,
             )?),
             None => None,
+        };
+
+        let restrict = if let Some(res_attr) = xml.attrs.get("restrict") {
+            Some(FieldRestrict::from_xml_attr(res_attr, type_.as_ref())?)
+        } else {
+            None
         };
 
         let mut expr = if let Some(exact) = xml.attrs.get("exact") {
@@ -224,6 +282,7 @@ impl PhysicalField {
             bits,
             mod_,
             type_,
+            restrict,
             expr,
         })
     }
