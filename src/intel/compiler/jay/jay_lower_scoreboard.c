@@ -19,7 +19,7 @@
 #define MAX_KEYS   (JAY_NUM_PHYS_GRF + JAY_NUM_UGPR)
 #define NUM_TOKENS (16)
 
-/** SEND scoreboarding */
+/** SBID scoreboarding */
 struct key {
    unsigned base, width;
 };
@@ -51,8 +51,32 @@ sync_sbids(jay_builder *b, uint32_t mask, gen_sbid_mode mode)
    }
 }
 
+static inline bool
+jay_inst_is_unordered(const jay_inst *I)
+{
+   return I->op == JAY_OPCODE_SEND;
+}
+
+static inline bool
+jay_inst_has_sbid(const jay_inst *I)
+{
+   return I->op == JAY_OPCODE_SEND && !jay_send_eot(I);
+}
+
+static inline unsigned
+jay_inst_sbid(const jay_inst *I)
+{
+   return jay_send_sbid(I);
+}
+
+static inline void
+jay_inst_set_sbid(jay_inst *I, unsigned sbid)
+{
+   jay_set_send_sbid(I, sbid);
+}
+
 static void
-lower_send_local(jay_function *func, jay_block *block)
+lower_sbid_local(jay_function *func, jay_block *block)
 {
    struct {
       BITSET_DECLARE(reading, MAX_KEYS);
@@ -93,9 +117,9 @@ lower_send_local(jay_function *func, jay_block *block)
          }
       }
 
-      if (I->op == JAY_OPCODE_SEND && !jay_send_eot(I)) {
+      if (jay_inst_has_sbid(I)) {
          unsigned sbid = (roundrobin++) % NUM_TOKENS;
-         jay_set_send_sbid(I, sbid);
+         jay_inst_set_sbid(I, sbid);
 
          if (!(busy & BITFIELD_BIT(sbid))) {
             busy |= BITFIELD_BIT(sbid);
@@ -116,7 +140,8 @@ lower_send_local(jay_function *func, jay_block *block)
          }
 
          /* Barriers are non-EOT gateway messages. Insert the needed SYNC */
-         if (jay_send_sfid(I) == GEN_SFID_MESSAGE_GATEWAY) {
+         if (I->op == JAY_OPCODE_SEND &&
+             jay_send_sfid(I) == GEN_SFID_MESSAGE_GATEWAY) {
             b.cursor = jay_after_inst(I);
             jay_SYNC(&b, jay_null(), TGL_SYNC_BAR);
          }
@@ -174,7 +199,7 @@ struct swsb_state {
 static gen_pipe
 inst_exec_pipe(const struct intel_device_info *devinfo, jay_inst *I)
 {
-   return I->op == JAY_OPCODE_SEND       ? GEN_PIPE_NONE :
+   return jay_inst_is_unordered(I)       ? GEN_PIPE_NONE :
           I->op == JAY_OPCODE_MATH       ? GEN_PIPE_MATH :
           I->type == JAY_TYPE_F64        ? GEN_PIPE_LONG :
           jay_type_is_any_float(I->type) ? GEN_PIPE_FLOAT :
@@ -347,10 +372,12 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
       }
    }
 
-   /* SENDs are modelled as a pipe per SBID for finished_ip purposes */
+   /* Unordered instructions are modelled as a pipe per SBID for
+    * finished_ip purposes.
+    */
    unsigned generalized_pipe = exec_pipe;
-   if (I->op == JAY_OPCODE_SEND) {
-      generalized_pipe = GEN_NUM_PIPES + jay_send_sbid(I);
+   if (jay_inst_is_unordered(I)) {
+      generalized_pipe = GEN_NUM_PIPES + jay_inst_sbid(I);
    }
 
    /* We'll wait on the unioned dependency. Update the tracking for that. */
@@ -375,9 +402,9 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
       I->decrement_dep = last_pipe != exec_pipe;
    }
 
-   bool has_sbid = I->op == JAY_OPCODE_SEND && !jay_send_eot(I);
+   bool has_sbid = jay_inst_has_sbid(I);
    I->dep = (gen_swsb) {
-      .sbid = has_sbid ? jay_send_sbid(I) : 0,
+      .sbid = has_sbid ? jay_inst_sbid(I) : 0,
       .mode = has_sbid ? GEN_SBID_SET : GEN_SBID_NULL,
       .regdist = wait_pipes ? min_delta : 0,
       .pipe = single_wait && (!has_sbid ||
@@ -389,7 +416,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
    };
 
    /* Fold the immediate preceding SYNC.nop into this instruction, allowing
-    * us to wait on both ALU and a SEND in the same annotation. We cannot do
+    * us to wait on both ALU and a SBID in the same annotation. We cannot do
     * this safely in the presence of predication or SIMD splitting that could
     * cause any part of the instruction to get shot down, skipping the sync
     * for future instructions (at least not without more tricky logic).
@@ -447,7 +474,7 @@ void
 jay_lower_scoreboard_trivial(jay_shader *shader)
 {
    jay_foreach_inst_in_shader_safe(shader, func, I) {
-      if (I->op == JAY_OPCODE_SEND && !jay_send_eot(I)) {
+      if (jay_inst_has_sbid(I)) {
          I->dep = gen_swsb_dst_dep(gen_swsb_sbid(GEN_SBID_SET, 0), 1);
 
          jay_builder b = jay_init_builder(func, jay_after_inst(I));
@@ -473,7 +500,7 @@ jay_lower_scoreboard(jay_shader *shader)
       struct swsb_state state = { .nr_keys = nr_keys, .access = access };
 
       jay_foreach_block(f, block) {
-         lower_send_local(f, block);
+         lower_sbid_local(f, block);
       }
 
       /* RegDist scoreboarding is global but requires no dataflow analysis,
