@@ -97,7 +97,10 @@
                                            23,  12,
                                            10,   9,
                                            34,  34,
-                                            8,   8 ]
+                                            8,   8 ],
+            "UNCOMP_DATATYPE":          [  63,  61,
+                                           94,  89,
+                                           46,  35 ]
         },
         "sub-fields": {
             "# Relative to EU_INSTRUCTION_SOURCES_* sub-structures":"#",

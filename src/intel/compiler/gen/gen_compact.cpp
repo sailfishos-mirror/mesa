@@ -1337,29 +1337,14 @@ private:
    {
       const compact_table_info &table = compact_tables.datatype;
       gen_range bits = { 127, 0 };
-      uint32_t uncompacted; /* 18b/G45+; 21b/BDW+; 20b/TGL+ */
+      uint32_t uncompacted = uc_get(E::UNCOMP_DATATYPE);
 
       if constexpr (E::TYPE >= GEN_ENCODING_XE) {
-         uncompacted = (uc_get(bits(91, 88)) << 15) | /*  4b */
-            (uc_get(bits(66, 66)) << 14) | /*  1b */
-            (uc_get(bits(50, 50)) << 13) | /*  1b */
-            (uc_get(bits(49, 48)) << 11) | /*  2b */
-            (uc_get(bits(47, 47)) << 10) | /*  1b */
-            (uc_get(bits(46, 46)) <<  9) | /*  1b */
-            (uc_get(bits(43, 40)) <<  5) | /*  4b */
-            (uc_get(bits(39, 36)) <<  1) | /*  4b */
-            (uc_get(bits(35, 35)));        /*  1b */
-
          /* Src1.RegFile overlaps with the immediate, so ignore it if an immediate
           * is present
           */
-         if (!is_immediate) {
-            uncompacted |= uc_get(bits(98, 98)) << 19; /* 1b */
-         }
-      } else {
-         uncompacted = (uc_get(bits(63, 61)) << 18) | /*  3b */
-            (uc_get(bits(94, 89)) << 12) | /*  6b */
-            (uc_get(bits(46, 35)));        /* 12b */
+         if (is_immediate)
+            uncompacted &= ~INTEL_MASK(19, 19);
       }
 
       for (unsigned i = 0; i < table.length; i++) {
@@ -2251,24 +2236,7 @@ private:
          compacted = c_get(E::C_DATATYPE_INDEX);
       }
       auto uncompacted = table.read(compacted);
-      gen_range bits = { 127, 0 };
-
-      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
-         uc_set(bits(98, 98), (uncompacted >> 19));
-         uc_set(bits(91, 88), (uncompacted >> 15) & 0xf);
-         uc_set(bits(66, 66), (uncompacted >> 14) & 0x1);
-         uc_set(bits(50, 50), (uncompacted >> 13) & 0x1);
-         uc_set(bits(49, 48), (uncompacted >> 11) & 0x3);
-         uc_set(bits(47, 47), (uncompacted >> 10) & 0x1);
-         uc_set(bits(46, 46), (uncompacted >>  9) & 0x1);
-         uc_set(bits(43, 40), (uncompacted >>  5) & 0xf);
-         uc_set(bits(39, 36), (uncompacted >>  1) & 0xf);
-         uc_set(bits(35, 35), (uncompacted >>  0) & 0x1);
-      } else {
-         uc_set(bits(63, 61), (uncompacted >> 18));
-         uc_set(bits(94, 89), (uncompacted >> 12) & 0x3f);
-         uc_set(bits(46, 35), (uncompacted >>  0) & 0xfff);
-      }
+      uc_set(E::UNCOMP_DATATYPE, uncompacted);
    }
 
    void
