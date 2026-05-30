@@ -164,6 +164,38 @@ etna_fb_expand_128bit(struct etna_context *ctx,
    }
 }
 
+static uint32_t
+etna_fb_rt_ts_mask(struct etna_context *ctx,
+                   const struct pipe_framebuffer_state *fb,
+                   uint8_t *ts_mode)
+{
+   uint32_t mask = 0;
+
+   *ts_mode = 0xff;
+
+   if (!etna_use_ts_for_mrt(ctx->screen, fb))
+      return 0;
+
+   for (unsigned i = 0; i < fb->nr_cbufs; i++) {
+      if (!fb->cbufs[i].texture)
+         continue;
+
+      struct etna_resource *res = etna_resource_get_render_compatible(&ctx->base, fb->cbufs[i].texture);
+      struct etna_resource_level *level = &res->levels[fb->cbufs[i].level];
+
+      if (!level->ts_size)
+         continue;
+
+      if (*ts_mode == 0xff)
+         *ts_mode = level->ts_mode;
+
+      if (level->ts_mode == *ts_mode)
+         mask |= BITFIELD_BIT(i);
+   }
+
+   return mask;
+}
+
 static void
 etna_set_framebuffer_state(struct pipe_context *pctx,
                            const struct pipe_framebuffer_state *fb)
@@ -186,7 +218,6 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
    uint32_t pe_mem_config = 0;
    uint32_t pe_logic_op = 0;
 
-   const bool use_ts = etna_use_ts_for_mrt(screen, fb);
    STATIC_ASSERT(PIPE_MAX_COLOR_BUFS == 8);
    unsigned rt_offset[PIPE_MAX_COLOR_BUFS] = {0};
    unsigned rt_output[PIPE_MAX_COLOR_BUFS] = { 0, 1, 2, 3, 4, 5, 6, 7 };
@@ -197,6 +228,11 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
 
    etna_fb_expand_128bit(ctx, &ctx->framebuffer_s.base, rt_offset, rt_output);
    fb = &ctx->framebuffer_s.base;
+
+   uint8_t ts_mode;
+   ctx->framebuffer_s.rt_ts_mask = etna_fb_rt_ts_mask(ctx, fb, &ts_mode);
+   if (ctx->framebuffer_s.rt_ts_mask)
+      pe_mem_config |= VIVS_PE_MEM_CONFIG_COLOR_TS_MODE(ts_mode);
 
    unsigned rt = 0;
 
@@ -210,9 +246,10 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
 
       bool color_supertiled = (res->layout & ETNA_LAYOUT_BIT_SUPER) != 0;
       uint32_t fmt = translate_pe_format(surf->format);
+      bool rt_use_ts = etna_framebuffer_rt_use_ts(ctx, i);
 
-      /* Resolve TS if needed */
-      if (!use_ts) {
+      /* Resolve TS if this target cannot use it */
+      if (!rt_use_ts) {
          etna_copy_resource(pctx, &res->base, &res->base, surf->level, surf->level, false);
          etna_resource_level_ts_mark_invalid(level);
       }
@@ -264,15 +301,13 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
 
          cs->PE_COLOR_STRIDE = level->stride;
 
-         if (level->ts_size) {
+         if (rt_use_ts) {
             cs->TS_COLOR_CLEAR_VALUE = level->clear_value;
             cs->TS_COLOR_CLEAR_VALUE_EXT = level->clear_value >> 32;
 
             cs->TS_COLOR_STATUS_BASE.bo = res->ts_bo;
             cs->TS_COLOR_STATUS_BASE.offset = level->ts_offset;
             cs->TS_COLOR_STATUS_BASE.flags = ETNA_RELOC_READ | ETNA_RELOC_WRITE;
-
-            pe_mem_config |= VIVS_PE_MEM_CONFIG_COLOR_TS_MODE(level->ts_mode);
 
             if (util_format_get_blocksizebits(surf->format) == 64)
                ts_mem_config |= VIVS_TS_MEM_CONFIG_64BPP_FORMAT;
@@ -299,7 +334,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
          if (VIV_FEATURE(screen, ETNA_FEATURE_CACHE128B256BPERLINE))
             cs->PE_RT_CONFIG[rt - 1] |= COND(color_supertiled, RT_CONFIG_SUPER_TILED_NEW);
 
-         if (level->ts_size) {
+         if (rt_use_ts) {
             cs->RT_TS_MEM_CONFIG[rt - 1] =
                COND(level->ts_compress_fmt >= 0, VIVS_TS_RT_CONFIG_COMPRESSION) |
                COND(level->ts_compress_fmt >= 0, VIVS_TS_RT_CONFIG_COMPRESSION_FORMAT(level->ts_compress_fmt)) |
