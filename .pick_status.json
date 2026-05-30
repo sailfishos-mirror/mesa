@@ -7794,7 +7794,7 @@
         "description": "mesa: Allow GL_TEXTURE_IMMUTABLE_LEVELS query on GLES3",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "214fd4e40db24b95b609a7e2ad2dd58ce3ffb7a9",
         "notes": null
