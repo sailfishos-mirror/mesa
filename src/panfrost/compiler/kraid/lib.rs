@@ -9,6 +9,7 @@ mod encode_v9;
 mod flow;
 mod ir;
 mod isa;
+mod lower_16bit;
 mod message_slots;
 mod model;
 mod nir;
