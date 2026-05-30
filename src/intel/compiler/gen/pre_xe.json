@@ -100,7 +100,10 @@
                                             8,   8 ],
             "UNCOMP_DATATYPE":          [  63,  61,
                                            94,  89,
-                                           46,  35 ]
+                                           46,  35 ],
+            "UNCOMP_SUBREG":            [ 100,  96,
+                                           68,  64,
+                                           52,  48 ]
         },
         "sub-fields": {
             "# Relative to EU_INSTRUCTION_SOURCES_* sub-structures":"#",

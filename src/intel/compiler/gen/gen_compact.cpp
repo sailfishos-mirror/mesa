@@ -1366,26 +1366,11 @@ private:
    set_subreg_index(bool is_immediate)
    {
       const compact_table_info &table = compact_tables.subreg;
-      gen_range bits = { 127, 0 };
-      uint16_t uncompacted; /* 15b/G45+; 12b/Xe2+ */
+      uint16_t uncompacted = uc_get(E::UNCOMP_SUBREG);
 
-      if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
-         uncompacted = (uc_get(bits(33, 33)) << 0) |    /* 1b */
-            (uc_get(bits(55, 51)) << 1) |    /* 5b */
-            (uc_get(bits(71, 67)) << 6) |    /* 5b */
-            (uc_get(bits(87, 87)) << 11);    /* 1b */
-      } else if constexpr (E::TYPE >= GEN_ENCODING_XE) {
-         uncompacted = (uc_get(bits(55, 51)) << 0) |    /* 5b */
-            (uc_get(bits(71, 67)) << 5);     /* 5b */
-
-         if (!is_immediate)
-            uncompacted |= uc_get(bits(103, 99)) << 10; /* 5b */
-      } else {
-         uncompacted = (uc_get(bits(52, 48)) << 0) |    /* 5b */
-            (uc_get(bits(68, 64)) << 5);     /* 5b */
-
-         if (!is_immediate)
-            uncompacted |= uc_get(bits(100, 96)) << 10; /* 5b */
+      if constexpr (E::TYPE <= GEN_ENCODING_XE) {
+         if (is_immediate)
+            uncompacted &= ~INTEL_MASK(14, 10);
       }
 
       for (unsigned i = 0; i < table.length; i++) {
@@ -2245,22 +2230,7 @@ private:
       const compact_table_info &table = compact_tables.subreg;
       auto compacted = c_get(E::C_SUBREG_INDEX);
       auto uncompacted = table.read(compacted);
-      gen_range bits = { 127, 0 };
-
-      if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
-         uc_set(bits(33, 33), (uncompacted >> 0) & 0x1);
-         uc_set(bits(55, 51), (uncompacted >> 1) & 0x1f);
-         uc_set(bits(71, 67), (uncompacted >> 6) & 0x1f);
-         uc_set(bits(87, 87), (uncompacted >> 11) & 0x1);
-      } else if constexpr (E::TYPE >= GEN_ENCODING_XE) {
-         uc_set(bits(103, 99), (uncompacted >> 10));
-         uc_set(bits( 71, 67), (uncompacted >>  5) & 0x1f);
-         uc_set(bits( 55, 51), (uncompacted >>  0) & 0x1f);
-      } else {
-         uc_set(bits(100, 96), (uncompacted >> 10));
-         uc_set(bits( 68, 64), (uncompacted >>  5) & 0x1f);
-         uc_set(bits( 52, 48), (uncompacted >>  0) & 0x1f);
-      }
+      uc_set(E::UNCOMP_SUBREG, uncompacted);
    }
 
    void
