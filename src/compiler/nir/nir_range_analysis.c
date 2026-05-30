@@ -20,7 +20,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-#include "nir.h"
+
 #include "nir_range_analysis.h"
 #include <float.h>
 #include <math.h>
@@ -2576,4 +2576,77 @@ nir_def_num_lsb_zero(struct hash_table *numlsb_ht, nir_scalar def)
    push_scalar_query(&state, def);
 
    return perform_analysis(&state);
+}
+
+/* Return the following:
+ * - float_uses: the component mask of def used as float
+ * - integer_uses: the component mask of def used as integer
+ * - integer_bits_used: if non-NULL, it will have those bits set to 1
+ *   that are used by integer uses of def, e.g. (f2u32(def.y) & mask) sets
+ *   integer_bits_used[1] |= mask;
+ *
+ * The function only accumulates 1 bits in the parameters, preserving all
+ * bits set by the caller.
+ *
+ * If stop_on_float_use is true and *float_uses != 0, the function terminates
+ * immediately and all masks may be incomplete.
+ */
+void
+nir_gather_type_uses_of_float_def(nir_def *def,
+                                  nir_component_mask_t *float_uses,
+                                  nir_component_mask_t *integer_uses,
+                                  uint64_t integer_bits_used[NIR_MAX_VEC_COMPONENTS],
+                                  bool stop_on_float_use)
+{
+   nir_foreach_use(use, def) {
+      if (stop_on_float_use && *float_uses)
+         return;
+
+      nir_component_mask_t src_mask = nir_src_components_read(use);
+      nir_instr *use_instr = nir_src_use_instr(use);
+
+      if (use_instr->type != nir_instr_type_alu) {
+         *float_uses |= src_mask;
+         continue;
+      }
+
+      nir_alu_instr *alu = nir_instr_as_alu(use_instr);
+
+      /* Trivially handle non-component-wise ALU. */
+      if (nir_op_infos[alu->op].output_size) {
+         *float_uses |= src_mask;
+         continue;
+      }
+
+      /* Only component-wise ALU. */
+      for (unsigned i = 0; i < alu->def.num_components; i++) {
+         uint8_t src0_comp = alu->src[0].swizzle[i];
+
+         switch (alu->op) {
+         case nir_op_f2i8:
+         case nir_op_f2i16:
+         case nir_op_f2i32:
+         case nir_op_f2i64:
+         case nir_op_f2u8:
+         case nir_op_f2u16:
+         case nir_op_f2u32:
+         case nir_op_f2u64:
+            *integer_uses |= src_mask;
+            if (integer_bits_used)
+               integer_bits_used[src0_comp] |= nir_def_bits_used(&alu->def, i);
+            break;
+
+         case nir_op_ftrunc:
+         case nir_op_ffloor:
+            *integer_uses |= src_mask;
+            if (integer_bits_used)
+               integer_bits_used[src0_comp] = ~0ull;
+            break;
+
+         default:
+            *float_uses |= src_mask;
+            break;
+         }
+      }
+   }
 }

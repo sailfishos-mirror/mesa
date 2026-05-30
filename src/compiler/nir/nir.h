@@ -6044,7 +6044,6 @@ nir_shader *nir_create_passthrough_gs(const nir_shader_compiler_options *options
 
 bool nir_lower_fragcolor(nir_shader *shader, unsigned max_cbufs);
 bool nir_lower_fragcoord_wtrans(nir_shader *shader);
-bool nir_all_uses_of_float_are_integer(nir_def *def, unsigned component_mask);
 bool nir_opt_frag_coord_to_pixel_coord(nir_shader *shader);
 bool nir_lower_frag_coord_to_pixel_coord(nir_shader *shader);
 bool nir_lower_viewport_transform(nir_shader *shader);
