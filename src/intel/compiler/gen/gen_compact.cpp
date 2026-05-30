@@ -1336,7 +1336,6 @@ private:
    set_datatype_index(bool is_immediate)
    {
       const compact_table_info &table = compact_tables.datatype;
-      gen_range bits = { 127, 0 };
       uint32_t uncompacted = uc_get(E::UNCOMP_DATATYPE);
 
       if constexpr (E::TYPE >= GEN_ENCODING_XE) {
@@ -1349,12 +1348,7 @@ private:
 
       for (unsigned i = 0; i < table.length; i++) {
          if (table.read(i) == uncompacted) {
-            if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
-               c_set(E::C_DATATYPE_INDEX_LO3, i & 7);
-               c_set(E::C_DATATYPE_INDEX_HI2, i >> 3);
-            } else {
-               c_set(E::C_DATATYPE_INDEX, i);
-            }
+            c_set(E::C_DATATYPE_INDEX, i);
             return true;
          }
       }
@@ -2094,14 +2088,7 @@ private:
    set_uncompacted_datatype()
    {
       const compact_table_info &table = compact_tables.datatype;
-      uint64_t compacted;
-      if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
-         compacted =
-            (c_get(E::C_DATATYPE_INDEX_HI2) << 3) |
-            (c_get(E::C_DATATYPE_INDEX_LO3) << 0);
-      } else {
-         compacted = c_get(E::C_DATATYPE_INDEX);
-      }
+      uint64_t compacted = c_get(E::C_DATATYPE_INDEX);
       auto uncompacted = table.read(compacted);
       uc_set(E::UNCOMP_DATATYPE, uncompacted);
    }

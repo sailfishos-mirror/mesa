@@ -293,9 +293,8 @@
             "DST_REG_NR":               [  39,  32 ],
             "SRC0_INDEX":               [  25,  23 ],
             "SUBREG_INDEX":             [  51,  48 ],
-            "DATATYPE_INDEX":           null,
-            "DATATYPE_INDEX_LO3":       [  28,  26 ],
-            "DATATYPE_INDEX_HI2":       [  31,  30 ],
+            "DATATYPE_INDEX":           [  31,  30,
+                                           28,  26 ],
             "CONTROL_INDEX":            [  22,  18 ],
             "SWSB":                     [  17,   8 ],
 
