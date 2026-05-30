@@ -89,12 +89,6 @@ impl fmt::Display for FAURef {
     }
 }
 
-impl FAURef {
-    pub fn is_zero(&self) -> bool {
-        self.page == FAUPage::SmallConst && self.idx == 0
-    }
-}
-
 impl From<&SmallConstant> for FAURef {
     fn from(sc: &SmallConstant) -> FAURef {
         FAURef {
@@ -159,6 +153,8 @@ impl RegRef {
 
 #[derive(Clone)]
 pub enum SrcRef {
+    /// A zero value
+    Zero,
     /// A 32-bit immediate
     Imm32(u32),
     FAU(FAURef),
@@ -169,6 +165,7 @@ pub enum SrcRef {
 impl fmt::Display for SrcRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            SrcRef::Zero => write!(f, "k0"),
             SrcRef::Imm32(u) => write!(f, "{u:#x}"),
             SrcRef::FAU(fau) => fau.fmt(f),
             SrcRef::SSA(ssa) => ssa.fmt(f),
@@ -181,6 +178,7 @@ impl SrcRef {
     /// Returns the number of bytes read
     pub fn bytes_read(&self) -> u8 {
         match self {
+            SrcRef::Zero => 4,
             SrcRef::Imm32(_) => 4,
             SrcRef::FAU(fau) => {
                 if fau.load64 {
@@ -207,7 +205,11 @@ impl SrcRef {
 
 impl From<u32> for SrcRef {
     fn from(u: u32) -> SrcRef {
-        SrcRef::Imm32(u)
+        if u == 0 {
+            SrcRef::Zero
+        } else {
+            SrcRef::Imm32(u)
+        }
     }
 }
 
@@ -363,11 +365,7 @@ impl Src {
     }
 
     pub fn is_zero(&self) -> bool {
-        match self.src_ref {
-            SrcRef::FAU(fau) => fau.is_zero(),
-            SrcRef::Imm32(imm) => imm == 0,
-            _ => false,
-        }
+        matches!(self.src_ref, SrcRef::Zero | SrcRef::Imm32(0))
     }
 }
 

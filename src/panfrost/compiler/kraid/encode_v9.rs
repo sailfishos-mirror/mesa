@@ -65,6 +65,7 @@ impl V9Encoder<'_> {
 
 fn encode_src_ref(src: &SrcRef, last_use: bool) -> u8 {
     match src {
+        SrcRef::Zero => 0b1100_0000,
         SrcRef::FAU(fau) => match fau.page {
             FAUPage::User => {
                 // The top two bits are in the FAU page
