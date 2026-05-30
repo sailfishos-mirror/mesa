@@ -1479,6 +1479,12 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       P(ctx, "); %s t%d = ta%d.x;\n", type, instr->def.index, instr->def.index);
       break;
    }
+   case nir_intrinsic_bindless_image_fence_kk: {
+      P_INDENT(ctx);
+      src_to_msl(ctx, &instr->src[0]);
+      P(ctx, ".fence();\n");
+      break;
+   }
    case nir_intrinsic_ballot:
       P(ctx, "(ulong)simd_ballot(");
       src_to_msl(ctx, &instr->src[0]);

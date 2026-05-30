@@ -3199,4 +3199,7 @@ load("depth_texture_kk", [1], [IMAGE_DIM, IMAGE_ARRAY], [CAN_ELIMINATE])
 intrinsic("load_sampler_handle_kk", [1], 1, [],
           flags=[CAN_ELIMINATE, CAN_REORDER],
           bit_sizes=[16])
+# Texture fence to ensure writes.
+image("fence_kk")
+# Store clip distance to vertex output.
 store("clip_distance_kk", [], [BASE])
