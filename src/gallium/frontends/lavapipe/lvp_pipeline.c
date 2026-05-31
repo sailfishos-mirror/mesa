@@ -1347,22 +1347,6 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
    mesa_shader_stage stage = vk_to_mesa_shader_stage(pCreateInfo->stage);
    assert(stage <= LVP_SHADER_STAGES && stage != MESA_SHADER_NONE);
 
-   struct lvp_shader *shader = vk_object_zalloc(&device->vk, pAllocator, sizeof(struct lvp_shader), VK_OBJECT_TYPE_SHADER_EXT);
-   if (!shader)
-      goto fail;
-
-   VkPipelineLayoutCreateInfo pci = {
-      VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-      NULL,
-      0,
-      pCreateInfo->setLayoutCount,
-      pCreateInfo->pSetLayouts,
-      pCreateInfo->pushConstantRangeCount,
-      pCreateInfo->pPushConstantRanges,
-   };
-   shader->layout = lvp_pipeline_layout_create(device, &pci, pAllocator);
-   shader->push_constant_size = shader->layout->push_constant_size;
-
    if (pCreateInfo->codeType == VK_SHADER_CODE_TYPE_SPIRV_EXT) {
       VkShaderModuleCreateInfo minfo = {
          VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -1393,7 +1377,7 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
       assert(pCreateInfo->codeType == VK_SHADER_CODE_TYPE_BINARY_EXT);
       if (pCreateInfo->codeSize < BLAKE3_KEY_LEN + VK_UUID_SIZE + 1)
          return VK_NULL_HANDLE;
-      struct blob_reader blob;
+
       const uint8_t *data = pCreateInfo->pCode;
       uint8_t uuid[VK_UUID_SIZE];
       lvp_device_get_cache_uuid(uuid);
@@ -1408,7 +1392,29 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
       _mesa_blake3_final(&sctx, blake3);
       if (memcmp(blake3, data + VK_UUID_SIZE, BLAKE3_KEY_LEN))
          return VK_NULL_HANDLE;
+   }
 
+   struct lvp_shader *shader = vk_object_zalloc(&device->vk, pAllocator, sizeof(struct lvp_shader), VK_OBJECT_TYPE_SHADER_EXT);
+   if (!shader)
+      goto fail;
+
+   VkPipelineLayoutCreateInfo pci = {
+      VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      NULL,
+      0,
+      pCreateInfo->setLayoutCount,
+      pCreateInfo->pSetLayouts,
+      pCreateInfo->pushConstantRangeCount,
+      pCreateInfo->pPushConstantRanges,
+   };
+   shader->layout = lvp_pipeline_layout_create(device, &pci, pAllocator);
+   shader->push_constant_size = shader->layout->push_constant_size;
+
+   if (pCreateInfo->codeType == VK_SHADER_CODE_TYPE_BINARY_EXT) {
+      const uint8_t *data = pCreateInfo->pCode;
+      size_t size = pCreateInfo->codeSize - BLAKE3_KEY_LEN - VK_UUID_SIZE;
+
+      struct blob_reader blob;
       blob_reader_init(&blob, data + BLAKE3_KEY_LEN + VK_UUID_SIZE, size);
       nir = nir_deserialize(NULL, device->pscreen->nir_options[stage], &blob);
       if (!nir)
