@@ -67,6 +67,12 @@ idep_intel_compiler_gen = declare_dependency(
   ],
 )
 
+gen_roundtrip_cases = files(
+  'tests/basic.txt',
+  'tests/basic_verbose.txt',
+  'tests/basic_translated.txt',
+)
+
 if with_tests
   test(
     'intel_compiler_gen_tests',
@@ -76,7 +82,6 @@ if with_tests
         'gen_control_flow_test.cpp',
         'gen_encoding_test.cpp',
         'gen_parse_test.cpp',
-        'gen_parse_print_test.cpp',
         'gen_print_test.cpp',
         'gen_validate_test.cpp',
       ),
@@ -100,6 +105,13 @@ if with_intel_tools
     dependencies : [dep_thread, idep_mesautil, idep_intel_dev,
                     idep_intel_compiler_gen],
     install : true,
+  )
+
+  test(
+    'intel_compiler_gen_gentool_roundtrip',
+    gentool,
+    args : ['check-roundtrip', gen_roundtrip_cases],
+    suite : ['intel'],
   )
 endif
 
