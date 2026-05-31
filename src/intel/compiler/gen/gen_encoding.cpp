@@ -568,7 +568,7 @@ struct gen_encoder {
 
       set(E::HW_OPCODE,      desc->hw_opcode);
       set(E::SWSB,           gen_swsb_encode(devinfo, inst->swsb, inst->opcode));
-      set(E::EXEC_SIZE,      cvt(inst->exec_size) - 1);
+      set(E::EXEC_SIZE,      inst->exec_size ? cvt(inst->exec_size) - 1 : 0);
       set(E::FLAG_SUBNR,     inst->flag_subnr);
       set(E::FLAG_NR,        inst->flag_nr);
       set(E::PRED_CONTROL,   inst->pred_control);
