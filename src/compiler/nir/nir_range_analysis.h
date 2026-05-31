@@ -77,7 +77,7 @@ typedef uint16_t fp_class_mask;
 
 fp_class_mask nir_analyze_fp_class(nir_fp_analysis_state *state, const nir_def *def);
 
-uint64_t nir_def_bits_used(const nir_def *def);
+uint64_t nir_def_bits_used(const nir_def *def, unsigned comp);
 
 unsigned nir_def_num_lsb_zero(struct hash_table *numlsb_ht, nir_scalar def);
 

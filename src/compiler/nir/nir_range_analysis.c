@@ -2456,12 +2456,9 @@ ssa_def_bits_used(const nir_def *def, unsigned comp, int recur)
 }
 
 uint64_t
-nir_def_bits_used(const nir_def *def)
+nir_def_bits_used(const nir_def *def, unsigned comp)
 {
-   if (def->num_components > 1)
-         return BITFIELD64_MASK(def->bit_size);
-
-   return ssa_def_bits_used(def, 0, 2);
+   return ssa_def_bits_used(def, comp, 2);
 }
 
 static void
