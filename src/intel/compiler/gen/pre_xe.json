@@ -104,7 +104,8 @@
             "UNCOMP_SUBREG":            [ 100,  96,
                                            68,  64,
                                            52,  48 ],
-            "UNCOMP_SRC0":              [  88,  77 ]
+            "UNCOMP_SRC0":              [  88,  77 ],
+            "UNCOMP_SRC1":              [ 120, 109 ]
         },
         "sub-fields": {
             "# Relative to EU_INSTRUCTION_SOURCES_* sub-structures":"#",
