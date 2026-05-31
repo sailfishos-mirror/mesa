@@ -5934,7 +5934,7 @@
         "description": "nir: fix ibfe handling in ssa_def_bits_used",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7d24a9b649be9125c52e659911bf32a81af3dd30",
         "notes": null
