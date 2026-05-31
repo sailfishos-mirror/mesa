@@ -253,7 +253,9 @@ struct radv_llvm_compiler_options {
 #define PS_STATE_RAST_PRIM__MASK                0x3
 #define PS_STATE_USE_FLOAT_FRAG_COORD_XY__SHIFT 24
 #define PS_STATE_USE_FLOAT_FRAG_COORD_XY__MASK  0x1
-#define PS_STATE_USE_SAMPLE_MASK_IN__SHIFT      25
+#define PS_STATE_USE_QUAD_POS__SHIFT            25
+#define PS_STATE_USE_QUAD_POS__MASK             0x1
+#define PS_STATE_USE_SAMPLE_MASK_IN__SHIFT      26
 #define PS_STATE_USE_SAMPLE_MASK_IN__MASK       0x1
 
 struct radv_shader_layout {

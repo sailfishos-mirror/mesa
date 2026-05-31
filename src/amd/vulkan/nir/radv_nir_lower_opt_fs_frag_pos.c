@@ -20,6 +20,14 @@
  *    pixel_coord.x = subgroup_invocation & 0x1;
  *    pixel_coord.y = (subgroup_invocation >> 1) & 0x1;
  *
+ *    If dynamic VRS disallows that replacement, load_use_quad_pos_amd is used to do it conditionally.
+ *    The pixel_coord VGPR initialization is disabled if load_use_quad_pos_amd==true. The main reason
+ *    we do this is because VRS is always dynamic state in DX12, which means this is the only path
+ *    that can use quad_pos through DX12:
+ *
+ *    pixel_coord.x = load_use_quad_pos_amd ? subgroup_invocation & 0x1 : pixel_coord.x;
+ *    pixel_coord.y = load_use_quad_pos_amd ? (subgroup_invocation >> 1) & 0x1 : pixel_coord.y;
+ *
  * If frag_coord_xy survives and both components are used and sample_pos isn't used, it becomes:
  *    load_use_float_frag_coord_xy_amd() ? load_frag_coord_xy() : u2f32(load_pixel_coord()) + 0.5;
  *
@@ -54,6 +62,7 @@ typedef struct {
    bool lower_to_pixel_coord;
    bool lower_to_frag_coord_xy;
    bool select_frag_coord_xy_dynamically;
+   uint8_t dynamic_quad_pos_comp_mask;
 } opt_fs_frag_coord_and_pixel_coord_state;
 
 static bool
@@ -130,8 +139,13 @@ static nir_def *
 select_frag_pos_bit0_or_sysval(opt_fs_frag_coord_and_pixel_coord_state *state, nir_builder *b, nir_def *sysval,
                                bool is_float)
 {
-   nir_def *cond = nir_vec2(b, nir_imm_bool(b, !!(state->frag_pos_only_bit0_uses & 0x1)),
-                            nir_imm_bool(b, !!(state->frag_pos_only_bit0_uses & 0x2)));
+   assert(state->frag_pos_only_bit0_uses || state->dynamic_quad_pos_comp_mask);
+   uint8_t mask =
+      state->dynamic_quad_pos_comp_mask ? state->dynamic_quad_pos_comp_mask : state->frag_pos_only_bit0_uses;
+   nir_def *cond = nir_vec2(b, nir_imm_bool(b, !!(mask & 0x1)), nir_imm_bool(b, !!(mask & 0x2)));
+
+   if (state->dynamic_quad_pos_comp_mask)
+      cond = nir_iand(b, cond, nir_load_use_quad_pos_amd(b));
 
    return nir_bcsel(b, cond, get_quad_pos(b, is_float), sysval);
 }
@@ -145,13 +159,20 @@ lower_fs_frag_pos(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    assert(!state->frag_pos_only_bit0_uses || !state->lower_to_pixel_coord);
    assert(!state->frag_pos_only_bit0_uses || !state->select_frag_coord_xy_dynamically);
    assert(!state->frag_pos_only_bit0_uses || !state->has_sample_pos);
+   assert(!state->frag_pos_only_bit0_uses || !state->dynamic_quad_pos_comp_mask);
+   assert(!state->dynamic_quad_pos_comp_mask || !state->select_frag_coord_xy_dynamically);
 
    b->cursor = nir_before_instr(&intr->instr);
 
    switch (intr->intrinsic) {
    case nir_intrinsic_load_frag_coord_xy:
       if (state->lower_to_pixel_coord) {
-         nir_def_replace(&intr->def, nir_fadd_imm(b, nir_u2f32(b, nir_load_pixel_coord(b)), 0.5));
+         nir_def *float_pixel_coord = nir_u2f32(b, nir_load_pixel_coord(b));
+
+         if (state->dynamic_quad_pos_comp_mask)
+            float_pixel_coord = select_frag_pos_bit0_or_sysval(state, b, float_pixel_coord, true);
+
+         nir_def_replace(&intr->def, nir_fadd_imm(b, float_pixel_coord, 0.5));
          return true;
       } else if (state->select_frag_coord_xy_dynamically) {
          nir_def_replace(&intr->def, nir_bcsel(b, nir_load_use_float_frag_coord_xy_amd(b), nir_load_frag_coord_xy(b),
@@ -161,6 +182,9 @@ lower_fs_frag_pos(nir_builder *b, nir_intrinsic_instr *intr, void *data)
          nir_def_replace(&intr->def, select_frag_pos_bit0_or_sysval(state, b, nir_load_frag_coord_xy(b), true));
          return true;
       }
+
+      /* quad_pos requires a non-float use. */
+      assert(!state->dynamic_quad_pos_comp_mask);
       return false;
 
    case nir_intrinsic_load_sample_pos:
@@ -169,6 +193,7 @@ lower_fs_frag_pos(nir_builder *b, nir_intrinsic_instr *intr, void *data)
          nir_def_replace(&intr->def, nir_imm_vec2(b, 0, 0));
       } else {
          nir_def_replace(&intr->def, nir_ffract(b, nir_load_frag_coord_xy(b)));
+         assert(!state->dynamic_quad_pos_comp_mask);
       }
       return true;
 
@@ -177,7 +202,7 @@ lower_fs_frag_pos(nir_builder *b, nir_intrinsic_instr *intr, void *data)
          if (state->select_frag_coord_xy_dynamically) {
             nir_def_replace(&intr->def, nir_bcsel(b, nir_load_use_float_frag_coord_xy_amd(b),
                                                   nir_f2u16(b, nir_load_frag_coord_xy(b)), nir_load_pixel_coord(b)));
-         } else if (state->frag_pos_only_bit0_uses) {
+         } else if (state->frag_pos_only_bit0_uses || state->dynamic_quad_pos_comp_mask) {
             nir_def_replace(&intr->def,
                             select_frag_pos_bit0_or_sysval(state, b, nir_f2u16(b, nir_load_frag_coord_xy(b)), false));
          } else {
@@ -213,6 +238,7 @@ radv_nir_lower_opt_fs_frag_pos(nir_shader *shader, bool vrs_may_be_enabled, bool
       /* VRS changes the size of fragment quads, which means we can't use the subgroup invocation ID
        * to get bit 0 of pixel_coord unconditionally.
        */
+      state.dynamic_quad_pos_comp_mask = state.frag_pos_only_bit0_uses;
       state.frag_pos_integer_uses |= state.frag_pos_only_bit0_uses;
       state.frag_pos_only_bit0_uses = 0;
    }
@@ -264,8 +290,14 @@ radv_nir_lower_opt_fs_frag_pos(nir_shader *shader, bool vrs_may_be_enabled, bool
    state.select_frag_coord_xy_dynamically = !state.has_sample_pos && state.frag_pos_float_uses &&
                                             (state.frag_pos_float_uses | state.frag_pos_integer_uses) == 0x3;
 
+   /* Don't select quad_pos dynamically if it doesn't completely remove pixel_coord since that
+    * would only add ALU with no benefit.
+    */
+   if (state.dynamic_quad_pos_comp_mask && state.dynamic_quad_pos_comp_mask != state.frag_pos_integer_uses)
+      state.dynamic_quad_pos_comp_mask = 0;
+
    if (!state.frag_pos_only_bit0_uses && !state.lower_to_pixel_coord && !state.lower_to_frag_coord_xy &&
-       !state.select_frag_coord_xy_dynamically)
+       !state.select_frag_coord_xy_dynamically && !state.dynamic_quad_pos_comp_mask)
       return false;
 
    return nir_shader_intrinsics_pass(shader, lower_fs_frag_pos, nir_metadata_control_flow, &state);

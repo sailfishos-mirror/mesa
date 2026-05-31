@@ -1151,6 +1151,12 @@ system_value("user_data_amd", 8)
 intrinsic("load_use_float_frag_coord_xy_amd", dest_comp=1, bit_sizes=[1],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 
+# Whether to use pixel_coord or compute pixel_coord from the fragment quad position
+# based on dynamic states. pixel_coord is computed from the quad position only
+# if just bit 0 of pixel_coord is needed.
+intrinsic("load_use_quad_pos_amd", dest_comp=1, bit_sizes=[1],
+          flags=[CAN_ELIMINATE, CAN_REORDER])
+
 # If true, derive sample_mask_in from helper_invocation because sample_mask_in
 # is uninitialized.
 intrinsic("load_use_sample_mask_in_amd", dest_comp=1, bit_sizes=[1],

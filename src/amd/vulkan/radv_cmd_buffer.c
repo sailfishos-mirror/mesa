@@ -8851,7 +8851,8 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
       }
 
       if (cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT] &&
-          cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT]->info.ps.selects_frag_coord_xy_dynamically &&
+          (cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT]->info.ps.selects_frag_coord_xy_dynamically ||
+           cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT]->info.ps.selects_quad_pos_dynamically) &&
           (!cmd_buffer->state.last_vgt_shader ||
            /* We just want to know whether the VRS output changes between enabled and disabled. */
            (cmd_buffer->state.last_vgt_shader->info.outinfo.writes_primitive_shading_rate ||
@@ -11779,9 +11780,11 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    uint32_t spi_ps_input_ena = ps->config.spi_ps_input_ena;
    bool vrs_enabled = false;
    bool use_float_frag_coord_xy = false;
+   bool use_quad_pos = false;
    bool use_sample_mask_in = false;
 
-   if (ps->info.ps.selects_frag_coord_xy_dynamically || ps->info.ps.selects_sample_mask_in_dynamically) {
+   if (ps->info.ps.selects_frag_coord_xy_dynamically || ps->info.ps.selects_quad_pos_dynamically ||
+       ps->info.ps.selects_sample_mask_in_dynamically) {
       /* Whether VRS can be other than 1x1. */
       vrs_enabled = cmd_buffer->state.dynamic.vk.fsr.fragment_size.width != 1 ||
                     cmd_buffer->state.dynamic.vk.fsr.fragment_size.height != 1 ||
@@ -11802,6 +11805,21 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
          spi_ps_input_ena &= C_0286CC_POS_FIXED_PT_ENA;
       else
          spi_ps_input_ena &= C_0286CC_POS_X_FLOAT_ENA & C_0286CC_POS_Y_FLOAT_ENA;
+   }
+
+   if (ps->info.ps.selects_quad_pos_dynamically) {
+      assert(!ps->info.ps.selects_frag_coord_xy_dynamically);
+      assert(!G_0286CC_POS_X_FLOAT_ENA(spi_ps_input_ena) && !G_0286CC_POS_Y_FLOAT_ENA(spi_ps_input_ena));
+      assert(G_0286CC_POS_FIXED_PT_ENA(spi_ps_input_ena));
+
+      if (!vrs_enabled) {
+         use_quad_pos = true;
+
+         /* Disable the VGPR because we'll compute the fragment quad position from the subgroup
+          * invocation ID.
+          */
+         spi_ps_input_ena &= C_0286CC_POS_FIXED_PT_ENA;
+      }
    }
 
    if (ps->info.ps.selects_sample_mask_in_dynamically) {
@@ -11832,6 +11850,7 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
                                 SET_SGPR_FIELD(PS_STATE_LINE_RAST_MODE, line_rast_mode) |
                                 SET_SGPR_FIELD(PS_STATE_RAST_PRIM, vgt_outprim_type) |
                                 SET_SGPR_FIELD(PS_STATE_USE_FLOAT_FRAG_COORD_XY, use_float_frag_coord_xy) |
+                                SET_SGPR_FIELD(PS_STATE_USE_QUAD_POS, use_quad_pos) |
                                 SET_SGPR_FIELD(PS_STATE_USE_SAMPLE_MASK_IN, use_sample_mask_in);
 
       if (pdev->info.gfx_level >= GFX12) {
