@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "util/bitscan.h"
+#include "util/lut.h"
 #include "util/ralloc.h"
 
 #include "gen_private.h"
@@ -121,6 +122,26 @@ static bool
 starts_with(std::string_view s, std::string_view prefix)
 {
    return s.size() >= prefix.size() && s.substr(0, prefix.size()) == prefix;
+}
+
+static std::optional<size_t>
+find_matching_paren(std::string_view s)
+{
+   if (s.empty() || s[0] != '(')
+      return {};
+
+   unsigned depth = 0;
+   for (size_t i = 0; i < s.size(); i++) {
+      if (s[i] == '(') {
+         depth++;
+      } else if (s[i] == ')') {
+         depth--;
+         if (depth == 0)
+            return i;
+      }
+   }
+
+   return {};
 }
 
 static bool
@@ -428,10 +449,22 @@ struct gen_parser {
                return errorf("invalid SFID '%.*s'", SV_FMT(sfid));
 
          } else if (inst.opcode == GEN_OP_BFN) {
-            uint64_t v = 0;
-            if (!consume_unsigned(v) || v > 0xff)
-               return errorf("invalid BFN function control");
-            inst.boolean_func_ctrl = v;
+            if (peek() == '(') {
+               const std::optional<size_t> close = find_matching_paren(line);
+               if (!close)
+                  return errorf("invalid BFN function control");
+
+               const std::string bfn(consume_n(*close + 1));
+               bool ok = false;
+               inst.boolean_func_ctrl = util_lut3_parse(bfn.c_str(), &ok);
+               if (!ok)
+                  return errorf("invalid BFN function control");
+            } else {
+               uint64_t v = 0;
+               if (!consume_unsigned(v) || v > 0xff)
+                  return errorf("invalid BFN function control");
+               inst.boolean_func_ctrl = v;
+            }
 
          } else if (inst.opcode == GEN_OP_DPAS) {
             unsigned sdepth = 0;
@@ -763,6 +796,15 @@ struct gen_parser {
    {
       const auto r = peek_while(pred);
       line.remove_prefix(r.size());
+      return r;
+   }
+
+   std::string_view
+   consume_n(size_t n)
+   {
+      assert(n <= line.size());
+      const auto r = line.substr(0, n);
+      line.remove_prefix(n);
       return r;
    }
 

@@ -210,7 +210,7 @@ TEST_F(GenParsePrintTest, RoundTripsVerboseFlagStrings)
       },
       {
          "tgl",
-         "        bfn.0x9a (8|M0)           r1.0<1>:ud    r2.0<1;0>:ud      r3.0<1;0>:ud      r4.0<1>:ud\n",
+         "        bfn.(a ^ ~b & c) (8|M0)   r1.0<1>:ud    r2.0<1;0>:ud      r3.0<1;0>:ud      r4.0<1>:ud\n",
       },
       {
          "tgl",

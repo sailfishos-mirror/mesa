@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "util/half_float.h"
+#include "util/lut.h"
 #include "util/ralloc.h"
 
 #include "dev/intel_debug.h"
@@ -377,8 +378,7 @@ private:
       }
 
       case GEN_OP_BFN:
-         /* TODO: Have a table for a nicer formatting for BFN function. */
-         format(".0x%02x", inst->boolean_func_ctrl);
+         format(".(%s)", util_lut3_to_str[inst->boolean_func_ctrl]);
          break;
 
       case GEN_OP_DPAS:

@@ -563,7 +563,7 @@ TEST_F(GenPrintTest, BfnFunctionControlFormatting)
    bfn->src[2] = grf(4, 0, { 0, 1, 1 }, GEN_TYPE_UD);
 
    EXPECT_EQ(print_program(GEN_PRINT_VERBOSE),
-             "        bfn.0x9a (8|M0)           r1.0<1>:ud    r2.0<1;0>:ud      r3.0<1;0>:ud      r4.0<1>:ud\n");
+             "        bfn.(a ^ ~b & c) (8|M0)   r1.0<1>:ud    r2.0<1;0>:ud      r3.0<1;0>:ud      r4.0<1>:ud\n");
 }
 
 TEST_F(GenPrintTest, BranchControlSuffixFormatting)

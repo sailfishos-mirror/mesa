@@ -11,6 +11,7 @@
 
 #include "dev/intel_device_info.h"
 #include "gen.h"
+#include "util/lut.h"
 #include "util/ralloc.h"
 
 struct GenParseTest : public ::testing::Test {
@@ -76,6 +77,19 @@ TEST_F(GenParseTest, ParsesDpasFunctionControl)
 }
 
 TEST_F(GenParseTest, ParsesBfnFunctionControl)
+{
+   set_devinfo("tgl");
+
+   ASSERT_TRUE(parse(
+      "bfn.(a & b | ~a & c) (8|M0) r1.0<1>:ud r2.0<0;0>:ud r3.0<1;0>:ud r4.0<1>:ud\n"))
+      << first_error();
+
+   ASSERT_EQ(num_insts, 1);
+   EXPECT_EQ(insts[0].opcode, GEN_OP_BFN);
+   EXPECT_EQ(insts[0].boolean_func_ctrl, UTIL_LUT3((a & b) | (~a & c)));
+}
+
+TEST_F(GenParseTest, ParsesNumericBfnFunctionControl)
 {
    set_devinfo("tgl");
 
