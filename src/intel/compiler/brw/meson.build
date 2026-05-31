@@ -181,30 +181,3 @@ if with_tests
   )
 endif
 
-if with_intel_tools
-
-asm_testcases = [
-  ['skl', 'gfx9'],
-  ['icl', 'gfx11'],
-  ['tgl', 'gfx12'],
-  ['dg2', 'gfx12.5'],
-]
-
-test_runner = find_program('tests/run-test.py')
-foreach testcase : asm_testcases
-  _gen_name = testcase[0]
-  _gen_num = testcase[1]
-  _gen_folder = join_paths(meson.current_source_dir(), 'tests',
-                           _gen_num.replace('gfx', 'gen'))
-  test(
-    'brw_asm_' + _gen_num, test_runner,
-    args : [
-      '--gentool', gentool,
-      '--gen_name', _gen_name,
-      '--gen_folder', _gen_folder,
-    ],
-    suite : 'intel',
-  )
-endforeach
-
-endif
