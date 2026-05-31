@@ -123,7 +123,8 @@ struct gen_printer {
       const char *const *annotations = params->annotations;
       const char *const *label_annotations = params->label_annotations;
 
-      labels = collect_labels(insts, num_insts);
+      if (!(flags & GEN_PRINT_NO_LABELS))
+         labels = collect_labels(insts, num_insts);
 
       unsigned next_label = 0;
       int next_error = 0;
