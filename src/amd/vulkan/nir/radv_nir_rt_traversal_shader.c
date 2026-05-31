@@ -1299,6 +1299,7 @@ radv_build_traversal(const struct radv_compiler_info *compiler_info, struct radv
       .cull_mask = params->cull_mask_and_flags,
       .origin = params->origin,
       .tmin = params->tmin,
+      .tmax = params->tmax,
       .dir = params->direction,
       .vars = trav_vars_args,
       .stack_stride = stack_stride,
