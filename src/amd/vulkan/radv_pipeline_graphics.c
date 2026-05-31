@@ -2568,9 +2568,8 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_copy_prop);
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_dce);
 
-      NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_lower_opt_fs_frag_pos,
-               !gfx_state->vrs_may_be_enabled && !gfx_state->ms.sample_shading_enable &&
-                  !stages[MESA_SHADER_FRAGMENT].nir->info.fs.uses_sample_shading);
+      NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_lower_opt_fs_frag_pos, gfx_state->vrs_may_be_enabled,
+               gfx_state->ms.sample_shading_enable || stages[MESA_SHADER_FRAGMENT].nir->info.fs.uses_sample_shading);
 
       ac_nir_lower_sample_mask_in_options lower_sample_mask_in_options = {0};
 
