@@ -1395,7 +1395,7 @@ zink_bo_init(struct zink_screen *screen)
       total_mem += screen->info.mem_props.memoryHeaps[i].size;
    /* Create managers. */
    pb_cache_init(&screen->pb.bo_cache, screen->info.mem_props.memoryTypeCount,
-                 500000, 2.0f, 0,
+                 500000, 1.5f, 0,
                  total_mem / 8, offsetof(struct zink_bo, cache_entry), screen,
                  (void*)bo_destroy, (void*)bo_can_reclaim);
 
