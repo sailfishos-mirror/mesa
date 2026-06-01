@@ -48,7 +48,7 @@ pub enum FAUPage {
     SmallConst,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct FAURef {
     pub page: FAUPage,
 
@@ -107,14 +107,14 @@ impl From<&SmallConstant> for FAURef {
 /// half of a register, it is swizzled accordingly.  For 16-bit destinations,
 /// the instruction itself continues to operate 32 bits wide and the register
 /// write is simply masked.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum RegRange {
     Half0,
     Half1,
     Regs(u8),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct RegRef {
     pub idx: u8,
     pub range: RegRange,
@@ -152,7 +152,7 @@ impl RegRef {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum SrcRef {
     /// A zero value
     Zero,
