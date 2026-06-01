@@ -108,7 +108,15 @@
             "UNCOMP_SRC1":              [ 120, 109 ],
             "UNCOMP_3SRC_CONTROL":      [  36,  35,
                                            34,  32,
-                                           28,   8 ]
+                                           28,   8 ],
+            "UNCOMP_3SRC_SOURCE":       [ 126, 125,
+                                          105, 104,
+                                           84,  84,
+                                           83,  83,
+                                          114, 107,
+                                           93,  86,
+                                           72,  65,
+                                           55,  37 ]
         },
         "sub-fields": {
             "# Relative to EU_INSTRUCTION_SOURCES_* sub-structures":"#",
