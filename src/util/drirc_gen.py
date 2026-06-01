@@ -89,7 +89,7 @@ class DrircUint64(DrircOption):
         self.value = value
         self.min_value = min_value
         self.max_value = max_value
-        self.c_args = [f"{value}", f"{min_value}", f"{max_value}", f"\"{self.description}\""]
+        self.c_args = [f"{value}ULL", f"{min_value}ULL", f"{max_value}ULL", f"\"{self.description}\""]
 
 class DrircFloat(DrircOption):
     def __init__(self, name, value, min_value, max_value, description="", c_name=None):
