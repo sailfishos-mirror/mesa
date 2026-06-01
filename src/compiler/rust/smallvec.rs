@@ -113,3 +113,14 @@ impl<T> std::ops::DerefMut for SmallVec<T> {
         }
     }
 }
+
+impl<T> Extend<T> for SmallVec<T> {
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for i in iter {
+            self.push(i)
+        }
+    }
+}
