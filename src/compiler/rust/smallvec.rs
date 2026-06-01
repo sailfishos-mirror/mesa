@@ -43,18 +43,50 @@ impl<T> SmallVec<T> {
     /// vec.push("World".to_string());
     /// ```
     pub fn push(&mut self, i: T) {
+        self.push_mut(i);
+    }
+
+    /// Adds an item to the `SmallVec`, returning a reference to it.
+    ///
+    /// If the collection is empty (`None`), the item is stored as `One`.
+    /// If the collection has one item (`One`), it transitions to `Many` and both items are stored in a `Vec`.
+    /// If the collection is already in the `Many` variant, the new item is pushed into the existing `Vec`.
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - The item to be added.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut vec: SmallVec<String> = SmallVec::None;
+    /// let item = vec.push_mut("Hello".to_string());
+    /// *item += "World";
+    /// ```
+    pub fn push_mut(&mut self, i: T) -> &mut T {
         match self {
             SmallVec::None => {
                 *self = SmallVec::One(i);
+                match self {
+                    SmallVec::One(i) => i,
+                    _ => panic!("Not a One"),
+                }
             }
             SmallVec::One(_) => {
                 *self = match std::mem::take(self) {
                     SmallVec::One(o) => SmallVec::Many(vec![o, i]),
                     _ => panic!("Not a One"),
                 };
+                match self {
+                    SmallVec::Many(v) => v.last_mut().unwrap(),
+                    _ => panic!("Not a Many"),
+                }
             }
             SmallVec::Many(v) => {
+                // TODO: Replace with v.push_mut() when we update to
+                // Rust 1.95.0 or newer.
                 v.push(i);
+                v.last_mut().unwrap()
             }
         }
     }
