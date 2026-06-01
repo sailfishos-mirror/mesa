@@ -384,7 +384,8 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
                               last_pipe == GEN_PIPE_FLOAT ||
                               last_pipe == GEN_PIPE_INT) ?
                  last_pipe :
-                 wait_pipes ? GEN_PIPE_ALL : GEN_PIPE_NONE,
+              wait_pipes ? GEN_PIPE_ALL :
+                           GEN_PIPE_NONE,
    };
 
    /* Fold the immediate preceding SYNC.nop into this instruction, allowing

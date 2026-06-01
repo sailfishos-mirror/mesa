@@ -1090,7 +1090,8 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       !has_dest          ? LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS) :
                            LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
 
-   ASSERTED const unsigned max_imm_bits = brw_max_immediate_offset_bits(surf_type);
+   ASSERTED const unsigned max_imm_bits =
+      brw_max_immediate_offset_bits(surf_type);
    assert(base_offset >= u_intN_min(max_imm_bits));
    assert(base_offset <= u_intN_max(max_imm_bits));
    assert(base_offset == 0 || sfid != GEN_SFID_TGM);
@@ -1153,7 +1154,8 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          .addr_type = surf_type,
          .flat.base_offset = base_offset,
       };
-      desc |= ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
+      desc |=
+         ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
    } else if (jay_is_null(bti_indirect)) {
       const gen_lsc_ex_desc gen_ex_desc = {
          .addr_type = LSC_ADDR_SURFTYPE_BTI,
@@ -1162,7 +1164,8 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             .base_offset = base_offset,
          },
       };
-      desc |= ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
+      desc |=
+         ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
    } else if (!jay_is_null(bti_indirect)) {
       ex_desc = bti_indirect;
 

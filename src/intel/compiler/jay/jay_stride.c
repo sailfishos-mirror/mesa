@@ -118,4 +118,3 @@ jay_src_stride_minmax(jay_inst *I, unsigned s, bool do_max)
 
    return (do_max && !restrict_mixed_strides(I, s)) ? max : min;
 }
-
