@@ -69,9 +69,6 @@ struct kk_descriptor_state {
 };
 
 struct kk_per_draw_data {
-   /* Mask of stages that need per-draw data uploaded */
-   uint32_t upload_mask;
-
    uint32_t draw_id;
 };
 
@@ -317,6 +314,12 @@ kk_grid_indirect(mtl_buffer *indirect, uint32_t offset)
       .indirect = indirect,
       .offset = offset,
    };
+}
+
+static bool
+kk_grid_is_indirect(struct kk_grid grid)
+{
+   return grid.mode == KK_GRID_INDIRECT;
 }
 
 void kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct kk_grid grid,
