@@ -1482,17 +1482,13 @@ private:
    bool
    set_3src_subreg_index()
    {
-      gen_range bits = { 127, 0 };
+      uint32_t uncompacted = 0;
       if constexpr (E::TYPE < GEN_ENCODING_XE) {
          UNREACHABLE("Don't call set_3src_subreg_index() for this device!");
          return false;
+      } else {
+         uncompacted = uc_get(E::UNCOMP_3SRC_SUBREG);
       }
-
-      uint32_t uncompacted =               /* 20b/TGL+ */
-         (uc_get(bits(119, 115)) << 15) | /*  5b */
-         (uc_get(bits(103,  99)) << 10) | /*  5b */
-         (uc_get(bits( 71,  67)) <<  5) | /*  5b */
-         (uc_get(bits( 55,  51)));        /*  5b */
 
       const compact_table_info &table = compact_tables.subreg_3src;
 
@@ -2189,12 +2185,7 @@ private:
          compacted = c_get(E::C_3SRC_SUBREG_INDEX);
       }
       auto uncompacted = table.read(compacted);
-      gen_range bits = { 127, 0 };
-
-      uc_set(bits(119, 115), (uncompacted >> 15));
-      uc_set(bits(103,  99), (uncompacted >> 10) & 0x1f);
-      uc_set(bits( 71,  67), (uncompacted >>  5) & 0x1f);
-      uc_set(bits( 55,  51), (uncompacted >>  0) & 0x1f);
+      uc_set(E::UNCOMP_3SRC_SUBREG, uncompacted);
    }
 
    void

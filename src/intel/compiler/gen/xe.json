@@ -182,7 +182,11 @@
                                            46,  46,
                                            45,  44,
                                            43,  43,
-                                           35,  35 ]
+                                           35,  35 ],
+            "UNCOMP_3SRC_SUBREG":       [ 119, 115,
+                                          103,  99,
+                                           71,  67,
+                                           55,  51 ]
         },
         "sub-fields": {
             "# Relative to OPERAND sub-structures":"#",
