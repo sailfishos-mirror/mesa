@@ -300,9 +300,8 @@
 
             "3SRC_DST_REG_NR":          [  39,  32 ],
             "3SRC_SOURCE_INDEX":        [  25,  22 ],
-            "3SRC_SUBREG_INDEX":        null,
-            "3SRC_SUBREG_INDEX_LO3":    [  28,  26 ],
-            "3SRC_SUBREG_INDEX_HI2":    [  31,  30 ],
+            "3SRC_SUBREG_INDEX":        [  31,  30,
+                                           28,  26 ],
             "3SRC_CONTROL_INDEX":       [  21,  18 ],
             "3SRC_SWSB":                [  17,   8 ]
         }
