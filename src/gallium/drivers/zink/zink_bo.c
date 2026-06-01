@@ -327,6 +327,7 @@ bo_create_internal(struct zink_screen *screen,
    bo->base.base.alignment_log2 = util_logbase2(alignment);
    bo->base.base.size = mai.allocationSize;
    bo->base.vtbl = &bo_vtbl;
+   bo->type = ZINK_BO_REAL;
    bo->base.base.placement = mem_type_idx;
    bo->base.base.usage = flags;
    bo->unique_id = p_atomic_inc_return(&screen->pb.next_bo_unique_id);
@@ -551,6 +552,7 @@ bo_sparse_create(struct zink_screen *screen, uint64_t size)
    bo->base.base.alignment_log2 = util_logbase2(ZINK_SPARSE_BUFFER_PAGE_SIZE);
    bo->base.base.size = size;
    bo->base.vtbl = &bo_sparse_vtbl;
+   bo->type = ZINK_BO_SPARSE;
    unsigned placement = zink_mem_type_idx_from_types(screen, ZINK_HEAP_DEVICE_LOCAL_SPARSE, UINT32_MAX);
    assert(placement != UINT32_MAX);
    bo->base.base.placement = placement;
@@ -1353,6 +1355,7 @@ bo_slab_alloc(void *priv, unsigned mem_type_idx, unsigned entry_size, unsigned g
       bo->base.base.alignment_log2 = util_logbase2(get_slab_entry_alignment(screen, entry_size));
       bo->base.base.size = entry_size;
       bo->base.vtbl = &bo_slab_vtbl;
+      bo->type = ZINK_BO_SLAB;
       bo->offset = slab->buffer->offset + i * entry_size;
       bo->u.slab.entry.slab = &slab->base;
 

@@ -701,8 +701,15 @@ struct bo_export {
    struct list_head link;
 };
 
+enum zink_bo_type {
+   ZINK_BO_REAL,
+   ZINK_BO_SLAB,
+   ZINK_BO_SPARSE,
+};
+
 struct zink_bo {
    struct pb_buffer base;
+   enum zink_bo_type type;
 
    union {
       struct {
