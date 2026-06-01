@@ -11,13 +11,20 @@
 /// * `Many(Vec<T>)` - Stores multiple items in a heap-allocated `Vec`.
 ///
 /// This helps to reduce the amount of Vec's allocated in the optimization passes.
+#[derive(Clone, Default)]
 pub enum SmallVec<T> {
+    #[default]
     None,
     One(T),
     Many(Vec<T>),
 }
 
 impl<T> SmallVec<T> {
+    /// Constructs a new, empty `SmallVec`
+    pub fn new() -> SmallVec<T> {
+        Default::default()
+    }
+
     /// Adds an item to the `SmallVec`.
     ///
     /// If the collection is empty (`None`), the item is stored as `One`.
@@ -41,7 +48,7 @@ impl<T> SmallVec<T> {
                 *self = SmallVec::One(i);
             }
             SmallVec::One(_) => {
-                *self = match std::mem::replace(self, SmallVec::None) {
+                *self = match std::mem::take(self) {
                     SmallVec::One(o) => SmallVec::Many(vec![o, i]),
                     _ => panic!("Not a One"),
                 };
