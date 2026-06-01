@@ -1074,7 +1074,7 @@
         "description": "ir3: use a1.x addressing for ldg.k with dst 256",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e6529b54c04674db6a06f15db7eef4e93497b08a",
         "notes": null
