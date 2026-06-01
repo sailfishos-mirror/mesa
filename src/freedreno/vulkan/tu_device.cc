@@ -204,6 +204,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .KHR_incremental_present = true,
 #endif
       .KHR_index_type_uint8 = true,
+      .KHR_internally_synchronized_queues = true,
       .KHR_line_rasterization = !device->info->props.is_a702,
       .KHR_load_store_op_none = true,
       .KHR_maintenance1 = true,
@@ -550,6 +551,9 @@ tu_get_features(struct tu_physical_device *pdevice,
 
    /* VK_KHR_index_type_uint8 */
    features->indexTypeUint8 = true;
+
+   /* VK_KHR_internally_synchronized_queues */
+   features->internallySynchronizedQueues = true;
 
    /* VK_KHR_line_rasterization */
    features->rectangularLines = !pdevice->info->props.is_a702;
