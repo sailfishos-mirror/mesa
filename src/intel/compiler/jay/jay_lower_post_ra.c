@@ -99,6 +99,11 @@ lower(jay_builder *b, jay_inst *I)
       return true;
    }
 
+   case JAY_OPCODE_LOOP_ONCE:
+      jay_BREAK(b);
+      jay_WHILE(b);
+      return true;
+
    default:
       return false;
    }

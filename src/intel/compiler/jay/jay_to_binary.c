@@ -442,18 +442,6 @@ emit(struct jay_codegen *jc,
       OP3_SWAP(MAD, MAD)
       OP3_SWAP(BFE, BFE)
 
-   case JAY_OPCODE_LOOP_ONCE: {
-      /* TODO: Is there a better way to do this? */
-      assert(util_dynarray_num_elements(&jc->loop_stack, int) > 0);
-      int header_idx = util_dynarray_pop(&jc->loop_stack, int);
-      jc_append(jc, GEN_OP_BREAK);
-      gen_inst *last = jc_append(jc, GEN_OP_WHILE);
-      last->src[0].file = GEN_IMM;
-      last->src[0].type = GEN_TYPE_D;
-      last->src[0].imm = GEN_INST_BYTES * (header_idx - (jc->num_insts - 1));
-      break;
-   }
-
    case JAY_OPCODE_WHILE: {
       assert(util_dynarray_num_elements(&jc->loop_stack, int) > 0);
       int header_idx = util_dynarray_pop(&jc->loop_stack, int);
