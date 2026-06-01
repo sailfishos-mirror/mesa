@@ -160,3 +160,53 @@ impl<T> FromIterator<T> for SmallVec<T> {
         SmallVec::Many([x, y].into_iter().chain(iter).collect())
     }
 }
+
+enum IntoIterImpl<T> {
+    None,
+    One(T),
+    Many(std::vec::IntoIter<T>),
+}
+
+pub struct IntoIter<T>(IntoIterImpl<T>);
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.0 {
+            IntoIterImpl::None => None,
+            IntoIterImpl::One(_) => {
+                match std::mem::replace(&mut self.0, IntoIterImpl::None) {
+                    IntoIterImpl::One(i) => Some(i),
+                    _ => panic!("Not a One"),
+                }
+            }
+            IntoIterImpl::Many(vi) => vi.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match &self.0 {
+            IntoIterImpl::None => (0, Some(0)),
+            IntoIterImpl::One(_) => (1, Some(1)),
+            IntoIterImpl::Many(vi) => vi.size_hint(),
+        }
+    }
+}
+
+impl<T> std::iter::ExactSizeIterator for IntoIter<T> {}
+impl<T> std::iter::FusedIterator for IntoIter<T> {}
+
+impl<T> IntoIterator for SmallVec<T> {
+    type Item = T;
+    type IntoIter = IntoIter<T>;
+
+    fn into_iter(self) -> IntoIter<T> {
+        let imp = match self {
+            SmallVec::None => IntoIterImpl::None,
+            SmallVec::One(i) => IntoIterImpl::One(i),
+            SmallVec::Many(v) => IntoIterImpl::Many(v.into_iter()),
+        };
+        IntoIter(imp)
+    }
+}
