@@ -68,7 +68,7 @@ pub trait SSABuilder: Builder {
 
 pub struct InstrBuilder {
     arch: u8,
-    instrs: Vec<Instr>,
+    instrs: MappedInstrs,
 }
 
 impl InstrBuilder {
@@ -79,8 +79,12 @@ impl InstrBuilder {
         }
     }
 
-    pub fn into_vec(self) -> Vec<Instr> {
+    pub fn into_mapped(self) -> MappedInstrs {
         self.instrs
+    }
+
+    pub fn into_vec(self) -> Vec<Instr> {
+        self.instrs.into()
     }
 }
 
@@ -109,6 +113,10 @@ impl<'a> SSAInstrBuilder<'a> {
             b: InstrBuilder::new(arch),
             alloc,
         }
+    }
+
+    pub fn into_mapped(self) -> MappedInstrs {
+        self.b.into_mapped()
     }
 
     pub fn into_vec(self) -> Vec<Instr> {

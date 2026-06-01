@@ -10,6 +10,7 @@ pub use crate::ssa_value::{SSARef, SSAValue};
 use crate::swizzle::AsmSwizzleWiden;
 pub use crate::swizzle::Swizzle;
 use compiler::as_slice::*;
+use compiler::smallvec::*;
 
 use std::fmt;
 use std::num::NonZeroU32;
@@ -620,6 +621,8 @@ impl fmt::Display for Instr {
     }
 }
 
+pub type MappedInstrs = SmallVec<Instr>;
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct Label {
     idx: u32,
@@ -649,6 +652,13 @@ pub struct BasicBlock {
     pub instrs: Vec<Instr>,
 }
 
+impl BasicBlock {
+    pub fn map_instrs(&mut self, map: impl FnMut(Instr) -> MappedInstrs) {
+        let instrs = std::mem::take(&mut self.instrs);
+        self.instrs = instrs.into_iter().flat_map(map).collect();
+    }
+}
+
 impl fmt::Display for BasicBlock {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:", self.label)?;
@@ -663,6 +673,18 @@ pub struct Shader<'a> {
     pub model: &'a dyn Model,
     pub ssa_alloc: SSAValueAllocator,
     pub blocks: Vec<BasicBlock>,
+}
+
+impl Shader<'_> {
+    pub fn map_instrs(
+        &mut self,
+        mut map: impl FnMut(Instr, &mut SSAValueAllocator) -> MappedInstrs,
+    ) {
+        let alloc = &mut self.ssa_alloc;
+        for b in &mut self.blocks {
+            b.map_instrs(|i| map(i, alloc));
+        }
+    }
 }
 
 impl fmt::Display for Shader<'_> {
