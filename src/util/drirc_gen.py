@@ -157,13 +157,15 @@ struct ${driver_prefix}_drirc {
    struct driOptionCache available_options;
 
 % for section in sections:
+%   if any(o.c_name is not None for o in section.options):
    struct {
-%   for option in section.options:
-%     if option.c_name is not None:
+%     for option in section.options:
+%       if option.c_name is not None:
       ${type_to_ctype(option.dtype)} ${option.c_name};
-%     endif
-%   endfor
+%       endif
+%     endfor
    } ${section.c_name};
+%   endif
 % endfor
 };
 
