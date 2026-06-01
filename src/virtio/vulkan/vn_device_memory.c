@@ -93,8 +93,8 @@ vn_device_memory_bo_init(struct vn_device *dev, struct vn_device_memory *mem)
    const VkMemoryType *mem_type = &dev->physical_device->memory_properties
                                       .memoryTypes[mem_vk->memory_type_index];
    return vn_renderer_bo_create_from_device_memory(
-      dev->renderer, mem_vk->size, mem->base.id, mem_type->propertyFlags,
-      mem_vk->export_handle_types, &mem->base_bo);
+      dev->renderer, NULL, mem_vk->size, mem->base.id,
+      mem_type->propertyFlags, mem_vk->export_handle_types, &mem->base_bo);
 }
 
 static inline void
@@ -168,7 +168,7 @@ vn_device_memory_alloc_guest_vram(struct vn_device *dev,
       flags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
    VkResult result = vn_renderer_bo_create_from_device_memory(
-      dev->renderer, mem_vk->size, mem->base.id, flags,
+      dev->renderer, NULL, mem_vk->size, mem->base.id, flags,
       mem_vk->export_handle_types, &mem->base_bo);
    if (result != VK_SUCCESS) {
       return result;
