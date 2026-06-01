@@ -8,7 +8,6 @@
 #include <cstdarg>
 #include <cstring>
 #include <inttypes.h>
-#include <memory>
 #include <vector>
 
 #include "util/half_float.h"
