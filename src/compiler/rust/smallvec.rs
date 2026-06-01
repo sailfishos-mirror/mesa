@@ -161,6 +161,16 @@ impl<T> FromIterator<T> for SmallVec<T> {
     }
 }
 
+impl<T> From<SmallVec<T>> for Vec<T> {
+    fn from(sv: SmallVec<T>) -> Vec<T> {
+        match sv {
+            SmallVec::None => Vec::new(),
+            SmallVec::One(i) => vec![i],
+            SmallVec::Many(v) => v,
+        }
+    }
+}
+
 enum IntoIterImpl<T> {
     None,
     One(T),
