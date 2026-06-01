@@ -173,7 +173,6 @@ class GenInstructionSources:
         filename = self.outdir / f'gen_info_{name.lower()}.h'
         with open(filename, 'w', encoding='utf8') as h:
             try:
-                print('Generating', filename)
                 h.write(self.h_template.render(**template_input))
             except:
                 import mako.exceptions
