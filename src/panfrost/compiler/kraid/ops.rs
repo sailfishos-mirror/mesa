@@ -608,21 +608,36 @@ impl fmt::Display for OpStore {
 
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
-    Branch(OpBranch),
-    CSel(OpCSel),
-    F16ToF32(OpF16ToF32),
-    F32ToF16(OpF32ToF16),
-    FAdd(OpFAdd),
-    FCmp(OpFCmp),
-    IAdd(OpIAdd),
-    ICmp(OpICmp),
-    LeaPka(OpLeaPka),
-    LdPka(OpLdPka),
-    Load(OpLoad),
-    MkVecV2I8(OpMkVecV2I8),
-    MkVecV4I8(OpMkVecV4I8),
+    Branch(Box<OpBranch>),
+    CSel(Box<OpCSel>),
+    F16ToF32(Box<OpF16ToF32>),
+    F32ToF16(Box<OpF32ToF16>),
+    FAdd(Box<OpFAdd>),
+    FCmp(Box<OpFCmp>),
+    IAdd(Box<OpIAdd>),
+    ICmp(Box<OpICmp>),
+    LeaPka(Box<OpLeaPka>),
+    LdPka(Box<OpLdPka>),
+    Load(Box<OpLoad>),
+    MkVecV2I8(Box<OpMkVecV2I8>),
+    MkVecV4I8(Box<OpMkVecV4I8>),
     Nop(OpNop),
-    Mov(OpMov),
-    ShiftLop(OpShiftLop),
-    Store(OpStore),
+    Mov(Box<OpMov>),
+    ShiftLop(Box<OpShiftLop>),
+    Store(Box<OpStore>),
+}
+
+#[cfg(target_arch = "aarch64")]
+const _: () = {
+    assert!(size_of::<Op>() == 16);
+};
+
+// The Opcode constraint exists to keep the type system from recursing
+impl<T: Opcode> From<T> for Op
+where
+    Box<T>: Into<Op>,
+{
+    fn from(op: T) -> Self {
+        Box::new(op).into()
+    }
 }

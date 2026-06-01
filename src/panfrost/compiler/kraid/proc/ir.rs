@@ -3,6 +3,7 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
+use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::*;
@@ -71,6 +72,38 @@ pub fn variants(attr: TokenStream, item: TokenStream) -> TokenStream {
     out
 }
 
+fn variant_type(v: &Variant) -> &Type {
+    let Fields::Unnamed(f) = &v.fields else {
+        panic!("Op variant must have a single unnamed field");
+    };
+
+    if f.unnamed.len() != 1 {
+        panic!("Op variant must have a single unnamed field");
+    }
+
+    &f.unnamed[0].ty
+}
+
+fn unbox_type(ty: &Type) -> TokenStream2 {
+    let Type::Path(p) = ty else {
+        panic!("Op variant needs to be either OpFoo or Box<OpFoo>");
+    };
+
+    let Some(seg) = p.path.segments.last() else {
+        panic!("Path cannot be empty");
+    };
+
+    if seg.ident == "Box" {
+        let PathArguments::AngleBracketed(a) = &seg.arguments else {
+            panic!("Box<T> missing generic argument T");
+        };
+
+        a.args.to_token_stream()
+    } else {
+        p.to_token_stream()
+    }
+}
+
 pub fn derive_opcode(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs, ident, data, ..
@@ -119,12 +152,21 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
             let mut val_cases = TokenStream2::new();
             let mut fmt_cases = TokenStream2::new();
             for v in e.variants {
-                let case = v.ident;
+                let case = &v.ident;
+                let v_type = unbox_type(variant_type(&v));
                 var_cases.extend(quote! {
-                    #ident::#case(x) => Opcode::variant(x),
+                    #ident::#case(x) => {
+                        use std::borrow::Borrow;
+                        let b: &#v_type = x.borrow();
+                        Opcode::variant(b)
+                    }
                 });
                 val_cases.extend(quote! {
-                    #ident::#case(x) => Opcode::is_valid_variant(x),
+                    #ident::#case(x) => {
+                        use std::borrow::Borrow;
+                        let b: &#v_type = x.borrow();
+                        Opcode::is_valid_variant(b)
+                    }
                 });
                 fmt_cases.extend(quote! {
                     #ident::#case(x) => x.fmt(f),
