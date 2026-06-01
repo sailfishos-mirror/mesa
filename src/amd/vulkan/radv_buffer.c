@@ -284,6 +284,9 @@ radv_bo_create(struct radv_device *device, struct vk_object_base *object, uint64
    if (device->compiler_info.key.mitigate_smem_oob && !is_internal)
       flags |= RADEON_FLAG_VM_PAD_1PAGE;
 
+   if (pdev->info.has_smem_partial_oob_access_bug && !is_internal)
+      flags |= RADEON_FLAG_VM_PAD_1PAGE;
+
    result = ws->buffer_create(ws, size, alignment, domain, flags, priority, address, out_bo);
    if (result != VK_SUCCESS)
       return result;
