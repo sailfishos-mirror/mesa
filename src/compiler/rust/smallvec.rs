@@ -138,3 +138,25 @@ impl<T> From<Vec<T>> for SmallVec<T> {
         }
     }
 }
+
+impl<T, const N: usize> From<[T; N]> for SmallVec<T> {
+    fn from(i: [T; N]) -> SmallVec<T> {
+        i.into_iter().collect()
+    }
+}
+
+impl<T> FromIterator<T> for SmallVec<T> {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        let mut iter = iter.into_iter();
+        let Some(x) = iter.next() else {
+            return SmallVec::None;
+        };
+        let Some(y) = iter.next() else {
+            return SmallVec::One(x);
+        };
+        SmallVec::Many([x, y].into_iter().chain(iter).collect())
+    }
+}
