@@ -285,7 +285,6 @@ lower_cmat_load_store(nir_builder *b, nir_intrinsic_instr *intr, const lower_cma
    nir_deref_instr *cmat_deref = nir_src_as_deref(intr->src[!is_load]);
    struct glsl_cmat_description desc = *glsl_get_cmat_description(cmat_deref->type);
    enum glsl_matrix_layout layout = nir_intrinsic_matrix_layout(intr);
-   unsigned length = radv_nir_cmat_length(desc, params);
 
    nir_deref_instr *deref = nir_src_as_deref(intr->src[is_load]);
    nir_def *stride = intr->src[2].ssa;
@@ -304,6 +303,8 @@ lower_cmat_load_store(nir_builder *b, nir_intrinsic_instr *intr, const lower_cma
    if (desc.use == GLSL_CMAT_USE_A)
       layout =
          layout == GLSL_MATRIX_LAYOUT_COLUMN_MAJOR ? GLSL_MATRIX_LAYOUT_ROW_MAJOR : GLSL_MATRIX_LAYOUT_COLUMN_MAJOR;
+
+   unsigned length = radv_nir_cmat_length(desc, params);
 
    bool use_tr_load = params->gfx_level >= GFX12 && layout == GLSL_MATRIX_LAYOUT_ROW_MAJOR && is_load &&
                       radv_nir_cmat_bits(desc) < 32 &&
