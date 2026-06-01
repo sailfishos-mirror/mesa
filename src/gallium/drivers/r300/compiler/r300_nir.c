@@ -7,6 +7,7 @@
 
 #include "compiler/nir/nir_builder.h"
 #include "r300_screen.h"
+#include "util/u_endian.h"
 
 bool
 r300_is_only_used_as_float(const nir_alu_instr *instr)
@@ -187,7 +188,9 @@ r300_optimize_nir(struct nir_shader *s, struct r300_screen *screen)
          }
          NIR_PASS(_, s, nir_remove_dead_variables, nir_var_shader_out, NULL);
          fprintf(stderr, "r300: no HW support for clip vertex, expect misrendering.\n");
+#if !UTIL_ARCH_BIG_ENDIAN
          fprintf(stderr, "r300: software emulation can be enabled with RADEON_DEBUG=notcl.\n");
+#endif
       }
    }
 
