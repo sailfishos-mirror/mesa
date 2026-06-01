@@ -9,6 +9,8 @@
 #include <string.h>
 
 #include "compiler/gen/gen.h"
+#include "compiler/gen/gen_enums.h"
+#include "compiler/gen/gen_helpers.h"
 #include "dev/intel_debug.h"
 #include "util/macros.h"
 #include "util/u_dynarray.h"
@@ -45,7 +47,6 @@ to_gen_reg_type(enum jay_type type)
 
 struct jay_codegen {
    const struct intel_device_info *devinfo;
-   void *mem_ctx;
 
    gen_inst *insts;
    int num_insts;
@@ -59,89 +60,7 @@ struct jay_codegen {
 
    /* struct intel_shader_reloc */
    struct util_dynarray relocs;
-
-   struct {
-      uint8_t exec_size;
-      uint8_t chan_offset;
-      uint8_t flag_nr;
-      uint8_t flag_subnr;
-      gen_predicate pred_control;
-      bool pred_inv;
-      bool no_mask;
-      bool saturate;
-      gen_swsb swsb;
-   } state;
 };
-
-static ATTRIBUTE_NOINLINE gen_inst *
-jc_append(struct jay_codegen *jc, gen_opcode opcode)
-{
-   assert(jc->num_insts < jc->insts_cap);
-   gen_inst *gen = &jc->insts[jc->num_insts++];
-   *gen = (gen_inst) {
-      .opcode = opcode,
-      .exec_size = jc->state.exec_size,
-      .chan_offset = jc->state.chan_offset,
-      .flag_nr = jc->state.flag_nr,
-      .flag_subnr = jc->state.flag_subnr,
-      .pred_control = jc->state.pred_control,
-      .pred_inv = jc->state.pred_inv,
-      .no_mask = jc->state.no_mask,
-      .saturate = jc->state.saturate,
-      .swsb = jc->state.swsb,
-   };
-   return gen;
-}
-
-#define jc_append1(_opcode, _dst, _src0)                                       \
-   ({                                                                          \
-      gen_inst *_gen = jc_append(jc, (_opcode));                               \
-      _gen->dst = (_dst);                                                      \
-      _gen->src[0] = (_src0);                                                  \
-      _gen;                                                                    \
-   })
-
-#define jc_append2(_opcode, _dst, _src0, _src1)                                \
-   ({                                                                          \
-      gen_inst *_gen = jc_append(jc, (_opcode));                               \
-      _gen->dst = (_dst);                                                      \
-      _gen->src[0] = (_src0);                                                  \
-      _gen->src[1] = (_src1);                                                  \
-      _gen;                                                                    \
-   })
-
-#define jc_append3(_opcode, _dst, _src0, _src1, _src2)                         \
-   ({                                                                          \
-      gen_inst *_gen = jc_append(jc, (_opcode));                               \
-      _gen->dst = (_dst);                                                      \
-      _gen->src[0] = (_src0);                                                  \
-      _gen->src[1] = (_src1);                                                  \
-      _gen->src[2] = (_src2);                                                  \
-      _gen;                                                                    \
-   })
-
-static inline gen_inst *
-jc_MOV(struct jay_codegen *jc, gen_operand dst, gen_operand src)
-{
-   return jc_append1(GEN_OP_MOV, dst, src);
-}
-
-static void
-jc_MOV_reloc(struct jay_codegen *jc,
-             gen_operand dst,
-             uint32_t param,
-             uint32_t base)
-{
-   util_dynarray_append(&jc->relocs,
-                        ((struct intel_shader_reloc) {
-                           .id = param,
-                           .type = INTEL_SHADER_RELOC_TYPE_MOV_IMM,
-                           .offset = GEN_INST_BYTES * jc->num_insts,
-                           .delta = base,
-                        }));
-
-   jc_MOV(jc, dst, gen_imm_ud(GEN_UNCOMPACTABLE_PATCH_IMM));
-}
 
 static inline gen_operand
 to_gen_operand(
@@ -282,33 +201,6 @@ to_gen_operand(
    return gen_byte_offset(devinfo, R, offset_B);
 }
 
-#define SRC(i) to_gen_operand(f, I, i, simd_offs, false)
-
-#define OP0(hw)                                                                \
-   case JAY_OPCODE_##hw:                                                       \
-      jc_append(jc, GEN_OP_##hw);                                              \
-      break;
-
-#define OP1(jay, hw)                                                           \
-   case JAY_OPCODE_##jay:                                                      \
-      jc_append1(GEN_OP_##hw, dst, SRC(0));                                    \
-      break;
-
-#define OP2(jay, hw)                                                           \
-   case JAY_OPCODE_##jay:                                                      \
-      jc_append2(GEN_OP_##hw, dst, SRC(0), SRC(1));                            \
-      break;
-
-#define OP3(jay, hw)                                                           \
-   case JAY_OPCODE_##jay:                                                      \
-      jc_append3(GEN_OP_##hw, dst, SRC(0), SRC(1), SRC(2));                    \
-      break;
-
-#define OP3_SWAP(jay, hw)                                                      \
-   case JAY_OPCODE_##jay:                                                      \
-      jc_append3(GEN_OP_##hw, dst, SRC(2), SRC(1), SRC(0));                    \
-      break;
-
 static gen_operand
 quad_swizzle(const struct intel_device_info *devinfo,
              gen_operand r,
@@ -334,17 +226,93 @@ quad_swizzle(const struct intel_device_info *devinfo,
    return gen_element_offset(devinfo, r, map[swizzle].element);
 }
 
-/* Runs once per SIMD-split, so must not modify the instruction! */
+#define OP(jay, hw, num)      [JAY_OPCODE_##jay] = { GEN_OP_##hw, num }
+
+static const struct {
+   enum gen_opcode op;
+   unsigned num_srcs;
+} jay_to_gen_opcodes[] = {
+   /* clang-format off */
+   OP(ADD3, ADD3, 3),
+   OP(ADD, ADD, 2),
+   OP(AND, AND, 2),
+   OP(AND_U32_U16, AND, 2),
+   OP(ASR, ASR, 2),
+   OP(AVG, AVG, 2),
+   OP(BFE, BFE, 3),
+   OP(BFI1, BFI1, 2),
+   OP(BFI2, BFI2, 3),
+   OP(BFN, BFN, 3),
+   OP(BFREV, BFREV, 1),
+   OP(BREAK, BREAK, 0),
+   OP(BROADCAST_IMM, MOV, 1),
+   OP(CBIT, CBIT, 1),
+   OP(CMP, CMP, 2),
+   OP(CSEL, CSEL, 3),
+   OP(CVT, MOV, 1),
+   OP(DESWIZZLE_EVEN, MOV, 1),
+   OP(DESWIZZLE_ODD, MOV, 1),
+   OP(DP4A_SS, DP4A, 3),
+   OP(DP4A_SU, DP4A, 3),
+   OP(DP4A_UU, DP4A, 3),
+   OP(ELSE, ELSE, 0),
+   OP(ENDIF, ENDIF, 0),
+   OP(EXPAND_QUAD, MOV, 2),
+   OP(EXTRACT_BYTE_PER_8LANES, MOV, 2),
+   OP(EXTRACT_LAYER, AND, 2),
+   OP(FBH, FBH, 1),
+   OP(FBL, FBL, 1),
+   OP(FRC, FRC, 1),
+   OP(IF, IF, 0),
+   OP(LANE_ID_8, MOV, 0),
+   OP(LZD, LZD, 1),
+   OP(MAC, MAC, 2),
+   OP(MAD, MAD, 3),
+   OP(MATH, MATH, 1),
+   OP(MAX, SEL, 2),
+   OP(MIN, SEL, 2),
+   OP(MODIFIER, MOV, 1),
+   OP(MOV_IMM64, MOV, 0),
+   OP(MOV, MOV, 1),
+   OP(MUL_32, MUL, 2),
+   OP(MUL_32X16, MUL, 2),
+   OP(MUL, MUL, 2),
+   OP(NOT, NOT, 1),
+   OP(OFFSET_PACKED_PIXEL_COORDS, ADD, 1),
+   OP(OR, OR, 2),
+   OP(QUAD_SWIZZLE, MOV, 1),
+   OP(RELOC, MOV, 0),
+   OP(RNDD, RNDD, 1),
+   OP(RNDE, RNDE, 1),
+   OP(RNDZ, RNDZ, 1),
+   OP(ROL, ROL, 2),
+   OP(ROR, ROR, 2),
+   OP(SEL, SEL, 2),
+   OP(SEND, SEND, 0),
+   OP(SHL, SHL, 2),
+   OP(SHR_ODD_SUBSPANS_BY_4, SHR, 1),
+   OP(SHR, SHR, 2),
+   OP(SHUFFLE, MOV, 2),
+   OP(SYNC, SYNC, 1),
+   OP(WHILE, WHILE, 0),
+   OP(XOR, XOR, 2),
+   OP(ZIP_UGPR16, MOV, 0),
+   /* clang-format on */
+};
+
+/*
+ * Emit a single hardware instruction. This runs multiple times per IR
+ * instruction in the case of SIMD splits and macros, so this must not modify
+ * the instruction!
+ */
 static void
 emit(struct jay_codegen *jc,
+     struct gen_inst *gen,
      jay_function *f,
      const jay_inst *I,
-     unsigned simd_offs)
+     unsigned simd_offs,
+     unsigned idx_in_macro)
 {
-   ASSERTED unsigned nr_ins_before = jc->num_insts;
-   unsigned exec_size = jay_simd_width_physical(f->shader, I);
-   // jay_print_inst(stdout, (jay_inst *) I);
-
    /* Replicate the SWSB regdist for SIMD split instructions if needed */
    gen_swsb dep = simd_offs && !I->replicate_dep ? gen_swsb_null() : I->dep;
 
@@ -360,13 +328,14 @@ emit(struct jay_codegen *jc,
       dep.regdist -= delta;
    }
 
-   jc->state.exec_size = exec_size;
-   jc->state.no_mask = jay_is_no_mask(I);
-   jc->state.chan_offset = simd_offs * exec_size;
-   jc->state.swsb = dep;
-   jc->state.saturate = I->saturate;
-   jc->state.flag_nr = 0;
-   jc->state.flag_subnr = 0;
+   gen->exec_size = jay_simd_width_physical(f->shader, I);
+   gen->no_mask = jay_is_no_mask(I);
+   gen->chan_offset = simd_offs * gen->exec_size;
+   gen->swsb = dep;
+   gen->saturate = I->saturate;
+   gen->cmod = I->op == JAY_OPCODE_MIN ? GEN_CONDITION_LT :
+               I->op == JAY_OPCODE_MAX ? GEN_CONDITION_GE :
+                                         I->conditional_mod;
 
    /* Grab the hardware predicate, corresponding either to a logical predicate
     * or SEL's selector.
@@ -375,10 +344,8 @@ emit(struct jay_codegen *jc,
                          I->op == JAY_OPCODE_SEL ? &I->src[2] :
                                                    NULL;
 
-   jc->state.pred_control = pred ? GEN_PREDICATE_NORMAL : GEN_PREDICATE_NONE;
-   jc->state.pred_inv = pred && pred->negate;
-
-   gen_condition cmod = I->conditional_mod;
+   gen->pred_control = pred ? GEN_PREDICATE_NORMAL : GEN_PREDICATE_NONE;
+   gen->pred_inv = pred && pred->negate;
 
    if (!jay_is_null(I->cond_flag)) {
       assert(!(pred && pred->reg != I->cond_flag.reg) && "must be tied");
@@ -387,104 +354,52 @@ emit(struct jay_codegen *jc,
 
    if (pred) {
       unsigned reg = pred->reg * jay_phys_flag_per_virt(f->shader);
-      jc->state.flag_nr = reg / 2;
-      jc->state.flag_subnr = reg % 2;
+      gen->flag_nr = reg / 2;
+      gen->flag_subnr = reg % 2;
    }
 
-   if (I->op == JAY_OPCODE_MIN) {
-      cmod = GEN_CONDITION_LT;
-   } else if (I->op == JAY_OPCODE_MAX) {
-      cmod = GEN_CONDITION_GE;
+   gen->opcode = jay_to_gen_opcodes[I->op].op;
+   gen->dst = to_gen_operand(f, I, -1, simd_offs, false);
+
+   for (unsigned i = 0; i < jay_to_gen_opcodes[I->op].num_srcs; ++i) {
+      gen->src[i] = to_gen_operand(f, I, i, simd_offs, false);
    }
 
-   gen_operand dst = to_gen_operand(f, I, -1, simd_offs, false);
+   if (I->op == JAY_OPCODE_MAD || I->op == JAY_OPCODE_BFE) {
+      SWAP(gen->src[0], gen->src[2]);
+   }
 
    switch (I->op) {
-      OP0(ELSE)
-      OP0(ENDIF)
-      OP0(BREAK)
-      OP1(MOV, MOV)
-      OP1(MODIFIER, MOV)
-      OP1(RNDD, RNDD)
-      OP1(RNDZ, RNDZ)
-      OP1(RNDE, RNDE)
-      OP1(FRC, FRC)
-      OP1(BFREV, BFREV)
-      OP1(CBIT, CBIT)
-      OP1(NOT, NOT)
-      OP1(FBL, FBL)
-      OP1(FBH, FBH)
-      OP1(LZD, LZD)
-      OP2(ROL, ROL)
-      OP2(ROR, ROR)
-      OP2(AVG, AVG)
-      OP2(ADD, ADD)
-      OP2(MUL, MUL)
-      OP2(SEL, SEL)
-      OP2(MIN, SEL)
-      OP2(MAX, SEL)
-      OP2(MUL_32X16, MUL)
-      OP2(AND, AND)
-      OP2(AND_U32_U16, AND)
-      OP2(OR, OR)
-      OP2(XOR, XOR)
-      OP2(ASR, ASR)
-      OP2(SHR, SHR)
-      OP2(SHL, SHL)
-      OP2(BFI1, BFI1)
-      OP2(MAC, MAC)
-      OP3(BFI2, BFI2)
-      OP3(ADD3, ADD3)
-      OP3(CSEL, CSEL)
-      OP3(DP4A_UU, DP4A)
-      OP3(DP4A_SS, DP4A)
-      OP3(DP4A_SU, DP4A)
-      OP3_SWAP(MAD, MAD)
-      OP3_SWAP(BFE, BFE)
-
    case JAY_OPCODE_WHILE: {
       assert(util_dynarray_num_elements(&jc->loop_stack, int) > 0);
-      int header_idx = util_dynarray_pop(&jc->loop_stack, int);
-      gen_inst *last = jc_append(jc, GEN_OP_WHILE);
-      last->src[0].file = GEN_IMM;
-      last->src[0].type = GEN_TYPE_D;
-      last->src[0].imm = GEN_INST_BYTES * (header_idx - (jc->num_insts - 1));
+      int target = util_dynarray_pop(&jc->loop_stack, int);
+      gen->src[0] = gen_imm_d(GEN_INST_BYTES * (target - (jc->num_insts - 1)));
       break;
    }
 
-   case JAY_OPCODE_IF:
-      jc_append(jc, GEN_OP_IF);
+   case JAY_OPCODE_MATH:
+      gen->src[1] = gen_null();
+      gen->math.func = (gen_math) jay_math_op(I);
       break;
 
-   case JAY_OPCODE_MATH: {
-      gen_inst *last =
-         jc_append2(GEN_OP_MATH, dst, SRC(0),
-                    gen_retype(gen_null(), to_gen_reg_type(I->type)));
-      last->math.func = (gen_math) jay_math_op(I);
+   case JAY_OPCODE_BFN:
+      gen->boolean_func_ctrl = jay_bfn_ctrl(I);
       break;
-   }
-
-   case JAY_OPCODE_BFN: {
-      gen_inst *last = jc_append3(GEN_OP_BFN, dst, SRC(0), SRC(1), SRC(2));
-      last->boolean_func_ctrl = jay_bfn_ctrl(I);
-      break;
-   }
 
    case JAY_OPCODE_DESWIZZLE_ODD: {
       bool hi = simd_offs == 0 ? true : jay_deswizzle_odd_src2_hi(I);
-      jc->state.chan_offset = 0;
-      jc_MOV(jc, dst,
-             gen_byte_offset(jc->devinfo,
-                             to_gen_operand(f, I, simd_offs, 0, false),
-                             hi ? 64 : 0));
+      gen->chan_offset = 0;
+      gen->src[0] = gen_byte_offset(jc->devinfo,
+                                    to_gen_operand(f, I, simd_offs, 0, false),
+                                    hi ? 64 : 0);
       break;
    }
 
    case JAY_OPCODE_DESWIZZLE_EVEN:
-      jc->state.exec_size = 16;
-      jc_MOV(jc, gen_byte_offset(jc->devinfo, dst, 64),
-             gen_byte_offset(jc->devinfo, SRC(0),
-                             jay_deswizzle_even_src_hi(I) * 64));
+      gen->exec_size = 16;
+      gen->dst = gen_byte_offset(jc->devinfo, gen->dst, 64);
+      gen->src[0] = gen_byte_offset(jc->devinfo, gen->src[0],
+                                    jay_deswizzle_even_src_hi(I) * 64);
       break;
 
    case JAY_OPCODE_CVT: {
@@ -510,87 +425,78 @@ emit(struct jay_codegen *jc,
       }
 
       gen_operand src = to_gen_operand(f, I, 0, simd_offs, force_hi);
-      src = gen_element_offset(jc->devinfo, src, index);
-      jc_MOV(jc, dst, src);
+      gen->src[0] = gen_element_offset(jc->devinfo, src, index);
       break;
    }
 
-   case JAY_OPCODE_SYNC: {
-      gen_inst *sync = jc_append(jc, GEN_OP_SYNC);
-      sync->dst = gen_null();
-      sync->src[0] = gen_null();
-      if (!jay_is_null(I->src[0])) {
-         sync->src[0] = gen_restride(SRC(0), 0, 1, 0);
-      }
-      sync->sync.func = (gen_sync_func) jay_sync_op(I);
-      break;
-   }
-
-   case JAY_OPCODE_CMP:
-      jc_append2(GEN_OP_CMP, dst, SRC(0), SRC(1));
+   case JAY_OPCODE_SYNC:
+      gen->src[0] = gen_restride(gen->src[0], 0, 1, 0);
+      gen->sync.func = (gen_sync_func) jay_sync_op(I);
       break;
 
    case JAY_OPCODE_MOV_IMM64:
-      jc_MOV(jc, dst, gen_imm_uq(jay_mov_imm64_imm(I)));
+      gen->src[0] = gen_imm_uq(jay_mov_imm64_imm(I));
       break;
 
-   case JAY_OPCODE_RELOC:
-      jc_MOV_reloc(jc, dst, jay_reloc_param(I), jay_reloc_base(I));
+   case JAY_OPCODE_RELOC: {
+      util_dynarray_append(&jc->relocs,
+                           ((struct intel_shader_reloc) {
+                              .id = jay_reloc_param(I),
+                              .type = INTEL_SHADER_RELOC_TYPE_MOV_IMM,
+                              .offset = GEN_INST_BYTES * (jc->num_insts - 1),
+                              .delta = jay_reloc_base(I),
+                           }));
+
+      gen->src[0] = gen_imm_ud(GEN_UNCOMPACTABLE_PATCH_IMM);
       break;
+   }
 
    case JAY_OPCODE_QUAD_SWIZZLE:
       /* Quad swizzle can get split down to SIMD4 even on Xe2 where we don't
        * have NibCtrl.  Fortunately, it's NoMask so it doesn't matter.
        */
-      jc->state.chan_offset = 0;
-      jc_MOV(jc, dst, quad_swizzle(jc->devinfo, SRC(0), I));
+      gen->chan_offset = 0;
+      gen->src[0] = quad_swizzle(jc->devinfo, gen->src[0], I);
       break;
 
    case JAY_OPCODE_BROADCAST_IMM: {
-      gen_operand src = SRC(0);
-      if (src.file != GEN_IMM) {
-         src = gen_element_offset(jc->devinfo, src, jay_broadcast_imm_lane(I));
-         src = gen_restride(src, 0, 1, 0);
+      if (gen->src[0].file != GEN_IMM) {
+         gen->src[0] = gen_element_offset(jc->devinfo, gen->src[0],
+                                          jay_broadcast_imm_lane(I));
+         gen->src[0] = gen_restride(gen->src[0], 0, 1, 0);
       }
-      jc_MOV(jc, dst, src);
       break;
    }
 
    case JAY_OPCODE_SEND: {
-      gen_operand desc = SRC(0);
-      gen_operand ex_desc = SRC(1);
-      gen_operand payload0 = gen_retype(SRC(2), GEN_TYPE_UD);
-      gen_operand payload1 = gen_retype(SRC(3), GEN_TYPE_UD);
+      gen_operand ex_desc = to_gen_operand(f, I, 1, simd_offs, false);
+      gen->src[0] =
+         gen_retype(to_gen_operand(f, I, 2, simd_offs, false), GEN_TYPE_UD);
+      gen->src[1] =
+         gen_retype(to_gen_operand(f, I, 3, simd_offs, false), GEN_TYPE_UD);
 
-      gen_inst *last =
-         jc_append(jc, jay_send_check_tdr(I) ? GEN_OP_SENDC : GEN_OP_SEND);
-      last->send.eot = jay_send_eot(I);
-      last->send.sfid = (gen_sfid) jay_send_sfid(I);
-      last->dst = dst;
-      last->dst.type = GEN_TYPE_UD;
-      last->src[0] = payload0;
-      last->src[1] = payload1;
+      gen->opcode = jay_send_check_tdr(I) ? GEN_OP_SENDC : GEN_OP_SEND;
+      gen->send.eot = jay_send_eot(I);
+      gen->send.sfid = (gen_sfid) jay_send_sfid(I);
+      gen->send.ex_bso = jay_send_bindless(I);
+      gen->dst.type = GEN_TYPE_UD;
 
-      if (desc.file == GEN_IMM)
-         last->send.desc_imm = desc.imm;
+      if (jay_is_imm(I->src[0]))
+         gen->send.desc_imm = jay_as_uint(I->src[0]);
       else
-         last->send.desc_is_reg = true;
+         gen->send.desc_is_reg = true;
 
       if (ex_desc.file == GEN_IMM) {
          assert(jay_send_ex_desc_imm(I) == 0);
-         last->send.ex_desc_imm = ex_desc.imm;
+         gen->send.ex_desc_imm = ex_desc.imm;
       } else {
-         last->send.ex_desc_is_reg = true;
-         last->send.ex_desc_subnr = ex_desc.subnr;
-         if (jay_send_ex_desc_imm(I))
-            last->send.ex_desc_imm_extra = jay_send_ex_desc_imm(I);
+         gen->send.ex_desc_is_reg = true;
+         gen->send.ex_desc_subnr = ex_desc.subnr;
+         gen->send.ex_desc_imm_extra = jay_send_ex_desc_imm(I);
       }
 
-      if (jay_send_bindless(I))
-         last->send.ex_bso = true;
-
-      if (jay_send_bindless(I) || last->send.sfid == GEN_SFID_UGM)
-         last->send.src1_len = jay_send_ex_mlen(I) / reg_unit(jc->devinfo);
+      if (jay_send_bindless(I) || gen->send.sfid == GEN_SFID_UGM)
+         gen->send.src1_len = jay_send_ex_mlen(I) / reg_unit(jc->devinfo);
 
       break;
    }
@@ -600,88 +506,84 @@ emit(struct jay_codegen *jc,
     * in order to select the word for each channel.
     */
    case JAY_OPCODE_EXTRACT_LAYER:
-      jc_append2(GEN_OP_AND, dst,
-                 gen_restride(gen_retype(SRC(simd_offs), GEN_TYPE_UW), 1, 8, 0),
-                 gen_imm_uw(0x7ff));
+      gen->src[0] =
+         gen_restride(gen_retype(gen->src[simd_offs], GEN_TYPE_UW), 1, 8, 0);
+      gen->src[1] = gen_imm_uw(0x7ff);
       break;
 
    case JAY_OPCODE_EXPAND_QUAD:
-      jc_MOV(jc, dst, gen_restride(SRC(simd_offs), 1, 4, 0));
+      gen->src[0] = gen_restride(gen->src[simd_offs], 1, 4, 0);
       break;
 
    case JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS:
-      jc->state.exec_size = 32;
-      jc->state.chan_offset = 0;
-      jc_append2(GEN_OP_ADD, gen_retype(dst, GEN_TYPE_UW),
-                 gen_retype(SRC(0), GEN_TYPE_UW), gen_imm_uv(0x11100100));
+      gen->exec_size = 32;
+      gen->chan_offset = 0;
+      gen->dst = gen_retype(gen->dst, GEN_TYPE_UW);
+      gen->src[0] = gen_retype(gen->src[0], GEN_TYPE_UW);
+      gen->src[1] = gen_imm_uv(0x11100100);
       break;
 
    case JAY_OPCODE_LANE_ID_8:
-      jc_MOV(jc, dst, gen_imm_uv(0x76543210));
+      gen->src[0] = gen_imm_uv(0x76543210);
       break;
 
    case JAY_OPCODE_ZIP_UGPR16:
-      jc_MOV(jc, dst, to_gen_operand(f, I, simd_offs, 0, false));
+      gen->src[0] = to_gen_operand(f, I, simd_offs, 0, false);
       break;
 
    case JAY_OPCODE_EXTRACT_BYTE_PER_8LANES: {
-      gen_operand src =
-         gen_restride(gen_retype(SRC(simd_offs), GEN_TYPE_UB), 1, 8, 0);
-      jc_MOV(jc, dst, src);
+      gen->src[0] =
+         gen_restride(gen_retype(gen->src[simd_offs], GEN_TYPE_UB), 1, 8, 0);
       break;
    }
 
    case JAY_OPCODE_SHR_ODD_SUBSPANS_BY_4:
-      jc_append2(GEN_OP_SHR, dst, SRC(0), gen_imm_uv(0x44440000));
+      gen->src[1] = gen_imm_uv(0x44440000);
       break;
 
-   case JAY_OPCODE_MUL_32: {
-      gen_operand acc = gen_accumulator(0);
-      acc.type = to_gen_reg_type(I->type);
-      gen_operand src1 = gen_subscript(jc->devinfo, SRC(1), GEN_TYPE_UW, 0);
-
-      jc_append2(GEN_OP_MUL, acc, SRC(0), src1);
-      jc->state.swsb = gen_swsb_null();
-      jc_append2(jay_mul_32_high(I) ? GEN_OP_MACH : GEN_OP_MACL, dst, SRC(0),
-                 SRC(1));
+   case JAY_OPCODE_MUL_32:
+      if (idx_in_macro == 0) {
+         gen->dst = gen_accumulator(0);
+         gen->dst.type = to_gen_reg_type(I->type);
+         gen->src[1] = gen_subscript(jc->devinfo, gen->src[1], GEN_TYPE_UW, 0);
+      } else {
+         gen->swsb = gen_swsb_null();
+         gen->opcode = jay_mul_32_high(I) ? GEN_OP_MACH : GEN_OP_MACL;
+      }
       break;
-   }
 
-   case JAY_OPCODE_SHUFFLE: {
-      gen_operand a0 = gen_address(0);
-      gen_operand idx = gen_subscript(jc->devinfo, SRC(1), GEN_TYPE_UW, 0);
-      gen_operand indirect = gen_grf(0, 0);
-      indirect.type = GEN_TYPE_UD;
-      indirect.indirect = true;
-      indirect.region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
-      indirect.addr_imm = 0;
+   case JAY_OPCODE_SHUFFLE:
+      if (idx_in_macro == 0) {
+         assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
+         struct jay_register_block block =
+            jay_lookup_block(&f->shader->partition, I->src[0].reg, GPR);
 
-      assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
-      struct jay_register_block block =
-         jay_lookup_block(&f->shader->partition, I->src[0].reg, GPR);
+         unsigned offset_B =
+            (block.start_grf * jc->devinfo->grf_size) +
+            ((I->src[0].reg - block.start_gpr) * 4 * f->shader->dispatch_width);
 
-      unsigned offset_B =
-         (block.start_grf * jc->devinfo->grf_size) +
-         ((I->src[0].reg - block.start_gpr) * 4 * f->shader->dispatch_width);
-
-      jc_append2(GEN_OP_ADD, a0, idx, gen_imm_uw(offset_B));
-      jc_MOV(jc, dst, indirect);
+         gen->opcode = GEN_OP_ADD;
+         gen->dst = gen_address(0);
+         gen->src[0] = gen_subscript(jc->devinfo, gen->src[1], GEN_TYPE_UW, 0);
+         gen->src[1] = gen_imm_uw(offset_B);
+      } else {
+         gen->src[0] = gen_grf(0, 0);
+         gen->src[0].type = GEN_TYPE_UD;
+         gen->src[0].indirect = true;
+         gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
+         gen->src[0].addr_imm = 0;
+      }
       break;
-   }
 
    default:
+      break;
+   }
+
+   static_assert(GEN_OP_ILLEGAL == 0);
+   if (!gen->opcode) {
       jay_print_inst(stderr, (jay_inst *) I);
       UNREACHABLE("Unhandled opcode");
    }
-
-   if (cmod != GEN_CONDITION_NONE) {
-      assert(jc->num_insts > 0);
-      gen_inst *last = &jc->insts[jc->num_insts - 1];
-      last->cmod = cmod;
-   }
-
-   assert(jc->num_insts == (nr_ins_before + jay_macro_length(I)) &&
-          "Jay instructions must map 1:n to GEN instructions");
 }
 
 struct jay_shader_bin *
@@ -710,7 +612,6 @@ jay_to_binary(jay_shader *s,
 
    struct jay_codegen jc = {
       .devinfo = s->devinfo,
-      .mem_ctx = mem_ctx,
       .insts = rzalloc_array(mem_ctx, gen_inst, total_gen_insts),
       .insts_cap = total_gen_insts,
       .output = rzalloc_size(bin, output_capacity),
@@ -729,8 +630,15 @@ jay_to_binary(jay_shader *s,
          }
 
          jay_foreach_inst_in_block(block, I) {
+            // jay_print_inst(stdout, (jay_inst *) I);
+
             for (unsigned i = 0; i < (1 << jay_simd_split(s, I)); ++i) {
-               emit(&jc, f, I, i);
+               for (unsigned j = 0; j < jay_macro_length(I); ++j) {
+                  assert(jc.num_insts < jc.insts_cap);
+                  gen_inst *gen = &jc.insts[jc.num_insts++];
+
+                  emit(&jc, gen, f, I, i, j);
+               }
             }
          }
       }
@@ -741,13 +649,6 @@ jay_to_binary(jay_shader *s,
    /* TODO: Check if jay still needs this normalization. */
    for (int i = 0; i < jc.num_insts; i++) {
       gen_inst *gen = &jc.insts[i];
-
-      if (gen->exec_size == 1) {
-         if (gen->src[0].file != GEN_BAD_FILE && gen->src[0].region.width == 1)
-            gen->src[0] = gen_restride(gen->src[0], 0, 1, 0);
-         if (gen->src[1].file != GEN_BAD_FILE && gen->src[1].region.width == 1)
-            gen->src[1] = gen_restride(gen->src[1], 0, 1, 0);
-      }
 
       if ((gen->dst.file == GEN_GRF || gen->dst.file == GEN_ARF) &&
           gen->dst.region.hstride == 0)
@@ -761,7 +662,7 @@ jay_to_binary(jay_shader *s,
       util_dynarray_num_elements(&jc.relocs, struct intel_shader_reloc);
 
    int *inst_offsets =
-      num_relocs > 0 ? rzalloc_array(jc.mem_ctx, int, jc.num_insts) : NULL;
+      num_relocs > 0 ? rzalloc_array(mem_ctx, int, jc.num_insts) : NULL;
 
    gen_encode_params enc_params = {
       .devinfo = jc.devinfo,
@@ -788,7 +689,7 @@ jay_to_binary(jay_shader *s,
          .num_errors = enc_params.num_errors,
       };
       gen_print(&print_params);
-      ralloc_free(jc.mem_ctx);
+      ralloc_free(mem_ctx);
       UNREACHABLE("invalid assembly");
    }
 
@@ -849,6 +750,6 @@ jay_to_binary(jay_shader *s,
    bin->kernel = (const uint32_t *) jc.output;
    bin->size = jc.output_size;
 
-   ralloc_free(jc.mem_ctx);
+   ralloc_free(mem_ctx);
    return bin;
 }
