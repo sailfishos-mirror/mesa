@@ -708,7 +708,7 @@ enum zink_bo_type {
 };
 
 struct zink_bo {
-   struct pb_buffer base;
+   struct pb_buffer_lean base;
    enum zink_bo_type type;
 
    union {
@@ -756,7 +756,7 @@ struct zink_bo {
 };
 
 static inline struct zink_bo *
-zink_bo(struct pb_buffer *pbuf)
+zink_bo(struct pb_buffer_lean *pbuf)
 {
    return (struct zink_bo*)pbuf;
 }

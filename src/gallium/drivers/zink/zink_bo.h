@@ -110,7 +110,7 @@ zink_bo_init(struct zink_screen *screen);
 void
 zink_bo_deinit(struct zink_screen *screen);
 
-struct pb_buffer *
+struct pb_buffer_lean *
 zink_bo_create(struct zink_screen *screen, uint64_t size, unsigned alignment, enum zink_heap heap, enum zink_alloc_flag flags, unsigned mem_type_idx, const void *pNext);
 
 void
@@ -134,7 +134,7 @@ zink_bo_get_mem(const struct zink_bo *bo)
 static ALWAYS_INLINE VkDeviceSize
 zink_bo_get_size(const struct zink_bo *bo)
 {
-   return bo->mem ? bo->base.base.size : bo->u.slab.real->base.base.size;
+   return bo->mem ? bo->base.size : bo->u.slab.real->base.size;
 }
 
 void *
@@ -241,7 +241,7 @@ zink_bo_usage_unset(struct zink_bo *bo, struct zink_batch_state *bs)
 static ALWAYS_INLINE void
 zink_bo_unref(struct zink_screen *screen, struct zink_bo *bo)
 {
-   if (pipe_reference(&bo->base.base.reference, NULL))
+   if (pipe_reference(&bo->base.reference, NULL))
       zink_bo_destroy(screen, bo);
 }
 
