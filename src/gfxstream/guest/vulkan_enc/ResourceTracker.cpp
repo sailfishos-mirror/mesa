@@ -2234,10 +2234,7 @@ void ResourceTracker::on_vkGetPhysicalDeviceProperties2(void* context,
     VkPhysicalDeviceDriverProperties* driverProps =
         vk_find_struct(pProperties, PHYSICAL_DEVICE_DRIVER_PROPERTIES);
     if (driverProps) {
-#if DETECT_OS_ANDROID
-        //TODO(b/502904616): change with VK_DRIVER_ID_MESA_GFXSTREAM when the headers are updated
-        driverProps->driverID = VK_DRIVER_ID_MESA_LLVMPIPE;
-#endif
+        driverProps->driverID = VK_DRIVER_ID_MESA_GFXSTREAM;
         snprintf(driverProps->driverName, sizeof(driverProps->driverName), "gfxstream");
         snprintf(driverProps->driverInfo, sizeof(driverProps->driverInfo),
                  "Mesa " PACKAGE_VERSION MESA_GIT_SHA1);
