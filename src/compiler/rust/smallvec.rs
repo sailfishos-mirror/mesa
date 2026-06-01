@@ -124,3 +124,17 @@ impl<T> Extend<T> for SmallVec<T> {
         }
     }
 }
+
+impl<T> From<Vec<T>> for SmallVec<T> {
+    fn from(v: Vec<T>) -> SmallVec<T> {
+        if v.is_empty() {
+            SmallVec::None
+        } else if v.len() == 1 {
+            // Hopefully, Rust can fold away most of this based on the
+            // `v.len() == 1` check above.
+            SmallVec::One(v.into_iter().next().unwrap())
+        } else {
+            SmallVec::Many(v)
+        }
+    }
+}
