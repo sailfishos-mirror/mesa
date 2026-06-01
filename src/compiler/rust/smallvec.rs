@@ -90,33 +90,26 @@ impl<T> SmallVec<T> {
             }
         }
     }
+}
 
-    /// Returns a mutable reference to the last item in the `SmallVec`, if it exists.
-    ///
-    /// * If the collection is empty (`None`), it returns `None`.
-    /// * If the collection has one item (`One`), it returns a mutable reference to that item.
-    /// * If the collection has multiple items (`Many`), it returns a mutable reference to the last item in the `Vec`.
-    ///
-    /// # Returns
-    ///
-    /// * `Option<&mut T>` - A mutable reference to the last item, or `None` if the collection is empty.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// let mut vec: SmallVec<i32> = SmallVec::None;
-    /// vec.push(1);
-    /// vec.push(2);
-    ///
-    /// if let Some(last) = vec.last_mut() {
-    ///     *last = 10;  // Modify the last element.
-    /// }
-    /// ```
-    pub fn last_mut(&mut self) -> Option<&mut T> {
+impl<T> std::ops::Deref for SmallVec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &[T] {
         match self {
-            SmallVec::None => None,
-            SmallVec::One(item) => Some(item),
-            SmallVec::Many(v) => v.last_mut(),
+            SmallVec::None => &[],
+            SmallVec::One(i) => std::slice::from_ref(i),
+            SmallVec::Many(v) => v,
+        }
+    }
+}
+
+impl<T> std::ops::DerefMut for SmallVec<T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        match self {
+            SmallVec::None => &mut [],
+            SmallVec::One(i) => std::slice::from_mut(i),
+            SmallVec::Many(v) => v,
         }
     }
 }
