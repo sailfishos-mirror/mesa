@@ -9978,9 +9978,9 @@ impl Shader<'_> {
     pub fn remove_annotations(&mut self) {
         self.map_instrs(|instr: Instr, _| -> MappedInstrs {
             if matches!(instr.op, Op::Annotate(_)) {
-                MappedInstrs::None
+                [].into()
             } else {
-                MappedInstrs::One(instr)
+                [instr].into()
             }
         })
     }
