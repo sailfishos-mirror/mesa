@@ -211,10 +211,9 @@ fn src_fau_page(src: &Src) -> Option<u8> {
     }
 }
 
-fn op_encode_src(op: &impl Opcode, src: &Src) -> v9::EncodedSrc {
+fn encode_typed_src(src: &Src, src_type: DataType) -> v9::EncodedSrc {
     let encoded = encode_src_ref(&src.src_ref, src.last_use);
 
-    let src_type = op.src_type(src);
     if src_type.bits() == 64 && !src.src_ref.is_small_const() {
         assert_eq!(encoded & 0x01, 0);
     }
@@ -240,6 +239,10 @@ fn op_encode_src(op: &impl Opcode, src: &Src) -> v9::EncodedSrc {
         neg: matches!(src.src_mod, SrcMod::FNeg | SrcMod::FNegAbs),
         not: matches!(src.src_mod, SrcMod::BNot),
     }
+}
+
+fn op_encode_src(op: &impl Opcode, src: &Src) -> v9::EncodedSrc {
+    encode_typed_src(src, op.src_type(src))
 }
 
 fn op_encode_dst(op: &impl Opcode, dst: &Dst) -> v9::EncodedDst {
@@ -768,6 +771,53 @@ impl V9Instr for OpLoad {
     }
 }
 
+impl V9Instr for OpMkVecV2I8I16 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Mkvec::get_info(MkvecVariant::V2I8, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Mkvec {
+            variant: MkvecVariant::V2I8,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            // This one is weird.  It's labled i16 in ops.rs because that's
+            // really what it is but we need to use v2i8 to get it to encode
+            // correctly.
+            src2: Some(encode_typed_src(&self.accum, DataType::V2I8)),
+        })
+    }
+}
+
+impl V9Instr for OpMkVecV2I16 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Mkvec::get_info(MkvecVariant::V2I16, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Mkvec {
+            variant: MkvecVariant::V2I16,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            src2: None,
+        })
+    }
+}
+
 impl V9Instr for OpMov {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1021,6 +1071,8 @@ macro_rules! v9_op_match_else {
             Op::LdPka($x) => $y,
             Op::LeaPka($x) => $y,
             Op::Load($x) => $y,
+            Op::MkVecV2I8I16($x) => $y,
+            Op::MkVecV2I16($x) => $y,
             Op::Mov($x) => $y,
             Op::Nop($x) => $y,
             Op::ShiftLop($x) => $y,

@@ -445,7 +445,55 @@ impl fmt::Display for OpMkVecV2I8 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = MKVEC.v4i8 {} {}",
+            "{} = MKVEC.v2i8 {} {}",
+            &self.dst,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpMkVecV2I8I16 {
+    #[dst_type(V4I8)]
+    pub dst: Dst,
+
+    #[src_type(I8)]
+    pub srcs: [Src; 2],
+
+    #[src_type(I16)]
+    pub accum: Src,
+}
+
+impl fmt::Display for OpMkVecV2I8I16 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = MKVEC.v2i8+i16 {} {} {}",
+            &self.dst,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+            self.fmt_src(&self.accum),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpMkVecV2I16 {
+    #[dst_type(V2I16)]
+    pub dst: Dst,
+
+    #[src_type(I16)]
+    pub srcs: [Src; 2],
+}
+
+impl fmt::Display for OpMkVecV2I16 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = MKVEC.v2i16 {} {}",
             &self.dst,
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
@@ -671,6 +719,8 @@ pub enum Op {
     LdPka(Box<OpLdPka>),
     Load(Box<OpLoad>),
     MkVecV2I8(Box<OpMkVecV2I8>),
+    MkVecV2I8I16(Box<OpMkVecV2I8I16>),
+    MkVecV2I16(Box<OpMkVecV2I16>),
     MkVecV4I8(Box<OpMkVecV4I8>),
     Nop(OpNop),
     Mov(Box<OpMov>),
