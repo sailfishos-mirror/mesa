@@ -18,6 +18,7 @@ pub use crate::ssa_value::*;
 use compiler::as_slice::*;
 use compiler::cfg::CFG;
 use compiler::dataflow::ForwardDataflow;
+use compiler::enum_as_u8::EnumAsU8;
 use compiler::smallvec::SmallVec;
 use compiler::vec_pair::VecPair;
 use nak_ir_proc::*;
@@ -56,7 +57,7 @@ impl LabelAllocator {
 
 /// Represents a register file
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumAsU8, Eq, Hash, PartialEq)]
 pub enum RegFile {
     /// The general-purpose register file
     ///
@@ -185,45 +186,6 @@ impl fmt::Display for RegFile {
     }
 }
 
-impl From<RegFile> for u8 {
-    fn from(value: RegFile) -> u8 {
-        value as u8
-    }
-}
-
-impl TryFrom<u32> for RegFile {
-    type Error = &'static str;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(RegFile::GPR),
-            1 => Ok(RegFile::UGPR),
-            2 => Ok(RegFile::Pred),
-            3 => Ok(RegFile::UPred),
-            4 => Ok(RegFile::Carry),
-            5 => Ok(RegFile::Bar),
-            6 => Ok(RegFile::Mem),
-            _ => Err("Invalid register file number"),
-        }
-    }
-}
-
-impl TryFrom<u16> for RegFile {
-    type Error = &'static str;
-
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        RegFile::try_from(u32::from(value))
-    }
-}
-
-impl TryFrom<u8> for RegFile {
-    type Error = &'static str;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        RegFile::try_from(u32::from(value))
-    }
-}
-
 /// A trait for things which have an associated register file
 pub trait HasRegFile {
     fn file(&self) -> RegFile;
@@ -311,7 +273,7 @@ impl Iterator for RegFileSet {
         if self.is_empty() {
             None
         } else {
-            let file = self.bits.trailing_zeros().try_into().unwrap();
+            let file = (self.bits.trailing_zeros() as u8).try_into().unwrap();
             self.remove(file);
             Some(file)
         }
@@ -438,7 +400,7 @@ impl RegRef {
 
 impl HasRegFile for RegRef {
     fn file(&self) -> RegFile {
-        ((self.packed >> 29) & 0x7).try_into().unwrap()
+        (((self.packed >> 29) & 0x7) as u8).try_into().unwrap()
     }
 }
 

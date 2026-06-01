@@ -51,7 +51,7 @@ impl SSAValue {
 impl HasRegFile for SSAValue {
     /// Returns the register file of this SSA value
     fn file(&self) -> RegFile {
-        RegFile::try_from(self.packed.get() >> 29).unwrap()
+        RegFile::try_from((self.packed.get() >> 29) as u8).unwrap()
     }
 }
 
