@@ -1442,8 +1442,7 @@ struct zink_screen {
 
    struct {
       struct pb_cache bo_cache;
-      struct pb_slabs bo_slabs[NUM_SLAB_ALLOCATORS];
-      unsigned min_alloc_size;
+      struct pb_slabs bo_slabs;
       uint32_t next_bo_unique_id;
    } pb;
    uint8_t heap_map[ZINK_HEAP_MAX][VK_MAX_MEMORY_TYPES];  // mapping from zink heaps to memory type indices

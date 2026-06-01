@@ -80,31 +80,12 @@ zink_slab(struct pb_slab *pslab)
    return (struct zink_slab*)pslab;
 }
 
-static struct pb_slabs *
-get_slabs(struct zink_screen *screen, uint64_t size, enum zink_alloc_flag flags)
-{
-   //struct pb_slabs *bo_slabs = ((flags & RADEON_FLAG_ENCRYPTED) && screen->info.has_tmz_support) ?
-      //screen->bo_slabs_encrypted : screen->bo_slabs;
-
-   struct pb_slabs *bo_slabs = screen->pb.bo_slabs;
-   /* Find the correct slab allocator for the given size. */
-   for (unsigned i = 0; i < NUM_SLAB_ALLOCATORS; i++) {
-      struct pb_slabs *slabs = &bo_slabs[i];
-
-      if (size <= 1ULL << (slabs->min_order + slabs->num_orders - 1))
-         return slabs;
-   }
-
-   assert(0);
-   return NULL;
-}
-
 /* Return the power of two size of a slab entry matching the input size. */
 static unsigned
 get_slab_pot_entry_size(struct zink_screen *screen, unsigned size)
 {
    unsigned entry_size = util_next_power_of_two(size);
-   unsigned min_entry_size = 1 << screen->pb.bo_slabs[0].min_order;
+   unsigned min_entry_size = 1 << screen->pb.bo_slabs.min_order;
 
    return MAX2(entry_size, min_entry_size);
 }
@@ -182,22 +163,13 @@ bo_slab_destroy(struct zink_screen *screen, struct zink_bo *bo)
 {
    assert(!bo->mem);
 
-   //if (bo->base.usage & RADEON_FLAG_ENCRYPTED)
-      //pb_slab_free(get_slabs(screen, bo->base.size, RADEON_FLAG_ENCRYPTED), &bo->u.slab.entry);
-   //else
-      pb_slab_free(get_slabs(screen, bo->base.base.size, 0), &bo->u.slab.entry);
+   pb_slab_free(&screen->pb.bo_slabs, &bo->u.slab.entry);
 }
 
 static bool
 clean_up_buffer_managers(struct zink_screen *screen)
 {
-   unsigned num_reclaims = 0;
-   for (unsigned i = 0; i < NUM_SLAB_ALLOCATORS; i++) {
-      num_reclaims += pb_slabs_reclaim(&screen->pb.bo_slabs[i]);
-      //if (screen->info.has_tmz_support)
-         //pb_slabs_reclaim(&screen->bo_slabs_encrypted[i]);
-   }
-
+   unsigned num_reclaims = pb_slabs_reclaim(&screen->pb.bo_slabs);
    num_reclaims += pb_cache_release_all_buffers(&screen->pb.bo_cache);
    return !!num_reclaims;
 }
@@ -560,11 +532,7 @@ zink_bo_create(struct zink_screen *screen, uint64_t size, unsigned alignment, en
    /* pull in sparse flag */
    flags |= zink_alloc_flags_from_heap(heap);
 
-   //struct pb_slabs *slabs = ((flags & RADEON_FLAG_ENCRYPTED) && screen->info.has_tmz_support) ?
-      //screen->bo_slabs_encrypted : screen->bo_slabs;
-   struct pb_slabs *bo_slabs = screen->pb.bo_slabs;
-
-   struct pb_slabs *last_slab = &bo_slabs[NUM_SLAB_ALLOCATORS - 1];
+   struct pb_slabs *last_slab = &screen->pb.bo_slabs;
    unsigned max_slab_entry_size = 1 << (last_slab->min_order + last_slab->num_orders - 1);
 
    /* Sub-allocate small buffers from slabs. */
@@ -597,7 +565,7 @@ zink_bo_create(struct zink_screen *screen, uint64_t size, unsigned alignment, en
          }
       }
 
-      struct pb_slabs *slabs = get_slabs(screen, alloc_size, flags);
+      struct pb_slabs *slabs = &screen->pb.bo_slabs;
       bool reclaim_all = false;
       if (heap == ZINK_HEAP_DEVICE_LOCAL_VISIBLE && !screen->resizable_bar) {
          unsigned low_bound = 128 * 1024 * 1024; //128MB is a very small BAR
@@ -1287,34 +1255,26 @@ bo_slab_alloc(void *priv, unsigned mem_type_idx, unsigned entry_size, unsigned g
    if (!slab)
       return NULL;
 
-   //struct pb_slabs *slabs = ((flags & RADEON_FLAG_ENCRYPTED) && screen->info.has_tmz_support) ?
-      //screen->bo_slabs_encrypted : screen->bo_slabs;
-   struct pb_slabs *slabs = screen->pb.bo_slabs;
-
    /* Determine the slab buffer size. */
-   for (unsigned i = 0; i < NUM_SLAB_ALLOCATORS; i++) {
-      unsigned max_entry_size = 1 << (slabs[i].min_order + slabs[i].num_orders - 1);
+   unsigned max_entry_size = 1 << (screen->pb.bo_slabs.min_order + screen->pb.bo_slabs.num_orders - 1);
 
-      if (entry_size <= max_entry_size) {
-         /* The slab size is twice the size of the largest possible entry. */
-         slab_size = max_entry_size * 2;
+   if (entry_size <= max_entry_size) {
+      /* The slab size is twice the size of the largest possible entry. */
+      slab_size = max_entry_size * 2;
 
-         if (!util_is_power_of_two_nonzero(entry_size)) {
-            assert(util_is_power_of_two_nonzero(entry_size * 4 / 3));
+      if (!util_is_power_of_two_nonzero(entry_size)) {
+         assert(util_is_power_of_two_nonzero(entry_size * 4 / 3));
 
-            /* If the entry size is 3/4 of a power of two, we would waste space and not gain
-             * anything if we allocated only twice the power of two for the backing buffer:
-             *   2 * 3/4 = 1.5 usable with buffer size 2
-             *
-             * Allocating 5 times the entry size leads us to the next power of two and results
-             * in a much better memory utilization:
-             *   5 * 3/4 = 3.75 usable with buffer size 4
-             */
-            if (entry_size * 5 > slab_size)
-               slab_size = util_next_power_of_two(entry_size * 5);
-         }
-
-         break;
+         /* If the entry size is 3/4 of a power of two, we would waste space and not gain
+            * anything if we allocated only twice the power of two for the backing buffer:
+            *   2 * 3/4 = 1.5 usable with buffer size 2
+            *
+            * Allocating 5 times the entry size leads us to the next power of two and results
+            * in a much better memory utilization:
+            *   5 * 3/4 = 3.75 usable with buffer size 4
+            */
+         if (entry_size * 5 > slab_size)
+            slab_size = util_next_power_of_two(entry_size * 5);
       }
    }
    assert(slab_size != 0);
@@ -1389,38 +1349,22 @@ zink_bo_init(struct zink_screen *screen)
                  total_mem / 8, offsetof(struct zink_bo, cache_entry), screen,
                  (void*)bo_destroy, (void*)bo_can_reclaim);
 
-   unsigned min_slab_order = MIN_SLAB_ORDER;  /* 256 bytes */
-   unsigned max_slab_order = 20; /* 1 MB (slab size = 2 MB) */
-   unsigned num_slab_orders_per_allocator = (max_slab_order - min_slab_order) /
-                                            NUM_SLAB_ALLOCATORS;
-
-   /* Divide the size order range among slab managers. */
-   for (unsigned i = 0; i < NUM_SLAB_ALLOCATORS; i++) {
-      unsigned min_order = min_slab_order;
-      unsigned max_order = MIN2(min_order + num_slab_orders_per_allocator,
-                                max_slab_order);
-
-      if (!pb_slabs_init(&screen->pb.bo_slabs[i],
-                         min_order, max_order,
-                         screen->info.mem_props.memoryTypeCount, true,
-                         screen,
-                         bo_can_reclaim_slab,
-                         bo_slab_alloc_normal,
-                         (void*)bo_slab_free)) {
-         return false;
-      }
-      min_slab_order = max_order + 1;
+   if (!pb_slabs_init(&screen->pb.bo_slabs,
+                        MIN_SLAB_ORDER, 20,
+                        screen->info.mem_props.memoryTypeCount, true,
+                        screen,
+                        bo_can_reclaim_slab,
+                        bo_slab_alloc_normal,
+                        (void*)bo_slab_free)) {
+      return false;
    }
-   screen->pb.min_alloc_size = 1 << screen->pb.bo_slabs[0].min_order;
    return true;
 }
 
 void
 zink_bo_deinit(struct zink_screen *screen)
 {
-   for (unsigned i = 0; i < NUM_SLAB_ALLOCATORS; i++) {
-      if (screen->pb.bo_slabs[i].groups)
-         pb_slabs_deinit(&screen->pb.bo_slabs[i]);
-   }
+   if (screen->pb.bo_slabs.groups)
+      pb_slabs_deinit(&screen->pb.bo_slabs);
    pb_cache_deinit(&screen->pb.bo_cache);
 }
