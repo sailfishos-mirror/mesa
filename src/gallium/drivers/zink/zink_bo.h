@@ -113,6 +113,9 @@ zink_bo_deinit(struct zink_screen *screen);
 struct pb_buffer *
 zink_bo_create(struct zink_screen *screen, uint64_t size, unsigned alignment, enum zink_heap heap, enum zink_alloc_flag flags, unsigned mem_type_idx, const void *pNext);
 
+void
+zink_bo_destroy(struct zink_screen *screen, struct zink_bo *bo);
+
 bool
 zink_bo_get_kms_handle(struct zink_screen *screen, struct zink_bo *bo, int fd, uint32_t *handle);
 
@@ -238,8 +241,8 @@ zink_bo_usage_unset(struct zink_bo *bo, struct zink_batch_state *bs)
 static ALWAYS_INLINE void
 zink_bo_unref(struct zink_screen *screen, struct zink_bo *bo)
 {
-   struct pb_buffer *pbuf = &bo->base;
-   pb_reference_with_winsys(screen, &pbuf, NULL);
+   if (pipe_reference(&bo->base.base.reference, NULL))
+      zink_bo_destroy(screen, bo);
 }
 
 #endif

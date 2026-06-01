@@ -121,10 +121,8 @@ static unsigned get_slab_entry_alignment(struct zink_screen *screen, unsigned si
 }
 
 static void
-bo_destroy(struct zink_screen *screen, struct pb_buffer *pbuf)
+bo_destroy(struct zink_screen *screen, struct zink_bo *bo)
 {
-   struct zink_bo *bo = zink_bo(pbuf);
-
 #ifdef ZINK_USE_DMABUF
    if (bo->mem && !bo->u.real.use_reusable_pool) {
       simple_mtx_lock(&bo->u.real.export_lock);
@@ -180,10 +178,8 @@ bo_slab_free(struct zink_screen *screen, struct pb_slab *pslab)
 }
 
 static void
-bo_slab_destroy(struct zink_screen *screen, struct pb_buffer *pbuf)
+bo_slab_destroy(struct zink_screen *screen, struct zink_bo *bo)
 {
-   struct zink_bo *bo = zink_bo(pbuf);
-
    assert(!bo->mem);
 
    //if (bo->base.usage & RADEON_FLAG_ENCRYPTED)
@@ -223,25 +219,17 @@ get_optimal_alignment(struct zink_screen *screen, uint64_t size, unsigned alignm
 }
 
 static void
-bo_destroy_or_cache(struct zink_screen *screen, struct pb_buffer *pbuf)
+bo_destroy_or_cache(struct zink_screen *screen, struct zink_bo *bo)
 {
-   struct zink_bo *bo = zink_bo(pbuf);
-
-   assert(bo->mem); /* slab buffers have a separate vtbl */
+   assert(bo->type == ZINK_BO_REAL);
    bo->reads.u = NULL;
    bo->writes.u = NULL;
 
    if (bo->u.real.use_reusable_pool)
       pb_cache_add_buffer(&screen->pb.bo_cache, bo->cache_entry);
    else
-      bo_destroy(screen, pbuf);
+      bo_destroy(screen, bo);
 }
-
-static const struct pb_vtbl bo_vtbl = {
-   /* Cast to void* because one of the function parameters is a struct pointer instead of void*. */
-   (void*)bo_destroy_or_cache
-   /* other functions are never called */
-};
 
 static struct zink_bo *
 bo_create_internal(struct zink_screen *screen,
@@ -326,7 +314,6 @@ bo_create_internal(struct zink_screen *screen,
    pipe_reference_init(&bo->base.base.reference, 1);
    bo->base.base.alignment_log2 = util_logbase2(alignment);
    bo->base.base.size = mai.allocationSize;
-   bo->base.vtbl = &bo_vtbl;
    bo->type = ZINK_BO_REAL;
    bo->base.base.placement = mem_type_idx;
    bo->base.base.usage = flags;
@@ -508,10 +495,8 @@ sparse_backing_free(struct zink_screen *screen, struct zink_bo *bo,
 }
 
 static void
-bo_sparse_destroy(struct zink_screen *screen, struct pb_buffer *pbuf)
+bo_sparse_destroy(struct zink_screen *screen, struct zink_bo *bo)
 {
-   struct zink_bo *bo = zink_bo(pbuf);
-
    assert(!bo->mem && bo->base.base.usage & ZINK_ALLOC_SPARSE);
 
    while (!list_is_empty(&bo->u.sparse.backing)) {
@@ -524,12 +509,6 @@ bo_sparse_destroy(struct zink_screen *screen, struct pb_buffer *pbuf)
    simple_mtx_destroy(&bo->lock);
    FREE(bo);
 }
-
-static const struct pb_vtbl bo_sparse_vtbl = {
-   /* Cast to void* because one of the function parameters is a struct pointer instead of void*. */
-   (void*)bo_sparse_destroy
-   /* other functions are never called */
-};
 
 static struct pb_buffer *
 bo_sparse_create(struct zink_screen *screen, uint64_t size)
@@ -551,7 +530,6 @@ bo_sparse_create(struct zink_screen *screen, uint64_t size)
    pipe_reference_init(&bo->base.base.reference, 1);
    bo->base.base.alignment_log2 = util_logbase2(ZINK_SPARSE_BUFFER_PAGE_SIZE);
    bo->base.base.size = size;
-   bo->base.vtbl = &bo_sparse_vtbl;
    bo->type = ZINK_BO_SPARSE;
    unsigned placement = zink_mem_type_idx_from_types(screen, ZINK_HEAP_DEVICE_LOCAL_SPARSE, UINT32_MAX);
    assert(placement != UINT32_MAX);
@@ -1283,11 +1261,21 @@ zink_bo_get_kms_handle(struct zink_screen *screen, struct zink_bo *bo, int fd, u
 #endif
 }
 
-static const struct pb_vtbl bo_slab_vtbl = {
-   /* Cast to void* because one of the function parameters is a struct pointer instead of void*. */
-   (void*)bo_slab_destroy
-   /* other functions are never called */
-};
+void
+zink_bo_destroy(struct zink_screen *screen, struct zink_bo *bo)
+{
+   switch (bo->type) {
+   case ZINK_BO_REAL:
+      bo_destroy_or_cache(screen, bo);
+      break;
+   case ZINK_BO_SLAB:
+      bo_slab_destroy(screen, bo);
+      break;
+   case ZINK_BO_SPARSE:
+      bo_sparse_destroy(screen, bo);
+      break;
+   }
+}
 
 static struct pb_slab *
 bo_slab_alloc(void *priv, unsigned mem_type_idx, unsigned entry_size, unsigned group_index, bool encrypted)
@@ -1354,7 +1342,6 @@ bo_slab_alloc(void *priv, unsigned mem_type_idx, unsigned entry_size, unsigned g
       simple_mtx_init(&bo->lock, mtx_plain);
       bo->base.base.alignment_log2 = util_logbase2(get_slab_entry_alignment(screen, entry_size));
       bo->base.base.size = entry_size;
-      bo->base.vtbl = &bo_slab_vtbl;
       bo->type = ZINK_BO_SLAB;
       bo->offset = slab->buffer->offset + i * entry_size;
       bo->u.slab.entry.slab = &slab->base;
