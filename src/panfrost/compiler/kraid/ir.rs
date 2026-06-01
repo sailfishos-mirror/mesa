@@ -12,6 +12,7 @@ pub use crate::swizzle::Swizzle;
 use compiler::as_slice::*;
 
 use std::fmt;
+use std::num::NonZeroU32;
 use std::ops::{Deref, DerefMut};
 
 pub struct SmallConstant {
@@ -156,7 +157,7 @@ pub enum SrcRef {
     /// A zero value
     Zero,
     /// A 32-bit immediate
-    Imm32(u32),
+    Imm32(NonZeroU32),
     FAU(FAURef),
     SSA(SSARef),
     Reg(RegRef),
@@ -205,10 +206,22 @@ impl SrcRef {
 
 impl From<u32> for SrcRef {
     fn from(u: u32) -> SrcRef {
-        if u == 0 {
-            SrcRef::Zero
+        if let Some(nz) = NonZeroU32::new(u) {
+            SrcRef::Imm32(nz)
         } else {
-            SrcRef::Imm32(u)
+            SrcRef::Zero
+        }
+    }
+}
+
+impl TryFrom<&SrcRef> for u32 {
+    type Error = &'static str;
+
+    fn try_from(src_ref: &SrcRef) -> Result<u32, Self::Error> {
+        match src_ref {
+            SrcRef::Zero => Ok(0),
+            SrcRef::Imm32(nz) => Ok((*nz).into()),
+            _ => Err("Value not known at compile time"),
         }
     }
 }
@@ -365,16 +378,18 @@ impl Src {
     }
 
     pub fn is_zero(&self) -> bool {
-        matches!(self.src_ref, SrcRef::Zero | SrcRef::Imm32(0))
+        matches!(self.src_ref, SrcRef::Zero)
     }
 
     pub fn replicates_byte(&self) -> bool {
         match self.src_ref {
             SrcRef::Zero => true,
-            SrcRef::Imm32(u) => self.swizzle.fold_u32(u).is_some_and(|u| {
-                let b = u.to_le_bytes();
-                b[0] == b[1] && b[0] == b[2] && b[0] == b[3]
-            }),
+            SrcRef::Imm32(u) => {
+                self.swizzle.fold_u32(u.into()).is_some_and(|u| {
+                    let b = u.to_le_bytes();
+                    b[0] == b[1] && b[0] == b[2] && b[0] == b[3]
+                })
+            }
             _ => self.swizzle.replicates_byte(),
         }
     }
@@ -384,7 +399,7 @@ impl Src {
             SrcRef::Zero => true,
             SrcRef::Imm32(u) => self
                 .swizzle
-                .fold_u32(u)
+                .fold_u32(u.into())
                 .is_some_and(|u| (u & 0xffff) == (u >> 16)),
             _ => self.swizzle.replicates_half(),
         }

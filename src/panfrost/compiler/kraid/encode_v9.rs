@@ -479,7 +479,7 @@ impl V9Instr for OpFAdd {
                 variant: self.dst_type.try_into().unwrap(),
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.srcs[0]),
-                imm1w: *imm,
+                imm1w: (*imm).into(),
             })
         } else {
             e.encode(Fadd {
@@ -527,7 +527,7 @@ impl V9Instr for OpIAdd {
                 variant: self.dst_type.try_into().unwrap(),
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.srcs[0]),
-                imm1w: *imm,
+                imm1w: (*imm).into(),
             })
         } else {
             e.encode(Iadd {
@@ -623,7 +623,7 @@ impl V9Instr for OpMov {
             e.encode(MovImm {
                 variant: self.dst_type.try_into().unwrap(),
                 dst: op_encode_dst(self, &self.dst),
-                imm1w: *imm,
+                imm1w: (*imm).into(),
             })
         } else {
             e.encode(Mov {
