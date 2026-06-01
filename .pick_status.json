@@ -1474,7 +1474,7 @@
         "description": "nir/nir_format_convert: Add missing u2f32 in nir_format_unpack_r9g9b9e5",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5f5f4474f623d638d737cba59a538df6d0d0410e",
         "notes": null
