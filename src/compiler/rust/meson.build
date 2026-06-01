@@ -74,6 +74,7 @@ _compiler_bindgen_args = [
   '--allowlist-type', 'u_memstream',
   '--no-prepend-enum-name',
   '--with-derive-default',
+  '--wrap-static-fns-suffix', '_compiler_rs_extern'
 ]
 
 foreach type : _compiler_binding_types
