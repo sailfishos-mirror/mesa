@@ -23,6 +23,7 @@ is_u2u64(nir_scalar *scalar)
 typedef struct {
    nir_shader *shader;
    struct hash_table *range_ht;
+   nir_cursor addr_cursor;
 } lower_state;
 
 static bool
@@ -100,7 +101,10 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, ui
    } else if (is_u2u64(&src)) {
       bool rewrite_src = try_extract_additions(state, b, &src, out_const, out_offset, true, mul);
       b->cursor = nir_after_instr(&alu->instr);
-      if (src.def && mul == 1 && *out_offset == NULL) {
+      if (src.def && mul == 1 && *out_offset && is_nuw(state, NULL, src, nir_get_scalar(*out_offset, 0))) {
+         b->cursor = state->addr_cursor;
+         *out_offset = nir_iadd_nuw(b, nir_mov_scalar(b, src), *out_offset);
+      } else if (src.def && mul == 1 && *out_offset == NULL) {
          *out_offset = nir_mov_scalar(b, src);
       } else if (src.def) {
          if (rewrite_src)
@@ -173,6 +177,7 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
    uint64_t off_const = 0;
    nir_def *offset = NULL;
    nir_scalar src = nir_get_scalar(addr_src->ssa, 0);
+   ((lower_state *)state)->addr_cursor = nir_before_instr(nir_def_instr(addr_src->ssa));
    try_extract_additions(state, b, &src, &off_const, &offset, false, 1);
 
    b->cursor = nir_before_instr(&intrin->instr);
