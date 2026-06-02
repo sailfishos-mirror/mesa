@@ -1,4 +1,5 @@
 // Copyright © 2026 Collabora, Ltd.
+// Copyright © 2026 Arm Ltd.
 // SPDX-License-Identifier: MIT
 
 use crate::isa::xml::XmlElement;
@@ -366,6 +367,190 @@ impl InstrField {
     }
 }
 
+pub struct SyntaxModifier {
+    pub name: String,
+}
+
+impl SyntaxModifier {
+    fn from_xml(xml: XmlElement) -> Result<SyntaxModifier> {
+        if let Some(name) = xml.attrs.get("name") {
+            Ok(SyntaxModifier { name: name.clone() })
+        } else {
+            Err(err("modifier elements must have a name attribute"))
+        }
+    }
+}
+
+pub struct SyntaxName {
+    pub mods: Vec<SyntaxModifier>,
+}
+
+impl SyntaxName {
+    fn from_xml(xml: XmlElement) -> Result<SyntaxName> {
+        let mut mods: Vec<SyntaxModifier> = Default::default();
+
+        for child in xml.children.into_iter() {
+            match child.name.local_name.as_str() {
+                "modifier" => mods.push(SyntaxModifier::from_xml(child)?),
+                _ => (),
+            }
+        }
+
+        Ok(SyntaxName { mods })
+    }
+}
+
+pub struct SyntaxStaging {
+    pub is_input: bool,
+}
+
+impl SyntaxStaging {
+    fn from_xml(xml: XmlElement) -> Result<SyntaxStaging> {
+        if let Some(is_input) = xml.attrs.get("direction").map(|s| s == "input")
+        {
+            Ok(SyntaxStaging { is_input })
+        } else {
+            Err(err("Missing direction on staging syntax element"))
+        }
+    }
+}
+
+pub struct SyntaxSrc {
+    pub name: String,
+    pub mods: Vec<SyntaxModifier>,
+}
+
+impl SyntaxSrc {
+    fn from_xml(xml: XmlElement) -> Result<SyntaxSrc> {
+        let mut mods: Vec<SyntaxModifier> = Default::default();
+
+        for child in xml.children.into_iter() {
+            match child.name.local_name.as_str() {
+                "modifier" => mods.push(SyntaxModifier::from_xml(child)?),
+                _ => (),
+            }
+        }
+
+        if let Some(name) = xml.attrs.get("name").cloned() {
+            Ok(SyntaxSrc { name, mods })
+        } else {
+            Err(err("Missing name on src syntax element"))
+        }
+    }
+}
+
+pub struct SyntaxDst {
+    pub mods: Vec<SyntaxModifier>,
+}
+
+impl SyntaxDst {
+    fn from_xml(xml: XmlElement) -> Result<SyntaxDst> {
+        let mut mods: Vec<SyntaxModifier> = Default::default();
+
+        for child in xml.children.into_iter() {
+            match child.name.local_name.as_str() {
+                "modifier" => mods.push(SyntaxModifier::from_xml(child)?),
+                _ => (),
+            }
+        }
+        Ok(SyntaxDst { mods })
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum ImmType {
+    Uint,
+    Int,
+    Float,
+    V2F16,
+    V2I16,
+    V4I8,
+}
+
+pub struct SyntaxImm {
+    pub name: String,
+    pub type_: ImmType,
+}
+
+impl SyntaxImm {
+    fn from_xml(xml: XmlElement) -> Result<SyntaxImm> {
+        let elem_type = xml.name.local_name.as_str();
+        let type_ = match elem_type {
+            "uint" => ImmType::Uint,
+            "int" => ImmType::Int,
+            "float" => ImmType::Float,
+            "V2I16" => ImmType::V2I16,
+            "V2F16" => ImmType::V2F16,
+            "V4I8" => ImmType::V4I8,
+            _ => return Err("Unknown immediate type".into()),
+        };
+
+        if let Some(name) = xml.attrs.get("name").cloned() {
+            Ok(SyntaxImm { name, type_ })
+        } else {
+            Err(err("Missing name on int syntax element"))
+        }
+    }
+}
+
+pub struct SyntaxPcRelOffset {
+    pub name: String,
+    pub signed: bool,
+}
+
+impl SyntaxPcRelOffset {
+    fn from_xml(xml: XmlElement) -> Result<SyntaxPcRelOffset> {
+        let signed = xml.name.local_name.as_str() == "pc_rel_label_signed";
+        if let Some(name) = xml.attrs.get("name").cloned() {
+            Ok(SyntaxPcRelOffset { name, signed })
+        } else {
+            Err(err("Missing name on src syntax element"))
+        }
+    }
+}
+
+pub enum SyntaxElement {
+    Name(SyntaxName),
+    Staging(SyntaxStaging),
+    Src(SyntaxSrc),
+    Dst(SyntaxDst),
+    Imm(SyntaxImm),
+    PcRelOffset(SyntaxPcRelOffset),
+}
+
+#[derive(Default)]
+pub struct Syntax {
+    pub elements: Vec<SyntaxElement>,
+}
+
+impl Syntax {
+    fn from_xml(xml: XmlElement, _arch: Range<u8>) -> Result<Syntax> {
+        let mut elements: Vec<SyntaxElement> = Default::default();
+
+        for child in xml.children.into_iter() {
+            match child.name.local_name.as_str() {
+                "name" => elements
+                    .push(SyntaxElement::Name(SyntaxName::from_xml(child)?)),
+                "staging" => elements.push(SyntaxElement::Staging(
+                    SyntaxStaging::from_xml(child)?,
+                )),
+                "src" => elements
+                    .push(SyntaxElement::Src(SyntaxSrc::from_xml(child)?)),
+                "dest" => elements
+                    .push(SyntaxElement::Dst(SyntaxDst::from_xml(child)?)),
+                "pc_rel_label_signed" | "pc_rel_label_unsigned" => elements
+                    .push(SyntaxElement::PcRelOffset(
+                        SyntaxPcRelOffset::from_xml(child)?,
+                    )),
+                _ => elements
+                    .push(SyntaxElement::Imm(SyntaxImm::from_xml(child)?)),
+            }
+        }
+
+        Ok(Syntax { elements })
+    }
+}
+
 pub struct Instr {
     pub name: String,
     pub arch: Range<u8>,
@@ -374,6 +559,7 @@ pub struct Instr {
     pub variant: Option<String>,
     pub fields: Vec<InstrField>,
     pub total_bits: u8,
+    pub syntax: Syntax,
 }
 
 pub fn instr_field_ident(name: &str) -> Ident {
@@ -415,6 +601,7 @@ impl Instr {
             variant: xml.attrs.get("variant").cloned(),
             fields: Default::default(),
             total_bits: 0,
+            syntax: Default::default(),
         };
 
         for child in xml.children.into_iter() {
@@ -434,6 +621,7 @@ impl Instr {
                     i.total_bits = i.total_bits.max(f.bits.end);
                     i.fields.push(InstrField::Reserved(f));
                 }
+                "syntax" => i.syntax = Syntax::from_xml(child, arch)?,
                 _ => (),
             }
         }
