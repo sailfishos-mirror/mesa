@@ -1620,9 +1620,25 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       assert(cs && f->is_entrypoint && "todo: this needs ABI");
       assert(nir_src_as_uint(intr->src[0]) == 0 && "TODO: indirects");
 
-      unsigned offset = nir_intrinsic_base(intr) / 4;
-      unsigned nr = jay_num_values(dst);
-      jay_copy(b, dst, jay_extract_range(nj->payload.inline_data, offset, nr));
+      /* We break up 8/16-bit loads since our model is all 32-bit. We should
+       * probably move this to NIR (TODO) but this will do for now.
+       */
+      unsigned stride_B = MIN2(intr->def.bit_size / 8, 4);
+      assert(stride_B > 0);
+
+      jay_foreach_comp(dst, c) {
+         unsigned offset_B = nir_intrinsic_base(intr) + (c * stride_B);
+         jay_def word = jay_extract(nj->payload.inline_data, offset_B / 4);
+         unsigned element = (offset_B % 4) / stride_B;
+
+         if (element) {
+            jay_CVT(b, JAY_TYPE_U32, jay_extract(dst, c), word,
+                    JAY_TYPE_U | intr->def.bit_size, JAY_ROUND, element);
+         } else {
+            jay_MOV(b, jay_extract(dst, c), word);
+         }
+      }
+
       break;
    }
 
