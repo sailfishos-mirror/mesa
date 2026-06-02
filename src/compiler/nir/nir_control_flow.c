@@ -178,7 +178,7 @@ replace_pred_succs(nir_block *block, nir_block *new_block, nir_block *exclude)
 static nir_block *
 split_block_beginning(nir_block *block)
 {
-   nir_block *new_block = nir_block_create(ralloc_parent(block));
+   nir_block *new_block = nir_block_create(block->impl);
    new_block->cf_node.parent = block->cf_node.parent;
    exec_node_insert_node_before(&block->cf_node.node, &new_block->cf_node.node);
 
@@ -306,7 +306,7 @@ block_add_normal_succs(nir_block *block)
 static nir_block *
 split_block_end(nir_block *block)
 {
-   nir_block *new_block = nir_block_create(ralloc_parent(block));
+   nir_block *new_block = nir_block_create(block->impl);
    new_block->cf_node.parent = block->cf_node.parent;
    exec_node_insert_after(&block->cf_node.node, &new_block->cf_node.node);
 
@@ -420,13 +420,13 @@ void
 nir_loop_add_continue_construct(nir_loop *loop)
 {
    assert(!nir_loop_has_continue_construct(loop));
+   nir_block *header = nir_loop_first_block(loop);
 
-   nir_block *cont = nir_block_create(ralloc_parent(loop));
+   nir_block *cont = nir_block_create(header->impl);
    exec_list_push_tail(&loop->continue_list, &cont->cf_node.node);
    cont->cf_node.parent = &loop->cf_node;
 
    /* change predecessors and successors */
-   nir_block *header = nir_loop_first_block(loop);
    nir_block *preheader = nir_block_cf_tree_prev(header);
    assert(nir_block_num_preds(header) <= 2);
    replace_pred_succs(header, cont, preheader);
@@ -763,6 +763,8 @@ relink_jump_halt_cf_node(nir_cf_node *node, nir_block *end_block)
    case nir_cf_node_block: {
       nir_block *block = nir_cf_node_as_block(node);
       nir_instr *last_instr = nir_block_last_instr(block);
+
+      block->impl = end_block->impl;
       if (last_instr == NULL || last_instr->type != nir_instr_type_jump)
          break;
 

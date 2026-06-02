@@ -707,8 +707,8 @@ nir_function_impl_create_bare(nir_shader *shader)
    impl->dom_lca_info.block_from_idx = NULL;
 
    /* create start & end blocks */
-   nir_block *start_block = nir_block_create(shader);
-   nir_block *end_block = nir_block_create(shader);
+   nir_block *start_block = nir_block_create(impl);
+   nir_block *end_block = nir_block_create(impl);
    start_block->cf_node.parent = &impl->cf_node;
    end_block->cf_node.parent = &impl->cf_node;
    impl->end_block = end_block;
@@ -738,9 +738,9 @@ nir_block_destructor(void *block_)
 }
 
 nir_block *
-nir_block_create(nir_shader *shader)
+nir_block_create(nir_function_impl *impl)
 {
-   nir_block *block = rzalloc(shader, nir_block);
+   nir_block *block = rzalloc(impl, nir_block);
 
    cf_init(&block->cf_node, nir_cf_node_block);
 
@@ -754,6 +754,7 @@ nir_block_create(nir_shader *shader)
 
    ralloc_set_destructor(block, &nir_block_destructor);
 
+   block->impl = impl;
    return block;
 }
 
@@ -764,21 +765,21 @@ src_init(nir_src *src)
 }
 
 nir_if *
-nir_if_create(nir_shader *shader)
+nir_if_create(nir_function_impl *impl)
 {
-   nir_if *if_stmt = ralloc(shader, nir_if);
+   nir_if *if_stmt = ralloc(impl, nir_if);
 
    if_stmt->control = nir_selection_control_none;
 
    cf_init(&if_stmt->cf_node, nir_cf_node_if);
    src_init(&if_stmt->condition);
 
-   nir_block *then = nir_block_create(shader);
+   nir_block *then = nir_block_create(impl);
    exec_list_make_empty(&if_stmt->then_list);
    exec_list_push_tail(&if_stmt->then_list, &then->cf_node.node);
    then->cf_node.parent = &if_stmt->cf_node;
 
-   nir_block *else_stmt = nir_block_create(shader);
+   nir_block *else_stmt = nir_block_create(impl);
    exec_list_make_empty(&if_stmt->else_list);
    exec_list_push_tail(&if_stmt->else_list, &else_stmt->cf_node.node);
    else_stmt->cf_node.parent = &if_stmt->cf_node;
@@ -787,16 +788,16 @@ nir_if_create(nir_shader *shader)
 }
 
 nir_loop *
-nir_loop_create(nir_shader *shader)
+nir_loop_create(nir_function_impl *impl)
 {
-   nir_loop *loop = rzalloc(shader, nir_loop);
+   nir_loop *loop = rzalloc(impl, nir_loop);
 
    cf_init(&loop->cf_node, nir_cf_node_loop);
    /* Assume that loops are divergent until proven otherwise */
    loop->divergent_break = true;
    loop->divergent_continue = true;
 
-   nir_block *body = nir_block_create(shader);
+   nir_block *body = nir_block_create(impl);
    exec_list_make_empty(&loop->body);
    exec_list_push_tail(&loop->body, &body->cf_node.node);
    body->cf_node.parent = &loop->cf_node;
@@ -1167,11 +1168,21 @@ nir_alu_binop_identity(nir_op binop, unsigned bit_size)
 nir_function_impl *
 nir_cf_node_get_function(nir_cf_node *node)
 {
-   while (node->type != nir_cf_node_function) {
-      node = node->parent;
+   switch (node->type) {
+   case nir_cf_node_block:
+      return nir_cf_node_as_block(node)->impl;
+   case nir_cf_node_function:
+      return nir_cf_node_as_function(node);
+   case nir_cf_node_if: {
+      nir_if *if_stmt = nir_cf_node_as_if(node);
+      return nir_if_first_then_block(if_stmt)->impl;
    }
-
-   return nir_cf_node_as_function(node);
+   case nir_cf_node_loop: {
+      nir_loop *loop_stmt = nir_cf_node_as_loop(node);
+      return nir_loop_first_block(loop_stmt)->impl;
+   }
+   }
+   UNREACHABLE("Invalid node type");
 }
 
 /* Reduces a cursor by trying to convert everything to after and trying to

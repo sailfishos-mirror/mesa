@@ -1546,6 +1546,7 @@ validate_block(nir_block *block, validate_state *state)
 {
    validate_assert(state, block->cf_node.parent == state->parent_node);
 
+   validate_assert(state, block->impl == state->impl);
    state->block = block;
 
    exec_list_validate(&block->instr_list);
