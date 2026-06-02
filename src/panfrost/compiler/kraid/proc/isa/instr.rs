@@ -340,6 +340,32 @@ pub enum InstrField {
     Reserved(ReservedField),
 }
 
+impl InstrField {
+    pub fn ident(&self) -> Option<&Ident> {
+        match self {
+            InstrField::Virtual(f) => Some(&f.ident),
+            InstrField::Physical(f) => Some(&f.ident),
+            _ => None,
+        }
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            InstrField::Virtual(f) => Some(&f.name),
+            InstrField::Physical(f) => Some(&f.name),
+            _ => None,
+        }
+    }
+
+    pub fn field_type(&self) -> Option<&FieldType> {
+        match self {
+            InstrField::Virtual(f) => Some(&f.type_),
+            InstrField::Physical(f) => f.type_.as_ref(),
+            _ => None,
+        }
+    }
+}
+
 pub struct Instr {
     pub name: String,
     pub arch: Range<u8>,
