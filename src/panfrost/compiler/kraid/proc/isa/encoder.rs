@@ -318,16 +318,18 @@ const SRC_NAME_PREFIXES: &[&'static str] = &[
     "neg",
 ];
 
+fn src_number(field_name: &str) -> u8 {
+    let pos = field_name
+        .find(char::is_numeric)
+        .expect("src fields should end in a number");
+    assert!(SRC_NAME_PREFIXES.contains(&&field_name[0..pos]));
+    u8::from_str_radix(&field_name[pos..], 10).unwrap()
+}
+
 impl InstrEncSrc {
     fn src_name(field_name: &str, src_type: &SrcType) -> String {
         match src_type {
-            SrcType::Src => {
-                let pos = field_name
-                    .find(char::is_numeric)
-                    .expect("src fields should end in a number");
-                assert!(SRC_NAME_PREFIXES.contains(&&field_name[0..pos]));
-                format!("src{}", &field_name[pos..])
-            }
+            SrcType::Src => format!("src{}", src_number(field_name)),
             SrcType::Dst => "dst".to_string(),
             SrcType::SrRead => "sr_src".to_string(),
             SrcType::SrWrite => "sr_dst".to_string(),
@@ -595,9 +597,114 @@ impl InstrEncSources {
     }
 }
 
+fn valid_field_values(
+    arch: Range<u8>,
+    field_type: &FieldType,
+    field_restrict: &Option<Rc<FieldRestrict>>,
+) -> Vec<EnumLiteral> {
+    if let Some(restrict) = field_restrict {
+        restrict
+            .values
+            .iter()
+            .map(|v| v.to_meta().unwrap())
+            .collect()
+    } else {
+        let FieldType::Enum(e) = field_type else {
+            panic!("Swizzle field must have an enum type");
+        };
+        let map_fn = |v: &EnumValue| {
+            if v.arch.contains(arch.start) {
+                assert!(v.arch.contains_range(arch.clone()));
+                Some(EnumLiteral::new(e, v).to_meta().unwrap())
+            } else {
+                None
+            }
+        };
+        e.values.values().filter_map(map_fn).collect()
+    }
+}
+
+#[derive(Default)]
+struct InstrVariantSrcInfo {
+    exists: bool,
+    allowed_swizzles: Vec<EnumLiteral>,
+    has_abs: bool,
+    has_neg: bool,
+    has_not: bool,
+}
+
+impl InstrVariantSrcInfo {
+    fn add_field(
+        &mut self,
+        arch: Range<u8>,
+        src_field: SrcField,
+        field_type: &FieldType,
+        field_restrict: &Option<Rc<FieldRestrict>>,
+    ) {
+        match src_field {
+            SrcField::EncodedSrc | SrcField::SrIndex => {
+                assert!(!self.exists);
+                self.exists = true;
+            }
+            SrcField::SrcSwizzle => {
+                assert!(self.allowed_swizzles.is_empty());
+                self.allowed_swizzles =
+                    valid_field_values(arch, field_type, field_restrict);
+            }
+            SrcField::SrcModAbs => {
+                self.has_abs = true;
+            }
+            SrcField::SrcModNeg => {
+                self.has_neg = true;
+            }
+            SrcField::SrcModNot => {
+                self.has_not = true;
+            }
+            SrcField::SrCount => (),
+            _ => panic!("Invalid Src field"),
+        }
+    }
+}
+
+impl ToTokens for InstrVariantSrcInfo {
+    fn to_tokens(&self, ts: &mut TokenStream2) {
+        let InstrVariantSrcInfo {
+            has_abs,
+            has_neg,
+            has_not,
+            ..
+        } = self;
+
+        let mut swizzles_ts = TokenStream2::new();
+        if !self.exists {
+            // Leave the swizzle set empty to indicate a non-existant source
+        } else if self.allowed_swizzles.is_empty() {
+            swizzles_ts.extend(quote! { SrcSwizzle::None as u8 });
+        } else {
+            for s in &self.allowed_swizzles {
+                swizzles_ts.extend(quote! { #s as u8, });
+            }
+        }
+
+        ts.extend(quote! {
+            InstructionSrcInfo {
+                allowed_swizzles: unsafe {
+                    U8EnumSet::from_u8_array([#swizzles_ts])
+                },
+                has_abs: #has_abs,
+                has_neg: #has_neg,
+                has_not: #has_not,
+            }
+        });
+    }
+}
+
 struct InstrVariantInfo {
     ident: Ident,
+    arch: Range<u8>,
     is_message: bool,
+    srcs: Vec<InstrVariantSrcInfo>,
+    sr_src: Option<InstrVariantSrcInfo>,
 }
 
 impl InstrVariantInfo {
@@ -612,18 +719,77 @@ impl InstrVariantInfo {
 
         InstrVariantInfo {
             ident,
-            is_message: instr.has_field_named("message_slot_index"),
+            arch: instr.arch.clone(),
+            is_message: false,
+            srcs: Default::default(),
+            sr_src: Default::default(),
+        }
+    }
+
+    fn add_field(
+        &mut self,
+        instr_name: &str,
+        field_name: &str,
+        field_type: &FieldType,
+        field_restrict: &Option<Rc<FieldRestrict>>,
+        sr_control: SrControl,
+    ) {
+        if field_name == "message_slot_index" {
+            self.is_message = true;
+            return;
+        }
+
+        let (src_type, src_field) =
+            map_field_src(instr_name, field_name, field_type, sr_control);
+        match src_type {
+            SrcType::Src => {
+                let n = usize::from(src_number(field_name));
+                if n >= self.srcs.len() {
+                    self.srcs.resize_with(n + 1, Default::default);
+                }
+                self.srcs[n].add_field(
+                    self.arch.clone(),
+                    src_field,
+                    field_type,
+                    field_restrict,
+                );
+            }
+            SrcType::SrRead => {
+                self.sr_src.get_or_insert_default().add_field(
+                    self.arch.clone(),
+                    src_field,
+                    field_type,
+                    field_restrict,
+                );
+            }
+            _ => (),
         }
     }
 }
 
 impl ToTokens for InstrVariantInfo {
     fn to_tokens(&self, ts: &mut TokenStream2) {
-        let InstrVariantInfo { ident, is_message } = self;
+        let InstrVariantInfo {
+            ident, is_message, ..
+        } = self;
+
+        let mut src_infos_ts = TokenStream2::new();
+        for src in &self.srcs {
+            src_infos_ts.extend(quote! { #src, });
+        }
+        let srcs_ts = quote! { &[#src_infos_ts] };
+
+        let sr_src_ts = if let Some(src) = &self.sr_src {
+            quote! { Some(#src) }
+        } else {
+            quote! { None }
+        };
 
         ts.extend(quote! {
             const #ident: InstructionInfo = InstructionInfo {
                 is_message: #is_message,
+                srcs: #srcs_ts,
+                sr_src: #sr_src_ts,
             };
         });
     }
@@ -637,7 +803,7 @@ struct InstrEncVariant {
 
 impl InstrEncVariant {
     fn new(instr: Instr, srcs: &mut InstrEncSources) -> InstrEncVariant {
-        let info = InstrVariantInfo::new(&instr);
+        let mut info = InstrVariantInfo::new(&instr);
         let sr_control = get_instr_sr_control(&instr);
 
         let mut field_srcs = Vec::new();
@@ -673,6 +839,14 @@ impl InstrEncVariant {
                 }
                 InstrField::Reserved(_) => continue,
             };
+
+            info.add_field(
+                &instr.name,
+                field_name,
+                &field_type,
+                &restrict,
+                sr_control,
+            );
 
             fields.push((i, field_name, field_type, restrict));
         }
@@ -1011,7 +1185,7 @@ impl ToTokens for InstrEnc {
                 #info_const_decls_ts
             }
 
-            impl Instruction for #s_ident {
+            impl Instruction<SrcSwizzle> for #s_ident {
                 type Variant = #variant_type_ts;
 
                 fn get_info_for_variant(
@@ -1053,6 +1227,8 @@ pub fn gen_encoder(
         use compiler::bitset::ConstBitSet;
         use compiler::enum_as_u8::EnumAsU8;
 
+        pub type InstructionInfo = super::InstructionInfo<SrcSwizzle>;
+        pub type InstructionSrcInfo = super::InstructionSrcInfo<SrcSwizzle>;
         pub type EncodedSrc = super::EncodedSrc<SrcSwizzle>;
         pub type EncodedDst = super::EncodedDst<DstLanes>;
         pub type SrRead = super::SrRead<SrcSwizzle>;

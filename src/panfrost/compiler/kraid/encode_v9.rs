@@ -6,6 +6,7 @@ use crate::data_type::*;
 use crate::flow::*;
 use crate::ir;
 use crate::ir::*;
+use crate::isa::v9::InstructionInfo;
 use crate::isa::v9::*;
 use crate::isa::*;
 use crate::ops::*;

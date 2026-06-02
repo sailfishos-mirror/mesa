@@ -159,6 +159,14 @@ impl ArchSet {
         ((self.bits >> arch) & 1) != 0
     }
 
+    pub fn contains_range(&self, arch: Range<u8>) -> bool {
+        self.contains_set(arch.into())
+    }
+
+    pub fn contains_set(&self, other: ArchSet) -> bool {
+        other.bits & !self.bits == 0
+    }
+
     pub fn first(&self) -> Option<u8> {
         let first = self.bits.trailing_zeros();
         if first < 32 {
