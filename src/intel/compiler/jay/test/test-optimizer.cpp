@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "compiler/gen/gen_enums.h"
 #include "util/lut.h"
 #include "jay_builder.h"
 #include "jay_ir.h"
@@ -335,4 +336,18 @@ TEST_F(Optimizer, PredicateLogic)
          jay_SEL(b, JAY_TYPE_U32, out, x, 123, flag3);
       });
    }
+}
+
+TEST_F(Optimizer, BogusCopyprop)
+{
+   NEGCASE({
+      jay_def uflag = jay_alloc_def(b, UFLAG, 1);
+      jay_def ugpr = jay_alloc_def(b, UGPR, 1);
+      jay_def gpr = jay_alloc_def(b, GPR, 1);
+      jay_inst *add = jay_ADD(b, JAY_TYPE_S32, ugpr, 1, 1);
+      jay_set_conditional_mod(b, add, uflag, GEN_CONDITION_EQ);
+      jay_MOV(b, gpr, ugpr);
+      jay_SEND(b, .srcs = &gpr, .type = JAY_TYPE_U32, .nr_srcs = 1);
+      jay_XOR(b, JAY_TYPE_U32, out, wx, uflag);
+   });
 }
