@@ -30,8 +30,6 @@
 #include "util/log.h"
 #include "util/u_debug.h"
 
-bool drm_shim_driver_prefers_first_render_node = true;
-
 struct v3d_bo {
         struct shim_bo base;
         uint32_t offset;

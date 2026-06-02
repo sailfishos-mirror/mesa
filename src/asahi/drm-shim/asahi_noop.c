@@ -9,8 +9,6 @@
 #include "drm-shim/drm_shim.h"
 #include "drm-uapi/asahi_drm.h"
 
-bool drm_shim_driver_prefers_first_render_node = true;
-
 static const struct drm_asahi_params_global params = {
    .gpu_generation = 13,
    .gpu_variant = 'G',

@@ -14,8 +14,6 @@
 
 static const struct amdgpu_device *amdgpu_dev;
 
-bool drm_shim_driver_prefers_first_render_node = true;
-
 static int
 amdgpu_ioctl_noop(int fd, unsigned long request, void *arg)
 {

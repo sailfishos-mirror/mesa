@@ -118,7 +118,6 @@ struct file_override {
 };
 static struct file_override file_overrides[20];
 static int file_overrides_count;
-extern bool drm_shim_driver_prefers_first_render_node;
 
 static int
 nfvasprintf(char **restrict strp, const char *restrict fmt, va_list ap)
@@ -138,28 +137,15 @@ nfasprintf(char **restrict strp, const char *restrict fmt, ...)
    return ret;
 }
 
-/* Pick the minor and filename for our shimmed render node.  This can be
- * either a new one that didn't exist on the system, or if the driver wants,
- * it can replace the first render node.
+/* Pick the minor and filename for our shimmed render node.  We always replace
+ * the first render node.
  */
 static void
 get_dri_render_node_minor(void)
 {
-   for (int i = 0; i < 10; i++) {
-      UNUSED int minor = 128 + i;
-      nfasprintf(&render_node_dirent_name, "renderD%d", minor);
-      nfasprintf(&render_node_path, "/dev/dri/%s",
-                 render_node_dirent_name);
-      struct stat st;
-      if (drm_shim_driver_prefers_first_render_node ||
-          stat(render_node_path, &st) == -1) {
-
-         render_node_minor = minor;
-         return;
-      }
-   }
-
-   fprintf(stderr, "Couldn't find a spare render node slot\n");
+   render_node_dirent_name = strdup("renderD128");
+   render_node_path = strdup("/dev/dri/renderD128");
+   render_node_minor = 128;
 }
 
 static void *get_function_pointer(const char *name)

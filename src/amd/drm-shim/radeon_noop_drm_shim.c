@@ -8,8 +8,6 @@
 #include <util/u_math.h>
 #include <radeon_drm.h>
 
-bool drm_shim_driver_prefers_first_render_node = true;
-
 static enum radeon_family radeon_family = CHIP_RV515;
 static uint16_t device_id = 0x7140;
 

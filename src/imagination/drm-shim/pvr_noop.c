@@ -15,9 +15,6 @@
 #include "util/macros.h"
 #include "util/u_debug.h"
 
-bool drm_shim_driver_prefers_first_render_node = true;
-
-
 #define DEFAULT_DEVICE_BVNC PVR_BVNC_PACK(36, 53, 104, 796)
 static struct pvr_device_info device_info;
 

@@ -29,8 +29,6 @@
 #include "drm-shim/drm_shim.h"
 #include "util/log.h"
 
-bool drm_shim_driver_prefers_first_render_node = true;
-
 static int
 vc4_ioctl_noop(int fd, unsigned long request, void *arg)
 {
