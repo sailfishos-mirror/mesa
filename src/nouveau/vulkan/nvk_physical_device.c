@@ -824,6 +824,13 @@ nvk_get_device_properties(const struct nvk_instance *instance,
    uint64_t os_page_size = 4096;
    os_get_page_size(&os_page_size);
 
+   uint32_t supported_shader_stages =
+      VK_SHADER_STAGE_ALL_GRAPHICS | VK_SHADER_STAGE_COMPUTE_BIT;
+
+   if (info->cls_eng3d >= TURING_A)
+      supported_shader_stages |=
+         VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
    *properties = (struct vk_properties) {
       .apiVersion = nvk_get_vk_version(info),
       .driverVersion = vk_get_driver_version(),
@@ -959,9 +966,7 @@ nvk_get_device_properties(const struct nvk_instance *instance,
 
       /* Vulkan 1.1 properties */
       .subgroupSize = 32,
-      .subgroupSupportedStages =
-         VK_SHADER_STAGE_ALL_GRAPHICS | VK_SHADER_STAGE_COMPUTE_BIT |
-         VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_TASK_BIT_EXT,
+      .subgroupSupportedStages = supported_shader_stages,
       .subgroupSupportedOperations = VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
                                      VK_SUBGROUP_FEATURE_BALLOT_BIT |
                                      VK_SUBGROUP_FEATURE_BASIC_BIT |
@@ -1166,12 +1171,9 @@ nvk_get_device_properties(const struct nvk_instance *instance,
       .supportedIndirectCommandsInputModes =
          VK_INDIRECT_COMMANDS_INPUT_MODE_VULKAN_INDEX_BUFFER_EXT |
          VK_INDIRECT_COMMANDS_INPUT_MODE_DXGI_INDEX_BUFFER_EXT,
-      .supportedIndirectCommandsShaderStages =
-         NVK_SHADER_STAGE_GRAPHICS_BITS | VK_SHADER_STAGE_COMPUTE_BIT,
-      .supportedIndirectCommandsShaderStagesPipelineBinding =
-         NVK_SHADER_STAGE_GRAPHICS_BITS | VK_SHADER_STAGE_COMPUTE_BIT,
-      .supportedIndirectCommandsShaderStagesShaderBinding =
-         NVK_SHADER_STAGE_GRAPHICS_BITS | VK_SHADER_STAGE_COMPUTE_BIT,
+      .supportedIndirectCommandsShaderStages = supported_shader_stages,
+      .supportedIndirectCommandsShaderStagesPipelineBinding = supported_shader_stages,
+      .supportedIndirectCommandsShaderStagesShaderBinding = supported_shader_stages,
       .deviceGeneratedCommandsTransformFeedback = true,
       .deviceGeneratedCommandsMultiDrawIndirectCount = info->cls_eng3d >= TURING_A,
 
