@@ -1,6 +1,14 @@
 // Copyright © 2022 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+#[derive(Clone, Default)]
+enum SmallVecImpl<T> {
+    #[default]
+    None,
+    One(T),
+    Many(Vec<T>),
+}
+
 /// `SmallVec` is an optimized data structure that handles collections of items.
 /// It is designed to avoid allocating a `Vec` unless multiple items are present.
 ///
@@ -11,25 +19,25 @@
 /// * `Many(Vec<T>)` - Stores multiple items in a heap-allocated `Vec`.
 ///
 /// This helps to reduce the amount of Vec's allocated in the optimization passes.
-#[derive(Clone, Default)]
-pub enum SmallVec<T> {
-    #[default]
-    None,
-    One(T),
-    Many(Vec<T>),
+#[derive(Clone)]
+pub struct SmallVec<T>(SmallVecImpl<T>);
+
+// We can't use #[derive(Default)] here because it's not quite smart enough.
+// It requires Default to be implemented for T, even though our default enum
+// value is None, which doesn't care about the type T.
+impl<T> Default for SmallVec<T> {
+    fn default() -> Self {
+        SmallVec(Default::default())
+    }
 }
 
 impl<T> SmallVec<T> {
     /// Constructs a new, empty `SmallVec`
     pub fn new() -> SmallVec<T> {
-        Default::default()
+        SmallVec(Default::default())
     }
 
     /// Adds an item to the `SmallVec`.
-    ///
-    /// If the collection is empty (`None`), the item is stored as `One`.
-    /// If the collection has one item (`One`), it transitions to `Many` and both items are stored in a `Vec`.
-    /// If the collection is already in the `Many` variant, the new item is pushed into the existing `Vec`.
     ///
     /// # Arguments
     ///
@@ -38,7 +46,7 @@ impl<T> SmallVec<T> {
     /// # Example
     ///
     /// ```
-    /// let mut vec: SmallVec<String> = SmallVec::None;
+    /// let mut vec: SmallVec<String> = SmallVec::new();
     /// vec.push("Hello".to_string());
     /// vec.push("World".to_string());
     /// ```
@@ -48,10 +56,6 @@ impl<T> SmallVec<T> {
 
     /// Adds an item to the `SmallVec`, returning a reference to it.
     ///
-    /// If the collection is empty (`None`), the item is stored as `One`.
-    /// If the collection has one item (`One`), it transitions to `Many` and both items are stored in a `Vec`.
-    /// If the collection is already in the `Many` variant, the new item is pushed into the existing `Vec`.
-    ///
     /// # Arguments
     ///
     /// * `item` - The item to be added.
@@ -59,30 +63,33 @@ impl<T> SmallVec<T> {
     /// # Example
     ///
     /// ```
-    /// let mut vec: SmallVec<String> = SmallVec::None;
+    /// let mut vec: SmallVec<String> = SmallVec::new();
     /// let item = vec.push_mut("Hello".to_string());
     /// *item += "World";
     /// ```
     pub fn push_mut(&mut self, i: T) -> &mut T {
-        match self {
-            SmallVec::None => {
-                *self = SmallVec::One(i);
-                match self {
-                    SmallVec::One(i) => i,
+        // Explicitly borrow once here so we don't confuse the borrow checker
+        // thinking self.0 gets mutably borrowed multiple times.
+        let imp = &mut self.0;
+        match imp {
+            SmallVecImpl::None => {
+                *imp = SmallVecImpl::One(i);
+                match imp {
+                    SmallVecImpl::One(i) => i,
                     _ => panic!("Not a One"),
                 }
             }
-            SmallVec::One(_) => {
-                *self = match std::mem::take(self) {
-                    SmallVec::One(o) => SmallVec::Many(vec![o, i]),
+            SmallVecImpl::One(_) => {
+                *imp = match std::mem::take(imp) {
+                    SmallVecImpl::One(o) => SmallVecImpl::Many(vec![o, i]),
                     _ => panic!("Not a One"),
                 };
-                match self {
-                    SmallVec::Many(v) => v.last_mut().unwrap(),
+                match imp {
+                    SmallVecImpl::Many(v) => v.last_mut().unwrap(),
                     _ => panic!("Not a Many"),
                 }
             }
-            SmallVec::Many(v) => {
+            SmallVecImpl::Many(v) => {
                 // TODO: Replace with v.push_mut() when we update to
                 // Rust 1.95.0 or newer.
                 v.push(i);
@@ -96,20 +103,20 @@ impl<T> std::ops::Deref for SmallVec<T> {
     type Target = [T];
 
     fn deref(&self) -> &[T] {
-        match self {
-            SmallVec::None => &[],
-            SmallVec::One(i) => std::slice::from_ref(i),
-            SmallVec::Many(v) => v,
+        match &self.0 {
+            SmallVecImpl::None => &[],
+            SmallVecImpl::One(i) => std::slice::from_ref(i),
+            SmallVecImpl::Many(v) => v,
         }
     }
 }
 
 impl<T> std::ops::DerefMut for SmallVec<T> {
     fn deref_mut(&mut self) -> &mut [T] {
-        match self {
-            SmallVec::None => &mut [],
-            SmallVec::One(i) => std::slice::from_mut(i),
-            SmallVec::Many(v) => v,
+        match &mut self.0 {
+            SmallVecImpl::None => &mut [],
+            SmallVecImpl::One(i) => std::slice::from_mut(i),
+            SmallVecImpl::Many(v) => v,
         }
     }
 }
@@ -128,13 +135,13 @@ impl<T> Extend<T> for SmallVec<T> {
 impl<T> From<Vec<T>> for SmallVec<T> {
     fn from(v: Vec<T>) -> SmallVec<T> {
         if v.is_empty() {
-            SmallVec::None
+            SmallVec(SmallVecImpl::None)
         } else if v.len() == 1 {
             // Hopefully, Rust can fold away most of this based on the
             // `v.len() == 1` check above.
-            SmallVec::One(v.into_iter().next().unwrap())
+            SmallVec(SmallVecImpl::One(v.into_iter().next().unwrap()))
         } else {
-            SmallVec::Many(v)
+            SmallVec(SmallVecImpl::Many(v))
         }
     }
 }
@@ -152,21 +159,21 @@ impl<T> FromIterator<T> for SmallVec<T> {
     {
         let mut iter = iter.into_iter();
         let Some(x) = iter.next() else {
-            return SmallVec::None;
+            return SmallVec(SmallVecImpl::None);
         };
         let Some(y) = iter.next() else {
-            return SmallVec::One(x);
+            return SmallVec(SmallVecImpl::One(x));
         };
-        SmallVec::Many([x, y].into_iter().chain(iter).collect())
+        SmallVec(SmallVecImpl::Many([x, y].into_iter().chain(iter).collect()))
     }
 }
 
 impl<T> From<SmallVec<T>> for Vec<T> {
     fn from(sv: SmallVec<T>) -> Vec<T> {
-        match sv {
-            SmallVec::None => Vec::new(),
-            SmallVec::One(i) => vec![i],
-            SmallVec::Many(v) => v,
+        match sv.0 {
+            SmallVecImpl::None => Vec::new(),
+            SmallVecImpl::One(i) => vec![i],
+            SmallVecImpl::Many(v) => v,
         }
     }
 }
@@ -212,10 +219,10 @@ impl<T> IntoIterator for SmallVec<T> {
     type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> IntoIter<T> {
-        let imp = match self {
-            SmallVec::None => IntoIterImpl::None,
-            SmallVec::One(i) => IntoIterImpl::One(i),
-            SmallVec::Many(v) => IntoIterImpl::Many(v.into_iter()),
+        let imp = match self.0 {
+            SmallVecImpl::None => IntoIterImpl::None,
+            SmallVecImpl::One(i) => IntoIterImpl::One(i),
+            SmallVecImpl::Many(v) => IntoIterImpl::Many(v.into_iter()),
         };
         IntoIter(imp)
     }
