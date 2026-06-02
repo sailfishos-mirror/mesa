@@ -1302,31 +1302,35 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
     * residencyNonResidentStrict guarantees. Due to the above, we need to make
     * these operations uncached.
     */
-   unsigned atomic_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
-   unsigned store_cache_mode = LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS);
-   unsigned load_cache_mode = LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
-
+   bool bypass_l1 = false;
+   bool bypass_l3 = false;
    if (devinfo->ver >= 20 && mesa_shader_stage_is_rt(bld.shader->stage) &&
        send->sfid == GEN_SFID_TGM) {
       /* Disable LSC data port L1 cache scheme for the TGM load/store for RT
        * shaders (see HSD 18038444588).
        */
-      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
-      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
+      bypass_l1 = true;
    } else if (volatile_access) {
-      if (devinfo->ver >= 20) {
-         /* Xe2 has a better L3 that can deal with null tiles. */
-         store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
-         load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
-      } else {
-         /* On older platforms, all caches have to be bypassed. */
-         store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3UC);
-         load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3UC);
-      }
+      /* Xe2 has a better L3 that can deal with null tiles. On older
+       * platforms, all caches have to be bypassed.
+       */
+      bypass_l1 = true;
+      if (devinfo->ver < 20)
+         bypass_l3 = true;
    } else if (coherent_access) {
       /* Skip L1 for coherent accesses. */
-      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
-      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
+      bypass_l1 = true;
+   }
+
+   unsigned atomic_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+   unsigned store_cache_mode = LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS);
+   unsigned load_cache_mode = LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
+   if (bypass_l3) {
+      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3UC);
+      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3UC);
+   } else if (bypass_l1) {
+       store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+       load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
    }
 
    const unsigned cache_mode =
