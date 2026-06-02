@@ -7034,7 +7034,7 @@
         "description": "radeonsi: fix sdma copy for gfx10",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f5ecc5ffd5d2234bab9db62fdcdcf932af4c97d4",
         "notes": null
