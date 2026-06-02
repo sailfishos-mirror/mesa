@@ -974,8 +974,9 @@ emit_ir_fbd(struct pan_csf_tiler_oom_ctx *ctx, enum pan_rendering_pass pass,
 
 #if PAN_ARCH <= 13
    ir_descs.fbd = desc_addr;
-   desc_addr += fb_sz;
 #endif
+
+   desc_addr += fb_sz;
 
    const int crc_rt = GENX(pan_select_crc_rt)(fb, fb->tile_size);
    const bool has_zs_ext = (fb->zs.view.zs || fb->zs.view.s || crc_rt >= 0);
