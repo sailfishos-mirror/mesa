@@ -909,7 +909,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       if (alu->src[0].src.ssa->bit_size > alu->def.bit_size) {
          bool rtz = alu->op == nir_op_f2f16_rtz;
          if (alu->op != nir_op_f2f16_rtne && alu->op != nir_op_f2f16_rtz) {
-            nir_shader *shader = nir_cf_node_get_function(&alu->instr.block->cf_node)->function->shader;
+            nir_shader *shader = alu->instr.block->impl->function->shader;
             unsigned execution_mode = shader->info.float_controls_execution_mode;
             rtz = nir_is_rounding_mode_rtz(execution_mode, alu->def.bit_size);
          }

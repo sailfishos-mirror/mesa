@@ -1256,8 +1256,7 @@ add_ssa_def_cb(nir_def *def, void *state)
    nir_instr *instr = state;
 
    if (instr->block && def->index == UINT_MAX) {
-      nir_function_impl *impl =
-         nir_cf_node_get_function(&instr->block->cf_node);
+      nir_function_impl *impl = instr->block->impl;
 
       def->index = impl->ssa_alloc++;
 
@@ -1321,7 +1320,7 @@ nir_instr_insert(nir_cursor cursor, nir_instr *instr)
    if (instr->type == nir_instr_type_jump)
       nir_handle_add_jump(instr->block);
 
-   nir_function_impl *impl = nir_cf_node_get_function(&instr->block->cf_node);
+   nir_function_impl *impl = instr->block->impl;
    impl->valid_metadata &= ~nir_metadata_instr_index;
 }
 
@@ -1738,8 +1737,7 @@ nir_def_init(nir_instr *instr, nir_def *def,
    def->loop_invariant = false;
 
    if (instr->block) {
-      nir_function_impl *impl =
-         nir_cf_node_get_function(&instr->block->cf_node);
+      nir_function_impl *impl = instr->block->impl;
 
       def->index = impl->ssa_alloc++;
 
@@ -1969,7 +1967,7 @@ nir_block_cf_tree_next(nir_block *block)
       return NULL;
    }
 
-   assert(nir_cf_node_get_function(&block->cf_node)->structured);
+   assert(block->impl->structured);
 
    nir_cf_node *cf_next = nir_cf_node_next(&block->cf_node);
    if (cf_next)
@@ -2012,7 +2010,7 @@ nir_block_cf_tree_prev(nir_block *block)
       return NULL;
    }
 
-   assert(nir_cf_node_get_function(&block->cf_node)->structured);
+   assert(block->impl->structured);
 
    nir_cf_node *cf_prev = nir_cf_node_prev(&block->cf_node);
    if (cf_prev)

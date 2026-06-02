@@ -3207,7 +3207,7 @@ nir_print_instr(const nir_instr *instr, FILE *fp)
       .def_prefix = "%",
    };
    if (instr->block) {
-      nir_function_impl *impl = nir_cf_node_get_function(&instr->block->cf_node);
+      nir_function_impl *impl = instr->block->impl;
       state.shader = impl->function->shader;
       state.divergence_valid = impl->valid_metadata & nir_metadata_divergence;
    }

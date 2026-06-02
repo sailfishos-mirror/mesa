@@ -991,7 +991,7 @@ ac_nir_op_supports_packed_math_16bit(const nir_alu_instr* alu)
 {
    switch (alu->op) {
    case nir_op_f2f16: {
-      nir_shader* shader = nir_cf_node_get_function(&alu->instr.block->cf_node)->function->shader;
+      nir_shader* shader = alu->instr.block->impl->function->shader;
       unsigned execution_mode = shader->info.float_controls_execution_mode;
       return (shader->options->force_f2f16_rtz && !nir_is_rounding_mode_rtne(execution_mode, 16)) ||
              nir_is_rounding_mode_rtz(execution_mode, 16);
