@@ -104,8 +104,6 @@ static char render_node_dir[] = "/dev/dri/";
 static char *render_node_path;
 /* renderD* */
 static char *render_node_dirent_name;
-/* /sys/dev/char/major: */
-static char drm_device_path[] = "/sys/dev/char/" STRINGIZE(DRM_MAJOR) ":";
 /* /sys/dev/char/major:minor/device */
 static int device_path_len;
 static char *device_path;
@@ -290,8 +288,8 @@ static bool is_drm_device_path(const char *path)
    if (render_node_minor == -1)
       return false;
 
-   /* String starts with /sys/dev/char/226: */
-   if (strncmp(path, drm_device_path, sizeof(drm_device_path) - 1) == 0)
+   static const char *drm_device_path_prefix = "/sys/dev/char/" STRINGIZE(DRM_MAJOR) ":";
+   if (strncmp(path, drm_device_path_prefix, strlen(drm_device_path_prefix)) == 0)
       return true;
 
    /* String starts with /dev/dri/ */
