@@ -201,6 +201,22 @@ pub struct PhysicalField {
     pub type_: Option<FieldType>,
     pub restrict: Option<Rc<FieldRestrict>>,
     pub expr: Option<Box<Expr>>,
+    pub exact: Option<u64>,
+}
+
+fn resolve_exact(
+    type_: Option<&str>,
+    value: &str,
+    enums: &EnumSet,
+) -> Result<u64> {
+    if let Some(v) = type_
+        .and_then(|t| enums.get_enum(t))
+        .and_then(|e| e.get_value(value))
+    {
+        return Ok(v.value as u64);
+    }
+
+    u64::from_str_radix(value, 10).map_err(|_| "Unknown exact literal".into())
 }
 
 impl PhysicalField {
@@ -252,6 +268,13 @@ impl PhysicalField {
             None
         };
 
+        // Store the resolved exact value if it exists for convenience.
+        let exact = if let Some(exact) = xml.attrs.get("exact") {
+            resolve_exact(type_name.map(String::as_str), exact, enums).ok()
+        } else {
+            None
+        };
+
         for child in xml.children {
             match child.name.local_name.as_str() {
                 "expression" => {
@@ -280,6 +303,7 @@ impl PhysicalField {
             type_,
             restrict,
             expr,
+            exact,
         })
     }
 }
