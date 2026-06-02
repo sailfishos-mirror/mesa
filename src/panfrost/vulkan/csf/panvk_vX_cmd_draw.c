@@ -3594,11 +3594,9 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
    bool has_oq_chain = cmdbuf->state.gfx.render.oq.chain != 0;
 
    /* Now initialize the fragment bits. */
-   struct cs_index fbd_pointer = cs_sr_reg64(b, FRAGMENT, FBD_POINTER);
    cs_update_frag_ctx(b) {
 #if PAN_ARCH >= 14
       cs_emit_static_fragment_state(b, cmdbuf);
-      cs_emit_layer_fragment_state(b, fbd_pointer);
 #else
       const struct pan_fb_layout *fb = &cmdbuf->state.gfx.render.fb.layout;
       cs_move32_to(b, cs_sr_reg32(b, FRAGMENT, BBOX_MIN),
@@ -3685,8 +3683,12 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
       cs_wait_slot(b, SB_ID(IMM_FLUSH));
    }
 
+   struct cs_index fbd_pointer = cs_sr_reg64(b, FRAGMENT, FBD_POINTER);
+
    if (cmdbuf->state.gfx.render.layer_count <= 1) {
 #if PAN_ARCH >= 14
+      cs_update_frag_ctx(b)
+         cs_emit_layer_fragment_state(b, fbd_pointer);
       cs_trace_run_fragment2(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
                              false, MALI_TILE_RENDER_ORDER_Z_ORDER);
 #else
@@ -3702,7 +3704,8 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
          cs_add_imm32(b, remaining_layers, remaining_layers, -1);
 
 #if PAN_ARCH >= 14
-         cs_emit_layer_fragment_state(b, fbd_pointer);
+         cs_update_frag_ctx(b)
+            cs_emit_layer_fragment_state(b, fbd_pointer);
          cs_trace_run_fragment2(b, tracing_ctx, run_fragment_regs, false,
                                 MALI_TILE_RENDER_ORDER_Z_ORDER);
 #else
