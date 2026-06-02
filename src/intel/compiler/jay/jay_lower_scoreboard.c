@@ -139,7 +139,7 @@ lower_send_local(jay_function *func, jay_block *block)
 
    /* Sync on block boundaries. */
    if (block != jay_last_block(func)) {
-      jay_builder b = jay_init_builder(func, jay_before_jump(block));
+      jay_builder b = jay_init_builder(func, jay_after_block_logical(block));
       sync_sbids(&b, busy, GEN_SBID_DST);
    }
 }
