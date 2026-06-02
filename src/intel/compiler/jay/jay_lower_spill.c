@@ -116,7 +116,7 @@ jay_lower_spill(jay_function *func)
          if (I->op == JAY_OPCODE_MOV && jay_is_send_like(I)) {
             if (!address_valid) {
                jay_MOV(&b, ADDRESS_REG, tmpu);
-               jay_MOV(&b, tmpu, b.shader->scratch_size);
+               jay_MOV(&b, tmpu, b.shader->scratch_size + sp_delta_B);
                address_valid = true;
             }
 
@@ -140,7 +140,7 @@ jay_lower_spill(jay_function *func)
       if (jay_num_successors(block, GPR) > 0) {
          if (!address_valid) {
             jay_MOV(&b, ADDRESS_REG, tmpu);
-            jay_MOV(&b, tmpu, b.shader->scratch_size);
+            jay_MOV(&b, tmpu, b.shader->scratch_size + sp_delta_B);
          }
 
          if (sp_delta_B > 0) {
