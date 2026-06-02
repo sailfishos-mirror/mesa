@@ -24,6 +24,9 @@
 #include "tgsi/tgsi_transform.h"
 #include "tgsi/tgsi_dump.h"
 
+#include "nir/nir.h"
+#include "nir/nir_builder.h"
+
 #include "draw/draw_context.h"
 
 struct vs_transform_context {
@@ -285,6 +288,70 @@ static void transform_inst(struct tgsi_transform_context *ctx,
     }
 
     ctx->emit_instruction(ctx, inst);
+}
+
+/* Add a missing output variable and write zeros to it. */
+static void
+r300_draw_add_zero_output(nir_shader *nir, nir_builder *b, unsigned location,
+                          const char *name)
+{
+    nir_variable *var = nir_variable_create(nir, nir_var_shader_out,
+                                            glsl_vec4_type(), name);
+    var->data.location = location;
+    var->data.interpolation = INTERP_MODE_NOPERSPECTIVE;
+    nir_store_var(b, var, nir_imm_zero(b, 4, 32), 0xf);
+}
+
+/* Ensure that the color output layout satisfies the r300 hardware rules:
+ *   - COL1 (secondary front color) requires COL0
+ *   - Any back-face color requires all four color outputs (COL0/COL1/BFC0/BFC1) */
+static bool
+r300_nir_add_missing_color_outputs(nir_shader *nir)
+{
+    bool color_used[2] = {false, false};
+    bool bcolor_used[2] = {false, false};
+
+    nir_foreach_shader_out_variable(var, nir) {
+        switch (var->data.location) {
+        case VARYING_SLOT_COL0: color_used[0] = true; break;
+        case VARYING_SLOT_COL1: color_used[1] = true; break;
+        case VARYING_SLOT_BFC0: bcolor_used[0] = true; break;
+        case VARYING_SLOT_BFC1: bcolor_used[1] = true; break;
+        default: break;
+        }
+    }
+
+    nir_function_impl *impl = nir_shader_get_entrypoint(nir);
+    nir_builder b = nir_builder_create(impl);
+    b.cursor = nir_after_impl(impl);
+    bool progress = false;
+
+    if (color_used[1] && !color_used[0]) {
+        r300_draw_add_zero_output(nir, &b, VARYING_SLOT_COL0, "gl_FrontColor");
+        color_used[0] = true;
+        progress = true;
+    }
+
+    if (bcolor_used[0] || bcolor_used[1]) {
+        if (!color_used[0]) {
+            r300_draw_add_zero_output(nir, &b, VARYING_SLOT_COL0, "gl_FrontColor");
+            progress = true;
+        }
+        if (!color_used[1]) {
+            r300_draw_add_zero_output(nir, &b, VARYING_SLOT_COL1, "gl_FrontSecondaryColor");
+            progress = true;
+        }
+        if (!bcolor_used[0]) {
+            r300_draw_add_zero_output(nir, &b, VARYING_SLOT_BFC0, "gl_BackColor");
+            progress = true;
+        }
+        if (!bcolor_used[1]) {
+            r300_draw_add_zero_output(nir, &b, VARYING_SLOT_BFC1, "gl_BackSecondaryColor");
+            progress = true;
+        }
+    }
+
+    return nir_progress(progress, impl, nir_metadata_control_flow);
 }
 
 void r300_draw_init_vertex_shader(struct r300_context *r300,
