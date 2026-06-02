@@ -124,7 +124,7 @@
         "description": "panvk: fix to report device memory with heapIndex",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c6ff8ce373ebdd6c2ba7e3479dafbb23886991c0",
         "notes": null
