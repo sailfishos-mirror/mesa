@@ -180,18 +180,16 @@ generate_tiler_oom_handler(struct panvk_device *dev,
          copy_fbd(&b, has_zs_ext, rt_count, current_fbd_ptr_reg, ir_descs_ptr,
                   scratch_fbd_ptr_reg);
 
-         /* Flush copies before the RUN_FRAGMENT. */
-         cs_wait_slot(&b, SB_ID(LS));
-
-         /* Set FBD pointer to the scratch fbd */
-         struct cs_index fbd_pointer = cs_sr_reg64(&b, FRAGMENT, FBD_POINTER);
 #if PAN_ARCH >= 14
-         cs_add_imm64(&b, fbd_pointer, scratch_fbd_ptr_reg, 0);
-         cs_emit_layer_fragment_state(&b, fbd_pointer);
+         /* Emit the scratch fbd layer state. */
+         cs_emit_layer_fragment_state(&b, scratch_fbd_ptr_reg);
+
          cs_trace_run_fragment2(&b, &tracing_ctx, run_fragment_regs, false,
                                 MALI_TILE_RENDER_ORDER_Z_ORDER);
 #else
-         cs_add_imm64(&b, fbd_pointer, scratch_fbd_ptr_reg, fb_tag.opaque[0]);
+         /* Set FBD pointer to the scratch fbd */
+         cs_add_imm64(&b, cs_sr_reg64(&b, FRAGMENT, FBD_POINTER),
+                      scratch_fbd_ptr_reg, fb_tag.opaque[0]);
          cs_trace_run_fragment(&b, &tracing_ctx, run_fragment_regs, false,
                                MALI_TILE_RENDER_ORDER_Z_ORDER);
 #endif

@@ -936,8 +936,6 @@ cs_emit_layer_fragment_state(struct cs_builder *b, struct cs_index fbd_ptr)
                 offsetof(struct panvk_fb_layer_state, frame_argument));
    cs_load64_to(b, cs_sr_reg64(b, FRAGMENT, FRAME_SHADER_DCD_POINTER), fbd_ptr,
                 offsetof(struct panvk_fb_layer_state, dcd_pointer));
-
-   cs_flush_loads(b);
 }
 #endif /* PAN_ARCH >= 14 */
 

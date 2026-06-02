@@ -338,7 +338,6 @@ csf_oom_handler_init(struct panfrost_context *ctx)
 #if PAN_ARCH >= 14
       cs_emit_fragment_state(&b, fbd_pointer);
 #endif
-      cs_wait_slot(&b, 0);
 
       /* Run the fragment job and wait */
       cs_select_endpoint_sb(&b, 3);
@@ -1137,7 +1136,6 @@ GENX(csf_emit_fragment_job)(struct panfrost_batch *batch,
    /* Run the fragment job and wait */
 #if PAN_ARCH >= 14
    cs_emit_fragment_state(b, fbd_pointer);
-   cs_wait_slot(b, 0);
    cs_run_fragment2(b, false, MALI_TILE_RENDER_ORDER_Z_ORDER);
 #else
    cs_run_fragment(b, false, MALI_TILE_RENDER_ORDER_Z_ORDER);
