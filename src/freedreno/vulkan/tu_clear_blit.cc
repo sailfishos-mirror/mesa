@@ -43,6 +43,36 @@ tu_quantize_float_for_unorm(float val, int bits)
    return (float) tu_pack_float32_for_unorm(val, bits) / (float) ((1 << bits) - 1);
 }
 
+static uint32_t
+tu_pack_float32_for_unorm_depth(float val, unsigned bits)
+{
+   val = CLAMP(val, 0.0f, 1.0f);
+
+   uint32_t m = BITFIELD_MASK(bits);
+
+   if (val >= 1.0f)
+      return m;
+
+   double bias = 1.0 / (double) (m + 1ull);
+   double scaled = (double) val * (double) m + 0.5 + bias;
+   return MIN2((uint32_t) floor(scaled), m);
+}
+
+static float
+tu_quantize_float32_for_unorm_depth(float val, int bits)
+{
+   return (float) tu_pack_float32_for_unorm_depth(val, bits) / (float) BITFIELD_MASK(bits);
+}
+
+static uint32_t
+tu_pack_float32_for_d32(float val)
+{
+   if (!(val > 0.0f) || val < 0x1p-126f)
+      return fui(0.0f);
+
+   return fui(val);
+}
+
 /* r2d_ = BLIT_OP_SCALE operations */
 
 static enum a6xx_2d_ifmt
@@ -186,17 +216,17 @@ r2d_clear_value(struct tu_cmd_buffer *cmd,
    case PIPE_FORMAT_Z24_UNORM_S8_UINT:
    case PIPE_FORMAT_Z24X8_UNORM:
       /* cleared as r8g8b8a8_unorm using special format */
-      clear_value[0] = tu_pack_float32_for_unorm(val->depthStencil.depth, 24);
+      clear_value[0] = tu_pack_float32_for_unorm_depth(val->depthStencil.depth, 24);
       clear_value[1] = clear_value[0] >> 8;
       clear_value[2] = clear_value[0] >> 16;
       clear_value[3] = val->depthStencil.stencil;
       break;
    case PIPE_FORMAT_Z16_UNORM:
-      clear_value[0] = fui(tu_quantize_float_for_unorm(val->depthStencil.depth, 16));
+      clear_value[0] = fui(tu_quantize_float32_for_unorm_depth(val->depthStencil.depth, 16));
       break;
    case PIPE_FORMAT_Z32_FLOAT:
       /* R2D_FLOAT32 */
-      clear_value[0] = fui(val->depthStencil.depth);
+      clear_value[0] = tu_pack_float32_for_d32(val->depthStencil.depth);
       break;
    case PIPE_FORMAT_S8_UINT:
       clear_value[0] = val->depthStencil.stencil;
@@ -1179,20 +1209,20 @@ r3d_clear_value(struct tu_cmd_buffer *cmd, struct tu_cs *cs, enum pipe_format fo
    case PIPE_FORMAT_Z24X8_UNORM:
    case PIPE_FORMAT_Z24_UNORM_S8_UINT: {
       /* cleared as r8g8b8a8_unorm using special format */
-      uint32_t tmp = tu_pack_float32_for_unorm(val->depthStencil.depth, 24);
+      uint32_t tmp = tu_pack_float32_for_unorm_depth(val->depthStencil.depth, 24);
       coords[0] = fui((tmp & 0xff) / 255.0f);
       coords[1] = fui((tmp >> 8 & 0xff) / 255.0f);
       coords[2] = fui((tmp >> 16 & 0xff) / 255.0f);
       coords[3] = fui((val->depthStencil.stencil & 0xff) / 255.0f);
    } break;
    case PIPE_FORMAT_Z16_UNORM:
-      coords[0] = fui(tu_quantize_float_for_unorm(val->depthStencil.depth, 16));
+      coords[0] = fui(tu_quantize_float32_for_unorm_depth(val->depthStencil.depth, 16));
       coords[1] = 0;
       coords[2] = 0;
       coords[3] = 0;
       break;
    case PIPE_FORMAT_Z32_FLOAT:
-      coords[0] = fui(val->depthStencil.depth);
+      coords[0] = tu_pack_float32_for_d32(val->depthStencil.depth);
       coords[1] = 0;
       coords[2] = 0;
       coords[3] = 0;
@@ -2050,14 +2080,14 @@ pack_blit_event_clear_value(const VkClearValue *val, enum pipe_format format, ui
    switch (format) {
    case PIPE_FORMAT_Z24X8_UNORM:
    case PIPE_FORMAT_Z24_UNORM_S8_UINT:
-      clear_value[0] = tu_pack_float32_for_unorm(val->depthStencil.depth, 24) |
+      clear_value[0] = tu_pack_float32_for_unorm_depth(val->depthStencil.depth, 24) |
                        val->depthStencil.stencil << 24;
       return;
    case PIPE_FORMAT_Z16_UNORM:
-      clear_value[0] = tu_pack_float32_for_unorm(val->depthStencil.depth, 16);
+      clear_value[0] = tu_pack_float32_for_unorm_depth(val->depthStencil.depth, 16);
       return;
    case PIPE_FORMAT_Z32_FLOAT:
-      clear_value[0] = fui(val->depthStencil.depth);
+      clear_value[0] = tu_pack_float32_for_d32(val->depthStencil.depth);
       return;
    case PIPE_FORMAT_S8_UINT:
       clear_value[0] = val->depthStencil.stencil;
@@ -4370,7 +4400,7 @@ tu_clear_sysmem_attachments(struct tu_cmd_buffer *cmd,
             z_clear = true;
             z_clear_val = attachments[i].clearValue.depthStencil.depth;
             if (cmd->state.pass->attachments[a].format == VK_FORMAT_D16_UNORM)
-               z_clear_val = tu_quantize_float_for_unorm(z_clear_val, 16);
+               z_clear_val = tu_quantize_float32_for_unorm_depth(z_clear_val, 16);
          }
 
          if (attachments[i].aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT) {
