@@ -1480,6 +1480,15 @@ pub fn gen_encoder(
 
     isa.enums.declare(&mut ts, true);
 
+    ts.extend(quote! {
+        struct FauSpecialIndexPage { }
+        impl FauSpecialPageResolver for FauSpecialIndexPage {
+            type P0 = FauSpecialIndexPage0T;
+            type P1 = FauSpecialIndexPage1T;
+            type P3 = FauSpecialIndexPage3T;
+        }
+    });
+
     let mut instrs: BTreeMap<_, InstrEnc> = Default::default();
     for i in isa.instrs {
         instrs

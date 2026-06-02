@@ -1,8 +1,10 @@
 // Copyright © 2026 Collabora, Ltd.
+// Copyright © 2026 Arm Ltd.
 // SPDX-License-Identifier: MIT
 
 use crate::ir::{DataType, SmallConstant};
 use compiler::enum_as_u8::*;
+use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub enum EncodeError {
@@ -104,6 +106,32 @@ pub enum ExecUnit {
     Sfu,
 }
 
+pub trait FauSpecialPageResolver {
+    type P0: TryDecode<u8> + std::fmt::Display;
+    type P1: TryDecode<u8> + std::fmt::Display;
+    type P3: TryDecode<u8> + std::fmt::Display;
+
+    fn get_name(page: u8, idx: u8, arch: u8) -> Result<String, EncodeError>
+    where
+        EncodeError: From<<Self::P0 as TryDecode<u8>>::Error>,
+        EncodeError: From<<Self::P1 as TryDecode<u8>>::Error>,
+        EncodeError: From<<Self::P3 as TryDecode<u8>>::Error>,
+    {
+        match page {
+            0 => Self::P0::try_decode(idx, arch)
+                .map(|x| format!("{}", x))
+                .map_err(|e| e.into()),
+            1 => Self::P1::try_decode(idx, arch)
+                .map(|x| format!("{}", x))
+                .map_err(|e| e.into()),
+            3 => Self::P3::try_decode(idx, arch)
+                .map(|x| format!("{}", x))
+                .map_err(|e| e.into()),
+            _ => Err("Invalid fau_page_index".into()),
+        }
+    }
+}
+
 pub struct InstructionSrcInfo<S: EnumAsU8> {
     pub allowed_swizzles: U8EnumSet<S, 2>,
     pub is_src64: bool,
@@ -202,6 +230,131 @@ pub struct SrWriteLanes<L: Copy> {
 }
 
 pub mod v9 {
+    enum SourceEncodingX<T, R, const IS64: bool>
+    where
+        T: SmallConstantTable + std::fmt::Display,
+        R: FauSpecialPageResolver,
+    {
+        Register {
+            idx: u8,
+            last: bool,
+        },
+        Fau {
+            idx: u8,
+            page: u8,
+            fau32: bool,
+        },
+        SmallConst(T),
+        FauSpec {
+            word_select: bool,
+            name: String,
+            _r: PhantomData<R>,
+        },
+    }
+
+    // TODO v14: zext
+    impl<T, R, const IS64: bool> SourceEncodingX<T, R, IS64>
+    where
+        EncodeError: From<<T as TryDecode<u8>>::Error>,
+        T: SmallConstantTable + std::fmt::Display,
+        R: FauSpecialPageResolver,
+        EncodeError: From<<R::P0 as TryDecode<u8>>::Error>,
+        EncodeError: From<<R::P1 as TryDecode<u8>>::Error>,
+        EncodeError: From<<R::P3 as TryDecode<u8>>::Error>,
+    {
+        fn try_decode(
+            v: u8,
+            arch: u8,
+            fau_page_index: u8,
+            fau32: bool,
+        ) -> std::result::Result<SourceEncodingX<T, R, IS64>, EncodeError>
+        {
+            if arch > 14 {
+                return Err("Only supports up to v14 atm".into());
+            }
+            let mode = (v >> 6) & 0b11;
+            let mode2 = (v >> 5) & 0b1;
+            match (mode, mode2) {
+                (0b00, _) | (0b01, _) => Ok(SourceEncodingX::Register {
+                    idx: v & 0x3f,
+                    last: mode != 0,
+                }),
+                (0b10, _) => Ok(SourceEncodingX::Fau {
+                    idx: v & 0x3f,
+                    page: fau_page_index,
+                    fau32,
+                }),
+                (0b11, 0b0) => {
+                    let as_enum = T::try_decode((v & 0x1f) as u8, arch)?;
+                    Ok(SourceEncodingX::SmallConst(as_enum))
+                }
+                (0b11, 0b1) => {
+                    let idx32 = (v & 0x1f) >> 1;
+                    let word_select = (v & 0b1) == 1;
+                    let name = R::get_name(fau_page_index, idx32, arch)?;
+                    Ok(SourceEncodingX::FauSpec {
+                        word_select,
+                        name,
+                        _r: PhantomData,
+                    })
+                }
+                _ => Err("Invalid SourceEncoding".into()),
+            }
+        }
+    }
+
+    impl<T, R, const IS64: bool> std::fmt::Display for SourceEncodingX<T, R, IS64>
+    where
+        T: SmallConstantTable + std::fmt::Display,
+        R: FauSpecialPageResolver,
+    {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                SourceEncodingX::Register { idx, last } => {
+                    let tag = if *last { "^" } else { "" };
+                    if IS64 {
+                        write!(f, "[r{}{}:r{}{}]", idx, tag, idx + 1, tag)
+                    } else {
+                        write!(f, "r{}{}", idx, tag)
+                    }
+                }
+                SourceEncodingX::SmallConst(value) => {
+                    write!(f, "{}", value)
+                }
+                SourceEncodingX::Fau { idx, page, fau32 } => {
+                    if *fau32 {
+                        write!(f, "u{}", 64 * page + idx)
+                    } else {
+                        let hl = if IS64 {
+                            ""
+                        } else if (idx & 0b1) == 1 {
+                            ".w1"
+                        } else {
+                            ".w0"
+                        };
+                        let idx32 = idx >> 1;
+                        write!(f, "u{}{}", 32 * page + idx32, hl)
+                    }
+                }
+                SourceEncodingX::FauSpec {
+                    name, word_select, ..
+                } => {
+                    let hl = if IS64 {
+                        ""
+                    } else if *word_select {
+                        ".w1"
+                    } else {
+                        ".w0"
+                    };
+                    write!(f, "{}{}", &name, hl)
+                }
+            }
+        }
+    }
+
+    type SourceEncoding<T, R> = SourceEncodingX<T, R, false>;
+    type SourceEncoding64<T, R> = SourceEncodingX<T, R, true>;
+
     use kraid_proc_macros::*;
     gen_isa_encode!("isa-v9-v14.xml", 9..=14);
 }
