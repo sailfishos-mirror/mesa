@@ -5,6 +5,7 @@ mod bitview;
 mod builder;
 mod compile;
 mod data_type;
+pub mod decode;
 mod dst_mod_prop;
 mod encode_v9;
 mod flow;
