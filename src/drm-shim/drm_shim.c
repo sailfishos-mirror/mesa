@@ -100,14 +100,10 @@ REAL_FUNCTION_POINTER(fstat64);
 #define STRINGIZE(x) STRINGIZE2(x)
 
 static char render_node_dir[] = "/dev/dri/";
-/* Full path of /dev/dri/renderD* */
-static char *render_node_path;
-/* renderD* */
-static char *render_node_dirent_name;
-/* /sys/dev/char/major:minor/device */
-static int device_path_len;
-static char *device_path;
-int render_node_minor = -1;
+static const char *render_node_path = "/dev/dri/renderD128";
+static const char *render_node_dirent_name = "renderD128";
+static const char *device_path = "/sys/dev/char/" STRINGIZE(DRM_MAJOR) ":128/device";
+const int render_node_minor = 128;
 
 struct file_override {
    const char *path;
@@ -133,17 +129,6 @@ nfasprintf(char **restrict strp, const char *restrict fmt, ...)
    int ret = nfvasprintf(strp, fmt, ap);
    va_end(ap);
    return ret;
-}
-
-/* Pick the minor and filename for our shimmed render node.  We always replace
- * the first render node.
- */
-static void
-get_dri_render_node_minor(void)
-{
-   render_node_dirent_name = strdup("renderD128");
-   render_node_path = strdup("/dev/dri/renderD128");
-   render_node_minor = 128;
 }
 
 static void *get_function_pointer(const char *name)
@@ -240,10 +225,7 @@ static void
 destroy_shim(void)
 {
    _mesa_set_destroy(opendir_set, NULL);
-   free(render_node_path);
-   free(render_node_dirent_name);
 
-   render_node_minor = -1;
    file_overrides_count = 0;
    p_atomic_set(&inited, 0);
 }
@@ -266,17 +248,10 @@ init_shim(void)
 
    get_function_pointers();
 
-   get_dri_render_node_minor();
-
    if (drm_shim_debug) {
       fprintf(stderr, "Initializing DRM shim on %s\n",
               render_node_path);
    }
-
-   device_path_len =
-      nfasprintf(&device_path,
-                 "/sys/dev/char/%d:%d/device",
-                 DRM_MAJOR, render_node_minor);
 
    drm_shim_device_init();
 
@@ -303,7 +278,7 @@ static bool hide_drm_device_path(const char *path)
 {
    /* If the path looks like our fake render node device, then don't hide it.
     */
-   if (strncmp(path, device_path, device_path_len) == 0 ||
+   if (strncmp(path, device_path, strlen(device_path)) == 0 ||
        strcmp(path, render_node_path) == 0)
       return false;
 

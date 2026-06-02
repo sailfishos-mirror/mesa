@@ -92,7 +92,7 @@ struct shim_bo {
 };
 
 /* Core support. */
-extern int render_node_minor;
+extern const int render_node_minor;
 bool drm_shim_inited(void);
 void drm_shim_device_init(void);
 void drm_shim_pci_device_setup(uint16_t vendor_id, uint16_t device_id,
