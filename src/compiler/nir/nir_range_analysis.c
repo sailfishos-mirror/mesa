@@ -2456,9 +2456,9 @@ ssa_def_bits_used(const nir_def *def, unsigned comp, int recur)
 }
 
 uint64_t
-nir_def_bits_used(const nir_def *def, unsigned comp)
+nir_def_bits_used(nir_scalar def)
 {
-   return ssa_def_bits_used(def, comp, 2);
+   return ssa_def_bits_used(def.def, def.comp, 2);
 }
 
 static void
@@ -2632,8 +2632,10 @@ nir_gather_type_uses_of_float_def(nir_def *def,
          case nir_op_f2u32:
          case nir_op_f2u64:
             *integer_uses |= src_mask;
-            if (integer_bits_used)
-               integer_bits_used[src0_comp] |= nir_def_bits_used(&alu->def, i);
+            if (integer_bits_used) {
+               integer_bits_used[src0_comp] |=
+                  nir_def_bits_used(nir_get_scalar(&alu->def, i));
+            }
             break;
 
          case nir_op_ftrunc:
