@@ -117,6 +117,9 @@ _libcompiler_bindings = static_library(
   'compiler_bindings',
   ['bindings.h', _compiler_bindings_rs[1]],
   gnu_symbol_visibility : 'hidden',
+  include_directories : [
+    fs.relative_to(meson.project_build_root(), meson.current_source_dir()),
+  ],
   c_args : [
     pre_args,
     cc.get_supported_arguments('-Wno-missing-prototypes'),
