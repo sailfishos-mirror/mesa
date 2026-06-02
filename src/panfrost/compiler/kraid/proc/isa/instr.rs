@@ -22,8 +22,8 @@ impl XmlElement {
 #[derive(Clone)]
 pub enum FieldType {
     Enum(Rc<Enum>),
-    PcRelOffsetSigned,
-    PcRelOffsetUnsigned,
+    PcRelOffsetSigned(u8),
+    PcRelOffsetUnsigned(u8),
     Source,
     Source64,
     Int(u8),
@@ -37,8 +37,8 @@ impl FieldType {
         }
 
         match type_ {
-            "pc_rel_label_signed" => Ok(FieldType::PcRelOffsetSigned),
-            "pc_rel_label_unsigned" => Ok(FieldType::PcRelOffsetUnsigned),
+            "pc_rel_label_signed" => Ok(FieldType::PcRelOffsetSigned(bits)),
+            "pc_rel_label_unsigned" => Ok(FieldType::PcRelOffsetUnsigned(bits)),
             "SourceEncoding" => Ok(FieldType::Source),
             "SourceEncoding64" => Ok(FieldType::Source64),
             "float" | "V2F16" | "V2I16" | "V4I8" => {

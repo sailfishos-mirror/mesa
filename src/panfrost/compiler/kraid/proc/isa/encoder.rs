@@ -159,9 +159,8 @@ impl SrcType {
                     SrcType::HWEnum(e.clone())
                 }
             }
-            FieldType::PcRelOffsetSigned | FieldType::PcRelOffsetUnsigned => {
-                SrcType::PcRelOffset
-            }
+            FieldType::PcRelOffsetSigned(_)
+            | FieldType::PcRelOffsetUnsigned(_) => SrcType::PcRelOffset,
             FieldType::Source | FieldType::Source64 => SrcType::Src,
             FieldType::Int(bits) => SrcType::Int(*bits),
             FieldType::Uint(bits) => SrcType::Uint(*bits),
@@ -236,8 +235,8 @@ fn field_type_to_tokens(field_type: &FieldType) -> TokenStream2 {
             let ident = &e.ident;
             quote! { #ident }
         }
-        FieldType::PcRelOffsetSigned => quote! { i64 },
-        FieldType::PcRelOffsetUnsigned => quote! { u64 },
+        FieldType::PcRelOffsetSigned(_) => quote! { i64 },
+        FieldType::PcRelOffsetUnsigned(_) => quote! { u64 },
         FieldType::Source => quote! { u16 },
         FieldType::Source64 => quote! { u16 },
         FieldType::Int(bits) => {
