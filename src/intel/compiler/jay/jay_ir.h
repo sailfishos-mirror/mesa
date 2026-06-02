@@ -19,13 +19,6 @@
 #include "util/u_math.h"
 #include "jay_opcodes.h"
 
-enum PACKED jay_arf {
-   JAY_ARF_NULL = 0,
-   JAY_ARF_MASK = BRW_ARF_MASK,
-   JAY_ARF_CONTROL = BRW_ARF_CONTROL,
-   JAY_ARF_TIMESTAMP = BRW_ARF_TIMESTAMP,
-};
-
 enum PACKED jay_file {
    /** Bit 0 of each file indicates whether it is uniform or not */
    JAY_UNIFORM = 0x1,

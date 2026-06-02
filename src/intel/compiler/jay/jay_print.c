@@ -24,11 +24,11 @@ static const char *gen_condition_str[] = {
    [GEN_CONDITION_OV] = ".ov", [GEN_CONDITION_UN] = ".nan",
 };
 
-static const char *jay_arf_str[] = {
-   [JAY_ARF_NULL] = "_",
-   [JAY_ARF_MASK] = "mask",
-   [JAY_ARF_CONTROL] = "ctrl",
-   [JAY_ARF_TIMESTAMP] = "timestamp",
+static const char *gen_arf_str[] = {
+   [GEN_ARF_NULL] = "_",
+   [GEN_ARF_MASK] = "mask",
+   [GEN_ARF_CONTROL] = "ctrl",
+   [GEN_ARF_TIMESTAMP] = "timestamp",
 };
 
 static const char *jay_file_str[JAY_FILE_LAST + 1] = {
@@ -70,7 +70,7 @@ jay_print_def(FILE *fp, const jay_inst *I, int src)
       has_reg = false;
       fprintf(fp, "_");
    } else if (def.file == J_ARF) {
-      fputs(ENUM_TO_STR(jay_base_index(def), jay_arf_str), fp);
+      fputs(ENUM_TO_STR(jay_base_index(def), gen_arf_str), fp);
    } else if (def.collect) {
       assert(has_index && "else would be contiguous");
       fprintf(fp, "(");

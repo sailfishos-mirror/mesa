@@ -1370,7 +1370,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
        * instructions cannot read ARF. Instead use a 2x32-bit vectorized move.
        */
       assert(dst.file == UGPR && "required for vectorization");
-      jay_MOV(b, dst, jay_contiguous_def(J_ARF, JAY_ARF_TIMESTAMP, 2))->type =
+      jay_MOV(b, dst, jay_contiguous_def(J_ARF, GEN_ARF_TIMESTAMP, 2))->type =
          JAY_TYPE_U32;
       break;
 
