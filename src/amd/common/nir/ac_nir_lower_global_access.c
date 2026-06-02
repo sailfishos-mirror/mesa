@@ -60,10 +60,16 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, ui
    nir_alu_instr *alu = nir_def_as_alu(scalar->def);
 
    nir_scalar src = *scalar;
-   if (is_u2u64(&src) && *out_offset == NULL) {
-      try_extract_additions(state, b, &src, out_const, out_offset, true);
+   if (is_u2u64(&src)) {
+      bool rewrite_src = try_extract_additions(state, b, &src, out_const, out_offset, true);
       b->cursor = nir_after_instr(&alu->instr);
-      *out_offset = nir_mov_scalar(b, src);
+      if (src.def && *out_offset == NULL) {
+         *out_offset = nir_mov_scalar(b, src);
+      } else if (src.def) {
+         if (rewrite_src)
+            *scalar = nir_get_scalar(nir_u2u64(b, nir_mov_scalar(b, src)), 0);
+         return rewrite_src;
+      }
       scalar->def = NULL;
       return true;
    } else if (nir_scalar_alu_op(*scalar) == nir_op_iadd) {
