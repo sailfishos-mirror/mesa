@@ -46,11 +46,40 @@ is_nuw(lower_state *state, nir_alu_instr *alu, nir_scalar src0, nir_scalar src1)
 }
 
 static bool
+parse_imul(nir_scalar *def, uint64_t *c, bool require_nuw)
+{
+   if (!nir_scalar_is_alu(*def))
+      return false;
+
+   nir_op op = nir_scalar_alu_op(*def);
+   if (op != nir_op_ishl && op != nir_op_imul)
+      return false;
+
+   if (require_nuw && !nir_def_as_alu(def->def)->no_unsigned_wrap)
+      return false;
+
+   nir_scalar src0 = nir_scalar_chase_alu_src(*def, 0);
+   nir_scalar src1 = nir_scalar_chase_alu_src(*def, 1);
+   if (op != nir_op_ishl && nir_scalar_is_const(src0)) {
+      *c = nir_scalar_as_uint(src0);
+      *def = src1;
+   } else if (nir_scalar_is_const(src1)) {
+      *c = nir_scalar_as_uint(src1);
+      *def = src0;
+   } else {
+      return false;
+   }
+   if (op == nir_op_ishl)
+      *c = UINT64_C(1) << (*c & (def->def->bit_size - 1));
+   return true;
+}
+
+static bool
 try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, uint64_t *out_const,
-                      nir_def **out_offset, bool require_nuw)
+                      nir_def **out_offset, bool require_nuw, uint64_t mul)
 {
    if (nir_scalar_is_const(*scalar)) {
-      *out_const += nir_scalar_as_uint(*scalar);
+      *out_const += nir_scalar_as_uint(*scalar) * mul;
       scalar->def = NULL;
       return true;
    }
@@ -59,11 +88,19 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, ui
       return false;
    nir_alu_instr *alu = nir_def_as_alu(scalar->def);
 
+   uint64_t c;
    nir_scalar src = *scalar;
-   if (is_u2u64(&src)) {
-      bool rewrite_src = try_extract_additions(state, b, &src, out_const, out_offset, true);
+   if (parse_imul(&src, &c, require_nuw)) {
+      if (try_extract_additions(state, b, &src, out_const, out_offset, require_nuw, mul * c)) {
+         b->cursor = nir_after_instr(&alu->instr);
+         *scalar = nir_get_scalar(src.def ? nir_imul_imm(b, nir_mov_scalar(b, src), c) : NULL, 0);
+         return true;
+      }
+      return false;
+   } else if (is_u2u64(&src)) {
+      bool rewrite_src = try_extract_additions(state, b, &src, out_const, out_offset, true, mul);
       b->cursor = nir_after_instr(&alu->instr);
-      if (src.def && *out_offset == NULL) {
+      if (src.def && mul == 1 && *out_offset == NULL) {
          *out_offset = nir_mov_scalar(b, src);
       } else if (src.def) {
          if (rewrite_src)
@@ -84,9 +121,9 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, ui
       bool swap = is_u2u64(&src1_conv);
 
       bool rewrite_src0 = try_extract_additions(
-         state, b, swap ? &src1 : &src0, out_const, out_offset, require_nuw);
+         state, b, swap ? &src1 : &src0, out_const, out_offset, require_nuw, mul);
       bool rewrite_src1 = try_extract_additions(
-         state, b, swap ? &src0 : &src1, out_const, out_offset, require_nuw);
+         state, b, swap ? &src0 : &src1, out_const, out_offset, require_nuw, mul);
       if (!rewrite_src0 && !rewrite_src1)
          return false;
 
@@ -136,7 +173,7 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
    uint64_t off_const = 0;
    nir_def *offset = NULL;
    nir_scalar src = nir_get_scalar(addr_src->ssa, 0);
-   try_extract_additions(state, b, &src, &off_const, &offset, false);
+   try_extract_additions(state, b, &src, &off_const, &offset, false, 1);
 
    b->cursor = nir_before_instr(&intrin->instr);
    nir_def *addr = src.def ? nir_mov_scalar(b, src) : nir_imm_int64(b, 0);
