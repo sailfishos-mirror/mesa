@@ -319,6 +319,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_btd_local_arg_addr_intel:
    case nir_intrinsic_load_simd_width_intel:
    case nir_intrinsic_load_ray_num_dss_rt_stacks_intel:
+   case nir_intrinsic_load_topology_id_intel:
    case nir_intrinsic_load_lshs_vertex_stride_amd:
    case nir_intrinsic_load_esgs_vertex_stride_amd:
    case nir_intrinsic_load_hs_out_patch_data_offset_amd:
@@ -998,7 +999,6 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_intersection_opaque_amd:
    case nir_intrinsic_load_vector_arg_amd:
    case nir_intrinsic_load_btd_stack_id_intel:
-   case nir_intrinsic_load_topology_id_intel:
    case nir_intrinsic_load_scratch_base_ptr:
    case nir_intrinsic_ordered_xfb_counter_add_gfx11_amd:
    case nir_intrinsic_ordered_add_loop_gfx12_amd:

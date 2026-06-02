@@ -2851,9 +2851,10 @@ intrinsic("test_fs_config_intel", dest_comp=1, src_comp=[],
 # The (linear) local invocation index provided in the payload of mesh/task shaders.
 system_value("local_invocation_index_intel", 1)
 
+# The raw value of SR0.0, the contents vary from generation to generation
+system_value("topology_id_intel", 1)
+
 # Intrinsics for Intel bindless thread dispatch
-# BASE=brw_topoloy_id
-system_value("topology_id_intel", 1, indices=[BASE])
 system_value("btd_stack_id_intel", 1)
 system_value("btd_global_arg_addr_intel", 1, bit_sizes=[64])
 system_value("btd_local_arg_addr_intel", 1, bit_sizes=[64])
