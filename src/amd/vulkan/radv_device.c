@@ -1405,7 +1405,10 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
                                       : device->ws->copy_sync_payloads;
 
    /* VM_ALWAYS_VALID must be supported. */
-   assert(pdev->info.has_vm_always_valid);
+   if (!pdev->info.has_vm_always_valid) {
+      result = VK_ERROR_INITIALIZATION_FAILED;
+      goto fail;
+   }
 
    device->overallocation_disallowed = overallocation_disallowed;
    mtx_init(&device->overallocation_mutex, mtx_plain);
