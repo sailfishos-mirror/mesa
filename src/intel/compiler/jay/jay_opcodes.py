@@ -62,6 +62,7 @@ def op(name: str, num_srcs: int, types: str | None = None,
                             extra_struct_)
 
 
+op('nop', 0, 'untyped', Props.NO_DEST)
 op('and', 2, 'u1 u16 u32', Props.NEGATE | Props.CMOD | Props.COMMUTATIVE)
 op('or',  2, 'u1 u16 u32', Props.NEGATE | Props.CMOD | Props.COMMUTATIVE)
 op('xor', 2, 'u1 u16 u32', Props.NEGATE | Props.CMOD | Props.COMMUTATIVE)

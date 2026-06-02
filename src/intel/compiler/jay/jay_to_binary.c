@@ -16,6 +16,7 @@
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
 #include "jay.h"
+#include "jay_builder.h"
 #include "jay_ir.h"
 #include "jay_opcodes.h"
 #include "jay_private.h"
@@ -278,6 +279,7 @@ static const struct {
    OP(MUL_32X16, MUL, 2),
    OP(MUL, MUL, 2),
    OP(NOT, NOT, 1),
+   OP(NOP, NOP, 0),
    OP(OFFSET_PACKED_PIXEL_COORDS, ADD, 1),
    OP(OR, OR, 2),
    OP(QUAD_SWIZZLE, MOV, 1),
@@ -597,10 +599,27 @@ jay_to_binary(jay_shader *s,
 
    int total_gen_insts = 0;
    jay_foreach_function(s, f) {
+      jay_inst *last = NULL;
+
       jay_foreach_block(f, block) {
-         jay_foreach_inst_in_block(block, I) {
+         jay_foreach_inst_in_block_safe(block, I) {
             total_gen_insts +=
                (1 << jay_simd_split(s, I)) * jay_macro_length(I);
+
+            /* Workaround for an issue with branch prediction for WHILE
+             * instructions that may lead to misrendering or GPU hangs.
+             * See HSDs 22020521218 and 16026360541.
+             */
+            if (I->op == JAY_OPCODE_WHILE &&
+                (last && jay_op_is_control_flow(last->op)) &&
+                s->devinfo->ver >= 20) {
+
+               jay_builder b = jay_init_builder(f, jay_before_inst(I));
+               jay_NOP(&b);
+               total_gen_insts++;
+            }
+
+            last = I;
          }
       }
    }
