@@ -1592,8 +1592,12 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          assert(intr->def.num_components == 1 && "should be scalarized");
       }
 
-      /* Zeroth delta is the flat value */
-      jay_copy(b, dst, fs->deltas[i]);
+      /* Zeroth delta is the flat value; .yz deltas are reversed from NIR */
+      jay_MOV(b, jay_extract(dst, 0), jay_extract(fs->deltas[i], 0));
+      if (intr->def.num_components > 1) {
+         jay_MOV(b, jay_extract(dst, 1), jay_extract(fs->deltas[i], 2));
+         jay_MOV(b, jay_extract(dst, 2), jay_extract(fs->deltas[i], 1));
+      }
       break;
    }
 
@@ -2716,12 +2720,7 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    unsigned nr_attribs = 16 * 4; /* TODO */
    for (unsigned i = 0; i < nr_attribs; ++i) {
-      jay_def comps[] = { read_payload(p, UGPR), read_payload(p, UGPR),
-                          read_payload(p, UGPR) };
-
-      /* The .yz components are swizzled in the hardware compared to NIR. */
-      SWAP(comps[1], comps[2]);
-      fs->deltas[i] = jay_collect_vectors(&nj->bld, comps, ARRAY_SIZE(comps));
+      fs->deltas[i] = read_vector_payload(p, UGPR, 3);
 
       /* Padding */
       if ((i % 5) == 4) {
