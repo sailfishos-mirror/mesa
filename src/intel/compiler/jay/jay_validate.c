@@ -215,6 +215,10 @@ validate_inst(struct validate_state *validate, jay_inst *I)
           I->cond_flag.file == UFLAG &&
           (I->op == JAY_OPCODE_CMP || I->op == JAY_OPCODE_MOV)));
 
+   /* We cannot mix uniformness */
+   CHECK(I->cond_flag.file != UFLAG || I->dst.file != GPR);
+   CHECK(I->cond_flag.file != FLAG || I->dst.file != UGPR);
+
    /* Standard modifiers only allowed on some instructions */
    CHECK(!I->conditional_mod || opinfo->cmod || I->op == JAY_OPCODE_CSEL);
    CHECK(!I->saturate || opinfo->sat);
