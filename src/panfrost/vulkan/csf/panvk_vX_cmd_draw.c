@@ -1432,13 +1432,9 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
 #endif
 
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
-
-#if PAN_ARCH >= 14
-   // TODO: Implement IR support for v14.
-#else
    for (uint32_t ir_pass = 0; ir_pass < PANVK_IR_PASS_COUNT; ir_pass++) {
-      struct pan_ptr ir_fbds = panvk_cmd_alloc_dev_mem(
-         cmdbuf, desc, fbds_sz, pan_alignment(FRAMEBUFFER));
+      struct pan_ptr ir_fbds =
+         panvk_cmd_alloc_dev_mem(cmdbuf, desc, fbds_sz, fbds_alignment);
 
       if (!ir_fbds.gpu)
          return VK_ERROR_OUT_OF_DEVICE_MEMORY;
@@ -1490,7 +1486,6 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
 
    /* Wait for IR info push to complete */
    cs_wait_slot(b, SB_ID(LS));
-#endif /* PAN_ARCH >= 14 */
 
    if (copy_fbds) {
       struct cs_index cur_tiler = cs_reg64(b, PANVK_CS_REG_TILER_DESC_PTR);
@@ -3452,21 +3447,10 @@ calc_tiler_oom_handler_idx(struct panvk_cmd_buffer *cmdbuf)
 static void
 setup_tiler_oom_ctx(struct panvk_cmd_buffer *cmdbuf)
 {
-#if PAN_ARCH >= 14
-   // TODO: Implement IR support for v14.
-#else
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
-   const struct pan_fb_layout *fb = &cmdbuf->state.gfx.render.fb.layout;
-   const bool has_zs_ext = pan_fb_has_zs(fb);
-   struct mali_framebuffer_pointer_packed fb_tag;
 
    uint32_t layer_count = cmdbuf->state.gfx.render.layer_count;
    uint32_t td_count = DIV_ROUND_UP(layer_count, MAX_LAYERS_PER_TILER_DESC);
-
-   pan_pack(&fb_tag, FRAMEBUFFER_POINTER, cfg) {
-      cfg.zs_crc_extension_present = has_zs_ext;
-      cfg.render_target_count = fb->rt_count;
-   }
 
    struct cs_index counter = cs_scratch_reg32(b, 1);
    cs_move32_to(b, counter, 0);
@@ -3474,8 +3458,21 @@ setup_tiler_oom_ctx(struct panvk_cmd_buffer *cmdbuf)
               TILER_OOM_CTX_FIELD_OFFSET(counter));
 
    struct cs_index fbd_ptr_reg = cs_scratch_reg64(b, 6);
+#if PAN_ARCH >= 14
+   cs_add_imm64(b, fbd_ptr_reg, cs_sr_reg64(b, FRAGMENT, FBD_POINTER), 0);
+#else
+   const struct pan_fb_layout *fb = &cmdbuf->state.gfx.render.fb.layout;
+   const bool has_zs_ext = pan_fb_has_zs(fb);
+
+   struct mali_framebuffer_pointer_packed fb_tag;
+   pan_pack(&fb_tag, FRAMEBUFFER_POINTER, cfg) {
+      cfg.zs_crc_extension_present = has_zs_ext;
+      cfg.render_target_count = fb->rt_count;
+   }
+
    cs_add_imm64(b, fbd_ptr_reg, cs_sr_reg64(b, FRAGMENT, FBD_POINTER),
                 -(int32_t)fb_tag.opaque[0]);
+#endif
    cs_store64(b, fbd_ptr_reg, cs_subqueue_ctx_reg(b),
               TILER_OOM_CTX_FIELD_OFFSET(layer_fbd_ptr));
 
@@ -3499,7 +3496,6 @@ setup_tiler_oom_ctx(struct panvk_cmd_buffer *cmdbuf)
               TILER_OOM_CTX_FIELD_OFFSET(layer_count));
 
    cs_flush_stores(b);
-#endif /* PAN_ARCH >= 14 */
 }
 
 static uint32_t
@@ -3585,9 +3581,7 @@ cs_emit_static_fragment_state(struct cs_builder *b,
 static VkResult
 issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
 {
-#if PAN_ARCH < 14
    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
-#endif
    const struct cs_tracing_ctx *tracing_ctx =
       &cmdbuf->state.cs[PANVK_SUBQUEUE_FRAGMENT].tracing;
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
@@ -3638,9 +3632,6 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
     * state for this renderpass, so it's safe to enable. */
    struct cs_index addr_reg = cs_scratch_reg64(b, 0);
    struct cs_index length_reg = cs_scratch_reg32(b, 2);
-#if PAN_ARCH >= 14
-   // TODO: Implement IR support for v14.
-#else
    uint32_t handler_idx = calc_tiler_oom_handler_idx(cmdbuf);
    uint64_t handler_addr = dev->tiler_oom.handlers_bo->addr.dev +
                            handler_idx * dev->tiler_oom.handler_stride;
@@ -3648,7 +3639,6 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
    cs_move32_to(b, length_reg, dev->tiler_oom.handler_stride);
    cs_set_exception_handler(b, MALI_CS_EXCEPTION_TYPE_TILER_OOM, addr_reg,
                             length_reg);
-#endif
 
    /* Wait for the tiling to be done before submitting the fragment job. */
    wait_finish_tiling(cmdbuf);
@@ -3663,12 +3653,8 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
     * up. */
    cs_move64_to(b, addr_reg, 0);
    cs_move32_to(b, length_reg, 0);
-#if PAN_ARCH >= 14
-   // TODO: Implement IR support for v14.
-#else
    cs_set_exception_handler(b, MALI_CS_EXCEPTION_TYPE_TILER_OOM, addr_reg,
                             length_reg);
-#endif
 
    /* Applications tend to forget to describe subpass dependencies, especially
     * when it comes to write -> read dependencies on attachments. The

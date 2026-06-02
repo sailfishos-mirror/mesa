@@ -29,6 +29,39 @@ copy_fbd(struct cs_builder *b, bool has_zs_ext, uint32_t rt_count,
          struct cs_index src_tiler, struct cs_index src_other,
          struct cs_index dst)
 {
+#if PAN_ARCH >= 14
+   const size_t fbd_size = ALIGN_POT(sizeof(struct panvk_fb_layer_state), 64);
+#else
+   const size_t fbd_size = pan_size(FRAMEBUFFER);
+#endif
+   const uint16_t dbd_offset = fbd_size;
+   const uint16_t rts_offset =
+      fbd_size + (has_zs_ext ? sizeof(struct mali_zs_crc_extension_packed) : 0);
+
+#if PAN_ARCH >= 14
+   /* Copy the layer state from src_other, but preserve the tiler descriptor
+    * pointer from src_tiler. We also need to repoint the DBD/RTD pointers to
+    * the copies that are written after the layer state in dst.
+    */
+   cs_load64_to(b, cs_scratch_reg64(b, 0), src_tiler,
+                offsetof(struct panvk_fb_layer_state, tiler));
+   cs_load_to(b, cs_scratch_reg_tuple(b, 2, 6), src_other, BITFIELD_MASK(6),
+              2 * sizeof(uint32_t));
+   cs_store(b, cs_scratch_reg_tuple(b, 0, 8), dst, BITFIELD_MASK(8), 0);
+
+   cs_load_to(b, cs_scratch_reg_tuple(b, 0, 2), src_other, BITFIELD_MASK(2),
+              8 * sizeof(uint32_t));
+   cs_store(b, cs_scratch_reg_tuple(b, 0, 2), dst, BITFIELD_MASK(2),
+            8 * sizeof(uint32_t));
+
+   if (has_zs_ext)
+      cs_add_imm64(b, cs_scratch_reg64(b, 0), dst, dbd_offset);
+   else
+      cs_move64_to(b, cs_scratch_reg64(b, 0), 0);
+   cs_add_imm64(b, cs_scratch_reg64(b, 2), dst, rts_offset);
+   cs_store(b, cs_scratch_reg_tuple(b, 0, 4), dst, BITFIELD_MASK(4),
+            10 * sizeof(uint32_t));
+#else
    /* Copy the FBD from src to dst. Most words come from
     * src_other, but the tiler desc pointer is taken from src_tiler.
     */
@@ -42,16 +75,9 @@ copy_fbd(struct cs_builder *b, bool has_zs_ext, uint32_t rt_count,
                 14 * sizeof(uint32_t));
    cs_store(b, cs_scratch_reg_tuple(b, 0, 8), dst, BITFIELD_MASK(8),
             8 * sizeof(uint32_t));
-
-#if PAN_ARCH >= 14
-   const size_t fbd_size = ALIGN_POT(sizeof(struct panvk_fb_layer_state), 64);
-#else
-   const size_t fbd_size = sizeof(struct mali_framebuffer_packed);
 #endif
 
    if (has_zs_ext) {
-      const uint16_t dbd_offset = fbd_size;
-
       /* Copy the whole DBD. */
       cs_load_to(b, cs_scratch_reg_tuple(b, 0, 8), src_other,
                  BITFIELD_MASK(8), dbd_offset);
@@ -62,9 +88,6 @@ copy_fbd(struct cs_builder *b, bool has_zs_ext, uint32_t rt_count,
       cs_store(b, cs_scratch_reg_tuple(b, 0, 8), dst,
                BITFIELD_MASK(8), dbd_offset + (8 * sizeof(uint32_t)));
    }
-
-   const uint16_t rts_offset =
-      fbd_size + (has_zs_ext ? sizeof(struct mali_zs_crc_extension_packed) : 0);
 
    for (uint32_t rt = 0; rt < rt_count; rt++) {
       const uint16_t rt_offset =
