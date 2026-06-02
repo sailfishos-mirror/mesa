@@ -646,4 +646,44 @@ impl Instr {
     pub fn has_field_named(&self, name: &str) -> bool {
         self.get_named_field(name).is_some()
     }
+
+    /// WARNING: This is only correct when requesting fields that exist!
+    pub fn get_sr_index_field(&self, input: bool) -> Option<&InstrField> {
+        let write_sr = self.get_named_field("staging_register_write_index");
+        let any_sr = self.get_named_field("staging_register_index");
+
+        // If the instruction reads and writes, write is in the _write_ version.
+        // Otherwise there's only the non-write one for both use-cases.
+        if !input && write_sr.is_some() {
+            write_sr
+        } else {
+            any_sr
+        }
+    }
+
+    /// WARNING: This is only correct when requesting fields that exist!
+    pub fn get_sr_count_field(&self, input: bool) -> Option<&InstrField> {
+        // There are some which don't follow the general mapping.
+        let write_count_name = if self.name.starts_with("VAR_TEX") {
+            Some("sr_write_count")
+        } else {
+            let sr_name =
+                self.get_sr_index_field(input).and_then(InstrField::name);
+            match sr_name {
+                Some("staging_register_index") => Some("sr_count"),
+                Some("staging_register_write_index") => Some("sr_write_count"),
+                _ => None,
+            }
+        };
+
+        write_count_name.and_then(|n| self.get_named_field(n))
+    }
+
+    pub fn full_name(&self) -> String {
+        if let Some(variant) = &self.variant {
+            format!("{}.{}", &self.name, variant)
+        } else {
+            self.name.clone()
+        }
+    }
 }
