@@ -449,9 +449,9 @@ zink_clear_texture_dynamic(struct pipe_context *pctx,
    struct zink_screen *screen = zink_screen(pctx->screen);
    struct zink_resource *res = zink_resource(pres);
 
-   bool full_clear = 0 <= box->x && u_minify(pres->width0, level) >= box->x + box->width &&
-                     0 <= box->y && u_minify(pres->height0, level) >= box->y + box->height &&
-                     0 <= box->z && u_minify(pres->target == PIPE_TEXTURE_3D ? pres->depth0 : pres->array_size, level) >= box->z + box->depth;
+   bool full_clear = 0 >= box->x && u_minify(pres->width0, level) >= box->width &&
+                     0 >= box->y && u_minify(pres->height0, level) >= box->height &&
+                     0 >= box->z && u_minify(pres->target == PIPE_TEXTURE_3D ? pres->depth0 : pres->array_size, level) >= box->depth;
 
    struct pipe_surface psurf = create_clear_surface(pctx, pres, level, box);
    struct zink_surface *surf = zink_create_fb_surface(pctx, &psurf);
