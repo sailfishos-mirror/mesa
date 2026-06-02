@@ -264,13 +264,6 @@ radv_amdgpu_winsys_create(int fd, uint64_t debug_flags, uint64_t perftest_flags,
       return VK_ERROR_INITIALIZATION_FAILED;
    }
 
-   if (is_virtio && (perftest_flags & RADV_PERFTEST_LOCAL_BOS)) {
-      /* virtio doesn't support VM_ALWAYS_VALID, so disable options that requires it. */
-      fprintf(stderr, "RADV_PERFTEST=localbos is not supported with virtio.\n");
-      result = VK_ERROR_INITIALIZATION_FAILED;
-      goto fail;
-   }
-
    ws = calloc(1, sizeof(struct radv_amdgpu_winsys));
    if (!ws) {
       result = VK_ERROR_OUT_OF_HOST_MEMORY;
