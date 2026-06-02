@@ -114,7 +114,7 @@
         "description": "tu: fix to report device memory with heapIndex",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6d69d7e6bfeadeb9de4aa887da1b5f8cb2d0c3f9",
         "notes": null

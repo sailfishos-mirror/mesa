@@ -3548,7 +3548,7 @@ tu_memory_emit_report(struct tu_device *device,
          &device->vk, VK_DEVICE_MEMORY_REPORT_EVENT_TYPE_ALLOCATION_FAILED_EXT,
          /* mem_obj_id */ 0, alloc_info->allocationSize,
          VK_OBJECT_TYPE_DEVICE_MEMORY,
-         /* obj_handle */ 0, alloc_info->memoryTypeIndex);
+         /* obj_handle */ 0, /* heap_index */ 0);
       return;
    }
 
@@ -3565,7 +3565,7 @@ tu_memory_emit_report(struct tu_device *device,
 
    vk_emit_device_memory_report(&device->vk, type, mem->bo->unique_id,
                                 mem->bo->size, VK_OBJECT_TYPE_DEVICE_MEMORY,
-                                (uintptr_t)(mem), mem->vk.memory_type_index);
+                                (uintptr_t)(mem), /* heap_index */ 0);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
