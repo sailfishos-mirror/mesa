@@ -274,7 +274,8 @@ local_fuse_flag_and_or(jay_function *f,
     * Currently we also bail on mixed FLAG/UFLAG cases for simplicity.
     */
    if (BITSET_TEST(defined, jay_index(other)) ||
-       use->src[0].file != use->src[1].file) {
+       use->src[0].file != use->src[1].file ||
+       use->dst.file != use->src[1].file) {
       return false;
    }
 
