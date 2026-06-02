@@ -595,12 +595,24 @@ impl MetaEnum {
             });
         }
 
-        ts.extend(quote! {
-            #[derive(Clone, Copy, Hash, PartialEq)]
-            pub enum #me_ident {
-                #values_ts
-            }
+        if self.name == "src_swizzle" {
+            ts.extend(quote! {
+                #[repr(u8)]
+                #[derive(Clone, Copy, EnumAsU8, Hash, PartialEq)]
+                pub enum #me_ident {
+                    #values_ts
+                }
+            });
+        } else {
+            ts.extend(quote! {
+                #[derive(Clone, Copy, Hash, PartialEq)]
+                pub enum #me_ident {
+                    #values_ts
+                }
+            });
+        }
 
+        ts.extend(quote! {
             impl std::fmt::Display for #me_ident {
                 fn fmt(
                     &self,

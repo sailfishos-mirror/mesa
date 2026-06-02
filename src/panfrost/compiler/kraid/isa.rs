@@ -140,6 +140,6 @@ pub struct SrWrite<L: Copy> {
 }
 
 pub mod v9 {
-    use kraid_proc_macros::gen_isa_encode;
+    use kraid_proc_macros::*;
     gen_isa_encode!("isa-v9-v14.xml", 9..=14);
 }

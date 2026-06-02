@@ -1044,6 +1044,7 @@ pub fn gen_encoder(
         use crate::bitview::*;
         use crate::data_type::DataType;
         use compiler::bitset::ConstBitSet;
+        use compiler::enum_as_u8::EnumAsU8;
 
         pub type EncodedSrc = super::EncodedSrc<SrcSwizzle>;
         pub type EncodedDst = super::EncodedDst<DstLanes>;
