@@ -176,14 +176,12 @@ drm_shim_override_link(const char *target, const char *path_format, ...)
    override->is_link = true;
 }
 
-static uint32_t got_function_pointers = 0;
+static uint32_t inited = 0;
+static simple_mtx_t init_lock = SIMPLE_MTX_INITIALIZER;
 
 static void
 get_function_pointers(void)
 {
-   if (p_atomic_cmpxchg(&got_function_pointers, 0, 1))
-      return;
-
    GET_FUNCTION_POINTER(access);
    GET_FUNCTION_POINTER(close);
    GET_FUNCTION_POINTER(closedir);
@@ -213,8 +211,6 @@ get_function_pointers(void)
 #endif
 }
 
-static uint32_t inited = 0;
-
 bool
 drm_shim_inited(void)
 {
@@ -236,17 +232,38 @@ destroy_shim(void)
 static void
 init_shim(void)
 {
-   drm_shim_debug = debug_get_bool_option("DRM_SHIM_DEBUG", false);
-
-   /* We can't lock this, because we recurse during initialization. */
-   if (p_atomic_cmpxchg(&inited, 0, 1))
+   /* Fast path once init has been completed. */
+   if (p_atomic_read(&inited))
       return;
+
+   /* Re-entry from the same thread: drm_shim_device_init() and its descendents
+    * like drm_shim_driver_init() might call glibc functions that would go to
+    * one of our wrappers and land back here.  We just need to be sure that
+    * enough of the globals are set up to complete such calls before we call
+    * down -- they don't need to get anything actually interposed in terms of
+    * the device paths.
+    *
+    * A thread-local variable is used for this recursion check, since simple_mtx
+    * doesn't support recursion.
+    */
+   static thread_local bool in_init = false;
+   if (in_init)
+      return;
+
+   simple_mtx_lock(&init_lock);
+   if (p_atomic_read(&inited)) {
+      simple_mtx_unlock(&init_lock);
+      return;
+   }
+   in_init = true;
+
+   get_function_pointers();
+
+   drm_shim_debug = debug_get_bool_option("DRM_SHIM_DEBUG", false);
 
    opendir_set = _mesa_set_create(NULL,
                                   _mesa_hash_string,
                                   _mesa_key_string_equal);
-
-   get_function_pointers();
 
    if (drm_shim_debug) {
       fprintf(stderr, "Initializing DRM shim on %s\n",
@@ -256,6 +273,10 @@ init_shim(void)
    drm_shim_device_init();
 
    atexit(destroy_shim);
+
+   p_atomic_set(&inited, 1);
+   in_init = false;
+   simple_mtx_unlock(&init_lock);
 }
 
 static bool is_drm_device_path(const char *path)
