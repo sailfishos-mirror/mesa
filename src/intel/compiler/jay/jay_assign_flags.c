@@ -233,7 +233,8 @@ assign_block(struct flag_ra *ra)
 
          bool in_flag =
             ra->flag_to_global[ra->vars[index].flag] == index &&
-            ((file == UFLAG) ? ra->vars[index].uflag : ra->vars[index].simd);
+            ((file == UFLAG) ? ra->vars[index].uflag : ra->vars[index].simd) &&
+            (!ballot || ra->vars[index].flag == 0);
 
          /* If we don't actually need the flag, we're done. */
          if (rewrite_without_flag(ra, I, s, in_flag)) {
