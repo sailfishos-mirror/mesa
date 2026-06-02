@@ -51,7 +51,9 @@ struct shim_device {
       void *(*mmap)(size_t length, int prot, int flags, off64_t offset);
    } iomem_region;
 
-   mtx_t mem_lock;
+   /* Lock for fd_map and mem_heap. */
+   mtx_t lock;
+
    /* Heap from which shim_bo are allocated */
    struct util_vma_heap mem_heap;
 
