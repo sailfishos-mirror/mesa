@@ -11696,8 +11696,15 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
 
-   if (!ps)
+   if (!ps) {
+      radeon_begin(cmd_buffer->cs);
+      if (pdev->info.gfx_level >= GFX12)
+         radeon_opt_set_context_reg(R_02865C_SPI_PS_INPUT_ENA, AC_TRACKED_SPI_PS_INPUT_ENA, 0);
+      else
+         radeon_opt_set_context_reg(R_0286CC_SPI_PS_INPUT_ENA, AC_TRACKED_SPI_PS_INPUT_ENA, 0);
+      radeon_end();
       return;
+   }
 
    uint32_t spi_ps_input_ena = ps->config.spi_ps_input_ena;
    bool vrs_enabled = false;
