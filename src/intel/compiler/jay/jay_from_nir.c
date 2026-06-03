@@ -2558,14 +2558,18 @@ jay_emit_eot(struct nir_to_jay_state *nj)
    jay_builder *b = &nj->bld;
 
    if (mesa_shader_stage_is_compute(nj->nir->info.stage)) {
+      jay_def u0 = nj->payload.u0;
+
       /* Vectorized copy into the EOT register. Not necessary for correctness
        * but keeps RA from inserting 16 scalar copies instead.
        */
-      jay_def copy = jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
-      jay_MOV(b, copy, nj->payload.u0);
+      if (jay_has_early_eot(nj->s)) {
+         u0 = jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
+         jay_MOV(b, u0, nj->payload.u0);
+      }
 
       jay_SEND(b, .sfid = GEN_SFID_MESSAGE_GATEWAY, .eot = true, .msg_desc = 0,
-               .srcs = &copy, .nr_srcs = 1, .type = JAY_TYPE_U32,
+               .srcs = &u0, .nr_srcs = 1, .type = JAY_TYPE_U32,
                .uniform = true);
    } else if (nj->nir->info.stage == MESA_SHADER_VERTEX ||
               nj->nir->info.stage == MESA_SHADER_TESS_EVAL) {
