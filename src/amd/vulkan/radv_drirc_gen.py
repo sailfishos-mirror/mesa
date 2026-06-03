@@ -5,6 +5,13 @@
 import argparse
 import sys
 
+VALID_COMMON_VK_OPTIONS = {
+    "vk_lower_terminate_to_discard",
+    "vk_zero_vram",
+    "vk_require_etc2",
+    "vk_require_astc",
+}
+
 def declare_options():
     import drirc_gen
 
@@ -13,9 +20,6 @@ def declare_options():
     S = drirc_gen.DrircString
 
     debug_options = [
-        B("vk_zero_vram", False,
-          "Initialize to zero all VRAM allocations",
-          c_name="zero_vram"),
         B("radv_disable_aniso_single_level", False,
           "Disable anisotropic filtering for single level images",
           c_name="disable_aniso_single_level"),
@@ -52,9 +56,6 @@ def declare_options():
         B("radv_invariant_geom", False,
           "Mark geometry-affecting outputs as invariant",
           c_name="invariant_geom"),
-        B("vk_lower_terminate_to_discard", False,
-          "Lower terminate to discard (which is implicitly demote)",
-          c_name="lower_terminate_to_discard"),
         B("radv_no_dynamic_bounds", False,
           "Disabling bounds checking for dynamic buffer descriptors",
           c_name="no_dynamic_bounds"),
@@ -118,12 +119,6 @@ def declare_options():
         B("radv_enable_float16_gfx8", False,
           "Expose float16 on GFX8, where it's supported but usually not beneficial.",
           c_name="enable_float16_gfx8"),
-        B("vk_require_etc2", False,
-          "Implement emulated ETC2 on HW that does not support it",
-          c_name="require_etc2"),
-        B("vk_require_astc", False,
-          "Implement emulated ASTC on HW that does not support it",
-          c_name="require_astc"),
     ]
 
     misc_options = [
@@ -149,6 +144,7 @@ def declare_options():
           c_name="override_ray_tracing_shader_version"),
     ]
 
+    drirc_gen.add_common_vk_options(debug_options, features_options, valid_options=VALID_COMMON_VK_OPTIONS)
     drirc_gen.add_common_vk_wsi_options(debug_options, performance_options)
 
     return [
