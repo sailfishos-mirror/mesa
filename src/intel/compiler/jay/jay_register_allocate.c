@@ -1198,6 +1198,12 @@ local_ra(jay_ra_state *ra, jay_block *block)
  * Record all phi webs. First initialize the union-find data structure
  * with all SSA defs in their own singletons, then union together anything
  * related by a phi. The resulting union-find structure will be the webs.
+ *
+ * As a heuristic, we skip the union if the phi source interferes with the phi
+ * destination (equivalently: the phi source is live-out of the source block).
+ * These phis could never be coalesced, so the union can only hurt (and it does
+ * in practice in complex web scenarios). Note this case is only possible
+ * because we do not lower the input program to conventional SSA (CSSA) form.
  */
 static void
 construct_phi_webs(struct phi_web_node *web, jay_function *f)
@@ -1208,7 +1214,9 @@ construct_phi_webs(struct phi_web_node *web, jay_function *f)
 
    jay_foreach_block(f, block) {
       jay_foreach_phi_src_in_block(block, phi) {
-         phi_web_union(web, jay_index(phi->src[0]), jay_phi_src_index(phi));
+         if (!u_sparse_bitset_test(&block->live_out, jay_index(phi->src[0]))) {
+            phi_web_union(web, jay_index(phi->src[0]), jay_phi_src_index(phi));
+         }
       }
    }
 }
