@@ -183,6 +183,13 @@ fd6_check_valid_format(struct fd_resource *rsc, enum pipe_format format)
    if (orig_format == format)
       return FORMAT_OK;
 
+   if (util_format_is_yuv(orig_format)) {
+      if (rsc->layout.plane == 0 && format == PIPE_FORMAT_R8_UNORM)
+         return FORMAT_OK;
+      if (rsc->layout.plane == 1 && is_r8g8(format))
+         return FORMAT_OK;
+   }
+
    if (rsc->layout.tile_mode && (is_r8g8(orig_format) != is_r8g8(format)))
       return DEMOTE_TO_LINEAR;
 
