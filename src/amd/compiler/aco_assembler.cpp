@@ -1488,9 +1488,10 @@ fix_exports(asm_context& ctx, std::vector<uint32_t>& out, Program* program)
 
 static void
 insert_code(asm_context& ctx, std::vector<uint32_t>& out, unsigned insert_before,
-            unsigned insert_count, const uint32_t* insert_data)
+            const std::vector<uint32_t>& code)
 {
-   out.insert(out.begin() + insert_before, insert_data, insert_data + insert_count);
+   out.insert(out.begin() + insert_before, code.begin(), code.end());
+   unsigned insert_count = code.size();
 
    /* Update the offset of each affected block */
    for (Block& block : ctx.program->blocks) {
@@ -1544,8 +1545,8 @@ fix_branches_gfx10(asm_context& ctx, std::vector<uint32_t>& out)
 
       if (gfx10_3f_bug) {
          /* Insert an s_nop after the branch */
-         constexpr uint32_t s_nop_0 = 0xbf800000u;
-         insert_code(ctx, out, buggy_branch_it->pos + 1, 1, &s_nop_0);
+         std::vector<uint32_t> s_nop_0 = {0xbf800000u};
+         insert_code(ctx, out, buggy_branch_it->pos + 1, s_nop_0);
       }
    } while (gfx10_3f_bug);
 }
@@ -1657,7 +1658,7 @@ chain_branches(asm_context& ctx, std::vector<uint32_t>& out, branch_info& branch
 
    branch_instr = bld.sopp(aco_opcode::s_branch, 0);
    emit_sopp_instruction(ctx, code, branch_instr, true);
-   insert_code(ctx, out, insert_at, code.size(), code.data());
+   insert_code(ctx, out, insert_at, code);
 
    new_block->offset = block_offset;
    if (skip_branch_target) {
@@ -1754,7 +1755,7 @@ align_block(asm_context& ctx, std::vector<uint32_t>& code, Block& block)
          int16_t prefetch_mode = loop_num_cl == 3 ? 0x1 : 0x2;
          Instruction* instr = bld.sopp(aco_opcode::s_inst_prefetch, prefetch_mode);
          emit_instruction(ctx, nops, instr);
-         insert_code(ctx, code, offset, nops.size(), nops.data());
+         insert_code(ctx, code, offset, nops);
 
          /* Change prefetch mode back to default (0x3) at the loop exit. */
          bld.reset(&loop_exit.instructions, loop_exit.instructions.begin());
@@ -1762,7 +1763,7 @@ align_block(asm_context& ctx, std::vector<uint32_t>& code, Block& block)
          if (ctx.loop_exit < block.index) {
             nops.clear();
             emit_instruction(ctx, nops, instr);
-            insert_code(ctx, code, loop_exit.offset, nops.size(), nops.data());
+            insert_code(ctx, code, loop_exit.offset, nops);
          }
       }
 
@@ -1778,7 +1779,7 @@ align_block(asm_context& ctx, std::vector<uint32_t>& code, Block& block)
       if (align_loop) {
          nops.clear();
          nops.resize(16 - (loop_latch.offset % 16), 0xbf800000u);
-         insert_code(ctx, code, loop_latch.offset, nops.size(), nops.data());
+         insert_code(ctx, code, loop_latch.offset, nops);
       }
    }
 
