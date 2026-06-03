@@ -178,6 +178,48 @@ pco_ref_nir_alu_src_t(const nir_alu_instr *alu, unsigned src, trans_ctx *tctx)
 }
 
 /**
+ * \brief Get caching mode for load intrinsic
+ *
+ * \param[in] intr Intrinsic instruction.
+ * \return The load cache mode
+ */
+static enum pco_mcu_cache_mode_ld get_ld_cache_mode(nir_intrinsic_instr *intr)
+{
+   enum gl_access_qualifier access_qual = nir_intrinsic_access(intr);
+
+   if (!(access_qual & ACCESS_COHERENT || access_qual & ACCESS_VOLATILE))
+      return PCO_MCU_CACHE_MODE_LD_NORMAL;
+
+   return PCO_MCU_CACHE_MODE_LD_BYPASS;
+}
+
+/**
+ * \brief Get caching mode for store intrinsic
+ *
+ * \param[in] intr Intrinsic instruction.
+ * \return The store cache mode
+ */
+static enum pco_mcu_cache_mode_st get_st_cache_mode(nir_intrinsic_instr *intr,
+                                                    trans_ctx *tctx)
+{
+   enum gl_access_qualifier access_qual = nir_intrinsic_access(intr);
+
+   if (!(access_qual & ACCESS_COHERENT || access_qual & ACCESS_VOLATILE)) {
+      /* Additional check needed to safely use lazy write back caching mode
+       * when slc_mcu_cache_controls feature is available. Currently the
+       * infrastructure is not in place to perform the check so play safe and
+       * use non-lazy write back cache mode instead.
+       */
+      if (!PVR_HAS_FEATURE(tctx->pco_ctx->dev_info, slc_mcu_cache_controls))
+         return PCO_MCU_CACHE_MODE_ST_LAZY_WRITE_BACK;
+      else
+         return PCO_MCU_CACHE_MODE_ST_WRITE_BACK;
+   }
+
+   return PCO_MCU_CACHE_MODE_ST_WRITE_THROUGH;
+}
+
+/**
  * \brief Translates a NIR vs load_input intrinsic into PCO.
  *
  * \param[in,out] tctx Translation context.
@@ -1186,7 +1228,9 @@ static pco_instr *trans_load_buffer(trans_ctx *tctx,
                  dest,
                  pco_ref_drc(PCO_DRC_0),
                  pco_ref_imm8(chans),
-                 addr);
+                 addr,
+                 .mcu_cache_mode_ld = get_ld_cache_mode(intr)
+               );
 }
 
 static pco_instr *trans_load_global(trans_ctx *tctx,
@@ -1328,7 +1372,9 @@ static pco_instr *trans_store_buffer(trans_ctx *tctx,
                       pco_ref_drc(PCO_DRC_0),
                       pco_ref_imm8(chans),
                       addr_data,
-                      pco_ref_null());
+                      pco_ref_null(),
+                      .mcu_cache_mode_st = get_st_cache_mode(intr, tctx)
+                  );
 
    default:
       break;
