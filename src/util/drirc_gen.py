@@ -263,6 +263,34 @@ def drirc_generate(cpath, hpath, driver_prefix, sections):
             print(exceptions.text_error_template().render(), file=sys.stderr)
             sys.exit(1)
 
+def add_common_vk_options(debug_options, features_options, valid_options, defaults=None):
+    B = DrircBool
+    I = DrircInt
+
+    if defaults is None:
+        defaults = {}
+
+    debug_options.extend([opt for opt in [
+        I("force_vk_vendor", defaults.get("force_vk_vendor", 0), -1, 2147483647,
+          "Override GPU vendor id",
+          c_name="force_vk_vendor"),
+        B("vk_lower_terminate_to_discard", defaults.get("vk_lower_terminate_to_discard", False),
+          "Lower terminate to discard (which is implicitly demote)",
+          c_name="lower_terminate_to_discard"),
+        B("vk_zero_vram", defaults.get("vk_zero_vram", False),
+          "Initialize to zero all VRAM allocations",
+          c_name="zero_vram"),
+    ] if opt.name in valid_options])
+
+    features_options.extend([opt for opt in [
+        B("vk_require_etc2", defaults.get("vk_require_etc2", False),
+          "Implement emulated ETC2 on HW that does not support it",
+          c_name="require_etc2"),
+        B("vk_require_astc", defaults.get("vk_require_astc", False),
+          "Implement emulated ASTC on HW that does not support it",
+          c_name="require_astc"),
+    ] if opt.name in valid_options])
+
 def add_common_vk_wsi_options(debug_options, performance_options):
     B = DrircBool
     I = DrircInt
