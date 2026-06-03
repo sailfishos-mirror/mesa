@@ -305,6 +305,22 @@ static int si_dec_destroy_decoder(struct si_video_dec *vid)
    return ret;
 }
 
+static enum pipe_format dpb_format(struct si_video_dec *vid)
+{
+   assert(vid->dec->param.sub_sample == AC_VIDEO_SUBSAMPLE_420);
+
+   switch (vid->dec->param.max_bit_depth) {
+   case 8:
+      return PIPE_FORMAT_NV12;
+   case 10:
+      return PIPE_FORMAT_P010;
+   case 12:
+      return PIPE_FORMAT_P012;
+   default:
+      UNREACHABLE("invalid bit depth");
+   }
+}
+
 static enum ac_video_dec_tier select_tier(struct si_video_dec *vid, struct pipe_video_buffer *target)
 {
    struct si_screen *sscreen = (struct si_screen *)vid->screen;
@@ -408,7 +424,7 @@ static int decode_cmd_build(struct si_video_dec *vid, struct pipe_picture_desc *
          if (pic->protected_playback)
             bind |= PIPE_BIND_PROTECTED;
          vid->dpb_buffer = si_resource(vid->screen->resource_create(vid->screen, &(struct pipe_resource){
-            .format = cmd->decode_surface.format,
+            .format = dpb_format(vid),
             .target = PIPE_TEXTURE_2D_ARRAY,
             .width0 = align(vid->base.width, vid->dpb_alignment),
             .height0 = align(vid->base.height, vid->dpb_alignment),
@@ -460,7 +476,7 @@ static int decode_cmd_build(struct si_video_dec *vid, struct pipe_picture_desc *
             if (pic->protected_playback)
                bind |= PIPE_BIND_PROTECTED;
             ref = vid->screen->resource_create(vid->screen, &(struct pipe_resource){
-               .format = cmd->decode_surface.format,
+               .format = dpb_format(vid),
                .target = PIPE_TEXTURE_2D,
                .width0 = width,
                .height0 = height,
