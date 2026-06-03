@@ -1467,15 +1467,15 @@ genX(emit_embedded_sampler)(struct anv_device *device,
 
    sampler->sampler_state =
       anv_state_pool_alloc(anv_device_get_dynamic_state_pool(device),
-                           ANV_SAMPLER_STATE_GPU_SIZE, 32);
+                           ANV_SAMPLER_STATE_GPU_SIZE(GFX_VERx10), 32);
 
    struct GENX(SAMPLER_STATE) sampler_state = {
       .BorderColorPointer = sampler->border_color_state.offset,
    };
-   uint32_t dwords[GENX(SAMPLER_STATE_length)];
+   uint32_t dwords[ANV_SAMPLER_STATE_DWORDS];
    GENX(SAMPLER_STATE_pack)(NULL, dwords, &sampler_state);
 
-   for (uint32_t i = 0; i < GENX(SAMPLER_STATE_length); i++) {
+   for (uint32_t i = 0; i < (ANV_SAMPLER_STATE_GPU_SIZE(GFX_VERx10) / sizeof(uint32_t)); i++) {
       ((uint32_t *)sampler->sampler_state.map)[i] =
          dwords[i] | binding->key.sampler[i];
    }
