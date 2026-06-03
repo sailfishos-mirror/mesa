@@ -1061,6 +1061,7 @@ compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *
    NIR_PASS(_, prolog_stage.nir, nir_opt_remove_phis);
 
    pipeline->prolog = radv_compile_rt_prolog(device, &prolog_stage, &debug);
+   ralloc_free(prolog_stage.nir);
 
    bool has_traversal = !!pipeline->base.base.shaders[MESA_SHADER_INTERSECTION];
 
