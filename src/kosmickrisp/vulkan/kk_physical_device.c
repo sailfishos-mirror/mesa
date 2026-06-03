@@ -298,7 +298,7 @@ kk_get_device_features(
       .extendedDynamicState = true,
       .extendedDynamicState2 = true,
       .extendedDynamicState2LogicOp = false,
-      .extendedDynamicState2PatchControlPoints = false,
+      .extendedDynamicState2PatchControlPoints = true,
       .inlineUniformBlock = true,
       .maintenance4 = true,
       .pipelineCreationCacheControl = true,
@@ -403,6 +403,7 @@ kk_get_device_features(
       .extendedDynamicState3DepthClampEnable = true,
       .extendedDynamicState3DepthClipNegativeOneToOne = true,
       .extendedDynamicState3LineRasterizationMode = true,
+      .extendedDynamicState3TessellationDomainOrigin = true,
 
       /* EXT_image_2d_view_of_3d */
       .image2DViewOf3D = true,
