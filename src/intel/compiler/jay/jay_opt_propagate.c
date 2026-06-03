@@ -172,9 +172,9 @@ propagate_forwards(jay_function *f)
             /* Default values must have the same file as their dest, do not
              * propagate invalid there. Also don't propagate inverse-ballots.
              *
-             * For balloted flags, only source 0 can read ARF (i.e. ballotted
-             * flags). Furthermore, we may only propagate ballots locally as the
-             * ballot is implicitly execmask'd which changes throughout the CFG.
+             * Only source 0 can read ARF (i.e. ballotted flags). Furthermore,
+             * we may only propagate ballots locally as the ballot is implicitly
+             * execmask'd which changes throughout the CFG.
              */
             if ((I->src[s].file == def->src[0].file) ||
                 ((!jay_inst_has_default(I) ||
@@ -183,6 +183,7 @@ propagate_forwards(jay_function *f)
                  !(I->src[s].file == FLAG) &&
                  (!jay_is_flag(def->src[0]) ||
                   (s == 0 && def_block[jay_base_index(src)] == block->index)) &&
+                 !(def->src[0].file == J_ARF && s != 0) &&
                  !(jay_is_imm(def->src[0]) && I->src[s].negate))) {
 
                jay_replace_src(&I->src[s], def->src[0]);
