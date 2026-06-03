@@ -882,6 +882,10 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
          result = radv_rt_compile_nir(device, cache, pipeline, RADV_RT_LOWERING_MODE_FUNCTION_CALLS, &combined_stage,
                                       &payload_size, &hit_attrib_size, &stack_size, NULL, NULL, replay_block,
                                       skip_shaders_cache, has_position_fetch, &pipeline->groups[idx].ahit_isec_shader);
+         ralloc_free(final_shader);
+         if (isec && ahit)
+            ralloc_free(ahit);
+
          if (result != VK_SUCCESS)
             goto cleanup;
 
