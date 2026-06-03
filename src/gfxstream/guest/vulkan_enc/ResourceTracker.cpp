@@ -5777,6 +5777,9 @@ VkResult ResourceTracker::on_vkCreateSemaphore(void* context, VkResult input_res
     const VkExportSemaphoreCreateInfoKHR* exportSemaphoreInfoPtr =
         vk_find_struct_const(pCreateInfo, EXPORT_SEMAPHORE_CREATE_INFO);
 
+    const VkSemaphoreTypeCreateInfo* typeCi =
+        vk_find_struct_const(pCreateInfo, SEMAPHORE_TYPE_CREATE_INFO);
+
 #ifdef VK_USE_PLATFORM_FUCHSIA
     bool exportEvent =
         exportSemaphoreInfoPtr && (exportSemaphoreInfoPtr->handleTypes &
@@ -5785,21 +5788,15 @@ VkResult ResourceTracker::on_vkCreateSemaphore(void* context, VkResult input_res
     if (exportEvent) {
         finalCreateInfo.pNext = nullptr;
         // If we have timeline semaphores externally, leave it there.
-        const VkSemaphoreTypeCreateInfo* typeCi =
-            vk_find_struct_const(pCreateInfo, SEMAPHORE_TYPE_CREATE_INFO);
         if (typeCi) finalCreateInfo.pNext = typeCi;
     }
-#endif
-
-#if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
+#elif defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
     bool exportSyncFd = exportSemaphoreInfoPtr && (exportSemaphoreInfoPtr->handleTypes &
                                                    VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT);
 
     if (exportSyncFd) {
         finalCreateInfo.pNext = nullptr;
         // If we have timeline semaphores externally, leave it there.
-        const VkSemaphoreTypeCreateInfo* typeCi =
-            vk_find_struct_const(pCreateInfo, SEMAPHORE_TYPE_CREATE_INFO);
         if (typeCi) finalCreateInfo.pNext = typeCi;
     }
 #endif
@@ -5826,6 +5823,7 @@ VkResult ResourceTracker::on_vkCreateSemaphore(void* context, VkResult input_res
 #ifdef VK_USE_PLATFORM_FUCHSIA
     info.eventKoid = getEventKoid(info.eventHandle);
 #endif
+    info.isTimeline = typeCi && (typeCi->semaphoreType == VK_SEMAPHORE_TYPE_TIMELINE);
 
 #if defined(VK_USE_PLATFORM_ANDROID_KHR) || DETECT_OS_LINUX
     if (exportSyncFd) {
@@ -6377,6 +6375,11 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
     {
         std::unique_lock<std::recursive_mutex> lock(mLock);
 
+        // VkTimelineSemaphoreSubmitInfo must be ignored if there are no timeline semaphores given
+        // with the submit.
+        // Test: dEQP-VK.synchronization.timeline_semaphore.misc.ignore_timeline_semaphore_info
+        bool hasTimelineSemaphores = false;
+
         for (uint32_t i = 0; i < submitCount; ++i) {
             std::vector<VkSemaphore> waitSemsToRemove;
             std::vector<VkSemaphore> signalSemsToRemove;
@@ -6385,6 +6388,9 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
                 auto it = info_VkSemaphore.find(semaphore);
                 if (it != info_VkSemaphore.end()) {
                     auto& semInfo = it->second;
+                    if (semInfo.isTimeline) {
+                        hasTimelineSemaphores = true;
+                    }
 #ifdef VK_USE_PLATFORM_FUCHSIA
                     if (semInfo.eventHandle) {
                         pre_signal_events.push_back(semInfo.eventHandle);
@@ -6404,6 +6410,9 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
                 auto it = info_VkSemaphore.find(semaphore);
                 if (it != info_VkSemaphore.end()) {
                     auto& semInfo = it->second;
+                    if (semInfo.isTimeline) {
+                        hasTimelineSemaphores = true;
+                    }
 #ifdef VK_USE_PLATFORM_FUCHSIA
                     if (semInfo.eventHandle) {
                         post_wait_events.push_back({semInfo.eventHandle, semInfo.eventKoid});
@@ -6428,7 +6437,10 @@ VkResult ResourceTracker::on_vkQueueSubmitTemplate(void* context, VkResult input
             }
 
             // Get the current TSSI from the unorphaned submitInfo, the prune functions may need this.
-            const VkTimelineSemaphoreSubmitInfo* currTssi = vk_find_struct_const(&pSubmits[i], TIMELINE_SEMAPHORE_SUBMIT_INFO);
+            const VkTimelineSemaphoreSubmitInfo* currTssi =
+                hasTimelineSemaphores
+                    ? vk_find_struct_const(&pSubmits[i], TIMELINE_SEMAPHORE_SUBMIT_INFO)
+                    : nullptr;
             // Start with an orphan copy of the current submitInfo
             prunedSubmitInfos[i] = vk_make_orphan_copy(pSubmits[i]);
             // Do initial setup for the new tssi struct; prune functions may or may not actually add to submitInfo.
