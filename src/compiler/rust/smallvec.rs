@@ -126,8 +126,22 @@ impl<T> Extend<T> for SmallVec<T> {
     where
         I: IntoIterator<Item = T>,
     {
-        for i in iter {
-            self.push(i)
+        let mut iter = iter.into_iter();
+        loop {
+            match &mut self.0 {
+                SmallVecImpl::None | SmallVecImpl::One(_) => {
+                    if let Some(i) = iter.next() {
+                        self.push(i);
+                    } else {
+                        // We ran out of items
+                        return;
+                    }
+                }
+                SmallVecImpl::Many(v) => {
+                    v.extend(iter);
+                    return;
+                }
+            }
         }
     }
 }
