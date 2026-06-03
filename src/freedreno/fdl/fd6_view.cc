@@ -200,9 +200,7 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
 
    view->offset = fdl_surface_offset(layout, args->base_miplevel, args->base_array_layer);
 
-   bool multi_plane = args->format == PIPE_FORMAT_R8_G8B8_420_UNORM ||
-                      args->format == PIPE_FORMAT_G8_B8R8_420_UNORM ||
-                      args->format == PIPE_FORMAT_G8_B8_R8_420_UNORM;
+   bool multi_plane = util_format_get_num_planes(args->format) > 1;
 
    bool ubwc_enabled = fdl_ubwc_enabled(layout, args->base_miplevel);
 
@@ -241,6 +239,11 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
    enum a3xx_color_swap swap =
       fd6_texture_swap(args->format, (enum a6xx_tile_mode)layout->tile_mode, layout->is_mutable);
    enum a6xx_tile_mode tile_mode = (enum a6xx_tile_mode)fdl_tile_mode(layout, args->base_miplevel);
+
+   if (ubwc_enabled && util_format_is_yuv(args->format) &&
+       util_format_get_num_planes(args->format) == 2) {
+      texture_format = FMT6_R8_G8B8_2PLANE_420_UNORM;
+   }
 
    bool is_d24s8 = (args->format == PIPE_FORMAT_Z24_UNORM_S8_UINT ||
                     args->format == PIPE_FORMAT_Z24X8_UNORM ||
@@ -315,6 +318,8 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
          if (args->chroma_offsets[1] == FDL_CHROMA_LOCATION_MIDPOINT)
             view->descriptor[0] |= A6XX_TEX_MEMOBJ_0_CHROMA_MIDPOINT_Y;
 
+         uint32_t plane_count = util_format_get_num_planes(args->format);
+
          if (ubwc_enabled) {
             view->descriptor[3] |= A6XX_TEX_MEMOBJ_3_FLAG;
          }
@@ -323,8 +328,18 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
             A6XX_TEX_MEMOBJ_6_PLANE_PITCH(fdl_pitch(layouts[1], args->base_miplevel));
          view->descriptor[7] = base_addr[1];
          view->descriptor[8] = base_addr[1] >> 32;
-         view->descriptor[9] = base_addr[2];
-         view->descriptor[10] = base_addr[2] >> 32;
+         /* 2-plane formats (eg. NV12) interleave U and V in the second plane,
+          * so there is no separate V plane base address; the descriptor
+          * words must still be written (to zero) since callers don't
+          * necessarily zero-initialize view->descriptor themselves.
+          */
+         if (plane_count > 2) {
+            view->descriptor[9] = base_addr[2];
+            view->descriptor[10] = base_addr[2] >> 32;
+         } else {
+            view->descriptor[9] = 0;
+            view->descriptor[10] = 0;
+         }
 
          assert(args->type != FDL_VIEW_TYPE_3D);
          return;
@@ -378,6 +393,7 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
                       A8XX_TEX_MEMOBJ_6_MIPLVLS(args->level_count - 1);
 
       if (multi_plane) {
+         uint32_t plane_count = util_format_get_num_planes(args->format);
 
          if (ubwc_enabled) {
             descriptor[4] |= A8XX_TEX_MEMOBJ_4_FLAG;
@@ -391,9 +407,20 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
          if (args->chroma_offsets[1] == FDL_CHROMA_LOCATION_MIDPOINT)
             view->descriptor[7] |= A8XX_TEX_MEMOBJ_7_UV_OFFSET_V(0.25);
 
-         descriptor[8] |= A8XX_TEX_MEMOBJ_8_BASE_V_LO(base_addr[2]);
-         descriptor[9] |= A8XX_TEX_MEMOBJ_9_BASE_V_HI(base_addr[2] >> 32) |
-                          A8XX_TEX_MEMOBJ_9_UV_PITCH(fdl_pitch(layouts[1], args->base_miplevel));
+         /* 2-plane formats (eg. NV12) interleave U and V in the second plane,
+          * so there is no separate V plane base address; BASE_V_LO/_HI must
+          * still be cleared (to zero) since callers don't necessarily
+          * zero-initialize the descriptor themselves.
+          */
+         if (plane_count > 2) {
+            descriptor[8] = A8XX_TEX_MEMOBJ_8_BASE_V_LO(base_addr[2]);
+            descriptor[9] = A8XX_TEX_MEMOBJ_9_BASE_V_HI(base_addr[2] >> 32);
+         } else {
+            descriptor[8] = 0;
+            descriptor[9] = 0;
+         }
+         descriptor[9] |=
+            A8XX_TEX_MEMOBJ_9_UV_PITCH(fdl_pitch(layouts[1], args->base_miplevel));
 
          return;
       } else {
