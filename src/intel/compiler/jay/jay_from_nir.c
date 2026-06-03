@@ -1632,6 +1632,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                           nir_src_as_uint(intr->src[0]);
       unsigned i = (s->prog_data->fs.urb_setup[location] * 4) +
                    nir_intrinsic_component(intr);
+      assert(!jay_is_null(fs->deltas[i]));
 
       if (intr->intrinsic == nir_intrinsic_load_input) {
          assert(intr->def.num_components == 1 && "should be scalarized");
