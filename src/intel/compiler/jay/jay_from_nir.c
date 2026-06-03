@@ -2795,8 +2795,7 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
    setup_payload_dispatch_start(nj, p);
    setup_payload_push(nj, p);
 
-   unsigned nr_attribs = 16 * 4; /* TODO */
-   for (unsigned i = 0; i < nr_attribs; ++i) {
+   for (unsigned i = 0; i < nj->s->prog_data->fs.num_varying_inputs * 4; ++i) {
       fs->deltas[i] = read_vector_payload(p, UGPR, 3);
 
       /* Padding */
