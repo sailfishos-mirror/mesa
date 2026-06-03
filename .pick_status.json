@@ -7804,7 +7804,7 @@
         "description": "gfxstream/platform: add missing inc_include to platform_virtgpu build",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5826a0aad98efc1350be7e0499ff735fac761f3e",
         "notes": null
