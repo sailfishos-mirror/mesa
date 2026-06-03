@@ -135,8 +135,7 @@ get_device_extensions(const struct anv_physical_device *device,
                       struct vk_device_extension_table *ext)
 {
    const struct anv_instance *instance = device->instance;
-   const bool rt_enabled = ANV_SUPPORT_RT && device->info.has_ray_tracing &&
-                           !intel_use_jay_any_stage(&device->info);
+   const bool rt_enabled = ANV_SUPPORT_RT && device->info.has_ray_tracing;
    const bool hw_video_encode_supported = device->info.verx10 < 125;
    const bool video_encode_enabled = hw_video_encode_supported &&
                                      ANV_DEBUG(VIDEO_ENCODE);
