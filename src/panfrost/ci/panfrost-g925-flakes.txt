@@ -81,7 +81,6 @@ dEQP-VK.wsi.xlib.surface.query_capabilities2
 dEQP-VK.wsi.xcb.present_timing.basic.timing_queue
 dEQP-VK.wsi.xcb.present_timing.query.parallel.parallel
 dEQP-VK.wsi.xlib.present_timing.basic.timing_queue
-dEQP-VK.wsi.xlib.present_timing.query.parallel.parallel
 
 # Various subgroups tests are intermittently failing. Just ignore them for now.
 dEQP-VK.subgroups.*
