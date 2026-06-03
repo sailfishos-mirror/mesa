@@ -255,6 +255,7 @@ static struct vpe_caps
                     .input_pixel_format_support =
                         {
                             .argb_packed_32b = 1,
+                            .argb_packed_64b = 1,
                             .nv12            = 1,
                             .fp16            = 1,
                             .p010            = 1, /**< planar 4:2:0 10-bit */
@@ -281,6 +282,7 @@ static struct vpe_caps
                     .output_pixel_format_support =
                         {
                             .argb_packed_32b = 1,
+                            .argb_packed_64b = 1,
                             .nv12            = 1,
                             .fp16            = 1,
                             .p010            = 1, /**< planar 4:2:0 10-bit */
