@@ -1339,9 +1339,9 @@ static void print_vcn_msg_buffer_contents(FILE *f, struct ac_ib_parser *ib, uint
 
 static void parse_vcn_dec_ib(FILE *f, struct ac_ib_parser *ib)
 {
-   uint32_t data0;
-   uint32_t data1;
-   uint32_t data2;
+   uint32_t data0 = 0;
+   uint32_t data1 = 0;
+   uint32_t data2 = 0;
    struct ac_vcn_dec_reg reg;
    ac_vcn_dec_init_regs(&reg, ib->vcn_version);
 
