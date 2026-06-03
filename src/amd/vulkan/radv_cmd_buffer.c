@@ -3683,12 +3683,16 @@ radv_emit_fragment_shader(struct radv_cmd_buffer *cmd_buffer)
       gfx12_push_sh_reg(ps->regs.pgm_lo, va >> 8);
       gfx12_push_sh_reg(ps->regs.pgm_rsrc1, ps->config.rsrc1);
       gfx12_push_sh_reg(ps->regs.pgm_rsrc2, ps->config.rsrc2);
+      gfx12_push_sh_reg(R_00B01C_SPI_SHADER_PGM_RSRC4_PS, ps->regs.ps.spi_shader_pgm_rsrc4_ps);
    } else {
       radeon_set_sh_reg_seq(ps->regs.pgm_lo, 4);
       radeon_emit(va >> 8);
       radeon_emit(S_00B024_MEM_BASE(va >> 40));
       radeon_emit(ps->config.rsrc1);
       radeon_emit(ps->config.rsrc2);
+
+      if (pdev->info.gfx_level >= GFX11)
+         radeon_set_sh_reg_idx(&pdev->info, R_00B004_SPI_SHADER_PGM_RSRC4_PS, 3, ps->regs.ps.spi_shader_pgm_rsrc4_ps);
    }
    radeon_end();
 

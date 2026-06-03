@@ -1949,6 +1949,10 @@ radv_precompute_registers_hw_fs(struct radv_device *device, struct radv_shader *
       regs->ps.spi_ps_in_control = S_028640_PS_W32_EN(info->wave_size == 32);
       regs->ps.spi_gs_out_config_ps = S_00B0C4_NUM_INTERP(info->ps.num_inputs);
 
+      unsigned inst_pref_size = radv_get_inst_pref_size(&device->compiler_info, shader->exec_size);
+      regs->ps.spi_shader_pgm_rsrc4_ps =
+         S_00B01C_WAVE_LIMIT_GFX12(0x3FF) | S_00B01C_LDS_GROUP_SIZE_GFX12(1) | S_00B01C_INST_PREF_SIZE(inst_pref_size);
+
       regs->ps.pa_sc_hisz_control = S_028BBC_ROUND(2); /* required minimum value */
       if (info->ps.depth_layout == FRAG_DEPTH_LAYOUT_GREATER)
          regs->ps.pa_sc_hisz_control |= S_028BBC_CONSERVATIVE_Z_EXPORT(V_028BBC_EXPORT_GREATER_THAN_Z);
@@ -1965,6 +1969,16 @@ radv_precompute_registers_hw_fs(struct radv_device *device, struct radv_shader *
        */
       if (pdev->info.gfx_level != GFX10_3) {
          regs->ps.spi_ps_in_control |= S_0286D8_NUM_INTERP(info->ps.num_inputs);
+      }
+
+      if (pdev->info.gfx_level >= GFX11) {
+         unsigned inst_pref_size = radv_get_inst_pref_size(&device->compiler_info, shader->exec_size);
+
+         unsigned cu_mask_ps = ac_gfx103_get_cu_mask_ps(&pdev->info);
+
+         regs->ps.spi_shader_pgm_rsrc4_ps =
+            ac_apply_cu_en(S_00B004_CU_EN(cu_mask_ps >> 16) | S_00B004_INST_PREF_SIZE(inst_pref_size), C_00B004_CU_EN,
+                           16, &pdev->info);
       }
 
       if (pdev->info.gfx_level >= GFX9 && pdev->info.gfx_level < GFX11)
