@@ -5884,7 +5884,7 @@
         "description": "nir: use the correct induction var when guessing loop iterations",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "de30bfd5b84535faeb3392173714cc4088c31abd",
         "notes": null
