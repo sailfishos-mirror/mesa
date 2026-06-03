@@ -409,6 +409,8 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
       /* Get constant offsets out of the way for proper clip/cull handling */
       JAY_NIR_PASS(nir_lower_io_to_scalar, nir_var_shader_out, NULL, NULL);
+      /* Unroll multiview loops */
+      JAY_NIR_PASS(nir_opt_loop_unroll);
       JAY_NIR_PASS(nir_opt_constant_folding);
       JAY_NIR_PASS(brw_nir_lower_deferred_urb_writes, devinfo,
                    &prog_data->vue.vue_map, 0, 0);
