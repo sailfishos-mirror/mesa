@@ -71,77 +71,28 @@ unsigned
 gen_inst_num_sources(const struct intel_device_info *devinfo,
                      const gen_inst *inst)
 {
-   switch (gen_inst_format(inst->opcode)) {
-   case GEN_FORMAT_BASIC_ONE_SRC:
-   case GEN_FORMAT_BRANCH_ONE_SRC:
-      return 1;
-
-   case GEN_FORMAT_BASIC_TWO_SRC:
-   case GEN_FORMAT_BRANCH_TWO_SRC:
-      return 2;
-
-   case GEN_FORMAT_BASIC_THREE_SRC:
-   case GEN_FORMAT_DPAS_THREE_SRC:
-      return 3;
-
-   case GEN_FORMAT_SEND:
+   if (gen_inst_is_send(inst))
       return gen_inst_is_split_send(devinfo, inst) ? 2 : 1;
 
-   case GEN_FORMAT_NOP:
-   case GEN_FORMAT_ILLEGAL:
-      return 0;
-   }
-
-   UNREACHABLE("invalid gen inst");
+   return gen_opcode_num_srcs(inst->opcode);
 }
 
 bool
 gen_has_uip(gen_opcode op)
 {
-   return op == GEN_OP_IF ||
-          op == GEN_OP_ELSE ||
-          op == GEN_OP_BREAK ||
-          op == GEN_OP_CONTINUE ||
-          op == GEN_OP_HALT ||
-          op == GEN_OP_GOTO;
+   return gen_opcode_has_prop(op, GEN_OPCODE_PROP_HAS_UIP);
 }
 
 bool
 gen_has_jip(gen_opcode op)
 {
-   return op == GEN_OP_IF ||
-          op == GEN_OP_ELSE ||
-          op == GEN_OP_ENDIF ||
-          op == GEN_OP_WHILE ||
-          op == GEN_OP_BREAK ||
-          op == GEN_OP_CONTINUE ||
-          op == GEN_OP_HALT ||
-          op == GEN_OP_GOTO ||
-          op == GEN_OP_JOIN;
+   return gen_opcode_has_prop(op, GEN_OPCODE_PROP_HAS_JIP);
 }
 
 bool
 gen_has_branch_ctrl(gen_opcode opcode)
 {
-   switch (opcode) {
-   case GEN_OP_IF:
-   case GEN_OP_ELSE:
-   case GEN_OP_GOTO:
-   case GEN_OP_BREAK:
-   case GEN_OP_CALL:
-   case GEN_OP_CALLA:
-   case GEN_OP_CONTINUE:
-   case GEN_OP_ENDIF:
-   case GEN_OP_HALT:
-   case GEN_OP_JMPI:
-   case GEN_OP_RET:
-   case GEN_OP_WHILE:
-   case GEN_OP_BRC:
-   case GEN_OP_BRD:
-      return true;
-   default:
-      return false;
-   }
+   return gen_opcode_has_prop(opcode, GEN_OPCODE_PROP_BRANCH_CTRL);
 }
 
 static bool

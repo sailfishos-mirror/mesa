@@ -13,6 +13,15 @@ import os
 import re
 import sys
 
+from gen_opcodes import OPCODES, Props
+
+
+def c_bool(value):
+    return 'true' if value else 'false'
+
+
+def opcode_has_dst(opcode):
+    return not bool(opcode.props & Props.NO_DST)
 
 
 H_TEMPLATE = """\
@@ -49,8 +58,8 @@ struct gen_encoding_${info.name.lower()} {
    static constexpr std::array<gen_inst_description, 128> gen_to_description =
    []() constexpr {
       std::array<gen_inst_description, 128> r;
-% for (op, brw) in info.gen_op_to_brw.items():
-      r[GEN_OP_${op}] = gen_inst_description(GEN_OP_${op}, ${brw});
+% for (op, hw) in info.gen_op_to_hw:
+      r[GEN_OP_${op.enum_name}] = gen_inst_description(GEN_OP_${op.enum_name}, ${hw}, ${op.format}, ${c_bool(opcode_has_dst(op))});
 % endfor
       return r;
    }();
@@ -58,8 +67,8 @@ struct gen_encoding_${info.name.lower()} {
    static constexpr std::array<gen_inst_description, 128> hw_to_description =
    []() constexpr {
       std::array<gen_inst_description, 128> r;
-% for (op, brw) in info.gen_op_to_brw.items():
-      r[${brw}] = gen_inst_description(GEN_OP_${op}, ${brw});
+% for (op, hw) in info.gen_op_to_hw:
+      r[${hw}] = gen_inst_description(GEN_OP_${op.enum_name}, ${hw}, ${op.format}, ${c_bool(opcode_has_dst(op))});
 % endfor
       return r;
    }();
@@ -115,8 +124,7 @@ class InstructionInfo:
                 assert len(set(old_only.keys()).intersection(set(new_target[d].keys()))) == 0
                 new_target[d].update(old_only)
 
-        required_infos = ('fields', 'sub-fields', 'compact-fields',
-                          'gen-op-to-brw')
+        required_infos = ('fields', 'sub-fields', 'compact-fields')
         for info in required_infos:
             if info not in new_target:
                 new_target[info] = {}
@@ -134,6 +142,16 @@ class InstructionInfo:
         if dashed_name in self.target:
             return self.target[dashed_name]
         raise AttributeError
+
+    @property
+    def gen_op_to_hw(self):
+        encoding = self.name.lower()
+        result = []
+        for op in OPCODES:
+            hw = op.hw_opcode[encoding]
+            if hw is not None:
+                result.append((op, hw))
+        return result
 
     def for_mako(self):
         return self.target
@@ -169,6 +187,8 @@ class GenInstructionSources:
         info = InstructionInfo(self.raw_info, name)
         template_input = {
             "info": info,
+            "c_bool": c_bool,
+            "opcode_has_dst": opcode_has_dst,
         }
         filename = self.outdir / f'gen_info_{name.lower()}.h'
         with open(filename, 'w', encoding='utf8') as h:

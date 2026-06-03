@@ -31,11 +31,12 @@ struct gen_inst_description {
 
    constexpr gen_inst_description() = default;
 
-   constexpr gen_inst_description(gen_opcode op, unsigned hw)
+   constexpr gen_inst_description(gen_opcode op, unsigned hw,
+                                  gen_format fmt, bool dst)
       : gen_op(op),
-        format(gen_inst_format(op)),
+        format(fmt),
         hw_opcode(hw),
-        has_dst(gen_inst_has_dst(format, op))
+        has_dst(dst)
    {}
 };
 
