@@ -3142,9 +3142,7 @@ radv_emit_hw_ngg(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *e
       gfx12_push_sh_reg(ngg_lds_layout_offset,
                         SET_SGPR_FIELD(NGG_LDS_LAYOUT_GS_OUT_VERTEX_BASE, shader->info.ngg_info.esgs_ring_size));
    } else {
-      if (pdev->info.gfx_level >= GFX7) {
-         radeon_set_sh_reg_idx(&pdev->info, R_00B21C_SPI_SHADER_PGM_RSRC3_GS, 3, shader->regs.spi_shader_pgm_rsrc3_gs);
-      }
+      radeon_set_sh_reg_idx(&pdev->info, R_00B21C_SPI_SHADER_PGM_RSRC3_GS, 3, shader->regs.spi_shader_pgm_rsrc3_gs);
 
       radeon_set_sh_reg_idx(&pdev->info, R_00B204_SPI_SHADER_PGM_RSRC4_GS, 3, shader->regs.spi_shader_pgm_rsrc4_gs);
 
