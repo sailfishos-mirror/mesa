@@ -627,8 +627,8 @@ struct ir3_shader_output {
    uint8_t slot;
    uint8_t regid;
    uint8_t view;
-   uint8_t aliased_components : 4;
-   bool half : 1;
+   uint8_t aliased_components;
+   bool half;
 };
 
 /**
