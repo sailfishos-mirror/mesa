@@ -5,6 +5,12 @@
 import argparse
 import sys
 
+VALID_COMMON_VK_OPTIONS = {
+    "force_vk_vendor",
+    "vk_lower_terminate_to_discard",
+    "vk_require_astc",
+}
+
 def declare_options(android_version):
     import drirc_gen
 
@@ -58,9 +64,6 @@ def declare_options(android_version):
         B("no_16bit", False,
           "Disable 16-bit instructions",
           c_name="no_16bit"),
-        B("vk_lower_terminate_to_discard", False,
-          "Lower terminate to discard (which is implicitly demote)",
-          c_name="lower_terminate_to_discard"),
         I("shader_spilling_rate", 11, 0, 100,
           "Speed up shader compilation by increasing number of spilled registers after ra_allocate failure",
           c_name="shader_spilling_rate"),
@@ -95,9 +98,6 @@ def declare_options(android_version):
         B("custom_border_colors_without_format", android_version == 0,
           "Enable custom border colors without format",
           c_name="custom_border_colors_without_format"),
-        I("force_vk_vendor", 0, -1, 2147483647,
-          "Override GPU vendor id",
-          c_name="force_vk_vendor"),
         B("intel_sampler_route_to_lsc", False,
           "Specific toggle to enable sampler route to LSC",
           c_name="sampler_route_to_lsc"),
@@ -113,9 +113,6 @@ def declare_options(android_version):
         B("intel_vf_distribution", True,
           "Enable geometry distribution",
           c_name="vf_distribution"),
-        B("vk_require_astc", android_version >= 34,
-          "Implement emulated ASTC on HW that does not support it",
-          c_name="vk_require_astc"),
 
         # Workaround command emission
         B("anv_barrier_post_untyped_clear_shader", False,
@@ -231,6 +228,9 @@ def declare_options(android_version):
           c_name="compression_control_enabled"),
     ]
 
+    drirc_gen.add_common_vk_options(debug_options, feature_options,
+                                    valid_options=VALID_COMMON_VK_OPTIONS,
+                                    defaults={"vk_require_astc": android_version >= 34})
     drirc_gen.add_common_vk_wsi_options(debug_options, perf_options)
 
     return [drirc_gen.DrircSection("Debugging",   debug_options,   c_name="debug"),
