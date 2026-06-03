@@ -259,12 +259,18 @@ jay_collect_vectors(jay_builder *b, jay_def *vecs, uint32_t nr)
    uint32_t nr_indices = 0;
 
    for (unsigned i = 0; i < nr; ++i) {
-      assert(vecs[i].file == vecs[0].file && jay_is_ssa(vecs[i]));
       assert(!vecs[i].negate && !vecs[i].abs);
-
-      jay_foreach_comp(vecs[i], c) {
+      if (jay_is_null(vecs[i])) {
+         assert(i != 0);
          assert(nr_indices < ARRAY_SIZE(indices));
-         indices[nr_indices++] = jay_channel(vecs[i], c);
+         indices[nr_indices++] = 0;
+      } else {
+         assert(vecs[i].file == vecs[0].file && jay_is_ssa(vecs[i]));
+
+         jay_foreach_comp(vecs[i], c) {
+            assert(nr_indices < ARRAY_SIZE(indices));
+            indices[nr_indices++] = jay_channel(vecs[i], c);
+         }
       }
    }
 
