@@ -79,16 +79,16 @@ impl Join<&CStr> for [CString] {
 fn test_push_cstr() {
     let mut owned = c"SomeString".to_owned();
     owned.push_cstr(c"MoreString");
-    assert_eq!(owned, c"SomeStringMoreString".into());
+    assert_eq!(owned, c"SomeStringMoreString".to_owned());
 }
 
 #[test]
 fn test_join_c_strings() {
-    assert_eq!(Join::join([].as_slice(), c";"), c"".into());
-    assert_eq!([c"test".to_owned()].join(c";"), c"test".into());
+    assert_eq!(Join::join([].as_slice(), c";"), c"".to_owned());
+    assert_eq!([c"test".to_owned()].join(c";"), c"test".to_owned());
     assert_eq!(
         [c"String".to_owned(), c"AnotherString".to_owned()].join(c";"),
-        c"String;AnotherString".into()
+        c"String;AnotherString".to_owned()
     );
     assert_eq!(
         [
@@ -97,6 +97,6 @@ fn test_join_c_strings() {
             c"Testing".to_owned()
         ]
         .join(c"###"),
-        c"String###AnotherString###Testing".into(),
+        c"String###AnotherString###Testing".to_owned(),
     );
 }
