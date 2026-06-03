@@ -457,6 +457,10 @@ impl VirtualOpcode for OpMkVecV2I8 {
     fn src_supports_imm32(&self, _src: &Src) -> bool {
         true
     }
+
+    fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
+        swizzle.replicates_byte()
+    }
 }
 
 #[repr(C)]
@@ -486,6 +490,10 @@ impl fmt::Display for OpMkVecV4I8 {
 impl VirtualOpcode for OpMkVecV4I8 {
     fn src_supports_imm32(&self, _src: &Src) -> bool {
         true
+    }
+
+    fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
+        swizzle.replicates_byte()
     }
 }
 

@@ -743,6 +743,10 @@ pub trait VirtualOpcode {
     fn src_supports_imm32(&self, _src: &Src) -> bool {
         false
     }
+
+    fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
+        swizzle == Swizzle::NONE
+    }
 }
 
 #[derive(Clone)]

@@ -6,26 +6,115 @@ use crate::data_type::*;
 use crate::flow::*;
 use crate::ir;
 use crate::ir::*;
-use crate::isa::v9::InstructionInfo;
 use crate::isa::v9::*;
+use crate::isa::v9::{InstructionInfo, InstructionSrcInfo};
 use crate::isa::*;
 use crate::ops::*;
 use crate::swizzle::*;
 
+use compiler::{as_slice::AsArray, index_of};
 use paste::paste;
 use rustc_hash::FxHashMap;
 
 type EncodedInstr = [u32; 2];
 const INSTR_SIZE: i64 = size_of::<EncodedInstr>() as i64;
 
-trait V9Instr {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo>;
+#[repr(i8)]
+#[derive(Clone, Copy)]
+enum V9InstrSrc {
+    SrSrc = -2,
+    None = -1,
+    // Discriminants are chosen so that only SrcN is non-negative
+    Src0 = 0,
+    Src1 = 1,
+    Src2 = 2,
+    Src3 = 3,
+}
+
+type V9SrcMap = [V9InstrSrc; 4];
+
+struct V9InstrInfo {
+    isa_info: &'static InstructionInfo,
+    src_map: V9SrcMap,
+}
+
+impl V9InstrInfo {
+    fn from_isa(
+        isa_info: Option<&'static InstructionInfo>,
+        src_map: V9SrcMap,
+    ) -> Option<V9InstrInfo> {
+        isa_info.map(|isa_info| V9InstrInfo { isa_info, src_map })
+    }
+
+    fn src_info(&self, src_idx: usize) -> Option<&'static InstructionSrcInfo> {
+        let v9_src = self.src_map[src_idx];
+        match v9_src {
+            V9InstrSrc::SrSrc => self.isa_info.sr_src.as_ref(),
+            V9InstrSrc::None => None,
+            V9InstrSrc::Src0
+            | V9InstrSrc::Src1
+            | V9InstrSrc::Src2
+            | V9InstrSrc::Src3 => Some(&self.isa_info.srcs[v9_src as usize]),
+        }
+    }
+}
+
+trait V9Instr: Opcode {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo>;
 
     fn src_supports_imm32(&self, _src: &Src, _arch: u8) -> bool {
         false
     }
 
     fn encode(&self, encoder: V9Encoder<'_>) -> EncodedInstr;
+}
+
+impl V9InstrSrc {
+    fn set_once(&mut self, other: V9InstrSrc) {
+        assert!(matches!(self, V9InstrSrc::None));
+        *self = other;
+    }
+}
+
+struct InvV9SrcMap {
+    src0: usize,
+    src1: usize,
+    src2: usize,
+    src3: usize,
+    sr_src: usize,
+}
+
+impl InvV9SrcMap {
+    fn empty() -> InvV9SrcMap {
+        InvV9SrcMap {
+            src0: usize::MAX,
+            src1: usize::MAX,
+            src2: usize::MAX,
+            src3: usize::MAX,
+            sr_src: usize::MAX,
+        }
+    }
+
+    fn invert(self) -> [V9InstrSrc; 4] {
+        let mut map = [V9InstrSrc::None; 4];
+        map.get_mut(self.src0).map(|s| s.set_once(V9InstrSrc::Src0));
+        map.get_mut(self.src1).map(|s| s.set_once(V9InstrSrc::Src1));
+        map.get_mut(self.src2).map(|s| s.set_once(V9InstrSrc::Src2));
+        map.get_mut(self.src3).map(|s| s.set_once(V9InstrSrc::Src3));
+        map.get_mut(self.sr_src)
+            .map(|s| s.set_once(V9InstrSrc::SrSrc));
+        map
+    }
+}
+
+macro_rules! src_map {
+    {$($hw_src:ident : $($op_fields:tt).*$([$op_idx:expr])*),* $(,)?} => {{
+        let map = InvV9SrcMap {
+            $($hw_src: index_of!(Self, $($op_fields).*$([$op_idx])*),)*
+            .. InvV9SrcMap::empty()
+        };
+        map.invert()
+    }}
 }
 
 struct V9Encoder<'a> {
@@ -365,8 +454,8 @@ impl From<MemAccess> for AccessStoreM {
 }
 
 impl V9Instr for OpBranch {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Branch::get_info((), arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(Branch::get_info((), arch), src_map! {src0: cond})
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -404,8 +493,16 @@ impl TryFrom<CmpOp> for CmpfM {
 }
 
 impl V9Instr for OpCSel {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Csel::get_info(self.cmp_type, arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Csel::get_info(self.cmp_type, arch),
+            src_map! {
+                src0: cmp_srcs[0],
+                src1: cmp_srcs[1],
+                src2: sel_srcs[0],
+                src3: sel_srcs[1],
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -422,8 +519,13 @@ impl V9Instr for OpCSel {
 }
 
 impl V9Instr for OpF16ToF32 {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        F16ToF32::get_info((), arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            F16ToF32::get_info((), arch),
+            src_map! {
+                src0: src,
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -457,8 +559,13 @@ impl From<FClamp> for ClampM {
 }
 
 impl V9Instr for OpF32ToF16 {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        F32ToF16::get_info((), arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            F32ToF16::get_info((), arch),
+            src_map! {
+                src0: src,
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -472,8 +579,14 @@ impl V9Instr for OpF32ToF16 {
 }
 
 impl V9Instr for OpFAdd {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Fadd::get_info(self.dst_type, arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Fadd::get_info(self.dst_type, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
     }
 
     fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
@@ -503,8 +616,14 @@ impl V9Instr for OpFAdd {
 }
 
 impl V9Instr for OpFCmp {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Fcmp::get_info(self.src_type, arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Fcmp::get_info(self.src_type, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -520,8 +639,14 @@ impl V9Instr for OpFCmp {
 }
 
 impl V9Instr for OpIAdd {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Iadd::get_info(self.dst_type.i_as_u(), arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Iadd::get_info(self.dst_type.i_as_u(), arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
     }
 
     fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
@@ -549,8 +674,14 @@ impl V9Instr for OpIAdd {
 }
 
 impl V9Instr for OpICmp {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Icmp::get_info(self.src_type, arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Icmp::get_info(self.src_type, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -566,8 +697,14 @@ impl V9Instr for OpICmp {
 }
 
 impl V9Instr for OpLdPka {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        LdPka::get_info(self.dst_type, arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdPka::get_info(self.dst_type, arch),
+            src_map! {
+                src0: offset,
+                src1: handle,
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -584,8 +721,14 @@ impl V9Instr for OpLdPka {
 }
 
 impl V9Instr for OpLeaPka {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        LeaPka::get_info((), arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LeaPka::get_info((), arch),
+            src_map! {
+                src0: offset,
+                src1: handle,
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -599,8 +742,13 @@ impl V9Instr for OpLeaPka {
 }
 
 impl V9Instr for OpLoad {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Load::get_info(self.dst_type, arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Load::get_info(self.dst_type, arch),
+            src_map! {
+                src0: addr,
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -617,8 +765,13 @@ impl V9Instr for OpLoad {
 }
 
 impl V9Instr for OpMov {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Mov::get_info(self.dst_type, arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Mov::get_info(self.dst_type, arch),
+            src_map! {
+                src0: src,
+            },
+        )
     }
 
     fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
@@ -643,8 +796,8 @@ impl V9Instr for OpMov {
 }
 
 impl V9Instr for OpNop {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Nop::get_info((), arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(Nop::get_info((), arch), src_map! {})
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -706,36 +859,68 @@ macro_rules! encode_shift_lop {
 }
 
 impl V9Instr for OpShiftLop {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        use LogicOp::*;
-        use ShiftOp::*;
-        match (self.shift_op, self.logic_op) {
-            (ShiftOp::None, LogicOp::None) => {
-                v9::Or::get_info(self.dst_type, arch)
-            }
-            (ShiftOp::None, And) => v9::And::get_info(self.dst_type, arch),
-            (ShiftOp::None, Or) => v9::Or::get_info(self.dst_type, arch),
-            (ShiftOp::None, Xor) => v9::Xor::get_info(self.dst_type, arch),
-            (LShift, LogicOp::None) => Lshift::get_info(self.dst_type, arch),
-            (RShift, LogicOp::None) => Rshift::get_info(self.dst_type, arch),
-            (ARShift, LogicOp::None) => Arshift::get_info(self.dst_type, arch),
-            (LRot, LogicOp::None) => Lrot::get_info(self.dst_type, arch),
-            (RRot, LogicOp::None) => Rrot::get_info(self.dst_type, arch),
-            (LShift, And) => LshiftAnd::get_info(self.dst_type, arch),
-            (LShift, Or) => LshiftOr::get_info(self.dst_type, arch),
-            (LShift, Xor) => LshiftXor::get_info(self.dst_type, arch),
-            (RShift, And) => RshiftAnd::get_info(self.dst_type, arch),
-            (RShift, Or) => RshiftOr::get_info(self.dst_type, arch),
-            (RShift, Xor) => RshiftXor::get_info(self.dst_type, arch),
-            (ARShift, And) => ArshiftAnd::get_info(self.dst_type, arch),
-            (ARShift, Or) => ArshiftOr::get_info(self.dst_type, arch),
-            (ARShift, Xor) => ArshiftXor::get_info(self.dst_type, arch),
-            (LRot, And) => LrotAnd::get_info(self.dst_type, arch),
-            (LRot, Or) => LrotOr::get_info(self.dst_type, arch),
-            (LRot, Xor) => LrotXor::get_info(self.dst_type, arch),
-            (RRot, And) => RrotAnd::get_info(self.dst_type, arch),
-            (RRot, Or) => RrotOr::get_info(self.dst_type, arch),
-            (RRot, Xor) => RrotXor::get_info(self.dst_type, arch),
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        if self.shift_op.is_none() {
+            use LogicOp::*;
+            let isa_info = match self.logic_op {
+                None => v9::Or::get_info(self.dst_type, arch),
+                And => v9::And::get_info(self.dst_type, arch),
+                Or => v9::Or::get_info(self.dst_type, arch),
+                Xor => v9::Xor::get_info(self.dst_type, arch),
+            };
+            V9InstrInfo::from_isa(
+                isa_info,
+                src_map! {
+                    src0: src0,
+                    src2: src2,
+                },
+            )
+        } else if self.logic_op.is_none() {
+            use ShiftOp::*;
+            let isa_info = match self.shift_op {
+                None => unreachable!(),
+                LShift => Lshift::get_info(self.dst_type, arch),
+                RShift => Rshift::get_info(self.dst_type, arch),
+                ARShift => Arshift::get_info(self.dst_type, arch),
+                LRot => Lrot::get_info(self.dst_type, arch),
+                RRot => Rrot::get_info(self.dst_type, arch),
+            };
+            V9InstrInfo::from_isa(
+                isa_info,
+                src_map! {
+                    src0: src0,
+                    src1: shift,
+                },
+            )
+        } else {
+            use LogicOp::*;
+            use ShiftOp::*;
+            let isa_info = match (self.shift_op, self.logic_op) {
+                (ShiftOp::None, _) | (_, LogicOp::None) => unreachable!(),
+                (LShift, And) => LshiftAnd::get_info(self.dst_type, arch),
+                (LShift, Or) => LshiftOr::get_info(self.dst_type, arch),
+                (LShift, Xor) => LshiftXor::get_info(self.dst_type, arch),
+                (RShift, And) => RshiftAnd::get_info(self.dst_type, arch),
+                (RShift, Or) => RshiftOr::get_info(self.dst_type, arch),
+                (RShift, Xor) => RshiftXor::get_info(self.dst_type, arch),
+                (ARShift, And) => ArshiftAnd::get_info(self.dst_type, arch),
+                (ARShift, Or) => ArshiftOr::get_info(self.dst_type, arch),
+                (ARShift, Xor) => ArshiftXor::get_info(self.dst_type, arch),
+                (LRot, And) => LrotAnd::get_info(self.dst_type, arch),
+                (LRot, Or) => LrotOr::get_info(self.dst_type, arch),
+                (LRot, Xor) => LrotXor::get_info(self.dst_type, arch),
+                (RRot, And) => RrotAnd::get_info(self.dst_type, arch),
+                (RRot, Or) => RrotOr::get_info(self.dst_type, arch),
+                (RRot, Xor) => RrotXor::get_info(self.dst_type, arch),
+            };
+            V9InstrInfo::from_isa(
+                isa_info,
+                src_map! {
+                    src0: src0,
+                    src1: shift,
+                    src2: src2,
+                },
+            )
         }
     }
 
@@ -796,8 +981,14 @@ impl V9Instr for OpShiftLop {
 }
 
 impl V9Instr for OpStore {
-    fn get_info(&self, arch: u8) -> Option<&'static InstructionInfo> {
-        Store::get_info(self.src_type, arch)
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Store::get_info(self.src_type, arch),
+            src_map! {
+                sr_src: data,
+                src0: addr,
+            },
+        )
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
@@ -841,7 +1032,7 @@ macro_rules! v9_op_match {
     };
 }
 
-fn v9_op_info(op: &Op, arch: u8) -> Option<&InstructionInfo> {
+fn v9_op_info(op: &Op, arch: u8) -> Option<V9InstrInfo> {
     v9_op_match!(op, |op| op.get_info(arch))
 }
 
@@ -850,11 +1041,34 @@ pub fn v9_op_is_supported(op: &Op, arch: u8) -> bool {
 }
 
 pub fn v9_op_is_message(op: &Op, arch: u8) -> bool {
-    v9_op_info(op, arch).is_some_and(|info| info.is_message)
+    v9_op_info(op, arch).is_some_and(|info| info.isa_info.is_message)
 }
 
 pub fn v9_op_src_supports_imm32(op: &Op, src: &Src, arch: u8) -> bool {
     v9_op_match!(op, |op| op.src_supports_imm32(src, arch))
+}
+
+pub fn v9_op_src_supports_swizzle(
+    op: &Op,
+    src: &Src,
+    arch: u8,
+    swizzle: Swizzle,
+) -> bool {
+    let Some(info) = v9_op_info(op, arch) else {
+        return false;
+    };
+
+    let Some(src_info) = info.src_info(op.src_idx(src)) else {
+        // Claim all swizzles are supported for sources we don't have.  They'll
+        // never be used so it doesn't matter what the swizzle is.
+        return true;
+    };
+
+    let src_type = op.src_type(src);
+    let Some(asw) = AsmSwizzleWiden::from_swizzle(src_type, swizzle) else {
+        return false;
+    };
+    src_info.allowed_swizzles.contains(asw.into())
 }
 
 fn encode_instr(

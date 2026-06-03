@@ -16,6 +16,13 @@ pub trait Model {
 
     fn op_src_supports_imm32(&self, op: &Op, src: &Src) -> bool;
 
+    fn op_src_supports_swizzle(
+        &self,
+        op: &Op,
+        src: &Src,
+        swizzle: Swizzle,
+    ) -> bool;
+
     fn small_constants(&self) -> &[SmallConstant];
 }
 
@@ -58,6 +65,19 @@ impl Model for ValhallModel {
             vop.src_supports_imm32(src)
         } else {
             v9_op_src_supports_imm32(op, src, self.arch)
+        }
+    }
+
+    fn op_src_supports_swizzle(
+        &self,
+        op: &Op,
+        src: &Src,
+        swizzle: Swizzle,
+    ) -> bool {
+        if let Some(vop) = op.as_virtual() {
+            vop.src_supports_swizzle(src, swizzle)
+        } else {
+            v9_op_src_supports_swizzle(op, src, self.arch, swizzle)
         }
     }
 
