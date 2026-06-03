@@ -8184,7 +8184,7 @@
         "description": "aco/assembler: Fix s_inst_prefetch insertion after loop latch rotation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "102aca9843a69510b00f4807475cae3ee23931e4",
         "notes": null

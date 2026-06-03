@@ -36,6 +36,7 @@ struct asm_context {
    std::map<unsigned, constaddr_info> constaddrs;
    std::map<unsigned, constaddr_info> resumeaddrs;
    std::vector<struct aco_symbol>* symbols;
+   uint32_t loop_preheader = -1u;
    uint32_t loop_latch = -1u;
    uint32_t loop_exit = -1u;
    const int16_t* opcode;
@@ -1719,8 +1720,10 @@ align_block(asm_context& ctx, std::vector<uint32_t>& code, Block& block)
    if (ctx.loop_latch != -1u &&
        block.loop_nest_depth < ctx.program->blocks[ctx.loop_latch].loop_nest_depth) {
       assert(ctx.loop_exit != -1u);
+      Block& loop_preheader = ctx.program->blocks[ctx.loop_preheader];
       Block& loop_latch = ctx.program->blocks[ctx.loop_latch];
       Block& loop_exit = ctx.program->blocks[ctx.loop_exit];
+      ctx.loop_preheader = -1u;
       ctx.loop_latch = -1u;
       ctx.loop_exit = -1u;
       std::vector<uint32_t> nops;
@@ -1735,11 +1738,21 @@ align_block(asm_context& ctx, std::vector<uint32_t>& code, Block& block)
                                    loop_num_cl <= 3;
 
       if (change_prefetch) {
-         Builder bld(ctx.program, &ctx.program->blocks[loop_latch.linear_preds[0]]);
+         Builder bld(ctx.program, &loop_preheader);
+         unsigned offset = loop_latch.offset;
+         if (!(loop_latch.kind & block_kind_loop_header)) {
+            /* If the loop latch is not the header, then the preheader ends in
+             * a branch in order to jump over the loop latch on the first iteration.
+             * Emit the s_inst_prefetch before the branch.
+             */
+            assert(loop_preheader.instructions.back()->opcode == aco_opcode::s_branch);
+            bld.reset(&loop_preheader.instructions, std::prev(loop_preheader.instructions.end()));
+            offset -= 1;
+         }
          int16_t prefetch_mode = loop_num_cl == 3 ? 0x1 : 0x2;
          Instruction* instr = bld.sopp(aco_opcode::s_inst_prefetch, prefetch_mode);
          emit_instruction(ctx, nops, instr);
-         insert_code(ctx, code, loop_latch.offset, nops.size(), nops.data());
+         insert_code(ctx, code, offset, nops.size(), nops.data());
 
          /* Change prefetch mode back to default (0x3) at the loop exit. */
          bld.reset(&loop_exit.instructions, loop_exit.instructions.begin());
@@ -1773,6 +1786,7 @@ align_block(asm_context& ctx, std::vector<uint32_t>& code, Block& block)
        * Also ignore loops without back-edge.
        */
       if (block.linear_preds.size() > 1) {
+         ctx.loop_preheader = block.index - 1;
          ctx.loop_latch = block.index;
          ctx.loop_exit = -1u;
       }
