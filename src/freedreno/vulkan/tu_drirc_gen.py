@@ -5,6 +5,9 @@
 import argparse
 import sys
 
+VALID_COMMON_VK_OPTIONS = {
+    "force_vk_vendor",
+}
 
 def declare_options():
     import drirc_gen
@@ -17,9 +20,6 @@ def declare_options():
     EV = drirc_gen.DrircEnumValue
 
     debug_options = [
-        I("force_vk_vendor", 0, -1, 2147483647,
-          "Override GPU vendor id",
-          c_name="force_vk_vendor"),
         B("tu_dont_care_as_load", False,
           "Treat VK_ATTACHMENT_LOAD_OP_DONT_CARE as LOAD_OP_LOAD, workaround on tiler GPUs for games that confuse these two load ops",
           c_name="dont_care_as_load")
@@ -109,6 +109,9 @@ def declare_options():
           c_name="override_compute_shader_version"),
     ]
 
+    features_options = []
+
+    drirc_gen.add_common_vk_options(debug_options, features_options, valid_options=VALID_COMMON_VK_OPTIONS)
     drirc_gen.add_common_vk_wsi_options(debug_options, perf_options)
 
     return [drirc_gen.DrircSection("Debugging", debug_options,   c_name="debug"),
