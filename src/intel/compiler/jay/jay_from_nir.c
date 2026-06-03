@@ -407,8 +407,12 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
    case nir_op_f2f16:
    case nir_op_f2i16:
    case nir_op_f2u16:
+   case nir_op_f2i16_sat:
+   case nir_op_f2u16_sat:
    case nir_op_f2i8:
-   case nir_op_f2u8: {
+   case nir_op_f2u8:
+   case nir_op_f2i8_sat:
+   case nir_op_f2u8_sat: {
       enum jay_type src_type = jay_alu_source_type(alu, 0);
 
       /* UGPR byte to float is not supported. Do it in 2 steps. */
