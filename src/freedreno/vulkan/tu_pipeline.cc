@@ -359,7 +359,7 @@ sp_xs_config(const struct ir3_shader_variant *v)
 static bool
 push_shared_consts(const struct ir3_shader_variant *v)
 {
-   return v && v->shader_options.push_consts_type == IR3_PUSH_CONSTS_SHARED_PREAMBLE;
+   return v && v->const_state->push_consts_type == IR3_PUSH_CONSTS_SHARED_PREAMBLE;
 }
 
 template <chip CHIP>

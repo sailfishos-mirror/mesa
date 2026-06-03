@@ -691,6 +691,8 @@ struct ir3_shader_variant {
     */
    struct ir3_imm_const_state imm_state;
 
+   struct ir3_shader_options shader_options;
+
    /*
     * The following macros are used by the shader disk cache save/
     * restore paths to serialize/deserialize the variant.  Any
@@ -705,8 +707,6 @@ struct ir3_shader_variant {
    struct ir3_info info;
 
    char blake3_str[BLAKE3_HEX_LEN];
-
-   struct ir3_shader_options shader_options;
 
    uint32_t constant_data_size;
 
