@@ -1614,6 +1614,15 @@ radv_open_rtld_binary(enum amd_gfx_level gfx_level, const struct radv_shader_bin
 #endif
 
 static unsigned
+radv_get_inst_pref_size(const struct radv_compiler_info *compiler_info, unsigned exec_size)
+{
+   enum amd_gfx_level gfx_level = compiler_info->ac->gfx_level;
+   unsigned prefetch_distance = compiler_info->hw.instr_prefetch_distance;
+
+   return ac_get_instr_prefetch_size(gfx_level, prefetch_distance, exec_size);
+}
+
+static unsigned
 radv_get_num_pos_exports(const struct radv_shader_info *info, unsigned *clip_dist_mask, unsigned *cull_dist_mask)
 {
    unsigned num = 1;
@@ -2142,6 +2151,7 @@ radv_postprocess_binary_config(const struct radv_compiler_info *compiler_info, s
 {
    enum amd_gfx_level gfx_level = compiler_info->ac->gfx_level;
    struct ac_shader_config *config = &binary->config;
+   unsigned exec_size;
 
    if (binary->type == RADV_BINARY_TYPE_RTLD) {
 #if !defined(USE_LIBELF)
@@ -2153,6 +2163,8 @@ radv_postprocess_binary_config(const struct radv_compiler_info *compiler_info, s
          return false;
       }
 
+      exec_size = rtld_binary.exec_size;
+
       if (!ac_rtld_read_config(compiler_info->ac, &rtld_binary, config)) {
          ac_rtld_close(&rtld_binary);
          return false;
@@ -2163,6 +2175,10 @@ radv_postprocess_binary_config(const struct radv_compiler_info *compiler_info, s
 
       ac_rtld_close(&rtld_binary);
 #endif
+   } else {
+      struct radv_shader_binary_legacy *bin = (struct radv_shader_binary_legacy *)binary;
+
+      exec_size = bin->exec_size;
    }
 
    const struct radv_shader_info *info = &binary->info;
@@ -2373,6 +2389,11 @@ radv_postprocess_binary_config(const struct radv_compiler_info *compiler_info, s
                        S_00B84C_TG_SIZE_EN(info->cs.uses_local_invocation_idx) | S_00B84C_LDS_SIZE(lds_alloc) |
                        S_00B84C_EXCP_EN(excp_en) | S_00B84C_EXCP_EN_MSB(excp_en_msb);
       config->rsrc3 |= S_00B8A0_SHARED_VGPR_CNT(num_shared_vgpr_blocks);
+
+      if (gfx_level >= GFX12)
+         config->rsrc3 |= S_00B8A0_INST_PREF_SIZE_GFX12(radv_get_inst_pref_size(compiler_info, exec_size));
+      else if (gfx_level >= GFX11)
+         config->rsrc3 |= S_00B8A0_INST_PREF_SIZE_GFX11(radv_get_inst_pref_size(compiler_info, exec_size));
 
       break;
    default:

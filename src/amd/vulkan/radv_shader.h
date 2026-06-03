@@ -516,9 +516,10 @@ struct radv_compiler_info {
 
    struct {
       uint32_t address32_hi;
+      uint32_t instr_prefetch_distance : 8;
       uint32_t rbplus_allowed : 1;
       uint32_t address_prt_wa_control_bit : 8;
-      uint32_t padding : 23;
+      uint32_t padding : 15;
    } hw;
 
    /* Misc values included as part of the cache key */

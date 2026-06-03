@@ -1172,6 +1172,7 @@ radv_device_init_compiler_info(struct radv_device *device)
       .hw =
          {
             .address32_hi = pdev->info.address32_hi,
+            .instr_prefetch_distance = pdev->info.instr_prefetch_distance,
             .address_prt_wa_control_bit = pdev->info.address_prt_wa_control_bit,
             .rbplus_allowed = pdev->info.rbplus_allowed,
          },
