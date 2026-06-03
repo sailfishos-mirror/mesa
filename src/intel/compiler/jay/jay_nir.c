@@ -354,6 +354,10 @@ jay_process_nir(const struct intel_device_info *devinfo,
    if (stage == MESA_SHADER_FRAGMENT && nir->info.fs.color_is_dual_source)
       do_simd32 = false;
 
+   /* SIMD splitting of ray queries is inefficient, avoid it when possible */
+   if (prog_data->base.ray_queries && nir->info.min_subgroup_size < 32)
+      do_simd32 = false;
+
    unsigned simd_width = do_simd32 ? (nir->info.api_subgroup_size ?: 32) : 16;
 
    brw_pass_tracker pt_ = {
