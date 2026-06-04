@@ -181,6 +181,10 @@ insert_rt_store(nir_builder *b,
                 nir_def *sample_mask)
 {
    bool null_rt = target < 0;
+   bool eot_only = null_rt &&
+                   !colour &&
+                   nir_def_is_undef(depth) &&
+                   nir_def_is_undef(stencil);
 
    colour = nir_pad_vec4(b, colour ?: nir_undef(b, 4, 32));
    dual_colour = nir_pad_vec4(b, dual_colour ?: nir_undef(b, 4, 32));
@@ -195,7 +199,7 @@ insert_rt_store(nir_builder *b,
 
    nir_def *src0_alpha = nir_channel_or_undef(b, src0_colour ?: colour, 3);
 
-   nir_def *disable = b->shader->info.fs.uses_discard ?
+   nir_def *disable = b->shader->info.fs.uses_discard && !eot_only ?
                          nir_is_helper_invocation(b, 1) :
                          nir_imm_false(b);
 
