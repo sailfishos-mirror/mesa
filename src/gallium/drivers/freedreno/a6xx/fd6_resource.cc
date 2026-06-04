@@ -252,6 +252,15 @@ setup_lrz(struct fd_resource *rsc)
                         FD_BO_NOMAP, "lrz");
 }
 
+static uint32_t
+fd6_layout_multiplanar_resource(struct fd_resource *y_rsc,
+                                struct fd_resource *uv_rsc)
+{
+   struct pipe_resource *uv_prsc = &uv_rsc->b.b;
+   return (uint32_t)fdl6_layout_multiplanar_image(&y_rsc->layout, &uv_rsc->layout,
+                                                  uv_prsc->last_level + 1);
+}
+
 template <chip CHIP>
 static uint32_t
 fd6_layout_resource(struct fd_resource *rsc, enum fd_layout_type type)
@@ -374,6 +383,7 @@ fd6_resource_screen_init(struct pipe_screen *pscreen)
    struct fd_screen *screen = fd_screen(pscreen);
 
    screen->layout_resource = fd6_layout_resource<CHIP>;
+   screen->layout_multiplanar_resource = fd6_layout_multiplanar_resource;
    screen->layout_resource_for_handle = fd6_layout_resource_for_handle;
    screen->is_format_supported = fd6_is_format_supported;
 }
