@@ -396,3 +396,34 @@ fdl6_layout_image(struct fdl_layout *layout, const struct fd_dev_info *info,
 
    return true;
 }
+
+/**
+ * Stitch together the Y and UV plane layouts for a 2-plane YUV (NV12-family)
+ * resource into a single contiguous BO, adjusting UV plane offsets in-place.
+ * Returns the combined BO size needed for both planes.
+ */
+uint64_t
+fdl6_layout_multiplanar_image(struct fdl_layout *y_layout,
+                               struct fdl_layout *uv_layout,
+                               uint32_t mip_levels)
+{
+   if (y_layout->ubwc) {
+      uint64_t y_ubwc_size  = y_layout->ubwc_layer_size;
+      uint64_t y_pixel_size = y_layout->size - y_ubwc_size;
+      uint64_t uv_offset    = y_ubwc_size + y_pixel_size;
+
+      /* Place UV UBWC metadata after Y pixels; UV pixels follow UV meta */
+      for (uint32_t i = 0; i < mip_levels; i++) {
+         uv_layout->ubwc_slices[i].offset += uv_offset;
+         uv_layout->slices[i].offset      += uv_offset;
+      }
+      return uv_offset + uv_layout->size;
+   } else {
+      /* Linear/tiled: concatenate Y plane (page-aligned) then UV plane */
+      uint64_t y_aligned = align64(y_layout->size, 4096);
+      for (uint32_t i = 0; i < mip_levels; i++) {
+         uv_layout->slices[i].offset += y_aligned;
+      }
+      return y_aligned + uv_layout->size;
+   }
+}
