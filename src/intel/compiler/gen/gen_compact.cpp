@@ -841,7 +841,8 @@ typedef struct compact_table_info {
 
 struct compact_tables {
    struct compact_table_info control;
-   struct compact_table_info datatype;
+   struct compact_table_info datatype_1src;
+   struct compact_table_info datatype_2src;
    struct compact_table_info subreg;
    struct compact_table_info src0;
    struct compact_table_info src1;
@@ -867,7 +868,8 @@ struct compact_tables {
 
 declare_tables(gen9_tables, {
    set_table(control, gfx8_control_index_table);
-   set_table(datatype, gfx8_datatype_table);
+   set_table(datatype_1src, gfx8_datatype_table);
+   set_table(datatype_2src, gfx8_datatype_table);
    set_table(subreg, gfx8_subreg_table);
    set_table(src0, gfx8_src_index_table);
    set_table(src1, gfx8_src_index_table);
@@ -879,12 +881,14 @@ declare_tables(gen9_tables, {
 
 declare_tables(gen11_tables, {
    tables = gen9_tables;
-   set_table(datatype, gfx11_datatype_table);
+   set_table(datatype_1src, gfx11_datatype_table);
+   set_table(datatype_2src, gfx11_datatype_table);
 });
 
 declare_tables(gen12_tables, {
    set_table(control, gfx12_control_index_table);
-   set_table(datatype, gfx12_datatype_table);
+   set_table(datatype_1src, gfx12_datatype_table);
+   set_table(datatype_2src, gfx12_datatype_table);
    set_table(subreg, gfx12_subreg_table);
    set_table(src0, gfx12_src0_index_table);
    set_table(src1, gfx12_src1_index_table);
@@ -903,7 +907,8 @@ declare_tables(genx125_tables, {
 
 declare_tables(xe2_tables, {
    set_table(control, xe2_control_index_table);
-   set_table(datatype, xe2_datatype_table);
+   set_table(datatype_1src, xe2_datatype_table);
+   set_table(datatype_2src, xe2_datatype_table);
    set_table(subreg, xe2_subreg_table);
    set_table(src0, xe2_src0_index_table);
    set_table(src1, xe2_src1_index_table);
@@ -1339,7 +1344,10 @@ private:
    bool
    set_datatype_index(bool is_immediate)
    {
-      const compact_table_info &table = compact_tables.datatype;
+      const unsigned num_sources = gen_inst_num_sources(devinfo, inst);
+      assert(num_sources <= 2);
+      const compact_table_info &table = num_sources < 2 ?
+         compact_tables.datatype_1src : compact_tables.datatype_2src;
       uint32_t uncompacted = uc_get(E::UNCOMP_DATATYPE);
 
       if constexpr (E::TYPE >= GEN_ENCODING_XE) {
@@ -2082,10 +2090,37 @@ private:
       uc_set(E::UNCOMP_CONTROL, uncompacted);
    }
 
+   static inline unsigned
+   devinfo_opcode_num_sources(const struct intel_device_info *devinfo,
+                              const gen_opcode op)
+   {
+      if (gen_inst_format(op) == GEN_FORMAT_SEND) {
+         switch (op) {
+         case GEN_OP_SEND:
+         case GEN_OP_SENDC:
+            return devinfo->ver >= 12 ? 2 : 1;
+
+         case GEN_OP_SENDS:
+         case GEN_OP_SENDSC:
+            return 2;
+
+         default:
+            UNREACHABLE("Unhandled SEND OP in devinfo_opcode_num_sources()");
+            break;
+         }
+      }
+
+      return gen_opcode_num_srcs(op);
+   }
+
    void
    set_uncompacted_datatype()
    {
-      const compact_table_info &table = compact_tables.datatype;
+      const unsigned num_sources =
+         devinfo_opcode_num_sources(devinfo, desc->gen_op);
+      assert(num_sources <= 2);
+      const compact_table_info &table = num_sources < 2 ?
+         compact_tables.datatype_1src : compact_tables.datatype_2src;
       uint64_t compacted = c_get(E::C_DATATYPE_INDEX);
       auto uncompacted = table.read(compacted);
       uc_set(E::UNCOMP_DATATYPE, uncompacted);
