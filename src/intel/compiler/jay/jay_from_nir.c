@@ -2192,6 +2192,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
    }
 
+   case nir_intrinsic_load_btd_global_arg_addr_intel:
+      jay_MOV(b, dst, jay_collect_vectors(b, &nj->payload.inline_data[0], 2));
+      break;
+
    case nir_intrinsic_dpas_intel:
       jay_emit_dpas(nj, intr);
       break;
