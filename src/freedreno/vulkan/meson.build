@@ -150,6 +150,11 @@ if freedreno_kmds.contains('virtio')
   tu_deps += dep_libdrm
 endif
 
+tu_build_id = get_option('tu-build-id')
+if tu_build_id != ''
+  tu_flags += '-DTU_BUILD_ID_OVERRIDE="' + tu_build_id + '"'
+endif
+
 tu_tracepoints = custom_target(
   'tu_tracepoints.[ch]',
   input: 'tu_tracepoints.py',

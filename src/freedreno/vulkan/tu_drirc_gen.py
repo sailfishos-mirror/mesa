@@ -100,6 +100,13 @@ def declare_options():
 
         F("heap_memory_percent", 0.0, 0.0, 1.0, "Percentage of total system memory to report as gpu heap memory (0 = driver default)",
           c_name="heap_memory_percent"),
+
+        I("tu_override_graphics_shader_version", 0, 0, 255,
+          "Override graphics shader version to force recompilation when TU_BUILD_ID_OVERRIDE is enabled.",
+          c_name="override_graphics_shader_version"),
+        I("tu_override_compute_shader_version", 0, 0, 255,
+          "Override compute shader version to force recompilation when TU_BUILD_ID_OVERRIDE is enabled.",
+          c_name="override_compute_shader_version"),
     ]
 
     drirc_gen.add_common_vk_wsi_options(debug_options, perf_options)

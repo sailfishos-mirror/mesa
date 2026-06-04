@@ -52,6 +52,24 @@
 
 uint64_t os_page_size = 4096;
 
+static bool
+tu_device_get_build_id(blake3_hasher *ctx)
+{
+#ifdef TU_BUILD_ID_OVERRIDE
+   {
+      assert(strlen(TU_BUILD_ID_OVERRIDE) % 2 == 0);
+      unsigned size = strlen(TU_BUILD_ID_OVERRIDE) / 2;
+      auto data = static_cast<unsigned char *>(ralloc_size(NULL, size));
+      mesa_hex_to_bytes(data, TU_BUILD_ID_OVERRIDE, size);
+      _mesa_blake3_update(ctx, data, size);
+      ralloc_free(data);
+      return true;
+   }
+#else
+   return disk_cache_get_function_identifier((void *) tu_device_get_build_id, ctx);
+#endif
+}
+
 static int
 tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
 {
@@ -72,7 +90,7 @@ tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
    memset(uuid, 0, VK_UUID_SIZE);
    _mesa_blake3_init(&ctx);
 
-   if (!disk_cache_get_function_identifier((void *)tu_device_get_cache_uuid, &ctx))
+   if (!tu_device_get_build_id(&ctx))
       return -1;
 
    _mesa_blake3_update(&ctx, &chip_id, sizeof(chip_id));
