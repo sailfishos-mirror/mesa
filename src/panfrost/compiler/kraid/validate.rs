@@ -52,12 +52,22 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
     }
 
     for (dst, dst_type) in instr.dsts_types() {
-        let dst_ref_bytes = dst.bytes_written();
-        let dst_type_bytes = dst_type.bits() / 8;
-        assert!(dst_type_bytes <= dst_ref_bytes);
-        assert_eq!(dst_type_bytes.div_ceil(4), dst_ref_bytes.div_ceil(4));
+        let dst_type_bits = dst_type.bits();
+        let dst_type_comps = dst_type.comps();
+        if dst_type_bits >= 32 {
+            assert_eq!(dst_type_comps, 1);
+            assert_eq!(dst.lanes, DstLanes::All);
+            let nregs = dst_type_bits.div_ceil(32);
+            assert_eq!(nregs * 4, dst.dst_ref.bytes_written());
+        } else {
+            let dst_type_bytes =
+                (dst_type_bits * dst_type_comps).next_power_of_two() / 8;
+            let lane_bytes = dst.lanes.bytes(dst_type_bytes);
+            assert!(dst_type_bits <= lane_bytes * 8);
+            assert_eq!(lane_bytes, dst.dst_ref.bytes_written());
+        }
 
-        if let Dst::SSA(ssa) = dst {
+        if let DstRef::SSA(ssa) = &dst.dst_ref {
             for val in ssa {
                 ssa_vals.insert(*val);
             }

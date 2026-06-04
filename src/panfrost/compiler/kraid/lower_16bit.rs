@@ -52,7 +52,7 @@ fn lower_instr(instr: &mut Instr) {
         Op::ShiftLop(op) => lower_op!(op, dst_type),
         op => {
             for dst in op.dsts() {
-                assert!(dst.bytes_written() >= 4);
+                assert!(dst.dst_ref.bytes_written() >= 4);
             }
         }
     }

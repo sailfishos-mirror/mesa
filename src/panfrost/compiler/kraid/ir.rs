@@ -420,41 +420,186 @@ impl<T: Into<SrcRef>> From<T> for Src {
 }
 
 #[derive(Clone)]
-pub enum Dst {
+pub enum DstRef {
     None,
     SSA(SSARef),
     Reg(RegRef),
 }
 
-impl fmt::Display for Dst {
+impl fmt::Display for DstRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Dst::None => write!(f, "null"),
-            Dst::SSA(ssa) => ssa.fmt(f),
-            Dst::Reg(reg) => reg.fmt(f),
+            DstRef::None => write!(f, "null"),
+            DstRef::SSA(ssa) => ssa.fmt(f),
+            DstRef::Reg(reg) => reg.fmt(f),
         }
     }
 }
 
-impl Dst {
+impl DstRef {
     pub fn bytes_written(&self) -> u8 {
         match self {
-            Dst::None => 0,
-            Dst::SSA(vec) => vec.bytes(),
-            Dst::Reg(reg) => reg.bytes(),
+            DstRef::None => 0,
+            DstRef::SSA(vec) => vec.bytes(),
+            DstRef::Reg(reg) => reg.bytes(),
         }
     }
 }
 
-impl<T: Into<SSARef>> From<T> for Dst {
-    fn from(ssa: T) -> Dst {
-        Dst::SSA(ssa.into())
+impl<T: Into<SSARef>> From<T> for DstRef {
+    fn from(ssa: T) -> DstRef {
+        DstRef::SSA(ssa.into())
     }
 }
 
-impl From<RegRef> for Dst {
-    fn from(reg: RegRef) -> Dst {
-        Dst::Reg(reg)
+impl From<RegRef> for DstRef {
+    fn from(reg: RegRef) -> DstRef {
+        DstRef::Reg(reg)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum DstLanes {
+    /// The destination is never written
+    None,
+
+    /// All lanes of the destination are written
+    All,
+
+    /// It only writes one byte, but all bytes are the same so it doesn't
+    /// matter which one you pick.  This gives the most freedom to register
+    /// assignment.
+    AnyB,
+
+    /// It only writes one 16-bit half, but both halves are the same so it
+    /// doesn't matter which one you pick.  This gives the most freedom to
+    /// register assignment.
+    AnyH,
+
+    // Bytes
+    B0,
+    B1,
+    B2,
+    B3,
+
+    // Halves
+    H0,
+    H1,
+}
+
+impl fmt::Display for DstLanes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DstLanes::None => Ok(()),
+            DstLanes::All => Ok(()),
+            DstLanes::AnyB => write!(f, ".any_b"),
+            DstLanes::AnyH => write!(f, ".any_h"),
+            DstLanes::B0 => write!(f, ".b0"),
+            DstLanes::B1 => write!(f, ".b1"),
+            DstLanes::B2 => write!(f, ".b2"),
+            DstLanes::B3 => write!(f, ".b3"),
+            DstLanes::H0 => write!(f, ".h0"),
+            DstLanes::H1 => write!(f, ".h1"),
+        }
+    }
+}
+
+impl From<RegRange> for DstLanes {
+    fn from(range: RegRange) -> DstLanes {
+        match range {
+            RegRange::Half0 => DstLanes::H0,
+            RegRange::Half1 => DstLanes::H1,
+            RegRange::Regs(_) => DstLanes::All,
+        }
+    }
+}
+
+impl DstLanes {
+    pub fn byte(byte: u8) -> DstLanes {
+        match byte {
+            0 => DstLanes::B0,
+            1 => DstLanes::B1,
+            2 => DstLanes::B2,
+            3 => DstLanes::B3,
+            _ => panic!("Invalid lane byte"),
+        }
+    }
+
+    pub fn half(byte: u8) -> DstLanes {
+        match byte {
+            0 => DstLanes::H0,
+            1 => DstLanes::H1,
+            _ => panic!("Invalid lane half"),
+        }
+    }
+
+    pub fn bytes(&self, dst_bytes: u8) -> u8 {
+        use DstLanes::*;
+        match self {
+            None => 0,
+            All => dst_bytes,
+            AnyH | H0 | H1 => 2,
+            AnyB | B0 | B1 | B2 | B3 => 1,
+        }
+    }
+
+    pub fn align(&self) -> (u8, u8) {
+        match self {
+            DstLanes::None => (0, 0),
+            DstLanes::All => (4, 0),
+            DstLanes::AnyB => (1, 0),
+            DstLanes::AnyH => (2, 0),
+            DstLanes::B0 => (4, 0),
+            DstLanes::B1 => (4, 1),
+            DstLanes::B2 => (4, 2),
+            DstLanes::B3 => (4, 3),
+            DstLanes::H0 => (4, 0),
+            DstLanes::H1 => (4, 2),
+        }
+    }
+
+    pub fn is_byte(&self) -> bool {
+        self.bytes(4) == 1
+    }
+
+    pub fn is_half(&self) -> bool {
+        self.bytes(4) == 2
+    }
+}
+
+#[derive(Clone)]
+pub struct Dst {
+    pub dst_ref: DstRef,
+    pub lanes: DstLanes,
+}
+
+impl fmt::Display for Dst {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}", &self.dst_ref, &self.lanes)
+    }
+}
+
+impl<T: Into<DstRef>> From<T> for Dst {
+    fn from(dst_ref: T) -> Dst {
+        let dst_ref: DstRef = dst_ref.into();
+        let lanes = match &dst_ref {
+            DstRef::None => DstLanes::None,
+            DstRef::SSA(vec) => {
+                let bits = vec[0].bits();
+                if bits == 8 {
+                    debug_assert_eq!(vec.comps(), 1);
+                    DstLanes::AnyB
+                } else if bits == 16 {
+                    debug_assert_eq!(vec.comps(), 1);
+                    DstLanes::AnyH
+                } else {
+                    debug_assert_eq!(bits, 32);
+                    DstLanes::All
+                }
+            }
+            DstRef::Reg(reg) => reg.range.into(),
+        };
+        Dst { dst_ref, lanes }
     }
 }
 

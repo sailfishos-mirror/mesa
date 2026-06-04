@@ -59,7 +59,7 @@ impl TrivialLiveness {
                 }
 
                 for dst in instr.dsts() {
-                    if let Dst::SSA(ssa) = dst {
+                    if let DstRef::SSA(ssa) = &dst.dst_ref {
                         for val in ssa {
                             ssa_uses.insert(*val, UseBlockIp::Def(bi));
                         }
@@ -147,7 +147,7 @@ fn ra_trivial(s: &mut Shader) {
             }
 
             for dst in instr.dsts_mut() {
-                let Dst::SSA(vec) = dst else {
+                let DstRef::SSA(vec) = &dst.dst_ref else {
                     continue;
                 };
 
@@ -175,8 +175,8 @@ fn ra_trivial(s: &mut Shader) {
                 *dst = reg_ref_for_hr(vec_hr, vec.bytes()).into();
             }
 
-            for dst in instr.dsts_mut() {
-                let Dst::SSA(vec) = dst else {
+            for dst in instr.dsts() {
+                let DstRef::SSA(vec) = &dst.dst_ref else {
                     continue;
                 };
 
