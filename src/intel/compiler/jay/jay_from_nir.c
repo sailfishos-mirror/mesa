@@ -3223,6 +3223,26 @@ setup_compute_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 }
 
 static void
+setup_bindless_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
+{
+   /* Bspec 56937: BTD R1 has stack IDs each 16-bit wide, so each Dword has 2
+    * stack ids.
+    */
+   nj->payload.u1 = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+
+   /* Bspec 56938: BTD R2:
+    *
+    *    channel 0-2 (2 Dwords) - Global argument pointer
+    *    channel 2-3 (2 Dwords) - Local argument pointer
+    */
+   for (unsigned i = 0; i < jay_ugpr_per_grf(nj->s); ++i) {
+      nj->payload.inline_data[i] = read_payload(p, UGPR);
+   }
+
+   setup_payload_dispatch_start(nj, p);
+}
+
+static void
 setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 {
    /* Summarizing the "PS Thread Payload for Normal Dispatch" docs, the
@@ -3491,6 +3511,14 @@ jay_setup_payload(struct nir_to_jay_state *nj)
    case MESA_SHADER_COMPUTE:
    case MESA_SHADER_KERNEL:
       setup_compute_payload(nj, &p);
+      break;
+   case MESA_SHADER_RAYGEN:
+   case MESA_SHADER_ANY_HIT:
+   case MESA_SHADER_CLOSEST_HIT:
+   case MESA_SHADER_MISS:
+   case MESA_SHADER_INTERSECTION:
+   case MESA_SHADER_CALLABLE:
+      setup_bindless_payload(nj, &p);
       break;
    default:
       UNREACHABLE("unimplemented shader stages");
