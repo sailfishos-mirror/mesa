@@ -2367,10 +2367,11 @@ with_perfetto = get_option('perfetto')
 with_datasources = get_option('datasources')
 with_any_datasource = with_datasources.length() != 0
 if with_perfetto
-  dep_perfetto = dependency(
+  dep_perfetto_sdk = dependency(
       'perfetto',
-      fallback: allow_fallback_for_perfetto ? ['perfetto', 'dep_perfetto'] : [],
+      fallback: allow_fallback_for_perfetto ? ['perfetto-sdk', 'dep_perfetto_sdk'] : [],
   )
+  dep_perfetto = dep_perfetto_sdk
   pre_args += '-DHAVE_PERFETTO'
 endif
 
