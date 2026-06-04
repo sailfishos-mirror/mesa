@@ -4904,7 +4904,7 @@
         "description": "anv: fix a null pointer access with isl_mod_info",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "11f8f333e23dd6bcbeff6a831c67d1acb3cb67d2",
         "notes": null
