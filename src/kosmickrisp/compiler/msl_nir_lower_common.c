@@ -219,7 +219,8 @@ msl_ensure_depth_write(nir_shader *nir)
 bool
 msl_ensure_vertex_position_output(nir_shader *nir)
 {
-   assert(nir->info.stage == MESA_SHADER_VERTEX);
+   assert(nir->info.stage == MESA_SHADER_VERTEX ||
+          nir->info.stage == MESA_SHADER_TESS_EVAL);
 
    bool has_position_write =
       nir->info.outputs_written & BITFIELD64_BIT(VARYING_SLOT_POS);
@@ -247,7 +248,8 @@ msl_ensure_vertex_position_output(nir_shader *nir)
 bool
 msl_ensure_vertex_point_size_output(nir_shader *nir)
 {
-   assert(nir->info.stage == MESA_SHADER_VERTEX);
+   assert(nir->info.stage == MESA_SHADER_VERTEX ||
+          nir->info.stage == MESA_SHADER_TESS_EVAL);
 
    bool has_point_size_write =
       nir->info.outputs_written & BITFIELD64_BIT(VARYING_SLOT_PSIZ);
@@ -332,7 +334,8 @@ msl_vs_io_types(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 bool
 msl_nir_vs_io_types(nir_shader *nir)
 {
-   assert(nir->info.stage == MESA_SHADER_VERTEX);
+   assert(nir->info.stage == MESA_SHADER_VERTEX ||
+          nir->info.stage == MESA_SHADER_TESS_EVAL);
    return nir_shader_intrinsics_pass(nir, msl_vs_io_types, nir_metadata_all,
                                      NULL);
 }
