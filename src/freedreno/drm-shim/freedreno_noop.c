@@ -289,8 +289,43 @@ static const struct msm_device_info device_infos[] = {
 };
 
 static void
+print_supported_chips_and_abort(const char *unrecognized_env)
+{
+
+   fprintf(stderr, "%s unrecognized, shim supports:\n", unrecognized_env);
+
+   for (int i = 1; i < ARRAY_SIZE(device_infos); i++) {
+      fprintf(stderr, "- gpu_id=%d, chip_id=0x%lx\n", device_infos[i].gpu_id,
+              device_infos[i].chip_id);
+   }
+
+   abort();
+}
+
+static void
 msm_driver_get_device_info(void)
 {
+   const char *chip_id_env = os_get_option("FD_CHIP_ID");
+
+   if (chip_id_env) {
+      char *endptr;
+      uint64_t chip_id = strtoul(chip_id_env, &endptr, 16);
+
+      if (endptr == chip_id_env || *endptr != '\0') {
+         fprintf(stderr, "Invalid hex value for FD_CHIP_ID\n");
+         abort();
+      }
+
+      for (int i = 0; i < ARRAY_SIZE(device_infos); i++) {
+         if (device_infos[i].chip_id == chip_id) {
+            device_info = &device_infos[i];
+            return;
+         }
+      }
+
+      print_supported_chips_and_abort("FD_CHIP_ID");
+   }
+
    const char *env = os_get_option("FD_GPU_ID");
 
    if (!env) {
@@ -306,12 +341,7 @@ msm_driver_get_device_info(void)
       }
    }
 
-   fprintf(stderr, "FD_GPU_ID unrecognized, shim supports %d",
-           device_infos[0].gpu_id);
-   for (int i = 1; i < ARRAY_SIZE(device_infos); i++)
-      fprintf(stderr, ", %d", device_infos[i].gpu_id);
-   fprintf(stderr, "\n");
-   abort();
+   print_supported_chips_and_abort("FD_GPU_ID");
 }
 
 void
