@@ -1768,7 +1768,7 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw,
                     state);
    mtl_memory_barrier_with_scope(enc, MTL_BARRIER_SCOPE_BUFFERS);
 
-   libkk_prefix_sum_tess(cmd, kk_grid_1d(1u), true, state);
+   libkk_prefix_sum_tess(cmd, kk_grid_1d(1024u), true, state);
    mtl_memory_barrier_with_scope(enc, MTL_BARRIER_SCOPE_BUFFERS);
 
    libkk_tessellate(cmd, grid_tess, true, info.mode, POLY_TESS_MODE_WITH_COUNTS,
