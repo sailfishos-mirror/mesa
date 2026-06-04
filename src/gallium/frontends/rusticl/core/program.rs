@@ -973,7 +973,7 @@ fn debug_logging(p: &Program, devs: &[&Device]) {
         for dev in devs {
             let msg = p.log(dev);
             if !msg.is_empty() {
-                eprintln!("{msg:?}");
+                eprintln!("{}", msg.to_string_lossy());
             }
         }
     }
