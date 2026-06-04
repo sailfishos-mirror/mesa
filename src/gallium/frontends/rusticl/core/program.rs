@@ -289,13 +289,13 @@ pub struct HeaderProgram {
 
 #[derive(Default, Clone)]
 struct ParsedCompileOptions {
-    raw_string: String,
+    raw_string: CString,
     clc_target: Option<CLVersion>,
     create_lib: bool,
 }
 
 impl ParsedCompileOptions {
-    fn from_option_str(options: &str) -> Self {
+    fn from_option_str(options: &CStr) -> Self {
         Self {
             raw_string: options.to_owned(),
             ..Default::default()
@@ -309,7 +309,7 @@ pub struct CompileOptions {
 }
 
 impl CompileOptions {
-    pub fn new(options: &str, err: cl_int) -> CLResult<Self> {
+    pub fn new(options: &CStr, err: cl_int) -> CLResult<Self> {
         let mut parsed_options = ParsedCompileOptions::from_option_str(options);
         if options.is_empty() {
             return Ok(CompileOptions {
@@ -318,7 +318,7 @@ impl CompileOptions {
             });
         }
 
-        let options = options.to_owned();
+        let options = options.to_str().unwrap();
         let mut res = Vec::new();
 
         // we seperate on a ' ' unless we hit a "
@@ -586,7 +586,7 @@ impl Program {
         self.build_info().dev_build(dev).bin_type
     }
 
-    pub fn options(&self, dev: &Device) -> String {
+    pub fn options(&self, dev: &Device) -> CString {
         self.build_info().dev_build(dev).options.raw_string.clone()
     }
 
