@@ -332,6 +332,7 @@ fn build_program(
     }
 
     let options = c_string_to_string(options);
+    let options = CompileOptions::new(&options, CL_INVALID_BUILD_OPTIONS)?;
     program.build(devices, options, callback)
 
     //• CL_INVALID_BINARY if program is created with clCreateProgramWithBinary and devices listed in device_list do not have a valid program binary loaded.
@@ -420,6 +421,7 @@ fn compile_program(
     }
 
     let options = c_string_to_string(options);
+    let options = CompileOptions::new(&options, CL_INVALID_COMPILER_OPTIONS)?;
     program.compile(devices, options, headers, callback)
 
     // • CL_INVALID_COMPILER_OPTIONS if the compiler options specified by options are invalid.

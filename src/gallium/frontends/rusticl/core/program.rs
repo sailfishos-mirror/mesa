@@ -7,6 +7,7 @@ use crate::core::context::*;
 use crate::core::device::*;
 use crate::core::kernel::*;
 use crate::core::platform::Platform;
+use crate::core::version::CLVersion;
 use crate::impl_cl_type_trait;
 
 use mesa_rust::compiler::clc::spirv::SPIRVBin;
@@ -286,9 +287,10 @@ pub struct HeaderProgram {
     pub program: Arc<Program>,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct ParsedCompileOptions {
     raw_string: String,
+    clc_target: Option<CLVersion>,
     create_lib: bool,
 }
 
@@ -301,20 +303,22 @@ impl ParsedCompileOptions {
     }
 }
 
-struct CompileOptions {
+pub struct CompileOptions {
     clang_args: Vec<CString>,
     parsed: ParsedCompileOptions,
 }
 
 impl CompileOptions {
-    fn new(options: &str, dev: &Device) -> Self {
+    pub fn new(options: &str, err: cl_int) -> CLResult<Self> {
         let mut parsed_options = ParsedCompileOptions::from_option_str(options);
-        let mut options = options.to_owned();
-        if !options.contains("-cl-std=") {
-            options.push_str(" -cl-std=CL");
-            options.push_str(dev.clc_version.api_str());
+        if options.is_empty() {
+            return Ok(CompileOptions {
+                parsed: parsed_options,
+                clang_args: Vec::new(),
+            });
         }
 
+        let options = options.to_owned();
         let mut res = Vec::new();
 
         // we seperate on a ' ' unless we hit a "
@@ -343,9 +347,12 @@ impl CompileOptions {
         let mut strings = Vec::new();
         for a in res.into_iter() {
             match a {
-                // CL3.1 doesn't add anything that's not already supported in clang, so just replace
-                // the argument with 3.0 so we'll be fine with an older version of clang.
-                "-cl-std=CL3.1" => strings.push(c"-cl-std=CL3.0".to_owned()),
+                "-cl-std=CL1.0" => parsed_options.clc_target = Some(CLVersion::Cl1_0),
+                "-cl-std=CL1.1" => parsed_options.clc_target = Some(CLVersion::Cl1_1),
+                "-cl-std=CL1.2" => parsed_options.clc_target = Some(CLVersion::Cl1_2),
+                "-cl-std=CL2.0" => parsed_options.clc_target = Some(CLVersion::Cl2_0),
+                "-cl-std=CL3.0" => parsed_options.clc_target = Some(CLVersion::Cl3_0),
+                "-cl-std=CL3.1" => parsed_options.clc_target = Some(CLVersion::Cl3_1),
                 "-cl-denorms-are-zero" => {
                     strings.push(c"-fdenormal-fp-math=positive-zero".to_owned())
                 }
@@ -361,19 +368,38 @@ impl CompileOptions {
                 "-cl-intel-greater-than-4GB-buffer-required" => {}
                 // Some applications use this when they detect QC hardware
                 "-qcom-accelerate-16-bit" => {}
-                _ => strings.push(CString::new(a).unwrap()),
+                // We ignore empty tokens
+                "" => {}
+                _ => {
+                    // Valid values are already covered above
+                    if a.starts_with("-cl-std=") {
+                        return Err(err);
+                    }
+                    strings.push(CString::new(a).unwrap());
+                }
             }
         }
 
-        Self {
+        Ok(Self {
             parsed: parsed_options,
             clang_args: strings,
-        }
+        })
     }
 
     fn get_clang_args(&self, dev: &Device) -> Vec<CString> {
         let mut args = self.clang_args.clone();
         args.push(c"-D__OPENCL_VERSION__=".concat(dev.cl_version.clc_str()));
+
+        let clc_ver = self.parsed.clc_target.unwrap_or(dev.clc_version);
+        match clc_ver {
+            CLVersion::Cl3_1 => {
+                // CL3.1 doesn't add anything that's not already supported in clang, so just replace
+                // the argument with 3.0 so we'll be fine with an older version of clang.
+                args.push(c"-cl-std=CL3.0".to_owned());
+            }
+            ver => args.push(c"-cl-std=CL".concat(ver.api_cstr())),
+        }
+
         args
     }
 }
@@ -637,7 +663,7 @@ impl Program {
     pub fn build(
         self: Arc<Self>,
         devices: Vec<&'static Device>,
-        options: String,
+        options: CompileOptions,
         callback: Option<ProgramCB>,
     ) -> CLResult<()> {
         self.set_builds_in_progress(&devices)?;
@@ -676,11 +702,10 @@ impl Program {
     fn do_compile(
         &self,
         device: &Device,
-        options: &str,
+        options: &CompileOptions,
         headers: &[HeaderProgram],
         build_info: &mut MutexGuard<ProgramBuild>,
     ) -> bool {
-        let options = CompileOptions::new(options, device);
         let device_build = build_info.dev_build_mut(device);
 
         let val_options = clc_validator_options(device);
@@ -750,7 +775,7 @@ impl Program {
 
         device_build.spirv = spirv;
         device_build.log = log;
-        device_build.options = options.parsed;
+        device_build.options = options.parsed.clone();
 
         if device_build.spirv.is_some() {
             device_build.status = CL_BUILD_SUCCESS as cl_build_status;
@@ -765,7 +790,7 @@ impl Program {
     pub fn compile(
         self: Arc<Self>,
         devices: Vec<&'static Device>,
-        options: String,
+        options: CompileOptions,
         headers: Vec<HeaderProgram>,
         callback: Option<ProgramCB>,
     ) -> CLResult<()> {
@@ -997,11 +1022,11 @@ fn debug_logging(p: &Program, devs: &[&Device]) {
 fn create_build_closure(
     program: Arc<Program>,
     devices: Vec<&'static Device>,
-    options: String,
+    options: CompileOptions,
     mut callback: Option<ProgramCB>,
 ) -> impl FnMut() + Send + Sync + 'static {
     move || {
-        let is_lib = options.contains("-create-library");
+        let is_lib = options.parsed.create_lib;
         let mut build_info = program.build_info();
 
         for &device in &devices {
@@ -1048,7 +1073,7 @@ fn create_build_closure(
 fn create_compile_closure(
     program: Arc<Program>,
     devices: Vec<&'static Device>,
-    options: String,
+    options: CompileOptions,
     headers: Vec<HeaderProgram>,
     mut callback: Option<ProgramCB>,
 ) -> impl FnMut() + Send + Sync + 'static {
