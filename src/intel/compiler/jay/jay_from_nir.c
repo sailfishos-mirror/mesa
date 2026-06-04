@@ -1357,6 +1357,7 @@ static uint32_t
 build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr,
                          jay_def *srcs)
 {
+   jay_shader *s = nj->s;
    jay_builder *b = &nj->bld;
    uint32_t len = 0;
    bool synchronous = false;
@@ -1392,6 +1393,10 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr
       if (synchronous) {
          ugprs[4] = jay_MOV_u32(b, (unsigned) synchronous);
       }
+   } else if (instr->intrinsic == nir_intrinsic_btd_retire_intel) {
+      /* The bottom bit is the Stack ID release bit */
+      ugprs[0] = jay_MOV_u32(b, 1);
+      ugprs[1] = jay_MOV_u32(b, 0);
    }
 
    /* Header */
@@ -1399,9 +1404,44 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr
 
    if (instr->intrinsic == nir_intrinsic_trace_ray_intel) {
       srcs[len++] = jay_as_gpr(b, nj_src(instr->src[1]));
+   } else if (instr->intrinsic == nir_intrinsic_btd_retire_intel) {
+      /* Bitgroup 1 - stackIDs, for SIMD16, we need 8 Dwords, each will contain
+       * 16-bit stackID.
+       */
+      jay_def packed_stacks = jay_alloc_def(b, UGPR, s->dispatch_width/2);
+      jay_def stack_id_packed = jay_extract_range(nj->payload.u1, 0, s->dispatch_width/2);
+      jay_MOV(b, packed_stacks, stack_id_packed)->type = JAY_TYPE_U16;
+
+      jay_def stacks[JAY_MAX_DEF_LENGTH] = {};
+      for (unsigned i = 0; i < jay_num_values(packed_stacks); i++) {
+         stacks[i] = jay_extract(packed_stacks, i);
+      }
+
+      jay_def stack_ids = jay_collect_vectors(b, stacks, jay_ugpr_per_grf(nj->s));
+      srcs[len++] = stack_ids;
+
+      if (instr->intrinsic == nir_intrinsic_btd_retire_intel) {
+         jay_def btd_record_ugprs[JAY_MAX_DEF_LENGTH] = {};
+         unsigned length = jay_ugpr_per_grf(nj->s);
+         /* Things complain if we don't provide one for RETIRE. However, it shouldn't
+          * ever actually get used so fill it with zero.
+          */
+         btd_record_ugprs[0] = jay_MOV_u32(b, 0);
+         jay_def btd_record = jay_collect_vectors(b, btd_record_ugprs, length);
+
+         srcs[len++] = btd_record;
+         srcs[len++] = btd_record;
+      }
    }
 
    return len;
+}
+
+static bool
+jay_shader_stage_uses_btd(jay_shader *s)
+{
+   return s->stage == MESA_SHADER_COMPUTE ? s->prog_data->cs.uses_btd_stack_ids :
+                                            brw_shader_stage_is_bindless(s->stage);
 }
 
 static void
@@ -1435,6 +1475,19 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
 
       jay_SEND(&nj->bld, .sfid = GEN_SFID_RAY_TRACE_ACCELERATOR, .msg_desc = desc,
                .type = JAY_TYPE_U32, .srcs = srcs, .nr_srcs = nr_srcs, .dst = notif);
+      break;
+
+   case nir_intrinsic_btd_retire_intel:
+      assert(jay_shader_stage_uses_btd(s));
+      desc = brw_btd_spawn_desc(s->devinfo, nj->s->dispatch_width,
+                                GEN_RT_BTD_MESSAGE_SPAWN);
+
+      /* Set TYPE_U64 so that last two bitgroups (2-3) are interpreted as
+       * expected, which is lower 8 channels of U64 of shader record identifier
+       * and then next register with upper 8-channels.
+       */
+      jay_SEND(&nj->bld, .sfid = GEN_SFID_BINDLESS_THREAD_DISPATCH, .msg_desc = desc,
+               .type = JAY_TYPE_U64, .srcs = srcs, .nr_srcs = nr_srcs, .dst = notif);
       break;
    default:
       UNREACHABLE("Unknown intrinsic");
@@ -1478,13 +1531,6 @@ jay_emit_dpas(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       ->saturate = nir_intrinsic_saturate(intr);
 
    nj->s->prog_data->cs.uses_systolic = true;
-}
-
-static bool
-jay_shader_stage_uses_btd(jay_shader *s)
-{
-   return s->stage == MESA_SHADER_COMPUTE ? s->prog_data->cs.uses_btd_stack_ids :
-                                            brw_shader_stage_is_bindless(s->stage);
 }
 
 static void
@@ -2074,6 +2120,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_trace_ray_intel:
+   case nir_intrinsic_btd_retire_intel:
       jay_emit_btd_ops(nj, intr);
       break;
 
