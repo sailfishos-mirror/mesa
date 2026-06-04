@@ -252,33 +252,6 @@ lower_fragment_outputs(nir_function_impl *impl,
 }
 
 /**
- * If we've optimized the entire program down to only "demote"
- * or "terminate" with no other instructions, delete it entirely.
- *
- * We're already not writing outputs and ending the program.
- */
-static void
-delete_solo_discard(nir_shader *nir)
-{
-   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
-   nir_block *start_block = nir_start_block(impl);
-   nir_instr *instr = nir_block_first_instr(start_block);
-
-   if (start_block != nir_impl_last_block(impl) ||
-       !exec_list_is_singular(&start_block->instr_list) ||
-       instr->type != nir_instr_type_intrinsic)
-      return;
-
-   nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
-
-   if (intrin->intrinsic == nir_intrinsic_demote ||
-       intrin->intrinsic == nir_intrinsic_terminate) {
-      nir_instr_remove(instr);
-      nir->info.fs.uses_discard = false;
-   }
-}
-
-/**
  * Drop render target stores with unconditional discards.
  */
 static bool
@@ -296,23 +269,44 @@ opt_unconditional_discards(nir_shader *nir)
 
       nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
 
-      if (intr->intrinsic != nir_intrinsic_store_render_target_intel)
-         continue;
-
-      nir_scalar discard = nir_scalar_resolved(intr->src[6].ssa, 0);
-      if (nir_scalar_is_const(discard) && nir_scalar_as_uint(discard) != 0) {
-         /* Drop store with unconditional discard */
+      if (intr->intrinsic == nir_intrinsic_store_render_target_intel) {
+         nir_scalar discard = nir_scalar_resolved(intr->src[6].ssa, 0);
+         if (nir_scalar_is_const(discard) && nir_scalar_as_bool(discard)) {
+            /* Drop store with unconditional discard */
+            nir_instr_remove(instr);
+            progress = true;
+         } else {
+            /* This RT store might actually happen */
+            any_remaining_rt_writes = true;
+         }
+      } else if ((intr->intrinsic == nir_intrinsic_demote ||
+                  intr->intrinsic == nir_intrinsic_terminate) &&
+                 !any_remaining_rt_writes) {
+         /* Delete unconditional demotes/terminates in the end block... */
          nir_instr_remove(instr);
          progress = true;
       } else {
-         /* This RT store might actually happen */
-         any_remaining_rt_writes = true;
+         /* ...but stop if we find an intrinsic that has a side-effect */
+         const nir_intrinsic_info *info = &nir_intrinsic_infos[intr->intrinsic];
+         if (!(info->flags & NIR_INTRINSIC_CAN_ELIMINATE))
+            break;
       }
    }
 
-   if (progress) {
-      nir_opt_dce_impl(impl);
-      delete_solo_discard(nir);
+   /* See if discards still exist in the program and flag accordingly */
+   nir->info.fs.uses_discard = false;
+
+   nir_foreach_block(block, impl) {
+      nir_foreach_instr(instr, block) {
+         if (instr->type == nir_instr_type_intrinsic) {
+            nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+            if (intr->intrinsic == nir_intrinsic_demote ||
+                intr->intrinsic == nir_intrinsic_demote_if ||
+                intr->intrinsic == nir_intrinsic_terminate ||
+                intr->intrinsic == nir_intrinsic_terminate_if)
+               nir->info.fs.uses_discard = true;
+         }
+      }
    }
 
    /* If we eliminated all RT stores, add a Null RT store to end the thread. */
