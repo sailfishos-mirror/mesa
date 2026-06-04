@@ -108,7 +108,7 @@ impl VirtualOpcode for OpCopy {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(cmp_type in [F32, S32, U32, V2F16, V2S16, V2U16])]
+#[variants(cmp_type in [F16, S16, U16, V2F16, V2S16, V2U16, F32, S32, U32])]
 pub struct OpCSel {
     #[dst_type(VNIN)]
     pub dst: Dst,
@@ -691,7 +691,7 @@ impl LogicOp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [I8, I16, V4I8, V2I16, I32, I64])]
+#[variants(dst_type in [I8, V2I8, V4I8, I16, V2I16, I32, I64])]
 pub struct OpShiftLop {
     pub dst: Dst,
     pub dst_type: DataType,
