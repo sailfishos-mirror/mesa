@@ -1355,7 +1355,7 @@ jay_emit_rt_lsc_fence(struct nir_to_jay_state *nj,
 
 static uint32_t
 build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr,
-                         jay_def *srcs)
+                         jay_def *srcs, uint32_t *split_len)
 {
    jay_shader *s = nj->s;
    jay_builder *b = &nj->bld;
@@ -1383,8 +1383,10 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr
       ugprs[i] = reserved;
    }
 
-   if (instr->intrinsic == nir_intrinsic_trace_ray_intel) {
-      synchronous = nir_intrinsic_synchronous(instr);
+   if (instr->intrinsic == nir_intrinsic_trace_ray_intel ||
+       instr->intrinsic == nir_intrinsic_btd_spawn_intel) {
+      synchronous = instr->intrinsic == nir_intrinsic_trace_ray_intel ?
+                    nir_intrinsic_synchronous(instr) : false;
       jay_def globals = nj_src(instr->src[0]);
       assert(globals.file == UGPR);
       ugprs[0] = jay_extract(globals, 0);
@@ -1404,7 +1406,8 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr
 
    if (instr->intrinsic == nir_intrinsic_trace_ray_intel) {
       srcs[len++] = jay_as_gpr(b, nj_src(instr->src[1]));
-   } else if (instr->intrinsic == nir_intrinsic_btd_retire_intel) {
+   } else if (instr->intrinsic == nir_intrinsic_btd_retire_intel ||
+              instr->intrinsic == nir_intrinsic_btd_spawn_intel) {
       /* Bitgroup 1 - stackIDs, for SIMD16, we need 8 Dwords, each will contain
        * 16-bit stackID.
        */
@@ -1431,6 +1434,12 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr
 
          srcs[len++] = btd_record;
          srcs[len++] = btd_record;
+      } else if (instr->intrinsic == nir_intrinsic_btd_spawn_intel) {
+         assert(split_len != NULL);
+         *split_len = len;
+
+         /* Bitgroup 2-3: shader record identifier, 64-bit per lane. */
+         srcs[len++] = jay_as_gpr(b, nj_src(instr->src[1]));
       }
    }
 
@@ -1456,8 +1465,9 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
    assert(nj->s->dispatch_width <= 16 && "TODO: Ray query SIMD splitting");
 
    uint32_t desc = 0;
+   uint32_t split_len = 0;
    jay_def srcs[JAY_MAX_SRCS] = {};
-   uint32_t nr_srcs = build_rt_header_and_srcs(nj, instr, srcs);
+   uint32_t nr_srcs = build_rt_header_and_srcs(nj, instr, srcs, &split_len);
 
    /* Bspec 57508, 47937: Structure_SIMD16TraceRayMessage:: RayQuery Enable
     *
@@ -1478,6 +1488,7 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
       break;
 
    case nir_intrinsic_btd_retire_intel:
+   case nir_intrinsic_btd_spawn_intel:
       assert(jay_shader_stage_uses_btd(s));
       desc = brw_btd_spawn_desc(s->devinfo, nj->s->dispatch_width,
                                 GEN_RT_BTD_MESSAGE_SPAWN);
@@ -1487,7 +1498,8 @@ jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
        * and then next register with upper 8-channels.
        */
       jay_SEND(&nj->bld, .sfid = GEN_SFID_BINDLESS_THREAD_DISPATCH, .msg_desc = desc,
-               .type = JAY_TYPE_U64, .srcs = srcs, .nr_srcs = nr_srcs, .dst = notif);
+               .type = JAY_TYPE_U64, .srcs = srcs, .nr_srcs = nr_srcs, .dst = notif,
+               .split = split_len);
       break;
    default:
       UNREACHABLE("Unknown intrinsic");
@@ -2121,6 +2133,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_trace_ray_intel:
    case nir_intrinsic_btd_retire_intel:
+   case nir_intrinsic_btd_spawn_intel:
       jay_emit_btd_ops(nj, intr);
       break;
 
