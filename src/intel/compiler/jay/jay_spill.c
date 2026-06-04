@@ -173,17 +173,9 @@ jay_def_spilled(struct spill_ctx *ctx, jay_def idx)
 static bool
 can_remat(jay_inst *I)
 {
-   /* TODO */
-   return false;
-}
-
-static jay_inst *
-remat_to(jay_builder *b, jay_def dst, struct spill_ctx *ctx, unsigned node)
-{
-   jay_inst *I = ctx->defs[node];
-   assert(can_remat(I));
-
-   UNREACHABLE("invalid remat");
+   return ((I->op == JAY_OPCODE_MOV && jay_is_imm(I->src[0])) ||
+           (I->op == JAY_OPCODE_MOV_IMM64)) &&
+          !jay_uses_flag(I);
 }
 
 static void
@@ -215,7 +207,12 @@ insert_reload(struct spill_ctx *ctx,
 
    /* Reloading breaks SSA, but jay_repair_ssa will repair */
    if (BITSET_TEST(ctx->remat, node)) {
-      remat_to(&b, idx, ctx, node);
+      jay_inst *I = ctx->defs[node];
+      assert(can_remat(I));
+
+      jay_inst *clone = jay_clone_inst(&b, I, I->num_srcs);
+      clone->dst = idx;
+      jay_builder_insert(&b, clone);
    } else {
       ensure_spilled(ctx, node);
       jay_MOV(&b, idx, jay_def_spilled(ctx, idx));
@@ -253,7 +250,7 @@ nu_score(struct spill_ctx *ctx, struct next_use nu)
     * (rematerializable or not), compare by next-use-distance.
     */
    bool remat = BITSET_TEST(ctx->remat, nu.index) && nu.dist > 0;
-   return (remat ? 0 : 100000) + nu.dist;
+   return (remat ? 100000 : 0) + nu.dist;
 }
 
 static int
@@ -313,7 +310,6 @@ limit(struct spill_ctx *ctx, jay_inst *I, unsigned m)
 static ATTRIBUTE_NOINLINE void
 insert_coupling_code(struct spill_ctx *ctx, jay_block *pred, jay_block *succ)
 {
-   jay_builder b = jay_init_builder(ctx->func, jay_before_function(ctx->func));
    struct spill_block *sp = &ctx->blocks[pred->index];
    struct spill_block *ss = &ctx->blocks[succ->index];
 
@@ -324,15 +320,7 @@ insert_coupling_code(struct spill_ctx *ctx, jay_block *pred, jay_block *succ)
 
       if (phi_src->src[0].file == ctx->file && phi_dst->dst.file != ctx->file) {
          ensure_spilled(ctx, src);
-
-         if (BITSET_TEST(ctx->remat, jay_index(phi_src->src[0]))) {
-            jay_def idx = jay_scalar(ctx->file, src);
-            jay_def tmp = jay_alloc_def(&b, ctx->file, 1);
-
-            b.cursor = jay_before_function(ctx->func);
-            remat_to(&b, tmp, ctx, src);
-            jay_MOV(&b, jay_def_spilled(ctx, idx), tmp);
-         }
+         assert(!BITSET_TEST(ctx->remat, jay_index(phi_src->src[0])));
 
          /* Use the spilled version */
          phi_src->src[0] = jay_def_spilled(ctx, phi_src->src[0]);
@@ -737,15 +725,22 @@ jay_spill(jay_function *func, enum jay_file file, unsigned k)
       jay_foreach_dst_index(I, dst, idx) {
          ctx.defs[idx] = I;
          ctx.spill_block[idx] = block;
-      }
 
-      if (can_remat(I)) {
-         BITSET_SET(ctx.remat, jay_index(I->dst));
+         if (can_remat(I)) {
+            BITSET_SET(ctx.remat, idx);
+         }
       }
 
       if (I->dst.file == file) {
          BITSET_SET_COUNT(ctx.in_file, jay_base_index(I->dst),
                           jay_num_values(I->dst));
+      }
+   }
+
+   /* Don't remat phi sources since it ends up worse in practice */
+   jay_foreach_block(func, block) {
+      jay_foreach_phi_src_in_block(block, phi) {
+         BITSET_CLEAR(ctx.remat, jay_index(phi->src[0]));
       }
    }
 
