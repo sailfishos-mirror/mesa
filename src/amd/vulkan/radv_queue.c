@@ -1386,15 +1386,15 @@ radv_create_gang_wait_preambles_postambles(struct radv_queue *queue)
    if (r != VK_SUCCESS)
       goto fail;
 
-   radv_create_cmd_stream(device, ip, false, &leader_post_cs);
+   r = radv_create_cmd_stream(device, ip, false, &leader_post_cs);
    if (r != VK_SUCCESS)
       goto fail;
 
-   radv_create_cmd_stream(device, AMD_IP_COMPUTE, false, &ace_pre_cs);
+   r = radv_create_cmd_stream(device, AMD_IP_COMPUTE, false, &ace_pre_cs);
    if (r != VK_SUCCESS)
       goto fail;
 
-   radv_create_cmd_stream(device, AMD_IP_COMPUTE, false, &ace_post_cs);
+   r = radv_create_cmd_stream(device, AMD_IP_COMPUTE, false, &ace_post_cs);
    if (r != VK_SUCCESS)
       goto fail;
 
