@@ -73,6 +73,10 @@ pub extern "C" fn kraid_compile_nir(
     dump_shader(&s, "after translation from NIR");
     s.validate();
 
+    s.widen_alu_ops();
+    dump_shader(&s, "after widening ALU ops");
+    s.validate();
+
     s.lower_small_constants();
     dump_shader(&s, "after lowering small constants");
     s.validate();
@@ -83,10 +87,6 @@ pub extern "C" fn kraid_compile_nir(
 
     s.lower_copy();
     dump_shader(&s, "after lowering copies");
-    s.validate();
-
-    s.lower_16bit_alu();
-    dump_shader(&s, "after lowering 16bit ALU ops");
     s.validate();
 
     s.assign_message_slots();

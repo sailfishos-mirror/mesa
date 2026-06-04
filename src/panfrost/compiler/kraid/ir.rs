@@ -490,6 +490,13 @@ impl DstRef {
         }
     }
 
+    pub fn as_mut_ssa(&mut self) -> Option<&mut SSARef> {
+        match self {
+            DstRef::SSA(ssa) => Some(ssa),
+            _ => None,
+        }
+    }
+
     pub fn as_reg(&self) -> Option<&RegRef> {
         match self {
             DstRef::Reg(reg) => Some(reg),
@@ -751,8 +758,17 @@ pub trait Opcode:
         }
     }
 
+    fn src_raw_types(&self) -> &[PartialDataType] {
+        AsSlice::<Src>::attrs(self)
+    }
+
     fn srcs_types(&self) -> impl Iterator<Item = (&Src, DataType)> {
         let t = self.src_types();
+        self.srcs().iter().zip(t)
+    }
+
+    fn srcs_raw_types(&self) -> impl Iterator<Item = (&Src, PartialDataType)> {
+        let t = self.src_raw_types().iter().cloned();
         self.srcs().iter().zip(t)
     }
 
@@ -799,8 +815,17 @@ pub trait Opcode:
         }
     }
 
+    fn dst_raw_types(&self) -> &[PartialDataType] {
+        AsSlice::<Dst>::attrs(self)
+    }
+
     fn dsts_types(&self) -> impl Iterator<Item = (&Dst, DataType)> {
         let t = self.dst_types();
+        self.dsts().iter().zip(t)
+    }
+
+    fn dsts_raw_types(&self) -> impl Iterator<Item = (&Dst, PartialDataType)> {
+        let t = self.dst_raw_types().iter().cloned();
         self.dsts().iter().zip(t)
     }
 
