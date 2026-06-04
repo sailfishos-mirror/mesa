@@ -3642,9 +3642,6 @@ struct anv_descriptor_set_binding_layout {
    /* Computed surface size from data (for one plane) */
    uint16_t descriptor_data_surface_size;
 
-   /* Computed sampler size from data (for one plane) */
-   uint16_t descriptor_data_sampler_size;
-
    /* Index into the descriptor set buffer views */
    int32_t buffer_view_index;
 

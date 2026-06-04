@@ -897,17 +897,18 @@ VkResult anv_CreateDescriptorSetLayout(
          break;
       }
 
+      uint16_t descriptor_data_sampler_size;
       if (binding->descriptorType == VK_DESCRIPTOR_TYPE_MUTABLE_EXT) {
          anv_descriptor_size_for_mutable_type(
             device->physical, set_layout->type,
             pCreateInfo->flags, mutable_info, b,
             &set_layout->binding[b].descriptor_data_surface_size,
-            &set_layout->binding[b].descriptor_data_sampler_size);
+            &descriptor_data_sampler_size);
       } else {
          anv_descriptor_size(&set_layout->binding[b],
                              set_layout->type,
                              &set_layout->binding[b].descriptor_data_surface_size,
-                             &set_layout->binding[b].descriptor_data_sampler_size);
+                             &descriptor_data_sampler_size);
       }
 
       /* For multi-planar bindings, we make every descriptor consume the maximum
@@ -920,7 +921,7 @@ VkResult anv_CreateDescriptorSetLayout(
          set_layout->binding[b].descriptor_data_surface_size;
       set_layout->binding[b].descriptor_sampler_stride =
          set_layout->binding[b].max_plane_count *
-         set_layout->binding[b].descriptor_data_sampler_size;
+         descriptor_data_sampler_size;
 
       if (binding->descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER) {
          sampler_count += binding->descriptorCount *
