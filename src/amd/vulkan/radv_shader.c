@@ -3487,8 +3487,8 @@ radv_create_trap_handler_shader(struct radv_device *device)
 }
 
 static void
-radv_aco_build_shader_part(void **bin, uint32_t num_sgprs, uint32_t num_vgprs, const uint32_t *code, uint32_t code_size,
-                           const char *disasm_str, uint32_t disasm_size)
+radv_aco_build_shader_part(void **bin, uint32_t num_sgprs, uint32_t num_vgprs, uint32_t exec_size, const uint32_t *code,
+                           uint32_t code_size, const char *disasm_str, uint32_t disasm_size)
 {
    struct radv_shader_part_binary **binary = (struct radv_shader_part_binary **)bin;
    size_t size = code_size * sizeof(uint32_t) + sizeof(struct radv_shader_part_binary);

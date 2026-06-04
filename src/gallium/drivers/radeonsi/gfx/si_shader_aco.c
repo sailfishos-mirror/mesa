@@ -210,7 +210,7 @@ si_aco_resolve_symbols(struct si_shader *shader, uint32_t *code_for_write,
 
 static void
 si_aco_build_shader_part_binary(void** priv_ptr, uint32_t num_sgprs, uint32_t num_vgprs,
-                                const uint32_t* code, uint32_t code_dw_size,
+                                uint32_t exec_size, const uint32_t* code, uint32_t code_dw_size,
                                 const char* disasm_str, uint32_t disasm_size)
 {
    struct si_shader_part *result = (struct si_shader_part *)priv_ptr;
