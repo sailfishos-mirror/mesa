@@ -1031,7 +1031,7 @@ struct kk_draw_data {
       mtl_buffer *buffer;
       uint64_t offset;
       uint64_t range;
-      enum mtl_index_type type;
+      uint32_t el_size_B;
    } index;
    uint32_t vertex_offset;
    enum mtl_primitive_type primitive_type;
@@ -1057,8 +1057,7 @@ kk_upload_vertex_params(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
       params.index_buffer =
          mtl_buffer_get_gpu_address(data.index.buffer) + data.index.offset;
 
-      params.index_buffer_range_el =
-         data.index.range / mtl_index_type_to_size_B(data.index.type);
+      params.index_buffer_range_el = data.index.range / data.index.el_size_B;
    }
 
    struct kk_shader *vs = cmd->state.shaders[MESA_SHADER_VERTEX];
@@ -1513,18 +1512,21 @@ kk_dispatch_draw(mtl_render_encoder *enc, struct kk_draw_data data)
    if (kk_grid_is_indirect(data.grid)) {
       if (data.index.buffer) {
          mtl_draw_indexed_primitives_indirect(
-            enc, data.primitive_type, data.index.type, data.index.buffer,
-            data.index.offset, data.grid.indirect, data.grid.offset);
+            enc, data.primitive_type,
+            index_size_in_bytes_to_mtl_index_type(data.index.el_size_B),
+            data.index.buffer, data.index.offset, data.grid.indirect,
+            data.grid.offset);
       } else {
          mtl_draw_primitives_indirect(enc, data.primitive_type,
                                       data.grid.indirect, data.grid.offset);
       }
    } else {
       if (data.index.buffer) {
-         mtl_draw_indexed_primitives(enc, data.primitive_type, data.grid.size.x,
-                                     data.index.type, data.index.buffer,
-                                     data.index.offset, data.grid.size.y,
-                                     data.vertex_offset, data.grid.size.z);
+         mtl_draw_indexed_primitives(
+            enc, data.primitive_type, data.grid.size.x,
+            index_size_in_bytes_to_mtl_index_type(data.index.el_size_B),
+            data.index.buffer, data.index.offset, data.grid.size.y,
+            data.vertex_offset, data.grid.size.z);
       } else {
          /* Avoid Metal validation error. Empty draws from tessellation will
           * have values set to 0. */
@@ -1703,7 +1705,7 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw,
       if (draw.index.buffer) {
          args.in_index_buffer =
             mtl_buffer_get_gpu_address(draw.index.buffer) + draw.index.offset;
-         args.in_index_size_B = mtl_index_type_to_size_B(draw.index.type);
+         args.in_index_size_B = draw.index.el_size_B;
          args.in_index_buffer_range_el =
             draw.index.range / args.in_index_size_B;
       }
@@ -1778,7 +1780,7 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw,
 
    draw.index.buffer = dev->heap->map;
    draw.index.offset = sizeof(struct poly_heap);
-   draw.index.type = MTL_INDEX_TYPE_UINT32;
+   draw.index.el_size_B = 4u;
    draw.primitive_type = mesa_prim_to_mtl_primitive_type(gfx->tess.prim);
    return draw;
 }
@@ -1794,9 +1796,7 @@ build_draw_data(struct kk_cmd_buffer *cmd, struct kk_draw_command *data,
    struct kk_draw_data draw = {
       .index.buffer = data->index_buffer,
       .index.offset = data->index_buffer_offset,
-      .index.type = data->indexed ? index_size_in_bytes_to_mtl_index_type(
-                                       data->index_buffer_el_size_B)
-                                  : 0u,
+      .index.el_size_B = data->index_buffer_el_size_B,
       .index.range = data->index_buffer_range_B,
       .primitive_type = tess ? 0u : mesa_prim_to_mtl_primitive_type(data->prim),
    };
