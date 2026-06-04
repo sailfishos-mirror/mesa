@@ -1723,8 +1723,15 @@ gen_scan_raw_layout(gen_scan_raw_layout_params *params)
 
       if (raw + inst_words > raw_end)
          break;
-      if (count == max_insts)
+      if (count == max_insts) {
+         /* When compacting we pad with a compact-nop to align program to an
+          * uncompacted instruction boundary. We can ignore this
+          * instruction.
+          */
+         if (compact && (raw + inst_words) == raw_end)
+            break;
          return false;
+      }
 
       if (params->layouts) {
          params->layouts[count].offset = (raw - raw_start) * sizeof(*raw);
