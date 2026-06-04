@@ -2094,7 +2094,8 @@ static void* r300_create_vertex_elements_state(struct pipe_context* pipe,
 
     /* R300 Programmable Stream Control (PSC) doesn't support 0 vertex elements. */
     if (!count) {
-        dummy_attrib.src_format = PIPE_FORMAT_R8G8B8A8_UNORM;
+        /* Keep the dummy format 32-bit so the big-endian VAP path accepts it. */
+        dummy_attrib.src_format = PIPE_FORMAT_R32_FLOAT;
         attribs = &dummy_attrib;
         count = 1;
     } else if (count > 16) {
