@@ -719,13 +719,6 @@ radv_emit_graphics(struct radv_device *device, struct radv_cmd_stream *cs)
    if (pdev->info.gfx_level < GFX11)
       ac_pm4_set_reg(pm4, R_00B124_SPI_SHADER_PGM_HI_VS, S_00B124_MEM_BASE(pdev->info.address32_hi >> 8));
 
-   if (pdev->info.gfx_level >= GFX12) {
-      ac_pm4_set_reg(pm4, R_00B420_SPI_SHADER_PGM_RSRC4_HS, S_00B420_WAVE_LIMIT(0x3ff) | S_00B420_GLG_FORCE_DISABLE(1));
-   } else if (pdev->info.gfx_level >= GFX11) {
-      ac_pm4_set_reg_idx3(pm4, R_00B404_SPI_SHADER_PGM_RSRC4_HS,
-                          ac_apply_cu_en(S_00B404_CU_EN(0xffff), C_00B404_CU_EN, 16, &pdev->info));
-   }
-
    if (pdev->info.gfx_level >= GFX10) {
       /* Vulkan doesn't support user edge flags and it also doesn't
        * need to prevent drawing lines on internal edges of

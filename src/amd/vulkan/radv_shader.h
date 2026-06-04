@@ -377,6 +377,7 @@ struct radv_shader_part_binary {
    uint8_t num_sgprs;
    uint8_t num_vgprs;
    unsigned code_size;
+   unsigned exec_size;
    unsigned disasm_size;
 
    /* Self-referential size so we avoid consistency issues. */
@@ -480,6 +481,7 @@ struct radv_shader_part {
    uint32_t spi_shader_col_format;
    uint32_t cb_shader_mask;
    uint32_t spi_shader_z_format;
+   uint32_t inst_pref_size;
    uint64_t upload_seq;
 
    /* debug only */
@@ -810,10 +812,12 @@ void radv_shader_combine_cfg_vs_tcs(const struct radv_shader *vs, const struct r
                                     uint32_t *rsrc2_out);
 
 void radv_shader_combine_cfg_vs_gs(const struct radv_device *device, const struct radv_shader *vs,
-                                   const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out);
+                                   const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out,
+                                   uint32_t *rsrc4_out);
 
 void radv_shader_combine_cfg_tes_gs(const struct radv_device *device, const struct radv_shader *tes,
-                                    const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out);
+                                    const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out,
+                                    uint32_t *rsrc4_out);
 
 const struct radv_userdata_info *radv_get_user_sgpr_info(const struct radv_shader *shader, int idx);
 

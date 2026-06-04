@@ -1709,6 +1709,26 @@ radv_precompute_registers_hw_vs(struct radv_device *device, struct radv_shader *
    }
 }
 
+static void
+radv_precompute_registers_hw_hs(struct radv_device *device, struct radv_shader *shader)
+{
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_shader_regs *regs = &shader->regs;
+
+   if (pdev->info.gfx_level < GFX11)
+      return;
+
+   unsigned inst_pref_size = radv_get_inst_pref_size(&device->compiler_info, shader->exec_size);
+
+   if (pdev->info.gfx_level >= GFX12) {
+      regs->spi_shader_pgm_rsrc4_gs_hs =
+         S_00B420_WAVE_LIMIT(0x3ff) | S_00B420_GLG_FORCE_DISABLE(1) | S_00B420_INST_PREF_SIZE(inst_pref_size);
+   } else {
+      regs->spi_shader_pgm_rsrc4_gs_hs = ac_apply_cu_en(
+         S_00B404_INST_PREF_SIZE(inst_pref_size) | S_00B404_CU_EN(0xffff), C_00B404_CU_EN, 16, &pdev->info);
+   }
+}
+
 void
 radv_precompute_registers_hw_gs(struct radv_device *device, const struct radv_shader_info *es_info,
                                 struct radv_shader *shader)
@@ -1758,7 +1778,7 @@ radv_precompute_registers_hw_gs(struct radv_device *device, const struct radv_sh
       ac_apply_cu_en(S_00B21C_CU_EN(0xffff) | S_00B21C_WAVE_LIMIT(0x3F), C_00B21C_CU_EN, 0, &pdev->info);
 
    if (pdev->info.gfx_level >= GFX10) {
-      regs->spi_shader_pgm_rsrc4_gs =
+      regs->spi_shader_pgm_rsrc4_gs_hs =
          ac_apply_cu_en(S_00B204_CU_EN_GFX10(0xffff) | S_00B204_SPI_SHADER_LATE_ALLOC_GS_GFX10(0), C_00B204_CU_EN_GFX10,
                         16, &pdev->info);
    }
@@ -1781,12 +1801,13 @@ radv_precompute_registers_hw_ngg(struct radv_device *device, struct radv_shader 
 
    if (pdev->info.gfx_level >= GFX12) {
       const unsigned num_params = MAX2(info->outinfo.param_exports, 1);
+      unsigned inst_pref_size = radv_get_inst_pref_size(&device->compiler_info, shader->exec_size);
 
       regs->spi_vs_out_config = S_00B0C4_VS_EXPORT_COUNT(num_params - 1) | S_00B0C4_PRIM_EXPORT_COUNT(num_prim_params) |
                                 S_00B0C4_NO_PC_EXPORT(no_pc_export);
 
-      regs->spi_shader_pgm_rsrc4_gs =
-         S_00B220_SPI_SHADER_LATE_ALLOC_GS(127) | S_00B220_GLG_FORCE_DISABLE(1) | S_00B220_WAVE_LIMIT(0x3ff);
+      regs->spi_shader_pgm_rsrc4_gs_hs = S_00B220_SPI_SHADER_LATE_ALLOC_GS(127) | S_00B220_GLG_FORCE_DISABLE(1) |
+                                         S_00B220_WAVE_LIMIT(0x3ff) | S_00B220_INST_PREF_SIZE(inst_pref_size);
    } else {
       const unsigned num_params = MAX2(info->outinfo.param_exports, 1);
 
@@ -1801,11 +1822,14 @@ radv_precompute_registers_hw_ngg(struct radv_device *device, struct radv_shader 
          ac_apply_cu_en(S_00B21C_CU_EN(cu_mask) | S_00B21C_WAVE_LIMIT(0x3F), C_00B21C_CU_EN, 0, &pdev->info);
 
       if (pdev->info.gfx_level >= GFX11) {
-         regs->spi_shader_pgm_rsrc4_gs =
-            ac_apply_cu_en(S_00B204_CU_EN_GFX11(0x1) | S_00B204_SPI_SHADER_LATE_ALLOC_GS_GFX10(late_alloc_wave64),
+         unsigned inst_pref_size = radv_get_inst_pref_size(&device->compiler_info, shader->exec_size);
+
+         regs->spi_shader_pgm_rsrc4_gs_hs =
+            ac_apply_cu_en(S_00B204_CU_EN_GFX11(0x1) | S_00B204_SPI_SHADER_LATE_ALLOC_GS_GFX10(late_alloc_wave64) |
+                              S_00B204_INST_PREF_SIZE(inst_pref_size),
                            C_00B204_CU_EN_GFX11, 16, &pdev->info);
       } else {
-         regs->spi_shader_pgm_rsrc4_gs =
+         regs->spi_shader_pgm_rsrc4_gs_hs =
             ac_apply_cu_en(S_00B204_CU_EN_GFX10(0xffff) | S_00B204_SPI_SHADER_LATE_ALLOC_GS_GFX10(late_alloc_wave64),
                            C_00B204_CU_EN_GFX10, 16, &pdev->info);
       }
@@ -2040,6 +2064,12 @@ radv_precompute_registers_pgm(const struct radv_device *device, struct radv_shad
          regs->pgm_lo = R_00B320_SPI_SHADER_PGM_LO_ES;
       }
 
+      if (gfx_level >= GFX12) {
+         regs->pgm_rsrc4 = R_00B220_SPI_SHADER_PGM_RSRC4_GS;
+      } else if (gfx_level >= GFX11) {
+         regs->pgm_rsrc4 = R_00B204_SPI_SHADER_PGM_RSRC4_GS;
+      }
+
       regs->pgm_rsrc1 = R_00B228_SPI_SHADER_PGM_RSRC1_GS;
       regs->pgm_rsrc2 = R_00B22C_SPI_SHADER_PGM_RSRC2_GS;
       break;
@@ -2079,6 +2109,12 @@ radv_precompute_registers_pgm(const struct radv_device *device, struct radv_shad
          regs->pgm_lo = R_00B420_SPI_SHADER_PGM_LO_HS;
       }
 
+      if (gfx_level >= GFX12) {
+         regs->pgm_rsrc4 = R_00B420_SPI_SHADER_PGM_RSRC4_HS;
+      } else if (gfx_level >= GFX11) {
+         regs->pgm_rsrc4 = R_00B404_SPI_SHADER_PGM_RSRC4_HS;
+      }
+
       regs->pgm_rsrc1 = R_00B428_SPI_SHADER_PGM_RSRC1_HS;
       regs->pgm_rsrc2 = R_00B42C_SPI_SHADER_PGM_RSRC2_HS;
       break;
@@ -2108,20 +2144,27 @@ radv_precompute_registers_pgm(const struct radv_device *device, struct radv_shad
 static void
 radv_precompute_registers(struct radv_device *device, struct radv_shader *shader)
 {
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_shader_info *info = &shader->info;
 
    radv_precompute_registers_pgm(device, shader);
 
    switch (info->stage) {
    case MESA_SHADER_VERTEX:
-      if (!info->vs.as_ls && !info->vs.as_es) {
-         if (info->is_ngg) {
+      if (!info->vs.as_es) {
+         if (info->vs.as_ls && pdev->info.gfx_level >= GFX9) {
+            radv_precompute_registers_hw_hs(device, shader);
+         } else if (info->is_ngg) {
             radv_precompute_registers_hw_ngg(device, shader);
          } else {
             radv_precompute_registers_hw_vs(device, shader);
          }
       }
       break;
+   case MESA_SHADER_TESS_CTRL: {
+      radv_precompute_registers_hw_hs(device, shader);
+      break;
+   }
    case MESA_SHADER_TESS_EVAL:
       if (!info->tes.as_es) {
          if (info->is_ngg) {
@@ -2552,7 +2595,8 @@ radv_shader_combine_cfg_vs_tcs(const struct radv_shader *vs, const struct radv_s
 
 void
 radv_shader_combine_cfg_vs_gs(const struct radv_device *device, const struct radv_shader *vs,
-                              const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out)
+                              const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out,
+                              uint32_t *rsrc4_out)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
@@ -2590,13 +2634,21 @@ radv_shader_combine_cfg_vs_gs(const struct radv_device *device, const struct rad
 
       *rsrc2_out = rsrc2;
    }
+
+   if (rsrc4_out && pdev->info.gfx_level >= GFX11) {
+      uint32_t inst_pref_mask = pdev->info.gfx_level >= GFX12 ? C_00B220_INST_PREF_SIZE : C_00B204_INST_PREF_SIZE;
+
+      *rsrc4_out = (vs->regs.spi_shader_pgm_rsrc4_gs_hs & ~inst_pref_mask) |
+                   (gs->regs.spi_shader_pgm_rsrc4_gs_hs & inst_pref_mask);
+   }
 }
 
 void
 radv_shader_combine_cfg_tes_gs(const struct radv_device *device, const struct radv_shader *tes,
-                               const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out)
+                               const struct radv_shader *gs, uint32_t *rsrc1_out, uint32_t *rsrc2_out,
+                               uint32_t *rsrc4_out)
 {
-   radv_shader_combine_cfg_vs_gs(device, tes, gs, rsrc1_out, rsrc2_out);
+   radv_shader_combine_cfg_vs_gs(device, tes, gs, rsrc1_out, rsrc2_out, rsrc4_out);
 
    if (rsrc2_out) {
       *rsrc2_out |= S_00B22C_OC_LDS_EN(1);
@@ -3099,6 +3151,7 @@ radv_shader_part_binary_upload(struct radv_device *device, const struct radv_sha
 struct radv_shader_part *
 radv_shader_part_create(struct radv_device *device, struct radv_shader_part_binary *binary, unsigned wave_size)
 {
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_shader_part *shader_part;
 
    shader_part = calloc(1, sizeof(struct radv_shader_part));
@@ -3114,6 +3167,9 @@ radv_shader_part_create(struct radv_device *device, struct radv_shader_part_bina
    shader_part->spi_shader_col_format = binary->info.spi_shader_col_format;
    shader_part->cb_shader_mask = binary->info.cb_shader_mask;
    shader_part->spi_shader_z_format = binary->info.spi_shader_z_format;
+
+   if (pdev->info.gfx_level >= GFX11)
+      shader_part->inst_pref_size = radv_get_inst_pref_size(&device->compiler_info, binary->exec_size);
 
    /* Allocate memory and upload. */
    shader_part->alloc = radv_alloc_shader_memory(device, shader_part->code_size, false, NULL);
@@ -3500,6 +3556,7 @@ radv_aco_build_shader_part(void **bin, uint32_t num_sgprs, uint32_t num_vgprs, u
    part_binary->num_vgprs = num_vgprs;
    part_binary->total_size = size;
    part_binary->code_size = code_size * sizeof(uint32_t);
+   part_binary->exec_size = exec_size;
    memcpy(part_binary->data, code, part_binary->code_size);
    if (disasm_size) {
       memcpy((char *)part_binary->data + part_binary->code_size, disasm_str, disasm_size);
