@@ -4914,7 +4914,7 @@
         "description": "nir: Do not mask helper lanes of writes if ACCESS_INCLUDE_HELPERS is set",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "586da7b32908eb6cb4282a58339689b6d23c224b",
         "notes": null
