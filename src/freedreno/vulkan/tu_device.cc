@@ -63,7 +63,11 @@ tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
     * device.
     */
    uint64_t driver_flags = TU_DEBUG(NOMULTIPOS);
-   uint16_t family = fd_dev_gpu_id(&device->dev_id);
+
+   /* Note: we intentionally drop the upper 32 bits since they contain fuse
+    * values that don't affect compilation.
+    */
+   uint32_t chip_id = device->dev_id.chip_id;
 
    memset(uuid, 0, VK_UUID_SIZE);
    _mesa_blake3_init(&ctx);
@@ -71,7 +75,7 @@ tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
    if (!disk_cache_get_function_identifier((void *)tu_device_get_cache_uuid, &ctx))
       return -1;
 
-   _mesa_blake3_update(&ctx, &family, sizeof(family));
+   _mesa_blake3_update(&ctx, &chip_id, sizeof(chip_id));
    _mesa_blake3_update(&ctx, &driver_flags, sizeof(driver_flags));
    _mesa_blake3_update(&ctx, &device->uche_trap_base, sizeof(device->uche_trap_base));
    _mesa_blake3_final(&ctx, blake3);
