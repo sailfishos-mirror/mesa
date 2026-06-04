@@ -290,12 +290,14 @@ static const struct debug_named_value use_jay_options[] = {
    { "fs",  BITFIELD_BIT(MESA_SHADER_FRAGMENT),  "Use jay for fragment shaders" },
    { "gs",  BITFIELD_BIT(MESA_SHADER_GEOMETRY),  "Use jay for geometry shaders" },
    { "cs",  BITFIELD_BIT(MESA_SHADER_COMPUTE),   "Use jay for compute shaders"  },
-   { "all", BITFIELD_BIT(MESA_SHADER_VERTEX) |
-            BITFIELD_BIT(MESA_SHADER_TESS_CTRL) |
-            BITFIELD_BIT(MESA_SHADER_TESS_EVAL) |
-            BITFIELD_BIT(MESA_SHADER_FRAGMENT) |
-            BITFIELD_BIT(MESA_SHADER_COMPUTE) |
-            BITFIELD_BIT(MESA_SHADER_GEOMETRY),  "Use jay for supported shader stages"  },
+   { "rgen",  BITFIELD_BIT(MESA_SHADER_RAYGEN),  "Use jay for raygen shaders"  },
+   { "ahit",  BITFIELD_BIT(MESA_SHADER_ANY_HIT), "Use jay for anyhit shaders"  },
+   { "chit",  BITFIELD_BIT(MESA_SHADER_CLOSEST_HIT),   "Use jay for closest hit shaders"  },
+   { "miss",  BITFIELD_BIT(MESA_SHADER_MISS),          "Use jay for miss shaders"  },
+   { "isec",  BITFIELD_BIT(MESA_SHADER_INTERSECTION),  "Use jay for intersection shaders"  },
+   { "call",  BITFIELD_BIT(MESA_SHADER_CALLABLE),      "Use jay for callable shaders"  },
+   { "all", ~(BITFIELD_BIT(MESA_SHADER_MESH) |
+              BITFIELD_BIT(MESA_SHADER_TASK)),         "Use jay for supported shader stages" },
    DEBUG_NAMED_VALUE_END
 };
 
