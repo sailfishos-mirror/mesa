@@ -52,22 +52,22 @@ android-angle-venus-anv-cml:
   extends:
     - .android-angle-venus-anv-test
     - .lava-asus-C436FA-Flip-hatch:x86_64
-    - .venus-anv-rules
+    - .venus-anv-manual-rules
   variables:
     DEQP_SUITE: android-angle-venus-anv
     GPU_VERSION: android-angle-venus-anv
     HWCI_KERNEL_MODULES: "i915,vhost_vsock"
   parallel: 3
 
-android-angle-venus-anv-cml-cts:
+android-angle-venus-anv-adl-cts:
   extends:
     - .android-angle-venus-anv-test
-    - .lava-asus-C436FA-Flip-hatch:x86_64
+    - .lava-acer-cbv514-1h-34uz-brya:x86_64
     - .test-android-cts
     - .venus-anv-manual-rules
   variables:
     GPU_VERSION: android-angle-venus-anv
-    HWCI_KERNEL_MODULES: "i915,vhost_vsock"
+    HWCI_KERNEL_MODULES: "xe,vhost_vsock"
     DEVICE_HANGING_TIMEOUT_SEC: 5400  # Android CTS might not print anything for minutes
   timeout: 2h
 
@@ -86,11 +86,12 @@ android-angle-venus-anv-adl:
   extends:
     - .android-angle-venus-anv-test
     - .lava-acer-cbv514-1h-34uz-brya:x86_64
-    - .venus-anv-manual-rules
+    - .venus-anv-rules
   variables:
     DEQP_SUITE: android-angle-venus-anv
     GPU_VERSION: android-angle-venus-anv
     HWCI_KERNEL_MODULES: "xe,vhost_vsock"
+  parallel: 4
 
 android-angle-venus-tu-a618:
   extends:
