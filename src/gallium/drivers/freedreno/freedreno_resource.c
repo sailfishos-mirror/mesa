@@ -1157,8 +1157,6 @@ fd_resource_get_param(struct pipe_screen *pscreen,
       return true;
    case PIPE_RESOURCE_PARAM_OFFSET:
       if (fd_resource_ubwc_enabled(rsc, level)) {
-         if (plane > 0)
-            debug_warning("Unsupported offset query!\n");
          *value = fd_resource_ubwc_offset(rsc, level, layer);
       } else {
          *value = fd_resource_offset(rsc, level, layer);
@@ -1507,9 +1505,36 @@ fd_resource_create_with_modifiers(struct pipe_screen *pscreen,
       return NULL;
    rsc = fd_resource(prsc);
 
+   struct pipe_resource *uv_prsc = NULL;
+   struct fd_resource *uv_rsc = NULL;
+
+   if (screen->layout_multiplanar_resource &&
+       (tmpl->format == PIPE_FORMAT_R8_G8B8_420_UNORM ||
+        tmpl->format == PIPE_FORMAT_Y8_U8V8_420_UNORM)) {
+      struct pipe_resource uv_tmpl = *tmpl;
+      uv_tmpl.format = PIPE_FORMAT_R8G8_UNORM;
+      uv_tmpl.width0 = tmpl->width0 / 2;
+      uv_tmpl.height0 = tmpl->height0 / 2;
+
+      uint32_t uv_size = 0;
+      uv_prsc = fd_resource_allocate_and_resolve(pscreen, &uv_tmpl, modifiers, count, &uv_size);
+      if (!uv_prsc) {
+         fd_resource_destroy(pscreen, prsc);
+         return NULL;
+      }
+      uv_rsc = fd_resource(uv_prsc);
+
+      size = screen->layout_multiplanar_resource(rsc, uv_rsc);
+   }
+
    realloc_bo(rsc, size);
    if (!rsc->bo)
       goto fail;
+
+   if (uv_prsc) {
+      uv_rsc->bo = fd_bo_ref(rsc->bo);
+      prsc->next = uv_prsc;
+   }
 
    if (resource_missing_planes(prsc))
       goto fail;
