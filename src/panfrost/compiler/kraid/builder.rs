@@ -8,6 +8,8 @@ use crate::ssa_value::SSAValueAllocator;
 pub trait Builder {
     fn arch(&self) -> u8;
 
+    fn model(&self) -> &dyn Model;
+
     fn push_instr(&mut self, instr: Instr) -> &mut Instr;
 
     fn push_op(&mut self, op: impl Into<Op>) -> &mut Instr {
@@ -66,15 +68,17 @@ pub trait SSABuilder: Builder {
     }
 }
 
-pub struct InstrBuilder {
+pub struct InstrBuilder<'a> {
     arch: u8,
+    model: &'a dyn Model,
     instrs: MappedInstrs,
 }
 
-impl InstrBuilder {
-    pub fn new(arch: u8) -> Self {
+impl<'a> InstrBuilder<'a> {
+    pub fn new(model: &'a dyn Model) -> Self {
         InstrBuilder {
-            arch,
+            arch: model.arch(),
+            model: model,
             instrs: Default::default(),
         }
     }
@@ -88,9 +92,13 @@ impl InstrBuilder {
     }
 }
 
-impl Builder for InstrBuilder {
+impl<'a> Builder for InstrBuilder<'a> {
     fn arch(&self) -> u8 {
         self.arch
+    }
+
+    fn model(&self) -> &'a dyn Model {
+        self.model
     }
 
     fn push_instr(&mut self, instr: Instr) -> &mut Instr {
@@ -100,17 +108,17 @@ impl Builder for InstrBuilder {
 }
 
 pub struct SSAInstrBuilder<'a> {
-    b: InstrBuilder,
+    b: InstrBuilder<'a>,
     alloc: &'a mut SSAValueAllocator,
 }
 
 impl<'a> SSAInstrBuilder<'a> {
     pub fn new(
-        arch: u8,
+        model: &'a dyn Model,
         alloc: &'a mut SSAValueAllocator,
     ) -> SSAInstrBuilder<'a> {
         SSAInstrBuilder {
-            b: InstrBuilder::new(arch),
+            b: InstrBuilder::new(model),
             alloc,
         }
     }
@@ -124,9 +132,13 @@ impl<'a> SSAInstrBuilder<'a> {
     }
 }
 
-impl Builder for SSAInstrBuilder<'_> {
+impl<'a> Builder for SSAInstrBuilder<'a> {
     fn arch(&self) -> u8 {
         self.b.arch()
+    }
+
+    fn model(&self) -> &'a dyn Model {
+        self.b.model
     }
 
     fn push_instr(&mut self, instr: Instr) -> &mut Instr {

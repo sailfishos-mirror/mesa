@@ -690,7 +690,7 @@ impl<'a> ShaderFromNir<'a> {
         block_map: &BlockLabelMap,
         nb: &nir_block,
     ) -> BasicBlock {
-        let mut b = SSAInstrBuilder::new(self.model.arch(), ssa_alloc);
+        let mut b = SSAInstrBuilder::new(self.model, ssa_alloc);
 
         for ni in nb.iter_instr_list() {
             match ni.type_ {
