@@ -28,6 +28,7 @@
 #include <xf86drm.h>
 
 #include "util/u_math.h"
+#include "util/stack_array.h"
 
 #include "ir3/ir3_shader.h"
 #include "perfcntrs/freedreno_perfcntr.h"
@@ -324,12 +325,15 @@ main(int argc, char **argv)
    }
 
    if (perfcntrstr) {
-      uint64_t results[num_perfcntrs];
+      STACK_ARRAY(uint64_t, results, num_perfcntrs);
+
       backend->read_perfcntrs(backend, results);
 
       for (unsigned i = 0; i < num_perfcntrs; i++) {
          printf("%s:\t%'" PRIu64 "\n", perfcntrs[i].name, results[i]);
       }
+
+      STACK_ARRAY_FINISH(results);
    }
 
    return 0;
