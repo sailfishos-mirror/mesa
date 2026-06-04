@@ -29,6 +29,40 @@ pub unsafe fn char_arr_to_cstr(c_str: &[c_char]) -> &CStr {
     unsafe { CStr::from_ptr(c_str.as_ptr()) }
 }
 
+pub trait CStrExt: ToOwned {
+    fn concat(&self, other: impl AsRef<Self>) -> Self::Owned;
+}
+
+impl CStrExt for CStr {
+    fn concat(&self, other: impl AsRef<Self>) -> Self::Owned {
+        let other = other.as_ref();
+
+        let self_bytes = self.to_bytes();
+        let other_bytes = other.to_bytes_with_nul();
+        let size = self_bytes.len() + other_bytes.len();
+
+        let mut buffer = Vec::with_capacity(size);
+        buffer.extend_from_slice(self_bytes);
+        buffer.extend_from_slice(other_bytes);
+
+        // SAFETY: The only 0 byte in buffer is at the end
+        unsafe { CString::from_vec_with_nul_unchecked(buffer) }
+    }
+}
+
+#[test]
+fn test_concat_cstr() {
+    assert_eq!(c"Test".concat(c"Other"), c"TestOther".to_owned());
+
+    assert_eq!(
+        c"Test".concat(
+            #[allow(clippy::unnecessary_to_owned)]
+            c"Owned".to_owned()
+        ),
+        c"TestOwned".to_owned()
+    );
+}
+
 pub trait CStringExt {
     fn push_cstr(&mut self, other: &CStr);
 }
