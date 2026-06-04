@@ -1447,6 +1447,13 @@ jay_emit_dpas(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    nj->s->prog_data->cs.uses_systolic = true;
 }
 
+static bool
+jay_shader_stage_uses_btd(jay_shader *s)
+{
+   return s->stage == MESA_SHADER_COMPUTE ? s->prog_data->cs.uses_btd_stack_ids :
+                                            brw_shader_stage_is_bindless(s->stage);
+}
+
 static void
 jay_emit_convert_cmat(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
@@ -2036,6 +2043,17 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_trace_ray_intel:
       jay_emit_rt_trace_ray(nj, intr);
       break;
+
+   case nir_intrinsic_load_btd_stack_id_intel: {
+      assert(jay_shader_stage_uses_btd(s));
+      /* Stack IDs are always in R1 regardless of whether we're coming from a
+       * bindless shader or a regular compute shader.
+       */
+      jay_def packed_stack_ids = jay_extract_range(nj->payload.u1, 0,
+                                                   s->dispatch_width / 2);
+      jay_CVT(b, JAY_TYPE_U32, dst, packed_stack_ids, JAY_TYPE_U16, JAY_ROUND, 0);
+      break;
+   }
 
    case nir_intrinsic_dpas_intel:
       jay_emit_dpas(nj, intr);
