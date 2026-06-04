@@ -289,12 +289,14 @@ pub struct HeaderProgram {
 #[derive(Default)]
 struct ParsedCompileOptions {
     raw_string: String,
+    create_lib: bool,
 }
 
 impl ParsedCompileOptions {
     fn from_option_str(options: &str) -> Self {
         Self {
             raw_string: options.to_owned(),
+            ..Default::default()
         }
     }
 }
@@ -306,7 +308,7 @@ struct CompileOptions {
 
 impl CompileOptions {
     fn new(options: &str, dev: &Device) -> Self {
-        let parsed_options = ParsedCompileOptions::from_option_str(options);
+        let mut parsed_options = ParsedCompileOptions::from_option_str(options);
         let mut options = options.to_owned();
         if !options.contains("-cl-std=") {
             options.push_str(" -cl-std=CL");
@@ -346,6 +348,10 @@ impl CompileOptions {
                 "-cl-std=CL3.1" => strings.push(c"-cl-std=CL3.0".to_owned()),
                 "-cl-denorms-are-zero" => {
                     strings.push(c"-fdenormal-fp-math=positive-zero".to_owned())
+                }
+                "-create-library" => {
+                    parsed_options.create_lib = true;
+                    strings.push(c"-create-library".to_owned());
                 }
                 // We can ignore it as long as we don't support ifp
                 "-cl-no-subgroup-ifp" => {}
