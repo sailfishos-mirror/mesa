@@ -514,14 +514,14 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
    case nir_op_ubfe:
    case nir_op_ibfe:
-      jay_BFE(b, type, dst, src[0], src[1], src[2]);
+      jay_BFE(b, type, dst, src[2], src[1], src[0]);
       break;
    case nir_op_bfi:
       jay_BFI2(b, dst, src[0], src[1], src[2]);
       break;
 
    case nir_op_ffma:
-      jay_MAD(b, type, dst, src[0], src[1], src[2]);
+      jay_MAD(b, type, dst, src[2], src[1], src[0]);
       break;
 
    case nir_op_fcsel:

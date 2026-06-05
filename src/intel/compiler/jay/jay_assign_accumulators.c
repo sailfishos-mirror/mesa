@@ -326,11 +326,12 @@ pass(jay_function *func)
           * it works fine on Lunar Lake so ¯\_(ツ)_/¯ ... gate on !strict.
           */
          if ((I->op == JAY_OPCODE_MAD && I->type == JAY_TYPE_F32) &&
-             (I->src[2].file == ACCUM && I->src[2].reg == 0) &&
-             !(I->src[2].negate || I->src[2].abs) &&
+             (I->src[0].file == ACCUM && I->src[0].reg == 0) &&
+             !(I->src[0].negate || I->src[0].abs) &&
              !(jay_debug & JAY_DBG_STRICT)) {
 
             I->op = JAY_OPCODE_MAC;
+            SWAP(I->src[0], I->src[2]);
          }
 
          /* Sometimes this algorithm turns nontrivial GPR->GPR copies into

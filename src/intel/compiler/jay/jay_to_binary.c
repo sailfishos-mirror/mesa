@@ -367,10 +367,6 @@ emit(struct jay_codegen *jc,
       gen->src[i] = to_gen_operand(f, I, i, simd_offs, false);
    }
 
-   if (I->op == JAY_OPCODE_MAD || I->op == JAY_OPCODE_BFE) {
-      SWAP(gen->src[0], gen->src[2]);
-   }
-
    switch (I->op) {
    case JAY_OPCODE_WHILE: {
       assert(util_dynarray_num_elements(&jc->loop_stack, int) > 0);
