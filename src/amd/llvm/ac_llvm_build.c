@@ -1822,7 +1822,7 @@ LLVMValueRef ac_build_cvt_pk_i16(struct ac_llvm_context *ctx, LLVMValueRef args[
    assert(bits == 8 || bits == 10 || bits == 16);
 
    LLVMValueRef max_rgb = LLVMConstInt(ctx->i32, bits == 8 ? 127 : bits == 10 ? 511 : 32767, 0);
-   LLVMValueRef min_rgb = LLVMConstInt(ctx->i32, bits == 8 ? -128 : bits == 10 ? -512 : -32768, 0);
+   LLVMValueRef min_rgb = LLVMConstInt(ctx->i32, bits == 8 ? -128 : bits == 10 ? -512 : -32768, 1);
    LLVMValueRef max_alpha = bits != 10 ? max_rgb : ctx->i32_1;
    LLVMValueRef min_alpha = bits != 10 ? min_rgb : LLVMConstInt(ctx->i32, -2, 0);
 
@@ -2212,7 +2212,7 @@ LLVMValueRef ac_find_lsb(struct ac_llvm_context *ctx, LLVMTypeRef dst_type, LLVM
    /* TODO: We need an intrinsic to skip this conditional. */
    /* Check for zero: */
    return LLVMBuildSelect(ctx->builder, LLVMBuildICmp(ctx->builder, LLVMIntEQ, src0, zero, ""),
-                          LLVMConstInt(ctx->i32, -1, 0), lsb, "");
+                          LLVMConstInt(ctx->i32, -1, 1), lsb, "");
 }
 
 static struct ac_llvm_flow *get_current_flow(struct ac_llvm_context *ctx)
@@ -2791,11 +2791,11 @@ static LLVMValueRef get_reduction_identity(struct ac_llvm_context *ctx, nir_op o
       case nir_op_umin:
          return LLVMConstInt(ctx->i8, UINT8_MAX, 0);
       case nir_op_imax:
-         return LLVMConstInt(ctx->i8, INT8_MIN, 0);
+         return LLVMConstInt(ctx->i8, INT8_MIN, 1);
       case nir_op_umax:
          return ctx->i8_0;
       case nir_op_iand:
-         return LLVMConstInt(ctx->i8, -1, 0);
+         return LLVMConstInt(ctx->i8, -1, 1);
       case nir_op_ior:
          return ctx->i8_0;
       case nir_op_ixor:
@@ -2820,13 +2820,13 @@ static LLVMValueRef get_reduction_identity(struct ac_llvm_context *ctx, nir_op o
       case nir_op_fmin:
          return LLVMConstReal(ctx->f16, INFINITY);
       case nir_op_imax:
-         return LLVMConstInt(ctx->i16, INT16_MIN, 0);
+         return LLVMConstInt(ctx->i16, INT16_MIN, 1);
       case nir_op_umax:
          return ctx->i16_0;
       case nir_op_fmax:
          return LLVMConstReal(ctx->f16, -INFINITY);
       case nir_op_iand:
-         return LLVMConstInt(ctx->i16, -1, 0);
+         return LLVMConstInt(ctx->i16, -1, 1);
       case nir_op_ior:
          return ctx->i16_0;
       case nir_op_ixor:
@@ -2851,13 +2851,13 @@ static LLVMValueRef get_reduction_identity(struct ac_llvm_context *ctx, nir_op o
       case nir_op_fmin:
          return LLVMConstReal(ctx->f32, INFINITY);
       case nir_op_imax:
-         return LLVMConstInt(ctx->i32, INT32_MIN, 0);
+         return LLVMConstInt(ctx->i32, INT32_MIN, 1);
       case nir_op_umax:
          return ctx->i32_0;
       case nir_op_fmax:
          return LLVMConstReal(ctx->f32, -INFINITY);
       case nir_op_iand:
-         return LLVMConstInt(ctx->i32, -1, 0);
+         return LLVMConstInt(ctx->i32, -1, 1);
       case nir_op_ior:
          return ctx->i32_0;
       case nir_op_ixor:
