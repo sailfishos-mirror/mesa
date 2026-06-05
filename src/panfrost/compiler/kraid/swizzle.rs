@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::data_type::DataType;
-use compiler::enum_as_u8::EnumAsU8;
+use compiler::enum_as_u8::*;
 use compiler::float16::F16;
 use kraid_proc_macros::{AsmSwizzleWiden, EnumAsU8};
 use std::fmt;
@@ -236,7 +236,7 @@ impl Swizzle {
             let b = ((self.packed.get() >> (idx * 4)) & 0xf) as u8;
 
             // SAFETY: We only ever construct Swizzle from SwizzleByte
-            debug_assert!(SwizzleByte::VARIANTS.contains(b));
+            debug_assert!(SwizzleByte::VARIANTS.contains_u8(b));
             Some(unsafe { std::mem::transmute(b) })
         }
     }
@@ -250,7 +250,7 @@ impl Swizzle {
             let b = ((self.packed.get() >> (idx * 4)) & 0xf) as u8;
 
             // SAFETY: We only ever construct Swizzle from SwizzleByte
-            debug_assert!(SwizzleWord::VARIANTS.contains(b));
+            debug_assert!(SwizzleWord::VARIANTS.contains_u8(b));
             Some(unsafe { std::mem::transmute(b) })
         } else {
             None

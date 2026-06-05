@@ -59,12 +59,23 @@ pub fn derive_enum_as_u8(input: TokenStream) -> TokenStream {
         });
     }
 
+    let var_set_u32s = if max_desc_ts.is_empty() {
+        (usize::from(max_desc) + 1).div_ceil(32)
+    } else {
+        // Worst case
+        256 / 32
+    };
+
     let ident_s = ident.to_string();
     let try_from_err = format!("Invalid {ident_s} variant.");
     let imp = quote! {
         impl EnumAsU8 for #ident {
-            const VARIANTS: compiler::bitset::ConstBitSet<8, u8> =
-                compiler::bitset::ConstBitSet::<8, u8>::from_array([#variants_ts]);
+            type VariantSet = compiler::enum_as_u8::U8EnumSet<#ident, #var_set_u32s>;
+            const VARIANTS: compiler::enum_as_u8::U8EnumSet<#ident, #var_set_u32s> = {
+                unsafe {
+                    compiler::enum_as_u8::U8EnumSet::from_u8_array([#variants_ts])
+                }
+            };
             const MAX_DISCRIMINANT: u8 = {
                 let mut max_desc = #max_desc;
                 #max_desc_ts
@@ -90,7 +101,7 @@ pub fn derive_enum_as_u8(input: TokenStream) -> TokenStream {
             type Error = &'static str;
 
             fn try_from(u: u8) -> Result<Self, &'static str> {
-                if Self::VARIANTS.contains(u) {
+                if Self::VARIANTS.contains_u8(u) {
                     Ok(unsafe { Self::from_u8_unchecked(u) })
                 } else {
                     Err(#try_from_err)
