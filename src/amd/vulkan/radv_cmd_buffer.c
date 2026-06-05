@@ -9584,7 +9584,9 @@ radv_CmdSetVertexInputEXT(VkCommandBuffer commandBuffer, uint32_t vertexBindingD
          const uint32_t hw_format = vtx_info->hw_format[vtx_info->num_channels - 1];
 
          if (pdev->info.gfx_level >= GFX10) {
-            vertex_input->non_trivial_format[loc] = vtx_info->dst_sel | S_008F0C_FORMAT_GFX10(hw_format);
+            vertex_input->non_trivial_format[loc] =
+               vtx_info->dst_sel | S_008F0C_FORMAT_GFX10(hw_format) |
+               S_008F0C_RESOURCE_LEVEL(pdev->info.compiler_info.has_desc_resource_level);
          } else {
             vertex_input->non_trivial_format[loc] =
                vtx_info->dst_sel | S_008F0C_NUM_FORMAT((hw_format >> 4) & 0x7) | S_008F0C_DATA_FORMAT(hw_format & 0xf);

@@ -773,7 +773,9 @@ radv_pipeline_init_vertex_input_state(const struct radv_device *device, struct r
 
          if (vtx_info->has_hw_format & BITFIELD_BIT(vtx_info->num_channels - 1)) {
             if (pdev->info.gfx_level >= GFX10) {
-               dynamic->vertex_input.non_trivial_format[i] = vtx_info->dst_sel | S_008F0C_FORMAT_GFX10(hw_format);
+               dynamic->vertex_input.non_trivial_format[i] =
+                  vtx_info->dst_sel | S_008F0C_FORMAT_GFX10(hw_format) |
+                  S_008F0C_RESOURCE_LEVEL(pdev->info.compiler_info.has_desc_resource_level);
             } else {
                dynamic->vertex_input.non_trivial_format[i] = vtx_info->dst_sel |
                                                              S_008F0C_NUM_FORMAT((hw_format >> 4) & 0x7) |
