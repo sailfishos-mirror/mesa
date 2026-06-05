@@ -23,6 +23,8 @@ pub trait Model {
         swizzle: Swizzle,
     ) -> bool;
 
+    fn op_dst_supports_lanes(&self, op: &Op, lanes: DstLanes) -> bool;
+
     fn small_constants(&self) -> &[SmallConstant];
 }
 
@@ -78,6 +80,14 @@ impl Model for ValhallModel {
             vop.src_supports_swizzle(src, swizzle)
         } else {
             v9_op_src_supports_swizzle(op, src, self.arch, swizzle)
+        }
+    }
+
+    fn op_dst_supports_lanes(&self, op: &Op, lanes: DstLanes) -> bool {
+        if let Some(vop) = op.as_virtual() {
+            vop.dst_supports_lanes(lanes)
+        } else {
+            v9_op_dst_supports_lanes(op, self.arch, lanes)
         }
     }
 

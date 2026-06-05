@@ -7,7 +7,7 @@ use crate::flow::*;
 use crate::ir;
 use crate::ir::*;
 use crate::isa::v9::*;
-use crate::isa::v9::{InstructionInfo, InstructionSrcInfo};
+use crate::isa::v9::{InstructionDstInfo, InstructionInfo, InstructionSrcInfo};
 use crate::isa::*;
 use crate::ops::*;
 use crate::swizzle::*;
@@ -56,6 +56,10 @@ impl V9InstrInfo {
             | V9InstrSrc::Src2
             | V9InstrSrc::Src3 => Some(&self.isa_info.srcs[v9_src as usize]),
         }
+    }
+
+    fn dst_info(&self) -> Option<&'static InstructionDstInfo> {
+        self.isa_info.dst.as_ref()
     }
 }
 
@@ -1069,6 +1073,40 @@ pub fn v9_op_src_supports_swizzle(
         return false;
     };
     src_info.allowed_swizzles.contains(asw.into())
+}
+
+pub fn v9_op_dst_supports_lanes(
+    op: &Op,
+    arch: u8,
+    lanes: ir::DstLanes,
+) -> bool {
+    let Some(dst_info) = v9_op_info(op, arch).and_then(|info| info.dst_info())
+    else {
+        return false;
+    };
+
+    match lanes {
+        ir::DstLanes::None => false,
+        ir::DstLanes::All => {
+            dst_info.allowed_lanes.contains(v9::DstLanes::None)
+        }
+        ir::DstLanes::AnyB => {
+            dst_info.allowed_lanes.contains(v9::DstLanes::B0)
+                || dst_info.allowed_lanes.contains(v9::DstLanes::B1)
+                || dst_info.allowed_lanes.contains(v9::DstLanes::B2)
+                || dst_info.allowed_lanes.contains(v9::DstLanes::B3)
+        }
+        ir::DstLanes::AnyH => {
+            dst_info.allowed_lanes.contains(v9::DstLanes::H0)
+                || dst_info.allowed_lanes.contains(v9::DstLanes::H1)
+        }
+        ir::DstLanes::B0 => dst_info.allowed_lanes.contains(v9::DstLanes::B0),
+        ir::DstLanes::B1 => dst_info.allowed_lanes.contains(v9::DstLanes::B1),
+        ir::DstLanes::B2 => dst_info.allowed_lanes.contains(v9::DstLanes::B2),
+        ir::DstLanes::B3 => dst_info.allowed_lanes.contains(v9::DstLanes::B3),
+        ir::DstLanes::H0 => dst_info.allowed_lanes.contains(v9::DstLanes::H0),
+        ir::DstLanes::H1 => dst_info.allowed_lanes.contains(v9::DstLanes::H1),
+    }
 }
 
 fn encode_instr(

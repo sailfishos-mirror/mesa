@@ -747,6 +747,10 @@ pub trait VirtualOpcode {
     fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
         swizzle == Swizzle::NONE
     }
+
+    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+        lanes == DstLanes::All
+    }
 }
 
 #[derive(Clone)]

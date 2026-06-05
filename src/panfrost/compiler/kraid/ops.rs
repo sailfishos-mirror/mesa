@@ -461,6 +461,10 @@ impl VirtualOpcode for OpMkVecV2I8 {
     fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
         swizzle.replicates_byte()
     }
+
+    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+        lanes.is_half()
+    }
 }
 
 #[repr(C)]
@@ -494,6 +498,10 @@ impl VirtualOpcode for OpMkVecV4I8 {
 
     fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
         swizzle.replicates_byte()
+    }
+
+    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+        lanes == DstLanes::All
     }
 }
 
