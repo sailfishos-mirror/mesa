@@ -1201,7 +1201,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          /* TODO: Move the SHL to NIR for CSE? */
          assert(surf_type == LSC_ADDR_SURFTYPE_BTI);
          assert(base_offset == 0);
-         ex_desc = jay_SHL_u32(b, bti_indirect, 24);
+         ex_desc = jay_SHL_u32(b, emit_uniformize(nj, bti_indirect), 24);
       }
    }
 
