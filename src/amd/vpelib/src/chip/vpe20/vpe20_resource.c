@@ -2131,6 +2131,12 @@ int32_t vpe20_program_frontend_frame(
     // Always Pre-Blend. RMCM (RMCM_GAMUT + 3dLUT + Shaper)
     mpc->funcs->program_movable_cm(mpc, func_shaper, lut3d_func, stream_ctx->blend_tf, false);
 
+    // indirect config if user provide dma shaper lut
+    if ((stream_ctx->stream.dma_info.shaper.enabled) && (stream_ctx->stream.lut_compound.enabled) &&
+        (mpc->funcs->program_shaper_indirect != NULL)) {
+        mpc->funcs->program_shaper_indirect(mpc, &stream_ctx->stream.dma_info.shaper);
+    }
+
     // Program if RMCM is not used
     mpc->funcs->set_gamut_remap2(mpc, gamut_matrix_mcm1, VPE_MPC_MCM_FIRST_GAMUT_REMAP);
 

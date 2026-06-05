@@ -709,6 +709,14 @@ enum vpe_status vpe_color_update_color_space_and_tf(
                 // apply the matrix provided in the 3DLUT compound case
                 vpe_color_update_3dlut_matrix(vpe_priv, stream_ctx);
 
+                stream_ctx->enable_3dlut = true;
+
+                if (output_ctx->dirty_bits.transfer_function ||
+                    output_ctx->dirty_bits.color_space || require_update) {
+                    vpe_priv->resource.update_blnd_gamma(
+                        vpe_priv, param, &stream_ctx->stream, stream_ctx->blend_tf);
+                }
+
                 continue; // skip the rest of color space and tf update
             }
 
@@ -1054,14 +1062,16 @@ enum vpe_status vpe_color_update_movable_cm(
                 vpe_color_update_3dlut(vpe_priv, stream_ctx, enable_3dlut);
             }
 
-            vpe_priv->resource.calculate_shaper(vpe_priv, stream_ctx);
+            if (!stream_ctx->stream.lut_compound.enabled) {
+                vpe_priv->resource.calculate_shaper(vpe_priv, stream_ctx);
 
-            vpe_color_build_tm_cs(
-                &stream_ctx->stream.tm_params, &vpe_priv->output_ctx.surface, &tm_out_cs);
+                vpe_color_build_tm_cs(
+                    &stream_ctx->stream.tm_params, &vpe_priv->output_ctx.surface, &tm_out_cs);
 
-            vpe_color_get_color_space_and_tf(&tm_out_cs, &out_lut_cs, &tf);
-            vpe_color_update_gamut(vpe_priv, out_lut_cs, vpe_priv->output_ctx.cs,
-                output_ctx->gamut_remap, !enable_3dlut);
+                vpe_color_get_color_space_and_tf(&tm_out_cs, &out_lut_cs, &tf);
+                vpe_color_update_gamut(vpe_priv, out_lut_cs, vpe_priv->output_ctx.cs,
+                    output_ctx->gamut_remap, !enable_3dlut);
+            }
         }
     }
 exit:

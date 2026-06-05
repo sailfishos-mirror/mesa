@@ -885,11 +885,8 @@ void vpe20_mpc_set_mpc_shaper_3dlut(
     struct stream_ctx *stream_ctx = &vpe_priv->stream_ctx[vpe_priv->fe_cb_ctx.stream_idx];
     bool               bypass;
 
-    // indirect config if user provide dma shaper lut
-    if (stream_ctx->stream.lut_compound.enabled == true) {
-        mpc->funcs->program_shaper_indirect(mpc, &stream_ctx->stream.dma_info.shaper);
-    } else {
     // get the shaper lut params
+    if (stream_ctx->stream.lut_compound.enabled == false) {
         if (func_shaper) {
             if (func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
                 vpe10_cm_helper_translate_curve_to_hw_format(func_shaper, &mpc->shaper_params, true,
