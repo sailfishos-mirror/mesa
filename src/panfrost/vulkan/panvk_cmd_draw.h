@@ -28,6 +28,15 @@
 #include "pan_props.h"
 
 #define MAX_VBS 16
+
+#if PAN_ARCH < 10
+#define MAX_FRAMEBUFFER_DIMENSION (1 << 14)
+#elif PAN_ARCH < 11
+#define MAX_FRAMEBUFFER_DIMENSION (1 << 15)
+#else
+#define MAX_FRAMEBUFFER_DIMENSION (1 << 16)
+#endif
+
 #define MAX_FRAMEBUFFER_LAYERS 256
 
 struct panvk_cmd_buffer;
