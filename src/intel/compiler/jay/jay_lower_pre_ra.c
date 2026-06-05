@@ -133,7 +133,8 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
    }
 
    /* One source supports immediates but the other does not, so swap. */
-   unsigned other = I->op == JAY_OPCODE_BFN ? 1 : 0;
+   bool allow_s0 = I->op == JAY_OPCODE_BFE || I->op == JAY_OPCODE_BFN;
+   unsigned other = allow_s0 ? 1 : 0;
    if (jay_is_imm(I->src[other]) &&
        !_mesa_hash_table_u64_search(constants, jay_as_uint(I->src[other]))) {
 
@@ -147,7 +148,7 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
 
          bool last = s == (jay_num_isa_srcs(I) - 1);
          bool allowed = s < 2 && (last || I->op == JAY_OPCODE_SEND);
-         allowed |= (I->op == JAY_OPCODE_BFN && s == 0 && imm <= UINT16_MAX);
+         allowed |= (allow_s0 && s == 0 && imm <= UINT16_MAX);
 
          if (!allowed) {
             I->src[s] = lower_imm_to_ugpr(b, I, s, constants);
