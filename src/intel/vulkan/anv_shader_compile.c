@@ -1259,7 +1259,8 @@ anv_shader_lower_nir(struct anv_device *device,
    nir_shader *nir = shader_data->info->nir;
 
    /* Workaround for apps that need fp64 support */
-   if (device->fp64_nir) {
+   if (!devinfo->has_64bit_float && (nir->info.bit_sizes_float & 64) &&
+       pdevice->instance->drirc.debug.fp64_emu) {
       nir_shader *fp64_nir = anv_ensure_fp64_shader(device);
 
       NIR_PASS(_, nir, nir_lower_doubles, fp64_nir,
