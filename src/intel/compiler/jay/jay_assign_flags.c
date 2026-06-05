@@ -169,6 +169,7 @@ rewrite_without_flag(struct flag_ra *ra, jay_inst *I, unsigned s, bool in_flag)
    }
 
    if (I->op == JAY_OPCODE_SEL &&
+       s == 2 &&
        (!in_flag || ra->vars[jay_index(I->src[s])].free_canonical) &&
        !I->predication) {
 
