@@ -50,7 +50,7 @@ TYPE_FORMAT = {
     'GLhalfNV':    ('0x%x',        '{p}'),
     'GLvdpauSurfaceNV': ('%" PRIdPTR "', '(intptr_t){p}'),
     'GLsync':      ('%p',          '(void *){p}'),
-    'GLhandleARB': ('%u',          '{p}'),
+    'GLhandleARB': ('%u',          '(unsigned int){p}'),
     'GLDEBUGPROC':    ('%p',       '(void *){p}'),
     'GLDEBUGPROCARB': ('%p',       '(void *){p}'),
     'GLDEBUGPROCAMD': ('%p',       '(void *){p}'),
