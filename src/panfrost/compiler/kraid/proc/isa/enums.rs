@@ -595,7 +595,7 @@ impl MetaEnum {
             });
         }
 
-        if self.name == "src_swizzle" {
+        if self.name == "src_swizzle" || self.name == "dst_lanes" {
             ts.extend(quote! {
                 #[repr(u8)]
                 #[derive(Clone, Copy, EnumAsU8, Hash, PartialEq)]

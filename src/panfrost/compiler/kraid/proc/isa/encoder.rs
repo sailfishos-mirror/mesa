@@ -699,12 +699,70 @@ impl ToTokens for InstrVariantSrcInfo {
     }
 }
 
+#[derive(Default)]
+struct InstrVariantDstInfo {
+    exists: bool,
+    is_sr: bool,
+    allowed_lanes: Vec<EnumLiteral>,
+}
+
+impl InstrVariantDstInfo {
+    fn add_field(
+        &mut self,
+        arch: Range<u8>,
+        src_field: SrcField,
+        field_type: &FieldType,
+        field_restrict: &Option<Rc<FieldRestrict>>,
+    ) {
+        match src_field {
+            SrcField::DstReg | SrcField::SrIndex => {
+                assert!(!self.exists);
+                self.exists = true;
+                self.is_sr = matches!(src_field, SrcField::SrIndex);
+            }
+            SrcField::DstLanes => {
+                assert!(self.allowed_lanes.is_empty());
+                self.allowed_lanes =
+                    valid_field_values(arch, field_type, field_restrict);
+            }
+            SrcField::SrCount => (),
+            _ => panic!("Invalid Dst field"),
+        }
+    }
+}
+
+impl ToTokens for InstrVariantDstInfo {
+    fn to_tokens(&self, ts: &mut TokenStream2) {
+        let InstrVariantDstInfo { is_sr, .. } = self;
+
+        assert!(self.exists);
+        let mut lanes_ts = TokenStream2::new();
+        if self.allowed_lanes.is_empty() {
+            lanes_ts.extend(quote! { DstLanes::None as u8 });
+        } else {
+            for s in &self.allowed_lanes {
+                lanes_ts.extend(quote! { #s as u8, });
+            }
+        }
+
+        ts.extend(quote! {
+            InstructionDstInfo {
+                is_sr: #is_sr,
+                allowed_lanes: unsafe {
+                    U8EnumSet::from_u8_array([#lanes_ts])
+                },
+            }
+        });
+    }
+}
+
 struct InstrVariantInfo {
     ident: Ident,
     arch: Range<u8>,
     is_message: bool,
     srcs: Vec<InstrVariantSrcInfo>,
     sr_src: Option<InstrVariantSrcInfo>,
+    dst: Option<InstrVariantDstInfo>,
 }
 
 impl InstrVariantInfo {
@@ -723,6 +781,7 @@ impl InstrVariantInfo {
             is_message: false,
             srcs: Default::default(),
             sr_src: Default::default(),
+            dst: Default::default(),
         }
     }
 
@@ -762,6 +821,14 @@ impl InstrVariantInfo {
                     field_restrict,
                 );
             }
+            SrcType::Dst | SrcType::SrWrite => {
+                self.dst.get_or_insert_default().add_field(
+                    self.arch.clone(),
+                    src_field,
+                    field_type,
+                    field_restrict,
+                );
+            }
             _ => (),
         }
     }
@@ -785,11 +852,18 @@ impl ToTokens for InstrVariantInfo {
             quote! { None }
         };
 
+        let dst_ts = if let Some(dst) = &self.dst {
+            quote! { Some(#dst) }
+        } else {
+            quote! { None }
+        };
+
         ts.extend(quote! {
             const #ident: InstructionInfo = InstructionInfo {
                 is_message: #is_message,
                 srcs: #srcs_ts,
                 sr_src: #sr_src_ts,
+                dst: #dst_ts,
             };
         });
     }
@@ -1185,7 +1259,7 @@ impl ToTokens for InstrEnc {
                 #info_const_decls_ts
             }
 
-            impl Instruction<SrcSwizzle> for #s_ident {
+            impl Instruction<SrcSwizzle, DstLanes> for #s_ident {
                 type Variant = #variant_type_ts;
 
                 fn get_info_for_variant(
@@ -1227,8 +1301,9 @@ pub fn gen_encoder(
         use compiler::bitset::ConstBitSet;
         use compiler::enum_as_u8::EnumAsU8;
 
-        pub type InstructionInfo = super::InstructionInfo<SrcSwizzle>;
+        pub type InstructionInfo = super::InstructionInfo<SrcSwizzle, DstLanes>;
         pub type InstructionSrcInfo = super::InstructionSrcInfo<SrcSwizzle>;
+        pub type InstructionDstInfo = super::InstructionDstInfo<DstLanes>;
         pub type EncodedSrc = super::EncodedSrc<SrcSwizzle>;
         pub type EncodedDst = super::EncodedDst<DstLanes>;
         pub type SrRead = super::SrRead<SrcSwizzle>;
