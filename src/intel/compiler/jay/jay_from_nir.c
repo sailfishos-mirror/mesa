@@ -3796,6 +3796,8 @@ jay_compile(const struct intel_device_info *devinfo,
       prog_data->cs.prog_offset[i] = 0;
       prog_data->cs.prog_mask = BITFIELD_BIT(i);
       prog_data->cs.prog_spilled = s->scratch_size > 0; /* XXX */
+   } else if (brw_shader_stage_is_bindless(s->stage)) {
+      prog_data->bs.simd_size = simd_width;
    }
 
    prog_data->base.program_size = bin->size;
