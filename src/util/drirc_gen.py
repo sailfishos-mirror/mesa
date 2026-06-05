@@ -300,30 +300,33 @@ def add_common_vk_options(debug_options, features_options, misc_options, valid_o
           c_name="heap_memory_percent"),
     ] if opt.name in valid_options])
 
-def add_common_vk_wsi_options(debug_options, performance_options):
+def add_common_vk_wsi_options(debug_options, performance_options, defaults=None):
     B = DrircBool
     I = DrircInt
 
+    if defaults is None:
+        defaults = {}
+
     performance_options.extend([
-        B("adaptive_sync", True,
+        B("adaptive_sync", defaults.get("adaptive_sync", True),
           "Adapt the monitor sync to the application performance (when possible)"),
-        I("vk_x11_override_min_image_count", 0, 0, 999,
+        I("vk_x11_override_min_image_count", defaults.get("vk_x11_override_min_image_count", 0), 0, 999,
           "Override the VkSurfaceCapabilitiesKHR::minImageCount (0 = no override)"),
-        B("vk_x11_strict_image_count", False,
+        B("vk_x11_strict_image_count", defaults.get("vk_x11_strict_image_count", False),
           "Force the X11 WSI to create exactly the number of image specified by the application in VkSwapchainCreateInfoKHR::minImageCount"),
-        B("vk_x11_ensure_min_image_count", False,
+        B("vk_x11_ensure_min_image_count", defaults.get("vk_x11_ensure_min_image_count", False),
           "Force the X11 WSI to create at least the number of image specified by the driver in VkSurfaceCapabilitiesKHR::minImageCount"),
-        B("vk_xwayland_wait_ready", False,
+        B("vk_xwayland_wait_ready", defaults.get("vk_xwayland_wait_ready", False),
           "Wait for fences before submitting buffers to Xwayland"),
     ])
 
     debug_options.extend([
-        B("vk_wsi_force_bgra8_unorm_first", False,
+        B("vk_wsi_force_bgra8_unorm_first", defaults.get("vk_wsi_force_bgra8_unorm_first", False),
           "Force vkGetPhysicalDeviceSurfaceFormatsKHR to return VK_FORMAT_B8G8R8A8_UNORM as the first format"),
-        B("vk_wsi_force_swapchain_to_current_extent", False,
+        B("vk_wsi_force_swapchain_to_current_extent", defaults.get("vk_wsi_force_swapchain_to_current_extent", False),
           "Force VkSwapchainCreateInfoKHR::imageExtent to be VkSurfaceCapabilities2KHR::currentExtent"),
-        B("vk_wsi_disable_unordered_submits", False,
+        B("vk_wsi_disable_unordered_submits", defaults.get("vk_wsi_disable_unordered_submits", False),
           "Disable unordered WSI submits to workaround application synchronization bugs"),
-        B("vk_x11_ignore_suboptimal", False,
+        B("vk_x11_ignore_suboptimal", defaults.get("vk_x11_ignore_suboptimal", False),
           "Force the X11 WSI to never report VK_SUBOPTIMAL_KHR"),
     ])
