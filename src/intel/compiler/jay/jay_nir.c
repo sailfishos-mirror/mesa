@@ -391,6 +391,9 @@ jay_process_nir(const struct intel_device_info *devinfo,
       JAY_NIR_PASS(nir_opt_barycentric, true);
       JAY_NIR_PASS(nir_opt_constant_folding);
 
+      if (key->fs.alpha_to_coverage != INTEL_NEVER)
+         JAY_NIR_PASS(brw_nir_lower_alpha_to_coverage);
+
       lower_fragment_outputs(nir_shader_get_entrypoint(nir), devinfo,
                              key->fs.nr_color_regions,
                              key->fs.alpha_test_replicate_alpha);
@@ -402,15 +405,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
        */
       JAY_NIR_PASS(nir_opt_move_discards_to_top);
       JAY_NIR_PASS(nir_lower_terminate_to_demote);
-
-      if (key->fs.alpha_to_coverage != INTEL_NEVER) {
-         /* Run constant fold optimization in order to get the correct source
-          * offset to determine render target 0 store instruction in
-          * emit_alpha_to_coverage pass.
-          */
-         JAY_NIR_PASS(nir_opt_constant_folding);
-         JAY_NIR_PASS(brw_nir_lower_alpha_to_coverage);
-      }
 
       brw_nir_cleanup_pre_fs_prog_data(pt);
 
