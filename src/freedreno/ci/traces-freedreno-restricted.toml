@@ -10,7 +10,7 @@ freedreno-a750 = { sysmem = 8000 }
 [[traces]]
 path = "angle/angle_trace_tests/among_us"
 [traces.devices]
-freedreno-a660 = { checksum = "b3a711b88161fc7a02fa2eaf06f06c5953f2c71c191bf2d2827ac1777c11c949" }
+freedreno-a660 = { checksum = "76c6a3606ca690d78bb545a2a4e6d736a518bcc6c5653738b9d22fd144fcf4e8" }
 
 [[traces]]
 path = "angle/angle_trace_tests/asphalt_9"
