@@ -3004,7 +3004,7 @@
         "description": "docs: advertise VK_KHR_multiview support for Bifrost",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a1376449c80247844a81ab1f6e6e2e8cd39867d6",
         "notes": null
