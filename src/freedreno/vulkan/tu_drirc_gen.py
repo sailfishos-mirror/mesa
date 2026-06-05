@@ -134,7 +134,7 @@ def main():
 
     options = declare_options()
 
-    drirc_gen.drirc_validate([args.validate], options, driver="turnip")
+    drirc_gen.drirc_validate([args.validate], options)
 
     drirc_gen.drirc_generate(args.drirc_src, args.drirc_hdr, "turnip", options)
 

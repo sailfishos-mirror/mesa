@@ -253,7 +253,7 @@ def main():
 
     options = declare_options(args.android_ver)
 
-    drirc_gen.drirc_validate([args.validate], options, driver="anv")
+    drirc_gen.drirc_validate([args.validate], options)
 
     drirc_gen.drirc_generate(args.drirc_src, args.drirc_hdr, "anv", options)
 

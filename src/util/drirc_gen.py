@@ -215,24 +215,15 @@ ${driver_prefix}_parse_dri_options(struct ${driver_prefix}_drirc *drirc,
 }
 """
 
-def drirc_validate(conf_paths, sections, driver=None):
+def drirc_validate(conf_paths, sections):
     declared = {opt.name for section in sections for opt in section.options}
     conf_names = set()
     for conf_path in conf_paths:
         tree = ET.parse(conf_path)
-        if driver is None:
-            for option in tree.iter('option'):
-                name = option.get('name')
-                if name:
-                    conf_names.add(name)
-        else:
-            for device in tree.iter('device'):
-                if device.get('driver') != driver:
-                    continue
-                for option in device.iter('option'):
-                    name = option.get('name')
-                    if name:
-                        conf_names.add(name)
+        for option in tree.iter('option'):
+            name = option.get('name')
+            if name:
+                conf_names.add(name)
     missing = conf_names - declared
     if missing:
         print('ERROR: options used in conf but not declared:', file=sys.stderr)
