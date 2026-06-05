@@ -208,6 +208,7 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
       stage_options->force_indirect_unrolling |= brw_nir_no_indirect_mask(i);
       stage_options->has_find_msb_rev = jay;
       stage_options->lower_ifind_msb = jay;
+      stage_options->avoid_ternary_with_two_constants = !jay;
    }
 
    /* Build a list of storage format compatible in component bit size &
