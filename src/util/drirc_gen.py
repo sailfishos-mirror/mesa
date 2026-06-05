@@ -265,9 +265,10 @@ def drirc_generate(cpath, hpath, driver_prefix, sections):
             print(exceptions.text_error_template().render(), file=sys.stderr)
             sys.exit(1)
 
-def add_common_vk_options(debug_options, features_options, valid_options, defaults=None):
+def add_common_vk_options(debug_options, features_options, misc_options, valid_options, defaults=None):
     B = DrircBool
     I = DrircInt
+    F = DrircFloat
 
     if defaults is None:
         defaults = {}
@@ -291,6 +292,12 @@ def add_common_vk_options(debug_options, features_options, valid_options, defaul
         B("vk_require_astc", defaults.get("vk_require_astc", False),
           "Implement emulated ASTC on HW that does not support it",
           c_name="require_astc"),
+    ] if opt.name in valid_options])
+
+    misc_options.extend([opt for opt in [
+        F("heap_memory_percent", defaults.get("heap_memory_percent", 0.0), 0.0, 1.0,
+          "Percentage of total system memory to report as gpu heap memory (0 = driver default)",
+          c_name="heap_memory_percent"),
     ] if opt.name in valid_options])
 
 def add_common_vk_wsi_options(debug_options, performance_options):

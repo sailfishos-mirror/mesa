@@ -228,7 +228,9 @@ def declare_options(android_version):
           c_name="compression_control_enabled"),
     ]
 
-    drirc_gen.add_common_vk_options(debug_options, feature_options,
+    misc_options = []
+
+    drirc_gen.add_common_vk_options(debug_options, feature_options, misc_options,
                                     valid_options=VALID_COMMON_VK_OPTIONS,
                                     defaults={"vk_require_astc": android_version >= 34})
     drirc_gen.add_common_vk_wsi_options(debug_options, perf_options)
