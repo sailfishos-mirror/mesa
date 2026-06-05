@@ -1887,11 +1887,12 @@ void vpe20_program_3dlut_fl(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
     uint32_t used_3dluts = 0;
     uint32_t pipe_idx    = 0;
 
-    config_writer_set_callback(
-        &vpe_priv->config_writer, &vpe_priv->fe_cb_ctx, vpe_frontend_config_callback);
-
     vpe_priv->fe_cb_ctx.stream_sharing    = false;
     vpe_priv->fe_cb_ctx.stream_op_sharing = false;
+    vpe_priv->fe_cb_ctx.vpe_priv          = vpe_priv;
+
+    config_writer_set_callback(
+        &vpe_priv->config_writer, &vpe_priv->fe_cb_ctx, vpe_frontend_config_callback);
 
     // Program CDC & mpc for 3DLUT FL
     for (pipe_idx = 0; pipe_idx < cmd_info->num_inputs; pipe_idx++) {
@@ -1906,15 +1907,14 @@ void vpe20_program_3dlut_fl(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
         uint16_t                 lut3d_scale  = 0x3C00;
 
         vpe_priv->fe_cb_ctx.stream_idx = cmd_input->stream_idx;
-        vpe_priv->fe_cb_ctx.vpe_priv   = vpe_priv;
-
-        config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, pipe_idx);
 
         if ((stream_ctx->stream.tm_params.UID != 0 || stream_ctx->stream.tm_params.enable_3dlut) &&
             (stream_ctx->stream.tm_params.lut_type > VPE_LUT_TYPE_CPU) &&
             stream_ctx->lut3d_func->state.bits.is_dma) { // FL enabled
 
             VPE_ASSERT(used_3dluts < num_3dluts);
+
+            config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, pipe_idx);
 
             /* Fast Load Programming. Always force LUT_DIM_33 */
             used_3dluts++;
@@ -1943,8 +1943,11 @@ void vpe20_program_3dlut_fl(struct vpe_priv *vpe_priv, uint32_t cmd_idx)
                 stream_ctx->lut3d_func->dma_params.addr_mode,
                 stream_ctx->stream.dma_info.lut3d.mem_align, LUT_FL_SIZE_33X33X33, false,
                 stream_ctx->stream.dma_info.lut3d.tmz);
+            config_writer_complete(&vpe_priv->config_writer);
+
         } else {
             if (mpc->funcs->program_mpc_3dlut_fl_config != NULL) {
+                config_writer_set_type(&vpe_priv->config_writer, CONFIG_TYPE_DIRECT, pipe_idx);
                 mpc->funcs->program_mpc_3dlut_fl_config(mpc, VPE_3DLUT_MEM_LAYOUT_DISABLE,
                     VPE_3DLUT_MEM_FORMAT_16161616_UNORM_12MSB, false);
                 config_writer_complete(&vpe_priv->config_writer);
