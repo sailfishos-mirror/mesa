@@ -121,6 +121,8 @@ init_program(Program* program, Stage stage, const struct aco_shader_info* info,
    program->dev.fused_mad_mix = options->compiler_info->has_fma_mix;
    program->dev.has_mad32 = options->compiler_info->has_mad32;
 
+   program->dev.has_desc_resource_level = options->compiler_info->has_desc_resource_level;
+
    if (program->gfx_level >= GFX12) {
       program->dev.scratch_global_offset_min = -8388608;
       program->dev.scratch_global_offset_max = 8388607;
@@ -1953,6 +1955,7 @@ load_scratch_resource(Program* program, Builder& bld, unsigned resume_idx,
    ac_state.index_stride = program->wave_size == 64 ? 3u : 2u;
    ac_state.add_tid = true;
    ac_state.gfx10_oob_select = V_008F0C_OOB_SELECT_RAW;
+   ac_state.has_desc_resource_level = program->dev.has_desc_resource_level;
 
    ac_build_buffer_descriptor(program->gfx_level, &ac_state, desc);
 

@@ -426,6 +426,8 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
       out->has_ngg_passthru_no_msg = false;
       out->has_vrs_frag_pos_z_bug = true;
    }
+
+   out->has_desc_resource_level = info->gfx_level < GFX11;
 }
 
 void

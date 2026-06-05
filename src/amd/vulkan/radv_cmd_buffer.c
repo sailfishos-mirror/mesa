@@ -6898,7 +6898,8 @@ radv_write_vertex_descriptor(const struct radv_cmd_buffer *cmd_buffer, const str
        * - 3: offset >= NUM_RECORDS (Raw)
        */
       int oob_select = stride ? V_008F0C_OOB_SELECT_STRUCTURED : V_008F0C_OOB_SELECT_RAW;
-      rsrc_word3 |= S_008F0C_OOB_SELECT(oob_select) | S_008F0C_RESOURCE_LEVEL(chip < GFX11);
+      rsrc_word3 |=
+         S_008F0C_OOB_SELECT(oob_select) | S_008F0C_RESOURCE_LEVEL(pdev->info.compiler_info.has_desc_resource_level);
    }
 
    uint64_t va = vbo_info.va;
@@ -7057,7 +7058,8 @@ radv_flush_streamout_descriptors(struct radv_cmd_buffer *cmd_buffer)
          }
       }
 
-      ac_build_raw_buffer_descriptor(pdev->info.gfx_level, va, size, desc);
+      ac_build_raw_buffer_descriptor(pdev->info.gfx_level, pdev->info.compiler_info.has_desc_resource_level, va, size,
+                                     desc);
    }
 
    desc_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
@@ -8337,7 +8339,8 @@ radv_bind_descriptor_sets(struct radv_cmd_buffer *cmd_buffer, const VkBindDescri
             uint64_t va = range->va + pBindDescriptorSetsInfo->pDynamicOffsets[dyn_idx];
             const uint32_t size = no_dynamic_bounds ? 0xffffffffu : range->size;
 
-            ac_build_raw_buffer_descriptor(pdev->info.gfx_level, va, size, dst);
+            ac_build_raw_buffer_descriptor(pdev->info.gfx_level, pdev->info.compiler_info.has_desc_resource_level, va,
+                                           size, dst);
          }
 
          descriptors_state->dynamic_descriptors_offsets[set_idx] = dynamic_offset_start;

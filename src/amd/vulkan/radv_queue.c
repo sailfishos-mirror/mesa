@@ -245,6 +245,7 @@ radv_set_ring_buffer(const struct radv_physical_device *pdev, struct radeon_wins
       .index_stride = index_stride,
       .add_tid = add_tid,
       .gfx10_oob_select = oob_select,
+      .has_desc_resource_level = pdev->info.compiler_info.has_desc_resource_level,
    };
 
    ac_build_buffer_descriptor(pdev->info.gfx_level, &ac_state, desc);
@@ -332,8 +333,9 @@ radv_fill_shader_rings(struct radv_device *device, uint32_t *desc, struct radeon
    if (ge_rings_bo) {
       assert(pdev->info.gfx_level >= GFX11);
 
-      ac_build_attr_ring_descriptor(pdev->info.gfx_level, radv_buffer_get_va(ge_rings_bo),
-                                    pdev->info.total_attribute_pos_prim_ring_size, 0, &desc[0]);
+      ac_build_attr_ring_descriptor(pdev->info.gfx_level, pdev->info.compiler_info.has_desc_resource_level,
+                                    radv_buffer_get_va(ge_rings_bo), pdev->info.total_attribute_pos_prim_ring_size, 0,
+                                    &desc[0]);
    }
 
    desc += 4;
