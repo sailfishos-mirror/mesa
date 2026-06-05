@@ -285,8 +285,9 @@ static bool can_bypass_degamma(const struct stream_ctx *stream_ctx)
         return true;
     if (stream_ctx->geometric_scaling)
         return true;
-    if (stream_ctx->stream.surface_info.format == VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBE)
+    if (stream_ctx->stream.surface_info.format == VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBE) {
         return true;
+    }
 
     return false;
 }
@@ -1279,7 +1280,10 @@ enum vpe_status vpe_color_update_whitepoint(
             stream->white_point_gain = vpe_fixpt_one;
         }
 
-        if (is_fp16 || (stream->stream.surface_info.format == VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBE)) {
+        if (is_fp16) {
+            stream->white_point_gain = vpe_fixpt_div_int(stream->white_point_gain, CCCS_NORM);
+        }
+        if (stream->stream.surface_info.format == VPE_SURFACE_PIXEL_FORMAT_GRPH_RGBE) {
             stream->white_point_gain = vpe_fixpt_div_int(stream->white_point_gain, CCCS_NORM);
         }
 
