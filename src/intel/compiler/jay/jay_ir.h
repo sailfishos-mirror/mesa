@@ -1397,8 +1397,10 @@ jay_source_last_use_bit(const jay_def *srcs, unsigned src_idx)
    unsigned i = 0;
 
    for (unsigned s = 0; s < src_idx; ++s) {
-      jay_foreach_index(srcs[s], c, idx) {
-         i++;
+      if (jay_is_ssa(srcs[s])) {
+         jay_foreach_index(srcs[s], c, idx) {
+            i++;
+         }
       }
    }
 
