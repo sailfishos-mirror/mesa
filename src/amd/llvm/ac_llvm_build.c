@@ -1192,7 +1192,7 @@ void ac_set_range_metadata(struct ac_llvm_context *ctx, LLVMValueRef value, unsi
 
 LLVMValueRef ac_get_thread_id(struct ac_llvm_context *ctx)
 {
-   return ac_build_mbcnt(ctx, LLVMConstInt(ctx->iN_wavemask, ~0ull, 0));
+   return ac_build_mbcnt(ctx, LLVMConstAllOnes(ctx->iN_wavemask));
 }
 
 /*
@@ -1995,11 +1995,27 @@ LLVMValueRef ac_build_fsat(struct ac_llvm_context *ctx, LLVMValueRef src,
    return result;
 }
 
+static uint64_t ac_mask_const_uint(LLVMTypeRef type, uint64_t value)
+{
+   /* If value is sign-extended to uint64_t, mask out the upper bits
+    * for types smaller than 64-bits. Otherwise, LLVM complains that the value can't fit.
+    */
+   if (LLVMGetIntTypeWidth(type) < 64) {
+      value &= BITFIELD64_MASK(LLVMGetIntTypeWidth(type));
+   }
+
+   return value;
+}
+
 LLVMValueRef ac_const_uint_vec(struct ac_llvm_context *ctx, LLVMTypeRef type, uint64_t value)
 {
+   bool isVector = LLVMGetTypeKind(type) == LLVMVectorTypeKind;
+   LLVMTypeRef ty = isVector ? LLVMGetElementType(type) : type;
 
-   if (LLVMGetTypeKind(type) == LLVMVectorTypeKind) {
-      LLVMValueRef scalar = LLVMConstInt(LLVMGetElementType(type), value, 0);
+   value = ac_mask_const_uint(ty, value);
+
+   if (isVector) {
+      LLVMValueRef scalar = LLVMConstInt(ty, value, 0);
       unsigned vec_size = LLVMGetVectorSize(type);
       LLVMValueRef *scalars = alloca(vec_size * sizeof(LLVMValueRef));
 
@@ -2624,7 +2640,7 @@ static LLVMValueRef _ac_build_permlane16(struct ac_llvm_context *ctx, LLVMValueR
    LLVMValueRef args[6] = {
       src,
       src,
-      LLVMConstInt(ctx->i32, sel, false),
+      LLVMConstInt(ctx->i32, ac_mask_const_uint(ctx->i32, sel), false),
       LLVMConstInt(ctx->i32, sel >> 32, false),
       ctx->i1true, /* fi */
       bound_ctrl ? ctx->i1true : ctx->i1false,
