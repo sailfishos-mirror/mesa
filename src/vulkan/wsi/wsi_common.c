@@ -3530,7 +3530,7 @@ wsi_device_supports_explicit_sync(struct wsi_device *device)
  * (since the device extension lacks per-surface feature flags)
  */
 bool
-wsi_instance_supports_google_display_timing(struct vk_instance *instance)
+wsi_instance_supports_google_display_timing(const struct vk_instance *instance)
 {
    return instance->enabled_extensions.KHR_display &&
           !(instance->enabled_extensions.EXT_headless_surface ||
