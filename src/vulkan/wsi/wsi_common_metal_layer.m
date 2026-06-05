@@ -174,6 +174,91 @@ wsi_metal_layer_configure(const CAMetalLayer *metal_layer,
    return VK_SUCCESS;
 }
 
+/* Note: HDR data is in big endian */
+struct cie1931xy {
+   uint16_t x;
+   uint16_t y;
+} __attribute__((packed));
+static_assert(sizeof(struct cie1931xy) == 4, "cie1931xy must be 4 bytes");
+
+struct mastering_display_color_volume {
+   struct cie1931xy display_primaries[3];
+   struct cie1931xy white_point;
+   uint32_t max_display_mastering_luminance;
+   uint32_t min_display_mastering_luminance;
+} __attribute__((packed));
+static_assert(sizeof(struct mastering_display_color_volume) == 24,
+              "mastering_display_color_volume must be 24 bytes");
+
+struct content_light_level_info {
+   uint16_t max_content_light_level;
+   uint16_t max_pic_average_light_level;
+} __attribute__((packed));
+static_assert(sizeof(struct content_light_level_info) == 4,
+              "content_light_level_info must be 4 bytes");
+
+static inline uint16_t
+chromaticity_to_cie1931(float value)
+{
+   /* 1 unit = 0.00002 */
+   return __builtin_bswap16((uint16_t)(value * 50000.0f));
+}
+
+static inline struct cie1931xy
+vk_xy_color_ext_to_cie1931xy(VkXYColorEXT xy)
+{
+   return (struct cie1931xy){
+      .x = chromaticity_to_cie1931(xy.x),
+      .y = chromaticity_to_cie1931(xy.y),
+   };
+}
+
+static inline uint32_t
+nits_to_mastering_luminance(float nits)
+{
+   /* 1 unit = 0.0001 nits */
+   return __builtin_bswap32((uint32_t)(nits * 10000.0f));
+}
+
+static inline uint16_t
+nits_to_light_level(float nits)
+{
+   return __builtin_bswap16((uint16_t)nits);
+}
+
+void
+wsi_metal_layer_set_hdr_metadata(const CAMetalLayer *metal_layer,
+                                 const VkHdrMetadataEXT *metadata)
+{
+   /* Convert to HDR10 metadata. Apple does not provide structures for this,
+    * so we roll our own based on the spec. */
+   struct mastering_display_color_volume color_volume = {
+       .display_primaries[0] = vk_xy_color_ext_to_cie1931xy(metadata->displayPrimaryGreen),
+       .display_primaries[1] = vk_xy_color_ext_to_cie1931xy(metadata->displayPrimaryBlue),
+       .display_primaries[2] = vk_xy_color_ext_to_cie1931xy(metadata->displayPrimaryRed),
+       .white_point = vk_xy_color_ext_to_cie1931xy(metadata->whitePoint),
+       .max_display_mastering_luminance = nits_to_mastering_luminance(metadata->maxLuminance),
+       .min_display_mastering_luminance = nits_to_mastering_luminance(metadata->minLuminance),
+   };
+   struct content_light_level_info light_level = {
+       .max_content_light_level = nits_to_light_level(metadata->maxContentLightLevel),
+       .max_pic_average_light_level = nits_to_light_level(metadata->maxFrameAverageLightLevel),
+   };
+
+   @autoreleasepool {
+      NSData* display_info = [NSData dataWithBytesNoCopy:&color_volume
+                                                  length:sizeof(color_volume)
+                                            freeWhenDone:false];
+      NSData* content_info = [NSData dataWithBytesNoCopy:&light_level
+                                                  length:sizeof(light_level)
+                                            freeWhenDone:false];
+      CAEDRMetadata* edr_metadata = [CAEDRMetadata HDR10MetadataWithDisplayInfo:display_info
+                                                                    contentInfo:content_info
+                                                             opticalOutputScale:1];
+      metal_layer.EDRMetadata = edr_metadata;
+   }
+}
+
 CAMetalDrawable *
 wsi_metal_layer_acquire_drawable(const CAMetalLayer *metal_layer)
 {

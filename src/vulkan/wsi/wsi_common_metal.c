@@ -534,6 +534,15 @@ wsi_metal_swapchain_queue_present(struct wsi_swapchain *wsi_chain,
 }
 
 static void
+wsi_metal_swapchain_set_hdr_metadata(struct wsi_swapchain *wsi_chain,
+                                     const VkHdrMetadataEXT* pMetadata)
+{
+   struct wsi_metal_swapchain *chain =
+      (struct wsi_metal_swapchain *)wsi_chain;
+   wsi_metal_layer_set_hdr_metadata(chain->surface->pLayer, pMetadata);
+}
+
+static void
 wsi_metal_destroy_image(const struct wsi_metal_swapchain *metal_chain,
                         struct wsi_metal_image *metal_image)
 {
@@ -678,6 +687,7 @@ wsi_metal_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    chain->base.get_wsi_image = wsi_metal_swapchain_get_wsi_image;
    chain->base.acquire_next_image = wsi_metal_swapchain_acquire_next_image;
    chain->base.queue_present = wsi_metal_swapchain_queue_present;
+   chain->base.set_hdr_metadata = wsi_metal_swapchain_set_hdr_metadata;
    chain->base.present_mode = wsi_swapchain_get_present_mode(wsi_device, pCreateInfo);
    chain->base.image_count = num_images;
    chain->extent = pCreateInfo->imageExtent;
