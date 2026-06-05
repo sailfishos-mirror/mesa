@@ -111,6 +111,10 @@ impl From<&SmallConstant> for FAURef {
 /// write is simply masked.
 #[derive(Clone, Copy, PartialEq)]
 pub enum RegRange {
+    Byte0,
+    Byte1,
+    Byte2,
+    Byte3,
     Half0,
     Half1,
     Regs(u8),
@@ -125,6 +129,10 @@ pub struct RegRef {
 impl fmt::Display for RegRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.range {
+            RegRange::Byte0 => write!(f, "r{}.b0", self.idx),
+            RegRange::Byte1 => write!(f, "r{}.b1", self.idx),
+            RegRange::Byte2 => write!(f, "r{}.b2", self.idx),
+            RegRange::Byte3 => write!(f, "r{}.b3", self.idx),
             RegRange::Half0 => write!(f, "r{}.h0", self.idx),
             RegRange::Half1 => write!(f, "r{}.h1", self.idx),
             RegRange::Regs(n) => {
@@ -141,6 +149,10 @@ impl fmt::Display for RegRef {
 impl RegRef {
     pub fn bytes(&self) -> u8 {
         match self.range {
+            RegRange::Byte0
+            | RegRange::Byte1
+            | RegRange::Byte2
+            | RegRange::Byte3 => 1,
             RegRange::Half0 | RegRange::Half1 => 2,
             RegRange::Regs(n) => n * 4,
         }
@@ -148,8 +160,10 @@ impl RegRef {
 
     pub fn byte_offset(&self) -> u8 {
         match self.range {
-            RegRange::Half0 | RegRange::Regs(_) => 0,
-            RegRange::Half1 => 2,
+            RegRange::Byte0 | RegRange::Half0 | RegRange::Regs(_) => 0,
+            RegRange::Byte1 => 1,
+            RegRange::Byte2 | RegRange::Half1 => 2,
+            RegRange::Byte3 => 3,
         }
     }
 }
@@ -553,6 +567,10 @@ impl fmt::Display for DstLanes {
 impl From<RegRange> for DstLanes {
     fn from(range: RegRange) -> DstLanes {
         match range {
+            RegRange::Byte0 => DstLanes::B0,
+            RegRange::Byte1 => DstLanes::B1,
+            RegRange::Byte2 => DstLanes::B2,
+            RegRange::Byte3 => DstLanes::B3,
             RegRange::Half0 => DstLanes::H0,
             RegRange::Half1 => DstLanes::H1,
             RegRange::Regs(_) => DstLanes::All,

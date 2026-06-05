@@ -35,6 +35,18 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
                 }
             }
             SrcRef::Reg(reg) => match reg.range {
+                RegRange::Byte0 => {
+                    assert!(src.swizzle.bytes_read() & !0b0001 == 0);
+                }
+                RegRange::Byte1 => {
+                    assert!(src.swizzle.bytes_read() & !0b0010 == 0);
+                }
+                RegRange::Byte2 => {
+                    assert!(src.swizzle.bytes_read() & !0b0100 == 0);
+                }
+                RegRange::Byte3 => {
+                    assert!(src.swizzle.bytes_read() & !0b1000 == 0);
+                }
                 RegRange::Half0 => {
                     assert!(src.swizzle.bytes_read() & !0b0011 == 0);
                 }
