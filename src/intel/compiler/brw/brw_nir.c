@@ -2251,11 +2251,19 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
    };
    OPT(nir_opt_16bit_tex_image, &options);
 
-   OPT(nir_lower_doubles, opts->softfp64, nir->options->lower_doubles_options);
+   /* Anv delays the initialization of softfp64, so we may not have
+    * softfp64 set here. The full lowering will happen during the post-process
+    * compilation.
+    */
+   nir_lower_doubles_options double_opts =
+      nir->options->lower_doubles_options;
+   if (!opts->softfp64)
+      double_opts &= ~nir_lower_fp64_full_software;
+
+   OPT(nir_lower_doubles, opts->softfp64, double_opts);
    if (OPT(nir_lower_int64_float_conversions)) {
       OPT(nir_opt_algebraic);
-      OPT(nir_lower_doubles, opts->softfp64,
-          nir->options->lower_doubles_options);
+      OPT(nir_lower_doubles, opts->softfp64, double_opts);
    }
 
    OPT(nir_lower_bit_size, lower_bit_size_callback, (void *)devinfo);
