@@ -49,7 +49,6 @@
 #include "pvr_macros.h"
 #include "pvr_nir_lower_ycbcr.h"
 #include "pvr_pass.h"
-#include "pvr_pds.h"
 #include "pvr_physical_device.h"
 #include "pvr_robustness.h"
 #include "pvr_sampler.h"

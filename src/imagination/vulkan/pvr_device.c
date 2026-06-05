@@ -52,7 +52,6 @@
 #include "pvr_image.h"
 #include "pvr_macros.h"
 #include "pvr_pass.h"
-#include "pvr_pds.h"
 #include "pvr_physical_device.h"
 #include "pvr_rt_dataset.h"
 #include "pvr_types.h"

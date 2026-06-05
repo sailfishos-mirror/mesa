@@ -41,7 +41,6 @@
 #include "pvr_job_context.h"
 #include "pvr_job_render.h"
 #include "pvr_macros.h"
-#include "pvr_pds.h"
 #include "pvr_physical_device.h"
 #include "pvr_query.h"
 #include "pvr_rogue_fw.h"
