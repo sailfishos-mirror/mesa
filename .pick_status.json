@@ -3154,7 +3154,7 @@
         "description": "util: Fix float8 denorm rounding to min-normal",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2237c022a2055441886078aab149565722478064",
         "notes": null
