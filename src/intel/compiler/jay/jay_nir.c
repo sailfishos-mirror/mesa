@@ -134,6 +134,13 @@ collect_fragment_output(nir_builder *b, nir_intrinsic_instr *intr, void *ctx_)
       assert(c == 0 && wrmask == 1);
       assert(!ctx->outputs[loc] && "each non-colour output written only once");
       ctx->outputs[loc] = intr->src[0].ssa;
+
+      /* Remove SampleMask writes that don't mask out any samples */
+      const unsigned all_samples = BITFIELD_MASK(16);
+      if (loc == FRAG_RESULT_SAMPLE_MASK &&
+          nir_src_is_const(intr->src[0]) &&
+          (nir_src_as_uint(intr->src[0]) & all_samples) == all_samples)
+         ctx->outputs[loc] = NULL;
    } else {
       u_foreach_bit(i, wrmask) {
          assert(!ctx->colour[loc][c + i].def &&
