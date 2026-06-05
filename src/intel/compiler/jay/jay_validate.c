@@ -154,7 +154,10 @@ validate_ssa(struct validate_state *validate, jay_inst *I)
  * Validate the invariants of jay_def.
  */
 static void
-validate_def(struct validate_state *validate, jay_def def, const char *kind)
+validate_def(struct validate_state *validate,
+             jay_inst *I,
+             jay_def def,
+             const char *kind)
 {
    CHECK(!jay_is_null(def) || !def.reg);
 
@@ -188,6 +191,14 @@ validate_def(struct validate_state *validate, jay_def def, const char *kind)
    }
 
    CHECK(jay_num_values(def) == 1 || !jay_is_flag(def));
+
+   /* With some exceptions we cannot access GPRs from SIMD1 instructions */
+   CHECK((jay_is_null(def) ||
+          jay_is_uniform(def) ||
+          def.file == FLAG ||
+          jay_simd_width_logical(validate->func->shader, I) > 1) ||
+         I->op == JAY_OPCODE_SHUFFLE ||
+         I->op == JAY_OPCODE_BROADCAST_IMM);
 }
 
 /**
@@ -205,11 +216,11 @@ validate_inst(struct validate_state *validate, jay_inst *I)
 
    const struct jay_opcode_info *opinfo = &jay_opcode_infos[I->op];
 
-   validate_def(validate, I->dst, "dst");
-   validate_def(validate, I->cond_flag, "cond_flag");
+   validate_def(validate, I, I->dst, "dst");
+   validate_def(validate, I, I->cond_flag, "cond_flag");
 
    jay_foreach_src(I, s) {
-      validate_def(validate, I->src[s], "source");
+      validate_def(validate, I, I->src[s], "source");
    }
 
    if (!validate->post_ra) {

@@ -924,7 +924,7 @@ jay_inst_is_uniform(const jay_inst *I)
    return (jay_is_uniform(I->dst) && !jay_is_null(I->dst)) ||
           I->cond_flag.file == UFLAG ||
           I->op == JAY_OPCODE_SYNC ||
-          I->dst.file == FLAG;
+          (I->dst.file == FLAG && I->op != JAY_OPCODE_CAST_CANONICAL_TO_FLAG);
 }
 
 unsigned jay_simd_split(const jay_shader *s, const jay_inst *I);
