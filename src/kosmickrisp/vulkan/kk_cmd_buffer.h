@@ -111,6 +111,11 @@ struct kk_rendering_state {
    struct kk_attachment depth_att;
    struct kk_attachment stencil_att;
    struct kk_attachment fsr_att;
+
+   bool ms_bresenham_lines;
+   bool sample_locations_enable;
+   uint32_t sample_locations_count;
+   VkSampleLocationEXT sample_locations[KK_MAX_SAMPLES];
 };
 
 /* Dirty tracking bits for state not tracked by vk_dynamic_graphics_state or
@@ -129,7 +134,6 @@ struct kk_graphics_state {
    mtl_render_pass_descriptor *render_pass_descriptor;
    bool is_depth_stencil_dynamic;
    bool is_cull_front_and_back;
-   bool is_ms_bresenham_lines;
    bool need_to_start_render_pass;
 
    enum kk_dirty dirty;

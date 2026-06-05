@@ -175,6 +175,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_primitive_restart_index = true,
       .EXT_primitive_topology_list_restart = true,
       .EXT_robustness2 = true,
+      .EXT_sample_locations = true,
       .EXT_shader_atomic_float = true,
       .EXT_shader_replicated_composites = true,
       .EXT_shader_subgroup_ballot = true,
@@ -403,6 +404,7 @@ kk_get_device_features(
       .extendedDynamicState3DepthClampEnable = true,
       .extendedDynamicState3DepthClipNegativeOneToOne = true,
       .extendedDynamicState3LineRasterizationMode = true,
+      .extendedDynamicState3SampleLocationsEnable = true,
       .extendedDynamicState3TessellationDomainOrigin = true,
 
       /* EXT_image_2d_view_of_3d */
@@ -696,7 +698,7 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       /* VK_EXT_extended_dynamic_state3 */
       .dynamicPrimitiveTopologyUnrestricted = false,
 
-      /* VK_EXT_external_memory_metal */
+      /* VK_EXT_external_memory_host */
       .minImportedHostPointerAlignment = os_page_size,
 
       /* VK_EXT_graphics_pipeline_library */
@@ -775,12 +777,13 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .robustUniformBufferAccessSizeAlignment = KK_MIN_UBO_ALIGNMENT,
 
       /* VK_EXT_sample_locations */
-      .sampleLocationSampleCounts = sample_counts,
+      /* Metal does not support sample positions for single sample */
+      .sampleLocationSampleCounts = sample_counts & ~VK_SAMPLE_COUNT_1_BIT,
       .maxSampleLocationGridSize = (VkExtent2D){1, 1},
-      .sampleLocationCoordinateRange[0] = 0.0f,
-      .sampleLocationCoordinateRange[1] = 0.9375f,
+      .sampleLocationCoordinateRange[0] = KK_MIN_SAMPLE_LOCATION,
+      .sampleLocationCoordinateRange[1] = KK_MAX_SAMPLE_LOCATION,
       .sampleLocationSubPixelBits = 4,
-      .variableSampleLocations = false,
+      .variableSampleLocations = true,
 
       /* VK_EXT_shader_object */
       .shaderBinaryVersion = 0,

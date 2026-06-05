@@ -759,6 +759,136 @@ set_empty_scissor(mtl_render_encoder *enc)
 #define IS_SHADER_DIRTY(bit)                                                   \
    (cmd->state.dirty_shaders & BITFIELD_BIT(MESA_SHADER_##bit))
 
+static bool
+kk_flush_sample_locations(struct kk_cmd_buffer *cmd)
+{
+   struct kk_graphics_state *gfx = &cmd->state.gfx;
+   struct kk_rendering_state *render = &gfx->render;
+   struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
+
+   bool needs_update = false;
+
+   /* Determine if the user-provided custom sample locations have changed */
+   if (IS_DIRTY(MS_SAMPLE_LOCATIONS_ENABLE) || IS_DIRTY(MS_SAMPLE_LOCATIONS)) {
+      needs_update |=
+         render->sample_locations_enable != dyn->ms.sample_locations_enable;
+      render->sample_locations_enable = dyn->ms.sample_locations_enable;
+
+      if (render->sample_locations_enable) {
+         struct vk_sample_locations_state *sample_locations =
+            dyn->ms.sample_locations;
+
+         uint32_t count = sample_locations->per_pixel *
+                          sample_locations->grid_size.width *
+                          sample_locations->grid_size.height;
+         needs_update |= render->sample_locations_count != count;
+         needs_update |= memcmp(render->sample_locations,
+                                dyn->ms.sample_locations->locations,
+                                count * sizeof(VkSampleLocationEXT)) != 0;
+
+         render->sample_locations_count = count;
+         typed_memcpy(render->sample_locations,
+                      dyn->ms.sample_locations->locations, count);
+      }
+   }
+
+   /* Determine if we have switched to or from multisampled bresenham lines */
+   if (IS_DIRTY(IA_PRIMITIVE_TOPOLOGY) || IS_DIRTY(RS_LINE_MODE)) {
+      bool was_ms_bresenham_lines = render->ms_bresenham_lines;
+      render->ms_bresenham_lines =
+         u_reduced_prim(dyn->ia.primitive_topology) == MESA_PRIM_LINES &&
+         dyn->rs.line.mode == VK_LINE_RASTERIZATION_MODE_BRESENHAM &&
+         render->samples > 1;
+
+      needs_update |= was_ms_bresenham_lines != render->ms_bresenham_lines;
+   }
+
+   if (needs_update) {
+      if (render->sample_locations_enable) {
+         /* Prioritize user-provided sample locations */
+         struct mtl_sample_position sample_positions[KK_MAX_SAMPLES];
+         for (uint32_t i = 0; i < KK_MAX_SAMPLES; i++) {
+            VkSampleLocationEXT sl = render->sample_locations[i];
+            sample_positions[i] = (struct mtl_sample_position){
+               /* Metal asserts if values are out of range. Vulkan spec says
+                * values are clamped, and dynamic state CTS tests hit this */
+               .x = CLAMP(sl.x, KK_MIN_SAMPLE_LOCATION, KK_MAX_SAMPLE_LOCATION),
+               .y = CLAMP(sl.y, KK_MIN_SAMPLE_LOCATION, KK_MAX_SAMPLE_LOCATION),
+            };
+         }
+
+         mtl_render_pass_descriptor_set_sample_positions(
+            gfx->render_pass_descriptor, sample_positions,
+            render->sample_locations_count);
+      } else if (render->ms_bresenham_lines) {
+         /* For default sample locations with bresenham lines, set all to center
+          * to provide correct rasterization */
+         static const struct mtl_sample_position center = {0.5f, 0.5f};
+         static const struct mtl_sample_position center_all[KK_MAX_SAMPLES] = {
+            center, center, center, center, center, center, center, center};
+         mtl_render_pass_descriptor_set_sample_positions(
+            gfx->render_pass_descriptor, center_all, gfx->render.samples);
+      } else {
+         /* If custom sample locations are not needed, reset them */
+         mtl_render_pass_descriptor_set_sample_positions(
+            gfx->render_pass_descriptor, NULL, 0);
+      }
+   }
+
+   return needs_update;
+}
+
+static void
+kk_force_attachment_load(struct kk_cmd_buffer *cmd)
+{
+   struct kk_rendering_state *render = &cmd->state.gfx.render;
+
+   for (uint32_t i = 0; i < render->color_att_count; i++) {
+      if (render->color_att[i].iview) {
+         mtl_render_pass_attachment_descriptor *att =
+            mtl_render_pass_descriptor_get_color_attachment(
+               cmd->state.gfx.render_pass_descriptor, i);
+         mtl_render_pass_attachment_descriptor_set_load_action(
+            att, MTL_LOAD_ACTION_LOAD);
+      }
+   }
+   if (render->depth_att.iview) {
+      mtl_render_pass_attachment_descriptor *att =
+         mtl_render_pass_descriptor_get_depth_attachment(
+            cmd->state.gfx.render_pass_descriptor);
+      mtl_render_pass_attachment_descriptor_set_load_action(
+         att, MTL_LOAD_ACTION_LOAD);
+   }
+   if (render->stencil_att.iview) {
+      mtl_render_pass_attachment_descriptor *att =
+         mtl_render_pass_descriptor_get_stencil_attachment(
+            cmd->state.gfx.render_pass_descriptor);
+      mtl_render_pass_attachment_descriptor_set_load_action(
+         att, MTL_LOAD_ACTION_LOAD);
+   }
+}
+
+static void
+kk_flush_render_pass(struct kk_cmd_buffer *cmd)
+{
+   bool needs_restart = kk_flush_sample_locations(cmd);
+
+   /* If render pass state changes and the pass is currently active, end the
+    * current encoder and prepare to restart it */
+   bool active_render = cmd->encoder->main.last_used == KK_ENC_RENDER &&
+                        cmd->encoder->main.encoder;
+   if (needs_restart && active_render) {
+      kk_encoder_signal_fence_and_end(cmd);
+      kk_cmd_buffer_dirty_all_gfx(cmd);
+      cmd->state.gfx.need_to_start_render_pass = true;
+
+      /* Override load action to prevent data loss between encoders.
+       * TODO_KOSMICKRISP: Handle store action if we stop always setting it to
+       * STORE. Metal allows it to be encoded later. */
+      kk_force_attachment_load(cmd);
+   }
+}
+
 static void
 kk_flush_pipeline(struct kk_cmd_buffer *cmd)
 {
@@ -1177,6 +1307,7 @@ kk_flush_gfx_state(struct kk_cmd_buffer *cmd)
    struct kk_graphics_state *gfx = &cmd->state.gfx;
    struct kk_descriptor_state *desc = &gfx->descriptors;
 
+   kk_flush_render_pass(cmd);
    kk_flush_pipeline(cmd);
 
    if (desc->push_dirty)
