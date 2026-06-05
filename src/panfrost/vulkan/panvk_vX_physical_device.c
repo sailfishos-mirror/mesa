@@ -36,6 +36,7 @@
 void
 panvk_per_arch(get_physical_device_extensions)(
    const struct panvk_physical_device *device,
+   const struct panvk_instance *instance,
    struct vk_device_extension_table *ext)
 {
    bool has_vk1_1 = PAN_ARCH >= 10;
@@ -221,6 +222,9 @@ panvk_per_arch(get_physical_device_extensions)(
       .ANDROID_external_memory_android_hardware_buffer = has_gralloc,
       .ANDROID_native_buffer = has_gralloc,
       .GOOGLE_decorate_string = true,
+#ifdef PANVK_USE_WSI_PLATFORM
+      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(&instance->vk),
+#endif
       .GOOGLE_hlsl_functionality1 = true,
       .GOOGLE_user_type = true,
 
