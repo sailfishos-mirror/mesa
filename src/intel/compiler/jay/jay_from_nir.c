@@ -3042,7 +3042,8 @@ jay_emit_eot(struct nir_to_jay_state *nj)
       }
    }
 
-   if (mesa_shader_stage_is_compute(nj->nir->info.stage)) {
+   if (mesa_shader_stage_is_compute(nj->nir->info.stage) ||
+       mesa_shader_stage_is_rt(nj->nir->info.stage)) {
       jay_def u0 = nj->payload.u0;
 
       /* Vectorized copy into the EOT register. Not necessary for correctness
