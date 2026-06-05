@@ -625,7 +625,7 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
 
    NIR_PASS(_, nir, nir_remove_dead_derefs);
    NIR_PASS(_, nir, nir_opt_undef);
-   NIR_PASS(_, nir, nir_lower_undef_to_zero);
+   NIR_PASS(_, nir, nir_lower_undef_to_zero, NULL);
    NIR_PASS(_, nir, nir_opt_cse);
    NIR_PASS(_, nir, nir_opt_dce);
    NIR_PASS(_,

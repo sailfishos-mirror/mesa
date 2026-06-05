@@ -234,7 +234,7 @@ nak_optimize_nir(nir_shader *nir, const struct nak_compiler *nak)
       LOOP_OPT_NOT_IDEMPOTENT(nir, nir_opt_gcm, false);
       LOOP_OPT(nir, nir_opt_undef);
    } while (progress);
-   OPT(nir, nir_lower_undef_to_zero);
+   OPT(nir, nir_lower_undef_to_zero, NULL);
 
    OPT(nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 

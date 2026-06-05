@@ -2320,7 +2320,7 @@ v3d_optimize_nir(struct v3d_compile *c, struct nir_shader *s)
                 }
         } while (progress);
 
-        NIR_PASS(progress, s, nir_lower_undef_to_zero);
+        NIR_PASS(progress, s, nir_lower_undef_to_zero, NULL);
 
         /* needs to be outside of optimization loop, otherwise it fights with
          * opt_algebraic optimizing the conversion lowering
