@@ -1369,7 +1369,7 @@ panvk_compile_shader(struct panvk_device *dev,
          nir_shader *nir =
             clone_nir ? nir_shader_clone(NULL, info->nir) : info->nir;
 
-#if PAN_ARCH >= 10
+#if PAN_ARCH >= 10 && PAN_ARCH < 14
          if (inputs.view_mask) {
             nir_lower_multiview_options options = {
                .view_mask = inputs.view_mask,

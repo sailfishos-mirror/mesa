@@ -2330,13 +2330,18 @@ set_tiler_idvs_flags(struct cs_builder *b, struct panvk_cmd_buffer *cmdbuf,
 
          cfg.secondary_shader = vs->info.vs.secondary_enable && fs != NULL;
          cfg.primitive_restart = ia->primitive_restart_enable;
+#if PAN_ARCH < 14
          cfg.view_mask = cmdbuf->state.gfx.render.view_mask;
+#endif
       }
 
       cs_move32_to(b, cs_sr_reg32(b, IDVS, TILER_FLAGS), tiler_idvs_flags.opaque[0]);
 #if PAN_ARCH >= 11
       struct mali_primitive_flags_2_packed tiler_flags_2;
       pan_pack(&tiler_flags_2, PRIMITIVE_FLAGS_2, cfg) {
+#if PAN_ARCH >= 14
+         cfg.view_mask = cmdbuf->state.gfx.render.view_mask;
+#endif
       }
       cs_move32_to(b, cs_sr_reg32(b, IDVS, TILER_FLAGS2),
                    tiler_flags_2.opaque[0]);
@@ -3182,11 +3187,24 @@ set_run_fullscreen_tiler_flags(struct cs_builder *b, uint32_t view_mask)
    pan_pack(&tiler_flags, PRIMITIVE_FLAGS, cfg) {
       cfg.draw_mode = MALI_DRAW_MODE_TRIANGLES;
       cfg.position_fifo_format = MALI_FIFO_FORMAT_BASIC;
+#if PAN_ARCH < 14
       cfg.view_mask = view_mask;
+#endif
    }
 
    cs_update_vt_ctx(b)
       cs_move32_to(b, cs_sr_reg32(b, IDVS, TILER_FLAGS), tiler_flags.opaque[0]);
+
+#if PAN_ARCH >= 14
+   struct mali_primitive_flags_2_packed tiler_flags_2;
+   pan_pack(&tiler_flags_2, PRIMITIVE_FLAGS_2, cfg) {
+      cfg.view_mask = view_mask;
+   }
+
+   cs_update_vt_ctx(b)
+      cs_move32_to(b, cs_sr_reg32(b, IDVS, TILER_FLAGS2),
+                   tiler_flags_2.opaque[0]);
+#endif
 }
 
 static void
