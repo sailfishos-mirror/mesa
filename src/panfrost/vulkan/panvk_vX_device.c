@@ -405,8 +405,10 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
       goto err_finish_dev;
    }
 
-   if (PANVK_DEBUG(TRACE) || PANVK_DEBUG(SYNC) || PANVK_DEBUG(DUMP))
+   if (PANVK_DEBUG(TRACE) || PANVK_DEBUG(SYNC) || PANVK_DEBUG(DUMP)) {
       device->debug.decode_ctx = pandecode_create_context(false);
+      pandecode_set_disassemble(device->debug.decode_ctx, pan_disassemble);
+   }
 
    /* 48bit address space clamped by the physical device limits, with the lower
     * 32MB reserved. */
