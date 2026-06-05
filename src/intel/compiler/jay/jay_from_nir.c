@@ -1393,8 +1393,7 @@ jay_emit_dpas(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_as_gpr(b, nj_src(intr->src[2])),
    };
 
-   /* Jay follows HW source order. */
-   jay_DPAS(b, dst, src[0], src[2], src[1], nir_intrinsic_systolic_depth(intr),
+   jay_DPAS(b, dst, src[0], src[1], src[2], nir_intrinsic_systolic_depth(intr),
             nir_intrinsic_repeat_count(intr),
             jay_type_for_glsl_base_type(nir_intrinsic_dest_base_type(intr)),
             jay_type_for_glsl_base_type(nir_intrinsic_src_base_type(intr)),

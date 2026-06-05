@@ -2902,19 +2902,16 @@ system_value("btd_shader_type_intel", 1)
 # 64B, the pointer needs 256B aligned.
 system_value("ray_query_global_intel", 1, bit_sizes=[64])
 
-# Source 0: Accumulator matrix (type specified by DEST_TYPE)
-# Source 1: A matrix (type specified by SRC_TYPE)
-# Source 2: B matrix (type specified by SRC_TYPE)
+# Source order same as DPAS instruction in the HW.
+#
+# Source 0: Accumulator matrix (type specified by DEST_BASE_TYPE)
+# Source 1: B matrix (type specified by SRC_BASE_TYPE)
+# Source 2: A matrix (type specified by SRC_BASE_TYPE)
 #
 # The matrix parameters are the slices owned by the invocation.
 #
-# The accumulator is source 0 because that is the source the intrinsic
-# infrastructure in NIR uses to determine the number of components in the
-# result.
-#
-# The number of components for the second and third sources is -1 to avoid
-# validation of its value. Some supported configurations will have the
-# component count of that matrix different than the others.
+# The number of components in the A/B sources may not match the
+# destination due to different packing factors.
 intrinsic("dpas_intel", dest_comp=0, src_comp=[0, -1, -1],
           indices=[DEST_BASE_TYPE, SRC_BASE_TYPE, SATURATE, SYSTOLIC_DEPTH, REPEAT_COUNT],
           flags=[CAN_ELIMINATE])

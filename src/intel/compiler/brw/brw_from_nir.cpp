@@ -4255,11 +4255,10 @@ brw_from_nir_emit_cs_intrinsic(nir_to_brw_state &ntb,
       const unsigned dpas_exec_size = devinfo->ver >= 20 ? 16 : 8;
       brw_builder bldn = bld.exec_all().group(dpas_exec_size, 0);
 
-      /* DPAS uses a different source order: Accumulator, B, A. */
       bldn.DPAS(retype(dest,   dest_type),
                 retype(src[0], dest_type),
-                retype(src[2], src_type),
                 retype(src[1], src_type),
+                retype(src[2], src_type),
                 sdepth,
                 rcount)
          ->saturate = nir_intrinsic_saturate(instr);
