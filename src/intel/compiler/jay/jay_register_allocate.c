@@ -1266,7 +1266,7 @@ jay_register_allocate_function(jay_function *f)
    bool spilled = f->demand[GPR] > limit;
 
    if (spilled) {
-      jay_spill(f, limit);
+      jay_spill(f, GPR, limit);
       jay_validate(f->shader, "spilling");
       jay_compute_liveness(f);
       jay_calculate_register_demands(f);

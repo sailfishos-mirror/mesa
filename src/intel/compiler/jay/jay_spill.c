@@ -112,7 +112,10 @@ struct spill_block {
 struct spill_ctx {
    jay_function *func;
 
-   /* Set of values whose file equals GPR */
+   /* Register file being spilled */
+   enum jay_file file;
+
+   /* Set of values whose file equals file */
    BITSET_WORD *in_file;
 
    /* Set of values currently available in the register file */
@@ -159,10 +162,10 @@ struct spill_ctx {
 };
 
 static inline jay_def
-jay_def_as_mem(struct spill_ctx *ctx, jay_def idx)
+jay_def_spilled(struct spill_ctx *ctx, jay_def idx)
 {
-   assert(idx.file == GPR);
-   idx.file = MEM;
+   assert(idx.file == ctx->file);
+   idx.file = ctx->file == UGPR ? GPR : MEM;
    idx._payload = jay_base_index(idx) + ctx->n;
    return idx;
 }
@@ -193,8 +196,8 @@ ensure_spilled(struct spill_ctx *ctx, unsigned node)
 
       if (!BITSET_TEST(ctx->remat, node)) {
          jay_builder b = jay_init_builder(ctx->func, cursor);
-         jay_def idx = jay_scalar(GPR, node);
-         jay_MOV(&b, jay_def_as_mem(ctx, idx), idx);
+         jay_def idx = jay_scalar(ctx->file, node);
+         jay_MOV(&b, jay_def_spilled(ctx, idx), idx);
       }
 
       ctx->spill_block[node] = NULL;
@@ -208,14 +211,14 @@ insert_reload(struct spill_ctx *ctx,
               unsigned node)
 {
    jay_builder b = jay_init_builder(ctx->func, cursor);
-   jay_def idx = jay_scalar(GPR, node);
+   jay_def idx = jay_scalar(ctx->file, node);
 
    /* Reloading breaks SSA, but jay_repair_ssa will repair */
    if (BITSET_TEST(ctx->remat, node)) {
       remat_to(&b, idx, ctx, node);
    } else {
       ensure_spilled(ctx, node);
-      jay_MOV(&b, idx, jay_def_as_mem(ctx, idx));
+      jay_MOV(&b, idx, jay_def_spilled(ctx, idx));
    }
 }
 
@@ -319,28 +322,29 @@ insert_coupling_code(struct spill_ctx *ctx, jay_block *pred, jay_block *succ)
       jay_inst *phi_dst = ctx->defs[jay_phi_src_index(phi_src)];
       unsigned src = jay_index(phi_src->src[0]);
 
-      if (phi_src->src[0].file == GPR && phi_dst->dst.file == MEM) {
+      if (phi_src->src[0].file == ctx->file && phi_dst->dst.file != ctx->file) {
          ensure_spilled(ctx, src);
 
          if (BITSET_TEST(ctx->remat, jay_index(phi_src->src[0]))) {
-            jay_def idx = jay_scalar(GPR, src);
-            jay_def tmp = jay_alloc_def(&b, GPR, 1);
+            jay_def idx = jay_scalar(ctx->file, src);
+            jay_def tmp = jay_alloc_def(&b, ctx->file, 1);
 
             b.cursor = jay_before_function(ctx->func);
             remat_to(&b, tmp, ctx, src);
-            jay_MOV(&b, jay_def_as_mem(ctx, idx), tmp);
+            jay_MOV(&b, jay_def_spilled(ctx, idx), tmp);
          }
 
          /* Use the spilled version */
-         phi_src->src[0] = jay_def_as_mem(ctx, phi_src->src[0]);
+         phi_src->src[0] = jay_def_spilled(ctx, phi_src->src[0]);
          jay_set_phi_src_index(phi_src, jay_index(phi_dst->dst));
-      } else if (phi_src->src[0].file == GPR &&
-                 ctx->defs[jay_phi_src_index(phi_src)]->dst.file != MEM &&
+      } else if (phi_src->src[0].file == ctx->file &&
+                 ctx->defs[jay_phi_src_index(phi_src)]->dst.file == ctx->file &&
                  !u_sparse_bitset_test(&sp->W_out, src)) {
 
          /* Fill the phi source in the predecessor */
-         jay_block *reload_block = jay_edge_to_block(pred, succ, GPR);
-         insert_reload(ctx, reload_block, jay_along_edge(pred, succ, GPR), src);
+         jay_block *reload_block = jay_edge_to_block(pred, succ, ctx->file);
+         insert_reload(ctx, reload_block, jay_along_edge(pred, succ, ctx->file),
+                       src);
       }
    }
 
@@ -356,8 +360,9 @@ insert_coupling_code(struct spill_ctx *ctx, jay_block *pred, jay_block *succ)
       if (!u_sparse_bitset_test(&sp->W_out, v) &&
           !u_sparse_bitset_test(&ctx->phi_set, v)) {
 
-         jay_block *reload_block = jay_edge_to_block(pred, succ, GPR);
-         insert_reload(ctx, reload_block, jay_along_edge(pred, succ, GPR), v);
+         jay_block *reload_block = jay_edge_to_block(pred, succ, ctx->file);
+         insert_reload(ctx, reload_block, jay_along_edge(pred, succ, ctx->file),
+                       v);
       }
    }
 }
@@ -393,7 +398,7 @@ populate_local_next_use(struct spill_ctx *ctx, jay_block *block)
       ip -= inst_cycles(I);
 
       jay_foreach_src_index(I, s, c, v) {
-         if (I->src[s].file == GPR) {
+         if (I->src[s].file == ctx->file) {
             if (I->op != JAY_OPCODE_PHI_SRC) {
                util_dynarray_append(&ctx->next_ip, lookup_next_use(ctx, v));
             }
@@ -403,7 +408,7 @@ populate_local_next_use(struct spill_ctx *ctx, jay_block *block)
          }
       }
 
-      if (I->dst.file == GPR) {
+      if (I->dst.file == ctx->file) {
          jay_foreach_index_rev(I->dst, _, v) {
             util_dynarray_append(&ctx->next_ip, lookup_next_use(ctx, v));
          }
@@ -434,10 +439,10 @@ min_algorithm(struct spill_ctx *ctx,
        * Phi sources are handled later.
        */
       if (I->op == JAY_OPCODE_PHI_DST) {
-         if (I->dst.file == GPR) {
+         if (I->dst.file == ctx->file) {
             if (!u_sparse_bitset_test(&ctx->W, jay_index(I->dst))) {
                ctx->spill_block[jay_index(I->dst)] = NULL;
-               I->dst = jay_def_as_mem(ctx, I->dst);
+               I->dst = jay_def_spilled(ctx, I->dst);
             }
          }
 
@@ -453,7 +458,7 @@ min_algorithm(struct spill_ctx *ctx,
       unsigned R[JAY_MAX_SRCS * JAY_MAX_DEF_LENGTH], nR = 0;
 
       jay_foreach_src_index(I, s, c, v) {
-         if (I->src[s].file == GPR && !u_sparse_bitset_test(&ctx->W, v)) {
+         if (I->src[s].file == ctx->file && !u_sparse_bitset_test(&ctx->W, v)) {
             assert(nR < ARRAY_SIZE(R) && "maximum source count");
             R[nR++] = v;
             insert_W(ctx, v);
@@ -461,10 +466,11 @@ min_algorithm(struct spill_ctx *ctx,
       }
 
       /* Limit W to make space for the operands. */
-      limit(ctx, I, ctx->k - (I->dst.file == GPR ? jay_num_values(I->dst) : 0));
+      limit(ctx, I,
+            ctx->k - (I->dst.file == ctx->file ? jay_num_values(I->dst) : 0));
 
       /* Add destinations to the register file */
-      if (I->dst.file == GPR) {
+      if (I->dst.file == ctx->file) {
          jay_foreach_index(I->dst, _, index) {
             assert(next_use_cursor >= 1);
             ctx->next_uses[index] = next_ips[--next_use_cursor];
@@ -483,7 +489,7 @@ min_algorithm(struct spill_ctx *ctx,
        * how we currently estimate register demand.
        */
       jay_foreach_src_index_rev(I, s, c, node) {
-         if (I->src[s].file == GPR) {
+         if (I->src[s].file == ctx->file) {
             assert(next_use_cursor >= 1);
             ctx->next_uses[node] = next_ips[--next_use_cursor];
 
@@ -527,7 +533,7 @@ compute_w_entry_loop_header(struct spill_ctx *ctx, jay_block *block)
    }
 
    jay_foreach_phi_dst_in_block(block, I) {
-      if (I->dst.file == GPR) {
+      if (I->dst.file == ctx->file) {
          ctx->candidates[j++] = (struct next_use) {
             .index = jay_index(I->dst),
             .dist = ctx->next_uses[jay_index(I->dst)],
@@ -560,7 +566,7 @@ compute_w_entry(struct spill_ctx *ctx, jay_block *block)
    U_SPARSE_BITSET_FOREACH_SET(&ctx->N, i) {
       bool all = true, any = false;
 
-      jay_foreach_predecessor(block, P, GPR) {
+      jay_foreach_predecessor(block, P, ctx->file) {
          bool in = u_sparse_bitset_test(&ctx->blocks[(*P)->index].W_out, i);
          all &= in;
          any |= in;
@@ -574,7 +580,7 @@ compute_w_entry(struct spill_ctx *ctx, jay_block *block)
       }
    }
 
-   jay_foreach_predecessor(block, pred, GPR) {
+   jay_foreach_predecessor(block, pred, ctx->file) {
       jay_foreach_phi_src_in_block(*pred, I) {
          if (!u_sparse_bitset_test(&ctx->blocks[(*pred)->index].W_out,
                                    jay_index(I->src[0]))) {
@@ -588,7 +594,7 @@ compute_w_entry(struct spill_ctx *ctx, jay_block *block)
     * this reduces pointless spills/fills with massive phi webs.
     */
    jay_foreach_phi_dst_in_block(block, I) {
-      if (I->dst.file == GPR &&
+      if (I->dst.file == ctx->file &&
           !u_sparse_bitset_test(&ctx->phi_set, jay_index(I->dst))) {
          ctx->candidates[j++] = (struct next_use) {
             .index = jay_index(I->dst),
@@ -642,7 +648,7 @@ global_next_use_distances(struct spill_ctx *ctx, void *memctx)
       jay_foreach_inst_in_block(block, I) {
          /* Record first use before def */
          jay_foreach_src_index(I, s, c, index) {
-            if (I->src[s].file == GPR &&
+            if (I->src[s].file == ctx->file &&
                 !u_sparse_bitset_test(&ctx->W, index)) {
 
                add_next_use(&sb->next_use_in, index, cycle);
@@ -667,7 +673,7 @@ global_next_use_distances(struct spill_ctx *ctx, void *memctx)
       }
 
       /* Propagate successor live-in to pred live-out, joining with min */
-      jay_foreach_predecessor(block, pred, GPR) {
+      jay_foreach_predecessor(block, pred, ctx->file) {
          if (minimum_next_uses(&ctx->blocks[(*pred)->index].next_use_out,
                                &sb->next_use_in, ctx->next_uses,
                                &ctx->phi_set)) {
@@ -710,13 +716,14 @@ global_next_use_distances(struct spill_ctx *ctx, void *memctx)
 }
 
 void
-jay_spill(jay_function *func, unsigned k)
+jay_spill(jay_function *func, enum jay_file file, unsigned k)
 {
    void *memctx = ralloc_context(NULL);
    void *linctx = linear_context(memctx);
    struct spill_ctx ctx = { .func = func, .k = k };
 
    ctx.n = func->ssa_alloc;
+   ctx.file = file;
    ctx.in_file = BITSET_LINEAR_ZALLOC(linctx, ctx.n);
    ctx.remat = BITSET_LINEAR_ZALLOC(linctx, ctx.n);
    ctx.defs = linear_zalloc_array(linctx, jay_inst *, ctx.n);
@@ -736,7 +743,7 @@ jay_spill(jay_function *func, unsigned k)
          BITSET_SET(ctx.remat, jay_index(I->dst));
       }
 
-      if (I->dst.file == GPR) {
+      if (I->dst.file == file) {
          BITSET_SET_COUNT(ctx.in_file, jay_base_index(I->dst),
                           jay_num_values(I->dst));
       }
@@ -791,7 +798,7 @@ jay_spill(jay_function *func, unsigned k)
 
    /* Now that all blocks are processed separately, stitch it together */
    jay_foreach_block(func, block) {
-      jay_foreach_predecessor(block, pred, GPR) {
+      jay_foreach_predecessor(block, pred, file) {
          u_sparse_bitset_clear_all(&ctx.phi_set);
          insert_coupling_code(&ctx, *pred, block);
       }
