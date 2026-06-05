@@ -10,6 +10,7 @@ use crate::bitset::ConstBitSet;
 /// regardless of whether or not discriminant are explicitly specified.
 pub trait EnumAsU8: Sized {
     const VARIANTS: ConstBitSet<8, u8>;
+    const MAX_DISCRIMINANT: u8;
 
     fn as_u8(self) -> u8;
 
