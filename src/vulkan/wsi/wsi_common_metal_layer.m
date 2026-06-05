@@ -67,39 +67,58 @@ get_mtl_pixel_format(VkFormat format, MTLPixelFormat *metal_format)
 }
 
 static VkResult
-get_cg_color_space(VkColorSpaceKHR color_space, CGColorSpaceRef *cg_color_space)
+get_color_space_info(VkColorSpaceKHR color_space, CGColorSpaceRef *cg_color_space,
+                     bool *wants_edr)
 {
    CFStringRef color_space_name;
    switch (color_space) {
       case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
          color_space_name = kCGColorSpaceSRGB;
+         *wants_edr = false;
          break;
       case VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT:
          color_space_name = kCGColorSpaceDisplayP3;
+         *wants_edr = false;
          break;
       case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
          color_space_name = kCGColorSpaceExtendedLinearSRGB;
+         *wants_edr = true;
          break;
       case VK_COLOR_SPACE_DISPLAY_P3_LINEAR_EXT:
          color_space_name = kCGColorSpaceLinearDisplayP3;
+         *wants_edr = false;
          break;
       case VK_COLOR_SPACE_DCI_P3_NONLINEAR_EXT:
          color_space_name = kCGColorSpaceDCIP3;
+         *wants_edr = false;
          break;
       case VK_COLOR_SPACE_BT709_NONLINEAR_EXT:
          color_space_name = kCGColorSpaceITUR_709;
+         *wants_edr = false;
          break;
       case VK_COLOR_SPACE_BT2020_LINEAR_EXT:
          color_space_name = kCGColorSpaceLinearITUR_2020;
+         *wants_edr = false;
+         break;
+      case VK_COLOR_SPACE_HDR10_ST2084_EXT:
+         color_space_name = kCGColorSpaceITUR_2100_PQ;
+         *wants_edr = true;
+         break;
+      case VK_COLOR_SPACE_HDR10_HLG_EXT:
+         color_space_name = kCGColorSpaceITUR_2100_HLG;
+         *wants_edr = true;
          break;
       case VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT:
          color_space_name = kCGColorSpaceAdobeRGB1998;
+         *wants_edr = false;
          break;
       case VK_COLOR_SPACE_PASS_THROUGH_EXT:
          color_space_name = nil;
+         *wants_edr = false;
          break;
       case VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT:
          color_space_name = kCGColorSpaceExtendedSRGB;
+         *wants_edr = true;
          break;
       default:
          return VK_ERROR_FORMAT_NOT_SUPPORTED;
@@ -127,7 +146,8 @@ wsi_metal_layer_configure(const CAMetalLayer *metal_layer,
          return result;
 
       CGColorSpaceRef cg_color_space;
-      result = get_cg_color_space(color_space, &cg_color_space);
+      bool wants_edr;
+      result = get_color_space_info(color_space, &cg_color_space, &wants_edr);
       if (result != VK_SUCCESS)
          return result;
 
@@ -146,6 +166,7 @@ wsi_metal_layer_configure(const CAMetalLayer *metal_layer,
       metal_layer.pixelFormat = metal_format;
 
       metal_layer.colorspace = cg_color_space;
+      metal_layer.wantsExtendedDynamicRangeContent = wants_edr;
       /* Needs release: https://github.com/KhronosGroup/MoltenVK/issues/940 */
       CGColorSpaceRelease(cg_color_space);
    }
