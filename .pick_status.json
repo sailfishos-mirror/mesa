@@ -3504,7 +3504,7 @@
         "description": "util/tests: silence unused iterator warning in sparse_bitset_test",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a8b75dd0f426e8875534d141610d898b856e53cd",
         "notes": null
