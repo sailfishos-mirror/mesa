@@ -149,6 +149,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_shader_untyped_pointers = true,
 #ifdef KK_USE_WSI_PLATFORM
       .KHR_swapchain = true,
+      .KHR_swapchain_maintenance1 = true,
       .KHR_swapchain_mutable_format = true,
 #endif
       .KHR_unified_image_layouts = true,
@@ -181,6 +182,9 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_shader_replicated_composites = true,
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
+#ifdef KK_USE_WSI_PLATFORM
+      .EXT_swapchain_maintenance1 = true,
+#endif
       .EXT_vertex_attribute_robustness = true,
 
       .GOOGLE_decorate_string = true,
@@ -368,6 +372,11 @@ kk_get_device_features(
 
       /* VK_KHR_shader_untyped_pointers */
       .shaderUntypedPointers = true,
+
+#ifdef KK_USE_WSI_PLATFORM
+      /* VK_KHR_swapchain_maintenance1 */
+      .swapchainMaintenance1 = true,
+#endif
 
       /* VK_KHR_unified_image_layouts */
       .unifiedImageLayouts = true,

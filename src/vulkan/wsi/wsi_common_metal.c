@@ -507,6 +507,49 @@ wsi_metal_swapchain_acquire_next_image(struct wsi_swapchain *wsi_chain,
 }
 
 static VkResult
+wsi_metal_swapchain_release_images(struct wsi_swapchain *wsi_chain,
+                                   uint32_t count, const uint32_t *indices)
+{
+   const struct wsi_device *wsi = wsi_chain->wsi;
+   struct wsi_metal_swapchain *chain =
+      (struct wsi_metal_swapchain *)wsi_chain;
+   const uint32_t queue_count = chain->base.blit.queue != NULL ? 1 :
+                                wsi->queue_family_count;
+
+   for (uint32_t idx = 0; idx < count; idx++) {
+      struct wsi_metal_image *image = &chain->images[indices[idx]];
+
+      if (wsi->sw) {
+         /* Directly release drawable */
+         if (image->drawable) {
+            wsi_metal_release_drawable(image->drawable);
+            image->drawable = NULL;
+         }
+      } else {
+         /* Drawable has been released and is retained by blit command buffers.
+          * Free them to release the reference. */
+         for (uint32_t queue_idx = 0; queue_idx < queue_count; queue_idx++) {
+            wsi->FreeCommandBuffers(
+               chain->base.device, chain->base.cmd_pools[queue_idx], 1u,
+               &image->base.blit.cmd_buffers[queue_idx]);
+            image->base.blit.cmd_buffers[queue_idx] = NULL;
+         }
+      }
+   }
+
+   return VK_SUCCESS;
+}
+
+static void
+wsi_metal_swapchain_set_present_mode(struct wsi_swapchain *wsi_chain,
+                                     VkPresentModeKHR mode)
+{
+   struct wsi_metal_swapchain *chain = (struct wsi_metal_swapchain *)wsi_chain;
+   const bool immediate_mode = mode == VK_PRESENT_MODE_IMMEDIATE_KHR;
+   wsi_metal_layer_set_immediate(chain->surface->pLayer, immediate_mode);
+}
+
+static VkResult
 wsi_metal_swapchain_queue_present(struct wsi_swapchain *wsi_chain,
                                      uint32_t image_index,
                                      uint64_t present_id,
@@ -686,6 +729,8 @@ wsi_metal_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    chain->base.destroy = wsi_metal_swapchain_destroy;
    chain->base.get_wsi_image = wsi_metal_swapchain_get_wsi_image;
    chain->base.acquire_next_image = wsi_metal_swapchain_acquire_next_image;
+   chain->base.release_images = wsi_metal_swapchain_release_images;
+   chain->base.set_present_mode = wsi_metal_swapchain_set_present_mode;
    chain->base.queue_present = wsi_metal_swapchain_queue_present;
    chain->base.set_hdr_metadata = wsi_metal_swapchain_set_hdr_metadata;
    chain->base.present_mode = wsi_swapchain_get_present_mode(wsi_device, pCreateInfo);

@@ -133,6 +133,13 @@ get_color_space_info(VkColorSpaceKHR color_space, CGColorSpaceRef *cg_color_spac
    return VK_SUCCESS;
 }
 
+void
+wsi_metal_layer_set_immediate(const CAMetalLayer *metal_layer,
+                              bool enable_immediate)
+{
+   metal_layer.displaySyncEnabled = !enable_immediate;
+}
+
 VkResult
 wsi_metal_layer_configure(const CAMetalLayer *metal_layer,
    uint32_t width, uint32_t height, uint32_t image_count,
