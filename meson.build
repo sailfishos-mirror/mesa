@@ -2413,10 +2413,6 @@ renderdoc_integration_supported = [
 pre_args += '-DHAVE_RENDERDOC_INTEGRATION=@0@'.format(renderdoc_integration_supported.to_int())
 
 with_teflon = get_option('teflon')
-if with_teflon and with_tests
-  dep_flatbuffers = dependency('flatbuffers')
-  prog_flatc = find_program('flatc')
-endif
 
 with_gpuvis = get_option('gpuvis')
 if with_gpuvis

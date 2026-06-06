@@ -36,6 +36,8 @@ import json
 import tensorflow as tf
 from tensorflow import keras
 
+pytestmark = pytest.mark.skip(reason="Synthetic TFLite model generation was removed from test_teflon")
+
 MODEL_PATH = "conv2d.tflite"
 
 def create_model_keras(batch_size, in_w, in_h, k_w, k_h, in_ch, out_ch, stride, padding, signed, seed, depthwise):
@@ -95,9 +97,7 @@ def create_model_keras(batch_size, in_w, in_h, k_w, k_h, in_ch, out_ch, stride, 
     return MODEL_PATH
 
 def tflite_to_json(file_path):
-    ret = os.system("flatc --json src/gallium/frontends/teflon/tests/tflite_schema.fbs -- " + file_path)
-    assert(ret == 0)
-    return os.path.splitext(file_path)[0] + ".json"
+  raise RuntimeError("flatc-based model JSON conversion was removed from teflon tests")
 
 WEIGHTS_BUFFER = 2
 BIAS_BUFFER = 3
@@ -136,20 +136,7 @@ def diff(file_1, file_2):
     assert(ret == 0)
 
 def create_model(batch_size, in_w, in_h, k_w, k_h, in_ch, out_ch, stride, padding, signed, seed, depthwise):
-    args = ['build/src/gallium/targets/teflon/test_teflon',
-            'generate_model',
-            str(in_w),
-            str(k_w),
-            str(in_ch),
-            str(out_ch),
-            str(stride),
-            "1" if padding == "same" else "0",
-            str(int(signed)),
-            str(int(depthwise)),
-            str(seed)]
-    print(' '.join(args))
-    os.system(' '.join(args))
-    return "model.tflite"
+    raise RuntimeError("Synthetic model generation was removed from test_teflon")
 
 def convolution(batch_size, input_size, weight_size, in_ch, out_ch, stride, padding, signed, seed, depthwise):
 
@@ -214,5 +201,3 @@ def test_depthwise(batch_size, input_size, weight_size, channels, stride, paddin
    s = "%r-%s-%r-%r-%r-%r-%r-%r" % (seed, signed, padding, stride, channels, weight_size, input_size, batch_size)
    print(s, file=sys.stderr)
    convolution(batch_size, input_size, weight_size, channels, channels, stride, padding, signed, seed, depthwise=True)
-
-test_conv2d(1, 80, 5, 16, 128, 2, "same", False, 4)
