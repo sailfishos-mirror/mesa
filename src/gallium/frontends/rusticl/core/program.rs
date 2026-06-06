@@ -338,26 +338,26 @@ impl CompileOptions {
         // add end of the string
         res.push(&options[old..]);
 
-        let strings = res
-            .iter()
-            .filter_map(|&a| match a {
+        let mut strings = Vec::new();
+        for a in res.into_iter() {
+            match a {
                 // CL3.1 doesn't add anything that's not already supported in clang, so just replace
                 // the argument with 3.0 so we'll be fine with an older version of clang.
-                "-cl-std=CL3.1" => Some("-cl-std=CL3.0"),
-                "-cl-denorms-are-zero" => Some("-fdenormal-fp-math=positive-zero"),
+                "-cl-std=CL3.1" => strings.push(c"-cl-std=CL3.0".to_owned()),
+                "-cl-denorms-are-zero" => {
+                    strings.push(c"-fdenormal-fp-math=positive-zero".to_owned())
+                }
                 // We can ignore it as long as we don't support ifp
-                "-cl-no-subgroup-ifp" => None,
+                "-cl-no-subgroup-ifp" => {}
                 // This indicates how many registers per thread should be used, we just ignore it.
-                "-cl-intel-256-GRF-per-thread" => None,
+                "-cl-intel-256-GRF-per-thread" => {}
                 // Some applications use this argument when they detect Intel hardware.
-                "-cl-intel-greater-than-4GB-buffer-required" => None,
+                "-cl-intel-greater-than-4GB-buffer-required" => {}
                 // Some applications use this when they detect QC hardware
-                "-qcom-accelerate-16-bit" => None,
-                _ => Some(a),
-            })
-            .map(CString::new)
-            .map(Result::unwrap)
-            .collect();
+                "-qcom-accelerate-16-bit" => {}
+                _ => strings.push(CString::new(a).unwrap()),
+            }
+        }
 
         Self {
             parsed: parsed_options,
