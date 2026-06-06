@@ -61,6 +61,9 @@ struct jay_codegen {
 
    /* struct intel_shader_reloc */
    struct util_dynarray relocs;
+
+   /* Index of the final HALT instruction, or -1 if none has been emitted yet. */
+   int final_halt_offset;
 };
 
 static inline gen_operand
@@ -264,6 +267,7 @@ static const struct {
    OP(FBH, FBH, 1),
    OP(FBL, FBL, 1),
    OP(FRC, FRC, 1),
+   OP(HALT, HALT, 0),
    OP(IF, IF, 0),
    OP(LANE_ID_8, MOV, 0),
    OP(LZD, LZD, 1),
@@ -575,6 +579,19 @@ emit(struct jay_codegen *jc,
       }
       break;
 
+   case JAY_OPCODE_HALT_TARGET:
+      /* HALT temporarily disables channels, and the same instruction is used
+       * to re-enable them: once all channels are disabled, then they are
+       * re-enabled again immediately.
+       *
+       * So put a HALT right before the "epilogue" of the shader to make sure
+       * all channels get HALTed, so that this last HALT will re-enable them
+       * again.
+       */
+      jc->final_halt_offset = jc->num_insts - 1;
+      gen->opcode = GEN_OP_HALT;
+      break;
+
    default:
       break;
    }
@@ -632,6 +649,7 @@ jay_to_binary(jay_shader *s,
       .insts = rzalloc_array(mem_ctx, gen_inst, total_gen_insts),
       .insts_cap = total_gen_insts,
       .output = rzalloc_size(bin, output_capacity),
+      .final_halt_offset = -1,
    };
    util_dynarray_init(&jc.loop_stack, mem_ctx);
    util_dynarray_init(&jc.relocs, bin);
@@ -672,8 +690,7 @@ jay_to_binary(jay_shader *s,
          gen->dst.region.hstride = 1;
    }
 
-   int final_halt_offset = -1 /* TODO */;
-   gen_finish_structured_cf(jc.insts, jc.num_insts, final_halt_offset);
+   gen_finish_structured_cf(jc.insts, jc.num_insts, jc.final_halt_offset);
 
    const unsigned num_relocs =
       util_dynarray_num_elements(&jc.relocs, struct intel_shader_reloc);

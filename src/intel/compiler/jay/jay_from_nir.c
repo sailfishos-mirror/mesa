@@ -88,6 +88,7 @@ struct nir_to_jay_state {
    jay_block *break_block;
 
    unsigned indent;
+   bool needs_final_halt;
 
    /* We cache ballot(true), ctz(ballot(true)), and 4*ctz(ballot(true)) within a
     * block. If we had competent backend CSE - or emitted uniformize in NIR and
@@ -777,8 +778,22 @@ scalars_equal(nir_scalar a, nir_scalar b)
 }
 
 static void
-jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
+jay_emit_halt_target(struct nir_to_jay_state *nj)
 {
+   /* This final halt will re-enable the channels which got masked off by first
+    * HALT.
+    */
+   if (nj->needs_final_halt) {
+      /* This avoids re-emitting the halt after EOT send */
+      nj->needs_final_halt = false;
+      jay_HALT_TARGET(&nj->bld);
+   }
+}
+
+static void
+jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
+{
+   jay_builder *b = &nj->bld;
    const struct intel_device_info *devinfo = b->shader->devinfo;
    jay_def colour = nj_src(intr->src[0]);
    jay_def dual_colour = jay_null();
@@ -789,6 +804,8 @@ jay_emit_fb_write(jay_builder *b, nir_intrinsic_instr *intr)
    const bool null_rt = ((signed) nir_intrinsic_target(intr)) < 0;
    const int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
    const bool last = !nir_instr_next(&intr->instr);
+
+   jay_emit_halt_target(nj);
 
    /* The hardware freaks out if we give it an omask without multisampling. */
    if (!b->shader->prog_data->fs.uses_omask) {
@@ -1449,7 +1466,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_store_render_target_intel:
       assert(nj->nir->info.stage == MESA_SHADER_FRAGMENT);
-      jay_emit_fb_write(b, intr);
+      jay_emit_fb_write(nj, intr);
       break;
 
    case nir_intrinsic_shader_clock:
@@ -2380,8 +2397,8 @@ jay_emit_jump(struct nir_to_jay_state *nj, nir_jump_instr *instr)
       jay_BREAK(&nj->bld);
       break;
    case nir_jump_halt:
-      // TODO: Do we want a predicated EOT here, or a jump to the end?
-      assert(!"TODO: implement HALT");
+      nj->needs_final_halt = true;
+      jay_HALT(&nj->bld);
       break;
    case nir_jump_return:
       /* Should be lowered */
@@ -2647,6 +2664,8 @@ static void
 jay_emit_eot(struct nir_to_jay_state *nj)
 {
    jay_builder *b = &nj->bld;
+
+   jay_emit_halt_target(nj);
 
    if (mesa_shader_stage_is_compute(nj->nir->info.stage)) {
       jay_def u0 = nj->payload.u0;

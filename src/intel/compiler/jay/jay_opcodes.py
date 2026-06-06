@@ -134,7 +134,7 @@ op('schedule_barrier', 0, None, Props.NO_DEST)
 
 for n in ['brd', 'illegal', 'goto', 'join', 'if', 'else',
           'endif', 'while', 'break', 'cont', 'call', 'calla', 'jmpi', 'ret',
-          'loop_once']:
+          'loop_once', 'halt', 'halt_target']:
     op(n, 0, None, Props.NO_DEST)
 
 op('send', 4, None, Props.SIDE_EFFECTS, [
