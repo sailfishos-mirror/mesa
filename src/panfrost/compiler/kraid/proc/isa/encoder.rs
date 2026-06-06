@@ -129,11 +129,11 @@ impl SrcType {
     const SR_WRITE_FIELDS: &[SrcField] =
         &[SrcField::SrIndex, SrcField::SrCount, SrcField::DstLanes];
 
-    fn from_field_type(field_type: &FieldType, enums: &EnumSet) -> SrcType {
+    fn from_field_type(field_type: &FieldType) -> SrcType {
         match field_type {
             FieldType::Enum(e) => {
-                if let Some(me) = enums.get_meta_for_enum(&e.name) {
-                    SrcType::MetaEnum(me.clone())
+                if let Some(me) = e.get_meta() {
+                    SrcType::MetaEnum(me)
                 } else {
                     SrcType::HWEnum(e.clone())
                 }
@@ -249,7 +249,6 @@ fn map_field_src(
     field_name: &str,
     field_type: &FieldType,
     sr_control: SrControl,
-    enums: &EnumSet,
 ) -> (SrcType, SrcField) {
     if matches!(field_type, FieldType::Source | FieldType::Source64) {
         (SrcType::Src, SrcField::EncodedSrc)
@@ -276,10 +275,7 @@ fn map_field_src(
                 .contains(&field_name));
             (SrcType::Dst, SrcField::DstLanes)
         } else {
-            (
-                SrcType::from_field_type(field_type, enums),
-                SrcField::Direct,
-            )
+            (SrcType::from_field_type(field_type), SrcField::Direct)
         }
     } else if field_type.is_enum("abs_m") && !field_name.ends_with("result") {
         (SrcType::Src, SrcField::SrcModAbs)
@@ -297,10 +293,7 @@ fn map_field_src(
         assert_eq!(sr_control, SrControl::ReadWrite);
         (SrcType::SrWrite, SrcField::SrCount)
     } else {
-        (
-            SrcType::from_field_type(field_type, enums),
-            SrcField::Direct,
-        )
+        (SrcType::from_field_type(field_type), SrcField::Direct)
     }
 }
 
@@ -523,11 +516,9 @@ impl InstrEncSources {
         field_type: &FieldType,
         field_restrict: &Option<Rc<FieldRestrict>>,
         sr_control: SrControl,
-        enums: &EnumSet,
     ) -> Option<InstrEncFieldSrc> {
-        let (src_type, src_field) = map_field_src(
-            instr_name, field_name, field_type, sr_control, enums,
-        );
+        let (src_type, src_field) =
+            map_field_src(instr_name, field_name, field_type, sr_control);
 
         if !matches!(
             src_field,
@@ -555,11 +546,9 @@ impl InstrEncSources {
         field_type: &FieldType,
         field_restrict: &Option<Rc<FieldRestrict>>,
         sr_control: SrControl,
-        enums: &EnumSet,
     ) -> InstrEncFieldSrc {
-        let (src_type, src_field) = map_field_src(
-            instr_name, field_name, field_type, sr_control, enums,
-        );
+        let (src_type, src_field) =
+            map_field_src(instr_name, field_name, field_type, sr_control);
 
         if matches!(
             src_type,
@@ -582,7 +571,7 @@ impl InstrEncSources {
         // Otherwise, we have to assume direct.  Also, don't be clever with the
         // name.  Just snakify the name we got from the XML.
         let src_name = to_snake_case(field_name);
-        let src_type = SrcType::from_field_type(field_type, enums);
+        let src_type = SrcType::from_field_type(field_type);
         let src_field = SrcField::Direct;
 
         let src = self.add_src(InstrEncSrc::new(&src_name, src_type));
@@ -647,11 +636,7 @@ struct InstrEncVariant {
 }
 
 impl InstrEncVariant {
-    fn new(
-        instr: Instr,
-        srcs: &mut InstrEncSources,
-        enums: &EnumSet,
-    ) -> InstrEncVariant {
+    fn new(instr: Instr, srcs: &mut InstrEncSources) -> InstrEncVariant {
         let info = InstrVariantInfo::new(&instr);
         let sr_control = get_instr_sr_control(&instr);
 
@@ -693,7 +678,6 @@ impl InstrEncVariant {
                 &field_type,
                 restrict,
                 sr_control,
-                enums,
             );
         }
 
@@ -709,7 +693,6 @@ impl InstrEncVariant {
                 &field_type,
                 restrict,
                 sr_control,
-                enums,
             ));
         }
 
@@ -832,13 +815,13 @@ impl InstrEnc {
         }
     }
 
-    fn add_variant(&mut self, instr: Instr, enums: &EnumSet) {
+    fn add_variant(&mut self, instr: Instr) {
         let variant_name = instr.variant.clone();
         if variant_name.is_some() {
             self.srcs.enable_variants();
         }
 
-        let enc_instr = InstrEncVariant::new(instr, &mut self.srcs, enums);
+        let enc_instr = InstrEncVariant::new(instr, &mut self.srcs);
         self.variants
             .entry(variant_name)
             .or_default()
@@ -1120,7 +1103,7 @@ pub fn gen_encoder(
         instrs
             .entry(i.name.to_string())
             .or_insert_with(|| InstrEnc::new(&i.name))
-            .add_variant(i, &isa.enums)
+            .add_variant(i)
     }
 
     for (_, i) in instrs {
