@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::ident;
 use crate::isa::xml::XmlElement;
 use crate::isa::*;
 use proc_macro2::TokenStream as TokenStream2;
@@ -668,6 +669,68 @@ impl MetaEnum {
                 }
             });
         }
+    }
+}
+
+#[derive(Clone)]
+pub enum EnumType {
+    Enum(Rc<Enum>),
+    Meta(Rc<MetaEnum>),
+}
+
+impl EnumType {
+    fn ident(&self) -> &Ident {
+        match self {
+            EnumType::Enum(e) => &e.ident,
+            EnumType::Meta(m) => &m.ident,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct EnumLiteral {
+    pub enum_type: EnumType,
+    pub value_name: String,
+    pub value_ident: Ident,
+}
+
+impl EnumLiteral {
+    pub fn new(e: &Rc<Enum>, v: &EnumValue) -> EnumLiteral {
+        EnumLiteral {
+            enum_type: EnumType::Enum(e.clone()),
+            value_name: v.name.clone(),
+            value_ident: v.ident.clone(),
+        }
+    }
+
+    pub fn to_meta(&self) -> Option<EnumLiteral> {
+        let e = match &self.enum_type {
+            EnumType::Enum(e) => e,
+            EnumType::Meta(_) => return Some(self.clone()),
+        };
+        let m = e.get_meta()?;
+
+        let (v_name, v_ident) = if m.none_values.contains(&self.value_name) {
+            ("none".to_string(), ident!("None"))
+        } else {
+            (self.value_name.clone(), self.value_ident.clone())
+        };
+
+        Some(EnumLiteral {
+            enum_type: EnumType::Meta(m),
+            value_name: v_name,
+            value_ident: v_ident,
+        })
+    }
+}
+
+impl ToTokens for EnumLiteral {
+    fn to_tokens(&self, ts: &mut TokenStream2) {
+        let e_ident = self.enum_type.ident();
+        let v_ident = &self.value_ident;
+        ts.extend(quote! {
+            #e_ident::#v_ident
+        });
     }
 }
 
