@@ -378,6 +378,8 @@ def add_common_vk_wsi_options(debug_options, performance_options, defaults=None)
           "Force the X11 WSI to create exactly the number of image specified by the application in VkSwapchainCreateInfoKHR::minImageCount"),
         B("vk_x11_ensure_min_image_count", defaults.get("vk_x11_ensure_min_image_count", False),
           "Force the X11 WSI to create at least the number of image specified by the driver in VkSurfaceCapabilitiesKHR::minImageCount"),
+        B("vk_google_display_timing", defaults.get("vk_google_display_timing", False),
+          "Expose VK_GOOGLE_display_timing even if fully conformant support can't be guaranteed on all enabled surface types, e.g., (X)Wayland"),
     ])
 
     debug_options.extend([

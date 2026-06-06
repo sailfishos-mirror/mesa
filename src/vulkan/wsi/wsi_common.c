@@ -3678,19 +3678,51 @@ wsi_device_supports_explicit_sync(struct wsi_device *device)
 }
 
 /**
- * Returns true if an enabled WSI surface extension supports
+ * Returns true if at least one enabled WSI surface extension supports
  * VK_GOOGLE_display_timing, and none of the enabled surfaces *don't* support it
- * (since the device extension lacks per-surface feature flags)
+ * (since the device extension lacks per-surface feature flags).
+ * Also returns true for mixed supported + (maybe) unsupported cases if user
+ * opts in via dri config option vk_google_display_timing = true
  */
 bool
-wsi_instance_supports_google_display_timing(const struct vk_instance *instance)
+wsi_instance_supports_google_display_timing(const struct vk_instance *instance,
+                                            const struct driOptionCache *dri_options)
 {
-   return instance->enabled_extensions.KHR_display &&
-          !(instance->enabled_extensions.EXT_headless_surface ||
-            instance->enabled_extensions.KHR_android_surface ||
-            instance->enabled_extensions.KHR_wayland_surface ||
-            instance->enabled_extensions.KHR_xcb_surface ||
-            instance->enabled_extensions.KHR_xlib_surface);
+   /* Surfaces requested where extension is definitely supported in a compliant way? */
+   bool req_supported = instance->enabled_extensions.KHR_display;
+
+   /* Surfaces requested where extension is definitely not supported? */
+   bool req_unsupported = instance->enabled_extensions.EXT_headless_surface ||
+                           instance->enabled_extensions.KHR_win32_surface ||
+                           instance->enabled_extensions.EXT_metal_surface ||
+                           instance->enabled_extensions.KHR_android_surface;
+
+   /* Surfaces requested where extension is maybe supported, but we can't be certain at this point? */
+   bool req_maybe = instance->enabled_extensions.KHR_wayland_surface ||
+                     instance->enabled_extensions.KHR_xcb_surface ||
+                     instance->enabled_extensions.KHR_xlib_surface;
+
+   /* Only fully supported ones requested, a clear yes. */
+   if (req_supported && !req_unsupported && !req_maybe)
+      return true;
+
+   /* Only definitely unsupported ones requested, a clear no. */
+   if (req_unsupported && !req_supported && !req_maybe)
+      return false;
+
+   /* Completely unknown surface extension requested, or none requested at all, a clear no. */
+   if (!req_unsupported && !req_supported && !req_maybe)
+      return false;
+
+   /* Unclear mixed situation. Enabling the extension may or may not work well,
+    * depending on the applications use and specific platform support, which we can't
+    * determine at this point. Let user decide to opt-in via dri config option.
+    */
+   if (dri_options && driCheckOption(dri_options, "vk_google_display_timing", DRI_BOOL) &&
+       driQueryOptionb(dri_options, "vk_google_display_timing"))
+      return true;
+
+   return false;
 }
 
 VKAPI_ATTR void VKAPI_CALL

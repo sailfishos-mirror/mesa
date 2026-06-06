@@ -231,7 +231,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .ANDROID_native_buffer = has_gralloc,
       .GOOGLE_decorate_string = true,
 #ifdef PANVK_USE_WSI_PLATFORM
-      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(&instance->vk),
+      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(&instance->vk, &instance->drirc.options),
 #endif
       .GOOGLE_hlsl_functionality1 = true,
       .GOOGLE_user_type = true,

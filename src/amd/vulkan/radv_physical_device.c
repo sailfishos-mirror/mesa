@@ -978,7 +978,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
 #endif
       .GOOGLE_decorate_string = true,
 #ifdef RADV_USE_WSI_PLATFORM
-      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(pdev->vk.instance),
+      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(pdev->vk.instance, &instance->drirc.options),
 #endif
       .GOOGLE_hlsl_functionality1 = true,
       .GOOGLE_user_type = true,

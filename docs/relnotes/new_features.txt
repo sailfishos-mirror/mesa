@@ -24,7 +24,7 @@ VK_{KHR,EXT}_index_type_uint8 on pvr
 VK_EXT_debug_marker in vulkan runtime
 VK_EXT_mesh_shader on NVK
 VK_KHR_device_fault on RADV
-VK_GOOGLE_display_timing for KHR_display on anv, panvk, pvr, radv, tu, v3dv
+VK_GOOGLE_display_timing for KHR_display (and opt-in for x11, wayland) on anv, panvk, pvr, radv, tu, v3dv
 VK_KHR_shader_abort on RADV
 VK_KHR_shader_fma on panvk
 VK_NV_shader_atomic_float16_vector on NVK

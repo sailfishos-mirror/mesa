@@ -333,7 +333,8 @@ VkImageUsageFlags
 wsi_caps_get_image_usage(void);
 
 bool
-wsi_instance_supports_google_display_timing(const struct vk_instance *instance);
+wsi_instance_supports_google_display_timing(const struct vk_instance *instance,
+                                            const struct driOptionCache *dri_options);
 
 bool
 wsi_device_supports_explicit_sync(struct wsi_device *device);

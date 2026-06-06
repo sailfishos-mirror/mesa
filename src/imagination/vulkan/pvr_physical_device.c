@@ -120,7 +120,7 @@ void pvr_physical_device_free_pipeline_cache(
 }
 
 static void pvr_physical_device_get_supported_extensions(
-   struct vk_device_extension_table *extensions, struct vk_instance *instance)
+   struct vk_device_extension_table *extensions, struct pvr_instance* instance)
 {
    *extensions = (struct vk_device_extension_table){
       .KHR_bind_memory2 = true,
@@ -217,7 +217,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_vertex_attribute_divisor = true,
       .EXT_zero_initialize_device_memory = true,
 #ifdef PVR_USE_WSI_PLATFORM
-      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(instance),
+      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(&instance->vk, &instance->drirc.options),
 #endif
    };
 }
@@ -1163,7 +1163,7 @@ VkResult pvr_physical_device_init(struct pvr_physical_device *pdevice,
       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
    pdevice->memory.memoryTypes[0].heapIndex = 0;
 
-   pvr_physical_device_get_supported_extensions(&supported_extensions, &instance->vk);
+   pvr_physical_device_get_supported_extensions(&supported_extensions, instance);
    pvr_physical_device_get_supported_features(&pdevice->dev_info,
                                               &supported_features);
    if (!pvr_physical_device_get_properties(pdevice, &supported_properties)) {
