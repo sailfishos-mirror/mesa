@@ -2077,11 +2077,11 @@ anv_shader_compile(struct vk_device *vk_device,
                         (union brw_any_prog_key *)compile_params->key,
                         shader_data->archiver);
          shader_data->code = bin->kernel;
+         shader_data->stats[0] = bin->stats;
 
          if (mesa_shader_stage_uses_workgroup(nir->info.stage)) {
             struct brw_cs_prog_data *prog_data =
                (struct brw_cs_prog_data *)compile_params->prog_data;
-            shader_data->stats[0] = bin->stats;
             prog_data->local_size[0] = nir->info.workgroup_size[0];
             prog_data->local_size[1] = nir->info.workgroup_size[1];
             prog_data->local_size[2] = nir->info.workgroup_size[2];
