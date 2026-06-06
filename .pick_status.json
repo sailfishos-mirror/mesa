@@ -5834,7 +5834,7 @@
         "description": "v3d: fix stencil blit layer selection",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ac207acb97cdfa203c686806ba3a41269e1bf35d",
         "notes": null
