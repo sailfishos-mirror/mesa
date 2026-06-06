@@ -102,6 +102,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_shader_float_controls = true,
       .KHR_shader_float_controls2 = has_vk1_1,
       .KHR_shader_float16_int8 = true,
+      .KHR_shader_fma = true,
       .KHR_shader_integer_dot_product = true,
       .KHR_shader_maximal_reconvergence = has_vk1_1,
       .KHR_shader_non_semantic_info = true,
@@ -674,6 +675,11 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_mutable_descriptor_type */
       .mutableDescriptorType = PAN_ARCH >= 9,
+
+      /* VK_KHR_shader_fma */
+      .shaderFmaFloat16 = PAN_ARCH >= 10,
+      .shaderFmaFloat32 = true,
+      .shaderFmaFloat64 = false,
 
 #ifdef PANVK_USE_WSI_PLATFORM
       /* VK_KHR_present_id */
