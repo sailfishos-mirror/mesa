@@ -196,6 +196,10 @@ impl ProgramBuild {
     pub fn options(&self, dev: &Device) -> &CStr {
         &self.dev_build(dev).options.raw_string
     }
+
+    pub fn log(&self, dev: &Device) -> &CStr {
+        &self.dev_build(dev).log
+    }
 }
 
 #[derive(Default)]
@@ -580,10 +584,6 @@ impl Program {
 
     pub fn status(&self, dev: &Device) -> cl_build_status {
         self.build_info().dev_build(dev).status
-    }
-
-    pub fn log(&self, dev: &Device) -> CString {
-        self.build_info().dev_build(dev).log.clone()
     }
 
     pub fn bin_type(&self, dev: &Device) -> cl_program_binary_type {
@@ -1015,7 +1015,8 @@ impl Program {
 fn debug_logging(p: &Program, devs: &[&Device]) {
     if Platform::dbg().program {
         for dev in devs {
-            let msg = p.log(dev);
+            let build_info = p.build_info();
+            let msg = build_info.log(dev);
             if !msg.is_empty() {
                 eprintln!("{}", msg.to_string_lossy());
             }
