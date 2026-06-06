@@ -192,6 +192,10 @@ impl ProgramBuild {
     pub fn has_successful_build(&self) -> bool {
         self.builds_by_device.values().any(|b| b.is_success())
     }
+
+    pub fn options(&self, dev: &Device) -> &CStr {
+        &self.dev_build(dev).options.raw_string
+    }
 }
 
 #[derive(Default)]
@@ -584,10 +588,6 @@ impl Program {
 
     pub fn bin_type(&self, dev: &Device) -> cl_program_binary_type {
         self.build_info().dev_build(dev).bin_type
-    }
-
-    pub fn options(&self, dev: &Device) -> CString {
-        self.build_info().dev_build(dev).options.raw_string.clone()
     }
 
     // we need to precalculate the size
