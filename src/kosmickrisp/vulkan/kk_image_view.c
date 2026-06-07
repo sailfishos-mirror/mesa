@@ -145,9 +145,6 @@ kk_image_view_init(struct kk_device *dev, struct kk_image_view *view,
           view->vk.view_type != VK_IMAGE_VIEW_TYPE_3D)
          mtl_handle = image->planes[image_plane].mtl_handle_array;
 
-      uint32_t image_layers = image->vk.array_layers;
-      uint32_t image_levels = image->vk.mip_levels;
-
       /* Block texel view requires subresource aliasing. We do it here to avoid
        * having to create a texture for every possible subresource up-front */
       if (util_format_is_compressed(plane->layout.format.pipe) &&
@@ -172,9 +169,9 @@ kk_image_view_init(struct kk_device *dev, struct kk_image_view *view,
 
          /* Adjust for new base texture pointing to subresource */
          view_layout.base_level = 0u;
-         view_layout.num_levels = image_levels = subres_layout.levels;
+         view_layout.num_levels = subres_layout.levels;
          view_layout.base_array_layer = 0u;
-         view_layout.array_len = image_layers = subres_layout.layers;
+         view_layout.array_len = subres_layout.layers;
       }
 
       if (view->vk.usage &
@@ -224,15 +221,12 @@ kk_image_view_init(struct kk_device *dev, struct kk_image_view *view,
                view->planes[view_plane].mtl_handle_input);
 
          /* Handle mutable formats */
+         view->planes[view_plane].render_is_view = requires_format_change;
          if (requires_format_change) {
             view_layout.view_type = original_type;
-            view_layout.base_array_layer = 0u;
-            view_layout.base_level = 0u;
-            view_layout.array_len = image_layers;
-            view_layout.num_levels = image_levels;
             view->planes[view_plane].mtl_handle_render =
                mtl_new_texture_view_with_no_swizzle(mtl_handle, &view_layout);
-         } else
+         } else /* Subresource indices will be set in attachment descriptor */
             view->planes[view_plane].mtl_handle_render = mtl_retain(mtl_handle);
       }
    }

@@ -110,10 +110,14 @@ kk_fill_common_attachment_description(
           1); /* TODO_KOSMICKRISP Handle multiplanar images? */
    mtl_render_pass_attachment_descriptor_set_texture(
       descriptor, iview->planes[0].mtl_handle_render);
-   mtl_render_pass_attachment_descriptor_set_level(descriptor,
-                                                   iview->vk.base_mip_level);
-   mtl_render_pass_attachment_descriptor_set_slice(descriptor,
-                                                   iview->vk.base_array_layer);
+   /* If a view is being used e.g. for format change, it already points to the
+    * required slice and level */
+   if (!iview->planes[0].render_is_view) {
+      mtl_render_pass_attachment_descriptor_set_level(descriptor,
+                                                      iview->vk.base_mip_level);
+      mtl_render_pass_attachment_descriptor_set_slice(
+         descriptor, iview->vk.base_array_layer);
+   }
    enum mtl_load_action load_action =
       force_attachment_load
          ? MTL_LOAD_ACTION_LOAD

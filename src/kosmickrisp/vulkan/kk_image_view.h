@@ -35,6 +35,7 @@ struct kk_image_view {
       /* Cached handle so we don't have to retrieve it from the image when we
        * render */
       mtl_texture *mtl_handle_render;
+      bool render_is_view;
 
       /* Input attachment handle. Required since input attachments needs to be
        * arrays, and sampled may not be */
