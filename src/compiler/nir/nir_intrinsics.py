@@ -1356,6 +1356,11 @@ load("kernel_input", [1], [BASE, RANGE, ALIGN_MUL, ALIGN_OFFSET], [CAN_ELIMINATE
 # src[] = { offset }.
 load("scratch", [1], [ACCESS, ALIGN_MUL, ALIGN_OFFSET], [CAN_ELIMINATE])
 
+# Read the current fragment's tile value for VK_EXT_shader_tile_image.
+# io_semantics.location selects the attachment, ACCESS carries ACCESS_COHERENT.
+# src[] = { offset, sample }
+load("tile_image", [1, 1], [COMPONENT, DEST_TYPE, IO_SEMANTICS, ACCESS], flags=[CAN_ELIMINATE])
+
 # Stores work the same way as loads, except now the first source is the value
 # to store and the second (and possibly third) source specify where to store
 # the value.  SSBO and shared memory stores also have a
