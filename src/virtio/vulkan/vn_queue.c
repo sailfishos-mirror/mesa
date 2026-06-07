@@ -1866,11 +1866,7 @@ vn_create_sync_file(struct vn_device *dev,
       batch.cs_size = vn_cs_encoder_get_len(&local_enc);
    }
 
-   const struct vn_renderer_submit submit = {
-      .batches = &batch,
-      .batch_count = 1,
-   };
-   result = vn_renderer_submit(dev->renderer, &submit);
+   result = vn_renderer_submit(dev->renderer, &batch);
    if (result != VK_SUCCESS) {
       vn_renderer_sync_destroy(dev->renderer, sync);
       return vn_error(dev->instance, result);

@@ -104,11 +104,6 @@ struct vn_renderer_submit_batch {
    uint32_t sync_count;
 };
 
-struct vn_renderer_submit {
-   const struct vn_renderer_submit_batch *batches;
-   uint32_t batch_count;
-};
-
 struct vn_renderer_wait {
    bool wait_any;
    uint64_t timeout;
@@ -124,7 +119,7 @@ struct vn_renderer_ops {
                    const VkAllocationCallbacks *alloc);
 
    VkResult (*submit)(struct vn_renderer *renderer,
-                      const struct vn_renderer_submit *submit);
+                      const struct vn_renderer_submit_batch *batch);
 
    /*
     * On success, returns VK_SUCCESS or VK_TIMEOUT.  On failure, returns
@@ -265,7 +260,7 @@ vn_renderer_destroy(struct vn_renderer *renderer,
 
 static inline VkResult
 vn_renderer_submit(struct vn_renderer *renderer,
-                   const struct vn_renderer_submit *submit)
+                   const struct vn_renderer_submit_batch *submit)
 {
    return renderer->ops.submit(renderer, submit);
 }

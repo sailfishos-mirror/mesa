@@ -484,36 +484,22 @@ sim_submit_signal_syncs(struct virtgpu *gpu,
 }
 
 static int
-sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit *submit)
+sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit_batch *batch)
 {
-   assert(submit->batch_count);
+   struct drm_virtgpu_execbuffer args = {
+      .flags = VIRTGPU_EXECBUF_RING_IDX |
+               (batch->sync_count ? VIRTGPU_EXECBUF_FENCE_FD_OUT : 0),
+      .size = batch->cs_size,
+      .command = (uintptr_t)batch->cs_data,
+      .ring_idx = batch->ring_idx,
+   };
 
-   int ret = 0;
-   for (uint32_t i = 0; i < submit->batch_count; i++) {
-      const struct vn_renderer_submit_batch *batch = &submit->batches[i];
-
-      struct drm_virtgpu_execbuffer args = {
-         .flags = VIRTGPU_EXECBUF_RING_IDX |
-                  (batch->sync_count ? VIRTGPU_EXECBUF_FENCE_FD_OUT : 0),
-         .size = batch->cs_size,
-         .command = (uintptr_t)batch->cs_data,
-         .ring_idx = batch->ring_idx,
-      };
-
-      ret = drmIoctl(gpu->fd, DRM_IOCTL_VIRTGPU_EXECBUFFER, &args);
-      if (ret) {
-         vn_log(gpu->instance, "failed to execbuffer: %s", strerror(errno));
-         break;
-      }
-
-      if (batch->sync_count) {
-         ret = sim_submit_signal_syncs(gpu, args.fence_fd, batch->syncs,
-                                       batch->sync_values, batch->sync_count,
-                                       batch->ring_idx == 0);
-         close(args.fence_fd);
-         if (ret)
-            break;
-      }
+   int ret = drmIoctl(gpu->fd, DRM_IOCTL_VIRTGPU_EXECBUFFER, &args);
+   if (!ret && batch->sync_count) {
+      ret = sim_submit_signal_syncs(gpu, args.fence_fd, batch->syncs,
+                                    batch->sync_values, batch->sync_count,
+                                    batch->ring_idx == 0);
+      close(args.fence_fd);
    }
 
    return ret;
@@ -882,10 +868,10 @@ virtgpu_ioctl_syncobj_timeline_wait(struct virtgpu *gpu,
 
 static int
 virtgpu_ioctl_submit(struct virtgpu *gpu,
-                     const struct vn_renderer_submit *submit)
+                     const struct vn_renderer_submit_batch *batch)
 {
 #ifdef SIMULATE_SUBMIT
-   return sim_submit(gpu, submit);
+   return sim_submit(gpu, batch);
 #endif
    return -1;
 }
@@ -1378,11 +1364,11 @@ virtgpu_wait(struct vn_renderer *renderer,
 
 static VkResult
 virtgpu_submit(struct vn_renderer *renderer,
-               const struct vn_renderer_submit *submit)
+               const struct vn_renderer_submit_batch *batch)
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
 
-   const int ret = virtgpu_ioctl_submit(gpu, submit);
+   const int ret = virtgpu_ioctl_submit(gpu, batch);
    return ret ? VK_ERROR_DEVICE_LOST : VK_SUCCESS;
 }
 
