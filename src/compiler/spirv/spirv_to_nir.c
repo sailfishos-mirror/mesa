@@ -195,6 +195,9 @@ static const struct spirv_capabilities implemented_capabilities = {
    .TextureBlockMatchQCOM = true,
    .TextureBoxFilterQCOM = true,
    .TextureSampleWeightedQCOM = true,
+   .TileImageColorReadAccessEXT = true,
+   .TileImageDepthReadAccessEXT = true,
+   .TileImageStencilReadAccessEXT = true,
    .TransformFeedback = true,
    .UniformAndStorageBuffer8BitAccess = true,
    .UniformBufferArrayDynamicIndexing = true,
@@ -2346,6 +2349,7 @@ vtn_handle_type(struct vtn_builder *b, SpvOp opcode,
       case SpvDimRect:     dim = GLSL_SAMPLER_DIM_RECT;  break;
       case SpvDimBuffer:   dim = GLSL_SAMPLER_DIM_BUF;   break;
       case SpvDimSubpassData: dim = GLSL_SAMPLER_DIM_SUBPASS; break;
+      case SpvDimTileImageDataEXT: dim = GLSL_SAMPLER_DIM_SUBPASS; break;
       default:
          vtn_fail("Invalid SPIR-V image dimensionality: %s (%u)",
                   spirv_dim_to_string((SpvDim)w[3]), w[3]);
@@ -4321,6 +4325,60 @@ get_image_coord(struct vtn_builder *b, uint32_t value)
 }
 
 static void
+vtn_handle_tile_image_read(struct vtn_builder *b, SpvOp opcode,
+                           const uint32_t *w, unsigned count)
+{
+   const struct glsl_type *type = vtn_get_type(b, w[1])->type;
+
+   gl_frag_result location;
+   nir_def *offset = nir_imm_int(&b->nb, 0);
+   bool non_coherent;
+   unsigned sample_arg;
+
+   if (opcode == SpvOpColorAttachmentReadEXT) {
+      /* Recover the Location from the variable; an array access
+       * adds the per-attachment offset.
+       */
+      nir_def *handle = vtn_get_nir_ssa(b, w[3]);
+      nir_deref_instr *deref = nir_def_as_deref(handle);
+      nir_variable *var = nir_deref_instr_get_variable(deref);
+
+      location = FRAG_RESULT_DATA0 + var->data.location;
+
+      if (deref->deref_type == nir_deref_type_array)
+         offset = deref->arr.index.ssa;
+
+      non_coherent = b->tile_image_color_non_coherent;
+      sample_arg = 4;
+   } else if (opcode == SpvOpDepthAttachmentReadEXT) {
+      location = FRAG_RESULT_DEPTH;
+      non_coherent = b->tile_image_depth_non_coherent;
+      sample_arg = 3;
+   } else {
+      assert(opcode == SpvOpStencilAttachmentReadEXT);
+      location = FRAG_RESULT_STENCIL;
+      non_coherent = b->tile_image_stencil_non_coherent;
+      sample_arg = 3;
+   }
+
+   /* If Sample is not specified, it is as if Sample has the value 0. */
+   nir_def *sample = count > sample_arg ? vtn_get_nir_ssa(b, w[sample_arg])
+                                        : nir_imm_int(&b->nb, 0);
+
+   nir_io_semantics sem = {
+      .location = location,
+      .num_slots = 1,
+   };
+
+   nir_def *res = nir_load_tile_image(
+      &b->nb, glsl_get_vector_elements(type), glsl_get_bit_size(type), offset,
+      sample, .dest_type = nir_get_nir_type_for_glsl_type(type),
+      .io_semantics = sem, .access = non_coherent ? 0 : ACCESS_COHERENT);
+
+   vtn_push_nir_ssa(b, w[2], res);
+}
+
+static void
 vtn_handle_image(struct vtn_builder *b, SpvOp opcode,
                  const uint32_t *w, unsigned count)
 {
@@ -5747,6 +5805,19 @@ vtn_handle_execution_mode(struct vtn_builder *b, struct vtn_value *entry_point,
       b->shader->info.fs.post_depth_coverage = true;
       break;
 
+   case SpvExecutionModeNonCoherentColorAttachmentReadEXT:
+      vtn_assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
+      b->tile_image_color_non_coherent = true;
+      break;
+   case SpvExecutionModeNonCoherentDepthAttachmentReadEXT:
+      vtn_assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
+      b->tile_image_depth_non_coherent = true;
+      break;
+   case SpvExecutionModeNonCoherentStencilAttachmentReadEXT:
+      vtn_assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
+      b->tile_image_stencil_non_coherent = true;
+      break;
+
    case SpvExecutionModeInvocations:
       vtn_assert(b->shader->info.stage == MESA_SHADER_GEOMETRY);
       b->shader->info.gs.invocations = MAX2(1, mode->operands[0]);
@@ -6912,6 +6983,12 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpImageQueryFormat:
    case SpvOpImageQueryOrder:
       vtn_handle_image(b, opcode, w, count);
+      break;
+
+   case SpvOpColorAttachmentReadEXT:
+   case SpvOpDepthAttachmentReadEXT:
+   case SpvOpStencilAttachmentReadEXT:
+      vtn_handle_tile_image_read(b, opcode, w, count);
       break;
 
    case SpvOpImageQueryLevels:

@@ -663,6 +663,11 @@ struct vtn_builder {
    struct spirv_capabilities supported_capabilities;
    struct spirv_capabilities enabled_capabilities;
 
+   /* VK_EXT_shader_tile_image NonCoherent*AttachmentReadEXT exec modes. */
+   bool tile_image_color_non_coherent;
+   bool tile_image_depth_non_coherent;
+   bool tile_image_stencil_non_coherent;
+
    /* True if we need to fix up CS OpControlBarrier */
    bool wa_glslang_cs_barrier;
 
