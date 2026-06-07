@@ -344,6 +344,7 @@ ForEachMacros:
   - jay_foreach_ra_src
   - jay_foreach_ra_file
   - jay_foreach_pipe
+  - jay_foreach_sbid_dep_type
 
 # Disable clang formatting by default. Drivers that use clang-format
 # inherit from this .clang-format file and re-enable formatting:
