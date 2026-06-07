@@ -5894,7 +5894,7 @@
         "description": "broadcom/compiler: fix payload-register liveness condition",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ce66c9aead9e26cb29b631e0ab317c7630719a6a",
         "notes": null
