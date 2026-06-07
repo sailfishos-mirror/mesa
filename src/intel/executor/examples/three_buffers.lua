@@ -6,6 +6,8 @@ bufA:set({ [1] = 0x40 })
 bufB:set({ [2] = 0x5 })
 
 execute [[
+  @param autoswsb
+
   @addr    r4      A 1
   @load    r5      r4
 

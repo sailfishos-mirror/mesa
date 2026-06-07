@@ -4,6 +4,7 @@ local total_lanes = hw_threads * 16
 local buf = alloc(total_lanes)
 
 execute(string.format([[
+    @param autoswsb
     @param hw_threads %d
     @param simd 16
     @id      r4

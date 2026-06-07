@@ -27,7 +27,9 @@ local buf = alloc(M * N, { fill = 0 })
 
 execute {
   src =
-    [[]]
+    [[@param autoswsb
+
+]]
     .. gen.mov_grf("hf", 10, A:to_row_major())
 
     -- For `src1`, the source representing the B matrix, DPAS expects
@@ -43,12 +45,12 @@ execute {
 
     .. (devinfo.ver >= 20 and [[
 
-    dpas.8x8 (16) r40:f r30:f r20:hf r10:hf {A@1,$1}
+    dpas.8x8 (16) r40:f r30:f r20:hf r10:hf
     @syncnop
 
     ]] or [[
 
-    dpas.8x8 (8) r40:f r30:f r20:hf r10:hf {A@1,$1}
+    dpas.8x8 (8) r40:f r30:f r20:hf r10:hf
     @syncnop
 
     ]])

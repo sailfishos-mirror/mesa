@@ -8,6 +8,8 @@ end
 local buf = alloc(4, { fill = 0 })
 
 execute [[
+    @param autoswsb
+
     // The new scalar register s0 has 32 bytes.
     //
     // Only MOV can have scalar as destination.  Offsets in scalar
@@ -17,12 +19,12 @@ execute [[
     mov (1)  s0.0:uw   0x1111:uw
 
     mov (1)  r5:uw     0x2222:uw
-    mov (1)  s0.2:uw   r5<0>:uw      {I@1}
+    mov (1)  s0.2:uw   r5<0>:uw
 
-    mov (1)  s0.4:ud   0x33333333:ud {I@1}
+    mov (1)  s0.4:ud   0x33333333:ud
 
     mov (4)  r4:uw     0x4444:uw
-    mov (1)  s0.8:uq   r4<0>:uq      {I@1}
+    mov (1)  s0.8:uq   r4<0>:uq
 
 
     // Scalar content can be broadcasted back into GRFs.
@@ -39,18 +41,18 @@ execute [[
     // And the scalar register is indexed as bytes in the send source.
 
     @addr    r11          buf0
-    mov (1)  s0.16:ud     0x0000140b:ud {I@1}
+    mov (1)  s0.16:ud     0x0000140b:ud
 
-    send.ugm (16) null r[s0.16] null:0 0x00000000 0x04000504 {I@1,$1}
+    send.ugm (16) null r[s0.16] null:0 0x00000000 0x04000504
 
 
     // A larger SEND, note that registers for the payload don't need to be
     // contiguous, the hardware will gather them together.
 
-    add (16) r11:ud    r11:ud 0x4:ud {A@1,$1.src}
+    add (16) r11:ud    r11:ud 0x4:ud
     mov (1)  s0.16:ud  0x4060200b:ud
 
-    send.ugm (16) null r[s0.16] null:0 0x00000000 0x08002504 {I@1,$1}
+    send.ugm (16) null r[s0.16] null:0 0x00000000 0x08002504
 
     @eot
 ]]

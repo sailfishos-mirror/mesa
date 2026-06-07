@@ -21,6 +21,8 @@ end
 local buf = alloc(data, { name = "buf", align = 4096 })
 
 execute [[
+    @param autoswsb
+
     // Surface size: 16 d32 elements per row, 16 rows.
     (W) mov (1) r10.0:ud 0x3f:ud         // width/pitch: 64 bytes - 1
     (W) mov (1) r10.1:ud 0xf:ud          // height: 16 rows - 1
@@ -28,27 +30,27 @@ execute [[
     // r80: source surface.
     (W) mov (8) r80<1>:ud 0x0:ud
     @addr r82 buf
-    (W) mov (1) r80.0:ud r82<0;1,0>:ud   {A@1} // base address low
-    (W) mov (1) r80.2:ud r10.0<0>:ud     {A@1}
-    (W) mov (1) r80.3:ud r10.1<0>:ud     {A@1}
-    (W) mov (1) r80.4:ud r10.0<0>:ud     {A@1} // pitch: 64 bytes - 1
+    (W) mov (1) r80.0:ud r82<0;1,0>:ud   // base address low
+    (W) mov (1) r80.2:ud r10.0<0>:ud
+    (W) mov (1) r80.3:ud r10.1<0>:ud
+    (W) mov (1) r80.4:ud r10.0<0>:ud     // pitch: 64 bytes - 1
     (W) mov (1) r80.7:ud 0x0707:ud       // 8x8 block, array len 1
 
     // r81: destination surface, block start (4, 2) set in the payload.
     (W) mov (8) r81<1>:ud 0x0:ud
     @addr r83 buf 256
-    (W) mov (1) r81.0:ud r83<0;1,0>:ud   {A@1}
-    (W) mov (1) r81.2:ud r10.0<0>:ud     {A@1}
-    (W) mov (1) r81.3:ud r10.1<0>:ud     {A@1}
-    (W) mov (1) r81.4:ud r10.0<0>:ud     {A@1} // pitch: 64 bytes - 1
+    (W) mov (1) r81.0:ud r83<0;1,0>:ud
+    (W) mov (1) r81.2:ud r10.0<0>:ud
+    (W) mov (1) r81.3:ud r10.1<0>:ud
+    (W) mov (1) r81.4:ud r10.0<0>:ud     // pitch: 64 bytes - 1
     (W) mov (1) r81.5:ud 0x4:ud          // block start X = 4 elements
     (W) mov (1) r81.6:ud 0x2:ud          // block start Y = 2 rows
     (W) mov (1) r81.7:ud 0x0707:ud
 
     // Load an 8x8 block at source offset (4, 2), then store it to r81's block.
-    (W) load_block2d.ugm.d32.a64 (1) r20:4 [r80:1 + (4, 2)] {I@1,$1}
-    (W) sync.nop (1) null                                   {$1.dst}
-    (W) store_block2d.ugm.d32.a64 (1) [r81:1] r20:4         {$2}
+    (W) load_block2d.ugm.d32.a64 (1) r20:4 [r80:1 + (4, 2)]
+    (W) sync.nop (1) null
+    (W) store_block2d.ugm.d32.a64 (1) [r81:1] r20:4
 
     @eot
 ]]

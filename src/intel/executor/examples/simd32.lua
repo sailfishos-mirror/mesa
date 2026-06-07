@@ -2,6 +2,7 @@ local buf = alloc(32)
 buf:fill(0)
 
 execute [[
+  @param autoswsb
   @param simd 32
 
   @id      r4

@@ -6,6 +6,8 @@ end
 local buf = alloc(data)
 
 execute [[
+    @param autoswsb
+
     @id    r2
     @addr  r3 buf0 r2
     @load  r4 r3

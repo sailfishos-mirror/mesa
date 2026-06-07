@@ -81,6 +81,7 @@ typedef struct {
    uint32_t hw_threads;
    uint32_t simd;
    uint32_t slm_size;
+   bool autoswsb;
 
    void *kernel_bin;
    uint32_t kernel_size;

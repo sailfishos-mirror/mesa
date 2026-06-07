@@ -209,13 +209,15 @@ local buf = alloc(output_size, { fill = 0 })
 
 execute {
   src =
-    [[]]
+    [[@param autoswsb
+
+]]
     .. gen.mov_grf(format_ab, 10, a:to_row_major())
     .. gen.mov_grf(format_ab, 20, b:to_interleaved_row_major(packing_factor))
     .. gen.mov_grf(format_cd, 30, c:to_row_major())
     .. string.format([[
 
-    dpas.8x8 (%d) r40:%s r30:%s r20:%s r10:%s {A@1,$1}
+    dpas.8x8 (%d) r40:%s r30:%s r20:%s r10:%s
     @syncnop
 
     ]], exec_size, format_cd, format_cd, format_ab, format_ab)

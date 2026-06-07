@@ -16,6 +16,8 @@ function BFI(a, b, c, d)
   buf:set({ [0] = a, b, c, d })
 
   execute [[
+      @param autoswsb
+
       @id   r9
       @addr r9  buf0 r9
 
@@ -29,8 +31,8 @@ function BFI(a, b, c, d)
       @load r4 r13
       @load r5 r14
 
-      bfi1 (8) r6      r2      r3              {A@1}
-      bfi2 (8) r7      r6      r4      r5      {A@1}
+      bfi1 (8) r6      r2      r3
+      bfi2 (8) r7      r6      r4      r5
 
       @store r9 r7
       @eot

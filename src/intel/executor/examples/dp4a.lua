@@ -28,13 +28,15 @@ end
 local buf = alloc(16)
 
 execute [[
+    @param autoswsb
+
     @id   r9
     @addr r8 buf0 r9
 
     @mov  r2  0x0102037F
     @mov  r3  50
 
-    dp4a (8) r4      r3      r2      r2      {A@1}
+    dp4a (8) r4      r3      r2      r2
 
     @store r8 r4
     @eot

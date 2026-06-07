@@ -106,7 +106,7 @@ print_help()
       "- @addr DST_REG MEM [DWORD_INDEX|REG]\n"
       "- @load DST_REG ADDR_REG\n"
       "- @store ADDR_REG SRC_REG\n"
-      "- @param hw_threads N, @param simd 8|16|32, @param slm_size BYTES\n"
+      "- @param hw_threads N, @param simd 8|16|32, @param slm_size BYTES, @param autoswsb\n"
       "\n"
       "PERFORMANCE COUNTERS:\n"
       "- --oa PROFILE[:COUNTER1,COUNTER2]\n"
@@ -1119,6 +1119,15 @@ handle_param_slm_size(executor_run *run, slice name, slice args)
 }
 
 static void
+handle_param_autoswsb(executor_run *run, slice name, slice args)
+{
+   if (!slice_is_empty(args))
+      failf("@param %.*s has extra arguments", SLICE_FMT(name));
+
+   run->autoswsb = true;
+}
+
+static void
 executor_parse_source_params(executor_run *run, slice src)
 {
    static const struct {
@@ -1128,6 +1137,7 @@ executor_parse_source_params(executor_run *run, slice src)
       { "hw_threads", handle_param_hw_threads },
       { "simd",       handle_param_simd },
       { "slm_size",   handle_param_slm_size },
+      { "autoswsb",   handle_param_autoswsb },
    };
 
    slice rest = src;
@@ -1513,6 +1523,125 @@ executor_print_gen_program(executor_context *ec,
 }
 
 static bool
+inst_has_type(const struct intel_device_info *devinfo,
+              const gen_inst *inst, gen_reg_type type)
+{
+   if (inst->dst.file != GEN_BAD_FILE && inst->dst.type == type)
+      return true;
+
+   const unsigned num_sources = gen_inst_num_sources(devinfo, inst);
+   for (unsigned i = 0; i < num_sources; i++) {
+      if (inst->src[i].type == type)
+         return true;
+   }
+
+   return false;
+}
+
+static bool
+inst_is_unordered(const struct intel_device_info *devinfo,
+                           const gen_inst *inst)
+{
+   return gen_inst_is_send(inst) ||
+          (devinfo->ver < 20 && inst->opcode == GEN_OP_MATH) ||
+          inst->opcode == GEN_OP_DPAS ||
+          (devinfo->has_64bit_float_via_math_pipe &&
+           inst_has_type(devinfo, inst, GEN_TYPE_DF));
+}
+
+static void
+adjust_autoswsb_branch(gen_inst *inst, int old_ip, int new_ip,
+                                const int *old_to_new, int num_old_insts,
+                                int src_idx)
+{
+   if (src_idx < 0 || inst->src[src_idx].file != GEN_IMM)
+      return;
+
+   const int32_t old_rel = (int32_t)inst->src[src_idx].imm;
+   if (old_rel % 16 != 0)
+      return;
+
+   const int old_target = old_ip + old_rel / 16;
+   if (old_target < 0 || old_target > num_old_insts)
+      return;
+
+   const int32_t new_rel = (old_to_new[old_target] - new_ip) * 16;
+   inst->src[src_idx].imm = (uint32_t)new_rel;
+}
+
+static void
+apply_autoswsb(executor_context *ec, gen_parse_params *parse)
+{
+   if (ec->devinfo->ver < 12)
+      return;
+
+   int extra_syncs = 0;
+   for (int i = 0; i < parse->num_insts; i++) {
+      const gen_inst *inst = &parse->insts[i];
+      if (inst_is_unordered(ec->devinfo, inst) &&
+          !(gen_inst_is_send(inst) && inst->send.eot) &&
+          !(inst->swsb.regdist || inst->swsb.mode))
+         extra_syncs++;
+   }
+
+   gen_inst *insts = ralloc_array(parse->mem_ctx, gen_inst,
+                                  parse->num_insts + extra_syncs);
+   int *old_to_new = ralloc_array(parse->mem_ctx, int, parse->num_insts + 1);
+
+   int new_count = 0;
+   for (int i = 0; i < parse->num_insts; i++) {
+      gen_inst inst = parse->insts[i];
+      const bool has_swsb = inst.swsb.regdist || inst.swsb.mode;
+      const bool is_eot_send = gen_inst_is_send(&inst) && inst.send.eot;
+      const bool is_unordered = inst_is_unordered(ec->devinfo, &inst) &&
+                                !is_eot_send;
+
+      old_to_new[i] = new_count;
+
+      if (!has_swsb) {
+         if (is_unordered) {
+            inst.swsb = gen_swsb_dst_dep(gen_swsb_sbid(GEN_SBID_SET, 0), 1);
+         } else {
+            inst.swsb = gen_swsb_regdist(1);
+         }
+      }
+
+      insts[new_count++] = inst;
+
+      if (is_unordered && !has_swsb) {
+         gen_inst sync = {
+            .opcode = GEN_OP_SYNC,
+            .exec_size = 1,
+            .no_mask = true,
+            .swsb = gen_swsb_sbid(GEN_SBID_DST, 0),
+         };
+
+         sync.sync.func = GEN_SYNC_NOP;
+         sync.dst = gen_null();
+         sync.src[0] = gen_null();
+
+         insts[new_count++] = sync;
+      }
+   }
+   old_to_new[parse->num_insts] = new_count;
+
+   for (int i = 0; i < parse->num_insts; i++) {
+      const int new_ip = old_to_new[i];
+      gen_inst *inst = &insts[new_ip];
+
+      adjust_autoswsb_branch(inst, i, new_ip, old_to_new,
+                                      parse->num_insts,
+                                      gen_inst_jip_src_index(inst->opcode));
+      adjust_autoswsb_branch(inst, i, new_ip, old_to_new,
+                                      parse->num_insts,
+                                      gen_inst_uip_src_index(inst->opcode));
+   }
+
+   parse->insts = insts;
+   parse->num_insts = new_count;
+}
+
+static bool
 executor_assemble(executor_run *run, const char *src)
 {
    executor_context *ec = run->ec;
@@ -1537,6 +1666,9 @@ executor_assemble(executor_run *run, const char *src)
       fprintf(stderr, "no instructions to assemble\n");
       return false;
    }
+
+   if (run->autoswsb)
+      apply_autoswsb(ec, &parse);
 
    if (!gen_finish_structured_cf(parse.insts, parse.num_insts, -1)) {
       executor_print_gen_program(ec, parse.insts, parse.num_insts, NULL, 0);

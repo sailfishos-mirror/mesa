@@ -16,7 +16,7 @@ local mov_ub = function(grf, values)
     local dword_idx = (i-1) // 4
     local nr = dword_idx // GRF_SLOTS
     local off = dword_idx % GRF_SLOTS
-    s = s .. string.format("mov (1) r%d.%d 0x%x {A@1}\n", grf + nr, off, packed)
+    s = s .. string.format("mov (1) r%d.%d 0x%x\n", grf + nr, off, packed)
   end
   return s
 end
@@ -42,7 +42,7 @@ M.mov_grf = function(fmt, grf, values)
   for i, v in ipairs(values) do
     nr = (i-1) // (GRF_SLOTS * packing)
     off = (i-1) % (GRF_SLOTS * packing)
-    s = s .. string.format("mov (1) r%d.%d:%s 0x%x:%s {A@1}\n",
+    s = s .. string.format("mov (1) r%d.%d:%s 0x%x:%s\n",
                            grf + nr, off, dst_type, v, imm_type)
   end
 
@@ -57,7 +57,7 @@ M.write_grfs = function(grf, count, mem)
     s = s .. string.format([[
     @addr    r119       %s r118
     @store   r119       r%d
-    add (%d) r118 r118 %d {A@1}
+    add (%d) r118 r118 %d
     ]], mem, grf + i - 1, width, GRF_SLOTS)
   end
   return s
