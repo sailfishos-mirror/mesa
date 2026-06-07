@@ -6594,7 +6594,7 @@
         "description": "ethosu/mlw_codec: silence -Wunused-const-variable in vendored encoder",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d66d2c05d3f041156b3a922f0cad53b6e2309a05",
         "notes": null
