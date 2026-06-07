@@ -208,6 +208,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_shader_stencil_export = true,
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
+      .EXT_shader_tile_image = PAN_ARCH >= 9,
       .EXT_shader_uniform_buffer_unsized_array = true,
       .EXT_subgroup_size_control = has_vk1_1,
 #ifdef PANVK_USE_WSI_PLATFORM
@@ -605,6 +606,11 @@ panvk_per_arch(get_physical_device_features)(
       .robustBufferAccess2 = PAN_ARCH >= 11,
       .robustImageAccess2 = false,
       .nullDescriptor = PAN_ARCH >= 10,
+
+      /* VK_EXT_shader_tile_image */
+      .shaderTileImageColorReadAccess = PAN_ARCH >= 9,
+      .shaderTileImageDepthReadAccess = PAN_ARCH >= 9,
+      .shaderTileImageStencilReadAccess = PAN_ARCH >= 9,
 
       /* VK_KHR_shader_clock */
       .shaderSubgroupClock = device->kmod.dev->props.gpu_can_query_timestamp,
@@ -1243,6 +1249,11 @@ panvk_per_arch(get_physical_device_properties)(
       /* VK_EXT_provoking_vertex */
       .provokingVertexModePerPipeline = false,
       .transformFeedbackPreservesTriangleFanProvokingVertex = false,
+
+      /* VK_EXT_shader_tile_image */
+      .shaderTileImageCoherentReadAccelerated = PAN_ARCH >= 9,
+      .shaderTileImageReadSampleFromPixelRateInvocation = PAN_ARCH >= 9,
+      .shaderTileImageReadFromHelperInvocation = PAN_ARCH >= 9,
 
       /* VK_ANDROID_native_buffer */
       .sharedImage = vk_android_get_front_buffer_usage() != 0,

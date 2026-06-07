@@ -39,3 +39,4 @@ GL_OES_texture_float on etnaviv/HALF_FLOAT
 GL_ARB_texture_float on etnaviv/HALF_FLOAT
 VK_NVX_binary_import on NVK
 VK_EXT_image_sliced_view_of_3d on panvk
+VK_EXT_shader_tile_image on panvk
