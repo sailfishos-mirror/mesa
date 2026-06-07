@@ -2033,6 +2033,13 @@ msl_preprocess_nir(struct nir_shader *nir)
    NIR_PASS(_, nir, nir_lower_vars_to_ssa);
    NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 
+   nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo |
+                               nir_move_load_input | nir_move_load_frag_coord |
+                               nir_move_comparisons | nir_move_copies |
+                               nir_move_load_ssbo | nir_move_alu;
+   NIR_PASS(_, nir, nir_opt_sink, move_all);
+   NIR_PASS(_, nir, nir_opt_move, move_all);
+
    /* lower_system_values needs to go before is_helper_invocation since it will
     * generate discards. */
    NIR_PASS(_, nir, nir_lower_system_values);
