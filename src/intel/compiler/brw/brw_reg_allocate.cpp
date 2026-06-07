@@ -11,6 +11,10 @@
 #include "util/set.h"
 #include "util/register_allocate.h"
 
+#include <algorithm>
+#include <tuple>
+#include <vector>
+
 static void
 assign_reg(const struct intel_device_info *devinfo,
            unsigned *reg_hw_locations, brw_reg *reg)
@@ -258,8 +262,11 @@ public:
       spill_vgrf_ip_alloc = 0;
       spill_node_count = 0;
 
-      fs->last_logical_scratch = fs->last_scratch;
-
+      /* Manually managed scratch space (e.g. NIR scratch) is not used for
+       * spilling.
+       */
+      spill_scratch_base = fs->last_scratch;
+      fs->last_logical_scratch = spill_scratch_base;
       eot_reg = -1;
    }
 
@@ -304,6 +311,8 @@ private:
    void set_spill_costs();
    int choose_spill_reg();
    brw_reg alloc_spill_reg(unsigned size, int ip);
+   void record_spill_slot(unsigned spill_reg, unsigned offset, unsigned size);
+   spill_scratch_slot alloc_spill_scratch(unsigned spill_reg);
    void spill_reg(unsigned spill_reg);
 
    void *mem_ctx;
@@ -333,6 +342,16 @@ private:
    int *spill_vgrf_ip;
    int spill_vgrf_ip_alloc;
    int spill_node_count;
+
+   /* Scratch byte ranges assigned to spilled VGRFs. */
+   struct spill_scratch_assignment {
+      unsigned vgrf;
+      unsigned offset;
+      unsigned size;
+   };
+
+   unsigned spill_scratch_base;
+   std::vector<spill_scratch_assignment> spill_scratch;
 };
 
 namespace {
@@ -1142,20 +1161,85 @@ brw_reg_alloc::alloc_spill_reg(unsigned size, int ip)
 }
 
 void
+brw_reg_alloc::record_spill_slot(unsigned spill_reg, unsigned offset,
+                                 unsigned size)
+{
+   ASSERTED const unsigned align_B = REG_SIZE * reg_unit(devinfo);
+   assert(align(offset, 16) == offset); /* oword read/write req. */
+   assert(offset >= spill_scratch_base);
+   assert((offset - spill_scratch_base) % align_B == 0);
+   assert(size % align_B == 0);
+
+   const spill_scratch_assignment assignment = { spill_reg, offset, size };
+   const auto insert = std::lower_bound(spill_scratch.begin(),
+                                        spill_scratch.end(),
+                                        assignment,
+                                        [](const auto &a, const auto &b) {
+      return std::tie(a.offset, a.size, a.vgrf) <
+             std::tie(b.offset, b.size, b.vgrf);
+   });
+
+   spill_scratch.insert(insert, assignment);
+}
+
+/* Pick the scratch byte range for a spilled VGRF.  A spill slot only needs
+ * to hold a VGRF while that VGRF is live, so spilled VGRFs with disjoint live
+ * ranges can share storage.
+ *
+ * Keep assignments sorted by offset and scan them in order to find the first
+ * gap among assignments whose VGRFs interfere with this VGRF.
+ */
+brw_reg_alloc::spill_scratch_slot
+brw_reg_alloc::alloc_spill_scratch(unsigned spill_reg)
+{
+   const unsigned size = align(fs->alloc.sizes[spill_reg] * REG_SIZE,
+                               REG_SIZE * reg_unit(devinfo));
+   ASSERTED const unsigned align_B = REG_SIZE * reg_unit(devinfo);
+
+   /* Spill/fill temporaries are not chosen for spilling. */
+   assert(spill_reg < (unsigned)live.num_vgrfs);
+
+   /* Find the first offset where the new slot does not overlap any
+    * interfering assignment.  The array is sorted by offset.
+    */
+   unsigned offset = spill_scratch_base;
+   assert(align(offset, 16) == offset); /* oword read/write req. */
+   for (const spill_scratch_assignment &a : spill_scratch) {
+      if (offset + size <= a.offset)
+         break;
+
+      if (a.offset + a.size <= offset)
+         continue;
+
+      if (!live.vgrfs_interfere(spill_reg, a.vgrf))
+         continue;
+
+      offset = a.offset + a.size;
+   }
+
+   assert(align(offset, 16) == offset); /* oword read/write req. */
+   assert(offset >= spill_scratch_base);
+   assert((offset - spill_scratch_base) % align_B == 0);
+   fs->last_scratch = MAX2(fs->last_scratch, offset + size);
+
+   const unsigned logical_offset = fs->last_logical_scratch;
+   assert(logical_offset % REG_SIZE == 0);
+   assert(logical_offset >= spill_scratch_base);
+   assert((logical_offset - spill_scratch_base) % align_B == 0);
+   fs->last_logical_scratch = logical_offset + size;
+
+   record_spill_slot(spill_reg, offset, size);
+   return { offset, logical_offset };
+}
+
+void
 brw_reg_alloc::spill_reg(unsigned spill_reg)
 {
-   int size = fs->alloc.sizes[spill_reg];
-   const spill_scratch_slot spill_slot = { fs->last_scratch,
-                                           fs->last_logical_scratch };
+   const spill_scratch_slot spill_slot = alloc_spill_scratch(spill_reg);
    /* oword read/write req. */
    assert(align(spill_slot.offset, 16) == spill_slot.offset);
 
    fs->spilled_any_registers = true;
-
-   const unsigned scratch_size = align(size * REG_SIZE,
-                                       REG_SIZE * reg_unit(devinfo));
-   fs->last_scratch += scratch_size;
-   fs->last_logical_scratch += scratch_size;
 
    /* We're about to replace all uses of this register.  It no longer
     * conflicts with anything so we can get rid of its interference.
