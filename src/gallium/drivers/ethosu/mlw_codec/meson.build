@@ -14,6 +14,7 @@ files_mlw_codec = files(
 mlw_codec_cpp_args = cpp.get_supported_arguments(
   '-Wno-unused-but-set-variable',
   '-Wno-sign-compare',
+  '-Wno-unused-const-variable',
 )
 
 libmlw_codec = static_library(
