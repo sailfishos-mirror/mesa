@@ -481,6 +481,8 @@ color_attachment_read_mask(const struct panvk_shader_variant *fs,
       }
    }
 
+   catt_read_mask |= fs->fs.tile_image_color_read & color_attachment_mask;
+
    return catt_read_mask;
 }
 
@@ -493,7 +495,8 @@ z_attachment_read(const struct panvk_shader_variant *fs,
                          : ial->depth_att != MESA_VK_ATTACHMENT_UNUSED
                             ? BITFIELD_BIT(ial->depth_att + 1)
                             : 0;
-   return depth_mask & fs->fs.input_attachment_read;
+   return (depth_mask & fs->fs.input_attachment_read) ||
+          fs->fs.tile_image_z_read;
 }
 
 static inline bool
@@ -506,7 +509,8 @@ s_attachment_read(const struct panvk_shader_variant *fs,
                               ? BITFIELD_BIT(ial->stencil_att + 1)
                               : 0;
 
-   return stencil_mask & fs->fs.input_attachment_read;
+   return (stencil_mask & fs->fs.input_attachment_read) ||
+          fs->fs.tile_image_s_read;
 }
 
 #if PAN_ARCH >= 10

@@ -392,6 +392,9 @@ struct panvk_shader_variant {
       struct {
          struct pan_earlyzs_lut earlyzs_lut;
          uint32_t input_attachment_read;
+         uint32_t tile_image_color_read;
+         bool tile_image_z_read;
+         bool tile_image_s_read;
       } fs;
    };
 

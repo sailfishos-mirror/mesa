@@ -214,6 +214,12 @@ panvk_as_free(struct panvk_device *device, struct util_vma_heap *heap,
    simple_mtx_unlock(&device->as.lock);
 }
 
+struct nir_shader;
+
+bool panvk_nir_lower_tile_image(struct nir_shader *nir,
+                                uint32_t *color_read_out, bool *z_read_out,
+                                bool *s_read_out);
+
 #if PAN_ARCH
 VkResult
 panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,

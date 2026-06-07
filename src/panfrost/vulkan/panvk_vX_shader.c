@@ -1451,6 +1451,11 @@ panvk_compile_shader(struct panvk_device *dev,
       NIR_PASS(_, nir, panvk_per_arch(nir_lower_input_attachment_loads),
                state, &variant->fs.input_attachment_read);
 
+      NIR_PASS(_, nir, panvk_nir_lower_tile_image,
+               &variant->fs.tile_image_color_read,
+               &variant->fs.tile_image_z_read,
+               &variant->fs.tile_image_s_read);
+
       /* Lower input intrinsics for fragment shaders early to get the max
        * number of varying loads, as this number is required during descriptor
        * lowering for v9+.
@@ -1782,6 +1787,12 @@ panvk_deserialize_shader_variant(struct vk_device *vk_dev,
       shader->fs.earlyzs_lut = pan_earlyzs_analyze(&shader->info, PAN_ARCH);
       blob_copy_bytes(blob, &shader->fs.input_attachment_read,
                       sizeof(shader->fs.input_attachment_read));
+      blob_copy_bytes(blob, &shader->fs.tile_image_color_read,
+                      sizeof(shader->fs.tile_image_color_read));
+      blob_copy_bytes(blob, &shader->fs.tile_image_z_read,
+                      sizeof(shader->fs.tile_image_z_read));
+      blob_copy_bytes(blob, &shader->fs.tile_image_s_read,
+                      sizeof(shader->fs.tile_image_s_read));
       break;
 
    default:
@@ -1923,6 +1934,12 @@ panvk_shader_serialize_variant(struct vk_device *vk_dev,
    case MESA_SHADER_FRAGMENT:
       blob_write_bytes(blob, &shader->fs.input_attachment_read,
                        sizeof(shader->fs.input_attachment_read));
+      blob_write_bytes(blob, &shader->fs.tile_image_color_read,
+                       sizeof(shader->fs.tile_image_color_read));
+      blob_write_bytes(blob, &shader->fs.tile_image_z_read,
+                       sizeof(shader->fs.tile_image_z_read));
+      blob_write_bytes(blob, &shader->fs.tile_image_s_read,
+                       sizeof(shader->fs.tile_image_s_read));
       break;
 
    default:
