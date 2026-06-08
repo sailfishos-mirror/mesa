@@ -362,6 +362,11 @@ bool si_init_sqtt(struct si_context *sctx)
 
    sctx->sqtt_next_event = EventInvalid;
    sctx->sqtt_cb_id = 0;
+   sctx->sqtt_device_id = ((uint64_t)sctx->screen->info.pci.domain << 48) |
+                          ((uint64_t)sctx->screen->info.pci.bus << 40)    |
+                          ((uint64_t)sctx->screen->info.pci.dev << 35)    |
+                          ((uint64_t)sctx->screen->info.pci.func << 32)   |
+                          ((uint64_t)sctx->screen->info.pci_id);
 
    return true;
 }
