@@ -128,7 +128,7 @@ radv_compile_cs(const struct radv_compiler_info *compiler_info, struct radv_shad
 
    /* Dump NIR after nir_to_asm, because ACO modifies it. */
    char *nir_string = NULL;
-   if (cs_stage->key.keep_executable_info || dbg->dump_shader)
+   if (cs_stage->key.keep_executable_info)
       nir_string = radv_dump_nir_shaders(compiler_info, &cs_stage->nir, 1);
 
    radv_parse_binary_debug_info(compiler_info, cs_binary, dbg);

@@ -499,7 +499,7 @@ radv_rt_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_r
    *binary = radv_shader_nir_to_asm(compiler_info, stage, shaders, num_shaders, NULL);
 
    /* Dump NIR after nir_to_asm, because ACO modifies it. */
-   if (stage->key.keep_executable_info || debug->dump_shader)
+   if (stage->key.keep_executable_info)
       debug->nir_string = radv_dump_nir_shaders(compiler_info, shaders, num_shaders);
 
    radv_parse_binary_debug_info(compiler_info, *binary, debug);

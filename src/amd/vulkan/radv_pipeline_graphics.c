@@ -2113,7 +2113,7 @@ radv_create_gs_copy_shader(const struct radv_compiler_info *compiler_info, struc
       radv_shader_nir_to_asm(compiler_info, &gs_copy_stage, &nir, 1, &key.gfx_state);
 
    char *nir_string = NULL;
-   if (gs_copy_stage.key.keep_executable_info || gs_copy_debug->dump_shader)
+   if (gs_copy_stage.key.keep_executable_info)
       nir_string = radv_dump_nir_shaders(compiler_info, &nir, 1);
 
    radv_parse_binary_debug_info(compiler_info, gs_copy_binary, gs_copy_debug);
@@ -2179,7 +2179,7 @@ radv_graphics_shaders_nir_to_asm(const struct radv_compiler_info *compiler_info,
 
       /* Dump NIR after nir_to_asm, because ACO modifies it. */
       char *nir_string = NULL;
-      if (stages[s].key.keep_executable_info || debug[s].dump_shader)
+      if (stages[s].key.keep_executable_info)
          nir_string = radv_dump_nir_shaders(compiler_info, nir_shaders, shader_count);
 
       radv_parse_binary_debug_info(compiler_info, binaries[s], &debug[s]);
