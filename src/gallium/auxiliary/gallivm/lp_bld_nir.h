@@ -75,6 +75,9 @@ void
 lp_build_opt_nir(struct nir_shader *nir);
 
 bool
+lp_nir_lower_if_float_cond(struct nir_shader *shader);
+
+bool
 lp_nir_lower_ubo_vec4(struct nir_shader *shader);
 
 bool

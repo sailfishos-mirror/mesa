@@ -8,6 +8,63 @@
 #include "nir_builder.h"
 
 static bool
+lower_if_float_cond(nir_builder *b, nir_if *nif)
+{
+   nir_def *cond = nif->condition.ssa;
+   if (cond->bit_size != 32)
+      return false;
+
+   b->cursor = nir_before_src(&nif->condition);
+   nir_src_rewrite(&nif->condition, nir_fneu_imm(b, cond, 0.0));
+   return true;
+}
+
+static bool
+lower_if_float_cond_cf_list(nir_builder *b, struct exec_list *cf_list)
+{
+   bool progress = false;
+
+   foreach_list_typed(nir_cf_node, node, node, cf_list) {
+      switch (node->type) {
+      case nir_cf_node_if: {
+         nir_if *nif = nir_cf_node_as_if(node);
+         progress |= lower_if_float_cond(b, nif);
+         progress |= lower_if_float_cond_cf_list(b, &nif->then_list);
+         progress |= lower_if_float_cond_cf_list(b, &nif->else_list);
+         break;
+      }
+      case nir_cf_node_loop: {
+         nir_loop *loop = nir_cf_node_as_loop(node);
+         progress |= lower_if_float_cond_cf_list(b, &loop->body);
+         progress |= lower_if_float_cond_cf_list(b, &loop->continue_list);
+         break;
+      }
+      default:
+         break;
+      }
+   }
+
+   return progress;
+}
+
+/* nir_lower_bool_to_float leaves f32 0.0/1.0 values used as if conditions.
+ * Convert those if conditions back to booleans for gallivm.
+ */
+bool
+lp_nir_lower_if_float_cond(nir_shader *shader)
+{
+   bool progress = false;
+
+   nir_foreach_function_impl(impl, shader) {
+      nir_builder b = nir_builder_create(impl);
+      progress |= nir_progress(lower_if_float_cond_cf_list(&b, &impl->body),
+                               impl, nir_metadata_control_flow);
+   }
+
+   return progress;
+}
+
+static bool
 lower_ubo_vec4_instr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 {
    if (intr->intrinsic != nir_intrinsic_load_ubo_vec4)
