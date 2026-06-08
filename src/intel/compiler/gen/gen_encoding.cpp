@@ -560,6 +560,10 @@ struct gen_encoder {
       this->raw = raw;
       this->desc = &E::gen_to_description[inst->opcode];
 
+      /* Assert that this opcode is supported by this platform */
+      assert(inst->opcode == GEN_OP_ILLEGAL ||
+             this->desc->gen_op != GEN_OP_ILLEGAL);
+
       memset(raw, 0, sizeof(gen_raw_inst));
 
       assert(!inst->align16);
