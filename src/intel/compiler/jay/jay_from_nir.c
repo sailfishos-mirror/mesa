@@ -847,6 +847,8 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    const bool null_rt = ((signed) nir_intrinsic_target(intr)) < 0;
    const int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
    const bool last = !nir_instr_next(&intr->instr);
+   const bool coarse =
+      nj->s->prog_data->fs.coarse_pixel_dispatch == INTEL_ALWAYS;
 
    /* The hardware freaks out if we give it an omask without multisampling. */
    if (!b->shader->prog_data->fs.uses_omask) {
@@ -872,8 +874,7 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                     XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :
                     BRW_DATAPORT_RENDER_TARGET_WRITE_SIMD16_SINGLE_SOURCE;
 
-   uint64_t desc =
-      brw_fb_write_desc(devinfo, target, op, last, false /* coarse write */);
+   uint64_t desc = brw_fb_write_desc(devinfo, target, op, last, coarse);
 
    uint64_t ex_desc = (target << 21) |
                       (null_rt ? (1 << 20) : 0) |
@@ -928,7 +929,8 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 
    jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
-            .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
+            .msg_desc = desc | (ex_desc << 32),
+            .desc = nj->payload.fs.is_coarse, .srcs = srcs, .nr_srcs = len,
             .type = JAY_TYPE_U32, .eot = last, .split = split,
             .skip_helpers = true);
 }
