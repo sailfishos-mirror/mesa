@@ -18,6 +18,8 @@
 #include "ac_sqtt.h"
 
 #define SI_SQTT_TIMESTAMP_SIZE   8
+#define SI_SQTT_QUEUE_GRAPHICS   1
+#define SI_SQTT_QUEUE_COMPUTE    2
 
 static void
 si_emit_spi_config_cntl(struct si_context *sctx,
@@ -48,6 +50,30 @@ static bool si_sqtt_init_bo(struct si_context *sctx)
       return false;
 
    sctx->sqtt->buffer_va = si_resource(sctx->sqtt->bo)->gpu_address;
+
+   return true;
+}
+
+static bool si_sqtt_add_queue_info_record(struct si_context *sctx)
+{
+   struct rgp_queue_info *queue_info = &sctx->sqtt->rgp_queue_info;
+   struct rgp_queue_info_record *record;
+
+   record = calloc(1, sizeof(*record));
+   if (!record)
+      return false;
+
+   record->queue_id = (uintptr_t)sctx;
+   record->queue_context = (uintptr_t)sctx->ctx;
+   record->hardware_info.engine_type = sctx->is_gfx_queue ? SQTT_ENGINE_TYPE_UNIVERSAL
+                                                          : SQTT_ENGINE_TYPE_COMPUTE;
+   record->hardware_info.queue_type = sctx->is_gfx_queue ? SQTT_QUEUE_TYPE_UNIVERSAL
+                                                         : SQTT_QUEUE_TYPE_COMPUTE;
+
+   simple_mtx_lock(&queue_info->lock);
+   list_addtail(&record->list, &queue_info->record);
+   queue_info->record_count++;
+   simple_mtx_unlock(&queue_info->lock);
 
    return true;
 }
@@ -359,6 +385,8 @@ bool si_init_sqtt(struct si_context *sctx)
    }
 
    si_sqtt_init_cs(sctx);
+   if (!si_sqtt_add_queue_info_record(sctx))
+      mesa_loge("Failed to add queue info record");
 
    sctx->sqtt_next_event = EventInvalid;
    sctx->sqtt_cb_id = 0;
@@ -373,6 +401,17 @@ bool si_init_sqtt(struct si_context *sctx)
 
 static void si_sqtt_reset_queue_state(struct si_context *sctx)
 {
+   struct rgp_queue_event *queue_event = &sctx->sqtt->rgp_queue_event;
+
+   simple_mtx_lock(&queue_event->lock);
+   list_for_each_entry_safe (struct rgp_queue_event_record, record,
+                             &queue_event->record, list) {
+      list_del(&record->list);
+      queue_event->record_count--;
+      free(record);
+   }
+   simple_mtx_unlock(&queue_event->lock);
+
    list_for_each_entry_safe (struct si_sqtt_timestamp, timestamp,
                              &sctx->sqtt_timestamp.list, list) {
       si_resource_reference(&timestamp->bo, NULL);
@@ -401,6 +440,7 @@ void si_destroy_sqtt(struct si_context *sctx)
       &sctx->sqtt->rgp_pso_correlation;
    struct rgp_loader_events *loader_events = &sctx->sqtt->rgp_loader_events;
    struct rgp_code_object *code_object = &sctx->sqtt->rgp_code_object;
+   struct rgp_queue_info *queue_info = &sctx->sqtt->rgp_queue_info;
    list_for_each_entry_safe (struct rgp_pso_correlation_record, record,
                              &pso_correlation->record, list) {
       list_del(&record->list);
@@ -412,6 +452,13 @@ void si_destroy_sqtt(struct si_context *sctx)
                              &loader_events->record, list) {
       list_del(&record->list);
       loader_events->record_count--;
+      free(record);
+   }
+
+   list_for_each_entry_safe (struct rgp_queue_info_record, record,
+                             &queue_info->record, list) {
+      list_del(&record->list);
+      queue_info->record_count--;
       free(record);
    }
 
@@ -861,4 +908,116 @@ void si_sqtt_describe_pipeline_bind(struct si_context *sctx,
    marker.api_pso_hash[1] = pipeline_hash >> 32;
 
    si_emit_sqtt_userdata(sctx, cs, &marker, sizeof(marker) / 4);
+}
+
+void si_sqtt_describe_begin(struct si_context *sctx, struct radeon_cmdbuf *rcs)
+{
+   enum amd_ip_type ip_type = sctx->ws->cs_get_ip_type(rcs);
+   
+   if (!sctx->sqtt)
+      return;
+
+   unsigned bo_size = sctx->sqtt_timestamp.bo ? sctx->sqtt_timestamp.bo->bo_size : 0;
+
+   if (sctx->sqtt_timestamp.offset + 2 * SI_SQTT_TIMESTAMP_SIZE > bo_size) {
+      uint8_t *map;
+      uint64_t new_size;
+      new_size = MAX2(4096, 2 * bo_size);
+
+      struct si_resource *ts_bo = NULL;
+      ts_bo = si_aligned_buffer_create(&sctx->screen->b, SI_RESOURCE_FLAG_DRIVER_INTERNAL,
+                                       PIPE_USAGE_STAGING, new_size, 4096);
+
+      if (!ts_bo) {
+         mesa_loge("Failed to create a timestamp buffer for SQTT.");
+         goto fail;
+      }
+
+      map = si_buffer_map(sctx, ts_bo, PIPE_MAP_READ);
+      if (!map) {
+         si_resource_reference(&ts_bo, NULL);
+         mesa_loge("Failed to map the timestamp buffer for SQTT.");
+         goto fail;
+      }
+
+      if (sctx->sqtt_timestamp.bo) {
+         struct si_sqtt_timestamp *new_timestamp;
+
+         new_timestamp = malloc(sizeof(*new_timestamp));
+         if (!new_timestamp) {
+            si_resource_reference(&ts_bo, NULL);
+            goto fail;
+         }
+
+         memcpy(new_timestamp, &sctx->sqtt_timestamp, sizeof(*new_timestamp));
+         list_add(&new_timestamp->list, &sctx->sqtt_timestamp.list);
+      }
+
+      sctx->sqtt_timestamp.bo = ts_bo;
+      sctx->sqtt_timestamp.offset = 0;
+      sctx->sqtt_timestamp.map = map;
+   }
+
+   si_emit_ts(sctx, sctx->sqtt_timestamp.bo, sctx->sqtt_timestamp.offset);
+
+   union rgp_sqtt_marker_cb_id cb_id = ac_sqtt_get_next_cmdbuf_id(sctx->sqtt, ip_type);
+   sctx->sqtt_cb_id = cb_id.all;
+
+   struct rgp_sqtt_marker_cb_start marker = {0};
+   marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_CB_START;
+   marker.cb_id = sctx->sqtt_cb_id;
+   marker.device_id_low = sctx->sqtt_device_id;
+   marker.device_id_high = sctx->sqtt_device_id >> 32;
+   marker.queue_flags = SI_SQTT_QUEUE_COMPUTE;
+   if (sctx->is_gfx_queue)
+      marker.queue_flags |= SI_SQTT_QUEUE_GRAPHICS;
+
+   si_emit_sqtt_userdata(sctx, &sctx->gfx_cs, &marker, sizeof(marker) / 4);
+   return;
+
+fail:
+   sctx->sqtt_cb_id = 0;
+   return;
+}
+
+void si_sqtt_describe_flush(struct si_context *sctx)
+{
+   if (!sctx->sqtt || !sctx->sqtt_cb_id)
+      return;
+
+   struct rgp_queue_event *queue_event = &sctx->sqtt->rgp_queue_event;
+   struct rgp_queue_event_record *record;
+
+   unsigned pre_offset = sctx->sqtt_timestamp.offset;
+   unsigned post_offset = pre_offset + SI_SQTT_TIMESTAMP_SIZE;
+
+   sctx->sqtt_timestamp.offset = post_offset + SI_SQTT_TIMESTAMP_SIZE;
+   si_emit_ts(sctx, sctx->sqtt_timestamp.bo, post_offset);
+
+   struct rgp_sqtt_marker_cb_end marker = {0};
+   marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_CB_END;
+   marker.cb_id = sctx->sqtt_cb_id;
+   marker.device_id_low = sctx->sqtt_device_id;
+   marker.device_id_high = sctx->sqtt_device_id >> 32;
+   si_emit_sqtt_userdata(sctx, &sctx->gfx_cs, &marker, sizeof(marker) / 4);
+
+   record = calloc(1, sizeof(*record));
+   if (!record)
+      return;
+
+   simple_mtx_lock(&queue_event->lock);
+
+   record->event_type = SQTT_QUEUE_TIMING_EVENT_CMDBUF_SUBMIT;
+   record->sqtt_cb_id = sctx->sqtt_cb_id;
+   record->cpu_timestamp = os_time_get_nano();
+   record->gpu_timestamps[0] = (uint64_t *)(sctx->sqtt_timestamp.map + pre_offset);
+   record->gpu_timestamps[1] = (uint64_t *)(sctx->sqtt_timestamp.map + post_offset);
+   record->frame_index = num_frames;
+   record->api_id = queue_event->record_count;
+   record->queue_info_index = 0;
+   record->submit_sub_index = 0;
+
+   list_addtail(&record->list, &queue_event->record);
+   queue_event->record_count++;
+   simple_mtx_unlock(&queue_event->lock);
 }
