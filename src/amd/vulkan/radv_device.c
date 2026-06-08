@@ -1220,6 +1220,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             .tex_non_uniform = instance->drirc.debug.tex_non_uniform,
             .lower_terminate_to_discard = instance->drirc.debug.lower_terminate_to_discard,
             .no_implicit_varying_subgroup_size = instance->drirc.debug.no_implicit_varying_subgroup_size,
+            .nir_debug_info = !!(instance->debug_flags & RADV_DEBUG_NIR_DEBUG_INFO),
             .force_aniso = device->force_aniso,
             /* Use CHIP_UNKNOWN for increased compatiblity between caches. */
             .family = pdev->use_llvm ? pdev->info.family : CHIP_UNKNOWN,
@@ -1240,7 +1241,6 @@ radv_device_init_compiler_info(struct radv_device *device)
             .dump_asm = !!(instance->debug_flags & RADV_DEBUG_DUMP_ASM),
             .dump_meta_shaders = !!(instance->debug_flags & RADV_DEBUG_DUMP_META_SHADERS),
             .dump_shader_stats = !!(instance->debug_flags & RADV_DEBUG_DUMP_SHADER_STATS),
-            .nir_debug_info = !!(instance->debug_flags & RADV_DEBUG_NIR_DEBUG_INFO),
             .dump_shaders = dump_shaders,
             .check_ir = !!(instance->debug_flags & RADV_DEBUG_CHECKIR),
             .printf_enabled = !!device->debug_nir.printf.buffer_addr,

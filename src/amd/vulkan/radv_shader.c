@@ -518,7 +518,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
                .lower_terminate_to_discard = compiler_info->key.lower_terminate_to_discard,
             },
          .emit_debug_break = compiler_info->debug.trap_enabled,
-         .debug_info = compiler_info->debug.nir_debug_info,
+         .debug_info = compiler_info->key.nir_debug_info,
          .printf = compiler_info->debug.printf_enabled,
          .sampler_descriptor_size = compiler_info->sampler_descriptor_size,
          .sampler_descriptor_alignment = compiler_info->sampler_descriptor_alignment,
@@ -3295,7 +3295,7 @@ radv_gather_nir_debug_info(struct nir_shader *const *shaders, int shader_count)
 char *
 radv_dump_nir_shaders(const struct radv_compiler_info *compiler_info, struct nir_shader *const *shaders, int shader_count)
 {
-   if (compiler_info->debug.nir_debug_info)
+   if (compiler_info->key.nir_debug_info)
       return radv_gather_nir_debug_info(shaders, shader_count);
 
    char *data = NULL;
