@@ -10,6 +10,7 @@ mod flow;
 mod ir;
 mod isa;
 mod lower_16bit;
+mod lower_copy;
 mod message_slots;
 mod model;
 mod nir;

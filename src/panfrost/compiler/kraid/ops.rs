@@ -59,6 +59,55 @@ impl fmt::Display for OpBranch {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [I8, V2I8, V4I8, I16, V2I16, I32, I64])]
+pub struct OpCopy {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub src: Src,
+}
+
+impl fmt::Display for OpCopy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = COPY.{} {}",
+            &self.dst,
+            self.dst_type,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+impl VirtualOpcode for OpCopy {
+    fn src_supports_imm32(&self, _src: &Src) -> bool {
+        true
+    }
+
+    fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
+        match self.dst_type.bits() {
+            8 => matches!(
+                swizzle,
+                Swizzle::B0000
+                    | Swizzle::B1111
+                    | Swizzle::B2222
+                    | Swizzle::B3333
+            ),
+            16 => matches!(swizzle, Swizzle::H00 | Swizzle::H11),
+            _ => swizzle == Swizzle::NONE,
+        }
+    }
+
+    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+        match self.dst_type.total_bits() {
+            8 => lanes.is_byte(),
+            16 => lanes.is_half(),
+            _ => lanes == DstLanes::All,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(cmp_type in [F32, S32, U32, V2F16, V2S16, V2U16])]
 pub struct OpCSel {
     #[dst_type(VNIN)]
@@ -555,7 +604,7 @@ impl VirtualOpcode for OpMkVecV4I8 {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [I16, I32])]
+#[variants(dst_type in [I16, V2I16, I32])]
 pub struct OpMov {
     pub dst: Dst,
     pub dst_type: DataType,
@@ -708,6 +757,7 @@ impl fmt::Display for OpStore {
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     Branch(Box<OpBranch>),
+    Copy(Box<OpCopy>),
     CSel(Box<OpCSel>),
     F16ToF32(Box<OpF16ToF32>),
     F32ToF16(Box<OpF32ToF16>),
@@ -736,6 +786,7 @@ const _: () = {
 impl Op {
     pub fn as_virtual(&self) -> Option<&dyn VirtualOpcode> {
         match self {
+            Op::Copy(op) => Some(op.as_ref()),
             Op::MkVecV2I8(op) => Some(op.as_ref()),
             Op::MkVecV4I8(op) => Some(op.as_ref()),
             _ => None,

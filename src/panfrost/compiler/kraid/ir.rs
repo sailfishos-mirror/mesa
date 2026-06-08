@@ -15,7 +15,7 @@ use compiler::smallvec::*;
 
 use std::fmt;
 use std::num::NonZeroU32;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Range};
 
 pub struct SmallConstant {
     pub idx: u8,
@@ -178,6 +178,20 @@ impl fmt::Display for SrcRef {
 }
 
 impl SrcRef {
+    pub fn as_ssa(&self) -> Option<&SSARef> {
+        match self {
+            SrcRef::SSA(ssa) => Some(ssa),
+            _ => None,
+        }
+    }
+
+    pub fn as_reg(&self) -> Option<&RegRef> {
+        match self {
+            SrcRef::Reg(reg) => Some(reg),
+            _ => None,
+        }
+    }
+
     /// Returns the number of bytes read
     pub fn bytes_read(&self) -> u8 {
         match self {
@@ -455,6 +469,20 @@ impl fmt::Display for DstRef {
 }
 
 impl DstRef {
+    pub fn as_ssa(&self) -> Option<&SSARef> {
+        match self {
+            DstRef::SSA(ssa) => Some(ssa),
+            _ => None,
+        }
+    }
+
+    pub fn as_reg(&self) -> Option<&RegRef> {
+        match self {
+            DstRef::Reg(reg) => Some(reg),
+            _ => None,
+        }
+    }
+
     pub fn bytes_written(&self) -> u8 {
         match self {
             DstRef::None => 0,
@@ -582,6 +610,36 @@ impl DstLanes {
 
     pub fn is_half(&self) -> bool {
         self.bytes(4) == 2
+    }
+
+    pub fn u32_mask(&self) -> Option<u32> {
+        match self {
+            DstLanes::None => Some(0),
+            DstLanes::All => Some(!0_u32),
+            DstLanes::AnyB => None,
+            DstLanes::AnyH => None,
+            DstLanes::B0 => Some(0x000000ff),
+            DstLanes::B1 => Some(0x0000ff00),
+            DstLanes::B2 => Some(0x00ff0000),
+            DstLanes::B3 => Some(0xff000000),
+            DstLanes::H0 => Some(0x0000ffff),
+            DstLanes::H1 => Some(0xffff0000),
+        }
+    }
+
+    pub fn as_byte_range(&self) -> Option<Range<u8>> {
+        match self {
+            DstLanes::None => Some(0..0),
+            DstLanes::All => Some(0..4),
+            DstLanes::AnyB => None,
+            DstLanes::AnyH => None,
+            DstLanes::B0 => Some(0..1),
+            DstLanes::B1 => Some(1..2),
+            DstLanes::B2 => Some(2..3),
+            DstLanes::B3 => Some(3..4),
+            DstLanes::H0 => Some(0..2),
+            DstLanes::H1 => Some(2..4),
+        }
     }
 }
 
