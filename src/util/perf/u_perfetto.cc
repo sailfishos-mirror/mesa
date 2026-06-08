@@ -193,6 +193,12 @@ class UtilPerfettoObserver : public perfetto::TrackEventSessionObserver {
     */
 };
 
+void
+util_perfetto_thread_flush(void)
+{
+   perfetto::TrackEvent::Flush();
+}
+
 static void
 util_perfetto_fini(void)
 {
