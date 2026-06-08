@@ -17,6 +17,8 @@
 #include "ac_rgp.h"
 #include "ac_sqtt.h"
 
+#define SI_SQTT_TIMESTAMP_SIZE   8
+
 static void
 si_emit_spi_config_cntl(struct si_context *sctx,
                         struct radeon_cmdbuf *cs, bool enable);
@@ -309,6 +311,8 @@ bool si_init_sqtt(struct si_context *sctx)
 
    sctx->sqtt = CALLOC_STRUCT(ac_sqtt);
 
+   list_inithead(&sctx->sqtt_timestamp.list);
+
    if (sctx->gfx_level < GFX8) {
       mesa_loge("GPU hardware not supported: refer to "
                 "the RGP documentation for the list of "
@@ -362,6 +366,19 @@ bool si_init_sqtt(struct si_context *sctx)
    return true;
 }
 
+static void si_sqtt_reset_queue_state(struct si_context *sctx)
+{
+   list_for_each_entry_safe (struct si_sqtt_timestamp, timestamp,
+                             &sctx->sqtt_timestamp.list, list) {
+      si_resource_reference(&timestamp->bo, NULL);
+      list_del(&timestamp->list);
+      free(timestamp);
+   }
+
+   sctx->sqtt_timestamp.offset = 0;
+   sctx->sqtt_cb_id = 0;
+}
+
 void si_destroy_sqtt(struct si_context *sctx)
 {
    struct si_screen *sscreen = sctx->screen;
@@ -408,7 +425,10 @@ void si_destroy_sqtt(struct si_context *sctx)
       code_object->record_count--;
    }
 
+   si_sqtt_reset_queue_state(sctx);
    ac_sqtt_finish(sctx->sqtt);
+
+   si_resource_reference(&sctx->sqtt_timestamp.bo, NULL);
 
    hash_table_foreach (&sctx->sqtt->pipeline_bos->table, entry) {
       struct si_sqtt_fake_pipeline *pipeline =
@@ -501,6 +521,7 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
          si_begin_sqtt(sctx, rcs);
          sctx->sqtt_enabled = true;
       }
+      si_sqtt_reset_queue_state(sctx);
    }
 
    num_frames++;
