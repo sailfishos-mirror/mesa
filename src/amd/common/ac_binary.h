@@ -43,6 +43,10 @@ unsigned ac_align_shader_binary_for_prefetch(enum amd_gfx_level gfx_level,
                                              unsigned prefetch_distance,
                                              unsigned size);
 
+unsigned ac_get_instr_prefetch_size(enum amd_gfx_level gfx_level,
+                                    unsigned prefetch_distance,
+                                    unsigned size);
+
 #ifdef __cplusplus
 }
 #endif
