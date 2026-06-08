@@ -83,6 +83,8 @@ lp_nir_lower_ubo_vec4(struct nir_shader *shader);
 bool
 lp_nir_no_integer_intrinsic_fixup(struct nir_shader *shader);
 
+bool
+lp_nir_no_integer_lowering(struct nir_shader *shader);
 
 static inline LLVMValueRef
 lp_nir_array_build_gather_values(LLVMBuilderRef builder,
