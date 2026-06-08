@@ -584,7 +584,7 @@
         "description": "nir: Fix trailing comment generation for variable naming",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ea863c0c1ccbc26ad6f9e1e6fbc834ebcd85bc3c",
         "notes": null
