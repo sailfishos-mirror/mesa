@@ -3003,6 +3003,11 @@ radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info, con
       struct radv_shader_binary_legacy *bin = (struct radv_shader_binary_legacy *)binary;
       struct radv_shader_binary_layout layout = radv_shader_binary_get_layout(bin);
 
+      if (bin->stats_size) {
+         dbg->statistics = calloc(bin->stats_size, 1);
+         memcpy(dbg->statistics, layout.stats, bin->stats_size);
+      }
+
       dbg->ir_string = bin->ir_size ? strdup(layout.ir) : NULL;
       dbg->disasm_string = bin->disasm_size ? strdup(layout.disasm) : NULL;
 
@@ -3056,13 +3061,8 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
 #endif
    } else {
       struct radv_shader_binary_legacy *bin = (struct radv_shader_binary_legacy *)binary;
-      struct radv_shader_binary_layout layout = radv_shader_binary_get_layout(bin);
       shader->code_size = bin->code_size;
       shader->exec_size = bin->exec_size;
-      if (bin->stats_size) {
-         shader->dbg.statistics = calloc(bin->stats_size, 1);
-         memcpy(shader->dbg.statistics, layout.stats, bin->stats_size);
-      }
    }
 
    if (replay_block) {
