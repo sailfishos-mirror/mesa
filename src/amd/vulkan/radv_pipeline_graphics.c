@@ -2057,7 +2057,6 @@ radv_declare_pipeline_args(const struct radv_compiler_info *compiler_info, struc
 static struct radv_shader_binary *
 radv_create_gs_copy_shader(const struct radv_compiler_info *compiler_info, struct vk_pipeline_cache *cache,
                            struct radv_shader_stage *gs_stage, const struct radv_graphics_state_key *gfx_state,
-                           bool keep_executable_info, bool keep_statistic_info,
                            struct radv_shader_debug_info *gs_copy_debug)
 {
 
@@ -2073,6 +2072,8 @@ radv_create_gs_copy_shader(const struct radv_compiler_info *compiler_info, struc
       .key =
          {
             .optimisations_disabled = gs_stage->key.optimisations_disabled,
+            .keep_statistic_info = gs_stage->key.keep_statistic_info,
+            .keep_executable_info = gs_stage->key.keep_executable_info,
          },
    };
    radv_nir_shader_info_init(gs_copy_stage.stage, MESA_SHADER_FRAGMENT, &gs_copy_stage.info);
@@ -2108,11 +2109,11 @@ radv_create_gs_copy_shader(const struct radv_compiler_info *compiler_info, struc
    if (gs_copy_debug->dump_shader)
       simple_mtx_lock(compiler_info->debug.shader_dump_mtx);
 
-   struct radv_shader_binary *gs_copy_binary = radv_shader_nir_to_asm(
-      compiler_info, &gs_copy_stage, &nir, 1, &key.gfx_state, keep_executable_info, keep_statistic_info);
+   struct radv_shader_binary *gs_copy_binary =
+      radv_shader_nir_to_asm(compiler_info, &gs_copy_stage, &nir, 1, &key.gfx_state);
 
    char *nir_string = NULL;
-   if (keep_executable_info || gs_copy_debug->dump_shader)
+   if (gs_copy_stage.key.keep_executable_info || gs_copy_debug->dump_shader)
       nir_string = radv_dump_nir_shaders(compiler_info, &nir, 1);
 
    radv_parse_binary_debug_info(compiler_info, gs_copy_binary, gs_copy_debug);
@@ -2129,7 +2130,6 @@ radv_create_gs_copy_shader(const struct radv_compiler_info *compiler_info, struc
 static void
 radv_graphics_shaders_nir_to_asm(const struct radv_compiler_info *compiler_info, struct vk_pipeline_cache *cache,
                                  struct radv_shader_stage *stages, const struct radv_graphics_state_key *gfx_state,
-                                 bool keep_executable_info, bool keep_statistic_info,
                                  VkShaderStageFlagBits active_nir_stages, struct radv_shader_debug_info *debug,
                                  struct radv_shader_binary **binaries, struct radv_shader_debug_info *gs_copy_debug,
                                  struct radv_shader_binary **gs_copy_binary)
@@ -2175,12 +2175,11 @@ radv_graphics_shaders_nir_to_asm(const struct radv_compiler_info *compiler_info,
          }
       }
 
-      binaries[s] = radv_shader_nir_to_asm(compiler_info, &stages[s], nir_shaders, shader_count, gfx_state,
-                                           keep_executable_info, keep_statistic_info);
+      binaries[s] = radv_shader_nir_to_asm(compiler_info, &stages[s], nir_shaders, shader_count, gfx_state);
 
       /* Dump NIR after nir_to_asm, because ACO modifies it. */
       char *nir_string = NULL;
-      if (keep_executable_info || debug[s].dump_shader)
+      if (stages[s].key.keep_executable_info || debug[s].dump_shader)
          nir_string = radv_dump_nir_shaders(compiler_info, nir_shaders, shader_count);
 
       radv_parse_binary_debug_info(compiler_info, binaries[s], &debug[s]);
@@ -2193,15 +2192,15 @@ radv_graphics_shaders_nir_to_asm(const struct radv_compiler_info *compiler_info,
       if (debug[s].dump_shader)
          simple_mtx_unlock(compiler_info->debug.shader_dump_mtx);
 
-      if (keep_executable_info && stages[s].spirv.size) {
+      if (stages[s].key.keep_executable_info && stages[s].spirv.size) {
          debug[s].spirv = malloc(stages[s].spirv.size);
          memcpy(debug[s].spirv, stages[s].spirv.data, stages[s].spirv.size);
          debug[s].spirv_size = stages[s].spirv.size;
       }
 
       if (s == MESA_SHADER_GEOMETRY && !stages[s].info.is_ngg) {
-         *gs_copy_binary = radv_create_gs_copy_shader(compiler_info, cache, &stages[MESA_SHADER_GEOMETRY], gfx_state,
-                                                      keep_executable_info, keep_statistic_info, gs_copy_debug);
+         *gs_copy_binary =
+            radv_create_gs_copy_shader(compiler_info, cache, &stages[MESA_SHADER_GEOMETRY], gfx_state, gs_copy_debug);
       }
 
       stages[s].feedback.duration += os_time_get_nano() - stage_start;
@@ -2407,8 +2406,7 @@ radv_skip_graphics_pipeline_compile(const struct radv_device *device, const VkGr
 void
 radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, struct vk_pipeline_cache *cache,
                               struct radv_shader_stage *stages, const struct radv_graphics_state_key *gfx_state,
-                              bool keep_executable_info, bool keep_statistic_info, bool is_internal,
-                              struct radv_retained_shaders *retained_shaders, bool noop_fs,
+                              bool is_internal, struct radv_retained_shaders *retained_shaders, bool noop_fs,
                               struct radv_shader_debug_info *debug, struct radv_shader_binary **binaries,
                               struct radv_shader_debug_info *gs_copy_debug, struct radv_shader_binary **gs_copy_binary)
 {
@@ -2714,8 +2712,8 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       radv_get_legacy_gs_info(compiler_info, NULL, &stages[MESA_SHADER_GEOMETRY].info);
 
    /* Compile NIR shaders to AMD assembly. */
-   radv_graphics_shaders_nir_to_asm(compiler_info, cache, stages, gfx_state, keep_executable_info, keep_statistic_info,
-                                    active_nir_stages, debug, binaries, gs_copy_debug, gs_copy_binary);
+   radv_graphics_shaders_nir_to_asm(compiler_info, cache, stages, gfx_state, active_nir_stages, debug, binaries,
+                                    gs_copy_debug, gs_copy_binary);
 }
 
 void
@@ -2882,8 +2880,6 @@ radv_graphics_pipeline_compile(struct radv_graphics_pipeline *pipeline, const Vk
    const struct radv_compiler_info *compiler_info = &device->compiler_info;
    struct radv_shader_binary *binaries[MESA_VULKAN_SHADER_STAGES] = {NULL};
    struct radv_shader_binary *gs_copy_binary = NULL;
-   bool keep_executable_info = radv_pipeline_capture_shaders(compiler_info, pipeline->base.create_flags);
-   bool keep_statistic_info = radv_pipeline_capture_shader_stats(compiler_info, pipeline->base.create_flags);
    bool skip_shaders_cache = radv_pipeline_skip_shaders_cache(device, &pipeline->base);
    struct radv_shader_stage *stages = gfx_state->stages;
    const VkPipelineCreationFeedbackCreateInfo *creation_feedback =
@@ -2963,9 +2959,8 @@ radv_graphics_pipeline_compile(struct radv_graphics_pipeline *pipeline, const Vk
 
    struct radv_shader_debug_info debug[MESA_VULKAN_SHADER_STAGES] = {0};
    struct radv_shader_debug_info gs_copy_debug = {0};
-   radv_graphics_shaders_compile(compiler_info, cache, stages, &gfx_state->key.gfx_state, keep_executable_info,
-                                 keep_statistic_info, pipeline->base.is_internal, retained_shaders, noop_fs, debug,
-                                 binaries, &gs_copy_debug, &gs_copy_binary);
+   radv_graphics_shaders_compile(compiler_info, cache, stages, &gfx_state->key.gfx_state, pipeline->base.is_internal,
+                                 retained_shaders, noop_fs, debug, binaries, &gs_copy_debug, &gs_copy_binary);
    radv_graphics_shaders_create(device, cache, skip_shaders_cache, pipeline->base.shaders, binaries, debug,
                                 &pipeline->base.gs_copy_shader, gs_copy_binary, &gs_copy_debug);
 

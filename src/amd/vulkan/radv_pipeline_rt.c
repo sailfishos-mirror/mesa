@@ -81,6 +81,11 @@ radv_generate_rt_shaders_key(const struct radv_device *device, const VkRayTracin
 {
    VkPipelineCreateFlags2 create_flags = vk_rt_pipeline_create_flags(pCreateInfo);
 
+   stage_keys[MESA_SHADER_INTERSECTION].keep_statistic_info =
+      radv_pipeline_capture_shader_stats(&device->compiler_info, create_flags);
+   stage_keys[MESA_SHADER_INTERSECTION].keep_executable_info =
+      radv_pipeline_capture_shaders(&device->compiler_info, create_flags);
+
    for (uint32_t i = 0; i < pCreateInfo->stageCount; i++) {
       const VkPipelineShaderStageCreateInfo *stage = &pCreateInfo->pStages[i];
       mesa_shader_stage s = vk_to_mesa_shader_stage(stage->stage);
@@ -376,8 +381,7 @@ radv_rt_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_r
                    enum radv_rt_lowering_mode mode, struct radv_shader_stage *stage, uint32_t *payload_size,
                    uint32_t *hit_attrib_size, struct radv_ray_tracing_stage_info *stage_info,
                    const struct radv_ray_tracing_stage_info *traversal_stage_info, bool has_position_fetch,
-                   struct radv_shader_binary **binary, bool keep_executable_info, bool keep_statistic_info,
-                   struct radv_shader_debug_info *debug)
+                   struct radv_shader_binary **binary, struct radv_shader_debug_info *debug)
 {
    switch (mode) {
    case RADV_RT_LOWERING_MODE_MONOLITHIC:
@@ -492,11 +496,10 @@ radv_rt_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_r
    }
 
    /* Compile NIR shader to AMD assembly. */
-   *binary = radv_shader_nir_to_asm(compiler_info, stage, shaders, num_shaders, NULL, keep_executable_info,
-                                    keep_statistic_info);
+   *binary = radv_shader_nir_to_asm(compiler_info, stage, shaders, num_shaders, NULL);
 
    /* Dump NIR after nir_to_asm, because ACO modifies it. */
-   if (keep_executable_info || debug->dump_shader)
+   if (stage->key.keep_executable_info || debug->dump_shader)
       debug->nir_string = radv_dump_nir_shaders(compiler_info, shaders, num_shaders);
 
    radv_parse_binary_debug_info(compiler_info, *binary, debug);
@@ -504,7 +507,7 @@ radv_rt_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_r
 
    radv_shader_dump_asm(compiler_info, debug, &stage->info);
 
-   if (keep_executable_info && stage->spirv.size) {
+   if (stage->key.keep_executable_info && stage->spirv.size) {
       debug->spirv = malloc(stage->spirv.size);
       memcpy(debug->spirv, stage->spirv.data, stage->spirv.size);
       debug->spirv_size = stage->spirv.size;
@@ -526,8 +529,6 @@ radv_rt_compile_nir(struct radv_device *device, struct vk_pipeline_cache *cache,
                     bool has_position_fetch, struct radv_shader **out_shader)
 {
    const struct radv_compiler_info *compiler_info = &device->compiler_info;
-   bool keep_executable_info = radv_pipeline_capture_shaders(compiler_info, pipeline->base.base.create_flags);
-   bool keep_statistic_info = radv_pipeline_capture_shader_stats(compiler_info, pipeline->base.base.create_flags);
    bool replayable = (pipeline->base.base.create_flags &
                       VK_PIPELINE_CREATE_2_RAY_TRACING_SHADER_GROUP_HANDLE_CAPTURE_REPLAY_BIT_KHR) &&
                      !radv_is_traversal_shader(stage->nir);
@@ -535,8 +536,7 @@ radv_rt_compile_nir(struct radv_device *device, struct vk_pipeline_cache *cache,
    struct radv_shader_binary *binary;
    struct radv_shader_debug_info debug = {0};
    radv_rt_nir_to_asm(compiler_info, pipeline, mode, stage, payload_size, hit_attrib_size, stage_info,
-                      traversal_stage_info, has_position_fetch, &binary, keep_executable_info, keep_statistic_info,
-                      &debug);
+                      traversal_stage_info, has_position_fetch, &binary, &debug);
 
    struct radv_shader *shader;
    if (replay_block || replayable) {

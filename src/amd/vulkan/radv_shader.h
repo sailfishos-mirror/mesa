@@ -662,8 +662,7 @@ VkResult radv_shader_create_uncached(struct radv_device *device, const struct ra
 
 struct radv_shader_binary *radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info,
                                                   struct radv_shader_stage *pl_stage, struct nir_shader *const *shaders,
-                                                  int shader_count, const struct radv_graphics_state_key *gfx_state,
-                                                  bool keep_shader_info, bool keep_statistic_info);
+                                                  int shader_count, const struct radv_graphics_state_key *gfx_state);
 
 void radv_shader_dump_asm(const struct radv_compiler_info *compiler_info, const struct radv_shader_debug_info *debug,
                           const struct radv_shader_info *info);
