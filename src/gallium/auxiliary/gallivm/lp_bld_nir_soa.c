@@ -3694,7 +3694,7 @@ visit_alu(struct lp_build_nir_soa_context *bld,
        instr->op == nir_op_vec16) {
       for (unsigned i = 0; i < nir_op_infos[instr->op].num_inputs; i++) {
          result[i] = cast_type(bld, src[i],
-                               nir_op_infos[instr->op].input_types[i],
+                               nir_alu_type_get_base_type(nir_op_infos[instr->op].input_types[i]),
                                src_bit_size[i]);
       }
    } else {
@@ -3711,12 +3711,12 @@ visit_alu(struct lp_build_nir_soa_context *bld,
                src_chan[i] = src[i];
             }
             src_chan[i] = cast_type(bld, src_chan[i],
-                                    nir_op_infos[instr->op].input_types[i],
+                                    nir_alu_type_get_base_type(nir_op_infos[instr->op].input_types[i]),
                                     src_bit_size[i]);
          }
          result[c] = do_alu_action(bld, instr, src_bit_size, src_chan);
          result[c] = cast_type(bld, result[c],
-                               nir_op_infos[instr->op].output_type,
+                               nir_alu_type_get_base_type(nir_op_infos[instr->op].output_type),
                                instr->def.bit_size);
       }
    }
