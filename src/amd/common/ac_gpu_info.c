@@ -1610,6 +1610,9 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->pcie_gen = device_info.pcie_gen;
    info->pcie_num_lanes = device_info.pcie_num_lanes;
 
+   info->instr_prefetch_distance = !info->has_graphics && info->family >= CHIP_MI200 ? 16 :
+                                    info->gfx_level >= GFX10 ? 3 : 0;
+
    /* Source: https://en.wikipedia.org/wiki/PCI_Express#History_and_revisions */
    switch (info->pcie_gen) {
    case 1:

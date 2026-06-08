@@ -130,12 +130,7 @@ unsigned ac_align_shader_binary_for_prefetch(const struct radeon_info *info, uns
     * boundaries, but (1) needs to be addressed. Due to buffer
     * suballocation, we just play it safe.
     */
-   unsigned prefetch_distance = 0;
-
-   if (!info->has_graphics && info->family >= CHIP_MI200)
-      prefetch_distance = 16;
-   else if (info->gfx_level >= GFX10)
-      prefetch_distance = 3;
+   unsigned prefetch_distance = info->instr_prefetch_distance;
 
    if (prefetch_distance) {
       if (info->gfx_level >= GFX11)
