@@ -921,10 +921,7 @@ calc_render_descs_size(struct panvk_cmd_buffer *cmdbuf)
    static_assert(
       PAN_ARCH < 14 || MAX_FRAMEBUFFER_LAYERS <= MAX_LAYERS_PER_TILER_DESC,
       "MAX_FRAMEBUFFER_LAYERS must be <= max amount of layers a Tiler descriptor can index");
-   static_assert(
-      PAN_ARCH < 14 ||
-         PAN_MAX_MULTIVIEW_VIEW_COUNT <= MAX_LAYERS_PER_TILER_DESC,
-      "PAN_MAX_MULTIVIEW_VIEW_COUNT must be <= max amount of layers a Tiler descriptor can index");
+   assert(pan_max_multiview_view_count(PAN_ARCH) <= MAX_LAYERS_PER_TILER_DESC);
 
    return (calc_fbd_size(cmdbuf) * fbd_count) +
           (td_count * pan_size(TILER_CONTEXT));
@@ -2783,8 +2780,9 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
     * re-using one of the word that's flagged 'ignored' in the descriptor
     * (word 14:23).
     *
-    * Multiview is limited to 8 layers, and so will always fit in one TD.
-    * Therefore layered rendering is allowed with multiview. */
+    * Multiview layer count is always lower or equal than the amount of
+    * layers one TD can fit. Therefore, layered rendering is allowed with
+    * multiview. */
    assert(cmdbuf->state.gfx.render.layer_count <= 1 ||
           cmdbuf->state.gfx.render.view_mask);
 
