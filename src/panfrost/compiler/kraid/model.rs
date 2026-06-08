@@ -40,11 +40,19 @@ impl Model for ValhallModel {
     }
 
     fn op_is_message(&self, op: &Op) -> bool {
-        v9_op_is_message(op, self.arch)
+        if let Some(vop) = op.as_virtual() {
+            vop.is_message()
+        } else {
+            v9_op_is_message(op, self.arch)
+        }
     }
 
     fn op_src_supports_imm32(&self, op: &Op, src: &Src) -> bool {
-        v9_op_src_supports_imm32(op, src, self.arch)
+        if let Some(vop) = op.as_virtual() {
+            vop.src_supports_imm32(src)
+        } else {
+            v9_op_src_supports_imm32(op, src, self.arch)
+        }
     }
 
     fn small_constants(&self) -> &[SmallConstant] {

@@ -587,6 +587,19 @@ pub trait Opcode:
     }
 }
 
+/// A trait that allows querying various properties of an opcode.  Virtual ops,
+/// which must be lowered implement this trait directly while it may require
+/// going through `Model` for other ops.
+pub trait VirtualOpcode {
+    fn is_message(&self) -> bool {
+        false
+    }
+
+    fn src_supports_imm32(&self, _src: &Src) -> bool {
+        false
+    }
+}
+
 #[derive(Clone)]
 pub struct Instr {
     pub op: Op,

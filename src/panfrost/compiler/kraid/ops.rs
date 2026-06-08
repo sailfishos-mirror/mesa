@@ -453,6 +453,12 @@ impl fmt::Display for OpMkVecV2I8 {
     }
 }
 
+impl VirtualOpcode for OpMkVecV2I8 {
+    fn src_supports_imm32(&self, _src: &Src) -> bool {
+        true
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpMkVecV4I8 {
@@ -474,6 +480,12 @@ impl fmt::Display for OpMkVecV4I8 {
             self.fmt_src(&self.srcs[2]),
             self.fmt_src(&self.srcs[3]),
         )
+    }
+}
+
+impl VirtualOpcode for OpMkVecV4I8 {
+    fn src_supports_imm32(&self, _src: &Src) -> bool {
+        true
     }
 }
 
@@ -654,6 +666,16 @@ pub enum Op {
 const _: () = {
     assert!(size_of::<Op>() == 16);
 };
+
+impl Op {
+    pub fn as_virtual(&self) -> Option<&dyn VirtualOpcode> {
+        match self {
+            Op::MkVecV2I8(op) => Some(op.as_ref()),
+            Op::MkVecV4I8(op) => Some(op.as_ref()),
+            _ => None,
+        }
+    }
+}
 
 // The Opcode constraint exists to keep the type system from recursing
 impl<T: Opcode> From<T> for Op
