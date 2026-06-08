@@ -310,7 +310,7 @@ enum ac_spm_usage_type {
 };
 
 #define AC_SPM_MAX_COMPONENTS_PER_COUNTER 3
-#define AC_SPM_MAX_COUNTERS_PER_GROUP     5
+#define AC_SPM_MAX_COUNTERS_PER_GROUP     16
 
 struct ac_spm_derived_component_descr {
    enum ac_spm_component_id id;
