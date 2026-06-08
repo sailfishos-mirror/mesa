@@ -473,7 +473,6 @@ populate_fs_prog_data(nir_shader *shader,
    prog_data->uses_depth_w_coefficients = prog_data->uses_pc_bary_coefficients;
 
    if (prog_data->coarse_pixel_dispatch != INTEL_NEVER) {
-      assert(false && "TODO: coarse pixel shading");
       prog_data->uses_depth_w_coefficients |= prog_data->uses_src_depth;
       prog_data->uses_src_depth = false;
    }

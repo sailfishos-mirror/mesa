@@ -914,8 +914,9 @@ jay_dst_alignment(jay_shader *shader, const jay_inst *I)
     *    accumulator is used as an implicit source or an explicit source in an
     *    instruction.
     */
-   if (I->dst.file == UGPR &&
-       (I->op == JAY_OPCODE_SEND || I->op == JAY_OPCODE_MUL_32)) {
+   if (I->dst.file == UGPR && (I->op == JAY_OPCODE_SEND ||
+                               I->op == JAY_OPCODE_MUL_32 ||
+                               I->op == JAY_OPCODE_COARSE_PIXEL_CORNERS)) {
 
       return jay_ugpr_per_grf(shader);
    }

@@ -97,6 +97,10 @@ get_src_words(struct validate_state *validate, jay_inst *I, unsigned s)
       return 4;
    }
 
+   if (I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS && s == 1) {
+      return 8;
+   }
+
    if (I->op == JAY_OPCODE_ZIP_UGPR16) {
       return jay_ugpr_per_grf(shader);
    }

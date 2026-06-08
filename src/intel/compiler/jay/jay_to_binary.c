@@ -286,7 +286,8 @@ static const struct {
    OP(MUL, MUL, 2),
    OP(NOT, NOT, 1),
    OP(NOP, NOP, 0),
-   OP(OFFSET_PACKED_PIXEL_COORDS, ADD, 1),
+   OP(OFFSET_PACKED_PIXEL_COORDS, ADD, 2),
+   OP(COARSE_PIXEL_CORNERS, AND, 1),
    OP(OR, OR, 2),
    OP(QUAD_SWIZZLE, MOV, 1),
    OP(RELOC, MOV, 0),
@@ -527,7 +528,18 @@ emit(struct jay_codegen *jc,
       gen->chan_offset = 0;
       gen->dst = gen_retype(gen->dst, GEN_TYPE_UW);
       gen->src[0] = gen_retype(gen->src[0], GEN_TYPE_UW);
-      gen->src[1] = gen_imm_uv(0x11100100);
+      gen->src[1] =
+         jay_is_imm(I->src[1]) ?
+            gen_imm_uv(0x11100100) :
+            gen_restride(gen_retype(gen->src[1], GEN_TYPE_UW), 0, 8, 1);
+      break;
+
+   case JAY_OPCODE_COARSE_PIXEL_CORNERS:
+      gen->exec_size = 16;
+      gen->chan_offset = 0;
+      gen->dst = gen_retype(gen->dst, GEN_TYPE_UW);
+      gen->src[0] = gen_retype(gen->src[0], GEN_TYPE_UW);
+      gen->src[1] = gen_imm_uv(0xfff00f00);
       break;
 
    case JAY_OPCODE_LANE_ID_8:

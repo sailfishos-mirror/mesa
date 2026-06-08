@@ -3134,7 +3134,57 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       jay_def t = jay_alloc_def(b, GPR, 1);
       jay_def lo = jay_extract_range(nj->payload.u0, 10, 4);
       jay_EXPAND_QUAD(b, t, lo, payload_u1(nj, 10, 4));
-      fs->coord.xy = jay_OFFSET_PACKED_PIXEL_COORDS_u32(b, t);
+
+      jay_def normal;
+      if (nj->s->prog_data->fs.coarse_pixel_dispatch != INTEL_ALWAYS)
+         normal = jay_OFFSET_PACKED_PIXEL_COORDS_u32(&nj->bld, t, 1);
+
+      jay_def coarse;
+      if (nj->s->prog_data->fs.coarse_pixel_dispatch != INTEL_NEVER) {
+         jay_def size_u8v2 = jay_extract(nj->payload.u0, 8);
+
+         /* Expand from u8vec2 to u16vec2 */
+         jay_def x = jay_CVT_u32(b, size_u8v2, JAY_TYPE_U8, JAY_ROUND, 0);
+         jay_def y = jay_CVT_u32(b, size_u8v2, JAY_TYPE_U8, JAY_ROUND, 1);
+         jay_def size_xy = jay_alloc_def(b, UGPR, 8);
+         jay_BFI2(b, size_xy, 0xffff0000, y, x);
+
+         /* 'size' in the lanes for the far corners, 0 for the near corners */
+         jay_def size_in_far_corners = jay_alloc_def(b, UGPR, 8);
+         jay_COARSE_PIXEL_CORNERS(b, size_in_far_corners, size_xy);
+
+         /* Note: the low bit of .y will roll over into .x's high bit */
+         jay_def half_size_xy =
+            jay_AND_u32(b, jay_SHR_u32(b, jay_extract(size_xy, 0), 1),
+                        0x00070007);
+
+         /* The coordinate offsets we want to compute for the near (top/left)
+          * and far (bottom/right) corners are 0.5/1.5x the coarse pixel size:
+          *
+          *     pixel size   | near offset  | far offset
+          *     1 = 00000001 | 0 = 00000000 | 1 = 00000001
+          *     2 = 00000010 | 1 = 00000001 | 3 = 00000011
+          *     4 = 00000100 | 2 = 00000010 | 6 = 00000110
+          *
+          * From this, we can see that the offsets in the near lanes
+          * should be (size >> 1), and the offsets for the far lanes
+          * should be (size >> 1) | size.
+          */
+         jay_def offsets = jay_alloc_def(b, UGPR, 8);
+         jay_OR(b, JAY_TYPE_U32, offsets, size_in_far_corners, half_size_xy);
+
+         coarse = jay_OFFSET_PACKED_PIXEL_COORDS_u32(&nj->bld, t, offsets);
+      }
+
+      if (nj->s->prog_data->fs.coarse_pixel_dispatch == INTEL_NEVER) {
+         fs->coord.xy = normal;
+      } else if (nj->s->prog_data->fs.coarse_pixel_dispatch == INTEL_ALWAYS) {
+         fs->coord.xy = coarse;
+      } else {
+         fs->coord.xy = jay_alloc_def(&nj->bld, GPR, 1);
+         jay_CSEL(b, JAY_TYPE_U32, fs->coord.xy, coarse, normal, fs->is_coarse)
+            ->conditional_mod = GEN_CONDITION_NE;
+      }
    }
 
    /* Renumber to match what jay_insert_payload_swizzle expects. */
