@@ -95,7 +95,7 @@ to_gen_operand(
       /* Immediates have size restrictions but can zero extend */
       if (jay_type_size_bits(type) == 64) {
          type = jay_type_resize(type, 32);
-      } else if (I->op == JAY_OPCODE_BFN) {
+      } else if (jay_num_isa_srcs(I) == 3) {
          assert(jay_as_uint(d) <= UINT16_MAX);
          type = JAY_TYPE_U16;
       }

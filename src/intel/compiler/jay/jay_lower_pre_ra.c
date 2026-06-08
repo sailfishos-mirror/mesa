@@ -133,8 +133,8 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
    }
 
    /* One source supports immediates but the other does not, so swap. */
-   bool allow_s0 = I->op == JAY_OPCODE_BFE || I->op == JAY_OPCODE_BFN;
-   unsigned other = allow_s0 ? 1 : 0;
+   unsigned nr_srcs = jay_num_isa_srcs(I);
+   unsigned other = nr_srcs == 2 ? 0 : 1;
    if (jay_is_imm(I->src[other]) &&
        !_mesa_hash_table_u64_search(constants, jay_as_uint(I->src[other]))) {
 
@@ -144,11 +144,37 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
    /* Immediates allowed only in certain cases, lower the rest */
    jay_foreach_src(I, s) {
       if (jay_is_imm(I->src[s])) {
-         uint32_t imm = jay_as_uint(I->src[s]);
+         /* In general, one machine source cannot take an immediate */
+         bool allowed = s < 3 && s != other;
 
-         bool last = s == (jay_num_isa_srcs(I) - 1);
-         bool allowed = s < 2 && (last || I->op == JAY_OPCODE_SEND);
-         allowed |= (allow_s0 && s == 0 && imm <= UINT16_MAX);
+         /* Eligible three-source instructions can have exactly one immediate
+          * (src0 or src2) and it must be 16-bit.
+          */
+         if (nr_srcs == 3) {
+            unsigned ver = b->shader->devinfo->ver;
+            allowed &= I->op == JAY_OPCODE_BFN ||
+                       I->op == JAY_OPCODE_ADD3 ||
+                       I->op == JAY_OPCODE_MAD ||
+                       I->op == JAY_OPCODE_DP4A_SS ||
+                       I->op == JAY_OPCODE_DP4A_SU ||
+                       I->op == JAY_OPCODE_DP4A_UU ||
+                       (ver >= 12 && I->op == JAY_OPCODE_BFE);
+
+            /* Gen9 does not support 3-src immediates */
+            allowed &= ver >= 11 &&
+                       !jay_type_is_any_float(I->type) &&
+                       jay_as_uint(I->src[s]) <= UINT16_MAX;
+
+            /* Some instructions on some platforms can have at most one
+             * immediate source. TODO: Refine.
+             */
+            allowed &= ((s == 0) || !jay_is_imm(I->src[0]));
+         }
+
+         /* SENDs have immediate messages descriptors but not payloads */
+         if (I->op == JAY_OPCODE_SEND) {
+            allowed = s < 2;
+         }
 
          if (!allowed) {
             I->src[s] = lower_imm_to_ugpr(b, I, s, constants);
