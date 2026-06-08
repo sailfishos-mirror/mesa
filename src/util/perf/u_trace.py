@@ -124,12 +124,17 @@ class Tracepoint(object):
                                         trace_toggle_name.upper(),
                                         self.toggle_name.upper())
 
+    def args_to_free(self):
+        if self.tp_print_custom is not None:
+            return []
+        return [arg for arg in self.tp_print if arg.free_prim_type_func is not None]
+
 class TracepointArg(object):
     """Class that represents either an argument being passed or a field in a struct
     """
     def __init__(self, type, var, c_format=None, name=None, to_prim_type=None,
                  length_arg=None, copy_func=None, is_indirect=False, perfetto_field=None,
-                 fuzzy_hash=None):
+                 fuzzy_hash=None, free_prim_type_func=None):
         """Parameters:
 
         - type: argument's C type.
@@ -157,26 +162,31 @@ class TracepointArg(object):
         self.copy_func = copy_func
         self.perfetto_field = perfetto_field
         self.fuzzy_hash = fuzzy_hash
+        self.free_prim_type_func = free_prim_type_func
 
         self.is_indirect = is_indirect
         self.indirect_offset = 0
 
+    @property
+    def struct_member(self):
         if self.is_indirect:
             pass
         elif self.type == "str":
             if self.length_arg and self.length_arg.isdigit():
-                self.struct_member = f"char {self.name}[{length_arg} + 1]"
+                return f"char {self.name}[{self.length_arg} + 1]"
             else:
-                self.struct_member = f"char {self.name}[0]"
+                return f"char {self.name}[0]"
         else:
-            self.struct_member = f"{self.type} {self.name}"
+            return f"{self.type} {self.name}"
 
+    @property
+    def func_param(self):
         if self.is_indirect:
-            self.func_param = f"struct u_trace_address {self.var}"
+            return f"struct u_trace_address {self.var}"
         elif self.type == "str":
-            self.func_param = f"const char *{self.var}"
+            return f"const char *{self.var}"
         else:
-            self.func_param = f"{self.type} {self.var}"
+            return f"{self.type} {self.var}"
 
     def value_expr(self, entry_name):
         if self.is_indirect:
@@ -217,6 +227,47 @@ class TracepointArgStruct(TracepointArg):
 
         return ", ".join(parts)
 
+
+class TracepointArgBlob(TracepointArg):
+    """Represents a struct that is to be stored in the trace to be transformed
+       or serialized before emitting.
+    """
+
+    def __init__(self, type, var, c_format, to_prim_type, length_arg,
+                 copy_func="memcpy", free_prim_type_func=None):
+        """Parameters:
+
+        - type: argument's C type in the form "struct my_type".
+        - var: name of the argument
+        - c_format: printf format to print the value.
+        - to_prim_type: C function to convert from arg's type to a type
+          compatible with c_format.
+        - length_arg: Size of the struct.
+        - free_prim_type_func (optional): C function to free memory for to_prim_type.
+        """
+        assert type.startswith("struct ")
+
+        super().__init__(
+            type=type, var=var, c_format=c_format, to_prim_type=to_prim_type,
+            length_arg=length_arg, free_prim_type_func=free_prim_type_func,
+            copy_func=copy_func
+        )
+
+        self.is_dynamically_sized = not length_arg.startswith("sizeof")
+
+    @property
+    def struct_member(self):
+        val = f"alignas(uint64_t) uint8_t {self.name}"
+        val += "[0]" if self.is_dynamically_sized else f"[{self.length_arg}]"
+        return val
+
+    @property
+    def func_param(self):
+        return f"const {self.type} *{self.var}"
+
+    def value_expr(self, entry_name):
+        ret = f"(const {self.type} *){entry_name}->{self.name}"
+        return self.to_prim_type.format(ret)
 
 shared_template = """\
 <%def name="mit_license(copyrights)">\
@@ -449,6 +500,10 @@ static void ${func_name}${trace_name}(FILE *out, const void *arg, const void *in
   % for arg in trace.indirect_args:
    const ${arg.type} *__${arg.name} = (const ${arg.type} *) ((char *)indirect + ${arg.indirect_offset});
   % endfor
+  % for arg in trace.args_to_free():
+   __typeof__(${arg.value_expr("__entry")}) __free_${arg.name} =
+       ${arg.value_expr("__entry")};
+  % endfor
   % if trace.tp_print_custom is not None:
    fprintf(out, ${caller.tp_print_custom_fmt()}
    % for arg in trace.tp_print_custom[1:]:
@@ -457,10 +512,17 @@ static void ${func_name}${trace_name}(FILE *out, const void *arg, const void *in
   % else:
    fprintf(out, ""\n${caller.tp_print_fmt()}\\
    % for arg in trace.tp_print:
+    % if arg.free_prim_type_func is not None:
+   ,__free_${arg.name}
+    % else:
    ,${arg.value_expr("__entry")}
+    % endif
    % endfor
   % endif
    );
+  % for arg in trace.args_to_free():
+   ${arg.free_prim_type_func}(__free_${arg.name});
+  % endfor
 }
  % else:
 #define ${func_name}${trace_name} NULL\\
@@ -618,8 +680,14 @@ static const struct u_tracepoint __tp_${trace_name} = {
       (struct trace_${trace_name} *)u_trace_appendv(ut, ${"cs," if trace.need_cs_param else "NULL,"} &__tp_${trace_name},
                                                     0
   % for arg in trace.tp_struct:
-   % if arg.length_arg is not None and not arg.length_arg.isdigit():
+   % if hasattr(arg, "is_dynamically_sized"):
+    % if arg.is_dynamically_sized:
                                                     + ${arg.length_arg}
+    % endif
+   % else:
+    % if arg.length_arg is not None and not arg.length_arg.isdigit():
+                                                    + ${arg.length_arg}
+    % endif
    % endif
   % endfor
                                                     ,
@@ -738,14 +806,24 @@ trace_payload_as_extra_${trace_name}(perfetto::protos::pbzero::GpuRenderStageEve
     % if arg.is_indirect:
       const ${arg.type}* __${arg.var} = (const ${arg.type}*)((uint8_t *)indirect_data + ${arg.indirect_offset});
     % endif
+    % if arg.free_prim_type_func is not None:
+      __typeof__(${arg.value_expr("payload")}) __free_${arg.name} =
+        ${arg.value_expr("payload")};
+      <% _field_name = f'__free_{arg.name}' %>
+    % else:
+      <% _field_name = arg.value_expr("payload") %>
+    % endif
     % if arg.c_format == '%s':
-      const char *str = ${arg.value_expr("payload")};
+      const char *str = ${_field_name};
       if (str != NULL)
           data->set_value(str);
     % else:
-      const int slen = sprintf(buf, "${arg.c_format}", ${arg.value_expr("payload")});
+      const int slen = sprintf(buf, "${arg.c_format}", ${_field_name});
 
       data->set_value(buf, slen);
+    % endif
+    % if arg.free_prim_type_func is not None:
+      ${arg.free_prim_type_func}(__free_${arg.name});
     % endif
    }
    % endif
