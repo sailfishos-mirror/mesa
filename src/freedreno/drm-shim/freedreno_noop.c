@@ -184,6 +184,14 @@ msm_ioctl_gem_madvise(int fd, unsigned long request, void *arg)
    return 0;
 }
 
+static int
+msm_ioctl_vm_bind(int fd, unsigned long request, void *arg)
+{
+   struct drm_msm_vm_bind *vm_bind = arg;
+   vm_bind->fence_fd = -1;
+   return 0;
+}
+
 static ioctl_fn_t driver_ioctls[] = {
    [DRM_MSM_GET_PARAM] = msm_ioctl_get_param,
    [DRM_MSM_SET_PARAM] = msm_ioctl_set_param,
@@ -197,7 +205,7 @@ static ioctl_fn_t driver_ioctls[] = {
    [DRM_MSM_SUBMITQUEUE_NEW] = msm_ioctl_noop,
    [DRM_MSM_SUBMITQUEUE_CLOSE] = msm_ioctl_noop,
    [DRM_MSM_SUBMITQUEUE_QUERY] = msm_ioctl_noop,
-   [DRM_MSM_VM_BIND] = msm_ioctl_noop,
+   [DRM_MSM_VM_BIND] = msm_ioctl_vm_bind,
 };
 
 #define CHIPID(maj, min, rev, pat)                                             \
