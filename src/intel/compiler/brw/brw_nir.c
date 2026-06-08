@@ -1556,10 +1556,8 @@ generate_fs_config_state_bits(const struct brw_fs_prog_key *key,
    if (prog_data->provoking_vertex_last == comp_value)
       f |= INTEL_FS_CONFIG_PROVOKING_VERTEX_LAST;
 
-   if (prog_data->persample_dispatch == comp_value) {
-      f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH |
-           INTEL_FS_CONFIG_PERSAMPLE_INTERP;
-   }
+   if (prog_data->persample_dispatch == comp_value)
+      f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH;
 
    if (prog_data->coarse_pixel_dispatch == comp_value)
       f |= INTEL_FS_CONFIG_COARSE_RT_WRITES;
@@ -1719,7 +1717,7 @@ brw_nir_lower_fs_inputs(nir_shader *nir,
          .lower_sample_mask_in = key->coarse_pixel == INTEL_NEVER,
       };
       NIR_PASS(_, nir, nir_lower_single_sampled, &lss_opts);
-   } else if (key->persample_interp == INTEL_ALWAYS) {
+   } else if (key->persample_interp) {
       NIR_PASS(_, nir, nir_shader_intrinsics_pass,
                lower_barycentric_per_sample,
                nir_metadata_control_flow,

@@ -254,4 +254,3 @@ brw_check_dynamic_fs_config(const brw_builder &bld,
                             brw_imm_ud(flag));
    inst->conditional_mod = BRW_CONDITIONAL_NZ;
 }
-
