@@ -1588,6 +1588,7 @@ nak_postprocess_nir(nir_shader *nir,
    OPT(nir, nir_opt_uniform_subgroup, &subgroups_options);
    OPT(nir, nir_lower_subgroups, &subgroups_options);
    OPT(nir, nak_nir_lower_f16vec4_atomics, nak);
+   OPT(nir, nak_nir_lower_f16vec2_shared_atomics);
    if (nak->sm >= 50) {
       // On Maxwell+ we need to lower shared 64-bit atomics into
       // compare-and-swap loops
