@@ -113,7 +113,9 @@ void ac_parse_shader_binary_config(const char *data, size_t nbytes, unsigned wav
    conf->float_mode |= V_00B028_FP_16_64_DENORMS;
 }
 
-unsigned ac_align_shader_binary_for_prefetch(const struct radeon_info *info, unsigned size)
+unsigned ac_align_shader_binary_for_prefetch(enum amd_gfx_level gfx_level,
+                                             unsigned prefetch_distance,
+                                             unsigned size)
 {
    /* The SQ fetches up to N cache lines of 16 dwords
     * ahead of the PC, configurable by SH_MEM_CONFIG and
@@ -130,10 +132,8 @@ unsigned ac_align_shader_binary_for_prefetch(const struct radeon_info *info, uns
     * boundaries, but (1) needs to be addressed. Due to buffer
     * suballocation, we just play it safe.
     */
-   unsigned prefetch_distance = info->instr_prefetch_distance;
-
    if (prefetch_distance) {
-      if (info->gfx_level >= GFX11)
+      if (gfx_level >= GFX11)
          size = align(size + prefetch_distance * 64, 128);
       else
          size = align(size + prefetch_distance * 64, 64);

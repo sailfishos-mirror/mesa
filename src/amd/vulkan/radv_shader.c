@@ -1238,7 +1238,7 @@ radv_alloc_shader_memory(struct radv_device *device, uint32_t size, bool replaya
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
-   size = ac_align_shader_binary_for_prefetch(&pdev->info, size);
+   size = ac_align_shader_binary_for_prefetch(pdev->info.gfx_level, pdev->info.instr_prefetch_distance, size);
    size = align(size, RADV_SHADER_ALLOC_ALIGNMENT);
 
    mtx_lock(&device->shader_arena_mutex);

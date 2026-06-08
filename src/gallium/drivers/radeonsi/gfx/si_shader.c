@@ -180,7 +180,8 @@ unsigned si_get_shader_prefetch_size(struct si_shader *shader)
    struct si_screen *sscreen = shader->selector->screen;
    /* This excludes arrays of constants after instructions. */
    unsigned exec_size =
-      ac_align_shader_binary_for_prefetch(&sscreen->info,
+      ac_align_shader_binary_for_prefetch(sscreen->info.gfx_level,
+                                          sscreen->info.instr_prefetch_distance,
                                           shader->complete_shader_binary_size);
 
    /* INST_PREF_SIZE uses 128B granularity.
