@@ -2414,7 +2414,7 @@
         "description": "pan/compiler: fix spilling for 64-bit values",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4542982062ad5194dc8dd3d40174fcb7821c13f1",
         "notes": null
