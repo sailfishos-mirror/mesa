@@ -1723,6 +1723,15 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_emit_barycentric(nj, intr, INTEL_BARYCENTRIC_PERSPECTIVE_CENTROID);
       break;
 
+   case nir_intrinsic_load_frag_shading_rate_intel:
+      jay_copy(b, dst,
+               jay_collect_two(b,
+                               jay_CVT_u32(b, jay_extract(nj->payload.u0, 8),
+                                           JAY_TYPE_U8, JAY_ROUND, 0),
+                               jay_CVT_u32(b, jay_extract(nj->payload.u0, 8),
+                                           JAY_TYPE_U8, JAY_ROUND, 1)));
+      break;
+
    case nir_intrinsic_load_pixel_coord_intel:
       jay_MOV(b, dst, fs->coord.xy);
       break;
