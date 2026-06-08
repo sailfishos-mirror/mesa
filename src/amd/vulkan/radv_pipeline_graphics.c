@@ -2016,8 +2016,8 @@ radv_declare_pipeline_args(const struct radv_compiler_info *compiler_info, struc
    enum amd_gfx_level gfx_level = compiler_info->ac->gfx_level;
 
    if (gfx_level >= GFX9 && stages[MESA_SHADER_TESS_CTRL].nir) {
-      radv_declare_shader_args(compiler_info, gfx_state, &stages[MESA_SHADER_TESS_CTRL].info, MESA_SHADER_TESS_CTRL,
-                               MESA_SHADER_VERTEX, &stages[MESA_SHADER_TESS_CTRL].args, &debug[MESA_SHADER_TESS_CTRL]);
+      radv_declare_shader_args(compiler_info, gfx_state, &stages[MESA_SHADER_TESS_CTRL], MESA_SHADER_VERTEX,
+                               &debug[MESA_SHADER_TESS_CTRL]);
       stages[MESA_SHADER_TESS_CTRL].info.user_sgprs_locs = stages[MESA_SHADER_TESS_CTRL].args.user_sgprs_locs;
       stages[MESA_SHADER_TESS_CTRL].info.inline_push_constant_mask =
          stages[MESA_SHADER_TESS_CTRL].args.ac.inline_push_const_mask;
@@ -2033,8 +2033,8 @@ radv_declare_pipeline_args(const struct radv_compiler_info *compiler_info, struc
 
    if (gfx_level >= GFX9 && stages[MESA_SHADER_GEOMETRY].nir) {
       mesa_shader_stage pre_stage = stages[MESA_SHADER_TESS_EVAL].nir ? MESA_SHADER_TESS_EVAL : MESA_SHADER_VERTEX;
-      radv_declare_shader_args(compiler_info, gfx_state, &stages[MESA_SHADER_GEOMETRY].info, MESA_SHADER_GEOMETRY,
-                               pre_stage, &stages[MESA_SHADER_GEOMETRY].args, &debug[MESA_SHADER_GEOMETRY]);
+      radv_declare_shader_args(compiler_info, gfx_state, &stages[MESA_SHADER_GEOMETRY], pre_stage,
+                               &debug[MESA_SHADER_GEOMETRY]);
       stages[MESA_SHADER_GEOMETRY].info.user_sgprs_locs = stages[MESA_SHADER_GEOMETRY].args.user_sgprs_locs;
       stages[MESA_SHADER_GEOMETRY].info.inline_push_constant_mask =
          stages[MESA_SHADER_GEOMETRY].args.ac.inline_push_const_mask;
@@ -2047,8 +2047,7 @@ radv_declare_pipeline_args(const struct radv_compiler_info *compiler_info, struc
    }
 
    u_foreach_bit (i, active_nir_stages) {
-      radv_declare_shader_args(compiler_info, gfx_state, &stages[i].info, i, MESA_SHADER_NONE, &stages[i].args,
-                               &debug[i]);
+      radv_declare_shader_args(compiler_info, gfx_state, &stages[i], MESA_SHADER_NONE, &debug[i]);
       stages[i].info.user_sgprs_locs = stages[i].args.user_sgprs_locs;
       stages[i].info.inline_push_constant_mask = stages[i].args.ac.inline_push_const_mask;
    }
@@ -2086,8 +2085,7 @@ radv_create_gs_copy_shader(const struct radv_compiler_info *compiler_info, struc
    gs_copy_stage.info.force_vrs_per_vertex = gs_info->force_vrs_per_vertex;
    gs_copy_stage.info.type = RADV_SHADER_TYPE_GS_COPY;
 
-   radv_declare_shader_args(compiler_info, gfx_state, &gs_copy_stage.info, MESA_SHADER_VERTEX, MESA_SHADER_NONE,
-                            &gs_copy_stage.args, gs_copy_debug);
+   radv_declare_shader_args(compiler_info, gfx_state, &gs_copy_stage, MESA_SHADER_NONE, gs_copy_debug);
    gs_copy_stage.info.user_sgprs_locs = gs_copy_stage.args.user_sgprs_locs;
    gs_copy_stage.info.inline_push_constant_mask = gs_copy_stage.args.ac.inline_push_const_mask;
 

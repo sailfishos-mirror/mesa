@@ -402,7 +402,7 @@ radv_rt_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_r
                              false, &stage->info);
 
    /* Declare shader arguments. */
-   radv_declare_shader_args(compiler_info, NULL, &stage->info, stage->stage, MESA_SHADER_NONE, &stage->args, debug);
+   radv_declare_shader_args(compiler_info, NULL, stage, MESA_SHADER_NONE, debug);
 
    stage->info.user_sgprs_locs = stage->args.user_sgprs_locs;
    stage->info.inline_push_constant_mask = stage->args.ac.inline_push_const_mask;

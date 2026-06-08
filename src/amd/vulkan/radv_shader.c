@@ -3493,21 +3493,20 @@ radv_create_trap_handler_shader(struct radv_device *device)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   mesa_shader_stage stage = MESA_SHADER_COMPUTE;
    struct radv_shader_stage_key stage_key = {0};
-   struct radv_shader_info info = {0};
+   struct radv_shader_stage stage = {0};
    const bool dump_shader = !!(instance->debug_flags & RADV_DEBUG_DUMP_TRAP_HANDLER);
 
-   nir_builder b = radv_meta_nir_init_shader(stage, "meta_trap_handler");
+   nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "meta_trap_handler");
 
-   info.wave_size = 64;
-   info.workgroup_size = 64;
-   info.stage = MESA_SHADER_COMPUTE;
-   info.type = RADV_SHADER_TYPE_TRAP_HANDLER;
+   stage.stage = MESA_SHADER_COMPUTE;
+   stage.info.wave_size = 64;
+   stage.info.workgroup_size = 64;
+   stage.info.stage = MESA_SHADER_COMPUTE;
+   stage.info.type = RADV_SHADER_TYPE_TRAP_HANDLER;
 
-   struct radv_shader_args args;
    struct radv_shader_debug_info debug = {0};
-   radv_declare_shader_args(&device->compiler_info, NULL, &info, stage, MESA_SHADER_NONE, &args, &debug);
+   radv_declare_shader_args(&device->compiler_info, NULL, &stage, MESA_SHADER_NONE, &debug);
 
 #if AMD_LLVM_AVAILABLE
    if (dump_shader)
@@ -3517,16 +3516,16 @@ radv_create_trap_handler_shader(struct radv_device *device)
    struct radv_shader_binary *binary = NULL;
 
    struct aco_shader_info ac_info;
-   radv_aco_convert_shader_info(&ac_info, &info, &args, &device->compiler_info);
+   radv_aco_convert_shader_info(&ac_info, &stage.info, &stage.args, &device->compiler_info);
 
    struct aco_compiler_options ac_opts;
-   bool wgp_mode = radv_should_use_wgp_mode(pdev->info.gfx_level, stage, &info);
+   bool wgp_mode = radv_should_use_wgp_mode(pdev->info.gfx_level, MESA_SHADER_COMPUTE, &stage.info);
    radv_aco_fill_compiler_options(&ac_opts, &device->compiler_info, &stage_key, NULL, wgp_mode, dump_shader);
 
-   aco_compile_trap_handler(&ac_opts, &ac_info, &args.ac, &radv_aco_build_shader_binary, (void **)&binary);
-   binary->info = info;
+   aco_compile_trap_handler(&ac_opts, &ac_info, &stage.args.ac, &radv_aco_build_shader_binary, (void **)&binary);
+   binary->info = stage.info;
 
-   radv_postprocess_binary_config(&device->compiler_info, binary, &args);
+   radv_postprocess_binary_config(&device->compiler_info, binary, &stage.args);
 
    struct radv_shader *shader;
    radv_shader_create_uncached(device, binary, false, NULL, &debug, &shader);
@@ -3629,27 +3628,27 @@ radv_create_vs_prolog(struct radv_device *device, const struct radv_vs_prolog_ke
    bool keep_shader_info = radv_device_fault_detection_enabled(device);
 
    struct radv_shader_part *prolog;
-   struct radv_shader_args args = {0};
 
-   struct radv_shader_info info = {0};
-   info.stage = MESA_SHADER_VERTEX;
-   info.wave_size = key->wave32 ? 32 : 64;
-   info.vs.needs_instance_id = true;
-   info.vs.needs_base_instance = true;
-   info.vs.needs_draw_id = true;
-   info.vs.use_per_attribute_vb_descs = true;
-   info.vs.vb_desc_usage_mask = BITFIELD_MASK(key->num_attributes);
-   info.vs.has_prolog = true;
-   info.vs.as_ls = key->as_ls;
-   info.is_ngg = key->is_ngg;
+   struct radv_shader_stage stage = {0};
+   stage.stage = key->next_stage;
+   stage.info.stage = MESA_SHADER_VERTEX;
+   stage.info.wave_size = key->wave32 ? 32 : 64;
+   stage.info.vs.needs_instance_id = true;
+   stage.info.vs.needs_base_instance = true;
+   stage.info.vs.needs_draw_id = true;
+   stage.info.vs.use_per_attribute_vb_descs = true;
+   stage.info.vs.vb_desc_usage_mask = BITFIELD_MASK(key->num_attributes);
+   stage.info.vs.has_prolog = true;
+   stage.info.vs.as_ls = key->as_ls;
+   stage.info.is_ngg = key->is_ngg;
 
    struct radv_graphics_state_key gfx_state = {0};
 
-   radv_declare_shader_args(compiler_info, &gfx_state, &info, key->next_stage,
-                            key->next_stage != MESA_SHADER_VERTEX ? MESA_SHADER_VERTEX : MESA_SHADER_NONE, &args, NULL);
+   radv_declare_shader_args(compiler_info, &gfx_state, &stage,
+                            key->next_stage != MESA_SHADER_VERTEX ? MESA_SHADER_VERTEX : MESA_SHADER_NONE, NULL);
 
-   info.user_sgprs_locs = args.user_sgprs_locs;
-   info.inline_push_constant_mask = args.ac.inline_push_const_mask;
+   stage.info.user_sgprs_locs = stage.args.user_sgprs_locs;
+   stage.info.inline_push_constant_mask = stage.args.ac.inline_push_const_mask;
 
 #if AMD_LLVM_AVAILABLE
    if (dump_shader || keep_shader_info)
@@ -3662,12 +3661,13 @@ radv_create_vs_prolog(struct radv_device *device, const struct radv_vs_prolog_ke
    struct aco_vs_prolog_info ac_prolog_info;
    struct aco_compiler_options ac_opts;
    stage_key.keep_executable_info = keep_shader_info;
-   radv_aco_convert_shader_info(&ac_info, &info, &args, compiler_info);
+   radv_aco_convert_shader_info(&ac_info, &stage.info, &stage.args, compiler_info);
    radv_aco_fill_compiler_options(&ac_opts, compiler_info, &stage_key, &gfx_state, false, dump_shader);
-   radv_aco_convert_vs_prolog_key(&ac_prolog_info, key, &args);
-   aco_compile_vs_prolog(&ac_opts, &ac_info, &ac_prolog_info, &args.ac, &radv_aco_build_shader_part, (void **)&binary);
+   radv_aco_convert_vs_prolog_key(&ac_prolog_info, key, &stage.args);
+   aco_compile_vs_prolog(&ac_opts, &ac_info, &ac_prolog_info, &stage.args.ac, &radv_aco_build_shader_part,
+                         (void **)&binary);
 
-   prolog = radv_shader_part_create(device, binary, info.wave_size);
+   prolog = radv_shader_part_create(device, binary, stage.info.wave_size);
    if (!prolog)
       goto fail;
 

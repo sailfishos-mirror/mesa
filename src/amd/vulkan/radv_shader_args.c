@@ -965,18 +965,20 @@ radv_gather_shader_args_debug_info(struct radv_shader_args_state *state, struct 
 
 void
 radv_declare_shader_args(const struct radv_compiler_info *compiler_info,
-                         const struct radv_graphics_state_key *gfx_state, const struct radv_shader_info *info,
-                         mesa_shader_stage stage, mesa_shader_stage previous_stage, struct radv_shader_args *args,
-                         struct radv_shader_debug_info *debug)
+                         const struct radv_graphics_state_key *gfx_state, struct radv_shader_stage *stage,
+                         mesa_shader_stage previous_stage, struct radv_shader_debug_info *debug)
 {
+   const struct radv_shader_info *info = &stage->info;
+   struct radv_shader_args *args = &stage->args;
+
    struct radv_shader_args_state state = {
       .args = args,
    };
 
    struct user_sgpr_info user_sgpr_info = {0};
 
-   if (!mesa_shader_stage_is_rt(stage)) {
-      declare_shader_args(compiler_info, &state, gfx_state, info, stage, previous_stage, NULL);
+   if (!mesa_shader_stage_is_rt(stage->stage)) {
+      declare_shader_args(compiler_info, &state, gfx_state, info, stage->stage, previous_stage, NULL);
 
       uint32_t num_user_sgprs = args->num_user_sgprs;
       if (info->loads_push_constants)
@@ -989,7 +991,7 @@ radv_declare_shader_args(const struct radv_compiler_info *compiler_info,
 
       const enum amd_gfx_level gfx_level = compiler_info->ac->gfx_level;
       uint32_t available_sgprs =
-         gfx_level >= GFX9 && stage != MESA_SHADER_COMPUTE && stage != MESA_SHADER_TASK ? 32 : 16;
+         gfx_level >= GFX9 && stage->stage != MESA_SHADER_COMPUTE && stage->stage != MESA_SHADER_TASK ? 32 : 16;
       uint32_t remaining_sgprs = available_sgprs - num_user_sgprs;
 
       user_sgpr_info.remaining_sgprs = remaining_sgprs;
@@ -1018,7 +1020,7 @@ radv_declare_shader_args(const struct radv_compiler_info *compiler_info,
       state.gather_debug_info &= !!state.ctx;
    }
 
-   declare_shader_args(compiler_info, &state, gfx_state, info, stage, previous_stage, &user_sgpr_info);
+   declare_shader_args(compiler_info, &state, gfx_state, info, stage->stage, previous_stage, &user_sgpr_info);
 
    if (state.gather_debug_info)
       radv_gather_shader_args_debug_info(&state, debug);

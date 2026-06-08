@@ -103,8 +103,7 @@ radv_compile_cs(const struct radv_compiler_info *compiler_info, struct radv_shad
    radv_nir_shader_info_pass(compiler_info, cs_stage->nir, &cs_stage->layout, &cs_stage->key, NULL,
                              RADV_PIPELINE_COMPUTE, false, &cs_stage->info);
 
-   radv_declare_shader_args(compiler_info, NULL, &cs_stage->info, MESA_SHADER_COMPUTE, MESA_SHADER_NONE,
-                            &cs_stage->args, dbg);
+   radv_declare_shader_args(compiler_info, NULL, cs_stage, MESA_SHADER_NONE, dbg);
 
    cs_stage->info.user_sgprs_locs = cs_stage->args.user_sgprs_locs;
    cs_stage->info.inline_push_constant_mask = cs_stage->args.ac.inline_push_const_mask;
