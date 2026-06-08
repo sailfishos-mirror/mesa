@@ -848,6 +848,8 @@ def main() -> None:
         print_monitor_summary(exec_t, t_start)
 
         sys.exit(ret)
+    except gitlab.exceptions.GitlabAuthenticationError as exception:
+        print(f"[yellow]Gitlab authentication error {exception.error_message}.\n[red]Check the token!")
     except KeyboardInterrupt:
         sys.exit(1)
 
