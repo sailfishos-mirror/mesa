@@ -890,3 +890,71 @@ mmap64(void* addr, size_t length, int prot, int flags, int fd, off64_t offset)
 
    return real_mmap64(addr, length, prot, flags, fd, offset);
 }
+
+void
+drm_shim_pci_device_setup(uint16_t vendor_id, uint16_t device_id,
+                          const char *pci_slot, const char *driver_name)
+{
+   shim_device.bus_type = DRM_BUS_PCI;
+
+   char *uevent_content, *vendor_id_str, *device_id_str;
+
+   nfasprintf(&uevent_content,
+            "DRIVER=%s\n"
+            "PCI_CLASS=30000\n"
+            "PCI_ID=%04x:%04x\n"
+            "PCI_SUBSYS_ID=uevent_content\n"
+            "PCI_SLOT_NAME=%s\n"
+            "MODALIAS=pci:v00008086d00005916sv00001028sd0000075Bbc03sc00i00\n",
+            driver_name, vendor_id, device_id, pci_slot);
+   nfasprintf(&vendor_id_str, "0x%04x", vendor_id);
+   nfasprintf(&device_id_str, "0x%04x", device_id);
+
+   drm_shim_override_file(uevent_content,
+                          "/sys/dev/char/%d:%d/device/uevent",
+                          DRM_MAJOR, render_node_minor);
+   drm_shim_override_file("0x0\n",
+                          "/sys/dev/char/%d:%d/device/revision",
+                          DRM_MAJOR, render_node_minor);
+   drm_shim_override_file(vendor_id_str,
+                          "/sys/dev/char/%d:%d/device/vendor",
+                          DRM_MAJOR, render_node_minor);
+   drm_shim_override_file(vendor_id_str,
+                          "/sys/devices/pci0000:00/%s/vendor", pci_slot);
+   drm_shim_override_file(device_id_str,
+                          "/sys/dev/char/%d:%d/device/device",
+                          DRM_MAJOR, render_node_minor);
+   drm_shim_override_file(device_id_str,
+                          "/sys/devices/pci0000:00/%s/device", pci_slot);
+   drm_shim_override_file("0x1234",
+                          "/sys/dev/char/%d:%d/device/subsystem_vendor",
+                          DRM_MAJOR, render_node_minor);
+   drm_shim_override_file("0x1234",
+                          "/sys/devices/pci0000:00/%s/subsystem_vendor", pci_slot);
+   drm_shim_override_file("0x1234",
+                          "/sys/dev/char/%d:%d/device/subsystem_device",
+                          DRM_MAJOR, render_node_minor);
+   drm_shim_override_file("0x1234",
+                          "/sys/devices/pci0000:00/%s/subsystem_device", pci_slot);
+
+   free(uevent_content);
+   free(vendor_id_str);
+   free(device_id_str);
+}
+
+void
+drm_shim_platform_device_setup(const char *driver, const char *fullname, const char *compatible)
+{
+   shim_device.bus_type = DRM_BUS_PLATFORM;
+
+   char *uevent_content;
+   nfasprintf(&uevent_content, "DRIVER=%s\n"
+                          "OF_FULLNAME=%s\n"
+                          "OF_COMPATIBLE_0=%s\n"
+                          "OF_COMPATIBLE_N=1\n", driver, fullname, compatible);
+
+   drm_shim_override_file(uevent_content,
+                          "/sys/dev/char/%d:%d/device/uevent", DRM_MAJOR, render_node_minor);
+
+   free(uevent_content);
+}

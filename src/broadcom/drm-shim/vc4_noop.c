@@ -126,14 +126,9 @@ static ioctl_fn_t driver_ioctls[] = {
 void
 drm_shim_driver_init(void)
 {
-        shim_device.bus_type = DRM_BUS_PLATFORM;
         shim_device.driver_name = "vc4";
         shim_device.driver_ioctls = driver_ioctls;
         shim_device.driver_ioctl_count = ARRAY_SIZE(driver_ioctls);
 
-        drm_shim_override_file("OF_FULLNAME=/rdb/vc4\n"
-                               "OF_COMPATIBLE_N=1\n"
-                               "OF_COMPATIBLE_0=brcm,7278-vc4\n",
-                               "/sys/dev/char/%d:%d/device/uevent",
-                               DRM_MAJOR, render_node_minor);
+        drm_shim_platform_device_setup("vc4", "/rdb/vc4", "brcm,7278-vc4");
 }

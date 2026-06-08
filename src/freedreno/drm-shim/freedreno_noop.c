@@ -379,7 +379,6 @@ msm_driver_get_device_info(void)
 void
 drm_shim_driver_init(void)
 {
-   shim_device.bus_type = DRM_BUS_PLATFORM;
    shim_device.driver_name = "msm";
    shim_device.driver_ioctls = driver_ioctls;
    shim_device.driver_ioctl_count = ARRAY_SIZE(driver_ioctls);
@@ -391,9 +390,5 @@ drm_shim_driver_init(void)
 
    msm_driver_get_device_info();
 
-   drm_shim_override_file("OF_FULLNAME=/rdb/msm\n"
-                          "OF_COMPATIBLE_N=1\n"
-                          "OF_COMPATIBLE_0=qcom,adreno\n",
-                          "/sys/dev/char/%d:%d/device/uevent", DRM_MAJOR,
-                          render_node_minor);
+   drm_shim_platform_device_setup("msm", "/rdb/msm", "qcom,adreno");
 }

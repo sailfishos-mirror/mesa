@@ -303,8 +303,6 @@ drm_shim_driver_init(void)
    uint64_t gpu_id = pan_get_gpu_id();
    bool is_csf_based = (gpu_id >> 12) > 9;
 
-   shim_device.bus_type = DRM_BUS_PLATFORM;
-
    /* panfrost uses the DRM version to expose features, instead of getparam. */
    shim_device.version_major = 1;
    shim_device.version_patchlevel = 0;
@@ -323,23 +321,13 @@ drm_shim_driver_init(void)
       drm_shim_init_iomem_region(DRM_PANTHOR_USER_MMIO_OFFSET, getpagesize(),
                                  panthor_iomem_mmap);
 
-      drm_shim_override_file("DRIVER=panthor\n"
-                             "OF_FULLNAME=/soc/mali\n"
-                             "OF_COMPATIBLE_0=arm,mali-valhall-csf\n"
-                             "OF_COMPATIBLE_N=1\n",
-                             "/sys/dev/char/%d:%d/device/uevent", DRM_MAJOR,
-                             render_node_minor);
+      drm_shim_platform_device_setup("panthor", "/soc/mali", "arm,mali-valhall-csf");
    } else {
       shim_device.driver_name = "panfrost";
       shim_device.version_minor = 1;
       shim_device.driver_ioctls = panfrost_driver_ioctls;
       shim_device.driver_ioctl_count = ARRAY_SIZE(panfrost_driver_ioctls);
 
-      drm_shim_override_file("DRIVER=panfrost\n"
-                             "OF_FULLNAME=/soc/mali\n"
-                             "OF_COMPATIBLE_0=arm,mali-t860\n"
-                             "OF_COMPATIBLE_N=1\n",
-                             "/sys/dev/char/%d:%d/device/uevent", DRM_MAJOR,
-                             render_node_minor);
+      drm_shim_platform_device_setup("panfrost", "/soc/mali", "arm,mali-t860");
    }
 }

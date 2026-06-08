@@ -206,16 +206,11 @@ static ioctl_fn_t driver_ioctls[] = {
 void
 drm_shim_driver_init(void)
 {
-        shim_device.bus_type = DRM_BUS_PLATFORM;
         shim_device.driver_name = "v3d";
         shim_device.driver_ioctls = driver_ioctls;
         shim_device.driver_ioctl_count = ARRAY_SIZE(driver_ioctls);
 
-        drm_shim_override_file("OF_FULLNAME=/rdb/v3d\n"
-                               "OF_COMPATIBLE_N=1\n"
-                               "OF_COMPATIBLE_0=brcm,2711-v3d\n",
-                               "/sys/dev/char/%d:%d/device/uevent",
-                               DRM_MAJOR, render_node_minor);
+        drm_shim_platform_device_setup("v3d", "/rdb/v3d", "brcm,2711-v3d");
 
         /* Select the GPU to emulate */
         const char *gpu = debug_get_option("V3D_GPU_ID", "71");

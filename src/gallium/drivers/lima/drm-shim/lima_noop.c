@@ -101,7 +101,6 @@ static ioctl_fn_t driver_ioctls[] = {
 void
 drm_shim_driver_init(void)
 {
-   shim_device.bus_type = DRM_BUS_PLATFORM;
    shim_device.driver_name = "lima";
    shim_device.driver_ioctls = driver_ioctls;
    shim_device.driver_ioctl_count = ARRAY_SIZE(driver_ioctls);
@@ -111,10 +110,5 @@ drm_shim_driver_init(void)
    shim_device.version_minor = 1;
    shim_device.version_patchlevel = 0;
 
-   drm_shim_override_file("DRIVER=lima\n"
-                          "OF_FULLNAME=/soc/mali\n"
-                          "OF_COMPATIBLE_0=arm,mali-450\n"
-                          "OF_COMPATIBLE_N=1\n",
-                          "/sys/dev/char/%d:%d/device/uevent", DRM_MAJOR,
-                          render_node_minor);
+   drm_shim_platform_device_setup("lima", "/soc/lima", "arm,mali-450");
 }
