@@ -222,7 +222,7 @@ si_aco_build_shader_part_binary(void** priv_ptr, uint32_t num_sgprs, uint32_t nu
    result->binary.type = SI_SHADER_BINARY_RAW;
    result->binary.code_buffer = buffer;
    result->binary.code_size = code_size;
-   result->binary.exec_size = code_size;
+   result->binary.exec_size = exec_size;
 
    if (disasm_size) {
       memcpy(buffer + code_size, disasm_str, disasm_size);
