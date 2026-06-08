@@ -1038,7 +1038,8 @@ struct kk_draw_data {
 };
 
 static uint64_t
-kk_upload_vertex_params(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
+kk_upload_vertex_params(struct kk_cmd_buffer *cmd,
+                        const struct kk_draw_data *data)
 {
    const uint32_t wg_size[3] = {1, 1, 1};
 
@@ -1046,23 +1047,23 @@ kk_upload_vertex_params(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    poly_vertex_params_init(&params, 0, wg_size);
 
    /* XXX: We should deduplicate this logic */
-   bool indirect = kk_grid_is_indirect(data.grid);
+   bool indirect = kk_grid_is_indirect(data->grid);
 
    if (!indirect)
-      poly_vertex_params_set_draw(&params, data.grid.size.x, data.grid.size.y);
+      poly_vertex_params_set_draw(&params, data->grid.size.x,
+                                  data->grid.size.y);
 
-   if (data.index.buffer) {
+   if (data->index.buffer) {
       params.index_buffer =
-         mtl_buffer_get_gpu_address(data.index.buffer) + data.index.offset;
-
-      params.index_buffer_range_el = data.index.range / data.index.el_size_B;
+         mtl_buffer_get_gpu_address(data->index.buffer) + data->index.offset;
+      params.index_buffer_range_el = data->index.range / data->index.el_size_B;
    }
 
    struct kk_shader *vs = cmd->state.shaders[MESA_SHADER_VERTEX];
    params.outputs = vs->info.vs.outputs_written;
 
    if (!indirect) {
-      uint32_t verts = data.grid.size.x, instances = data.grid.size.y;
+      uint32_t verts = data->grid.size.x, instances = data->grid.size.y;
       unsigned vb_size =
          poly_tcs_in_size(verts * instances, vs->info.vs.outputs_written);
 
@@ -1085,7 +1086,7 @@ kk_upload_vertex_params(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
 
 static void
 kk_upload_tess_params(struct kk_cmd_buffer *cmd, struct poly_tess_params *out,
-                      struct kk_draw_data draw)
+                      const struct kk_draw_data *draw)
 {
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
    struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
@@ -1125,9 +1126,9 @@ kk_upload_tess_params(struct kk_cmd_buffer *cmd, struct poly_tess_params *out,
    /* TODO_KOSMICKRISP Self-contained until we have rodata at the device. */
    args.patch_coord_buffer = dev->heap->gpu + sizeof(struct poly_heap);
 
-   if (!kk_grid_is_indirect(draw.grid)) {
-      unsigned in_patches = draw.grid.size.x / args.input_patch_size;
-      unsigned unrolled_patches = in_patches * draw.grid.size.y;
+   if (!kk_grid_is_indirect(draw->grid)) {
+      unsigned in_patches = draw->grid.size.x / args.input_patch_size;
+      unsigned unrolled_patches = in_patches * draw->grid.size.y;
 
       uint32_t alloc = 0;
       uint32_t tcs_out_offs = alloc;
@@ -1496,6 +1497,12 @@ build_per_draw_upload_mask(struct kk_cmd_buffer *cmd)
       mask |= BITFIELD_BIT(MESA_SHADER_VERTEX);
    }
 
+   /* Tessellation will always require per draw data to be submitted. */
+   struct kk_shader *tese = cmd->state.shaders[MESA_SHADER_TESS_EVAL];
+   if (tese) {
+      mask |= BITFIELD_BIT(MESA_SHADER_TESS_EVAL);
+   }
+
    struct kk_shader *fragment = cmd->state.shaders[MESA_SHADER_FRAGMENT];
    if (fragment && fragment->info.uses_per_draw_data) {
       mask |= BITFIELD_BIT(MESA_SHADER_FRAGMENT);
@@ -1638,20 +1645,77 @@ requires_index_robustness(struct kk_cmd_buffer *cmd,
    return false;
 }
 
-static void
-kk_upload_per_draw_data(struct kk_cmd_buffer *cmd, uint32_t upload_mask)
+static uint64_t
+upload_base_vertex(struct kk_cmd_buffer *cmd, const struct kk_draw_data *data)
 {
-   mtl_render_encoder *enc = kk_render_encoder(cmd);
+   if (kk_grid_is_indirect(data->grid)) {
+      uint64_t first_vertex_offset =
+         data->index.buffer
+            ? offsetof(VkDrawIndexedIndirectCommand, vertexOffset)
+            : offsetof(VkDrawIndirectCommand, firstVertex);
+      return mtl_buffer_get_gpu_address(data->grid.indirect) +
+             data->grid.offset + first_vertex_offset;
+   } else {
+      return kk_pool_upload(cmd, &data->vertex_offset,
+                            sizeof(data->vertex_offset), 4u)
+         .gpu;
+   }
+}
+
+static uint64_t
+upload_base_instance(struct kk_cmd_buffer *cmd, const struct kk_draw_data *data)
+{
+   if (kk_grid_is_indirect(data->grid)) {
+      uint64_t base_instance_offset =
+         data->index.buffer
+            ? offsetof(VkDrawIndexedIndirectCommand, firstInstance)
+            : offsetof(VkDrawIndirectCommand, firstInstance);
+      return mtl_buffer_get_gpu_address(data->grid.indirect) +
+             data->grid.offset + base_instance_offset;
+   } else {
+      return kk_pool_upload(cmd, &data->grid.size.z, sizeof(data->grid.size.z),
+                            4u)
+         .gpu;
+   }
+}
+
+/* Prepares emulation data for stages like tessellation. It also upload system
+ * values not present in Metal such as drawID. */
+static void
+kk_upload_per_draw_data(struct kk_cmd_buffer *cmd, uint32_t upload_mask,
+                        uint32_t draw_id, const struct kk_draw_data *draw)
+{
    struct kk_graphics_state *gfx = &cmd->state.gfx;
+   gfx->per_draw_data.draw_id = draw_id;
+
+   /* Prepare emulation data for tessellation. */
+   bool tess = upload_mask & BITFIELD_BIT(MESA_SHADER_TESS_EVAL);
+   if (tess) {
+      gfx->per_draw_data.index_size = draw->index.el_size_B;
+      gfx->per_draw_data.base_vertex_addr = upload_base_vertex(cmd, draw);
+      gfx->per_draw_data.base_instance_addr = upload_base_instance(cmd, draw);
+      gfx->per_draw_data.vertex_params = kk_upload_vertex_params(cmd, draw);
+      struct kk_ptr tess_args =
+         kk_pool_alloc(cmd, sizeof(struct poly_tess_params), 4);
+      gfx->per_draw_data.tess_params = tess_args.gpu;
+      if (tess_args.gpu) {
+         kk_upload_tess_params(cmd, tess_args.cpu, draw);
+      }
+   }
 
    struct kk_ptr shader_data_gpu =
       kk_pool_upload(cmd, &gfx->per_draw_data, sizeof(gfx->per_draw_data), 8u);
    if (unlikely(!shader_data_gpu.gpu))
       return;
 
-   /* Tessellation shaders require poly data that is part of the per draw data */
-   bool tess = cmd->state.shaders[MESA_SHADER_TESS_EVAL];
-   if (tess || upload_mask & BITFIELD_BIT(MESA_SHADER_VERTEX)) {
+   mtl_render_encoder *enc = kk_render_encoder(cmd);
+   if (upload_mask & BITFIELD_BIT(MESA_SHADER_VERTEX)) {
+      mtl_set_vertex_buffer(enc, shader_data_gpu.buffer, shader_data_gpu.offset,
+                            2);
+   }
+   if (tess) {
+      mtl_compute_set_buffer(kk_encoder_pre_gfx_encoder(cmd),
+                             shader_data_gpu.buffer, shader_data_gpu.offset, 2);
       mtl_set_vertex_buffer(enc, shader_data_gpu.buffer, shader_data_gpu.offset,
                             2);
    }
@@ -1734,13 +1798,9 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw)
       mtl_compute_pipeline_state *pipeline = vs->pipeline.gfx.pre_render[0];
       struct mtl_size local_size = {64, 1, 1};
       mtl_compute_set_pipeline_state(enc, pipeline);
+      /* Bind root buffer here since indirect path dirties the binding at 0. */
       mtl_compute_set_buffer(enc, gfx->descriptors.root.root_buffer.buffer,
                              gfx->descriptors.root.root_buffer.offset, 0u);
-
-      struct kk_graphics_state *gfx = &cmd->state.gfx;
-      struct kk_ptr poly_ptr = kk_pool_upload(cmd, &gfx->per_draw_data,
-                                              sizeof(gfx->per_draw_data), 8u);
-      mtl_compute_set_buffer(enc, poly_ptr.buffer, poly_ptr.offset, 2);
       kk_dispatch_compute(enc, grid_vs, local_size);
       /* TODO_KOSMICKRISP Maybe too big of a barrier? We could definitely just
        * barrier the buffers we know we modify. */
@@ -1780,9 +1840,7 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw)
    return draw;
 }
 
-/* When the current draw contains stages not present in Metal such as
- * tessellation, this step will launch required emulation when needed and build
- * the per draw data required to launch the Metal draw. */
+/* Get modifiable per draw data. */
 static struct kk_draw_data
 build_draw_data(struct kk_cmd_buffer *cmd, struct kk_draw_command *data,
                 uint32_t draw_id)
@@ -1796,77 +1854,22 @@ build_draw_data(struct kk_cmd_buffer *cmd, struct kk_draw_command *data,
       .primitive_type = tess ? 0u : mesa_prim_to_mtl_primitive_type(data->prim),
    };
 
-   uint64_t first_vertex_gpu = 0u;
-   uint64_t base_instance_gpu = 0u;
    if (data->indirect) {
       uint64_t indirect_offset = data->indirect_command.offset +
                                  draw_id * data->indirect_command.stride;
       draw.grid =
          kk_grid_indirect(data->indirect_command.buffer, indirect_offset);
-
-      if (tess) {
-         uint64_t first_vertex_offset =
-            data->indexed ? offsetof(VkDrawIndexedIndirectCommand, vertexOffset)
-                          : offsetof(VkDrawIndirectCommand, firstVertex);
-         uint64_t base_instance_offset =
-            data->indexed
-               ? offsetof(VkDrawIndexedIndirectCommand, firstInstance)
-               : offsetof(VkDrawIndirectCommand, firstInstance);
-         first_vertex_gpu =
-            mtl_buffer_get_gpu_address(data->indirect_command.buffer) +
-            indirect_offset + first_vertex_offset;
-         base_instance_gpu =
-            mtl_buffer_get_gpu_address(data->indirect_command.buffer) +
-            indirect_offset + base_instance_offset;
-      }
    } else if (data->indexed) {
       VkDrawIndexedIndirectCommand draw_cmd = data->indexed_draws[draw_id];
       draw.grid = kk_grid_3d(draw_cmd.indexCount, draw_cmd.instanceCount,
                              draw_cmd.firstInstance);
       draw.vertex_offset = draw_cmd.vertexOffset;
       draw.index.offset += draw_cmd.firstIndex * data->index_buffer_el_size_B;
-
-      if (tess) {
-         first_vertex_gpu = kk_pool_upload(cmd, &draw_cmd.vertexOffset,
-                                           sizeof(draw_cmd.vertexOffset), 4u)
-                               .gpu;
-         base_instance_gpu = kk_pool_upload(cmd, &draw_cmd.firstInstance,
-                                            sizeof(draw_cmd.firstInstance), 4u)
-                                .gpu;
-      }
    } else {
       VkDrawIndirectCommand draw_cmd = data->draws[draw_id];
       draw.grid = kk_grid_3d(draw_cmd.vertexCount, draw_cmd.instanceCount,
                              draw_cmd.firstInstance);
       draw.vertex_offset = draw_cmd.firstVertex;
-
-      if (tess) {
-         first_vertex_gpu = kk_pool_upload(cmd, &draw_cmd.firstVertex,
-                                           sizeof(draw_cmd.firstVertex), 4u)
-                               .gpu;
-         base_instance_gpu = kk_pool_upload(cmd, &draw_cmd.firstInstance,
-                                            sizeof(draw_cmd.firstInstance), 4u)
-                                .gpu;
-      }
-   }
-
-   /* Emulate tessellation. */
-   if (tess) {
-      struct kk_ptr tess_args = {};
-      struct kk_graphics_state *gfx = &cmd->state.gfx;
-      gfx->per_draw_data.index_size = data->index_buffer_el_size_B;
-      gfx->per_draw_data.base_vertex_addr = first_vertex_gpu;
-      gfx->per_draw_data.base_instance_addr = base_instance_gpu;
-      gfx->per_draw_data.vertex_params = kk_upload_vertex_params(cmd, draw);
-      gfx->per_draw_data.draw_id = draw_id;
-      tess_args = kk_pool_alloc(cmd, sizeof(struct poly_tess_params), 4);
-      gfx->per_draw_data.tess_params = tess_args.gpu;
-
-      if (tess_args.gpu) {
-         kk_upload_tess_params(cmd, tess_args.cpu, draw);
-      }
-
-      draw = kk_launch_tess(cmd, draw);
    }
 
    return draw;
@@ -1897,13 +1900,13 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
       return;
 
    for (uint32_t i = 0; i < data->draw_count; i++) {
-      cmd->state.gfx.per_draw_data.draw_id = i;
       struct kk_draw_data draw_data = build_draw_data(cmd, data, i);
 
-      /* Tessellation requires poly data which is part of the per draw */
-      if (tess || data->upload_mask)
-         kk_upload_per_draw_data(cmd, data->upload_mask);
+      if (data->upload_mask)
+         kk_upload_per_draw_data(cmd, data->upload_mask, i, &draw_data);
 
+      if (tess)
+         draw_data = kk_launch_tess(cmd, draw_data);
       kk_dispatch_draw(kk_render_encoder(cmd), draw_data);
    }
 }

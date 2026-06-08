@@ -308,9 +308,6 @@ _lower_sysval_to_per_draw(nir_builder *b, nir_intrinsic_instr *intrin,
 #define lower_sysval_to_per_draw(b, intrin, member)                            \
    _lower_sysval_to_per_draw(b, intrin, kk_per_draw_offset(member))
 
-#define lower_sysval_to_kk_poly(b, intrin, member)                             \
-   _lower_sysval_to_per_draw(b, intrin, kk_poly_offset(member))
-
 static bool
 lower_load_push_constant(nir_builder *b, nir_intrinsic_instr *load,
                          const struct lower_descriptors_ctx *ctx)
