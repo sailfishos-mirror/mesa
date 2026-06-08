@@ -2167,10 +2167,8 @@ static void* r300_create_vs_state(struct pipe_context* pipe,
        vs->state.type = PIPE_SHADER_IR_NIR;
     }
 
-    /* Run the same NIR optimization/lowering for both HW and SW TCL. */
-    r300_optimize_nir(vs->state.ir.nir, r300->screen);
-
     if (r300->screen->caps.has_tcl) {
+        r300_optimize_nir(vs->state.ir.nir, r300->screen);
         /* R300/R400 can not do any kind of control flow, so abort early here. */
         if (!r300->screen->caps.is_r500) {
             char *msg = r300_check_control_flow(vs->state.ir.nir);
