@@ -88,6 +88,7 @@ struct radv_shader_stage_key {
    uint8_t optimisations_disabled : 1;
    uint8_t keep_statistic_info : 1;
    uint8_t keep_executable_info : 1;
+   uint8_t keep_shader_arg_info : 1;
    uint8_t view_index_from_device_index : 1;
    uint8_t descriptor_heap : 1;
 
@@ -100,7 +101,7 @@ struct radv_shader_stage_key {
    /* Whether the shader is used with indirect pipeline binds. */
    uint8_t indirect_bindable : 1;
 
-   uint32_t reserved : 15;
+   uint32_t reserved : 14;
 };
 
 struct radv_ps_epilog_key {

@@ -114,6 +114,7 @@ radv_pipeline_get_shader_key(const struct radv_compiler_info *compiler_info,
    struct vk_pipeline_robustness_state rs;
    struct radv_shader_stage_key key = {0};
 
+   key.keep_shader_arg_info = compiler_info->debug.keep_shader_info;
    key.keep_statistic_info = radv_pipeline_capture_shader_stats(compiler_info, flags);
    key.keep_executable_info = radv_pipeline_capture_shaders(compiler_info, flags);
 

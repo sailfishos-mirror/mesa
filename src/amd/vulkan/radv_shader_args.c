@@ -1014,7 +1014,7 @@ radv_declare_shader_args(const struct radv_compiler_info *compiler_info,
          allocate_inline_push_consts(info, &user_sgpr_info);
    }
 
-   state.gather_debug_info = debug && compiler_info->debug.keep_shader_info;
+   state.gather_debug_info = stage->key.keep_shader_arg_info;
    if (state.gather_debug_info) {
       state.ctx = ralloc_context(NULL);
       state.gather_debug_info &= !!state.ctx;
