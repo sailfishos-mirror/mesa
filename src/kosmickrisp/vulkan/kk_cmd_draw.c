@@ -1309,8 +1309,9 @@ kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
       .in_draw_stride_el = data->indirect_command.stride / sizeof(uint32_t),
       /* Handle primitive restart disable by forcing index to UINT32_MAX */
       .restart_index = !data->restart ? UINT32_MAX : data->restart_index,
-      .index_buffer_size_el =
-         data->index_buffer_range_B / data->index_buffer_el_size_B,
+      .index_buffer_size_el = data->indexed ? data->index_buffer_range_B /
+                                                 data->index_buffer_el_size_B
+                                            : 0u,
       .in_el_size_B = data->index_buffer_el_size_B,
       .out_el_size_B = 4u,
       .flatshade_first = true,
