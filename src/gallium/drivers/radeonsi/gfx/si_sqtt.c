@@ -357,6 +357,7 @@ bool si_init_sqtt(struct si_context *sctx)
    si_sqtt_init_cs(sctx);
 
    sctx->sqtt_next_event = EventInvalid;
+   sctx->sqtt_cb_id = 0;
 
    return true;
 }
@@ -547,7 +548,7 @@ void si_sqtt_write_event_marker(struct si_context *sctx, struct radeon_cmdbuf *r
    marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_EVENT;
    marker.api_type = api_type == EventInvalid ? EventCmdDraw : api_type;
    marker.cmd_id = num_events++;
-   marker.cb_id = 0;
+   marker.cb_id = sctx->sqtt_cb_id;
 
    if (vertex_offset_user_data == UINT_MAX ||
        instance_offset_user_data == UINT_MAX) {
@@ -576,7 +577,7 @@ void si_write_event_with_dims_marker(struct si_context *sctx, struct radeon_cmdb
    marker.event.identifier = RGP_SQTT_MARKER_IDENTIFIER_EVENT;
    marker.event.api_type = api_type;
    marker.event.cmd_id = num_events++;
-   marker.event.cb_id = 0;
+   marker.event.cb_id = sctx->sqtt_cb_id;
    marker.event.has_thread_dims = 1;
 
    marker.thread_x = x;
@@ -592,7 +593,7 @@ void si_sqtt_describe_barrier_start(struct si_context *sctx, struct radeon_cmdbu
    struct rgp_sqtt_marker_barrier_start marker = {0};
 
    marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_BARRIER_START;
-   marker.cb_id = 0;
+   marker.cb_id = sctx->sqtt_cb_id;
    marker.dword02 = 0xC0000000 + 10; /* RGP_BARRIER_INTERNAL_BASE */
 
    si_emit_sqtt_userdata(sctx, rcs, &marker, sizeof(marker) / 4);
@@ -604,7 +605,7 @@ void si_sqtt_describe_barrier_end(struct si_context *sctx, struct radeon_cmdbuf 
    struct rgp_sqtt_marker_barrier_end marker = {0};
 
    marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_BARRIER_END;
-   marker.cb_id = 0;
+   marker.cb_id = sctx->sqtt_cb_id;
 
    if (flags & SI_BARRIER_SYNC_VS)
       marker.vs_partial_flush = true;
@@ -828,7 +829,7 @@ void si_sqtt_describe_pipeline_bind(struct si_context *sctx,
    }
 
    marker.identifier = RGP_SQTT_MARKER_IDENTIFIER_BIND_PIPELINE;
-   marker.cb_id = 0;
+   marker.cb_id = sctx->sqtt_cb_id;
    marker.bind_point = bind_point;
    marker.api_pso_hash[0] = pipeline_hash;
    marker.api_pso_hash[1] = pipeline_hash >> 32;

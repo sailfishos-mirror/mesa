@@ -1295,6 +1295,7 @@ struct si_context {
    struct pipe_fence_handle *last_sqtt_fence;
    enum rgp_sqtt_marker_event_type sqtt_next_event;
    bool sqtt_enabled;
+   uint32_t sqtt_cb_id;
 
    bool perfetto_enabled;
 
