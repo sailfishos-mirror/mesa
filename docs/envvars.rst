@@ -1691,6 +1691,59 @@ RADV driver environment variables
    32MiB, the buffer is automatically resized if too small, except for
    per-submit captures)
 
+.. envvar:: RADV_SPM_COUNTERS_CONFIG
+
+   path to a config file listing custom SPM counters to collect when
+   capturing an RGP trace (``MESA_VK_TRACE=rgp``). Supported on
+   GFX10 and newer. The user is responsible for selecting block and
+   event IDs that are valid on the target ASIC.
+
+   File format (line-based)::
+
+      # comments start with '#'; C-style /* ... */ blocks are also allowed
+
+      [NAME]
+      # one or more HW counter lines:
+      COUNTER_NAME=BLOCK,EVENT_ID,INSTANCE,OP
+      ...
+
+   Section header:
+
+   * ``[NAME]`` opens a new group named ``NAME``.
+
+   ``NAME`` may optionally be wrapped in double or single quotes, which
+   lets it contain ``]`` or other characters that would otherwise be
+   reserved::
+
+      ["Memory (%)"]
+
+   HW counter line (``COUNTER_NAME=BLOCK,EVENT_ID,INSTANCE,OP``):
+
+   * ``BLOCK`` is the textual block name (e.g. ``SQ_WGP``, ``GL2C``).
+   * ``EVENT_ID`` is decimal or hex (``0x...``).
+   * ``INSTANCE`` is a decimal index or the keyword ``ALL`` to expand to
+     every hardware instance of the block.
+   * ``OP`` (``sum``, ``max`` or ``avg``) selects how the per-instance
+     values are aggregated for that counter. ``avg`` first sums the
+     per-instance values like ``sum`` and then divides by the number
+     of instances the line expanded to, which is useful when the
+     resulting value is later compared against a single-instance
+     baseline (e.g. ``CPF_PERF_SEL_STAT_BUSY``).
+
+   Each HW counter is auto-promoted to a pass-through derived item
+   shown in RGP under its group, with the same name as the counter.
+
+   Example (one group, one counter per HW instance)::
+
+      [Cache]
+      TCP_PERF_SEL_REQ=SQ_WGP,0x3,ALL,sum
+      TCP_PERF_SEL_REQ_MISS=SQ_WGP,0x12,ALL,sum
+      GL2C_PERF_SEL_REQ=GL2C,0x3,ALL,sum
+      GL2C_PERF_SEL_MISS=GL2C,0x2b,ALL,sum
+
+   Limits (per trace): up to 8 groups and 48 items total; up to 16
+   items per group.
+
 .. envvar:: RADV_TRAP_HANDLER
 
    enable/disable the experimental trap handler for debugging GPU hangs on GFX8
