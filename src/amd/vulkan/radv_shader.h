@@ -426,8 +426,11 @@ struct radv_serialized_shader_arena_block {
 };
 
 struct radv_shader_debug_info {
+   /* These are uncached. */
    bool dump_shader;
    uint32_t stages; /* mesa_shader_stage */
+
+   /* The rest of these are cached. */
    char *spirv;
    uint32_t spirv_size;
    char *nir_string;

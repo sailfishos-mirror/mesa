@@ -130,8 +130,6 @@ radv_compile_cs(const struct radv_compiler_info *compiler_info, struct radv_shad
    if (cs_stage->key.keep_executable_info)
       nir_string = radv_dump_nir_shaders(compiler_info, &cs_stage->nir, 1);
 
-   radv_parse_binary_debug_info(compiler_info, cs_binary, dbg);
-
    dbg->nir_string = nir_string;
    dbg->stages = 1 << MESA_SHADER_COMPUTE;
 

@@ -502,7 +502,6 @@ radv_rt_nir_to_asm(const struct radv_compiler_info *compiler_info, struct radv_r
    if (stage->key.keep_executable_info)
       debug->nir_string = radv_dump_nir_shaders(compiler_info, shaders, num_shaders);
 
-   radv_parse_binary_debug_info(compiler_info, *binary, debug);
    debug->stages = 1 << shaders[0]->info.stage;
 
    radv_shader_dump_asm(compiler_info, debug, &stage->info);

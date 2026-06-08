@@ -2114,7 +2114,6 @@ radv_create_gs_copy_shader(const struct radv_compiler_info *compiler_info, struc
    if (gs_copy_stage.key.keep_executable_info)
       nir_string = radv_dump_nir_shaders(compiler_info, &nir, 1);
 
-   radv_parse_binary_debug_info(compiler_info, gs_copy_binary, gs_copy_debug);
    gs_copy_debug->nir_string = nir_string;
    gs_copy_debug->stages = 1 << MESA_SHADER_VERTEX;
    radv_shader_dump_asm(compiler_info, gs_copy_debug, &gs_copy_stage.info);
@@ -2180,7 +2179,6 @@ radv_graphics_shaders_nir_to_asm(const struct radv_compiler_info *compiler_info,
       if (stages[s].key.keep_executable_info)
          nir_string = radv_dump_nir_shaders(compiler_info, nir_shaders, shader_count);
 
-      radv_parse_binary_debug_info(compiler_info, binaries[s], &debug[s]);
       debug[s].nir_string = nir_string;
       for (uint32_t i = 0; i < shader_count; i++)
          debug[s].stages |= 1 << nir_shaders[i]->info.stage;
