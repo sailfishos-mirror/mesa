@@ -58,14 +58,30 @@ def pretty_duration(seconds: int | float) -> str:
     return f"{seconds:0.0f}s"
 
 
-def get_gitlab_pipeline_from_url(gl, pipeline_url) -> tuple:
+def get_server_and_project_from_url(pipeline_url: str) -> tuple[str]:
+    """
+    Extract the string of the server and path that means the project with namespace
+    from a url that points to a pipeline.
+    :param pipeline_url: string with a url to a pipeline
+    :return: server_url, project_path
+    """
+    pattern = r"(https?://[^ /]+)/(.*)/-/pipelines/\d+"
+    _match = re.match(pattern, pipeline_url)
+    if not _match and len(_match.groups() != 2):
+        raise AssertionError(f"url {pipeline_url} doesn't follow the pattern {pattern}")
+    return _match.groups()
+
+
+def get_gitlab_pipeline_from_url(gl: Gitlab, pipeline_url: str, server_url: str = None) -> tuple[ProjectPipeline, Project]:
     """
     Extract the project and pipeline object from the url string
     :param gl: Gitlab object
     :param pipeline_url: string with a url to a pipeline
+    :param server_url: optional string with the server part
     :return: ProjectPipeline, Project objects
     """
-    pattern = rf"^{re.escape(GITLAB_URL)}/(.*)/-/pipelines/([0-9]+)$"
+    server_url = server_url if server_url else GITLAB_URL
+    pattern = rf"^{re.escape(server_url)}/(.*)/-/pipelines/([0-9]+)$"
     match = re.match(pattern, pipeline_url)
     if not match:
         raise AssertionError(f"url {pipeline_url} doesn't follow the pattern {pattern}")
