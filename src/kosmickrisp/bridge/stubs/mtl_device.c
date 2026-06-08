@@ -36,18 +36,6 @@ mtl_device_get_architecture_name(mtl_device *dev, char buffer[256])
 }
 
 uint64_t
-mtl_device_get_peer_group_id(mtl_device *dev)
-{
-   return 0u;
-}
-
-uint32_t
-mtl_device_get_peer_index(mtl_device *dev)
-{
-   return 0u;
-}
-
-uint64_t
 mtl_device_get_registry_id(mtl_device *dev)
 {
    return 0u;
