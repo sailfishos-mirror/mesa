@@ -922,7 +922,7 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
       NIR_PASS(_, nir, nir_unlower_io_to_vars, true);
 
    if (nir->info.stage == MESA_SHADER_VERTEX)
-      NIR_PASS(_, nir, pco_nir_lower_clip_cull_vars);
+      pco_nir_lower_clip_cull_vars(nir);
 
    NIR_PASS(_, nir, pco_nir_lower_images, data, ctx);
    NIR_PASS(_, nir, pco_nir_lower_atomics, data);

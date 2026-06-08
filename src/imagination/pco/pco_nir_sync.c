@@ -194,7 +194,7 @@ bool pco_nir_lower_atomics(nir_shader *shader, pco_data *data)
 
    progress |= nir_shader_intrinsics_pass(shader,
                                           lower_global_atomic_intrinsic,
-                                          nir_metadata_none,
+                                          nir_metadata_control_flow,
                                           NULL);
    progress |= nir_shader_intrinsics_pass(shader,
                                           lower_usclib_atomic,

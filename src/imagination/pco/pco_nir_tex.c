@@ -796,7 +796,7 @@ bool pco_nir_lower_tex(nir_shader *shader, pco_data *data, pco_ctx *ctx)
 
    return nir_shader_tex_pass(shader,
                               lower_tex,
-                              nir_metadata_control_flow,
+                              nir_metadata_none,
                               &state);
 }
 
