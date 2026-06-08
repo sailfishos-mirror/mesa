@@ -1384,6 +1384,8 @@ void anv_DestroyDevice(
 
    anv_device_finish_internal_kernels(device);
 
+   anv_device_finish_shader_dump(device);
+
    anv_device_finish_descriptors_view(device);
 
    if (anv_needs_printf_buffer())
