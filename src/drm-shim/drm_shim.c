@@ -109,15 +109,14 @@ static char drm_device_path[] = "/sys/dev/char/" STRINGIZE(DRM_MAJOR) ":";
 /* /sys/dev/char/major:minor/device */
 static int device_path_len;
 static char *device_path;
-/* /sys/dev/char/major:minor/device/subsystem */
-static char *subsystem_path;
 int render_node_minor = -1;
 
 struct file_override {
    const char *path;
    char *contents;
+   bool is_link;
 };
-static struct file_override file_overrides[10];
+static struct file_override file_overrides[20];
 static int file_overrides_count;
 extern bool drm_shim_driver_prefers_first_render_node;
 
@@ -191,6 +190,23 @@ drm_shim_override_file(const char *contents, const char *path_format, ...)
    override->contents = strdup(contents);
 }
 
+void
+drm_shim_override_link(const char *target, const char *path_format, ...)
+{
+   assert(file_overrides_count < ARRAY_SIZE(file_overrides));
+
+   char *path;
+   va_list ap;
+   va_start(ap, path_format);
+   nfvasprintf(&path, path_format, ap);
+   va_end(ap);
+
+   struct file_override *override = &file_overrides[file_overrides_count++];
+   override->path = path;
+   override->contents = strdup(target);
+   override->is_link = true;
+}
+
 static uint32_t got_function_pointers = 0;
 
 static void
@@ -242,7 +258,6 @@ destroy_shim(void)
    _mesa_set_destroy(opendir_set, NULL);
    free(render_node_path);
    free(render_node_dirent_name);
-   free(subsystem_path);
 
    render_node_minor = -1;
    file_overrides_count = 0;
@@ -278,10 +293,6 @@ init_shim(void)
       nfasprintf(&device_path,
                  "/sys/dev/char/%d:%d/device",
                  DRM_MAJOR, render_node_minor);
-
-   nfasprintf(&subsystem_path,
-              "/sys/dev/char/%d:%d/device/subsystem",
-              DRM_MAJOR, render_node_minor);
 
    drm_shim_device_init();
 
@@ -322,6 +333,9 @@ static int file_override_open(const char *path)
 {
    for (int i = 0; i < file_overrides_count; i++) {
       if (strcmp(file_overrides[i].path, path) == 0) {
+         if (file_overrides[i].is_link) {
+            return file_override_open(file_overrides[i].contents);
+         }
          int fd = os_create_anonymous_file(0, "shim file");
          write(fd, file_overrides[i].contents,
                strlen(file_overrides[i].contents));
@@ -745,30 +759,16 @@ readlink(const char *path, char *buf, size_t size)
       return -1;
    }
 
-   if (strcmp(path, subsystem_path) != 0)
-      return real_readlink(path, buf, size);
-
-   static const struct {
-      const char *name;
-      int bus_type;
-   } bus_types[] = {
-      { "/pci", DRM_BUS_PCI },
-      { "/usb", DRM_BUS_USB },
-      { "/platform", DRM_BUS_PLATFORM },
-      { "/spi", DRM_BUS_PLATFORM },
-      { "/host1x", DRM_BUS_HOST1X },
-   };
-
-   for (uint32_t i = 0; i < ARRAY_SIZE(bus_types); i++) {
-      if (bus_types[i].bus_type != shim_device.bus_type)
-         continue;
-
-      strncpy(buf, bus_types[i].name, size);
-      buf[size - 1] = 0;
-      break;
+   for (int i = 0; i < file_overrides_count; i++) {
+      if (strcmp(file_overrides[i].path, path) == 0) {
+         if (file_overrides[i].is_link) {
+            strncpy(buf, file_overrides[i].contents, size);
+            return strlen(buf) + 1;
+         }
+      }
    }
 
-   return strlen(buf) + 1;
+   return real_readlink(path, buf, size);
 }
 
 #if __USE_FORTIFY_LEVEL > 0 && !defined _CLANG_FORTIFY_DISABLE
@@ -896,6 +896,8 @@ drm_shim_pci_device_setup(uint16_t vendor_id, uint16_t device_id,
                           const char *pci_slot, const char *driver_name)
 {
    shim_device.bus_type = DRM_BUS_PCI;
+   drm_shim_override_link("/pci", "/sys/dev/char/%d:%d/device/subsystem",
+                          DRM_MAJOR, render_node_minor);
 
    char *uevent_content, *vendor_id_str, *device_id_str;
 
@@ -946,6 +948,8 @@ void
 drm_shim_platform_device_setup(const char *driver, const char *fullname, const char *compatible)
 {
    shim_device.bus_type = DRM_BUS_PLATFORM;
+   drm_shim_override_link("/platform", "/sys/dev/char/%d:%d/device/subsystem",
+                          DRM_MAJOR, render_node_minor);
 
    char *uevent_content;
    nfasprintf(&uevent_content, "DRIVER=%s\n"
