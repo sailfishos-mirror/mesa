@@ -833,6 +833,7 @@ device_has_expected_features(struct v3dv_physical_device *device)
    return v3d_has_feature(device, DRM_V3D_PARAM_SUPPORTS_TFU) &&
           v3d_has_feature(device, DRM_V3D_PARAM_SUPPORTS_CSD) &&
           v3d_has_feature(device, DRM_V3D_PARAM_SUPPORTS_CACHE_FLUSH) &&
+          v3d_has_feature(device, DRM_V3D_PARAM_SUPPORTS_CPU_QUEUE) &&
           device->caps.multisync;
 }
 
@@ -1415,18 +1416,17 @@ create_physical_device(struct v3dv_instance *instance,
       goto fail;
    }
 
-   device->caps.cpu_queue =
-      v3d_has_feature(device, DRM_V3D_PARAM_SUPPORTS_CPU_QUEUE);
-
    device->caps.multisync =
       v3d_has_feature(device, DRM_V3D_PARAM_SUPPORTS_MULTISYNC_EXT);
 
    device->caps.perfmon =
       v3d_has_feature(device, DRM_V3D_PARAM_SUPPORTS_PERFMON);
 
+   /* Always mention only the newest kernel version we require */
    if (!device_has_expected_features(device)) {
       result = vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
-                         "Kernel driver doesn't have required features.");
+                         "Kernel driver doesn't have required features. "
+                         "v3dv now requires kernel 6.8+");
       goto fail;
    }
 
