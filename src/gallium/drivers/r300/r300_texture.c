@@ -51,10 +51,37 @@ enum pipe_format r300_unbyteswap_array_format(enum pipe_format format)
     }
 }
 
-static unsigned r300_get_endian_swap(enum pipe_format format)
+static unsigned r300_get_endian_swap(enum pipe_format format,
+                                     struct r300_resource *tex)
 {
     const struct util_format_description *desc;
     unsigned swap_size;
+
+#if UTIL_ARCH_BIG_ENDIAN
+    if ((tex->b.bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_SAMPLER_VIEW)) ==
+        (PIPE_BIND_RENDER_TARGET | PIPE_BIND_SAMPLER_VIEW) &&
+        !(tex->b.flags & R300_RESOURCE_FLAG_TRANSFER) &&
+        !util_format_is_srgb(tex->b.format)) {
+        /* Normal BE 8888 array formats use DWORD_SWAP so CPU-visible bytes
+         * follow Gallium component order. Render-to-texture resources need one
+         * GPU convention for both RB3D writes and sampler reads; otherwise a
+         * VRAM-rendered glamor pixmap sampled after migration to GTT gets
+         * channel-swapped. Keep transfer staging, sRGB, and pure render
+         * targets on the normal policy.
+         */
+        switch (format) {
+        case PIPE_FORMAT_A8R8G8B8_UNORM:
+        case PIPE_FORMAT_X8R8G8B8_UNORM:
+        case PIPE_FORMAT_B8G8R8A8_UNORM:
+        case PIPE_FORMAT_B8G8R8X8_UNORM:
+            return R300_SURF_NO_SWAP;
+        default:
+            break;
+        }
+    }
+#else
+    (void)tex;
+#endif
 
     if (r300_unbyteswap_array_format(format) != format)
         return R300_SURF_DWORD_SWAP;
@@ -954,7 +981,7 @@ void r300_texture_setup_format_state(struct r300_screen *screen,
 
     out->tile_config = R300_TXO_MACRO_TILE(desc->macrotile[level]) |
                        R300_TXO_MICRO_TILE(desc->microtile) |
-                       R300_TXO_ENDIAN(r300_get_endian_swap(format));
+                       R300_TXO_ENDIAN(r300_get_endian_swap(format, tex));
 }
 
 static void r300_texture_setup_fb_state(struct r300_surface *surf)
@@ -970,7 +997,7 @@ static void r300_texture_setup_fb_state(struct r300_surface *surf)
                 stride |
                 R300_DEPTHMACROTILE(tex->tex.macrotile[level]) |
                 R300_DEPTHMICROTILE(tex->tex.microtile) |
-                R300_DEPTHENDIAN(r300_get_endian_swap(surf->base.format));
+                R300_DEPTHENDIAN(r300_get_endian_swap(surf->base.format, tex));
         surf->format = r300_translate_zsformat(surf->base.format);
         surf->pitch_zmask = tex->tex.zmask_stride_in_pixels[level];
         surf->pitch_hiz = tex->tex.hiz_stride_in_pixels[level];
@@ -982,7 +1009,7 @@ static void r300_texture_setup_fb_state(struct r300_surface *surf)
                 r300_translate_colorformat(format) |
                 R300_COLOR_TILE(tex->tex.macrotile[level]) |
                 R300_COLOR_MICROTILE(tex->tex.microtile) |
-                R300_COLOR_ENDIAN(r300_get_endian_swap(format));
+                R300_COLOR_ENDIAN(r300_get_endian_swap(format, tex));
         surf->format = r300_translate_out_fmt(format);
         surf->colormask_swizzle =
             r300_translate_colormask_swizzle(format);
