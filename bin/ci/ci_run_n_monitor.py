@@ -766,7 +766,7 @@ def main() -> None:
                                 )
                                 print("Did you forget to `git push` ?")
 
-                projects.add(get_gitlab_project(gl, args.project))
+            projects.add(get_gitlab_project(gl, project_name))
             (pipe, cur_project) = wait_for_pipeline(projects, REV)
 
         print(f"Revision: {REV}")
