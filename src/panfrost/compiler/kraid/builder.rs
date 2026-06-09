@@ -20,6 +20,16 @@ pub trait Builder {
 pub trait SSABuilder: Builder {
     fn alloc_ssa(&mut self, bits: u8) -> SSAValue;
 
+    fn copy_i8(&mut self, src: Src) -> SSAValue {
+        let def = self.alloc_ssa(8);
+        self.push_op(OpCopy {
+            dst: def.into(),
+            dst_type: DataType::I8,
+            src,
+        });
+        def
+    }
+
     fn copy_i16(&mut self, src: Src) -> SSAValue {
         let def = self.alloc_ssa(16);
         self.push_op(OpCopy {

@@ -11,7 +11,7 @@ use crate::ssa_value::SSAValueAllocator;
 use compiler::bindings::*;
 use compiler::nir::*;
 use rustc_hash::FxHashMap;
-use std::cmp::{max, min};
+use std::cmp::min;
 
 #[derive(Default)]
 struct BlockLabelMap {
@@ -47,11 +47,10 @@ impl<'a> ShaderFromNir<'a> {
     }
 
     fn alloc_ssa(&mut self, b: &mut impl SSABuilder, def: &nir_def) -> SSARef {
-        // 8-bit isn't real and can't hurt you
-        let bits = max(def.bit_size * def.num_components, 16);
+        let bits = def.bit_size * def.num_components;
         let mut vec = Vec::new();
-        if bits == 16 {
-            vec.push(b.alloc_ssa(16));
+        if bits <= 32 {
+            vec.push(b.alloc_ssa(bits.next_power_of_two()));
         } else {
             for _ in 0..bits.div_ceil(32) {
                 vec.push(b.alloc_ssa(32));
@@ -177,7 +176,10 @@ impl<'a> ShaderFromNir<'a> {
         let bits = load.def.bit_size * load.def.num_components;
         assert_eq!(imm_u32.len(), usize::from(bits.div_ceil(32)));
 
-        if bits <= 16 {
+        if bits == 8 {
+            let ssa = b.copy_i8(Src::imm_u8(imm_u32[0] as u8));
+            self.set_ssa(&load.def, vec![ssa]);
+        } else if bits == 16 {
             let ssa = b.copy_i16(Src::imm_u16(imm_u32[0] as u16));
             self.set_ssa(&load.def, vec![ssa]);
         } else {
