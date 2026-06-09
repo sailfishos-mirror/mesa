@@ -301,27 +301,22 @@ pop_temp(jay_builder *b, jay_def temp, jay_def backing)
 static void
 mov(jay_builder *b, jay_def dst, jay_def src, struct jay_temp_regs temps)
 {
-   jay_def temp = jay_null(), backing = jay_null();
+   jay_shader *s = b->shader;
+   bool split_copy = dst.file == MEM && src.file == MEM;
+   split_copy |= (dst.file == GPR && src.file == GPR) &&
+                 jay_def_stride(s, dst) != jay_def_stride(s, src) &&
+                 jay_def_stride(s, dst) != JAY_STRIDE_4 &&
+                 jay_def_stride(s, src) != JAY_STRIDE_4;
 
-   if (dst.file == MEM && src.file == MEM) {
+   if (split_copy) {
+      jay_def temp = jay_null(), backing = jay_null();
       temp = push_temp(b, temps, GPR, false, &backing, jay_null(), jay_null());
       jay_MOV(b, temp, src);
       jay_MOV(b, dst, temp);
-   } else if (dst.file == GPR &&
-              src.file == GPR &&
-              jay_def_stride(b->shader, dst) !=
-                 jay_def_stride(b->shader, src) &&
-              jay_def_stride(b->shader, dst) != JAY_STRIDE_4 &&
-              jay_def_stride(b->shader, src) != JAY_STRIDE_4) {
-
-      temp = push_temp(b, temps, GPR, false, &backing, jay_null(), jay_null());
-      jay_MOV(b, temp, src);
-      jay_MOV(b, dst, temp);
+      pop_temp(b, temp, backing);
    } else {
       jay_MOV(b, dst, src);
    }
-
-   pop_temp(b, temp, backing);
 }
 
 /*
