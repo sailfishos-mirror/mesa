@@ -108,10 +108,8 @@ endif
 if with_gfxstream_vk
   dep_virtgpu_kumquat_ffi = null_dep
   if with_virtgpu_kumquat
-    subdir('util/rust')
-    subdir('virtio/protocols')
-    subdir('virtio/virtgpu_kumquat')
-    subdir('virtio/virtgpu_kumquat_ffi')
+    subdir('virtio/magma-gpu-rs/lib')
+    subdir('virtio/magma-gpu-rs/ffi/virtgpu_kumquat_ffi')
   endif
   subdir('gfxstream')
 endif
