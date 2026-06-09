@@ -805,8 +805,8 @@ impl V9Instr for OpStore {
     }
 }
 
-macro_rules! v9_op_match {
-    ($op: expr, |$x: ident| $y: expr) => {
+macro_rules! v9_op_match_else {
+    ($op: expr, |$x: ident| $y: expr, $z: expr) => {
         match $op {
             Op::Branch($x) => $y,
             Op::CSel($x) => $y,
@@ -823,13 +823,23 @@ macro_rules! v9_op_match {
             Op::Nop($x) => $y,
             Op::ShiftLop($x) => $y,
             Op::Store($x) => $y,
-            _ => panic!("Unsupported op: {}", $op),
+            _ => $z,
         }
+    };
+}
+
+macro_rules! v9_op_match {
+    ($op: expr, |$x: ident| $y: expr) => {
+        v9_op_match_else!($op, |$x| $y, panic!("Unsupported op: {}", $op))
     };
 }
 
 fn v9_op_info(op: &Op, arch: u8) -> Option<&InstructionInfo> {
     v9_op_match!(op, |op| op.get_info(arch))
+}
+
+pub fn v9_op_is_supported(op: &Op, arch: u8) -> bool {
+    v9_op_match_else!(op, |op| op.get_info(arch).is_some(), false)
 }
 
 pub fn v9_op_is_message(op: &Op, arch: u8) -> bool {

@@ -10,6 +10,8 @@ pub trait Model {
 
     fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32>;
 
+    fn op_is_supported(&self, op: &Op) -> bool;
+
     fn op_is_message(&self, op: &Op) -> bool;
 
     fn op_src_supports_imm32(&self, op: &Op, src: &Src) -> bool;
@@ -37,6 +39,10 @@ impl Model for ValhallModel {
 
     fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32> {
         encode_v9(s, self.arch)
+    }
+
+    fn op_is_supported(&self, op: &Op) -> bool {
+        op.as_virtual().is_some() || v9_op_is_supported(op, self.arch)
     }
 
     fn op_is_message(&self, op: &Op) -> bool {
