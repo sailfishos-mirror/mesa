@@ -12,7 +12,6 @@
 #include "compiler/intel_shader_enums.h"
 #include "compiler/list.h"
 #include "intel/dev/intel_debug.h"
-#include "util/bitpack_helpers.h"
 #include "util/bitscan.h"
 #include "util/lut.h"
 #include "util/macros.h"
