@@ -723,6 +723,9 @@ enum jay_block_type {
    /** A block reserved for post-RA spill lowering */
    JAY_BLOCK_SPILL,
 
+   /** A block containing accumulators mapped as GPRs */
+   JAY_BLOCK_ACCUM,
+
    JAY_BLOCK_TYPES,
 };
 
@@ -740,7 +743,7 @@ struct jay_register_block {
    enum jay_stride stride;
 
    /** Special feature of the block */
-   enum jay_block_type type:2;
+   enum jay_block_type type:3;
 };
 static_assert(sizeof(struct jay_register_block) == 8, "packed");
 
