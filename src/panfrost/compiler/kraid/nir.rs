@@ -178,12 +178,12 @@ impl<'a> ShaderFromNir<'a> {
         assert_eq!(imm_u32.len(), usize::from(bits.div_ceil(32)));
 
         if bits <= 16 {
-            let ssa = b.mov_i16(Src::imm_u16(imm_u32[0] as u16));
+            let ssa = b.copy_i16(Src::imm_u16(imm_u32[0] as u16));
             self.set_ssa(&load.def, vec![ssa]);
         } else {
             self.set_ssa(
                 &load.def,
-                imm_u32.into_iter().map(|u| b.mov_i32(u.into())).collect(),
+                imm_u32.into_iter().map(|u| b.copy_i32(u.into())).collect(),
             );
         }
     }
@@ -261,7 +261,7 @@ impl<'a> ShaderFromNir<'a> {
             let mut dst_vec = Vec::new();
             if srcs.len() == 1 && src_bit_size <= 16 {
                 let x = srcs.next().unwrap();
-                dst_vec.push(b.mov_i16(x));
+                dst_vec.push(b.copy_i16(x));
             } else if srcs.len() == 2 && src_bit_size == 8 {
                 let x = srcs.next().unwrap();
                 let y = srcs.next().unwrap();
@@ -286,7 +286,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_vec.push(b.mkvec_v2i16(x, y));
                 }
             } else if src_bit_size == 32 {
-                dst_vec = srcs.map(|src| b.mov_i32(src)).collect();
+                dst_vec = srcs.map(|src| b.copy_i32(src)).collect();
             } else {
                 panic!("Unsupported bit size: {src_bit_size}");
             }

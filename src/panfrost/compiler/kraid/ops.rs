@@ -604,7 +604,7 @@ impl VirtualOpcode for OpMkVecV4I8 {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [I16, V2I16, I32])]
+#[variants(dst_type in [V2I16, I32])]
 pub struct OpMov {
     pub dst: Dst,
     pub dst_type: DataType,

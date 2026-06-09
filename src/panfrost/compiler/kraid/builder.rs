@@ -20,9 +20,9 @@ pub trait Builder {
 pub trait SSABuilder: Builder {
     fn alloc_ssa(&mut self, bits: u8) -> SSAValue;
 
-    fn mov_i16(&mut self, src: Src) -> SSAValue {
+    fn copy_i16(&mut self, src: Src) -> SSAValue {
         let def = self.alloc_ssa(16);
-        self.push_op(OpMov {
+        self.push_op(OpCopy {
             dst: def.into(),
             dst_type: DataType::I16,
             src,
@@ -30,9 +30,9 @@ pub trait SSABuilder: Builder {
         def
     }
 
-    fn mov_i32(&mut self, src: Src) -> SSAValue {
+    fn copy_i32(&mut self, src: Src) -> SSAValue {
         let def = self.alloc_ssa(32);
-        self.push_op(OpMov {
+        self.push_op(OpCopy {
             dst: def.into(),
             dst_type: DataType::I32,
             src,
