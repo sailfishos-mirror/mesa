@@ -178,13 +178,10 @@ insert_rt_store(nir_builder *b,
                 nir_def *src0_colour,
                 nir_def *depth,
                 nir_def *stencil,
-                nir_def *sample_mask)
+                nir_def *sample_mask,
+                nir_def *disable)
 {
    bool null_rt = target < 0;
-   bool eot_only = null_rt &&
-                   !colour &&
-                   nir_def_is_undef(depth) &&
-                   nir_def_is_undef(stencil);
 
    colour = nir_pad_vec4(b, colour ?: nir_undef(b, 4, 32));
    dual_colour = nir_pad_vec4(b, dual_colour ?: nir_undef(b, 4, 32));
@@ -198,10 +195,6 @@ insert_rt_store(nir_builder *b,
    }
 
    nir_def *src0_alpha = nir_channel_or_undef(b, src0_colour ?: colour, 3);
-
-   nir_def *disable = b->shader->info.fs.uses_discard && !eot_only ?
-                         nir_is_helper_invocation(b, 1) :
-                         nir_imm_false(b);
 
    nir_store_render_target_intel(b, colour, dual_colour, src0_alpha,
                                  sample_mask, depth, stencil, disable,
@@ -223,10 +216,14 @@ lower_fragment_outputs(nir_function_impl *impl,
 
    nir_def *undef = nir_undef(b, 1, 32);
 
+   nir_def *disable = b->shader->info.fs.uses_discard ?
+                         nir_is_helper_invocation(b, 1) :
+                         nir_imm_false(b);
+
    if (ctx.dual_blend) {
       insert_rt_store(b, 0, ctx.colour[0], ctx.colour[1], NULL,
                       ctx.depth ?: undef, ctx.stencil ?: undef,
-                      ctx.sample_mask ?: undef);
+                      ctx.sample_mask ?: undef, disable);
       return;
    }
 
@@ -242,13 +239,14 @@ lower_fragment_outputs(nir_function_impl *impl,
       if (ctx.colour[i]) {
          insert_rt_store(b, i, ctx.colour[i], NULL,
                          i > 0 ? ctx.colour[0] : NULL, ctx.depth ?: undef,
-                         ctx.stencil ?: undef, ctx.sample_mask ?: undef);
+                         ctx.stencil ?: undef, ctx.sample_mask ?: undef,
+                         disable);
       }
    }
 
    insert_rt_store(b, last, last >= 0 ? ctx.colour[last] : NULL, NULL,
                    last > 0 ? ctx.colour[0] : NULL, ctx.depth ?: undef,
-                   ctx.stencil ?: undef, ctx.sample_mask ?: undef);
+                   ctx.stencil ?: undef, ctx.sample_mask ?: undef, disable);
 }
 
 /**
@@ -313,7 +311,8 @@ opt_unconditional_discards(nir_shader *nir)
    if (!any_remaining_rt_writes) {
       nir_builder b = nir_builder_at(nir_after_impl(impl));
       nir_def *undef = nir_undef(&b, 1, 32);
-      insert_rt_store(&b, -1, NULL, NULL, NULL, undef, undef, undef);
+      insert_rt_store(&b, -1, NULL, NULL, NULL, undef, undef, undef,
+                      nir_imm_true(&b));
    }
 
    return nir_progress(progress, impl, nir_metadata_control_flow);
