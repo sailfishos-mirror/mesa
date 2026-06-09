@@ -420,7 +420,7 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
     *
     * Only GFX9 works as expected.
     */
-   out->has_smem_with_null_prt_bug = info->gfx_level <= GFX12 && info->gfx_level != GFX9;
+   out->has_smem_with_null_prt_bug = info->gfx_level <= GFX12 && info->gfx_level != GFX9 && info->family != CHIP_GFX1156;
 
    if (compat_mode && info->family == CHIP_REMBRANDT) {
       out->has_ngg_passthru_no_msg = false;
