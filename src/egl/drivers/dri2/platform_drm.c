@@ -247,7 +247,7 @@ get_back_bo(struct dri2_egl_surface *dri2_surf)
    struct dri2_egl_display *dri2_dpy =
       dri2_egl_display(dri2_surf->base.Resource.Display);
    struct gbm_dri_surface *surf = dri2_surf->gbm_surf;
-   int min_age = 0, max_age = 0;
+   int min_age = 0;
 
    if (dri2_surf->back == NULL) {
       for (unsigned i = 0; i < ARRAY_SIZE(dri2_surf->color_buffers); i++) {
@@ -261,13 +261,12 @@ get_back_bo(struct dri2_egl_surface *dri2_surf)
              (!min_age || buffer->age < min_age))
             min_age = buffer->age;
 
-         if (!max_age || buffer->age > max_age) {
+         if (!dri2_surf->back ||
+             buffer->age > dri2_surf->back->age)
             dri2_surf->back = buffer;
-            max_age = buffer->age;
-         }
       }
 
-      if (min_age && min_age < max_age) {
+      if (min_age && min_age < dri2_surf->back->age) {
          if (++dri2_surf->excess_bo_frames == 1000)
             destroy_oldest_unused_bo(dri2_surf);
       } else {
