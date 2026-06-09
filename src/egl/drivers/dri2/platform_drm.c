@@ -255,15 +255,13 @@ get_back_bo(struct dri2_egl_surface *dri2_surf)
 
          if (!buffer->locked &&
              dri2_surf->current != buffer) {
-            int age = buffer->age;
-
             if (buffer->bo &&
-                (!min_age || age < min_age))
-               min_age = age;
+                (!min_age || buffer->age < min_age))
+               min_age = buffer->age;
 
-            if (!max_age || age > max_age) {
+            if (!max_age || buffer->age > max_age) {
                dri2_surf->back = buffer;
-               max_age = age;
+               max_age = buffer->age;
             }
          }
       }
