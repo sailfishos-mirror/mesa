@@ -749,6 +749,8 @@ static bool lower_tex(nir_builder *b, nir_tex_instr *tex, void *cb_data)
       UNREACHABLE("");
    }
 
+   nir_intrinsic_set_access(smp, (enum gl_access_qualifier)tex->backend_flags);
+
    if (tex->is_shadow) {
       nir_def *compare_op =
          nir_load_smp_meta_pco(b,
@@ -1403,6 +1405,8 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
    }
 
    nir_intrinsic_instr *smp = pco_emit_nir_smp(b, &params);
+
+   nir_intrinsic_set_access(smp, nir_intrinsic_access(intr));
 
    if (intr->intrinsic == nir_intrinsic_image_deref_load) {
       nir_def_rewrite_uses(&intr->def, &smp->def);

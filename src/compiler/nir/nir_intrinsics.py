@@ -3104,21 +3104,21 @@ index("uint16_t", "smp_flags_pco")
 # smp_pco(data, tex_state, smp_state)
 # Performs a standard sampling operation with the given data and state words.
 # Outputs between 1-4 comps.
-intrinsic("smp_pco", src_comp=[16, 4, 4], dest_comp=0, indices=[SMP_FLAGS_PCO, RANGE], bit_sizes=[32])
+intrinsic("smp_pco", src_comp=[16, 4, 4], dest_comp=0, indices=[SMP_FLAGS_PCO, RANGE, ACCESS], bit_sizes=[32])
 
 # smp_coeffs_pco(data, tex_state, smp_state)
 # Returns the calculated sampling coefficients for the given data and state words.
 # Actually outputs 7/14 components, but NIR doesn't support those for num_components, so fake it as 16 for now.
-intrinsic("smp_coeffs_pco", src_comp=[16, 4, 4], dest_comp=16, indices=[SMP_FLAGS_PCO, RANGE], bit_sizes=[32])
+intrinsic("smp_coeffs_pco", src_comp=[16, 4, 4], dest_comp=16, indices=[SMP_FLAGS_PCO, RANGE, ACCESS], bit_sizes=[32])
 
 # smp_raw_pco(data, tex_state, smp_state)
 # Returns the raw sampling data for the given data and state words.
 # Actually outputs 4/8/12/16 components, but NIR doesn't support num_components == 12, so fake it as 8 for now.
-intrinsic("smp_raw_pco", src_comp=[16, 4, 4], dest_comp=16, indices=[SMP_FLAGS_PCO, RANGE, ENABLED_CHANNELS], bit_sizes=[32])
+intrinsic("smp_raw_pco", src_comp=[16, 4, 4], dest_comp=16, indices=[SMP_FLAGS_PCO, RANGE, ENABLED_CHANNELS, ACCESS], bit_sizes=[32])
 
 # smp_write_pco(data, tex_state, smp_state)
 # Performs a sample write for the given data and state words.
-intrinsic("smp_write_pco", src_comp=[16, 4, 4], indices=[SMP_FLAGS_PCO, RANGE], bit_sizes=[32])
+intrinsic("smp_write_pco", src_comp=[16, 4, 4], indices=[SMP_FLAGS_PCO, RANGE, ACCESS], bit_sizes=[32])
 
 # alphatst_pco(data, comparator, comparison op)
 # Performs an alpha test on the given parameters, returning float 0/1 depending on the comparison result.
