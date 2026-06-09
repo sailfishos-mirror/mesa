@@ -440,13 +440,10 @@ ${trace_toggle_name}_config_variable(void)
              ${trace_toggle_name}_variable_once);
 }
 % endif
-
-% for index, (trace_name, trace) in enumerate(TRACEPOINTS.items()):
-/*
- * ${trace_name}
- */
+\
+<%def name="print_func(func_name, trace_name, trace)">
  % if trace.can_generate_print():
-static void __print_${trace_name}(FILE *out, const void *arg, const void *indirect) {
+static void ${func_name}${trace_name}(FILE *out, const void *arg, const void *indirect) {
   % if len(trace.tp_struct) > 0:
    const struct trace_${trace_name} *__entry =
       (const struct trace_${trace_name} *)arg;
@@ -455,50 +452,48 @@ static void __print_${trace_name}(FILE *out, const void *arg, const void *indire
    const ${arg.type} *__${arg.name} = (const ${arg.type} *) ((char *)indirect + ${arg.indirect_offset});
   % endfor
   % if trace.tp_print_custom is not None:
-   fprintf(out, "${trace.tp_print_custom[0]}\\n"
+   fprintf(out, ${caller.tp_print_custom_fmt()}
    % for arg in trace.tp_print_custom[1:]:
            , ${arg}
    % endfor
   % else:
-   fprintf(out, ""
-   % for arg in trace.tp_print:
-      "${arg.name}=${arg.c_format}, "
-   % endfor
-         "\\n"
+   fprintf(out, ""\n${caller.tp_print_fmt()}\\
    % for arg in trace.tp_print:
    ,${arg.value_expr("__entry")}
    % endfor
   % endif
    );
 }
+ % else:
+#define ${func_name}${trace_name} NULL\\
+ % endif
+</%def>\
 
-static void __print_json_${trace_name}(FILE *out, const void *arg, const void *indirect) {
-  % if len(trace.tp_struct) > 0:
-   const struct trace_${trace_name} *__entry =
-      (const struct trace_${trace_name} *)arg;
-  % endif
-  % for arg in trace.indirect_args:
-   const ${arg.type} *__${arg.var} = (const ${arg.type} *) ((char *)indirect + ${arg.indirect_offset});
-  % endfor
-  % if trace.tp_print_custom is not None:
-   fprintf(out, "\\"unstructured\\": \\"${trace.tp_print_custom[0]}\\""
-   % for arg in trace.tp_print_custom[1:]:
-           , ${arg}
+% for index, (trace_name, trace) in enumerate(TRACEPOINTS.items()):
+/*
+ * ${trace_name}
+ */\
+<%call expr="print_func('__print_', trace_name, trace)">\
+<%def name="tp_print_custom_fmt()">"${trace.tp_print_custom[0]}\\n"</%def>
+<%def name="tp_print_fmt()">\\
+   % for arg in trace.tp_print:
+      "${arg.name}=${arg.c_format}, "
    % endfor
-  % else:
-   fprintf(out, ""
+         "\\n"
+</%def>
+</%call>\
+\
+<%call expr="print_func('__print_json_', trace_name, trace)">\
+<%def name="tp_print_custom_fmt()">"\\"unstructured\\": \\"${trace.tp_print_custom[0]}\\""</%def>
+<%def name="tp_print_fmt()">\\
    % for arg in trace.tp_print:
       "\\"${arg.name}\\": \\"${arg.c_format}\\""
     % if arg != trace.tp_print[-1]:
          ", "
     % endif
    % endfor
-   % for arg in trace.tp_print:
-   ,${arg.value_expr("__entry")}
-   % endfor
-  % endif
-   );
-}
+</%def>
+</%call>\
 
 % if trace.tp_print_custom is None and trace.has_fuzzy_hash_arg:
 static void __print_fuzzy_hash_args_${trace_name}(FILE *out, const void *arg) {
@@ -524,6 +519,7 @@ static void __print_fuzzy_hash_args_${trace_name}(FILE *out, const void *arg) {
 #define __print_fuzzy_hash_args_${trace_name} NULL
 % endif
 
+ % if trace.can_generate_print():
 static uint32_t __fuzzy_hash_${trace_name}(const void *_event) {
    uint32_t hash = 1;
   % if len(trace.tp_struct) > 0:
@@ -557,8 +553,6 @@ static bool __fuzzy_equals_${trace_name}(const void *_a, const void *_b) {
 }
 
  % else:
-#define __print_${trace_name} NULL
-#define __print_json_${trace_name} NULL
 #define __fuzzy_hash_${trace_name} NULL
 #define __fuzzy_equals_${trace_name} NULL
 #define __print_fuzzy_hash_args_${trace_name} NULL
