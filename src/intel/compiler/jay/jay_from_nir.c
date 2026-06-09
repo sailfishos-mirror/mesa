@@ -95,6 +95,10 @@ struct nir_to_jay_state {
     */
    jay_def active_lane_mask, active_lane, active_lane_x4;
 
+   /* Likewise we cache a message header */
+   jay_def msg_header[16];
+   jay_def msg_header_unmoved[16];
+
    /* These defs contain the extracted payload. They are only valid while
     * translating NIR->Jay since they aren't maintained by Jay passes.
     */
@@ -133,6 +137,36 @@ emit_active_lane_mask(struct nir_to_jay_state *nj)
    }
 
    return nj->active_lane_mask;
+}
+
+static jay_def
+build_msg_header(struct nir_to_jay_state *nj, jay_def *desired)
+{
+   jay_builder *b = &nj->bld;
+
+   /* Vectorized zeroing of the header when we first construct it */
+   if (jay_is_null(nj->msg_header[0])) {
+      jay_def zeroes = jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
+      jay_MOV(b, zeroes, 0);
+
+      jay_foreach_comp(zeroes, i) {
+         nj->msg_header[i] = jay_extract(zeroes, i);
+         nj->msg_header_unmoved[i] = jay_imm(0);
+      }
+   }
+
+   /* Set all fields to what they should be */
+   for (unsigned i = 0; i < jay_ugpr_per_grf(b->shader); ++i) {
+      jay_def d = jay_is_null(desired[i]) ? jay_imm(0) : desired[i];
+
+      if (!jay_defs_equivalent(nj->msg_header_unmoved[i], d)) {
+         nj->msg_header_unmoved[i] = desired[i];
+         nj->msg_header[i] = jay_MOV_u32(b, desired[i]);
+      }
+   }
+
+   /* Zip it all up into a vector of UGPRs which will RA to a single GRF */
+   return jay_collect_vectors(b, nj->msg_header, jay_ugpr_per_grf(b->shader));
 }
 
 static jay_def
@@ -2284,19 +2318,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
          }
       }
 
-      /* Vectorized zeroing of the header. TODO: This can be optimized more. */
-      jay_def zeroes = jay_alloc_def(b, UGPR, jay_ugpr_per_grf(b->shader));
-      jay_MOV(b, zeroes, 0);
-
-      jay_def ugprs[JAY_MAX_DEF_LENGTH];
-      jay_foreach_comp(zeroes, i) {
-         ugprs[i] = jay_extract(zeroes, i);
-      }
-
-      /* Set the main immediate part of the header */
-      if (header2 != 0) {
-         ugprs[2] = jay_MOV_u32(b, header2);
-      }
+      jay_def header_builder[16] = { [2] = jay_imm(header2) };
 
       if (sampler_bindless) {
          /* Bindless sampler handles aren't relative to the sampler state
@@ -2311,7 +2333,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
           * address space but means we can do something more efficient in the
           * shader.
           */
-         ugprs[3] = sampler;
+         header_builder[3] = sampler;
       } else {
          /* Select the default dynamic state base address + offset */
          jay_def sampler_ptr = nj->payload.sampler_state_pointer;
@@ -2338,10 +2360,10 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
             }
          }
 
-         ugprs[3] = sampler_ptr;
+         header_builder[3] = sampler_ptr;
       }
-      /* Zip it all up into a vector of UGPRs which will RA to a single GRF */
-      header = jay_collect_vectors(b, ugprs, jay_num_values(zeroes));
+
+      header = build_msg_header(nj, header_builder);
    }
 
    assert(payload_type_bit_size == 16 || payload_type_bit_size == 32);
@@ -2626,6 +2648,10 @@ static jay_block *
 jay_emit_block(struct nir_to_jay_state *nj, nir_block *nb)
 {
    jay_builder *b = &nj->bld;
+
+   /* Reset per block state */
+   memset(nj->msg_header, 0, sizeof(nj->msg_header));
+   memset(nj->msg_header_unmoved, 0, sizeof(nj->msg_header_unmoved));
 
    if (nj->after_block) {
       nj->current_block = nj->after_block;
