@@ -86,7 +86,6 @@ lower_imm_to_ugpr(jay_builder *b,
     * don't lose the wave, but we could still probably optimize this.
     */
    jay_def x = jay_alloc_def(b, UGPR, is_64bit ? 2 : 1);
-   b->cursor = jay_before_function(b->func);
    _mesa_hash_table_u64_insert(constants, key, jay_MOV(b, x, imm));
    return x;
 }
@@ -189,25 +188,37 @@ jay_lower_pre_ra(jay_shader *s)
    struct hash_table_u64 *constants = _mesa_hash_table_u64_create(NULL);
 
    jay_foreach_function(s, f) {
-      /* Pool constants per function. */
+      /* If we prioritize instruction count, pool constants per function. If we
+       * prioritize register pressure, pool per block. This is a heuristic fed
+       * by the pressure scheduler. When we have a more competent remat story,
+       * this heuristic can hopefully go away but it helps a lot right now.
+       */
       _mesa_hash_table_u64_clear(constants);
 
-      jay_foreach_inst_in_func(f, block, I) {
-         jay_builder b = { .shader = s, .func = f };
-
-         /* Shuffle(UGPR) can result from copyprop if there's a mismatch between
-          * isel and divergence analysis (e.g. because multipolygon is
-          * disabled). Legalize.
-          */
-         if (I->op == JAY_OPCODE_SHUFFLE && I->src[0].file == UGPR) {
-            assert(!I->predication);
-            I->op = JAY_OPCODE_MOV;
-            jay_shrink_sources(I, 1);
+      jay_foreach_block(f, block) {
+         if (f->prioritize_pressure) {
+            _mesa_hash_table_u64_clear(constants);
          }
 
-         /* lower_immediates must be last since it consumes I */
-         lower_contiguous_sources(&b, I);
-         lower_immediates(&b, I, constants);
+         jay_foreach_inst_in_block(block, I) {
+            jay_builder b = { .shader = s, .func = f };
+
+            /* Shuffle(UGPR) can result from copyprop if there's a mismatch
+             * between isel and divergence analysis (e.g. because multipolygon
+             * is disabled). Legalize.
+             */
+            if (I->op == JAY_OPCODE_SHUFFLE && I->src[0].file == UGPR) {
+               assert(!I->predication);
+               I->op = JAY_OPCODE_MOV;
+               jay_shrink_sources(I, 1);
+            }
+
+            /* lower_immediates must be last since it consumes I */
+            lower_contiguous_sources(&b, I);
+            b.cursor = f->prioritize_pressure ? jay_before_inst(I) :
+                                                jay_before_function(f);
+            lower_immediates(&b, I, constants);
+         }
       }
    }
 

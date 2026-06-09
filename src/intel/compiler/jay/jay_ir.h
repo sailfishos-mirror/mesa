@@ -1011,6 +1011,7 @@ typedef struct jay_function {
    bool is_entrypoint;
 
    uint32_t ssa_alloc;
+   bool prioritize_pressure;
 } jay_function;
 
 static inline jay_function *

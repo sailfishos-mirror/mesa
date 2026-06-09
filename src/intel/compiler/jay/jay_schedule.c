@@ -321,6 +321,7 @@ pass(jay_function *f)
 
          populate_dag(&sctx, f, block, def);
          pressure_schedule_block(f, block, &schedule, &sctx, memctx);
+         f->prioritize_pressure = true;
       }
    }
 
