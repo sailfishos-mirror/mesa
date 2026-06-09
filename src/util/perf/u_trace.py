@@ -124,46 +124,6 @@ class Tracepoint(object):
                                         trace_toggle_name.upper(),
                                         self.toggle_name.upper())
 
-class TracepointArgStruct():
-    """Represents struct that is being passed as an argument
-    """
-    def __init__(self, type, var, c_format=None, fields=[], is_indirect=False, fuzzy_hash=None):
-        """Parameters:
-
-        - type: argument's C type.
-        - var: name of the argument
-        """
-        assert isinstance(type, str)
-        assert isinstance(var, str)
-
-        self.type = type
-        self.var = var
-        self.name = var
-        self.is_indirect = is_indirect
-        self.indirect_offset = 0
-        self.is_struct = True
-        self.c_format = c_format
-        self.fields = fields
-        self.to_prim_type = None
-        self.perfetto_field = None
-        self.fuzzy_hash = fuzzy_hash
-
-        if self.is_indirect:
-            self.func_param = f"struct u_trace_address {self.var}"
-        else:
-            self.func_param = f"{self.type} {self.var}"
-
-    def value_expr(self, entry_name):
-        ret = None
-        if self.is_struct:
-            if self.is_indirect:
-                ret = ", ".join([f"__{self.name}->{f}" for f in self.fields])
-            else:
-                ret = ", ".join([f"{entry_name}->{self.name}.{f}" for f in self.fields])
-        else:
-            ret = f"{entry_name}->{self.name}"
-        return ret
-
 class TracepointArg(object):
     """Class that represents either an argument being passed or a field in a struct
     """
@@ -198,7 +158,6 @@ class TracepointArg(object):
         self.perfetto_field = perfetto_field
         self.fuzzy_hash = fuzzy_hash
 
-        self.is_struct = False
         self.is_indirect = is_indirect
         self.indirect_offset = 0
 
@@ -224,7 +183,8 @@ class TracepointArg(object):
             ret = f"*__{self.name}"
         else:
             ret = f"{entry_name}->{self.name}"
-        if not self.is_struct and self.to_prim_type:
+
+        if self.to_prim_type:
             ret = self.to_prim_type.format(ret)
         return ret
 
@@ -241,6 +201,22 @@ class TracepointArg(object):
         if self.copy_func is None or self.length_arg is None:
             return False
         return not self.length_arg.isdigit()
+
+class TracepointArgStruct(TracepointArg):
+    """Represents struct that is being passed as an argument
+    """
+    def __init__(self, **kwargs):
+        self.fields = kwargs.pop('fields', [])
+        super().__init__(**kwargs)
+
+    def value_expr(self, entry_name):
+        if self.is_indirect:
+            parts = [f"__{self.name}->{f}" for f in self.fields]
+        else:
+            parts = [f"{entry_name}->{self.name}.{f}" for f in self.fields]
+
+        return ", ".join(parts)
+
 
 HEADERS = []
 
