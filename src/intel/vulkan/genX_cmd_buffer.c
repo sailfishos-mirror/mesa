@@ -4313,6 +4313,14 @@ genX(CmdExecuteCommands)(
       if (container->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT)
          genX(cmd_buffer_set_protected_memory)(container, false);
 
+      /* The secondary expects that the depth buffer aux usage matches the
+       * attachment's. Undo any temporary modification.
+       */
+      enum isl_aux_usage depth_aux_usage =
+         container->state.gfx.depth_att.aux_usage;
+      if (container->state.gfx.hiz_usage != depth_aux_usage)
+         genX(cmd_buffer_emit_depth_stencil)(container, depth_aux_usage);
+
       /* The memcpy will take care of the 3D preemption requirements. */
       struct anv_memcpy_state memcpy_state;
       genX(emit_so_memcpy_init)(&memcpy_state, device,

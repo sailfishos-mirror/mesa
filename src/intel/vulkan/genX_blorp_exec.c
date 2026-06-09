@@ -361,6 +361,17 @@ blorp_exec_on_render(struct blorp_batch *batch,
       }
    }
 
+   if (params->depth.enabled &&
+       (batch->flags & BLORP_BATCH_NO_EMIT_DEPTH_STENCIL)) {
+      /* BLORP expects that the depth buffer aux usage matches the
+       * attachment's. Undo any temporary modification.
+       */
+      enum isl_aux_usage depth_aux_usage =
+         cmd_buffer->state.gfx.depth_att.aux_usage;
+      if (cmd_buffer->state.gfx.hiz_usage != depth_aux_usage)
+         genX(cmd_buffer_emit_depth_stencil)(cmd_buffer, depth_aux_usage);
+   }
+
    genX(flush_pipeline_select_3d)(cmd_buffer);
 
    /* Wa_14015814527 */
