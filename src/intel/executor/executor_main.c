@@ -27,6 +27,7 @@
 #include "drm-uapi/xe_drm.h"
 
 #include "intel/compiler/gen/gen.h"
+#include "intel/common/intel_compute_slm.h"
 #include "intel/common/intel_gem.h"
 #include "intel/common/xe/intel_engine.h"
 #include "intel/decoder/intel_decoder.h"
@@ -96,16 +97,16 @@ print_help()
       "- mem:dump(COUNT, offset?), mem:offset(), mem:addr(), mem:name(), mem[IDX], #mem\n"
       "- arg (table with command line arguments)\n"
       "- dump(ARRAY|MEM, COUNT)\n"
-      "- devinfo = { ver, verx10, has_dpas, has_bfloat16 }\n"
+      "- devinfo = { ver, verx10, has_dpas, has_bfloat16, max_slm_size }\n"
       "\n"
       "ASSEMBLY MACROS:\n"
-      "- @eot, @syncnop\n"
+      "- @eot, @syncnop, @barrier\n"
       "- @mov REG IMM\n"
       "- @id REG\n"
       "- @addr DST_REG MEM [DWORD_INDEX|REG]\n"
       "- @load DST_REG ADDR_REG\n"
       "- @store ADDR_REG SRC_REG\n"
-      "- @param hw_threads N, @param simd 8|16|32\n"
+      "- @param hw_threads N, @param simd 8|16|32, @param slm_size BYTES\n"
       "\n"
       "PERFORMANCE COUNTERS:\n"
       "- --oa PROFILE[:COUNTER1,COUNTER2]\n"
@@ -1083,6 +1084,41 @@ handle_param_simd(executor_run *run, slice name, slice args)
 }
 
 static void
+handle_param_slm_size(executor_run *run, slice name, slice args)
+{
+   executor_context *ec = run->ec;
+   slice_cut_result cut = slice_cut_any(args, " \t");
+   slice value = cut.before;
+   slice extra = strip_spaces(cut.after);
+
+   if (!slice_is_empty(extra))
+      failf("@param %.*s has extra arguments", SLICE_FMT(name));
+   if (slice_is_empty(value))
+      failf("@param %.*s needs a value", SLICE_FMT(name));
+
+   int64_t slm_size;
+   if (!parse_int64(value, &slm_size))
+      failf("@param %.*s must be an integer", SLICE_FMT(name));
+
+   if (slm_size < 0)
+      failf("@param %.*s must be a non-negative byte size", SLICE_FMT(name));
+
+   const uint32_t max_slm_size = intel_device_info_get_max_slm_size(ec->devinfo);
+   if (slm_size > max_slm_size)
+      failf("@param %.*s exceeds the device SLM limit (%u bytes)",
+            SLICE_FMT(name), max_slm_size);
+
+   const uint32_t requested = (uint32_t)slm_size;
+   const uint32_t allocated =
+      intel_compute_slm_calculate_size(ec->devinfo->ver, requested);
+   if (allocated > max_slm_size)
+      failf("@param %.*s rounds up to %u bytes, exceeding the device SLM limit (%u bytes)",
+            SLICE_FMT(name), allocated, max_slm_size);
+
+   run->slm_size = requested;
+}
+
+static void
 executor_parse_source_params(executor_run *run, slice src)
 {
    static const struct {
@@ -1091,6 +1127,7 @@ executor_parse_source_params(executor_run *run, slice src)
    } param_handlers[] = {
       { "hw_threads", handle_param_hw_threads },
       { "simd",       handle_param_simd },
+      { "slm_size",   handle_param_slm_size },
    };
 
    slice rest = src;
@@ -2122,6 +2159,9 @@ main(int argc, char *argv[])
 
       lua_pushboolean(L, E.devinfo.has_bfloat16);
       lua_setfield(L, -2, "has_bfloat16");
+
+      lua_pushinteger(L, intel_device_info_get_max_slm_size(&E.devinfo));
+      lua_setfield(L, -2, "max_slm_size");
    }
    lua_setglobal(L, "devinfo");
 

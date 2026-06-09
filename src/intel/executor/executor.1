@@ -99,6 +99,7 @@ functions are available
   Table containing device information:
     - ver, verx10: Gfx version and detailed Gfx version
     - has_dpas, has_bfloat16
+    - max_slm_size: Maximum shared local memory reservation in bytes
 
 .SH ASSEMBLY MACROS
 
@@ -128,6 +129,10 @@ regions, or immediates).
 - @store ADDR_REG SRC_REG
   Write dwords to the GPU byte address in ADDR_REG (a32).
 
+- @barrier
+  Synchronize multiple hardware threads in the execution.  If shared local
+  memory is reserved, also fence shared local memory.  Emits no code for a
+  single hardware thread.
 
 - @param hw_threads N
   Set the number of hardware threads for execute(SRC).
@@ -135,6 +140,9 @@ regions, or immediates).
 - @param simd 8|16|32
   Set the SIMD width for execute(SRC).  Xe2+ accepts SIMD16/SIMD32;
   earlier platforms accept SIMD8/SIMD16/SIMD32.
+
+- @param slm_size BYTES
+  Reserve shared local memory for the execution.
 
 - @syncnop
   Produce a coarse grained sync.nop (when applicable) to ensure data from
@@ -146,7 +154,9 @@ Compute shaders are dispatched with SIMD8 before Xe2 and SIMD16 on Xe2+
 by default.  Use @param simd WIDTH in the shader to select another
 supported SIMD width.  Xe2+ supports SIMD16 and SIMD32; earlier platforms
 support SIMD8/SIMD16/SIMD32.  By default one hardware thread is dispatched.
-Use @param hw_threads N in the shader to execute N hardware threads.
+Use @param hw_threads N in the shader to execute N hardware threads.  Use
+@param slm_size BYTES in the shader to reserve shared local memory for the
+execution.
 Context allocations are sub-allocated from a data buffer bound at graphics
 address 0x30000000.  @addr produces a32 byte addresses for @load/@store
 messages.

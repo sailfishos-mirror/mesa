@@ -280,6 +280,90 @@ executor_macro_eot(executor_run *run, char **src, slice line)
 }
 
 static void
+executor_macro_barrier(executor_run *run,
+                       char **src, slice args)
+{
+   executor_context *ec = run->ec;
+   parse_args_result r = parse_args(run->tmp_ctx, args);
+
+   if (r.count != 0)
+      failf("@barrier takes no arguments, found %d\n", r.count);
+
+   if (run->hw_threads <= 1)
+      return;
+
+   switch (ec->devinfo->verx10) {
+   case 90:
+   case 110: {
+      const uint32_t barrier_id_mask =
+         ec->devinfo->ver == 9 ? 0x8f000000u : 0x7f000000u;
+
+      if (run->slm_size != 0) {
+         ralloc_strcat(src,
+            "(W) send.hdc0 (1) r126:1 r0:1 0x00000000 0x0211e0fe\n"
+            "(W) mov (1) r126 r126<0;1,0>:ud\n");
+      }
+
+      ralloc_asprintf_append(src,
+         "(W) mov (8) r127 0x0\n"
+         "(W) and (1) r127.2 r0.2<0>:ud 0x%08x:ud\n"
+         "(W) sends.gtwy (1) null r127:1 null:0 0x00000000 0x02000004\n"
+         "(W) wait (1) n0\n",
+         barrier_id_mask);
+      break;
+   }
+
+   case 120:
+      if (run->slm_size != 0) {
+         ralloc_strcat(src,
+            "(W) send.hdc0 (1) r126:1 r0:1 0x00000000 0x0211e0fe {@1,$1}\n");
+         executor_emit_syncnop(ec, src);
+      }
+
+      ralloc_strcat(src,
+         "(W) mov (8) r127 0x0 {@1}\n"
+         "(W) and (1) r127.2 r0.2<0>:ud 0x7f000000:ud {@1}\n"
+         "(W) send.gtwy (1) null r127:1 null:0 0x00000000 0x02000004 {@1,$1}\n"
+         "(W) sync.bar (1) null\n");
+      break;
+
+   case 125:
+      if (run->slm_size != 0) {
+         ralloc_strcat(src,
+            "(W) fence.slm.threadgroup.none (1) r126:1 r0:1 {A@1,$1}\n");
+         executor_emit_syncnop(ec, src);
+      }
+
+      ralloc_strcat(src,
+         "(W) mov (8) r127 0x0 {A@1}\n"
+         "(W) mov (2) r127.10:ub r0.11<0;1,0>:ub {A@1}\n"
+         "(W) send.gtwy (1) null r127:1 null:0 0x00000000 0x02000004 {A@1,$1}\n"
+         "(W) sync.bar (1) null\n");
+      break;
+
+   case 200:
+   case 300:
+   case 350:
+      if (run->slm_size != 0) {
+         ralloc_strcat(src,
+            "(W) fence.slm.threadgroup.none (1) r126:1 r0:1 {A@1,$1}\n");
+         executor_emit_syncnop(ec, src);
+      }
+
+      ralloc_strcat(src,
+         "(W) mov (16) r127 0x0 {A@1}\n"
+         "(W) mov (2) r127.10:ub r0.11<0;1,0>:ub {A@1}\n"
+         "(W) or (1) r127.2 r127.2<0> 0x100 {A@1}\n"
+         "(W) send.gtwy (1) null r127:1 null:0 0x00000000 0x02000004 {A@1,$1}\n"
+         "(W) sync.bar (1) null\n");
+      break;
+
+   default:
+      UNREACHABLE("invalid gfx version");
+   }
+}
+
+static void
 executor_macro_id(executor_run *run, char **src, slice args)
 {
    parse_args_result r = parse_args(run->tmp_ctx, args);
@@ -529,6 +613,7 @@ executor_apply_macros(executor_run *run)
       { "@load",     executor_macro_load },
       { "@addr",     executor_macro_addr },
       { "@id",       executor_macro_id },
+      { "@barrier",  executor_macro_barrier },
       { "@param",    NULL },
       { "@syncnop",  executor_macro_syncnop },
    };

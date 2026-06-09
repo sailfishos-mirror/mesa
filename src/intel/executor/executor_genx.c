@@ -5,6 +5,7 @@
 
 #include "executor.h"
 
+#include "common/intel_compute_slm.h"
 #include "util/u_math.h"
 
 #ifdef HAVE_VALGRIND
@@ -177,10 +178,20 @@ genX(emit_execute)(const executor_run *run)
    struct GENX(INTERFACE_DESCRIPTOR_DATA) desc = {
       .KernelStartPointer = kernel_addr.offset,
       .NumberofThreadsinGPGPUThreadGroup = run->hw_threads,
+      .SharedLocalMemorySize =
+         intel_compute_slm_encode_size(GFX_VER, run->slm_size),
 #if GFX_VERx10 < 125
+      .BarrierEnable = run->hw_threads > 1,
       .ConstantURBEntryReadOffset = 0,
       .ConstantURBEntryReadLength = 1,
       .CrossThreadConstantDataReadLength = 0,
+#else
+      .PreferredSLMAllocationSize =
+         intel_compute_preferred_slm_calc_encode_size(ec->devinfo,
+                                                      run->slm_size,
+                                                      run->hw_threads * run->simd,
+                                                      run->simd),
+      .NumberOfBarriers = run->hw_threads > 1,
 #endif
    };
 
