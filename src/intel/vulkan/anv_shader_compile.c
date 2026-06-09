@@ -1458,6 +1458,17 @@ anv_shader_lower_nir(struct anv_device *device,
                &shader_data->bind_map, &shader_data->push_map, mem_ctx);
    }
 
+   /* Now that we're done computing the surface and sampler tables of the bind
+    * map, hash them. This lets us quickly determine if the actual mapping has
+    * changed and not just a no-op pipeline change.
+    */
+   _mesa_blake3_compute(shader_data->bind_map.surface_to_descriptor,
+                        shader_data->bind_map.surface_count * sizeof(struct anv_pipeline_binding),
+                        shader_data->bind_map.surface_blake3);
+   _mesa_blake3_compute(shader_data->bind_map.sampler_to_descriptor,
+                        shader_data->bind_map.sampler_count * sizeof(struct anv_pipeline_binding),
+                        shader_data->bind_map.sampler_blake3);
+
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_ubo,
             anv_nir_ubo_addr_format(pdevice, shader_data->key.base.robust_flags));
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_ssbo,
