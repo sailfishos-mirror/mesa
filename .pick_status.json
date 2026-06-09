@@ -4124,7 +4124,7 @@
         "description": "egl/gbm: Ignore buffers with no BO for destroying excess BOs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dd7ae410918909019beeef8e52eec39c2e4112aa",
         "notes": null
