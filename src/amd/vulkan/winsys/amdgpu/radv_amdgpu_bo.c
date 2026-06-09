@@ -210,7 +210,8 @@ radv_amdgpu_virtual_bo_map(struct radv_amdgpu_winsys *ws, struct radv_amdgpu_win
 {
    int r;
 
-   r = radv_amdgpu_bo_va_op(ws, bo->bo_handle, bo_offset, size, parent->base.va + offset, 0, 0, AMDGPU_VA_OP_REPLACE);
+   r = radv_amdgpu_bo_va_op(ws, bo->bo_handle, bo_offset, size, parent->base.va + offset,
+                            bo->flags & RADEON_FLAG_GL2_BYPASS, 0, AMDGPU_VA_OP_REPLACE);
    if (r)
       return r;
 
@@ -218,7 +219,8 @@ radv_amdgpu_virtual_bo_map(struct radv_amdgpu_winsys *ws, struct radv_amdgpu_win
       /* Bind the "LOW" address space to the same BO. */
       const uint64_t low_va = radv_amdgpu_virtual_bo_get_low_addr(ws, parent);
 
-      r = radv_amdgpu_bo_va_op(ws, bo->bo_handle, bo_offset, size, low_va + offset, 0, 0, AMDGPU_VA_OP_REPLACE);
+      r = radv_amdgpu_bo_va_op(ws, bo->bo_handle, bo_offset, size, low_va + offset, bo->flags & RADEON_FLAG_GL2_BYPASS,
+                               0, AMDGPU_VA_OP_REPLACE);
       if (r)
          return r;
    }
