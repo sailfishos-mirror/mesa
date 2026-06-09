@@ -7958,6 +7958,29 @@ iris_upload_dirty_render_state(struct iris_context *ice,
       }
    }
 
+   if ((stage_dirty & IRIS_STAGE_DIRTY_FS) ||
+       (dirty & IRIS_DIRTY_WM_DEPTH_STENCIL)) {
+      /* According to Bspec 72161 (r890) and HSD 22019411255, we can improve
+       * performance by avoiding HiZ planes for draw calls which compute depth
+       * and perform read-only depth tests. According to HSD 22019338931, this
+       * is fixed on gfx35.
+       */
+      const struct iris_fs_data *fs_data =
+         iris_fs_data(ice->shaders.prog[MESA_SHADER_FRAGMENT]);
+      if (GFX_VER >= 12 && GFX_VER <= 30 &&
+          ice->state.cso_zsa->depth_test_enabled &&
+          !ice->state.cso_zsa->depth_writes_enabled &&
+          fs_data && fs_data->computed_depth_mode != PSCDEPTH_OFF) {
+         /* For now, implement the simple fix only for gfx12. For platforms
+          * which can't use the simple fix, we'll need to temporarily switch
+          * to ISL_AUX_USAGE_ZCS.
+          */
+         perf_debug(&ice->dbg,
+                    "Disabling HiZ planes for RO depth test only on gfx12\n");
+         genX(batch_disable_hiz_planes)(batch);
+      }
+   }
+
    if (dirty & (IRIS_DIRTY_DEPTH_BUFFER | IRIS_DIRTY_WM_DEPTH_STENCIL)) {
       /* Listen for buffer changes, and also write enable changes. */
       struct pipe_framebuffer_state *cso_fb = &ice->state.framebuffer.base;
