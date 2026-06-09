@@ -4114,7 +4114,7 @@
         "description": "egl/gbm: Ignore current front buffer in get_back_bo",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4a976b60b1139021ef00e722361b7e1ad8e0810d",
         "notes": null
