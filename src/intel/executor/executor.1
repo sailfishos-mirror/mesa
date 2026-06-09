@@ -64,6 +64,19 @@ functions are available
   align=BYTES (a power-of-two GPU byte address alignment).  If no name
   is provided, allocations are named buf0, buf1, ... in creation order.
 
+- surface_buffer(MEM, {format=STR}|STR) -> surface
+  Create a buffer surface view over MEM and assign the next BTI.  Supported
+  formats include r32uint, r32float, rgba32float, and rgba8unorm.
+
+- surface_2d(MEM, {format=STR, width=INT, height=INT, stride=BYTES?}) -> surface
+  Create a linear 2D surface view over MEM and assign the next BTI.
+
+- sampler({filter=nearest|linear, min_filter=STR, mag_filter=STR, address=clamp|repeat|mirror, normalized=BOOL, nonnormalized=BOOL, min_lod=NUM, max_lod=NUM}?) -> sampler
+  Create a sampler and assign the next sampler index.
+
+- sampler_desc{op=STR, surface=SURFACE|INT, bti=SURFACE|INT, sampler=SAMPLER|INT, simd=8|16|32, mlen=INT, rlen=INT, header=BOOL, hp=BOOL} -> INT
+  Build a sampler SEND descriptor for raw send.smpl assembly.
+
 - execute(SRC)
 - execute{src=SRC}
   Assemble and execute SRC.  The shader source can use @param directives;
@@ -81,6 +94,9 @@ functions are available
 
 - mem:dump(COUNT, offset?)
   Pretty print COUNT dwords starting at the given dword offset.
+
+- surface:bti(), sampler:index()
+  Return the implicitly assigned BTI or sampler index.
 
 - mem:offset(), mem:addr(), mem:name()
   Return the dword offset relative to the data buffer, GPU byte address,

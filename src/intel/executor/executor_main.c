@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include <inttypes.h>
 #include <libgen.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +28,7 @@
 #include "drm-uapi/xe_drm.h"
 
 #include "intel/compiler/gen/gen.h"
+#include "intel/compiler/gen/gen_names.h"
 #include "intel/common/intel_compute_slm.h"
 #include "intel/common/intel_gem.h"
 #include "intel/common/xe/intel_engine.h"
@@ -92,9 +94,11 @@ print_help()
       "\n"
       "SCRIPTING ENVIRONMENT:\n"
       "- alloc(SIZE_DWORDS|TABLE[, NAME|{name=STR, align=POWER_OF_TWO_BYTES, fill=VALUE}]) -> mem\n"
+      "- surface_buffer(MEM, {format=STR}), surface_2d(MEM, opts), sampler(opts?), sampler_desc{...}\n"
       "- execute(SRC|{src=SRC})\n"
       "- mem:fill(VALUE), mem:set(TABLE, offset?), mem:read(COUNT, offset?), mem:to_table()\n"
       "- mem:dump(COUNT, offset?), mem:offset(), mem:addr(), mem:name(), mem[IDX], #mem\n"
+      "- surface:bti(), sampler:index()\n"
       "- arg (table with command line arguments)\n"
       "- dump(ARRAY|MEM, COUNT)\n"
       "- devinfo = { ver, verx10, has_dpas, has_bfloat16, max_slm_size }\n"
@@ -143,8 +147,12 @@ static struct {
 } E;
 
 #define EXECUTOR_MEM_MT "executor.mem"
+#define EXECUTOR_SURFACE_MT "executor.surface"
+#define EXECUTOR_SAMPLER_MT "executor.sampler"
 
 typedef uint32_t executor_mem_userdata;
+typedef uint32_t executor_surface_userdata;
+typedef uint32_t executor_sampler_userdata;
 
 #define genX_call(func, ...)                                \
    switch (E.devinfo.verx10) {                              \
@@ -316,6 +324,69 @@ executor_get_mem_region(executor_context *ec, uint32_t idx)
       failf("invalid memory object %u", idx);
 
    return util_dynarray_element(&ec->mem_regions, executor_mem_region, idx);
+}
+
+static uint32_t
+register_surface_binding(executor_context *ec,
+                         executor_mem_region region,
+                         executor_surface_type type,
+                         enum isl_format format,
+                         uint32_t stride,
+                         uint32_t width, uint32_t height)
+{
+   if (ec->num_surface_bindings >= 31)
+      failf("too many surfaces; executor supports up to 31 BTI entries");
+
+   if (ec->num_surface_bindings == ec->surface_binding_capacity) {
+      uint32_t new_capacity = ec->surface_binding_capacity ?
+         ec->surface_binding_capacity * 2 : 8;
+      executor_surface_binding *new_bindings =
+         realloc(ec->surface_bindings, new_capacity * sizeof(*new_bindings));
+      if (!new_bindings)
+         failf("failed to allocate surface binding table");
+      ec->surface_bindings = new_bindings;
+      ec->surface_binding_capacity = new_capacity;
+   }
+
+   const uint32_t bti = ec->num_surface_bindings;
+   ec->surface_bindings[ec->num_surface_bindings++] =
+      (executor_surface_binding) {
+         .region = region,
+         .type = type,
+         .format = format,
+         .stride = stride,
+         .width = width,
+         .height = height,
+         .bti = bti,
+      };
+
+   return bti;
+}
+
+static uint32_t
+register_sampler_binding(executor_context *ec,
+                         const executor_sampler_binding *state)
+{
+   if (ec->num_sampler_bindings >= 16)
+      failf("too many samplers; executor supports up to 16 sampler entries");
+
+   if (ec->num_sampler_bindings == ec->sampler_binding_capacity) {
+      uint32_t new_capacity = ec->sampler_binding_capacity ?
+         ec->sampler_binding_capacity * 2 : 8;
+      executor_sampler_binding *new_bindings =
+         realloc(ec->sampler_bindings, new_capacity * sizeof(*new_bindings));
+      if (!new_bindings)
+         failf("failed to allocate sampler binding table");
+      ec->sampler_bindings = new_bindings;
+      ec->sampler_binding_capacity = new_capacity;
+   }
+
+   const uint32_t index = ec->num_sampler_bindings;
+   ec->sampler_bindings[ec->num_sampler_bindings] = *state;
+   ec->sampler_bindings[ec->num_sampler_bindings].index = index;
+   ec->num_sampler_bindings++;
+
+   return index;
 }
 
 static uint32_t
@@ -1467,6 +1538,16 @@ executor_context_dispatch(executor_context *ec)
 static void
 executor_context_teardown(executor_context *ec)
 {
+   free(ec->surface_bindings);
+   ec->surface_bindings = NULL;
+   ec->num_surface_bindings = 0;
+   ec->surface_binding_capacity = 0;
+
+   free(ec->sampler_bindings);
+   ec->sampler_bindings = NULL;
+   ec->num_sampler_bindings = 0;
+   ec->sampler_binding_capacity = 0;
+
    if (ec->perf_enabled)
       executor_destroy_bo(ec, &ec->bo.perf);
 
@@ -1725,6 +1806,26 @@ executor_mem_push(lua_State *L, uint32_t region_idx)
 }
 
 static void
+surface_push(lua_State *L, uint32_t bti)
+{
+   executor_surface_userdata *surface = lua_newuserdata(L, sizeof(*surface));
+   *surface = bti;
+
+   luaL_getmetatable(L, EXECUTOR_SURFACE_MT);
+   lua_setmetatable(L, -2);
+}
+
+static void
+sampler_push(lua_State *L, uint32_t index)
+{
+   executor_sampler_userdata *sampler = lua_newuserdata(L, sizeof(*sampler));
+   *sampler = index;
+
+   luaL_getmetatable(L, EXECUTOR_SAMPLER_MT);
+   lua_setmetatable(L, -2);
+}
+
+static void
 executor_dump_values(const uint32_t *data, uint32_t count, uint32_t base_index)
 {
    for (uint32_t i = 0; i < count; i++) {
@@ -1810,6 +1911,225 @@ l_executor_alloc(lua_State *L)
    }
 
    executor_mem_push(L, region_idx);
+   return 1;
+}
+
+static enum isl_format
+parse_surface_format(const char *format, uint32_t *stride)
+{
+   if (!format || !strcmp(format, "r32uint") || !strcmp(format, "r32u")) {
+      *stride = 4;
+      return ISL_FORMAT_R32_UINT;
+   } else if (!strcmp(format, "r32float") || !strcmp(format, "r32f")) {
+      *stride = 4;
+      return ISL_FORMAT_R32_FLOAT;
+   } else if (!strcmp(format, "rgba32float") || !strcmp(format, "rgba32f")) {
+      *stride = 16;
+      return ISL_FORMAT_R32G32B32A32_FLOAT;
+   } else if (!strcmp(format, "rgba8unorm") || !strcmp(format, "rgba8")) {
+      *stride = 4;
+      return ISL_FORMAT_R8G8B8A8_UNORM;
+   }
+
+   failf("unknown surface format '%s'", format);
+   return ISL_FORMAT_UNSUPPORTED;
+}
+
+static const char *
+surface_opt_format(lua_State *L, int idx)
+{
+   if (lua_isnoneornil(L, idx))
+      return NULL;
+
+   if (lua_type(L, idx) == LUA_TSTRING)
+      return lua_tostring(L, idx);
+
+   luaL_checktype(L, idx, LUA_TTABLE);
+   lua_getfield(L, idx, "format");
+   const char *format = lua_isnil(L, -1) ? NULL : luaL_checkstring(L, -1);
+   lua_pop(L, 1);
+   return format;
+}
+
+static uint32_t
+lua_check_u32(lua_State *L, int idx, const char *what)
+{
+   lua_Integer val = luaL_checkinteger(L, idx);
+   if (val < 0 || val > UINT32_MAX)
+      failf("invalid %s", what);
+   return (uint32_t)val;
+}
+
+static uint32_t
+lua_check_u32_field(lua_State *L, int opts, const char *field,
+                    const char *what)
+{
+   lua_getfield(L, opts, field);
+   if (lua_isnil(L, -1))
+      failf("%s missing '%s'", what, field);
+   uint32_t val = lua_check_u32(L, -1, field);
+   lua_pop(L, 1);
+   return val;
+}
+
+static int
+l_executor_surface_buffer(lua_State *L)
+{
+   executor_context *ctx = &E.ec;
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+
+   uint32_t stride = 0;
+   enum isl_format isl_format =
+      parse_surface_format(surface_opt_format(L, 2), &stride);
+   if (mem->size < stride)
+      failf("surface_buffer() memory object too small for format");
+
+   uint32_t bti = register_surface_binding(ctx, *mem,
+                                           EXECUTOR_SURFACE_BUFFER,
+                                           isl_format, stride, 0, 0);
+   surface_push(L, bti);
+   return 1;
+}
+
+static int
+l_executor_surface_2d(lua_State *L)
+{
+   executor_context *ctx = &E.ec;
+   executor_mem_region *mem = executor_mem_get_from_lua(L, 1);
+
+   luaL_checktype(L, 2, LUA_TTABLE);
+   int opts = lua_absindex(L, 2);
+
+   uint32_t element_size = 0;
+   enum isl_format isl_format =
+      parse_surface_format(surface_opt_format(L, opts), &element_size);
+   uint32_t width = lua_check_u32_field(L, opts, "width", "surface_2d()");
+   uint32_t height = lua_check_u32_field(L, opts, "height", "surface_2d()");
+   if (width == 0 || height == 0)
+      failf("surface_2d() width and height must be non-zero");
+
+   const uint64_t min_row_pitch = (uint64_t)element_size * width;
+   if (min_row_pitch > UINT32_MAX)
+      failf("surface_2d() width * element size exceeds maximum stride");
+
+   uint32_t row_pitch = (uint32_t)min_row_pitch;
+   lua_getfield(L, opts, "stride");
+   if (!lua_isnil(L, -1))
+      row_pitch = lua_check_u32(L, -1, "surface_2d() stride");
+   lua_pop(L, 1);
+
+   if ((uint64_t)row_pitch < min_row_pitch)
+      failf("surface_2d() stride smaller than width * element size");
+   if ((uint64_t)row_pitch * height > mem->size)
+      failf("surface_2d() memory object too small");
+
+   uint32_t bti = register_surface_binding(ctx, *mem,
+                                           EXECUTOR_SURFACE_2D,
+                                           isl_format, row_pitch,
+                                           width, height);
+   surface_push(L, bti);
+   return 1;
+}
+
+static executor_sampler_filter
+parse_sampler_filter(const char *filter, const char *what)
+{
+   if (!filter || !strcmp(filter, "nearest"))
+      return EXECUTOR_SAMPLER_FILTER_NEAREST;
+   if (!strcmp(filter, "linear"))
+      return EXECUTOR_SAMPLER_FILTER_LINEAR;
+   failf("unknown %s '%s'", what, filter);
+   return EXECUTOR_SAMPLER_FILTER_NEAREST;
+}
+
+static executor_sampler_address
+parse_sampler_address(const char *address)
+{
+   if (!address || !strcmp(address, "clamp"))
+      return EXECUTOR_SAMPLER_ADDRESS_CLAMP;
+   if (!strcmp(address, "repeat"))
+      return EXECUTOR_SAMPLER_ADDRESS_REPEAT;
+   if (!strcmp(address, "mirror"))
+      return EXECUTOR_SAMPLER_ADDRESS_MIRROR;
+   failf("unknown sampler address mode '%s'", address);
+   return EXECUTOR_SAMPLER_ADDRESS_CLAMP;
+}
+
+static float
+lua_check_sampler_lod(lua_State *L, int idx, const char *what)
+{
+   const lua_Number lod = luaL_checknumber(L, idx);
+   if (!isfinite(lod) || lod < 0 || lod > 4095.0 / 256.0)
+      failf("invalid %s", what);
+
+   return (float)lod;
+}
+
+static int
+l_executor_sampler(lua_State *L)
+{
+   executor_context *ctx = &E.ec;
+   executor_sampler_binding state = {
+      .min_filter = EXECUTOR_SAMPLER_FILTER_NEAREST,
+      .mag_filter = EXECUTOR_SAMPLER_FILTER_NEAREST,
+      .address_mode = EXECUTOR_SAMPLER_ADDRESS_CLAMP,
+      .nonnormalized_coordinates = false,
+      .min_lod = 0,
+      .max_lod = 14,
+   };
+
+   if (!lua_isnoneornil(L, 1)) {
+      luaL_checktype(L, 1, LUA_TTABLE);
+      int opts = lua_absindex(L, 1);
+
+      lua_getfield(L, opts, "filter");
+      if (!lua_isnil(L, -1)) {
+         state.min_filter = parse_sampler_filter(luaL_checkstring(L, -1),
+                                                 "sampler filter");
+         state.mag_filter = state.min_filter;
+      }
+      lua_pop(L, 1);
+
+      lua_getfield(L, opts, "min_filter");
+      if (!lua_isnil(L, -1))
+         state.min_filter = parse_sampler_filter(luaL_checkstring(L, -1),
+                                                 "sampler min_filter");
+      lua_pop(L, 1);
+
+      lua_getfield(L, opts, "mag_filter");
+      if (!lua_isnil(L, -1))
+         state.mag_filter = parse_sampler_filter(luaL_checkstring(L, -1),
+                                                 "sampler mag_filter");
+      lua_pop(L, 1);
+
+      lua_getfield(L, opts, "address");
+      if (!lua_isnil(L, -1))
+         state.address_mode = parse_sampler_address(luaL_checkstring(L, -1));
+      lua_pop(L, 1);
+
+      lua_getfield(L, opts, "normalized");
+      if (!lua_isnil(L, -1))
+         state.nonnormalized_coordinates = !lua_toboolean(L, -1);
+      lua_pop(L, 1);
+
+      lua_getfield(L, opts, "nonnormalized");
+      if (!lua_isnil(L, -1))
+         state.nonnormalized_coordinates = lua_toboolean(L, -1);
+      lua_pop(L, 1);
+
+      lua_getfield(L, opts, "min_lod");
+      if (!lua_isnil(L, -1))
+         state.min_lod = lua_check_sampler_lod(L, -1, "sampler min_lod");
+      lua_pop(L, 1);
+
+      lua_getfield(L, opts, "max_lod");
+      if (!lua_isnil(L, -1))
+         state.max_lod = lua_check_sampler_lod(L, -1, "sampler max_lod");
+      lua_pop(L, 1);
+   }
+
+   uint32_t index = register_sampler_binding(ctx, &state);
+   sampler_push(L, index);
    return 1;
 }
 
@@ -2050,6 +2370,180 @@ l_mem_len(lua_State *L)
 }
 
 static int
+l_surface_bti(lua_State *L)
+{
+   executor_surface_userdata *surface =
+      luaL_checkudata(L, 1, EXECUTOR_SURFACE_MT);
+   lua_pushinteger(L, *surface);
+   return 1;
+}
+
+static int
+l_sampler_index(lua_State *L)
+{
+   executor_sampler_userdata *sampler =
+      luaL_checkudata(L, 1, EXECUTOR_SAMPLER_MT);
+   lua_pushinteger(L, *sampler);
+   return 1;
+}
+
+static uint32_t
+sampler_simd_mode(uint32_t simd, bool high_precision)
+{
+   if (E.devinfo.ver == 9 && high_precision)
+      failf("sampler_desc() hp is not supported on Gfx9");
+
+   if (E.devinfo.ver >= 20) {
+      if (high_precision) {
+         if (simd == 16) return GEN_XE2_SAMPLER_SIMD_MODE_SIMD16H;
+         if (simd == 32) return GEN_XE2_SAMPLER_SIMD_MODE_SIMD32H;
+      } else {
+         if (simd == 16) return GEN_XE2_SAMPLER_SIMD_MODE_SIMD16;
+         if (simd == 32) return GEN_XE2_SAMPLER_SIMD_MODE_SIMD32;
+      }
+   } else {
+      if (high_precision) {
+         if (simd == 8) return GEN_GFX11_SAMPLER_SIMD_MODE_SIMD8H;
+         if (simd == 16) return GEN_GFX11_SAMPLER_SIMD_MODE_SIMD16H;
+      } else {
+         if (simd == 8) return GEN_SAMPLER_SIMD_MODE_SIMD8;
+         if (simd == 16) return GEN_SAMPLER_SIMD_MODE_SIMD16;
+         if (simd == 32) return GEN_SAMPLER_SIMD_MODE_SIMD32_64;
+      }
+   }
+
+   failf("unsupported sampler SIMD mode");
+   return 0;
+}
+
+static bool
+sampler_desc_read_index(lua_State *L, int idx, const char *what,
+                        bool surface, uint32_t *out)
+{
+   if (lua_isnil(L, idx))
+      return false;
+
+   if (surface && luaL_testudata(L, idx, EXECUTOR_SURFACE_MT)) {
+      executor_surface_userdata *bti =
+         luaL_checkudata(L, idx, EXECUTOR_SURFACE_MT);
+      *out = *bti;
+      return true;
+   }
+
+   if (!surface && luaL_testudata(L, idx, EXECUTOR_SAMPLER_MT)) {
+      executor_sampler_userdata *sampler =
+         luaL_checkudata(L, idx, EXECUTOR_SAMPLER_MT);
+      *out = *sampler;
+      return true;
+   }
+
+   lua_Integer val = luaL_checkinteger(L, idx);
+   if (val < 0 || val > UINT32_MAX)
+      failf("invalid %s", what);
+   *out = (uint32_t)val;
+   return true;
+}
+
+static uint32_t
+sampler_desc_get_index(lua_State *L, int opts, const char *primary_field,
+                       const char *fallback_field, const char *what,
+                       bool surface)
+{
+   uint32_t index = 0;
+   lua_getfield(L, opts, primary_field);
+   bool found = sampler_desc_read_index(L, -1, what, surface, &index);
+   lua_pop(L, 1);
+   if (found)
+      return index;
+
+   lua_getfield(L, opts, fallback_field);
+   found = sampler_desc_read_index(L, -1, what, surface, &index);
+   lua_pop(L, 1);
+   if (!found)
+      failf("sampler_desc() missing '%s'", fallback_field);
+   return index;
+}
+
+static int
+l_sampler_desc(lua_State *L)
+{
+   luaL_checktype(L, 1, LUA_TTABLE);
+   int opts = lua_absindex(L, 1);
+
+   lua_getfield(L, opts, "op");
+   const char *op = luaL_optstring(L, -1, "ld");
+   lua_pop(L, 1);
+
+   uint32_t bti = sampler_desc_get_index(L, opts, "surface", "bti",
+                                         "BTI", true);
+   if (bti > 255)
+      failf("invalid BTI");
+
+   uint32_t sampler = 0;
+   lua_getfield(L, opts, "sampler");
+   if (!sampler_desc_read_index(L, -1, "sampler index", false, &sampler))
+      sampler = 0;
+   lua_pop(L, 1);
+   if (sampler > 15)
+      failf("invalid sampler index");
+
+   lua_Integer simd_val = executor_default_simd(&E.devinfo);
+   lua_getfield(L, opts, "simd");
+   if (!lua_isnil(L, -1))
+      simd_val = luaL_checkinteger(L, -1);
+   lua_pop(L, 1);
+   if (simd_val != 8 && simd_val != 16 && simd_val != 32)
+      failf("sampler_desc() simd must be 8, 16, or 32");
+
+   lua_getfield(L, opts, "mlen");
+   if (lua_isnil(L, -1))
+      failf("sampler_desc() missing 'mlen'");
+   lua_Integer mlen_val = luaL_checkinteger(L, -1);
+   lua_pop(L, 1);
+
+   lua_getfield(L, opts, "rlen");
+   if (lua_isnil(L, -1))
+      failf("sampler_desc() missing 'rlen'");
+   lua_Integer rlen_val = luaL_checkinteger(L, -1);
+   lua_pop(L, 1);
+
+   if (mlen_val < 0 || mlen_val > 15 || rlen_val < 0 || rlen_val > 31)
+      failf("invalid sampler_desc() mlen/rlen");
+
+   lua_getfield(L, opts, "header");
+   bool header = !lua_isnil(L, -1) && lua_toboolean(L, -1);
+   lua_pop(L, 1);
+
+   lua_getfield(L, opts, "hp");
+   bool hp = !lua_isnil(L, -1) && lua_toboolean(L, -1);
+   lua_pop(L, 1);
+
+   gen_message_desc msg = {
+      .msg_length = (uint32_t)mlen_val,
+      .response_length = (uint32_t)rlen_val,
+      .header_present = header,
+   };
+   bool valid = false;
+   unsigned msg_type =
+      gen_sampler_msg_type_from_string(&E.devinfo, op, strlen(op), &valid);
+   if (!valid)
+      failf("unknown sampler message op '%s'", op);
+
+   gen_sampler_desc smpl = {
+      .msg_type = msg_type,
+      .simd_mode = sampler_simd_mode((uint32_t)simd_val, hp),
+      .bti = bti,
+      .sampler_index = sampler,
+      .return_hp = hp,
+   };
+
+   uint32_t desc = gen_message_desc_encode(&E.devinfo, &msg) |
+                   gen_sampler_desc_encode(&E.devinfo, &smpl);
+   lua_pushinteger(L, desc);
+   return 1;
+}
+
+static int
 l_dump(lua_State *L)
 {
    /* TODO: Use a table to add options for the dump, e.g.
@@ -2090,8 +2584,6 @@ l_dump(lua_State *L)
    executor_dump_values(mem->map, len, 0);
    return 0;
 }
-
-
 
 /* TODO: Review numeric limits in the code, specially around Lua integer
  * conversion.
@@ -2316,10 +2808,36 @@ main(int argc, char *argv[])
    luaL_setfuncs(L, mem_methods, 0);
    lua_pop(L, 1);
 
+   static const luaL_Reg surface_methods[] = {
+      {"bti", l_surface_bti},
+      {NULL, NULL},
+   };
+
+   luaL_newmetatable(L, EXECUTOR_SURFACE_MT);
+   luaL_setfuncs(L, surface_methods, 0);
+   lua_pushvalue(L, -1);
+   lua_setfield(L, -2, "__index");
+   lua_pop(L, 1);
+
+   static const luaL_Reg sampler_methods[] = {
+      {"index", l_sampler_index},
+      {NULL, NULL},
+   };
+
+   luaL_newmetatable(L, EXECUTOR_SAMPLER_MT);
+   luaL_setfuncs(L, sampler_methods, 0);
+   lua_pushvalue(L, -1);
+   lua_setfield(L, -2, "__index");
+   lua_pop(L, 1);
+
    static const luaL_Reg executor_globals[] = {
-      {"alloc",   l_executor_alloc},
-      {"execute", l_execute},
-      {"dump",    l_dump},
+      {"alloc",          l_executor_alloc},
+      {"surface_buffer", l_executor_surface_buffer},
+      {"surface_2d",     l_executor_surface_2d},
+      {"sampler",        l_executor_sampler},
+      {"execute",        l_execute},
+      {"sampler_desc",   l_sampler_desc},
+      {"dump",           l_dump},
       {NULL, NULL},
    };
 

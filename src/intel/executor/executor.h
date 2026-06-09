@@ -37,6 +37,42 @@ typedef struct {
    const char *name;
 } executor_mem_region;
 
+typedef enum {
+   EXECUTOR_SURFACE_BUFFER,
+   EXECUTOR_SURFACE_2D,
+} executor_surface_type;
+
+typedef struct {
+   executor_mem_region region;
+   executor_surface_type type;
+   enum isl_format format;
+   uint32_t stride;
+   uint32_t width;
+   uint32_t height;
+   uint32_t bti;
+} executor_surface_binding;
+
+typedef enum {
+   EXECUTOR_SAMPLER_FILTER_NEAREST,
+   EXECUTOR_SAMPLER_FILTER_LINEAR,
+} executor_sampler_filter;
+
+typedef enum {
+   EXECUTOR_SAMPLER_ADDRESS_CLAMP,
+   EXECUTOR_SAMPLER_ADDRESS_REPEAT,
+   EXECUTOR_SAMPLER_ADDRESS_MIRROR,
+} executor_sampler_address;
+
+typedef struct {
+   uint32_t index;
+   executor_sampler_filter min_filter;
+   executor_sampler_filter mag_filter;
+   executor_sampler_address address_mode;
+   bool nonnormalized_coordinates;
+   float min_lod;
+   float max_lod;
+} executor_sampler_binding;
+
 typedef struct {
    void *mem_ctx;
 
@@ -71,6 +107,14 @@ typedef struct {
 
    struct util_dynarray mem_regions;
    uint32_t next_mem_name_id;
+
+   executor_surface_binding *surface_bindings;
+   uint32_t num_surface_bindings;
+   uint32_t surface_binding_capacity;
+
+   executor_sampler_binding *sampler_bindings;
+   uint32_t num_sampler_bindings;
+   uint32_t sampler_binding_capacity;
 } executor_context;
 
 typedef struct {
