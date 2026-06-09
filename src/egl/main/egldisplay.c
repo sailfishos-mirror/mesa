@@ -125,9 +125,6 @@ _eglGetNativePlatformFromEnv(void)
 static _EGLPlatformType
 _eglNativePlatformDetectNativeDisplay(void *nativeDisplay)
 {
-   if (nativeDisplay == EGL_DEFAULT_DISPLAY)
-      return _EGL_INVALID_PLATFORM;
-
 #ifdef HAVE_WINDOWS_PLATFORM
    if (GetObjectType(nativeDisplay) == OBJ_DC)
       return _EGL_PLATFORM_WINDOWS;
@@ -165,17 +162,19 @@ _eglGetNativePlatform(void *nativeDisplay)
    const char *detection_method = "environment";
 
    if (detected_platform == _EGL_INVALID_PLATFORM) {
-      detected_platform = _eglNativePlatformDetectNativeDisplay(nativeDisplay);
-      detection_method = "autodetected";
-   }
-
-   if (detected_platform == _EGL_INVALID_PLATFORM) {
-      detected_platform = _EGL_NATIVE_PLATFORM;
-      detection_method = "build-time configuration";
+      if (nativeDisplay != EGL_DEFAULT_DISPLAY) {
+         detected_platform = _eglNativePlatformDetectNativeDisplay(nativeDisplay);
+         detection_method = "autodetected";
+      } else {
+         detected_platform = _EGL_NATIVE_PLATFORM;
+         detection_method = "build-time configuration";
+      }
    }
 
    _eglLog(_EGL_DEBUG, "Native platform type: %s (%s)",
-           egl_platforms[detected_platform].name, detection_method);
+           detected_platform == _EGL_INVALID_PLATFORM ?
+              "invalid" : egl_platforms[detected_platform].name,
+           detection_method);
 
    return detected_platform;
 }
