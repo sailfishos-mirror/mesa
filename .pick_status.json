@@ -3034,7 +3034,7 @@
         "description": "util/u_range_remap: allow insert to truncate range",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e05225406617d45ec9800671edd447c064279c63",
         "notes": null
