@@ -228,6 +228,19 @@ class TracepointArg(object):
             ret = self.to_prim_type.format(ret)
         return ret
 
+    def copy_func_expr(self, entry_name):
+        if self.copy_func is None:
+            return f"{entry_name}->{self.name} = {self.var}"
+        elif self.length_arg is None:
+            return f"{self.copy_func}({entry_name}->{self.name}, {self.var})"
+        else:
+            return f"{self.copy_func}({entry_name}->{self.name}, {self.var}, {self.length_arg})"
+
+    @property
+    def needs_queueing(self):
+        if self.copy_func is None or self.length_arg is None:
+            return False
+        return not self.length_arg.isdigit()
 
 HEADERS = []
 
@@ -659,17 +672,11 @@ void __trace_${trace_name}(
                                                     ) :
       &entry;
  % for arg in trace.tp_struct:
-  % if arg.copy_func is None:
-   __entry->${arg.name} = ${arg.var};
-  % elif arg.length_arg is None:
-   ${arg.copy_func}(__entry->${arg.name}, ${arg.var});
-  % else:
-   % if not arg.length_arg.isdigit():
+  % if arg.needs_queueing:
    if (queueing)
-     ${arg.copy_func}(__entry->${arg.name}, ${arg.var}, ${arg.length_arg});
-   % else:
-   ${arg.copy_func}(__entry->${arg.name}, ${arg.var}, ${arg.length_arg});
-   % endif
+     ${arg.copy_func_expr("__entry")};
+  % else:
+   ${arg.copy_func_expr("__entry")};
   % endif
  % endfor
  % if trace.tp_markers is not None:
