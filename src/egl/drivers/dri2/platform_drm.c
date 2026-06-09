@@ -253,16 +253,17 @@ get_back_bo(struct dri2_egl_surface *dri2_surf)
       for (unsigned i = 0; i < ARRAY_SIZE(dri2_surf->color_buffers); i++) {
          struct dri2_egl_buffer *buffer = &dri2_surf->color_buffers[i];
 
-         if (!buffer->locked &&
-             dri2_surf->current != buffer) {
-            if (buffer->bo &&
-                (!min_age || buffer->age < min_age))
-               min_age = buffer->age;
+         if (buffer->locked ||
+             dri2_surf->current == buffer)
+            continue;
 
-            if (!max_age || buffer->age > max_age) {
-               dri2_surf->back = buffer;
-               max_age = buffer->age;
-            }
+         if (buffer->bo &&
+             (!min_age || buffer->age < min_age))
+            min_age = buffer->age;
+
+         if (!max_age || buffer->age > max_age) {
+            dri2_surf->back = buffer;
+            max_age = buffer->age;
          }
       }
 
