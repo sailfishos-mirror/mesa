@@ -1851,6 +1851,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
    }
 
+   case nir_intrinsic_load_subgroup_size:
+      jay_MOV(b, dst, s->dispatch_width);
+      break;
+
    case nir_intrinsic_load_subgroup_id:
       assert(cs && f->is_entrypoint && "todo: this needs ABI");
       /* Subgroup ID in Thread Group is u0.2 bits 7:0 */
