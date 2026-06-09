@@ -490,6 +490,7 @@ panvk_preprocess_nir(struct vk_physical_device *vk_pdev,
 
    nir_lower_compute_system_values_options options = {
       .has_base_workgroup_id = true,
+      .shuffle_local_ids_for_quad_derivatives = true,
    };
 
    NIR_PASS(_, nir, nir_lower_compute_system_values, &options);
