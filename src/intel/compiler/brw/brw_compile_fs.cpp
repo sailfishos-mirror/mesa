@@ -87,14 +87,15 @@ brw_do_emit_fb_writes(brw_shader &s, int nr_color_regions, bool replicate_alpha)
    }
 
    if (write == NULL) {
-      /* Disable null_rt if the shader doesn't write any relevant output.
+      struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
+      /* Enable null_rt if the shader doesn't write any relevant output.
        */
       const bool use_null_rt =
+         prog_data->alpha_to_coverage == INTEL_NEVER &&
+         !prog_data->uses_omask &&
          (s.nir->info.outputs_written &
-          (BITFIELD_RANGE(FRAG_RESULT_DATA0, 8) |
-           BITFIELD_BIT(FRAG_RESULT_DEPTH) |
-           BITFIELD_BIT(FRAG_RESULT_STENCIL) |
-           BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK))) == 0;
+          (BITFIELD64_BIT(FRAG_RESULT_DEPTH) |
+           BITFIELD64_BIT(FRAG_RESULT_STENCIL))) == 0;
 
       /* Even if there's no color buffers enabled, we still need to send alpha
        * out the pipeline to our null renderbuffer to support alpha-testing,
@@ -862,11 +863,13 @@ brw_nir_populate_fs_prog_data(nir_shader *shader,
    prog_data->persample_dispatch = MIN2(prog_data->persample_dispatch,
                                         key->multisample_fbo);
 
-   /* Currently only the Vulkan API allows alpha_to_coverage to be dynamic. If
-    * persample_dispatch & multisample_fbo are not dynamic, Anv should be able
-    * to definitively tell whether alpha_to_coverage is on or off.
+   /* Gate alpha to coverage with the draw buffer 0 being written.
     */
-   prog_data->alpha_to_coverage = key->alpha_to_coverage;
+   prog_data->alpha_to_coverage =
+      (shader->info.outputs_written &
+       (BITFIELD64_BIT(FRAG_RESULT_COLOR) |
+        BITFIELD64_BIT(FRAG_RESULT_DATA0))) != 0 ?
+      key->alpha_to_coverage : INTEL_NEVER;
 
    assert(devinfo->verx10 >= 125 || key->mesh_input == INTEL_NEVER);
    prog_data->mesh_input = key->mesh_input;
