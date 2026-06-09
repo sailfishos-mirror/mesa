@@ -75,6 +75,7 @@ typedef struct jay_fs_payload {
    jay_def coverage_mask;
    jay_def is_coarse;
    jay_def sample_pos;
+   jay_def coefficients;
    jay_def deltas[64];
 } jay_fs_payload;
 
@@ -1747,6 +1748,20 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_MOV(b, dst, fs->coord.w);
       break;
 
+   case nir_intrinsic_load_fs_start_intel:
+      jay_copy(b, dst, jay_extract_range(fs->coefficients, 6, 2));
+      break;
+
+   case nir_intrinsic_load_fs_z_c_intel:
+      jay_copy(b, dst,
+               jay_collect_two(b, jay_extract(fs->coefficients, 9),
+                               jay_extract(fs->coefficients, 8)));
+      break;
+
+   case nir_intrinsic_load_fs_z_c0_intel:
+      jay_copy(b, dst, jay_extract(fs->coefficients, 10));
+      break;
+
    case nir_intrinsic_load_sample_pos:
    case nir_intrinsic_load_sample_pos_or_center:
       assert(fs);
@@ -3072,6 +3087,11 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
           (*split_gprs[i].def).file == UGPR) {
          split[i] = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
       }
+   }
+
+   if (nj->s->prog_data->fs.uses_depth_w_coefficients ||
+       nj->s->prog_data->fs.uses_pc_bary_coefficients) {
+      fs->coefficients = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
    }
 
    setup_payload_dispatch_start(nj, p);

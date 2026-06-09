@@ -410,6 +410,9 @@ jay_process_nir(const struct intel_device_info *devinfo,
        */
       jay_populate_prog_data(devinfo, nir, prog_data, key, 0);
 
+      if (prog_data->fs.coarse_pixel_dispatch != INTEL_NEVER)
+         JAY_NIR_PASS(brw_nir_lower_frag_coord_z, devinfo);
+
       JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_frag_coord,
                    nir_metadata_control_flow, NULL);
 
