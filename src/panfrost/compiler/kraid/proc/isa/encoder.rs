@@ -654,7 +654,13 @@ impl InstrEncVariant {
                 InstrField::Virtual(f) => {
                     // Virtual fields are always sources since they're used to
                     // calculate computed physical fields.
-                    (&f.name, &f.type_, &f.restrict)
+                    let mut restrict = f.restrict.clone();
+                    if let Some(lit) = f.expr.as_enum() {
+                        restrict = Some(Rc::new(FieldRestrict {
+                            values: vec![lit.clone()],
+                        }));
+                    }
+                    (&f.name, &f.type_, restrict)
                 }
                 InstrField::Physical(f) => {
                     // Physical fields only show up as sources if we can't
@@ -662,7 +668,8 @@ impl InstrEncVariant {
                     if f.expr.is_some() {
                         continue;
                     }
-                    (&f.name, f.type_.as_ref().unwrap(), &f.restrict)
+                    let restrict = f.restrict.clone();
+                    (&f.name, f.type_.as_ref().unwrap(), restrict)
                 }
                 InstrField::Reserved(_) => continue,
             };
@@ -676,7 +683,7 @@ impl InstrEncVariant {
                 &instr.name,
                 field_name,
                 &field_type,
-                restrict,
+                &restrict,
                 sr_control,
             );
         }
@@ -691,7 +698,7 @@ impl InstrEncVariant {
                 &instr.name,
                 field_name,
                 &field_type,
-                restrict,
+                &restrict,
                 sr_control,
             ));
         }

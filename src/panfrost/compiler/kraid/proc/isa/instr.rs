@@ -64,7 +64,7 @@ impl FieldType {
 }
 
 pub struct FieldRestrict {
-    values: Vec<EnumLiteral>,
+    pub values: Vec<EnumLiteral>,
 }
 
 impl FieldRestrict {
