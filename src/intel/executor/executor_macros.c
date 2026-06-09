@@ -99,9 +99,8 @@ parse_args(void *mem_ctx, slice args)
 }
 
 static void
-executor_macro_mov(executor_context *ec, char **src, slice line)
+executor_macro_mov(executor_context *ec, char **src, slice args)
 {
-   slice args = slice_strip_prefix(line, slice_from_cstr("@mov"));
    parse_args_result r = parse_args(ec->mem_ctx, args);
 
    if (r.count != 2)
@@ -204,9 +203,8 @@ executor_macro_eot(executor_context *ec, char **src, slice line)
 }
 
 static void
-executor_macro_id(executor_context *ec, char **src, slice line)
+executor_macro_id(executor_context *ec, char **src, slice args)
 {
-   slice args = slice_strip_prefix(line, slice_from_cstr("@id"));
    parse_args_result r = parse_args(ec->mem_ctx, args);
 
    if (r.count != 1)
@@ -250,9 +248,8 @@ executor_macro_id(executor_context *ec, char **src, slice line)
 }
 
 static void
-executor_macro_write(executor_context *ec, char **src, slice line)
+executor_macro_write(executor_context *ec, char **src, slice args)
 {
-   slice args = slice_strip_prefix(line, slice_from_cstr("@write"));
    parse_args_result r = parse_args(ec->mem_ctx, args);
 
    if (r.count != 2)
@@ -306,9 +303,8 @@ executor_macro_write(executor_context *ec, char **src, slice line)
 }
 
 static void
-executor_macro_read(executor_context *ec, char **src, slice line)
+executor_macro_read(executor_context *ec, char **src, slice args)
 {
-   slice args = slice_strip_prefix(line, slice_from_cstr("@read"));
    parse_args_result r = parse_args(ec->mem_ctx, args);
 
    if (r.count != 2)
@@ -413,7 +409,9 @@ executor_apply_macros(executor_context *ec, slice original_src)
          bool found = false;
          for (int i = 0; i < ARRAY_SIZE(macros); i++) {
             if (match_macro_name(macros[i].name, macro)) {
-               macros[i].func(ec, &src, macro);
+               slice args = slice_strip_prefix(macro, slice_from_cstr(macros[i].name));
+               args = strip_spaces(args);
+               macros[i].func(ec, &src, args);
                found = true;
                break;
             }
