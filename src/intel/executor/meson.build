@@ -37,6 +37,8 @@ executor = executable(
   [
     'executor_main.c',
     'executor_macros.c',
+    # TODO: Move slice.h into a proper common place.
+    '../mda/slice.c',
   ],
   dependencies: [
     dep_libdrm,

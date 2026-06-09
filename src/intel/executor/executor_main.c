@@ -1020,7 +1020,9 @@ parse_execute_args(executor_context *ec, lua_State *L, executor_params *params)
       const char *key = lua_tostring(L, key_idx);
 
       if (!strcmp(key, "src")) {
-         params->original_src = ralloc_strdup(ec->mem_ctx, luaL_checkstring(L, val_idx));
+         size_t len;
+         const char *src = luaL_checklstring(L, val_idx, &len);
+         params->original_src = (slice) { src, len };
       } else if (!strcmp(key, "data")) {
          parse_execute_data(ec, L, val_idx);
       } else {

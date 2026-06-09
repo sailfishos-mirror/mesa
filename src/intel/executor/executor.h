@@ -13,6 +13,8 @@
 #include "intel/isl/isl.h"
 #include "perf/intel_perf.h"
 #include "perf/intel_perf_query.h"
+/* TODO: Move slice.h into a proper common place. */
+#include "../mda/slice.h"
 
 typedef struct {
    uint32_t size;
@@ -56,7 +58,7 @@ typedef struct {
 } executor_context;
 
 typedef struct {
-   const char *original_src;
+   slice original_src;
 
    void *kernel_bin;
    uint32_t kernel_size;
@@ -80,7 +82,10 @@ void *executor_alloc_bytes_aligned(executor_bo *bo, uint32_t size, uint32_t alig
 
 void failf(const char *fmt, ...) PRINTFLIKE(1, 2);
 
-const char *executor_apply_macros(executor_context *ec, const char *original_src);
+slice strip_spaces(slice s);
+slice trim_comments(slice s);
+
+const char *executor_apply_macros(executor_context *ec, slice original_src);
 
 #ifdef genX
 #  include "executor_genx.h"
