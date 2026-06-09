@@ -1058,7 +1058,7 @@ typedef uint16_t jay_reg;
 
 /** Represents a set of registers that may be clobbered for lowering swaps */
 struct jay_temp_regs {
-   jay_reg gpr, gpr2, ugpr, ugpr2;
+   jay_reg gpr, gpr2, ugpr;
 };
 
 /**
