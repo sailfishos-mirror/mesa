@@ -154,7 +154,7 @@ if with_egl
   subdir('egl')
 endif
 if with_gallium
-  if with_glx == 'dri' or with_platform_x11 or with_platform_xcb
+  if with_glx == 'dri' or with_platform_x11
     subdir('gallium/targets/dril')
   endif
 endif
