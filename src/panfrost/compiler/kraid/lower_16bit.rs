@@ -3,38 +3,31 @@
 
 use crate::ir::*;
 use crate::ops::*;
-use std::num::NonZeroU8;
 
 fn type_is_16bit(data_type: DataType) -> bool {
-    data_type.total_bits() == std::num::NonZeroU8::new(16)
+    data_type.total_bits() == 16
 }
 
 fn replicate_type(data_type: DataType, n: u8) -> DataType {
-    DataType::v(
-        data_type.comps().unwrap().get() * n,
-        data_type.scalar_type(),
-    )
+    DataType::v(data_type.comps() * n, data_type.scalar_type())
 }
 
 macro_rules! lower_op {
     ($op: expr, $variant: ident) => {{
-        const SOME_8: Option<NonZeroU8> = NonZeroU8::new(8);
-        const SOME_16: Option<NonZeroU8> = NonZeroU8::new(16);
-        const SOME_32: Option<NonZeroU8> = NonZeroU8::new(32);
         match $op.$variant.total_bits() {
-            SOME_8 => {
+            8 => {
                 for src in $op.srcs() {
                     debug_assert!(src.replicates_byte());
                 }
                 $op.$variant = replicate_type($op.$variant, 4);
             }
-            SOME_16 => {
+            16 => {
                 for src in $op.srcs() {
                     debug_assert!(src.replicates_half());
                 }
                 $op.$variant = replicate_type($op.$variant, 2);
             }
-            bits => assert!(bits >= SOME_32),
+            bits => assert!(bits >= 32),
         }
     }};
 }
@@ -47,7 +40,7 @@ fn lower_instr(instr: &mut Instr) {
         Op::ICmp(op) => lower_op!(op, src_type),
         Op::LdPka(_) | Op::Load(_) => (), // These handle 16-bit natively
         Op::Mov(op) => {
-            if op.dst_type.total_bits() == std::num::NonZeroU8::new(16) {
+            if op.dst_type.total_bits() == 16 {
                 instr.op = Op::from(OpIAdd {
                     dst: op.dst.clone(),
                     dst_type: DataType::V2I16,

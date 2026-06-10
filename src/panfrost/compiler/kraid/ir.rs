@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 pub use crate::data_type::DataType;
+use crate::data_type::PartialDataType;
 pub use crate::flow::FlowCtrl;
 pub use crate::model::Model;
 pub use crate::ops::Op;
@@ -474,7 +475,7 @@ pub trait HasVariants {
 #[derive(Clone)]
 pub struct DataTypeIter {
     variant: Option<DataType>,
-    types: std::slice::Iter<'static, DataType>,
+    types: std::slice::Iter<'static, PartialDataType>,
 }
 
 impl Iterator for DataTypeIter {
@@ -485,13 +486,13 @@ impl Iterator for DataTypeIter {
         if let Some(v) = self.variant {
             Some(t.specialize(v))
         } else {
-            Some(*t)
+            Some(t.as_data_type())
         }
     }
 }
 
 pub trait Opcode:
-    AsSlice<Src, Attr = DataType> + AsSlice<Dst, Attr = DataType>
+    AsSlice<Src, Attr = PartialDataType> + AsSlice<Dst, Attr = PartialDataType>
 {
     fn variant(&self) -> Option<DataType>;
     fn is_valid_variant(&self) -> bool;
@@ -529,11 +530,12 @@ pub trait Opcode:
 
     fn src_type(&self, src: &Src) -> DataType {
         let src_idx = self.src_idx(src);
-        let mut src_type = AsSlice::<Src>::attrs(self)[src_idx];
+        let src_type = AsSlice::<Src>::attrs(self)[src_idx];
         if let Some(v) = self.variant() {
-            src_type = src_type.specialize(v);
+            src_type.specialize(v)
+        } else {
+            src_type.as_data_type()
         }
-        src_type
     }
 
     fn fmt_src<'a>(&self, src: &'a Src) -> FmtSrc<'a> {
@@ -576,11 +578,12 @@ pub trait Opcode:
 
     fn dst_type(&self, dst: &Dst) -> DataType {
         let dst_idx = self.dst_idx(dst);
-        let mut dst_type = AsSlice::<Dst>::attrs(self)[dst_idx];
+        let dst_type = AsSlice::<Dst>::attrs(self)[dst_idx];
         if let Some(v) = self.variant() {
-            dst_type = dst_type.specialize(v);
+            dst_type.specialize(v)
+        } else {
+            dst_type.as_data_type()
         }
-        dst_type
     }
 }
 

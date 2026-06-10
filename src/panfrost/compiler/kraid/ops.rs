@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::data_type::PartialDataType;
 use crate::ir::*;
 use kraid_proc_macros::{variants, FromVariants, Opcode};
 use std::fmt;

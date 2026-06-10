@@ -13,13 +13,13 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
         }
 
         if src.swizzle.is_word_swizzle() {
-            assert!(src_type.bits().unwrap().get() == 64);
+            assert_eq!(src_type.bits(), 64);
         }
 
-        if src_type.comps().unwrap().get() == 1 {
-            if src_type.bits().unwrap().get() == 8 {
+        if src_type.comps() == 1 {
+            if src_type.bits() == 8 {
                 assert!(src.replicates_byte());
-            } else if src_type.bits().unwrap().get() == 16 {
+            } else if src_type.bits() == 16 {
                 assert!(src.replicates_half());
             }
         }
@@ -53,7 +53,7 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
 
     for (dst, dst_type) in instr.dsts_types() {
         let dst_ref_bytes = dst.bytes_written();
-        let dst_type_bytes = dst_type.bits().unwrap().get() / 8;
+        let dst_type_bytes = dst_type.bits() / 8;
         assert!(dst_type_bytes <= dst_ref_bytes);
         assert_eq!(dst_type_bytes.div_ceil(4), dst_ref_bytes.div_ceil(4));
 

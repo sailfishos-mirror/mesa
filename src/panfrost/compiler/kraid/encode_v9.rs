@@ -120,7 +120,7 @@ fn op_encode_src(op: &impl Opcode, src: &Src) -> v9::EncodedSrc {
     let encoded = encode_src_ref(&src.src_ref, src.last_use);
 
     let src_type = op.src_type(src);
-    if src_type.bits().unwrap().get() == 64 && !src.src_ref.is_small_const() {
+    if src_type.bits() == 64 && !src.src_ref.is_small_const() {
         assert_eq!(encoded & 0x01, 0);
     }
 
@@ -131,10 +131,10 @@ fn op_encode_src(op: &impl Opcode, src: &Src) -> v9::EncodedSrc {
     match src.src_mod {
         SrcMod::None => (),
         SrcMod::FAbs | SrcMod::FNeg | SrcMod::FNegAbs => {
-            assert_eq!(src_type.num_type(), Some(NumericType::Float));
+            assert_eq!(src_type.num_type(), NumericType::Float);
         }
         SrcMod::BNot => {
-            assert_eq!(src_type.num_type(), Some(NumericType::Integer));
+            assert_eq!(src_type.num_type(), NumericType::Integer);
         }
     }
 
@@ -153,7 +153,7 @@ fn op_encode_dst(op: &impl Opcode, dst: &Dst) -> v9::EncodedDst {
     };
 
     let dst_type = op.dst_type(dst);
-    if dst_type.bits().unwrap().get() == 64 {
+    if dst_type.bits() == 64 {
         assert_eq!(reg.idx & 0x01, 0);
     }
 
@@ -201,7 +201,7 @@ fn op_encode_sr_write(op: &impl Opcode, dst: &Dst) -> v9::SrWrite {
     let reg_bytes = reg.bytes();
     let reg_byte_offset = reg.byte_offset();
 
-    let type_bits = op.dst_type(dst).total_bits().unwrap().get();
+    let type_bits = op.dst_type(dst).total_bits();
     let lanes = if type_bits == 8 {
         match reg_byte_offset {
             0 => DstLanes::B0,
