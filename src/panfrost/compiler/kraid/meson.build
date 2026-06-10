@@ -142,6 +142,8 @@ endif
 # with the sanitizers because meson doesn't know to pass -fsanitize to the
 # Rust linker.  See also https://github.com/mesonbuild/meson/issues/11741
 if with_tests and get_option('b_sanitize') == 'none'
+  subdir('hw_runner')
+
   rust.test(
     'kraid_test',
     libpanfrost_kraid,
@@ -157,5 +159,6 @@ if with_tests and get_option('b_sanitize') == 'none'
       # Meson adds --test but no --cfg test, do it manually to help rust-analyzer
       '--cfg', 'test',
     ],
+    dependencies : [idep_acorn_rs, idep_kraid_hw_runner_rs],
   )
 endif
