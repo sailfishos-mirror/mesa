@@ -508,8 +508,10 @@ impl fmt::Display for OpNop {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub enum ShiftOp {
+    #[default]
+    None,
     LShift,
     RShift,
     ARShift,
@@ -520,6 +522,7 @@ pub enum ShiftOp {
 impl fmt::Display for ShiftOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ShiftOp::None => Ok(()),
             ShiftOp::LShift => write!(f, "LSHIFT"),
             ShiftOp::RShift => write!(f, "RSHIFT"),
             ShiftOp::ARShift => write!(f, "ARSHIFT"),
@@ -529,8 +532,16 @@ impl fmt::Display for ShiftOp {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+impl ShiftOp {
+    pub fn is_none(&self) -> bool {
+        matches!(self, ShiftOp::None)
+    }
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
 pub enum LogicOp {
+    #[default]
+    None,
     And,
     Or,
     Xor,
@@ -539,10 +550,17 @@ pub enum LogicOp {
 impl fmt::Display for LogicOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            LogicOp::None => write!(f, "NONE"),
             LogicOp::And => write!(f, "AND"),
             LogicOp::Or => write!(f, "OR"),
             LogicOp::Xor => write!(f, "XOR"),
         }
+    }
+}
+
+impl LogicOp {
+    pub fn is_none(&self) -> bool {
+        matches!(self, LogicOp::None)
     }
 }
 
@@ -565,12 +583,16 @@ pub struct OpShiftLop {
 
 impl fmt::Display for OpShiftLop {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = ", &self.dst)?;
+        match (self.shift_op, self.logic_op) {
+            (ShiftOp::None, LogicOp::None) => write!(f, "NO_SHIFT")?,
+            (shift_op, LogicOp::None) => write!(f, "{shift_op}")?,
+            (ShiftOp::None, logic_op) => write!(f, "{logic_op}")?,
+            (shift_op, logic_op) => write!(f, "{shift_op}_{logic_op}")?,
+        }
         write!(
             f,
-            "{} = {}_{}.{} {} {} {}",
-            &self.dst,
-            self.shift_op,
-            self.logic_op,
+            ".{} {} {} {}",
             self.dst_type,
             self.fmt_src(&self.src0),
             self.fmt_src(&self.shift),

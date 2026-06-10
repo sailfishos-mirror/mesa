@@ -645,10 +645,38 @@ impl V9Instr for OpNop {
     }
 }
 
+macro_rules! encode_lop {
+    ($e:expr, $op:expr, $Instr:ident) => {
+        paste! {
+            $e.encode(v9::$Instr {
+                variant: $op.dst_type.try_into().unwrap(),
+                dst: op_encode_dst($op, &$op.dst),
+                not_result: $op.not_result.into(),
+                src0: op_encode_src($op, &$op.src0),
+                src2: op_encode_src($op, &$op.src2),
+            })
+        }
+    };
+}
+
+macro_rules! encode_shift {
+    ($e:expr, $op:expr, $Instr:ident) => {
+        paste! {
+            $e.encode(v9::$Instr {
+                variant: $op.dst_type.try_into().unwrap(),
+                dst: op_encode_dst($op, &$op.dst),
+                not_result: $op.not_result.into(),
+                src0: op_encode_src($op, &$op.src0),
+                src1: op_encode_src($op, &$op.shift),
+            })
+        }
+    };
+}
+
 macro_rules! encode_shift_lop {
     ($e:expr, $op:expr, $Instr:ident) => {
         paste! {
-            $e.encode($Instr {
+            $e.encode(v9::$Instr {
                 variant: $op.dst_type.try_into().unwrap(),
                 dst: op_encode_dst($op, &$op.dst),
                 not_result: $op.not_result.into(),
@@ -665,6 +693,17 @@ impl V9Instr for OpShiftLop {
         use LogicOp::*;
         use ShiftOp::*;
         match (self.shift_op, self.logic_op) {
+            (ShiftOp::None, LogicOp::None) => {
+                v9::Or::get_info(self.dst_type, arch)
+            }
+            (ShiftOp::None, And) => v9::And::get_info(self.dst_type, arch),
+            (ShiftOp::None, Or) => v9::Or::get_info(self.dst_type, arch),
+            (ShiftOp::None, Xor) => v9::Xor::get_info(self.dst_type, arch),
+            (LShift, LogicOp::None) => Lshift::get_info(self.dst_type, arch),
+            (RShift, LogicOp::None) => Rshift::get_info(self.dst_type, arch),
+            (ARShift, LogicOp::None) => Arshift::get_info(self.dst_type, arch),
+            (LRot, LogicOp::None) => Lrot::get_info(self.dst_type, arch),
+            (RRot, LogicOp::None) => Rrot::get_info(self.dst_type, arch),
             (LShift, And) => LshiftAnd::get_info(self.dst_type, arch),
             (LShift, Or) => LshiftOr::get_info(self.dst_type, arch),
             (LShift, Xor) => LshiftXor::get_info(self.dst_type, arch),
@@ -687,6 +726,22 @@ impl V9Instr for OpShiftLop {
         use LogicOp::*;
         use ShiftOp::*;
         match (self.shift_op, self.logic_op) {
+            (ShiftOp::None, LogicOp::None) => {
+                let op = OpShiftLop {
+                    logic_op: LogicOp::Or,
+                    src2: 0.into(),
+                    ..self.clone()
+                };
+                op.encode(e)
+            }
+            (ShiftOp::None, And) => encode_lop!(e, self, And),
+            (ShiftOp::None, Or) => encode_lop!(e, self, Or),
+            (ShiftOp::None, Xor) => encode_lop!(e, self, Xor),
+            (LShift, LogicOp::None) => encode_shift!(e, self, Lshift),
+            (RShift, LogicOp::None) => encode_shift!(e, self, Rshift),
+            (ARShift, LogicOp::None) => encode_shift!(e, self, Arshift),
+            (LRot, LogicOp::None) => encode_shift!(e, self, Lrot),
+            (RRot, LogicOp::None) => encode_shift!(e, self, Rrot),
             (LShift, And) => encode_shift_lop!(e, self, LshiftAnd),
             (LShift, Or) => encode_shift_lop!(e, self, LshiftOr),
             (LShift, Xor) => encode_shift_lop!(e, self, LshiftXor),

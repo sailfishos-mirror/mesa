@@ -464,8 +464,8 @@ impl<'a> ShaderFromNir<'a> {
                     b.push_op(OpShiftLop {
                         dst: dst.into(),
                         dst_type: dst_type(NumericType::Integer),
-                        shift_op: ShiftOp::LShift,
-                        logic_op: LogicOp::Or,
+                        shift_op: ShiftOp::None,
+                        logic_op: LogicOp::None,
                         not_result: false,
                         src0: srcs(0).swizzle(swz),
                         shift: 0.into(),
@@ -496,7 +496,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpShiftLop {
                     dst: dst.into(),
                     dst_type: dst_type(NumericType::Integer),
-                    shift_op: ShiftOp::LShift,
+                    shift_op: ShiftOp::None,
                     logic_op: match alu.op {
                         nir_op_iand => LogicOp::And,
                         nir_op_ior => LogicOp::Or,
@@ -505,7 +505,7 @@ impl<'a> ShaderFromNir<'a> {
                     },
                     not_result: false,
                     src0: srcs(0),
-                    shift: Src::from(0).byte(0),
+                    shift: Src::imm_u8(0),
                     src2: srcs(1),
                 });
             }
@@ -566,7 +566,7 @@ impl<'a> ShaderFromNir<'a> {
                         nir_op_uror => ShiftOp::RRot,
                         _ => panic!("Unhandled shift op"),
                     },
-                    logic_op: LogicOp::Or,
+                    logic_op: LogicOp::None,
                     not_result: false,
                     src0: srcs(0),
                     shift: srcs(1).byte(0),
@@ -594,8 +594,8 @@ impl<'a> ShaderFromNir<'a> {
                     b.push_op(OpShiftLop {
                         dst: dst.into(),
                         dst_type: dst_type(NumericType::Integer),
-                        shift_op: ShiftOp::LShift,
-                        logic_op: LogicOp::Or,
+                        shift_op: ShiftOp::None,
+                        logic_op: LogicOp::None,
                         not_result: false,
                         src0: srcs(0).swizzle(swz),
                         shift: 0.into(),
