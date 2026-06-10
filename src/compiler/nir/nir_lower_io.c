@@ -1174,6 +1174,7 @@ nir_get_io_index_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_load_ssbo_uniform_block_intel:
    case nir_intrinsic_ssbo_atomic:
    case nir_intrinsic_ssbo_atomic_swap:
+   case nir_intrinsic_load_ssbo_address:
    IMG_CASE(load):
    IMG_CASE(store):
    IMG_CASE(sparse_load):
