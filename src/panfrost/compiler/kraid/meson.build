@@ -143,15 +143,19 @@ endif
 # Rust linker.  See also https://github.com/mesonbuild/meson/issues/11741
 if with_tests and get_option('b_sanitize') == 'none'
   rust.test(
-    'kraid',
+    'kraid_test',
     libpanfrost_kraid,
     args : [
       # Don't run HW tests by default
       '--skip', 'hw_tests::',
     ],
     suite : ['panfrost'],
-    # This is needed to ensure we link against glibc
-    # See also https://gitlab.freedesktop.org/mesa/mesa/-/issues/11632
-    rust_args: ['-C', 'default-linker-libraries'],
+    rust_args: [
+      # This is needed to ensure we link against glibc
+      # See also https://gitlab.freedesktop.org/mesa/mesa/-/issues/11632
+      '-C', 'default-linker-libraries',
+      # Meson adds --test but no --cfg test, do it manually to help rust-analyzer
+      '--cfg', 'test',
+    ],
   )
 endif
