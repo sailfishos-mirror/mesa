@@ -523,6 +523,7 @@ static void r300_init_screen_caps(struct r300_screen* r300screen)
    caps->primitive_restart =
    caps->primitive_restart_fixed_index =
    caps->user_vertex_buffers =
+   caps->vs_instanceid =
    caps->vs_window_space_position = !r300screen->caps.has_tcl;
 
    /* HWTCL-only features / limitations. */
