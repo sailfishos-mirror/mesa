@@ -149,9 +149,8 @@ gen_inst_is_split_send(const intel_device_info *devinfo, const gen_inst *inst)
 }
 
 inline bool
-gen_inst_has_dst(const gen_format format, const gen_opcode op)
+gen_inst_has_dst(const gen_opcode op)
 {
-   (void)format;
    return gen_opcode_has_dst(op);
 }
 

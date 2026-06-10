@@ -427,7 +427,7 @@ private:
       case GEN_FORMAT_BASIC_THREE_SRC:
       case GEN_FORMAT_DPAS_THREE_SRC: {
          const unsigned num_sources = gen_inst_num_sources(devinfo, inst);
-         const bool has_dst = gen_inst_has_dst(inst_format, inst->opcode);
+         const bool has_dst = gen_inst_has_dst(inst->opcode);
 
          if (inst->opcode == GEN_OP_WAIT) {
             field_sep(DST_COLUMN);

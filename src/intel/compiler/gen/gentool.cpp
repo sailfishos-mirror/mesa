@@ -501,8 +501,7 @@ print_regular_region_output(const intel_device_info *devinfo,
                             FILE *fp,
                             const gen_inst *inst)
 {
-   const gen_format format = gen_inst_format(inst->opcode);
-   const bool has_dst = gen_inst_has_dst(format, inst->opcode);
+   const bool has_dst = gen_inst_has_dst(inst->opcode);
    const unsigned num_sources = gen_inst_num_sources(devinfo, inst);
 
    if (inst->align16) {
