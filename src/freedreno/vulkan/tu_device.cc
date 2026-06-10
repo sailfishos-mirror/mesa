@@ -105,6 +105,8 @@ tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
                        sizeof(device->instance->drirc.misc.allow_oob_indirect_ubo_loads));
    _mesa_blake3_update(&ctx, &device->enable_texel_buffer_emulation,
                        sizeof(device->enable_texel_buffer_emulation));
+   _mesa_blake3_update(&ctx, &device->enable_ssbo_emulation,
+                       sizeof(device->enable_ssbo_emulation));
    _mesa_blake3_final(&ctx, blake3);
 
    memcpy(uuid, blake3, VK_UUID_SIZE);
@@ -1155,7 +1157,10 @@ tu_get_properties(struct tu_physical_device *pdevice,
                                       ? TU_D3D12_MAX_TEXEL_BUFFER_ELEMENTS
                                       : pdevice->info->props.max_texel_buffer_range_elements;
    props->maxUniformBufferRange = MAX_UNIFORM_BUFFER_RANGE;
-   props->maxStorageBufferRange = pdevice->info->props.max_storage_buffer_range_bytes;
+   props->maxStorageBufferRange =
+      pdevice->enable_ssbo_emulation
+         ? TU_D3D12_MAX_STORAGE_BUFFER_RANGE_BYTES
+         : pdevice->info->props.max_storage_buffer_range_bytes;
    props->maxPushConstantsSize = MAX_PUSH_CONSTANTS_SIZE;
    props->maxMemoryAllocationCount = UINT32_MAX;
    props->maxSamplerAllocationCount = 64 * 1024;
@@ -1731,6 +1736,10 @@ tu_physical_device_init(struct tu_physical_device *device,
       if (device->info->props.max_texel_buffer_range_elements < TU_D3D12_MAX_TEXEL_BUFFER_ELEMENTS) {
          assert(fd_dev_gen(&device->dev_id) == 7);
          device->enable_texel_buffer_emulation = instance->drirc.misc.enable_texel_buffer_emulation;
+      }
+      if (device->info->props.max_storage_buffer_range_bytes < TU_D3D12_MAX_STORAGE_BUFFER_RANGE_BYTES) {
+         assert(fd_dev_gen(&device->dev_id) == 7);
+         device->enable_ssbo_emulation = instance->drirc.misc.enable_ssbo_emulation;
       }
    }
 

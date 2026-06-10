@@ -153,6 +153,7 @@ struct tu_physical_device
    bool is_perf_cntr_selectable;
 
    bool enable_texel_buffer_emulation;
+   bool enable_ssbo_emulation;
 
    struct {
       uint32_t non_lazy_type_count;

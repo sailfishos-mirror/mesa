@@ -112,6 +112,9 @@ def declare_options():
         B("tu_enable_texel_buffer_emulation", False,
           "Emulate texel buffers to allow a higher limit for elements that is in line with what some D3D12 games expect",
           c_name="enable_texel_buffer_emulation"),
+        B("tu_enable_ssbo_emulation", False,
+          "Emulate SSBOs to allow a higher limit for elements that is in line with what some D3D12 games expect",
+          c_name="enable_ssbo_emulation"),
     ]
 
     features_options = []

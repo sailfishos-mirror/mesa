@@ -226,7 +226,9 @@ enum ir3_const_alloc_type {
    IR3_CONST_ALLOC_PRIMITIVE_PARAM = 10,
    /* Common, mapping from varying location to offset. */
    IR3_CONST_ALLOC_PRIMITIVE_MAP = 11,
-   IR3_CONST_ALLOC_MAX = 12,
+   /* For SSBO emulation */
+   IR3_CONST_ALLOC_BINDLESS_BASE_ADDRS = 12,
+   IR3_CONST_ALLOC_MAX = 13,
 };
 
 struct ir3_const_allocation {

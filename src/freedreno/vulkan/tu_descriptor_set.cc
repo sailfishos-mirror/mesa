@@ -1131,11 +1131,14 @@ write_buffer_descriptor_addr(const struct tu_device *device,
    if (!buffer_info || buffer_info->address == 0)
       return;
 
+   enum fdl_ssbo_emulation_mode ssbo_emulation_mode =
+      device->physical_device->enable_ssbo_emulation ? FDL_SSBO_EMULATION_ENABLED : FDL_SSBO_EMULATION_DISABLED;
+
    uint64_t va = buffer_info->address;
    uint32_t range = buffer_info->range;
 
    if (info->props.storage_16bit) {
-      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R16_UINT, tu_swiz(X, Y, Z, W), va, range);
+      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R16_UINT, tu_swiz(X, Y, Z, W), va, range, 1, ssbo_emulation_mode);
       dst += FDL6_TEX_CONST_DWORDS;
    }
 
@@ -1143,12 +1146,12 @@ write_buffer_descriptor_addr(const struct tu_device *device,
     * 16-bit descriptor cannot be used for 32-bit loads through isam.v.
     */
    if (!info->props.storage_16bit || !info->props.has_isam_v) {
-      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R32_UINT, tu_swiz(X, Y, Z, W), va, range);
+      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R32_UINT, tu_swiz(X, Y, Z, W), va, range, 1, ssbo_emulation_mode);
       dst += FDL6_TEX_CONST_DWORDS;
    }
 
    if (info->props.storage_8bit) {
-      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R8_UINT, tu_swiz(X, Y, Z, W), va, range);
+      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R8_UINT, tu_swiz(X, Y, Z, W), va, range, 1, ssbo_emulation_mode);
       dst += FDL6_TEX_CONST_DWORDS;
    }
 }
