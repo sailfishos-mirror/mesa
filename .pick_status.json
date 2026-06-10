@@ -3984,7 +3984,7 @@
         "description": "tu: Add allow_oob_indirect_ubo_loads to device cache uuid",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f4c40fc89c7e53a2c0f2f78578fe10b71a4e27f1",
         "notes": null
