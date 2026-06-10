@@ -645,17 +645,17 @@ impl V9Instr for OpNop {
     }
 }
 
-macro_rules! shift_lop_as {
-    ($op:expr, $Instr:ident) => {
+macro_rules! encode_shift_lop {
+    ($e:expr, $op:expr, $Instr:ident) => {
         paste! {
-            $Instr {
+            $e.encode($Instr {
                 variant: $op.dst_type.try_into().unwrap(),
                 dst: op_encode_dst($op, &$op.dst),
                 not_result: $op.not_result.into(),
                 src0: op_encode_src($op, &$op.src0),
                 src1: op_encode_src($op, &$op.shift),
                 src2: op_encode_src($op, &$op.src2),
-            }
+            })
         }
     };
 }
@@ -680,12 +680,12 @@ impl V9Instr for OpShiftLop {
         use LogicOp::*;
         use ShiftOp::*;
         match (self.shift_op, self.logic_op) {
-            (LShift, And) => e.encode(shift_lop_as!(self, LshiftAnd)),
-            (LShift, Or) => e.encode(shift_lop_as!(self, LshiftOr)),
-            (LShift, Xor) => e.encode(shift_lop_as!(self, LshiftXor)),
-            (RShift, And) => e.encode(shift_lop_as!(self, RshiftAnd)),
-            (RShift, Or) => e.encode(shift_lop_as!(self, RshiftOr)),
-            (RShift, Xor) => e.encode(shift_lop_as!(self, RshiftXor)),
+            (LShift, And) => encode_shift_lop!(e, self, LshiftAnd),
+            (LShift, Or) => encode_shift_lop!(e, self, LshiftOr),
+            (LShift, Xor) => encode_shift_lop!(e, self, LshiftXor),
+            (RShift, And) => encode_shift_lop!(e, self, RshiftAnd),
+            (RShift, Or) => encode_shift_lop!(e, self, RshiftOr),
+            (RShift, Xor) => encode_shift_lop!(e, self, RshiftXor),
             (ARShift, _) => {
                 assert!(self.shift.is_zero());
                 e.encode(Arshift {
