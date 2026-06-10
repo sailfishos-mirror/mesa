@@ -91,8 +91,8 @@ fn encode_src_ref(src: &SrcRef, last_use: bool) -> u8 {
             }
         },
         SrcRef::Reg(reg) => {
-            assert!(reg.idx < 32);
-            ((last_use as u8) << 5) | reg.idx
+            assert!(reg.idx < 64);
+            ((last_use as u8) << 6) | reg.idx
         }
         _ => panic!("SSAValues and Immediates need to be lowered"),
     }
