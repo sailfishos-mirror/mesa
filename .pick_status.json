@@ -3254,7 +3254,7 @@
         "description": "aco/ra: fix inline constants with v_dot2c_f32_f16",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3238e64d3ce0695d2f42eeaea9eb630d4fdf3c37",
         "notes": null
