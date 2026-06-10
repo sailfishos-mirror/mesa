@@ -1699,6 +1699,8 @@ intrinsic("prefetch_sam_ir3", [1, 1], flags=[CAN_REORDER])
 intrinsic("prefetch_tex_ir3", [1], flags=[CAN_REORDER])
 intrinsic("prefetch_ubo_ir3", [1], flags=[CAN_REORDER])
 
+intrinsic("resbase_ir3", src_comp=[1], dest_comp=2, flags=[CAN_ELIMINATE, CAN_REORDER])
+
 # Panfrost-specific intrinsic for loading vertex attributes. Takes explicit
 # vertex and instance IDs which we need in order to implement vertex attribute
 # divisor with non-zero base instance on v9+.
