@@ -41,18 +41,14 @@ unsigned
 pan_query_core_count(const struct pan_kmod_dev_props *props,
                      unsigned *core_id_range)
 {
-   /* On older kernels, worst-case to 16 cores */
-
-   unsigned mask = props->shader_present;
-
    /* Some cores might be absent. In some cases, we care
     * about the range of core IDs (that is, the greatest core ID + 1). If
     * the core mask is contiguous, this equals the core count.
     */
-   *core_id_range = util_last_bit(mask);
+   *core_id_range = util_last_bit64(props->shader_present);
 
    /* The actual core count skips overs the gaps */
-   return util_bitcount(mask);
+   return util_bitcount64(props->shader_present);
 }
 
 unsigned
