@@ -7,6 +7,8 @@ mod compile;
 mod data_type;
 mod encode_v9;
 mod flow;
+#[cfg(test)]
+mod hw_tests;
 mod ir;
 mod isa;
 mod legalize_src_swizzles;
