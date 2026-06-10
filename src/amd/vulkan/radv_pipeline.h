@@ -86,6 +86,8 @@ struct radv_shader_stage_key radv_pipeline_get_shader_key(const struct radv_comp
                                                           const VkPipelineShaderStageCreateInfo *stage,
                                                           VkPipelineCreateFlags2 flags, const void *pNext);
 
+void radv_merge_shader_stage_key(struct radv_shader_stage_key *dst, const struct radv_shader_stage_key *src);
+
 void radv_pipeline_stage_init(VkPipelineCreateFlags2 pipeline_flags, const VkPipelineShaderStageCreateInfo *sinfo,
                               const struct radv_pipeline_layout *layout, const struct radv_shader_stage_key *stage_key,
                               struct radv_shader_stage *out_stage);

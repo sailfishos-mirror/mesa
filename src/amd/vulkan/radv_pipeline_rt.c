@@ -860,7 +860,10 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
             .nir = final_shader,
             .key = rt_stages[isec ? isec_idx : ahit_idx].key,
          };
+         if (isec && ahit)
+            radv_merge_shader_stage_key(&combined_stage.key, &rt_stages[ahit_idx].key);
          radv_shader_layout_init(pipeline_layout, final_shader->info.stage, &combined_stage.layout);
+
          uint32_t stack_size = 0;
          struct radv_serialized_shader_arena_block *replay_block =
             capture_replay_handles[idx].arena_va ? &capture_replay_handles[idx] : NULL;

@@ -169,6 +169,31 @@ radv_pipeline_get_shader_key(const struct radv_compiler_info *compiler_info,
 }
 
 void
+radv_merge_shader_stage_key(struct radv_shader_stage_key *dst, const struct radv_shader_stage_key *src)
+{
+   assert(dst->subgroup_required_size == src->subgroup_required_size);
+   assert(dst->view_index_from_device_index == src->view_index_from_device_index);
+   assert(dst->descriptor_heap == src->descriptor_heap);
+   assert(dst->version == src->version);
+   assert(dst->has_task_shader == src->has_task_shader);
+
+   dst->subgroup_require_full |= src->subgroup_require_full;
+   dst->subgroup_allow_varying &= src->subgroup_allow_varying;
+
+   dst->storage_robustness2 |= src->storage_robustness2;
+   dst->uniform_robustness2 |= src->uniform_robustness2;
+   dst->vertex_robustness1 |= src->vertex_robustness1;
+   dst->coop_matrix_storage_robustness |= src->coop_matrix_storage_robustness;
+   dst->coop_matrix_uniform_robustness |= src->coop_matrix_uniform_robustness;
+
+   dst->optimisations_disabled |= src->optimisations_disabled;
+   dst->keep_statistic_info |= src->keep_statistic_info;
+   dst->keep_executable_info |= src->keep_executable_info;
+   dst->keep_shader_arg_info |= src->keep_shader_arg_info;
+   dst->indirect_bindable |= src->indirect_bindable;
+}
+
+void
 radv_pipeline_stage_init(VkPipelineCreateFlags2 pipeline_flags, const VkPipelineShaderStageCreateInfo *sinfo,
                          const struct radv_pipeline_layout *pipeline_layout,
                          const struct radv_shader_stage_key *stage_key, struct radv_shader_stage *out_stage)
