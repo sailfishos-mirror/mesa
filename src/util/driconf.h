@@ -588,21 +588,6 @@
    DRI_CONF_OPT_U64(pan_fragment_core_mask, def, 0, UINT64_MAX, \
                     "Bitmask of shader cores that may be used for fragment jobs. If unset, defaults to scheduling across all available cores.")
 
-/**
- * \brief HASVK specific configuration options
- */
-
-#define DRI_CONF_HASVK_ASSUME_FULL_SUBGROUPS(def) \
-  DRI_CONF_OPT_I(anv_assume_full_subgroups, def, 0, 32, \
-                 "Allow assuming full subgroups requirement even when it's not specified explicitly and set the given size")
-
-#define DRI_CONF_HASVK_OVERRIDE_API_VERSION(def) \
-   DRI_CONF_OPT_B(hasvk_report_vk_1_3_version, def, \
-                  "Override intel_hasvk API version")
-
-#define DRI_CONF_HASVK_SAMPLE_MASK_OUT_OPENGL_BEHAVIOUR(def) \
-   DRI_CONF_OPT_B(anv_sample_mask_out_opengl_behaviour, def, \
-                  "Ignore sample mask out when having single sampled target")
 
 /**
  * \brief Asahi specific configuration options
