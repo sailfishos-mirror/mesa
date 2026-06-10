@@ -1794,6 +1794,7 @@ VkResult ResourceTracker::on_vkEnumerateDeviceExtensionProperties(
         "VK_EXT_swapchain_colorspace",
         "VK_EXT_image_robustness",
         "VK_EXT_custom_border_color",
+        "VK_EXT_border_color_swizzle",
         "VK_EXT_shader_stencil_export",
         "VK_KHR_image_format_list",
         "VK_KHR_incremental_present",
@@ -4730,6 +4731,16 @@ VkResult ResourceTracker::on_vkCreateSampler(void* context, VkResult, VkDevice d
         localVkSamplerReductionModeCreateInfo =
             vk_make_orphan_copy(*samplerReductionModeCreateInfo);
         vk_append_struct(&structChainIter, &localVkSamplerReductionModeCreateInfo);
+    }
+
+    VkSamplerBorderColorComponentMappingCreateInfoEXT
+        localVkSamplerBorderColorComponentMappingCreateInfo;
+    const VkSamplerBorderColorComponentMappingCreateInfoEXT* samplerBorderColorComponentMappingCreateInfo =
+        vk_find_struct_const(pCreateInfo, SAMPLER_BORDER_COLOR_COMPONENT_MAPPING_CREATE_INFO_EXT);
+    if (samplerBorderColorComponentMappingCreateInfo) {
+        localVkSamplerBorderColorComponentMappingCreateInfo =
+            vk_make_orphan_copy(*samplerBorderColorComponentMappingCreateInfo);
+        vk_append_struct(&structChainIter, &localVkSamplerBorderColorComponentMappingCreateInfo);
     }
 
     VkEncoder* enc = (VkEncoder*)context;
