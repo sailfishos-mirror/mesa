@@ -6584,7 +6584,7 @@
         "description": "radeonsi/mm: Only setup ref surfaces with tier3",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "26979becec30cc402df52e540fd516aa5795ec09",
         "notes": null

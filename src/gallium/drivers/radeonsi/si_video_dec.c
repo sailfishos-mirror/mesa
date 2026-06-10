@@ -591,8 +591,10 @@ static int si_dec_h264(struct si_video_dec *vid, struct pipe_video_buffer *targe
                if (pic->bottom_is_reference[j])
                   h264->used_for_reference_flags |= (1 << (2 * j + 1));
                h264->curr_pic_ref_frame_num++;
-               si_dec_fill_surface(vid, ((struct vl_video_buffer *)pic->ref[j])->resources[0],
-                                   RADEON_USAGE_READWRITE, &cmd.ref_surfaces[cmd.num_refs]);
+               if (cmd.tier == AC_VIDEO_DEC_TIER3) {
+                  si_dec_fill_surface(vid, ((struct vl_video_buffer *)pic->ref[j])->resources[0],
+                                      RADEON_USAGE_READWRITE, &cmd.ref_surfaces[cmd.num_refs]);
+               }
                cmd.ref_id[cmd.num_refs++] = i;
                found = true;
             }
@@ -756,8 +758,10 @@ static int si_dec_h265(struct si_video_dec *vid, struct pipe_video_buffer *targe
             if (vid->render_pic_list[i] == pic->ref[j]) {
                h265->ref_poc_list[j] = pic->PicOrderCntVal[j];
                h265->ref_pic_id_list[j] = i;
-               si_dec_fill_surface(vid, ((struct vl_video_buffer *)pic->ref[j])->resources[0],
-                                   RADEON_USAGE_READWRITE, &cmd.ref_surfaces[cmd.num_refs]);
+               if (cmd.tier == AC_VIDEO_DEC_TIER3) {
+                  si_dec_fill_surface(vid, ((struct vl_video_buffer *)pic->ref[j])->resources[0],
+                                      RADEON_USAGE_READWRITE, &cmd.ref_surfaces[cmd.num_refs]);
+               }
                cmd.ref_id[cmd.num_refs++] = i;
                valid_ref = j;
                found = true;
@@ -932,8 +936,10 @@ static int si_dec_vp9(struct si_video_dec *vid, struct pipe_video_buffer *target
          for (unsigned j = 0; j < VP9_NUM_REF_FRAMES; j++) {
             if (vid->render_pic_list[i] == pic->ref[j]) {
                vp9->ref_frame_id_list[j] = i;
-               si_dec_fill_surface(vid, ((struct vl_video_buffer *)pic->ref[j])->resources[0],
-                                   RADEON_USAGE_READWRITE, &cmd.ref_surfaces[cmd.num_refs]);
+               if (cmd.tier == AC_VIDEO_DEC_TIER3) {
+                  si_dec_fill_surface(vid, ((struct vl_video_buffer *)pic->ref[j])->resources[0],
+                                      RADEON_USAGE_READWRITE, &cmd.ref_surfaces[cmd.num_refs]);
+               }
                cmd.ref_id[cmd.num_refs++] = i;
                valid_ref = j;
                found = true;
@@ -1148,8 +1154,10 @@ static int si_dec_av1(struct si_video_dec *vid, struct pipe_video_buffer *target
          for (unsigned j = 0; j < AV1_NUM_REF_FRAMES; j++) {
             if (vid->render_pic_list[i] == pic->ref[j]) {
                av1->ref_frame_id_list[j] = i;
-               si_dec_fill_surface(vid, ((struct vl_video_buffer *)pic->ref[j])->resources[0],
-                                   RADEON_USAGE_READWRITE, &cmd.ref_surfaces[cmd.num_refs]);
+               if (cmd.tier == AC_VIDEO_DEC_TIER3) {
+                  si_dec_fill_surface(vid, ((struct vl_video_buffer *)pic->ref[j])->resources[0],
+                                      RADEON_USAGE_READWRITE, &cmd.ref_surfaces[cmd.num_refs]);
+               }
                cmd.ref_id[cmd.num_refs++] = i;
                valid_ref = j;
                found = true;
