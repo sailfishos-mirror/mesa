@@ -116,7 +116,9 @@ impl Model for ValhallModel {
     }
 }
 
-pub fn model_for_gpu_id(gpu_id: u64) -> Result<Box<dyn Model>, &'static str> {
+pub fn model_for_gpu_id(
+    gpu_id: u64,
+) -> Result<Box<dyn Model + Sync + Send>, &'static str> {
     // SAFETY: pan_arch() just translates one integer to another
     let arch = u8::try_from(unsafe { pan_arch(gpu_id) }).unwrap();
 
