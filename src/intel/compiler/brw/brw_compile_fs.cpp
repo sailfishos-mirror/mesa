@@ -438,7 +438,6 @@ brw_emit_interpolation_setup(brw_shader &s)
 
    if (wm_key->persample_interp == INTEL_SOMETIMES) {
       const brw_builder ubld = bld.exec_all().group(16, 0);
-      bool loaded_flag = false;
 
       for (int i = 0; i < INTEL_BARYCENTRIC_MODE_COUNT; ++i) {
          if (!(fs_prog_data->barycentric_interp_modes & BITFIELD_BIT(i)))
@@ -469,10 +468,8 @@ brw_emit_interpolation_setup(brw_shader &s)
          uint8_t *sample_barys = payload.barycentric_coord_reg[sample_mode];
          assert(barys[0] && sample_barys[0]);
 
-         if (!loaded_flag) {
-            brw_check_dynamic_fs_config(ubld, fs_prog_data,
-                                        INTEL_FS_CONFIG_PERSAMPLE_INTERP);
-         }
+         brw_check_dynamic_fs_config(ubld, fs_prog_data,
+                                     INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
 
          for (unsigned j = 0; j < s.dispatch_width / 8; j++) {
             set_predicate(
