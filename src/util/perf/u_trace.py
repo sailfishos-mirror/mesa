@@ -245,6 +245,24 @@ shared_template = """\
  * IN THE SOFTWARE.
  */\
 </%def>\
+<%def name="trace_func(trace, trace_name, is_prototype=False)">\
+void __trace_${trace_name}(
+     struct u_trace *ut
+   , enum u_trace_type enabled_traces
+%    if trace.need_cs_param:
+   , void *cs
+%    endif
+%    for arg in trace.args:
+   , ${arg.func_param}
+%    endfor
+% if is_prototype:
+);\\
+% else:
+) {
+${caller.body()}\
+}
+% endif
+</%def>\
 """
 
 HEADERS = []
@@ -338,16 +356,7 @@ void ${trace.tp_perfetto}(
    const void *indirect_data);
 #endif
 %    endif
-void __trace_${trace_name}(
-     struct u_trace *ut
-   , enum u_trace_type enabled_traces
-%    if trace.need_cs_param:
-   , void *cs
-%    endif
-%    for arg in trace.args:
-   , ${arg.func_param}
-%    endfor
-);
+${trace_func(trace, trace_name, is_prototype=True)}
 static ALWAYS_INLINE void trace_${trace_name}(
      struct u_trace *ut
 %    if trace.need_cs_param:
@@ -589,16 +598,7 @@ static const struct u_tracepoint __tp_${trace_name} = {
     __print_fuzzy_hash_args_${trace_name},
  % endif
 };
-void __trace_${trace_name}(
-     struct u_trace *ut
-   , enum u_trace_type enabled_traces
- % if trace.need_cs_param:
-   , void *cs
- % endif
- % for arg in trace.args:
-   , ${arg.func_param}
- % endfor
-) {
+<%call expr="trace_func(trace, trace_name)">\
    struct trace_${trace_name} entry;
  % if len(trace.indirect_args) > 0:
    struct u_trace_address indirects[] = {
@@ -642,7 +642,7 @@ void __trace_${trace_name}(
    if (enabled_traces & U_TRACE_TYPE_MARKERS)
       __emit_label_${trace_name}(ut->utctx, cs, __entry);
  % endif
-}
+</%call>\
 
 % endfor
 """
