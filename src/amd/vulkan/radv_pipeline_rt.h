@@ -29,10 +29,6 @@ struct radv_ray_tracing_pipeline {
 
    uint32_t stack_size;
    uint32_t traversal_stack_size;
-
-   /* set if any shaders from this pipeline require robustness2 in the merged traversal shader */
-   bool traversal_storage_robustness2 : 1;
-   bool traversal_uniform_robustness2 : 1;
 };
 
 RADV_DECL_PIPELINE_DOWNCAST(ray_tracing, RADV_PIPELINE_RAY_TRACING)
@@ -111,7 +107,6 @@ struct radv_ray_tracing_stage {
 struct radv_ray_tracing_state_key {
    uint32_t stage_count;
    struct radv_ray_tracing_stage *stages;
-   struct radv_shader_stage_key traversal_stage_key;
 
    uint32_t group_count;
    struct radv_ray_tracing_group *groups;
