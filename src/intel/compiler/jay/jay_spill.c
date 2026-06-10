@@ -262,41 +262,34 @@ cmp_dist(const void *left_, const void *right_, void *ctx)
 }
 
 /*
- * Limit the register file W to maximum size m by evicting registers.
+ * Limit the register file W to maximum size m by evicting one register at a
+ * time (like a selection sort). The routine is O(|W|) since we only evict O(1)
+ * registers. This is simpler than quicksort.
+ *
+ * Note that next_uses gives IPs whereas nu_score expects relative distances, so
+ * we subtract ctx->ip.  While it shouldn't affect the sorted order, it ensures
+ * correctness with rematerialization.
  */
 static ATTRIBUTE_NOINLINE void
 limit(struct spill_ctx *ctx, jay_inst *I, unsigned m)
 {
-   /* Nothing to do if we're already below the limit */
-   if (ctx->nW <= m) {
-      return;
-   }
+   while (ctx->nW > m) {
+      int best_score = INT32_MIN, best_i = 0;
 
-   /* Gather candidates for eviction. Note that next_uses gives IPs whereas
-    * cmp_dist expects relative distances. This requires us to subtract ctx->ip
-    * to ensure that cmp_dist works properly. Even though logically it shouldn't
-    * affect the sorted order, practically this matters for correctness with
-    * rematerialization. See the dist=0 test in cmp_dist.
-    */
-   struct next_use vars[JAY_NUM_UGPR];
-   unsigned j = 0;
+      U_SPARSE_BITSET_FOREACH_SET(&ctx->W, i) {
+         assert(ctx->next_uses[i] != DIST_INFINITY && "live in W");
+         dist_t dist = ctx->next_uses[i] - ctx->ip;
 
-   U_SPARSE_BITSET_FOREACH_SET(&ctx->W, i) {
-      assert(ctx->next_uses[i] != DIST_INFINITY && "live in W");
-      dist_t dist = ctx->next_uses[i] - ctx->ip;
+         struct next_use nu = { .index = i, .dist = dist };
+         int score = nu_score(ctx, nu);
 
-      assert(j < ARRAY_SIZE(vars));
-      vars[j++] = (struct next_use) { .index = i, .dist = dist };
-   }
+         if (score > best_score) {
+            best_score = score;
+            best_i = i;
+         }
+      }
 
-   /* Sort by next-use distance */
-   util_qsort_r(vars, j, sizeof(struct next_use), cmp_dist, ctx);
-
-   /* Evict what doesn't fit, inserting a spill for evicted values that we
-    * haven't spilled before with a future use.
-    */
-   for (unsigned i = m; i < j; ++i) {
-      remove_W(ctx, vars[i].index);
+      remove_W(ctx, best_i);
    }
 }
 
