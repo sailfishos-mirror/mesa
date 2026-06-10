@@ -671,8 +671,15 @@ impl V9Instr for OpShiftLop {
             (RShift, And) => RshiftAnd::get_info(self.dst_type, arch),
             (RShift, Or) => RshiftOr::get_info(self.dst_type, arch),
             (RShift, Xor) => RshiftXor::get_info(self.dst_type, arch),
-            (ARShift, _) => Arshift::get_info(self.dst_type, arch),
-            _ => None,
+            (ARShift, And) => ArshiftAnd::get_info(self.dst_type, arch),
+            (ARShift, Or) => ArshiftOr::get_info(self.dst_type, arch),
+            (ARShift, Xor) => ArshiftXor::get_info(self.dst_type, arch),
+            (LRot, And) => LrotAnd::get_info(self.dst_type, arch),
+            (LRot, Or) => LrotOr::get_info(self.dst_type, arch),
+            (LRot, Xor) => LrotXor::get_info(self.dst_type, arch),
+            (RRot, And) => RrotAnd::get_info(self.dst_type, arch),
+            (RRot, Or) => RrotOr::get_info(self.dst_type, arch),
+            (RRot, Xor) => RrotXor::get_info(self.dst_type, arch),
         }
     }
 
@@ -686,17 +693,15 @@ impl V9Instr for OpShiftLop {
             (RShift, And) => encode_shift_lop!(e, self, RshiftAnd),
             (RShift, Or) => encode_shift_lop!(e, self, RshiftOr),
             (RShift, Xor) => encode_shift_lop!(e, self, RshiftXor),
-            (ARShift, _) => {
-                assert!(self.shift.is_zero());
-                e.encode(Arshift {
-                    variant: self.dst_type.try_into().unwrap(),
-                    dst: op_encode_dst(self, &self.dst),
-                    not_result: self.not_result.into(),
-                    src0: op_encode_src(self, &self.src0),
-                    src1: op_encode_src(self, &self.shift),
-                })
-            }
-            _ => todo!("Implement [lr]rot"),
+            (ARShift, And) => encode_shift_lop!(e, self, ArshiftAnd),
+            (ARShift, Or) => encode_shift_lop!(e, self, ArshiftOr),
+            (ARShift, Xor) => encode_shift_lop!(e, self, ArshiftXor),
+            (LRot, And) => encode_shift_lop!(e, self, LrotAnd),
+            (LRot, Or) => encode_shift_lop!(e, self, LrotOr),
+            (LRot, Xor) => encode_shift_lop!(e, self, LrotXor),
+            (RRot, And) => encode_shift_lop!(e, self, RrotAnd),
+            (RRot, Or) => encode_shift_lop!(e, self, RrotOr),
+            (RRot, Xor) => encode_shift_lop!(e, self, RrotXor),
         }
     }
 }
