@@ -218,6 +218,35 @@ class TracepointArgStruct(TracepointArg):
         return ", ".join(parts)
 
 
+shared_template = """\
+<%def name="mit_license(copyrights)">\
+/* ${copyrights[0]}
+% for c_holder in copyrights[1:]:
+ * ${c_holder}
+% endfor
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */\
+</%def>\
+"""
+
 HEADERS = []
 
 class HeaderScope(IntEnum):
@@ -253,27 +282,7 @@ class ForwardDecl(object):
 
 
 hdr_template = """\
-/* Copyright (C) 2020 Google, Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- */
+${mit_license(["Copyright (C) 2020 Google, Inc."])}
 
 <% guard_name = '_' + hdrname + '_H' %>
 #ifndef ${guard_name}
@@ -375,27 +384,7 @@ ${additional_code}
 """
 
 src_template = """\
-/* Copyright (C) 2020 Google, Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- */
+${mit_license(["Copyright (C) 2020 Google, Inc."])}
 
 #include "${hdr}"
 
@@ -673,7 +662,7 @@ def utrace_generate(cpath, hpath, ctx_param, trace_toggle_name=None,
         hdr = os.path.basename(cpath).rsplit('.', 1)[0] + '.h'
         with open(cpath, 'w', encoding='utf-8') as f:
             try:
-                f.write(Template(src_template).render(
+                f.write(Template(shared_template + src_template).render(
                     hdr=hdr,
                     ctx_param=ctx_param,
                     trace_toggle_name=trace_toggle_name,
@@ -688,7 +677,7 @@ def utrace_generate(cpath, hpath, ctx_param, trace_toggle_name=None,
         hdr = os.path.basename(hpath)
         with open(hpath, 'w', encoding='utf-8') as f:
             try:
-                f.write(Template(hdr_template).render(
+                f.write(Template(shared_template + hdr_template).render(
                     hdrname=hdr.rstrip('.h').upper(),
                     ctx_param=ctx_param,
                     trace_toggle_name=trace_toggle_name,
@@ -702,28 +691,7 @@ def utrace_generate(cpath, hpath, ctx_param, trace_toggle_name=None,
 
 
 perfetto_utils_hdr_template = """\
-/*
- * Copyright © 2021 Igalia S.L.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+${mit_license(["Copyright © 2021 Igalia S.L."])}
 
 <% guard_name = '_' + hdrname + '_H' %>
 #ifndef ${guard_name}
@@ -789,7 +757,7 @@ def utrace_generate_perfetto_utils(hpath,basename="tracepoint"):
         hdr = os.path.basename(hpath)
         with open(hpath, 'w', encoding='utf-8') as f:
             try:
-                f.write(Template(perfetto_utils_hdr_template).render(
+                f.write(Template(shared_template + perfetto_utils_hdr_template).render(
                     basename=basename,
                     hdrname=hdr.rstrip('.h').upper(),
                     HEADERS=[h for h in HEADERS if h.scope & HeaderScope.PERFETTO],
