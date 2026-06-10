@@ -133,6 +133,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_variable_pointers = true,
       .KHR_vertex_attribute_divisor = true,
       .KHR_vulkan_memory_model = true,
+      .KHR_workgroup_memory_explicit_layout = true,
       .KHR_zero_initialize_workgroup_memory = true,
       .EXT_4444_formats = true,
       .EXT_attachment_feedback_loop_dynamic_state = true,
@@ -634,6 +635,12 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_KHR_shader_untyped_pointers */
       .shaderUntypedPointers = PAN_ARCH >= 9,
+
+      /* VK_KHR_workgroup_memory_explicit_layout */
+      .workgroupMemoryExplicitLayout = true,
+      .workgroupMemoryExplicitLayoutScalarBlockLayout = true,
+      .workgroupMemoryExplicitLayout8BitAccess = true,
+      .workgroupMemoryExplicitLayout16BitAccess = true,
 
       /* VK_EXT_shader_module_identifier */
       .shaderModuleIdentifier = true,
