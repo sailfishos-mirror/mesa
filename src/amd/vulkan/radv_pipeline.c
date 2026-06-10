@@ -27,19 +27,6 @@
 #include "vk_shader_module.h"
 
 bool
-radv_pipeline_capture_shaders(const struct radv_compiler_info *compiler_info, VkPipelineCreateFlags2 flags)
-{
-   return (flags & VK_PIPELINE_CREATE_2_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR) ||
-          compiler_info->debug.capture_shaders;
-}
-
-bool
-radv_pipeline_capture_shader_stats(const struct radv_compiler_info *compiler_info, VkPipelineCreateFlags2 flags)
-{
-   return (flags & VK_PIPELINE_CREATE_2_CAPTURE_STATISTICS_BIT_KHR) || compiler_info->debug.capture_shader_stats;
-}
-
-bool
 radv_pipeline_skip_shaders_cache(const struct radv_device *device, const struct radv_pipeline *pipeline)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -112,8 +99,10 @@ radv_pipeline_get_shader_key(const struct radv_compiler_info *compiler_info,
    struct radv_shader_stage_key key = {0};
 
    key.keep_shader_arg_info = compiler_info->debug.keep_shader_info;
-   key.keep_statistic_info = radv_pipeline_capture_shader_stats(compiler_info, flags);
-   key.keep_executable_info = radv_pipeline_capture_shaders(compiler_info, flags);
+   key.keep_statistic_info =
+      (flags & VK_PIPELINE_CREATE_2_CAPTURE_STATISTICS_BIT_KHR) || compiler_info->debug.capture_shader_stats;
+   key.keep_executable_info =
+      (flags & VK_PIPELINE_CREATE_2_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR) || compiler_info->debug.capture_shaders;
 
    if (flags & VK_PIPELINE_CREATE_2_DISABLE_OPTIMIZATION_BIT)
       key.optimisations_disabled = 1;
