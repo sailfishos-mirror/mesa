@@ -51,6 +51,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_buffer_device_address = true,
       .KHR_calibrated_timestamps =
          device->kmod.dev->props.gpu_can_query_timestamp,
+      .KHR_compute_shader_derivatives = PAN_ARCH >= 9,
       .KHR_copy_commands2 = true,
       .KHR_create_renderpass2 = true,
       .KHR_dedicated_allocation = true,
@@ -463,6 +464,10 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_KHR_depth_clamp_zero_one */
       .depthClampZeroOne = true,
+
+      /* VK_KHR_compute_shader_derivatives */
+      .computeDerivativeGroupQuads = PAN_ARCH >= 9,
+      .computeDerivativeGroupLinear = PAN_ARCH >= 9,
 
       /* VK_KHR_maintenance7 */
       .maintenance7 = true,
@@ -1169,6 +1174,9 @@ panvk_per_arch(get_physical_device_properties)(
       .pipelineBinaryPrefersInternalCache = has_disk_cache,
       .pipelineBinaryPrecompiledInternalCache = has_disk_cache,
       .pipelineBinaryCompressedData = false,
+
+      /* VK_KHR_compute_shader_derivatives */
+      .meshAndTaskShaderDerivatives = false,
 
       /* VK_KHR_robustness2 */
       .robustStorageBufferAccessSizeAlignment = 4,
