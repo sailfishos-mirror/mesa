@@ -8,7 +8,6 @@ pub use crate::model::Model;
 pub use crate::ops::Op;
 use crate::ssa_value::SSAValueAllocator;
 pub use crate::ssa_value::{SSARef, SSAValue};
-use crate::swizzle::AsmSwizzleWiden;
 pub use crate::swizzle::Swizzle;
 use crate::swizzle::*;
 use compiler::as_slice::*;
@@ -64,6 +63,25 @@ pub struct FAURef {
 
     /// Load 64 bytes
     pub load64: bool,
+}
+
+impl FAURef {
+    pub fn user_i32(idx: u16) -> Self {
+        FAURef {
+            page: FAUPage::User,
+            idx,
+            load64: false,
+        }
+    }
+
+    pub fn user_i64(idx: u16) -> Self {
+        assert!((idx % 2) == 0);
+        FAURef {
+            page: FAUPage::User,
+            idx,
+            load64: true,
+        }
+    }
 }
 
 impl fmt::Display for FAURef {
