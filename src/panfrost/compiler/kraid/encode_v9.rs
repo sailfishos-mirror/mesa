@@ -694,6 +694,28 @@ impl V9Instr for OpIAdd {
     }
 }
 
+impl V9Instr for OpIMul {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Imul::get_info(self.dst_type.i_as_u(), arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Imul {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            saturate: self.saturate.into(),
+        })
+    }
+}
+
 impl V9Instr for OpICmp {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1081,6 +1103,7 @@ macro_rules! v9_op_match_else {
             Op::FAdd($x) => $y,
             Op::FCmp($x) => $y,
             Op::IAdd($x) => $y,
+            Op::IMul($x) => $y,
             Op::ICmp($x) => $y,
             Op::LdPka($x) => $y,
             Op::LeaPka($x) => $y,

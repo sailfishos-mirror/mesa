@@ -58,6 +58,7 @@ fn widen_op_pre_ra(b: &mut impl SSABuilder, op: &mut Op) {
             Op::FAdd(op) => op.dst_type = variant,
             Op::FCmp(op) => op.src_type = variant,
             Op::IAdd(op) => op.dst_type = variant,
+            Op::IMul(op) => op.dst_type = variant,
             Op::ICmp(op) => op.src_type = variant,
             Op::ShiftLop(op) => op.dst_type = variant,
             _ => panic!("Unsupported op"),

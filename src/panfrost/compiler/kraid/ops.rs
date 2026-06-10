@@ -370,6 +370,34 @@ impl fmt::Display for OpIAdd {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    S8, U8, V2S8, V2U8, V4S8, V4U8,
+    S16, U16, V2S16, V2U16,
+    S32, U32, S64, U64
+])]
+pub struct OpIMul {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub saturate: bool,
+    pub srcs: [Src; 2],
+}
+
+impl fmt::Display for OpIMul {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sat = if self.saturate { ".sat" } else { "" };
+        write!(
+            f,
+            "{} = IMUL.{}{sat} {} {}",
+            &self.dst,
+            self.dst_type,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(src_type in [S16, U16, V2S16, V2U16, S32, U32])]
 pub struct OpICmp {
     pub dst: Dst,
@@ -836,6 +864,7 @@ pub enum Op {
     FAdd(Box<OpFAdd>),
     FCmp(Box<OpFCmp>),
     IAdd(Box<OpIAdd>),
+    IMul(Box<OpIMul>),
     ICmp(Box<OpICmp>),
     LeaPka(Box<OpLeaPka>),
     LdPka(Box<OpLdPka>),
