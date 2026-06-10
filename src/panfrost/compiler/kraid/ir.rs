@@ -92,7 +92,7 @@ impl fmt::Display for FAURef {
         }
 
         let idx = self.idx >> 1;
-        let w = self.idx % 1;
+        let w = self.idx % 2;
 
         match self.page {
             FAUPage::User => write!(f, "u{idx}")?,
