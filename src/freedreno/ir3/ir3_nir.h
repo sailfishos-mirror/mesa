@@ -226,6 +226,8 @@ ir3_nir_is_prefetchable(nir_intrinsic_instr *intr)
       (nir_intrinsic_access(intr) & ACCESS_CAN_SPECULATE);
 }
 
+bool ir3_nir_is_preamble_speculatable(nir_shader *s);
+
 ENDC;
 
 #endif /* IR3_NIR_H_ */
