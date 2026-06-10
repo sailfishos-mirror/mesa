@@ -54,6 +54,7 @@ pass(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
    const nir_lower_ssbo_options *opts = data;
    uint32_t min_ssbo_size = opts ? opts->min_ssbo_size : 0;
+   bool bounds_check = opts && opts->bounds_check;
 
    b->cursor = nir_before_instr(&intr->instr);
 
@@ -61,6 +62,18 @@ pass(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       nir_def *ssbo_size =
          nir_get_ssbo_size(b, 32, nir_get_io_index_src(intr)->ssa);
       nir_push_if(b, nir_uge_imm(b, ssbo_size, min_ssbo_size));
+   }
+
+   if (bounds_check) {
+      nir_def *ssbo_size =
+         nir_get_ssbo_size(b, 32, nir_get_io_index_src(intr)->ssa);
+      nir_def *offset = get_offset(b, intr);
+      nir_def *val = intr->intrinsic == nir_intrinsic_store_ssbo
+                        ? nir_get_io_data_src(intr)->ssa
+                        : &intr->def;
+      nir_def *max_offset =
+         nir_iadd_imm(b, offset, val->bit_size * val->num_components / 8 - 1);
+      nir_push_if(b, nir_ult(b, max_offset, ssbo_size));
    }
 
    nir_def *def = NULL;
@@ -100,6 +113,19 @@ pass(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
    default:
       return false;
+   }
+
+   if (bounds_check) {
+      nir_push_else(b, NULL);
+      nir_def *zero;
+
+      if (def)
+         zero = nir_imm_zero(b, def->num_components, def->bit_size);
+
+      nir_pop_if(b, NULL);
+
+      if (def)
+         def = nir_if_phi(b, def, zero);
    }
 
    if (min_ssbo_size) {

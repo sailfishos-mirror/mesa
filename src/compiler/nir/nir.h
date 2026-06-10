@@ -6720,6 +6720,13 @@ typedef struct nir_lower_ssbo_options {
     * larger buffers.
     */
    uint32_t min_ssbo_size;
+
+   /* Add manual bounds checks for the generated global memory accesses. This
+    * is mostly useful in combination with `min_ssbo_size` when the native
+    * SSBO access instructions do the bounds check in HW so we don't want to
+    * add bounds checks for all SSBO accesses.
+    */
+   bool bounds_check;
 } nir_lower_ssbo_options;
 
 bool nir_lower_ssbo(nir_shader *shader, const nir_lower_ssbo_options *opts);
