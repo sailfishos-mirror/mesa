@@ -3914,7 +3914,7 @@
         "description": "ir3: fix possible signed overflow in ir3_link_add",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1f9839907a8eee15f634ff95577fbe498f1b70c2",
         "notes": null
