@@ -602,6 +602,38 @@ impl Swizzle {
         Some(folded)
     }
 
+    pub fn fold_u64(&self, u: u64) -> Option<u64> {
+        if *self == Swizzle::NONE {
+            return Some(u);
+        }
+
+        // If using a 32-bit swizzle for u64, the rule is to
+        // always apply it directly, then sign-extend it to 64-bits.
+        if !self.is_word_swizzle() {
+            return Some(self.fold_u32(u as u32)? as i32 as u64);
+        }
+
+        let mut folded = 0_u64;
+        for i in 0..2 {
+            let sw = self.word(i)?;
+            if sw == SwizzleWord::Zero {
+                continue;
+            }
+            let swi = sw.word_idx()?;
+            let swm = sw.word_mod()?;
+
+            let mut w = (u >> (swi * 32)) as u32;
+            if swm == ByteMod::Sign {
+                w = ((w as i32) >> 31) as u32;
+            }
+            debug_assert!(swm != ByteMod::Fext);
+
+            folded |= (w as u64) << (i * 32);
+        }
+
+        Some(folded)
+    }
+
     pub fn bytes_read(&self) -> u8 {
         let mut bytes = 0_u8;
         if self.is_word_swizzle() {
