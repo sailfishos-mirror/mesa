@@ -126,6 +126,19 @@ impl SSARef {
         self.as_mut_slice().iter_mut()
     }
 
+    pub fn from_iter(it: impl ExactSizeIterator<Item = SSAValue>) -> Self {
+        let len = it.len();
+
+        let inner = if len <= SSARefInnerShort::MAX_LEN {
+            SSARefInner::Short(it.map(|x| x.packed).collect())
+        } else {
+            assert!(len <= SSARefInnerLong::MAX_LEN);
+            SSARefInner::Long(Box::new(it.map(|x| x.packed).collect()))
+        };
+
+        Self { v: inner }
+    }
+
     #[cold]
     #[inline]
     fn cold() {}
@@ -270,6 +283,10 @@ impl SSAValueAllocator {
         let idx = self.count;
         self.count += 1;
         SSAValue::new(idx, bits)
+    }
+
+    pub fn alloc_vec(&mut self, comps: u8) -> SSARef {
+        SSARef::from_iter((0..comps).map(|_| self.alloc(32)))
     }
 }
 
