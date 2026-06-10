@@ -74,6 +74,9 @@ lp_build_nir_soa_prepasses(struct nir_shader *nir);
 void
 lp_build_opt_nir(struct nir_shader *nir);
 
+bool
+lp_nir_lower_ubo_vec4(struct nir_shader *shader);
+
 
 static inline LLVMValueRef
 lp_nir_array_build_gather_values(LLVMBuilderRef builder,
