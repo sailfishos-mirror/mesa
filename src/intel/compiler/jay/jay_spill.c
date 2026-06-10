@@ -121,9 +121,7 @@ struct spill_ctx {
    /* Set of values currently available in the register file */
    struct u_sparse_bitset W;
 
-   /* For W-entry calculation, phis with a spilled source. For
-    * coupling calculation, phis defined along the given edge.
-    */
+   /* During coupling calculation, phis defined along the given edge. */
    struct u_sparse_bitset phi_set;
 
    /* |W| = Current register pressure */
@@ -568,22 +566,8 @@ compute_w_entry(struct spill_ctx *ctx, jay_block *block)
       }
    }
 
-   jay_foreach_predecessor(block, pred, ctx->file) {
-      jay_foreach_phi_src_in_block(*pred, I) {
-         if (!u_sparse_bitset_test(&ctx->blocks[(*pred)->index].W_out,
-                                   jay_index(I->src[0]))) {
-
-            u_sparse_bitset_set(&ctx->phi_set, jay_phi_src_index(I));
-         }
-      }
-   }
-
-   /* Heuristic: if any phi source is spilled, spill the phi. While suboptimal,
-    * this reduces pointless spills/fills with massive phi webs.
-    */
    jay_foreach_phi_dst_in_block(block, I) {
-      if (I->dst.file == ctx->file &&
-          !u_sparse_bitset_test(&ctx->phi_set, jay_index(I->dst))) {
+      if (I->dst.file == ctx->file) {
          ctx->candidates[j++] = (struct next_use) {
             .index = jay_index(I->dst),
             .dist = ctx->next_uses[jay_index(I->dst)],
