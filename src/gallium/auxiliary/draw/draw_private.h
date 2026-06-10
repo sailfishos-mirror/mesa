@@ -50,7 +50,11 @@
 
 #if DRAW_LLVM_AVAILABLE
 struct gallivm_state;
+struct draw_tcs_inputs;
+struct draw_tcs_outputs;
+struct draw_tes_inputs;
 #endif
+struct draw_gs_run_state;
 
 /**
  * The max stage the draw stores resources for.
@@ -315,6 +319,11 @@ struct draw_context
       struct draw_gs_llvm_variant *current_variant;
 #endif
 
+      /* Per-context execution state for the bound GS, the shader CSO may
+       * be shared across contexts.
+       */
+      struct draw_gs_run_state *run_state;
+
       /** Fields for TGSI interpreter / execution */
       struct {
          struct tgsi_exec_machine *machine;
@@ -330,6 +339,11 @@ struct draw_context
       struct draw_tess_ctrl_shader *tess_ctrl_shader;
 #if DRAW_LLVM_AVAILABLE
       struct draw_tcs_llvm_variant *current_variant;
+      /* Per-context input/output staging buffers, the shader CSO may be
+       * shared across contexts.
+       */
+      struct draw_tcs_inputs *tcs_input;
+      struct draw_tcs_outputs *tcs_output;
 #endif
    } tcs;
 
@@ -340,6 +354,8 @@ struct draw_context
       unsigned clipvertex_output;
 #if DRAW_LLVM_AVAILABLE
       struct draw_tes_llvm_variant *current_variant;
+      /* Per-context input staging buffer, see tcs comment above. */
+      struct draw_tes_inputs *tes_input;
 #endif
    } tes;
 

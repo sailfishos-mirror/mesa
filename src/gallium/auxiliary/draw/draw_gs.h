@@ -65,8 +65,6 @@ struct draw_vertex_stream {
 };
 
 struct draw_geometry_shader {
-   struct tgsi_exec_machine *machine;
-
    /* This member will disappear shortly:*/
    struct pipe_shader_state state;
 
@@ -80,10 +78,40 @@ struct draw_geometry_shader {
    unsigned primitive_boundary;
    enum mesa_prim input_primitive;
    enum mesa_prim output_primitive;
+
+   unsigned num_vertex_streams;
+
+   unsigned vector_length;
+
+   unsigned num_invocations;
+
+   void (*fetch_inputs)(struct draw_context *draw,
+                        const struct draw_geometry_shader *shader,
+                        unsigned *indices,
+                        unsigned num_vertices,
+                        unsigned prim_idx);
+   void (*fetch_outputs)(struct draw_context *draw,
+                         const struct draw_geometry_shader *shader,
+                         unsigned vertex_stream,
+                         unsigned num_primitives,
+                         float (**p_output)[4]);
+
+   void (*prepare)(struct draw_context *draw,
+                   const struct draw_geometry_shader *shader,
+                   const struct draw_buffer_info *constants);
+   void (*run)(struct draw_context *draw,
+               const struct draw_geometry_shader *shader,
+               unsigned input_primitives, unsigned *out_prims);
+};
+
+/**
+ * Per-context execution state for the bound geometry shader. The shader
+ * CSO itself is immutable at draw time and may be shared across contexts.
+ */
+struct draw_gs_run_state {
    unsigned vertex_size;
 
    struct draw_vertex_stream stream[TGSI_MAX_VERTEX_STREAMS];
-   unsigned num_vertex_streams;
 
    unsigned in_prim_idx;
    unsigned tess_prim_idx;
@@ -92,40 +120,23 @@ struct draw_geometry_shader {
    unsigned fetched_prim_count;
    const float (*input)[4];
    const struct tgsi_shader_info *input_info;
-   unsigned vector_length;
-   unsigned max_out_prims;
 
-   unsigned num_invocations;
    unsigned invocation_id;
 #if DRAW_LLVM_AVAILABLE
    struct draw_gs_inputs *gs_input;
    struct vertex_header *gs_output[PIPE_MAX_VERTEX_STREAMS];
 
    int **llvm_prim_lengths;
+   unsigned max_prim_lengths;
    int *llvm_emitted_primitives;
    int *llvm_emitted_vertices;
    int *llvm_prim_ids;
 #endif
-
-   void (*fetch_inputs)(struct draw_geometry_shader *shader,
-                        unsigned *indices,
-                        unsigned num_vertices,
-                        unsigned prim_idx);
-   void (*fetch_outputs)(struct draw_geometry_shader *shader,
-                         unsigned vertex_stream,
-                         unsigned num_primitives,
-                         float (**p_output)[4]);
-
-   void (*prepare)(struct draw_geometry_shader *shader,
-                   const struct draw_buffer_info *constants);
-   void (*run)(struct draw_context *draw,
-               struct draw_geometry_shader *shader,
-               unsigned input_primitives, unsigned *out_prims);
 };
 
 
 void
-draw_geometry_shader_new_instance(struct draw_geometry_shader *gs);
+draw_geometry_shader_new_instance(struct draw_context *draw);
 
 
 /*
@@ -135,7 +146,7 @@ draw_geometry_shader_new_instance(struct draw_geometry_shader *gs);
  */
 void
 draw_geometry_shader_run(struct draw_context *draw,
-                         struct draw_geometry_shader *shader,
+                         const struct draw_geometry_shader *shader,
                          const struct draw_buffer_info *constants,
                          const struct draw_vertex_info *input_verts,
                          const struct draw_prim_info *input_prim,
@@ -145,7 +156,7 @@ draw_geometry_shader_run(struct draw_context *draw,
                          struct draw_prim_info *output_prims);
 
 void
-draw_geometry_shader_prepare(struct draw_geometry_shader *shader,
+draw_geometry_shader_prepare(const struct draw_geometry_shader *shader,
                              struct draw_context *draw);
 
 int

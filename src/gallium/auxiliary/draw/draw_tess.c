@@ -51,18 +51,19 @@ draw_tes_get_input_index(int semantic, int index,
 
 #define DEBUG_INPUTS 0
 static void
-llvm_fetch_tcs_input(struct draw_tess_ctrl_shader *shader,
+llvm_fetch_tcs_input(struct draw_context *draw,
+                     const struct draw_tess_ctrl_shader *shader,
                      const struct draw_prim_info *input_prim_info,
                      unsigned prim_id,
-                     unsigned num_vertices)
+                     unsigned num_vertices,
+                     const float (*input_ptr)[4],
+                     unsigned input_vertex_stride,
+                     const struct tgsi_shader_info *input_info)
 {
-   const float (*input_ptr)[4];
-   float (*input_data)[32][NUM_TCS_INPUTS][TGSI_NUM_CHANNELS] = &shader->tcs_input->data;
+   float (*input_data)[32][NUM_TCS_INPUTS][TGSI_NUM_CHANNELS] = &draw->tcs.tcs_input->data;
    unsigned slot, i;
    int vs_slot;
-   unsigned input_vertex_stride = shader->input_vertex_stride;
 
-   input_ptr = shader->input;
    for (i = 0; i < num_vertices; i++) {
       const float (*input)[4];
       int vertex_idx = prim_id * num_vertices + i;
@@ -77,7 +78,7 @@ llvm_fetch_tcs_input(struct draw_tess_ctrl_shader *shader,
          vs_slot = draw_tes_get_input_index(
                                             shader->info.input_semantic_name[slot],
                                             shader->info.input_semantic_index[slot],
-                                            shader->input_info);
+                                            input_info);
          if (vs_slot < 0) {
             debug_printf("VS/TCS signature mismatch!\n");
             (*input_data)[i][slot][0] = 0;
@@ -104,13 +105,14 @@ llvm_fetch_tcs_input(struct draw_tess_ctrl_shader *shader,
 
 #define DEBUG_OUTPUTS 0
 static void
-llvm_store_tcs_output(struct draw_tess_ctrl_shader *shader,
+llvm_store_tcs_output(struct draw_context *draw,
+                      const struct draw_tess_ctrl_shader *shader,
                       unsigned prim_id,
                       struct draw_vertex_info *output_verts,
                       unsigned vert_start)
 {
    float (*output_ptr)[4];
-   float (*output_data)[32][PIPE_MAX_SHADER_INPUTS][TGSI_NUM_CHANNELS] = &shader->tcs_output->data;
+   float (*output_data)[32][PIPE_MAX_SHADER_INPUTS][TGSI_NUM_CHANNELS] = &draw->tcs.tcs_output->data;
    unsigned slot, i;
    unsigned num_vertices = shader->vertices_out;
 
@@ -143,11 +145,10 @@ llvm_store_tcs_output(struct draw_tess_ctrl_shader *shader,
 }
 
 static void
-llvm_tcs_run(struct draw_context *draw,
-             struct draw_tess_ctrl_shader *shader, uint32_t prim_id)
+llvm_tcs_run(struct draw_context *draw, uint32_t prim_id)
 {
    draw->tcs.current_variant->jit_func(&draw->llvm->jit_resources[MESA_SHADER_TESS_CTRL],
-                                       shader->tcs_input->data, shader->tcs_output->data, prim_id,
+                                       draw->tcs.tcs_input->data, draw->tcs.tcs_output->data, prim_id,
                                        draw->pt.vertices_per_patch, draw->pt.user.viewid);
 }
 #endif
@@ -156,16 +157,14 @@ llvm_tcs_run(struct draw_context *draw,
  * Execute tess ctrl shader.
  */
 int draw_tess_ctrl_shader_run(struct draw_context *draw,
-                              struct draw_tess_ctrl_shader *shader,
+                              const struct draw_tess_ctrl_shader *shader,
                               const struct draw_vertex_info *input_verts,
                               const struct draw_prim_info *input_prims,
                               const struct tgsi_shader_info *input_info,
                               struct draw_vertex_info *output_verts,
                               struct draw_prim_info *output_prims)
 {
-   const float (*input)[4] = (const float (*)[4])input_verts->verts->data;
    unsigned num_outputs = draw_total_tcs_outputs(draw);
-   unsigned input_stride = input_verts->vertex_size;
    unsigned vertex_size = sizeof(struct vertex_header) + num_outputs * 4 * sizeof(float);
    unsigned num_patches = input_prims->count / draw->pt.vertices_per_patch;
 
@@ -173,9 +172,6 @@ int draw_tess_ctrl_shader_run(struct draw_context *draw,
    output_verts->stride = output_verts->vertex_size;
    output_verts->verts = NULL;
    output_verts->count = 0;
-   shader->input = input;
-   shader->input_vertex_stride = input_stride;
-   shader->input_info = input_info;
 
    output_prims->linear = true;
    output_prims->start = input_prims->start;
@@ -190,15 +186,19 @@ int draw_tess_ctrl_shader_run(struct draw_context *draw,
       draw->statistics.hs_invocations += num_patches;
    }
 #if DRAW_LLVM_AVAILABLE
+   const float (*input)[4] = (const float (*)[4])input_verts->verts->data;
+   unsigned input_stride = input_verts->vertex_size;
+
    unsigned first_patch = input_prims->start / draw->pt.vertices_per_patch;
    for (unsigned i = 0; i < num_patches; i++) {
       uint32_t vert_start = output_verts->count;
 
       output_verts->count += shader->vertices_out;
 
-      llvm_fetch_tcs_input(shader, input_prims, i, draw->pt.vertices_per_patch);
+      llvm_fetch_tcs_input(draw, shader, input_prims, i, draw->pt.vertices_per_patch,
+                           input, input_stride, input_info);
 
-      llvm_tcs_run(draw, shader, first_patch + i);
+      llvm_tcs_run(draw, first_patch + i);
 
       uint32_t old_verts = util_align_npot(vert_start, 16);
       uint32_t new_verts = util_align_npot(output_verts->count, 16);
@@ -206,7 +206,7 @@ int draw_tess_ctrl_shader_run(struct draw_context *draw,
       uint32_t new_size = output_verts->vertex_size * new_verts;
       output_verts->verts = REALLOC(output_verts->verts, old_size, new_size);
 
-      llvm_store_tcs_output(shader, i, output_verts, vert_start);
+      llvm_store_tcs_output(draw, shader, i, output_verts, vert_start);
    }
 #endif
 
@@ -217,18 +217,19 @@ int draw_tess_ctrl_shader_run(struct draw_context *draw,
 #if DRAW_LLVM_AVAILABLE
 #define DEBUG_INPUTS 0
 static void
-llvm_fetch_tes_input(struct draw_tess_eval_shader *shader,
+llvm_fetch_tes_input(struct draw_context *draw,
+                     const struct draw_tess_eval_shader *shader,
                      const struct draw_prim_info *input_prim_info,
                      unsigned prim_id,
-                     unsigned num_vertices)
+                     unsigned num_vertices,
+                     const float (*input_ptr)[4],
+                     unsigned input_vertex_stride,
+                     const struct tgsi_shader_info *input_info)
 {
-   const float (*input_ptr)[4];
-   float (*input_data)[32][PIPE_MAX_SHADER_INPUTS][TGSI_NUM_CHANNELS] = &shader->tes_input->data;
+   float (*input_data)[32][PIPE_MAX_SHADER_INPUTS][TGSI_NUM_CHANNELS] = &draw->tes.tes_input->data;
    unsigned slot, i;
    int vs_slot;
-   unsigned input_vertex_stride = shader->input_vertex_stride;
 
-   input_ptr = shader->input;
    for (i = 0; i < num_vertices; i++) {
       const float (*input)[4];
       int vertex_idx = prim_id * num_vertices + i;
@@ -244,7 +245,7 @@ llvm_fetch_tes_input(struct draw_tess_eval_shader *shader,
          vs_slot = draw_tes_get_input_index(
                                             shader->info.input_semantic_name[slot],
                                             shader->info.input_semantic_index[slot],
-                                            shader->input_info);
+                                            input_info);
          if (vs_slot < 0) {
             debug_printf("TCS/TES signature mismatch!\n");
             (*input_data)[i][slot][0] = 0;
@@ -272,19 +273,19 @@ llvm_fetch_tes_input(struct draw_tess_eval_shader *shader,
 
 static void
 llvm_fetch_tess_factors(struct draw_context *draw,
-                        struct draw_tess_eval_shader *shader,
                         unsigned patch_id,
                         unsigned num_vertices,
+                        const float (*input_ptr)[4],
+                        unsigned input_vertex_stride,
+                        const struct tgsi_shader_info *input_info,
                         struct pipe_tessellation_factors *factors)
 {
    int outer_slot = draw_tes_get_input_index(
-      TGSI_SEMANTIC_TESSOUTER, 0, shader->input_info);
+      TGSI_SEMANTIC_TESSOUTER, 0, input_info);
    int inner_slot = draw_tes_get_input_index(
-      TGSI_SEMANTIC_TESSINNER, 0, shader->input_info);
-   const float (*input_ptr)[4];
+      TGSI_SEMANTIC_TESSINNER, 0, input_info);
    const float (*input)[4];
-   input_ptr = shader->input;
-   input = (const float (*)[4])((const char *)input_ptr + ((patch_id * num_vertices) * shader->input_vertex_stride));
+   input = (const float (*)[4])((const char *)input_ptr + ((patch_id * num_vertices) * input_vertex_stride));
 
    if (outer_slot != -1) {
       for (unsigned i = 0; i < 4; i++)
@@ -304,7 +305,6 @@ llvm_fetch_tess_factors(struct draw_context *draw,
 
 static void
 llvm_tes_run(struct draw_context *draw,
-             struct draw_tess_eval_shader *shader,
              uint32_t prim_id,
              uint32_t patch_vertices_in,
              struct pipe_tessellator_data *tess_data,
@@ -312,7 +312,7 @@ llvm_tes_run(struct draw_context *draw,
              struct vertex_header *output)
 {
    draw->tes.current_variant->jit_func(&draw->llvm->jit_resources[MESA_SHADER_TESS_EVAL],
-                                       shader->tes_input->data, output, prim_id,
+                                       draw->tes.tes_input->data, output, prim_id,
                                        tess_data->num_domain_points, tess_data->domain_points_u, tess_data->domain_points_v,
                                        tess_factors->outer_tf, tess_factors->inner_tf, patch_vertices_in,
                                        draw->pt.user.viewid);
@@ -323,7 +323,7 @@ llvm_tes_run(struct draw_context *draw,
  * Execute tess eval shader.
  */
 int draw_tess_eval_shader_run(struct draw_context *draw,
-                              struct draw_tess_eval_shader *shader,
+                              const struct draw_tess_eval_shader *shader,
                               unsigned num_input_vertices_per_patch,
                               const struct draw_vertex_info *input_verts,
                               const struct draw_prim_info *input_prims,
@@ -333,9 +333,7 @@ int draw_tess_eval_shader_run(struct draw_context *draw,
                               uint32_t **patch_lengths,
                               uint16_t **elts_out)
 {
-   const float (*input)[4] = (const float (*)[4])input_verts->verts->data;
    unsigned num_outputs = draw_total_tes_outputs(draw);
-   unsigned input_stride = input_verts->vertex_size;
    unsigned vertex_size = sizeof(struct vertex_header) + num_outputs * 4 * sizeof(float);
    uint16_t *elts = NULL;
    output_verts->vertex_size = vertex_size;
@@ -356,11 +354,10 @@ int draw_tess_eval_shader_run(struct draw_context *draw,
       *patch_lengths = MALLOC(input_prims->primitive_count * sizeof(uint32_t));
    }
 
-   shader->input = input;
-   shader->input_vertex_stride = input_stride;
-   shader->input_info = input_info;
-
 #if DRAW_LLVM_AVAILABLE
+   const float (*input)[4] = (const float (*)[4])input_verts->verts->data;
+   unsigned input_stride = input_verts->vertex_size;
+
    struct pipe_tessellation_factors factors;
    struct pipe_tessellator_data data = { 0 };
    struct pipe_tessellator *ptess = p_tess_init(shader->prim_mode,
@@ -373,7 +370,8 @@ int draw_tess_eval_shader_run(struct draw_context *draw,
       uint32_t prim_start = output_prims->primitive_count;
       uint32_t elt_start = output_prims->count;
 
-      llvm_fetch_tess_factors(draw, shader, i, num_input_vertices_per_patch, &factors);
+      llvm_fetch_tess_factors(draw, i, num_input_vertices_per_patch,
+                              input, input_stride, input_info, &factors);
 
       /**
        * Tessellate with the factors for this primitive.
@@ -403,11 +401,12 @@ int draw_tess_eval_shader_run(struct draw_context *draw,
       for (uint32_t i = 0; i < data.num_indices; i++)
          elts[elt_start + i] = vert_start + data.indices[i];
 
-      llvm_fetch_tes_input(shader, input_prims, i, num_input_vertices_per_patch);
+      llvm_fetch_tes_input(draw, shader, input_prims, i, num_input_vertices_per_patch,
+                           input, input_stride, input_info);
       /* run once per primitive? */
       char *output = (char *)output_verts->verts;
       output += vert_start * vertex_size;
-      llvm_tes_run(draw, shader, first_patch + i, num_input_vertices_per_patch, &data, &factors, (struct vertex_header *)output);
+      llvm_tes_run(draw, first_patch + i, num_input_vertices_per_patch, &data, &factors, (struct vertex_header *)output);
 
       if (draw->collect_statistics) {
          draw->statistics.ds_invocations += data.num_domain_points;
@@ -471,13 +470,6 @@ draw_create_tess_ctrl_shader(struct draw_context *draw,
    tcs->vertices_out = tcs->info.properties[TGSI_PROPERTY_TCS_VERTICES_OUT];
 #if DRAW_LLVM_AVAILABLE
    if (use_llvm) {
-
-      tcs->tcs_input = align_malloc(sizeof(struct draw_tcs_inputs), 16);
-      memset(tcs->tcs_input, 0, sizeof(struct draw_tcs_inputs));
-
-      tcs->tcs_output = align_malloc(sizeof(struct draw_tcs_outputs), 16);
-      memset(tcs->tcs_output, 0, sizeof(struct draw_tcs_outputs));
-
       llvm_tcs->variant_key_size =
          draw_tcs_llvm_variant_key_size(
                                         tcs->info.file_max[TGSI_FILE_SAMPLER]+1,
@@ -511,8 +503,6 @@ void draw_delete_tess_ctrl_shader(struct draw_context *draw,
 
       util_shader_variant_list_destroy(&draw->llvm->tcs_opts,
                                        &shader->variants);
-      align_free(dtcs->tcs_input);
-      align_free(dtcs->tcs_output);
    }
 #endif
 
@@ -584,10 +574,6 @@ draw_create_tess_eval_shader(struct draw_context *draw,
 
 #if DRAW_LLVM_AVAILABLE
    if (use_llvm) {
-
-      tes->tes_input = align_malloc(sizeof(struct draw_tes_inputs), 16);
-      memset(tes->tes_input, 0, sizeof(struct draw_tes_inputs));
-
       llvm_tes->variant_key_size =
          draw_tes_llvm_variant_key_size(
                                         tes->info.file_max[TGSI_FILE_SAMPLER]+1,
@@ -624,7 +610,6 @@ void draw_delete_tess_eval_shader(struct draw_context *draw,
 
       util_shader_variant_list_destroy(&draw->llvm->tes_opts,
                                        &shader->variants);
-      align_free(dtes->tes_input);
    }
 #endif
    if (dtes->state.type == PIPE_SHADER_IR_NIR && dtes->state.ir.nir)
@@ -632,7 +617,7 @@ void draw_delete_tess_eval_shader(struct draw_context *draw,
    FREE(dtes);
 }
 
-enum mesa_prim get_tes_output_prim(struct draw_tess_eval_shader *shader)
+enum mesa_prim get_tes_output_prim(const struct draw_tess_eval_shader *shader)
 {
    if (shader->point_mode)
       return MESA_PRIM_POINTS;
@@ -640,4 +625,26 @@ enum mesa_prim get_tes_output_prim(struct draw_tess_eval_shader *shader)
       return MESA_PRIM_LINES;
    else
       return MESA_PRIM_TRIANGLES;
+}
+
+bool draw_tess_init(struct draw_context *draw)
+{
+#if DRAW_LLVM_AVAILABLE
+   draw->tcs.tcs_input = align_calloc(sizeof(struct draw_tcs_inputs), 16);
+   draw->tcs.tcs_output = align_calloc(sizeof(struct draw_tcs_outputs), 16);
+   draw->tes.tes_input = align_calloc(sizeof(struct draw_tes_inputs), 16);
+
+   if (!draw->tcs.tcs_input || !draw->tcs.tcs_output || !draw->tes.tes_input)
+      return false;
+#endif
+   return true;
+}
+
+void draw_tess_destroy(struct draw_context *draw)
+{
+#if DRAW_LLVM_AVAILABLE
+   align_free(draw->tcs.tcs_input);
+   align_free(draw->tcs.tcs_output);
+   align_free(draw->tes.tes_input);
+#endif
 }

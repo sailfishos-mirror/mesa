@@ -60,14 +60,6 @@ struct draw_tess_ctrl_shader {
 
    unsigned vector_length;
    unsigned vertices_out;
-
-   unsigned input_vertex_stride;
-   const float (*input)[4];
-   const struct tgsi_shader_info *input_info;
-#if DRAW_LLVM_AVAILABLE
-   struct draw_tcs_inputs *tcs_input;
-   struct draw_tcs_outputs *tcs_output;
-#endif
 };
 
 struct draw_tess_eval_shader {
@@ -84,20 +76,12 @@ struct draw_tess_eval_shader {
    unsigned clipvertex_output;
    unsigned ccdistance_output[PIPE_MAX_CLIP_OR_CULL_DISTANCE_ELEMENT_COUNT];
    unsigned vector_length;
-
-   unsigned input_vertex_stride;
-   const float (*input)[4];
-   const struct tgsi_shader_info *input_info;
-
-#if DRAW_LLVM_AVAILABLE
-   struct draw_tes_inputs *tes_input;
-#endif
 };
 
-enum mesa_prim get_tes_output_prim(struct draw_tess_eval_shader *shader);
+enum mesa_prim get_tes_output_prim(const struct draw_tess_eval_shader *shader);
 
 int draw_tess_ctrl_shader_run(struct draw_context *draw,
-                              struct draw_tess_ctrl_shader *shader,
+                              const struct draw_tess_ctrl_shader *shader,
                               const struct draw_vertex_info *input_verts,
                               const struct draw_prim_info *input_prim,
                               const struct tgsi_shader_info *input_info,
@@ -105,7 +89,7 @@ int draw_tess_ctrl_shader_run(struct draw_context *draw,
                               struct draw_prim_info *output_prims );
 
 int draw_tess_eval_shader_run(struct draw_context *draw,
-                              struct draw_tess_eval_shader *shader,
+                              const struct draw_tess_eval_shader *shader,
                               unsigned num_input_vertices_per_patch,
                               const struct draw_vertex_info *input_verts,
                               const struct draw_prim_info *input_prim,
@@ -114,5 +98,9 @@ int draw_tess_eval_shader_run(struct draw_context *draw,
                               struct draw_prim_info *output_prims,
                               uint32_t **patch_lengths,
                               uint16_t **elts_out);
+
+bool draw_tess_init(struct draw_context *draw);
+
+void draw_tess_destroy(struct draw_context *draw);
 
 #endif

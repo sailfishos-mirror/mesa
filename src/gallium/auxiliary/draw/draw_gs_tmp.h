@@ -1,5 +1,5 @@
 #define FUNC_VARS struct draw_context *draw,                  \
-                  struct draw_geometry_shader *gs,             \
+                  const struct draw_geometry_shader *gs,       \
                   const struct draw_prim_info *input_prims,    \
                   const struct draw_vertex_info *input_verts,  \
                   struct draw_prim_info *output_prims,         \
