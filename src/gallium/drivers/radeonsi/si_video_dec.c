@@ -130,7 +130,7 @@ static void si_dec_fill_surface(struct si_video_dec *vid, struct pipe_resource *
 
    for (uint32_t i = 0; i < surf->num_planes; i++) {
       assert(tex);
-      surf->planes[i].va = si_dec_buf_address(vid, &tex->buffer, RADEON_USAGE_READWRITE, RADEON_DOMAIN_VRAM);
+      surf->planes[i].va = si_dec_buf_address(vid, &tex->buffer, usage, RADEON_DOMAIN_VRAM);
       if (sscreen->info.gfx_level >= GFX9) {
          surf->planes[i].va += tex->surface.u.gfx9.surf_offset;
       } else {

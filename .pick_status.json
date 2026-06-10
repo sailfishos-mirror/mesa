@@ -6574,7 +6574,7 @@
         "description": "radeonsi/mm: Set correct usage in si_dec_fill_surface",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "26979becec30cc402df52e540fd516aa5795ec09",
         "notes": null
