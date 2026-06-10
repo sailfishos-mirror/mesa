@@ -6712,6 +6712,14 @@ bool nir_dedup_inline_samplers(nir_shader *shader);
 typedef struct nir_lower_ssbo_options {
    bool native_loads;
    bool native_offset;
+
+   /* If non-zero, use @get_ssbo_size to only use global memory accesses for
+    * SSBOs larger than this. Keep the existing SSBO accesses for smaller
+    * SSBOs. This is useful for HW hat has native SSBO access instructions
+    * that only support a limited size to only fall back to global memory for
+    * larger buffers.
+    */
+   uint32_t min_ssbo_size;
 } nir_lower_ssbo_options;
 
 bool nir_lower_ssbo(nir_shader *shader, const nir_lower_ssbo_options *opts);

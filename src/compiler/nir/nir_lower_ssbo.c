@@ -39,9 +39,29 @@ calc_address(nir_builder *b, nir_intrinsic_instr *intr,
 static bool
 pass(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 {
+   /* Exit early for intrinsics that we don't lower to avoid emitting empty
+    * if/else blocks.
+    */
+   switch (intr->intrinsic) {
+   case nir_intrinsic_load_ssbo:
+   case nir_intrinsic_store_ssbo:
+   case nir_intrinsic_ssbo_atomic:
+   case nir_intrinsic_ssbo_atomic_swap:
+      break;
+   default:
+      return false;
+   }
+
    const nir_lower_ssbo_options *opts = data;
+   uint32_t min_ssbo_size = opts ? opts->min_ssbo_size : 0;
 
    b->cursor = nir_before_instr(&intr->instr);
+
+   if (min_ssbo_size) {
+      nir_def *ssbo_size =
+         nir_get_ssbo_size(b, 32, nir_get_io_index_src(intr)->ssa);
+      nir_push_if(b, nir_uge_imm(b, ssbo_size, min_ssbo_size));
+   }
 
    nir_def *def = NULL;
    switch (intr->intrinsic) {
@@ -80,6 +100,16 @@ pass(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
    default:
       return false;
+   }
+
+   if (min_ssbo_size) {
+      nir_push_else(b, NULL);
+      nir_instr *ssbo_clone = nir_instr_clone(b->shader, &intr->instr);
+      nir_instr_insert(b->cursor, ssbo_clone);
+      nir_pop_if(b, NULL);
+
+      if (def)
+         def = nir_if_phi(b, def, nir_instr_def(ssbo_clone));
    }
 
    if (def)
