@@ -326,7 +326,7 @@ insert_coupling_code(struct spill_ctx *ctx, jay_block *pred, jay_block *succ)
          phi_src->src[0] = jay_def_spilled(ctx, phi_src->src[0]);
          jay_set_phi_src_index(phi_src, jay_index(phi_dst->dst));
       } else if (phi_src->src[0].file == ctx->file &&
-                 ctx->defs[jay_phi_src_index(phi_src)]->dst.file == ctx->file &&
+                 phi_dst->dst.file == ctx->file &&
                  !u_sparse_bitset_test(&sp->W_out, src)) {
 
          /* Fill the phi source in the predecessor */
