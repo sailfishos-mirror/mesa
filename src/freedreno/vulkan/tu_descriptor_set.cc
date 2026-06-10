@@ -1168,7 +1168,7 @@ write_sampler_descriptor(uint32_t *dst, VkSampler _sampler)
 
 template <chip CHIP>
 static void
-write_accel_struct(uint32_t *dst, uint64_t va)
+write_accel_struct(uint32_t *dst, uint64_t va, uint32_t max_texel_elements)
 {
    /* We don't actually use the bounds checking in the shader, since the
     * instance array is accessed entirely with a driver-controlled offset.
@@ -1177,7 +1177,7 @@ write_accel_struct(uint32_t *dst, uint64_t va)
     */
    fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R32_UINT,
                                tu_swiz(X, X, X, X), va,
-                               MAX_TEXEL_ELEMENTS, AS_RECORD_SIZE / 4);
+                               max_texel_elements, AS_RECORD_SIZE / 4);
 }
 
 /* note: this is used with immutable samplers in push descriptors */
@@ -1232,10 +1232,11 @@ tu_GetDescriptorEXT(
       write_sampler_descriptor(dest, *pDescriptorInfo->data.pSampler);
       break;
    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
+      uint32_t max_texel_elements = device->physical_device->info->props.max_texel_buffer_range_elements;
       if (pDescriptorInfo->data.accelerationStructure == 0) {
-         write_accel_struct<CHIP>(dest, device->null_accel_struct_bo->iova);
+         write_accel_struct<CHIP>(dest, device->null_accel_struct_bo->iova, max_texel_elements);
       } else {
-         write_accel_struct<CHIP>(dest, pDescriptorInfo->data.accelerationStructure);
+         write_accel_struct<CHIP>(dest, pDescriptorInfo->data.accelerationStructure, max_texel_elements);
       }
       break;
    }
@@ -1365,11 +1366,12 @@ tu_update_descriptor_sets(const struct tu_device *device,
             break;
          case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
             VK_FROM_HANDLE(vk_acceleration_structure, accel_struct, accel_structs->pAccelerationStructures[j]);
+            uint32_t max_texel_elements = device->physical_device->info->props.max_texel_buffer_range_elements;
             if (accel_struct) {
                write_accel_struct<CHIP>(ptr,
-                                        vk_acceleration_structure_get_va(accel_struct));
+                                        vk_acceleration_structure_get_va(accel_struct), max_texel_elements);
             } else {
-               write_accel_struct<CHIP>(ptr, device->null_accel_struct_bo->iova);
+               write_accel_struct<CHIP>(ptr, device->null_accel_struct_bo->iova, max_texel_elements);
             }
             break;
          }
@@ -1716,11 +1718,12 @@ tu_update_descriptor_set_with_template(
             break;
          case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
             VK_FROM_HANDLE(vk_acceleration_structure, accel_struct, *(const VkAccelerationStructureKHR *)src);
+            uint32_t max_texel_elements = device->physical_device->info->props.max_texel_buffer_range_elements;
             if (accel_struct) {
                write_accel_struct<CHIP>(ptr,
-                                        vk_acceleration_structure_get_va(accel_struct));
+                                        vk_acceleration_structure_get_va(accel_struct), max_texel_elements);
             } else {
-               write_accel_struct<CHIP>(ptr, device->null_accel_struct_bo->iova);
+               write_accel_struct<CHIP>(ptr, device->null_accel_struct_bo->iova, max_texel_elements);
             }
             break;
          }

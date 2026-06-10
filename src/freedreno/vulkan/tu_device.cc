@@ -1149,9 +1149,9 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->maxImageDimension3D = (1 << 11);
    props->maxImageDimensionCube = (1 << 14);
    props->maxImageArrayLayers = (1 << (pdevice->info->props.is_a702 ? 8 : 11));
-   props->maxTexelBufferElements = MAX_TEXEL_ELEMENTS;
+   props->maxTexelBufferElements = pdevice->info->props.max_texel_buffer_range_elements;
    props->maxUniformBufferRange = MAX_UNIFORM_BUFFER_RANGE;
-   props->maxStorageBufferRange = MAX_STORAGE_BUFFER_RANGE;
+   props->maxStorageBufferRange = pdevice->info->props.max_storage_buffer_range_bytes;
    props->maxPushConstantsSize = MAX_PUSH_CONSTANTS_SIZE;
    props->maxMemoryAllocationCount = UINT32_MAX;
    props->maxSamplerAllocationCount = 64 * 1024;
