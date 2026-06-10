@@ -13,12 +13,19 @@
  */
 
 static nir_def *
+get_offset(nir_builder *b, nir_intrinsic_instr *intr)
+{
+   return nir_ishl_imm(b, nir_get_io_offset_src(intr)->ssa,
+                       nir_intrinsic_offset_shift(intr));
+}
+
+static nir_def *
 calc_address(nir_builder *b, nir_intrinsic_instr *intr,
              const nir_lower_ssbo_options *opts)
 {
    unsigned index_src = intr->intrinsic == nir_intrinsic_store_ssbo ? 1 : 0;
    bool lower_offset = !opts || !opts->native_offset;
-   nir_def *offset = nir_get_io_offset_src(intr)->ssa;
+   nir_def *offset = get_offset(b, intr);
    nir_def *addr =
       nir_load_ssbo_address(b, 1, 64, intr->src[index_src].ssa,
                             lower_offset ? nir_imm_int(b, 0) : offset);
