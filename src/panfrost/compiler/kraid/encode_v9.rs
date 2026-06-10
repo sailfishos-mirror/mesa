@@ -648,13 +648,23 @@ impl V9Instr for OpNop {
 macro_rules! encode_lop {
     ($e:expr, $op:expr, $Instr:ident) => {
         paste! {
-            $e.encode(v9::$Instr {
-                variant: $op.dst_type.try_into().unwrap(),
-                dst: op_encode_dst($op, &$op.dst),
-                not_result: $op.not_result.into(),
-                src0: op_encode_src($op, &$op.src0),
-                src2: op_encode_src($op, &$op.src2),
-            })
+            if let SrcRef::Imm32(imm) = &$op.src2.src_ref {
+                assert!(!$op.not_result);
+                $e.encode(v9::[<$Instr Imm>] {
+                    variant: $op.dst_type.try_into().unwrap(),
+                    dst: op_encode_dst($op, &$op.dst),
+                    src0: op_encode_src($op, &$op.src0),
+                    imm1w: (*imm).into(),
+                })
+            } else {
+                $e.encode(v9::$Instr {
+                    variant: $op.dst_type.try_into().unwrap(),
+                    dst: op_encode_dst($op, &$op.dst),
+                    not_result: $op.not_result.into(),
+                    src0: op_encode_src($op, &$op.src0),
+                    src2: op_encode_src($op, &$op.src2),
+                })
+            }
         }
     };
 }
@@ -719,6 +729,23 @@ impl V9Instr for OpShiftLop {
             (RRot, And) => RrotAnd::get_info(self.dst_type, arch),
             (RRot, Or) => RrotOr::get_info(self.dst_type, arch),
             (RRot, Xor) => RrotXor::get_info(self.dst_type, arch),
+        }
+    }
+
+    fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
+        if !self.shift_op.is_none() {
+            return false;
+        }
+
+        if !ptr_eq(src, &self.src2) || self.not_result {
+            return false;
+        }
+
+        match self.logic_op {
+            LogicOp::None => v9::Or::is_supported(self.dst_type, arch),
+            LogicOp::And => v9::And::is_supported(self.dst_type, arch),
+            LogicOp::Or => v9::Or::is_supported(self.dst_type, arch),
+            LogicOp::Xor => v9::Xor::is_supported(self.dst_type, arch),
         }
     }
 
