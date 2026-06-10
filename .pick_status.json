@@ -3514,7 +3514,7 @@
         "description": "panvk/csf: flush primitives generated query writes from CSF",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1bdd640d83ed7a718eb737d7fa829f2067b60880",
         "notes": null
