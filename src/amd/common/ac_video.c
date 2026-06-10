@@ -421,6 +421,8 @@ vcn_enc_caps(struct radeon_info *info)
    cap->avc.l1_refs = info->vcn_ip_version >= VCN_3_0_0 ? 1 : 0;
    cap->avc.transform_8x8 = info->vcn_ip_version >= VCN_5_0_0;
    cap->formats.nv12 = 1;
+   cap->min_qp = info->vcn_ip_version >= VCN_5_0_0 ? 0 : 1;
+   cap->max_qp = 51;
 
    /* HEVC Encode */
    cap = &info->video_caps.enc[AC_VIDEO_CODEC_HEVC];
@@ -464,6 +466,8 @@ vcn_enc_caps(struct radeon_info *info)
    cap->hevc.log2_diff_max_min_luma_transform_block_size = 3;
    cap->formats.nv12 = 1;
    cap->formats.p010 = cap->hevc.main10 ? 1 : 0;
+   cap->min_qp = 0;
+   cap->max_qp = 51;
 
    /* AV1 Encode */
    cap = &info->video_caps.enc[AC_VIDEO_CODEC_AV1];
@@ -508,6 +512,10 @@ vcn_enc_caps(struct radeon_info *info)
    cap->av1.skip_mode_present = info->vcn_ip_version >= VCN_5_0_0;
    cap->formats.nv12 = 1;
    cap->formats.p010 = 1;
+   cap->min_qp = info->vcn_ip_version == VCN_4_0_2 ||
+                 info->vcn_ip_version == VCN_4_0_5 ||
+                 info->vcn_ip_version == VCN_4_0_6 ? 8 : 1;
+   cap->max_qp = 255;
 }
 
 static void
