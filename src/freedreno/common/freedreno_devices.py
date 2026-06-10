@@ -1247,8 +1247,8 @@ a8xx_base = GPUProps(
         supports_double_threadsize = False,
         has_dual_wave_dispatch = True,
         round_robin_errata = False,
-        max_texel_buffer_range_elements = 1 << 27,
-        max_storage_buffer_range_bytes = 1 << 27,
+        max_texel_buffer_range_elements = (1 << 29) - 1,
+        max_storage_buffer_range_bytes = (1 << 31) - 1,
     )
 
 # For a8xx, the chicken bit and most other non-ctx reg
