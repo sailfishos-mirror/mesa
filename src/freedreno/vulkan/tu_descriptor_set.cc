@@ -20,6 +20,7 @@
 #include "tu_descriptor_set.h"
 
 #include "util/mesa-blake3.h"
+#include "util/format/u_format.h"
 #include "vk_acceleration_structure.h"
 #include "vk_descriptors.h"
 #include "vk_util.h"
@@ -32,6 +33,7 @@
 #include "tu_rmv.h"
 #include "tu_sampler.h"
 #include "tu_subsampled_image.h"
+#include "fdl/fd6_format_table.h"
 
 static inline uint8_t *
 pool_base(struct tu_descriptor_pool *pool)
@@ -989,6 +991,74 @@ write_texel_buffer_descriptor_addr(uint32_t *dst,
    }
 }
 
+/* Note: Emulated texel buffers are only used on a7xx -- on a8xx+ we have
+ * native support.
+ */
+template <chip CHIP>
+static void
+write_emulated_texel_buffer_descriptor_common(uint32_t *dst,
+                                             enum pipe_format format,
+                                             uint64_t addr, uint32_t elements)
+{
+   uint32_t blocksize_B = util_format_get_blocksize(format);
+
+   const uint32_t aligment = 64;
+   uint64_t aligned_addr = addr & ~(uint64_t) (aligment - 1);
+   uint32_t offset_texels = uint32_t(addr - aligned_addr) / blocksize_B;
+   uint32_t elements_with_offset = elements + offset_texels;
+
+   uint32_t width = MIN2(elements_with_offset, TU_TEXEL_BUFFER_MAX_WIDTH);
+   uint32_t height = MIN2(DIV_ROUND_UP(elements_with_offset, width),
+                          TU_TEXEL_BUFFER_MAX_HEIGHT);
+   uint32_t depth = elements_with_offset
+                       ? DIV_ROUND_UP(elements_with_offset, width * height)
+                       : 0;
+   uint32_t layer_size = width * height * blocksize_B;
+   enum a6xx_tile_mode tile_mode = TILE6_LINEAR;
+   enum a6xx_format texture_format =
+      fd6_texture_format(format, tile_mode, false);
+   enum a3xx_color_swap swap = fd6_texture_swap(format, tile_mode, false);
+
+   memset(dst, 0, FDL6_TEX_CONST_DWORDS * sizeof(uint32_t));
+
+   dst[0] = A6XX_TEX_MEMOBJ_0_TILE_MODE(tile_mode) |
+            COND(util_format_is_srgb(format), A6XX_TEX_MEMOBJ_0_SRGB) |
+            A6XX_TEX_MEMOBJ_0_FMT(texture_format) |
+            A6XX_TEX_MEMOBJ_0_SWAP(swap);
+   dst[1] = A6XX_TEX_MEMOBJ_1_WIDTH(width) | A6XX_TEX_MEMOBJ_1_HEIGHT(height);
+   dst[2] = A6XX_TEX_MEMOBJ_2_PITCH(width * blocksize_B) |
+            A6XX_TEX_MEMOBJ_2_TYPE(A6XX_TEX_3D);
+   dst[3] = A6XX_TEX_MEMOBJ_3_ARRAY_PITCH(depth > 1 ? layer_size : 0);
+   dst[4] = aligned_addr;
+   dst[5] = (aligned_addr >> 32) | A6XX_TEX_MEMOBJ_5_DEPTH(depth);
+   dst[6] = A6XX_TEX_MEMOBJ_6_MIN_LOD_CLAMP(0);
+   /* Will be read by resbase to provide robustness guarantees */
+   uint64_t encoded = MIN2(elements, TU_D3D12_MAX_TEXEL_BUFFER_ELEMENTS);
+   encoded |= uint64_t(offset_texels & (aligment - 1)) << 30llu;
+   encoded <<= 6;
+   dst[7] = A6XX_TEX_MEMOBJ_7_FLAG_LO(encoded & 0x7FFFFFF);
+   dst[8] = A6XX_TEX_MEMOBJ_8_FLAG_HI(encoded >> 26);
+
+   tu_desc_set_swiz<CHIP>(dst, tu_swiz(X, Y, Z, W));
+}
+
+template <chip CHIP>
+static void
+write_emulated_texel_buffer_descriptor_addr(
+   uint32_t *dst, const VkDescriptorAddressInfoEXT *buffer_info)
+{
+   if (!buffer_info || buffer_info->address == 0) {
+      memset(dst, 0, FDL6_TEX_CONST_DWORDS * sizeof(uint32_t));
+      return;
+   }
+
+   enum pipe_format format = vk_format_to_pipe_format(buffer_info->format);
+   uint32_t blocksize_B = util_format_get_blocksize(format);
+   uint32_t elements = blocksize_B ? (buffer_info->range / blocksize_B) : 0;
+   write_emulated_texel_buffer_descriptor_common<CHIP>(
+      dst, format, buffer_info->address, elements);
+}
+
 static void
 write_texel_buffer_descriptor(uint32_t *dst, const VkBufferView buffer_view)
 {
@@ -999,6 +1069,25 @@ write_texel_buffer_descriptor(uint32_t *dst, const VkBufferView buffer_view)
 
       memcpy(dst, view->descriptor, sizeof(view->descriptor));
    }
+}
+
+template <chip CHIP>
+static void
+write_emulated_texel_buffer_descriptor(uint32_t *dst,
+                                       const VkBufferView buffer_view)
+{
+   if (buffer_view == VK_NULL_HANDLE) {
+      memset(dst, 0, FDL6_TEX_CONST_DWORDS * sizeof(uint32_t));
+      return;
+   }
+
+   VK_FROM_HANDLE(tu_buffer_view, view, buffer_view);
+
+   enum pipe_format format = vk_format_to_pipe_format(view->vk.format);
+   uint32_t elements = view->vk.elements;
+   write_emulated_texel_buffer_descriptor_common<CHIP>(
+      dst, format, vk_buffer_address(view->vk.buffer, view->vk.offset),
+      elements);
 }
 
 static VkDescriptorAddressInfoEXT
@@ -1206,10 +1295,14 @@ tu_GetDescriptorEXT(
       write_buffer_descriptor_addr<CHIP>(device, dest, pDescriptorInfo->data.pStorageBuffer);
       break;
    case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-      write_texel_buffer_descriptor_addr<CHIP>(dest, pDescriptorInfo->data.pUniformTexelBuffer);
-      break;
    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-      write_texel_buffer_descriptor_addr<CHIP>(dest, pDescriptorInfo->data.pStorageTexelBuffer);
+      if (device->physical_device->enable_texel_buffer_emulation) {
+         write_emulated_texel_buffer_descriptor_addr<CHIP>(
+            dest, pDescriptorInfo->data.pUniformTexelBuffer);
+      } else {
+         write_texel_buffer_descriptor_addr<CHIP>(
+            dest, pDescriptorInfo->data.pUniformTexelBuffer);
+      }
       break;
    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
       write_image_descriptor(dest, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
@@ -1339,7 +1432,13 @@ tu_update_descriptor_sets(const struct tu_device *device,
             break;
          case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
          case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-            write_texel_buffer_descriptor(ptr, writeset->pTexelBufferView[j]);
+            if (device->physical_device->enable_texel_buffer_emulation) {
+               write_emulated_texel_buffer_descriptor<CHIP>(
+                  ptr, writeset->pTexelBufferView[j]);
+            } else {
+               write_texel_buffer_descriptor(ptr,
+                                             writeset->pTexelBufferView[j]);
+            }
             break;
          case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
          case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
@@ -1690,7 +1789,12 @@ tu_update_descriptor_set_with_template(
             break;
          case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
          case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-            write_texel_buffer_descriptor(ptr, *(VkBufferView *) src);
+            if (device->physical_device->enable_texel_buffer_emulation) {
+               write_emulated_texel_buffer_descriptor<CHIP>(
+                  ptr, *(VkBufferView *) src);
+            } else {
+               write_texel_buffer_descriptor(ptr, *(VkBufferView *) src);
+            }
             break;
          case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
          case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:

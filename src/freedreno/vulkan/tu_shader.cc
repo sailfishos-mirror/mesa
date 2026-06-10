@@ -600,6 +600,80 @@ build_bindless(struct tu_device *dev, nir_builder *b,
    return nir_bindless_resource_ir3(b, 32, desc_offset, .desc_set = set);
 }
 
+static nir_def *
+build_texel_buffer_size(nir_builder *b, nir_def *desc, nir_def **offset_out)
+{
+   assert(nir_def_is_intrinsic(desc));
+   nir_def *encoded_data = nir_resbase_ir3(b, 32, desc);
+   nir_def *encoded_data_lo = nir_channel(b, encoded_data, 0);
+   nir_def *encoded_data_hi = nir_channel(b, encoded_data, 1);
+
+   nir_def *size_lo = nir_ishr_imm(b, encoded_data_lo, 6);
+   nir_def *size_hi = nir_ishl_imm(b, encoded_data_hi, 20);
+   nir_def *size = nir_iand_imm(b, nir_ior(b, size_lo, size_hi),
+                                TU_D3D12_MAX_TEXEL_BUFFER_ELEMENTS);
+
+   if (offset_out)
+      *offset_out = nir_ishr_imm(b, encoded_data_hi, 10);
+
+   return size;
+}
+
+static nir_def *
+build_texel_buffer_as_image_coords(nir_builder *b,
+                                   nir_def *offset,
+                                   nir_def *desc)
+{
+   nir_def *base_offset = nullptr;
+   nir_def *real_size = build_texel_buffer_size(b, desc, &base_offset);
+   nir_def *oob = nir_ige(b, offset, real_size);
+
+   offset = nir_iadd(b, offset, base_offset);
+
+   nir_def *x = nir_umod_imm(b, offset, TU_TEXEL_BUFFER_MAX_WIDTH);
+   nir_def *tmp = nir_udiv_imm(b, offset, TU_TEXEL_BUFFER_MAX_WIDTH);
+   nir_def *y = nir_umod_imm(b, tmp, TU_TEXEL_BUFFER_MAX_HEIGHT);
+   nir_def *z = nir_udiv_imm(b, tmp, TU_TEXEL_BUFFER_MAX_HEIGHT);
+
+   /* If the read is out of bounds of the actual texel buffer's size, set Z to
+    * a larger depth than the emulated descriptor could have, so that we get
+    * normal out-of-bounds access behavior.
+    */
+   z = nir_bcsel(b, oob, nir_imm_int(b, 0xff), z);
+
+   nir_def *coord3d = nir_vec3(b, x, y, z);
+   return coord3d;
+}
+
+static void
+lower_texel_buffers_to_image(nir_builder *b,
+                             nir_intrinsic_instr *instr,
+                             nir_def *bindless)
+{
+   switch (instr->intrinsic) {
+   case nir_intrinsic_bindless_image_load:
+   case nir_intrinsic_bindless_image_store:
+   case nir_intrinsic_bindless_image_atomic:
+   case nir_intrinsic_bindless_image_atomic_swap: {
+      b->cursor = nir_before_instr(&instr->instr);
+
+      nir_def *coord = nir_channel(b, instr->src[1].ssa, 0);
+      nir_def *coord3d =
+         build_texel_buffer_as_image_coords(b, coord, bindless);
+      nir_src_rewrite(&instr->src[1], nir_pad_vector(b, coord3d, 4));
+      nir_intrinsic_set_image_dim(instr, GLSL_SAMPLER_DIM_3D);
+      break;
+   }
+   case nir_intrinsic_bindless_image_size: {
+      nir_def_replace(&instr->def,
+                      build_texel_buffer_size(b, bindless, nullptr));
+      break;
+   }
+   default:
+      break;
+   }
+}
+
 static void
 lower_image_deref(struct tu_device *dev, nir_builder *b,
                   nir_intrinsic_instr *instr, struct tu_shader *shader,
@@ -609,6 +683,11 @@ lower_image_deref(struct tu_device *dev, nir_builder *b,
    nir_def *bindless = build_bindless(dev, b, deref, 0, shader, layout, 0, false);
    nir_rewrite_image_intrinsic(instr, bindless,
                                nir_image_intrinsic_type_bindless);
+
+   if (dev->physical_device->enable_texel_buffer_emulation &&
+       nir_intrinsic_image_dim(instr) == GLSL_SAMPLER_DIM_BUF) {
+      lower_texel_buffers_to_image(b, instr, bindless);
+   }
 }
 
 static bool
@@ -873,6 +952,31 @@ lower_tex_immutable(struct tu_device *dev,
    }
 }
 
+static void
+lower_tex_texel_buffer_to_image(nir_builder *b,
+                                nir_tex_instr *tex,
+                                uint32_t tex_bindless_idx)
+{
+   if (tex->op == nir_texop_txf) {
+      int coord_idx = nir_tex_instr_src_index(tex, nir_tex_src_coord);
+      if (coord_idx >= 0) {
+         nir_def *coord = tex->src[coord_idx].src.ssa;
+         if (coord->num_components > 1)
+            coord = nir_channel(b, coord, 0);
+         nir_def *coord3d = build_texel_buffer_as_image_coords(
+            b, coord, tex->src[tex_bindless_idx].src.ssa);
+         nir_src_rewrite(&tex->src[coord_idx].src, coord3d);
+
+         tex->sampler_dim = GLSL_SAMPLER_DIM_3D;
+         tex->coord_components = 3;
+      }
+   } else if (tex->op == nir_texop_txs) {
+      nir_def_replace(
+         &tex->def,
+         build_texel_buffer_size(b, tex->src[tex_bindless_idx].src.ssa, nullptr));
+   }
+}
+
 static bool
 lower_tex_impl(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
           struct tu_shader *shader, const struct tu_pipeline_layout *layout,
@@ -901,6 +1005,11 @@ lower_tex_impl(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
       /* for the input attachment case: */
       if (!nir_def_is_intrinsic(bindless))
          tex->src[tex_src_idx].src_type = nir_tex_src_texture_offset;
+   }
+
+   if (dev->physical_device->enable_texel_buffer_emulation &&
+       tex->sampler_dim == GLSL_SAMPLER_DIM_BUF) {
+      lower_tex_texel_buffer_to_image(b, tex, tex_src_idx);
    }
 
    return true;

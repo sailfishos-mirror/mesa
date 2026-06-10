@@ -107,6 +107,9 @@
 #define MAX_VIEWS 6
 #define MAX_HW_SCALED_VIEWS 6
 #define MAX_BIND_POINTS 2 /* compute + graphics */
+#define TU_D3D12_MAX_TEXEL_BUFFER_ELEMENTS ((1u << 29u) - 1u)
+#define TU_TEXEL_BUFFER_MAX_WIDTH (1u << 14)
+#define TU_TEXEL_BUFFER_MAX_HEIGHT (1u << 14)
 /* We use ldc for uniform buffer loads, just like the Qualcomm driver, so
  * expose the same maximum range.
  * TODO: The SIZE bitfield is 15 bits, and in 4-dword units, so the actual

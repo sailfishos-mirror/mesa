@@ -108,6 +108,10 @@ def declare_options():
         I("tu_override_compute_shader_version", 0, 0, 255,
           "Override compute shader version to force recompilation when TU_BUILD_ID_OVERRIDE is enabled.",
           c_name="override_compute_shader_version"),
+
+        B("tu_enable_texel_buffer_emulation", False,
+          "Emulate texel buffers to allow a higher limit for elements that is in line with what some D3D12 games expect",
+          c_name="enable_texel_buffer_emulation"),
     ]
 
     features_options = []
