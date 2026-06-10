@@ -1,12 +1,15 @@
+use core::fmt;
 use std::sync::OnceLock;
-use std::{io, slice};
+use std::{io, iter, slice};
 
 use crate::builder::*;
 use crate::data_type::NumericType;
+use crate::foldable::{FoldData, Foldable};
 use crate::ir::*;
 use crate::model::{Model, model_for_gpu_id};
 use crate::ops::*;
 use crate::ssa_value::SSAValueAllocator;
+use acorn::Acorn;
 use kraid_hw_runner::{HwError, InvocationInfo, TestRunner};
 
 /// Enables libpanfrost_decode logs for debugging purposes.
@@ -399,4 +402,179 @@ fn test_copy_large() {
 
     run.execute(case);
     assert_eq!(&data[..READ_SIZE], &data[READ_SIZE..]);
+}
+
+fn parse_folded(folded: &mut [u64], words: &[u32], types: DataTypeIter) {
+    let mut offset = 0;
+    for (comp, dtype) in folded.iter_mut().zip(types) {
+        match dtype.total_bits() {
+            8 | 16 | 32 => {
+                *comp = words[offset] as u64;
+                offset += 1;
+            }
+            64 => {
+                *comp = words[offset] as u64 | (words[offset + 1] as u64) << 32;
+                offset += 2;
+            }
+            _ => panic!("Invalid data size"),
+        }
+    }
+    assert_eq!(offset, words.len());
+}
+
+pub fn test_foldable_op_with(
+    mut op: impl Foldable + Clone + Into<Op> + fmt::Display,
+    mut rand_u32: impl FnMut(usize) -> u32,
+) {
+    let run = RunSingleton::get();
+    let mut b = TestShaderBuilder::new(&*run.model);
+
+    let mut offset_words = 0u16;
+    let mut word_bits = Vec::new();
+
+    for (src, src_type) in op.srcs_types_mut() {
+        let read_bits = src_type.total_bits();
+        let words = read_bits.div_ceil(32);
+        let data = b.ld_test_data(offset_words * 4, words * 32);
+        offset_words += u16::from(words);
+
+        src.src_ref = data.into();
+        src.swizzle = match read_bits {
+            8 => Swizzle::replicate_byte(0),
+            16 => Swizzle::replicate_half(0),
+            _ => Swizzle::NONE,
+        };
+        word_bits.extend(iter::repeat_n(read_bits.min(32), words as usize));
+    }
+    let src_words = usize::from(offset_words);
+
+    let mut fold_src = vec![0u64; op.srcs().len() as usize];
+    let mut fold_dst = vec![0u64; op.dsts().len() as usize];
+    for (dst, dst_type) in op.dsts_types_mut() {
+        let write_bits = dst_type.total_bits();
+        dst.dst_ref = match write_bits {
+            x @ (8 | 16 | 32) => b.alloc_ssa(x).into(),
+            64 => b.alloc_vec(2).into(),
+            x => panic!("Unsupported dst bytes {x}"),
+        };
+        dst.lanes = match write_bits {
+            8 => DstLanes::B0,
+            16 => DstLanes::H0,
+            _ => DstLanes::All,
+        }
+    }
+
+    b.push_op(op.clone());
+    let op = op; // Remove mutability
+
+    for dst in op.dsts() {
+        let DstRef::SSA(ssa) = &dst.dst_ref else {
+            unreachable!(); // We set it as SSA before
+        };
+        b.st_test_data(offset_words * 4, ssa.clone());
+        assert!(ssa.bytes() % 4 == 0);
+        offset_words += u16::from(ssa.bytes() / 4);
+    }
+    let total_words = usize::from(offset_words);
+    let dst_words = total_words - src_words;
+
+    let bin = b.compile();
+
+    // We're throwing random data at it here so the idea is that the number
+    // of test cases we need to get good coverage is relative to the square
+    // of the number of components.  For a big op with 3 srcs, this is going
+    // to give us 2500 iterations. (copied from NAK)
+    let invocations = src_words * src_words * 100;
+    let mut data = Vec::with_capacity(invocations * (src_words + dst_words));
+
+    assert!(src_words == word_bits.len());
+    for _ in 0..invocations {
+        data.extend(word_bits.iter().enumerate().map(|(i, bits)| {
+            rand_u32(i) & (u32::MAX >> (u32::BITS - *bits as u32))
+        }));
+        data.extend(iter::repeat_n(0, dst_words));
+    }
+    assert!(data.len() == invocations * (src_words + dst_words));
+
+    let data_bytes = transmute_mut_slice_to_u8(&mut data);
+    let case = bin.with_args_raw(
+        FAU_ONLY_ARGS,
+        data_bytes,
+        4 * total_words as u32,
+        invocations.try_into().unwrap(),
+    );
+
+    run.execute(case);
+
+    let mut hw_dst = fold_dst.clone();
+    for invoc_id in 0..invocations {
+        let data_off = invoc_id * total_words;
+        let data = &data[data_off..(data_off + total_words)];
+
+        parse_folded(&mut fold_src, &data[..src_words], op.src_types());
+        parse_folded(&mut hw_dst, &data[src_words..], op.dst_types());
+
+        fold_dst.fill(0);
+        let mut fold = FoldData {
+            dsts: &mut fold_dst,
+            srcs: &fold_src,
+            op: &op,
+        };
+        op.fold(&*run.model, &mut fold);
+
+        if hw_dst != fold_dst {
+            eprintln!("Foldable test data mismatch for {op}:");
+            eprintln!("| Input:    {:?}", &fold_src);
+            eprintln!("| Hardware: {:?}", &hw_dst);
+            eprintln!("| Folded:   {:?}", &fold_dst);
+            panic!("Folding test data mismatch");
+        }
+    }
+}
+
+pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Display) {
+    let mut a = Acorn::new();
+    test_foldable_op_with(op, |_| a.get_u32());
+}
+
+#[test]
+fn test_op_shift_lop() {
+    const DATA_TYPES: &'static [DataType] = &[
+        DataType::V4I8,
+        DataType::V2I16,
+        DataType::I32,
+        DataType::I64,
+    ];
+
+    const SHIFT_OPS: &'static [ShiftOp] = &[
+        ShiftOp::None,
+        ShiftOp::LShift,
+        ShiftOp::RShift,
+        ShiftOp::ARShift,
+        ShiftOp::RRot,
+        ShiftOp::LRot,
+    ];
+
+    const LOGIC_OPS: &'static [LogicOp] =
+        &[LogicOp::None, LogicOp::Or, LogicOp::And, LogicOp::Xor];
+
+    for &dst_type in DATA_TYPES {
+        for &shift_op in SHIFT_OPS {
+            for &logic_op in LOGIC_OPS {
+                for not_result in [false, true] {
+                    let op = OpShiftLop {
+                        dst: DstRef::None.into(),
+                        dst_type,
+                        shift_op,
+                        logic_op,
+                        not_result,
+                        src0: 0.into(),
+                        shift: 0.into(),
+                        src2: 0.into(),
+                    };
+                    test_foldable_op(op);
+                }
+            }
+        }
+    }
 }

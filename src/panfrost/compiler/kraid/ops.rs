@@ -21,6 +21,7 @@
 //!   Ex: [I8, V2I8, V4I8, I16, V2I16, I32, I64]
 
 use crate::data_type::PartialDataType;
+use crate::foldable::{FoldDataView, PerCompFoldable};
 use crate::ir::*;
 use kraid_proc_macros::{FromVariants, Opcode, variants};
 use std::fmt;
@@ -772,6 +773,52 @@ impl fmt::Display for OpShiftLop {
             self.fmt_src(&self.shift),
             self.fmt_src(&self.src2),
         )
+    }
+}
+
+impl PerCompFoldable for OpShiftLop {
+    fn fold_comp(&self, _sm: &dyn Model, f: &mut impl FoldDataView) {
+        let src0 = f.get_src(&self.src0);
+        // Only the last 3-6 bits are useful, unused shift bits are ignored
+        let shift = f.get_src(&self.shift) as u32;
+        let src2 = f.get_src(&self.src2);
+
+        let data = match (self.shift_op, self.dst_type.bits()) {
+            (ShiftOp::None, _) => src0,
+            (ShiftOp::LShift, 64) => src0.wrapping_shl(shift),
+            (ShiftOp::LShift, 32) => (src0 as u32).wrapping_shl(shift) as u64,
+            (ShiftOp::LShift, 16) => (src0 as u16).wrapping_shl(shift) as u64,
+            (ShiftOp::LShift, 8) => (src0 as u8).wrapping_shl(shift) as u64,
+            (ShiftOp::RShift, 64) => src0.wrapping_shr(shift),
+            (ShiftOp::RShift, 32) => (src0 as u32).wrapping_shr(shift) as u64,
+            (ShiftOp::RShift, 16) => (src0 as u16).wrapping_shr(shift) as u64,
+            (ShiftOp::RShift, 8) => (src0 as u8).wrapping_shr(shift) as u64,
+            (ShiftOp::ARShift, 64) => (src0 as i64).wrapping_shr(shift) as u64,
+            (ShiftOp::ARShift, 32) => (src0 as i32).wrapping_shr(shift) as u64,
+            (ShiftOp::ARShift, 16) => (src0 as i16).wrapping_shr(shift) as u64,
+            (ShiftOp::ARShift, 8) => (src0 as i8).wrapping_shr(shift) as u64,
+            (ShiftOp::RRot, 64) => src0.rotate_right(shift),
+            (ShiftOp::RRot, 32) => (src0 as u32).rotate_right(shift) as u64,
+            (ShiftOp::RRot, 16) => (src0 as u16).rotate_right(shift) as u64,
+            (ShiftOp::RRot, 8) => (src0 as u8).rotate_right(shift) as u64,
+            (ShiftOp::LRot, 64) => src0.rotate_left(shift),
+            (ShiftOp::LRot, 32) => (src0 as u32).rotate_left(shift) as u64,
+            (ShiftOp::LRot, 16) => (src0 as u16).rotate_left(shift) as u64,
+            (ShiftOp::LRot, 8) => (src0 as u8).rotate_left(shift) as u64,
+            _ => unreachable!(),
+        };
+
+        let mut data = match self.logic_op {
+            LogicOp::None => data,
+            LogicOp::And => data & src2,
+            LogicOp::Or => data | src2,
+            LogicOp::Xor => data ^ src2,
+        };
+        if self.not_result {
+            data = !data;
+        }
+
+        f.set_dst(&self.dst, data);
     }
 }
 

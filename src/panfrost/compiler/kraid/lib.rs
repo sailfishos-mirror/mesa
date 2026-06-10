@@ -7,6 +7,7 @@ mod compile;
 mod data_type;
 mod encode_v9;
 mod flow;
+mod foldable;
 #[cfg(test)]
 mod hw_tests;
 mod ir;
