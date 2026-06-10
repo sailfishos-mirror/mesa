@@ -380,7 +380,7 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
    if (is_128bit_format) {
       clr.clear_value[0] = color->ui[2];
       clr.clear_value[1] = color->ui[3];
-      clr.dest.addr.offset += (dst_level->size * dst_level->depth) / 2;
+      clr.dest.addr.offset += etna_resource_level_second_plane_offset(dst_level);
 
       emit_blt_clearimage(ctx->stream, &clr);
    }
