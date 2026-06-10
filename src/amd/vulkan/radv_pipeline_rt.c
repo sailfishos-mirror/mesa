@@ -244,22 +244,20 @@ radv_rt_fill_stage_info(const struct radv_device *device, const VkRayTracingPipe
 {
    VkPipelineCreateFlags2 create_flags = vk_rt_pipeline_create_flags(pCreateInfo);
 
-   struct radv_shader_stage_key tmp_keys[MESA_VULKAN_SHADER_STAGES] = {0};
-   tmp_keys[MESA_SHADER_INTERSECTION].keep_statistic_info =
+   rt_state->traversal_stage_key.keep_statistic_info =
       radv_pipeline_capture_shader_stats(&device->compiler_info, create_flags);
-   tmp_keys[MESA_SHADER_INTERSECTION].keep_executable_info =
+   rt_state->traversal_stage_key.keep_executable_info =
       radv_pipeline_capture_shaders(&device->compiler_info, create_flags);
-
-   for (uint32_t i = 0; i < pCreateInfo->stageCount; i++) {
-      const VkPipelineShaderStageCreateInfo *stage = &pCreateInfo->pStages[i];
-      mesa_shader_stage s = vk_to_mesa_shader_stage(stage->stage);
-      tmp_keys[s] = radv_pipeline_get_shader_key(&device->compiler_info, stage, create_flags, pCreateInfo->pNext);
-   }
 
    uint32_t idx;
    for (idx = 0; idx < pCreateInfo->stageCount; idx++) {
-      stages[idx].stage = vk_to_mesa_shader_stage(pCreateInfo->pStages[idx].stage);
+      const VkPipelineShaderStageCreateInfo *stage = &pCreateInfo->pStages[idx];
+      stages[idx].key = radv_pipeline_get_shader_key(&device->compiler_info, stage, create_flags, pCreateInfo->pNext);
+      stages[idx].stage = vk_to_mesa_shader_stage(stage->stage);
       stages[idx].needs_nir = true;
+
+      if (stages[idx].stage == MESA_SHADER_INTERSECTION)
+         rt_state->traversal_stage_key = stages[idx].key;
    }
 
    if (pCreateInfo->pLibraryInfo) {
@@ -272,7 +270,7 @@ radv_rt_fill_stage_info(const struct radv_device *device, const VkRayTracingPipe
             if (library_pipeline->stages[j].shader)
                stages[idx].shader = radv_shader_ref(library_pipeline->stages[j].shader);
 
-            stages[idx].key = tmp_keys[library_pipeline->stages[j].stage];
+            stages[idx].key = library_pipeline->stages[j].key;
             stages[idx].stage = library_pipeline->stages[j].stage;
             stages[idx].stack_size = library_pipeline->stages[j].stack_size;
             stages[idx].info = library_pipeline->stages[j].info;
@@ -282,16 +280,12 @@ radv_rt_fill_stage_info(const struct radv_device *device, const VkRayTracingPipe
 
          /* apply shader robustness from merged shaders */
          if (library_pipeline->traversal_storage_robustness2)
-            tmp_keys[MESA_SHADER_INTERSECTION].storage_robustness2 = true;
+            rt_state->traversal_stage_key.storage_robustness2 = true;
 
          if (library_pipeline->traversal_uniform_robustness2)
-            tmp_keys[MESA_SHADER_INTERSECTION].uniform_robustness2 = true;
+            rt_state->traversal_stage_key.uniform_robustness2 = true;
       }
    }
-
-   for (idx = 0; idx < pCreateInfo->stageCount; idx++)
-      stages[idx].key = tmp_keys[stages[idx].stage];
-   rt_state->traversal_stage_key = tmp_keys[MESA_SHADER_INTERSECTION];
 }
 
 static void
