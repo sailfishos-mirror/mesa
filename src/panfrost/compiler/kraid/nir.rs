@@ -355,11 +355,10 @@ impl<'a> ShaderFromNir<'a> {
                     _ => panic!("Invalid 8-bit extract"),
                 };
 
-                b.push_op(OpIAdd {
+                b.push_op(OpSwz {
                     dst: dst.into(),
-                    dst_type: dst_type(num_type),
-                    saturate: false,
-                    srcs: [srcs(0).swizzle(swz), 0.into()],
+                    src_type: dst_type(num_type),
+                    src: srcs(0).swizzle(swz),
                 });
             }
             nir_op_extract_i16 | nir_op_extract_u16 => {
@@ -383,11 +382,10 @@ impl<'a> ShaderFromNir<'a> {
                     _ => panic!("Invalid 8-bit extract"),
                 };
 
-                b.push_op(OpIAdd {
+                b.push_op(OpSwz {
                     dst: dst.into(),
-                    dst_type: dst_type(num_type),
-                    saturate: false,
-                    srcs: [srcs(0).swizzle(swz), 0.into()],
+                    src_type: dst_type(num_type),
+                    src: srcs(0).swizzle(swz),
                 });
             }
             nir_op_f2f16 | nir_op_f2f16_rtz | nir_op_f2f16_rtne => {
