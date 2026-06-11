@@ -329,7 +329,8 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
          cs->PE_RT_CONFIG[rt - 1] =
             RT_CONFIG_STRIDE(level->stride) |
             RT_CONFIG_FORMAT(fmt) |
-            COND(color_supertiled, RT_CONFIG_SUPER_TILED);
+            COND(color_supertiled, RT_CONFIG_SUPER_TILED) |
+            COND(util_format_is_srgb(surf->format), RT_CONFIG_SRGB);
 
          if (VIV_FEATURE(screen, ETNA_FEATURE_CACHE128B256BPERLINE))
             cs->PE_RT_CONFIG[rt - 1] |= COND(color_supertiled, RT_CONFIG_SUPER_TILED_NEW);
