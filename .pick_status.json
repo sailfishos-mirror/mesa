@@ -6844,7 +6844,7 @@
         "description": "vl: Skip transfer function and primaries conversion when not needed",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "69717c257f853a929abeb7f0f89e57817eaae4de",
         "notes": null
