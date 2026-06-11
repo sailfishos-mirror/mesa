@@ -15,6 +15,22 @@ pub trait Builder {
     fn push_op(&mut self, op: impl Into<Op>) -> &mut Instr {
         self.push_instr(Instr::from(op))
     }
+
+    fn copy_to(&mut self, dst: Dst, dst_type: DataType, src: Src) {
+        self.push_op(OpCopy { dst, dst_type, src });
+    }
+
+    fn copy_i8_to(&mut self, dst: Dst, src: Src) {
+        self.copy_to(dst, DataType::I8, src);
+    }
+
+    fn copy_i16_to(&mut self, dst: Dst, src: Src) {
+        self.copy_to(dst, DataType::I16, src);
+    }
+
+    fn copy_i32_to(&mut self, dst: Dst, src: Src) {
+        self.copy_to(dst, DataType::I32, src);
+    }
 }
 
 pub trait SSABuilder: Builder {
@@ -22,31 +38,19 @@ pub trait SSABuilder: Builder {
 
     fn copy_i8(&mut self, src: Src) -> SSAValue {
         let def = self.alloc_ssa(8);
-        self.push_op(OpCopy {
-            dst: def.into(),
-            dst_type: DataType::I8,
-            src,
-        });
+        self.copy_i8_to(def.into(), src);
         def
     }
 
     fn copy_i16(&mut self, src: Src) -> SSAValue {
         let def = self.alloc_ssa(16);
-        self.push_op(OpCopy {
-            dst: def.into(),
-            dst_type: DataType::I16,
-            src,
-        });
+        self.copy_i16_to(def.into(), src);
         def
     }
 
     fn copy_i32(&mut self, src: Src) -> SSAValue {
         let def = self.alloc_ssa(32);
-        self.push_op(OpCopy {
-            dst: def.into(),
-            dst_type: DataType::I32,
-            src,
-        });
+        self.copy_i32_to(def.into(), src);
         def
     }
 
