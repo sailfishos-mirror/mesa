@@ -2065,3 +2065,92 @@ impl Clone for Kernel {
         }
     }
 }
+
+#[cfg(test)]
+struct SuggestLocalSizeTestDevice {
+    subgroup_size: usize,
+    max_threads: usize,
+    max_workgroup_sizes: [usize; 3],
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+struct SuggestLocalSizeTestCase {
+    global: [usize; 3],
+}
+
+#[test]
+fn test_suggest_local_size() {
+    let devices = [
+        SuggestLocalSizeTestDevice {
+            subgroup_size: 128,
+            max_threads: 2048,
+            max_workgroup_sizes: [1024, 1024, 64],
+        },
+        SuggestLocalSizeTestDevice {
+            subgroup_size: 16,
+            max_threads: 1024,
+            max_workgroup_sizes: [1024, 1024, 1024],
+        },
+    ];
+
+    let tests = [
+        SuggestLocalSizeTestCase {
+            global: [192, 128, 1],
+        },
+        SuggestLocalSizeTestCase {
+            global: [153, 124, 60],
+        },
+        SuggestLocalSizeTestCase {
+            global: [4800, 113, 97],
+        },
+    ];
+
+    let mut workgroup_stat = 0.0f64;
+    let mut subgroup_stat = 0.0f64;
+    let mut full_subgroups = 0;
+    let mut test_runs = 0;
+
+    for dev in devices {
+        for test in tests {
+            for threads in dev.subgroup_size..=dev.max_threads {
+                let mut grid = test.global;
+                let mut block = [0; 3];
+
+                Kernel::suggest_local_size_impl(
+                    3,
+                    &mut grid,
+                    &mut block,
+                    threads,
+                    dev.max_workgroup_sizes,
+                    dev.subgroup_size,
+                );
+
+                let block_threads: usize = block.iter().product();
+                let grid_threads: usize = grid.iter().product();
+
+                println!("{threads} {block:?} {grid:?}");
+
+                assert_eq!(block_threads * grid_threads, test.global.iter().product());
+                assert!(block_threads <= threads);
+                for i in 0..3 {
+                    assert!(block[i] <= dev.max_workgroup_sizes[i]);
+                }
+
+                workgroup_stat += block_threads as f64 / threads as f64;
+                subgroup_stat += block_threads as f64
+                    / (dev.subgroup_size * block_threads.div_ceil(dev.subgroup_size)) as f64;
+                if block_threads % dev.subgroup_size == 0 {
+                    full_subgroups += 1;
+                }
+
+                test_runs += 1;
+            }
+        }
+    }
+
+    let test_runs = test_runs as f64;
+    println!("avg workgroup fill rate: {}", workgroup_stat / test_runs);
+    println!("avg subgroup fill rate: {}", subgroup_stat / test_runs);
+    println!("full subgroup rate: {}", full_subgroups as f64 / test_runs);
+}
