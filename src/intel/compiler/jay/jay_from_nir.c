@@ -1147,6 +1147,9 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    bool volatile_access = access & ACCESS_VOLATILE;
    bool coherent_access = access & ACCESS_COHERENT;
 
+   bool skip_helpers = data_src || (access & ACCESS_SKIP_HELPERS);
+   skip_helpers &= !(access & ACCESS_INCLUDE_HELPERS);
+
    /* Bspec: Atomic instruction -> Cache section:
     *
     *    Atomic messages are always forced to "un-cacheable" in the L1
@@ -1283,7 +1286,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             .src_type = { offset_type, data_type }, .uniform = uniform,
             .pure = nir_intrinsic_can_reorder(intr),
             .bindless = surf_type == LSC_ADDR_SURFTYPE_BSS, .ex_desc = ex_desc,
-            .ex_desc_imm = ex_desc_imm);
+            .ex_desc_imm = ex_desc_imm, .skip_helpers = skip_helpers);
 
    if (has_dest && !jay_defs_equivalent(tmp, dst)) {
       jay_copy_strided(b, dst, tmp, !transpose);
