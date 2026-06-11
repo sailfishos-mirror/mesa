@@ -1438,28 +1438,14 @@ impl Kernel {
         Ok(unsafe { &mut *obj_ptr })
     }
 
-    pub fn suggest_local_size(
-        &self,
-        d: &Device,
+    fn suggest_local_size_impl(
         work_dim: usize,
         grid: &mut [usize],
         block: &mut [usize],
+        mut threads: usize,
+        mut dim_threads: [usize; 3],
+        subgroups: usize,
     ) {
-        // We have to use the required workgroup size if specified.
-        if self.work_group_size() != [0; 3] {
-            // This is not just a memcpy, clippy is wrong here
-            #[expect(clippy::manual_memcpy)]
-            for i in 0..work_dim {
-                block[i] = self.work_group_size()[i];
-                grid[i] /= block[i];
-            }
-            return;
-        }
-
-        let mut threads = self.max_threads_per_block(d);
-        let mut dim_threads = d.max_block_sizes();
-        let subgroups = self.preferred_simd_size(d);
-
         for i in 0..work_dim {
             let t = cmp::min(threads, dim_threads[i]);
             let gcd = gcd(t, grid[i]);
@@ -1484,6 +1470,30 @@ impl Kernel {
                 }
             }
         }
+    }
+
+    pub fn suggest_local_size(
+        &self,
+        d: &Device,
+        work_dim: usize,
+        grid: &mut [usize],
+        block: &mut [usize],
+    ) {
+        // We have to use the required workgroup size if specified.
+        if self.work_group_size() != [0; 3] {
+            // This is not just a memcpy, clippy is wrong here
+            #[expect(clippy::manual_memcpy)]
+            for i in 0..work_dim {
+                block[i] = self.work_group_size()[i];
+                grid[i] /= block[i];
+            }
+            return;
+        }
+
+        let threads = self.max_threads_per_block(d);
+        let dim_threads = d.max_block_sizes();
+        let subgroups = self.preferred_simd_size(d);
+        Self::suggest_local_size_impl(work_dim, grid, block, threads, dim_threads, subgroups);
     }
 
     fn optimize_local_size(
