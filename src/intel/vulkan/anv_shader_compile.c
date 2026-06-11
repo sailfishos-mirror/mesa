@@ -279,6 +279,9 @@ anv_shader_init_uuid(struct anv_physical_device *device)
    const bool fs_sample_d_wa = device->instance->drirc.debug.fs_sampler_undef_derivatives_workaround;
    _mesa_blake3_update(&ctx, &fs_sample_d_wa, sizeof(fs_sample_d_wa));
 
+   const bool slm_robust = device->instance->drirc.debug.slm_robust_vectorization;
+   _mesa_blake3_update(&ctx, &slm_robust, sizeof(slm_robust));
+
    uint8_t blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_final(&ctx, blake3);
    memcpy(device->shader_binary_uuid, blake3, sizeof(device->shader_binary_uuid));
@@ -464,7 +467,13 @@ populate_gs_prog_key(struct brw_gs_prog_key *key,
                      const struct vk_graphics_pipeline_state *state,
                      VkShaderStageFlags link_stages)
 {
+   const struct anv_physical_device *pdevice =
+      container_of(device, const struct anv_physical_device, vk);
+
    populate_base_gfx_prog_key(&key->base, device, rs, state, link_stages);
+
+   if (pdevice->instance->drirc.debug.slm_robust_vectorization)
+      key->base.robust_flags |= BRW_ROBUSTNESS_SLM;
 }
 
 static void
@@ -474,7 +483,13 @@ populate_task_prog_key(struct brw_task_prog_key *key,
                        const struct vk_graphics_pipeline_state *state,
                        VkShaderStageFlags link_stages)
 {
+   const struct anv_physical_device *pdevice =
+      container_of(device, const struct anv_physical_device, vk);
+
    populate_base_gfx_prog_key(&key->base, device, rs, state, link_stages);
+
+   if (pdevice->instance->drirc.debug.slm_robust_vectorization)
+      key->base.robust_flags |= BRW_ROBUSTNESS_SLM;
 }
 
 static void
@@ -684,6 +699,9 @@ populate_cs_prog_key(struct brw_cs_prog_key *key,
       container_of(device, const struct anv_physical_device, vk);
 
    populate_base_prog_key(&key->base, device, rs);
+
+   if (pdevice->instance->drirc.debug.slm_robust_vectorization)
+      key->base.robust_flags |= BRW_ROBUSTNESS_SLM;
 
    key->base.divergent_atomics_flags |=
       pdevice->instance->drirc.perf.opt_divergent_atomics_compute_only;

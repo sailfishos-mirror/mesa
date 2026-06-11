@@ -70,6 +70,9 @@ def declare_options(android_version):
         B("anv_fs_sampler_undef_derivatives_workaround", False,
           "Fixes samplers in fragment shaders computing undefined values for derivatives with lanes disabled by control flow",
           c_name="fs_sampler_undef_derivatives_workaround"),
+        B("anv_slm_robust_vectorization", False,
+          "Use robust vectorization for SLM accesses",
+          c_name="slm_robust_vectorization"),
 
         # Workaround various driver
         B("always_flush_cache", False,
