@@ -177,13 +177,17 @@ xmesa_close_display(Display *display)
    /* don't forget to clean up mesaDisplay */
    XMesaDisplay xmdpy = &info->mesaDisplay;
 
-   /**
-    * XXX: Don't destroy the screens here, since there may still
-    * be some dangling screen pointers that are used after this point
-    * if (xmdpy->screen) {
-    *    xmdpy->screen->destroy(xmdpy->screen);
-    * }
-    */
+   if (xmdpy->pipe) {
+      xmdpy->pipe->destroy(xmdpy->pipe);
+      xmdpy->pipe = NULL;
+   }
+
+   if (xmdpy->screen) {
+      xmdpy->screen->destroy(xmdpy->screen);
+      xmdpy->screen = NULL;
+   }
+
+   mtx_destroy(&xmdpy->mutex);
 
    st_screen_destroy(xmdpy->fscreen);
    free(xmdpy->fscreen);
