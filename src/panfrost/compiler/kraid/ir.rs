@@ -269,6 +269,14 @@ impl fmt::Display for SrcMod {
     }
 }
 
+fn float_sign_bits(data_type: DataType) -> Option<u32> {
+    match data_type {
+        DataType::F16 | DataType::V2F16 => Some(0x80008000),
+        DataType::F32 => Some(0x80000000),
+        _ => None,
+    }
+}
+
 impl SrcMod {
     pub fn bnot(self) -> SrcMod {
         use SrcMod::*;
@@ -308,6 +316,16 @@ impl SrcMod {
             FNeg => self.fneg(),
             FNegAbs => self.fabs().fneg(),
             BNot => self.bnot(),
+        }
+    }
+
+    pub fn fold_u32(self, data_type: DataType, u: u32) -> Option<u32> {
+        match self {
+            SrcMod::None => Some(u),
+            SrcMod::FAbs => Some(u & !float_sign_bits(data_type)?),
+            SrcMod::FNeg => Some(u ^ float_sign_bits(data_type)?),
+            SrcMod::FNegAbs => Some(u | float_sign_bits(data_type)?),
+            SrcMod::BNot => Some(!u),
         }
     }
 }

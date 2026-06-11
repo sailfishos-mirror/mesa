@@ -167,6 +167,20 @@ fn ptr_eq<T>(a: &T, b: &T) -> bool {
     (a as *const T) == (b as *const T)
 }
 
+fn typed_src_as_imm1w(src: &Src, src_type: DataType) -> Option<u32> {
+    let SrcRef::Imm32(imm) = &src.src_ref else {
+        return None;
+    };
+
+    let imm = src.swizzle.fold_u32(imm.get()).unwrap();
+    let imm = src.src_mod.fold_u32(src_type, imm).unwrap();
+    Some(imm)
+}
+
+fn op_src_as_imm1w(op: &impl Opcode, src: &Src) -> Option<u32> {
+    typed_src_as_imm1w(src, op.src_type(src))
+}
+
 fn encode_src_ref(src: &SrcRef, last_use: bool) -> u8 {
     match src {
         SrcRef::Zero => 0b1100_0000,
@@ -601,12 +615,12 @@ impl V9Instr for OpFAdd {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        if let SrcRef::Imm32(imm) = &self.srcs[1].src_ref {
+        if let Some(imm1w) = op_src_as_imm1w(self, &self.srcs[1]) {
             e.encode(FaddImm {
                 variant: self.dst_type.try_into().unwrap(),
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.srcs[0]),
-                imm1w: (*imm).into(),
+                imm1w,
             })
         } else {
             e.encode(Fadd {
@@ -661,12 +675,12 @@ impl V9Instr for OpIAdd {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        if let SrcRef::Imm32(imm) = &self.srcs[1].src_ref {
+        if let Some(imm1w) = op_src_as_imm1w(self, &self.srcs[1]) {
             e.encode(IaddImm {
                 variant: self.dst_type.try_into().unwrap(),
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.srcs[0]),
-                imm1w: (*imm).into(),
+                imm1w,
             })
         } else {
             e.encode(Iadd {
@@ -833,11 +847,11 @@ impl V9Instr for OpMov {
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        if let SrcRef::Imm32(imm) = &self.src.src_ref {
+        if let Some(imm1w) = op_src_as_imm1w(self, &self.src) {
             e.encode(MovImm {
                 variant: self.dst_type.try_into().unwrap(),
                 dst: op_encode_dst(self, &self.dst),
-                imm1w: (*imm).into(),
+                imm1w,
             })
         } else {
             e.encode(Mov {
@@ -862,13 +876,13 @@ impl V9Instr for OpNop {
 macro_rules! encode_lop {
     ($e:expr, $op:expr, $Instr:ident) => {
         paste! {
-            if let SrcRef::Imm32(imm) = &$op.src2.src_ref {
+            if let Some(imm1w) = op_src_as_imm1w($op, &$op.src2) {
                 assert!(!$op.not_result);
                 $e.encode(v9::[<$Instr Imm>] {
                     variant: $op.dst_type.try_into().unwrap(),
                     dst: op_encode_dst($op, &$op.dst),
                     src0: op_encode_src($op, &$op.src0),
-                    imm1w: (*imm).into(),
+                    imm1w,
                 })
             } else {
                 $e.encode(v9::$Instr {
