@@ -81,7 +81,6 @@ op('bfrev', 1, 'u32', Props.NEGATE)
 op('cbit',  1, 'u32')
 op('cmp',   2, 'u32', Props.NEGATE | Props.CMOD)
 
-
 # With an 8/16-bit type, `index` specifies the element index of the source
 # within the 32-bit word. For example, if src_type == U16 and index == 1, this
 # converts the upper 16-bits of the input.
@@ -134,8 +133,10 @@ op('schedule_barrier', 0, None, Props.NO_DEST)
 
 for n in ['brd', 'illegal', 'goto', 'join', 'if', 'else',
           'endif', 'while', 'break', 'cont', 'call', 'calla', 'jmpi', 'ret',
-          'loop_once', 'halt', 'halt_target']:
+          'loop_once', 'halt_target']:
     op(n, 0, None, Props.NO_DEST)
+
+op('halt', 0, None, Props.NO_DEST, ['bool predicate_all'])
 
 op('send', 4, None, Props.SIDE_EFFECTS, [
     'gen_sfid sfid',
@@ -233,6 +234,15 @@ op('dpas', 3, 'u32', 0, [
     'uint8_t sbid',
     'uint8_t pad[3]',
 ])
+
+# Initialize helper invocations. Takes 16-bit halves of the dispatch mask.
+op('init_helpers', 2, 'u16', Props.NO_DEST)
+
+# Compare the arguments and demote based on the result.
+op('demote', 2, 'u1 u16 u32 u64 s16 s32 s64 f16 f32 f64', Props.NEGATE | Props.NO_DEST)
+
+# Equivalent to NIR bcsel(@is_helper_invocation, source 0, source 1)
+op('helper_sel', 2, 'u1 u32')
 
 OPCODES = _opcodes
 

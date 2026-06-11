@@ -33,7 +33,9 @@ block_state_for_inst(jay_inst *I)
    if (I->op == JAY_OPCODE_PHI_DST || I->op == JAY_OPCODE_PRELOAD) {
       return STATE_PHI_DST;
    } else if (I->op == JAY_OPCODE_PHI_SRC ||
-              (jay_op_is_control_flow(I->op) && I->op != JAY_OPCODE_ELSE)) {
+              (jay_op_is_control_flow(I->op) &&
+               I->op != JAY_OPCODE_ELSE &&
+               I->op != JAY_OPCODE_HALT_TARGET)) {
       return STATE_LATE;
    } else {
       return STATE_NORMAL;
@@ -238,10 +240,6 @@ validate_inst(struct validate_state *validate, jay_inst *I)
    validate_flagness(validate, I->dst, I->type, "destination");
    validate_flagness(validate, I->cond_flag, JAY_TYPE_U1, "cond_flag");
 
-   CHECK(!I->conditional_mod ||
-         !jay_is_null(I->cond_flag) ||
-         I->op == JAY_OPCODE_CSEL);
-
    /* These assumptions are baked into the definition of broadcast_flag and
     * required to ensure correctness with the lane masking.
     */
@@ -256,8 +254,10 @@ validate_inst(struct validate_state *validate, jay_inst *I)
    CHECK(I->cond_flag.file != FLAG || I->dst.file != UGPR);
 
    /* Standard modifiers only allowed on some instructions */
-   CHECK(!I->conditional_mod || opinfo->cmod || I->op == JAY_OPCODE_CSEL);
    CHECK(!I->saturate || opinfo->sat);
+   CHECK(!I->conditional_mod ||
+         (I->op == JAY_OPCODE_CSEL || I->op == JAY_OPCODE_DEMOTE) ||
+         (!jay_is_null(I->cond_flag) && opinfo->cmod));
 
    unsigned num_srcs = I->num_srcs;
 

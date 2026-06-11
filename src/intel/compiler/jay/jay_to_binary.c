@@ -79,7 +79,7 @@ to_gen_operand(
    gen_operand R;
    unsigned reg = d.reg, count = jay_num_values(d);
    unsigned offset_B = 0, grf = 0;
-   assert(!hi || d.file == GPR);
+   assert(!hi || d.file == GPR || d.file == FLAG);
 
    if (count && (d.file == GPR || d.file == UGPR)) {
       struct jay_register_block block =
@@ -189,7 +189,8 @@ to_gen_operand(
        * SIMD1 instructions and are never SIMD split.
        */
       assert(simd_offs == 0 || idx >= 0);
-      unsigned offs_B = d.reg * (f->shader->dispatch_width / 8);
+      unsigned offs_B =
+         (d.reg * (f->shader->dispatch_width / 8)) + (hi ? 2 : 0);
       R = gen_flag(offs_B / 2);
    } else if (d.file == J_ADDRESS) {
       R = gen_address(d.reg);
@@ -577,6 +578,14 @@ emit(struct jay_codegen *jc,
          gen->src[0].indirect = true;
          gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
          gen->src[0].addr_imm = 0;
+      }
+      break;
+
+   case JAY_OPCODE_HALT:
+      if (jay_halt_predicate_all(I)) {
+         assert(I->predication);
+         gen->pred_control =
+            jc->devinfo->ver >= 20 ? GEN_PREDICATE_XE2_ALL : GEN_PREDICATE_ALLV;
       }
       break;
 

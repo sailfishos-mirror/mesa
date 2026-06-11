@@ -8,12 +8,14 @@
 #include "compiler/brw/brw_eu_defines.h"
 #include "compiler/brw/brw_nir.h"
 #include "compiler/brw/brw_sampler.h"
+#include "compiler/gen/gen_enums.h"
 #include "compiler/intel_nir.h"
 #include "compiler/intel_shader_enums.h"
 #include "compiler/list.h"
 #include "intel/dev/intel_debug.h"
 #include "mda/debug_archiver.h"
 #include "util/bitscan.h"
+#include "util/bitset.h"
 #include "util/lut.h"
 #include "util/macros.h"
 #include "util/u_math.h"
@@ -81,10 +83,7 @@ struct nir_to_jay_state {
    const struct intel_device_info *devinfo;
 
    jay_builder bld;
-
-   jay_block *current_block;
-   jay_block *after_block;
-   jay_block *break_block;
+   jay_block *current_block, *after_block, *break_block, *exit_block;
 
    unsigned indent;
    bool needs_final_halt;
@@ -833,19 +832,6 @@ scalars_equal(nir_scalar a, nir_scalar b)
 }
 
 static void
-jay_emit_halt_target(struct nir_to_jay_state *nj)
-{
-   /* This final halt will re-enable the channels which got masked off by first
-    * HALT.
-    */
-   if (nj->needs_final_halt) {
-      /* This avoids re-emitting the halt after EOT send */
-      nj->needs_final_halt = false;
-      jay_HALT_TARGET(&nj->bld);
-   }
-}
-
-static void
 jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
    jay_builder *b = &nj->bld;
@@ -859,8 +845,6 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    const bool null_rt = ((signed) nir_intrinsic_target(intr)) < 0;
    const int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
    const bool last = !nir_instr_next(&intr->instr);
-
-   jay_emit_halt_target(nj);
 
    /* The hardware freaks out if we give it an omask without multisampling. */
    if (!b->shader->prog_data->fs.uses_omask) {
@@ -941,15 +925,10 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          srcs[len++] = jay_extract(packed, i);
    }
 
-   jay_inst *send =
-      jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
-               .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
-               .type = JAY_TYPE_U32, .eot = last, .split = split);
-
-   /* Handle the disable predicate. It is logically inverted. */
-   if (!nir_src_is_zero(intr->src[6])) {
-      jay_add_predicate(b, send, jay_negate(nj_src(intr->src[6])));
-   }
+   jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
+            .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
+            .type = JAY_TYPE_U32, .eot = last, .split = split,
+            .skip_helpers = true);
 }
 
 static enum lsc_data_size
@@ -1572,19 +1551,6 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_MOV(b, dst, fs->coverage_mask);
       break;
 
-   case nir_intrinsic_load_dispatch_mask_intel: {
-      jay_def mask = jay_extract(nj->payload.u0, 15);
-
-      if (nj->s->dispatch_width == 32) {
-         /* TODO: Optimize */
-         jay_def hi = jay_extract(nj->payload.u1, 15);
-         mask = jay_BFI2_u32(b, 0xffff0000, hi, mask);
-      }
-
-      jay_MOV(b, dst, mask);
-      break;
-   }
-
    case nir_intrinsic_load_subgroup_invocation: {
       jay_def lid = jay_alloc_def(b, UGPR, s->dispatch_width / 2);
       jay_LANE_ID_8(b, jay_extract_range(lid, 0, 4));
@@ -1600,8 +1566,16 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 
    case nir_intrinsic_demote:
+      jay_DEMOTE_u32(b, jay_null(), jay_null());
+      break;
    case nir_intrinsic_demote_if:
-      /* TODO: Already lowered, but need to implement for performance. */
+      jay_DEMOTE(b, JAY_TYPE_U1, nj_src(intr->src[0]), 0)->conditional_mod =
+         GEN_CONDITION_NE;
+      break;
+
+   case nir_intrinsic_load_helper_invocation:
+   case nir_intrinsic_is_helper_invocation:
+      jay_HELPER_SEL(b, dst, 1, 0);
       break;
 
    case nir_intrinsic_ddx:
@@ -2455,7 +2429,8 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
             .ex_desc = desc_ex_src, .header = header, .srcs = payload,
             .nr_srcs = n_sources, .type = JAY_TYPE_U32,
             .src_type = { src_type }, .dst = tmp, .uniform = payload_uniform,
-            .bindless = surface_bindless, .pure = true);
+            .bindless = surface_bindless, .pure = true,
+            .skip_helpers = tex->skip_helpers);
 
    /* If we sampled into a temporary, copy out to the final */
    if (residency) {
@@ -2484,7 +2459,8 @@ jay_emit_jump(struct nir_to_jay_state *nj, nir_jump_instr *instr)
       break;
    case nir_jump_halt:
       nj->needs_final_halt = true;
-      jay_HALT(&nj->bld);
+      jay_block_add_successor(nj->current_block, nj->exit_block, GPR);
+      jay_HALT(&nj->bld, false);
       break;
    case nir_jump_return:
       /* Should be lowered */
@@ -2754,8 +2730,16 @@ static void
 jay_emit_eot(struct nir_to_jay_state *nj)
 {
    jay_builder *b = &nj->bld;
+   b->cursor = jay_after_block(nj->exit_block);
 
-   jay_emit_halt_target(nj);
+   /* Jump target for HALT */
+   if (nj->needs_final_halt) {
+      if (nj->s->stage == MESA_SHADER_FRAGMENT) {
+         assert(nj->s->helpers_tracked);
+      } else {
+         jay_HALT_TARGET(&nj->bld);
+      }
+   }
 
    if (mesa_shader_stage_is_compute(nj->nir->info.stage)) {
       jay_def u0 = nj->payload.u0;
@@ -2773,12 +2757,18 @@ jay_emit_eot(struct nir_to_jay_state *nj)
                .uniform = true);
    } else if (nj->nir->info.stage == MESA_SHADER_VERTEX ||
               nj->nir->info.stage == MESA_SHADER_TESS_EVAL) {
-      jay_block *block = jay_last_block(nj->f);
+      jay_block *block = jay_last_source_block(nj->f);
       jay_inst *I = jay_last_inst(block);
+
+      assert(!nj->needs_final_halt && "halt not supported with URB");
 
       /* TODO: What if this isn't the case? Do we need a no-op store...? */
       assert(I && I->op == JAY_OPCODE_SEND && jay_send_sfid(I) == GEN_SFID_URB);
+
+      /* Pluck out the final SEND and put it in the exit block */
       jay_set_send_eot(I, true);
+      jay_remove_instruction(I);
+      jay_builder_insert(b, I);
    }
 }
 
@@ -3012,6 +3002,14 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       }
    }
 
+   /* INIT_HELPERS reads UGPRs but has no SSA write. Therefore to minimize
+    * pressure, we want to hoist it as much as possible.
+    */
+   if (nj->s->helpers_tracked) {
+      jay_INIT_HELPERS(&nj->bld, jay_extract(nj->payload.u0, 15),
+                       payload_u1(nj, 15, 1));
+   }
+
    for (unsigned i = 0; i < ARRAY_SIZE(split_gprs); ++i) {
       if (!jay_is_null(split[i]) && split_gprs[i].def->file == UGPR) {
          *(split_gprs[i].def) =
@@ -3178,7 +3176,11 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
       jay_setup_payload(&nj);
    }
 
+   nj.exit_block = jay_create_block(&nj);
    jay_emit_cf_list(&nj, &impl->body);
+   jay_block_add_successor(nj.current_block, nj.exit_block, GPR);
+
+   list_addtail(&nj.exit_block->link, &f->blocks);
    jay_emit_eot(&nj);
    jay_remove_unreachable_blocks(f);
 }
@@ -3216,8 +3218,9 @@ jay_compile(const struct intel_device_info *devinfo,
       INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage)) &&
       !(nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
 
+   bool track_helpers = false;
    unsigned simd_width =
-      jay_process_nir(devinfo, nir, prog_data, key, archiver);
+      jay_process_nir(devinfo, nir, prog_data, key, archiver, &track_helpers);
 
    if (debug) {
       /* We can't use nir_print_shader since it reindexes SSA defs. */
@@ -3232,6 +3235,7 @@ jay_compile(const struct intel_device_info *devinfo,
    s->devinfo = devinfo;
    s->prog_data = prog_data;
    s->archiver = archiver;
+   s->helpers_tracked = track_helpers;
 
    nir_foreach_function_impl(impl, nir) {
       jay_from_nir_function(devinfo, nir, s, impl);
@@ -3286,6 +3290,10 @@ jay_compile(const struct intel_device_info *devinfo,
 
    if (s->dispatch_width == 32 && s->stage == MESA_SHADER_FRAGMENT) {
       JAY_PASS(s, jay_insert_payload_swizzle);
+   }
+
+   if (s->stage == MESA_SHADER_FRAGMENT && s->helpers_tracked) {
+      JAY_PASS(s, jay_lower_helpers);
    }
 
    if (!(jay_debug & JAY_DBG_NOOPT)) {

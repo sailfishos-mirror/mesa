@@ -788,6 +788,12 @@ typedef struct jay_shader {
    unsigned payload_gprs, payload_ugprs, push_grfs;
 
    /**
+    * In a fragment shader, whether a helper invocation flag is tracked. Flag RA
+    * must reserve the relevant flag.
+    */
+   bool helpers_tracked;
+
+   /**
     * Ralloc linear context. Since we don't typically free as we go,
     * most allocations should go through this context for efficiency.
     */
@@ -1126,7 +1132,7 @@ jay_new_block(jay_function *f)
 static inline bool
 jay_op_is_control_flow(enum jay_opcode op)
 {
-   return op >= JAY_OPCODE_BRD && op <= JAY_OPCODE_LOOP_ONCE;
+   return op >= JAY_OPCODE_BRD && op <= JAY_OPCODE_HALT;
 }
 
 /**
@@ -1201,6 +1207,9 @@ jay_first_predecessor(jay_block *block, enum jay_file file)
 #define jay_foreach_block_rev(f, v)                                            \
    list_for_each_entry_rev(jay_block, v, &f->blocks, link)
 
+#define jay_foreach_block_safe_rev(f, v)                                       \
+   list_for_each_entry_safe_rev(jay_block, v, &f->blocks, link)
+
 #define jay_foreach_block_from(f, from, v)                                     \
    list_for_each_entry_from(jay_block, v, from, &f->blocks, link)
 
@@ -1238,7 +1247,7 @@ jay_first_predecessor(jay_block *block, enum jay_file file)
       jay_foreach_inst_in_block_safe(block, v)
 
 #define jay_foreach_inst_in_func_safe_rev(func, block, v)                      \
-   jay_foreach_block_rev(func, block)                                          \
+   jay_foreach_block_safe_rev(func, block)                                     \
       jay_foreach_inst_in_block_safe_rev(block, v)
 
 #define jay_foreach_inst_in_shader(s, func, inst)                              \
@@ -1355,6 +1364,15 @@ jay_last_block(jay_function *f)
       return list_last_entry(&f->blocks, jay_block, link);
 }
 
+static inline jay_block *
+jay_last_source_block(jay_function *f)
+{
+   if (list_is_empty(&f->blocks) || list_is_singular(&f->blocks))
+      return NULL;
+   else
+      return list_last_entry(&jay_last_block(f)->link, jay_block, link);
+}
+
 static inline jay_inst *
 jay_last_inst(jay_block *block)
 {
@@ -1373,11 +1391,14 @@ jay_next_block(jay_block *block)
 static inline void
 jay_block_add_successor(jay_block *block, jay_block *succ, enum jay_file file)
 {
+   /* Prune duplicate successors so the caller doesn't need to worry */
    jay_block **succs = jay_successors(block, file);
-   unsigned i = succs[0] ? 1 : 0;
+   if (succs[0] == succ || succs[1] == succ) {
+      return;
+   }
 
-   assert(succ && succs[0] != succ && succs[1] != succ);
-   assert(succs[i] == NULL && "at most 2 successors");
+   unsigned i = succs[0] ? 1 : 0;
+   assert(succ && succs[i] == NULL && "at most 2 successors");
 
    succs[i] = succ;
    util_dynarray_append(jay_predecessors(succ, file), block);
