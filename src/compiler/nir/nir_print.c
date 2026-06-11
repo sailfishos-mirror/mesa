@@ -2297,6 +2297,8 @@ print_jump_instr(nir_jump_instr *instr, print_state *state)
       fprintf(fp, " else b%u",
               instr->else_target ? instr->else_target->index : -1);
       break;
+   default:
+      UNREACHABLE("Unknown jump instruction");
    }
 }
 
