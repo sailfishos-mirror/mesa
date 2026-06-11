@@ -1714,7 +1714,7 @@
         "description": "pco: Set register classes for vec refs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0ea39c6305abc2eac2b3e7859f4859c770cfbb4a",
         "notes": null
