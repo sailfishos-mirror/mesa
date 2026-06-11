@@ -336,6 +336,7 @@ vlVaPostProcCompositor(vlVaDriver *drv,
    vl_csc_get_primaries_matrix(param->in_color_primaries, param->out_color_primaries,
                                &drv->cstate.primaries);
 
+   drv->cstate.chroma_location = VL_COMPOSITOR_LOCATION_NONE;
    drv->cstate.in_transfer_characteristic = param->in_transfer_characteristics;
    drv->cstate.out_transfer_characteristic = param->out_transfer_characteristics;
 
@@ -343,8 +344,6 @@ vlVaPostProcCompositor(vlVaDriver *drv,
       enum pipe_format format = src_yuv ? src->buffer_format : dst->buffer_format;
       enum pipe_video_vpp_chroma_siting chroma_siting =
          src_yuv ? param->in_chroma_siting : param->out_chroma_siting;
-
-      drv->cstate.chroma_location = VL_COMPOSITOR_LOCATION_NONE;
 
       if (util_format_get_plane_height(format, 1, 4) != 4) {
          if (chroma_siting & PIPE_VIDEO_VPP_CHROMA_SITING_VERTICAL_TOP)
