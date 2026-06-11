@@ -338,7 +338,7 @@ cmd_buffer_can_merge_subpass(struct v3dv_cmd_buffer *cmd_buffer,
    if (cmd_buffer->state.job->always_flush)
       return false;
 
-   if (!physical_device->options.merge_jobs)
+   if (!physical_device->merge_jobs)
       return false;
 
    /* Each render pass starts a new job */

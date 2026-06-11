@@ -117,14 +117,11 @@ struct v3dv_physical_device {
    struct util_sparse_array bo_map;
 
    struct {
-      bool merge_jobs;
-   } options;
-
-   struct {
       bool multisync;
       bool perfmon;
    } caps;
 
+   bool merge_jobs;
    bool is_shim;
 };
 

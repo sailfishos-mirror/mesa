@@ -1503,7 +1503,7 @@ create_physical_device(struct v3dv_instance *instance,
    /* Initialize sparse array for refcounting imported BOs */
    util_sparse_array_init(&device->bo_map, sizeof(struct v3dv_bo), 512);
 
-   device->options.merge_jobs = !V3D_DBG(NO_MERGE_JOBS);
+   device->merge_jobs = !V3D_DBG(NO_MERGE_JOBS);
 
    device->drm_syncobj_type = vk_drm_syncobj_get_type(device->render_fd);
 
