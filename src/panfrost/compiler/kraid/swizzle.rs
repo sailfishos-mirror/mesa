@@ -213,6 +213,16 @@ impl Swizzle {
     /// 16-bit to a 32-bit floating point value.
     pub const HF1: Swizzle = Swizzle::widen_f16(1);
 
+    /// A swizzle which sign-extends byte3 out to 32 bits.
+    pub const S3: Swizzle = unsafe {
+        Swizzle::from_swizzle_bytes_unchecked([
+            SwizzleByte::Sign3,
+            SwizzleByte::Sign3,
+            SwizzleByte::Sign3,
+            SwizzleByte::Sign3,
+        ])
+    };
+
     const unsafe fn from_swizzle_bytes_unchecked(
         bytes: [SwizzleByte; 4],
     ) -> Swizzle {

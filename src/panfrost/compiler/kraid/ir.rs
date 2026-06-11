@@ -10,6 +10,7 @@ use crate::ssa_value::SSAValueAllocator;
 pub use crate::ssa_value::{SSARef, SSAValue};
 use crate::swizzle::AsmSwizzleWiden;
 pub use crate::swizzle::Swizzle;
+use crate::swizzle::*;
 use compiler::as_slice::*;
 use compiler::smallvec::*;
 
@@ -92,6 +93,16 @@ impl fmt::Display for FAURef {
     }
 }
 
+impl FAURef {
+    pub fn word(mut self, word: u8) -> FAURef {
+        assert!(word < 2);
+        assert!(word == 0 || self.load64);
+        self.idx += u16::from(word);
+        self.load64 = false;
+        self
+    }
+}
+
 impl From<&SmallConstant> for FAURef {
     fn from(sc: &SmallConstant) -> FAURef {
         FAURef {
@@ -166,6 +177,16 @@ impl RegRef {
             RegRange::Byte3 => 3,
         }
     }
+
+    pub fn word(mut self, word: u8) -> RegRef {
+        let RegRange::Regs(nregs) = self.range else {
+            panic!("RegRef::word() out of bounds");
+        };
+        assert!(word < nregs, "RegRef::word() out of bounds");
+        self.idx += word;
+        self.range = RegRange::Regs(1);
+        self
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -231,6 +252,19 @@ impl SrcRef {
                 ..
             })
         )
+    }
+
+    pub fn word(self, word: u8) -> SrcRef {
+        match self {
+            SrcRef::Zero => SrcRef::Zero,
+            SrcRef::Imm32(u) => {
+                assert!(word == 0);
+                SrcRef::Imm32(u)
+            }
+            SrcRef::FAU(fau) => fau.word(word).into(),
+            SrcRef::SSA(ssa) => ssa[usize::from(word)].into(),
+            SrcRef::Reg(reg) => reg.word(word).into(),
+        }
     }
 }
 
@@ -404,6 +438,28 @@ impl Src {
         self.swizzle(Swizzle::replicate_half(half))
     }
 
+    pub fn word(self, word: u8) -> Src {
+        assert!(word < 2);
+        assert!(self.src_mod.is_none());
+        if let Some(swizzle_word) = self.swizzle.word(word) {
+            use SwizzleWord::*;
+            match swizzle_word {
+                Zero => 0.into(),
+                Word0 => Src::from(self.src_ref.word(0)),
+                Word1 => Src::from(self.src_ref.word(1)),
+                Sign0 => Src::from(self.src_ref.word(0)).swizzle(Swizzle::S3),
+                Sign1 => Src::from(self.src_ref.word(1)).swizzle(Swizzle::S3),
+            }
+        } else {
+            // In this case, it's a byte swizzle that we sign-extend
+            if word == 0 {
+                self
+            } else {
+                self.swizzle(Swizzle::S3)
+            }
+        }
+    }
+
     pub fn imm_u8(u: u8) -> Src {
         Src::from(u32::from(u)).byte(0)
     }
@@ -513,6 +569,14 @@ impl DstRef {
             DstRef::None => 0,
             DstRef::SSA(vec) => vec.bytes(),
             DstRef::Reg(reg) => reg.bytes(),
+        }
+    }
+
+    pub fn word(self, word: u8) -> DstRef {
+        match self {
+            DstRef::None => DstRef::None,
+            DstRef::SSA(ssa) => ssa[usize::from(word)].into(),
+            DstRef::Reg(reg) => reg.word(word).into(),
         }
     }
 }
@@ -681,6 +745,18 @@ pub struct Dst {
 impl fmt::Display for Dst {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", &self.dst_ref, &self.lanes)
+    }
+}
+
+impl Dst {
+    // NOTE:
+    //
+    // We only support word on Dst because SSAValue is at most 32 bits so we
+    // can write to the different words of an SSSARef and still be in SSA form.
+    pub fn word(mut self, word: u8) -> Dst {
+        assert_eq!(self.lanes, DstLanes::All);
+        self.dst_ref = self.dst_ref.word(word);
+        self
     }
 }
 
