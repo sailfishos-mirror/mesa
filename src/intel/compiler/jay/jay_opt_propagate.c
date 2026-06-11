@@ -175,6 +175,8 @@ propagate_forwards(jay_function *f)
              * Only source 0 can read ARF (i.e. ballotted flags). Furthermore,
              * we may only propagate ballots locally as the ballot is implicitly
              * execmask'd which changes throughout the CFG.
+             *
+             * ISA restrictions forbid 8-bit immediates, don't even try.
              */
             if ((I->src[s].file == def->src[0].file) ||
                 ((!jay_inst_has_default(I) ||
@@ -184,7 +186,9 @@ propagate_forwards(jay_function *f)
                  (!jay_is_flag(def->src[0]) ||
                   (s == 0 && def_block[jay_base_index(src)] == block->index)) &&
                  !(def->src[0].file == J_ARF && s != 0) &&
-                 !(jay_is_imm(def->src[0]) && I->src[s].negate))) {
+                 !(jay_is_imm(def->src[0]) && I->src[s].negate) &&
+                 !(jay_is_imm(def->src[0]) &&
+                   jay_type_size_bits(jay_src_type(I, s)) == 8))) {
 
                jay_replace_src(&I->src[s], def->src[0]);
             }
