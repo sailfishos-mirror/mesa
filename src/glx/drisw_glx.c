@@ -160,6 +160,7 @@ get_drawable_geometry(struct dri_drawable * draw,
 
    drawable = pdraw->xDrawable;
 
+   uw = uh = 0;
    XGetGeometry(dpy, drawable, &root, x, y, &uw, &uh, &bw, &depth);
    *w = uw;
    *h = uh;
