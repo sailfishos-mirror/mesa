@@ -3164,7 +3164,7 @@
         "description": "nvk/nvkmd: Do not merge bind operations across VA mappings",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "053b7f0f30c20df4b5d11cbd0accecfc13aa7d51",
         "notes": null
