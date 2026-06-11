@@ -315,7 +315,8 @@ vlVaPostProcCompositor(vlVaDriver *drv,
                                   param->in_color_range, param->out_color_range, &drv->cstate.yuv2rgb);
       } else {
          /* YUV to YUV (convert to RGB for transfer function and primaries) */
-         enum pipe_format rgb_format = PIPE_FORMAT_B8G8R8A8_UNORM;
+         enum pipe_format rgb_format = util_format_get_plane_format(src->buffer_format, 0);
+         assert(!util_format_is_yuv(rgb_format));
          vl_csc_get_rgbyuv_matrix(param->in_matrix_coefficients, src->buffer_format, rgb_format,
                                   param->in_color_range, PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
                                   &drv->cstate.yuv2rgb);
