@@ -77,6 +77,10 @@ pub extern "C" fn kraid_compile_nir(
     dump_shader(&s, "after widening ALU ops");
     s.validate();
 
+    s.legalize_src_swizzles();
+    dump_shader(&s, "after legalizing src swizzles");
+    s.validate();
+
     s.lower_mkvec_swz();
     dump_shader(&s, "after lowering MKVEC and SWIZ instructions");
     s.validate();

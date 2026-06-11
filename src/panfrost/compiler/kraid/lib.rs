@@ -9,6 +9,7 @@ mod encode_v9;
 mod flow;
 mod ir;
 mod isa;
+mod legalize_src_swizzles;
 mod lower_copy;
 mod lower_mkvec_swz;
 mod message_slots;
