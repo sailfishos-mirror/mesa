@@ -840,9 +840,7 @@ brw_nir_populate_fs_prog_data(nir_shader *shader,
       shader->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DUAL_SRC_BLEND);
    assert(!prog_data->dual_src_blend || key->nr_color_regions == 1);
 
-   prog_data->sample_shading =
-      shader->info.fs.uses_sample_shading ||
-      shader->info.outputs_read;
+   prog_data->sample_shading = shader->info.fs.uses_sample_shading;
    prog_data->api_sample_shading = key->api_sample_shading;
    prog_data->min_sample_shading = key->min_sample_shading;
 
