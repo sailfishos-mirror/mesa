@@ -191,9 +191,9 @@ gather_push_constant_info(const nir_shader *nir, const nir_intrinsic_instr *inst
    info->loads_push_constants = true;
    info->push_constant_size = MAX2(info->push_constant_size, offset + size);
 
-   if (nir_src_is_const(instr->src[0]) && instr->def.bit_size >= 32) {
+   if (nir_src_is_const(instr->src[0])) {
       const uint32_t start_dw = offset / 4;
-      const uint32_t size_dw = size / 4;
+      const uint32_t size_dw = DIV_ROUND_UP(size + offset % 4, 4);
 
       if (start_dw + size_dw <= (MAX_PUSH_CONSTANTS_SIZE / 4u)) {
          info->inline_push_constant_mask |= BITFIELD64_RANGE(start_dw, size_dw);
