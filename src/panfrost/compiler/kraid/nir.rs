@@ -338,7 +338,7 @@ impl<'a> ShaderFromNir<'a> {
                 let (swz, num_type) = match alu.op {
                     nir_op_extract_i8 => {
                         let swz = match alu.def.bit_size {
-                            16 => Swizzle::widen_v2s8(sel[0], sel[1]),
+                            16 => Swizzle::widen_v2s8(sel[0], 2 + sel[1]),
                             32 => Swizzle::widen_s8(sel[0]),
                             _ => panic!("Invalid 8-bit extract"),
                         };
@@ -346,7 +346,7 @@ impl<'a> ShaderFromNir<'a> {
                     }
                     nir_op_extract_u8 => {
                         let swz = match alu.def.bit_size {
-                            16 => Swizzle::widen_v2u8(sel[0], sel[1]),
+                            16 => Swizzle::widen_v2u8(sel[0], 2 + sel[1]),
                             32 => Swizzle::widen_u8(sel[0]),
                             _ => panic!("Invalid 8-bit extract"),
                         };
