@@ -341,13 +341,13 @@ void ${trace.tp_perfetto}(
 #endif
 %    endif
 void __trace_${trace_name}(
-       struct u_trace *ut
-     , enum u_trace_type enabled_traces
+     struct u_trace *ut
+   , enum u_trace_type enabled_traces
 %    if trace.need_cs_param:
-     , void *cs
+   , void *cs
 %    endif
 %    for arg in trace.args:
-     , ${arg.func_param}
+   , ${arg.func_param}
 %    endfor
 );
 static ALWAYS_INLINE void trace_${trace_name}(
