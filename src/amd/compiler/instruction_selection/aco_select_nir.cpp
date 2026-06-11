@@ -737,7 +737,7 @@ visit_jump(isel_context* ctx, nir_jump_instr* instr)
 
    switch (instr->type) {
    case nir_jump_break: emit_loop_break(ctx); break;
-   case nir_jump_halt: emit_halt(ctx); break;
+   case nir_jump_abort: emit_abort(ctx); break;
    default: isel_err(&instr->instr, "Unknown NIR jump instr"); abort();
    }
 }
