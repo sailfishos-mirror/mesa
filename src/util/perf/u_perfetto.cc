@@ -23,11 +23,20 @@
 
 #include "u_perfetto.h"
 
+/* perfetto's use of STL triggers an GCC array-bounds warning
+ * in libstdc++ that appears to be spurious. See:
+ * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109717
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+
 #ifndef ANDROID_LIBPERFETTO
 #include <perfetto.h>
 #else
 #include <perfetto/tracing.h>
 #endif
+
+#pragma GCC diagnostic pop
 
 #include "c11/threads.h"
 #include "util/u_call_once.h"
