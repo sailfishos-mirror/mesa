@@ -662,12 +662,14 @@ void __trace_${trace_name}(
   % if arg.copy_func is None:
    __entry->${arg.name} = ${arg.var};
   % elif arg.length_arg is None:
-     ${arg.copy_func}(__entry->${arg.name}, ${arg.var});
+   ${arg.copy_func}(__entry->${arg.name}, ${arg.var});
   % else:
    % if not arg.length_arg.isdigit():
    if (queueing)
-   % endif
      ${arg.copy_func}(__entry->${arg.name}, ${arg.var}, ${arg.length_arg});
+   % else:
+   ${arg.copy_func}(__entry->${arg.name}, ${arg.var}, ${arg.length_arg});
+   % endif
   % endif
  % endfor
  % if trace.tp_markers is not None:
