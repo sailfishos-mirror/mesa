@@ -460,31 +460,11 @@ impl<'a> ShaderFromNir<'a> {
                     (32, 32) => Swizzle::NONE,
                     (d, s) => panic!("u{s}_to_u{d} unsupported"),
                 };
-                if dst_bits == 8 {
-                    // We don't have IADD.v4i8 but that's okay because
-                    // 8-bit destinations don't need us to widen.
-                    b.push_op(OpShiftLop {
-                        dst: dst.into(),
-                        dst_type: dst_type(NumericType::Integer),
-                        shift_op: ShiftOp::None,
-                        logic_op: LogicOp::None,
-                        not_result: false,
-                        src0: srcs(0).swizzle(swz),
-                        shift: 0.into(),
-                        src2: 0.into(),
-                    });
-                } else {
-                    b.push_op(OpIAdd {
-                        dst: dst.into(),
-                        dst_type: dst_type(if dst_bits > src_bits {
-                            NumericType::SignedInteger
-                        } else {
-                            NumericType::Integer
-                        }),
-                        saturate: false,
-                        srcs: [srcs(0).swizzle(swz), 0.into()],
-                    });
-                }
+                b.push_op(OpSwz {
+                    dst: dst.into(),
+                    src_type: dst_type(NumericType::SignedInteger),
+                    src: srcs(0).swizzle(swz),
+                });
             }
             nir_op_iadd => {
                 b.push_op(OpIAdd {
@@ -590,31 +570,11 @@ impl<'a> ShaderFromNir<'a> {
                     (32, 32) => Swizzle::NONE,
                     (d, s) => panic!("u{s}_to_u{d} unsupported"),
                 };
-                if dst_bits == 8 {
-                    // We don't have IADD.v4i8 but that's okay because
-                    // 8-bit destinations don't need us to widen.
-                    b.push_op(OpShiftLop {
-                        dst: dst.into(),
-                        dst_type: dst_type(NumericType::Integer),
-                        shift_op: ShiftOp::None,
-                        logic_op: LogicOp::None,
-                        not_result: false,
-                        src0: srcs(0).swizzle(swz),
-                        shift: 0.into(),
-                        src2: 0.into(),
-                    });
-                } else {
-                    b.push_op(OpIAdd {
-                        dst: dst.into(),
-                        dst_type: dst_type(if dst_bits > src_bits {
-                            NumericType::UnsignedInteger
-                        } else {
-                            NumericType::Integer
-                        }),
-                        saturate: false,
-                        srcs: [srcs(0).swizzle(swz), 0.into()],
-                    });
-                }
+                b.push_op(OpSwz {
+                    dst: dst.into(),
+                    src_type: dst_type(NumericType::UnsignedInteger),
+                    src: srcs(0).swizzle(swz),
+                });
             }
             _ => panic!("Unsupported ALU instruction: {}", alu.info().name()),
         }
