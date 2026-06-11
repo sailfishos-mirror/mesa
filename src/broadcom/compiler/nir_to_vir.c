@@ -4501,6 +4501,7 @@ ntq_emit_jump(struct v3d_compile *c, nir_jump_instr *jump)
                 break;
 
         case nir_jump_halt:
+        case nir_jump_abort:
         case nir_jump_goto:
         case nir_jump_goto_if:
                 UNREACHABLE("not supported\n");
@@ -4528,6 +4529,7 @@ ntq_emit_uniform_jump(struct v3d_compile *c, nir_jump_instr *jump)
                 break;
 
         case nir_jump_halt:
+        case nir_jump_abort:
         case nir_jump_goto:
         case nir_jump_goto_if:
                 UNREACHABLE("not supported\n");

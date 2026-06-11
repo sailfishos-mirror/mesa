@@ -2285,6 +2285,10 @@ print_jump_instr(nir_jump_instr *instr, print_state *state)
       fprintf(fp, "halt");
       break;
 
+   case nir_jump_abort:
+      fprintf(fp, "abort");
+      break;
+
    case nir_jump_goto:
       fprintf(fp, "goto b%u",
               instr->target ? instr->target->index : -1);

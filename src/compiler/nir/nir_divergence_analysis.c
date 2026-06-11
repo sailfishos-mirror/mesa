@@ -1280,6 +1280,7 @@ visit_jump(nir_jump_instr *jump, struct divergence_state *state)
          state->divergent_loop_break = true;
       return state->divergent_loop_break;
    case nir_jump_halt:
+   case nir_jump_abort:
       /* This totally kills invocations so it doesn't add divergence */
       break;
    case nir_jump_return:

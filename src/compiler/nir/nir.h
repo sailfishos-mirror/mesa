@@ -2920,6 +2920,20 @@ typedef enum {
     */
    nir_jump_halt,
 
+   /** Immediately exit the current shader due to a fatal error
+    *
+    * This has the same CFG semantics as nir_jump_halt — it jumps to the end
+    * block of the shader entrypoint — but carries the additional semantic
+    * that the invocation is terminating because a fatal error was detected
+    * (e.g. nir_intrinsic_abort wrote a message to the abort buffer).
+    *
+    * Backends that support hardware-level abort signalling (device fault,
+    * special sendmsg, etc.) may generate different code for nir_jump_abort
+    * vs nir_jump_halt.  Backends that do not distinguish the two can lower
+    * nir_jump_abort to nir_jump_halt before instruction selection.
+    */
+   nir_jump_abort,
+
    /** Break out of the inner-most loop
     *
     * This has the same semantics as C's "break" statement.

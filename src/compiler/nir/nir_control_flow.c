@@ -485,6 +485,7 @@ nir_handle_add_jump(nir_block *block)
    switch (jump_instr->type) {
    case nir_jump_return:
    case nir_jump_halt:
+   case nir_jump_abort:
       link_blocks(block, impl->end_block, NULL);
       break;
 

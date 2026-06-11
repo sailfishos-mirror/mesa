@@ -205,7 +205,8 @@ node_is_dead(nir_cf_node *node)
          if (instr->type == nir_instr_type_jump &&
              (!inside_loop ||
               nir_instr_as_jump(instr)->type == nir_jump_return ||
-              nir_instr_as_jump(instr)->type == nir_jump_halt))
+              nir_instr_as_jump(instr)->type == nir_jump_halt ||
+              nir_instr_as_jump(instr)->type == nir_jump_abort))
             return false;
 
          if (instr->type == nir_instr_type_intrinsic) {
