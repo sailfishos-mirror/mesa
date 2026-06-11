@@ -10,6 +10,7 @@ mod flow;
 mod ir;
 mod isa;
 mod lower_copy;
+mod lower_mkvec_swz;
 mod message_slots;
 mod model;
 mod nir;

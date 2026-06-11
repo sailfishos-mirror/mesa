@@ -202,6 +202,9 @@ impl Swizzle {
     pub const H10: Swizzle = Swizzle::B2301;
     pub const H11: Swizzle = Swizzle::B2323;
 
+    pub const B1133: Swizzle = Swizzle::from_bytes([1, 1, 3, 3]);
+    pub const B3311: Swizzle = Swizzle::from_bytes([3, 3, 1, 1]);
+
     /// A swizzle which selects the first half word and widens it from a
     /// 16-bit to a 32-bit floating point value.
     pub const HF0: Swizzle = Swizzle::widen_f16(0);

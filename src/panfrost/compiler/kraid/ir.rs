@@ -306,6 +306,10 @@ fn float_sign_bits(data_type: DataType) -> Option<u32> {
 }
 
 impl SrcMod {
+    pub fn is_none(&self) -> bool {
+        *self == SrcMod::None
+    }
+
     pub fn bnot(self) -> SrcMod {
         use SrcMod::*;
         match self {

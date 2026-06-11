@@ -502,6 +502,8 @@ impl fmt::Display for OpMkVecV2I8 {
     }
 }
 
+/// This op should never be emitted directly.  Instead, use one of the other
+/// MKVEC ops and trust lower_mkvec_swz() to lower it if needed.
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpMkVecV2I8I16 {
@@ -728,6 +730,57 @@ impl fmt::Display for OpShiftLop {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [
+    I8, S8, U8,
+    V2I8, V2S8, V2U8,
+    V4I8, V4S8, V4U8,
+    F16, I16, S16, U16,
+    V2F16, V2I16, V2S16, V2U16,
+    F32, I32, S32, U32,
+    I64, S64, U64,
+])]
+pub struct OpSwz {
+    pub dst: Dst,
+    pub src_type: DataType,
+    pub src: Src,
+}
+
+impl fmt::Display for OpSwz {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = SWZ.{} {}",
+            &self.dst,
+            self.src_type,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+impl VirtualOpcode for OpSwz {
+    fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
+        if matches!(swizzle, Swizzle::HF0 | Swizzle::HF1) {
+            self.src_type == DataType::F32
+        } else if swizzle == Swizzle::NONE {
+            true
+        } else if swizzle.is_word_swizzle() {
+            self.src_type.bits() == 64
+        } else {
+            self.src_type.bits() <= 32
+        }
+    }
+
+    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+        match self.src_type.total_bits() {
+            8 => lanes.is_byte(),
+            16 => lanes.is_half(),
+            _ => lanes == DstLanes::All,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(src_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
 pub struct OpStore {
     pub src_type: DataType,
@@ -775,6 +828,7 @@ pub enum Op {
     Nop(OpNop),
     Mov(Box<OpMov>),
     ShiftLop(Box<OpShiftLop>),
+    Swz(Box<OpSwz>),
     Store(Box<OpStore>),
 }
 
@@ -789,6 +843,7 @@ impl Op {
             Op::Copy(op) => Some(op.as_ref()),
             Op::MkVecV2I8(op) => Some(op.as_ref()),
             Op::MkVecV4I8(op) => Some(op.as_ref()),
+            Op::Swz(op) => Some(op.as_ref()),
             _ => None,
         }
     }
