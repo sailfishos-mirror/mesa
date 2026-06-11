@@ -1157,6 +1157,13 @@ foreach b : ['add_overflow', 'add_overflow_p', 'sub_overflow_p']
   endif
 endforeach
 
+# Check for ARM FP state builtins
+foreach b : ['arm_get_fpscr', 'arm_set_fpscr', 'aarch64_get_fpcr', 'aarch64_set_fpcr']
+  if cc.has_function('__builtin_' + b)
+    pre_args += '-DHAVE___BUILTIN_@0@'.format(b.to_upper())
+  endif
+endforeach
+
 # check for GCC __attribute__
 _attributes = [
   'const', 'flatten', 'malloc', 'pure', 'unused', 'warn_unused_result',
