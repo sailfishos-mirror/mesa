@@ -6834,7 +6834,7 @@
         "description": "va: Always reset compositor chroma location",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d0eec6283101b9c199a432cdb581c9d1fec79d0e",
         "notes": null
