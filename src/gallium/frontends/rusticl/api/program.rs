@@ -477,18 +477,12 @@ pub fn link_program(
         return Err(CL_INVALID_OPERATION);
     }
 
-    let (res, code) = Program::link(
-        context,
-        devices,
-        input_programs,
-        c_string_to_string(options),
-        callback,
-    )?;
+    // SAFETY: options is a valid C String or NULL.
+    let options = unsafe { CStr::from_ptr_or_empty(&options) };
+
+    let (res, code) = Program::link(context, devices, input_programs, options, callback)?;
 
     Ok((res.into_cl(), code))
-
-    //• CL_INVALID_LINKER_OPTIONS if the linker options specified by options are invalid.
-    //• CL_INVALID_OPERATION if the rules for devices containing compiled binaries or libraries as described in input_programs argument above are not followed.
 }
 
 #[cl_entrypoint(clSetProgramSpecializationConstant)]

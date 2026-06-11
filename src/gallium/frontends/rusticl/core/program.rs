@@ -425,6 +425,43 @@ impl CompileOptions {
     }
 }
 
+/// Parsed and validated link options.
+struct LinkOptions {
+    create_lib: bool,
+}
+
+impl LinkOptions {
+    /// Parses and validates link options according to the OpenCL 3.0 specification
+    /// (Section 5.8.7). Returns CL_INVALID_LINKER_OPTIONS if any option is invalid.
+    fn new(options: &CStr) -> CLResult<Self> {
+        let mut create_lib = false;
+
+        if options.is_empty() {
+            return Ok(Self { create_lib });
+        }
+
+        let options = options.to_str().map_err(|_| CL_INVALID_LINKER_OPTIONS)?;
+
+        for token in options.split_whitespace() {
+            match token {
+                "-create-library" => {
+                    create_lib = true;
+                }
+                "-enable-link-options"
+                | "-cl-denorms-are-zero"
+                | "-cl-no-signed-zeros"
+                | "-cl-unsafe-math-optimizations"
+                | "-cl-finite-math-only"
+                | "-cl-fast-relaxed-math"
+                | "-cl-no-subgroup-ifp" => {}
+                _ => return Err(CL_INVALID_LINKER_OPTIONS),
+            }
+        }
+
+        Ok(Self { create_lib })
+    }
+}
+
 impl Program {
     fn create_default_builds(
         devs: &[&'static Device],
@@ -847,9 +884,13 @@ impl Program {
         context: Arc<Context>,
         devices: Vec<&'static Device>,
         input_programs: Vec<Arc<Self>>,
-        options: String,
+        options: &CStr,
         callback: Option<ProgramCB>,
     ) -> CLResult<(Arc<Self>, cl_int)> {
+        // Validate options before starting the link.
+        // clLinkProgram must return CL_INVALID_LINKER_OPTIONS if options are invalid.
+        let options = LinkOptions::new(options)?;
+
         // Link can begin, so we must return a valid program object.
         let builds_by_device = devices
             .iter()
@@ -1120,12 +1161,12 @@ fn create_link_closure(
     program: Arc<Program>,
     devices: Vec<&'static Device>,
     input_programs: Vec<Arc<Program>>,
-    options: String,
+    options: LinkOptions,
     mut callback: Option<ProgramCB>,
 ) -> impl FnMut() + Send + Sync + 'static {
     move || {
         let mut locks: Vec<_> = input_programs.iter().map(|p| p.build_info()).collect();
-        let is_lib = options.contains("-create-library");
+        let is_lib = options.create_lib;
 
         let mut build_info = program.build_info();
 
