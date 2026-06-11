@@ -964,6 +964,7 @@ ir3_nir_lower_preamble(nir_shader *nir, struct ir3_shader_variant *v)
     */
 
    /* @decl_regs need to stay in the first block. */
+   b = &builder_main;
    b->cursor = nir_after_reg_decls(main);
 
    nir_if *outer_if = nir_push_if(b, nir_preamble_start_ir3(b, 1));
