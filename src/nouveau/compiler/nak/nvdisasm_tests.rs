@@ -297,7 +297,7 @@ pub fn test_ld_st_atom() {
     let order = MemOrder::Strong(MemScope::CTA);
 
     let atom_types = [
-        (AtomType::F16v2, ".f16v2.rn"),
+        (AtomType::F16v2, ".f16x2.rn"),
         (AtomType::U32, ""),
         (AtomType::I32, ".s32"),
         (AtomType::F32, ".f32.ftz.rn"),
