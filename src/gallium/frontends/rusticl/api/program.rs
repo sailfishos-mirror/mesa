@@ -474,6 +474,26 @@ pub fn link_program(
         return Err(CL_INVALID_OPERATION);
     }
 
+    // CL_INVALID_OPERATION if the rules for devices containing compiled binaries
+    // or libraries as described in input_programs argument above are not followed.
+    // For each device, either ALL or NONE of the input programs must contain a
+    // compiled binary or library. Mixed cases are invalid.
+    for device in &devices {
+        let mut has_binary = input_programs.iter().map(|program| {
+            matches!(
+                program.bin_type(device),
+                CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT | CL_PROGRAM_BINARY_TYPE_LIBRARY
+            )
+        });
+        let all_equal = match has_binary.next() {
+            Some(maybe_binary) => has_binary.all(|v| maybe_binary == v),
+            None => true,
+        };
+        if !all_equal {
+            return Err(CL_INVALID_OPERATION);
+        }
+    }
+
     // SAFETY: options is a valid C String or NULL.
     let options = unsafe { CStr::from_ptr_or_empty(&options) };
 
