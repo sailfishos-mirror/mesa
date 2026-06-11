@@ -634,7 +634,8 @@ anv_cmd_buffer_dump_commands(struct anv_cmd_buffer *cmd_buffer,
                              VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR |
                              VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT_KHR,
                              VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                             0,
+                             ANV_PIPE_HDC_PIPELINE_FLUSH_BIT |
+                             ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT,
                              "pre gfx cmd dump");
    anv_genX(device->info, cmd_buffer_apply_pipe_flushes)(cmd_buffer);
 
