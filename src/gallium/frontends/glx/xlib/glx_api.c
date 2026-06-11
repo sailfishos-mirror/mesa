@@ -1384,14 +1384,19 @@ glXDestroyContext( Display *dpy, GLXContext ctx )
    if (glxCtx == NULL || glxCtx->xid == None)
       return;
 
+   /* If the context is current, make it non-current first to avoid leaking
+    * the context.  The GLX spec says destroying a current context is an
+    * error, but many applications depend on this working.
+    */
    if (ctx->currentDpy) {
-      ctx->xid = None;
-   } else {
-      (void) dpy;
-      XMesaDestroyContext( glxCtx->xmesaContext );
-      XMesaGarbageCollect();
-      free(glxCtx);
+      XMesaMakeCurrent2(NULL, NULL, NULL);
+      ctx->currentDpy = NULL;
+      SetCurrentContext(NULL);
    }
+
+   XMesaDestroyContext( glxCtx->xmesaContext );
+   XMesaGarbageCollect();
+   free(glxCtx);
 }
 
 
