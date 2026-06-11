@@ -1866,6 +1866,8 @@ struct anv_instance {
     bool                                        disable_lto;
     enum brw_divergent_atomics_flags            enable_opt_divergent_atomics;
 
+    bool                                        slm_robust_vectorization;
+
     /**
      * Ray tracing configuration.
      */
