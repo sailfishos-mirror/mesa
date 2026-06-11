@@ -2410,7 +2410,13 @@ v3dv_AllocateMemory(VkDevice _device,
    assert(pAllocateInfo->sType == VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
 
    const VkDeviceSize alloc_size = align64(pAllocateInfo->allocationSize, 4096);
-   if (unlikely(alloc_size > MAX_MEMORY_ALLOCATION_SIZE))
+   /* Our memory requirements pad TRANSFER_SRC resources with
+    * V3D_TFU_READAHEAD_SIZE (and UBO/SSBO with 4 bytes for ldunifa), so
+    * allocating the reported requirements of a resource of exactly
+    * maxMemoryAllocationSize must succeed. Accept one extra page over
+    * the limit, which covers any sub-page padding after alignment.
+    */
+   if (unlikely(alloc_size > MAX_MEMORY_ALLOCATION_SIZE + 4096u))
       return vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
 
    uint64_t heap_used = p_atomic_read(&pdevice->heap_used);
