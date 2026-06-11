@@ -317,18 +317,9 @@ pub struct CompileOptions {
 }
 
 impl CompileOptions {
-    pub fn new(options: &CStr, err: cl_int) -> CLResult<Self> {
-        let mut parsed_options = ParsedCompileOptions::from_option_str(options);
-        if options.is_empty() {
-            return Ok(CompileOptions {
-                parsed: parsed_options,
-                clang_args: Vec::new(),
-            });
-        }
-
-        let options = options.to_str().unwrap();
+    /// Tokenizes an options string, splitting on spaces but respecting double-quoted strings.
+    fn tokenize(options: &str) -> Vec<&str> {
         let mut res = Vec::new();
-
         // we seperate on a ' ' unless we hit a "
         let mut sep = ' ';
         let mut old = 0;
@@ -351,6 +342,20 @@ impl CompileOptions {
         }
         // add end of the string
         res.push(&options[old..]);
+        res
+    }
+
+    pub fn new(options: &CStr, err: cl_int) -> CLResult<Self> {
+        let mut parsed_options = ParsedCompileOptions::from_option_str(options);
+        if options.is_empty() {
+            return Ok(CompileOptions {
+                parsed: parsed_options,
+                clang_args: Vec::new(),
+            });
+        }
+
+        let options = options.to_str().map_err(|_| err)?;
+        let res = Self::tokenize(options);
 
         let mut strings = Vec::new();
         for a in res.into_iter() {
