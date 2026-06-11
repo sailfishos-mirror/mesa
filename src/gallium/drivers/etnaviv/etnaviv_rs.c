@@ -403,6 +403,9 @@ etna_blit_clear_color_rs(struct pipe_context *pctx, unsigned idx,
 
    etna_submit_rs_state(ctx, &rs_state);
 
+   if (dst->texture->bind & PIPE_BIND_SAMPLER_VIEW)
+      ctx->dirty |= ETNA_DIRTY_TEXTURE_CACHES;
+
    ctx->dirty |= ETNA_DIRTY_DERIVE_TS;
    dst_level->clear_value = new_clear_value;
    resource_written(ctx, &dst_res->base);
@@ -473,6 +476,9 @@ etna_blit_clear_zs_rs(struct pipe_context *pctx, struct pipe_surface *dst,
    resource_written(ctx, &dst_res->base);
    etna_resource_level_mark_changed(dst_level);
    ctx->dirty |= ETNA_DIRTY_DERIVE_TS;
+
+   if (dst->texture->bind & PIPE_BIND_SAMPLER_VIEW)
+      ctx->dirty |= ETNA_DIRTY_TEXTURE_CACHES;
 }
 
 static void
