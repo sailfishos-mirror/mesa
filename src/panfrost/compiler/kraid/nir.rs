@@ -594,6 +594,18 @@ impl<'a> ShaderFromNir<'a> {
                 };
                 b.copy_to(dst.into(), DataType::I16, src);
             }
+            nir_op_unpack_64_2x32 | nir_op_unpack_64_4x16 => {
+                b.copy_i32_to(dst[0].into(), srcs(0).word(0));
+                b.copy_i32_to(dst[1].into(), srcs(0).word(1));
+            }
+            nir_op_unpack_64_2x32_split_x | nir_op_unpack_64_2x32_split_y => {
+                let src = match alu.op {
+                    nir_op_unpack_64_2x32_split_x => srcs(0).word(0),
+                    nir_op_unpack_64_2x32_split_y => srcs(0).word(1),
+                    _ => unreachable!(),
+                };
+                b.copy_to(dst.into(), DataType::I32, src);
+            }
             _ => panic!("Unsupported ALU instruction: {}", alu.info().name()),
         }
     }
