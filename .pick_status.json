@@ -6824,7 +6824,7 @@
         "description": "va: Use RGB format with matching bit depth for YUV->YUV matrices",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5bc0df5aadae42904379f8bd351dd935c0a3bdce",
         "notes": null
