@@ -1878,7 +1878,7 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
          break;
       }
 
-      std::lock_guard<std::mutex> lock( pThis->m_lock );
+      std::unique_lock<std::mutex> apiLock( pThis->m_lock );
       while( !bHasEncodingError && pThis->m_EncodingQueue.try_pop( pDX12EncodeContext ) )
       {
          HMFT_ETW_EVENT_START( "TimeToProcessOutput", pThis );
@@ -1905,12 +1905,14 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
          CloseHandle( fence_handle );
 
          {
+            apiLock.unlock();
             HRESULT hr = pThis->ProcessDX12EncodeContext( pThis,
                                                           pDX12EncodeContext,
                                                           metadata,
                                                           dwReceivedInput,
                                                           ResolveStatsCompletionFenceValue,
                                                           encoded_bitstream_bytes );
+            apiLock.lock();
             if (FAILED(hr))
             {
                pThis->QueueEvent( MEError, GUID_NULL, E_FAIL, nullptr );
@@ -2014,6 +2016,21 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
          if( FAILED( hr ) )
          {
             MFE_ERROR( "[dx12 hmft 0x%p] QueueEvent failed", pThis );
+            pThis->m_dwNeedInputCount--;
+            assert( false );   // TODO: need to quit.
+         }
+      }
+
+      if( pThis->m_bLowLatency && !pThis->m_bFlushing && !pThis->m_bDraining )
+      {
+         // For low-latency, some callers (like RDP) require a ping-pong pattern of:
+         // - METransformNeedInput
+         // - METransformHaveOutput
+         pThis->m_dwNeedInputCount++;
+         HMFT_ETW_EVENT_INFO( "METransformNeedInput", pThis );
+         HRESULT hr = pThis->QueueEvent( METransformNeedInput, GUID_NULL, S_OK, nullptr );
+         if( FAILED( hr ) )
+         {
             pThis->m_dwNeedInputCount--;
             assert( false );   // TODO: need to quit.
          }
@@ -2848,37 +2865,6 @@ CDX12EncHMFT::ProcessOutput( DWORD dwFlags, DWORD cOutputBufferCount, MFT_OUTPUT
    }
    pOutputSamples[0].pSample = pSample;
    pSample = nullptr;
-
-   if( m_bLowLatency )
-   {
-      bool sendNeedInput = true;
-      // For low-latency, some callers (like RDP) require a ping-pong pattern of:
-      // - METransformNeedInput
-      // - METransformHaveOutput
-      // So we want to say METransformNeedInput as part of ProcessOutput()
-      if( m_uiSliceGenerationMode )
-      {
-         UINT32 isLastSlice = FALSE;
-         if( SUCCEEDED( pOutputSamples[0].pSample->GetUINT32( MFSampleExtension_LastSlice, &isLastSlice ) ) )
-         {
-            if( !isLastSlice )
-            {
-               sendNeedInput = false;
-            }
-         }
-      }
-      if( sendNeedInput )
-      {
-         m_dwNeedInputCount++;
-         HMFT_ETW_EVENT_INFO( "METransformNeedInput", this );
-         hr = QueueEvent( METransformNeedInput, GUID_NULL, S_OK, nullptr );
-         if( FAILED( hr ) )
-         {
-            m_dwNeedInputCount--;
-            goto done;
-         }
-      }
-   }
 
 done:
    SAFE_RELEASE( pSample );
