@@ -1457,7 +1457,7 @@ impl Kernel {
         }
 
         let mut threads = self.max_threads_per_block(d);
-        let dim_threads = d.max_block_sizes();
+        let mut dim_threads = d.max_block_sizes();
         let subgroups = self.preferred_simd_size(d);
 
         for i in 0..work_dim {
@@ -1469,6 +1469,7 @@ impl Kernel {
 
             // update limits
             threads /= block[i];
+            dim_threads[i] /= block[i];
         }
 
         // if we didn't fill the subgroup we can do a bit better if we have threads remaining
