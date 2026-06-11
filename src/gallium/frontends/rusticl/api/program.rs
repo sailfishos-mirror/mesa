@@ -337,7 +337,6 @@ fn build_program(
     program.build(devices, options, callback)
 
     //• CL_INVALID_BINARY if program is created with clCreateProgramWithBinary and devices listed in device_list do not have a valid program binary loaded.
-    //• CL_INVALID_BUILD_OPTIONS if the build options specified by options are invalid.
     //• CL_INVALID_OPERATION if program was not created with clCreateProgramWithSource, clCreateProgramWithIL or clCreateProgramWithBinary.
 }
 
@@ -425,8 +424,6 @@ fn compile_program(
     let options = unsafe { CStr::from_ptr_or_empty(&options) };
     let options = CompileOptions::new(options, CL_INVALID_COMPILER_OPTIONS)?;
     program.compile(devices, options, headers, callback)
-
-    // • CL_INVALID_COMPILER_OPTIONS if the compiler options specified by options are invalid.
 }
 
 pub fn link_program(

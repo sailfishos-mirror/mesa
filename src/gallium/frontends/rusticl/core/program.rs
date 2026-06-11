@@ -358,8 +358,33 @@ impl CompileOptions {
         let res = Self::tokenize(options);
 
         let mut strings = Vec::new();
-        for a in res.into_iter() {
-            match a {
+        let mut iter = res.into_iter();
+        while let Some(token) = iter.next() {
+            match token {
+                // Math Intrinsics Options
+                "-cl-single-precision-constant"
+                | "-cl-fp32-correctly-rounded-divide-sqrt"
+                // Optimization Options
+                | "-cl-opt-disable"
+                | "-cl-strict-aliasing"
+                | "-cl-mad-enable"
+                | "-cl-no-signed-zeros"
+                | "-cl-unsafe-math-optimizations"
+                | "-cl-finite-math-only"
+                | "-cl-fast-relaxed-math"
+                | "-cl-uniform-work-group-size"
+                // Warning Options
+                | "-w"
+                | "-Werror"
+                // Debug Options
+                | "-g"
+                // Query Options
+                | "-cl-kernel-arg-info"
+                // Accepted for compatibility
+                | "-enable-link-options" => {
+                    strings.push(CString::new(token).unwrap());
+                }
+                // OpenCL C Version
                 "-cl-std=CL1.0" => parsed_options.clc_target = Some(CLVersion::Cl1_0),
                 "-cl-std=CL1.1" => parsed_options.clc_target = Some(CLVersion::Cl1_1),
                 "-cl-std=CL1.2" => parsed_options.clc_target = Some(CLVersion::Cl1_2),
@@ -367,7 +392,7 @@ impl CompileOptions {
                 "-cl-std=CL3.0" => parsed_options.clc_target = Some(CLVersion::Cl3_0),
                 "-cl-std=CL3.1" => parsed_options.clc_target = Some(CLVersion::Cl3_1),
                 "-cl-denorms-are-zero" => {
-                    strings.push(c"-fdenormal-fp-math=positive-zero".to_owned())
+                    strings.push(c"-fdenormal-fp-math=positive-zero".to_owned());
                 }
                 "-create-library" => {
                     parsed_options.create_lib = true;
@@ -381,14 +406,27 @@ impl CompileOptions {
                 "-cl-intel-greater-than-4GB-buffer-required" => {}
                 // Some applications use this when they detect QC hardware
                 "-qcom-accelerate-16-bit" => {}
+                // Preprocessor: -D name / -D name=definition / -I dir
+                "-D" | "-I" => {
+                    let arg = iter.next().ok_or(err)?;
+                    if arg.is_empty() {
+                        return Err(err);
+                    }
+                    strings.push(CString::new(token).unwrap());
+                    strings.push(CString::new(arg).unwrap());
+                }
                 // We ignore empty tokens
                 "" => {}
                 _ => {
-                    // Valid values are already covered above
-                    if a.starts_with("-cl-std=") {
+                    // Implementation-defined: accept -Dname / -Dname=value / -Idir
+                    // without a space. The spec requires a space between -D/-I and
+                    // the argument, but allows implementations to accept this form,
+                    // following common C compiler practice.
+                    if token.starts_with("-D") || token.starts_with("-I") {
+                        strings.push(CString::new(token).unwrap());
+                    } else {
                         return Err(err);
                     }
-                    strings.push(CString::new(a).unwrap());
                 }
             }
         }
