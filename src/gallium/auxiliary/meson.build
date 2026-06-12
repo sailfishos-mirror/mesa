@@ -404,6 +404,8 @@ files_libgalliumvl = files(
   'vl/vl_compositor_gfx.h',
   'vl/vl_compositor_cs.c',
   'vl/vl_compositor_cs.h',
+  'vl/vl_compositor_proc.c',
+  'vl/vl_compositor_proc.h',
   'vl/vl_csc.c',
   'vl/vl_csc.h',
   'vl/vl_defines.h',
