@@ -307,6 +307,18 @@ uint32_t r300_translate_texformat(enum pipe_format format,
         return R300_TX_FORMAT_CxV8U8 | result;
     }
 
+#if UTIL_ARCH_BIG_ENDIAN
+    /* Match the sampler lanes to RB3D's BE 1555 write convention. */
+    switch (format) {
+    case PIPE_FORMAT_B5G5R5A1_UNORM:
+        return R300_EASY_TX_FORMAT(X, Y, Z, W, W1Z5Y5X5);
+    case PIPE_FORMAT_B5G5R5X1_UNORM:
+        return R300_EASY_TX_FORMAT(X, Y, Z, ONE, W1Z5Y5X5);
+    default:
+        break;
+    }
+#endif
+
     /* Integer and fixed-point 16.16 textures are not supported. */
     for (i = 0; i < 4; i++) {
         if (desc->channel[i].type == UTIL_FORMAT_TYPE_FIXED ||
@@ -504,6 +516,10 @@ static uint32_t r300_translate_colorformat(enum pipe_format format)
 
         case PIPE_FORMAT_B5G5R5A1_UNORM:
         case PIPE_FORMAT_B5G5R5X1_UNORM:
+#if UTIL_ARCH_BIG_ENDIAN
+        case PIPE_FORMAT_A1B5G5R5_UNORM:
+        case PIPE_FORMAT_X1B5G5R5_UNORM:
+#endif
             return R300_COLOR_FORMAT_ARGB1555;
 
         case PIPE_FORMAT_B4G4R4A4_UNORM:
@@ -712,8 +728,20 @@ static uint32_t r300_translate_out_fmt(enum pipe_format format)
 
         /*** Generic cases (standard channel mapping) ***/
 
-        /* BGRA outputs. */
+#if UTIL_ARCH_BIG_ENDIAN
+        /* BE RGB565/1555 aliases need RGB lane order, not BGRA. */
         case PIPE_FORMAT_B5G6R5_UNORM:
+        case PIPE_FORMAT_A1B5G5R5_UNORM:
+        case PIPE_FORMAT_X1B5G5R5_UNORM:
+            return modifier |
+                R300_C0_SEL_R | R300_C1_SEL_G |
+                R300_C2_SEL_B | R300_C3_SEL_A;
+#endif
+
+        /* BGRA outputs. */
+#if !UTIL_ARCH_BIG_ENDIAN
+        case PIPE_FORMAT_B5G6R5_UNORM:
+#endif
         case PIPE_FORMAT_B5G5R5A1_UNORM:
         case PIPE_FORMAT_B5G5R5X1_UNORM:
         case PIPE_FORMAT_B4G4R4A4_UNORM:
@@ -834,6 +862,18 @@ static uint32_t r300_translate_colormask_swizzle(enum pipe_format format)
     case PIPE_FORMAT_R32G32_FLOAT:
         return COLORMASK_GRRG;
 
+#if UTIL_ARCH_BIG_ENDIAN
+    /* Match BE RGB565 colormasks to RGB output lanes; no alpha. */
+    case PIPE_FORMAT_B5G6R5_UNORM:
+        return COLORMASK_RGBX;
+
+    case PIPE_FORMAT_X1B5G5R5_UNORM:
+        return COLORMASK_RGBX;
+
+    case PIPE_FORMAT_A1B5G5R5_UNORM:
+        return COLORMASK_RGBA;
+#endif
+
     case PIPE_FORMAT_B5G5R5X1_UNORM:
     case PIPE_FORMAT_B4G4R4X4_UNORM:
     case PIPE_FORMAT_B8G8R8X8_UNORM:
@@ -841,7 +881,9 @@ static uint32_t r300_translate_colormask_swizzle(enum pipe_format format)
     case PIPE_FORMAT_B10G10R10X2_UNORM:
         return COLORMASK_BGRX;
 
+#if !UTIL_ARCH_BIG_ENDIAN
     case PIPE_FORMAT_B5G6R5_UNORM:
+#endif
     case PIPE_FORMAT_B5G5R5A1_UNORM:
     case PIPE_FORMAT_B4G4R4A4_UNORM:
     case PIPE_FORMAT_B8G8R8A8_UNORM:
