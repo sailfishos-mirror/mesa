@@ -771,6 +771,25 @@ wsi_configure_image(const struct wsi_swapchain *chain,
    if (sc_compr_ctrl != NULL) {
       info->img_compr_ctrl = *sc_compr_ctrl;
       info->img_compr_ctrl.pNext = NULL;
+      info->img_compr_ctrl.pFixedRateFlags = NULL;
+
+      if (sc_compr_ctrl->pFixedRateFlags &&
+          sc_compr_ctrl->compressionControlPlaneCount > 0) {
+         VkImageCompressionFixedRateFlagsEXT *fixed_rate_flags =
+            vk_alloc(&chain->alloc,
+                     sizeof(*fixed_rate_flags) *
+                     sc_compr_ctrl->compressionControlPlaneCount,
+                     8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         if (!fixed_rate_flags)
+            goto err_oom;
+
+         memcpy(fixed_rate_flags, sc_compr_ctrl->pFixedRateFlags,
+                sizeof(*fixed_rate_flags) *
+                sc_compr_ctrl->compressionControlPlaneCount);
+         info->img_compr_fixed_rate_flags = fixed_rate_flags;
+         info->img_compr_ctrl.pFixedRateFlags = fixed_rate_flags;
+      }
+
       __vk_append_struct(&info->create, &info->img_compr_ctrl);
    }
 
@@ -830,6 +849,10 @@ wsi_destroy_image_info(const struct wsi_swapchain *chain,
    if (info->format_list.pViewFormats != NULL) {
       vk_free(&chain->alloc, (void *)info->format_list.pViewFormats);
       info->format_list.pViewFormats = NULL;
+   }
+   if (info->img_compr_fixed_rate_flags != NULL) {
+      vk_free(&chain->alloc, info->img_compr_fixed_rate_flags);
+      info->img_compr_fixed_rate_flags = NULL;
    }
    if (info->drm_mod_list.pDrmFormatModifiers != NULL) {
       vk_free(&chain->alloc, (void *)info->drm_mod_list.pDrmFormatModifiers);

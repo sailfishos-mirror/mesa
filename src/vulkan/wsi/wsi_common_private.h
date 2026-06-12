@@ -112,6 +112,7 @@ struct wsi_image_info {
     */
    uint32_t modifier_prop_count;
    struct VkDrmFormatModifierPropertiesEXT *modifier_props;
+   VkImageCompressionFixedRateFlagsEXT *img_compr_fixed_rate_flags;
 
    /* For buffer blit images, the linear stride in bytes */
    uint32_t linear_stride;
