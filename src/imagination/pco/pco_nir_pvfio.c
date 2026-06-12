@@ -518,9 +518,6 @@ static bool lower_pfo(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 
 static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
 {
-   if (b->shader->info.internal)
-      return false;
-
    bool has_depth_feedback = !!state->depth_feedback_src;
    if (b->shader->info.writes_memory && !has_depth_feedback) {
       nir_variable *var_pos = nir_get_variable_with_location(b->shader,
@@ -606,7 +603,7 @@ static bool sink_outputs(nir_shader *shader, struct pfo_state *state)
 
 static bool z_replicate(nir_shader *shader, struct pfo_state *state)
 {
-   if (shader->info.internal || state->fs->z_replicate == ~0u)
+   if (state->fs->z_replicate == ~0u)
       return false;
 
    assert(!nir_find_variable_with_location(shader,
@@ -678,9 +675,6 @@ static bool lower_demote_samples(nir_builder *b,
 
 bool pco_nir_lower_alpha_to_coverage(nir_shader *shader)
 {
-   if (shader->info.internal)
-      return false;
-
    nir_builder b = nir_builder_create(nir_shader_get_entrypoint(shader));
    b.cursor =
       nir_before_block(nir_start_block(nir_shader_get_entrypoint(shader)));
@@ -868,10 +862,17 @@ bool pco_nir_pfo(nir_shader *shader, pco_fs_data *fs)
                                           lower_pfo,
                                           nir_metadata_control_flow,
                                           &state);
-   progress |= lower_isp_fb(&b, &state);
+
+   /* TODO: Move this check and others to outside the pass to align with
+    * rest of the codebase.
+    */
+   if (!shader->info.internal)
+      progress |= lower_isp_fb(&b, &state);
 
    progress |= sink_outputs(shader, &state);
-   progress |= z_replicate(shader, &state);
+
+   if (!shader->info.internal)
+      progress |= z_replicate(shader, &state);
 
    progress |= nir_shader_intrinsics_pass(shader,
                                           lower_load_sample_mask,
@@ -1031,8 +1032,6 @@ check_psiz_write(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 bool pco_nir_point_size(nir_shader *shader)
 {
    assert(shader->info.stage == MESA_SHADER_VERTEX);
-   if (shader->info.internal)
-      return false;
 
    bool writes_psiz = false;
    nir_shader_intrinsics_pass(shader,
@@ -1146,9 +1145,6 @@ bool pco_nir_lower_vs_intrinsics(nir_shader *shader)
 
 void pco_nir_lower_clip_cull_vars(nir_shader *shader)
 {
-   if (shader->info.internal)
-      return;
-
    unsigned clip_cull_comps = shader->info.clip_distance_array_size +
                               shader->info.cull_distance_array_size;
    if (!clip_cull_comps)
