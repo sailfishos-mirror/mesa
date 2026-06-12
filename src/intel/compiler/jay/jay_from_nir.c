@@ -248,6 +248,7 @@ jay_alu_source_type(nir_alu_instr *alu, unsigned i)
 static enum jay_type
 jay_type_for_glsl_base_type(enum glsl_base_type t)
 {
+   /* clang-format off */
    switch (t) {
    case GLSL_TYPE_UINT:         return JAY_TYPE_U32;
    case GLSL_TYPE_INT:          return JAY_TYPE_S32;
@@ -261,9 +262,9 @@ jay_type_for_glsl_base_type(enum glsl_base_type t)
    case GLSL_TYPE_INT8:         return JAY_TYPE_S8;
    case GLSL_TYPE_UINT64:       return JAY_TYPE_U64;
    case GLSL_TYPE_INT64:        return JAY_TYPE_S64;
-   default:
-      UNREACHABLE("invalid base type");
+   default:                     UNREACHABLE("invalid base type");
    }
+   /* clang-format on */
 }
 
 static inline jay_def
