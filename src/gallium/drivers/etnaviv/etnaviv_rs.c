@@ -285,8 +285,8 @@ etna_submit_rs_state(struct etna_context *ctx,
 static void
 etna_rs_gen_clear_cmd(struct etna_context *ctx,
                       struct pipe_surface *psurf, struct etna_resource *res,
-                      uint64_t clear_value, uint32_t clear_bits,
-                      struct compiled_rs_state *rs_state)
+                      unsigned plane_offset, uint64_t clear_value,
+                      uint32_t clear_bits, struct compiled_rs_state *rs_state)
 {
    ASSERTED struct etna_screen *screen = ctx->screen;
    struct etna_resource_level *level = &res->levels[psurf->level];
@@ -304,6 +304,7 @@ etna_rs_gen_clear_cmd(struct etna_context *ctx,
       format = RS_FORMAT_A8R8G8B8;
       break;
    case 64:
+   case 128:
       assert(screen->info->halti >= 2);
       format = RS_FORMAT_64BPP_CLEAR;
       break;
@@ -320,7 +321,7 @@ etna_rs_gen_clear_cmd(struct etna_context *ctx,
       .source_format = format,
       .dest_format = format,
       .dest = res->bo,
-      .dest_offset = level->offset + psurf->first_layer * level->layer_stride,
+      .dest_offset = level->offset + psurf->first_layer * level->layer_stride + plane_offset,
       .dest_stride = level->stride,
       .dest_padded_height = level->padded_height,
       .dest_tiling = tiled_clear ? res->layout : ETNA_LAYOUT_LINEAR,
@@ -396,7 +397,26 @@ etna_blit_clear_color_rs(struct pipe_context *pctx, unsigned idx,
       etna_resource_level_mark_unflushed(dst_level);
       ctx->dirty |= ETNA_DIRTY_TS;
    } else { /* Queue normal RS clear for non-TS surfaces */
-      etna_rs_gen_clear_cmd(ctx, dst, dst_res, new_clear_value, 0xffff, &rs_state);
+      if (format_is_128bit(dst->format)) {
+         const uint64_t rg = (uint64_t)color->ui[1] << 32 | color->ui[0];
+         const uint64_t ba = (uint64_t)color->ui[3] << 32 | color->ui[2];
+
+         etna_rs_gen_clear_cmd(ctx, dst, dst_res, 0, rg, 0xffff, &rs_state);
+         etna_submit_rs_state(ctx, &rs_state);
+
+         /* Consecutive RS clears need a flush in between, like the GC600
+          * hang workaround in etna_clear_rs(..). The blob brackets every RS
+          * operation this way. */
+         etna_set_state(ctx->stream, VIVS_GL_FLUSH_CACHE,
+                        VIVS_GL_FLUSH_CACHE_COLOR | VIVS_GL_FLUSH_CACHE_DEPTH);
+         etna_stall(ctx->stream, SYNC_RECIPIENT_RA, SYNC_RECIPIENT_PE);
+
+         etna_rs_gen_clear_cmd(ctx, dst, dst_res,
+                               etna_resource_level_second_plane_offset(dst_level),
+                               ba, 0xffff, &rs_state);
+      } else {
+         etna_rs_gen_clear_cmd(ctx, dst, dst_res, 0, new_clear_value, 0xffff, &rs_state);
+      }
 
       etna_resource_level_ts_mark_invalid(dst_level);
    }
@@ -465,7 +485,7 @@ etna_blit_clear_zs_rs(struct pipe_context *pctx, struct pipe_surface *dst,
       etna_copy_resource(pctx, &dst_res->base, &dst_res->base,
                          dst->level, dst->level, false);
 
-      etna_rs_gen_clear_cmd(ctx, dst, dst_res, new_clear_value, new_clear_bits, &rs_state);
+      etna_rs_gen_clear_cmd(ctx, dst, dst_res, 0, new_clear_value, new_clear_bits, &rs_state);
 
       etna_resource_level_ts_mark_invalid(dst_level);
    }
