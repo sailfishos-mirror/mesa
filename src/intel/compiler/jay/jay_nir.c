@@ -433,6 +433,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
     * As is the case with conversion lowering (below), brw_nir_optimize can
     * create additional fsign instructions.
     */
+   JAY_NIR_PASS(jay_nir_lower_bfloat_math);
    JAY_NIR_PASS(jay_nir_lower_fsign);
    JAY_NIR_PASS(jay_nir_lower_bool);
    JAY_NIR_PASS(nir_opt_cse);

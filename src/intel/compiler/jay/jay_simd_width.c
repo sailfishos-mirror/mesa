@@ -29,11 +29,6 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
       return 16;
    }
 
-   if (I->op == JAY_OPCODE_CVT &&
-       (I->type == JAY_TYPE_BF16 || jay_cvt_src_type(I) == JAY_TYPE_BF16)) {
-      return 16;
-   }
-
    if (I->op != JAY_OPCODE_SEND) {
       /* If any source/destination is 64-bit strided, we must split to avoid
        * crossing more than 2 GRFs. Note that SENDs don't have this restriction,
@@ -66,6 +61,15 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
        (I->src[0].file == GPR &&
         jay_def_stride(shader, I->src[0]) == JAY_STRIDE_2)) {
       return 16;
+   }
+
+   /* BSpec 56640 requires that execution size be no greater than 16
+    * for mixed-mode operations involving bfloats */
+   if (I->type == JAY_TYPE_BF16) {
+      return 16;
+   }
+   jay_foreach_src(I, s) {
+      if (jay_src_type(I, s) == JAY_TYPE_BF16) return 16;
    }
 
    return 32;

@@ -141,6 +141,11 @@ to_gen_operand(
             assert(jay_num_values(d) == 1 && "must not vectorize mixed float");
             R = gen_restride(R, 4, 2, 2);
          }
+
+         /* bf16 destination has stride restrictions */
+         if (I->type == JAY_TYPE_BF16 && jay_num_values(d) == 1) {
+            R = gen_restride(R, 4, 2, 2);
+         }
       }
    } else if (d.file == GPR || d.file == ACCUM) {
       enum jay_stride def_stride =

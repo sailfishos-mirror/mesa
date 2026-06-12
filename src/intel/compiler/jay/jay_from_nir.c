@@ -285,6 +285,27 @@ nj_src(nir_src src)
 }
 
 static void
+lower_bf(jay_builder *b, jay_inst *I)
+{
+   /* Needed b/c no region exists on Intel HW that allows for
+    * SIMD1 bfloat ops. See BSpec 74213. */
+   if (I->dst.file == UGPR) {
+      assert(jay_num_values(I->dst) && "we do not vectorize bf");
+      unsigned factor = jay_type_size_bits(I->type) / 16;
+      jay_def tmp = jay_alloc_def(b, UGPR, 4 * factor);
+      jay_MOV(b, I->dst, jay_extract(tmp, 0));
+      I->dst = tmp;
+
+      jay_foreach_src(I, s) {
+         if (I->src[s].file == UGPR && jay_src_type(I, s) == JAY_TYPE_BF16) {
+            uint32_t indices[4] = { jay_channel(I->src[s], 0), 0 };
+            jay_replace_src(&I->src[s], jay_collect(b, UGPR, indices, 4));
+         }
+      }
+   }
+}
+
+static void
 jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 {
    jay_builder *b = &nj->bld;
@@ -493,6 +514,24 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
    case nir_op_f2f16_rtz:
       jay_CVT(b, JAY_TYPE_F16, dst, src[0], jay_alu_source_type(alu, 0),
               alu->op == nir_op_f2f16_rtz ? JAY_RTZ : JAY_RNE, 0);
+      break;
+
+   case nir_op_f2bf:
+      jay_CVT(b, JAY_TYPE_BF16, dst, src[0], JAY_TYPE_F32, JAY_RNE, 0);
+      break;
+
+   case nir_op_bf2f:
+      lower_bf(b, jay_CVT(b, JAY_TYPE_F32, dst, src[0], JAY_TYPE_BF16, JAY_RNE,
+                          0));
+      break;
+
+   /* See jay_src_type for type information.
+    * This is a weird case with mixed types. */
+   case nir_op_bfmul_mixed_intel:
+      lower_bf(b, jay_MUL(b, JAY_TYPE_BF16, dst, src[0], src[1]));
+      break;
+   case nir_op_bffma_mixed_intel:
+      lower_bf(b, jay_MAD(b, JAY_TYPE_BF16, dst, src[2], src[1], src[0]));
       break;
 
    case nir_op_fsat:

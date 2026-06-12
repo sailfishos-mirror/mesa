@@ -688,6 +688,18 @@ jay_src_type(const jay_inst *I, unsigned s)
    if (I->op == JAY_OPCODE_SHUFFLE && s == 1)
       return JAY_TYPE_U32;
 
+   /* TODO: *maybe* find a less janky way of handling mixed bfloat op type
+    * restrictions? this *might* be the "least bad" option */
+   if (I->type == JAY_TYPE_BF16) {
+      /* Bspec 56640: src2 of 3-src instructions cannot be bfloat */
+      if (jay_num_isa_srcs(I) == 3 && s == 2)
+         return JAY_TYPE_F32;
+      /* Bspec 56640: src1 of 2-src instructions involving multiplier
+       * cannot be bfloat */
+      if (jay_num_isa_srcs(I) == 2 && s == 1)
+         return JAY_TYPE_F32;
+   }
+
    /* Other instructions inherit the destination type. */
    return I->type;
 }
@@ -885,6 +897,12 @@ jay_src_alignment(jay_shader *shader, const jay_inst *I, unsigned s)
       return jay_ugpr_per_grf(shader);
    }
 
+   /* Undocumented HW restriction: All operands to an operation involving
+    * bfloats must be GRF-aligned. */
+   if (jay_src_type(I, s) == JAY_TYPE_BF16 || I->type == JAY_TYPE_BF16) {
+      return jay_ugpr_per_grf(shader);
+   }
+
    /* If the destination is 64-bit, we need the sources to be aligned. Along
     * with a suitable partitioning, this ensures only the aligned low half of
     * a strided register is used, preventing invalid assembly like:
@@ -918,6 +936,24 @@ jay_dst_alignment(jay_shader *shader, const jay_inst *I)
                                I->op == JAY_OPCODE_MUL_32 ||
                                I->op == JAY_OPCODE_COARSE_PIXEL_CORNERS)) {
 
+      return jay_ugpr_per_grf(shader);
+   }
+
+   /* Undocumented HW restriction: All operands to an operation involving
+    * bfloats must be GRF-aligned. */
+   if (I->type == JAY_TYPE_BF16) {
+      return jay_ugpr_per_grf(shader);
+   }
+
+   bool is_any_operand_bf16 = false;
+   for (size_t i = 0; i < I->num_srcs; i++) {
+      if (jay_src_type(I, i) == JAY_TYPE_BF16) {
+         is_any_operand_bf16 = true;
+         break;
+      }
+   }
+
+   if (is_any_operand_bf16) {
       return jay_ugpr_per_grf(shader);
    }
 
