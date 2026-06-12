@@ -186,6 +186,11 @@ fn ra_trivial(s: &mut Shader) {
                 let (align_mul, align_off) = if bytes > 4 {
                     debug_assert_eq!(alloc_lanes, DstLanes::All);
                     (bytes.next_power_of_two(), 0)
+                } else if s.model.op_dst_is_staging_reg(&instr.op) {
+                    // Staging register writes respect lanes in the sense that
+                    // that's where they put the data but they may not do
+                    // partial writes correctly.
+                    (4, 0)
                 } else {
                     alloc_lanes.align()
                 };
