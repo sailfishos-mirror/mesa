@@ -427,7 +427,8 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
       out->has_vrs_frag_pos_z_bug = true;
    }
 
-   out->has_desc_resource_level = info->gfx_level < GFX11 || info->family == CHIP_GFX1156;
+   out->has_desc_resource_level = (info->gfx_level >= GFX10 && info->gfx_level < GFX11) ||
+                                  info->family == CHIP_GFX1156;
 }
 
 void
