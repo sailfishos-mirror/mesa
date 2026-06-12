@@ -415,6 +415,8 @@ files_libgalliumvl = files(
   'vl/vl_deint_filter_cs.h',
   'vl/vl_mpeg12_bitstream.c',
   'vl/vl_mpeg12_bitstream.h',
+  'vl/vl_proc.c',
+  'vl/vl_proc.h',
   'vl/vl_types.h',
   'vl/vl_vertex_buffers.c',
   'vl/vl_vertex_buffers.h',
