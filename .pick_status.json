@@ -2464,7 +2464,7 @@
         "description": "Revert \"people: update Marek's email\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b5063953caac18d90ca6fff67445599c9b39b2c3",
         "notes": null
