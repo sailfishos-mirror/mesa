@@ -185,6 +185,18 @@ struct vk_acceleration_structure_build_args {
    const radix_sort_vk_t *radix_sort_96;
 };
 
+typedef VkResult (*vk_build_stage_cb)(VkCommandBuffer commandBuffer, struct vk_device *device,
+                                      struct vk_meta_device *meta,
+                                      const struct vk_acceleration_structure_build_args *args,
+                                      struct vk_acceleration_structure_build_state *states,
+                                      uint32_t build_count, uint32_t build_flags);
+
+VkResult
+vk_build_stage(vk_build_stage_cb cb, VkCommandBuffer commandBuffer, struct vk_device *device,
+               struct vk_meta_device *meta, const struct vk_acceleration_structure_build_args *args,
+               struct vk_acceleration_structure_build_state *states, uint32_t build_count,
+               uint32_t build_flags_mask);
+
 VkResult vk_get_bvh_build_pipeline_layout(struct vk_device *device, struct vk_meta_device *meta,
                                           unsigned push_constant_size, VkPipelineLayout *layout);
 

@@ -1171,13 +1171,7 @@ hploc_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
    return VK_SUCCESS;
 }
 
-typedef VkResult (*vk_build_stage_cb)(VkCommandBuffer commandBuffer, struct vk_device *device,
-                                      struct vk_meta_device *meta,
-                                      const struct vk_acceleration_structure_build_args *args,
-                                      struct vk_acceleration_structure_build_state *states,
-                                      uint32_t build_count, uint32_t build_flags);
-
-static VkResult
+VkResult
 vk_build_stage(vk_build_stage_cb cb, VkCommandBuffer commandBuffer, struct vk_device *device,
                struct vk_meta_device *meta, const struct vk_acceleration_structure_build_args *args,
                struct vk_acceleration_structure_build_state *states, uint32_t build_count,
