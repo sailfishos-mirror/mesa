@@ -201,7 +201,7 @@ fn ra_trivial(s: &mut Shader) {
 
                     assert!(
                         b + usize::from(bytes) <= 256,
-                        "Ran out of registers!"
+                        "Ran out of registers trying to allocate {vec}"
                     );
                     let b = b as u8;
                     let reg = reg_ref_for_byte(b, alloc_bytes);
@@ -241,13 +241,6 @@ fn ra_trivial(s: &mut Shader) {
                 dst_regs.push(reg);
             }
 
-            debug_assert_eq!(instr.dsts().len(), dst_regs.len());
-            for (dst, reg) in
-                instr.dsts_mut().iter_mut().zip(dst_regs.into_iter())
-            {
-                *dst = reg.into();
-            }
-
             for dst in instr.dsts() {
                 let DstRef::SSA(vec) = &dst.dst_ref else {
                     continue;
@@ -258,10 +251,17 @@ fn ra_trivial(s: &mut Shader) {
                         let vec_b = *ssa_b.get(ssa).unwrap();
                         let bytes = ssa.bits() / 8;
                         for b in 0..bytes {
-                            byte_used.insert((vec_b + b).into());
+                            byte_used.remove((vec_b + b).into());
                         }
                     }
                 }
+            }
+
+            debug_assert_eq!(instr.dsts().len(), dst_regs.len());
+            for (dst, reg) in
+                instr.dsts_mut().iter_mut().zip(dst_regs.into_iter())
+            {
+                *dst = reg.into();
             }
         }
     }
