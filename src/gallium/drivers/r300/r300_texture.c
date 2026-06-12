@@ -30,11 +30,12 @@
  */
 enum pipe_format r300_unbyteswap_array_format(enum pipe_format format)
 {
+#if !UTIL_ARCH_BIG_ENDIAN
     /* FIXME: Disabled on little endian because of a reported regression:
-     * https://bugs.freedesktop.org/show_bug.cgi?id=98869 */
-    if (PIPE_ENDIAN_NATIVE != PIPE_ENDIAN_BIG)
-        return format;
-
+     * https://bugs.freedesktop.org/show_bug.cgi?id=98869
+     */
+    return format;
+#else
     /* Only BGRA 8888 array formats are supported for simplicity of
      * the implementation. */
     switch (format) {
@@ -49,15 +50,20 @@ enum pipe_format r300_unbyteswap_array_format(enum pipe_format format)
     default:
         return format;
     }
+#endif
 }
 
 static unsigned r300_get_endian_swap(enum pipe_format format,
                                      struct r300_resource *tex)
 {
+#if !UTIL_ARCH_BIG_ENDIAN
+    (void)format;
+    (void)tex;
+    return R300_SURF_NO_SWAP;
+#else
     const struct util_format_description *desc;
     unsigned swap_size;
 
-#if UTIL_ARCH_BIG_ENDIAN
     if (util_format_is_depth_or_stencil(tex->b.format)) {
         switch (format) {
         case PIPE_FORMAT_B8G8R8A8_UNORM:
@@ -95,15 +101,9 @@ static unsigned r300_get_endian_swap(enum pipe_format format,
             break;
         }
     }
-#else
-    (void)tex;
-#endif
 
     if (r300_unbyteswap_array_format(format) != format)
         return R300_SURF_DWORD_SWAP;
-
-    if (PIPE_ENDIAN_NATIVE != PIPE_ENDIAN_BIG)
-        return R300_SURF_NO_SWAP;
 
     desc = util_format_description(format);
 
@@ -122,6 +122,7 @@ static unsigned r300_get_endian_swap(enum pipe_format format,
     case 32:
         return R300_SURF_DWORD_SWAP;
     }
+#endif
 }
 
 unsigned r300_get_swizzle_combined(const unsigned char *swizzle_format,
