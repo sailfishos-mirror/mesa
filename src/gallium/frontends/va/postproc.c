@@ -419,12 +419,8 @@ vlVaVidEngineBlit(vlVaDriver *drv,
                   vlVaContext *context,
                   struct pipe_video_buffer *src,
                   struct pipe_video_buffer *dst,
-                  enum vl_compositor_deinterlace deinterlace,
                   struct pipe_vpp_desc *param)
 {
-   if (deinterlace != VL_COMPOSITOR_NONE)
-      return VA_STATUS_ERROR_UNIMPLEMENTED;
-
    if (!context->decoder || !context->decoder->process_frame)
       return VA_STATUS_ERROR_UNIMPLEMENTED;
 
@@ -779,11 +775,5 @@ vlVaHandleVAProcPipelineParameterBufferType(vlVaDriver *drv, vlVaContext *contex
       return VA_STATUS_SUCCESS;
    }
 
-   if (vlVaVidEngineBlit(drv, context, src, dst, deinterlace, &vpp) == VA_STATUS_SUCCESS)
-      return VA_STATUS_SUCCESS;
-
-   VAStatus ret =
-      vlVaPostProcCompositor(drv, src, dst, deinterlace, &vpp);
-   vlVaSurfaceFlush(drv, dst_surface);
-   return ret;
+   return vlVaVidEngineBlit(drv, context, src, dst, &vpp);
 }

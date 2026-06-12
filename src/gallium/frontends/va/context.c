@@ -34,6 +34,7 @@
 #include "util/set.h"
 #include "vl/vl_deint_filter.h"
 #include "vl/vl_winsys.h"
+#include "vl/vl_proc.h"
 
 #include "va_private.h"
 #ifdef HAVE_DRISW_KMS
@@ -296,13 +297,7 @@ vlVaCreateContext(VADriverContextP ctx, VAConfigID config_id, int picture_width,
    if (!(picture_width && picture_height) && !is_vpp)
       return VA_STATUS_ERROR_INVALID_IMAGE_FORMAT;
 
-   create_decoder = is_encode;
-
-   if (is_vpp && drv->vscreen->pscreen->get_video_param(drv->vscreen->pscreen,
-                                                        PIPE_VIDEO_PROFILE_UNKNOWN,
-                                                        PIPE_VIDEO_ENTRYPOINT_PROCESSING,
-                                                        PIPE_VIDEO_CAP_SUPPORTED))
-      create_decoder = true;
+   create_decoder = is_encode || is_vpp;
 
    if (!is_vpp) {
       min_supported_width = drv->vscreen->pscreen->get_video_param(drv->vscreen->pscreen,
@@ -436,7 +431,10 @@ vlVaCreateContext(VADriverContextP ctx, VAConfigID config_id, int picture_width,
 
    if (create_decoder) {
       mtx_lock(&drv->mutex);
-      context->decoder = drv->pipe->create_video_codec(drv->pipe, &context->templat);
+      if (is_vpp)
+         context->decoder = vl_create_proc(drv->pipe, &context->templat);
+      else
+         context->decoder = drv->pipe->create_video_codec(drv->pipe, &context->templat);
       mtx_unlock(&drv->mutex);
       if (!context->decoder) {
          vlVaDestroyContext(ctx, *context_id);
