@@ -429,9 +429,8 @@ panvk_physical_device_init(struct panvk_physical_device *device,
    device->formats.all = pan_format_table(arch);
    device->formats.blendable = pan_blendable_format_table(arch);
 
-   unsigned core_id_range;
    unsigned core_count =
-      pan_query_core_count(&device->kmod.dev->props, &core_id_range);
+      pan_query_core_count(&device->kmod.dev->props);
 
    memset(device->name, 0, sizeof(device->name));
    sprintf(device->name, "%s MC%u", device->model->name, core_count);

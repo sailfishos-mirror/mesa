@@ -38,17 +38,20 @@ pan_query_tiler_features(const struct pan_kmod_dev_props *props)
 }
 
 unsigned
-pan_query_core_count(const struct pan_kmod_dev_props *props,
-                     unsigned *core_id_range)
+pan_query_core_count(const struct pan_kmod_dev_props *props)
+{
+   /* The actual core count skips overs the gaps */
+   return util_bitcount64(props->shader_present);
+}
+
+unsigned
+pan_query_core_id_range(const struct pan_kmod_dev_props *props)
 {
    /* Some cores might be absent. In some cases, we care
     * about the range of core IDs (that is, the greatest core ID + 1). If
     * the core mask is contiguous, this equals the core count.
     */
-   *core_id_range = util_last_bit64(props->shader_present);
-
-   /* The actual core count skips overs the gaps */
-   return util_bitcount64(props->shader_present);
+   return util_last_bit64(props->shader_present);
 }
 
 unsigned

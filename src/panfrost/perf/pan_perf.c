@@ -79,7 +79,7 @@ pan_perf_init(struct pan_perf *perf, int fd)
    // Generally counter blocks are laid out in the following order:
    // Job manager, tiler, one or more L2 caches, and one or more shader cores.
    unsigned l2_slices = pan_query_l2_slices(&props);
-   pan_query_core_count(&props, &perf->core_id_range);
+   perf->core_id_range = pan_query_core_id_range(&props);
 
    uint32_t n_blocks = 2 + l2_slices + perf->core_id_range;
    perf->n_counter_values = PAN_COUNTERS_PER_CATEGORY * n_blocks;
