@@ -236,6 +236,12 @@ struct brw_base_prog_key {
     */
    uint32_t view_mask;
 
+   /** Use efficient 64bit bit mode
+    *
+    * Gfx35+ only.
+    */
+   bool use_efficient_64bit : 1;
+
    enum brw_robustness_flags robust_flags:3;
 
    enum intel_vue_layout vue_layout:2;
@@ -244,7 +250,7 @@ struct brw_base_prog_key {
 
    enum intel_atomic_branch_cases atomic_branch_flags:3;
 
-   uint32_t padding:22;
+   uint32_t padding:21;
 };
 
 /**

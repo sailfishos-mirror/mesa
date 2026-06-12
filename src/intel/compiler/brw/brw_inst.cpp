@@ -176,6 +176,9 @@ brw_transform_inst(brw_shader &s, brw_inst *inst, enum opcode new_opcode,
          new_src[i] = inst->src[i];
       inst->src = new_src;
    }
+   /* Initialize newer srcs */
+   for (unsigned i = inst->sources; i < new_num_sources; i++)
+      inst->src[i] = brw_reg();
 
    if (new_kind != kind)
       memset(((char *)inst) + sizeof(brw_inst), 0, new_inst_size - sizeof(brw_inst));
@@ -195,6 +198,7 @@ brw_inst_kind_for_opcode(enum opcode opcode)
    case BRW_OPCODE_SENDS:
    case BRW_OPCODE_SENDC:
    case BRW_OPCODE_SENDSC:
+   case BRW_OPCODE_SENDG:
    case SHADER_OPCODE_SEND:
    case SHADER_OPCODE_SEND_GATHER:
    case SHADER_OPCODE_BARRIER:

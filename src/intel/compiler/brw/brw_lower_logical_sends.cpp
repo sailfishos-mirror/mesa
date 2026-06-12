@@ -1061,7 +1061,7 @@ setup_lsc_surface_descriptors(const brw_builder &bld, brw_send_inst *send,
    enum lsc_opcode op = lsc_msg_desc_opcode(devinfo, desc);
    enum lsc_addr_surface_type surf_type = lsc_msg_desc_addr_type(devinfo, desc);
 
-   ASSERTED const unsigned max_imm_bits = brw_max_immediate_offset_bits(surf_type);
+   ASSERTED const unsigned max_imm_bits = brw_max_immediate_offset_bits(surf_type, false);
    assert(base_offset >= u_intN_min(max_imm_bits));
    assert(base_offset <= u_intN_max(max_imm_bits));
 
@@ -1308,13 +1308,42 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       lsc_opcode_is_store(op) ? store_cache_mode :
       load_cache_mode;
 
-   send->desc = lsc_msg_desc(devinfo, op, binding_type, addr_size, data_size,
-                             lsc_opcode_has_cmask(op) ?
-                             (1 << components) - 1 : components,
-                             transpose, cache_mode);
+   if (bld.shader->key->use_efficient_64bit) {
+      /* BSpec 71885/72045: Global Offset
+       *    "Specified the signed global offset (in number of data size
+       *     elements) applied to all addresses in the message"
+       */
+      assert(base_offset % data_size_B == 0);
+      unsigned num_channels_or_cmask = lsc_opcode_has_cmask(op) ?
+                                       (1 << components) - 1 :
+                                       components;
 
-   setup_lsc_surface_descriptors(bld, send, send->desc, binding, base_offset);
+      assert(addr_size == LSC_ADDR_SIZE_A32 || addr_size == LSC_ADDR_SIZE_A64);
 
+      send->combined_desc = lsc_64bit_msg_desc(devinfo,
+                                               (gen_sfid) send->sfid,
+                                               op,
+                                               addr_size,
+                                               data_size,
+                                               num_channels_or_cmask,
+                                               transpose,
+                                               cache_mode,
+                                               0 /* scale_offset */,
+                                               base_offset / data_size_B,
+                                               0 /* surface_state_index */);
+      assert(binding_type == LSC_ADDR_SURFTYPE_FLAT || brw_type_size_bits(binding.type) == 64);
+      send->src[SENDG_SRC_IND_0_DESC] = binding_type == LSC_ADDR_SURFTYPE_FLAT ?
+                                        brw_reg() : retype(binding, BRW_TYPE_UQ);
+      send->src[SENDG_SRC_IND_1_DESC] = brw_reg();
+      send->efficient_64bit = true;
+   } else {
+      send->desc = lsc_msg_desc(devinfo, op, binding_type, addr_size, data_size,
+                                lsc_opcode_has_cmask(op) ?
+                                (1 << components) - 1 : components,
+                                transpose, cache_mode);
+
+      setup_lsc_surface_descriptors(bld, send, send->desc, binding, base_offset);
+   }
 
    send->mlen = brw_lsc_msg_addr_len(devinfo, addr_size,
                                  send->exec_size * coord_components);
@@ -2291,6 +2320,8 @@ brw_lower_send_descriptors(brw_shader &s)
          continue;
 
       brw_send_inst *send = inst->as_send();
+      if (send->efficient_64bit)
+         continue;
 
       const brw_builder ubld = brw_builder(send).uniform();
 

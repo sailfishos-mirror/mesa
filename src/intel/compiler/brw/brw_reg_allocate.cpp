@@ -841,7 +841,9 @@ brw_reg_alloc::build_lane_offsets(const brw_builder &bld, uint32_t spill_offset,
 
    *out_use_base_offset =
       brw_lsc_supports_base_offset(devinfo) &&
-      brw_lsc_can_use_instruction_offset(LSC_ADDR_SURFTYPE_SS, spill_offset);
+      brw_lsc_can_use_instruction_offset(LSC_ADDR_SURFTYPE_SS,
+                                         bld.shader->key->use_efficient_64bit,
+                                         4, spill_offset);
 
    const brw_builder ubld = bld.exec_all();
    const unsigned reg_count = ubld.dispatch_width() / 8;

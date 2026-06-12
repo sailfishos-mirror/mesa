@@ -119,6 +119,7 @@ struct nir_to_jay_state {
    BITSET_WORD *zero_inactive;
 
    bool needs_final_halt;
+   bool efficient_64bit;
 
    /* We cache ballot(true), ctz(ballot(true)), and 4*ctz(ballot(true)) within a
     * block. If we had competent backend CSE - or emitted uniformize in NIR and
@@ -1496,7 +1497,7 @@ jay_emit_mem_access_lsc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                                                load_cache_mode;
 
    ASSERTED const unsigned max_imm_bits =
-      brw_max_immediate_offset_bits(surf_type);
+      brw_max_immediate_offset_bits(surf_type, false);
    assert(base_offset >= u_intN_min(max_imm_bits));
    assert(base_offset <= u_intN_max(max_imm_bits));
    assert(base_offset == 0 || sfid != GEN_SFID_TGM);
@@ -1752,7 +1753,7 @@ jay_emit_mem_access_hdc(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                                                       load_cache_mode;
 
    ASSERTED const unsigned max_imm_bits =
-      brw_max_immediate_offset_bits(surf_type);
+      brw_max_immediate_offset_bits(surf_type, false);
    assert(base_offset >= u_intN_min(max_imm_bits));
    assert(base_offset <= u_intN_max(max_imm_bits));
    assert(base_offset == 0 || !tgm);
@@ -4724,6 +4725,7 @@ jay_compile_simd(const struct intel_device_info *devinfo,
    s->prog_data = prog_data;
    s->archiver = archiver;
    s->helpers_tracked = track_helpers;
+   s->use_efficient_64bit = key->base.use_efficient_64bit;
 
    nir_foreach_function_impl(impl, nir) {
       jay_from_nir_function(devinfo, nir, s, impl, fs_perprim);

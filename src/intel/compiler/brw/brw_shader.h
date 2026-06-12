@@ -343,6 +343,7 @@ bool brw_lower_scalar_fp64_MAD(brw_shader &s);
 bool brw_lower_scoreboard(brw_shader &s);
 bool brw_lower_send_descriptors(brw_shader &s);
 bool brw_lower_send_gather(brw_shader &s);
+bool brw_lower_sendg_ind_desc_to_arf(brw_shader &s);
 bool brw_lower_sends_overlapping_payload(brw_shader &s);
 bool brw_lower_simd_width(brw_shader &s);
 bool brw_lower_src_modifiers(brw_shader &s, brw_inst *inst, unsigned i);

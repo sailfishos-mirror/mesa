@@ -743,13 +743,16 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
    if (inst->has_no_mask_send_params)
       fprintf(file, " NoMaskParams");
 
-   if (send && send->desc)
+   if (send && send->efficient_64bit && send->combined_desc)
+      fprintf(file, " CombinedDesc 0x%016" PRIx64, send->combined_desc);
+
+   if (send && !send->efficient_64bit && send->desc)
       fprintf(file, " Desc 0x%08x", send->desc);
 
-   if (send && send->ex_desc)
+   if (send && !send->efficient_64bit && send->ex_desc)
       fprintf(file, " ExDesc 0x%08x", send->ex_desc);
 
-   if (send && send->ex_desc_imm)
+   if (send && !send->efficient_64bit && send->ex_desc_imm)
       fprintf(file, " ExDescImmInst 0x%08x", send->offset);
 
    if (inst->sched.regdist || inst->sched.mode) {

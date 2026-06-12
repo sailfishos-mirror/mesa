@@ -804,6 +804,11 @@ typedef struct jay_shader {
    bool helpers_tracked;
 
    /**
+    * Efficient 64bit mode (Gfx35+)
+    */
+   bool use_efficient_64bit;
+
+   /**
     * Ralloc linear context. Since we don't typically free as we go,
     * most allocations should go through this context for efficiency.
     */

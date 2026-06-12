@@ -3395,7 +3395,7 @@ brw_vectorize_lower_mem_access(brw_pass_tracker *pt)
       };
       OPT(nir_opt_offsets, &offset_options);
 
-      OPT(brw_nir_lower_immediate_offsets);
+      OPT(brw_nir_lower_immediate_offsets, pt->key->use_efficient_64bit);
    }
 }
 

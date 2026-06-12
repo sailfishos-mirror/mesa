@@ -219,12 +219,17 @@ struct brw_inst : brw_exec_node {
 };
 
 struct brw_send_inst : brw_inst {
-   uint32_t desc;
-   uint32_t ex_desc;
+   union {
+      struct {
+         uint32_t desc;
+         uint32_t ex_desc;
+      };
+      uint64_t combined_desc;/* SENDG combined desc */
+   };
    uint32_t offset;
 
-   uint8_t mlen;
-   uint8_t ex_mlen;
+   uint8_t mlen;/* SENDG address length */
+   uint8_t ex_mlen;/* SENDG data length */
    uint8_t sfid;
 
    /** The number of hardware registers used for a message header. */
@@ -263,7 +268,9 @@ struct brw_send_inst : brw_inst {
           */
          bool ex_desc_imm:1;
 
-         uint8_t pad:2;
+         bool efficient_64bit:1;
+
+         uint8_t pad:1;
       };
       uint8_t send_bits;
    };

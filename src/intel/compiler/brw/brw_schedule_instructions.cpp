@@ -252,6 +252,7 @@ schedule_node::set_latency(const struct brw_isa_info *isa)
 
       switch (send->sfid) {
       case GEN_SFID_SAMPLER: {
+         /* TODO: 64bit */
          unsigned msg_type = (send->desc >> 12) & 0x1f;
          switch (msg_type) {
          case GEN_SAMPLER_MESSAGE_SAMPLE_RESINFO:
@@ -345,6 +346,7 @@ schedule_node::set_latency(const struct brw_isa_info *isa)
          break;
 
       case GEN_SFID_RENDER_CACHE:
+         /* TODO: 64bit */
          switch (brw_fb_desc_msg_type(isa->devinfo, send->desc)) {
          case GFX7_DATAPORT_RC_TYPED_SURFACE_WRITE:
          case GFX7_DATAPORT_RC_TYPED_SURFACE_READ:
@@ -481,7 +483,14 @@ schedule_node::set_latency(const struct brw_isa_info *isa)
       case GEN_SFID_UGM:
       case GEN_SFID_TGM:
       case GEN_SFID_SLM:
-         switch (lsc_msg_desc_opcode(isa->devinfo, send->desc)) {
+         uint8_t opcode;
+
+         if (send->efficient_64bit)
+            opcode = gen_64bit_msg_desc_get_opcode(send->combined_desc);
+         else
+            opcode = lsc_msg_desc_opcode(isa->devinfo, send->desc);
+
+         switch (opcode) {
          case LSC_OP_LOAD:
          case LSC_OP_STORE:
          case LSC_OP_LOAD_CMASK:

@@ -141,6 +141,14 @@ brw_nir_fs_needs_null_rt(const struct intel_device_info *devinfo,
             BITFIELD64_BIT(FRAG_RESULT_DATA0))) != 0;
 }
 
+static inline uint32_t
+brw_nir_intrinsic_data_element_size(nir_intrinsic_instr *intrin)
+{
+   return (nir_intrinsic_infos[intrin->intrinsic].has_dest ?
+           intrin->def.bit_size :
+           nir_get_io_data_src(intrin)->ssa->bit_size) / 8;
+}
+
 void brw_preprocess_nir(const struct brw_compiler *compiler,
                         nir_shader *nir,
                         const struct brw_nir_compiler_opts *opts);
@@ -302,7 +310,8 @@ bool brw_nir_lower_texture(nir_shader *nir);
 
 bool brw_nir_lower_sample_index_in_coord(nir_shader *nir);
 
-bool brw_nir_lower_immediate_offsets(nir_shader *shader);
+bool brw_nir_lower_immediate_offsets(nir_shader *shader,
+                                     bool efficient_64bit);
 
 bool brw_nir_lower_mem_access_bit_sizes(nir_shader *shader,
                                         const struct

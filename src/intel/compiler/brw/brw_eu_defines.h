@@ -42,6 +42,7 @@
    })
 
 #define GET_BITS(data, high, low) ((data & INTEL_MASK((high), (low))) >> (low))
+#define GET_BITS_64(data, high, low) ((data & INTEL_MASK_64((high), (low))) >> (low))
 #define GET_FIELD(word, field) (((word)  & field ## _MASK) >> field ## _SHIFT)
 #define GET_BITS_64(data, high, low) ((data & INTEL_MASK_64((high), (low))) >> (low))
 
@@ -187,6 +188,7 @@ enum ENUM_PACKED opcode {
    BRW_OPCODE_SENDC,
    BRW_OPCODE_SENDS,
    BRW_OPCODE_SENDSC,
+   BRW_OPCODE_SENDG, /* Gfx35+ with 64bits addressing */
    BRW_OPCODE_MATH,
    BRW_OPCODE_ADD,
    BRW_OPCODE_MUL,
@@ -545,15 +547,19 @@ enum ENUM_PACKED opcode {
 
 enum send_srcs {
    /** The 32-bit message descriptor (can be a register) */
-   SEND_SRC_DESC,
+   SEND_SRC_DESC = 0,
    /** The 32-bit extended message descriptor (can be a register) */
-   SEND_SRC_EX_DESC,
+   SEND_SRC_EX_DESC = 1,
+   /** The 64-bit indirect 0 message descriptor (can be a register) */
+   SENDG_SRC_IND_0_DESC = 0,
+   /** The 64-bit indirect 1 message descriptor (can be a register) */
+   SENDG_SRC_IND_1_DESC = 1,
    /** The leading register for the first SEND payload */
-   SEND_SRC_PAYLOAD1,
+   SEND_SRC_PAYLOAD1 = 2,
    /** The leading register for the second split-SEND payload */
-   SEND_SRC_PAYLOAD2,
+   SEND_SRC_PAYLOAD2 = 3,
 
-   SEND_NUM_SRCS
+   SEND_NUM_SRCS = 4,
 };
 
 enum send_gather_srcs {

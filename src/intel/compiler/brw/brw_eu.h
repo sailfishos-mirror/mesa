@@ -852,22 +852,40 @@ enum brw_conditional_mod brw_swap_cmod(enum brw_conditional_mod cmod);
 /** Maximum SEND message length */
 #define BRW_MAX_MSG_LENGTH 15
 
-/** Offset encoding signed size limits (top bit is the sign) */
+/** Xe2 Offset encoding signed size limits (top bit is the sign) */
 #define LSC_ADDRESS_OFFSET_FLAT_BITS 20
 #define LSC_ADDRESS_OFFSET_SS_BITS   17
 #define LSC_ADDRESS_OFFSET_BTI_BITS  12
 
+/** Xe3P-64bit Offset encoding signed size limits (top bit is the sign) */
+#define LSC_64BIT_STATELESS_OFFSET_BITS 21
+#define LSC_64BIT_STATEFUL_OFFSET_BITS  16
+
 static inline unsigned
-brw_max_immediate_offset_bits(enum lsc_addr_surface_type binding_type)
+brw_max_immediate_offset_bits(enum lsc_addr_surface_type binding_type,
+                              bool efficient_64bit)
 {
-   static const unsigned max_bits[] = {
-      [LSC_ADDR_SURFTYPE_FLAT] = LSC_ADDRESS_OFFSET_FLAT_BITS,
-      [LSC_ADDR_SURFTYPE_BSS]  = LSC_ADDRESS_OFFSET_SS_BITS,
-      [LSC_ADDR_SURFTYPE_SS]   = LSC_ADDRESS_OFFSET_SS_BITS,
-      [LSC_ADDR_SURFTYPE_BTI]  = LSC_ADDRESS_OFFSET_BTI_BITS,
-   };
-   assert(binding_type <= LSC_ADDR_SURFTYPE_BTI);
-   return max_bits[binding_type];
+   if (efficient_64bit) {
+      return binding_type == LSC_ADDR_SURFTYPE_FLAT ?
+             LSC_64BIT_STATELESS_OFFSET_BITS :
+             LSC_64BIT_STATEFUL_OFFSET_BITS;
+   } else {
+      static const unsigned max_bits[] = {
+         [LSC_ADDR_SURFTYPE_FLAT] = LSC_ADDRESS_OFFSET_FLAT_BITS,
+         [LSC_ADDR_SURFTYPE_BSS]  = LSC_ADDRESS_OFFSET_SS_BITS,
+         [LSC_ADDR_SURFTYPE_SS]   = LSC_ADDRESS_OFFSET_SS_BITS,
+         [LSC_ADDR_SURFTYPE_BTI]  = LSC_ADDRESS_OFFSET_BTI_BITS,
+      };
+      assert(binding_type <= LSC_ADDR_SURFTYPE_BTI);
+      return max_bits[binding_type];
+   }
+}
+
+static inline unsigned
+brw_immediate_offset_alignment(uint32_t element_size_B,
+                               bool efficient_64bit)
+{
+   return efficient_64bit ? element_size_B : 4;
 }
 
 static inline bool
@@ -878,10 +896,15 @@ brw_lsc_supports_base_offset(const struct intel_device_info *devinfo)
 
 static inline bool
 brw_lsc_can_use_instruction_offset(enum lsc_addr_surface_type binding_type,
+                                   bool efficient_64bit,
+                                   uint32_t element_size_B,
                                    int32_t offset)
 {
-   const unsigned max_bits = brw_max_immediate_offset_bits(binding_type);
-   return offset % 4 == 0 &&
+   const unsigned max_bits =
+      brw_max_immediate_offset_bits(binding_type, efficient_64bit);
+   return
+      offset % brw_immediate_offset_alignment(element_size_B,
+                                              efficient_64bit) == 0 &&
       offset >= u_intN_min(max_bits) &&
       offset <= u_intN_max(max_bits);
 }
