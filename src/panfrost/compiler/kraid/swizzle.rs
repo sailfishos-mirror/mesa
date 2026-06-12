@@ -177,6 +177,50 @@ impl SwizzleWord {
     }
 }
 
+/// Represents a swizzle as an arrangements of either bytes or words.
+///
+/// Swizzles are divided into three categories:  The identity swizzle, byte
+/// swizzles, and word swizzles.  The identity swizzle is the identity for both
+/// 64 and 32-bit sources.  Word swizzles are only allowed on 64-bit sources
+/// and works on entire 32-bit words.  Byte swizzles, on the other hand, are
+/// allowed on both 64 and 32-bit sources and swizzle individual bytes.  When a
+/// byte swizzle is used by a 64-bit source, the resulting 32-bit value is
+/// sign-extended to 64 bits.  In this way, an ingeger byte or half widen
+/// operation naturally works for both 32 and 64 bits.
+///
+/// There is another odd special case in the form of the `HF0` and `HF1` half
+/// float widen swizzles.  These are represented using `SwizzleByte::FextN`
+/// which is sort of like sign-extension, except for floats.  The caveat here
+/// is that you can't float extend based on just one of the bytes like you can
+/// with integers.  Float widening requires the entire 16-bit value in order to
+/// know any of the bytes of the resulting 32-bit value.  To work around this,
+/// we ensure that there are only ever two `Swizzle` values that can contain
+/// `SwizzleByte::FextN` and they are `Swizzle::HF0` and `Swizzle::HF1`.  If
+/// a swizzle compose operation would produce an invalid float extend swizzle,
+/// the compose operation fails.
+///
+/// `Swizzle` is intentionally designed to be as context-free as possible.
+/// While only certain swizzles are allowed in certain cases (such as word
+/// swizzles requiring a 64-bit source), any given swizzle has exactly one
+/// unique meaning, independent of data type.  Unlike the swizzles printed in
+/// the assembly which depend on the source type to be properly interpreted,
+/// each `Swizzle` only has one meaning.  For `r5.h0`, for instance, the
+/// swizzle as printed in Mali assembly requires knowledge of the source type
+/// to interpret.  It's clear that it's a half-word widen and that it selects
+/// the lower two bytes but that doesn't tell you if it does a float widen or
+/// a signed or unsigned integer extension.  With `Swizzle`, on the other hand,
+/// float, signed integer, and unsigned integer half-word widen are three
+/// different `Swizzle` values and so you always know what is happening to the
+/// data at all times.
+///
+/// For 8 and 16-bit sources (including `v2[isu]8`), the source canonically
+/// reads from the bottom 8 or 16-bits of the swizzled value, respectively.
+/// We don't make any effort to space out `v2i8` like previous Mali compilers
+/// have.  We do, however, typically require that 8 and 16-bit sources have
+/// swizzles which are repeated
+/// For 32-bit and smaller sources, only byte swizzles are allowed.  For 16-bit
+/// sources, the swizzle must be repeated with high pair of bytes equal to the
+/// low pair.  For 8-bit sources, the entire swizzle must be repeated.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq)]
 pub struct Swizzle {
@@ -184,7 +228,8 @@ pub struct Swizzle {
 }
 
 impl Swizzle {
-    /// The identity swizzle
+    /// The identity swizzle.  This is the identity swizzle for both 32 and
+    /// 64-bit sources.
     pub const NONE: Swizzle = Swizzle::from_bytes([0, 1, 2, 3]);
 
     pub const B0000: Swizzle = Swizzle::replicate_byte(0);
@@ -283,6 +328,7 @@ impl Swizzle {
         }
     }
 
+    /// Returns true if this is a word swizzle.
     #[inline]
     pub const fn is_word_swizzle(&self) -> bool {
         // We leave the high 8 bits zero for word swizzles
@@ -574,6 +620,7 @@ impl Swizzle {
         bytes
     }
 
+    /// Returns true if this swizzle replicates the same byte 4 times.
     pub fn replicates_byte(&self) -> bool {
         let b0 = self.byte(0);
 
@@ -583,6 +630,7 @@ impl Swizzle {
             && self.byte(3) == b0
     }
 
+    /// Returns true if this swizzle replicates the same half word twice.
     pub fn replicates_half(&self) -> bool {
         let b0 = self.byte(0);
         let b1 = self.byte(1);
@@ -593,6 +641,10 @@ impl Swizzle {
             && self.byte(3) == b1
     }
 
+    /// Composes two swizzles and produces a swizzle as if `self` were applied
+    /// first, followed by `other`.  If composing the two swizzles is not
+    /// possible (such as if doing so would result in an invalid float widen),
+    /// `None` is returned.
     pub fn swizzle(self, other: Swizzle) -> Option<Swizzle> {
         if other == Swizzle::NONE {
             return Some(self);
