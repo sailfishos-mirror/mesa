@@ -87,11 +87,11 @@ op('cmp',   2, 'u32', Props.NEGATE | Props.CMOD)
 # converts the upper 16-bits of the input.
 op('cvt', 1, 'u8 s8 u16 s16 u32 s32 u64 s64 f32 f64 f16 bf16',
    Props.NEGATE | Props.SAT | Props.CMOD, [
-    'enum jay_type src_type',
-    'enum jay_rounding_mode rounding_mode',
-    'uint8_t index',
-    'uint8_t pad'
-])
+       'enum jay_type src_type',
+       'enum jay_rounding_mode rounding_mode',
+       'uint8_t index',
+       'uint8_t pad'
+   ])
 
 op('fbh',        1, 'u32 s32')
 op('fbl',        1, 'u32')
@@ -100,7 +100,7 @@ op('frc',        1, 'f32 f64', Props.NEGATE | Props.CMOD)
 op('mad',        3, 'u32 s32 u16 s16 f32 f64 f16 bf16',
    Props.NEGATE | Props.SAT | Props.CMOD)
 op('mac',        3, 'f32', Props.NEGATE | Props.SAT | Props.CMOD |
-                           Props.COMMUTATIVE)
+   Props.COMMUTATIVE)
 op('max',        2, 'u32 s32 u64 s64 u16 s16 f32 f64 f16 bf16',
    Props.NEGATE | Props.SAT | Props.COMMUTATIVE)
 op('min',        2, 'u32 s32 u64 s64 u16 s16 f32 f64 f16 bf16',
