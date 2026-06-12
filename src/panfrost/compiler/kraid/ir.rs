@@ -394,6 +394,15 @@ impl SrcMod {
             SrcMod::BNot => Some(!u),
         }
     }
+
+    pub fn fold_u64(self, u: u64) -> Option<u64> {
+        match self {
+            SrcMod::None => Some(u),
+            // No instruction uses F64 or V2F32
+            SrcMod::FAbs | SrcMod::FNeg | SrcMod::FNegAbs => None,
+            SrcMod::BNot => Some(!u),
+        }
+    }
 }
 
 #[derive(Clone)]
