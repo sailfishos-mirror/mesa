@@ -23,7 +23,7 @@ impl SSAValue {
         assert!(idx < (1 << 30) - u32::from(SSAValueInner::MIN));
         let packed = idx + u32::from(SSAValueInner::MIN);
         let mut packed = LowerBoundedU32::new(packed).unwrap();
-        assert!(bits == 16 || bits == 32);
+        assert!(bits == 8 || bits == 16 || bits == 32);
         packed |= (bits.ilog2() - 3) << 30;
         SSAValue { packed }
     }
@@ -48,9 +48,13 @@ impl IntoBitIndex for SSAValue {
 
 impl fmt::Display for SSAValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        debug_assert!(self.bits() == 16 || self.bits() == 32);
-        let h = if self.bits() == 16 { ".h" } else { "" };
-        write!(f, "%{}{h}", self.idx())
+        let m = match self.bits() {
+            8 => ":b",
+            16 => ":h",
+            32 => "",
+            _ => panic!("Invalid SSA value bits"),
+        };
+        write!(f, "%{}{m}", self.idx())
     }
 }
 
@@ -275,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_ssa_queries() {
-        for bits in [16, 32] {
+        for bits in [8, 16, 32] {
             let ssa = SSAValue::new(42, bits);
             assert_eq!(ssa.idx(), 42);
             assert_eq!(ssa.bits(), bits);
@@ -284,9 +288,13 @@ mod tests {
 
     #[test]
     fn test_ssa_print() {
+        let ssa = SSAValue::new(42, 8);
+        assert_eq!(format!("{}", ssa), format!("%42:b"));
+        assert_eq!(format!("{:?}", ssa), format!("%42:b"));
+
         let ssa = SSAValue::new(42, 16);
-        assert_eq!(format!("{}", ssa), format!("%42.h"));
-        assert_eq!(format!("{:?}", ssa), format!("%42.h"));
+        assert_eq!(format!("{}", ssa), format!("%42:h"));
+        assert_eq!(format!("{:?}", ssa), format!("%42:h"));
 
         let ssa = SSAValue::new(42, 32);
         assert_eq!(format!("{}", ssa), format!("%42"));
@@ -296,9 +304,11 @@ mod tests {
     #[test]
     fn test_ssa_alloc() {
         let mut alloc: SSAValueAllocator = Default::default();
-        let ssa1 = alloc.alloc(16);
-        let ssa2 = alloc.alloc(32);
-        assert_eq!(format!("{}", ssa1), "%0.h");
-        assert_eq!(format!("{}", ssa2), "%1");
+        let ssa1 = alloc.alloc(8);
+        let ssa2 = alloc.alloc(16);
+        let ssa3 = alloc.alloc(32);
+        assert_eq!(format!("{}", ssa1), "%0:b");
+        assert_eq!(format!("{}", ssa2), "%1:h");
+        assert_eq!(format!("{}", ssa3), "%2");
     }
 }
