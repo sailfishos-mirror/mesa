@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::debug::*;
 use crate::ir::*;
 use crate::model::model_for_gpu_id;
 use compiler::bindings::*;
@@ -8,6 +9,10 @@ use kraid_bindings::*;
 use std::cmp::max;
 
 fn dump_shader(s: &Shader, suffix: &str) {
+    if !DEBUG.contains(DebugFlags::PRINT) {
+        return;
+    }
+
     let s = format!("{s}");
 
     let mut max_eq_pos = 0_usize;
@@ -67,7 +72,9 @@ pub extern "C" fn kraid_compile_nir(
 ) {
     let model = model_for_gpu_id(inputs.gpu_id).unwrap();
 
-    eprint!("{}", nir.to_string().unwrap());
+    if DEBUG.contains(DebugFlags::PRINT) {
+        eprint!("{}", nir.to_string().unwrap());
+    }
 
     let mut s = Shader::from_nir(model.as_ref(), nir);
     dump_shader(&s, "after translation from NIR");

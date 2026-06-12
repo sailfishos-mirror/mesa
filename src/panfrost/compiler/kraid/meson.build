@@ -1,6 +1,12 @@
 # Copyright © 2026 Collabora, Ltd.
 # SPDX-License-Identifier: MIT
 
+dep_bitflags = dependency('bitflags',
+  version : '>= 2.9.1',
+  fallback : ['bitflags-2-rs', 'dep_bitflags'],
+  required : true,
+)
+
 dep_paste = dependency('paste',
   version : '>= 1.0.14',
   fallback : ['paste-1-rs', 'dep_paste'],
@@ -107,6 +113,7 @@ libpanfrost_kraid = static_library(
     '-Clink-arg=-Wno-unused-command-line-argument',
   ],
   dependencies : [
+    dep_bitflags,
     dep_paste,
     dep_rustc_hash,
     idep_compiler_rs,

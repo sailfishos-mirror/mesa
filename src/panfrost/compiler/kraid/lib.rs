@@ -22,3 +22,43 @@ mod ssa_value;
 mod swizzle;
 mod validate;
 mod widen_alu_ops;
+
+mod debug {
+    bitflags::bitflags! {
+        pub struct DebugFlags: u32 {
+            const PRINT = 1 << 0;
+        }
+    }
+
+    fn get_debug_flags() -> DebugFlags {
+        let debug_var = "KRAID_DEBUG";
+        let Ok(debug_str) = std::env::var(debug_var) else {
+            return DebugFlags::empty();
+        };
+
+        let mut flags = DebugFlags::empty();
+        for flag in debug_str.split(',') {
+            match flag.trim() {
+                "print" => flags |= DebugFlags::PRINT,
+                unk => eprintln!("Unknown {debug_var} flag \"{}\"", unk),
+            }
+        }
+        flags
+    }
+
+    pub struct Debug {
+        flags: std::sync::OnceLock<DebugFlags>,
+    }
+
+    impl std::ops::Deref for Debug {
+        type Target = DebugFlags;
+
+        fn deref(&self) -> &DebugFlags {
+            self.flags.get_or_init(get_debug_flags)
+        }
+    }
+
+    pub static DEBUG: Debug = Debug {
+        flags: std::sync::OnceLock::new(),
+    };
+}
