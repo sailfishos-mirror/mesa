@@ -80,6 +80,10 @@ pub extern "C" fn kraid_compile_nir(
     dump_shader(&s, "after translation from NIR");
     s.validate();
 
+    s.remat_constants();
+    dump_shader(&s, "after re-materializing constants");
+    s.validate();
+
     s.widen_alu_ops();
     dump_shader(&s, "after widening ALU ops");
     s.validate();

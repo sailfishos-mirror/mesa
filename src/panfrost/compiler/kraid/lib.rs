@@ -17,6 +17,7 @@ mod model;
 mod nir;
 mod ops;
 mod ra;
+mod remat_constants;
 mod small_constants;
 mod ssa_value;
 mod swizzle;
