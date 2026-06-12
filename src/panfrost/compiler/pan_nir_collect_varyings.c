@@ -145,7 +145,14 @@ walk_varyings(UNUSED nir_builder *b, nir_instr *instr, void *data)
 
    nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
 
-   if (sem.no_varying)
+   /* nir_opt_varyings (called in the GL linker) marks clip distance VS outputs
+    * as no_varying but nir_lower_clip_fs actually uses them.
+    */
+   bool is_clip_dist_vs_output = is_store &&
+      (sem.location == VARYING_SLOT_CLIP_DIST0 ||
+       sem.location == VARYING_SLOT_CLIP_DIST1);
+
+   if (sem.no_varying && !is_clip_dist_vs_output)
       return false;
 
    nir_alu_type base_type = nir_alu_type_get_base_type(type);
@@ -168,6 +175,8 @@ walk_varyings(UNUSED nir_builder *b, nir_instr *instr, void *data)
       else
          nir_intrinsic_set_dest_type(intr, type);
    }
+   /* 16-bit ints are NEVER supported right now */
+   assert(type != nir_type_int16 && type != nir_type_uint16);
 
    /* Count currently contains the number of components accessed by this
     * intrinsics. However, we may be accessing a fractional location,
@@ -183,7 +192,17 @@ walk_varyings(UNUSED nir_builder *b, nir_instr *instr, void *data)
       unsigned index = pan_res_handle_get_index(nir_intrinsic_base(intr)) + offset;
 
       if (slots[location].type) {
-         assert(slots[location].type == type);
+         if (slots[location].type != type) {
+            /* Types can disagree if varying_opts back-propagates partially.
+             * Good news is, when it does that we know that it's surely flat,
+             * we can smash it into ints.  But we need to make the bit-size
+             * agree too so we are wasting a bit of bandwidth.
+             */
+            unsigned orig_len = nir_alu_type_get_type_size(slots[location].type);
+            unsigned new_len = nir_alu_type_get_type_size(type);
+
+            slots[location].type = nir_type_uint | MAX2(orig_len, new_len);
+         }
          assert(slots[location].index == index);
       } else {
          slots[location].type = type;
