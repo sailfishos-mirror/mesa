@@ -469,7 +469,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
       JAY_NIR_PASS(nir_opt_frag_coord_to_pixel_coord);
       JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_frag_coord,
-               nir_metadata_control_flow, NULL);
+                   nir_metadata_control_flow, NULL);
       JAY_NIR_PASS(nir_opt_barycentric, true);
       JAY_NIR_PASS(nir_opt_constant_folding);
 
@@ -478,7 +478,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       JAY_NIR_PASS(nir_lower_helper_writes, true);
       JAY_NIR_PASS(nir_lower_is_helper_invocation);
       JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_helper_invocation,
-               nir_metadata_control_flow, NULL);
+                   nir_metadata_control_flow, NULL);
 
       if (key->fs.alpha_to_coverage != INTEL_NEVER) {
          /* Run constant fold optimization in order to get the correct source
@@ -513,7 +513,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
    brw_postprocess_nir_opts(pt);
 
    JAY_NIR_PASS(nir_shader_intrinsics_pass, jay_nir_lower_simd,
-            nir_metadata_control_flow, &simd_width);
+                nir_metadata_control_flow, &simd_width);
    JAY_NIR_PASS(nir_opt_algebraic_late);
    JAY_NIR_PASS(intel_nir_opt_peephole_imul32x16);
 

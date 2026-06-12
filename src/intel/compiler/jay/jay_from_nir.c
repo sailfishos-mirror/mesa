@@ -12,6 +12,7 @@
 #include "compiler/intel_shader_enums.h"
 #include "compiler/list.h"
 #include "intel/dev/intel_debug.h"
+#include "mda/debug_archiver.h"
 #include "util/bitscan.h"
 #include "util/lut.h"
 #include "util/macros.h"
@@ -23,7 +24,6 @@
 #include "jay_ir.h"
 #include "jay_opcodes.h"
 #include "jay_private.h"
-#include "mda/debug_archiver.h"
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_defines.h"
@@ -1375,7 +1375,8 @@ jay_emit_rt_trace_ray(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
     *    RayQuery for all valid Rays (SIMD lanes) have completed."
     */
    jay_def notif = synchronous ?
-      jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s)) : jay_null();
+                      jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s)) :
+                      jay_null();
 
    uint32_t desc = brw_rt_trace_ray_desc(s->devinfo, nj->s->dispatch_width);
 
@@ -1391,8 +1392,7 @@ jay_emit_rt_trace_ray(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
 }
 
 static void
-jay_emit_dpas(struct nir_to_jay_state *nj,
-              nir_intrinsic_instr *intr)
+jay_emit_dpas(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
    assert(mesa_shader_stage_uses_workgroup(nj->nir->info.stage));
 
@@ -1406,19 +1406,18 @@ jay_emit_dpas(struct nir_to_jay_state *nj,
    jay_builder *b = &nj->bld;
    jay_def dst = nj_def(&intr->def);
    jay_def src[3] = {
-      src0_use_null ? jay_null()
-                    : jay_as_gpr(b, nj_src(intr->src[0])),
+      src0_use_null ? jay_null() : jay_as_gpr(b, nj_src(intr->src[0])),
       jay_as_gpr(b, nj_src(intr->src[1])),
       jay_as_gpr(b, nj_src(intr->src[2])),
    };
 
    /* Jay follows HW source order. */
-   jay_DPAS(b, dst, src[0], src[2], src[1],
-            nir_intrinsic_systolic_depth(intr),
+   jay_DPAS(b, dst, src[0], src[2], src[1], nir_intrinsic_systolic_depth(intr),
             nir_intrinsic_repeat_count(intr),
             jay_type_for_glsl_base_type(nir_intrinsic_dest_base_type(intr)),
             jay_type_for_glsl_base_type(nir_intrinsic_src_base_type(intr)),
-            /* sbid */ 0)->saturate = nir_intrinsic_saturate(intr);
+            /* sbid */ 0)
+      ->saturate = nir_intrinsic_saturate(intr);
 
    nj->s->prog_data->cs.uses_systolic = true;
 }
@@ -3214,7 +3213,8 @@ jay_compile(const struct intel_device_info *devinfo,
       INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage)) &&
       !(nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
 
-   unsigned simd_width = jay_process_nir(devinfo, nir, prog_data, key, archiver);
+   unsigned simd_width =
+      jay_process_nir(devinfo, nir, prog_data, key, archiver);
 
    if (debug) {
       /* We can't use nir_print_shader since it reindexes SSA defs. */

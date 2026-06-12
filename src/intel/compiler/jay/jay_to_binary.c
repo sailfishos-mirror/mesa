@@ -230,7 +230,7 @@ quad_swizzle(const struct intel_device_info *devinfo,
    return gen_element_offset(devinfo, r, map[swizzle].element);
 }
 
-#define OP(jay, hw, num)      [JAY_OPCODE_##jay] = { GEN_OP_##hw, num }
+#define OP(jay, hw, num) [JAY_OPCODE_##jay] = { GEN_OP_##hw, num }
 
 static const struct {
    enum gen_opcode op;
@@ -392,9 +392,9 @@ emit(struct jay_codegen *jc,
    case JAY_OPCODE_DESWIZZLE_ODD: {
       bool hi = simd_offs == 0 ? true : jay_deswizzle_odd_src2_hi(I);
       gen->chan_offset = 0;
-      gen->src[0] = gen_byte_offset(jc->devinfo,
-                                    to_gen_operand(f, I, simd_offs, 0, false),
-                                    hi ? 64 : 0);
+      gen->src[0] =
+         gen_byte_offset(jc->devinfo, to_gen_operand(f, I, simd_offs, 0, false),
+                         hi ? 64 : 0);
       break;
    }
 
@@ -597,14 +597,14 @@ emit(struct jay_codegen *jc,
       gen_reg_type acc_type = to_gen_reg_type(jay_dpas_acc_type(I));
       gen_reg_type src_type = to_gen_reg_type(jay_dpas_src_type(I));
 
-      gen->dst    = gen_retype(gen->dst, acc_type);
+      gen->dst = gen_retype(gen->dst, acc_type);
       gen->src[0] = gen_retype(gen->src[0], acc_type);
       gen->src[1] = gen_retype(gen->src[1], src_type);
       gen->src[2] = gen_retype(gen->src[2], src_type);
 
       gen->dpas.sdepth = jay_dpas_sdepth(I);
       gen->dpas.rcount = jay_dpas_rcount(I);
-      gen->exec_size   = jc->devinfo->ver >= 20 ? 16 : 8;
+      gen->exec_size = jc->devinfo->ver >= 20 ? 16 : 8;
       break;
    }
 

@@ -105,9 +105,15 @@ get_src_words(struct validate_state *validate, jay_inst *I, unsigned s)
 
       unsigned bytes;
       switch (s) {
-      case 0: bytes = jay_dpas_rcount(I) * dpas_exec_size * acc_size_B; break;
-      case 1: bytes = jay_dpas_sdepth(I) * grf_size;                    break;
-      case 2: bytes = jay_dpas_rcount(I) * jay_dpas_sdepth(I) * 4;      break;
+      case 0:
+         bytes = jay_dpas_rcount(I) * dpas_exec_size * acc_size_B;
+         break;
+      case 1:
+         bytes = jay_dpas_sdepth(I) * grf_size;
+         break;
+      case 2:
+         bytes = jay_dpas_rcount(I) * jay_dpas_sdepth(I) * 4;
+         break;
       default:
          UNREACHABLE("invalid DPAS source");
       }
