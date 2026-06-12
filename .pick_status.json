@@ -1654,7 +1654,7 @@
         "description": "radv/bvh: use atomic load/store in update_gfx12.comp",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2d48b2cb47365cb36b84800c937164dcfecade07",
         "notes": null
