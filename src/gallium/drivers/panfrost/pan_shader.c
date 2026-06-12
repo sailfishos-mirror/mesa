@@ -568,16 +568,19 @@ panfrost_create_shader_state(struct pipe_context *pctx,
    struct panfrost_device *dev = pan_device(pctx->screen);
    pan_preprocess_nir(nir, panfrost_device_gpu_id(dev));
 
-   NIR_PASS(_, nir, nir_lower_indirect_derefs_to_if_else_trees,
-            nir_var_shader_in | nir_var_shader_out, UINT32_MAX);
-   NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
-            glsl_type_size, nir_lower_io_use_interpolated_input_intrinsics);
-   /* nir_lower_io just computes offsets based on the original deref and
-    * lower_indirect_derefs ensures that the array derefs have a constant
-    * index.  Constant-fold to get us actual constants in in load/store
-    * instructions.
-    */
-   NIR_PASS(_, nir, nir_opt_constant_folding);
+   /* Usually IO is lowered by gallium, but TTN doesn't */
+   if (!nir->info.io_lowered) {
+      NIR_PASS(_, nir, nir_lower_indirect_derefs_to_if_else_trees,
+               nir_var_shader_in | nir_var_shader_out, UINT32_MAX);
+      NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
+               glsl_type_size, nir_lower_io_use_interpolated_input_intrinsics);
+      /* nir_lower_io just computes offsets based on the original deref and
+       * lower_indirect_derefs ensures that the array derefs have a constant
+       * index.  Constant-fold to get us actual constants in in load/store
+       * instructions.
+       */
+      NIR_PASS(_, nir, nir_opt_constant_folding);
+   }
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT)
       so->noperspective_varyings =
