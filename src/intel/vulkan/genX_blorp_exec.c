@@ -353,8 +353,13 @@ blorp_exec_on_render(struct blorp_batch *batch,
 #endif
 
    if (params->depth.enabled &&
-       !(batch->flags & BLORP_BATCH_NO_EMIT_DEPTH_STENCIL))
-      genX(cmd_buffer_emit_gfx12_depth_wa)(cmd_buffer, &params->depth.surf);
+       !(batch->flags & BLORP_BATCH_NO_EMIT_DEPTH_STENCIL)) {
+      if (INTEL_NEEDS_WA_1808121037 && params->num_samples == 1 &&
+          params->depth.surf.format == ISL_FORMAT_R16_UNORM) {
+         /* Disable HiZ planes on D16 1x MSAA to avoid sporadic corruption. */
+         genX(cmd_buffer_disable_hiz_planes)(cmd_buffer);
+      }
+   }
 
    genX(flush_pipeline_select_3d)(cmd_buffer);
 

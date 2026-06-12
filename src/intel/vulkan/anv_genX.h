@@ -56,6 +56,8 @@ void genX(init_cps_device_state)(struct anv_device *device);
 uint32_t genX(call_internal_shader)(nir_builder *b,
                                     enum anv_internal_kernel_name shader_name);
 
+void genX(cmd_buffer_disable_hiz_planes)(struct anv_cmd_buffer *cmd_buffer);
+
 void
 genX(set_fast_clear_state)(struct anv_cmd_buffer *cmd_buffer,
                            const struct anv_image *image,
@@ -96,9 +98,6 @@ void genX(batch_emit_push_constants_alloc)(struct anv_batch *batch,
 void
 genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
                                      enum anv_color_aux_op_class aux_op);
-
-void genX(cmd_buffer_emit_gfx12_depth_wa)(struct anv_cmd_buffer *cmd_buffer,
-                                          const struct isl_surf *surf);
 
 void
 genX(cmd_buffer_emit_depth_stencil)(struct anv_cmd_buffer *cmd_buffer,

@@ -4590,12 +4590,6 @@ struct anv_cmd_pipeline_state {
    uint8_t push_descriptor_index;
 };
 
-enum anv_depth_reg_mode {
-   ANV_DEPTH_REG_MODE_UNKNOWN = 0,
-   ANV_DEPTH_REG_MODE_HW_DEFAULT,
-   ANV_DEPTH_REG_MODE_D16_1X_MSAA,
-};
-
 /** State tracking for graphics pipeline
  *
  * This has anv_cmd_pipeline_state as a base struct to track things which get
@@ -4693,13 +4687,8 @@ struct anv_cmd_graphics_state {
     */
    enum isl_aux_usage                           hiz_usage;
 
-   /**
-    * We ensure the registers for the gfx12 D16 fix are initialized at the
-    * first non-NULL depth stencil packet emission of every command buffer.
-    * For secondary command buffer execution, we transfer the state from the
-    * last command buffer to the primary (if known).
-    */
-   enum anv_depth_reg_mode                      depth_reg_mode;
+   /* Track COMMON_SLICE_CHICKEN1::HIZPlaneOptimizationdisablebit */
+   enum u_tristate                              hiz_planes_disabled;
 
    struct anv_gfx_dynamic_state dyn_state;
 

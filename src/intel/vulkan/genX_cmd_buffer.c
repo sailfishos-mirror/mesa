@@ -4392,10 +4392,10 @@ genX(CmdExecuteCommands)(
       if (secondary->perf_query_pool)
          container->perf_query_pool = secondary->perf_query_pool;
 
-#if INTEL_NEEDS_WA_1808121037
-      if (secondary->state.gfx.depth_reg_mode != ANV_DEPTH_REG_MODE_UNKNOWN)
-         container->state.gfx.depth_reg_mode = secondary->state.gfx.depth_reg_mode;
-#endif
+      if (secondary->state.gfx.hiz_planes_disabled != U_TRISTATE_UNSET) {
+         container->state.gfx.hiz_planes_disabled =
+            secondary->state.gfx.hiz_planes_disabled;
+      }
 
       container->state.gfx.viewport_set |= secondary->state.gfx.viewport_set;
 
@@ -5874,56 +5874,6 @@ genX(batch_emit_post_dispatch_wa)(struct anv_batch *batch)
 #endif
 }
 
-void
-genX(cmd_buffer_emit_gfx12_depth_wa)(struct anv_cmd_buffer *cmd_buffer,
-                                     const struct isl_surf *surf)
-{
-#if INTEL_NEEDS_WA_1808121037
-   const bool is_d16_1x_msaa = surf->format == ISL_FORMAT_R16_UNORM &&
-                               surf->samples == 1;
-
-   switch (cmd_buffer->state.gfx.depth_reg_mode) {
-   case ANV_DEPTH_REG_MODE_HW_DEFAULT:
-      if (!is_d16_1x_msaa)
-         return;
-      break;
-   case ANV_DEPTH_REG_MODE_D16_1X_MSAA:
-      if (is_d16_1x_msaa)
-         return;
-      break;
-   case ANV_DEPTH_REG_MODE_UNKNOWN:
-      break;
-   }
-
-   /* We'll change some CHICKEN registers depending on the depth surface
-    * format. Do a depth flush and stall so the pipeline is not using these
-    * settings while we change the registers.
-    */
-   anv_add_pending_pipe_bits(cmd_buffer,
-                             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                             ANV_PIPE_DEPTH_CACHE_FLUSH_BIT |
-                             ANV_PIPE_DEPTH_STALL_BIT |
-                             ANV_PIPE_END_OF_PIPE_SYNC_BIT,
-                             "Workaround: Stop pipeline for 1808121037");
-   genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
-
-   /* Wa_1808121037
-    *
-    * To avoid sporadic corruptions “Set 0x7010[9] when Depth Buffer
-    * Surface Format is D16_UNORM , surface type is not NULL & 1X_MSAA”.
-    */
-   anv_batch_write_reg(&cmd_buffer->batch, GENX(COMMON_SLICE_CHICKEN1), reg) {
-      reg.HIZPlaneOptimizationdisablebit = is_d16_1x_msaa;
-      reg.HIZPlaneOptimizationdisablebitMask = true;
-   }
-
-   cmd_buffer->state.gfx.depth_reg_mode =
-      is_d16_1x_msaa ? ANV_DEPTH_REG_MODE_D16_1X_MSAA :
-                       ANV_DEPTH_REG_MODE_HW_DEFAULT;
-#endif
-}
-
 #if GFX_VER == 9
 /* From the Skylake PRM, 3DSTATE_VERTEX_BUFFERS:
  *
@@ -6108,6 +6058,23 @@ genX(cmd_buffer_emit_hashing_mode)(struct anv_cmd_buffer *cmd_buffer,
 }
 
 void
+genX(cmd_buffer_disable_hiz_planes)(struct anv_cmd_buffer *cmd_buffer)
+{
+#if GFX_VER >= 12 && GFX_VER <= 30
+   if (cmd_buffer->state.gfx.hiz_planes_disabled != U_TRISTATE_YES) {
+      struct anv_batch *batch = &cmd_buffer->batch;
+
+      anv_batch_write_reg(batch, GENX(COMMON_SLICE_CHICKEN1), reg) {
+         reg.HIZPlaneOptimizationdisablebit = true;
+         reg.HIZPlaneOptimizationdisablebitMask = true;
+      }
+
+      cmd_buffer->state.gfx.hiz_planes_disabled = U_TRISTATE_YES;
+   }
+#endif
+}
+
+void
 genX(cmd_buffer_emit_depth_stencil)(struct anv_cmd_buffer *cmd_buffer,
                                     enum isl_aux_usage hiz_usage)
 {
@@ -6225,8 +6192,15 @@ genX(cmd_buffer_emit_depth_stencil)(struct anv_cmd_buffer *cmd_buffer,
                                           "Wa_1408224581/14014097488/14016712196");
    }
 
-   if (info.depth_surf)
-      genX(cmd_buffer_emit_gfx12_depth_wa)(cmd_buffer, info.depth_surf);
+   if (info.depth_surf && INTEL_NEEDS_WA_1808121037 &&
+       info.depth_surf->samples == 1 &&
+       info.depth_surf->format == ISL_FORMAT_R16_UNORM) {
+      /* We must disable HiZ planes on D16 1x MSAA to avoid sporadic
+       * corruption. Avoid switching back and forth between plane modes to
+       * avoid stalling for better performance.
+       */
+      genX(cmd_buffer_disable_hiz_planes)(cmd_buffer);
+   }
 
    cmd_buffer->state.gfx.hiz_usage = info.hiz_usage;
 }
