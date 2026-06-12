@@ -20,7 +20,7 @@ type EncodedInstr = [u32; 2];
 const INSTR_SIZE: i64 = size_of::<EncodedInstr>() as i64;
 
 #[repr(i8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum V9InstrSrc {
     SrSrc = -2,
     None = -1,
@@ -1112,6 +1112,11 @@ pub fn v9_op_is_supported(op: &Op, arch: u8) -> bool {
 
 pub fn v9_op_is_message(op: &Op, arch: u8) -> bool {
     v9_op_info(op, arch).is_some_and(|info| info.isa_info.is_message)
+}
+
+pub fn v9_op_src_is_staging_reg(op: &Op, src: &Src, arch: u8) -> bool {
+    v9_op_info(op, arch)
+        .is_some_and(|info| info.src_map[op.src_idx(src)] == V9InstrSrc::SrSrc)
 }
 
 pub fn v9_op_src_supports_imm32(op: &Op, src: &Src, arch: u8) -> bool {

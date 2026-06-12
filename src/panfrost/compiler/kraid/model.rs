@@ -14,6 +14,8 @@ pub trait Model {
 
     fn op_is_message(&self, op: &Op) -> bool;
 
+    fn op_src_is_staging_reg(&self, op: &Op, src: &Src) -> bool;
+
     fn op_src_supports_imm32(&self, op: &Op, src: &Src) -> bool;
 
     fn op_src_supports_swizzle(
@@ -59,6 +61,14 @@ impl Model for ValhallModel {
             vop.is_message()
         } else {
             v9_op_is_message(op, self.arch)
+        }
+    }
+
+    fn op_src_is_staging_reg(&self, op: &Op, src: &Src) -> bool {
+        if let Some(vop) = op.as_virtual() {
+            vop.src_is_staging_reg(src)
+        } else {
+            v9_op_src_is_staging_reg(op, src, self.arch)
         }
     }
 
