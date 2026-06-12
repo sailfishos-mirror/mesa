@@ -58,6 +58,22 @@ static unsigned r300_get_endian_swap(enum pipe_format format,
     unsigned swap_size;
 
 #if UTIL_ARCH_BIG_ENDIAN
+    if (util_format_is_depth_or_stencil(tex->b.format)) {
+        switch (format) {
+        case PIPE_FORMAT_B8G8R8A8_UNORM:
+        case PIPE_FORMAT_B8G8R8X8_UNORM:
+        case PIPE_FORMAT_R8G8B8A8_UNORM:
+        case PIPE_FORMAT_R8G8B8X8_UNORM:
+            /* Depth/stencil transfer blits can alias 32-bit ZS storage as
+             * RGBA8. Keep the alias on the ZS dword endian convention instead
+             * of the 8-bit array convention.
+             */
+            return R300_SURF_DWORD_SWAP;
+        default:
+            break;
+        }
+    }
+
     if ((tex->b.bind & (PIPE_BIND_RENDER_TARGET | PIPE_BIND_SAMPLER_VIEW)) ==
         (PIPE_BIND_RENDER_TARGET | PIPE_BIND_SAMPLER_VIEW) &&
         !(tex->b.flags & R300_RESOURCE_FLAG_TRANSFER) &&
