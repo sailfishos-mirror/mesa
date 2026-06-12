@@ -6107,8 +6107,9 @@ genX(cmd_buffer_emit_hashing_mode)(struct anv_cmd_buffer *cmd_buffer,
 #endif
 }
 
-static void
-cmd_buffer_emit_depth_stencil(struct anv_cmd_buffer *cmd_buffer)
+void
+genX(cmd_buffer_emit_depth_stencil)(struct anv_cmd_buffer *cmd_buffer,
+                                    enum isl_aux_usage hiz_usage)
 {
    struct anv_device *device = cmd_buffer->device;
    struct anv_cmd_graphics_state *gfx = &cmd_buffer->state.gfx;
@@ -6163,7 +6164,7 @@ cmd_buffer_emit_depth_stencil(struct anv_cmd_buffer *cmd_buffer)
       info.mocs =
          anv_mocs(device, depth_address.bo, isl_usage);
 
-      info.hiz_usage = gfx->depth_att.aux_usage;
+      info.hiz_usage = hiz_usage;
       if (isl_aux_usage_has_hiz(info.hiz_usage)) {
          const struct anv_surface *hiz_surface =
             &image->planes[depth_plane].aux_surface;
@@ -6824,7 +6825,7 @@ void genX(CmdBeginRendering)(
    }
 #endif
 
-   cmd_buffer_emit_depth_stencil(cmd_buffer);
+   genX(cmd_buffer_emit_depth_stencil)(cmd_buffer, gfx->depth_att.aux_usage);
 
    cmd_buffer_emit_cps_control_buffer(cmd_buffer, fsr_iview);
 }

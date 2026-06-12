@@ -100,6 +100,10 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
 void genX(cmd_buffer_emit_gfx12_depth_wa)(struct anv_cmd_buffer *cmd_buffer,
                                           const struct isl_surf *surf);
 
+void
+genX(cmd_buffer_emit_depth_stencil)(struct anv_cmd_buffer *cmd_buffer,
+                                    enum isl_aux_usage hiz_usage);
+
 void genX(cmd_buffer_set_binding_for_gfx8_vb_flush)(struct anv_cmd_buffer *cmd_buffer,
                                                     int vb_index,
                                                     struct anv_address vb_address,
