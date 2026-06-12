@@ -121,10 +121,10 @@ bool IntelDriver::init_perfcnt()
    PPS_LOG("Using metric set '%s': %s",
            selected_query->symbol_name, selected_query->name);
 
-   // Create group
-   CounterGroup group = {};
-   group.id = groups.size();
-   group.name = selected_query->symbol_name;
+   // Create Perfetto counter block
+   CounterGroup block = {};
+   block.id = groups.size();
+   block.name = selected_query->symbol_name;
 
    for (int i = 0; i < selected_query->n_counters; ++i) {
       intel_perf_query_counter &counter = selected_query->counters[i];
@@ -134,7 +134,7 @@ bool IntelDriver::init_perfcnt()
       counter_desc.id = counters.size();
       counter_desc.name = counter.symbol_name;
       counter_desc.description = counter.desc;
-      counter_desc.group = group.id;
+      counter_desc.group = block.id;
       counter_desc.getter = [counter, this](
          const Counter &c, const Driver &dri) -> Counter::Value {
          switch (counter.data_type) {
@@ -157,14 +157,14 @@ bool IntelDriver::init_perfcnt()
       };
 
       // Add counter id to the group
-      group.counters.emplace_back(counter_desc.id);
+      block.counters.emplace_back(counter_desc.id);
 
       // Store counter
       counters.emplace_back(std::move(counter_desc));
    }
 
    // Store group
-   groups.emplace_back(std::move(group));
+   groups.emplace_back(std::move(block));
 
    assert(counters.size() && "Failed to query counters");
 

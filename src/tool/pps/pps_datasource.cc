@@ -126,7 +126,7 @@ void GpuDataSource::wait_started()
    }
 }
 
-template <typename GpuCounterDescriptor> void add_group(GpuCounterDescriptor *desc,
+template <typename GpuCounterDescriptor> void add_block(GpuCounterDescriptor *desc,
    const CounterGroup &group,
    const std::string &prefix,
    int32_t gpu_num)
@@ -146,7 +146,7 @@ template <typename GpuCounterDescriptor> void add_group(GpuCounterDescriptor *de
    for (auto const &sub : group.subgroups) {
       // Perfetto doesnt currently support nested groups.
       // Flatten group hierarchy, using dot separator
-      add_group(desc, sub, prefix + "." + group.name, gpu_num);
+      add_block(desc, sub, prefix + "." + group.name, gpu_num);
    }
 }
 
@@ -157,7 +157,7 @@ template <typename GpuCounterDescriptor> void add_descriptors(GpuCounterDescript
 {
    // Add the groups
    for (auto const &group : groups) {
-      add_group(desc, group, driver.drm_device.name, driver.drm_device.gpu_num);
+      add_block(desc, group, driver.drm_device.name, driver.drm_device.gpu_num);
    }
 
    // Add the counters
