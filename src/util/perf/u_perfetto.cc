@@ -23,12 +23,21 @@
 
 #include "u_perfetto.h"
 
-/* perfetto's use of STL triggers an GCC array-bounds warning
- * in libstdc++ that appears to be spurious. See:
+/* perfetto's use of STL triggers GCC warnings
+ * in libstdc++ that appear to be spurious. See:
  * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109717
+ * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106093
  */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
+#if defined(__has_warning)
+   #if __has_warning("-Wstringop-overflow")
+      // warning group not present on Android NDK
+      #pragma GCC diagnostic ignored "-Wstringop-overflow"
+   #endif
+#else
+   #pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 
 #ifndef ANDROID_LIBPERFETTO
 #include <perfetto.h>
@@ -134,7 +143,7 @@ void
 util_perfetto_trace_begin_flow(const char *fname, uint64_t id)
 {
    TRACE_EVENT_BEGIN(
-      UTIL_PERFETTO_CATEGORY_DEFAULT_STR, nullptr, 
+      UTIL_PERFETTO_CATEGORY_DEFAULT_STR, nullptr,
       util_perfetto_now(util_perfetto_get_default_clock()),
       perfetto::Flow::ProcessScoped(id),
       [&](perfetto::EventContext ctx) { ctx.event()->set_name(fname); });
@@ -145,7 +154,7 @@ util_perfetto_trace_full_begin(const char *fname, uint64_t track_id, uint64_t id
 {
    TRACE_EVENT_BEGIN(
       UTIL_PERFETTO_CATEGORY_DEFAULT_STR, nullptr, perfetto::Track(track_id),
-      perfetto::TraceTimestamp{clockid_to_perfetto_clock(clock), timestamp}, 
+      perfetto::TraceTimestamp{clockid_to_perfetto_clock(clock), timestamp},
       perfetto::Flow::ProcessScoped(id),
       [&](perfetto::EventContext ctx) { ctx.event()->set_name(fname); });
 }
@@ -165,8 +174,8 @@ void
 util_perfetto_trace_full_end(const char *name, uint64_t track_id, perfetto_clock_id clock, uint64_t timestamp)
 {
    TRACE_EVENT_END(
-      UTIL_PERFETTO_CATEGORY_DEFAULT_STR, 
-      perfetto::Track(track_id), 
+      UTIL_PERFETTO_CATEGORY_DEFAULT_STR,
+      perfetto::Track(track_id),
       perfetto::TraceTimestamp{clockid_to_perfetto_clock(clock), timestamp});
 
    util_perfetto_update_tracing_state();
