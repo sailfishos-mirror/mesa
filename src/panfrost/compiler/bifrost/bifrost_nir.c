@@ -941,6 +941,9 @@ bifrost_postprocess_nir(nir_shader *nir,
                                   nir, inputs->gpu_id,
                                   false /* lower mediump */);
 
+      NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_in, NULL, NULL);
+      NIR_PASS(_, nir, nir_opt_vectorize_io, nir_var_shader_in, false);
+
       if (!inputs->is_blend)
          NIR_PASS(_, nir, pan_nir_lower_fs_inputs, inputs->gpu_id,
                   inputs->varying_layout, info);
@@ -982,6 +985,9 @@ bifrost_postprocess_nir(nir_shader *nir,
 
    NIR_PASS(_, nir, pan_nir_lower_tex, gpu_id);
    NIR_PASS(_, nir, pan_nir_lower_image, gpu_id);
+
+   /* Remove useless movs left behind from lower_io_to_scalar/vectorize_io */
+   NIR_PASS(_, nir, nir_opt_copy_prop);
 
    /* Why aren't we vectorizing nir_var_shader_temp?
     * Basically, the current RA doesn't know rematerialization and is still
