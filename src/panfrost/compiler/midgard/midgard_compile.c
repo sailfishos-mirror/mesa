@@ -2991,7 +2991,8 @@ midgard_compile_shader_nir(nir_shader *nir,
    }
 
    if (nir->info.stage == MESA_SHADER_VERTEX) {
-      NIR_PASS(_, nir, pan_nir_resize_varying_io, &info->varyings.formats);
+      NIR_PASS(_, nir, pan_nir_resize_varying_io, &info->varyings.formats,
+               &info->varyings.formats);
       NIR_PASS(_, nir, pan_nir_lower_vs_outputs, inputs->gpu_id,
                inputs->varying_layout, false /* has_idvs */,
                NULL /* needs_extended_fifo */);

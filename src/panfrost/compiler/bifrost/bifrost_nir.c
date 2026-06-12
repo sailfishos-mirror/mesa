@@ -917,7 +917,8 @@ bifrost_postprocess_nir(nir_shader *nir,
     * In that case, we just return zero.
     */
    if (pan_arch(inputs->gpu_id) >= 9 && inputs->varying_layout)
-      NIR_PASS(_, nir, pan_nir_resize_varying_io, inputs->varying_layout);
+      NIR_PASS(_, nir, pan_nir_resize_varying_io, inputs->varying_layout,
+               inputs->varying_layout);
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       NIR_PASS(_, nir, nir_lower_is_helper_invocation);
