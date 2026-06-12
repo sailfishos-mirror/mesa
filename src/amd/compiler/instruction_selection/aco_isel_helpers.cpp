@@ -671,7 +671,7 @@ void
 emit_barrier(Builder& bld, memory_sync_info sync, sync_scope exec_scope)
 {
    if (bld.program->workgroup_size <= bld.program->wave_size) {
-      exec_scope = scope_subgroup;
+      exec_scope = MIN2(exec_scope, scope_subgroup);
       if (sync.scope == scope_workgroup)
          sync.scope = scope_subgroup;
    }
