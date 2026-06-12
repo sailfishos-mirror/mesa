@@ -951,6 +951,10 @@ pub trait VirtualOpcode {
         swizzle == Swizzle::NONE
     }
 
+    fn dst_is_staging_reg(&self) -> bool {
+        false
+    }
+
     fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
         lanes == DstLanes::All
     }

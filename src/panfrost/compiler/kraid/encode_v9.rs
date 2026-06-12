@@ -1146,6 +1146,12 @@ pub fn v9_op_src_supports_swizzle(
     src_info.allowed_swizzles.contains(asw.into())
 }
 
+pub fn v9_op_dst_is_staging_reg(op: &Op, arch: u8) -> bool {
+    v9_op_info(op, arch)
+        .and_then(|info| info.dst_info())
+        .is_some_and(|info| info.is_sr)
+}
+
 pub fn v9_op_dst_supports_lanes(
     op: &Op,
     arch: u8,
