@@ -676,7 +676,6 @@ static void r300_set_blend_color(struct pipe_context* pipe,
         (struct r300_blend_color_state*)r300->blend_color_state.state;
     struct pipe_blend_color c;
     struct pipe_surface *cb;
-    float tmp;
     CB_LOCALS;
 
     state->state = *color; /* Save it, so that we can reuse it in set_fb_state */
@@ -705,13 +704,68 @@ static void r300_set_blend_color(struct pipe_context* pipe,
             c.color[2] = c.color[3];
             break;
 
+#if UTIL_ARCH_BIG_ENDIAN
+        case PIPE_FORMAT_A8R8G8B8_UNORM: {
+            /* A8R8G8B8 constant-color blending consumes the register lanes
+             * in a different order from pipe RGBA. Program the inverse
+             * order so GL_CONSTANT_COLOR sees pipe RGBA.
+             */
+            float r = c.color[0];
+            float g = c.color[1];
+            float b = c.color[2];
+            float a = c.color[3];
+            c.color[0] = g;
+            c.color[1] = r;
+            c.color[2] = a;
+            c.color[3] = b;
+            break;
+        }
+
         case PIPE_FORMAT_R8G8B8A8_UNORM:
         case PIPE_FORMAT_R8G8B8X8_UNORM:
         case PIPE_FORMAT_R10G10B10A2_UNORM:
-            tmp = c.color[0];
+        case PIPE_FORMAT_B5G6R5_UNORM: {
+            /* These formats consume constant-color register lanes in A,R,G,B
+             * order. Program the inverse order so constant blend factors see
+             * pipe RGBA/RGB.
+             */
+            float r = c.color[0];
+            float g = c.color[1];
+            float b = c.color[2];
+            float a = c.color[3];
+            c.color[0] = g;
+            c.color[1] = b;
+            c.color[2] = a;
+            c.color[3] = r;
+            break;
+        }
+
+        case PIPE_FORMAT_B5G5R5A1_UNORM:
+        case PIPE_FORMAT_B5G5R5X1_UNORM: {
+            /* 1555 colorbuffer blending consumes the constant color in
+             * colorbuffer-lane order. Match the B5G5R5* output swizzle so
+             * GL_CONSTANT_COLOR blending sees pipe RGBA.
+             */
+            float r = c.color[0];
+            float g = c.color[1];
+            float b = c.color[2];
+            float a = c.color[3];
+            c.color[0] = g;
+            c.color[1] = r;
+            c.color[2] = a;
+            c.color[3] = b;
+            break;
+        }
+#else
+        case PIPE_FORMAT_R8G8B8A8_UNORM:
+        case PIPE_FORMAT_R8G8B8X8_UNORM:
+        case PIPE_FORMAT_R10G10B10A2_UNORM: {
+            float tmp = c.color[0];
             c.color[0] = c.color[2];
             c.color[2] = tmp;
             break;
+        }
+#endif
 
         default:;
         }
