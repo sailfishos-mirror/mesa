@@ -33,6 +33,8 @@ uint32_t pan_query_compressed_formats(const struct pan_kmod_dev_props *props);
 unsigned pan_query_core_count(const struct pan_kmod_dev_props *props);
 unsigned pan_query_core_id_range(const struct pan_kmod_dev_props *props);
 
+unsigned pan_query_perf_counter_per_block(const struct pan_kmod_dev_props *props);
+
 bool pan_query_afbc(const struct pan_kmod_dev_props *props);
 
 bool pan_query_afrc(const struct pan_kmod_dev_props *props);

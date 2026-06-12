@@ -166,3 +166,8 @@ pan_choose_gpu_va_alignment(const struct pan_kmod_vm *vm, uint64_t size)
    }
    return align;
 }
+
+unsigned pan_query_perf_counter_per_block(const struct pan_kmod_dev_props *props)
+{
+   return pan_arch(props->gpu_id) <= 10 ? 64 : 128;
+}
