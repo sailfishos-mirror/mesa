@@ -17,23 +17,20 @@
 #include <lib/pan_props.h>
 #include <pan_perf_metrics.h>
 
-#define PAN_COUNTERS_PER_CATEGORY 64
-#define PAN_SHADER_CORE_INDEX     3
-
 uint32_t
 pan_perf_counter_read(const struct pan_perf_counter *counter,
                       const struct pan_perf *perf)
 {
-   unsigned offset = perf->category_offset[counter->category_index];
+   unsigned offset = perf->category_offset[counter->category_id];
    offset += counter->offset;
    assert(offset < perf->n_counter_values);
 
    uint32_t ret = perf->counter_values[offset];
 
    // If counter belongs to shader core, accumulate values for all other cores
-   if (counter->category_index == PAN_SHADER_CORE_INDEX) {
+   if (counter->category_id == MALI_PERF_BLOCK_SHADER_CORE) {
       for (uint32_t core = 1; core < perf->core_id_range; ++core) {
-         ret += perf->counter_values[offset + PAN_COUNTERS_PER_CATEGORY * core];
+         ret += perf->counter_values[offset + MALI_PERF_MAX_COUNTERS_PER_BLOCK * core];
       }
    }
 
@@ -66,6 +63,10 @@ pan_perf_init(struct pan_perf *perf, int fd)
 
    struct pan_kmod_dev_props props = perf->dev->props;
 
+   perf->constants.ext_bus_byte_size = pan_query_bus_width(&props);
+   perf->constants.l2_cache_count = pan_query_l2_slices(&props);
+   perf->constants.shader_core_count = pan_query_core_count(&props);
+
    const struct pan_model *model =
       pan_get_model(props.gpu_id, props.gpu_variant);
    if (model == NULL)
@@ -82,14 +83,18 @@ pan_perf_init(struct pan_perf *perf, int fd)
    perf->core_id_range = pan_query_core_id_range(&props);
 
    uint32_t n_blocks = 2 + l2_slices + perf->core_id_range;
-   perf->n_counter_values = PAN_COUNTERS_PER_CATEGORY * n_blocks;
+   perf->n_counter_values = MALI_PERF_MAX_COUNTERS_PER_BLOCK * n_blocks;
    perf->counter_values = ralloc_array(perf, uint32_t, perf->n_counter_values);
 
    /* Setup the layout */
-   perf->category_offset[0] = PAN_COUNTERS_PER_CATEGORY * 0;
-   perf->category_offset[1] = PAN_COUNTERS_PER_CATEGORY * 1;
-   perf->category_offset[2] = PAN_COUNTERS_PER_CATEGORY * 2;
-   perf->category_offset[3] = PAN_COUNTERS_PER_CATEGORY * (2 + l2_slices);
+   perf->category_offset[MALI_PERF_BLOCK_GPU_FRONT_END] =
+      MALI_PERF_MAX_COUNTERS_PER_BLOCK * 0;
+   perf->category_offset[MALI_PERF_BLOCK_TILER] =
+      MALI_PERF_MAX_COUNTERS_PER_BLOCK * 1;
+   perf->category_offset[MALI_PERF_BLOCK_MEMSYS] =
+      MALI_PERF_MAX_COUNTERS_PER_BLOCK * 2;
+   perf->category_offset[MALI_PERF_BLOCK_SHADER_CORE] =
+      MALI_PERF_MAX_COUNTERS_PER_BLOCK * (2 + l2_slices);
 }
 
 static int

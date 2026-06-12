@@ -67,6 +67,15 @@ class Product:
          self.categories.append(Category(self, xml_cat))
 
 
+CAT_TO_MALI_BLK_TYPE = {
+   'Job Manager': 'MALI_PERF_BLOCK_GPU_FRONT_END',
+   'Tiler': 'MALI_PERF_BLOCK_TILER',
+   'L2 Cache': 'MALI_PERF_BLOCK_MEMSYS',
+   'Memory System': 'MALI_PERF_BLOCK_MEMSYS',
+   'Shader Core': 'MALI_PERF_BLOCK_SHADER_CORE',
+}
+
+
 def main():
    parser = argparse.ArgumentParser()
    parser.add_argument("--header", help="Header file to write", required=True)
@@ -119,11 +128,11 @@ def main():
       c.indent(tab_size)
 
       n_categories = len(prod.categories)
-      c.write("STATIC_ASSERT(%u <= PAN_PERF_MAX_CATEGORIES);" % n_categories)
+      c.write("STATIC_ASSERT(%u <= MALI_PERF_BLOCK_TYPE_COUNT);" % n_categories)
       n_counters = 0
       for category in prod.categories:
          category_counters_count = len(category.counters)
-         c.write("STATIC_ASSERT(%u <= PAN_PERF_MAX_COUNTERS);" % category_counters_count)
+         c.write("STATIC_ASSERT(%u <= MALI_PERF_MAX_COUNTERS_PER_BLOCK);" % category_counters_count)
          n_counters += category_counters_count
       
       c.outdent(tab_size)
@@ -144,6 +153,7 @@ def main():
 
       for i in range(0, len(prod.categories)):
          category = prod.categories[i]
+         blk_type = CAT_TO_MALI_BLK_TYPE[category.name]
 
          c.write("{")
          c.indent(tab_size)
@@ -162,9 +172,9 @@ def main():
             c.write(".name = \"%s\"," % (counter.name))
             c.write(".desc = \"%s\"," % (counter.desc.replace("\\", "\\\\")))
             c.write(".symbol_name = \"%s\"," % (counter.underscore_name))
-            c.write(".units = PAN_PERF_COUNTER_UNITS_%s," % (counter.units.upper()))
+            c.write(".units = MALI_PERF_COUNTER_UNITS_%s," % (counter.units.upper()))
             c.write(".offset = %u," % (counter.offset))
-            c.write(".category_index = %u," % i)
+            c.write(".category_id = %s," % blk_type)
 
             c.outdent(tab_size)
             c.write("}, // counter")
