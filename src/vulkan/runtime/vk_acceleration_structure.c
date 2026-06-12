@@ -37,7 +37,6 @@
 #include "bvh/vk_bvh.h"
 
 #include "util/u_string.h"
-#include "util/bitset.h"
 
 static const uint32_t leaf_spv[] = {
 #include "bvh/leaf.spv.h"
@@ -1184,16 +1183,22 @@ vk_build_stage(vk_build_stage_cb cb, VkCommandBuffer commandBuffer, struct vk_de
                struct vk_acceleration_structure_build_state *states, uint32_t build_count,
                uint32_t build_flags_mask)
 {
-   BITSET_DECLARE(flag_combinations, 1u << VK_BUILD_FLAG_COUNT);
-   BITSET_ZERO(flag_combinations);
-   for (uint32_t i = 0; i < build_count; i++)
-      BITSET_SET(flag_combinations, states[i].build_flags & build_flags_mask);
+   for (uint32_t i = 0; i < build_count; i++) {
+      if (states[i].processed) {
+         states[i].processed = false;
+         continue;
+      }
 
-   uint32_t build_flags;
-   BITSET_FOREACH_SET(build_flags, flag_combinations, 1u << VK_BUILD_FLAG_COUNT) {
+      uint32_t build_flags = states[i].build_flags & build_flags_mask;
+
       VkResult result = cb(commandBuffer, device, meta, args, states, build_count, build_flags);
       if (result != VK_SUCCESS)
          return result;
+
+      for (uint32_t j = i + 1; j < build_count; j++) {
+         if ((states[j].build_flags & build_flags_mask) == build_flags)
+            states[j].processed = true;
+      }
    }
 
    return VK_SUCCESS;

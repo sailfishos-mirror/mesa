@@ -139,6 +139,7 @@ struct vk_acceleration_structure_build_state {
    uint32_t build_flags;
 
    uint32_t scratch_offset;
+   bool processed;
 
    /* Radix sort state */
    uint32_t scatter_blocks;
