@@ -1218,8 +1218,44 @@ wsi_GetPhysicalDeviceSurfaceFormats2KHR(VkPhysicalDevice physicalDevice,
    struct wsi_device *wsi_device = device->wsi_device;
    struct wsi_interface *iface = wsi_device->wsi[surface->platform];
 
-   return iface->get_formats2(surface, wsi_device, pSurfaceInfo->pNext,
-                              pSurfaceFormatCount, pSurfaceFormats);
+   VkResult result = iface->get_formats2(surface, wsi_device, pSurfaceInfo->pNext,
+                                         pSurfaceFormatCount, pSurfaceFormats);
+
+   if (result != VK_SUCCESS && result != VK_INCOMPLETE)
+      return result;
+
+   if (pSurfaceFormats &&
+       device->supported_extensions.EXT_image_compression_control) {
+      for (uint32_t i = 0; i < *pSurfaceFormatCount; i++) {
+         VkImageCompressionPropertiesEXT *compression_props =
+            vk_find_struct(pSurfaceFormats[i].pNext,
+                           IMAGE_COMPRESSION_PROPERTIES_EXT);
+         if (!compression_props)
+            continue;
+
+         VkPhysicalDeviceImageFormatInfo2 image_format_info = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+            .format = pSurfaceFormats[i].surfaceFormat.format,
+            .type = VK_IMAGE_TYPE_2D,
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+         };
+
+         VkImageFormatProperties2 image_format_props = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
+            .pNext = compression_props,
+         };
+         VkResult format_result =
+            wsi_device->GetPhysicalDeviceImageFormatProperties2(wsi_device->pdevice,
+                                                                &image_format_info,
+                                                                &image_format_props);
+         if (format_result == VK_ERROR_OUT_OF_HOST_MEMORY ||
+             format_result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
+            return format_result;
+      }
+   }
+
+   return result;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
