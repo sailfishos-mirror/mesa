@@ -10396,8 +10396,9 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
             uint32_t level = ds_iview->vk.base_mip_level;
 
             /* HTILE buffer */
-            uint64_t htile_offset =
-               ds_image->planes[0].surface.meta_offset + ds_image->planes[0].surface.u.gfx9.meta_levels[level].offset;
+            uint64_t htile_offset = ds_image->planes[0].surface.meta_offset +
+                                    (uint64_t)ds_iview->vk.base_array_layer * ds_image->planes[0].surface.meta_slice_size +
+                                    ds_image->planes[0].surface.u.gfx9.meta_levels[level].offset;
             const uint64_t htile_va = ds_image->bindings[0].addr + htile_offset;
 
             assert(render_area.offset.x + render_area.extent.width <= ds_image->vk.extent.width &&
