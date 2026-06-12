@@ -18,21 +18,27 @@
 #include <pan_perf_metrics.h>
 
 uint32_t
-pan_perf_counter_read(const struct pan_perf_counter *counter,
-                      const struct pan_perf *perf)
+pan_perf_counter_read(const struct pan_perf *perf,
+                      const struct pan_perf_counter *counter, uint8_t blk_idx)
 {
    unsigned offset = perf->category_offset[counter->category_id];
    offset += counter->offset;
    assert(offset < perf->n_counter_values);
 
-   uint32_t ret = perf->counter_values[offset];
+   return perf->counter_values[offset];
+}
 
-   // If counter belongs to shader core, accumulate values for all other cores
-   if (counter->category_id == MALI_PERF_BLOCK_SHADER_CORE) {
-      for (uint32_t core = 1; core < perf->core_id_range; ++core) {
-         ret += perf->counter_values[offset + MALI_PERF_MAX_COUNTERS_PER_BLOCK * core];
-      }
-   }
+uint32_t
+pan_perf_counter_read_sum(const struct pan_perf *perf,
+                          const struct pan_perf_counter *counter)
+{
+   /* If counter belongs to shader core, sum values for all cores. */
+   uint8_t blk_cnt =
+      mali_perf_block_count(counter->category_id, &perf->constants);
+   uint32_t ret = 0;
+
+   for (uint8_t blk_idx = 0; blk_idx < blk_cnt; blk_idx++)
+      ret += pan_perf_counter_read(perf, counter, blk_idx);
 
    return ret;
 }

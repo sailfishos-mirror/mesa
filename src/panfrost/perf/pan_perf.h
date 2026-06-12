@@ -61,8 +61,12 @@ struct pan_perf {
    unsigned category_offset[MALI_PERF_BLOCK_TYPE_COUNT];
 };
 
-uint32_t pan_perf_counter_read(const struct pan_perf_counter *counter,
-                               const struct pan_perf *perf);
+uint32_t pan_perf_counter_read(const struct pan_perf *perf,
+                               const struct pan_perf_counter *counter,
+                               uint8_t blk_idx);
+
+uint32_t pan_perf_counter_read_sum(const struct pan_perf *perf,
+                                   const struct pan_perf_counter *counter);
 
 struct pan_perf *pan_perf_create(int fd);
 

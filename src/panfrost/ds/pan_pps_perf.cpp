@@ -105,7 +105,7 @@ PanfrostPerf::create_available_counters() const
                   pan_driver.perf->get_subinstance());
             const auto counter =
                &perf->cfg->categories[gid].counters[id];
-            return int64_t(pan_perf_counter_read(counter, perf));
+            return pan_perf_counter_read_sum(perf, counter);
          });
 
          group.counters.push_back(cid++);
