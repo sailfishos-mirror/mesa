@@ -39,17 +39,11 @@ main(void)
 
    pan_perf_dump(perf);
 
-   for (unsigned i = 0; i < perf->cfg->n_categories; ++i) {
-      const struct pan_perf_category *cat = &perf->cfg->categories[i];
-      printf("%s\n", cat->name);
+   for (const struct mali_perf_counter *ctr = perf->info->counters; ctr->name;
+        ctr++) {
+      int64_t val = pan_perf_counter_read_sum(perf, ctr);
 
-      for (unsigned j = 0; j < cat->n_counters; ++j) {
-         const struct pan_perf_counter *ctr = &cat->counters[j];
-         int64_t val = pan_perf_counter_read_sum(perf, ctr);
-         printf("%s (%s): %ld\n", ctr->name, ctr->symbol_name, val);
-      }
-
-      printf("\n");
+      printf("%s: %ld\n", ctr->name, val);
    }
 
    if (pan_perf_disable(perf) < 0) {

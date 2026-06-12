@@ -17,29 +17,22 @@
 #include <drm-uapi/panfrost_drm.h>
 #include <lib/kmod/pan_kmod.h>
 #include <lib/pan_props.h>
-#include <pan_perf_metrics.h>
 
 int64_t
 pan_perf_counter_read(const struct pan_perf *perf,
-                      const struct pan_perf_counter *counter, uint8_t blk_idx)
+                      const struct mali_perf_counter *counter, uint8_t blk_idx)
 {
-   struct mali_perf_backend *backend = &perf->session->mali_perf_backend;
-   struct mali_perf_hw_counter_id id = {
-      .block.type = counter->category_id,
-      .block.index = blk_idx,
-      .index = counter->offset,
-   };
-
-   return backend->get_hw_counter_value(backend, id);
+   return counter->get_value(&perf->session->mali_perf_backend, blk_idx,
+                             &perf->constants, &perf->dump_info);
 }
 
 int64_t
 pan_perf_counter_read_sum(const struct pan_perf *perf,
-                          const struct pan_perf_counter *counter)
+                          const struct mali_perf_counter *counter)
 {
    /* If counter belongs to shader core, sum values for all cores. */
    uint8_t blk_cnt =
-      mali_perf_block_count(counter->category_id, &perf->constants);
+      mali_perf_block_count(counter->block, &perf->constants);
    int64_t ret = 0;
 
    for (uint8_t blk_idx = 0; blk_idx < blk_cnt; blk_idx++) {
@@ -48,17 +41,6 @@ pan_perf_counter_read_sum(const struct pan_perf *perf,
    }
 
    return ret;
-}
-
-static const struct pan_perf_config *
-pan_lookup_counters(const char *name)
-{
-   for (unsigned i = 0; i < ARRAY_SIZE(pan_perf_configs); ++i) {
-      if (strcmp(pan_perf_configs[i]->name, name) == 0)
-         return pan_perf_configs[i];
-   }
-
-   return NULL;
 }
 
 void
@@ -110,8 +92,8 @@ pan_perf_create(int fd)
       goto err_destroy_perf;
    }
 
-   perf->cfg = pan_lookup_counters(model->performance_counters);
-   if (perf->cfg == NULL) {
+   perf->info = mali_perf_get_info_for_gpu(model->performance_counters);
+   if (perf->info == NULL) {
       mesa_loge("Performance counters missing!");
       goto err_destroy_perf;
    }
@@ -130,14 +112,12 @@ pan_perf_enable(struct pan_perf *perf, uint64_t sampling_period_ns)
       .sampling_period_ns = sampling_period_ns,
    };
 
-   for (uint32_t i = 0; i < perf->cfg->n_categories; i++) {
-      const struct pan_perf_category *cat = &perf->cfg->categories[i];
-
-      for (uint32_t j = 0; j < cat->n_counters; j++) {
-         const struct pan_perf_counter *counter = &cat->counters[j];
-
-         BITSET_SET(cfg.blocks[counter->category_id].counters, counter->offset);
-      }
+   /* For each counter, we enable the HW sources. */
+   for (const struct mali_perf_counter *counter = perf->info->counters;
+        counter->name; counter++) {
+      for (const struct mali_perf_counter_source *source = counter->sources;
+           source->block != MALI_PERF_BLOCK_NONE; source++)
+         BITSET_SET(cfg.blocks[source->block].counters, source->counter);
    }
 
    return pan_kmod_perf_enable(perf->session, &cfg);

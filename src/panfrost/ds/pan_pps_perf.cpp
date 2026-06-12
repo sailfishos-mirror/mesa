@@ -14,6 +14,8 @@
 #include <util/ralloc.h>
 #include <util/timespec.h>
 
+#include <sstream>
+
 namespace pps {
 
 PanfrostPerf::PanfrostPerf(const PanfrostDevice &dev)
@@ -80,31 +82,26 @@ PanfrostPerf::get_subinstance() {
    return perf;
 }
 
-std::string
-format_suffix(const char *fmt, uint8_t idx)
+static std::string
+get_counter_name(const char *base_name, enum mali_perf_block_type blk_type,
+                 uint8_t blk_idx)
 {
-   assert(strlen(fmt) < 200 && "fmt unreasonably long");
-   char buf[256];
-   std::snprintf(buf, sizeof(buf), fmt, idx);
+   std::stringstream ss;
 
-   return std::string(buf);
-}
-
-const char *
-get_block_suffix(uint8_t category)
-{
-   assert(category <= MALI_PERF_BLOCK_TYPE_COUNT);
-
-   switch (category) {
+   switch (blk_type) {
    case MALI_PERF_BLOCK_MEMSYS:
-      return " (slice %u)";
+      ss << base_name << " (slice " << (unsigned)blk_idx << ")";
+      break;
    case MALI_PERF_BLOCK_SHADER_CORE:
-      return " (core %u)";
+      ss << base_name << " (core " << (unsigned)blk_idx << ")";
+      break;
    default:
-      return nullptr;
+      assert(!blk_idx);
+      ss << base_name;
+      break;
    }
 
-   return nullptr;
+   return ss.str();
 }
 
 Counter::Units
@@ -124,57 +121,80 @@ convert_pan_units(enum mali_perf_counter_units unit)
    }
 }
 
+static uint32_t
+convert_classes(uint64_t classes)
+{
+   static_assert((int)MALI_PERF_UNCLASSIFIED == (int)Perfettogrp::UNCLASSIFIED);
+   static_assert((int)MALI_PERF_SYSTEM == (int)Perfettogrp::SYSTEM);
+   static_assert((int)MALI_PERF_VERTICES == (int)Perfettogrp::VERTICES);
+   static_assert((int)MALI_PERF_FRAGMENTS == (int)Perfettogrp::FRAGMENTS);
+   static_assert((int)MALI_PERF_PRIMITIVES == (int)Perfettogrp::PRIMITIVES);
+   static_assert((int)MALI_PERF_MEMORY == (int)Perfettogrp::MEMORY);
+   static_assert((int)MALI_PERF_COMPUTE == (int)Perfettogrp::COMPUTE);
+
+   /* RAY_TRACING not yet exposed by pps_counter. */
+   if (classes & MALI_PERF_RAY_TRACING)
+      classes &= ~MALI_PERF_RAY_TRACING;
+
+   assert(!(classes &
+            ~(BITFIELD64_BIT(MALI_PERF_UNCLASSIFIED) |
+              BITFIELD64_BIT(MALI_PERF_SYSTEM) |
+              BITFIELD64_BIT(MALI_PERF_VERTICES) |
+              BITFIELD64_BIT(MALI_PERF_FRAGMENTS) |
+              BITFIELD64_BIT(MALI_PERF_PRIMITIVES) |
+              BITFIELD64_BIT(MALI_PERF_MEMORY) |
+              BITFIELD64_BIT(MALI_PERF_COMPUTE) |
+              BITFIELD64_BIT(MALI_PERF_RAY_TRACING))));
+
+   if (!classes)
+      classes = BITFIELD64_BIT(MALI_PERF_UNCLASSIFIED);
+
+   assert(classes <= UINT32_MAX);
+   return classes;
+}
+
 std::pair<std::vector<CounterGroup>, std::vector<Counter>>
 PanfrostPerf::create_available_counters() const
 {
    std::pair<std::vector<CounterGroup>, std::vector<Counter>> ret;
    auto &[groups, counters] = ret;
-
    uint32_t global_counter_id = 0;
 
-   const struct pan_perf_category *category = NULL;
-   for (uint32_t cat_idx = 0; cat_idx < perf->cfg->n_categories; ++cat_idx) {
-      assert(cat_idx < MALI_PERF_BLOCK_TYPE_COUNT);
-      category = &perf->cfg->categories[cat_idx];
+   for (const struct mali_perf_counter *cinfo = perf->info->counters;
+        cinfo->name; cinfo++) {
+      for (uint32_t j = 0;
+           j < mali_perf_block_count(cinfo->block, &perf->constants); j++) {
 
-      if (!category->n_counters)
-         continue;
+         Counter counter = {};
+         counter.id = global_counter_id++;
+         counter.name = get_counter_name(cinfo->name, cinfo->block, j);
+         counter.description = cinfo->desc;
+         counter.group = cinfo->block;
+         counter.group_mask = convert_classes(cinfo->classes);
+         counter.units = convert_pan_units(cinfo->units);
+         counter.set_getter([=](const Counter &c, const Driver &d) {
+            auto &pan_driver = PanfrostDriver::into(d);
+            struct pan_perf *perf = static_cast<struct pan_perf *>(
+               pan_driver.perf->get_subinstance());
+            return pan_perf_counter_read(perf, cinfo, j);
+         });
+         counters.emplace_back(counter);
+      }
+   }
 
-      enum mali_perf_block_type blk_type = category->counters[0].category_id;
+   for (uint32_t i = 0; i < MALI_PERF_BLOCK_TYPE_COUNT; i++) {
       CounterGroup group = {};
-      group.id = blk_type;
-      group.name = mali_perf_block_type_str(blk_type);
 
-      uint32_t n_blocks = mali_perf_block_count(blk_type, &perf->constants);
-      for (uint32_t counter_idx = 0; counter_idx < category->n_counters;
-           ++counter_idx) {
-         const struct pan_perf_counter *cinfo =
-            &category->counters[counter_idx];
+      group.id = i;
+      group.name = mali_perf_block_type_str((enum mali_perf_block_type)i);
 
-         for (uint32_t block_idx = 0; block_idx < n_blocks; ++block_idx) {
-            const char *suffix = get_block_suffix(group.id);
-            const std::string name =
-               cinfo->name + (suffix ? format_suffix(suffix, block_idx) : "");
-
-            Counter counter = {};
-            counter.id = global_counter_id++;
-            counter.name = name;
-            counter.group = group.id;
-            counter.units = convert_pan_units(cinfo->units);
-
-            counter.set_getter([=](const Counter &c, const Driver &d) {
-               auto &pan_driver = PanfrostDriver::into(d);
-               struct pan_perf *perf = static_cast<struct pan_perf *>(
-                  pan_driver.perf->get_subinstance());
-               return pan_perf_counter_read(perf, cinfo, block_idx);
-            });
-
+      for (auto &counter : counters) {
+         if (counter.group == (int32_t)group.id)
             group.counters.push_back(counter.id);
-            counters.emplace_back(counter);
-         }
       }
 
-      groups.push_back(group);
+      if (group.counters.size() > 0)
+         groups.push_back(group);
    }
 
    return ret;
