@@ -1655,14 +1655,6 @@ struct iris_depth_buffer_state {
 #endif
 };
 
-#if INTEL_NEEDS_WA_1808121037
-enum iris_depth_reg_mode {
-   IRIS_DEPTH_REG_MODE_HW_DEFAULT = 0,
-   IRIS_DEPTH_REG_MODE_D16_1X_MSAA,
-   IRIS_DEPTH_REG_MODE_UNKNOWN,
-};
-#endif
-
 /**
  * Generation-specific context state (ice->state.genx->...).
  *
@@ -1683,10 +1675,6 @@ struct iris_genx_state {
 
    /* Is object level preemption enabled? */
    bool object_preemption;
-
-#if INTEL_NEEDS_WA_1808121037
-   enum iris_depth_reg_mode depth_reg_mode;
-#endif
 
    struct {
 #if GFX_VER == 8
@@ -6553,49 +6541,13 @@ emit_push_constant_packet_all(struct iris_context *ice,
 #endif
 
 void
-genX(emit_depth_state_workarounds)(struct iris_context *ice,
-                                   struct iris_batch *batch,
-                                   const struct isl_surf *surf)
+genX(batch_disable_hiz_planes)(struct iris_batch *batch)
 {
-#if INTEL_NEEDS_WA_1808121037
-   const bool is_d16_1x_msaa = surf->format == ISL_FORMAT_R16_UNORM &&
-                               surf->samples == 1;
-
-   switch (ice->state.genx->depth_reg_mode) {
-   case IRIS_DEPTH_REG_MODE_HW_DEFAULT:
-      if (!is_d16_1x_msaa)
-         return;
-      break;
-   case IRIS_DEPTH_REG_MODE_D16_1X_MSAA:
-      if (is_d16_1x_msaa)
-         return;
-      break;
-   case IRIS_DEPTH_REG_MODE_UNKNOWN:
-      break;
-   }
-
-   /* We'll change some CHICKEN registers depending on the depth surface
-    * format. Do a depth flush and stall so the pipeline is not using these
-    * settings while we change the registers.
-    */
-   iris_emit_end_of_pipe_sync(batch,
-                              "Workaround: Stop pipeline for Wa_1808121037",
-                              PIPE_CONTROL_DEPTH_STALL |
-                              PIPE_CONTROL_DEPTH_CACHE_FLUSH);
-
-   /* Wa_1808121037
-    *
-    * To avoid sporadic corruptions “Set 0x7010[9] when Depth Buffer
-    * Surface Format is D16_UNORM , surface type is not NULL & 1X_MSAA”.
-    */
+#if GFX_VER == 12
    iris_emit_reg(batch, GENX(COMMON_SLICE_CHICKEN1), reg) {
-      reg.HIZPlaneOptimizationdisablebit = is_d16_1x_msaa;
+      reg.HIZPlaneOptimizationdisablebit = true;
       reg.HIZPlaneOptimizationdisablebitMask = true;
    }
-
-   ice->state.genx->depth_reg_mode =
-      is_d16_1x_msaa ? IRIS_DEPTH_REG_MODE_D16_1X_MSAA :
-                       IRIS_DEPTH_REG_MODE_HW_DEFAULT;
 #endif
 }
 
@@ -7998,8 +7950,12 @@ iris_upload_dirty_render_state(struct iris_context *ice,
                                       screen->workaround_address.offset, 0);
       }
 
-      if (zres)
-         genX(emit_depth_state_workarounds)(ice, batch, &zres->surf);
+      if (zres && INTEL_NEEDS_WA_1808121037 &&
+          zres->surf.samples == 1 &&
+          zres->surf.format == ISL_FORMAT_R16_UNORM) {
+         /* Disable HiZ planes on D16 1x MSAA to avoid sporadic corruption. */
+         genX(batch_disable_hiz_planes)(batch);
+      }
    }
 
    if (dirty & (IRIS_DIRTY_DEPTH_BUFFER | IRIS_DIRTY_WM_DEPTH_STENCIL)) {
@@ -10459,10 +10415,6 @@ static void
 iris_lost_genx_state(struct iris_context *ice, struct iris_batch *batch)
 {
    struct iris_genx_state *genx = ice->state.genx;
-
-#if INTEL_NEEDS_WA_1808121037
-   genx->depth_reg_mode = IRIS_DEPTH_REG_MODE_UNKNOWN;
-#endif
 
    memset(genx->last_index_buffer, 0, sizeof(genx->last_index_buffer));
 }
