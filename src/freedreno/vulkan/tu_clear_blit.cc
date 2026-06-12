@@ -101,7 +101,6 @@ tu_pack_float32_for_color(enum pipe_format format, const float src[4], uint32_t 
    switch (bits) {
    case 4:
    case 8:
-   case 10:
       if (!is_normalized)
          return false;
       break;
