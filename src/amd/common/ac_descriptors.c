@@ -1327,7 +1327,7 @@ ac_init_gfx10_cb_surface(const struct radeon_info *info, const struct ac_cb_stat
                           S_028C68_MAX_MIP(num_levels - 1);
    cb->cb_color_attrib3 = S_028EE0_MIP0_DEPTH(state->num_layers) |
                           S_028EE0_RESOURCE_TYPE(surf->u.gfx9.resource_type) |
-                          S_028EE0_RESOURCE_LEVEL(info->gfx_level >= GFX11 ? 0 : 1);
+                          S_028EE0_RESOURCE_LEVEL(info->compiler_info.has_desc_resource_level);
    cb->cb_dcc_control = S_028C78_MAX_UNCOMPRESSED_BLOCK_SIZE(V_028C78_MAX_BLOCK_SIZE_256B) |
                         S_028C78_MAX_COMPRESSED_BLOCK_SIZE(surf->u.gfx9.color.dcc.max_compressed_block_size) |
                         S_028C78_MIN_COMPRESSED_BLOCK_SIZE(ac_get_dcc_min_compressed_block_size(info)) |
