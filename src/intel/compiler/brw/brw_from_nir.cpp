@@ -4747,8 +4747,10 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
    case nir_intrinsic_ssbo_atomic:
    case nir_intrinsic_ssbo_atomic_swap:
    case nir_intrinsic_load_global:
+   case nir_intrinsic_load_global_intel:
    case nir_intrinsic_load_global_constant:
    case nir_intrinsic_store_global:
+   case nir_intrinsic_store_global_intel:
    case nir_intrinsic_global_atomic:
    case nir_intrinsic_global_atomic_swap:
    case nir_intrinsic_load_scratch:
@@ -5825,6 +5827,8 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
    case nir_intrinsic_store_global:
    case nir_intrinsic_global_atomic:
    case nir_intrinsic_global_atomic_swap:
+   case nir_intrinsic_load_global_intel:
+   case nir_intrinsic_store_global_intel:
    case nir_intrinsic_load_global_block_intel:
    case nir_intrinsic_store_global_block_intel:
       mode = MEMORY_MODE_UNTYPED;

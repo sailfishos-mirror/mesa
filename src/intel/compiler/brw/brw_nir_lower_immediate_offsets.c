@@ -58,6 +58,8 @@ lower_immediate_offsets(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
          bti_is_const ? LSC_ADDRESS_OFFSET_BTI_BITS : 0;
       break;
    }
+   case nir_intrinsic_load_global_intel:
+   case nir_intrinsic_store_global_intel:
    case nir_intrinsic_load_global_constant_uniform_block_intel:
       max_bits = LSC_ADDRESS_OFFSET_FLAT_BITS;
       break;

@@ -2647,6 +2647,7 @@ brw_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
       return false;
 
    if (low->intrinsic == nir_intrinsic_load_global ||
+       low->intrinsic == nir_intrinsic_load_global_intel ||
        low->intrinsic == nir_intrinsic_load_global_constant ||
        low->intrinsic == nir_intrinsic_load_global_constant_uniform_block_intel) {
       /* Only increase the size of loads if doing so doesn't extend into a new page. */
@@ -2841,6 +2842,36 @@ brw_nir_ssbo_intel_instr(nir_builder *b,
       return true;
    }
 
+   case nir_intrinsic_load_global: {
+      b->cursor = nir_before_instr(&intrin->instr);
+      nir_def *value = nir_load_global_intel(
+         b,
+         intrin->def.num_components,
+         intrin->def.bit_size,
+         intrin->src[0].ssa,
+         .access = nir_intrinsic_access(intrin),
+         .align_mul = nir_intrinsic_align_mul(intrin),
+         .align_offset = nir_intrinsic_align_offset(intrin),
+         .base = 0);
+      value->loop_invariant = intrin->def.loop_invariant;
+      value->divergent = intrin->def.divergent;
+      nir_def_replace(&intrin->def, value);
+      return true;
+   }
+
+   case nir_intrinsic_store_global: {
+      b->cursor = nir_instr_remove(&intrin->instr);
+      nir_store_global_intel(
+         b,
+         intrin->src[0].ssa,
+         intrin->src[1].ssa,
+         .access = nir_intrinsic_access(intrin),
+         .align_mul = nir_intrinsic_align_mul(intrin),
+         .align_offset = nir_intrinsic_align_offset(intrin),
+         .base = 0);
+      return true;
+   }
+
    default:
       return false;
    }
@@ -2948,6 +2979,7 @@ brw_vectorize_lower_mem_access(brw_pass_tracker *pt)
          .buffer_max        = UINT32_MAX,
          .shared_max        = UINT32_MAX,
          .shared_atomic_max = UINT32_MAX,
+         .global_max        = UINT32_MAX,
       };
       OPT(nir_opt_offsets, &offset_options);
 
@@ -3587,6 +3619,7 @@ lsc_op_for_nir_intrinsic(const nir_intrinsic_instr *intrin)
    case nir_intrinsic_load_ssbo_intel:
    case nir_intrinsic_load_shared:
    case nir_intrinsic_load_global:
+   case nir_intrinsic_load_global_intel:
    case nir_intrinsic_load_global_block_intel:
    case nir_intrinsic_load_global_constant:
    case nir_intrinsic_load_global_constant_uniform_block_intel:
@@ -3608,6 +3641,7 @@ lsc_op_for_nir_intrinsic(const nir_intrinsic_instr *intrin)
    case nir_intrinsic_store_shared_block_intel:
    case nir_intrinsic_store_ssbo_block_intel:
    case nir_intrinsic_store_scratch_intel:
+   case nir_intrinsic_store_global_intel:
       return LSC_OP_STORE;
 
    case nir_intrinsic_image_load:

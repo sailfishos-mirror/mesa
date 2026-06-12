@@ -1434,6 +1434,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_load_global:
    case nir_intrinsic_load_global_constant:
    case nir_intrinsic_load_global_constant_uniform_block_intel:
+   case nir_intrinsic_load_global_intel:
    case nir_intrinsic_load_scratch_intel:
    case nir_intrinsic_load_shared:
    case nir_intrinsic_load_shared_uniform_block_intel:
@@ -1448,6 +1449,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_ssbo_atomic:
    case nir_intrinsic_ssbo_atomic_swap:
    case nir_intrinsic_store_global:
+   case nir_intrinsic_store_global_intel:
    case nir_intrinsic_store_urb_lsc_intel:
    case nir_intrinsic_store_scratch_intel:
    case nir_intrinsic_store_shared:
