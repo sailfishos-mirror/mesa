@@ -28,7 +28,7 @@
 #include "util/u_hexdump.h"
 #include "vk_acceleration_structure.h"
 
-#include "bvh/tu_build_interface.h"
+#include "bvh/tu_bvh_defines.h"
 #include "tu_buffer.h"
 #include "tu_cmd_buffer.h"
 #include "tu_device.h"

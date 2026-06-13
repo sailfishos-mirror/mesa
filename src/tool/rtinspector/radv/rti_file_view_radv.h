@@ -11,7 +11,7 @@
 #include <map>
 #include <memory>
 #include <stdint.h>
-#include "bvh.h"
+#include "bvh_defines.h"
 #include "radv_rti.h"
 #include "rti_file_view.h"
 #include "rti_util.h"

@@ -16,7 +16,7 @@
 
 #include "ds/intel_tracepoints.h"
 
-#include "bvh/anv_build_interface.h"
+#include "bvh/anv_bvh_defines.h"
 #include "vk_acceleration_structure.h"
 #include "radix_sort/radix_sort_u64.h"
 #include "radix_sort/common/vk/barrier.h"
@@ -55,8 +55,11 @@ begin_debug_marker(VkCommandBuffer commandBuffer,
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
       trace_intel_begin_as_morton_sort(&cmd_buffer->trace);
       break;
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_BUILD_INTERNAL:
-      trace_intel_begin_as_lbvh_build_internal(&cmd_buffer->trace);
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_MAIN:
+      trace_intel_begin_as_lbvh_main(&cmd_buffer->trace);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_GENERATE_IR:
+      trace_intel_begin_as_lbvh_generate_ir(&cmd_buffer->trace);
       break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL:
       trace_intel_begin_as_ploc_build_internal(&cmd_buffer->trace);
@@ -87,8 +90,11 @@ end_debug_marker(VkCommandBuffer commandBuffer,
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
       trace_intel_end_as_morton_sort(&cmd_buffer->trace);
       break;
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_BUILD_INTERNAL:
-      trace_intel_end_as_lbvh_build_internal(&cmd_buffer->trace);
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_MAIN:
+      trace_intel_end_as_lbvh_main(&cmd_buffer->trace);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_GENERATE_IR:
+      trace_intel_end_as_lbvh_generate_ir(&cmd_buffer->trace);
       break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL:
       trace_intel_end_as_ploc_build_internal(&cmd_buffer->trace);
@@ -402,8 +408,6 @@ anv_clear_out_bvh(struct anv_cmd_buffer *cmd_buffer,
    genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
 }
 
-#define ANV_ENCODE_AS_FLAGS (ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE)
-
 static VkResult
 anv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct vk_meta_device *meta,
               const struct vk_acceleration_structure_build_args *args, struct vk_acceleration_structure_build_state *states,
@@ -420,7 +424,7 @@ anv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((state->config.build_flags & ANV_ENCODE_AS_FLAGS) != build_flags)
+      if ((state->config.build_flags & ANV_ENCODE_BUILD_FLAGS) != build_flags)
          continue;
 
       VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
@@ -713,7 +717,7 @@ anv_encode(VkCommandBuffer commandBuffer, struct vk_device *device, struct vk_me
    if (!has_build)
       return;
    
-   vk_build_stage(anv_encode_as, commandBuffer, device, meta, args, states, build_count, ANV_ENCODE_AS_FLAGS, false);
+   vk_build_stage(anv_encode_as, commandBuffer, device, meta, args, states, build_count, ANV_ENCODE_BUILD_FLAGS, false);
 
    /* Add a barrier to ensure the writes from encode.comp is ready to be
     * read by header.comp
@@ -778,7 +782,7 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
          .emit_markers = u_trace_enabled(&device->ds.trace_context),
          .subgroup_size = device->info->ver >= 20 ? 16 : 8,
          .radix_sort_64 = device->accel_struct_build.radix_sort,
-         /* See struct anv_accel_struct_header from anv_bvh.h
+         /* See struct anv_accel_struct_header from anv_bvh_defines.h
           */
          .bvh_bounds_offset = 0,
    };

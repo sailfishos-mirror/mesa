@@ -1,6 +1,4 @@
 /*
-
-
  * Copyright © 2022 Valve Corporation
  *
  * SPDX-License-Identifier: MIT
@@ -10,7 +8,9 @@
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-#include "build_interface.h"
+#include "bvh_defines.h"
+#define VK_USED_BUILD_FLAGS RADV_COPY_ADDRS_BUILD_FLAGS
+#include "bvh_helpers.h"
 
 layout(push_constant) uniform CONSTS
 {
@@ -34,7 +34,7 @@ main(void)
    radv_accel_struct_header header = DEREF(REF(radv_accel_struct_header)(accel_struct_addr));
 
    for (uint32_t i = global_id; i < serialization_header.instance_count; i += total_invocations) {
-      if (VK_BUILD_FLAG(RADV_BUILD_FLAG_BVH8)) {
+      if (RADV_TEST_BUILD_FLAG_BVH8) {
          uint64_t instance_offset_addr = accel_struct_addr + (header.leaf_node_offsets_offset + i * 4);
          uint64_t instance_addr = accel_struct_addr + (header.bvh_offset + DEREF(REF(uint32_t)(instance_offset_addr)));
          REF(radv_gfx12_instance_node) instance_node = REF(radv_gfx12_instance_node)(instance_addr);

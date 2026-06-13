@@ -7,7 +7,7 @@
 #ifndef BVH_BVH_H
 #define BVH_BVH_H
 
-#include "vk_bvh.h"
+#include "vk_bvh_defines.h"
 
 #define radv_bvh_node_triangle 0
 #define radv_bvh_node_box16    4
@@ -28,6 +28,16 @@
 #define RADV_BLAS_POINTER_FLIP_FACING      (1ul << 57)
 #define RADV_BLAS_POINTER_SKIP_TRIANGLES   (1ul << 62)
 #define RADV_BLAS_POINTER_SKIP_AABBS       (1ul << 63)
+
+#define RADV_BUILD_FLAG_BVH8                           (1 << (VK_BUILD_FLAG_COUNT + 0))
+#define RADV_BUILD_FLAG_UPDATE_IN_PLACE                (1 << (VK_BUILD_FLAG_COUNT + 1))
+#define RADV_BUILD_FLAG_NO_INFS                        (1 << (VK_BUILD_FLAG_COUNT + 2))
+#define RADV_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS        (1 << (VK_BUILD_FLAG_COUNT + 3))
+#define RADV_BUILD_FLAG_UPDATE_SINGLE_GEOMETRY         (1 << (VK_BUILD_FLAG_COUNT + 4))
+#define RADV_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES        (1 << (VK_BUILD_FLAG_COUNT + 5))
+#define RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES       (1 << (VK_BUILD_FLAG_COUNT + 6))
+#define RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES_RETRY (1 << (VK_BUILD_FLAG_COUNT + 7))
+#define RADV_BUILD_FLAG_USE_BOX16                      (1 << (VK_BUILD_FLAG_COUNT + 8))
 
 #ifdef VULKAN
 #define VK_UUID_SIZE 16
@@ -207,7 +217,7 @@ struct radv_gfx12_primitive_node {
    uint32_t dwords[32];
 };
 
-#define RADV_TRIANGLE_ENCODE_TASK_TRIANGLE_COUNT 16
+#define RADV_TRIANGLE_ENCODE_TASK_TRIANGLE_COUNT   16
 #define RADV_TRIANGLE_ENCODE_TASK_INVOCATION_COUNT 8
 
 struct radv_triangle_encode_task {
@@ -215,5 +225,112 @@ struct radv_triangle_encode_task {
    /* The pair index is stored in the 4 high bits and the node index is stored in the low bits. */
    uint32_t pair_index_node_index[RADV_TRIANGLE_ENCODE_TASK_TRIANGLE_COUNT];
 };
+
+#ifdef VULKAN
+TYPE(radv_accel_struct_serialization_header, 8);
+TYPE(radv_accel_struct_header, 8);
+TYPE(radv_bvh_triangle_node, 4);
+TYPE(radv_bvh_aabb_node, 4);
+TYPE(radv_bvh_instance_node, 8);
+TYPE(radv_bvh_box16_node, 4);
+TYPE(radv_bvh_box32_node, 4);
+TYPE(radv_gfx12_box_node, 4);
+TYPE(radv_gfx12_instance_node, 8);
+TYPE(radv_gfx12_instance_node_user_data, 4);
+TYPE(radv_gfx12_primitive_node, 4);
+TYPE(radv_triangle_encode_task, 4);
+#endif
+
+#define RADV_COPY_MODE_COPY        0
+#define RADV_COPY_MODE_SERIALIZE   1
+#define RADV_COPY_MODE_DESERIALIZE 2
+
+#define RADV_COPY_ADDRS_BUILD_FLAGS (RADV_BUILD_FLAG_BVH8)
+
+struct copy_args {
+   VOID_REF src_addr;
+   VOID_REF dst_addr;
+   uint32_t mode;
+};
+
+#define RADV_ENCODE_BUILD_FLAGS                                                                                        \
+   (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | RADV_BUILD_FLAG_USE_BOX16 | RADV_BUILD_FLAG_NO_INFS)
+
+struct encode_args {
+   VOID_REF intermediate_bvh;
+   VOID_REF output_bvh;
+   REF(vk_ir_header) header;
+   uint32_t output_bvh_offset;
+   uint32_t leaf_node_count;
+   uint32_t geometry_type;
+};
+
+#define RADV_ENCODE_GFX12_BUILD_FLAGS                                                                                  \
+   (RADV_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES | RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES |                               \
+    RADV_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS)
+
+struct encode_gfx12_args {
+   VOID_REF intermediate_bvh;
+   VOID_REF output_base;
+   REF(vk_ir_header) header;
+   uint32_t output_bvh_offset;
+   uint32_t leaf_node_offsets_offset;
+   uint32_t leaf_node_count;
+   uint32_t geometry_type;
+};
+
+#define RADV_ENCODE_TRIANGLES_GFX12_BUILD_FLAGS (RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES_RETRY)
+
+struct encode_triangles_gfx12_args {
+   VOID_REF intermediate_bvh;
+   VOID_REF output_base;
+   REF(vk_ir_header) header;
+   uint32_t output_bvh_offset;
+   uint32_t leaf_node_offsets_offset;
+   uint32_t batches_size;
+};
+
+#define RADV_HEADER_BUILD_FLAGS (0)
+
+struct header_args {
+   REF(vk_ir_header) src;
+   REF(radv_accel_struct_header) dst;
+   uint32_t bvh_offset;
+   uint32_t internal_nodes_offset;
+   uint32_t primitive_count;
+   uint32_t type;
+};
+
+#define RADV_UPDATE_BUILD_FLAGS (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | RADV_BUILD_FLAG_UPDATE_IN_PLACE)
+
+struct update_args {
+   REF(radv_accel_struct_header) src;
+   REF(radv_accel_struct_header) dst;
+   REF(uint32_t) internal_ready_count;
+   uint32_t leaf_node_count;
+
+   vk_bvh_geometry_data geom_data;
+};
+
+#define RADV_UPDATE_GFX12_BUILD_FLAGS                                                                                  \
+   (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | RADV_BUILD_FLAG_UPDATE_SINGLE_GEOMETRY | RADV_BUILD_FLAG_UPDATE_IN_PLACE)
+
+struct update_gfx12_args {
+   REF(radv_accel_struct_header) src;
+   REF(radv_accel_struct_header) dst;
+   REF(vk_bvh_geometry_data) geom_data;
+   REF(vk_aabb) bounds;
+   REF(uint32_t) internal_ready_count;
+   uint32_t leaf_node_count;
+
+   vk_bvh_geometry_data geom_data0;
+};
+
+#define RADV_IR_HEADER_ENCODE_TRIANGLES_INVOCATIONS_X       0
+#define RADV_IR_HEADER_ENCODE_TRIANGLES_INVOCATIONS_Y       1
+#define RADV_IR_HEADER_ENCODE_TRIANGLES_INVOCATIONS_Z       2
+#define RADV_IR_HEADER_ENCODE_TRIANGLES_RETRY_INVOCATIONS_X 3
+#define RADV_IR_HEADER_ENCODE_TRIANGLES_RETRY_INVOCATIONS_Y 4
+#define RADV_IR_HEADER_ENCODE_TRIANGLES_RETRY_INVOCATIONS_Z 5
 
 #endif /* BVH_H */

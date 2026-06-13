@@ -30,7 +30,7 @@
 #include <oneapi/tbb/parallel_for.h>
 #endif
 
-#include "bvh.h"
+#include "bvh_defines.h"
 #include "radv_rti.h"
 #include "rti_app.h"
 #include "rti_util.h"

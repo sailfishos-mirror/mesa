@@ -5,10 +5,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "bvh/bvh.h"
+#include "nir/radv_nir_rt_traversal_shader.h"
+#include "bvh/bvh_defines.h"
 #include "nir/radv_nir_rt_common.h"
 #include "nir/radv_nir_rt_stage_common.h"
-#include "nir/radv_nir_rt_traversal_shader.h"
 
 #include "tools/radv_rra.h"
 #include "util/macros.h"

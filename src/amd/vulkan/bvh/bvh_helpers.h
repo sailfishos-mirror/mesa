@@ -7,22 +7,9 @@
 #ifndef BVH_BUILD_HELPERS_H
 #define BVH_BUILD_HELPERS_H
 
-#include "bvh.h"
+#include "bvh_defines.h"
 #include "spirv_internal_exts.h"
-#include "vk_build_helpers.h"
-
-TYPE(radv_accel_struct_serialization_header, 8);
-TYPE(radv_accel_struct_header, 8);
-TYPE(radv_bvh_triangle_node, 4);
-TYPE(radv_bvh_aabb_node, 4);
-TYPE(radv_bvh_instance_node, 8);
-TYPE(radv_bvh_box16_node, 4);
-TYPE(radv_bvh_box32_node, 4);
-TYPE(radv_gfx12_box_node, 4);
-TYPE(radv_gfx12_instance_node, 8);
-TYPE(radv_gfx12_instance_node_user_data, 4);
-TYPE(radv_gfx12_primitive_node, 4);
-TYPE(radv_triangle_encode_task, 4);
+#include "vk_bvh_helpers.h"
 
 uint32_t
 id_to_offset(uint32_t id)
@@ -113,5 +100,42 @@ radv_encode_blas_pointer_flags(uint32_t flags, uint32_t geometry_type)
 
 spirv_instruction(set = "MesaInternal", id = SpvOpFConvertRUMesa) float16_t radv_f32_to_f16_pos_inf(float f);
 spirv_instruction(set = "MesaInternal", id = SpvOpFConvertRDMesa) float16_t radv_f32_to_f16_neg_inf(float f);
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_BVH8) != 0)
+#define RADV_TEST_BUILD_FLAG_BVH8 ((BUILD_FLAGS & RADV_BUILD_FLAG_BVH8) != 0)
+#endif
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_UPDATE_IN_PLACE) != 0)
+#define RADV_TEST_BUILD_FLAG_UPDATE_IN_PLACE ((BUILD_FLAGS & RADV_BUILD_FLAG_UPDATE_IN_PLACE) != 0)
+#endif
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_NO_INFS) != 0)
+#define RADV_TEST_BUILD_FLAG_NO_INFS ((BUILD_FLAGS & RADV_BUILD_FLAG_NO_INFS) != 0)
+#endif
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS) != 0)
+#define RADV_TEST_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS ((BUILD_FLAGS & RADV_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS) != 0)
+#endif
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_UPDATE_SINGLE_GEOMETRY) != 0)
+#define RADV_TEST_BUILD_FLAG_UPDATE_SINGLE_GEOMETRY ((BUILD_FLAGS & RADV_BUILD_FLAG_UPDATE_SINGLE_GEOMETRY) != 0)
+#endif
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES) != 0)
+#define RADV_TEST_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES ((BUILD_FLAGS & RADV_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES) != 0)
+#endif
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES) != 0)
+#define RADV_TEST_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES ((BUILD_FLAGS & RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES) != 0)
+#endif
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES_RETRY) != 0)
+#define RADV_TEST_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES_RETRY                                                            \
+   ((BUILD_FLAGS & RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES_RETRY) != 0)
+#endif
+
+#if ((VK_USED_BUILD_FLAGS & RADV_BUILD_FLAG_USE_BOX16) != 0)
+#define RADV_TEST_BUILD_FLAG_USE_BOX16 ((BUILD_FLAGS & RADV_BUILD_FLAG_USE_BOX16) != 0)
+#endif
 
 #endif /* BUILD_HELPERS_H */

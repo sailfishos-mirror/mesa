@@ -260,7 +260,8 @@ def define_tracepoints(args):
     begin_end_tp('as_build_leaves', repeat_last=True)
     begin_end_tp('as_morton_generate', repeat_last=True)
     begin_end_tp('as_morton_sort', repeat_last=True)
-    begin_end_tp('as_lbvh_build_internal', repeat_last=True)
+    begin_end_tp('as_lbvh_main', repeat_last=True)
+    begin_end_tp('as_lbvh_generate_ir', repeat_last=True)
     begin_end_tp('as_ploc_build_internal', repeat_last=True)
     begin_end_tp('as_encode', repeat_last=True,
                   tp_args=[Arg(type='uint32_t', var='build_flags', c_format='%x')])

@@ -7,8 +7,9 @@
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
-#include "anv_build_helpers.h"
-#include "anv_build_interface.h"
+#include "anv_bvh_defines.h"
+#define VK_USED_BUILD_FLAGS ANV_ENCODE_BUILD_FLAGS
+#include "anv_bvh_helpers.h"
 #include "encode.h"
 
 #define READY_TO_WRITE(offset) ((offset) < VK_NULL_BVH_OFFSET)
@@ -385,8 +386,7 @@ main()
       /* Tracks BLOCK where the next children should be encoded. */
       DEREF(args.header).dst_node_offset = 1;
       DEREF(header).instance_count = 0;
-      if (VK_BUILD_FLAG(ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE) &&
-          args.parent_child_map != 0) {
+      if (ANV_TEST_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE && args.parent_child_map != 0) {
          DEREF(INDEX(uint32_t, args.parent_child_map, 0)) = VK_NULL_BVH_OFFSET;
       }
    }
@@ -524,7 +524,7 @@ main()
                child_aabb = DEREF(REF(vk_ir_node)NODE_OFFSET(child)).aabb;
 
             uint32_t type = ir_id_to_type(child);
-            if (VK_BUILD_FLAG(ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE) &&
+            if (ANV_TEST_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE &&
                 child != VK_BVH_INVALID_NODE &&
                 args.parent_child_map != 0 &&
                 args.leaf_block_offset_map != 0) {

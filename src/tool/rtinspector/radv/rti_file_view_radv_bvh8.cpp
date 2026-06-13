@@ -22,7 +22,7 @@
 #include "util/u_math.h"
 #include "vulkan/vulkan_core.h"
 
-#include "bvh.h"
+#include "bvh_defines.h"
 #include "rti_app.h"
 #include "rti_util.h"
 

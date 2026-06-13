@@ -31,7 +31,7 @@
 #include <vulkan/vulkan.h>
 #endif
 
-#include "vk_bvh.h"
+#include "vk_bvh_defines.h"
 
 /* The size in bytes of each record in the D3D-style UAV descriptor for
  * acceleration structures. The first record is the acceleration struct header
@@ -132,6 +132,40 @@ struct tu_instance_descriptor {
    
    /* Object to world matrix inverted from the initial transform. */
    mat3x4 otw_matrix;
+};
+
+#ifdef VULKAN
+TYPE(tu_accel_struct_header, 8);
+TYPE(tu_leaf_node, 4);
+TYPE(tu_internal_node, 4);
+TYPE(tu_compressed_node, 4);
+TYPE(tu_instance_descriptor, 8);
+#endif
+
+struct encode_args {
+   VOID_REF intermediate_bvh;
+   VOID_REF output_bvh;
+   REF(vk_ir_header) header;
+   uint32_t output_bvh_offset;
+   uint32_t leaf_node_count;
+   uint32_t geometry_type;
+};
+
+struct header_args {
+   REF(vk_ir_header) src;
+   REF(tu_accel_struct_header) dst;
+   uint32_t bvh_offset;
+   uint32_t instance_count;
+};
+
+#define TU_COPY_MODE_COPY        0
+#define TU_COPY_MODE_SERIALIZE   1
+#define TU_COPY_MODE_DESERIALIZE 2
+
+struct copy_args {
+   VOID_REF src_addr;
+   VOID_REF dst_addr;
+   uint32_t mode;
 };
 
 #endif

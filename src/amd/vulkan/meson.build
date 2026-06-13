@@ -43,7 +43,7 @@ radv_drirc = custom_target(
 )
 
 libradv_files = files(
-  'bvh/bvh.h',
+  'bvh/bvh_defines.h',
   'layers/radv_app_workarounds.c',
   'layers/radv_ctx_roll_layer.c',
   'layers/radv_rmv_layer.c',

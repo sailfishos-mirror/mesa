@@ -7,7 +7,7 @@
 #include "radv_rra.h"
 #include <stdint.h>
 #include <stdio.h>
-#include "bvh/bvh.h"
+#include "bvh/bvh_defines.h"
 #include "util/macros.h"
 #include "util/rti_format.h"
 #include "util/u_dynarray.h"

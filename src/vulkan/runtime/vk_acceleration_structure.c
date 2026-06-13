@@ -33,8 +33,7 @@
 #include "vk_meta.h"
 #include "vk_shader.h"
 
-#include "bvh/vk_build_interface.h"
-#include "bvh/vk_bvh.h"
+#include "bvh/vk_bvh_defines.h"
 
 #include "util/u_string.h"
 
@@ -500,8 +499,11 @@ vk_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
       snprintf(name, sizeof(name), "morton_sort");
       break;
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_BUILD_INTERNAL:
-      snprintf(name, sizeof(name), "lbvh_build_internal");
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_MAIN:
+      snprintf(name, sizeof(name), "lbvh_main");
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_GENERATE_IR:
+      snprintf(name, sizeof(name), "lbvh_generate_ir");
       break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL:
       snprintf(name, sizeof(name), "ploc_build_internal");
@@ -525,8 +527,6 @@ vk_accel_struct_cmd_end_debug_marker(VkCommandBuffer commandBuffer,
 
    device->dispatch_table.CmdDebugMarkerEndEXT(commandBuffer);
 }
-
-#define VK_BUILD_LEAVES_FLAGS (VK_BUILD_FLAG_ALWAYS_ACTIVE | VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | VK_BUILD_FLAG_64BIT_KEYS)
 
 static VkResult
 build_leaves(VkCommandBuffer commandBuffer, struct vk_device *device,
@@ -579,7 +579,7 @@ build_leaves(VkCommandBuffer commandBuffer, struct vk_device *device,
    for (uint32_t i = 0; i < build_count; ++i) {
       if (states[i].config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((states[i].config.build_flags & VK_BUILD_LEAVES_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_LEAF_BUILD_FLAGS) != build_flags)
          continue;
 
       const VkAccelerationStructureBuildGeometryInfoKHR *build_info = states[i].build_info;
@@ -620,8 +620,6 @@ build_leaves(VkCommandBuffer commandBuffer, struct vk_device *device,
    return VK_SUCCESS;
 }
 
-#define VK_MORTON_GENERATE_FLAGS (VK_BUILD_FLAG_64BIT_KEYS)
-
 static VkResult
 morton_generate(VkCommandBuffer commandBuffer, struct vk_device *device,
                 struct vk_meta_device *meta,
@@ -658,7 +656,7 @@ morton_generate(VkCommandBuffer commandBuffer, struct vk_device *device,
    for (uint32_t i = 0; i < build_count; ++i) {
       if (states[i].config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((states[i].config.build_flags & VK_MORTON_GENERATE_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_MORTON_BUILD_FLAGS) != build_flags)
          continue;
 
       uint64_t scratch_addr = states[i].build_info->scratchData.deviceAddress;
@@ -683,7 +681,7 @@ morton_generate(VkCommandBuffer commandBuffer, struct vk_device *device,
    return VK_SUCCESS;
 }
 
-#define VK_MORTON_SORT_FLAGS (VK_BUILD_FLAG_64BIT_KEYS)
+#define VK_MORTON_SORT_BUILD_FLAGS (VK_BUILD_FLAG_64BIT_KEYS)
 
 static VkResult
 morton_sort(VkCommandBuffer commandBuffer, struct vk_device *device,
@@ -768,7 +766,7 @@ morton_sort(VkCommandBuffer commandBuffer, struct vk_device *device,
          continue;
       if (states[i].config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((states[i].config.build_flags & VK_MORTON_SORT_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_MORTON_SORT_BUILD_FLAGS) != build_flags)
          continue;
 
       uint64_t scratch_addr = states[i].build_info->scratchData.deviceAddress;
@@ -825,7 +823,7 @@ morton_sort(VkCommandBuffer commandBuffer, struct vk_device *device,
          continue;
       if (states[i].config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((states[i].config.build_flags & VK_MORTON_SORT_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_MORTON_SORT_BUILD_FLAGS) != build_flags)
          continue;
 
       uint64_t scratch_addr = states[i].build_info->scratchData.deviceAddress;
@@ -860,7 +858,7 @@ morton_sort(VkCommandBuffer commandBuffer, struct vk_device *device,
          continue;
       if (states[i].config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((states[i].config.build_flags & VK_MORTON_SORT_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_MORTON_SORT_BUILD_FLAGS) != build_flags)
          continue;
 
       uint64_t internal_addr = states[i].build_info->scratchData.deviceAddress +
@@ -914,7 +912,7 @@ morton_sort(VkCommandBuffer commandBuffer, struct vk_device *device,
             continue;
          if (states[i].config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
             continue;
-         if ((states[i].config.build_flags & VK_MORTON_SORT_FLAGS) != build_flags)
+         if ((states[i].config.build_flags & VK_MORTON_SORT_BUILD_FLAGS) != build_flags)
             continue;
 
          states[i].push_scatter.pass_offset = (pass_idx & 3) * RS_RADIX_LOG2;
@@ -946,10 +944,8 @@ morton_sort(VkCommandBuffer commandBuffer, struct vk_device *device,
    return VK_SUCCESS;
 }
 
-#define VK_LBVH_BUILD_INTERNAL_FLAGS (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | VK_BUILD_FLAG_64BIT_KEYS)
-
 static VkResult
-lbvh_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
+lbvh_main(VkCommandBuffer commandBuffer, struct vk_device *device,
                     struct vk_meta_device *meta,
                     const struct vk_acceleration_structure_build_args *args,
                     struct vk_acceleration_structure_build_state *states,
@@ -972,7 +968,7 @@ lbvh_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
 
    if (args->emit_markers) {
       struct vk_acceleration_structure_build_marker marker = {
-         .step = VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_BUILD_INTERNAL,
+         .step = VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_MAIN,
       };
       device->as_build_ops->begin_debug_marker(commandBuffer, &marker);
    }
@@ -984,7 +980,7 @@ lbvh_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
    for (uint32_t i = 0; i < build_count; ++i) {
       if (states[i].config.internal_type != VK_INTERNAL_BUILD_TYPE_LBVH)
          continue;
-      if ((states[i].config.build_flags & VK_LBVH_BUILD_INTERNAL_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_LBVH_MAIN_BUILD_FLAGS) != build_flags)
          continue;
 
       uint32_t src_scratch_offset = states[i].scratch_offset;
@@ -1003,12 +999,37 @@ lbvh_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
       device->cmd_dispatch_unaligned(commandBuffer, states[i].internal_node_count, 1, 1);
    }
 
-   vk_barrier_compute_w_to_compute_r(commandBuffer);
+   if (args->emit_markers) {
+      struct vk_acceleration_structure_build_marker marker = {
+         .step = VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_MAIN,
+      };
+      device->as_build_ops->end_debug_marker(commandBuffer, &marker);
+   }
 
-   result = vk_get_bvh_build_pipeline_spv(device, meta, VK_META_OBJECT_KEY_LBVH_GENERATE_IR,
-                                          lbvh_generate_ir_spv, sizeof(lbvh_generate_ir_spv),
-                                          sizeof(struct lbvh_generate_ir_args), args, build_flags,
-                                          &pipeline, true /* unaligned_dispatch */);
+   return VK_SUCCESS;
+}
+
+static VkResult
+lbvh_generate_ir(VkCommandBuffer commandBuffer, struct vk_device *device,
+                 struct vk_meta_device *meta,
+                 const struct vk_acceleration_structure_build_args *args,
+                 struct vk_acceleration_structure_build_state *states,
+                 uint32_t build_count, uint32_t build_flags)
+{
+   VkPipeline pipeline;
+   VkPipelineLayout layout;
+
+   if (args->emit_markers) {
+      struct vk_acceleration_structure_build_marker marker = {
+         .step = VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_GENERATE_IR,
+      };
+      device->as_build_ops->begin_debug_marker(commandBuffer, &marker);
+   }
+
+   VkResult result = vk_get_bvh_build_pipeline_spv(device, meta, VK_META_OBJECT_KEY_LBVH_GENERATE_IR,
+                                                   lbvh_generate_ir_spv, sizeof(lbvh_generate_ir_spv),
+                                                   sizeof(struct lbvh_generate_ir_args), args, build_flags,
+                                                   &pipeline, true /* unaligned_dispatch */);
    if (result != VK_SUCCESS)
       return result;
 
@@ -1016,13 +1037,14 @@ lbvh_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
    if (result != VK_SUCCESS)
       return result;
 
+   const struct vk_device_dispatch_table *disp = &device->dispatch_table;
    disp->CmdBindPipeline(
       commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
    for (uint32_t i = 0; i < build_count; ++i) {
       if (states[i].config.internal_type != VK_INTERNAL_BUILD_TYPE_LBVH)
          continue;
-      if ((states[i].config.build_flags & VK_LBVH_BUILD_INTERNAL_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_LBVH_GENERATE_IR_BUILD_FLAGS) != build_flags)
          continue;
 
       uint64_t scratch_addr = states[i].build_info->scratchData.deviceAddress;
@@ -1040,15 +1062,13 @@ lbvh_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
 
    if (args->emit_markers) {
       struct vk_acceleration_structure_build_marker marker = {
-         .step = VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_BUILD_INTERNAL,
+         .step = VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_GENERATE_IR,
       };
       device->as_build_ops->end_debug_marker(commandBuffer, &marker);
    }
 
    return VK_SUCCESS;
 }
-
-#define VK_PLOC_BUILD_INTERNAL_FLAGS (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | VK_BUILD_FLAG_64BIT_KEYS)
 
 static VkResult
 ploc_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
@@ -1085,7 +1105,7 @@ ploc_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
    for (uint32_t i = 0; i < build_count; ++i) {
       if (states[i].config.internal_type != VK_INTERNAL_BUILD_TYPE_PLOC)
          continue;
-      if ((states[i].config.build_flags & VK_PLOC_BUILD_INTERNAL_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_PLOC_BUILD_FLAGS) != build_flags)
          continue;
 
       uint32_t src_scratch_offset = states[i].scratch_offset;
@@ -1117,8 +1137,6 @@ ploc_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
 
    return VK_SUCCESS;
 }
-
-#define VK_HPLOC_BUILD_INTERNAL_FLAGS (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | VK_BUILD_FLAG_64BIT_KEYS)
 
 static VkResult
 hploc_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
@@ -1155,7 +1173,7 @@ hploc_build_internal(VkCommandBuffer commandBuffer, struct vk_device *device,
    for (uint32_t i = 0; i < build_count; ++i) {
       if (states[i].config.internal_type != VK_INTERNAL_BUILD_TYPE_HPLOC)
          continue;
-      if ((states[i].config.build_flags & VK_HPLOC_BUILD_INTERNAL_FLAGS) != build_flags)
+      if ((states[i].config.build_flags & VK_HPLOC_BUILD_FLAGS) != build_flags)
          continue;
 
       assert(args->subgroup_size <= 64);
@@ -1320,7 +1338,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
    if (batch_state.any_lbvh || batch_state.any_ploc || batch_state.any_hploc) {
       VkResult result = vk_build_stage(build_leaves, commandBuffer, device, meta, args, states, infoCount,
-                                       VK_BUILD_LEAVES_FLAGS, false);
+                                       VK_LEAF_BUILD_FLAGS, false);
       if (result != VK_SUCCESS) {
          free(states);
          vk_command_buffer_set_error(cmd_buffer, result);
@@ -1339,7 +1357,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-      result = vk_build_stage(morton_generate, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_GENERATE_FLAGS, false);
+      result = vk_build_stage(morton_generate, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_BUILD_FLAGS, false);
       if (result != VK_SUCCESS) {
          free(states);
          vk_command_buffer_set_error(cmd_buffer, result);
@@ -1348,13 +1366,23 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-      vk_build_stage(morton_sort, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_SORT_FLAGS, false);
+      vk_build_stage(morton_sort, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_SORT_BUILD_FLAGS, false);
 
       vk_barrier_compute_w_to_compute_r(commandBuffer);
 
       if (batch_state.any_lbvh) {
-         result = vk_build_stage(lbvh_build_internal, commandBuffer, device, meta, args, states, infoCount,
-                                 VK_LBVH_BUILD_INTERNAL_FLAGS, false);
+         result = vk_build_stage(lbvh_main, commandBuffer, device, meta, args, states, infoCount,
+                                 VK_LBVH_MAIN_BUILD_FLAGS, false);
+         if (result != VK_SUCCESS) {
+            free(states);
+            vk_command_buffer_set_error(cmd_buffer, result);
+            return;
+         }
+
+         vk_barrier_compute_w_to_compute_r(commandBuffer);
+
+         result = vk_build_stage(lbvh_generate_ir, commandBuffer, device, meta, args, states, infoCount,
+                                 VK_LBVH_GENERATE_IR_BUILD_FLAGS, false);
          if (result != VK_SUCCESS) {
             free(states);
             vk_command_buffer_set_error(cmd_buffer, result);
@@ -1364,7 +1392,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       if (batch_state.any_ploc) {
          result = vk_build_stage(ploc_build_internal, commandBuffer, device, meta, args, states, infoCount,
-                                 VK_PLOC_BUILD_INTERNAL_FLAGS, false);
+                                 VK_PLOC_BUILD_FLAGS, false);
          if (result != VK_SUCCESS) {
             vk_command_buffer_set_error(cmd_buffer, result);
             return;
@@ -1373,7 +1401,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       if (batch_state.any_hploc) {
          result = vk_build_stage(hploc_build_internal, commandBuffer, device, meta, args, states, infoCount,
-                                 VK_HPLOC_BUILD_INTERNAL_FLAGS, false);
+                                 VK_HPLOC_BUILD_FLAGS, false);
          if (result != VK_SUCCESS) {
             vk_command_buffer_set_error(cmd_buffer, result);
             return;

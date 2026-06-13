@@ -20,10 +20,9 @@
 #include "util/rti_format.h"
 #include "vulkan/vulkan_core.h"
 
-#include "bvh.h"
+#include "bvh_defines.h"
 #include "rti_app.h"
 #include "rti_util.h"
-#include "vk_bvh.h"
 
 static radv_bvh_box32_node
 radv_get_box_node(const void *node, uint32_t type)

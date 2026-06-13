@@ -12,8 +12,7 @@
 #include "radix_sort/radix_sort_u64.h"
 #include "radix_sort/radix_sort_u96.h"
 
-#include "bvh/build_interface.h"
-#include "bvh/bvh.h"
+#include "bvh/bvh_defines.h"
 
 #include "vk_acceleration_structure.h"
 #include "vk_common_entrypoints.h"
@@ -439,8 +438,6 @@ radv_init_update_scratch(VkCommandBuffer commandBuffer, const struct vk_accelera
    }
 }
 
-#define RADV_UPDATE_AS_FLAGS (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | RADV_BUILD_FLAG_UPDATE_IN_PLACE)
-
 static VkResult
 radv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct vk_meta_device *meta,
                const struct vk_acceleration_structure_build_args *args,
@@ -459,7 +456,7 @@ radv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type != VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((state->config.build_flags & RADV_UPDATE_AS_FLAGS) != build_flags)
+      if ((state->config.build_flags & RADV_UPDATE_BUILD_FLAGS) != build_flags)
          continue;
 
       VK_FROM_HANDLE(vk_acceleration_structure, src, state->build_info->srcAccelerationStructure);
@@ -498,8 +495,6 @@ radv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
    return VK_SUCCESS;
 }
 
-#define RADV_UPDATE_AS_GFX12_FLAGS (RADV_BUILD_FLAG_UPDATE_IN_PLACE | RADV_BUILD_FLAG_UPDATE_SINGLE_GEOMETRY)
-
 static VkResult
 radv_update_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct vk_meta_device *meta,
                      const struct vk_acceleration_structure_build_args *args,
@@ -518,7 +513,7 @@ radv_update_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type != VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((state->config.build_flags & RADV_UPDATE_AS_GFX12_FLAGS) != build_flags)
+      if ((state->config.build_flags & RADV_UPDATE_GFX12_BUILD_FLAGS) != build_flags)
          continue;
 
       VK_FROM_HANDLE(vk_acceleration_structure, src, state->build_info->srcAccelerationStructure);
@@ -561,8 +556,6 @@ radv_update_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
    return VK_SUCCESS;
 }
 
-#define RADV_ENCODE_AS_FLAGS (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | RADV_BUILD_FLAG_NO_INFS | RADV_BUILD_FLAG_USE_BOX16)
-
 static VkResult
 radv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct vk_meta_device *meta,
                const struct vk_acceleration_structure_build_args *vk_args,
@@ -581,7 +574,7 @@ radv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((state->config.build_flags & RADV_ENCODE_AS_FLAGS) != build_flags)
+      if ((state->config.build_flags & RADV_ENCODE_BUILD_FLAGS) != build_flags)
          continue;
 
       VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
@@ -623,10 +616,6 @@ radv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
    return VK_SUCCESS;
 }
 
-#define RADV_ENCODE_AS_GFX12_FLAGS                                                                                     \
-   (RADV_BUILD_FLAG_WRITE_LEAF_NODE_OFFSETS | RADV_BUILD_FLAG_PAIR_COMPRESS_TRIANGLES |                                \
-    RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES)
-
 static VkResult
 radv_encode_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct vk_meta_device *meta,
                      const struct vk_acceleration_structure_build_args *vk_args,
@@ -645,7 +634,7 @@ radv_encode_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((state->config.build_flags & RADV_ENCODE_AS_GFX12_FLAGS) != build_flags)
+      if ((state->config.build_flags & RADV_ENCODE_GFX12_BUILD_FLAGS) != build_flags)
          continue;
 
       VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
@@ -709,8 +698,6 @@ radv_encode_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
    return VK_SUCCESS;
 }
 
-#define RADV_ENCODE_TRIANGLES_GFX12_FLAGS (0)
-
 static VkResult
 radv_encode_triangles_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct vk_meta_device *meta,
                             const struct vk_acceleration_structure_build_args *vk_args,
@@ -732,7 +719,9 @@ radv_encode_triangles_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((state->config.build_flags & RADV_ENCODE_TRIANGLES_GFX12_FLAGS) != build_flags)
+      if ((state->config.build_flags & RADV_ENCODE_TRIANGLES_GFX12_BUILD_FLAGS) != build_flags)
+         continue;
+      if (!(state->config.build_flags & RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES))
          continue;
 
       VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
@@ -791,7 +780,9 @@ radv_encode_triangles_retry_gfx12(VkCommandBuffer commandBuffer, struct vk_devic
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((state->config.build_flags & RADV_ENCODE_TRIANGLES_GFX12_FLAGS) != build_flags)
+      if ((state->config.build_flags & RADV_ENCODE_TRIANGLES_GFX12_BUILD_FLAGS) != build_flags)
+         continue;
+      if (!(state->config.build_flags & RADV_BUILD_FLAG_BATCH_COMPRESS_TRIANGLES))
          continue;
 
       VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
@@ -828,8 +819,6 @@ radv_encode_triangles_retry_gfx12(VkCommandBuffer commandBuffer, struct vk_devic
    return VK_SUCCESS;
 }
 
-#define RADV_INIT_HEADER_FLAGS (0)
-
 static VkResult
 radv_init_header(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct vk_meta_device *meta,
                  const struct vk_acceleration_structure_build_args *vk_args,
@@ -848,7 +837,7 @@ radv_init_header(VkCommandBuffer commandBuffer, struct vk_device *vk_device, str
       struct vk_acceleration_structure_build_state *state = &states[i];
       if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE)
          continue;
-      if ((state->config.build_flags & RADV_INIT_HEADER_FLAGS) != build_flags)
+      if ((state->config.build_flags & RADV_HEADER_BUILD_FLAGS) != build_flags)
          continue;
 
       VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
@@ -999,10 +988,10 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
 
       if (radv_use_bvh8(pdev)) {
          vk_build_stage(radv_update_as_gfx12, commandBuffer, vk_device, meta, args, states, build_count,
-                        RADV_UPDATE_AS_GFX12_FLAGS, true);
+                        RADV_UPDATE_GFX12_BUILD_FLAGS, true);
       } else {
-         vk_build_stage(radv_update_as, commandBuffer, vk_device, meta, args, states, build_count, RADV_UPDATE_AS_FLAGS,
-                        true);
+         vk_build_stage(radv_update_as, commandBuffer, vk_device, meta, args, states, build_count,
+                        RADV_UPDATE_BUILD_FLAGS, true);
       }
    }
 
@@ -1011,9 +1000,9 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
 
    if (radv_use_bvh8(pdev)) {
       vk_build_stage(radv_encode_as_gfx12, commandBuffer, vk_device, meta, args, states, build_count,
-                     RADV_ENCODE_AS_GFX12_FLAGS, false);
+                     RADV_ENCODE_GFX12_BUILD_FLAGS, false);
    } else {
-      vk_build_stage(radv_encode_as, commandBuffer, vk_device, meta, args, states, build_count, RADV_ENCODE_AS_FLAGS,
+      vk_build_stage(radv_encode_as, commandBuffer, vk_device, meta, args, states, build_count, RADV_ENCODE_BUILD_FLAGS,
                      false);
    }
 
@@ -1022,20 +1011,20 @@ radv_encode(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct v
       vk_barrier_compute_w_to_compute_r(commandBuffer);
 
       vk_build_stage(radv_encode_triangles_gfx12, commandBuffer, vk_device, meta, args, states, build_count,
-                     RADV_ENCODE_TRIANGLES_GFX12_FLAGS, false);
+                     RADV_ENCODE_TRIANGLES_GFX12_BUILD_FLAGS, false);
 
       /* Wait for the first triangle compression pass to finish. */
       vk_barrier_compute_w_to_compute_r(commandBuffer);
       vk_barrier_compute_w_to_indirect_compute_r(commandBuffer);
 
       vk_build_stage(radv_encode_triangles_retry_gfx12, commandBuffer, vk_device, meta, args, states, build_count,
-                     RADV_ENCODE_TRIANGLES_GFX12_FLAGS, false);
+                     RADV_ENCODE_TRIANGLES_GFX12_BUILD_FLAGS, false);
    }
 
    /* Wait for encoding to finish. */
    vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-   vk_build_stage(radv_init_header, commandBuffer, vk_device, meta, args, states, build_count, RADV_INIT_HEADER_FLAGS,
+   vk_build_stage(radv_init_header, commandBuffer, vk_device, meta, args, states, build_count, RADV_HEADER_BUILD_FLAGS,
                   false);
 
    if (device->rra_trace.accel_structs) {
@@ -1261,7 +1250,7 @@ radv_CmdCopyMemoryToAccelerationStructureKHR(VkCommandBuffer commandBuffer,
    radv_meta_save(cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY, copy_spv, sizeof(copy_spv),
-                                sizeof(struct copy_args), radv_default_build_flags(pdev) & RADV_BUILD_FLAG_BVH8);
+                                sizeof(struct copy_args), 0);
 
    const struct copy_args consts = {
       .src_addr = pInfo->src.deviceAddress,
@@ -1277,7 +1266,7 @@ radv_CmdCopyMemoryToAccelerationStructureKHR(VkCommandBuffer commandBuffer,
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_addrs_spv,
                                 sizeof(copy_addrs_spv), sizeof(struct copy_args),
-                                radv_default_build_flags(pdev) & RADV_BUILD_FLAG_BVH8);
+                                radv_default_build_flags(pdev) & RADV_COPY_ADDRS_BUILD_FLAGS);
 
    radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 256, 1, 1);
 
@@ -1297,7 +1286,7 @@ radv_CmdCopyAccelerationStructureToMemoryKHR(VkCommandBuffer commandBuffer,
    radv_meta_save(cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY, copy_spv, sizeof(copy_spv),
-                                sizeof(struct copy_args), radv_default_build_flags(pdev) & RADV_BUILD_FLAG_BVH8);
+                                sizeof(struct copy_args), 0);
 
    const struct copy_args consts = {
       .src_addr = vk_acceleration_structure_get_va(src),
@@ -1325,7 +1314,7 @@ radv_CmdCopyAccelerationStructureToMemoryKHR(VkCommandBuffer commandBuffer,
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_addrs_spv,
                                 sizeof(copy_addrs_spv), sizeof(struct copy_args),
-                                radv_default_build_flags(pdev) & RADV_BUILD_FLAG_BVH8);
+                                radv_default_build_flags(pdev) & RADV_COPY_ADDRS_BUILD_FLAGS);
 
    radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 256, 1, 1);
 

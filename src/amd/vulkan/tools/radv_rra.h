@@ -17,7 +17,7 @@
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
 
-#include "vk_bvh.h"
+#include "bvh/vk_bvh_defines.h"
 
 #include "radv_debug.h"
 #include "radv_rti.h"

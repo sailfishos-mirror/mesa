@@ -8,7 +8,7 @@
 #include "lvp_private.h"
 
 #include "radix_sort/radix_sort_u64.h"
-#include "bvh/vk_bvh.h"
+#include "bvh/vk_bvh_defines.h"
 
 struct radix_sort_vk_target_config lvp_radix_sort_config = {
    .keyval_dwords = 2,
