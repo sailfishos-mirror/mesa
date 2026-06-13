@@ -281,7 +281,19 @@ nir_algebraic_pattern_test::skip_test(nir_alu_instr *alu, uint32_t bit_size,
 static bool
 compare_inexact(double a, double b, uint32_t bit_size)
 {
-   return abs(a - b) > pow(0.5, bit_size / 4);
+   double diff = fabs(a - b);
+   double tol = pow(0.5, bit_size / 4);
+   if (diff <= tol)
+      return false;
+   /* For large-magnitude values, also allow relative tolerance so that
+    * patterns like ~f2f64(u2f(a)) -> u2f64(a) pass when the difference
+    * is small relative to the values' magnitude (the intermediate float
+    * representation loses precision, but the relative error is tiny).
+    */
+   double scale = fabs(a) + fabs(b);
+   if (scale > 0.0 && diff / scale <= tol)
+      return false;
+   return true;
 }
 
 /* Returns true if this expression means the testcase passed with these input values
