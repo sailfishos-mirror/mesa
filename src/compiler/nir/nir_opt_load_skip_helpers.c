@@ -213,6 +213,10 @@ nir_opt_load_skip_helpers(nir_shader *shader, nir_opt_load_skip_helpers_options 
                index_must_be_uniform = false;
                break;
             default:
+               if (nir_intrinsic_has_access(intr) &&
+                   (nir_intrinsic_access(intr) & ACCESS_NON_UNIFORM)) {
+                  index_must_be_uniform = false;
+               }
                break;
             }
 
