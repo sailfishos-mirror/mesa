@@ -1175,10 +1175,11 @@ VkResult
 vk_build_stage(vk_build_stage_cb cb, VkCommandBuffer commandBuffer, struct vk_device *device,
                struct vk_meta_device *meta, const struct vk_acceleration_structure_build_args *args,
                struct vk_acceleration_structure_build_state *states, uint32_t build_count,
-               uint32_t build_flags_mask)
+               uint32_t build_flags_mask, bool update)
 {
    for (uint32_t i = 0; i < build_count; i++) {
-      if (states[i].processed) {
+      bool build_is_update = states[i].config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE;
+      if (states[i].processed || (update != build_is_update)) {
          states[i].processed = false;
          continue;
       }
@@ -1313,7 +1314,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
    if (batch_state.any_lbvh || batch_state.any_ploc || batch_state.any_hploc) {
       VkResult result = vk_build_stage(build_leaves, commandBuffer, device, meta, args, states, infoCount,
-                                       VK_BUILD_LEAVES_FLAGS);
+                                       VK_BUILD_LEAVES_FLAGS, false);
       if (result != VK_SUCCESS) {
          free(states);
          vk_command_buffer_set_error(cmd_buffer, result);
@@ -1332,7 +1333,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-      result = vk_build_stage(morton_generate, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_GENERATE_FLAGS);
+      result = vk_build_stage(morton_generate, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_GENERATE_FLAGS, false);
       if (result != VK_SUCCESS) {
          free(states);
          vk_command_buffer_set_error(cmd_buffer, result);
@@ -1341,13 +1342,13 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-      vk_build_stage(morton_sort, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_SORT_FLAGS);
+      vk_build_stage(morton_sort, commandBuffer, device, meta, args, states, infoCount, VK_MORTON_SORT_FLAGS, false);
 
       vk_barrier_compute_w_to_compute_r(commandBuffer);
 
       if (batch_state.any_lbvh) {
          result = vk_build_stage(lbvh_build_internal, commandBuffer, device, meta, args, states, infoCount,
-                                 VK_LBVH_BUILD_INTERNAL_FLAGS);
+                                 VK_LBVH_BUILD_INTERNAL_FLAGS, false);
          if (result != VK_SUCCESS) {
             free(states);
             vk_command_buffer_set_error(cmd_buffer, result);
@@ -1357,7 +1358,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       if (batch_state.any_ploc) {
          result = vk_build_stage(ploc_build_internal, commandBuffer, device, meta, args, states, infoCount,
-                                 VK_PLOC_BUILD_INTERNAL_FLAGS);
+                                 VK_PLOC_BUILD_INTERNAL_FLAGS, false);
          if (result != VK_SUCCESS) {
             vk_command_buffer_set_error(cmd_buffer, result);
             return;
@@ -1366,7 +1367,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       if (batch_state.any_hploc) {
          result = vk_build_stage(hploc_build_internal, commandBuffer, device, meta, args, states, infoCount,
-                                 VK_HPLOC_BUILD_INTERNAL_FLAGS);
+                                 VK_HPLOC_BUILD_INTERNAL_FLAGS, false);
          if (result != VK_SUCCESS) {
             vk_command_buffer_set_error(cmd_buffer, result);
             return;
