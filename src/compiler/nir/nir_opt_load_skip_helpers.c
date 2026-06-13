@@ -32,7 +32,9 @@ intr_always_needs_helpers(nir_intrinsic_instr *intr)
       return true;
 
    /* We don't know how scratch data is used without more complex tracking. */
-   if (intr->intrinsic == nir_intrinsic_store_scratch)
+   if (intr->intrinsic == nir_intrinsic_store_scratch ||
+       intr->intrinsic == nir_intrinsic_store_scratch_intel ||
+       intr->intrinsic == nir_intrinsic_store_scratch_nv)
       return true;
 
    if (nir_intrinsic_has_access(intr) && (nir_intrinsic_access(intr) & ACCESS_INCLUDE_HELPERS))
