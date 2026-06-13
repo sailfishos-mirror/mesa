@@ -2842,14 +2842,19 @@ brw_nir_ssbo_intel_instr(nir_builder *b,
       return true;
    }
 
-   case nir_intrinsic_load_global: {
+   case nir_intrinsic_load_global:
+   case nir_intrinsic_load_global_constant: {
+      enum gl_access_qualifier access = nir_intrinsic_access(intrin) |
+         (intrin->intrinsic == nir_intrinsic_load_global_constant ?
+          ACCESS_NON_WRITEABLE | ACCESS_CAN_REORDER : 0);
+
       b->cursor = nir_before_instr(&intrin->instr);
       nir_def *value = nir_load_global_intel(
          b,
          intrin->def.num_components,
          intrin->def.bit_size,
          intrin->src[0].ssa,
-         .access = nir_intrinsic_access(intrin),
+         .access = access,
          .align_mul = nir_intrinsic_align_mul(intrin),
          .align_offset = nir_intrinsic_align_offset(intrin),
          .base = 0);
