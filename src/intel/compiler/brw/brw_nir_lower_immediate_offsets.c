@@ -97,14 +97,18 @@ lower_immediate_offsets(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
    if ((base % 4) == 0 && base >= min && base <= max)
       return false;
 
-   int32_t new_base = CLAMP(base, min, max);
-   new_base -= new_base % 4;
+   int32_t addition = (base / (max + 1)) * (max + 1);
+   int32_t new_base = base - addition;
+
+   int32_t unaligned = new_base % 4;
+   addition += unaligned;
+   new_base -= unaligned;
 
    assert(new_base >= min && new_base <= max);
 
    nir_src_rewrite(
       offset_src, nir_iadd_imm(
-         b, offset_src->ssa, base - new_base));
+         b, offset_src->ssa, addition));
    nir_intrinsic_set_base(intrin, new_base);
 
    return true;
