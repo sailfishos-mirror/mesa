@@ -7154,7 +7154,7 @@
         "description": "nir/tests: allow relative error in compare_inexact",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "363b2655b6e4b04a3a9a2acb6751b766aedac134",
         "notes": null
