@@ -460,12 +460,34 @@ vk_fill_geometry_data(VkAccelerationStructureTypeKHR type, uint32_t first_id, ui
 }
 
 void
-vk_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
-                                       struct vk_acceleration_structure_build_marker *marker)
+vk_accel_struct_cmd_begin_debug_marker_formatted(VkCommandBuffer commandBuffer, const char *format, ...)
 {
    VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
    struct vk_device *device = cmd_buffer->base.device;
 
+   va_list ap;
+   va_start(ap, format);
+   char *name = NULL;
+   vasprintf(&name, format, ap);
+   va_end(ap);
+
+   if (!name)
+      return;
+
+   VkDebugMarkerMarkerInfoEXT marker_info = {
+      .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT,
+      .pMarkerName = name,
+   };
+
+   device->dispatch_table.CmdDebugMarkerBeginEXT(commandBuffer, &marker_info);
+
+   free(name);
+}
+
+void
+vk_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
+                                       struct vk_acceleration_structure_build_marker *marker)
+{
    char name[256];
    switch (marker->step) {
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_TOP:
@@ -502,12 +524,7 @@ vk_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
       UNREACHABLE("Invalid build step");
    }
 
-   VkDebugMarkerMarkerInfoEXT marker_info = {
-      .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT,
-      .pMarkerName = name,
-   };
-
-   device->dispatch_table.CmdDebugMarkerBeginEXT(commandBuffer, &marker_info);
+   vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "%s", name);
 }
 
 void

@@ -243,6 +243,8 @@ vk_fill_geometry_data(VkAccelerationStructureTypeKHR type, uint32_t first_id, ui
                       const VkAccelerationStructureGeometryKHR *geometry,
                       const VkAccelerationStructureBuildRangeInfoKHR *build_range_info);
 
+void vk_accel_struct_cmd_begin_debug_marker_formatted(VkCommandBuffer commandBuffer, const char *format, ...);
+
 void vk_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
                                             struct vk_acceleration_structure_build_marker *marker);
 
