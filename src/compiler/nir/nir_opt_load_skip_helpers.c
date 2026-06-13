@@ -25,6 +25,31 @@
 #include "nir_worklist.h"
 
 static bool
+intr_always_needs_helpers(nir_intrinsic_instr *intr)
+{
+   /* Subgroup ops might access data from helper lanes */
+   if (nir_intrinsic_has_semantic(intr, NIR_INTRINSIC_SUBGROUP))
+      return true;
+
+   /* We don't know how scratch data is used without more complex tracking. */
+   if (intr->intrinsic == nir_intrinsic_store_scratch)
+      return true;
+
+   if (nir_intrinsic_has_access(intr) && (nir_intrinsic_access(intr) & ACCESS_INCLUDE_HELPERS))
+      return true;
+
+   /* Unlike demote, terminate disables invocations completely.
+    * For example, a subgroup operation after terminate should
+    * include helpers, but not the invocations that were terminated.
+    * So the condition must be correct for helpers too.
+    */
+   if (intr->intrinsic == nir_intrinsic_terminate_if)
+      return true;
+
+   return false;
+}
+
+static bool
 instr_never_needs_helpers(nir_instr *instr)
 {
    if (instr->type != nir_instr_type_intrinsic)
@@ -32,10 +57,7 @@ instr_never_needs_helpers(nir_instr *instr)
 
    nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
 
-   if (intr->intrinsic == nir_intrinsic_store_scratch)
-      return false;
-
-   if (nir_intrinsic_has_access(intr) && (nir_intrinsic_access(intr) & ACCESS_INCLUDE_HELPERS))
+   if (intr_always_needs_helpers(intr))
       return false;
 
    bool is_store = !nir_intrinsic_infos[intr->intrinsic].has_dest;
@@ -161,19 +183,9 @@ nir_opt_load_skip_helpers(nir_shader *shader, nir_opt_load_skip_helpers_options 
 
          case nir_instr_type_intrinsic: {
             nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
-            if (nir_intrinsic_has_semantic(intr, NIR_INTRINSIC_SUBGROUP) ||
-                intr->intrinsic == nir_intrinsic_store_scratch) {
-               /* Subgroup ops might access data from helper lanes and we don't
-                * know how scratch data is used without more complex tracking.
-                */
+
+            if (intr_always_needs_helpers(intr)) {
                nir_foreach_src(instr, set_src_needs_helpers, &hs);
-            } else if (intr->intrinsic == nir_intrinsic_terminate_if) {
-               /* Unlike demote, terminate disables invocations completely.
-                * For example, a subgroup operation after terminate should
-                * include helpers, but not the invocations that were terminated.
-                * So the condition must be correct for helpers too.
-                */
-               set_src_needs_helpers(&intr->src[0], &hs);
             } else if (instr_never_needs_helpers(instr)) {
                continue;
             } else if (hs.options->intrinsic_cb &&
