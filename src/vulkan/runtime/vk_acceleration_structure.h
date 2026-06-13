@@ -104,6 +104,7 @@ struct vk_build_config {
    enum vk_internal_build_type internal_type;
    bool updateable;
    bool u64_keys;
+   uint32_t build_flags;
    uint32_t encode_key[MAX_ENCODE_PASSES];
    uint32_t update_key[MAX_ENCODE_PASSES];
 };
@@ -136,8 +137,6 @@ struct vk_acceleration_structure_build_state {
    struct vk_build_config config;
 
    /* Internal state of vk_acceleration_structure.c */
-   uint32_t build_flags;
-
    uint32_t scratch_offset;
    bool processed;
 
