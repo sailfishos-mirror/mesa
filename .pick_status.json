@@ -6724,7 +6724,7 @@
         "description": "etnaviv: Limit nir_lower_fragcolor(..) to advertised render targets",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "928a276b789b8c3d12d9c9dc6248911a1c578866",
         "notes": null
