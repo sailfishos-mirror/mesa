@@ -188,35 +188,48 @@ nir_opt_load_skip_helpers(nir_shader *shader, nir_opt_load_skip_helpers_options 
 
             if (intr_always_needs_helpers(intr)) {
                nir_foreach_src(instr, set_src_needs_helpers, &hs);
-            } else if (instr_never_needs_helpers(instr)) {
                continue;
-            } else if (hs.options->intrinsic_cb &&
-                       hs.options->intrinsic_cb(intr, hs.options->intrinsic_cb_data) &&
-                       add_load_to_worklist(&hs, instr)) {
-               switch (intr->intrinsic) {
-               case nir_intrinsic_load_global_amd:
-                  break;
-               default: {
-                  /* Even if this load is skipped for helpers, the handle must
-                   * still be uniform.
-                   */
-                  nir_src *io_index_src = nir_get_io_index_src(intr);
-                  if (io_index_src != NULL)
-                     set_src_needs_helpers(io_index_src, &hs);
-                  break;
-               }
-               }
+            }
 
-               /* We don't need to set the offset/address sources as needing
-                * helpers if this load is skipped for helpers.
-                */
-            } else {
-               /* All I/O addresses need helpers because getting them wrong
-                * may cause a fault.
-                */
+            bool may_skip_helper = instr_never_needs_helpers(instr);
+
+            if (!may_skip_helper &&
+                hs.options->intrinsic_cb &&
+                hs.options->intrinsic_cb(intr, hs.options->intrinsic_cb_data) &&
+                add_load_to_worklist(&hs, instr)) {
+               may_skip_helper = true;
+            }
+
+            /* Even if this load is skipped for helpers, the handle must
+             * still be uniform.
+             */
+            bool index_must_be_uniform = true;
+
+            switch (intr->intrinsic) {
+            case nir_intrinsic_load_global_amd:
+            case nir_intrinsic_store_global_amd:
+            case nir_intrinsic_global_atomic_amd:
+            case nir_intrinsic_global_atomic_swap_amd:
+               index_must_be_uniform = false;
+               break;
+            default:
+               break;
+            }
+
+            /* All used I/O addresses need helpers because getting them wrong
+             * may cause a fault. Even if this accesss is skipped for helpers,
+             * we might still need helpers to keep the descriptor handle uniform.
+             */
+            if (!may_skip_helper || index_must_be_uniform) {
                nir_src *io_index_src = nir_get_io_index_src(intr);
                if (io_index_src != NULL)
                   set_src_needs_helpers(io_index_src, &hs);
+            }
+
+            /* We don't need to set the offset/address sources as needing
+             * helpers if this access is skipped for helpers.
+             */
+            if (!may_skip_helper) {
                nir_src *io_offset_src = nir_get_io_offset_src(intr);
                if (io_offset_src != NULL)
                   set_src_needs_helpers(io_offset_src, &hs);
