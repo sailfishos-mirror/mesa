@@ -155,13 +155,11 @@ vk_acceleration_structure_build_state_init(struct vk_acceleration_structure_buil
       state->config.internal_type = VK_INTERNAL_BUILD_TYPE_LBVH;
 
    if (build_info->mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR &&
-       build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR &&
-       device->as_build_ops->update_as[0])
+       build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR && args->has_update)
       state->config.internal_type = VK_INTERNAL_BUILD_TYPE_UPDATE;
 
    if ((build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR) &&
-       build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR &&
-       device->as_build_ops->update_as[0])
+       build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR && args->has_update)
       state->config.updateable = true;
 
    if (device->as_build_ops->get_build_config)
@@ -245,8 +243,7 @@ vk_acceleration_structure_build_state_init(struct vk_acceleration_structure_buil
 
    state->scratch.size = offset;
 
-   if (build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR &&
-       device->as_build_ops->update_as[0]) {
+   if (build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR && args->has_update) {
       state->scratch.update_size = device->as_build_ops->get_update_scratch_size(vk_device_to_handle(device), state);
    } else {
       state->scratch.update_size = offset;
@@ -512,14 +509,6 @@ vk_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_HPLOC_BUILD_INTERNAL:
       snprintf(name, sizeof(name), "hploc_build_internal");
       break;
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_ENCODE:
-   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_UPDATE: {
-      const char *type = marker->step == VK_ACCELERATION_STRUCTURE_BUILD_STEP_ENCODE ? "encode" : "update";
-      snprintf(name, sizeof(name), "%s(pass=%u, key=0x%x, leaf_node_count=%u, internal_node_count=%u)",
-               type, marker->encode.pass, marker->encode.key, marker->encode.leaf_node_count,
-               marker->encode.internal_node_count);
-      break;
-   }
    default:
       UNREACHABLE("Invalid build step");
    }
@@ -1396,88 +1385,8 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
       flushed_compute_after_init_update_scratch = true;
    }
 
-   struct vk_acceleration_structure_build_marker encode_marker;
-   bool inside_encode_marker = false;
-
-   for (unsigned pass = 0; pass < ARRAY_SIZE(ops->encode_as); pass++) {
-      if (!ops->encode_as[pass] && !ops->update_as[pass])
-         break;
-
-      bool progress;
-      do {
-         progress = false;
-
-         bool update;
-         uint32_t encode_key = 0;
-         uint32_t update_key = 0;
-         for (uint32_t i = 0; i < infoCount; ++i) {
-            if (states[i].last_encode_pass == pass + 1)
-               continue;
-
-            if (!progress) {
-               update = (states[i].config.internal_type ==
-                         VK_INTERNAL_BUILD_TYPE_UPDATE);
-               if (update && !ops->update_as[pass])
-                  continue;
-               if (!update && !ops->encode_as[pass])
-                  continue;
-               encode_key = states[i].config.encode_key[pass];
-               update_key = states[i].config.update_key[pass];
-               progress = true;
-
-               if (args->emit_markers) {
-                  if (inside_encode_marker)
-                     device->as_build_ops->end_debug_marker(commandBuffer, &encode_marker);
-
-                  memset(&encode_marker, 0, sizeof(encode_marker));
-                  encode_marker.step = update ? VK_ACCELERATION_STRUCTURE_BUILD_STEP_UPDATE
-                                              : VK_ACCELERATION_STRUCTURE_BUILD_STEP_ENCODE;
-                  encode_marker.encode.pass = pass;
-                  encode_marker.encode.key = update ? update_key : encode_key;
-
-                  for (uint32_t j = 0; j < infoCount; j++) {
-                     if (update != (states[j].config.internal_type ==
-                                    VK_INTERNAL_BUILD_TYPE_UPDATE) ||
-                         encode_key != states[j].config.encode_key[pass] ||
-                         update_key != states[j].config.update_key[pass])
-                        continue;
-
-                     encode_marker.encode.leaf_node_count += states[j].leaf_node_count;
-                     encode_marker.encode.internal_node_count += states[i].internal_node_count;
-                  }
-
-                  device->as_build_ops->begin_debug_marker(commandBuffer, &encode_marker);
-
-                  inside_encode_marker = true;
-               }
-
-               if (update) {
-                  ops->update_prepare[pass](commandBuffer, &states[i],
-                                            flushed_cp_after_init_update_scratch,
-                                            flushed_compute_after_init_update_scratch);
-               } else {
-                  ops->encode_prepare[pass](commandBuffer, &states[i]);
-               }
-            } else {
-               if (update != (states[i].config.internal_type ==
-                              VK_INTERNAL_BUILD_TYPE_UPDATE) ||
-                   encode_key != states[i].config.encode_key[pass] ||
-                   update_key != states[i].config.update_key[pass])
-                  continue;
-            }
-
-            if (update)
-               ops->update_as[pass](commandBuffer, &states[i]);
-            else
-               ops->encode_as[pass](commandBuffer, &states[i]);
-
-            states[i].last_encode_pass = pass + 1;
-         }
-      } while (progress);
-   }
-
-   if (inside_encode_marker)
-      device->as_build_ops->end_debug_marker(commandBuffer, &encode_marker);
+   ops->encode(commandBuffer, device, meta, args, states, infoCount,
+               flushed_cp_after_init_update_scratch, flushed_compute_after_init_update_scratch);
 
    if (args->emit_markers)
       device->as_build_ops->end_debug_marker(commandBuffer, &top_marker);
