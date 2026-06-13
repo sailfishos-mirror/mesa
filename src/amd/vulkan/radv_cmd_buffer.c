@@ -3949,9 +3949,7 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       uint8_t rate_x = 0, rate_y = 0;
 
       if (enable_vrs_flat_shading) {
-         /* When per-draw VRS is not enabled at all, try enabling VRS coarse shading 2x2 if the driver
-          * determined that it's safe to enable.
-          */
+         /* Enable VRS 2x2 if doing flat shading. */
          mode = V_028064_SC_VRS_COMB_MODE_OVERRIDE;
          rate_x = rate_y = 1;
       } else if (force_vrs_per_vertex) {

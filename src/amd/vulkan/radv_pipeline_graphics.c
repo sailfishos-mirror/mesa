@@ -3231,7 +3231,9 @@ radv_graphics_pipeline_init(struct radv_graphics_pipeline *pipeline, struct radv
    pipeline->uses_out_of_order_rast = gfx_state.vk.rs->rasterization_order_amd == VK_RASTERIZATION_ORDER_RELAXED_AMD;
    pipeline->uses_vrs = radv_is_vrs_enabled(&gfx_state.vk);
    pipeline->uses_vrs_attachment = radv_pipeline_uses_vrs_attachment(pipeline, &gfx_state.vk);
-   pipeline->uses_vrs_flat_shading = !pipeline->uses_vrs && gfx103_pipeline_vrs_flat_shading(device, pipeline);
+
+   /* VRS flat shading overrides the final VRS rate, so other VRS states have no effect. */
+   pipeline->uses_vrs_flat_shading = gfx103_pipeline_vrs_flat_shading(device, pipeline);
 
    uint32_t push_constant_size = 0;
    for (uint32_t i = 0; i < MESA_VULKAN_SHADER_STAGES; i++) {
