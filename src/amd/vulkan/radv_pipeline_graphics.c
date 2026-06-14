@@ -2685,7 +2685,7 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
 
       struct radv_shader_stage *fs_stage = &stages[MESA_SHADER_FRAGMENT];
 
-      if (fs_stage && fs_stage->info.ps.allow_flat_shading) {
+      if (fs_stage && (fs_stage->info.ps.allow_flat_shading || fs_stage->info.ps.force_disable_vrs)) {
          stages[i].info.force_vrs_per_vertex = false;
 
          if (stages[i].info.outinfo.writes_primitive_shading_rate ||
