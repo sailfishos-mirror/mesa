@@ -1,6 +1,25 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+//! Definition of all opcodes and the [Op] struct linking them together.
+//! This is a superset of what all supported hardware can implement, many
+//! passes in the compiler will lower virtual or unsupported opcodes into
+//! supported ones.
+//!
+//! If you want to add a new Opcode:
+//! - it MUST be repr(C)
+//!
+//! - All Srcs must be consecutive in memory (same for Dsts)
+//!   (this is required for AsSlice and compile-time enforced)
+//!
+//! - If an Opcode has a vector type like V4I8, it should also implement all
+//!   other smaller vector types (both V2I8 and I8) even if they are not
+//!   supported by the hardware, [Shader::widen_alu_ops] will convert them.
+//!   This makes NIR translation easier.
+//!
+//! - Convention for variant ordering is to sort by (component_size, vector_size)
+//!   Ex: [I8, V2I8, V4I8, I16, V2I16, I32, I64]
+
 use crate::data_type::PartialDataType;
 use crate::ir::*;
 use kraid_proc_macros::{FromVariants, Opcode, variants};
