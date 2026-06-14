@@ -3901,8 +3901,12 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   bool enable_vrs_flat_shading = cmd_buffer->state.uses_vrs_flat_shading;
+   const bool enable_vrs_flat_shading = cmd_buffer->state.uses_vrs_flat_shading;
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
+   const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
+   /* Disable VRS for flat shading with MSAA 8x to prevent random GPU hangs on GFX11-11.7 */
+   const bool force_disable_vrs =
+      (ps && ps->info.ps.force_disable_vrs) || (pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (pdev->info.gfx_level < GFX10_3)
@@ -3914,11 +3918,13 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       uint8_t mode = V_0283D0_SC_VRS_COMB_MODE_PASSTHRU;
       uint8_t rate = V_0283D0_VRS_SHADING_RATE_1X1;
 
-      /* Disable VRS for flat shading with MSAA 8x to prevent random GPU hangs on GFX11-11.7 */
-      if (pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8)
-         enable_vrs_flat_shading = false;
-
-      if (enable_vrs_flat_shading) {
+      if (force_disable_vrs) {
+         /* MIN chooses the higher quality rate between the input rate and the override rate,
+          * so setting the override to 1x1 allows sample shading (which is a VRS rate that's finer
+          * than 1x1). This effectively forces any coarse VRS to 1x1 while keeping sample shading as-is.
+          */
+         mode = V_0283D0_SC_VRS_COMB_MODE_MIN;
+      } else if (enable_vrs_flat_shading) {
          mode = V_0283D0_SC_VRS_COMB_MODE_OVERRIDE;
          rate = V_0283D0_VRS_SHADING_RATE_2X2;
       }
@@ -3943,12 +3949,17 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       }
       radeon_end();
    } else {
-      const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
       const bool force_vrs_per_vertex = cmd_buffer->state.last_vgt_shader->info.force_vrs_per_vertex;
       uint32_t mode = V_028064_SC_VRS_COMB_MODE_PASSTHRU;
       uint8_t rate_x = 0, rate_y = 0;
 
-      if (enable_vrs_flat_shading) {
+      if (force_disable_vrs) {
+         /* MIN chooses the higher quality rate between the input rate and the override rate,
+          * so setting the override to 1x1 allows sample shading (which is a VRS rate that's finer
+          * than 1x1). This effectively forces any coarse VRS to 1x1 while keeping sample shading as-is.
+          */
+         mode = V_028064_SC_VRS_COMB_MODE_MIN;
+      } else if (enable_vrs_flat_shading) {
          /* Enable VRS 2x2 if doing flat shading. */
          mode = V_028064_SC_VRS_COMB_MODE_OVERRIDE;
          rate_x = rate_y = 1;
@@ -4353,21 +4364,6 @@ radv_emit_vgt_prim_state(struct radv_cmd_buffer *cmd_buffer)
    radv_emit_vgt_gs_out(cmd_buffer, vgt_outprim_type);
 }
 
-static bool
-radv_should_force_vrs1x1(struct radv_cmd_buffer *cmd_buffer)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
-   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
-
-   if (pdev->info.gfx_level >= GFX10_3 && pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8)
-      return true;
-
-   return pdev->info.gfx_level >= GFX10_3 &&
-          (radv_is_sample_shading_enabled(cmd_buffer, NULL) || (ps && ps->info.ps.force_disable_vrs));
-}
-
 static void
 radv_emit_fsr_state(struct radv_cmd_buffer *cmd_buffer)
 {
@@ -4436,12 +4432,10 @@ radv_emit_fsr_state(struct radv_cmd_buffer *cmd_buffer)
       }
    }
 
-   /* Disable VRS and use the rates from PS_ITER_SAMPLES if:
-    *
-    * 1) sample shading is enabled or per-sample interpolation is used by the fragment shader
-    * 2) the fragment shader requires 1x1 shading rate for some other reason
+   /* Disable VRS and use the rates from PS_ITER_SAMPLES if sample shading is enabled or per-sample
+    * interpolation is used by the fragment shader.
     */
-   if (radv_should_force_vrs1x1(cmd_buffer)) {
+   if (radv_is_sample_shading_enabled(cmd_buffer, NULL)) {
       pa_cl_vrs_cntl |= S_028848_SAMPLE_ITER_COMBINER_MODE(V_028848_SC_VRS_COMB_MODE_OVERRIDE);
    }
 
@@ -4534,15 +4528,6 @@ radv_emit_rast_samples_state(struct radv_cmd_buffer *cmd_buffer)
    if (ps_iter_samples > 1) {
       spi_baryc_cntl |= S_0286E0_POS_FLOAT_LOCATION(2);
       pa_sc_mode_cntl_1 |= S_028A4C_PS_ITER_SAMPLE(1);
-   }
-
-   if (radv_should_force_vrs1x1(cmd_buffer)) {
-      /* Make sure sample shading is enabled even if only MSAA1x is used because the SAMPLE_ITER
-       * combiner is in passthrough mode if PS_ITER_SAMPLE is 0, and it uses the per-draw rate. The
-       * default VRS rate when sample shading is enabled is 1x1.
-       */
-      if (!G_028A4C_PS_ITER_SAMPLE(pa_sc_mode_cntl_1))
-         pa_sc_mode_cntl_1 |= S_028A4C_PS_ITER_SAMPLE(1);
    }
 
    radeon_begin(cmd_buffer->cs);
@@ -8971,11 +8956,6 @@ radv_bind_fragment_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    if (!previous_ps || previous_ps->info.ps.reads_fully_covered != ps->info.ps.reads_fully_covered)
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_MSAA_STATE;
 
-   if (gfx_level >= GFX10_3 &&
-       (!previous_ps || previous_ps->info.ps.force_disable_vrs != ps->info.ps.force_disable_vrs)) {
-      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_RAST_SAMPLES_STATE;
-   }
-
    if (!previous_ps || previous_ps->info.ps.uses_sample_shading != ps->info.ps.uses_sample_shading) {
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_RAST_SAMPLES_STATE | RADV_CMD_DIRTY_MSAA_STATE;
       if (gfx_level >= GFX10_3)
@@ -13234,8 +13214,7 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
    if (dynamic_states & RADV_DYNAMIC_RASTERIZATION_SAMPLES) {
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_NGGC_VIEWPORT;
       if (pdev->info.gfx_level >= GFX10_3 && pdev->info.gfx_level < GFX12)
-         cmd_buffer->state.dirty |=
-            RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_RAST_SAMPLES_STATE | RADV_CMD_DIRTY_OVERRIDE_VRS_STATE;
+         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_OVERRIDE_VRS_STATE;
    }
 
    if (dynamic_states & RADV_DYNAMIC_PATCH_CONTROL_POINTS) {
