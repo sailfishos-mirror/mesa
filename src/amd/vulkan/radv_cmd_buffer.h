@@ -441,7 +441,6 @@ struct radv_cmd_state {
    bool can_use_simple_vertex_input;
 
    bool uses_out_of_order_rast;
-   bool uses_vrs;
    bool uses_vrs_attachment;
    bool force_vrs_per_vertex;
 

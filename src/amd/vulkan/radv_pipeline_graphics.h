@@ -146,9 +146,6 @@ struct radv_graphics_pipeline {
    /* Whether the pipeline uses out-of-order rasterization. */
    bool uses_out_of_order_rast;
 
-   /* Whether the pipeline uses VRS. */
-   bool uses_vrs;
-
    /* Whether the pipeline uses a VRS attachment. */
    bool uses_vrs_attachment;
 

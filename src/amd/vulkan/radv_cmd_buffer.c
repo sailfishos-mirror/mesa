@@ -3866,7 +3866,6 @@ gfx103_emit_vgt_draw_payload_cntl(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_shader *mesh_shader = cmd_buffer->state.shaders[MESA_SHADER_MESH];
-   const bool enable_vrs = cmd_buffer->state.uses_vrs;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    bool enable_prim_payload = false;
 
@@ -3880,8 +3879,11 @@ gfx103_emit_vgt_draw_payload_cntl(struct radv_cmd_buffer *cmd_buffer)
                              outinfo->writes_primitive_shading_rate_per_primitive);
    }
 
+   /* EN_VRS_RATE only enables GE_VRS_RATE. It's better to keep it enabled because setting
+    * GE_VRS_RATE=0 doesn't cause context rolls while setting this register does.
+    */
    const uint32_t vgt_draw_payload_cntl =
-      S_028A98_EN_VRS_RATE(enable_vrs) | S_028A98_EN_PRIM_PAYLOAD(enable_prim_payload);
+      S_028A98_EN_VRS_RATE(pdev->info.gfx_level >= GFX10_3) | S_028A98_EN_PRIM_PAYLOAD(enable_prim_payload);
 
    radeon_begin(cs);
 
@@ -9232,8 +9234,6 @@ radv_bind_graphics_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_grap
    }
 
    cmd_buffer->state.ia_multi_vgt_param = graphics_pipeline->ia_multi_vgt_param;
-
-   cmd_buffer->state.uses_vrs = graphics_pipeline->uses_vrs;
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -16720,7 +16720,6 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
          cmd_buffer->state.ms.min_sample_shading = 1.0f;
          cmd_buffer->state.uses_out_of_order_rast = false;
          cmd_buffer->state.uses_vrs_attachment = false;
-         cmd_buffer->state.uses_vrs = false;
          cmd_buffer->state.force_vrs_per_vertex = false;
 
          radv_bind_custom_blend_mode(cmd_buffer, 0);
