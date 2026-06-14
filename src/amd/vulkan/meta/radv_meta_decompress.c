@@ -459,6 +459,11 @@ radv_expand_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
 
       cmd_buffer->state.flush_bits |=
          AC_BARRIER_SYNC_AND_INV_DB | (pdev->info.gfx_level < GFX10 ? AC_BARRIER_SYNC_AND_INV_DB_META : 0);
+
+      /* Reset the HiZ range in HTILE to [0, 1] because the decompress pass doesn't do it. */
+      uint32_t htile_value = radv_get_htile_initial_value(device, image);
+
+      cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, subresourceRange, htile_value, false);
    } else {
       radv_expand_depth_stencil_compute(cmd_buffer, image, subresourceRange);
 
