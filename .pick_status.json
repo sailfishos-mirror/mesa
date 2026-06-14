@@ -4244,7 +4244,7 @@
         "description": "brw, elk: Fix invalid case using float-negation in combine constants",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "44d62a5224d0a288ce38b94de678c599ee8b891e",
         "notes": null
