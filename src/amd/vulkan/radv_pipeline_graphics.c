@@ -3065,25 +3065,6 @@ radv_get_vgt_shader_key(const struct radv_device *device, struct radv_shader **s
    return key;
 }
 
-static bool
-gfx103_pipeline_vrs_flat_shading(const struct radv_device *device, const struct radv_graphics_pipeline *pipeline)
-{
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   struct radv_shader *ps = pipeline->base.shaders[MESA_SHADER_FRAGMENT];
-
-   if (pdev->info.gfx_level < GFX10_3)
-      return false;
-
-   if (instance->debug_flags & RADV_DEBUG_NO_VRS_FLAT_SHADING)
-      return false;
-
-   if (ps && !ps->info.ps.allow_flat_shading)
-      return false;
-
-   return true;
-}
-
 static void
 radv_pipeline_init_shader_stages_state(const struct radv_device *device, struct radv_graphics_pipeline *pipeline)
 {
@@ -3242,9 +3223,6 @@ radv_graphics_pipeline_init(struct radv_graphics_pipeline *pipeline, struct radv
    pipeline->uses_out_of_order_rast = gfx_state.vk.rs->rasterization_order_amd == VK_RASTERIZATION_ORDER_RELAXED_AMD;
    pipeline->uses_vrs = radv_is_vrs_enabled(&gfx_state.vk);
    pipeline->uses_vrs_attachment = radv_pipeline_uses_vrs_attachment(pipeline, &gfx_state.vk);
-
-   /* VRS flat shading overrides the final VRS rate, so other VRS states have no effect. */
-   pipeline->uses_vrs_flat_shading = gfx103_pipeline_vrs_flat_shading(device, pipeline);
 
    uint32_t push_constant_size = 0;
    for (uint32_t i = 0; i < MESA_VULKAN_SHADER_STAGES; i++) {

@@ -3920,7 +3920,8 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
        */
       mode = V_028064_SC_VRS_COMB_MODE_MIN;
       vrs_surface_enable = false;
-   } else if (cmd_buffer->state.uses_vrs_flat_shading) {
+   } else if (ps && ps->info.ps.allow_flat_shading &&
+              !(radv_physical_device_instance(pdev)->debug_flags & RADV_DEBUG_NO_VRS_FLAT_SHADING)) {
       /* Enable VRS 2x2 if doing flat shading. */
       mode = V_028064_SC_VRS_COMB_MODE_OVERRIDE;
       rate_x = rate_y = 1;
@@ -9233,7 +9234,6 @@ radv_bind_graphics_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_grap
    cmd_buffer->state.ia_multi_vgt_param = graphics_pipeline->ia_multi_vgt_param;
 
    cmd_buffer->state.uses_vrs = graphics_pipeline->uses_vrs;
-   cmd_buffer->state.uses_vrs_flat_shading = graphics_pipeline->uses_vrs_flat_shading;
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -16721,7 +16721,6 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
          cmd_buffer->state.uses_out_of_order_rast = false;
          cmd_buffer->state.uses_vrs_attachment = false;
          cmd_buffer->state.uses_vrs = false;
-         cmd_buffer->state.uses_vrs_flat_shading = false;
          cmd_buffer->state.force_vrs_per_vertex = false;
 
          radv_bind_custom_blend_mode(cmd_buffer, 0);
