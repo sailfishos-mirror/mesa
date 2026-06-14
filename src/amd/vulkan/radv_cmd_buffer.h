@@ -444,6 +444,7 @@ struct radv_cmd_state {
    bool uses_vrs;
    bool uses_vrs_attachment;
    bool uses_vrs_flat_shading;
+   bool force_vrs_per_vertex;
 
    uint64_t shader_query_buf_va; /* GFX12+ */
 

@@ -3949,7 +3949,6 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       }
       radeon_end();
    } else {
-      const bool force_vrs_per_vertex = cmd_buffer->state.last_vgt_shader->info.force_vrs_per_vertex;
       uint32_t mode = V_028064_SC_VRS_COMB_MODE_PASSTHRU;
       uint8_t rate_x = 0, rate_y = 0;
 
@@ -3963,22 +3962,6 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
          /* Enable VRS 2x2 if doing flat shading. */
          mode = V_028064_SC_VRS_COMB_MODE_OVERRIDE;
          rate_x = rate_y = 1;
-      } else if (force_vrs_per_vertex) {
-         /* Otherwise, if per-draw VRS is not enabled statically, try forcing per-vertex VRS if
-          * requested by the user. Note that vkd3d-proton always has to declare VRS as dynamic because
-          * in DX12 it's fully dynamic.
-          */
-         radeon_begin(cs);
-         radeon_opt_set_context_reg(R_028848_PA_CL_VRS_CNTL, AC_TRACKED_PA_CL_VRS_CNTL,
-                                    S_028848_SAMPLE_ITER_COMBINER_MODE(V_028848_SC_VRS_COMB_MODE_OVERRIDE) |
-                                       S_028848_VERTEX_RATE_COMBINER_MODE(V_028848_SC_VRS_COMB_MODE_OVERRIDE));
-         radeon_end();
-
-         /* If PS doesn't allow it, turn it off, which we must do by setting MIN because the VRS rate
-          * shader output is present. The behavior of MIN is explained above.
-          */
-         mode = ps && ps->info.ps.disallow_force_vrs_per_vertex ? V_028064_SC_VRS_COMB_MODE_MIN
-                                                                : V_028064_SC_VRS_COMB_MODE_PASSTHRU;
       }
 
       radeon_begin(cs);
@@ -4372,16 +4355,40 @@ radv_emit_fsr_state(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
    const struct radv_rendering_state *render = &cmd_buffer->state.render;
+   const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+   bool api_vrs_disabled = d->vk.fsr.fragment_size.width == 1 && d->vk.fsr.fragment_size.height == 1 &&
+                           d->vk.fsr.combiner_ops[0] == VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR &&
+                           d->vk.fsr.combiner_ops[1] == VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR;
 
-   /* When per-vertex VRS is forced and the dynamic fragment shading rate is a no-op, ignore
-    * it. This is needed for vkd3d-proton because it always declares per-draw VRS as dynamic.
-    */
-   if (device->force_vrs != RADV_FORCE_VRS_1x1 && d->vk.fsr.fragment_size.width == 1 &&
-       d->vk.fsr.fragment_size.height == 1 &&
-       d->vk.fsr.combiner_ops[0] == VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR &&
-       d->vk.fsr.combiner_ops[1] == VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR)
+   if (api_vrs_disabled && cmd_buffer->state.force_vrs_per_vertex && ps && !ps->info.ps.disallow_force_vrs_per_vertex) {
+      assert(device->force_vrs_enabled);
+
+      /* When VRS is forced using RADV_FORCE_VRS* environment variables, the per-vertex VRS rate
+       * output is inserted into the pre-rast shader and controls VRS rates.
+       *
+       * Then all combiners are set as follows:
+       *
+       * - VERTEX_RATE_COMBINER_MODE = OVERRIDE (the VRS rate output overrides GE_VRS_RATE)
+       * - PRIMITIVE_RATE_COMBINER_MODE = PASSTHRU (keep the VRS rate output value, ignore
+       *      the per-primitive VRS rate output)
+       * - HTILE_RATE_COMBINER_MODE = PASSTHRU (keep the VRS rate output value, ignore the VRS image)
+       * - SAMPLE_ITER_COMBINER_MODE = OVERRIDE (if sample shading is enabled then use that else use
+       *      the VRS rate output value)
+       * - VRS_OVERRIDE_RATE_COMBINER_MODE = MIN (force VRS off for sample_mask_in and FS
+       *      interlock) or OVERRIDE (force 2x2 VRS for flat shading) or PASSTHRU (keep the previous
+       *      value)
+       *
+       * Note that sample shading is treated as a fine (smaller than 1x1) VRS rate in HW, which
+       * doesn't exist in Vulkan.
+       */
+      radeon_begin(cs);
+      radeon_opt_set_context_reg(R_028848_PA_CL_VRS_CNTL, AC_TRACKED_PA_CL_VRS_CNTL,
+                                 S_028848_VERTEX_RATE_COMBINER_MODE(V_028848_SC_VRS_COMB_MODE_OVERRIDE) |
+                                    S_028848_SAMPLE_ITER_COMBINER_MODE(V_028848_SC_VRS_COMB_MODE_OVERRIDE));
+      radeon_end();
       return;
+   }
 
    uint32_t rate_x = MIN2(2, d->vk.fsr.fragment_size.width) - 1;
    uint32_t rate_y = MIN2(2, d->vk.fsr.fragment_size.height) - 1;
@@ -8819,6 +8826,11 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;
    }
 
+   if (cmd_buffer->state.force_vrs_per_vertex != shader->info.force_vrs_per_vertex) {
+      cmd_buffer->state.force_vrs_per_vertex = shader->info.force_vrs_per_vertex;
+      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;
+   }
+
    /* Determine if this shader is the last VGT shader. */
    if (shader->info.next_stage == MESA_SHADER_NONE || shader->info.next_stage == MESA_SHADER_FRAGMENT) {
       if (pdev->info.has_vgt_flush_ngg_legacy_bug &&
@@ -8964,6 +8976,10 @@ radv_bind_fragment_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
       if (gfx_level == GFX9)
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_BINNING_STATE;
    }
+
+   if (gfx_level >= GFX10_3 && (!previous_ps || previous_ps->info.ps.disallow_force_vrs_per_vertex !=
+                                                   ps->info.ps.disallow_force_vrs_per_vertex))
+      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;
 
    if (!previous_ps || previous_ps->regs.ps.db_shader_control != ps->regs.ps.db_shader_control ||
        previous_ps->info.ps.pops_is_per_sample != ps->info.ps.pops_is_per_sample)
@@ -16719,6 +16735,7 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
          cmd_buffer->state.uses_vrs_attachment = false;
          cmd_buffer->state.uses_vrs = false;
          cmd_buffer->state.uses_vrs_flat_shading = false;
+         cmd_buffer->state.force_vrs_per_vertex = false;
 
          radv_bind_custom_blend_mode(cmd_buffer, 0);
 
