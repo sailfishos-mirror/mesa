@@ -1929,15 +1929,6 @@ radv_consider_force_vrs(const struct radv_graphics_state_key *gfx_state, const s
    if (last_vgt_stage->info.next_stage == MESA_SHADER_NONE)
       return false;
 
-   /* Do not enable if the PS uses gl_FragCoord because it breaks postprocessing in some games. */
-   nir_shader *fs_shader = fs_stage->nir;
-   if (fs_shader && (BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_XY) ||
-                     BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_Z) ||
-                     BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_W_RCP) ||
-                     BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_PIXEL_COORD))) {
-      return false;
-   }
-
    return true;
 }
 
@@ -2692,6 +2683,8 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
             stages[i].nir->info.outputs_written &= ~VARYING_BIT_PRIMITIVE_SHADING_RATE;
             stages[i].nir->info.per_primitive_outputs &= ~VARYING_BIT_PRIMITIVE_SHADING_RATE;
          }
+      } else if (fs_stage && fs_stage->info.ps.disallow_force_vrs_per_vertex) {
+         stages[i].info.force_vrs_per_vertex = false;
       }
       break;
    }

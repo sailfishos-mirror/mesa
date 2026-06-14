@@ -3974,10 +3974,11 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
                                        S_028848_VERTEX_RATE_COMBINER_MODE(V_028848_SC_VRS_COMB_MODE_OVERRIDE));
          radeon_end();
 
-         /* If the shader is using discard, turn off coarse shading because discard at 2x2 pixel
-          * granularity degrades quality too much. MIN allows sample shading but not coarse shading.
+         /* If PS doesn't allow it, turn it off, which we must do by setting MIN because the VRS rate
+          * shader output is present. The behavior of MIN is explained above.
           */
-         mode = ps && ps->info.ps.can_discard ? V_028064_SC_VRS_COMB_MODE_MIN : V_028064_SC_VRS_COMB_MODE_PASSTHRU;
+         mode = ps && ps->info.ps.disallow_force_vrs_per_vertex ? V_028064_SC_VRS_COMB_MODE_MIN
+                                                                : V_028064_SC_VRS_COMB_MODE_PASSTHRU;
       }
 
       radeon_begin(cs);

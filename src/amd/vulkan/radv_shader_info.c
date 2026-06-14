@@ -883,6 +883,14 @@ gather_shader_info_fs(enum amd_gfx_level gfx_level, const nir_shader *nir,
          (info->ps.reads_sample_mask_in && !info->ps.needs_poly_line_smooth) ||
          (gfx_level == GFX10_3 && (nir->info.fs.sample_interlock_ordered || nir->info.fs.sample_interlock_unordered ||
                                    nir->info.fs.pixel_interlock_ordered || nir->info.fs.pixel_interlock_unordered));
+
+      /* Do not enable if the PS uses gl_FragCoord because it breaks postprocessing in some games. */
+      info->ps.disallow_force_vrs_per_vertex =
+         gfx_state->ps.force_vrs_enabled &&
+         (info->ps.can_discard || BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_XY) ||
+          BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_Z) ||
+          BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_W_RCP) ||
+          BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_PIXEL_COORD));
    }
 }
 
