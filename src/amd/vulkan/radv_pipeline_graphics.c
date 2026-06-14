@@ -47,12 +47,6 @@ radv_is_static_vrs_enabled(const struct vk_graphics_pipeline_state *state)
 }
 
 static bool
-radv_is_vrs_enabled(const struct vk_graphics_pipeline_state *state)
-{
-   return radv_is_static_vrs_enabled(state) || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_FSR);
-}
-
-static bool
 radv_pipeline_has_ds_attachments(const struct vk_render_pass_state *rp)
 {
    return rp->depth_attachment_format != VK_FORMAT_UNDEFINED || rp->stencil_attachment_format != VK_FORMAT_UNDEFINED;
@@ -1723,9 +1717,10 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
    }
 
    key.ps.force_vrs_enabled = compiler_info->force_vrs_enabled && !radv_is_static_vrs_enabled(state);
-   key.vrs_may_be_enabled = radv_is_vrs_enabled(state) || key.ps.force_vrs_enabled;
+   key.vrs_may_be_enabled =
+      radv_is_static_vrs_enabled(state) || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_FSR) || key.ps.force_vrs_enabled;
 
-   if ((radv_is_vrs_enabled(state) || key.ps.force_vrs_enabled) && compiler_info->ac->has_vrs_frag_pos_z_bug)
+   if (key.vrs_may_be_enabled && compiler_info->ac->has_vrs_frag_pos_z_bug)
       key.adjust_frag_coord_z = true;
 
    if (radv_pipeline_needs_ps_epilog(state, lib_flags))
