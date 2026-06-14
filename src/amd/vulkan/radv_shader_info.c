@@ -149,7 +149,7 @@ gather_intrinsic_store_output_info(const nir_shader *nir, const nir_intrinsic_in
          if (location == FRAG_RESULT_DATA0)
             info->ps.color0_written |= write_mask << component;
       }
-      break;
+      return;
    default:
       break;
    }
