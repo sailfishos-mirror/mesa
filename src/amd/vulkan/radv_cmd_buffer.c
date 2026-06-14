@@ -3910,6 +3910,7 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint32_t mode = V_028064_SC_VRS_COMB_MODE_PASSTHRU;
    uint8_t rate_x = 0, rate_y = 0;
+   bool vrs_surface_enable = cmd_buffer->state.render.vrs_att.iview != NULL;
 
    /* Disable VRS for flat shading with MSAA 8x to prevent random GPU hangs on GFX11-11.7 */
    if ((ps && ps->info.ps.force_disable_vrs) || (pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8)) {
@@ -3918,17 +3919,18 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
        * than 1x1). This effectively forces any coarse VRS to 1x1 while keeping sample shading as-is.
        */
       mode = V_028064_SC_VRS_COMB_MODE_MIN;
+      vrs_surface_enable = false;
    } else if (cmd_buffer->state.uses_vrs_flat_shading) {
       /* Enable VRS 2x2 if doing flat shading. */
       mode = V_028064_SC_VRS_COMB_MODE_OVERRIDE;
       rate_x = rate_y = 1;
+      vrs_surface_enable = false;
    }
 
    if (pdev->info.gfx_level >= GFX11) {
-      const struct radv_rendering_state *render = &cmd_buffer->state.render;
       assert(rate_x <= 1 && rate_y <= 1);
 
-      const uint32_t pa_sc_vrs_override_cntl = S_0283D0_VRS_SURFACE_ENABLE(render->vrs_att.iview != NULL) |
+      const uint32_t pa_sc_vrs_override_cntl = S_0283D0_VRS_SURFACE_ENABLE(vrs_surface_enable) |
                                                S_0283D0_VRS_OVERRIDE_RATE_COMBINER_MODE(mode) |
                                                S_0283D0_VRS_RATE(rate_y | (rate_x << 2));
 
