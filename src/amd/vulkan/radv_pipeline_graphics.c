@@ -2678,6 +2678,29 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
 
    radv_fill_shader_info(compiler_info, RADV_PIPELINE_GRAPHICS, gfx_state, stages, active_nir_stages);
 
+   /* Remove the primitive shading rate output if VRS flat shading overrides it. */
+   radv_foreach_stage (i, active_nir_stages) {
+      if (!radv_is_last_vgt_stage(&stages[i]))
+         continue;
+
+      struct radv_shader_stage *fs_stage = &stages[MESA_SHADER_FRAGMENT];
+
+      if (fs_stage && fs_stage->info.ps.allow_flat_shading) {
+         stages[i].info.force_vrs_per_vertex = false;
+
+         if (stages[i].info.outinfo.writes_primitive_shading_rate ||
+             stages[i].info.outinfo.writes_primitive_shading_rate_per_primitive) {
+            NIR_PASS(_, stages[i].nir, nir_remove_outputs, MESA_SHADER_FRAGMENT, 0, VARYING_BIT_PRIMITIVE_SHADING_RATE);
+
+            stages[i].info.outinfo.writes_primitive_shading_rate = false;
+            stages[i].info.outinfo.writes_primitive_shading_rate_per_primitive = false;
+            stages[i].nir->info.outputs_written &= ~VARYING_BIT_PRIMITIVE_SHADING_RATE;
+            stages[i].nir->info.per_primitive_outputs &= ~VARYING_BIT_PRIMITIVE_SHADING_RATE;
+         }
+      }
+      break;
+   }
+
    radv_declare_pipeline_args(compiler_info, stages, gfx_state, active_nir_stages, debug);
 
    radv_foreach_stage (i, active_nir_stages) {
