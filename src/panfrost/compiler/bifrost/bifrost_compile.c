@@ -2100,9 +2100,16 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_emit_st_tile(b, instr);
       break;
 
-   case nir_intrinsic_demote_if:
-      bi_discard_b32(b, bi_src_index(&instr->src[0]));
+   case nir_intrinsic_demote_if: {
+      bi_index src0 = bi_src_index(&instr->src[0]);
+      unsigned bs = nir_src_bit_size(instr->src[0]);
+      assert(bs == 16 || bs == 32);
+
+      if (bs == 16)
+         src0 = bi_half(src0, false);
+      bi_discard_b32(b, src0);
       break;
+   }
 
    case nir_intrinsic_demote:
       bi_discard_f32(b, bi_zero(), bi_zero(), BI_CMPF_EQ);
