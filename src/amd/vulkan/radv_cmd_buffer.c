@@ -4365,7 +4365,7 @@ radv_should_force_vrs1x1(struct radv_cmd_buffer *cmd_buffer)
       return true;
 
    return pdev->info.gfx_level >= GFX10_3 &&
-          (radv_is_sample_shading_enabled(cmd_buffer, NULL) || (ps && ps->info.ps.force_sample_iter_shading_rate));
+          (radv_is_sample_shading_enabled(cmd_buffer, NULL) || (ps && ps->info.ps.force_disable_vrs));
 }
 
 static void
@@ -8971,8 +8971,8 @@ radv_bind_fragment_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    if (!previous_ps || previous_ps->info.ps.reads_fully_covered != ps->info.ps.reads_fully_covered)
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_MSAA_STATE;
 
-   if (gfx_level >= GFX10_3 && (!previous_ps || previous_ps->info.ps.force_sample_iter_shading_rate !=
-                                                   ps->info.ps.force_sample_iter_shading_rate)) {
+   if (gfx_level >= GFX10_3 &&
+       (!previous_ps || previous_ps->info.ps.force_disable_vrs != ps->info.ps.force_disable_vrs)) {
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_RAST_SAMPLES_STATE;
    }
 
