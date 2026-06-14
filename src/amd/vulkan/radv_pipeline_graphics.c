@@ -1929,17 +1929,12 @@ radv_consider_force_vrs(const struct radv_graphics_state_key *gfx_state, const s
    if (last_vgt_stage->info.next_stage == MESA_SHADER_NONE)
       return false;
 
-   /* Do not enable if the PS uses gl_FragCoord because it breaks postprocessing in some games, or with Primitive
-    * Ordered Pixel Shading (regardless of whether per-pixel data is addressed with gl_FragCoord or a custom
-    * interpolator) as that'd result in races between adjacent primitives with no common fine pixels.
-    */
+   /* Do not enable if the PS uses gl_FragCoord because it breaks postprocessing in some games. */
    nir_shader *fs_shader = fs_stage->nir;
    if (fs_shader && (BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_XY) ||
                      BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_Z) ||
                      BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_FRAG_COORD_W_RCP) ||
-                     BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_PIXEL_COORD) ||
-                     fs_shader->info.fs.sample_interlock_ordered || fs_shader->info.fs.sample_interlock_unordered ||
-                     fs_shader->info.fs.pixel_interlock_ordered || fs_shader->info.fs.pixel_interlock_unordered)) {
+                     BITSET_TEST(fs_shader->info.system_values_read, SYSTEM_VALUE_PIXEL_COORD))) {
       return false;
    }
 
