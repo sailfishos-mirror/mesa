@@ -737,12 +737,6 @@ radv_emit_graphics(struct radv_device *device, struct radv_cmd_stream *cs)
       unsigned vertex_reuse_depth = pdev->info.gfx_level >= GFX10_3 ? 30 : 0;
       ac_pm4_set_reg(pm4, R_028838_PA_CL_NGG_CNTL,
                      S_028838_INDEX_BUF_EDGE_FLAG_ENA(0) | S_028838_VERTEX_REUSE_DEPTH(vertex_reuse_depth));
-
-      if (pdev->info.gfx_level >= GFX10_3) {
-         /* This allows sample shading. */
-         ac_pm4_set_reg(pm4, R_028848_PA_CL_VRS_CNTL,
-                        S_028848_SAMPLE_ITER_COMBINER_MODE(V_028848_SC_VRS_COMB_MODE_OVERRIDE));
-      }
    }
 
    unsigned tmp = (unsigned)(1.0 * 8.0);
