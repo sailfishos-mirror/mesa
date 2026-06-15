@@ -924,7 +924,7 @@
         "description": "v3dv: only report 16-bit float formats as blendable at 32/64 bpp",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ebbd326472893f141069d55b3cffa57ddf032268",
         "notes": null
