@@ -1438,14 +1438,16 @@ impl Kernel {
         Ok(unsafe { &mut *obj_ptr })
     }
 
-    fn suggest_local_size_impl(
+    /// Tries to increase the block size by finding GCDs between available threads and the requested
+    /// grid.
+    fn suggest_local_size_impl_gcd(
         work_dim: usize,
-        grid: &mut [usize],
-        block: &mut [usize],
+        grid: &[usize],
         mut threads: usize,
         dim_threads: [usize; 3],
-        subgroups: usize,
-    ) {
+    ) -> [usize; 3] {
+        let mut block = [1; 3];
+
         for i in 0..work_dim {
             let t = cmp::min(threads, dim_threads[i]);
             let gcd = gcd(t, grid[i]);
@@ -1455,8 +1457,27 @@ impl Kernel {
             threads /= block[i];
         }
 
+        block
+    }
+
+    fn suggest_local_size_impl(
+        work_dim: usize,
+        grid: &mut [usize],
+        block: &mut [usize],
+        mut threads: usize,
+        dim_threads: [usize; 3],
+        subgroups: usize,
+    ) {
+        let new_block = Self::suggest_local_size_impl_gcd(work_dim, grid, threads, dim_threads);
+
+        for i in 0..work_dim {
+            block[i] = new_block[i];
+        }
+
         // if we didn't fill the subgroup we can do a bit better if we have threads remaining
         let block_threads = block.iter().take(work_dim).product::<usize>();
+        threads /= block_threads;
+
         if threads != 1 && block_threads < subgroups {
             for i in 0..work_dim {
                 if grid[i] * (block_threads / block[i]) < threads && grid[i] <= dim_threads[i] {
