@@ -554,7 +554,7 @@
         "description": "vulkan: fix lowering untyped accel struct with descriptor heap",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "20d11c59a440fd453b688c2cbb4fae7d60832e7d",
         "notes": null
