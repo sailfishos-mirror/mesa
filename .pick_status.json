@@ -5544,7 +5544,7 @@
         "description": "rusticl: fix leak in `util_queue`",
         "nominated": false,
         "nomination_type": 4,
-        "resolution": 2,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
