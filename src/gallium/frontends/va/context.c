@@ -214,16 +214,6 @@ VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
    if (!drv->htab)
       goto error_htab;
 
-   bool can_init_compositor = drv->vscreen->pscreen->caps.graphics ||
-                              drv->vscreen->pscreen->caps.compute;
-
-   if (can_init_compositor) {
-      if (!vl_compositor_init(&drv->compositor, drv->pipe, compute_only))
-         goto error_compositor;
-      if (!vl_compositor_init_state(&drv->cstate, drv->pipe))
-         goto error_compositor_state;
-   }
-
    (void) mtx_init(&drv->mutex, mtx_plain);
 
    ctx->pDriverData = (void *)drv;
@@ -248,13 +238,6 @@ VA_DRIVER_INIT_FUNC(VADriverContextP ctx)
    ctx->str_vendor = drv->vendor_string;
 
    return VA_STATUS_SUCCESS;
-
-error_compositor_state:
-   if (can_init_compositor)
-      vl_compositor_cleanup(&drv->compositor);
-
-error_compositor:
-   handle_table_destroy(drv->htab);
 
 error_htab:
    drv->pipe->destroy(drv->pipe);
@@ -567,8 +550,6 @@ vlVaTerminate(VADriverContextP ctx)
       return VA_STATUS_ERROR_INVALID_CONTEXT;
 
    drv = ctx->pDriverData;
-   vl_compositor_cleanup_state(&drv->cstate);
-   vl_compositor_cleanup(&drv->compositor);
    if (drv->proc)
       drv->proc->destroy(drv->proc);
    if (drv->pipe2)

@@ -40,9 +40,6 @@
 #include "pipe/p_video_codec.h"
 #include "pipe/p_video_state.h"
 
-#include "vl/vl_compositor.h"
-#include "vl/vl_csc.h"
-
 #include "util/u_dynarray.h"
 #include "util/u_thread.h"
 #include "util/detect_os.h"
@@ -344,9 +341,6 @@ typedef struct {
    struct pipe_context *pipe;
    struct pipe_context *pipe2;
    struct handle_table *htab;
-   struct vl_compositor compositor;
-   struct vl_compositor_state cstate;
-   vl_csc_matrix csc;
    struct pipe_video_codec *proc;
    mtx_t mutex;
    char vendor_string[256];

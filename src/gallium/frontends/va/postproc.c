@@ -33,7 +33,6 @@
 #include "vl/vl_deint_filter.h"
 #include "vl/vl_winsys.h"
 #include "vl/vl_proc.h"
-#include "vl/vl_compositor.h"
 
 #include "va_private.h"
 
@@ -409,7 +408,6 @@ vlVaGetColorProperties(VAProcColorStandardType standard,
 VAStatus
 vlVaHandleVAProcPipelineParameterBufferType(vlVaDriver *drv, vlVaContext *context, vlVaBuffer *buf)
 {
-   enum vl_compositor_deinterlace deinterlace = VL_COMPOSITOR_NONE;
    VARectangle def_src_region, def_dst_region;
    const VARectangle *src_region, *dst_region;
    VAProcPipelineParameterBuffer *param;
@@ -466,20 +464,12 @@ vlVaHandleVAProcPipelineParameterBufferType(vlVaDriver *drv, vlVaContext *contex
          VAProcFilterParameterBufferDeinterlacing *deint = buf->data;
          switch (deint->algorithm) {
          case VAProcDeinterlacingBob:
-            if (deint->flags & VA_DEINTERLACING_BOTTOM_FIELD)
-               deinterlace = VL_COMPOSITOR_BOB_BOTTOM;
-            else
-               deinterlace = VL_COMPOSITOR_BOB_TOP;
-            break;
-
          case VAProcDeinterlacingWeave:
-            deinterlace = VL_COMPOSITOR_WEAVE;
             break;
 
          case VAProcDeinterlacingMotionAdaptive:
             src = vlVaApplyDeint(drv, context, param, src,
                                  !!(deint->flags & VA_DEINTERLACING_BOTTOM_FIELD));
-             deinterlace = VL_COMPOSITOR_MOTION_ADAPTIVE;
             break;
 
          default:

@@ -37,7 +37,7 @@
 #include "util/set.h"
 #include "util/os_file.h"
 
-#include "vl/vl_compositor.h"
+#include "vl/vl_proc.h"
 #include "vl/vl_video_buffer.h"
 #include "vl/vl_winsys.h"
 
@@ -830,11 +830,13 @@ vlVaSwitchToProtectedContext(vlVaDriver *drv)
    drv->pipe2 = drv->pipe;
    drv->pipe = ctx;
 
-   if (drv->cstate.pipe) {
-      vl_compositor_cleanup_state(&drv->cstate);
-      vl_compositor_cleanup(&drv->compositor);
-      vl_compositor_init(&drv->compositor, drv->pipe, false);
-      vl_compositor_init_state(&drv->cstate, drv->pipe);
+   if (drv->proc) {
+      struct pipe_video_codec templat = {
+         .profile = PIPE_VIDEO_PROFILE_UNKNOWN,
+         .entrypoint = PIPE_VIDEO_ENTRYPOINT_PROCESSING,
+      };
+      drv->proc->destroy(drv->proc);
+      drv->proc = vl_create_proc(drv->pipe, &templat);
    }
 }
 
