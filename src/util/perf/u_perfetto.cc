@@ -23,30 +23,6 @@
 
 #include "u_perfetto.h"
 
-/* perfetto's use of STL triggers GCC warnings
- * in libstdc++ that appear to be spurious. See:
- * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109717
- * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106093
- */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#if defined(__has_warning)
-   #if __has_warning("-Wstringop-overflow")
-      // warning group not present on Android NDK
-      #pragma GCC diagnostic ignored "-Wstringop-overflow"
-   #endif
-#else
-   #pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif
-
-#ifndef ANDROID_LIBPERFETTO
-#include <perfetto.h>
-#else
-#include <perfetto/tracing.h>
-#endif
-
-#pragma GCC diagnostic pop
-
 #include "c11/threads.h"
 #include "util/u_call_once.h"
 #include "util/macros.h"
