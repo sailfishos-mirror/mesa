@@ -2407,20 +2407,6 @@ x11_present_compute_target_msc(struct x11_swapchain *chain,
       /* If we don't have a stable estimate (e.g. true VRR, or Xwl) we just sleep until deadline.
        * This relies on timebase on os_time_nanosleep is MONOTONIC as well as UST being MONOTONIC. */
 
-      if (request->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT) {
-         if (!chain->has_reliable_msc && chain->base.present_timing.refresh_duration) {
-            uint64_t delta_time_ns = MAX2(target_ns - 1000 * (int64_t)entry->ust, 0);
-            uint64_t periods = delta_time_ns / chain->base.present_timing.refresh_duration;
-
-            target_ns = 1000ull * entry->ust + periods * chain->base.present_timing.refresh_duration;
-
-            /* Set a minimum target that is very close to the real estimate.
-             * This way, we ensure that we don't regularly round estimates up in
-             * chain->next_present_ust_lower_bound. */
-            target_ns += 63 * chain->base.present_timing.refresh_duration / 64;
-         }
-      }
-
       /* On Xwl we never accept MSC estimates as ground truth, so ignore this perturbation. */
       if (chain->has_reliable_msc) {
          /* Very regular sleeping can trigger a strange feedback loop where MSC estimates becomes stable enough
@@ -2447,8 +2433,33 @@ x11_present_compute_target_msc(struct x11_swapchain *chain,
       chain->next_present_ust_lower_bound = target_ns / 1000;
 
       /* We also need to pull back the sleep a bit to account for X.org roundtrip delays.
-       * Allow up to 4ms of error here. */
-      int64_t eager_present_ns = MIN2((int64_t)chain->base.present_timing.refresh_duration / 4, 4 * 1000 * 1000);
+       * If we sleep until targetTime we will most certainly introduce a lot of jitter.
+       * This hack wouldn't be needed if Xserver had proper support for absolute timing requests,
+       * but at this point it's unlikely it will ever happen given major DEs are starting to remove native X11
+       * support entirely.
+       *
+       * Be adaptive in how much error we expect to deal with.
+       * For absolute timing, there is a strong expectation that timing requests are accurately met.
+       * For relative timing, the priority is correct pacing, so be a little more relaxed.
+       * Allow up to 3ms of error here. */
+      int max_error_ms = 0;
+
+      /* If we use nearest refresh cycle, we've already pulled back a half refresh cycle which should be sufficient. */
+      if (!(request->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT)) {
+         if (chain->has_reliable_msc) {
+            if (relative)
+               max_error_ms = 2;
+            else
+               max_error_ms = 1;
+         } else {
+            /* Xwl case. The pace of a frame in Wayland is more floaty than X11.
+             * The frame callback which we get driven by isn't necessarily as stable as MSC.
+             * We only support RELATIVE timing on Xwl anyway. */
+            max_error_ms = 3;
+         }
+      }
+
+      int64_t eager_present_ns = MIN2((int64_t)chain->base.present_timing.refresh_duration / 4, max_error_ms * 1000 * 1000);
       target_ns -= eager_present_ns;
       target_ns = MAX2(target_ns, 0);
 
