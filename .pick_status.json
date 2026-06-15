@@ -564,7 +564,7 @@
         "description": "radv/amdgpu: fix padding by one VM page",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "10a5e5e4f33cf2200882a419f10cd28a39510549",
         "notes": null
