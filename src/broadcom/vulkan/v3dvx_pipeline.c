@@ -124,7 +124,7 @@ pack_blend(struct v3dv_pipeline *pipeline,
        * integer (used for our software-packed UNORM16/SNORM16 formats).
        * Fall back to NIR-lowered blending for those attachments.
        */
-      if (format->planes[0].unorm || format->planes[0].snorm)
+      if (format->planes[0].sw_unorm || format->planes[0].sw_snorm)
          needs_software_blend = true;
 
       uint8_t rt_mask = 1 << i;

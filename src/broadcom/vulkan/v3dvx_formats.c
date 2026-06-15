@@ -491,7 +491,7 @@ v3dX(format_supports_blending)(const struct v3dv_format *format)
     * HW can't blend, but the compiler lowers blending in NIR for them, so
     * we still expose VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT.
     */
-   if (format->planes[0].unorm || format->planes[0].snorm)
+   if (format->planes[0].sw_unorm || format->planes[0].sw_snorm)
       return true;
 
    /* Hardware blending is only supported on render targets that are configured
