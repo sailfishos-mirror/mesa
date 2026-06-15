@@ -3928,7 +3928,7 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
          /* If the shader is using discard, turn off coarse shading because discard at 2x2 pixel
           * granularity degrades quality too much. MIN allows sample shading but not coarse shading.
           */
-         mode = ps->info.ps.can_discard ? V_028064_SC_VRS_COMB_MODE_MIN : V_028064_SC_VRS_COMB_MODE_PASSTHRU;
+         mode = ps && ps->info.ps.can_discard ? V_028064_SC_VRS_COMB_MODE_MIN : V_028064_SC_VRS_COMB_MODE_PASSTHRU;
       }
 
       radeon_begin(cs);
