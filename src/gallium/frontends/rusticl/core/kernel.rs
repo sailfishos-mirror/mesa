@@ -1443,32 +1443,32 @@ impl Kernel {
         grid: &mut [usize],
         block: &mut [usize],
         mut threads: usize,
-        mut dim_threads: [usize; 3],
+        dim_threads: [usize; 3],
         subgroups: usize,
     ) {
         for i in 0..work_dim {
             let t = cmp::min(threads, dim_threads[i]);
             let gcd = gcd(t, grid[i]);
 
-            block[i] = gcd;
-            grid[i] /= gcd;
-
             // update limits
+            block[i] = gcd;
             threads /= block[i];
-            dim_threads[i] /= block[i];
         }
 
         // if we didn't fill the subgroup we can do a bit better if we have threads remaining
-        let total_threads = block.iter().take(work_dim).product::<usize>();
-        if threads != 1 && total_threads < subgroups {
+        let block_threads = block.iter().take(work_dim).product::<usize>();
+        if threads != 1 && block_threads < subgroups {
             for i in 0..work_dim {
-                if grid[i] * total_threads < threads && grid[i] * block[i] <= dim_threads[i] {
-                    block[i] *= grid[i];
-                    grid[i] = 1;
+                if grid[i] * (block_threads / block[i]) < threads && grid[i] <= dim_threads[i] {
+                    block[i] = grid[i];
                     // can only do it once as nothing is cleanly divisible
                     break;
                 }
             }
+        }
+
+        for i in 0..work_dim {
+            grid[i] /= block[i];
         }
     }
 
