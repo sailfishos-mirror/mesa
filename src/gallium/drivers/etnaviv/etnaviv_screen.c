@@ -470,12 +470,6 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
    if (fmt == ETNA_NO_MATCH)
       return false;
 
-   /* Requires split target support, which the driver doesn't support, yet. */
-   if (!DBG_ENABLED(ETNA_DBG_DEQP) &&
-       screen->info->halti < 5 &&
-       util_format_get_blocksizebits(format) > 64)
-      return false;
-
    if (sample_count > 1) {
       /* BLT/RS supports the format. */
       if (screen->specs.use_blt) {
@@ -496,6 +490,10 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
 
    if (util_format_is_srgb(format))
       return VIV_FEATURE(screen, ETNA_FEATURE_HALTI3);
+
+   /* 128-bit formats render as paired G32R32F targets via the half-float pipe. */
+   if (format_is_128bit(format))
+      return VIV_FEATURE(screen, ETNA_FEATURE_HALF_FLOAT);
 
    if (util_format_is_pure_integer(format) || util_format_is_float(format))
       return VIV_FEATURE(screen, ETNA_FEATURE_HALTI2);
