@@ -2514,7 +2514,7 @@
         "description": "mesa/st: use col0 attrib from provoking vertex for feedback",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
