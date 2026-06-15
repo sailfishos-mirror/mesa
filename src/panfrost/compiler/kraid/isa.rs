@@ -39,6 +39,35 @@ impl std::fmt::Display for EncodeError {
     }
 }
 
+#[derive(Debug)]
+pub enum InvalidInstrError {
+    Any,
+    Encoding(EncodeError),
+}
+
+impl From<std::convert::Infallible> for InvalidInstrError {
+    fn from(_err: std::convert::Infallible) -> InvalidInstrError {
+        panic!("Infallible can't happen");
+    }
+}
+
+impl From<EncodeError> for InvalidInstrError {
+    fn from(err: EncodeError) -> InvalidInstrError {
+        InvalidInstrError::Encoding(err)
+    }
+}
+
+impl std::fmt::Display for InvalidInstrError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvalidInstrError::Any => write!(f, "Invalid instruction"),
+            InvalidInstrError::Encoding(e) => {
+                write!(f, "Invalid instruction ({e})")
+            }
+        }
+    }
+}
+
 struct ArchSet {
     bits: u32,
 }

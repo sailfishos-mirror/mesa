@@ -157,7 +157,7 @@ impl DecoderNode<'_> {
                 quote! {
                     {
                         #cases
-                        return None;
+                        return Err(InvalidInstrError::Any);
                     }
                 }
             }
@@ -182,7 +182,7 @@ impl DecoderNode<'_> {
                 quote! {
                     match input_value & #mask {
                         #cases
-                        _ => None
+                        _ => Err(InvalidInstrError::Any)
                     }
                 }
             }
@@ -926,9 +926,9 @@ fn gen_decode(isa: &ISA, name_e: Ident, var_e: Ident) -> TokenStream {
                 let name = Ident::new(&instr.name, Span::call_site());
                 if let Some(variant) = &instr.variant {
                     let vi = Ident::new(variant, Span::call_site());
-                    quote! { Some((M::#name, Some(V::#vi))) }
+                    quote! { Ok((M::#name, Some(V::#vi))) }
                 } else {
-                    quote! { Some((M::#name, None)) }
+                    quote! { Ok((M::#name, None)) }
                 }
             });
 
@@ -939,12 +939,14 @@ fn gen_decode(isa: &ISA, name_e: Ident, var_e: Ident) -> TokenStream {
         .collect();
 
     quote! {
-        pub fn try_decode(input_value: u64, arch: u8) -> Option<(Mnemonic, Option<Variant>)> {
+        pub fn try_decode(
+            input_value: u64, arch: u8
+        ) -> Result<(Mnemonic, Option<Variant>), InvalidInstrError> {
             use #name_e as M;
             use #var_e as V;
             match arch {
                 #decoder_cases_ts
-                _ => None
+                _ => Err(InvalidInstrError::Any),
             }
         }
     }

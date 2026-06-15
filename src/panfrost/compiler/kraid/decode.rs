@@ -7,6 +7,8 @@ pub use v9::decode::{Mnemonic, PrintCtx, Variant, print, try_decode};
 
 #[cfg(test)]
 mod tests {
+    use crate::isa::InvalidInstrError;
+
     use super::*;
     use paste::paste;
 
@@ -14,18 +16,16 @@ mod tests {
         val: u64,
         arch: u8,
         ctx: PrintCtx,
-    ) -> std::io::Result<String> {
+    ) -> Result<String, InvalidInstrError> {
         let mut buffer = Vec::new();
 
         match try_decode(val, arch) {
-            Some((mn, var)) => {
-                print(val, mn, var, arch, &mut buffer, &ctx)?;
-                let result_string = String::from_utf8(buffer).map_err(|e| {
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-                })?;
+            Ok((mn, var)) => {
+                print(val, mn, var, arch, &mut buffer, &ctx).unwrap();
+                let result_string = String::from_utf8(buffer).unwrap();
                 Ok(result_string)
             }
-            None => Ok("".into()),
+            Err(err) => Err(err),
         }
     }
 

@@ -126,12 +126,12 @@ fn disassemble(args: &Args, instrs: &[u64]) -> std::io::Result<()> {
             write!(&mut lock, "{:016x}    ", instr)?;
         }
         match decode::try_decode(*instr, arch) {
-            Some((m, v)) => {
+            Ok((m, v)) => {
                 decode::print(*instr, m, v, arch, &mut lock, &print_ctx)?;
                 writeln!(&mut lock, "")?;
             }
-            None => {
-                writeln!(&mut lock, "??")?;
+            Err(err) => {
+                writeln!(&mut lock, "{}", err)?;
             }
         }
         print_ctx.pc_base += 8;
