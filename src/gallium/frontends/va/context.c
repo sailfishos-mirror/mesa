@@ -569,6 +569,8 @@ vlVaTerminate(VADriverContextP ctx)
    drv = ctx->pDriverData;
    vl_compositor_cleanup_state(&drv->cstate);
    vl_compositor_cleanup(&drv->compositor);
+   if (drv->proc)
+      drv->proc->destroy(drv->proc);
    if (drv->pipe2)
       drv->pipe2->destroy(drv->pipe2);
    drv->pipe->destroy(drv->pipe);

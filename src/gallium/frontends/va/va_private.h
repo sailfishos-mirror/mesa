@@ -347,6 +347,7 @@ typedef struct {
    struct vl_compositor compositor;
    struct vl_compositor_state cstate;
    vl_csc_matrix csc;
+   struct pipe_video_codec *proc;
    mtx_t mutex;
    char vendor_string[256];
 
@@ -572,10 +573,11 @@ void vlVaAddRawHeader(struct util_dynarray *headers, uint8_t type, uint32_t size
                       bool is_slice, uint32_t emulation_bytes_start);
 void vlVaGetBufferFeedback(vlVaBuffer *buf);
 void vlVaSetSurfaceContext(vlVaDriver *drv, vlVaSurface *surf, vlVaContext *context);
-MESAPROC VAStatus vlVaPostProcCompositor(vlVaDriver *drv, struct pipe_video_buffer *src, struct pipe_video_buffer *dst,
-                                enum vl_compositor_deinterlace deinterlace, struct pipe_vpp_desc *param) TAIL;
+MESAPROC VAStatus vlVaPostProc(vlVaDriver *drv, vlVaContext *context, struct pipe_video_buffer *src, struct pipe_video_buffer *dst,
+                               struct pipe_vpp_desc *param) TAIL;
 void vlVaGetReferenceFrame(vlVaDriver *drv, VASurfaceID surface_id, struct pipe_video_buffer **ref_frame);
 VAStatus vlVaHandleDecBufferType(vlVaDriver *drv, vlVaContext *context, vlVaBuffer *buf);
+VAStatus vlVaUploadImage(vlVaDriver *drv, vlVaSurface *surf, vlVaBuffer *buf, VAImage *image);
 void vlVaDestroySurface(vlVaDriver *drv, vlVaSurface *surf);
 #undef _U_STUB__
 

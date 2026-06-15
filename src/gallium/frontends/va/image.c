@@ -426,7 +426,7 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
              unsigned int width, unsigned int height, VAImageID image)
 {
    vlVaDriver *drv;
-   vlVaSurface *surf, tmp_surf = {0};
+   vlVaSurface *surf, *tmp_surf = NULL;
    vlVaBuffer *img_buf;
    VAImage *vaimage;
    struct pipe_resource *view_resources[VL_NUM_COMPONENTS];
@@ -483,18 +483,27 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
    }
 
    if (format != surf->buffer->buffer_format) {
-      tmp_surf.templat.buffer_format = format;
-      tmp_surf.templat.width = vaimage->width;
-      tmp_surf.templat.height = vaimage->height;
-      VAStatus ret =
-         vlVaHandleSurfaceAllocate(drv, &tmp_surf, &tmp_surf.templat, NULL, 0);
-      if (ret != VA_STATUS_SUCCESS) {
+      struct pipe_video_buffer templat = {
+         .buffer_format = format,
+         .width = vaimage->width,
+         .height = vaimage->height,
+      };
+      tmp_surf = CALLOC(1, sizeof(vlVaSurface));
+      if (!tmp_surf) {
          mtx_unlock(&drv->mutex);
          return VA_STATUS_ERROR_ALLOCATION_FAILED;
       }
-      if (tmp_surf.pipe_fence)
-         drv->pipe->screen->fence_reference(drv->pipe->screen, &tmp_surf.pipe_fence, NULL);
+      VAStatus ret =
+         vlVaHandleSurfaceAllocate(drv, tmp_surf, &templat, NULL, 0);
+      if (ret != VA_STATUS_SUCCESS) {
+         FREE(tmp_surf);
+         mtx_unlock(&drv->mutex);
+         return VA_STATUS_ERROR_ALLOCATION_FAILED;
+      }
       struct pipe_vpp_desc param = {
+         .base = {
+            .in_fence = surf->fence,
+         },
          .src_region = {
             .x0 = x,
             .y0 = y,
@@ -509,20 +518,18 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
          },
          .in_color_range = util_format_is_yuv(surf->buffer->buffer_format) ?
             PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED : PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
-         .out_color_range = util_format_is_yuv(tmp_surf.buffer->buffer_format) ?
+         .out_color_range = util_format_is_yuv(tmp_surf->buffer->buffer_format) ?
             PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED : PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
          .in_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
          .out_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
       };
-      ret = vlVaPostProcCompositor(drv, surf->buffer, tmp_surf.buffer,
-                                   VL_COMPOSITOR_NONE, &param);
-      drv->pipe->flush(drv->pipe, NULL, 0);
+      ret = vlVaPostProc(drv, NULL, surf->buffer, tmp_surf->buffer, &param);
       if (ret != VA_STATUS_SUCCESS) {
-         tmp_surf.buffer->destroy(tmp_surf.buffer);
+         vlVaDestroySurface(drv, tmp_surf);
          mtx_unlock(&drv->mutex);
          return ret;
       }
-      surf = &tmp_surf;
+      surf = tmp_surf;
    }
 
    memset(view_resources, 0, sizeof(view_resources));
@@ -563,14 +570,14 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
          pipe_texture_unmap(drv->pipe, transfer);
       }
    }
-   if (tmp_surf.buffer)
-      tmp_surf.buffer->destroy(tmp_surf.buffer);
+   if (tmp_surf)
+      vlVaDestroySurface(drv, tmp_surf);
    mtx_unlock(&drv->mutex);
 
    return VA_STATUS_SUCCESS;
 }
 
-static VAStatus
+VAStatus
 vlVaUploadImage(vlVaDriver *drv, vlVaSurface *surf, vlVaBuffer *buf, VAImage *image)
 {
    uint8_t *data[3];
@@ -618,6 +625,8 @@ vlVaUploadImage(vlVaDriver *drv, vlVaSurface *surf, vlVaBuffer *buf, VAImage *im
 
    if (transfer)
       drv->pipe->texture_unmap(drv->pipe, transfer);
+
+   vlVaSurfaceFlush(drv, surf);
 
    return VA_STATUS_SUCCESS;
 }
@@ -668,28 +677,34 @@ vlVaPutImage(VADriverContextP ctx, VASurfaceID surface, VAImageID image,
    if (format != surf->buffer->buffer_format ||
        dest_width != src_width || dest_height != src_height ||
        src_x != 0 || dest_x != 0 || src_y != 0 || dest_y != 0) {
-      struct vlVaSurface tmp_surf = {
-         .templat = {
-            .buffer_format = format,
-            .width = vaimage->width,
-            .height = vaimage->height,
-         },
+      struct pipe_video_buffer templat = {
+         .buffer_format = format,
+         .width = vaimage->width,
+         .height = vaimage->height,
       };
-      ret =
-         vlVaHandleSurfaceAllocate(drv, &tmp_surf, &tmp_surf.templat, NULL, 0);
-      if (ret != VA_STATUS_SUCCESS) {
+      vlVaSurface *tmp_surf = CALLOC(1, sizeof(vlVaSurface));
+      if (!tmp_surf) {
          mtx_unlock(&drv->mutex);
          return VA_STATUS_ERROR_ALLOCATION_FAILED;
       }
-      if (tmp_surf.pipe_fence)
-         drv->pipe->screen->fence_reference(drv->pipe->screen, &tmp_surf.pipe_fence, NULL);
-      ret = vlVaUploadImage(drv, &tmp_surf, img_buf, vaimage);
+      ret = vlVaHandleSurfaceAllocate(drv, tmp_surf, &templat, NULL, 0);
       if (ret != VA_STATUS_SUCCESS) {
-         tmp_surf.buffer->destroy(tmp_surf.buffer);
+         FREE(tmp_surf);
          mtx_unlock(&drv->mutex);
          return ret;
       }
+      ret = vlVaUploadImage(drv, tmp_surf, img_buf, vaimage);
+      if (ret != VA_STATUS_SUCCESS) {
+         FREE(tmp_surf);
+         mtx_unlock(&drv->mutex);
+         return ret;
+      }
+      struct pipe_fence_handle *fence = NULL;
       struct pipe_vpp_desc param = {
+         .base = {
+            .out_fence = &fence,
+            .out_pipe_fence = &surf->pipe_fence,
+         },
          .src_region = {
             .x0 = src_x,
             .y0 = src_y,
@@ -702,23 +717,24 @@ vlVaPutImage(VADriverContextP ctx, VASurfaceID surface, VAImageID image,
             .x1 = dest_x + dest_width,
             .y1 = dest_y + dest_height,
          },
-         .in_color_range = util_format_is_yuv(tmp_surf.buffer->buffer_format) ?
+         .in_color_range = util_format_is_yuv(tmp_surf->buffer->buffer_format) ?
             PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED : PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
          .out_color_range = util_format_is_yuv(surf->buffer->buffer_format) ?
             PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED : PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
          .in_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
          .out_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
       };
-      ret = vlVaPostProcCompositor(drv, tmp_surf.buffer, surf->buffer,
-                                   VL_COMPOSITOR_NONE, &param);
-      vlVaSurfaceFlush(drv, surf);
-      tmp_surf.buffer->destroy(tmp_surf.buffer);
+      ret = vlVaPostProc(drv, NULL, tmp_surf->buffer, surf->buffer, &param);
+      if (fence) {
+         drv->proc->fence_wait(drv->proc, fence, UINT64_MAX);
+         drv->proc->destroy_fence(drv->proc, fence);
+      }
+      vlVaDestroySurface(drv, tmp_surf);
       mtx_unlock(&drv->mutex);
       return ret;
    }
 
    ret = vlVaUploadImage(drv, surf, img_buf, vaimage);
-   vlVaSurfaceFlush(drv, surf);
    mtx_unlock(&drv->mutex);
 
    return ret;

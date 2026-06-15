@@ -115,6 +115,8 @@ vlVaDestroySurface(vlVaDriver *drv, vlVaSurface *surf)
          surf->fence = NULL;
       }
    }
+   if (surf->fence && drv->proc && drv->proc->destroy_fence)
+      drv->proc->destroy_fence(drv->proc, surf->fence);
    if (surf->coded_buf)
       surf->coded_buf->coded_surf = NULL;
    util_dynarray_fini(&surf->subpics);
