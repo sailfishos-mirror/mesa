@@ -1045,7 +1045,7 @@ struct anv_embedded_sampler_key {
     * The following struct can be safely hash as it doesn't include in
     * address/offset.
     */
-   uint32_t sampler[4];
+   uint32_t sampler[ANV_SAMPLER_STATE_DWORDS];
    uint32_t color[4];
 };
 
@@ -6622,9 +6622,9 @@ struct anv_sampler_state {
    /* Hashing key for embedded samplers */
    struct anv_embedded_sampler_key embedded_key;
 
-   uint32_t                     state[3][4];
+   uint32_t                     state[3][ANV_SAMPLER_STATE_DWORDS];
    /* Packed SAMPLER_STATE without the border color pointer. */
-   uint32_t                     state_no_bc[3][4];
+   uint32_t                     state_no_bc[3][ANV_SAMPLER_STATE_DWORDS];
    uint32_t                     n_planes;
 };
 

@@ -2851,7 +2851,7 @@ emit_samplers(struct anv_cmd_buffer *cmd_buffer,
       return VK_SUCCESS;
    }
 
-   uint32_t size = bind_map->sampler_count * 16;
+   uint32_t size = bind_map->sampler_count * ANV_SAMPLER_STATE_GPU_SIZE;
    *state = anv_cmd_buffer_alloc_dynamic_state(cmd_buffer, size, 32);
 
    if (state->map == NULL)
@@ -2875,9 +2875,9 @@ emit_samplers(struct anv_cmd_buffer *cmd_buffer,
       if (sampler == NULL)
          continue;
 
-      memcpy(state->map + (s * 16),
+      memcpy(state->map + (s * ANV_SAMPLER_STATE_GPU_SIZE),
              sampler->state.state[binding->plane],
-             sizeof(sampler->state.state[0]));
+             ANV_SAMPLER_STATE_GPU_SIZE);
    }
 
    return VK_SUCCESS;

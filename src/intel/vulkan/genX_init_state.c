@@ -1467,7 +1467,7 @@ genX(emit_embedded_sampler)(struct anv_device *device,
 
    sampler->sampler_state =
       anv_state_pool_alloc(anv_device_get_dynamic_state_pool(device),
-                           ANV_SAMPLER_STATE_SIZE, 32);
+                           ANV_SAMPLER_STATE_GPU_SIZE, 32);
 
    struct GENX(SAMPLER_STATE) sampler_state = {
       .BorderColorPointer = sampler->border_color_state.offset,
