@@ -620,6 +620,14 @@ static int si_dec_h264(struct si_video_dec *vid, struct pipe_video_buffer *targe
          h264->non_existing_frame_flags |= 1 << i;
    }
 
+   /* Need at least one reference for P/B frames */
+   if (h264->curr_pic_ref_frame_num == 0) {
+      for (uint32_t i = 0; i < pic->slice_count; i++) {
+         if (pic->slice_parameter.slice_type[i] % 5 != 2)
+            return 1;
+      }
+   }
+
    cmd.cur_id = h264->curr_pic_id;
    return decode_cmd_build(vid, &pic->base, &cmd);
 }

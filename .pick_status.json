@@ -6594,7 +6594,7 @@
         "description": "radeonsi/mm: Return error when decoding H264 P/B frame with no refs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "26979becec30cc402df52e540fd516aa5795ec09",
         "notes": null
