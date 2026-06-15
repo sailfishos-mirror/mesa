@@ -392,13 +392,6 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
 {
    bool supported = true;
 
-   /* Requires split sampler support, which the driver doesn't support, yet. */
-   if (!DBG_ENABLED(ETNA_DBG_DEQP) &&
-       (screen->info->halti < 5 || DBG_ENABLED(ETNA_DBG_NO_TEXDESC)) &&
-       !util_format_is_compressed(format) &&
-       util_format_get_blocksizebits(format) > 64)
-      return false;
-
    if (fmt == TEXTURE_FORMAT_ETC1)
       supported = VIV_FEATURE(screen, ETNA_FEATURE_ETC1_TEXTURE_COMPRESSION);
 
@@ -421,6 +414,14 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
    if (format != PIPE_FORMAT_S8_UINT_Z24_UNORM &&
        (util_format_is_pure_integer(format) || util_format_is_float(format)))
       supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI2);
+
+   /* 128-bit formats sample as paired planes: G32R32F via the half-float pipe,
+    * G32R32I only on halti5+.
+    */
+   if (format_is_128bit(format))
+      supported = util_format_is_pure_integer(format)
+         ? VIV_FEATURE(screen, ETNA_FEATURE_HALTI5)
+         : VIV_FEATURE(screen, ETNA_FEATURE_HALF_FLOAT);
 
    if (format == PIPE_FORMAT_S8_UINT)
       supported = VIV_FEATURE(screen, ETNA_FEATURE_S8);

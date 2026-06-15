@@ -81,20 +81,6 @@ etna_sampler_view_desc(struct pipe_sampler_view *view)
    return (struct etna_sampler_view_desc *)view;
 }
 
-static inline unsigned
-companion_slot(struct etna_context *ctx, unsigned x)
-{
-   const unsigned vs_off = ctx->screen->specs.vertex_sampler_offset;
-   if (x < vs_off)
-      return ctx->sampler_companion[MESA_SHADER_FRAGMENT][x];
-
-   const unsigned companion = ctx->sampler_companion[MESA_SHADER_VERTEX][x - vs_off];
-   if (companion == ~0U)
-      return ~0U;
-
-   return companion + vs_off;
-}
-
 static inline
 uint32_t etna_lod_to_fixp58(float f)
 {
