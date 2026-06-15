@@ -46,7 +46,6 @@ void jay_print_partition(struct jay_partition *p);
 void jay_register_allocate(jay_shader *s);
 void jay_assign_flags(jay_shader *s);
 void jay_assign_accumulators(jay_shader *s);
-void jay_repair_ssa(jay_function *func);
 
 const char *jay_file_prefix(enum jay_file file);
 void jay_print_type(FILE *f, enum jay_type t);

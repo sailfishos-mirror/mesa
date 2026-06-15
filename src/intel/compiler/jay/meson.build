@@ -67,7 +67,6 @@ libintel_compiler_jay_files = files(
   'jay_print.c',
   'jay_private.h',
   'jay_prog_data.c',
-  'jay_repair_ssa.c',
   'jay_register_allocate.c',
   'jay_simd_width.c',
   'jay_schedule.c',
