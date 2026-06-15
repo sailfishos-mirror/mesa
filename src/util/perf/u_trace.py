@@ -188,14 +188,14 @@ class TracepointArg(object):
         else:
             return f"{self.type} {self.var}"
 
-    def value_expr(self, entry_name):
+    def value_expr(self, entry_name, backend=None):
         if self.is_indirect:
             ret = f"*__{self.name}"
         else:
             ret = f"{entry_name}->{self.name}"
 
         if self.to_prim_type:
-            ret = self.to_prim_type.format(ret)
+            ret = self.to_prim_type.format(ret, backend=backend)
         return ret
 
     def copy_func_expr(self, entry_name):
@@ -219,7 +219,7 @@ class TracepointArgStruct(TracepointArg):
         self.fields = kwargs.pop('fields', [])
         super().__init__(**kwargs)
 
-    def value_expr(self, entry_name):
+    def value_expr(self, entry_name, backend=None):
         if self.is_indirect:
             parts = [f"__{self.name}->{f}" for f in self.fields]
         else:
@@ -265,9 +265,9 @@ class TracepointArgBlob(TracepointArg):
     def func_param(self):
         return f"const {self.type} *{self.var}"
 
-    def value_expr(self, entry_name):
+    def value_expr(self, entry_name, backend=None):
         ret = f"(const {self.type} *){entry_name}->{self.name}"
-        return self.to_prim_type.format(ret)
+        return self.to_prim_type.format(ret, backend=backend)
 
 shared_template = """\
 <%def name="mit_license(copyrights)">\
@@ -490,7 +490,8 @@ ${trace_toggle_name}_config_variable(void)
 }
 % endif
 \
-<%def name="print_func(func_name, trace_name, trace)">
+<%def name="print_func(backend, trace_name, trace)">
+  <% func_name = '__print_json_' if backend == 'U_TRACE_BACKEND_JSON' else '__print_' %>
  % if trace.can_generate_print():
 static void ${func_name}${trace_name}(FILE *out, const void *arg, const void *indirect) {
   % if len(trace.tp_struct) > 0:
@@ -501,8 +502,8 @@ static void ${func_name}${trace_name}(FILE *out, const void *arg, const void *in
    const ${arg.type} *__${arg.name} = (const ${arg.type} *) ((char *)indirect + ${arg.indirect_offset});
   % endfor
   % for arg in trace.args_to_free():
-   __typeof__(${arg.value_expr("__entry")}) __free_${arg.name} =
-       ${arg.value_expr("__entry")};
+   __typeof__(${arg.value_expr("__entry", backend=backend)}) __free_${arg.name} =
+       ${arg.value_expr("__entry", backend=backend)};
   % endfor
   % if trace.tp_print_custom is not None:
    fprintf(out, ${caller.tp_print_custom_fmt()}
@@ -515,7 +516,7 @@ static void ${func_name}${trace_name}(FILE *out, const void *arg, const void *in
     % if arg.free_prim_type_func is not None:
    ,__free_${arg.name}
     % else:
-   ,${arg.value_expr("__entry")}
+   ,${arg.value_expr("__entry", backend=backend)}
     % endif
    % endfor
   % endif
@@ -533,7 +534,7 @@ static void ${func_name}${trace_name}(FILE *out, const void *arg, const void *in
 /*
  * ${trace_name}
  */\
-<%call expr="print_func('__print_', trace_name, trace)">\
+<%call expr="print_func('U_TRACE_BACKEND_PRINT', trace_name, trace)">\
 <%def name="tp_print_custom_fmt()">"${trace.tp_print_custom[0]}\\n"</%def>
 <%def name="tp_print_fmt()">\\
    % for arg in trace.tp_print:
@@ -543,7 +544,7 @@ static void ${func_name}${trace_name}(FILE *out, const void *arg, const void *in
 </%def>
 </%call>\
 \
-<%call expr="print_func('__print_json_', trace_name, trace)">\
+<%call expr="print_func('U_TRACE_BACKEND_JSON', trace_name, trace)">\
 <%def name="tp_print_custom_fmt()">"\\"unstructured\\": \\"${trace.tp_print_custom[0]}\\""</%def>
 <%def name="tp_print_fmt()">\\
    % for arg in trace.tp_print:
@@ -762,6 +763,7 @@ perfetto_utils_hdr_template = """\
 ${mit_license(["Copyright © 2021 Igalia S.L."])}
 
 <% guard_name = '_' + hdrname + '_H' %>
+<% BACKEND = 'U_TRACE_BACKEND_PERFETTO' %>
 #ifndef ${guard_name}
 #define ${guard_name}
 
@@ -797,7 +799,7 @@ trace_payload_as_extra_${trace_name}(perfetto::protos::pbzero::GpuRenderStageEve
 
   % for arg in trace.tp_print:
    % if arg.perfetto_field:
-   event->set_${arg.name}(${arg.value_expr("payload")});
+   event->set_${arg.name}(${arg.value_expr("payload", backend=BACKEND)});
    % else:
    {
       auto data = event->add_extra_data();
@@ -807,11 +809,11 @@ trace_payload_as_extra_${trace_name}(perfetto::protos::pbzero::GpuRenderStageEve
       const ${arg.type}* __${arg.var} = (const ${arg.type}*)((uint8_t *)indirect_data + ${arg.indirect_offset});
     % endif
     % if arg.free_prim_type_func is not None:
-      __typeof__(${arg.value_expr("payload")}) __free_${arg.name} =
-        ${arg.value_expr("payload")};
+      __typeof__(${arg.value_expr("payload", backend=BACKEND)}) __free_${arg.name} =
+        ${arg.value_expr("payload", backend=BACKEND)};
       <% _field_name = f'__free_{arg.name}' %>
     % else:
-      <% _field_name = arg.value_expr("payload") %>
+      <% _field_name = arg.value_expr("payload", backend=BACKEND) %>
     % endif
     % if arg.c_format == '%s':
       const char *str = ${_field_name};

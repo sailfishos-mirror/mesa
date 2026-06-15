@@ -81,6 +81,12 @@ struct u_trace_printer;
  */
 #define U_TRACE_NO_TIMESTAMP ((uint64_t) 0)
 
+enum u_trace_backend_type {
+   U_TRACE_BACKEND_PRINT,
+   U_TRACE_BACKEND_JSON,
+   U_TRACE_BACKEND_PERFETTO,
+};
+
 /**
  * Address representation
  */
