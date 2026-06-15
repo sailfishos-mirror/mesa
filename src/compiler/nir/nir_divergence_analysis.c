@@ -1180,6 +1180,7 @@ nir_variable_mode_is_uniform(nir_variable_mode mode)
    switch (mode) {
    case nir_var_uniform:
    case nir_var_mem_ubo:
+   case nir_var_mem_push_const:
    case nir_var_mem_ssbo:
    case nir_var_mem_shared:
    case nir_var_mem_task_payload:
