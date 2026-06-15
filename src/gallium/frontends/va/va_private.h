@@ -576,6 +576,7 @@ MESAPROC VAStatus vlVaPostProcCompositor(vlVaDriver *drv, struct pipe_video_buff
                                 enum vl_compositor_deinterlace deinterlace, struct pipe_vpp_desc *param) TAIL;
 void vlVaGetReferenceFrame(vlVaDriver *drv, VASurfaceID surface_id, struct pipe_video_buffer **ref_frame);
 VAStatus vlVaHandleDecBufferType(vlVaDriver *drv, vlVaContext *context, vlVaBuffer *buf);
+void vlVaDestroySurface(vlVaDriver *drv, vlVaSurface *surf);
 #undef _U_STUB__
 
 #if !VIDEO_CODEC_MPEG12DEC

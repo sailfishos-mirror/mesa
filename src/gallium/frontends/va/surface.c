@@ -100,6 +100,27 @@ vlVaRemoveDpbSurface(vlVaSurface *surf, VASurfaceID id)
    }
 }
 
+void
+vlVaDestroySurface(vlVaDriver *drv, vlVaSurface *surf)
+{
+   if (surf->buffer)
+      surf->buffer->destroy(surf->buffer);
+   if (surf->pipe_fence)
+      drv->pipe->screen->fence_reference(drv->pipe->screen, &surf->pipe_fence, NULL);
+   if (surf->ctx) {
+      assert(_mesa_set_search(surf->ctx->surfaces, surf));
+      _mesa_set_remove_key(surf->ctx->surfaces, surf);
+      if (surf->fence && surf->ctx->decoder && surf->ctx->decoder->destroy_fence) {
+         surf->ctx->decoder->destroy_fence(surf->ctx->decoder, surf->fence);
+         surf->fence = NULL;
+      }
+   }
+   if (surf->coded_buf)
+      surf->coded_buf->coded_surf = NULL;
+   util_dynarray_fini(&surf->subpics);
+   FREE(surf);
+}
+
 VAStatus
 vlVaDestroySurfaces(VADriverContextP ctx, VASurfaceID *surface_list, int num_surfaces)
 {
@@ -117,22 +138,9 @@ vlVaDestroySurfaces(VADriverContextP ctx, VASurfaceID *surface_list, int num_sur
          mtx_unlock(&drv->mutex);
          return VA_STATUS_ERROR_INVALID_SURFACE;
       }
-      if (surf->buffer)
-         surf->buffer->destroy(surf->buffer);
-      if (surf->pipe_fence)
-         drv->pipe->screen->fence_reference(drv->pipe->screen, &surf->pipe_fence, NULL);
-      if (surf->ctx) {
-         assert(_mesa_set_search(surf->ctx->surfaces, surf));
-         _mesa_set_remove_key(surf->ctx->surfaces, surf);
-         if (surf->fence && surf->ctx->decoder && surf->ctx->decoder->destroy_fence)
-            surf->ctx->decoder->destroy_fence(surf->ctx->decoder, surf->fence);
-         if (surf->is_dpb)
-            vlVaRemoveDpbSurface(surf, surface_list[i]);
-      }
-      if (surf->coded_buf)
-         surf->coded_buf->coded_surf = NULL;
-      util_dynarray_fini(&surf->subpics);
-      FREE(surf);
+      if (surf->ctx && surf->is_dpb)
+         vlVaRemoveDpbSurface(surf, surface_list[i]);
+      vlVaDestroySurface(drv, surf);
       handle_table_remove(drv->htab, surface_list[i]);
    }
    mtx_unlock(&drv->mutex);
