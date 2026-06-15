@@ -3762,17 +3762,6 @@ wsi_wl_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    }
 
    VkPresentModeKHR present_mode = wsi_swapchain_get_present_mode(wsi_device, pCreateInfo);
-   if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-      chain->tearing_control =
-         wp_tearing_control_manager_v1_get_tearing_control(wsi_wl_surface->display->tearing_control_manager,
-                                                           wsi_wl_surface->wayland_surface.wrapper);
-      if (!chain->tearing_control) {
-         result = VK_ERROR_OUT_OF_HOST_MEMORY;
-         goto fail;
-      }
-      wp_tearing_control_v1_set_presentation_hint(chain->tearing_control,
-                                                          WP_TEARING_CONTROL_V1_PRESENTATION_HINT_ASYNC);
-   }
 
    chain->color.colorspace = pCreateInfo->imageColorSpace;
 
@@ -3923,6 +3912,18 @@ wsi_wl_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    if (dpy->commit_timing_manager && !chain->present_ids.frame_fallback) {
       chain->commit_timer = wp_commit_timing_manager_v1_get_timer(dpy->commit_timing_manager,
                                                                   chain->wsi_wl_surface->wayland_surface.wrapper);
+   }
+
+   if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+      chain->tearing_control =
+         wp_tearing_control_manager_v1_get_tearing_control(dpy->tearing_control_manager,
+                                                           chain->wsi_wl_surface->wayland_surface.wrapper);
+      if (!chain->tearing_control) {
+         result = VK_ERROR_OUT_OF_HOST_MEMORY;
+         goto fail_free_wl_chain;
+      }
+      wp_tearing_control_v1_set_presentation_hint(chain->tearing_control,
+                                                  WP_TEARING_CONTROL_V1_PRESENTATION_HINT_ASYNC);
    }
 
    for (uint32_t i = 0; i < chain->base.image_count; i++) {
