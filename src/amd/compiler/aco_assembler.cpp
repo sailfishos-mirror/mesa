@@ -32,6 +32,7 @@ struct branch_info {
 struct asm_context {
    Program* program;
    enum amd_gfx_level gfx_level;
+   std::vector<unsigned> block_emit_order;
    std::vector<branch_info> branches;
    std::map<unsigned, constaddr_info> constaddrs;
    std::map<unsigned, constaddr_info> resumeaddrs;
@@ -1425,6 +1426,7 @@ void
 emit_block(asm_context& ctx, std::vector<uint32_t>& out, Block& block)
 {
    block.offset = out.size();
+   ctx.block_emit_order.push_back(block.index);
 
    for (aco_ptr<Instruction>& instr : block.instructions) {
 #if 0
@@ -1578,9 +1580,9 @@ chain_branches(asm_context& ctx, std::vector<uint32_t>& out, branch_info& branch
    const unsigned lower_end = MAX2(ctx.program->blocks[target].offset, branch.pos) - half_dist;
    const unsigned lower_start = lower_end - half_dist;
    unsigned insert_at = 0;
-   for (unsigned i = 0; i < ctx.program->blocks.size() - 1; i++) {
-      Block& block = ctx.program->blocks[i];
-      Block& next = ctx.program->blocks[i + 1];
+   for (unsigned i = 0; i < ctx.block_emit_order.size() - 1; i++) {
+      Block& block = ctx.program->blocks[ctx.block_emit_order[i]];
+      Block& next = ctx.program->blocks[ctx.block_emit_order[i + 1]];
       if (next.offset >= lower_end)
          break;
       if (next.offset < upper_start || (next.offset > upper_end && next.offset < lower_start))
@@ -1602,21 +1604,22 @@ chain_branches(asm_context& ctx, std::vector<uint32_t>& out, branch_info& branch
    /* If we didn't find a suitable insertion point, split the existing code. */
    if (insert_at == 0) {
       /* Find the last block that is still within reach. */
+      unsigned idx = 0;
       unsigned insertion_block_idx = 0;
-      unsigned next_block = 0;
-      while (ctx.program->blocks[next_block + 1].offset < upper_end) {
-         if (!ctx.program->blocks[next_block].instructions.empty())
-            insertion_block_idx = next_block;
-         next_block++;
+      while (ctx.program->blocks[ctx.block_emit_order[idx + 1]].offset < upper_end) {
+         if (!ctx.program->blocks[ctx.block_emit_order[idx]].instructions.empty())
+            insertion_block_idx = ctx.block_emit_order[idx];
+         idx++;
       }
 
-      insert_at = ctx.program->blocks[next_block].offset;
+      Block& next_block = ctx.program->blocks[ctx.block_emit_order[idx]];
+      insert_at = next_block.offset;
       if (insert_at < upper_start) {
          /* Ensure some forward progress by splitting the block if necessary. */
-         auto it = ctx.program->blocks[next_block].instructions.begin();
+         auto it = next_block.instructions.begin();
          int skip = 0;
          while (skip-- > 0 || insert_at < upper_start) {
-            assert(it != ctx.program->blocks[next_block].instructions.end());
+            assert(it != next_block.instructions.end());
             Instruction* instr = (it++)->get();
             if (instr->isSOPP()) {
                if (instr->opcode == aco_opcode::s_clause)
@@ -1636,11 +1639,11 @@ chain_branches(asm_context& ctx, std::vector<uint32_t>& out, branch_info& branch
 
          /* If the insertion point is in the middle of the block, insert the branch instructions
           * into that block instead. */
-         bld.reset(&ctx.program->blocks[next_block].instructions, it);
+         bld.reset(&next_block.instructions, it);
       } else {
          /* Insert the additional branches at the end of the previous non-empty block. */
-         bld.reset(&ctx.program->blocks[insertion_block_idx].instructions);
-         skip_branch_target = next_block;
+         bld.reset(&ctx.program->blocks[ctx.block_emit_order[insertion_block_idx]].instructions);
+         skip_branch_target = next_block.index;
       }
 
       /* Since we insert a branch into existing code, mitigate LdsBranchVmemWARHazard on GFX10. */
