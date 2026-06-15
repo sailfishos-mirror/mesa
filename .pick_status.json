@@ -2624,7 +2624,7 @@
         "description": "vulkan: condition cmd_queue initialization to driver need",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6dce2074971aa33bd9097c0080152e2739bc0f01",
         "notes": null
