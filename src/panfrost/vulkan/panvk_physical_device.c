@@ -359,8 +359,7 @@ panvk_get_gpu_system_timestamp_period(const struct panvk_physical_device *device
        !device->kmod.dev->props.timestamp_frequency)
       return 0;
 
-   const float ns_per_s = 1000000000.0;
-   return ns_per_s / (float)device->kmod.dev->props.timestamp_frequency;
+   return device->kmod.dev->props.timestamp_cycles_to_ns_factor;
 }
 
 void
