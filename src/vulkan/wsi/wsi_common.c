@@ -925,6 +925,8 @@ wsi_image_init_timestamp(const struct wsi_swapchain *chain,
    if (result != VK_SUCCESS)
       goto fail;
 
+   image->query_pool_busy = 0;
+
    uint32_t family_count = chain->blit.queue ? 1 : wsi->queue_family_count;
 
    if (!image->timestamp_cmd_buffers) {
@@ -1582,7 +1584,7 @@ wsi_swapchain_present_convert_device_to_cpu(struct wsi_swapchain *chain,
    }
 }
 
-static void
+static bool
 wsi_swapchain_present_timing_sample_query_pool(struct wsi_swapchain *chain,
                                                struct wsi_presentation_timing *timing,
                                                struct wsi_image *image,
@@ -1592,7 +1594,7 @@ wsi_swapchain_present_timing_sample_query_pool(struct wsi_swapchain *chain,
    /* Application can query for stages which are not supported. We need to return 0 here. */
    if (!(timing->requested_feedback & VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT) ||
        !(chain->present_timing.supported_query_stages & VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT))
-      return;
+      return true;
 
    /* The GPU really should be done by now, and we should be able to read the timestamp,
     * but it's possible that the present was discarded and we have a 0 timestamp here for the present.
@@ -1614,6 +1616,10 @@ wsi_swapchain_present_timing_sample_query_pool(struct wsi_swapchain *chain,
 
       if (want_host_timedomain && timing->queue_done_time > upper_bound)
          timing->queue_done_time = upper_bound;
+
+      return true;
+   } else {
+      return false;
    }
 }
 
@@ -1657,6 +1663,21 @@ static VkResult wsi_common_allocate_timing_request(
          swapchain->present_timing.timings_count--;
       }
    }
+
+   /* It's possible that wsi_swapchain_present_timing_notify_completion needs to block on a query.
+    * This can only happen in rare situations on native X11 in windowed mode when transitioning from FLIP to COPY.
+    *
+    * To avoid temporarily blocking progress of QueuePresentKHR which would manifest as a stutter,
+    * we will drop the present timing lock while waiting for the query to complete.
+    *
+    * When we hit this code path we have already waited for the fence,
+    * so the actual time we block here is infinitesimal. At the same time the fence is signaled,
+    * the query pool should get signaled too, and we expect the blocking operation completes immediately as well.
+    * We just spin here to avoid a race condition
+    * where this thread clobbers the query pool before the present thread has a chance to complete its blocking wait.
+    * A full condition variable was considered a bit overkill to deal with this very rare edge case.
+    */
+   while (p_atomic_read(&image->query_pool_busy)) {}
 
    wsi_swapchain_present_timing_notify_recycle_locked(swapchain, image);
 
@@ -1750,23 +1771,61 @@ wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
     */
    if (timings && !timings->complete) {
       timings->complete_time = timestamp;
-      timings->complete = VK_TRUE;
 
       /* It's possible that QueuePresentKHR already handled the queue done timestamp for us,
        * since the image was recycled before presentation could fully complete.
        * In this case, we no longer own the timestamp query pool index, so just skip. */
 
       if (timings->image == image) {
-         /* 0 means unknown. Application can probably fall back to its own timestamps if it wants to. */
          timings->queue_done_time = 0;
-         wsi_swapchain_present_timing_sample_query_pool(chain, timings, image,
-                                                        timestamp, chain->present_timing.google_timing_mode);
+
+         bool success = wsi_swapchain_present_timing_sample_query_pool(
+            chain, timings, image, timestamp, chain->present_timing.google_timing_mode);
+
+         if (!success) {
+            /* This can happen on native X11 in windowed mode in some cases.
+             * We try to mitigate this effect as much as possible, but transitions between FLIP and COPY can trigger this.
+             * While returning a 0 timestamp in this situation should be legal in EXT_present_timing,
+             * it likely is not compatible with GOOGLE_display_timing, and if we can get the timestamp,
+             * we should go the extra mile to not surprise applications. */
+            p_atomic_set(&image->query_pool_busy, 1);
+            mtx_unlock(&chain->present_timing.lock);
+
+            /* Block until the GPU is done. We cannot block on the present fence,
+             * since we would violate external-sync rules. */
+            uint64_t dummy_ts;
+            chain->wsi->GetQueryPoolResults(
+               chain->device, image->query_pool, 0, 1, sizeof(uint64_t),
+               &dummy_ts, sizeof(uint64_t),
+               VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT);
+
+            /* Need to release this before taking the present lock since QueuePresentKHR() might
+             * be spinning on this while holding the present timing lock. */
+            p_atomic_set(&image->query_pool_busy, 0);
+
+            /* wsi_common_allocate_timing_request can be unblocked in this window and complete the timestamp query. */
+            mtx_lock(&chain->present_timing.lock);
+
+            /* After retaking the lock, the struct might have moved around, but it cannot have been removed. */
+            timings = wsi_swapchain_find_present_timing_serial_locked(chain, timing_serial);
+            assert(timings);
+
+            if (timings->image == image) {
+               /* If this still fails somehow, then something has gone very wrong, and we just let the 0 result through. */
+               wsi_swapchain_present_timing_sample_query_pool(
+                  chain, timings, image, timestamp, chain->present_timing.google_timing_mode);
+            }
+         }
+
          timings->image = NULL;
       }
 
       /* Compute additional fields needed for GOOGLE_display_timing. */
       if (chain->present_timing.google_timing_mode)
          wsi_google_display_timing_process(chain, timings, timestamp, chain->present_timing.refresh_duration);
+
+      /* Don't mark the present complete until we have properly observed the timing. */
+      timings->complete = VK_TRUE;
    }
 
    /* Keep track of timestamp of latest presented frame, regardless if it was a
