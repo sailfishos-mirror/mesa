@@ -134,7 +134,7 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
    /* One source supports immediates but the other does not, so swap. */
    unsigned nr_srcs = jay_num_isa_srcs(I);
    unsigned other = nr_srcs == 2 ? 0 : 1;
-   if (jay_is_imm(I->src[other]) &&
+   if ((other < I->num_srcs && jay_is_imm(I->src[other])) &&
        !_mesa_hash_table_u64_search(constants, jay_as_uint(I->src[other]))) {
 
       try_swap_src01(I);
