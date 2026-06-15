@@ -7364,7 +7364,7 @@
         "description": "v3d: fix slot and input indexing in v3d_set_global_binding",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3889a8e26ce3ef20c1e93decb3fb93977b9bd7b4",
         "notes": null
