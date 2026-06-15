@@ -202,6 +202,8 @@ struct LoadField<'a> {
 }
 
 impl LoadField<'_> {
+    const DEFAULT_LOAD_TYPE: FieldType = FieldType::Uint(32);
+
     fn new<'a>(name: &str, instr: &'a Instr) -> LoadField<'a> {
         let field = instr.get_named_field(name).unwrap();
 
@@ -224,8 +226,8 @@ impl LoadField<'_> {
     }
 
     fn as_field_type_ts(&self, id_in: &Ident) -> TokenStream {
-        let default_type = FieldType::Uint(32);
-        let field_type = self.field.field_type().unwrap_or(&default_type);
+        let field_type =
+            self.field.field_type().unwrap_or(&Self::DEFAULT_LOAD_TYPE);
 
         match field_type {
             FieldType::Enum(e) => {
@@ -244,6 +246,40 @@ impl LoadField<'_> {
             | FieldType::Uint(_)
             | FieldType::PcRelOffsetUnsigned(_) => quote! {#id_in},
         }
+    }
+
+    fn is_valid_to_tokens(&self, id_in: &Ident, ts: &mut TokenStream) {
+        let field_type =
+            self.field.field_type().unwrap_or(&Self::DEFAULT_LOAD_TYPE);
+
+        ts.extend(match field_type {
+            FieldType::Enum(e) => {
+                if let Some(restrict) = self.field.restrict() {
+                    let ei = &e.ident;
+                    let mut ts: TokenStream = Default::default();
+
+                    for allowed_value in &restrict.values {
+                        assert!(
+                            format!("{}", allowed_value.enum_type.ident())
+                                == format!("{}", &e.ident),
+                        );
+                        let ev = &allowed_value.value_ident;
+                        ts.extend(quote! {#ei::#ev,});
+                    }
+
+                    quote! {if ! [#ts].contains(&#id_in) {
+                        return Err(InvalidInstrError::Any.into());
+                    }}
+                } else {
+                    quote! {}
+                }
+            }
+            FieldType::Int(_)
+            | FieldType::Uint(_)
+            | FieldType::PcRelOffsetSigned(_)
+            | FieldType::PcRelOffsetUnsigned(_) => quote! {}, // TODO
+            FieldType::Source | FieldType::Source64 => quote! {}, // TODO
+        });
     }
 }
 
@@ -275,6 +311,8 @@ impl ToTokens for LoadField<'_> {
         let cast_ts = self.as_field_type_ts(&ident);
         let cast_ident = self.ident_print();
         ts.extend(quote! {let #cast_ident = #cast_ts;});
+
+        self.is_valid_to_tokens(&cast_ident, ts);
     }
 }
 
@@ -708,7 +746,7 @@ impl InstrPrint<'_> {
             enum PrintError {
                 Fmt(std::fmt::Error),
                 Io(std::io::Error),
-                Enc(EncodeError),
+                InvalidInstr(InvalidInstrError),
             }
 
             impl From<std::convert::Infallible> for PrintError {
@@ -731,7 +769,13 @@ impl InstrPrint<'_> {
 
             impl From<EncodeError> for PrintError {
                 fn from(err: EncodeError) -> PrintError {
-                    PrintError::Enc(err)
+                    PrintError::InvalidInstr(err.into())
+                }
+            }
+
+            impl From<InvalidInstrError> for PrintError {
+                fn from(err: InvalidInstrError) -> PrintError {
+                    PrintError::InvalidInstr(err)
                 }
             }
         });
@@ -802,7 +846,7 @@ fn gen_print(instrs: &Vec<Instr>) -> TokenStream {
             };
 
             match (res) {
-                Err(PrintError::Enc(e)) => write!(f, "<invalid encoding for {} ({})>", &mn, e),
+                Err(PrintError::InvalidInstr(e)) => write!(f, "{}", e),
                 Err(PrintError::Fmt(e)) => write!(f, "<format error>"),
                 Err(PrintError::Io(e)) => Err(e),
                 Ok(()) => Ok(()),
@@ -907,11 +951,6 @@ impl ToTokens for TryDecodeInstr<'_> {
 fn gen_decode(isa: &ISA, name_e: Ident, var_e: Ident) -> TokenStream {
     let mut decode_per_arch: BTreeMap<_, Box<DecoderNode>> = Default::default();
 
-    let disabled_instructions = [
-        "F32_TO_F16", // FADD.f32 can falsely decode to this if the bits match but if the
-                      // restriction on the dest narrowing modifier is not satisfied it's invalid.
-    ];
-
     let mut try_decode_instr_impls: TokenStream = Default::default();
     for instr in &isa.instrs {
         let try_decode = TryDecodeInstr::new(instr);
@@ -922,22 +961,12 @@ fn gen_decode(isa: &ISA, name_e: Ident, var_e: Ident) -> TokenStream {
         let instrs: Vec<&Instr> = isa
             .instrs
             .iter()
-            .filter(|i| {
-                i.arch.contains(&target_arch)
-                    && !disabled_instructions.contains(&i.name.as_str())
-            })
+            .filter(|i| i.arch.contains(&target_arch))
             .collect();
 
         let decoder = DecoderNode::build(instrs);
         decode_per_arch.insert(target_arch, Box::new(decoder));
     }
-
-    // TODO: Check that all field restrictions are actually fulfilled before returning a positive
-    // result here.
-    // Decoding can have two types of results:
-    // - Complete nonsense
-    // - Fixed bits correct but restrictions not fulfilled. If we have this case and the
-    //   instruction is an alias, we can try the aliased (or next less specific?) instruction.
 
     let make_ret_val = |instr: &Instr| {
         let name = Ident::new(&instr.name, Span::call_site());

@@ -717,7 +717,7 @@ pub enum EnumType {
 }
 
 impl EnumType {
-    fn ident(&self) -> &Ident {
+    pub fn ident(&self) -> &Ident {
         match self {
             EnumType::Enum(e) => &e.ident,
             EnumType::Meta(m) => &m.ident,

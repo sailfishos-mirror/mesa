@@ -365,6 +365,14 @@ impl InstrField {
             _ => None,
         }
     }
+
+    pub fn restrict(&self) -> Option<&Rc<FieldRestrict>> {
+        match self {
+            InstrField::Physical(f) => f.restrict.as_ref(),
+            InstrField::Virtual(f) => f.restrict.as_ref(),
+            _ => None,
+        }
+    }
 }
 
 pub struct SyntaxModifier {
