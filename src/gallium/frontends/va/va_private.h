@@ -360,7 +360,7 @@ typedef struct {
    struct u_rect src_rect;
    struct u_rect dst_rect;
 
-   struct pipe_sampler_view *sampler;
+   struct vlVaSurface *surf;
 } vlVaSubpicture;
 
 typedef struct {
