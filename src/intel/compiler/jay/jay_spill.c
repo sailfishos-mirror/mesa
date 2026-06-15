@@ -274,7 +274,7 @@ static ATTRIBUTE_NOINLINE void
 limit(struct spill_ctx *ctx, jay_inst *I, unsigned m)
 {
    while (ctx->nW > m) {
-      int best_score = INT32_MIN, best_i = 0;
+      int best_score = INT32_MIN, best_i = -1;
 
       U_SPARSE_BITSET_FOREACH_SET(&ctx->W, i) {
          assert(ctx->next_uses[i] != DIST_INFINITY && "live in W");
@@ -289,6 +289,7 @@ limit(struct spill_ctx *ctx, jay_inst *I, unsigned m)
          }
       }
 
+      assert(best_i >= 0 && "must find something");
       remove_W(ctx, best_i);
    }
 }
