@@ -13,7 +13,7 @@ gen_opcodes = custom_target(
 )
 
 idep_gen_opcodes_h = declare_dependency(
-  sources : [gen_opcodes[0]],
+  sources : [gen_opcodes[0], gen_opcodes[1]],
   include_directories : include_directories('.'),
 )
 
