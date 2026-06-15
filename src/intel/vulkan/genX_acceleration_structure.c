@@ -365,7 +365,9 @@ anv_get_build_config(VkDevice device, struct vk_acceleration_structure_build_sta
       !(flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR)) ? 1 : 0;
 
    state->config.encode_key[1] = 0;
-   if (state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR) {
+   if (state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR &&
+       (state->build_info->mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR ||
+        state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR)) {
       state->config.encode_key[1] = ANV_ENCODE_KEY_ALLOW_UPDATE_BVH;
    }
 }
