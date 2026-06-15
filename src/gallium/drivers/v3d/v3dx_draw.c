@@ -1873,7 +1873,7 @@ v3d_set_global_binding(struct pipe_context *pctx,
         }
 
 
-        for (unsigned i = first; i < first + count; ++i) {
+        for (unsigned i = 0; i < count; ++i) {
                 struct pipe_resource **res = util_dynarray_element(&v3d->global_buffers, struct pipe_resource *, first + i);
                 if (resources && resources[i]) {
                         struct v3d_resource *rsc = v3d_resource(resources[i]);
