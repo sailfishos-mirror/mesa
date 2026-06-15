@@ -914,7 +914,7 @@
         "description": "vc4: fix last_layer selection in the blit sampler view",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ceb923bc2a134c3660ddae3f9d2782444ecec073",
         "notes": null
