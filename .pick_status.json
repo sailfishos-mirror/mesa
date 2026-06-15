@@ -2834,7 +2834,7 @@
         "description": "pan/kmod: Add a pan_kmod_timestamp_cycles_to_ns() helper",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8ffda8093ecb07604748c839be7aacc84820825b",
         "notes": null
