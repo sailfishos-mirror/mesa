@@ -2971,6 +2971,14 @@ intrinsic("convert_cmat_intel", dest_comp=0, src_comp=[-1],
           indices=[DST_CMAT_DESC, SRC_CMAT_DESC],
           flags=[CAN_ELIMINATE])
 
+# Counter intrinsic for divergent barrier workaround.
+#
+# Returns the value of the subgroup's local counter register and increments it
+# by BASE. The first source order invocation sets the initial value.
+# See brw_nir_lower_divergent_barriers for more details.
+intrinsic("subgroup_barrier_index_intel", dest_comp=1, src_comp=[],
+          bit_sizes=[32], indices=[BASE])
+
 # NVIDIA-specific intrinsics
 # src[] = { index, offset }.
 intrinsic("ldc_nv", dest_comp=0, src_comp=[1, 1],

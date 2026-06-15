@@ -517,6 +517,9 @@ bool brw_nir_opt_divergent_atomics(nir_shader *shader, enum brw_divergent_atomic
 bool
 brw_nir_lower_active_thread_barriers(nir_shader *nir,
                                      const struct intel_device_info *devinfo);
+bool
+brw_nir_lower_divergent_barriers(nir_shader *nir,
+                                 const struct intel_device_info *devinfo);
 
 #ifdef __cplusplus
 }

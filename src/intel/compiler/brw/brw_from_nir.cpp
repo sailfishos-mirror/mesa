@@ -1900,6 +1900,7 @@ get_nir_def(nir_to_brw_state &ntb, const nir_def &def, bool all_sources_uniform)
       case nir_intrinsic_load_ubo_uniform_block_intel:
       case nir_intrinsic_load_workgroup_id:
       case nir_intrinsic_load_indirect_address_intel:
+      case nir_intrinsic_subgroup_barrier_index_intel:
          is_scalar = true;
          break;
 
@@ -4314,6 +4315,27 @@ brw_from_nir_emit_cs_intrinsic(nir_to_brw_state &ntb,
       }
       default:
          UNREACHABLE("not reached");
+      }
+      break;
+   }
+
+   /* Part of a temporary workaround for a broken shader in RE engine, see
+    * brw_nir_lower_divergent_barriers for more details.
+    */
+   case nir_intrinsic_subgroup_barrier_index_intel: {
+      brw_builder xbld = bld.scalar_group();
+      brw_builder ubld = bld.uniform();
+      if (s.subgroup_barrier_index.file == BAD_FILE) {
+         /* First source-order invocation always sets the initial value */
+         s.subgroup_barrier_index = component(ubld.vgrf(BRW_TYPE_UD), 0);
+         xbld.MOV(retype(dest, BRW_TYPE_UD), brw_imm_ud(0u));
+         ubld.MOV(s.subgroup_barrier_index,
+                  brw_imm_ud(nir_intrinsic_base(instr)));
+      } else {
+         xbld.MOV(retype(dest, BRW_TYPE_UD), s.subgroup_barrier_index);
+         ubld.ADD(s.subgroup_barrier_index,
+                  s.subgroup_barrier_index,
+                  brw_imm_ud(nir_intrinsic_base(instr)));
       }
       break;
    }

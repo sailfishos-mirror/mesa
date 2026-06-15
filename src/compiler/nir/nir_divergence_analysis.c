@@ -405,6 +405,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_noperspective_varyings_pan:
    case nir_intrinsic_load_multisampled_pan:
    case nir_intrinsic_load_rt_conversion_pan:
+   case nir_intrinsic_subgroup_barrier_index_intel:
       is_divergent = false;
       break;
 
