@@ -373,12 +373,11 @@ jay_emit_parallel_copies(jay_builder *b,
    BITSET_WORD *packed = BITSET_CALLOC(UINT16_MAX);
 
    if (0) {
-      const char *files = "ruMm";
       printf("[[\n");
 
       for (unsigned i = 0; i < num_copies; i++) {
-         printf("  %c%u = %c%u\n", files[r_file(pcopies[i].dst)],
-                r_reg(pcopies[i].dst), files[r_file(pcopies[i].src)],
+         printf("  %s%u = %s%u\n", jay_file_prefix(r_file(pcopies[i].dst)),
+                r_reg(pcopies[i].dst), jay_file_prefix(r_file(pcopies[i].src)),
                 r_reg(pcopies[i].src));
       }
 
