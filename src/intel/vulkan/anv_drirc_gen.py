@@ -80,6 +80,9 @@ def declare_options(android_version):
         B("anv_emulate_active_thread_barriers", True,
           "Emulates Xe2+ active thread barriers on Gfx125 and below",
           c_name="emulate_active_thread_barriers"),
+        B("anv_emulate_divergent_barriers", False,
+          "Temporary workaround for a broken shader in some recent RE engine games",
+          c_name="emulate_divergent_barriers"),
 
         # Workaround various driver
         B("always_flush_cache", False,
