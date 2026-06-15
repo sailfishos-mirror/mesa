@@ -502,7 +502,7 @@ vc4_stencil_blit(struct pipe_context *ctx, struct pipe_blit_info *info)
                         .first_level = info->src.level,
                         .last_level = info->src.level,
                         .first_layer = 0,
-                        .last_layer = (PIPE_TEXTURE_2D ?
+                        .last_layer = (src->base.target == PIPE_TEXTURE_3D ?
                                        u_minify(src->base.depth0,
                                                 info->src.level) - 1 :
                                        src->base.array_size - 1),
