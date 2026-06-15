@@ -15,7 +15,6 @@ pass(jay_function *f)
    BITSET_WORD *live_set = BITSET_CALLOC(f->ssa_alloc);
 
    jay_foreach_inst_in_func_safe_rev(f, block, I) {
-      /* TODO: Allow for atomics? */
       if (!BITSET_TEST_COUNT(live_set, jay_base_index(I->dst),
                              jay_num_values(I->dst)) &&
           I->op != JAY_OPCODE_SEND) {
