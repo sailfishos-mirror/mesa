@@ -1724,6 +1724,15 @@ wsi_google_display_timing_process(struct wsi_swapchain *chain,
    wsi_timing->present_margin = earliest_time - render_time;
 }
 
+static struct wsi_presentation_timing *
+wsi_swapchain_find_present_timing_serial_locked(struct wsi_swapchain *chain, uint64_t timing_serial)
+{
+   for (size_t i = 0; i < chain->present_timing.timings_count; i++)
+      if (chain->present_timing.timings[i].serial == timing_serial)
+         return &chain->present_timing.timings[i];
+   return NULL;
+}
+
 void
 wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
                                                uint64_t timing_serial,
@@ -1733,37 +1742,30 @@ wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
    assert(chain->present_timing.active);
    mtx_lock(&chain->present_timing.lock);
 
-   for (size_t i = 0; i < chain->present_timing.timings_count; i++) {
-      if (chain->present_timing.timings[i].serial == timing_serial) {
-         /* Prevent re-processing old records if same timing_serial is passed in multiple times. This
-          * is prep for future work and a safe-guard that should not get hit in the current state of
-          * things.
-          */
-         if (chain->present_timing.timings[i].complete)
-            break;
+   struct wsi_presentation_timing *timings = wsi_swapchain_find_present_timing_serial_locked(chain, timing_serial);
 
-         chain->present_timing.timings[i].complete_time = timestamp;
-         chain->present_timing.timings[i].complete = VK_TRUE;
+   /* Prevent re-processing old records if same timing_serial is passed in multiple times. This
+    * is prep for future work and a safe-guard that should not get hit in the current state of
+    * things.
+    */
+   if (timings && !timings->complete) {
+      timings->complete_time = timestamp;
+      timings->complete = VK_TRUE;
 
-         /* It's possible that QueuePresentKHR already handled the queue done timestamp for us,
-          * since the image was recycled before presentation could fully complete.
-          * In this case, we no longer own the timestamp query pool index, so just skip. */
-         if (chain->present_timing.timings[i].image != image)
-            break;
+      /* It's possible that QueuePresentKHR already handled the queue done timestamp for us,
+       * since the image was recycled before presentation could fully complete.
+       * In this case, we no longer own the timestamp query pool index, so just skip. */
 
+      if (timings->image == image) {
          /* 0 means unknown. Application can probably fall back to its own timestamps if it wants to. */
-         chain->present_timing.timings[i].queue_done_time = 0;
-         wsi_swapchain_present_timing_sample_query_pool(chain, &chain->present_timing.timings[i], image,
+         timings->queue_done_time = 0;
+         wsi_swapchain_present_timing_sample_query_pool(chain, timings, image,
                                                         timestamp, chain->present_timing.google_timing_mode);
-         chain->present_timing.timings[i].image = NULL;
+         timings->image = NULL;
 
          /* Compute additional fields needed for GOOGLE_display_timing. */
-         if (chain->present_timing.google_timing_mode) {
-            wsi_google_display_timing_process(chain, &chain->present_timing.timings[i],
-                                              timestamp, chain->present_timing.refresh_duration);
-         }
-
-         break;
+         if (chain->present_timing.google_timing_mode)
+            wsi_google_display_timing_process(chain, timings, timestamp, chain->present_timing.refresh_duration);
       }
    }
 
