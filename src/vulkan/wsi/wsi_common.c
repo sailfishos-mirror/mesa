@@ -1762,11 +1762,11 @@ wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
          wsi_swapchain_present_timing_sample_query_pool(chain, timings, image,
                                                         timestamp, chain->present_timing.google_timing_mode);
          timings->image = NULL;
-
-         /* Compute additional fields needed for GOOGLE_display_timing. */
-         if (chain->present_timing.google_timing_mode)
-            wsi_google_display_timing_process(chain, timings, timestamp, chain->present_timing.refresh_duration);
       }
+
+      /* Compute additional fields needed for GOOGLE_display_timing. */
+      if (chain->present_timing.google_timing_mode)
+         wsi_google_display_timing_process(chain, timings, timestamp, chain->present_timing.refresh_duration);
    }
 
    /* Keep track of timestamp of latest presented frame, regardless if it was a
