@@ -3000,20 +3000,46 @@ jay_emit_eot(struct nir_to_jay_state *nj)
       jay_SEND(b, .sfid = GEN_SFID_MESSAGE_GATEWAY, .eot = true, .msg_desc = 0,
                .srcs = &u0, .nr_srcs = 1, .type = JAY_TYPE_U32,
                .uniform = true);
-   } else if (nj->nir->info.stage == MESA_SHADER_VERTEX ||
-              nj->nir->info.stage == MESA_SHADER_TESS_EVAL) {
+   } else if (nj->nir->info.stage >= MESA_SHADER_VERTEX &&
+              nj->nir->info.stage <= MESA_SHADER_GEOMETRY) {
       jay_block *block = jay_last_source_block(nj->f);
       jay_inst *I = jay_last_inst(block);
 
-      assert(!nj->needs_final_halt && "halt not supported with URB");
+      if ((I && I->op == JAY_OPCODE_SEND) &&
+          jay_send_sfid(I) == GEN_SFID_URB &&
+          !nj->needs_final_halt) {
+         /* Pluck out the existing final SEND and put it in the exit block */
+         jay_set_send_eot(I, true);
+         jay_remove_instruction(I);
+         jay_builder_insert(b, I);
+      } else {
+         /* There's no SEND to reuse, make a noop write for EOT */
+         const gen_lsc_ex_desc gen_ex_desc = {
+            .addr_type = LSC_ADDR_SURFTYPE_FLAT,
+         };
+         uint64_t ex_desc =
+            gen_lsc_ex_desc_encode(nj->devinfo, &gen_ex_desc, NULL);
 
-      /* TODO: What if this isn't the case? Do we need a no-op store...? */
-      assert(I && I->op == JAY_OPCODE_SEND && jay_send_sfid(I) == GEN_SFID_URB);
+         uint64_t desc =
+            (ex_desc << 32) |
+            lsc_msg_desc(nj->devinfo, LSC_OP_STORE, LSC_ADDR_SURFTYPE_FLAT,
+                         LSC_ADDR_SIZE_A32, LSC_DATA_SIZE_D32, 1, false,
+                         LSC_CACHE(nj->devinfo, STORE, L1UC_L3UC));
 
-      /* Pluck out the final SEND and put it in the exit block */
-      jay_set_send_eot(I, true);
-      jay_remove_instruction(I);
-      jay_builder_insert(b, I);
+         jay_def never = jay_alloc_def(b, FLAG, 1);
+         jay_MOV(b, never, jay_imm(0));
+
+         jay_def srcs[2];
+         for (unsigned i = 0; i < 2; i++) {
+            srcs[i] = jay_alloc_def(b, UGPR, 1);
+            jay_UNDEF(b, srcs[i]);
+         }
+
+         I = jay_SEND(b, .sfid = GEN_SFID_URB, .msg_desc = desc, .srcs = srcs,
+                      .nr_srcs = 2, .type = JAY_TYPE_U32, .uniform = true,
+                      .eot = true);
+         I = jay_add_predicate(b, I, never);
+      }
    }
 }
 
