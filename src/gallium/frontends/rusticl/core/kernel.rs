@@ -1466,29 +1466,12 @@ impl Kernel {
         block: &mut [usize],
         mut threads: usize,
         dim_threads: [usize; 3],
-        subgroups: usize,
+        subgroup_size: usize,
     ) {
         let new_block = Self::suggest_local_size_impl_gcd(work_dim, grid, threads, dim_threads);
 
         for i in 0..work_dim {
             block[i] = new_block[i];
-        }
-
-        // if we didn't fill the subgroup we can do a bit better if we have threads remaining
-        let block_threads = block.iter().take(work_dim).product::<usize>();
-        threads /= block_threads;
-
-        if threads != 1 && block_threads < subgroups {
-            for i in 0..work_dim {
-                if grid[i] * (block_threads / block[i]) < threads && grid[i] <= dim_threads[i] {
-                    block[i] = grid[i];
-                    // can only do it once as nothing is cleanly divisible
-                    break;
-                }
-            }
-        }
-
-        for i in 0..work_dim {
             grid[i] /= block[i];
         }
     }
