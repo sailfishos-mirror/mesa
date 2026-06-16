@@ -15,6 +15,7 @@
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_format_convert.h"
+#include "pvr_iface.h"
 #include "pco.h"
 #include "pco_builder.h"
 #include "pco_internal.h"
@@ -685,7 +686,10 @@ bool pco_nir_lower_alpha_to_coverage(nir_shader *shader)
       nir_before_block(nir_start_block(nir_shader_get_entrypoint(shader)));
    nir_def *a2c_enabled = nir_ine_imm(
       &b,
-      nir_ubitfield_extract_imm(&b, nir_load_fs_meta_pco(&b), 25, 1),
+      nir_ubitfield_extract_imm(&b,
+                                nir_load_fs_meta_pco(&b),
+                                PVR_FS_META_ALPHA_TO_COVERAGE_OFFSET,
+                                PVR_FS_META_ALPHA_TO_COVERAGE_LENGTH),
       0);
 
    nir_lower_alpha_to_coverage(shader, true, a2c_enabled);
@@ -720,10 +724,12 @@ static bool lower_alpha_to_one(nir_builder *b,
 
    b->cursor = nir_before_instr(&intr->instr);
 
-   /* TODO: define or other way of representing bit 0 of metadata... */
    nir_def *alpha_to_one_enabled =
       nir_ine_imm(b,
-                  nir_ubitfield_extract_imm(b, nir_load_fs_meta_pco(b), 0, 1),
+                  nir_ubitfield_extract_imm(b,
+                                            nir_load_fs_meta_pco(b),
+                                            PVR_FS_META_ALPHA_TO_ONE_OFFSET,
+                                            PVR_FS_META_ALPHA_TO_ONE_LENGTH),
                   0);
 
    nir_def *alpha = nir_bcsel(b,
@@ -756,7 +762,10 @@ static bool lower_load_sample_mask(nir_builder *b,
    b->cursor = nir_before_instr(&intr->instr);
 
    nir_def *smp_msk =
-      nir_ubitfield_extract_imm(b, nir_load_fs_meta_pco(b), 9, 16);
+      nir_ubitfield_extract_imm(b,
+                                nir_load_fs_meta_pco(b),
+                                PVR_FS_META_SAMPLE_MASK_OFFSET,
+                                PVR_FS_META_SAMPLE_MASK_LENGTH);
    smp_msk = nir_iand(b, smp_msk, nir_load_savmsk_vm_pco(b));
    nir_def_rewrite_uses(&intr->def, smp_msk);
    nir_instr_remove(&intr->instr);
@@ -785,14 +794,14 @@ static bool lower_color_write_enable(nir_builder *b,
    b->cursor = nir_before_instr(&intr->instr);
 
    /* TODO: nir op that returns bool based on whether a bit is set. */
-   /* TODO: define for 1 */
-   nir_def *color_write_enabled =
-      nir_ine_imm(b,
-                  nir_ubitfield_extract_imm(b,
-                                            nir_load_fs_meta_pco(b),
-                                            1 + color_write_index,
-                                            1),
-                  0);
+   nir_def *color_write_enabled = nir_ine_imm(
+      b,
+      nir_ubitfield_extract_imm(b,
+                                nir_load_fs_meta_pco(b),
+                                PVR_FS_META_COLOR_WRITE_ENABLE_OFFSET +
+                                   color_write_index,
+                                1u),
+      0);
 
    nir_def *prev_input =
       nir_load_output(b,
