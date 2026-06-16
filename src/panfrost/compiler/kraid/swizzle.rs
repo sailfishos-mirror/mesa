@@ -578,6 +578,10 @@ impl Swizzle {
 
     /// Applies this swizzle to a u32 value
     pub fn fold_u32(&self, u: u32) -> Option<u32> {
+        if self.is_none() {
+            return Some(u);
+        }
+
         let mut folded = 0_u32;
         let mut has_fext = false;
         for i in 0..4 {
