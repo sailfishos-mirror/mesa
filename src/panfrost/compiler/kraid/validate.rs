@@ -31,30 +31,32 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
                     assert!(src.swizzle == Swizzle::NONE);
                 } else {
                     let src_ref_byte_mask = u8::MAX >> (8 - src_ref_bytes);
-                    assert!(src.swizzle.bytes_read() & !src_ref_byte_mask == 0);
+                    let swizzle_byte_mask =
+                        src.swizzle.bytes_read(src_ref_bytes);
+                    assert!(swizzle_byte_mask & !src_ref_byte_mask == 0);
                 }
             }
             SrcRef::Reg(reg) => match reg.range {
                 RegRange::Byte0 => {
-                    assert!(src.swizzle.bytes_read() & !0b0001 == 0);
+                    assert!(src.swizzle.bytes_read(4) & !0b0001 == 0);
                 }
                 RegRange::Byte1 => {
-                    assert!(src.swizzle.bytes_read() & !0b0010 == 0);
+                    assert!(src.swizzle.bytes_read(4) & !0b0010 == 0);
                 }
                 RegRange::Byte2 => {
-                    assert!(src.swizzle.bytes_read() & !0b0100 == 0);
+                    assert!(src.swizzle.bytes_read(4) & !0b0100 == 0);
                 }
                 RegRange::Byte3 => {
-                    assert!(src.swizzle.bytes_read() & !0b1000 == 0);
+                    assert!(src.swizzle.bytes_read(4) & !0b1000 == 0);
                 }
                 RegRange::Half0 => {
-                    assert!(src.swizzle.bytes_read() & !0b0011 == 0);
+                    assert!(src.swizzle.bytes_read(4) & !0b0011 == 0);
                 }
                 RegRange::Half1 => {
-                    assert!(src.swizzle.bytes_read() & !0b1100 == 0);
+                    assert!(src.swizzle.bytes_read(4) & !0b1100 == 0);
                 }
                 RegRange::Regs(n) => match n {
-                    1 => assert!(src.swizzle.bytes_read() & !0x0f == 0),
+                    1 => assert!(src.swizzle.bytes_read(n * 4) & !0x0f == 0),
                     2 => (), // Not much we can assert here
                     _ => assert!(src.swizzle == Swizzle::NONE),
                 },

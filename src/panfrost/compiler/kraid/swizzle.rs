@@ -644,16 +644,23 @@ impl Swizzle {
         Some(folded)
     }
 
-    pub fn bytes_read(&self) -> u8 {
+    pub fn bytes_read(&self, src_bytes: u8) -> u8 {
         let mut bytes = 0_u8;
-        if self.is_word_swizzle() {
+        if self.is_none() {
+            if src_bytes >= 8 {
+                bytes = 0xff;
+            } else {
+                bytes = !((!0_u8) << src_bytes);
+            }
+        } else if self.is_word_swizzle() {
+            debug_assert_eq!(src_bytes, 8);
             for i in 0..2 {
                 if let Some(w) = self.word(i).unwrap().word_idx() {
                     bytes |= 0xf << (w * 4);
                 }
             }
         } else {
-            for i in 0..4 {
+            for i in 0..src_bytes.min(4) {
                 if let Some(b) = self.byte(i).unwrap().byte_idx() {
                     bytes |= 1 << b;
                 }
