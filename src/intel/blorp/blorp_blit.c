@@ -35,6 +35,7 @@
 
 static const bool split_blorp_blit_debug = false;
 
+#pragma pack(push, 1)
 struct blorp_blit_prog_key
 {
    struct blorp_base_key base;
@@ -166,6 +167,7 @@ struct blorp_blit_prog_key
     */
    bool need_dst_offset;
 };
+#pragma pack(pop)
 
 struct blorp_blit_vars {
    /* Input values from blorp_wm_inputs */

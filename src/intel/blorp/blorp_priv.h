@@ -360,12 +360,14 @@ const char *blorp_op_to_name(enum blorp_op op);
 
 void blorp_params_init(struct blorp_params *params);
 
+#pragma pack(push, 1)
 struct blorp_base_key
 {
    char name[8];
    enum blorp_shader_type shader_type;
    enum blorp_shader_pipeline shader_pipeline;
 };
+#pragma pack(pop)
 
 #define BLORP_BASE_KEY_INIT(_type, _pipeline)   \
    (struct blorp_base_key) {                    \

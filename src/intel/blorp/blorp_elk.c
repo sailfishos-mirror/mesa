@@ -183,10 +183,12 @@ blorp_compile_cs_elk(struct blorp_context *blorp, void *mem_ctx,
    };
 }
 
+#pragma pack(push, 1)
 struct blorp_sf_key {
    struct blorp_base_key base;
    struct elk_sf_prog_key key;
 };
+#pragma pack(pop)
 
 static bool
 blorp_ensure_sf_program_elk(struct blorp_batch *batch,

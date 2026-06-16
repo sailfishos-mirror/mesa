@@ -7,6 +7,7 @@
 #include "blorp_priv.h"
 #include "blorp_shaders.h"
 
+#pragma pack(push, 1)
 struct blorp_indirect_copy_mem2img_key {
    struct blorp_base_key base;
 
@@ -27,6 +28,7 @@ struct blorp_indirect_copy_mem2img_key {
    uint16_t format_bh;
    uint16_t format_bd;
 };
+#pragma pack(pop)
 
 /* Refer to struct blorp_wm_inputs_indirect. */
 struct blorp_indirect_vars {
