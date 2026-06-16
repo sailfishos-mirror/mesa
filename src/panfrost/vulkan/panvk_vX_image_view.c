@@ -1,6 +1,7 @@
 /*
  * Copyright © 2025 Arm Ltd.
  * Copyright © 2021 Collabora Ltd.
+ * Copyright © 2026 Google LLC
  *
  * Derived from tu_image.c which is:
  * Copyright © 2016 Red Hat.
@@ -41,36 +42,6 @@ panvk_view_type_to_mali_tex_dim(VkImageViewType type)
       return MALI_TEXTURE_DIMENSION_CUBE;
    default:
       UNREACHABLE("Invalid view type");
-   }
-}
-
-static void
-panvk_convert_swizzle(const VkComponentMapping *in, unsigned char *out)
-{
-   const VkComponentSwizzle *comp = &in->r;
-   for (unsigned i = 0; i < 4; i++) {
-      switch (comp[i]) {
-      case VK_COMPONENT_SWIZZLE_ZERO:
-         out[i] = PIPE_SWIZZLE_0;
-         break;
-      case VK_COMPONENT_SWIZZLE_ONE:
-         out[i] = PIPE_SWIZZLE_1;
-         break;
-      case VK_COMPONENT_SWIZZLE_R:
-         out[i] = PIPE_SWIZZLE_X;
-         break;
-      case VK_COMPONENT_SWIZZLE_G:
-         out[i] = PIPE_SWIZZLE_Y;
-         break;
-      case VK_COMPONENT_SWIZZLE_B:
-         out[i] = PIPE_SWIZZLE_Z;
-         break;
-      case VK_COMPONENT_SWIZZLE_A:
-         out[i] = PIPE_SWIZZLE_W;
-         break;
-      default:
-         UNREACHABLE("Invalid swizzle");
-      }
    }
 }
 
@@ -381,7 +352,7 @@ panvk_per_arch(CreateImageView)(VkDevice _device,
          view->vk.base_array_layer + view->vk.layer_count - 1;
    }
 
-   panvk_convert_swizzle(&view->vk.swizzle, view->pview.swizzle);
+   vk_component_mapping_to_pipe_swizzle(view->vk.swizzle, view->pview.swizzle);
 
    u_foreach_bit(aspect_bit, view->vk.aspects) {
       uint8_t image_plane = panvk_plane_index(image, 1u << aspect_bit);
