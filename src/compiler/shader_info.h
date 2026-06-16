@@ -506,6 +506,15 @@ typedef struct shader_info {
          bool sample_interlock_unordered:1;
 
          /**
+          * Whether the original shader had sample_mask_in regardless of
+          * whether NIR lowered it or optimized it away. The presence of
+          * sample_mask_in has side effects such as
+          * fragmentShadingRateWithShaderSampleMask == VK_FALSE forcing FSR
+          * to be disabled even if sample_mask_in is later optimized away.
+          */
+         bool sample_mask_in_declared:1;
+
+         /**
           * whether this shader has pixel_local_storage load/store instructions
           */
          bool accesses_pixel_local_storage:1;
