@@ -77,7 +77,7 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
             let dst_type_bytes =
                 (dst_type_bits * dst_type_comps).next_power_of_two() / 8;
             let lane_bytes = dst.lanes.bytes(dst_type_bytes);
-            assert!(dst_type_bits <= lane_bytes * 8);
+            assert!(dst_type_bytes <= lane_bytes * 8);
             assert_eq!(lane_bytes, dst.dst_ref.bytes_written());
         }
 
