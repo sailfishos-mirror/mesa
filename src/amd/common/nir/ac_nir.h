@@ -346,9 +346,8 @@ ac_nir_lower_ps_early(nir_shader *nir, const ac_nir_lower_ps_early_options *opti
 typedef enum {
    /* sample_mask_in is replaced with b2i32(inot(load_helper_invocation)).
     *
-    * API VRS can't use this because its sample mask is the combined sample mask of all pixels
-    * in the fragment area. Driver-internal forced VRS can use this if such VRS is also allowed
-    * to be enabled with helper_invocation.
+    * If fragmentShadingRateWithSampleMask == VK_FALSE, pass this flag to the pass even if VRS is
+    * enabled.
     */
    ac_nir_lower_samplemask_1sample_no_vrs,
 

@@ -2559,8 +2559,7 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       } else if (gfx_state->ms.sample_shading_enable) {
          lower_sample_mask_in_options.behavior = ac_nir_lower_samplemask_sample_shading_partial;
          lower_sample_mask_in_options.ps_iter_samples = gfx_state->ms.ps_iter_samples;
-      } else if (!gfx_state->vrs_may_be_enabled && !gfx_state->dynamic_rasterization_samples &&
-                 gfx_state->ms.rasterization_samples == 0) {
+      } else if (!gfx_state->dynamic_rasterization_samples && gfx_state->ms.rasterization_samples == 0) {
          lower_sample_mask_in_options.behavior = ac_nir_lower_samplemask_1sample_no_vrs;
       } else {
          lower_sample_mask_in_options.behavior = ac_nir_lower_samplemask_unknown_states_no_sample_shading;

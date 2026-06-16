@@ -12077,8 +12077,7 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    bool use_quad_pos = false;
    bool use_sample_mask_in = false;
 
-   if (ps->info.ps.selects_frag_coord_xy_dynamically || ps->info.ps.selects_quad_pos_dynamically ||
-       ps->info.ps.selects_sample_mask_in_dynamically) {
+   if (ps->info.ps.selects_frag_coord_xy_dynamically || ps->info.ps.selects_quad_pos_dynamically) {
       /* Whether VRS can be other than 1x1. */
       vrs_enabled = cmd_buffer->state.dynamic.vk.fsr.fragment_size.width != 1 ||
                     cmd_buffer->state.dynamic.vk.fsr.fragment_size.height != 1 ||
@@ -12117,7 +12116,7 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    }
 
    if (ps->info.ps.selects_sample_mask_in_dynamically) {
-      use_sample_mask_in = vrs_enabled || cmd_buffer->state.num_rast_samples != 1;
+      use_sample_mask_in = cmd_buffer->state.num_rast_samples != 1;
 
       if (!use_sample_mask_in)
          spi_ps_input_ena &= C_0286CC_SAMPLE_COVERAGE_ENA;
