@@ -293,6 +293,8 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
    JAY_NIR_SNAPSHOT("first");
 
+   brw_nir_apply_key(pt, &key->base, simd_width);
+
    if (stage == MESA_SHADER_VERTEX) {
       /* We only expect slot compaction to be disabled when using device
        * generated commands, to provide an independent 3DSTATE_VERTEX_ELEMENTS
@@ -315,8 +317,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
       brw_compute_vue_map(devinfo, &prog_data->vue.vue_map,
                           nir->info.outputs_written, key->base.vue_layout,
                           pos_slots);
-
-      brw_nir_apply_key(pt, &key->base, simd_width);
 
       prog_data->vs.inputs_read = nir->info.inputs_read;
       prog_data->vs.double_inputs_read = nir->info.vs.double_inputs;
@@ -356,7 +356,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
                                nir->info.patch_inputs_read,
                                key->tes.separate_tess_vue_layout);
 
-      brw_nir_apply_key(pt, &key->base, simd_width);
       brw_nir_lower_tes_inputs(nir, devinfo, &input_vue_map,
                                &prog_data->vue.urb_read_length);
       brw_nir_lower_vue_outputs(nir);
@@ -383,7 +382,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
                                           &nir->info);
    } else if (stage == MESA_SHADER_FRAGMENT) {
       assert(key->fs.mesh_input == INTEL_NEVER && "todo");
-      brw_nir_apply_key(pt, &key->base, simd_width);
       brw_nir_lower_fs_inputs(nir, devinfo, &key->fs);
       brw_nir_lower_fs_outputs(nir);
       JAY_NIR_SNAPSHOT("after_lower_io");
@@ -430,8 +428,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
                    nir_metadata_control_flow, NULL);
 
       JAY_NIR_PASS(brw_nir_lower_fs_config_intel, &key->fs, &prog_data->fs);
-   } else {
-      brw_nir_apply_key(pt, &key->base, simd_width);
    }
 
    brw_postprocess_nir_opts(pt);
