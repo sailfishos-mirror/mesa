@@ -438,12 +438,14 @@ pub fn test_foldable_op_with(
         let data = b.ld_test_data(offset_words * 4, words * 32);
         offset_words += u16::from(words);
 
-        src.src_ref = data.into();
-        src.swizzle = match read_bits {
+        let src_type_swizzle = match read_bits {
             8 => Swizzle::replicate_byte(0),
             16 => Swizzle::replicate_half(0),
             _ => Swizzle::NONE,
         };
+
+        src.src_ref = data.into();
+        src.swizzle = src.swizzle.swizzle(src_type_swizzle).unwrap();
         word_bits.extend(iter::repeat_n(read_bits.min(32), words as usize));
     }
     let src_words = usize::from(offset_words);
@@ -457,11 +459,14 @@ pub fn test_foldable_op_with(
             64 => b.alloc_vec(2).into(),
             x => panic!("Unsupported dst bytes {x}"),
         };
-        dst.lanes = match write_bits {
-            8 => DstLanes::B0,
-            16 => DstLanes::H0,
-            _ => DstLanes::All,
-        }
+        dst.lanes = match (dst.lanes, write_bits) {
+            (DstLanes::None | DstLanes::All, 8) => DstLanes::B0,
+            (DstLanes::None | DstLanes::All, 16) => DstLanes::H0,
+            (DstLanes::None | DstLanes::All, _) => DstLanes::All,
+            (DstLanes::AnyB, _) => DstLanes::B0,
+            (DstLanes::AnyH, _) => DstLanes::H0,
+            (lanes, _) => lanes,
+        };
     }
 
     b.push_op(op.clone());
