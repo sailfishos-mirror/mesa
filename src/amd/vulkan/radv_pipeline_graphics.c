@@ -1716,9 +1716,17 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
          key.rs.cull_mode = state->rs->cull_mode;
    }
 
-   key.ps.force_vrs_enabled = compiler_info->force_vrs_enabled && !radv_is_static_vrs_enabled(state);
+   key.dynamic_rasterization_samples = BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES) ||
+                                       (!!(state->shader_stages & VK_SHADER_STAGE_FRAGMENT_BIT) && !state->ms);
+
+   const bool vrs_disabled_by_msaa_8x = !key.dynamic_rasterization_samples && key.ms.rasterization_samples == 8;
+   const bool vrs_disabled_by_sample_shading = key.ms.sample_shading_enable;
+   const bool vrs_is_possible = !vrs_disabled_by_msaa_8x && !vrs_disabled_by_sample_shading;
+
+   key.ps.force_vrs_enabled = vrs_is_possible && compiler_info->force_vrs_enabled && !radv_is_static_vrs_enabled(state);
    key.vrs_may_be_enabled =
-      radv_is_static_vrs_enabled(state) || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_FSR) || key.ps.force_vrs_enabled;
+      vrs_is_possible && (radv_is_static_vrs_enabled(state) || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_FSR) ||
+                          key.ps.force_vrs_enabled);
 
    if (key.vrs_may_be_enabled && compiler_info->ac->has_vrs_frag_pos_z_bug)
       key.adjust_frag_coord_z = true;
@@ -1740,9 +1748,6 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
             (alpha_to_coverage_unknown && alpha_to_one_enabled) || (alpha_to_one_unknown && alpha_to_coverage_enabled);
       }
    }
-
-   key.dynamic_rasterization_samples = BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES) ||
-                                       (!!(state->shader_stages & VK_SHADER_STAGE_FRAGMENT_BIT) && !state->ms);
 
    if (compiler_info->key.use_ngg) {
       VkShaderStageFlags ngg_stage;
