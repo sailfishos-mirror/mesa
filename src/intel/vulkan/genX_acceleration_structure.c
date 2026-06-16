@@ -347,8 +347,9 @@ anv_get_as_size(VkDevice device, const struct vk_acceleration_structure_build_st
 }
 
 static void
-anv_get_build_config(VkDevice device, struct vk_acceleration_structure_build_state *state)
+anv_get_build_config(VkDevice _device, struct vk_acceleration_structure_build_state *state)
 {
+   VK_FROM_HANDLE(anv_device, device, _device);
    VkBuildAccelerationStructureFlagsKHR flags = state->build_info->flags;
 
    /* TODO: ANV does not yet have support for AS updates without doing a full
@@ -367,7 +368,8 @@ anv_get_build_config(VkDevice device, struct vk_acceleration_structure_build_sta
    state->config.encode_key[1] = 0;
    if (state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR &&
        (state->build_info->mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR ||
-        state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR)) {
+        state->build_info->flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR ||
+        device->physical->instance->drirc.debug.write_lookup_maps_unconditionally)) {
       state->config.encode_key[1] = ANV_ENCODE_KEY_ALLOW_UPDATE_BVH;
    }
 }

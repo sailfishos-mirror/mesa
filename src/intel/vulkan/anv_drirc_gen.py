@@ -113,6 +113,9 @@ def declare_options(android_version):
         B("intel_vf_distribution", True,
           "Enable geometry distribution",
           c_name="vf_distribution"),
+        B("anv_write_lookup_maps_unconditionally", False,
+          "Unconditionally write lookup maps for BLAS update operation",
+          c_name="write_lookup_maps_unconditionally"),
 
         # Workaround command emission
         B("anv_barrier_post_untyped_clear_shader", False,
