@@ -11,6 +11,7 @@ pub use crate::ssa_value::{SSARef, SSAValue};
 pub use crate::swizzle::Swizzle;
 use crate::swizzle::*;
 use compiler::as_slice::*;
+use compiler::cfg::CFG;
 use compiler::smallvec::*;
 
 use std::fmt;
@@ -1239,7 +1240,7 @@ pub struct ShaderInfo {
 pub struct Shader<'a> {
     pub model: &'a dyn Model,
     pub ssa_alloc: SSAValueAllocator,
-    pub blocks: Vec<BasicBlock>,
+    pub blocks: CFG<BasicBlock>,
     pub info: ShaderInfo,
 }
 
@@ -1258,7 +1259,7 @@ impl Shader<'_> {
 impl fmt::Display for Shader<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for b in &self.blocks {
-            write!(f, "{b}\n\n")?;
+            write!(f, "{}\n\n", b.deref())?;
         }
         Ok(())
     }

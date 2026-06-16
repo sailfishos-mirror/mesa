@@ -11,7 +11,9 @@ use crate::ops::*;
 use crate::ssa_value::{AllocSSA, SSAValueAllocator};
 use crate::swizzle::AsmSwizzleWiden;
 use acorn::Acorn;
+use compiler::cfg::CFGBuilder;
 use kraid_hw_runner::{HwError, InvocationInfo, TestRunner};
+use rustc_hash::FxBuildHasher;
 
 /// Enables libpanfrost_decode logs for debugging purposes.
 const DEVICE_DEBUG: bool = false;
@@ -188,11 +190,14 @@ impl<'a> TestShaderBuilder<'a> {
         exit.flow.set_end_shader();
 
         start_block.instrs.extend(b.into_mapped());
+        let mut cfg: CFGBuilder<Label, BasicBlock, FxBuildHasher> =
+            CFGBuilder::new();
+        cfg.add_node(start_block.label, start_block);
 
         let mut s = Shader {
             model,
             ssa_alloc,
-            blocks: vec![start_block],
+            blocks: cfg.as_cfg(),
             info,
         };
         //eprintln!("\nRIGHT AFTER CONSTR: {}", &s);

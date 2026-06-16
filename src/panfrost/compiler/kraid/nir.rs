@@ -9,8 +9,9 @@ use crate::ir::*;
 use crate::ops::*;
 use crate::ssa_value::SSAValueAllocator;
 use compiler::bindings::*;
+use compiler::cfg::*;
 use compiler::nir::*;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::cmp::min;
 
 #[derive(Default)]
@@ -968,9 +969,10 @@ impl<'a> ShaderFromNir<'a> {
     fn parse_block(
         &mut self,
         ssa_alloc: &mut SSAValueAllocator,
+        cfg: &mut CFGBuilder<Label, BasicBlock, FxBuildHasher>,
         block_map: &BlockLabelMap,
         nb: &nir_block,
-    ) -> BasicBlock {
+    ) {
         let mut b = SSAInstrBuilder::new(self.model, ssa_alloc);
 
         for ni in nb.iter_instr_list() {
@@ -984,39 +986,51 @@ impl<'a> ShaderFromNir<'a> {
                 nir_instr_type_intrinsic => {
                     self.parse_intrinsic(&mut b, ni.as_intrinsic().unwrap())
                 }
+                nir_instr_type_jump => {
+                    // Handled below by inserting OpBranch and a CFG edge
+                }
                 _ => panic!("Unsupported instruction type"),
             }
         }
 
-        let succ = nb.successors();
+        let label = block_map.get(nb);
         if nb.cf_tree_next().is_none() {
             let i = b.push_op(OpNop {});
             i.flow.set_end_shader();
         } else if let Some(nif) = nb.following_if() {
-            let succ = [succ[0].unwrap(), succ[1].unwrap()];
+            let then_label = block_map.get(nif.first_then_block());
+            let else_label = block_map.get(nif.first_else_block());
+
+            // We have to add the fall-through edge first
+            cfg.add_edge(label, then_label);
+            cfg.add_edge(label, else_label);
 
             b.push_op(OpBranch {
                 not: true,
                 cond: self.get_src(&nif.condition),
                 combine_op: BranchCombineOp::None,
-                label: block_map.get(succ[1]),
+                label: else_label,
             });
         } else {
+            let succ = nb.successors();
             assert!(succ[1].is_none());
             if let Some(succ) = succ[0] {
+                let succ_label = block_map.get(succ);
+                cfg.add_edge(label, succ_label);
                 b.push_op(OpBranch {
                     not: true,
                     cond: 0.into(),
                     combine_op: BranchCombineOp::None,
-                    label: block_map.get(succ),
+                    label: succ_label,
                 });
             }
         }
 
-        BasicBlock {
-            label: block_map.get(nb),
+        let bb = BasicBlock {
+            label,
             instrs: b.into_vec(),
-        }
+        };
+        cfg.add_node(label, bb);
     }
 
     fn create_preload_instrs(&mut self) -> Vec<Instr> {
@@ -1049,10 +1063,11 @@ impl<'a> ShaderFromNir<'a> {
             block_map.add(nb, label_alloc.alloc());
         }
 
-        let mut blocks: Vec<BasicBlock> = nfi
-            .iter_blocks()
-            .map(|nb| self.parse_block(&mut ssa_alloc, &block_map, nb))
-            .collect();
+        let mut cfg = CFGBuilder::new();
+        for nb in nfi.iter_blocks() {
+            self.parse_block(&mut ssa_alloc, &mut cfg, &block_map, nb);
+        }
+        let mut blocks = cfg.as_cfg();
 
         // If there are any preload registers, splice them before the
         // starting block
