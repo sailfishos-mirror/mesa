@@ -741,7 +741,7 @@ impl LogicOp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [I8, V2I8, V4I8, I16, V2I16, I32, I64])]
+#[variants(dst_type in [U8, V2U8, V4U8, U16, V2U16, U32, U64])]
 pub struct OpShiftLop {
     pub dst: Dst,
     pub dst_type: DataType,

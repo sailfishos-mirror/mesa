@@ -178,7 +178,7 @@ fn try_swizzle_with_shift_lop(
     let swz = src.swizzle;
     let mut op = Op::from(OpShiftLop {
         dst,
-        dst_type: DataType::V4I8,
+        dst_type: DataType::V4U8,
         shift_op: ShiftOp::None,
         logic_op: LogicOp::None,
         not_result: false,
@@ -221,12 +221,12 @@ fn try_sign_extend_with_arshift(
 
     let dst_lanes_bits = dst.lanes.bytes(4) * 8;
     let (dst_type, swizzle) = match (dst_lanes_bits, swizzle) {
-        (32, Swizzle::B3333) => (DataType::I32, Swizzle::NONE),
-        (16, Swizzle::B1111) => (DataType::V2I16, Swizzle::H00),
-        (16, Swizzle::B1133) => (DataType::V2I16, Swizzle::H01),
-        (16, Swizzle::B3311) => (DataType::V2I16, Swizzle::H10),
-        (16, Swizzle::B3333) => (DataType::V2I16, Swizzle::H11),
-        (_, swizzle) => (DataType::V4I8, swizzle),
+        (32, Swizzle::B3333) => (DataType::U32, Swizzle::NONE),
+        (16, Swizzle::B1111) => (DataType::V2U16, Swizzle::H00),
+        (16, Swizzle::B1133) => (DataType::V2U16, Swizzle::H01),
+        (16, Swizzle::B3311) => (DataType::V2U16, Swizzle::H10),
+        (16, Swizzle::B3333) => (DataType::V2U16, Swizzle::H11),
+        (_, swizzle) => (DataType::V4U8, swizzle),
     };
 
     src.swizzle = swizzle;
@@ -344,7 +344,7 @@ fn mkvec_vni8<const N: usize>(
                 let tmp = b.alloc_ssa(8);
                 b.push_op(OpShiftLop {
                     dst: tmp.into(),
-                    dst_type: DataType::V4I8,
+                    dst_type: DataType::V4U8,
                     shift_op: ShiftOp::ARShift,
                     logic_op: LogicOp::None,
                     not_result: false,

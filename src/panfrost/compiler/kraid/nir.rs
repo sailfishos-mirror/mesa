@@ -475,7 +475,7 @@ impl<'a> ShaderFromNir<'a> {
             nir_op_iand | nir_op_ior | nir_op_ixor => {
                 b.push_op(OpShiftLop {
                     dst: dst.into(),
-                    dst_type: dst_type(NumericType::Integer),
+                    dst_type: dst_type(NumericType::UnsignedInteger),
                     shift_op: ShiftOp::None,
                     logic_op: match alu.op {
                         nir_op_iand => LogicOp::And,
@@ -537,7 +537,7 @@ impl<'a> ShaderFromNir<'a> {
             | nir_op_uror => {
                 b.push_op(OpShiftLop {
                     dst: dst.into(),
-                    dst_type: dst_type(NumericType::Integer),
+                    dst_type: dst_type(NumericType::UnsignedInteger),
                     shift_op: match alu.op {
                         nir_op_ishl => ShiftOp::LShift,
                         nir_op_ishr => ShiftOp::ARShift,

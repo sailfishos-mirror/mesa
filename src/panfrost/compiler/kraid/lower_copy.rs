@@ -24,7 +24,7 @@ fn lower_copy(copy: OpCopy) -> MappedInstrs {
             // For an immediate copy, we can just do and AND+OR
             let and = OpShiftLop {
                 dst: dst_reg.into(),
-                dst_type: DataType::I32,
+                dst_type: DataType::U32,
                 shift_op: ShiftOp::None,
                 logic_op: LogicOp::And,
                 not_result: false,
@@ -34,7 +34,7 @@ fn lower_copy(copy: OpCopy) -> MappedInstrs {
             };
             let or = OpShiftLop {
                 dst: dst_reg.into(),
-                dst_type: DataType::I32,
+                dst_type: DataType::U32,
                 shift_op: ShiftOp::None,
                 logic_op: LogicOp::Or,
                 not_result: false,
@@ -132,7 +132,7 @@ fn lower_copy(copy: OpCopy) -> MappedInstrs {
             let bits = copy.dst_type.bits();
             assert!(bits <= 32);
             let comps = 32 / bits;
-            let dst_type = DataType::v(comps, DataType::i(bits));
+            let dst_type = DataType::v(comps, DataType::u(bits));
 
             let lop = OpShiftLop {
                 dst: copy.dst,

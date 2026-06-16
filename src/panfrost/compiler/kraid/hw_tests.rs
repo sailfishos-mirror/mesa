@@ -9,6 +9,7 @@ use crate::ir::*;
 use crate::model::{Model, model_for_gpu_id};
 use crate::ops::*;
 use crate::ssa_value::SSAValueAllocator;
+use crate::swizzle::AsmSwizzleWiden;
 use acorn::Acorn;
 use kraid_hw_runner::{HwError, InvocationInfo, TestRunner};
 
@@ -545,10 +546,10 @@ pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Display) {
 #[test]
 fn test_op_shift_lop() {
     const DATA_TYPES: &'static [DataType] = &[
-        DataType::V4I8,
-        DataType::V2I16,
-        DataType::I32,
-        DataType::I64,
+        DataType::V4U8,
+        DataType::V2U16,
+        DataType::U32,
+        DataType::U64,
     ];
 
     const SHIFT_OPS: &'static [ShiftOp] = &[
@@ -563,21 +564,32 @@ fn test_op_shift_lop() {
     const LOGIC_OPS: &'static [LogicOp] =
         &[LogicOp::None, LogicOp::Or, LogicOp::And, LogicOp::Xor];
 
+    const WIDENS: &'static [AsmSwizzleWiden] = &[
+        AsmSwizzleWiden::None,
+        AsmSwizzleWiden::B0,
+        AsmSwizzleWiden::H0,
+    ];
+
     for &dst_type in DATA_TYPES {
-        for &shift_op in SHIFT_OPS {
-            for &logic_op in LOGIC_OPS {
-                for not_result in [false, true] {
-                    let op = OpShiftLop {
-                        dst: DstRef::None.into(),
-                        dst_type,
-                        shift_op,
-                        logic_op,
-                        not_result,
-                        src0: 0.into(),
-                        shift: 0.into(),
-                        src2: 0.into(),
-                    };
-                    test_foldable_op(op);
+        for widen in WIDENS {
+            let Some(src0_swizzle) = widen.to_swizzle(dst_type) else {
+                continue;
+            };
+            for &shift_op in SHIFT_OPS {
+                for &logic_op in LOGIC_OPS {
+                    for not_result in [false, true] {
+                        let op = OpShiftLop {
+                            dst: DstRef::None.into(),
+                            dst_type,
+                            shift_op,
+                            logic_op,
+                            not_result,
+                            src0: Src::from(0).swizzle(src0_swizzle),
+                            shift: 0.into(),
+                            src2: 0.into(),
+                        };
+                        test_foldable_op(op);
+                    }
                 }
             }
         }

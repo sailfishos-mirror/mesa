@@ -176,6 +176,14 @@ impl DataType {
         DataType::from_pieces(1, num_type, bits)
     }
 
+    pub const fn u_as_i(self) -> DataType {
+        let (comps, mut num_type, bits) = self.to_pieces();
+        if matches!(num_type, Some(NumericType::UnsignedInteger)) {
+            num_type = Some(NumericType::Integer);
+        }
+        DataType::from_pieces(comps, num_type, bits)
+    }
+
     pub const fn i_as_u(self) -> DataType {
         let (comps, mut num_type, bits) = self.to_pieces();
         if matches!(num_type, Some(NumericType::Integer)) {

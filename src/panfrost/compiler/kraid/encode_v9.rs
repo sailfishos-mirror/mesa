@@ -901,14 +901,14 @@ macro_rules! encode_lop {
             if let Some(imm1w) = op_src_as_imm1w($op, &$op.src2) {
                 assert!(!$op.not_result);
                 $e.encode(v9::[<$Instr Imm>] {
-                    variant: $op.dst_type.try_into().unwrap(),
+                    variant: $op.dst_type.u_as_i().try_into().unwrap(),
                     dst: op_encode_dst($op, &$op.dst),
                     src0: op_encode_src($op, &$op.src0),
                     imm1w,
                 })
             } else {
                 $e.encode(v9::$Instr {
-                    variant: $op.dst_type.try_into().unwrap(),
+                    variant: $op.dst_type.u_as_i().try_into().unwrap(),
                     dst: op_encode_dst($op, &$op.dst),
                     not_result: $op.not_result.into(),
                     src0: op_encode_src($op, &$op.src0),
@@ -923,7 +923,7 @@ macro_rules! encode_shift {
     ($e:expr, $op:expr, $Instr:ident) => {
         paste! {
             $e.encode(v9::$Instr {
-                variant: $op.dst_type.try_into().unwrap(),
+                variant: $op.dst_type.u_as_i().try_into().unwrap(),
                 dst: op_encode_dst($op, &$op.dst),
                 not_result: $op.not_result.into(),
                 src0: op_encode_src($op, &$op.src0),
@@ -937,7 +937,7 @@ macro_rules! encode_shift_lop {
     ($e:expr, $op:expr, $Instr:ident) => {
         paste! {
             $e.encode(v9::$Instr {
-                variant: $op.dst_type.try_into().unwrap(),
+                variant: $op.dst_type.u_as_i().try_into().unwrap(),
                 dst: op_encode_dst($op, &$op.dst),
                 not_result: $op.not_result.into(),
                 src0: op_encode_src($op, &$op.src0),
@@ -950,13 +950,14 @@ macro_rules! encode_shift_lop {
 
 impl V9Instr for OpShiftLop {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        let variant = self.dst_type.u_as_i();
         if self.shift_op.is_none() {
             use LogicOp::*;
             let isa_info = match self.logic_op {
-                None => v9::Or::get_info(self.dst_type, arch),
-                And => v9::And::get_info(self.dst_type, arch),
-                Or => v9::Or::get_info(self.dst_type, arch),
-                Xor => v9::Xor::get_info(self.dst_type, arch),
+                None => v9::Or::get_info(variant, arch),
+                And => v9::And::get_info(variant, arch),
+                Or => v9::Or::get_info(variant, arch),
+                Xor => v9::Xor::get_info(variant, arch),
             };
             V9InstrInfo::from_isa(
                 isa_info,
@@ -969,11 +970,11 @@ impl V9Instr for OpShiftLop {
             use ShiftOp::*;
             let isa_info = match self.shift_op {
                 None => unreachable!(),
-                LShift => Lshift::get_info(self.dst_type, arch),
-                RShift => Rshift::get_info(self.dst_type, arch),
-                ARShift => Arshift::get_info(self.dst_type, arch),
-                LRot => Lrot::get_info(self.dst_type, arch),
-                RRot => Rrot::get_info(self.dst_type, arch),
+                LShift => Lshift::get_info(variant, arch),
+                RShift => Rshift::get_info(variant, arch),
+                ARShift => Arshift::get_info(variant, arch),
+                LRot => Lrot::get_info(variant, arch),
+                RRot => Rrot::get_info(variant, arch),
             };
             V9InstrInfo::from_isa(
                 isa_info,
@@ -987,21 +988,21 @@ impl V9Instr for OpShiftLop {
             use ShiftOp::*;
             let isa_info = match (self.shift_op, self.logic_op) {
                 (ShiftOp::None, _) | (_, LogicOp::None) => unreachable!(),
-                (LShift, And) => LshiftAnd::get_info(self.dst_type, arch),
-                (LShift, Or) => LshiftOr::get_info(self.dst_type, arch),
-                (LShift, Xor) => LshiftXor::get_info(self.dst_type, arch),
-                (RShift, And) => RshiftAnd::get_info(self.dst_type, arch),
-                (RShift, Or) => RshiftOr::get_info(self.dst_type, arch),
-                (RShift, Xor) => RshiftXor::get_info(self.dst_type, arch),
-                (ARShift, And) => ArshiftAnd::get_info(self.dst_type, arch),
-                (ARShift, Or) => ArshiftOr::get_info(self.dst_type, arch),
-                (ARShift, Xor) => ArshiftXor::get_info(self.dst_type, arch),
-                (LRot, And) => LrotAnd::get_info(self.dst_type, arch),
-                (LRot, Or) => LrotOr::get_info(self.dst_type, arch),
-                (LRot, Xor) => LrotXor::get_info(self.dst_type, arch),
-                (RRot, And) => RrotAnd::get_info(self.dst_type, arch),
-                (RRot, Or) => RrotOr::get_info(self.dst_type, arch),
-                (RRot, Xor) => RrotXor::get_info(self.dst_type, arch),
+                (LShift, And) => LshiftAnd::get_info(variant, arch),
+                (LShift, Or) => LshiftOr::get_info(variant, arch),
+                (LShift, Xor) => LshiftXor::get_info(variant, arch),
+                (RShift, And) => RshiftAnd::get_info(variant, arch),
+                (RShift, Or) => RshiftOr::get_info(variant, arch),
+                (RShift, Xor) => RshiftXor::get_info(variant, arch),
+                (ARShift, And) => ArshiftAnd::get_info(variant, arch),
+                (ARShift, Or) => ArshiftOr::get_info(variant, arch),
+                (ARShift, Xor) => ArshiftXor::get_info(variant, arch),
+                (LRot, And) => LrotAnd::get_info(variant, arch),
+                (LRot, Or) => LrotOr::get_info(variant, arch),
+                (LRot, Xor) => LrotXor::get_info(variant, arch),
+                (RRot, And) => RrotAnd::get_info(variant, arch),
+                (RRot, Or) => RrotOr::get_info(variant, arch),
+                (RRot, Xor) => RrotXor::get_info(variant, arch),
             };
             V9InstrInfo::from_isa(
                 isa_info,
