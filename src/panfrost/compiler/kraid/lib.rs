@@ -13,6 +13,7 @@ mod hw_tests;
 mod ir;
 mod isa;
 mod legalize_src_swizzles;
+mod liveness;
 mod lower_copy;
 mod lower_mkvec_swz;
 mod message_slots;

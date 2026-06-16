@@ -2,86 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::ir::*;
+use crate::liveness::*;
 use compiler::bitset::*;
 use compiler::smallvec::*;
 use rustc_hash::FxHashMap;
-
-struct BlockIp {
-    block: usize,
-    ip: usize,
-}
-
-enum UseBlockIp {
-    Def(usize),
-    SingleBlock(BlockIp),
-    MultiBlock,
-}
-
-impl UseBlockIp {
-    fn add_use(&mut self, block: usize, ip: usize) {
-        match self {
-            UseBlockIp::Def(def_block) => {
-                if block == *def_block {
-                    *self = UseBlockIp::SingleBlock(BlockIp { block, ip })
-                } else {
-                    *self = UseBlockIp::MultiBlock
-                }
-            }
-            UseBlockIp::SingleBlock(bi) => {
-                if bi.block == block {
-                    bi.ip = bi.ip.max(ip);
-                } else {
-                    *self = UseBlockIp::MultiBlock
-                }
-            }
-            UseBlockIp::MultiBlock => (),
-        }
-    }
-}
-
-#[derive(Default)]
-struct TrivialLiveness {
-    ssa_uses: FxHashMap<SSAValue, UseBlockIp>,
-}
-
-// World's simplest liveness analysis: Everything that crosses a block
-// boundary is considered live forever.
-impl TrivialLiveness {
-    fn build(s: &Shader) -> TrivialLiveness {
-        let mut ssa_uses: FxHashMap<SSAValue, UseBlockIp> = Default::default();
-        for (bi, block) in s.blocks.iter().enumerate() {
-            for (ip, instr) in block.instrs.iter().enumerate() {
-                for src in instr.srcs() {
-                    if let SrcRef::SSA(ssa) = &src.src_ref {
-                        for val in ssa {
-                            ssa_uses.get_mut(val).unwrap().add_use(bi, ip);
-                        }
-                    }
-                }
-
-                for dst in instr.dsts() {
-                    if let DstRef::SSA(ssa) = &dst.dst_ref {
-                        for val in ssa {
-                            ssa_uses.insert(*val, UseBlockIp::Def(bi));
-                        }
-                    }
-                }
-            }
-        }
-        TrivialLiveness { ssa_uses }
-    }
-
-    fn is_never_used(&self, ssa: &SSAValue) -> bool {
-        matches!(self.ssa_uses.get(ssa).unwrap(), UseBlockIp::Def(_))
-    }
-
-    fn is_killed_by(&self, ssa: &SSAValue, block: usize, ip: usize) -> bool {
-        match self.ssa_uses.get(ssa).unwrap() {
-            UseBlockIp::SingleBlock(bi) => bi.block == block && bi.ip == ip,
-            _ => false,
-        }
-    }
-}
 
 fn widen_lanes(lanes: DstLanes) -> DstLanes {
     use DstLanes::*;
@@ -101,7 +25,7 @@ fn reg_ref_for_byte(b: u8, bytes: u8) -> RegRef {
 }
 
 fn ra_trivial(s: &mut Shader) {
-    let live = TrivialLiveness::build(s);
+    let live = SimpleLiveness::for_shader(s);
 
     // Allocate in units of half registers.  We might be a dumb allocator but
     // we can at least try to exercise Kraid's half register model.
@@ -109,6 +33,7 @@ fn ra_trivial(s: &mut Shader) {
     let mut ssa_b: FxHashMap<SSAValue, u8> = Default::default();
 
     for (bi, block) in s.blocks.iter_mut().enumerate() {
+        let bl = live.block(bi);
         for (ip, mut instr) in
             std::mem::take(&mut block.instrs).into_iter().enumerate()
         {
@@ -143,7 +68,7 @@ fn ra_trivial(s: &mut Shader) {
                 for (i, ssa) in vec.iter().enumerate() {
                     let b = *ssa_b.get(ssa).unwrap();
 
-                    if live.is_killed_by(ssa, bi, ip) {
+                    if !bl.is_live_after_ip(ssa, ip) {
                         let bytes = ssa.bits() / 8;
                         for b in b..(b + bytes) {
                             byte_used.remove(b.into());
@@ -248,7 +173,7 @@ fn ra_trivial(s: &mut Shader) {
                 };
 
                 for ssa in vec {
-                    if live.is_never_used(ssa) {
+                    if !bl.is_live_after_ip(ssa, ip) {
                         let vec_b = *ssa_b.get(ssa).unwrap();
                         let bytes = ssa.bits() / 8;
                         for b in 0..bytes {

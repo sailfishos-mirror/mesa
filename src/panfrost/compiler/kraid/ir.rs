@@ -1057,6 +1057,32 @@ pub trait Opcode:
         }
     }
 
+    fn iter_ssa_uses(&self) -> impl Iterator<Item = &SSAValue> {
+        self.srcs()
+            .iter()
+            .map(|src| {
+                if let SrcRef::SSA(vec) = &src.src_ref {
+                    vec.iter()
+                } else {
+                    (&[]).iter()
+                }
+            })
+            .flatten()
+    }
+
+    fn iter_ssa_defs(&self) -> impl Iterator<Item = &SSAValue> {
+        self.dsts()
+            .iter()
+            .map(|dst| {
+                if let DstRef::SSA(vec) = &dst.dst_ref {
+                    vec.iter()
+                } else {
+                    (&[]).iter()
+                }
+            })
+            .flatten()
+    }
+
     fn fmt_src<'a>(&self, src: &'a Src) -> FmtSrc<'a> {
         FmtSrc {
             src,
