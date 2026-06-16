@@ -310,38 +310,24 @@ fn op_encode_sr_read(op: &impl Opcode, src: &Src) -> v9::SrRead {
     }
 }
 
-fn op_encode_sr_write(op: &impl Opcode, dst: &Dst) -> v9::SrWrite {
+fn op_encode_sr_write(_op: &impl Opcode, dst: &Dst) -> v9::SrWrite {
     let DstRef::Reg(reg) = &dst.dst_ref else {
         panic!("Staging registers be registers");
     };
 
-    let reg_bytes = reg.bytes();
-    let reg_byte_offset = reg.byte_offset();
-
-    let type_bits = op.dst_type(dst).total_bits();
-    let lanes = if type_bits == 8 {
-        match reg_byte_offset {
-            0 => v9::DstLanes::B0,
-            1 => v9::DstLanes::B1,
-            2 => v9::DstLanes::B2,
-            3 => v9::DstLanes::B3,
-            b => panic!("Invalid byte offset: {b}"),
-        }
-    } else if type_bits == 16 {
-        assert!(reg_bytes >= 2);
-        match reg_byte_offset {
-            0 => v9::DstLanes::H0,
-            2 => v9::DstLanes::H1,
-            b => panic!("Invalid byte offset: {b}"),
-        }
-    } else {
-        assert!(reg_bytes * 8 >= type_bits);
-        assert_eq!(reg_byte_offset, 0);
-        v9::DstLanes::None
-    };
-
     let index = reg.idx;
-    let count = reg_bytes.div_ceil(4);
+    let count = reg.bytes().div_ceil(4);
+
+    let lanes = match dst.lanes {
+        ir::DstLanes::All => v9::DstLanes::None,
+        ir::DstLanes::B0 => v9::DstLanes::B0,
+        ir::DstLanes::B1 => v9::DstLanes::B1,
+        ir::DstLanes::B2 => v9::DstLanes::B2,
+        ir::DstLanes::B3 => v9::DstLanes::B3,
+        ir::DstLanes::H0 => v9::DstLanes::H0,
+        ir::DstLanes::H1 => v9::DstLanes::H1,
+        lanes => panic!("Invalid DstLanes: {lanes}"),
+    };
 
     v9::SrWrite {
         index,
