@@ -82,7 +82,6 @@ pub struct TestShaderBuilder<'a> {
     info: ShaderInfo,
     ssa_alloc: SSAValueAllocator,
     start_block: BasicBlock,
-    label: Label,
     data_addr: SrcRef,
     max_data_offset: u16,
 }
@@ -141,7 +140,6 @@ impl<'a> TestShaderBuilder<'a> {
             info,
             ssa_alloc,
             start_block,
-            label: label_alloc.alloc(),
             data_addr: data_addr.into(),
             max_data_offset: 0,
         }
@@ -181,8 +179,7 @@ impl<'a> TestShaderBuilder<'a> {
             mut b,
             info,
             ssa_alloc,
-            start_block,
-            label,
+            mut start_block,
             max_data_offset,
             ..
         } = self;
@@ -190,15 +187,12 @@ impl<'a> TestShaderBuilder<'a> {
         let exit = b.push_op(OpNop {});
         exit.flow.set_end_shader();
 
-        let test_block = BasicBlock {
-            label,
-            instrs: b.into_vec(),
-        };
+        start_block.instrs.extend(b.into_mapped());
 
         let mut s = Shader {
             model,
             ssa_alloc,
-            blocks: vec![start_block, test_block],
+            blocks: vec![start_block],
             info,
         };
         //eprintln!("\nRIGHT AFTER CONSTR: {}", &s);
