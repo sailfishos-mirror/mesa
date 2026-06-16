@@ -879,8 +879,7 @@ gather_shader_info_fs(enum amd_gfx_level gfx_level, const nir_shader *nir,
        *   VK_FALSE.
        */
       info->ps.force_disable_vrs =
-         gfx_state->ms.sample_shading_enable || info->ps.uses_sample_shading ||
-         (info->ps.reads_sample_mask_in && !info->ps.needs_poly_line_smooth) ||
+         gfx_state->ms.sample_shading_enable || info->ps.uses_sample_shading || nir->info.fs.sample_mask_in_declared ||
          (gfx_level == GFX10_3 && (nir->info.fs.sample_interlock_ordered || nir->info.fs.sample_interlock_unordered ||
                                    nir->info.fs.pixel_interlock_ordered || nir->info.fs.pixel_interlock_unordered));
 
