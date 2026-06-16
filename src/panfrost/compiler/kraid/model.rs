@@ -39,7 +39,7 @@ struct ValhallModel {
 
 impl ValhallModel {
     fn new(arch: u8) -> ValhallModel {
-        use crate::isa::{v9, SmallConstantTable};
+        use crate::isa::{SmallConstantTable, v9};
         let sc_table = v9::SmallConstantT::collect(arch);
         ValhallModel { arch, sc_table }
     }

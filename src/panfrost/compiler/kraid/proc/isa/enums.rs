@@ -7,7 +7,7 @@ use crate::isa::*;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::{Ident, Span};
 use std::cell::OnceCell;
-use std::collections::{btree_map, BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, btree_map};
 use std::rc::{Rc, Weak};
 
 pub struct EnumValue {

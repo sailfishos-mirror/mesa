@@ -3,7 +3,7 @@
 
 use crate::data_type::PartialDataType;
 use crate::ir::*;
-use kraid_proc_macros::{variants, FromVariants, Opcode};
+use kraid_proc_macros::{FromVariants, Opcode, variants};
 use std::fmt;
 
 macro_rules! bool_as_mod_str {

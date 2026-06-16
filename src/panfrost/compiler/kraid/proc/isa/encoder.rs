@@ -271,8 +271,10 @@ fn map_field_src(
         (SrcType::Src, SrcField::SrcSwizzle)
     } else if DST_LANES_ENUMS.iter().any(|e| field_type.is_enum(e)) {
         if !sr_control.has_write() {
-            assert!(["lane", "dest_width", "dest_width_narrow"]
-                .contains(&field_name));
+            assert!(
+                ["lane", "dest_width", "dest_width_narrow"]
+                    .contains(&field_name)
+            );
             (SrcType::Dst, SrcField::DstLanes)
         } else {
             (SrcType::from_field_type(field_type), SrcField::Direct)
