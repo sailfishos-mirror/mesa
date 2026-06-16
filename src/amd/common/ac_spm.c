@@ -1562,9 +1562,6 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
    raw_counter_values[AC_SPM_##a][s] + \
    raw_counter_values[AC_SPM_##b][s] + \
    raw_counter_values[AC_SPM_##c][s]
-#define OP_SUB2(a, b) \
-   raw_counter_values[AC_SPM_##a][s] - \
-   raw_counter_values[AC_SPM_##b][s]
 
    const uint32_t num_simds = info->num_cu * info->compiler_info.num_simd_per_compute_unit;
 
@@ -1602,8 +1599,8 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
 
       /* L0 cache. */
       const double l0_cache_request_count = OP_RAW(TCP_PERF_SEL_REQ);
-      const double l0_cache_hit_count = OP_SUB2(TCP_PERF_SEL_REQ, TCP_PERF_SEL_REQ_MISS);
-      const double l0_cache_miss_count = OP_RAW(TCP_PERF_SEL_REQ_MISS);
+      const double l0_cache_miss_count = MIN2((double)OP_RAW(TCP_PERF_SEL_REQ_MISS), l0_cache_request_count);
+      const double l0_cache_hit_count = l0_cache_request_count - l0_cache_miss_count;
       const double l0_cache_hit =
          l0_cache_request_count ? (l0_cache_hit_count / l0_cache_request_count) * 100.0f : 0.0f;
 
@@ -1615,8 +1612,8 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
       if (info->gfx_level < GFX12) {
          /* L1 cache. */
          const double l1_cache_request_count = OP_RAW(GL1C_PERF_SEL_REQ);
-         const double l1_cache_hit_count = OP_SUB2(GL1C_PERF_SEL_REQ, GL1C_PERF_SEL_REQ_MISS);
-         const double l1_cache_miss_count = OP_RAW(GL1C_PERF_SEL_REQ_MISS);
+         const double l1_cache_miss_count = MIN2((double)OP_RAW(GL1C_PERF_SEL_REQ_MISS), l1_cache_request_count);
+         const double l1_cache_hit_count = l1_cache_request_count - l1_cache_miss_count;
          const double l1_cache_hit =
             l1_cache_request_count ? (l1_cache_hit_count / l1_cache_request_count) * 100.0f : 0.0f;
 
@@ -1628,8 +1625,8 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
 
       /* L2 cache. */
       const double l2_cache_request_count = OP_RAW(GL2C_PERF_SEL_REQ);
-      const double l2_cache_hit_count = OP_SUB2(GL2C_PERF_SEL_REQ, GL2C_PERF_SEL_MISS);
-      const double l2_cache_miss_count = OP_RAW(GL2C_PERF_SEL_MISS);
+      const double l2_cache_miss_count = MIN2((double)OP_RAW(GL2C_PERF_SEL_MISS), l2_cache_request_count);
+      const double l2_cache_hit_count = l2_cache_request_count - l2_cache_miss_count;
       const double l2_cache_hit =
          l2_cache_request_count ? (l2_cache_hit_count / l2_cache_request_count) * 100.0f : 0.0f;
 
@@ -1744,7 +1741,6 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
 #undef OP_RAW
 #undef OP_SUM2
 #undef OP_SUM3
-#undef OP_SUB2
 
    spm_derived_trace->num_timestamps = spm_trace->num_samples;
    spm_derived_trace->sample_interval = spm_trace->sample_interval;
