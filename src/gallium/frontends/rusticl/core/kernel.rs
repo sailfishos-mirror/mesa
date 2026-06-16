@@ -25,6 +25,7 @@ use spirv::SpirvKernelInfo;
 
 use std::borrow::Borrow;
 use std::cmp;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -1443,21 +1444,93 @@ impl Kernel {
     fn suggest_local_size_impl_gcd(
         work_dim: usize,
         grid: &[usize],
+        mut block: [usize; 3],
         mut threads: usize,
         dim_threads: [usize; 3],
     ) -> [usize; 3] {
-        let mut block = [1; 3];
-
         for i in 0..work_dim {
             let t = cmp::min(threads, dim_threads[i]);
             let gcd = gcd(t, grid[i]);
 
             // update limits
-            block[i] = gcd;
-            threads /= block[i];
+            block[i] *= gcd;
+            threads /= gcd;
         }
 
         block
+    }
+
+    /// Extracts POTs from the input grid to fill subgroups.
+    fn suggest_local_size_impl_pot(
+        work_dim: usize,
+        grid: &[usize],
+        mut block: [usize; 3],
+        mut threads: usize,
+        dim_threads: [usize; 3],
+    ) -> [usize; 3] {
+        for i in 0..work_dim {
+            // Round down to the next POT.
+            let pot_limit = cmp::min(threads, dim_threads[i]).ilog2();
+            let pot_grid = grid[i].trailing_zeros();
+
+            let pot = 1 << pot_limit.min(pot_grid);
+
+            // update limits
+            block[i] *= pot;
+            threads /= pot;
+        }
+
+        block
+    }
+
+    /// Just brute forces it...
+    fn suggest_local_size_impl_run_down(
+        work_dim: usize,
+        grid: &[usize],
+        mut block: [usize; 3],
+        mut threads: usize,
+        dim_threads: [usize; 3],
+    ) -> [usize; 3] {
+        for i in 0..work_dim {
+            for t in (2..=grid[i].min(threads).min(dim_threads[i])).rev() {
+                if grid[i] % t != 0 {
+                    continue;
+                }
+
+                block[i] *= t;
+                threads /= t;
+                break;
+            }
+        }
+        block
+    }
+
+    /// Tries to fill block to cover one entire subgroup.
+    fn suggest_local_size_prescale(
+        work_dim: usize,
+        grid: &mut [usize],
+        block: &mut [usize],
+        subgroup_size: usize,
+    ) {
+        let mut subgroup_log = subgroup_size.ilog2();
+        let grid_log = grid
+            .iter()
+            .take(work_dim)
+            .product::<usize>()
+            .trailing_zeros();
+
+        if grid_log < subgroup_log {
+            return;
+        }
+
+        for i in 0..work_dim {
+            let dim_log = grid[0].trailing_zeros().min(subgroup_log);
+            let dim_pot = 1 << dim_log;
+
+            subgroup_log -= dim_log;
+            grid[i] /= dim_pot;
+            block[i] = dim_pot;
+        }
     }
 
     fn suggest_local_size_impl(
@@ -1465,11 +1538,54 @@ impl Kernel {
         grid: &mut [usize],
         block: &mut [usize],
         mut threads: usize,
-        dim_threads: [usize; 3],
+        mut dim_threads: [usize; 3],
         subgroup_size: usize,
     ) {
-        let new_block = Self::suggest_local_size_impl_gcd(work_dim, grid, threads, dim_threads);
+        // Make threads a multiple of subgroup_size
+        threads = (threads + 1 - subgroup_size).next_multiple_of(subgroup_size);
 
+        block.fill(1);
+        Self::suggest_local_size_prescale(work_dim, grid, block, subgroup_size);
+
+        threads /= block.iter().take(work_dim).product::<usize>();
+        for i in 0..work_dim {
+            dim_threads[i] /= block[i];
+        }
+
+        let block_inputs = [
+            block.get(0).copied().unwrap_or(1),
+            block.get(1).copied().unwrap_or(1),
+            block.get(2).copied().unwrap_or(1),
+        ];
+        let mut block_sizes = [
+            Self::suggest_local_size_impl_gcd,
+            Self::suggest_local_size_impl_pot,
+            Self::suggest_local_size_impl_run_down,
+        ]
+        .map(|f| f(work_dim, grid, block_inputs, threads, dim_threads));
+
+        block_sizes.sort_by(|blocka, blockb| {
+            let threadsa = blocka.iter().product::<usize>();
+            let threadsb = blockb.iter().product::<usize>();
+
+            let subgroup_frac_a =
+                threadsa as f32 / (subgroup_size * threadsa.div_ceil(subgroup_size)) as f32;
+            let subgroup_frac_b =
+                threadsb as f32 / (subgroup_size * threadsb.div_ceil(subgroup_size)) as f32;
+
+            let subgroup_ord = subgroup_frac_a.partial_cmp(&subgroup_frac_b).unwrap();
+            if subgroup_ord != Ordering::Equal {
+                return subgroup_ord;
+            }
+
+            threadsa.cmp(&threadsb)
+        });
+
+        for i in 0..work_dim {
+            grid[i] *= block[i];
+        }
+
+        let new_block = block_sizes.last().unwrap();
         for i in 0..work_dim {
             block[i] = new_block[i];
             grid[i] /= block[i];
@@ -1515,11 +1631,7 @@ impl Kernel {
             return;
         }
 
-        let mut usize_block = [0usize; 3];
-        for i in 0..3 {
-            usize_block[i] = block[i] as usize;
-        }
-
+        let mut usize_block = [0; 3];
         self.suggest_local_size(d, work_dim as usize, grid, &mut usize_block);
 
         for i in 0..3 {
