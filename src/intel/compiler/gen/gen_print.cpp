@@ -1033,11 +1033,12 @@ private:
    }
 
    bool
-   print_lsc_symbolic_surface_name(enum lsc_addr_surface_type addr_type)
+   print_lsc_symbolic_surface_name(enum lsc_opcode op,
+                                   enum lsc_addr_surface_type addr_type)
    {
       const uint32_t surface_bits = lsc_ex_desc_surface_bits();
       const gen_lsc_ex_desc ex_desc =
-         gen_lsc_ex_desc_decode(devinfo, addr_type, surface_bits,
+         gen_lsc_ex_desc_decode(devinfo, op, addr_type, surface_bits,
                                 inst->send.ex_desc_imm_extra);
 
       switch (inst->send.sfid) {
@@ -1223,7 +1224,7 @@ private:
          text(cache);
       }
 
-      if (!print_lsc_symbolic_surface_name(desc.addr_type)) {
+      if (!print_lsc_symbolic_surface_name(op, desc.addr_type)) {
          text(".?");
          return true;
       }

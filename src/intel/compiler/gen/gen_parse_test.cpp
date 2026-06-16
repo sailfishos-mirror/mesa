@@ -404,7 +404,8 @@ TEST_F(GenParseTest, ParsesLscTypedTgmSourceSyntax)
    EXPECT_FALSE(insts[0].send.ex_desc_is_reg);
 
    const gen_lsc_ex_desc ex_desc = gen_lsc_ex_desc_decode(
-      &devinfo, LSC_ADDR_SURFTYPE_BTI, insts[0].send.ex_desc_imm, 0);
+      &devinfo, LSC_OP_LOAD_CMASK, LSC_ADDR_SURFTYPE_BTI,
+      insts[0].send.ex_desc_imm, 0);
    EXPECT_EQ(ex_desc.bti.index, 3u);
    EXPECT_EQ(ex_desc.bti.base_offset, 0);
 

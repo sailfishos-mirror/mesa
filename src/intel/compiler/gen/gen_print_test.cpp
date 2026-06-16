@@ -1530,7 +1530,8 @@ TEST_F(GenPrintTest, LscTypedTgmSourceSyntaxFormatting)
                            grf(12, 0),
                            gen_null());
    send->send.sfid = GEN_SFID_TGM;
-   send->send.ex_desc_imm = gen_lsc_ex_desc_encode(&devinfo, &ex_desc, NULL);
+   send->send.ex_desc_imm =
+      gen_lsc_ex_desc_encode(&devinfo, desc.op, &ex_desc, NULL);
    gen_message_desc msg = { .msg_length = 4, .response_length = 2 };
    send->send.desc_imm =
       gen_message_desc_encode(&devinfo, &msg) |

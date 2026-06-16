@@ -362,11 +362,13 @@ lsc_ss_base_offset_from_imm_extra(uint32_t imm_extra)
 
 gen_lsc_ex_desc
 gen_lsc_ex_desc_decode(const struct intel_device_info *devinfo,
+                       enum lsc_opcode op,
                        enum lsc_addr_surface_type addr_type,
                        uint32_t raw_ex_desc,
                        uint32_t raw_ex_desc_imm_extra)
 {
    assert(devinfo->has_lsc);
+   (void)op;
 
    gen_lsc_ex_desc ex_desc = {};
    ex_desc.addr_type = addr_type;
@@ -400,10 +402,12 @@ gen_lsc_ex_desc_decode(const struct intel_device_info *devinfo,
 
 uint32_t
 gen_lsc_ex_desc_encode(const struct intel_device_info *devinfo,
+                       enum lsc_opcode op,
                        const gen_lsc_ex_desc *ex_desc,
                        uint32_t *ex_desc_imm_extra_out)
 {
    assert(devinfo->has_lsc);
+   (void)op;
 
    uint32_t ex_desc_imm_extra = 0;
    uint32_t result = 0;

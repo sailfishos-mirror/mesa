@@ -1362,7 +1362,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          .flat.base_offset = base_offset,
       };
       desc |=
-         ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
+         ((uint64_t) gen_lsc_ex_desc_encode(devinfo, op, &gen_ex_desc, NULL) << 32);
    } else if (jay_is_null(bti_indirect)) {
       const gen_lsc_ex_desc gen_ex_desc = {
          .addr_type = LSC_ADDR_SURFTYPE_BTI,
@@ -1372,7 +1372,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          },
       };
       desc |=
-         ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
+         ((uint64_t) gen_lsc_ex_desc_encode(devinfo, op, &gen_ex_desc, NULL) << 32);
    } else if (!jay_is_null(bti_indirect)) {
       /* Non-uniform bindless handles are expected to be lowered to waterfall
        * loops in NIR, but we can sometimes get here with GPR bti_indirect due
@@ -1388,7 +1388,7 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                .base_offset = base_offset,
             },
          };
-         gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, &ex_desc_imm);
+         gen_lsc_ex_desc_encode(devinfo, op, &gen_ex_desc, &ex_desc_imm);
       } else {
          /* TODO: Move the SHL to NIR for CSE? */
          assert(surf_type == LSC_ADDR_SURFTYPE_BTI);
@@ -3271,7 +3271,8 @@ jay_emit_eot(struct nir_to_jay_state *nj)
             .addr_type = LSC_ADDR_SURFTYPE_FLAT,
          };
          uint64_t ex_desc =
-            gen_lsc_ex_desc_encode(nj->devinfo, &gen_ex_desc, NULL);
+            gen_lsc_ex_desc_encode(nj->devinfo, LSC_OP_STORE, &gen_ex_desc,
+                                   NULL);
 
          uint64_t desc =
             (ex_desc << 32) |

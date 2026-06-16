@@ -616,7 +616,7 @@ struct gen_parser {
             ex_desc.addr_type = LSC_ADDR_SURFTYPE_BTI;
             ex_desc.bti.index = bti;
             inst.send.ex_desc_imm =
-               gen_lsc_ex_desc_encode(devinfo, &ex_desc, NULL);
+               gen_lsc_ex_desc_encode(devinfo, lsc.op, &ex_desc, NULL);
          } else {
             auto bad = consume_ident_token();
             return errorf("unknown LSC surface selector '%.*s'", SV_FMT(bad));
