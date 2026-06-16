@@ -6564,7 +6564,7 @@
         "description": "v3dv: fix assertion on push constants",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6d6a3ab6793282ab4636e2ac44a29be7456c75f7",
         "notes": null
