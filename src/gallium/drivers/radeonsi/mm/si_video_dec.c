@@ -205,7 +205,8 @@ static int si_dec_init_decoder(struct si_video_dec *vid, struct ac_video_dec_ses
    }
 
    if (vid->dec->init_session_buf) {
-      struct si_resource *session_buf = protected ? vid->session_tmz_buffer : vid->session_buffer;
+      struct si_resource *session_buf = (protected && vid->dec->session_tmz_size) ?
+                                        vid->session_tmz_buffer : vid->session_buffer;
       void *ptr = vid->ws->buffer_map(vid->ws, session_buf->buf, NULL,
                                       PIPE_MAP_WRITE | RADEON_MAP_TEMPORARY);
       if (!ptr) {
