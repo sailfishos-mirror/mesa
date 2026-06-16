@@ -3683,6 +3683,11 @@ wsi_wl_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
          wp_color_management_surface_v1_destroy(old_chain->color.color_surface);
          old_chain->color.color_surface = NULL;
       }
+      /* the old swapchain may have a different wsi_wl_surface for the same app provided wl_surface */
+      if (old_chain->wsi_wl_surface) {
+         struct wsi_wl_display *dpy = old_chain->wsi_wl_surface->display;
+         wl_display_roundtrip_queue(dpy->wl_display, dpy->queue);
+      }
    }
 
    /* Take ownership of the wsi_wl_surface */
