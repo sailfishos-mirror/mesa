@@ -11,7 +11,6 @@
 
 #include "kk_buffer.h"
 #include "kk_cmd_buffer.h"
-#include "kk_encoder.h"
 #include "kk_format.h"
 #include "kk_image_view.h"
 #include "kk_query_pool.h"
@@ -363,8 +362,9 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
 
    /* Rendering with no attachments requires pushing the start of the render
     * pass to first pipeline binding to know sample count. */
+   cmd->state.gfx.render_pass_descriptor = pass_descriptor;
    if (!no_framebuffer)
-      kk_encoder_start_render(cmd, pass_descriptor, render->view_mask);
+      cs_start_render(cmd);
 
    /* Store descriptor in case we need to restart the pass at pipeline barrier,
     * but force loads */
@@ -389,7 +389,6 @@ kk_CmdBeginRendering(VkCommandBuffer commandBuffer,
       mtl_render_pass_attachment_descriptor_set_load_action(
          attachment_descriptor, MTL_LOAD_ACTION_LOAD);
    }
-   cmd->state.gfx.render_pass_descriptor = pass_descriptor;
    cmd->state.gfx.need_to_start_render_pass = no_framebuffer;
 
    kk_cmd_buffer_dirty_all_gfx(cmd);
@@ -529,7 +528,7 @@ kk_CmdEndRendering2KHR(VkCommandBuffer commandBuffer,
    };
 
    /* Clean up previous encoder */
-   kk_encoder_signal_fence_and_end(cmd);
+   cs_end(cmd);
    mtl_release(cmd->state.gfx.render_pass_descriptor);
    cmd->state.gfx.render_pass_descriptor = NULL;
 
@@ -685,7 +684,8 @@ kk_flush_vp_state(struct kk_cmd_buffer *cmd)
       rects[i].height = maxy - miny;
    }
 
-   mtl_set_scissor_rects(kk_render_encoder(cmd), rects, count);
+   mtl_render_encoder *encoder = cs_get_render(cmd);
+   mtl_set_scissor_rects(encoder, rects, count);
 
    count = MAX2(dyn->vp.viewport_count, 1);
 
@@ -705,7 +705,7 @@ kk_flush_vp_state(struct kk_cmd_buffer *cmd)
       viewports[i].zfar = vp->maxDepth;
    }
 
-   mtl_set_viewports(kk_render_encoder(cmd), viewports, count);
+   mtl_set_viewports(encoder, viewports, count);
 }
 
 static inline uint32_t
@@ -875,10 +875,9 @@ kk_flush_render_pass(struct kk_cmd_buffer *cmd)
 
    /* If render pass state changes and the pass is currently active, end the
     * current encoder and prepare to restart it */
-   bool active_render = cmd->encoder->main.last_used == KK_ENC_RENDER &&
-                        cmd->encoder->main.encoder;
+   bool active_render = cmd->cs.gfx;
    if (needs_restart && active_render) {
-      kk_encoder_signal_fence_and_end(cmd);
+      cs_end(cmd);
       kk_cmd_buffer_dirty_all_gfx(cmd);
       cmd->state.gfx.need_to_start_render_pass = true;
 
@@ -893,7 +892,7 @@ static void
 kk_flush_pipeline(struct kk_cmd_buffer *cmd)
 {
    struct kk_device *device = kk_cmd_buffer_device(cmd);
-   mtl_render_encoder *enc = kk_render_encoder(cmd);
+   mtl_render_encoder *enc = cs_get_render(cmd);
    struct kk_graphics_state *gfx = &cmd->state.gfx;
    struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
 
@@ -1145,8 +1144,7 @@ kk_upload_tess_params(struct kk_cmd_buffer *cmd, struct poly_tess_params *out,
       alloc += draw_stride_B;
 
       struct kk_ptr ptr = kk_pool_alloc(cmd, alloc, 4);
-      gfx->tess.out_draws_buffer = ptr.buffer;
-      gfx->tess.out_draws_offset = ptr.offset + draw_offs;
+      gfx->tess.out_draws_addr = ptr.gpu + draw_offs;
       uint64_t addr = ptr.gpu;
       args.tcs_buffer = addr + tcs_out_offs;
       args.patches_per_instance = in_patches;
@@ -1160,8 +1158,7 @@ kk_upload_tess_params(struct kk_cmd_buffer *cmd, struct poly_tess_params *out,
       gfx->tess.indirect_ptr = kk_pool_alloc(cmd, grid_stride * 3, 4);
 
       struct kk_ptr ptr = kk_pool_alloc(cmd, draw_stride_B, 4);
-      gfx->tess.out_draws_buffer = ptr.buffer;
-      gfx->tess.out_draws_offset = ptr.offset;
+      gfx->tess.out_draws_addr = ptr.gpu;
       args.out_draws = ptr.gpu;
    }
 
@@ -1174,7 +1171,7 @@ kk_flush_dynamic_state(struct kk_cmd_buffer *cmd)
    struct kk_graphics_state *gfx = &cmd->state.gfx;
    struct kk_descriptor_state *desc = &gfx->descriptors;
    struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
-   mtl_render_encoder *enc = kk_render_encoder(cmd);
+   mtl_render_encoder *enc = cs_get_render(cmd);
 
    if (IS_DIRTY(VI_BINDING_STRIDES)) {
       u_foreach_bit(ndx, dyn->vi->bindings_valid) {
@@ -1289,8 +1286,7 @@ kk_flush_dynamic_state(struct kk_cmd_buffer *cmd)
 
    struct kk_ptr root_buffer = desc->root.root_buffer;
    if (root_buffer.gpu) {
-      mtl_set_vertex_buffer(enc, root_buffer.buffer, root_buffer.offset, 0);
-      mtl_set_fragment_buffer(enc, root_buffer.buffer, root_buffer.offset, 0);
+      kk_cmd_bind_root_to_argument_table(cmd, root_buffer.gpu);
    }
 
    if (gfx->dirty & KK_DIRTY_OCCLUSION) {
@@ -1516,22 +1512,24 @@ kk_dispatch_draw(mtl_render_encoder *enc, struct kk_draw_data data)
 {
    if (kk_grid_is_indirect(data.grid)) {
       if (data.index.buffer) {
+         uint64_t index_addr =
+            mtl_buffer_get_gpu_address(data.index.buffer) + data.index.offset;
          mtl_draw_indexed_primitives_indirect(
             enc, data.primitive_type,
             index_size_in_bytes_to_mtl_index_type(data.index.el_size_B),
-            data.index.buffer, data.index.offset, data.grid.indirect,
-            data.grid.offset);
+            index_addr, data.index.range, data.grid.addr);
       } else {
-         mtl_draw_primitives_indirect(enc, data.primitive_type,
-                                      data.grid.indirect, data.grid.offset);
+         mtl_draw_primitives_indirect(enc, data.primitive_type, data.grid.addr);
       }
    } else {
       if (data.index.buffer) {
+         uint64_t index_addr =
+            mtl_buffer_get_gpu_address(data.index.buffer) + data.index.offset;
          mtl_draw_indexed_primitives(
             enc, data.primitive_type, data.grid.size.x,
             index_size_in_bytes_to_mtl_index_type(data.index.el_size_B),
-            data.index.buffer, data.index.offset, data.grid.size.y,
-            data.vertex_offset, data.grid.size.z);
+            index_addr, data.index.range, data.grid.size.y, data.vertex_offset,
+            data.grid.size.z);
       } else {
          /* Avoid Metal validation error. Empty draws from tessellation will
           * have values set to 0. */
@@ -1653,8 +1651,7 @@ upload_base_vertex(struct kk_cmd_buffer *cmd, const struct kk_draw_data *data)
          data->index.buffer
             ? offsetof(VkDrawIndexedIndirectCommand, vertexOffset)
             : offsetof(VkDrawIndirectCommand, firstVertex);
-      return mtl_buffer_get_gpu_address(data->grid.indirect) +
-             data->grid.offset + first_vertex_offset;
+      return data->grid.addr + first_vertex_offset;
    } else {
       return kk_pool_upload(cmd, &data->vertex_offset,
                             sizeof(data->vertex_offset), 4u)
@@ -1670,8 +1667,7 @@ upload_base_instance(struct kk_cmd_buffer *cmd, const struct kk_draw_data *data)
          data->index.buffer
             ? offsetof(VkDrawIndexedIndirectCommand, firstInstance)
             : offsetof(VkDrawIndirectCommand, firstInstance);
-      return mtl_buffer_get_gpu_address(data->grid.indirect) +
-             data->grid.offset + base_instance_offset;
+      return data->grid.addr + base_instance_offset;
    } else {
       return kk_pool_upload(cmd, &data->grid.size.z, sizeof(data->grid.size.z),
                             4u)
@@ -1708,21 +1704,7 @@ kk_upload_per_draw_data(struct kk_cmd_buffer *cmd, uint32_t upload_mask,
    if (unlikely(!shader_data_gpu.gpu))
       return;
 
-   mtl_render_encoder *enc = kk_render_encoder(cmd);
-   if (upload_mask & BITFIELD_BIT(MESA_SHADER_VERTEX)) {
-      mtl_set_vertex_buffer(enc, shader_data_gpu.buffer, shader_data_gpu.offset,
-                            2);
-   }
-   if (tess) {
-      mtl_compute_set_buffer(kk_encoder_pre_gfx_encoder(cmd),
-                             shader_data_gpu.buffer, shader_data_gpu.offset, 2);
-      mtl_set_vertex_buffer(enc, shader_data_gpu.buffer, shader_data_gpu.offset,
-                            2);
-   }
-   if (upload_mask & BITFIELD_BIT(MESA_SHADER_FRAGMENT)) {
-      mtl_set_fragment_buffer(enc, shader_data_gpu.buffer,
-                              shader_data_gpu.offset, 2);
-   }
+   mtl_set_address(cmd->argument_table, shader_data_gpu.gpu, 2u);
 }
 
 static void
@@ -1732,8 +1714,8 @@ kk_dispatch_compute(mtl_compute_encoder *enc, struct kk_grid grid,
    if (grid.mode == KK_GRID_DIRECT)
       mtl_dispatch_threads(enc, grid.size, local_size);
    else
-      mtl_dispatch_threadgroups_with_indirect_buffer(enc, grid.indirect,
-                                                     grid.offset, local_size);
+      mtl_dispatch_threadgroups_with_indirect_buffer(enc, grid.addr,
+                                                     local_size);
 }
 
 static struct kk_draw_data
@@ -1756,8 +1738,7 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw)
       struct libkk_tess_setup_indirect_args args = {
          .p = state,
          .grids = gfx->tess.indirect_ptr.gpu,
-         .indirect =
-            mtl_buffer_get_gpu_address(draw.grid.indirect) + draw.grid.offset,
+         .indirect = draw.grid.addr,
          .vp = gfx->per_draw_data.vertex_params,
          .vertex_outputs = vs->info.vs.outputs_written,
          .tcs_statistic = 0,
@@ -1774,15 +1755,11 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw)
       libkk_tess_setup_indirect_struct(cmd, kk_grid_1d(1), true, args);
 
       uint32_t grid_stride = sizeof(uint32_t) * 3;
-      grid_vs =
-         kk_grid_indirect(gfx->tess.indirect_ptr.buffer,
-                          gfx->tess.indirect_ptr.offset + 0u * grid_stride);
+      grid_vs = kk_grid_indirect(gfx->tess.indirect_ptr.gpu + 0u * grid_stride);
       grid_tcs =
-         kk_grid_indirect(gfx->tess.indirect_ptr.buffer,
-                          gfx->tess.indirect_ptr.offset + 1u * grid_stride);
+         kk_grid_indirect(gfx->tess.indirect_ptr.gpu + 1u * grid_stride);
       grid_tess =
-         kk_grid_indirect(gfx->tess.indirect_ptr.buffer,
-                          gfx->tess.indirect_ptr.offset + 2u * grid_stride);
+         kk_grid_indirect(gfx->tess.indirect_ptr.gpu + 2u * grid_stride);
    } else {
       uint32_t patches = draw.grid.size.x / input_patch_size;
       grid_vs = grid_tcs = kk_grid_2d(draw.grid.size.x, draw.grid.size.y);
@@ -1793,18 +1770,14 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw)
 
    /* First launch the VS and TCS */
 
-   mtl_compute_encoder *enc = kk_encoder_pre_gfx_encoder(cmd);
+   mtl_compute_encoder *enc = cs_get_compute(cmd, true);
    {
       mtl_compute_pipeline_state *pipeline = vs->pipeline.gfx.pre_render[0];
       struct mtl_size local_size = {64, 1, 1};
+      mtl_barrier_after_encoder_stages(enc, MTL_STAGE_DISPATCH,
+                                       MTL_STAGE_DISPATCH);
       mtl_compute_set_pipeline_state(enc, pipeline);
-      /* Bind root buffer here since indirect path dirties the binding at 0. */
-      mtl_compute_set_buffer(enc, gfx->descriptors.root.root_buffer.buffer,
-                             gfx->descriptors.root.root_buffer.offset, 0u);
       kk_dispatch_compute(enc, grid_vs, local_size);
-      /* TODO_KOSMICKRISP Maybe too big of a barrier? We could definitely just
-       * barrier the buffers we know we modify. */
-      mtl_memory_barrier_with_scope(enc, MTL_BARRIER_SCOPE_BUFFERS);
    }
    {
       mtl_compute_pipeline_state *pipeline = vs->pipeline.gfx.pre_render[1];
@@ -1813,29 +1786,27 @@ kk_launch_tess(struct kk_cmd_buffer *cmd, struct kk_draw_data draw)
        * empty data. We set restart to true to avoid unroll. */
       if (grid_tcs.mode == KK_GRID_DIRECT && grid_tcs.size.x == 0u)
          return (struct kk_draw_data){.grid = kk_grid_1d(0u)};
+      mtl_barrier_after_encoder_stages(enc, MTL_STAGE_DISPATCH,
+                                       MTL_STAGE_DISPATCH);
       mtl_compute_set_pipeline_state(enc, pipeline);
       kk_dispatch_compute(enc, grid_tcs, local_size);
-      mtl_memory_barrier_with_scope(enc, MTL_BARRIER_SCOPE_BUFFERS);
    }
 
    /* First generate counts, then prefix sum them, and then tessellate. */
    libkk_tessellate(cmd, grid_tess, true, info.mode, POLY_TESS_MODE_COUNT,
                     state);
-   mtl_memory_barrier_with_scope(enc, MTL_BARRIER_SCOPE_BUFFERS);
 
    libkk_prefix_sum_tess(cmd, kk_grid_1d(1024u), true, state);
-   mtl_memory_barrier_with_scope(enc, MTL_BARRIER_SCOPE_BUFFERS);
 
    libkk_tessellate(cmd, grid_tess, true, info.mode, POLY_TESS_MODE_WITH_COUNTS,
                     state);
-   mtl_memory_barrier_with_scope(enc, MTL_BARRIER_SCOPE_BUFFERS);
 
-   draw.grid =
-      kk_grid_indirect(gfx->tess.out_draws_buffer, gfx->tess.out_draws_offset);
+   draw.grid = kk_grid_indirect(gfx->tess.out_draws_addr);
 
    draw.index.buffer = dev->heap->map;
    draw.index.offset = sizeof(struct poly_heap);
    draw.index.el_size_B = 4u;
+   draw.index.range = dev->heap->size_B - sizeof(struct poly_heap);
    draw.primitive_type = mesa_prim_to_mtl_primitive_type(gfx->tess.prim);
    return draw;
 }
@@ -1857,8 +1828,10 @@ build_draw_data(struct kk_cmd_buffer *cmd, struct kk_draw_command *data,
    if (data->indirect) {
       uint64_t indirect_offset = data->indirect_command.offset +
                                  draw_id * data->indirect_command.stride;
-      draw.grid =
-         kk_grid_indirect(data->indirect_command.buffer, indirect_offset);
+      uint64_t addr =
+         mtl_buffer_get_gpu_address(data->indirect_command.buffer) +
+         indirect_offset;
+      draw.grid = kk_grid_indirect(addr);
    } else if (data->indexed) {
       VkDrawIndexedIndirectCommand draw_cmd = data->indexed_draws[draw_id];
       draw.grid = kk_grid_3d(draw_cmd.indexCount, draw_cmd.instanceCount,
@@ -1907,7 +1880,7 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
 
       if (tess)
          draw_data = kk_launch_tess(cmd, draw_data);
-      kk_dispatch_draw(kk_render_encoder(cmd), draw_data);
+      kk_dispatch_draw(cs_get_render(cmd), draw_data);
    }
 }
 
