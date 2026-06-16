@@ -216,6 +216,51 @@ pub enum RegRange {
     Regs(u8),
 }
 
+impl RegRange {
+    #[inline]
+    fn byte_offset_count(&self) -> (u8, u8) {
+        match self {
+            RegRange::Byte0 => (0, 1),
+            RegRange::Byte1 => (1, 1),
+            RegRange::Byte2 => (2, 1),
+            RegRange::Byte3 => (3, 1),
+            RegRange::Half0 => (0, 2),
+            RegRange::Half1 => (2, 2),
+            RegRange::Regs(n) => (0, n * 4),
+        }
+    }
+
+    fn from_byte_offset_count(
+        offset: u8,
+        count: u8,
+    ) -> Result<RegRange, &'static str> {
+        match (offset, count) {
+            (0, 1) => Ok(RegRange::Byte0),
+            (1, 1) => Ok(RegRange::Byte1),
+            (2, 1) => Ok(RegRange::Byte2),
+            (3, 1) => Ok(RegRange::Byte3),
+            (0, 2) => Ok(RegRange::Half0),
+            (2, 2) => Ok(RegRange::Half1),
+            (0, _) => {
+                if count % 4 == 0 {
+                    Ok(RegRange::Regs(count / 4))
+                } else {
+                    Err("Misaligned register range")
+                }
+            }
+            _ => Err("Misaligned register range"),
+        }
+    }
+
+    pub fn byte_offset(&self) -> u8 {
+        self.byte_offset_count().0
+    }
+
+    pub fn bytes(&self) -> u8 {
+        self.byte_offset_count().1
+    }
+}
+
 impl From<RegRange> for Swizzle {
     fn from(range: RegRange) -> Swizzle {
         match range {
@@ -264,23 +309,30 @@ impl fmt::Display for RegRef {
 
 impl RegRef {
     pub fn bytes(&self) -> u8 {
-        match self.range {
-            RegRange::Byte0
-            | RegRange::Byte1
-            | RegRange::Byte2
-            | RegRange::Byte3 => 1,
-            RegRange::Half0 | RegRange::Half1 => 2,
-            RegRange::Regs(n) => n * 4,
-        }
+        self.range.bytes()
     }
 
-    pub fn byte_offset(&self) -> u8 {
-        match self.range {
-            RegRange::Byte0 | RegRange::Half0 | RegRange::Regs(_) => 0,
-            RegRange::Byte1 => 1,
-            RegRange::Byte2 | RegRange::Half1 => 2,
-            RegRange::Byte3 => 3,
-        }
+    pub fn byte_range(&self) -> Range<u16> {
+        let (offset, bytes) = self.range.byte_offset_count();
+        let b_start = u16::from(self.idx) * 4 + u16::from(offset);
+        b_start..(b_start + u16::from(bytes))
+    }
+
+    pub fn from_byte_range(range: Range<u16>) -> Result<RegRef, &'static str> {
+        let idx = (range.start / 4)
+            .try_into()
+            .map_err(|_| "Register range too large")?;
+        let range = RegRange::from_byte_offset_count(
+            (range.start % 4).try_into().unwrap(),
+            (range.end - range.start)
+                .try_into()
+                .map_err(|_| "Register range too large")?,
+        )?;
+        Ok(RegRef {
+            idx,
+            range,
+            preload: None,
+        })
     }
 
     pub fn word(mut self, word: u8) -> RegRef {

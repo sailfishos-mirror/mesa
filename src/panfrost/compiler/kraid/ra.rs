@@ -96,32 +96,8 @@ fn widen_lanes(lanes: DstLanes) -> DstLanes {
 }
 
 fn reg_ref_for_byte(b: u8, bytes: u8) -> RegRef {
-    let range = if bytes >= 4 {
-        assert_eq!(bytes % 4, 0);
-        RegRange::Regs((bytes / 4).try_into().unwrap())
-    } else if bytes == 2 {
-        assert_eq!(b % 2, 0);
-        if b % 4 == 0 {
-            RegRange::Half0
-        } else {
-            RegRange::Half1
-        }
-    } else {
-        assert_eq!(bytes, 1);
-        match b % 4 {
-            0 => RegRange::Byte0,
-            1 => RegRange::Byte1,
-            2 => RegRange::Byte2,
-            3 => RegRange::Byte3,
-            _ => panic!("bytes % 4 < 4"),
-        }
-    };
-
-    RegRef {
-        idx: b / 4,
-        range,
-        preload: None,
-    }
+    let bytes = u16::from(b)..(u16::from(b) + u16::from(bytes));
+    RegRef::from_byte_range(bytes).unwrap()
 }
 
 fn ra_trivial(s: &mut Shader) {
@@ -141,7 +117,7 @@ fn ra_trivial(s: &mut Shader) {
                     panic!("We must have SSA destinations");
                 };
 
-                let b = op.reg.idx * 4 + op.reg.byte_offset();
+                let b = op.reg.idx * 4 + op.reg.range.byte_offset();
                 let bytes = vec.bytes();
                 debug_assert_eq!(bytes, op.reg.bytes());
 
