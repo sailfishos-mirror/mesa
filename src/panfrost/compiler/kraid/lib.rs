@@ -20,6 +20,7 @@ mod message_slots;
 mod model;
 mod nir;
 mod ops;
+mod parallel_copy;
 mod ra;
 mod remat_constants;
 mod small_constants;
