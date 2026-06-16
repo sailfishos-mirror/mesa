@@ -214,7 +214,7 @@
         "description": "zink: fix import2d sampler view creation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cafa22142bf11b933814277a1d4f26d7e68a4947",
         "notes": null
