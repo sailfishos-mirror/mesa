@@ -46,40 +46,40 @@ static const VkPresentModeKHR present_modes[] = {
 static VkResult
 wsi_metal_surface_get_capabilities(VkIcdSurfaceBase *surface,
                                  struct wsi_device *wsi_device,
-                                 VkSurfaceCapabilitiesKHR* caps)
+                                 VkSurfaceCapabilities2KHR* caps)
 {
    VkIcdSurfaceMetal *metal_surface = (VkIcdSurfaceMetal *)surface;
    assert(metal_surface->pLayer);
 
    wsi_metal_layer_size(metal_surface->pLayer,
-      &caps->currentExtent.width,
-      &caps->currentExtent.height);
+      &caps->surfaceCapabilities.currentExtent.width,
+      &caps->surfaceCapabilities.currentExtent.height);
 
-   if (!caps->currentExtent.width && !caps->currentExtent.height)
-      caps->currentExtent.width = caps->currentExtent.height = UINT32_MAX;
+   if (!caps->surfaceCapabilities.currentExtent.width && !caps->surfaceCapabilities.currentExtent.height)
+      caps->surfaceCapabilities.currentExtent.width = caps->surfaceCapabilities.currentExtent.height = UINT32_MAX;
 
-   caps->minImageCount = 2;
-   caps->maxImageCount = 3;
+   caps->surfaceCapabilities.minImageCount = 2;
+   caps->surfaceCapabilities.maxImageCount = 3;
 
-   caps->minImageExtent = (VkExtent2D) { 1, 1 };
-   caps->maxImageExtent = (VkExtent2D) {
+   caps->surfaceCapabilities.minImageExtent = (VkExtent2D) { 1, 1 };
+   caps->surfaceCapabilities.maxImageExtent = (VkExtent2D) {
       wsi_device->maxImageDimension2D,
       wsi_device->maxImageDimension2D,
    };
 
-   caps->supportedTransforms = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-   caps->currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-   caps->maxImageArrayLayers = 1;
+   caps->surfaceCapabilities.supportedTransforms = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+   caps->surfaceCapabilities.currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+   caps->surfaceCapabilities.maxImageArrayLayers = 1;
 
-   caps->supportedCompositeAlpha =
+   caps->surfaceCapabilities.supportedCompositeAlpha =
       VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR |
       VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
 
-   caps->supportedUsageFlags = wsi_caps_get_image_usage();
+   caps->surfaceCapabilities.supportedUsageFlags = wsi_caps_get_image_usage();
 
    VK_FROM_HANDLE(vk_physical_device, pdevice, wsi_device->pdevice);
    if (pdevice->supported_extensions.EXT_attachment_feedback_loop_layout)
-      caps->supportedUsageFlags |= VK_IMAGE_USAGE_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT;
+      caps->surfaceCapabilities.supportedUsageFlags |= VK_IMAGE_USAGE_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT;
 
    return VK_SUCCESS;
 }
@@ -97,7 +97,7 @@ wsi_metal_surface_get_capabilities2(VkIcdSurfaceBase *surface,
 
    VkResult result =
       wsi_metal_surface_get_capabilities(surface, wsi_device,
-                                      &caps->surfaceCapabilities);
+                                      caps);
 
    vk_foreach_struct(ext, caps->pNext) {
       switch (ext->sType) {

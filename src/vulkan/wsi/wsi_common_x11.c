@@ -709,7 +709,7 @@ static VkResult
 x11_surface_get_capabilities(VkIcdSurfaceBase *icd_surface,
                              struct wsi_device *wsi_device,
                              const VkSurfacePresentModeKHR *present_mode,
-                             VkSurfaceCapabilitiesKHR *caps)
+                             VkSurfaceCapabilities2KHR *caps)
 {
    xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
    xcb_window_t window = x11_surface_get_window(icd_surface);
@@ -727,38 +727,38 @@ x11_surface_get_capabilities(VkIcdSurfaceBase *icd_surface,
       return VK_ERROR_SURFACE_LOST_KHR;
    {
       VkExtent2D extent = { geom->width, geom->height };
-      caps->currentExtent = extent;
-      caps->minImageExtent = extent;
-      caps->maxImageExtent = extent;
+      caps->surfaceCapabilities.currentExtent = extent;
+      caps->surfaceCapabilities.minImageExtent = extent;
+      caps->surfaceCapabilities.maxImageExtent = extent;
    }
    free(err);
    free(geom);
 
    if (surface->has_alpha) {
-      caps->supportedCompositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR |
+      caps->surfaceCapabilities.supportedCompositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR |
                                       VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
    } else {
-      caps->supportedCompositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR |
+      caps->surfaceCapabilities.supportedCompositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR |
                                       VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
    }
 
    if (present_mode) {
-      caps->minImageCount = x11_get_min_image_count_for_present_mode(wsi_device, wsi_conn, present_mode->presentMode);
+      caps->surfaceCapabilities.minImageCount = x11_get_min_image_count_for_present_mode(wsi_device, wsi_conn, present_mode->presentMode);
    } else {
-      caps->minImageCount = x11_get_min_image_count(wsi_device, wsi_conn->is_xwayland);
+      caps->surfaceCapabilities.minImageCount = x11_get_min_image_count(wsi_device, wsi_conn->is_xwayland);
    }
 
    /* There is no real maximum */
-   caps->maxImageCount = 0;
+   caps->surfaceCapabilities.maxImageCount = 0;
 
-   caps->supportedTransforms = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-   caps->currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-   caps->maxImageArrayLayers = 1;
-   caps->supportedUsageFlags = wsi_caps_get_image_usage();
+   caps->surfaceCapabilities.supportedTransforms = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+   caps->surfaceCapabilities.currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+   caps->surfaceCapabilities.maxImageArrayLayers = 1;
+   caps->surfaceCapabilities.supportedUsageFlags = wsi_caps_get_image_usage();
 
    VK_FROM_HANDLE(vk_physical_device, pdevice, wsi_device->pdevice);
    if (pdevice->supported_extensions.EXT_attachment_feedback_loop_layout)
-      caps->supportedUsageFlags |= VK_IMAGE_USAGE_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT;
+      caps->surfaceCapabilities.supportedUsageFlags |= VK_IMAGE_USAGE_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT;
 
    return VK_SUCCESS;
 }
@@ -775,7 +775,7 @@ x11_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
 
    VkResult result =
       x11_surface_get_capabilities(icd_surface, wsi_device, present_mode,
-                                   &caps->surfaceCapabilities);
+                                   caps);
 
    if (result != VK_SUCCESS)
       return result;
