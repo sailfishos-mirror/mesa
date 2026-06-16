@@ -328,6 +328,12 @@ impl Swizzle {
         }
     }
 
+    /// Returns true if this is the none (identity) swizzle
+    #[inline]
+    pub const fn is_none(&self) -> bool {
+        self.packed.get() == Swizzle::NONE.packed.get()
+    }
+
     /// Returns true if this is a word swizzle.
     #[inline]
     pub const fn is_word_swizzle(&self) -> bool {
@@ -356,7 +362,7 @@ impl Swizzle {
     #[inline]
     pub const fn word(&self, idx: u8) -> Option<SwizzleWord> {
         assert!(idx < 2);
-        if self.packed.get() == Self::NONE.packed.get() {
+        if self.is_none() {
             Some(SwizzleWord::word(idx))
         } else if self.is_word_swizzle() {
             let b = ((self.packed.get() >> (idx * 4)) & 0xf) as u8;
@@ -603,7 +609,7 @@ impl Swizzle {
     }
 
     pub fn fold_u64(&self, u: u64) -> Option<u64> {
-        if *self == Swizzle::NONE {
+        if self.is_none() {
             return Some(u);
         }
 
@@ -678,9 +684,9 @@ impl Swizzle {
     /// possible (such as if doing so would result in an invalid float widen),
     /// `None` is returned.
     pub fn swizzle(self, other: Swizzle) -> Option<Swizzle> {
-        if other == Swizzle::NONE {
+        if other.is_none() {
             return Some(self);
-        } else if self == Swizzle::NONE {
+        } else if self.is_none() {
             return Some(other);
         }
 
@@ -728,7 +734,7 @@ impl Default for Swizzle {
 
 impl fmt::Display for Swizzle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if *self == Swizzle::NONE {
+        if self.is_none() {
             Ok(())
         } else if self.is_word_swizzle() {
             let mut is_words = true;
