@@ -1301,14 +1301,8 @@ jay_register_allocate_function(jay_function *f)
       UNREACHABLE("spiller bug");
    }
 
-   /* The spiller/SSA repair does not work on UGPRs because it cannot tolerate
-    * the critical edges on the physical CFG. Fortunately, dynamic GPR/UGPR
-    * partitioning means this should ~never be hit -- we can allocate 1000 UGPRs
-    * if we need them. I believe ACO has the same corner case.
-    */
-   if (f->demand[UGPR] > f->shader->num_regs[UGPR]) {
-      UNREACHABLE("UGPR spilling is unimplemented");
-   }
+   assert(f->demand[UGPR] <= f->shader->num_regs[UGPR] &&
+          "UGPRs already spilled");
 
    typed_memcpy(ra.num_regs, shader->num_regs, JAY_NUM_RA_FILES);
 

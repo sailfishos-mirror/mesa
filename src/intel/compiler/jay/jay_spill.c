@@ -570,7 +570,17 @@ compute_w_entry(struct spill_ctx *ctx, jay_block *block)
       jay_foreach_predecessor(block, P, ctx->file) {
          bool in = u_sparse_bitset_test(&ctx->blocks[(*P)->index].W_out, i);
          all &= in;
-         any |= in;
+
+         /* When spilling UGPRs, consider only values that have never been
+          * spilled nor remapped and therefore will not insert phi instructions.
+          * That ensures correctness despite critical edges in the physical CFG.
+          */
+         if (ctx->file == UGPR) {
+            all &=
+               !_mesa_hash_table_u64_search(ctx->blocks[(*P)->index].remap, i);
+         } else {
+            any |= in;
+         }
       }
 
       if (all) {
@@ -737,9 +747,47 @@ add_phi(struct spill_ctx *ctx,
    }
 }
 
+/*
+ * UGPRs spill to GPRs so this (pre-RA) lowering is much simpler: just lower MOV
+ * to SHUFFLE to legalize. Most of the time no actual shuffles are needed so
+ * we're lazy initializing active_lane_x4.
+ */
+static void
+lower_ugpr_spill(jay_function *func)
+{
+   jay_cursor null_cursor = {};
+   jay_builder b = jay_init_builder(func, null_cursor);
+   jay_def active_lane_x4 = jay_alloc_def(&b, UGPR, 1);
+
+   jay_foreach_inst_in_func_safe(func, block, I) {
+      if (I->op == JAY_OPCODE_MOV &&
+          I->dst.file == UGPR &&
+          I->src[0].file == GPR) {
+
+         b.cursor = jay_before_inst(I);
+         jay_SHUFFLE(&b, I->dst, I->src[0], active_lane_x4);
+         jay_remove_instruction(I);
+      }
+   }
+
+   if (!jay_cursors_equal(b.cursor, null_cursor)) {
+      b.cursor = jay_before_function(func);
+      jay_def ballot = jay_alloc_def(&b, FLAG, 1),
+              lane = jay_alloc_def(&b, UGPR, 1);
+      jay_ZERO_FLAG(&b, 0);
+      jay_inst *mov = jay_MOV(&b, jay_null(), 1);
+      jay_set_conditional_mod(&b, mov, ballot, GEN_CONDITION_NE);
+      jay_FBL(&b, lane, ballot);
+      jay_SHL(&b, JAY_TYPE_U32, active_lane_x4, lane, 2);
+   }
+}
+
 void
 jay_spill(jay_function *func, enum jay_file file, unsigned k)
 {
+   /* lower_ugpr_spill needs a UGPR temporary */
+   k -= (file == UGPR) ? 1 : 0;
+
    void *memctx = ralloc_context(NULL);
    void *linctx = linear_context(memctx);
    struct spill_ctx ctx = { .func = func, .k = k };
@@ -817,7 +865,7 @@ jay_spill(jay_function *func, enum jay_file file, unsigned k)
       if (block->loop_header) {
          compute_w_entry_loop_header(&ctx, block);
          u_sparse_bitset_dup(&sb->W_in, &ctx.W);
-      } else if (jay_num_predecessors(block, GPR) /* skip start blocks */) {
+      } else if (jay_num_predecessors(block, file) /* skip start blocks */) {
          compute_w_entry(&ctx, block);
          reload_preds(&ctx, &ctx.W, block);
 
@@ -873,6 +921,10 @@ jay_spill(jay_function *func, enum jay_file file, unsigned k)
    }
 
    ralloc_free(memctx);
+
+   if (file == UGPR) {
+      lower_ugpr_spill(func);
+   }
 
    /* We've inserted invalid dead phis, clean them up. */
    jay_opt_dead_code(func->shader);

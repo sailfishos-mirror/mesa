@@ -231,6 +231,30 @@ jay_partition_grf(jay_shader *shader)
       jay_compute_liveness(f);
       jay_calculate_register_demands(f);
 
+      unsigned ugpr_limit = 1024;
+
+      if (jay_debug & JAY_DBG_SPILL) {
+         /* UGPR spilling needs 1 extra register throughout the program but 2
+          * extra registers right at the beginning with all the preloading.
+          */
+         ugpr_limit = analyze_per_inst(shader).ugpr + 1;
+
+         jay_foreach_preload(f, I) {
+            if (I->dst.file == UGPR) {
+               uint32_t max = jay_preload_reg(I) + jay_num_values(I->dst) + 2;
+               ugpr_limit = MAX2(ugpr_limit, max);
+            }
+         }
+      }
+
+      if (f->demand[UGPR] > ugpr_limit) {
+         jay_spill(f, UGPR, ugpr_limit);
+         jay_compute_liveness(f);
+         jay_calculate_register_demands(f);
+      }
+
+      assert(f->demand[UGPR] <= ugpr_limit);
+
       demand[GPR] = MAX2(demand[GPR], f->demand[GPR]);
       demand[UGPR] = MAX2(demand[UGPR], f->demand[UGPR]);
    }
