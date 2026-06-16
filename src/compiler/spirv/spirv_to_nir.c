@@ -4923,6 +4923,7 @@ vtn_handle_atomics(struct vtn_builder *b, SpvOp opcode,
          atomic->src[1] = nir_src_for_ssa(nir_imm_intN_t(&b->nb, 0, 32));
          break;
       case SpvOpAtomicFlagTestAndSet:
+         atomic->num_components = 1;
          atomic->src[1] = nir_src_for_ssa(nir_imm_intN_t(&b->nb, 0, 32));
          atomic->src[2] = nir_src_for_ssa(nir_imm_intN_t(&b->nb, -1, 32));
          break;
