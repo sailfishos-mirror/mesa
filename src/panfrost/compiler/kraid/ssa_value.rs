@@ -37,6 +37,11 @@ impl SSAValue {
     pub fn bits(&self) -> u8 {
         8 << (self.packed.get() >> 30)
     }
+
+    /// Returns the number of bytes in this SSA value
+    pub fn bytes(&self) -> u8 {
+        1 << (self.packed.get() >> 30)
+    }
 }
 
 impl IntoBitIndex for SSAValue {
@@ -109,7 +114,7 @@ impl SSARef {
 
     pub fn bytes(&self) -> u8 {
         if self.comps() == 1 {
-            self[0].bits() / 8
+            self[0].bytes()
         } else {
             for ssa in self {
                 debug_assert_eq!(ssa.bits(), 32);
@@ -300,6 +305,7 @@ mod tests {
             let ssa = SSAValue::new(42, bits);
             assert_eq!(ssa.idx(), 42);
             assert_eq!(ssa.bits(), bits);
+            assert_eq!(ssa.bytes(), bits / 8);
         }
     }
 
