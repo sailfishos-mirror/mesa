@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "compiler/brw/brw_eu_defines.h"
 #include "jay_builder.h"
 #include "jay_builder_opcodes.h"
 #include "jay_ir.h"
