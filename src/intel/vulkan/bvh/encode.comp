@@ -70,6 +70,18 @@ encode_leaf_node(uint32_t type, IR_NODE child, uint64_t dst_node, REF(anv_accel_
    switch (type) {
    case vk_ir_node_triangle: {
       vk_ir_triangle_node src = DEREF(REF(vk_ir_triangle_node)(src_node));
+
+      if (VK_TEST_BUILD_FLAG_HAS_QUADS) {
+         vk_ir_triangle_node_quad quad =
+            vk_ir_triangle_node_get_quad(REF(vk_ir_triangle_node)(src_node));
+         if (quad.triangle_id == VK_QUAD_TRIANGLE_ID_UNUSED) {
+            anv_encode_triangle(dst_node, src);
+         } else {
+            anv_encode_quad(dst_node, src, quad);
+         }
+         break;
+      }
+
       anv_encode_triangle(dst_node, src);
       break;
    }

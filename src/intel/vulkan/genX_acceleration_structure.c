@@ -64,6 +64,12 @@ begin_debug_marker(VkCommandBuffer commandBuffer,
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL:
       trace_intel_begin_as_ploc_build_internal(&cmd_buffer->trace);
       break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PAIR_TRIANGLES:
+      trace_intel_begin_as_pair_triangles(&cmd_buffer->trace);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_ID_PREFIX_SUM:
+      trace_intel_begin_as_id_prefix_sum(&cmd_buffer->trace);
+      break;
    default:
       UNREACHABLE("Invalid build step");
    }
@@ -98,6 +104,12 @@ end_debug_marker(VkCommandBuffer commandBuffer,
       break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL:
       trace_intel_end_as_ploc_build_internal(&cmd_buffer->trace);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PAIR_TRIANGLES:
+      trace_intel_end_as_pair_triangles(&cmd_buffer->trace);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_ID_PREFIX_SUM:
+      trace_intel_end_as_id_prefix_sum(&cmd_buffer->trace);
       break;
    default:
       UNREACHABLE("Invalid build step");
@@ -338,6 +350,9 @@ anv_get_build_config(VkDevice _device, struct vk_acceleration_structure_build_st
         device->physical->instance->drirc.debug.write_lookup_maps_unconditionally)) {
       state->config.build_flags |= ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE;
    }
+
+   VkGeometryTypeKHR geometry_type = vk_get_as_geometry_type(state->build_info);
+   state->config.late_pair_compression = geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR;
 }
 
 static void
