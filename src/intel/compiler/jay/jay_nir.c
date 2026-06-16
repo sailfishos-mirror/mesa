@@ -340,6 +340,53 @@ jay_process_nir(const struct intel_device_info *devinfo,
       JAY_NIR_PASS(intel_nir_lower_shading_rate_output);
       JAY_NIR_PASS(brw_nir_lower_deferred_urb_writes, devinfo,
                    &prog_data->vue.vue_map, 0, 0);
+   } else if (stage == MESA_SHADER_TESS_CTRL) {
+      nir->info.outputs_written = key->tcs.outputs_written;
+      nir->info.patch_outputs_written = key->tcs.patch_outputs_written;
+
+      struct intel_vue_map input_vue_map;
+      brw_compute_vue_map(devinfo, &input_vue_map, nir->info.inputs_read,
+                          key->base.vue_layout, 1);
+      brw_compute_tess_vue_map(&prog_data->vue.vue_map,
+                               nir->info.outputs_written,
+                               nir->info.patch_outputs_written,
+                               key->tcs.separate_tess_vue_layout);
+
+      brw_nir_lower_tcs_inputs(nir, devinfo, &input_vue_map);
+      brw_nir_lower_tcs_outputs(nir, devinfo, &prog_data->vue.vue_map,
+                                key->tcs._tes_primitive_mode);
+      JAY_NIR_SNAPSHOT("after_lower_io");
+
+      brw_nir_opt_vectorize_urb(pt);
+      JAY_NIR_PASS(intel_nir_lower_patch_vertices_in, key->tcs.input_vertices);
+
+      /* Compute URB entry size.  The maximum allowed URB entry size is 32k.
+       * That divides up as follows:
+       *
+       *     32 bytes for the patch header (tessellation factors)
+       *    480 bytes for per-patch varyings (a varying component is 4 bytes and
+       *              gl_MaxTessPatchComponents = 120)
+       *  16384 bytes for per-vertex varyings (a varying component is 4 bytes,
+       *              gl_MaxPatchVertices = 32 and
+       *              gl_MaxTessControlOutputComponents = 128)
+       *
+       *  15808 bytes left for varying packing overhead
+       */
+      const int num_per_patch_slots =
+         prog_data->vue.vue_map.num_per_patch_slots;
+      const int num_per_vertex_slots =
+         prog_data->vue.vue_map.num_per_vertex_slots;
+      unsigned output_size_bytes = 0;
+      /* Note that the patch header is counted in num_per_patch_slots. */
+      output_size_bytes += num_per_patch_slots * 16;
+      output_size_bytes +=
+         nir->info.tess.tcs_vertices_out * num_per_vertex_slots * 16;
+
+      assert(output_size_bytes >= 1);
+      assert(output_size_bytes < GFX7_MAX_HS_URB_ENTRY_SIZE_BYTES);
+
+      /* URB entry sizes are stored as a multiple of 64 bytes. */
+      prog_data->vue.urb_entry_size = align(output_size_bytes, 64) / 64;
    } else if (stage == MESA_SHADER_TESS_EVAL) {
       const uint32_t pos_slots =
          (nir->info.per_view_outputs & VARYING_BIT_POS) ?

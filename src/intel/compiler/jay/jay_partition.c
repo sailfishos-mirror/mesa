@@ -220,6 +220,13 @@ jay_partition_grf(jay_shader *shader)
       payload_4[1] = shader->prog_data->vue.urb_read_length * 8;
       payload_u[1] = shader->push_grfs;
       eot_4 = 16;
+   } else if (shader->stage == MESA_SHADER_TESS_CTRL) {
+      payload_4[0] =
+         1 +
+         shader->prog_data->tcs.include_primitive_id +
+         (shader->prog_data->tcs.input_vertices ?: BRW_MAX_TCS_INPUT_VERTICES);
+      payload_u[1] = shader->push_grfs;
+      eot_4 = 16;
    } else if (shader->stage == MESA_SHADER_TESS_EVAL) {
       payload_4[0] = 4; /* tesscoord and URB output handles */
       /* inputs and push constants use the general UGPR section */

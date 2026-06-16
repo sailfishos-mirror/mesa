@@ -542,6 +542,25 @@ populate_vs_prog_data(nir_shader *nir,
    prog_data->base.dispatch_mode = INTEL_DISPATCH_MODE_SIMD8;
 }
 
+static void
+populate_tcs_prog_data(nir_shader *nir,
+                       const struct brw_tcs_prog_key *key,
+                       struct brw_tcs_prog_data *prog_data)
+{
+   brw_fill_tess_info_from_shader_info(&prog_data->tess_info, &nir->info);
+
+   prog_data->input_vertices = key->input_vertices;
+   prog_data->output_vertices = nir->info.tess.tcs_vertices_out;
+
+   prog_data->instances = nir->info.tess.tcs_vertices_out;
+   prog_data->include_primitive_id =
+      BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_PRIMITIVE_ID);
+   prog_data->base.dispatch_mode = INTEL_DISPATCH_MODE_TCS_MULTI_PATCH;
+
+   /* We don't use push inputs for TCS. */
+   prog_data->base.urb_read_length = 0;
+}
+
 void
 jay_populate_prog_data(const struct intel_device_info *devinfo,
                        nir_shader *nir,
@@ -552,6 +571,8 @@ jay_populate_prog_data(const struct intel_device_info *devinfo,
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       populate_vs_prog_data(nir, devinfo, &key->vs, &prog_data->vs,
                             nr_packed_regs);
+   } else if (nir->info.stage == MESA_SHADER_TESS_CTRL) {
+      populate_tcs_prog_data(nir, &key->tcs, &prog_data->tcs);
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       int per_primitive_offsets[VARYING_SLOT_MAX];
       memset(per_primitive_offsets, -1, sizeof(per_primitive_offsets));
