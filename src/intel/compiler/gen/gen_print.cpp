@@ -449,9 +449,13 @@ private:
       }
 
       case GEN_FORMAT_SEND: {
+         const bool has_dst = translated_send_has_dst();
+
          field_sep(DST_COLUMN);
-         print_send_reg(inst->dst, false,
-                        translated_send_as_opcode ? gen_inst_send_dst_len(inst) : -1);
+         if (has_dst) {
+            print_send_reg(inst->dst, false,
+                           translated_send_as_opcode ? gen_inst_send_dst_len(inst) : -1);
+         }
 
          field_sep(SEND_SRC0_COLUMN);
          print_send_reg(inst->src[0], true,
@@ -1006,6 +1010,21 @@ private:
       const uint32_t ex_mlen_mask =
          gen_message_ex_desc(devinfo, devinfo->ver >= 20 ? 0x1f : 0xf);
       return (inst->send.ex_desc_imm & ~ex_mlen_mask) == 0;
+   }
+
+   bool
+   translated_send_has_dst() const
+   {
+      if (!translated_send_as_opcode)
+         return true;
+
+      if (is_lsc_translated_sfid(inst->send.sfid) && !inst->send.desc_is_reg) {
+         const gen_lsc_desc desc =
+            gen_lsc_desc_decode(devinfo, inst->send.desc_imm);
+         return !lsc_opcode_is_store(desc.op);
+      }
+
+      return true;
    }
 
    bool

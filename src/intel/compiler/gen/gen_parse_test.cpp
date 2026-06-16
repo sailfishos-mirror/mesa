@@ -391,6 +391,27 @@ TEST_F(GenParseTest, ParsesLscSlmSourceSyntax)
    EXPECT_EQ(insts[0].send.sfid, GEN_SFID_SLM);
 }
 
+TEST_F(GenParseTest, ParsesLscStoreWithoutNullDestination)
+{
+   set_devinfo("mtl");
+
+   ASSERT_TRUE(parse("store.slm.d32x4.a32 (16|M0) r8 r10\n"))
+      << first_error();
+
+   ASSERT_EQ(num_insts, 1);
+   EXPECT_EQ(insts[0].dst.file, GEN_ARF);
+   EXPECT_EQ(insts[0].dst.nr, GEN_ARF_NULL);
+   EXPECT_EQ(insts[0].src[0].nr, 8u);
+   EXPECT_EQ(insts[0].src[1].nr, 10u);
+   EXPECT_EQ(insts[0].send.sfid, GEN_SFID_SLM);
+   EXPECT_EQ(insts[0].send.src1_len, 8u);
+
+   const gen_message_desc msg =
+      gen_message_desc_decode(&devinfo, insts[0].send.desc_imm);
+   EXPECT_EQ(msg.msg_length, 2u);
+   EXPECT_EQ(msg.response_length, 0u);
+}
+
 TEST_F(GenParseTest, ParsesLscTypedTgmSourceSyntax)
 {
    set_devinfo("mtl");

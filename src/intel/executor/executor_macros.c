@@ -241,7 +241,7 @@ executor_macro_write(executor_context *ec, char **src, char *line)
       ralloc_asprintf_append(src,
          "mul (8) r127 %s 0x4:uw {A@1}\n"
          "add (8) r127 r127 0x%08x {A@1}\n"
-         "store.ugm.d32.a32 (8) null r127:1 %s:1 {A@1,$1}\n",
+         "store.ugm.d32.a32 (8) r127:1 %s:1 {A@1,$1}\n",
          offset_reg, base_addr, data_reg);
       executor_macro_syncnop(ec, src, "@syncnop");
       break;
@@ -253,7 +253,7 @@ executor_macro_write(executor_context *ec, char **src, char *line)
       ralloc_asprintf_append(src,
          "mul (16) r127 %s 0x4:uw {A@1}\n"
          "add (16) r127 r127 0x%08x {A@1}\n"
-         "store.ugm.d32.a32 (16) null r127:1 %s:1 {A@1,$1}\n",
+         "store.ugm.d32.a32 (16) r127:1 %s:1 {A@1,$1}\n",
          offset_reg, base_addr, data_reg);
       executor_macro_syncnop(ec, src, "@syncnop");
       break;

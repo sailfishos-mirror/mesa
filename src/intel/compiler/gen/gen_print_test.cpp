@@ -1506,6 +1506,35 @@ TEST_F(GenPrintTest, LscSlmSourceSyntaxFormatting)
              "        load.slm.d32x4.a32 (16|M0) r10:8  r8:2\n");
 }
 
+TEST_F(GenPrintTest, LscStoreOmitsNullDestination)
+{
+   set_devinfo("mtl");
+
+   gen_lsc_desc desc = {
+      .op = LSC_OP_STORE,
+      .addr_type = LSC_ADDR_SURFTYPE_FLAT,
+      .addr_size = LSC_ADDR_SIZE_A32,
+      .data_size = LSC_DATA_SIZE_D32,
+      .vect_size = LSC_VECT_SIZE_V4,
+   };
+
+   gen_inst *send = append(GEN_OP_SEND,
+                           gen_null(),
+                           grf(8, 0),
+                           grf(10, 0));
+   send->exec_size = 16;
+   send->send.sfid = GEN_SFID_SLM;
+   send->send.ex_desc_imm = 0;
+   send->send.src1_len = 8;
+   gen_message_desc msg = { .msg_length = 2, .response_length = 0 };
+   send->send.desc_imm =
+      gen_message_desc_encode(&devinfo, &msg) |
+      gen_lsc_desc_encode(&devinfo, &desc);
+   EXPECT_EQ(print_program(GEN_PRINT_VERBOSE,
+                           { .flags = GEN_PRINT_TRANSLATED_SENDS }),
+             "        store.slm.d32x4.a32 (16|M0)       r8:2   r10:8\n");
+}
+
 TEST_F(GenPrintTest, LscTypedTgmSourceSyntaxFormatting)
 {
    set_devinfo("mtl");

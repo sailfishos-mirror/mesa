@@ -1605,6 +1605,12 @@ struct gen_parser {
    }
 
    bool
+   lsc_symbolic_send_has_dst() const
+   {
+      return !lsc.valid || !lsc_opcode_is_store(lsc.desc.op);
+   }
+
+   bool
    parse_send_format()
    {
       if (inst.exec_size == 0)
@@ -1614,8 +1620,14 @@ struct gen_parser {
       int src0_length = -1;
       int src1_length = -1;
 
-      if (!parse_send_reg(inst.dst, &dst_length))
-         return false;
+      if (lsc_symbolic_send_has_dst()) {
+         if (!parse_send_reg(inst.dst, &dst_length))
+            return false;
+      } else {
+         inst.dst.file = GEN_ARF;
+         inst.dst.nr = GEN_ARF_NULL;
+         dst_length = 0;
+      }
       if (!parse_send_reg(inst.src[0], &src0_length))
          return false;
 
