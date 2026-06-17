@@ -319,7 +319,7 @@ csf_oom_handler_init(struct panfrost_context *ctx)
       /* Use different framebuffer descriptor depending on whether incremental
        * rendering has already been triggered */
       cs_load32_to(&b, counter, tiler_oom_ctx, FIELD_OFFSET(counter));
-      cs_wait_slot(&b, 0);
+      cs_wait_slot(&b, PANFROST_SB_LS);
       cs_if(&b, MALI_CS_CONDITION_GREATER, counter) {
          cs_load64_to(&b, fbd_pointer, tiler_oom_ctx, FBD_OFFSET(MIDDLE));
       }
@@ -338,13 +338,13 @@ csf_oom_handler_init(struct panfrost_context *ctx)
 #endif
 
       /* Run the fragment job and wait */
-      cs_select_endpoint_sb(&b, 3);
+      cs_select_endpoint_sb(&b, PANFROST_SB_AUX);
 #if PAN_ARCH >= 14
       cs_run_fragment2(&b, false, MALI_TILE_RENDER_ORDER_Z_ORDER);
 #else
       cs_run_fragment(&b, false, MALI_TILE_RENDER_ORDER_Z_ORDER);
 #endif
-      cs_wait_slot(&b, 3);
+      cs_wait_slot(&b, PANFROST_SB_AUX);
 
       /* Increment counter */
       cs_add_imm32(&b, counter, counter, 1);
@@ -352,9 +352,9 @@ csf_oom_handler_init(struct panfrost_context *ctx)
 
       /* Load completed chunks */
       cs_load64_to(&b, tiler_ctx, tiler_oom_ctx, FIELD_OFFSET(tiler_desc));
-      cs_wait_slot(&b, 0);
+      cs_wait_slot(&b, PANFROST_SB_LS);
       cs_load_to(&b, completed_chunks, tiler_ctx, BITFIELD_MASK(4), 10 * 4);
-      cs_wait_slot(&b, 0);
+      cs_wait_slot(&b, PANFROST_SB_LS);
 
       cs_finish_fragment(&b, false, completed_top, completed_bottom, cs_now());
 
@@ -370,9 +370,9 @@ csf_oom_handler_init(struct panfrost_context *ctx)
                       MALI_CS_OTHER_FLUSH_MODE_INVALIDATE, flush_id,
                       cs_defer(0, 0));
 
-      cs_wait_slot(&b, 0);
+      cs_wait_slot(&b, PANFROST_SB_LS);
 
-      cs_select_endpoint_sb(&b, 2);
+      cs_select_endpoint_sb(&b, PANFROST_SB_RENDER);
    }
 
    assert(cs_is_valid(&b));
@@ -487,7 +487,7 @@ GENX(csf_init_batch)(struct panfrost_batch *batch)
               CS_COMPUTE_RES | CS_TILER_RES | CS_IDVS_RES | CS_FRAG_RES);
 
    /* Set up entries */
-   csf_select_endpoint_sb(batch, 2);
+   csf_select_endpoint_sb(batch, PANFROST_SB_RENDER);
 
    batch->framebuffer = alloc_fbd(batch);
    if (!batch->framebuffer.gpu)
@@ -574,7 +574,7 @@ csf_emit_batch_end(struct panfrost_batch *batch)
    cs_flush_caches(b, MALI_CS_FLUSH_MODE_CLEAN, MALI_CS_FLUSH_MODE_CLEAN,
                    MALI_CS_OTHER_FLUSH_MODE_INVALIDATE, flush_id,
                    cs_defer(0, 0));
-   cs_wait_slot(b, 0);
+   cs_wait_slot(b, PANFROST_SB_LS);
 
    /* Finish the command stream */
    if (cs_is_valid(batch->csf.cs.builder))
@@ -1133,13 +1133,14 @@ GENX(csf_emit_fragment_job)(struct panfrost_batch *batch,
 {
    PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
 
+   csf_select_endpoint_sb(batch, PANFROST_SB_RENDER);
    struct cs_builder *b = batch->csf.cs.builder;
    struct pan_csf_tiler_oom_ctx *oom_ctx = batch->csf.tiler_oom_ctx.cpu;
 
    if (batch->draw_count > 0) {
       /* Finish tiling and wait for IDVS and tiling */
       cs_finish_tiling(b);
-      cs_wait_slot(b, 2);
+      cs_wait_slot(b, PANFROST_SB_RENDER);
       cs_vt_end(b, cs_now());
    }
 
@@ -1159,7 +1160,7 @@ GENX(csf_emit_fragment_job)(struct panfrost_batch *batch,
    if (batch->draw_count > 0) {
       struct cs_index counter = cs_reg32(b, 78);
       cs_load32_to(b, counter, cs_reg64(b, TILER_OOM_CTX_REG), 0);
-      cs_wait_slot(b, 0);
+      cs_wait_slot(b, PANFROST_SB_LS);
       cs_if(b, MALI_CS_CONDITION_GREATER, counter) {
          cs_move64_to(b, fbd_pointer,
                       oom_ctx->fbds[PAN_INCREMENTAL_RENDERING_LAST_PASS].gpu);
@@ -1173,7 +1174,7 @@ GENX(csf_emit_fragment_job)(struct panfrost_batch *batch,
 #else
    cs_run_fragment(b, false, MALI_TILE_RENDER_ORDER_Z_ORDER);
 #endif
-   cs_wait_slot(b, 2);
+   cs_wait_slot(b, PANFROST_SB_RENDER);
 
    /* Gather freed heap chunks and add them to the heap context free list
     * so they can be re-used next time the tiler heap runs out of chunks.
@@ -1185,7 +1186,7 @@ GENX(csf_emit_fragment_job)(struct panfrost_batch *batch,
       cs_move64_to(b, cs_reg64(b, 90), batch->tiler_ctx.valhall.desc);
       cs_load_to(b, cs_reg_tuple(b, 86, 4), cs_reg64(b, 90), BITFIELD_MASK(4),
                  40);
-      cs_wait_slot(b, 0);
+      cs_wait_slot(b, PANFROST_SB_LS);
       cs_finish_fragment(b, true, cs_reg64(b, 86), cs_reg64(b, 88), cs_now());
    }
 }
@@ -1264,6 +1265,8 @@ GENX(csf_launch_grid)(struct panfrost_batch *batch,
    unsigned max_thread_cnt = pan_compute_max_thread_count(
       &dev->kmod.dev->props, cs->info.work_reg_count);
 
+   csf_select_endpoint_sb(batch, PANFROST_SB_COMPUTE);
+
    if (info->indirect) {
       /* Load size in workgroups per dimension from memory */
       struct cs_index address = cs_reg64(b, 64);
@@ -1275,7 +1278,7 @@ GENX(csf_launch_grid)(struct panfrost_batch *batch,
       cs_load_to(b, grid_xyz, address, BITFIELD_MASK(3), 0);
 
       /* Wait for the load */
-      cs_wait_slot(b, 0);
+      cs_wait_slot(b, PANFROST_SB_LS);
 
       /* Copy to FAU */
       for (unsigned i = 0; i < 3; ++i) {
@@ -1287,7 +1290,7 @@ GENX(csf_launch_grid)(struct panfrost_batch *batch,
       }
 
       /* Wait for the stores */
-      cs_wait_slot(b, 0);
+      cs_wait_slot(b, PANFROST_SB_LS);
 
       /* Use run_compute with a set task axis instead of run_compute_indirect as
        * run_compute_indirect has been found to cause intermittent hangs. This
@@ -1344,6 +1347,7 @@ GENX(csf_launch_xfb)(struct panfrost_batch *batch,
 {
    PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
 
+   csf_select_endpoint_sb(batch, PANFROST_SB_RENDER);
    struct cs_builder *b = batch->csf.cs.builder;
 
    cs_move64_to(b, cs_sr_reg64(b, COMPUTE, TSD_0), batch->tls.gpu);
@@ -1377,7 +1381,7 @@ GENX(csf_launch_xfb)(struct panfrost_batch *batch,
    csf_emit_shader_regs(batch, MESA_SHADER_VERTEX,
                         batch->rsd[MESA_SHADER_VERTEX]);
    /* force a barrier to avoid read/write sync issues with buffers */
-   cs_wait_slot(b, 2);
+   cs_wait_slot(b, PANFROST_SB_RENDER);
 
    /* XXX: Choose correctly */
    cs_run_compute(b, 1, MALI_TASK_AXIS_Z, cs_shader_res_sel(0, 0, 0, 0));
@@ -1671,6 +1675,7 @@ GENX(csf_launch_draw)(struct panfrost_batch *batch,
 {
    PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
 
+   csf_select_endpoint_sb(batch, PANFROST_SB_RENDER);
    struct cs_builder *b = batch->csf.cs.builder;
 
    uint32_t flags_override = csf_emit_draw_state(batch, info, drawid_offset);
@@ -1710,6 +1715,7 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
 {
    PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
 
+   csf_select_endpoint_sb(batch, PANFROST_SB_RENDER);
    struct cs_builder *b = batch->csf.cs.builder;
 
    uint32_t flags_override = csf_emit_draw_state(batch, info, drawid_offset);
@@ -1741,7 +1747,7 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
          cs_move32_to(b, cs_sr_reg32(b, IDVS, INDEX_BUFFER_SIZE), 0);
       }
 
-      cs_wait_slot(b, 0);
+      cs_wait_slot(b, PANFROST_SB_LS);
 #if PAN_ARCH >= 12
       cs_run_idvs2(b, flags_override, true, drawid,
                   MALI_IDVS_SHADING_MODE_EARLY);

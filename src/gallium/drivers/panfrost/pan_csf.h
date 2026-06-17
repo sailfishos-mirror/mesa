@@ -41,6 +41,30 @@ struct pan_csf_tiler_oom_ctx {
    uint64_t dump_addr;
 } PACKED;
 
+/*
+ * On CSF GPUs each GPU work submission targets a scoreboard slot (via
+ * cs_select_endpoint_sb). The slot signals when that work completes, allowing
+ * other CS queue operations to synchronize against it with cs_wait_slot(), or
+ * to defer a side-effect (such as a timestamp write) until completion via
+ * cs_defer() / sb_wait_mask.
+ *
+ * Render and compute work can be in flight at the same time, so they must
+ * each signal a distinct slot. Without separate slots it would be impossible
+ * to defer a timestamp until only the render (or only the compute) job
+ * finishes; cs_wait_slot() on a shared slot would stall until both are done.
+ *
+ * Slot 0 is reserved for internal CS memory operations (loads/stores). Slot 1
+ * is assigned for deferred sync. Slots 2-4 are assigned here to the three
+ * work categories that panfrost issues concurrently.
+ */
+enum panfrost_scoreboard_slot {
+   PANFROST_SB_LS       = 0,
+   PANFROST_SB_DEFERRED = 1,
+   PANFROST_SB_RENDER   = 2,
+   PANFROST_SB_COMPUTE  = 3,
+   PANFROST_SB_AUX      = 4,
+};
+
 struct panfrost_csf_batch {
    /* CS related fields. */
    struct {
