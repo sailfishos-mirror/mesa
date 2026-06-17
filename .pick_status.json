@@ -3564,7 +3564,7 @@
         "description": "nouveau: Fix return of dangling pointer in nouveau_fence_new",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b3aae9c55684eab85128580607a81a9b7d3b86c6",
         "notes": null
