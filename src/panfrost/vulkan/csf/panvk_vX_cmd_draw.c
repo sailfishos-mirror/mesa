@@ -586,7 +586,6 @@ translate_prim_topology(VkPrimitiveTopology in)
       return MALI_DRAW_MODE_TRIANGLES_ADJACENCY;
    case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY:
       return MALI_DRAW_MODE_TRIANGLE_STRIP_ADJACENCY;
-   case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
    default:
       UNREACHABLE("Invalid primitive type");
    }
