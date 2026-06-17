@@ -1109,10 +1109,17 @@ typedef struct jay_block {
    struct jay_temp_regs temps_out;
 
    /**
-    * Is this block a loop header?  If not, all of its predecessors precede it
-    * in source order.
+    * Is this block a logical loop header?  If not, all of its predecessors
+    * precede it in source order.
     */
    bool loop_header;
+
+   /**
+    * Is this a physical loop header, in the sense of using a WHILE instruction?
+    * This can be set without loop_header in the case of unconditional
+    * termination.
+    */
+   bool physical_loop_header;
 
    /** True if all non-exited lanes execute this block together */
    bool uniform;

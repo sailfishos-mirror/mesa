@@ -2670,7 +2670,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
 
    /* Make a block for the loop body, which is also the loop header */
    jay_block *loop_header = jay_create_block(nj);
-   loop_header->loop_header = true;
+   loop_header->physical_loop_header = true;
 
    /* The current block falls through to the start of the loop */
    jay_block_add_successor(nj->current_block, loop_header, GPR);
@@ -2686,6 +2686,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
    } else {
       jay_block_add_successor(nj->current_block, loop_header, GPR);
       jay_WHILE(b);
+      loop_header->loop_header = true;
    }
 
    /* Pop */

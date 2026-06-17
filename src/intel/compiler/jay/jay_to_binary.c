@@ -709,7 +709,7 @@ jay_to_binary(jay_shader *s,
    /* TODO: Multifunction properly */
    jay_foreach_function(s, f) {
       jay_foreach_block(f, block) {
-         if (block->loop_header) {
+         if (block->physical_loop_header) {
             util_dynarray_append(&jc.loop_stack, jc.num_insts);
          }
 
