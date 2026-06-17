@@ -3264,7 +3264,7 @@
         "description": "pan/bi: check if preds are dominated by header in bi_find_loop_blocks",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6535a3b6b3a8fcd95790e9232c2fc0a2c81df58f",
         "notes": null
