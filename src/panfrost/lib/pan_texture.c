@@ -4,6 +4,7 @@
  * Copyright (C) 2018-2019 Alyssa Rosenzweig
  * Copyright (C) 2019-2020 Collabora, Ltd.
  * Copyright (C) 2024 Arm Ltd.
+ * Copyright (C) 2026 Google LLC
  * SPDX-License-Identifier: MIT
  */
 
@@ -1192,6 +1193,22 @@ pan_texture_get_extent(const struct pan_image_view *iview,
       .height = u_minify(iprops->extent_px.height, iview->first_level),
       .depth = u_minify(iprops->extent_px.depth, iview->first_level),
    };
+
+   /* If the image is YUV but the view isn't, adjust the extent to take
+    * subsampling into account.
+    */
+   if (pan_format_is_yuv(iprops->format) && !pan_format_is_yuv(iview->format)) {
+      /* We expect single-plane view if the view doesn't have a YUV format. */
+      assert(pan_image_view_get_plane_mask(iview) == 1);
+
+      const struct pan_image_plane_ref first_plane =
+         pan_image_view_get_first_plane(iview);
+
+      extent_px.width = util_format_get_plane_width(
+         iprops->format, first_plane.plane_idx, extent_px.width);
+      extent_px.height = util_format_get_plane_height(
+         iprops->format, first_plane.plane_idx, extent_px.height);
+   }
 
    if (util_format_is_compressed(iprops->format) &&
        !util_format_is_compressed(iview->format)) {
