@@ -13264,7 +13264,6 @@ radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 
    const VkShaderStageFlags stages =
       VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT | (task_shader ? VK_SHADER_STAGE_TASK_BIT_EXT : 0);
-   const bool need_task_semaphore = task_shader && radv_flush_gang_leader_semaphore(cmd_buffer);
 
    ASSERTED const unsigned cdw_max = radeon_check_space(device->ws, cs->b, 4096 + 128 * (drawCount - 1));
    ASSERTED const unsigned ace_cdw_max =
@@ -13307,7 +13306,7 @@ radv_before_taskmesh_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_
    if (task_shader) {
       radv_gang_cache_flush(cmd_buffer);
 
-      if (need_task_semaphore) {
+      if (radv_flush_gang_leader_semaphore(cmd_buffer)) {
          radv_wait_gang_leader(cmd_buffer);
       }
    }
