@@ -5984,7 +5984,7 @@
         "description": "nvk: use unsigned comparison in UBO bounds checks",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
