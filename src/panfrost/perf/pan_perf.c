@@ -49,17 +49,47 @@ pan_lookup_counters(const char *name)
 }
 
 void
-pan_perf_init(struct pan_perf *perf, int fd)
+pan_perf_destroy(struct pan_perf *perf)
+{
+   if (!perf)
+      return;
+
+   if (perf->dev)
+      pan_kmod_dev_destroy(perf->dev);
+
+   free(perf);
+}
+
+struct pan_perf *
+pan_perf_create(int fd)
 {
    ASSERTED drmVersionPtr version = drmGetVersion(fd);
 
    /* We only support panfrost at the moment. */
-   assert(version && !strcmp(version->name, "panfrost"));
+   if (!version) {
+      mesa_loge("Not a DRM device");
+      return NULL;
+   }
+
+   if (!strcmp(version->name, "panfrost")) {
+      mesa_loge("Kerner driver not supported");
+      drmFreeVersion(version);
+      return NULL;
+   }
 
    drmFreeVersion(version);
 
+   struct pan_perf *perf = calloc(1, sizeof(*perf));
+   if (!perf) {
+      mesa_loge("Could not allocate pan_perf instance");
+      return NULL;
+   }
+
    perf->dev = pan_kmod_dev_create(fd, 0, NULL);
-   assert(perf->dev);
+   if (!perf->dev) {
+      mesa_loge("Could not create kmod device");
+      goto err_destroy_perf;
+   }
 
    struct pan_kmod_dev_props props = perf->dev->props;
 
@@ -69,13 +99,16 @@ pan_perf_init(struct pan_perf *perf, int fd)
 
    const struct pan_model *model =
       pan_get_model(props.gpu_id, props.gpu_variant);
-   if (model == NULL)
-      UNREACHABLE("Invalid GPU ID");
+   if (model == NULL) {
+      mesa_loge("GPU not supported");
+      goto err_destroy_perf;
+   }
 
    perf->cfg = pan_lookup_counters(model->performance_counters);
-
-   if (perf->cfg == NULL)
-      UNREACHABLE("Performance counters missing!");
+   if (perf->cfg == NULL) {
+      mesa_loge("Performance counters missing!");
+      goto err_destroy_perf;
+   }
 
    // Generally counter blocks are laid out in the following order:
    // Job manager, tiler, one or more L2 caches, and one or more shader cores.
@@ -95,6 +128,12 @@ pan_perf_init(struct pan_perf *perf, int fd)
       MALI_PERF_MAX_COUNTERS_PER_BLOCK * 2;
    perf->category_offset[MALI_PERF_BLOCK_SHADER_CORE] =
       MALI_PERF_MAX_COUNTERS_PER_BLOCK * (2 + l2_slices);
+
+   return perf;
+
+err_destroy_perf:
+   pan_perf_destroy(perf);
+   return NULL;
 }
 
 static int

@@ -19,10 +19,9 @@ main(void)
       exit(1);
    }
 
-   void *ctx = ralloc_context(NULL);
-   struct pan_perf *perf = rzalloc(ctx, struct pan_perf);
-
-   pan_perf_init(perf, fd);
+   struct pan_perf *perf = pan_perf_create(fd);
+   if (!perf)
+      return -1;
 
    int ret = pan_perf_enable(perf);
 
@@ -57,5 +56,6 @@ main(void)
       exit(1);
    }
 
+   pan_perf_destroy(perf);
    return 0;
 }

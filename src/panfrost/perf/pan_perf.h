@@ -64,7 +64,9 @@ struct pan_perf {
 uint32_t pan_perf_counter_read(const struct pan_perf_counter *counter,
                                const struct pan_perf *perf);
 
-void pan_perf_init(struct pan_perf *perf, int fd);
+struct pan_perf *pan_perf_create(int fd);
+
+void pan_perf_destroy(struct pan_perf *perf);
 
 int pan_perf_enable(struct pan_perf *perf);
 

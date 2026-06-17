@@ -34,19 +34,17 @@ PanfrostDevice::operator=(PanfrostDevice &&o)
 }
 
 PanfrostPerf::PanfrostPerf(const PanfrostDevice &dev)
-    : perf{reinterpret_cast<struct pan_perf *>(
-         rzalloc(nullptr, struct pan_perf))}
 {
-   assert(perf);
    assert(dev.fd >= 0);
-   pan_perf_init(perf, dev.fd);
+   perf = pan_perf_create(dev.fd);
+   assert(perf);
 }
 
 PanfrostPerf::~PanfrostPerf()
 {
    if (perf) {
       pan_perf_disable(perf);
-      ralloc_free(perf);
+      pan_perf_destroy(perf);
    }
 }
 
