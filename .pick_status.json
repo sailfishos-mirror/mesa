@@ -7734,7 +7734,7 @@
         "description": "nvk: Default to output primitives as lines for tesselation parameters",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "99bc2d9775e3fc4fd982667292bb0545a2e3e25d",
         "notes": null
