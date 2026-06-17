@@ -409,6 +409,28 @@ strict_import(struct panvk_image *image)
           vk_format_get_ycbcr_info(image->vk.format);
 }
 
+static struct pan_image_props
+get_pan_image_props(const struct vk_image *image, enum pipe_format pfmt,
+                    uint32_t plane)
+{
+   return (struct pan_image_props){
+      .modifier = image->drm_format_mod,
+      .format = pfmt,
+      .dim = panvk_image_type_to_mali_tex_dim(image->image_type),
+      .extent_px =
+         {
+            .width = vk_format_get_plane_width(image->format, plane,
+                                               image->extent.width),
+            .height = vk_format_get_plane_height(image->format, plane,
+                                                 image->extent.height),
+            .depth = image->extent.depth,
+         },
+      .array_size = image->array_layers,
+      .nr_samples = image->samples,
+      .nr_slices = image->mip_levels,
+   };
+}
+
 static VkResult
 panvk_image_init_layouts(struct panvk_image *image,
                          const VkImageCreateInfo *pCreateInfo)
@@ -441,21 +463,7 @@ panvk_image_init_layouts(struct panvk_image *image,
       }
 
       image->planes[plane].image = (struct pan_image){
-         .props = {
-            .modifier = image->vk.drm_format_mod,
-            .format = pfmt,
-            .dim = panvk_image_type_to_mali_tex_dim(image->vk.image_type),
-            .extent_px = {
-               .width = vk_format_get_plane_width(image->vk.format, plane,
-                                                  image->vk.extent.width),
-               .height = vk_format_get_plane_height(image->vk.format, plane,
-                                                    image->vk.extent.height),
-               .depth = image->vk.extent.depth,
-            },
-            .array_size = image->vk.array_layers,
-            .nr_samples = image->vk.samples,
-            .nr_slices = image->vk.mip_levels,
-         },
+         .props = get_pan_image_props(&image->vk, pfmt, plane),
          .mod_handler = mod_handler,
          .planes = {&image->planes[plane].plane},
       };
