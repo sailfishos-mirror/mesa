@@ -260,16 +260,18 @@ panvk_image_can_use_mod(struct panvk_image *image,
          return false;
    }
 
-   if (mod == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED) {
-      /* Multiplanar YUV with U-interleaving isn't supported by the HW. We
-       * also need to make sure images that can be aliased to planes of
-       * multi-planar images remain compatible with the aliased images, so
-       * don't allow U-interleaving for those either.
-       */
-      if (vk_format_get_plane_count(image->vk.format) > 1 ||
-          vk_image_can_be_aliased_to_yuv_plane(&image->vk))
-         return false;
+   /* Multiplanar YUV with U-interleaving or interleaved_64k isn't supported by
+    * the HW. We also need to make sure images that can be aliased to planes of
+    * multi-planar images remain compatible with the aliased images, so don't
+    * allow U-interleaving or interleaved_64k for those either.
+    */
+   if ((mod == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED ||
+        mod == DRM_FORMAT_MOD_ARM_INTERLEAVED_64K) &&
+       (vk_format_get_plane_count(image->vk.format) > 1 ||
+        vk_image_can_be_aliased_to_yuv_plane(&image->vk)))
+      return false;
 
+   if (mod == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED) {
       /* If we're dealing with a compressed format that requires non-compressed
        * views we can't use U_INTERLEAVED tiling because the tiling is different
        * between compressed and non-compressed formats. If we wanted to support
