@@ -320,7 +320,7 @@ brw_shader::assign_curb_setup()
    uint64_t used = 0;
    foreach_block_and_inst(block, brw_inst, inst, cfg) {
       for (unsigned int i = 0; i < inst->sources; i++) {
-	 if (inst->src[i].file != UNIFORM)
+         if (inst->src[i].file != UNIFORM)
             continue;
 
          struct brw_reg brw_reg;
