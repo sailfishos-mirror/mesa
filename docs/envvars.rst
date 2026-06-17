@@ -1569,6 +1569,8 @@ RADV driver environment variables
    ``nocachecompat``
       disable changes to code generation which increases shader cache compatiblity
       between devices
+   ``noheap``
+      disable VK_EXT_descriptor_heap
 
 .. envvar:: RADV_QUEUE_DISABLE
 
@@ -1646,8 +1648,6 @@ RADV driver environment variables
    ``emulate_rt``
       forces ray-tracing to be emulated in software on GFX10_3+ and enables
       rt extensions with older hardware.
-   ``heap``
-      enable experimental implementation of VK_EXT_descriptor_heap
    ``hic``
       enable experimental implementation of VK_EXT_host_image_copy on GFX10
    ``sparse``

@@ -837,7 +837,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_depth_clip_enable = true,
       .EXT_depth_range_unrestricted = true,
       .EXT_descriptor_buffer = true,
-      .EXT_descriptor_heap = instance->experimental_flags & RADV_EXPERIMENTAL_DESCRIPTOR_HEAP,
+      .EXT_descriptor_heap = !(instance->debug_flags & RADV_DEBUG_NO_HEAP),
       .EXT_descriptor_indexing = true,
       .EXT_device_address_binding_report = true,
       .EXT_device_fault = true,
