@@ -434,6 +434,22 @@ alloc_fbd(struct panfrost_batch *batch)
 }
 #endif /* PAN_ARCH >= 14 */
 
+/*
+ * Wrap on cs_select_endpoint_sb to avoid unnecessary slot assignments.
+ *
+ * FIXME: Note that this would stop to work on v11+ if at some point panfrost
+ * starts to use cs_next_sb_entry as panvk does.
+ */
+static void
+csf_select_endpoint_sb(struct panfrost_batch *batch, unsigned slot)
+{
+   if (batch->csf.cs.current_ep_sb == slot)
+      return;
+
+   batch->csf.cs.current_ep_sb = slot;
+   cs_select_endpoint_sb(batch->csf.cs.builder, slot);
+}
+
 int
 GENX(csf_init_batch)(struct panfrost_batch *batch)
 {
@@ -465,13 +481,13 @@ GENX(csf_init_batch)(struct panfrost_batch *batch)
 
    /* Setup the queue builder */
    batch->csf.cs.builder = malloc(sizeof(struct cs_builder));
+   batch->csf.cs.current_ep_sb = ~0u;
    cs_builder_init(batch->csf.cs.builder, &conf, queue);
    cs_req_res(batch->csf.cs.builder,
               CS_COMPUTE_RES | CS_TILER_RES | CS_IDVS_RES | CS_FRAG_RES);
 
    /* Set up entries */
-   struct cs_builder *b = batch->csf.cs.builder;
-   cs_select_endpoint_sb(b, 2);
+   csf_select_endpoint_sb(batch, 2);
 
    batch->framebuffer = alloc_fbd(batch);
    if (!batch->framebuffer.gpu)

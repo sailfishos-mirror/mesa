@@ -50,6 +50,12 @@ struct panfrost_csf_batch {
       /* CS state, written through the CS, and checked when PAN_MESA_DEBUG=sync.
        */
       struct pan_ptr state;
+
+      /* Currently selected endpoint scoreboard slot, or ~0u if none has
+       * been selected yet. Used to skip redundant cs_select_endpoint_sb
+       * calls.
+       */
+      unsigned current_ep_sb;
    } cs;
 
    /* Pool used to allocate CS chunks. */
