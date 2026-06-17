@@ -52,8 +52,15 @@ brw_emit_gs_thread_end(brw_shader &s)
       brw_reg srcs[URB_LOGICAL_NUM_SRCS];
       srcs[URB_LOGICAL_SRC_HANDLE] = s.gs_payload().urb_handles;
       srcs[URB_LOGICAL_SRC_DATA] = brw_imm_ud(0);
-      srcs[URB_LOGICAL_SRC_CHANNEL_MASK] = brw_imm_ud(0);
-      urb = abld.URB_WRITE(srcs, ARRAY_SIZE(srcs));
+
+      if (s.devinfo->ver >= 20) {
+         abld.uniform().MOV(brw_flag_reg(0, 0), brw_imm_uw(0));
+         urb = abld.URB_WRITE(srcs, ARRAY_SIZE(srcs));
+         urb->predicate = BRW_PREDICATE_NORMAL;
+      } else {
+         srcs[URB_LOGICAL_SRC_CHANNEL_MASK] = brw_imm_ud(0);
+         urb = abld.URB_WRITE(srcs, ARRAY_SIZE(srcs));
+      }
       urb->components = 1;
    } else {
       brw_reg srcs[URB_LOGICAL_NUM_SRCS];

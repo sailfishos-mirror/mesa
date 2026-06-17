@@ -212,6 +212,7 @@ lower_urb_write_logical_send_xe2(const brw_builder &bld, brw_urb_inst *urb)
    brw_reg desc = brw_imm_ud(0);
    if (cmask.file == IMM) {
       assert(cmask.type == BRW_TYPE_UD);
+      assert(cmask.ud != 0);
       num_channels_or_cmask = cmask.ud;
    } else if (cmask.file != BAD_FILE) {
       const brw_builder &ubld = bld.exec_all().group(8, 0);
