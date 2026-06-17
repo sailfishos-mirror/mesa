@@ -82,7 +82,6 @@ struct kk_meta_save {
    struct kk_conditional_rendering_state cond_render;
    struct kk_descriptor_set *desc0;
    struct kk_push_descriptor_set *push_desc0;
-   mtl_buffer *vb0_handle;
    struct kk_addr_range vb0;
    struct kk_buffer_address desc0_set_addr;
    bool has_push_desc0;
@@ -122,7 +121,6 @@ kk_meta_begin(struct kk_cmd_buffer *cmd, struct kk_meta_save *save,
    save->cond_render = cmd->state.cond_render;
    cmd->state.cond_render.enabled = false;
 
-   save->vb0_handle = cmd->state.gfx.vb.handles[0];
    save->vb0 = cmd->state.gfx.vb.addr_range[0];
 
    save->desc0 = desc->sets[0];
@@ -175,7 +173,6 @@ kk_meta_end(struct kk_cmd_buffer *cmd, struct kk_meta_save *save,
          save->pipeline.gfx.is_ds_dynamic;
 
       cmd->state.gfx.vb.addr_range[0] = save->vb0;
-      cmd->state.gfx.vb.handles[0] = save->vb0_handle;
       cmd->state.gfx.dirty |= KK_DIRTY_VB;
 
       cmd->state.gfx.occlusion.mode = save->pipeline.gfx.occlusion;

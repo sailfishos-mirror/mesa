@@ -151,17 +151,14 @@ struct kk_graphics_state {
 
    /* Index buffer */
    struct {
-      mtl_buffer *handle;
-      uint64_t buffer_size;
-      uint64_t range;
-      uint64_t offset;
+      struct kk_addr_range gpu;
       uint8_t bytes_per_index;
+      uint64_t null_addr;
    } index;
 
    /* Vertex buffers */
    struct {
       struct kk_addr_range addr_range[KK_MAX_VBUFS];
-      mtl_buffer *handles[KK_MAX_VBUFS];
    } vb;
 
    /* Tessellation state */

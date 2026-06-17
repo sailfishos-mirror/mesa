@@ -114,11 +114,10 @@ kk_CmdDispatchBase(VkCommandBuffer commandBuffer, uint32_t baseGroupX,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-kk_CmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
-                       VkDeviceSize offset)
+kk_CmdDispatchIndirect2KHR(VkCommandBuffer commandBuffer,
+                           const VkDispatchIndirect2InfoKHR *pInfo)
 {
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(kk_buffer, buffer, _buffer);
 
    struct kk_descriptor_state *desc = &cmd->state.cs.descriptors;
    desc->root_dirty |= desc->root.cs.base_group[0] != 0;
@@ -139,8 +138,7 @@ kk_CmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
          return;
       }
 
-      kk_predicate_compute(cmd, patched.gpu,
-                           vk_buffer_address(&buffer->vk, offset));
+      kk_predicate_compute(cmd, patched.gpu, pInfo->addressRange.address);
 
       /* Flush compute state after predication dispatch */
       kk_flush_compute_state(cmd);
@@ -148,7 +146,7 @@ kk_CmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
                                                      local_size);
    } else {
       kk_flush_compute_state(cmd);
-      uint64_t addr = mtl_buffer_get_gpu_address(buffer->mtl_handle) + offset;
-      mtl_dispatch_threadgroups_with_indirect_buffer(encoder, addr, local_size);
+      mtl_dispatch_threadgroups_with_indirect_buffer(
+         encoder, pInfo->addressRange.address, local_size);
    }
 }
