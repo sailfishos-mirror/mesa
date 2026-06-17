@@ -559,7 +559,12 @@ emit(struct jay_codegen *jc,
       }
       break;
 
-   case JAY_OPCODE_SHUFFLE:
+   case JAY_OPCODE_SHUFFLE: {
+      /* Use a dedicated address register for broadcasts to avoid interfering
+       * with a0.0 users. This affects UGPR spilling.
+       */
+      unsigned addr = gen->exec_size == 1 ? (4 * 2) : 0;
+
       if (idx_in_macro == 0) {
          assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
          struct jay_register_block block =
@@ -570,17 +575,18 @@ emit(struct jay_codegen *jc,
             ((I->src[0].reg - block.start_gpr) * 4 * f->shader->dispatch_width);
 
          gen->opcode = GEN_OP_ADD;
-         gen->dst = gen_address(0);
+         gen->dst = gen_address(addr);
          gen->src[0] = gen_subscript(jc->devinfo, gen->src[1], GEN_TYPE_UW, 0);
          gen->src[1] = gen_imm_uw(offset_B);
       } else {
-         gen->src[0] = gen_grf(0, 0);
+         gen->src[0] = gen_grf(0, addr);
          gen->src[0].type = GEN_TYPE_UD;
          gen->src[0].indirect = true;
          gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
          gen->src[0].addr_imm = 0;
       }
       break;
+   }
 
    case JAY_OPCODE_HALT:
       if (jay_halt_predicate_all(I)) {
