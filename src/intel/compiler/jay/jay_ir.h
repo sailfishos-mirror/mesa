@@ -886,6 +886,12 @@ jay_is_shuffle_like(const jay_inst *I)
           I->op == JAY_OPCODE_BROADCAST_IMM;
 }
 
+static inline bool
+jay_clobbers_address_reg(const jay_inst *I)
+{
+   return I->op == JAY_OPCODE_SHUFFLE;
+}
+
 /*
  * Return the required alignment for the register assigned to a given source.
  */

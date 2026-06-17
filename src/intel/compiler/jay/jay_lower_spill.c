@@ -129,7 +129,7 @@ jay_lower_spill(jay_function *func)
             }
 
             jay_remove_instruction(I);
-         } else if (address_valid && I->op == JAY_OPCODE_SHUFFLE) {
+         } else if (address_valid && jay_clobbers_address_reg(I)) {
             /* Shuffles implicitly clobber the address register. Spill it. */
             jay_MOV(&b, sp_0, ADDRESS_REG);
             address_valid = false;
