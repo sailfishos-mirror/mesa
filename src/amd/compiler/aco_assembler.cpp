@@ -1467,8 +1467,6 @@ fix_exports(asm_context& ctx, std::vector<uint32_t>& out, Program* program)
                exported = true;
                break;
             }
-         } else if ((*it)->definitions.size() && (*it)->definitions[0].physReg() == exec) {
-            break;
          }
          ++it;
       }
