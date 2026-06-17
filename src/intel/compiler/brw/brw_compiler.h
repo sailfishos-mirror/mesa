@@ -608,6 +608,9 @@ struct brw_fs_prog_data {
     */
    float min_sample_shading;
 
+   /** Whether this shader uses the FS config push data value */
+   bool uses_fs_config;
+
    /** Should this shader be dispatched per-sample */
    enum intel_sometimes persample_dispatch;
 
@@ -621,11 +624,6 @@ struct brw_fs_prog_data {
     * SampleMask to generate a new coverage mask.
     */
    enum intel_sometimes alpha_to_coverage;
-
-   /**
-    * Whether the shader is dispatch with a preceeding mesh shader.
-    */
-   enum intel_sometimes mesh_input;
 
    /*
     * Provoking vertex may be dynamically set to last and we need to know
@@ -692,20 +690,6 @@ struct brw_fs_prog_data {
    uint8_t urb_setup_attribs[VARYING_SLOT_MAX];
    uint8_t urb_setup_attribs_count;
 };
-
-static inline bool
-brw_fs_prog_data_is_dynamic(const struct brw_fs_prog_data *prog_data)
-{
-   return prog_data->mesh_input == INTEL_SOMETIMES ||
-      (prog_data->vertex_attributes_bypass &&
-       prog_data->provoking_vertex_last == INTEL_SOMETIMES) ||
-      prog_data->alpha_to_coverage == INTEL_SOMETIMES ||
-      prog_data->coarse_pixel_dispatch == INTEL_SOMETIMES ||
-      prog_data->persample_dispatch == INTEL_SOMETIMES ||
-      /* We only care as long as fully covered is used */
-      (prog_data->conservative_raster == INTEL_SOMETIMES &&
-       prog_data->uses_fully_covered);
-}
 
 #ifdef GFX_VERx10
 

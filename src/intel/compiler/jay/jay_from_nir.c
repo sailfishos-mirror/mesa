@@ -1498,6 +1498,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 
    case nir_intrinsic_load_fs_config_intel:
+      s->prog_data->fs.uses_fs_config = true;
       jay_MOV(b, dst,
               nj->payload.push_data[s->prog_data->fs.fs_config_param / 4]);
       break;

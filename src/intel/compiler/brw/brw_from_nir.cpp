@@ -3444,7 +3444,6 @@ emit_sampleid_setup(nir_to_brw_state &ntb)
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
    ASSERTED brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
-   struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
    const brw_builder abld = bld.annotate("compute sample id");
    brw_reg sample_id = abld.vgrf(BRW_TYPE_UD);
@@ -3500,8 +3499,7 @@ emit_sampleid_setup(nir_to_brw_state &ntb)
    abld.AND(sample_id, tmp, brw_imm_w(0xf));
 
    if (key->multisample_fbo == INTEL_SOMETIMES) {
-      brw_check_dynamic_fs_config(abld, fs_prog_data,
-                                  INTEL_FS_CONFIG_MULTISAMPLE_FBO);
+      brw_check_dynamic_fs_config(abld, INTEL_FS_CONFIG_MULTISAMPLE_FBO);
       set_predicate(BRW_PREDICATE_NORMAL,
                     abld.SEL(sample_id, sample_id, brw_imm_ud(0)));
    }
@@ -3953,10 +3951,7 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
          brw_reg flag_reg;
          struct brw_fs_prog_key *fs_prog_key = (struct brw_fs_prog_key *) s.key;
          if (fs_prog_key->multisample_fbo == INTEL_SOMETIMES) {
-            struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
-
             brw_check_dynamic_fs_config(bld.exec_all().group(8, 0),
-                                        fs_prog_data,
                                         INTEL_FS_CONFIG_MULTISAMPLE_FBO);
             flag_reg = brw_flag_reg(0, 0);
          }

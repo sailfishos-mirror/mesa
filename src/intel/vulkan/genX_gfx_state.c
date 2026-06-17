@@ -850,10 +850,8 @@ update_fs_config(struct anv_gfx_dynamic_state *hw_state,
    if (!fs_prog_data)
       return;
 
-   /* If we have any dynamic bits here, we might need to update the value
-    * in the push constant for the shader.
-    */
-   if (!brw_fs_prog_data_is_dynamic(fs_prog_data))
+   /* Only update the value if the shader uses it. */
+   if (!fs_prog_data->uses_fs_config)
       return;
 
    UNUSED const struct brw_mesh_prog_data *mesh_prog_data = get_gfx_mesh_prog_data(gfx);

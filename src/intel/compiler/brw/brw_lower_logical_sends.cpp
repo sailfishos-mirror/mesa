@@ -258,7 +258,7 @@ setup_color_payload(const brw_builder &bld, brw_reg *dst, brw_reg color,
 
 static void
 lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
-                            const struct brw_fs_prog_data *prog_data,
+                            struct brw_fs_prog_data *prog_data,
                             const brw_fs_prog_key *key,
                             const brw_fs_thread_payload &fs_payload)
 {
@@ -484,8 +484,7 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
    send->has_side_effects = true;
 
    if (double_rt_writes) {
-      brw_check_dynamic_fs_config(bld, prog_data,
-                                  INTEL_FS_CONFIG_COARSE_RT_WRITES);
+      brw_check_dynamic_fs_config(bld, INTEL_FS_CONFIG_COARSE_RT_WRITES);
       bld.IF(BRW_PREDICATE_NORMAL);
       {
          brw_send_inst *coarse_inst = brw_clone_inst(*bld.shader, send)->as_send();

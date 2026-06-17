@@ -158,8 +158,7 @@ brw_emit_interpolation_setup(brw_shader &s)
          ubld.MOV(cps_size, brw_imm_ud(0x00000101));
          break;
       case INTEL_SOMETIMES:
-         brw_check_dynamic_fs_config(ubld, fs_prog_data,
-                                     INTEL_FS_CONFIG_COARSE_RT_WRITES);
+         brw_check_dynamic_fs_config(ubld, INTEL_FS_CONFIG_COARSE_RT_WRITES);
 
          set_predicate_inv(BRW_PREDICATE_NORMAL, false,
                            ubld.MOV(cps_size, r1_0));
@@ -291,8 +290,7 @@ brw_emit_interpolation_setup(brw_shader &s)
       const brw_builder dbld =
          abld.exec_all().group(MIN2(16, s.dispatch_width) * 2, 0);
 
-      brw_check_dynamic_fs_config(dbld, fs_prog_data,
-                                  INTEL_FS_CONFIG_COARSE_RT_WRITES);
+      brw_check_dynamic_fs_config(dbld, INTEL_FS_CONFIG_COARSE_RT_WRITES);
 
       int_pixel_offset_x = dbld.vgrf(BRW_TYPE_UW);
       set_predicate(BRW_PREDICATE_NORMAL,
@@ -468,8 +466,7 @@ brw_emit_interpolation_setup(brw_shader &s)
          uint8_t *sample_barys = payload.barycentric_coord_reg[sample_mode];
          assert(barys[0] && sample_barys[0]);
 
-         brw_check_dynamic_fs_config(ubld, fs_prog_data,
-                                     INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
+         brw_check_dynamic_fs_config(ubld, INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
 
          for (unsigned j = 0; j < s.dispatch_width / 8; j++) {
             set_predicate(
@@ -869,7 +866,6 @@ brw_nir_populate_fs_prog_data(nir_shader *shader,
       key->alpha_to_coverage : INTEL_NEVER;
 
    assert(devinfo->verx10 >= 125 || key->mesh_input == INTEL_NEVER);
-   prog_data->mesh_input = key->mesh_input;
 
    assert(devinfo->verx10 >= 200 || key->provoking_vertex_last == INTEL_NEVER);
    prog_data->provoking_vertex_last = key->provoking_vertex_last;
