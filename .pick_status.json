@@ -7854,7 +7854,7 @@
         "description": "fd: lrz_block in fdl6_lrz_layout_init() should not be static",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "14a23e8b3e5560f79ff84f790f986d613356cca2",
         "notes": null
