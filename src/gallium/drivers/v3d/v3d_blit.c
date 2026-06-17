@@ -127,6 +127,7 @@ v3d_render_blit(struct pipe_context *ctx, struct pipe_blit_info *info)
                 mesa_loge("Blit unsupported %s -> %s",
                           util_format_short_name(info->src.format),
                           util_format_short_name(info->dst.format));
+                pipe_resource_reference(&tiled, NULL);
                 return;
         }
 
