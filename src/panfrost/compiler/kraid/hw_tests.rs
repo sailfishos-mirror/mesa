@@ -531,6 +531,48 @@ pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Display) {
 }
 
 #[test]
+fn test_op_csel() {
+    const DATA_TYPES: &'static [DataType] = &[
+        DataType::S32,
+        DataType::U32,
+        DataType::F32,
+        DataType::V2S16,
+        DataType::V2U16,
+        DataType::V2F16,
+    ];
+
+    const CMP_OPS: &'static [CmpOp] = &[
+        CmpOp::Eq,
+        CmpOp::Gt,
+        CmpOp::Ge,
+        CmpOp::Ne,
+        CmpOp::Lt,
+        CmpOp::Le,
+        CmpOp::GtLt,
+        CmpOp::Total,
+    ];
+
+    for &cmp_type in DATA_TYPES {
+        for &cmp_op in CMP_OPS {
+            if cmp_type.num_type() != NumericType::Float
+                && matches!(cmp_op, CmpOp::GtLt | CmpOp::Total)
+            {
+                continue;
+            }
+
+            let op = OpCSel {
+                dst: DstRef::None.into(),
+                cmp_type,
+                cmp_op,
+                cmp_srcs: [0.into(), 0.into()],
+                sel_srcs: [0.into(), 0.into()],
+            };
+            test_foldable_op(op);
+        }
+    }
+}
+
+#[test]
 fn test_op_fcmp() {
     const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
 

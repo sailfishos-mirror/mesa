@@ -161,6 +161,20 @@ impl fmt::Display for OpCSel {
     }
 }
 
+impl PerCompFoldable for OpCSel {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let ca = f.get_src(&self.cmp_srcs[0]);
+        let cb = f.get_src(&self.cmp_srcs[1]);
+
+        let res = if self.cmp_op.fold(self.cmp_type.scalar_type(), ca, cb) {
+            f.get_src(&self.sel_srcs[0])
+        } else {
+            f.get_src(&self.sel_srcs[1])
+        };
+        f.set_dst(&self.dst, res);
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpF16ToF32 {
