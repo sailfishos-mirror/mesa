@@ -153,6 +153,50 @@ fn find_next_set(
     }
 }
 
+fn every_nth_bit(n: usize) -> u32 {
+    assert!(0 < n && n < 32);
+    assert!(n.is_power_of_two());
+    u32::MAX / ((1 << n) - 1)
+}
+
+fn find_aligned_set_range(
+    word_fn: impl Fn(usize) -> Option<u32>,
+    start: BitIndex,
+    count: usize,
+    align_mul: usize,
+    align_offset: usize,
+) -> Option<BitIndex> {
+    assert!(align_mul <= 16);
+    assert!(align_offset + count <= align_mul);
+    assert!(count > 0);
+    let every_n = every_nth_bit(align_mul) << align_offset;
+
+    let mut word_idx = start.word;
+    let mut mask = u32::MAX << start.bit;
+    loop {
+        let word = u64::from(word_fn(word_idx)? & mask);
+        let every_n_64 = u64::from(every_n);
+
+        // If every bit in a sequence is set, then adding one to the bottom
+        // bit will cause it to carry past the top bit. Carry-in for a bit
+        // is true if the bit in the addition result does not match the same
+        // bit in a ^ b. We do this in u64 to handle the case where we carry
+        // past the top bit.
+        let carry = (word + every_n_64) ^ (word ^ every_n_64);
+        let found = u32::try_from(carry >> count).unwrap() & every_n;
+
+        if found != 0 {
+            return Some(BitIndex {
+                word: word_idx,
+                bit: found.trailing_zeros() as u8,
+            });
+        }
+
+        mask = u32::MAX;
+        word_idx += 1;
+    }
+}
+
 /// A set implemented as an array of bits, able to be used as constant data
 ///
 /// The fixed size W is in units of 32-bit words.  This is due to a Rust
@@ -479,51 +523,32 @@ impl BitSet<usize> {
     /// Search for a set of `count` consecutive elements that are not present in
     /// the set. The found set must obey the alignment requirements specified by
     /// align_offset and align_mul. All elements in the found set will be >=
-    /// start_point. Returns the least element of the found set.
+    /// start. Returns the least element of the found set.
     ///
     /// align_mul must be a power of two <= 16
     pub fn find_aligned_unset_range(
         &self,
-        start_point: usize,
+        start: usize,
         count: usize,
         align_mul: usize,
         align_offset: usize,
     ) -> usize {
-        assert!(align_mul <= 16);
-        assert!(align_offset + count <= align_mul);
-        assert!(count > 0);
-        let every_n = every_nth_bit(align_mul) << align_offset;
-
-        let mut word_idx = start_point / 32;
-        let mut mask = !(u32::MAX << (start_point % 32));
-        loop {
-            let word = mask | self.words.get(word_idx).unwrap_or(&0);
-
-            let unset_word = u64::from(!word);
-            let every_n_64 = u64::from(every_n);
-            // If every bit in a sequence is set, then adding one to the bottom
-            // bit will cause it to carry past the top bit. Carry-in for a bit
-            // is true if the bit in the addition result does not match the same
-            // bit in a ^ b. We do this in u64 to handle the case where we carry
-            // past the top bit.
-            let carry = (unset_word + every_n_64) ^ (unset_word ^ every_n_64);
-            let found = u32::try_from(carry >> count).unwrap() & every_n;
-
-            if found != 0 {
-                return word_idx * 32
-                    + usize::try_from(found.trailing_zeros()).unwrap();
-            }
-
-            word_idx += 1;
-            mask = 0;
-        }
+        let word_fn = |w| {
+            // NOT the result to turn find_aligned_set_range() into
+            // find_aligned_unset_range().  Letting it run past the end and
+            // returning Some(!0) ensures that we will always find a unset bit
+            Some(!self.words.get(w).cloned().unwrap_or(0))
+        };
+        find_aligned_set_range(
+            word_fn,
+            start.into(),
+            count,
+            align_mul,
+            align_offset,
+        )
+        .unwrap()
+        .into()
     }
-}
-
-fn every_nth_bit(n: usize) -> u32 {
-    assert!(0 < n && n < 32);
-    assert!(n.is_power_of_two());
-    u32::MAX / ((1 << n) - 1)
 }
 
 impl<K> BitSet<K> {
