@@ -307,6 +307,7 @@ static const struct {
    OP(SHR_ODD_SUBSPANS_BY_4, SHR, 1),
    OP(SHR, SHR, 2),
    OP(SHUFFLE, MOV, 2),
+   OP(VECTOR_EXTRACT, MOV, 2),
    OP(SYNC, SYNC, 1),
    OP(WHILE, WHILE, 0),
    OP(XOR, XOR, 2),
@@ -576,20 +577,23 @@ emit(struct jay_codegen *jc,
       }
       break;
 
-   case JAY_OPCODE_SHUFFLE: {
+   case JAY_OPCODE_SHUFFLE:
+      assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
+      FALLTHROUGH;
+   case JAY_OPCODE_VECTOR_EXTRACT: {
       /* Use a dedicated address register for broadcasts to avoid interfering
        * with a0.0 users. This affects UGPR spilling.
        */
       unsigned addr = gen->exec_size == 1 ? 4 : 0;
 
       if (idx_in_macro == 0) {
-         assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
          struct jay_register_block block =
-            jay_lookup_block(&f->shader->partition, I->src[0].reg, GPR);
-
-         unsigned offset_B =
-            (block.start_grf * jc->devinfo->grf_size) +
-            ((I->src[0].reg - block.start_gpr) * 4 * f->shader->dispatch_width);
+            jay_lookup_block(&f->shader->partition, I->src[0].reg,
+                             I->src[0].file);
+         unsigned reg_width =
+            4 * (I->src[0].file == UGPR ? 1 : f->shader->dispatch_width);
+         unsigned offset_B = block.start_grf * jc->devinfo->grf_size +
+                             (I->src[0].reg - block.start_gpr) * reg_width;
 
          gen->opcode = GEN_OP_ADD;
          gen->dst = gen_address(addr);
@@ -601,6 +605,13 @@ emit(struct jay_codegen *jc,
          gen->src[0].indirect = true;
          gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
          gen->src[0].addr_imm = 0;
+
+         if (I->src[1].file == GPR)
+            gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
+         else if (I->op == JAY_OPCODE_VECTOR_EXTRACT && I->src[0].file == GPR)
+            gen->src[0] = gen_restride(gen->src[0], 1, 1, 0);
+         else
+            gen->src[0] = gen_restride(gen->src[0], 0, 1, 0);
       }
       break;
    }

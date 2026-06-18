@@ -90,7 +90,9 @@ populate_dag(struct sched_ctx *ctx,
       }
 
       /* Serialize address register access until we have an address RA */
-      bool use_a0 = I->dst.file == J_ADDRESS || I->op == JAY_OPCODE_SHUFFLE;
+      bool use_a0 = I->dst.file == J_ADDRESS ||
+                    I->op == JAY_OPCODE_SHUFFLE ||
+                    I->op == JAY_OPCODE_VECTOR_EXTRACT;
       jay_foreach_src(I, s) {
          use_a0 |= I->src[s].file == J_ADDRESS;
       }

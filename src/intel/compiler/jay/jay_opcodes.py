@@ -222,6 +222,9 @@ op('zero_flag', 0, 'u1', Props.NO_DEST, ['unsigned reg'])
 # Cross-lane shuffle. src0=data, src1=offset in bytes. Clobbers an address reg.
 op('shuffle', 2, 'u1 u32')
 
+# Indirect move. src0=data, src1=offset in bytes. Clobbers an address reg.
+op('vector_extract', 2, 'u32')
+
 # Shuffle with a constant lane index.
 op('broadcast_imm', 1, 'u1 u32', 0, ['unsigned lane'])
 
