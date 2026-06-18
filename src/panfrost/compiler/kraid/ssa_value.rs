@@ -270,6 +270,21 @@ const _: () = {
     debug_assert!(size_of::<SSARef>() == 16);
 };
 
+pub trait AllocSSA {
+    /// Allocates an SSA value.
+    fn alloc_ssa(&mut self, bits: u8) -> SSAValue;
+
+    /// Allocates a vector of SSA values that can hold `bits` bits
+    fn alloc_ref(&mut self, bits: u16) -> SSARef {
+        if bits <= 32 {
+            self.alloc_ssa(bits.next_power_of_two() as u8).into()
+        } else {
+            let comps = bits.div_ceil(32);
+            SSARef::from_iter((0..comps).map(|_| self.alloc_ssa(32)))
+        }
+    }
+}
+
 /// An allocator for SSA values.
 ///
 /// This is the only valid way to create SSAValues.  At most one SSA value
@@ -280,16 +295,11 @@ pub struct SSAValueAllocator {
     count: u32,
 }
 
-impl SSAValueAllocator {
-    /// Allocates an SSA value.
-    pub fn alloc(&mut self, bits: u8) -> SSAValue {
+impl AllocSSA for SSAValueAllocator {
+    fn alloc_ssa(&mut self, bits: u8) -> SSAValue {
         let idx = self.count;
         self.count += 1;
         SSAValue::new(idx, bits)
-    }
-
-    pub fn alloc_vec(&mut self, comps: u8) -> SSARef {
-        SSARef::from_iter((0..comps).map(|_| self.alloc(32)))
     }
 }
 
@@ -325,11 +335,28 @@ mod tests {
     #[test]
     fn test_ssa_alloc() {
         let mut alloc: SSAValueAllocator = Default::default();
-        let ssa1 = alloc.alloc(8);
-        let ssa2 = alloc.alloc(16);
-        let ssa3 = alloc.alloc(32);
+        let ssa1 = alloc.alloc_ssa(8);
+        let ssa2 = alloc.alloc_ssa(16);
+        let ssa3 = alloc.alloc_ssa(32);
         assert_eq!(format!("{}", ssa1), "%0:b");
         assert_eq!(format!("{}", ssa2), "%1:h");
         assert_eq!(format!("{}", ssa3), "%2");
+    }
+
+    #[test]
+    fn test_ref_alloc() {
+        let mut alloc: SSAValueAllocator = Default::default();
+        let ssa1 = alloc.alloc_ref(8);
+        let ssa2 = alloc.alloc_ref(16);
+        let ssa3 = alloc.alloc_ref(24);
+        let ssa4 = alloc.alloc_ref(32);
+        let ssa5 = alloc.alloc_ref(64);
+        let ssa6 = alloc.alloc_ref(128);
+        assert_eq!(format!("{}", ssa1), "%0:b");
+        assert_eq!(format!("{}", ssa2), "%1:h");
+        assert_eq!(format!("{}", ssa3), "%2");
+        assert_eq!(format!("{}", ssa4), "%3");
+        assert_eq!(format!("{}", ssa5), "%4..6");
+        assert_eq!(format!("{}", ssa6), "%6..10");
     }
 }

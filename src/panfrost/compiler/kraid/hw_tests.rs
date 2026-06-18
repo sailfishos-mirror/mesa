@@ -8,7 +8,7 @@ use crate::foldable::{FoldData, Foldable};
 use crate::ir::*;
 use crate::model::{Model, model_for_gpu_id};
 use crate::ops::*;
-use crate::ssa_value::SSAValueAllocator;
+use crate::ssa_value::{AllocSSA, SSAValueAllocator};
 use crate::swizzle::AsmSwizzleWiden;
 use acorn::Acorn;
 use kraid_hw_runner::{HwError, InvocationInfo, TestRunner};
@@ -137,7 +137,7 @@ impl<'a> TestShaderBuilder<'a> {
 
         // Just add the lower 32-bits, copy the higher bits and
         // hope we don't test 4GiB of data.
-        let data_addr = b.alloc_vec(2);
+        let data_addr = b.alloc_ref(64);
         b.copy_i32_to(data_addr[1].into(), data_base_hi.into());
         b.push_op(OpIAdd {
             dst: data_addr[0].into(),
@@ -163,12 +163,7 @@ impl<'a> TestShaderBuilder<'a> {
     }
 
     pub fn ld_test_data(&mut self, offset: u16, bits: u8) -> SSARef {
-        let comps = bits.div_ceil(32);
-        let dst: SSARef = if comps == 1 {
-            self.ssa_alloc.alloc(bits).into()
-        } else {
-            self.ssa_alloc.alloc_vec(comps)
-        };
+        let dst = self.alloc_ref(bits.into());
 
         self.max_data_offset = self.max_data_offset.max(offset);
 
@@ -271,13 +266,9 @@ impl Builder for TestShaderBuilder<'_> {
     }
 }
 
-impl SSABuilder for TestShaderBuilder<'_> {
+impl AllocSSA for TestShaderBuilder<'_> {
     fn alloc_ssa(&mut self, bits: u8) -> SSAValue {
-        self.ssa_alloc.alloc(bits)
-    }
-
-    fn alloc_vec(&mut self, comps: u8) -> SSARef {
-        self.ssa_alloc.alloc_vec(comps)
+        self.ssa_alloc.alloc_ssa(bits)
     }
 }
 
@@ -455,11 +446,7 @@ pub fn test_foldable_op_with(
     let mut fold_dst = vec![0u64; op.dsts().len() as usize];
     for (dst, dst_type) in op.dsts_types_mut() {
         let write_bits = dst_type.total_bits();
-        dst.dst_ref = match write_bits {
-            x @ (8 | 16 | 32) => b.alloc_ssa(x).into(),
-            64 => b.alloc_vec(2).into(),
-            x => panic!("Unsupported dst bytes {x}"),
-        };
+        dst.dst_ref = b.alloc_ref(write_bits.into()).into();
         dst.lanes = match (dst.lanes, write_bits) {
             (DstLanes::None | DstLanes::All, 8) => DstLanes::B0,
             (DstLanes::None | DstLanes::All, 16) => DstLanes::H0,

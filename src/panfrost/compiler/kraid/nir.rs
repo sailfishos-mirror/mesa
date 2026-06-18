@@ -48,16 +48,8 @@ impl<'a> ShaderFromNir<'a> {
 
     fn alloc_ssa(&mut self, b: &mut impl SSABuilder, def: &nir_def) -> SSARef {
         let bits = def.bit_size * def.num_components;
-        let mut vec = Vec::new();
-        if bits <= 32 {
-            vec.push(b.alloc_ssa(bits.next_power_of_two()));
-        } else {
-            for _ in 0..bits.div_ceil(32) {
-                vec.push(b.alloc_ssa(32));
-            }
-        }
-        let ssa = SSARef::try_from(vec.as_slice()).unwrap();
-        self.set_ssa(def, vec);
+        let ssa = b.alloc_ref(bits.into());
+        self.set_ssa(def, ssa.iter().copied().collect());
         ssa
     }
 
