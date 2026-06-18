@@ -1,5 +1,6 @@
 /*
  * Copyright © 2021 Collabora Ltd.
+ * Copyright © 2026 Google LLC
  * SPDX-License-Identifier: MIT
  */
 
@@ -72,6 +73,13 @@ panvk_plane_index(const struct panvk_image *image,
       assert(image->plane_count > 0);
       return image->plane_count - 1;
    }
+}
+
+static inline bool
+panvk_image_use_yuv_tex(unsigned arch, VkFormat format)
+{
+   /* TODO fill per arch YUV texturing formats supported */
+   return false;
 }
 
 static inline bool

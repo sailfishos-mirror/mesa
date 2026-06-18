@@ -1,5 +1,6 @@
 /*
  * Copyright © 2021 Collabora Ltd.
+ * Copyright © 2026 Google LLC
  *
  * Derived from tu_device.c which is:
  * Copyright © 2016 Red Hat.
@@ -837,8 +838,14 @@ get_image_format_features(struct panvk_physical_device *physical_device,
        * each have their own, separate filters, so these two bits make sense
        * for multi-planar formats only.
        */
-      features |= VK_FORMAT_FEATURE_2_DISJOINT_BIT |
-                  VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT;
+      features |= VK_FORMAT_FEATURE_2_DISJOINT_BIT;
+
+      /* YUV texturing only support unified filtering across planes. */
+      unsigned arch = pan_arch(physical_device->kmod.dev->props.gpu_id);
+      if (!panvk_image_use_yuv_tex(arch, format)) {
+         features |=
+            VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT;
+      }
    }
 
    return features;
