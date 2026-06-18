@@ -133,6 +133,60 @@ impl Add<usize> for BitIndex {
     }
 }
 
+struct WordIdxMaskIter {
+    word_idx: usize,
+    mask: u32,
+    end: BitIndex,
+}
+
+impl WordIdxMaskIter {
+    const fn new(start: BitIndex, end: BitIndex) -> WordIdxMaskIter {
+        WordIdxMaskIter {
+            word_idx: start.word,
+            mask: u32::MAX << start.bit,
+            end,
+        }
+    }
+
+    const fn next_const(&mut self) -> Option<(usize, u32)> {
+        if self.word_idx < self.end.word {
+            let item = (self.word_idx, self.mask);
+            self.mask = u32::MAX;
+            self.word_idx += 1;
+            Some(item)
+        } else if self.word_idx == self.end.word {
+            let mask = self.mask & !(u32::MAX << self.end.bit);
+            if mask != 0 {
+                let item = (self.word_idx, mask);
+                self.mask = 0;
+                self.word_idx += 1;
+                Some(item)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl Iterator for WordIdxMaskIter {
+    type Item = (usize, u32);
+
+    fn next(&mut self) -> Option<(usize, u32)> {
+        self.next_const()
+    }
+}
+
+impl std::iter::FusedIterator for WordIdxMaskIter {}
+
+const fn set_range(words: &mut [u32], start: BitIndex, end: BitIndex) {
+    let mut iter = WordIdxMaskIter::new(start, end);
+    while let Some((word, mask)) = iter.next_const() {
+        words[word] |= mask;
+    }
+}
+
 #[inline]
 fn find_next_set(
     word_fn: impl Fn(usize) -> Option<u32>,
@@ -319,25 +373,10 @@ macro_rules! impl_const_bit_set {
                     "ConstBitSet index out of bounds",
                 );
 
-                if range.start >= range.end {
-                    return;
-                }
-
-                let start = BitIndex::from_flat_index(range.start as usize);
-                let end = BitIndex::from_flat_index(range.end as usize);
-
-                let mut word = start.word;
-                let mut mask = u32::MAX << start.bit;
-                while word < end.word {
-                    self.words[word] |= mask;
-                    mask = u32::MAX;
-                    word += 1;
-                }
-
-                debug_assert!(word == end.word);
-                if end.bit > 0 {
-                    mask &= !(u32::MAX << end.bit);
-                    self.words[word] |= mask;
+                if range.start < range.end {
+                    let start = BitIndex::from_flat_index(range.start as usize);
+                    let end = BitIndex::from_flat_index(range.end as usize);
+                    set_range(&mut self.words, start, end);
                 }
             }
 
