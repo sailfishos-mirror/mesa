@@ -317,6 +317,7 @@ populate_fs_prog_data(nir_shader *shader,
    if (devinfo->ver < 20)
       ctx.interp_modes |= ctx.offset_interp_modes;
 
+   prog_data->barycentric_interp_modes |= ctx.interp_modes;
    const bool sample_shading = shader->info.fs.uses_sample_shading;
    prog_data->persample_interp = sample_shading || key->persample_interp;
 
