@@ -1639,7 +1639,7 @@ chain_branches(asm_context& ctx, std::vector<uint32_t>& out, branch_info& branch
          bld.reset(&next_block.instructions, it);
       } else {
          /* Insert the additional branches at the end of the previous non-empty block. */
-         bld.reset(&ctx.program->blocks[ctx.block_emit_order[insertion_block_idx]].instructions);
+         bld.reset(&ctx.program->blocks[insertion_block_idx].instructions);
          skip_branch_target = next_block.index;
       }
 

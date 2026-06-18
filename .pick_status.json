@@ -6984,7 +6984,7 @@
         "description": "aco/assembler: don't reorder branch insertion block index twice",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a3d9712e8e09024f094afd7b0efde2649f1ae2c9",
         "notes": null
