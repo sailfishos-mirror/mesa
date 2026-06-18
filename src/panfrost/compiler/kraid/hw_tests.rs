@@ -531,6 +531,53 @@ pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Display) {
 }
 
 #[test]
+fn test_op_fcmp() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
+
+    const CMP_OPS: &'static [CmpOp] = &[
+        CmpOp::Eq,
+        CmpOp::Gt,
+        CmpOp::Ge,
+        CmpOp::Ne,
+        CmpOp::Lt,
+        CmpOp::Le,
+        CmpOp::GtLt,
+        CmpOp::Total,
+    ];
+
+    const ACCUM_OPS: &'static [CmpAccumOp] =
+        &[CmpAccumOp::None, CmpAccumOp::And, CmpAccumOp::Or];
+
+    const RES_TYPES: &'static [CmpResultType] =
+        &[CmpResultType::I1, CmpResultType::F1, CmpResultType::M1];
+
+    let mut a = Acorn::new();
+    for &src_type in DATA_TYPES {
+        for &cmp_op in CMP_OPS {
+            for &accum_op in ACCUM_OPS {
+                for &res_type in RES_TYPES {
+                    let op = OpFCmp {
+                        dst: DstRef::None.into(),
+                        src_type,
+                        res_type,
+                        cmp_op,
+                        srcs: [0.into(), 0.into()],
+                        accum: 0.into(),
+                        accum_op,
+                    };
+                    // Accum is always treated as a bool so let's use 0-1
+                    // (otherwise it would always be true)
+                    test_foldable_op_with(op, |i| match i {
+                        2 => a.get_u32() % 2,
+                        _ => a.get_u32(),
+                    });
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn test_op_shift_lop() {
     const DATA_TYPES: &'static [DataType] = &[
         DataType::V4U8,

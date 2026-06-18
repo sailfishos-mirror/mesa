@@ -25,7 +25,9 @@
 use crate::data_type::PartialDataType;
 use crate::foldable::{FoldDataView, PerCompFoldable};
 use crate::ir::*;
+use compiler::float16::F16;
 use kraid_proc_macros::{FromVariants, Opcode, variants};
+use std::cmp::Ordering;
 use std::fmt;
 
 macro_rules! bool_as_mod_str {
@@ -270,6 +272,16 @@ impl fmt::Display for CmpAccumOp {
     }
 }
 
+impl CmpAccumOp {
+    pub fn fold(self, orig: bool, accum: bool) -> bool {
+        match self {
+            CmpAccumOp::None => orig,
+            CmpAccumOp::And => orig && accum,
+            CmpAccumOp::Or => orig || accum,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum CmpResultType {
     I1,
@@ -283,6 +295,23 @@ impl fmt::Display for CmpResultType {
             CmpResultType::I1 => write!(f, ".i1"),
             CmpResultType::F1 => write!(f, ".f1"),
             CmpResultType::M1 => write!(f, ".m1"),
+        }
+    }
+}
+
+impl CmpResultType {
+    pub fn fold(self, b: bool, dst_bits: u8) -> u32 {
+        if !b {
+            return 0;
+        }
+        match (self, dst_bits) {
+            (CmpResultType::I1, _) => 1,
+            (CmpResultType::F1, 32) => (1.0_f32).to_bits(),
+            (CmpResultType::F1, 16) => {
+                F16::from_f32_rtne(1.0_f32).to_bits() as u32
+            }
+            (CmpResultType::F1, _) => panic!("Invalid float length"),
+            (CmpResultType::M1, _) => 0xFFFF_FFFF,
         }
     }
 }
@@ -310,6 +339,57 @@ impl fmt::Display for CmpOp {
             CmpOp::Le => write!(f, ".le"),
             CmpOp::GtLt => write!(f, "gtlt"),
             CmpOp::Total => write!(f, ".total"),
+        }
+    }
+}
+
+impl CmpOp {
+    /// Simulates a hardware comparison for a single scalar component
+    pub fn fold(self, scalar_type: DataType, a: u64, b: u64) -> bool {
+        assert!(scalar_type.comps() == 1);
+        macro_rules! cmp {
+            (float, $a:expr, $b:expr) => {{
+                let (a, b) = ($a, $b);
+                match self {
+                    CmpOp::Eq => a == b,
+                    CmpOp::Gt => a > b,
+                    CmpOp::Ge => a >= b,
+                    CmpOp::Ne => a != b,
+                    CmpOp::Lt => a < b,
+                    CmpOp::Le => a <= b,
+                    CmpOp::GtLt => (a < b) || (a > b),
+                    CmpOp::Total => a.total_cmp(&b) == Ordering::Less,
+                }
+            }};
+            (int, $a:expr, $b:expr) => {{
+                let (a, b) = ($a, $b);
+                match self {
+                    CmpOp::Eq => a == b,
+                    CmpOp::Gt => a > b,
+                    CmpOp::Ge => a >= b,
+                    CmpOp::Ne => a != b,
+                    CmpOp::Lt => a < b,
+                    CmpOp::Le => a <= b,
+                    _ => panic!("Invalid CmpOp for integer"),
+                }
+            }};
+        }
+
+        match scalar_type {
+            DataType::U64 | DataType::U32 | DataType::U16 | DataType::U8 => {
+                cmp!(int, a, b)
+            }
+            DataType::S64 => cmp!(int, a as i64, b as i64),
+            DataType::S32 => cmp!(int, a as i32, b as i32),
+            DataType::S16 => cmp!(int, a as i16, b as i16),
+            DataType::S8 => cmp!(int, a as i8, b as i8),
+            DataType::F32 => {
+                cmp!(float, f32::from_bits(a as u32), f32::from_bits(b as u32))
+            }
+            DataType::F16 => {
+                cmp!(float, F16::from_bits(a as u16), F16::from_bits(b as u16))
+            }
+            _ => panic!("Invalid DataType"),
         }
     }
 }
@@ -349,6 +429,20 @@ impl fmt::Display for OpFCmp {
             write!(f, " {}", self.fmt_src(&self.accum))?;
         }
         Ok(())
+    }
+}
+
+impl PerCompFoldable for OpFCmp {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let ca = f.get_src(&self.srcs[0]);
+        let cb = f.get_src(&self.srcs[1]);
+        let accum = f.get_src(&self.accum);
+
+        let c = self.cmp_op.fold(self.src_type.scalar_type(), ca, cb);
+        let c = self.accum_op.fold(c, accum != 0);
+        let c = self.res_type.fold(c, self.src_type.bits());
+
+        f.set_dst(&self.dst, c as u64);
     }
 }
 
