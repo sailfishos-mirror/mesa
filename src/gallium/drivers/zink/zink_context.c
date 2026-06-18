@@ -3575,11 +3575,22 @@ zink_batch_no_rp_safe(struct zink_context *ctx)
       }
    }
    ctx->in_rp = false;
-   for (unsigned i = 0; i < ctx->fb_state.nr_cbufs; i++)
+   for (unsigned i = 0; i < ctx->fb_state.nr_cbufs; i++) {
       ctx->dynamic_fb.attachments[i].resolveImageView = VK_NULL_HANDLE;
+      if (ctx->fb_state.cbufs[i].texture && ctx->dynamic_fb.attachments[i].storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE)
+         zink_resource(ctx->fb_state.cbufs[i].texture)->valid = false;
+   }
    if (ctx->fb_state.zsbuf.texture) {
       ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].resolveImageView = VK_NULL_HANDLE;
       ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS + 1].resolveImageView = VK_NULL_HANDLE;
+      if (ctx->fb_state.zsbuf.texture) {
+         bool has_depth = util_format_has_depth(util_format_description(ctx->fb_state.zsbuf.texture->format));
+         bool has_stencil = util_format_has_stencil(util_format_description(ctx->fb_state.zsbuf.texture->format));
+         bool depth_invalidate = !has_depth || (ctx->dynamic_fb.info.pDepthAttachment && ctx->dynamic_fb.info.pDepthAttachment->storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
+         bool stencil_invalidate = !has_stencil || (ctx->dynamic_fb.info.pStencilAttachment && ctx->dynamic_fb.info.pStencilAttachment->storeOp == VK_ATTACHMENT_STORE_OP_DONT_CARE);
+         if (depth_invalidate && stencil_invalidate)
+            zink_resource(ctx->fb_state.zsbuf.texture)->valid = false;
+      }
    }
    ctx->rp_draw = false;
 }
