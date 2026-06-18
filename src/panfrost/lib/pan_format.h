@@ -310,6 +310,15 @@ struct pan_decomposed_swizzle
 
 #define MALI_EXTRACT_INDEX(pixfmt) (((pixfmt) >> 12) & 0xFF)
 
+#if PAN_ARCH < 14
+#define MALI_YUV_CR_SITING_CENTER_422 (MALI_YUV_CR_SITING_CENTER_Y)
+#else
+#define MALI_YUV_CR_SITING_CENTER_422 (MALI_YUV_CR_SITING_CENTER_X)
+#endif
+
+#define MALI_SET_YUV_CR_SITING(pixfmt, cr_siting)                              \
+   ((pixfmt & ~(0b111 << 9)) | ((cr_siting & 0b111) << 9))
+
 static inline bool
 pan_format_is_yuv(enum pipe_format f)
 {

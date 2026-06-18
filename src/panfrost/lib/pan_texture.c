@@ -1254,6 +1254,9 @@ GENX(pan_sampled_texture_emit)(const struct pan_image_view *iview,
       mali_format = MALI_PACK_FMT(RGBA8_UNORM, RGBA, L);
    }
 
+   if (iview->yuv.override_cr_siting)
+      mali_format = MALI_SET_YUV_CR_SITING(mali_format, iview->yuv.cr_siting);
+
    pan_emit_iview_texture_payload(iview, payload->cpu);
 
    unsigned array_size = pan_texture_get_array_size(iview);

@@ -66,6 +66,12 @@ struct pan_image_view {
       unsigned narrow;
       unsigned hdr;
    } astc;
+
+   /* VkChromaLocation must be strictly honored. */
+   struct {
+      bool override_cr_siting;
+      unsigned cr_siting;
+   } yuv;
 };
 
 static inline struct pan_image_plane_ref

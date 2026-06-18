@@ -266,6 +266,30 @@ prepare_attr_buf_descs(struct panvk_image_view *view)
 }
 #endif
 
+static unsigned
+get_yuv_cr_siting(const struct vk_ycbcr_conversion_state *conv)
+{
+   const enum pipe_format pfmt = vk_format_to_pipe_format(conv->format);
+   const struct util_format_description *desc = util_format_description(pfmt);
+   const bool x_mid = conv->chroma_offsets[0] == VK_CHROMA_LOCATION_MIDPOINT;
+   const bool y_mid = conv->chroma_offsets[1] == VK_CHROMA_LOCATION_MIDPOINT;
+
+   if (desc->subsampling == PIPE_VIDEO_CHROMA_FORMAT_420) {
+      if (x_mid && y_mid)
+         return MALI_YUV_CR_SITING_CENTER;
+      else if (y_mid)
+         return MALI_YUV_CR_SITING_CENTER_Y;
+      else if (x_mid)
+         return MALI_YUV_CR_SITING_CENTER_X;
+   } else if (desc->subsampling == PIPE_VIDEO_CHROMA_FORMAT_422) {
+      if (x_mid)
+         return MALI_YUV_CR_SITING_CENTER_422;
+   }
+
+   /* The default return handles YUV 4:4:4 as well. */
+   return MALI_YUV_CR_SITING_CO_SITED;
+}
+
 static void
 create_ms_views(struct panvk_device *dev, struct panvk_image_view *view,
                 const VkImageViewCreateInfo *pCreateInfo,
@@ -371,6 +395,9 @@ panvk_per_arch(CreateImageView)(VkDevice _device,
             .b = conversion->state.mapping[2],
             .a = conversion->state.mapping[3],
          };
+
+         view->pview.yuv.override_cr_siting = true;
+         view->pview.yuv.cr_siting = get_yuv_cr_siting(&conversion->state);
       }
    }
    vk_component_mapping_to_pipe_swizzle(view->vk.swizzle, view->pview.swizzle);
