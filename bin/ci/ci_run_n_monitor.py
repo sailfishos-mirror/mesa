@@ -570,10 +570,21 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
 
     if args.profile:
+        profile = PROFILES[args.profile]
         if not args.target:
-            args.target = PROFILES[args.profile]["target"]
+            args.target = profile["target"]
+        if args.include_stage == [".*"]:
+            args.include_stage = profile.get(
+                "include_stage",
+                [".*"],
+            )
+        if args.exclude_stage == ["performance", ".*-postmerge", ".*-nightly"]:
+            args.exclude_stage = profile.get(
+                "exclude_stage",
+                ["performance", ".*-postmerge", ".*-nightly"]
+            )
         if args.stress is None:
-            args.stress = PROFILES[args.profile].get("stress", 0)
+            args.stress = profile.get("stress", 0)
     elif not args.target:
         parser.error("one of --target or --profile is required")
 
