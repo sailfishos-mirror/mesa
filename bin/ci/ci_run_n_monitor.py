@@ -66,8 +66,40 @@ PROFILES: dict[str, dict] = {
     },
     "uprev_vkcts_main": {
         "target": ["radv-.*-vkcts(-asan|-full)?"],
-        "stress": 25
-    }
+        "stress": 25,
+    },
+    "uprev_piglit": {
+        "target": [
+            ".*piglit.*",
+            r"^zink-"
+            r"(anv-adl"
+            r"|anv-tgl"
+            r"|anv-cml-asan"
+            r"|tu-a618"
+            r"|lavapipe"
+            r"|radv-cezanne"
+            r"|radv-gfx1201-valve"
+            r"|radv-navi31-valve"
+            r"|radv-vangogh-valve)"
+            r"(?!-traces.*)"
+            r"( \d+/\d+)*",
+        ],
+        "stress": 2,
+    },
+    "uprev_piglit_nightlies": {
+        "target": [
+            ".*piglit.*",
+            r"(zink-radv-).*",
+        ],
+        "include_stage": [
+            "amd-nightly",
+            "arm-nightly",
+            "freedreno-nightly",
+            "etnaviv-nightly",
+        ],
+        "exclude_stage": [''],
+        "stress": 2,
+    },
 }
 
 if is_gitlab_job():
