@@ -3415,6 +3415,20 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
    ctx->gfx_pipeline_state.dirty |= rp_changed;
    ctx->gfx_pipeline_state.rp_state = rp_state;
 
+   if (ctx->needs_transfer_sync) {
+      VkMemoryBarrier mb;
+      mb.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+      mb.pNext = NULL;
+      mb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      VKCTX(CmdPipelineBarrier)(ctx->bs->cmdbuf,
+                                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                0, 1, &mb, 0, NULL, 0, NULL);
+      ctx->needs_transfer_sync = false;
+      ctx->last_transfer_sync = ctx->rp_counter + 1;
+   }
+
    VkMultisampledRenderToSingleSampledInfoEXT msrtss = {
       VK_STRUCTURE_TYPE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_INFO_EXT,
       NULL,
@@ -3429,6 +3443,7 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
       for (unsigned i = 0; i < ctx->fb_state.nr_cbufs; i++)
          ctx->fb_state.cbufs[i].format = pformats[i];
    }
+   ctx->rp_counter++;
    return clear_buffers;
 }
 
@@ -5035,6 +5050,7 @@ zink_copy_image_buffer(struct zink_context *ctx, struct zink_resource *dst, stru
    struct zink_screen *screen = zink_screen(ctx->base.screen);
    bool buf2img = buf == src;
    bool img_needs_transfer_barrier = !screen->driver_workarounds.general_layout && buf2img && ctx->track_renderpasses;
+   bool needs_transfer_sync = false;
    bool unsync = !!(map_flags & PIPE_MAP_UNSYNCHRONIZED);
    if (unsync) {
       util_queue_fence_wait(&ctx->flush_fence);
@@ -5117,8 +5133,10 @@ zink_copy_image_buffer(struct zink_context *ctx, struct zink_resource *dst, stru
       zink_batch_reference_resource_rw(ctx, buf, !buf2img);
 
       /* hacky detection of pre-rp buf2img from tc; reordered/unsync versions get their own sync */
-      if (buf2img && cmdbuf == ctx->bs->cmdbuf)
-         img_needs_transfer_barrier = ctx->track_renderpasses;
+      if (buf2img && cmdbuf == ctx->bs->cmdbuf && ctx->track_renderpasses) {
+         needs_transfer_sync = true;
+         img->obj->transfer_rp = ctx->rp_counter;
+      }
    }
 
    /* we're using u_transfer_helper_deinterleave, which means we'll be getting PIPE_MAP_* usage
@@ -5194,6 +5212,10 @@ zink_copy_image_buffer(struct zink_context *ctx, struct zink_resource *dst, stru
 
    if (img_needs_transfer_barrier)
       pre_sync_transfer_barrier(ctx, img, unsync);
+   else if (needs_transfer_sync && ctx->track_renderpasses) {
+      ctx->needs_transfer_sync = true;
+      img->obj->transfer_rp = ctx->rp_counter;
+   }
 
    if (ctx->oom_flush && !ctx->in_rp && !ctx->unordered_blitting && !unsync)
       flush_batch(ctx, false);
@@ -5373,6 +5395,10 @@ zink_resource_copy_region(struct pipe_context *pctx,
       zink_cmd_debug_marker_end(ctx, cmdbuf, marker);
       if (dst->fb_bind_count)
          ctx->rp_tc_info_updated = true;
+      if (cmdbuf == ctx->bs->cmdbuf && ctx->track_renderpasses) {
+         ctx->needs_transfer_sync = true;
+         dst->obj->transfer_rp = ctx->rp_counter;
+      }
    } else if (dst->base.b.target == PIPE_BUFFER &&
               src->base.b.target == PIPE_BUFFER) {
       zink_copy_buffer(ctx, dst, src, dstx, src_box->x, src_box->width, false);

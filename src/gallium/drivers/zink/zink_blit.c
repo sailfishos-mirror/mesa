@@ -150,6 +150,11 @@ blit_resolve(struct zink_context *ctx, const struct pipe_blit_info *info, bool *
                      1, &region);
    zink_cmd_debug_marker_end(ctx, cmdbuf, marker);
 
+   if (cmdbuf == ctx->bs->cmdbuf && ctx->track_renderpasses) {
+      ctx->needs_transfer_sync = true;
+      dst->obj->transfer_rp = ctx->rp_counter;
+   }
+
    return true;
 }
 
@@ -327,6 +332,11 @@ blit_native(struct zink_context *ctx, const struct pipe_blit_info *info, bool *n
                   zink_filter(info->filter));
 
    zink_cmd_debug_marker_end(ctx, cmdbuf, marker);
+
+   if (cmdbuf == ctx->bs->cmdbuf && ctx->track_renderpasses) {
+      ctx->needs_transfer_sync = true;
+      dst->obj->transfer_rp = ctx->rp_counter;
+   }
 
    return true;
 }
