@@ -717,6 +717,46 @@ fn test_op_icmp() {
 }
 
 #[test]
+fn test_op_imul() {
+    const DATA_TYPES: &'static [DataType] = &[
+        DataType::V2S16,
+        DataType::V2U16,
+        DataType::S32,
+        DataType::U32,
+    ];
+
+    const WIDENS: &'static [AsmSwizzleWiden] = &[
+        AsmSwizzleWiden::None,
+        AsmSwizzleWiden::B00,
+        AsmSwizzleWiden::B02,
+        AsmSwizzleWiden::B20,
+        AsmSwizzleWiden::H00,
+        AsmSwizzleWiden::H10,
+        AsmSwizzleWiden::H0,
+        AsmSwizzleWiden::H1,
+        // AsmSwizzleWiden::W0, // TODO: 64-bit swizzles
+        // AsmSwizzleWiden::W1,
+    ];
+
+    for &dst_type in DATA_TYPES {
+        for widen in WIDENS {
+            let Some(src0_swizzle) = widen.to_swizzle(dst_type) else {
+                continue;
+            };
+            for saturate in [false, true] {
+                let op = OpIMul {
+                    dst: DstRef::None.into(),
+                    srcs: [Src::from(0).swizzle(src0_swizzle), 0.into()],
+                    dst_type,
+                    saturate,
+                };
+                test_foldable_op(op);
+            }
+        }
+    }
+}
+
+#[test]
 fn test_op_shift_lop() {
     const DATA_TYPES: &'static [DataType] = &[
         DataType::V4U8,

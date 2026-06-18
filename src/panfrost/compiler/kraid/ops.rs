@@ -560,12 +560,13 @@ impl PerCompFoldable for OpICmp {
     }
 }
 
+// TODO: S64 & U64, they don't support the NONE swizzle
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [
     S8, U8, V2S8, V2U8, V4S8, V4U8,
     S16, U16, V2S16, V2U16,
-    S32, U32, S64, U64
+    S32, U32
 ])]
 pub struct OpIMul {
     pub dst: Dst,
@@ -585,6 +586,35 @@ impl fmt::Display for OpIMul {
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
+    }
+}
+
+impl PerCompFoldable for OpIMul {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let a = f.get_src(&self.srcs[0]);
+        let b = f.get_src(&self.srcs[1]);
+
+        let bits = self.dst_type.bits();
+        let is_signed = self.dst_type.num_type() == NumericType::SignedInteger;
+        let sext = |x: u64| (x << (64 - bits)) as i64 >> (64 - bits);
+
+        assert!(
+            !(bits == 64 && self.saturate),
+            "64-bit IMUL.sat not supported by HW"
+        );
+
+        let c = match (self.saturate, is_signed, bits) {
+            (false, false, _) => a.wrapping_mul(b),
+            (false, true, _) => sext(a).wrapping_mul(sext(b)) as u64,
+            (true, false, _) => a.saturating_mul(b).min((1 << bits) - 1),
+            (true, true, 8) => (a as i8).saturating_mul(b as i8) as u64,
+            (true, true, 16) => (a as i16).saturating_mul(b as i16) as u64,
+            (true, true, 32) => (a as i32).saturating_mul(b as i32) as u64,
+            (true, true, 64) => (a as i64).saturating_mul(b as i64) as u64,
+            (true, true, _) => panic!("Unsupported bit size"),
+        };
+
+        f.set_dst(&self.dst, c);
     }
 }
 
