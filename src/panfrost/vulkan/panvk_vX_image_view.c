@@ -74,7 +74,6 @@ panvk_convert_swizzle(const VkComponentMapping *in, unsigned char *out)
    }
 }
 
-#if PAN_ARCH >= 9
 static struct pan_image_view
 panvk_storage_pview(const struct panvk_image_view *view,
                     const struct pan_image_view *pview)
@@ -93,7 +92,6 @@ panvk_storage_pview(const struct panvk_image_view *view,
 
    return spview;
 }
-#endif
 
 static VkResult
 prepare_tex_descs(struct panvk_image_view *view)
@@ -239,8 +237,9 @@ prepare_attr_buf_descs(struct panvk_image_view *view)
    const struct pan_image_slice_layout *slayout =
       &plane_layout->slices[view->pview.first_level];
    bool is_3d = plane_props->dim == MALI_TEXTURE_DIMENSION_3D;
+   struct pan_image_view spview = panvk_storage_pview(view, &view->pview);
    unsigned offset =
-      slayout->offset_B + (view->pview.first_layer_or_z_slice *
+      slayout->offset_B + (spview.first_layer_or_z_slice *
                            (is_3d ? slayout->tiled_or_linear.surface_stride_B
                                   : plane_layout->array_stride_B));
 
@@ -280,7 +279,7 @@ prepare_attr_buf_descs(struct panvk_image_view *view)
 
       cfg.s_dimension = extent.width;
       cfg.t_dimension = extent.height;
-      cfg.r_dimension = pan_image_view_layer_or_3d_slice_count(&view->pview);
+      cfg.r_dimension = pan_image_view_layer_or_3d_slice_count(&spview);
       cfg.row_stride = slayout->tiled_or_linear.row_stride_B;
       if (cfg.r_dimension > 1 || nr_samples > 1) {
          cfg.slice_stride = view->pview.dim == MALI_TEXTURE_DIMENSION_3D
