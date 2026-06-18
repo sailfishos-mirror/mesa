@@ -43,3 +43,4 @@ VK_EXT_image_sliced_view_of_3d on panvk
 VK_EXT_shader_tile_image on panvk
 VK_KHR_internally_synchronized_queues on panvk
 VK_KHR_workgroup_memory_explicit_layout on panvk
+VK_EXT_device_memory_report on pvr
