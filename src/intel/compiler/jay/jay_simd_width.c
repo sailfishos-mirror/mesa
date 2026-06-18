@@ -54,6 +54,18 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
       /* TODO: Split SENDs, needs RA work */
    }
 
+   /* Bspec 56797 (r62012):
+    *
+    *    Math operation rules when half-floats are used on both source and
+    *    destination operands and both source and destinations are packed.
+    *    The execution size must be 16.
+    */
+   if (I->op == JAY_OPCODE_MATH && I->type == JAY_TYPE_F16 &&
+       (I->dst.file == GPR    && jay_def_stride(shader, I->dst) == JAY_STRIDE_2) &&
+       (I->src[0].file == GPR && jay_def_stride(shader, I->src[0]) == JAY_STRIDE_2)) {
+      return 16;
+   }
+
    return 32;
 }
 
