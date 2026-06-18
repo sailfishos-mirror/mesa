@@ -206,7 +206,7 @@ async def test_parse_issues(content: str, bugs: typing.List[str]) -> None:
 @pytest.mark.asyncio
 async def test_rst_escape():
     out = inliner.quoteInline('foo@bar')
-    assert out == 'foo\@bar'
+    assert out == r'foo\@bar'
 
 
 @pytest.mark.asyncio
