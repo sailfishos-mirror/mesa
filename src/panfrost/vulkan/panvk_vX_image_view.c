@@ -74,6 +74,27 @@ panvk_convert_swizzle(const VkComponentMapping *in, unsigned char *out)
    }
 }
 
+#if PAN_ARCH >= 9
+static struct pan_image_view
+panvk_storage_pview(const struct panvk_image_view *view,
+                    const struct pan_image_view *pview)
+{
+   struct pan_image_view spview = *pview;
+
+   /* A storage view only sees its Z-slice range. The range defaults to the
+    * full view depth, so non-sliced views are left unchanged
+    * (VK_EXT_image_sliced_view_of_3d).
+    */
+   if (spview.dim == MALI_TEXTURE_DIMENSION_3D) {
+      spview.first_layer_or_z_slice = view->vk.storage.z_slice_offset;
+      spview.last_layer_or_z_slice =
+         view->vk.storage.z_slice_offset + view->vk.storage.z_slice_count - 1;
+   }
+
+   return spview;
+}
+#endif
+
 static VkResult
 prepare_tex_descs(struct panvk_image_view *view)
 {
@@ -179,8 +200,9 @@ prepare_tex_descs(struct panvk_image_view *view)
                                            &ptr);
 #if PAN_ARCH >= 9
             if (has_storage) {
+               struct pan_image_view spview = panvk_storage_pview(view, &pview);
                GENX(pan_storage_texture_emit)(
-                  &pview, &view->descs.storage_tex[plane], &storage_ptr);
+                  &spview, &view->descs.storage_tex[plane], &storage_ptr);
                storage_ptr = pan_ptr_offset(storage_ptr, tex_payload_size);
             }
 #endif
@@ -190,9 +212,11 @@ prepare_tex_descs(struct panvk_image_view *view)
       } else {
          GENX(pan_sampled_texture_emit)(&pview, &view->descs.tex[0], &ptr);
 #if PAN_ARCH >= 9
-         if (has_storage)
-            GENX(pan_storage_texture_emit)(&pview, &view->descs.storage_tex[0],
+         if (has_storage) {
+            struct pan_image_view spview = panvk_storage_pview(view, &pview);
+            GENX(pan_storage_texture_emit)(&spview, &view->descs.storage_tex[0],
                                            &storage_ptr);
+         }
 #endif
       }
    }
