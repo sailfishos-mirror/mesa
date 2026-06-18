@@ -618,6 +618,59 @@ impl PerCompFoldable for OpIMul {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    I16, S16, U16, V2I16, V2S16, V2U16,
+    I32, S32, U32, I64, S64, U64
+])]
+pub struct OpISub {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub saturate: bool,
+    pub srcs: [Src; 2],
+}
+
+impl fmt::Display for OpISub {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sat = if self.saturate { ".sat" } else { "" };
+        write!(
+            f,
+            "{} = ISUB.{}{sat} {} {}",
+            &self.dst,
+            self.dst_type,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+impl PerCompFoldable for OpISub {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let a = f.get_src(&self.srcs[0]);
+        let b = f.get_src(&self.srcs[1]);
+
+        let bits = self.dst_type.bits();
+        let is_signed = self.dst_type.num_type() == NumericType::SignedInteger;
+
+        assert!(
+            !(bits == 64 && self.saturate),
+            "64-bit ISUB.sat not supported by HW"
+        );
+
+        let c = match (self.saturate, is_signed, bits) {
+            (false, _, _) => a.wrapping_sub(b),
+            (true, false, _) => a.saturating_sub(b).min((1 << bits) - 1),
+            (true, true, 16) => (a as i16).saturating_sub(b as i16) as u64,
+            (true, true, 32) => (a as i32).saturating_sub(b as i32) as u64,
+            (true, true, 64) => (a as i64).saturating_sub(b as i64) as u64,
+            (true, true, _) => panic!("Unsupported bit size"),
+        };
+
+        f.set_dst(&self.dst, c);
+    }
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum MemAccess {
     None,
@@ -1149,6 +1202,7 @@ pub enum Op {
     IAdd(Box<OpIAdd>),
     ICmp(Box<OpICmp>),
     IMul(Box<OpIMul>),
+    ISub(Box<OpISub>),
     LdPka(Box<OpLdPka>),
     LeaPka(Box<OpLeaPka>),
     Load(Box<OpLoad>),

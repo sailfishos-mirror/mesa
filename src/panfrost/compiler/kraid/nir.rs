@@ -464,6 +464,22 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
+            nir_op_isub => {
+                b.push_op(OpISub {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Integer),
+                    saturate: false,
+                    srcs: [srcs(0), srcs(1)],
+                });
+            }
+            nir_op_ineg => {
+                b.push_op(OpISub {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Integer),
+                    saturate: false,
+                    srcs: [0.into(), srcs(0)],
+                });
+            }
             nir_op_iand | nir_op_ior | nir_op_ixor => {
                 b.push_op(OpShiftLop {
                     dst: dst.into(),
