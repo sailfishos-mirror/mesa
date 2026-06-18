@@ -13,6 +13,7 @@
 
 #include "vk_format.h"
 #include "vk_log.h"
+#include "vk_ycbcr_conversion.h"
 
 #include "panvk_device.h"
 #include "panvk_entrypoints.h"
@@ -352,6 +353,26 @@ panvk_per_arch(CreateImageView)(VkDevice _device,
          view->vk.base_array_layer + view->vk.layer_count - 1;
    }
 
+   /* Per VUID-VkImageViewCreateInfo-pNext-01970, the view swizzle is identity
+    * (effectively ignored) when a VkSamplerYcbcrConversionInfo is chained. For
+    * sw YUV handling, the swizzle is extracted and applied in the common YUV
+    * lowering pass. For hw YUV texturing, it'd be cheaper to directly apply to
+    * the view swizzling. To be noted, the view format is checked here.
+    */
+   if (panvk_image_use_yuv_tex(PAN_ARCH, view->vk.format)) {
+      const VkSamplerYcbcrConversionInfo *ycbcr_info = vk_find_struct_const(
+         pCreateInfo->pNext, SAMPLER_YCBCR_CONVERSION_INFO);
+      if (ycbcr_info) {
+         VK_FROM_HANDLE(vk_ycbcr_conversion, conversion,
+                        ycbcr_info->conversion);
+         view->vk.swizzle = (VkComponentMapping){
+            .r = conversion->state.mapping[0],
+            .g = conversion->state.mapping[1],
+            .b = conversion->state.mapping[2],
+            .a = conversion->state.mapping[3],
+         };
+      }
+   }
    vk_component_mapping_to_pipe_swizzle(view->vk.swizzle, view->pview.swizzle);
 
    u_foreach_bit(aspect_bit, view->vk.aspects) {
