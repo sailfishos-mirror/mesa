@@ -305,6 +305,7 @@ static const struct {
    OP(WHILE, WHILE, 0),
    OP(XOR, XOR, 2),
    OP(ZIP_UGPR16, MOV, 0),
+   OP(SLICE_REPACK, MOV, 1),
    /* clang-format on */
 };
 
@@ -614,6 +615,29 @@ emit(struct jay_codegen *jc,
       gen->dpas.sdepth = jay_dpas_sdepth(I);
       gen->dpas.rcount = jay_dpas_rcount(I);
       gen->exec_size = jc->devinfo->ver >= 20 ? 16 : 8;
+      break;
+   }
+
+   case JAY_OPCODE_SLICE_REPACK: {
+      const unsigned elem_bits = 32 >> jay_slice_repack_factor_log2(I);
+      const unsigned unpacked_B = idx_in_macro * gen->exec_size * 4;
+      const unsigned packed_B = idx_in_macro * gen->exec_size * (elem_bits / 8);
+      gen_reg_type t = to_gen_reg_type(jay_type(JAY_TYPE_U, elem_bits));
+
+      gen_operand *unpacked = &gen->src[0];
+      gen_operand *packed   = &gen->dst;
+
+      if (jay_slice_repack_unpack(I))
+         SWAP(unpacked, packed);
+
+      *packed   = gen_retype(gen_byte_offset(jc->devinfo, *packed,   packed_B), t);
+      *unpacked = gen_retype(gen_byte_offset(jc->devinfo, *unpacked, unpacked_B), t);
+
+      if (elem_bits == 16)
+         *unpacked = gen_restride(*unpacked, 4, 2, 2);
+      else if (elem_bits == 8)
+         *unpacked = gen_restride(*unpacked, 8, 2, 4);
+
       break;
    }
 

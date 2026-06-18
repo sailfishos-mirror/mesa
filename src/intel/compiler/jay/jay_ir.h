@@ -977,10 +977,18 @@ jay_simd_width_physical(jay_shader *s, const jay_inst *I)
 static inline unsigned
 jay_macro_length(const jay_inst *I)
 {
-   bool macro = (I->op == JAY_OPCODE_MUL_32 ||
-                 I->op == JAY_OPCODE_SHUFFLE ||
-                 I->op == JAY_OPCODE_LOOP_ONCE);
-   return macro ? 2 : 1;
+   switch (I->op) {
+   case JAY_OPCODE_MUL_32:
+   case JAY_OPCODE_SHUFFLE:
+   case JAY_OPCODE_LOOP_ONCE:
+      return 2;
+
+   case JAY_OPCODE_SLICE_REPACK:
+      return 1 << jay_slice_repack_factor_log2(I);
+
+   default:
+      return 1;
+   }
 }
 
 static inline bool
@@ -991,7 +999,8 @@ jay_is_no_mask(const jay_inst *I)
           I->op == JAY_OPCODE_DESWIZZLE_EVEN ||
           I->op == JAY_OPCODE_DESWIZZLE_ODD ||
           I->op == JAY_OPCODE_OFFSET_PACKED_PIXEL_COORDS ||
-          I->op == JAY_OPCODE_DPAS;
+          I->op == JAY_OPCODE_DPAS ||
+          I->op == JAY_OPCODE_SLICE_REPACK;
 }
 
 /**

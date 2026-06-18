@@ -235,6 +235,12 @@ op('dpas', 3, 'u32', 0, [
     'uint8_t pad[3]',
 ])
 
+# Pack/unpack multiple sources to/from a single 32-bit def.
+op('slice_repack', 1, 'u32', 0, [
+   'uint8_t factor_log2',
+   'bool unpack',
+])
+
 # Initialize helper invocations. Takes 16-bit halves of the dispatch mask.
 op('init_helpers', 2, 'u16', Props.NO_DEST)
 

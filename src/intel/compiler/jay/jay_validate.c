@@ -123,6 +123,9 @@ get_src_words(struct validate_state *validate, jay_inst *I, unsigned s)
       return bytes / (shader->dispatch_width * 4);
    }
 
+   if (I->op == JAY_OPCODE_SLICE_REPACK && !jay_slice_repack_unpack(I))
+      return 1 << jay_slice_repack_factor_log2(I);
+
    unsigned simd_width = jay_simd_width_logical(validate->func->shader, I);
    unsigned elsize = jay_type_vector_length(jay_src_type(I, s));
 
@@ -311,6 +314,11 @@ validate_inst(struct validate_state *validate, jay_inst *I)
       CHECK(jay_num_values(I->src[0]) == 16);
       CHECK(jay_num_values(I->src[1]) == 16);
       CHECK(jay_grf_per_gpr(validate->func->shader) == 2);
+   } else if (I->op == JAY_OPCODE_SLICE_REPACK) {
+      const bool unpack = jay_slice_repack_unpack(I);
+      const unsigned pf = 1 << jay_slice_repack_factor_log2(I);
+      CHECK(pf == 1 || pf == 2 || pf == 4);
+      CHECK(jay_num_values(I->dst) == (unpack ? pf : 1));
    }
 }
 

@@ -29,6 +29,11 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
       return 16;
    }
 
+   if (I->op == JAY_OPCODE_CVT && (I->type == JAY_TYPE_BF16 ||
+                                   jay_cvt_src_type(I) == JAY_TYPE_BF16)) {
+      return 16;
+   }
+
    if (I->op != JAY_OPCODE_SEND) {
       /* If any source/destination is 64-bit strided, we must split to avoid
        * crossing more than 2 GRFs. Note that SENDs don't have this restriction,

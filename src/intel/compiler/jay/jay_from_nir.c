@@ -1404,6 +1404,69 @@ jay_emit_dpas(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 }
 
 static void
+jay_emit_convert_cmat(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
+{
+   struct glsl_cmat_description dst_cmat_desc = nir_intrinsic_dst_cmat_desc(intr);
+   struct glsl_cmat_description src_cmat_desc = nir_intrinsic_src_cmat_desc(intr);
+
+   enum jay_type dst_type =
+      jay_type_for_glsl_base_type((enum glsl_base_type)dst_cmat_desc.element_type);
+   enum jay_type src_type =
+      jay_type_for_glsl_base_type((enum glsl_base_type)src_cmat_desc.element_type);
+
+   const unsigned dst_element_bits = jay_type_size_bits(dst_type);
+   const unsigned src_element_bits = jay_type_size_bits(src_type);
+
+   assert(dst_cmat_desc.use == src_cmat_desc.use);
+   if (src_cmat_desc.use == GLSL_CMAT_USE_B)
+      assert(dst_element_bits == src_element_bits);
+
+   const unsigned dst_pf = 32 / dst_element_bits;
+   const unsigned src_pf = 32 / src_element_bits;
+   const unsigned elems = nir_src_num_components(intr->src[0]) * src_pf;
+
+   jay_def dst = nj_def(&intr->def);
+   jay_def src = nj_src(intr->src[0]);
+
+   jay_builder *b = &nj->bld;
+
+   jay_def src_tmp = src_pf > 1 ? jay_alloc_def(b, GPR, elems) : src;
+   jay_def dst_tmp = dst_pf > 1 ? jay_alloc_def(b, GPR, elems) : dst;
+
+   if (src_pf > 1) {
+      for (unsigned i = 0; i < elems; i += src_pf) {
+         jay_SLICE_REPACK(b, jay_extract_range(src_tmp, i, src_pf),
+                          jay_extract(src, i / src_pf),
+                          util_logbase2(src_pf), /* unpack */ true);
+      }
+   }
+
+   if ((src_type == JAY_TYPE_BF16 && dst_type != JAY_TYPE_F32) ||
+       (dst_type == JAY_TYPE_BF16 && src_type != JAY_TYPE_F32)) {
+      jay_def tmp = jay_alloc_def(b, GPR, elems);
+      for (unsigned i = 0; i < elems; ++i) {
+         jay_CVT(b, JAY_TYPE_F32, jay_extract(tmp, i),
+                 jay_extract(src_tmp, i), src_type, JAY_ROUND, 0);
+      }
+      src_tmp = tmp;
+      src_type = JAY_TYPE_F32;
+   }
+
+   for (unsigned i = 0; i < elems; ++i) {
+      jay_CVT(b, dst_type, jay_extract(dst_tmp, i), jay_extract(src_tmp, i),
+              src_type, JAY_ROUND, 0);
+   }
+
+   if (dst_pf > 1) {
+      for (unsigned i = 0; i < elems; i += dst_pf) {
+         jay_SLICE_REPACK(b, jay_extract(dst, i / dst_pf),
+                          jay_extract_range(dst_tmp, i, dst_pf),
+                          util_logbase2(dst_pf), /* unpack */ false);
+      }
+   }
+}
+
+static void
 jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
    jay_shader *s = nj->s;
@@ -1908,6 +1971,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_dpas_intel:
       jay_emit_dpas(nj, intr);
+      break;
+
+   case nir_intrinsic_convert_cmat_intel:
+      jay_emit_convert_cmat(nj, intr);
       break;
 
    default:
