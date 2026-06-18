@@ -93,9 +93,9 @@ struct kk_attachment {
    VkResolveModeFlagBits resolve_mode;
    struct kk_image_view *resolve_iview;
 
-   /* Needed to track the value of storeOp in case we need to copy images for
-    * the DRM_FORMAT_MOD_LINEAR case */
+   VkAttachmentLoadOp load_op;
    VkAttachmentStoreOp store_op;
+   VkClearValue clear_value;
 };
 
 struct kk_rendering_state {
@@ -108,6 +108,7 @@ struct kk_rendering_state {
 
    uint32_t color_att_count;
    struct kk_attachment color_att[KK_MAX_RTS];
+   uint8_t color_map[KK_MAX_RTS];
    struct kk_attachment depth_att;
    struct kk_attachment stencil_att;
    struct kk_attachment fsr_att;

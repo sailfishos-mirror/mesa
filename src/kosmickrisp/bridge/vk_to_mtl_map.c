@@ -93,6 +93,7 @@ vk_attachment_load_op_to_mtl_load_action(enum VkAttachmentLoadOp op)
    case VK_ATTACHMENT_LOAD_OP_CLEAR:
       return MTL_LOAD_ACTION_CLEAR;
    case VK_ATTACHMENT_LOAD_OP_DONT_CARE:
+   case VK_ATTACHMENT_LOAD_OP_NONE:
       return MTL_LOAD_ACTION_DONT_CARE;
    default:
       assert(false && "Unsupported VkAttachmentLoadOp");
