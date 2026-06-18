@@ -693,10 +693,10 @@ struct gen_encoder {
             set(E::ACC_WR_CONTROL,    inst->acc_wr_control);
 
          set(E::THREE_EXEC_DATA_TYPE, gen_type_is_float_or_bfloat(inst->dst.type));
-         set(E::THREE_DST_TYPE,       encode_type_3src(inst->dst.type));
-         set(E::THREE_SRC0_TYPE,      encode_type_3src(inst->src[0].type));
-         set(E::THREE_SRC1_TYPE,      encode_type_3src(inst->src[1].type));
-         set(E::THREE_SRC2_TYPE,      encode_type_3src(inst->src[2].type));
+         set(E::THREE_DST_TYPE,       encode_type_short(inst->dst.type));
+         set(E::THREE_SRC0_TYPE,      encode_type_short(inst->src[0].type));
+         set(E::THREE_SRC1_TYPE,      encode_type_short(inst->src[1].type));
+         set(E::THREE_SRC2_TYPE,      encode_type_short(inst->src[2].type));
 
          encode_direct_operand(E::THREE_DST_OPERAND, inst->dst);
          set(E::THREE_DST_HSTRIDE,
@@ -754,10 +754,10 @@ struct gen_encoder {
          set(E::DPAS_SDEPTH,    encode_sdepth(inst->dpas.sdepth));
 
          set(E::THREE_EXEC_DATA_TYPE, gen_type_is_float_or_bfloat(inst->dst.type));
-         set(E::THREE_DST_TYPE,       encode_type_3src(inst->dst.type));
-         set(E::THREE_SRC0_TYPE,      encode_type_3src(inst->src[0].type));
-         set(E::THREE_SRC1_TYPE,      encode_type_3src(inst->src[1].type));
-         set(E::THREE_SRC2_TYPE,      encode_type_3src(inst->src[2].type));
+         set(E::THREE_DST_TYPE,       encode_type_short(inst->dst.type));
+         set(E::THREE_SRC0_TYPE,      encode_type_short(inst->src[0].type));
+         set(E::THREE_SRC1_TYPE,      encode_type_short(inst->src[1].type));
+         set(E::THREE_SRC2_TYPE,      encode_type_short(inst->src[2].type));
 
          set(E::DPAS_SRC1_SUBBYTE, inst->dpas.src1_subbyte);
          set(E::DPAS_SRC2_SUBBYTE, inst->dpas.src2_subbyte);
@@ -1005,7 +1005,7 @@ private:
    }
 
    inline unsigned
-   encode_type_3src(gen_reg_type type)
+   encode_type_short(gen_reg_type type)
    {
       if (gen_type_is_bfloat(type) && !devinfo->has_bfloat16)
          return GEN_INVALID_HW_REG_TYPE;
@@ -1270,10 +1270,10 @@ struct gen_decoder {
             inst->acc_wr_control = get(E::ACC_WR_CONTROL);
 
          const bool is_float = get(E::THREE_EXEC_DATA_TYPE);
-         inst->dst.type    = decode_type_3src(get(E::THREE_DST_TYPE), is_float);
-         inst->src[0].type = decode_type_3src(get(E::THREE_SRC0_TYPE), is_float);
-         inst->src[1].type = decode_type_3src(get(E::THREE_SRC1_TYPE), is_float);
-         inst->src[2].type = decode_type_3src(get(E::THREE_SRC2_TYPE), is_float);
+         inst->dst.type    = decode_type_short(get(E::THREE_DST_TYPE), is_float);
+         inst->src[0].type = decode_type_short(get(E::THREE_SRC0_TYPE), is_float);
+         inst->src[1].type = decode_type_short(get(E::THREE_SRC1_TYPE), is_float);
+         inst->src[2].type = decode_type_short(get(E::THREE_SRC2_TYPE), is_float);
 
          decode_direct_operand(E::THREE_DST_OPERAND, inst->dst);
          inst->dst.region.hstride = get(E::THREE_DST_HSTRIDE) + 1;
@@ -1336,10 +1336,10 @@ struct gen_decoder {
          inst->dpas.sdepth    = decode_sdepth(get(E::DPAS_SDEPTH));
 
          const bool is_float = get(E::THREE_EXEC_DATA_TYPE);
-         inst->dst.type    = decode_type_3src(get(E::THREE_DST_TYPE), is_float);
-         inst->src[0].type = decode_type_3src(get(E::THREE_SRC0_TYPE), is_float);
-         inst->src[1].type = decode_type_3src(get(E::THREE_SRC1_TYPE), is_float);
-         inst->src[2].type = decode_type_3src(get(E::THREE_SRC2_TYPE), is_float);
+         inst->dst.type    = decode_type_short(get(E::THREE_DST_TYPE), is_float);
+         inst->src[0].type = decode_type_short(get(E::THREE_SRC0_TYPE), is_float);
+         inst->src[1].type = decode_type_short(get(E::THREE_SRC1_TYPE), is_float);
+         inst->src[2].type = decode_type_short(get(E::THREE_SRC2_TYPE), is_float);
 
          inst->dpas.src1_subbyte = get(E::DPAS_SRC1_SUBBYTE);
          inst->dpas.src2_subbyte = get(E::DPAS_SRC2_SUBBYTE);
@@ -1599,7 +1599,7 @@ private:
    }
 
    inline gen_reg_type
-   decode_type_3src(unsigned hw_type, bool is_float)
+   decode_type_short(unsigned hw_type, bool is_float)
    {
       unsigned size_field = hw_type & GEN_TYPE_SIZE_MASK;
       unsigned base_field = hw_type & GEN_TYPE_BASE_MASK;
