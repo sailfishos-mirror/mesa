@@ -100,6 +100,25 @@ PROFILES: dict[str, dict] = {
         "exclude_stage": [''],
         "stress": 2,
     },
+    "uprev_angle": {
+        "target": [
+            ".*angle.*",
+            "a618-android",
+        ],
+        "stress": 2,
+    },
+    "uprev_angle_nightly": {
+        "target": [".*angle.*"],
+        "include_stage": [
+            "amd-nightly",
+            "intel-nightly",
+            "arm",
+            "freedreno-nightly",
+            "software-renderer",
+        ],
+        "exclude_stage": [''],
+        "stress": 2,
+    },
 }
 
 if is_gitlab_job():
