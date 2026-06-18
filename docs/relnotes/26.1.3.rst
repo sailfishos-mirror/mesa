@@ -32,7 +32,14 @@ New features
 Bug fixes
 ---------
 
-- None
+- [RADV/ACO]: (Bisected) Regression causes flashing reflections in CyperPunk 2077
+- [RADV] Regression: Infinite loop in NIR compiler during nir_opt_dead_write_vars loading Gemma 4 via llama.cpp on gfx1100
+- [radeonsi] SIGSEGV in gallivm during software fallback for GL_FEEDBACK with lighting
+- anv: NULL deref in anv_AllocateMemory when importing DMA-BUF without VkMemoryDedicatedAllocateInfo on Xe2 (regression)
+- anv: World of Warcraft dx11 CMAA 2 option buggy on a b580
+- anv: atan shader compiler bug leads to negative infinity
+- intel/blorp: shader_pipeline initialization results in incorrect blorp_key values
+- llvm23 breaks build of clc_helpers.cpp
 
 
 Changes
