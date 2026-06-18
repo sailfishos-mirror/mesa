@@ -520,6 +520,30 @@ impl BitSet<usize> {
         find_next_set(word_fn, start.into()).unwrap().into()
     }
 
+    /// Search for a set of `count` consecutive elements that in the set. The
+    /// found set must obey the alignment requirements specified by
+    /// align_offset and align_mul. All elements in the found set will be >=
+    /// start. Returns the least element of the found set.
+    ///
+    /// align_mul must be a power of two <= 16
+    pub fn find_aligned_set_range(
+        &self,
+        start: usize,
+        count: usize,
+        align_mul: usize,
+        align_offset: usize,
+    ) -> Option<usize> {
+        let word_fn = |w| self.words.get(w).cloned();
+        find_aligned_set_range(
+            word_fn,
+            start.into(),
+            count,
+            align_mul,
+            align_offset,
+        )
+        .map(BitIndex::into)
+    }
+
     /// Search for a set of `count` consecutive elements that are not present in
     /// the set. The found set must obey the alignment requirements specified by
     /// align_offset and align_mul. All elements in the found set will be >=
