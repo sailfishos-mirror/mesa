@@ -891,7 +891,8 @@ jay_is_shuffle_like(const jay_inst *I)
 static inline bool
 jay_clobbers_address_reg(const jay_inst *I)
 {
-   return I->op == JAY_OPCODE_SHUFFLE || I->op == JAY_OPCODE_VECTOR_EXTRACT;
+   return (I->op == JAY_OPCODE_SHUFFLE || I->op == JAY_OPCODE_VECTOR_EXTRACT) &&
+          I->src[1].file == GPR;
 }
 
 /*

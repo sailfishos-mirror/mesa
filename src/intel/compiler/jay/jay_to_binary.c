@@ -581,10 +581,11 @@ emit(struct jay_codegen *jc,
       assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
       FALLTHROUGH;
    case JAY_OPCODE_VECTOR_EXTRACT: {
-      /* Use a dedicated address register for broadcasts to avoid interfering
-       * with a0.0 users. This affects UGPR spilling.
+      /* Use a dedicated address register for 1x1 indirects to avoid
+       * interfering with a0.0 and a0.2 users. This affects UGPR spilling.
        */
-      unsigned addr = gen->exec_size == 1 ? 4 : 0;
+      bool VxH = !jay_is_uniform(I->src[1]);
+      unsigned addr = VxH ? 0 : 4;
 
       if (idx_in_macro == 0) {
          struct jay_register_block block =
@@ -599,16 +600,26 @@ emit(struct jay_codegen *jc,
          gen->dst = gen_address(addr);
          gen->src[0] = gen_subscript(jc->devinfo, gen->src[1], GEN_TYPE_UW, 0);
          gen->src[1] = gen_imm_uw(offset_B);
+
+         if (!VxH) {
+            /* 1x1 indirects only need a single address register */
+            gen->exec_size = 1;
+            gen->no_mask = true;
+         }
       } else {
          gen->src[0] = gen_grf(0, addr);
          gen->src[0].type = GEN_TYPE_UD;
          gen->src[0].indirect = true;
-         gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
          gen->src[0].addr_imm = 0;
 
-         if (I->op == JAY_OPCODE_VECTOR_EXTRACT && I->src[0].file == GPR) {
+         if (VxH) {
+            gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
+         } else if (I->op == JAY_OPCODE_VECTOR_EXTRACT &&
+                    I->src[0].file == GPR) {
             gen->src[0] = gen_restride(gen->src[0],
                                        32 / jay_type_size_bits(I->type), 1, 0);
+         } else {
+            gen->src[0] = gen_restride(gen->src[0], 0, 1, 0);
          }
       }
       break;

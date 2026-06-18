@@ -85,7 +85,7 @@ jay_lower_post_sched(jay_shader *shader, uint32_t api, uint32_t float_sizes)
              */
             if (I->op == JAY_OPCODE_SHUFFLE ||
                 I->op == JAY_OPCODE_VECTOR_EXTRACT) {
-               if (!jay_is_uniform(I->dst) && !a0_valid_for_shuffle) {
+               if (!jay_is_uniform(I->src[1]) && !a0_valid_for_shuffle) {
                   jay_builder b = jay_init_builder(func, jay_before_inst(I));
                   jay_MOV(&b, jay_bare_regs(J_ADDRESS, 0, 8), 0);
                   a0_valid_for_shuffle = true;
