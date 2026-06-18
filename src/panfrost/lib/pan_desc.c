@@ -517,7 +517,7 @@ pan_emit_zs_crc_ext(const struct pan_fb_info *fb, unsigned layer_idx,
 
       const struct pan_attachment_info att = {
          .iview = fb->zs.view.zs,
-         .layer_or_z_slice = layer_idx + fb->zs.view.zs->first_layer,
+         .layer_or_z_slice = layer_idx + fb->zs.view.zs->first_layer_or_z_slice,
          .fb_tile_size_px = fb->tile_size,
       };
 
@@ -533,7 +533,7 @@ pan_emit_zs_crc_ext(const struct pan_fb_info *fb, unsigned layer_idx,
 
       const struct pan_attachment_info att = {
          .iview = fb->zs.view.s,
-         .layer_or_z_slice = layer_idx + fb->zs.view.s->first_layer,
+         .layer_or_z_slice = layer_idx + fb->zs.view.s->first_layer_or_z_slice,
          .fb_tile_size_px = fb->tile_size,
       };
 
@@ -1027,15 +1027,13 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
    const struct pan_mod_handler *mod_handler = pref.image->mod_handler;
    assert(mod_handler);
 
-   ASSERTED unsigned layer_count = rt->dim == MALI_TEXTURE_DIMENSION_3D
-                                      ? pref.image->props.extent_px.depth
-                                      : rt->last_layer - rt->first_layer + 1;
+   ASSERTED unsigned layer_count = pan_image_view_layer_or_3d_slice_count(rt);
 
    assert(rt->last_level == rt->first_level);
    assert(layer_idx < layer_count);
    const struct pan_attachment_info att = {
       .iview = fb->rts[idx].view,
-      .layer_or_z_slice = layer_idx + rt->first_layer,
+      .layer_or_z_slice = layer_idx + rt->first_layer_or_z_slice,
       .fb_tile_size_px = fb->tile_size,
    };
 
@@ -1404,9 +1402,12 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
          const struct pan_image_slice_layout *slayout =
             &plane->layout.slices[rt->first_level];
          const unsigned array_idx =
-            image->props.dim == MALI_TEXTURE_DIMENSION_3D ? 0 : rt->first_layer;
-         const unsigned surf_idx =
-            image->props.dim == MALI_TEXTURE_DIMENSION_3D ? rt->first_layer : 0;
+            image->props.dim == MALI_TEXTURE_DIMENSION_3D
+               ? 0
+               : rt->first_layer_or_z_slice;
+         const unsigned surf_idx = image->props.dim == MALI_TEXTURE_DIMENSION_3D
+                                      ? rt->first_layer_or_z_slice
+                                      : 0;
 
          const struct util_format_description *desc =
             util_format_description(rt->format);
@@ -1461,9 +1462,12 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
          const struct pan_image_slice_layout *slayout =
             &plane->layout.slices[zs->first_level];
          const unsigned array_idx =
-            image->props.dim == MALI_TEXTURE_DIMENSION_3D ? 0 : zs->first_layer;
-         const unsigned surf_idx =
-            image->props.dim == MALI_TEXTURE_DIMENSION_3D ? zs->first_layer : 0;
+            image->props.dim == MALI_TEXTURE_DIMENSION_3D
+               ? 0
+               : zs->first_layer_or_z_slice;
+         const unsigned surf_idx = image->props.dim == MALI_TEXTURE_DIMENSION_3D
+                                      ? zs->first_layer_or_z_slice
+                                      : 0;
 
          cfg.zs_write_enable = !fb->zs.discard.z;
          cfg.zs_writeback.base =

@@ -216,7 +216,7 @@ prepare_attr_buf_descs(struct panvk_image_view *view)
       &plane_layout->slices[view->pview.first_level];
    bool is_3d = plane_props->dim == MALI_TEXTURE_DIMENSION_3D;
    unsigned offset =
-      slayout->offset_B + (view->pview.first_layer *
+      slayout->offset_B + (view->pview.first_layer_or_z_slice *
                            (is_3d ? slayout->tiled_or_linear.surface_stride_B
                                   : plane_layout->array_stride_B));
 
@@ -256,10 +256,7 @@ prepare_attr_buf_descs(struct panvk_image_view *view)
 
       cfg.s_dimension = extent.width;
       cfg.t_dimension = extent.height;
-      cfg.r_dimension =
-         view->pview.dim == MALI_TEXTURE_DIMENSION_3D
-            ? extent.depth
-            : (view->pview.last_layer - view->pview.first_layer + 1);
+      cfg.r_dimension = pan_image_view_layer_or_3d_slice_count(&view->pview);
       cfg.row_stride = slayout->tiled_or_linear.row_stride_B;
       if (cfg.r_dimension > 1 || nr_samples > 1) {
          cfg.slice_stride = view->pview.dim == MALI_TEXTURE_DIMENSION_3D
@@ -349,10 +346,18 @@ panvk_per_arch(CreateImageView)(VkDevice _device,
       .last_level = vk_format_get_ycbcr_info(view->vk.format)
          ? view->vk.base_mip_level
          : view->vk.base_mip_level + view->vk.level_count - 1,
-      .first_layer = view->vk.base_array_layer,
-      .last_layer = view->vk.base_array_layer + view->vk.layer_count - 1,
       .min_lod = view->vk.min_lod,
    };
+
+   if (view->vk.view_type == VK_IMAGE_VIEW_TYPE_3D) {
+      view->pview.first_layer_or_z_slice = 0;
+      view->pview.last_layer_or_z_slice = view->vk.extent.depth - 1;
+   } else {
+      view->pview.first_layer_or_z_slice = view->vk.base_array_layer;
+      view->pview.last_layer_or_z_slice =
+         view->vk.base_array_layer + view->vk.layer_count - 1;
+   }
+
    panvk_convert_swizzle(&view->vk.swizzle, view->pview.swizzle);
 
    u_foreach_bit(aspect_bit, view->vk.aspects) {

@@ -583,7 +583,7 @@ pan_preload_get_key(struct pan_preload_views *views)
       key.surfaces[0].type = nir_type_float32;
       key.surfaces[0].samples = pan_image_view_get_nr_samples(views->z);
       key.surfaces[0].dim = views->z->dim;
-      key.surfaces[0].array = views->z->first_layer != views->z->last_layer;
+      key.surfaces[0].array = pan_image_view_layer_count(views->z) > 1;
    }
 
    if (views->s) {
@@ -591,7 +591,7 @@ pan_preload_get_key(struct pan_preload_views *views)
       key.surfaces[1].type = nir_type_uint32;
       key.surfaces[1].samples = pan_image_view_get_nr_samples(views->s);
       key.surfaces[1].dim = views->s->dim;
-      key.surfaces[1].array = views->s->first_layer != views->s->last_layer;
+      key.surfaces[1].array = pan_image_view_layer_count(views->s) > 1;
    }
 
    for (unsigned i = 0; i < views->rt_count; i++) {
@@ -607,8 +607,7 @@ pan_preload_get_key(struct pan_preload_views *views)
       key.surfaces[i].samples =
          pan_image_view_get_nr_samples(views->rts[i]);
       key.surfaces[i].dim = views->rts[i]->dim;
-      key.surfaces[i].array =
-         views->rts[i]->first_layer != views->rts[i]->last_layer;
+      key.surfaces[i].array = pan_image_view_layer_count(views->rts[i]) > 1;
    }
 
    return key;

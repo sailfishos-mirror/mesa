@@ -122,7 +122,7 @@ static unsigned
 pan_texture_num_elements(const struct pan_image_view *iview)
 {
    unsigned levels = 1 + iview->last_level - iview->first_level;
-   unsigned layers = 1 + iview->last_layer - iview->first_layer;
+   unsigned layers = pan_image_view_layer_count(iview);
    unsigned nr_samples = pan_image_view_get_nr_samples(iview);
 
    return levels * layers * MAX2(nr_samples, 1);
@@ -1044,9 +1044,19 @@ pan_emit_iview_texture_payload(const struct pan_image_view *iview,
     * into a single plane descriptor.
     */
 
+   unsigned first_layer_or_z_slice = iview->first_layer_or_z_slice;
+
+   /* A 3D view emits a single surface entry at its first Z slice, the slice
+    * count is conveyed through the texture depth.
+    */
+   unsigned last_layer_or_z_slice =
+      iview->dim == MALI_TEXTURE_DIMENSION_3D ? first_layer_or_z_slice
+                                              : iview->last_layer_or_z_slice;
+
 #if PAN_ARCH >= 7
    /* V7 and later treats faces as extra layers */
-   for (int layer = iview->first_layer; layer <= iview->last_layer; ++layer) {
+   for (int layer = first_layer_or_z_slice; layer <= last_layer_or_z_slice;
+        ++layer) {
       for (int sample = 0; sample < nr_samples; ++sample) {
          for (int level = iview->first_level; level <= iview->last_level;
               ++level) {
@@ -1056,17 +1066,17 @@ pan_emit_iview_texture_payload(const struct pan_image_view *iview,
       }
    }
 #else
-   unsigned first_layer = iview->first_layer, last_layer = iview->last_layer;
    unsigned face_count = 1;
 
    if (iview->dim == MALI_TEXTURE_DIMENSION_CUBE) {
-      first_layer /= 6;
-      last_layer /= 6;
+      first_layer_or_z_slice /= 6;
+      last_layer_or_z_slice /= 6;
       face_count = 6;
    }
 
    /* V6 and earlier has a different memory-layout */
-   for (int layer = first_layer; layer <= last_layer; ++layer) {
+   for (int layer = first_layer_or_z_slice; layer <= last_layer_or_z_slice;
+        ++layer) {
       for (int level = iview->first_level; level <= iview->last_level;
            ++level) {
          /* order of face and sample doesn't matter; we can only have multiple
@@ -1155,7 +1165,7 @@ GENX(pan_texture_afbc_reswizzle)(struct pan_image_view *iview)
 static unsigned
 pan_texture_get_array_size(const struct pan_image_view *iview)
 {
-   unsigned array_size = iview->last_layer - iview->first_layer + 1;
+   unsigned array_size = pan_image_view_layer_count(iview);
 
    /* If this is a cubemap, we expect the number of layers to be a multiple
     * of 6.
@@ -1304,7 +1314,7 @@ GENX(pan_storage_texture_emit)(const struct pan_image_view *iview,
       cfg.width = extent_px.width;
       cfg.height = extent_px.height;
       if (iview->dim == MALI_TEXTURE_DIMENSION_3D)
-         cfg.depth = extent_px.depth;
+         cfg.depth = pan_image_view_3d_slice_count(iview);
       else
          cfg.sample_count = props->nr_samples;
       cfg.texel_interleave = (props->modifier != DRM_FORMAT_MOD_LINEAR) ||

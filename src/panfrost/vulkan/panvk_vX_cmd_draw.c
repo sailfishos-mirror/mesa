@@ -360,8 +360,10 @@ render_state_set_zs_attachments(struct panvk_cmd_buffer *cmdbuf,
       assert(z_iview->pview.dim == s_iview->pview.dim);
       assert(z_iview->pview.first_level == s_iview->pview.first_level);
       assert(z_iview->pview.last_level == s_iview->pview.last_level);
-      assert(z_iview->pview.first_layer == s_iview->pview.first_layer);
-      assert(z_iview->pview.last_layer == s_iview->pview.last_layer);
+      assert(z_iview->pview.first_layer_or_z_slice ==
+             s_iview->pview.first_layer_or_z_slice);
+      assert(z_iview->pview.last_layer_or_z_slice ==
+             s_iview->pview.last_layer_or_z_slice);
       assert(z_iview->pview.nr_samples == s_iview->pview.nr_samples);
    }
 

@@ -51,7 +51,7 @@ struct pan_image_view {
    enum pipe_format format;
    enum mali_texture_dimension dim;
    unsigned first_level, last_level;
-   unsigned first_layer, last_layer;
+   unsigned first_layer_or_z_slice, last_layer_or_z_slice;
    float min_lod;
    unsigned char swizzle[4];
 
@@ -117,17 +117,54 @@ pan_image_view_get_nr_samples(const struct pan_image_view *iview)
    return pref.image->props.nr_samples;
 }
 
-static inline uint32_t
-pan_image_view_get_layer_count(const struct pan_image_view *iview)
+static inline unsigned
+pan_image_view_first_layer(const struct pan_image_view *iview)
 {
-   const struct pan_image_plane_ref pref = pan_image_view_get_first_plane(iview);
+   return iview->dim != MALI_TEXTURE_DIMENSION_3D
+             ? iview->first_layer_or_z_slice
+             : 0;
+}
 
-   if (!pref.image)
-      return 0;
+static inline unsigned
+pan_image_view_last_layer(const struct pan_image_view *iview)
+{
+   return iview->dim != MALI_TEXTURE_DIMENSION_3D ? iview->last_layer_or_z_slice
+                                                  : 0;
+}
 
+static inline unsigned
+pan_image_view_layer_count(const struct pan_image_view *iview)
+{
+   return pan_image_view_last_layer(iview) - pan_image_view_first_layer(iview) +
+          1;
+}
+
+static inline unsigned
+pan_image_view_first_z_slice(const struct pan_image_view *iview)
+{
    return iview->dim == MALI_TEXTURE_DIMENSION_3D
-                        ? pref.image->props.extent_px.depth
-                        : iview->last_layer - iview->first_layer + 1;
+             ? iview->first_layer_or_z_slice
+             : 0;
+}
+
+static inline unsigned
+pan_image_view_last_z_slice(const struct pan_image_view *iview)
+{
+   return iview->dim == MALI_TEXTURE_DIMENSION_3D ? iview->last_layer_or_z_slice
+                                                  : 0;
+}
+
+static inline unsigned
+pan_image_view_3d_slice_count(const struct pan_image_view *iview)
+{
+   return pan_image_view_last_z_slice(iview) -
+          pan_image_view_first_z_slice(iview) + 1;
+}
+
+static inline unsigned
+pan_image_view_layer_or_3d_slice_count(const struct pan_image_view *iview)
+{
+   return iview->last_layer_or_z_slice - iview->first_layer_or_z_slice + 1;
 }
 
 static inline struct pan_image_plane_ref
