@@ -562,33 +562,27 @@ compute_w_entry(struct spill_ctx *ctx, jay_block *block)
 {
    unsigned j = 0;
 
-   /* Variables that are in all predecessors are assumed in W_entry. Phis and
-    * variables in some predecessors are scored by next-use.
+   /* Variables that are in all predecessors are assumed in W_entry. Phis are
+    * scored by next-use. Unlike the paper, variables in only some predecessors
+    * are dropped, implementing an ACO-style "lazy reloading" which appears to
+    * have advantages for divergent control flow.
     */
    U_SPARSE_BITSET_FOREACH_SET(&ctx->N, i) {
-      bool all = true, any = false;
+      bool all = true;
 
       jay_foreach_predecessor(block, P, ctx->file) {
-         bool in = u_sparse_bitset_test(&ctx->blocks[(*P)->index].W_out, i);
-         all &= in;
+         all &= u_sparse_bitset_test(&ctx->blocks[(*P)->index].W_out, i);
 
          /* When spilling UGPRs, consider only values that have never been
           * spilled nor remapped and therefore will not insert phi instructions.
           * That ensures correctness despite critical edges in the physical CFG.
           */
-         if (ctx->file == UGPR) {
-            all &=
-               !_mesa_hash_table_u64_search(ctx->blocks[(*P)->index].remap, i);
-         } else {
-            any |= in;
-         }
+         all &= ctx->file == GPR ||
+                !_mesa_hash_table_u64_search(ctx->blocks[(*P)->index].remap, i);
       }
 
       if (all) {
          insert_W(ctx, i);
-      } else if (any) {
-         ctx->candidates[j++] =
-            (struct next_use) { .index = i, .dist = ctx->next_uses[i] };
       }
    }
 
