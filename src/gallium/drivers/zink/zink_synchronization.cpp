@@ -577,8 +577,7 @@ zink_pipeline_flags_from_stage(VkShaderStageFlagBits stage)
 ALWAYS_INLINE static bool
 resource_needs_barrier(struct zink_resource *res, VkAccessFlags flags, VkPipelineStageFlags pipeline, bool unordered)
 {
-   return zink_resource_access_is_write(unordered ? res->obj->unordered_access : res->obj->access) ||
-          zink_resource_access_is_write(flags) ||
+   return zink_resource_access_is_write(flags) ||
           ((unordered ? res->obj->unordered_access_stage : res->obj->access_stage) & pipeline) != pipeline ||
           ((unordered ? res->obj->unordered_access : res->obj->access) & flags) != flags;
 }
