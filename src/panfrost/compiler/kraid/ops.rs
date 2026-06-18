@@ -22,7 +22,7 @@
 //! - Convention for variant ordering is to sort by (component_size, vector_size)
 //!   Ex: [I8, V2I8, V4I8, I16, V2I16, I32, I64]
 
-use crate::data_type::PartialDataType;
+use crate::data_type::{NumericType, PartialDataType};
 use crate::foldable::{FoldDataView, PerCompFoldable};
 use crate::ir::*;
 use compiler::float16::F16;
@@ -462,7 +462,10 @@ impl PerCompFoldable for OpFCmp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [I16, S16, U16, V2I16, V2S16, V2U16, I32, S32, U32])]
+#[variants(dst_type in [
+    I16, S16, U16, V2I16, V2S16, V2U16,
+    I32, S32, U32, I64, S64, U64
+])]
 pub struct OpIAdd {
     pub dst: Dst,
     pub dst_type: DataType,
@@ -481,6 +484,32 @@ impl fmt::Display for OpIAdd {
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )
+    }
+}
+
+impl PerCompFoldable for OpIAdd {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let a = f.get_src(&self.srcs[0]);
+        let b = f.get_src(&self.srcs[1]);
+
+        let bits = self.dst_type.bits();
+        let is_signed = self.dst_type.num_type() == NumericType::SignedInteger;
+
+        assert!(
+            !(bits == 64 && self.saturate),
+            "64-bit IADD.sat not supported by HW"
+        );
+
+        let c = match (self.saturate, is_signed, bits) {
+            (false, _, _) => a.wrapping_add(b),
+            (true, false, _) => a.saturating_add(b).min((1 << bits) - 1),
+            (true, true, 16) => (a as i16).saturating_add(b as i16) as u64,
+            (true, true, 32) => (a as i32).saturating_add(b as i32) as u64,
+            (true, true, 64) => (a as i64).saturating_add(b as i64) as u64,
+            (true, true, _) => panic!("Unsupported bit size"),
+        };
+
+        f.set_dst(&self.dst, c);
     }
 }
 
