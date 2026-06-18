@@ -180,10 +180,45 @@ impl Iterator for WordIdxMaskIter {
 
 impl std::iter::FusedIterator for WordIdxMaskIter {}
 
+const fn any_set_in_range(
+    words: &[u32],
+    start: BitIndex,
+    end: BitIndex,
+) -> bool {
+    let mut iter = WordIdxMaskIter::new(start, end);
+    while let Some((word, mask)) = iter.next_const() {
+        if words[word] & mask != 0 {
+            return true;
+        }
+    }
+    false
+}
+
+const fn all_set_in_range(
+    words: &[u32],
+    start: BitIndex,
+    end: BitIndex,
+) -> bool {
+    let mut iter = WordIdxMaskIter::new(start, end);
+    while let Some((word, mask)) = iter.next_const() {
+        if (!words[word]) & mask != 0 {
+            return false;
+        }
+    }
+    true
+}
+
 const fn set_range(words: &mut [u32], start: BitIndex, end: BitIndex) {
     let mut iter = WordIdxMaskIter::new(start, end);
     while let Some((word, mask)) = iter.next_const() {
         words[word] |= mask;
+    }
+}
+
+const fn unset_range(words: &mut [u32], start: BitIndex, end: BitIndex) {
+    let mut iter = WordIdxMaskIter::new(start, end);
+    while let Some((word, mask)) = iter.next_const() {
+        words[word] &= !mask;
     }
 }
 
@@ -546,6 +581,48 @@ impl<K: FromBitIndex> BitSet<K> {
 }
 
 impl BitSet<usize> {
+    /// Returns true if any bits in the given range are set
+    pub fn any_set_in_range(&self, mut range: Range<usize>) -> bool {
+        range.end = range.end.min(self.words.len() * 32);
+        any_set_in_range(&self.words, range.start.into(), range.end.into())
+    }
+
+    /// Returns true if all the bits in the given range are set.
+    /// Returns true for empty ranges.
+    pub fn all_set_in_range(&self, range: Range<usize>) -> bool {
+        if range.is_empty() {
+            true
+        } else if range.end > self.words.len() * 32 {
+            false
+        } else {
+            all_set_in_range(&self.words, range.start.into(), range.end.into())
+        }
+    }
+
+    /// Returns true if any bits in the given range are unset.
+    pub fn any_unset_in_range(&self, range: Range<usize>) -> bool {
+        !self.all_set_in_range(range)
+    }
+
+    /// Returns true if all the bits in the given range are unset.
+    /// Returns true for empty ranges.
+    pub fn all_unset_in_range(&self, range: Range<usize>) -> bool {
+        !self.any_set_in_range(range)
+    }
+
+    pub fn set_range(&mut self, range: Range<usize>) {
+        if !range.is_empty() {
+            let end_m1 = BitIndex::from(range.end - 1);
+            self.reserve_words(end_m1.word + 1);
+            set_range(&mut self.words, range.start.into(), range.end.into());
+        }
+    }
+
+    pub fn unset_range(&mut self, mut range: Range<usize>) {
+        range.end = range.end.min(self.words.len() * 32);
+        unset_range(&mut self.words, range.start.into(), range.end.into());
+    }
+
     pub fn next_set(&self, start: usize) -> Option<usize> {
         let word_fn = |w| self.words.get(w).cloned();
         find_next_set(word_fn, start.into()).map(BitIndex::into)
@@ -936,6 +1013,99 @@ mod tests {
 
         set2.clear();
         assert!(set2.is_empty());
+    }
+
+    #[test]
+    fn test_any_set_in_range() {
+        let set: BitSet<usize> = Default::default();
+        assert!(!set.any_set_in_range(0..64));
+
+        let set: BitSet<usize> = [15, 31, 64].into_iter().collect();
+        assert!(!set.any_set_in_range(0..14));
+        assert!(!set.any_set_in_range(16..31));
+        assert!(!set.any_set_in_range(32..64));
+        assert!(!set.any_set_in_range(72..128));
+        assert!(set.any_set_in_range(5..16));
+        assert!(set.any_set_in_range(5..20));
+        assert!(set.any_set_in_range(15..20));
+        assert!(set.any_set_in_range(0..32));
+        assert!(set.any_set_in_range(31..33));
+        assert!(set.any_set_in_range(60..65));
+    }
+
+    #[test]
+    fn test_all_set_in_range() {
+        let mut set: BitSet<usize> = Default::default();
+        set.set_range(15..45);
+        assert!(!set.all_set_in_range(0..32));
+        assert!(set.all_set_in_range(16..24));
+        assert!(!set.all_set_in_range(30..50));
+
+        // Empty ranges return true for all_*
+        assert!(set.all_set_in_range(50..50));
+    }
+
+    #[test]
+    fn test_any_unnset_in_range() {
+        let set: BitSet<usize> = Default::default();
+        assert!(set.any_unset_in_range(0..64));
+
+        let mut set: BitSet<usize> = Default::default();
+        set.set_range(0..65);
+        for i in [15, 31, 64] {
+            set.remove(i);
+        }
+        assert!(!set.any_unset_in_range(0..14));
+        assert!(!set.any_unset_in_range(16..31));
+        assert!(!set.any_unset_in_range(32..64));
+        assert!(set.any_unset_in_range(5..16));
+        assert!(set.any_unset_in_range(5..20));
+        assert!(set.any_unset_in_range(15..20));
+        assert!(set.any_unset_in_range(0..32));
+        assert!(set.any_unset_in_range(31..33));
+        assert!(set.any_unset_in_range(60..65));
+
+        // Test past the end
+        assert!(set.any_unset_in_range(100..120));
+    }
+
+    #[test]
+    fn test_all_unset_in_range() {
+        let set: BitSet<usize> = [15, 31, 64].into_iter().collect();
+        assert!(set.all_unset_in_range(0..15));
+        assert!(set.all_unset_in_range(16..31));
+        assert!(set.all_unset_in_range(32..64));
+        assert!(!set.all_unset_in_range(0..30));
+        assert!(!set.all_unset_in_range(30..42));
+
+        // Empty ranges return true for all_*
+        assert!(set.all_set_in_range(50..50));
+
+        // Test past the end
+        assert!(set.all_unset_in_range(100..120));
+    }
+
+    #[test]
+    fn test_set_range() {
+        for range in [0..4, 17..35, 32..35, 65..7] {
+            let mut set: BitSet<usize> = Default::default();
+            set.set_range(range.clone());
+            for i in 0..96 {
+                assert_eq!(set.contains(i), range.contains(&i));
+            }
+        }
+    }
+
+    #[test]
+    fn test_unset_range() {
+        for range in [0..4, 17..35, 32..35, 65..7] {
+            let mut set: BitSet<usize> = Default::default();
+            set.set_range(0..96);
+            set.unset_range(range.clone());
+            for i in 0..96 {
+                assert_eq!(set.contains(i), !range.contains(&i));
+            }
+        }
     }
 
     #[test]
