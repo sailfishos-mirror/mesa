@@ -7124,7 +7124,7 @@
         "description": "docs: fix release notes for 26.1.3",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f2c772d46382a2bdf8e41c0932a8476cea16addd",
         "notes": null
