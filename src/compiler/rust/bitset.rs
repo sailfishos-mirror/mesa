@@ -461,6 +461,11 @@ impl<K: FromBitIndex> BitSet<K> {
 }
 
 impl BitSet<usize> {
+    pub fn next_set(&self, start: usize) -> Option<usize> {
+        let word_fn = |w| self.words.get(w).cloned();
+        find_next_set(word_fn, start.into()).map(BitIndex::into)
+    }
+
     pub fn next_unset(&self, start: usize) -> usize {
         let word_fn = |w| {
             // NOT the result to turn find_next_set() into find_next_unset().
