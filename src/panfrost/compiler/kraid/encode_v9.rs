@@ -636,26 +636,74 @@ impl V9Instr for OpFAdd {
     }
 }
 
+impl From<CmpResultType> for CmpResultTypeM {
+    fn from(value: CmpResultType) -> Self {
+        match value {
+            CmpResultType::I1 => CmpResultTypeM::I1,
+            CmpResultType::F1 => CmpResultTypeM::F1,
+            CmpResultType::M1 => CmpResultTypeM::M1,
+        }
+    }
+}
+
 impl V9Instr for OpFCmp {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
-        V9InstrInfo::from_isa(
-            Fcmp::get_info(self.src_type, arch),
-            src_map! {
-                src0: srcs[0],
-                src1: srcs[1],
-            },
-        )
+        match self.accum_op {
+            CmpAccumOp::None => V9InstrInfo::from_isa(
+                Fcmp::get_info(self.src_type, arch),
+                src_map! {
+                    src0: srcs[0],
+                    src1: srcs[1],
+                },
+            ),
+            CmpAccumOp::And => V9InstrInfo::from_isa(
+                FcmpAnd::get_info(self.src_type, arch),
+                src_map! {
+                    src0: srcs[0],
+                    src1: srcs[1],
+                    src2: accum,
+                },
+            ),
+            CmpAccumOp::Or => V9InstrInfo::from_isa(
+                FcmpOr::get_info(self.src_type, arch),
+                src_map! {
+                    src0: srcs[0],
+                    src1: srcs[1],
+                    src2: accum,
+                },
+            ),
+        }
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        e.encode(Fcmp {
-            variant: self.src_type.try_into().unwrap(),
-            dst: op_encode_dst(self, &self.dst),
-            src0: op_encode_src(self, &self.srcs[0]),
-            src1: op_encode_src(self, &self.srcs[1]),
-            cmpf: self.cmp_op.try_into().unwrap(),
-            result_type: CmpResultTypeM::M1,
-        })
+        match self.accum_op {
+            CmpAccumOp::None => e.encode(Fcmp {
+                variant: self.src_type.try_into().unwrap(),
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.srcs[0]),
+                src1: op_encode_src(self, &self.srcs[1]),
+                cmpf: self.cmp_op.try_into().unwrap(),
+                result_type: self.res_type.into(),
+            }),
+            CmpAccumOp::And => e.encode(FcmpAnd {
+                variant: self.src_type.try_into().unwrap(),
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.srcs[0]),
+                src1: op_encode_src(self, &self.srcs[1]),
+                src2: op_encode_src(self, &self.accum),
+                cmpf: self.cmp_op.try_into().unwrap(),
+                result_type: self.res_type.into(),
+            }),
+            CmpAccumOp::Or => e.encode(FcmpOr {
+                variant: self.src_type.try_into().unwrap(),
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.srcs[0]),
+                src1: op_encode_src(self, &self.srcs[1]),
+                src2: op_encode_src(self, &self.accum),
+                cmpf: self.cmp_op.try_into().unwrap(),
+                result_type: self.res_type.into(),
+            }),
+        }
     }
 }
 
