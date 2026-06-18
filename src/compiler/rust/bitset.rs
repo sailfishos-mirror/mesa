@@ -134,15 +134,14 @@ impl Add<usize> for BitIndex {
 }
 
 #[inline]
-fn find_next_set(words: &[u32], start: BitIndex) -> Option<BitIndex> {
-    if start.word >= words.len() {
-        return None;
-    }
-
+fn find_next_set(
+    word_fn: impl Fn(usize) -> Option<u32>,
+    start: BitIndex,
+) -> Option<BitIndex> {
     let mut word = start.word;
     let mut mask = u32::MAX << start.bit;
-    while word < words.len() {
-        let bit = (words[word] & mask).trailing_zeros();
+    loop {
+        let bit = (word_fn(word)? & mask).trailing_zeros();
         if bit < 32 {
             return Some(BitIndex {
                 word,
@@ -152,31 +151,6 @@ fn find_next_set(words: &[u32], start: BitIndex) -> Option<BitIndex> {
         mask = u32::MAX;
         word += 1;
     }
-
-    None
-}
-
-#[inline]
-fn find_next_unset(words: &[u32], start: BitIndex) -> BitIndex {
-    if start.word >= words.len() {
-        return start;
-    }
-
-    let mut word = start.word;
-    let mut mask = !(u32::MAX << start.bit);
-    while word < words.len() {
-        let bit = (words[word] | mask).trailing_ones();
-        if bit < 32 {
-            return BitIndex {
-                word,
-                bit: bit as u8,
-            };
-        }
-        mask = 0;
-        word += 1;
-    }
-
-    BitIndex::from_word(words.len())
 }
 
 /// A set implemented as an array of bits, able to be used as constant data
@@ -488,7 +462,13 @@ impl<K: FromBitIndex> BitSet<K> {
 
 impl BitSet<usize> {
     pub fn next_unset(&self, start: usize) -> usize {
-        find_next_unset(&self.words, start.into()).into()
+        let word_fn = |w| {
+            // NOT the result to turn find_next_set() into find_next_unset().
+            // Letting it run past the end and returning Some(!0) ensures that
+            // we will always find an unset bit
+            Some(!self.words.get(w).cloned().unwrap_or(0))
+        };
+        find_next_set(word_fn, start.into()).unwrap().into()
     }
 
     /// Search for a set of `count` consecutive elements that are not present in
@@ -806,7 +786,8 @@ impl<'a, K: FromBitIndex> Iterator for BitSetIter<'a, K> {
     type Item = K;
 
     fn next(&mut self) -> Option<K> {
-        if let Some(idx) = find_next_set(self.words, self.idx) {
+        let word_fn = |w| self.words.get(w).cloned();
+        if let Some(idx) = find_next_set(word_fn, self.idx) {
             self.idx = idx + 1;
             Some(K::from_bit_index(idx.into()))
         } else {
