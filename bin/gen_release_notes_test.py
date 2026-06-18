@@ -148,8 +148,9 @@ async def test_gather_commits():
             Closes: https://gitlab.freedesktop.org/mesa/mesa/-/issues/3456
             Closes: https://gitlab.freedesktop.org/mesa/mesa/-/issues/3457
             Closes: https://gitlab.freedesktop.org/mesa/mesa/-/issues/3458
+            Closes: https://gitlab.freedesktop.org/mesa/mesa/-/work_items/1234
             ''',
-            ['3456', '3457', '3458'],
+            ['3456', '3457', '3458', '1234'],
         ),
         (
             '''\
