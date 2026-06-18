@@ -863,6 +863,21 @@ mod tests {
     }
 
     #[test]
+    fn test_iter() {
+        let bits = [0, 3, 11, 12, 13, 24, 30, 31, 32, 63, 65];
+        let mut set: BitSet<usize> = Default::default();
+        for i in &bits {
+            set.insert(*i);
+        }
+
+        let mut iter = set.iter();
+        for i in &bits {
+            assert_eq!(iter.next(), Some(*i));
+        }
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
     fn test_next_unset() {
         for test_range in
             &[0..0, 42..1337, 1337..1337, 31..32, 32..33, 63..64, 64..65]
