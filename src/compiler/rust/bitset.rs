@@ -335,8 +335,10 @@ macro_rules! impl_const_bit_set {
                 }
 
                 debug_assert!(word == end.word);
-                mask &= !(u32::MAX << end.bit);
-                self.words[word] |= mask;
+                if end.bit > 0 {
+                    mask &= !(u32::MAX << end.bit);
+                    self.words[word] |= mask;
+                }
             }
 
             pub const fn remove(&mut self, key: $K) -> bool {
