@@ -1845,6 +1845,200 @@ anv_debug_archiver_finish(struct anv_shader_data *shaders_data,
    }
 }
 
+static uint64_t
+anv_bsr(const struct intel_device_info *devinfo,
+        uint32_t offset, uint8_t simd_size, uint8_t local_arg_offset,
+        uint8_t grf_used)
+{
+   assert(offset % 64 == 0);
+   assert(simd_size == 8 || simd_size == 16);
+   assert(local_arg_offset % 8 == 0);
+
+   /* Bspec 43853: Field Bindless shader Dispatch mode:
+    *
+    *    This bit needs to be programmed to 1.
+    *
+    *    SIMD8       1
+    *    SIMD16      0
+    *
+    * Bspec 57500: Field Bindless shader dispatch mode:
+    *
+    *    SIMD16      0
+    *    SIMD32      1
+    */
+   uint8_t bindless_shader_dispatch_mode =
+      (simd_size == 8 || simd_size == 32) ? 1 : 0;
+
+   /* Gfx30+ supports VRT, for other platforms just program is to 0. HW ignore
+    * these bits if VRT is disabled.
+    */
+   uint64_t registers_per_thread = devinfo->ver >= 30 ?
+                                   ((uint64_t)ptl_register_blocks(grf_used) << 60) : 0;
+   return registers_per_thread |
+          offset |
+          SET_BITS(bindless_shader_dispatch_mode, 4, 4) |
+          SET_BITS(local_arg_offset / 8, 2, 0);
+}
+
+static struct jay_shader_bin *
+anv_shader_compile_jay(const struct intel_device_info *devinfo, void *mem_ctx,
+                       nir_shader *nir,
+                       union brw_any_compile_params params,
+                       const struct anv_shader_data *shader_data)
+{
+   struct brw_compile_params *compile_params = &params.base;
+   struct jay_shader_bin *main_bin =
+      jay_compile(devinfo, mem_ctx, nir,
+                  (union brw_any_prog_data *)compile_params->prog_data,
+                  (union brw_any_prog_key *)compile_params->key,
+                  shader_data->archiver);
+
+   /* Early return if there are not resume shaders to compile */
+   if (params.bs.num_resume_shaders == 0 ||
+       !mesa_shader_stage_is_rt(shader_data->info->stage))
+      return main_bin;
+
+   assert(mesa_shader_stage_is_rt(shader_data->info->stage));
+   assert(params.bs.resume_shaders != NULL);
+
+   union brw_any_prog_data *prog_data =
+      (union brw_any_prog_data *)compile_params->prog_data;
+   union brw_any_prog_data main_prog_data = *prog_data;
+
+   /* Account main shader size */
+   uint64_t total_bin_size = main_bin->size;
+
+   /* Tracks resume shader binaries */
+   struct jay_shader_bin **resume_shader_bins =
+      ralloc_array(mem_ctx, struct jay_shader_bin *,
+                   params.bs.num_resume_shaders);
+   /* Tracks how many GRF used by resume shader */
+   unsigned *resume_grf_used = ralloc_array(mem_ctx, unsigned,
+                                            params.bs.num_resume_shaders);
+   /* Tracks per-shader dispatch width */
+   uint8_t *resume_dispatch_width = ralloc_array(mem_ctx, uint8_t,
+                                                 params.bs.num_resume_shaders);
+   /* Tracks resume shader prog_data */
+   union brw_any_prog_data *resume_prog_data =
+      ralloc_array(mem_ctx, union brw_any_prog_data,
+                   params.bs.num_resume_shaders);
+
+   const struct intel_shader_reloc *main_relocs = main_prog_data.base.relocs;
+   const unsigned main_num_relocs = main_prog_data.base.num_relocs;
+   unsigned reloc_count = main_num_relocs;
+
+   /* Compile each resume shader */
+   for (unsigned i = 0; i < params.bs.num_resume_shaders; i++) {
+      nir_shader *resume_nir = params.bs.resume_shaders[i];
+
+      /* We only have one constant data so we want to make sure they're all the
+       * same.
+       */
+      assert(resume_nir->constant_data_size == nir->constant_data_size);
+      assert(!memcmp(resume_nir->constant_data, nir->constant_data,
+                     nir->constant_data_size));
+      /* Rather can duplicating same constant again (main shader constant
+       * data), reset data size for resume shaders.
+       */
+      resume_nir->constant_data = NULL;
+      resume_nir->constant_data_size = 0;
+
+      resume_shader_bins[i] = jay_compile(devinfo, mem_ctx,
+                                          resume_nir,
+                                          &main_prog_data,
+                                          (union brw_any_prog_key *)compile_params->key,
+                                          shader_data->archiver);
+
+      resume_prog_data[i] = main_prog_data;
+      resume_grf_used[i] = resume_prog_data[i].base.grf_used;
+      resume_dispatch_width[i] = resume_prog_data[i].bs.simd_size;
+
+      /* Ensure shaders start at 64 byte boundary. */
+      total_bin_size = align(total_bin_size, 64);
+      total_bin_size += resume_shader_bins[i]->size;
+
+      /* Account for resume shaders number of relocation, plus the SBT offset
+       * reloc.
+       */
+      reloc_count += resume_prog_data[i].base.num_relocs + 1;
+   }
+
+   /* Allocate the relocs array once, sized for the whole thing. */
+   struct intel_shader_reloc *relocs =
+      ralloc_array(mem_ctx, struct intel_shader_reloc, reloc_count);
+
+   /* Copy relocs from the main shader */
+   memcpy(relocs, main_relocs, main_num_relocs * sizeof(relocs[0]));
+   reloc_count = main_num_relocs;
+
+   uint32_t sbt_size = params.bs.num_resume_shaders * sizeof(uint64_t);
+   /* Start SBT offset table at 32 byte boundary. Will put it at the end of
+    * combined shaders.
+    */
+   uint32_t resume_sbt_offset = align(total_bin_size, 32);
+   total_bin_size = resume_sbt_offset + sbt_size;
+
+   uint8_t *combined_bin = rzalloc_size(mem_ctx, total_bin_size);
+   uint32_t copy_offset = main_bin->size;
+
+   /* Copy main shader blob first */
+   memcpy(combined_bin, main_bin->kernel, main_bin->size);
+
+   /* Tracks BSR */
+   uint64_t *resume_sbt = rzalloc_array(mem_ctx, uint64_t,
+                                        params.bs.num_resume_shaders);
+   /* Copy resume shaders */
+   for (unsigned i = 0; i < params.bs.num_resume_shaders; i++) {
+      /* Start each resume shader at 64B offset */
+      copy_offset = align(copy_offset, 64);
+      memcpy(combined_bin + copy_offset,
+            resume_shader_bins[i]->kernel, resume_shader_bins[i]->size);
+
+      uint32_t resume_reloc_offset = copy_offset;
+      assert(resume_reloc_offset > 0);
+      resume_sbt[i] = anv_bsr(devinfo, resume_reloc_offset,
+                              resume_dispatch_width[i], 0,
+                              resume_grf_used[i]);
+
+      for (unsigned j = 0; j < resume_prog_data[i].base.num_relocs; j++) {
+         relocs[reloc_count] = resume_prog_data[i].base.relocs[j];
+         relocs[reloc_count].offset += resume_reloc_offset;
+         reloc_count++;
+      }
+
+      size_t offset  = resume_sbt_offset + i * sizeof(*resume_sbt);
+      assert(offset <= UINT32_MAX);
+      relocs[reloc_count++] = (struct intel_shader_reloc) {
+         .id = INTEL_SHADER_RELOC_SHADER_START_OFFSET,
+         .type = INTEL_SHADER_RELOC_TYPE_U32,
+         .offset = (uint32_t)offset,
+         .delta = (uint32_t)resume_sbt[i],
+      };
+
+      /* Move copy offset by resume shader size */
+      copy_offset += resume_shader_bins[i]->size;
+   }
+
+   /* Copy SBT table at the end */
+   memcpy(combined_bin + resume_sbt_offset, resume_sbt, sbt_size);
+
+   struct brw_bs_prog_data *bs_prog_data =
+      brw_bs_prog_data(compile_params->prog_data);
+
+   bs_prog_data->resume_sbt_offset = resume_sbt_offset;
+   bs_prog_data->base.relocs = relocs;
+   bs_prog_data->base.num_relocs = reloc_count;
+   bs_prog_data->base.program_size = total_bin_size;
+
+   struct jay_shader_bin *final_bin = rzalloc(mem_ctx, struct jay_shader_bin);
+
+   final_bin->kernel = (uint32_t *)combined_bin;
+   final_bin->size = total_bin_size;
+   main_bin = final_bin;
+
+   return main_bin;
+}
+
 static VkResult
 anv_shader_compile(struct vk_device *vk_device,
                    uint32_t shader_count,
@@ -2109,10 +2303,8 @@ anv_shader_compile(struct vk_device *vk_device,
 
       if (intel_use_jay(devinfo, nir->info.stage)) {
          struct jay_shader_bin *bin =
-            jay_compile(devinfo, mem_ctx, nir,
-                        (union brw_any_prog_data *)compile_params->prog_data,
-                        (union brw_any_prog_key *)compile_params->key,
-                        shader_data->archiver);
+            anv_shader_compile_jay(devinfo, mem_ctx, nir, params, shader_data);
+
          shader_data->code = bin->kernel;
          shader_data->stats[0] = bin->stats;
 
