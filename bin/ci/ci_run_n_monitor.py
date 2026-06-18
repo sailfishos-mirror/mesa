@@ -119,6 +119,20 @@ PROFILES: dict[str, dict] = {
         "exclude_stage": [''],
         "stress": 2,
     },
+    "uprev_VVL": {
+        "target": [
+            "^zink-(anv-adl|anv-tgl|anv-cml-asan|tu-a618|lavapipe|radv-cezanne|radv-gfx1201-valve|radv-navi31-valve|radv-vangogh-valve)(?!-traces.*)"
+        ],
+        "stress": 2,
+    },
+    "uprev_VVL_nightly": {
+        "target": [
+            "^zink-(anv-adl|anv-tgl|anv-cml-asan|tu-a618|lavapipe|radv-cezanne|radv-gfx1201-valve|radv-navi31-valve|radv-vangogh-valve)(?!-traces.*)"
+        ],
+        "include_stage": ["layered-backends"],
+        "exclude_stage": [''],
+        "stress": 2,
+    },
 }
 
 if is_gitlab_job():
