@@ -1315,7 +1315,7 @@ brw_print_fs_urb_setup(FILE *fp, const struct brw_fs_prog_data *prog_data,
    }
 }
 
-static void
+void
 brw_nir_cleanup_pre_fs_prog_data(brw_pass_tracker *pt)
 {
    pass_tracker_new_loop(pt);
