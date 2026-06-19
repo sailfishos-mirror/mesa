@@ -484,6 +484,14 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
+            nir_op_imul => {
+                b.push_op(OpIMul {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::SignedInteger),
+                    saturate: false,
+                    srcs: [srcs(0), srcs(1)],
+                });
+            }
             nir_op_isub => {
                 b.push_op(OpISub {
                     dst: dst.into(),
