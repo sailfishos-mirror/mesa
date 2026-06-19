@@ -13,9 +13,7 @@ type SSARefInnerLong = LowerBoundedU32Array<9, 7>;
 /// An SSA value
 #[repr(transparent)]
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
-pub struct SSAValue {
-    packed: SSAValueInner,
-}
+pub struct SSAValue(SSAValueInner);
 
 impl SSAValue {
     /// Returns an SSA value with the given register file and index
@@ -25,22 +23,22 @@ impl SSAValue {
         let mut packed = LowerBoundedU32::new(packed).unwrap();
         assert!(bits == 8 || bits == 16 || bits == 32);
         packed |= (bits.ilog2() - 3) << 30;
-        SSAValue { packed }
+        SSAValue(packed)
     }
 
     /// Returns the index of this SSA value
     pub fn idx(&self) -> u32 {
-        (self.packed.get() & 0x3fffffff) - u32::from(SSAValueInner::MIN)
+        (self.0.get() & 0x3fffffff) - u32::from(SSAValueInner::MIN)
     }
 
     /// Returns the number of bits in this SSA value
     pub fn bits(&self) -> u8 {
-        8 << (self.packed.get() >> 30)
+        8 << (self.0.get() >> 30)
     }
 
     /// Returns the number of bytes in this SSA value
     pub fn bytes(&self) -> u8 {
-        1 << (self.packed.get() >> 30)
+        1 << (self.0.get() >> 30)
     }
 }
 
@@ -135,10 +133,10 @@ impl SSARef {
         let len = it.len();
 
         let inner = if len <= SSARefInnerShort::MAX_LEN {
-            SSARefInner::Short(it.map(|x| x.packed).collect())
+            SSARefInner::Short(it.map(|x| x.0).collect())
         } else {
             assert!(len <= SSARefInnerLong::MAX_LEN);
-            SSARefInner::Long(Box::new(it.map(|x| x.packed).collect()))
+            SSARefInner::Long(Box::new(it.map(|x| x.0).collect()))
         };
 
         Self { v: inner }
