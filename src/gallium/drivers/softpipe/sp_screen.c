@@ -336,6 +336,7 @@ softpipe_init_screen_caps(struct softpipe_screen *sp_screen)
    caps->multi_draw_indirect = true;
    caps->query_so_overflow = true;
    caps->nir_images_as_deref = false;
+   caps->polygon_stipple = true;
 
    /* Can't expose shareable shaders because the draw shaders reference the
     * draw module's state, which is per-context.

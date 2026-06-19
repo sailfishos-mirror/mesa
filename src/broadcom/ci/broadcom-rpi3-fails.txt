@@ -121,10 +121,6 @@ spec@arb_clear_texture@arb_clear_texture-sized-formats,Fail
 spec@glsl-1.10@execution@glsl-fs-inline-explosion,Crash
 spec@glsl-1.10@execution@glsl-vs-inline-explosion,Crash
 
-# A sub-case involving polygon stipple fails because driver doesn't implement
-# stipple
-spec@!opengl 1.0@gl-1.0-no-op-paths,Fail
-
 # Crashes in this group are CMA allocation fails
 spec@!opengl 1.1@depthstencil-default_fb-clear samples=2,Fail
 spec@!opengl 1.1@depthstencil-default_fb-clear samples=4,Fail

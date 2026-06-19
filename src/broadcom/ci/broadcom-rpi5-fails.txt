@@ -135,17 +135,13 @@ spec@ext_texture_lod_bias@lodbias,Fail
 # https://gitlab.freedesktop.org/mesa/piglit/-/merge_requests/1192
 spec@glsl-1.20@execution@fs-underflow-mul-compare-zero,Fail
 
-# A sub-case involving polygon stipple fails because driver doesn't implement
-# stipple
-spec@!opengl 1.0@gl-1.0-no-op-paths,Fail
-
 # Driver does not handle VERT_{ATTRIB,BIT}_EDGEFLAG at all.
 spec@!opengl 1.0@gl-1.0-edgeflag,Fail
 spec@!opengl 1.0@gl-1.0-edgeflag-quads,Fail
 spec@!opengl 2.0@gl-2.0-edgeflag,Fail
 spec@!opengl 2.0@gl-2.0-edgeflag-immediate,Fail
 
-# Hardware do not support line/polygon stipple. In fact, this feature
+# Hardware do not support line stipple. In fact, this feature
 # was deprecated/removed in newer OpenGL spec versions. It could be
 # emulated using shaders.
 spec@!opengl 1.1@line-smooth-stipple,Fail
@@ -155,9 +151,6 @@ spec@!opengl 1.1@linestipple@Factor 3x,Fail
 spec@!opengl 1.1@linestipple@Line loop,Fail
 spec@!opengl 1.1@linestipple@Line strip,Fail
 spec@!opengl 1.1@linestipple@Restarting lines within a single Begin-End block,Fail
-spec@!opengl 2.1@pbo,Fail
-spec@!opengl 2.1@pbo@test_polygon_stip,Fail
-spec@!opengl 2.1@polygon-stipple-fs,Fail
 
 # There are two problems here. On one side, hardware do not support
 # different polygon mode for front and back faces. By default we

@@ -1623,6 +1623,7 @@ _mesa_validated_drawrangeelements(struct gl_context *ctx,
    struct st_context *st = st_context(ctx);
    if (index_bo && ctx->Driver.DrawGallium == st_draw_gallium &&
        ctx->DrawID == 0) {
+      st_prepare_stipple_input_prim(ctx->st, mode);
       ST_PIPELINE_RENDER_STATE_MASK(mask);
       st_prepare_draw(ctx, mask);
 

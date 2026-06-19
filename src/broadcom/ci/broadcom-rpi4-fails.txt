@@ -173,10 +173,6 @@ spec@arb_texture_rg@texwrap formats bordercolor-swizzled@GL_RG16- swizzled- bord
 spec@arb_texture_rg@texwrap formats bordercolor@GL_R16- border color only,Fail
 spec@arb_texture_rg@texwrap formats bordercolor@GL_RG16- border color only,Fail
 
-# A sub-case involving polygon stipple fails because driver doesn't implement
-# stipple
-spec@!opengl 1.0@gl-1.0-no-op-paths,Fail
-
 # Driver is not handling VERT_{ATTRIB,BIT}_EDGEFLAG at all
 spec@!opengl 1.0@gl-1.0-edgeflag,Fail
 spec@!opengl 1.0@gl-1.0-edgeflag-quads,Fail
@@ -267,7 +263,7 @@ spec@oes_texture_view@rendering-formats@clear GL_RGB10_A2 as GL_RGBA8I,Fail
 spec@!opengl 2.0@max-samplers,Fail
 spec@!opengl 2.0@max-samplers border,Fail
 
-# Hardware do not support line/polygon stipple. In fact, this feature
+# Hardware do not support line stipple. In fact, this feature
 # was deprecated/removed in newer OpenGL spec versions. It could be
 # emulated using shaders.
 spec@!opengl 1.1@line-smooth-stipple,Fail
@@ -277,9 +273,6 @@ spec@!opengl 1.1@linestipple@Factor 3x,Fail
 spec@!opengl 1.1@linestipple@Line loop,Fail
 spec@!opengl 1.1@linestipple@Line strip,Fail
 spec@!opengl 1.1@linestipple@Restarting lines within a single Begin-End block,Fail
-spec@!opengl 2.1@pbo,Fail
-spec@!opengl 2.1@pbo@test_polygon_stip,Fail
-spec@!opengl 2.1@polygon-stipple-fs,Fail
 
 # Piglit OpenCL tests
 api@clgetextensionfunctionaddressforplatform,Fail
