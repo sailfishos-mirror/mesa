@@ -222,6 +222,9 @@ hk_get_device_extensions(const struct hk_instance *instance,
       .EXT_ycbcr_2plane_444_formats = false,
       .EXT_ycbcr_image_arrays = false,
       .GOOGLE_decorate_string = true,
+#ifdef HK_USE_WSI_PLATFORM
+      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(&instance->vk, &instance->drirc.options),
+#endif
       .GOOGLE_hlsl_functionality1 = true,
       .GOOGLE_user_type = true,
       .VALVE_mutable_descriptor_type = true,

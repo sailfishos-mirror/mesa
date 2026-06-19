@@ -734,7 +734,7 @@ Khronos extensions that are not part of any Vulkan version:
   VK_ARM_shader_core_builtins                           DONE (panvk/v9+)
   VK_ARM_shader_core_properties                         DONE (panvk/v10+)
   VK_GOOGLE_decorate_string                             DONE (anv, hasvk, hk, kk, lvp, nvk, panvk, radv, tu, vn)
-  VK_GOOGLE_display_timing                              DONE (anv, panvk, pvr, radv, tu, v3dv)
+  VK_GOOGLE_display_timing                              DONE (anv, hk, nvk, panvk, pvr, radv, tu, v3dv)
   VK_GOOGLE_hlsl_functionality1                         DONE (anv, hasvk, hk, kk, lvp, nvk, panvk, radv, tu, vn)
   VK_GOOGLE_user_type                                   DONE (anv, hasvk, hk, kk, lvp, nvk, panvk, radv, tu, vn)
   VK_IMG_filter_cubic                                   DONE (tu/a650+, vn)
