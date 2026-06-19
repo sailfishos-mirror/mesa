@@ -809,6 +809,7 @@ struct brw_cs_prog_data {
    unsigned prog_spilled;
 
    bool uses_barrier;
+   bool uses_fence;
    bool uses_btd_stack_ids;
    bool uses_systolic;
    uint8_t generate_local_id;
