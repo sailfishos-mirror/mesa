@@ -487,6 +487,11 @@ typedef struct nir_variable {
        */
       unsigned mode : 26;
 
+      /* A temporary for passes to store information. Used, for example, to
+       * replace an unordered set with an ordered util_dynarray.
+       */
+      bool pass_flags : 1;
+
       /**
        * Is the variable read-only?
        *
@@ -5507,7 +5512,7 @@ bool nir_lower_vars_to_scratch(nir_shader *shader,
                                glsl_type_size_align_func variable_size_align,
                                glsl_type_size_align_func scratch_layout_size_align);
 
-typedef void (*nir_lower_vars_to_scratch_cb)(struct set *, void *);
+typedef void (*nir_lower_vars_to_scratch_cb)(struct util_dynarray *, void *);
 
 bool nir_lower_vars_to_scratch_global(nir_shader *shader,
                                       glsl_type_size_align_func scratch_layout_size_align,
