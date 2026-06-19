@@ -8274,7 +8274,7 @@
         "description": "radv: set RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE around attachment clears",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0d4d73a78073ed45c39618683330748145e0ac79",
         "notes": null
