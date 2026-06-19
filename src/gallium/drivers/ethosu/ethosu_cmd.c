@@ -749,15 +749,10 @@ emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
             ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_DEPTH__MASK;
       }
    } else {
-      unsigned ifm_mode, ifm2_mode;
-
-      if (has_scalar) {
-         ifm_mode = operation->ifm.has_scalar ? 8 : 0;
-         ifm2_mode = operation->ifm2.has_scalar ? 8 : 0;
-      } else {
-         ifm_mode = calc_broadcast_mode(&operation->ifm.shape, &operation->ofm.shape);
-         ifm2_mode = calc_broadcast_mode(&operation->ifm2.shape, &operation->ofm.shape);
-      }
+      unsigned ifm_mode = operation->ifm.has_scalar ? 8 :
+         calc_broadcast_mode(&operation->ifm.shape, &operation->ofm.shape);
+      unsigned ifm2_mode = operation->ifm2.has_scalar ? 8 :
+         calc_broadcast_mode(&operation->ifm2.shape, &operation->ofm.shape);
 
       EMIT0(NPU_SET_IFM_BROADCAST, ifm_mode);
       ifm2_broadcast = ifm2_mode;
@@ -963,6 +958,7 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
                             operation->ofm.scale);
       break;
    case ETHOSU_ELTWISE_TYPE_ADD:
+   case ETHOSU_ELTWISE_TYPE_SUB:
       if (ethosu_ml_device(subgraph->base.device)->is_u65) {
          op_to_scale = eltwise_emit_ofm_scaling(
             subgraph,
@@ -1225,9 +1221,11 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          operation->read_accesses[3].size = operation->conv.weights.size;
          FALLTHROUGH;
       default:
-         operation->read_accesses[0].region = IO_REGION;
-         operation->read_accesses[0].address = operation->ifm.tiles.addresses[0];
-         operation->read_accesses[0].size = operation->ifm.shape.height * operation->ifm.shape.width * operation->ifm.shape.depth;
+         if (!operation->ifm.has_scalar) {
+            operation->read_accesses[0].region = operation->ifm.region;
+            operation->read_accesses[0].address = operation->ifm.tiles.addresses[0];
+            operation->read_accesses[0].size = operation->ifm.shape.height * operation->ifm.shape.width * operation->ifm.shape.depth;
+         }
 
          if (!operation->ifm2.has_scalar) {
             operation->read_accesses[1].region = operation->ifm2.region;

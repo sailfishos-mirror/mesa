@@ -1502,14 +1502,56 @@ ethosu_lower_eltwise(struct ethosu_subgraph *subgraph,
    operation->type = ETHOSU_OPERATION_TYPE_ELTWISE;
    int ifm_idx = 0;
    int ifm2_idx = 1;
+   bool is_u65 = ethosu_ml_device(subgraph->base.device)->is_u65;
+   bool is_subtract = poperation->type == PIPE_ML_OPERATION_TYPE_SUBTRACT;
+   bool u85_scalar_lhs_sub =
+      is_subtract && !is_u65 &&
+      poperation->input_tensors[0]->data &&
+      poperation->input_tensors[0]->dims[1] == 1 &&
+      poperation->input_tensors[0]->dims[2] == 1 &&
+      poperation->input_tensors[0]->dims[3] == 1;
 
-   if (!is_sub_shape(poperation->input_tensors[1], poperation->input_tensors[0])) {
+   /*
+    * IFM cannot be broadcast per axis on the U65, so an operand that has
+    * to be broadcast must sit in IFM2. When that is the first operand,
+    * exchange the inputs and set the operand-order bit, which for a
+    * subtract keeps the result as minuend minus subtrahend. The U85 has
+    * no operand-order bit, so exchanging a subtract's operands there
+    * would negate the result; instead keep them in place and broadcast
+    * the first operand through IFM, which the U85 can do.
+    */
+   if (!u85_scalar_lhs_sub && !(is_subtract && !is_u65) &&
+       !is_sub_shape(poperation->input_tensors[1], poperation->input_tensors[0])) {
       ifm_idx = 1;
       ifm2_idx = 0;
       operation->eltwise.ifm_reversed = true;
    }
 
    set_feature_maps(subgraph, poperation->input_tensors[ifm_idx], poperation->output_tensors[0], operation);
+   if (u85_scalar_lhs_sub) {
+      operation->ifm.scalar = ethosu_read_scalar(poperation->input_tensors[ifm_idx]);
+      operation->ifm.has_scalar = true;
+   } else if (is_subtract && !is_u65 &&
+              poperation->input_tensors[ifm_idx]->data) {
+      /*
+       * A non-scalar constant first operand stays in IFM as a feature map
+       * in the coefficient region; the shape-derived IFM broadcast then
+       * expands its size-1 axes.
+       */
+      struct pipe_tensor *minuend = poperation->input_tensors[ifm_idx];
+      unsigned size = operation->ifm.shape.height *
+                      operation->ifm.shape.width *
+                      operation->ifm.shape.depth * minuend->type_size;
+
+      operation->ifm.region = COEFS_REGION;
+      operation->ifm.tiles.addresses[0] =
+         ethosu_allocate_coefs(subgraph, size);
+      memcpy(subgraph->coefs + operation->ifm.tiles.addresses[0],
+             minuend->data, size);
+      operation->ifm.tiles.height_0 = operation->ifm.shape.height;
+      operation->ifm.tiles.height_1 = operation->ifm.shape.height;
+      operation->ifm.tiles.width_0 = operation->ifm.shape.width;
+   }
 
    set_feature_map(subgraph, poperation->input_tensors[ifm2_idx], &operation->ifm2);
 
@@ -1659,6 +1701,15 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       case PIPE_ML_OPERATION_TYPE_MUL: {
          ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
          operation.eltwise.type = ETHOSU_ELTWISE_TYPE_MUL;
+         allocate_feature_maps(subgraph, &operation);
+         ethosu_sched_operation(subgraph, &operation);
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_SUBTRACT: {
+         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
+         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_SUB;
          allocate_feature_maps(subgraph, &operation);
          ethosu_sched_operation(subgraph, &operation);
          util_dynarray_append(&subgraph->operations, operation);

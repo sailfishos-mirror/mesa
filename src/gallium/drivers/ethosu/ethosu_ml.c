@@ -132,6 +132,45 @@ ethosu_quantize_scale(double scale, int32_t *shift, bool reduced)
    return quantized_scale;
 }
 
+static bool
+ethosu_subtract_supported(struct pipe_ml_device *pdevice,
+                          const struct pipe_ml_operation *operation)
+{
+   const struct pipe_tensor *minuend = operation->input_tensors[0];
+   const struct pipe_tensor *subtrahend = operation->input_tensors[1];
+   const struct pipe_tensor *output = operation->output_tensors[0];
+   bool minuend_broadcast = false;
+   bool subtrahend_broadcast = false;
+
+   for (int i = 1; i < 4; i++) {
+      minuend_broadcast |= minuend->dims[i] != output->dims[i];
+      subtrahend_broadcast |= subtrahend->dims[i] != output->dims[i];
+   }
+
+   /*
+    * The subtrahend broadcasts freely from IFM2, so only a first operand
+    * that must be broadcast constrains the lowering.
+    */
+   if (!minuend_broadcast)
+      return true;
+
+   if (ethosu_ml_device(pdevice)->is_u65) {
+      /*
+       * The first operand moves to IFM2, leaving the subtrahend in IFM,
+       * which the U65 can broadcast only as a scalar. Reject a subtrahend
+       * that would itself need a per-axis broadcast.
+       */
+      return !subtrahend_broadcast;
+   }
+
+   /*
+    * The U85 broadcasts both operands independently, and a constant first
+    * operand is placed in the coefficient region and broadcast from there,
+    * so every shape is handled.
+    */
+   return true;
+}
+
 bool
 ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                               const struct pipe_ml_operation *operation)
@@ -175,6 +214,9 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
 
       break;
    }
+   case PIPE_ML_OPERATION_TYPE_SUBTRACT:
+      supported = ethosu_subtract_supported(pdevice, operation);
+      break;
    case PIPE_ML_OPERATION_TYPE_MAXIMUM:
    case PIPE_ML_OPERATION_TYPE_MINIMUM:
    case PIPE_ML_OPERATION_TYPE_MUL:
