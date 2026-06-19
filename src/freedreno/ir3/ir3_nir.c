@@ -1274,7 +1274,14 @@ variable_size_sort(const void *a, const void *b)
    uint32_t size_b, align_b;
    ir3_get_ra_size_align_bytes(var_b->type, &size_b, &align_b);
 
-   return size_a - size_b;
+   if (size_a != size_b) {
+      return size_a - size_b;
+   }
+
+   /* Use the unique index as a tiebreaker to ensure a stable sort for
+    * determinism.
+    */
+   return var_a->index - var_b->index;
 }
 
 /* Filters out variables from the set that might go to ir3 RA, in order to avoid
