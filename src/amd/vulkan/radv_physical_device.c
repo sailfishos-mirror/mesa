@@ -260,6 +260,16 @@ radv_are_dcc_mips_disabled(const struct radv_physical_device *pdev)
 
    return instance->drirc.debug.disable_dcc_mips && pdev->info.gfx_level < GFX12;
 }
+
+static bool
+radv_device_coherent_memory_enabled(const struct radv_physical_device *pdev)
+{
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   return pdev->info.has_l2_uncached && (!pdev->info.has_out_of_order_uncached_l2 ||
+                                         instance->drirc.features.device_coherent_memory);
+}
+
 static void
 parse_hex(char *out, const char *in, unsigned length)
 {
@@ -857,7 +867,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_ycbcr_image_arrays = true,
       .EXT_zero_initialize_device_memory = true,
       .AMD_buffer_marker = true,
-      .AMD_device_coherent_memory = pdev->info.has_l2_uncached,
+      .AMD_device_coherent_memory = radv_device_coherent_memory_enabled(pdev),
       .AMD_draw_indirect_count = true,
       .AMD_gcn_shader = true,
       .AMD_gpu_shader_half_float = pdev->info.compiler_info.has_packed_math_16bit,
@@ -1102,7 +1112,7 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .texelBufferAlignment = true,
 
       /* VK_AMD_device_coherent_memory */
-      .deviceCoherentMemory = pdev->info.has_l2_uncached,
+      .deviceCoherentMemory = radv_device_coherent_memory_enabled(pdev),
 
       /* VK_KHR_line_rasterization */
       .rectangularLines = true,

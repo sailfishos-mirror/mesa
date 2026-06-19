@@ -293,6 +293,7 @@ struct radeon_info {
                              * the LLVM version doesn't work with multiparts shaders.
                              */
    bool has_smem_partial_oob_access_bug;
+   bool has_out_of_order_uncached_l2;
 
    /* Support GS_FAST_LAUNCH(2) for mesh shaders. */
    bool mesh_fast_launch_2;

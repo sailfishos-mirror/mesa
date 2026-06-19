@@ -894,6 +894,10 @@
    DRI_CONF_OPT_B(radv_force_64_byte_sampled_image, def, \
                   "Force sampled images size to 64 bytes.")
 
+#define DRI_CONF_RADV_DEVICE_COHERENT_MEMORY(def) \
+   DRI_CONF_OPT_B(radv_device_coherent_memory, def, \
+                  "Expose VK_AMD_device_coherent_memory on GFX12 (RDNA4).")
+
 /**
  * \brief ANV specific configuration options
  */

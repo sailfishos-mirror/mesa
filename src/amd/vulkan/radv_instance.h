@@ -82,6 +82,7 @@ struct radv_drirc {
       bool expose_float16_gfx8;
       bool vk_require_astc;
       bool vk_require_etc2;
+      bool device_coherent_memory;
    } features;
 
    struct {

@@ -225,6 +225,7 @@ static const driOptionDescription radv_dri_options[] = {
       DRI_CONF_RADV_FORCE_NAN_PRESERVE_MIN_MAX(false)
       DRI_CONF_RADV_HIDE_REBAR_ON_DGPU(false)
       DRI_CONF_RADV_FORCE_64_BYTE_SAMPLED_IMAGE(false)
+      DRI_CONF_RADV_DEVICE_COHERENT_MEMORY(false)
    DRI_CONF_SECTION_END
 };
 // clang-format on
