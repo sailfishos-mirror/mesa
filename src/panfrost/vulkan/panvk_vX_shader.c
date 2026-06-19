@@ -1,9 +1,7 @@
 /*
  * Copyright © 2025 Arm Ltd.
  * Copyright © 2021 Collabora Ltd.
- *
- * Derived from tu_shader.c which is:
- * Copyright © 2019 Google LLC
+ * Copyright © 2019-2026 Google LLC
  *
  * Also derived from anv_pipeline.c which is
  * Copyright © 2015 Intel Corporation
@@ -797,8 +795,15 @@ lookup_ycbcr_conversion(const void *_state, uint32_t set,
    const struct panvk_sampler *sampler =
       bind_layout->immutable_samplers[array_index];
 
-   return sampler && sampler->vk.ycbcr_conversion ?
-          &sampler->vk.ycbcr_conversion->state : NULL;
+   if (!sampler || !sampler->vk.ycbcr_conversion)
+      return NULL;
+
+   const struct vk_ycbcr_conversion_state *conversion =
+      &sampler->vk.ycbcr_conversion->state;
+   if (panvk_image_use_yuv_tex(PAN_ARCH, conversion->format))
+      return NULL;
+
+   return conversion;
 }
 
 static int
