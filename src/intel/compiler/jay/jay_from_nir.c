@@ -1698,7 +1698,18 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             }
          }
       } else {
-         UNREACHABLE("todo: indirect push data");
+         assert(sz == 4);
+         unsigned range = DIV_ROUND_UP(nir_intrinsic_range(intr), 4);
+         unsigned range_base =
+            jay_base_index(nj->payload.push_data[base_offset / 4]);
+         jay_def push_data = jay_contiguous_def(UGPR, range_base, range);
+         jay_def offset = nj_src(intr->src[0]);
+         if (!intr->def.divergent)
+            offset = emit_uniformize(nj, offset);
+         if (base_offset % 4)
+            offset = jay_ADD_u32(b, offset, base_offset % 4);
+
+         jay_VECTOR_EXTRACT(b, dst, push_data, offset);
       }
       break;
    }
