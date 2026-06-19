@@ -131,6 +131,73 @@ impl From<&SmallConstant> for FAURef {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum PreloadReg {
+    /* Compute */
+    ///  0..16 -> local_id_0
+    /// 16..32 -> local_id_1
+    LocalId01,
+    ///  0..16 -> local_id_2
+    LocalId2,
+    WorkgroupId0,
+    WorkgroupId1,
+    WorkgroupId2,
+    GlobalId0,
+    GlobalId1,
+    GlobalId2,
+
+    /* Vertex */
+    InternalId,
+    VertexId,
+    InstanceId,
+    DrawId,
+    ViewId,
+
+    /* Fragment */
+    PrimitiveId,
+    PrimitiveFlags,
+    ///  0..16 -> position_x
+    /// 16..32 -> position_y
+    PositionXY,
+    ///  0..16 -> cumulative_coverage
+    CumulativeCoverage,
+    ///  0..16 -> rasterizer_coverage
+    /// 16..24 -> sample_id
+    /// 24..32 -> centroid_id
+    RasterizerSampleCentroid,
+    FrameArgLow,
+    FrameArgHigh,
+}
+
+impl fmt::Display for PreloadReg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use PreloadReg::*;
+        let name = match &self {
+            LocalId01 => "LOCAL_ID_01",
+            LocalId2 => "LOCAL_ID_2",
+            WorkgroupId0 => "WORKGROUP_ID_0",
+            WorkgroupId1 => "WORKGROUP_ID_1",
+            WorkgroupId2 => "WORKGROUP_ID_2",
+            GlobalId0 => "GLOBAL_ID_0",
+            GlobalId1 => "GLOBAL_ID_1",
+            GlobalId2 => "GLOBAL_ID_2",
+            InternalId => "INTERNAL_ID",
+            VertexId => "VERTEX_ID",
+            InstanceId => "INSTANCE_ID",
+            DrawId => "DRAW_ID",
+            ViewId => "VIEW_ID",
+            PrimitiveId => "PRIMITIVE_ID",
+            PrimitiveFlags => "PRIMITIVE_FLAGS",
+            PositionXY => "POSIZTION_XY",
+            CumulativeCoverage => "CUMULATIVE_COVERAGE",
+            RasterizerSampleCentroid => "RASTERIZER_COV_SAMPLE_ID_CENTROID_ID",
+            FrameArgLow => "FRAME_ARG_LO",
+            FrameArgHigh => "FRAME_ARG_HI",
+        };
+        write!(f, "{name}")
+    }
+}
+
 /// This struct describes the range of registers read or written by a RegRef.
 /// The range provided here acts as a mask on the destination but is purely
 /// informational for sources.  In all cases, the instruction operates relative
@@ -167,19 +234,25 @@ impl From<RegRange> for Swizzle {
 pub struct RegRef {
     pub idx: u8,
     pub range: RegRange,
+    /// Optional preload origin for pretty printing
+    pub preload: Option<PreloadReg>,
 }
 
 impl fmt::Display for RegRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.preload {
+            Some(d) => write!(f, "{d}")?,
+            None => write!(f, "r{}", self.idx)?,
+        };
+
         match &self.range {
-            RegRange::Byte0 => write!(f, "r{}.b0", self.idx),
-            RegRange::Byte1 => write!(f, "r{}.b1", self.idx),
-            RegRange::Byte2 => write!(f, "r{}.b2", self.idx),
-            RegRange::Byte3 => write!(f, "r{}.b3", self.idx),
-            RegRange::Half0 => write!(f, "r{}.h0", self.idx),
-            RegRange::Half1 => write!(f, "r{}.h1", self.idx),
+            RegRange::Byte0 => write!(f, ".b0"),
+            RegRange::Byte1 => write!(f, ".b1"),
+            RegRange::Byte2 => write!(f, ".b2"),
+            RegRange::Byte3 => write!(f, ".b3"),
+            RegRange::Half0 => write!(f, ".h0"),
+            RegRange::Half1 => write!(f, ".h1"),
             RegRange::Regs(n) => {
-                write!(f, "r{}", self.idx)?;
                 if *n > 1 {
                     write!(f, "..{}", self.idx + n)?;
                 }
@@ -218,6 +291,14 @@ impl RegRef {
         self.idx += word;
         self.range = RegRange::Regs(1);
         self
+    }
+
+    pub fn from_preload_reg(m: &dyn Model, reg: PreloadReg) -> RegRef {
+        RegRef {
+            idx: m.preload_reg(reg),
+            range: RegRange::Regs(1),
+            preload: Some(reg),
+        }
     }
 }
 
@@ -1090,6 +1171,8 @@ impl fmt::Display for BasicBlock {
 pub struct ShaderInfo {
     /// Number of registers used
     pub registers_used: u8,
+    /// Bitset of preloaded registers
+    pub register_preload: u64,
 }
 
 pub struct Shader<'a> {

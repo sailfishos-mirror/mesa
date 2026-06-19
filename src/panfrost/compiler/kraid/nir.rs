@@ -35,6 +35,7 @@ struct ShaderFromNir<'a> {
     model: &'a dyn Model,
     nir: &'a nir_shader,
     ssa_map: FxHashMap<u32, Vec<SSAValue>>,
+    preload_map: FxHashMap<PreloadReg, SSAValue>,
     info: ShaderInfo,
 }
 
@@ -44,6 +45,7 @@ impl<'a> ShaderFromNir<'a> {
             model,
             nir,
             ssa_map: Default::default(),
+            preload_map: Default::default(),
             info: ShaderInfo::default(),
         }
     }
@@ -673,6 +675,17 @@ impl<'a> ShaderFromNir<'a> {
         }
     }
 
+    fn preload(
+        &mut self,
+        b: &mut impl SSABuilder,
+        reg: PreloadReg,
+    ) -> SSAValue {
+        *self
+            .preload_map
+            .entry(reg)
+            .or_insert_with(|| b.alloc_ssa(32))
+    }
+
     fn parse_intrinsic(
         &mut self,
         b: &mut impl SSABuilder,
@@ -731,6 +744,22 @@ impl<'a> ShaderFromNir<'a> {
                     addr,
                     offset: 0,
                 });
+            }
+            nir_intrinsic_load_workgroup_id => {
+                let ssa = vec![
+                    self.preload(b, PreloadReg::WorkgroupId0),
+                    self.preload(b, PreloadReg::WorkgroupId1),
+                    self.preload(b, PreloadReg::WorkgroupId2),
+                ];
+                self.set_ssa(&intrin.def, ssa);
+            }
+            nir_intrinsic_load_global_invocation_id => {
+                let ssa = vec![
+                    self.preload(b, PreloadReg::GlobalId0),
+                    self.preload(b, PreloadReg::GlobalId1),
+                    self.preload(b, PreloadReg::GlobalId2),
+                ];
+                self.set_ssa(&intrin.def, ssa);
             }
             _ => panic!(
                 "Unsupported intrinsic instruction: {}",
@@ -793,6 +822,25 @@ impl<'a> ShaderFromNir<'a> {
         }
     }
 
+    fn create_preload_instrs(&mut self) -> Vec<Instr> {
+        let mut preloaded: Vec<_> = self.preload_map.drain().collect();
+        // All keys are different, we can use an unstable sort
+        preloaded.sort_unstable_by_key(|(reg, _ssa)| *reg);
+
+        preloaded
+            .into_iter()
+            .map(|(reg, ssa)| {
+                let reg = RegRef::from_preload_reg(self.model, reg);
+                self.info.register_preload |= 1 << reg.idx;
+                Instr::from(OpRegIn {
+                    dst: ssa.into(),
+                    dst_type: DataType::I32,
+                    reg,
+                })
+            })
+            .collect()
+    }
+
     fn parse_shader(mut self) -> Shader<'a> {
         let nfi = self.nir.get_entrypoint().unwrap();
         let mut ssa_alloc = Default::default();
@@ -804,10 +852,16 @@ impl<'a> ShaderFromNir<'a> {
             block_map.add(nb, label_alloc.alloc());
         }
 
-        let blocks = nfi
+        let mut blocks: Vec<BasicBlock> = nfi
             .iter_blocks()
             .map(|nb| self.parse_block(&mut ssa_alloc, &block_map, nb))
             .collect();
+
+        // If there are any preload registers, splice them before the
+        // starting block
+        if !self.preload_map.is_empty() {
+            blocks[0].instrs.splice(..0, self.create_preload_instrs());
+        }
 
         Shader {
             model: self.model,

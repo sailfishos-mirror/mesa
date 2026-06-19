@@ -117,7 +117,11 @@ fn reg_ref_for_byte(b: u8, bytes: u8) -> RegRef {
         }
     };
 
-    RegRef { idx: b / 4, range }
+    RegRef {
+        idx: b / 4,
+        range,
+        preload: None,
+    }
 }
 
 fn ra_trivial(s: &mut Shader) {

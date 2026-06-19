@@ -65,6 +65,7 @@ fn dynarray_append_vec<T: Copy>(buf: &mut util_dynarray, vec: Vec<T>) {
 
 fn write_back_info(src: &ShaderInfo, dst: &mut pan_shader_info) {
     dst.work_reg_count = src.registers_used.into();
+    dst.preload = src.register_preload;
 }
 
 #[no_mangle]
