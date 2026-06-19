@@ -517,6 +517,20 @@ impl fmt::Display for OpICmp {
     }
 }
 
+impl PerCompFoldable for OpICmp {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let ca = f.get_src(&self.srcs[0]);
+        let cb = f.get_src(&self.srcs[1]);
+        let accum = f.get_src(&self.accum);
+
+        let c = self.cmp_op.fold(self.src_type.scalar_type(), ca, cb);
+        let c = self.accum_op.fold(c, accum != 0);
+        let c = self.res_type.fold(c, self.src_type.bits());
+
+        f.set_dst(&self.dst, c as u64);
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [
