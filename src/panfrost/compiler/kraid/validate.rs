@@ -96,9 +96,24 @@ impl Shader<'_> {
             blocks.insert(bb.label);
         }
 
+        let mut allow_reg_in = true;
+        let mut allow_non_reg_out = true;
         let mut ssa_vals: FxHashSet<SSAValue> = Default::default();
-        for bb in &self.blocks {
+        for (bi, bb) in self.blocks.iter().enumerate() {
             for i in &bb.instrs {
+                if matches!(&i.op, Op::RegIn(_)) {
+                    assert!(bi == 0);
+                    assert!(allow_reg_in);
+                } else if !matches!(&i.op, Op::Nop(_)) {
+                    allow_reg_in = false;
+                }
+
+                if matches!(&i.op, Op::RegOut(_)) {
+                    allow_non_reg_out = false;
+                } else if !matches!(&i.op, Op::Nop(_)) {
+                    assert!(allow_non_reg_out);
+                }
+
                 validate_instr(&i, &mut ssa_vals);
             }
         }

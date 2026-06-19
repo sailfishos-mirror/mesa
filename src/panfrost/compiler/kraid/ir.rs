@@ -149,6 +149,20 @@ pub enum RegRange {
     Regs(u8),
 }
 
+impl From<RegRange> for Swizzle {
+    fn from(range: RegRange) -> Swizzle {
+        match range {
+            RegRange::Byte0 => Swizzle::B0000,
+            RegRange::Byte1 => Swizzle::B1111,
+            RegRange::Byte2 => Swizzle::B2222,
+            RegRange::Byte3 => Swizzle::B3333,
+            RegRange::Half0 => Swizzle::H00,
+            RegRange::Half1 => Swizzle::H11,
+            RegRange::Regs(_) => Swizzle::NONE,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub struct RegRef {
     pub idx: u8,

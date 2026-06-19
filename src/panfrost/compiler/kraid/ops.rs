@@ -675,6 +675,54 @@ impl fmt::Display for OpMov {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [I8, I16, I32, I64])]
+pub struct OpRegIn {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub reg: RegRef,
+}
+
+impl fmt::Display for OpRegIn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = REG_IN.{} {}", &self.dst, self.dst_type, &self.reg)
+    }
+}
+
+impl VirtualOpcode for OpRegIn {
+    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+        lanes == DstLanes::from(self.reg.range)
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [I8, I16, I32, I64])]
+pub struct OpRegOut {
+    pub reg: RegRef,
+    pub src_type: DataType,
+    pub src: Src,
+}
+
+impl fmt::Display for OpRegOut {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = REG_OUT.{} {}",
+            &self.reg,
+            self.src_type,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+impl VirtualOpcode for OpRegOut {
+    fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
+        swizzle == Swizzle::from(self.reg.range)
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpNop {}
 
 impl fmt::Display for OpNop {
@@ -922,6 +970,8 @@ pub enum Op {
     MkVecV4I8(Box<OpMkVecV4I8>),
     Nop(OpNop),
     Mov(Box<OpMov>),
+    RegIn(Box<OpRegIn>),
+    RegOut(Box<OpRegOut>),
     ShiftLop(Box<OpShiftLop>),
     Swz(Box<OpSwz>),
     Store(Box<OpStore>),
@@ -938,6 +988,8 @@ impl Op {
             Op::Copy(op) => Some(op.as_ref()),
             Op::MkVecV2I8(op) => Some(op.as_ref()),
             Op::MkVecV4I8(op) => Some(op.as_ref()),
+            Op::RegIn(op) => Some(op.as_ref()),
+            Op::RegOut(op) => Some(op.as_ref()),
             Op::Swz(op) => Some(op.as_ref()),
             _ => None,
         }

@@ -129,7 +129,31 @@ fn ra_trivial(s: &mut Shader) {
     let mut ssa_b: FxHashMap<SSAValue, u8> = Default::default();
 
     for (bi, block) in s.blocks.iter_mut().enumerate() {
-        for (ip, instr) in block.instrs.iter_mut().enumerate() {
+        for (ip, mut instr) in
+            std::mem::take(&mut block.instrs).into_iter().enumerate()
+        {
+            if let Op::RegIn(op) = instr.op {
+                let DstRef::SSA(vec) = op.dst.dst_ref else {
+                    panic!("We must have SSA destinations");
+                };
+
+                let b = op.reg.idx * 4 + op.reg.byte_offset();
+                let bytes = vec.bytes();
+                debug_assert_eq!(bytes, op.reg.bytes());
+
+                for (i, ssa) in vec.iter().enumerate() {
+                    ssa_b.insert(*ssa, b + u8::try_from(i * 4).unwrap());
+                }
+                for i in 0..bytes {
+                    let b = usize::from(b) + usize::from(i);
+                    assert!(!byte_used.contains(b));
+                    byte_used.insert(b);
+                }
+
+                // Drop the actual instruction on the floor
+                continue;
+            }
+
             for src in instr.srcs_mut() {
                 let SrcRef::SSA(vec) = &mut src.src_ref else {
                     continue;
@@ -155,15 +179,7 @@ fn ra_trivial(s: &mut Shader) {
                 }
 
                 let reg = reg_ref_for_byte(vec_b, vec.bytes());
-                let swz = match reg.range {
-                    RegRange::Byte0 => Swizzle::B0000,
-                    RegRange::Byte1 => Swizzle::B1111,
-                    RegRange::Byte2 => Swizzle::B2222,
-                    RegRange::Byte3 => Swizzle::B3333,
-                    RegRange::Half0 => Swizzle::H00,
-                    RegRange::Half1 => Swizzle::H11,
-                    RegRange::Regs(_) => Swizzle::NONE,
-                };
+                let swz = Swizzle::from(reg.range);
                 src.swizzle = swz
                     .swizzle(src.swizzle)
                     .expect("16-bit and smaller sources have to swizzle");
@@ -268,6 +284,8 @@ fn ra_trivial(s: &mut Shader) {
             {
                 *dst = reg.into();
             }
+
+            block.instrs.push(instr);
         }
     }
 }
