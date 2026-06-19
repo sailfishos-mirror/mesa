@@ -584,6 +584,7 @@ impl From<FRound> for Round {
             FRound::Up => Round::RoundUp,
             FRound::Down => Round::RoundDown,
             FRound::TowardsZero => Round::RoundZero,
+            FRound::NearestValue => Round::RoundNa,
         }
     }
 }
@@ -864,6 +865,38 @@ impl V9Instr for OpISub {
             src1: op_encode_src(self, &self.srcs[1]),
             saturate: self.saturate.into(),
         })
+    }
+}
+
+impl V9Instr for OpIToF32 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        let info = match self.src_type {
+            DataType::U32 => U32ToF32::get_info((), arch),
+            DataType::S32 => S32ToF32::get_info((), arch),
+            _ => unreachable!(),
+        };
+        V9InstrInfo::from_isa(
+            info,
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        match self.src_type {
+            DataType::U32 => e.encode(U32ToF32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+                round: self.round.into(),
+            }),
+            DataType::S32 => e.encode(S32ToF32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+                round: self.round.into(),
+            }),
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -1236,6 +1269,7 @@ macro_rules! v9_op_match_else {
             Op::ICmp($x) => $y,
             Op::IMul($x) => $y,
             Op::ISub($x) => $y,
+            Op::IToF32($x) => $y,
             Op::LdPka($x) => $y,
             Op::LeaPka($x) => $y,
             Op::Load($x) => $y,

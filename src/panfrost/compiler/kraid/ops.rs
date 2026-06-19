@@ -236,6 +236,7 @@ pub enum FRound {
     Up,
     Down,
     TowardsZero,
+    NearestValue,
 }
 
 impl fmt::Display for FRound {
@@ -245,6 +246,7 @@ impl fmt::Display for FRound {
             FRound::Up => write!(f, ".round_up"),
             FRound::Down => write!(f, ".round_down"),
             FRound::TowardsZero => write!(f, ".round_zero"),
+            FRound::NearestValue => write!(f, ".round_na"),
         }
     }
 }
@@ -707,6 +709,34 @@ impl PerCompFoldable for OpISub {
         };
 
         f.set_dst(&self.dst, c);
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [S32, U32])]
+pub struct OpIToF32 {
+    #[dst_type(F32)]
+    pub dst: Dst,
+    pub src_type: DataType,
+    pub src: Src,
+    pub round: FRound,
+}
+
+impl fmt::Display for OpIToF32 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let n = match self.src_type {
+            DataType::U32 => "U32",
+            DataType::S32 => "S32",
+            _ => unreachable!("Invalid variant"),
+        };
+        write!(
+            f,
+            "{} = {n}_TO_F32{} {}",
+            &self.dst,
+            self.round,
+            self.fmt_src(&self.src)
+        )
     }
 }
 
@@ -1243,6 +1273,7 @@ pub enum Op {
     ICmp(Box<OpICmp>),
     IMul(Box<OpIMul>),
     ISub(Box<OpISub>),
+    IToF32(Box<OpIToF32>),
     LdPka(Box<OpLdPka>),
     LeaPka(Box<OpLeaPka>),
     Load(Box<OpLoad>),
