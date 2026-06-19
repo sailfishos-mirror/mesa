@@ -71,6 +71,7 @@ typedef struct jay_fs_payload {
       jay_def xy, z, w;
    } coord;
 
+   jay_def config;
    jay_def coverage_mask;
    jay_def sample_pos;
    jay_def deltas[64];
@@ -1563,8 +1564,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_fs_config_intel:
       s->prog_data->fs.uses_fs_config = true;
-      jay_MOV(b, dst,
-              nj->payload.push_data[s->prog_data->fs.fs_config_param / 4]);
+      jay_MOV(b, dst, fs->config);
       break;
 
    case nir_intrinsic_load_tess_config_intel: {
@@ -3073,6 +3073,8 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    setup_payload_dispatch_start(nj, p);
    setup_payload_push(nj, p);
+
+   fs->config = nj->payload.push_data[nj->s->prog_data->fs.fs_config_param / 4];
 
    for (unsigned i = 0; i < nj->s->prog_data->fs.num_varying_inputs * 4; ++i) {
       fs->deltas[i] = read_vector_payload(p, UGPR, 3);
