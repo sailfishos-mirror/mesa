@@ -761,6 +761,28 @@ impl<'a> ShaderFromNir<'a> {
                 ];
                 self.set_ssa(&intrin.def, ssa);
             }
+            nir_intrinsic_load_push_constant => {
+                assert!(intrin.base() == 0);
+                assert!(intrin.range() == 0);
+                let offset =
+                    srcs[0].as_uint().expect("No indirect push constants");
+                assert!((offset % 4) == 0, "Unaligned push constant");
+                let word_idx = offset / 4;
+
+                let dsts = self.alloc_ssa(b, &intrin.def);
+                for (i, dst) in dsts.iter().copied().enumerate() {
+                    b.copy_i32_to(
+                        dst.into(),
+                        FAURef {
+                            page: FAUPage::User,
+                            idx: (word_idx + i as u64).try_into().unwrap(),
+                            load64: false,
+                        }
+                        .into(),
+                    );
+                }
+                // TODO: update ShaderInfo to keep track of the highest push constant
+            }
             _ => panic!(
                 "Unsupported intrinsic instruction: {}",
                 intrin.info().name()
