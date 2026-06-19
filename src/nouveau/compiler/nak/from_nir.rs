@@ -1039,13 +1039,18 @@ impl<'a> ShaderFromNir<'a> {
                 )
                 .into()
             }
-            nir_op_feq | nir_op_fge | nir_op_flt | nir_op_fneu => {
+            nir_op_feq | nir_op_fequ | nir_op_fge | nir_op_fgeu
+            | nir_op_flt | nir_op_fltu | nir_op_fneu | nir_op_fneo => {
                 let src_type =
                     FloatType::from_bits(alu.get_src(0).bit_size().into());
                 let cmp_op = match alu.op {
                     nir_op_feq => FloatCmpOp::OrdEq,
+                    nir_op_fequ => FloatCmpOp::UnordEq,
                     nir_op_fge => FloatCmpOp::OrdGe,
+                    nir_op_fgeu => FloatCmpOp::UnordGe,
                     nir_op_flt => FloatCmpOp::OrdLt,
+                    nir_op_fltu => FloatCmpOp::UnordLt,
+                    nir_op_fneo => FloatCmpOp::OrdNe,
                     nir_op_fneu => FloatCmpOp::UnordNe,
                     _ => panic!("Usupported float comparison"),
                 };

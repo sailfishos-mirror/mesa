@@ -119,8 +119,12 @@ vectorize_filter_cb(const nir_instr *instr, const void *data)
    case nir_op_fabs:
    case nir_op_fneg:
    case nir_op_feq:
+   case nir_op_fequ:
    case nir_op_fge:
+   case nir_op_fgeu:
    case nir_op_flt:
+   case nir_op_fltu:
+   case nir_op_fneo:
    case nir_op_fneu:
    case nir_op_fmul:
    case nir_op_fmul_rtz:
@@ -271,8 +275,12 @@ lower_bit_size_cb(const nir_instr *instr, void *data)
       case nir_op_fadd:
       case nir_op_fneg:
       case nir_op_feq:
+      case nir_op_fequ:
       case nir_op_fge:
+      case nir_op_fgeu:
       case nir_op_flt:
+      case nir_op_fltu:
+      case nir_op_fneo:
       case nir_op_fneu:
       case nir_op_fmul:
       case nir_op_fmul_rtz:
