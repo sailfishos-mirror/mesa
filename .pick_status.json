@@ -3854,7 +3854,7 @@
         "description": "panvk: fix plane indexing for afbc image subres layout",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "11fe21d6591f7a56fd656debb4432c5a7d8ad295",
         "notes": null
