@@ -404,9 +404,9 @@ traces:
       checksum: 148ec1105f5f14c90cb756a178cef264
       text: note that this trace is stable on freedreno
     zink-radv-vangogh:
-      checksum: 78fc23919ecc301aef4fb0c3ddc5c195
+      checksum: 38649d137f8f530d354406bc1ffd6257
     zink-radv-gfx1201:
-      checksum: 78fc23919ecc301aef4fb0c3ddc5c195
+      checksum: 38649d137f8f530d354406bc1ffd6257
 
   valve/counterstrike-source-v2.trace:
     gl-zink-anv-adl:

@@ -5848,8 +5848,7 @@ zink_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
       ctx->blitter = util_blitter_create(&ctx->base);
       if (!ctx->blitter)
          goto fail;
-      if (screen->driver_workarounds.inconsistent_interpolation)
-         ctx->blitter->draw_rectangle = zink_draw_rectangle;
+      ctx->blitter->use_single_triangle = screen->driver_workarounds.inconsistent_interpolation;
    }
 
    zink_set_last_vertex_key(ctx)->last_vertex_stage = true;
