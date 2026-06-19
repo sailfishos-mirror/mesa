@@ -14,10 +14,10 @@ make-git-archive:
     - git gc --aggressive
     # Download & cache the perfetto subproject as well.
     - |
-      perfetto_sdk_dir=$(grep -Po '^directory = \K.*' subprojects/perfetto-sdk.wrap)
+      perfetto_sdk_dir=$(grep -E '^directory = ' subprojects/perfetto-sdk.wrap | cut -d ' ' -f3)
       rm -rf subprojects/"$perfetto_sdk_dir"
       mkdir -p subprojects/"$perfetto_sdk_dir"
-      curl --fail --location $(grep -Po '^source_url = \K.*' subprojects/perfetto-sdk.wrap) --output perfetto-sdk.zip
+      curl --fail --location $(grep -E '^source_url = ' subprojects/perfetto-sdk.wrap | cut -d ' ' -f3) --output perfetto-sdk.zip
       unzip perfetto-sdk.zip -d subprojects/"$perfetto_sdk_dir"
       rm perfetto-sdk.zip
     # compress the current folder
