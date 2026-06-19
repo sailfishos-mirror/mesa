@@ -1626,6 +1626,21 @@ impl<'a> ShaderFromNir<'a> {
                 assert!(alu.get_src(0).bit_size() == 32);
                 b.uror(srcs(0), srcs(1)).into()
             }
+            nir_op_shfr => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                let dst = b.alloc_ssa(RegFile::GPR);
+                b.push_op(OpShf {
+                    dst: dst.into(),
+                    low: srcs(1),
+                    high: srcs(0),
+                    shift: srcs(2),
+                    right: true,
+                    wrap: true,
+                    data_type: IntType::U32,
+                    dst_high: false,
+                });
+                dst.into()
+            }
             nir_op_lea_nv => {
                 let src_a = srcs(1);
                 let src_b = srcs(0);
