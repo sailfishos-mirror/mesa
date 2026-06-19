@@ -205,6 +205,7 @@ i915_optimize_nir(struct nir_shader *s)
       NIR_PASS(progress, s, nir_opt_loop);
       NIR_PASS(progress, s, nir_opt_undef);
       NIR_PASS(progress, s, nir_opt_loop_unroll);
+      NIR_PASS(progress, s, nir_opt_licm, NULL);
 
    } while (progress);
 
