@@ -1698,7 +1698,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
             }
          }
       } else {
-         assert(sz == 4);
+         assert(sz < 8);
          unsigned range = DIV_ROUND_UP(nir_intrinsic_range(intr), 4);
          unsigned range_base =
             jay_base_index(nj->payload.push_data[base_offset / 4]);
@@ -1709,7 +1709,8 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
          if (base_offset % 4)
             offset = jay_ADD_u32(b, offset, base_offset % 4);
 
-         jay_VECTOR_EXTRACT(b, dst, push_data, offset);
+         jay_VECTOR_EXTRACT(b, JAY_TYPE_U | intr->def.bit_size, dst, push_data,
+                            offset);
       }
       break;
    }
