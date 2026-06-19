@@ -4433,7 +4433,7 @@ radv_emit_fsr_state(struct radv_cmd_buffer *cmd_buffer)
    /* Emit per-draw VRS rate which is the first combiner. */
    radeon_set_uconfig_reg(R_03098C_GE_VRS_RATE, S_03098C_RATE_X(rate_x) | S_03098C_RATE_Y(rate_y));
 
-   radeon_set_context_reg(R_028848_PA_CL_VRS_CNTL, pa_cl_vrs_cntl);
+   radeon_opt_set_context_reg(R_028848_PA_CL_VRS_CNTL, AC_TRACKED_PA_CL_VRS_CNTL, pa_cl_vrs_cntl);
 
    radeon_end();
 }
