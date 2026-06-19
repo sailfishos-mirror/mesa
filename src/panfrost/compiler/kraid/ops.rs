@@ -1231,6 +1231,69 @@ impl fmt::Display for OpNop {
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, I16, I32, I64])]
+pub struct OpPhiDst {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub phi: Phi,
+}
+
+impl fmt::Display for OpPhiDst {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = PHI_DST.{} {}", &self.dst, self.dst_type, &self.phi)
+    }
+}
+
+impl VirtualOpcode for OpPhiDst {
+    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+        match self.dst_type.total_bits() {
+            8 => lanes.is_byte(),
+            16 => lanes.is_half(),
+            _ => lanes == DstLanes::All,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [I8, I16, I32, I64])]
+pub struct OpPhiSrc {
+    pub phi: Phi,
+    pub src_type: DataType,
+    pub src: Src,
+}
+
+impl fmt::Display for OpPhiSrc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = PHI_SRC.{} {}",
+            &self.phi,
+            self.src_type,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+impl VirtualOpcode for OpPhiSrc {
+    fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
+        match self.src_type {
+            DataType::I8 => matches!(
+                swizzle,
+                Swizzle::B0000
+                    | Swizzle::B1111
+                    | Swizzle::B2222
+                    | Swizzle::B3333
+            ),
+            DataType::I16 => matches!(swizzle, Swizzle::H00 | Swizzle::H11),
+            DataType::I32 | DataType::I64 => swizzle.is_none(),
+            _ => panic!("Invalid OpPhiSrc data type"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [I8, I16, I32, I64])]
 pub struct OpRegIn {
     pub dst: Dst,
     pub dst_type: DataType,
@@ -1564,6 +1627,8 @@ pub enum Op {
     Mov(Box<OpMov>),
     Mux(Box<OpMux>),
     Nop(OpNop),
+    PhiDst(Box<OpPhiDst>),
+    PhiSrc(Box<OpPhiSrc>),
     RegIn(Box<OpRegIn>),
     RegOut(Box<OpRegOut>),
     ShiftLop(Box<OpShiftLop>),
@@ -1583,6 +1648,8 @@ impl Op {
             Op::Copy(op) => Some(op.as_ref()),
             Op::MkVecV2I8(op) => Some(op.as_ref()),
             Op::MkVecV4I8(op) => Some(op.as_ref()),
+            Op::PhiDst(op) => Some(op.as_ref()),
+            Op::PhiSrc(op) => Some(op.as_ref()),
             Op::RegIn(op) => Some(op.as_ref()),
             Op::RegOut(op) => Some(op.as_ref()),
             Op::Swz(op) => Some(op.as_ref()),

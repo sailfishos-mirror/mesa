@@ -197,6 +197,7 @@ impl<'a> TestShaderBuilder<'a> {
         let mut s = Shader {
             model,
             ssa_alloc,
+            phi_alloc: Default::default(),
             blocks: cfg.as_cfg(),
             info,
         };

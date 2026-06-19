@@ -1078,6 +1078,7 @@ impl<'a> ShaderFromNir<'a> {
         Shader {
             model: self.model,
             ssa_alloc,
+            phi_alloc: Default::default(),
             blocks,
             info: self.info,
         }
