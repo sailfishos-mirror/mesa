@@ -3133,6 +3133,9 @@ init_driver_workarounds(struct zink_screen *screen)
       /* Interpolation is not consistent between two triangles of a rectangle. */
       screen->driver_workarounds.inconsistent_interpolation = true;
       break;
+   case VK_DRIVER_ID_MESA_TURNIP:
+      screen->driver_workarounds.inconsistent_interpolation = true;
+      break;
    default:
       break;
    }
