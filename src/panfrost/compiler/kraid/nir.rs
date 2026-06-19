@@ -574,6 +574,26 @@ impl<'a> ShaderFromNir<'a> {
                     mask: false,
                 });
             }
+            nir_op_ufind_msb => {
+                let src_type = src_type(0, NumericType::UnsignedInteger);
+                let tmp = b.alloc_ssa(src_type.total_bits());
+
+                b.push_op(OpClz {
+                    dst: tmp.into(),
+                    src_type,
+                    src: srcs(0),
+                    mask: false,
+                });
+                // TODO: remove this copy when lower_small_constants gets smart
+                //       enough or can handle iadd_imm fallbacks
+                let bits = b.copy_i32((src_type.bits() as u32 - 1).into());
+                b.push_op(OpISub {
+                    dst: dst.into(),
+                    dst_type: DataType::U32,
+                    saturate: false,
+                    srcs: [bits.into(), tmp.into()],
+                });
+            }
             nir_op_ishl | nir_op_ishr | nir_op_ushr | nir_op_urol
             | nir_op_uror => {
                 b.push_op(OpShiftLop {
