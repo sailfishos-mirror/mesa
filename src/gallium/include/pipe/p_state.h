@@ -1089,6 +1089,7 @@ enum pipe_ml_operation_type {
    PIPE_ML_OPERATION_TYPE_QUANTIZE,
    PIPE_ML_OPERATION_TYPE_MAXIMUM,
    PIPE_ML_OPERATION_TYPE_MINIMUM,
+   PIPE_ML_OPERATION_TYPE_SOFTMAX,
 };
 
 enum pipe_ml_pooling_type {
@@ -1299,6 +1300,9 @@ struct pipe_ml_operation
       struct {
          float alpha;
       } leakyrelu;
+      struct {
+         float beta;
+      } softmax;
    };
 };
 
