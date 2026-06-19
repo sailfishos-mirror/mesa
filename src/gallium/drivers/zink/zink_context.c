@@ -3093,7 +3093,9 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
          else
             ctx->dynamic_fb.attachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
          if (use_tc_info) {
-            if (very_legal_and_conformant_msaa_opt || ctx->dynamic_fb.tc_info.cbuf_invalidate & BITFIELD_BIT(i))
+            if (very_legal_and_conformant_msaa_opt ||
+                /* don't invalidate cbufs without resolve */
+                (ctx->dynamic_fb.tc_info.has_resolve && ctx->dynamic_fb.tc_info.cbuf_invalidate & BITFIELD_BIT(i)))
                ctx->dynamic_fb.attachments[i].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             else
                ctx->dynamic_fb.attachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
