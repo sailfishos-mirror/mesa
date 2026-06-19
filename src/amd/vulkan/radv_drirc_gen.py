@@ -110,6 +110,9 @@ def declare_options():
     ]
 
     features_options = [
+        B("radv_device_coherent_memory", False,
+          "Expose VK_AMD_device_coherent_memory on GFX12 (RDNA4).",
+          c_name="device_coherent_memory"),
         B("radv_cooperative_matrix2_nv", False,
           "Expose VK_NV_cooperative_matrix2 on supported hardware.",
           c_name="cooperative_matrix2_nv"),
