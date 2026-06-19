@@ -66,7 +66,8 @@ is_z32f_s8_in_z24s8(const struct u_transfer_helper *helper,
                     enum pipe_format format)
 {
    return helper->z32f_s8_in_z24s8 &&
-          format == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT;
+          (format == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT ||
+           format == PIPE_FORMAT_Z32_FLOAT);
 }
 
 static inline uint32_t
@@ -113,6 +114,37 @@ z32f_s8x24_to_z24s8(uint8_t *dst, unsigned dst_stride,
          uint8_t stencil = s32[x * 2 + 1] & 0xff;
          d[x] = (pack_z24(z) << 8) | stencil;
       }
+      src += src_stride;
+      dst += dst_stride;
+   }
+}
+
+/* Z32_FLOAT (depth only) <-> S8_UINT_Z24_UNORM, stencil bits unused. */
+static void
+z24_to_z32f(uint8_t *dst, unsigned dst_stride,
+            const uint8_t *src, unsigned src_stride,
+            unsigned width, unsigned height)
+{
+   for (unsigned y = 0; y < height; y++) {
+      const uint32_t *s = (const uint32_t *)src;
+      float *d = (float *)dst;
+      for (unsigned x = 0; x < width; x++)
+         d[x] = unpack_z24(s[x] >> 8);
+      src += src_stride;
+      dst += dst_stride;
+   }
+}
+
+static void
+z32f_to_z24(uint8_t *dst, unsigned dst_stride,
+            const uint8_t *src, unsigned src_stride,
+            unsigned width, unsigned height)
+{
+   for (unsigned y = 0; y < height; y++) {
+      const float *s = (const float *)src;
+      uint32_t *d = (uint32_t *)dst;
+      for (unsigned x = 0; x < width; x++)
+         d[x] = pack_z24(s[x]) << 8;
       src += src_stride;
       dst += dst_stride;
    }
@@ -373,10 +405,15 @@ u_transfer_helper_transfer_map(struct pipe_context *pctx,
       if (!trans->ptr)
          goto fail;
 
-      if (needs_pack(usage))
-         z24s8_to_z32f_s8x24(trans->staging, ptrans->stride,
-                              trans->ptr, trans->trans->stride,
-                              width, height);
+      if (needs_pack(usage)) {
+         if (format == PIPE_FORMAT_Z32_FLOAT)
+            z24_to_z32f(trans->staging, ptrans->stride,
+                        trans->ptr, trans->trans->stride, width, height);
+         else
+            z24s8_to_z32f_s8x24(trans->staging, ptrans->stride,
+                                 trans->ptr, trans->trans->stride,
+                                 width, height);
+      }
 
       *pptrans = ptrans;
       return trans->staging;
@@ -538,9 +575,13 @@ flush_region(struct pipe_context *pctx, struct pipe_transfer *ptrans,
          (box->x * util_format_get_blocksize(iformat));
 
    if (is_z32f_s8_in_z24s8(helper, format)) {
-      z32f_s8x24_to_z24s8(dst, trans->trans->stride,
-                           src, ptrans->stride,
-                           width, height);
+      if (format == PIPE_FORMAT_Z32_FLOAT)
+         z32f_to_z24(dst, trans->trans->stride,
+                     src, ptrans->stride, width, height);
+      else
+         z32f_s8x24_to_z24s8(dst, trans->trans->stride,
+                              src, ptrans->stride,
+                              width, height);
       return;
    }
 
