@@ -252,6 +252,11 @@ void radv_gfx_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_bl
                          struct radv_meta_blit2d_surf *dst, const VkOffset3D *src_offset, const VkOffset3D *dst_offset,
                          const VkExtent3D *extent);
 
+void radv_meta_msrtss_replicate_attachment(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_iview,
+                                           VkImageLayout src_layout, struct radv_image_view *dst_iview,
+                                           VkImageLayout dst_layout, VkImageAspectFlags aspect_mask,
+                                           const VkRect2D *area, uint32_t layer_count);
+
 void radv_gfx_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_buffer *src,
                                    struct radv_meta_blit2d_surf *dst, const VkOffset3D *offset,
                                    const VkExtent3D *extent);

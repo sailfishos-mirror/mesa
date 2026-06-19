@@ -9,6 +9,7 @@
 
 #include "nir/radv_meta_nir.h"
 #include "radv_entrypoints.h"
+#include "radv_formats.h"
 #include "radv_meta.h"
 #include "vk_format.h"
 #include "vk_shader_module.h"
@@ -379,6 +380,46 @@ fail_pipeline:
       radv_image_view_finish(&src_iview);
    }
    radv_image_view_finish(&dst_iview);
+}
+
+static struct radv_meta_blit2d_surf
+radv_msrtss_blit2d_surf_for_layer(struct radv_image_view *iview, VkImageAspectFlags aspect_mask, VkImageLayout layout,
+                                  uint32_t layer)
+{
+   VkFormat format = vk_format_no_srgb(radv_get_aspect_format(iview->image, aspect_mask));
+
+   return (struct radv_meta_blit2d_surf){
+      .bs = vk_format_get_blocksize(format),
+      .format = format,
+      .image = iview->image,
+      .level = iview->vk.base_mip_level,
+      .layer = iview->vk.base_array_layer + layer,
+      .aspect_mask = aspect_mask,
+      .current_layout = layout,
+   };
+}
+
+void
+radv_meta_msrtss_replicate_attachment(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_iview,
+                                      VkImageLayout src_layout, struct radv_image_view *dst_iview,
+                                      VkImageLayout dst_layout, VkImageAspectFlags aspect_mask, const VkRect2D *area,
+                                      uint32_t layer_count)
+{
+   const VkOffset3D offset = {area->offset.x, area->offset.y, 0};
+   const VkExtent3D extent = {area->extent.width, area->extent.height, 1};
+
+   /* The source is the single-sampled attachment and the destination is its
+    * multisampled MSRTSS transient; radv_gfx_copy_image() expands the contents
+    * to all destination samples since their sample counts differ.
+    */
+   assert(src_iview->image->vk.samples == VK_SAMPLE_COUNT_1_BIT);
+
+   for (uint32_t layer = 0; layer < layer_count; ++layer) {
+      struct radv_meta_blit2d_surf src = radv_msrtss_blit2d_surf_for_layer(src_iview, aspect_mask, src_layout, layer);
+      struct radv_meta_blit2d_surf dst = radv_msrtss_blit2d_surf_for_layer(dst_iview, aspect_mask, dst_layout, layer);
+
+      radv_gfx_copy_image(cmd_buffer, &src, &dst, &offset, &offset, &extent);
+   }
 }
 
 struct radv_blit2d_key {
