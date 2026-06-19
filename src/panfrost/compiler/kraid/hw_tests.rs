@@ -44,30 +44,12 @@ impl RunSingleton {
         })
     }
 
-    fn execute_raw(&self, info: InvocationInfo) -> Result<(), HwError> {
-        assert!(info.invocations <= WARP_SIZE.into());
-
+    fn try_execute(&self, info: InvocationInfo) -> Result<(), HwError> {
         self.runner.run(info)
     }
 
     fn execute(&self, info: InvocationInfo) {
-        // Chunk it in various WARP_SIZE runs until we have proper preloaded regs support.
-        for chunk_start in (0..info.invocations).step_by(WARP_SIZE as usize) {
-            let chunk_end =
-                (chunk_start + WARP_SIZE as u16).min(info.invocations);
-
-            let orig_data: &mut [u8] = info.data;
-            let data_start: usize =
-                info.data_stride as usize * chunk_start as usize;
-            let chunk_info = InvocationInfo {
-                data: &mut orig_data[data_start..],
-                invocations: chunk_end - chunk_start,
-                ..info
-            };
-
-            self.execute_raw(chunk_info)
-                .expect("Error on job submission");
-        }
+        self.try_execute(info).expect("Error on job submission");
     }
 }
 
@@ -97,6 +79,7 @@ fn transmute_mut_slice_to_u8<T: Sized>(data: &mut [T]) -> &mut [u8] {
 pub struct TestShaderBuilder<'a> {
     model: &'a dyn Model,
     b: InstrBuilder<'a>,
+    info: ShaderInfo,
     ssa_alloc: SSAValueAllocator,
     start_block: BasicBlock,
     label: Label,
@@ -104,28 +87,29 @@ pub struct TestShaderBuilder<'a> {
     max_data_offset: u16,
 }
 
-const WARP_SIZE: u16 = 16;
+const WARP_SIZE: u32 = 16;
 
 impl<'a> TestShaderBuilder<'a> {
     pub fn new(model: &'a dyn Model) -> Self {
         let mut label_alloc = LabelAllocator::default();
         let mut ssa_alloc = SSAValueAllocator::default();
         let mut b = SSAInstrBuilder::new(model, &mut ssa_alloc);
+        let mut info = ShaderInfo::default();
 
         // ABI: struct hw_runner_shader_args
         let data_base_lo = FAURef::user_i32(0);
         let data_base_hi = FAURef::user_i32(1);
         let data_stride = FAURef::user_i32(2);
 
-        let lane_id = FAURef {
-            page: FAUPage::Special3,
-            idx: 2, // lane_id
-            load64: false,
-        };
-
-        // TODO: we should actually use preloaded registers here (local_id_1)
-        // for now just use lane_id and run only <=16 shaders
-        let invoc_id = b.copy_i32(lane_id.into());
+        let invoc_id: SSAValue = b.alloc_ssa(32);
+        let global_id_reg =
+            RegRef::from_preload_reg(model, PreloadReg::GlobalId0);
+        info.register_preload |= 1 << global_id_reg.idx;
+        b.push_op(OpRegIn {
+            dst: invoc_id.into(),
+            dst_type: DataType::I32,
+            reg: global_id_reg,
+        });
 
         let data_offset = b.alloc_ssa(32);
         b.push_op(OpIMul {
@@ -154,6 +138,7 @@ impl<'a> TestShaderBuilder<'a> {
         TestShaderBuilder {
             model,
             b: InstrBuilder::new(model),
+            info,
             ssa_alloc,
             start_block,
             label: label_alloc.alloc(),
@@ -194,6 +179,7 @@ impl<'a> TestShaderBuilder<'a> {
         let Self {
             model,
             mut b,
+            info,
             ssa_alloc,
             start_block,
             label,
@@ -213,7 +199,7 @@ impl<'a> TestShaderBuilder<'a> {
             model,
             ssa_alloc,
             blocks: vec![start_block, test_block],
-            info: ShaderInfo::default(),
+            info,
         };
         //eprintln!("\nRIGHT AFTER CONSTR: {}", &s);
         s.validate();
@@ -247,7 +233,7 @@ impl<'a> TestShaderBuilder<'a> {
             max_data_offset,
             // ABI: we always load the CB0 args at offset 0 for now
             fau_args_offset: 0,
-            register_count: s.info.registers_used.into(),
+            info: s.info,
         }
     }
 }
@@ -274,7 +260,7 @@ impl AllocSSA for TestShaderBuilder<'_> {
 
 struct CompiledTestCase {
     code: Vec<u32>,
-    register_count: u16,
+    info: ShaderInfo,
     max_data_offset: u16,
     fau_args_offset: usize,
 }
@@ -285,7 +271,7 @@ impl CompiledTestCase {
         fau: &'a [u32],
         data: &'a mut [u8],
         data_stride: u32,
-        invocations: u16,
+        invocations: u32,
     ) -> InvocationInfo<'a> {
         // We need preloaded registers support to distinguish between invocations
         InvocationInfo {
@@ -294,7 +280,8 @@ impl CompiledTestCase {
             fau_args_offset: self.fau_args_offset,
             data,
             data_stride,
-            register_count: self.register_count,
+            register_preload: self.info.register_preload,
+            register_count: self.info.registers_used,
             invocations,
         }
     }
@@ -342,7 +329,7 @@ fn test_copy_warp() {
     let run = RunSingleton::get();
     let mut b = TestShaderBuilder::new(&*run.model);
     let data = b.ld_test_data(0, 32);
-    b.st_test_data(4 * WARP_SIZE, data.into());
+    b.st_test_data(4 * WARP_SIZE as u16, data.into());
 
     let bin = b.compile();
 
@@ -376,12 +363,10 @@ fn test_copy_warp() {
 #[test]
 fn test_copy_large() {
     // Test with more than warp_size invocations
-    // In the future this will be fully supported, but we don't yet have preloaded regs
-    // Can we really emulate it?
     let run = RunSingleton::get();
     let mut b = TestShaderBuilder::new(&*run.model);
     let data = b.ld_test_data(0, 32);
-    b.st_test_data(4 * 2 * WARP_SIZE, data.into());
+    b.st_test_data(4 * 2 * WARP_SIZE as u16, data.into());
 
     let bin = b.compile();
 
