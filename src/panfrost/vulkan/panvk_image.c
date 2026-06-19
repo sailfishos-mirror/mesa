@@ -435,6 +435,15 @@ static VkResult
 panvk_image_init_layouts(struct panvk_image *image,
                          const VkImageCreateInfo *pCreateInfo)
 {
+   /* For single plane:
+    * - 1 x panvk_image -> 1 x (1 x pan_image -> 1 x pan_image_plane)
+    *
+    * For multi-plane Z/S and sw YUV:
+    * - 1 x panvk_image -> N x (1 x pan_image -> 1 x pan_image_plane)
+    *
+    * For hw YUV texturing:
+    * - 1 x panvk_image -> 1 x (1 x pan_image -> N x pan_image_plane)
+    */
    struct panvk_device *dev = to_panvk_device(image->vk.base.device);
    struct panvk_physical_device *phys_dev =
       to_panvk_physical_device(dev->vk.physical);
@@ -446,14 +455,31 @@ panvk_image_init_layouts(struct panvk_image *image,
 
    const struct pan_mod_handler *mod_handler =
       pan_mod_get_handler(arch, image->vk.drm_format_mod);
+
+   /* initialize pan_image props and mod_handler */
+   if (panvk_image_use_yuv_tex(arch, image->vk.format)) {
+      const enum pipe_format pfmt = vk_format_to_pipe_format(image->vk.format);
+      image->planes[0].image = (struct pan_image){
+         .props = get_pan_image_props(&image->vk, pfmt, 0),
+         .mod_handler = mod_handler,
+      };
+   } else {
+      for (uint8_t plane = 0; plane < image->plane_count; plane++) {
+         const enum pipe_format pfmt =
+            select_plane_pfmt(image, image->vk.drm_format_mod, plane);
+         image->planes[plane].image = (struct pan_image){
+            .props = get_pan_image_props(&image->vk, pfmt, plane),
+            .mod_handler = mod_handler,
+         };
+      }
+   }
+
+   /* initialize plane layout */
    const bool use_strict_import = strict_import(image);
    struct pan_image_layout_constraints plane_layout = {
       .offset_B = 0,
    };
    for (uint8_t plane = 0; plane < image->plane_count; plane++) {
-      enum pipe_format pfmt =
-         select_plane_pfmt(image, image->vk.drm_format_mod, plane);
-
       if (explicit_info) {
          plane_layout = (struct pan_image_layout_constraints){
             .offset_B = explicit_info->pPlaneLayouts[plane].offset,
@@ -462,14 +488,11 @@ panvk_image_init_layouts(struct panvk_image *image,
          };
       }
 
-      image->planes[plane].image = (struct pan_image){
-         .props = get_pan_image_props(&image->vk, pfmt, plane),
-         .mod_handler = mod_handler,
-         .planes = {&image->planes[plane].plane},
-      };
+      struct pan_image *pan_img = PAN_IMAGE_FROM(arch, image, plane);
+      const uint8_t pan_plane = PAN_IMAGE_PLANE_INDEX_FROM(arch, image, plane);
 
-      if (!pan_image_layout_init(arch, &image->planes[plane].image, 0,
-                                 &plane_layout)) {
+      pan_img->planes[pan_plane] = &image->planes[plane].plane;
+      if (!pan_image_layout_init(arch, pan_img, pan_plane, &plane_layout)) {
          return panvk_error(image->vk.base.device,
                             VK_ERROR_INITIALIZATION_FAILED);
       }
@@ -830,9 +853,15 @@ get_image_subresource_layout(const struct panvk_image *image,
    layout->arrayPitch = image->planes[plane].plane.layout.array_stride_B;
 
    if (drm_is_afbc(image->vk.drm_format_mod)) {
+      struct panvk_physical_device *phys_dev =
+         to_panvk_physical_device(image->vk.base.device->physical);
+      unsigned arch = pan_arch(phys_dev->kmod.dev->props.gpu_id);
+      const struct pan_image *pan_img = PAN_IMAGE_FROM(arch, image, plane);
+      const uint8_t pan_plane = PAN_IMAGE_PLANE_INDEX_FROM(arch, image, plane);
+
       /* row/depth pitch expressed in (AFBC superblocks * payload size). */
-      layout->rowPitch = pan_image_get_wsi_row_pitch(
-         &image->planes[plane].image, 0, subres->mipLevel);
+      layout->rowPitch =
+         pan_image_get_wsi_row_pitch(pan_img, pan_plane, subres->mipLevel);
       layout->depthPitch = slice_layout->afbc.surface_stride_B;
    } else {
       layout->rowPitch = slice_layout->tiled_or_linear.row_stride_B;

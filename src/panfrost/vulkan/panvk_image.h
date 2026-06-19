@@ -90,6 +90,14 @@ panvk_image_get_tex_count(unsigned arch, VkFormat format)
              : vk_format_get_plane_count(format);
 }
 
+#define PAN_IMAGE_FROM(arch, image, plane)                                     \
+   (panvk_image_use_yuv_tex(arch, image->vk.format)                            \
+       ? &image->planes[0].image                                               \
+       : &image->planes[plane].image)
+
+#define PAN_IMAGE_PLANE_INDEX_FROM(arch, image, plane)                         \
+   (panvk_image_use_yuv_tex(arch, image->vk.format) ? plane : 0)
+
 static inline bool
 panvk_image_is_interleaved_depth_stencil(const struct panvk_image *image){
    return image->plane_count == 1 &&

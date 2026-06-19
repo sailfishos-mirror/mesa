@@ -404,9 +404,9 @@ panvk_per_arch(CreateImageView)(VkDevice _device,
       uint8_t view_plane = (view->vk.aspects == VK_IMAGE_ASPECT_PLANE_1_BIT ||
                             view->vk.aspects == VK_IMAGE_ASPECT_PLANE_2_BIT) ?
                            0 : image_plane;
-      view->pview.planes[view_plane] = (struct pan_image_plane_ref) {
-         .image = &image->planes[image_plane].image,
-         .plane_idx = 0,
+      view->pview.planes[view_plane] = (struct pan_image_plane_ref){
+         .image = PAN_IMAGE_FROM(PAN_ARCH, image, image_plane),
+         .plane_idx = PAN_IMAGE_PLANE_INDEX_FROM(PAN_ARCH, image, image_plane),
       };
    }
 
