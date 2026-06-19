@@ -377,6 +377,13 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->type = PIPE_ML_OPERATION_TYPE_QUANTIZE;
       break;
    }
+   case kTfLiteBuiltinSoftmax: {
+      TfLiteSoftmaxParams *params = node->builtin_data;
+
+      operation->type = PIPE_ML_OPERATION_TYPE_SOFTMAX;
+      operation->softmax.beta = params->beta;
+      break;
+   }
    default:
       return false;
    }
@@ -608,6 +615,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_LEAKY_RELU:
          teflon_debug("%-15s ", "LEAKY_RELU");
+         break;
+      case PIPE_ML_OPERATION_TYPE_SOFTMAX:
+         teflon_debug("%-15s ", "SOFTMAX");
          break;
       }
 
