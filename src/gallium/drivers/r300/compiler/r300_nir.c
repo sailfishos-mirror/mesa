@@ -248,6 +248,7 @@ r300_optimize_nir(struct nir_shader *s, struct r300_screen *screen)
       if (!progress)
          NIR_PASS(progress, s, nir_lower_undef_to_zero, NULL);
       NIR_PASS(progress, s, nir_opt_loop_unroll);
+      NIR_PASS(progress, s, nir_opt_licm, NULL);
 
       /* Try to fold addressing math into ubo_vec4's base to avoid load_consts
        * and ALU ops for it.
