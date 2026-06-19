@@ -869,6 +869,7 @@ struct brw_cs_prog_data {
     * constants
     */
    bool uses_inline_push_addr;
+   bool uses_fence;
    bool uses_btd_stack_ids;
    bool uses_systolic;
    uint8_t generate_local_id;
