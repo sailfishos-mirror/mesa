@@ -78,7 +78,19 @@ panvk_plane_index(const struct panvk_image *image,
 static inline bool
 panvk_image_use_yuv_tex(unsigned arch, VkFormat format)
 {
-   /* TODO fill per arch YUV texturing formats supported */
+   if (arch < 9 || arch >= 14)
+      return false;
+
+   switch (format) {
+   case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:
+   case VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM:
+   case VK_FORMAT_G8_B8R8_2PLANE_422_UNORM:
+   case VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM:
+      return true;
+   default:
+      break;
+   }
+
    return false;
 }
 
