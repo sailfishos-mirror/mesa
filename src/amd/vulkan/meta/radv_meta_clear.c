@@ -1598,7 +1598,7 @@ radv_cmd_buffer_clear_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRend
 
    radv_utrace_begin_clear_rendering(cmd_buffer);
 
-   radv_meta_begin(cmd_buffer);
+   radv_meta_begin_rendering(cmd_buffer);
 
    assert(render->color_att_count == pRenderingInfo->colorAttachmentCount);
    for (uint32_t i = 0; i < render->color_att_count; i++) {
@@ -1637,7 +1637,7 @@ radv_cmd_buffer_clear_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRend
       }
    }
 
-   radv_meta_end(cmd_buffer);
+   radv_meta_end_rendering(cmd_buffer);
    cmd_buffer->state.flush_bits |= post_flush;
 
    radv_utrace_end_clear_rendering(cmd_buffer);
@@ -1911,7 +1911,7 @@ radv_CmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount
    enum radv_cmd_flush_bits pre_flush = 0;
    enum radv_cmd_flush_bits post_flush = 0;
 
-   radv_meta_begin(cmd_buffer);
+   radv_meta_begin_rendering(cmd_buffer);
 
    for (uint32_t a = 0; a < attachmentCount; ++a) {
       for (uint32_t r = 0; r < rectCount; ++r) {
@@ -1920,6 +1920,6 @@ radv_CmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount
       }
    }
 
-   radv_meta_end(cmd_buffer);
+   radv_meta_end_rendering(cmd_buffer);
    cmd_buffer->state.flush_bits |= post_flush;
 }

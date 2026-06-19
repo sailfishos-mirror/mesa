@@ -262,6 +262,27 @@ radv_meta_end(struct radv_cmd_buffer *cmd_buffer)
    radv_resume_queries(state, cmd_buffer);
 }
 
+void
+radv_meta_begin_rendering(struct radv_cmd_buffer *cmd_buffer)
+{
+   assert(cmd_buffer->state.render.active);
+
+   radv_meta_begin(cmd_buffer);
+
+   /* We always enable HiZ within meta operations, so this needs to be set for meta draws which
+    * don't have their own render pass instance.
+    */
+   cmd_buffer->state.dirty |= RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE;
+}
+
+void
+radv_meta_end_rendering(struct radv_cmd_buffer *cmd_buffer)
+{
+   assert(cmd_buffer->state.render.active);
+   radv_meta_end(cmd_buffer);
+   cmd_buffer->state.dirty |= RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE;
+}
+
 VkImageViewType
 radv_meta_get_view_type(const struct radv_image *image)
 {
