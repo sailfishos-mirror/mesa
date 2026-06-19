@@ -287,6 +287,7 @@ fn ra_trivial(s: &mut Shader) {
 
             block.instrs.push(instr);
         }
+        s.info.registers_used = 64;
     }
 }
 

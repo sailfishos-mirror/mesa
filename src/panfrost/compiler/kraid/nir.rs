@@ -35,6 +35,7 @@ struct ShaderFromNir<'a> {
     model: &'a dyn Model,
     nir: &'a nir_shader,
     ssa_map: FxHashMap<u32, Vec<SSAValue>>,
+    info: ShaderInfo,
 }
 
 impl<'a> ShaderFromNir<'a> {
@@ -43,6 +44,7 @@ impl<'a> ShaderFromNir<'a> {
             model,
             nir,
             ssa_map: Default::default(),
+            info: ShaderInfo::default(),
         }
     }
 
@@ -811,6 +813,7 @@ impl<'a> ShaderFromNir<'a> {
             model: self.model,
             ssa_alloc,
             blocks,
+            info: self.info,
         }
     }
 }

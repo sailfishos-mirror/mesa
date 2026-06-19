@@ -1086,10 +1086,17 @@ impl fmt::Display for BasicBlock {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct ShaderInfo {
+    /// Number of registers used
+    pub registers_used: u8,
+}
+
 pub struct Shader<'a> {
     pub model: &'a dyn Model,
     pub ssa_alloc: SSAValueAllocator,
     pub blocks: Vec<BasicBlock>,
+    pub info: ShaderInfo,
 }
 
 impl Shader<'_> {

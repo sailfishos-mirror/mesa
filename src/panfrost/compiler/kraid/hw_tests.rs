@@ -213,6 +213,7 @@ impl<'a> TestShaderBuilder<'a> {
             model,
             ssa_alloc,
             blocks: vec![start_block, test_block],
+            info: ShaderInfo::default(),
         };
         //eprintln!("\nRIGHT AFTER CONSTR: {}", &s);
         s.validate();
@@ -246,8 +247,7 @@ impl<'a> TestShaderBuilder<'a> {
             max_data_offset,
             // ABI: we always load the CB0 args at offset 0 for now
             fau_args_offset: 0,
-            // ??
-            register_count: 32,
+            register_count: s.info.registers_used.into(),
         }
     }
 }
