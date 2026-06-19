@@ -237,16 +237,22 @@ lower_phi_instr(nir_builder *b, nir_phi_instr *phi)
       return false;
 
    /* Ensure all phi sources have a canonical bit-size. We choose the
-    * bit-size of the first phi source as the canonical form.
+    * bit-size of the first phi already visted phi source as the canonical form.
     *
     * TODO: maybe we can be smarter about how we choose the canonical form.
     */
    uint32_t dst_bit_size = 0;
    nir_foreach_phi_src(phi_src, phi) {
       uint32_t src_bit_size = nir_src_bit_size(phi_src->src);
-      if (dst_bit_size == 0) {
+      if (src_bit_size != 1) {
          dst_bit_size = src_bit_size;
-      } else if (src_bit_size != dst_bit_size) {
+         break;
+      }
+   }
+
+   nir_foreach_phi_src(phi_src, phi) {
+      uint32_t src_bit_size = nir_src_bit_size(phi_src->src);
+      if (src_bit_size != dst_bit_size) {
          b->cursor = nir_before_src(&phi_src->src);
          nir_op convert_op = get_bool_convert_opcode(dst_bit_size);
          nir_def *new_src =
