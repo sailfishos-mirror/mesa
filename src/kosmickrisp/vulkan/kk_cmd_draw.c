@@ -1483,13 +1483,11 @@ build_per_draw_upload_mask(struct kk_cmd_buffer *cmd)
 }
 
 static struct kk_addr_range
-kk_sanitize_index_range(struct kk_cmd_buffer *cmd, struct kk_addr_range range,
-                        uint32_t index_size_B)
+kk_sanitize_index_range(struct kk_cmd_buffer *cmd, struct kk_addr_range range)
 {
-   /* Metal does not support an index buffer address of 0 or correctly handle an
-    * index buffer size of 0 (likely due to overflow setting register values).
-    * Cache a pool allocation with a single 0 index of maximum index size, and
-    * use it to handle these cases. Robustness will handle overreads.
+   /* Metal does not support an index buffer address or size of 0. Cache a pool
+    * allocation of the maximum index size, filled with 0, and use it to handle
+    * these cases. Robustness will handle over-reads.
     *
     * Note that we only need to do this at draw dispatch as our other draw logic
     * for unrolling, tessellation, etc. will properly handle these cases. */
@@ -1505,7 +1503,7 @@ kk_sanitize_index_range(struct kk_cmd_buffer *cmd, struct kk_addr_range range,
       }
 
       range.addr = gfx->index.null_addr;
-      range.range = index_size_B;
+      range.range = sizeof(uint32_t);
    }
 
    return range;
@@ -1519,7 +1517,7 @@ kk_dispatch_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    if (kk_grid_is_indirect(data.grid)) {
       if (data.index.el_size_B) {
          struct kk_addr_range index_range =
-            kk_sanitize_index_range(cmd, data.index.gpu, data.index.el_size_B);
+            kk_sanitize_index_range(cmd, data.index.gpu);
          mtl_draw_indexed_primitives_indirect(
             enc, data.primitive_type,
             index_size_in_bytes_to_mtl_index_type(data.index.el_size_B),
@@ -1530,7 +1528,7 @@ kk_dispatch_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
    } else {
       if (data.index.el_size_B) {
          struct kk_addr_range index_range =
-            kk_sanitize_index_range(cmd, data.index.gpu, data.index.el_size_B);
+            kk_sanitize_index_range(cmd, data.index.gpu);
          mtl_draw_indexed_primitives(
             enc, data.primitive_type, data.grid.size.x,
             index_size_in_bytes_to_mtl_index_type(data.index.el_size_B),
@@ -1572,6 +1570,58 @@ requires_index_promotion(const struct kk_draw_command *data)
    default:
       return false;
    }
+}
+
+static bool
+requires_unroll_robustness(struct kk_cmd_buffer *cmd,
+                           const struct kk_draw_command *data)
+{
+   /* No need for robustness if the draw does not use an index buffer */
+   if (!data->indexed)
+      return false;
+
+   struct kk_device *dev = kk_cmd_buffer_device(cmd);
+
+   /* KK_WORKAROUND_12, KK_WORKAROUND_13 */
+   bool workaround_12 = !(dev->disabled_workarounds & BITFIELD64_BIT(12));
+   bool workaround_13 = !(dev->disabled_workarounds & BITFIELD64_BIT(13));
+
+   /* Do nothing if both workarounds are disabled */
+   if (!workaround_12 && !workaround_13)
+      return false;
+
+   /* KK_WORKAROUND_12: Need to handle null descriptor case here as we can't
+    * rely on hardware robustness */
+   if (workaround_12 &&
+       (data->index_buffer.addr == 0u || data->index_buffer.range == 0u))
+      return true;
+
+   /* No need to handle robustness if not enabled
+    * TODO_KOSMICKRISP: Narrow pipeline robustness to vertex input only */
+   if (!dev->vk.enabled_features.robustBufferAccess2 &&
+       !dev->vk.enabled_features.pipelineRobustness)
+      return false;
+
+   /* Only need to handle case where index buffer is not aligned to 4 bytes.
+    * KK_WORKAROUND_12: Need to handle all alignments. */
+   if (!workaround_12 && (data->index_buffer.addr & 3u) == 0u &&
+       (data->index_buffer.range & 3u) == 0u)
+      return false;
+
+   /* We can't tell if the draw over-reads up-front with indirect draws, so we
+    * always have to handle it */
+   if (data->indirect)
+      return true;
+
+   /* For direct draws, we can check now if any over-read the index buffer */
+   for (uint32_t i = 0; i < data->draw_count; i++) {
+      const VkDrawIndexedIndirectCommand *draw = &data->indexed_draws[i];
+      if ((draw->firstIndex + draw->indexCount) * data->index_buffer_el_size_B >
+          data->index_buffer.range)
+         return true;
+   }
+
+   return false;
 }
 
 static bool
@@ -1828,6 +1878,7 @@ kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_command *data)
     * is present since it also handles unrolling. */
    bool requires_unroll = !tess && (data->prim == MESA_PRIM_TRIANGLE_FAN ||
                                     requires_index_promotion(data) ||
+                                    requires_unroll_robustness(cmd, data) ||
                                     requires_unroll_restart(cmd, data));
    if (requires_unroll && !kk_unroll_geometry(cmd, data))
       return;

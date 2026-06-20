@@ -49,6 +49,30 @@ info on what was updated.
 Workarounds
 ===========
 
+KK_WORKAROUND_13
+----------------
+| macOS version: 26.5, 27.0 beta 1
+| Metal ticket: FB23291220
+| Metal ticket status: Waiting resolution
+| CTS test failure: N/A
+| Comments:
+
+Metal 4 guarantees about index buffer out-of-bounds access are not true for
+index buffers that are not 32-bit aligned, for example with 16-bit indices.
+We need to handle them manually by unrolling.
+
+KK_WORKAROUND_12
+----------------
+| macOS version: 26.x
+| Metal ticket: N/A
+| Metal ticket status: Resolved in macOS 27
+| CTS test failure: ``dEQP-VK.robustness.bind_index_buffer2.*.oo_size``
+| Comments:
+
+macOS 26.x is missing some math when configuring the register for the index
+buffer length in the Metal 4 draw paths. To avoid any unpredictable behavior,
+just handle robustness ourselves.
+
 KK_WORKAROUND_11
 ----------------
 | macOS version: 26.5

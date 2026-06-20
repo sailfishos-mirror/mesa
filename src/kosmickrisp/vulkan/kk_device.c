@@ -14,6 +14,7 @@
 #include "kk_shader.h"
 
 #include "kosmickrisp/bridge/mtl_bridge.h"
+#include "kosmickrisp/bridge/ns_process_info.h"
 
 #include "vk_cmd_enqueue_entrypoints.h"
 #include "vk_common_entrypoints.h"
@@ -238,6 +239,10 @@ kk_parse_device_environment_options(struct kk_device *dev)
       int index = atoi(list);
       dev->disabled_workarounds |= BITFIELD64_BIT(index);
    }
+
+   /* Workarounds resolved on macOS 27 */
+   if (ns_is_os_version_at_least(27, 0, 0))
+      dev->disabled_workarounds |= BITFIELD64_BIT(12);
 }
 
 static VkResult
