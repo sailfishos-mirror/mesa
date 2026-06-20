@@ -4444,7 +4444,7 @@
         "description": "gallium/targets: Use libname_suffix for installed driver names",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ffd02b8ad84728d3529f1beeb06fb9212d31113b",
         "notes": null
