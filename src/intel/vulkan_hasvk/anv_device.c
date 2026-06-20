@@ -168,6 +168,9 @@ static void
 get_device_extensions(const struct anv_physical_device *device,
                       struct vk_device_extension_table *ext)
 {
+#ifdef ANV_USE_WSI_PLATFORM
+   const struct anv_instance *instance = device->instance;
+#endif
    const bool has_syncobj_wait =
       (device->sync_syncobj_type.features & VK_SYNC_FEATURE_CPU_WAIT) != 0;
 
@@ -289,6 +292,9 @@ get_device_extensions(const struct anv_physical_device *device,
       .EXT_physical_device_drm               = true,
       .EXT_pipeline_creation_cache_control   = true,
       .EXT_pipeline_creation_feedback        = true,
+#ifdef ANV_USE_WSI_PLATFORM
+      .EXT_present_timing                    = device->has_reg_timestamp,
+#endif
       .EXT_primitives_generated_query        = true,
       .EXT_primitive_topology_list_restart   = true,
       .EXT_private_data                      = true,
@@ -316,6 +322,9 @@ get_device_extensions(const struct anv_physical_device *device,
       .ANDROID_native_buffer                 = true,
 #endif
       .GOOGLE_decorate_string                = true,
+#ifdef ANV_USE_WSI_PLATFORM
+      .GOOGLE_display_timing                 = wsi_instance_supports_google_display_timing(&instance->vk, &instance->drirc.options),
+#endif
       .GOOGLE_hlsl_functionality1            = true,
       .GOOGLE_user_type                      = true,
       .INTEL_performance_query               = device->perf &&
@@ -642,6 +651,10 @@ get_features(const struct anv_physical_device *pdevice,
       /* VK_KHR_present_wait2 */
       .presentWait2 = true,
 
+      /* VK_EXT_present_timing */
+      .presentTiming = true,
+      .presentAtRelativeTime = true,
+      .presentAtAbsoluteTime = true,
 #endif
 
       /* VK_KHR_shader_expect_assume */
