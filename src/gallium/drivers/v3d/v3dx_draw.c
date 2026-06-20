@@ -1389,8 +1389,7 @@ v3d_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
         if (v3d->streamout.num_targets)
            job->tf_draw_calls_queued++;
 
-        /* Increment the TF offsets by how many verts we wrote.  XXX: This
-         * needs some clamping to the buffer size.
+        /* Increment the TF offsets by how many verts we wrote.
          *
          * If primitive restart is enabled or we have a geometry shader, we
          * update it later, when we can query the device to know how many
