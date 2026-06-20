@@ -3858,18 +3858,20 @@ late_optimizations.extend([
    (('fge', ('fsat(is_used_once)', a), 1.0), ('fge', a, 1.0)),
 
    (('fge', ('fmin(is_used_once,nnan)', ('fadd(is_used_once)', a, b), ('fadd', c, d)), 0.0), ('iand', ('fge', a, ('fneg', b)), ('fge', c, ('fneg', d)))),
+])
 
-   (('flt', ('fneg', a), ('fneg', b)), ('flt', b, a)),
-   (('fge', ('fneg', a), ('fneg', b)), ('fge', b, a)),
-   (('feq', ('fneg', a), ('fneg', b)), ('feq', b, a)),
-   (('fneu', ('fneg', a), ('fneg', b)), ('fneu', b, a)),
-   (('flt', ('fneg', a), '#b'), ('flt', ('fneg', b), a)),
-   (('flt', '#b', ('fneg', a)), ('flt', a, ('fneg', b))),
-   (('fge', ('fneg', a), '#b'), ('fge', ('fneg', b), a)),
-   (('fge', '#b', ('fneg', a)), ('fge', a, ('fneg', b))),
-   (('fneu', ('fneg', a), '#b'), ('fneu', ('fneg', b), a)),
-   (('feq', '#b', ('fneg', a)), ('feq', a, ('fneg', b))),
+for cmp in ['flt', 'fge', 'feq', 'fneu']:
+   late_optimizations.extend([
+      ((cmp, ('fneg', a), ('fneg', b)), (cmp, b, a)),
+      ((cmp, ('fneg', a), '#b'), (cmp, ('fneg', b), a)),
+   ])
 
+for cmp in ['flt', 'fge']:
+   late_optimizations.extend([
+      ((cmp, '#b', ('fneg', a)), (cmp, a, ('fneg', b))),
+   ])
+
+late_optimizations.extend([
    (('ior', a, a), a),
    (('iand', a, a), a),
 
