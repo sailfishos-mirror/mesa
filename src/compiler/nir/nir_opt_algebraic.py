@@ -2491,6 +2491,10 @@ optimizations.extend([
    (('uadd_carry', a, b), ('b2i', ('ult', ('iadd', a, b), a)), 'options->lower_uadd_carry'),
    (('usub_borrow', a, b), ('b2i', ('ult', a, b)), 'options->lower_usub_borrow'),
 
+   # hand-rolled iadd64
+   (('vec2', ('iadd@32', a, c), ('iadd', ('iadd', b, d), ('uadd_carry', a, c))),
+     ('unpack_64_2x32', ('iadd', ('pack_64_2x32_split', a, b), ('pack_64_2x32_split', c, d))), '!(options->lower_int64_options & nir_lower_iadd64)'),
+
    (('ihadd', a, b), ('iadd', ('iand', a, b), ('ishr', ('ixor', a, b), 1)), 'options->lower_hadd'),
    (('uhadd', a, b), ('iadd', ('iand', a, b), ('ushr', ('ixor', a, b), 1)), 'options->lower_hadd'),
    (('irhadd', a, b), ('isub', ('ior', a, b), ('ishr', ('ixor', a, b), 1)), 'options->lower_hadd'),
