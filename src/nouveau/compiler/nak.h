@@ -311,6 +311,9 @@ void nak_fill_qmd(const struct nv_device_info *dev,
                   const struct nak_shader_info *info,
                   const struct nak_qmd_info *qmd_info,
                   void *qmd_out, size_t qmd_size);
+void nak_set_dependent_qmd(const struct nv_device_info *dev, void *qmd,
+                           size_t qmd_size, uint64_t dependent_qmd_addr,
+                           bool schedule);
 
 struct nak_qmd_dispatch_size_layout {
    uint16_t x_start, x_end;
