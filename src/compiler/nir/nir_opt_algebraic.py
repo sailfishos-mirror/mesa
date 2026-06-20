@@ -3641,11 +3641,29 @@ late_optimizations = [
    #      a == -b      true             true        false    false
    #  (a+b) != 0       true             true        true     true
    #      a != -b      false            false       true     true
+   #
+   #  For ordered/unordered counterparts:
+   #
+   #               a=Inf, b=-Inf   a=-Inf, b=Inf    a=NaN    b=NaN
+   #  (a+b) <u 0       true             true        true     true
+   #      a <u -b      false            false       true     true
+   #  (a+b) >=u 0      true             true        true     true
+   #      a >=u -b     true             true        true     true
+   #  (a+b) ==u 0      true             true        true     true
+   #      a ==u -b     true             true        true     true
+   #  (a+b) !=o 0      false            false       false    false
+   #      a !=o -b     false            false       false    false
    (('flt', ('fadd(is_used_once)', a, b),  0.0), ('flt',          a, ('fneg', b))),
    (('flt', 0.0, ('fadd(is_used_once)', a, b) ), ('flt', ('fneg', a),         b)),
+   (('fltu', ('fadd(is_used_once,ninf)', a, b),  0.0), ('fltu',          a, ('fneg', b))),
+   (('fltu', 0.0, ('fadd(is_used_once,ninf)', a, b) ), ('fltu', ('fneg', a),         b)),
    (('fge', ('fadd(is_used_once,ninf)', a, b),  0.0), ('fge',          a, ('fneg', b))),
    (('fge', 0.0, ('fadd(is_used_once,ninf)', a, b) ), ('fge', ('fneg', a),         b)),
+   (('fgeu', ('fadd(is_used_once)', a, b),  0.0), ('fgeu',          a, ('fneg', b))),
+   (('fgeu', 0.0, ('fadd(is_used_once)', a, b) ), ('fgeu', ('fneg', a),         b)),
    (('feq', ('fadd(is_used_once,ninf)', a, b), 0.0), ('feq', a, ('fneg', b))),
+   (('fequ', ('fadd(is_used_once)', a, b), 0.0), ('fequ', a, ('fneg', b))),
+   (('fneo', ('fadd(is_used_once)', a, b), 0.0), ('fneo', a, ('fneg', b))),
    (('fneu', ('fadd(is_used_once,ninf)', a, b), 0.0), ('fneu', a, ('fneg', b))),
 
    # If either source must be finite, then the original (a+b) cannot produce
@@ -3653,6 +3671,8 @@ late_optimizations = [
    # result if b is NaN. Therefore, the replacements are exact.
    (('fge', ('fadd(is_used_once)', 'a(is_finite)', b),  0.0), ('fge',          a, ('fneg', b))),
    (('fge', 0.0, ('fadd(is_used_once)', 'a(is_finite)', b) ), ('fge', ('fneg', a),         b)),
+   (('fltu', ('fadd(is_used_once)', 'a(is_finite)', b),  0.0), ('fltu',          a, ('fneg', b))),
+   (('fltu', 0.0, ('fadd(is_used_once)', 'a(is_finite)', b) ), ('fltu', ('fneg', a),         b)),
    (('feq',  ('fadd(is_used_once)', 'a(is_finite)', b), 0.0), ('feq',  a, ('fneg', b))),
    (('fneu', ('fadd(is_used_once)', 'a(is_finite)', b), 0.0), ('fneu', a, ('fneg', b))),
 
@@ -3860,13 +3880,13 @@ late_optimizations.extend([
    (('fge', ('fmin(is_used_once,nnan)', ('fadd(is_used_once)', a, b), ('fadd', c, d)), 0.0), ('iand', ('fge', a, ('fneg', b)), ('fge', c, ('fneg', d)))),
 ])
 
-for cmp in ['flt', 'fge', 'feq', 'fneu']:
+for cmp in ['flt', 'fltu', 'fge', 'fgeu', 'feq', 'fequ', 'fneo', 'fneu']:
    late_optimizations.extend([
       ((cmp, ('fneg', a), ('fneg', b)), (cmp, b, a)),
       ((cmp, ('fneg', a), '#b'), (cmp, ('fneg', b), a)),
    ])
 
-for cmp in ['flt', 'fge']:
+for cmp in ['flt', 'fltu', 'fge', 'fgeu']:
    late_optimizations.extend([
       ((cmp, '#b', ('fneg', a)), (cmp, a, ('fneg', b))),
    ])
