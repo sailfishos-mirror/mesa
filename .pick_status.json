@@ -5004,7 +5004,7 @@
         "description": "hasvk: Expose VK_KHR_calibrated_timestamps.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dd0f8cc7de2a7b5aa625f500087c58bb1601d6b9",
         "notes": null
