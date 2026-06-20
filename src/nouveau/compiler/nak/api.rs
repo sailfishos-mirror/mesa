@@ -183,6 +183,7 @@ fn nir_options(dev: &nv_device_info) -> nir_shader_compiler_options {
         has_ffmaz_no_denorms: true,
         has_find_msb_rev: true,
         has_fneo_fcmpu: true,
+        has_ford_funord: true,
         has_pack_half_2x16_rtz: true,
         has_bfm: dev.sm >= 70,
         discard_is_demote: true,
