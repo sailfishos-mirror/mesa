@@ -47,23 +47,19 @@ nj_index_ssa_defs(nir_shader *nir)
 }
 
 static bool
-lower_frag_coord(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
+lower_frag_coord(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 {
-   if (intr->intrinsic != nir_intrinsic_load_frag_coord &&
-       intr->intrinsic != nir_intrinsic_load_pixel_coord)
-      return false;
-
    b->cursor = nir_before_instr(&intr->instr);
-   nir_def *c = nir_unpack_32_2x16(b, nir_load_pixel_coord_intel(b));
 
-   if (intr->intrinsic == nir_intrinsic_load_frag_coord) {
-      c = nir_vec4(b, nir_u2f32(b, nir_channel(b, c, 0)),
-                   nir_u2f32(b, nir_channel(b, c, 1)), nir_load_frag_coord_z(b),
-                   nir_frcp(b, nir_load_frag_coord_w_rcp(b)));
+   if (intr->intrinsic == nir_intrinsic_load_pixel_coord) {
+      nir_def_replace(&intr->def,
+                      nir_unpack_32_2x16(b, nir_load_pixel_coord_intel(b)));
+      return true;
+   } else if (intr->intrinsic == nir_intrinsic_load_frag_coord_w) {
+      nir_def_replace(&intr->def, nir_frcp(b, nir_load_frag_coord_w_rcp(b)));
+      return true;
    }
-
-   nir_def_replace(&intr->def, c);
-   return true;
+   return false;
 }
 
 static bool
@@ -378,7 +374,9 @@ jay_process_nir(const struct intel_device_info *devinfo,
       if (!brw_can_coherent_fb_fetch(devinfo))
          JAY_NIR_PASS(brw_nir_lower_fs_load_output, &key->fs);
 
+      /* Do this lowering before jay_populate_prog_data(). */
       JAY_NIR_PASS(nir_opt_frag_coord_to_pixel_coord);
+      JAY_NIR_PASS(nir_lower_frag_coord_to_pixel_coord);
       JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_frag_coord,
                    nir_metadata_control_flow, NULL);
       JAY_NIR_PASS(nir_opt_barycentric, true);
