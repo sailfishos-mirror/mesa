@@ -4964,7 +4964,7 @@
         "description": "v3d: clamp transform feedback offset to buffer size",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e636199c1c7dc9bc0525f5ae2a4eef05a8092180",
         "notes": null
