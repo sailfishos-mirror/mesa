@@ -214,7 +214,9 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_pipeline_executable_properties    = true,
 #ifdef ANV_USE_WSI_PLATFORM
       .KHR_present_id                        = true,
+      .KHR_present_id2                       = true,
       .KHR_present_wait                      = true,
+      .KHR_present_wait2                     = true,
 #endif
       .KHR_push_descriptor                   = true,
       .KHR_relaxed_block_layout              = true,
@@ -632,6 +634,13 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_present_wait */
       .presentWait = true,
+
+      /* VK_KHR_present_id2 */
+      .presentId2 = true,
+
+      /* VK_KHR_present_wait2 */
+      .presentWait2 = true,
+
 #endif
 
       /* VK_KHR_shader_expect_assume */
