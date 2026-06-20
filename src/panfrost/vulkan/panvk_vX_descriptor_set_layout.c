@@ -1,6 +1,7 @@
 /*
  * Copyright © 2024 Collabora Ltd.
  * Copyright © 2025 Arm Ltd.
+ * Copyright © 2026 Google LLC
  * SPDX-License-Identifier: MIT
  */
 
@@ -40,6 +41,7 @@ is_texture(VkDescriptorType type)
    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
    case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+   case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
       return true;
 
    default:
@@ -53,6 +55,7 @@ is_sampler(VkDescriptorType type)
    switch (type) {
    case VK_DESCRIPTOR_TYPE_SAMPLER:
    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+   case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
       return true;
 
    default:
