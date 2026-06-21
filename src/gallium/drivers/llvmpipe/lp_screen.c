@@ -276,7 +276,6 @@ llvmpipe_init_screen_caps(struct pipe_screen *screen)
    caps->user_vertex_buffers = true;
    caps->tgsi_texcoord = true;
    caps->draw_indirect = true;
-   caps->polygon_stipple = true;
 
    caps->cube_map_array = true;
    caps->constant_buffer_offset_alignment = 16;
