@@ -51,7 +51,8 @@ bool poly_nir_lower_gs(struct nir_shader *gs, struct nir_shader **gs_count,
                        struct nir_shader **gs_copy, struct nir_shader **pre_gs,
                        struct poly_gs_info *info);
 
-bool poly_nir_lower_tcs(struct nir_shader *tcs);
+bool poly_nir_lower_tcs(struct nir_shader *tcs,
+                        bool can_ignore_shader_out_barriers);
 
 bool poly_nir_lower_tes(struct nir_shader *tes, bool to_hw_vs);
 

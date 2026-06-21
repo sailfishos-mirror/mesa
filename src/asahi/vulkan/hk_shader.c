@@ -1338,7 +1338,7 @@ hk_compile_shader(struct hk_device *dev, struct vk_shader_compile_info *info,
       hk_populate_vs_key(&key_tmp.vs, state);
       key = &key_tmp;
    } else if (sw_stage == MESA_SHADER_TESS_CTRL) {
-      NIR_PASS(_, nir, poly_nir_lower_tcs);
+      NIR_PASS(_, nir, poly_nir_lower_tcs, true);
    }
 
    /* Compile all variants up front */
