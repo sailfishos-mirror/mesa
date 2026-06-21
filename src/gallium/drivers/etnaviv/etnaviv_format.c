@@ -140,6 +140,7 @@ static struct etna_format formats[PIPE_FORMAT_COUNT] = {
    VT(R32_FLOAT,   FLOAT,        EXT_R32F | EXT_FORMAT, R32F),
    V_(R32_FIXED,   FIXED,        NONE),
    _T(Z32_FLOAT,   EXT_R32F | EXT_FORMAT, NONE),  /* emulated format */
+   _T(Z32_FLOAT_S8X24_UINT,  EXT_R32F | EXT_FORMAT, NONE),  /* emulated format */
 
    V_(R16G16_UNORM,   UNSIGNED_SHORT, NONE),
    V_(R16G16_SNORM,   SHORT,          NONE),

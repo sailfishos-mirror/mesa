@@ -98,7 +98,8 @@ format_is_128bit(enum pipe_format fmt)
 static inline bool
 format_is_emulated_z32f(enum pipe_format fmt)
 {
-    return fmt == PIPE_FORMAT_Z32_FLOAT;
+    return fmt == PIPE_FORMAT_Z32_FLOAT ||
+           fmt == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT;
 }
 
 /* The emulated depth32f formats are physically stored as D24S8; map them to
