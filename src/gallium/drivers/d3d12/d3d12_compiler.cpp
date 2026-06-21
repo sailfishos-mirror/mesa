@@ -1093,7 +1093,7 @@ select_shader_variant(struct d3d12_selection_context *sel_ctx, d3d12_shader_sele
    {
       if (key.fs.polygon_stipple) {
          NIR_PASS(_, new_nir_variant, nir_lower_pstipple_fs,
-                    &pstipple_binding, 0, false, nir_type_bool1);
+                    &pstipple_binding, 0, false, false, nir_type_bool1);
       }
 
       if (key.fs.remap_front_facing)

@@ -147,7 +147,7 @@ generate_pstip_fs(struct pstip_stage *pstip)
       pstip_fs.ir.nir = nir_shader_clone(NULL, orig_fs->ir.nir);
       nir_lower_pstipple_fs(pstip_fs.ir.nir,
                             &pstip->fs->sampler_unit, 0, wincoord_file == TGSI_FILE_SYSTEM_VALUE,
-                            nir_type_bool1);
+                            false, nir_type_bool1);
    }
 
    assert(pstip->fs->sampler_unit < PIPE_MAX_SAMPLERS);
