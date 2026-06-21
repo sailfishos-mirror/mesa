@@ -248,7 +248,7 @@ etna_texture_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
                      trans->staging + z * ptrans->layer_stride,
                      ptrans->box.x, ptrans->box.y,
                      res_level->stride, ptrans->box.width, ptrans->box.height,
-                     ptrans->stride, util_format_get_blocksize(rsc->base.format));
+                     ptrans->stride, util_format_get_blocksize(rsc->internal_format));
             }
          }
          } else if (rsc->layout == ETNA_LAYOUT_LINEAR) {
@@ -377,6 +377,10 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
       templ.height0 = res_level->height;
       templ.nr_samples = 0;
       templ.bind = PIPE_BIND_RENDER_TARGET;
+      /* Emulated depth32f stores as the internal D24S8, so size the staging by
+       * the internal format. The base format is restored below for the
+       * same-format resolve blit. */
+      templ.format = rsc->internal_format;
 
       trans->rsc = etna_resource_alloc(pctx->screen, ETNA_LAYOUT_LINEAR,
                                        DRM_FORMAT_MOD_LINEAR, &templ);
@@ -384,6 +388,7 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
          slab_free(&ctx->transfer_pool, trans);
          return NULL;
       }
+      trans->rsc->format = rsc->base.format;
 
       if (!screen->specs.use_blt) {
          /* Need to align the transfer region to satisfy RS restrictions, as we
@@ -453,8 +458,8 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
       ptrans->layer_stride = res_level->layer_stride;
 
       trans->mapped += res_level->offset +
-             etna_compute_offset(prsc->format, box, res_level->stride,
-                                 res_level->layer_stride);
+             etna_compute_offset(etna_resource(prsc)->internal_format, box,
+                                 res_level->stride, res_level->layer_stride);
 
       /* We need to have the unpatched data ready for the gfx stack. */
       if (usage & PIPE_MAP_READ)
@@ -472,7 +477,7 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
          goto fail;
 
       trans->mapped += res_level->offset;
-      ptrans->stride = align(box->width, divSizeX) * util_format_get_blocksize(format); /* row stride in bytes */
+      ptrans->stride = align(box->width, divSizeX) * util_format_get_blocksize(rsc->internal_format); /* row stride in bytes */
       ptrans->layer_stride = align(box->height, divSizeY) * ptrans->stride;
       size_t size = ptrans->layer_stride * box->depth;
 
@@ -495,7 +500,7 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
                                     trans->mapped + (ptrans->box.z + z) * res_level->layer_stride,
                                     ptrans->box.x, ptrans->box.y, res_level->stride,
                                     ptrans->box.width, ptrans->box.height, ptrans->stride,
-                                    util_format_get_blocksize(rsc->base.format));
+                                    util_format_get_blocksize(rsc->internal_format));
                }
             }
          } else if (rsc->layout == ETNA_LAYOUT_LINEAR) {
