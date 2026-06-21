@@ -9,12 +9,16 @@
 static void
 f16_using_mac(const brw_builder &bld, brw_dpas_inst *dpas)
 {
+   const intel_device_info *devinfo = bld.shader->devinfo;
+
    /* We only intend to support configurations where the destination and
     * accumulator have the same type.
     */
    if (!dpas->src[0].is_null())
       assert(dpas->dst.type == dpas->src[0].type);
 
+   assert(dpas->dst.type == BRW_TYPE_F ||
+          dpas->dst.type == BRW_TYPE_HF);
    assert(dpas->src[1].type == BRW_TYPE_HF);
    assert(dpas->src[2].type == BRW_TYPE_HF);
 
@@ -27,68 +31,66 @@ f16_using_mac(const brw_builder &bld, brw_dpas_inst *dpas)
    const brw_reg src1 = retype(dpas->src[1], src1_type);
    const brw_reg src2 = retype(dpas->src[2], src2_type);
 
-   const unsigned dest_stride =
-      dest.type == BRW_TYPE_HF ? REG_SIZE / 2 : REG_SIZE;
+   const unsigned dest_stride = dpas->exec_size * brw_type_size_bytes(dest.type);
+
+   /* FINISHME: The accumulator can actually hold 16 HF values. On Gfx12
+    * there are two accumulators. It should be possible to do this in
+    * SIMD16 or even SIMD32. I was unable to get this to work properly.
+    */
+   const unsigned acc_width = 8;
+   brw_reg acc = suboffset(retype(brw_acc_reg(dpas->exec_size), BRW_TYPE_UD),
+                           dpas->group % acc_width);
+
+   if (devinfo->verx10 >= 125)
+      acc = subscript(acc, BRW_TYPE_HF, 0);
+   else
+      acc = retype(acc, BRW_TYPE_HF);
 
    for (unsigned r = 0; r < dpas->rcount; r++) {
+      brw_reg src2_r = byte_offset(src2, r * dpas->sdepth * 4);
       brw_reg temp = bld.vgrf(BRW_TYPE_HF);
 
       for (unsigned subword = 0; subword < 2; subword++) {
          for (unsigned s = 0; s < dpas->sdepth; s++) {
+            brw_reg src1_hf =
+               subscript(retype(byte_offset(src1, s * dpas->exec_size *
+                                                  brw_type_size_bytes(BRW_TYPE_UD)),
+                                BRW_TYPE_UD),
+                         src1_type, subword);
+            brw_reg src2_hf =
+               component(retype(src2_r, src2_type), s * 2 + subword);
+
+            bool first = s == 0 && subword == 0;
+            bool last = subword == 1 && (s + 1) == dpas->sdepth;
+
             /* The first multiply of the dot-product operation has to
              * explicitly write the accumulator register. The successive MAC
              * instructions will implicitly read *and* write the
              * accumulator. Those MAC instructions can also optionally
              * explicitly write some other register.
-             *
-             * FINISHME: The accumulator can actually hold 16 HF values. On
-             * Gfx12 there are two accumulators. It should be possible to do
-             * this in SIMD16 or even SIMD32. I was unable to get this to work
-             * properly.
              */
-            if (s == 0 && subword == 0) {
-               const unsigned acc_width = 8;
-               brw_reg acc = suboffset(retype(brw_acc_reg(dpas->exec_size), BRW_TYPE_UD),
-                                      dpas->group % acc_width);
-
-               if (bld.shader->devinfo->verx10 >= 125) {
-                  acc = subscript(acc, BRW_TYPE_HF, subword);
-               } else {
-                  acc = retype(acc, BRW_TYPE_HF);
-               }
-
-               bld.MUL(acc,
-                       subscript(retype(byte_offset(src1, s * REG_SIZE),
-                                        BRW_TYPE_UD),
-                                 BRW_TYPE_HF, subword),
-                       component(retype(byte_offset(src2, r * REG_SIZE),
-                                        BRW_TYPE_HF),
-                                 s * 2 + subword))
-                  ->writes_accumulator = true;
-
+            brw_reg dst;
+            if (first) {
+               dst = acc;
+            } else if (last) {
+               dst = temp;
             } else {
-               brw_reg result;
-
                /* As mentioned above, the MAC had an optional, explicit
                 * destination register. Various optimization passes are not
                 * clever enough to understand the intricacies of this
                 * instruction, so only write the result register on the final
                 * MAC in the sequence.
                 */
-               if ((s + 1) == dpas->sdepth && subword == 1)
-                  result = temp;
-               else
-                  result = retype(bld.null_reg_ud(), BRW_TYPE_HF);
-
-               bld.MAC(result,
-                       subscript(retype(byte_offset(src1, s * REG_SIZE),
-                                        BRW_TYPE_UD),
-                                 BRW_TYPE_HF, subword),
-                       component(retype(byte_offset(src2, r * REG_SIZE),
-                                        BRW_TYPE_HF),
-                                 s * 2 + subword))
-                  ->writes_accumulator = true;
+               dst = retype(bld.null_reg_ud(), BRW_TYPE_HF);
             }
+
+            brw_inst *inst;
+            if (first)
+               inst = bld.MUL(dst, src1_hf, src2_hf);
+            else
+               inst = bld.MAC(dst, src1_hf, src2_hf);
+
+            inst->writes_accumulator = true;
          }
       }
 
