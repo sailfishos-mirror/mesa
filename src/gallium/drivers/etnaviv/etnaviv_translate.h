@@ -229,6 +229,8 @@ translate_depth_format(enum pipe_format fmt)
       return VIVS_PE_DEPTH_CONFIG_DEPTH_FORMAT_D24S8;
    case PIPE_FORMAT_S8_UINT:
       return VIVS_PE_DEPTH_CONFIG_DEPTH_FORMAT_D24S8;
+   case PIPE_FORMAT_Z32_FLOAT:
+      return VIVS_PE_DEPTH_CONFIG_DEPTH_FORMAT_D24S8;
    default:
       return ETNA_NO_MATCH;
    }
@@ -238,6 +240,8 @@ translate_depth_format(enum pipe_format fmt)
 static inline uint32_t
 translate_ts_format(enum pipe_format fmt)
 {
+   fmt = translate_emulated_format_z32f(fmt);
+
    /* Note: Pipe format convention is LSB to MSB, VIVS is MSB to LSB */
    switch (fmt) {
    case PIPE_FORMAT_B4G4R4X4_UNORM:
@@ -463,6 +467,8 @@ static inline uint32_t
 translate_clear_depth_stencil(enum pipe_format format, double depth,
                               uint8_t stencil)
 {
+   format = translate_emulated_format_z32f(format);
+
    uint32_t clear_value = util_pack_z_stencil(format, depth, stencil);
 
    if (format == PIPE_FORMAT_Z16_UNORM)

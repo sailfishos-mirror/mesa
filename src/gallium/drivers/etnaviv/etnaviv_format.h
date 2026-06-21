@@ -95,4 +95,21 @@ format_is_128bit(enum pipe_format fmt)
     }
 }
 
+static inline bool
+format_is_emulated_z32f(enum pipe_format fmt)
+{
+    return fmt == PIPE_FORMAT_Z32_FLOAT;
+}
+
+/* The emulated depth32f formats are physically stored as D24S8; map them to
+ * that format and leave everything else unchanged. */
+static inline enum pipe_format
+translate_emulated_format_z32f(enum pipe_format fmt)
+{
+    if (format_is_emulated_z32f(fmt))
+        return PIPE_FORMAT_S8_UINT_Z24_UNORM;
+
+    return fmt;
+}
+
 #endif /* ETNAVIV_FORMAT_H_ */

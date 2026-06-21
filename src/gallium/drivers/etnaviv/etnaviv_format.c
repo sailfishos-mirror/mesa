@@ -139,6 +139,7 @@ static struct etna_format formats[PIPE_FORMAT_COUNT] = {
    V_(R32_SSCALED, INT,          NONE),
    VT(R32_FLOAT,   FLOAT,        EXT_R32F | EXT_FORMAT, R32F),
    V_(R32_FIXED,   FIXED,        NONE),
+   _T(Z32_FLOAT,   EXT_R32F | EXT_FORMAT, NONE),  /* emulated format */
 
    V_(R16G16_UNORM,   UNSIGNED_SHORT, NONE),
    V_(R16G16_SNORM,   SHORT,          NONE),
@@ -273,6 +274,7 @@ uint32_t
 translate_texture_format(enum pipe_format fmt, const struct etna_screen *screen)
 {
    fmt = util_format_linear(fmt);
+   fmt = translate_emulated_format_z32f(fmt);
 
    if (!formats[fmt].present)
       return ETNA_NO_MATCH;

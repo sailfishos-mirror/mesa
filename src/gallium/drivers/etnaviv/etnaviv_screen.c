@@ -578,6 +578,10 @@ etna_screen_is_format_supported(struct pipe_screen *pscreen,
       if (!gpu_supports_depth_stencil_format(screen, format))
          fmt = ETNA_NO_MATCH;
 
+      /* The emulated depth32f cannot be MSAA-resolved (no Z32_FLOAT blit) */
+      if (format_is_emulated_z32f(format) && sample_count > 1)
+         fmt = ETNA_NO_MATCH;
+
       if (fmt != ETNA_NO_MATCH)
          allowed |= PIPE_BIND_DEPTH_STENCIL;
    }
