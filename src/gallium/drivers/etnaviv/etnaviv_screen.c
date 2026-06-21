@@ -430,7 +430,8 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
    if (format == PIPE_FORMAT_S8_UINT)
       supported = VIV_FEATURE(screen, ETNA_FEATURE_S8);
 
-   if (format == PIPE_FORMAT_S8X24_UINT)
+   if (format == PIPE_FORMAT_S8X24_UINT ||
+       format == PIPE_FORMAT_X32_S8X24_UINT)
       supported = VIV_FEATURE(screen, ETNA_FEATURE_HALTI5) &&
                   !DBG_ENABLED(ETNA_DBG_NO_TEXDESC);
 

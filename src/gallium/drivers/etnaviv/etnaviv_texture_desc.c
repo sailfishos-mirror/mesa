@@ -218,7 +218,8 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
       break;
    }
 
-   if (so->format == PIPE_FORMAT_S8X24_UINT) {
+   if (so->format == PIPE_FORMAT_S8X24_UINT ||
+       so->format == PIPE_FORMAT_X32_S8X24_UINT) {
       sv->SAMP_CTRL0_MASK &= ~VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_DEPTH_STENCIL_MODE__MASK;
       sv->SAMP_CTRL0 |= VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_DEPTH_STENCIL_MODE_STENCIL;
    }
