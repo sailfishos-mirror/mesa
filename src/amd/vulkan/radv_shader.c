@@ -201,7 +201,7 @@ radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively)
       }
       NIR_LOOP_PASS_NOT_IDEMPOTENT(progress, skip, shader, nir_opt_if, nir_opt_if_optimize_phi_true_false);
       NIR_LOOP_PASS(progress, skip, shader, nir_opt_cse);
-      NIR_LOOP_PASS(progress, skip, shader, nir_opt_uub, &(nir_opt_uub_options){});
+      NIR_LOOP_PASS(progress, skip, shader, nir_opt_uub, &(nir_opt_uub_options){0});
 
       nir_opt_peephole_select_options peephole_select_options = {
          .limit = 8,
