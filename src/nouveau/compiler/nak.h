@@ -298,6 +298,8 @@ struct nak_qmd_info {
    uint32_t global_size[3];
 
    uint32_t num_cbufs;
+   uint16_t dependence_counter;
+   uint16_t hw_dependence_counter;
    struct nak_qmd_cbuf cbufs[8];
 };
 

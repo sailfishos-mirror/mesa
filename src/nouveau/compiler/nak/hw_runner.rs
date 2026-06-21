@@ -506,6 +506,8 @@ impl Runner {
             global_size: [invocations.div_ceil(local_size.into()), 1, 1],
             num_cbufs: 1,
             cbufs: qmd_cbufs,
+            dependence_counter: 0,
+            hw_dependence_counter: 0,
         };
 
         let qmd = self.qmd_heap.alloc_qmd()?;

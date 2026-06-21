@@ -35,6 +35,8 @@ trait QMD {
     );
     fn set_dependent_qmd_addr(&mut self, qmd_addr: u64);
     fn set_dependent_qmd_schedule(&mut self, schedule: bool);
+    fn set_dependence_counter(&mut self, count: u16);
+    fn set_hw_dependence_counter(&mut self, count: u16);
 
     fn set_dependent_qmd(&mut self, qmd_addr: u64, schedule: bool) {
         self.set_dependent_qmd_addr(qmd_addr);
@@ -151,6 +153,14 @@ macro_rules! qmd_impl_set_dependent_qmd_schedule_pre_v02_04 {
             set_enum!(bv, $c, $s, DEPENDENT_QMD_TYPE, GRID);
             set_field!(bv, $c, $s, DEPENDENT_QMD_FIELD_COPY, schedule);
         }
+
+        fn set_dependence_counter(&mut self, count: u16) {
+            assert!(count == 0);
+        }
+
+        fn set_hw_dependence_counter(&mut self, count: u16) {
+            assert!(count == 0);
+        }
     };
 }
 
@@ -166,6 +176,16 @@ macro_rules! qmd_impl_set_dependent_qmd_schedule_post_v02_04 {
                 paste! {$c::[<$s _ DEPENDENT_QMD0_ACTION_QMD_DECREMENT_DEPENDENCE>]}
             };
             set_field!(bv, $c, $s, DEPENDENT_QMD0_ACTION, action);
+        }
+
+        fn set_dependence_counter(&mut self, count: u16) {
+            let mut bv = QMDBitView::new(&mut self.qmd);
+            set_field!(bv, $c, $s, DEPENDENCE_COUNTER, count);
+        }
+
+        fn set_hw_dependence_counter(&mut self, count: u16) {
+            let mut bv = QMDBitView::new(&mut self.qmd);
+            set_field!(bv, $c, $s, HW_ONLY_DEPENDENCE_COUNTER, count);
         }
     };
 }
@@ -349,6 +369,14 @@ mod qmd_0_6 {
 
         fn set_dependent_qmd_schedule(&mut self, schedule: bool) {
             assert!(!schedule);
+        }
+
+        fn set_dependence_counter(&mut self, count: u16) {
+            assert!(count == 0);
+        }
+
+        fn set_hw_dependence_counter(&mut self, count: u16) {
+            assert!(count == 0);
         }
 
         fn set_smem_size(
@@ -741,6 +769,8 @@ fn fill_qmd<Q: QMD>(
     qmd.set_register_count(info.num_gprs);
     qmd.set_crs_size(info.crs_size);
     qmd.set_slm_size(info.slm_size);
+    qmd.set_dependence_counter(qmd_info.dependence_counter);
+    qmd.set_hw_dependence_counter(qmd_info.hw_dependence_counter);
 
     assert!(qmd_info.smem_size <= u32::from(dev.max_smem_per_wg_kB) * 1024);
     qmd.set_smem_size(qmd_info.smem_size, dev, info);
