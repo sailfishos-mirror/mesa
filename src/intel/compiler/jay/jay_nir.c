@@ -377,8 +377,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
       /* Do this lowering before jay_populate_prog_data(). */
       JAY_NIR_PASS(nir_opt_frag_coord_to_pixel_coord);
       JAY_NIR_PASS(nir_lower_frag_coord_to_pixel_coord);
-      JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_frag_coord,
-                   nir_metadata_control_flow, NULL);
       JAY_NIR_PASS(nir_opt_barycentric, true);
       JAY_NIR_PASS(nir_opt_constant_folding);
 
@@ -411,6 +409,9 @@ jay_process_nir(const struct intel_device_info *devinfo,
        * information.
        */
       jay_populate_prog_data(devinfo, nir, prog_data, key, 0);
+
+      JAY_NIR_PASS(nir_shader_intrinsics_pass, lower_frag_coord,
+                   nir_metadata_control_flow, NULL);
 
       JAY_NIR_PASS(brw_nir_lower_fs_config_intel, &key->fs, &prog_data->fs);
    } else {

@@ -71,7 +71,7 @@ gather_fs_info(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       prog_data->uses_src_depth = true;
       break;
 
-   case nir_intrinsic_load_frag_coord_w_rcp:
+   case nir_intrinsic_load_frag_coord_w:
       prog_data->uses_src_w = true;
       break;
 
@@ -79,7 +79,7 @@ gather_fs_info(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       prog_data->uses_sample_mask = true;
       break;
 
-   case nir_intrinsic_load_pixel_coord_intel:
+   case nir_intrinsic_load_pixel_coord:
       prog_data->uses_src_xy = true;
       break;
 
