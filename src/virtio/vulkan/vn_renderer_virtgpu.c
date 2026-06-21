@@ -38,7 +38,6 @@
 
 /* XXX comment these out to really use kernel uapi */
 #define SIMULATE_SYNCOBJ     1
-#define SIMULATE_SUBMIT      1
 
 #define VIRTGPU_PCI_VENDOR_ID 0x1af4
 #define VIRTGPU_PCI_DEVICE_ID 0x1050
@@ -452,10 +451,6 @@ sim_syncobj_import(struct virtgpu *gpu, uint32_t syncobj_handle, int fd)
    return syncobj_handle;
 }
 
-#endif /* SIMULATE_SYNCOBJ */
-
-#ifdef SIMULATE_SUBMIT
-
 static int
 sim_submit_signal_syncs(struct virtgpu *gpu,
                         int sync_fd,
@@ -466,18 +461,10 @@ sim_submit_signal_syncs(struct virtgpu *gpu,
 {
    for (uint32_t i = 0; i < sync_count; i++) {
       const uint64_t pending_point = sync_values[i];
-
-#ifdef SIMULATE_SYNCOBJ
       int ret = sim_syncobj_submit(gpu, syncs[i]->syncobj_handle, sync_fd,
                                    pending_point, cpu);
       if (ret)
          return ret;
-#else
-      /* we can in theory do a DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE followed by a
-       * DRM_IOCTL_SYNCOBJ_TRANSFER
-       */
-      return -1;
-#endif
    }
 
    return 0;
@@ -505,7 +492,7 @@ sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit_batch *batch)
    return ret;
 }
 
-#endif /* SIMULATE_SUBMIT */
+#endif /* SIMULATE_SYNCOBJ */
 
 static int
 virtgpu_ioctl(struct virtgpu *gpu, unsigned long request, void *args)
@@ -870,7 +857,7 @@ static int
 virtgpu_ioctl_submit(struct virtgpu *gpu,
                      const struct vn_renderer_submit_batch *batch)
 {
-#ifdef SIMULATE_SUBMIT
+#ifdef SIMULATE_SYNCOBJ
    return sim_submit(gpu, batch);
 #endif
    return -1;
