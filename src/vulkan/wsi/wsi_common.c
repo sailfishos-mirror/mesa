@@ -1512,12 +1512,14 @@ wsi_CreateSwapchainKHR(VkDevice _device,
       swapchain->present_timing.active = true;
       mtx_init(&swapchain->present_timing.lock, 0);
 
-      for (uint32_t i = 0; i < swapchain->image_count; i++) {
-         struct wsi_image *image = swapchain->get_wsi_image(swapchain, i);
-         result = wsi_image_init_timestamp(swapchain, image);
-         if (result != VK_SUCCESS) {
-            swapchain->destroy(swapchain, alloc);
-            return result;
+      if (swapchain->present_timing.supported_query_stages & VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT) {
+         for (uint32_t i = 0; i < swapchain->image_count; i++) {
+            struct wsi_image *image = swapchain->get_wsi_image(swapchain, i);
+            result = wsi_image_init_timestamp(swapchain, image);
+            if (result != VK_SUCCESS) {
+               swapchain->destroy(swapchain, alloc);
+               return result;
+            }
          }
       }
 
@@ -1765,7 +1767,7 @@ static VkResult wsi_common_allocate_timing_request(
 
    /* Allows timestamp queries to fail if GPU is not done with current submission.
     * Resetting on queue will not work. */
-   if (swapchain->wsi->has_host_query_reset)
+   if (swapchain->wsi->has_host_query_reset && image->query_pool)
       swapchain->wsi->ResetQueryPoolEXT(swapchain->device, image->query_pool, 0, 1);
 
    /* Ignore the time domain since we have a static domain. */
