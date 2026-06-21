@@ -47,6 +47,7 @@ KHR-GL46.gpu_shader_fp64.builtin.smoothstep_dvec3
 KHR-GL46.gpu_shader_fp64.builtin.step_against_scalar_dvec3
 KHR-GL46.gpu_shader_fp64.builtin.trunc_double
 KHR-GL46.gpu_shader_fp64.builtin.trunc_dvec4
+KHR-GL46.packed_pixels.pbo_rectangle.r16_snorm_format_rg
 KHR-GL46.packed_pixels.pbo_rectangle.r16f_format_bgra
 KHR-GL46.packed_pixels.pbo_rectangle.r16f_format_red
 KHR-GL46.packed_pixels.pbo_rectangle.r16f_format_rgb
@@ -68,6 +69,7 @@ KHR-GL46.texture_cube_map_array.stencil_attachments_mutable_nonlayered
 
 spec@!opengl 1.0@gl-1.0-front-invalidate-back
 spec@!opengl 1.1@depthstencil-default_fb-copypixels
+spec@!opengl 1.1@draw-pixels
 spec@!opengl 1.1@draw-sync
 spec@!opengl 1.1@teximage-colors gl_luminance12_alpha4.*
 spec@!opengl 1.1@teximage-colors gl_luminance16.*
