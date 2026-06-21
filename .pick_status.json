@@ -5444,7 +5444,7 @@
         "description": "util: remove bogus const attribute",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1b8a43a0bafd8c1d50b6fc840fadce8dfd7250de",
         "notes": null
