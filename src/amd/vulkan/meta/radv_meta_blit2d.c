@@ -205,7 +205,7 @@ radv_gfx_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const bool use_3d = src->image->vk.image_type == VK_IMAGE_TYPE_3D;
    const uint32_t src_log2_samples = util_logbase2(src->image->vk.samples);
-   const uint32_t dst_log2_samples = src_log2_samples;
+   const uint32_t dst_log2_samples = util_logbase2(dst->image->vk.samples);
    const enum blit2d_src_type src_type = use_3d ? BLIT2D_SRC_TYPE_IMAGE_3D : BLIT2D_SRC_TYPE_IMAGE;
    VkPipelineLayout layout;
    VkPipeline pipeline;
