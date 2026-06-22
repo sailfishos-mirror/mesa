@@ -3031,6 +3031,7 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
     */
 
    jay_fs_payload *fs = &nj->payload.fs;
+   jay_builder *b = &nj->bld;
 
    if (nj->s->dispatch_width == 32) {
       nj->payload.u1 = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
@@ -3118,22 +3119,22 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
     * pressure, we want to hoist it as much as possible.
     */
    if (nj->s->helpers_tracked) {
-      jay_INIT_HELPERS(&nj->bld, jay_extract(nj->payload.u0, 15),
+      jay_INIT_HELPERS(b, jay_extract(nj->payload.u0, 15),
                        payload_u1(nj, 15, 1));
    }
 
    for (unsigned i = 0; i < ARRAY_SIZE(split_gprs); ++i) {
       if (!jay_is_null(split[i]) && split_gprs[i].def->file == UGPR) {
          *(split_gprs[i].def) =
-            jay_ZIP_UGPR16_u32(&nj->bld, *split_gprs[i].def, split[i]);
+            jay_ZIP_UGPR16_u32(b, *split_gprs[i].def, split[i]);
       }
    }
 
    if (nj->s->prog_data->fs.uses_src_xy) {
-      jay_def t = jay_alloc_def(&nj->bld, GPR, 1);
+      jay_def t = jay_alloc_def(b, GPR, 1);
       jay_def lo = jay_extract_range(nj->payload.u0, 10, 4);
-      jay_EXPAND_QUAD(&nj->bld, t, lo, payload_u1(nj, 10, 4));
-      fs->coord.xy = jay_OFFSET_PACKED_PIXEL_COORDS_u32(&nj->bld, t);
+      jay_EXPAND_QUAD(b, t, lo, payload_u1(nj, 10, 4));
+      fs->coord.xy = jay_OFFSET_PACKED_PIXEL_COORDS_u32(b, t);
    }
 
    /* Renumber to match what jay_insert_payload_swizzle expects. */
