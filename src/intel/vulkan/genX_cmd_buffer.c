@@ -6227,7 +6227,7 @@ cmd_buffer_emit_depth_stencil(struct anv_cmd_buffer *cmd_buffer)
    if (info.depth_surf)
       genX(cmd_buffer_emit_gfx12_depth_wa)(cmd_buffer, info.depth_surf);
 
-   cmd_buffer->state.gfx.hiz_enabled = isl_aux_usage_has_hiz(info.hiz_usage);
+   cmd_buffer->state.gfx.hiz_usage = info.hiz_usage;
 }
 
 static void

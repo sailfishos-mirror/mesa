@@ -4688,11 +4688,10 @@ struct anv_cmd_graphics_state {
    bool                                         pma_fix_enabled;
 
    /**
-    * Whether or not we know for certain that HiZ is enabled for the current
-    * subpass.  If, for whatever reason, we are unsure as to whether HiZ is
-    * enabled or not, this will be false.
+    * The HiZ usage for the current subpass.  If, for whatever reason, we are
+    * unsure as to whether HiZ is enabled or not, this will be NONE.
     */
-   bool                                         hiz_enabled;
+   enum isl_aux_usage                           hiz_usage;
 
    /**
     * We ensure the registers for the gfx12 D16 fix are initialized at the

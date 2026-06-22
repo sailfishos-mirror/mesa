@@ -368,7 +368,7 @@ want_stencil_pma_fix(const struct vk_dynamic_graphics_state *dyn,
     * (3DSTATE_DEPTH_BUFFER::SURFACE_TYPE != NULL) &&
     * 3DSTATE_DEPTH_BUFFER::HIZ Enable
     */
-   if (!gfx->hiz_enabled)
+   if (gfx->hiz_usage == ISL_AUX_USAGE_NONE)
       return false;
 
    /* We can't possibly know if HiZ is enabled without the depth attachment */
