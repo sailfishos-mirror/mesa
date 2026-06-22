@@ -180,6 +180,62 @@ static bool legalize_fence(pco_instr *instr)
    return true;
 }
 
+/**
+ * \brief Legalize dynamic index pseudo-instruction.
+ *
+ * \param[in,out] instr PCO instr.
+ * \return True if progress was made.
+ */
+static bool legalize_dynidx(pco_instr *instr)
+{
+   pco_builder b =
+      pco_builder_create(instr->parent_func, pco_cursor_before_instr(instr));
+
+   pco_ref dest0 = instr->dest[0];
+   pco_ref dest1 = instr->dest[1];
+
+   pco_ref src0 = instr->src[0];
+   pco_ref src1 = instr->src[1];
+   assert(pco_ref_is_hwreg(src0));
+   assert(pco_ref_is_hwreg(src1) || pco_ref_is_null(src1));
+
+   assert(pco_ref_is_null(src1) == pco_ref_is_null(dest1));
+
+   bool two_srcs = !pco_ref_is_null(src1);
+
+   pco_ref elem = instr->src[2];
+   pco_ref stride = instr->src[3];
+
+   unsigned idx_reg_num = 0;
+   pco_ref idx_reg =
+      pco_ref_hwreg_idx(idx_reg_num, idx_reg_num, PCO_REG_CLASS_INDEX);
+
+   pco_imul32(&b,
+              idx_reg,
+              elem,
+              stride,
+              pco_ref_null(),
+              .exec_cnd = pco_instr_get_exec_cnd(instr));
+
+   src0 = pco_ref_hwreg_idx_from(idx_reg_num, src0);
+
+   if (two_srcs) {
+      src1 = pco_ref_hwreg_idx_from(idx_reg_num, src1);
+      pco_mbyp2(&b,
+                dest0,
+                dest1,
+                src0,
+                src1,
+                .exec_cnd = pco_instr_get_exec_cnd(instr));
+   } else {
+      pco_mbyp(&b, dest0, src0, .exec_cnd = pco_instr_get_exec_cnd(instr));
+   }
+
+   pco_instr_delete(instr);
+
+   return true;
+}
+
 static bool legalize_pseudo_post_ra(pco_instr *instr)
 {
    switch (instr->op) {
@@ -225,6 +281,9 @@ static bool legalize_pseudo_post_ra(pco_instr *instr)
 
       return true;
    }
+
+   case PCO_OP_DYNIDX:
+      return legalize_dynidx(instr);
 
    case PCO_OP_OP_ATOMIC_OFFSET: {
       pco_builder b =

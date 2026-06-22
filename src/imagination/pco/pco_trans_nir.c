@@ -1190,6 +1190,7 @@ static pco_instr *trans_atomic_shared(trans_ctx *tctx,
 static pco_instr *trans_load_buffer(trans_ctx *tctx,
                                     nir_intrinsic_instr *intr,
                                     pco_ref dest,
+                                    pco_ref desc_elem_src,
                                     pco_ref offset_src)
 {
    const pco_common_data *common = &tctx->shader->data.common;
@@ -1198,13 +1199,52 @@ static pco_instr *trans_load_buffer(trans_ctx *tctx,
    ASSERTED unsigned bits = pco_ref_get_bits(dest);
    assert(bits == 32);
 
-   uint32_t packed_desc = nir_src_comp_as_uint(intr->src[0], 0);
-   unsigned elem = nir_src_comp_as_uint(intr->src[0], 1);
+   bool is_dynidx = !nir_src_is_const(intr->src[0]);
+   uint32_t packed_desc;
+   unsigned elem;
+   pco_ref dynidx_elem;
+   pco_ref dynidx_stride;
+   if (is_dynidx) {
+      /* Extract the descriptor, which should still always be const. */
+      nir_scalar scalar = nir_scalar_resolved(intr->src[0].ssa, 0);
+      packed_desc = nir_scalar_as_uint(scalar);
+
+      /* Extract the dynamically indexed element. */
+      dynidx_elem = pco_ref_new_ssa32(tctx->func);
+      pco_comp(&tctx->b, dynidx_elem, desc_elem_src, pco_ref_val16(1));
+
+      /* Use element zero, then dynamically offset it later on. */
+      elem = 0u;
+   } else {
+      packed_desc = nir_src_comp_as_uint(intr->src[0], 0);
+      elem = nir_src_comp_as_uint(intr->src[0], 1);
+   }
+
+   unsigned stride;
    unsigned sh_index =
-      fetch_resource_base_reg_packed(common, packed_desc, elem, NULL, NULL);
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL);
 
    pco_ref base_addr[2];
    pco_ref_hwreg_addr_comps(sh_index, PCO_REG_CLASS_SHARED, base_addr);
+
+   if (is_dynidx) {
+      pco_ref dynidx_addr_comps[2];
+      pco_ref_new_ssa_addr_comps(tctx->func, dynidx_addr_comps);
+
+      dynidx_stride = pco_ref_new_ssa32(tctx->func);
+      pco_movi32(&tctx->b, dynidx_stride, pco_ref_imm32(stride));
+
+      pco_dynidx(&tctx->b,
+                 dynidx_addr_comps[0],
+                 dynidx_addr_comps[1],
+                 base_addr[0],
+                 base_addr[1],
+                 dynidx_elem,
+                 dynidx_stride);
+
+      base_addr[0] = dynidx_addr_comps[0];
+      base_addr[1] = dynidx_addr_comps[1];
+   }
 
    pco_ref addr_comps[2];
    pco_ref_new_ssa_addr_comps(tctx->func, addr_comps);
@@ -1223,6 +1263,19 @@ static pco_instr *trans_load_buffer(trans_ctx *tctx,
 
    pco_ref dyn_off_reg = pco_ref_hwreg(sh_index, PCO_REG_CLASS_SHARED);
    dyn_off_reg = pco_ref_offset(dyn_off_reg, 3);
+
+   if (is_dynidx) {
+      pco_ref dynidx_dyn_off_reg = pco_ref_new_ssa32(tctx->func);
+      pco_dynidx(&tctx->b,
+                 dynidx_dyn_off_reg,
+                 pco_ref_null(),
+                 dyn_off_reg,
+                 pco_ref_null(),
+                 dynidx_elem,
+                 dynidx_stride);
+
+      dyn_off_reg = dynidx_dyn_off_reg;
+   }
 
    pco_add64_32(&tctx->b,
                 addr_comps_dyn_off[0],
@@ -1301,8 +1354,10 @@ static pco_instr *trans_store_global(trans_ctx *tctx,
    UNREACHABLE("");
 }
 
-static pco_instr *
-trans_get_buffer_size(trans_ctx *tctx, nir_intrinsic_instr *intr, pco_ref dest)
+static pco_instr *trans_get_buffer_size(trans_ctx *tctx,
+                                        nir_intrinsic_instr *intr,
+                                        pco_ref dest,
+                                        pco_ref desc_elem_src)
 {
    const pco_common_data *common = &tctx->shader->data.common;
 
@@ -1312,13 +1367,49 @@ trans_get_buffer_size(trans_ctx *tctx, nir_intrinsic_instr *intr, pco_ref dest)
    assert(chans == 1);
    assert(bits == 32);
 
-   uint32_t packed_desc = nir_src_comp_as_uint(intr->src[0], 0);
-   unsigned elem = nir_src_comp_as_uint(intr->src[0], 1);
+   bool is_dynidx = !nir_src_is_const(intr->src[0]);
+   uint32_t packed_desc;
+   unsigned elem;
+   pco_ref dynidx_elem;
+   pco_ref dynidx_stride;
+   if (is_dynidx) {
+      /* Extract the descriptor, which should still always be const. */
+      nir_scalar scalar = nir_scalar_resolved(intr->src[0].ssa, 0);
+      packed_desc = nir_scalar_as_uint(scalar);
+
+      /* Extract the dynamically indexed element. */
+      dynidx_elem = pco_ref_new_ssa32(tctx->func);
+      pco_comp(&tctx->b, dynidx_elem, desc_elem_src, pco_ref_val16(1));
+
+      /* Use element zero, then dynamically offset it later on. */
+      elem = 0u;
+   } else {
+      packed_desc = nir_src_comp_as_uint(intr->src[0], 0);
+      elem = nir_src_comp_as_uint(intr->src[0], 1);
+   }
+
+   unsigned stride;
    unsigned sh_index =
-      fetch_resource_base_reg_packed(common, packed_desc, elem, NULL, NULL);
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL);
 
    pco_ref size_reg = pco_ref_hwreg(sh_index, PCO_REG_CLASS_SHARED);
    size_reg = pco_ref_offset(size_reg, 2);
+
+   if (is_dynidx) {
+      dynidx_stride = pco_ref_new_ssa32(tctx->func);
+      pco_movi32(&tctx->b, dynidx_stride, pco_ref_imm32(stride));
+
+      pco_ref dynidx_size_reg = pco_ref_new_ssa32(tctx->func);
+      pco_dynidx(&tctx->b,
+                 dynidx_size_reg,
+                 pco_ref_null(),
+                 size_reg,
+                 pco_ref_null(),
+                 dynidx_elem,
+                 dynidx_stride);
+
+      size_reg = dynidx_size_reg;
+   }
 
    return pco_mov(&tctx->b, dest, size_reg);
 }
@@ -1326,6 +1417,7 @@ trans_get_buffer_size(trans_ctx *tctx, nir_intrinsic_instr *intr, pco_ref dest)
 static pco_instr *trans_store_buffer(trans_ctx *tctx,
                                      nir_intrinsic_instr *intr,
                                      pco_ref data_src,
+                                     pco_ref desc_elem_src,
                                      pco_ref offset_src)
 {
    const pco_common_data *common = &tctx->shader->data.common;
@@ -1333,13 +1425,52 @@ static pco_instr *trans_store_buffer(trans_ctx *tctx,
    unsigned chans = pco_ref_get_chans(data_src);
    unsigned bits = pco_ref_get_bits(data_src);
 
-   uint32_t packed_desc = nir_src_comp_as_uint(intr->src[1], 0);
-   unsigned elem = nir_src_comp_as_uint(intr->src[1], 1);
+   bool is_dynidx = !nir_src_is_const(intr->src[1]);
+   uint32_t packed_desc;
+   unsigned elem;
+   pco_ref dynidx_elem;
+   pco_ref dynidx_stride;
+   if (is_dynidx) {
+      /* Extract the descriptor, which should still always be const. */
+      nir_scalar scalar = nir_scalar_resolved(intr->src[1].ssa, 0);
+      packed_desc = nir_scalar_as_uint(scalar);
+
+      /* Extract the dynamically indexed element. */
+      dynidx_elem = pco_ref_new_ssa32(tctx->func);
+      pco_comp(&tctx->b, dynidx_elem, desc_elem_src, pco_ref_val16(1));
+
+      /* Use element zero, then dynamically offset it later on. */
+      elem = 0u;
+   } else {
+      packed_desc = nir_src_comp_as_uint(intr->src[1], 0);
+      elem = nir_src_comp_as_uint(intr->src[1], 1);
+   }
+
+   unsigned stride;
    unsigned sh_index =
-      fetch_resource_base_reg_packed(common, packed_desc, elem, NULL, NULL);
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL);
 
    pco_ref base_addr[2];
    pco_ref_hwreg_addr_comps(sh_index, PCO_REG_CLASS_SHARED, base_addr);
+
+   if (is_dynidx) {
+      pco_ref dynidx_addr_comps[2];
+      pco_ref_new_ssa_addr_comps(tctx->func, dynidx_addr_comps);
+
+      dynidx_stride = pco_ref_new_ssa32(tctx->func);
+      pco_movi32(&tctx->b, dynidx_stride, pco_ref_imm32(stride));
+
+      pco_dynidx(&tctx->b,
+                 dynidx_addr_comps[0],
+                 dynidx_addr_comps[1],
+                 base_addr[0],
+                 base_addr[1],
+                 dynidx_elem,
+                 dynidx_stride);
+
+      base_addr[0] = dynidx_addr_comps[0];
+      base_addr[1] = dynidx_addr_comps[1];
+   }
 
    pco_ref addr_comps[2];
    pco_ref_new_ssa_addr_comps(tctx->func, addr_comps);
@@ -1360,6 +1491,19 @@ static pco_instr *trans_store_buffer(trans_ctx *tctx,
 
    pco_ref dyn_off_reg = pco_ref_hwreg(sh_index, PCO_REG_CLASS_SHARED);
    dyn_off_reg = pco_ref_offset(dyn_off_reg, 3);
+
+   if (is_dynidx) {
+      pco_ref dynidx_dyn_off_reg = pco_ref_new_ssa32(tctx->func);
+      pco_dynidx(&tctx->b,
+                 dynidx_dyn_off_reg,
+                 pco_ref_null(),
+                 dyn_off_reg,
+                 pco_ref_null(),
+                 dynidx_elem,
+                 dynidx_stride);
+
+      dyn_off_reg = dynidx_dyn_off_reg;
+   }
 
    pco_add64_32(&tctx->b,
                 addr_data_comps_dyn_off[0],
@@ -1402,6 +1546,7 @@ static pco_instr *trans_store_buffer(trans_ctx *tctx,
 static pco_instr *trans_atomic_buffer(trans_ctx *tctx,
                                       nir_intrinsic_instr *intr,
                                       pco_ref dest,
+                                      pco_ref desc_elem_src,
                                       pco_ref offset_src,
                                       pco_ref data_src)
 {
@@ -1414,13 +1559,52 @@ static pco_instr *trans_atomic_buffer(trans_ctx *tctx,
    unsigned chans = pco_ref_get_chans(dest);
    unsigned bits = pco_ref_get_bits(dest);
 
-   uint32_t packed_desc = nir_src_comp_as_uint(intr->src[0], 0);
-   unsigned elem = nir_src_comp_as_uint(intr->src[0], 1);
+   bool is_dynidx = !nir_src_is_const(intr->src[0]);
+   uint32_t packed_desc;
+   unsigned elem;
+   pco_ref dynidx_elem;
+   pco_ref dynidx_stride;
+   if (is_dynidx) {
+      /* Extract the descriptor, which should still always be const. */
+      nir_scalar scalar = nir_scalar_resolved(intr->src[0].ssa, 0);
+      packed_desc = nir_scalar_as_uint(scalar);
+
+      /* Extract the dynamically indexed element. */
+      dynidx_elem = pco_ref_new_ssa32(tctx->func);
+      pco_comp(&tctx->b, dynidx_elem, desc_elem_src, pco_ref_val16(1));
+
+      /* Use element zero, then dynamically offset it later on. */
+      elem = 0u;
+   } else {
+      packed_desc = nir_src_comp_as_uint(intr->src[0], 0);
+      elem = nir_src_comp_as_uint(intr->src[0], 1);
+   }
+
+   unsigned stride;
    unsigned sh_index =
-      fetch_resource_base_reg_packed(common, packed_desc, elem, NULL, NULL);
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL);
 
    pco_ref base_addr[2];
    pco_ref_hwreg_addr_comps(sh_index, PCO_REG_CLASS_SHARED, base_addr);
+
+   if (is_dynidx) {
+      pco_ref dynidx_addr_comps[2];
+      pco_ref_new_ssa_addr_comps(tctx->func, dynidx_addr_comps);
+
+      dynidx_stride = pco_ref_new_ssa32(tctx->func);
+      pco_movi32(&tctx->b, dynidx_stride, pco_ref_imm32(stride));
+
+      pco_dynidx(&tctx->b,
+                 dynidx_addr_comps[0],
+                 dynidx_addr_comps[1],
+                 base_addr[0],
+                 base_addr[1],
+                 dynidx_elem,
+                 dynidx_stride);
+
+      base_addr[0] = dynidx_addr_comps[0];
+      base_addr[1] = dynidx_addr_comps[1];
+   }
 
    pco_ref addr_comps[2];
    pco_ref_new_ssa_addr_comps(tctx->func, addr_comps);
@@ -1441,6 +1625,19 @@ static pco_instr *trans_atomic_buffer(trans_ctx *tctx,
 
    pco_ref dyn_off_reg = pco_ref_hwreg(sh_index, PCO_REG_CLASS_SHARED);
    dyn_off_reg = pco_ref_offset(dyn_off_reg, 3);
+
+   if (is_dynidx) {
+      pco_ref dynidx_dyn_off_reg = pco_ref_new_ssa32(tctx->func);
+      pco_dynidx(&tctx->b,
+                 dynidx_dyn_off_reg,
+                 pco_ref_null(),
+                 dyn_off_reg,
+                 pco_ref_null(),
+                 dynidx_elem,
+                 dynidx_stride);
+
+      dyn_off_reg = dynidx_dyn_off_reg;
+   }
 
    pco_add64_32(&tctx->b,
                 addr_data_comps_dyn_off[0],
@@ -2190,7 +2387,7 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_ubo:
    case nir_intrinsic_load_ssbo:
-      instr = trans_load_buffer(tctx, intr, dest, src[1]);
+      instr = trans_load_buffer(tctx, intr, dest, src[0], src[1]);
       break;
 
    case nir_intrinsic_load_global_2x32:
@@ -2203,15 +2400,15 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_get_ubo_size:
    case nir_intrinsic_get_ssbo_size:
-      instr = trans_get_buffer_size(tctx, intr, dest);
+      instr = trans_get_buffer_size(tctx, intr, dest, src[0]);
       break;
 
    case nir_intrinsic_store_ssbo:
-      instr = trans_store_buffer(tctx, intr, src[0], src[2]);
+      instr = trans_store_buffer(tctx, intr, src[0], src[1], src[2]);
       break;
 
    case nir_intrinsic_ssbo_atomic:
-      instr = trans_atomic_buffer(tctx, intr, dest, src[1], src[2]);
+      instr = trans_atomic_buffer(tctx, intr, dest, src[0], src[1], src[2]);
       break;
 
    case nir_intrinsic_global_atomic_pco:
