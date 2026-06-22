@@ -1575,6 +1575,52 @@ zink_set_vertex_buffers_optimal(struct pipe_context *pctx,
    zink_set_vertex_buffers_internal(pctx, num_buffers, buffers, true);
 }
 
+ALWAYS_INLINE static void
+zink_bind_vertex_buffers_internal(struct zink_context *ctx, const struct pipe_vertex_buffer *vbuffers, bool have_dynamic_stride)
+{
+   VkBuffer buffers[PIPE_MAX_ATTRIBS];
+   VkDeviceSize buffer_offsets[PIPE_MAX_ATTRIBS];
+   struct zink_vertex_elements_state *elems = ctx->element_state;
+
+   for (unsigned i = 0; i < elems->hw_state.num_bindings; i++) {
+      const struct pipe_vertex_buffer *vb = vbuffers + elems->hw_state.binding_map[i];
+      assert(vb);
+      if (vb->buffer.resource) {
+         struct zink_resource *res = zink_resource(vb->buffer.resource);
+         assert(res->obj->buffer);
+         buffers[i] = res->obj->buffer;
+         buffer_offsets[i] = vb->buffer_offset;
+      } else {
+         buffers[i] = VK_NULL_HANDLE;
+         buffer_offsets[i] = 0;
+      }
+   }
+
+   if (have_dynamic_stride) {
+      if (elems->hw_state.num_bindings)
+         VKCTX(CmdBindVertexBuffers2)(ctx->bs->cmdbuf, 0,
+                                      elems->hw_state.num_bindings,
+                                      buffers, buffer_offsets, NULL, elems->hw_state.b.strides);
+   } else if (elems->hw_state.num_bindings)
+      VKCTX(CmdBindVertexBuffers2)(ctx->bs->cmdbuf, 0,
+                                  elems->hw_state.num_bindings,
+                                  buffers, buffer_offsets, NULL, NULL);
+
+   ctx->vertex_buffers_dirty = false;
+}
+
+void
+zink_bind_vertex_buffers_dynamic(struct zink_context *ctx, const struct pipe_vertex_buffer *vbuffers)
+{
+   zink_bind_vertex_buffers_internal(ctx, vbuffers, true);
+}
+
+void
+zink_bind_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buffer *vbuffers)
+{
+   zink_bind_vertex_buffers_internal(ctx, vbuffers, false);
+}
+
 static void
 zink_set_viewport_states(struct pipe_context *pctx,
                          unsigned start_slot,
