@@ -1072,6 +1072,11 @@ static inline void r600_shader_selector_key(struct pipe_context *ctx,
 	}
 	case MESA_SHADER_GEOMETRY:
 		key->gs.tri_strip_adj_fix = rctx->gs_tri_strip_adj_fix;
+		if (rctx->gs_shader->current->shader.num_ssbos) {
+			key->gs.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
+			key->gs.dynamic_ssbo_offset = r600_image_buffer_offset(rctx, true, sel->type);
+			r600_check_image_buffer_dirty(rctx, true, sel->type, key->gs.dynamic_ssbo_offset);
+		}
 		break;
 	case MESA_SHADER_FRAGMENT: {
 		if (rctx->ps_shader->nir_info.images_declared)
@@ -1098,9 +1103,19 @@ static inline void r600_shader_selector_key(struct pipe_context *ctx,
 	}
 	case MESA_SHADER_TESS_EVAL:
 		key->tes.as_es = (rctx->gs_shader != NULL);
+		if (rctx->tes_shader->current->shader.num_ssbos) {
+			key->tes.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
+			key->tes.dynamic_ssbo_offset = r600_image_buffer_offset(rctx, true, sel->type);
+			r600_check_image_buffer_dirty(rctx, true, sel->type, key->tes.dynamic_ssbo_offset);
+		}
 		break;
 	case MESA_SHADER_TESS_CTRL:
 		key->tcs.prim_mode = rctx->tes_shader->nir_info.tes_prim_mode;
+		if (rctx->tcs_shader && rctx->tcs_shader->current->shader.num_ssbos) {
+			key->tcs.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
+			key->tcs.dynamic_ssbo_offset = r600_image_buffer_offset(rctx, true, sel->type);
+			r600_check_image_buffer_dirty(rctx, true, sel->type, key->tcs.dynamic_ssbo_offset);
+		}
 		break;
 	case MESA_SHADER_COMPUTE:
 		break;
@@ -1126,9 +1141,11 @@ r600_shader_precompile_key(const struct pipe_context *ctx,
 		 * precompile with es, we'd need the other shaders we're linked
 		 * with (see the link_shader screen method)
 		 */
+		key->tes.nr_cbufs = sel->nir_info.ps_nr_cbufs;
 		break;
 
 	case MESA_SHADER_GEOMETRY:
+		key->gs.nr_cbufs = sel->nir_info.ps_nr_cbufs;
 		break;
 
 	case MESA_SHADER_FRAGMENT:
@@ -1144,6 +1161,7 @@ r600_shader_precompile_key(const struct pipe_context *ctx,
 	case MESA_SHADER_TESS_CTRL:
 		/* Prim mode comes from the TES, but we need some valid value. */
 		key->tcs.prim_mode = MESA_PRIM_TRIANGLES;
+		key->tcs.nr_cbufs = sel->nir_info.ps_nr_cbufs;
 		break;
 
 	case MESA_SHADER_COMPUTE:

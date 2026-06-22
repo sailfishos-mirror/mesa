@@ -20,7 +20,7 @@
 #include "util/u_memory.h"
 #include "util/u_framebuffer.h"
 
-#define R600_NUM_ATOMS 59
+#define R600_NUM_ATOMS 62
 
 #define R600_MAX_PS_RESOURCES 176
 #define R600_MAX_VS_RESOURCES 160
@@ -671,9 +671,7 @@ static inline bool r600_check_image_shader_supported(const enum mesa_shader_stag
 
 static inline bool r600_check_buffer_shader_supported(const enum mesa_shader_stage shader)
 {
-	return shader == MESA_SHADER_VERTEX ||
-		shader == MESA_SHADER_FRAGMENT ||
-		shader == MESA_SHADER_COMPUTE;
+	return shader <= MESA_SHADER_COMPUTE;
 }
 
 static inline void r600_emit_command_buffer(struct radeon_cmdbuf *cs,

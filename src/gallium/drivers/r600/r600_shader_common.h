@@ -152,12 +152,18 @@ union r600_shader_key {
 		unsigned	as_gs_a:1;
 	} vs;
 	struct {
+		unsigned	nr_cbufs:4;
+		unsigned        dynamic_ssbo_offset:4;
 		unsigned	as_es:1;
 	} tes;
 	struct {
+		unsigned	nr_cbufs:4;
+		unsigned        dynamic_ssbo_offset:4;
 		unsigned	prim_mode:3;
 	} tcs;
 	struct {
+		unsigned	nr_cbufs:4;
+		unsigned        dynamic_ssbo_offset:4;
 		unsigned        tri_strip_adj_fix:1;
 	} gs;
 };

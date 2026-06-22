@@ -2026,6 +2026,30 @@ static void evergreen_emit_fragment_buffer_state_fs(struct r600_context *rctx, s
 				   r600_image_buffer_offset(rctx, true, MESA_SHADER_FRAGMENT), 0);
 }
 
+static void evergreen_emit_fragment_buffer_state_tcs(struct r600_context *rctx, struct r600_atom *atom)
+{
+	evergreen_emit_image_state(rctx, atom,
+				   EG_FETCH_CONSTANTS_OFFSET_HS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+				   EG_FETCH_CONSTANTS_OFFSET_HS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+				   r600_image_buffer_offset(rctx, true, MESA_SHADER_TESS_CTRL), 0);
+}
+
+static void evergreen_emit_fragment_buffer_state_tes(struct r600_context *rctx, struct r600_atom *atom)
+{
+	evergreen_emit_image_state(rctx, atom,
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+				   r600_image_buffer_offset(rctx, true, MESA_SHADER_TESS_EVAL), 0);
+}
+
+static void evergreen_emit_fragment_buffer_state_gs(struct r600_context *rctx, struct r600_atom *atom)
+{
+	evergreen_emit_image_state(rctx, atom,
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+				   r600_image_buffer_offset(rctx, true, MESA_SHADER_GEOMETRY), 0);
+}
+
 static void evergreen_emit_compute_buffer_state(struct r600_context *rctx, struct r600_atom *atom)
 {
 	int offset = util_bitcount(rctx->compute_images.enabled_mask);
@@ -4969,6 +4993,9 @@ void evergreen_init_state_functions(struct r600_context *rctx)
 	r600_init_atom(rctx, &rctx->compute_images.atom, id++, evergreen_emit_compute_image_state, 0);
 	r600_init_atom(rctx, &rctx->fragment_buffers[MESA_SHADER_VERTEX].atom, id++, evergreen_emit_fragment_buffer_state_vs, 0);
 	r600_init_atom(rctx, &rctx->fragment_buffers[MESA_SHADER_FRAGMENT].atom, id++, evergreen_emit_fragment_buffer_state_fs, 0);
+	r600_init_atom(rctx, &rctx->fragment_buffers[MESA_SHADER_TESS_CTRL].atom, id++, evergreen_emit_fragment_buffer_state_tcs, 0);
+	r600_init_atom(rctx, &rctx->fragment_buffers[MESA_SHADER_TESS_EVAL].atom, id++, evergreen_emit_fragment_buffer_state_tes, 0);
+	r600_init_atom(rctx, &rctx->fragment_buffers[MESA_SHADER_GEOMETRY].atom, id++, evergreen_emit_fragment_buffer_state_gs, 0);
 	r600_init_atom(rctx, &rctx->compute_buffers.atom, id++, evergreen_emit_compute_buffer_state, 0);
 	/* shader const */
 	r600_init_atom(rctx, &rctx->constbuf_state[MESA_SHADER_VERTEX].atom, id++, evergreen_emit_vs_constant_buffers, 0);
