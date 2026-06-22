@@ -221,6 +221,7 @@ static void pvr_physical_device_get_supported_extensions(
 #ifdef PVR_USE_WSI_PLATFORM
       .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(&instance->vk, &instance->drirc.options),
 #endif
+      .IMG_filter_linear_2d = true,
    };
 }
 
