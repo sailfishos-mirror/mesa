@@ -21,6 +21,7 @@
  * IN THE SOFTWARE.
  */
 
+#include "drm.h"
 #include "v3dv_device.h"
 #include "v3dv_cmd_buffer.h"
 #include "v3dv_image.h"
@@ -32,6 +33,7 @@
 #include "broadcom/common/v3d_submit_util.h"
 #include "util/libsync.h"
 #include "util/perf/cpu_trace.h"
+#include "vulkan/vulkan_core.h"
 #include "vk_drm_syncobj.h"
 
 #include <time.h>
@@ -1068,6 +1070,58 @@ queue_submit_noop_job(struct v3dv_queue *queue,
                            sync_info, signal_syncs);
 }
 
+/* Merges an array of syncobj handles into a single target syncobj */
+static VkResult
+merge_syncobjs(struct v3dv_device *device,
+                    const uint32_t *src_syncobjs,
+                    uint32_t src_count,
+                    uint32_t dst_syncobj)
+{
+   int drm_fd = device->pdevice->render_fd;
+   int accum_fd = -1;
+
+   if (src_count == 0) {
+      /* If there are no jobs and no wait dependencies, the signal semaphores/fences
+       * must trigger immediately to satisfy the Vulkan spec.
+       */
+      drmSyncobjSignal(drm_fd, &dst_syncobj, 1);
+      return VK_SUCCESS;
+   }
+
+   for (uint32_t i = 0; i < src_count; i++) {
+      int queue_fd = -1;
+      if (drmSyncobjExportSyncFile(drm_fd, src_syncobjs[i], &queue_fd) != 0)
+         goto ioctl_error;
+
+      if (accum_fd == -1) {
+         accum_fd = queue_fd;
+      } else {
+         int new_accum_fd = sync_merge("v3dv_merged_fence", accum_fd, queue_fd);
+         close(queue_fd);
+
+         if (new_accum_fd < 0)
+            goto ioctl_error;
+
+         close(accum_fd);
+         accum_fd = new_accum_fd;
+      }
+   }
+
+   /* Import the final accumulated fence fd back into the destination syncobj */
+   assert(accum_fd != -1);
+   if (drmSyncobjImportSyncFile(drm_fd, dst_syncobj, accum_fd) != 0)
+      goto ioctl_error;
+
+   close(accum_fd);
+
+   return VK_SUCCESS;
+
+ioctl_error:
+   if (accum_fd != -1)
+      close(accum_fd);
+   return VK_ERROR_DEVICE_LOST;
+}
+
 VkResult
 v3dv_queue_driver_submit(struct vk_queue *vk_queue,
                          struct vk_queue_submit *submit)
@@ -1144,13 +1198,36 @@ v3dv_queue_driver_submit(struct vk_queue *vk_queue,
 
    /* Handle signaling now */
    if (submit->signal_count > 0) {
-      /* Finish by submitting a no-op job that synchronizes across all queues.
-       * This will ensure that the signal semaphores don't get triggered until
-       * all work on any queue completes. See Vulkan's signal operation order
-       * requirements.
+      /* We need to signal after all work (including wait dependencies)
+       * has completed. Vulkan also requires that submissions to the
+       * same queue signal in order. To ensure this, we accumulate the
+       * last_sync of all kernel queues into the signals of the command
+       * buffer regardless of whether we submitted any jobs to them in this
+       * command buffer (this satisfies the Vulkan signaling order
+       * requirement), so these are signaled as soon as all the queues
+       * finish. If the command buffer didn't submit any jobs, then we
+       * also need to gate signaling on the wait dependencies.
        */
-      return queue_submit_noop_job(queue, submit->perf_pass_index,
-                                   &sync_info, true);
+      uint32_t src_syncobjs[V3DV_QUEUE_COUNT + submit->wait_count];
+      uint32_t src_count = 0;
+
+      for (int i = 0; i < V3DV_QUEUE_COUNT; i++)
+         src_syncobjs[src_count++] = queue->last_job_syncs.syncs[i];
+
+      /* If we didn't submit any jobs, we need to merge wait dependencies */
+      if (src_count == 0 && submit->wait_count > 0) {
+         for (uint32_t i = 0; i < submit->wait_count; i++)
+            src_syncobjs[src_count++] = vk_sync_as_drm_syncobj(submit->waits[i].sync)->syncobj;
+      }
+
+      /* Merge the accumulated syncobjs into each Vulkan signal semaphore */
+      for (uint32_t i = 0; i < submit->signal_count; i++) {
+         uint32_t dst_syncobj = vk_sync_as_drm_syncobj(submit->signals[i].sync)->syncobj;
+
+         result = merge_syncobjs(queue->device, src_syncobjs, src_count, dst_syncobj);
+         if (result != VK_SUCCESS)
+            return result;
+      }
    }
 
    return VK_SUCCESS;
