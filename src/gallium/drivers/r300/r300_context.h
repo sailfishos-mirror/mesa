@@ -774,6 +774,12 @@ void r300_resume_query(struct r300_context *r300,
 void r300_stop_query(struct r300_context *r300);
 
 /* r300_render_translate.c */
+void r300_rebuild_elts_to_uint_userptr(struct pipe_context *context,
+                                       const struct pipe_draw_info *info,
+                                       unsigned add_transfer_flags,
+                                       int index_bias,
+                                       unsigned start, unsigned count,
+                                       void *out);
 void r300_translate_index_buffer(struct r300_context *r300,
                                  const struct pipe_draw_info *info,
                                  struct pipe_resource **out_index_buffer,
