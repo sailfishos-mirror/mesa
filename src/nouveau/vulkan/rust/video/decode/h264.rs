@@ -504,19 +504,26 @@ impl VideoDecoder for Decoder {
 
         let std_pic_info = unsafe { *h264_pic_info.pStdPictureInfo };
 
-        let sps = unsafe {
-            *ffi::vk_video_find_h264_dec_std_sps(
+        // Use the common helper so that inline session parameters
+        // (VK_KHR_video_maintenance2) are honored: it falls back to the
+        // session-parameters object when no inline SPS/PPS is supplied, and
+        // tolerates a session created without a parameters object.
+        let mut sps_ptr: *const ffi::StdVideoH264SequenceParameterSet =
+            std::ptr::null();
+        let mut pps_ptr: *const ffi::StdVideoH264PictureParameterSet =
+            std::ptr::null();
+        unsafe {
+            ffi::vk_video_get_h264_parameters(
+                &(*cmd.state.video.vid).vk,
                 cmd.state.video.params as *const _,
-                std_pic_info.seq_parameter_set_id.into(),
-            )
-        };
-
-        let pps = unsafe {
-            *ffi::vk_video_find_h264_dec_std_pps(
-                cmd.state.video.params as *const _,
-                std_pic_info.pic_parameter_set_id.into(),
-            )
-        };
+                frame_info as *const _,
+                &h264_pic_info as *const _,
+                &mut sps_ptr,
+                &mut pps_ptr,
+            );
+        }
+        let sps = unsafe { *sps_ptr };
+        let pps = unsafe { *pps_ptr };
 
         // I do not know why the size of the coloc buffer is not passed to the hardware.
         let (_coloc_size, mbhist_size, history_size) =
