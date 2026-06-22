@@ -123,12 +123,14 @@ static const struct {
 
    { "math.sqt (8) r0:hf r1<0>:hf null", VALID, { .le = 125 } },
    { "math.sqt (8) r0:hf r1<0>:hf null",
-     "Scalar broadcast on HF MATH inputs is not supported on this platform.", { .gt = 125 }
+     "Scalar broadcast on HF MATH inputs is not supported on this platform.", { .gt = 125, .lt = 350 }
    },
+   { "math.sqt (8) r0:hf r1<0>:hf null", VALID, { .ge = 350 } },
    { "math.invm (8) r0:hf r1:hf r2<0>:hf", VALID, { .le = 125 } },
    { "math.invm (8) r0:hf r1:hf r2<0>:hf",
-     "Scalar broadcast on HF MATH inputs is not supported on this platform.", { .gt = 125 }
+     "Scalar broadcast on HF MATH inputs is not supported on this platform.", { .gt = 125, .lt = 350 }
    },
+   { "math.invm (8) r0:hf r1:hf r2<0>:hf", VALID, { .ge = 350 } },
 
 
    /* Branch restrictions. */
