@@ -309,10 +309,6 @@ program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float16,
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float2,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float4,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float8,Fail
-program@execute@builtin@builtin-long-hadd-1.0.generated,Crash
-program@execute@builtin@builtin-long-rhadd-1.0.generated,Crash
-program@execute@builtin@builtin-ulong-hadd-1.0.generated,Crash
-program@execute@builtin@builtin-ulong-rhadd-1.0.generated,Crash
 program@execute@global-offset,Fail
 program@execute@global-offset@3d- input dependent,Fail
 program@execute@vector-conversion,Fail
