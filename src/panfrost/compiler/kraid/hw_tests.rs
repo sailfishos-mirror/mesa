@@ -531,6 +531,49 @@ pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Display) {
 }
 
 #[test]
+fn test_op_clz() {
+    const DATA_TYPES: &'static [DataType] =
+        &[DataType::U32, DataType::V2U16, DataType::V4U8];
+
+    // The .mask modifier only outputs all-bits if the input value is 0
+    // Test some edge-cases then test random data
+    let mut edge_cases: Vec<u32> = vec![
+        0x0000_0000, // CLZ -> 32, .mask -> 0xffffffff
+        0xffff_ffff,
+        0x8000_0000,
+        0x7fff_ffff,
+        0x0000_0002,
+        0x0000_0003,
+    ];
+    for n in 0..32 {
+        edge_cases.push(1u32 << n);
+        edge_cases.push(u32::MAX >> n);
+    }
+
+    for &src_type in DATA_TYPES {
+        for mask in [false, true] {
+            let op = OpClz {
+                dst: DstRef::None.into(),
+                src_type,
+                mask,
+                src: 0.into(),
+            };
+
+            let mut a = Acorn::new();
+            let mut idx = 0usize;
+            test_foldable_op_with(op, |_| {
+                let v = edge_cases
+                    .get(idx)
+                    .copied()
+                    .unwrap_or_else(|| a.get_u32() >> (a.get_u32() % 32));
+                idx += 1;
+                v
+            });
+        }
+    }
+}
+
+#[test]
 fn test_op_csel() {
     const DATA_TYPES: &'static [DataType] = &[
         DataType::S32,

@@ -538,6 +538,14 @@ impl<'a> ShaderFromNir<'a> {
                     sel_srcs: [srcs(0), srcs(1)],
                 });
             }
+            nir_op_uclz => {
+                b.push_op(OpClz {
+                    dst: dst.into(),
+                    src_type: src_type(0, NumericType::UnsignedInteger),
+                    src: srcs(0),
+                    mask: false,
+                });
+            }
             nir_op_ishl | nir_op_ishr | nir_op_ushr | nir_op_urol
             | nir_op_uror => {
                 b.push_op(OpShiftLop {

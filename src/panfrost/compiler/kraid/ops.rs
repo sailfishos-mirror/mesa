@@ -83,6 +83,45 @@ impl fmt::Display for OpBranch {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [U8, V2U8, V4U8, U16, V2U16, U32])]
+pub struct OpClz {
+    #[dst_type(VNIN)]
+    pub dst: Dst,
+
+    pub src_type: DataType,
+    pub mask: bool,
+
+    pub src: Src,
+}
+
+impl fmt::Display for OpClz {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = CLZ.{}{} {}",
+            &self.dst,
+            self.src_type,
+            if self.mask { ".mask" } else { "" },
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+impl PerCompFoldable for OpClz {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let src = f.get_src(&self.src);
+        let mut res = src.leading_zeros() - (64 - self.src_type.bits() as u32);
+
+        if self.mask && src == 0 {
+            res = u32::MAX;
+        }
+
+        f.set_dst(&self.dst, res.into());
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, V2I8, V4I8, I16, V2I16, I32, I64])]
 pub struct OpCopy {
     pub dst: Dst,
@@ -1193,6 +1232,7 @@ impl VirtualOpcode for OpSwz {
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     Branch(Box<OpBranch>),
+    Clz(Box<OpClz>),
     Copy(Box<OpCopy>),
     CSel(Box<OpCSel>),
     F16ToF32(Box<OpF16ToF32>),

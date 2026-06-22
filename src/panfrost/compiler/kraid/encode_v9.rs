@@ -513,6 +513,26 @@ impl TryFrom<CmpOp> for CmpfM {
     }
 }
 
+impl V9Instr for OpClz {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Clz::get_info(self.src_type, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Clz {
+            variant: self.src_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+            mask: self.mask.into(),
+        })
+    }
+}
+
 impl V9Instr for OpCSel {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1206,6 +1226,7 @@ macro_rules! v9_op_match_else {
     ($op: expr, |$x: ident| $y: expr, $z: expr) => {
         match $op {
             Op::Branch($x) => $y,
+            Op::Clz($x) => $y,
             Op::CSel($x) => $y,
             Op::F16ToF32($x) => $y,
             Op::F32ToF16($x) => $y,
