@@ -777,7 +777,7 @@ void r300_stop_query(struct r300_context *r300);
 void r300_translate_index_buffer(struct r300_context *r300,
                                  const struct pipe_draw_info *info,
                                  struct pipe_resource **out_index_buffer,
-                                 unsigned *index_size, unsigned index_offset,
+                                 unsigned *index_size, int index_offset,
                                  unsigned *start, unsigned count,
                                  const uint8_t **export_ptr);
 
