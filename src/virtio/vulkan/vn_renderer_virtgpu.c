@@ -113,7 +113,6 @@ struct sim_syncobj {
 
    int pending_fd;
    uint64_t pending_point;
-   bool pending_cpu;
 };
 
 static void
@@ -220,23 +219,7 @@ static void
 sim_syncobj_update_point_locked(struct sim_syncobj *syncobj, int poll_timeout)
 {
    if (syncobj->pending_fd >= 0) {
-      VkResult result;
-      if (syncobj->pending_cpu) {
-         if (poll_timeout == -1) {
-            const int max_cpu_timeout = 2000;
-            poll_timeout = max_cpu_timeout;
-            result = sim_syncobj_poll(syncobj->pending_fd, poll_timeout);
-            if (result == VK_TIMEOUT) {
-               vn_log(NULL, "cpu sync timed out after %dms; ignoring",
-                      poll_timeout);
-               result = VK_SUCCESS;
-            }
-         } else {
-            result = sim_syncobj_poll(syncobj->pending_fd, poll_timeout);
-         }
-      } else {
-         result = sim_syncobj_poll(syncobj->pending_fd, poll_timeout);
-      }
+      VkResult result = sim_syncobj_poll(syncobj->pending_fd, poll_timeout);
       if (result == VK_SUCCESS) {
          close(syncobj->pending_fd);
          syncobj->pending_fd = -1;
@@ -311,8 +294,7 @@ static int
 sim_syncobj_submit(struct virtgpu *gpu,
                    uint32_t syncobj_handle,
                    int sync_fd,
-                   uint64_t point,
-                   bool cpu)
+                   uint64_t point)
 {
    struct sim_syncobj *syncobj = sim_syncobj_lookup(gpu, syncobj_handle);
    if (!syncobj)
@@ -339,7 +321,6 @@ sim_syncobj_submit(struct virtgpu *gpu,
 
    syncobj->pending_fd = pending_fd;
    syncobj->pending_point = point;
-   syncobj->pending_cpu = cpu;
 
    mtx_unlock(&syncobj->mutex);
 
@@ -427,7 +408,7 @@ sim_syncobj_import(struct virtgpu *gpu, uint32_t syncobj_handle, int fd)
    if (!syncobj)
       return 0;
 
-   if (sim_syncobj_submit(gpu, syncobj_handle, fd, 1, false))
+   if (sim_syncobj_submit(gpu, syncobj_handle, fd, 1))
       return 0;
 
    return syncobj_handle;
@@ -438,13 +419,12 @@ sim_submit_signal_syncs(struct virtgpu *gpu,
                         int sync_fd,
                         struct vn_renderer_sync *const *syncs,
                         const uint64_t *sync_values,
-                        uint32_t sync_count,
-                        bool cpu)
+                        uint32_t sync_count)
 {
    for (uint32_t i = 0; i < sync_count; i++) {
       const uint64_t pending_point = sync_values[i];
       int ret = sim_syncobj_submit(gpu, syncs[i]->syncobj_handle, sync_fd,
-                                   pending_point, cpu);
+                                   pending_point);
       if (ret)
          return ret;
    }
@@ -466,8 +446,7 @@ sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit_batch *batch)
    int ret = drmIoctl(gpu->fd, DRM_IOCTL_VIRTGPU_EXECBUFFER, &args);
    if (!ret && batch->sync_count) {
       ret = sim_submit_signal_syncs(gpu, args.fence_fd, batch->syncs,
-                                    batch->sync_values, batch->sync_count,
-                                    batch->ring_idx == 0);
+                                    batch->sync_values, batch->sync_count);
       close(args.fence_fd);
    }
 
