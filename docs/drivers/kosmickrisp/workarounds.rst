@@ -234,6 +234,7 @@ Hopefully this does not affect performance much.
 
 | Log:
 | 2025-12-08: Workaround implemented and reported to Apple
+| 2026-06-22: Fixed in macOS 27 Beta (Build 26A5353q)
 
 KK_WORKAROUND_5
 ---------------
@@ -252,6 +253,7 @@ a premature discard.
 
 | Log:
 | 2025-12-01: Workaround implemented
+| 2026-06-22: Fixed in macOS 27 Beta (Build 26A5353q)
 
 KK_WORKAROUND_4
 ---------------
@@ -268,6 +270,7 @@ fragment is discarded. This issue is present in M1 and M2 chips.
 
 | Log:
 | 2025-11-22: Workaround implemented and reported to Apple
+| 2026-06-22: Fixed in macOS 27 Beta (Build 26A5353q)
 
 KK_WORKAROUND_3
 ---------------
@@ -323,6 +326,7 @@ Alternatively, the conditional can be changed to include ``simd_ballot(true)``:
 | Log:
 | 2025-09-09: Workaround implemented and reported to Apple
 | 2026-04-28: Workaround updated to expand to all ballot/vote ops.
+| 2026-06-22: Fixed in macOS 27 Beta (Build 26A5353q)
 
 KK_WORKAROUND_2
 ---------------
@@ -360,6 +364,7 @@ tricks the MSL compiler into believing we are not doing an infinite loop
 
 | Log:
 | 2025-09-08: Workaround implemented
+| 2026-06-22: Fixed in macOS 27 Beta (Build 26A5353q)
 
 KK_WORKAROUND_1
 ---------------
