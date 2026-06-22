@@ -13534,7 +13534,7 @@
         "description": "pco: drop i2i16 conversion for nir_interleave srcs",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
