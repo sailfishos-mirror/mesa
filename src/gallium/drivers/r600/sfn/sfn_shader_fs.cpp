@@ -19,13 +19,12 @@ namespace r600 {
 using std::string;
 
 FragmentShader::FragmentShader(const r600_shader_key& key):
-    Shader("FS"),
+    Shader("FS", key.ps.nr_cbufs),
     m_dual_source_blend(key.ps.dual_source_blend),
     m_max_color_exports(MAX2(key.ps.nr_cbufs, 1)),
     m_pos_input(127, false),
     m_fs_write_all(false),
     m_apply_sample_mask(key.ps.apply_sample_id_mask),
-    m_rat_base(key.ps.nr_cbufs),
     m_image_size_const_offset(key.ps.image_size_const_offset)
 {
 }
@@ -41,7 +40,7 @@ FragmentShader::do_get_shader_info(r600_shader *sh_info)
 
    sh_info->fs_write_all = m_fs_write_all;
 
-   sh_info->rat_base = m_rat_base;
+   sh_info->rat_base = get_rat_base();
    sh_info->uses_kill = m_uses_discard;
    sh_info->gs_prim_id_input = m_gs_prim_id_input;
    sh_info->nsys_inputs = m_nsys_inputs;

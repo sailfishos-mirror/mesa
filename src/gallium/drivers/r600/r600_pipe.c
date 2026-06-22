@@ -315,7 +315,8 @@ static void r600_init_shader_caps(struct r600_screen *rscreen)
 
 		if (rscreen->b.family >= CHIP_CEDAR && (
 			    i == MESA_SHADER_FRAGMENT ||
-			    i == MESA_SHADER_COMPUTE)) {
+			    i == MESA_SHADER_COMPUTE ||
+			    i == MESA_SHADER_VERTEX)) {
 			caps->max_shader_buffers = R600_MAX_USABLE_SSBOS;
 			caps->max_shader_images = R600_MAX_IMAGES;
 		}

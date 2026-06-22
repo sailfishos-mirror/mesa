@@ -69,7 +69,6 @@ private:
    Register *m_helper_invocation{nullptr};
    int m_nsys_inputs{0};
    bool m_apply_sample_mask{false};
-   int m_rat_base{0};
    int m_pos_driver_loc{0};
    int m_face_driver_loc{0};
    int m_image_size_const_offset{0};

@@ -134,6 +134,7 @@ union r600_shader_key {
 		unsigned        dual_source_blend:1;
 	} ps;
 	struct {
+		unsigned	nr_cbufs:4;
 		unsigned	as_es:1; /* export shader */
 		unsigned	as_ls:1; /* local shader */
 		unsigned	as_gs_a:1;

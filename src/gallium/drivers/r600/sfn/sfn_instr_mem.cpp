@@ -660,6 +660,8 @@ RatInstr::emit_ssbo_load(nir_intrinsic_instr *intr, Shader& shader)
       dest, dest_swz[comp_idx], addr_temp, 0, res_id, res_offset, formats[comp_idx]);
    ir->set_fetch_flag(FetchInstr::use_tc);
    ir->set_num_format(vtx_nf_int);
+   if (shader.get_alt_const())
+      ir->set_fetch_flag(FetchInstr::alt_const);
 
    shader.emit_instruction(ir);
    return true;
@@ -822,6 +824,8 @@ RatInstr::emit_ssbo_atomic_op(nir_intrinsic_instr *intr, Shader& shader)
       fetch->set_fetch_flag(FetchInstr::srf_mode);
       fetch->set_fetch_flag(FetchInstr::use_tc);
       fetch->set_fetch_flag(FetchInstr::vpm);
+      if (shader.get_alt_const())
+         fetch->set_fetch_flag(FetchInstr::alt_const);
       fetch->add_required_instr(wait);
       shader.chain_ssbo_read(fetch);
       shader.emit_instruction(fetch);
@@ -844,7 +848,10 @@ RatInstr::emit_ssbo_size(nir_intrinsic_instr *intr, Shader& shader)
       assert(0 && "dynamic buffer offset not supported in buffer_size");
 
    if (shader.chip_family() >= CHIP_PALM) {
-      shader.emit_instruction(new QueryBufferSizeInstr(dest, {0, 1, 2, 3}, res_id));
+      auto ir = new QueryBufferSizeInstr(dest, {0, 1, 2, 3}, res_id);
+      if (shader.get_alt_const())
+         ir->set_fetch_flag(FetchInstr::alt_const);
+      shader.emit_instruction(ir);
    } else {
       const unsigned index = res_id - R600_IMAGE_REAL_RESOURCE_OFFSET;
       shader.set_flag(Shader::sh_resinfo_via_uniform);
@@ -987,6 +994,8 @@ RatInstr::emit_image_load_or_atomic(nir_intrinsic_instr *intrin, Shader& shader)
       fetch->add_required_instr(wait);
       if (format_comp)
          fetch->set_fetch_flag(FetchInstr::format_comp_signed);
+      if (shader.get_alt_const())
+         fetch->set_fetch_flag(FetchInstr::alt_const);
 
       shader.emit_instruction(fetch);
       shader.chain_ssbo_read(fetch);
@@ -1016,7 +1025,10 @@ RatInstr::emit_image_size(nir_intrinsic_instr *intrin, Shader& shader)
    if (nir_intrinsic_image_dim(intrin) == GLSL_SAMPLER_DIM_BUF) {
       auto dest = vf.dest_vec4(intrin->def, pin_group);
       if (shader.chip_family() >= CHIP_PALM) {
-         shader.emit_instruction(new QueryBufferSizeInstr(dest, {0, 1, 2, 3}, res_id));
+         auto ir = new QueryBufferSizeInstr(dest, {0, 1, 2, 3}, res_id);
+         if (shader.get_alt_const())
+            ir->set_fetch_flag(FetchInstr::alt_const);
+         shader.emit_instruction(ir);
       } else {
          if (const_offset) {
             shader.set_flag(Shader::sh_resinfo_via_uniform);
@@ -1042,12 +1054,15 @@ RatInstr::emit_image_size(nir_intrinsic_instr *intrin, Shader& shader)
          /* Need to load the layers from a const buffer */
 
          auto dest = vf.dest_vec4(intrin->def, pin_group);
-         shader.emit_instruction(new TexInstr(TexInstr::get_resinfo,
-                                              dest,
-                                              {0, 1, 7, 3},
-                                              src,
-                                              res_id,
-                                              dyn_offset));
+         auto ir = new TexInstr(TexInstr::get_resinfo,
+                                dest,
+                                {0, 1, 7, 3},
+                                src,
+                                res_id,
+                                dyn_offset);
+         if (shader.get_alt_const())
+            ir->set_tex_flag(TexInstr::alt_const);
+         shader.emit_instruction(ir);
 
          shader.set_flag(Shader::sh_resinfo_via_uniform);
 
@@ -1114,12 +1129,15 @@ RatInstr::emit_image_size(nir_intrinsic_instr *intrin, Shader& shader)
          }
       } else {
          auto dest = vf.dest_vec4(intrin->def, pin_group);
-         shader.emit_instruction(new TexInstr(TexInstr::get_resinfo,
-                                              dest,
-                                              {0, 1, 2, 3},
-                                              src,
-                                              res_id,
-                                              dyn_offset));
+         auto ir = new TexInstr(TexInstr::get_resinfo,
+                                dest,
+                                {0, 1, 2, 3},
+                                src,
+                                res_id,
+                                dyn_offset);
+         if (shader.get_alt_const())
+            ir->set_tex_flag(TexInstr::alt_const);
+         shader.emit_instruction(ir);
       }
    }
    return true;
@@ -1144,12 +1162,11 @@ RatInstr::emit_image_samples(nir_intrinsic_instr *intrin, Shader& shader)
    else
       dyn_offset = shader.emit_load_to_register(vf.src(intrin->src[0], 0));
 
-   shader.emit_instruction(new TexInstr(TexInstr::get_resinfo,
-                                        tmp,
-                                        {3, 7, 7, 7},
-                                        src,
-                                        res_id,
-                                        dyn_offset));
+   auto ir =
+      new TexInstr(TexInstr::get_resinfo, tmp, {3, 7, 7, 7}, src, res_id, dyn_offset);
+   if (shader.get_alt_const())
+      ir->set_tex_flag(TexInstr::alt_const);
+   shader.emit_instruction(ir);
 
    shader.emit_instruction(new AluInstr(op1_mov, dest, tmp[0], AluInstr::write));
    return true;

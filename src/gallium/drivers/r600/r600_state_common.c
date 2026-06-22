@@ -1028,6 +1028,7 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 		if (rctx->ps_shader->current->shader.gs_prim_id_input && !rctx->gs_shader) {
 			key->vs.as_gs_a = true;
 		}
+		key->vs.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
 		break;
 	}
 	case MESA_SHADER_GEOMETRY:
@@ -1072,6 +1073,9 @@ r600_shader_precompile_key(const struct pipe_context *ctx,
 
 	switch (sel->type) {
 	case MESA_SHADER_VERTEX:
+		key->vs.nr_cbufs = sel->nir_info.ps_nr_cbufs;
+		break;
+
 	case MESA_SHADER_TESS_EVAL:
 		/* Assume no tess or GS for setting .as_es.  In order to
 		 * precompile with es, we'd need the other shaders we're linked
@@ -1694,7 +1698,7 @@ void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int sh
 	uint32_t *constants;
 	uint32_t base_offset;
 
-	if (shader_type == MESA_SHADER_FRAGMENT) {
+	if (shader_type == MESA_SHADER_FRAGMENT || shader_type == MESA_SHADER_VERTEX) {
 		images = &rctx->fragment_images;
 	} else if (shader_type == MESA_SHADER_COMPUTE) {
 		images = &rctx->compute_images;
@@ -1747,7 +1751,7 @@ void r600_cedar_to_hemlock_setup_buffer_constants(struct r600_context *rctx, int
 	struct r600_image_state *images = NULL;
 	struct r600_image_state *buffers = NULL;
 
-	if (shader_type == MESA_SHADER_FRAGMENT) {
+	if (shader_type == MESA_SHADER_FRAGMENT || shader_type == MESA_SHADER_VERTEX) {
 		images = &rctx->fragment_images;
 		buffers = &rctx->fragment_buffers;
 	} else if (shader_type == MESA_SHADER_COMPUTE) {

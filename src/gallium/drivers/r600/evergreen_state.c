@@ -1971,8 +1971,8 @@ static void evergreen_emit_image_state(struct r600_context *rctx, struct r600_at
 static void evergreen_emit_fragment_image_state(struct r600_context *rctx, struct r600_atom *atom)
 {
 	evergreen_emit_image_state(rctx, atom,
-				   R600_IMAGE_IMMED_RESOURCE_OFFSET,
-				   R600_IMAGE_REAL_RESOURCE_OFFSET, 0, 0);
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET, 0, 0);
 }
 
 static void evergreen_emit_compute_image_state(struct r600_context *rctx, struct r600_atom *atom)
@@ -1987,8 +1987,8 @@ static void evergreen_emit_fragment_buffer_state(struct r600_context *rctx, stru
 {
 	int offset = util_bitcount(rctx->fragment_images.enabled_mask);
 	evergreen_emit_image_state(rctx, atom,
-				   R600_IMAGE_IMMED_RESOURCE_OFFSET,
-				   R600_IMAGE_REAL_RESOURCE_OFFSET, offset, 0);
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET, offset, 0);
 }
 
 static void evergreen_emit_compute_buffer_state(struct r600_context *rctx, struct r600_atom *atom)
@@ -4536,14 +4536,16 @@ static void evergreen_set_shader_buffers(struct pipe_context *ctx,
 	unsigned old_mask;
 	bool has_vm = rctx->b.screen->info.r600_has_virtual_memory;
 
-	if ((shader != MESA_SHADER_FRAGMENT &&
-        shader != MESA_SHADER_COMPUTE) || count == 0)
+	if ((shader != MESA_SHADER_COMPUTE &&
+	     shader != MESA_SHADER_FRAGMENT &&
+	     shader != MESA_SHADER_VERTEX) ||
+	    count == 0)
 		return;
 
-	if (shader == MESA_SHADER_FRAGMENT)
-		istate = &rctx->fragment_buffers;
-	else if (shader == MESA_SHADER_COMPUTE)
+	if (shader == MESA_SHADER_COMPUTE)
 		istate = &rctx->compute_buffers;
+	else
+		istate = &rctx->fragment_buffers;
 
 	old_mask = istate->enabled_mask;
 	istate->atom.num_dw = 0;
@@ -4624,7 +4626,7 @@ static void evergreen_set_shader_buffers(struct pipe_context *ctx,
 		r600_mark_atom_dirty(rctx, &rctx->cb_misc_state.atom);
 	}
 
-	if (shader == MESA_SHADER_FRAGMENT)
+	if (shader != MESA_SHADER_COMPUTE)
 		r600_mark_atom_dirty(rctx, &istate->atom);
 }
 
@@ -4645,17 +4647,21 @@ static void evergreen_set_shader_images(struct pipe_context *ctx,
 	struct r600_image_state *istate = NULL;
 	bool has_vm = rctx->b.screen->info.r600_has_virtual_memory;
 	int idx;
-	if (shader != MESA_SHADER_FRAGMENT && shader != MESA_SHADER_COMPUTE)
+	if (shader != MESA_SHADER_FRAGMENT &&
+	    shader != MESA_SHADER_COMPUTE &&
+	    shader != MESA_SHADER_VERTEX)
 		return;
 	if (!count && !unbind_num_trailing_slots)
 		return;
 
-	if (shader == MESA_SHADER_FRAGMENT)
-		istate = &rctx->fragment_images;
-	else if (shader == MESA_SHADER_COMPUTE)
+	if (shader == MESA_SHADER_COMPUTE)
 		istate = &rctx->compute_images;
+	else
+		istate = &rctx->fragment_images;
 
-	assert (shader == MESA_SHADER_FRAGMENT || shader == MESA_SHADER_COMPUTE);
+	assert (shader == MESA_SHADER_FRAGMENT ||
+		shader == MESA_SHADER_COMPUTE ||
+		shader == MESA_SHADER_VERTEX);
 
 	old_mask = istate->enabled_mask;
 	istate->atom.num_dw = 0;
@@ -4844,7 +4850,7 @@ static void evergreen_set_shader_images(struct pipe_context *ctx,
 		r600_mark_atom_dirty(rctx, &rctx->cb_misc_state.atom);
 	}
 
-	if (shader == MESA_SHADER_FRAGMENT)
+	if (shader != MESA_SHADER_COMPUTE)
 		r600_mark_atom_dirty(rctx, &istate->atom);
 }
 

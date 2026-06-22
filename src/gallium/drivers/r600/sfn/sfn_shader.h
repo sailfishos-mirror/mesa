@@ -238,6 +238,12 @@ public:
    int remap_atomic_base(int base);
    auto evaluate_resource_offset(nir_intrinsic_instr *instr, int src_id)
       -> std::pair<int, PRegister>;
+   unsigned get_rat_base() const { return m_rat_base; }
+   bool get_alt_const() const
+   {
+      return m_shader_stage == MESA_SHADER_FRAGMENT ||
+             m_shader_stage == MESA_SHADER_GEOMETRY;
+   }
    int ssbo_image_offset() const { return m_ssbo_image_offset; }
    PRegister rat_return_address()
    {
@@ -275,7 +281,7 @@ protected:
 
    std::bitset<es_last> m_sv_values;
 
-   Shader(const char *type_id);
+   Shader(const char *type_id, unsigned rat_base = 0);
 
    const ShaderInput& input(int base) const;
 
@@ -366,12 +372,14 @@ private:
    PRegister m_atomic_update{nullptr};
    PRegister m_rat_return_address{nullptr};
 
+   mesa_shader_stage m_shader_stage{(mesa_shader_stage)-1};
    int32_t m_ssbo_image_offset{0};
    uint32_t m_nloops{0};
    uint32_t m_required_registers{0};
 
    int64_t m_shader_id;
    static int64_t s_next_shader_id;
+   unsigned m_rat_base;
 
    class InstructionChain : public InstrVisitor {
    public:
