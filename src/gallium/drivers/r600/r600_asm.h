@@ -112,6 +112,7 @@ struct r600_bytecode_vtx {
 	unsigned			offset;
 	unsigned			endian;
 	unsigned			buffer_index_mode;
+	bool				alt_const;
 
 	// READ_SCRATCH fields
 	unsigned			uncached;

@@ -264,6 +264,7 @@ fill_bytecode_fetch(const FetchInstr& fetch_instr)
    vtx.array_base = fetch_instr.array_base();
    vtx.array_size = fetch_instr.array_size();
    vtx.srf_mode_all = fetch_instr.has_fetch_flag(FetchInstr::srf_mode);
+   vtx.alt_const = fetch_instr.has_fetch_flag(FetchInstr::alt_const);
 
    return vtx;
 }
