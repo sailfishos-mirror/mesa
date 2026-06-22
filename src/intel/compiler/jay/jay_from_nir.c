@@ -529,7 +529,7 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
       jay_def avg = jay_alloc_def(b, dst.file, 1);
       jay_def bfn = jay_alloc_def(b, dst.file, 1);
       jay_AVG(b, type, avg, src[0], src[1]);
-      jay_BFN(b, bfn, 1, src[0], src[1], UTIL_LUT3(a & (b ^ c)));
+      jay_BFN(b, JAY_TYPE_U32, bfn, 1, src[0], src[1], UTIL_LUT3(a & (b ^ c)));
       jay_ADD(b, type, dst, avg, jay_negate(bfn));
       break;
    }
@@ -571,7 +571,8 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
    case nir_op_bitfield_select:
       assert(jay_type_size_bits(type) <= 32);
-      jay_BFN(b, dst, src[0], src[1], src[2], UTIL_LUT3((a & b) | (~a & c)));
+      jay_BFN(b, JAY_TYPE_U32, dst, src[0], src[1], src[2],
+              UTIL_LUT3((a & b) | (~a & c)));
       break;
 
    case nir_op_ubfe:
