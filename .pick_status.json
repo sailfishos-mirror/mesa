@@ -2144,7 +2144,7 @@
         "description": "nir/lower_amul: fix infinity recursion with different phi source order",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5e08f070f0fc99246fa8aab027feeee33b774177",
         "notes": null
