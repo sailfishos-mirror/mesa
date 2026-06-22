@@ -319,17 +319,7 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
    llvmpipe_init_fence_funcs(&llvmpipe->pipe);
 #endif
 
-#ifdef USE_GLOBAL_LLVM_CONTEXT
-   llvmpipe->context.ref = LLVMGetGlobalContext();
-   llvmpipe->context.owned = false;
-#if LLVM_VERSION_MAJOR == 15
-   if (llvmpipe->context.ref) {
-      LLVMContextSetOpaquePointers(llvmpipe->context.ref, false);
-   }
-#endif
-#else
    lp_context_create(&llvmpipe->context);
-#endif
 
    if (!llvmpipe->context.ref)
       goto fail;
