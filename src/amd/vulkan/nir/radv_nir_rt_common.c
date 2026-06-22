@@ -522,16 +522,18 @@ static void
 radv_build_iteration_token(nir_builder *b, const struct radv_compiler_info *compiler_info, nir_def *node_id)
 {
    nir_def *dst_addr = radv_build_token_begin(b, compiler_info, radv_packed_token_iteration, sizeof(struct radv_packed_iteration_token));
-   {
-      nir_def *dispatch_indices =
-         ac_nir_load_smem(b, 2, nir_imm_int64(b, compiler_info->rra_trace->ray_history_addr),
-                          nir_imm_int(b, offsetof(struct radv_ray_history_header, dispatch_index)), 4, 0);
-      nir_def *dispatch_index = nir_iadd(b, nir_channel(b, dispatch_indices, 0), nir_channel(b, dispatch_indices, 1));
-      nir_store_global(b, dispatch_index, dst_addr, .align_mul = 4);
-      dst_addr = nir_iadd_imm(b, dst_addr, 4);
+   if (!dst_addr)
+      return;
 
-      nir_store_global(b, node_id, dst_addr, .align_mul = 4);
-   }
+   nir_def *dispatch_indices =
+      ac_nir_load_smem(b, 2, nir_imm_int64(b, compiler_info->rra_trace->ray_history_addr),
+                       nir_imm_int(b, offsetof(struct radv_ray_history_header, dispatch_index)), 4, 0);
+   nir_def *dispatch_index = nir_iadd(b, nir_channel(b, dispatch_indices, 0), nir_channel(b, dispatch_indices, 1));
+   nir_store_global(b, dispatch_index, dst_addr, .align_mul = 4);
+   dst_addr = nir_iadd_imm(b, dst_addr, 4);
+
+   nir_store_global(b, node_id, dst_addr, .align_mul = 4);
+
    radv_build_token_end(b);
 }
 
@@ -539,16 +541,18 @@ static void
 radv_build_accel_struct_token(nir_builder *b, const struct radv_compiler_info *compiler_info, nir_def *bvh_base)
 {
    nir_def *dst_addr = radv_build_token_begin(b, compiler_info, radv_packed_token_accel_struct, sizeof(struct radv_packed_accel_struct_token));
-   {
-      nir_def *dispatch_indices =
-         ac_nir_load_smem(b, 2, nir_imm_int64(b, compiler_info->rra_trace->ray_history_addr),
-                          nir_imm_int(b, offsetof(struct radv_ray_history_header, dispatch_index)), 4, 0);
-      nir_def *dispatch_index = nir_iadd(b, nir_channel(b, dispatch_indices, 0), nir_channel(b, dispatch_indices, 1));
-      nir_store_global(b, dispatch_index, dst_addr, .align_mul = 4);
-      dst_addr = nir_iadd_imm(b, dst_addr, 4);
+   if (!dst_addr)
+      return;
 
-      nir_store_global(b, build_node_to_addr(compiler_info, b, bvh_base, false), dst_addr, .align_mul = 4);
-   }
+   nir_def *dispatch_indices =
+      ac_nir_load_smem(b, 2, nir_imm_int64(b, compiler_info->rra_trace->ray_history_addr),
+                       nir_imm_int(b, offsetof(struct radv_ray_history_header, dispatch_index)), 4, 0);
+   nir_def *dispatch_index = nir_iadd(b, nir_channel(b, dispatch_indices, 0), nir_channel(b, dispatch_indices, 1));
+   nir_store_global(b, dispatch_index, dst_addr, .align_mul = 4);
+   dst_addr = nir_iadd_imm(b, dst_addr, 4);
+
+   nir_store_global(b, build_node_to_addr(compiler_info, b, bvh_base, false), dst_addr, .align_mul = 4);
+
    radv_build_token_end(b);
 }
 
