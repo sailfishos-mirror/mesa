@@ -395,7 +395,6 @@ struct r600_sampler_states {
 	uint32_t			enabled_mask;
 	uint32_t			dirty_mask;
 	uint32_t			has_bordercolor_mask; /* which states contain the border color */
-	bool				shared_state;
 };
 
 struct r600_textures_info {
@@ -654,6 +653,7 @@ struct r600_context {
 	struct pipe_resource *append_fence;
 	uint32_t append_fence_id;
 	bool cayman_dealloc_state;
+	bool sampler_vs_as_ls_offset18_state;
 
 	/* Debug */
 #ifndef NDEBUG
