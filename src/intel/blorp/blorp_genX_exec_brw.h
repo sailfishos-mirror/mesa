@@ -1470,6 +1470,7 @@ blorp_emit_depth_stencil_config(struct blorp_batch *batch,
    }
 
    if (params->depth.enabled) {
+      info.depth_clear_value = params->depth.clear_color.f32[0];
       info.depth_surf = &params->depth.surf;
 
       info.depth_address =
@@ -1485,8 +1486,6 @@ blorp_emit_depth_stencil_config(struct blorp_batch *batch,
          info.hiz_address =
             blorp_emit_reloc(batch, dw + isl_dev->ds.hiz_offset / 4,
                              hiz_address, 0);
-
-         info.depth_clear_value = params->depth.clear_color.f32[0];
       }
    }
 
@@ -2257,6 +2256,7 @@ xy_aux_mode(const struct blorp_surface_info *info)
    case ISL_AUX_USAGE_CCS_E:
    case ISL_AUX_USAGE_FCV_CCS_E:
    case ISL_AUX_USAGE_STC_CCS:
+   case ISL_AUX_USAGE_ZCS:
       return XY_CCS_E;
    case ISL_AUX_USAGE_NONE:
       return XY_NONE;
@@ -2364,6 +2364,7 @@ blorp_xy_block_copy_blt(struct blorp_batch *batch,
 #if GFX_VER < 20
       /* XY_BLOCK_COPY_BLT only supports AUX_CCS. */
       blt.DestinationDepthStencilResource =
+         params->dst.aux_usage == ISL_AUX_USAGE_ZCS ||
          params->dst.aux_usage == ISL_AUX_USAGE_STC_CCS;
 #endif
       blt.DestinationTargetMemory =
@@ -2410,6 +2411,7 @@ blorp_xy_block_copy_blt(struct blorp_batch *batch,
 #if GFX_VER < 20
       /* XY_BLOCK_COPY_BLT only supports AUX_CCS. */
       blt.SourceDepthStencilResource =
+         params->src.aux_usage == ISL_AUX_USAGE_ZCS ||
          params->src.aux_usage == ISL_AUX_USAGE_STC_CCS;
 #endif
       blt.SourceTargetMemory =
@@ -2507,6 +2509,7 @@ blorp_xy_fast_color_blit(struct blorp_batch *batch,
       blt.DestinationVerticalAlign = isl_encode_valign(dst_align.height);
       /* XY_FAST_COLOR_BLT only supports AUX_CCS. */
       blt.DestinationDepthStencilResource =
+         params->dst.aux_usage == ISL_AUX_USAGE_ZCS ||
          params->dst.aux_usage == ISL_AUX_USAGE_STC_CCS;
       blt.DestinationTargetMemory =
          params->dst.addr.local_hint ? XY_MEM_LOCAL : XY_MEM_SYSTEM;

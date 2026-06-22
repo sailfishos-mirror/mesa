@@ -6155,6 +6155,7 @@ cmd_buffer_emit_depth_stencil(struct anv_cmd_buffer *cmd_buffer)
 
       info.depth_surf = &depth_surface->isl;
       info.depth_address = anv_address_physical(depth_address);
+      info.depth_clear_value = anv_image_hiz_clear_value(image).f32[0];
 
       isl_surf_usage_flags_t isl_usage = ISL_SURF_USAGE_DEPTH_BIT;
       if (anv_image_is_protected(image))
@@ -6163,9 +6164,7 @@ cmd_buffer_emit_depth_stencil(struct anv_cmd_buffer *cmd_buffer)
          anv_mocs(device, depth_address.bo, isl_usage);
 
       info.hiz_usage = gfx->depth_att.aux_usage;
-      if (info.hiz_usage != ISL_AUX_USAGE_NONE) {
-         assert(isl_aux_usage_has_hiz(info.hiz_usage));
-
+      if (isl_aux_usage_has_hiz(info.hiz_usage)) {
          const struct anv_surface *hiz_surface =
             &image->planes[depth_plane].aux_surface;
          const struct anv_address hiz_address =
@@ -6175,8 +6174,6 @@ cmd_buffer_emit_depth_stencil(struct anv_cmd_buffer *cmd_buffer)
 
          info.hiz_surf = &hiz_surface->isl;
          info.hiz_address = anv_address_physical(hiz_address);
-
-         info.depth_clear_value = anv_image_hiz_clear_value(image).f32[0];
       }
    }
 

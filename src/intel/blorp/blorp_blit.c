@@ -2879,6 +2879,7 @@ blorp_blitter_supports_aux(const struct intel_device_info *devinfo,
    case ISL_AUX_USAGE_CCS_E:
    case ISL_AUX_USAGE_FCV_CCS_E:
    case ISL_AUX_USAGE_STC_CCS:
+   case ISL_AUX_USAGE_ZCS:
       return devinfo->verx10 >= 125;
    default:
       return false;
@@ -3556,6 +3557,7 @@ blorp_copy(struct blorp_batch *batch,
    assert(params.src.aux_usage == ISL_AUX_USAGE_NONE ||
           params.src.aux_usage == ISL_AUX_USAGE_HIZ ||
           params.src.aux_usage == ISL_AUX_USAGE_HIZ_CCS_WT ||
+          params.src.aux_usage == ISL_AUX_USAGE_ZCS ||
           params.src.aux_usage == ISL_AUX_USAGE_MCS ||
           params.src.aux_usage == ISL_AUX_USAGE_MCS_CCS ||
           params.src.aux_usage == ISL_AUX_USAGE_CCS_E ||

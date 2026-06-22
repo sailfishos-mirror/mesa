@@ -3104,7 +3104,7 @@ iris_create_sampler_view(struct pipe_context *ctx,
         isv->res->aux.usage == ISL_AUX_USAGE_FCV_CCS_E) &&
        !isl_format_supports_ccs_e(devinfo, isv->view.format)) {
       aux_usages = 1 << ISL_AUX_USAGE_NONE;
-   } else if (isl_aux_usage_has_hiz(isv->res->aux.usage)) {
+   } else if (isl_surf_usage_is_depth(isv->res->surf.usage)) {
       aux_usages = 1 << iris_depth_texture_aux_usage(devinfo, isv->res);
       if (isv->res->aux.usage != ISL_AUX_USAGE_HIZ_CCS ||
           devinfo->verx10 < 125) {
@@ -3942,12 +3942,12 @@ iris_set_framebuffer_state(struct pipe_context *ctx,
 
          view.format = zres->surf.format;
 
-         if (zres->aux.usage != ISL_AUX_USAGE_NONE) {
-            info.hiz_usage = zres->aux.usage;
+         if (isl_aux_usage_has_hiz(zres->aux.usage)) {
             info.hiz_surf = &zres->aux.surf;
             info.hiz_address = zres->aux.bo->address + zres->aux.offset;
          }
 
+         info.hiz_usage = zres->aux.usage;
          ice->state.hiz_usage = info.hiz_usage;
       }
 

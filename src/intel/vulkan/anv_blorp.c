@@ -545,6 +545,17 @@ is_image_emulated(const struct anv_image *image)
 }
 
 static bool
+is_image_zcs_compressed(const struct anv_image *image)
+{
+   if (!(image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT))
+      return false;
+
+   const uint32_t plane =
+      anv_image_aspect_to_plane(image, VK_IMAGE_ASPECT_DEPTH_BIT);
+   return image->planes[plane].aux_usage == ISL_AUX_USAGE_ZCS;
+}
+
+static bool
 is_image_hiz_compressed(const struct anv_image *image)
 {
    if (!(image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT))
@@ -639,8 +650,10 @@ anv_blorp_execute_on_companion(struct anv_cmd_buffer *cmd_buffer,
       if ((intel_needs_workaround(devinfo, 22019225126) ||
            devinfo->verx10 == 125) &&
           ((src_image && (is_image_stc_ccs_compressed(src_image) ||
+                          is_image_zcs_compressed(src_image) ||
                           is_image_hiz_compressed(src_image))) ||
            (dst_image && (is_image_stc_ccs_compressed(dst_image) ||
+                          is_image_zcs_compressed(dst_image) ||
                           is_image_hiz_compressed(dst_image)))))
          return true;
    }
@@ -651,11 +664,13 @@ anv_blorp_execute_on_companion(struct anv_cmd_buffer *cmd_buffer,
    if (src_image && is_image_hiz_non_wt_ccs_compressed(src_image))
       return true;
 
-   /* Pre Gfx20 the only engine that can generate STC_CCS data is RCS through
-    * the stencil output due to the difference in compression pairing bit. On
-    * Gfx20 there is no difference.
+   /* Pre Gfx20 the only engine that can generate ZCS/STC_CCS data is RCS
+    * through depth/stencil output due to the difference in compression
+    * pairing bit. On Gfx20 there is no difference.
     */
-   if (devinfo->ver < 20 && dst_image && is_image_stc_ccs_compressed(dst_image))
+   if (devinfo->ver < 20 && dst_image &&
+       (is_image_zcs_compressed(dst_image) ||
+        is_image_stc_ccs_compressed(dst_image)))
       return true;
 
    /* Blitter & compute engine cannot generate HiZ data */
