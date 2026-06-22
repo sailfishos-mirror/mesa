@@ -98,6 +98,7 @@ fill_bytecode_tex(const TexInstr& tex_instr)
    tex.offset_z = tex_instr.get_offset(2);
    tex.resource_index_mode = tex_instr.resource_index_mode();
    tex.sampler_index_mode = tex_instr.sampler_index_mode();
+   tex.alt_const = tex_instr.has_tex_flag(TexInstr::alt_const);
 
    if (tex_instr.opcode() == TexInstr::get_gradient_h ||
        tex_instr.opcode() == TexInstr::get_gradient_v)

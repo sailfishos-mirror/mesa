@@ -1666,7 +1666,8 @@ static int r600_bytecode_tex_build(struct r600_bytecode *bc, struct r600_bytecod
 			    EG_S_SQ_TEX_WORD0_INST_MOD(tex->inst_mod) |
 				S_SQ_TEX_WORD0_RESOURCE_ID(tex->resource_id) |
 				S_SQ_TEX_WORD0_SRC_GPR(tex->src_gpr) |
-				S_SQ_TEX_WORD0_SRC_REL(tex->src_rel);
+				S_SQ_TEX_WORD0_SRC_REL(tex->src_rel) |
+				S_SQ_TEX_WORD0_ALT_CONST(tex->alt_const);
 	if (bc->gfx_level >= EVERGREEN)
 		bc->bytecode[id] |= ((tex->sampler_index_mode & 0x3) << 27) | // S_SQ_TEX_WORD0_SIM(tex->sampler_index_mode);
 				((tex->resource_index_mode & 0x3) << 25); // S_SQ_TEX_WORD0_RIM(tex->resource_index_mode)
@@ -2526,6 +2527,9 @@ void r600_bytecode_disasm(struct r600_bytecode *bc)
 				fprintf(stderr, "OY:%d ", tex->offset_y);
 			if (tex->offset_z)
 				fprintf(stderr, "OZ:%d ", tex->offset_z);
+
+			if (tex->alt_const)
+				fprintf(stderr, "AC ");
 
 			id += 4;
 			fprintf(stderr, "\n");
