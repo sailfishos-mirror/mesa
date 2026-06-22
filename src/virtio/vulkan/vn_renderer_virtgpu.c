@@ -105,8 +105,6 @@ static struct {
    mtx_t mutex;
    struct hash_table *syncobjs;
    struct util_idalloc ida;
-
-   int signaled_fd;
 } sim;
 
 struct sim_syncobj {
@@ -150,22 +148,6 @@ sim_syncobj_create(struct virtgpu *gpu, bool signaled)
       }
 
       util_idalloc_init(&sim.ida, 32);
-
-      struct drm_virtgpu_execbuffer args = {
-         .flags = VIRTGPU_EXECBUF_RING_IDX | VIRTGPU_EXECBUF_FENCE_FD_OUT,
-         .ring_idx = 0, /* CPU ring */
-      };
-      int ret = drmIoctl(gpu->fd, DRM_IOCTL_VIRTGPU_EXECBUFFER, &args);
-      if (ret || args.fence_fd < 0) {
-         _mesa_hash_table_destroy(sim.syncobjs, NULL);
-         sim.syncobjs = NULL;
-         mtx_unlock(&sim.mutex);
-         mtx_destroy(&syncobj->mutex);
-         free(syncobj);
-         return 0;
-      }
-
-      sim.signaled_fd = args.fence_fd;
    }
 
    const unsigned syncobj_handle = util_idalloc_alloc(&sim.ida) + 1;
@@ -432,7 +414,7 @@ sim_syncobj_export(struct virtgpu *gpu, uint32_t syncobj_handle)
    if (syncobj->pending_fd >= 0)
       fd = os_dupfd_cloexec(syncobj->pending_fd);
    else
-      fd = os_dupfd_cloexec(sim.signaled_fd);
+      fd = -1;
    mtx_unlock(&syncobj->mutex);
 
    return fd;
