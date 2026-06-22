@@ -3013,7 +3013,9 @@ static void
 setup_compute_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 {
    assert(!nj->s->prog_data->cs.generate_local_id);
-   assert(!nj->s->prog_data->cs.uses_btd_stack_ids);
+
+   if (nj->s->prog_data->cs.uses_btd_stack_ids)
+      nj->payload.u1 = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
 
    nj->payload.inline_data =
       read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
