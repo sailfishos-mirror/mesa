@@ -223,6 +223,7 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
       .KHR_video_queue = video,
       .KHR_video_decode_queue = video,
       .KHR_video_decode_h264 = h264dec,
+      .KHR_video_maintenance1 = video,
       .KHR_vulkan_memory_model = info->cls_eng3d >= MAXWELL_A,
       .KHR_workgroup_memory_explicit_layout = true,
       .KHR_zero_initialize_workgroup_memory = true,
@@ -574,6 +575,9 @@ nvk_get_device_features(const struct nv_device_info *info,
       /* VK_KHR_unified_image_layouts */
       .unifiedImageLayouts = true,
       .unifiedImageLayoutsVideo = true,
+
+      /* VK_KHR_video_maintenance1 */
+      .videoMaintenance1 = true,
 
       /* VK_KHR_workgroup_memory_explicit_layout */
       .workgroupMemoryExplicitLayout = true,
