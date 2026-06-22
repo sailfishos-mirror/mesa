@@ -1133,6 +1133,7 @@ struct pipe_caps {
    unsigned max_gs_invocations;
    unsigned max_shader_buffer_size;
    unsigned max_combined_shader_buffers;
+   unsigned max_combined_image_uniforms;
    unsigned max_combined_hw_atomic_counters;
    unsigned max_combined_hw_atomic_counter_buffers;
    unsigned max_texture_upload_memory_budget;

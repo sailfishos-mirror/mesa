@@ -552,16 +552,19 @@ void st_init_limits(struct pipe_screen *screen,
          extensions->ARB_shader_storage_buffer_object = GL_TRUE;
    }
 
-   c->MaxCombinedImageUniforms = MAX3(
-      c->Program[MESA_SHADER_VERTEX].MaxImageUniforms +
-      c->Program[MESA_SHADER_TESS_CTRL].MaxImageUniforms +
-      c->Program[MESA_SHADER_TESS_EVAL].MaxImageUniforms +
-      c->Program[MESA_SHADER_GEOMETRY].MaxImageUniforms +
-      c->Program[MESA_SHADER_FRAGMENT].MaxImageUniforms,
-      c->Program[MESA_SHADER_TASK].MaxImageUniforms +
-      c->Program[MESA_SHADER_MESH].MaxImageUniforms +
-      c->Program[MESA_SHADER_FRAGMENT].MaxImageUniforms,
-      c->Program[MESA_SHADER_COMPUTE].MaxImageUniforms);
+   c->MaxCombinedImageUniforms =
+      likely(!screen->caps.max_combined_image_uniforms) ?
+      MAX3(
+         c->Program[MESA_SHADER_VERTEX].MaxImageUniforms +
+         c->Program[MESA_SHADER_TESS_CTRL].MaxImageUniforms +
+         c->Program[MESA_SHADER_TESS_EVAL].MaxImageUniforms +
+         c->Program[MESA_SHADER_GEOMETRY].MaxImageUniforms +
+         c->Program[MESA_SHADER_FRAGMENT].MaxImageUniforms,
+         c->Program[MESA_SHADER_TASK].MaxImageUniforms +
+         c->Program[MESA_SHADER_MESH].MaxImageUniforms +
+         c->Program[MESA_SHADER_FRAGMENT].MaxImageUniforms,
+         c->Program[MESA_SHADER_COMPUTE].MaxImageUniforms) :
+      screen->caps.max_combined_image_uniforms;
    c->MaxCombinedShaderOutputResources += c->MaxCombinedImageUniforms;
    c->MaxImageUnits = MAX_IMAGE_UNITS;
    if (c->Program[MESA_SHADER_FRAGMENT].MaxImageUniforms &&
