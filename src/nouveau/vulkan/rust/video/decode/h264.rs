@@ -534,6 +534,10 @@ impl VideoDecoder for Decoder {
 
         nvh264.explicitEOSPresentFlag = 1;
         nvh264.eos = EOS_ARRAY;
+        // Decode watchdog: gptimer_on is set in the control params, but the
+        // firmware needs a non-zero timeout or the timer never fires and a
+        // wedged decode hangs the engine forever. Matches the blob.
+        nvh264.gptimer_timeout_value = 81000000;
 
         nvh264.slice_count = h264_pic_info.sliceCount.into();
         nvh264.stream_len = u32::try_from(frame_info.srcBufferRange).unwrap()
