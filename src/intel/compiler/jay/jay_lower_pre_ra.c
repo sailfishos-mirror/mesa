@@ -44,7 +44,9 @@ lower_contiguous_sources(jay_builder *b, jay_inst *I)
             } else {
                /* Insert a copy to access a duplicated index */
                jay_def copy = jay_alloc_def(b, I->src[s].file, 1);
-               jay_MOV(b, copy, jay_extract(I->src[s], c));
+               jay_def x = jay_extract(I->src[s], c);
+               x.negate = x.abs = false; /* XXX: rework modifiers */
+               jay_MOV(b, copy, x);
                jay_insert_channel(b, &I->src[s], c, copy);
             }
          }
