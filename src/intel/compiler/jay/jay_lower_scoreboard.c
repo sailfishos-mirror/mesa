@@ -511,6 +511,13 @@ jay_lower_scoreboard_trivial(jay_shader *shader)
 
          jay_builder b = jay_init_builder(func, jay_after_inst(I));
          sync_sbids(&b, BITFIELD_BIT(0), GEN_SBID_DST);
+
+         /* Barriers are non-EOT gateway messages. Insert the needed SYNC */
+         if (I->op == JAY_OPCODE_SEND &&
+             jay_send_sfid(I) == GEN_SFID_MESSAGE_GATEWAY) {
+            b.cursor = jay_after_inst(I);
+            jay_SYNC(&b, jay_null(), TGL_SYNC_BAR);
+         }
       } else if (I->op == JAY_OPCODE_SCHEDULE_BARRIER) {
          jay_remove_instruction(I);
       } else {
