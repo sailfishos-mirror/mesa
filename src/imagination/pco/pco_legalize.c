@@ -199,9 +199,15 @@ static bool legalize_dynidx(pco_instr *instr)
    assert(pco_ref_is_hwreg(src0));
    assert(pco_ref_is_hwreg(src1) || pco_ref_is_null(src1));
 
+   unsigned src0_base = pco_ref_get_reg_index(src0);
+   unsigned src1_base = pco_ref_is_null(src1) ? 0u
+                                              : pco_ref_get_reg_index(src1);
+
    assert(pco_ref_is_null(src1) == pco_ref_is_null(dest1));
 
    bool two_srcs = !pco_ref_is_null(src1);
+   unsigned rpt = pco_instr_get_rpt(instr);
+   assert(rpt < 2 || !two_srcs);
 
    pco_ref elem = instr->src[2];
    pco_ref stride = instr->src[3];
@@ -210,12 +216,36 @@ static bool legalize_dynidx(pco_instr *instr)
    pco_ref idx_reg =
       pco_ref_hwreg_idx(idx_reg_num, idx_reg_num, PCO_REG_CLASS_INDEX);
 
-   pco_imul32(&b,
-              idx_reg,
-              elem,
-              stride,
-              pco_ref_null(),
-              .exec_cnd = pco_instr_get_exec_cnd(instr));
+   if (src0_base <= ROGUE_MAX_REG_OFFSET && src1_base <= ROGUE_MAX_REG_OFFSET) {
+      pco_imul32(&b,
+                 idx_reg,
+                 elem,
+                 stride,
+                 pco_ref_null(),
+                 .exec_cnd = pco_instr_get_exec_cnd(instr));
+   } else {
+      unsigned src_base = two_srcs ? MIN2(src0_base, src1_base) : src0_base;
+      assert((!two_srcs ||
+              (MAX2(src0_base, src1_base) - MIN2(src0_base, src1_base)) <=
+                 ROGUE_MAX_REG_OFFSET) &&
+             "Need to use two index registers!");
+
+      pco_movi32(&b,
+                 idx_reg,
+                 pco_ref_imm32(src_base),
+                 .exec_cnd = pco_instr_get_exec_cnd(instr));
+      pco_imadd32(&b,
+                  idx_reg,
+                  elem,
+                  stride,
+                  idx_reg,
+                  pco_ref_null(),
+                  .exec_cnd = pco_instr_get_exec_cnd(instr));
+
+      src0 = pco_ref_set_reg_index(src0, src0_base - src_base);
+      if (two_srcs)
+         src1 = pco_ref_set_reg_index(src1, src1_base - src_base);
+   }
 
    src0 = pco_ref_hwreg_idx_from(idx_reg_num, src0);
 
@@ -228,10 +258,138 @@ static bool legalize_dynidx(pco_instr *instr)
                 src1,
                 .exec_cnd = pco_instr_get_exec_cnd(instr));
    } else {
-      pco_mbyp(&b, dest0, src0, .exec_cnd = pco_instr_get_exec_cnd(instr));
+      pco_mbyp(&b,
+               dest0,
+               src0,
+               .exec_cnd = pco_instr_get_exec_cnd(instr),
+               .rpt = rpt);
    }
 
    pco_instr_delete(instr);
+
+   return true;
+}
+
+/**
+ * \brief Legalize sample dynamic index pseudo-instruction.
+ *
+ * \param[in,out] instr PCO instr.
+ * \return True if progress was made.
+ */
+static bool legalize_smp_dynidx(pco_instr *instr)
+{
+   enum pco_exec_cnd exec_cnd = pco_instr_get_exec_cnd(instr);
+   bool wrt = instr->op == PCO_OP_SMP_WRT_DYNIDX;
+
+   pco_builder b =
+      pco_builder_create(instr->parent_func, pco_cursor_before_instr(instr));
+
+   unsigned tex_idx_reg_num = 0;
+
+   pco_ref *tex_state = &instr->src[1];
+   assert(pco_ref_is_hwreg(*tex_state));
+   unsigned tex_state_base = pco_ref_get_reg_index(*tex_state);
+   bool tex_state_base_large = !(tex_state_base <= ROGUE_MAX_REG_OFFSET);
+
+   pco_ref *tex_state_elem = &instr->src[6];
+   pco_ref *tex_state_stride = &instr->src[7];
+   assert(pco_ref_is_null(*tex_state_elem) ==
+          pco_ref_is_null(*tex_state_stride));
+
+   pco_ref tex_idx_reg =
+      pco_ref_hwreg_idx(tex_idx_reg_num, tex_idx_reg_num, PCO_REG_CLASS_INDEX);
+
+   if (!pco_ref_is_null(*tex_state_elem)) {
+      if (!tex_state_base_large) {
+         pco_imul32(&b,
+                    tex_idx_reg,
+                    *tex_state_elem,
+                    *tex_state_stride,
+                    pco_ref_null(),
+                    .exec_cnd = exec_cnd);
+      } else {
+         pco_movi32(&b,
+                    tex_idx_reg,
+                    pco_ref_imm32(tex_state_base),
+                    .exec_cnd = exec_cnd);
+         pco_imadd32(&b,
+                     tex_idx_reg,
+                     *tex_state_elem,
+                     *tex_state_stride,
+                     tex_idx_reg,
+                     pco_ref_null(),
+                     .exec_cnd = exec_cnd);
+         *tex_state = pco_ref_set_reg_index(*tex_state, 0u);
+      }
+
+      *tex_state = pco_ref_hwreg_idx_from(tex_idx_reg_num, *tex_state);
+
+      *tex_state_elem = pco_ref_null();
+      *tex_state_stride = pco_ref_null();
+   } else if (tex_state_base_large) {
+      pco_movi32(&b,
+                 tex_idx_reg,
+                 pco_ref_imm32(tex_state_base),
+                 .exec_cnd = exec_cnd);
+      *tex_state = pco_ref_set_reg_index(*tex_state, 0u);
+      *tex_state = pco_ref_hwreg_idx_from(tex_idx_reg_num, *tex_state);
+   }
+
+   /**/
+
+   unsigned smp_idx_reg_num = 1;
+
+   pco_ref *smp_state = &instr->src[3];
+   assert(pco_ref_is_hwreg(*smp_state));
+   unsigned smp_state_base = pco_ref_get_reg_index(*smp_state);
+   bool smp_state_base_large = !(smp_state_base <= ROGUE_MAX_REG_OFFSET);
+
+   pco_ref *smp_state_elem = &instr->src[8];
+   pco_ref *smp_state_stride = &instr->src[9];
+   assert(pco_ref_is_null(*smp_state_elem) ==
+          pco_ref_is_null(*smp_state_stride));
+
+   pco_ref smp_idx_reg =
+      pco_ref_hwreg_idx(smp_idx_reg_num, smp_idx_reg_num, PCO_REG_CLASS_INDEX);
+
+   if (!pco_ref_is_null(*smp_state_elem)) {
+      if (!smp_state_base_large) {
+         pco_imul32(&b,
+                    smp_idx_reg,
+                    *smp_state_elem,
+                    *smp_state_stride,
+                    pco_ref_null(),
+                    .exec_cnd = exec_cnd);
+      } else {
+         pco_movi32(&b,
+                    smp_idx_reg,
+                    pco_ref_imm32(smp_state_base),
+                    .exec_cnd = exec_cnd);
+         pco_imadd32(&b,
+                     smp_idx_reg,
+                     *smp_state_elem,
+                     *smp_state_stride,
+                     smp_idx_reg,
+                     pco_ref_null(),
+                     .exec_cnd = exec_cnd);
+         *smp_state = pco_ref_set_reg_index(*smp_state, 0u);
+      }
+
+      *smp_state = pco_ref_hwreg_idx_from(smp_idx_reg_num, *smp_state);
+
+      *smp_state_elem = pco_ref_null();
+      *smp_state_stride = pco_ref_null();
+   } else if (smp_state_base_large) {
+      pco_movi32(&b,
+                 smp_idx_reg,
+                 pco_ref_imm32(smp_state_base),
+                 .exec_cnd = exec_cnd);
+      *smp_state = pco_ref_set_reg_index(*smp_state, 0u);
+      *smp_state = pco_ref_hwreg_idx_from(smp_idx_reg_num, *smp_state);
+   }
+
+   instr->op = wrt ? PCO_OP_SMP_WRT : PCO_OP_SMP;
+   instr->num_srcs = 6u;
 
    return true;
 }
@@ -284,6 +442,10 @@ static bool legalize_pseudo_post_ra(pco_instr *instr)
 
    case PCO_OP_DYNIDX:
       return legalize_dynidx(instr);
+
+   case PCO_OP_SMP_DYNIDX:
+   case PCO_OP_SMP_WRT_DYNIDX:
+      return legalize_smp_dynidx(instr);
 
    case PCO_OP_OP_ATOMIC_OFFSET: {
       pco_builder b =
@@ -519,6 +681,12 @@ static bool legalize_pseudo(pco_instr *instr, bool pre_ra)
 static bool try_legalize_large_hwreg_offsets(pco_instr *instr,
                                              const struct pco_op_info *info)
 {
+   /* Skip, will be handled. */
+   if (instr->op == PCO_OP_DYNIDX || instr->op == PCO_OP_SMP_DYNIDX ||
+       instr->op == PCO_OP_SMP_WRT_DYNIDX) {
+      return false;
+   }
+
    unsigned large_hwreg_count = 0;
    pco_ref *large_hwregs[_PCO_OP_MAX_SRCS + _PCO_OP_MAX_DESTS] = { 0 };
 
@@ -528,7 +696,7 @@ static bool try_legalize_large_hwreg_offsets(pco_instr *instr,
 
    /* Check dests. */
    pco_foreach_instr_dest_hwreg (pdest, instr) {
-      if (pco_ref_get_reg_index(*pdest) < 256)
+      if (pco_ref_get_reg_index(*pdest) <= ROGUE_MAX_REG_OFFSET)
          continue;
 
       large_hwregs[large_hwreg_count++] = pdest;
@@ -541,7 +709,7 @@ static bool try_legalize_large_hwreg_offsets(pco_instr *instr,
 
    /* Check srcs. */
    pco_foreach_instr_src_hwreg (psrc, instr) {
-      if (pco_ref_get_reg_index(*psrc) < 256)
+      if (pco_ref_get_reg_index(*psrc) <= ROGUE_MAX_REG_OFFSET)
          continue;
 
       large_hwregs[large_hwreg_count++] = psrc;
@@ -556,7 +724,7 @@ static bool try_legalize_large_hwreg_offsets(pco_instr *instr,
       return false;
 
    /* We'd need more than one indexed register to support this. */
-   assert((max_large_offset - min_large_offset) < 256);
+   assert((max_large_offset - min_large_offset) <= ROGUE_MAX_REG_OFFSET);
 
    pco_builder b =
       pco_builder_create(instr->parent_func, pco_cursor_before_instr(instr));

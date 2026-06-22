@@ -70,17 +70,17 @@ static bool lower_load_vulkan_descriptor(nir_builder *b,
 
 static nir_def *array_elem_from_deref(nir_builder *b, nir_deref_instr *deref)
 {
-   unsigned array_elem = 0;
+   nir_def *array_elem = nir_imm_int(b, 0);
    if (deref->deref_type != nir_deref_type_var) {
       assert(deref->deref_type == nir_deref_type_array);
 
-      array_elem = nir_src_as_uint(deref->arr.index);
+      array_elem = deref->arr.index.ssa;
 
       deref = nir_deref_instr_parent(deref);
    }
 
    assert(deref->deref_type == nir_deref_type_var);
-   return nir_imm_int(b, array_elem);
+   return array_elem;
 }
 
 static inline bool is_comb_img_smp(unsigned desc_set,

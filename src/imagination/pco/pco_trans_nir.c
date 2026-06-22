@@ -1860,7 +1860,7 @@ static pco_instr *trans_load_packed_sample_location(trans_ctx *tctx,
    assert(range->count > 0);
 
    /* TODO: add the start onto the offset src instead? */
-   assert(range->start < 256);
+   assert(range->start <= ROGUE_MAX_REG_OFFSET);
 
    pco_ref src = pco_ref_hwreg(range->start, PCO_REG_CLASS_SHARED);
    src = pco_ref_hwreg_idx_from(idx_reg_num, src);
@@ -1882,81 +1882,112 @@ static bool desc_set_binding_is_comb_img_smp(unsigned desc_set,
    return binding_data->is_img_smp;
 }
 
-static pco_instr *lower_load_tex_smp_state(trans_ctx *tctx,
-                                           nir_intrinsic_instr *intr,
-                                           pco_ref dest,
-                                           bool smp)
+static pco_ref lookup_load_tex_smp_state(trans_ctx *tctx,
+                                         nir_intrinsic_instr *intr,
+                                         unsigned chans,
+                                         bool smp,
+                                         bool meta,
+                                         pco_ref *dynidx_elem,
+                                         pco_ref *dynidx_stride)
 {
    unsigned desc_set = nir_intrinsic_desc_set(intr);
    unsigned binding = nir_intrinsic_binding(intr);
    unsigned start_comp = nir_intrinsic_component(intr);
-   unsigned chans = pco_ref_get_chans(dest);
-   assert(start_comp + chans <= ROGUE_NUM_TEXSTATE_DWORDS);
-   unsigned elem = nir_src_as_uint(intr->src[0]);
+
+   bool is_dynidx = !nir_src_is_const(intr->src[0]);
+   unsigned elem;
+   if (is_dynidx) {
+      /* Use element zero, then dynamically offset it later on. */
+      elem = 0u;
+
+      assert(dynidx_elem);
+      *dynidx_elem = pco_ref_nir_src_t(&intr->src[0], tctx);
+   } else {
+      elem = nir_src_as_uint(intr->src[0]);
+   }
 
    const pco_common_data *common = &tctx->shader->data.common;
+   unsigned stride;
    bool is_img_smp;
    unsigned sh_index = fetch_resource_base_reg(common,
                                                desc_set,
                                                binding,
                                                elem,
-                                               NULL,
+                                               &stride,
                                                &is_img_smp);
+
+   if (is_dynidx) {
+      assert(dynidx_stride);
+      *dynidx_stride = pco_ref_new_ssa32(tctx->func);
+      pco_movi32(&tctx->b, *dynidx_stride, pco_ref_imm32(stride));
+   }
+
    pco_ref state_words =
       pco_ref_hwreg_vec(sh_index, PCO_REG_CLASS_SHARED, chans);
 
-   /* Sampler state comes after image state and metadata in combined image
-    * samplers.
-    */
-   if (smp && is_img_smp) {
-      state_words = pco_ref_offset(state_words, ROGUE_NUM_TEXSTATE_DWORDS);
-      state_words = pco_ref_offset(state_words, PCO_IMAGE_META_COUNT);
-   }
+   if (meta) {
+      assert(start_comp + chans <=
+             (smp ? PCO_SAMPLER_META_COUNT : PCO_IMAGE_META_COUNT));
 
-   /* Gather sampler words come after standard sampler state and metadata. */
-   if (smp && nir_intrinsic_flags(intr)) {
+      /* Metadata comes after state words. */
       state_words = pco_ref_offset(state_words, ROGUE_NUM_TEXSTATE_DWORDS);
-      state_words = pco_ref_offset(state_words, PCO_SAMPLER_META_COUNT);
+
+      if (smp && is_img_smp) {
+         state_words = pco_ref_offset(state_words, PCO_IMAGE_META_COUNT);
+         state_words = pco_ref_offset(state_words, ROGUE_NUM_TEXSTATE_DWORDS);
+      }
+   } else {
+      assert(start_comp + chans <= ROGUE_NUM_TEXSTATE_DWORDS);
+
+      /* Sampler state comes after image state and metadata in combined image
+       * samplers.
+       */
+      if (smp && is_img_smp) {
+         state_words = pco_ref_offset(state_words, ROGUE_NUM_TEXSTATE_DWORDS);
+         state_words = pco_ref_offset(state_words, PCO_IMAGE_META_COUNT);
+      }
+
+      /* Gather sampler words come after standard sampler state and metadata. */
+      if (smp && nir_intrinsic_flags(intr)) {
+         state_words = pco_ref_offset(state_words, ROGUE_NUM_TEXSTATE_DWORDS);
+         state_words = pco_ref_offset(state_words, PCO_SAMPLER_META_COUNT);
+      }
    }
 
    state_words = pco_ref_offset(state_words, start_comp);
 
-   return pco_mov(&tctx->b, dest, state_words, .rpt = chans);
+   return state_words;
 }
 
-static pco_instr *lower_load_tex_smp_meta(trans_ctx *tctx,
-                                          nir_intrinsic_instr *intr,
-                                          pco_ref dest,
-                                          bool smp)
+static pco_instr *lower_load_tex_smp_state_meta(trans_ctx *tctx,
+                                                nir_intrinsic_instr *intr,
+                                                pco_ref dest,
+                                                bool smp,
+                                                bool meta)
 {
-   unsigned desc_set = nir_intrinsic_desc_set(intr);
-   unsigned binding = nir_intrinsic_binding(intr);
-   unsigned start_comp = nir_intrinsic_component(intr);
+   pco_ref state_elem = pco_ref_null();
+   pco_ref state_stride = pco_ref_null();
+
    unsigned chans = pco_ref_get_chans(dest);
-   unsigned elem = nir_src_as_uint(intr->src[0]);
+   pco_ref state_words = lookup_load_tex_smp_state(tctx,
+                                                   intr,
+                                                   chans,
+                                                   smp,
+                                                   meta,
+                                                   &state_elem,
+                                                   &state_stride);
 
-   const pco_common_data *common = &tctx->shader->data.common;
-   bool is_img_smp;
-   unsigned sh_index = fetch_resource_base_reg(common,
-                                               desc_set,
-                                               binding,
-                                               elem,
-                                               NULL,
-                                               &is_img_smp);
-   pco_ref state_words =
-      pco_ref_hwreg_vec(sh_index, PCO_REG_CLASS_SHARED, chans);
-
-   assert(start_comp + chans <=
-          (smp ? PCO_SAMPLER_META_COUNT : PCO_IMAGE_META_COUNT));
-
-   state_words = pco_ref_offset(state_words, ROGUE_NUM_TEXSTATE_DWORDS);
-
-   if (smp && is_img_smp) {
-      state_words = pco_ref_offset(state_words, PCO_IMAGE_META_COUNT);
-      state_words = pco_ref_offset(state_words, ROGUE_NUM_TEXSTATE_DWORDS);
+   bool is_dynidx = !nir_src_is_const(intr->src[0]);
+   if (is_dynidx) {
+      return pco_dynidx(&tctx->b,
+                        dest,
+                        pco_ref_null(),
+                        state_words,
+                        pco_ref_null(),
+                        state_elem,
+                        state_stride,
+                        .rpt = chans);
    }
-
-   state_words = pco_ref_offset(state_words, start_comp);
 
    return pco_mov(&tctx->b, dest, state_words, .rpt = chans);
 }
@@ -1964,9 +1995,7 @@ static pco_instr *lower_load_tex_smp_meta(trans_ctx *tctx,
 static pco_instr *lower_smp(trans_ctx *tctx,
                             nir_intrinsic_instr *intr,
                             pco_ref *dest,
-                            pco_ref data,
-                            pco_ref tex_state,
-                            pco_ref smp_state)
+                            pco_ref data)
 {
    pco_smp_flags smp_flags = { ._ = nir_intrinsic_smp_flags_pco(intr) };
    unsigned data_comps = nir_intrinsic_range(intr);
@@ -2006,13 +2035,74 @@ static pco_instr *lower_smp(trans_ctx *tctx,
       UNREACHABLE("");
    }
 
+   nir_intrinsic_instr *nir_tex_state = nir_src_as_intrinsic(intr->src[1]);
+   nir_intrinsic_instr *nir_smp_state = nir_src_as_intrinsic(intr->src[2]);
+
+   assert(nir_intrinsic_dest_components(nir_tex_state) ==
+          ROGUE_NUM_TEXSTATE_DWORDS);
+   assert(nir_intrinsic_dest_components(nir_smp_state) ==
+          ROGUE_NUM_TEXSTATE_DWORDS);
+
+   /* Either both are preamble state or neither are. */
+   assert((nir_tex_state->intrinsic == nir_intrinsic_load_preamble) ==
+          (nir_smp_state->intrinsic == nir_intrinsic_load_preamble));
+
+   pco_ref tex_state;
+   pco_ref smp_state;
+
+   pco_ref tex_state_elem = pco_ref_null();
+   pco_ref tex_state_stride = pco_ref_null();
+
+   pco_ref smp_state_elem = pco_ref_null();
+   pco_ref smp_state_stride = pco_ref_null();
+
+   bool is_dynidx_tex_state;
+   bool is_dynidx_smp_state;
+
+   if (nir_tex_state->intrinsic == nir_intrinsic_load_preamble) {
+      is_dynidx_tex_state = false;
+      is_dynidx_smp_state = false;
+
+      tex_state = pco_ref_hwreg_vec(nir_intrinsic_base(nir_tex_state),
+                                    PCO_REG_CLASS_SHARED,
+                                    ROGUE_NUM_TEXSTATE_DWORDS);
+      smp_state = pco_ref_hwreg_vec(nir_intrinsic_base(nir_smp_state),
+                                    PCO_REG_CLASS_SHARED,
+                                    ROGUE_NUM_TEXSTATE_DWORDS);
+   } else {
+      assert((nir_tex_state->intrinsic == nir_intrinsic_load_tex_state_pco) &&
+             (nir_smp_state->intrinsic == nir_intrinsic_load_smp_state_pco));
+
+      is_dynidx_tex_state = !nir_src_is_const(nir_tex_state->src[0]);
+      is_dynidx_smp_state = !nir_src_is_const(nir_smp_state->src[0]);
+
+      tex_state = lookup_load_tex_smp_state(tctx,
+                                            nir_tex_state,
+                                            ROGUE_NUM_TEXSTATE_DWORDS,
+                                            false,
+                                            false,
+                                            &tex_state_elem,
+                                            &tex_state_stride);
+
+      smp_state = lookup_load_tex_smp_state(tctx,
+                                            nir_smp_state,
+                                            ROGUE_NUM_TEXSTATE_DWORDS,
+                                            true,
+                                            false,
+                                            &smp_state_elem,
+                                            &smp_state_stride);
+   }
+
    pco_ref shared_lod = pco_ref_null();
 
-   pco_func *func = pco_cursor_func(tctx->b.cursor);
+   bool is_dyn = is_dynidx_tex_state || is_dynidx_smp_state;
+   assert(!is_dyn || (nir_tex_state->intrinsic != nir_intrinsic_load_preamble));
 
-   pco_instr *smp = pco_instr_create(func, !smp_flags.wrt, 6);
+   pco_instr *smp =
+      pco_instr_create(tctx->func, !smp_flags.wrt, is_dyn ? 10u : 6u);
 
-   smp->op = smp_flags.wrt ? PCO_OP_SMP_WRT : PCO_OP_SMP;
+   smp->op = smp_flags.wrt ? (is_dyn ? PCO_OP_SMP_WRT_DYNIDX : PCO_OP_SMP_WRT)
+                           : (is_dyn ? PCO_OP_SMP_DYNIDX : PCO_OP_SMP);
 
    if (!smp_flags.wrt)
       smp->dest[0] = *dest;
@@ -2023,6 +2113,13 @@ static pco_instr *lower_smp(trans_ctx *tctx,
    smp->src[3] = smp_state;
    smp->src[4] = shared_lod;
    smp->src[5] = pco_ref_imm8(chans);
+
+   if (is_dyn) {
+      smp->src[6] = tex_state_elem;
+      smp->src[7] = tex_state_stride;
+      smp->src[8] = smp_state_elem;
+      smp->src[9] = smp_state_stride;
+   }
 
    pco_instr_set_dim(smp, smp_flags.dim);
    pco_instr_set_proj(smp, smp_flags.proj);
@@ -2202,6 +2299,96 @@ static pco_instr *trans_subgroup_first_invocation(trans_ctx *tctx, pco_ref dest)
    /* pco_setl(&tctx->b, link_backup); */
 
    return pco_mov(&tctx->b, dest, inst_num_read);
+
+}
+
+static pco_instr *trans_is_null_desc(trans_ctx *tctx,
+                                     nir_intrinsic_instr *intr,
+                                     pco_ref dest,
+                                     pco_ref desc_elem_src)
+{
+   const pco_common_data *common = &tctx->shader->data.common;
+
+   bool is_dynidx = !nir_src_is_const(intr->src[0]);
+   uint32_t packed_desc;
+   unsigned elem;
+   pco_ref dynidx_elem;
+   pco_ref dynidx_stride;
+   if (is_dynidx) {
+      /* Extract the descriptor, which should still always be const. */
+      nir_scalar scalar = nir_scalar_resolved(intr->src[0].ssa, 0);
+      packed_desc = nir_scalar_as_uint(scalar);
+
+      /* Extract the dynamically indexed element. */
+      dynidx_elem = pco_ref_new_ssa32(tctx->func);
+      pco_comp(&tctx->b, dynidx_elem, desc_elem_src, pco_ref_val16(1));
+
+      /* Use element zero, then dynamically offset it later on. */
+      elem = 0u;
+   } else {
+      packed_desc = nir_src_comp_as_uint(intr->src[0], 0);
+      elem = nir_src_comp_as_uint(intr->src[0], 1);
+   }
+
+   unsigned stride;
+   bool is_img_smp;
+   unsigned sh_index = fetch_resource_base_reg_packed(common,
+                                                      packed_desc,
+                                                      elem,
+                                                      &stride,
+                                                      &is_img_smp);
+
+   unsigned num_dwords = is_img_smp ? ROGUE_NUM_TEXSTATE_DWORDS : stride;
+
+   if (is_dynidx) {
+      dynidx_stride = pco_ref_new_ssa32(tctx->func);
+      pco_movi32(&tctx->b, dynidx_stride, pco_ref_imm32(stride));
+   }
+
+   pco_ref all_dwords_zero;
+   for (unsigned u = 0; u < num_dwords; ++u) {
+      pco_ref dword_is_zero =
+         pco_ref_new_ssa(tctx->func, pco_ref_get_bits(dest), 1);
+
+      pco_ref dword_reg = pco_ref_hwreg(sh_index + u, PCO_REG_CLASS_SHARED);
+      if (is_dynidx) {
+         pco_ref dynidx_dword_reg = pco_ref_new_ssa32(tctx->func);
+         pco_dynidx(&tctx->b,
+                    dynidx_dword_reg,
+                    pco_ref_null(),
+                    dword_reg,
+                    pco_ref_null(),
+                    dynidx_elem,
+                    dynidx_stride);
+
+         dword_reg = dynidx_dword_reg;
+      }
+
+      pco_tstz(&tctx->b,
+               dword_is_zero,
+               pco_ref_null(),
+               dword_reg,
+               .tst_type_main = PCO_TST_TYPE_MAIN_U32);
+
+      if (!u) {
+         all_dwords_zero = dword_is_zero;
+         continue;
+      }
+
+      pco_ref _all_dwords_zero =
+         pco_ref_new_ssa(tctx->func, pco_ref_get_bits(dest), 1);
+      pco_logical(&tctx->b,
+                  _all_dwords_zero,
+                  pco_ref_null(),
+                  all_dwords_zero,
+                  pco_ref_null(),
+                  dword_is_zero,
+                  .logiop = PCO_LOGIOP_AND);
+
+      all_dwords_zero = _all_dwords_zero;
+   }
+
+   return pco_mov(&tctx->b, dest, all_dwords_zero);
 }
 
 /**
@@ -2415,55 +2602,9 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
       instr = trans_global_atomic_buffer(tctx, intr, dest, src[0]);
       break;
 
-   case nir_intrinsic_is_null_descriptor: {
-      const pco_common_data *common = &tctx->shader->data.common;
-      uint32_t packed_desc = nir_src_comp_as_uint(intr->src[0], 0);
-      unsigned elem = nir_src_comp_as_uint(intr->src[0], 1);
-      unsigned stride;
-      bool is_img_smp;
-      unsigned sh_index = fetch_resource_base_reg_packed(common,
-                                                         packed_desc,
-                                                         elem,
-                                                         &stride,
-                                                         &is_img_smp);
-
-      if (is_img_smp)
-         stride = ROGUE_NUM_TEXSTATE_DWORDS;
-
-      pco_ref all_words_zero;
-      for (unsigned u = 0; u < stride; ++u) {
-         pco_ref word = pco_ref_hwreg(sh_index + u, PCO_REG_CLASS_SHARED);
-         pco_ref word_is_zero =
-            pco_ref_new_ssa(tctx->func, pco_ref_get_bits(dest), 1);
-
-         pco_tstz(&tctx->b,
-                  word_is_zero,
-                  pco_ref_null(),
-                  word,
-                  .tst_type_main = PCO_TST_TYPE_MAIN_U32);
-
-         if (!u) {
-            all_words_zero = word_is_zero;
-            continue;
-         }
-
-         pco_ref _all_words_zero =
-            pco_ref_new_ssa(tctx->func, pco_ref_get_bits(dest), 1);
-         pco_logical(&tctx->b,
-                     _all_words_zero,
-                     pco_ref_null(),
-                     all_words_zero,
-                     pco_ref_null(),
-                     word_is_zero,
-                     .logiop = PCO_LOGIOP_AND);
-
-         all_words_zero = _all_words_zero;
-      }
-
-      instr = pco_mov(&tctx->b, dest, all_words_zero);
-
+   case nir_intrinsic_is_null_descriptor:
+      instr = trans_is_null_desc(tctx, intr, dest, src[0]);
       break;
-   }
 
    case nir_intrinsic_load_scratch:
       instr = trans_scratch(tctx, intr, dest, src[0], src[1]);
@@ -2624,26 +2765,26 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
 
    /* Texture-related intrinsics. */
    case nir_intrinsic_load_tex_state_pco:
-      instr = lower_load_tex_smp_state(tctx, intr, dest, false);
+      instr = lower_load_tex_smp_state_meta(tctx, intr, dest, false, false);
       break;
 
    case nir_intrinsic_load_smp_state_pco:
-      instr = lower_load_tex_smp_state(tctx, intr, dest, true);
+      instr = lower_load_tex_smp_state_meta(tctx, intr, dest, true, false);
       break;
 
    case nir_intrinsic_load_tex_meta_pco:
-      instr = lower_load_tex_smp_meta(tctx, intr, dest, false);
+      instr = lower_load_tex_smp_state_meta(tctx, intr, dest, false, true);
       break;
 
    case nir_intrinsic_load_smp_meta_pco:
-      instr = lower_load_tex_smp_meta(tctx, intr, dest, true);
+      instr = lower_load_tex_smp_state_meta(tctx, intr, dest, true, true);
       break;
 
    case nir_intrinsic_smp_coeffs_pco:
    case nir_intrinsic_smp_raw_pco:
    case nir_intrinsic_smp_pco:
    case nir_intrinsic_smp_write_pco:
-      instr = lower_smp(tctx, intr, &dest, src[0], src[1], src[2]);
+      instr = lower_smp(tctx, intr, &dest, src[0]);
       break;
 
    case nir_intrinsic_alphatst_pco:

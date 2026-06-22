@@ -2158,6 +2158,25 @@ static inline unsigned pco_ref_get_reg_index(pco_ref ref)
 }
 
 /**
+ * \brief Sets the register index of a reference ref.
+ *
+ * \param[in] ref Reference ref.
+ * \param[in] index New index.
+ * \return Updated ref.
+ */
+static inline pco_ref pco_ref_set_reg_index(pco_ref ref, unsigned index)
+{
+   assert(pco_ref_is_reg(ref) || pco_ref_is_idx_reg(ref));
+
+   if (pco_ref_is_idx_reg(ref))
+      ref.idx_reg.offset = index;
+   else
+      ref.val = index;
+
+   return ref;
+}
+
+/**
  * \brief Returns the register index control of a reference type.
  *
  * \param[in] ref Reference.
