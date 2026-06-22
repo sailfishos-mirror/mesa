@@ -1353,25 +1353,19 @@ jay_emit_rt_lsc_fence(struct nir_to_jay_state *nj,
    jay_SCHEDULE_BARRIER(&nj->bld);
 }
 
-static void
-jay_emit_rt_trace_ray(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
+static uint32_t
+build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr,
+                         jay_def *srcs)
 {
-   jay_shader *s = nj->s;
    jay_builder *b = &nj->bld;
-
-   const bool synchronous = nir_intrinsic_synchronous(instr);
-   assert(nj->s->dispatch_width <= 16 || synchronous);
-
-   assert(nj->s->dispatch_width <= 16 && "TODO: Ray query SIMD splitting");
+   uint32_t len = 0;
+   bool synchronous = false;
 
    /* Make sure all the previous RT structure writes are visible to the RT
     * fixed function within the DSS, as well as stack pointers to resume
     * shaders.
     */
    jay_emit_rt_lsc_fence(nj, LSC_FENCE_LOCAL, LSC_FLUSH_TYPE_NONE);
-
-   jay_def globals = nj_src(instr->src[0]);
-   assert(globals.file == UGPR);
 
    /* Only dword 0-1 and 4 matter for the header. The rest of the GRF is
     * defined as "reserved - must be zero". In practice, it doesn't matter and
@@ -1380,19 +1374,50 @@ jay_emit_rt_trace_ray(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
     */
    bool strict = (jay_debug & JAY_DBG_STRICT);
    jay_def reserved = strict ? jay_MOV_u32(b, 0) : jay_null();
-   unsigned length = strict ? jay_ugpr_per_grf(nj->s) : 6;
+   unsigned length =
+      (strict || instr->intrinsic != nir_intrinsic_trace_ray_intel) ?
+      jay_ugpr_per_grf(nj->s) : 6;
    jay_def ugprs[JAY_MAX_DEF_LENGTH] = {};
    for (unsigned i = 0; i < length; ++i) {
       ugprs[i] = reserved;
    }
 
-   ugprs[0] = jay_extract(globals, 0);
-   ugprs[1] = jay_extract(globals, 1);
-   ugprs[4] = jay_MOV_u32(b, (unsigned) synchronous);
+   if (instr->intrinsic == nir_intrinsic_trace_ray_intel) {
+      synchronous = nir_intrinsic_synchronous(instr);
+      jay_def globals = nj_src(instr->src[0]);
+      assert(globals.file == UGPR);
+      ugprs[0] = jay_extract(globals, 0);
+      ugprs[1] = jay_extract(globals, 1);
 
-   jay_def header = jay_collect_vectors(b, ugprs, length);
-   jay_def data = jay_as_gpr(b, nj_src(instr->src[1]));
-   jay_def srcs[] = { header, data };
+      if (synchronous) {
+         ugprs[4] = jay_MOV_u32(b, (unsigned) synchronous);
+      }
+   }
+
+   /* Header */
+   srcs[len++] = jay_collect_vectors(b, ugprs, length);
+
+   if (instr->intrinsic == nir_intrinsic_trace_ray_intel) {
+      srcs[len++] = jay_as_gpr(b, nj_src(instr->src[1]));
+   }
+
+   return len;
+}
+
+static void
+jay_emit_btd_ops(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
+{
+   jay_shader *s = nj->s;
+   const bool synchronous =
+      instr->intrinsic == nir_intrinsic_trace_ray_intel ?
+      nir_intrinsic_synchronous(instr) : false;
+
+   assert(nj->s->dispatch_width <= 16 || synchronous);
+   assert(nj->s->dispatch_width <= 16 && "TODO: Ray query SIMD splitting");
+
+   uint32_t desc = 0;
+   jay_def srcs[JAY_MAX_SRCS] = {};
+   uint32_t nr_srcs = build_rt_header_and_srcs(nj, instr, srcs);
 
    /* Bspec 57508, 47937: Structure_SIMD16TraceRayMessage:: RayQuery Enable
     *
@@ -1404,17 +1429,25 @@ jay_emit_rt_trace_ray(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr)
                       jay_alloc_def(&nj->bld, UGPR, jay_ugpr_per_grf(nj->s)) :
                       jay_null();
 
-   uint32_t desc = brw_rt_trace_ray_desc(s->devinfo, nj->s->dispatch_width);
+   switch (instr->intrinsic) {
+   case nir_intrinsic_trace_ray_intel:
+      desc = brw_rt_trace_ray_desc(s->devinfo, nj->s->dispatch_width);
 
-   jay_SEND(&nj->bld, .sfid = GEN_SFID_RAY_TRACE_ACCELERATOR, .msg_desc = desc,
-            .type = JAY_TYPE_U32, .srcs = srcs, .nr_srcs = 2, .dst = notif);
+      jay_SEND(&nj->bld, .sfid = GEN_SFID_RAY_TRACE_ACCELERATOR, .msg_desc = desc,
+               .type = JAY_TYPE_U32, .srcs = srcs, .nr_srcs = nr_srcs, .dst = notif);
+      break;
+   default:
+      UNREACHABLE("Unknown intrinsic");
+   }
 
    /* There is no implicit ordering between messages to the dataport and the
     * raytracing accelerator. We need to manually wait on the SBIDs of ray
     * queries first before the shader can load the result using the dataport.
     */
-   if (synchronous)
+   if (synchronous) {
+      assert(instr->intrinsic == nir_intrinsic_trace_ray_intel);
       jay_SCHEDULE_BARRIER(&nj->bld);
+   }
 }
 
 static void
@@ -2041,7 +2074,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_trace_ray_intel:
-      jay_emit_rt_trace_ray(nj, intr);
+      jay_emit_btd_ops(nj, intr);
       break;
 
    case nir_intrinsic_load_btd_stack_id_intel: {
