@@ -29,8 +29,8 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
       return 16;
    }
 
-   if (I->op == JAY_OPCODE_CVT && (I->type == JAY_TYPE_BF16 ||
-                                   jay_cvt_src_type(I) == JAY_TYPE_BF16)) {
+   if (I->op == JAY_OPCODE_CVT &&
+       (I->type == JAY_TYPE_BF16 || jay_cvt_src_type(I) == JAY_TYPE_BF16)) {
       return 16;
    }
 
@@ -60,9 +60,11 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
     *    destination operands and both source and destinations are packed.
     *    The execution size must be 16.
     */
-   if (I->op == JAY_OPCODE_MATH && I->type == JAY_TYPE_F16 &&
-       (I->dst.file == GPR    && jay_def_stride(shader, I->dst) == JAY_STRIDE_2) &&
-       (I->src[0].file == GPR && jay_def_stride(shader, I->src[0]) == JAY_STRIDE_2)) {
+   if (I->op == JAY_OPCODE_MATH &&
+       I->type == JAY_TYPE_F16 &&
+       (I->dst.file == GPR && jay_def_stride(shader, I->dst) == JAY_STRIDE_2) &&
+       (I->src[0].file == GPR &&
+        jay_def_stride(shader, I->src[0]) == JAY_STRIDE_2)) {
       return 16;
    }
 

@@ -631,13 +631,14 @@ emit(struct jay_codegen *jc,
       gen_reg_type t = to_gen_reg_type(jay_type(JAY_TYPE_U, elem_bits));
 
       gen_operand *unpacked = &gen->src[0];
-      gen_operand *packed   = &gen->dst;
+      gen_operand *packed = &gen->dst;
 
       if (jay_slice_repack_unpack(I))
          SWAP(unpacked, packed);
 
-      *packed   = gen_retype(gen_byte_offset(jc->devinfo, *packed,   packed_B), t);
-      *unpacked = gen_retype(gen_byte_offset(jc->devinfo, *unpacked, unpacked_B), t);
+      *packed = gen_retype(gen_byte_offset(jc->devinfo, *packed, packed_B), t);
+      *unpacked =
+         gen_retype(gen_byte_offset(jc->devinfo, *unpacked, unpacked_B), t);
 
       if (elem_bits == 16)
          *unpacked = gen_restride(*unpacked, 4, 2, 2);

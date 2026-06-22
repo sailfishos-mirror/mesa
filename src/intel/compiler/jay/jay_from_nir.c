@@ -1406,13 +1406,15 @@ jay_emit_dpas(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 static void
 jay_emit_convert_cmat(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
-   struct glsl_cmat_description dst_cmat_desc = nir_intrinsic_dst_cmat_desc(intr);
-   struct glsl_cmat_description src_cmat_desc = nir_intrinsic_src_cmat_desc(intr);
+   struct glsl_cmat_description dst_cmat_desc =
+      nir_intrinsic_dst_cmat_desc(intr);
+   struct glsl_cmat_description src_cmat_desc =
+      nir_intrinsic_src_cmat_desc(intr);
 
-   enum jay_type dst_type =
-      jay_type_for_glsl_base_type((enum glsl_base_type)dst_cmat_desc.element_type);
-   enum jay_type src_type =
-      jay_type_for_glsl_base_type((enum glsl_base_type)src_cmat_desc.element_type);
+   enum jay_type dst_type = jay_type_for_glsl_base_type(
+      (enum glsl_base_type) dst_cmat_desc.element_type);
+   enum jay_type src_type = jay_type_for_glsl_base_type(
+      (enum glsl_base_type) src_cmat_desc.element_type);
 
    const unsigned dst_element_bits = jay_type_size_bits(dst_type);
    const unsigned src_element_bits = jay_type_size_bits(src_type);
@@ -1436,8 +1438,8 @@ jay_emit_convert_cmat(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    if (src_pf > 1) {
       for (unsigned i = 0; i < elems; i += src_pf) {
          jay_SLICE_REPACK(b, jay_extract_range(src_tmp, i, src_pf),
-                          jay_extract(src, i / src_pf),
-                          util_logbase2(src_pf), /* unpack */ true);
+                          jay_extract(src, i / src_pf), util_logbase2(src_pf),
+                          /* unpack */ true);
       }
    }
 
@@ -1445,8 +1447,8 @@ jay_emit_convert_cmat(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
        (dst_type == JAY_TYPE_BF16 && src_type != JAY_TYPE_F32)) {
       jay_def tmp = jay_alloc_def(b, GPR, elems);
       for (unsigned i = 0; i < elems; ++i) {
-         jay_CVT(b, JAY_TYPE_F32, jay_extract(tmp, i),
-                 jay_extract(src_tmp, i), src_type, JAY_ROUND, 0);
+         jay_CVT(b, JAY_TYPE_F32, jay_extract(tmp, i), jay_extract(src_tmp, i),
+                 src_type, JAY_ROUND, 0);
       }
       src_tmp = tmp;
       src_type = JAY_TYPE_F32;

@@ -57,7 +57,8 @@ gather_fs_info(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    case nir_intrinsic_load_barycentric_pixel:
    case nir_intrinsic_load_barycentric_centroid:
    case nir_intrinsic_load_barycentric_sample:
-      ctx->interp_modes |= BITFIELD_BIT(brw_barycentric_mode(ctx->prog_data, intr));
+      ctx->interp_modes |=
+         BITFIELD_BIT(brw_barycentric_mode(ctx->prog_data, intr));
       break;
 
    case nir_intrinsic_load_barycentric_at_sample:
@@ -331,10 +332,11 @@ populate_fs_prog_data(nir_shader *shader,
    const bool interp_at_pixel_and_sample =
       (ctx.interp_modes & interp_at_pixel_and_sample_bits) ==
       interp_at_pixel_and_sample_bits;
-   prog_data->persample_dispatch =
-      ((prog_data->persample_interp && key->multisample_fbo >= INTEL_SOMETIMES) ||
-       interp_at_pixel_and_sample) ?
-      INTEL_ALWAYS : INTEL_NEVER;
+   prog_data->persample_dispatch = ((prog_data->persample_interp &&
+                                     key->multisample_fbo >= INTEL_SOMETIMES) ||
+                                    interp_at_pixel_and_sample) ?
+                                      INTEL_ALWAYS :
+                                      INTEL_NEVER;
 
    /* Move sample barycentric modes to pixel when persample dispatch is always
     * disabled.
@@ -342,10 +344,8 @@ populate_fs_prog_data(nir_shader *shader,
    {
       unsigned tmp = 0;
       u_foreach_bit(b, ctx.interp_modes) {
-         tmp |= BITFIELD_BIT(
-            intel_fs_barycentric_mode_for_persample_dispatch(
-               prog_data->persample_dispatch,
-               (enum intel_barycentric_mode) b));
+         tmp |= BITFIELD_BIT(intel_fs_barycentric_mode_for_persample_dispatch(
+            prog_data->persample_dispatch, (enum intel_barycentric_mode) b));
       }
       ctx.interp_modes = tmp;
    }
@@ -401,8 +401,9 @@ populate_fs_prog_data(nir_shader *shader,
       prog_data->uses_pc_bary_coefficients =
          ctx.offset_interp_modes & ~INTEL_BARYCENTRIC_NONPERSPECTIVE_BITS;
       prog_data->uses_sample_offsets =
-         ctx.offset_interp_modes & ((1 << INTEL_BARYCENTRIC_PERSPECTIVE_SAMPLE) |
-                                    (1 << INTEL_BARYCENTRIC_NONPERSPECTIVE_SAMPLE));
+         ctx.offset_interp_modes &
+         ((1 << INTEL_BARYCENTRIC_PERSPECTIVE_SAMPLE) |
+          (1 << INTEL_BARYCENTRIC_NONPERSPECTIVE_SAMPLE));
    }
 
    prog_data->uses_nonperspective_interp_modes =
