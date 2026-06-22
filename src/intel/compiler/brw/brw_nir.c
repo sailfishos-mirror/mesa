@@ -1922,6 +1922,9 @@ brw_nir_optimize(brw_pass_tracker *pt)
    nir_shader *nir = pt->nir;
 
    pass_tracker_new_loop(pt);
+
+   OPT(nir_opt_uub, &(nir_opt_uub_options){});
+
    do {
       pass_tracker_new_iteration(pt);
 
