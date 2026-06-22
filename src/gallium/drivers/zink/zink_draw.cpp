@@ -114,15 +114,15 @@ barrier_draw_buffers(struct zink_context *ctx, const struct pipe_draw_info *dinf
 }
 
 template <zink_dynamic_state DYNAMIC_STATE>
-static void
-zink_bind_vertex_buffers(struct zink_context *ctx)
+ALWAYS_INLINE static void
+zink_bind_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buffer *vbuffers)
 {
    VkBuffer buffers[PIPE_MAX_ATTRIBS];
    VkDeviceSize buffer_offsets[PIPE_MAX_ATTRIBS];
    struct zink_vertex_elements_state *elems = ctx->element_state;
 
    for (unsigned i = 0; i < elems->hw_state.num_bindings; i++) {
-      struct pipe_vertex_buffer *vb = ctx->vertex_buffers + elems->hw_state.binding_map[i];
+      const struct pipe_vertex_buffer *vb = vbuffers + elems->hw_state.binding_map[i];
       assert(vb);
       if (vb->buffer.resource) {
          struct zink_resource *res = zink_resource(vb->buffer.resource);
@@ -756,9 +756,9 @@ zink_draw(struct pipe_context *pctx,
    if (!DRAW_STATE) {
       if (BATCH_CHANGED || ctx->vertex_buffers_dirty) {
          if (DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT || ctx->gfx_pipeline_state.uses_dynamic_stride)
-            zink_bind_vertex_buffers<DYNAMIC_STATE>(ctx);
+            zink_bind_vertex_buffers<DYNAMIC_STATE>(ctx, ctx->vertex_buffers);
          else
-            zink_bind_vertex_buffers<ZINK_NO_DYNAMIC_STATE>(ctx);
+            zink_bind_vertex_buffers<ZINK_NO_DYNAMIC_STATE>(ctx, ctx->vertex_buffers);
       }
       if ((DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT2 || DYNAMIC_STATE == ZINK_DYNAMIC_VERTEX_INPUT) && (BATCH_CHANGED || ctx->vertex_state_changed))
          VKCTX(CmdSetVertexInputEXT)(ctx->bs->cmdbuf,
