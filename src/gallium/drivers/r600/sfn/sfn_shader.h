@@ -236,15 +236,13 @@ public:
 
    PRegister atomic_update();
    int remap_atomic_base(int base);
-   auto evaluate_resource_offset(nir_intrinsic_instr *instr, int src_id)
-      -> std::pair<int, PRegister>;
-   unsigned get_rat_base() const { return m_rat_base; }
+   auto evaluate_resource_offset(nir_intrinsic_instr *instr,
+                                 int src_id) -> std::pair<int, PRegister>;
    bool get_alt_const() const
    {
       return m_shader_stage == MESA_SHADER_FRAGMENT ||
              m_shader_stage == MESA_SHADER_GEOMETRY;
    }
-   int ssbo_image_offset() const { return m_ssbo_image_offset; }
    PRegister rat_return_address()
    {
       assert(m_rat_return_address);
@@ -253,7 +251,12 @@ public:
 
    PRegister emit_load_to_register(PVirtualValue src, int chan = -1);
 
-   virtual unsigned image_size_const_offset() { return 0;}
+   struct dynamic_offset get_dynamic_offset() const { return m_dynamic_offset; }
+   void clamp_dynamic_offset(const unsigned num_images)
+   {
+      if (num_images > m_dynamic_offset.ssbo_offset)
+         m_dynamic_offset.ssbo_offset = num_images;
+   }
 
    auto required_registers() const { return m_required_registers;}
 
@@ -281,7 +284,7 @@ protected:
 
    std::bitset<es_last> m_sv_values;
 
-   Shader(const char *type_id, unsigned rat_base = 0);
+   Shader(const char *type_id, struct dynamic_offset dynamic_offset = {0});
 
    const ShaderInput& input(int base) const;
 
@@ -373,13 +376,12 @@ private:
    PRegister m_rat_return_address{nullptr};
 
    mesa_shader_stage m_shader_stage{(mesa_shader_stage)-1};
-   int32_t m_ssbo_image_offset{0};
    uint32_t m_nloops{0};
    uint32_t m_required_registers{0};
 
    int64_t m_shader_id;
    static int64_t s_next_shader_id;
-   unsigned m_rat_base;
+   struct dynamic_offset m_dynamic_offset;
 
    class InstructionChain : public InstrVisitor {
    public:

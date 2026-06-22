@@ -1028,7 +1028,10 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 		if (rctx->ps_shader->current->shader.gs_prim_id_input && !rctx->gs_shader) {
 			key->vs.as_gs_a = true;
 		}
-		key->vs.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
+		if (rctx->vs_shader->current->shader.num_images || rctx->vs_shader->current->shader.num_ssbos) {
+			key->vs.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
+			key->vs.dynamic_ssbo_offset = rctx->vs_shader->current->shader.num_images + rctx->ps_shader->current->shader.num_images;
+		}
 		break;
 	}
 	case MESA_SHADER_GEOMETRY:
@@ -1036,16 +1039,20 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 		break;
 	case MESA_SHADER_FRAGMENT: {
 		if (rctx->ps_shader->nir_info.images_declared)
-			key->ps.image_size_const_offset = util_last_bit(rctx->samplers[MESA_SHADER_FRAGMENT].views.enabled_mask);
+			key->ps.dynamic_uniform_offset = util_last_bit(rctx->samplers[MESA_SHADER_FRAGMENT].views.enabled_mask);
 		key->ps.color_two_side = rctx->rasterizer && rctx->rasterizer->two_side;
 		key->ps.alpha_to_one = rctx->alpha_to_one &&
 				      rctx->rasterizer && rctx->rasterizer->multisample_enable &&
 				      !rctx->cb_state.cb0_is_integer;
 		key->ps.alpha_to_one_and_coverage = key->ps.alpha_to_one && rctx->alpha_to_one_and_coverage;
 		key->ps.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
+		if (rctx->ps_shader->current->shader.num_images || rctx->ps_shader->current->shader.num_ssbos) {
+			key->ps.dynamic_image_offset = rctx->vs_shader->current->shader.num_images;
+			key->ps.dynamic_ssbo_offset = rctx->vs_shader->current->shader.num_images + rctx->ps_shader->current->shader.num_images + rctx->vs_shader->current->shader.num_ssbos;
+		}
                 key->ps.apply_sample_id_mask = (rctx->ps_iter_samples > 1) || !rctx->rasterizer->multisample_enable;
 		/* Dual-source blending only makes sense with nr_cbufs == 1. */
-		if (key->ps.nr_cbufs == 1 && rctx->dual_src_blend) {
+		if (rctx->framebuffer.state.nr_cbufs == 1 && rctx->dual_src_blend) {
 			key->ps.nr_cbufs = 2;
 			key->ps.dual_source_blend = 1;
 		}
@@ -1087,7 +1094,7 @@ r600_shader_precompile_key(const struct pipe_context *ctx,
 		break;
 
 	case MESA_SHADER_FRAGMENT:
-		key->ps.image_size_const_offset = sel->nir_info.image_file_max;
+		key->ps.dynamic_uniform_offset = sel->nir_info.image_file_max;
 
 		/* This is used for gl_FragColor output expansion to the number
 		 * of color buffers bound, but also with sb it'll drop outputs
