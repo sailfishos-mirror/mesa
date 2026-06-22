@@ -28,7 +28,7 @@
 struct kk_query_pool;
 
 struct kk_root_descriptor_table {
-   struct kk_ptr root_buffer;
+   uint64_t addr;
 
    union {
       struct {
@@ -301,10 +301,6 @@ kk_compile_depth_stencil_state(struct kk_device *device,
 
 void kk_meta_resolve_rendering(struct kk_cmd_buffer *cmd,
                                const VkRenderingInfo *pRenderingInfo);
-
-void kk_cmd_buffer_write_descriptor_buffer(struct kk_cmd_buffer *cmd,
-                                           struct kk_descriptor_state *desc,
-                                           size_t size, size_t offset);
 
 struct kk_ptr kk_pool_alloc(struct kk_cmd_buffer *cmd, uint32_t size,
                             uint32_t alignment);

@@ -520,18 +520,6 @@ kk_CmdPushConstants2KHR(VkCommandBuffer commandBuffer,
 }
 
 void
-kk_cmd_buffer_write_descriptor_buffer(struct kk_cmd_buffer *cmd,
-                                      struct kk_descriptor_state *desc,
-                                      size_t size, size_t offset)
-{
-   assert(size + offset <= sizeof(desc->root.sets));
-
-   struct kk_ptr root_buffer = desc->root.root_buffer;
-
-   memcpy(root_buffer.cpu, (uint8_t *)desc->root.sets + offset, size);
-}
-
-void
 kk_cmd_release_dynamic_ds_state(struct kk_cmd_buffer *cmd)
 {
    if (cmd->state.gfx.is_depth_stencil_dynamic &&
@@ -642,14 +630,16 @@ kk_upload_descriptor_root(struct kk_cmd_buffer *cmd,
 {
    struct kk_descriptor_state *desc = kk_get_descriptors_state(cmd, bind_point);
    struct kk_root_descriptor_table *root = &desc->root;
-   struct kk_ptr root_gpu = kk_pool_upload(cmd, root, sizeof(*root), 8u);
-   if (unlikely(!root_gpu.gpu))
+   struct kk_ptr root_ptr = kk_pool_alloc(cmd, sizeof(*root), 8u);
+   if (unlikely(!root_ptr.gpu))
       return 0u;
 
-   root->root_buffer = root_gpu;
+   root->addr = root_ptr.gpu;
+
+   memcpy(root_ptr.cpu, root, sizeof(*root));
    desc->root_dirty = false;
 
-   return root_gpu.gpu;
+   return root_ptr.gpu;
 }
 
 void
