@@ -79,6 +79,11 @@ struct nvk_meta_save_compute {
    struct nvk_compute_state state;
 };
 
+union nvk_meta_save_generic {
+   struct nvk_meta_save_gfx gfx;
+   struct nvk_meta_save_compute compute;
+};
+
 static void
 nvk_meta_begin_gfx(struct nvk_cmd_buffer *cmd,
                    struct nvk_meta_save_gfx *save)
@@ -224,6 +229,32 @@ nvk_meta_end_compute(struct nvk_cmd_buffer *cmd,
    P_IMMD_WORD(p, NV90C0, SET_RENDER_ENABLE_OVERRIDE, MODE_USE_RENDER_ENABLE);
 
    cmd->state.cs = save->state;
+}
+
+static void
+nvk_meta_begin_generic(struct nvk_cmd_buffer *cmd,
+                       union nvk_meta_save_generic *save,
+                       VkPipelineBindPoint engine)
+{
+   if (engine == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+      nvk_meta_begin_gfx(cmd, &save->gfx);
+   } else {
+      assert(engine == VK_PIPELINE_BIND_POINT_COMPUTE);
+      nvk_meta_begin_compute(cmd, &save->compute);
+   }
+}
+
+static void
+nvk_meta_end_generic(struct nvk_cmd_buffer *cmd,
+                     union nvk_meta_save_generic *save,
+                     VkPipelineBindPoint engine)
+{
+   if (engine == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+      nvk_meta_end_gfx(cmd, &save->gfx);
+   } else {
+      assert(engine == VK_PIPELINE_BIND_POINT_COMPUTE);
+      nvk_meta_end_compute(cmd, &save->compute);
+   }
 }
 
 VKAPI_ATTR void VKAPI_CALL
