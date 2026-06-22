@@ -1109,8 +1109,13 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 
    if (intr->intrinsic == nir_intrinsic_image_deref_atomic ||
        intr->intrinsic == nir_intrinsic_image_deref_atomic_swap) {
+      nir_atomic_op atomic_op = nir_intrinsic_atomic_op(intr);
+
       assert(util_format_is_plain(format));
-      assert(util_format_is_pure_integer(format));
+
+      /* xchg doesn't care about format/type. */
+      assert(util_format_is_pure_integer(format) ||
+             atomic_op == nir_atomic_op_xchg);
 
       assert(util_format_get_nr_components(format) == 1);
       assert(util_format_get_blockwidth(format) == 1);
@@ -1221,7 +1226,7 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
             b,
             intr->num_components,
             addr_data,
-            .atomic_op = nir_intrinsic_atomic_op(intr));
+            .atomic_op = atomic_op);
          nir_def_rewrite_uses(&intr->def, atomic_swap);
          nir_instr_remove(&intr->instr);
          return true;
@@ -1237,7 +1242,7 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
          nir_global_atomic_pco(b,
                                intr->num_components,
                                addr_data,
-                               .atomic_op = nir_intrinsic_atomic_op(intr));
+                               .atomic_op = atomic_op);
       nir_def_rewrite_uses(&intr->def, atomic);
       nir_instr_remove(&intr->instr);
       return true;
