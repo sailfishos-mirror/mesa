@@ -599,11 +599,10 @@ nvk_remap_extract_aspect(struct nouveau_copy *copy,
    }
 }
 
-VKAPI_ATTR void VKAPI_CALL
-nvk_CmdCopyImageToBuffer2(VkCommandBuffer commandBuffer,
-                          const VkCopyImageToBufferInfo2 *pCopyImageToBufferInfo)
+void
+nvk_cmd_copy_image_to_buffer_ce(struct nvk_cmd_buffer *cmd,
+                                const VkCopyImageToBufferInfo2 *pCopyImageToBufferInfo)
 {
-   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_image, src, pCopyImageToBufferInfo->srcImage);
    VK_FROM_HANDLE(nvk_buffer, dst, pCopyImageToBufferInfo->dstBuffer);
 

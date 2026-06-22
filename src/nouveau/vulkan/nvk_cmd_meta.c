@@ -396,6 +396,39 @@ nvk_meta_copy_get_image_properties(struct nvk_image *img,
 }
 
 static void
+nvk_cmd_copy_image_to_buffer_meta(struct nvk_cmd_buffer *cmd,
+                                  const VkCopyImageToBufferInfo2 *pCopyImageToBufferInfo)
+{
+   VK_FROM_HANDLE(nvk_image, src, pCopyImageToBufferInfo->srcImage);
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+
+   struct vk_meta_copy_image_properties src_img_props =
+      nvk_meta_copy_get_image_properties(src, true);
+
+   struct nvk_meta_save_compute save;
+   nvk_meta_begin_compute(cmd, &save);
+   vk_meta_copy_image_to_buffer(&cmd->vk, &dev->meta, pCopyImageToBufferInfo,
+                                &src_img_props);
+   nvk_meta_end_compute(cmd, &save);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdCopyImageToBuffer2(VkCommandBuffer commandBuffer,
+                          const VkCopyImageToBufferInfo2 *pCopyImageToBufferInfo)
+{
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+   VK_FROM_HANDLE(nvk_image, src, pCopyImageToBufferInfo->srcImage);
+
+   VkQueueFlags queue_flags = nvk_cmd_buffer_queue_flags(cmd);
+   if ((queue_flags & VK_QUEUE_COMPUTE_BIT) &&
+       nvk_meta_image_copy_compute_supported(src)) {
+      nvk_cmd_copy_image_to_buffer_meta(cmd, pCopyImageToBufferInfo);
+   } else {
+      nvk_cmd_copy_image_to_buffer_ce(cmd, pCopyImageToBufferInfo);
+   }
+}
+
+static void
 nvk_cmd_copy_image_meta(struct nvk_cmd_buffer *cmd,
                         const VkCopyImageInfo2 *pCopyImageInfo,
                         VkPipelineBindPoint engine)
