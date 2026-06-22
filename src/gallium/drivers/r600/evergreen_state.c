@@ -1831,7 +1831,8 @@ evergreen_emit_arb_shader_image_load_store_incomplete(struct r600_context *rctx,
 }
 
 static void evergreen_emit_image_state(struct r600_context *rctx, struct r600_atom *atom,
-				       int immed_id_base, int res_id_base, int offset, uint32_t pkt_flags)
+				       int immed_id_base, int res_id_base, int offset, uint32_t pkt_flags,
+				       const uint8_t nr_cbufs_clamp)
 {
 	struct r600_image_state *state = (struct r600_image_state *)atom;
 	struct pipe_framebuffer_state *fb_state = &rctx->framebuffer.state;
@@ -1847,7 +1848,8 @@ static void evergreen_emit_image_state(struct r600_context *rctx, struct r600_at
 		struct r600_image_view *image = &state->views[i];
 		unsigned reloc, immed_reloc;
 		const unsigned idx = i + offset +
-			(!pkt_flags ? fb_state->nr_cbufs + (rctx->dual_src_blend ? 1 : 0) : 0);
+			(!pkt_flags ? MAX2(fb_state->nr_cbufs, nr_cbufs_clamp) +
+			 (rctx->dual_src_blend ? 1 : 0) : 0);
 
 		if (idx >= R600_MAX_SSBOS)
 			break;
@@ -1977,12 +1979,12 @@ static void evergreen_emit_fragment_image_state_vs(struct r600_context *rctx, st
 		evergreen_emit_image_state(rctx, atom,
 					   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 					   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-					   r600_image_buffer_offset(rctx, false, MESA_SHADER_VERTEX), 0);
+					   r600_image_buffer_offset(rctx, false, MESA_SHADER_VERTEX), 0, 0);
 	} else {
 		evergreen_emit_image_state(rctx, atom,
 					   EG_FETCH_CONSTANTS_OFFSET_LS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 					   EG_FETCH_CONSTANTS_OFFSET_LS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-					   r600_image_buffer_offset(rctx, false, MESA_SHADER_VERTEX), 0);
+					   r600_image_buffer_offset(rctx, false, MESA_SHADER_VERTEX), 0, 0);
 	}
 }
 
@@ -1991,7 +1993,7 @@ static void evergreen_emit_fragment_image_state_fs(struct r600_context *rctx, st
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-				   r600_image_buffer_offset(rctx, false, MESA_SHADER_FRAGMENT), 0);
+				   r600_image_buffer_offset(rctx, false, MESA_SHADER_FRAGMENT), 0, 0);
 }
 
 static void evergreen_emit_compute_image_state(struct r600_context *rctx, struct r600_atom *atom)
@@ -1999,7 +2001,7 @@ static void evergreen_emit_compute_image_state(struct r600_context *rctx, struct
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_CS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 				   EG_FETCH_CONSTANTS_OFFSET_CS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-				   0, RADEON_CP_PACKET3_COMPUTE_MODE);
+				   0, RADEON_CP_PACKET3_COMPUTE_MODE, 0);
 }
 
 static void evergreen_emit_fragment_buffer_state_vs(struct r600_context *rctx, struct r600_atom *atom)
@@ -2009,12 +2011,12 @@ static void evergreen_emit_fragment_buffer_state_vs(struct r600_context *rctx, s
 		evergreen_emit_image_state(rctx, atom,
 					   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 					   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-					   r600_image_buffer_offset(rctx, true, MESA_SHADER_VERTEX), 0);
+					   r600_image_buffer_offset(rctx, true, MESA_SHADER_VERTEX), 0, 0);
 	} else {
 		evergreen_emit_image_state(rctx, atom,
 					   EG_FETCH_CONSTANTS_OFFSET_LS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 					   EG_FETCH_CONSTANTS_OFFSET_LS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-					   r600_image_buffer_offset(rctx, true, MESA_SHADER_VERTEX), 0);
+					   r600_image_buffer_offset(rctx, true, MESA_SHADER_VERTEX), 0, 0);
 	}
 }
 
@@ -2023,7 +2025,7 @@ static void evergreen_emit_fragment_buffer_state_fs(struct r600_context *rctx, s
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-				   r600_image_buffer_offset(rctx, true, MESA_SHADER_FRAGMENT), 0);
+				   r600_image_buffer_offset(rctx, true, MESA_SHADER_FRAGMENT), 0, 0);
 }
 
 static void evergreen_emit_fragment_buffer_state_tcs(struct r600_context *rctx, struct r600_atom *atom)
@@ -2031,7 +2033,7 @@ static void evergreen_emit_fragment_buffer_state_tcs(struct r600_context *rctx, 
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_HS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 				   EG_FETCH_CONSTANTS_OFFSET_HS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-				   r600_image_buffer_offset(rctx, true, MESA_SHADER_TESS_CTRL), 0);
+				   r600_image_buffer_offset(rctx, true, MESA_SHADER_TESS_CTRL), 0, 1);
 }
 
 static void evergreen_emit_fragment_buffer_state_tes(struct r600_context *rctx, struct r600_atom *atom)
@@ -2039,7 +2041,7 @@ static void evergreen_emit_fragment_buffer_state_tes(struct r600_context *rctx, 
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-				   r600_image_buffer_offset(rctx, true, MESA_SHADER_TESS_EVAL), 0);
+				   r600_image_buffer_offset(rctx, true, MESA_SHADER_TESS_EVAL), 0, 1);
 }
 
 static void evergreen_emit_fragment_buffer_state_gs(struct r600_context *rctx, struct r600_atom *atom)
@@ -2047,7 +2049,7 @@ static void evergreen_emit_fragment_buffer_state_gs(struct r600_context *rctx, s
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-				   r600_image_buffer_offset(rctx, true, MESA_SHADER_GEOMETRY), 0);
+				   r600_image_buffer_offset(rctx, true, MESA_SHADER_GEOMETRY), 0, 0);
 }
 
 static void evergreen_emit_compute_buffer_state(struct r600_context *rctx, struct r600_atom *atom)
@@ -2056,7 +2058,7 @@ static void evergreen_emit_compute_buffer_state(struct r600_context *rctx, struc
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_CS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
 				   EG_FETCH_CONSTANTS_OFFSET_CS + R600_IMAGE_REAL_RESOURCE_OFFSET,
-				   offset, RADEON_CP_PACKET3_COMPUTE_MODE);
+				   offset, RADEON_CP_PACKET3_COMPUTE_MODE, 0);
 }
 
 static void evergreen_emit_framebuffer_state(struct r600_context *rctx, struct r600_atom *atom)
