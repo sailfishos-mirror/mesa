@@ -104,6 +104,26 @@ fn unbox_type(ty: &Type) -> TokenStream2 {
     }
 }
 
+// Natural sort key: zero-pad digit runs so that embedded numbers compare by
+// value, and lowercase so the order is case-insensitive (e.g. Clz < Copy < CSel)
+fn name_sort_key(s: &str) -> String {
+    let mut key = String::new();
+    let mut num = String::new();
+    for c in s.chars() {
+        if c.is_ascii_digit() {
+            num.push(c);
+        } else {
+            if !num.is_empty() {
+                key += &format!("{num:0>5}");
+                num.clear();
+            }
+            key.push(c.to_ascii_lowercase());
+        }
+    }
+    key += &format!("{num:0>5}");
+    key
+}
+
 pub fn derive_opcode(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs, ident, data, ..
@@ -151,6 +171,15 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
             let mut var_cases = TokenStream2::new();
             let mut val_cases = TokenStream2::new();
             let mut fmt_cases = TokenStream2::new();
+
+            let curr_order: Vec<_> =
+                e.variants.iter().map(|e| e.ident.to_string()).collect();
+            if !curr_order.is_sorted_by_key(|s| name_sort_key(s)) {
+                let mut sorted = curr_order.clone();
+                sorted.sort_by_key(|s| name_sort_key(s));
+                panic!("Variants must always be sorted:\nsorted:  {sorted:?}\ncurrent: {curr_order:?}");
+            }
+
             for v in e.variants {
                 let case = &v.ident;
                 let v_type = unbox_type(variant_type(&v));

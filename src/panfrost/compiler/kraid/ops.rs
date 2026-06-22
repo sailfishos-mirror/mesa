@@ -17,6 +17,8 @@
 //!   supported by the hardware, [Shader::widen_alu_ops] will convert them.
 //!   This makes NIR translation easier.
 //!
+//! - Keep OpCodes sorted by name everywhere
+//!
 //! - Convention for variant ordering is to sort by (component_size, vector_size)
 //!   Ex: [I8, V2I8, V4I8, I16, V2I16, I32, I64]
 
@@ -371,34 +373,6 @@ impl fmt::Display for OpIAdd {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-#[variants(dst_type in [
-    S8, U8, V2S8, V2U8, V4S8, V4U8,
-    S16, U16, V2S16, V2U16,
-    S32, U32, S64, U64
-])]
-pub struct OpIMul {
-    pub dst: Dst,
-    pub dst_type: DataType,
-    pub saturate: bool,
-    pub srcs: [Src; 2],
-}
-
-impl fmt::Display for OpIMul {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let sat = if self.saturate { ".sat" } else { "" };
-        write!(
-            f,
-            "{} = IMUL.{}{sat} {} {}",
-            &self.dst,
-            self.dst_type,
-            self.fmt_src(&self.srcs[0]),
-            self.fmt_src(&self.srcs[1]),
-        )
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Opcode)]
 #[variants(src_type in [S16, U16, V2S16, V2U16, S32, U32])]
 pub struct OpICmp {
     pub dst: Dst,
@@ -432,23 +406,28 @@ impl fmt::Display for OpICmp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
-pub struct OpLeaPka {
-    #[dst_type(I64)]
+#[variants(dst_type in [
+    S8, U8, V2S8, V2U8, V4S8, V4U8,
+    S16, U16, V2S16, V2U16,
+    S32, U32, S64, U64
+])]
+pub struct OpIMul {
     pub dst: Dst,
-    #[src_type(I32)]
-    pub offset: Src,
-    #[src_type(I32)]
-    pub handle: Src,
+    pub dst_type: DataType,
+    pub saturate: bool,
+    pub srcs: [Src; 2],
 }
 
-impl fmt::Display for OpLeaPka {
+impl fmt::Display for OpIMul {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sat = if self.saturate { ".sat" } else { "" };
         write!(
             f,
-            "{} = LEA_PKA {} {}",
+            "{} = IMUL.{}{sat} {} {}",
             &self.dst,
-            self.fmt_src(&self.offset),
-            self.fmt_src(&self.handle),
+            self.dst_type,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
         )
     }
 }
@@ -495,6 +474,29 @@ impl fmt::Display for OpLdPka {
             &self.dst,
             self.dst_type,
             self.access,
+            self.fmt_src(&self.offset),
+            self.fmt_src(&self.handle),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpLeaPka {
+    #[dst_type(I64)]
+    pub dst: Dst,
+    #[src_type(I32)]
+    pub offset: Src,
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpLeaPka {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LEA_PKA {} {}",
+            &self.dst,
             self.fmt_src(&self.offset),
             self.fmt_src(&self.handle),
         )
@@ -675,6 +677,16 @@ impl fmt::Display for OpMov {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpNop {}
+
+impl fmt::Display for OpNop {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NOP")
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, I16, I32, I64])]
 pub struct OpRegIn {
     pub dst: Dst,
@@ -718,16 +730,6 @@ impl fmt::Display for OpRegOut {
 impl VirtualOpcode for OpRegOut {
     fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
         swizzle == Swizzle::from(self.reg.range)
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Opcode)]
-pub struct OpNop {}
-
-impl fmt::Display for OpNop {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "NOP")
     }
 }
 
@@ -872,6 +874,34 @@ impl PerCompFoldable for OpShiftLop {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
+pub struct OpStore {
+    pub src_type: DataType,
+    pub access: MemAccess,
+
+    pub data: Src,
+
+    #[src_type(I64)]
+    pub addr: Src,
+    pub offset: i16,
+}
+
+impl fmt::Display for OpStore {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "STORE.{}{} {} {} #{}",
+            self.src_type,
+            self.access,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.addr),
+            self.offset,
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(src_type in [
     I8, S8, U8,
     V2I8, V2S8, V2U8,
@@ -921,34 +951,6 @@ impl VirtualOpcode for OpSwz {
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Opcode)]
-#[variants(src_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
-pub struct OpStore {
-    pub src_type: DataType,
-    pub access: MemAccess,
-
-    pub data: Src,
-
-    #[src_type(I64)]
-    pub addr: Src,
-    pub offset: i16,
-}
-
-impl fmt::Display for OpStore {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "STORE.{}{} {} {} #{}",
-            self.src_type,
-            self.access,
-            self.fmt_src(&self.data),
-            self.fmt_src(&self.addr),
-            self.offset,
-        )
-    }
-}
-
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     Branch(Box<OpBranch>),
@@ -959,22 +961,22 @@ pub enum Op {
     FAdd(Box<OpFAdd>),
     FCmp(Box<OpFCmp>),
     IAdd(Box<OpIAdd>),
-    IMul(Box<OpIMul>),
     ICmp(Box<OpICmp>),
-    LeaPka(Box<OpLeaPka>),
+    IMul(Box<OpIMul>),
     LdPka(Box<OpLdPka>),
+    LeaPka(Box<OpLeaPka>),
     Load(Box<OpLoad>),
     MkVecV2I8(Box<OpMkVecV2I8>),
     MkVecV2I8I16(Box<OpMkVecV2I8I16>),
     MkVecV2I16(Box<OpMkVecV2I16>),
     MkVecV4I8(Box<OpMkVecV4I8>),
-    Nop(OpNop),
     Mov(Box<OpMov>),
+    Nop(OpNop),
     RegIn(Box<OpRegIn>),
     RegOut(Box<OpRegOut>),
     ShiftLop(Box<OpShiftLop>),
-    Swz(Box<OpSwz>),
     Store(Box<OpStore>),
+    Swz(Box<OpSwz>),
 }
 
 #[cfg(target_arch = "aarch64")]
