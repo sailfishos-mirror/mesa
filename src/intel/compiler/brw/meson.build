@@ -167,6 +167,7 @@ if with_tests
         'test_opt_combine_constants.cpp',
         'test_opt_copy_propagation.cpp',
         'test_opt_cse.cpp',
+        'test_opt_predicate_logic.cpp',
         'test_opt_register_coalesce.cpp',
         'test_opt_saturate_propagation.cpp',
         'test_simd_selection.cpp',
