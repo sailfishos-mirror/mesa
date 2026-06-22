@@ -995,13 +995,3 @@ impl Op {
         }
     }
 }
-
-// The Opcode constraint exists to keep the type system from recursing
-impl<T: Opcode> From<T> for Op
-where
-    Box<T>: Into<Op>,
-{
-    fn from(op: T) -> Self {
-        Box::new(op).into()
-    }
-}
