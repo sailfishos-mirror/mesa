@@ -9,6 +9,7 @@
 #include "r600d_common.h"
 #include "evergreend.h"
 #include "r600_inline.h"
+#include "r600_image_buffer.h"
 
 #include "pipe/p_shader_tokens.h"
 #include "util/u_endian.h"
@@ -1840,6 +1841,7 @@ static void evergreen_emit_image_state(struct r600_context *rctx, struct r600_at
 	bool has_vm = rctx->b.screen->info.r600_has_virtual_memory;
 
 	assert(!(state->enabled_mask & state->incomplete_mask));
+	state->last_offset = offset;
 
 	for (unsigned i = 0; i < R600_MAX_SSBOS; i++) {
 		struct r600_image_view *image = &state->views[i];
@@ -1968,11 +1970,28 @@ static void evergreen_emit_image_state(struct r600_context *rctx, struct r600_at
 	}
 }
 
-static void evergreen_emit_fragment_image_state(struct r600_context *rctx, struct r600_atom *atom)
+static void evergreen_emit_fragment_image_state_vs(struct r600_context *rctx, struct r600_atom *atom)
+{
+	const bool vs_as_ls = rctx->vs_shader->current->shader.vs_as_ls;
+	if (!vs_as_ls) {
+		evergreen_emit_image_state(rctx, atom,
+					   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+					   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+					   r600_image_buffer_offset(rctx, false, MESA_SHADER_VERTEX), 0);
+	} else {
+		evergreen_emit_image_state(rctx, atom,
+					   EG_FETCH_CONSTANTS_OFFSET_LS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+					   EG_FETCH_CONSTANTS_OFFSET_LS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+					   r600_image_buffer_offset(rctx, false, MESA_SHADER_VERTEX), 0);
+	}
+}
+
+static void evergreen_emit_fragment_image_state_fs(struct r600_context *rctx, struct r600_atom *atom)
 {
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
-				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET, 0, 0);
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+				   r600_image_buffer_offset(rctx, false, MESA_SHADER_FRAGMENT), 0);
 }
 
 static void evergreen_emit_compute_image_state(struct r600_context *rctx, struct r600_atom *atom)
@@ -1983,12 +2002,28 @@ static void evergreen_emit_compute_image_state(struct r600_context *rctx, struct
 				   0, RADEON_CP_PACKET3_COMPUTE_MODE);
 }
 
-static void evergreen_emit_fragment_buffer_state(struct r600_context *rctx, struct r600_atom *atom)
+static void evergreen_emit_fragment_buffer_state_vs(struct r600_context *rctx, struct r600_atom *atom)
 {
-	int offset = util_bitcount(rctx->fragment_images.enabled_mask);
+	const bool vs_as_ls = rctx->vs_shader->current->shader.vs_as_ls;
+	if (!vs_as_ls) {
+		evergreen_emit_image_state(rctx, atom,
+					   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+					   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+					   r600_image_buffer_offset(rctx, true, MESA_SHADER_VERTEX), 0);
+	} else {
+		evergreen_emit_image_state(rctx, atom,
+					   EG_FETCH_CONSTANTS_OFFSET_LS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
+					   EG_FETCH_CONSTANTS_OFFSET_LS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+					   r600_image_buffer_offset(rctx, true, MESA_SHADER_VERTEX), 0);
+	}
+}
+
+static void evergreen_emit_fragment_buffer_state_fs(struct r600_context *rctx, struct r600_atom *atom)
+{
 	evergreen_emit_image_state(rctx, atom,
 				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_IMMED_RESOURCE_OFFSET,
-				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET, offset, 0);
+				   EG_FETCH_CONSTANTS_OFFSET_VS + R600_IMAGE_REAL_RESOURCE_OFFSET,
+				   r600_image_buffer_offset(rctx, true, MESA_SHADER_FRAGMENT), 0);
 }
 
 static void evergreen_emit_compute_buffer_state(struct r600_context *rctx, struct r600_atom *atom)
@@ -2078,8 +2113,10 @@ static void evergreen_emit_framebuffer_state(struct r600_context *rctx, struct r
 				       cb->cb_color_info | tex->cb_color_info);
 		i++;
 	}
-	i += util_bitcount(rctx->fragment_images.enabled_mask);
-	i += util_bitcount(rctx->fragment_buffers.enabled_mask);
+	for (unsigned k = 0; k < ARRAY_SIZE(rctx->fragment_images); k++)
+		i += util_bitcount(rctx->fragment_images[k].enabled_mask);
+        for (unsigned k = 0; k < ARRAY_SIZE(rctx->fragment_buffers); k++)
+		i += util_bitcount(rctx->fragment_buffers[k].enabled_mask);
 	for (; i < 8 ; i++)
 		radeon_set_context_reg(cs, R_028C70_CB_COLOR0_INFO + i * 0x3C, 0);
 	for (; i < 12; i++)
@@ -4536,16 +4573,14 @@ static void evergreen_set_shader_buffers(struct pipe_context *ctx,
 	unsigned old_mask;
 	bool has_vm = rctx->b.screen->info.r600_has_virtual_memory;
 
-	if ((shader != MESA_SHADER_COMPUTE &&
-	     shader != MESA_SHADER_FRAGMENT &&
-	     shader != MESA_SHADER_VERTEX) ||
+	if (!r600_check_buffer_shader_supported(shader) ||
 	    count == 0)
 		return;
 
 	if (shader == MESA_SHADER_COMPUTE)
 		istate = &rctx->compute_buffers;
 	else
-		istate = &rctx->fragment_buffers;
+		istate = &rctx->fragment_buffers[shader];
 
 	old_mask = istate->enabled_mask;
 	istate->atom.num_dw = 0;
@@ -4647,9 +4682,7 @@ static void evergreen_set_shader_images(struct pipe_context *ctx,
 	struct r600_image_state *istate = NULL;
 	bool has_vm = rctx->b.screen->info.r600_has_virtual_memory;
 	int idx;
-	if (shader != MESA_SHADER_FRAGMENT &&
-	    shader != MESA_SHADER_COMPUTE &&
-	    shader != MESA_SHADER_VERTEX)
+	if (!r600_check_image_shader_supported(shader))
 		return;
 	if (!count && !unbind_num_trailing_slots)
 		return;
@@ -4657,7 +4690,7 @@ static void evergreen_set_shader_images(struct pipe_context *ctx,
 	if (shader == MESA_SHADER_COMPUTE)
 		istate = &rctx->compute_images;
 	else
-		istate = &rctx->fragment_images;
+		istate = &rctx->fragment_images[shader == MESA_SHADER_VERTEX ? 0 : 1];
 
 	assert (shader == MESA_SHADER_FRAGMENT ||
 		shader == MESA_SHADER_COMPUTE ||
@@ -4931,9 +4964,11 @@ void evergreen_init_state_functions(struct r600_context *rctx)
 		rctx->config_state.dyn_gpr_enabled = true;
 	}
 	r600_init_atom(rctx, &rctx->cb_state.atom, id++, evergreen_emit_framebuffer_state, 0);
-	r600_init_atom(rctx, &rctx->fragment_images.atom, id++, evergreen_emit_fragment_image_state, 0);
+	r600_init_atom(rctx, &rctx->fragment_images[0].atom, id++, evergreen_emit_fragment_image_state_vs, 0);
+	r600_init_atom(rctx, &rctx->fragment_images[1].atom, id++, evergreen_emit_fragment_image_state_fs, 0);
 	r600_init_atom(rctx, &rctx->compute_images.atom, id++, evergreen_emit_compute_image_state, 0);
-	r600_init_atom(rctx, &rctx->fragment_buffers.atom, id++, evergreen_emit_fragment_buffer_state, 0);
+	r600_init_atom(rctx, &rctx->fragment_buffers[MESA_SHADER_VERTEX].atom, id++, evergreen_emit_fragment_buffer_state_vs, 0);
+	r600_init_atom(rctx, &rctx->fragment_buffers[MESA_SHADER_FRAGMENT].atom, id++, evergreen_emit_fragment_buffer_state_fs, 0);
 	r600_init_atom(rctx, &rctx->compute_buffers.atom, id++, evergreen_emit_compute_buffer_state, 0);
 	/* shader const */
 	r600_init_atom(rctx, &rctx->constbuf_state[MESA_SHADER_VERTEX].atom, id++, evergreen_emit_vs_constant_buffers, 0);

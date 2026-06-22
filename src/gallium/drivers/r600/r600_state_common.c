@@ -9,6 +9,7 @@
 #include "r600_formats.h"
 #include "r600_shader.h"
 #include "r600d.h"
+#include "r600_image_buffer.h"
 
 #include "util/format/u_format_s3tc.h"
 #include "util/u_draw.h"
@@ -286,7 +287,7 @@ void r600_add_atom(struct r600_context *rctx,
 		   struct r600_atom *atom,
 		   unsigned id)
 {
-	assert(id < R600_NUM_ATOMS);
+	assert(id < R600_NUM_ATOMS && R600_NUM_ATOMS <= 64);
 	assert(rctx->atoms[id] == NULL);
 	rctx->atoms[id] = atom;
 	atom->id = id;
@@ -1011,12 +1012,46 @@ static void r600_update_compressed_colortex_mask_images(struct r600_image_state 
 	}
 }
 
+static inline void r600_check_image_buffer_dirty(struct r600_context *const rctx,
+						 const bool ssbo,
+						 const mesa_shader_stage stage,
+						 const unsigned offset)
+{
+	unsigned last_offset;
+	switch ((unsigned)ssbo) {
+	case 0:
+		switch (stage) {
+		case MESA_SHADER_VERTEX:
+		default:
+			last_offset = rctx->fragment_images[0].last_offset;
+			break;
+		case MESA_SHADER_FRAGMENT:
+			last_offset = rctx->fragment_images[1].last_offset;
+			break;
+		}
+		break;
+	default:
+		last_offset = rctx->fragment_buffers[stage].last_offset;
+		break;
+	}
+
+	if (likely(last_offset == offset))
+		return;
+
+	for (unsigned k = 0; k < ARRAY_SIZE(rctx->fragment_images); k++)
+		if (rctx->fragment_images[k].enabled_mask)
+			r600_mark_atom_dirty(rctx, &rctx->fragment_images[k].atom);
+	for (unsigned k = 0; k < ARRAY_SIZE(rctx->fragment_buffers); k++)
+		if (r600_check_buffer_shader_supported(k) && rctx->fragment_buffers[k].enabled_mask)
+			r600_mark_atom_dirty(rctx, &rctx->fragment_buffers[k].atom);
+}
+
 /* Compute the key for the hw shader variant */
-static inline void r600_shader_selector_key(const struct pipe_context *ctx,
+static inline void r600_shader_selector_key(struct pipe_context *ctx,
 		const struct r600_pipe_shader_selector *sel,
 		union r600_shader_key *key)
 {
-	const struct r600_context *rctx = (struct r600_context *)ctx;
+	struct r600_context *rctx = (struct r600_context *)ctx;
 	memset(key, 0, sizeof(*key));
 
 	switch (sel->type) {
@@ -1030,7 +1065,8 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 		}
 		if (rctx->vs_shader->current->shader.num_images || rctx->vs_shader->current->shader.num_ssbos) {
 			key->vs.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
-			key->vs.dynamic_ssbo_offset = rctx->vs_shader->current->shader.num_images + rctx->ps_shader->current->shader.num_images;
+			key->vs.dynamic_ssbo_offset = r600_image_buffer_offset(rctx, true, sel->type);
+			r600_check_image_buffer_dirty(rctx, true, sel->type, key->vs.dynamic_ssbo_offset);
 		}
 		break;
 	}
@@ -1047,8 +1083,10 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 		key->ps.alpha_to_one_and_coverage = key->ps.alpha_to_one && rctx->alpha_to_one_and_coverage;
 		key->ps.nr_cbufs = rctx->framebuffer.state.nr_cbufs;
 		if (rctx->ps_shader->current->shader.num_images || rctx->ps_shader->current->shader.num_ssbos) {
-			key->ps.dynamic_image_offset = rctx->vs_shader->current->shader.num_images;
-			key->ps.dynamic_ssbo_offset = rctx->vs_shader->current->shader.num_images + rctx->ps_shader->current->shader.num_images + rctx->vs_shader->current->shader.num_ssbos;
+			key->ps.dynamic_image_offset = r600_image_buffer_offset(rctx, false, sel->type);
+			key->ps.dynamic_ssbo_offset = r600_image_buffer_offset(rctx, true, sel->type);
+			r600_check_image_buffer_dirty(rctx, false, sel->type, key->ps.dynamic_image_offset);
+			r600_check_image_buffer_dirty(rctx, true, sel->type, key->ps.dynamic_ssbo_offset);
 		}
                 key->ps.apply_sample_id_mask = (rctx->ps_iter_samples > 1) || !rctx->rasterizer->multisample_enable;
 		/* Dual-source blending only makes sense with nr_cbufs == 1. */
@@ -1699,16 +1737,22 @@ void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int sh
 {
 	struct r600_textures_info *samplers = &rctx->samplers[shader_type];
 	struct r600_image_state *images = NULL;
-	int bits, sview_bits, img_bits;
+	int bits, sview_bits, img_base, img_bits;
 	uint32_t array_size;
 	int i;
 	uint32_t *constants;
 	uint32_t base_offset;
+	unsigned image_offset;
 
-	if (shader_type == MESA_SHADER_FRAGMENT || shader_type == MESA_SHADER_VERTEX) {
-		images = &rctx->fragment_images;
+	if (shader_type == MESA_SHADER_FRAGMENT) {
+		images = &rctx->fragment_images[1];
+		image_offset = util_last_bit(rctx->fragment_images[0].enabled_mask);
 	} else if (shader_type == MESA_SHADER_COMPUTE) {
 		images = &rctx->compute_images;
+		image_offset = 0;
+	} else if (shader_type == MESA_SHADER_VERTEX) {
+		images = &rctx->fragment_images[0];
+		image_offset = 0;
 	}
 
 	if (!samplers->views.dirty_buffer_constants &&
@@ -1719,9 +1763,11 @@ void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int sh
 		images->dirty_buffer_constants = false;
 	samplers->views.dirty_buffer_constants = false;
 
-	bits = sview_bits = util_last_bit(samplers->views.enabled_mask);
-	if (images)
-		bits += util_last_bit(images->enabled_mask);
+	bits = sview_bits = img_base = util_last_bit(samplers->views.enabled_mask);
+	if (images) {
+		img_base += image_offset;
+		bits += image_offset + util_last_bit(images->enabled_mask);
+	}
 	img_bits = bits;
 
 	array_size = bits * sizeof(uint32_t);
@@ -1736,7 +1782,7 @@ void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int sh
 		}
 	}
 	if (images) {
-		for (i = sview_bits; i < img_bits; i++) {
+		for (i = img_base; i < img_bits; i++) {
 			int idx = i - sview_bits;
 			if (images->enabled_mask & (1 << idx)) {
 				uint32_t offset = (base_offset / 4) + i;
@@ -1757,13 +1803,20 @@ void r600_cedar_to_hemlock_setup_buffer_constants(struct r600_context *rctx, int
 	struct r600_textures_info *const samplers = &rctx->samplers[shader_type];
 	struct r600_image_state *images = NULL;
 	struct r600_image_state *buffers = NULL;
+	unsigned image_offset;
 
-	if (shader_type == MESA_SHADER_FRAGMENT || shader_type == MESA_SHADER_VERTEX) {
-		images = &rctx->fragment_images;
-		buffers = &rctx->fragment_buffers;
+	if (shader_type == MESA_SHADER_FRAGMENT) {
+		images = &rctx->fragment_images[1];
+		buffers = &rctx->fragment_buffers[shader_type];
+		image_offset = util_last_bit(rctx->fragment_images[0].enabled_mask);
 	} else if (shader_type == MESA_SHADER_COMPUTE) {
 		images = &rctx->compute_images;
 		buffers = &rctx->compute_buffers;
+		image_offset = 0;
+	} else if (shader_type == MESA_SHADER_VERTEX) {
+		images = &rctx->fragment_images[0];
+		buffers = &rctx->fragment_buffers[shader_type];
+		image_offset = 0;
 	}
 
 	if (!samplers->views.dirty_buffer_constants &&
@@ -1777,10 +1830,13 @@ void r600_cedar_to_hemlock_setup_buffer_constants(struct r600_context *rctx, int
 		buffers->dirty_buffer_constants = false;
 	samplers->views.dirty_buffer_constants = false;
 
-	const unsigned sview_bits = util_last_bit(samplers->views.enabled_mask);
+	unsigned img_base;
+	const unsigned sview_bits = img_base = util_last_bit(samplers->views.enabled_mask);
 	unsigned bits = sview_bits;
-	if (images)
-		bits += util_last_bit(images->enabled_mask);
+	if (images) {
+		img_base += image_offset;
+		bits += image_offset + util_last_bit(images->enabled_mask);
+	}
 	const unsigned img_bits = bits;
 	if (buffers)
 		bits += util_last_bit(buffers->enabled_mask);
@@ -1801,7 +1857,7 @@ void r600_cedar_to_hemlock_setup_buffer_constants(struct r600_context *rctx, int
 		}
 	}
 	if (images) {
-		for (unsigned i = sview_bits; i < img_bits; i++) {
+		for (unsigned i = img_base; i < img_bits; i++) {
 			int idx = i - sview_bits;
 			if (images->enabled_mask & (1 << idx)) {
 				uint32_t offset = (base_offset / 4) + i;
@@ -1961,8 +2017,10 @@ void r600_update_compressed_resource_state(struct r600_context *rctx, bool compu
 				r600_update_compressed_colortex_mask(&rctx->samplers[i].views);
 			}
 		}
-		if (!compute_only)
-			r600_update_compressed_colortex_mask_images(&rctx->fragment_images);
+		if (!compute_only) {
+			for (unsigned k = 0; k < ARRAY_SIZE(rctx->fragment_images); k++)
+				r600_update_compressed_colortex_mask_images(&rctx->fragment_images[k]);
+		}
 		r600_update_compressed_colortex_mask_images(&rctx->compute_images);
 	}
 
@@ -1985,11 +2043,13 @@ void r600_update_compressed_resource_state(struct r600_context *rctx, bool compu
 		struct r600_image_state *istate;
 
 		if (!compute_only) {
-			istate = &rctx->fragment_images;
-			if (istate->compressed_depthtex_mask)
-				r600_decompress_depth_images(rctx, istate);
-			if (istate->compressed_colortex_mask)
-				r600_decompress_color_images(rctx, istate);
+			for (unsigned k = 0; k < ARRAY_SIZE(rctx->fragment_images); k++) {
+				istate = &rctx->fragment_images[k];
+				if (istate->compressed_depthtex_mask)
+					r600_decompress_depth_images(rctx, istate);
+				if (istate->compressed_colortex_mask)
+					r600_decompress_color_images(rctx, istate);
+			}
 		}
 
 		istate = &rctx->compute_images;
@@ -4162,8 +4222,10 @@ static void r600_invalidate_buffer(struct pipe_context *ctx, struct pipe_resourc
 	}
 
 	/* SSBOs */
-	struct r600_image_state *istate = &rctx->fragment_buffers;
-	{
+        for (shader = 0; shader < ARRAY_SIZE(rctx->fragment_buffers); shader++) {
+		if (!r600_check_buffer_shader_supported(shader))
+			continue;
+		struct r600_image_state *istate = &rctx->fragment_buffers[shader];
 		uint32_t mask = istate->enabled_mask;
 		bool found = false;
 		while (mask) {

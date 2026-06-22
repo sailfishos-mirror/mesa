@@ -313,12 +313,11 @@ static void r600_init_shader_caps(struct r600_screen *rscreen)
 
 		caps->supported_irs = 1 << PIPE_SHADER_IR_NIR;
 
-		if (rscreen->b.family >= CHIP_CEDAR && (
-			    i == MESA_SHADER_FRAGMENT ||
-			    i == MESA_SHADER_COMPUTE ||
-			    i == MESA_SHADER_VERTEX)) {
-			caps->max_shader_buffers = R600_MAX_USABLE_SSBOS;
-			caps->max_shader_images = R600_MAX_IMAGES;
+		if (rscreen->b.family >= CHIP_CEDAR) {
+			if (r600_check_image_shader_supported(i))
+				caps->max_shader_images = R600_MAX_IMAGES;
+			if (r600_check_buffer_shader_supported(i))
+				caps->max_shader_buffers = R600_MAX_USABLE_SSBOS;
 		}
 
 		if (rscreen->b.family >= CHIP_CEDAR &&
@@ -585,6 +584,7 @@ static void r600_init_screen_caps(struct r600_screen *rscreen)
 	assert(caps->max_combined_shader_output_resources >=
 	       caps->max_combined_shader_buffers &&
 	       R600_MAX_IMAGES <= R600_MAX_SSBOS);
+	caps->max_combined_image_uniforms = R600_MAX_IMAGES;
 
 	/* Timer queries, present when the clock frequency is non zero. */
 	caps->query_time_elapsed =
