@@ -1283,31 +1283,9 @@ jay_register_allocate_function(jay_function *f)
 {
    jay_shader *shader = f->shader;
    jay_ra_state ra = { .b.shader = shader, .b.func = f };
-
-   /* Spill as needed to fit within the limits. */
-   unsigned limit = jay_gpr_limit(f->shader);
-   bool spilled = f->demand[GPR] > limit;
-
-   if (spilled) {
-      jay_spill(f, GPR, limit);
-      jay_validate(f->shader, "spilling");
-      jay_compute_liveness(f);
-      jay_calculate_register_demands(f);
-   }
-
-   if (f->demand[GPR] > limit) {
-      fprintf(stderr, "limit %u but demand %u\n", limit, f->demand[GPR]);
-      fflush(stdout);
-      UNREACHABLE("spiller bug");
-   }
-
-   assert(f->demand[UGPR] <= f->shader->num_regs[UGPR] &&
-          "UGPRs already spilled");
-
    typed_memcpy(ra.num_regs, shader->num_regs, JAY_NUM_RA_FILES);
 
    linear_ctx *lin_ctx = linear_context(shader);
-
    ra.reg_for_index = linear_alloc_array(lin_ctx, jay_reg, f->ssa_alloc);
    ra.global_reg_for_index = linear_alloc_array(lin_ctx, jay_reg, f->ssa_alloc);
    ra.affinities = linear_zalloc_array(lin_ctx, struct affinity, f->ssa_alloc);
@@ -1390,7 +1368,7 @@ jay_register_allocate_function(jay_function *f)
 
    insert_parallel_copies_for_phis(f);
 
-   if (spilled) {
+   if (f->demand[MEM]) {
       jay_lower_spill(f);
    }
 

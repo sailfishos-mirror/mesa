@@ -170,6 +170,16 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
    assert(BITSET_COUNT(regs) == JAY_NUM_PHYS_GRF && "all GRFs mapped");
 }
 
+static inline unsigned
+jay_gpr_limit(jay_shader *shader)
+{
+   /* If testing spilling, set limit tightly. */
+   bool test = (jay_debug & JAY_DBG_SPILL);
+   test &= shader->stage != MESA_SHADER_VERTEX;
+
+   return test ? 13 : shader->num_regs[GPR];
+}
+
 /*
  * Partition the register file for the entire shader.
  *
@@ -422,6 +432,28 @@ jay_partition_grf(jay_shader *shader)
 
    /* By construction of our partition, the entire GRF is used. */
    shader->prog_data->base.grf_used = JAY_NUM_PHYS_GRF;
+
+   /* Spill as needed to fit within the partition we picked. */
+   jay_foreach_function(shader, f) {
+      unsigned limit = jay_gpr_limit(shader);
+      bool spilled = f->demand[GPR] > limit;
+
+      if (spilled) {
+         jay_spill(f, GPR, limit);
+         jay_validate(f->shader, "spilling");
+         jay_compute_liveness(f);
+         jay_calculate_register_demands(f);
+      }
+
+      if (f->demand[GPR] > limit) {
+         fprintf(stderr, "limit %u but demand %u\n", limit, f->demand[GPR]);
+         fflush(stdout);
+         UNREACHABLE("spiller bug");
+      }
+
+      assert(f->demand[UGPR] <= f->shader->num_regs[UGPR] &&
+             "UGPRs spilled above");
+   }
 }
 
 #define ANSI_END    "\033[0m"

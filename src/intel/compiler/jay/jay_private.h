@@ -98,16 +98,6 @@ struct jay_shader_bin *jay_to_binary(jay_shader *s,
                                      size_t const_data_size,
                                      bool debug);
 
-static inline unsigned
-jay_gpr_limit(jay_shader *shader)
-{
-   /* If testing spilling, set limit tightly. */
-   bool test = (jay_debug & JAY_DBG_SPILL);
-   test &= shader->stage != MESA_SHADER_VERTEX;
-
-   return test ? 13 : shader->num_regs[GPR];
-}
-
 /*
  * Check whether the Early EOT feature is possibly enabled. This feature was
  * removed in Xe3+. It exists on Xe2+ and fulsim enables it but real hardware
