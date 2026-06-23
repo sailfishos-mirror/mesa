@@ -15,7 +15,7 @@ zink-lavapipe:
     # to stdout and aborting on unknown failures.
     ZINK_DEBUG: validation
     VK_DRIVER: lvp
-  parallel: 2
+  parallel: 3
   script: |
     export LD_LIBRARY_PATH="$CI_PROJECT_DIR/install/lib"
     export LIBGL_DRIVERS_PATH="$CI_PROJECT_DIR/install/lib/dri"
