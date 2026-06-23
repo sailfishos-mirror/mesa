@@ -4388,13 +4388,21 @@ emit_rt_lsc_fence(const brw_builder &bld,
    brw_send_inst *send = ubld.SEND();
    send->dst = tmp;
 
-   send->src[SEND_SRC_DESC]     = brw_imm_ud(0);
-   send->src[SEND_SRC_EX_DESC]  = brw_imm_ud(0);
+   if (bld.shader->key->use_efficient_64bit) {
+      send->combined_desc = lsc_fence_64bit_msg_desc(scope, flush_type);
+      send->src[SENDG_SRC_IND_0_DESC] = brw_reg();
+      send->src[SENDG_SRC_IND_1_DESC] = brw_reg();
+      send->dst = brw_reg();
+      send->efficient_64bit = true;
+   } else {
+      send->src[SEND_SRC_DESC] = brw_imm_ud(0);
+      send->src[SEND_SRC_EX_DESC] = brw_imm_ud(0);
+      send->desc = lsc_fence_msg_desc(devinfo, scope, flush_type, true);
+   }
+
    send->src[SEND_SRC_PAYLOAD1] = brw_vec8_grf(0, 0);
    send->src[SEND_SRC_PAYLOAD2] = brw_reg();
-
    send->sfid = GEN_SFID_UGM;
-   send->desc = lsc_fence_msg_desc(devinfo, scope, flush_type, true);
    send->mlen = reg_unit(devinfo); /* g0 header */
    send->ex_mlen = 0;
    /* Temp write for scheduling */

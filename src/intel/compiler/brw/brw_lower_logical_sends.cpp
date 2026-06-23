@@ -2101,8 +2101,6 @@ lower_lsc_memory_fence_and_interlock(const brw_builder &bld, struct brw_send_ins
    send->check_tdr = interlock;
    send->has_side_effects = true;
 
-   send->src[SEND_SRC_DESC]     = brw_imm_ud(0);
-   send->src[SEND_SRC_EX_DESC]  = brw_imm_ud(0);
    send->src[SEND_SRC_PAYLOAD1] = retype(vec1(header), BRW_TYPE_UD);
    send->src[SEND_SRC_PAYLOAD2] = brw_reg();
    send->mlen = reg_unit(devinfo);
@@ -2113,29 +2111,46 @@ lower_lsc_memory_fence_and_interlock(const brw_builder &bld, struct brw_send_ins
     * the descriptor value and rebuild a legacy URB fence descriptor.
     */
    if (send->sfid == GEN_SFID_URB && devinfo->ver < 20) {
+      send->src[SEND_SRC_DESC]     = brw_imm_ud(0);
+      send->src[SEND_SRC_EX_DESC]  = brw_imm_ud(0);
       send->desc = brw_urb_fence_desc(devinfo);
       send->header_size = 1;
-   } else {
-      gen_lsc_desc desc = gen_lsc_desc_decode(devinfo, intrinsic_desc);
-      assert(desc.op == LSC_OP_FENCE);
+      return;
+   }
 
-      /* Wa_14012437816:
-       *
-       *   "For any fence greater than local scope, always set flush type to
-       *    at least invalidate so that fence goes on properly."
-       *
-       *   "The bug is if flush_type is 'None', the scope is always downgraded
-       *    to 'local'."
-       *
-       * Here set scope to NONE_6 instead of NONE, which has the same effect
-       * as NONE but avoids the downgrade to scope LOCAL.
+   gen_lsc_desc desc = gen_lsc_desc_decode(devinfo, intrinsic_desc);
+   assert(desc.op == LSC_OP_FENCE);
+
+   /* Wa_14012437816:
+    *
+    *   "For any fence greater than local scope, always set flush type to
+    *    at least invalidate so that fence goes on properly."
+    *
+    *   "The bug is if flush_type is 'None', the scope is always downgraded
+    *    to 'local'."
+    *
+    * Here set scope to NONE_6 instead of NONE, which has the same effect
+    * as NONE but avoids the downgrade to scope LOCAL.
+    */
+   if (intel_needs_workaround(devinfo, 14012437816) &&
+       desc.fence.scope > LSC_FENCE_LOCAL &&
+       desc.fence.flush_type == LSC_FLUSH_TYPE_NONE) {
+       desc.fence.flush_type = LSC_FLUSH_TYPE_NONE_6;
+   }
+
+   if (bld.shader->key->use_efficient_64bit) {
+      /* Instruction_Fence
+       *   The src0 payload is unused (pass any register).
+       *   The dest data payload is null.
        */
-      if (intel_needs_workaround(devinfo, 14012437816) &&
-          desc.fence.scope > LSC_FENCE_LOCAL &&
-          desc.fence.flush_type == LSC_FLUSH_TYPE_NONE) {
-         desc.fence.flush_type = LSC_FLUSH_TYPE_NONE_6;
-      }
-
+      send->combined_desc = lsc_fence_64bit_msg_desc(desc.fence.scope, desc.fence.flush_type);
+      send->src[SENDG_SRC_IND_0_DESC] = brw_reg();
+      send->src[SENDG_SRC_IND_1_DESC] = brw_reg();
+      send->dst = brw_reg();
+      send->efficient_64bit = true;
+   } else {
+      send->src[SEND_SRC_DESC]     = brw_imm_ud(0);
+      send->src[SEND_SRC_EX_DESC]  = brw_imm_ud(0);
       send->desc = lsc_fence_msg_desc(devinfo, desc.fence.scope,
                                       desc.fence.flush_type, false);
    }
