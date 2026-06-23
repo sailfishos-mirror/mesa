@@ -596,7 +596,9 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
       return;
    }
 
-   RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.ring_offsets, AC_UD_SCRATCH_RING_OFFSETS);
+   if (gfx_level < GFX11 || (stage != MESA_SHADER_COMPUTE && stage != MESA_SHADER_TASK)) {
+      RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, ac.ring_offsets, AC_UD_SCRATCH_RING_OFFSETS);
+   }
    if (stage == MESA_SHADER_TASK) {
       RADV_ADD_UD_ARG(state, 2, AC_ARG_CONST_ADDR, task_ring_offsets, AC_UD_CS_TASK_RING_OFFSETS);
    }

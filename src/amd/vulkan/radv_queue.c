@@ -480,7 +480,6 @@ radv_emit_compute_scratch(struct radv_device *device, struct radv_cmd_stream *cs
    const struct radeon_info *gpu_info = &pdev->info;
    uint32_t tmpring_size;
    uint64_t scratch_va;
-   uint32_t rsrc1;
 
    /* Ensure there is always a mapped BO in s[0:1] for the SMEM OOB mitigation */
    if (!compute_scratch_bo && device->compiler_info.key.mitigate_smem_oob)
@@ -490,12 +489,6 @@ radv_emit_compute_scratch(struct radv_device *device, struct radv_cmd_stream *cs
       return;
 
    scratch_va = radv_buffer_get_va(compute_scratch_bo);
-   rsrc1 = S_008F04_BASE_ADDRESS_HI(scratch_va >> 32);
-
-   if (gpu_info->gfx_level >= GFX11)
-      rsrc1 |= S_008F04_SWIZZLE_ENABLE_GFX11(1);
-   else
-      rsrc1 |= S_008F04_SWIZZLE_ENABLE_GFX6(1);
 
    ac_get_scratch_tmpring_size(gpu_info, waves, size_per_wave, &tmpring_size);
 
@@ -504,16 +497,20 @@ radv_emit_compute_scratch(struct radv_device *device, struct radv_cmd_stream *cs
    radeon_begin(cs);
 
    if (gpu_info->gfx_level >= GFX11) {
+      assert(!device->compiler_info.key.mitigate_smem_oob);
+
       radeon_set_sh_reg_seq(R_00B840_COMPUTE_DISPATCH_SCRATCH_BASE_LO, 2);
       radeon_emit(scratch_va >> 8);
       radeon_emit(scratch_va >> 40);
 
       waves /= gpu_info->max_se;
-   }
+   } else {
+      uint32_t rsrc1 = S_008F04_BASE_ADDRESS_HI(scratch_va >> 32) | S_008F04_SWIZZLE_ENABLE_GFX6(1);
 
-   radeon_set_sh_reg_seq(R_00B900_COMPUTE_USER_DATA_0, 2);
-   radeon_emit(scratch_va);
-   radeon_emit(rsrc1);
+      radeon_set_sh_reg_seq(R_00B900_COMPUTE_USER_DATA_0, 2);
+      radeon_emit(scratch_va);
+      radeon_emit(rsrc1);
+   }
 
    radeon_set_sh_reg(R_00B860_COMPUTE_TMPRING_SIZE, tmpring_size);
 
@@ -524,6 +521,8 @@ static void
 radv_emit_compute_shader_pointers(struct radv_device *device, struct radv_cmd_stream *cs,
                                   struct radeon_winsys_bo *descriptor_bo)
 {
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
    if (!descriptor_bo)
       return;
 
@@ -534,7 +533,10 @@ radv_emit_compute_shader_pointers(struct radv_device *device, struct radv_cmd_st
     * so emit the descriptor pointer to user data 2-3 instead (task_ring_offsets arg).
     */
    radeon_begin(cs);
-   radeon_emit_64bit_pointer(R_00B908_COMPUTE_USER_DATA_2, va);
+   if (pdev->info.gfx_level >= GFX11)
+      radeon_emit_64bit_pointer(R_00B900_COMPUTE_USER_DATA_0, va);
+   else
+      radeon_emit_64bit_pointer(R_00B908_COMPUTE_USER_DATA_2, va);
    radeon_end();
 }
 
