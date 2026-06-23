@@ -17,7 +17,7 @@
 #include "util/ralloc.h"
 
 static constexpr int MIN_GFX_VERX10 = 90;
-static constexpr int MAX_GFX_VERX10 = 300;
+static constexpr int MAX_GFX_VERX10 = 350;
 
 /* Many of the tests can be represented as an assembly instruction that can be
  * parsed and then validate.  These tests are handled in a single table.
@@ -2187,6 +2187,10 @@ TEST(gen_validate_test, validation_table)
             continue;
 
          platforms_targeted++;
+
+         /* TODO: Drop after making test changes for Xe3P */
+         if (verx10 == 350)
+            continue;
 
          const bool inserted = executed_tests[t.input].insert(platform.name).second;
          if (!inserted)
