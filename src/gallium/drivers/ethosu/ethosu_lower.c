@@ -302,6 +302,14 @@ ethosu_tensor_keeps_brick(const struct ethosu_subgraph *subgraph,
 }
 
 static bool
+ethosu_consumer_uses_depth_mean(const struct pipe_ml_operation *poperation)
+{
+   return poperation &&
+          poperation->type == PIPE_ML_OPERATION_TYPE_MEAN &&
+          poperation->mean.axes == BITFIELD_BIT(3);
+}
+
+static bool
 ethosu_all_consumers_are_convolutions(const struct pipe_ml_operation *poperations,
                                       unsigned count,
                                       unsigned tensor_index)
@@ -631,6 +639,17 @@ ethosu_read_scalar(const struct pipe_tensor *tensor)
    assert(tensor->type_size == 4);
    return *(int32_t *)tensor->data;
 }
+
+static void
+ethosu_append_eltwise(struct ethosu_subgraph *subgraph,
+                      enum ethosu_eltwise_type type,
+                      struct ethosu_feature_map *ifm,
+                      struct ethosu_feature_map *ifm2,
+                      struct ethosu_feature_map *ofm,
+                      enum ethosu_rounding_mode round_mode,
+                      bool identity_scale,
+                      unsigned scale,
+                      unsigned shift);
 
 static void
 operation_set_defaults(struct ethosu_operation *operation)
@@ -1087,6 +1106,105 @@ ethosu_lower_pad(struct ethosu_subgraph *subgraph,
                   &pad_ifm);
       ethosu_append_pool_nop(subgraph, &pad_ifm, &pad_ofm);
    }
+}
+
+static void
+ethosu_lower_mean(struct ethosu_subgraph *subgraph,
+                  const struct pipe_ml_operation *poperation)
+{
+   struct pipe_tensor *input = poperation->input_tensors[0];
+   struct pipe_tensor *output = poperation->output_tensors[0];
+   struct pipe_tensor reshaped_input;
+   struct pipe_tensor reshaped_output;
+   struct ethosu_operation sum_operation;
+   struct ethosu_feature_map sum_fm = {0};
+   struct ethosu_feature_map output_fm = {0};
+   struct ethosu_feature_map scale_fm = {0};
+   struct ethosu_block sum_shape;
+   struct ethosu_tensor *sum_tensor;
+   unsigned kernel_height;
+   unsigned kernel_width;
+   unsigned kernel_elements;
+   unsigned weights_size;
+   uint8_t *weights;
+   int32_t *biases;
+   int32_t scale_shift;
+   int32_t scale;
+   int32_t quant_scale;
+   int32_t quant_shift;
+   int mean_shift = 0;
+
+   if (poperation->mean.axes == BITFIELD_BIT(3)) {
+      reshaped_input = *input;
+      reshaped_output = *output;
+
+      if (input->dims[1] == 1) {
+         reshaped_input.dims[1] = input->dims[2];
+         reshaped_output.dims[1] = output->dims[2];
+      }
+
+      reshaped_input.dims[2] = input->dims[3];
+      reshaped_input.dims[3] = 1;
+      reshaped_output.dims[2] = 1;
+      reshaped_output.dims[3] = 1;
+      input = &reshaped_input;
+      output = &reshaped_output;
+   }
+
+   kernel_height = poperation->mean.axes == BITFIELD_BIT(3) ? 1 : input->dims[1];
+   kernel_width = input->dims[2];
+   sum_shape = (struct ethosu_block){output->dims[2], output->dims[1],
+                                     output->dims[3]};
+   sum_tensor = ethosu_add_internal_tensor(subgraph, sum_shape, 4);
+   kernel_elements = kernel_height * kernel_width;
+   weights_size = kernel_elements * input->dims[3];
+   weights = malloc(weights_size);
+   biases = calloc(output->dims[3], sizeof(*biases));
+   quant_scale = ethosu_quantize_scale((double)input->scale / output->scale,
+                                       &quant_shift, false);
+
+   for (unsigned elements = kernel_elements; elements > 1; elements >>= 1)
+      mean_shift++;
+
+   mean_shift = MIN2(mean_shift, 32);
+   mean_shift = MIN2(mean_shift, 62 - quant_shift);
+   scale = ((int64_t)quant_scale << mean_shift) / kernel_elements;
+   scale_shift = quant_shift + mean_shift;
+
+   memset(weights, 1, weights_size);
+
+   sum_tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+
+   operation_set_defaults(&sum_operation);
+   sum_operation.type = ETHOSU_OPERATION_TYPE_CONVOLUTION;
+   sum_operation.conv.depthwise = true;
+   set_feature_map(subgraph, input, &sum_operation.ifm);
+   set_internal_feature_map(sum_tensor, sum_shape, input->scale, 0, true,
+                            &sum_operation.ofm);
+   sum_operation.kernel.height = kernel_height;
+   sum_operation.kernel.width = kernel_width;
+   sum_operation.kernel.depthwise = true;
+   sum_operation.kernel.scale = 1.0f;
+   sum_operation.kernel.zero_point = 0;
+   sum_operation.kernel.is_signed = true;
+   sum_operation.round_mode = ETHOSU_ROUNDING_DOUBLE;
+   set_full_activation_range(&sum_operation);
+   allocate_feature_maps(subgraph, &sum_operation);
+   ethosu_sched_operation(subgraph, &sum_operation);
+   fill_coefs(subgraph, &sum_operation, biases, weights, weights_size);
+   util_dynarray_append(&subgraph->operations, sum_operation);
+
+   set_internal_feature_map(sum_tensor, sum_shape, input->scale, 0, true,
+                            &sum_fm);
+   set_feature_map(subgraph, output, &output_fm);
+   set_constant_feature_map(subgraph, scale, &scale_fm);
+
+   ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_MUL, &sum_fm,
+                         &scale_fm, &output_fm, ETHOSU_ROUNDING_DOUBLE,
+                         false, 1, scale_shift);
+
+   free(biases);
+   free(weights);
 }
 
 static double
@@ -2261,7 +2379,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                                           poperation, ptensor) &&
                 !(consumer &&
                   (ethosu_softmax_requires_nhwc(poperation, consumer) ||
-                   ethosu_reshape_feeds_softmax(poperations, count, consumer))))
+                   ethosu_reshape_feeds_softmax(poperations, count, consumer) ||
+                   ethosu_consumer_uses_depth_mean(consumer))))
                tensor->layout = ETHOSU_LAYOUT_NHCWB16;
          }
       }
@@ -2374,6 +2493,11 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       case PIPE_ML_OPERATION_TYPE_POOLING: {
          ethosu_lower_pooling(subgraph, &poperations[i], &operation);
          util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_MEAN: {
+         ethosu_lower_mean(subgraph, &poperations[i]);
          break;
       }
 

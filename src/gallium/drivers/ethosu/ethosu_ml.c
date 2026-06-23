@@ -255,6 +255,36 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                   input->dims[3] <= SOFTMAX_MAX_DEPTH;
       break;
    }
+   case PIPE_ML_OPERATION_TYPE_MEAN: {
+      struct pipe_tensor *input = operation->input_tensors[0];
+      struct pipe_tensor *output = operation->output_tensors[0];
+      unsigned hw_axes = BITFIELD_BIT(1) | BITFIELD_BIT(2);
+      bool spatial_mean;
+      bool depth_mean;
+
+      spatial_mean = operation->mean.axes == hw_axes &&
+                     output->dims[0] == input->dims[0] &&
+                     output->dims[1] == 1 &&
+                     output->dims[2] == 1 &&
+                     output->dims[3] == input->dims[3] &&
+                     /* This emits a single depthwise convolution and does
+                      * not split large reductions, so the reduced height is
+                      * capped at 64 and the kernel at 4096 elements.
+                      */
+                     input->dims[1] <= 64 &&
+                     input->dims[1] * input->dims[2] <= 4096;
+      depth_mean = operation->mean.axes == BITFIELD_BIT(3) &&
+                   (input->dims[1] == 1 || input->dims[2] == 1) &&
+                   output->dims[0] == input->dims[0] &&
+                   output->dims[1] == input->dims[1] &&
+                   output->dims[2] == input->dims[2] &&
+                   output->dims[3] == 1 &&
+                   /* The channel count becomes the depthwise kernel
+                    * width, capped at 4096 elements. */
+                   input->dims[3] <= 4096;
+      supported = spatial_mean || depth_mean;
+      break;
+   }
    case PIPE_ML_OPERATION_TYPE_RESIZE: {
       /* NPU only supports 2x nearest neighbor upscaling */
       struct pipe_tensor *input = operation->input_tensors[0];
