@@ -2222,10 +2222,6 @@ TEST(gen_validate_test, validation_table)
 
          platforms_targeted++;
 
-         /* TODO: Drop after making test changes for Xe3P */
-         if (verx10 == 350)
-            continue;
-
          const bool inserted = executed_tests[t.input].insert(platform.name).second;
          if (!inserted)
             redundant_tests[t.input].insert(platform.name);
