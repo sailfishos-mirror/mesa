@@ -580,7 +580,7 @@ emit(struct jay_codegen *jc,
       /* Use a dedicated address register for broadcasts to avoid interfering
        * with a0.0 users. This affects UGPR spilling.
        */
-      unsigned addr = gen->exec_size == 1 ? (4 * 2) : 0;
+      unsigned addr = gen->exec_size == 1 ? 4 : 0;
 
       if (idx_in_macro == 0) {
          assert(I->src[0].file == GPR && jay_num_values(I->src[0]) == 1);
