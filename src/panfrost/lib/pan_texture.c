@@ -9,6 +9,7 @@
  */
 
 #include "pan_texture.h"
+#include "genxml/gen_macros.h"
 #include "util/macros.h"
 #include "util/u_math.h"
 #include "pan_afbc.h"
@@ -160,6 +161,27 @@ GENX(pan_texture_estimate_payload_size)(const struct pan_image_view *iview)
    unsigned elements = pan_texture_num_elements(iview);
 
    return element_size * elements;
+}
+
+unsigned
+GENX(pan_texture_get_payload_alignment)(const struct pan_image_view *iview)
+{
+   unsigned alignment;
+
+#if PAN_ARCH >= 9
+   alignment = pan_alignment(NULL_PLANE);
+   if (pan_format_is_yuv(iview->format) && iview->planes[1].image != NULL)
+      alignment *= 2;
+#elif PAN_ARCH == 7
+   if (pan_format_is_yuv(iview->format) && iview->planes[1].image != NULL)
+      alignment = pan_alignment(MULTIPLANAR_SURFACE);
+   else
+      alignment = pan_alignment(SURFACE_WITH_STRIDE);
+#else
+   alignment = pan_alignment(SURFACE_WITH_STRIDE);
+#endif
+
+   return alignment;
 }
 
 #if PAN_ARCH >= 9

@@ -114,16 +114,7 @@ prepare_tex_descs(struct panvk_image_view *view)
    uint32_t tex_payload_size = GENX(pan_texture_estimate_payload_size)(&pview);
 
    struct panvk_pool_alloc_info alloc_info = {
-#if PAN_ARCH == 6
-      .alignment = pan_alignment(SURFACE_WITH_STRIDE),
-#elif PAN_ARCH == 7
-      .alignment = (plane_count > 1)
-                      ? pan_alignment(MULTIPLANAR_SURFACE)
-                      : pan_alignment(SURFACE_WITH_STRIDE),
-#else
-      .alignment = pan_alignment(NULL_PLANE) * (plane_count > 1 ? 2 : 1),
-#endif
-
+      .alignment = GENX(pan_texture_get_payload_alignment)(&pview),
       .size = tex_payload_size * plane_count,
    };
 
