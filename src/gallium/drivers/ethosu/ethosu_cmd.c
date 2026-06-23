@@ -939,6 +939,24 @@ ethosu_operations_conflict(struct ethosu_subgraph *subgraph,
 }
 
 static void
+remove_completed_wait_ops(struct util_dynarray *outstanding_ops, unsigned completed)
+{
+   unsigned count =
+      util_dynarray_num_elements(outstanding_ops, struct ethosu_operation *);
+   unsigned remaining = count - completed;
+   struct ethosu_operation **ops = outstanding_ops->data;
+
+   memmove(ops, ops + completed, remaining * sizeof(*ops));
+   outstanding_ops->size = remaining * sizeof(*ops);
+}
+
+static void
+remove_oldest_wait_op(struct util_dynarray *outstanding_ops)
+{
+   remove_completed_wait_ops(outstanding_ops, 1);
+}
+
+static void
 get_wait_dependency(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation,
                     struct util_dynarray *outstanding_dma_ops,
                     struct util_dynarray *outstanding_npu_ops,
@@ -955,7 +973,7 @@ get_wait_dependency(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
 
       unsigned dmap_ops = util_dynarray_num_elements(outstanding_dma_ops, struct ethosu_operation *);
       if (dmap_ops > MAX_OUTSTANDING_DMA_OPS)
-         (void)util_dynarray_pop(outstanding_dma_ops, struct ethosu_operation *);
+         remove_oldest_wait_op(outstanding_dma_ops);
    } else {
       outstanding_ops = outstanding_dma_ops;
 
@@ -963,7 +981,7 @@ get_wait_dependency(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
 
       unsigned npu_ops = util_dynarray_num_elements(outstanding_npu_ops, struct ethosu_operation *);
       if (npu_ops > MAX_OUTSTANDING_NPU_OPS)
-         (void)util_dynarray_pop(outstanding_npu_ops, struct ethosu_operation *);
+         remove_oldest_wait_op(outstanding_npu_ops);
    }
 
    unsigned waits = -1;
@@ -977,10 +995,10 @@ get_wait_dependency(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
             kern_wait = waits;
          else
             dma_wait = waits;
-         // Current op needs to wait, and after it has waited,
-         // outstanding_ops[0..idx] are not outstanding any longer.
-         for (int i = 0; i <= idx; i++)
-            (void)util_dynarray_pop(outstanding_ops, struct ethosu_operation *);
+         /* Current op needs to wait.  The wait count leaves any newer
+          * operations in flight, while operations up to idx are completed.
+          */
+         remove_completed_wait_ops(outstanding_ops, idx + 1);
          break;
       }
    }
@@ -1002,7 +1020,7 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          operation->read_accesses[0].size = operation->dma.size;
 
          operation->write_accesses[0].region = operation->dma.dst_region;
-         operation->write_accesses[0].address = 0x0;
+         operation->write_accesses[0].address = operation->dma.dst_address;
          operation->write_accesses[0].size = operation->dma.size;
 
          break;
