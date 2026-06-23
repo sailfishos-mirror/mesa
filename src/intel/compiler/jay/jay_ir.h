@@ -143,13 +143,25 @@ typedef struct jay_def {
 static_assert(sizeof(jay_def) == 8, "packed");
 
 /*
- * Construct an jay_def representing a bare register with no associated SSA
- * index, for use post-RA only.
+ * Construct an jay_def representing contiguous bare registers with no
+ * associated SSA index, for use post-RA only.
  */
+static inline jay_def
+jay_bare_regs(enum jay_file file, uint16_t reg, unsigned count)
+{
+   assert(count > 0);
+   return (jay_def) {
+      ._payload = JAY_SENTINEL,
+      .reg = reg,
+      .file = file,
+      .num_values_m1 = count - 1,
+   };
+}
+
 static inline jay_def
 jay_bare_reg(enum jay_file file, uint16_t reg)
 {
-   return (jay_def) { ._payload = JAY_SENTINEL, .reg = reg, .file = file };
+   return jay_bare_regs(file, reg, 1);
 }
 
 /*
