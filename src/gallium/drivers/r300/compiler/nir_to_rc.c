@@ -1602,6 +1602,147 @@ ntr_should_vectorize_instr(const nir_instr *instr, const void *data)
    return 4;
 }
 
+struct ntr_lower_backend_tex_state {
+   struct ntr_compile *c;
+   const struct r300_fragment_program_external_state *fs_state;
+   bool is_r500;
+};
+
+static nir_def *
+ntr_tex_coord_replace_xyz(nir_builder *b, nir_def *coord, nir_def *xyz)
+{
+   if (coord->num_components <= 3)
+      return xyz;
+
+   assert(coord->num_components == 4);
+   xyz = nir_pad_vector(b, xyz, 4);
+   return nir_vector_insert_imm(b, xyz, nir_channel(b, coord, 3), 3);
+}
+
+static nir_def *
+ntr_lower_backend_tex_wrap(nir_builder *b, nir_def *coord, rc_wrap_mode wrapmode)
+{
+   nir_def *xyz =
+      nir_channels(b, coord, BITFIELD_MASK(MIN2(coord->num_components, 3)));
+
+   switch (wrapmode) {
+   case RC_WRAP_REPEAT:
+      /* Texture wrap modes don't work on NPOT textures. Non-wrapped
+       * texcoords are free in HW, but repeat needs coordinates in [0, 1].
+       */
+      xyz = nir_ffract(b, xyz);
+      break;
+
+   case RC_WRAP_MIRRORED_REPEAT:
+      /* Mirroring repeats in [0, 2]. Scale to [0, 1], make the pattern
+       * repeat, move it to [-1, 1], then use abs to mirror and reverse it:
+       * 1 - abs(fract(v * 0.5) * 2 - 1).
+       */
+      xyz = nir_fmul_imm(b, xyz, 0.5f);
+      xyz = nir_ffract(b, xyz);
+      xyz = nir_fadd_imm(b, nir_fmul_imm(b, xyz, 2.0f), -1.0f);
+      xyz = nir_fsub(b, nir_imm_floatN_t(b, 1.0f, xyz->bit_size),
+                     nir_fabs(b, xyz));
+      break;
+
+   case RC_WRAP_MIRRORED_CLAMP:
+      /* Mirror [0, 1] into [-1, 0] using abs. This works for CLAMP,
+       * CLAMP_TO_EDGE, and CLAMP_TO_BORDER.
+       */
+      xyz = nir_fabs(b, xyz);
+      break;
+
+   default:
+      UNREACHABLE("unknown backend texture wrap mode");
+   }
+
+   return ntr_tex_coord_replace_xyz(b, coord, xyz);
+}
+
+static bool
+ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
+{
+   bool progress = false;
+   struct ntr_lower_backend_tex_state *state = data;
+
+   assert(tex->op == nir_texop_tex || tex->op == nir_texop_txb ||
+          tex->op == nir_texop_txl || tex->op == nir_texop_txd);
+
+   unsigned sampler = tex->sampler_index;
+   assert(sampler < ARRAY_SIZE(state->fs_state->unit));
+
+   const rc_wrap_mode wrapmode = state->fs_state->unit[sampler].wrap_mode;
+   const bool clamp_scale =
+      state->fs_state->unit[sampler].clamp_and_scale_before_fetch;
+   const bool is_rect = tex->sampler_dim == GLSL_SAMPLER_DIM_RECT;
+
+   b->cursor = nir_before_instr(&tex->instr);
+   nir_def *coord = nir_get_tex_src(tex, nir_tex_src_coord);
+
+   /* R300 cannot sample from rectangles, and the wrap fallback needs
+    * normalized coordinates even on R500.
+    */
+   if (is_rect && (!state->is_r500 || wrapmode != RC_WRAP_NONE)) {
+      nir_def *factor =
+         ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXRECT_FACTOR,
+                                 sampler, coord->num_components);
+      coord = nir_fmul(b, coord, factor);
+      tex->sampler_dim = GLSL_SAMPLER_DIM_2D;
+      progress = true;
+   }
+
+   /* When we emulate wrap or clamp/scale in ALU, projection has to happen
+    * before that emulation.
+    */
+   if (wrapmode == RC_WRAP_REPEAT || wrapmode == RC_WRAP_MIRRORED_REPEAT ||
+       clamp_scale) {
+      nir_def *projector = nir_steal_tex_src(tex, nir_tex_src_projector);
+      if (projector) {
+         coord = nir_fmul(b, coord, nir_frcp(b, projector));
+         progress = true;
+      }
+   }
+
+   if (wrapmode != RC_WRAP_NONE) {
+      coord = ntr_lower_backend_tex_wrap(b, coord, wrapmode);
+      progress = true;
+   }
+
+   if (clamp_scale) {
+      nir_def *xyz =
+         nir_channels(b, coord, BITFIELD_MASK(MIN2(coord->num_components, 3)));
+      coord = ntr_tex_coord_replace_xyz(b, coord, nir_fsat(b, xyz));
+
+      nir_def *factor =
+         ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXSCALE_FACTOR,
+                                 sampler, coord->num_components);
+      coord = nir_fmul(b, coord, factor);
+      progress = true;
+   }
+
+   if (progress) {
+      int coord_index = nir_tex_instr_src_index(tex, nir_tex_src_coord);
+      nir_src_rewrite(&tex->src[coord_index].src, coord);
+   }
+
+   return progress;
+}
+
+static bool
+ntr_lower_backend_tex(nir_shader *s, struct ntr_compile *c,
+                      const struct r300_fragment_program_external_state *fs_state,
+                      bool is_r500)
+{
+   struct ntr_lower_backend_tex_state state = {
+      .c = c,
+      .fs_state = fs_state,
+      .is_r500 = is_r500,
+   };
+
+   return nir_shader_tex_pass(s, ntr_lower_backend_tex_instr,
+                              nir_metadata_control_flow, &state);
+}
+
 struct ntr_lower_tex_state {
    nir_scalar channels[8];
    unsigned i;
@@ -1818,6 +1959,7 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
                   tex_swizzle, true);
       }
 
+      NIR_PASS(_, s, ntr_lower_backend_tex, c, &state, is_r500);
       nir_to_rc_lower_txp(s);
       NIR_PASS(_, s, nir_to_rc_lower_tex);
    }
