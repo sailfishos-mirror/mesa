@@ -73,6 +73,7 @@ static void
 lower_urb_read_logical_send_xe2(const brw_builder &bld, brw_urb_inst *urb)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
+   const unsigned cache_control = LSC_CACHE(devinfo, LOAD, L1UC_L3UC);
    assert(devinfo->has_lsc);
 
    assert(urb->size_written % (REG_SIZE * reg_unit(devinfo)) == 0);
@@ -100,22 +101,47 @@ lower_urb_read_logical_send_xe2(const brw_builder &bld, brw_urb_inst *urb)
 
    assert((dst_comps >= 1 && dst_comps <= 4) || dst_comps == 8);
 
-   send->desc = lsc_msg_desc(devinfo, LSC_OP_LOAD,
-                             LSC_ADDR_SURFTYPE_FLAT, LSC_ADDR_SIZE_A32,
-                             LSC_DATA_SIZE_D32, dst_comps /* num_channels */,
-                             false /* transpose */,
-                             LSC_CACHE(devinfo, LOAD, L1UC_L3UC));
-
    send->mlen = brw_lsc_msg_addr_len(devinfo, LSC_ADDR_SIZE_A32, send->exec_size);
    send->ex_mlen = 0;
    send->header_size = 0;
    send->has_side_effects = true;
    send->is_volatile = false;
 
-   setup_lsc_surface_descriptors(bld, send, send->desc, brw_reg(), offset);
-
    send->src[SEND_SRC_PAYLOAD1] = payload;
    send->src[SEND_SRC_PAYLOAD2] = brw_reg();
+
+   if (bld.shader->key->use_efficient_64bit) {
+      /* BSpec 72006:
+       *    "Address offset scaling is not supported for data port URB"
+       *
+       * It's not really explained but it seems we also need to specify an
+       * offset in element count, not bytes.
+       */
+      assert(offset % 4 == 0);
+      send->combined_desc = lsc_64bit_msg_desc(devinfo,
+                                               (gen_sfid) send->sfid,
+                                               LSC_OP_LOAD,
+                                               LSC_ADDR_SIZE_A32,
+                                               LSC_DATA_SIZE_D32,
+                                               dst_comps,
+                                               false,
+                                               cache_control,
+                                               0 /* scale_offset */,
+                                               offset / 4,
+                                               0 /* surface_state_index */);
+      send->src[SENDG_SRC_IND_0_DESC] = brw_reg();
+      send->src[SENDG_SRC_IND_1_DESC] = brw_reg();
+      send->efficient_64bit = true;
+   } else {
+      send->desc = lsc_msg_desc(devinfo, LSC_OP_LOAD,
+                                LSC_ADDR_SURFTYPE_FLAT, LSC_ADDR_SIZE_A32,
+                                LSC_DATA_SIZE_D32, dst_comps /* num_channels */,
+                                false /* transpose */,
+                                LSC_CACHE(devinfo, LOAD, L1UC_L3UC));
+      send->src[SEND_SRC_DESC] = brw_imm_ud(0);
+      send->src[SEND_SRC_EX_DESC] = brw_imm_ud(0);
+      setup_lsc_surface_descriptors(bld, send, send->desc, brw_reg(), offset);
+   }
 }
 
 static void
