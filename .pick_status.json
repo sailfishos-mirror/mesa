@@ -4154,7 +4154,7 @@
         "description": "radeonsi/mm: Fix setting VPE rotation when horizontal flip is enabled",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ed176e2c715ce2958b60754a2449eabb3fae3d35",
         "notes": null
