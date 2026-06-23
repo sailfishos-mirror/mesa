@@ -295,3 +295,26 @@ KHR-GLES31.core.draw_indirect.advanced-twoPass-transformFeedback-arrays,Fail
 spec@!opengl 1.1@large-tex,Fail
 spec@arb_texture_view@tex-view,Fail
 spec@glsl-1.30@execution@glsl-packed-back-color,Fail
+
+# OpenCL (rusticl) failures
+api@clgetcommandqueueinfo,Fail
+api@clgetextensionfunctionaddressforplatform,Fail
+api@clgetkernelarginfo,Fail
+api@clgetmemobjectinfo,Fail
+api@cllinkprogram,Fail
+api@clsetkernelarg,Fail
+api@clsetkernelarg@Input checks,Fail
+program@build@vector-data-types,Fail
+program@execute@builtin@builtin-float-nextafter-1.0.generated,Fail
+program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float1,Fail
+program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float16,Fail
+program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float2,Fail
+program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float4,Fail
+program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float8,Fail
+program@execute@builtin@builtin-long-hadd-1.0.generated,Crash
+program@execute@builtin@builtin-long-rhadd-1.0.generated,Crash
+program@execute@builtin@builtin-ulong-hadd-1.0.generated,Crash
+program@execute@builtin@builtin-ulong-rhadd-1.0.generated,Crash
+program@execute@global-offset,Fail
+program@execute@global-offset@3d- input dependent,Fail
+program@execute@vector-conversion,Fail
