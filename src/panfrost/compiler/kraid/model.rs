@@ -27,7 +27,11 @@ pub trait Model {
 
     fn op_dst_is_staging_reg(&self, op: &Op) -> bool;
 
-    fn op_dst_supports_lanes(&self, op: &Op, lanes: DstLanes) -> bool;
+    fn op_dst_supported_lanes(&self, op: &Op) -> DstLanesSet;
+
+    fn op_dst_supports_lanes(&self, op: &Op, lanes: DstLanes) -> bool {
+        self.op_dst_supported_lanes(op).contains(lanes)
+    }
 
     fn small_constants(&self) -> &[SmallConstant];
 
@@ -105,11 +109,11 @@ impl Model for ValhallModel {
         }
     }
 
-    fn op_dst_supports_lanes(&self, op: &Op, lanes: DstLanes) -> bool {
+    fn op_dst_supported_lanes(&self, op: &Op) -> DstLanesSet {
         if let Some(vop) = op.as_virtual() {
-            vop.dst_supports_lanes(lanes)
+            vop.dst_supported_lanes()
         } else {
-            v9_op_dst_supports_lanes(op, self.arch, lanes)
+            v9_op_dst_supported_lanes(op, self.arch)
         }
     }
 

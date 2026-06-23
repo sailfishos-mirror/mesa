@@ -1240,8 +1240,8 @@ pub trait VirtualOpcode {
         false
     }
 
-    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
-        lanes == DstLanes::All
+    fn dst_supported_lanes(&self) -> DstLanesSet {
+        DstLanesSet::from_array([DstLanes::All])
     }
 }
 

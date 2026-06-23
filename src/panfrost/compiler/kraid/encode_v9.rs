@@ -1556,38 +1556,48 @@ pub fn v9_op_dst_is_staging_reg(op: &Op, arch: u8) -> bool {
         .is_some_and(|info| info.is_sr)
 }
 
-pub fn v9_op_dst_supports_lanes(
-    op: &Op,
-    arch: u8,
-    lanes: ir::DstLanes,
-) -> bool {
+pub fn v9_op_dst_supported_lanes(op: &Op, arch: u8) -> DstLanesSet {
     let Some(dst_info) = v9_op_info(op, arch).and_then(|info| info.dst_info())
     else {
-        return false;
+        return Default::default();
     };
 
-    match lanes {
-        ir::DstLanes::None => false,
-        ir::DstLanes::All => {
-            dst_info.allowed_lanes.contains(v9::DstLanes::None)
+    let mut lanes = DstLanesSet::new();
+    for l in dst_info.allowed_lanes.iter() {
+        match l {
+            v9::DstLanes::None => {
+                lanes.insert(ir::DstLanes::All);
+            }
+            v9::DstLanes::B0 => {
+                lanes.insert(ir::DstLanes::AnyB);
+                lanes.insert(ir::DstLanes::B0);
+            }
+            v9::DstLanes::B1 => {
+                lanes.insert(ir::DstLanes::AnyB);
+                lanes.insert(ir::DstLanes::B1);
+            }
+            v9::DstLanes::B2 => {
+                lanes.insert(ir::DstLanes::AnyB);
+                lanes.insert(ir::DstLanes::B2);
+            }
+            v9::DstLanes::B3 => {
+                lanes.insert(ir::DstLanes::AnyB);
+                lanes.insert(ir::DstLanes::B3);
+            }
+            v9::DstLanes::H0 => {
+                lanes.insert(ir::DstLanes::AnyH);
+                lanes.insert(ir::DstLanes::H0);
+            }
+            v9::DstLanes::H1 => {
+                lanes.insert(ir::DstLanes::AnyH);
+                lanes.insert(ir::DstLanes::H1);
+            }
+            v9::DstLanes::H01 | v9::DstLanes::W0 | v9::DstLanes::D0 => {
+                // Not currently supported
+            }
         }
-        ir::DstLanes::AnyB => {
-            dst_info.allowed_lanes.contains(v9::DstLanes::B0)
-                || dst_info.allowed_lanes.contains(v9::DstLanes::B1)
-                || dst_info.allowed_lanes.contains(v9::DstLanes::B2)
-                || dst_info.allowed_lanes.contains(v9::DstLanes::B3)
-        }
-        ir::DstLanes::AnyH => {
-            dst_info.allowed_lanes.contains(v9::DstLanes::H0)
-                || dst_info.allowed_lanes.contains(v9::DstLanes::H1)
-        }
-        ir::DstLanes::B0 => dst_info.allowed_lanes.contains(v9::DstLanes::B0),
-        ir::DstLanes::B1 => dst_info.allowed_lanes.contains(v9::DstLanes::B1),
-        ir::DstLanes::B2 => dst_info.allowed_lanes.contains(v9::DstLanes::B2),
-        ir::DstLanes::B3 => dst_info.allowed_lanes.contains(v9::DstLanes::B3),
-        ir::DstLanes::H0 => dst_info.allowed_lanes.contains(v9::DstLanes::H0),
-        ir::DstLanes::H1 => dst_info.allowed_lanes.contains(v9::DstLanes::H1),
     }
+    lanes
 }
 
 fn encode_instr(

@@ -160,11 +160,11 @@ impl VirtualOpcode for OpCopy {
         }
     }
 
-    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+    fn dst_supported_lanes(&self) -> DstLanesSet {
         match self.dst_type.total_bits() {
-            8 => lanes.is_byte(),
-            16 => lanes.is_half(),
-            _ => lanes == DstLanes::All,
+            8 => DstLanes::ALL_B,
+            16 => DstLanes::ALL_H,
+            _ => DstLanesSet::from_array([DstLanes::All]),
         }
     }
 }
@@ -1079,8 +1079,8 @@ impl VirtualOpcode for OpMkVecV2I8 {
         swizzle.replicates_byte()
     }
 
-    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
-        lanes.is_half()
+    fn dst_supported_lanes(&self) -> DstLanesSet {
+        DstLanes::ALL_H
     }
 }
 
@@ -1115,10 +1115,6 @@ impl VirtualOpcode for OpMkVecV4I8 {
 
     fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
         swizzle.replicates_byte()
-    }
-
-    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
-        lanes == DstLanes::All
     }
 }
 
@@ -1244,11 +1240,11 @@ impl fmt::Display for OpPhiDst {
 }
 
 impl VirtualOpcode for OpPhiDst {
-    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+    fn dst_supported_lanes(&self) -> DstLanesSet {
         match self.dst_type.total_bits() {
-            8 => lanes.is_byte(),
-            16 => lanes.is_half(),
-            _ => lanes == DstLanes::All,
+            8 => DstLanes::ALL_B,
+            16 => DstLanes::ALL_H,
+            _ => DstLanesSet::from_array([DstLanes::All]),
         }
     }
 }
@@ -1307,8 +1303,9 @@ impl fmt::Display for OpRegIn {
 }
 
 impl VirtualOpcode for OpRegIn {
-    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
-        lanes == DstLanes::from(self.reg.range)
+    fn dst_supported_lanes(&self) -> DstLanesSet {
+        let lanes = DstLanes::from(self.reg.range);
+        DstLanesSet::from_array([lanes])
     }
 }
 
@@ -1587,11 +1584,11 @@ impl VirtualOpcode for OpSwz {
         }
     }
 
-    fn dst_supports_lanes(&self, lanes: DstLanes) -> bool {
+    fn dst_supported_lanes(&self) -> DstLanesSet {
         match self.src_type.total_bits() {
-            8 => lanes.is_byte(),
-            16 => lanes.is_half(),
-            _ => lanes == DstLanes::All,
+            8 => DstLanes::ALL_B,
+            16 => DstLanes::ALL_H,
+            _ => DstLanesSet::from_array([DstLanes::All]),
         }
     }
 }
