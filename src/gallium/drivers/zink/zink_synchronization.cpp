@@ -658,9 +658,10 @@ zink_resource_memory_barrier(struct zink_context *ctx, struct zink_resource *res
    bool can_skip_unordered = !unordered || UNSYNCHRONIZED ? false : !needs_access;
    /* ordered barriers can be skipped if both:
     * - there is no current access
-    * - there is no current-batch unordered access
+    * - current access is copied from unordered (this is synchronized automatically during submit)
+    * - there is also no current-batch unordered access
     */
-   bool can_skip_ordered = unordered || UNSYNCHRONIZED ? false : (!res->obj->access && !unordered_usage_matches);
+   bool can_skip_ordered = unordered || UNSYNCHRONIZED ? false : unordered_usage_matches ? res->obj->ordered_access_is_copied : !res->obj->access;
    if (ctx->no_reorder)
       can_skip_unordered = can_skip_ordered = false;
 
