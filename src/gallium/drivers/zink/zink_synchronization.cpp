@@ -396,9 +396,6 @@ apply_new_access(struct zink_context *ctx, struct zink_resource *res, VkAccessFl
       if (is_write) {
          res->obj->unordered_access = flags;
          res->obj->unordered_access_stage = pipeline;
-         /* these should get automatically emitted during submission */
-         ctx->bs->unordered_write_access |= flags;
-         ctx->bs->unordered_write_stages |= pipeline;
       } else {
          if (zink_resource_access_is_write(res->obj->unordered_access)) {
             res->obj->unordered_access = 0;
@@ -525,8 +522,6 @@ zink_resource_image_transfer_dst_barrier(struct zink_context *ctx, struct zink_r
       res->obj->last_write = VK_ACCESS_TRANSFER_WRITE_BIT;
       res->obj->unordered_access_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
-      ctx->bs->unordered_write_access |= VK_ACCESS_TRANSFER_WRITE_BIT;
-      ctx->bs->unordered_write_stages |= VK_PIPELINE_STAGE_TRANSFER_BIT;
       if (!zink_resource_usage_matches(res, ctx->bs)) {
          res->obj->access = VK_ACCESS_TRANSFER_WRITE_BIT;
          res->obj->access_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -556,8 +551,6 @@ zink_resource_buffer_transfer_dst_barrier(struct zink_context *ctx, struct zink_
       res->obj->last_write = VK_ACCESS_TRANSFER_WRITE_BIT;
       res->obj->unordered_access_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
-      ctx->bs->unordered_write_access |= VK_ACCESS_TRANSFER_WRITE_BIT;
-      ctx->bs->unordered_write_stages |= VK_PIPELINE_STAGE_TRANSFER_BIT;
       if (!zink_resource_usage_matches(res, ctx->bs)) {
          res->obj->access = VK_ACCESS_TRANSFER_WRITE_BIT;
          res->obj->access_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
