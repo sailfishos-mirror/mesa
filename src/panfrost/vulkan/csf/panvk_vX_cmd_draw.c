@@ -6,6 +6,8 @@
  * Copyright © 2016 Red Hat.
  * Copyright © 2016 Bas Nieuwenhuizen
  * Copyright © 2015 Intel Corporation
+ * 
+ * Copyright 2026 NXP
  *
  * SPDX-License-Identifier: MIT
  */
@@ -2221,8 +2223,28 @@ build_dcd_flags(struct panvk_cmd_buffer *cmdbuf,
          cfg.aligned_line_ends = true;
 
       cfg.front_face_ccw = rs->front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      cfg.cull_front_face = (rs->cull_mode & VK_CULL_MODE_FRONT_BIT) != 0;
-      cfg.cull_back_face = (rs->cull_mode & VK_CULL_MODE_BACK_BIT) != 0;
+
+      /*
+       * Vulkan face culling is polygon-facing state.  Points and lines do
+       * not have polygon winding, and FrontFacing is defined as true for
+       * non-polygon primitives.
+       *
+       * Do not let the Mali DCD front/back face cull bits discard point/line
+       * primitives before rasterization.
+       */
+      const VkPrimitiveTopology topology =
+         cmdbuf->vk.dynamic_graphics_state.ia.primitive_topology;
+      const bool non_polygon =
+         topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST ||
+         topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ||
+         topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP ||
+         topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY ||
+         topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
+
+      cfg.cull_front_face =
+         !non_polygon && (rs->cull_mode & VK_CULL_MODE_FRONT_BIT) != 0;
+      cfg.cull_back_face =
+         !non_polygon && (rs->cull_mode & VK_CULL_MODE_BACK_BIT) != 0;
 
       cfg.multisample_enable = msaa;
       cfg.occlusion_query = cmdbuf->state.gfx.occlusion_query.mode;

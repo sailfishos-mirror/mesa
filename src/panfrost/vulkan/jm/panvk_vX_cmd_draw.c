@@ -6,6 +6,8 @@
  * Copyright © 2016 Bas Nieuwenhuizen
  * Copyright © 2015 Intel Corporation
  *
+ * Copyright 2026 NXP
+ * 
  * SPDX-License-Identifier: MIT
  */
 
@@ -973,10 +975,22 @@ panvk_emit_tiler_dcd(struct panvk_cmd_buffer *cmdbuf,
    const struct vk_rasterization_state *rs =
       &cmdbuf->vk.dynamic_graphics_state.rs;
 
+   const VkPrimitiveTopology topology =
+      cmdbuf->vk.dynamic_graphics_state.ia.primitive_topology;
+   const bool non_polygon =
+      topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST ||
+      topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ||
+      topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP ||
+      topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY ||
+      topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
+
    pan_pack(dcd, DRAW, cfg) {
       cfg.front_face_ccw = rs->front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      cfg.cull_front_face = (rs->cull_mode & VK_CULL_MODE_FRONT_BIT) != 0;
-      cfg.cull_back_face = (rs->cull_mode & VK_CULL_MODE_BACK_BIT) != 0;
+      cfg.cull_front_face =
+         !non_polygon && (rs->cull_mode & VK_CULL_MODE_FRONT_BIT) != 0;
+      cfg.cull_back_face =
+         !non_polygon && (rs->cull_mode & VK_CULL_MODE_BACK_BIT) != 0;
+
       cfg.position = draw->position;
       cfg.state = draw->fs.rsd;
       cfg.attributes = fs_desc_state->img_attrib_table;
