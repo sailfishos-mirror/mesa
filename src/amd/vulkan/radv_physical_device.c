@@ -723,6 +723,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_driver_properties = true,
       .KHR_dynamic_rendering = true,
       .KHR_dynamic_rendering_local_read = true,
+      .KHR_extended_flags = true,
       .KHR_external_fence = true,
       .KHR_external_fence_fd = true,
       .KHR_external_memory = true,
@@ -1678,6 +1679,9 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_EXT_shader_split_barrier */
       .shaderSplitBarrier = radv_split_barrier_enabled(pdev),
+
+      /* VK_KHR_extended_flags */
+      .extendedFlags = true,
    };
 }
 
