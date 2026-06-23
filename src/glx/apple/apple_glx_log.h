@@ -55,9 +55,4 @@ extern os_log_t apple_glx_oslog;
 
 void apple_glx_log_init(void);
 
-/* This is just here to help the transition.
- * TODO: Replace calls to apple_glx_diagnostic
- */
-#define apple_glx_diagnostic(fmt, args...) apple_glx_log_debug(fmt, ##args)
-
 #endif

@@ -59,9 +59,12 @@ applegl_bind_context(
        NULL,
        gc ? gc->driContext : NULL, draw);
 
-   apple_glx_diagnostic("%s: error %s\n", __func__, error ? "YES" : "NO");
-   if (error)
+   if (error) {
+      apple_glx_log_error("%s: apple_glx_make_current_context failed", __func__);
       return 1; /* GLXBadContext is the same as Success (0) */
+   }
+
+   apple_glx_log_debug("%s: apple_glx_make_current_context succeeded", __func__);
 
    apple_mesa_glapi_set_dispatch();
 
@@ -80,12 +83,12 @@ applegl_unbind_context(struct glx_context *gc)
 
    dpy = gc->psc->dpy;
 
-   error = apple_glx_make_current_context(
-       dpy,
-       (gc != &dummyContext) ? gc->driContext : NULL,
-       NULL, None);
-
-   apple_glx_diagnostic("%s: error %s\n", __func__, error ? "YES" : "NO");
+   error = apple_glx_make_current_context(dpy, (gc != &dummyContext) ? gc->driContext : NULL, NULL, None);
+   if (error) {
+      apple_glx_log_error("%s: apple_glx_make_current_context failed", __func__);
+   } else {
+      apple_glx_log_debug("%s: apple_glx_make_current_context succeeded", __func__);
+   }
 }
 
 static void
