@@ -3475,19 +3475,20 @@ radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info, struct ra
 }
 
 void
-radv_shader_dump_asm(const struct radv_compiler_info *compiler_info, const struct radv_shader_debug_info *debug,
-                     const struct radv_shader_info *info)
+radv_shader_dump_asm(const struct radv_compiler_info *compiler_info, struct radv_shader_debug_info *debug,
+                     const struct radv_shader_binary *binary, const struct radv_shader_info *info)
 {
-   if (debug->dump_shader) {
-      if (compiler_info->debug.dump_asm) {
-         const char *sep = "";
-         u_foreach_bit (stage, debug->stages) {
-            fprintf(stderr, "%s%s", sep, radv_get_shader_name(info, stage));
-            sep = " + ";
-         }
+   if (debug->dump_shader && compiler_info->debug.dump_asm) {
+      assert(!debug->disasm_string);
+      radv_parse_binary_debug_info(compiler_info, binary, debug);
 
-         fprintf(stderr, "\ndisasm:\n%s\n", debug->disasm_string);
+      const char *sep = "";
+      u_foreach_bit (stage, debug->stages) {
+         fprintf(stderr, "%s%s", sep, radv_get_shader_name(info, stage));
+         sep = " + ";
       }
+
+      fprintf(stderr, "\ndisasm:\n%s\n", debug->disasm_string);
    }
 }
 
