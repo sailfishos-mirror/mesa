@@ -111,7 +111,7 @@ apple_init_glx(Display * dpy)
 
    apple_glx_log_init();
 
-   apple_glx_log(ASL_LEVEL_INFO, "Initializing libGL.");
+   apple_glx_log_info("Initializing libGL.");
 
    apple_cgl_init();
    (void) apple_glx_get_client_id();
