@@ -478,6 +478,9 @@ populate_fs_prog_data(nir_shader *shader,
       prog_data->uses_src_depth = false;
    }
 
+   if (prog_data->coarse_pixel_dispatch == INTEL_SOMETIMES)
+      prog_data->uses_fs_config = true;
+
    calculate_urb_setup(devinfo, key, prog_data, shader, mue_map,
                        per_primitive_offsets);
    brw_compute_flat_inputs(prog_data, shader);
