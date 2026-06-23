@@ -655,6 +655,11 @@ create_ms_images(struct panvk_device *dev, struct panvk_image *img,
    }
 }
 
+/* See Vulkan spec, 35.4.3. Standard Sparse Image Block Shapes for details */
+enum {
+   STANDARD_SPARSE_BLOCK_SIZE_B = 65536,
+};
+
 VKAPI_ATTR VkResult VKAPI_CALL
 panvk_CreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo,
                   const VkAllocationCallbacks *pAllocator, VkImage *pImage)
@@ -701,10 +706,13 @@ panvk_CreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo,
 
    if (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) {
       uint64_t va_range = panvk_image_get_sparse_size(image);
+      /* Sparse images must be aligned to the sparse block size */
+      uint64_t alignment =
+         MAX2(pan_choose_gpu_va_alignment(dev->kmod.vm, va_range),
+              STANDARD_SPARSE_BLOCK_SIZE_B);
 
       image->sparse.device_address =
-         panvk_as_alloc(dev, &dev->as.heap, va_range,
-                        pan_choose_gpu_va_alignment(dev->kmod.vm, va_range));
+         panvk_as_alloc(dev, &dev->as.heap, va_range, alignment);
       if (!image->sparse.device_address) {
          result = panvk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
          goto err_destroy_image;
@@ -1015,11 +1023,6 @@ panvk_GetDeviceImageMemoryRequirements(VkDevice device,
       }
    }
 }
-
-/* See Vulkan spec, 35.4.3. Standard Sparse Image Block Shapes for details */
-enum {
-   STANDARD_SPARSE_BLOCK_SIZE_B = 65536,
-};
 
 /* Sparse block extents, in texel blocks, single sample.
  * Indexed by log2(texel block size in bytes).
