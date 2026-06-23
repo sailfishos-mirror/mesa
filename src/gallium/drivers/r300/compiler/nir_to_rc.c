@@ -1310,6 +1310,7 @@ static void
 ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
 {
    struct rc_dst_register dst = ntr_get_dest(c, &instr->def);
+   struct rc_dst_register tex_dst = dst;
    assert(!instr->is_shadow);
    rc_texture_target target =
       rc_texture_target_from_sampler_dim(instr->sampler_dim, instr->is_array);
@@ -1376,12 +1377,21 @@ ntr_emit_texture(struct ntr_compile *c, nir_tex_instr *instr)
 
    assert(s.i == rc_get_opcode_info(tex_opcode)->NumSrcRegs);
 
+   bool needs_mov =
+      dst.File != RC_FILE_TEMPORARY ||
+      (!c->compiler->is_r500 && dst.WriteMask != RC_MASK_XYZW);
+   if (needs_mov)
+      tex_dst = ntr_temp(c);
+
    struct rc_sub_instruction *inst =
-      rc_sub_instruction(c, tex_opcode, &dst, RC_SATURATE_NONE, &s.srcs[0],
+      rc_sub_instruction(c, tex_opcode, &tex_dst, RC_SATURATE_NONE, &s.srcs[0],
                s.i > 1 ? &s.srcs[1] : NULL, s.i > 2 ? &s.srcs[2] : NULL);
    inst->TexSrcTarget = target;
    ntr_rc_tex_sampler(c, inst, sampler_index, sampler_reladdr);
    inst->TexSwizzle = RC_SWIZZLE_XYZW;
+
+   if (needs_mov)
+      ntr_MOV(c, dst, ntr_src_from_dst(tex_dst));
 }
 
 static void

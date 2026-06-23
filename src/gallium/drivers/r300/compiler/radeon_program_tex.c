@@ -70,10 +70,9 @@ projective_divide(struct r300_fragment_program_compiler *compiler, struct rc_ins
 /**
  * Transform TEX, TXP, TXB, and KIL instructions in the following ways:
  *  - implement texture compare (shadow extensions)
- *  - extract non-native source / destination operands
+ *  - extract non-native source operands
  *  - premultiply texture coordinates for RECT
  *  - extract operand swizzles
- *  - introduce a temporary register when write masks are needed
  */
 int
 radeonTransformTEX(struct radeon_compiler *c, struct rc_instruction *inst, void *data)
@@ -263,28 +262,6 @@ radeonTransformTEX(struct radeon_compiler *c, struct rc_instruction *inst, void 
       inst->U.I.SrcReg[0].Index = temp;
 
       scale_texcoords(compiler, inst, RC_STATE_R300_TEXSCALE_FACTOR);
-   }
-
-   /* Cannot write texture to output registers or with saturate (all chips),
-    * or with masks (non-r500). */
-   if (inst->U.I.Opcode != RC_OPCODE_KIL) {
-      /* We should not be getting saturates on TEX, but assert just to be sure. */
-      assert(!inst->U.I.SaturateMode);
-
-      if (inst->U.I.DstReg.File != RC_FILE_TEMPORARY || inst->U.I.SaturateMode ||
-          (!c->is_r500 && inst->U.I.DstReg.WriteMask != RC_MASK_XYZW)) {
-         struct rc_instruction *inst_mov = rc_insert_new_instruction(c, inst);
-
-         inst_mov->U.I.Opcode = RC_OPCODE_MOV;
-         inst_mov->U.I.SaturateMode = inst->U.I.SaturateMode;
-         inst_mov->U.I.DstReg = inst->U.I.DstReg;
-         inst_mov->U.I.SrcReg[0].File = RC_FILE_TEMPORARY;
-         inst_mov->U.I.SrcReg[0].Index = rc_find_free_temporary(c);
-
-         inst->U.I.DstReg.File = RC_FILE_TEMPORARY;
-         inst->U.I.DstReg.Index = inst_mov->U.I.SrcReg[0].Index;
-         inst->U.I.DstReg.WriteMask = RC_MASK_XYZW;
-      }
    }
 
    return 1;
