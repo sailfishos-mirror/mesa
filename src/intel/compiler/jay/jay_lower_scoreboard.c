@@ -326,9 +326,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_state *ctx)
    /* MUL_32 is a macro implicitly clobbering acc0/acc1 */
    if (I->op == JAY_OPCODE_MUL_32) {
       unsigned n = func->shader->dispatch_width < 32 ? 2 : 1;
-
-      dsts[2] = jay_bare_reg(ACCUM, 0);
-      dsts[2].num_values_m1 = n - 1;
+      dsts[2] = jay_bare_regs(ACCUM, 0, n);
    }
 
    for (unsigned i = 0; i < ARRAY_SIZE(dsts); ++i) {

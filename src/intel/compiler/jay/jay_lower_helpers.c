@@ -89,8 +89,7 @@ insert_halt_target(jay_builder *b, struct ctx *ctx)
       }
 
       assert(gpr >= 0 && "must have a suitable gpr block");
-      jay_def dummy = jay_bare_reg(GPR, gpr);
-      dummy.num_values_m1 = 4 - 1;
+      jay_def dummy = jay_bare_regs(GPR, gpr, 4);
 
       unsigned op = b->shader->dispatch_width == 32 ?
                        XE2_DATAPORT_RENDER_TARGET_WRITE_SIMD32_SINGLE_SOURCE :

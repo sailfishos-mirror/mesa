@@ -344,11 +344,7 @@ jay_extract(jay_def def, unsigned chan)
 static inline jay_def
 jay_extract_range_post_ra(jay_def def, unsigned chan, unsigned count)
 {
-   assert(count > 0);
-
-   jay_def x = jay_bare_reg(def.file, def.reg + chan);
-   x.num_values_m1 = count - 1;
-   return x;
+   return jay_bare_regs(def.file, def.reg + chan, count);
 }
 
 /**

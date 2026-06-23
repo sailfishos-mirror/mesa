@@ -63,8 +63,8 @@ jay_lower_spill(jay_function *func)
    assert(ugpr_reservation >= 0 && "must have reserved something");
 
    jay_def sp_0 = jay_bare_reg(UGPR, ugpr_reservation);
-   jay_def sp = sp_0;
-   sp.num_values_m1 = func->shader->dispatch_width - 1;
+   jay_def sp =
+      jay_bare_regs(UGPR, ugpr_reservation, func->shader->dispatch_width);
 
    /* Calculate how much stack space we need */
    unsigned nr_mem = 0;
@@ -88,14 +88,15 @@ jay_lower_spill(jay_function *func)
 
    /* We use a 32-bit strided stack: SP = scratch + (lane ID * 4) */
    unsigned disp_width = b.shader->dispatch_width;
-   jay_LANE_ID_8(&b, jay_extract_range_post_ra(sp, 0, 4));
+   jay_LANE_ID_8(&b, jay_bare_regs(UGPR, ugpr_reservation, 4));
 
    for (unsigned i = 8; i < disp_width; i *= 2) {
-      jay_ADD(&b, JAY_TYPE_U16, jay_extract_range_post_ra(sp, i / 2, i / 2),
-              jay_extract_range_post_ra(sp, 0, i / 2), i);
+      jay_ADD(&b, JAY_TYPE_U16,
+              jay_bare_regs(UGPR, ugpr_reservation + (i / 2), i / 2),
+              jay_bare_regs(UGPR, ugpr_reservation, i / 2), i);
    }
 
-   jay_def lid = jay_extract_range_post_ra(sp, 0, disp_width / 2);
+   jay_def lid = jay_bare_regs(UGPR, ugpr_reservation, disp_width / 2);
    jay_SHL(&b, JAY_TYPE_U16, lid, lid, util_logbase2(4));
    jay_CVT(&b, JAY_TYPE_U32, sp, lid, JAY_TYPE_U16, JAY_ROUND, 0);
    if (b.shader->scratch_size) {
