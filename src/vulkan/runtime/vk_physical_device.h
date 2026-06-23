@@ -244,6 +244,18 @@ vk_image_format_info_2_usage(const VkPhysicalDeviceImageFormatInfo2 *info)
    }
 }
 
+static inline VkImageUsageFlags2KHR
+vk_sparse_image_format_info_2_usage(const VkPhysicalDeviceSparseImageFormatInfo2 *info)
+{
+   const VkImageUsageFlags2CreateInfoKHR *usage_create_info =
+      vk_find_struct_const(info->pNext, IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR);
+   if (usage_create_info) {
+      return usage_create_info->usage;
+   } else {
+      return info->usage;
+   }
+}
+
 #ifdef __cplusplus
 }
 #endif

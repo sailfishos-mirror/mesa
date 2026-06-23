@@ -42,7 +42,7 @@ create_iview(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_surf *s
              VkFormat depth_format, VkImageAspectFlagBits aspects, bool is_dst)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   VkImageUsageFlags usage;
+   VkImageUsageFlags2KHR usage;
    VkFormat format;
 
    if (depth_format)
@@ -51,14 +51,14 @@ create_iview(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_surf *s
       format = surf->format;
 
    if (is_dst) {
-      usage = (vk_format_is_color(format) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-                                          : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+      usage = (vk_format_is_color(format) ? VK_IMAGE_USAGE_2_COLOR_ATTACHMENT_BIT_KHR
+                                          : VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR);
    } else {
-      usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+      usage = VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR;
    }
 
-   const VkImageViewUsageCreateInfo iview_usage_info = {
-      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+   const VkImageViewUsage2CreateInfoKHR iview_usage_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_2_CREATE_INFO_KHR,
       .usage = usage,
    };
 

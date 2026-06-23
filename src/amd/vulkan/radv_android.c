@@ -495,7 +495,7 @@ radv_create_ahb_memory(struct radv_device *device, struct radv_device_memory *me
 }
 
 bool
-radv_android_gralloc_supports_format(VkFormat format, VkImageUsageFlagBits usage)
+radv_android_gralloc_supports_format(VkFormat format, VkImageUsageFlags2KHR usage)
 {
 #if RADV_SUPPORT_ANDROID_HARDWARE_BUFFER
    /* Ideally we check AHardwareBuffer_isSupported.  But that test-allocates on most platforms and

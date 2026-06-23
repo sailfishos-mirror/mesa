@@ -472,9 +472,9 @@ radv_compute_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
       const uint32_t slice_count = vk_image_subresource_layer_count(&dst_image->vk, imageSubresource);
 
       for (uint32_t slice = 0; slice < slice_count; slice++) {
-         const VkImageViewUsageCreateInfo iview_usage_info = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
-            .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+         const VkImageViewUsage2CreateInfoKHR iview_usage_info = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_2_CREATE_INFO_KHR,
+            .usage = VK_IMAGE_USAGE_2_STORAGE_BIT_KHR,
          };
 
          radv_image_view_init(&dst_iview, device,

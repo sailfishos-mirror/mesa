@@ -266,7 +266,7 @@ radv_device_init_vrs_state(struct radv_device *device)
       .arrayLayers = 1,
       .samples = VK_SAMPLE_COUNT_1_BIT,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
-      .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+      .usage = VK_IMAGE_USAGE_2_DEPTH_STENCIL_ATTACHMENT_BIT_KHR,
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
       .queueFamilyIndexCount = 0,
       .pQueueFamilyIndices = NULL,
@@ -1733,10 +1733,10 @@ radv_GetImageMemoryRequirements2(VkDevice _device, const VkImageMemoryRequiremen
    pMemoryRequirements->memoryRequirements.memoryTypeBits =
       ((1u << pdev->memory_properties.memoryTypeCount) - 1u) & ~pdev->memory_types_32bit;
 
-   if (image->vk.create_flags & VK_IMAGE_CREATE_PROTECTED_BIT)
+   if (image->vk.create_flags & VK_IMAGE_CREATE_2_PROTECTED_BIT_KHR)
       pMemoryRequirements->memoryRequirements.memoryTypeBits &= pdev->memory_types_protected;
 
-   if (image->vk.usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT) {
+   if (image->vk.usage & VK_IMAGE_USAGE_2_HOST_TRANSFER_BIT_KHR) {
       /* Only expose host visible memory types for images that need to be mapped on the CPU. */
       pMemoryRequirements->memoryRequirements.memoryTypeBits &= pdev->memory_types_host_visible;
    }

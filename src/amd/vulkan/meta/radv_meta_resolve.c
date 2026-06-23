@@ -60,7 +60,7 @@ radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
          },
    };
 
-   if (src_image->vk.create_flags & VK_IMAGE_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT) {
+   if (src_image->vk.create_flags & VK_IMAGE_CREATE_2_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT) {
       /* If the depth/stencil image uses different sample
        * locations, we need them during HTILE decompressions.
        */

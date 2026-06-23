@@ -7615,7 +7615,7 @@ radv_src_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
       /* since the STORAGE bit isn't set we know that this is a meta operation.
        * on the dst flush side we skip CB/DB flushes without the STORAGE bit, so
        * set it here. */
-      if (image && !(image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT)) {
+      if (image && !(image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR)) {
          if (vk_format_is_depth_or_stencil(image->vk.format)) {
             flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB;
          } else {
@@ -7679,7 +7679,7 @@ radv_dst_access_flush(struct radv_cmd_buffer *cmd_buffer, VkPipelineStageFlags2 
    dst_flags = vk_expand_dst_access_flags2(dst_stages, dst_flags);
 
    if (image) {
-      if (!(image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT)) {
+      if (!(image->vk.usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR)) {
          flush_CB = false;
          flush_DB = false;
       }
@@ -10278,9 +10278,9 @@ get_rendering_attachment_flags(const VkRenderingInfo *rendering_info, const VkRe
       VK_FROM_HANDLE(radv_image_view, iview, att_info->imageView);
 
       /* Input attachment feedback loops are only allowed in GENERAL or RENDERING_LOCAL_READ layouts. */
-      if ((iview->vk.usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT) &&
-            (att_info->imageLayout == VK_IMAGE_LAYOUT_GENERAL ||
-             att_info->imageLayout == VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ)) {
+      if ((iview->vk.usage & VK_IMAGE_USAGE_2_INPUT_ATTACHMENT_BIT_KHR) &&
+          (att_info->imageLayout == VK_IMAGE_LAYOUT_GENERAL ||
+           att_info->imageLayout == VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ)) {
          flags |= VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR;
       }
    }
