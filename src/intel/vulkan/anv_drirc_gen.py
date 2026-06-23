@@ -120,9 +120,6 @@ def declare_options(android_version):
         B("anv_write_lookup_maps_unconditionally", False,
           "Unconditionally write lookup maps for BLAS update operation",
           c_name="write_lookup_maps_unconditionally"),
-        B("anv_disable_hiz", False,
-          "Disable HiZ (equivalent to INTEL_DEBUG=nohiz). Should only be used as a temporary solution",
-          c_name="disable_hiz"),
 
         # Workaround command emission
         B("anv_barrier_post_untyped_clear_shader", False,
