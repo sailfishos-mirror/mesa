@@ -601,11 +601,11 @@ emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
       if (has_scalar) {
          ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_SCALAR(1);
       } else {
-         if (operation->ifm.shape.height != operation->ifm2.shape.height)
+         if (operation->ifm2.shape.height != operation->ofm.shape.height)
             ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_HEIGHT__MASK;
-         if (operation->ifm.shape.width != operation->ifm2.shape.width)
+         if (operation->ifm2.shape.width != operation->ofm.shape.width)
             ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_WIDTH__MASK;
-         if (operation->ifm.shape.depth != operation->ifm2.shape.depth)
+         if (operation->ifm2.shape.depth != operation->ofm.shape.depth)
             ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_DEPTH__MASK;
       }
    } else {
@@ -615,8 +615,8 @@ emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
          ifm_mode = 0;
          ifm2_mode = 8; /* SCALAR */
       } else {
-         ifm_mode = calc_broadcast_mode(&operation->ifm.shape, &operation->ifm2.shape);
-         ifm2_mode = calc_broadcast_mode(&operation->ifm2.shape, &operation->ifm.shape);
+         ifm_mode = calc_broadcast_mode(&operation->ifm.shape, &operation->ofm.shape);
+         ifm2_mode = calc_broadcast_mode(&operation->ifm2.shape, &operation->ofm.shape);
       }
 
       EMIT0(NPU_SET_IFM_BROADCAST, ifm_mode);
