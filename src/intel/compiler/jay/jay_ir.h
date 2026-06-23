@@ -338,16 +338,6 @@ jay_extract(jay_def def, unsigned chan)
 }
 
 /**
- * Like jay_extract but working on bare registers. This could be unified to
- * preserve indices and such but meh.
- */
-static inline jay_def
-jay_extract_range_post_ra(jay_def def, unsigned chan, unsigned count)
-{
-   return jay_bare_regs(def.file, def.reg + chan, count);
-}
-
-/**
  * Construct an immediate source from a raw 32-bit data pattern.
  */
 static inline jay_def
