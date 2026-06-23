@@ -138,6 +138,8 @@ jay_lower_spill(jay_function *func)
 
       /* Canonicalize our internal registers at block boundaries */
       if (jay_num_successors(block, GPR) > 0) {
+         b.cursor = jay_after_block_logical(block);
+
          if (!address_valid) {
             jay_MOV(&b, ADDRESS_REG, sp_0);
             jay_MOV(&b, sp_0, b.shader->scratch_size + sp_delta_B);
