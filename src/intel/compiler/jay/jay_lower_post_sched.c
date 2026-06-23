@@ -63,6 +63,7 @@ jay_lower_post_sched(jay_shader *shader, uint32_t api, uint32_t float_sizes)
    jay_foreach_function(shader, func) {
       jay_foreach_block(func, block) {
          uint32_t current = cr0;
+         bool a0_valid_for_shuffle = false;
 
          jay_foreach_inst_in_block(block, I) {
             uint32_t required = cr0;
@@ -76,6 +77,21 @@ jay_lower_post_sched(jay_shader *shader, uint32_t api, uint32_t float_sizes)
 
             if (jay_type_is_any_float(I->type)) {
                set_cr0(func, jay_before_inst(I), &current, required);
+            }
+
+            /* For a non-uniform shuffle, we need to make sure a0 has valid
+             * contents in all lanes, not just active lanes, due to hardware
+             * bugs. brw & igc do the same.
+             */
+            if (I->op == JAY_OPCODE_SHUFFLE) {
+               if (!jay_is_uniform(I->dst) && !a0_valid_for_shuffle) {
+                  jay_builder b = jay_init_builder(func, jay_before_inst(I));
+                  jay_MOV(&b, jay_bare_regs(J_ADDRESS, 0, 8), 0);
+                  a0_valid_for_shuffle = true;
+               }
+            } else if (I->dst.file == J_ADDRESS) {
+               /* Assume we're writing a message descriptor or something */
+               a0_valid_for_shuffle = false;
             }
          }
 
