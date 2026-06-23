@@ -15840,7 +15840,7 @@ radv_init_streamout_state(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_streamout_state *so = &cmd_buffer->state.streamout;
    unsigned offset;
-   void *ptr;
+   UNUSED void *ptr;
 
    assert(pdev->info.gfx_level >= GFX12);
 
@@ -15858,14 +15858,15 @@ radv_init_streamout_state(struct radv_cmd_buffer *cmd_buffer)
    if (!radv_cmd_buffer_upload_alloc_aligned(cmd_buffer, MAX_SO_BUFFERS * 8, 64, &offset, &ptr))
       return;
 
-   memset(ptr, 0, MAX_SO_BUFFERS * 8);
-
    so->state_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
    so->state_va += offset;
 
    /* GE must be idle when GE_GS_ORDERED_ID is written. */
    cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_VS_PARTIAL_FLUSH;
    radv_emit_cache_flush(cmd_buffer);
+
+   /* Initialize the buffer to 0. */
+   radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, so->state_va, MAX_SO_BUFFERS * 8);
 
    /* Reset the ordered ID for the next GS workgroup to 0 because it must be
     * equal to the 4 ordered IDs in the layout.
