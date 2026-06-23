@@ -12,7 +12,9 @@ pub use crate::swizzle::Swizzle;
 use crate::swizzle::*;
 use compiler::as_slice::*;
 use compiler::cfg::CFG;
+use compiler::enum_as_u8::*;
 use compiler::smallvec::*;
+use kraid_proc_macros::EnumAsU8;
 
 use std::fmt;
 use std::num::NonZeroU32;
@@ -778,7 +780,8 @@ impl From<RegRef> for DstRef {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, EnumAsU8, Eq, Hash, PartialEq)]
 pub enum DstLanes {
     /// The destination is never written
     None,
@@ -806,6 +809,8 @@ pub enum DstLanes {
     H0,
     H1,
 }
+
+pub type DstLanesSet = U8EnumSet<DstLanes, 1>;
 
 impl fmt::Display for DstLanes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -839,6 +844,24 @@ impl From<RegRange> for DstLanes {
 }
 
 impl DstLanes {
+    pub const ALL_B: DstLanesSet = unsafe {
+        DstLanesSet::from_u8_array([
+            DstLanes::AnyB as u8,
+            DstLanes::B0 as u8,
+            DstLanes::B1 as u8,
+            DstLanes::B2 as u8,
+            DstLanes::B3 as u8,
+        ])
+    };
+
+    pub const ALL_H: DstLanesSet = unsafe {
+        DstLanesSet::from_u8_array([
+            DstLanes::AnyH as u8,
+            DstLanes::H0 as u8,
+            DstLanes::H1 as u8,
+        ])
+    };
+
     pub fn byte(byte: u8) -> DstLanes {
         match byte {
             0 => DstLanes::B0,
@@ -883,11 +906,11 @@ impl DstLanes {
     }
 
     pub fn is_byte(&self) -> bool {
-        self.bytes(4) == 1
+        DstLanes::ALL_B.contains(*self)
     }
 
     pub fn is_half(&self) -> bool {
-        self.bytes(4) == 2
+        DstLanes::ALL_H.contains(*self)
     }
 
     pub fn u32_mask(&self) -> Option<u32> {
