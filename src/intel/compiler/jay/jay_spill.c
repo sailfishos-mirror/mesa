@@ -745,35 +745,38 @@ add_phi(struct spill_ctx *ctx,
 /*
  * UGPRs spill to GPRs so this (pre-RA) lowering is much simpler: just lower MOV
  * to SHUFFLE to legalize. Most of the time no actual shuffles are needed so
- * we're lazy initializing active_lane_x4.
+ * we're lazy initializing active_lane_x4. The initialization is required
+ * per-block since we need an active lane.
  */
 static void
 lower_ugpr_spill(jay_function *func)
 {
-   jay_cursor null_cursor = {};
-   jay_builder b = jay_init_builder(func, null_cursor);
-   jay_def active_lane_x4 = jay_alloc_def(&b, UGPR, 1);
+   jay_foreach_block(func, block) {
+      jay_def active_lane_x4 = jay_null();
 
-   jay_foreach_inst_in_func_safe(func, block, I) {
-      if (I->op == JAY_OPCODE_MOV &&
-          I->dst.file == UGPR &&
-          I->src[0].file == GPR) {
+      jay_foreach_inst_in_block_safe(block, I) {
+         if (I->op == JAY_OPCODE_MOV &&
+             I->dst.file == UGPR &&
+             I->src[0].file == GPR) {
 
-         b.cursor = jay_before_inst(I);
-         jay_SHUFFLE(&b, I->dst, I->src[0], active_lane_x4);
-         jay_remove_instruction(I);
+            jay_builder b = jay_init_builder(func, jay_before_block(block));
+            if (jay_is_null(active_lane_x4)) {
+               jay_def ballot = jay_alloc_def(&b, FLAG, 1);
+               jay_def lane = jay_alloc_def(&b, UGPR, 1);
+
+               jay_ZERO_FLAG(&b, 0);
+               jay_inst *mov = jay_MOV(&b, jay_null(), 1);
+               jay_set_conditional_mod(&b, mov, ballot, GEN_CONDITION_NE);
+               jay_FBL(&b, lane, ballot);
+
+               active_lane_x4 = jay_SHL_u32(&b, lane, 2);
+            }
+
+            b.cursor = jay_before_inst(I);
+            jay_SHUFFLE(&b, I->dst, I->src[0], active_lane_x4);
+            jay_remove_instruction(I);
+         }
       }
-   }
-
-   if (!jay_cursors_equal(b.cursor, null_cursor)) {
-      b.cursor = jay_before_function(func);
-      jay_def ballot = jay_alloc_def(&b, FLAG, 1),
-              lane = jay_alloc_def(&b, UGPR, 1);
-      jay_ZERO_FLAG(&b, 0);
-      jay_inst *mov = jay_MOV(&b, jay_null(), 1);
-      jay_set_conditional_mod(&b, mov, ballot, GEN_CONDITION_NE);
-      jay_FBL(&b, lane, ballot);
-      jay_SHL(&b, JAY_TYPE_U32, active_lane_x4, lane, 2);
    }
 }
 
