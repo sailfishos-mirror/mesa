@@ -110,19 +110,20 @@ prepare_tex_descs(struct panvk_image_view *view)
       pview.format = panvk_image_depth_only_pfmt(image);
    }
 
-   uint32_t plane_count = vk_format_get_plane_count(view->vk.format);
+   const uint32_t tex_desc_count =
+      panvk_image_get_tex_count(PAN_ARCH, view->vk.format);
    uint32_t tex_payload_size = GENX(pan_texture_estimate_payload_size)(&pview);
 
    struct panvk_pool_alloc_info alloc_info = {
       .alignment = GENX(pan_texture_get_payload_alignment)(&pview),
-      .size = tex_payload_size * plane_count,
+      .size = tex_payload_size * tex_desc_count,
    };
 
 #if PAN_ARCH >= 9
    uint32_t storage_payload_size = 0;
    if (has_storage) {
       /* We'll need a second set of Texture Descriptors for storage use. */
-      storage_payload_size = tex_payload_size * plane_count;
+      storage_payload_size = tex_payload_size * tex_desc_count;
       alloc_info.size += storage_payload_size;
    }
 #endif
@@ -146,10 +147,10 @@ prepare_tex_descs(struct panvk_image_view *view)
       }
 #endif
 
-      if (plane_count > 1) {
+      if (tex_desc_count > 1) {
          memset(pview.planes, 0, sizeof(pview.planes));
 
-         for (uint32_t plane = 0; plane < plane_count; plane++) {
+         for (uint32_t plane = 0; plane < tex_desc_count; plane++) {
             VkFormat plane_format =
                vk_format_get_plane_format(view->vk.view_format, plane);
 
