@@ -46,6 +46,8 @@ fd6_ifmt(enum a6xx_format fmt)
    case FMT6_NV12_4R_UV:
    case FMT6_NV12_Y:
    case FMT6_NV12_UV:
+   case FMT6_R8G8R8B8_422_UNORM:
+   case FMT6_G8R8B8R8_422_UNORM:
       return R2D_UNORM8;
 
    case FMT6_32_UINT:
