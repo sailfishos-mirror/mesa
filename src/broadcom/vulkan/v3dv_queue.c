@@ -1020,17 +1020,6 @@ queue_handle_job(struct v3dv_queue *queue,
    }
 }
 
-static VkResult
-queue_submit_noop_job(struct v3dv_queue *queue,
-                      uint32_t counter_pass_idx,
-                      struct v3dv_submit_sync_info *sync_info,
-                      bool signal_syncs)
-{
-   assert(queue->device->noop_job);
-   return queue_handle_job(queue, queue->device->noop_job, counter_pass_idx, NULL,
-                           sync_info, signal_syncs);
-}
-
 /* Merges an array of syncobj handles into a single target syncobj */
 static VkResult
 merge_syncobjs(struct v3dv_device *device,

@@ -1918,27 +1918,6 @@ queue_finish(struct v3dv_queue *queue)
    vk_queue_finish(&queue->vk);
 }
 
-VkResult
-v3dv_device_create_noop_job(struct v3dv_device *device)
-{
-   device->noop_job = vk_zalloc(&device->vk.alloc, sizeof(struct v3dv_job), 8,
-                                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-   if (!device->noop_job)
-      return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
-   v3dv_job_init(device->noop_job, V3DV_JOB_TYPE_GPU_CL, device, NULL, -1);
-
-   v3d_X((&device->devinfo), job_emit_noop)(device->noop_job);
-
-   /* We use no-op jobs to signal semaphores/fences. These jobs needs to be
-    * serialized across all hw queues to comply with Vulkan's signal operation
-    * order requirements, which basically require that signal operations occur
-    * in submission order.
-    */
-   device->noop_job->serialize = V3DV_BARRIER_ALL;
-
-   return VK_SUCCESS;
-}
-
 static void
 init_device_meta(struct v3dv_device *device)
 {
@@ -2061,10 +2040,6 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
    device->default_attribute_float =
       v3d_X((&device->devinfo), create_default_attribute_values)(device, NULL);
 
-   result = v3dv_device_create_noop_job(device);
-   if (result != VK_SUCCESS)
-      goto fail;
-
    if (device->vk.enabled_features.nullDescriptor) {
       device->null_bo =
          v3dv_bo_alloc(device, 4096, "null texture data", true);
@@ -2107,8 +2082,6 @@ fail_queues_alloc:
    cnd_destroy(&device->query_ended);
    mtx_destroy(&device->query_mutex);
    mtx_destroy(&device->queue_mutex);
-   if (device->noop_job)
-      v3dv_job_destroy(device->noop_job);
    destroy_device_meta(device);
    v3dv_pipeline_cache_finish(&device->default_pipeline_cache);
    v3dv_event_free_resources(device);
@@ -2130,9 +2103,6 @@ v3dv_DestroyDevice(VkDevice _device,
    for (uint32_t i = 0; i < device->queue_count; i++)
       queue_finish(&device->queues[i]);
    vk_free2(&device->vk.alloc, pAllocator, device->queues);
-
-   if (device->noop_job)
-      v3dv_job_destroy(device->noop_job);
 
    v3dv_event_free_resources(device);
    mtx_destroy(&device->events.lock);
