@@ -382,6 +382,7 @@ static const struct fd6_format formats[PIPE_FORMAT_COUNT] = {
     * writing to the separated planar memory layout of NV12.
     */
    _TC(NV12, NV12_4R, WZYX),  /* YUV planar formats */
+   _TC(YUYV, R8G8R8B8_422_UNORM, WZYX),
    _T_(R8_G8B8_420_UNORM, R8_G8B8_2PLANE_420_UNORM, WZYX), /* Gallium NV12 */
    _T_(G8_B8R8_420_UNORM, R8_G8B8_2PLANE_420_UNORM, WZYX), /* Vulkan NV12 */
    _T_(G8_B8_R8_420_UNORM, R8_G8_B8_3PLANE_420_UNORM, WZYX),
