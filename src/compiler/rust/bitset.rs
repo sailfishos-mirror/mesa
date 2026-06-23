@@ -572,6 +572,10 @@ impl<K: IntoBitIndex> BitSet<K> {
             false
         }
     }
+
+    pub fn iter_bit_indices(&self) -> impl '_ + Iterator<Item = usize> {
+        BitSetIter::new(&self.words)
+    }
 }
 
 impl<K: FromBitIndex> BitSet<K> {
