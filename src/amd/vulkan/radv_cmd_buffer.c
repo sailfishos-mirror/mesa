@@ -7915,13 +7915,12 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
       bool is_secure = cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
       if (!is_secure) {
          unsigned fence_offset;
-         void *fence_ptr;
+         UNUSED void *fence_ptr;
 
          if (!radv_cmd_buffer_upload_alloc(cmd_buffer, 8, &fence_offset, &fence_ptr)) {
             vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
             return VK_ERROR_OUT_OF_HOST_MEMORY;
          }
-         memset(fence_ptr, 0, 8);
          cmd_buffer->gfx9_fence_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
          cmd_buffer->gfx9_fence_va += fence_offset;
       } else if (!cmd_buffer->gfx9_fence_bo_tmz) {
@@ -7951,13 +7950,12 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
          if (!is_secure) {
             /* Allocate a buffer for the EOP bug on GFX9. */
             unsigned eop_bug_offset;
-            void *eop_bug_ptr;
+            UNUSED void *eop_bug_ptr;
             if (!radv_cmd_buffer_upload_alloc(cmd_buffer, eop_bug_bo_size, &eop_bug_offset, &eop_bug_ptr)) {
                vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
                return VK_ERROR_OUT_OF_HOST_MEMORY;
             }
 
-            memset(eop_bug_ptr, 0, eop_bug_bo_size);
             cmd_buffer->gfx9_eop_bug_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
             cmd_buffer->gfx9_eop_bug_va += eop_bug_offset;
          } else if (!cmd_buffer->gfx9_eop_bug_bo_tmz) {
