@@ -502,8 +502,6 @@ radv_emit_compute_scratch(struct radv_device *device, struct radv_cmd_stream *cs
       radeon_set_sh_reg_seq(R_00B840_COMPUTE_DISPATCH_SCRATCH_BASE_LO, 2);
       radeon_emit(scratch_va >> 8);
       radeon_emit(scratch_va >> 40);
-
-      waves /= gpu_info->max_se;
    } else {
       uint32_t rsrc1 = S_008F04_BASE_ADDRESS_HI(scratch_va >> 32) | S_008F04_SWIZZLE_ENABLE_GFX6(1);
 
