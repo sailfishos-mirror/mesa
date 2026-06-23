@@ -4,6 +4,7 @@
  */
 #include "jay_builder.h"
 #include "jay_ir.h"
+#include "jay_opcodes.h"
 
 static void
 set_cr0(jay_function *f, jay_cursor cursor, uint32_t *existing, uint32_t desired)
@@ -19,7 +20,7 @@ set_cr0(jay_function *f, jay_cursor cursor, uint32_t *existing, uint32_t desired
 }
 
 void
-jay_insert_fp_mode(jay_shader *shader, uint32_t api, uint32_t float_sizes)
+jay_lower_post_sched(jay_shader *shader, uint32_t api, uint32_t float_sizes)
 {
    /* First, work out the global float control mode for the shader */
    uint32_t global = 0x0;

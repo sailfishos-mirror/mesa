@@ -3589,7 +3589,7 @@ jay_compile(const struct intel_device_info *devinfo,
    JAY_PASS(s, jay_partition_grf);
    JAY_PASS(s, jay_register_allocate);
    JAY_PASS(s, jay_lower_post_ra);
-   JAY_PASS(s, jay_insert_fp_mode, nir->info.float_controls_execution_mode,
+   JAY_PASS(s, jay_lower_post_sched, nir->info.float_controls_execution_mode,
             nir->info.bit_sizes_float);
 
    if (s->dispatch_width == 32 && s->stage == MESA_SHADER_FRAGMENT) {
