@@ -24,6 +24,8 @@ static bool fill_fused_activation_range(TfLiteFusedActivation activation,
                                         TfLiteTensor *tensor,
                                         int *activation_min,
                                         int *activation_max);
+static size_t tf_format_to_size(TfLiteType type);
+static unsigned tensor_data_size(TfLiteTensor tensor);
 
 enum teflon_debug_flags {
    TEFLON_DEBUG_VERBOSE = 1 << 1,
@@ -384,6 +386,36 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->softmax.beta = params->beta;
       break;
    }
+   case kTfLiteBuiltinMean: {
+      TfLiteTensor *axis_tensor = &tf_context->tensors[node->inputs->data[1]];
+      unsigned axes_count;
+      int input_rank = tf_context->tensors[node->inputs->data[0]].dims->size;
+
+      if (!axis_tensor->data.data ||
+          (axis_tensor->type != kTfLiteInt32 &&
+           axis_tensor->type != kTfLiteInt64))
+         return false;
+
+      axes_count = tensor_data_size(*axis_tensor) / tf_format_to_size(axis_tensor->type);
+      operation->type = PIPE_ML_OPERATION_TYPE_MEAN;
+
+      for (unsigned i = 0; i < axes_count; i++) {
+         int axis;
+
+         if (axis_tensor->type == kTfLiteInt64)
+            axis = ((int64_t *)axis_tensor->data.data)[i];
+         else
+            axis = ((int32_t *)axis_tensor->data.data)[i];
+
+         if (axis < 0)
+            axis += input_rank;
+         if (axis < 0 || axis >= input_rank)
+            return false;
+
+         operation->mean.axes |= BITFIELD_BIT(4 - input_rank + axis);
+      }
+      break;
+   }
    default:
       return false;
    }
@@ -618,6 +650,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_SOFTMAX:
          teflon_debug("%-15s ", "SOFTMAX");
+         break;
+      case PIPE_ML_OPERATION_TYPE_MEAN:
+         teflon_debug("%-15s ", "MEAN");
          break;
       }
 
