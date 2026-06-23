@@ -4304,7 +4304,7 @@
         "description": "anv/xe: prevent WaitIdle optimization for fences with exported sync_fd",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "db5319fbf00d4b238f50e54318e2f02e97a4ca1c",
         "notes": null
