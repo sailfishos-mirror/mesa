@@ -244,6 +244,7 @@ struct ethosu_tensor {
    unsigned index;
    unsigned offset;
    unsigned size;
+   unsigned required_size;
    uint8_t type_size;
    struct ethosu_block shape;
    enum ethosu_layout layout;
