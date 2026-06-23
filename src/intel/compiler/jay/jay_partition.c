@@ -6,6 +6,7 @@
 #include <math.h>
 #include "util/u_math.h"
 #include "jay_ir.h"
+#include "jay_opcodes.h"
 #include "jay_private.h"
 
 /*
@@ -171,13 +172,30 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
 }
 
 static inline unsigned
-jay_gpr_limit(jay_shader *shader)
+register_limit(jay_shader *s, enum jay_file file, unsigned limit)
 {
    /* If testing spilling, set limit tightly. */
-   bool test = (jay_debug & JAY_DBG_SPILL);
-   test &= shader->stage != MESA_SHADER_VERTEX;
+   if (jay_debug & JAY_DBG_SPILL) {
+      /* UGPR spilling needs 1 extra register throughout the program but 2
+       * extra registers right at the beginning with all the preloading.
+       */
+      struct instruction_req req = analyze_per_inst(s);
+      limit =
+         file == UGPR ? req.ugpr + 1 : req.gpr[0] + req.gpr[1] + req.gpr[2];
 
-   return test ? 13 : shader->num_regs[GPR];
+      jay_foreach_function(s, f) {
+         jay_foreach_preload(f, I) {
+            if (I->dst.file == file) {
+               uint32_t max = jay_preload_reg(I) +
+                              jay_num_values(I->dst) +
+                              (file == GPR ? 0 : 2);
+               limit = MAX2(limit, max);
+            }
+         }
+      }
+   }
+
+   return limit;
 }
 
 /*
@@ -237,26 +255,11 @@ jay_partition_grf(jay_shader *shader)
     */
    unsigned demand[JAY_NUM_GRF_FILES] = { 0 };
    struct instruction_req instr_req = analyze_per_inst(shader);
+   unsigned ugpr_limit = register_limit(shader, UGPR, 1024);
 
    jay_foreach_function(shader, f) {
       jay_compute_liveness(f);
       jay_calculate_register_demands(f);
-
-      unsigned ugpr_limit = 1024;
-
-      if (jay_debug & JAY_DBG_SPILL) {
-         /* UGPR spilling needs 1 extra register throughout the program but 2
-          * extra registers right at the beginning with all the preloading.
-          */
-         ugpr_limit = analyze_per_inst(shader).ugpr + 1;
-
-         jay_foreach_preload(f, I) {
-            if (I->dst.file == UGPR) {
-               uint32_t max = jay_preload_reg(I) + jay_num_values(I->dst) + 2;
-               ugpr_limit = MAX2(ugpr_limit, max);
-            }
-         }
-      }
 
       if (f->demand[UGPR] > ugpr_limit) {
          jay_spill(f, UGPR, ugpr_limit);
@@ -340,10 +343,8 @@ jay_partition_grf(jay_shader *shader)
       shader->num_regs[GPR] = (nonuniform_grfs / grf_per_gpr) + mapped_accums;
       shader->num_regs[UGPR] = uniform_grfs * ugpr_per_grf;
 
-      /* jay_gpr_limit depends on shader->num_regs[GPR]. If we're under the
-       * limit without spilling, we're good to go.
-       */
-      if (demand[GPR] <= jay_gpr_limit(shader) && !spilling) {
+      /* If we're under the limit without spilling, we're good to go. */
+      if (demand[GPR] <= register_limit(shader, GPR, shader->num_regs[GPR])) {
          break;
       }
    }
@@ -435,7 +436,7 @@ jay_partition_grf(jay_shader *shader)
 
    /* Spill as needed to fit within the partition we picked. */
    jay_foreach_function(shader, f) {
-      unsigned limit = jay_gpr_limit(shader);
+      unsigned limit = register_limit(shader, GPR, shader->num_regs[GPR]);
       bool spilled = f->demand[GPR] > limit;
 
       if (spilled) {
