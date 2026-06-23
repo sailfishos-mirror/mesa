@@ -193,10 +193,11 @@ panthor_ioctl_dev_query(int fd, unsigned long request, void *arg)
       struct drm_panthor_csif_info *csif_info =
          (struct drm_panthor_csif_info *)dev_query->pointer;
 
-      /* Dumped from a G610 */
+      unsigned arch = pan_get_gpu_id() >> 12;
+
       csif_info->csg_slot_count = 8;
       csif_info->cs_slot_count = 8;
-      csif_info->cs_reg_count = 96;
+      csif_info->cs_reg_count = arch >= 12 ? 128 : 96;
       csif_info->scoreboard_slot_count = 8;
       csif_info->unpreserved_cs_reg_count = 4;
       return 0;
