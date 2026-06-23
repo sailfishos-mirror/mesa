@@ -284,7 +284,7 @@
         "description": "pco: lower sysvals early for fragment shaders",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "61a9c4f63dd75f0e9b46707d518fe15492fb9671",
         "notes": null
