@@ -1244,6 +1244,7 @@ tu_CreateRenderPass2(VkDevice _device,
                   subpass->resolve_attachments[j].attachment = a;
                   subpass->unresolve_attachments[j].attachment = a;
                   subpass->color_attachments[j].attachment = a = msrtss_att_idx++;
+                  pass->has_msrtss = true;
                }
 
                tu_subpass_use_attachment(pass, i, a, pCreateInfo);
@@ -1294,6 +1295,7 @@ tu_CreateRenderPass2(VkDevice _device,
             subpass->unresolve_attachments[subpass->resolve_count - 1].attachment = a;
             subpass->depth_stencil_attachment.attachment = a = msrtss_att_idx++;
             subpass->resolve_depth_stencil = true;
+            pass->has_msrtss = true;
          }
 
          tu_subpass_use_attachment(pass, i, a, pCreateInfo);
@@ -1539,6 +1541,9 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
             att->will_be_resolved = false;
          }
       }
+
+      if (att_is_msrtss)
+         pass->has_msrtss = true;
    }
 
    if (info->pDepthAttachment || info->pStencilAttachment) {
@@ -1649,6 +1654,9 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
                att->will_be_resolved = false;
             }
          }
+
+         if (att_is_msrtss)
+            pass->has_msrtss = true;
       } else {
          subpass->depth_stencil_attachment.attachment = VK_ATTACHMENT_UNUSED;
          subpass->input_attachments[0].attachment = VK_ATTACHMENT_UNUSED;
