@@ -278,8 +278,15 @@ translate_ts_format(enum pipe_format fmt)
 static inline uint32_t
 translate_rs_format(enum pipe_format fmt)
 {
+   fmt = translate_emulated_format_z32f(fmt);
+
    /* Note: Pipe format convention is LSB to MSB, VIVS is MSB to LSB */
    switch (fmt) {
+   case PIPE_FORMAT_Z16_UNORM:
+      return RS_FORMAT_D16;
+   case PIPE_FORMAT_X8Z24_UNORM:
+   case PIPE_FORMAT_S8_UINT_Z24_UNORM:
+      return RS_FORMAT_D32;
    case PIPE_FORMAT_B4G4R4X4_UNORM:
       return RS_FORMAT_X4R4G4B4;
    case PIPE_FORMAT_B4G4R4A4_UNORM:
