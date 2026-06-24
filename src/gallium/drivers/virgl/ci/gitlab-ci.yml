@@ -50,12 +50,3 @@ virgl-traces:
     # Use all threads for rendering and only run one job at a time
     # Couldn't get GitLab CI to correctly substitute the variable in the yaml
     - LP_NUM_THREADS=${FDO_CI_CONCURRENT} FDO_CI_CONCURRENT=1 install/crosvm-runner.sh install/piglit/piglit-traces.sh
-
-.android-virgl-llvmpipe:
-  extends:
-    - .test-android
-    - .virgl-rules
-  variables:
-    CUTTLEFISH_GPU_MODE: drm_virgl
-    GPU_VERSION: virgl-gl
-    DEQP_SUITE: android-virgl
