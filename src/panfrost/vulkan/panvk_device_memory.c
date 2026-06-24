@@ -191,6 +191,10 @@ panvk_AllocateMemory(VkDevice _device,
 
    mem->addr.dev = op.va.start;
 
+   panvk_address_binding_report(device, &mem->vk.base, mem->addr.dev,
+                                pan_kmod_bo_size(mem->bo),
+                                VK_DEVICE_ADDRESS_BINDING_TYPE_BIND_EXT);
+
    if (fd_info) {
       /* From the Vulkan spec:
        *
@@ -272,6 +276,10 @@ panvk_FreeMemory(VkDevice _device, VkDeviceMemory _mem,
       ASSERTED int ret = os_munmap(mem->addr.host, pan_kmod_bo_size(mem->bo));
       assert(!ret);
    }
+
+   panvk_address_binding_report(device, &mem->vk.base, mem->addr.dev,
+                                pan_kmod_bo_size(mem->bo),
+                                VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT);
 
    struct pan_kmod_vm_op op = {
       .type = PAN_KMOD_VM_OP_TYPE_UNMAP,
