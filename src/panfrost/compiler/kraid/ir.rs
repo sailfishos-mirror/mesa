@@ -690,9 +690,19 @@ impl Src {
 
 impl<T: Into<SrcRef>> From<T> for Src {
     fn from(src_ref: T) -> Src {
+        let src_ref = src_ref.into();
+        let swizzle = match &src_ref {
+            SrcRef::Zero | SrcRef::Imm32(_) | SrcRef::FAU(_) => Swizzle::NONE,
+            SrcRef::SSA(vec) => match vec.bytes() {
+                1 => Swizzle::B0000,
+                2 => Swizzle::H00,
+                _ => Swizzle::NONE,
+            },
+            SrcRef::Reg(reg) => reg.range.into(),
+        };
         Src {
-            src_ref: src_ref.into(),
-            swizzle: Default::default(),
+            src_ref,
+            swizzle,
             src_mod: Default::default(),
             last_use: false,
         }
