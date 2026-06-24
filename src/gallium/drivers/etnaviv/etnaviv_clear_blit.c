@@ -395,14 +395,16 @@ etna_copy_resource_box(struct pipe_context *pctx, struct pipe_resource *dst,
 
    ctx->blit_rb_swap = rb_swap;
 
+   enum pipe_format format = translate_emulated_format_z32f(dst->format);
+
    struct pipe_blit_info blit = {};
-   blit.mask = util_format_get_mask(dst->format);
+   blit.mask = util_format_get_mask(format);
    blit.filter = PIPE_TEX_FILTER_NEAREST;
    blit.src.resource = src;
-   blit.src.format = src->format;
+   blit.src.format = format;
    blit.src.box = *box;
    blit.dst.resource = dst;
-   blit.dst.format = dst->format;
+   blit.dst.format = format;
    blit.dst.box = *box;
 
    blit.dst.box.depth = blit.src.box.depth = 1;
