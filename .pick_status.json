@@ -3394,7 +3394,7 @@
         "description": "vulkan: fix initializing address flags",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b7bf4e53049942ace9fbbc81baaa5646ce2deb1d",
         "notes": null
