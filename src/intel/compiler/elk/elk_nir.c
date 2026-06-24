@@ -725,6 +725,7 @@ elk_nir_optimize(nir_shader *nir, bool is_scalar,
       OPT(nir_opt_peephole_select, &peephole_select_options);
 
       OPT(nir_opt_intrinsics);
+      OPT(nir_opt_fp_math_ctrl);
       OPT(nir_opt_idiv_const, 32);
       OPT(nir_opt_algebraic);
 
