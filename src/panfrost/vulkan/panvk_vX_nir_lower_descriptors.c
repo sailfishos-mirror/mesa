@@ -748,18 +748,31 @@ static void
 lower_tex_ycbcr(nir_builder *b, nir_tex_instr *tex,
                 const struct vk_ycbcr_conversion_state *conversion)
 {
-   if (conversion->ycbcr_model ==
-       VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY)
-      return;
-
    b->cursor = nir_after_instr(&tex->instr);
+
+   nir_def *raw = &tex->def;
 
    VkFormat y_format = vk_format_get_plane_format(conversion->format, 0);
    uint8_t bits = vk_format_get_bpc(y_format);
    uint32_t bpcs[3] = {bits, bits, bits};
 
-   nir_def *result = nir_convert_ycbcr_to_rgb(
-      b, conversion->ycbcr_model, conversion->ycbcr_range, &tex->def, bpcs);
+#if PAN_ARCH < 14
+   if (bits == 10) {
+      /* Upon normalization, the 10-bit component is divided by 1020 (0xFF<<2)
+       * instead of 1023. So here we have to scale down accordingly.
+       */
+      const float factor = 1020.0f / 1023.0f;
+      nir_def *scale = nir_imm_vec4(b, factor, factor, factor, 1.0f);
+      raw = nir_fmul(b, raw, scale);
+   }
+#endif
+
+   nir_def *result = raw;
+   if (conversion->ycbcr_model !=
+       VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY) {
+      result = nir_convert_ycbcr_to_rgb(b, conversion->ycbcr_model,
+                                        conversion->ycbcr_range, raw, bpcs);
+   }
 
    nir_def_rewrite_uses_after(&tex->def, result);
 

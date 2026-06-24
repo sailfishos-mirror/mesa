@@ -86,6 +86,7 @@ panvk_image_use_yuv_tex(unsigned arch, VkFormat format)
    case VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM:
    case VK_FORMAT_G8_B8R8_2PLANE_422_UNORM:
    case VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM:
+   case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
       return true;
    default:
       break;
