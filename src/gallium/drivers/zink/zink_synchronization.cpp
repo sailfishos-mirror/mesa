@@ -370,8 +370,7 @@ struct update_unordered_access_and_get_cmdbuf<false> {
            */
           (!res->obj->unordered_read || !res->obj->unordered_write)) {
          cmdbuf = ctx->bs->cmdbuf;
-         res->obj->unordered_write = false;
-         res->obj->unordered_read = false;
+         zink_resource_disable_unordered(res, true);
          /* it's impossible to detect this from the caller
        * there should be no valid case where this barrier can occur inside a renderpass
        */
@@ -380,8 +379,7 @@ struct update_unordered_access_and_get_cmdbuf<false> {
          cmdbuf = is_write ? zink_get_cmdbuf(ctx, NULL, res) : zink_get_cmdbuf(ctx, res, NULL);
          /* force subsequent barriers to be ordered to avoid layout desync */
          if (cmdbuf != ctx->bs->reordered_cmdbuf) {
-            res->obj->unordered_write = false;
-            res->obj->unordered_read = false;
+            zink_resource_disable_unordered(res, true);
          }
       }
       return cmdbuf;

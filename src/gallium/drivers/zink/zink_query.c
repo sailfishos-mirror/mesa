@@ -787,7 +787,7 @@ copy_pool_results_to_buffer(struct zink_context *ctx, struct zink_query *query, 
    zink_batch_no_rp(ctx);
    /* if it's a single query that doesn't need special handling, we can copy it and be done */
    zink_batch_reference_resource_rw(ctx, res, true);
-   res->obj->unordered_read = res->obj->unordered_write = false;
+   zink_resource_disable_unordered(res, true);
    zink_resource_buffer_transfer_dst_barrier(ctx, res, offset, result_size);
    util_range_add(&res->base.b, &res->valid_buffer_range, offset, offset + result_size);
    assert(query_id < NUM_QUERIES);
@@ -1333,7 +1333,7 @@ zink_start_conditional_render(struct zink_context *ctx)
    begin_info.sType = VK_STRUCTURE_TYPE_CONDITIONAL_RENDERING_BEGIN_INFO_EXT;
    begin_info.buffer = ctx->render_condition.query->predicate->obj->buffer;
    begin_info.flags = begin_flags;
-   ctx->render_condition.query->predicate->obj->unordered_read = false;
+   zink_resource_disable_unordered(ctx->render_condition.query->predicate, false);
    VKCTX(CmdBeginConditionalRenderingEXT)(ctx->bs->cmdbuf, &begin_info);
    zink_batch_reference_resource_rw(ctx, ctx->render_condition.query->predicate, false);
    ctx->render_condition.active = true;

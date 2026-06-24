@@ -155,9 +155,8 @@ blit_resolve(struct zink_context *ctx, const struct pipe_blit_info *info, bool *
    zink_cmd_debug_marker_end(ctx, cmdbuf, marker);
 
    if (cmdbuf == ctx->bs->cmdbuf) {
-      dst->obj->unordered_read = false;
-      dst->obj->unordered_write = false;
-      src->obj->unordered_read = false;
+      zink_resource_disable_unordered(dst, true);
+      zink_resource_disable_unordered(src, false);
       if (ctx->track_renderpasses) {
          ctx->needs_transfer_sync = true;
          dst->obj->transfer_rp = ctx->rp_counter;
@@ -347,9 +346,8 @@ blit_native(struct zink_context *ctx, const struct pipe_blit_info *info, bool *n
    zink_cmd_debug_marker_end(ctx, cmdbuf, marker);
 
    if (cmdbuf == ctx->bs->cmdbuf) {
-      dst->obj->unordered_read = false;
-      dst->obj->unordered_write = false;
-      src->obj->unordered_read = false;
+      zink_resource_disable_unordered(dst, true);
+      zink_resource_disable_unordered(src, false);
       if (ctx->track_renderpasses) {
          ctx->needs_transfer_sync = true;
          dst->obj->transfer_rp = ctx->rp_counter;
@@ -611,8 +609,8 @@ zink_blit(struct pipe_context *pctx,
    ctx->unordered_blitting = false;
 end:
    if (needs_present_readback) {
-      src->obj->unordered_read = false;
-      dst->obj->unordered_write = false;
+      zink_resource_disable_unordered(src, false);
+      zink_resource_disable_unordered(dst, true);
       zink_kopper_present_readback(ctx, src);
    }
 }
@@ -707,7 +705,7 @@ zink_blit_barriers(struct zink_context *ctx, struct zink_resource *src, struct z
          screen->image_barrier(ctx, src, layout,
                               VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
          if (!ctx->unordered_blitting)
-            src->obj->unordered_read = false;
+            zink_resource_disable_unordered(src, false);
       }
       VkImageLayout layout = screen->driver_workarounds.general_layout ? VK_IMAGE_LAYOUT_GENERAL :
                              util_format_is_depth_or_stencil(dst->base.b.format) ?
@@ -717,7 +715,7 @@ zink_blit_barriers(struct zink_context *ctx, struct zink_resource *src, struct z
          screen->image_barrier(ctx, dst, layout, BITFIELD_BIT(f), pipeline);
    }
    if (!ctx->unordered_blitting)
-      dst->obj->unordered_read = dst->obj->unordered_write = false;
+      zink_resource_disable_unordered(dst, true);
 }
 
 bool
