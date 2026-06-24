@@ -3857,18 +3857,26 @@ gfx103_emit_vgt_draw_payload_cntl(struct radv_cmd_buffer *cmd_buffer)
 }
 
 static void
-gfx103_emit_vrs_state(struct radv_cmd_buffer *cmd_buffer)
+radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const bool enable_vrs_coarse_shading = cmd_buffer->state.uses_vrs_coarse_shading;
+   bool enable_vrs_coarse_shading = cmd_buffer->state.uses_vrs_coarse_shading;
+   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   if (pdev->info.gfx_level < GFX10_3)
+      return;
 
    if (pdev->info.gfx_level >= GFX11) {
       const struct radv_rendering_state *render = &cmd_buffer->state.render;
       const bool vrs_surface_enable = render->vrs_att.iview != NULL;
       uint8_t mode = V_0283D0_SC_VRS_COMB_MODE_PASSTHRU;
       uint8_t rate = V_0283D0_VRS_SHADING_RATE_1X1;
+
+      /* Disable VRS for flat shading with MSAA 8x to prevent random GPU hangs on GFX11-11.7 */
+      if (pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8)
+         enable_vrs_coarse_shading = false;
 
       if (enable_vrs_coarse_shading) {
          mode = V_0283D0_SC_VRS_COMB_MODE_OVERRIDE;
@@ -3992,7 +4000,6 @@ radv_emit_graphics_shaders(struct radv_cmd_buffer *cmd_buffer)
 
    if (pdev->info.gfx_level >= GFX10_3) {
       gfx103_emit_vgt_draw_payload_cntl(cmd_buffer);
-      gfx103_emit_vrs_state(cmd_buffer);
    }
 }
 
@@ -12761,7 +12768,8 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
    if (dynamic_states & RADV_DYNAMIC_RASTERIZATION_SAMPLES) {
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_NGGC_VIEWPORT;
       if (pdev->info.gfx_level >= GFX11 && pdev->info.gfx_level < GFX12)
-         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_RAST_SAMPLES_STATE;
+         cmd_buffer->state.dirty |=
+            RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_RAST_SAMPLES_STATE | RADV_CMD_DIRTY_OVERRIDE_VRS_STATE;
    }
 
    if (dynamic_states & RADV_DYNAMIC_PATCH_CONTROL_POINTS) {
@@ -12855,6 +12863,10 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
    const uint64_t dynamic_states = cmd_buffer->state.dirty_dynamic & radv_get_needed_dynamic_states(cmd_buffer);
+   if (cmd_buffer->state.dirty & (RADV_CMD_DIRTY_PIPELINE | RADV_CMD_DIRTY_GRAPHICS_SHADERS)) {
+      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_OVERRIDE_VRS_STATE;
+   }
+
    if (((cmd_buffer->state.dirty & (RADV_CMD_DIRTY_PIPELINE | RADV_CMD_DIRTY_GRAPHICS_SHADERS)) ||
         (dynamic_states & RADV_DYNAMIC_PATCH_CONTROL_POINTS))) {
       if (cmd_buffer->state.active_stages & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT) {
@@ -13064,6 +13076,11 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
    if (cmd_buffer->state.dirty & RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE) {
       radv_gfx12_emit_hiz_wa_full(cmd_buffer);
       cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_GFX12_HIZ_WA_STATE;
+   }
+
+   if (cmd_buffer->state.dirty & RADV_CMD_DIRTY_OVERRIDE_VRS_STATE) {
+      radv_emit_override_vrs_state(cmd_buffer);
+      cmd_buffer->state.dirty &= ~RADV_CMD_DIRTY_OVERRIDE_VRS_STATE;
    }
 
    radv_emit_shaders_state(cmd_buffer);
