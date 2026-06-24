@@ -590,12 +590,12 @@ struct brw_fs_prog_data {
    bool uses_fs_config;
 
    /** Should this shader be dispatched per-sample */
-   enum intel_sometimes persample_dispatch;
+   bool persample_dispatch;
 
    /**
     * Shader is ran at the coarse pixel shading dispatch rate (3DSTATE_CPS).
     */
-   enum intel_sometimes coarse_pixel_dispatch;
+   bool coarse_pixel_dispatch;
 
    /**
     * Shader writes the SampleMask and this is AND-ed with the API's
@@ -776,33 +776,6 @@ _brw_fs_prog_data_dispatch_grf_start_reg(const struct brw_fs_prog_data *prog_dat
 #define brw_fs_prog_data_dispatch_grf_start_reg(prog_data, wm_state, ksp_idx) \
    _brw_fs_prog_data_dispatch_grf_start_reg(prog_data, \
       brw_wm_state_simd_width_for_ksp(wm_state, ksp_idx))
-
-static inline bool
-brw_fs_prog_data_is_persample(const struct brw_fs_prog_data *prog_data,
-                              enum intel_fs_config pushed_fs_config)
-{
-   return intel_fs_is_persample(prog_data->persample_dispatch,
-                                prog_data->persample_interp,
-                                pushed_fs_config);
-}
-
-static inline uint32_t
-fs_prog_data_barycentric_modes(const struct brw_fs_prog_data *prog_data,
-                               enum intel_fs_config pushed_fs_config)
-{
-   return intel_fs_barycentric_modes(prog_data->persample_dispatch,
-                                     prog_data->persample_interp,
-                                     prog_data->barycentric_interp_modes,
-                                     pushed_fs_config);
-}
-
-static inline bool
-brw_fs_prog_data_is_coarse(const struct brw_fs_prog_data *prog_data,
-                           enum intel_fs_config pushed_fs_config)
-{
-   return intel_fs_is_coarse(prog_data->coarse_pixel_dispatch,
-                             pushed_fs_config);
-}
 
 struct brw_push_const_block {
    unsigned dwords;     /* Dword count, not reg aligned */

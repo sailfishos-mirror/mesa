@@ -73,7 +73,6 @@ typedef struct jay_fs_payload {
 
    jay_def config;
    jay_def coverage_mask;
-   jay_def is_coarse;
    jay_def sample_pos;
    jay_def coefficients;
    jay_def *deltas;
@@ -888,8 +887,7 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    const bool null_rt = ((signed) nir_intrinsic_target(intr)) < 0;
    const int target = MAX2(((signed) nir_intrinsic_target(intr)), 0);
    const bool last = !nir_instr_next(&intr->instr);
-   const bool coarse =
-      nj->s->prog_data->fs.coarse_pixel_dispatch == INTEL_ALWAYS;
+   const bool coarse = nj->s->prog_data->fs.coarse_pixel_dispatch;
 
    /* The hardware freaks out if we give it an omask without multisampling. */
    if (!b->shader->prog_data->fs.uses_omask) {
@@ -970,8 +968,7 @@ jay_emit_fb_write(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    }
 
    jay_SEND(b, .sfid = GEN_SFID_RENDER_CACHE, .check_tdr = true,
-            .msg_desc = desc | (ex_desc << 32),
-            .desc = nj->payload.fs.is_coarse, .srcs = srcs, .nr_srcs = len,
+            .msg_desc = desc | (ex_desc << 32), .srcs = srcs, .nr_srcs = len,
             .type = JAY_TYPE_U32, .eot = last, .split = split,
             .skip_helpers = true);
 }
@@ -3140,11 +3137,6 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
 
    fs->config = nj->payload.push_data[nj->s->prog_data->fs.fs_config_param / 4];
 
-   if (nj->s->prog_data->fs.coarse_pixel_dispatch == INTEL_SOMETIMES) {
-      fs->is_coarse =
-         jay_AND_u32(b, fs->config, INTEL_FS_CONFIG_COARSE_RT_WRITES);
-   }
-
    if (nj->s->prog_data->fs.num_varying_inputs > 0) {
       fs->deltas =
          linear_alloc_child_array(nj->s->lin_ctx, sizeof(jay_def),
@@ -3181,12 +3173,7 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       jay_def lo = jay_extract_range(nj->payload.u0, 10, 4);
       jay_EXPAND_QUAD(b, t, lo, payload_u1(nj, 10, 4));
 
-      jay_def normal;
-      if (nj->s->prog_data->fs.coarse_pixel_dispatch != INTEL_ALWAYS)
-         normal = jay_OFFSET_PACKED_PIXEL_COORDS_u32(&nj->bld, t, 1);
-
-      jay_def coarse;
-      if (nj->s->prog_data->fs.coarse_pixel_dispatch != INTEL_NEVER) {
+      if (nj->s->prog_data->fs.coarse_pixel_dispatch) {
          jay_def size_u8v2 = jay_extract(nj->payload.u0, 8);
 
          /* Expand from u8vec2 to u16vec2 */
@@ -3219,17 +3206,10 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
          jay_def offsets = jay_alloc_def(b, UGPR, 8);
          jay_OR(b, JAY_TYPE_U32, offsets, size_in_far_corners, half_size_xy);
 
-         coarse = jay_OFFSET_PACKED_PIXEL_COORDS_u32(&nj->bld, t, offsets);
-      }
-
-      if (nj->s->prog_data->fs.coarse_pixel_dispatch == INTEL_NEVER) {
-         fs->coord.xy = normal;
-      } else if (nj->s->prog_data->fs.coarse_pixel_dispatch == INTEL_ALWAYS) {
-         fs->coord.xy = coarse;
+         fs->coord.xy =
+            jay_OFFSET_PACKED_PIXEL_COORDS_u32(&nj->bld, t, offsets);
       } else {
-         fs->coord.xy = jay_alloc_def(&nj->bld, GPR, 1);
-         jay_CSEL(b, JAY_TYPE_U32, fs->coord.xy, coarse, normal, fs->is_coarse)
-            ->conditional_mod = GEN_CONDITION_NE;
+         fs->coord.xy = jay_OFFSET_PACKED_PIXEL_COORDS_u32(&nj->bld, t, 1);
       }
    }
 

@@ -332,11 +332,9 @@ populate_fs_prog_data(nir_shader *shader,
    const bool interp_at_pixel_and_sample =
       (ctx.interp_modes & interp_at_pixel_and_sample_bits) ==
       interp_at_pixel_and_sample_bits;
-   prog_data->persample_dispatch = ((prog_data->persample_interp &&
-                                     key->multisample_fbo >= INTEL_SOMETIMES) ||
-                                    interp_at_pixel_and_sample) ?
-                                      INTEL_ALWAYS :
-                                      INTEL_NEVER;
+   prog_data->persample_dispatch = (prog_data->persample_interp &&
+                                    key->multisample_fbo >= INTEL_SOMETIMES) ||
+                                   interp_at_pixel_and_sample;
 
    /* Move sample barycentric modes to pixel when persample dispatch is always
     * disabled.
@@ -383,7 +381,7 @@ populate_fs_prog_data(nir_shader *shader,
     * persample dispatch, we hard-code it to 0.5.
     */
    prog_data->uses_pos_offset =
-      prog_data->persample_dispatch != INTEL_NEVER &&
+      prog_data->persample_dispatch &&
       (BITSET_TEST(shader->info.system_values_read, SYSTEM_VALUE_SAMPLE_POS) ||
        BITSET_TEST(shader->info.system_values_read,
                    SYSTEM_VALUE_SAMPLE_POS_OR_CENTER));
@@ -417,8 +415,7 @@ populate_fs_prog_data(nir_shader *shader,
     */
    assert(!key->coarse_pixel || !key->persample_interp);
 
-   prog_data->coarse_pixel_dispatch =
-      intel_sometimes_invert(prog_data->persample_dispatch);
+   prog_data->coarse_pixel_dispatch = !prog_data->persample_dispatch;
    if (!key->coarse_pixel ||
        /* DG2 should support this, but Wa_22012766191 says there are issues
         * with CPS 1x1 + MSAA + FS writing to oMask.
@@ -429,7 +426,7 @@ populate_fs_prog_data(nir_shader *shader,
        (prog_data->computed_depth_mode != BRW_PSCDEPTH_OFF) ||
        prog_data->computed_stencil ||
        devinfo->ver < 11) {
-      prog_data->coarse_pixel_dispatch = INTEL_NEVER;
+      prog_data->coarse_pixel_dispatch = false;
    }
 
    /* ICL PRMs, Volume 9: Render Engine, Shared Functions Pixel Interpolater,
@@ -459,7 +456,7 @@ populate_fs_prog_data(nir_shader *shader,
     * interpolater message at sample.
     */
    if (intel_nir_pulls_at_sample(shader))
-      prog_data->coarse_pixel_dispatch = INTEL_NEVER;
+      prog_data->coarse_pixel_dispatch = false;
 
    /* We choose to always enable VMask prior to XeHP, as it would cause
     * us to lose out on the eliminate_find_live_channel() optimization.
@@ -468,17 +465,14 @@ populate_fs_prog_data(nir_shader *shader,
       devinfo->verx10 < 125 ||
       shader->info.fs.needs_coarse_quad_helper_invocations ||
       shader->info.uses_wide_subgroup_intrinsics ||
-      prog_data->coarse_pixel_dispatch != INTEL_NEVER;
+      prog_data->coarse_pixel_dispatch;
 
    prog_data->uses_depth_w_coefficients = prog_data->uses_pc_bary_coefficients;
 
-   if (prog_data->coarse_pixel_dispatch != INTEL_NEVER) {
+   if (prog_data->coarse_pixel_dispatch) {
       prog_data->uses_depth_w_coefficients |= prog_data->uses_src_depth;
       prog_data->uses_src_depth = false;
    }
-
-   if (prog_data->coarse_pixel_dispatch == INTEL_SOMETIMES)
-      prog_data->uses_fs_config = true;
 
    calculate_urb_setup(devinfo, key, prog_data, shader, mue_map,
                        per_primitive_offsets);

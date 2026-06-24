@@ -1556,14 +1556,17 @@ generate_fs_config_state_bits(const struct brw_fs_prog_key *key,
    if (prog_data->provoking_vertex_last == comp_value)
       f |= INTEL_FS_CONFIG_PROVOKING_VERTEX_LAST;
 
-   if (prog_data->persample_dispatch == comp_value)
-      f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH;
-
-   if (prog_data->coarse_pixel_dispatch == comp_value)
-      f |= INTEL_FS_CONFIG_COARSE_RT_WRITES;
-
    if (prog_data->conservative_raster == comp_value)
       f |= INTEL_FS_CONFIG_CONSERVATIVE_RASTER;
+
+   if (comp_value == INTEL_ALWAYS) {
+      if (prog_data->persample_dispatch)
+         f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH;
+
+      if (prog_data->coarse_pixel_dispatch)
+         f |= INTEL_FS_CONFIG_COARSE_RT_WRITES;
+
+   }
 
    return f;
 }

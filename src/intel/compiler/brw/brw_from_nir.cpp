@@ -3403,7 +3403,7 @@ emit_samplepos_setup(nir_to_brw_state &ntb)
    brw_shader &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   assert(brw_fs_prog_data(s.prog_data)->persample_dispatch != INTEL_NEVER);
+   assert(brw_fs_prog_data(s.prog_data)->persample_dispatch);
 
    const brw_builder abld = bld.annotate("compute sample position");
    brw_reg pos = abld.vgrf(BRW_TYPE_F, 2);
