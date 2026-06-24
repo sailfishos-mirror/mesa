@@ -355,7 +355,7 @@ etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
       rsc = etna_resource(rsc->texture);
    } else if (etna_resource_level_ts_valid(res_level) ||
               (rsc->layout != ETNA_LAYOUT_LINEAR &&
-               etna_resource_hw_tileable(screen->specs.use_blt, prsc) &&
+               etna_format_hw_tileable(screen->specs.use_blt, rsc->internal_format) &&
                /* HALIGN 4 resources are incompatible with the resolve engine,
                 * so fall back to using software to detile this resource. */
                rsc->halign != TEXTURE_HALIGN_FOUR)) {
