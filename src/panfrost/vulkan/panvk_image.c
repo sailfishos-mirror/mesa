@@ -578,15 +578,43 @@ panvk_image_post_mod_select_meta_adjustments(struct panvk_image *image)
 }
 
 static uint64_t
+panvk_image_plane_size(const struct panvk_image *image, unsigned plane)
+{
+   const struct pan_image_layout *layout = &image->planes[plane].plane.layout;
+   return layout->slices[0].offset_B + layout->data_size_B;
+}
+
+static uint64_t
 panvk_image_get_total_size(const struct panvk_image *image)
 {
    uint64_t size = 0;
-   for (uint8_t plane = 0; plane < image->plane_count; plane++) {
-      const struct pan_image_layout *layout =
-         &image->planes[plane].plane.layout;
-      size = MAX2(size, layout->slices[0].offset_B + layout->data_size_B);
-   }
+   for (uint8_t plane = 0; plane < image->plane_count; plane++)
+      size = MAX2(size, panvk_image_plane_size(image, plane));
    return size;
+}
+
+/* Report the VA ranges of a bound non-sparse image. Disjoint images can place
+ * each plane in a different allocation, so they are reported individually.
+ * Otherwise the planes share a base and a single range covers the image.
+ */
+static void
+panvk_image_report_binding(struct panvk_device *dev, struct panvk_image *image,
+                           VkDeviceAddressBindingTypeEXT type)
+{
+   if (is_disjoint(image)) {
+      for (unsigned plane = 0; plane < image->plane_count; plane++) {
+         if (!image->planes[plane].plane.base)
+            continue;
+         panvk_address_binding_report(dev, &image->vk.base,
+                                      image->planes[plane].plane.base,
+                                      panvk_image_plane_size(image, plane),
+                                      type);
+      }
+   } else if (image->planes[0].plane.base) {
+      panvk_address_binding_report(dev, &image->vk.base,
+                                   image->planes[0].plane.base,
+                                   panvk_image_get_total_size(image), type);
+   }
 }
 
 static uint64_t
@@ -778,6 +806,12 @@ panvk_CreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo,
       }
    }
 
+   if (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT)
+      panvk_address_binding_report(dev, &image->vk.base,
+                                   image->sparse.device_address,
+                                   panvk_image_get_sparse_size(image),
+                                   VK_DEVICE_ADDRESS_BINDING_TYPE_BIND_EXT);
+
    if (pCreateInfo->flags &
        VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT)
       create_ms_images(dev, image, pCreateInfo, pAllocator);
@@ -815,6 +849,10 @@ panvk_DestroyImage(VkDevice _device, VkImage _image,
    if (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) {
       uint64_t va_range = panvk_image_get_sparse_size(image);
 
+      panvk_address_binding_report(device, &image->vk.base,
+                                   image->sparse.device_address, va_range,
+                                   VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT);
+
       struct pan_kmod_vm_op unmap = {
          .type = PAN_KMOD_VM_OP_TYPE_UNMAP,
          .va = {
@@ -828,6 +866,9 @@ panvk_DestroyImage(VkDevice _device, VkImage _image,
 
       panvk_as_free(device, &device->as.heap, image->sparse.device_address,
                     va_range);
+   } else {
+      panvk_image_report_binding(device, image,
+                                 VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT);
    }
 
    vk_image_destroy(&device->vk, pAllocator, &image->vk);
@@ -1315,9 +1356,18 @@ panvk_image_bind(struct panvk_device *dev,
       const uint8_t plane =
          panvk_plane_index(image, plane_info->planeAspect);
       panvk_image_plane_bind_mem(dev, &image->planes[plane], mem, offset);
+      /* Disjoint planes are bound one per call, so report just this one to
+       * avoid re-emitting a BIND for planes bound by earlier calls.
+       */
+      panvk_address_binding_report(dev, &image->vk.base,
+                                   image->planes[plane].plane.base,
+                                   panvk_image_plane_size(image, plane),
+                                   VK_DEVICE_ADDRESS_BINDING_TYPE_BIND_EXT);
    } else {
       for (unsigned plane = 0; plane < image->plane_count; plane++)
          panvk_image_plane_bind_mem(dev, &image->planes[plane], mem, offset);
+      panvk_image_report_binding(dev, image,
+                                 VK_DEVICE_ADDRESS_BINDING_TYPE_BIND_EXT);
    }
 
    if (!!(image->vk.create_flags &
