@@ -773,6 +773,79 @@ if prog_glslang.found()
   endif
 endif
 
+# Check for libdrm. Various drivers have different libdrm version requirements,
+# but we always want to use the same version for all libdrm modules. That means
+# even if driver foo requires 2.4.0 and driver bar requires 2.4.3, if foo and
+# bar are both on use 2.4.3 for both of them
+dep_libdrm_amdgpu = null_dep
+dep_libdrm_intel = null_dep
+
+_drm_ver = '2.4.109'
+
+_libdrm_checks = {
+  'intel': {
+    'version': '2.4.75',
+    'enabled': with_gallium_i915,
+  },
+  'amdgpu': {
+    'version': '2.4.133',
+    'enabled': (with_amd_vk and not with_platform_windows) or with_gallium_radeonsi,
+  },
+}
+
+# Loop over the enables versions and get the highest libdrm requirement for all
+# active drivers.
+_drm_blame = ''
+foreach name, d : _libdrm_checks
+  if d['enabled'] and d['version'].version_compare('>' + _drm_ver)
+    _drm_ver = d['version']
+    _drm_blame = name
+  endif
+endforeach
+if _drm_blame != ''
+  message('libdrm @0@ needed because @1@ has the highest requirement'.format(_drm_ver, _drm_blame))
+endif
+
+allow_fallback_for_libdrm = get_option('allow-fallback-for').contains('libdrm')
+
+with_gallium_drisw_kms = false
+if system_has_kms_drm
+  dep_libdrm = dependency(
+    'libdrm', version : '>=' + _drm_ver,
+    required : with_dri2 or with_dri or with_gbm,
+    allow_fallback: allow_fallback_for_libdrm,
+    default_options : {
+      'auto_features' : 'disabled',
+      'intel' : _libdrm_checks['intel']['enabled'].to_string('enabled', 'disabled'),
+      'amdgpu' : _libdrm_checks['amdgpu']['enabled'].to_string('enabled', 'disabled'),
+    },
+  )
+else
+  # We should prevent libdrm from being available when the target doesn't have it to avoid transitive
+  # dependencies (such as vk-runtime) linking to it
+  dep_libdrm = null_dep
+endif
+if dep_libdrm.found()
+  pre_args += '-DHAVE_LIBDRM'
+  if with_dri_platform == 'drm' and with_dri
+    with_gallium_drisw_kms = true
+  endif
+endif
+
+# Then get each libdrm module
+foreach name, d : _libdrm_checks
+  if d['enabled']
+    set_variable(
+      'dep_libdrm_' + name,
+      dependency(
+        'libdrm_' + name,
+        version : '>=' + _drm_ver,
+        allow_fallback: allow_fallback_for_libdrm,
+      )
+    )
+  endif
+endforeach
+
 _va_drivers = [
   with_gallium_d3d12_video,
   with_gallium_nouveau,
@@ -1884,79 +1957,6 @@ if host_machine.system() == 'windows'
     dep_futex = cc.find_library('synchronization', required : true)
   endif
 endif
-
-# Check for libdrm. Various drivers have different libdrm version requirements,
-# but we always want to use the same version for all libdrm modules. That means
-# even if driver foo requires 2.4.0 and driver bar requires 2.4.3, if foo and
-# bar are both on use 2.4.3 for both of them
-dep_libdrm_amdgpu = null_dep
-dep_libdrm_intel = null_dep
-
-_drm_ver = '2.4.109'
-
-_libdrm_checks = {
-  'intel': {
-    'version': '2.4.75',
-    'enabled': with_gallium_i915,
-  },
-  'amdgpu': {
-    'version': '2.4.133',
-    'enabled': (with_amd_vk and not with_platform_windows) or with_gallium_radeonsi,
-  },
-}
-
-# Loop over the enables versions and get the highest libdrm requirement for all
-# active drivers.
-_drm_blame = ''
-foreach name, d : _libdrm_checks
-  if d['enabled'] and d['version'].version_compare('>' + _drm_ver)
-    _drm_ver = d['version']
-    _drm_blame = name
-  endif
-endforeach
-if _drm_blame != ''
-  message('libdrm @0@ needed because @1@ has the highest requirement'.format(_drm_ver, _drm_blame))
-endif
-
-allow_fallback_for_libdrm = get_option('allow-fallback-for').contains('libdrm')
-
-with_gallium_drisw_kms = false
-if system_has_kms_drm
-  dep_libdrm = dependency(
-    'libdrm', version : '>=' + _drm_ver,
-    required : with_dri2 or with_dri or with_gbm,
-    allow_fallback: allow_fallback_for_libdrm,
-    default_options : {
-      'auto_features' : 'disabled',
-      'intel' : _libdrm_checks['intel']['enabled'].to_string('enabled', 'disabled'),
-      'amdgpu' : _libdrm_checks['amdgpu']['enabled'].to_string('enabled', 'disabled'),
-    },
-  )
-else
-  # We should prevent libdrm from being available when the target doesn't have it to avoid transitive
-  # dependencies (such as vk-runtime) linking to it
-  dep_libdrm = null_dep
-endif
-if dep_libdrm.found()
-  pre_args += '-DHAVE_LIBDRM'
-  if with_dri_platform == 'drm' and with_dri
-    with_gallium_drisw_kms = true
-  endif
-endif
-
-# Then get each libdrm module
-foreach name, d : _libdrm_checks
-  if d['enabled']
-    set_variable(
-      'dep_libdrm_' + name,
-      dependency(
-        'libdrm_' + name,
-        version : '>=' + _drm_ver,
-        allow_fallback: allow_fallback_for_libdrm,
-      )
-    )
-  endif
-endforeach
 
 dep_libudev = dependency('libudev', required : false)
 if dep_libudev.found()
