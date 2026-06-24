@@ -49,7 +49,6 @@ libintel_compiler_jay_files = files(
   'jay.h',
   'jay_assign_accumulators.c',
   'jay_assign_flags.c',
-  'jay_dag.c',
   'jay_from_nir.c',
   'jay_ir.h',
   'jay_liveness.c',
