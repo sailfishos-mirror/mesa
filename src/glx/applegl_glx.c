@@ -110,11 +110,13 @@ static const struct glx_context_vtable applegl_context_vtable = {
    .wait_x              = applegl_wait_x,
 };
 
-struct glx_context *
-applegl_create_context(
-    struct glx_screen *psc,
-    struct glx_config *config,
-    struct glx_context *shareList, int renderType)
+static struct glx_context *
+applegl_create_context_attribs(struct glx_screen *psc,
+                               struct glx_config *config,
+                               struct glx_context *shareList,
+                               unsigned num_attribs,
+                               const uint32_t *attribs,
+                               unsigned *error)
 {
    struct glx_context *gc;
    int errorcode;
@@ -125,15 +127,26 @@ applegl_create_context(
    /* TODO: Integrate this with apple_glx_create_context and make
     * struct apple_glx_context inherit from struct glx_context. */
 
-   if (!config)
+   /* AppleGL ignores the attribs array.
+    * TODO: extend apple_glx_create_context to honor explicit version requests.
+    */
+   (void) num_attribs;
+   (void) attribs;
+
+   if (!config) {
+      *error = GLXBadFBConfig;
       return NULL;
+   }
 
    gc = calloc(1, sizeof(*gc));
-   if (gc == NULL)
+   if (gc == NULL) {
+      *error = BadAlloc;
       return NULL;
+   }
 
    if (!glx_context_init(gc, psc, config)) {
       free(gc);
+      *error = BadAlloc;
       return NULL;
    }
 
@@ -144,7 +157,7 @@ applegl_create_context(
    if (apple_glx_create_context(&gc->driContext, dpy, screen, config,
                                 shareList ? shareList->driContext : NULL,
                                 &errorcode, &x11error)) {
-      __glXSendError(dpy, errorcode, 0, X_GLXCreateContext, x11error);
+      *error = errorcode;
       gc->vtable->destroy(gc);
       return NULL;
    }
@@ -158,9 +171,25 @@ applegl_create_context(
    return gc;
 }
 
+static struct glx_context *
+applegl_create_context(struct glx_screen *psc,
+                       struct glx_config *config,
+                       struct glx_context *shareList, int renderType)
+{
+   struct glx_context *gc;
+   unsigned error = 0;
+
+   (void) renderType;  /* AppleGL ignores renderType (CGL has no equivalent). */
+
+   gc = applegl_create_context_attribs(psc, config, shareList, 0, NULL, &error);
+   if (gc == NULL && error)
+      __glXSendError(psc->dpy, error, 0, X_GLXCreateContext, false);
+   return gc;
+}
+
 static const struct glx_screen_vtable applegl_screen_vtable = {
    .create_context         = applegl_create_context,
-   .create_context_attribs = NULL,
+   .create_context_attribs = applegl_create_context_attribs,
    .query_renderer_integer = NULL,
    .query_renderer_string  = NULL,
 };

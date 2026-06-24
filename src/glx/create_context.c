@@ -126,21 +126,17 @@ glXCreateContextAttribsARB(Display *dpy, GLXFBConfig config,
       direct = true;
    }
 
-#ifdef GLX_USE_APPLEGL
-   gc = applegl_create_context(psc, cfg, share, 0);
-#else
    if (direct && psc->vtable->create_context_attribs) {
       gc = psc->vtable->create_context_attribs(psc, cfg, share, num_attribs,
                       (const uint32_t *) attrib_list,
                       &error);
    } else if (!direct) {
-#ifdef GLX_INDIRECT_RENDERING
+#if defined(GLX_INDIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
       gc = indirect_create_context_attribs(psc, cfg, share, num_attribs,
                                            (const uint32_t *) attrib_list,
                                            &error);
 #endif
    }
-#endif
 
    if (gc == NULL) {
       /* Increment dpy->request in order to give a unique serial number to the error.
