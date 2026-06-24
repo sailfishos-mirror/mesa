@@ -40,8 +40,10 @@
 #include "jay_private.h"
 
 struct sched_ctx {
+   /* Function we are currently scheduling */
+   jay_function *func;
+
    struct jay_dag dag;
-   unsigned dispatch_width;
    jay_inst **insts;
    struct u_sparse_bitset live;
    BITSET_WORD *seen;
@@ -64,10 +66,7 @@ liveness_update(struct u_sparse_bitset *live, jay_inst *I)
 }
 
 static void
-populate_dag(struct sched_ctx *ctx,
-             jay_function *func,
-             jay_block *block,
-             uint32_t *def)
+populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
 {
    uint32_t first_node_in_this_block = ctx->dag.node;
 
@@ -114,7 +113,7 @@ populate_dag(struct sched_ctx *ctx,
           I->op == JAY_OPCODE_DEMOTE ||
           I->op == JAY_OPCODE_HELPER_SEL ||
           (I->op == JAY_OPCODE_SEND &&
-           func->shader->helpers_tracked &&
+           ctx->func->shader->helpers_tracked &&
            jay_send_skip_helpers(I))) {
 
          jay_dag_add_edge(&ctx->dag, sidefx);
@@ -136,7 +135,9 @@ populate_dag(struct sched_ctx *ctx,
 static unsigned
 scale(struct sched_ctx *ctx, jay_def x)
 {
-   return x.file == J_ADDRESS ? 0 : jay_is_uniform(x) ? 1 : ctx->dispatch_width;
+   return x.file == J_ADDRESS ? 0 :
+          jay_is_uniform(x)   ? 1 :
+                                ctx->func->shader->dispatch_width;
 }
 
 /*
@@ -219,10 +220,7 @@ choose_inst(struct sched_ctx *s)
 }
 
 static void
-pressure_schedule_block(jay_function *func,
-                        jay_block *block,
-                        struct sched_ctx *s,
-                        void *memctx)
+pressure_schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
 {
    /* Our pressure calculations are all off by a constant, but that's ok */
    signed pressure = 0;
@@ -286,7 +284,7 @@ pressure_schedule_block(jay_function *func,
          jay_remove_instruction(s->insts[*node]);
       }
 
-      jay_builder b = jay_init_builder(func, jay_before_block(block));
+      jay_builder b = jay_init_builder(s->func, jay_before_block(block));
       util_dynarray_foreach_reverse(&s->schedule, uint32_t, node) {
          jay_builder_insert(&b, s->insts[*node]);
       }
@@ -308,8 +306,7 @@ pass(jay_function *f)
    }
 
    BITSET_WORD *seen = BITSET_LINEAR_ZALLOC(linctx, f->ssa_alloc);
-   struct sched_ctx sctx = { .seen = seen,
-                             .dispatch_width = f->shader->dispatch_width };
+   struct sched_ctx sctx = { .seen = seen, .func = f };
    uint32_t *def = linear_zalloc_array(linctx, uint32_t, f->ssa_alloc);
    sctx.insts = linear_alloc_array(linctx, jay_inst *, nr_inst);
    jay_dag_init(&sctx.dag, memctx, nr_inst);
@@ -329,8 +326,8 @@ pass(jay_function *f)
        * instead of 128 to leave wiggle room for flag RA and late lowerings.
        */
       if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (104 * ugpr_per_grf)) {
-         populate_dag(&sctx, f, block, def);
-         pressure_schedule_block(f, block, &sctx, memctx);
+         populate_dag(&sctx, block, def);
+         pressure_schedule_block(block, &sctx, memctx);
          f->prioritize_pressure = true;
       }
    }
