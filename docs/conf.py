@@ -19,7 +19,9 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import shutil
 import sys
+import pathlib
 
 from hawkmoth.util import compiler
 
@@ -28,6 +30,7 @@ from hawkmoth.util import compiler
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.append(os.path.abspath('_exts'))
 
+GENERATED_FILES_DIR = '_generated'
 
 # -- General configuration ------------------------------------------------
 
@@ -86,7 +89,7 @@ language = 'en'
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['header-stubs']
+exclude_patterns = ['header-stubs', '_generated']
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -248,3 +251,20 @@ rst_prolog = '''
 .. |out| replace:: **[out]**
 .. |inout| replace:: **[inout]**
 '''
+
+def _copy_generated_rst(app):
+    if not mesa_build_root:
+        return
+
+    generated = [
+        'radv_drirc.rst',
+    ]
+
+    gen_dir = pathlib.Path(app.srcdir) / GENERATED_FILES_DIR
+    gen_dir.mkdir(exist_ok=True)
+
+    for file in generated:
+        shutil.copy(pathlib.Path(mesa_build_root) / 'docs' / file, gen_dir)
+
+def setup(app):
+    app.connect('builder-inited', _copy_generated_rst)
