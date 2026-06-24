@@ -32,6 +32,39 @@ impl BlockLabelMap {
     }
 }
 
+struct PhiAllocMap<'a> {
+    alloc: &'a mut PhiAllocator,
+    map: FxHashMap<u32, Vec<Phi>>,
+}
+
+impl<'a> PhiAllocMap<'a> {
+    fn new(alloc: &'a mut PhiAllocator) -> PhiAllocMap<'a> {
+        PhiAllocMap {
+            alloc: alloc,
+            map: Default::default(),
+        }
+    }
+
+    fn get_phi(&mut self, np: &nir_phi_instr) -> &[Phi] {
+        self.map.entry(np.def.index).or_insert_with(|| {
+            let total_bits =
+                u16::from(np.def.num_components) * u16::from(np.def.bit_size);
+            let (comps, bits) = if np.def.bit_size == 64 {
+                (np.def.num_components.into(), 64)
+            } else if total_bits <= 32 {
+                (1, total_bits.next_power_of_two() as u8)
+            } else {
+                (total_bits.div_ceil(32), 32)
+            };
+
+            (0..comps)
+                .into_iter()
+                .map(|_| self.alloc.alloc(bits))
+                .collect()
+        })
+    }
+}
+
 struct ShaderFromNir<'a> {
     model: &'a dyn Model,
     nir: &'a nir_shader,
@@ -966,9 +999,68 @@ impl<'a> ShaderFromNir<'a> {
         }
     }
 
+    fn parse_phi_dst(
+        &mut self,
+        b: &mut impl SSABuilder,
+        phi_map: &mut PhiAllocMap<'_>,
+        np: &nir_phi_instr,
+    ) {
+        let phis = phi_map.get_phi(np);
+        let mut dst_vec = Vec::new();
+        for phi in phis {
+            let ssa = b.alloc_ref(phi.bits().into());
+            b.push_op(OpPhiDst {
+                dst: ssa.clone().into(),
+                dst_type: DataType::i(phi.bits()),
+                phi: *phi,
+            });
+            dst_vec.extend(&ssa);
+        }
+        self.set_ssa(&np.def, dst_vec);
+    }
+
+    fn parse_phi_srcs(
+        &mut self,
+        b: &mut impl SSABuilder,
+        phi_map: &mut PhiAllocMap<'_>,
+        np: &nir_phi_instr,
+        pred: &nir_block,
+    ) {
+        for ps in np.iter_srcs() {
+            if ps.pred().index != pred.index {
+                continue;
+            }
+
+            let phis = phi_map.get_phi(np);
+            let ssa = self.get_ssa(ps.src.as_def());
+            if np.def.bit_size == 64 {
+                debug_assert_eq!(phis.len() * 2, ssa.len());
+                for (i, phi) in phis.iter().enumerate() {
+                    let phi_ssa =
+                        SSARef::try_from(&ssa[(i * 2)..(i * 2 + 2)]).unwrap();
+                    b.push_op(OpPhiSrc {
+                        phi: *phi,
+                        src_type: DataType::I64,
+                        src: phi_ssa.into(),
+                    });
+                }
+            } else {
+                debug_assert_eq!(phis.len(), ssa.len());
+                for (i, phi) in phis.iter().enumerate() {
+                    b.push_op(OpPhiSrc {
+                        phi: *phi,
+                        src_type: DataType::i(phi.bits()),
+                        src: ssa[i].into(),
+                    });
+                }
+            }
+        }
+    }
+
     fn parse_block(
         &mut self,
         ssa_alloc: &mut SSAValueAllocator,
+        phi_map: &mut PhiAllocMap<'_>,
         cfg: &mut CFGBuilder<Label, BasicBlock, FxBuildHasher>,
         block_map: &BlockLabelMap,
         nb: &nir_block,
@@ -988,6 +1080,9 @@ impl<'a> ShaderFromNir<'a> {
                 }
                 nir_instr_type_jump => {
                     // Handled below by inserting OpBranch and a CFG edge
+                }
+                nir_instr_type_phi => {
+                    self.parse_phi_dst(&mut b, phi_map, ni.as_phi().unwrap())
                 }
                 _ => panic!("Unsupported instruction type"),
             }
@@ -1015,6 +1110,15 @@ impl<'a> ShaderFromNir<'a> {
             let succ = nb.successors();
             assert!(succ[1].is_none());
             if let Some(succ) = succ[0] {
+                // We can only have phi sources if we have exactly one
+                // successor
+                for ni in succ.iter_instr_list() {
+                    if ni.type_ == nir_instr_type_phi {
+                        let np = ni.as_phi().unwrap();
+                        self.parse_phi_srcs(&mut b, phi_map, np, nb);
+                    }
+                }
+
                 let succ_label = block_map.get(succ);
                 cfg.add_edge(label, succ_label);
                 b.push_op(OpBranch {
@@ -1056,6 +1160,9 @@ impl<'a> ShaderFromNir<'a> {
         let nfi = self.nir.get_entrypoint().unwrap();
         let mut ssa_alloc = Default::default();
 
+        let mut phi_alloc = Default::default();
+        let mut phi_map = PhiAllocMap::new(&mut phi_alloc);
+
         // Pre-populate the block table so we have the same numbering as NIR
         let mut label_alloc: LabelAllocator = Default::default();
         let mut block_map: BlockLabelMap = Default::default();
@@ -1065,7 +1172,13 @@ impl<'a> ShaderFromNir<'a> {
 
         let mut cfg = CFGBuilder::new();
         for nb in nfi.iter_blocks() {
-            self.parse_block(&mut ssa_alloc, &mut cfg, &block_map, nb);
+            self.parse_block(
+                &mut ssa_alloc,
+                &mut phi_map,
+                &mut cfg,
+                &block_map,
+                nb,
+            );
         }
         let mut blocks = cfg.as_cfg();
 
@@ -1078,7 +1191,7 @@ impl<'a> ShaderFromNir<'a> {
         Shader {
             model: self.model,
             ssa_alloc,
-            phi_alloc: Default::default(),
+            phi_alloc,
             blocks,
             info: self.info,
         }
