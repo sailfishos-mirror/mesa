@@ -404,14 +404,7 @@ __glXInitializeVisualConfigFromTags(struct glx_config * config, int count,
       config->numAuxBuffers = *bp++;
       config->level = *bp++;
 
-#ifdef GLX_USE_APPLEGL
-       /* AppleSGLX supports pixmap and pbuffers with all config. */
-       config->drawableType = GLX_WINDOW_BIT | GLX_PIXMAP_BIT | GLX_PBUFFER_BIT;
-       /* Unfortunately this can create an ABI compatibility problem. */
-       count -= 18;
-#else
       count -= __GLX_MIN_CONFIG_PROPS;
-#endif
    }
 
    /*
@@ -507,10 +500,6 @@ __glXInitializeVisualConfigFromTags(struct glx_config * config, int count,
          break;
       case GLX_DRAWABLE_TYPE:
          config->drawableType = *bp++;
-#ifdef GLX_USE_APPLEGL
-         /* AppleSGLX supports pixmap and pbuffers with all config. */
-         config->drawableType |= GLX_WINDOW_BIT | GLX_PIXMAP_BIT | GLX_PBUFFER_BIT;
-#endif
          break;
       case GLX_RENDER_TYPE: /* fbconfig render type bits */
          config->renderType = *bp++;
@@ -530,7 +519,6 @@ __glXInitializeVisualConfigFromTags(struct glx_config * config, int count,
       case GLX_MAX_PBUFFER_PIXELS:
          config->maxPbufferPixels = *bp++;
          break;
-#ifndef GLX_USE_APPLEGL
       case GLX_OPTIMAL_PBUFFER_WIDTH_SGIX:
          config->optimalPbufferWidth = *bp++;
          break;
@@ -540,7 +528,6 @@ __glXInitializeVisualConfigFromTags(struct glx_config * config, int count,
       case GLX_VISUAL_SELECT_GROUP_SGIX:
          config->visualSelectGroup = *bp++;
          break;
-#endif
       case GLX_SAMPLE_BUFFERS_SGIS:
          config->sampleBuffers = *bp++;
          break;
