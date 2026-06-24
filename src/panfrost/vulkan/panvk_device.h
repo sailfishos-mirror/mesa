@@ -140,6 +140,15 @@ to_panvk_device(struct vk_device *dev)
    return container_of(dev, struct panvk_device, vk);
 }
 
+static inline void
+panvk_address_binding_report(struct panvk_device *dev,
+                             struct vk_object_base *object, uint64_t base,
+                             uint64_t size, VkDeviceAddressBindingTypeEXT type)
+{
+   vk_address_binding_report(dev->vk.physical->instance,
+                             object ? object : &dev->vk.base, base, size, type);
+}
+
 static inline uint32_t
 panvk_device_adjust_bo_flags(const struct panvk_device *device,
                              uint32_t bo_flags)
