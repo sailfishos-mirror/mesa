@@ -242,6 +242,9 @@ struct etna_resource {
 
    struct pipe_box *damage;
    unsigned num_damage;
+
+   enum pipe_format internal_format;
+   struct etna_resource *separate_stencil;
 };
 
 /* returns TRUE if a is newer than b */

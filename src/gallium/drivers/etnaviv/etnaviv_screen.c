@@ -45,6 +45,7 @@
 #include "util/u_math.h"
 #include "util/u_memory.h"
 #include "util/u_screen.h"
+#include "util/u_transfer_helper.h"
 #include "util/u_string.h"
 
 #include "frontend/drm_driver.h"
@@ -92,6 +93,8 @@ static void
 etna_screen_destroy(struct pipe_screen *pscreen)
 {
    struct etna_screen *screen = etna_screen(pscreen);
+
+   u_transfer_helper_destroy(screen->base.transfer_helper);
 
    if (screen->dummy_bo)
       etna_bo_del(screen->dummy_bo);

@@ -42,6 +42,7 @@
 #include "util/u_memory.h"
 #include "util/u_surface.h"
 #include "util/u_transfer.h"
+#include "util/u_transfer_helper.h"
 
 #include "hw/common_3d.xml.h"
 
@@ -128,7 +129,7 @@ etna_buffer_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
    slab_free(&ctx->transfer_pool, trans);
 }
 
-static void
+void
 etna_transfer_flush_region(struct pipe_context *pctx,
                            struct pipe_transfer *ptrans,
                            const struct pipe_box *box)
@@ -195,7 +196,7 @@ static void etna_unpatch_data(void *buffer, const struct pipe_transfer *ptrans)
    level->patched = false;
 }
 
-static void
+void
 etna_texture_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
 {
    struct etna_context *ctx = etna_context(pctx);
@@ -288,7 +289,7 @@ etna_texture_unmap(struct pipe_context *pctx, struct pipe_transfer *ptrans)
    slab_free(&ctx->transfer_pool, trans);
 }
 
-static void *
+void *
 etna_texture_map(struct pipe_context *pctx, struct pipe_resource *prsc,
                  unsigned level, unsigned usage, const struct pipe_box *box,
                  struct pipe_transfer **out_transfer)
@@ -524,10 +525,10 @@ void
 etna_transfer_init(struct pipe_context *pctx)
 {
    pctx->buffer_map = etna_buffer_map;
-   pctx->texture_map = etna_texture_map;
-   pctx->transfer_flush_region = etna_transfer_flush_region;
+   pctx->texture_map = u_transfer_helper_transfer_map;
+   pctx->transfer_flush_region = u_transfer_helper_transfer_flush_region;
    pctx->buffer_unmap = etna_buffer_unmap;
-   pctx->texture_unmap = etna_texture_unmap;
+   pctx->texture_unmap = u_transfer_helper_transfer_unmap;
    pctx->buffer_subdata = u_default_buffer_subdata;
    pctx->texture_subdata = u_default_texture_subdata;
 }
