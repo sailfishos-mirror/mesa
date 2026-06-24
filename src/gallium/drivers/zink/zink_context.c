@@ -4550,12 +4550,12 @@ zink_flush_memory_barrier(struct zink_context *ctx, bool is_compute)
                   VK_ACCESS_INDIRECT_COMMAND_READ_BIT);
    if (!is_compute) {
       if (ctx->memory_barrier & PIPE_BARRIER_VERTEX_BUFFER)
-         mem_barrier(ctx, gfx_flags, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+         mem_barrier(ctx, src, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
                      VK_ACCESS_SHADER_WRITE_BIT,
                      VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
 
       if (ctx->memory_barrier & PIPE_BARRIER_INDEX_BUFFER)
-         mem_barrier(ctx, gfx_flags, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+         mem_barrier(ctx, src, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
                      VK_ACCESS_SHADER_WRITE_BIT,
                      VK_ACCESS_INDEX_READ_BIT);
       if (ctx->memory_barrier & PIPE_BARRIER_FRAMEBUFFER)
