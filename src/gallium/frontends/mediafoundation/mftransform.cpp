@@ -1913,7 +1913,7 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
                                                           ResolveStatsCompletionFenceValue,
                                                           encoded_bitstream_bytes );
             apiLock.lock();
-            if (FAILED(hr))
+            if( FAILED( hr ) )
             {
                pThis->QueueEvent( MEError, GUID_NULL, E_FAIL, nullptr );
                bHasEncodingError = TRUE;
@@ -1923,7 +1923,6 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
 
             // Only release the reconpic AFTER working on it for two pass if needed
             pThis->m_pGOPTracker->release_reconpic( pDX12EncodeContext->pAsyncDPBToken );
-
          }
          // If we're flushing, just discard all queued up inputs/encodes
          debug_printf( "[dx12 hmft 0x%p] INPUT %d - encode_result = 0x%x, output_bitstream_size = %d\n",

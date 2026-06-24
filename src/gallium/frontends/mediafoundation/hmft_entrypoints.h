@@ -637,7 +637,11 @@ class __declspec( uuid( HMFT_GUID ) ) CDX12EncHMFT : CMFD3DManager,
 #endif
 
 #if MFT_CODEC_AV1ENC
-   HRESULT UpdateAV1EncPictureDesc( pipe_av1_enc_picture_desc *pPicInfo );
+   HRESULT UpdateAV1EncPictureDesc( pipe_av1_enc_picture_desc *pPicInfo,
+                                    const uint32_t intra_period,
+                                    const uint32_t ip_period,
+                                    const uint16_t pic_width_in_luma_samples,
+                                    const uint16_t pic_height_in_luma_samples );
 #endif
 
    HRESULT PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext,
