@@ -399,7 +399,7 @@ static void r300_translate_fragment_shader(
      * to read from a newly allocated temporary. */
     if (wpos != ATTR_UNUSED) {
         /* Moving the input to some other reg is not really necessary. */
-        rc_transform_fragment_wpos(&compiler.Base, wpos, wpos, true);
+        rc_transform_fragment_wpos(&compiler.Base, wpos, wpos);
     }
 
     if (face != ATTR_UNUSED) {

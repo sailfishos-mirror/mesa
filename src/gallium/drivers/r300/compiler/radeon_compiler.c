@@ -226,8 +226,7 @@ rc_copy_output(struct radeon_compiler *c, unsigned output, unsigned dup_output)
  * Introduce standard code fragment to deal with fragment.position.
  */
 void
-rc_transform_fragment_wpos(struct radeon_compiler *c, unsigned wpos, unsigned new_input,
-                           int full_vtransform)
+rc_transform_fragment_wpos(struct radeon_compiler *c, unsigned wpos, unsigned new_input)
 {
    struct rc_instruction *inst_rcp, *inst_mul, *inst_mad, *inst_mov, *inst;
 
@@ -307,15 +306,10 @@ rc_transform_fragment_wpos(struct radeon_compiler *c, unsigned wpos, unsigned ne
       inst_mov->U.I.SrcReg[0].Swizzle = RC_SWIZZLE_WWWW;
    }
 
-   if (full_vtransform) {
-      inst_mad->U.I.SrcReg[1].Index =
-         rc_constants_add_state(&c->Program.Constants, RC_STATE_R300_VIEWPORT_SCALE, 0);
-      inst_mad->U.I.SrcReg[2].Index =
-         rc_constants_add_state(&c->Program.Constants, RC_STATE_R300_VIEWPORT_OFFSET, 0);
-   } else {
-      inst_mad->U.I.SrcReg[1].Index = inst_mad->U.I.SrcReg[2].Index =
-         rc_constants_add_state(&c->Program.Constants, RC_STATE_R300_WINDOW_DIMENSION, 0);
-   }
+   inst_mad->U.I.SrcReg[1].Index =
+      rc_constants_add_state(&c->Program.Constants, RC_STATE_R300_VIEWPORT_SCALE, 0);
+   inst_mad->U.I.SrcReg[2].Index =
+      rc_constants_add_state(&c->Program.Constants, RC_STATE_R300_VIEWPORT_OFFSET, 0);
 
    for (inst = inst_mad->Next; inst != &c->Program.Instructions; inst = inst->Next) {
       const struct rc_opcode_info *opcode = rc_get_opcode_info(inst->U.I.Opcode);
