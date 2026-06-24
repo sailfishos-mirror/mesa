@@ -45,6 +45,9 @@ struct sched_ctx {
    jay_inst **insts;
    struct u_sparse_bitset live;
    BITSET_WORD *seen;
+
+   /* Array of node indices for the schedule we're building */
+   struct util_dynarray schedule;
 };
 
 /* Cut down version of the function in jay_liveness.c */
@@ -218,7 +221,6 @@ choose_inst(struct sched_ctx *s)
 static void
 pressure_schedule_block(jay_function *func,
                         jay_block *block,
-                        struct util_dynarray *schedule,
                         struct sched_ctx *s,
                         void *memctx)
 {
@@ -228,6 +230,7 @@ pressure_schedule_block(jay_function *func,
 
    u_sparse_bitset_free(&s->live);
    u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
+   util_dynarray_clear(&s->schedule);
 
    jay_foreach_inst_in_block_rev(block, I) {
       if (jay_op_starts_block(I->op)) {
@@ -273,18 +276,18 @@ pressure_schedule_block(jay_function *func,
       pressure -= calculate_pressure_delta_before(s, s->insts[node]);
       jay_dag_prune_head(&s->dag, node);
 
-      util_dynarray_append(schedule, node);
+      util_dynarray_append(&s->schedule, node);
       liveness_update(&s->live, s->insts[node]);
    }
 
    /* Apply the schedule only if it reduces pressure */
    if (max_pressure < orig_max_pressure) {
-      util_dynarray_foreach(schedule, uint32_t, node) {
+      util_dynarray_foreach(&s->schedule, uint32_t, node) {
          jay_remove_instruction(s->insts[*node]);
       }
 
       jay_builder b = jay_init_builder(func, jay_before_block(block));
-      util_dynarray_foreach_reverse(schedule, uint32_t, node) {
+      util_dynarray_foreach_reverse(&s->schedule, uint32_t, node) {
          jay_builder_insert(&b, s->insts[*node]);
       }
    }
@@ -298,7 +301,6 @@ pass(jay_function *f)
 
    void *memctx = ralloc_context(NULL);
    void *linctx = linear_context(memctx);
-   struct util_dynarray schedule = UTIL_DYNARRAY_INIT;
 
    uint32_t nr_inst = 1;
    jay_foreach_inst_in_func(f, _, I) {
@@ -327,15 +329,13 @@ pass(jay_function *f)
        * instead of 128 to leave wiggle room for flag RA and late lowerings.
        */
       if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (104 * ugpr_per_grf)) {
-         util_dynarray_clear(&schedule);
-
          populate_dag(&sctx, f, block, def);
-         pressure_schedule_block(f, block, &schedule, &sctx, memctx);
+         pressure_schedule_block(f, block, &sctx, memctx);
          f->prioritize_pressure = true;
       }
    }
 
-   util_dynarray_fini(&schedule);
+   util_dynarray_fini(&sctx.schedule);
    ralloc_free(memctx);
 }
 
