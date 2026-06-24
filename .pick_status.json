@@ -1674,7 +1674,7 @@
         "description": "radv: disable VRS with MSAA 8x on GFX11-11.7 to prevent GPU hangs",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
