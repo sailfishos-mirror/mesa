@@ -64,7 +64,8 @@ max_simd_width(const jay_shader *shader, const jay_inst *I)
    }
 
    /* BSpec 56640 requires that execution size be no greater than 16
-    * for mixed-mode operations involving bfloats */
+    * for mixed-mode operations involving bfloats.
+    */
    if (I->type == JAY_TYPE_BF16) {
       return 16;
    }

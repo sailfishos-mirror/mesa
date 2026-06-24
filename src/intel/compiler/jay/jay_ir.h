@@ -689,13 +689,15 @@ jay_src_type(const jay_inst *I, unsigned s)
       return JAY_TYPE_U32;
 
    /* TODO: *maybe* find a less janky way of handling mixed bfloat op type
-    * restrictions? this *might* be the "least bad" option */
+    * restrictions? this *might* be the "least bad" option 
+    */
    if (I->type == JAY_TYPE_BF16) {
       /* Bspec 56640: src2 of 3-src instructions cannot be bfloat */
       if (jay_num_isa_srcs(I) == 3 && s == 2)
          return JAY_TYPE_F32;
       /* Bspec 56640: src1 of 2-src instructions involving multiplier
-       * cannot be bfloat */
+       * cannot be bfloat 
+       */
       if (jay_num_isa_srcs(I) == 2 && s == 1)
          return JAY_TYPE_F32;
    }
@@ -898,7 +900,8 @@ jay_src_alignment(jay_shader *shader, const jay_inst *I, unsigned s)
    }
 
    /* Undocumented HW restriction: All operands to an operation involving
-    * bfloats must be GRF-aligned. */
+    * bfloats must be GRF-aligned. 
+    */
    if (jay_src_type(I, s) == JAY_TYPE_BF16 || I->type == JAY_TYPE_BF16) {
       return jay_ugpr_per_grf(shader);
    }
@@ -940,7 +943,8 @@ jay_dst_alignment(jay_shader *shader, const jay_inst *I)
    }
 
    /* Undocumented HW restriction: All operands to an operation involving
-    * bfloats must be GRF-aligned. */
+    * bfloats must be GRF-aligned.
+    */
    if (I->type == JAY_TYPE_BF16) {
       return jay_ugpr_per_grf(shader);
    }

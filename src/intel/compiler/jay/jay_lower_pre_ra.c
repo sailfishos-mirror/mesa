@@ -188,7 +188,8 @@ static void
 lower_bf16_restrictions(jay_inst *I, jay_function *f)
 {
    /* BSpec 56640 disallows broadcast of bfloat16 scalar.
-    * Insert a MOV to eliminate bfloat scalar broadcast. */
+    * Insert a MOV to eliminate bfloat scalar broadcast.
+    */
    jay_foreach_src(I, s) {
       bool is_bf16 = jay_src_type(I, s) == JAY_TYPE_BF16;
       bool is_broadcast = I->src[s].file == UGPR;

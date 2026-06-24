@@ -287,7 +287,8 @@ static void
 lower_bf(jay_builder *b, jay_inst *I)
 {
    /* Needed b/c no region exists on Intel HW that allows for
-    * SIMD1 bfloat ops. See BSpec 74213. */
+    * SIMD1 bfloat ops. See BSpec 74213. 
+    */
    if (I->dst.file == UGPR) {
       assert(jay_num_values(I->dst) && "we do not vectorize bf");
       unsigned factor = jay_type_size_bits(I->type) / 16;
@@ -525,7 +526,8 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
       break;
 
    /* See jay_src_type for type information.
-    * This is a weird case with mixed types. */
+    * This is a weird case with mixed types. 
+    */
    case nir_op_bfmul_mixed_intel:
       lower_bf(b, jay_MUL(b, JAY_TYPE_BF16, dst, src[0], src[1]));
       break;
