@@ -44,6 +44,8 @@ struct sched_ctx {
    jay_function *func;
 
    struct jay_dag dag;
+   struct jay_dag_iterator it;
+
    jay_inst **insts;
    struct u_sparse_bitset live;
    BITSET_WORD *seen;
@@ -65,7 +67,7 @@ liveness_update(struct u_sparse_bitset *live, jay_inst *I)
    }
 }
 
-static void
+static uint32_t
 populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
 {
    uint32_t first_node_in_this_block = ctx->dag.node;
@@ -124,7 +126,7 @@ populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
       jay_dag_next_node(&ctx->dag);
    }
 
-   jay_dag_finalize(&ctx->dag, first_node_in_this_block);
+   return first_node_in_this_block;
 }
 
 /*
@@ -196,7 +198,7 @@ choose_inst(struct sched_ctx *s)
    int32_t min_delta = INT32_MAX;
    uint32_t best = 0;
 
-   util_dynarray_foreach(&s->dag.heads, uint32_t, head) {
+   util_dynarray_foreach(&s->it.heads, uint32_t, head) {
       jay_inst *I = s->insts[*head];
       int32_t delta = -(calculate_pressure_delta_after(s, I) +
                         calculate_pressure_delta_before(s, I));
@@ -267,12 +269,12 @@ pressure_schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
    signed max_pressure = 0;
    pressure = 0;
 
-   while (s->dag.heads.size) {
+   while (s->it.heads.size) {
       uint32_t node = choose_inst(s);
       pressure -= calculate_pressure_delta_after(s, s->insts[node]);
       max_pressure = MAX2(pressure, max_pressure);
       pressure -= calculate_pressure_delta_before(s, s->insts[node]);
-      jay_dag_prune_head(&s->dag, node);
+      jay_dag_take_head(&s->it, node);
 
       util_dynarray_append(&s->schedule, node);
       liveness_update(&s->live, s->insts[node]);
@@ -310,6 +312,7 @@ pass(jay_function *f)
    uint32_t *def = linear_zalloc_array(linctx, uint32_t, f->ssa_alloc);
    sctx.insts = linear_alloc_array(linctx, jay_inst *, nr_inst);
    jay_dag_init(&sctx.dag, memctx, nr_inst);
+   jay_dag_iterator_init(&sctx.it, &sctx.dag);
 
    unsigned ugpr_per_grf = jay_ugpr_per_grf(f->shader);
    unsigned ugpr_per_gpr = jay_grf_per_gpr(f->shader) * ugpr_per_grf;
@@ -326,7 +329,8 @@ pass(jay_function *f)
        * instead of 128 to leave wiggle room for flag RA and late lowerings.
        */
       if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (104 * ugpr_per_grf)) {
-         populate_dag(&sctx, block, def);
+         uint32_t first = populate_dag(&sctx, block, def);
+         jay_dag_iterate(&sctx.it, first, sctx.dag.node - 1);
          pressure_schedule_block(block, &sctx, memctx);
          f->prioritize_pressure = true;
       }

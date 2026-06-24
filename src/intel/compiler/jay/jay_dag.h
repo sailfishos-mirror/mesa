@@ -9,10 +9,15 @@
 #include "util/u_dynarray.h"
 
 struct jay_dag {
-   struct util_dynarray heads, edges;
-   uint32_t *parent_counts;
+   struct util_dynarray edges;
    uint32_t *adjacency;
    uint32_t node, node_count;
+};
+
+struct jay_dag_iterator {
+   const struct jay_dag *dag;
+   struct util_dynarray heads;
+   uint32_t *parent_counts;
 };
 
 static inline void
@@ -22,13 +27,23 @@ jay_dag_init(struct jay_dag *dag, void *memctx, uint32_t node_count)
 
    *dag = (struct jay_dag) {
       .adjacency = rzalloc_array(memctx, uint32_t, node_count),
-      .parent_counts = rzalloc_array(memctx, uint32_t, node_count),
       .node_count = node_count,
       .node = 1,
    };
 
-   util_dynarray_init(&dag->heads, memctx);
    util_dynarray_init(&dag->edges, memctx);
+}
+
+static inline void
+jay_dag_iterator_init(struct jay_dag_iterator *it, const struct jay_dag *dag)
+{
+   *it = (struct jay_dag_iterator) {
+      .dag = dag,
+      .parent_counts =
+         rzalloc_array(dag->edges.mem_ctx, uint32_t, dag->node_count),
+   };
+
+   util_dynarray_init(&it->heads, dag->edges.mem_ctx);
 }
 
 static inline void
@@ -58,37 +73,38 @@ jay_dag_next_node(struct jay_dag *dag)
 }
 
 static inline void
-jay_dag_finalize(struct jay_dag *dag, uint32_t first_node)
+jay_dag_iterate(struct jay_dag_iterator *it, uint32_t first, uint32_t last)
 {
-   uint32_t first_adj = first_node > 0 ? dag->adjacency[first_node - 1] : 0;
-   for (unsigned i = first_adj; i < dag->adjacency[dag->node - 1]; ++i) {
-      uint32_t *it = util_dynarray_element(&dag->edges, uint32_t, i);
-      dag->parent_counts[*it]++;
+   assert(it->heads.size == 0 && "must be zeroed on entry");
+   uint32_t first_adj = first > 0 ? it->dag->adjacency[first - 1] : 0;
+
+   for (unsigned i = first_adj; i < it->dag->adjacency[last]; ++i) {
+      uint32_t *node = util_dynarray_element(&it->dag->edges, uint32_t, i);
+      it->parent_counts[*node]++;
    }
 
-   for (uint32_t i = dag->node - 1; i >= first_node; --i) {
-      if (dag->parent_counts[i] == 0) {
-         util_dynarray_append(&dag->heads, i);
+   for (uint32_t i = last; i >= first; --i) {
+      if (it->parent_counts[i] == 0) {
+         util_dynarray_append(&it->heads, i);
       }
    }
 }
 
 /**
- * Removes a DAG head from the graph, and moves any new dag heads into the
- * heads list.
+ * Removes a DAG head and moves any new dag heads into the heads list.
  */
 static inline void
-jay_dag_prune_head(struct jay_dag *dag, uint32_t head)
+jay_dag_take_head(struct jay_dag_iterator *it, uint32_t head)
 {
-   assert(!dag->parent_counts[head]);
-   util_dynarray_delete_unordered(&dag->heads, uint32_t, head);
-   uint32_t first = head > 0 ? dag->adjacency[head - 1] : 0;
+   assert(!it->parent_counts[head]);
+   util_dynarray_delete_unordered(&it->heads, uint32_t, head);
+   uint32_t first = head > 0 ? it->dag->adjacency[head - 1] : 0;
 
-   for (unsigned i = first; i < dag->adjacency[head]; ++i) {
-      uint32_t *it = util_dynarray_element(&dag->edges, uint32_t, i);
+   for (unsigned i = first; i < it->dag->adjacency[head]; ++i) {
+      uint32_t *node = util_dynarray_element(&it->dag->edges, uint32_t, i);
 
-      if ((--dag->parent_counts[*it]) == 0) {
-         util_dynarray_append(&dag->heads, *it);
+      if ((--it->parent_counts[*node]) == 0) {
+         util_dynarray_append(&it->heads, *node);
       }
    }
 }
