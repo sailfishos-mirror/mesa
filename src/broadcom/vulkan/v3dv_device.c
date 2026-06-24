@@ -57,6 +57,7 @@
 #include "util/u_debug.h"
 #include "util/format/u_format.h"
 #include "perfcntrs/v3d_perfcntrs.h"
+#include "vk_buffer.h"
 #include "vk_shader_module.h"
 #include "vk_format.h"
 #include "vk_ycbcr_conversion.h"
@@ -2821,17 +2822,8 @@ v3dv_buffer_init(struct v3dv_device *device,
                  struct v3dv_buffer *buffer,
                  uint32_t alignment)
 {
-   const VkBufferUsageFlags2CreateInfoKHR *flags2 =
-      vk_find_struct_const(pCreateInfo->pNext,
-                           BUFFER_USAGE_FLAGS_2_CREATE_INFO_KHR);
-   VkBufferUsageFlags2KHR usage;
-   if (flags2)
-      usage = flags2->usage;
-   else
-      usage = pCreateInfo->usage;
-
    buffer->size = pCreateInfo->size;
-   buffer->usage = usage;
+   buffer->usage = vk_buffer_usage_flags(pCreateInfo);
    buffer->alignment = alignment;
 }
 
