@@ -373,6 +373,7 @@ impl Tiling {
 
     pub fn choose(
         dev: &nil_rs_bindings::nv_device_info,
+        _dim: ImageDim,
         extent_px: Extent4D<units::Pixels>,
         format: Format,
         sample_layout: SampleLayout,
