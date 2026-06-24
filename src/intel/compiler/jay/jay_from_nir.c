@@ -76,7 +76,7 @@ typedef struct jay_fs_payload {
    jay_def is_coarse;
    jay_def sample_pos;
    jay_def coefficients;
-   jay_def deltas[64];
+   jay_def *deltas;
 } jay_fs_payload;
 
 struct nir_to_jay_state {
@@ -3106,12 +3106,19 @@ setup_fragment_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
          jay_AND_u32(b, fs->config, INTEL_FS_CONFIG_COARSE_RT_WRITES);
    }
 
-   for (unsigned i = 0; i < nj->s->prog_data->fs.num_varying_inputs * 4; ++i) {
-      fs->deltas[i] = read_vector_payload(p, UGPR, 3);
+   if (nj->s->prog_data->fs.num_varying_inputs > 0) {
+      fs->deltas =
+         linear_alloc_child_array(nj->s->lin_ctx, sizeof(jay_def),
+                                  nj->s->prog_data->fs.num_varying_inputs * 4);
 
-      /* Padding */
-      if ((i % 5) == 4) {
-         read_payload(p, UGPR);
+      for (unsigned i = 0; i < nj->s->prog_data->fs.num_varying_inputs * 4;
+           ++i) {
+         fs->deltas[i] = read_vector_payload(p, UGPR, 3);
+
+         /* Padding */
+         if ((i % 5) == 4) {
+            read_payload(p, UGPR);
+         }
       }
    }
 
