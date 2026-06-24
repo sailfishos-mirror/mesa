@@ -45,7 +45,6 @@ jay_dag_add_edge(struct jay_dag *dag, uint32_t child)
       }
 
       util_dynarray_append(&dag->edges, child);
-      dag->parent_counts[child]++;
    }
 }
 
@@ -61,6 +60,12 @@ jay_dag_next_node(struct jay_dag *dag)
 static inline void
 jay_dag_finalize(struct jay_dag *dag, uint32_t first_node)
 {
+   uint32_t first_adj = first_node > 0 ? dag->adjacency[first_node - 1] : 0;
+   for (unsigned i = first_adj; i < dag->adjacency[dag->node - 1]; ++i) {
+      uint32_t *it = util_dynarray_element(&dag->edges, uint32_t, i);
+      dag->parent_counts[*it]++;
+   }
+
    for (uint32_t i = dag->node - 1; i >= first_node; --i) {
       if (dag->parent_counts[i] == 0) {
          util_dynarray_append(&dag->heads, i);
