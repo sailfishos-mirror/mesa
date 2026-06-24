@@ -6364,7 +6364,7 @@
         "description": "mesa: Allow GL_SRGB_ALPHA_EXT as color-renderable when EXT_sRGB is supported",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "779ea64c7cd0d1c33f8dff966df21d21da53fd6b",
         "notes": null
