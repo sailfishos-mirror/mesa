@@ -1044,7 +1044,7 @@ __glXInitialize(Display * dpy)
    if (glx_direct && glx_accel)
       glx_driver |= GLX_DRIVER_WINDOWS;
 #endif
-#endif /* GLX_DIRECT_RENDERING && !GLX_USE_APPLEGL */
+#endif /* GLX_DIRECT_RENDERING && (!GLX_USE_APPLEGL || GLX_USE_APPLE) */
 
 #if defined(GLX_USE_APPLEGL) && !defined(GLX_USE_APPLE)
    glx_driver |= GLX_DRIVER_SW;
