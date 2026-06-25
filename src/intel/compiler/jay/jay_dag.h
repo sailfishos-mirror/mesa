@@ -164,3 +164,9 @@ jay_dag_print(struct jay_dag *dag)
       }
    }
 }
+
+#define jay_dag_foreach_edge(dag, head, it)                                    \
+   for (uint32_t *it = ((uint32_t *) (dag)->edges.data) +                      \
+                       ((head) > 0 ? (dag)->adjacency[(head) - 1] : 0);        \
+        it < ((uint32_t *) (dag)->edges.data) + ((dag)->adjacency[(head)]);    \
+        ++it)
