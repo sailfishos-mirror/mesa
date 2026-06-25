@@ -425,9 +425,10 @@ nir_vec_scalars(nir_builder *build, nir_scalar *comp, unsigned num_components)
 }
 
 nir_def *
-nir_def_rewrite_uses_with_alu_src(nir_builder *build, nir_def *def,
-                                  nir_alu_src src, unsigned num_components)
+nir_def_rewrite_uses_with_alu_src(nir_builder *build, nir_def *def, nir_alu_src src)
 {
+   unsigned num_components = def->num_components;
+
    if (nir_alu_src_is_trivial_ssa(&src, num_components)) {
       nir_def_rewrite_uses(def, src.src.ssa);
       return NULL;

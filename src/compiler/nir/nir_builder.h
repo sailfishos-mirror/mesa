@@ -743,7 +743,7 @@ nir_mov_alu(nir_builder *build, nir_alu_src src, unsigned num_components)
  * but if it has to insert one to handle non-alu, it's return instead of NULL.
  */
 nir_def *
-nir_def_rewrite_uses_with_alu_src(nir_builder *build, nir_def *def, nir_alu_src src, unsigned num_components);
+nir_def_rewrite_uses_with_alu_src(nir_builder *build, nir_def *def, nir_alu_src src);
 
 /**
  * Construct a mov that reswizzles the source's components.
