@@ -211,9 +211,16 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
    }
    case kTfLiteBuiltinConcatenation: {
       TfLiteConcatenationParams *params = node->builtin_data;
+      int input_rank = tf_context->tensors[node->inputs->data[0]].dims->size;
+      int axis = params->axis;
+
+      if (axis < 0)
+         axis += input_rank;
+      if (axis < 0 || axis >= input_rank || input_rank > 4)
+         return false;
 
       operation->type = PIPE_ML_OPERATION_TYPE_CONCATENATION;
-      operation->conc.axis = params->axis;
+      operation->conc.axis = 4 - input_rank + axis;
       break;
    }
    case kTfLiteBuiltinSplit:
