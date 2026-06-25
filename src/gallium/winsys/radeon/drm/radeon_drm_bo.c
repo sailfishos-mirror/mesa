@@ -1288,10 +1288,9 @@ static struct pb_buffer_lean *radeon_winsys_bo_from_handle(struct radeon_winsys 
          r = drmPrimeFDToHandle(ws->ioctl_fd, dma_fd, &handle);
          close(dma_fd);
 
-         close_arg.handle = open_arg.handle;
-         drmIoctl(ws->fd, DRM_IOCTL_GEM_CLOSE, &close_arg);
-
          if (r) {
+            close_arg.handle = open_arg.handle;
+            drmIoctl(ws->fd, DRM_IOCTL_GEM_CLOSE, &close_arg);
             FREE(bo);
             goto fail;
          }
@@ -1306,6 +1305,12 @@ static struct pb_buffer_lean *radeon_winsys_bo_from_handle(struct radeon_winsys 
                FREE(bo);
                assert(!existing->flink_name ||
                       existing->flink_name == whandle->handle);
+               if (!existing->display_handle) {
+                  existing->display_handle = open_arg.handle;
+               } else {
+                  close_arg.handle = open_arg.handle;
+                  drmIoctl(ws->fd, DRM_IOCTL_GEM_CLOSE, &close_arg);
+               }
                if (!existing->flink_name) {
                   existing->flink_name = whandle->handle;
                   _mesa_hash_table_insert(ws->bo_names,
@@ -1316,6 +1321,8 @@ static struct pb_buffer_lean *radeon_winsys_bo_from_handle(struct radeon_winsys 
                goto done;
             }
          }
+
+         bo->display_handle = open_arg.handle;
       }
    } else if (whandle->type == WINSYS_HANDLE_TYPE_FD) {
       size = lseek(whandle->handle, 0, SEEK_END);
