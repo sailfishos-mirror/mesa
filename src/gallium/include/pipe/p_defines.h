@@ -927,6 +927,7 @@ struct pipe_caps {
    bool texture_float_linear;
    bool texture_half_float_linear;
    bool depth_bounds_test;
+   bool native_fp32_depth;
    bool texture_query_samples;
    bool force_persample_interp;
    bool shareable_shaders;
