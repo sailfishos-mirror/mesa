@@ -2,10 +2,6 @@
 spec@ext_transform_feedback@tessellation quad_strip wireframe,Fail
 spec@ext_transform_feedback@tessellation quads wireframe,Fail
 
-# Regression from nearest_consistency fixes. Since this doesn't show up on 750,
-# assuming it's the 16-bit color UBWC problem.
-dEQP-GLES3.functional.fbo.msaa.4_samples.r16f,Fail
-
 dEQP-GLES3.functional.shaders.matrix.inverse.dynamic.lowp_mat4_float_vertex,Fail
 dEQP-GLES3.functional.shaders.matrix.inverse.dynamic.mediump_mat4_float_vertex,Fail
 
