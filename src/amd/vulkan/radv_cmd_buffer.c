@@ -4356,7 +4356,7 @@ radv_should_force_vrs1x1(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
 
-   if (pdev->info.gfx_level >= GFX11 && pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8)
+   if (pdev->info.gfx_level >= GFX10_3 && pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8)
       return true;
 
    return pdev->info.gfx_level >= GFX10_3 &&
@@ -12904,7 +12904,7 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
 
    if (dynamic_states & RADV_DYNAMIC_RASTERIZATION_SAMPLES) {
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_NGGC_VIEWPORT;
-      if (pdev->info.gfx_level >= GFX11 && pdev->info.gfx_level < GFX12)
+      if (pdev->info.gfx_level >= GFX10_3 && pdev->info.gfx_level < GFX12)
          cmd_buffer->state.dirty |=
             RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_RAST_SAMPLES_STATE | RADV_CMD_DIRTY_OVERRIDE_VRS_STATE;
    }
