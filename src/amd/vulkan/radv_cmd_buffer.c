@@ -1408,7 +1408,8 @@ radv_cmd_buffer_upload_alloc_aligned(struct radv_cmd_buffer *cmd_buffer, unsigne
    }
 
    *out_offset = offset;
-   *ptr = cmd_buffer->upload.map + offset;
+   if (ptr)
+      *ptr = cmd_buffer->upload.map + offset;
 
    cmd_buffer->upload.offset = offset + size;
    return true;
@@ -7915,9 +7916,8 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
       bool is_secure = cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
       if (!is_secure) {
          unsigned fence_offset;
-         UNUSED void *fence_ptr;
 
-         if (!radv_cmd_buffer_upload_alloc(cmd_buffer, 8, &fence_offset, &fence_ptr)) {
+         if (!radv_cmd_buffer_upload_alloc(cmd_buffer, 8, &fence_offset, NULL)) {
             vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
             return VK_ERROR_OUT_OF_HOST_MEMORY;
          }
@@ -7950,8 +7950,7 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
          if (!is_secure) {
             /* Allocate a buffer for the EOP bug on GFX9. */
             unsigned eop_bug_offset;
-            UNUSED void *eop_bug_ptr;
-            if (!radv_cmd_buffer_upload_alloc(cmd_buffer, eop_bug_bo_size, &eop_bug_offset, &eop_bug_ptr)) {
+            if (!radv_cmd_buffer_upload_alloc(cmd_buffer, eop_bug_bo_size, &eop_bug_offset, NULL)) {
                vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
                return VK_ERROR_OUT_OF_HOST_MEMORY;
             }
@@ -14166,10 +14165,9 @@ radv_emit_dispatch_packets(struct radv_cmd_buffer *cmd_buffer, const struct radv
 
          if (needs_align32_workaround) {
             const uint64_t unaligned_va = indirect_va;
-            UNUSED void *ptr;
             uint32_t offset;
 
-            if (!radv_cmd_buffer_upload_alloc_aligned(cmd_buffer, sizeof(VkDispatchIndirectCommand), 32, &offset, &ptr))
+            if (!radv_cmd_buffer_upload_alloc_aligned(cmd_buffer, sizeof(VkDispatchIndirectCommand), 32, &offset, NULL))
                return;
 
             indirect_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo) + offset;
@@ -15838,7 +15836,6 @@ radv_init_streamout_state(struct radv_cmd_buffer *cmd_buffer)
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_streamout_state *so = &cmd_buffer->state.streamout;
    unsigned offset;
-   UNUSED void *ptr;
 
    assert(pdev->info.gfx_level >= GFX12);
 
@@ -15853,7 +15850,7 @@ radv_init_streamout_state(struct radv_cmd_buffer *cmd_buffer)
     * The buffer must be initialized to 0 and the address must be aligned to 64
     * because it's faster when the atomic doesn't straddle a 64B block boundary.
     */
-   if (!radv_cmd_buffer_upload_alloc_aligned(cmd_buffer, MAX_SO_BUFFERS * 8, 64, &offset, &ptr))
+   if (!radv_cmd_buffer_upload_alloc_aligned(cmd_buffer, MAX_SO_BUFFERS * 8, 64, &offset, NULL))
       return;
 
    so->state_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
