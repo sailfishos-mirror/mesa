@@ -139,11 +139,8 @@ jay_src_stride_minmax(jay_inst *I, unsigned s, bool do_max)
    if (jay_src_type(I, s) == JAY_TYPE_BF16)
       return JAY_STRIDE_2;
 
-   if (restrict_mixed_strides(I, s) &&
-       jay_type_size_bits(jay_src_type(I, s)) < jay_type_size_bits(I->type)) {
-
+   if (restrict_mixed_strides(I, s))
       return jay_dst_stride_minmax(I, do_max);
-   }
 
    return (do_max && !restrict_mixed_strides(I, s)) ? max : min;
 }
