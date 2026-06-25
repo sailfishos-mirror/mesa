@@ -2857,7 +2857,8 @@ struct anv_device {
 
     struct {
        simple_mtx_t  mutex;
-       struct radix_sort_vk *radix_sort;
+       struct radix_sort_vk *radix_sort_64;
+       struct radix_sort_vk *radix_sort_96;
        struct vk_acceleration_structure_build_args build_args;
    } accel_struct_build;
 

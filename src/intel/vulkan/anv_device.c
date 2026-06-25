@@ -1385,10 +1385,16 @@ void anv_DestroyDevice(
    /* Do TRTT batch garbage collection before destroying queues. */
    anv_device_finish_trtt(device);
 
-   if (device->accel_struct_build.radix_sort) {
-      radix_sort_vk_destroy(device->accel_struct_build.radix_sort,
+   if (device->accel_struct_build.radix_sort_64) {
+      radix_sort_vk_destroy(device->accel_struct_build.radix_sort_64,
                             _device, &device->vk.alloc);
    }
+
+   if (device->accel_struct_build.radix_sort_96) {
+      radix_sort_vk_destroy(device->accel_struct_build.radix_sort_96,
+                            _device, &device->vk.alloc);
+   }
+
    vk_meta_device_finish(&device->vk, &device->meta_device);
 
    anv_device_utrace_finish(device);
