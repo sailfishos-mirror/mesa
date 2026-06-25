@@ -26,8 +26,8 @@ SOFTWARE.
 <csbgen name="ROGUE" prefix="LLS">
 
   <!-- Size of the CDM's context state buffer in bytes. -->
-  <define name="CDM_CONTEXT_RESUME_BUFFER_SIZE" value="72"/>
   <define name="CDM_CONTEXT_RESUME_BUFFER_ALIGNMENT" value="16"/>
+  <define name="CDM_CONTEXT_RESUME_BUFFER_SIZE" value="72"/>
 
   <!-- Size of the PDS's persistent-temporary register context state buffer in bytes. -->
   <define name="PDS_PERSISTENT_TEMPS_BUFFER_ALIGNMENT" value="16"/>
