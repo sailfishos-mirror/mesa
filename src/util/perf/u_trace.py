@@ -98,6 +98,10 @@ class Tracepoint(object):
         self.toggle_name = toggle_name
         self.need_cs_param = need_cs_param
         self.tp_type = tp_type
+        if len(self.tp_struct) > 0:
+            self.payload_size = "sizeof(struct trace_%s)" % (name)
+        else:
+            self.payload_size = "0"
 
         TRACEPOINTS[name] = self
         if toggle_name is not None and toggle_name not in TRACEPOINTS_TOGGLES:
@@ -313,15 +317,7 @@ struct trace_${trace_name} {
    ${arg.struct_member};
 %    endfor
 %    if len(trace.tp_struct) == 0:
-#ifdef __cplusplus
-   /* avoid warnings about empty struct size mis-match in C vs C++..
-    * the size mis-match is harmless because (a) nothing will deref
-    * the empty struct, and (b) the code that cares about allocating
-    * sizeof(struct trace_${trace_name}) (and wants this to be zero
-    * if there is no payload) is C
-    */
    uint8_t dummy;
-#endif
 %    endif
 };
 %    if trace.tp_perfetto is not None:
@@ -533,7 +529,7 @@ static void __emit_label_${trace_name}(struct u_trace_context *utctx, void *cs, 
  % endif
 static const struct u_tracepoint __tp_${trace_name} = {
     "${trace_name}",
-    ALIGN_POT(sizeof(struct trace_${trace_name}), 8),   /* keep size 64b aligned */
+    ALIGN_POT(${trace.payload_size}, 8),   /* keep size 64b aligned */
     0
  % for arg in trace.indirect_args:
     + sizeof(${arg.type})
