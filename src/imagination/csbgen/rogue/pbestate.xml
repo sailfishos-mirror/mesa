@@ -243,10 +243,13 @@ SOFTWARE.
   </struct>
 
   <struct name="REG_WORD0" length="2">
-    <field name="tfbc_lossy" start="62" end="63" type="TFBC_LOSSY">
-      <define name="LOSSY37_75_TFBC_LOSSY_37_PERCENT_ENABLED" value="1"/>
-    </field>
-    <field name="lossy" start="62" end="62" type="LOSSY"/>
+    <condition type="if" check="TFBC"/>
+      <field name="tfbc_lossy" start="62" end="63" type="TFBC_LOSSY">
+        <define name="LOSSY37_75_TFBC_LOSSY_37_PERCENT_ENABLED" value="1"/>
+      </field>
+    <condition type="else" check="TFBC"/>
+      <field name="lossy" start="62" end="62" type="LOSSY"/>
+    <condition type="endif" check="TFBC"/>
     <field name="compress_size_ext" start="61" end="61" type="COMPRESS_SIZE_EXT"/>
     <field name="comp_iaddr_mode" start="60" end="60" type="COMP_IADDR_TYPE"/>
     <field name="comp_cor_enable" start="59" end="59" type="bool"/>
@@ -282,10 +285,12 @@ SOFTWARE.
   </struct>
 
   <struct name="REG_WORD2" length="2">
-    <field name="pair_tiles" start="46" end="46" type="PAIR_TILES">
-      <!-- TODO: Do we need this? -->
-      <define name="SHIFT" value="46"/>
-    </field>
+    <condition type="if" check="PAIRED_TILES"/>
+      <field name="pair_tiles" start="46" end="46" type="PAIR_TILES">
+        <!-- TODO: Do we need this? -->
+        <define name="SHIFT" value="46"/>
+      </field>
+    <condition type="endif" check="PAIRED_TILES"/>
     <field name="surface_y_size" start="32" end="45" type="uint"/>
     <field name="sw_bytemask" start="0" end="31" type="uint"/>
   </struct>
