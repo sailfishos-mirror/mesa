@@ -270,8 +270,6 @@ struct radv_shader_layout {
    bool independent_sets;
 
    const VkShaderDescriptorSetAndBindingMappingInfoEXT *mapping;
-
-   struct vk_sampler_state_array embedded_samplers;
 };
 
 struct radv_shader_stage {

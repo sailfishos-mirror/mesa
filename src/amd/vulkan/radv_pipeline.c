@@ -230,7 +230,6 @@ void
 radv_pipeline_stage_finish(struct radv_shader_stage *stage)
 {
    ralloc_free(stage->nir);
-   vk_sampler_state_array_finish(&stage->layout.embedded_samplers);
 }
 
 void
