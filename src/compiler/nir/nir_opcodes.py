@@ -1991,7 +1991,7 @@ triop("bffma", tuint16, _2src_commutative, """
 opcode("bfmul_mixed_intel",
        0, tuint16,
        [0, 0], [tuint16, tfloat32],
-       False, _2src_commutative + inexact_associative, """
+       False, "", """
    const float a = _mesa_bfloat16_bits_to_float(src0);
    const float b = src1;
    dst = _mesa_float_to_bfloat16_bits_rte(a * b);
@@ -2000,7 +2000,7 @@ opcode("bfmul_mixed_intel",
 opcode("bffma_mixed_intel",
        0, tuint16,
        [0, 0, 0], [tfloat32, tuint16, tuint16],
-       False, _2src_commutative, """
+       False, "", """
     const float a = src0;
     const float b = _mesa_bfloat16_bits_to_float(src1);
     const float c = _mesa_bfloat16_bits_to_float(src2);
