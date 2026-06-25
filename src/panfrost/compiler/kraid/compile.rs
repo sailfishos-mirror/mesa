@@ -68,7 +68,7 @@ fn write_back_info(src: &ShaderInfo, dst: &mut pan_shader_info) {
     dst.preload = src.register_preload;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn kraid_compile_nir(
     nir: &mut nir_shader,
     inputs: &pan_compile_inputs,
