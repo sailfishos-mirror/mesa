@@ -1924,6 +1924,7 @@ brw_nir_optimize(brw_pass_tracker *pt)
    pass_tracker_new_loop(pt);
 
    OPT(nir_opt_uub, &(nir_opt_uub_options){});
+   OPT(nir_opt_fp_math_ctrl);
 
    do {
       pass_tracker_new_iteration(pt);
