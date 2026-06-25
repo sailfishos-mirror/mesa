@@ -1382,7 +1382,11 @@ radv_create_gang_wait_preambles_postambles(struct radv_queue *queue)
    struct radeon_winsys_bo *gang_sem_bo = NULL;
    enum radeon_bo_flag gang_sem_bo_flags = RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_ZERO_VRAM;
 
-   /* When the "gang leader" is SDMA, we need to ensure that the gang semaphores BO
+   /* Gang wait preamble is executed before the main preamble which means it may be
+    * before a cache flush, which may cause the CP to read stale values. Bypass the
+    * L2 cache to make sure it works.
+    *
+    * Also when the "gang leader" is SDMA, we need to ensure that the gang semaphores BO
     * is coherent between SDMA and CP. To achieve this, we need bypass the L2 cache
     * when either SDMA or CP are connected to L2.
     *
@@ -1402,8 +1406,7 @@ radv_create_gang_wait_preambles_postambles(struct radv_queue *queue)
     * GFX12:
     *   neither CP nor SDMA are connected to L2
     */
-   if (ip == AMD_IP_SDMA && pdev->info.gfx_level >= GFX9 && pdev->info.gfx_level < GFX12)
-      gang_sem_bo_flags |= RADEON_FLAG_GL2_BYPASS;
+   gang_sem_bo_flags |= RADEON_FLAG_GL2_BYPASS;
 
    /* Gang semaphores BO.
     * DWORD 0: used in preambles, gang leader writes, gang members wait.
