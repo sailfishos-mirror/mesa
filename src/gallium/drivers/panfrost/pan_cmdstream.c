@@ -1645,6 +1645,10 @@ panfrost_emit_const_buf(struct panfrost_batch *batch,
       memcpy(push_cpu + i, (uint8_t *)mapped_ubo + src.offset, 4);
    }
 
+   /* Promoted immediates are copied directly */
+   pan_fau_foreach_imm(fau, i)
+      push_cpu[i] = fau->words[i].constant;
+
    return ubos.gpu;
 }
 

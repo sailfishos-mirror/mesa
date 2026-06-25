@@ -204,6 +204,8 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       inputs.fau.pushable_ubos |= BITFIELD_BIT(PAN_UBO_SYSVALS);
    }
 
+   inputs.fau.promote_immediates = true;
+
    if (dev->arch >= 9) {
       /* Always enable this for GL, it avoids crashes when using unbound
        * resources. */
