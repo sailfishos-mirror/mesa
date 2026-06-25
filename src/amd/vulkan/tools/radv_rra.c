@@ -210,7 +210,7 @@ rra_fill_accel_struct_header_common(const struct radv_physical_device *pdev, str
       .interior_fp32_node_count = bvh_info->box32_count,
       .interior_fp16_node_count = bvh_info->box16_count,
       .leaf_node_count = primitive_count,
-      .rt_driver_interface_version = 8 << 16,
+      .rt_driver_interface_version = (16 << 16) | 1,
       .rt_ip_version = pdev->info.rt_ip_version,
    };
 
