@@ -1285,6 +1285,9 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    info->tls_size = nir->scratch_size;
    info->stage = nir->info.stage;
+   info->fau.max = PAN_MAX_PUSH;
+   info->fau.reserved = inputs->fau.reserved;
+   info->fau.count = inputs->fau.reserved;
 
    if (bi_use_kraid(nir, gpu_id)) {
 #ifdef WITH_PANFROST_RUST

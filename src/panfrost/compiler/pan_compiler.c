@@ -183,16 +183,28 @@ pan_to_bytemask(unsigned bytes, unsigned mask)
 
 /* Could optimize with a better data structure if anyone cares, TODO: profile */
 unsigned
-pan_lookup_pushed_ubo(struct pan_ubo_push *push, unsigned ubo, unsigned offs)
+pan_lookup_pushed_ubo(const struct pan_fau_layout *fau,
+                      unsigned ubo, unsigned offs)
 {
-   struct pan_ubo_word word = {.ubo = ubo, .offset = offs};
+   struct pan_ubo_relocation word = {.ubo = ubo, .offset = offs};
 
-   for (unsigned i = 0; i < push->count; ++i) {
-      if (memcmp(push->words + i, &word, sizeof(word)) == 0)
+   pan_fau_foreach_reloc(fau, i) {
+      if (memcmp(fau->words + i, &word, sizeof(word)) == 0)
          return i;
    }
 
    UNREACHABLE("UBO not pushed");
+}
+
+int
+pan_lookup_pushed_imm(const struct pan_fau_layout *fau, uint32_t imm)
+{
+   pan_fau_foreach_imm(fau, i) {
+      if (fau->words[i].constant == imm)
+         return i;
+   }
+
+   return -1;
 }
 
 void

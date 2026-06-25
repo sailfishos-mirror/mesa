@@ -745,7 +745,7 @@ lower_load_push_consts(nir_shader *nir, struct panvk_shader_variant *shader)
     * scalarization+dead-code-elimination. Since these pass happen in
     * bifrost_compile(), we can't run the push_constant packing after the
     * optimization took place, so let's just have our own FAU count instead
-    * of using info.push.count to make it consistent with the
+    * of using info.fau.end to make it consistent with the
     * used_{sysvals,push_consts} bitmaps, even if it sometimes implies loading
     * more than we really need. Doing that also takes into account the fact
     * blend constants are never loaded from the fragment shader, but might be
@@ -989,12 +989,10 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
 
    lower_load_push_consts(nir, shader);
 
-   /* Allow the remaining FAU space to be filled with constants. */
-   input.fau_consts.max_amount =
-      2 * (FAU_WORD_COUNT - shader->fau.total_count);
-   input.fau_consts.offset = shader->fau.total_count * 2;
-   input.fau_consts.values = &shader->info.fau_consts[0];
-   assert(input.fau_consts.max_amount <= ARRAY_SIZE(shader->info.fau_consts));
+   /* Reserve sysvals/push-const, the compiler may fill the remaining space with
+    * promoted constants. */
+   input.fau.reserved = shader->fau.total_count * 2;
+   input.fau.promote_immediates = true;
 
    struct util_dynarray binary = UTIL_DYNARRAY_INIT;
    pan_shader_compile(nir, &input, &binary, &shader->info);
@@ -1002,7 +1000,7 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
    /* Propagate potential additional FAU values into the panvk info struct. */
    /* FAU consts are pushed as 32bit values, but total_count is for 64bit
     * ones. */
-   shader->fau.total_count += DIV_ROUND_UP(shader->info.fau_consts_count, 2);
+   shader->fau.total_count = DIV_ROUND_UP(shader->info.fau.count, 2);
 
    void *bin_ptr = util_dynarray_element(&binary, uint8_t, 0);
    unsigned bin_size = util_dynarray_num_elements(&binary, uint8_t);
@@ -1046,10 +1044,10 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
       shader->asm_str = asm_str;
    }
 
-   /* We need to update info.push.count because it's used to initialize the
+   /* Pad the total to the 64-bit-aligned FAU count; it's used to initialize the
     * RSD in pan_shader_prepare_rsd().
     */
-   shader->info.push.count = shader->fau.total_count * 2;
+   shader->info.fau.count = shader->fau.total_count * 2;
 
 #if PAN_ARCH < 9
    /* Patch the descriptor count */

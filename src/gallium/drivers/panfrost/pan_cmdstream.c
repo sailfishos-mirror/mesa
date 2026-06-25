@@ -1576,15 +1576,17 @@ panfrost_emit_const_buf(struct panfrost_batch *batch,
       panfrost_emit_ubo(ubos.cpu, ubo, address, usz);
    }
 
-   assert(pushed_words);
-   *pushed_words = ss->info.push.count;
+   const struct pan_fau_layout *fau = &ss->info.fau;
 
-   if (ss->info.push.count == 0)
+   assert(pushed_words);
+   *pushed_words = fau->count;
+
+   if (fau->count == 0)
       return ubos.gpu;
 
    /* Copy push constants required by the shader */
    struct pan_ptr push_transfer =
-      pan_pool_alloc_aligned(&batch->pool.base, ss->info.push.count * 4, 16);
+      pan_pool_alloc_aligned(&batch->pool.base, fau->count * 4, 16);
 
    if (!push_transfer.cpu)
       return 0;
@@ -1592,8 +1594,8 @@ panfrost_emit_const_buf(struct panfrost_batch *batch,
    uint32_t *push_cpu = (uint32_t *)push_transfer.cpu;
    *push_constants = push_transfer.gpu;
 
-   for (unsigned i = 0; i < ss->info.push.count; ++i) {
-      struct pan_ubo_word src = ss->info.push.words[i];
+   pan_fau_foreach_reloc(fau, i) {
+      struct pan_ubo_relocation src = fau->words[i].relocation;
 
       if (src.ubo == sysval_ubo) {
          unsigned sysval_idx = src.offset / 16;

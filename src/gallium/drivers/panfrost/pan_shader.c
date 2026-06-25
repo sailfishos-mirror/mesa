@@ -198,10 +198,10 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
     * When we switch to pushing UBOs with a compute kernel (or CSF instructions)
     * we can relax this. */
    assert(s->info.first_ubo_is_default_ubo);
-   inputs.pushable_ubos = BITFIELD_BIT(0);
+   inputs.fau.pushable_ubos = BITFIELD_BIT(0);
 
    if (out->sysvals.sysval_count != 0) {
-      inputs.pushable_ubos |= BITFIELD_BIT(PAN_UBO_SYSVALS);
+      inputs.fau.pushable_ubos |= BITFIELD_BIT(PAN_UBO_SYSVALS);
    }
 
    if (dev->arch >= 9) {

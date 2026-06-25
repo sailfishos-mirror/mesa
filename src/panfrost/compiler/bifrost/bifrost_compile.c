@@ -997,7 +997,8 @@ bi_emit_load_ubo(bi_builder *b, nir_intrinsic_instr *instr)
 static void
 bi_emit_load_push_constant(bi_builder *b, nir_intrinsic_instr *instr)
 {
-   assert(!b->shader->inputs->pushable_ubos && "can't mix push constant forms");
+   assert(!b->shader->inputs->fau.pushable_ubos &&
+          "can't mix push constant forms");
 
    nir_src *offset = &instr->src[0];
    assert(!nir_intrinsic_base(instr) && "base must be zero");
@@ -1020,11 +1021,8 @@ bi_emit_load_push_constant(bi_builder *b, nir_intrinsic_instr *instr)
 
    bi_emit_collect_to(b, bi_def_index(&instr->def), channels, n);
 
-   /* Update push->count to report the highest push constant word being accessed
-    * by this shader.
-    */
-   b->shader->info.push->count =
-      MAX2((base / 4) + n, b->shader->info.push->count);
+   ASSERTED struct pan_fau_layout *fau = b->shader->info.fau;
+   assert((base / 4) + n <= fau->reserved);
 }
 
 /* Split a 32/64-bit address into low and high parts. 64-bit addresses are
@@ -4350,11 +4348,9 @@ bi_compile_variant_nir(nir_shader *nir,
 {
    bi_context *ctx = rzalloc(NULL, bi_context);
    struct bi_shader_info info = {
-      .push = &pinfo->push,
+      .fau = &pinfo->fau,
       .bifrost = &pinfo->bifrost,
       .tls_size = pinfo->tls_size,
-      .push_offset = pinfo->push.count,
-      .init_fau_consts_count = pinfo->fau_consts_count,
    };
 
    /* There may be another program in the dynarray, start at the end */
@@ -4368,7 +4364,6 @@ bi_compile_variant_nir(nir_shader *nir,
    ctx->info = info;
    ctx->idvs = idvs;
    ctx->malloc_idvs = (ctx->arch >= 9) && !inputs->no_idvs;
-   ctx->fau_consts_count = info.init_fau_consts_count;
 
    unsigned execution_mode = nir->info.float_controls_execution_mode;
    ctx->rtz_fp16 = nir_is_rounding_mode_rtz(execution_mode, 16);
@@ -4448,7 +4443,7 @@ bi_compile_variant_nir(nir_shader *nir,
    bi_validate(ctx, "Early lowering");
 
    /* Runs before copy prop */
-   if (optimize && ctx->inputs->pushable_ubos) {
+   if (optimize && ctx->inputs->fau.pushable_ubos) {
       bi_opt_push_ubo(ctx);
    }
 
@@ -4473,7 +4468,7 @@ bi_compile_variant_nir(nir_shader *nir,
       bi_opt_dce(ctx, false);
       bi_opt_cse(ctx);
       bi_opt_dce(ctx, false);
-      if (ctx->inputs->pushable_ubos)
+      if (ctx->inputs->fau.pushable_ubos)
          bi_opt_reorder_push(ctx);
       bi_validate(ctx, "Optimization passes");
    }
@@ -4505,8 +4500,12 @@ bi_compile_variant_nir(nir_shader *nir,
       }
 
       util_qsort_r(sorted, const_amount, sizeof(uint32_t), compare_u32, NULL);
-      uint32_t max_amount = MIN2(const_amount, ctx->inputs->fau_consts.max_amount);
-      uint32_t min_count_for_fau = max_amount > 0 ? sorted[max_amount - 1] : 0;
+      uint32_t max_amount =
+         ctx->inputs->fau.promote_immediates
+            ? MIN2(const_amount, pan_fau_available(ctx->info.fau))
+            : 0;
+      uint32_t min_count_for_fau =
+         max_amount > 0 ? sorted[max_amount - 1] : UINT32_MAX;
       ralloc_free(sorted);
 
       bi_foreach_instr_global_safe(ctx, I) {
@@ -4681,8 +4680,6 @@ bi_compile_variant(nir_shader *nir,
 
    bi_context *ctx =
       bi_compile_variant_nir(nir, inputs, binary, info, stats, idvs);
-
-   info->fau_consts_count = ctx->fau_consts_count;
 
    /* A register is preloaded <==> it is live before the first block */
    bi_block *first_block = list_first_entry(&ctx->blocks, bi_block, link);

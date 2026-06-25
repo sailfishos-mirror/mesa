@@ -220,6 +220,7 @@ get_frame_shader(struct panvk_device *dev,
       .gpu_id = phys_dev->kmod.dev->props.gpu_id,
       .gpu_variant = phys_dev->kmod.dev->props.gpu_variant,
       .is_blit = true,
+      .fau.reserved = DIV_ROUND_UP(sizeof(struct panvk_fb_sysvals), 4),
    };
 
    pan_preprocess_nir(nir, inputs.gpu_id);

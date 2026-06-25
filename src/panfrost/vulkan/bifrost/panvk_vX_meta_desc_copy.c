@@ -351,6 +351,7 @@ panvk_meta_desc_copy_rsd(struct panvk_device *dev)
    struct pan_compile_inputs inputs = {
       .gpu_id = phys_dev->kmod.dev->props.gpu_id,
       .gpu_variant = phys_dev->kmod.dev->props.gpu_variant,
+      .fau.reserved = DIV_ROUND_UP(sizeof(struct pan_nir_desc_copy_info), 4),
    };
 
    pan_preprocess_nir(b.shader, inputs.gpu_id);
@@ -362,9 +363,6 @@ panvk_meta_desc_copy_rsd(struct panvk_device *dev)
 
    if (result != VK_SUCCESS)
       return 0;
-
-   shader->info.push.count =
-      DIV_ROUND_UP(sizeof(struct pan_nir_desc_copy_info), 4);
 
    shader->rsd = panvk_pool_alloc_desc(&dev->mempools.rw, RENDERER_STATE);
    if (!panvk_priv_mem_check_alloc(shader->rsd)) {
