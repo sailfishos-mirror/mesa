@@ -196,11 +196,18 @@ ethosu_lower_fully_connected(struct ethosu_subgraph *subgraph,
                              struct pipe_tensor *input_tensor,
                              struct ethosu_operation *operation)
 {
+   struct pipe_tensor flat_input = *input_tensor;
+
+   flat_input.dims[1] = 1;
+   flat_input.dims[2] = 1;
+   flat_input.dims[3] = input_tensor->dims[1] * input_tensor->dims[2] *
+                        input_tensor->dims[3];
+
    operation->kernel.scale = poperation->fcon.weight_tensor->scale;
    operation->kernel.zero_point = poperation->fcon.weight_tensor->zero_point;
    operation->kernel.is_signed = poperation->fcon.weight_tensor->is_signed;
 
-   lower_conv_common(subgraph, poperation, input_tensor,
+   lower_conv_common(subgraph, poperation, &flat_input,
                      poperation->fcon.weight_tensor,
                      (int32_t *)poperation->fcon.bias_tensor->data,
                      operation);
