@@ -2173,10 +2173,14 @@ int v3d_shaderdb_dump(struct v3d_compile *c,
  * that will be used to try to compile the shader successfully. The
  * default strategy is to enable all optimizations which will have
  * the highest register pressure but is expected to produce most
- * optimal code. Following strategies incrementally disable specific
- * optimizations that are known to contribute to register pressure
- * in order to be able to compile the shader successfully while meeting
- * thread count requirements.
+ * optimal code. Following strategies disable optimizations that are known
+ * to contribute to register pressure in order to be able to compile the
+ * shader successfully while meeting thread count requirements.
+ *
+ * Note that strategies 4 ("disable TMU pipelining") and 5 ("fallback
+ * scheduler") are kept as separate entries: 4 uses the normal scheduler and
+ * is the best result for a number of shaders, while 5 (the last entry, which
+ * vir_compile_init flags as the fallback scheduler) is the last resort.
  *
  * V3D 4.1+ has a min thread count of 2, but we can use 1 here to also
  * cover previous hardware as well (meaning that we are not limiting
@@ -2184,19 +2188,12 @@ int v3d_shaderdb_dump(struct v3d_compile *c,
  * because v3d_nir_to_vir will cap this to the actual minimum.
  */
 static const struct v3d_compiler_strategy strategies[] = {
-        /*0*/  { "default",                        4, 4, false, false, false, false, false, false,  0 },
-        /*1*/  { "disable general TMU sched",      4, 4, true,  false, false, false, false, false,  0 },
-        /*2*/  { "disable gcm",                    4, 4, true,  true,  false, false, false, false,  0 },
-        /*3*/  { "disable loop unrolling",         4, 4, true,  true,  true,  false, false, false,  0 },
-        /*4*/  { "disable UBO load sorting",       4, 4, true,  true,  true,  true,  false, false,  0 },
-        /*5*/  { "disable TMU pipelining",         4, 4, true,  true,  true,  true,  false, true,   0 },
-        /*6*/  { "lower thread count",             2, 1, false, false, false, false, false, false, -1 },
-        /*7*/  { "disable general TMU sched (2t)", 2, 1, true,  false, false, false, false, false, -1 },
-        /*8*/  { "disable gcm (2t)",               2, 1, true,  true,  false, false, false, false, -1 },
-        /*9*/  { "disable loop unrolling (2t)",    2, 1, true,  true,  true,  false, false, false, -1 },
-        /*10*/ { "Move buffer loads (2t)",         2, 1, true,  true,  true,  true,  true,  false, -1 },
-        /*11*/ { "disable TMU pipelining (2t)",    2, 1, true,  true,  true,  true,  true,  true,  -1 },
-        /*12*/ { "fallback scheduler",             2, 1, true,  true,  true,  true,  true,  true,  -1 }
+        /*0*/ { "default",                        4, 4, false, false, false, false, false, false,  0 },
+        /*1*/ { "disable 4t pressure opts",       4, 4, true,  true,  true,  true,  false, false,  0 },
+        /*2*/ { "lower thread count",             2, 1, false, false, false, false, false, false, -1 },
+        /*3*/ { "disable 2t pressure opts",       2, 1, true,  true,  true,  true,  true,  false, -1 },
+        /*4*/ { "disable TMU pipelining (2t)",    2, 1, true,  true,  true,  true,  true,  true,  -1 },
+        /*5*/ { "fallback scheduler",             2, 1, true,  true,  true,  true,  true,  true,  -1 }
 };
 
 /**
@@ -2223,36 +2220,29 @@ skip_compile_strategy(struct v3d_compile *c, uint32_t idx)
    }
 
    switch (idx) {
-   /* General TMU sched.: skip if we didn't emit any TMU loads */
-   case 1:
-   case 7:
-           return !c->has_general_tmu_load;
-   /* Global code motion: skip if nir_opt_gcm didn't make any progress */
-   case 2:
-   case 8:
-           return !c->gcm_progress;
-   /* Loop unrolling: skip if we didn't unroll any loops */
-   case 3:
-   case 9:
-           return !c->unrolled_any_loops;
-   /* UBO load sorting: skip if we didn't sort any loads */
-   case 4:
-           return !c->sorted_any_ubo_loads;
-   /* Move buffer loads: we assume any shader with difficult RA
-    * most likely has UBO / SSBO loads so we never try to skip.
-    * For now, we only try this for 2-thread compiles since it
-    * is expected to impact instruction counts and latency.
+   /* "disable 4t pressure opts": disables general TMU scheduling, GCM,
+    * loop unrolling and UBO load sorting at once. Only worth trying if at
+    * least one of those optimizations actually did something; otherwise the
+    * result would be identical to the previous attempt.
     */
-   case 10:
+   case 1:
+           return !c->has_general_tmu_load && !c->gcm_progress &&
+                  !c->unrolled_any_loops && !c->sorted_any_ubo_loads;
+   /* "disable 2t pressure opts": disables the same four optimizations as
+    * strategy 1 and additionally moves buffer loads, all at 2 threads. We
+    * assume any shader with difficult RA most likely has UBO / SSBO loads so
+    * we never try to skip it.
+    */
+   case 3:
           assert(c->threads < 4);
           return false;
    /* TMU pipelining: skip if we didn't pipeline any TMU ops */
-   case 5:
-   case 11:
+   case 4:
            return !c->pipelined_any_tmu;
-   /* Lower thread count: skip if we already tried less that 4 threads */
-   case 6:
-          return c->threads < 4;
+   /* Strategy 2 ("lower thread count") changes spilling behaviour and is
+    * handled by the max_tmu_spills guard above; strategy 5 (fallback
+    * scheduler) is the last resort and is never skipped.
+    */
    default:
            return false;
    };
