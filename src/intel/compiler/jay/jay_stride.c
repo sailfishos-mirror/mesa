@@ -73,6 +73,15 @@ jay_dst_stride_minmax(jay_inst *I, bool do_max)
     */
    if (I->op == JAY_OPCODE_CVT) {
       min = MAX2(min, min_stride_for_type(jay_src_type(I, 0)));
+
+      /* Conversions between integer and HF must be strided by a DWord on the
+       * destination.
+       */
+      if ((I->type == JAY_TYPE_F16 &&
+           !jay_type_is_any_float(jay_cvt_src_type(I))) ||
+          (jay_cvt_src_type(I) == JAY_TYPE_F16 &&
+           !jay_type_is_any_float(I->type)))
+         min = JAY_STRIDE_4;
    }
 
    if (I->op == JAY_OPCODE_EXPAND_QUAD) {
