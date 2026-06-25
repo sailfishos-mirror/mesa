@@ -884,6 +884,9 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
       }
    }
 
+   free(stage->layout.embedded_samplers.samplers);
+   stage->layout.embedded_samplers.samplers = NULL;
+
    return nir;
 }
 
