@@ -2887,6 +2887,9 @@ print_shader_info(const struct shader_info *info, FILE *fp)
    if (info->label)
       fprintf(fp, "label: %s\n", info->label);
 
+   if (info->spec)
+      fprintf(fp, "%s", info->spec);
+
    print_nz_bool(fp, "internal", info->internal);
 
    if (mesa_shader_stage_uses_workgroup(info->stage)) {

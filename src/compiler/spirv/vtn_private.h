@@ -658,6 +658,7 @@ struct vtn_builder {
 
    /* Information on the origin of the SPIR-V */
    enum vtn_generator generator_id;
+   const char *source_file;
    SpvSourceLanguage source_lang;
 
    struct spirv_capabilities supported_capabilities;

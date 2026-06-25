@@ -2171,6 +2171,7 @@ enum nir_serialize_shader_flags {
    NIR_SERIALIZE_SHADER_NAME = 1 << 0,
    NIR_SERIALIZE_SHADER_LABEL = 1 << 1,
    NIR_SERIALIZE_DEBUG_INFO = 1 << 2,
+   NIR_SERIALIZE_SHADER_SPEC = 1 << 3,
 };
 
 void
@@ -2216,6 +2217,8 @@ serialize_internal(struct blob *blob, const nir_shader *nir, bool strip, bool se
       flags |= NIR_SERIALIZE_SHADER_NAME;
    if (!strip && info.label)
       flags |= NIR_SERIALIZE_SHADER_LABEL;
+   if (!strip && info.spec)
+      flags |= NIR_SERIALIZE_SHADER_SPEC;
    if (ctx.debug_info)
       flags |= NIR_SERIALIZE_DEBUG_INFO;
    blob_write_uint32(blob, flags);
@@ -2224,6 +2227,8 @@ serialize_internal(struct blob *blob, const nir_shader *nir, bool strip, bool se
       blob_write_string(blob, info.name);
    if (!strip && info.label)
       blob_write_string(blob, info.label);
+   if (!strip && info.spec)
+      blob_write_string(blob, info.spec);
    info.name = info.label = NULL;
    blob_write_bytes(blob, (uint8_t *)&info, sizeof(info));
 
@@ -2285,6 +2290,7 @@ nir_deserialize(void *mem_ctx,
    enum nir_serialize_shader_flags flags = blob_read_uint32(blob);
    char *name = (flags & NIR_SERIALIZE_SHADER_NAME) ? blob_read_string(blob) : NULL;
    char *label = (flags & NIR_SERIALIZE_SHADER_LABEL) ? blob_read_string(blob) : NULL;
+   char *spec = (flags & NIR_SERIALIZE_SHADER_SPEC) ? blob_read_string(blob) : NULL;
 
    struct shader_info info;
    blob_copy_bytes(blob, (uint8_t *)&info, sizeof(info));
@@ -2297,6 +2303,7 @@ nir_deserialize(void *mem_ctx,
 
    info.name = name ? ralloc_strdup(ctx.nir, name) : NULL;
    info.label = label ? ralloc_strdup(ctx.nir, label) : NULL;
+   info.spec = spec ? ralloc_strdup(ctx.nir, spec) : NULL;
 
    ctx.nir->info = info;
 
