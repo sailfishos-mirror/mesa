@@ -734,6 +734,35 @@ impl<'a> ShaderFromNir<'a> {
                     offset: 0,
                 });
             }
+            nir_intrinsic_load_global_cvt_pan => {
+                assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
+                assert_eq!(intrin.def.num_components, intrin.num_components);
+
+                let num_type = match intrin.dest_type().base_type() {
+                    ALUType::FLOAT => NumericType::Float,
+                    ALUType::INT => NumericType::SignedInteger,
+                    ALUType::UINT => NumericType::UnsignedInteger,
+                    ALUType::INVALID => NumericType::Auto,
+                    _ => panic!("Invalid NIR ALU type"),
+                };
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    num_type,
+                    intrin.def.bit_size,
+                );
+
+                let addr = self.get_src(&srcs[0]);
+                let cvt = self.get_src(&srcs[1]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdCvt {
+                    dst,
+                    dst_type,
+                    access: MemAccess::None,
+                    addr,
+                    cvt,
+                    offset: 0,
+                });
+            }
             nir_intrinsic_load_ssbo => {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
                 let handle = self.get_src(&srcs[0]);
@@ -798,6 +827,41 @@ impl<'a> ShaderFromNir<'a> {
                     access: MemAccess::None,
                     data,
                     addr,
+                    offset: 0,
+                });
+            }
+            nir_intrinsic_store_global_cvt_pan => {
+                assert_eq!(srcs[0].bit_size(), intrin.src_type().bit_size());
+                assert_eq!(srcs[0].num_components(), intrin.num_components);
+                let bits = srcs[0].bit_size() * srcs[0].num_components();
+
+                let num_type = match intrin.src_type().base_type() {
+                    ALUType::FLOAT => NumericType::Float,
+                    ALUType::INT => NumericType::SignedInteger,
+                    ALUType::UINT => NumericType::UnsignedInteger,
+                    ALUType::INVALID => NumericType::Auto,
+                    _ => panic!("Invalid NIR ALU type"),
+                };
+                let src_type = DataType::get(
+                    srcs[0].num_components(),
+                    num_type,
+                    srcs[0].bit_size(),
+                );
+
+                let mut data = self.get_src(&srcs[0]);
+                if bits == 8 {
+                    data = data.byte(0);
+                } else if bits == 16 {
+                    data = data.half(0);
+                }
+                let addr = self.get_src(&srcs[1]);
+                let cvt = self.get_src(&srcs[2]);
+                b.push_op(OpStCvt {
+                    src_type,
+                    access: MemAccess::None,
+                    data,
+                    addr,
+                    cvt,
                     offset: 0,
                 });
             }

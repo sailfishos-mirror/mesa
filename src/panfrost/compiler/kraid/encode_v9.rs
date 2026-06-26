@@ -438,6 +438,39 @@ impl From<AsmSwizzleWiden> for SrcSwizzle {
     }
 }
 
+impl TryFrom<DataType> for RegisterFileFormatGeneralM {
+    type Error = &'static str;
+
+    fn try_from(
+        data_type: DataType,
+    ) -> Result<RegisterFileFormatGeneralM, &'static str> {
+        match data_type {
+            DataType::A32 => Ok(RegisterFileFormatGeneralM::Auto32),
+            DataType::F16 => Ok(RegisterFileFormatGeneralM::F16),
+            DataType::F32 => Ok(RegisterFileFormatGeneralM::F32),
+            DataType::S16 => Ok(RegisterFileFormatGeneralM::S16),
+            DataType::S32 => Ok(RegisterFileFormatGeneralM::S32),
+            DataType::U16 => Ok(RegisterFileFormatGeneralM::U16),
+            DataType::U32 => Ok(RegisterFileFormatGeneralM::U32),
+            _ => Err("Invalid RegisterFileFormatGeneralM"),
+        }
+    }
+}
+
+impl TryFrom<u8> for VecsizeVaryingM {
+    type Error = &'static str;
+
+    fn try_from(comps: u8) -> Result<VecsizeVaryingM, &'static str> {
+        match comps {
+            1 => Ok(VecsizeVaryingM::None),
+            2 => Ok(VecsizeVaryingM::V2),
+            3 => Ok(VecsizeVaryingM::V3),
+            4 => Ok(VecsizeVaryingM::V4),
+            _ => Err("Invalid VecsizeVaryingM"),
+        }
+    }
+}
+
 impl From<MemAccess> for AccessLoadM {
     fn from(access: MemAccess) -> AccessLoadM {
         match access {
@@ -909,6 +942,31 @@ impl V9Instr for OpIToF32 {
     }
 }
 
+impl V9Instr for OpLdCvt {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdCvt::get_info((), arch),
+            src_map! {
+                src0: addr,
+                src2: cvt,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(LdCvt {
+            register_format: self.dst_type.scalar_type().try_into().unwrap(),
+            vecsize: self.dst_type.comps().try_into().unwrap(),
+            access: self.access.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.addr),
+            offset: self.offset,
+            src2: op_encode_src(self, &self.cvt),
+        })
+    }
+}
+
 impl V9Instr for OpLdPka {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1289,6 +1347,32 @@ impl V9Instr for OpShiftLop {
     }
 }
 
+impl V9Instr for OpStCvt {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            StCvt::get_info((), arch),
+            src_map! {
+                sr_src: data,
+                src0: addr,
+                src2: cvt,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(StCvt {
+            register_format: self.src_type.scalar_type().try_into().unwrap(),
+            vecsize: self.src_type.comps().try_into().unwrap(),
+            access: self.access.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.addr),
+            offset: self.offset,
+            src2: op_encode_src(self, &self.cvt),
+        })
+    }
+}
+
 impl V9Instr for OpStore {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1328,6 +1412,7 @@ macro_rules! v9_op_match_else {
             Op::IMul($x) => $y,
             Op::ISub($x) => $y,
             Op::IToF32($x) => $y,
+            Op::LdCvt($x) => $y,
             Op::LdPka($x) => $y,
             Op::LdTex($x) => $y,
             Op::LeaPka($x) => $y,
@@ -1338,6 +1423,7 @@ macro_rules! v9_op_match_else {
             Op::Mov($x) => $y,
             Op::Nop($x) => $y,
             Op::ShiftLop($x) => $y,
+            Op::StCvt($x) => $y,
             Op::Store($x) => $y,
             _ => $z,
         }

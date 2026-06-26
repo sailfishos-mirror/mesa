@@ -783,6 +783,44 @@ impl fmt::Display for MemAccess {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    F16, V2F16, V3F16, V4F16,
+    S16, V2S16, V3S16, V4S16,
+    U16, V2U16, V3U16, V4U16,
+    F32, V2F32, V3F32, V4F32,
+    A32, V2A32, V3A32, V4A32,
+    S32, V2S32, V3S32, V4S32,
+    U32, V2U32, V3U32, V4U32,
+])]
+pub struct OpLdCvt {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub access: MemAccess,
+
+    #[src_type(I64)]
+    pub addr: Src,
+    #[src_type(I32)]
+    pub cvt: Src,
+    pub offset: u8,
+}
+
+impl fmt::Display for OpLdCvt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LD_CVT.{}{} {} #{} {}",
+            &self.dst,
+            self.dst_type,
+            self.access,
+            self.fmt_src(&self.addr),
+            self.offset,
+            self.fmt_src(&self.cvt),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
 pub struct OpLdPka {
     pub dst: Dst,
@@ -1262,6 +1300,45 @@ impl PerCompFoldable for OpShiftLop {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(src_type in [
+    F16, V2F16, V3F16, V4F16,
+    S16, V2S16, V3S16, V4S16,
+    U16, V2U16, V3U16, V4U16,
+    F32, V2F32, V3F32, V4F32,
+    A32, V2A32, V3A32, V4A32,
+    S32, V2S32, V3S32, V4S32,
+    U32, V2U32, V3U32, V4U32,
+])]
+pub struct OpStCvt {
+    pub src_type: DataType,
+    pub access: MemAccess,
+
+    pub data: Src,
+
+    #[src_type(I64)]
+    pub addr: Src,
+    #[src_type(I32)]
+    pub cvt: Src,
+    pub offset: u8,
+}
+
+impl fmt::Display for OpStCvt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "ST_CVT.{}{} {} {} #{} {}",
+            self.src_type,
+            self.access,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.addr),
+            self.offset,
+            self.fmt_src(&self.cvt),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(src_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
 pub struct OpStore {
     pub src_type: DataType,
@@ -1355,6 +1432,7 @@ pub enum Op {
     IMul(Box<OpIMul>),
     ISub(Box<OpISub>),
     IToF32(Box<OpIToF32>),
+    LdCvt(Box<OpLdCvt>),
     LdPka(Box<OpLdPka>),
     LdTex(Box<OpLdTex>),
     LeaPka(Box<OpLeaPka>),
@@ -1369,6 +1447,7 @@ pub enum Op {
     RegIn(Box<OpRegIn>),
     RegOut(Box<OpRegOut>),
     ShiftLop(Box<OpShiftLop>),
+    StCvt(Box<OpStCvt>),
     Store(Box<OpStore>),
     Swz(Box<OpSwz>),
 }
