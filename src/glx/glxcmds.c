@@ -578,6 +578,7 @@ glXCopyContext(Display * dpy, GLXContext source_user,
 {
    struct glx_context *source = (struct glx_context *) source_user;
    struct glx_context *dest = (struct glx_context *) dest_user;
+   struct glx_context *gc;
 
    /* GLX spec 3.3: If the destination context is current for some thread
     * then a BadAccess error is generated
@@ -586,17 +587,20 @@ glXCopyContext(Display * dpy, GLXContext source_user,
       __glXSendError(dpy, BadAccess, 0, X_GLXCopyContext, true);
       return;
    }
-#ifdef GLX_USE_APPLEGL
-   struct glx_context *gc = __glXGetCurrentContext();
-   int errorcode;
-   bool x11error;
 
-   if(apple_glx_copy_context(gc->driContext, source->driContext, dest->driContext,
-                             mask, &errorcode, &x11error)) {
-      __glXSendError(dpy, errorcode, 0, X_GLXCopyContext, x11error);
-   }
+   gc = __glXGetCurrentContext();
+   gc->vtable->copy_context(dpy, source, dest, mask);
+}
 
-#else
+/*
+** Default for glx_context_vtable.copy_context. Sends an X_GLXCopyContext request, using the
+** current context's tag if it is the source so the server can flush before copying. source
+** and dest may both be NULL; the wire request encodes None for null context xids.
+*/
+void
+__glXCopyContext(Display *dpy, struct glx_context *source,
+                 struct glx_context *dest, unsigned long mask)
+{
    xGLXCopyContextReq *req;
    struct glx_context *gc = __glXGetCurrentContext();
    GLXContextTag tag;
@@ -635,7 +639,6 @@ glXCopyContext(Display * dpy, GLXContext source_user,
    req->contextTag = tag;
    UnlockDisplay(dpy);
    SyncHandle();
-#endif /* GLX_USE_APPLEGL */
 }
 
 

@@ -103,12 +103,27 @@ applegl_wait_x(struct glx_context *gc)
    apple_glx_waitx(dpy, gc->driContext);
 }
 
+static void
+applegl_copy_context(Display *dpy, struct glx_context *src, struct glx_context *dst,
+                     unsigned long mask)
+{
+   struct glx_context *gc = __glXGetCurrentContext();
+   int errorcode;
+   bool x11error;
+
+   if (apple_glx_copy_context(gc->driContext, src->driContext, dst->driContext,
+                              mask, &errorcode, &x11error)) {
+      __glXSendError(dpy, errorcode, 0, X_GLXCopyContext, x11error);
+   }
+}
+
 static const struct glx_context_vtable applegl_context_vtable = {
    .destroy             = applegl_destroy_context,
    .bind                = applegl_bind_context,
    .unbind              = applegl_unbind_context,
    .wait_gl             = applegl_wait_gl,
    .wait_x              = applegl_wait_x,
+   .copy_context        = applegl_copy_context,
 };
 
 static struct glx_context *

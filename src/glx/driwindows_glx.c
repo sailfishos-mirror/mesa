@@ -107,6 +107,7 @@ static const struct glx_context_vtable driwindows_context_vtable = {
    .unbind              = driwindows_unbind_context,
    .wait_gl             = NULL,
    .wait_x              = NULL,
+   .copy_context        = __glXCopyContext,
 };
 
 static struct glx_context *

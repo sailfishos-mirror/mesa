@@ -22,7 +22,13 @@
 */
 
 static GLubyte dummyBuffer[__GLX_BUFFER_LIMIT_SIZE];
-static struct glx_context_vtable dummyVtable;
+/*
+** dummyVtable.copy_context is set so glXCopyContext still issues an X_GLXCopyContext request when
+** invoked with no current context (the GLX spec does not require a current context for that call).
+*/
+static const struct glx_context_vtable dummyVtable = {
+   .copy_context = __glXCopyContext,
+};
 /*
 ** Dummy context used by small commands when there is no current context.
 ** All the

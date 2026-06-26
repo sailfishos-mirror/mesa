@@ -233,6 +233,10 @@ struct glx_context_vtable {
    void (*unbind)(struct glx_context *context);
    void (*wait_gl)(struct glx_context *ctx);
    void (*wait_x)(struct glx_context *ctx);
+   void (*copy_context)(Display *dpy,
+                        struct glx_context *src,
+                        struct glx_context *dst,
+                        unsigned long mask);
 };
 
 /**
@@ -661,6 +665,12 @@ extern pthread_mutex_t __glXmutex;
 ** Setup for a command.  Initialize the extension for dpy if necessary.
 */
 extern CARD8 __glXSetupForCommand(Display * dpy);
+
+/*
+** Default for the glx_context_vtable.copy_context slot. Defined in glxcmds.c.
+*/
+extern void __glXCopyContext(Display *dpy, struct glx_context *src,
+                             struct glx_context *dst, unsigned long mask);
 
 /************************************************************************/
 

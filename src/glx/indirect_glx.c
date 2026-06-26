@@ -209,6 +209,7 @@ static const struct glx_context_vtable indirect_context_vtable = {
    .unbind              = indirect_unbind_context,
    .wait_gl             = indirect_wait_gl,
    .wait_x              = indirect_wait_x,
+   .copy_context        = __glXCopyContext,
 };
 
 struct glx_context *
