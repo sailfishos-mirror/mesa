@@ -185,6 +185,20 @@ panfrost-g610-piglit:arm64:
     HWCI_START_WESTON: 1
     LAVA_TAGS: 4gb
 
+panfrost-g610-opencl-cts-quick:arm64:
+  extends:
+    - .lava-arm64-test-gl
+    - .panfrost-panthor-gl-manual-rules
+    - .panfrost-test
+    - .test-opencl-cts
+    - .lava-rk3588-rock-5b:arm64
+  rules:
+    - !reference [.panfrost-panthor-gl-manual-rules, rules]
+    - !reference [.rusticl-manual-rules, rules]
+  variables:
+    DEQP_SUITE: panfrost-g610-opencl-cts-quick
+    LAVA_TAGS: 4gb
+
 panfrost-g610-vk:arm64:
   parallel: 4
   extends:
