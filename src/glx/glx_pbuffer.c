@@ -897,6 +897,7 @@ glXCreateWindow(Display * dpy, GLXFBConfig config, Window win,
    }
 
    if (visinfo->visualid != XVisualIDFromVisual(xwattr.visual)) {
+      free(visinfo);
       __glXSendError(dpy, BadMatch, 0, X_GLXCreateWindow, true);
       return None;
    }
