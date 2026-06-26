@@ -713,7 +713,7 @@ vk_image_view_init(struct vk_device *device,
    const VkImageUsageFlags image_usage =
       vk_image_usage(image, image_view->aspects);
    const VkImageViewUsageCreateInfo *usage_info =
-      vk_find_struct_const(pCreateInfo, IMAGE_VIEW_USAGE_CREATE_INFO);
+      vk_find_struct_const(pCreateInfo->pNext, IMAGE_VIEW_USAGE_CREATE_INFO);
    image_view->usage = usage_info ? usage_info->usage : image_usage;
    assert(driver_internal || !(image_view->usage & ~image_usage));
 }
