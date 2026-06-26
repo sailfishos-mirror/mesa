@@ -144,6 +144,7 @@ linkcheck_ignore = [
     r'https://www.freedesktop.org/.*',  # protected by anubis
     r'https://docs.redhat.com/.*',  # blocking the linkcheck user-agent
     r'https://registry.khronos.org/.*',  # blocking the linkcheck user-agent
+    r'https://alt.3dcenter.org/.*',  # blocking the linkcheck user-agent
 ]
 linkcheck_exclude_documents = [r'relnotes/.*']
 
