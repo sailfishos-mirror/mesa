@@ -4092,7 +4092,7 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
       if (image->planes[plane].aux_usage != ISL_AUX_USAGE_NONE) {
          anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
                        "%s does not support fast clear on %dx%d %s "
-                       "isl_tiling_%s image with usage 0x%x. Slow clearing.",
+                       "isl_tiling_%s image with usage 0x%"PRIx64". Slow clearing.",
                        vk_ImageLayout_to_str(layout),
                        image->vk.extent.width, image->vk.extent.height,
                        vk_format_description(image->vk.format)->short_name,
