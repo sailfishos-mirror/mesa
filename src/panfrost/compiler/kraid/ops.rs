@@ -503,6 +503,28 @@ impl PerCompFoldable for OpFCmp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [F16, V2F16, F32])]
+pub struct OpFMul {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub srcs: [Src; 2],
+}
+
+impl fmt::Display for OpFMul {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FMUL.{} {} {}",
+            &self.dst,
+            &self.dst_type,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [
     I16, S16, U16, V2I16, V2S16, V2U16,
     I32, S32, U32, I64, S64, U64
@@ -1269,6 +1291,7 @@ pub enum Op {
     F32ToF16(Box<OpF32ToF16>),
     FAdd(Box<OpFAdd>),
     FCmp(Box<OpFCmp>),
+    FMul(Box<OpFMul>),
     IAdd(Box<OpIAdd>),
     ICmp(Box<OpICmp>),
     IMul(Box<OpIMul>),

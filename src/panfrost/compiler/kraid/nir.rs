@@ -459,6 +459,13 @@ impl<'a> ShaderFromNir<'a> {
                     accum_op: CmpAccumOp::None,
                 });
             }
+            nir_op_fmul => {
+                b.push_op(OpFMul {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    srcs: [srcs(0), srcs(1)],
+                });
+            }
             nir_op_i2i8 | nir_op_i2i16 | nir_op_i2i32 => {
                 let dst_bits = alu.def.bit_size;
                 let src_bits = alu.get_src(0).bit_size();
