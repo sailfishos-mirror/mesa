@@ -8,6 +8,7 @@
 #include "jay_ir.h"
 #include "jay_opcodes.h"
 #include "jay_private.h"
+#include "shader_enums.h"
 
 /*
  * In addition to having enough total registers globally, the partition needs to
@@ -227,6 +228,38 @@ jay_partition_grf(jay_shader *shader)
          shader->prog_data->tcs.include_primitive_id +
          (shader->prog_data->tcs.input_vertices ?: BRW_MAX_TCS_INPUT_VERTICES);
       payload_u[1] = shader->push_grfs;
+      eot_4 = 16;
+   } else if (shader->stage == MESA_SHADER_GEOMETRY) {
+      /* Payload layout for geo shader (bspec 65389):
+       * 16       UGPR   Various fields stored in various subregisters.
+       * 1        GPR    Per-lane Instance IDs & URB Handles.
+       * if invocations == 1:
+       *    1-6   GPR    ICP URB input handles
+       * else if invocations > 1:
+       *    32    UGPR   ICP URB input handles
+       * Varies   UGPR   Constant Data
+       * Varies   GPR    Pushed URB vertex data
+       *
+       * Note that even though ICP URB input handles are technically optional,
+       * we always enable them anyway.
+       */
+      unsigned urb_push_size = shader->prog_data->vue.urb_read_length *
+                               8 *
+                               shader->prog_data->gs.vertices_in;
+
+      unsigned prim_id_size =
+         (shader->prog_data->gs.include_primitive_id ? 1 : 0);
+
+      if (shader->prog_data->gs.invocations == 1) {
+         unsigned urb_icp_size = shader->prog_data->gs.vertices_in;
+         payload_4[0] = 1 + prim_id_size + urb_icp_size;
+         payload_u[1] = shader->push_grfs;
+         payload_4[1] = urb_push_size;
+      } else {
+         payload_4[0] = 1 + prim_id_size;
+         payload_u[1] = 32 + shader->push_grfs;
+         payload_4[1] = urb_push_size;
+      }
       eot_4 = 16;
    } else if (shader->stage == MESA_SHADER_TESS_EVAL) {
       payload_4[0] = 4; /* tesscoord and URB output handles */

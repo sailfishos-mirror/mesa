@@ -7,6 +7,7 @@
 #include "compiler/intel_nir.h"
 #include "jay_private.h"
 #include "nir.h"
+#include "compiler/intel_prim.h"
 
 static inline enum intel_barycentric_mode
 brw_barycentric_mode(const struct brw_fs_prog_data *prog_data,
@@ -561,6 +562,66 @@ populate_tcs_prog_data(nir_shader *nir,
    prog_data->base.urb_read_length = 0;
 }
 
+/* TODO: this is copied in two places right now. probably dedup it? */
+static const uint32_t gl_prim_to_hw_prim[MESA_PRIM_TRIANGLE_STRIP_ADJACENCY + 1] = {
+   [MESA_PRIM_POINTS] = _3DPRIM_POINTLIST,
+   [MESA_PRIM_LINES] = _3DPRIM_LINELIST,
+   [MESA_PRIM_LINE_LOOP] = _3DPRIM_LINELOOP,
+   [MESA_PRIM_LINE_STRIP] = _3DPRIM_LINESTRIP,
+   [MESA_PRIM_TRIANGLES] = _3DPRIM_TRILIST,
+   [MESA_PRIM_TRIANGLE_STRIP] = _3DPRIM_TRISTRIP,
+   [MESA_PRIM_TRIANGLE_FAN] = _3DPRIM_TRIFAN,
+   [MESA_PRIM_QUADS] = _3DPRIM_QUADLIST,
+   [MESA_PRIM_QUAD_STRIP] = _3DPRIM_QUADSTRIP,
+   [MESA_PRIM_POLYGON] = _3DPRIM_POLYGON,
+   [MESA_PRIM_LINES_ADJACENCY] = _3DPRIM_LINELIST_ADJ,
+   [MESA_PRIM_LINE_STRIP_ADJACENCY] = _3DPRIM_LINESTRIP_ADJ,
+   [MESA_PRIM_TRIANGLES_ADJACENCY] = _3DPRIM_TRILIST_ADJ,
+   [MESA_PRIM_TRIANGLE_STRIP_ADJACENCY] = _3DPRIM_TRISTRIP_ADJ,
+};
+
+static void
+populate_gs_prog_data(nir_shader *nir,
+                      const struct brw_gs_prog_key *key,
+                      struct brw_gs_prog_data *prog_data)
+{
+   unsigned output_vertex_size_bytes = prog_data->base.vue_map.num_slots * 16;
+   assert(output_vertex_size_bytes <= GFX7_MAX_GS_OUTPUT_VERTEX_SIZE_BYTES);
+
+   prog_data->output_vertex_size_hwords =
+      align(output_vertex_size_bytes, 32) / 32;
+
+   prog_data->include_primitive_id =
+      BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_PRIMITIVE_ID);
+   prog_data->invocations = nir->info.gs.invocations;
+
+   uint32_t control_data_bits_per_vertex;
+
+   if (nir->info.gs.output_primitive == MESA_PRIM_POINTS) {
+      prog_data->control_data_format = GFX7_GS_CONTROL_DATA_FORMAT_GSCTL_SID;
+
+      if (nir->info.gs.active_stream_mask != (1 << 0)) {
+         control_data_bits_per_vertex = 2;
+      } else {
+         control_data_bits_per_vertex = 0;
+      }
+   } else {
+      prog_data->control_data_format = GFX7_GS_CONTROL_DATA_FORMAT_GSCTL_CUT;
+      control_data_bits_per_vertex = nir->info.gs.uses_end_primitive ? 1 : 0;
+   }
+
+   uint32_t control_data_header_size_bits =
+      nir->info.gs.vertices_out * control_data_bits_per_vertex;
+
+   prog_data->control_data_header_size_hwords =
+      align(control_data_header_size_bits, 256) / 256;
+
+   prog_data->output_topology =
+      gl_prim_to_hw_prim[nir->info.gs.output_primitive];
+
+   prog_data->vertices_in = nir->info.gs.vertices_in;
+}
+
 void
 jay_populate_prog_data(const struct intel_device_info *devinfo,
                        nir_shader *nir,
@@ -579,6 +640,8 @@ jay_populate_prog_data(const struct intel_device_info *devinfo,
 
       populate_fs_prog_data(nir, devinfo, &key->fs, &prog_data->fs,
                             NULL /* TODO: mue_map */, per_primitive_offsets);
+   } else if (nir->info.stage == MESA_SHADER_GEOMETRY) {
+      populate_gs_prog_data(nir, &key->gs, &prog_data->gs);
    }
 
    if (nir->info.stage == MESA_SHADER_VERTEX ||

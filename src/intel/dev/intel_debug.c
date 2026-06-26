@@ -287,12 +287,14 @@ static const struct debug_named_value use_jay_options[] = {
    { "tcs", BITFIELD_BIT(MESA_SHADER_TESS_CTRL), "Use jay for tessellation control shaders" },
    { "tes", BITFIELD_BIT(MESA_SHADER_TESS_EVAL), "Use jay for tessellation evaluation shaders" },
    { "fs",  BITFIELD_BIT(MESA_SHADER_FRAGMENT),  "Use jay for fragment shaders" },
+   { "gs",  BITFIELD_BIT(MESA_SHADER_GEOMETRY),  "Use jay for geometry shaders" },
    { "cs",  BITFIELD_BIT(MESA_SHADER_COMPUTE),   "Use jay for compute shaders"  },
    { "all", BITFIELD_BIT(MESA_SHADER_VERTEX) |
             BITFIELD_BIT(MESA_SHADER_TESS_CTRL) |
             BITFIELD_BIT(MESA_SHADER_TESS_EVAL) |
             BITFIELD_BIT(MESA_SHADER_FRAGMENT) |
-            BITFIELD_BIT(MESA_SHADER_COMPUTE),   "Use jay for supported shader stages"  },
+            BITFIELD_BIT(MESA_SHADER_COMPUTE) |
+            BITFIELD_BIT(MESA_SHADER_GEOMETRY),  "Use jay for supported shader stages"  },
    DEBUG_NAMED_VALUE_END
 };
 
