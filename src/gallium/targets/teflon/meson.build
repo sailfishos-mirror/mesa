@@ -43,6 +43,7 @@ if with_tests
     'test_teflon',
     'test_teflon.cpp',
     'test_executor.cpp',
+    'tflite-ref-ops.cc',
     tflite_flatbuffer_h,
     dependencies : [ idep_mesautil, idep_gtest ],
     link_with : [ tensorflow_lite ],
