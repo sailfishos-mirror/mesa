@@ -214,6 +214,7 @@ struct lp_build_nir_soa_context
    LLVMValueRef thread_data_ptr;
    LLVMValueRef null_qword_ptr;
    LLVMValueRef noop_store_ptr;
+   LLVMValueRef zero_buffer_ptr;
 
    LLVMValueRef ssbo_ptr;
 
@@ -1289,6 +1290,21 @@ ssbo_base_pointer(struct lp_build_nir_soa_context *bld,
    uint32_t shift_val = bit_size_to_shift_size(bit_size);
 
    LLVMValueRef ssbo_idx = invocation ? LLVMBuildExtractElement(gallivm->builder, index, invocation, "") : index;
+
+   if (!invocation_0_must_be_active(bld) &&
+       LLVMGetTypeKind(LLVMTypeOf(ssbo_idx)) == LLVMIntegerTypeKind &&
+       LLVMGetIntTypeWidth(LLVMTypeOf(ssbo_idx)) == 64) {
+      LLVMValueRef exec_mask = mask_vec_with_helpers(bld);
+      LLVMValueRef bitmask = LLVMBuildICmp(gallivm->builder, LLVMIntNE, exec_mask,
+                                           bld->uint_bld.zero, "");
+      bitmask = LLVMBuildBitCast(gallivm->builder, bitmask,
+                                 LLVMIntTypeInContext(gallivm->context, bld->uint_bld.type.length), "");
+      LLVMValueRef any_active = LLVMBuildICmp(gallivm->builder, LLVMIntNE, bitmask,
+                                              LLVMConstNull(LLVMTypeOf(bitmask)), "any_active");
+      LLVMValueRef zero_desc = LLVMBuildPtrToInt(gallivm->builder, bld->zero_buffer_ptr,
+                                                 bld->uint64_bld.elem_type, "");
+      ssbo_idx = LLVMBuildSelect(gallivm->builder, any_active, ssbo_idx, zero_desc, "");
+   }
 
    LLVMValueRef ssbo_size_ptr = lp_llvm_buffer_num_elements(gallivm, bld->ssbo_ptr, ssbo_idx, LP_MAX_TGSI_SHADER_BUFFERS);
    LLVMValueRef ssbo_ptr = lp_llvm_buffer_base(gallivm, bld->ssbo_ptr, ssbo_idx, LP_MAX_TGSI_SHADER_BUFFERS);
@@ -6045,6 +6061,7 @@ void lp_build_nir_soa_func(struct gallivm_state *gallivm,
 
    bld.null_qword_ptr = lp_build_alloca(gallivm, bld.uint64_bld.elem_type, "null_qword_ptr");
    bld.noop_store_ptr = lp_build_alloca_undef(gallivm, bld.uint64_bld.elem_type, "noop_store_ptr");
+   bld.zero_buffer_ptr = lp_build_alloca(gallivm, LLVMArrayType(bld.uint64_bld.elem_type, 2), "zero_buffer_ptr");
 
    emit_prologue(&bld);
 

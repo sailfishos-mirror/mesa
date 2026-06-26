@@ -866,21 +866,3 @@ dEQP-VK.sparse_resources.image_block_shapes.2d_array.b8g8r8g8_422_unorm.samples_
 
 # VKCTS 1.4.4.2 -> 1.4.5.3 uprev
 dEQP-VK.dgc.ext.graphics.misc.mix_normal_dgc_preprocess_with_vbo_token,Fail
-dEQP-VK.reconvergence.maximal.compute.nesting2.2.40,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting2.4.5,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting2.5.18,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting2.7.16,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting3.0.46,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting3.2.20,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting3.2.37,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting3.3.27,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting4.0.46,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting4.1.8,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting4.3.19,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting4.3.31,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting4.3.38,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting4.5.14,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting5.1.15,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting5.2.12,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting5.6.6,Crash
-dEQP-VK.reconvergence.maximal.compute.nesting6.2.7,Crash
