@@ -902,6 +902,10 @@ convert_color(enum pipe_format format, union pipe_color_union *pcolor)
       if (desc->channel[channel].normalized)
          continue;
 
+      /* No clamping needed for 32b formats: */
+      if (desc->channel[channel].size == 32)
+         continue;
+
       switch (desc->channel[channel].type) {
       case UTIL_FORMAT_TYPE_SIGNED:
          color.i[i] = MAX2(color.i[i], -(1<<(desc->channel[channel].size - 1)));
