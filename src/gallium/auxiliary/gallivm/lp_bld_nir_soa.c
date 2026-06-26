@@ -2604,6 +2604,15 @@ emit_launch_mesh_workgroups(struct lp_build_nir_soa_context *bld,
 
    local_invoc_idx = LLVMBuildExtractElement(gallivm->builder, local_invoc_idx, lp_build_const_int32(gallivm, 0), "");
    LLVMValueRef if_cond = LLVMBuildICmp(gallivm->builder, LLVMIntEQ, local_invoc_idx, lp_build_const_int32(gallivm, 0), "");
+   /* Skip a not-taken EmitMeshTasksEXT: both CF sides run under a mask. */
+   LLVMValueRef exec_mask = mask_vec(bld);
+   if (exec_mask) {
+      LLVMValueRef lane0 = LLVMBuildExtractElement(gallivm->builder, exec_mask,
+                                                   lp_build_const_int32(gallivm, 0), "");
+      LLVMValueRef active = LLVMBuildICmp(gallivm->builder, LLVMIntNE, lane0,
+                                          lp_build_const_int32(gallivm, 0), "");
+      if_cond = LLVMBuildAnd(gallivm->builder, if_cond, active, "");
+   }
    struct lp_build_if_state ifthen;
    lp_build_if(&ifthen, gallivm, if_cond);
    LLVMValueRef ptr = bld->payload_ptr;
