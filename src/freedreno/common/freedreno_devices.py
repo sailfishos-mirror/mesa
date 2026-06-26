@@ -309,6 +309,7 @@ add_gpus([
 add_gpus([
         GPUId(608),
         GPUId(612),
+        GPUId(613),
     ], A6xxGPUInfo(
         CHIP.A6XX,
         [a6xx_base, a6xx_gen1_low, GPUProps(reg_size_vec4 = 32)],
