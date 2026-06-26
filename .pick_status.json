@@ -1634,7 +1634,7 @@
         "description": "docs/features: Fix typo",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2088f359ff805af1b62becaa6c7f94053213f599",
         "notes": null
