@@ -412,67 +412,63 @@ etna_emit_texture_desc(struct etna_context *ctx)
       }
    }
 
-   if (unlikely(dirty & (ETNA_DIRTY_SAMPLERS | ETNA_DIRTY_SAMPLER_VIEWS))) {
-      for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
-         if ((1 << x) & active_samplers) {
-            struct etna_sampler_state_desc *ss = etna_sampler_state_desc(ctx->sampler[x]);
-            struct etna_sampler_view_desc *sv = etna_sampler_view_desc(ctx->sampler_view[x]);
-            uint32_t SAMP_CTRL0 = emit_desc_sampler_ctrl0(ss, sv);
+   if (likely(!(dirty & (ETNA_DIRTY_SAMPLERS | ETNA_DIRTY_SAMPLER_VIEWS)))) {
+      ctx->prev_active_samplers = active_samplers;
+      return;
+   }
 
-            emit_desc_sampler_state(stream, x, SAMP_CTRL0, ss, sv);
+   uint32_t used_hw = 0;
 
-            /* Apply same configuration to companion sampler. */
-            if (format_is_128bit(sv->base.format)) {
-               const unsigned y = companion_slot(ctx, x);
+   for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
+      if (!((1 << x) & active_samplers))
+         continue;
 
-               assert(!sv->ts.enable);
+      struct etna_sampler_state_desc *ss = etna_sampler_state_desc(ctx->sampler[x]);
+      struct etna_sampler_view_desc *sv = etna_sampler_view_desc(ctx->sampler_view[x]);
+      uint32_t SAMP_CTRL0 = emit_desc_sampler_ctrl0(ss, sv);
+      unsigned descriptor = ss->base.seamless_cube_map ? 1 : 0;
 
-               if (y != ~0U)
-                  emit_desc_sampler_state(stream, y, SAMP_CTRL0, ss, sv);
-            }
+      /* The descriptor address only changes with the view. */
+      const bool emit_addr = (1 << x) & ctx->dirty_sampler_views;
+
+      if (sv->has_rb_swap) {
+         struct etna_resource *rsc = etna_resource(sv->base.texture);
+
+         if (rsc->shared && rsc->shared_native_order)
+            descriptor += 2;
+      }
+
+      emit_desc_sampler_state(stream, x, SAMP_CTRL0, ss, sv);
+      if (emit_addr) {
+         etna_sampler_view_update_descriptor(ctx, stream, sv);
+         etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(x), &sv->DESC_ADDR[descriptor]);
+      }
+      used_hw |= 1u << x;
+
+      /* Apply same configuration to the 128-bit companion sampler. */
+      if (format_is_128bit(sv->base.format)) {
+         const unsigned y = companion_slot(ctx, x);
+
+         assert(!sv->ts.enable);
+
+         if (y != ~0U) {
+            assert(descriptor + 2 < ARRAY_SIZE(sv->DESC_ADDR));
+
+            emit_desc_sampler_state(stream, y, SAMP_CTRL0, ss, sv);
+            if (emit_addr)
+               etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(y), &sv->DESC_ADDR[descriptor + 2]);
+            used_hw |= 1u << y;
          }
       }
    }
 
-   unsigned layer_samplers = 0;
-
-   if (unlikely(dirty & (ETNA_DIRTY_SAMPLERS | ETNA_DIRTY_SAMPLER_VIEWS))) {
-      /* Set texture descriptors */
-      for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
-         if ((1 << x) & ctx->dirty_sampler_views) {
-            if ((1 << x) & active_samplers) {
-               struct etna_sampler_state_desc *ss = etna_sampler_state_desc(ctx->sampler[x]);
-               struct etna_sampler_view_desc *sv = etna_sampler_view_desc(ctx->sampler_view[x]);
-               unsigned descriptor = ss->base.seamless_cube_map ? 1 : 0;
-
-               if (sv->has_rb_swap) {
-                  struct etna_resource *rsc = etna_resource(sv->base.texture);
-
-                  if (rsc->shared && rsc->shared_native_order)
-                     descriptor += 2;
-               }
-
-               etna_sampler_view_update_descriptor(ctx, stream, sv);
-               etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(x), &sv->DESC_ADDR[descriptor]);
-
-               if (format_is_128bit(sv->base.format)) {
-                  const unsigned y = companion_slot(ctx, x);
-
-                  if (y != ~0U) {
-                     assert(descriptor + 2 < ARRAY_SIZE(sv->DESC_ADDR));
-
-                     etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(y),
-                                          &sv->DESC_ADDR[descriptor + 2]);
-                     layer_samplers |= (1 << y);
-                  }
-               }
-            } else if (!(layer_samplers & (1 << x))) {
-               /* dummy texture descriptors for unused samplers */
-               etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(x),
-                                    &ctx->screen->dummy_desc_reloc);
-            }
-         }
-      }
+   /* Dummy descriptors for the dirty slots not backed by a sampler/companion. */
+   for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
+      if (used_hw & (1u << x))
+         continue;
+      if ((1 << x) & ctx->dirty_sampler_views)
+         etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(x),
+                              &ctx->screen->dummy_desc_reloc);
    }
 
    if (unlikely(dirty & ETNA_DIRTY_SAMPLER_VIEWS)) {
