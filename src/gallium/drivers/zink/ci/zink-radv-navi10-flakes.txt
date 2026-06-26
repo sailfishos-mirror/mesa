@@ -78,3 +78,5 @@ glx@glx-visuals-depth
 glx@glx-visuals-depth -pixmap
 glx@glx-visuals-stencil
 glx@glx-visuals-stencil -pixmap
+
+spec@arb_query_buffer_object@qbo
