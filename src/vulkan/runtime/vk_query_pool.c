@@ -49,6 +49,16 @@ vk_query_pool_init(struct vk_device *device,
          vk_find_struct_const(pCreateInfo->pNext, QUERY_POOL_VIDEO_ENCODE_FEEDBACK_CREATE_INFO_KHR);
       if (feedback_info)
          query_pool->encode_feedback_flags = feedback_info->encodeFeedbackFlags;
+
+      const VkQueryPoolVideoEncodePerPartitionFeedbackCreateInfoKHR *per_partition_info =
+         vk_find_struct_const(pCreateInfo->pNext,
+                              QUERY_POOL_VIDEO_ENCODE_PER_PARTITION_FEEDBACK_CREATE_INFO_KHR);
+      if (per_partition_info) {
+         query_pool->encode_max_per_partition_count =
+            per_partition_info->maxPerPartitionFeedbackEntries;
+         query_pool->encode_per_partition_feedback_flags =
+            per_partition_info->perPartitionEncodeFeedbackFlags;
+      }
    }
 }
 

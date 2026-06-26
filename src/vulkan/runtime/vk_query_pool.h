@@ -50,6 +50,8 @@ struct vk_query_pool {
     * zero.
     */
    VkVideoEncodeFeedbackFlagsKHR encode_feedback_flags;
+   uint32_t encode_max_per_partition_count;
+   VkVideoEncodePerPartitionFeedbackFlagsKHR encode_per_partition_feedback_flags;
 };
 
 void vk_query_pool_init(struct vk_device *device,
