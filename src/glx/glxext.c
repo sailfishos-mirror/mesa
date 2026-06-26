@@ -741,6 +741,12 @@ bind_extensions(struct glx_screen *psc, const char *driverName)
 {
    unsigned mask;
 
+#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+   /* Some implementations (eg: AppleGL) never populate frontend_screen. */
+   if (psc->frontend_screen == NULL)
+      return;
+#endif
+
    if (psc->display->driver != GLX_DRIVER_SW) {
       __glXEnableDirectExtension(psc, "GLX_EXT_buffer_age");
       __glXEnableDirectExtension(psc, "GLX_EXT_swap_control");
