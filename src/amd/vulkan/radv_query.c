@@ -1896,7 +1896,7 @@ radv_create_query_pool(struct radv_device *device, const VkQueryPoolCreateInfo *
                                 : sizeof(struct radv_query_pool);
 
    struct radv_query_pool *pool =
-      vk_alloc2(&device->vk.alloc, pAllocator, pool_struct_size, 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      vk_zalloc2(&device->vk.alloc, pAllocator, pool_struct_size, 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
 
    if (!pool)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
@@ -1973,6 +1973,14 @@ radv_create_query_pool(struct radv_device *device, const VkQueryPoolCreateInfo *
          pool->stride = 16;
       }
       break;
+   case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
+      {
+         const VkVideoProfileInfoKHR *profile = vk_find_struct_const(pCreateInfo->pNext, VIDEO_PROFILE_INFO_KHR);
+         assert(profile->videoCodecOperation == VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR ||
+                profile->videoCodecOperation == VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR ||
+                profile->videoCodecOperation == VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR);
+      }
+      FALLTHROUGH;
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       pool->stride = 48;
       break;
@@ -2042,6 +2050,7 @@ radv_get_rel_timeout_for_query(VkQueryType type)
    case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
    case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
    case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT:
+   case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       return radv_get_tdr_timeout_for_ip(AMD_IP_GFX) * 2;
    default:
@@ -2367,6 +2376,7 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
          }
          break;
       }
+      case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
       case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR: {
          const bool write_memory =
             pdev->info.video_caps.queue[AMD_IP_VCN_ENC].write_memory == AC_VIDEO_WRITE_MEMORY_SUPPORT_FULL;
@@ -2608,6 +2618,7 @@ emit_begin_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *poo
    case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT:
       radv_begin_ms_prim_query(cmd_buffer, va);
       break;
+   case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       cmd_buffer->video.feedback_query_va = va;
       break;
@@ -2642,6 +2653,7 @@ emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool,
    case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT:
       radv_end_ms_prim_query(cmd_buffer, va, avail_va);
       break;
+   case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       cmd_buffer->video.feedback_query_va = 0;
       break;
