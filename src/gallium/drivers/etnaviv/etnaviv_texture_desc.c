@@ -345,6 +345,43 @@ etna_sampler_view_desc_destroy(struct pipe_context *pctx,
 }
 
 static void
+emit_desc_sampler_state(struct etna_cmd_stream *stream, unsigned slot,
+                        uint32_t SAMP_CTRL0,
+                        struct etna_sampler_state_desc *ss,
+                        struct etna_sampler_view_desc *sv)
+{
+   etna_set_state(stream, VIVS_NTE_DESCRIPTOR_TX_CTRL(slot),
+      COND(sv->ts.enable, VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_ENABLE) |
+      VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_MODE(sv->ts.mode) |
+      VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_INDEX(slot) |
+      COND(sv->ts.comp, VIVS_NTE_DESCRIPTOR_TX_CTRL_COMPRESSION) |
+      COND(!sv->ts.mode, VIVS_NTE_DESCRIPTOR_TX_CTRL_128B_TILE));
+   etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_CTRL0(slot), SAMP_CTRL0);
+   etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_CTRL1(slot), ss->SAMP_CTRL1 | sv->SAMP_CTRL1);
+   etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_LOD_MINMAX(slot), ss->SAMP_LOD_MINMAX);
+   etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_LOD_BIAS(slot), ss->SAMP_LOD_BIAS);
+   etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_ANISOTROPY(slot), ss->SAMP_ANISOTROPY);
+}
+
+static uint32_t
+emit_desc_sampler_ctrl0(struct etna_sampler_state_desc *ss,
+                        struct etna_sampler_view_desc *sv)
+{
+   uint32_t SAMP_CTRL0 = (ss->SAMP_CTRL0 & sv->SAMP_CTRL0_MASK) | sv->SAMP_CTRL0;
+
+   if (texture_use_int_filter(&sv->base, &ss->base, true))
+      SAMP_CTRL0 |= VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_INT_FILTER;
+
+   if (util_format_description(sv->base.format)->colorspace == UTIL_FORMAT_COLORSPACE_ZS &&
+       ss->base.min_mip_filter == PIPE_TEX_MIPFILTER_LINEAR) {
+      SAMP_CTRL0 &= ~VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_MIP__MASK;
+      SAMP_CTRL0 |= VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_MIP(TEXTURE_FILTER_NEAREST);
+   }
+
+   return SAMP_CTRL0;
+}
+
+static void
 etna_emit_texture_desc(struct etna_context *ctx)
 {
    struct etna_cmd_stream *stream = ctx->stream;
@@ -380,28 +417,9 @@ etna_emit_texture_desc(struct etna_context *ctx)
          if ((1 << x) & active_samplers) {
             struct etna_sampler_state_desc *ss = etna_sampler_state_desc(ctx->sampler[x]);
             struct etna_sampler_view_desc *sv = etna_sampler_view_desc(ctx->sampler_view[x]);
-            uint32_t SAMP_CTRL0 = (ss->SAMP_CTRL0 & sv->SAMP_CTRL0_MASK) | sv->SAMP_CTRL0;
+            uint32_t SAMP_CTRL0 = emit_desc_sampler_ctrl0(ss, sv);
 
-            if (texture_use_int_filter(&sv->base, &ss->base, true))
-               SAMP_CTRL0 |= VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_INT_FILTER;
-
-            if (util_format_description(sv->base.format)->colorspace == UTIL_FORMAT_COLORSPACE_ZS &&
-                ss->base.min_mip_filter == PIPE_TEX_MIPFILTER_LINEAR) {
-               SAMP_CTRL0 &= ~VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_MIP__MASK;
-               SAMP_CTRL0 |= VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_MIP(TEXTURE_FILTER_NEAREST);
-            }
-
-            etna_set_state(stream, VIVS_NTE_DESCRIPTOR_TX_CTRL(x),
-               COND(sv->ts.enable, VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_ENABLE) |
-               VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_MODE(sv->ts.mode) |
-               VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_INDEX(x)|
-               COND(sv->ts.comp, VIVS_NTE_DESCRIPTOR_TX_CTRL_COMPRESSION) |
-               COND(!sv->ts.mode, VIVS_NTE_DESCRIPTOR_TX_CTRL_128B_TILE));
-            etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_CTRL0(x), SAMP_CTRL0);
-            etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_CTRL1(x), ss->SAMP_CTRL1 | sv->SAMP_CTRL1);
-            etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_LOD_MINMAX(x), ss->SAMP_LOD_MINMAX);
-            etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_LOD_BIAS(x), ss->SAMP_LOD_BIAS);
-            etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_ANISOTROPY(x), ss->SAMP_ANISOTROPY);
+            emit_desc_sampler_state(stream, x, SAMP_CTRL0, ss, sv);
 
             /* Apply same configuration to companion sampler. */
             if (format_is_128bit(sv->base.format)) {
@@ -409,23 +427,8 @@ etna_emit_texture_desc(struct etna_context *ctx)
 
                assert(!sv->ts.enable);
 
-               if (y != ~0U) {
-                  etna_set_state(stream, VIVS_NTE_DESCRIPTOR_TX_CTRL(y),
-                     COND(sv->ts.enable, VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_ENABLE) |
-                     VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_MODE(sv->ts.mode) |
-                     VIVS_NTE_DESCRIPTOR_TX_CTRL_TS_INDEX(y) |
-                     COND(sv->ts.comp, VIVS_NTE_DESCRIPTOR_TX_CTRL_COMPRESSION) |
-                     COND(!sv->ts.mode, VIVS_NTE_DESCRIPTOR_TX_CTRL_128B_TILE));
-                  etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_CTRL0(y), SAMP_CTRL0);
-                  etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_CTRL1(y),
-                                 ss->SAMP_CTRL1 | sv->SAMP_CTRL1);
-                  etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_LOD_MINMAX(y),
-                                 ss->SAMP_LOD_MINMAX);
-                  etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_LOD_BIAS(y),
-                                 ss->SAMP_LOD_BIAS);
-                  etna_set_state(stream, VIVS_NTE_DESCRIPTOR_SAMP_ANISOTROPY(y),
-                                 ss->SAMP_ANISOTROPY);
-               }
+               if (y != ~0U)
+                  emit_desc_sampler_state(stream, y, SAMP_CTRL0, ss, sv);
             }
          }
       }
