@@ -3520,7 +3520,7 @@ jay_compile(const struct intel_device_info *devinfo,
    jay_debug = debug_get_option_jay_debug();
    bool debug =
       INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage)) &&
-      !(nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
+      (!nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
 
    bool track_helpers = false;
    unsigned simd_width =
