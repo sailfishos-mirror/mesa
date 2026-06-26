@@ -381,12 +381,26 @@ emit_desc_sampler_ctrl0(struct etna_sampler_state_desc *ss,
    return SAMP_CTRL0;
 }
 
+/* Map an internal ctx->sampler[] index to its HW descriptor slot. */
+static unsigned
+etna_sampler_hw_slot(struct etna_context *ctx, unsigned idx)
+{
+   const unsigned vs_off = ctx->screen->specs.vertex_sampler_offset;
+
+   if (idx < vs_off)
+      return idx;
+
+   return idx - vs_off + etna_vs_sampler_base(ctx);
+}
+
 static void
 etna_emit_texture_desc(struct etna_context *ctx)
 {
    struct etna_cmd_stream *stream = ctx->stream;
+   const bool unified = ctx->screen->specs.unified_samplers;
    uint32_t active_samplers = active_samplers_bits(ctx);
    uint32_t dirty = ctx->dirty;
+   uint32_t used_hw = 0;
 
    if (unlikely(dirty & ETNA_DIRTY_SAMPLER_VIEWS)) {
       for (int x = 0; x < VIVS_TS_SAMPLER__LEN; ++x) {
@@ -417,19 +431,32 @@ etna_emit_texture_desc(struct etna_context *ctx)
       return;
    }
 
-   uint32_t used_hw = 0;
+   /* With unified samplers the fragment and vertex stages share one 32-entry
+    * HW array, partitioned dynamically: the shaders use 0-based per-stage
+    * indices and VS_SAMPLER_BASE supplies the vertex base.
+    * etna_sampler_hw_slot() is the identity for the legacy fixed split, so
+    * the body below serves both.
+    *
+    * The vertex base shifts with the fragment sampler count, so a slot can
+    * move between draws even when its own view did not change. The loops
+    * below therefore refresh the whole array under unified, not just the
+    * dirty slots.
+    */
+   if (unified)
+      etna_set_state(stream, VIVS_VS_SAMPLER_BASE, etna_vs_sampler_base(ctx));
 
    for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
       if (!((1 << x) & active_samplers))
          continue;
 
+      const unsigned hw = etna_sampler_hw_slot(ctx, x);
       struct etna_sampler_state_desc *ss = etna_sampler_state_desc(ctx->sampler[x]);
       struct etna_sampler_view_desc *sv = etna_sampler_view_desc(ctx->sampler_view[x]);
       uint32_t SAMP_CTRL0 = emit_desc_sampler_ctrl0(ss, sv);
       unsigned descriptor = ss->base.seamless_cube_map ? 1 : 0;
 
       /* The descriptor address only changes with the view. */
-      const bool emit_addr = (1 << x) & ctx->dirty_sampler_views;
+      const bool emit_addr = unified || ((1 << x) & ctx->dirty_sampler_views);
 
       if (sv->has_rb_swap) {
          struct etna_resource *rsc = etna_resource(sv->base.texture);
@@ -438,12 +465,12 @@ etna_emit_texture_desc(struct etna_context *ctx)
             descriptor += 2;
       }
 
-      emit_desc_sampler_state(stream, x, SAMP_CTRL0, ss, sv);
+      emit_desc_sampler_state(stream, hw, SAMP_CTRL0, ss, sv);
       if (emit_addr) {
          etna_sampler_view_update_descriptor(ctx, stream, sv);
-         etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(x), &sv->DESC_ADDR[descriptor]);
+         etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(hw), &sv->DESC_ADDR[descriptor]);
       }
-      used_hw |= 1u << x;
+      used_hw |= 1u << hw;
 
       /* Apply same configuration to the 128-bit companion sampler. */
       if (format_is_128bit(sv->base.format)) {
@@ -466,7 +493,7 @@ etna_emit_texture_desc(struct etna_context *ctx)
    for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
       if (used_hw & (1u << x))
          continue;
-      if ((1 << x) & ctx->dirty_sampler_views)
+      if (unified || ((1 << x) & ctx->dirty_sampler_views))
          etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(x),
                               &ctx->screen->dummy_desc_reloc);
    }
@@ -475,7 +502,7 @@ etna_emit_texture_desc(struct etna_context *ctx)
       /* Invalidate all dirty sampler views.
        */
       for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
-         if ((1 << x) & ctx->dirty_sampler_views) {
+         if (unified || ((1 << x) & ctx->dirty_sampler_views)) {
             etna_set_state(stream, VIVS_NTE_DESCRIPTOR_INVALIDATE,
                   VIVS_NTE_DESCRIPTOR_INVALIDATE_UNK29 |
                   VIVS_NTE_DESCRIPTOR_INVALIDATE_IDX(x));

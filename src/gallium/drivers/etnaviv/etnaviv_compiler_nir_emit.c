@@ -207,9 +207,15 @@ etna_emit_tex(struct etna_compile *c, nir_tex_instr * tex, unsigned dst_swiz,
               struct etna_inst_dst dst, struct etna_inst_src coord,
               struct etna_inst_src src1, struct etna_inst_src src2)
 {
+   /* With unified samplers the VS sampler index is 0-based and the per-stage
+    * base comes from VS_SAMPLER_BASE at draw time.
+    */
+   unsigned sampler_base = (is_fs(c) || c->specs->unified_samplers)
+                           ? 0 : c->specs->vertex_sampler_offset;
+
    struct etna_inst inst = {
       .dst = dst,
-      .tex.id = tex->sampler_index + (is_fs(c) ? 0 : c->specs->vertex_sampler_offset),
+      .tex.id = tex->sampler_index + sampler_base,
       .tex.swiz = dst_swiz,
       .src[0] = coord,
    };
