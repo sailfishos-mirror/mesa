@@ -1473,8 +1473,23 @@ tu_get_image_subresource_layout(struct tu_image *image,
             VK_IMAGE_COMPRESSION_DISABLED_EXT;
    }
 
-   if (fdl_ubwc_enabled(layout, pSubresource->imageSubresource.mipLevel)) {
-      /* UBWC starts at offset 0 */
+   /* UBWC layout fixups only apply to DRM modifier images. */
+   if (image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
+       fdl_ubwc_enabled(layout, pSubresource->imageSubresource.mipLevel)) {
+      /* From the Vulkan 1.4.357 spec, vkGetImageSubresourceLayout():
+       *
+       *    "If the image’s tiling is VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT
+       *     and the image is non-linear, then the returned layout has an
+       *     implementation-dependent meaning; the vendor of the image’s DRM
+       *     format modifier may provide documentation that explains how to
+       *     interpret the returned layout."
+       *
+       * In particular, we report that the subresource offset is the
+       * beginning of any data related to the (single) subresource (in this
+       * case, the UBWC contents), since that value may get queried and
+       * passed as an offset within the FD for the image contents -- the
+       * position of the rest of the image data including uncompressed
+       * contents is implied from the format modifier. */
       pLayout->subresourceLayout.offset = 0;
       /* UBWC scanout won't match what the kernel wants if we have levels/layers */
       assert(image->vk.mip_levels == 1 && image->vk.array_layers == 1);
