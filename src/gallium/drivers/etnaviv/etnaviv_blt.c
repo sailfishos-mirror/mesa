@@ -761,7 +761,7 @@ etna_try_blt_blit(struct pipe_context *pctx,
       return false;
    }
 
-   struct blt_conv_swizzle conv_swizzle;
+   struct blt_conv_swizzle conv_swizzle = { 0 };
    bool has_conversion = false;
    enum pipe_format src_fmt = blit_info->src.format;
    enum pipe_format dst_fmt = blit_info->dst.format;
