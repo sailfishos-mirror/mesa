@@ -264,7 +264,7 @@ static void pvr_physical_device_get_supported_features(
       .occlusionQueryPrecise = false,
       .pipelineStatisticsQuery = false,
       .vertexPipelineStoresAndAtomics = false,
-      .fragmentStoresAndAtomics = false,
+      .fragmentStoresAndAtomics = true,
       .shaderTessellationAndGeometryPointSize = false,
       .shaderImageGatherExtended = true,
       .shaderStorageImageExtendedFormats = true,
