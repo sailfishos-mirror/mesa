@@ -570,16 +570,14 @@ nvk_mme_dispatch_indirect(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdDispatchIndirect(VkCommandBuffer commandBuffer,
-                        VkBuffer _buffer,
-                        VkDeviceSize offset)
+nvk_CmdDispatchIndirect2KHR(VkCommandBuffer commandBuffer,
+                            const VkDispatchIndirect2InfoKHR* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
 
-   uint64_t dispatch_addr = vk_buffer_address(&buffer->vk, offset);
+   uint64_t dispatch_addr = pInfo->addressRange.address;
 
    /* We set these through the MME */
    uint32_t base_workgroup[3] = { 0, 0, 0 };

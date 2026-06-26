@@ -4485,16 +4485,11 @@ nvk_mme_bind_ib(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer,
-                           VkBuffer _buffer,
-                           VkDeviceSize offset,
-                           VkDeviceSize size,
-                           VkIndexType indexType)
+nvk_CmdBindIndexBuffer3KHR(VkCommandBuffer commandBuffer,
+                           const VkBindIndexBuffer3InfoKHR* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   const VkDeviceAddressRangeKHR addr_range =
-      vk_device_address_range(&buffer->vk, offset, size);
+   const VkDeviceAddressRangeKHR addr_range = pInfo->addressRange;
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_BIND_IB));
@@ -4502,7 +4497,7 @@ nvk_CmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer,
    P_INLINE_DATA(p, addr_range.address);
    assert(addr_range.size <= UINT32_MAX);
    P_INLINE_DATA(p, addr_range.size);
-   P_INLINE_DATA(p, indexType);
+   P_INLINE_DATA(p, pInfo->indexType);
 }
 
 void
@@ -4627,28 +4622,24 @@ nvk_cmd_bind_vertex_buffer(struct nvk_cmd_buffer *cmd, uint32_t vb_idx,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer,
-                          uint32_t firstBinding,
-                          uint32_t bindingCount,
-                          const VkBuffer *pBuffers,
-                          const VkDeviceSize *pOffsets,
-                          const VkDeviceSize *pSizes,
-                          const VkDeviceSize *pStrides)
+nvk_CmdBindVertexBuffers3KHR(VkCommandBuffer commandBuffer,
+                             uint32_t firstBinding,
+                             uint32_t bindingCount,
+                             const VkBindVertexBuffer3InfoKHR* pBindingInfos)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
 
-   if (pStrides) {
-      vk_cmd_set_vertex_binding_strides(&cmd->vk, firstBinding,
-                                        bindingCount, pStrides);
-   }
+   vk_cmd_set_vertex_binding_strides2(&cmd->vk, firstBinding,
+                                       bindingCount, pBindingInfos);
 
    for (uint32_t i = 0; i < bindingCount; i++) {
-      VK_FROM_HANDLE(nvk_buffer, buffer, pBuffers[i]);
       uint32_t idx = firstBinding + i;
 
-      uint64_t size = pSizes ? pSizes[i] : VK_WHOLE_SIZE;
-      const VkDeviceAddressRangeKHR addr_range =
-         vk_device_address_range(&buffer->vk, pOffsets[i], size);
+      const VkStridedDeviceAddressRangeKHR strided_range = pBindingInfos[i].addressRange;
+      VkDeviceAddressRangeKHR addr_range = {
+         .address = strided_range.address,
+         .size = strided_range.size
+      };
 
       nvk_cmd_bind_vertex_buffer(cmd, idx, addr_range);
    }
@@ -5155,17 +5146,13 @@ nvk_mme_draw_indirect(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdDrawIndirect(VkCommandBuffer commandBuffer,
-                    VkBuffer _buffer,
-                    VkDeviceSize offset,
-                    uint32_t drawCount,
-                    uint32_t _stride)
+nvk_CmdDrawIndirect2KHR(VkCommandBuffer commandBuffer,
+                        const VkDrawIndirect2InfoKHR* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   uint64_t stride = _stride;
+   uint64_t stride = pInfo->addressRange.stride;
 
-   if (unlikely(!drawCount))
+   if (unlikely(!pInfo->drawCount))
       return;
 
    /* From the Vulkan 1.3.238 spec:
@@ -5179,7 +5166,7 @@ nvk_CmdDrawIndirect(VkCommandBuffer commandBuffer,
     *
     *    "If drawCount is less than or equal to one, stride is ignored."
     */
-   if (drawCount > 1) {
+   if (pInfo->drawCount > 1) {
       assert(stride % 4 == 0);
       assert(stride >= sizeof(VkDrawIndirectCommand));
    } else {
@@ -5191,19 +5178,20 @@ nvk_CmdDrawIndirect(VkCommandBuffer commandBuffer,
    if (nvk_cmd_buffer_3d_cls(cmd) >= TURING_A) {
       struct nv_push *p = nvk_cmd_buffer_push(cmd, 6);
       P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDIRECT));
-      uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
+      uint64_t draw_addr = pInfo->addressRange.address;
       P_INLINE_DATA(p, draw_addr >> 32);
       P_INLINE_DATA(p, draw_addr);
-      P_INLINE_DATA(p, drawCount);
+      P_INLINE_DATA(p, pInfo->drawCount);
       P_INLINE_DATA(p, stride >> 32);
       P_INLINE_DATA(p, stride);
    } else {
       const uint32_t max_draws_per_push =
          MAX2(((NV_PUSH_MAX_COUNT - 3) * 4) / stride, 1);
 
-      uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
-      while (drawCount) {
-         const uint32_t count = MIN2(drawCount, max_draws_per_push);
+      uint64_t draw_addr = pInfo->addressRange.address;
+      uint32_t draw_count = pInfo->drawCount;
+      while (draw_count) {
+         const uint32_t count = MIN2(draw_count, max_draws_per_push);
 
          uint64_t range;
          uint32_t ignored;
@@ -5224,7 +5212,7 @@ nvk_CmdDrawIndirect(VkCommandBuffer commandBuffer,
          nvk_cmd_buffer_push_indirect(cmd, draw_addr, range);
 
          draw_addr += count * (uint64_t)stride;
-         drawCount -= count;
+         draw_count -= count;
       }
    }
 }
@@ -5269,15 +5257,11 @@ nvk_mme_draw_indexed_indirect(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer,
-                           VkBuffer _buffer,
-                           VkDeviceSize offset,
-                           uint32_t drawCount,
-                           uint32_t _stride)
+nvk_CmdDrawIndexedIndirect2KHR(VkCommandBuffer commandBuffer,
+                               const VkDrawIndirect2InfoKHR* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   uint64_t stride = _stride;
+   uint64_t stride = pInfo->addressRange.stride;
 
    /* From the Vulkan 1.3.238 spec:
     *
@@ -5290,7 +5274,7 @@ nvk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer,
     *
     *    "If drawCount is less than or equal to one, stride is ignored."
     */
-   if (drawCount > 1) {
+   if (pInfo->drawCount > 1) {
       assert(stride % 4 == 0);
       assert(stride >= sizeof(VkDrawIndexedIndirectCommand));
    } else {
@@ -5302,19 +5286,20 @@ nvk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer,
    if (nvk_cmd_buffer_3d_cls(cmd) >= TURING_A) {
       struct nv_push *p = nvk_cmd_buffer_push(cmd, 6);
       P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDEXED_INDIRECT));
-      uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
+      uint64_t draw_addr = pInfo->addressRange.address;
       P_INLINE_DATA(p, draw_addr >> 32);
       P_INLINE_DATA(p, draw_addr);
-      P_INLINE_DATA(p, drawCount);
+      P_INLINE_DATA(p, pInfo->drawCount);
       P_INLINE_DATA(p, stride >> 32);
       P_INLINE_DATA(p, stride);
    } else {
       const uint32_t max_draws_per_push =
          MAX2(((NV_PUSH_MAX_COUNT - 3) * 4) / stride, 1);
 
-      uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
-      while (drawCount) {
-         const uint32_t count = MIN2(drawCount, max_draws_per_push);
+      uint64_t draw_addr = pInfo->addressRange.address;
+      uint32_t draw_count = pInfo->drawCount;
+      while (draw_count) {
+         const uint32_t count = MIN2(draw_count, max_draws_per_push);
 
          uint64_t range;
          uint32_t ignored;
@@ -5335,7 +5320,7 @@ nvk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer,
          nvk_cmd_buffer_push_indirect(cmd, draw_addr, range);
 
          draw_addr += count * (uint64_t)stride;
-         drawCount -= count;
+         draw_count -= count;
       }
    }
 }
@@ -5372,18 +5357,10 @@ nvk_mme_draw_indirect_count(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdDrawIndirectCount(VkCommandBuffer commandBuffer,
-                         VkBuffer _buffer,
-                         VkDeviceSize offset,
-                         VkBuffer countBuffer,
-                         VkDeviceSize countBufferOffset,
-                         uint32_t maxDrawCount,
-                         uint32_t _stride)
+nvk_CmdDrawIndirectCount2KHR(VkCommandBuffer commandBuffer,
+                             const VkDrawIndirectCount2InfoKHR* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   VK_FROM_HANDLE(nvk_buffer, count_buffer, countBuffer);
-   uint64_t stride = _stride;
 
    /* TODO: Indirect count draw pre-Turing */
    assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
@@ -5392,16 +5369,15 @@ nvk_CmdDrawIndirectCount(VkCommandBuffer commandBuffer,
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 8);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDIRECT_COUNT));
-   uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
+   uint64_t draw_addr = pInfo->addressRange.address;
    P_INLINE_DATA(p, draw_addr >> 32);
    P_INLINE_DATA(p, draw_addr);
-   uint64_t draw_count_addr = vk_buffer_address(&count_buffer->vk,
-                                                countBufferOffset);
+   uint64_t draw_count_addr = pInfo->countAddressRange.address;
    P_INLINE_DATA(p, draw_count_addr >> 32);
    P_INLINE_DATA(p, draw_count_addr);
-   P_INLINE_DATA(p, maxDrawCount);
-   P_INLINE_DATA(p, stride >> 32);
-   P_INLINE_DATA(p, stride);
+   P_INLINE_DATA(p, pInfo->maxDrawCount);
+   P_INLINE_DATA(p, pInfo->addressRange.stride >> 32);
+   P_INLINE_DATA(p, pInfo->addressRange.stride);
 }
 
 void
@@ -5436,18 +5412,10 @@ nvk_mme_draw_indexed_indirect_count(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer,
-                                VkBuffer _buffer,
-                                VkDeviceSize offset,
-                                VkBuffer countBuffer,
-                                VkDeviceSize countBufferOffset,
-                                uint32_t maxDrawCount,
-                                uint32_t _stride)
+nvk_CmdDrawIndexedIndirectCount2KHR(VkCommandBuffer commandBuffer,
+                                    const VkDrawIndirectCount2InfoKHR* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   VK_FROM_HANDLE(nvk_buffer, count_buffer, countBuffer);
-   uint64_t stride = _stride;
 
    /* TODO: Indexed indirect count draw pre-Turing */
    assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
@@ -5456,16 +5424,15 @@ nvk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer,
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 8);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDEXED_INDIRECT_COUNT));
-   uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
+   uint64_t draw_addr = pInfo->addressRange.address;
    P_INLINE_DATA(p, draw_addr >> 32);
    P_INLINE_DATA(p, draw_addr);
-   uint64_t draw_count_addr = vk_buffer_address(&count_buffer->vk,
-                                                countBufferOffset);
+   uint64_t draw_count_addr = pInfo->countAddressRange.address;
    P_INLINE_DATA(p, draw_count_addr >> 32);
    P_INLINE_DATA(p, draw_count_addr);
-   P_INLINE_DATA(p, maxDrawCount);
-   P_INLINE_DATA(p, stride >> 32);
-   P_INLINE_DATA(p, stride);
+   P_INLINE_DATA(p, pInfo->maxDrawCount);
+   P_INLINE_DATA(p, pInfo->addressRange.stride >> 32);
+   P_INLINE_DATA(p, pInfo->addressRange.stride);
 }
 
 static void
@@ -5553,25 +5520,21 @@ nvk_mme_xfb_draw_indirect(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdDrawIndirectByteCountEXT(VkCommandBuffer commandBuffer,
-                                uint32_t instanceCount,
-                                uint32_t firstInstance,
-                                VkBuffer counterBuffer,
-                                VkDeviceSize counterBufferOffset,
-                                uint32_t counterOffset,
-                                uint32_t vertexStride)
+nvk_CmdDrawIndirectByteCount2EXT(VkCommandBuffer commandBuffer,
+                                 uint32_t instanceCount,
+                                 uint32_t firstInstance,
+                                 const VkBindTransformFeedbackBuffer2InfoEXT* pCounterInfo,
+                                 uint32_t counterOffset,
+                                 uint32_t vertexStride)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, counter_buffer, counterBuffer);
 
    if (unlikely(!instanceCount))
       return;
 
    nvk_cmd_flush_gfx_state(cmd);
 
-   uint64_t counter_addr = vk_buffer_address(&counter_buffer->vk,
-                                             counterBufferOffset);
-
+   uint64_t counter_addr = pCounterInfo->addressRange.address;
    if (nvk_cmd_buffer_3d_cls(cmd) >= TURING_A) {
       struct nv_push *p = nvk_cmd_buffer_push(cmd, 9);
       P_IMMD(p, NV9097, SET_DRAW_AUTO_START, counterOffset);
@@ -5756,12 +5719,11 @@ nvk_mme_draw_mesh_indirect(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDeviceSize offset,
-                                uint32_t drawCount, uint32_t _stride)
+nvk_CmdDrawMeshTasksIndirect2EXT(VkCommandBuffer commandBuffer,
+                                 const VkDrawIndirect2InfoKHR* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   uint64_t stride = _stride;
+   uint64_t stride = pInfo->addressRange.stride;
 
    assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
 
@@ -5776,7 +5738,7 @@ nvk_CmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer,
     *
     *    "If drawCount is less than or equal to one, stride is ignored."
     */
-   if (drawCount > 1) {
+   if (pInfo->drawCount > 1) {
       assert(stride % 4 == 0);
       assert(stride >= sizeof(VkDrawMeshTasksIndirectCommandEXT));
    } else {
@@ -5787,10 +5749,10 @@ nvk_CmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer,
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 6);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT));
-   uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
+   uint64_t draw_addr = pInfo->addressRange.address;
    P_INLINE_DATA(p, draw_addr >> 32);
    P_INLINE_DATA(p, draw_addr);
-   P_INLINE_DATA(p, drawCount);
+   P_INLINE_DATA(p, pInfo->drawCount);
    P_INLINE_DATA(p, stride >> 32);
    P_INLINE_DATA(p, stride);
 }
@@ -5827,14 +5789,10 @@ nvk_mme_draw_mesh_indirect_count(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDeviceSize offset,
-                                     VkBuffer _countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount,
-                                     uint32_t _stride)
+nvk_CmdDrawMeshTasksIndirectCount2EXT(VkCommandBuffer commandBuffer,
+                                      const VkDrawIndirectCount2InfoKHR* pInfo)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   VK_FROM_HANDLE(nvk_buffer, count_buffer, _countBuffer);
-   uint64_t stride = _stride;
 
    assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
 
@@ -5842,34 +5800,28 @@ nvk_CmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer, VkBuffer _bu
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 8);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT_COUNT));
-   uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
+   uint64_t draw_addr = pInfo->addressRange.address;
    P_INLINE_DATA(p, draw_addr >> 32);
    P_INLINE_DATA(p, draw_addr);
-   uint64_t draw_count_addr = vk_buffer_address(&count_buffer->vk,
-                                                countBufferOffset);
+   uint64_t draw_count_addr = pInfo->countAddressRange.address;
    P_INLINE_DATA(p, draw_count_addr >> 32);
    P_INLINE_DATA(p, draw_count_addr);
-   P_INLINE_DATA(p, maxDrawCount);
-   P_INLINE_DATA(p, stride >> 32);
-   P_INLINE_DATA(p, stride);
+   P_INLINE_DATA(p, pInfo->maxDrawCount);
+   P_INLINE_DATA(p, pInfo->addressRange.stride >> 32);
+   P_INLINE_DATA(p, pInfo->addressRange.stride);
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuffer,
-                                       uint32_t firstBinding,
-                                       uint32_t bindingCount,
-                                       const VkBuffer *pBuffers,
-                                       const VkDeviceSize *pOffsets,
-                                       const VkDeviceSize *pSizes)
+nvk_CmdBindTransformFeedbackBuffers2EXT(VkCommandBuffer commandBuffer,
+                                        uint32_t firstBinding,
+                                        uint32_t bindingCount,
+                                        const VkBindTransformFeedbackBuffer2InfoEXT* pBindingInfos)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
 
    for (uint32_t i = 0; i < bindingCount; i++) {
-      VK_FROM_HANDLE(nvk_buffer, buffer, pBuffers[i]);
       uint32_t idx = firstBinding + i;
-      uint64_t size = pSizes ? pSizes[i] : VK_WHOLE_SIZE;
-      const VkDeviceAddressRangeKHR addr_range =
-         vk_device_address_range(&buffer->vk, pOffsets[i], size);
+      const VkDeviceAddressRangeKHR addr_range = pBindingInfos[i].addressRange;
       assert(addr_range.size <= UINT32_MAX);
 
       struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
@@ -5910,11 +5862,10 @@ nvk_mme_xfb_counter_load(struct mme_builder *b)
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer,
-                                 uint32_t firstCounterBuffer,
-                                 uint32_t counterBufferCount,
-                                 const VkBuffer *pCounterBuffers,
-                                 const VkDeviceSize *pCounterBufferOffsets)
+nvk_CmdBeginTransformFeedback2EXT(VkCommandBuffer commandBuffer,
+                                  uint32_t firstCounterRange,
+                                  uint32_t counterRangeCount,
+                                  const VkBindTransformFeedbackBuffer2InfoEXT* pCounterInfos)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    const uint32_t max_buffers = 4;
@@ -5926,65 +5877,60 @@ nvk_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer,
       P_IMMD(p, NV9097, SET_STREAM_OUT_BUFFER_LOAD_WRITE_POINTER(i), 0);
    }
 
-   for (uint32_t i = 0; i < counterBufferCount; ++i) {
-      if (pCounterBuffers == NULL || pCounterBuffers[i] == VK_NULL_HANDLE)
+   for (uint32_t i = 0; i < counterRangeCount; ++i) {
+      if (pCounterInfos == NULL || pCounterInfos[i].addressRange.address == 0)
          continue;
 
-      VK_FROM_HANDLE(nvk_buffer, buffer, pCounterBuffers[i]);
-      // index of counter buffer corresponts to index of transform buffer
-      uint32_t cb_idx = firstCounterBuffer + i;
-      uint64_t offset = pCounterBufferOffsets ? pCounterBufferOffsets[i] : 0;
-      uint64_t cb_addr = vk_buffer_address(&buffer->vk, offset);
+      // index of counter range corresponts to index of transform buffer
+      uint32_t cr_idx = firstCounterRange + i;
+      uint64_t cr_addr = pCounterInfos[i].addressRange.address;
 
       if (nvk_cmd_buffer_3d_cls(cmd) >= TURING_A) {
          struct nv_push *p = nvk_cmd_buffer_push(cmd, 4);
          P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_XFB_COUNTER_LOAD));
          /* The STREAM_OUT_BUFFER_LOAD_WRITE_POINTER registers are 8 dword stride */
-         P_INLINE_DATA(p, cb_idx * 8);
-         P_INLINE_DATA(p, cb_addr >> 32);
-         P_INLINE_DATA(p, cb_addr);
+         P_INLINE_DATA(p, cr_idx * 8);
+         P_INLINE_DATA(p, cr_addr >> 32);
+         P_INLINE_DATA(p, cr_addr);
       } else {
          struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
          P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_XFB_COUNTER_LOAD));
-         P_INLINE_DATA(p, cb_idx);
+         P_INLINE_DATA(p, cr_idx);
          nv_push_update_count(p, 1);
-         nvk_cmd_buffer_push_indirect(cmd, cb_addr, 4);
+         nvk_cmd_buffer_push_indirect(cmd, cr_addr, 4);
       }
    }
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer,
-                               uint32_t firstCounterBuffer,
-                               uint32_t counterBufferCount,
-                               const VkBuffer *pCounterBuffers,
-                               const VkDeviceSize *pCounterBufferOffsets)
+nvk_CmdEndTransformFeedback2EXT(VkCommandBuffer commandBuffer,
+                                uint32_t firstCounterRange,
+                                uint32_t counterRangeCount,
+                                const VkBindTransformFeedbackBuffer2InfoEXT* pCounterInfos)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 5 * counterBufferCount + 2);
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 5 * counterRangeCount + 2);
 
    P_IMMD(p, NV9097, SET_STREAM_OUTPUT, ENABLE_FALSE);
 
-   for (uint32_t i = 0; i < counterBufferCount; ++i) {
-      if (pCounterBuffers == NULL || pCounterBuffers[i] == VK_NULL_HANDLE)
+   for (uint32_t i = 0; i < counterRangeCount; ++i) {
+      if (pCounterInfos == NULL || pCounterInfos[i].addressRange.address == 0)
          continue;
 
-      VK_FROM_HANDLE(nvk_buffer, buffer, pCounterBuffers[i]);
-      // index of counter buffer corresponts to index of transform buffer
-      uint32_t cb_idx = firstCounterBuffer + i;
-      uint64_t offset = pCounterBufferOffsets ? pCounterBufferOffsets[i] : 0;
-      uint64_t cb_addr = vk_buffer_address(&buffer->vk, offset);
+      // index of counter range corresponts to index of transform buffer
+      uint32_t cr_idx = firstCounterRange + i;
+      uint64_t cr_addr = pCounterInfos[i].addressRange.address;
 
       P_MTHD(p, NV9097, SET_REPORT_SEMAPHORE_A);
-      P_NV9097_SET_REPORT_SEMAPHORE_A(p, cb_addr >> 32);
-      P_NV9097_SET_REPORT_SEMAPHORE_B(p, cb_addr);
+      P_NV9097_SET_REPORT_SEMAPHORE_A(p, cr_addr >> 32);
+      P_NV9097_SET_REPORT_SEMAPHORE_B(p, cr_addr);
       P_NV9097_SET_REPORT_SEMAPHORE_C(p, 0);
       P_NV9097_SET_REPORT_SEMAPHORE_D(p, {
          .operation = OPERATION_REPORT_ONLY,
          .pipeline_location = PIPELINE_LOCATION_STREAMING_OUTPUT,
          .report = REPORT_STREAMING_BYTE_COUNT,
-         .sub_report = cb_idx,
+         .sub_report = cr_idx,
          .structure_size = STRUCTURE_SIZE_ONE_WORD,
       });
    }
@@ -5992,12 +5938,9 @@ nvk_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer,
 
 static void
 nvk_cmd_begin_cond_render_copy_engine(struct nvk_cmd_buffer *cmd,
-                                      const VkConditionalRenderingBeginInfoEXT *pConditionalRenderingBegin)
+                                      const VkConditionalRenderingBeginInfo2EXT *pConditionalRenderingBegin)
 {
-   VK_FROM_HANDLE(nvk_buffer, buffer, pConditionalRenderingBegin->buffer);
-
-   const uint64_t addr =
-      vk_buffer_address(&buffer->vk, pConditionalRenderingBegin->offset);
+   const uint64_t addr = pConditionalRenderingBegin->addressRange.address;
    bool inverted = pConditionalRenderingBegin->flags &
       VK_CONDITIONAL_RENDERING_INVERTED_BIT_EXT;
 
@@ -6097,14 +6040,12 @@ nvk_mme_begin_cond_render(struct mme_builder *b)
 
 static void
 nvk_cmd_begin_cond_render_mme(struct nvk_cmd_buffer *cmd,
-                              const VkConditionalRenderingBeginInfoEXT *pConditionalRenderingBegin)
+                              const VkConditionalRenderingBeginInfo2EXT *pConditionalRenderingBegin)
 {
-   VK_FROM_HANDLE(nvk_buffer, buffer, pConditionalRenderingBegin->buffer);
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
 
-   uint64_t addr =
-      vk_buffer_address(&buffer->vk, pConditionalRenderingBegin->offset);
+   uint64_t addr = pConditionalRenderingBegin->addressRange.address;
    bool inverted = pConditionalRenderingBegin->flags &
       VK_CONDITIONAL_RENDERING_INVERTED_BIT_EXT;
 
@@ -6124,8 +6065,8 @@ nvk_cmd_begin_cond_render_mme(struct nvk_cmd_buffer *cmd,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdBeginConditionalRenderingEXT(VkCommandBuffer commandBuffer,
-                                    const VkConditionalRenderingBeginInfoEXT *pConditionalRenderingBegin)
+nvk_CmdBeginConditionalRendering2EXT(VkCommandBuffer commandBuffer,
+                                     const VkConditionalRenderingBeginInfo2EXT*  pConditionalRenderingBegin)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
