@@ -69,9 +69,8 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
         let dst_type_bits = dst_type.bits();
         let dst_type_comps = dst_type.comps();
         if dst_type_bits >= 32 {
-            assert_eq!(dst_type_comps, 1);
             assert_eq!(dst.lanes, DstLanes::All);
-            let nregs = dst_type_bits.div_ceil(32);
+            let nregs = (dst_type_bits * dst_type_comps).div_ceil(32);
             assert_eq!(nregs * 4, dst.dst_ref.bytes_written());
         } else {
             let dst_type_bytes =

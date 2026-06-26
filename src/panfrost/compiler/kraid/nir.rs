@@ -712,6 +712,16 @@ impl<'a> ShaderFromNir<'a> {
     ) {
         let srcs = intrin.srcs_as_slice();
         match intrin.intrinsic {
+            nir_intrinsic_lea_tex_pan => {
+                let coords = self.get_src_ssa(&srcs[0]);
+                let handle = self.get_src(&srcs[1]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLeaTex {
+                    dst,
+                    coords: [coords[0].into(), coords[1].into()],
+                    handle,
+                });
+            }
             nir_intrinsic_load_global => {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
                 let addr = self.get_src(&srcs[0]);
@@ -744,6 +754,33 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLeaPka {
                     dst,
                     offset,
+                    handle,
+                });
+            }
+            nir_intrinsic_load_tex_pan => {
+                assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
+                assert_eq!(intrin.def.num_components, intrin.num_components);
+
+                let num_type = match intrin.dest_type().base_type() {
+                    ALUType::FLOAT => NumericType::Float,
+                    ALUType::INT => NumericType::SignedInteger,
+                    ALUType::UINT => NumericType::UnsignedInteger,
+                    ALUType::INVALID => NumericType::Auto,
+                    _ => panic!("Invalid NIR ALU type"),
+                };
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    num_type,
+                    intrin.def.bit_size,
+                );
+
+                let coords = self.get_src_ssa(&srcs[0]);
+                let handle = self.get_src(&srcs[1]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdTex {
+                    dst,
+                    dst_type,
+                    coords: [coords[0].into(), coords[1].into()],
                     handle,
                 });
             }

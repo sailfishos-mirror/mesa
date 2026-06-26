@@ -812,6 +812,40 @@ impl fmt::Display for OpLdPka {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    F16, V2F16, V3F16, V4F16,
+    S16, V2S16, V3S16, V4S16,
+    U16, V2U16, V3U16, V4U16,
+    F32, V2F32, V3F32, V4F32,
+    A32, V2A32, V3A32, V4A32,
+    S32, V2S32, V3S32, V4S32,
+    U32, V2U32, V3U32, V4U32,
+])]
+pub struct OpLdTex {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    #[src_type(I32)]
+    pub coords: [Src; 2],
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpLdTex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LD_TEX.{} {} {} {}",
+            &self.dst,
+            self.dst_type,
+            self.fmt_src(&self.coords[0]),
+            self.fmt_src(&self.coords[1]),
+            self.fmt_src(&self.handle),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpLeaPka {
     #[dst_type(I64)]
     pub dst: Dst,
@@ -828,6 +862,30 @@ impl fmt::Display for OpLeaPka {
             "{} = LEA_PKA {} {}",
             &self.dst,
             self.fmt_src(&self.offset),
+            self.fmt_src(&self.handle),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpLeaTex {
+    #[dst_type(V3I32)]
+    pub dst: Dst,
+    #[src_type(I32)]
+    pub coords: [Src; 2],
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpLeaTex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LEA_TEX {} {} {}",
+            &self.dst,
+            self.fmt_src(&self.coords[0]),
+            self.fmt_src(&self.coords[1]),
             self.fmt_src(&self.handle),
         )
     }
@@ -1298,7 +1356,9 @@ pub enum Op {
     ISub(Box<OpISub>),
     IToF32(Box<OpIToF32>),
     LdPka(Box<OpLdPka>),
+    LdTex(Box<OpLdTex>),
     LeaPka(Box<OpLeaPka>),
+    LeaTex(Box<OpLeaTex>),
     Load(Box<OpLoad>),
     MkVecV2I8(Box<OpMkVecV2I8>),
     MkVecV2I8I16(Box<OpMkVecV2I8I16>),

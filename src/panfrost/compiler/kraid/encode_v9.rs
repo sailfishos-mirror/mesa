@@ -933,6 +933,31 @@ impl V9Instr for OpLdPka {
     }
 }
 
+impl V9Instr for OpLdTex {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdTex::get_info((), arch),
+            src_map! {
+                src0: coords[0],
+                src1: coords[1],
+                src2: handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(LdTex {
+            register_format: self.dst_type.scalar_type().try_into().unwrap(),
+            vecsize: self.dst_type.comps().try_into().unwrap(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.coords[0]),
+            src1: op_encode_src(self, &self.coords[1]),
+            src2: op_encode_src(self, &self.handle),
+        })
+    }
+}
+
 impl V9Instr for OpLeaPka {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -950,6 +975,29 @@ impl V9Instr for OpLeaPka {
             sr_dst: op_encode_sr_write(self, &self.dst),
             src0: op_encode_src(self, &self.offset),
             src1: op_encode_src(self, &self.handle),
+        })
+    }
+}
+
+impl V9Instr for OpLeaTex {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LeaTex::get_info((), arch),
+            src_map! {
+                src0: coords[0],
+                src1: coords[1],
+                src2: handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(LeaTex {
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.coords[0]),
+            src1: op_encode_src(self, &self.coords[1]),
+            src2: op_encode_src(self, &self.handle),
         })
     }
 }
@@ -1281,7 +1329,9 @@ macro_rules! v9_op_match_else {
             Op::ISub($x) => $y,
             Op::IToF32($x) => $y,
             Op::LdPka($x) => $y,
+            Op::LdTex($x) => $y,
             Op::LeaPka($x) => $y,
+            Op::LeaTex($x) => $y,
             Op::Load($x) => $y,
             Op::MkVecV2I8I16($x) => $y,
             Op::MkVecV2I16($x) => $y,
