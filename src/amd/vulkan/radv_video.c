@@ -545,6 +545,8 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
          vk_find_struct(pCapabilities->pNext, VIDEO_ENCODE_QUANTIZATION_MAP_CAPABILITIES_KHR);
       struct VkVideoEncodeRgbConversionCapabilitiesVALVE *rgb_caps =
          vk_find_struct(pCapabilities->pNext, VIDEO_ENCODE_RGB_CONVERSION_CAPABILITIES_VALVE);
+      struct VkVideoEncodeFeedback2CapabilitiesKHR *feedback2_caps =
+         vk_find_struct(pCapabilities->pNext, VIDEO_ENCODE_FEEDBACK_2_CAPABILITIES_KHR);
 
       pCapabilities->minBitstreamBufferOffsetAlignment = ecap->bitstream_address_alignment;
       pCapabilities->minBitstreamBufferSizeAlignment = ecap->bitstream_size_alignment;
@@ -577,6 +579,20 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
          enc_caps->encodeInputPictureGranularity = pCapabilities->pictureAccessGranularity;
          enc_caps->supportedEncodeFeedbackFlags = VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BUFFER_OFFSET_BIT_KHR |
                                                   VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BYTES_WRITTEN_BIT_KHR;
+
+         if (pdev->vk.supported_extensions.KHR_video_encode_feedback2) {
+            enc_caps->supportedEncodeFeedbackFlags |= VK_VIDEO_ENCODE_FEEDBACK_INTRA_PIXELS_BIT_KHR |
+                                                      VK_VIDEO_ENCODE_FEEDBACK_INTER_PIXELS_BIT_KHR;
+            if (ecap->feedback.avg_qp)
+               enc_caps->supportedEncodeFeedbackFlags |= VK_VIDEO_ENCODE_FEEDBACK_AVERAGE_QUANTIZATION_BIT_KHR;
+            if (ecap->feedback.skipped_pixels)
+               enc_caps->supportedEncodeFeedbackFlags |= VK_VIDEO_ENCODE_FEEDBACK_SKIPPED_PIXELS_BIT_KHR;
+            if (ecap->feedback.minmax_qp)
+               enc_caps->supportedEncodeFeedbackFlags |=
+                  (VK_VIDEO_ENCODE_FEEDBACK_MIN_QUANTIZATION_BIT_KHR | VK_VIDEO_ENCODE_FEEDBACK_MAX_QUANTIZATION_BIT_KHR);
+            if (ecap->feedback.partition_count)
+               enc_caps->supportedEncodeFeedbackFlags |= VK_VIDEO_ENCODE_FEEDBACK_PICTURE_PARTITION_COUNT_BIT_KHR;
+         }
       }
 
       if (intra_refresh_caps) {
@@ -602,6 +618,12 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
          rgb_caps->xChromaOffsets = VK_VIDEO_ENCODE_RGB_CHROMA_OFFSET_COSITED_EVEN_BIT_VALVE;
          rgb_caps->yChromaOffsets = VK_VIDEO_ENCODE_RGB_CHROMA_OFFSET_MIDPOINT_BIT_VALVE |
                                     VK_VIDEO_ENCODE_RGB_CHROMA_OFFSET_COSITED_EVEN_BIT_VALVE;
+      }
+
+      if (feedback2_caps) {
+         /* TODO: support per-partition */
+         feedback2_caps->supportedPerPartitionEncodeFeedbackFlags = 0;
+         feedback2_caps->maxPerPartitionFeedbackEntries = 0;
       }
    }
 

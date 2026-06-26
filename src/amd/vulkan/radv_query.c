@@ -19,6 +19,7 @@
 #include "util/u_atomic.h"
 #include "vulkan/vulkan_core.h"
 #include "ac_cmdbuf_video.h"
+#include "ac_vcn_enc.h"
 #include "radv_cs.h"
 #include "radv_entrypoints.h"
 #include "radv_perfcounter.h"
@@ -1984,6 +1985,17 @@ radv_create_query_pool(struct radv_device *device, const VkQueryPoolCreateInfo *
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       /* base encode feedback size */
       pool->stride = RADV_ENC_FEEDBACK_PARTITION_SIZE * sizeof(uint32_t);
+      pool->encode_feedback.needs_skip =
+         pool->vk.video_profile.op != VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR ||
+         pdev->info.vcn_ip_version >= VCN_5_0_0;
+
+      if (pool->vk.encode_feedback_flags &
+          (VK_VIDEO_ENCODE_FEEDBACK_AVERAGE_QUANTIZATION_BIT_KHR | VK_VIDEO_ENCODE_FEEDBACK_MIN_QUANTIZATION_BIT_KHR |
+           VK_VIDEO_ENCODE_FEEDBACK_MAX_QUANTIZATION_BIT_KHR | VK_VIDEO_ENCODE_FEEDBACK_INTRA_PIXELS_BIT_KHR |
+           VK_VIDEO_ENCODE_FEEDBACK_INTER_PIXELS_BIT_KHR | VK_VIDEO_ENCODE_FEEDBACK_SKIPPED_PIXELS_BIT_KHR)) {
+         pool->encode_feedback.statistics_offset = pool->stride;
+         pool->stride += sizeof(rvcn_encode_stats_type_0_t);
+      }
 
       /* status field */
       pool->encode_feedback.status_offset = pool->stride = align(pool->stride, sizeof(uint64_t));
@@ -2386,6 +2398,8 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
          const bool write_memory =
             pdev->info.video_caps.queue[AMD_IP_VCN_ENC].write_memory == AC_VIDEO_WRITE_MEMORY_SUPPORT_FULL;
          uint32_t *src32 = (uint32_t *)src;
+         rvcn_encode_stats_type_0_t *statistics =
+            (rvcn_encode_stats_type_0_t *)(src32 + RADV_ENC_FEEDBACK_PARTITION_SIZE);
          uint32_t ready_idx = write_memory ? pool->encode_feedback.status_offset / sizeof(uint32_t) : 1;
          uint32_t value;
          do {
@@ -2399,35 +2413,42 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
          else if (!available && !(flags & VK_QUERY_RESULT_PARTIAL_BIT))
             result = VK_NOT_READY;
 
-         if (flags & VK_QUERY_RESULT_64_BIT) {
-            uint64_t *dest64 = (uint64_t *)dest;
-            if (available || (flags & VK_QUERY_RESULT_PARTIAL_BIT)) {
-               if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BUFFER_OFFSET_BIT_KHR)
-                  *dest64++ = src32[5];
-               if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BYTES_WRITTEN_BIT_KHR)
-                  *dest64++ = src32[6] - src32[8];
-            }
-            dest += util_bitcount(pool->vk.encode_feedback_flags) * sizeof(uint64_t);
+#define WRITE_DEST(value)                                                                                              \
+   do {                                                                                                                \
+      if (flags & VK_QUERY_RESULT_64_BIT) {                                                                            \
+         *((uint64_t *)dest) = value;                                                                                  \
+         dest += 8;                                                                                                    \
+      } else {                                                                                                         \
+         *((uint32_t *)dest) = value;                                                                                  \
+         dest += 4;                                                                                                    \
+      }                                                                                                                \
+   } while (0)
 
-            if (flags & VK_QUERY_RESULT_WITH_STATUS_BIT_KHR) {
-               *dest64++ = 1;
-               dest += 4;
-            }
-         } else {
-            uint32_t *dest32 = (uint32_t *)dest;
-            if (available || (flags & VK_QUERY_RESULT_PARTIAL_BIT)) {
-               if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BUFFER_OFFSET_BIT_KHR)
-                  *dest32++ = src32[5];
-               if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BYTES_WRITTEN_BIT_KHR)
-                  *dest32++ = src32[6] - src32[8];
-            }
-            dest += util_bitcount(pool->vk.encode_feedback_flags) * sizeof(uint32_t);
-
-            if (flags & VK_QUERY_RESULT_WITH_STATUS_BIT_KHR) {
-               *dest32++ = 1;
-               dest += 4;
-            }
+         if (available || (flags & VK_QUERY_RESULT_PARTIAL_BIT)) {
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BUFFER_OFFSET_BIT_KHR)
+               WRITE_DEST(src32[5]);
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_BITSTREAM_BYTES_WRITTEN_BIT_KHR)
+               WRITE_DEST(src32[6] - src32[8]);
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_AVERAGE_QUANTIZATION_BIT_KHR)
+               WRITE_DEST(statistics->qp_avg_ctb);
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_MIN_QUANTIZATION_BIT_KHR)
+               WRITE_DEST(statistics->qp_min_ctb);
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_MAX_QUANTIZATION_BIT_KHR)
+               WRITE_DEST(statistics->qp_max_ctb);
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_INTRA_PIXELS_BIT_KHR)
+               WRITE_DEST(statistics->pix_intra);
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_INTER_PIXELS_BIT_KHR)
+               WRITE_DEST(statistics->pix_inter + (pool->encode_feedback.needs_skip ? statistics->pix_skip : 0));
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_SKIPPED_PIXELS_BIT_KHR)
+               WRITE_DEST(statistics->pix_skip);
+            if (pool->vk.encode_feedback_flags & VK_VIDEO_ENCODE_FEEDBACK_PICTURE_PARTITION_COUNT_BIT_KHR)
+               WRITE_DEST(src32[12]);
          }
+
+         if (flags & VK_QUERY_RESULT_WITH_STATUS_BIT_KHR)
+            WRITE_DEST(available);
+
+#undef WRITE_DEST
          break;
       }
       default:
@@ -2626,6 +2647,7 @@ emit_begin_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *poo
    case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       cmd_buffer->video.status_offset = pool->encode_feedback.status_offset;
+      cmd_buffer->video.statistics_offset = pool->encode_feedback.statistics_offset;
       cmd_buffer->video.feedback_query_va = va;
       break;
    default:
@@ -2662,6 +2684,7 @@ emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool,
    case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
       cmd_buffer->video.status_offset = 0;
+      cmd_buffer->video.statistics_offset = 0;
       cmd_buffer->video.feedback_query_va = 0;
       break;
    default:

@@ -25,3 +25,4 @@ shaderStorageImageArrayDynamicIndexing on pvr
 shaderInputAttachmentArrayDynamicIndexing on pvr
 shaderUniformTexelBufferArrayDynamicIndexing on pvr
 shaderStorageTexelBufferArrayDynamicIndexing on pvr
+VK_KHR_video_encode_feedback2 on RADV

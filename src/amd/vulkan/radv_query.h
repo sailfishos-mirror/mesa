@@ -30,6 +30,8 @@ struct radv_query_pool {
 
    struct {
       uint32_t status_offset;
+      uint32_t statistics_offset;
+      bool needs_skip;
    } encode_feedback;
 };
 
