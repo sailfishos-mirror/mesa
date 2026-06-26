@@ -4184,7 +4184,7 @@
         "description": "radeonsi: fix typo in si_copy_from_staging_texture",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "eba932ea43a702e097218d2d4b1df56e0d1e3940",
         "notes": null
