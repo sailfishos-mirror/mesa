@@ -644,6 +644,11 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       vdenc_buf.DSFWDREF1.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
+#if GFX_VERx10 == 125
+      vdenc_buf.DSBWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+#endif
 
       vdenc_buf.OriginalUncompressedPicture.Address =
          anv_image_dpb_address(iv, enc_info->srcPictureResource.baseArrayLayer);
@@ -710,9 +715,15 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       vdenc_buf.DSFWDREF14X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
+#if GFX_VERx10 < 125
       vdenc_buf.VDEncCURecordStreamOutBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
+#else
+      vdenc_buf.DSBWDREF04X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+#endif
       vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
@@ -737,6 +748,18 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
       vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+#endif
+
+#if GFX_VERx10 == 125
+      vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+      vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+      vdenc_buf.Additional4XDSFWDREF.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
 #endif
@@ -1266,9 +1289,11 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 
       anv_batch_emit(&cmd->batch, GENX(VDENC_WALKER_STATE), vdenc_walker) {
          vdenc_walker.NextSliceMBStartYPosition = h_in_mb;
+#if GFX_VERx10 < 125
          vdenc_walker.Log2WeightDenominatorLuma = weight_table ? weight_table->luma_log2_weight_denom : 0;
 #if GFX_VER >= 12
          vdenc_walker.TileWidth = src_img->vk.extent.width - 1;
+#endif
 #endif
       }
 
@@ -1897,6 +1922,12 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
 
+#if GFX_VERx10 == 125
+      vdenc_buf.DSBWDREF0.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+#endif
+
       vdenc_buf.OriginalUncompressedPicture.Address =
          anv_image_dpb_address(iv, enc_info->srcPictureResource.baseArrayLayer);
       vdenc_buf.OriginalUncompressedPicture.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
@@ -1961,9 +1992,15 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       vdenc_buf.DSFWDREF14X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
+#if GFX_VERx10 < 125
       vdenc_buf.VDEncCURecordStreamOutBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
+#else
+      vdenc_buf.DSBWDREF04X.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+#endif
       vdenc_buf.VDEncLCUPAK_OBJ_CMDBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
@@ -1988,6 +2025,18 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       vdenc_buf.VDEncPaletteModeStreamOutSurface.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
          .MOCS = anv_mocs(cmd->device, NULL, 0),
       };
+
+#if GFX_VERx10 == 125
+      vdenc_buf.IntraPredictionRowStoreBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+      vdenc_buf.ColocatedMVAVCWriteBuffer.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+      vdenc_buf.Additional4XDSFWDREF.PictureFields = (struct GENX(VDENC_SURFACE_CONTROL_BITS)) {
+         .MOCS = anv_mocs(cmd->device, NULL, 0),
+      };
+#endif
    }
 
    anv_batch_emit(&cmd->batch, GENX(VDENC_CMD1), cmd1) {
@@ -2466,8 +2515,10 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          vdenc_walker.NextSliceMBLCUStartXPosition = (slice_header->slice_segment_address + num_ctu_in_slice) / ctb_h;
          vdenc_walker.NextSliceMBStartYPosition = (slice_header->slice_segment_address + num_ctu_in_slice) / ctb_w;
          vdenc_walker.NextSliceMBLCUStartXPosition = (slice_header->slice_segment_address + num_ctu_in_slice) / ctb_h;
+#if GFX_VERx10 < 125
          vdenc_walker.TileWidth = width_in_pix - 1;
          vdenc_walker.TileHeight = height_in_pix - 1;
+#endif
       }
 
       anv_batch_emit(&cmd->batch, GENX(VD_PIPELINE_FLUSH), flush) {
