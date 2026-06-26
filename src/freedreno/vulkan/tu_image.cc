@@ -1462,6 +1462,17 @@ tu_get_image_subresource_layout(struct tu_image *image,
       memcpy_size->size = slice->size0;
    }
 
+   VkImageCompressionPropertiesEXT *compression_props =
+      vk_find_struct(pLayout, IMAGE_COMPRESSION_PROPERTIES_EXT);
+   if (compression_props) {
+      compression_props->imageCompressionFixedRateFlags =
+         VK_IMAGE_COMPRESSION_FIXED_RATE_NONE_EXT;
+      compression_props->imageCompressionFlags =
+         fdl_ubwc_enabled(layout, pSubresource->imageSubresource.mipLevel) ?
+            VK_IMAGE_COMPRESSION_DEFAULT_EXT :
+            VK_IMAGE_COMPRESSION_DISABLED_EXT;
+   }
+
    if (fdl_ubwc_enabled(layout, pSubresource->imageSubresource.mipLevel)) {
       /* UBWC starts at offset 0 */
       pLayout->subresourceLayout.offset = 0;
