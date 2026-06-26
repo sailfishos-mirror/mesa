@@ -4682,6 +4682,12 @@ struct anv_cmd_graphics_state {
    enum anv_depth_reg_mode                      depth_reg_mode;
 
    struct anv_gfx_dynamic_state dyn_state;
+
+   /**
+    * Temporary state of DGC graphics preprocess emission (to avoid having it
+    * on the stack when calling vkCmdPreprocessGeneratedCommandsEXT)
+    */
+   struct anv_dgc_gfx_state dgc_state;
 };
 
 /** State tracking for compute pipeline
@@ -6708,6 +6714,7 @@ void anv_write_gfx_indirect_descriptor(struct anv_device *device,
                                        struct anv_dgc_gfx_descriptor *descriptor,
                                        struct anv_cmd_graphics_state *gfx);
 
+enum anv_dgc_stage anv_mesa_stage_to_dgc_stage(mesa_shader_stage stage);
 enum anv_dgc_stage anv_vk_stage_to_dgc_stage(VkShaderStageFlags vk_stage);
 
 uint32_t anv_vk_stages_to_generated_stages(VkShaderStageFlags vk_stages);
