@@ -5121,7 +5121,7 @@ nvk_mme_draw_indirect(struct mme_builder *b)
    if (b->devinfo->cls_eng3d >= TURING_A) {
       struct mme_value64 draw_addr = mme_load_addr64(b);
       struct mme_value draw_count = mme_load(b);
-      struct mme_value stride = mme_load(b);
+      struct mme_value64 stride = mme_load_addr64(b);
 
       struct mme_value draw = mme_mov(b, mme_zero());
       mme_while(b, ult, draw, draw_count) {
@@ -5130,7 +5130,7 @@ nvk_mme_draw_indirect(struct mme_builder *b)
          nvk_mme_build_draw(b, draw);
 
          mme_add_to(b, draw, draw, mme_imm(1));
-         mme_add64_to(b, draw_addr, draw_addr, mme_value64(stride, mme_zero()));
+         mme_add64_to(b, draw_addr, draw_addr, stride);
       }
    } else {
       struct mme_value draw_count = mme_load(b);
@@ -5159,10 +5159,11 @@ nvk_CmdDrawIndirect(VkCommandBuffer commandBuffer,
                     VkBuffer _buffer,
                     VkDeviceSize offset,
                     uint32_t drawCount,
-                    uint32_t stride)
+                    uint32_t _stride)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
+   uint64_t stride = _stride;
 
    if (unlikely(!drawCount))
       return;
@@ -5188,12 +5189,13 @@ nvk_CmdDrawIndirect(VkCommandBuffer commandBuffer,
    nvk_cmd_flush_gfx_state(cmd);
 
    if (nvk_cmd_buffer_3d_cls(cmd) >= TURING_A) {
-      struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 6);
       P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDIRECT));
       uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
       P_INLINE_DATA(p, draw_addr >> 32);
       P_INLINE_DATA(p, draw_addr);
       P_INLINE_DATA(p, drawCount);
+      P_INLINE_DATA(p, stride >> 32);
       P_INLINE_DATA(p, stride);
    } else {
       const uint32_t max_draws_per_push =
@@ -5233,7 +5235,7 @@ nvk_mme_draw_indexed_indirect(struct mme_builder *b)
    if (b->devinfo->cls_eng3d >= TURING_A) {
       struct mme_value64 draw_addr = mme_load_addr64(b);
       struct mme_value draw_count = mme_load(b);
-      struct mme_value stride = mme_load(b);
+      struct mme_value64 stride = mme_load_addr64(b);
 
       struct mme_value draw = mme_mov(b, mme_zero());
       mme_while(b, ult, draw, draw_count) {
@@ -5242,7 +5244,7 @@ nvk_mme_draw_indexed_indirect(struct mme_builder *b)
          nvk_mme_build_draw_indexed(b, draw);
 
          mme_add_to(b, draw, draw, mme_imm(1));
-         mme_add64_to(b, draw_addr, draw_addr, mme_value64(stride, mme_zero()));
+         mme_add64_to(b, draw_addr, draw_addr, stride);
       }
    } else {
       struct mme_value draw_count = mme_load(b);
@@ -5271,10 +5273,11 @@ nvk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer,
                            VkBuffer _buffer,
                            VkDeviceSize offset,
                            uint32_t drawCount,
-                           uint32_t stride)
+                           uint32_t _stride)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
+   uint64_t stride = _stride;
 
    /* From the Vulkan 1.3.238 spec:
     *
@@ -5297,12 +5300,13 @@ nvk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer,
    nvk_cmd_flush_gfx_state(cmd);
 
    if (nvk_cmd_buffer_3d_cls(cmd) >= TURING_A) {
-      struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 6);
       P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDEXED_INDIRECT));
       uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
       P_INLINE_DATA(p, draw_addr >> 32);
       P_INLINE_DATA(p, draw_addr);
       P_INLINE_DATA(p, drawCount);
+      P_INLINE_DATA(p, stride >> 32);
       P_INLINE_DATA(p, stride);
    } else {
       const uint32_t max_draws_per_push =
@@ -5315,7 +5319,7 @@ nvk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer,
          uint64_t range;
          uint32_t ignored;
          if (count > 1) {
-            range = count * (uint64_t)stride;
+            range = count * stride;
             ignored = (stride - sizeof(VkDrawIndexedIndirectCommand)) / 4;
          } else {
             range = sizeof(VkDrawIndexedIndirectCommand);
@@ -5345,7 +5349,7 @@ nvk_mme_draw_indirect_count(struct mme_builder *b)
    struct mme_value64 draw_addr = mme_load_addr64(b);
    struct mme_value64 draw_count_addr = mme_load_addr64(b);
    struct mme_value draw_max = mme_load(b);
-   struct mme_value stride = mme_load(b);
+   struct mme_value64 stride = mme_load_addr64(b);
 
    mme_tu104_read_fifoed(b, draw_count_addr, mme_imm(1));
    mme_free_reg64(b, draw_count_addr);
@@ -5363,7 +5367,7 @@ nvk_mme_draw_indirect_count(struct mme_builder *b)
       nvk_mme_build_draw(b, draw);
 
       mme_add_to(b, draw, draw, mme_imm(1));
-      mme_add64_to(b, draw_addr, draw_addr, mme_value64(stride, mme_zero()));
+      mme_add64_to(b, draw_addr, draw_addr, stride);
    }
 }
 
@@ -5374,18 +5378,19 @@ nvk_CmdDrawIndirectCount(VkCommandBuffer commandBuffer,
                          VkBuffer countBuffer,
                          VkDeviceSize countBufferOffset,
                          uint32_t maxDrawCount,
-                         uint32_t stride)
+                         uint32_t _stride)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
    VK_FROM_HANDLE(nvk_buffer, count_buffer, countBuffer);
+   uint64_t stride = _stride;
 
    /* TODO: Indirect count draw pre-Turing */
    assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
 
    nvk_cmd_flush_gfx_state(cmd);
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 8);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDIRECT_COUNT));
    uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
    P_INLINE_DATA(p, draw_addr >> 32);
@@ -5395,6 +5400,7 @@ nvk_CmdDrawIndirectCount(VkCommandBuffer commandBuffer,
    P_INLINE_DATA(p, draw_count_addr >> 32);
    P_INLINE_DATA(p, draw_count_addr);
    P_INLINE_DATA(p, maxDrawCount);
+   P_INLINE_DATA(p, stride >> 32);
    P_INLINE_DATA(p, stride);
 }
 
@@ -5407,7 +5413,7 @@ nvk_mme_draw_indexed_indirect_count(struct mme_builder *b)
    struct mme_value64 draw_addr = mme_load_addr64(b);
    struct mme_value64 draw_count_addr = mme_load_addr64(b);
    struct mme_value draw_max = mme_load(b);
-   struct mme_value stride = mme_load(b);
+   struct mme_value64 stride = mme_load_addr64(b);
 
    mme_tu104_read_fifoed(b, draw_count_addr, mme_imm(1));
    mme_free_reg64(b, draw_count_addr);
@@ -5425,7 +5431,7 @@ nvk_mme_draw_indexed_indirect_count(struct mme_builder *b)
       nvk_mme_build_draw_indexed(b, draw);
 
       mme_add_to(b, draw, draw, mme_imm(1));
-      mme_add64_to(b, draw_addr, draw_addr, mme_value64(stride, mme_zero()));
+      mme_add64_to(b, draw_addr, draw_addr, stride);
    }
 }
 
@@ -5436,18 +5442,19 @@ nvk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer,
                                 VkBuffer countBuffer,
                                 VkDeviceSize countBufferOffset,
                                 uint32_t maxDrawCount,
-                                uint32_t stride)
+                                uint32_t _stride)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
    VK_FROM_HANDLE(nvk_buffer, count_buffer, countBuffer);
+   uint64_t stride = _stride;
 
    /* TODO: Indexed indirect count draw pre-Turing */
    assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
 
    nvk_cmd_flush_gfx_state(cmd);
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 8);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDEXED_INDIRECT_COUNT));
    uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
    P_INLINE_DATA(p, draw_addr >> 32);
@@ -5457,6 +5464,7 @@ nvk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer,
    P_INLINE_DATA(p, draw_count_addr >> 32);
    P_INLINE_DATA(p, draw_count_addr);
    P_INLINE_DATA(p, maxDrawCount);
+   P_INLINE_DATA(p, stride >> 32);
    P_INLINE_DATA(p, stride);
 }
 
@@ -5734,7 +5742,7 @@ nvk_mme_draw_mesh_indirect(struct mme_builder *b)
 
    struct mme_value64 draw_addr = mme_load_addr64(b);
    struct mme_value draw_count = mme_load(b);
-   struct mme_value stride = mme_load(b);
+   struct mme_value64 stride = mme_load_addr64(b);
 
    struct mme_value draw = mme_mov(b, mme_zero());
    mme_while(b, ult, draw, draw_count) {
@@ -5743,16 +5751,17 @@ nvk_mme_draw_mesh_indirect(struct mme_builder *b)
       nvk_mme_build_draw_mesh(b, draw);
 
       mme_add_to(b, draw, draw, mme_imm(1));
-      mme_add64_to(b, draw_addr, draw_addr, mme_value64(stride, mme_zero()));
+      mme_add64_to(b, draw_addr, draw_addr, stride);
    }
 }
 
 VKAPI_ATTR void VKAPI_CALL
 nvk_CmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDeviceSize offset,
-                                uint32_t drawCount, uint32_t stride)
+                                uint32_t drawCount, uint32_t _stride)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
+   uint64_t stride = _stride;
 
    assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
 
@@ -5776,12 +5785,13 @@ nvk_CmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer,
 
    nvk_cmd_flush_gfx_state(cmd);
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 6);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT));
    uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
    P_INLINE_DATA(p, draw_addr >> 32);
    P_INLINE_DATA(p, draw_addr);
    P_INLINE_DATA(p, drawCount);
+   P_INLINE_DATA(p, stride >> 32);
    P_INLINE_DATA(p, stride);
 }
 
@@ -5794,7 +5804,7 @@ nvk_mme_draw_mesh_indirect_count(struct mme_builder *b)
    struct mme_value64 draw_addr = mme_load_addr64(b);
    struct mme_value64 draw_count_addr = mme_load_addr64(b);
    struct mme_value draw_max = mme_load(b);
-   struct mme_value stride = mme_load(b);
+   struct mme_value64 stride = mme_load_addr64(b);
 
    mme_tu104_read_fifoed(b, draw_count_addr, mme_imm(1));
    mme_free_reg64(b, draw_count_addr);
@@ -5812,24 +5822,25 @@ nvk_mme_draw_mesh_indirect_count(struct mme_builder *b)
       nvk_mme_build_draw_mesh(b, draw);
 
       mme_add_to(b, draw, draw, mme_imm(1));
-      mme_add64_to(b, draw_addr, draw_addr, mme_value64(stride, mme_zero()));
+      mme_add64_to(b, draw_addr, draw_addr, stride);
    }
 }
 
 VKAPI_ATTR void VKAPI_CALL
 nvk_CmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDeviceSize offset,
                                      VkBuffer _countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount,
-                                     uint32_t stride)
+                                     uint32_t _stride)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
    VK_FROM_HANDLE(nvk_buffer, count_buffer, _countBuffer);
+   uint64_t stride = _stride;
 
    assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
 
    nvk_cmd_flush_gfx_state(cmd);
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 8);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT_COUNT));
    uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
    P_INLINE_DATA(p, draw_addr >> 32);
@@ -5839,6 +5850,7 @@ nvk_CmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer, VkBuffer _bu
    P_INLINE_DATA(p, draw_count_addr >> 32);
    P_INLINE_DATA(p, draw_count_addr);
    P_INLINE_DATA(p, maxDrawCount);
+   P_INLINE_DATA(p, stride >> 32);
    P_INLINE_DATA(p, stride);
 }
 

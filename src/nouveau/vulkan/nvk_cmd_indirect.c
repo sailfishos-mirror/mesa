@@ -682,10 +682,11 @@ build_draw_count(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr)
    nir_def *stride  = load_global_dw(b, token_addr, 2);
    nir_def *count   = load_global_dw(b, token_addr, 3);
 
-   nvk_nir_P_1INC(b, p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDIRECT), 4);
+   nvk_nir_P_1INC(b, p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDIRECT), 5);
    nvk_nir_push_dw(b, p, addr_hi);
    nvk_nir_push_dw(b, p, addr_lo);
    nvk_nir_push_dw(b, p, count);
+   nvk_nir_push_dw(b, p, nir_imm_zero(b, 1, 32)); // stride >> 32
    nvk_nir_push_dw(b, p, stride);
 }
 
@@ -698,10 +699,11 @@ build_draw_indexed_count(nir_builder *b, struct nvk_nir_push *p,
    nir_def *stride  = load_global_dw(b, token_addr, 2);
    nir_def *count   = load_global_dw(b, token_addr, 3);
 
-   nvk_nir_P_1INC(b, p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDEXED_INDIRECT), 4);
+   nvk_nir_P_1INC(b, p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_INDEXED_INDIRECT), 5);
    nvk_nir_push_dw(b, p, addr_hi);
    nvk_nir_push_dw(b, p, addr_lo);
    nvk_nir_push_dw(b, p, count);
+   nvk_nir_push_dw(b, p, nir_imm_zero(b, 1, 32)); // stride >> 32
    nvk_nir_push_dw(b, p, stride);
 }
 
@@ -726,10 +728,11 @@ build_draw_mesh_tasks_count(nir_builder *b, struct nvk_nir_push *p, nir_def *tok
    nir_def *stride  = load_global_dw(b, token_addr, 2);
    nir_def *count   = load_global_dw(b, token_addr, 3);
 
-   nvk_nir_P_1INC(b, p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT), 4);
+   nvk_nir_P_1INC(b, p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT), 5);
    nvk_nir_push_dw(b, p, addr_hi);
    nvk_nir_push_dw(b, p, addr_lo);
    nvk_nir_push_dw(b, p, count);
+   nvk_nir_push_dw(b, p, nir_imm_zero(b, 1, 32)); // stride >> 32
    nvk_nir_push_dw(b, p, stride);
 }
 
