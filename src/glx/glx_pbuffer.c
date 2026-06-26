@@ -41,12 +41,30 @@
 #include <X11/Xlib-xcb.h>
 #include <xcb/xproto.h>
 
-#ifdef GLX_USE_APPLEGL
-#include <pthread.h>
-#include "apple/apple_glx_drawable.h"
-#endif
-
 #include "glx_error.h"
+
+/**
+ * For entry points that take only a GLXDrawable: find any glx_screen on the
+ * display so we can dispatch through its drawable_vtable.  Every screen on a
+ * display uses the same backend, so the first non-NULL screen suffices.
+ */
+static struct glx_screen *
+any_screen(Display *dpy)
+{
+   struct glx_display *priv = __glXInitialize(dpy);
+   int n, i;
+
+   if (priv == NULL || priv->screens == NULL)
+      return NULL;
+
+   n = ScreenCount(dpy);
+   for (i = 0; i < n; i++) {
+      if (priv->screens[i] != NULL)
+         return priv->screens[i];
+   }
+
+   return NULL;
+}
 
 #if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
 /**
@@ -109,6 +127,7 @@ ChangeDrawableAttribute(Display * dpy, GLXDrawable drawable,
 
    return;
 }
+#endif
 
 
 #ifdef GLX_DIRECT_RENDERING
@@ -153,7 +172,7 @@ CreateDRIDrawable(Display *dpy, struct glx_config *config,
         XID drawable, XID glxdrawable, int type,
         const int *attrib_list, size_t num_attribs)
 {
-#ifdef GLX_DIRECT_RENDERING
+#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
    struct glx_display *const priv = __glXInitialize(dpy);
    __GLXDRIdrawable *pdraw;
    struct glx_screen *psc;
@@ -191,7 +210,7 @@ CreateDRIDrawable(Display *dpy, struct glx_config *config,
 static void
 DestroyDRIDrawable(Display *dpy, GLXDrawable drawable)
 {
-#ifdef GLX_DIRECT_RENDERING
+#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
    struct glx_display *const priv = __glXInitialize(dpy);
    __GLXDRIdrawable *pdraw = GetGLXDRIDrawable(dpy, drawable);
 
@@ -433,6 +452,7 @@ protocolDestroyDrawable(Display *dpy, GLXDrawable drawable, CARD32 glxCode)
    }
 }
 
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
 /**
  * Create a non-pbuffer GLX drawable.
  */
@@ -504,8 +524,10 @@ CreateDrawable(Display *dpy, struct glx_config *config,
 
    return xid;
 }
+#endif
 
 
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
 /**
  * Destroy a non-pbuffer GLX drawable.
  */
@@ -519,8 +541,10 @@ DestroyDrawable(Display * dpy, GLXDrawable drawable, CARD32 glxCode)
 
    return;
 }
+#endif
 
 
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
 /**
  * Create a pbuffer.
  *
@@ -587,7 +611,9 @@ CreatePbuffer(Display * dpy, struct glx_config *config,
 
    return id;
 }
+#endif
 
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
 /**
  * Destroy a pbuffer.
  *
@@ -623,7 +649,9 @@ DestroyPbuffer(Display * dpy, GLXDrawable drawable)
 
    return;
 }
+#endif
 
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
 /**
  * Create a new pbuffer.
  */
@@ -636,8 +664,8 @@ glXCreateGLXPbufferSGIX(Display * dpy, GLXFBConfigSGIX config,
                                          width, height,
                                          attrib_list, GL_FALSE);
 }
+#endif
 
-#endif /* GLX_USE_APPLEGL */
 
 /**
  * Create a new pbuffer.
@@ -645,56 +673,28 @@ glXCreateGLXPbufferSGIX(Display * dpy, GLXFBConfigSGIX config,
 _GLX_PUBLIC GLXPbuffer
 glXCreatePbuffer(Display * dpy, GLXFBConfig config, const int *attrib_list)
 {
+   struct glx_config *cfg = (struct glx_config *) config;
+   struct glx_screen *psc;
+
+   if (cfg == NULL)
+      return None;
+
+   psc = GetGLXScreenConfigs(dpy, cfg->screen);
+   if (psc == NULL)
+      return None;
+
+   return psc->drawable_vtable->create_pbuffer(dpy, config, attrib_list);
+}
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+GLXPbuffer
+__glXCreatePbuffer(Display * dpy, GLXFBConfig config, const int *attrib_list)
+{
    int i, width, height;
-#ifdef GLX_USE_APPLEGL
-   GLXPbuffer result;
-   int errorcode;
-#endif
 
    width = 0;
    height = 0;
 
-#ifdef GLX_USE_APPLEGL
-   for (i = 0; attrib_list[i]; ++i) {
-      switch (attrib_list[i]) {
-      case GLX_PBUFFER_WIDTH:
-         width = attrib_list[i + 1];
-         ++i;
-         break;
-
-      case GLX_PBUFFER_HEIGHT:
-         height = attrib_list[i + 1];
-         ++i;
-         break;
-
-      case GLX_LARGEST_PBUFFER:
-         /* This is a hint we should probably handle, but how? */
-         ++i;
-         break;
-
-      case GLX_PRESERVED_CONTENTS:
-         /* The contents are always preserved with AppleSGLX with CGL. */
-         ++i;
-         break;
-
-      default:
-         return None;
-      }
-   }
-
-   if (apple_glx_pbuffer_create(dpy, config, width, height, &errorcode,
-                                &result)) {
-      /* 
-       * apple_glx_pbuffer_create only sets the errorcode to core X11
-       * errors. 
-       */
-      __glXSendError(dpy, errorcode, 0, X_GLXCreatePbuffer, true);
-
-      return None;
-   }
-
-   return result;
-#else
    for (i = 0; attrib_list[i * 2]; i++) {
       switch (attrib_list[i * 2]) {
       case GLX_PBUFFER_WIDTH:
@@ -708,8 +708,8 @@ glXCreatePbuffer(Display * dpy, GLXFBConfig config, const int *attrib_list)
 
    return (GLXPbuffer) CreatePbuffer(dpy, (struct glx_config *) config,
                                      width, height, attrib_list, GL_TRUE);
-#endif
 }
+#endif
 
 
 /**
@@ -718,14 +718,16 @@ glXCreatePbuffer(Display * dpy, GLXFBConfig config, const int *attrib_list)
 _GLX_PUBLIC void
 glXDestroyPbuffer(Display * dpy, GLXPbuffer pbuf)
 {
-#ifdef GLX_USE_APPLEGL
-   if (apple_glx_pbuffer_destroy(dpy, pbuf)) {
-      __glXSendError(dpy, GLXBadPbuffer, pbuf, X_GLXDestroyPbuffer, false);
-   }
-#else
-   DestroyPbuffer(dpy, pbuf);
-#endif
+   any_screen(dpy)->drawable_vtable->destroy_pbuffer(dpy, pbuf);
 }
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+void
+__glXDestroyPbuffer(Display * dpy, GLXPbuffer pbuf)
+{
+   DestroyPbuffer(dpy, pbuf);
+}
+#endif
 
 
 /**
@@ -735,44 +737,17 @@ _GLX_PUBLIC void
 glXQueryDrawable(Display * dpy, GLXDrawable drawable,
                  int attribute, unsigned int *value)
 {
-#ifdef GLX_USE_APPLEGL
-   Window root;
-   int x, y;
-   unsigned int width, height, bd, depth;
-
-   if (apple_glx_pixmap_query(drawable, attribute, value))
-      return;                   /*done */
-
-   if (apple_glx_pbuffer_query(drawable, attribute, value))
-      return;                   /*done */
-
-   /*
-    * The OpenGL spec states that we should report GLXBadDrawable if
-    * the drawable is invalid, however doing so would require that we
-    * use XSetErrorHandler(), which is known to not be thread safe.
-    * If we use a round-trip call to validate the drawable, there could
-    * be a race, so instead we just opt in favor of letting the
-    * XGetGeometry request fail with a GetGeometry request X error 
-    * rather than GLXBadDrawable, in what is hoped to be a rare
-    * case of an invalid drawable.  In practice most and possibly all
-    * X11 apps using GLX shouldn't notice a difference.
-    */
-   if (XGetGeometry
-       (dpy, drawable, &root, &x, &y, &width, &height, &bd, &depth)) {
-      switch (attribute) {
-      case GLX_WIDTH:
-         *value = width;
-         break;
-
-      case GLX_HEIGHT:
-         *value = height;
-         break;
-      }
-   }
-#else
-   __glXGetDrawableAttribute(dpy, drawable, attribute, value);
-#endif
+   any_screen(dpy)->drawable_vtable->query_drawable(dpy, drawable, attribute, value);
 }
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+void
+__glXQueryDrawable(Display * dpy, GLXDrawable drawable,
+                   int attribute, unsigned int *value)
+{
+   __glXGetDrawableAttribute(dpy, drawable, attribute, value);
+}
+#endif
 
 
 #ifndef GLX_USE_APPLEGL
@@ -793,31 +768,21 @@ glXQueryGLXPbufferSGIX(Display * dpy, GLXPbufferSGIX drawable,
 _GLX_PUBLIC void
 glXSelectEvent(Display * dpy, GLXDrawable drawable, unsigned long mask)
 {
-#ifdef GLX_USE_APPLEGL
-   XWindowAttributes xwattr;
+   any_screen(dpy)->drawable_vtable->select_event(dpy, drawable, mask);
+}
 
-   if (apple_glx_pbuffer_set_event_mask(drawable, mask))
-      return;                   /*done */
-
-   /* 
-    * The spec allows a window, but currently there are no valid
-    * events for a window, so do nothing.
-    */
-   if (XGetWindowAttributes(dpy, drawable, &xwattr))
-      return;                   /*done */
-   /* The drawable seems to be invalid.  Report an error. */
-
-   __glXSendError(dpy, GLXBadDrawable, drawable,
-                  X_GLXChangeDrawableAttributes, false);
-#else
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+void
+__glXSelectEvent(Display * dpy, GLXDrawable drawable, unsigned long mask)
+{
    CARD32 attribs[2];
 
    attribs[0] = (CARD32) GLX_EVENT_MASK;
    attribs[1] = (CARD32) mask;
 
    ChangeDrawableAttribute(dpy, drawable, attribs, 1);
-#endif
 }
+#endif
 
 
 /**
@@ -826,26 +791,13 @@ glXSelectEvent(Display * dpy, GLXDrawable drawable, unsigned long mask)
 _GLX_PUBLIC void
 glXGetSelectedEvent(Display * dpy, GLXDrawable drawable, unsigned long *mask)
 {
-#ifdef GLX_USE_APPLEGL
-   XWindowAttributes xwattr;
+   any_screen(dpy)->drawable_vtable->get_selected_event(dpy, drawable, mask);
+}
 
-   if (apple_glx_pbuffer_get_event_mask(drawable, mask))
-      return;                   /*done */
-
-   /* 
-    * The spec allows a window, but currently there are no valid
-    * events for a window, so do nothing, but set the mask to 0.
-    */
-   if (XGetWindowAttributes(dpy, drawable, &xwattr)) {
-      /* The window is valid, so set the mask to 0. */
-      *mask = 0;
-      return;                   /*done */
-   }
-   /* The drawable seems to be invalid.  Report an error. */
-
-   __glXSendError(dpy, GLXBadDrawable, drawable, X_GLXGetDrawableAttributes,
-                  true);
-#else
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+void
+__glXGetSelectedEvent(Display * dpy, GLXDrawable drawable, unsigned long *mask)
+{
    unsigned int value = 0;
 
 
@@ -856,82 +808,94 @@ glXGetSelectedEvent(Display * dpy, GLXDrawable drawable, unsigned long *mask)
 
    __glXGetDrawableAttribute(dpy, drawable, GLX_EVENT_MASK_SGIX, &value);
    *mask = value;
-#endif
 }
+#endif
 
 
 _GLX_PUBLIC GLXPixmap
 glXCreatePixmap(Display * dpy, GLXFBConfig config, Pixmap pixmap,
                 const int *attrib_list)
 {
-#ifdef GLX_USE_APPLEGL
-   const struct glx_config *modes = (const struct glx_config *) config;
+   struct glx_config *cfg = (struct glx_config *) config;
+   struct glx_screen *psc;
 
-   if (apple_glx_pixmap_create(dpy, modes->screen, pixmap, modes))
+   if (cfg == NULL)
       return None;
 
-   return pixmap;
-#else
+   psc = GetGLXScreenConfigs(dpy, cfg->screen);
+   if (psc == NULL)
+      return None;
+
+   return psc->drawable_vtable->create_pixmap(dpy, config, pixmap, attrib_list);
+}
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+GLXPixmap
+__glXCreatePixmap(Display * dpy, GLXFBConfig config, Pixmap pixmap,
+                  const int *attrib_list)
+{
    return CreateDrawable(dpy, (struct glx_config *) config,
                          (Drawable) pixmap, GLX_PIXMAP_BIT, attrib_list);
-#endif
 }
+#endif
 
 
 _GLX_PUBLIC GLXWindow
 glXCreateWindow(Display * dpy, GLXFBConfig config, Window win,
                 const int *attrib_list)
 {
-#ifdef GLX_USE_APPLEGL
-   XWindowAttributes xwattr;
-   XVisualInfo *visinfo;
+   struct glx_config *cfg = (struct glx_config *) config;
+   struct glx_screen *psc;
 
-   (void) attrib_list;          /*unused according to GLX 1.4 */
-
-   XGetWindowAttributes(dpy, win, &xwattr);
-
-   visinfo = glXGetVisualFromFBConfig(dpy, config);
-
-   if (NULL == visinfo) {
-      __glXSendError(dpy, GLXBadFBConfig, 0, X_GLXCreateWindow, false);
+   if (cfg == NULL)
       return None;
-   }
 
-   if (visinfo->visualid != XVisualIDFromVisual(xwattr.visual)) {
-      free(visinfo);
-      __glXSendError(dpy, BadMatch, 0, X_GLXCreateWindow, true);
+   psc = GetGLXScreenConfigs(dpy, cfg->screen);
+   if (psc == NULL)
       return None;
-   }
 
-   free(visinfo);
+   return psc->drawable_vtable->create_window(dpy, config, win, attrib_list);
+}
 
-   return win;
-#else
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+GLXWindow
+__glXCreateWindow(Display * dpy, GLXFBConfig config, Window win,
+                  const int *attrib_list)
+{
    return CreateDrawable(dpy, (struct glx_config *) config,
                          (Drawable) win, GLX_WINDOW_BIT, attrib_list);
-#endif
 }
+#endif
 
 
 _GLX_PUBLIC void
 glXDestroyPixmap(Display * dpy, GLXPixmap pixmap)
 {
-#ifdef GLX_USE_APPLEGL
-   if (apple_glx_pixmap_destroy(dpy, pixmap))
-      __glXSendError(dpy, GLXBadPixmap, pixmap, X_GLXDestroyPixmap, false);
-#else
-   DestroyDrawable(dpy, (GLXDrawable) pixmap, X_GLXDestroyPixmap);
-#endif
+   any_screen(dpy)->drawable_vtable->destroy_pixmap(dpy, pixmap);
 }
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+void
+__glXDestroyPixmap(Display * dpy, GLXPixmap pixmap)
+{
+   DestroyDrawable(dpy, (GLXDrawable) pixmap, X_GLXDestroyPixmap);
+}
+#endif
 
 
 _GLX_PUBLIC void
 glXDestroyWindow(Display * dpy, GLXWindow win)
 {
-#ifndef GLX_USE_APPLEGL
-   DestroyDrawable(dpy, (GLXDrawable) win, X_GLXDestroyWindow);
-#endif
+   any_screen(dpy)->drawable_vtable->destroy_window(dpy, win);
 }
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+void
+__glXDestroyWindow(Display * dpy, GLXWindow win)
+{
+   DestroyDrawable(dpy, (GLXDrawable) win, X_GLXDestroyWindow);
+}
+#endif
 
 _GLX_PUBLIC
 GLX_ALIAS_VOID(glXDestroyGLXPbufferSGIX,
@@ -952,18 +916,18 @@ GLX_ALIAS_VOID(glXGetSelectedEventSGIX,
 _GLX_PUBLIC GLXPixmap
 glXCreateGLXPixmap(Display * dpy, XVisualInfo * vis, Pixmap pixmap)
 {
-#ifdef GLX_USE_APPLEGL
-   int screen = vis->screen;
-   struct glx_screen *const psc = GetGLXScreenConfigs(dpy, screen);
-   const struct glx_config *config;
+   struct glx_screen *psc = GetGLXScreenConfigs(dpy, vis->screen);
 
-   config = glx_config_find_visual(psc->visuals, vis->visualid);
-
-   if(apple_glx_pixmap_create(dpy, vis->screen, pixmap, config))
+   if (psc == NULL)
       return None;
 
-   return pixmap;
-#else
+   return psc->drawable_vtable->create_glx_pixmap(dpy, vis, pixmap);
+}
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+GLXPixmap
+__glXCreateGLXPixmap(Display * dpy, XVisualInfo * vis, Pixmap pixmap)
+{
    xGLXCreateGLXPixmapReq *req;
    struct glx_drawable *glxDraw;
    GLXPixmap xid;
@@ -1021,8 +985,8 @@ glXCreateGLXPixmap(Display * dpy, XVisualInfo * vis, Pixmap pixmap)
 #endif
 
    return xid;
-#endif
 }
+#endif
 
 /*
 ** Destroy the named pixmap
@@ -1030,13 +994,16 @@ glXCreateGLXPixmap(Display * dpy, XVisualInfo * vis, Pixmap pixmap)
 _GLX_PUBLIC void
 glXDestroyGLXPixmap(Display * dpy, GLXPixmap glxpixmap)
 {
-#ifdef GLX_USE_APPLEGL
-   if(apple_glx_pixmap_destroy(dpy, glxpixmap))
-      __glXSendError(dpy, GLXBadPixmap, glxpixmap, X_GLXDestroyPixmap, false);
-#else
-   DestroyDrawable(dpy, glxpixmap, X_GLXDestroyGLXPixmap);
-#endif /* GLX_USE_APPLEGL */
+   any_screen(dpy)->drawable_vtable->destroy_glx_pixmap(dpy, glxpixmap);
 }
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+void
+__glXDestroyGLXPixmap(Display * dpy, GLXPixmap glxpixmap)
+{
+   DestroyDrawable(dpy, glxpixmap, X_GLXDestroyGLXPixmap);
+}
+#endif
 
 _GLX_PUBLIC GLXPixmap
 glXCreateGLXPixmapWithConfigSGIX(Display * dpy,
@@ -1045,3 +1012,19 @@ glXCreateGLXPixmapWithConfigSGIX(Display * dpy,
 {
    return glXCreatePixmap(dpy, fbconfig, pixmap, NULL);
 }
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
+const struct glx_drawable_vtable glx_protocol_drawable_vtable = {
+   .create_pbuffer     = __glXCreatePbuffer,
+   .destroy_pbuffer    = __glXDestroyPbuffer,
+   .create_pixmap      = __glXCreatePixmap,
+   .destroy_pixmap     = __glXDestroyPixmap,
+   .create_window      = __glXCreateWindow,
+   .destroy_window     = __glXDestroyWindow,
+   .select_event       = __glXSelectEvent,
+   .get_selected_event = __glXGetSelectedEvent,
+   .query_drawable     = __glXQueryDrawable,
+   .create_glx_pixmap  = __glXCreateGLXPixmap,
+   .destroy_glx_pixmap = __glXDestroyGLXPixmap,
+};
+#endif

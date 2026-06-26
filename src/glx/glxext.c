@@ -702,6 +702,7 @@ glx_screen_init(struct glx_screen *psc,
    psc->scr = screen;
    psc->dpy = priv->dpy;
    psc->display = priv;
+   psc->drawable_vtable = &glx_protocol_drawable_vtable;
 
    if (!getVisualConfigs(psc, priv, screen))
       return GL_FALSE;

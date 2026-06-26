@@ -490,10 +490,33 @@ struct glx_screen_vtable {
    char *(*get_driver_name)(struct glx_screen *psc);
 };
 
+/**
+ * Backend-specific dispatch for GLX drawable lifecycle and per-drawable queries.
+ * The slot signatures match the public glX* entry points they back; each backend's
+ * screen-creation function installs an instance on struct glx_screen.drawable_vtable.
+ */
+struct glx_drawable_vtable {
+   GLXPbuffer (*create_pbuffer)(Display *dpy, GLXFBConfig config, const int *attrib_list);
+   void (*destroy_pbuffer)(Display *dpy, GLXPbuffer pbuf);
+   GLXPixmap (*create_pixmap)(Display *dpy, GLXFBConfig config, Pixmap pixmap,
+                              const int *attrib_list);
+   void (*destroy_pixmap)(Display *dpy, GLXPixmap pixmap);
+   GLXWindow (*create_window)(Display *dpy, GLXFBConfig config, Window win,
+                              const int *attrib_list);
+   void (*destroy_window)(Display *dpy, GLXWindow win);
+   void (*select_event)(Display *dpy, GLXDrawable drawable, unsigned long mask);
+   void (*get_selected_event)(Display *dpy, GLXDrawable drawable, unsigned long *mask);
+   void (*query_drawable)(Display *dpy, GLXDrawable drawable, int attribute,
+                          unsigned int *value);
+   GLXPixmap (*create_glx_pixmap)(Display *dpy, XVisualInfo *vis, Pixmap pixmap);
+   void (*destroy_glx_pixmap)(Display *dpy, GLXPixmap glxpixmap);
+};
+
 struct glx_screen
 {
    const struct glx_screen_vtable *vtable;
    const struct glx_context_vtable *context_vtable;
+   const struct glx_drawable_vtable *drawable_vtable;
 
     /**
      * \name Storage for the GLX vendor, version, and extension strings
@@ -674,6 +697,33 @@ extern CARD8 __glXSetupForCommand(Display * dpy);
 extern void __glXCopyContext(Display *dpy, struct glx_context *src,
                              struct glx_context *dst, unsigned long mask);
 extern void __glXSwapBuffers(Display *dpy, GLXDrawable drawable);
+
+/*
+** Protocol-side defaults for the glx_drawable_vtable slots.  Each function is
+** the corresponding glX* entry point body.  glx_screen_init() installs
+** glx_protocol_drawable_vtable on every screen, so only backends that need to
+** override (eg AppleGL) reassign glx_screen.drawable_vtable after init.
+*/
+extern GLXPbuffer __glXCreatePbuffer(Display *dpy, GLXFBConfig config,
+                                     const int *attrib_list);
+extern void __glXDestroyPbuffer(Display *dpy, GLXPbuffer pbuf);
+extern GLXPixmap __glXCreatePixmap(Display *dpy, GLXFBConfig config,
+                                   Pixmap pixmap, const int *attrib_list);
+extern void __glXDestroyPixmap(Display *dpy, GLXPixmap pixmap);
+extern GLXWindow __glXCreateWindow(Display *dpy, GLXFBConfig config, Window win,
+                                   const int *attrib_list);
+extern void __glXDestroyWindow(Display *dpy, GLXWindow win);
+extern void __glXSelectEvent(Display *dpy, GLXDrawable drawable,
+                             unsigned long mask);
+extern void __glXGetSelectedEvent(Display *dpy, GLXDrawable drawable,
+                                  unsigned long *mask);
+extern void __glXQueryDrawable(Display *dpy, GLXDrawable drawable,
+                               int attribute, unsigned int *value);
+extern GLXPixmap __glXCreateGLXPixmap(Display *dpy, XVisualInfo *vis,
+                                      Pixmap pixmap);
+extern void __glXDestroyGLXPixmap(Display *dpy, GLXPixmap glxpixmap);
+
+extern const struct glx_drawable_vtable glx_protocol_drawable_vtable;
 
 /************************************************************************/
 
