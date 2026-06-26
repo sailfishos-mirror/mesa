@@ -296,6 +296,17 @@ zink-radv-navi31-valve:
     GPU_VERSION: zink-radv-navi31
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
 
+zink-radv-navi31-valve-asan:
+  extends:
+    - .radv-zink-test-valve-asan
+    - .navi31-test-valve
+    - .zink-radv-valve-manual-rules
+  timeout: 15m
+  variables:
+    HWCI_START_WESTON: 1
+    GPU_VERSION: zink-radv-navi31
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
+
 zink-radv-gfx1201-valve:
   extends:
     - .radv-zink-test-valve

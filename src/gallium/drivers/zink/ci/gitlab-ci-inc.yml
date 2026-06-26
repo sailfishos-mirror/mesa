@@ -301,3 +301,16 @@
     DEQP_SUITE: zink-radv
     # Disable reporting, since DUTs don't have internet access
     FLAKES_CHANNEL: ""
+
+.radv-zink-test-valve-asan:
+  extends:
+    - .ci-tron-test-amdgpu
+    - .ci-tron-x86_64-test-gl-asan-manual
+    - .zink-test
+    - .test-piglit
+    - .ci-tron-test-radv
+  variables:
+    DRIVER_NAME: zink-radv
+    DEQP_SUITE: zink-radv-asan
+    # Disable reporting, since DUTs don't have internet access
+    FLAKES_CHANNEL: ""
