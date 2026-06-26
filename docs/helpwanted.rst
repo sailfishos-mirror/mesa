@@ -21,7 +21,7 @@ specific ideas and areas where help would be appreciated:
    <https://gitlab.freedesktop.org/mesa/mesa/-/work_items?sort=created_date&state=opened&label_name[]=difficulty%3A%20hard>`__
    labels.
 #. **Driver debugging.** There are plenty of open bugs in the `bug
-   database <https://gitlab.freedesktop.org/mesa/mesa/-/issues>`__.
+   database <https://gitlab.freedesktop.org/mesa/mesa/-/work_items>`__.
 #. **Remove aliasing warnings.** Enable GCC's
    ``-Wstrict-aliasing=2 -fstrict-aliasing`` arguments, and track down
    aliasing issues in the code.
