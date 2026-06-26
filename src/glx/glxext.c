@@ -1023,7 +1023,7 @@ __glXInitialize(Display * dpy)
    if (glx_direct)
       glx_driver |= GLX_DRIVER_SW;
 
-#if !defined(GLX_USE_APPLE)
+#if !defined(GLX_USE_APPLEGL)
    if (!dpyPriv->has_multibuffer && glx_accel && !debug_get_bool_option("LIBGL_KOPPER_DRI2", false)) {
       if (glx_driver & GLX_DRIVER_ZINK_YES) {
          /* only print error if zink was explicitly requested */
