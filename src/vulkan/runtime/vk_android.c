@@ -305,6 +305,7 @@ vk_android_init_deferred_image(struct vk_device *device,
    /* collect all dynamic array infos */
    uint32_t queue_family_count = 0;
    uint32_t view_format_count = 0;
+   uint32_t fixed_rate_count = 0;
 
    if (pCreateInfo->sharingMode == VK_SHARING_MODE_CONCURRENT)
       queue_family_count = pCreateInfo->queueFamilyIndexCount;
@@ -314,15 +315,24 @@ vk_android_init_deferred_image(struct vk_device *device,
    if (raw_list)
       view_format_count = raw_list->viewFormatCount;
 
+   const VkImageCompressionControlEXT *raw_compress =
+      vk_find_struct_const(pCreateInfo->pNext, IMAGE_COMPRESSION_CONTROL_EXT);
+   if (raw_compress &&
+       (raw_compress->flags & VK_IMAGE_COMPRESSION_FIXED_RATE_EXPLICIT_EXT))
+      fixed_rate_count = raw_compress->compressionControlPlaneCount;
+
    /* Extend below when drivers support more extensions that interact with ANB
-    * or AHB. e.g. VK_EXT_image_compression_control
+    * or AHB.
     */
    VK_MULTIALLOC(ma);
    VK_MULTIALLOC_DECL(&ma, VkImageCreateInfo, create_info, 1);
    VK_MULTIALLOC_DECL(&ma, VkImageFormatListCreateInfo, list_info, 1);
    VK_MULTIALLOC_DECL(&ma, VkImageStencilUsageCreateInfo, stencil_info, 1);
+   VK_MULTIALLOC_DECL(&ma, VkImageCompressionControlEXT, compress_info, 1);
    VK_MULTIALLOC_DECL(&ma, uint32_t, queue_families, queue_family_count);
    VK_MULTIALLOC_DECL(&ma, VkFormat, view_formats, view_format_count);
+   VK_MULTIALLOC_DECL(&ma, VkImageCompressionFixedRateFlagsEXT, fixed_rates,
+                      fixed_rate_count);
 
    if (!vk_multialloc_zalloc2(&ma, &device->alloc, pAllocator,
                               VK_SYSTEM_ALLOCATION_SCOPE_OBJECT))
@@ -374,6 +384,21 @@ vk_android_init_deferred_image(struct vk_device *device,
          .stencilUsage = image->stencil_usage,
       };
       __vk_append_struct(create_info, stencil_info);
+   }
+
+   /* VK_EXT_image_compression_control */
+   if (raw_compress) {
+      if (fixed_rate_count) {
+         typed_memcpy(fixed_rates, raw_compress->pFixedRateFlags,
+                      fixed_rate_count);
+      }
+      *compress_info = (VkImageCompressionControlEXT){
+         .sType = VK_STRUCTURE_TYPE_IMAGE_COMPRESSION_CONTROL_EXT,
+         .flags = raw_compress->flags,
+         .compressionControlPlaneCount = fixed_rate_count,
+         .pFixedRateFlags = fixed_rate_count ? fixed_rates : NULL,
+      };
+      __vk_append_struct(create_info, compress_info);
    }
 
    image->android_deferred_create_info = create_info;
