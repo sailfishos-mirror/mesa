@@ -1964,7 +1964,7 @@
         "description": "nvk: Handle large indirect stride pre-Turing",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a3716f1b9e3ba63f9a22bc3d2cc0cba889779862",
         "notes": null
