@@ -1982,7 +1982,12 @@ radv_create_query_pool(struct radv_device *device, const VkQueryPoolCreateInfo *
       }
       FALLTHROUGH;
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
-      pool->stride = 48;
+      /* base encode feedback size */
+      pool->stride = RADV_ENC_FEEDBACK_PARTITION_SIZE * sizeof(uint32_t);
+
+      /* status field */
+      pool->encode_feedback.status_offset = pool->stride = align(pool->stride, sizeof(uint64_t));
+      pool->stride += sizeof(uint64_t);
       break;
    default:
       UNREACHABLE("creating unhandled query type");
@@ -2381,7 +2386,7 @@ radv_GetQueryPoolResults(VkDevice _device, VkQueryPool queryPool, uint32_t first
          const bool write_memory =
             pdev->info.video_caps.queue[AMD_IP_VCN_ENC].write_memory == AC_VIDEO_WRITE_MEMORY_SUPPORT_FULL;
          uint32_t *src32 = (uint32_t *)src;
-         uint32_t ready_idx = write_memory ? RADV_ENC_FEEDBACK_STATUS_IDX : 1;
+         uint32_t ready_idx = write_memory ? pool->encode_feedback.status_offset / sizeof(uint32_t) : 1;
          uint32_t value;
          do {
             value = p_atomic_read(&src32[ready_idx]);
@@ -2620,6 +2625,7 @@ emit_begin_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *poo
       break;
    case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
+      cmd_buffer->video.status_offset = pool->encode_feedback.status_offset;
       cmd_buffer->video.feedback_query_va = va;
       break;
    default:
@@ -2655,6 +2661,7 @@ emit_end_query(struct radv_cmd_buffer *cmd_buffer, struct radv_query_pool *pool,
       break;
    case VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR:
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR:
+      cmd_buffer->video.status_offset = 0;
       cmd_buffer->video.feedback_query_va = 0;
       break;
    default:

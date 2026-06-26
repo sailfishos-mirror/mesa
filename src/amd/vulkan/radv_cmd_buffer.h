@@ -611,6 +611,7 @@ struct radv_cmd_buffer {
       struct rvcn_sq_var sq;
       struct rvcn_decode_buffer_s *decode_buffer;
       struct radv_enc_state enc;
+      uint32_t status_offset;
       uint64_t feedback_query_va;
    } video;
 

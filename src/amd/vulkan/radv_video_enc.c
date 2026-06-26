@@ -1870,7 +1870,7 @@ radv_enc_feedback(struct radv_cmd_buffer *cmd_buffer, uint64_t feedback_query_va
    RADEON_ENC_CS(feedback_query_va >> 32);
    RADEON_ENC_CS(feedback_query_va & 0xffffffff);
    RADEON_ENC_CS(16); // buffer_size
-   RADEON_ENC_CS(40); // data_size
+   RADEON_ENC_CS(RADV_ENC_FEEDBACK_PARTITION_SIZE * sizeof(uint32_t)); // data_size
    RADEON_ENC_END();
 }
 
@@ -3018,6 +3018,7 @@ radv_vcn_encode_video(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInf
 
          feedback_query_va = radv_buffer_get_va(pool->bo);
          feedback_query_va += pool->stride * inline_queries->firstQuery;
+         cmd_buffer->video.status_offset = pool->encode_feedback.status_offset;
       }
    }
 
@@ -3093,8 +3094,8 @@ radv_vcn_encode_video(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInf
       radv_vcn_sq_tail(cs, &cmd_buffer->video.sq);
       if (feedback_query_va &&
           pdev->info.video_caps.queue[AMD_IP_VCN_ENC].write_memory == AC_VIDEO_WRITE_MEMORY_SUPPORT_FULL)
-         ac_emit_video_write_memory(cs->b, &pdev->info, cs->hw_ip,
-                                    feedback_query_va + RADV_ENC_FEEDBACK_STATUS_IDX * sizeof(uint32_t), 1);
+         ac_emit_video_write_memory(cs->b, &pdev->info, cs->hw_ip, feedback_query_va + cmd_buffer->video.status_offset,
+                                    1);
    }
 }
 
