@@ -2274,7 +2274,7 @@
         "description": "glx: fix DRI3-not-available diagnostic skip on macOS",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "568a4ca899762fe96fc9b34d2288d07e6656af87",
         "notes": null
