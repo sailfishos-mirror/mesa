@@ -762,9 +762,6 @@ applegl_create_context(struct glx_screen *psc,
 
 extern int
 applegl_create_display(struct glx_display *display);
-
-extern void *
-applegl_get_proc_address(const char *symbol);
 #endif
 
 extern Bool validate_renderType_against_config(const struct glx_config *config,

@@ -34,12 +34,10 @@
 #if defined(GLX_USE_APPLEGL)
 
 #include <stdbool.h>
-#include <dlfcn.h>
 
 #include "glxclient.h"
 #include "apple/apple_glx_context.h"
 #include "apple/apple_glx.h"
-#include "apple/apple_cgl.h"
 #include "glx_error.h"
 
 static void
@@ -102,12 +100,6 @@ applegl_wait_x(struct glx_context *gc)
 {
    Display *dpy = gc->psc->dpy;
    apple_glx_waitx(dpy, gc->driContext);
-}
-
-void *
-applegl_get_proc_address(const char *symbol)
-{
-   return dlsym(apple_cgl_get_dl_handle(), symbol);
 }
 
 static const struct glx_context_vtable applegl_context_vtable = {
