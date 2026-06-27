@@ -964,7 +964,7 @@
         "description": "zink: fix GLX_USE_APPLE typo (should be GLX_USE_APPLEGL)",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "899fcaf23744778bb16662185c26b9df982c5365",
         "notes": null
