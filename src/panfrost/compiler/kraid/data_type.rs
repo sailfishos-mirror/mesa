@@ -254,3 +254,58 @@ impl DataType {
         comps * bits
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Tests that we have all the 32-bit data types and we didn't miss one
+    #[test]
+    fn test_32bit_alu_types() {
+        const NUM_TYPES: &'static [NumericType] = &[
+            NumericType::Integer,
+            NumericType::Float,
+            NumericType::SignedInteger,
+            NumericType::UnsignedInteger,
+        ];
+
+        for comps in [1, 2, 4] {
+            for num_type in NUM_TYPES.iter().cloned() {
+                for bits in [8, 16, 32, 64] {
+                    if u16::from(comps) * u16::from(bits) > 32 {
+                        continue;
+                    }
+
+                    if bits == 8 && num_type == NumericType::Float {
+                        continue;
+                    }
+                    PartialDataType::from_pieces(comps, Some(num_type), bits);
+                    DataType::from_pieces(comps, Some(num_type), bits);
+                }
+            }
+        }
+    }
+
+    /// Tests that we have all the message data types and we didn't miss one
+    #[test]
+    fn test_message_types() {
+        const NUM_TYPES: &'static [NumericType] = &[
+            NumericType::Auto,
+            NumericType::Float,
+            NumericType::SignedInteger,
+            NumericType::UnsignedInteger,
+        ];
+
+        for comps in [1, 2, 3, 4] {
+            for num_type in NUM_TYPES.iter().cloned() {
+                for bits in [16, 32] {
+                    if num_type == NumericType::Auto && bits != 32 {
+                        continue;
+                    }
+                    PartialDataType::from_pieces(comps, Some(num_type), bits);
+                    DataType::from_pieces(comps, Some(num_type), bits);
+                }
+            }
+        }
+    }
+}
