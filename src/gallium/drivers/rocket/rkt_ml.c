@@ -354,6 +354,9 @@ rkt_ml_subgraph_create(struct pipe_ml_device *pdevice,
          input_op_2->addition_offset =
             0x80 - poperations[i].input_tensors[1]->zero_point;
          input_op_2->addition_scale = poperations[i].input_tensors[1]->scale;
+         input_op_2->output_scale = poperations[i].output_tensors[0]->scale;
+         input_op_2->output_zero_point =
+            poperations[i].output_tensors[0]->zero_point;
 
          break;
       }
