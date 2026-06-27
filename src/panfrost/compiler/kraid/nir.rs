@@ -519,6 +519,18 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [0.into(), srcs(0)],
                 });
             }
+            nir_op_inot => {
+                b.push_op(OpShiftLop {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::UnsignedInteger),
+                    shift_op: ShiftOp::None,
+                    logic_op: LogicOp::None,
+                    not_result: true,
+                    src0: srcs(0),
+                    shift: Src::imm_u8(0),
+                    src2: 0.into(),
+                });
+            }
             nir_op_iand | nir_op_ior | nir_op_ixor => {
                 b.push_op(OpShiftLop {
                     dst: dst.into(),
