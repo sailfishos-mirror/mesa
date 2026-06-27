@@ -9,7 +9,7 @@
 
 #include "nir/nir_defines.h"
 
-#include "tools/radv_rti.h"
+#include "tools/radv_gamma.h"
 
 struct radv_compiler_info;
 

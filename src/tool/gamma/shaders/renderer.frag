@@ -15,7 +15,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #extension GL_EXT_scalar_block_layout : require
 
-#include "rti_shader_interface.h"
+#include "gamma_shader_interface.h"
 
 layout(location = 0) out vec4 out_color;
 
@@ -24,27 +24,27 @@ layout(location = 1) flat in uint32_t param_index;
 
 layout(push_constant) uniform block
 {
-   rti_push_constants consts;
+   gamma_push_constants consts;
 };
 
 layout(scalar, set = 0, binding = 0) readonly buffer SSBO
 {
-   rti_render_params params[];
+   gamma_render_params params[];
 }
 state;
 
 void
 main()
 {
-   rti_render_params params = state.params[param_index];
+   gamma_render_params params = state.params[param_index];
 
    out_color = vec4(0.0, 0.0, 0.0, 1.0);
 
-   uint32_t color_calculation = consts.flags & RTI_RENDERER_FLAG_COLOR_MASK;
-   if (color_calculation == RTI_RENDERER_COLOR_PUSH_CONSTANT) {
+   uint32_t color_calculation = consts.flags & GAMMA_RENDERER_FLAG_COLOR_MASK;
+   if (color_calculation == GAMMA_RENDERER_COLOR_PUSH_CONSTANT) {
       out_color.rgb = params.color;
-   } else if (color_calculation == RTI_RENDERER_COLOR_GEOMETRY_INDEX ||
-              color_calculation == RTI_RENDERER_COLOR_PRIMITIVE_INDEX) {
+   } else if (color_calculation == GAMMA_RENDERER_COLOR_GEOMETRY_INDEX ||
+              color_calculation == GAMMA_RENDERER_COLOR_PRIMITIVE_INDEX) {
       out_color.r = ((index * 0xd83f0930) >> 24) / 255.0;
       out_color.g = ((index * 0x8fa9836b) >> 24) / 255.0;
       out_color.b = ((index * 0x3037f8ad) >> 24) / 255.0;

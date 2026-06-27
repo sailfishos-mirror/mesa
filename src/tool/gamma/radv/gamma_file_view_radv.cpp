@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "rti_file_view_radv.h"
-#include "rti_file_view.h"
+#include "gamma_file_view_radv.h"
+#include "gamma_file_view.h"
 
 #include <cinttypes>
 #include <cmath>
@@ -18,33 +18,30 @@
 
 #include "imgui_internal.h"
 
-#include "shaders/rti_shader_interface.h"
+#include "shaders/gamma_shader_interface.h"
+#include "util/gamma_format.h"
 #include "util/macros.h"
-#include "util/rti_format.h"
 #include "vulkan/vulkan_core.h"
 
 #include "compiler/spirv/spirv.h"
 
-#ifdef HAVE_TBB
-#include <oneapi/tbb/blocked_range.h>
-#include <oneapi/tbb/parallel_for.h>
-#endif
-
 #include "bvh_defines.h"
-#include "radv_rti.h"
-#include "rti_app.h"
-#include "rti_util.h"
+#include "gamma_app.h"
+#include "gamma_util.h"
+#include "radv_gamma.h"
 
-std::unique_ptr<rti_acceleration_structure>
-rti_file_view_radv::create_acceleration_structure()
+std::unique_ptr<gamma_acceleration_structure>
+gamma_file_view_radv::create_acceleration_structure()
 {
-   return std::make_unique<rti_acceleration_structure_radv>(this);
+   return std::make_unique<gamma_acceleration_structure_radv>(this);
 }
 
 float
-rti_file_view_radv::handle_mouse_click(rti_acceleration_structure *_acceleration_structure, rti_ray ray, bool select)
+gamma_file_view_radv::handle_mouse_click(gamma_acceleration_structure *_acceleration_structure, gamma_ray ray,
+                                         bool select)
 {
-   rti_acceleration_structure_radv *acceleration_structure = (rti_acceleration_structure_radv *)_acceleration_structure;
+   gamma_acceleration_structure_radv *acceleration_structure =
+      (gamma_acceleration_structure_radv *)_acceleration_structure;
 
    float tmax = INFINITY;
 
@@ -61,18 +58,18 @@ rti_file_view_radv::handle_mouse_click(rti_acceleration_structure *_acceleration
 }
 
 void
-rti_file_view_radv::load(FILE *file, const rti_header *header)
+gamma_file_view_radv::load(FILE *file, const gamma_header *header)
 {
-   rti_file_view::load(file, header);
+   gamma_file_view::load(file, header);
 
    uint32_t vertex_count = 0;
    for (uint32_t i = 0; i < acceleration_structures.size(); i++) {
-      rti_acceleration_structure_radv *acceleration_structure =
-         (rti_acceleration_structure_radv *)acceleration_structures[i].get();
+      gamma_acceleration_structure_radv *acceleration_structure =
+         (gamma_acceleration_structure_radv *)acceleration_structures[i].get();
 
       uint32_t primitive_vertex_count = acceleration_structure->header.geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR
                                            ? 3
-                                           : RTI_FILLED_CUBE_VERTEX_COUNT;
+                                           : GAMMA_FILLED_CUBE_VERTEX_COUNT;
 
       if (acceleration_structure->header.geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR) {
          acceleration_structure->first_vertex = vertex_count;
@@ -81,64 +78,55 @@ rti_file_view_radv::load(FILE *file, const rti_header *header)
 
          if (acceleration_structure->header.geometry_type == VK_GEOMETRY_TYPE_AABBS_KHR) {
             acceleration_structure->wireframe_first_vertex = vertex_count;
-            vertex_count += RTI_CUBE_VERTEX_COUNT * acceleration_structure->primitive_count;
+            vertex_count += GAMMA_CUBE_VERTEX_COUNT * acceleration_structure->primitive_count;
          }
       }
    }
 
-   rti_vertex *vertices = nullptr;
-   std::shared_ptr<rti_backed_buffer> vertex_buffer = nullptr;
+   gamma_vertex *vertices = nullptr;
+   std::shared_ptr<gamma_backed_buffer> vertex_buffer = nullptr;
    if (vertex_count) {
       vertex_buffer =
-         rti_create_backed_buffer(app, vertex_count * sizeof(rti_vertex), rti_memory_type_device_local,
-                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
-      vertices = (rti_vertex *)app->upload_memory(vertex_buffer);
+         gamma_create_backed_buffer(app, vertex_count * sizeof(gamma_vertex), gamma_memory_type_device_local,
+                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
+      vertices = (gamma_vertex *)app->upload_memory(vertex_buffer);
    }
 
-#ifdef HAVE_TBB
-   tbb::parallel_for(tbb::blocked_range<uint32_t>(0, acceleration_structures.size()),
-                     [this, vertices, vertex_buffer](const tbb::blocked_range<uint32_t> &range) {
-                        for (uint32_t i = range.begin(); i < range.end(); i++) {
-#else
    for (uint32_t i = 0; i < acceleration_structures.size(); i++) {
-#endif
-                           rti_acceleration_structure_radv *acceleration_structure =
-                              (rti_acceleration_structure_radv *)acceleration_structures[i].get();
+      gamma_acceleration_structure_radv *acceleration_structure =
+         (gamma_acceleration_structure_radv *)acceleration_structures[i].get();
 
-                           acceleration_structure->bvh = (const uint8_t *)acceleration_structure->data;
+      acceleration_structure->bvh = (const uint8_t *)acceleration_structure->data;
 
-                           if (trace_info->bvh8)
-                              acceleration_structure->aabb = bvh8_scene_aabb(acceleration_structure);
-                           else
-                              acceleration_structure->aabb = bvh4_scene_aabb(acceleration_structure);
+      if (trace_info->bvh8)
+         acceleration_structure->aabb = bvh8_scene_aabb(acceleration_structure);
+      else
+         acceleration_structure->aabb = bvh4_scene_aabb(acceleration_structure);
 
-                           acceleration_structure->init_camera();
+      acceleration_structure->init_camera();
 
-                           if (acceleration_structure->header.geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR &&
-                               acceleration_structure->primitive_count) {
-                              acceleration_structure->ui.vertex_buffer = vertex_buffer;
+      if (acceleration_structure->header.geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR &&
+          acceleration_structure->primitive_count) {
+         acceleration_structure->ui.vertex_buffer = vertex_buffer;
 
-                              if (trace_info->bvh8) {
-                                 bvh8_get_vertices(acceleration_structure, RADV_BVH_ROOT_NODE,
-                                                   vertices + acceleration_structure->first_vertex,
-                                                   vertices + acceleration_structure->wireframe_first_vertex);
-                              } else {
-                                 bvh4_get_vertices(acceleration_structure, RADV_BVH_ROOT_NODE,
-                                                   vertices + acceleration_structure->first_vertex,
-                                                   vertices + acceleration_structure->wireframe_first_vertex);
-                              }
-                           }
-                        }
-#ifdef HAVE_TBB
-                     });
-#endif
+         if (trace_info->bvh8) {
+            bvh8_get_vertices(acceleration_structure, RADV_BVH_ROOT_NODE,
+                              vertices + acceleration_structure->first_vertex,
+                              vertices + acceleration_structure->wireframe_first_vertex);
+         } else {
+            bvh4_get_vertices(acceleration_structure, RADV_BVH_ROOT_NODE,
+                              vertices + acceleration_structure->first_vertex,
+                              vertices + acceleration_structure->wireframe_first_vertex);
+         }
+      }
+   }
 
    app->flush_upload_memory();
 
    bool is_first_tlas = true;
    for (uint32_t i = 0; i < acceleration_structures.size(); i++) {
-      rti_acceleration_structure_radv *acceleration_structure =
-         (rti_acceleration_structure_radv *)acceleration_structures[i].get();
+      gamma_acceleration_structure_radv *acceleration_structure =
+         (gamma_acceleration_structure_radv *)acceleration_structures[i].get();
 
       if (acceleration_structure->header.geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR)
          continue;
@@ -149,7 +137,7 @@ rti_file_view_radv::load(FILE *file, const rti_header *header)
          is_first_tlas = false;
       }
 
-      acceleration_structure->ui.instance_render_list = std::make_shared<rti_render_list>(app);
+      acceleration_structure->ui.instance_render_list = std::make_shared<gamma_render_list>(app);
 
       if (trace_info->bvh8)
          bvh8_get_instances(acceleration_structure, RADV_BVH_ROOT_NODE);
@@ -158,7 +146,7 @@ rti_file_view_radv::load(FILE *file, const rti_header *header)
    }
 
    for (uint32_t i = 0; i < dispatch_count; i++) {
-      auto dispatch_view = std::make_shared<rti_dispatch_view>();
+      auto dispatch_view = std::make_shared<gamma_dispatch_view>();
 
       dispatch_view->ui.settings.width = dispatch_infos[i].dimensions[0];
       dispatch_view->ui.settings.height = dispatch_infos[i].dimensions[1];
@@ -189,7 +177,7 @@ rti_file_view_radv::load(FILE *file, const rti_header *header)
    }
 
    uint64_t data_size =
-      ray_history_data_size - sizeof(radv_rti_ray_history_header) - sizeof(radv_rti_dispatch_info) * dispatch_count;
+      ray_history_data_size - sizeof(radv_gamma_ray_history_header) - sizeof(radv_gamma_dispatch_info) * dispatch_count;
    for (uint32_t offset = 0; offset < data_size;) {
       const radv_packed_token_header *header = (const radv_packed_token_header *)(history_data + offset);
       if (header->token_type == radv_packed_token_trace_ray) {
@@ -200,7 +188,7 @@ rti_file_view_radv::load(FILE *file, const rti_header *header)
          const radv_packed_iteration_token *token = (const radv_packed_iteration_token *)(history_data + offset);
          dispatch_views[token->dispatch_index]->invocations[token->header.launch_index].offsets.push_back(offset);
 
-         rti_invocation_data *invocation =
+         gamma_invocation_data *invocation =
             &dispatch_views[token->dispatch_index]->invocations[token->header.launch_index];
 
          uint32_t node_type = token->node_id & 0xf;
@@ -224,9 +212,9 @@ rti_file_view_radv::load(FILE *file, const rti_header *header)
    }
 
    for (uint32_t i = 0; i < dispatch_count; i++) {
-      rti_dispatch_view *dispatch_view = dispatch_views[i].get();
+      gamma_dispatch_view *dispatch_view = dispatch_views[i].get();
       for (uint32_t j = 0; j < dispatch_view->invocation_count; j++) {
-         rti_invocation_data *invocation = &dispatch_views[i]->invocations[j];
+         gamma_invocation_data *invocation = &dispatch_views[i]->invocations[j];
          uint32_t iteration_count = invocation->box_iteration_count + invocation->instance_iteration_count +
                                     invocation->primitive_iteration_count;
          dispatch_view->max_iteration_count = MAX2(dispatch_view->max_iteration_count, iteration_count);
@@ -243,12 +231,13 @@ static const char *node_type_names[16] = {
 };
 
 void
-rti_file_view_radv::load_driver_specific(FILE *file, const rti_chunk_header *chunk_header, const rti_header *header)
+gamma_file_view_radv::load_driver_specific(FILE *file, const gamma_chunk_header *chunk_header,
+                                           const gamma_header *header)
 {
-   if (chunk_header->type == rti_chunk_type_trace_info_radv) {
-      assert(chunk_header->size == sizeof(radv_rti_trace_info));
-      trace_info = (radv_rti_trace_info *)malloc(sizeof(radv_rti_trace_info));
-      fread(trace_info, sizeof(radv_rti_trace_info), 1, file);
+   if (chunk_header->type == gamma_chunk_type_trace_info_radv) {
+      assert(chunk_header->size == sizeof(radv_gamma_trace_info));
+      trace_info = (radv_gamma_trace_info *)malloc(sizeof(radv_gamma_trace_info));
+      fread(trace_info, sizeof(radv_gamma_trace_info), 1, file);
       return;
    }
 
@@ -256,15 +245,15 @@ rti_file_view_radv::load_driver_specific(FILE *file, const rti_chunk_header *chu
    fread(ray_history_data, chunk_header->size, 1, file);
    ray_history_data_size = chunk_header->size;
 
-   history_header = (const radv_rti_ray_history_header *)ray_history_data;
-   dispatch_infos = (const radv_rti_dispatch_info *)(history_header + 1);
+   history_header = (const radv_gamma_ray_history_header *)ray_history_data;
+   dispatch_infos = (const radv_gamma_dispatch_info *)(history_header + 1);
    history_data = (const uint8_t *)(dispatch_infos + history_header->dispatch_count);
    dispatch_count = history_header->dispatch_count;
 }
 
 void
-rti_file_view_radv::dock_driver_specific(uint32_t left_top, uint32_t left_bottom, uint32_t center, uint32_t right_top,
-                                         uint32_t right_bottom)
+gamma_file_view_radv::dock_driver_specific(uint32_t left_top, uint32_t left_bottom, uint32_t center, uint32_t right_top,
+                                           uint32_t right_bottom)
 {
    ImGui::DockBuilderDockWindow("dispatches", right_top);
 
@@ -279,8 +268,8 @@ rti_file_view_radv::dock_driver_specific(uint32_t left_top, uint32_t left_bottom
    ImGui::DockBuilderDockWindow("invocation", left_bottom);
 }
 
-rti_invocation_data *
-rti_file_view_radv::get_selected_invocation()
+gamma_invocation_data *
+gamma_file_view_radv::get_selected_invocation()
 {
 
    if (selected_dispatch && selected_dispatch->ui.selection_x != UINT32_MAX) {
@@ -294,58 +283,59 @@ rti_file_view_radv::get_selected_invocation()
 }
 
 void
-rti_file_view_radv::run()
+gamma_file_view_radv::run()
 {
    begin();
 
-   rti_invocation_data *selected_invocation = get_selected_invocation();
+   gamma_invocation_data *selected_invocation = get_selected_invocation();
 
    for (auto &_acceleration_structure : acceleration_structures) {
-      rti_acceleration_structure_radv *acceleration_structure =
-         (rti_acceleration_structure_radv *)_acceleration_structure.get();
+      gamma_acceleration_structure_radv *acceleration_structure =
+         (gamma_acceleration_structure_radv *)_acceleration_structure.get();
 
       if (begin_viewport(acceleration_structure)) {
          uint32_t primitive_vertex_count =
             acceleration_structure->header.geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR
                ? 3
-               : RTI_FILLED_CUBE_VERTEX_COUNT;
+               : GAMMA_FILLED_CUBE_VERTEX_COUNT;
 
          if (acceleration_structure->ui.vertex_buffer) {
-            rti_render_task solid_task;
+            gamma_render_task solid_task;
             solid_task.vertex_buffer = acceleration_structure->ui.vertex_buffer.get();
             solid_task.first_vertex = acceleration_structure->first_vertex;
             solid_task.vertex_count = acceleration_structure->primitive_count * primitive_vertex_count;
             solid_task.flags =
-               rti_visualization_color_to_renderer_color(acceleration_structure->ui.visualization_color);
+               gamma_visualization_color_to_renderer_color(acceleration_structure->ui.visualization_color);
             render(solid_task);
 
             if (acceleration_structure->wireframe_first_vertex != acceleration_structure->first_vertex) {
-               rti_render_task wireframe_task;
-               wireframe_task.type = rti_render_task_type_lines;
+               gamma_render_task wireframe_task;
+               wireframe_task.type = gamma_render_task_type_lines;
                wireframe_task.vertex_buffer = acceleration_structure->ui.vertex_buffer.get();
                wireframe_task.first_vertex = acceleration_structure->wireframe_first_vertex;
-               wireframe_task.vertex_count = acceleration_structure->primitive_count * RTI_CUBE_VERTEX_COUNT;
-               wireframe_task.flags = RTI_RENDERER_COLOR_PUSH_CONSTANT;
+               wireframe_task.vertex_count = acceleration_structure->primitive_count * GAMMA_CUBE_VERTEX_COUNT;
+               wireframe_task.flags = GAMMA_RENDERER_COLOR_PUSH_CONSTANT;
                wireframe_task.wait_for_prev = true;
                render(wireframe_task);
             } else {
-               rti_render_task wireframe_task = solid_task;
-               wireframe_task.type = rti_render_task_type_wireframe;
-               wireframe_task.flags = RTI_RENDERER_COLOR_PUSH_CONSTANT;
+               gamma_render_task wireframe_task = solid_task;
+               wireframe_task.type = gamma_render_task_type_wireframe;
+               wireframe_task.flags = GAMMA_RENDERER_COLOR_PUSH_CONSTANT;
                wireframe_task.wait_for_prev = true;
                render(wireframe_task);
             }
          } else {
-            rti_render_task tlas_task;
-            tlas_task.type = rti_render_task_type_render_list;
+            gamma_render_task tlas_task;
+            tlas_task.type = gamma_render_task_type_render_list;
             tlas_task.render_list = acceleration_structure->ui.instance_render_list.get();
-            tlas_task.flags = rti_visualization_color_to_renderer_color(acceleration_structure->ui.visualization_color);
+            tlas_task.flags =
+               gamma_visualization_color_to_renderer_color(acceleration_structure->ui.visualization_color);
             tlas_task.override_flags = true;
             render(tlas_task);
          }
 
-         rti_render_task scene_aabb_task;
-         scene_aabb_task.flags = RTI_RENDERER_COLOR_PUSH_CONSTANT;
+         gamma_render_task scene_aabb_task;
+         scene_aabb_task.flags = GAMMA_RENDERER_COLOR_PUSH_CONSTANT;
          render_aabb(scene_aabb_task, acceleration_structure->aabb);
 
          if (acceleration_structure->radv_ui.selected_node_id != RADV_BVH_INVALID_NODE) {
@@ -363,11 +353,11 @@ rti_file_view_radv::run()
                                                      selected_invocation->offsets[selected_invocation->selected_ray]);
 
             uint64_t accel_struct_addr = ((uint64_t)trace_ray->accel_struct_hi << 32) | trace_ray->accel_struct_lo;
-            rti_acceleration_structure_radv *trace_accel_struct =
-               (rti_acceleration_structure_radv *)addr_to_acceleration_structure(accel_struct_addr);
+            gamma_acceleration_structure_radv *trace_accel_struct =
+               (gamma_acceleration_structure_radv *)addr_to_acceleration_structure(accel_struct_addr);
 
             bool draw_ray = acceleration_structure == trace_accel_struct;
-            rti_mat4 transform;
+            gamma_mat4 transform;
 
             for (uint32_t i = selected_invocation->selected_ray + 1; i < selected_invocation->offsets.size(); i++) {
                const radv_packed_token_header *header =
@@ -381,8 +371,8 @@ rti_file_view_radv::run()
                   uint32_t type = token->node_id & 0xf;
 
                   if (type == radv_bvh_node_instance) {
-                     rti_mat4 instance_transform;
-                     rti_acceleration_structure_radv *blas = nullptr;
+                     gamma_mat4 instance_transform;
+                     gamma_acceleration_structure_radv *blas = nullptr;
                      if (trace_info->bvh8)
                         bvh8_get_instance_info(trace_accel_struct, token->node_id, &instance_transform, &blas);
                      else
@@ -397,11 +387,11 @@ rti_file_view_radv::run()
             }
 
             if (draw_ray) {
-               rti_ray ray = {
+               gamma_ray ray = {
                   .origin = {trace_ray->origin[0], trace_ray->origin[1], trace_ray->origin[2]},
                   .direction = {trace_ray->direction[0], trace_ray->direction[1], trace_ray->direction[2]},
                };
-               ray = rti_ray::transform(ray, transform);
+               ray = gamma_ray::transform(ray, transform);
                draw_point(ray.origin, app->selection_color, 4);
                draw_line(ray.origin,
                          {trace_ray->origin[0] + trace_ray->direction[0] * trace_ray->tmax,
@@ -414,8 +404,8 @@ rti_file_view_radv::run()
       end_viewport();
    }
 
-   rti_acceleration_structure_radv *acceleration_structure =
-      (rti_acceleration_structure_radv *)ui.focused_acceleration_structure;
+   gamma_acceleration_structure_radv *acceleration_structure =
+      (gamma_acceleration_structure_radv *)ui.focused_acceleration_structure;
 
    begin_bvh_tree();
    if (acceleration_structure) {
@@ -470,13 +460,13 @@ rti_file_view_radv::run()
          }
          ImGui::TableSetColumnIndex(1);
          switch (dispatch_infos[i].type) {
-         case radv_rti_dispatch_type_trace_rays:
+         case radv_gamma_dispatch_type_trace_rays:
             ImGui::Text("vkCmdTraceRays");
             break;
-         case radv_rti_dispatch_type_trace_rays_indirect:
+         case radv_gamma_dispatch_type_trace_rays_indirect:
             ImGui::Text("vkCmdTraceRaysIndirect");
             break;
-         case radv_rti_dispatch_type_trace_rays_indirect2:
+         case radv_gamma_dispatch_type_trace_rays_indirect2:
             ImGui::Text("vkCmdTraceRaysIndirect2");
             break;
          }
@@ -550,7 +540,7 @@ rti_file_view_radv::run()
    ImGui::End();
 
    for (uint32_t i = 0; i < dispatch_count; i++) {
-      rti_dispatch_view *dispatch_view = dispatch_views[i].get();
+      gamma_dispatch_view *dispatch_view = dispatch_views[i].get();
       if (!dispatch_view->ui.open)
          continue;
 
@@ -579,7 +569,7 @@ rti_file_view_radv::run()
 
          for (uint32_t y = 0; y < dispatch_view->ui.settings.height; y++) {
             for (uint32_t x = 0; x < dispatch_view->ui.settings.width; x++) {
-               rti_invocation_data *invocation =
+               gamma_invocation_data *invocation =
                   &dispatch_view->invocations[x + y * dispatch_view->ui.settings.width + base_index];
                uint32_t iteration_count = 0;
                if (dispatch_view->ui.settings.show_box_iteration_count)
@@ -744,7 +734,7 @@ rti_file_view_radv::run()
             uint64_t addr = ((uint64_t)token->accel_struct_hi << 32) | token->accel_struct_lo;
             sprintf(tmp, "0x%" PRIx64, addr);
             if (ImGui::TextLink(tmp)) {
-               rti_acceleration_structure *acceleration_structure = addr_to_acceleration_structure(addr);
+               gamma_acceleration_structure *acceleration_structure = addr_to_acceleration_structure(addr);
                if (acceleration_structure->ui.opened)
                   acceleration_structure->ui.request_focus = true;
                acceleration_structure->ui.opened = true;
@@ -812,8 +802,8 @@ rti_file_view_radv::run()
                uint32_t offset = (token->node_id & (~0xf)) << 3;
                uint32_t type = token->node_id & 0xf;
 
-               rti_acceleration_structure_radv *acceleration_structure =
-                  (rti_acceleration_structure_radv *)addr_to_acceleration_structure(accel_struct_addr);
+               gamma_acceleration_structure_radv *acceleration_structure =
+                  (gamma_acceleration_structure_radv *)addr_to_acceleration_structure(accel_struct_addr);
 
                char selectable_label[32];
                sprintf(selectable_label, "%s##%x", node_type_names[type], i);
@@ -843,8 +833,8 @@ rti_file_view_radv::run()
    end();
 }
 
-std::unique_ptr<rti_file_view>
-rti_create_file_view_radv()
+std::unique_ptr<gamma_file_view>
+gamma_create_file_view_radv()
 {
-   return std::make_unique<rti_file_view_radv>();
+   return std::make_unique<gamma_file_view_radv>();
 }

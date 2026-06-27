@@ -9,30 +9,30 @@
 #include <stdint.h>
 #include "vulkan/vulkan_core.h"
 
-enum rti_driver {
-   rti_driver_radv,
+enum gamma_driver {
+   gamma_driver_radv,
 };
 
-struct rti_header {
+struct gamma_header {
    uint32_t version;
-   enum rti_driver driver;
+   enum gamma_driver driver;
    uint64_t chunk_count;
 };
 
-enum rti_chunk_type {
-   rti_chunk_type_acceleration_structure,
-   rti_chunk_type_driver_start = 0x80000000,
+enum gamma_chunk_type {
+   gamma_chunk_type_acceleration_structure,
+   gamma_chunk_type_driver_start = 0x80000000,
 
-   rti_chunk_type_trace_info_radv = rti_chunk_type_driver_start,
-   rti_chunk_type_ray_history_radv,
+   gamma_chunk_type_trace_info_radv = gamma_chunk_type_driver_start,
+   gamma_chunk_type_ray_history_radv,
 };
 
-struct rti_chunk_header {
-   enum rti_chunk_type type;
+struct gamma_chunk_header {
+   enum gamma_chunk_type type;
    uint64_t size;
 };
 
-struct rti_acceleration_structure_header {
+struct gamma_acceleration_structure_header {
    uint64_t address;
    uint64_t allocated_size;
    uint64_t compacted_size;

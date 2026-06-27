@@ -2,14 +2,14 @@
 #
 # SPDX-License-Identifier: MIT
 
-rti_files = files(
-  'radv/rti_file_view_radv_bvh4.cpp',
-  'radv/rti_file_view_radv_bvh8.cpp',
-  'radv/rti_file_view_radv.cpp',
+gamma_files = files(
+  'radv/gamma_file_view_radv_bvh4.cpp',
+  'radv/gamma_file_view_radv_bvh8.cpp',
+  'radv/gamma_file_view_radv.cpp',
   'main.cpp',
-  'rti_app.cpp',
-  'rti_file_view.cpp',
-  'rti_util.cpp',
+  'gamma_app.cpp',
+  'gamma_file_view.cpp',
+  'gamma_util.cpp',
 )
 
 subdir('shaders')
@@ -19,8 +19,8 @@ dep_sdl3 = dependency('sdl3')
 dep_vulkan = dependency('vulkan')
 
 executable(
-  'rti',
-  [rti_files, spv_shaders],
+  'gamma',
+  [gamma_files, spv_shaders],
   cpp_args: [cpp_msvc_compat_args],
   gnu_symbol_visibility: 'hidden',
   link_with: [],

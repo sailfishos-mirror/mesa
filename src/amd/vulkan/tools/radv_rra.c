@@ -8,17 +8,17 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "bvh/bvh_defines.h"
+#include "util/gamma_format.h"
 #include "util/macros.h"
-#include "util/rti_format.h"
 #include "util/u_dynarray.h"
 #include "vulkan/vulkan_core.h"
 #include "amd_family.h"
 #include "radv_debug.h"
 #include "radv_device.h"
 #include "radv_entrypoints.h"
+#include "radv_gamma.h"
 #include "radv_instance.h"
 #include "radv_physical_device.h"
-#include "radv_rti.h"
 #include "vk_acceleration_structure.h"
 #include "vk_common_entrypoints.h"
 
@@ -493,7 +493,7 @@ radv_rra_trace_init(struct radv_device *device)
    device->rra_trace.ray_history = UTIL_DYNARRAY_INIT;
 
    /* BVH stats dumping does not need ray history. */
-   if (!(radv_physical_device_instance(pdev)->vk.trace_mode & (RADV_TRACE_MODE_RRA | RADV_TRACE_MODE_RTI)))
+   if (!(radv_physical_device_instance(pdev)->vk.trace_mode & (RADV_TRACE_MODE_RRA | RADV_TRACE_MODE_GAMMA)))
       return VK_SUCCESS;
 
    device->rra_trace.ray_history_buffer_size = debug_get_num_option("RADV_RRA_TRACE_HISTORY_SIZE", 100 * 1024 * 1024);
@@ -522,7 +522,7 @@ radv_rra_trace_init(struct radv_device *device)
                                                   BITFIELD_BIT(radv_packed_token_trace_ray_hit) |
                                                   BITFIELD_BIT(radv_packed_token_trace_ray_miss);
    }
-   if (radv_physical_device_instance(pdev)->vk.trace_mode & RADV_TRACE_MODE_RTI) {
+   if (radv_physical_device_instance(pdev)->vk.trace_mode & RADV_TRACE_MODE_GAMMA) {
       device->rra_trace.ray_history_token_mask |= BITFIELD_BIT(radv_packed_token_trace_ray) |
                                                   BITFIELD_BIT(radv_packed_token_iteration) |
                                                   BITFIELD_BIT(radv_packed_token_accel_struct);
@@ -1207,10 +1207,11 @@ cleanup:
 }
 
 static void
-rti_dump_acceleration_structure(const struct radv_physical_device *pdev, struct vk_acceleration_structure *accel_struct,
-                                struct radv_rra_accel_struct_data *accel_struct_data, uint8_t *data,
-                                struct hash_table_u64 *accel_struct_vas, struct set *used_blas, bool should_validate,
-                                FILE *output)
+gamma_dump_acceleration_structure(const struct radv_physical_device *pdev,
+                                  struct vk_acceleration_structure *accel_struct,
+                                  struct radv_rra_accel_struct_data *accel_struct_data, uint8_t *data,
+                                  struct hash_table_u64 *accel_struct_vas, struct set *used_blas, bool should_validate,
+                                  FILE *output)
 {
    struct radv_accel_struct_header *radv_header = (struct radv_accel_struct_header *)data;
 
@@ -1218,13 +1219,13 @@ rti_dump_acceleration_structure(const struct radv_physical_device *pdev, struct 
 
    uint64_t bvh_size = radv_header->compacted_size - radv_header->bvh_offset;
 
-   struct rti_chunk_header chunk_header = {
-      .type = rti_chunk_type_acceleration_structure,
-      .size = sizeof(struct rti_acceleration_structure_header) + strlen(name) + bvh_size,
+   struct gamma_chunk_header chunk_header = {
+      .type = gamma_chunk_type_acceleration_structure,
+      .size = sizeof(struct gamma_acceleration_structure_header) + strlen(name) + bvh_size,
    };
    fwrite(&chunk_header, sizeof(chunk_header), 1, output);
 
-   struct rti_acceleration_structure_header header = {
+   struct gamma_acceleration_structure_header header = {
       .address = vk_acceleration_structure_get_va(accel_struct),
       .allocated_size = accel_struct_data->size,
       .compacted_size = radv_header->compacted_size,
@@ -1245,7 +1246,7 @@ rti_dump_acceleration_structure(const struct radv_physical_device *pdev, struct 
 }
 
 VkResult
-radv_rti_dump_trace(VkQueue vk_queue, char *filename)
+radv_gamma_dump_trace(VkQueue vk_queue, char *filename)
 {
    VK_FROM_HANDLE(radv_queue, queue, vk_queue);
    struct radv_device *device = radv_queue_device(queue);
@@ -1299,20 +1300,20 @@ radv_rti_dump_trace(VkQueue vk_queue, char *filename)
    if (!used_blas)
       goto cleanup;
 
-   struct rti_header header = {
+   struct gamma_header header = {
       .version = 0,
-      .driver = rti_driver_radv,
+      .driver = gamma_driver_radv,
       .chunk_count = struct_count + !!dispatch_count + 1,
    };
    fwrite(&header, sizeof(header), 1, file);
 
-   struct rti_chunk_header trace_info_chunk_header = {
-      .type = rti_chunk_type_trace_info_radv,
-      .size = sizeof(struct radv_rti_trace_info),
+   struct gamma_chunk_header trace_info_chunk_header = {
+      .type = gamma_chunk_type_trace_info_radv,
+      .size = sizeof(struct radv_gamma_trace_info),
    };
    fwrite(&trace_info_chunk_header, sizeof(trace_info_chunk_header), 1, file);
 
-   struct radv_rti_trace_info trace_info = {
+   struct radv_gamma_trace_info trace_info = {
       .bvh8 = radv_use_bvh8(pdev),
    };
    fwrite(&trace_info, sizeof(trace_info), 1, file);
@@ -1323,9 +1324,9 @@ radv_rti_dump_trace(VkQueue vk_queue, char *filename)
       if (!mapped_data)
          continue;
 
-      rti_dump_acceleration_structure(pdev, (void *)hash_entries[i]->key, data, mapped_data,
-                                      device->rra_trace.accel_struct_vas, used_blas, device->rra_trace.validate_as,
-                                      file);
+      gamma_dump_acceleration_structure(pdev, (void *)hash_entries[i]->key, data, mapped_data,
+                                        device->rra_trace.accel_struct_vas, used_blas, device->rra_trace.validate_as,
+                                        file);
 
       rra_unmap_accel_struct_data(&copy_ctx, i);
    }
@@ -1349,23 +1350,23 @@ radv_rti_dump_trace(VkQueue vk_queue, char *filename)
       uint32_t history_size = MIN2(history_header->offset, device->rra_trace.ray_history_buffer_size) -
                               sizeof(struct radv_ray_history_header);
 
-      struct rti_chunk_header history_chunk_header = {
-         .type = rti_chunk_type_ray_history_radv,
-         .size = sizeof(struct radv_rti_ray_history_header) + dispatch_count * sizeof(struct radv_rti_dispatch_info) +
-                 history_size,
+      struct gamma_chunk_header history_chunk_header = {
+         .type = gamma_chunk_type_ray_history_radv,
+         .size = sizeof(struct radv_gamma_ray_history_header) +
+                 dispatch_count * sizeof(struct radv_gamma_dispatch_info) + history_size,
       };
       fwrite(&history_chunk_header, sizeof(history_chunk_header), 1, file);
 
-      struct radv_rti_ray_history_header rti_history_header = {
+      struct radv_gamma_ray_history_header gamma_history_header = {
          .dispatch_count = dispatch_count,
       };
-      fwrite(&rti_history_header, sizeof(rti_history_header), 1, file);
+      fwrite(&gamma_history_header, sizeof(gamma_history_header), 1, file);
 
       for (uint32_t i = 0; i < dispatch_count; i++) {
          struct radv_rra_ray_history_data *data =
             *util_dynarray_element(&device->rra_trace.ray_history, struct radv_rra_ray_history_data *, i);
-         struct radv_rti_dispatch_info dispatch_info = {
-            .type = radv_rti_dispatch_type_trace_rays,
+         struct radv_gamma_dispatch_info dispatch_info = {
+            .type = radv_gamma_dispatch_type_trace_rays,
             .dimensions =
                {
                   data->metadata.dispatch_size.size[0],

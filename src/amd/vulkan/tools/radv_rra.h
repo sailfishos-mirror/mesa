@@ -20,7 +20,7 @@
 #include "bvh/vk_bvh_defines.h"
 
 #include "radv_debug.h"
-#include "radv_rti.h"
+#include "radv_gamma.h"
 
 #include <vulkan/vulkan.h>
 
@@ -146,7 +146,7 @@ void radv_destroy_rra_accel_struct_data(VkDevice device, struct radv_rra_accel_s
 
 VkResult radv_rra_dump_trace(VkQueue vk_queue, char *filename);
 
-VkResult radv_rti_dump_trace(VkQueue vk_queue, char *filename);
+VkResult radv_gamma_dump_trace(VkQueue vk_queue, char *filename);
 
 enum rra_bvh_type {
    RRA_BVH_TYPE_TLAS,

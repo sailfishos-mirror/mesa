@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "rti_file_view.h"
-#include "rti_file_view_radv.h"
+#include "gamma_file_view.h"
+#include "gamma_file_view_radv.h"
 
 #include <cinttypes>
 #include <cmath>
@@ -15,16 +15,16 @@
 #include <memory>
 #include <stdint.h>
 
-#include "shaders/rti_shader_interface.h"
+#include "shaders/gamma_shader_interface.h"
 #include "util/bitset.h"
+#include "util/gamma_format.h"
 #include "util/macros.h"
-#include "util/rti_format.h"
 #include "util/u_math.h"
 #include "vulkan/vulkan_core.h"
 
 #include "bvh_defines.h"
-#include "rti_app.h"
-#include "rti_util.h"
+#include "gamma_app.h"
+#include "gamma_util.h"
 
 struct radv_bvh8_box_node_iterator {
    const radv_gfx12_box_node *node;
@@ -64,10 +64,10 @@ struct radv_bvh8_box_node_iterator {
    }
 };
 
-static rti_aabb
+static gamma_aabb
 radv_bvh8_box_child_get_aabb(radv_gfx12_box_child child, vec3 origin, uint32_t child_count_exponents)
 {
-   rti_aabb aabb;
+   gamma_aabb aabb;
 
    uint32_t exponents[3] = {
       child_count_exponents & 0xff,
@@ -99,7 +99,7 @@ struct radv_bvh8_primitive_node_info {
    uint32_t indices_midpoint;
    uint32_t vertex_bits_minus_one[3];
    uint32_t trailing_zero_bits;
-   rti_triangle triangles[16];
+   gamma_triangle triangles[16];
 
    uint32_t procedural_mask = 0;
 
@@ -131,7 +131,7 @@ struct radv_bvh8_primitive_node_info {
          };
 
          if (vertex_indices[0] == 0 && vertex_indices[1] == 0 && vertex_indices[2] == 0) {
-            triangles[i].primitive_index = RTI_PRIMITIVE_INDEX_INACTIVE;
+            triangles[i].primitive_index = GAMMA_PRIMITIVE_INDEX_INACTIVE;
             continue;
          }
 
@@ -203,25 +203,25 @@ struct radv_bvh8_primitive_node_info {
    }
 };
 
-static rti_mat4
+static gamma_mat4
 radv_bvh8_instance_node_get_transform(const radv_gfx12_instance_node *node)
 {
-   rti_mat4 inv_transform = mat3x4_to_rti(node->wto_matrix);
-   rti_mat4 transform;
+   gamma_mat4 inv_transform = mat3x4_to_gamma(node->wto_matrix);
+   gamma_mat4 transform;
    util_invert_mat4x4(transform.elements, inv_transform.elements);
    return transform;
 }
 
-static rti_acceleration_structure_radv *
-radv_bvh8_instance_node_get_blas(rti_file_view *view, const radv_gfx12_instance_node *node)
+static gamma_acceleration_structure_radv *
+radv_bvh8_instance_node_get_blas(gamma_file_view *view, const radv_gfx12_instance_node *node)
 {
-   return (rti_acceleration_structure_radv *)view->addr_to_acceleration_structure(
+   return (gamma_acceleration_structure_radv *)view->addr_to_acceleration_structure(
       radv_node_to_addr(node->pointer_flags_bvh_addr));
 }
 
 void
-rti_file_view_radv::bvh8_traverse(rti_acceleration_structure_radv *acceleration_structure, rti_ray ray, uint32_t id,
-                                  float *tmax, const std::unordered_set<uint32_t> &path, bool select)
+gamma_file_view_radv::bvh8_traverse(gamma_acceleration_structure_radv *acceleration_structure, gamma_ray ray,
+                                    uint32_t id, float *tmax, const std::unordered_set<uint32_t> &path, bool select)
 {
    uint32_t offset = (id & (~0xf)) << 3;
 
@@ -234,9 +234,9 @@ rti_file_view_radv::bvh8_traverse(rti_acceleration_structure_radv *acceleration_
    for (uint32_t child_id = iterator.next(); child_id != RADV_BVH_INVALID_NODE; child_id = iterator.next()) {
       uint32_t child_offset = (child_id & (~0xf)) << 3;
       uint32_t child_type = child_id & 0xf;
-      rti_aabb aabb =
+      gamma_aabb aabb =
          radv_bvh8_box_child_get_aabb(node->children[iterator.index], node->origin, node->child_count_exponents);
-      float t = rti_aabb::intersect_ray(aabb, ray);
+      float t = gamma_aabb::intersect_ray(aabb, ray);
       if (t >= *tmax)
          continue;
 
@@ -246,12 +246,12 @@ rti_file_view_radv::bvh8_traverse(rti_acceleration_structure_radv *acceleration_
          const BITSET_WORD *node = (const BITSET_WORD *)(acceleration_structure->bvh + child_offset);
          radv_bvh8_primitive_node_info info(node);
          for (uint32_t i = 0; i < (info.triangle_pair_count_minus_one + 1) * 2; i++) {
-            rti_triangle triangle = info.triangles[i];
-            if (triangle.primitive_index == RTI_PRIMITIVE_INDEX_INACTIVE)
+            gamma_triangle triangle = info.triangles[i];
+            if (triangle.primitive_index == GAMMA_PRIMITIVE_INDEX_INACTIVE)
                continue;
 
             if (!(info.procedural_mask & BITFIELD_BIT(i)))
-               t = rti_triangle::intersect_ray(triangle, ray);
+               t = gamma_triangle::intersect_ray(triangle, ray);
 
             if (t < *tmax) {
                *tmax = t;
@@ -265,8 +265,8 @@ rti_file_view_radv::bvh8_traverse(rti_acceleration_structure_radv *acceleration_
       } else {
          const radv_gfx12_instance_node *instance =
             (const radv_gfx12_instance_node *)(acceleration_structure->bvh + child_offset);
-         rti_ray object_ray = rti_ray::transform(ray, mat3x4_to_rti(instance->wto_matrix));
-         rti_acceleration_structure_radv *blas = radv_bvh8_instance_node_get_blas(this, instance);
+         gamma_ray object_ray = gamma_ray::transform(ray, mat3x4_to_gamma(instance->wto_matrix));
+         gamma_acceleration_structure_radv *blas = radv_bvh8_instance_node_get_blas(this, instance);
          float blas_tmax = INFINITY;
          std::unordered_set<uint32_t> blas_path;
          bvh8_traverse(blas, object_ray, RADV_BVH_ROOT_NODE, &blas_tmax, blas_path, false);
@@ -282,22 +282,22 @@ rti_file_view_radv::bvh8_traverse(rti_acceleration_structure_radv *acceleration_
    }
 }
 
-rti_aabb
-rti_file_view_radv::bvh8_scene_aabb(rti_acceleration_structure_radv *acceleration_structure)
+gamma_aabb
+gamma_file_view_radv::bvh8_scene_aabb(gamma_acceleration_structure_radv *acceleration_structure)
 {
-   rti_aabb aabb;
+   gamma_aabb aabb;
 
    uint32_t root_offset = (RADV_BVH_ROOT_NODE & (~0xf)) << 3;
    uint32_t root_type = RADV_BVH_ROOT_NODE & 0xf;
    assert(root_type == radv_bvh_node_box32);
    const radv_gfx12_box_node *root_node = (const radv_gfx12_box_node *)(acceleration_structure->bvh + root_offset);
    for (uint32_t i = 0; i <= root_node->child_count_exponents >> 28; i++) {
-      rti_aabb child_aabb =
+      gamma_aabb child_aabb =
          radv_bvh8_box_child_get_aabb(root_node->children[i], root_node->origin, root_node->child_count_exponents);
       if (i == 0) {
          aabb = child_aabb;
       } else {
-         aabb = rti_aabb::combine(aabb, child_aabb);
+         aabb = gamma_aabb::combine(aabb, child_aabb);
       }
    }
 
@@ -305,8 +305,8 @@ rti_file_view_radv::bvh8_scene_aabb(rti_acceleration_structure_radv *acceleratio
 }
 
 void
-rti_file_view_radv::bvh8_get_vertices(rti_acceleration_structure_radv *acceleration_structure, uint32_t id,
-                                      rti_vertex *vertices, rti_vertex *wireframe_vertices)
+gamma_file_view_radv::bvh8_get_vertices(gamma_acceleration_structure_radv *acceleration_structure, uint32_t id,
+                                        gamma_vertex *vertices, gamma_vertex *wireframe_vertices)
 {
    uint32_t offset = (id & (~0xf)) << 3;
    const radv_gfx12_box_node *box_node = (const radv_gfx12_box_node *)(acceleration_structure->bvh + offset);
@@ -320,19 +320,19 @@ rti_file_view_radv::bvh8_get_vertices(rti_acceleration_structure_radv *accelerat
          const BITSET_WORD *node = (const BITSET_WORD *)(acceleration_structure->bvh + child_offset);
          radv_bvh8_primitive_node_info info(node);
          for (uint32_t i = 0; i < (info.triangle_pair_count_minus_one + 1) * 2; i++) {
-            rti_triangle triangle = info.triangles[i];
-            if (triangle.primitive_index == RTI_PRIMITIVE_INDEX_INACTIVE)
+            gamma_triangle triangle = info.triangles[i];
+            if (triangle.primitive_index == GAMMA_PRIMITIVE_INDEX_INACTIVE)
                continue;
 
             uint32_t dst_index = acceleration_structure->primitive_counts_exclusive_sum[triangle.geometry_index] +
                                  triangle.primitive_index;
 
             if (info.procedural_mask & BITFIELD_BIT(i)) {
-               rti_aabb aabb = radv_bvh8_box_child_get_aabb(box_node->children[iterator.index], box_node->origin,
-                                                            box_node->child_count_exponents);
-               rti_generate_cube_vertices(wireframe_vertices + dst_index * RTI_CUBE_VERTEX_COUNT, aabb);
-               rti_generate_filled_cube_vertices(vertices + dst_index * RTI_FILLED_CUBE_VERTEX_COUNT, aabb,
-                                                 triangle.geometry_index, triangle.primitive_index);
+               gamma_aabb aabb = radv_bvh8_box_child_get_aabb(box_node->children[iterator.index], box_node->origin,
+                                                              box_node->child_count_exponents);
+               gamma_generate_cube_vertices(wireframe_vertices + dst_index * GAMMA_CUBE_VERTEX_COUNT, aabb);
+               gamma_generate_filled_cube_vertices(vertices + dst_index * GAMMA_FILLED_CUBE_VERTEX_COUNT, aabb,
+                                                   triangle.geometry_index, triangle.primitive_index);
                continue;
             }
 
@@ -353,7 +353,7 @@ rti_file_view_radv::bvh8_get_vertices(rti_acceleration_structure_radv *accelerat
 }
 
 void
-rti_file_view_radv::bvh8_get_instances(rti_acceleration_structure_radv *tlas, uint32_t id)
+gamma_file_view_radv::bvh8_get_instances(gamma_acceleration_structure_radv *tlas, uint32_t id)
 {
    uint32_t offset = (id & (~0xf)) << 3;
    uint32_t type = id & 0xf;
@@ -366,18 +366,18 @@ rti_file_view_radv::bvh8_get_instances(rti_acceleration_structure_radv *tlas, ui
    } else if (type == radv_bvh_node_instance) {
       const radv_gfx12_instance_node *node = (const radv_gfx12_instance_node *)(tlas->bvh + offset);
       const radv_gfx12_instance_node_user_data *user_data = (const radv_gfx12_instance_node_user_data *)(node + 1);
-      rti_acceleration_structure_radv *blas = radv_bvh8_instance_node_get_blas(this, node);
+      gamma_acceleration_structure_radv *blas = radv_bvh8_instance_node_get_blas(this, node);
 
       uint32_t primitive_vertex_count =
-         blas->header.geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR ? 3 : RTI_FILLED_CUBE_VERTEX_COUNT;
+         blas->header.geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR ? 3 : GAMMA_FILLED_CUBE_VERTEX_COUNT;
 
-      rti_render_task solid_task;
+      gamma_render_task solid_task;
       solid_task.vertex_buffer = blas->ui.vertex_buffer.get();
       solid_task.first_vertex = blas->first_vertex;
       solid_task.vertex_count = blas->primitive_count * primitive_vertex_count;
       solid_task.params.transform = radv_bvh8_instance_node_get_transform(node);
-      solid_task.params.color = rti_index_to_color(user_data->instance_index);
-      solid_task.flags = RTI_RENDERER_COLOR_PUSH_CONSTANT;
+      solid_task.params.color = gamma_index_to_color(user_data->instance_index);
+      solid_task.flags = GAMMA_RENDERER_COLOR_PUSH_CONSTANT;
       tlas->ui.instance_render_list->tasks.push_back(solid_task);
    }
 }
@@ -388,7 +388,7 @@ static const char *node_type_names[16] = {
 };
 
 void
-rti_file_view_radv::bvh8_draw(rti_acceleration_structure_radv *acceleration_structure, uint32_t id)
+gamma_file_view_radv::bvh8_draw(gamma_acceleration_structure_radv *acceleration_structure, uint32_t id)
 {
    uint32_t offset = (id & (~0xf)) << 3;
    uint32_t type = id & 0xf;
@@ -435,8 +435,8 @@ rti_file_view_radv::bvh8_draw(rti_acceleration_structure_radv *acceleration_stru
 }
 
 static void
-rti_amd_draw_box8_child_info(const char *table_id, radv_gfx12_box_child child, vec3 origin,
-                             uint32_t child_count_exponents)
+gamma_amd_draw_box8_child_info(const char *table_id, radv_gfx12_box_child child, vec3 origin,
+                               uint32_t child_count_exponents)
 {
    if (ImGui::BeginTable(table_id, 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
       ImGui::TableNextColumnText("cull_flags");
@@ -451,7 +451,7 @@ rti_amd_draw_box8_child_info(const char *table_id, radv_gfx12_box_child child, v
       ImGui::TableNextColumnText("stride_128b");
       ImGui::TableNextColumnText("0x%x", child.dword1 >> 28);
 
-      struct rti_aabb aabb = radv_bvh8_box_child_get_aabb(child, origin, child_count_exponents);
+      struct gamma_aabb aabb = radv_bvh8_box_child_get_aabb(child, origin, child_count_exponents);
 
       ImGui::TableNextColumn();
       bool min_open = ImGui::TreeNodeEx("min");
@@ -478,7 +478,7 @@ rti_amd_draw_box8_child_info(const char *table_id, radv_gfx12_box_child child, v
 }
 
 void
-rti_file_view_radv::bvh8_draw_node_info(const rti_acceleration_structure_radv *acceleration_structure, uint32_t id)
+gamma_file_view_radv::bvh8_draw_node_info(const gamma_acceleration_structure_radv *acceleration_structure, uint32_t id)
 {
 
    uint32_t offset = (acceleration_structure->radv_ui.selected_node_id & (~0xf)) << 3;
@@ -521,7 +521,7 @@ rti_file_view_radv::bvh8_draw_node_info(const rti_acceleration_structure_radv *a
          ImGui::SeparatorText(tmp);
 
          sprintf(tmp, "child[%u] properties", i);
-         rti_amd_draw_box8_child_info(tmp, node->children[i], node->origin, node->child_count_exponents);
+         gamma_amd_draw_box8_child_info(tmp, node->children[i], node->origin, node->child_count_exponents);
       }
    } else if (type == radv_bvh_node_instance) {
       const radv_gfx12_instance_node *node = (const radv_gfx12_instance_node *)(acceleration_structure->bvh + offset);
@@ -542,7 +542,7 @@ rti_file_view_radv::bvh8_draw_node_info(const rti_acceleration_structure_radv *a
          ImGui::TableNextColumn();
          sprintf(tmp, "0x%" PRIx64, node->pointer_flags_bvh_addr);
          if (ImGui::TextLink(tmp)) {
-            rti_acceleration_structure_radv *blas = radv_bvh8_instance_node_get_blas(this, node);
+            gamma_acceleration_structure_radv *blas = radv_bvh8_instance_node_get_blas(this, node);
             if (blas->ui.opened)
                blas->ui.request_focus = true;
             blas->ui.opened = true;
@@ -582,7 +582,7 @@ rti_file_view_radv::bvh8_draw_node_info(const rti_acceleration_structure_radv *a
          ImGui::SeparatorText(tmp);
 
          sprintf(tmp, "child[%u] properties", i);
-         rti_amd_draw_box8_child_info(tmp, node->children[i], node->origin, node->child_count_exponents);
+         gamma_amd_draw_box8_child_info(tmp, node->children[i], node->origin, node->child_count_exponents);
       }
    } else {
       const BITSET_WORD *node = (const BITSET_WORD *)(acceleration_structure->bvh + offset);
@@ -671,19 +671,19 @@ rti_file_view_radv::bvh8_draw_node_info(const rti_acceleration_structure_radv *a
 }
 
 void
-rti_file_view_radv::bvh8_render_selection(rti_acceleration_structure_radv *acceleration_structure)
+gamma_file_view_radv::bvh8_render_selection(gamma_acceleration_structure_radv *acceleration_structure)
 {
-   rti_render_task selection_task;
-   selection_task.type = rti_render_task_type_thick_wireframe;
+   gamma_render_task selection_task;
+   selection_task.type = gamma_render_task_type_thick_wireframe;
    selection_task.vertex_buffer = acceleration_structure->ui.vertex_buffer.get();
    selection_task.vertex_count = 3;
    selection_task.params.color = app->selection_color;
-   selection_task.flags = RTI_RENDERER_COLOR_PUSH_CONSTANT;
+   selection_task.flags = GAMMA_RENDERER_COLOR_PUSH_CONSTANT;
    selection_task.wait_for_prev = true;
 
    if (acceleration_structure->wireframe_first_vertex != acceleration_structure->first_vertex) {
-      selection_task.type = rti_render_task_type_thick_lines;
-      selection_task.vertex_count = RTI_CUBE_VERTEX_COUNT;
+      selection_task.type = gamma_render_task_type_thick_lines;
+      selection_task.vertex_count = GAMMA_CUBE_VERTEX_COUNT;
    }
 
    uint32_t offset = (acceleration_structure->radv_ui.selected_node_id & (~0xf)) << 3;
@@ -701,14 +701,14 @@ rti_file_view_radv::bvh8_render_selection(rti_acceleration_structure_radv *accel
       const BITSET_WORD *node = (const BITSET_WORD *)(acceleration_structure->bvh + offset);
       radv_bvh8_primitive_node_info info(node);
       for (uint32_t i = 0; i < (info.triangle_pair_count_minus_one + 1) * 2; i++) {
-         rti_triangle triangle = info.triangles[i];
-         if (triangle.primitive_index == RTI_PRIMITIVE_INDEX_INACTIVE)
+         gamma_triangle triangle = info.triangles[i];
+         if (triangle.primitive_index == GAMMA_PRIMITIVE_INDEX_INACTIVE)
             continue;
 
          uint32_t index =
             acceleration_structure->primitive_counts_exclusive_sum[triangle.geometry_index] + triangle.primitive_index;
          if (info.procedural_mask & BITFIELD_BIT(i))
-            selection_task.first_vertex = index * RTI_CUBE_VERTEX_COUNT;
+            selection_task.first_vertex = index * GAMMA_CUBE_VERTEX_COUNT;
          else
             selection_task.first_vertex = index * 3;
 
@@ -725,12 +725,13 @@ rti_file_view_radv::bvh8_render_selection(rti_acceleration_structure_radv *accel
 }
 
 void
-rti_file_view_radv::bvh8_get_instance_info(const rti_acceleration_structure_radv *acceleration_structure, uint32_t id,
-                                           rti_mat4 *transform, rti_acceleration_structure_radv **blas)
+gamma_file_view_radv::bvh8_get_instance_info(const gamma_acceleration_structure_radv *acceleration_structure,
+                                             uint32_t id, gamma_mat4 *transform,
+                                             gamma_acceleration_structure_radv **blas)
 {
 
    uint32_t offset = (id & (~0xf)) << 3;
    const radv_gfx12_instance_node *node = (const radv_gfx12_instance_node *)(acceleration_structure->bvh + offset);
    *blas = radv_bvh8_instance_node_get_blas(this, node);
-   *transform = mat3x4_to_rti(node->wto_matrix);
+   *transform = mat3x4_to_gamma(node->wto_matrix);
 }

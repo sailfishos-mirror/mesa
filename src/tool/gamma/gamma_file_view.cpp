@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "rti_file_view.h"
+#include "gamma_file_view.h"
 
 #include <cmath>
 #include <cstdint>
@@ -14,11 +14,11 @@
 #include <memory>
 #include <stdint.h>
 
-#include "shaders/rti_shader_interface.h"
+#include "shaders/gamma_shader_interface.h"
 
+#include "util/gamma_format.h"
 #include "util/macros.h"
 #include "util/os_time.h"
-#include "util/rti_format.h"
 #include "util/u_math.h"
 
 #include "vulkan/vulkan_core.h"
@@ -27,23 +27,23 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 
-#include "rti_app.h"
-#include "rti_util.h"
+#include "gamma_app.h"
+#include "gamma_util.h"
 
-rti_render_list::~rti_render_list()
+gamma_render_list::~gamma_render_list()
 {
    vkDestroyDescriptorPool(app->device, descriptor_pool, nullptr);
 }
 
 void
-rti_render_list::build()
+gamma_render_list::build()
 {
    if (tasks.empty())
       return;
 
-   constants = rti_create_backed_buffer(app, tasks.size() * sizeof(rti_render_params), rti_memory_type_host_visible,
-                                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, true);
-   rti_render_params *consts = (rti_render_params *)constants->map;
+   constants = gamma_create_backed_buffer(app, tasks.size() * sizeof(gamma_render_params),
+                                          gamma_memory_type_host_visible, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, true);
+   gamma_render_params *consts = (gamma_render_params *)constants->map;
    for (uint32_t i = 0; i < tasks.size(); i++)
       consts[i] = tasks[i].params;
 
@@ -58,7 +58,7 @@ rti_render_list::build()
       .pPoolSizes = pool_sizes,
    };
 
-   rti_check_vk_result(vkCreateDescriptorPool(app->device, &pool_info, nullptr, &descriptor_pool));
+   gamma_check_vk_result(vkCreateDescriptorPool(app->device, &pool_info, nullptr, &descriptor_pool));
 
    VkDescriptorSetAllocateInfo set_info = {
       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -67,7 +67,7 @@ rti_render_list::build()
       .pSetLayouts = &app->renderer_set_layout,
    };
 
-   rti_check_vk_result(vkAllocateDescriptorSets(app->device, &set_info, &descriptor_set));
+   gamma_check_vk_result(vkAllocateDescriptorSets(app->device, &set_info, &descriptor_set));
 
    VkDescriptorBufferInfo constants_buffer_info = {
       .buffer = constants->buffer,
@@ -85,18 +85,18 @@ rti_render_list::build()
    vkUpdateDescriptorSets(app->device, 1, &constants_buffer_write, 0, nullptr);
 }
 
-rti_imgui_texture::~rti_imgui_texture()
+gamma_imgui_texture::~gamma_imgui_texture()
 {
    if (descriptor_set)
       ImGui_ImplVulkan_RemoveTexture(descriptor_set);
 }
 
-rti_acceleration_structure::rti_acceleration_structure(rti_file_view *view): app(view->app), view(view)
+gamma_acceleration_structure::gamma_acceleration_structure(gamma_file_view *view): app(view->app), view(view)
 {
 }
 
 void
-rti_acceleration_structure::load(FILE *file, uint32_t chunk_size)
+gamma_acceleration_structure::load(FILE *file, uint32_t chunk_size)
 {
    fread(&header, sizeof(header), 1, file);
 
@@ -112,20 +112,20 @@ rti_acceleration_structure::load(FILE *file, uint32_t chunk_size)
    name[header.name_size] = 0;
    fread(name, header.name_size, 1, file);
 
-   uint64_t data_size = chunk_size - header.name_size - sizeof(rti_acceleration_structure_header);
+   uint64_t data_size = chunk_size - header.name_size - sizeof(gamma_acceleration_structure_header);
    data = malloc(data_size);
    fread(data, data_size, 1, file);
 }
 
 void
-rti_acceleration_structure::init_camera()
+gamma_acceleration_structure::init_camera()
 {
-   rti_vec3 center = {
+   gamma_vec3 center = {
       .x = (aabb.max.x + aabb.min.x) / 2,
       .y = (aabb.max.y + aabb.min.y) / 2,
       .z = (aabb.max.z + aabb.min.z) / 2,
    };
-   rti_vec3 extent = {
+   gamma_vec3 extent = {
       .x = aabb.max.x - aabb.min.x,
       .y = aabb.max.y - aabb.min.y,
       .z = aabb.max.z - aabb.min.z,
@@ -141,29 +141,29 @@ rti_acceleration_structure::init_camera()
 }
 
 void
-rti_file_view::load(FILE *file, const rti_header *header)
+gamma_file_view::load(FILE *file, const gamma_header *header)
 {
    for (uint32_t i = 0; i < header->chunk_count; i++) {
-      rti_chunk_header chunk_header;
+      gamma_chunk_header chunk_header;
       fread(&chunk_header, sizeof(chunk_header), 1, file);
 
-      if (chunk_header.type == rti_chunk_type_acceleration_structure) {
-         std::unique_ptr<rti_acceleration_structure> acceleration_structure = create_acceleration_structure();
+      if (chunk_header.type == gamma_chunk_type_acceleration_structure) {
+         std::unique_ptr<gamma_acceleration_structure> acceleration_structure = create_acceleration_structure();
          acceleration_structure->app = app;
          acceleration_structure->load(file, chunk_header.size);
          address_map[acceleration_structure->header.address] = acceleration_structures.size();
          acceleration_structures.push_back(std::move(acceleration_structure));
-      } else if (chunk_header.type >= rti_chunk_type_driver_start) {
+      } else if (chunk_header.type >= gamma_chunk_type_driver_start) {
          load_driver_specific(file, &chunk_header, header);
       } else {
-         fprintf(stderr, "rti: Invalid rti_chunk_type\n");
+         fprintf(stderr, "gamma: Invalid gamma_chunk_type\n");
          return;
       }
    }
 }
 
-rti_acceleration_structure *
-rti_file_view::addr_to_acceleration_structure(uint64_t address)
+gamma_acceleration_structure *
+gamma_file_view::addr_to_acceleration_structure(uint64_t address)
 {
    if (address_map.empty())
       return nullptr;
@@ -173,7 +173,7 @@ rti_file_view::addr_to_acceleration_structure(uint64_t address)
    if (lower_bound == address_map.end() || lower_bound->first > address)
       lower_bound--;
 
-   rti_acceleration_structure *acceleration_structure = acceleration_structures[lower_bound->second].get();
+   gamma_acceleration_structure *acceleration_structure = acceleration_structures[lower_bound->second].get();
    if (address >= acceleration_structure->header.address &&
        address < acceleration_structure->header.address + acceleration_structure->header.allocated_size)
       return acceleration_structure;
@@ -181,8 +181,8 @@ rti_file_view::addr_to_acceleration_structure(uint64_t address)
    return nullptr;
 }
 
-std::unique_ptr<rti_file_view>
-rti_create_file_view(rti_app *app, const char *file_path)
+std::unique_ptr<gamma_file_view>
+gamma_create_file_view(gamma_app *app, const char *file_path)
 {
    int64_t start_time = os_time_get_nano();
 
@@ -190,12 +190,12 @@ rti_create_file_view(rti_app *app, const char *file_path)
    if (!file)
       return nullptr;
 
-   rti_header header;
+   gamma_header header;
    fread(&header, sizeof(header), 1, file);
 
-   std::unique_ptr<rti_file_view> view = nullptr;
-   if (header.driver == rti_driver_radv)
-      view = rti_create_file_view_radv();
+   std::unique_ptr<gamma_file_view> view = nullptr;
+   if (header.driver == gamma_driver_radv)
+      view = gamma_create_file_view_radv();
    else
       return nullptr;
 
@@ -206,7 +206,7 @@ rti_create_file_view(rti_app *app, const char *file_path)
    fclose(file);
 
    int64_t end_time = os_time_get_nano();
-   fprintf(stderr, "rti: Opening file \"%s\" took %.2fms\n", file_path, (end_time - start_time) / 1000000.0);
+   fprintf(stderr, "gamma: Opening file \"%s\" took %.2fms\n", file_path, (end_time - start_time) / 1000000.0);
 
    return view;
 }
@@ -218,17 +218,17 @@ static const std::map<VkAccelerationStructureTypeKHR, const char *> acceleration
 };
 
 static const std::map<uint32_t, const char *> visualization_colors = {
-   {rti_visualization_color_primitive_index, "primitive_index"},
-   {rti_visualization_color_geometry_index, "geometry_index"},
-   {rti_visualization_color_instance_index, "instance_index"},
+   {gamma_visualization_color_primitive_index, "primitive_index"},
+   {gamma_visualization_color_geometry_index, "geometry_index"},
+   {gamma_visualization_color_instance_index, "instance_index"},
 };
 
 static const std::map<uint32_t, const char *> camera_types = {
-   {rti_camera_type_first_person, "first person"},
-   {rti_camera_type_pivot, "pivot"},
+   {gamma_camera_type_first_person, "first person"},
+   {gamma_camera_type_pivot, "pivot"},
 };
 
-static const rti_mat4 basis_transforms[] = {
+static const gamma_mat4 basis_transforms[] = {
    {.elements = {0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}},  /* x -> -y, y -> x, z -> z */
    {.elements = {-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}}, /* x -> -x, y -> -y, z -> z */
    {.elements = {1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1}},  /* x -> x, y -> z, z -> -y */
@@ -237,24 +237,24 @@ static const rti_mat4 basis_transforms[] = {
    {.elements = {1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1}},  /* x -> x, y -> -z, z -> y */
 };
 
-struct rti_basis_guizmo_axis_description {
+struct gamma_basis_guizmo_axis_description {
    const char *label;
-   rti_vec4 end;
+   gamma_vec4 end;
    ImVec4 color;
-   rti_vec4 transformed_end;
+   gamma_vec4 transformed_end;
 };
 
 static int
-rti_basis_guizmo_axis_description_compare(const void *_a, const void *_b)
+gamma_basis_guizmo_axis_description_compare(const void *_a, const void *_b)
 {
-   const rti_basis_guizmo_axis_description *a = (const rti_basis_guizmo_axis_description *)_a;
-   const rti_basis_guizmo_axis_description *b = (const rti_basis_guizmo_axis_description *)_b;
+   const gamma_basis_guizmo_axis_description *a = (const gamma_basis_guizmo_axis_description *)_a;
+   const gamma_basis_guizmo_axis_description *b = (const gamma_basis_guizmo_axis_description *)_b;
    /* End points are sorted in ascending order, large z values need to be rendered first. */
    return a->transformed_end.z > b->transformed_end.z ? -1 : 1;
 }
 
 void
-rti_file_view::begin()
+gamma_file_view::begin()
 {
    if (!ui.initialized) {
       ImGuiViewport *viewport = ImGui::GetMainViewport();
@@ -364,7 +364,7 @@ rti_file_view::begin()
       if (ImGui::BeginCombo("type", camera_types.at(ui.focused_acceleration_structure->ui.camera_type))) {
          for (const auto &type : camera_types) {
             if (ImGui::Selectable(type.second))
-               ui.focused_acceleration_structure->ui.camera_type = (rti_camera_type)type.first;
+               ui.focused_acceleration_structure->ui.camera_type = (gamma_camera_type)type.first;
          }
          ImGui::EndCombo();
       }
@@ -391,7 +391,7 @@ rti_file_view::begin()
                             visualization_colors.at(ui.focused_acceleration_structure->ui.visualization_color))) {
          for (const auto &color : visualization_colors) {
             if (ImGui::Selectable(color.second))
-               ui.focused_acceleration_structure->ui.visualization_color = (rti_visualization_color)color.first;
+               ui.focused_acceleration_structure->ui.visualization_color = (gamma_visualization_color)color.first;
          }
          ImGui::EndCombo();
       }
@@ -400,12 +400,12 @@ rti_file_view::begin()
 }
 
 void
-rti_file_view::end()
+gamma_file_view::end()
 {
 }
 
 bool
-rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure)
+gamma_file_view::begin_viewport(gamma_acceleration_structure *acceleration_structure)
 {
    rendering_state.render = false;
    if (!acceleration_structure->ui.opened)
@@ -438,7 +438,7 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
    if ((viewport_width != acceleration_structure->ui.viewport.width ||
         viewport_height != acceleration_structure->ui.viewport.height) &&
        rendering_state.viewport_size.x > 0 && rendering_state.viewport_size.y > 0) {
-      printf("rti: Resizing viewport to (%u, %u)\n", viewport_width, viewport_height);
+      printf("gamma: Resizing viewport to (%u, %u)\n", viewport_width, viewport_height);
 
       VkExtent3D viewport_extent = {
          .width = viewport_width,
@@ -447,14 +447,14 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
       };
 
       acceleration_structure->ui.viewport.cb =
-         rti_create_backed_image(app, viewport_extent, {VK_FORMAT_R8G8B8A8_UNORM},
-                                 VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_TRANSFER_SRC_BIT,
-                                 VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                                 VK_IMAGE_ASPECT_COLOR_BIT, app->sample_count, 1);
-      acceleration_structure->ui.viewport.db = rti_create_backed_image(
+         gamma_create_backed_image(app, viewport_extent, {VK_FORMAT_R8G8B8A8_UNORM},
+                                   VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_TRANSFER_SRC_BIT,
+                                   VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                                   VK_IMAGE_ASPECT_COLOR_BIT, app->sample_count, 1);
+      acceleration_structure->ui.viewport.db = gamma_create_backed_image(
          app, viewport_extent, {VK_FORMAT_D32_SFLOAT}, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, app->sample_count, 1);
-      acceleration_structure->ui.viewport.resolved_image = rti_create_backed_image(
+      acceleration_structure->ui.viewport.resolved_image = gamma_create_backed_image(
          app, viewport_extent, {VK_FORMAT_R8G8B8A8_UNORM},
          VK_FORMAT_FEATURE_TRANSFER_DST_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
          VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1);
@@ -462,7 +462,7 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
       acceleration_structure->ui.viewport.width = viewport_width;
       acceleration_structure->ui.viewport.height = viewport_height;
 
-      acceleration_structure->ui.viewport.surface = std::make_shared<rti_imgui_texture>(ImGui_ImplVulkan_AddTexture(
+      acceleration_structure->ui.viewport.surface = std::make_shared<gamma_imgui_texture>(ImGui_ImplVulkan_AddTexture(
          acceleration_structure->ui.viewport.resolved_image->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 
       VkImageMemoryBarrier initial_transitions[] = {
@@ -528,7 +528,7 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
       mouse_position.x <= rendering_state.viewport_offset.x + rendering_state.viewport_size.x &&
       mouse_position.y <= rendering_state.viewport_offset.y + rendering_state.viewport_size.y;
 
-   rti_vec3 extent = {
+   gamma_vec3 extent = {
       .x = acceleration_structure->aabb.max.x - acceleration_structure->aabb.min.x,
       .y = acceleration_structure->aabb.max.y - acceleration_structure->aabb.min.y,
       .z = acceleration_structure->aabb.max.z - acceleration_structure->aabb.min.z,
@@ -545,14 +545,14 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
    } else {
       x_aspect_ratio = (float)viewport_height / (float)viewport_width;
    }
-   rendering_state.projection_matrix = rti_mat4::zero();
+   rendering_state.projection_matrix = gamma_mat4::zero();
    rendering_state.projection_matrix.elements[0 + 0 * 4] = x_aspect_ratio / tan(fov / 2);
    rendering_state.projection_matrix.elements[1 + 1 * 4] = y_aspect_ratio / tan(fov / 2);
    rendering_state.projection_matrix.elements[2 + 2 * 4] = far / (far - near);
    rendering_state.projection_matrix.elements[3 + 2 * 4] = 1;
    rendering_state.projection_matrix.elements[2 + 3 * 4] = -2 * far * near / (far - near);
 
-   rendering_state.inv_camera_rotation = rti_mat4();
+   rendering_state.inv_camera_rotation = gamma_mat4();
    float camera_x_phi = acceleration_structure->ui.camera_phi - M_PI_2;
    float camera_x_theta = M_PI_2;
    rendering_state.inv_camera_rotation.elements[0 * 4 + 0] = cos(camera_x_phi) * sin(camera_x_theta);
@@ -569,9 +569,9 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
    rendering_state.inv_camera_rotation.elements[1 * 4 + 2] = cos(camera_z_theta);
    rendering_state.inv_camera_rotation.elements[2 * 4 + 2] = sin(camera_z_phi) * sin(camera_z_theta);
 
-   if (acceleration_structure->ui.camera_type == rti_camera_type_pivot &&
+   if (acceleration_structure->ui.camera_type == gamma_camera_type_pivot &&
        acceleration_structure->ui.camera_pivot_valid) {
-      rti_vec3 camera_z = {
+      gamma_vec3 camera_z = {
          .x = rendering_state.inv_camera_rotation.elements[0 * 4 + 2],
          .y = rendering_state.inv_camera_rotation.elements[1 * 4 + 2],
          .z = rendering_state.inv_camera_rotation.elements[2 * 4 + 2],
@@ -585,18 +585,19 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
          acceleration_structure->ui.camera_pivot.z - acceleration_structure->ui.camera_pivot_distance * camera_z.z;
    }
 
-   rti_mat4 inv_camera_position;
+   gamma_mat4 inv_camera_position;
    inv_camera_position.elements[0 + 3 * 4] = -acceleration_structure->ui.camera_position.x;
    inv_camera_position.elements[1 + 3 * 4] = -acceleration_structure->ui.camera_position.y;
    inv_camera_position.elements[2 + 3 * 4] = -acceleration_structure->ui.camera_position.z;
 
-   rendering_state.view_projection_matrix = rti_mat4::mul(
-      rendering_state.projection_matrix, rti_mat4::mul(rendering_state.inv_camera_rotation,
-                                                       rti_mat4::mul(inv_camera_position, basis_transforms[up_axis])));
+   rendering_state.view_projection_matrix =
+      gamma_mat4::mul(rendering_state.projection_matrix,
+                      gamma_mat4::mul(rendering_state.inv_camera_rotation,
+                                      gamma_mat4::mul(inv_camera_position, basis_transforms[up_axis])));
 
    rendering_state.camera_pivot = acceleration_structure->ui.camera_pivot;
 
-   if (acceleration_structure->ui.camera_type != rti_camera_type_pivot)
+   if (acceleration_structure->ui.camera_type != gamma_camera_type_pivot)
       acceleration_structure->ui.camera_pivot_valid = false;
 
    bool started_middle_dragging = false;
@@ -610,7 +611,7 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
       if (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
          ds *= 2;
 
-      rti_vec3 dr;
+      gamma_vec3 dr;
       if (ImGui::IsKeyDown(ImGuiKey_W)) {
          dr.x += cos(acceleration_structure->ui.camera_phi) * ds;
          dr.z += sin(acceleration_structure->ui.camera_phi) * ds;
@@ -634,7 +635,7 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
          dr.y += ds;
       }
 
-      if (acceleration_structure->ui.camera_type == rti_camera_type_pivot) {
+      if (acceleration_structure->ui.camera_type == gamma_camera_type_pivot) {
          acceleration_structure->ui.camera_pivot.x += dr.x;
          acceleration_structure->ui.camera_pivot.y += dr.y;
          acceleration_structure->ui.camera_pivot.z += dr.z;
@@ -669,38 +670,38 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
       }
 
       if (mouse_inside_viewport) {
-         rti_mat4 inv_view_projection_matrix;
+         gamma_mat4 inv_view_projection_matrix;
          util_invert_mat4x4(inv_view_projection_matrix.elements, rendering_state.view_projection_matrix.elements);
 
-         rti_vec4 ndc_mouse_position = {
+         gamma_vec4 ndc_mouse_position = {
             .x = (mouse_position.x - rendering_state.viewport_offset.x) / rendering_state.viewport_size.x * 2 - 1,
             .y = (mouse_position.y - rendering_state.viewport_offset.y) / rendering_state.viewport_size.y * 2 - 1,
             .z = 1,
             .w = 1,
          };
-         rti_vec4 global_mouse_position4 = rti_mat4::mul_vec4(inv_view_projection_matrix, ndc_mouse_position);
-         rti_vec3 global_mouse_position = {
+         gamma_vec4 global_mouse_position4 = gamma_mat4::mul_vec4(inv_view_projection_matrix, ndc_mouse_position);
+         gamma_vec3 global_mouse_position = {
             .x = global_mouse_position4.x / global_mouse_position4.w,
             .y = global_mouse_position4.y / global_mouse_position4.w,
             .z = global_mouse_position4.z / global_mouse_position4.w,
          };
-         rti_vec4 origin4 = {
+         gamma_vec4 origin4 = {
             .x = acceleration_structure->ui.camera_position.x,
             .y = acceleration_structure->ui.camera_position.y,
             .z = acceleration_structure->ui.camera_position.z,
          };
-         origin4 = rti_mat4::mul_vec4(rti_mat4::transpose(basis_transforms[up_axis]), origin4);
-         rti_vec3 origin = {origin4.x, origin4.y, origin4.z};
-         rti_ray ray = {
+         origin4 = gamma_mat4::mul_vec4(gamma_mat4::transpose(basis_transforms[up_axis]), origin4);
+         gamma_vec3 origin = {origin4.x, origin4.y, origin4.z};
+         gamma_ray ray = {
             .origin = origin,
-            .direction = rti_vec3::sub(global_mouse_position, origin),
+            .direction = gamma_vec3::sub(global_mouse_position, origin),
          };
-         rti_vec4 camera_z = {
+         gamma_vec4 camera_z = {
             .x = rendering_state.inv_camera_rotation.elements[0 * 4 + 2],
             .y = rendering_state.inv_camera_rotation.elements[1 * 4 + 2],
             .z = rendering_state.inv_camera_rotation.elements[2 * 4 + 2],
          };
-         camera_z = rti_mat4::mul_vec4(rti_mat4::transpose(basis_transforms[up_axis]), camera_z);
+         camera_z = gamma_mat4::mul_vec4(gamma_mat4::transpose(basis_transforms[up_axis]), camera_z);
          float t = handle_mouse_click(acceleration_structure, ray, false);
 
          if (started_middle_dragging) {
@@ -710,14 +711,14 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
                acceleration_structure->ui.middle_drag_start_z_distance = far;
          }
 
-         if (acceleration_structure->ui.camera_type == rti_camera_type_pivot &&
+         if (acceleration_structure->ui.camera_type == gamma_camera_type_pivot &&
              !acceleration_structure->ui.camera_pivot_valid &&
              (left_mouse_button_pressed || middle_mouse_button_pressed || right_mouse_button_pressed) && t < INFINITY) {
             acceleration_structure->ui.camera_pivot = ray.origin;
             acceleration_structure->ui.camera_pivot.x += t * ray.direction.x;
             acceleration_structure->ui.camera_pivot.y += t * ray.direction.y;
             acceleration_structure->ui.camera_pivot.z += t * ray.direction.z;
-            acceleration_structure->ui.camera_pivot_distance = t * sqrt(rti_vec3::dot(ray.direction, ray.direction));
+            acceleration_structure->ui.camera_pivot_distance = t * sqrt(gamma_vec3::dot(ray.direction, ray.direction));
             acceleration_structure->ui.camera_pivot_valid = true;
          }
       }
@@ -728,7 +729,7 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
 
          float dx = -drag_delta_x * 2.0 / viewport_width / x_aspect_ratio * tan(fov / 2) *
                     acceleration_structure->ui.middle_drag_start_z_distance;
-         rti_vec3 dr = {
+         gamma_vec3 dr = {
             .x = rendering_state.inv_camera_rotation.elements[0 * 4 + 0] * dx,
             .y = rendering_state.inv_camera_rotation.elements[1 * 4 + 0] * dx,
             .z = rendering_state.inv_camera_rotation.elements[2 * 4 + 0] * dx,
@@ -740,7 +741,7 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
          dr.y += rendering_state.inv_camera_rotation.elements[1 * 4 + 1] * dy;
          dr.z += rendering_state.inv_camera_rotation.elements[2 * 4 + 1] * dy;
 
-         if (acceleration_structure->ui.camera_type == rti_camera_type_pivot) {
+         if (acceleration_structure->ui.camera_type == gamma_camera_type_pivot) {
             acceleration_structure->ui.camera_pivot.x += dr.x;
             acceleration_structure->ui.camera_pivot.y += dr.y;
             acceleration_structure->ui.camera_pivot.z += dr.z;
@@ -753,7 +754,7 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
 
       acceleration_structure->ui.prev_mouse_pos = mouse_position;
 
-      if (acceleration_structure->ui.camera_type == rti_camera_type_pivot &&
+      if (acceleration_structure->ui.camera_type == gamma_camera_type_pivot &&
           acceleration_structure->ui.camera_pivot_valid && mouse_inside_viewport) {
          float mouse_wheel = ImGui::GetIO().MouseWheel;
          acceleration_structure->ui.camera_pivot_distance /= pow(1.1, mouse_wheel);
@@ -762,86 +763,86 @@ rti_file_view::begin_viewport(rti_acceleration_structure *acceleration_structure
 
    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, ImGuiInputFlags_None) && mouse_inside_viewport &&
        acceleration_structure->ui.prev_focused) {
-      rti_mat4 inv_view_projection_matrix;
+      gamma_mat4 inv_view_projection_matrix;
       util_invert_mat4x4(inv_view_projection_matrix.elements, rendering_state.view_projection_matrix.elements);
 
-      rti_vec4 ndc_mouse_position = {
+      gamma_vec4 ndc_mouse_position = {
          .x = (mouse_position.x - rendering_state.viewport_offset.x) / rendering_state.viewport_size.x * 2 - 1,
          .y = (mouse_position.y - rendering_state.viewport_offset.y) / rendering_state.viewport_size.y * 2 - 1,
          .z = 1,
          .w = 1,
       };
-      rti_vec4 global_mouse_position4 = rti_mat4::mul_vec4(inv_view_projection_matrix, ndc_mouse_position);
-      rti_vec3 global_mouse_position = {
+      gamma_vec4 global_mouse_position4 = gamma_mat4::mul_vec4(inv_view_projection_matrix, ndc_mouse_position);
+      gamma_vec3 global_mouse_position = {
          .x = global_mouse_position4.x / global_mouse_position4.w,
          .y = global_mouse_position4.y / global_mouse_position4.w,
          .z = global_mouse_position4.z / global_mouse_position4.w,
       };
-      rti_vec4 origin4 = {
+      gamma_vec4 origin4 = {
          .x = acceleration_structure->ui.camera_position.x,
          .y = acceleration_structure->ui.camera_position.y,
          .z = acceleration_structure->ui.camera_position.z,
       };
-      origin4 = rti_mat4::mul_vec4(rti_mat4::transpose(basis_transforms[up_axis]), origin4);
-      rti_vec3 origin = {origin4.x, origin4.y, origin4.z};
-      rti_ray ray = {
+      origin4 = gamma_mat4::mul_vec4(gamma_mat4::transpose(basis_transforms[up_axis]), origin4);
+      gamma_vec3 origin = {origin4.x, origin4.y, origin4.z};
+      gamma_ray ray = {
          .origin = origin,
-         .direction = rti_vec3::sub(global_mouse_position, origin),
+         .direction = gamma_vec3::sub(global_mouse_position, origin),
       };
       handle_mouse_click(acceleration_structure, ray, true);
    }
 
    acceleration_structure->ui.prev_focused = ImGui::IsWindowFocused();
 
-   acceleration_structure->ui.viewport.render_list = std::make_shared<rti_render_list>(app);
+   acceleration_structure->ui.viewport.render_list = std::make_shared<gamma_render_list>(app);
 
    return true;
 }
 
 void
-rti_file_view::render(const rti_render_task &task)
+gamma_file_view::render(const gamma_render_task &task)
 {
-   rti_render_task task_copy = task;
-   task_copy.params.transform = rti_mat4::mul(rendering_state.view_projection_matrix, task_copy.params.transform);
+   gamma_render_task task_copy = task;
+   task_copy.params.transform = gamma_mat4::mul(rendering_state.view_projection_matrix, task_copy.params.transform);
    rendering_state.acceleration_structure->ui.viewport.render_list->tasks.push_back(task_copy);
 }
 
 void
-rti_file_view::render_aabb(const rti_render_task &base_task, rti_aabb aabb, bool fill)
+gamma_file_view::render_aabb(const gamma_render_task &base_task, gamma_aabb aabb, bool fill)
 {
-   rti_render_task task = base_task;
-   task.type = rti_render_task_type_lines;
+   gamma_render_task task = base_task;
+   task.type = gamma_render_task_type_lines;
    task.vertex_buffer = fill ? app->filled_cube_vertex_buffer.get() : app->cube_vertex_buffer.get();
    task.first_vertex = 0;
-   task.vertex_count = fill ? RTI_FILLED_CUBE_VERTEX_COUNT : RTI_CUBE_VERTEX_COUNT;
+   task.vertex_count = fill ? GAMMA_FILLED_CUBE_VERTEX_COUNT : GAMMA_CUBE_VERTEX_COUNT;
 
-   rti_mat4 aabb_matrix;
+   gamma_mat4 aabb_matrix;
    aabb_matrix.elements[0 + 0 * 4] = aabb.max.x - aabb.min.x;
    aabb_matrix.elements[1 + 1 * 4] = aabb.max.y - aabb.min.y;
    aabb_matrix.elements[2 + 2 * 4] = aabb.max.z - aabb.min.z;
    aabb_matrix.elements[0 + 3 * 4] = aabb.min.x;
    aabb_matrix.elements[1 + 3 * 4] = aabb.min.y;
    aabb_matrix.elements[2 + 3 * 4] = aabb.min.z;
-   task.params.transform = rti_mat4::mul(task.params.transform, aabb_matrix);
+   task.params.transform = gamma_mat4::mul(task.params.transform, aabb_matrix);
 
    render(task);
 }
 
-struct rti_tracked_render_state {
-   rti_render_task last_render_task;
+struct gamma_tracked_render_state {
+   gamma_render_task last_render_task;
    bool first_task = true;
    std::vector<VkMultiDrawInfoEXT> draws;
    uint32_t first_param = 0;
 };
 
 static void
-rti_flush_draws(rti_file_view *view, rti_tracked_render_state *state, const uint32_t *flags_override,
-                rti_mat4 transform, uint32_t task_index)
+gamma_flush_draws(gamma_file_view *view, gamma_tracked_render_state *state, const uint32_t *flags_override,
+                  gamma_mat4 transform, uint32_t task_index)
 {
    if (state->draws.empty())
       return;
 
-   rti_push_constants consts = {
+   gamma_push_constants consts = {
       .transform = transform,
       .first_param = state->first_param,
       .flags = flags_override ? *flags_override : state->last_render_task.flags,
@@ -858,14 +859,14 @@ rti_flush_draws(rti_file_view *view, rti_tracked_render_state *state, const uint
 }
 
 static void
-rti_process_render_list(rti_file_view *view, rti_render_list *list, rti_tracked_render_state *state,
-                        const VkRenderingInfo *rendering_info, const uint32_t *flags_override, rti_mat4 transform)
+gamma_process_render_list(gamma_file_view *view, gamma_render_list *list, gamma_tracked_render_state *state,
+                          const VkRenderingInfo *rendering_info, const uint32_t *flags_override, gamma_mat4 transform)
 {
    for (uint32_t i = 0; i < list->tasks.size(); i++) {
-      const rti_render_task &task = list->tasks[i];
+      const gamma_render_task &task = list->tasks[i];
 
       if (task.wait_for_prev) {
-         rti_flush_draws(view, state, flags_override, transform, i);
+         gamma_flush_draws(view, state, flags_override, transform, i);
 
          vkCmdEndRendering(view->app->command_buffer);
 
@@ -916,12 +917,12 @@ rti_process_render_list(rti_file_view *view, rti_render_list *list, rti_tracked_
          vkCmdBeginRendering(view->app->command_buffer, rendering_info);
       }
 
-      if (task.type == rti_render_task_type_render_list) {
-         rti_flush_draws(view, state, flags_override, transform, i);
+      if (task.type == gamma_render_task_type_render_list) {
+         gamma_flush_draws(view, state, flags_override, transform, i);
          state->first_task = true;
 
-         rti_process_render_list(view, task.render_list, state, rendering_info,
-                                 task.override_flags ? &task.flags : nullptr, task.params.transform);
+         gamma_process_render_list(view, task.render_list, state, rendering_info,
+                                   task.override_flags ? &task.flags : nullptr, task.params.transform);
 
          state->first_param = i + 1;
          state->first_task = true;
@@ -930,23 +931,23 @@ rti_process_render_list(rti_file_view *view, rti_render_list *list, rti_tracked_
       }
 
       if (state->first_task || task.type != state->last_render_task.type) {
-         rti_flush_draws(view, state, flags_override, transform, i);
+         gamma_flush_draws(view, state, flags_override, transform, i);
 
          VkPipeline pipeline = VK_NULL_HANDLE;
          switch (task.type) {
-         case rti_render_task_type_solid:
+         case gamma_render_task_type_solid:
             pipeline = view->app->fill_pipeline;
             break;
-         case rti_render_task_type_wireframe:
+         case gamma_render_task_type_wireframe:
             pipeline = view->app->wireframe_pipeline;
             break;
-         case rti_render_task_type_thick_wireframe:
+         case gamma_render_task_type_thick_wireframe:
             pipeline = view->app->thick_wireframe_pipeline;
             break;
-         case rti_render_task_type_lines:
+         case gamma_render_task_type_lines:
             pipeline = view->app->lines_pipeline;
             break;
-         case rti_render_task_type_thick_lines:
+         case gamma_render_task_type_thick_lines:
             pipeline = view->app->thick_lines_pipeline;
             break;
          default:
@@ -959,17 +960,17 @@ rti_process_render_list(rti_file_view *view, rti_render_list *list, rti_tracked_
       }
 
       if (state->first_task || task.vertex_buffer != state->last_render_task.vertex_buffer) {
-         rti_flush_draws(view, state, flags_override, transform, i);
+         gamma_flush_draws(view, state, flags_override, transform, i);
 
          VkDeviceSize vertex_buffer_offset = 0;
          vkCmdBindVertexBuffers(view->app->command_buffer, 0, 1, &task.vertex_buffer->buffer, &vertex_buffer_offset);
       }
 
       if (task.flags != state->last_render_task.flags)
-         rti_flush_draws(view, state, flags_override, transform, i);
+         gamma_flush_draws(view, state, flags_override, transform, i);
 
       if (state->draws.size() >= view->app->max_multi_draw_count)
-         rti_flush_draws(view, state, flags_override, transform, i);
+         gamma_flush_draws(view, state, flags_override, transform, i);
 
       VkMultiDrawInfoEXT draw = {
          .firstVertex = task.first_vertex,
@@ -981,11 +982,11 @@ rti_process_render_list(rti_file_view *view, rti_render_list *list, rti_tracked_
       state->first_task = false;
    }
 
-   rti_flush_draws(view, state, flags_override, transform, list->tasks.size() - 1);
+   gamma_flush_draws(view, state, flags_override, transform, list->tasks.size() - 1);
 }
 
 void
-rti_file_view::render_viewport()
+gamma_file_view::render_viewport()
 {
    if (!rendering_state.render)
       return;
@@ -1065,9 +1066,9 @@ rti_file_view::render_viewport()
    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
-   rti_tracked_render_state state;
-   rti_process_render_list(this, rendering_state.acceleration_structure->ui.viewport.render_list.get(), &state,
-                           &rendering_info, nullptr, rti_mat4());
+   gamma_tracked_render_state state;
+   gamma_process_render_list(this, rendering_state.acceleration_structure->ui.viewport.render_list.get(), &state,
+                             &rendering_info, nullptr, gamma_mat4());
    rendering_state.acceleration_structure->ui.viewport.render_list->tasks.clear();
 
    vkCmdEndRendering(app->command_buffer);
@@ -1180,7 +1181,7 @@ rti_file_view::render_viewport()
 }
 
 void
-rti_file_view::end_viewport()
+gamma_file_view::end_viewport()
 {
    if (!rendering_state.render)
       return;
@@ -1192,7 +1193,7 @@ rti_file_view::end_viewport()
    float axis_thickness = 3;
    float axis_label_radius = 8;
 
-   rti_basis_guizmo_axis_description axis_descriptions[] = {
+   gamma_basis_guizmo_axis_description axis_descriptions[] = {
       {
          .label = "X",
          .end = {1, 0, 0, 1},
@@ -1210,38 +1211,39 @@ rti_file_view::end_viewport()
       },
    };
 
-   rti_mat4 view_projection_matrix = rti_mat4::mul(
-      rendering_state.projection_matrix, rti_mat4::mul(rendering_state.inv_camera_rotation, basis_transforms[up_axis]));
-   rti_mat4 inv_view_projection_matrix;
+   gamma_mat4 view_projection_matrix =
+      gamma_mat4::mul(rendering_state.projection_matrix,
+                      gamma_mat4::mul(rendering_state.inv_camera_rotation, basis_transforms[up_axis]));
+   gamma_mat4 inv_view_projection_matrix;
    util_invert_mat4x4(inv_view_projection_matrix.elements, view_projection_matrix.elements);
 
    ImVec2 basis_guizmo_center =
       ImVec2(rendering_state.viewport_offset.x + rendering_state.viewport_size.x - basis_guizmo_radius,
              rendering_state.viewport_offset.y + basis_guizmo_radius);
 
-   rti_vec4 ndc_basis_guizmo_center = {
+   gamma_vec4 ndc_basis_guizmo_center = {
       .x = 1 - basis_guizmo_radius * 2 / rendering_state.viewport_size.x,
       .y = -1 + basis_guizmo_radius * 2 / rendering_state.viewport_size.y,
       .z = 1,
       .w = 1,
    };
-   rti_vec4 global_basis_guizmo_center = rti_mat4::mul_vec4(inv_view_projection_matrix, ndc_basis_guizmo_center);
+   gamma_vec4 global_basis_guizmo_center = gamma_mat4::mul_vec4(inv_view_projection_matrix, ndc_basis_guizmo_center);
    global_basis_guizmo_center.x /= global_basis_guizmo_center.w;
    global_basis_guizmo_center.y /= global_basis_guizmo_center.w;
    global_basis_guizmo_center.z /= global_basis_guizmo_center.w;
 
-   rti_vec4 ndc_basis_guizmo_corner = {
+   gamma_vec4 ndc_basis_guizmo_corner = {
       .x = 1 + (axis_length - basis_guizmo_radius) * 2 / rendering_state.viewport_size.x,
       .y = -1 + basis_guizmo_radius * 2 / rendering_state.viewport_size.y,
       .z = 1,
       .w = 1,
    };
-   rti_vec4 global_basis_guizmo_corner = rti_mat4::mul_vec4(inv_view_projection_matrix, ndc_basis_guizmo_corner);
+   gamma_vec4 global_basis_guizmo_corner = gamma_mat4::mul_vec4(inv_view_projection_matrix, ndc_basis_guizmo_corner);
    global_basis_guizmo_corner.x /= global_basis_guizmo_corner.w;
    global_basis_guizmo_corner.y /= global_basis_guizmo_corner.w;
    global_basis_guizmo_corner.z /= global_basis_guizmo_corner.w;
 
-   rti_vec3 global_test_axis = {
+   gamma_vec3 global_test_axis = {
       .x = global_basis_guizmo_corner.x - global_basis_guizmo_center.x,
       .y = global_basis_guizmo_corner.y - global_basis_guizmo_center.y,
       .z = global_basis_guizmo_corner.z - global_basis_guizmo_center.z,
@@ -1251,13 +1253,13 @@ rti_file_view::end_viewport()
                                    global_test_axis.z * global_test_axis.z);
 
    for (uint32_t j = 0; j < ARRAY_SIZE(axis_descriptions); j++) {
-      rti_vec4 end = {
+      gamma_vec4 end = {
          .x = global_basis_guizmo_center.x + axis_descriptions[j].end.x * global_axis_length,
          .y = global_basis_guizmo_center.y + axis_descriptions[j].end.y * global_axis_length,
          .z = global_basis_guizmo_center.z + axis_descriptions[j].end.z * global_axis_length,
          .w = 1,
       };
-      end = rti_mat4::mul_vec4(view_projection_matrix, end);
+      end = gamma_mat4::mul_vec4(view_projection_matrix, end);
       end.x = (end.x / end.w + 1.0) / 2 * rendering_state.viewport_size.x + rendering_state.viewport_offset.x;
       end.y = (end.y / end.w + 1.0) / 2 * rendering_state.viewport_size.y + rendering_state.viewport_offset.y;
       end.z = end.z / end.w;
@@ -1265,7 +1267,7 @@ rti_file_view::end_viewport()
    }
 
    qsort(axis_descriptions, ARRAY_SIZE(axis_descriptions), sizeof(axis_descriptions[0]),
-         rti_basis_guizmo_axis_description_compare);
+         gamma_basis_guizmo_axis_description_compare);
 
    ImGui::PushFont(nullptr, axis_label_radius * 2);
    for (uint32_t j = 0; j < ARRAY_SIZE(axis_descriptions); j++) {
@@ -1282,17 +1284,17 @@ rti_file_view::end_viewport()
    }
    ImGui::PopFont();
 
-   if (rendering_state.acceleration_structure->ui.camera_type == rti_camera_type_pivot) {
+   if (rendering_state.acceleration_structure->ui.camera_type == gamma_camera_type_pivot) {
       ImVec2 pivot_center = ImGui::GetMousePos();
       if (rendering_state.acceleration_structure->ui.camera_pivot_valid) {
-         rti_vec4 pos4 = {
+         gamma_vec4 pos4 = {
             .x = rendering_state.camera_pivot.x,
             .y = rendering_state.camera_pivot.y,
             .z = rendering_state.camera_pivot.z,
             .w = 1,
          };
-         pos4 = rti_mat4::mul_vec4(rti_mat4::transpose(basis_transforms[up_axis]), pos4);
-         pos4 = rti_mat4::mul_vec4(rendering_state.view_projection_matrix, pos4);
+         pos4 = gamma_mat4::mul_vec4(gamma_mat4::transpose(basis_transforms[up_axis]), pos4);
+         pos4 = gamma_mat4::mul_vec4(rendering_state.view_projection_matrix, pos4);
          pivot_center.x =
             ((pos4.x / pos4.w) + 1.0) / 2.0 * rendering_state.viewport_size.x + rendering_state.viewport_offset.x;
          pivot_center.y =
@@ -1321,12 +1323,12 @@ rti_file_view::end_viewport()
 }
 
 void
-rti_file_view::draw_point(rti_vec3 pos, rti_vec3 color, float stroke)
+gamma_file_view::draw_point(gamma_vec3 pos, gamma_vec3 color, float stroke)
 {
    ImDrawList *draw_list = ImGui::GetWindowDrawList();
 
-   rti_vec4 pos4 = {pos.x, pos.y, pos.z, 1};
-   pos4 = rti_mat4::mul_vec4(rendering_state.view_projection_matrix, pos4);
+   gamma_vec4 pos4 = {pos.x, pos.y, pos.z, 1};
+   pos4 = gamma_mat4::mul_vec4(rendering_state.view_projection_matrix, pos4);
    pos4.x = ((pos4.x / pos4.w) + 1.0) / 2.0 * rendering_state.viewport_size.x;
    pos4.y = ((pos4.y / pos4.w) + 1.0) / 2.0 * rendering_state.viewport_size.y;
    if (pos4.z > 0) {
@@ -1337,15 +1339,15 @@ rti_file_view::draw_point(rti_vec3 pos, rti_vec3 color, float stroke)
 }
 
 void
-rti_file_view::draw_line(rti_vec3 start, rti_vec3 end, rti_vec3 color, float stroke)
+gamma_file_view::draw_line(gamma_vec3 start, gamma_vec3 end, gamma_vec3 color, float stroke)
 {
    ImDrawList *draw_list = ImGui::GetWindowDrawList();
 
-   rti_vec4 start4 = {start.x, start.y, start.z, 1};
-   start4 = rti_mat4::mul_vec4(rendering_state.view_projection_matrix, start4);
+   gamma_vec4 start4 = {start.x, start.y, start.z, 1};
+   start4 = gamma_mat4::mul_vec4(rendering_state.view_projection_matrix, start4);
 
-   rti_vec4 end4 = {end.x, end.y, end.z, 1};
-   end4 = rti_mat4::mul_vec4(rendering_state.view_projection_matrix, end4);
+   gamma_vec4 end4 = {end.x, end.y, end.z, 1};
+   end4 = gamma_mat4::mul_vec4(rendering_state.view_projection_matrix, end4);
 
    if (start4.z < 0 && end4.z < 0)
       return;
@@ -1381,24 +1383,24 @@ rti_file_view::draw_line(rti_vec3 start, rti_vec3 end, rti_vec3 color, float str
 }
 
 void
-rti_file_view::begin_bvh_tree()
+gamma_file_view::begin_bvh_tree()
 {
    ImGui::Begin("BVH");
 }
 void
-rti_file_view::end_bvh_tree()
+gamma_file_view::end_bvh_tree()
 {
    ImGui::End();
 }
 
 void
-rti_file_view::begin_node_info()
+gamma_file_view::begin_node_info()
 {
    ImGui::Begin("node info");
 }
 
 void
-rti_file_view::end_node_info()
+gamma_file_view::end_node_info()
 {
    ImGui::End();
 }

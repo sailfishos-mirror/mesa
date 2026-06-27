@@ -6,9 +6,9 @@
 
 #include <cstdint>
 
-#include "rti_app.h"
-#include "rti_file_view.h"
-#include "rti_util.h"
+#include "gamma_app.h"
+#include "gamma_file_view.h"
+#include "gamma_util.h"
 
 #include "backends/imgui_impl_sdl3.h"
 #include "vulkan/vulkan_core.h"
@@ -16,13 +16,13 @@
 int
 main(int argc, char **argv)
 {
-   rti_app app = rti_app();
-   int ret = rti_app_init(&app);
+   gamma_app app = gamma_app();
+   int ret = gamma_app_init(&app);
    if (ret)
       return ret;
 
    for (int i = 1; i < argc; i++)
-      app.open_files.push_back(rti_create_file_view(&app, argv[i]));
+      app.open_files.push_back(gamma_create_file_view(&app, argv[i]));
 
    VkResult result;
    bool needs_resize = true;
@@ -49,7 +49,7 @@ main(int argc, char **argv)
          needs_resize = true;
 
       if (needs_resize) {
-         rti_app_resize(&app, width, height);
+         gamma_app_resize(&app, width, height);
          needs_resize = false;
          continue;
       }
@@ -65,27 +65,27 @@ main(int argc, char **argv)
             needs_resize = true;
             continue;
          }
-         rti_check_vk_result(result);
+         gamma_check_vk_result(result);
       }
 
       ImGui_ImplVulkanH_Frame *fd = &app.imgui_window.Frames[app.imgui_window.FrameIndex];
-      rti_check_vk_result(vkWaitForFences(app.device, 1, &fd->Fence, VK_TRUE, UINT64_MAX));
-      rti_check_vk_result(vkResetFences(app.device, 1, &fd->Fence));
+      gamma_check_vk_result(vkWaitForFences(app.device, 1, &fd->Fence, VK_TRUE, UINT64_MAX));
+      gamma_check_vk_result(vkResetFences(app.device, 1, &fd->Fence));
 
-      rti_check_vk_result(vkResetCommandPool(app.device, fd->CommandPool, 0));
+      gamma_check_vk_result(vkResetCommandPool(app.device, fd->CommandPool, 0));
 
       VkCommandBufferBeginInfo command_buffer_begin_info = {
          .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
          .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
       };
-      rti_check_vk_result(vkBeginCommandBuffer(fd->CommandBuffer, &command_buffer_begin_info));
+      gamma_check_vk_result(vkBeginCommandBuffer(fd->CommandBuffer, &command_buffer_begin_info));
 
       ImGui_ImplVulkan_NewFrame();
       ImGui_ImplSDL3_NewFrame();
       ImGui::NewFrame();
 
       app.command_buffer = fd->CommandBuffer;
-      if (rti_app_run(&app))
+      if (gamma_app_run(&app))
          break;
 
       ImGui::Render();
@@ -113,7 +113,7 @@ main(int argc, char **argv)
 
       vkCmdEndRenderPass(fd->CommandBuffer);
 
-      rti_check_vk_result(vkEndCommandBuffer(fd->CommandBuffer));
+      gamma_check_vk_result(vkEndCommandBuffer(fd->CommandBuffer));
 
       VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
       VkSubmitInfo submit_info = {
@@ -126,7 +126,7 @@ main(int argc, char **argv)
          .signalSemaphoreCount = 1,
          .pSignalSemaphores = &render_complete_semaphore,
       };
-      rti_check_vk_result(vkQueueSubmit(app.queue, 1, &submit_info, fd->Fence));
+      gamma_check_vk_result(vkQueueSubmit(app.queue, 1, &submit_info, fd->Fence));
 
       VkPresentInfoKHR present_info = {
          .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -142,12 +142,12 @@ main(int argc, char **argv)
             needs_resize = true;
             continue;
          }
-         rti_check_vk_result(result);
+         gamma_check_vk_result(result);
       }
       app.imgui_window.SemaphoreIndex = (app.imgui_window.SemaphoreIndex + 1) % app.imgui_window.SemaphoreCount;
    }
 
-   rti_app_finish(&app);
+   gamma_app_finish(&app);
 
    return 0;
 }

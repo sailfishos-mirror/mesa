@@ -8,23 +8,23 @@
 
 #include <stdint.h>
 
-struct radv_rti_trace_info {
+struct radv_gamma_trace_info {
    uint64_t bvh8 : 1;
    uint64_t padding : 63;
 };
 
-struct radv_rti_ray_history_header {
+struct radv_gamma_ray_history_header {
    uint64_t dispatch_count;
 };
 
-enum radv_rti_dispatch_type {
-   radv_rti_dispatch_type_trace_rays,
-   radv_rti_dispatch_type_trace_rays_indirect,
-   radv_rti_dispatch_type_trace_rays_indirect2,
+enum radv_gamma_dispatch_type {
+   radv_gamma_dispatch_type_trace_rays,
+   radv_gamma_dispatch_type_trace_rays_indirect,
+   radv_gamma_dispatch_type_trace_rays_indirect2,
 };
 
-struct radv_rti_dispatch_info {
-   enum radv_rti_dispatch_type type;
+struct radv_gamma_dispatch_info {
+   enum radv_gamma_dispatch_type type;
    uint32_t dimensions[3];
 };
 

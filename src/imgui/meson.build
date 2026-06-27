@@ -10,7 +10,7 @@ libimgui_core_dep = declare_dependency(
   include_directories : include_directories('.', is_system : true)
 )
 
-if with_tools.contains('rti')
+if with_tools.contains('gamma')
   libimgui_sdl3_vulkan = static_library(
     'imgui_sdl3_vulkan',
     files(

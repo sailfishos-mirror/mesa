@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "rti_app.h"
-#include "rti_file_view.h"
-#include "rti_util.h"
+#include "gamma_app.h"
+#include "gamma_file_view.h"
+#include "gamma_util.h"
 
 #include <chrono>
 #include <cstdint>
@@ -14,7 +14,7 @@
 #include <cstring>
 #include <vector>
 
-#include "shaders/rti_shader_interface.h"
+#include "shaders/gamma_shader_interface.h"
 #include "util/os_time.h"
 #include "vulkan/vulkan_core.h"
 #include <SDL3/SDL_dialog.h>
@@ -36,7 +36,7 @@ static const uint32_t renderer_frag_spv[] = {
 #include "util/macros.h"
 
 int
-rti_app_init(rti_app *app)
+gamma_app_init(gamma_app *app)
 {
    int64_t start_time = os_time_get_nano();
 
@@ -45,8 +45,8 @@ rti_app_init(rti_app *app)
    app->window = SDL_CreateWindow("Ray tracing inspector", 720, 400,
                                   SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
    if (app->window == NULL) {
-      fprintf(stderr, "rti: Failed to create window: %s\n", SDL_GetError());
-      rti_app_finish(app);
+      fprintf(stderr, "gamma: Failed to create window: %s\n", SDL_GetError());
+      gamma_app_finish(app);
       return 1;
    }
 
@@ -57,8 +57,8 @@ rti_app_init(rti_app *app)
    vkEnumerateInstanceVersion(&api_version);
 
    if (api_version < VK_API_VERSION_1_4) {
-      fprintf(stderr, "rti: VK_API_VERSION_1_4 is required but not supported.\n");
-      rti_app_finish(app);
+      fprintf(stderr, "gamma: VK_API_VERSION_1_4 is required but not supported.\n");
+      gamma_app_finish(app);
       return 1;
    }
 
@@ -76,13 +76,13 @@ rti_app_init(rti_app *app)
    }
 
    if (has_validation)
-      fprintf(stderr, "rti: Enabling VK_LAYER_KHRONOS_validation.\n");
+      fprintf(stderr, "gamma: Enabling VK_LAYER_KHRONOS_validation.\n");
 
    VkApplicationInfo app_info = {
       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-      .pApplicationName = "mesa.rti",
+      .pApplicationName = "mesa.gamma",
       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-      .pEngineName = "mesa.rti",
+      .pEngineName = "mesa.gamma",
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
       .apiVersion = api_version,
    };
@@ -98,19 +98,19 @@ rti_app_init(rti_app *app)
       .ppEnabledExtensionNames = sdl_extensions,
    };
 
-   rti_check_vk_result(vkCreateInstance(&instance_info, nullptr, &app->instance));
+   gamma_check_vk_result(vkCreateInstance(&instance_info, nullptr, &app->instance));
 
    VkSurfaceKHR surface;
    if (!SDL_Vulkan_CreateSurface(app->window, app->instance, nullptr, &surface)) {
-      fprintf(stderr, "rti: Failed to create VkSurfaceKHR: %s\n", SDL_GetError());
-      rti_app_finish(app);
+      fprintf(stderr, "gamma: Failed to create VkSurfaceKHR: %s\n", SDL_GetError());
+      gamma_app_finish(app);
       return 1;
    }
 
    uint32_t physical_device_count = 0;
-   rti_check_vk_result(vkEnumeratePhysicalDevices(app->instance, &physical_device_count, nullptr));
+   gamma_check_vk_result(vkEnumeratePhysicalDevices(app->instance, &physical_device_count, nullptr));
    std::vector<VkPhysicalDevice> physical_devices(physical_device_count);
-   rti_check_vk_result(vkEnumeratePhysicalDevices(app->instance, &physical_device_count, physical_devices.data()));
+   gamma_check_vk_result(vkEnumeratePhysicalDevices(app->instance, &physical_device_count, physical_devices.data()));
 
    for (VkPhysicalDevice pdev : physical_devices) {
       uint32_t extension_property_count = 0;
@@ -181,8 +181,8 @@ rti_app_init(rti_app *app)
    }
 
    if (!app->pdev) {
-      fprintf(stderr, "rti: Failed to find suitable VkPhysicalDevice\n");
-      rti_app_finish(app);
+      fprintf(stderr, "gamma: Failed to find suitable VkPhysicalDevice\n");
+      gamma_app_finish(app);
       return 1;
    }
 
@@ -209,7 +209,7 @@ rti_app_init(rti_app *app)
    else if (sample_counts & VK_SAMPLE_COUNT_2_BIT)
       app->sample_count = 2;
 
-   fprintf(stderr, "rti: Using GPU: %s\n", properties2.properties.deviceName);
+   fprintf(stderr, "gamma: Using GPU: %s\n", properties2.properties.deviceName);
 
    float thick_line_width = fmin(3.0, properties2.properties.limits.lineWidthRange[1]);
 
@@ -268,27 +268,27 @@ rti_app_init(rti_app *app)
       .ppEnabledExtensionNames = extensions,
       .pEnabledFeatures = &features,
    };
-   rti_check_vk_result(vkCreateDevice(app->pdev, &device_info, nullptr, &app->device));
+   gamma_check_vk_result(vkCreateDevice(app->pdev, &device_info, nullptr, &app->device));
 
    vkGetDeviceQueue(app->device, app->queue_family_index, 0, &app->queue);
 
    app->vkCmdDrawMultiEXT = (PFN_vkCmdDrawMultiEXT)vkGetDeviceProcAddr(app->device, "vkCmdDrawMultiEXT");
 
    VkDescriptorPoolSize pool_sizes[] = {
-      {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, IMGUI_IMPL_VULKAN_MINIMUM_SAMPLED_IMAGE_POOL_SIZE + RTI_MAX_OPEN_VIEWS},
+      {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, IMGUI_IMPL_VULKAN_MINIMUM_SAMPLED_IMAGE_POOL_SIZE + GAMMA_MAX_OPEN_VIEWS},
       {VK_DESCRIPTOR_TYPE_SAMPLER, IMGUI_IMPL_VULKAN_MINIMUM_SAMPLER_POOL_SIZE},
    };
    VkDescriptorPoolCreateInfo pool_info = {
       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
       .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
       .maxSets = IMGUI_IMPL_VULKAN_MINIMUM_SAMPLED_IMAGE_POOL_SIZE + IMGUI_IMPL_VULKAN_MINIMUM_SAMPLER_POOL_SIZE +
-                 RTI_MAX_OPEN_VIEWS,
+                 GAMMA_MAX_OPEN_VIEWS,
       .poolSizeCount = ARRAY_SIZE(pool_sizes),
       .pPoolSizes = pool_sizes,
    };
 
    VkDescriptorPool descriptor_pool;
-   rti_check_vk_result(vkCreateDescriptorPool(app->device, &pool_info, nullptr, &descriptor_pool));
+   gamma_check_vk_result(vkCreateDescriptorPool(app->device, &pool_info, nullptr, &descriptor_pool));
 
    VkFormat request_formats[] = {VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8_UNORM,
                                  VK_FORMAT_R8G8B8_UNORM};
@@ -364,20 +364,20 @@ rti_app_init(rti_app *app)
       .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
       .queueFamilyIndex = app->queue_family_index,
    };
-   rti_check_vk_result(vkCreateCommandPool(app->device, &command_pool_info, nullptr, &app->staging_command_pool));
+   gamma_check_vk_result(vkCreateCommandPool(app->device, &command_pool_info, nullptr, &app->staging_command_pool));
 
    /* Start uploading data to the GPU before compiling pipelines to reduce startup time. */
    app->cube_vertex_buffer =
-      rti_create_backed_buffer(app, RTI_CUBE_VERTEX_COUNT * sizeof(rti_vertex), rti_memory_type_device_local,
-                               VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
-   rti_vertex *cube_vertices = (rti_vertex *)app->upload_memory(app->cube_vertex_buffer);
-   rti_generate_cube_vertices(cube_vertices, {.min = {0, 0, 0}, .max = {1, 1, 1}});
+      gamma_create_backed_buffer(app, GAMMA_CUBE_VERTEX_COUNT * sizeof(gamma_vertex), gamma_memory_type_device_local,
+                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
+   gamma_vertex *cube_vertices = (gamma_vertex *)app->upload_memory(app->cube_vertex_buffer);
+   gamma_generate_cube_vertices(cube_vertices, {.min = {0, 0, 0}, .max = {1, 1, 1}});
 
-   app->filled_cube_vertex_buffer =
-      rti_create_backed_buffer(app, RTI_FILLED_CUBE_VERTEX_COUNT * sizeof(rti_vertex), rti_memory_type_device_local,
-                               VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
-   rti_vertex *filled_cube_vertices = (rti_vertex *)app->upload_memory(app->filled_cube_vertex_buffer);
-   rti_generate_filled_cube_vertices(filled_cube_vertices, {.min = {0, 0, 0}, .max = {1, 1, 1}}, 0, 0);
+   app->filled_cube_vertex_buffer = gamma_create_backed_buffer(
+      app, GAMMA_FILLED_CUBE_VERTEX_COUNT * sizeof(gamma_vertex), gamma_memory_type_device_local,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
+   gamma_vertex *filled_cube_vertices = (gamma_vertex *)app->upload_memory(app->filled_cube_vertex_buffer);
+   gamma_generate_filled_cube_vertices(filled_cube_vertices, {.min = {0, 0, 0}, .max = {1, 1, 1}}, 0, 0);
 
    app->flush_upload_memory();
 
@@ -394,11 +394,12 @@ rti_app_init(rti_app *app)
       .pBindings = &binding,
    };
 
-   rti_check_vk_result(vkCreateDescriptorSetLayout(app->device, &set_layout_info, nullptr, &app->renderer_set_layout));
+   gamma_check_vk_result(
+      vkCreateDescriptorSetLayout(app->device, &set_layout_info, nullptr, &app->renderer_set_layout));
 
    VkPushConstantRange push_constant_range = {
       .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-      .size = sizeof(rti_push_constants),
+      .size = sizeof(gamma_push_constants),
    };
 
    VkPipelineLayoutCreateInfo pipeline_layout_info = {
@@ -409,7 +410,7 @@ rti_app_init(rti_app *app)
       .pPushConstantRanges = &push_constant_range,
    };
 
-   rti_check_vk_result(
+   gamma_check_vk_result(
       vkCreatePipelineLayout(app->device, &pipeline_layout_info, nullptr, &app->renderer_pipeline_layout));
 
    VkFormat color_attachment_format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -447,7 +448,7 @@ rti_app_init(rti_app *app)
 
    VkVertexInputBindingDescription vertex_binding_info = {
       .binding = 0,
-      .stride = sizeof(rti_vertex),
+      .stride = sizeof(gamma_vertex),
       .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
    };
 
@@ -456,19 +457,19 @@ rti_app_init(rti_app *app)
          .location = 0,
          .binding = 0,
          .format = VK_FORMAT_R32G32B32_SFLOAT,
-         .offset = offsetof(rti_vertex, position),
+         .offset = offsetof(gamma_vertex, position),
       },
       {
          .location = 1,
          .binding = 0,
          .format = VK_FORMAT_R32_UINT,
-         .offset = offsetof(rti_vertex, geometry_index),
+         .offset = offsetof(gamma_vertex, geometry_index),
       },
       {
          .location = 2,
          .binding = 0,
          .format = VK_FORMAT_R32_UINT,
-         .offset = offsetof(rti_vertex, primitive_index),
+         .offset = offsetof(gamma_vertex, primitive_index),
       },
    };
 
@@ -552,36 +553,36 @@ rti_app_init(rti_app *app)
       .layout = app->renderer_pipeline_layout,
    };
 
-   rti_check_vk_result(
+   gamma_check_vk_result(
       vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr, &app->fill_pipeline));
 
    rasterization_info.polygonMode = VK_POLYGON_MODE_LINE;
-   rti_check_vk_result(vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr,
-                                                 &app->wireframe_pipeline));
+   gamma_check_vk_result(vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr,
+                                                   &app->wireframe_pipeline));
 
    input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-   rti_check_vk_result(vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr,
-                                                 &app->lines_pipeline));
+   gamma_check_vk_result(vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr,
+                                                   &app->lines_pipeline));
 
    rasterization_info.lineWidth = thick_line_width;
    input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-   rti_check_vk_result(vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr,
-                                                 &app->thick_wireframe_pipeline));
+   gamma_check_vk_result(vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr,
+                                                   &app->thick_wireframe_pipeline));
 
    input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-   rti_check_vk_result(vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr,
-                                                 &app->thick_lines_pipeline));
+   gamma_check_vk_result(vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, nullptr,
+                                                   &app->thick_lines_pipeline));
 
    app->finish_upload_memory();
 
    int64_t end_time = os_time_get_nano();
-   fprintf(stderr, "rti: Creating window state took %.2fms\n", (end_time - start_time) / 1000000.0);
+   fprintf(stderr, "gamma: Creating window state took %.2fms\n", (end_time - start_time) / 1000000.0);
 
    return 0;
 }
 
 void
-rti_app_finish(rti_app *app)
+gamma_app_finish(gamma_app *app)
 {
    vkDeviceWaitIdle(app->device);
 
@@ -605,7 +606,7 @@ rti_app_finish(rti_app *app)
 }
 
 void
-rti_app_resize(rti_app *app, uint32_t width, uint32_t height)
+gamma_app_resize(gamma_app *app, uint32_t width, uint32_t height)
 {
    ImGui_ImplVulkan_SetMinImageCount(2);
    ImGui_ImplVulkanH_CreateOrResizeWindow(app->instance, app->pdev, app->device, &app->imgui_window,
@@ -613,9 +614,9 @@ rti_app_resize(rti_app *app, uint32_t width, uint32_t height)
 }
 
 static SDLCALL void
-rti_open_file_cb(void *userdata, const char *const *filelist, int filter)
+gamma_open_file_cb(void *userdata, const char *const *filelist, int filter)
 {
-   rti_app *app = (rti_app *)userdata;
+   gamma_app *app = (gamma_app *)userdata;
 
    if (!filelist)
       return;
@@ -631,16 +632,16 @@ rti_open_file_cb(void *userdata, const char *const *filelist, int filter)
          }
       }
       if (!already_opened)
-         app->open_files.push_back(rti_create_file_view(app, filelist[i]));
+         app->open_files.push_back(gamma_create_file_view(app, filelist[i]));
    }
 }
 
-static const SDL_DialogFileFilter rti_file_filters[] = {
-   {"RTI file", "rti"},
+static const SDL_DialogFileFilter gamma_file_filters[] = {
+   {"gamma file", "gamma"},
 };
 
 bool
-rti_app_run(rti_app *app)
+gamma_app_run(gamma_app *app)
 {
    if (!app->last_run_time_valid) {
       app->last_run_time = std::chrono::high_resolution_clock::now();
@@ -651,7 +652,7 @@ rti_app_run(rti_app *app)
    app->dt = dt_ns / 1000000000.0;
    app->last_run_time = now;
 
-   rti_vec3 selection_colors[] = {
+   gamma_vec3 selection_colors[] = {
       {228.0 / 255.0, 3.0 / 255.0, 3.0 / 255.0},   {255.0 / 255.0, 140.0 / 255.0, 0.0 / 255.0},
       {255.0 / 255.0, 237.0 / 255.0, 0.0 / 255.0}, {0.0 / 255.0, 128.0 / 255.0, 38.0 / 255.0},
       {0.0 / 255.0, 76.0 / 255.0, 255.0 / 255.0},  {115.0 / 255.0, 41.0 / 255.0, 130.0 / 255.0},
@@ -674,15 +675,15 @@ rti_app_run(rti_app *app)
 
    ImGuiKeyChord open_chord = ImGuiMod_Ctrl | ImGuiKey_O;
    if (ImGui::Shortcut(open_chord, ImGuiInputFlags_RouteGlobal)) {
-      SDL_ShowOpenFileDialog(rti_open_file_cb, app, app->window, rti_file_filters, ARRAY_SIZE(rti_file_filters),
+      SDL_ShowOpenFileDialog(gamma_open_file_cb, app, app->window, gamma_file_filters, ARRAY_SIZE(gamma_file_filters),
                              nullptr, false);
    }
 
    if (ImGui::BeginMainMenuBar()) {
       if (ImGui::BeginMenu("File")) {
          if (ImGui::MenuItem("Open", ImGui::GetKeyChordName(open_chord))) {
-            SDL_ShowOpenFileDialog(rti_open_file_cb, app, app->window, rti_file_filters, ARRAY_SIZE(rti_file_filters),
-                                   nullptr, false);
+            SDL_ShowOpenFileDialog(gamma_open_file_cb, app, app->window, gamma_file_filters,
+                                   ARRAY_SIZE(gamma_file_filters), nullptr, false);
          }
          if (ImGui::MenuItem("Exit", ImGui::GetKeyChordName(exit_chord)))
             return true;
@@ -729,16 +730,16 @@ rti_app_run(rti_app *app)
 }
 
 void *
-rti_app::upload_memory(std::shared_ptr<rti_backed_buffer> dst)
+gamma_app::upload_memory(std::shared_ptr<gamma_backed_buffer> dst)
 {
-   std::shared_ptr<rti_backed_buffer> staging_buffer =
-      rti_create_backed_buffer(this, dst->size, rti_memory_type_host_visible, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, true);
+   std::shared_ptr<gamma_backed_buffer> staging_buffer = gamma_create_backed_buffer(
+      this, dst->size, gamma_memory_type_host_visible, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, true);
    pending_staging_buffers.push_back({staging_buffer, dst});
    return staging_buffer->map;
 }
 
 void
-rti_app::flush_upload_memory()
+gamma_app::flush_upload_memory()
 {
    if (pending_staging_buffers.empty())
       return;
@@ -751,13 +752,13 @@ rti_app::flush_upload_memory()
       .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
       .commandBufferCount = 1,
    };
-   rti_check_vk_result(vkAllocateCommandBuffers(device, &command_buffer_info, &staging_command_buffer));
+   gamma_check_vk_result(vkAllocateCommandBuffers(device, &command_buffer_info, &staging_command_buffer));
 
    VkCommandBufferBeginInfo begin_info = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
       .flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
    };
-   rti_check_vk_result(vkBeginCommandBuffer(staging_command_buffer, &begin_info));
+   gamma_check_vk_result(vkBeginCommandBuffer(staging_command_buffer, &begin_info));
 
    for (const auto &staging_buffer : pending_staging_buffers) {
       VkBufferCopy copy = {
@@ -766,23 +767,23 @@ rti_app::flush_upload_memory()
       vkCmdCopyBuffer(staging_command_buffer, staging_buffer.first->buffer, staging_buffer.second->buffer, 1, &copy);
    }
 
-   rti_check_vk_result(vkEndCommandBuffer(staging_command_buffer));
+   gamma_check_vk_result(vkEndCommandBuffer(staging_command_buffer));
 
    VkSubmitInfo submit_info = {
       .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
       .commandBufferCount = 1,
       .pCommandBuffers = &staging_command_buffer,
    };
-   rti_check_vk_result(vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE));
+   gamma_check_vk_result(vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE));
 }
 
 void
-rti_app::finish_upload_memory()
+gamma_app::finish_upload_memory()
 {
    if (!staging_command_buffer)
       return;
 
-   rti_check_vk_result(vkQueueWaitIdle(queue));
+   gamma_check_vk_result(vkQueueWaitIdle(queue));
 
    vkFreeCommandBuffers(device, staging_command_pool, 1, &staging_command_buffer);
    staging_command_buffer = VK_NULL_HANDLE;

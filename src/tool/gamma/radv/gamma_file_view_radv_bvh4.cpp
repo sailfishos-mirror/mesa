@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "rti_file_view.h"
-#include "rti_file_view_radv.h"
+#include "gamma_file_view.h"
+#include "gamma_file_view_radv.h"
 
 #include <cinttypes>
 #include <cmath>
@@ -15,14 +15,14 @@
 #include <memory>
 #include <stdint.h>
 
-#include "shaders/rti_shader_interface.h"
+#include "shaders/gamma_shader_interface.h"
+#include "util/gamma_format.h"
 #include "util/half_float.h"
-#include "util/rti_format.h"
 #include "vulkan/vulkan_core.h"
 
 #include "bvh_defines.h"
-#include "rti_app.h"
-#include "rti_util.h"
+#include "gamma_app.h"
+#include "gamma_util.h"
 
 static radv_bvh_box32_node
 radv_get_box_node(const void *node, uint32_t type)
@@ -56,14 +56,14 @@ radv_get_box_node(const void *node, uint32_t type)
    return box32;
 }
 
-static rti_acceleration_structure_radv *
-radv_bvh_instance_node_get_blas(rti_file_view *view, const radv_bvh_instance_node *node)
+static gamma_acceleration_structure_radv *
+radv_bvh_instance_node_get_blas(gamma_file_view *view, const radv_bvh_instance_node *node)
 {
-   return (rti_acceleration_structure_radv *)view->addr_to_acceleration_structure(radv_node_to_addr(node->bvh_ptr));
+   return (gamma_acceleration_structure_radv *)view->addr_to_acceleration_structure(radv_node_to_addr(node->bvh_ptr));
 }
 
-static rti_aabb
-vk_aabb_to_rti(vk_aabb aabb)
+static gamma_aabb
+vk_aabb_to_gamma(vk_aabb aabb)
 {
    return {
       .min = {aabb.min.x, aabb.min.y, aabb.min.z},
@@ -72,8 +72,8 @@ vk_aabb_to_rti(vk_aabb aabb)
 }
 
 void
-rti_file_view_radv::bvh4_traverse(rti_acceleration_structure_radv *acceleration_structure, rti_ray ray, uint32_t id,
-                                  float *tmax, const std::unordered_set<uint32_t> &path, bool select)
+gamma_file_view_radv::bvh4_traverse(gamma_acceleration_structure_radv *acceleration_structure, gamma_ray ray,
+                                    uint32_t id, float *tmax, const std::unordered_set<uint32_t> &path, bool select)
 {
    uint32_t offset = (id & (~0x7)) << 3;
    uint32_t type = id & 0x7;
@@ -89,8 +89,8 @@ rti_file_view_radv::bvh4_traverse(rti_acceleration_structure_radv *acceleration_
 
       uint32_t child_offset = (node.children[i] & (~0x7)) << 3;
       uint32_t child_type = node.children[i] & 0x7;
-      rti_aabb aabb = vk_aabb_to_rti(node.coords[i]);
-      float t = rti_aabb::intersect_ray(aabb, ray);
+      gamma_aabb aabb = vk_aabb_to_gamma(node.coords[i]);
+      float t = gamma_aabb::intersect_ray(aabb, ray);
       if (t >= *tmax)
          continue;
 
@@ -100,13 +100,13 @@ rti_file_view_radv::bvh4_traverse(rti_acceleration_structure_radv *acceleration_
          const radv_bvh_triangle_node *triangle_node =
             (const radv_bvh_triangle_node *)(acceleration_structure->bvh + child_offset);
 
-         rti_triangle triangle;
+         gamma_triangle triangle;
          for (uint32_t j = 0; j < 3; j++) {
             triangle.vertices[j] = {triangle_node->coords[j][0], triangle_node->coords[j][1],
                                     triangle_node->coords[j][2]};
          }
 
-         t = rti_triangle::intersect_ray(triangle, ray);
+         t = gamma_triangle::intersect_ray(triangle, ray);
 
          if (t < *tmax) {
             *tmax = t;
@@ -128,8 +128,8 @@ rti_file_view_radv::bvh4_traverse(rti_acceleration_structure_radv *acceleration_
       } else {
          const radv_bvh_instance_node *instance =
             (const radv_bvh_instance_node *)(acceleration_structure->bvh + child_offset);
-         rti_ray object_ray = rti_ray::transform(ray, mat3x4_to_rti(instance->wto_matrix));
-         rti_acceleration_structure_radv *blas = radv_bvh_instance_node_get_blas(this, instance);
+         gamma_ray object_ray = gamma_ray::transform(ray, mat3x4_to_gamma(instance->wto_matrix));
+         gamma_acceleration_structure_radv *blas = radv_bvh_instance_node_get_blas(this, instance);
          float blas_tmax = INFINITY;
          std::unordered_set<uint32_t> blas_path;
          bvh4_traverse(blas, object_ray, RADV_BVH_ROOT_NODE, &blas_tmax, blas_path, false);
@@ -145,10 +145,10 @@ rti_file_view_radv::bvh4_traverse(rti_acceleration_structure_radv *acceleration_
    }
 }
 
-rti_aabb
-rti_file_view_radv::bvh4_scene_aabb(rti_acceleration_structure_radv *acceleration_structure)
+gamma_aabb
+gamma_file_view_radv::bvh4_scene_aabb(gamma_acceleration_structure_radv *acceleration_structure)
 {
-   rti_aabb aabb;
+   gamma_aabb aabb;
 
    uint32_t root_offset = (RADV_BVH_ROOT_NODE & (~0x7)) << 3;
    uint32_t root_type = RADV_BVH_ROOT_NODE & 0x7;
@@ -160,12 +160,12 @@ rti_file_view_radv::bvh4_scene_aabb(rti_acceleration_structure_radv *acceleratio
       if (root_node->children[i] == RADV_BVH_INVALID_NODE)
          continue;
 
-      rti_aabb child_aabb = vk_aabb_to_rti(root_node->coords[i]);
+      gamma_aabb child_aabb = vk_aabb_to_gamma(root_node->coords[i]);
       if (first) {
          aabb = child_aabb;
          first = false;
       } else {
-         aabb = rti_aabb::combine(aabb, child_aabb);
+         aabb = gamma_aabb::combine(aabb, child_aabb);
       }
    }
 
@@ -173,8 +173,8 @@ rti_file_view_radv::bvh4_scene_aabb(rti_acceleration_structure_radv *acceleratio
 }
 
 void
-rti_file_view_radv::bvh4_get_vertices(rti_acceleration_structure_radv *acceleration_structure, uint32_t id,
-                                      rti_vertex *vertices, rti_vertex *wireframe_vertices)
+gamma_file_view_radv::bvh4_get_vertices(gamma_acceleration_structure_radv *acceleration_structure, uint32_t id,
+                                        gamma_vertex *vertices, gamma_vertex *wireframe_vertices)
 {
    uint32_t offset = (id & (~0x7)) << 3;
    uint32_t type = id & 0x7;
@@ -206,16 +206,16 @@ rti_file_view_radv::bvh4_get_vertices(rti_acceleration_structure_radv *accelerat
          uint32_t dst_index =
             acceleration_structure->primitive_counts_exclusive_sum[node->geometry_id_and_flags & 0xfffffff] +
             node->primitive_id;
-         rti_aabb aabb = vk_aabb_to_rti(box_node.coords[i]);
-         rti_generate_cube_vertices(wireframe_vertices + dst_index * RTI_CUBE_VERTEX_COUNT, aabb);
-         rti_generate_filled_cube_vertices(vertices + dst_index * RTI_FILLED_CUBE_VERTEX_COUNT, aabb,
-                                           node->geometry_id_and_flags & 0xffffff, node->primitive_id);
+         gamma_aabb aabb = vk_aabb_to_gamma(box_node.coords[i]);
+         gamma_generate_cube_vertices(wireframe_vertices + dst_index * GAMMA_CUBE_VERTEX_COUNT, aabb);
+         gamma_generate_filled_cube_vertices(vertices + dst_index * GAMMA_FILLED_CUBE_VERTEX_COUNT, aabb,
+                                             node->geometry_id_and_flags & 0xffffff, node->primitive_id);
       }
    }
 }
 
 void
-rti_file_view_radv::bvh4_get_instances(rti_acceleration_structure_radv *tlas, uint32_t id)
+gamma_file_view_radv::bvh4_get_instances(gamma_acceleration_structure_radv *tlas, uint32_t id)
 {
    uint32_t offset = (id & (~0x7)) << 3;
    uint32_t type = id & 0x7;
@@ -227,18 +227,18 @@ rti_file_view_radv::bvh4_get_instances(rti_acceleration_structure_radv *tlas, ui
             bvh4_get_instances(tlas, node.children[i]);
    } else if (type == radv_bvh_node_instance) {
       const radv_bvh_instance_node *node = (const radv_bvh_instance_node *)(tlas->bvh + offset);
-      rti_acceleration_structure_radv *blas = radv_bvh_instance_node_get_blas(this, node);
+      gamma_acceleration_structure_radv *blas = radv_bvh_instance_node_get_blas(this, node);
 
       uint32_t primitive_vertex_count =
-         blas->header.geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR ? 3 : RTI_FILLED_CUBE_VERTEX_COUNT;
+         blas->header.geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR ? 3 : GAMMA_FILLED_CUBE_VERTEX_COUNT;
 
-      rti_render_task solid_task;
+      gamma_render_task solid_task;
       solid_task.vertex_buffer = blas->ui.vertex_buffer.get();
       solid_task.first_vertex = blas->first_vertex;
       solid_task.vertex_count = blas->primitive_count * primitive_vertex_count;
-      solid_task.params.transform = mat3x4_to_rti(node->otw_matrix);
-      solid_task.params.color = rti_index_to_color(node->instance_id);
-      solid_task.flags = RTI_RENDERER_COLOR_PUSH_CONSTANT;
+      solid_task.params.transform = mat3x4_to_gamma(node->otw_matrix);
+      solid_task.params.color = gamma_index_to_color(node->instance_id);
+      solid_task.flags = GAMMA_RENDERER_COLOR_PUSH_CONSTANT;
       tlas->ui.instance_render_list->tasks.push_back(solid_task);
    }
 }
@@ -248,7 +248,7 @@ static const char *node_type_names[8] = {
 };
 
 void
-rti_file_view_radv::bvh4_draw(rti_acceleration_structure_radv *acceleration_structure, uint32_t id)
+gamma_file_view_radv::bvh4_draw(gamma_acceleration_structure_radv *acceleration_structure, uint32_t id)
 {
    uint32_t offset = (id & (~0x7)) << 3;
    uint32_t type = id & 0x7;
@@ -296,7 +296,7 @@ rti_file_view_radv::bvh4_draw(rti_acceleration_structure_radv *acceleration_stru
 }
 
 void
-rti_file_view_radv::bvh4_draw_node_info(const rti_acceleration_structure_radv *acceleration_structure, uint32_t id)
+gamma_file_view_radv::bvh4_draw_node_info(const gamma_acceleration_structure_radv *acceleration_structure, uint32_t id)
 {
 
    uint32_t offset = (acceleration_structure->radv_ui.selected_node_id & (~0x7)) << 3;
@@ -341,7 +341,7 @@ rti_file_view_radv::bvh4_draw_node_info(const rti_acceleration_structure_radv *a
          ImGui::TableNextColumn();
          sprintf(tmp, "0x%" PRIx64, node->bvh_ptr);
          if (ImGui::TextLink(tmp)) {
-            rti_acceleration_structure_radv *blas = radv_bvh_instance_node_get_blas(this, node);
+            gamma_acceleration_structure_radv *blas = radv_bvh_instance_node_get_blas(this, node);
             if (blas->ui.opened)
                blas->ui.request_focus = true;
             blas->ui.opened = true;
@@ -430,19 +430,19 @@ rti_file_view_radv::bvh4_draw_node_info(const rti_acceleration_structure_radv *a
 }
 
 void
-rti_file_view_radv::bvh4_render_selection(rti_acceleration_structure_radv *acceleration_structure)
+gamma_file_view_radv::bvh4_render_selection(gamma_acceleration_structure_radv *acceleration_structure)
 {
-   rti_render_task selection_task;
-   selection_task.type = rti_render_task_type_thick_wireframe;
+   gamma_render_task selection_task;
+   selection_task.type = gamma_render_task_type_thick_wireframe;
    selection_task.vertex_buffer = acceleration_structure->ui.vertex_buffer.get();
    selection_task.vertex_count = 3;
    selection_task.params.color = app->selection_color;
-   selection_task.flags = RTI_RENDERER_COLOR_PUSH_CONSTANT;
+   selection_task.flags = GAMMA_RENDERER_COLOR_PUSH_CONSTANT;
    selection_task.wait_for_prev = true;
 
    if (acceleration_structure->wireframe_first_vertex != acceleration_structure->first_vertex) {
-      selection_task.type = rti_render_task_type_thick_lines;
-      selection_task.vertex_count = RTI_CUBE_VERTEX_COUNT;
+      selection_task.type = gamma_render_task_type_thick_lines;
+      selection_task.vertex_count = GAMMA_CUBE_VERTEX_COUNT;
    }
 
    uint32_t offset = (acceleration_structure->radv_ui.selected_node_id & (~0x7)) << 3;
@@ -452,7 +452,7 @@ rti_file_view_radv::bvh4_render_selection(rti_acceleration_structure_radv *accel
       radv_bvh_box32_node node = radv_get_box_node(acceleration_structure->bvh + offset, type);
       for (uint32_t i = 0; i < 4; i++) {
          if (node.children[i] != RADV_BVH_INVALID_NODE) {
-            render_aabb(selection_task, vk_aabb_to_rti(node.coords[i]));
+            render_aabb(selection_task, vk_aabb_to_gamma(node.coords[i]));
             selection_task.wait_for_prev = false;
          }
       }
@@ -467,23 +467,24 @@ rti_file_view_radv::bvh4_render_selection(rti_acceleration_structure_radv *accel
       const radv_bvh_aabb_node *node = (const radv_bvh_aabb_node *)(acceleration_structure->bvh + offset);
       uint32_t index = acceleration_structure->primitive_counts_exclusive_sum[node->geometry_id_and_flags & 0xfffffff] +
                        node->primitive_id;
-      selection_task.first_vertex = acceleration_structure->wireframe_first_vertex + index * RTI_CUBE_VERTEX_COUNT;
+      selection_task.first_vertex = acceleration_structure->wireframe_first_vertex + index * GAMMA_CUBE_VERTEX_COUNT;
       render(selection_task);
       selection_task.wait_for_prev = false;
    } else {
       const radv_bvh_instance_node *node = (const radv_bvh_instance_node *)(acceleration_structure->bvh + offset);
-      selection_task.params.transform = mat3x4_to_rti(node->otw_matrix);
+      selection_task.params.transform = mat3x4_to_gamma(node->otw_matrix);
       render_aabb(selection_task, radv_bvh_instance_node_get_blas(this, node)->aabb);
    }
 }
 
 void
-rti_file_view_radv::bvh4_get_instance_info(const rti_acceleration_structure_radv *acceleration_structure, uint32_t id,
-                                           rti_mat4 *transform, rti_acceleration_structure_radv **blas)
+gamma_file_view_radv::bvh4_get_instance_info(const gamma_acceleration_structure_radv *acceleration_structure,
+                                             uint32_t id, gamma_mat4 *transform,
+                                             gamma_acceleration_structure_radv **blas)
 {
 
    uint32_t offset = (id & (~0x7)) << 3;
    const radv_bvh_instance_node *node = (const radv_bvh_instance_node *)(acceleration_structure->bvh + offset);
    *blas = radv_bvh_instance_node_get_blas(this, node);
-   *transform = mat3x4_to_rti(node->wto_matrix);
+   *transform = mat3x4_to_gamma(node->wto_matrix);
 }
