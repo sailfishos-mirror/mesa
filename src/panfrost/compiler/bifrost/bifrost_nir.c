@@ -310,7 +310,11 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
 
    /* nir_lower_pack can generate split operations, execute algebraic again to
     * handle them */
-   NIR_PASS(_, nir, nir_opt_algebraic);
+   bool algebraic_progress = true;
+   while (algebraic_progress) {
+      algebraic_progress = false;
+      NIR_PASS(algebraic_progress, nir, nir_opt_algebraic);
+   }
 
    /* This is only needed because we support iadd64 but not isub64.
     * nir_opt_algebraic lowers isub64 into iadd64 + ineg64 and since ineg64 is
