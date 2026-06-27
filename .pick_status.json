@@ -1264,7 +1264,7 @@
         "description": "util: Fix u_math on MSVC arm64",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "44c03f8ba65b023ae3297ba0f20ab3a8a62561b4",
         "notes": null
