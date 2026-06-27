@@ -111,11 +111,6 @@ static /* const */ char *error_list[] = {
    "GLXBadProfileARB",
 };
 
-#ifdef GLX_USE_APPLEGL
-static char *__glXErrorString(Display *dpy, int code, XExtCodes *codes,
-                              char *buf, int n);
-#endif
-
 static
 XEXT_GENERATE_ERROR_STRING(__glXErrorString, __glXExtensionName,
                            __GLX_NUMBER_ERRORS, error_list)
