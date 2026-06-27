@@ -2034,6 +2034,18 @@ msl_preprocess_nir(struct nir_shader *nir)
    NIR_PASS(_, nir, nir_lower_vars_to_ssa);
    NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 
+   /* SPIR-V passes a combined image/sampler to a function by value: it packs
+    * the image and sampler derefs into a vec2 stored through a function_temp.
+    * The common runtime folds this away after inlining, but the temp survives
+    * into the driver (it never runs vars_to_ssa). The vars_to_ssa above then
+    * promotes it and re-exposes deref_cast(mov(vec2(deref,deref).<comp>)),
+    * where the cast no longer sits on a deref, so the descriptor-aware passes
+    * (ycbcr, descriptors) can't recover the variable via nir_src_as_deref().
+    * Refold the packing so the casts rest on the source derefs again. */
+   NIR_PASS(_, nir, nir_opt_copy_prop);
+   NIR_PASS(_, nir, nir_opt_constant_folding);
+   NIR_PASS(_, nir, nir_opt_deref);
+
    nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo |
                                nir_move_load_input | nir_move_load_frag_coord |
                                nir_move_comparisons | nir_move_copies |
