@@ -1844,7 +1844,7 @@
         "description": "glx: free glx_drawable on CreateDRIDrawable failure",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4833104718677caad0027d5e7539ca9bba389392",
         "notes": null
