@@ -65,6 +65,11 @@ pub fn variants(attr: TokenStream, item: TokenStream) -> TokenStream {
             fn variant(&self) -> DataType {
                 self.#field
             }
+
+            fn set_variant(&mut self, data_type: DataType) {
+                assert!(Self::VARIANTS.contains(&data_type));
+                self.#field = data_type;
+            }
         }
     };
 
@@ -148,16 +153,25 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
                             Some(<Self as HasVariants>::variant(self))
                         }
 
+                        fn set_variant(&mut self, data_type: DataType) {
+                            <Self as HasVariants>::set_variant(self, data_type)
+                        }
+
                         fn is_valid_variant(&self) -> bool {
                             <Self as HasVariants>::is_valid_variant(self)
                         }
                     }
                 }
             } else {
+                let set_variant_err = format!("{ident} does not have variants");
                 quote! {
                     impl Opcode for #ident {
                         fn variant(&self) -> Option<DataType> {
                             None
+                        }
+
+                        fn set_variant(&mut self, _data_type: DataType) {
+                            panic!(#set_variant_err);
                         }
 
                         fn is_valid_variant(&self) -> bool {
@@ -169,6 +183,7 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
         }
         Data::Enum(e) => {
             let mut var_cases = TokenStream2::new();
+            let mut set_cases = TokenStream2::new();
             let mut val_cases = TokenStream2::new();
             let mut fmt_cases = TokenStream2::new();
 
@@ -190,6 +205,13 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
                         Opcode::variant(b)
                     }
                 });
+                set_cases.extend(quote! {
+                    #ident::#case(x) => {
+                        use std::borrow::BorrowMut;
+                        let b: &mut #v_type = x.borrow_mut();
+                        Opcode::set_variant(b, data_type)
+                    }
+                });
                 val_cases.extend(quote! {
                     #ident::#case(x) => {
                         use std::borrow::Borrow;
@@ -207,6 +229,12 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
                     fn variant(&self) -> Option<DataType> {
                         match self {
                             #var_cases
+                        }
+                    }
+
+                    fn set_variant(&mut self, data_type: DataType) {
+                        match self {
+                            #set_cases
                         }
                     }
 

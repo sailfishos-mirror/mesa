@@ -973,12 +973,10 @@ pub trait HasVariants {
 
     fn variant(&self) -> DataType;
 
+    fn set_variant(&mut self, data_type: DataType);
+
     fn is_valid_variant(&self) -> bool {
-        let v = self.variant();
-        Self::VARIANTS
-            .iter()
-            .find(|&&allowed| v == allowed)
-            .is_some()
+        Self::VARIANTS.contains(&self.variant())
     }
 }
 
@@ -1005,6 +1003,7 @@ pub trait Opcode:
     AsSlice<Src, Attr = PartialDataType> + AsSlice<Dst, Attr = PartialDataType>
 {
     fn variant(&self) -> Option<DataType>;
+    fn set_variant(&mut self, data_type: DataType);
     fn is_valid_variant(&self) -> bool;
 
     fn srcs(&self) -> &[Src] {
