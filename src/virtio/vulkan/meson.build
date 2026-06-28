@@ -126,7 +126,10 @@ if not with_platform_windows
 endif
 
 if system_has_kms_drm
-  libvn_files += files('vn_renderer_virtgpu.c')
+  libvn_files += files(
+    'vn_renderer_sim_syncobj.c',
+    'vn_renderer_virtgpu.c',
+  )
   vn_deps += dep_libdrm
 endif
 
