@@ -83,7 +83,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_maintenance3 = true,
       .KHR_maintenance4 = true,
       .KHR_maintenance5 = true,
-      .KHR_maintenance6 = PAN_ARCH >= 10,
+      .KHR_maintenance6 = true,
       .KHR_maintenance7 = true,
       .KHR_maintenance8 = true,
       .KHR_maintenance9 = true,
