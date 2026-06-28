@@ -770,6 +770,44 @@ impl V9Instr for OpFMul {
     }
 }
 
+impl V9Instr for OpFRcp {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Frcp::get_info(self.dst_type, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Frcp {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
+impl V9Instr for OpFRsq {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Frsq::get_info(self.dst_type, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Frsq {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
 impl V9Instr for OpIAdd {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1436,6 +1474,8 @@ macro_rules! v9_op_match_else {
             Op::FAdd($x) => $y,
             Op::FCmp($x) => $y,
             Op::FMul($x) => $y,
+            Op::FRcp($x) => $y,
+            Op::FRsq($x) => $y,
             Op::IAdd($x) => $y,
             Op::ICmp($x) => $y,
             Op::IMul($x) => $y,

@@ -525,6 +525,48 @@ impl fmt::Display for OpFMul {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [F16, F32])]
+pub struct OpFRcp {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub src: Src,
+}
+
+impl fmt::Display for OpFRcp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FRCP.{} {}",
+            &self.dst,
+            &self.dst_type,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [F16, F32])]
+pub struct OpFRsq {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub src: Src,
+}
+
+impl fmt::Display for OpFRsq {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FRSQ.{} {}",
+            &self.dst,
+            &self.dst_type,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [
     I16, S16, U16, V2I16, V2S16, V2U16,
     I32, S32, U32, I64, S64, U64
@@ -1502,6 +1544,8 @@ pub enum Op {
     FAdd(Box<OpFAdd>),
     FCmp(Box<OpFCmp>),
     FMul(Box<OpFMul>),
+    FRcp(Box<OpFRcp>),
+    FRsq(Box<OpFRsq>),
     IAdd(Box<OpIAdd>),
     ICmp(Box<OpICmp>),
     IMul(Box<OpIMul>),

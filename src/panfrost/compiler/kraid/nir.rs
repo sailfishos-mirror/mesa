@@ -486,6 +486,20 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
+            nir_op_frcp => {
+                b.push_op(OpFRcp {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    src: srcs(0),
+                });
+            }
+            nir_op_frsq => {
+                b.push_op(OpFRsq {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    src: srcs(0),
+                });
+            }
             nir_op_i2i8 | nir_op_i2i16 | nir_op_i2i32 => {
                 let dst_bits = alu.def.bit_size;
                 let src_bits = alu.get_src(0).bit_size();
