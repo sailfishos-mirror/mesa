@@ -92,26 +92,13 @@ struct virtgpu {
    bool supports_cross_device;
 };
 
-#ifdef SIMULATE_SYNCOBJ
-
-static int
-sim_submit_signal_syncs(struct virtgpu *gpu,
-                        int sync_fd,
-                        struct vn_renderer_sync *const *syncs,
-                        const uint64_t *sync_values,
-                        uint32_t sync_count)
+static inline int
+virtgpu_ioctl(struct virtgpu *gpu, unsigned long request, void *args)
 {
-   for (uint32_t i = 0; i < sync_count; i++) {
-      const uint64_t pending_point = sync_values[i];
-      int ret =
-         sim_syncobj_submit(syncs[i]->syncobj_handle, sync_fd, pending_point);
-      if (ret)
-         return ret;
-   }
-
-   return 0;
+   return drmIoctl(gpu->fd, request, args);
 }
 
+#ifdef SIMULATE_SYNCOBJ
 static int
 sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit_batch *batch)
 {
@@ -123,23 +110,21 @@ sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit_batch *batch)
       .ring_idx = batch->ring_idx,
    };
 
-   int ret = drmIoctl(gpu->fd, DRM_IOCTL_VIRTGPU_EXECBUFFER, &args);
+   int ret = virtgpu_ioctl(gpu, DRM_IOCTL_VIRTGPU_EXECBUFFER, &args);
    if (!ret && batch->sync_count) {
-      ret = sim_submit_signal_syncs(gpu, args.fence_fd, batch->syncs,
-                                    batch->sync_values, batch->sync_count);
+      for (uint32_t i = 0; i < batch->sync_count; i++) {
+         ret = sim_syncobj_submit(batch->syncs[i]->syncobj_handle,
+                                  args.fence_fd, batch->sync_values[i]);
+         if (ret)
+            break;
+      }
+
       close(args.fence_fd);
    }
 
    return ret;
 }
-
 #endif /* SIMULATE_SYNCOBJ */
-
-static int
-virtgpu_ioctl(struct virtgpu *gpu, unsigned long request, void *args)
-{
-   return drmIoctl(gpu->fd, request, args);
-}
 
 static uint64_t
 virtgpu_ioctl_getparam(struct virtgpu *gpu, uint64_t param)
