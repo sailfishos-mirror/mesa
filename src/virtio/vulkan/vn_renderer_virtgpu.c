@@ -479,7 +479,30 @@ virtgpu_ioctl_submit(struct virtgpu *gpu,
 #ifdef SIMULATE_SYNCOBJ
    return sim_submit(gpu, batch);
 #endif
-   return -1;
+   STACK_ARRAY(struct drm_virtgpu_execbuffer_syncobj, out_syncobjs,
+               batch->sync_count);
+
+   for (uint32_t i = 0; i < batch->sync_count; i++) {
+      out_syncobjs[i] = (struct drm_virtgpu_execbuffer_syncobj){
+         .handle = batch->syncs[i]->syncobj_handle,
+         .point = batch->sync_values[i],
+      };
+   }
+
+   struct drm_virtgpu_execbuffer args = {
+      .flags = VIRTGPU_EXECBUF_RING_IDX,
+      .size = batch->cs_size,
+      .command = (uintptr_t)batch->cs_data,
+      .ring_idx = batch->ring_idx,
+      .syncobj_stride = sizeof(struct drm_virtgpu_execbuffer_syncobj),
+      .num_out_syncobjs = batch->sync_count,
+      .out_syncobjs = (uintptr_t)out_syncobjs,
+   };
+   int ret = virtgpu_ioctl(gpu, DRM_IOCTL_VIRTGPU_EXECBUFFER, &args);
+
+   STACK_ARRAY_FINISH(out_syncobjs);
+
+   return ret;
 }
 
 static VkResult
