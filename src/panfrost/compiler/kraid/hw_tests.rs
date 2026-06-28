@@ -832,6 +832,31 @@ fn test_op_isub() {
 }
 
 #[test]
+fn test_op_mux() {
+    const DATA_TYPES: &'static [DataType] =
+        &[DataType::V4I8, DataType::V2I16, DataType::I32];
+    const MUX_OPS: &'static [MuxOp] =
+        &[MuxOp::Neg, MuxOp::IntZero, MuxOp::FpZero, MuxOp::Bit];
+
+    for &dst_type in DATA_TYPES {
+        for &mux_op in MUX_OPS {
+            if mux_op == MuxOp::FpZero && dst_type != DataType::I32 {
+                continue;
+            }
+            let op = OpMux {
+                dst: DstRef::None.into(),
+                dst_type,
+                mux_op,
+                src0: 0.into(),
+                src1: 0.into(),
+                sel: 0.into(),
+            };
+            test_foldable_op(op);
+        }
+    }
+}
+
+#[test]
 fn test_op_shift_lop() {
     const DATA_TYPES: &'static [DataType] = &[
         DataType::V4U8,

@@ -1101,6 +1101,81 @@ impl fmt::Display for OpMov {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum MuxOp {
+    Neg,
+    IntZero,
+    FpZero,
+    Bit,
+}
+
+impl fmt::Display for MuxOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MuxOp::Neg => write!(f, ".neg"),
+            MuxOp::IntZero => write!(f, ".int_zero"),
+            MuxOp::FpZero => write!(f, ".fp_zero"),
+            MuxOp::Bit => write!(f, ".bit"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [I8, V2I8, V4I8, I16, V2I16, I32])]
+pub struct OpMux {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub mux_op: MuxOp,
+    pub src0: Src,
+    pub src1: Src,
+    pub sel: Src,
+}
+
+impl fmt::Display for OpMux {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = MUX.{}{} {} {} {}",
+            &self.dst,
+            self.dst_type,
+            self.mux_op,
+            self.fmt_src(&self.src0),
+            self.fmt_src(&self.src1),
+            self.fmt_src(&self.sel),
+        )
+    }
+}
+
+impl PerCompFoldable for OpMux {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let a = f.get_src(&self.src0);
+        let b = f.get_src(&self.src1);
+        let sel = f.get_src(&self.sel);
+
+        let res = match self.mux_op {
+            MuxOp::Neg => {
+                let sign_bit = 1 << (self.dst_type.bits() - 1);
+                if (sel & sign_bit) != 0 { a } else { b }
+            }
+            MuxOp::IntZero => {
+                if sel == 0 {
+                    a
+                } else {
+                    b
+                }
+            }
+            MuxOp::FpZero => {
+                assert_eq!(self.dst_type, DataType::I32);
+                let sel_f32 = f32::from_bits(sel as u32);
+                if sel_f32 == 0.0 { a } else { b }
+            }
+            MuxOp::Bit => (a & sel) | (b & !sel),
+        };
+        f.set_dst(&self.dst, res);
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpNop {}
@@ -1443,6 +1518,7 @@ pub enum Op {
     MkVecV2I16(Box<OpMkVecV2I16>),
     MkVecV4I8(Box<OpMkVecV4I8>),
     Mov(Box<OpMov>),
+    Mux(Box<OpMux>),
     Nop(OpNop),
     RegIn(Box<OpRegIn>),
     RegOut(Box<OpRegOut>),

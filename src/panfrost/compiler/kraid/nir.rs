@@ -314,6 +314,26 @@ impl<'a> ShaderFromNir<'a> {
         };
 
         match alu.op {
+            nir_op_bcsel_pan => {
+                b.push_op(OpMux {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Integer),
+                    mux_op: MuxOp::IntZero,
+                    src0: srcs(2),
+                    src1: srcs(1),
+                    sel: srcs(0),
+                });
+            }
+            nir_op_bitfield_select => {
+                b.push_op(OpMux {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Integer),
+                    mux_op: MuxOp::Bit,
+                    src0: srcs(1),
+                    src1: srcs(2),
+                    sel: srcs(0),
+                });
+            }
             nir_op_extract_i8 | nir_op_extract_u8 => {
                 assert!(alu.def.bit_size >= 16);
                 assert!(alu.def.num_components <= 2);

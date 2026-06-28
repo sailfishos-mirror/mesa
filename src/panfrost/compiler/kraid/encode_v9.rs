@@ -1161,6 +1161,35 @@ impl V9Instr for OpMov {
     }
 }
 
+impl V9Instr for OpMux {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Mux::get_info(self.dst_type, arch),
+            src_map! {
+                src0: src0,
+                src1: src1,
+                src2: sel,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Mux {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            muxf: match self.mux_op {
+                MuxOp::Neg => MuxCmpfM::Neg,
+                MuxOp::IntZero => MuxCmpfM::IntZero,
+                MuxOp::FpZero => MuxCmpfM::FpZero,
+                MuxOp::Bit => MuxCmpfM::Bit,
+            },
+            src0: op_encode_src(self, &self.src0),
+            src1: op_encode_src(self, &self.src1),
+            src2: op_encode_src(self, &self.sel),
+        })
+    }
+}
+
 impl V9Instr for OpNop {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(Nop::get_info((), arch), src_map! {})
@@ -1421,6 +1450,7 @@ macro_rules! v9_op_match_else {
             Op::MkVecV2I8I16($x) => $y,
             Op::MkVecV2I16($x) => $y,
             Op::Mov($x) => $y,
+            Op::Mux($x) => $y,
             Op::Nop($x) => $y,
             Op::ShiftLop($x) => $y,
             Op::StCvt($x) => $y,
