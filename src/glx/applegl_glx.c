@@ -117,6 +117,18 @@ applegl_copy_context(Display *dpy, struct glx_context *src, struct glx_context *
    }
 }
 
+static void
+applegl_swap_buffers(Display *dpy, GLXDrawable drawable)
+{
+   struct glx_context *gc = __glXGetCurrentContext();
+
+   if (gc != &dummyContext &&
+       apple_glx_is_current_drawable(dpy, gc->driContext, drawable))
+      apple_glx_swap_buffers(gc->driContext);
+   else
+      __glXSendError(dpy, GLXBadCurrentWindow, 0, X_GLXSwapBuffers, false);
+}
+
 static const struct glx_context_vtable applegl_context_vtable = {
    .destroy             = applegl_destroy_context,
    .bind                = applegl_bind_context,
@@ -124,6 +136,7 @@ static const struct glx_context_vtable applegl_context_vtable = {
    .wait_gl             = applegl_wait_gl,
    .wait_x              = applegl_wait_x,
    .copy_context        = applegl_copy_context,
+   .swap_buffers        = applegl_swap_buffers,
 };
 
 static struct glx_context *

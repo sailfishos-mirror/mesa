@@ -468,6 +468,7 @@ static const struct glx_context_vtable drisw_context_vtable = {
    .wait_gl             = drisw_wait_gl,
    .wait_x              = drisw_wait_x,
    .copy_context        = __glXCopyContext,
+   .swap_buffers        = __glXSwapBuffers,
 };
 
 static void

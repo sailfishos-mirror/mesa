@@ -442,6 +442,7 @@ static const struct glx_context_vtable dri3_context_vtable = {
    .wait_gl             = dri3_wait_gl,
    .wait_x              = dri3_wait_x,
    .copy_context        = __glXCopyContext,
+   .swap_buffers        = __glXSwapBuffers,
 };
 
 /** dri3_create_screen

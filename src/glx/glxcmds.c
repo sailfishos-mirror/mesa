@@ -654,20 +654,24 @@ glXIsDirect(Display * dpy, GLXContext gc_user)
 _GLX_PUBLIC void
 glXSwapBuffers(Display * dpy, GLXDrawable drawable)
 {
-#if defined(GLX_USE_APPLEGL) && !defined(GLX_USE_APPLE)
-   struct glx_context * gc = __glXGetCurrentContext();
-   if(gc != &dummyContext && apple_glx_is_current_drawable(dpy, gc->driContext, drawable)) {
-      apple_glx_swap_buffers(gc->driContext);
-   } else {
-      __glXSendError(dpy, GLXBadCurrentWindow, 0, X_GLXSwapBuffers, false);
-   }
-#else
-   struct glx_context *gc;
+   struct glx_context *gc = __glXGetCurrentContext();
+
+   gc->vtable->swap_buffers(dpy, drawable);
+}
+
+/*
+** Default for glx_context_vtable.swap_buffers. Tries the DRI fast path through
+** the drawable's driScreen.swapBuffers when one is registered, otherwise sends
+** an X_GLXSwapBuffers request.  Routes the request through the current context
+** when the drawable belongs to it so the server can flush before swapping.
+*/
+void
+__glXSwapBuffers(Display * dpy, GLXDrawable drawable)
+{
+   struct glx_context *gc = __glXGetCurrentContext();
    GLXContextTag tag;
    CARD8 opcode;
    xcb_connection_t *c;
-
-   gc = __glXGetCurrentContext();
 
 #if defined(GLX_DIRECT_RENDERING)
    {
@@ -704,7 +708,6 @@ glXSwapBuffers(Display * dpy, GLXDrawable drawable)
    c = XGetXCBConnection(dpy);
    xcb_glx_swap_buffers(c, tag, drawable);
    xcb_flush(c);
-#endif /* GLX_USE_APPLEGL */
 }
 
 

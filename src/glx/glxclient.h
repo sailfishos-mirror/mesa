@@ -237,6 +237,7 @@ struct glx_context_vtable {
                         struct glx_context *src,
                         struct glx_context *dst,
                         unsigned long mask);
+   void (*swap_buffers)(Display *dpy, GLXDrawable drawable);
 };
 
 /**
@@ -667,10 +668,12 @@ extern pthread_mutex_t __glXmutex;
 extern CARD8 __glXSetupForCommand(Display * dpy);
 
 /*
-** Default for the glx_context_vtable.copy_context slot. Defined in glxcmds.c.
+** Defaults for the glx_context_vtable.copy_context and swap_buffers slots.
+** Defined in glxcmds.c.
 */
 extern void __glXCopyContext(Display *dpy, struct glx_context *src,
                              struct glx_context *dst, unsigned long mask);
+extern void __glXSwapBuffers(Display *dpy, GLXDrawable drawable);
 
 /************************************************************************/
 
