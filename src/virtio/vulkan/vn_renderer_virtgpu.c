@@ -782,11 +782,8 @@ virtgpu_ioctl_syncobj_timeline_wait(struct virtgpu *gpu,
    if (!wait->wait_any)
       flags |= DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL;
 
-   /* TODO replace wait->syncs by wait->sync_handles to avoid malloc/loop */
-   uint32_t *syncobj_handles =
-      malloc(sizeof(*syncobj_handles) * wait->sync_count);
-   if (!syncobj_handles)
-      return -1;
+   STACK_ARRAY(uint32_t, syncobj_handles, wait->sync_count);
+
    for (uint32_t i = 0; i < wait->sync_count; i++)
       syncobj_handles[i] = wait->syncs[i]->syncobj_handle;
 
@@ -800,7 +797,7 @@ virtgpu_ioctl_syncobj_timeline_wait(struct virtgpu *gpu,
 
    const int ret = virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT, &args);
 
-   free(syncobj_handles);
+   STACK_ARRAY_FINISH(syncobj_handles);
 
    return ret;
 }
