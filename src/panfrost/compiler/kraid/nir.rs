@@ -865,6 +865,27 @@ impl<'a> ShaderFromNir<'a> {
                     offset: 0,
                 });
             }
+            nir_intrinsic_load_local_invocation_id => {
+                let preload = [
+                    self.preload(b, PreloadReg::LocalId01),
+                    self.preload(b, PreloadReg::LocalId2),
+                ];
+                let local_id = [
+                    Src::from(preload[0]).swizzle(Swizzle::widen_u16(0)),
+                    Src::from(preload[0]).swizzle(Swizzle::widen_u16(1)),
+                    Src::from(preload[1]).swizzle(Swizzle::widen_u16(0)),
+                ];
+                let ssa = local_id.into_iter().map(|src| {
+                    let def = b.alloc_ssa(32);
+                    b.push_op(OpSwz {
+                        dst: def.into(),
+                        src_type: DataType::U32,
+                        src,
+                    });
+                    def
+                });
+                self.set_ssa(&intrin.def, ssa.collect());
+            }
             nir_intrinsic_load_workgroup_id => {
                 let ssa = vec![
                     self.preload(b, PreloadReg::WorkgroupId0),
