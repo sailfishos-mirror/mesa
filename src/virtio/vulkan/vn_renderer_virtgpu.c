@@ -338,13 +338,8 @@ timeout_to_poll_timeout(uint64_t timeout)
 }
 
 static int
-sim_syncobj_wait(struct virtgpu *gpu,
-                 const struct vn_renderer_wait *wait,
-                 bool wait_avail)
+sim_syncobj_wait(struct virtgpu *gpu, const struct vn_renderer_wait *wait)
 {
-   if (wait_avail)
-      return -1;
-
    const int poll_timeout = timeout_to_poll_timeout(wait->timeout);
 
    /* TODO poll all fds at the same time */
@@ -776,20 +771,16 @@ virtgpu_ioctl_syncobj_timeline_signal(struct virtgpu *gpu,
 
 static int
 virtgpu_ioctl_syncobj_timeline_wait(struct virtgpu *gpu,
-                                    const struct vn_renderer_wait *wait,
-                                    bool wait_avail)
+                                    const struct vn_renderer_wait *wait)
 {
 #ifdef SIMULATE_SYNCOBJ
-   return sim_syncobj_wait(gpu, wait, wait_avail);
+   return sim_syncobj_wait(gpu, wait);
 #endif
 
    /* always enable wait-before-submit */
    uint32_t flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
    if (!wait->wait_any)
       flags |= DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL;
-   /* wait for fences to appear instead of signaling */
-   if (wait_avail)
-      flags |= DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE;
 
    /* TODO replace wait->syncs by wait->sync_handles to avoid malloc/loop */
    uint32_t *syncobj_handles =
@@ -1303,7 +1294,7 @@ virtgpu_wait(struct vn_renderer *renderer,
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
 
-   const int ret = virtgpu_ioctl_syncobj_timeline_wait(gpu, wait, false);
+   const int ret = virtgpu_ioctl_syncobj_timeline_wait(gpu, wait);
    if (ret && errno != ETIME)
       return VK_ERROR_DEVICE_LOST;
 
