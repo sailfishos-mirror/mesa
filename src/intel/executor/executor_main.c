@@ -719,6 +719,9 @@ executor_perf_list_query(const struct intel_perf_query_info *query)
 static void
 executor_perf_list(void)
 {
+   if (!E.perf_cfg->n_queries)
+      printf("no OA metrics available\n");
+
    for (int i = 0; i < E.perf_cfg->n_queries; i++) {
       const struct intel_perf_query_info *query = &E.perf_cfg->queries[i];
       if (query->kind == INTEL_PERF_QUERY_TYPE_OA)
