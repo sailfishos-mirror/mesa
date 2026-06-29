@@ -31,17 +31,22 @@ transform_trig_input_fs_r500 = [
         (('fcos', 'a'), ('fcos', ('ffract', ('fmul', 'a', 1 / (2 * pi))))),
 ]
 
-# The is a pattern produced by wined3d for A0 register load.
+# This is a pattern produced by wined3d for A0 register load.
 # The specific pattern wined3d emits looks like this
 # A0.x = (int(floor(abs(R0.x) + 0.5) * sign(R0.x)));
-# however we lower both sign and floor so here we check for the already lowered
-# sequence.
+# NIR can canonicalize this to f2i32(a + sign(a) * 0.5).
+lowered_fsign = ('fadd', ('b2f', ('!flt', 0.0, a)),
+                         ('fneg', ('b2f', ('!flt', a, 0.0))))
+
 r300_nir_fuse_fround_d3d9 = [
+        (('f2i32', ('fadd', a, ('fmul', lowered_fsign, 0.5))),
+         ('f2i32', ('fround_even', a))),
+        (('f2i32', ('fmad', lowered_fsign, 0.5, a)),
+         ('f2i32', ('fround_even', a))),
         (('fmul', ('fadd', ('fadd', ('fabs', 'a') , 0.5),
                            ('fneg', ('ffract', ('fadd', ('fabs', 'a') , 0.5)))),
-                  ('fadd', ('b2f', ('!flt', 0.0, 'a')),
-                           ('fneg', ('b2f', ('!flt', 'a', 0.0))))),
-         ('fround_even', 'a'))
+                  lowered_fsign),
+         ('fround_even', 'a')),
 ]
 
 # Here are some specific optimizations for code reordering such that the backend
