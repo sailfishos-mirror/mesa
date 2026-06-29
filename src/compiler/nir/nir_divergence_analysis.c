@@ -554,6 +554,12 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_instance_id:
       is_divergent = !(state->options & nir_divergence_vertex);
       break;
+   case nir_intrinsic_load_invocation_id:
+      if (stage == MESA_SHADER_TESS_CTRL)
+         is_divergent = !(options & nir_divergence_tcs_invocation_id_uniform);
+      else
+         is_divergent = true;
+      break;
    case nir_intrinsic_load_primitive_id:
       if (stage == MESA_SHADER_FRAGMENT)
          is_divergent = !(options & nir_divergence_single_prim_per_subgroup);
@@ -922,7 +928,6 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_vertex_id_zero_base:
    case nir_intrinsic_load_vertex_id:
    case nir_intrinsic_load_raw_vertex_id_pan:
-   case nir_intrinsic_load_invocation_id:
    case nir_intrinsic_load_local_invocation_id:
    case nir_intrinsic_load_local_invocation_index:
    case nir_intrinsic_load_global_invocation_id:
