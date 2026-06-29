@@ -596,6 +596,25 @@ impl<K: FromBitIndex> BitSet<K> {
     pub fn iter(&self) -> impl '_ + Iterator<Item = K> {
         BitSetIter::new(&self.words)
     }
+
+    pub fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(K) -> bool,
+    {
+        let mut cur = BitIndex::ZERO;
+        loop {
+            let word_fn = |w| self.words.get(w).cloned();
+            let Some(set) = find_next_set(word_fn, cur) else {
+                return;
+            };
+
+            if !f(K::from_bit_index(set.into())) {
+                self.words[set.word] &= !(1_u32 << set.bit);
+            }
+
+            cur = set + 1;
+        }
+    }
 }
 
 impl BitSet<usize> {
