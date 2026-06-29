@@ -538,6 +538,15 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
                          &compiler_info->nir_options[stage->stage]);
       nir->info.internal |= is_internal;
       assert(nir->info.stage == stage->stage);
+
+      /* Shorten the shader name for internal shaders. */
+      if (is_internal) {
+         while (strstr(nir->info.name, "src/")) {
+            nir->info.name = strstr(nir->info.name, "src/") + 4;
+         }
+         nir->info.name = ralloc_strdup(nir, nir->info.name);
+      }
+
       nir_validate_shader(nir, "after spirv_to_nir");
 
       vtn_free_specialization(spec);
