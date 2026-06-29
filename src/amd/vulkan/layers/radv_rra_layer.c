@@ -40,6 +40,16 @@ rra_QueuePresentKHR(VkQueue _queue, const VkPresentInfoKHR *pPresentInfo)
             else
                fprintf(stderr, "radv: Failed to save gamma capture!\n");
          }
+         if (instance->vk.trace_mode & RADV_TRACE_MODE_RRA) {
+            snprintf(filename, sizeof(filename), "/tmp/%s_%04d.%02d.%02d_%02d.%02d.%02d.rra", util_get_process_name(),
+                     1900 + now.tm_year, now.tm_mon + 1, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec);
+
+            VkResult result = radv_rra_dump_trace(_queue, filename);
+            if (result == VK_SUCCESS)
+               fprintf(stderr, "radv: RRA capture saved to '%s'\n", filename);
+            else
+               fprintf(stderr, "radv: Failed to save RRA capture!\n");
+         }
       }
    }
 
