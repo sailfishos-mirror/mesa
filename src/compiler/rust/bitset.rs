@@ -213,6 +213,19 @@ const fn all_set_in_range(
     true
 }
 
+const fn count_set_in_range(
+    words: &[u32],
+    start: BitIndex,
+    end: BitIndex,
+) -> usize {
+    let mut count = 0_usize;
+    let mut iter = WordIdxMaskIter::new(start, end);
+    while let Some((word, mask)) = iter.next_const() {
+        count += (words[word] & mask).count_ones() as usize;
+    }
+    count
+}
+
 const fn set_range(words: &mut [u32], start: BitIndex, end: BitIndex) {
     let mut iter = WordIdxMaskIter::new(start, end);
     while let Some((word, mask)) = iter.next_const() {
@@ -613,6 +626,12 @@ impl BitSet<usize> {
     /// Returns true for empty ranges.
     pub fn all_unset_in_range(&self, range: Range<usize>) -> bool {
         !self.any_set_in_range(range)
+    }
+
+    /// Returns the number of bits set in the given range.
+    pub fn count_set_in_range(&self, mut range: Range<usize>) -> usize {
+        range.end = range.end.min(self.words.len() * 32);
+        count_set_in_range(&self.words, range.start.into(), range.end.into())
     }
 
     pub fn set_range(&mut self, range: Range<usize>) {
@@ -1088,6 +1107,23 @@ mod tests {
 
         // Test past the end
         assert!(set.all_unset_in_range(100..120));
+    }
+
+    #[test]
+    fn test_count_set_in_range() {
+        let set: BitSet<usize> = [15, 16, 31, 64].into_iter().collect();
+        assert_eq!(set.count_set_in_range(0..15), 0);
+        assert_eq!(set.count_set_in_range(17..31), 0);
+        assert_eq!(set.count_set_in_range(32..64), 0);
+        assert_eq!(set.count_set_in_range(0..30), 2);
+        assert_eq!(set.count_set_in_range(30..42), 1);
+        assert_eq!(set.count_set_in_range(0..65), 4);
+
+        // Empty ranges return 0
+        assert_eq!(set.count_set_in_range(50..50), 0);
+
+        // Test past the end
+        assert_eq!(set.count_set_in_range(100..120), 0);
     }
 
     #[test]
