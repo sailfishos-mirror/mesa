@@ -6735,6 +6735,24 @@ enum anv_dgc_stage anv_vk_stage_to_dgc_stage(VkShaderStageFlags vk_stage);
 
 uint32_t anv_vk_stages_to_generated_stages(VkShaderStageFlags vk_stages);
 
+/**
+ * Helper to check whether the generated commands need to emit a push constant
+ * programming command for a particular shader.
+ */
+static inline bool
+anv_dgc_shader_needs_push_commands(const struct anv_shader *shader)
+{
+   /* If generated push constant data is not used, we can emit the pointers on
+    * the host. We also need to take care of the pointer pointer since a push
+    * constant update can trigger a reprogramming of the push pointer.
+    */
+   const struct anv_pipeline_bind_map *bind_map = &shader->bind_map;
+   return (bind_map->push_ranges[0].length > 0 &&
+           (bind_map->push_ranges[0].set == ANV_DESCRIPTOR_SET_PUSH_CONSTANTS ||
+            bind_map->push_ranges[0].set == ANV_DESCRIPTOR_SET_PUSH_POINTER)) ||
+          bind_map->inline_dwords_count > 0;
+}
+
 struct anv_indirect_command_layout {
    struct vk_indirect_command_layout vk;
 

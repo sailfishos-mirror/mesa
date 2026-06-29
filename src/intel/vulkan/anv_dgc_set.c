@@ -104,15 +104,13 @@ anv_write_gfx_indirect_descriptor(struct anv_device *device,
          continue;
       }
 
-      const struct anv_pipeline_bind_map *bind_map =
-         &gfx->shaders[stage]->bind_map;
-      if ((bind_map->push_ranges[0].length == 0 ||
-           bind_map->push_ranges[0].set != ANV_DESCRIPTOR_SET_PUSH_CONSTANTS) &&
-          bind_map->inline_dwords_count == 0) {
+      if (!anv_dgc_shader_needs_push_commands(gfx->shaders[stage])) {
          descriptor->push_constants.stages[gen_stage] = empty_push;
          continue;
       }
 
+      const struct anv_pipeline_bind_map *bind_map =
+         &gfx->shaders[stage]->bind_map;
       if (stage == MESA_SHADER_MESH &&
           intel_needs_workaround(device->info, 18019110168)) {
          const struct brw_mesh_prog_data *mesh_prog_data = get_gfx_mesh_prog_data(gfx);
@@ -139,6 +137,7 @@ anv_write_gfx_indirect_descriptor(struct anv_device *device,
              * see.
              */
             assert(range->set == ANV_DESCRIPTOR_SET_PUSH_CONSTANTS ||
+                   range->set == ANV_DESCRIPTOR_SET_PUSH_POINTER ||
                    range->set == ANV_DESCRIPTOR_SET_DESCRIPTORS ||
                    range->set == ANV_DESCRIPTOR_SET_NULL ||
                    range->set == ANV_DESCRIPTOR_SET_PER_PRIM_PADDING);

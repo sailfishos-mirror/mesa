@@ -584,6 +584,9 @@ anv_dgc_fill_gfx_layout(struct anv_dgc_gfx_layout *layout,
          if (shaders[i] == NULL)
             continue;
 
+         if (!anv_dgc_shader_needs_push_commands(shaders[i]))
+            continue;
+
          const struct anv_pipeline_bind_map *bind_map =
             &shaders[i]->bind_map;
          uint32_t n_slots = bind_map->inline_dwords_count > 0 ? 1 : 0;
