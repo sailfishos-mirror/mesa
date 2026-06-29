@@ -84,6 +84,7 @@ typedef uint32_t (*wsi_memory_type_select_cb)(const struct wsi_device *wsi,
 struct wsi_image_info {
    VkImageCreateInfo create;
    struct wsi_image_create_info wsi;
+   VkImageUsageFlags2CreateInfoKHR usage2;
    VkExternalMemoryImageCreateInfo ext_mem;
    VkImageFormatListCreateInfo format_list;
    VkImageDrmFormatModifierListCreateInfoEXT drm_mod_list;

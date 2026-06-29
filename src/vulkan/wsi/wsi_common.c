@@ -31,6 +31,7 @@
 #include "vk_device.h"
 #include "vk_fence.h"
 #include "vk_format.h"
+#include "vk_image.h"
 #include "vk_instance.h"
 #include "vk_physical_device.h"
 #include "vk_queue.h"
@@ -731,6 +732,8 @@ wsi_configure_image(const struct wsi_swapchain *chain,
       (pCreateInfo->flags & VK_SWAPCHAIN_CREATE_PROTECTED_BIT_KHR) ?
       VK_IMAGE_CREATE_PROTECTED_BIT : 0;
 
+   const VkImageUsageFlags2KHR image_usage = vk_swapchain_usage_flags(pCreateInfo);
+
    info->create = (VkImageCreateInfo) {
       .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
       .flags = VK_IMAGE_CREATE_ALIAS_BIT | protected_flag,
@@ -745,7 +748,7 @@ wsi_configure_image(const struct wsi_swapchain *chain,
       .arrayLayers = 1,
       .samples = VK_SAMPLE_COUNT_1_BIT,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
-      .usage = pCreateInfo->imageUsage,
+      .usage = image_usage,
       .sharingMode = pCreateInfo->imageSharingMode,
       .queueFamilyIndexCount = queue_family_count,
       .pQueueFamilyIndices = queue_family_indices,
@@ -830,6 +833,13 @@ wsi_configure_image(const struct wsi_swapchain *chain,
       };
       __vk_append_struct(&info->create, &info->format_list);
    }
+
+   info->usage2 = (VkImageUsageFlags2CreateInfoKHR) {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_USAGE_FLAGS_2_CREATE_INFO_KHR,
+      .usage = image_usage,
+   };
+
+   __vk_append_struct(&info->create, &info->usage2);
 
    return VK_SUCCESS;
 
@@ -2948,6 +2958,7 @@ wsi_common_create_swapchain_image(const struct wsi_device *wsi,
    VK_FROM_HANDLE(wsi_swapchain, chain, swapchain_info->swapchain);
 
 #ifndef NDEBUG
+   const VkImageUsageFlags2KHR image_usage = vk_image_usage_flags(pCreateInfo);
    const VkImageCreateInfo *swcInfo = &chain->image_info.create;
    assert(pCreateInfo->flags == 0);
    assert(pCreateInfo->imageType == swcInfo->imageType);
@@ -2959,7 +2970,7 @@ wsi_common_create_swapchain_image(const struct wsi_device *wsi,
    assert(pCreateInfo->arrayLayers == swcInfo->arrayLayers);
    assert(pCreateInfo->samples == swcInfo->samples);
    assert(pCreateInfo->tiling == VK_IMAGE_TILING_OPTIMAL);
-   assert(!(pCreateInfo->usage & ~swcInfo->usage));
+   assert(!(image_usage & ~chain->image_info.usage2.usage));
 
    vk_foreach_struct_const(ext, pCreateInfo->pNext) {
       switch (ext->sType) {
