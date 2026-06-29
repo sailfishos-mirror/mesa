@@ -658,6 +658,54 @@ impl V9Instr for OpF32ToF16 {
     }
 }
 
+impl From<FRound> for RoundIntegerM {
+    fn from(round: FRound) -> Self {
+        match round {
+            FRound::NearestEven => RoundIntegerM::None,
+            FRound::Up => RoundIntegerM::RoundUp,
+            FRound::Down => RoundIntegerM::RoundDown,
+            FRound::TowardsZero => RoundIntegerM::RoundZero,
+            FRound::NearestValue => RoundIntegerM::RoundNa,
+        }
+    }
+}
+
+impl V9Instr for OpF32ToI32 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        match self.dst_type {
+            DataType::U32 => V9InstrInfo::from_isa(
+                F32ToU32::get_info((), arch),
+                src_map! {
+                    src0: src,
+                },
+            ),
+            DataType::S32 => V9InstrInfo::from_isa(
+                F32ToS32::get_info((), arch),
+                src_map! {
+                    src0: src,
+                },
+            ),
+            _ => panic!("Invalid dst_type"),
+        }
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        match self.dst_type {
+            DataType::U32 => e.encode(F32ToU32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+                round: self.round.into(),
+            }),
+            DataType::S32 => e.encode(F32ToS32 {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.src),
+                round: self.round.into(),
+            }),
+            _ => panic!("Invalid dst_type"),
+        }
+    }
+}
+
 impl V9Instr for OpFAdd {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1536,6 +1584,7 @@ macro_rules! v9_op_match_else {
             Op::CSel($x) => $y,
             Op::F16ToF32($x) => $y,
             Op::F32ToF16($x) => $y,
+            Op::F32ToI32($x) => $y,
             Op::FAdd($x) => $y,
             Op::FCmp($x) => $y,
             Op::FMul($x) => $y,

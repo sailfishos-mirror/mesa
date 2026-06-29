@@ -321,6 +321,28 @@ impl fmt::Display for OpF32ToF16 {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [S32, U32])]
+pub struct OpF32ToI32 {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    #[src_type(F32)]
+    pub src: Src,
+    pub round: FRound,
+}
+
+impl fmt::Display for OpF32ToI32 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let n = match self.dst_type {
+            DataType::S32 => "S32",
+            DataType::U32 => "U32",
+            _ => panic!("Invalid variant"),
+        };
+        write!(f, "{} = F32_TO_{n} {}", &self.dst, self.fmt_src(&self.src))
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [F16, V2F16, F32])]
 pub struct OpFAdd {
     pub dst: Dst,
@@ -1705,6 +1727,7 @@ pub enum Op {
     CSel(Box<OpCSel>),
     F16ToF32(Box<OpF16ToF32>),
     F32ToF16(Box<OpF32ToF16>),
+    F32ToI32(Box<OpF32ToI32>),
     FAdd(Box<OpFAdd>),
     FCmp(Box<OpFCmp>),
     FMul(Box<OpFMul>),

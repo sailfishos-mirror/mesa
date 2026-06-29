@@ -471,6 +471,46 @@ impl<'a> ShaderFromNir<'a> {
                     round: FRound::NearestEven,
                 });
             }
+            nir_op_f2u32 => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(alu.def.num_components == 1);
+                b.push_op(OpF32ToI32 {
+                    dst: dst.into(),
+                    dst_type: DataType::U32,
+                    src: srcs(0),
+                    round: FRound::TowardsZero,
+                });
+            }
+            nir_op_f2u32_rtne => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(alu.def.num_components == 1);
+                b.push_op(OpF32ToI32 {
+                    dst: dst.into(),
+                    dst_type: DataType::U32,
+                    src: srcs(0),
+                    round: FRound::NearestEven,
+                });
+            }
+            nir_op_f2i32 => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(alu.def.num_components == 1);
+                b.push_op(OpF32ToI32 {
+                    dst: dst.into(),
+                    dst_type: DataType::S32,
+                    src: srcs(0),
+                    round: FRound::TowardsZero,
+                });
+            }
+            nir_op_f2i32_rtne => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(alu.def.num_components == 1);
+                b.push_op(OpF32ToI32 {
+                    dst: dst.into(),
+                    dst_type: DataType::S32,
+                    src: srcs(0),
+                    round: FRound::NearestEven,
+                });
+            }
             nir_op_i2f32 => {
                 assert!(alu.get_src(0).bit_size() == 32);
                 assert!(alu.def.num_components == 1);
