@@ -145,10 +145,10 @@ anv_write_gfx_indirect_descriptor(struct anv_device *device,
             struct anv_dgc_push_stage_slot *slot =
                &descriptor->push_constants.stages[gen_stage].legacy.slots[i];
 
-            slot->push_data_size = 32 * range->length;
-
+            slot->push_data_index = range->index;
             slot->push_data_offset = 32 * range->start;
-            slot->type = ANV_DGC_PUSH_SLOT_TYPE_PUSH_CONSTANTS;
+            slot->push_data_size = 32 * range->length;
+            slot->set = range->set;
             descriptor->push_constants.stages[gen_stage].legacy.n_slots++;
          }
       }

@@ -58,18 +58,33 @@ write_3DSTATE_CONSTANT_ALL(global void *dst_ptr,
    for (uint32_t i = 0; i < n_slots; i++) {
       struct anv_dgc_push_stage_slot slot = stage_state->legacy.slots[i];
 
-      if (slot.type == ANV_DGC_PUSH_SLOT_TYPE_PUSH_CONSTANTS) {
+      switch (slot.set) {
+      case ANV_DESCRIPTOR_SET_PUSH_CONSTANTS: {
          struct GENX(3DSTATE_CONSTANT_ALL_DATA) vd = {
             .ConstantBufferReadLength = slot.push_data_size / 32,
             .PointerToConstantBuffer  = (uint64_t) push_data_addr + slot.push_data_offset,
          };
          GENX(3DSTATE_CONSTANT_ALL_DATA_pack)(dst_ptr, &vd);
-      } else {
+         break;
+      }
+
+      case ANV_DESCRIPTOR_SET_PUSH_POINTER: {
+         struct GENX(3DSTATE_CONSTANT_ALL_DATA) vd = {
+            .ConstantBufferReadLength = slot.push_data_size / 32,
+            .PointerToConstantBuffer  = ((global uint64_t *)push_data_addr)[slot.push_data_index / 8],
+         };
+         GENX(3DSTATE_CONSTANT_ALL_DATA_pack)(dst_ptr, &vd);
+         break;
+      }
+
+      default: {
          struct GENX(3DSTATE_CONSTANT_ALL_DATA) vd = {
             .ConstantBufferReadLength = slot.push_data_size / 32,
             .PointerToConstantBuffer  = state->push_constants.stages[stage].addresses[i],
          };
          GENX(3DSTATE_CONSTANT_ALL_DATA_pack)(dst_ptr, &vd);
+         break;
+      }
       }
 
       dst_ptr += GENX(3DSTATE_CONSTANT_ALL_DATA_length) * 4;
@@ -84,9 +99,12 @@ pc_slot_address(global struct anv_dgc_push_stage_slot *slot,
                 global uint64_t *slot_address,
                 global void *push_data_addr)
 {
-   if (slot->type == ANV_DGC_PUSH_SLOT_TYPE_PUSH_CONSTANTS) {
+   switch (slot->set) {
+   case ANV_DESCRIPTOR_SET_PUSH_CONSTANTS:
       return (uint64_t) push_data_addr + slot->push_data_offset;
-   } else {
+   case ANV_DESCRIPTOR_SET_PUSH_POINTER:
+      return ((global uint64_t *)push_data_addr)[slot->push_data_index / 8] + slot->push_data_offset;
+   default:
       return *slot_address;
    }
 }

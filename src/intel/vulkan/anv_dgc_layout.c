@@ -407,6 +407,8 @@ anv_dgc_fill_gfx_state(struct anv_dgc_gfx_state *state,
                break;
 
             case ANV_DESCRIPTOR_SET_PUSH_CONSTANTS:
+            case ANV_DESCRIPTOR_SET_PUSH_POINTER:
+               /* The pointer is updated on the device */
                break;
 
             case ANV_DESCRIPTOR_SET_NULL:
@@ -414,13 +416,6 @@ anv_dgc_fill_gfx_state(struct anv_dgc_gfx_state *state,
                state->push_constants.stages[gen_stage].addresses[i] =
                   anv_address_physical(device->workaround_address);
                break;
-
-            case ANV_DESCRIPTOR_SET_PUSH_POINTER: {
-               uint64_t address =  *((uint64_t *)&gfx->base.push_constants.client_data[range->index]);
-               assert(address % ANV_UBO_ALIGNMENT == 0);
-               state->push_constants.stages[gen_stage].addresses[i] = address;
-               break;
-            }
 
             default: {
                struct anv_descriptor_set *set = gfx->base.descriptors[range->set];
