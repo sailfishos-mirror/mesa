@@ -1084,7 +1084,7 @@ mod tests {
         assert!(!set.all_unset_in_range(30..42));
 
         // Empty ranges return true for all_*
-        assert!(set.all_set_in_range(50..50));
+        assert!(set.all_unset_in_range(50..50));
 
         // Test past the end
         assert!(set.all_unset_in_range(100..120));
