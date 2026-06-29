@@ -568,6 +568,43 @@ impl fmt::Display for OpFRsq {
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [
+    S16, V2S16, S32
+])]
+pub struct OpIAbs {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub src: Src,
+}
+
+impl fmt::Display for OpIAbs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = IABS.{} {}",
+            &self.dst,
+            self.dst_type,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+impl PerCompFoldable for OpIAbs {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let src = f.get_src(&self.src);
+
+        let res = match self.dst_type.bits() {
+            32 => ((src as u32) as i32).abs() as u64,
+            16 => ((src as u16) as i16).abs() as u64,
+            _ => panic!("Unsupported width"),
+        };
+
+        f.set_dst(&self.dst, res);
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
     I16, S16, U16, V2I16, V2S16, V2U16,
     I32, S32, U32, I64, S64, U64
 ])]
@@ -1608,6 +1645,7 @@ pub enum Op {
     FMul(Box<OpFMul>),
     FRcp(Box<OpFRcp>),
     FRsq(Box<OpFRsq>),
+    IAbs(Box<OpIAbs>),
     IAdd(Box<OpIAdd>),
     ICmp(Box<OpICmp>),
     IMul(Box<OpIMul>),

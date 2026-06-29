@@ -808,6 +808,25 @@ impl V9Instr for OpFRsq {
     }
 }
 
+impl V9Instr for OpIAbs {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Iabs::get_info(self.dst_type, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Iabs {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
 impl V9Instr for OpIAdd {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1477,6 +1496,7 @@ macro_rules! v9_op_match_else {
             Op::FMul($x) => $y,
             Op::FRcp($x) => $y,
             Op::FRsq($x) => $y,
+            Op::IAbs($x) => $y,
             Op::IAdd($x) => $y,
             Op::ICmp($x) => $y,
             Op::IMul($x) => $y,

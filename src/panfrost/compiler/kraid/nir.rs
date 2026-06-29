@@ -556,6 +556,13 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0).swizzle(swz),
                 });
             }
+            nir_op_iabs => {
+                b.push_op(OpIAbs {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::SignedInteger),
+                    src: srcs(0),
+                });
+            }
             nir_op_iadd => {
                 b.push_op(OpIAdd {
                     dst: dst.into(),

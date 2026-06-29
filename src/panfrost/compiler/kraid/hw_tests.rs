@@ -648,6 +648,33 @@ fn test_op_fcmp() {
 }
 
 #[test]
+fn test_op_iabs() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::V2S16, DataType::S32];
+
+    const WIDENS: &'static [AsmSwizzleWiden] = &[
+        AsmSwizzleWiden::None,
+        AsmSwizzleWiden::H0,
+        AsmSwizzleWiden::B0,
+        AsmSwizzleWiden::B2,
+    ];
+
+    for &dst_type in DATA_TYPES {
+        for widen in WIDENS {
+            let Some(src0_swizzle) = widen.to_swizzle(dst_type) else {
+                continue;
+            };
+
+            let op = OpIAbs {
+                dst: DstRef::None.into(),
+                src: Src::from(0).swizzle(src0_swizzle),
+                dst_type,
+            };
+            test_foldable_op(op);
+        }
+    }
+}
+
+#[test]
 fn test_op_iadd() {
     const DATA_TYPES: &'static [DataType] = &[
         DataType::V2S16,
