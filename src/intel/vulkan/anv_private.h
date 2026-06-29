@@ -3578,6 +3578,9 @@ struct anv_storage_image_descriptor {
 
    /** Image Format (enum isl_format) */
    uint32_t format;
+
+   /** Image View VkImageSubresourceRange::baseArrayLayer */
+   uint32_t min_array_element;
 };
 
 /** Struct representing a address/range descriptor
