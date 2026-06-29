@@ -3070,6 +3070,11 @@ tu_renderpass_begin(struct tu_cmd_buffer *cmd)
     */
    BITSET_SET(cmd->vk.dynamic_graphics_state.dirty,
               MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE);
+   /* PC_RESTART_INDEX is emitted directly into draw_cs and must be re-emitted
+    * for each renderpass.
+    */
+   BITSET_SET(cmd->vk.dynamic_graphics_state.dirty,
+              MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_INDEX);
 
    cmd->state.fdm_enabled = cmd->state.pass->has_fdm;
 
@@ -4586,7 +4591,6 @@ tu_CmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer,
    size = buf ? vk_buffer_range(&buf->vk, offset, size) : 0;
 
    uint32_t index_size, index_shift;
-   uint32_t restart_index = vk_index_to_restart(indexType);
 
    switch (indexType) {
    case VK_INDEX_TYPE_UINT16:
@@ -4605,11 +4609,16 @@ tu_CmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer,
       UNREACHABLE("invalid VkIndexType");
    }
 
-   if (buf) {
-      /* initialize/update the restart index */
-      if (cmd->state.index_size != index_size)
-         tu_cs_emit_regs(&cmd->draw_cs, PC_RESTART_INDEX(CHIP, restart_index));
+   /* From the Vulkan 1.4.348 spec, vkCmdSetPrimitiveRestartIndexEXT():
+    *
+    *    "Binding an index buffer invalidates the custom index value."
+    *
+    * Updating the dynamic state here resets the restart index to the type's
+    * default and lets the draw path re-emit PC_RESTART_INDEX.
+    */
+   vk_cmd_set_index_buffer_type(&cmd->vk, indexType);
 
+   if (buf) {
       cmd->state.index_va = vk_buffer_address(&buf->vk, offset);
       cmd->state.max_index_count = size >> index_shift;
       cmd->state.index_size = index_size;
@@ -8426,6 +8435,13 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
       if (CHIP >= A7XX) {
          tu_cs_emit_regs(cs, VPC_PC_CNTL(CHIP, .dword = primitive_cntl_0));
       }
+   }
+
+   if (BITSET_TEST(cmd->vk.dynamic_graphics_state.dirty,
+                   MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_INDEX) ||
+       (cmd->state.dirty & TU_CMD_DIRTY_DRAW_STATE)) {
+      tu_cs_emit_regs(cs, PC_RESTART_INDEX(CHIP,
+         cmd->vk.dynamic_graphics_state.ia.primitive_restart_index));
    }
 
    if (cmd->device->physical_device->info->props.has_rt_workaround &&

@@ -359,6 +359,7 @@ get_device_extensions(const struct tu_physical_device *device,
 #ifdef TU_USE_WSI_PLATFORM
       .EXT_present_timing = device->info->props.has_persistent_counter,
 #endif
+      .EXT_primitive_restart_index = true,
       .EXT_primitive_topology_list_restart = true,
       .EXT_primitives_generated_query = true,
       .EXT_private_data = true,
@@ -798,6 +799,9 @@ tu_get_features(struct tu_physical_device *pdevice,
 
    /* VK_EXT_pipeline_robustness */
    features->pipelineRobustness = true;
+
+   /* VK_EXT_primitive_restart_index */
+   features->primitiveRestartIndex = true;
 
    /* VK_EXT_primitive_topology_list_restart */
    features->primitiveTopologyListRestart = true;
