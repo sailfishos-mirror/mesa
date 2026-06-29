@@ -69,7 +69,7 @@
         - src/panfrost/compiler/midgard/**/*
       when: manual
 
-.panfrost-bifrost-gl-rules:
+.panfrost-panfrost-gl-rules:
   stage: arm
   rules:
     - !reference [.enforce-hw-jobs-panfrost-panfrost-rules, rules]
@@ -86,7 +86,7 @@
         - src/panfrost/compiler/bifrost/**/*
       when: on_success
 
-.panfrost-bifrost-gl-manual-rules:
+.panfrost-panfrost-gl-manual-rules:
   stage: arm-nightly
   extends: .no-auto-retry
   rules:
@@ -116,7 +116,8 @@
     - changes: &panfrost_vulkan_file_list
         - src/panfrost/vulkan/**/*
       when: on_success
-    - changes: *panfrost_bifrost_file_list
+    - changes:
+        *panfrost_bifrost_file_list
       when: on_success
 
 .panfrost-vk-panfrost-rules:
@@ -160,7 +161,7 @@
     - !reference [.enforce-hw-jobs-panvk-panthor-rules, rules]
     - !reference [.panfrost-vk-manual-rules-common, rules]
 
-.panfrost-valhall-gl-rules:
+.panfrost-panthor-gl-rules:
   stage: arm
   rules:
     - !reference [.enforce-hw-jobs-panfrost-panthor-rules, rules]
@@ -173,11 +174,11 @@
     - changes:
         *panfrost_gallium_file_list
       when: on_success
-    - changes: &panfrost_valhall_file_list
-        - src/panfrost/compiler/bifrost/**/*
+    - changes:
+        *panfrost_bifrost_file_list
       when: on_success
 
-.panfrost-valhall-gl-manual-rules:
+.panfrost-panthor-gl-manual-rules:
   stage: arm-nightly
   extends: .no-auto-retry
   rules:
@@ -192,7 +193,7 @@
         *panfrost_gallium_file_list
       when: manual
     - changes:
-        *panfrost_valhall_file_list
+        *panfrost_bifrost_file_list
       when: manual
 
 .panfrost-test:
