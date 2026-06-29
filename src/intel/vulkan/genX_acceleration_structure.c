@@ -780,6 +780,7 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
    device->accel_struct_build.build_args =
       (struct vk_acceleration_structure_build_args) {
          .emit_markers = u_trace_enabled(&device->ds.trace_context),
+         .has_update = true,
          .subgroup_size = device->info->ver >= 20 ? 16 : 8,
          .radix_sort_64 = device->accel_struct_build.radix_sort,
          /* See struct anv_accel_struct_header from anv_bvh_defines.h
