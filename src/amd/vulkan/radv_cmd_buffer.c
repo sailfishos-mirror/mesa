@@ -3901,36 +3901,36 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const bool enable_vrs_flat_shading = cmd_buffer->state.uses_vrs_flat_shading;
-   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
-   const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
-   /* Disable VRS for flat shading with MSAA 8x to prevent random GPU hangs on GFX11-11.7 */
-   const bool force_disable_vrs =
-      (ps && ps->info.ps.force_disable_vrs) || (pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8);
-   struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (pdev->info.gfx_level < GFX10_3)
       return;
 
+   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
+   const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+   uint32_t mode = V_028064_SC_VRS_COMB_MODE_PASSTHRU;
+   uint8_t rate_x = 0, rate_y = 0;
+
+   /* Disable VRS for flat shading with MSAA 8x to prevent random GPU hangs on GFX11-11.7 */
+   if ((ps && ps->info.ps.force_disable_vrs) || (pdev->info.gfx_level < GFX12 && d->vk.ms.rasterization_samples == 8)) {
+      /* MIN chooses the higher quality rate between the input rate and the override rate,
+       * so setting the override to 1x1 allows sample shading (which is a VRS rate that's finer
+       * than 1x1). This effectively forces any coarse VRS to 1x1 while keeping sample shading as-is.
+       */
+      mode = V_028064_SC_VRS_COMB_MODE_MIN;
+   } else if (cmd_buffer->state.uses_vrs_flat_shading) {
+      /* Enable VRS 2x2 if doing flat shading. */
+      mode = V_028064_SC_VRS_COMB_MODE_OVERRIDE;
+      rate_x = rate_y = 1;
+   }
+
    if (pdev->info.gfx_level >= GFX11) {
       const struct radv_rendering_state *render = &cmd_buffer->state.render;
-      const bool vrs_surface_enable = render->vrs_att.iview != NULL;
-      uint8_t mode = V_0283D0_SC_VRS_COMB_MODE_PASSTHRU;
-      uint8_t rate = V_0283D0_VRS_SHADING_RATE_1X1;
+      assert(rate_x <= 1 && rate_y <= 1);
 
-      if (force_disable_vrs) {
-         /* MIN chooses the higher quality rate between the input rate and the override rate,
-          * so setting the override to 1x1 allows sample shading (which is a VRS rate that's finer
-          * than 1x1). This effectively forces any coarse VRS to 1x1 while keeping sample shading as-is.
-          */
-         mode = V_0283D0_SC_VRS_COMB_MODE_MIN;
-      } else if (enable_vrs_flat_shading) {
-         mode = V_0283D0_SC_VRS_COMB_MODE_OVERRIDE;
-         rate = V_0283D0_VRS_SHADING_RATE_2X2;
-      }
-
-      const uint32_t pa_sc_vrs_override_cntl = S_0283D0_VRS_SURFACE_ENABLE(vrs_surface_enable) |
-                                               S_0283D0_VRS_OVERRIDE_RATE_COMBINER_MODE(mode) | S_0283D0_VRS_RATE(rate);
+      const uint32_t pa_sc_vrs_override_cntl = S_0283D0_VRS_SURFACE_ENABLE(render->vrs_att.iview != NULL) |
+                                               S_0283D0_VRS_OVERRIDE_RATE_COMBINER_MODE(mode) |
+                                               S_0283D0_VRS_RATE(rate_y | (rate_x << 2));
 
       radeon_begin(cs);
       if (pdev->info.gfx_level >= GFX12) {
@@ -3949,21 +3949,6 @@ radv_emit_override_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       }
       radeon_end();
    } else {
-      uint32_t mode = V_028064_SC_VRS_COMB_MODE_PASSTHRU;
-      uint8_t rate_x = 0, rate_y = 0;
-
-      if (force_disable_vrs) {
-         /* MIN chooses the higher quality rate between the input rate and the override rate,
-          * so setting the override to 1x1 allows sample shading (which is a VRS rate that's finer
-          * than 1x1). This effectively forces any coarse VRS to 1x1 while keeping sample shading as-is.
-          */
-         mode = V_028064_SC_VRS_COMB_MODE_MIN;
-      } else if (enable_vrs_flat_shading) {
-         /* Enable VRS 2x2 if doing flat shading. */
-         mode = V_028064_SC_VRS_COMB_MODE_OVERRIDE;
-         rate_x = rate_y = 1;
-      }
-
       radeon_begin(cs);
       radeon_opt_set_context_reg(R_028064_DB_VRS_OVERRIDE_CNTL, AC_TRACKED_DB_PA_SC_VRS_OVERRIDE_CNTL,
                                  S_028064_VRS_OVERRIDE_RATE_COMBINER_MODE(mode) | S_028064_VRS_OVERRIDE_RATE_X(rate_x) |
