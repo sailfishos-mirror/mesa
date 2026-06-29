@@ -1277,6 +1277,25 @@ impl V9Instr for OpNop {
     }
 }
 
+impl V9Instr for OpPopCount {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Popcount::get_info(DataType::I32, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Popcount {
+            variant: PopcountVariant::I32,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
 macro_rules! encode_lop {
     ($e:expr, $op:expr, $Instr:ident) => {
         paste! {
@@ -1533,6 +1552,7 @@ macro_rules! v9_op_match_else {
             Op::Mov($x) => $y,
             Op::Mux($x) => $y,
             Op::Nop($x) => $y,
+            Op::PopCount($x) => $y,
             Op::ShiftLop($x) => $y,
             Op::StCvt($x) => $y,
             Op::Store($x) => $y,

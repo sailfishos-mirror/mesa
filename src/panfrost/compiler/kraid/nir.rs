@@ -673,6 +673,13 @@ impl<'a> ShaderFromNir<'a> {
                     mask: false,
                 });
             }
+            nir_op_bit_count => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.push_op(OpPopCount {
+                    dst: dst.into(),
+                    src: srcs(0),
+                });
+            }
             nir_op_bitfield_reverse => {
                 assert!(alu.get_src(0).bit_size() == 32);
                 b.push_op(OpBitRev {

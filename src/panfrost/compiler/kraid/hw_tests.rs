@@ -894,6 +894,16 @@ fn test_op_mux() {
 }
 
 #[test]
+fn test_op_popcount() {
+    let op = OpPopCount {
+        dst: DstRef::None.into(),
+        src: 0.into(),
+    };
+
+    test_foldable_op(op);
+}
+
+#[test]
 fn test_op_shift_lop() {
     const DATA_TYPES: &'static [DataType] = &[
         DataType::V4U8,

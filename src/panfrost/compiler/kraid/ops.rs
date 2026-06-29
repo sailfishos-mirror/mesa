@@ -1352,6 +1352,35 @@ impl VirtualOpcode for OpPhiSrc {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpPopCount {
+    #[dst_type(I32)]
+    pub dst: Dst,
+
+    #[src_type(I32)]
+    pub src: Src,
+}
+
+impl fmt::Display for OpPopCount {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = POPCOUNT.i32 {}",
+            &self.dst,
+            self.fmt_src(&self.src)
+        )
+    }
+}
+
+impl Foldable for OpPopCount {
+    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let src = f.get_src(&self.src) as u32;
+
+        f.set_dst(&self.dst, src.count_ones().into());
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, I16, I32, I64])]
 pub struct OpRegIn {
     pub dst: Dst,
@@ -1691,6 +1720,7 @@ pub enum Op {
     Nop(OpNop),
     PhiDst(Box<OpPhiDst>),
     PhiSrc(Box<OpPhiSrc>),
+    PopCount(Box<OpPopCount>),
     RegIn(Box<OpRegIn>),
     RegOut(Box<OpRegOut>),
     ShiftLop(Box<OpShiftLop>),
