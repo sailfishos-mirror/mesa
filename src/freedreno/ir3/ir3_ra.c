@@ -2729,18 +2729,6 @@ calc_limit_pressure_for_cs_with_barrier(struct ir3_shader_variant *v,
    const struct ir3_compiler *compiler = v->compiler;
 
    bool double_threadsize = ir3_should_double_threadsize(v, 0);
-   unsigned threads_per_wg;
-
-   if (v->local_size_variable) {
-      if (v->type == MESA_SHADER_KERNEL) {
-         threads_per_wg = compiler->info->threadsize_base * (double_threadsize ? 2 : 1);
-      } else {
-         /* We have to expect the worst case. */
-         threads_per_wg = compiler->max_variable_workgroup_size;
-      }
-   } else {
-      threads_per_wg = v->local_size[0] * v->local_size[1] * v->local_size[2];
-   }
 
    /* The register file is grouped into reg_size_vec4 number of parts.
     * Each part has enough registers to add a single vec4 register to
@@ -2750,9 +2738,8 @@ calc_limit_pressure_for_cs_with_barrier(struct ir3_shader_variant *v,
     * parts each could get.
     */
 
-   unsigned waves_per_wg = DIV_ROUND_UP(
-      threads_per_wg, compiler->info->threadsize_base * (double_threadsize ? 2 : 1) *
-                         compiler->info->wave_granularity);
+   unsigned waves_per_wg = ir3_get_waves_per_wg(v, double_threadsize) /
+                           compiler->info->wave_granularity;
 
    uint32_t vec4_regs_per_thread =
       compiler->reg_size_vec4 / (waves_per_wg * (double_threadsize ? 2 : 1));

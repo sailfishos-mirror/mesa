@@ -1083,6 +1083,9 @@ unsigned ir3_get_min_reg_count(const struct ir3_shader_variant *v,
 bool ir3_should_double_threadsize(struct ir3_shader_variant *v,
                                   unsigned regs_count);
 
+unsigned ir3_get_waves_per_wg(struct ir3_shader_variant *v,
+                              bool double_threadsize);
+
 struct ir3_block *ir3_block_create(struct ir3 *shader);
 
 struct ir3_instruction *ir3_build_instr(struct ir3_builder *builder, opc_t opc,
