@@ -558,6 +558,55 @@ impl PerCompFoldable for OpFCmp {
     }
 }
 
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+pub enum FlushNanMode {
+    #[default]
+    None,
+    /// All NaNs are replaced with the value +0.0.
+    FlushNan,
+    /// Signaling NaNs are replaced with the equivalent quiet NaN value.
+    QuietNan,
+}
+
+impl fmt::Display for FlushNanMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FlushNanMode::None => Ok(()),
+            FlushNanMode::FlushNan => write!(f, ".flush_nan"),
+            FlushNanMode::QuietNan => write!(f, ".quiet_nan"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [F16, V2F16, F32])]
+pub struct OpFlush {
+    pub dst: Dst,
+
+    pub src_type: DataType,
+    pub src: Src,
+
+    pub ftz: bool,
+    pub flush_inf: bool,
+    pub flush_nan: FlushNanMode,
+}
+
+impl fmt::Display for OpFlush {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FLUSH{}{}{}{} {}",
+            &self.dst,
+            self.src_type,
+            bool_as_mod_str!(self, ftz),
+            bool_as_mod_str!(self, flush_inf),
+            self.flush_nan,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [F16, V2F16, F32])]
@@ -1757,6 +1806,7 @@ pub enum Op {
     F32ToI32(Box<OpF32ToI32>),
     FAdd(Box<OpFAdd>),
     FCmp(Box<OpFCmp>),
+    Flush(Box<OpFlush>),
     Fma(Box<OpFma>),
     FMul(Box<OpFMul>),
     FRcp(Box<OpFRcp>),

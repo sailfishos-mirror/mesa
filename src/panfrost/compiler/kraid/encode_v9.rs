@@ -820,6 +820,38 @@ impl V9Instr for OpFCmp {
     }
 }
 
+impl From<FlushNanMode> for FlushNanM {
+    fn from(value: FlushNanMode) -> Self {
+        match value {
+            FlushNanMode::None => FlushNanM::None,
+            FlushNanMode::FlushNan => FlushNanM::FlushNan,
+            FlushNanMode::QuietNan => FlushNanM::QuietNan,
+        }
+    }
+}
+
+impl V9Instr for OpFlush {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Flush::get_info(self.src_type, arch),
+            src_map!(
+                src0: src,
+            ),
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Flush {
+            variant: self.src_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+            flush_to_zero_mode: self.ftz.into(),
+            inf_mode: self.flush_inf.into(),
+            nan_mode: self.flush_nan.into(),
+        })
+    }
+}
+
 impl V9Instr for OpFma {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1612,6 +1644,7 @@ macro_rules! v9_op_match_else {
             Op::F32ToI32($x) => $y,
             Op::FAdd($x) => $y,
             Op::FCmp($x) => $y,
+            Op::Flush($x) => $y,
             Op::Fma($x) => $y,
             Op::FMul($x) => $y,
             Op::FRcp($x) => $y,
