@@ -594,6 +594,15 @@ impl<'a> ShaderFromNir<'a> {
                     accum_op: CmpAccumOp::None,
                 });
             }
+            nir_op_ffma => {
+                b.push_op(OpFma {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    round: FRound::NearestEven,
+                    clamp: FClamp::None,
+                    srcs: [srcs(0), srcs(1), srcs(2)],
+                });
+            }
             nir_op_fmul => {
                 b.push_op(OpFMul {
                     dst: dst.into(),

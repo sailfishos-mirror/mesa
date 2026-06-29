@@ -820,6 +820,31 @@ impl V9Instr for OpFCmp {
     }
 }
 
+impl V9Instr for OpFma {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Fma::get_info(self.dst_type, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+                src2: srcs[2],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Fma {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            src2: op_encode_src(self, &self.srcs[2]),
+            clamp: self.clamp.into(),
+            round: self.round.into(),
+        })
+    }
+}
+
 impl V9Instr for OpFMul {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1587,6 +1612,7 @@ macro_rules! v9_op_match_else {
             Op::F32ToI32($x) => $y,
             Op::FAdd($x) => $y,
             Op::FCmp($x) => $y,
+            Op::Fma($x) => $y,
             Op::FMul($x) => $y,
             Op::FRcp($x) => $y,
             Op::FRsq($x) => $y,
