@@ -23,7 +23,7 @@
 //!   Ex: [I8, V2I8, V4I8, I16, V2I16, I32, I64]
 
 use crate::data_type::{NumericType, PartialDataType};
-use crate::foldable::{FoldDataView, PerCompFoldable};
+use crate::foldable::{FoldDataView, Foldable, PerCompFoldable};
 use crate::ir::*;
 use compiler::float16::F16;
 use kraid_proc_macros::{FromVariants, Opcode, variants};
@@ -33,6 +33,30 @@ use std::fmt;
 macro_rules! bool_as_mod_str {
     ($s: expr, $mod: ident) => {
         if $s.$mod { stringify!(.$mod) } else { "" }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpBitRev {
+    #[dst_type(I32)]
+    pub dst: Dst,
+
+    #[src_type(I32)]
+    pub src: Src,
+}
+
+impl fmt::Display for OpBitRev {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = BITREV.i32 {}", &self.dst, self.fmt_src(&self.src))
+    }
+}
+
+impl Foldable for OpBitRev {
+    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let src = f.get_src(&self.src) as u32;
+
+        f.set_dst(&self.dst, src.reverse_bits().into());
     }
 }
 
@@ -1634,6 +1658,7 @@ impl VirtualOpcode for OpSwz {
 
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
+    BitRev(Box<OpBitRev>),
     Branch(Box<OpBranch>),
     Clz(Box<OpClz>),
     Copy(Box<OpCopy>),

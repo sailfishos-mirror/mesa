@@ -532,6 +532,25 @@ impl TryFrom<CmpOp> for CmpfM {
     }
 }
 
+impl V9Instr for OpBitRev {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Bitrev::get_info(BitrevVariant::I32, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Bitrev {
+            variant: BitrevVariant::I32,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
 impl V9Instr for OpClz {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1486,6 +1505,7 @@ impl V9Instr for OpStore {
 macro_rules! v9_op_match_else {
     ($op: expr, |$x: ident| $y: expr, $z: expr) => {
         match $op {
+            Op::BitRev($x) => $y,
             Op::Branch($x) => $y,
             Op::Clz($x) => $y,
             Op::CSel($x) => $y,

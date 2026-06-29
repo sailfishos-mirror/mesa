@@ -673,6 +673,13 @@ impl<'a> ShaderFromNir<'a> {
                     mask: false,
                 });
             }
+            nir_op_bitfield_reverse => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.push_op(OpBitRev {
+                    dst: dst.into(),
+                    src: srcs(0),
+                });
+            }
             nir_op_ufind_msb => {
                 let src_type = src_type(0, NumericType::UnsignedInteger);
                 let tmp = b.alloc_ssa(src_type.total_bits());

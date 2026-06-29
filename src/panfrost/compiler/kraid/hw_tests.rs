@@ -516,6 +516,16 @@ pub fn test_foldable_op(op: impl Foldable + Clone + Into<Op> + fmt::Display) {
 }
 
 #[test]
+fn test_op_bitrev() {
+    let op = OpBitRev {
+        dst: DstRef::None.into(),
+        src: 0.into(),
+    };
+
+    test_foldable_op(op);
+}
+
+#[test]
 fn test_op_clz() {
     const DATA_TYPES: &'static [DataType] =
         &[DataType::U32, DataType::V2U16, DataType::V4U8];
