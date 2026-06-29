@@ -5148,6 +5148,12 @@ zink_copy_buffer(struct zink_context *ctx, struct zink_resource *dst, struct zin
 
    if (unsync)
       util_queue_fence_signal(&ctx->unsync_fence);
+
+   if (cmdbuf == ctx->bs->cmdbuf) {
+      dst->obj->unordered_read = false;
+      dst->obj->unordered_write = false;
+      src->obj->unordered_read = false;
+   }
 }
 
 void
@@ -5513,9 +5519,14 @@ zink_resource_copy_region(struct pipe_context *pctx,
       zink_cmd_debug_marker_end(ctx, cmdbuf, marker);
       if (dst->fb_bind_count)
          ctx->rp_tc_info_updated = true;
-      if (cmdbuf == ctx->bs->cmdbuf && ctx->track_renderpasses) {
-         ctx->needs_transfer_sync = true;
-         dst->obj->transfer_rp = ctx->rp_counter;
+      if (cmdbuf == ctx->bs->cmdbuf) {
+         dst->obj->unordered_read = false;
+         dst->obj->unordered_write = false;
+         src->obj->unordered_read = false;
+         if (ctx->track_renderpasses) {
+            ctx->needs_transfer_sync = true;
+            dst->obj->transfer_rp = ctx->rp_counter;
+         }
       }
    } else if (dst->base.b.target == PIPE_BUFFER &&
               src->base.b.target == PIPE_BUFFER) {

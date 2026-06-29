@@ -154,9 +154,14 @@ blit_resolve(struct zink_context *ctx, const struct pipe_blit_info *info, bool *
                      1, &region);
    zink_cmd_debug_marker_end(ctx, cmdbuf, marker);
 
-   if (cmdbuf == ctx->bs->cmdbuf && ctx->track_renderpasses) {
-      ctx->needs_transfer_sync = true;
-      dst->obj->transfer_rp = ctx->rp_counter;
+   if (cmdbuf == ctx->bs->cmdbuf) {
+      dst->obj->unordered_read = false;
+      dst->obj->unordered_write = false;
+      src->obj->unordered_read = false;
+      if (ctx->track_renderpasses) {
+         ctx->needs_transfer_sync = true;
+         dst->obj->transfer_rp = ctx->rp_counter;
+      }
    }
 
    return true;
@@ -341,9 +346,14 @@ blit_native(struct zink_context *ctx, const struct pipe_blit_info *info, bool *n
 
    zink_cmd_debug_marker_end(ctx, cmdbuf, marker);
 
-   if (cmdbuf == ctx->bs->cmdbuf && ctx->track_renderpasses) {
-      ctx->needs_transfer_sync = true;
-      dst->obj->transfer_rp = ctx->rp_counter;
+   if (cmdbuf == ctx->bs->cmdbuf) {
+      dst->obj->unordered_read = false;
+      dst->obj->unordered_write = false;
+      src->obj->unordered_read = false;
+      if (ctx->track_renderpasses) {
+         ctx->needs_transfer_sync = true;
+         dst->obj->transfer_rp = ctx->rp_counter;
+      }
    }
 
    return true;
