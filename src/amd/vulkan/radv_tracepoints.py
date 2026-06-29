@@ -285,13 +285,18 @@ for e in get_entrypoints_from_xml(args.xml_files, False):
         entrypoints_builder.add('VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);')
         entrypoints_builder.add('struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);')
         entrypoints_builder.add()
+        entrypoints_builder.add('if (!cmd_buffer->state.meta.inside_meta_op)')
+        entrypoints_builder.level += 1
         entrypoints_builder.add('trace_radv_begin_%s(cmd_buffer->utrace.trace, cmd_buffer%s);' %
                                 (remove_prefix(e.name, 'Cmd'), ''.join([', ' + arg.expr for arg in info.args])))
+        entrypoints_builder.level -= 1
         entrypoints_builder.add()
         entrypoints_builder.add('device->layer_dispatch.utrace.%s(%s);' % (e.name, ', '.join([p.name for p in e.params])))
         entrypoints_builder.add()
+        entrypoints_builder.add('if (!cmd_buffer->state.meta.inside_meta_op)')
+        entrypoints_builder.level += 1
         entrypoints_builder.add('trace_radv_end_%s(cmd_buffer->utrace.trace, cmd_buffer);' % (remove_prefix(e.name, 'Cmd')))
-        entrypoints_builder.level -= 1
+        entrypoints_builder.level -= 2
         entrypoints_builder.add('}')
         entrypoints_builder.add()
 
