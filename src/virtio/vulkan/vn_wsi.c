@@ -510,6 +510,9 @@ vn_wsi_clone_present_info(struct vn_device *dev, const VkPresentInfoKHR *pi)
          break;
       case VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR:
          pr = (void *)pnext;
+         /* drop pr when pr->pRegions is NULL */
+         if (!pr->pRegions)
+            pr = NULL;
          break;
       case VK_STRUCTURE_TYPE_PRESENT_ID_KHR:
          id = (void *)pnext;

@@ -34,7 +34,7 @@
         "description": "venus/wsi: skip VkPresentRegionsKHR when pRegions is NULL",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f216c109be47e2734f77bf69ffe3bc0986124e0d",
         "notes": null
