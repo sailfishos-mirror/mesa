@@ -972,6 +972,7 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
 
          killed = true;
          for (unsigned i = 0; i < size; ++i) {
+            assert(lu + i < JAY_NUM_LAST_USE_BITS);
             if (jay_channel(I->src[s], i) == 0 ||
                 !BITSET_TEST(I->last_use, lu + i)) {
                killed = false;
