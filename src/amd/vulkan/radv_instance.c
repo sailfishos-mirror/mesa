@@ -293,12 +293,6 @@ radv_CreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationC
    struct radv_instance *instance;
    VkResult result;
 
-   /* Report RADV_FORCE_FAMILY as deprecated for one or two release cycles. */
-   if (os_get_option("RADV_FORCE_FAMILY")) {
-      fprintf(stderr, "radv: RADV_FORCE_FAMILY=<family> has been removed. Please use AMDGPU drm-shim now.\n");
-      return VK_ERROR_INITIALIZATION_FAILED;
-   }
-
    if (!pAllocator)
       pAllocator = vk_default_allocator();
 
