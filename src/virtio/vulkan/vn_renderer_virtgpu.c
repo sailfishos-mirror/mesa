@@ -112,8 +112,8 @@ sim_submit(struct virtgpu *gpu, const struct vn_renderer_submit_batch *batch)
    int ret = virtgpu_ioctl(gpu, DRM_IOCTL_VIRTGPU_EXECBUFFER, &args);
    if (!ret && batch->sync_count) {
       for (uint32_t i = 0; i < batch->sync_count; i++) {
-         ret = sim_syncobj_submit(batch->syncs[i]->syncobj_handle,
-                                  args.fence_fd, batch->sync_values[i]);
+         ret = gpu->sync->import_sync_file(
+            gpu->sync, batch->syncs[i]->syncobj_handle, args.fence_fd);
          if (ret)
             break;
       }
@@ -312,9 +312,6 @@ virtgpu_ioctl_map(struct virtgpu *gpu,
 static uint32_t
 virtgpu_ioctl_syncobj_create(struct virtgpu *gpu, bool signaled)
 {
-   if (!gpu->sync)
-      return sim_syncobj_create(signaled);
-
    const uint32_t flags = signaled ? DRM_SYNCOBJ_CREATE_SIGNALED : 0;
    uint32_t syncobj_handle;
    int ret = gpu->sync->create(gpu->sync, flags, &syncobj_handle);
@@ -324,10 +321,8 @@ virtgpu_ioctl_syncobj_create(struct virtgpu *gpu, bool signaled)
 static void
 virtgpu_ioctl_syncobj_destroy(struct virtgpu *gpu, uint32_t syncobj_handle)
 {
-   if (gpu->sync)
-      gpu->sync->destroy(gpu->sync, syncobj_handle);
-   else
-      sim_syncobj_destroy(syncobj_handle);
+   ASSERTED int ret = gpu->sync->destroy(gpu->sync, syncobj_handle);
+   assert(ret == 0);
 }
 
 static int
@@ -335,14 +330,13 @@ virtgpu_ioctl_syncobj_handle_to_fd(struct virtgpu *gpu,
                                    uint32_t syncobj_handle,
                                    bool sync_file)
 {
-   if (!gpu->sync)
-      return sync_file ? sim_syncobj_export(syncobj_handle) : -1;
-
    int ret, fd;
    if (sync_file)
       ret = gpu->sync->export_sync_file(gpu->sync, syncobj_handle, &fd);
-   else
+   else if (gpu->sync->handle_to_fd)
       ret = gpu->sync->handle_to_fd(gpu->sync, syncobj_handle, &fd);
+   else
+      ret = -1;
 
    return ret ? -1 : fd;
 }
@@ -352,14 +346,13 @@ virtgpu_ioctl_syncobj_fd_to_handle(struct virtgpu *gpu,
                                    int fd,
                                    uint32_t syncobj_handle)
 {
-   if (!gpu->sync)
-      return syncobj_handle ? sim_syncobj_import(syncobj_handle, fd) : 0;
-
    int ret;
    if (syncobj_handle)
       ret = gpu->sync->import_sync_file(gpu->sync, syncobj_handle, fd);
-   else
+   else if (gpu->sync->fd_to_handle)
       ret = gpu->sync->fd_to_handle(gpu->sync, fd, &syncobj_handle);
+   else
+      ret = -1;
 
    return ret ? 0 : syncobj_handle;
 }
@@ -367,9 +360,6 @@ virtgpu_ioctl_syncobj_fd_to_handle(struct virtgpu *gpu,
 static int
 virtgpu_ioctl_syncobj_reset(struct virtgpu *gpu, uint32_t syncobj_handle)
 {
-   if (!gpu->sync)
-      return sim_syncobj_reset(syncobj_handle);
-
    return gpu->sync->reset(gpu->sync, &syncobj_handle, 1);
 }
 
@@ -378,9 +368,6 @@ virtgpu_ioctl_syncobj_query(struct virtgpu *gpu,
                             uint32_t syncobj_handle,
                             uint64_t *point)
 {
-   if (!gpu->sync)
-      return sim_syncobj_query(syncobj_handle, point);
-
    return gpu->sync->query(gpu->sync, &syncobj_handle, point, 1, 0);
 }
 
@@ -396,9 +383,6 @@ static int
 virtgpu_ioctl_syncobj_timeline_wait(struct virtgpu *gpu,
                                     const struct vn_renderer_wait *wait)
 {
-   if (!gpu->sync)
-      return sim_syncobj_wait(wait);
-
    /* always enable wait-before-submit */
    uint32_t flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
    if (!wait->wait_any)
@@ -413,9 +397,15 @@ virtgpu_ioctl_syncobj_timeline_wait(struct virtgpu *gpu,
    uint64_t abs_timeout_ns = os_time_get_absolute_timeout(wait->timeout);
    abs_timeout_ns = MIN2(abs_timeout_ns, (uint64_t)INT64_MAX);
 
-   int ret = gpu->sync->timeline_wait(
-      gpu->sync, syncobj_handles, (uint64_t *)wait->sync_values,
-      wait->sync_count, abs_timeout_ns, flags, NULL);
+   int ret;
+   if (gpu->base.info.has_timeline_sync) {
+      ret = gpu->sync->timeline_wait(
+         gpu->sync, syncobj_handles, (uint64_t *)wait->sync_values,
+         wait->sync_count, abs_timeout_ns, flags, NULL);
+   } else {
+      ret = gpu->sync->wait(gpu->sync, syncobj_handles, wait->sync_count,
+                            abs_timeout_ns, flags, NULL);
+   }
 
    STACK_ARRAY_FINISH(syncobj_handles);
 
@@ -426,7 +416,7 @@ static int
 virtgpu_ioctl_submit(struct virtgpu *gpu,
                      const struct vn_renderer_submit_batch *batch)
 {
-   if (!gpu->sync)
+   if (!gpu->base.info.has_timeline_sync)
       return sim_submit(gpu, batch);
 
    STACK_ARRAY(struct drm_virtgpu_execbuffer_syncobj, out_syncobjs,
@@ -990,7 +980,9 @@ virtgpu_init_renderer_info(struct virtgpu *gpu)
 
    info->has_dma_buf_import = true;
    info->has_external_sync = true;
-   info->has_timeline_sync = !!gpu->sync;
+
+   assert(gpu->sync);
+   info->has_timeline_sync = !!gpu->sync->timeline_signal;
 
    info->has_implicit_fencing = false;
 
@@ -1084,6 +1076,9 @@ virtgpu_init_sync_provider(struct virtgpu *gpu)
          gpu->sync = NULL;
       }
    }
+
+   if (!gpu->sync)
+      gpu->sync = vn_renderer_sim_syncobj_get_sync();
 }
 
 static VkResult
