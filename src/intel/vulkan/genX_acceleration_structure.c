@@ -752,12 +752,12 @@ anv_device_init_accel_struct_build_state(struct anv_device *device)
       .fill = { .workgroup_size_log2 = 8, .block_rows = 8 },
       .histogram = {
          .workgroup_size_log2 = 8,
-         .subgroup_size_log2 = device->info->ver >= 20 ? 4 : 3,
+         .subgroup_size_log2 = device->info->ver >= 20 ? 5 : 4,
          .block_rows = 14,
       },
       .prefix = {
          .workgroup_size_log2 = 8,
-         .subgroup_size_log2 = device->info->ver >= 20 ? 4 : 3,
+         .subgroup_size_log2 = device->info->ver >= 20 ? 5 : 4,
       },
       .scatter = {
          .workgroup_size_log2 = 8,
