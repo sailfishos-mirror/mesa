@@ -156,7 +156,7 @@ impl VirtualOpcode for OpCopy {
                     | Swizzle::B3333
             ),
             16 => matches!(swizzle, Swizzle::H00 | Swizzle::H11),
-            _ => swizzle == Swizzle::NONE,
+            _ => swizzle.is_none(),
         }
     }
 
@@ -1515,7 +1515,7 @@ impl VirtualOpcode for OpSwz {
     fn src_supports_swizzle(&self, _src: &Src, swizzle: Swizzle) -> bool {
         if matches!(swizzle, Swizzle::HF0 | Swizzle::HF1) {
             self.src_type == DataType::F32
-        } else if swizzle == Swizzle::NONE {
+        } else if swizzle.is_none() {
             true
         } else if swizzle.is_word_swizzle() {
             self.src_type.bits() == 64
