@@ -369,7 +369,7 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
    while (late_algebraic_progress) {
       late_algebraic_progress = false;
       NIR_PASS(late_algebraic_progress, nir, bifrost_nir_lower_algebraic_late,
-               pan_arch(gpu_id));
+               pan_arch(gpu_id), bi_use_kraid(nir));
       late_algebraic |= late_algebraic_progress;
    }
 

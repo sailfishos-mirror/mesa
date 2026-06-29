@@ -79,6 +79,10 @@ algebraic_late = [
     (('f2i32', 'a@16'), ('f2i32', ('f2f32', a)), 'gpu_arch >= 11'),
     (('f2u32', 'a@16'), ('f2u32', ('f2f32', a)), 'gpu_arch >= 11'),
 
+    # TODO: these could be handled in the backend for lighter register pressure
+    (('f2u16', a), ('u2u16', ('f2u32', a)), 'is_kraid'),
+    (('f2i16', a), ('i2i16', ('f2i32', a)), 'is_kraid'),
+
     # On v11+, because FROUND.v2f16 is gone we end up with precision issues.
     # We lower ffract here instead to ensure lower_bit_size has been performed.
     (('ffract', a), ('fadd', a, ('fneg', ('ffloor', a))), 'gpu_arch >= 11'),
@@ -158,7 +162,8 @@ def run():
     print(nir_algebraic.AlgebraicPass("bifrost_nir_lower_algebraic_late",
                                       algebraic_late,
                                       [
-                                          ("unsigned ", "gpu_arch")
+                                          ("unsigned ", "gpu_arch"),
+                                          ("bool ",     "is_kraid"),
                                       ]).render())
 
 if __name__ == '__main__':
