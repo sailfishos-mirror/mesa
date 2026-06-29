@@ -1691,10 +1691,10 @@ writes_gpr(struct ir3_instruction *instr)
 static inline bool
 writes_addr0(struct ir3_instruction *instr)
 {
-   /* Note: only the first dest can write to a0.x */
-   if (instr->dsts_count > 0) {
-      struct ir3_register *dst = instr->dsts[0];
-      return dst->num == regid(REG_A0, 0);
+   foreach_dst (dst, instr) {
+      if (dst->num == regid(REG_A0, 0)) {
+         return true;
+      }
    }
    return false;
 }
@@ -1702,10 +1702,10 @@ writes_addr0(struct ir3_instruction *instr)
 static inline bool
 writes_addr1(struct ir3_instruction *instr)
 {
-   /* Note: only the first dest can write to a1.x */
-   if (instr->dsts_count > 0) {
-      struct ir3_register *dst = instr->dsts[0];
-      return dst->num == regid(REG_A0, 1);
+   foreach_dst (dst, instr) {
+      if (dst->num == regid(REG_A0, 1)) {
+         return true;
+      }
    }
    return false;
 }
