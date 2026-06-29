@@ -676,9 +676,7 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0),
                     mask: false,
                 });
-                // TODO: remove this copy when lower_small_constants gets smart
-                //       enough or can handle iadd_imm fallbacks
-                let bits = b.copy_i32((src_type.bits() as u32 - 1).into());
+                let bits = u32::from(src_type.bits()) - 1;
                 b.push_op(OpISub {
                     dst: dst.into(),
                     dst_type: DataType::U32,

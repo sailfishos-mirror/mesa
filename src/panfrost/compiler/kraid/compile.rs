@@ -105,6 +105,10 @@ pub extern "C" fn kraid_compile_nir(
     dump_shader(&s, "after lowering small constants");
     s.validate();
 
+    s.legalize_immediates();
+    dump_shader(&s, "after legalizing immediates");
+    s.validate();
+
     s.assign_registers();
     dump_shader(&s, "after register assignment");
     s.validate();
