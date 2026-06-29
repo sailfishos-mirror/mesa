@@ -2405,7 +2405,7 @@ jay_emit_texture(struct nir_to_jay_state *nj, nir_tex_instr *tex)
       sampler =
          jay_resource_handle(b, &tex->src[i].src, &x, NULL, &sampler_bindless);
       if (jay_is_null(sampler))
-         surface = jay_imm(x);
+         sampler = jay_imm(x);
       assert(tex->sampler_index == 0);
    } else if ((i = nir_tex_instr_src_index(tex, nir_tex_src_sampler_offset)) >=
               0) {
