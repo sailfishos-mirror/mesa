@@ -4964,6 +4964,12 @@ zink_copy_buffer(struct zink_context *ctx, struct zink_resource *dst, struct zin
 
    if (unsync)
       util_queue_fence_signal(&ctx->unsync_fence);
+
+   if (cmdbuf == ctx->bs->cmdbuf) {
+      dst->obj->unordered_read = false;
+      dst->obj->unordered_write = false;
+      src->obj->unordered_read = false;
+   }
 }
 
 void
