@@ -1004,7 +1004,7 @@
         "description": "anv/brw: fixup 64bit array image accesses",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "723e52cbcc0a61ff23ab85a41ad3dfc7659239a0",
         "notes": null
