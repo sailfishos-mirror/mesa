@@ -3506,7 +3506,11 @@ zink_resource_setup_transfer_layouts(struct zink_context *ctx, struct zink_resou
        */
       screen->image_barrier(ctx, src,
                             VK_IMAGE_LAYOUT_GENERAL,
-                            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+                            VK_ACCESS_TRANSFER_READ_BIT,
+                            VK_PIPELINE_STAGE_TRANSFER_BIT);
+      screen->image_barrier(ctx, src,
+                            VK_IMAGE_LAYOUT_GENERAL,
+                            VK_ACCESS_TRANSFER_WRITE_BIT,
                             VK_PIPELINE_STAGE_TRANSFER_BIT);
    } else {
       screen->image_barrier(ctx, src,
