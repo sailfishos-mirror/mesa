@@ -124,6 +124,16 @@ for fsz in [16, 32]:
         ((f'b2f{fsz}', a), ('bcsel_pan', a_fsz, 1.0, 0.0)),
     ]
 
+for isz in [8, 16, 32]:
+    a_isz = (f'i2i{isz}', a)
+
+    algebraic_late += [
+        ((f'b2i{isz}', ('inot', f'a@{isz}')), ('bcsel_pan', a, 0, 1), 'is_kraid'),
+        ((f'b2i{isz}', ('inot', a)), ('bcsel_pan', a_isz, 0, 1), 'is_kraid'),
+        ((f'b2i{isz}', f'a@{isz}'), ('bcsel_pan', a, 1, 0), 'is_kraid'),
+        ((f'b2i{isz}', a), ('bcsel_pan', a_isz, 1, 0), 'is_kraid'),
+    ]
+
 # Bifrost LDEXP.v2f16 takes i16 exponent, while nir_op_ldexp takes i32. Lower
 # to nir_op_ldexp16_pan.
 #
