@@ -138,12 +138,6 @@ jay_print_inst(FILE *fp, jay_inst *I)
    if (I->predication) {
       fprintf(fp, "(");
       jay_print_src(fp, I, jay_inst_get_predicate(I) - I->src);
-
-      if (jay_inst_has_default(I)) {
-         fprintf(fp, "/");
-         jay_print_src(fp, I, jay_inst_get_default(I) - I->src);
-      }
-
       fprintf(fp, ")");
    }
 
@@ -180,6 +174,12 @@ jay_print_inst(FILE *fp, jay_inst *I)
 
    if (I->op != JAY_OPCODE_MATH) {
       sep = jay_print_inst_info(fp, I, sep);
+   }
+
+   if (jay_inst_has_default(I)) {
+      fprintf(fp, "%sdefault ", sep);
+      jay_print_src(fp, I, jay_inst_get_default(I) - I->src);
+      sep = ", ";
    }
 
    /* Software scoreboard dependency info */
