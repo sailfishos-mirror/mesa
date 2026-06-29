@@ -424,13 +424,13 @@ impl<'a> ShaderFromNir<'a> {
                     .unwrap();
 
                 let (swz, num_type) = match alu.op {
-                    nir_op_extract_i8 => {
+                    nir_op_extract_i16 => {
                         (Swizzle::widen_s16(sel), NumericType::SignedInteger)
                     }
-                    nir_op_extract_u8 => {
+                    nir_op_extract_u16 => {
                         (Swizzle::widen_u16(sel), NumericType::UnsignedInteger)
                     }
-                    _ => panic!("Invalid 8-bit extract"),
+                    _ => panic!("Invalid 16-bit extract"),
                 };
 
                 b.push_op(OpSwz {
