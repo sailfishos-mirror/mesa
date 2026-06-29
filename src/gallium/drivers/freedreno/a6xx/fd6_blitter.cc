@@ -1553,6 +1553,8 @@ template <chip CHIP>
 static bool
 fd6_blit(struct fd_context *ctx, const struct pipe_blit_info *info) assert_dt
 {
+   fail_if(info->render_condition_enable && ctx->cond_query);
+
    if (info->mask & PIPE_MASK_ZS)
       return handle_zs_blit<CHIP>(ctx, info);
 
