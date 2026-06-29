@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "compiler/brw/brw_eu_defines.h"
 #include "compiler/gen/gen.h"
 #include "compiler/gen/gen_enums.h"
 #include "compiler/gen/gen_names.h"
