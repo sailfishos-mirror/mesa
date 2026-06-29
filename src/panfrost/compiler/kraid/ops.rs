@@ -308,7 +308,14 @@ pub struct OpF32ToF16 {
 
 impl fmt::Display for OpF32ToF16 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = F32_TO_F16 {}", &self.dst, self.fmt_src(&self.src))
+        write!(
+            f,
+            "{} = F32_TO_F16{}{} {}",
+            &self.dst,
+            self.round,
+            self.clamp,
+            self.fmt_src(&self.src)
+        )
     }
 }
 
@@ -318,6 +325,8 @@ impl fmt::Display for OpF32ToF16 {
 pub struct OpFAdd {
     pub dst: Dst,
     pub dst_type: DataType,
+    pub round: FRound,
+    pub clamp: FClamp,
     pub srcs: [Src; 2],
 }
 
@@ -325,9 +334,11 @@ impl fmt::Display for OpFAdd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} = FADD.{} {} {}",
+            "{} = FADD.{}{}{} {} {}",
             &self.dst,
             &self.dst_type,
+            self.round,
+            self.clamp,
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
         )

@@ -486,6 +486,8 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpFAdd {
                     dst: dst.into(),
                     dst_type: dst_type(NumericType::Float),
+                    round: FRound::NearestEven,
+                    clamp: FClamp::None,
                     srcs: [srcs(0).fabs(), Src::from(0).fneg()],
                 });
             }
@@ -493,7 +495,36 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpFAdd {
                     dst: dst.into(),
                     dst_type: dst_type(NumericType::Float),
+                    round: FRound::NearestEven,
+                    clamp: FClamp::None,
                     srcs: [srcs(0), srcs(1)],
+                });
+            }
+            nir_op_fsat => {
+                b.push_op(OpFAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    round: FRound::NearestEven,
+                    clamp: FClamp::ZeroToOne,
+                    srcs: [Src::from(0).fneg(), srcs(0)],
+                });
+            }
+            nir_op_fsat_signed => {
+                b.push_op(OpFAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    round: FRound::NearestEven,
+                    clamp: FClamp::NegOneToOne,
+                    srcs: [Src::from(0).fneg(), srcs(0)],
+                });
+            }
+            nir_op_fclamp_pos => {
+                b.push_op(OpFAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    round: FRound::NearestEven,
+                    clamp: FClamp::ZeroToInf,
+                    srcs: [Src::from(0).fneg(), srcs(0)],
                 });
             }
             nir_op_feq_pan | nir_op_fge_pan | nir_op_flt_pan

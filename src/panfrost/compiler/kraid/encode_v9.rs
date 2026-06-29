@@ -670,11 +670,17 @@ impl V9Instr for OpFAdd {
     }
 
     fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
-        ptr_eq(src, &self.srcs[1]) && FaddImm::is_supported(self.dst_type, arch)
+        ptr_eq(src, &self.srcs[1])
+            && self.round == FRound::NearestEven
+            && self.clamp == FClamp::None
+            && FaddImm::is_supported(self.dst_type, arch)
     }
 
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
         if let Some(imm1w) = op_src_as_imm1w(self, &self.srcs[1]) {
+            assert!(self.round == FRound::NearestEven);
+            assert!(self.clamp == FClamp::None);
+
             e.encode(FaddImm {
                 variant: self.dst_type.try_into().unwrap(),
                 dst: op_encode_dst(self, &self.dst),
@@ -687,8 +693,8 @@ impl V9Instr for OpFAdd {
                 dst: op_encode_dst(self, &self.dst),
                 src0: op_encode_src(self, &self.srcs[0]),
                 src1: op_encode_src(self, &self.srcs[1]),
-                clamp: ClampM::None,
-                round: Round::None,
+                round: self.round.into(),
+                clamp: self.clamp.into(),
                 sticky: false.into(),
             })
         }
