@@ -256,6 +256,15 @@ enum panvk_cs_regs {
    PANVK_CS_REG_RUN_FRAGMENT_SR_START = 0,
    PANVK_CS_REG_RUN_FRAGMENT_SR_END = 55,
    PANVK_CS_REG_TILER_DESC_PTR = 58,
+
+   /* RUN_FRAGMENT2 RW staging regs. The rest are initialized to zero at
+    * command stream initialization, and should never be touched again. */
+   PANVK_CS_REG_RUN_FRAGMENT_SR_RANGE_0_START = 28,
+   PANVK_CS_REG_RUN_FRAGMENT_SR_RANGE_0_END = 47,
+   PANVK_CS_REG_RUN_FRAGMENT_SR_RANGE_1_START = 52,
+   PANVK_CS_REG_RUN_FRAGMENT_SR_RANGE_1_END = 52,
+   PANVK_CS_REG_RUN_FRAGMENT_SR_RANGE_2_START = 54,
+   PANVK_CS_REG_RUN_FRAGMENT_SR_RANGE_2_END = 55,
 #else
    /* RUN_FRAGMENT staging regs.
     * SW ABI:
@@ -265,6 +274,11 @@ enum panvk_cs_regs {
    PANVK_CS_REG_RUN_FRAGMENT_SR_START = 38,
    PANVK_CS_REG_RUN_FRAGMENT_SR_END = 46,
    PANVK_CS_REG_TILER_DESC_PTR = 58,
+
+   /* RUN_FRAGMENT RW staging regs. The rest are initialized to zero at
+    * command stream initialization, and should never be touched again. */
+   PANVK_CS_REG_RUN_FRAGMENT_SR_RANGE_0_START = 0,
+   PANVK_CS_REG_RUN_FRAGMENT_SR_RANGE_0_END = 43,
 #endif
 
    /* RUN_COMPUTE staging regs. */
@@ -445,7 +459,17 @@ panvk_cs_reg_whitelist(progress_seqno, PANVK_CS_REG_RANGE(PROGRESS_SEQNO));
 panvk_cs_reg_whitelist(compute_ctx, PANVK_CS_REG_RANGE(RUN_COMPUTE_SR));
 #define cs_update_compute_ctx(__b) panvk_cs_reg_upd_ctx(__b, compute_ctx)
 
-panvk_cs_reg_whitelist(frag_ctx, PANVK_CS_REG_RANGE(RUN_FRAGMENT_SR));
+#if PAN_ARCH >= 14
+#define PANVK_RUN_FRAG_SR_WHITELIST_RANGES                                     \
+   PANVK_CS_REG_RANGE(RUN_FRAGMENT_SR_RANGE_0),                                \
+      PANVK_CS_REG_RANGE(RUN_FRAGMENT_SR_RANGE_1),                             \
+      PANVK_CS_REG_RANGE(RUN_FRAGMENT_SR_RANGE_2)
+#else
+#define PANVK_RUN_FRAG_SR_WHITELIST_RANGES                                     \
+   PANVK_CS_REG_RANGE(RUN_FRAGMENT_SR_RANGE_0)
+#endif
+
+panvk_cs_reg_whitelist(frag_ctx, PANVK_RUN_FRAG_SR_WHITELIST_RANGES);
 #define cs_update_frag_ctx(__b) panvk_cs_reg_upd_ctx(__b, frag_ctx)
 
 panvk_cs_reg_whitelist(vt_ctx, PANVK_CS_REG_RANGE(RUN_IDVS_SR));
