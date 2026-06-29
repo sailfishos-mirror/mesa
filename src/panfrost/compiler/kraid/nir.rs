@@ -531,6 +531,15 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0).fabs(), Src::from(0).fneg()],
                 });
             }
+            nir_op_fneg => {
+                b.push_op(OpFAdd {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    round: FRound::NearestEven,
+                    clamp: FClamp::None,
+                    srcs: [srcs(0).fneg(), Src::from(0).fneg()],
+                });
+            }
             nir_op_fadd => {
                 b.push_op(OpFAdd {
                     dst: dst.into(),
