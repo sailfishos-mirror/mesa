@@ -22,6 +22,7 @@
 #include "drm-uapi/virtgpu_drm.h"
 #include "util/os_file.h"
 #include "util/sparse_array.h"
+#include "util/u_sync_provider.h"
 
 #include "vn_renderer_internal.h"
 #include "vn_renderer_sim_syncobj.h"
@@ -90,6 +91,8 @@ struct virtgpu {
    struct vn_renderer_shmem_cache shmem_cache;
 
    bool supports_cross_device;
+
+   struct util_sync_provider *sync;
 };
 
 static inline int
@@ -318,12 +321,10 @@ virtgpu_ioctl_syncobj_create(struct virtgpu *gpu, bool signaled)
    return sim_syncobj_create(signaled);
 #endif
 
-   struct drm_syncobj_create args = {
-      .flags = signaled ? DRM_SYNCOBJ_CREATE_SIGNALED : 0,
-   };
-
-   const int ret = virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_CREATE, &args);
-   return ret ? 0 : args.handle;
+   const uint32_t flags = signaled ? DRM_SYNCOBJ_CREATE_SIGNALED : 0;
+   uint32_t syncobj_handle;
+   int ret = gpu->sync->create(gpu->sync, flags, &syncobj_handle);
+   return ret ? 0 : syncobj_handle;
 }
 
 static void
@@ -334,13 +335,7 @@ virtgpu_ioctl_syncobj_destroy(struct virtgpu *gpu, uint32_t syncobj_handle)
    return;
 #endif
 
-   struct drm_syncobj_destroy args = {
-      .handle = syncobj_handle,
-   };
-
-   ASSERTED const int ret =
-      virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_DESTROY, &args);
-   assert(!ret);
+   gpu->sync->destroy(gpu->sync, syncobj_handle);
 }
 
 static int
@@ -352,17 +347,13 @@ virtgpu_ioctl_syncobj_handle_to_fd(struct virtgpu *gpu,
    return sync_file ? sim_syncobj_export(syncobj_handle) : -1;
 #endif
 
-   struct drm_syncobj_handle args = {
-      .handle = syncobj_handle,
-      .flags =
-         sync_file ? DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE : 0,
-   };
+   int ret, fd;
+   if (sync_file)
+      ret = gpu->sync->export_sync_file(gpu->sync, syncobj_handle, &fd);
+   else
+      ret = gpu->sync->handle_to_fd(gpu->sync, syncobj_handle, &fd);
 
-   int ret = virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD, &args);
-   if (ret)
-      return -1;
-
-   return args.fd;
+   return ret ? -1 : fd;
 }
 
 static uint32_t
@@ -374,18 +365,13 @@ virtgpu_ioctl_syncobj_fd_to_handle(struct virtgpu *gpu,
    return syncobj_handle ? sim_syncobj_import(syncobj_handle, fd) : 0;
 #endif
 
-   struct drm_syncobj_handle args = {
-      .handle = syncobj_handle,
-      .flags =
-         syncobj_handle ? DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE : 0,
-      .fd = fd,
-   };
+   int ret;
+   if (syncobj_handle)
+      ret = gpu->sync->import_sync_file(gpu->sync, syncobj_handle, fd);
+   else
+      ret = gpu->sync->fd_to_handle(gpu->sync, fd, &syncobj_handle);
 
-   int ret = virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE, &args);
-   if (ret)
-      return 0;
-
-   return args.handle;
+   return ret ? 0 : syncobj_handle;
 }
 
 static int
@@ -395,12 +381,7 @@ virtgpu_ioctl_syncobj_reset(struct virtgpu *gpu, uint32_t syncobj_handle)
    return sim_syncobj_reset(syncobj_handle);
 #endif
 
-   struct drm_syncobj_array args = {
-      .handles = (uintptr_t)&syncobj_handle,
-      .count_handles = 1,
-   };
-
-   return virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_RESET, &args);
+   return gpu->sync->reset(gpu->sync, &syncobj_handle, 1);
 }
 
 static int
@@ -412,13 +393,7 @@ virtgpu_ioctl_syncobj_query(struct virtgpu *gpu,
    return sim_syncobj_query(syncobj_handle, point);
 #endif
 
-   struct drm_syncobj_timeline_array args = {
-      .handles = (uintptr_t)&syncobj_handle,
-      .points = (uintptr_t)point,
-      .count_handles = 1,
-   };
-
-   return virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_QUERY, &args);
+   return gpu->sync->query(gpu->sync, &syncobj_handle, point, 1, 0);
 }
 
 static int
@@ -430,13 +405,7 @@ virtgpu_ioctl_syncobj_timeline_signal(struct virtgpu *gpu,
    return sim_syncobj_signal(syncobj_handle, point);
 #endif
 
-   struct drm_syncobj_timeline_array args = {
-      .handles = (uintptr_t)&syncobj_handle,
-      .points = (uintptr_t)&point,
-      .count_handles = 1,
-   };
-
-   return virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_TIMELINE_SIGNAL, &args);
+   return gpu->sync->timeline_signal(gpu->sync, &syncobj_handle, &point, 1);
 }
 
 static int
@@ -457,15 +426,13 @@ virtgpu_ioctl_syncobj_timeline_wait(struct virtgpu *gpu,
    for (uint32_t i = 0; i < wait->sync_count; i++)
       syncobj_handles[i] = wait->syncs[i]->syncobj_handle;
 
-   struct drm_syncobj_timeline_wait args = {
-      .handles = (uintptr_t)syncobj_handles,
-      .points = (uintptr_t)wait->sync_values,
-      .timeout_nsec = os_time_get_absolute_timeout(wait->timeout),
-      .count_handles = wait->sync_count,
-      .flags = flags,
-   };
+   /* syncobj timeout is signed */
+   uint64_t abs_timeout_ns = os_time_get_absolute_timeout(wait->timeout);
+   abs_timeout_ns = MIN2(abs_timeout_ns, (uint64_t)INT64_MAX);
 
-   const int ret = virtgpu_ioctl(gpu, DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT, &args);
+   int ret = gpu->sync->timeline_wait(
+      gpu->sync, syncobj_handles, (uint64_t *)wait->sync_values,
+      wait->sync_count, abs_timeout_ns, flags, NULL);
 
    STACK_ARRAY_FINISH(syncobj_handles);
 
@@ -1073,6 +1040,9 @@ virtgpu_destroy(struct vn_renderer *renderer,
 
    vn_renderer_shmem_cache_fini(&gpu->shmem_cache);
 
+   if (gpu->sync)
+      gpu->sync->finalize(gpu->sync);
+
    if (gpu->fd >= 0)
       close(gpu->fd);
 
@@ -1108,6 +1078,20 @@ virtgpu_init_shmem_blob_mem(ASSERTED struct virtgpu *gpu)
     */
    assert(gpu->capset.data.supports_blob_id_0);
    gpu->shmem_blob_mem = VIRTGPU_BLOB_MEM_HOST3D;
+}
+
+static inline void
+virtgpu_init_sync_provider(struct virtgpu *gpu)
+{
+   /* Without virtgpu syncobj uAPI support (before 6.6 kernel), fallback to
+    * simulated syncobj. Here we rely on util_sync_provider::timeline_signal
+    * being conditioned upon DRM_CAP_SYNCOBJ_TIMELINE.
+    */
+   gpu->sync = util_sync_provider_drm(gpu->fd);
+   if (!gpu->sync->timeline_signal) {
+      gpu->sync->finalize(gpu->sync);
+      gpu->sync = NULL;
+   }
 }
 
 static VkResult
@@ -1336,6 +1320,7 @@ virtgpu_init(struct virtgpu *gpu)
       return result;
 
    virtgpu_init_shmem_blob_mem(gpu);
+   virtgpu_init_sync_provider(gpu);
 
    vn_renderer_shmem_cache_init(&gpu->shmem_cache, &gpu->base,
                                 virtgpu_shmem_destroy_now);
