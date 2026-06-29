@@ -1254,7 +1254,7 @@
         "description": "freedreno/drm: Fix uninitialized read of BO metadata on import",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "68c53ec2c2b6e898f7e93c8e79f1b91d95ac07de",
         "notes": null
