@@ -666,7 +666,7 @@ glXSwapBuffers(Display * dpy, GLXDrawable drawable)
 
    gc = __glXGetCurrentContext();
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    {
       __GLXDRIdrawable *pdraw = GetGLXDRIDrawable(dpy, drawable);
 
