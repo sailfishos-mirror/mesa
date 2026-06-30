@@ -300,7 +300,6 @@ spec@glsl-1.30@execution@glsl-packed-back-color,Fail
 api@clgetcommandqueueinfo,Fail
 api@clgetextensionfunctionaddressforplatform,Fail
 api@clgetkernelarginfo,Fail
-api@clgetmemobjectinfo,Fail
 api@cllinkprogram,Fail
 api@clsetkernelarg,Fail
 api@clsetkernelarg@Input checks,Fail
