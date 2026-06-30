@@ -67,12 +67,12 @@ __instruction_case(struct encode_state *s, const struct qrisc_instr *instr)
 int gpuver;
 
 /* bit lame to hard-code max but fw sizes are small */
-static struct qrisc_instr instructions[0x4000];
+static struct qrisc_instr instructions[0x8000];
 static unsigned num_instructions;
 
 static unsigned instr_offset;
 
-static struct asm_label labels[0x512];
+static struct asm_label labels[0x1000];
 static unsigned num_labels;
 
 static int outfd;
