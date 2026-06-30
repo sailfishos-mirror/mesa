@@ -915,7 +915,7 @@ release_last_device_memory(struct u_trace *ut, enum u_trace_buffer_list_index li
 {
    struct util_dynarray *list = &ut->buffers[list_index];
 
-   uint32_t buffer_count = util_dynarray_num_elements(list, struct u_trace_buffer);
+   ASSERTED uint32_t buffer_count = util_dynarray_num_elements(list, struct u_trace_buffer);
    assert(view.buffer_index == buffer_count - 1);
 
    struct u_trace_buffer *last = util_dynarray_last_ptr(list, struct u_trace_buffer);
