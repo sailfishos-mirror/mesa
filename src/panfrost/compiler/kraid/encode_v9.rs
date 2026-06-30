@@ -1064,6 +1064,27 @@ impl V9Instr for OpFCmp {
     }
 }
 
+impl V9Instr for OpFExp32 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Fexp::get_info(FexpVariant::F32, arch),
+            src_map! {
+                src0: expx,
+                src1: expf,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Fexp {
+            variant: FexpVariant::F32,
+            dst: op_encode_dst(self, &self.dst),
+            src0: Some(op_encode_src(self, &self.expx)),
+            src1: op_encode_src(self, &self.expf),
+        })
+    }
+}
+
 impl From<FlushNanMode> for FlushNanM {
     fn from(value: FlushNanMode) -> Self {
         match value {
@@ -1115,6 +1136,34 @@ impl V9Instr for OpFma {
             src0: op_encode_src(self, &self.srcs[0]),
             src1: op_encode_src(self, &self.srcs[1]),
             src2: op_encode_src(self, &self.srcs[2]),
+            clamp: self.clamp.into(),
+            round: self.round.into(),
+        })
+    }
+}
+
+impl V9Instr for OpFmaRScale {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            FmaRscale::get_info(FmaRscaleVariant::F32, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+                src2: srcs[2],
+                src3: scale,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(FmaRscale {
+            variant: FmaRscaleVariant::F32,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            src2: op_encode_src(self, &self.srcs[2]),
+            src3: op_encode_src(self, &self.scale),
+            special: FmaRscaleSpecial32M::None,
             clamp: self.clamp.into(),
             round: self.round.into(),
         })
@@ -2420,8 +2469,10 @@ macro_rules! v9_op_match_else {
             Op::F32ToI32($x) => $y,
             Op::FAdd($x) => $y,
             Op::FCmp($x) => $y,
+            Op::FExp32($x) => $y,
             Op::Flush($x) => $y,
             Op::Fma($x) => $y,
+            Op::FmaRScale($x) => $y,
             Op::FMax($x) => $y,
             Op::FMin($x) => $y,
             Op::FMul($x) => $y,

@@ -890,6 +890,33 @@ impl PerCompFoldable for OpFCmp {
     }
 }
 
+/// Performs 2^x
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFExp32 {
+    #[dst_type(F32)]
+    pub dst: Dst,
+
+    /// Exponent as a 8.24-bit fixed-point value
+    #[src_type(I32)]
+    pub expx: Src,
+    /// Original floating-point input, only used for NaN propagation
+    #[src_type(F32)]
+    pub expf: Src,
+}
+
+impl fmt::Display for OpFExp32 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FEXP.f32 {} {}",
+            &self.dst,
+            self.fmt_src(&self.expx),
+            self.fmt_src(&self.expf),
+        )
+    }
+}
+
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 pub enum FlushNanMode {
     #[default]
@@ -962,6 +989,36 @@ impl fmt::Display for OpFma {
             self.fmt_src(&self.srcs[0]),
             self.fmt_src(&self.srcs[1]),
             self.fmt_src(&self.srcs[2]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFmaRScale {
+    #[dst_type(F32)]
+    pub dst: Dst,
+    // Only supports NearestEven and TowardsZero
+    pub round: FRound,
+    pub clamp: FClamp,
+    #[src_type(F32)]
+    pub srcs: [Src; 3],
+    #[src_type(S32)]
+    pub scale: Src,
+}
+
+impl fmt::Display for OpFmaRScale {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FMA_RSCALE.f32{}{} {} {} {} {}",
+            &self.dst,
+            self.round,
+            self.clamp,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+            self.fmt_src(&self.srcs[2]),
+            self.fmt_src(&self.scale),
         )
     }
 }
@@ -2802,8 +2859,10 @@ pub enum Op {
     F32ToI32(Box<OpF32ToI32>),
     FAdd(Box<OpFAdd>),
     FCmp(Box<OpFCmp>),
+    FExp32(Box<OpFExp32>),
     Flush(Box<OpFlush>),
     Fma(Box<OpFma>),
+    FmaRScale(Box<OpFmaRScale>),
     FMax(Box<OpFMax>),
     FMin(Box<OpFMin>),
     FMul(Box<OpFMul>),

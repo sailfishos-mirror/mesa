@@ -183,6 +183,37 @@ pub trait SSABuilder: Builder + AllocSSA {
         }
         dst_vec
     }
+
+    /// Computes base**arg
+    fn fexp_32_to(&mut self, dst: Dst, arg: Src, log2_base: Src) {
+        // OpFExp actually expects the scale as a fixed-point 24.8 input
+        let scale = self.alloc_ssa(32);
+
+        // So first scale by 2^24
+        self.push_op(OpFmaRScale {
+            dst: scale.into(),
+            round: FRound::NearestEven,
+            clamp: FClamp::None,
+            srcs: [arg.clone(), log2_base, Src::fneg_zero(32)],
+            scale: 24.into(),
+        });
+
+        // Convert to int
+        let scale_fixp = self.alloc_ssa(32);
+        self.push_op(OpF32ToI32 {
+            dst: scale_fixp.into(),
+            dst_type: DataType::S32,
+            src: scale.into(),
+            round: FRound::NearestEven,
+        });
+
+        // Then to the real fexp, keeping the original for NaN handling
+        self.push_op(OpFExp32 {
+            dst,
+            expx: scale_fixp.into(),
+            expf: arg,
+        });
+    }
 }
 
 impl<T: Builder + AllocSSA> SSABuilder for T {}

@@ -788,6 +788,11 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0),
                 });
             }
+            nir_op_fexp2 => {
+                // TODO: wire up fexp2.f16
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.fexp_32_to(dst.into(), srcs(0), (1.0).into());
+            }
             nir_op_frexp_exp => {
                 assert!(alu.get_src(0).bit_size() == 32);
                 b.push_op(OpFrexpE {

@@ -1,4 +1,6 @@
 use core::fmt;
+use std::f32::consts::E;
+use std::ops::Range;
 use std::sync::OnceLock;
 use std::{io, iter, slice};
 
@@ -1033,6 +1035,115 @@ fn test_op_shift_lop() {
                     }
                 }
             }
+        }
+    }
+}
+
+mod builder {
+    use super::*;
+
+    #[derive(Clone, Copy)]
+    enum FPrecision {
+        Ulp(u32),
+        Abs(f32),
+    }
+
+    fn ulp_dist(a: f32, b: f32) -> u32 {
+        let ulp_key = |x: f32| {
+            let sign_bit = 1 << 31;
+            let bits = x.to_bits();
+            if bits & sign_bit != 0 {
+                !bits
+            } else {
+                bits ^ sign_bit
+            }
+        };
+
+        ulp_key(a).abs_diff(ulp_key(b))
+    }
+
+    fn cmp_eq_f32(real: f32, expected: f32, prec: FPrecision) -> bool {
+        if real.is_nan() || expected.is_nan() {
+            return real.is_nan() && expected.is_nan();
+        }
+        match prec {
+            FPrecision::Ulp(ulps) => {
+                if (real - expected).abs() < f32::MIN_POSITIVE {
+                    return true; // ftz
+                }
+                ulp_dist(real, expected) < ulps
+            }
+            FPrecision::Abs(prec) => (real - expected).abs() < prec,
+        }
+    }
+
+    // `assert_feq!(expected, hardware, prec, "msg {..}")`
+    macro_rules! assert_feq {
+        ($expected:expr, $hardware:expr, $prec:expr, $($fmt:tt)+) => {{
+            if !cmp_eq_f32($expected, $hardware, $prec) {
+                panic!(
+                    "Test {} failed\nExpected: {}\nHardware: {}",
+                    format_args!($($fmt)+), $expected, $hardware
+                );
+            }
+        }};
+    }
+
+    fn sample_f32_range(rng: &mut Acorn, range: Range<f32>) -> f32 {
+        let t = (rng.get_u32() as f64 / u32::MAX as f64) as f32;
+        t * (range.end - range.start) + range.start
+    }
+
+    #[test]
+    fn test_fexp() {
+        // Vulkan Environment for SPIR-V requires an absolute precision of
+        // 3 + 2*|x| ULP
+        const BASE_RANGE: Range<f32> = 0.0..10.0;
+        const RANGE: Range<f32> = -150.0..150.0;
+
+        let run = RunSingleton::get();
+        let shader = {
+            let mut b = TestShaderBuilder::new(&*run.model);
+            let log2_base = b.ld_test_data(0, 32);
+            let input = b.ld_test_data(4, 32);
+
+            let dst = b.alloc_ssa(32);
+            b.fexp_32_to(dst.into(), input.into(), log2_base.into());
+            b.st_test_data(8, dst.into());
+
+            b.compile()
+        };
+
+        let mut rng = Acorn::new();
+        let exp_case =
+            |base: f32, num: f32| [base.log2().to_bits(), num.to_bits(), 0];
+        // Notable cases
+        let mut data = vec![
+            exp_case(1.0, 0.0),
+            exp_case(2.0, 0.0),
+            exp_case(2.0, 1.0),
+            exp_case(2.0, 2.0),
+            exp_case(4.0, 2.0),
+            exp_case(2.0, -1.0),
+            exp_case(2.0, -2.0),
+            exp_case(E, 2.0),
+        ];
+
+        for _ in 0..1000 {
+            let a = sample_f32_range(&mut rng, BASE_RANGE);
+            let b = sample_f32_range(&mut rng, RANGE);
+            data.push([a.to_bits(), b.to_bits(), 0]);
+        }
+
+        let case = shader.with_args(FAU_ONLY_ARGS, &mut data);
+        run.execute(case);
+        for arr in data {
+            let [base_log2, arg, res] = arr.map(f32::from_bits);
+            let comp = (base_log2 * arg).exp2();
+
+            let ulps = 3 + 2 * ((base_log2 * arg).abs() as u32);
+            let prec = FPrecision::Ulp(ulps);
+            assert_feq!(comp, res, prec, "fexp({base_log2}, {arg})");
         }
     }
 }
