@@ -788,6 +788,37 @@ impl FromIterator<usize> for BitSet {
     }
 }
 
+impl<K> PartialEq<BitSet<K>> for BitSet<K> {
+    fn eq(&self, other: &BitSet<K>) -> bool {
+        if self.words.len() <= other.words.len() {
+            for i in 0..self.words.len() {
+                if self.words[i] != other.words[i] {
+                    return false;
+                }
+            }
+            for i in self.words.len()..other.words.len() {
+                if other.words[i] != 0 {
+                    return false;
+                }
+            }
+        } else {
+            for i in 0..other.words.len() {
+                if self.words[i] != other.words[i] {
+                    return false;
+                }
+            }
+            for i in other.words.len()..self.words.len() {
+                if self.words[i] != 0 {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
+impl<K> Eq for BitSet<K> {}
+
 #[expect(clippy::len_without_is_empty)]
 pub trait BitSetStreamTrait {
     /// Get the next word
@@ -1179,6 +1210,22 @@ mod tests {
             }
             assert_eq!(set.next_unset(test_range.start), test_range.end);
         }
+    }
+
+    #[test]
+    fn test_eq() {
+        let a: BitSet<usize> = [15, 31, 64].into_iter().collect();
+        let mut b: BitSet<usize> = Default::default();
+        assert!(a != b);
+        b.insert(15);
+        b.insert(31);
+        assert!(a != b);
+        b.insert(64);
+        assert!(a == b);
+        b.insert(206);
+        assert!(a != b);
+        b.remove(206);
+        assert!(a == b);
     }
 
     #[test]
