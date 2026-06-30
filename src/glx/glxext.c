@@ -29,7 +29,7 @@
 
 #include "util/u_debug.h"
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
 #include "dri_common.h"
 #endif
 
@@ -43,7 +43,7 @@
 #include <xcb/glx.h>
 #include "dri_util.h"
 #include "pipe/p_screen.h"
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
 #include <dlfcn.h>
 #endif
 
@@ -247,7 +247,7 @@ FreeScreenConfigs(struct glx_display * priv)
    priv->screens = NULL;
 }
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
 static void
 free_zombie_glx_drawable(struct set_entry *entry)
 {
@@ -272,7 +272,7 @@ glx_display_free(struct glx_display *priv)
    }
 
    /* Needs to be done before free screen. */
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    _mesa_set_destroy(priv->zombieGLXDrawable, free_zombie_glx_drawable);
 #endif
 
@@ -280,12 +280,12 @@ glx_display_free(struct glx_display *priv)
 
    __glxHashDestroy(priv->glXDrawHash);
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    __glxHashDestroy(priv->drawHash);
    if (priv->dri2Hash)
       __glxHashDestroy(priv->dri2Hash);
 
-#endif /* GLX_DIRECT_RENDERING && (!GLX_USE_APPLEGL || GLX_USE_APPLE) */
+#endif /* GLX_DIRECT_RENDERING */
 
    free((char *) priv);
 }
@@ -725,7 +725,7 @@ glx_screen_cleanup(struct glx_screen *psc)
       glx_config_destroy_list(psc->visuals);
       psc->visuals = NULL;   /* NOTE: just for paranoia */
    }
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    if (psc->driver_configs) {
       driDestroyConfigs(psc->driver_configs);
       psc->driver_configs = NULL;
@@ -742,7 +742,7 @@ bind_extensions(struct glx_screen *psc, const char *driverName)
 {
    unsigned mask;
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    /* Some implementations (eg: AppleGL) never populate frontend_screen. */
    if (psc->frontend_screen == NULL)
       return;
@@ -781,7 +781,7 @@ bind_extensions(struct glx_screen *psc, const char *driverName)
       __glXEnableDirectExtension(psc, "GLX_INTEL_swap_event");
    }
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    mask = driGetAPIMask(psc->frontend_screen);
 
    __glXEnableDirectExtension(psc, "GLX_ARB_create_context");
@@ -893,17 +893,14 @@ AllocAndFetchScreenConfigs(Display * dpy, struct glx_display * priv, enum glx_dr
       }
 #endif
 
-#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
       if (psc == NULL &&
           (glx_driver & GLX_DRIVER_SW || zink)) {
 	      psc = driswCreateScreen(i, priv, glx_driver, driver_name_is_inferred);
       }
-#endif
 #endif /* GLX_DIRECT_RENDERING */
 
       bool indirect = false;
 
-#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
       if (psc == NULL && !zink)
       {
 #ifdef GLX_INDIRECT_RENDERING
@@ -911,7 +908,6 @@ AllocAndFetchScreenConfigs(Display * dpy, struct glx_display * priv, enum glx_dr
 #endif
          indirect = true;
       }
-#endif
       priv->screens[i] = psc;
       if (psc)
          screen_count++;
@@ -984,7 +980,7 @@ __glXInitialize(Display * dpy)
    enum glx_driver glx_driver = 0;
    const char *env = os_get_option("MESA_LOADER_DRIVER_OVERRIDE");
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    Bool glx_direct = !debug_get_bool_option("LIBGL_ALWAYS_INDIRECT", false);
 #if !defined(GLX_USE_APPLEGL)
    Bool glx_accel = !debug_get_bool_option("LIBGL_ALWAYS_SOFTWARE", false);
@@ -1067,17 +1063,11 @@ __glXInitialize(Display * dpy)
       }
    }
 #endif
-
-#endif /* GLX_DIRECT_RENDERING && (!GLX_USE_APPLEGL || GLX_USE_APPLE) */
-
-#if defined(GLX_USE_APPLEGL) && !defined(GLX_USE_APPLE)
-   glx_driver |= GLX_DRIVER_APPLEGL;
-   glx_driver |= GLX_DRIVER_SW;
-#endif
+#endif /* GLX_DIRECT_RENDERING */
 
    if (!AllocAndFetchScreenConfigs(dpy, dpyPriv, glx_driver, !env)) {
       Bool fail = True;
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
       if (glx_driver & GLX_DRIVER_ZINK_INFER) {
          fail = !AllocAndFetchScreenConfigs(dpy, dpyPriv, GLX_DRIVER_SW, true);
       }
@@ -1107,7 +1097,7 @@ __glXInitialize(Display * dpy)
 
    return dpyPriv;
 init_fail:
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    _mesa_set_destroy(dpyPriv->zombieGLXDrawable, free_zombie_glx_drawable);
    __glxHashDestroy(dpyPriv->drawHash);
 #endif

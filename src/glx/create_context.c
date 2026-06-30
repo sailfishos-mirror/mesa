@@ -98,7 +98,7 @@ glXCreateContextAttribsARB(Display *dpy, GLXFBConfig config,
       attrib_list = malloc(sizeof(int) * num_attribs * 2);
 
       uint8_t clear_ctx_reset_isolation_bit = false;
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
       /* Some implementations (eg: AppleGL) never populate frontend_screen. */
       if (psc->frontend_screen != NULL)
          dri2GalliumConfigQueryb(psc->frontend_screen,
@@ -131,7 +131,7 @@ glXCreateContextAttribsARB(Display *dpy, GLXFBConfig config,
                       (const uint32_t *) attrib_list,
                       &error);
    } else if (!direct) {
-#if defined(GLX_INDIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_INDIRECT_RENDERING)
       gc = indirect_create_context_attribs(psc, cfg, share, num_attribs,
                                            (const uint32_t *) attrib_list,
                                            &error);

@@ -79,7 +79,7 @@ extern void DRI_glXUseXFont(struct glx_context *ctx,
 
 #endif
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
 
 /**
  * Display dependent methods.  This structure is initialized during the
@@ -141,7 +141,7 @@ extern __GLXDRIdisplay *dri3_create_display(Display * dpy);
 extern __GLXDRIdisplay *driwindowsCreateDisplay(Display * dpy);
 
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
 struct glx_screen *dri3_create_screen(int screen, struct glx_display * priv, bool driver_name_is_inferred, bool *return_zink);
 void dri3_destroy_display(__GLXDRIdisplay * dpy);
 
@@ -545,7 +545,7 @@ struct glx_screen
 
    char *driverName;
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
     /**
      * Per screen direct rendering interface functions and data.
      */
@@ -616,7 +616,7 @@ struct glx_display
 
    __glxHashTable *glXDrawHash;
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
    __glxHashTable *drawHash;
 
    /**
@@ -646,7 +646,7 @@ glx_screen_init(struct glx_screen *psc,
 extern void
 glx_screen_cleanup(struct glx_screen *psc);
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
 extern __GLXDRIdrawable *
 dri2GetGlxDrawableFromXDrawableId(Display *dpy, XID id);
 #endif
@@ -800,7 +800,7 @@ extern GLboolean __glXGetMscRateOML(Display * dpy, GLXDrawable drawable,
                                     int32_t * numerator,
                                     int32_t * denominator);
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
 extern GLboolean
 __glxGetMscRate(struct glx_screen *psc,
 		int32_t * numerator, int32_t * denominator);

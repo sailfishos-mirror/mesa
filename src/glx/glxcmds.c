@@ -34,7 +34,7 @@
 #include "GL/mesa_glinterop.h"
 #include "dri_util.h"
 
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_DIRECT_RENDERING)
 
 /**
  * Get the struct dri_drawable for the drawable associated with a GLXContext
@@ -318,7 +318,7 @@ CreateContext(Display *dpy, int generic_id, struct glx_config *config,
    gc = NULL;
    if (allowDirect && psc->vtable->create_context)
       gc = psc->vtable->create_context(psc, config, shareList, renderType);
-#if defined(GLX_INDIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#if defined(GLX_INDIRECT_RENDERING)
    if (!gc)
       gc = indirect_create_context(psc, config, shareList, renderType);
 #endif
