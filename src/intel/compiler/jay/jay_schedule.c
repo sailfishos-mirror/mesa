@@ -39,6 +39,11 @@
 #include "jay_opcodes.h"
 #include "jay_private.h"
 
+/* Bitfield describing a scheduler policy */
+enum sched_mode {
+   PRESSURE = 0x4,
+};
+
 struct sched_block {
    uint32_t first, last;
    int32_t max_pressure;
@@ -196,31 +201,34 @@ adjust_demand_after(struct sched_ctx *ctx, jay_inst *I, signed *demand)
 }
 
 static int32_t
-choose_inst(struct sched_ctx *s)
+choose_inst(struct sched_ctx *s, enum sched_mode mode)
 {
+   unsigned pressure_weight = (mode & PRESSURE) ? 1 : 0;
+
    int32_t min_score = INT32_MAX;
    int32_t best = -1;
 
    util_dynarray_foreach(&s->it.heads, uint32_t, head) {
       jay_inst *I = s->insts[*head];
       int32_t score = 0;
+      if (pressure_weight) {
+         /* To minimize pressure, consider the effect on liveness. */
+         int32_t deltas[JAY_NUM_SSA_FILES] = { 0 };
+         adjust_demand_after(s, I, deltas);
+         adjust_demand_before(s, I, deltas);
+         int32_t delta = weighted_demand(s, deltas);
 
-      /* To minimize pressure, consider the effect on liveness. */
-      int32_t deltas[JAY_NUM_SSA_FILES] = { 0 };
-      adjust_demand_after(s, I, deltas);
-      adjust_demand_before(s, I, deltas);
-      int32_t delta = weighted_demand(s, deltas);
+         /* As a tiebreaker (only), sink flag writes to reduce specifically flag
+          * pressure, because spilling flags costs extra instructions and GPR
+          * pressure. This is a mildly positive heuristic.
+          */
+         delta *= 2;
+         if (jay_is_null(I->cond_flag)) {
+            delta++;
+         }
 
-      /* As a tiebreaker (only), sink flag writes to reduce specifically flag
-       * pressure, because spilling flags costs extra instructions and GPR
-       * pressure. This is a mildly positive heuristic.
-       */
-      delta *= 2;
-      if (jay_is_null(I->cond_flag)) {
-         delta++;
+         score += delta * pressure_weight;
       }
-
-      score += delta;
 
       if (score <= min_score) {
          best = *head;
@@ -282,7 +290,10 @@ gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
 }
 
 static void
-schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
+schedule_block(jay_block *block,
+               struct sched_ctx *s,
+               void *memctx,
+               enum sched_mode mode)
 {
    s->it.dag = &s->dag;
    jay_dag_iterate(&s->it, s->blocks[block->index].first,
@@ -297,7 +308,7 @@ schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
    }
 
    while (s->it.heads.size) {
-      int32_t node = choose_inst(s);
+      int32_t node = choose_inst(s, mode);
 
       if (s->phase < POSTRA) {
          adjust_demand_after(s, s->insts[node], s->demand);
@@ -378,7 +389,7 @@ pass(jay_function *f)
          if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >=
              (120 * ugpr_per_grf)) {
             f->prioritize_pressure = true;
-            schedule_block(block, &sctx, memctx);
+            schedule_block(block, &sctx, memctx, PRESSURE);
          }
       }
    }
