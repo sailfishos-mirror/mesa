@@ -686,6 +686,33 @@ impl fmt::Display for OpFAdd {
     }
 }
 
+/// Fadd with log-friendly input
+/// src1 is scaled until it lies in the range [0.75, 1.5)
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFAddLScale {
+    #[dst_type(F32)]
+    pub dst: Dst,
+    pub round: FRound,
+    pub clamp: FClamp,
+    #[src_type(F32)]
+    pub srcs: [Src; 2],
+}
+
+impl fmt::Display for OpFAddLScale {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FADD_LSCALE.f32{}{} {} {}",
+            &self.dst,
+            self.round,
+            self.clamp,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum CmpAccumOp {
     None,
@@ -2858,6 +2885,7 @@ pub enum Op {
     F32ToF16(Box<OpF32ToF16>),
     F32ToI32(Box<OpF32ToI32>),
     FAdd(Box<OpFAdd>),
+    FAddLScale(Box<OpFAddLScale>),
     FCmp(Box<OpFCmp>),
     FExp32(Box<OpFExp32>),
     Flush(Box<OpFlush>),

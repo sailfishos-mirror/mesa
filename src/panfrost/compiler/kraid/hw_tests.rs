@@ -371,6 +371,67 @@ fn test_copy_large() {
     assert_eq!(&data[..READ_SIZE], &data[READ_SIZE..]);
 }
 
+#[test]
+fn test_fadd_lscale() {
+    // The hardware docs tell that src1 is scaled to the range [0.5, 1.75)
+    // how is this scaled exactly?
+    // TODO: convert to Foldable test when we add proper float Foldables
+    let run = RunSingleton::get();
+    let shader = {
+        let mut b = TestShaderBuilder::new(&*run.model);
+        let data = b.ld_test_data(0, 32);
+
+        let res = b.alloc_ssa(32);
+        b.push_op(OpFAddLScale {
+            dst: res.into(),
+            round: FRound::NearestEven,
+            clamp: FClamp::None,
+            srcs: [Src::from(0).fneg(), data.into()],
+        });
+
+        b.st_test_data(4, res.into());
+        b.compile()
+    };
+
+    let case_fn = |c: f32| [c.to_bits(), 0];
+    let mut data = vec![
+        case_fn(1.0),
+        case_fn(-1.0),
+        case_fn(1.5),
+        case_fn(0.75),
+        case_fn(3.0),
+        case_fn(-3.0),
+        case_fn(0.0),
+        case_fn(-0.0),
+        case_fn(10.0),
+        case_fn(-10.0),
+        case_fn(-10.0),
+        case_fn(PI),
+        case_fn(-PI),
+        case_fn(f32::from_bits(1)), // Denormals
+        case_fn(f32::INFINITY),
+        case_fn(-f32::INFINITY),
+    ];
+
+    let case = shader.with_args(FAU_ONLY_ARGS, &mut data);
+    run.execute(case);
+
+    fn model(x: f32) -> f32 {
+        if !x.is_normal() {
+            return x;
+        }
+        // Force exponent to 0
+        let m = f32::from_bits((x.to_bits() & 0x807fffff) | 0x3f800000);
+        // Mantissa is (by construction) in [1.0, 2.0), half it if too large
+        if m.abs() >= 1.5 { m * 0.5 } else { m }
+    }
+
+    for data in &data {
+        let [input, res] = data.map(f32::from_bits);
+        assert_eq!(res, model(input), "Failed for {input}");
+    }
+}
+
 fn parse_folded(folded: &mut [u64], words: &[u32], types: DataTypeIter) {
     let mut offset = 0;
     for (comp, dtype) in folded.iter_mut().zip(types) {
