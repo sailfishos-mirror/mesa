@@ -162,7 +162,7 @@ calculate_pressure_delta_before(struct sched_ctx *ctx, jay_inst *I)
 
    /* Make destinations live */
    jay_foreach_dst(I, dst) {
-      delta += jay_num_values(dst) * scale(ctx, dst);
+      delta -= jay_num_values(dst) * scale(ctx, dst);
    }
 
    return delta;
@@ -178,7 +178,7 @@ calculate_pressure_delta_after(struct sched_ctx *ctx, jay_inst *I)
     * immediately after the instruction finishes.
     */
    jay_foreach_dst_index(I, _, index) {
-      delta -= !u_sparse_bitset_test(&ctx->live, index) * scale(ctx, I->dst);
+      delta += !u_sparse_bitset_test(&ctx->live, index) * scale(ctx, I->dst);
    }
 
    /* Late-kill sources. We precomputed the deduplication info and stashed it in
@@ -186,7 +186,7 @@ calculate_pressure_delta_after(struct sched_ctx *ctx, jay_inst *I)
     */
    jay_foreach_src_index(I, s, c, index) {
       if (BITSET_TEST(I->last_use, counter)) {
-         delta -=
+         delta +=
             !u_sparse_bitset_test(&ctx->live, index) * scale(ctx, I->src[s]);
       }
 
@@ -208,8 +208,8 @@ choose_inst(struct sched_ctx *s)
 
    util_dynarray_foreach(&s->it.heads, uint32_t, head) {
       jay_inst *I = s->insts[*head];
-      int32_t delta = -(calculate_pressure_delta_after(s, I) +
-                        calculate_pressure_delta_before(s, I));
+      int32_t delta = calculate_pressure_delta_after(s, I) +
+                      calculate_pressure_delta_before(s, I);
 
       /* As a tiebreaker (only), sink flag writes to reduce specifically flag
        * pressure, because spilling flags costs extra instructions and GPR
@@ -264,9 +264,9 @@ gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
          BITSET_CLEAR(s->seen, index);
       }
 
-      pressure -= calculate_pressure_delta_after(s, I);
+      pressure += calculate_pressure_delta_after(s, I);
       orig_max_pressure = MAX2(pressure, orig_max_pressure);
-      pressure -= calculate_pressure_delta_before(s, I);
+      pressure += calculate_pressure_delta_before(s, I);
       liveness_update(&s->live, I);
    }
 
@@ -290,9 +290,9 @@ schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
 
    while (s->it.heads.size) {
       uint32_t node = choose_inst(s);
-      pressure -= calculate_pressure_delta_after(s, s->insts[node]);
+      pressure += calculate_pressure_delta_after(s, s->insts[node]);
       max_pressure = MAX2(pressure, max_pressure);
-      pressure -= calculate_pressure_delta_before(s, s->insts[node]);
+      pressure += calculate_pressure_delta_before(s, s->insts[node]);
       jay_dag_take_head(&s->it, node);
 
       util_dynarray_append(&s->schedule, node);
