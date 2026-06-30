@@ -1814,7 +1814,7 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
                                      VK_SUBGROUP_FEATURE_ROTATE_BIT | VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT,
       .subgroupQuadOperationsInAllStages = true,
       .pointClippingBehavior = VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES,
-      .maxMultiviewViewCount = MAX_VIEWS,
+      .maxMultiviewViewCount = AC_MULTIVIEW_MAX_VIEWS,
       .maxMultiviewInstanceIndex = INT_MAX,
       .protectedNoFault = false,
       .maxPerSetDescriptors = RADV_MAX_PER_SET_DESCRIPTORS,
@@ -2120,7 +2120,7 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       .maxMeshOutputVertices = 256,
       .maxMeshOutputPrimitives = 256,
       .maxMeshOutputLayers = 8,
-      .maxMeshMultiviewViewCount = MAX_VIEWS,
+      .maxMeshMultiviewViewCount = AC_MULTIVIEW_MAX_VIEWS,
       .meshOutputPerVertexGranularity = 1,
       .meshOutputPerPrimitiveGranularity = 1,
 
