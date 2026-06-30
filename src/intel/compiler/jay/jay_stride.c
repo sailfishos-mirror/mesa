@@ -57,14 +57,6 @@ restrict_mixed_strides(jay_inst *I, unsigned s)
 enum jay_stride
 jay_dst_stride_minmax(jay_inst *I, bool do_max)
 {
-   /* According to Bspec 56640
-    * Bfloat destinations can either be packed (JAY_STRIDE_2)
-    * or have "stride 2" (JAY_STRIDE_4).
-    */
-   if (I->type == JAY_TYPE_BF16) {
-      return do_max ? JAY_STRIDE_4 : JAY_STRIDE_2;
-   }
-
    enum jay_stride min = min_stride_for_type(I->type);
    enum jay_stride max = max_stride_for_type(I->type);
 
