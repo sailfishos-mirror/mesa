@@ -23,8 +23,8 @@
 
 %{
 #include <stdlib.h>
-#include "parser.h"
 #include "asm.h"
+#include "parser.h"
 
 #define YY_NO_INPUT
 #define YY_NO_UNPUT
@@ -48,7 +48,10 @@ extern YYSTYPE yylval;
 "b"[0-9][0-9]*                    yylval.num = parse_bit(yytext); return T_BIT;
 "@"[a-zA-Z_][a-zA-Z0-9_]*         yylval.num = parse_control_reg(yytext); return T_CONTROL_REG;
 "%"[a-zA-Z_][a-zA-Z0-9_]*         yylval.num = parse_sqe_reg(yytext); return T_SQE_REG;
-"#"[a-zA-Z_][a-zA-Z0-9_]*         yylval.str = strdup(yytext+1);  return T_LABEL_REF;
+"#"[a-zA-Z_][a-zA-Z0-9_]* {
+	yylval.label_ref.str = strdup(yytext+1);
+	return T_LABEL_REF;
+}
 "["[0-9a-fA-F][0-9a-fA-F]*"]"     yylval.num = parse_literal(yytext); return T_LITERAL;
 
                                   /* instructions: */
@@ -111,6 +114,8 @@ extern YYSTYPE yylval;
 "+"                               return '+';
 "!"                               return '!';
 ":"                               return ':';
+"-"                               return '-';
+"*"                               return '*';
 
 [a-zA-Z_][a-zA-Z0-9_]*            yylval.str = strdup(yytext); return T_IDENTIFIER;
 

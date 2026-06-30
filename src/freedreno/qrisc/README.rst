@@ -681,8 +681,23 @@ supports using labels as immediates for this::
 However, you have to manually insert the labels and replace the constant. On
 a7xx there are multiple tables next to each other that look like one table, so
 be careful to make sure you've found all the places it offsets from
-``CP_SQE_INSTR_BASE``! There are also tables in the BV microcode on a7xx. To
-check that the relocations are correct, check that reassembling an otherwise
+``CP_SQE_INSTR_BASE``! There are also tables in the BV microcode on a7xx.
+
+On later firmwares, the firmware adds byte offsets directly using the immediate
+field of ``add``. To support this, there is very limited support for relocation
+expressions::
+
+  ...
+  add $02, $02, #jumptbl * 4 ; #jumptbl will be multiplied by 4 to get the offset in bytes
+  ...
+  jumptbl:
+  .jumptbl
+
+The only expressions that are supported are multiplying by a given scale and
+subtracting two references. Currently this is all that's necessary to handle
+what firmwares do.
+
+To check that the relocations are correct, check that reassembling an otherwise
 unmodified firmware still gives an identical result after adding the
 relocations.
 

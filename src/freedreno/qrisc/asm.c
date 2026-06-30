@@ -132,20 +132,39 @@ align_instr(unsigned alignment)
 }
 
 static int
-resolve_label(const char *str)
+resolve_label_ref(struct qrisc_label_ref label_ref)
 {
    int i;
 
    for (i = 0; i < num_labels; i++) {
       struct asm_label *label = &labels[i];
 
-      if (!strcmp(str, label->label)) {
+      if (!strcmp(label_ref.str, label->label))
          return label->offset;
-      }
    }
 
-   fprintf(stderr, "Undeclared label: %s\n", str);
+   fprintf(stderr, "Undeclared label: %s\n", label_ref.str);
    exit(2);
+}
+
+static int
+resolve_label(struct qrisc_label_expr label)
+{
+   int val = resolve_label_ref(label.ref1) * label.ref1_scale;
+   if (label.ref2.str) {
+      int val2 = resolve_label_ref(label.ref2) * label.ref2_scale;
+      switch (label.op) {
+      case LABEL_OP_ADD:
+         val += val2;
+         break;
+      case LABEL_OP_SUB:
+         val -= val2;
+         break;
+      default:
+         UNREACHABLE("unknown label op");
+      }
+   }
+   return val;
 }
 
 static void
@@ -216,7 +235,7 @@ emit_instructions(int outfd)
          break;
 
       case OPC_MOVI:
-         if (ai->label)
+         if (ai->label.ref1.str)
             ai->immed = resolve_label(ai->label);
          break;
 
@@ -230,7 +249,7 @@ emit_instructions(int outfd)
       }
 
       if (ai->opc == OPC_RAW_LITERAL) {
-         if (ai->label) {
+         if (ai->label.ref1.str) {
             ai->literal = qrisc_nop_literal(resolve_label(ai->label), gpuver);
          }
          write(outfd, &ai->literal, 4);
