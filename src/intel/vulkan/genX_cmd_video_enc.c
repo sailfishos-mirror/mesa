@@ -476,8 +476,10 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       anv_batch_emit(&cmd->batch, GENX(MFX_SURFACE_STATE), surface) {
          const struct anv_image *img_ = i == 0 ? base_ref_img : src_img;
 
-         surface.Width = img_->vk.extent.width - 1;
-         surface.Height = img_->vk.extent.height - 1;
+         surface.Width = (i == 0 ? img_->vk.extent.width :
+                          enc_info->srcPictureResource.codedExtent.width) - 1;
+         surface.Height = (i == 0 ? img_->vk.extent.height :
+                           enc_info->srcPictureResource.codedExtent.height) - 1;
          /* TODO. add a surface for MFX_ReconstructedScaledReferencePicture */
          surface.SurfaceID = i == 0 ? MFX_ReferencePicture : MFX_SourceInputPicture;
          surface.TileWalk = TW_YMAJOR;
@@ -625,8 +627,8 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    }
 
    anv_batch_emit(&cmd->batch, GENX(VDENC_SRC_SURFACE_STATE), vdenc_surface) {
-      vdenc_surface.SurfaceState.Width = src_img->vk.extent.width - 1;
-      vdenc_surface.SurfaceState.Height = src_img->vk.extent.height - 1;
+      vdenc_surface.SurfaceState.Width = enc_info->srcPictureResource.codedExtent.width - 1;
+      vdenc_surface.SurfaceState.Height = enc_info->srcPictureResource.codedExtent.height - 1;
       vdenc_surface.SurfaceState.SurfaceFormat = VDENC_PLANAR_420_8;
       vdenc_surface.SurfaceState.SurfacePitch = src_img->planes[0].primary_surface.isl.row_pitch_B - 1;
 
@@ -2052,8 +2054,8 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    }
 
    anv_batch_emit(&cmd->batch, GENX(VDENC_SRC_SURFACE_STATE), vdenc_surface) {
-      vdenc_surface.SurfaceState.Width = src_img->vk.extent.width - 1;
-      vdenc_surface.SurfaceState.Height = src_img->vk.extent.height - 1;
+      vdenc_surface.SurfaceState.Width = enc_info->srcPictureResource.codedExtent.width - 1;
+      vdenc_surface.SurfaceState.Height = enc_info->srcPictureResource.codedExtent.height - 1;
       vdenc_surface.SurfaceState.SurfaceFormat = VDENC_PLANAR_420_8;
 
       vdenc_surface.SurfaceState.TileWalk = TW_YMAJOR;
