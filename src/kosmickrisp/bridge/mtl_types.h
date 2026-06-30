@@ -290,6 +290,17 @@ enum mtl_command_queue_error {
    MTL_COMMAND_QUEUE_ERROR_INTERNAL = 6,
 };
 
+enum mtl_math_mode {
+   MTL_MATH_MODE_SAFE = 0,
+   MTL_MATH_MODE_RELAXED = 1,
+   MTL_MATH_MODE_FAST = 2,
+};
+
+enum mtl_math_floating_point_functions {
+   MTL_MATH_FLOATING_POINT_FUNCTIONS_FAST = 0,
+   MTL_MATH_FLOATING_POINT_FUNCTIONS_PRECISE = 1,
+};
+
 /** STRUCTURES */
 struct mtl_range {
    size_t offset;
