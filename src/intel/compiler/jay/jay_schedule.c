@@ -59,6 +59,9 @@ struct sched_ctx {
    struct util_dynarray schedule;
 
    struct sched_block *blocks;
+
+   /* Current register demand */
+   int32_t demand[JAY_NUM_SSA_FILES];
 };
 
 /* Cut down version of the function in jay_liveness.c */
@@ -139,15 +142,22 @@ populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
 
 /*
  * Due to multiple register files, register demand is a vector. Our dynamic
- * register file partitioning justifies modelling demand as a single scalar,
- * where each file has a weight determined here.
+ * register file partitioning sometimes justifies modelling demand as a single
+ * scalar, where each file has a weight determined here.
  */
-static unsigned
-scale(struct sched_ctx *ctx, jay_def x)
+static signed
+weighted_demand(struct sched_ctx *ctx, signed *demands)
 {
-   return x.file == J_ADDRESS ? 0 :
-          jay_is_uniform(x)   ? 1 :
-                                ctx->func->shader->dispatch_width;
+   signed weighted = 0;
+
+   jay_foreach_ssa_file(file) {
+      signed scale = file == J_ADDRESS  ? 0 :
+                     file & JAY_UNIFORM ? 1 :
+                                          ctx->func->shader->dispatch_width;
+      weighted += demands[file] * scale;
+   }
+
+   return weighted;
 }
 
 /*
@@ -155,30 +165,33 @@ scale(struct sched_ctx *ctx, jay_def x)
  * instuction. Based on jay_calculate_register_demands, but without the use of
  * kill-bits since we are reordering instructions.
  */
-static signed
-calculate_pressure_delta_before(struct sched_ctx *ctx, jay_inst *I)
+static void
+adjust_demand_before(struct sched_ctx *ctx, jay_inst *I, signed *demand)
 {
-   signed delta = 0;
-
    /* Make destinations live */
    jay_foreach_dst(I, dst) {
-      delta -= jay_num_values(dst) * scale(ctx, dst);
+      demand[dst.file] -= jay_num_values(dst);
    }
-
-   return delta;
 }
 
-static signed
-calculate_pressure_delta_after(struct sched_ctx *ctx, jay_inst *I)
+static void
+adjust_demand_after(struct sched_ctx *ctx, jay_inst *I, signed *demand)
 {
-   signed delta = 0;
    unsigned counter = 0;
 
    /* Dead destinations are those written by the instruction but killed
     * immediately after the instruction finishes.
     */
    jay_foreach_dst_index(I, _, index) {
-      delta += !u_sparse_bitset_test(&ctx->live, index) * scale(ctx, I->dst);
+      if (I->dst.file < JAY_NUM_SSA_FILES) {
+         demand[I->dst.file] += !u_sparse_bitset_test(&ctx->live, index);
+      } else {
+         /* This is broken, but we want bug-for-bug compatibility. This will be
+          * fixed in the next commit.
+          */
+         demand[I->dst.file & UNIFORM] +=
+            !u_sparse_bitset_test(&ctx->live, index);
+      }
    }
 
    /* Late-kill sources. We precomputed the deduplication info and stashed it in
@@ -186,14 +199,13 @@ calculate_pressure_delta_after(struct sched_ctx *ctx, jay_inst *I)
     */
    jay_foreach_src_index(I, s, c, index) {
       if (BITSET_TEST(I->last_use, counter)) {
-         delta +=
-            !u_sparse_bitset_test(&ctx->live, index) * scale(ctx, I->src[s]);
+         assert(I->src[s].file < JAY_NUM_SSA_FILES);
+         demand[I->src[s].file] += !u_sparse_bitset_test(&ctx->live, index);
       }
 
       counter++;
    }
 
-   return delta;
 }
 
 /*
@@ -208,8 +220,12 @@ choose_inst(struct sched_ctx *s)
 
    util_dynarray_foreach(&s->it.heads, uint32_t, head) {
       jay_inst *I = s->insts[*head];
-      int32_t delta = calculate_pressure_delta_after(s, I) +
-                      calculate_pressure_delta_before(s, I);
+
+      /* To minimize pressure, consider the effect on liveness. */
+      int32_t deltas[JAY_NUM_SSA_FILES] = { 0 };
+      adjust_demand_after(s, I, deltas);
+      adjust_demand_before(s, I, deltas);
+      int32_t delta = weighted_demand(s, deltas);
 
       /* As a tiebreaker (only), sink flag writes to reduce specifically flag
        * pressure, because spilling flags costs extra instructions and GPR
@@ -232,9 +248,8 @@ choose_inst(struct sched_ctx *s)
 static void
 gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
 {
-   /* Our pressure calculations are all off by a constant, but that's ok */
-   signed pressure = 0;
-   signed orig_max_pressure = 0;
+   int32_t demand[JAY_NUM_SSA_FILES] = { 0 };
+   signed max_pressure = 0;
 
    u_sparse_bitset_free(&s->live);
    u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
@@ -264,13 +279,13 @@ gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
          BITSET_CLEAR(s->seen, index);
       }
 
-      pressure += calculate_pressure_delta_after(s, I);
-      orig_max_pressure = MAX2(pressure, orig_max_pressure);
-      pressure += calculate_pressure_delta_before(s, I);
+      adjust_demand_after(s, I, demand);
+      max_pressure = MAX2(weighted_demand(s, demand), max_pressure);
+      adjust_demand_before(s, I, demand);
       liveness_update(&s->live, I);
    }
 
-   s->blocks[block->index].max_pressure = orig_max_pressure;
+   s->blocks[block->index].max_pressure = max_pressure;
 }
 
 static void
@@ -282,21 +297,21 @@ schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
 
    util_dynarray_clear(&s->schedule);
 
+   memset(s->demand, 0, JAY_NUM_SSA_FILES * sizeof(s->demand[0]));
    u_sparse_bitset_free(&s->live);
    u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
-
-   signed max_pressure = 0;
-   signed pressure = 0;
+   int32_t max_pressure = 0;
 
    while (s->it.heads.size) {
-      uint32_t node = choose_inst(s);
-      pressure += calculate_pressure_delta_after(s, s->insts[node]);
-      max_pressure = MAX2(pressure, max_pressure);
-      pressure += calculate_pressure_delta_before(s, s->insts[node]);
-      jay_dag_take_head(&s->it, node);
+      int32_t node = choose_inst(s);
 
-      util_dynarray_append(&s->schedule, node);
+      adjust_demand_after(s, s->insts[node], s->demand);
+      max_pressure = MAX2(max_pressure, weighted_demand(s, s->demand));
+      adjust_demand_before(s, s->insts[node], s->demand);
       liveness_update(&s->live, s->insts[node]);
+
+      jay_dag_take_head(&s->it, node);
+      util_dynarray_append(&s->schedule, node);
    }
 
    /* Apply the schedule only if it reduces pressure */
