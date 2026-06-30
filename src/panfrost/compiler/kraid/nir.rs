@@ -689,6 +689,24 @@ impl<'a> ShaderFromNir<'a> {
                     mode: FrexpMode::Normal,
                 });
             }
+            nir_op_fmin => {
+                b.push_op(OpFMin {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    propagate_nan: false,
+                    clamp: FClamp::None,
+                    srcs: [srcs(0), srcs(1)],
+                });
+            }
+            nir_op_fmax => {
+                b.push_op(OpFMax {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    propagate_nan: false,
+                    clamp: FClamp::None,
+                    srcs: [srcs(0), srcs(1)],
+                });
+            }
             nir_op_i2i8 | nir_op_i2i16 | nir_op_i2i32 => {
                 let dst_bits = alu.def.bit_size;
                 let src_bits = alu.get_src(0).bit_size();

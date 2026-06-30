@@ -877,6 +877,62 @@ impl V9Instr for OpFma {
     }
 }
 
+impl V9Instr for OpFMax {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Fmax::get_info(self.dst_type, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        let sem = if self.propagate_nan {
+            SemM::NanPropagate
+        } else {
+            SemM::NanSuppress
+        };
+        e.encode(Fmax {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            clamp: self.clamp.into(),
+            sem,
+        })
+    }
+}
+
+impl V9Instr for OpFMin {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Fmin::get_info(self.dst_type, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        let sem = if self.propagate_nan {
+            SemM::NanPropagate
+        } else {
+            SemM::NanSuppress
+        };
+        e.encode(Fmin {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            clamp: self.clamp.into(),
+            sem,
+        })
+    }
+}
+
 impl V9Instr for OpFMul {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1717,6 +1773,8 @@ macro_rules! v9_op_match_else {
             Op::FCmp($x) => $y,
             Op::Flush($x) => $y,
             Op::Fma($x) => $y,
+            Op::FMax($x) => $y,
+            Op::FMin($x) => $y,
             Op::FMul($x) => $y,
             Op::FRcp($x) => $y,
             Op::FrexpE($x) => $y,

@@ -637,6 +637,58 @@ impl fmt::Display for OpFma {
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(dst_type in [F16, V2F16, F32])]
+pub struct OpFMax {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub propagate_nan: bool,
+    pub clamp: FClamp,
+    pub srcs: [Src; 2],
+}
+
+impl fmt::Display for OpFMax {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FMAX.{}{}{} {} {}",
+            &self.dst,
+            &self.dst_type,
+            bool_as_mod_str!(self, propagate_nan),
+            self.clamp,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [F16, V2F16, F32])]
+pub struct OpFMin {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub propagate_nan: bool,
+    pub clamp: FClamp,
+    pub srcs: [Src; 2],
+}
+
+impl fmt::Display for OpFMin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FMIN.{}{}{} {} {}",
+            &self.dst,
+            &self.dst_type,
+            bool_as_mod_str!(self, propagate_nan),
+            self.clamp,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [F16, V2F16, F32])]
 pub struct OpFMul {
     pub dst: Dst,
     pub dst_type: DataType,
@@ -1897,6 +1949,8 @@ pub enum Op {
     FCmp(Box<OpFCmp>),
     Flush(Box<OpFlush>),
     Fma(Box<OpFma>),
+    FMax(Box<OpFMax>),
+    FMin(Box<OpFMin>),
     FMul(Box<OpFMul>),
     FRcp(Box<OpFRcp>),
     FrexpE(Box<OpFrexpE>),
