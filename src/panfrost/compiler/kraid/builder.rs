@@ -35,6 +35,26 @@ pub trait Builder {
     fn copy_i64_to(&mut self, dst: Dst, src: Src) {
         self.copy_to(dst, DataType::I64, src);
     }
+
+    fn fma_32_to(&mut self, dst: Dst, src: Src, mul: Src, add: Src) {
+        self.push_op(OpFma {
+            dst,
+            dst_type: DataType::F32,
+            round: FRound::NearestEven,
+            clamp: FClamp::None,
+            srcs: [src, mul, add],
+        });
+    }
+
+    fn fadd_32_to(&mut self, dst: Dst, a: Src, b: Src) {
+        self.push_op(OpFAdd {
+            dst,
+            dst_type: DataType::F32,
+            round: FRound::NearestEven,
+            clamp: FClamp::None,
+            srcs: [a, b],
+        });
+    }
 }
 
 pub trait SSABuilder: Builder + AllocSSA {
@@ -59,6 +79,18 @@ pub trait SSABuilder: Builder + AllocSSA {
     fn copy_ssa(&mut self, src: SSAValue) -> SSAValue {
         let def = self.alloc_ssa(src.bits());
         self.copy_to(def.into(), DataType::i(src.bits()), src.into());
+        def
+    }
+
+    fn fma_32(&mut self, src: Src, mul: Src, add: Src) -> SSAValue {
+        let def = self.alloc_ssa(32);
+        self.fma_32_to(def.into(), src, mul, add);
+        def
+    }
+
+    fn fadd_32(&mut self, a: Src, b: Src) -> SSAValue {
+        let def = self.alloc_ssa(32);
+        self.fadd_32_to(def.into(), a, b);
         def
     }
 
