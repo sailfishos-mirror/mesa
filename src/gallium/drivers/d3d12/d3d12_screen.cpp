@@ -270,7 +270,6 @@ d3d12_init_screen_caps(struct d3d12_screen *screen)
    caps->fragment_shader_derivatives = true;
    caps->quads_follow_provoking_vertex_convention = true;
    caps->mixed_color_depth_bits = true;
-   caps->polygon_stipple = true;
 
    caps->vertex_input_alignment = PIPE_VERTEX_INPUT_ALIGNMENT_4BYTE;
 
