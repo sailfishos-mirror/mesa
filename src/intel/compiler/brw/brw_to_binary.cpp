@@ -774,19 +774,34 @@ brw_generator::generate_quad_swizzle(const brw_inst *inst,
 }
 
 void
-brw_generator::generate_barrier(brw_inst *, struct brw_reg src)
+brw_generator::generate_barrier(brw_inst *inst, struct brw_reg src)
 {
-   gen_inst *gen = append(devinfo->ver >= 12 ? BRW_OPCODE_SEND : BRW_OPCODE_SENDS,
+   enum opcode opcode;
+
+   if (params->key->use_efficient_64bit)
+      opcode = BRW_OPCODE_SENDG;
+   else if (devinfo->ver >= 12)
+      opcode = BRW_OPCODE_SEND;
+   else
+      opcode = BRW_OPCODE_SENDS;
+
+   gen_inst *gen = append(opcode,
                           retype(brw_null_reg(), BRW_TYPE_UD),
                           src,
                           brw_null_reg());
 
-   uint32_t desc =
-      brw_message_desc(devinfo, 1 * reg_unit(devinfo), 0, false);
-   desc |= (uint32_t)GEN_MESSAGE_GATEWAY_SFID_BARRIER_MSG;
+   if (params->key->use_efficient_64bit) {
+      gen->send.combined_desc = GEN_MESSAGE_GATEWAY_SFID_BARRIER_MSG;
+      gen->send.indirect_desc[0] = to_gen(brw_null_reg());
+      gen->send.indirect_desc[1] = to_gen(brw_null_reg());
+      gen->send.src0_len = 1;
+   } else {
+      uint32_t desc = brw_message_desc(devinfo, 1 * reg_unit(devinfo), 0, false);
+      desc |= (uint32_t)GEN_MESSAGE_GATEWAY_SFID_BARRIER_MSG;
+      gen->send.desc_imm = desc;
+   }
    gen->align16 = false;
    gen->send.sfid = GEN_SFID_MESSAGE_GATEWAY;
-   gen->send.desc_imm = desc;
    gen->no_mask = true;
 
    if (devinfo->ver >= 12) {
