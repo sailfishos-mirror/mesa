@@ -229,11 +229,7 @@ cs_start_render(struct kk_cmd_buffer *cmd)
    uint32_t view_mask = state->render.view_mask;
    assert(state->render_pass_descriptor);
 
-   /* Ensure we have a pre_gfx just in case we later need it */
-   cs_get_compute(cmd, true);
-
    cs->cmd_buf_gfx = mtl_new_command_buffer(dev->mtl_handle);
-   util_dynarray_append(&cmd->submit_cmd_bufs, cs->cmd_buf_gfx);
    mtl_begin_command_buffer(cs->cmd_buf_gfx, cs->allocator_gfx);
    cs->gfx = mtl_new_render_command_encoder_with_descriptor(
       cs->cmd_buf_gfx, state->render_pass_descriptor);
@@ -281,7 +277,6 @@ cs_get_compute(struct kk_cmd_buffer *cmd, bool pre_gfx)
    if (!cs->gfx || pre_gfx) {
       if (!cs->pre_gfx) {
          cs->cmd_buf_pre_gfx = mtl_new_command_buffer(dev->mtl_handle);
-         util_dynarray_append(&cmd->submit_cmd_bufs, cs->cmd_buf_pre_gfx);
          mtl_begin_command_buffer(cs->cmd_buf_pre_gfx, cs->allocator_pre_gfx);
          cs->pre_gfx = mtl_new_compute_command_encoder(cs->cmd_buf_pre_gfx);
 
@@ -292,7 +287,6 @@ cs_get_compute(struct kk_cmd_buffer *cmd, bool pre_gfx)
    } else {
       if (!cs->post_gfx) {
          cs->cmd_buf_post_gfx = mtl_new_command_buffer(dev->mtl_handle);
-         util_dynarray_append(&cmd->submit_cmd_bufs, cs->cmd_buf_post_gfx);
          mtl_begin_command_buffer(cs->cmd_buf_post_gfx, cs->allocator_post_gfx);
          cs->post_gfx = mtl_new_compute_command_encoder(cs->cmd_buf_post_gfx);
 
@@ -318,7 +312,22 @@ cs_end(struct kk_cmd_buffer *cmd)
       mtl_release(cs->pre_gfx);
       mtl_end_command_buffer(cs->cmd_buf_pre_gfx);
 
-      /* post_gfx will always be compute, so we take that one as follow up */
+      /* Submit pre_gfx now that its encoder is closed. Command buffers are
+       * appended here (rather than at creation) so submit_cmd_bufs stays in
+       * encode order: pre_gfx first, then gfx below. post_gfx is promoted into
+       * the pre_gfx slot with its encoder still open, so it is submitted by a
+       * later cs_end() and therefore always ends up after gfx. This is why
+       * every flush site calls cs_end() twice. */
+      util_dynarray_append(&cmd->submit_cmd_bufs, cs->cmd_buf_pre_gfx);
+      cs->cmd_buf_pre_gfx = cs->cmd_buf_post_gfx;
+      cs->cmd_buf_post_gfx = NULL;
+      cs->pre_gfx = cs->post_gfx;
+      cs->post_gfx = NULL;
+      SWAP(cs->allocator_pre_gfx, cs->allocator_post_gfx);
+   } else if (cs->post_gfx) {
+      /* No pre_gfx, but a post_gfx exists (e.g. compute issued during a render
+       * pass). Promote it so a later cs_end() closes and submits it after the
+       * gfx command buffer appended below. */
       cs->cmd_buf_pre_gfx = cs->cmd_buf_post_gfx;
       cs->cmd_buf_post_gfx = NULL;
       cs->pre_gfx = cs->post_gfx;
@@ -332,6 +341,9 @@ cs_end(struct kk_cmd_buffer *cmd)
       mtl_end_encoding(cs->gfx);
       mtl_release(cs->gfx);
       mtl_end_command_buffer(cs->cmd_buf_gfx);
+
+      /* Same as above: register after the encoder is closed. */
+      util_dynarray_append(&cmd->submit_cmd_bufs, cs->cmd_buf_gfx);
       cs->cmd_buf_gfx = NULL;
       cs->gfx = NULL;
    }
@@ -349,12 +361,22 @@ kk_CmdPipelineBarrier2(VkCommandBuffer commandBuffer,
                        const VkDependencyInfo *pDependencyInfo)
 {
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
-   bool gfx = cmd->cs.gfx;
-   cs_end(cmd);
 
-   /* If we were inside a render pass, restart it loading attachments */
-   if (gfx)
+   /* TODO_KOSMICKRISP Don't break the render pass and add a single encoder
+    * barrier. This requires to read directly from the framebuffer which
+    * requires not reading input attachments as textures.
+    */
+   if (cmd->cs.gfx) {
+      cs_end(cmd);
       cs_start_render(cmd);
+   } else if (cmd->cs.pre_gfx) {
+      /* We chain encoders, so an intra-encoder barrier is enough here:
+       * no need to tear down and recreate the encoder.
+       */
+      mtl_barrier_after_encoder_stages(cmd->cs.pre_gfx,
+                                       MTL_STAGE_DISPATCH | MTL_STAGE_BLIT,
+                                       MTL_STAGE_DISPATCH | MTL_STAGE_BLIT);
+   }
 }
 
 static void
