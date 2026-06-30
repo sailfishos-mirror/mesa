@@ -284,6 +284,12 @@ panvk_desc_pool_free_set(struct panvk_descriptor_pool *pool,
    assert(set_idx < pool->max_sets);
 
    if (!BITSET_TEST(pool->free_sets, set_idx)) {
+      if (set->desc_count && pool->desc_bo)
+         panvk_address_binding_report(
+            to_panvk_device(pool->base.device), &set->base, set->descs.dev,
+            set->desc_count * PANVK_DESCRIPTOR_SIZE,
+            VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT);
+
       if (set->desc_count)
          util_vma_heap_free(
             &pool->desc_heap,
@@ -558,6 +564,11 @@ panvk_desc_pool_allocate_set(struct panvk_descriptor_pool *pool,
       set->descs.dev = descs_dev_addr;
       set->descs.host =
          pool->desc_bo->addr.host + set->descs.dev - pool->desc_bo->addr.dev;
+
+      if (num_descs)
+         panvk_address_binding_report(to_panvk_device(pool->base.device),
+                                      &set->base, set->descs.dev, descs_size,
+                                      VK_DEVICE_ADDRESS_BINDING_TYPE_BIND_EXT);
    } else {
       /* This cast is fine because the heap is initialized from a host
        * pointer in case of a host only pool. */
