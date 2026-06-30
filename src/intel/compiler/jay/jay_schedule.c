@@ -190,21 +190,17 @@ adjust_demand_after(struct sched_ctx *ctx, jay_inst *I, signed *demand)
 
       counter++;
    }
-
 }
 
-/*
- * Choose the next instuction, bottom-up. For now we use a simple greedy
- * heuristic: choose the instuction that has the best effect on liveness.
- */
-static uint32_t
+static int32_t
 choose_inst(struct sched_ctx *s)
 {
-   int32_t min_delta = INT32_MAX;
-   uint32_t best = 0;
+   int32_t min_score = INT32_MAX;
+   int32_t best = -1;
 
    util_dynarray_foreach(&s->it.heads, uint32_t, head) {
       jay_inst *I = s->insts[*head];
+      int32_t score = 0;
 
       /* To minimize pressure, consider the effect on liveness. */
       int32_t deltas[JAY_NUM_SSA_FILES] = { 0 };
@@ -221,9 +217,11 @@ choose_inst(struct sched_ctx *s)
          delta++;
       }
 
-      if (delta <= min_delta) {
+      score += delta;
+
+      if (score <= min_score) {
          best = *head;
-         min_delta = delta;
+         min_score = score;
       }
    }
 
