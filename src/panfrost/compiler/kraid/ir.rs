@@ -339,13 +339,15 @@ impl RegRef {
     }
 
     pub fn word(mut self, word: u8) -> RegRef {
-        let RegRange::Regs(nregs) = self.range else {
-            panic!("RegRef::word() out of bounds");
-        };
-        assert!(word < nregs, "RegRef::word() out of bounds");
-        self.idx += word;
-        self.range = RegRange::Regs(1);
-        self
+        if let RegRange::Regs(nregs) = self.range {
+            assert!(word < nregs, "RegRef::word() out of bounds");
+            self.idx += word;
+            self.range = RegRange::Regs(1);
+            self
+        } else {
+            assert!(word == 0);
+            self
+        }
     }
 
     pub fn from_preload_reg(m: &dyn Model, reg: PreloadReg) -> RegRef {
