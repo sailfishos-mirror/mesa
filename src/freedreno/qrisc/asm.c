@@ -32,7 +32,7 @@ __instruction_case(struct encode_state *s, const struct qrisc_instr *instr)
    switch (instr->opc) {
 #define ALU(name) \
    case OPC_##name: \
-      if (instr->has_immed) \
+      if (instr->has_immed || instr->label.ref1.str) \
          return OPC_##name##I; \
       break;
 
@@ -235,6 +235,22 @@ emit_instructions(int outfd)
          break;
 
       case OPC_MOVI:
+      case OPC_ADD:
+      case OPC_ADDHI:
+      case OPC_SUB:
+      case OPC_SUBHI:
+      case OPC_AND:
+      case OPC_OR:
+      case OPC_XOR:
+      case OPC_SHL:
+      case OPC_USHR:
+      case OPC_ROT:
+      case OPC_MUL8:
+      case OPC_MUL16:
+      case OPC_MIN:
+      case OPC_MAX:
+      case OPC_CMP:
+      case OPC_BIC:
          if (ai->label.ref1.str)
             ai->immed = resolve_label(ai->label);
          break;
