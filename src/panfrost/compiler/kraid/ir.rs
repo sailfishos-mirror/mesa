@@ -543,6 +543,12 @@ impl From<u32> for SrcRef {
     }
 }
 
+impl From<f32> for SrcRef {
+    fn from(u: f32) -> SrcRef {
+        SrcRef::from(u.to_bits())
+    }
+}
+
 impl TryFrom<&SrcRef> for u32 {
     type Error = &'static str;
 
