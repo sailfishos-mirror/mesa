@@ -182,16 +182,9 @@ adjust_demand_after(struct sched_ctx *ctx, jay_inst *I, signed *demand)
    /* Dead destinations are those written by the instruction but killed
     * immediately after the instruction finishes.
     */
-   jay_foreach_dst_index(I, _, index) {
-      if (I->dst.file < JAY_NUM_SSA_FILES) {
-         demand[I->dst.file] += !u_sparse_bitset_test(&ctx->live, index);
-      } else {
-         /* This is broken, but we want bug-for-bug compatibility. This will be
-          * fixed in the next commit.
-          */
-         demand[I->dst.file & UNIFORM] +=
-            !u_sparse_bitset_test(&ctx->live, index);
-      }
+   jay_foreach_dst_index(I, dst, index) {
+      assert(dst.file < JAY_NUM_SSA_FILES);
+      demand[dst.file] += !u_sparse_bitset_test(&ctx->live, index);
    }
 
    /* Late-kill sources. We precomputed the deduplication info and stashed it in
