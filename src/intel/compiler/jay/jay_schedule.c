@@ -45,6 +45,9 @@ struct sched_block {
 };
 
 struct sched_ctx {
+   /* Compilation phase. This induces a scheduler mode. */
+   enum { EARLY, POSTSPILL, POSTRA } phase;
+
    /* Function we are currently scheduling */
    jay_function *func;
 
@@ -234,17 +237,19 @@ gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
    int32_t demand[JAY_NUM_SSA_FILES] = { 0 };
    signed max_pressure = 0;
 
-   u_sparse_bitset_free(&s->live);
-   u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
+   if (s->phase == EARLY) {
+      u_sparse_bitset_free(&s->live);
+      u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
+   }
 
    jay_foreach_inst_in_block_rev(block, I) {
       if (jay_op_starts_block(I->op)) {
          break;
-      } else if (jay_op_ends_block(I->op)) {
+      } else if (jay_op_ends_block(I->op) && s->phase == EARLY) {
          continue;
       }
 
-      if (I->op != JAY_OPCODE_PHI_SRC) {
+      if (s->phase < POSTRA && I->op != JAY_OPCODE_PHI_SRC) {
          unsigned counter = 0;
 
          /* Filter duplicates as we go */
@@ -264,10 +269,13 @@ gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
          }
       }
 
-      adjust_demand_after(s, I, demand);
-      max_pressure = MAX2(weighted_demand(s, demand), max_pressure);
-      adjust_demand_before(s, I, demand);
-      liveness_update(&s->live, I);
+      if (s->phase == EARLY) {
+         adjust_demand_after(s, I, demand);
+         max_pressure = MAX2(weighted_demand(s, demand), max_pressure);
+         adjust_demand_before(s, I, demand);
+         liveness_update(&s->live, I);
+      }
+
    }
 
    s->blocks[block->index].max_pressure = max_pressure;
@@ -282,24 +290,30 @@ schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
 
    util_dynarray_clear(&s->schedule);
 
-   memset(s->demand, 0, JAY_NUM_SSA_FILES * sizeof(s->demand[0]));
-   u_sparse_bitset_free(&s->live);
-   u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
+   if (s->phase < POSTRA) {
+      memset(s->demand, 0, JAY_NUM_SSA_FILES * sizeof(s->demand[0]));
+      u_sparse_bitset_free(&s->live);
+      u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
+   }
 
    while (s->it.heads.size) {
       int32_t node = choose_inst(s);
 
-      adjust_demand_after(s, s->insts[node], s->demand);
+      if (s->phase < POSTRA) {
+         adjust_demand_after(s, s->insts[node], s->demand);
 
-      /* Toss schedules that blow up register pressure as we go */
-      if (weighted_demand(s, s->demand) >=
-          s->blocks[block->index].max_pressure) {
-         jay_dag_iterator_reset(&s->it);
-         return;
+         /* Toss schedules that blow up register pressure as we go */
+         if (s->phase == EARLY) {
+            if (weighted_demand(s, s->demand) >=
+                s->blocks[block->index].max_pressure) {
+               jay_dag_iterator_reset(&s->it);
+               return;
+            }
+         }
+
+         adjust_demand_before(s, s->insts[node], s->demand);
+         liveness_update(&s->live, s->insts[node]);
       }
-
-      adjust_demand_before(s, s->insts[node], s->demand);
-      liveness_update(&s->live, s->insts[node]);
 
       jay_dag_take_head(&s->it, node);
       util_dynarray_append(&s->schedule, node);
@@ -338,6 +352,7 @@ pass(jay_function *f)
    sctx.blocks = linear_zalloc_array(linctx, struct sched_block, f->num_blocks);
    jay_dag_init(&sctx.dag, memctx, nr_inst);
    jay_dag_iterator_init(&sctx.it, &sctx.dag);
+   sctx.phase = EARLY;
 
    unsigned ugpr_per_grf = jay_ugpr_per_grf(f->shader);
    unsigned ugpr_per_gpr = jay_grf_per_gpr(f->shader) * ugpr_per_grf;
@@ -355,12 +370,16 @@ pass(jay_function *f)
        * minimize harm. We use a conservative threshold to leave wiggle room for
        * late lowerings.
        */
-      unsigned demand_ugpr = block->demand_max[UGPR] + block->demand_max[FLAG];
-      unsigned demand_gpr = block->demand_max[GPR];
+      if (sctx.phase == EARLY) {
+         unsigned demand_ugpr =
+            block->demand_max[UGPR] + block->demand_max[FLAG];
+         unsigned demand_gpr = block->demand_max[GPR];
 
-      if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (120 * ugpr_per_grf)) {
-         f->prioritize_pressure = true;
-         schedule_block(block, &sctx, memctx);
+         if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >=
+             (120 * ugpr_per_grf)) {
+            f->prioritize_pressure = true;
+            schedule_block(block, &sctx, memctx);
+         }
       }
    }
 
