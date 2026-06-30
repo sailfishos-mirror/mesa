@@ -895,6 +895,9 @@ declare_shader_args(const struct radv_compiler_info *compiler_info, struct radv_
       if (radv_ps_needs_state_sgpr(info, gfx_state))
          RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ps_state, AC_UD_PS_STATE);
 
+      if (info->uses_view_index)
+         RADV_ADD_UD_ARG(state, 1, AC_ARG_VALUE, ac.view_index, AC_UD_VIEW_INDEX);
+
       RADV_ADD_ARG(state, AC_ARG_SGPR, 1, AC_ARG_VALUE, ac.prim_mask);
 
       if (info->ps.pops && gfx_level < GFX11) {

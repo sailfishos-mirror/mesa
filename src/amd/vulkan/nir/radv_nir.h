@@ -57,8 +57,6 @@ bool radv_nir_lower_fs_barycentric(nir_shader *shader, const struct radv_graphic
 
 bool radv_nir_lower_intrinsics_early(nir_shader *nir, bool lower_view_index_to_zero);
 
-bool radv_nir_lower_view_index(nir_shader *nir);
-
 bool radv_nir_export_multiview(nir_shader *nir);
 
 unsigned radv_map_io_driver_location(unsigned semantic);

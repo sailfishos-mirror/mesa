@@ -2586,9 +2586,6 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       }
 
       NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, ac_nir_lower_sample_mask_in, &lower_sample_mask_in_options);
-
-      /* Lower the view index to map on the layer. */
-      NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_lower_view_index);
    }
 
    radv_foreach_stage (i, active_nir_stages) {
