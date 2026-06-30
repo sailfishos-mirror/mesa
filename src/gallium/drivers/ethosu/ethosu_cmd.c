@@ -478,7 +478,7 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    if (operation->pooling.nop) {
       scale = ethosu_quantize_scale(
          operation->ifm.scale / operation->ofm.scale,
-         &scale_shift, true);
+         &scale_shift, false);
       EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
    } else {
       switch (operation->pooling.type) {
