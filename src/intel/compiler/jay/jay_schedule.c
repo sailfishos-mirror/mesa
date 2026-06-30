@@ -326,16 +326,17 @@ pass(jay_function *f)
    unsigned ugpr_per_gpr = jay_grf_per_gpr(f->shader) * ugpr_per_grf;
 
    jay_foreach_block(f, block) {
-      /* Treat flags as GPR demand conservatively since they spill to GPRs */
+      /* Do pressure-only scheduling only on blocks that might spill, to
+       * minimize harm. We conservatively use 104 GRFs as the threshold instead
+       * of 128 to leave wiggle room for flag RA and late lowerings.
+       *
+       * We treat flags as GPR demand conservatively since they spill to GPRs.
+       */
       unsigned demand_ugpr = block->demand_max[UGPR];
       unsigned demand_gpr = block->demand_max[GPR] +
                             block->demand_max[FLAG] +
                             block->demand_max[UFLAG];
 
-      /* Schedule for pressure only blocks that might spill, to minimize harm
-       * done to ILP and such. We conservatively use 104 GRFs as the threshold
-       * instead of 128 to leave wiggle room for flag RA and late lowerings.
-       */
       if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (104 * ugpr_per_grf)) {
          populate_dag(&sctx, block, def);
          jay_dag_iterate(&sctx.it, sctx.blocks[block->index].first,
