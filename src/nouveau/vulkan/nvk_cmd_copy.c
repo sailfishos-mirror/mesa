@@ -370,11 +370,10 @@ nouveau_copy_rect(struct nvk_cmd_buffer *cmd,
    }
 }
 
-VKAPI_ATTR void VKAPI_CALL
-nvk_CmdCopyBuffer2(VkCommandBuffer commandBuffer,
-                   const VkCopyBufferInfo2 *pCopyBufferInfo)
+void
+nvk_cmd_copy_buffer_ce(struct nvk_cmd_buffer *cmd,
+                       const VkCopyBufferInfo2 *pCopyBufferInfo)
 {
-   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, src, pCopyBufferInfo->srcBuffer);
    VK_FROM_HANDLE(nvk_buffer, dst, pCopyBufferInfo->dstBuffer);
 

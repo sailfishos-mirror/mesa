@@ -459,6 +459,8 @@ void nvk_cmd_fill_memory(struct nvk_cmd_buffer *cmd,
                          uint64_t dst_addr, uint64_t size,
                          uint32_t data);
 
+void nvk_cmd_copy_buffer_ce(struct nvk_cmd_buffer *cmd,
+                            const VkCopyBufferInfo2 *pCopyBufferInfo);
 void nvk_cmd_copy_buffer_to_image_ce(struct nvk_cmd_buffer *cmd,
                                      const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo);
 void nvk_cmd_copy_image_to_buffer_ce(struct nvk_cmd_buffer *cmd,

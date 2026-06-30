@@ -53,6 +53,10 @@ nvk_device_init_meta(struct nvk_device *dev)
    dev->meta.cmd_bind_map_buffer = nvk_cmd_bind_map_buffer;
    dev->meta.max_bind_map_buffer_size_B = 64 * 1024; /* TODO */
 
+   for (unsigned i = 0; i < VK_META_BUFFER_CHUNK_SIZE_COUNT; ++i) {
+      dev->meta.buffer_access.optimal_wg_size[i] = 128;
+   }
+
    return VK_SUCCESS;
 }
 
@@ -506,5 +510,31 @@ nvk_CmdCopyImage2(VkCommandBuffer commandBuffer,
                               VK_PIPELINE_BIND_POINT_COMPUTE);
    } else {
       nvk_cmd_copy_image_ce(cmd, pCopyImageInfo);
+   }
+}
+
+static void
+nvk_cmd_copy_buffer_meta(struct nvk_cmd_buffer *cmd,
+                         const VkCopyBufferInfo2 *pCopyBufferInfo)
+{
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+
+   struct nvk_meta_save_compute save;
+   nvk_meta_begin_compute(cmd, &save);
+   vk_meta_copy_buffer(&cmd->vk, &dev->meta, pCopyBufferInfo);
+   nvk_meta_end_compute(cmd, &save);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdCopyBuffer2(VkCommandBuffer commandBuffer,
+                   const VkCopyBufferInfo2 *pCopyBufferInfo)
+{
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+
+   VkQueueFlags queue_flags = nvk_cmd_buffer_queue_flags(cmd);
+   if (queue_flags & VK_QUEUE_COMPUTE_BIT) {
+      nvk_cmd_copy_buffer_meta(cmd, pCopyBufferInfo);
+   } else {
+      nvk_cmd_copy_buffer_ce(cmd, pCopyBufferInfo);
    }
 }
