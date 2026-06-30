@@ -154,6 +154,8 @@ typedef enum {
 
 struct qrisc_label_ref {
    char *str;
+   char *section;
+   bool absolute;
 };
 
 /* Calculate ref1 * ref1_scale +/- ref2 * ref2_scale. This is the most we need

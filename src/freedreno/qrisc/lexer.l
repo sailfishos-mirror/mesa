@@ -50,6 +50,13 @@ extern YYSTYPE yylval;
 "%"[a-zA-Z_][a-zA-Z0-9_]*         yylval.num = parse_sqe_reg(yytext); return T_SQE_REG;
 "#"[a-zA-Z_][a-zA-Z0-9_]* {
 	yylval.label_ref.str = strdup(yytext+1);
+	yylval.label_ref.section = NULL;
+	return T_LABEL_REF;
+}
+"#"[a-zA-Z_][a-zA-Z0-9_]*"::"[a-zA-Z_][a-zA-Z0-9_]* {
+	const char *label = strstr(yytext+1, "::");
+	yylval.label_ref.str = strdup(label+2);
+	yylval.label_ref.section = strndup(yytext+1, label - (yytext+1));
 	return T_LABEL_REF;
 }
 "["[0-9a-fA-F][0-9a-fA-F]*"]"     yylval.num = parse_literal(yytext); return T_LITERAL;

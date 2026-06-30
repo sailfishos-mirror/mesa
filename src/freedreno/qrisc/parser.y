@@ -42,6 +42,8 @@ typedef void *YY_BUFFER_STATE;
 extern YY_BUFFER_STATE yy_scan_string(const char *);
 extern void yy_delete_buffer(YY_BUFFER_STATE);
 
+extern const char *cur_section;
+
 int yyparse(void);
 
 void yyerror(const char *error);
@@ -108,6 +110,17 @@ literal(uint32_t num)
 static void
 label(struct qrisc_label_expr label)
 {
+	if (!label.ref1.section)
+		label.ref1.section = (char *)cur_section;
+	else
+		label.ref1.absolute = true;
+	if (label.ref2.str) {
+		if (!label.ref2.section)
+			label.ref2.section = (char *)cur_section;
+		else
+			label.ref2.absolute = true;
+	}
+
 	instr->label = label;
 }
 
@@ -207,7 +220,7 @@ instr_or_label:    instr_r
 |                  T_IDENTIFIER ':'    { decl_label($1); }
 |                  T_ALIGN immediate   { align_instr($2); }
 |                  T_JUMPTBL           { decl_jumptbl(); }
-|                  T_SECTION T_IDENTIFIER { next_section(); }
+|                  T_SECTION T_IDENTIFIER { next_section($2); }
 
 xmov:              T_XMOV { $$ = $1; }
 |                  { $$ = 0; }
