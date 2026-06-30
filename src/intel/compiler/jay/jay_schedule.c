@@ -244,22 +244,24 @@ gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
          continue;
       }
 
-      unsigned counter = 0;
+      if (I->op != JAY_OPCODE_PHI_SRC) {
+         unsigned counter = 0;
 
-      /* Filter duplicates as we go */
-      BITSET_ZERO(I->last_use);
+         /* Filter duplicates as we go */
+         BITSET_ZERO(I->last_use);
 
-      jay_foreach_src_index(I, _, c, index) {
-         if (!BITSET_TEST(s->seen, index)) {
-            BITSET_SET(I->last_use, counter);
+         jay_foreach_src_index(I, _, c, index) {
+            if (!BITSET_TEST(s->seen, index)) {
+               BITSET_SET(I->last_use, counter);
+            }
+
+            BITSET_SET(s->seen, index);
+            counter++;
          }
 
-         BITSET_SET(s->seen, index);
-         counter++;
-      }
-
-      jay_foreach_src_index(I, _, c, index) {
-         BITSET_CLEAR(s->seen, index);
+         jay_foreach_src_index(I, _, c, index) {
+            BITSET_CLEAR(s->seen, index);
+         }
       }
 
       adjust_demand_after(s, I, demand);
