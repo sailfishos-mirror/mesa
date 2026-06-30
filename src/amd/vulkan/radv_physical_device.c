@@ -3438,7 +3438,6 @@ radv_GetPhysicalDeviceDescriptorSizeEXT(VkPhysicalDevice physicalDevice, VkDescr
    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
       return pdev->vk.properties.bufferDescriptorSize;
    default:
-      UNREACHABLE("Invalid descriptor type in GetPhysicalDeviceDescriptorSizeEXT");
       return 0;
    }
 }
