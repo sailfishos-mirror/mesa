@@ -47,6 +47,8 @@ sim_syncobj_create(bool signaled)
 
    mtx_init(&syncobj->mutex, mtx_plain);
    syncobj->pending_fd = -1;
+   if (signaled)
+      syncobj->point = syncobj->pending_point = 1;
 
    mtx_lock(&sim.mutex);
 

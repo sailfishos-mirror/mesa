@@ -389,9 +389,6 @@ virtgpu_ioctl_syncobj_timeline_signal(struct virtgpu *gpu,
                                       uint32_t syncobj_handle,
                                       uint64_t point)
 {
-   if (!gpu->sync)
-      return sim_syncobj_signal(syncobj_handle, point);
-
    return gpu->sync->timeline_signal(gpu->sync, &syncobj_handle, &point, 1);
 }
 
@@ -465,6 +462,7 @@ virtgpu_sync_write(struct vn_renderer *renderer,
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
 
+   assert(renderer->info.has_timeline_sync);
    const int ret =
       virtgpu_ioctl_syncobj_timeline_signal(gpu, sync->syncobj_handle, val);
 
@@ -491,8 +489,9 @@ virtgpu_sync_reset(struct vn_renderer *renderer,
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
 
+   assert(renderer->info.has_timeline_sync || initial_val == 0);
    int ret = virtgpu_ioctl_syncobj_reset(gpu, sync->syncobj_handle);
-   if (!ret) {
+   if (!ret && renderer->info.has_timeline_sync) {
       ret = virtgpu_ioctl_syncobj_timeline_signal(gpu, sync->syncobj_handle,
                                                   initial_val);
    }
@@ -569,19 +568,24 @@ virtgpu_sync_create(struct vn_renderer *renderer,
    if (flags & VN_RENDERER_SYNC_SHAREABLE)
       return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 
-   /* always false because we don't use binary drm_syncobjs */
-   const bool signaled = false;
-   const uint32_t syncobj_handle =
-      virtgpu_ioctl_syncobj_create(gpu, signaled);
-   if (!syncobj_handle)
-      return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+   uint32_t syncobj_handle;
+   if (renderer->info.has_timeline_sync) {
+      syncobj_handle = virtgpu_ioctl_syncobj_create(gpu, false);
+      if (!syncobj_handle)
+         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 
-   /* add a signaled fence chain with seqno initial_val */
-   const int ret =
-      virtgpu_ioctl_syncobj_timeline_signal(gpu, syncobj_handle, initial_val);
-   if (ret) {
-      virtgpu_ioctl_syncobj_destroy(gpu, syncobj_handle);
-      return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+      /* add a signaled fence chain with seqno initial_val */
+      int ret = virtgpu_ioctl_syncobj_timeline_signal(gpu, syncobj_handle,
+                                                      initial_val);
+      if (ret) {
+         virtgpu_ioctl_syncobj_destroy(gpu, syncobj_handle);
+         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+      }
+   } else {
+      assert(initial_val <= 1);
+      syncobj_handle = virtgpu_ioctl_syncobj_create(gpu, initial_val == 1);
+      if (!syncobj_handle)
+         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
    }
 
    struct vn_renderer_sync *sync = calloc(1, sizeof(*sync));
