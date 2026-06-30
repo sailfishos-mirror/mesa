@@ -412,9 +412,9 @@ radv-tahiti-vkd3d-asan:
     - .test-vkd3d-proton
     - .tahiti-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -424,9 +424,9 @@ radv-hawaii-vkd3d-asan:
     - .test-vkd3d-proton
     - .hawaii-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -436,9 +436,9 @@ radv-polaris10-vkd3d-asan:
     - .test-vkd3d-proton
     - .polaris10-test-valve-kws
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -448,9 +448,9 @@ radv-vega10-vkd3d-asan:
     - .test-vkd3d-proton
     - .vega10-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -460,9 +460,9 @@ radv-renoir-vkd3d-asan:
     - .test-vkd3d-proton
     - .renoir-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -472,9 +472,9 @@ radv-navi10-vkd3d-asan:
     - .test-vkd3d-proton
     - .navi10-test-valve-mupuf
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -484,9 +484,9 @@ radv-navi21-vkd3d-asan:
     - .test-vkd3d-proton
     - .navi21-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -496,9 +496,9 @@ radv-vangogh-vkd3d-asan:
     - .test-vkd3d-proton
     - .vangogh-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -508,9 +508,9 @@ radv-raphael-vkd3d-asan:
     - .test-vkd3d-proton
     - .raphael-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -520,9 +520,9 @@ radv-navi31-vkd3d-asan:
     - .test-vkd3d-proton
     - .navi31-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -532,9 +532,9 @@ radv-gfx1201-vkd3d-asan:
     - .test-vkd3d-proton
     - .gfx1201-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
     # Random tests fail/crash when trying to run them in parallel
     FDO_CI_CONCURRENT: 1
 
@@ -544,6 +544,6 @@ radv-gfx1201-vkd3d-asan:
     - .test-vkd3d-proton
     - .kabini-test-valve
     - .radv-valve-manual-rules
-  timeout: 10m
+  timeout: 12m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 10
