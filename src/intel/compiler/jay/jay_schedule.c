@@ -314,6 +314,7 @@ schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
       }
 
       jay_builder b = jay_init_builder(s->func, jay_before_block(block));
+
       util_dynarray_foreach_reverse(&s->schedule, uint32_t, node) {
          jay_builder_insert(&b, s->insts[*node]);
       }
