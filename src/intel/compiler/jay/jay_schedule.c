@@ -41,6 +41,7 @@
 
 /* Bitfield describing a scheduler policy */
 enum sched_mode {
+   BACKWARD = 0x1, /* Forward if unset */
    PRESSURE = 0x4,
 };
 
@@ -56,7 +57,7 @@ struct sched_ctx {
    /* Function we are currently scheduling */
    jay_function *func;
 
-   struct jay_dag dag;
+   struct jay_dag dag, dag_t;
    struct jay_dag_iterator it;
 
    jay_inst **insts;
@@ -295,7 +296,10 @@ schedule_block(jay_block *block,
                void *memctx,
                enum sched_mode mode)
 {
-   s->it.dag = &s->dag;
+   /* The DAG we constructed corresponds to a backwards walk, so for a
+    * forwards walk just iterate the transposed DAG instead.
+    */
+   s->it.dag = mode & BACKWARD ? &s->dag : &s->dag_t;
    jay_dag_iterate(&s->it, s->blocks[block->index].first,
                    s->blocks[block->index].last);
 
@@ -310,7 +314,7 @@ schedule_block(jay_block *block,
    while (s->it.heads.size) {
       int32_t node = choose_inst(s, mode);
 
-      if (s->phase < POSTRA) {
+      if (s->phase < POSTRA && (mode & BACKWARD)) {
          adjust_demand_after(s, s->insts[node], s->demand);
 
          /* Toss schedules that blow up register pressure as we go */
@@ -337,8 +341,14 @@ schedule_block(jay_block *block,
 
    jay_builder b = jay_init_builder(s->func, jay_before_block(block));
 
-   util_dynarray_foreach_reverse(&s->schedule, uint32_t, node) {
-      jay_builder_insert(&b, s->insts[*node]);
+   if (mode & BACKWARD) {
+      util_dynarray_foreach_reverse(&s->schedule, uint32_t, node) {
+         jay_builder_insert(&b, s->insts[*node]);
+      }
+   } else {
+      util_dynarray_foreach(&s->schedule, uint32_t, node) {
+         jay_builder_insert(&b, s->insts[*node]);
+      }
    }
 }
 
@@ -368,10 +378,12 @@ pass(jay_function *f)
    unsigned ugpr_per_grf = jay_ugpr_per_grf(f->shader);
    unsigned ugpr_per_gpr = jay_grf_per_gpr(f->shader) * ugpr_per_grf;
 
-   /* Build the DAG for the whole program */
+   /* Build the DAG for the whole program and transpose it */
    jay_foreach_block(f, block) {
       populate_dag(&sctx, block, def);
    }
+
+   jay_dag_transpose(&sctx.dag_t, &sctx.dag);
 
    jay_foreach_block(f, block) {
       /* Gather reference statistics about the program performance */
@@ -389,7 +401,7 @@ pass(jay_function *f)
          if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >=
              (120 * ugpr_per_grf)) {
             f->prioritize_pressure = true;
-            schedule_block(block, &sctx, memctx, PRESSURE);
+            schedule_block(block, &sctx, memctx, BACKWARD | PRESSURE);
          }
       }
    }
