@@ -526,8 +526,9 @@ static bool check_mem_writes(nir_builder *b,
  *
  * \param[in] ctx PCO compiler context.
  * \param[in,out] nir NIR shader.
+ * \param[in,out] data Shader data.
  */
-void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
+void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir, UNUSED pco_data *data)
 {
    bool internal = nir->info.internal;
 
