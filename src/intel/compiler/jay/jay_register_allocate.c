@@ -1298,6 +1298,9 @@ map_gpr_to_acc(jay_shader *shader, jay_def *x)
 static void
 jay_register_allocate_function(jay_function *f)
 {
+   /* TODO: Could do a simplified liveness analysis gathering only .kill */
+   jay_compute_liveness(f);
+
    jay_shader *shader = f->shader;
    jay_ra_state ra = { .b.shader = shader, .b.func = f };
    typed_memcpy(ra.num_regs, shader->num_regs, JAY_NUM_RA_FILES);
