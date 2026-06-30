@@ -318,12 +318,28 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       alu_funclike(ctx, instr, "clz");
       break;
    case nir_op_ieq:
-   case nir_op_feq:
       ALU_BINOP("==");
       break;
+   case nir_op_feq:
+      /* "x == x" is a special case checking for non-NANs */
+      if (nir_alu_srcs_equal(instr, instr, 0, 1)) {
+         P(ctx, "!isnan(");
+         alu_src_to_msl(ctx, instr, 0);
+         P(ctx, ")");
+      } else
+         ALU_BINOP("==");
+      break;
    case nir_op_ine:
-   case nir_op_fneu:
       ALU_BINOP("!=");
+      break;
+   case nir_op_fneu:
+      /* "x != x" is a special case checking for NANs */
+      if (nir_alu_srcs_equal(instr, instr, 0, 1)) {
+         P(ctx, "isnan(");
+         alu_src_to_msl(ctx, instr, 0);
+         P(ctx, ")");
+      } else
+         ALU_BINOP("!=");
       break;
    case nir_op_umax:
    case nir_op_imax:
