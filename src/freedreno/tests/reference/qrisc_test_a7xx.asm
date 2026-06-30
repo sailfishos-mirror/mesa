@@ -9,51 +9,33 @@ cwrite $01, [$00 + @REG_READ_ADDR]
 cwrite $02, [$00 + @REG_READ_DWORDS]
 mov $01, $regdata
 mov $02, $regdata
-add $01, $01, 0x4
-addhi $02, $02, 0x0
-mov $03, 0x1
-cwrite $01, [$00 + @MEM_READ_ADDR]
-cwrite $02, [$00 + @MEM_READ_ADDR+0x1]
-cwrite $03, [$00 + @MEM_READ_DWORDS]
-rot $04, $memdata, 0x8
-ushr $04, $04, 0x6
-sub $04, $04, 0x4
-add $01, $01, $04
-addhi $02, $02, 0x0
+add $03, $01, 0x240
+addhi $04, $02, 0x0
 mov $rem, 0x80
-cwrite $01, [$00 + @MEM_READ_ADDR]
-cwrite $02, [$00 + @MEM_READ_ADDR+0x1]
-cwrite $02, [$00 + @LOAD_STORE_HI]
+cwrite $03, [$00 + @MEM_READ_ADDR]
+cwrite $04, [$00 + @MEM_READ_ADDR+0x1]
+cwrite $04, [$00 + @LOAD_STORE_HI]
 cwrite $rem, [$00 + @MEM_READ_DWORDS]
 cwrite $00, [$00 + @PACKET_TABLE_WRITE_ADDR]
 (rep)cwrite $memdata, [$00 + @PACKET_TABLE_WRITE]
-add $01, $01, 0x200
-addhi $02, $02, 0x0
-cwrite $01, [$00 + @BV_INSTR_BASE]
-cwrite $02, [$00 + @BV_INSTR_BASE+0x1]
-cwrite $03, [$00 + @BV_CNTL]
-add $01, $01, 0x4
-addhi $02, $02, 0x0
-cwrite $01, [$00 + @MEM_READ_ADDR]
-cwrite $02, [$00 + @MEM_READ_ADDR+0x1]
-cwrite $03, [$00 + @MEM_READ_DWORDS]
-rot $04, $memdata, 0x8
-ushr $04, $04, 0x6
-sub $04, $04, 0x4
-add $01, $01, $04
-addhi $02, $02, 0x0
-add $01, $01, 0x200
-addhi $02, $02, 0x0
-cwrite $01, [$00 + @LPAC_INSTR_BASE]
-cwrite $02, [$00 + @LPAC_INSTR_BASE+0x1]
-cwrite $03, [$00 + @LPAC_CNTL]
+add $03, $01, 0x440	; RBBM_PERFCTR2_SP[0xb]+0
+addhi $04, $02, 0x0
+cwrite $03, [$00 + @BV_INSTR_BASE]
+cwrite $04, [$00 + @BV_INSTR_BASE+0x1]
+mov $05, 0x1
+cwrite $05, [$00 + @BV_CNTL]
+add $03, $03, 0x280
+addhi $04, $04, 0x0
+cwrite $03, [$00 + @LPAC_INSTR_BASE]
+cwrite $04, [$00 + @LPAC_INSTR_BASE+0x1]
+cwrite $05, [$00 + @LPAC_CNTL]
 mov $02, 0x883	; CP_SCRATCH[0].REG
 mov $03, 0xbeef
 mov $04, 0xdead << 16
 or $03, $03, $04
 cwrite $02, [$00 + @REG_WRITE_ADDR]
 cwrite $03, [$00 + @REG_WRITE]
-mov $02, 0x91
+mov $02, 0x7f
 swrite $02, [$00 + %PREEMPT_INSTR]
 waitin
 mov $01, $data
@@ -93,27 +75,27 @@ mov $01, $data
 
 CP_SET_SECURE_MODE:
 mov $02, $data
-setsecure $02, #l83
+setsecure $02, #l65
 
-fxn81:
-l81:
-jump #l81
+fxn63:
+l63:
+jump #l63
 nop
-l83:
+l65:
 waitin
 mov $01, $data
 
-fxn85:
-l85:
+fxn67:
+l67:
 cmp $04, $02, $03
-breq $04, b0, #l92
-brne $04, b1, #l90
-breq $04, b2, #l85
+breq $04, b0, #l74
+brne $04, b1, #l72
+breq $04, b2, #l67
 sub $03, $03, $02
-l90:
-jump #l85
+l72:
+jump #l67
 sub $02, $02, $03
-l92:
+l74:
 ret
 nop
 
@@ -122,7 +104,7 @@ cwrite $data, [$00 + @REG_READ_ADDR]
 add $02, $regdata, 0x42
 addhi $03, $00, $regdata
 sub $02, $02, $regdata
-call #fxn85
+call #fxn67
 subhi $03, $03, $regdata
 and $02, $02, $regdata
 or $02, $02, 0x1
@@ -154,14 +136,14 @@ mov $03, $data
 mov $04, $data
 mov $05, $data
 mov $06, $data
-l128:
-breq $06, 0x0, #l134
+l110:
+breq $06, 0x0, #l116
 cwrite $03, [$00 + @LOAD_STORE_HI]
 load $07, [$02 + 0x4]!
 cwrite $05, [$00 + @LOAD_STORE_HI]
-jump #l128
+jump #l110
 store $07, [$04 + 0x4]!
-l134:
+l116:
 waitin
 mov $01, $data
 
@@ -179,15 +161,15 @@ mov $01, $data
 IN_PREEMPT:
 preempt:
 cread $02, [$00 + 0x101]
-brne $02, 0x1, #l154
+brne $02, 0x1, #l136
 nop
-bl #fxn81
+bl #fxn63
 nop
 nop
 nop
 waitin
 mov $01, $data
-l154:
+l136:
 iret
 nop
 
@@ -311,6 +293,8 @@ UNKN96:
 UNKN97:
 waitin
 mov $01, $data
+nop
+nop
 nop
 nop
 .align 32

@@ -34,62 +34,37 @@ cwrite $02, [$00 + @REG_READ_DWORDS]
 ; move hi/lo of SQE fw addrs to registers:
 mov $01, $regdata
 mov $02, $regdata
-; skip first dword
-add $01, $01, 0x0004
-addhi $02, $02, 0x0000
-mov $03, 0x0001
-cwrite $01, [$00 + @MEM_READ_ADDR]
-cwrite $02, [$00 + @MEM_READ_ADDR+0x1]
-cwrite $03, [$00 + @MEM_READ_DWORDS]
-; read 2nd dword of fw, and add offset (minus 4 because we skipped first dword)
-; to base address of sqe fw
-rot $04, $memdata, 0x0008
-ushr $04, $04, 0x0006
-sub $04, $04, 0x0004
-add $01, $01, $04
-addhi $02, $02, 0x0000
+; Use byte unit labels to get the packet table address:
+add $03, $01, #jumptbl * 4
+addhi $04, $02, 0x0000
 
 ; load packet table:
 mov $rem, 0x0080
-cwrite $01, [$00 + @MEM_READ_ADDR]
-cwrite $02, [$00 + @MEM_READ_ADDR+0x1]
-cwrite $02, [$00 + @LOAD_STORE_HI]
+cwrite $03, [$00 + @MEM_READ_ADDR]
+cwrite $04, [$00 + @MEM_READ_ADDR+0x1]
+cwrite $04, [$00 + @LOAD_STORE_HI]
 cwrite $rem, [$00 + @MEM_READ_DWORDS]
 cwrite $00, [$00 + @PACKET_TABLE_WRITE_ADDR]
 (rep)cwrite $memdata, [$00 + @PACKET_TABLE_WRITE]
 
-; load BV SQE base address, which should be after the packet table:
-add $01, $01, 0x200
-addhi $02, $02, 0x0
-cwrite $01, [$00 + @BV_INSTR_BASE]
-cwrite $02, [$00 + @BV_INSTR_BASE+1]
+; load BV SQE base address using an absolute address:
+add $03, $01, #BV::start * 4
+addhi $04, $02, 0x0
+cwrite $03, [$00 + @BV_INSTR_BASE]
+cwrite $04, [$00 + @BV_INSTR_BASE+1]
 
 ; kick off the BV
-cwrite $03, [$00 + @BV_CNTL]
+mov $05, 0x0001
+cwrite $05, [$00 + @BV_CNTL]
 
-; get BV packet table offset:
-add $01, $01, 0x4
-addhi $02, $02, 0
-
-cwrite $01, [$00 + @MEM_READ_ADDR]
-cwrite $02, [$00 + @MEM_READ_ADDR+1]
-cwrite $03, [$00 + @MEM_READ_DWORDS]
-
-rot $04, $memdata, 8
-ushr $04, $04, 6
-sub $04, $04, 4
-add $01, $01, $04
-addhi $02, $02, 0x0
-
-; load LPAC base address, which is after the BV packet table
-add $01, $01, 0x200
-addhi $02, $02, 0x0
-
-cwrite $01, [$00 + @LPAC_INSTR_BASE]
-cwrite $02, [$00 + @LPAC_INSTR_BASE+1]
+; load LPAC base address using an address relative to BV start:
+add $03, $03, #LPAC::start * 4 - #BV::start * 4
+addhi $04, $04, 0x0
+cwrite $03, [$00 + @LPAC_INSTR_BASE]
+cwrite $04, [$00 + @LPAC_INSTR_BASE+1]
 
 ; kick off the LPAC
-cwrite $03, [$00 + @LPAC_CNTL]
+cwrite $05, [$00 + @LPAC_CNTL]
 
 mov $02, 0x883
 mov $03, 0xbeef
@@ -383,6 +358,7 @@ jumptbl:
 
 .section BV
 ; BV microcode
+start:
 
 [01000001]
 [#jumptbl]
@@ -565,6 +541,7 @@ jumptbl:
 
 .section LPAC
 ; LPAC microcode
+start:
 [01000001]
 [#jumptbl]
 
