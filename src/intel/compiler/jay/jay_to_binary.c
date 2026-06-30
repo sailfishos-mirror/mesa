@@ -606,14 +606,9 @@ emit(struct jay_codegen *jc,
          gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
          gen->src[0].addr_imm = 0;
 
-         if (I->src[1].file == GPR) {
-            gen->src[0].region.vstride = GEN_VSTRIDE_ONE_DIMENSIONAL;
-         } else if (I->op == JAY_OPCODE_VECTOR_EXTRACT &&
-                    I->src[0].file == GPR) {
+         if (I->op == JAY_OPCODE_VECTOR_EXTRACT && I->src[0].file == GPR) {
             gen->src[0] = gen_restride(gen->src[0],
                                        32 / jay_type_size_bits(I->type), 1, 0);
-         } else {
-            gen->src[0] = gen_restride(gen->src[0], 0, 1, 0);
          }
       }
       break;

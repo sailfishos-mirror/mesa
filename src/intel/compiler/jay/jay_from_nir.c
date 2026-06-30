@@ -106,7 +106,7 @@ struct nir_to_jay_state {
    struct {
       jay_def u0, u1;
       jay_def sampler_state_pointer, scratch_surface;
-      jay_def inline_data;
+      jay_def inline_data[16];
       jay_def push_data[512];
       jay_def urb_handle;
 
@@ -1611,6 +1611,54 @@ jay_emit_convert_cmat(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 }
 
 static void
+load_push_data(struct nir_to_jay_state *nj,
+               nir_intrinsic_instr *intr,
+               jay_def *push_data)
+{
+   unsigned sz = intr->def.bit_size / 8;
+   unsigned base_offset = nir_intrinsic_base(intr);
+   jay_def dst = nj_def(&intr->def);
+   jay_builder *b = &nj->bld;
+
+   if (nir_src_is_const(intr->src[0])) {
+      unsigned load_offset = nir_src_as_uint(intr->src[0]);
+      unsigned offs = base_offset + load_offset;
+      assert(util_is_aligned(load_offset, sz));
+
+      if (sz >= 4) {
+         jay_foreach_comp(dst, c) {
+            jay_MOV(b, jay_extract(dst, c), push_data[(offs / 4) + c]);
+         }
+      } else {
+         jay_foreach_comp(dst, c) {
+            unsigned comp_offs = offs + c * sz;
+            if (util_is_aligned(comp_offs, 4)) {
+               jay_MOV(b, jay_extract(dst, c), push_data[comp_offs / 4]);
+            } else {
+               jay_CVT(b, JAY_TYPE_U32, jay_extract(dst, c),
+                       push_data[comp_offs / 4],
+                       JAY_TYPE_U | intr->def.bit_size, JAY_ROUND,
+                       (comp_offs % 4) / sz);
+            }
+         }
+      }
+   } else {
+      assert(sz < 8);
+      unsigned range = DIV_ROUND_UP(nir_intrinsic_range(intr), 4);
+      unsigned range_base = jay_base_index(push_data[base_offset / 4]);
+      jay_def push_data = jay_contiguous_def(UGPR, range_base, range);
+      jay_def offset = nj_src(intr->src[0]);
+      if (!intr->def.divergent)
+         offset = emit_uniformize(nj, offset);
+      if (base_offset % 4)
+         offset = jay_ADD_u32(b, offset, base_offset % 4);
+
+      jay_VECTOR_EXTRACT(b, JAY_TYPE_U | intr->def.bit_size, dst, push_data,
+                         offset);
+   }
+}
+
+static void
 jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
    jay_shader *s = nj->s;
@@ -1668,52 +1716,14 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_emit_mem_access(nj, intr);
       break;
 
-   case nir_intrinsic_load_push_data_intel: {
-      unsigned sz = intr->def.bit_size / 8;
-      unsigned base_offset = nir_intrinsic_base(intr);
-      assert(util_is_aligned(base_offset, sz));
-
-      if (nir_src_is_const(intr->src[0])) {
-         unsigned load_offset = nir_src_as_uint(intr->src[0]);
-         unsigned offs = base_offset + load_offset;
-         assert(util_is_aligned(load_offset, sz));
-
-         if (sz >= 4) {
-            jay_foreach_comp(dst, c) {
-               jay_MOV(b, jay_extract(dst, c),
-                       nj->payload.push_data[(offs / 4) + c]);
-            }
-         } else {
-            jay_foreach_comp(dst, c) {
-               unsigned comp_offs = offs + c * sz;
-               if (util_is_aligned(comp_offs, 4)) {
-                  jay_MOV(b, jay_extract(dst, c),
-                          nj->payload.push_data[comp_offs / 4]);
-               } else {
-                  jay_CVT(b, JAY_TYPE_U32, jay_extract(dst, c),
-                          nj->payload.push_data[comp_offs / 4],
-                          JAY_TYPE_U | intr->def.bit_size, JAY_ROUND,
-                          (comp_offs % 4) / sz);
-               }
-            }
-         }
-      } else {
-         assert(sz < 8);
-         unsigned range = DIV_ROUND_UP(nir_intrinsic_range(intr), 4);
-         unsigned range_base =
-            jay_base_index(nj->payload.push_data[base_offset / 4]);
-         jay_def push_data = jay_contiguous_def(UGPR, range_base, range);
-         jay_def offset = nj_src(intr->src[0]);
-         if (!intr->def.divergent)
-            offset = emit_uniformize(nj, offset);
-         if (base_offset % 4)
-            offset = jay_ADD_u32(b, offset, base_offset % 4);
-
-         jay_VECTOR_EXTRACT(b, JAY_TYPE_U | intr->def.bit_size, dst, push_data,
-                            offset);
-      }
+   case nir_intrinsic_load_push_data_intel:
+      load_push_data(nj, intr, nj->payload.push_data);
       break;
-   }
+
+   case nir_intrinsic_load_inline_data_intel:
+      assert(cs && f->is_entrypoint && "todo: this needs ABI");
+      load_push_data(nj, intr, nj->payload.inline_data);
+      break;
 
    case nir_intrinsic_load_fs_config_intel:
       s->prog_data->fs.uses_fs_config = true;
@@ -2112,32 +2122,6 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_QUAD_SWIZZLE(b, dst, nj_src(intr->src[0]),
                        JAY_QUAD_SWIZZLE_XXXX + nir_src_as_uint(intr->src[1]));
       break;
-
-   case nir_intrinsic_load_inline_data_intel: {
-      assert(cs && f->is_entrypoint && "todo: this needs ABI");
-      assert(nir_src_as_uint(intr->src[0]) == 0 && "TODO: indirects");
-
-      /* We break up 8/16-bit loads since our model is all 32-bit. We should
-       * probably move this to NIR (TODO) but this will do for now.
-       */
-      unsigned stride_B = MIN2(intr->def.bit_size / 8, 4);
-      assert(stride_B > 0);
-
-      jay_foreach_comp(dst, c) {
-         unsigned offset_B = nir_intrinsic_base(intr) + (c * stride_B);
-         jay_def word = jay_extract(nj->payload.inline_data, offset_B / 4);
-         unsigned element = (offset_B % 4) / stride_B;
-
-         if (element) {
-            jay_CVT(b, JAY_TYPE_U32, jay_extract(dst, c), word,
-                    JAY_TYPE_U | intr->def.bit_size, JAY_ROUND, element);
-         } else {
-            jay_MOV(b, jay_extract(dst, c), word);
-         }
-      }
-
-      break;
-   }
 
    case nir_intrinsic_load_topology_id_intel:
       jay_MOV(b, dst, jay_scalar(J_ARF, GEN_ARF_STATE));
@@ -3140,8 +3124,9 @@ setup_compute_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
    if (nj->s->prog_data->cs.uses_btd_stack_ids)
       nj->payload.u1 = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
 
-   nj->payload.inline_data =
-      read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+   for (unsigned i = 0; i < jay_ugpr_per_grf(nj->s); ++i) {
+      nj->payload.inline_data[i] = read_payload(p, UGPR);
+   };
 
    setup_payload_dispatch_start(nj, p);
 }
