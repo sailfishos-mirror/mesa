@@ -293,13 +293,19 @@ schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
    memset(s->demand, 0, JAY_NUM_SSA_FILES * sizeof(s->demand[0]));
    u_sparse_bitset_free(&s->live);
    u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
-   int32_t max_pressure = 0;
 
    while (s->it.heads.size) {
       int32_t node = choose_inst(s);
 
       adjust_demand_after(s, s->insts[node], s->demand);
-      max_pressure = MAX2(max_pressure, weighted_demand(s, s->demand));
+
+      /* Toss schedules that blow up register pressure as we go */
+      if (weighted_demand(s, s->demand) >=
+          s->blocks[block->index].max_pressure) {
+         jay_dag_iterator_reset(&s->it);
+         return;
+      }
+
       adjust_demand_before(s, s->insts[node], s->demand);
       liveness_update(&s->live, s->insts[node]);
 
@@ -307,17 +313,15 @@ schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
       util_dynarray_append(&s->schedule, node);
    }
 
-   /* Apply the schedule only if it reduces pressure */
-   if (max_pressure < s->blocks[block->index].max_pressure) {
-      util_dynarray_foreach(&s->schedule, uint32_t, node) {
-         jay_remove_instruction(s->insts[*node]);
-      }
+   /* Apply schedule */
+   util_dynarray_foreach(&s->schedule, uint32_t, node) {
+      jay_remove_instruction(s->insts[*node]);
+   }
 
-      jay_builder b = jay_init_builder(s->func, jay_before_block(block));
+   jay_builder b = jay_init_builder(s->func, jay_before_block(block));
 
-      util_dynarray_foreach_reverse(&s->schedule, uint32_t, node) {
-         jay_builder_insert(&b, s->insts[*node]);
-      }
+   util_dynarray_foreach_reverse(&s->schedule, uint32_t, node) {
+      jay_builder_insert(&b, s->insts[*node]);
    }
 }
 
