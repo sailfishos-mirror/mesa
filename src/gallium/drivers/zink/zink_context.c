@@ -93,18 +93,8 @@ update_tc_info(struct zink_context *ctx)
 ALWAYS_INLINE static void
 check_resource_for_batch_ref(struct zink_context *ctx, struct zink_resource *res)
 {
-   if (!zink_resource_has_binds(res)) {
-      /* avoid desync between usage and tracking:
-       * - if usage exists, it must be removed before the context is destroyed
-       * - having usage does not imply having tracking
-       * - if tracking will be added here, also reapply usage to avoid dangling usage once tracking is removed
-       * TODO: somehow fix this for perf because it's an extra hash lookup
-       */
-      if (!res->obj->dt && zink_resource_has_usage(res))
-         zink_batch_reference_resource_rw(ctx, res, !!res->obj->bo->writes.u);
-      else
-         zink_batch_reference_resource(ctx, res);
-   }
+   if (!zink_resource_has_binds(res))
+      zink_batch_reference_resource(ctx, res);
 }
 
 static void
