@@ -25,10 +25,8 @@ struct sim_sync_provider {
 
 struct sim_syncobj {
    mtx_t mutex;
-   uint64_t point;
-
    int pending_fd;
-   uint64_t pending_point;
+   bool signaled;
 };
 
 static int
@@ -37,7 +35,6 @@ sim_syncobj_create(struct util_sync_provider *p,
                    uint32_t *handle)
 {
    struct sim_sync_provider *sim = (struct sim_sync_provider *)p;
-   const bool signaled = !!(flags & DRM_SYNCOBJ_CREATE_SIGNALED);
 
    struct sim_syncobj *syncobj = calloc(1, sizeof(*syncobj));
    if (!syncobj)
@@ -45,8 +42,7 @@ sim_syncobj_create(struct util_sync_provider *p,
 
    mtx_init(&syncobj->mutex, mtx_plain);
    syncobj->pending_fd = -1;
-   if (signaled)
-      syncobj->point = syncobj->pending_point = 1;
+   syncobj->signaled = !!(flags & DRM_SYNCOBJ_CREATE_SIGNALED);
 
    mtx_lock(&sim->mutex);
    *handle = util_idalloc_alloc(&sim->ida) + 1;
@@ -100,13 +96,13 @@ sim_syncobj_poll(int fd, int poll_timeout)
 }
 
 static void
-sim_syncobj_update_point_locked(struct sim_syncobj *syncobj, int poll_timeout)
+sim_syncobj_update_locked(struct sim_syncobj *syncobj, int poll_timeout)
 {
    if (syncobj->pending_fd >= 0) {
       if (sim_syncobj_poll(syncobj->pending_fd, poll_timeout)) {
          close(syncobj->pending_fd);
          syncobj->pending_fd = -1;
-         syncobj->point = syncobj->pending_point;
+         syncobj->signaled = true;
       }
    }
 }
@@ -139,12 +135,11 @@ sim_syncobj_reset(struct util_sync_provider *p,
          return -1;
 
       mtx_lock(&syncobj->mutex);
-      syncobj->point = 0;
+      syncobj->signaled = false;
 
       if (syncobj->pending_fd >= 0) {
          close(syncobj->pending_fd);
          syncobj->pending_fd = -1;
-         syncobj->pending_point = 0;
       }
       mtx_unlock(&syncobj->mutex);
    }
@@ -167,8 +162,8 @@ sim_syncobj_query(struct util_sync_provider *p,
          return -1;
 
       mtx_lock(&syncobj->mutex);
-      sim_syncobj_update_point_locked(syncobj, 0);
-      points[i] = syncobj->point;
+      sim_syncobj_update_locked(syncobj, 0);
+      points[i] = syncobj->signaled;
       mtx_unlock(&syncobj->mutex);
    }
 
@@ -205,10 +200,10 @@ sim_syncobj_wait(struct util_sync_provider *p,
          return -1;
 
       mtx_lock(&syncobj->mutex);
-      if (syncobj->point < 1)
-         sim_syncobj_update_point_locked(syncobj, poll_timeout);
+      if (!syncobj->signaled)
+         sim_syncobj_update_locked(syncobj, poll_timeout);
 
-      if (syncobj->point < 1) {
+      if (!syncobj->signaled) {
          if (!wait_all && i < num_handles - 1 && syncobj->pending_fd < 0) {
             mtx_unlock(&syncobj->mutex);
             continue;
@@ -271,7 +266,7 @@ sim_syncobj_import_sync_file(struct util_sync_provider *p,
    if (syncobj->pending_fd >= 0)
       close(syncobj->pending_fd);
    syncobj->pending_fd = pending_fd;
-   syncobj->pending_point = 1;
+   syncobj->signaled = false;
    mtx_unlock(&syncobj->mutex);
 
    return 0;
