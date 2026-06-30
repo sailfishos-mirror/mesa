@@ -247,7 +247,7 @@ FreeScreenConfigs(struct glx_display * priv)
    priv->screens = NULL;
 }
 
-#if defined(GLX_DIRECT_RENDERING) && !defined(GLX_USE_APPLEGL)
+#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
 static void
 free_zombie_glx_drawable(struct set_entry *entry)
 {
@@ -272,7 +272,7 @@ glx_display_free(struct glx_display *priv)
    }
 
    /* Needs to be done before free screen. */
-#if defined(GLX_DIRECT_RENDERING) && !defined(GLX_USE_APPLEGL)
+#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
    _mesa_set_destroy(priv->zombieGLXDrawable, free_zombie_glx_drawable);
 #endif
 
@@ -280,12 +280,12 @@ glx_display_free(struct glx_display *priv)
 
    __glxHashDestroy(priv->glXDrawHash);
 
-#if defined(GLX_DIRECT_RENDERING) && !defined(GLX_USE_APPLEGL)
+#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
    __glxHashDestroy(priv->drawHash);
    if (priv->dri2Hash)
       __glxHashDestroy(priv->dri2Hash);
 
-#endif /* GLX_DIRECT_RENDERING && !GLX_USE_APPLEGL */
+#endif /* GLX_DIRECT_RENDERING && (!GLX_USE_APPLEGL || GLX_USE_APPLE) */
 
    free((char *) priv);
 }
@@ -1069,7 +1069,7 @@ __glXInitialize(Display * dpy)
 
    return dpyPriv;
 init_fail:
-#if defined(GLX_DIRECT_RENDERING) && !defined(GLX_USE_APPLEGL)
+#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
    _mesa_set_destroy(dpyPriv->zombieGLXDrawable, free_zombie_glx_drawable);
    __glxHashDestroy(dpyPriv->drawHash);
 #endif

@@ -714,7 +714,7 @@
         "description": "glx: fix per-display drawHash / zombieGLXDrawable / dri2Hash leak on GLX_USE_APPLE builds",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "97b6851815acee2115bd1caff8e7edde23f3f7c5",
         "notes": null
