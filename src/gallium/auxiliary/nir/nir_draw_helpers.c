@@ -49,8 +49,20 @@ typedef struct {
 } lower_pstipple;
 
 static nir_def *
-load_frag_coord(nir_builder *b)
+load_frag_coord(nir_builder *b, bool fs_pos_is_sysval)
 {
+   if (fs_pos_is_sysval)
+      return nir_build_frag_coord(b, 4);
+
+   /* Used in the mesa/st variants case. */
+   if (b->shader->info.io_lowered) {
+      nir_def *baryc =
+         nir_load_barycentric_pixel(b, 32,
+                                    .interp_mode = INTERP_MODE_NOPERSPECTIVE);
+      return nir_load_interpolated_input(b, 2, 32, baryc, nir_imm_int(b, 0),
+                                         .io_semantics.location = VARYING_SLOT_POS);
+   }
+
    nir_variable *pos = nir_get_variable_with_location(b->shader, nir_var_shader_in,
                                                       VARYING_SLOT_POS, glsl_vec4_type());
    pos->data.interpolation = INTERP_MODE_NOPERSPECTIVE;
@@ -66,8 +78,7 @@ nir_lower_pstipple_block(nir_block *block,
 
    b->cursor = nir_before_block(block);
 
-   nir_def *frag_coord = state->fs_pos_is_sysval ? nir_build_frag_coord(b, 4)
-                                                 : load_frag_coord(b);
+   nir_def *frag_coord = load_frag_coord(b, state->fs_pos_is_sysval);
 
    texcoord = nir_fmul(b, nir_trim_vector(b, frag_coord, 2),
                        nir_imm_vec2(b, 1.0/32.0, 1.0/32.0));
