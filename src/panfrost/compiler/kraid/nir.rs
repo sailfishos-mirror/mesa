@@ -70,16 +70,25 @@ struct ShaderFromNir<'a> {
     nir: &'a nir_shader,
     ssa_map: FxHashMap<u32, Vec<SSAValue>>,
     preload_map: FxHashMap<PreloadReg, SSAValue>,
+    ftz_fp32: bool,
     info: ShaderInfo,
 }
 
 impl<'a> ShaderFromNir<'a> {
     fn new(model: &'a dyn Model, nir: &'a nir_shader) -> Self {
+        let ftz_fp32 = unsafe {
+            nir_is_denorm_flush_to_zero(
+                nir.info.float_controls_execution_mode,
+                32,
+            )
+        };
+
         ShaderFromNir {
             model,
             nir,
             ssa_map: Default::default(),
             preload_map: Default::default(),
+            ftz_fp32,
             info: ShaderInfo::default(),
         }
     }
@@ -592,6 +601,45 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                     accum: 0.into(),
                     accum_op: CmpAccumOp::None,
+                });
+            }
+            nir_op_fround_even | nir_op_ftrunc | nir_op_fceil
+            | nir_op_ffloor => {
+                debug_assert!(alu.def.bit_size == 32);
+                debug_assert!(alu.def.num_components == 1);
+
+                let round = match alu.op {
+                    nir_op_fround_even => FRound::NearestEven,
+                    nir_op_ftrunc => FRound::TowardsZero,
+                    nir_op_fceil => FRound::Up,
+                    nir_op_ffloor => FRound::Down,
+                    _ => unreachable!(),
+                };
+                let needs_flush = matches!(round, FRound::Up | FRound::Down)
+                    && self.ftz_fp32
+                    && self.model.arch() >= 11;
+
+                let src = if needs_flush {
+                    let t = b.alloc_ssa(32);
+
+                    b.push_op(OpFlush {
+                        dst: t.into(),
+                        src_type: DataType::F32,
+                        src: srcs(0),
+                        ftz: true,
+                        flush_inf: false,
+                        flush_nan: FlushNanMode::None,
+                    });
+
+                    t.into()
+                } else {
+                    srcs(0)
+                };
+
+                b.push_op(OpFRound {
+                    dst: dst.into(),
+                    src,
+                    round,
                 });
             }
             nir_op_ffma => {

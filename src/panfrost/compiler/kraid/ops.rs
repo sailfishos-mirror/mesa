@@ -679,6 +679,28 @@ impl fmt::Display for OpFRcp {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpFRound {
+    #[dst_type(F32)]
+    pub dst: Dst,
+    #[src_type(F32)]
+    pub src: Src,
+    pub round: FRound,
+}
+
+impl fmt::Display for OpFRound {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FROUND.f32{} {}",
+            &self.dst,
+            self.round,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [F16, F32])]
 pub struct OpFRsq {
     pub dst: Dst,
@@ -1810,6 +1832,7 @@ pub enum Op {
     Fma(Box<OpFma>),
     FMul(Box<OpFMul>),
     FRcp(Box<OpFRcp>),
+    FRound(Box<OpFRound>),
     FRsq(Box<OpFRsq>),
     IAbs(Box<OpIAbs>),
     IAdd(Box<OpIAdd>),
