@@ -1219,6 +1219,18 @@ nir_variable_is_uniform(nir_shader *shader, nir_variable *var,
       fake_instr.intrinsic =
          nir_intrinsic_from_system_value(var->data.location);
 
+      /* There is not trivially an intrinsic for INSTANCE_INDEX. It might
+       * become nir_intrinsic_load_instance_id, or it it might become
+       * nir_intrinsic_load_instance_id + nir_intrinsic_load_base_instance. As
+       * a result, we'll treat this as nir_intrinsic_load_instance_id.
+       */
+      if (var->data.location == SYSTEM_VALUE_INSTANCE_INDEX) {
+         assert(fake_instr.intrinsic == nir_num_intrinsics);
+         fake_instr.intrinsic = nir_intrinsic_load_instance_id;
+      }
+
+      assert(fake_instr.intrinsic != nir_num_intrinsics);
+
       visit_intrinsic(&fake_instr, state);
       return !fake_instr.def.divergent;
    }
