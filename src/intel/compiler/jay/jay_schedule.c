@@ -592,4 +592,4 @@ pass(jay_function *f)
    ralloc_free(memctx);
 }
 
-JAY_DEFINE_FUNCTION_PASS(jay_schedule_pressure, pass)
+JAY_DEFINE_FUNCTION_PASS(jay_schedule, pass)

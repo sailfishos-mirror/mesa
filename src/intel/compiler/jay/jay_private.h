@@ -80,7 +80,7 @@ void jay_opt_propagate_backwards(jay_shader *s);
 void jay_opt_dead_code(jay_shader *s);
 void jay_opt_predicate(jay_shader *s);
 
-void jay_schedule_pressure(jay_shader *s);
+void jay_schedule(jay_shader *s);
 
 void jay_lower_flags(jay_shader *s);
 void jay_lower_pre_ra(jay_shader *s);
