@@ -3565,6 +3565,6 @@ VkDeviceSize anv_GetPhysicalDeviceDescriptorSizeEXT(
       return sizeof(uint64_t);
 
    default:
-      UNREACHABLE("invalid descriptor type");
+      return 0;
    }
 }
