@@ -79,7 +79,7 @@ static_assert(JAY_FILE_LAST <= 0b1111, "must fit in 4 bits (see jay_def)");
 #define JAY_MAX_OPERANDS             (JAY_MAX_SRCS + JAY_MAX_DESTS)
 #define JAY_MAX_FLAGS                (8)
 #define JAY_MAX_SAMPLER_MESSAGE_SIZE (11)
-#define JAY_NUM_LAST_USE_BITS        (32)
+#define JAY_NUM_LAST_USE_BITS        (64)
 #define JAY_NUM_PHYS_GRF             (128)
 #define JAY_NUM_UGPR                 (1024)
 #define JAY_REG_BITS                 (17)
@@ -566,7 +566,7 @@ typedef struct jay_inst {
     */
    bool replicate_dep:1;
    bool decrement_dep:1;
-   unsigned padding  :12;
+   uint8_t padding   :4;
 
    enum jay_predication predication;
    gen_condition conditional_mod;
