@@ -458,6 +458,8 @@ applegl_create_screen(int screen, struct glx_display * priv)
    psc->vtable = &applegl_screen_vtable;
    psc->drawable_vtable = &applegl_drawable_vtable;
 
+   priv->driver = GLX_DRIVER_APPLEGL;
+
    return psc;
 }
 

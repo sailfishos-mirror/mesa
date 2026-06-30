@@ -43,6 +43,7 @@ enum glx_driver {
    GLX_DRIVER_DRI3 = (1<<2),
    GLX_DRIVER_WINDOWS = (1<<3),
    GLX_DRIVER_ZINK_YES = (1<<4),
+   GLX_DRIVER_APPLEGL = (1<<5),
 };
 
 #if USE_LIBGLVND

@@ -864,7 +864,7 @@ AllocAndFetchScreenConfigs(Display * dpy, struct glx_display * priv, enum glx_dr
 
    for (i = 0; i < screens; i++) {
       psc = NULL;
-#if defined(GLX_DIRECT_RENDERING) && !defined(GLX_USE_APPLEGL)
+#if defined(GLX_DIRECT_RENDERING)
 #if defined(GLX_USE_DRM)
       if (glx_driver & GLX_DRIVER_DRI3) {
          bool use_zink;
@@ -883,20 +883,27 @@ AllocAndFetchScreenConfigs(Display * dpy, struct glx_display * priv, enum glx_dr
       }
 #endif
 
-#endif /* GLX_DIRECT_RENDERING && !GLX_USE_APPLEGL */
-#if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
+#ifdef GLX_USE_APPLEGL
+      if (psc == NULL && (glx_driver & GLX_DRIVER_APPLEGL)) {
+         /* applegl_create_display is idempotent (it bails on its own initialized flag), so calling
+          * it once per screen is harmless. It returns 1 on success and an X error code on failure.
+          */
+         if (applegl_create_display(priv) == 1)
+            psc = applegl_create_screen(i, priv);
+      }
+#endif
+
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
       if (psc == NULL &&
           (glx_driver & GLX_DRIVER_SW || zink)) {
 	      psc = driswCreateScreen(i, priv, glx_driver, driver_name_is_inferred);
       }
 #endif
+#endif /* GLX_DIRECT_RENDERING */
 
       bool indirect = false;
 
-#if defined(GLX_USE_APPLEGL) && !defined(GLX_USE_APPLE)
-      if (psc == NULL)
-         psc = applegl_create_screen(i, priv);
-#else
+#if !defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE)
       if (psc == NULL && !zink)
       {
 #ifdef GLX_INDIRECT_RENDERING
@@ -1037,15 +1044,30 @@ __glXInitialize(Display * dpy)
    if (glx_direct && glx_accel)
       glx_driver |= GLX_DRIVER_WINDOWS;
 #endif
+
+#ifdef GLX_USE_APPLEGL
+   /* AppleGL supports software rendering through OpenGL.framework.  We avoid checking glx_accel
+    * here to allow using OpenGL.framework's software renderer if that's what the user wants.
+    *
+    * GALLIUM_DRIVER signals the user wants a specific Gallium driver, so don't elect AppleGL.
+    * MESA_LOADER_DRIVER_OVERRIDE (env) is honored: AppleGL is only elected when env is unset or
+    * is explicitly set to "applegl".
+    */
+   if (glx_direct && !os_get_option("GALLIUM_DRIVER")) {
+      if (env) {
+         if (!strcmp(env, "applegl"))
+            glx_driver |= GLX_DRIVER_APPLEGL;
+      } else {
+         glx_driver |= GLX_DRIVER_APPLEGL;
+      }
+   }
+#endif
+
 #endif /* GLX_DIRECT_RENDERING && (!GLX_USE_APPLEGL || GLX_USE_APPLE) */
 
 #if defined(GLX_USE_APPLEGL) && !defined(GLX_USE_APPLE)
+   glx_driver |= GLX_DRIVER_APPLEGL;
    glx_driver |= GLX_DRIVER_SW;
-#endif
-
-#if defined(GLX_USE_APPLEGL) && !defined(GLX_USE_APPLE)
-   if (!applegl_create_display(dpyPriv))
-      goto init_fail;
 #endif
 
    if (!AllocAndFetchScreenConfigs(dpy, dpyPriv, glx_driver, !env)) {
