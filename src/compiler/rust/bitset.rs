@@ -61,7 +61,10 @@ macro_rules! impl_into_from_bit_index {
     ($t:ident) => {
         impl IntoBitIndex for $t {
             fn into_bit_index(self) -> usize {
-                usize::from(self)
+                const _: () = {
+                    assert!(size_of::<$t>() <= size_of::<usize>());
+                };
+                self as usize
             }
         }
 
@@ -77,6 +80,8 @@ macro_rules! impl_into_from_bit_index {
 
 impl_into_from_bit_index!(u8);
 impl_into_from_bit_index!(u16);
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+impl_into_from_bit_index!(u32);
 impl_into_from_bit_index!(usize);
 
 #[derive(Clone, Copy)]
