@@ -39,6 +39,10 @@
 #include "jay_opcodes.h"
 #include "jay_private.h"
 
+struct sched_block {
+   uint32_t first, last;
+};
+
 struct sched_ctx {
    /* Function we are currently scheduling */
    jay_function *func;
@@ -52,6 +56,8 @@ struct sched_ctx {
 
    /* Array of node indices for the schedule we're building */
    struct util_dynarray schedule;
+
+   struct sched_block *blocks;
 };
 
 /* Cut down version of the function in jay_liveness.c */
@@ -67,7 +73,7 @@ liveness_update(struct u_sparse_bitset *live, jay_inst *I)
    }
 }
 
-static uint32_t
+static void
 populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
 {
    uint32_t first_node_in_this_block = ctx->dag.node;
@@ -126,7 +132,8 @@ populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
       jay_dag_next_node(&ctx->dag);
    }
 
-   return first_node_in_this_block;
+   ctx->blocks[block->index].first = first_node_in_this_block;
+   ctx->blocks[block->index].last = ctx->dag.node - 1;
 }
 
 /*
@@ -311,6 +318,7 @@ pass(jay_function *f)
    struct sched_ctx sctx = { .seen = seen, .func = f };
    uint32_t *def = linear_zalloc_array(linctx, uint32_t, f->ssa_alloc);
    sctx.insts = linear_alloc_array(linctx, jay_inst *, nr_inst);
+   sctx.blocks = linear_zalloc_array(linctx, struct sched_block, f->num_blocks);
    jay_dag_init(&sctx.dag, memctx, nr_inst);
    jay_dag_iterator_init(&sctx.it, &sctx.dag);
 
@@ -329,8 +337,9 @@ pass(jay_function *f)
        * instead of 128 to leave wiggle room for flag RA and late lowerings.
        */
       if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (104 * ugpr_per_grf)) {
-         uint32_t first = populate_dag(&sctx, block, def);
-         jay_dag_iterate(&sctx.it, first, sctx.dag.node - 1);
+         populate_dag(&sctx, block, def);
+         jay_dag_iterate(&sctx.it, sctx.blocks[block->index].first,
+                         sctx.blocks[block->index].last);
          pressure_schedule_block(block, &sctx, memctx);
          f->prioritize_pressure = true;
       }
