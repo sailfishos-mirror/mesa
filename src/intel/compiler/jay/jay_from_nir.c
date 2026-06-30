@@ -3883,6 +3883,7 @@ jay_compile(const struct intel_device_info *devinfo,
 
    JAY_PASS(s, jay_lower_pre_ra);
    JAY_PASS(s, jay_partition_grf);
+   JAY_PASS(s, jay_schedule);
 
    if (debug) {
       fprintf(stdout, "Jay shader:\n\n");
