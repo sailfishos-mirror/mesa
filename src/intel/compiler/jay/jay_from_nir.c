@@ -3661,6 +3661,12 @@ jay_compile(const struct intel_device_info *devinfo,
 
    JAY_PASS(s, jay_lower_pre_ra);
    JAY_PASS(s, jay_partition_grf);
+
+   if (debug) {
+      fprintf(stdout, "Jay shader:\n\n");
+      jay_print(stdout, s);
+   }
+
    JAY_PASS(s, jay_register_allocate);
    JAY_PASS(s, jay_lower_post_ra);
    JAY_PASS(s, jay_lower_post_sched, nir->info.float_controls_execution_mode,
