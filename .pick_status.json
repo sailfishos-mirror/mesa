@@ -934,7 +934,7 @@
         "description": "glx/apple: free gc in applegl_destroy_context",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6849916170c0275c13510251a7b217c20f2b993e",
         "notes": null
