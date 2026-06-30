@@ -29,7 +29,6 @@
 #include "util/u_memory.h"
 #include "util/u_bitmask.h"
 #include "util/u_debug.h"
-#include "util/u_pstipple.h"
 
 #include "svga_context.h"
 #include "svga_debug.h"
@@ -326,9 +325,6 @@ struct svga_shader_emitter_v10
       /* front-face */
       unsigned face_input_index; /**< real fragment shader face reg (bool) */
       unsigned face_tmp_index;   /**< temp face reg converted to -1 / +1 */
-
-      unsigned pstipple_sampler_unit;
-      unsigned pstipple_sampler_state_index;
 
       unsigned fragcoord_input_index;  /**< real fragment position input reg */
       unsigned fragcoord_tmp_index;    /**< 1/w modified position temp reg */
@@ -12332,46 +12328,6 @@ transform_fs_twoside(const struct tgsi_token *tokens)
 
 
 /**
- * Modify the FS to do polygon stipple.
- */
-static const struct tgsi_token *
-transform_fs_pstipple(struct svga_shader_emitter_v10 *emit,
-                      const struct tgsi_token *tokens)
-{
-   const struct tgsi_token *new_tokens;
-   unsigned unit;
-
-   if (0) {
-      debug_printf("Before pstipple ------------------\n");
-      tgsi_dump(tokens,0);
-   }
-
-   new_tokens = util_pstipple_create_fragment_shader(tokens, &unit, 0,
-                                                     TGSI_FILE_INPUT);
-
-   emit->fs.pstipple_sampler_unit = unit;
-
-   /* The new sampler state is appended to the end of the samplers list */
-   emit->fs.pstipple_sampler_state_index = emit->key.num_samplers++;
-
-   /* Setup texture state for stipple */
-   emit->sampler_target[unit] = TGSI_TEXTURE_2D;
-   emit->key.tex[unit].swizzle_r = TGSI_SWIZZLE_X;
-   emit->key.tex[unit].swizzle_g = TGSI_SWIZZLE_Y;
-   emit->key.tex[unit].swizzle_b = TGSI_SWIZZLE_Z;
-   emit->key.tex[unit].swizzle_a = TGSI_SWIZZLE_W;
-   emit->key.tex[unit].target = PIPE_TEXTURE_2D;
-   emit->key.tex[unit].sampler_index = emit->fs.pstipple_sampler_state_index;
-
-   if (0) {
-      debug_printf("After pstipple ------------------\n");
-      tgsi_dump(new_tokens, 0);
-   }
-
-   return new_tokens;
-}
-
-/**
  * Modify the FS to support anti-aliasing point.
  */
 static const struct tgsi_token *
@@ -12635,15 +12591,6 @@ svga_tgsi_vgpu10_translate(struct svga_context *svga,
       if (key->fs.light_twoside) {
          tokens = transform_fs_twoside(tokens);
       }
-      if (key->fs.pstipple) {
-         const struct tgsi_token *new_tokens =
-            transform_fs_pstipple(emit, tokens);
-         if (tokens != shader->tokens) {
-            /* free the two-sided shader tokens */
-            tgsi_free_tokens(tokens);
-         }
-         tokens = new_tokens;
-      }
       if (key->fs.aa_point) {
          tokens = transform_fs_aapoint(svga, tokens,
                                        key->fs.aa_point_coord_index);
@@ -12765,10 +12712,6 @@ svga_tgsi_vgpu10_translate(struct svga_context *svga,
 
    if (unit == MESA_SHADER_FRAGMENT) {
       struct svga_fs_variant *fs_variant = svga_fs_variant(variant);
-
-      fs_variant->pstipple_sampler_unit = emit->fs.pstipple_sampler_unit;
-      fs_variant->pstipple_sampler_state_index =
-         emit->fs.pstipple_sampler_state_index;
 
       /* If there was exactly one write to a fragment shader output register
        * and it came from a constant buffer, we know all fragments will have
