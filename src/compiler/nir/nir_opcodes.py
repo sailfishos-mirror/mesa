@@ -1378,6 +1378,17 @@ if (bits == 0) {
 }
 """)
 
+# Etnaviv-specific bitfield insert. The hardware bit_insert reads the bit offset
+# and bit count from the two channels of the third source, so they are packed
+# into one vec2.
+opcode("bitfield_insert_etna", 0, tuint, [0, 0, 2],
+       [tuint, tuint, tint32], False, "", """
+unsigned base = src0, insert = src1;
+int offset = src2.x, bits = src2.y;
+unsigned mask = ((1ull << bits) - 1) << offset;
+dst = (base & ~mask) | ((insert << offset) & mask);
+""")
+
 quadop_horiz("vec4", 4, 1, 1, 1, 1, """
 dst.x = src0.x;
 dst.y = src1.x;
