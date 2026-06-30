@@ -978,8 +978,12 @@ __glXInitialize(Display * dpy)
 
 #if defined(GLX_DIRECT_RENDERING) && (!defined(GLX_USE_APPLEGL) || defined(GLX_USE_APPLE))
    Bool glx_direct = !debug_get_bool_option("LIBGL_ALWAYS_INDIRECT", false);
+#if !defined(GLX_USE_APPLEGL)
    Bool glx_accel = !debug_get_bool_option("LIBGL_ALWAYS_SOFTWARE", false);
+#endif
+#if defined(GLX_USE_DRM)
    Bool kopper = !debug_get_bool_option("LIBGL_KOPPER_DISABLE", false);
+#endif
 
    if (env && !strcmp(env, "zink"))
       glx_driver |= GLX_DRIVER_ZINK_YES;
