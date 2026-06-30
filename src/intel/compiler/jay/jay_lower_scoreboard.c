@@ -5,7 +5,6 @@
 
 #include <limits.h>
 #include "compiler/brw/brw_eu_defines.h"
-#include "compiler/gen/gen.h"
 #include "util/bitscan.h"
 #include "util/bitset.h"
 #include "util/macros.h"
