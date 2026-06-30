@@ -865,6 +865,14 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
+            nir_op_fsin => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.fsincos_32_to(dst.into(), srcs(0), false);
+            }
+            nir_op_fcos => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.fsincos_32_to(dst.into(), srcs(0), true);
+            }
             nir_op_i2i8 | nir_op_i2i16 | nir_op_i2i32 => {
                 let dst_bits = alu.def.bit_size;
                 let src_bits = alu.get_src(0).bit_size();

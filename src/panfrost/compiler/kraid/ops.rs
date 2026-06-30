@@ -917,6 +917,31 @@ impl PerCompFoldable for OpFCmp {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFCosTable {
+    #[dst_type(F32)]
+    pub dst: Dst,
+    #[src_type(U32)]
+    pub src: Src,
+
+    // If true, the hardware will substract a small value
+    // before the table lookup, for some reason (TODO: is this useful?)
+    pub offset: bool,
+}
+
+impl fmt::Display for OpFCosTable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FCOS_TABLE.u6{} {}",
+            &self.dst,
+            bool_as_mod_str!(self, offset),
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
 /// Performs 2^x
 #[repr(C)]
 #[derive(Clone, Opcode)]
@@ -1267,6 +1292,31 @@ impl fmt::Display for OpFRsq {
             "{} = FRSQ.{} {}",
             &self.dst,
             &self.dst_type,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFSinTable {
+    #[dst_type(F32)]
+    pub dst: Dst,
+    #[src_type(U32)]
+    pub src: Src,
+
+    // If true, the hardware will substract a small value
+    // before the table lookup, for some reason (TODO: is this useful?)
+    pub offset: bool,
+}
+
+impl fmt::Display for OpFSinTable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FSIN_TABLE.u6{} {}",
+            &self.dst,
+            bool_as_mod_str!(self, offset),
             self.fmt_src(&self.src),
         )
     }
@@ -2904,6 +2954,7 @@ pub enum Op {
     FAdd(Box<OpFAdd>),
     FAddLScale(Box<OpFAddLScale>),
     FCmp(Box<OpFCmp>),
+    FCosTable(Box<OpFCosTable>),
     FExp32(Box<OpFExp32>),
     FLogD(Box<OpFLogD>),
     Flush(Box<OpFlush>),
@@ -2917,6 +2968,7 @@ pub enum Op {
     FrexpM(Box<OpFrexpM>),
     FRound(Box<OpFRound>),
     FRsq(Box<OpFRsq>),
+    FSinTable(Box<OpFSinTable>),
     IAbs(Box<OpIAbs>),
     IAdd(Box<OpIAdd>),
     ICmp(Box<OpICmp>),

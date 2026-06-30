@@ -1,5 +1,5 @@
 use core::fmt;
-use std::f32::consts::E;
+use std::f32::consts::{E, PI};
 use std::ops::Range;
 use std::sync::OnceLock;
 use std::{io, iter, slice};
@@ -1253,6 +1253,53 @@ mod builder {
                 FPrecision::Ulp(3)
             };
             assert_feq!(comp, res, prec, "flog2({input})");
+        }
+    }
+
+    #[test]
+    fn test_sin_cos() {
+        // Vulkan Environment for SPIR-V requires an absolute precision of 2^-11
+        // in the range [-PI, PI]
+        const RANGE: Range<f32> = -PI..PI;
+        let prec = FPrecision::Abs(2f32.powi(-11));
+
+        let run = RunSingleton::get();
+        let shader = {
+            let mut b = TestShaderBuilder::new(&*run.model);
+            let input = b.ld_test_data(0, 32);
+
+            let sin = b.alloc_ssa(32);
+            let cos = b.alloc_ssa(32);
+            b.fsincos_32_to(sin.into(), input.clone().into(), false);
+            b.fsincos_32_to(cos.into(), input.into(), true);
+
+            b.st_test_data(4, sin.into());
+            b.st_test_data(8, cos.into());
+
+            b.compile()
+        };
+
+        let mut data = Vec::new();
+        let mut rng = Acorn::new();
+        // Notable cases
+        for c in [0f32, PI, PI / 2.0, PI / 4.0, 2.0 * PI, f32::NAN] {
+            data.push([c.to_bits(), 0, 0]);
+        }
+        for _ in 0..1000 {
+            let x = sample_f32_range(&mut rng, RANGE);
+            data.push([x.to_bits(), 0, 0]);
+        }
+
+        let case = shader.with_args(FAU_ONLY_ARGS, &mut data);
+        run.execute(case);
+        for arr in data {
+            let [input, csin, ccos] = arr.map(f32::from_bits);
+            // Rust doesn't specify a precision, but Kraid tests are almost surely
+            // built with glibc, that should offer more precision what what we need
+            let (esin, ecos) = input.sin_cos();
+
+            assert_feq!(esin, csin, prec, "sin({input})");
+            assert_feq!(ecos, ccos, prec, "cos({input})");
         }
     }
 }

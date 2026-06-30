@@ -1088,6 +1088,26 @@ impl V9Instr for OpFCmp {
     }
 }
 
+impl V9Instr for OpFCosTable {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            FcosTable::get_info(FcosTableVariant::U6, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(FcosTable {
+            variant: FcosTableVariant::U6,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+            offset: self.offset.into(),
+        })
+    }
+}
+
 impl V9Instr for OpFExp32 {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1397,6 +1417,26 @@ impl V9Instr for OpFRsq {
             variant: self.dst_type.try_into().unwrap(),
             dst: op_encode_dst(self, &self.dst),
             src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
+impl V9Instr for OpFSinTable {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            FsinTable::get_info(FsinTableVariant::U6, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(FsinTable {
+            variant: FsinTableVariant::U6,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+            offset: self.offset.into(),
         })
     }
 }
@@ -2513,6 +2553,7 @@ macro_rules! v9_op_match_else {
             Op::FAdd($x) => $y,
             Op::FAddLScale($x) => $y,
             Op::FCmp($x) => $y,
+            Op::FCosTable($x) => $y,
             Op::FExp32($x) => $y,
             Op::FLogD($x) => $y,
             Op::Flush($x) => $y,
@@ -2526,6 +2567,7 @@ macro_rules! v9_op_match_else {
             Op::FrexpM($x) => $y,
             Op::FRound($x) => $y,
             Op::FRsq($x) => $y,
+            Op::FSinTable($x) => $y,
             Op::IAbs($x) => $y,
             Op::IAdd($x) => $y,
             Op::ICmp($x) => $y,
