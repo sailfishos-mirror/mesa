@@ -944,6 +944,23 @@ impl fmt::Display for OpFExp32 {
     }
 }
 
+/// Performs log2(x) / (x-1)
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFLogD {
+    #[dst_type(F32)]
+    pub dst: Dst,
+
+    #[src_type(F32)]
+    pub src: Src,
+}
+
+impl fmt::Display for OpFLogD {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = FLOGD.f32 {}", &self.dst, self.fmt_src(&self.src))
+    }
+}
+
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 pub enum FlushNanMode {
     #[default]
@@ -2888,6 +2905,7 @@ pub enum Op {
     FAddLScale(Box<OpFAddLScale>),
     FCmp(Box<OpFCmp>),
     FExp32(Box<OpFExp32>),
+    FLogD(Box<OpFLogD>),
     Flush(Box<OpFlush>),
     Fma(Box<OpFma>),
     FmaRScale(Box<OpFmaRScale>),

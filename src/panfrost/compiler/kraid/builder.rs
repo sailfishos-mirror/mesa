@@ -214,6 +214,45 @@ pub trait SSABuilder: Builder + AllocSSA {
             expf: arg,
         });
     }
+
+    // Computes log2(x)
+    fn flog2_32_to(&mut self, dst: Dst, arg: Src) {
+        let frexp = self.alloc_ssa(32);
+        self.push_op(OpFrexpE {
+            dst: frexp.into(),
+            src: arg.clone(),
+            mode: FrexpMode::Log,
+            neg_result: false,
+        });
+        let frexpi = self.alloc_ssa(32);
+        self.push_op(OpIToF32 {
+            dst: frexpi.into(),
+            src_type: DataType::S32,
+            src: frexp.into(),
+            round: FRound::NearestEven,
+        });
+
+        let flogd = self.alloc_ssa(32);
+        self.push_op(OpFLogD {
+            dst: flogd.into(),
+            src: arg.clone(),
+        });
+        let lscale = self.alloc_ssa(32);
+        self.push_op(OpFAddLScale {
+            dst: lscale.into(),
+            round: FRound::NearestEven,
+            clamp: FClamp::None,
+            srcs: [Src::from(-1.0), arg],
+        });
+
+        self.fma_32_to(dst, flogd.into(), lscale.into(), frexpi.into());
+    }
+
+    fn flog2_32(&mut self, src: Src) -> SSAValue {
+        let def = self.alloc_ssa(32);
+        self.flog2_32_to(def.into(), src);
+        def
+    }
 }
 
 impl<T: Builder + AllocSSA> SSABuilder for T {}

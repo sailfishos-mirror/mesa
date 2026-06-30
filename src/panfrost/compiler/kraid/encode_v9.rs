@@ -1109,6 +1109,25 @@ impl V9Instr for OpFExp32 {
     }
 }
 
+impl V9Instr for OpFLogD {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Flogd::get_info(FlogdVariant::F32, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Flogd {
+            variant: FlogdVariant::F32,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+        })
+    }
+}
+
 impl From<FlushNanMode> for FlushNanM {
     fn from(value: FlushNanMode) -> Self {
         match value {
@@ -2495,6 +2514,7 @@ macro_rules! v9_op_match_else {
             Op::FAddLScale($x) => $y,
             Op::FCmp($x) => $y,
             Op::FExp32($x) => $y,
+            Op::FLogD($x) => $y,
             Op::Flush($x) => $y,
             Op::Fma($x) => $y,
             Op::FmaRScale($x) => $y,

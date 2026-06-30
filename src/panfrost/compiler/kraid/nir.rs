@@ -793,6 +793,23 @@ impl<'a> ShaderFromNir<'a> {
                 assert!(alu.get_src(0).bit_size() == 32);
                 b.fexp_32_to(dst.into(), srcs(0), (1.0).into());
             }
+            nir_op_flog2 => {
+                // TODO: wire up flog2.f16
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.flog2_32_to(dst.into(), srcs(0));
+            }
+            nir_op_fpow => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                assert!(alu.get_src(1).bit_size() == 32);
+
+                // Constant-propagate the base when possible
+                let log2_base = match alu.get_src(0).comp_as_uint(0) {
+                    Some(c) => Src::from(f32::from_bits(c as u32).log2()),
+                    None => b.flog2_32(srcs(0)).into(),
+                };
+
+                b.fexp_32_to(dst.into(), srcs(1), log2_base);
+            }
             nir_op_frexp_exp => {
                 assert!(alu.get_src(0).bit_size() == 32);
                 b.push_op(OpFrexpE {

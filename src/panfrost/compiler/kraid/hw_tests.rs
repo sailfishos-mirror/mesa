@@ -1207,4 +1207,52 @@ mod builder {
             assert_feq!(comp, res, prec, "fexp({base_log2}, {arg})");
         }
     }
+
+    #[test]
+    fn test_flog2() {
+        const RANGE: Range<f32> = -1000.0..1000.0;
+
+        let run = RunSingleton::get();
+        let shader = {
+            let mut b = TestShaderBuilder::new(&*run.model);
+            let input = b.ld_test_data(0, 32);
+
+            let dst = b.flog2_32(input.into());
+            b.st_test_data(4, dst.into());
+            b.compile()
+        };
+
+        let mut rng = Acorn::new();
+        let log_case = |arg: f32| [arg.to_bits(), 0];
+        // Notable cases
+        let mut data = vec![
+            log_case(0.5),
+            log_case(1.0),
+            log_case(2.0),
+            log_case(4.0),
+            log_case(E),
+            log_case(10.0),
+            log_case(-1.0),
+            log_case(f32::NAN),
+        ];
+
+        for _ in 0..1000 {
+            let x = sample_f32_range(&mut rng, RANGE);
+            data.push([x.to_bits(), 0]);
+        }
+
+        let case = shader.with_args(FAU_ONLY_ARGS, &mut data);
+        run.execute(case);
+        for arr in data {
+            let [input, comp] = arr.map(f32::from_bits);
+            let res = input.log2();
+
+            let prec = if (0.5..=2.0).contains(&input) {
+                FPrecision::Abs(2f32.powi(-21))
+            } else {
+                FPrecision::Ulp(3)
+            };
+            assert_feq!(comp, res, prec, "flog2({input})");
+        }
+    }
 }
