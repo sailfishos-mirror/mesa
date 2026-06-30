@@ -778,21 +778,23 @@ static unsigned fetch_resource_base_reg(const pco_common_data *common,
                                         unsigned binding,
                                         unsigned elem,
                                         unsigned *stride,
-                                        bool *is_img_smp)
+                                        unsigned *count,
+                                        bool *is_img_smp,
+                                        bool *is_inline_ubo)
 {
+   if (is_img_smp)
+      *is_img_smp = false;
+
+   if (is_inline_ubo)
+      *is_inline_ubo = false;
+
    const pco_range *range;
    if (desc_set == PCO_POINT_SAMPLER && binding == PCO_POINT_SAMPLER) {
       assert(common->uses.point_sampler);
       range = &common->point_sampler;
-
-      if (is_img_smp)
-         *is_img_smp = false;
    } else if (desc_set == PCO_IA_SAMPLER && binding == PCO_IA_SAMPLER) {
       assert(common->uses.ia_sampler);
       range = &common->ia_sampler;
-
-      if (is_img_smp)
-         *is_img_smp = false;
    } else {
       assert(desc_set < ARRAY_SIZE(common->desc_sets));
       const pco_descriptor_set_data *desc_set_data =
@@ -807,6 +809,9 @@ static unsigned fetch_resource_base_reg(const pco_common_data *common,
 
       if (is_img_smp)
          *is_img_smp = binding_data->is_img_smp;
+
+      if (is_inline_ubo)
+         *is_inline_ubo = binding_data->is_inline_ubo;
    }
 
    if (stride)
@@ -814,6 +819,9 @@ static unsigned fetch_resource_base_reg(const pco_common_data *common,
 
    unsigned reg_offset = elem * range->stride;
    assert(reg_offset < range->count);
+
+   if (count)
+      *count = range->count - reg_offset;
 
    unsigned reg_index = range->start + reg_offset;
    return reg_index;
@@ -823,7 +831,9 @@ static unsigned fetch_resource_base_reg_packed(const pco_common_data *common,
                                                uint32_t packed_desc,
                                                unsigned elem,
                                                unsigned *stride,
-                                               bool *is_img_smp)
+                                               unsigned *count,
+                                               bool *is_img_smp,
+                                               bool *is_inline_ubo)
 {
    unsigned desc_set;
    unsigned binding;
@@ -834,7 +844,9 @@ static unsigned fetch_resource_base_reg_packed(const pco_common_data *common,
                                   binding,
                                   elem,
                                   stride,
-                                  is_img_smp);
+                                  count,
+                                  is_img_smp,
+                                  is_inline_ubo);
 }
 
 /**
@@ -927,10 +939,11 @@ static pco_instr *trans_load_common_store(trans_ctx *tctx,
                                           nir_intrinsic_instr *intr,
                                           pco_ref dest,
                                           pco_ref offset_src,
+                                          unsigned noffset_src_idx,
                                           bool coeffs,
                                           pco_range *range)
 {
-   nir_src *noffset_src = &intr->src[0];
+   nir_src *noffset_src = &intr->src[noffset_src_idx];
    enum pco_reg_class reg_class = coeffs ? PCO_REG_CLASS_COEFF
                                          : PCO_REG_CLASS_SHARED;
 
@@ -1221,8 +1234,26 @@ static pco_instr *trans_load_buffer(trans_ctx *tctx,
    }
 
    unsigned stride;
+   unsigned count;
+   bool is_inline_ubo;
    unsigned sh_index =
-      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL);
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, &count, NULL, &is_inline_ubo);
+
+   if (is_inline_ubo) {
+      /* Uniform blocks can't be arrayed. */
+      assert(!is_dynidx && !elem);
+
+      return trans_load_common_store(tctx,
+                                     intr,
+                                     dest,
+                                     offset_src,
+                                     1,
+                                     false,
+                                     &(pco_range){
+                                        .start = sh_index,
+                                        .count = count,
+                                     });
+   }
 
    pco_ref base_addr[2];
    pco_ref_hwreg_addr_comps(sh_index, PCO_REG_CLASS_SHARED, base_addr);
@@ -1388,9 +1419,11 @@ static pco_instr *trans_get_buffer_size(trans_ctx *tctx,
       elem = nir_src_comp_as_uint(intr->src[0], 1);
    }
 
+   ASSERTED bool is_inline_ubo;
    unsigned stride;
    unsigned sh_index =
-      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL);
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL, NULL, &is_inline_ubo);
+   assert(!is_inline_ubo);
 
    pco_ref size_reg = pco_ref_hwreg(sh_index, PCO_REG_CLASS_SHARED);
    size_reg = pco_ref_offset(size_reg, 2);
@@ -1448,7 +1481,7 @@ static pco_instr *trans_store_buffer(trans_ctx *tctx,
 
    unsigned stride;
    unsigned sh_index =
-      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL);
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL, NULL, NULL);
 
    pco_ref base_addr[2];
    pco_ref_hwreg_addr_comps(sh_index, PCO_REG_CLASS_SHARED, base_addr);
@@ -1582,7 +1615,7 @@ static pco_instr *trans_atomic_buffer(trans_ctx *tctx,
 
    unsigned stride;
    unsigned sh_index =
-      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL);
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL, NULL, NULL);
 
    pco_ref base_addr[2];
    pco_ref_hwreg_addr_comps(sh_index, PCO_REG_CLASS_SHARED, base_addr);
@@ -1914,7 +1947,9 @@ static pco_ref lookup_load_tex_smp_state(trans_ctx *tctx,
                                                binding,
                                                elem,
                                                &stride,
-                                               &is_img_smp);
+                                               NULL,
+                                               &is_img_smp,
+                                               NULL);
 
    if (is_dynidx) {
       assert(dynidx_stride);
@@ -2332,11 +2367,8 @@ static pco_instr *trans_is_null_desc(trans_ctx *tctx,
 
    unsigned stride;
    bool is_img_smp;
-   unsigned sh_index = fetch_resource_base_reg_packed(common,
-                                                      packed_desc,
-                                                      elem,
-                                                      &stride,
-                                                      &is_img_smp);
+   unsigned sh_index =
+      fetch_resource_base_reg_packed(common, packed_desc, elem, &stride, NULL, &is_img_smp, NULL);
 
    unsigned num_dwords = is_img_smp ? ROGUE_NUM_TEXSTATE_DWORDS : stride;
 
@@ -2524,6 +2556,7 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
                                  intr,
                                  dest,
                                  src[0],
+                                 0u,
                                  false,
                                  &tctx->shader->data.common.push_consts.range);
       break;
@@ -2534,6 +2567,7 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
                                       intr,
                                       dest,
                                       pco_ref_null(),
+                                      0u,
                                       false,
                                       &tctx->shader->data.fs.blend_consts);
       break;
@@ -2549,6 +2583,7 @@ static pco_instr *trans_intr(trans_ctx *tctx, nir_intrinsic_instr *intr)
                                       intr,
                                       dest,
                                       src[0],
+                                      0u,
                                       true,
                                       &tctx->shader->data.cs.shmem);
       break;

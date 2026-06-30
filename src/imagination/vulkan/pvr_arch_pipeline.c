@@ -2486,6 +2486,9 @@ static void pvr_init_descriptors(pco_data *data,
 
          binding_data->is_img_smp = layout_binding->type ==
                                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+         binding_data->is_inline_ubo = layout_binding->type ==
+                                       VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
       }
    }
 }

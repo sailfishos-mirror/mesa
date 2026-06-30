@@ -204,6 +204,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_host_query_reset = true,
       .EXT_image_2d_view_of_3d = true,
       .EXT_index_type_uint8 = true,
+      .EXT_inline_uniform_block = true,
       .EXT_line_rasterization = true,
       .EXT_map_memory_placed = true,
       .EXT_non_seamless_cube_map = true,
@@ -445,6 +446,10 @@ static void pvr_physical_device_get_supported_features(
 
       /* Vulkan 1.2 / VK_EXT_host_query_reset */
       .hostQueryReset = true,
+
+      /* Vulkan 1.3 / VK_EXT_inline_uniform_block */
+      .inlineUniformBlock = true,
+      .descriptorBindingInlineUniformBlockUpdateAfterBind = true,
 
       /* VK_EXT_image_2d_view_of_3d */
       .image2DViewOf3D = true,
@@ -850,6 +855,13 @@ static bool pvr_physical_device_get_properties(
 
       /* VK_EXT_extended_dynamic_state3 */
       .dynamicPrimitiveTopologyUnrestricted = false,
+
+      /* Vulkan 1.3 / VK_EXT_inline_uniform_block */
+      .maxInlineUniformBlockSize = 256U,
+      .maxPerStageDescriptorInlineUniformBlocks = 4U,
+      .maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks = 4U,
+      .maxDescriptorSetInlineUniformBlocks = 4U,
+      .maxDescriptorSetUpdateAfterBindInlineUniformBlocks = 4U,
 
       /* VK_EXT_map_memory_placed */
       .minPlacedMemoryMapAlignment = pdevice->ws->page_size,
