@@ -41,6 +41,7 @@
 
 struct sched_block {
    uint32_t first, last;
+   int32_t max_pressure;
 };
 
 struct sched_ctx {
@@ -229,7 +230,7 @@ choose_inst(struct sched_ctx *s)
 }
 
 static void
-pressure_schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
+gather_block_info(struct sched_ctx *s, jay_block *block, void *memctx)
 {
    /* Our pressure calculations are all off by a constant, but that's ok */
    signed pressure = 0;
@@ -237,7 +238,6 @@ pressure_schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
 
    u_sparse_bitset_free(&s->live);
    u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
-   util_dynarray_clear(&s->schedule);
 
    jay_foreach_inst_in_block_rev(block, I) {
       if (jay_op_starts_block(I->op)) {
@@ -270,11 +270,23 @@ pressure_schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
       liveness_update(&s->live, I);
    }
 
+   s->blocks[block->index].max_pressure = orig_max_pressure;
+}
+
+static void
+schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
+{
+   s->it.dag = &s->dag;
+   jay_dag_iterate(&s->it, s->blocks[block->index].first,
+                   s->blocks[block->index].last);
+
+   util_dynarray_clear(&s->schedule);
+
    u_sparse_bitset_free(&s->live);
    u_sparse_bitset_dup_with_ctx(&s->live, &block->live_out, memctx);
 
    signed max_pressure = 0;
-   pressure = 0;
+   signed pressure = 0;
 
    while (s->it.heads.size) {
       uint32_t node = choose_inst(s);
@@ -288,7 +300,7 @@ pressure_schedule_block(jay_block *block, struct sched_ctx *s, void *memctx)
    }
 
    /* Apply the schedule only if it reduces pressure */
-   if (max_pressure < orig_max_pressure) {
+   if (max_pressure < s->blocks[block->index].max_pressure) {
       util_dynarray_foreach(&s->schedule, uint32_t, node) {
          jay_remove_instruction(s->insts[*node]);
       }
@@ -325,7 +337,15 @@ pass(jay_function *f)
    unsigned ugpr_per_grf = jay_ugpr_per_grf(f->shader);
    unsigned ugpr_per_gpr = jay_grf_per_gpr(f->shader) * ugpr_per_grf;
 
+   /* Build the DAG for the whole program */
    jay_foreach_block(f, block) {
+      populate_dag(&sctx, block, def);
+   }
+
+   jay_foreach_block(f, block) {
+      /* Gather reference statistics about the program performance */
+      gather_block_info(&sctx, block, memctx);
+
       /* Do pressure-only scheduling only on blocks that might spill, to
        * minimize harm. We conservatively use 104 GRFs as the threshold instead
        * of 128 to leave wiggle room for flag RA and late lowerings.
@@ -338,11 +358,8 @@ pass(jay_function *f)
                             block->demand_max[UFLAG];
 
       if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (104 * ugpr_per_grf)) {
-         populate_dag(&sctx, block, def);
-         jay_dag_iterate(&sctx.it, sctx.blocks[block->index].first,
-                         sctx.blocks[block->index].last);
-         pressure_schedule_block(block, &sctx, memctx);
          f->prioritize_pressure = true;
+         schedule_block(block, &sctx, memctx);
       }
    }
 
