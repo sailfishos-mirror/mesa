@@ -919,6 +919,57 @@ impl V9Instr for OpFRcp {
     }
 }
 
+impl From<FrexpMode> for FrexpSpecialM {
+    fn from(mode: FrexpMode) -> Self {
+        match mode {
+            FrexpMode::Normal => FrexpSpecialM::None,
+            FrexpMode::Sqrt => FrexpSpecialM::Sqrt,
+            FrexpMode::Log => FrexpSpecialM::Log,
+        }
+    }
+}
+
+impl V9Instr for OpFrexpE {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Frexpe::get_info(FrexpeVariant::F32, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Frexpe {
+            variant: FrexpeVariant::F32,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+            neg_result: self.neg_result.into(),
+            special: self.mode.into(),
+        })
+    }
+}
+
+impl V9Instr for OpFrexpM {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Frexpm::get_info(FrexpmVariant::F32, arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Frexpm {
+            variant: FrexpmVariant::F32,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+            special: self.mode.into(),
+        })
+    }
+}
+
 impl V9Instr for OpFRound {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1668,6 +1719,8 @@ macro_rules! v9_op_match_else {
             Op::Fma($x) => $y,
             Op::FMul($x) => $y,
             Op::FRcp($x) => $y,
+            Op::FrexpE($x) => $y,
+            Op::FrexpM($x) => $y,
             Op::FRound($x) => $y,
             Op::FRsq($x) => $y,
             Op::IAbs($x) => $y,

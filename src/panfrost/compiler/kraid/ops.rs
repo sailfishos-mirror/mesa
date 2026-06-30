@@ -677,6 +677,73 @@ impl fmt::Display for OpFRcp {
     }
 }
 
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+pub enum FrexpMode {
+    /// Normal operation F -> (M, E) s.t. F = M * 2^E with abs(M) in [0.5, 1.0)
+    #[default]
+    Normal,
+    /// Modified for square root, F -> (M, E) s.t. F = M * 4^E with abs(M) in [0.25, 1.0)
+    Sqrt,
+    /// Modified for logarithm, F -> (M, E) s.t. F = M * 2^E with abs(M) in [0.75, 1.5)
+    Log,
+}
+
+impl fmt::Display for FrexpMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FrexpMode::Normal => Ok(()),
+            FrexpMode::Sqrt => write!(f, ".sqrt"),
+            FrexpMode::Log => write!(f, ".log"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFrexpE {
+    #[dst_type(I32)]
+    pub dst: Dst,
+    #[src_type(F32)]
+    pub src: Src,
+    pub mode: FrexpMode,
+    pub neg_result: bool,
+}
+
+impl fmt::Display for OpFrexpE {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FREXPE.f32{}{} {}",
+            &self.dst,
+            self.mode,
+            bool_as_mod_str!(self, neg_result),
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpFrexpM {
+    #[dst_type(I32)]
+    pub dst: Dst,
+    #[src_type(F32)]
+    pub src: Src,
+    pub mode: FrexpMode,
+}
+
+impl fmt::Display for OpFrexpM {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = FREXPM.f32{} {}",
+            &self.dst,
+            self.mode,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpFRound {
@@ -1832,6 +1899,8 @@ pub enum Op {
     Fma(Box<OpFma>),
     FMul(Box<OpFMul>),
     FRcp(Box<OpFRcp>),
+    FrexpE(Box<OpFrexpE>),
+    FrexpM(Box<OpFrexpM>),
     FRound(Box<OpFRound>),
     FRsq(Box<OpFRsq>),
     IAbs(Box<OpIAbs>),

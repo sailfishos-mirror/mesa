@@ -672,6 +672,23 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0),
                 });
             }
+            nir_op_frexp_exp => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.push_op(OpFrexpE {
+                    dst: dst.into(),
+                    src: srcs(0),
+                    mode: FrexpMode::Normal,
+                    neg_result: false,
+                });
+            }
+            nir_op_frexp_sig => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.push_op(OpFrexpM {
+                    dst: dst.into(),
+                    src: srcs(0),
+                    mode: FrexpMode::Normal,
+                });
+            }
             nir_op_i2i8 | nir_op_i2i16 | nir_op_i2i32 => {
                 let dst_bits = alu.def.bit_size;
                 let src_bits = alu.get_src(0).bit_size();
