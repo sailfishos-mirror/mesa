@@ -860,6 +860,8 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
    if (nir->info.stage == MESA_SHADER_FRAGMENT)
       NIR_PASS(_, nir, nir_opt_vectorize_io_vars, nir_var_shader_out);
 
+   NIR_PASS(_, nir, pco_nir_prop_access);
+
    NIR_PASS(_,
             nir,
             nir_lower_explicit_io,
