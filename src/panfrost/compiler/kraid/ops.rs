@@ -1174,6 +1174,34 @@ impl fmt::Display for OpLdCvt {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(dst_type in [F16, V2F16, F32])]
+pub struct OpLdExp {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub round: FRound,
+
+    pub src: Src,
+
+    #[src_type(VNIN)]
+    pub scale: Src,
+}
+
+impl fmt::Display for OpLdExp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LDEXP.{}{} {} {}",
+            &self.dst,
+            self.dst_type,
+            self.round,
+            self.fmt_src(&self.src),
+            self.fmt_src(&self.scale),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 #[variants(dst_type in [I8, I16, I24, I32, I48, I64, I96, I128])]
 pub struct OpLdPka {
     pub dst: Dst,
@@ -1964,6 +1992,7 @@ pub enum Op {
     ISub(Box<OpISub>),
     IToF32(Box<OpIToF32>),
     LdCvt(Box<OpLdCvt>),
+    LdExp(Box<OpLdExp>),
     LdPka(Box<OpLdPka>),
     LdTex(Box<OpLdTex>),
     LeaPka(Box<OpLeaPka>),

@@ -1281,6 +1281,29 @@ impl V9Instr for OpLdCvt {
     }
 }
 
+impl V9Instr for OpLdExp {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Ldexp::get_info(self.dst_type, arch),
+            src_map! {
+                src0: src,
+                src1: scale,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Ldexp {
+            variant: self.dst_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            round: self.round.into(),
+            inf: LdexpInfM::None,
+            src0: op_encode_src(self, &self.src),
+            src1: op_encode_src(self, &self.scale),
+        })
+    }
+}
+
 impl V9Instr for OpLdPka {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1788,6 +1811,7 @@ macro_rules! v9_op_match_else {
             Op::ISub($x) => $y,
             Op::IToF32($x) => $y,
             Op::LdCvt($x) => $y,
+            Op::LdExp($x) => $y,
             Op::LdPka($x) => $y,
             Op::LdTex($x) => $y,
             Op::LeaPka($x) => $y,

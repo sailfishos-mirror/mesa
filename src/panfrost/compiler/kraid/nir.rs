@@ -689,6 +689,26 @@ impl<'a> ShaderFromNir<'a> {
                     mode: FrexpMode::Normal,
                 });
             }
+            nir_op_ldexp => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.push_op(OpLdExp {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    src: srcs(0),
+                    scale: srcs(1),
+                    round: FRound::NearestEven,
+                });
+            }
+            nir_op_ldexp16_pan => {
+                assert!(alu.get_src(0).bit_size() <= 16);
+                b.push_op(OpLdExp {
+                    dst: dst.into(),
+                    dst_type: dst_type(NumericType::Float),
+                    src: srcs(0),
+                    scale: srcs(1),
+                    round: FRound::NearestEven,
+                });
+            }
             nir_op_fmin => {
                 b.push_op(OpFMin {
                     dst: dst.into(),
