@@ -163,8 +163,14 @@ apple_glx_pixmap_create(Display * dpy, int screen, Pixmap pixmap,
       return true;
    }
 
-   apple_visual_create_pfobj(&p->pixel_format_obj, mode, &double_buffered,
-                             &uses_stereo, /*offscreen */ true);
+   error = apple_visual_create_pfobj(&p->pixel_format_obj, mode, &double_buffered,
+                                     &uses_stereo, /*offscreen */ true);
+
+   if (kCGLNoError != error) {
+      d->unlock(d);
+      d->destroy(d);
+      return true;
+   }
 
    error = apple_cgl.create_context(p->pixel_format_obj, NULL,
                                     &p->context_obj);

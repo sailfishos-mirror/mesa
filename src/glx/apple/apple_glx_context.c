@@ -160,9 +160,21 @@ apple_glx_create_context(void **ptr, Display * dpy, int screen,
    ac->made_current = false;
    ac->last_surface_window = None;
 
-   apple_visual_create_pfobj(&ac->pixel_format_obj, mode,
-                             &ac->double_buffered, &ac->uses_stereo,
-                             /*offscreen */ false);
+   error = apple_visual_create_pfobj(&ac->pixel_format_obj, mode,
+                                     &ac->double_buffered, &ac->uses_stereo,
+                                     /*offscreen */ false);
+
+   if (error) {
+      free(ac);
+
+      *errorptr = GLXBadFBConfig;
+      *x11errorptr = false;
+
+      DebugMessageF("apple_visual_create_pfobj error: %s\n",
+                    apple_cgl.error_string(error));
+
+      return true;
+   }
 
    error = apple_cgl.create_context(ac->pixel_format_obj,
                                     sharedac ? sharedac->context_obj : NULL,
