@@ -24,10 +24,10 @@
    pkt_field_set(A6XX_##x##_COLOR_FORMAT, (view)->x, FMT6_32_FLOAT)
 
 #define tu_image_view_stencil(iview, x) \
-   tu_fdl_view_stencil(&iview->view, x)
+   tu_fdl_view_stencil(tu_image_view_fdl_view(iview, true), x)
 
 #define tu_image_view_depth(iview, x) \
-   tu_fdl_view_depth(&iview->view, x)
+   tu_fdl_view_depth(tu_image_view_fdl_view(iview, false), x)
 
 struct tu_image
 {
@@ -71,21 +71,24 @@ struct tu_image_view
    struct tu_image *image; /**< VkImageViewCreateInfo::image */
 
    struct fdl6_view view;
+   struct fdl6_view view_ds_other_aspect; /* for d32s8 separate depth/stencil */
+
+   struct fdl6_view *view_depth;
+   struct fdl6_view *view_stencil;
 
    unsigned char swizzle[4];
-
-   /* for d32s8 separate depth */
-   uint64_t depth_base_addr;
-   uint32_t depth_layer_size;
-   uint32_t depth_pitch;
-
-   /* for d32s8 separate stencil */
-   uint64_t stencil_base_addr;
-   uint32_t stencil_layer_size;
-   uint32_t stencil_pitch;
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(tu_image_view, vk.base, VkImageView,
                                VK_OBJECT_TYPE_IMAGE_VIEW);
+
+static inline const struct fdl6_view *
+tu_image_view_fdl_view(const struct tu_image_view *iview, bool stencil)
+{
+   if (iview->image->vk.format != VK_FORMAT_D32_SFLOAT_S8_UINT)
+      return &iview->view;
+
+   return stencil ? iview->view_stencil : iview->view_depth;
+}
 
 void
 tu_image_view_init(struct tu_device *device,

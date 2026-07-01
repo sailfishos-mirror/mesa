@@ -777,29 +777,18 @@ tu6_emit_zs(struct tu_cmd_buffer *cmd,
    const struct tu_render_pass_attachment *attachment =
       &cmd->state.pass->attachments[a];
    enum a6xx_depth_format fmt = tu6_pipe2depth(attachment->format);
-
-   unsigned depth_pitch, depth_array_pitch;
-   uint64_t depth_base;
-
-   if (attachment->format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-      depth_pitch = iview->depth_pitch;
-      depth_array_pitch = iview->depth_layer_size;
-      depth_base = iview->depth_base_addr;
-   } else {
-      depth_pitch = iview->view.pitch;
-      depth_array_pitch = iview->view.layer_size;
-      depth_base = tu_layer_address(&iview->view, 0);
-   }
+   const struct fdl6_view *depth_fdl_view = tu_image_view_fdl_view(iview, false);
+   const struct fdl6_view *stencil_fdl_view = tu_image_view_fdl_view(iview, true);
 
    tu_cs_emit_regs(cs,
       RB_DEPTH_BUFFER_INFO(CHIP,
          .depth_format = fmt,
          .tilemode = TILE6_3,
-         .losslesscompen = iview->view.ubwc_enabled,
+         .losslesscompen = depth_fdl_view->ubwc_enabled,
       ),
-      A6XX_RB_DEPTH_BUFFER_PITCH(depth_pitch),
-      A6XX_RB_DEPTH_BUFFER_ARRAY_PITCH(depth_array_pitch),
-      A6XX_RB_DEPTH_BUFFER_BASE(depth_base),
+      A6XX_RB_DEPTH_BUFFER_PITCH(depth_fdl_view->pitch),
+      A6XX_RB_DEPTH_BUFFER_ARRAY_PITCH(depth_fdl_view->layer_size),
+      A6XX_RB_DEPTH_BUFFER_BASE(tu_layer_address(depth_fdl_view, 0)),
       A6XX_RB_DEPTH_GMEM_BASE(
          tu_attachment_gmem_offset(cmd, attachment, 0)
       ),
@@ -808,23 +797,14 @@ tu6_emit_zs(struct tu_cmd_buffer *cmd,
    tu_cs_emit_regs(cs, GRAS_SU_DEPTH_BUFFER_INFO(CHIP, .depth_format = fmt));
 
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_DEPTH_FLAG_BUFFER_BASE, 3);
-   tu_cs_image_flag_ref(cs, &iview->view, 0);
+   tu_cs_image_flag_ref(cs, depth_fdl_view, 0);
 
    if (attachment->format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
        attachment->format == VK_FORMAT_S8_UINT) {
-
-      unsigned stencil_pitch, stencil_array_pitch, stencil_gmem_offset;
-      uint64_t stencil_base;
-
+      unsigned stencil_gmem_offset;
       if (attachment->format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-         stencil_pitch = iview->stencil_pitch;
-         stencil_array_pitch = iview->stencil_layer_size;
-         stencil_base = iview->stencil_base_addr;
          stencil_gmem_offset = tu_attachment_gmem_offset_stencil(cmd, attachment, 0);
       } else {
-         stencil_pitch = iview->view.pitch;
-         stencil_array_pitch = iview->view.layer_size;
-         stencil_base = tu_layer_address(&iview->view, 0);
          stencil_gmem_offset = tu_attachment_gmem_offset(cmd, attachment, 0);
       }
 
@@ -833,9 +813,9 @@ tu6_emit_zs(struct tu_cmd_buffer *cmd,
             .separate_stencil = true,
             .tilemode = TILE6_3,
          ),
-         A6XX_RB_STENCIL_BUFFER_PITCH(stencil_pitch),
-         A6XX_RB_STENCIL_BUFFER_ARRAY_PITCH(stencil_array_pitch),
-         A6XX_RB_STENCIL_BUFFER_BASE(stencil_base),
+         A6XX_RB_STENCIL_BUFFER_PITCH(stencil_fdl_view->pitch),
+         A6XX_RB_STENCIL_BUFFER_ARRAY_PITCH(stencil_fdl_view->layer_size),
+         A6XX_RB_STENCIL_BUFFER_BASE(tu_layer_address(stencil_fdl_view, 0)),
          A6XX_RB_STENCIL_GMEM_BASE(stencil_gmem_offset),
       );
    } else {
@@ -1044,7 +1024,7 @@ tu6_emit_render_cntl<A6XX>(struct tu_cmd_buffer *cmd,
       const uint32_t a = subpass->depth_stencil_attachment.attachment;
       if (a != VK_ATTACHMENT_UNUSED) {
          const struct tu_image_view *iview = cmd->state.attachments[a];
-         if (iview->view.ubwc_enabled)
+         if (tu_image_view_fdl_view(iview, false)->ubwc_enabled)
             cntl |= A6XX_RB_RENDER_CNTL_FLAG_DEPTH;
       }
 
@@ -2865,10 +2845,12 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
       }
 
       if (i % 2 == 1 && att->format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
+         const struct fdl6_view *stencil_fdl_view = tu_image_view_fdl_view(iview, true);
+
          tu_desc_set_format<CHIP>(dst, FMT6_8_UINT);
          tu_desc_set_min_line_offset<CHIP>(dst, 0);
-         tu_desc_set_tex_line_offset<CHIP>(dst, iview->stencil_pitch);
-         tu_desc_set_addr<CHIP>(dst, iview->stencil_base_addr);
+         tu_desc_set_tex_line_offset<CHIP>(dst, stencil_fdl_view->pitch);
+         tu_desc_set_addr<CHIP>(dst, stencil_fdl_view->base_addr);
          tu_desc_set_array_slice_offset<CHIP>(dst, 0);
          tu_desc_set_ubwc<CHIP>(dst, 0);
 
@@ -3005,12 +2987,9 @@ tu_trace_start_render_pass(struct tu_cmd_buffer *cmd)
                             : 'n';
    }
    if (subpass->depth_used) {
+      const struct tu_image_view *view = cmd->state.attachments[subpass->depth_stencil_attachment.attachment];
       ubwc[ubwc_len++] = '|';
-      ubwc[ubwc_len++] =
-         cmd->state.attachments[subpass->depth_stencil_attachment.attachment]
-               ->view.ubwc_enabled
-            ? 'y'
-            : 'n';
+      ubwc[ubwc_len++] = tu_image_view_fdl_view(view, false)->ubwc_enabled ? 'y' : 'n';
    }
    ubwc[ubwc_len] = '\0';
 

@@ -449,15 +449,17 @@ r2d_src_depth(struct tu_cmd_buffer *cmd,
                 uint32_t layer,
                 VkFilter filter)
 {
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, false);
+
    tu_cs_emit_pkt4(cs, TPL1_A2D_SRC_TEXTURE_INFO(CHIP).reg, 5);
    tu_cs_emit(cs, tu_image_view_depth(iview, TPL1_A2D_SRC_TEXTURE_INFO));
-   tu_cs_emit(cs, iview->view.TPL1_A2D_SRC_TEXTURE_SIZE);
-   tu_cs_emit_qw(cs, iview->depth_base_addr + iview->depth_layer_size * layer);
+   tu_cs_emit(cs, fdl_view->TPL1_A2D_SRC_TEXTURE_SIZE);
+   tu_cs_emit_qw(cs, tu_layer_address(fdl_view, layer));
    /* TPL1_A2D_SRC_TEXTURE_PITCH has shifted pitch field */
-   tu_cs_emit(cs, TPL1_A2D_SRC_TEXTURE_PITCH(CHIP, .pitch = iview->depth_pitch).value);
+   tu_cs_emit(cs, TPL1_A2D_SRC_TEXTURE_PITCH(CHIP, .pitch = fdl_view->pitch).value);
 
    tu_cs_emit_pkt4(cs, __TPL1_A2D_SRC_TEXTURE_FLAG_BASE<CHIP>({}).reg, 3);
-   tu_cs_image_flag_ref(cs, &iview->view, layer);
+   tu_cs_image_flag_ref(cs, fdl_view, layer);
 }
 
 template <chip CHIP>
@@ -468,11 +470,13 @@ r2d_src_stencil(struct tu_cmd_buffer *cmd,
                 uint32_t layer,
                 VkFilter filter)
 {
+   const struct fdl6_view *view = tu_image_view_fdl_view(iview, true);
+
    tu_cs_emit_pkt4(cs, TPL1_A2D_SRC_TEXTURE_INFO(CHIP,).reg, 5);
    tu_cs_emit(cs, tu_image_view_stencil(iview, TPL1_A2D_SRC_TEXTURE_INFO) & ~A6XX_TPL1_A2D_SRC_TEXTURE_INFO_FLAGS);
-   tu_cs_emit(cs, iview->view.TPL1_A2D_SRC_TEXTURE_SIZE);
-   tu_cs_emit_qw(cs, iview->stencil_base_addr + iview->stencil_layer_size * layer);
-   tu_cs_emit(cs, TPL1_A2D_SRC_TEXTURE_PITCH(CHIP, .pitch = iview->stencil_pitch).value);
+   tu_cs_emit(cs, view->TPL1_A2D_SRC_TEXTURE_SIZE);
+   tu_cs_emit_qw(cs, tu_layer_address(view, layer));
+   tu_cs_emit(cs, TPL1_A2D_SRC_TEXTURE_PITCH(CHIP, .pitch = view->pitch).value);
 }
 
 template <chip CHIP>
@@ -566,22 +570,26 @@ r2d_dst(struct tu_cs *cs, const struct fdl6_view *iview, uint32_t layer,
 static void
 r2d_dst_depth(struct tu_cs *cs, const struct tu_image_view *iview, uint32_t layer)
 {
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, false);
+
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_A2D_DEST_BUFFER_INFO, 4);
    tu_cs_emit(cs, tu_image_view_depth(iview, RB_A2D_DEST_BUFFER_INFO));
-   tu_cs_emit_qw(cs, iview->depth_base_addr + iview->depth_layer_size * layer);
-   tu_cs_emit(cs, A6XX_RB_A2D_DEST_BUFFER_PITCH(iview->depth_pitch).value);
+   tu_cs_emit_qw(cs, tu_layer_address(fdl_view, layer));
+   tu_cs_emit(cs, A6XX_RB_A2D_DEST_BUFFER_PITCH(fdl_view->pitch).value);
 
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_A2D_DEST_FLAG_BUFFER_BASE, 3);
-   tu_cs_image_flag_ref(cs, &iview->view, layer);
+   tu_cs_image_flag_ref(cs, fdl_view, layer);
 }
 
 static void
 r2d_dst_stencil(struct tu_cs *cs, const struct tu_image_view *iview, uint32_t layer)
 {
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, true);
+
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_A2D_DEST_BUFFER_INFO, 4);
    tu_cs_emit(cs, tu_image_view_stencil(iview, RB_A2D_DEST_BUFFER_INFO) & ~A6XX_RB_A2D_DEST_BUFFER_INFO_FLAGS);
-   tu_cs_emit_qw(cs, iview->stencil_base_addr + iview->stencil_layer_size * layer);
-   tu_cs_emit(cs, A6XX_RB_A2D_DEST_BUFFER_PITCH(iview->stencil_pitch).value);
+   tu_cs_emit_qw(cs, tu_layer_address(fdl_view, layer));
+   tu_cs_emit(cs, A6XX_RB_A2D_DEST_BUFFER_PITCH(fdl_view->pitch).value);
 }
 
 static void
@@ -1489,14 +1497,15 @@ r3d_src_depth(struct tu_cmd_buffer *cmd,
               uint32_t layer,
               VkFilter filter)
 {
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, false);
    uint32_t desc[FDL6_TEX_CONST_DWORDS];
 
-   memcpy(desc, iview->view.descriptor, sizeof(desc));
-   uint64_t va = iview->depth_base_addr;
+   memcpy(desc, fdl_view->descriptor, sizeof(desc));
+   uint64_t va = fdl_view->base_addr;
 
    tu_desc_set_min_line_offset<CHIP>(desc, 0);
-   tu_desc_set_tex_line_offset<CHIP>(desc, iview->depth_pitch);
-   tu_desc_set_array_slice_offset<CHIP>(desc, iview->depth_layer_size);
+   tu_desc_set_tex_line_offset<CHIP>(desc, fdl_view->pitch);
+   tu_desc_set_array_slice_offset<CHIP>(desc, fdl_view->layer_size);
    tu_desc_set_addr<CHIP>(desc, va);
    tu_desc_set_depth<CHIP>(desc, 0);
    tu_desc_set_format<CHIP>(desc, FMT6_32_FLOAT);
@@ -1504,8 +1513,8 @@ r3d_src_depth(struct tu_cmd_buffer *cmd,
    tu_desc_set_type<CHIP>(desc, A6XX_TEX_2D);
 
    r3d_src_common<CHIP>(cmd, cs, desc,
-                        iview->depth_layer_size * layer,
-                        iview->view.ubwc_layer_size * layer,
+                        fdl_view->layer_size * layer,
+                        fdl_view->ubwc_layer_size * layer,
                         VK_FILTER_NEAREST);
 }
 
@@ -1517,24 +1526,25 @@ r3d_src_stencil(struct tu_cmd_buffer *cmd,
                 uint32_t layer,
                 VkFilter filter)
 {
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, true);
    uint32_t desc[FDL6_TEX_CONST_DWORDS];
 
-   memcpy(desc, iview->view.descriptor, sizeof(desc));
-   uint64_t va = iview->stencil_base_addr;
+   memcpy(desc, fdl_view->descriptor, sizeof(desc));
+   uint64_t va = fdl_view->base_addr;
 
    /* Separate stencil is linear even if depth is not: */
    tu_desc_set_ubwc<CHIP>(desc, 0);
 
    tu_desc_set_min_line_offset<CHIP>(desc, 0);
-   tu_desc_set_tex_line_offset<CHIP>(desc, iview->stencil_pitch);
-   tu_desc_set_array_slice_offset<CHIP>(desc, iview->stencil_layer_size);
+   tu_desc_set_tex_line_offset<CHIP>(desc, fdl_view->pitch);
+   tu_desc_set_array_slice_offset<CHIP>(desc, fdl_view->layer_size);
    tu_desc_set_addr<CHIP>(desc, va);
    tu_desc_set_depth<CHIP>(desc, 0);
    tu_desc_set_format<CHIP>(desc, FMT6_8_UINT);
    tu_desc_set_swiz<CHIP>(desc, tu_swiz(X, Y, Z, W));
    tu_desc_set_type<CHIP>(desc, A6XX_TEX_2D);
 
-   r3d_src_common<CHIP>(cmd, cs, desc, iview->stencil_layer_size * layer, 0,
+   r3d_src_common<CHIP>(cmd, cs, desc, fdl_view->layer_size * layer, 0,
                         VK_FILTER_NEAREST);
 }
 
@@ -1701,18 +1711,20 @@ template <chip CHIP>
 static void
 r3d_dst_depth(struct tu_cs *cs, const struct tu_image_view *iview, uint32_t layer)
 {
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, false);
+
    tu_cs_emit_regs(cs,
       RB_MRT_BUF_INFO(CHIP, 0, .dword = tu_image_view_depth(iview, RB_MRT_BUF_INFO)),
-      A6XX_RB_MRT_PITCH(0, iview->depth_pitch),
-      A6XX_RB_MRT_ARRAY_PITCH(0, iview->depth_layer_size),
-      A6XX_RB_MRT_BASE(0, .qword = iview->depth_base_addr + iview->depth_layer_size * layer),
+      A6XX_RB_MRT_PITCH(0, fdl_view->pitch),
+      A6XX_RB_MRT_ARRAY_PITCH(0, fdl_view->layer_size),
+      A6XX_RB_MRT_BASE(0, .qword = tu_layer_address(fdl_view, layer)),
       A6XX_RB_MRT_BASE_GMEM(0),
    );
 
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_COLOR_FLAG_BUFFER(0), 3);
-   tu_cs_image_flag_ref(cs, &iview->view, layer);
+   tu_cs_image_flag_ref(cs, fdl_view, layer);
 
-   tu_cs_emit_regs(cs, RB_RENDER_CNTL(CHIP, .flag_mrts = iview->view.ubwc_enabled));
+   tu_cs_emit_regs(cs, RB_RENDER_CNTL(CHIP, .flag_mrts = fdl_view->ubwc_enabled));
    if (CHIP >= A7XX)
       tu_cs_emit_regs(cs, GRAS_SU_RENDER_CNTL(CHIP));
 }
@@ -1728,11 +1740,13 @@ template <chip CHIP>
 static void
 r3d_dst_stencil(struct tu_cs *cs, const struct tu_image_view *iview, uint32_t layer)
 {
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, true);
+
    tu_cs_emit_regs(cs,
       RB_MRT_BUF_INFO(CHIP, 0, .dword = tu_rb_mrt_buf_info_stencil(iview)),
-      A6XX_RB_MRT_PITCH(0, iview->stencil_pitch),
-      A6XX_RB_MRT_ARRAY_PITCH(0, iview->stencil_layer_size),
-      A6XX_RB_MRT_BASE(0, .qword = iview->stencil_base_addr + iview->stencil_layer_size * layer),
+      A6XX_RB_MRT_PITCH(0, fdl_view->pitch),
+      A6XX_RB_MRT_ARRAY_PITCH(0, fdl_view->layer_size),
+      A6XX_RB_MRT_BASE(0, .qword = tu_layer_address(fdl_view, layer)),
       A6XX_RB_MRT_BASE_GMEM(0),
    );
 
@@ -2295,33 +2309,22 @@ struct event_blit_dst_view {
    const struct tu_image *image;
    const struct fdl6_view *view;
 
+   uint64_t addr;
+   uint32_t pitch;
    uint32_t layer;
-
-   uint64_t depth_addr;
-   uint32_t depth_pitch;
-
-   uint64_t stencil_addr;
-   uint32_t stencil_pitch;
 };
 
 static event_blit_dst_view
 blt_view_from_tu_view(const struct tu_image_view *iview,
-                      uint32_t layer)
+                      uint32_t layer, bool separate_stencil)
 {
    struct event_blit_dst_view blt_view;
    blt_view.image = iview->image;
-   blt_view.view = &iview->view;
+   blt_view.view = tu_image_view_fdl_view(iview, separate_stencil);
+   blt_view.addr = tu_layer_address(blt_view.view, layer);
+   blt_view.pitch = blt_view.view->pitch;
    blt_view.layer = layer;
 
-   if (iview->image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-      blt_view.depth_addr =
-         iview->depth_base_addr + iview->depth_layer_size * layer;
-      blt_view.depth_pitch = iview->depth_pitch;
-
-      blt_view.stencil_addr =
-         iview->stencil_base_addr + iview->stencil_layer_size * layer;
-      blt_view.stencil_pitch = iview->stencil_pitch;
-   }
    return blt_view;
 }
 
@@ -2337,16 +2340,16 @@ event_blit_run(struct tu_cmd_buffer *cmd,
    if (blt_view->image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
       if (!separate_stencil) {
          tu_cs_emit(cs, tu_fdl_view_depth(blt_view->view, RB_RESOLVE_SYSTEM_BUFFER_INFO));
-         tu_cs_emit_qw(cs, blt_view->depth_addr);
-         tu_cs_emit(cs, A6XX_RB_A2D_DEST_BUFFER_PITCH(blt_view->depth_pitch).value);
+         tu_cs_emit_qw(cs, blt_view->addr);
+         tu_cs_emit(cs, A6XX_RB_A2D_DEST_BUFFER_PITCH(blt_view->pitch).value);
 
          tu_cs_emit_pkt4(cs, REG_A6XX_RB_RESOLVE_SYSTEM_FLAG_BUFFER_BASE, 3);
          tu_cs_image_flag_ref(cs, blt_view->view, blt_view->layer);
       } else {
          tu_cs_emit(cs, tu_fdl_view_stencil(blt_view->view, RB_RESOLVE_SYSTEM_BUFFER_INFO) &
                            ~A6XX_RB_RESOLVE_SYSTEM_BUFFER_INFO_FLAGS);
-         tu_cs_emit_qw(cs, blt_view->stencil_addr);
-         tu_cs_emit(cs, A6XX_RB_RESOLVE_SYSTEM_BUFFER_PITCH(blt_view->stencil_pitch).value);
+         tu_cs_emit_qw(cs, blt_view->addr);
+         tu_cs_emit(cs, A6XX_RB_RESOLVE_SYSTEM_BUFFER_PITCH(blt_view->pitch).value);
       }
    } else {
       tu_cs_emit(cs, blt_view->view->RB_RESOLVE_SYSTEM_BUFFER_INFO);
@@ -2391,7 +2394,7 @@ tu7_generic_layer_clear(struct tu_cmd_buffer *cmd,
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_RESOLVE_CLEAR_COLOR_DW0, 4);
    tu_cs_emit_array(cs, clear_vals, 4);
 
-   event_blit_dst_view blt_view = blt_view_from_tu_view(iview, layer);
+   event_blit_dst_view blt_view = blt_view_from_tu_view(iview, layer, separate_stencil);
 
    event_blit_setup(cs, buffer_id, att, BLIT_EVENT_CLEAR, clear_mask);
    event_blit_run<A7XX>(cmd, cs, att, &blt_view, separate_stencil);
@@ -3969,9 +3972,11 @@ resolve_sysmem(struct tu_cmd_buffer *cmd,
 
    enum pipe_format src_format = vk_format_to_pipe_format(vk_src_format);
    enum pipe_format dst_format = vk_format_to_pipe_format(vk_dst_format);
+   const struct fdl6_view *dst_fdl_view =
+      tu_image_view_fdl_view(dst, vk_dst_format == VK_FORMAT_S8_UINT);
 
    ops->setup(cmd, cs, src_format, dst_format,
-              VK_IMAGE_ASPECT_COLOR_BIT, 0, false, dst->view.ubwc_enabled,
+              VK_IMAGE_ASPECT_COLOR_BIT, 0, false, dst_fdl_view->ubwc_enabled,
               (VkSampleCountFlagBits)src->image->layout[0].nr_samples,
               (VkSampleCountFlagBits)dst->image->layout[0].nr_samples);
 
@@ -4230,25 +4235,18 @@ clear_image_event_blit(struct tu_cmd_buffer *cmd,
          struct event_blit_dst_view blt_view = {
             .image = image,
             .view = &dst,
+            .addr = tu_layer_address(&dst, layer),
+            .pitch = dst.pitch,
             .layer = layer,
          };
 
          if (image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
             uint32_t real_level = range->baseMipLevel + level;
             uint32_t real_layer = range->baseArrayLayer + layer;
-            if (aspect_mask == VK_IMAGE_ASPECT_DEPTH_BIT) {
-               struct fdl_layout *layout = &image->layout[0];
-               blt_view.depth_addr =
-                  image->iova +
-                  fdl_surface_offset(layout, real_level, real_layer);
-               blt_view.depth_pitch = fdl_pitch(layout, real_level);
-            } else {
-               struct fdl_layout *layout = &image->layout[1];
-               blt_view.stencil_addr =
-                  image->iova +
-                  fdl_surface_offset(layout, real_level, real_layer);
-               blt_view.stencil_pitch = fdl_pitch(layout, real_level);
-            }
+            struct fdl_layout *layout =
+               aspect_mask == VK_IMAGE_ASPECT_DEPTH_BIT ? &image->layout[0] : &image->layout[1];
+            blt_view.addr = image->iova + fdl_surface_offset(layout, real_level, real_layer);
+            blt_view.pitch = fdl_pitch(layout, real_level);
          }
 
          event_blit_run<A7XX>(cmd, cs, NULL, &blt_view,
@@ -5157,7 +5155,10 @@ clear_sysmem_attachment(struct tu_cmd_buffer *cmd,
       format = PIPE_FORMAT_R32_UINT;
    }
 
-   ops->setup(cmd, cs, format, format, clear_mask, 0, true, iview->view.ubwc_enabled,
+   bool separate_stencil = separate_ds && vk_format == VK_FORMAT_S8_UINT;
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, separate_stencil);
+
+   ops->setup(cmd, cs, format, format, clear_mask, 0, true, fdl_view->ubwc_enabled,
               cmd->state.pass->attachments[a].samples,
               cmd->state.pass->attachments[a].samples);
    if (!cmd->state.per_layer_render_area) {
@@ -5286,7 +5287,7 @@ tu7_generic_clear_attachment(struct tu_cmd_buffer *cmd,
    const struct tu_subpass *subpass = cmd->state.subpass;
 
    trace_start_generic_clear(&cmd->rp_trace, cs, cmd, att->format,
-                             iview->view.ubwc_enabled, att->samples);
+                             tu_image_view_fdl_view(iview, false)->ubwc_enabled, att->samples);
 
    enum pipe_format format = vk_format_to_pipe_format(att->format);
    for_each_layer(i, att->used_views, cmd->state.framebuffer->layers) {
@@ -5514,7 +5515,7 @@ tu_emit_blit(struct tu_cmd_buffer *cmd,
       } else if (scissor_per_layer) {
          tu6_emit_blit_scissor(cmd, cs, i, align_scissor);
       }
-      event_blit_dst_view blt_view = blt_view_from_tu_view(iview, i);
+      event_blit_dst_view blt_view = blt_view_from_tu_view(iview, i, separate_stencil);
       event_blit_run<CHIP>(cmd, cs, attachment, &blt_view, separate_stencil);
    }
 
@@ -5616,15 +5617,10 @@ load_3d_blit(struct tu_cmd_buffer *cmd,
    }
 
    const struct tu_framebuffer *fb = cmd->state.framebuffer;
-   enum pipe_format format = iview->view.format;
-   if (iview->image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-      if (separate_stencil)
-         format = PIPE_FORMAT_S8_UINT;
-      else
-         format = PIPE_FORMAT_Z32_FLOAT;
-   }
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, separate_stencil);
+   enum pipe_format format = fdl_view->format;
    r3d_setup<CHIP>(cmd, cs, format, format, VK_IMAGE_ASPECT_COLOR_BIT,
-                   R3D_DST_GMEM, false, iview->view.ubwc_enabled,
+                   R3D_DST_GMEM, false, fdl_view->ubwc_enabled,
                    (VkSampleCountFlagBits)iview->image->layout[0].nr_samples,
                    att->samples);
 
@@ -5800,9 +5796,11 @@ store_cp_blit(struct tu_cmd_buffer *cmd,
               uint32_t gmem_offset,
               uint32_t cpp)
 {
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(dst_iview, separate_stencil);
+
    r2d_setup_common<CHIP>(cmd, cs, src_format, dst_format,
                           VK_IMAGE_ASPECT_COLOR_BIT, 0, false,
-                          dst_iview->view.ubwc_enabled,
+                          fdl_view->ubwc_enabled,
                           true);
 
    if (dst_iview->image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
@@ -5918,8 +5916,10 @@ store_3d_blit(struct tu_cmd_buffer *cmd,
                      CP_REG_TO_SCRATCH_0_CNT(1 - 1));
    }
 
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(dst_iview, separate_stencil);
+
    r3d_setup<CHIP>(cmd, cs, src_format, dst_format, VK_IMAGE_ASPECT_COLOR_BIT,
-                   0, false, dst_iview->view.ubwc_enabled, dst_samples, dst_samples);
+                   0, false, fdl_view->ubwc_enabled, dst_samples, dst_samples);
 
    r3d_coords(cmd, cs, render_area->offset, render_area->offset, render_area->extent);
 
