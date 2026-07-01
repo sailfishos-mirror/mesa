@@ -11,6 +11,7 @@ use crate::ssa_value::SSAValueAllocator;
 use compiler::bindings::*;
 use compiler::cfg::*;
 use compiler::nir::*;
+use kraid_bindings::*;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::cmp::min;
 
@@ -999,6 +1000,146 @@ impl<'a> ShaderFromNir<'a> {
             .or_insert_with(|| b.alloc_ssa(32))
     }
 
+    fn parse_tex(&mut self, b: &mut impl SSABuilder, tex: &nir_tex_instr) {
+        let mut tex_h = None;
+        let mut sr: [&[SSAValue]; 2] = [&[], &[]];
+        for src in tex.srcs_as_slice() {
+            match src.src_type {
+                nir_tex_src_texture_handle => {
+                    let vec = self.get_src_ssa(&src.src);
+                    assert_eq!(vec.comps(), 2);
+                    tex_h = Some(vec);
+                }
+                nir_tex_src_backend1 => sr[0] = self.get_ssa(src.src.as_def()),
+                nir_tex_src_backend2 => sr[1] = self.get_ssa(src.src.as_def()),
+                _ => panic!("Unknown tex source"),
+            }
+        }
+        let tex_h = tex_h.unwrap();
+        let sr = SSARef::from_iter(
+            sr[0].iter().copied().chain(sr[1].iter().copied()),
+        );
+
+        let flags: pan_va_tex_flags =
+            unsafe { std::mem::transmute(tex.backend_flags) };
+        let skip = flags.skip();
+        let wide_indices = flags.wide_indices();
+        let array_enable = flags.array_enable();
+        let texel_offset = flags.texel_offset();
+        let compare_enable = flags.compare_enable();
+
+        let dst_type = DataType::get(
+            tex.def.num_components,
+            NumericType::Auto,
+            tex.def.bit_size,
+        );
+        let dim = match tex.sampler_dim.into() {
+            GLSL_SAMPLER_DIM_1D | GLSL_SAMPLER_DIM_BUF => TexDim::Tex1D,
+            GLSL_SAMPLER_DIM_2D
+            | GLSL_SAMPLER_DIM_MS
+            | GLSL_SAMPLER_DIM_EXTERNAL
+            | GLSL_SAMPLER_DIM_RECT
+            | GLSL_SAMPLER_DIM_SUBPASS
+            | GLSL_SAMPLER_DIM_SUBPASS_MS => TexDim::Tex2D,
+            GLSL_SAMPLER_DIM_3D => TexDim::Tex3D,
+            GLSL_SAMPLER_DIM_CUBE => TexDim::Cube,
+            _ => panic!("Unknown glsl_sampler_dim"),
+        };
+        let write_mask =
+            TexWriteMask::new(tex.def.components_read().try_into().unwrap());
+        let lod_mode = match flags.lod_mode() {
+            BI_VA_LOD_MODE_ZERO_LOD => TexLodMode::None,
+            BI_VA_LOD_MODE_COMPUTED_LOD => TexLodMode::Computed,
+            BI_VA_LOD_MODE_EXPLICIT => TexLodMode::Explicit,
+            BI_VA_LOD_MODE_COMPUTED_BIAS => TexLodMode::ComputedBias,
+            BI_VA_LOD_MODE_GRDESC => TexLodMode::GradientDesc,
+            _ => panic!("Unknown LOD mode: {}", flags.lod_mode()),
+        };
+
+        let dst = self.alloc_ssa(b, &tex.def).into();
+        match tex.op {
+            nir_texop_tex | nir_texop_txb | nir_texop_txl | nir_texop_txd => {
+                b.push_op(OpTexSingle {
+                    dst,
+                    dst_type,
+                    skip,
+                    dim,
+                    projection_enable: false,
+                    write_mask,
+                    wide_indices,
+                    array_enable,
+                    texel_offset,
+                    compare_enable,
+                    lod_mode,
+                    data: sr.into(),
+                    handle: tex_h.into(),
+                });
+            }
+            nir_texop_txf | nir_texop_txf_ms => {
+                b.push_op(OpTexFetch {
+                    dst,
+                    dst_type,
+                    skip,
+                    dim,
+                    write_mask,
+                    wide_indices,
+                    array_enable,
+                    texel_offset,
+                    data: sr.into(),
+                    handle: tex_h.into(),
+                });
+            }
+            nir_texop_tg4 => {
+                b.push_op(OpTexGather {
+                    dst,
+                    dst_type,
+                    skip,
+                    dim,
+                    projection_enable: false,
+                    write_mask,
+                    wide_indices,
+                    array_enable,
+                    texel_offset,
+                    compare_enable,
+                    coord_mode: TexCoordMode::F32,
+                    gather_comp: match tex.component() {
+                        0 => TexGatherComp::R,
+                        1 => TexGatherComp::G,
+                        2 => TexGatherComp::B,
+                        3 => TexGatherComp::A,
+                        c => panic!("Invalid texture gather component: {c}"),
+                    },
+                    data: sr.into(),
+                    handle: tex_h.into(),
+                });
+            }
+            nir_texop_gradient_pan => {
+                assert!(dst_type.total_bits() == 64);
+                let coord_mode = if flags.force_delta_enable() {
+                    assert!(!flags.derivative_enable());
+                    TexGradientCoordMode::ForceDelta
+                } else if flags.derivative_enable() {
+                    TexGradientCoordMode::Derivative
+                } else {
+                    TexGradientCoordMode::Coords
+                };
+                b.push_op(OpTexGradient {
+                    dst,
+                    skip,
+                    dim,
+                    projection_enable: false,
+                    wide_indices,
+                    coord_mode,
+                    lod_bias_disable: flags.lod_bias_disable(),
+                    lod_clamp_disable: flags.lod_clamp_disable(),
+                    data: sr.into(),
+                    handle: tex_h.into(),
+                });
+            }
+            _ => panic!("Unsupported tex instruction"),
+        }
+    }
+
     fn parse_intrinsic(
         &mut self,
         b: &mut impl SSABuilder,
@@ -1306,6 +1447,9 @@ impl<'a> ShaderFromNir<'a> {
                 }
                 nir_instr_type_alu => {
                     self.parse_alu(&mut b, ni.as_alu().unwrap())
+                }
+                nir_instr_type_tex => {
+                    self.parse_tex(&mut b, ni.as_tex().unwrap())
                 }
                 nir_instr_type_intrinsic => {
                     self.parse_intrinsic(&mut b, ni.as_intrinsic().unwrap())

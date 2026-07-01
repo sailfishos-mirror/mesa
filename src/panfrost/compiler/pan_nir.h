@@ -229,6 +229,7 @@ nir_intrinsic_pan_bi_tex_flags(const nir_intrinsic_instr *instr)
 PRAGMA_DIAGNOSTIC_PUSH
 PRAGMA_DIAGNOSTIC_ERROR(-Wpadded)
 struct pan_va_tex_flags {
+   bool skip : 1;
    bool wide_indices : 1;
    bool array_enable : 1;
    bool texel_offset : 1;
@@ -238,7 +239,7 @@ struct pan_va_tex_flags {
    bool force_delta_enable : 1;
    bool lod_bias_disable : 1;
    bool lod_clamp_disable : 1;
-   unsigned _pad : 21;
+   unsigned _pad : 20;
 };
 PRAGMA_DIAGNOSTIC_POP
 static_assert(sizeof(struct pan_va_tex_flags) == 4, "Must fit in uint32_t");
