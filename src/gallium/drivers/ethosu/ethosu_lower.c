@@ -197,18 +197,37 @@ ethosu_lower_fully_connected(struct ethosu_subgraph *subgraph,
                              struct ethosu_operation *operation)
 {
    struct pipe_tensor flat_input = *input_tensor;
+   struct pipe_tensor spatial_output = *poperation->output_tensors[0];
+   struct pipe_tensor *output_tensor = poperation->output_tensors[0];
+   struct pipe_ml_operation conv_operation = *poperation;
+   struct pipe_tensor *output_tensors[1] = {output_tensor};
+   struct pipe_tensor *weight = poperation->fcon.weight_tensor;
 
    flat_input.dims[1] = 1;
    flat_input.dims[2] = 1;
    flat_input.dims[3] = input_tensor->dims[1] * input_tensor->dims[2] *
                         input_tensor->dims[3];
 
+   if (weight->dims[1] == 1 &&
+       weight->dims[3] == input_tensor->dims[3] &&
+       output_tensor->dims[1] == 1 &&
+       output_tensor->dims[2] == input_tensor->dims[1] * input_tensor->dims[2]) {
+      flat_input = *input_tensor;
+
+      spatial_output.dims[1] = input_tensor->dims[1];
+      spatial_output.dims[2] = input_tensor->dims[2];
+      spatial_output.dims[3] = weight->dims[2];
+      output_tensors[0] = &spatial_output;
+   }
+
+   conv_operation.output_tensors = output_tensors;
+
    operation->kernel.scale = poperation->fcon.weight_tensor->scale;
    operation->kernel.zero_point = poperation->fcon.weight_tensor->zero_point;
    operation->kernel.is_signed = poperation->fcon.weight_tensor->is_signed;
 
-   lower_conv_common(subgraph, poperation, &flat_input,
-                     poperation->fcon.weight_tensor,
+   lower_conv_common(subgraph, &conv_operation, &flat_input,
+                     weight,
                      (int32_t *)poperation->fcon.bias_tensor->data,
                      operation);
 }
