@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::builder::*;
 use crate::ir::*;
 use crate::ops::*;
 use compiler::bitset::BitSet;
@@ -9,20 +10,20 @@ use std::ops::Range;
 const MAX_COPY_SIZE_LOG2: u32 = 3; // COPY.i64 is the maximum
 const MAX_COPY_SIZE: u8 = 1 << MAX_COPY_SIZE_LOG2;
 
-fn copy_instr(dst_b: Range<u16>, src_b: Range<u16>) -> Instr {
+fn copy(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
     let bytes = dst_b.end - dst_b.start;
     debug_assert_eq!(src_b.end - src_b.start, bytes);
     debug_assert!(bytes <= u16::from(MAX_COPY_SIZE));
     let bytes = u8::try_from(bytes).unwrap();
 
-    Instr::from(OpCopy {
+    b.push_op(OpCopy {
         dst: RegRef::from_byte_range(dst_b).unwrap().into(),
         dst_type: DataType::i(bytes * 8),
         src: RegRef::from_byte_range(src_b).unwrap().into(),
-    })
+    });
 }
 
-fn xor(dst_b: Range<u16>, src_b: Range<u16>) -> Instr {
+fn xor(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
     let bytes = dst_b.end - dst_b.start;
     debug_assert_eq!(src_b.end - src_b.start, bytes);
     debug_assert!(bytes <= u16::from(MAX_COPY_SIZE));
@@ -48,7 +49,7 @@ fn xor(dst_b: Range<u16>, src_b: Range<u16>) -> Instr {
         // 32-bit XOR.
         let shift = Src::imm_u8(dst_byte * 8);
 
-        Instr::from(OpShiftLop {
+        b.push_op(OpShiftLop {
             dst: dst.into(),
             dst_type: DataType::U32,
             shift_op: ShiftOp::LShift,
@@ -57,7 +58,7 @@ fn xor(dst_b: Range<u16>, src_b: Range<u16>) -> Instr {
             src0,
             shift,
             src2: dst.into(),
-        })
+        });
     } else {
         let comps = if bytes == 2 { 2 } else { 1 };
         let dst_type = DataType::v(comps, DataType::u(bytes * 8));
@@ -67,7 +68,7 @@ fn xor(dst_b: Range<u16>, src_b: Range<u16>) -> Instr {
         let mut src2 = Src::from(dst);
         src2.swizzle = Swizzle::NONE;
 
-        Instr::from(OpShiftLop {
+        b.push_op(OpShiftLop {
             dst: dst.into(),
             dst_type,
             shift_op: ShiftOp::None,
@@ -76,16 +77,14 @@ fn xor(dst_b: Range<u16>, src_b: Range<u16>) -> Instr {
             src0: src.into(),
             shift: Src::imm_u8(0),
             src2,
-        })
+        });
     }
 }
 
-fn swap_instrs(dst_b: Range<u16>, src_b: Range<u16>) -> [Instr; 3] {
-    [
-        xor(dst_b.clone(), src_b.clone()),
-        xor(src_b.clone(), dst_b.clone()),
-        xor(dst_b.clone(), src_b.clone()),
-    ]
+fn swap(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
+    xor(b, dst_b.clone(), src_b.clone());
+    xor(b, src_b.clone(), dst_b.clone());
+    xor(b, dst_b.clone(), src_b.clone());
 }
 
 #[derive(Clone)]
@@ -188,8 +187,8 @@ impl std::ops::IndexMut<u16> for ByteArr {
     }
 }
 
-#[derive(Default)]
-pub struct ParallelCopy {
+pub struct ParallelCopy<'a> {
+    model: &'a dyn Model,
     #[cfg(debug_assertions)]
     dst_bytes: BitSet<usize>,
     max_b: u16,
@@ -197,9 +196,16 @@ pub struct ParallelCopy {
     const_copies: Vec<Instr>,
 }
 
-impl ParallelCopy {
-    pub fn new() -> ParallelCopy {
-        Default::default()
+impl ParallelCopy<'_> {
+    pub fn new(model: &dyn Model) -> ParallelCopy<'_> {
+        ParallelCopy {
+            model,
+            #[cfg(debug_assertions)]
+            dst_bytes: Default::default(),
+            max_b: 0,
+            copies: Default::default(),
+            const_copies: Default::default(),
+        }
     }
 
     #[cfg(debug_assertions)]
@@ -255,9 +261,11 @@ impl ParallelCopy {
         }
     }
 
-    pub fn into_instrs(mut self) -> impl Iterator<Item = Instr> {
+    pub fn into_instrs(mut self) -> impl Iterator<Item = Instr> + use<> {
         if self.copies.is_empty() {
-            return Vec::new().into_iter().chain(self.const_copies.into_iter());
+            return MappedInstrs::new()
+                .into_iter()
+                .chain(self.const_copies.into_iter());
         }
 
         // Sort by destination register so we can detect duplicates/overlaps
@@ -318,7 +326,7 @@ impl ParallelCopy {
             }
         }
 
-        let mut instrs = Vec::new();
+        let mut b = InstrBuilder::new(self.model);
 
         let mut copy_size = MAX_COPY_SIZE;
         loop {
@@ -356,7 +364,7 @@ impl ParallelCopy {
                         }
                     }
 
-                    instrs.push(copy_instr(dst, src));
+                    copy(&mut b, dst, src);
 
                     dst_b += u16::from(copy_size);
                 }
@@ -383,7 +391,10 @@ impl ParallelCopy {
         }
 
         if needed.is_empty() {
-            return instrs.into_iter().chain(self.const_copies.into_iter());
+            return b
+                .into_mapped()
+                .into_iter()
+                .chain(self.const_copies.into_iter());
         }
 
         let mut start = 0;
@@ -411,7 +422,7 @@ impl ParallelCopy {
                 let src = src_b..(src_b + copy_size);
 
                 needed.unset_range(dst.start.into()..dst.end.into());
-                instrs.extend(swap_instrs(dst, src));
+                swap(&mut b, dst, src);
 
                 dst_b = src_b;
             }
@@ -423,6 +434,8 @@ impl ParallelCopy {
             start = start_b + copy_size;
         }
 
-        instrs.into_iter().chain(self.const_copies.into_iter())
+        b.into_mapped()
+            .into_iter()
+            .chain(self.const_copies.into_iter())
     }
 }

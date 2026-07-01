@@ -804,10 +804,10 @@ impl GlobalRegAlloc<'_> {
         cfg: &CFG<BasicBlock>,
         bi: usize,
         reg_outs: Vec<Box<OpRegOut>>,
-    ) -> ParallelCopy {
+    ) -> ParallelCopy<'_> {
         debug_assert!(cfg.succ_indices(bi).is_empty());
 
-        let mut pcopy = ParallelCopy::new();
+        let mut pcopy = ParallelCopy::new(self.local.model);
         for op in reg_outs {
             if let RegRange::Regs(words) = op.reg.range {
                 for i in 0..words {
@@ -901,7 +901,7 @@ impl GlobalRegAlloc<'_> {
         mut phi_srcs: Vec<Box<OpPhiSrc>>,
         mut branch: Option<&mut Box<OpBranch>>,
         phi_map: &PhiMap,
-    ) -> ParallelCopy {
+    ) -> ParallelCopy<'_> {
         debug_assert!(self.local.pinned.is_empty());
 
         let succ = cfg.succ_indices(bi);
@@ -960,7 +960,7 @@ impl GlobalRegAlloc<'_> {
         if let Some(live_out) = live_out {
             // In this case, someone already set up our live-out.  We just have
             // to emit copies to shuffle everything into place.
-            let mut pcopy = ParallelCopy::new();
+            let mut pcopy = ParallelCopy::new(self.local.model);
             for idx in bl.live_out_set().iter() {
                 let idx = u32::try_from(idx).unwrap();
                 let src_bytes = self.local.idx_bytes(idx);
@@ -1021,7 +1021,7 @@ impl GlobalRegAlloc<'_> {
 
         // Now, place everything.  Go largest to smallest to reduce so that
         // we can guarantee everything fits.
-        let mut pcopy = ParallelCopy::new();
+        let mut pcopy = ParallelCopy::new(self.local.model);
         let mut live_out_set = bl.live_out_set().clone();
         let mut live_out: FxHashMap<u32, Range<u16>> = Default::default();
         for chunk_bytes in [8, 4, 2, 1] {
@@ -1183,7 +1183,7 @@ impl GlobalRegAlloc<'_> {
                 }
                 Op::RegOut(op) => reg_outs.push(op),
                 _ => {
-                    let mut pcopy = ParallelCopy::new();
+                    let mut pcopy = ParallelCopy::new(self.local.model);
                     self.local.alloc_regs_instr(ip, &mut instr, &mut pcopy, bl);
                     instrs.extend(pcopy.into_instrs());
                     instrs.push(instr);
