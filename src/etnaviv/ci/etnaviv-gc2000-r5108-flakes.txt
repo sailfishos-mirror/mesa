@@ -476,14 +476,30 @@ spec@glsl-1.10@execution@samplers@in-parameter
 spec@glsl-1.10@execution@samplers@in-parameter-nested-struct
 spec@glsl-1.10@execution@samplers@uniform-structs
 
+shaders@glsl-derivs,Fail
+shaders@glsl-vs-statechange-1
+spec@!opengl 1.1@fragment-center
 spec@!opengl 1.1@gl-1.1-drawarrays-vertex-count 100000 vbo gl_triangle_fan
-spec@glsl-1.10@execution@built-in-functions@fs-op-div-vec3-vec3
-spec@glsl-1.10@execution@built-in-functions@vs-op-div-vec4-float
-spec@glsl-1.10@execution@built-in-functions@vs-reflect-vec3-vec3
-spec@glsl-1.20@execution@built-in-functions@fs-op-add-mat3x2-mat3x2
-spec@glsl-1.20@execution@built-in-functions@vs-op-add-float-mat4x3
-spec@glsl-1.20@execution@built-in-functions@vs-op-mult-mat2x4-vec2
-spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH_COMPONENT32/GL_UNSIGNED_INT
+spec@!opengl 2.0@vertex-program-two-side back front2 back2
+spec@!opengl 2.0@vertex-program-two-side back front2 back2@vs and fs
+spec@ext_framebuffer_object@fbo-readpixels-depth-formats
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH24_STENCIL8/GL_UNSIGNED_BYTE
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH24_STENCIL8/GL_UNSIGNED_INT
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH24_STENCIL8/GL_UNSIGNED_SHORT
+spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH_COMPONENT32/GL_UNSIGNED_INT
+spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH_STENCIL/GL_UNSIGNED_INT
+spec@ext_texture_swizzle@ext_texture_swizzle-swizzle,Fail
+spec@glsl-1.10@execution@built-in-functions@fs-ceil-float
+spec@glsl-1.10@execution@built-in-functions@fs-op-div-vec3-vec3
+spec@glsl-1.10@execution@built-in-functions@vs-op-add-float-mat3
+spec@glsl-1.10@execution@built-in-functions@vs-op-div-vec4-float
+spec@glsl-1.10@execution@built-in-functions@vs-reflect-vec3-vec3
+spec@glsl-1.20@execution@built-in-functions@fs-op-add-mat3x2-mat3x2
+spec@glsl-1.20@execution@built-in-functions@fs-op-assign-sub-mat3x2-float
+spec@glsl-1.20@execution@built-in-functions@fs-op-eq-mat4x3-mat4x3
+spec@glsl-1.20@execution@built-in-functions@vs-op-add-float-mat4x3
+spec@glsl-1.20@execution@built-in-functions@vs-op-mult-mat2x4-vec2
+spec@mesa_pack_invert@mesa_pack_invert-readpixels
+spec@mesa_pack_invert@mesa_pack_invert-readpixels@PBO float RGBA
+spec@mesa_pack_invert@mesa_pack_invert-readpixels@PBO unorm BGRA
+spec@mesa_pack_invert@mesa_pack_invert-readpixels@non-PBO float RGBA
