@@ -384,7 +384,7 @@
         "description": "vc4: fix incorrect resource unref in vc4_flush_resource",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4226be0c750eed6c247a9298ee3124db8ca0e4c7",
         "notes": null
