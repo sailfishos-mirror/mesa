@@ -597,6 +597,113 @@ panvk_GetPhysicalDeviceQueueFamilyProperties2(
    }
 }
 
+VKAPI_ATTR VkResult VKAPI_CALL
+panvk_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(
+   VkPhysicalDevice physicalDevice, uint32_t *pPropertyCount,
+   VkCooperativeMatrixPropertiesKHR *pProperties)
+{
+   VK_FROM_HANDLE(panvk_physical_device, physical_device, physicalDevice);
+   VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixPropertiesKHR, out, pProperties,
+                          pPropertyCount);
+
+   unsigned arch = pan_arch(physical_device->kmod.dev->props.gpu_id);
+
+   if (arch < 11)
+      return VK_SUCCESS;
+
+   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p) {
+      *p = (VkCooperativeMatrixPropertiesKHR){
+         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+         .MSize = 4,
+         .NSize = 4,
+         .KSize = 4,
+         .AType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .BType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .CType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .ResultType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .saturatingAccumulation = false,
+         .scope = VK_SCOPE_SUBGROUP_KHR,
+      };
+   }
+
+   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p) {
+      *p = (VkCooperativeMatrixPropertiesKHR){
+         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+         .MSize = 16,
+         .NSize = 16,
+         .KSize = 16,
+         .AType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .BType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .CType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .ResultType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .saturatingAccumulation = false,
+         .scope = VK_SCOPE_SUBGROUP_KHR,
+      };
+   }
+
+   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p) {
+      *p = (VkCooperativeMatrixPropertiesKHR){
+         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+         .MSize = 4,
+         .NSize = 8,
+         .KSize = 8,
+         .AType = VK_COMPONENT_TYPE_FLOAT16_KHR,
+         .BType = VK_COMPONENT_TYPE_FLOAT16_KHR,
+         .CType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .ResultType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .saturatingAccumulation = false,
+         .scope = VK_SCOPE_SUBGROUP_KHR,
+      };
+   }
+
+   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p) {
+      *p = (VkCooperativeMatrixPropertiesKHR){
+         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+         .MSize = 16,
+         .NSize = 32,
+         .KSize = 32,
+         .AType = VK_COMPONENT_TYPE_FLOAT16_KHR,
+         .BType = VK_COMPONENT_TYPE_FLOAT16_KHR,
+         .CType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .ResultType = VK_COMPONENT_TYPE_FLOAT32_KHR,
+         .saturatingAccumulation = false,
+         .scope = VK_SCOPE_SUBGROUP_KHR,
+      };
+   }
+
+   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p) {
+      *p = (VkCooperativeMatrixPropertiesKHR){
+         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+         .MSize = 4,
+         .NSize = 16,
+         .KSize = 16,
+         .AType = VK_COMPONENT_TYPE_SINT8_KHR,
+         .BType = VK_COMPONENT_TYPE_SINT8_KHR,
+         .CType = VK_COMPONENT_TYPE_SINT32_KHR,
+         .ResultType = VK_COMPONENT_TYPE_SINT32_KHR,
+         .saturatingAccumulation = false,
+         .scope = VK_SCOPE_SUBGROUP_KHR,
+      };
+   }
+
+   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p) {
+      *p = (VkCooperativeMatrixPropertiesKHR){
+         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+         .MSize = 4,
+         .NSize = 16,
+         .KSize = 16,
+         .AType = VK_COMPONENT_TYPE_UINT8_KHR,
+         .BType = VK_COMPONENT_TYPE_UINT8_KHR,
+         .CType = VK_COMPONENT_TYPE_UINT32_KHR,
+         .ResultType = VK_COMPONENT_TYPE_UINT32_KHR,
+         .saturatingAccumulation = false,
+         .scope = VK_SCOPE_SUBGROUP_KHR,
+      };
+   }
+
+   return vk_outarray_status(&out);
+}
+
 VKAPI_ATTR void VKAPI_CALL
 panvk_GetPhysicalDeviceMemoryProperties2(
    VkPhysicalDevice physicalDevice,

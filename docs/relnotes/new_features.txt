@@ -29,3 +29,4 @@ VK_KHR_video_encode_feedback2 on RADV
 VK_EXT_global_priority on pvr
 VK_EXT_global_priority_query on pvr
 VK_KHR_global_priority on pvr
+VK_KHR_cooperative_matrix on panvk
