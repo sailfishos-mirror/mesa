@@ -5374,7 +5374,7 @@
         "description": "v3dv: report maxDrawIndirectCount of 1 without multiDrawIndirect",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0e0f18ae5e62ba67e6bcd0dc96e98c80b3bc8abc",
         "notes": null
