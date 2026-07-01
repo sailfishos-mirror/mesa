@@ -1128,6 +1128,7 @@ impl V9Instr for OpMkVecV2I8I16 {
             src_map! {
                 src0: srcs[0],
                 src1: srcs[1],
+                src2: accum,
             },
         )
     }

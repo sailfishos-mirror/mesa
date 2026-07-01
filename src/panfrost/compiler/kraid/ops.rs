@@ -1031,7 +1031,9 @@ pub struct OpMkVecV2I8I16 {
     #[src_type(I8)]
     pub srcs: [Src; 2],
 
-    #[src_type(I16)]
+    // Contrary to what the name implies, we have to decorate this source as
+    // V2I8 so that encoding sees a B01 swizzle instead of an H0 swizz.e
+    #[src_type(V2I8)]
     pub accum: Src,
 }
 
