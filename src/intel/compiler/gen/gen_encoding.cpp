@@ -1027,11 +1027,31 @@ private:
    inline unsigned
    encode_type_short(gen_reg_type type)
    {
-      if (gen_type_is_bfloat(type) && !devinfo->has_bfloat16)
+      if ((type == GEN_TYPE_HF8 || type == GEN_TYPE_BF8) && !devinfo->has_fp8)
          return GEN_INVALID_HW_REG_TYPE;
 
-      /* size mask and SINT type bit match exactly */
-      return type & 0b111;
+      if (type == GEN_TYPE_BF && !devinfo->has_bfloat16)
+         return GEN_INVALID_HW_REG_TYPE;
+
+      static const uint8_t map[] = {
+         [GEN_TYPE_UB]  = 0b000,
+         [GEN_TYPE_UW]  = 0b001,
+         [GEN_TYPE_UD]  = 0b010,
+         [GEN_TYPE_UQ]  = 0b011,
+         [GEN_TYPE_B]   = 0b100,
+         [GEN_TYPE_W]   = 0b101,
+         [GEN_TYPE_D]   = 0b110,
+         [GEN_TYPE_Q]   = 0b111,
+         [GEN_TYPE_HF8] = 0b100,
+         [GEN_TYPE_HF]  = 0b001,
+         [GEN_TYPE_F]   = 0b010,
+         [GEN_TYPE_DF]  = 0b011,
+         [GEN_TYPE_BF8] = 0b000,
+         [GEN_TYPE_BF]  = 0b101,
+      };
+      if (type >= ARRAY_SIZE(map))
+         return GEN_INVALID_HW_REG_TYPE;
+      return map[type];
    }
 
    static inline unsigned
@@ -1673,14 +1693,37 @@ private:
    inline gen_reg_type
    decode_type_short(unsigned hw_type, bool is_float)
    {
-      unsigned size_field = hw_type & GEN_TYPE_SIZE_MASK;
-      unsigned base_field = hw_type & GEN_TYPE_BASE_MASK;
-      if (is_float) {
-         base_field |= GEN_TYPE_BASE_FLOAT;
-         if (base_field == GEN_TYPE_BASE_BFLOAT && !devinfo->has_bfloat16)
-            return GEN_TYPE_INVALID;
-      }
-      return (gen_reg_type) (base_field | size_field);
+      static const gen_reg_type int_map[8] = {
+         [0b000] = GEN_TYPE_UB,
+         [0b001] = GEN_TYPE_UW,
+         [0b010] = GEN_TYPE_UD,
+         [0b011] = GEN_TYPE_UQ,
+         [0b100] = GEN_TYPE_B,
+         [0b101] = GEN_TYPE_W,
+         [0b110] = GEN_TYPE_D,
+         [0b111] = GEN_TYPE_Q,
+      };
+      static const gen_reg_type float_map[8] = {
+         [0b000] = GEN_TYPE_BF8,
+         [0b001] = GEN_TYPE_HF,
+         [0b010] = GEN_TYPE_F,
+         [0b011] = GEN_TYPE_DF,
+         [0b100] = GEN_TYPE_HF8,
+         [0b101] = GEN_TYPE_BF,
+         [0b110] = GEN_TYPE_INVALID,
+         [0b111] = GEN_TYPE_INVALID,
+      };
+
+      assert(hw_type < 8);
+      gen_reg_type result = (is_float ? float_map : int_map)[hw_type];
+
+      if ((result == GEN_TYPE_HF8 || result == GEN_TYPE_BF8) && !devinfo->has_fp8)
+         return GEN_TYPE_INVALID;
+
+      if (result == GEN_TYPE_BF && !devinfo->has_bfloat16)
+         return GEN_TYPE_INVALID;
+
+      return result;
    }
 };
 
