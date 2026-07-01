@@ -708,10 +708,6 @@ vn_queue_submission_add_query_feedback(struct vn_queue_submission *submit,
    return result;
 }
 
-struct vn_sync_feedback_cmd *
-vn_semaphore_get_feedback_cmd(struct vn_device *dev,
-                              struct vn_semaphore *sem);
-
 static VkResult
 vn_queue_submission_add_semaphore_feedback(struct vn_queue_submission *submit,
                                            uint32_t batch_index,
@@ -726,7 +722,7 @@ vn_queue_submission_add_semaphore_feedback(struct vn_queue_submission *submit,
    VK_FROM_HANDLE(vk_queue, queue_vk, submit->queue_handle);
    struct vn_device *dev = vn_device_from_vk(queue_vk->base.device);
    struct vn_sync_feedback_cmd *sfb_cmd =
-      vn_semaphore_get_feedback_cmd(dev, sem);
+      vn_sync_feedback_cmd_get(dev, &sem->feedback);
    if (!sfb_cmd)
       return VK_ERROR_OUT_OF_HOST_MEMORY;
 
@@ -2068,87 +2064,6 @@ vn_semaphore_wait_external(struct vn_device *dev, struct vn_semaphore *sem)
    return true;
 }
 
-struct vn_sync_feedback_cmd *
-vn_semaphore_get_feedback_cmd(struct vn_device *dev, struct vn_semaphore *sem)
-{
-   struct vn_sync_feedback_cmd *sfb_cmd = NULL;
-
-   simple_mtx_lock(&sem->feedback.cmd_mtx);
-   if (!list_is_empty(&sem->feedback.free_cmds)) {
-      sfb_cmd = list_first_entry(&sem->feedback.free_cmds,
-                                 struct vn_sync_feedback_cmd, head);
-      list_move_to(&sfb_cmd->head, &sem->feedback.pending_cmds);
-      sem->feedback.free_cmd_count--;
-   }
-   simple_mtx_unlock(&sem->feedback.cmd_mtx);
-
-   if (!sfb_cmd) {
-      sfb_cmd = vn_sync_feedback_cmd_alloc(dev, sem->feedback.slot);
-
-      simple_mtx_lock(&sem->feedback.cmd_mtx);
-      list_add(&sfb_cmd->head, &sem->feedback.pending_cmds);
-      simple_mtx_unlock(&sem->feedback.cmd_mtx);
-   }
-
-   return sfb_cmd;
-}
-
-static VkResult
-vn_semaphore_feedback_init(struct vn_device *dev,
-                           struct vn_semaphore *sem,
-                           uint64_t initial_value,
-                           const VkAllocationCallbacks *alloc)
-{
-   struct vn_feedback_slot *slot;
-
-   assert(sem->type == VK_SEMAPHORE_TYPE_TIMELINE);
-
-   if (sem->is_external)
-      return VK_SUCCESS;
-
-   if (VN_PERF(NO_SEMAPHORE_FEEDBACK))
-      return VK_SUCCESS;
-
-   slot =
-      vn_feedback_pool_alloc(&dev->feedback_pool, VN_FEEDBACK_TYPE_SEMAPHORE);
-   if (!slot)
-      return VK_ERROR_OUT_OF_HOST_MEMORY;
-
-   list_inithead(&sem->feedback.pending_cmds);
-   list_inithead(&sem->feedback.free_cmds);
-
-   vn_feedback_set_counter(slot, initial_value);
-
-   simple_mtx_init(&sem->feedback.cmd_mtx, mtx_plain);
-   simple_mtx_init(&sem->feedback.counter_mtx, mtx_plain);
-
-   sem->feedback.signaled_counter = initial_value;
-   sem->feedback.slot = slot;
-   sem->feedback.pollable = true;
-
-   return VK_SUCCESS;
-}
-
-static void
-vn_semaphore_feedback_fini(struct vn_device *dev, struct vn_semaphore *sem)
-{
-   if (!sem->feedback.slot)
-      return;
-
-   list_for_each_entry_safe(struct vn_sync_feedback_cmd, sfb_cmd,
-                            &sem->feedback.free_cmds, head)
-      vn_sync_feedback_cmd_free(dev, sfb_cmd);
-
-   list_for_each_entry_safe(struct vn_sync_feedback_cmd, sfb_cmd,
-                            &sem->feedback.pending_cmds, head)
-      vn_sync_feedback_cmd_free(dev, sfb_cmd);
-
-   simple_mtx_destroy(&sem->feedback.cmd_mtx);
-   simple_mtx_destroy(&sem->feedback.counter_mtx);
-
-   vn_feedback_pool_free(&dev->feedback_pool, sem->feedback.slot);
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 vn_CreateSemaphore(VkDevice device,
                    const VkSemaphoreCreateInfo *pCreateInfo,
@@ -2185,8 +2100,11 @@ vn_CreateSemaphore(VkDevice device,
    if (result != VK_SUCCESS)
       goto out_object_base_fini;
 
-   if (sem->type == VK_SEMAPHORE_TYPE_TIMELINE) {
-      result = vn_semaphore_feedback_init(dev, sem, initial_val, alloc);
+   if (sem->type == VK_SEMAPHORE_TYPE_TIMELINE &&
+       !VN_PERF(NO_SEMAPHORE_FEEDBACK)) {
+      assert(!sem->is_external);
+
+      result = vn_sync_feedback_init(dev, &sem->feedback, initial_val);
       if (result != VK_SUCCESS)
          goto out_payloads_fini;
    }
@@ -2226,7 +2144,7 @@ vn_DestroySemaphore(VkDevice device,
    vn_async_vkDestroySemaphore(dev->primary_ring, device, semaphore, NULL);
 
    if (sem->type == VK_SEMAPHORE_TYPE_TIMELINE)
-      vn_semaphore_feedback_fini(dev, sem);
+      vn_sync_feedback_fini(dev, &sem->feedback);
 
    vn_sync_payload_release(dev, &sem->permanent);
    vn_sync_payload_release(dev, &sem->temporary);

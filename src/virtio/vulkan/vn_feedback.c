@@ -517,7 +517,7 @@ vn_feedback_cmd_record(VkCommandBuffer cmd_handle,
    return vn_EndCommandBuffer(cmd_handle);
 }
 
-struct vn_sync_feedback_cmd *
+static struct vn_sync_feedback_cmd *
 vn_sync_feedback_cmd_alloc(struct vn_device *dev,
                            struct vn_feedback_slot *dst_slot)
 {
@@ -574,6 +574,76 @@ vn_sync_feedback_cmd_free(struct vn_device *dev,
 
    vn_feedback_pool_free(&dev->feedback_pool, sfb_cmd->src_slot);
    vk_free(alloc, sfb_cmd);
+}
+
+struct vn_sync_feedback_cmd *
+vn_sync_feedback_cmd_get(struct vn_device *dev, struct vn_sync_feedback *sfb)
+{
+   struct vn_sync_feedback_cmd *sfb_cmd = NULL;
+
+   simple_mtx_lock(&sfb->cmd_mtx);
+   if (!list_is_empty(&sfb->free_cmds)) {
+      sfb_cmd =
+         list_first_entry(&sfb->free_cmds, struct vn_sync_feedback_cmd, head);
+      list_move_to(&sfb_cmd->head, &sfb->pending_cmds);
+      sfb->free_cmd_count--;
+   }
+   simple_mtx_unlock(&sfb->cmd_mtx);
+
+   if (!sfb_cmd) {
+      sfb_cmd = vn_sync_feedback_cmd_alloc(dev, sfb->slot);
+
+      simple_mtx_lock(&sfb->cmd_mtx);
+      list_add(&sfb_cmd->head, &sfb->pending_cmds);
+      simple_mtx_unlock(&sfb->cmd_mtx);
+   }
+
+   return sfb_cmd;
+}
+
+VkResult
+vn_sync_feedback_init(struct vn_device *dev,
+                      struct vn_sync_feedback *sfb,
+                      uint64_t initial_value)
+{
+   struct vn_feedback_slot *slot =
+      vn_feedback_pool_alloc(&dev->feedback_pool, VN_FEEDBACK_TYPE_SEMAPHORE);
+   if (!slot)
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+   list_inithead(&sfb->pending_cmds);
+   list_inithead(&sfb->free_cmds);
+
+   vn_feedback_set_counter(slot, initial_value);
+
+   simple_mtx_init(&sfb->cmd_mtx, mtx_plain);
+   simple_mtx_init(&sfb->counter_mtx, mtx_plain);
+
+   sfb->signaled_counter = initial_value;
+   sfb->slot = slot;
+   sfb->pollable = true;
+
+   return VK_SUCCESS;
+}
+
+void
+vn_sync_feedback_fini(struct vn_device *dev, struct vn_sync_feedback *sfb)
+{
+   if (!sfb->slot)
+      return;
+
+   list_for_each_entry_safe(struct vn_sync_feedback_cmd, sfb_cmd,
+                            &sfb->free_cmds, head)
+      vn_sync_feedback_cmd_free(dev, sfb_cmd);
+
+   list_for_each_entry_safe(struct vn_sync_feedback_cmd, sfb_cmd,
+                            &sfb->pending_cmds, head)
+      vn_sync_feedback_cmd_free(dev, sfb_cmd);
+
+   simple_mtx_destroy(&sfb->cmd_mtx);
+   simple_mtx_destroy(&sfb->counter_mtx);
+
+   vn_feedback_pool_free(&dev->feedback_pool, sfb->slot);
 }
 
 static void
