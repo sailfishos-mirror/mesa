@@ -592,6 +592,7 @@ impl LocalRegAlloc<'_> {
             let idx = usize::from(src_dst.idx);
             if src_dst.is_src {
                 let src = &instr.srcs()[idx];
+                let src_type = instr.src_type(&src);
                 let vec = src.src_ref.as_ssa().unwrap();
 
                 let bytes = if src_dst.duplicate {
@@ -625,10 +626,19 @@ impl LocalRegAlloc<'_> {
                 };
 
                 // Assign the source to the byte range
+                let mut reg = self.reg_for_bytes(bytes);
+                let mut swz = Swizzle::from(reg.range);
+                if src_type.bits() == 64 {
+                    let word = reg.idx & 1;
+                    if reg.range == RegRange::Regs(1) {
+                        reg.idx &= !1;
+                        swz = Swizzle::replicate_word(word);
+                    } else {
+                        debug_assert!(word == 0);
+                    }
+                }
                 let src = &mut instr.srcs_mut()[idx];
-                let reg = self.reg_for_bytes(bytes);
                 src.src_ref = reg.into();
-                let swz = Swizzle::from(reg.range);
                 src.swizzle = swz
                     .swizzle(src.swizzle)
                     .expect("16-bit and smaller sources have to swizzle");
