@@ -16,6 +16,7 @@
 #include "panvk_device.h"
 #include "panvk_instance.h"
 #include "panvk_mempool.h"
+#include "panvk_nir.h"
 #include "panvk_physical_device.h"
 #include "panvk_sampler.h"
 #include "panvk_shader.h"
@@ -822,6 +823,12 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
                 bool allow_merging_workgroups)
 {
    mesa_shader_stage stage = nir->info.stage;
+
+   /* Run before descriptor and explicit-IO lowering so the memory derefs this
+    * pass emits get lowered by them.
+    */
+   NIR_PASS(_, nir, panvk_nir_lower_cooperative_matrix,
+            pan_subgroup_size(PAN_ARCH));
 
    const nir_opt_access_options access_options = {
       .is_vulkan = true,
