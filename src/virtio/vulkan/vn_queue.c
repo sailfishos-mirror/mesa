@@ -2337,16 +2337,15 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
          return result;
 
       if (sem->feedback.slot) {
-         /* Keep suspended feedback slot counter up to date so that counter
-          * query won't go backwards when feedback gets resumed.
-          *
-          * Keep suspended_counter up to date so that the feedback slot counter
-          * won't go backwards. e.g. multiple threads querying when suspended
+         /* suspended_counter is immutable when feedback is suspended, and
+          * pollable status is resumed once the counter value has exceeded
+          * where it's suspended. Meanwhile, update signaled_counter upon
+          * resume to ensure monotonicity in the feedback counter query.
           */
          simple_mtx_lock(&sem->feedback.counter_mtx);
-         if (*out_value >= sem->feedback.suspended_counter) {
-            vn_feedback_set_counter(sem->feedback.slot, *out_value);
-            sem->feedback.suspended_counter = *out_value;
+         if (!sem->feedback.pollable &&
+             *out_value >= sem->feedback.suspended_counter) {
+            sem->feedback.signaled_counter = *out_value;
             sem->feedback.pollable = true;
          }
          simple_mtx_unlock(&sem->feedback.counter_mtx);
