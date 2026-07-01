@@ -123,6 +123,7 @@ typedef struct {
 
    slice original_src;
    uint32_t hw_threads;
+   uint32_t thread_groups;
    uint32_t simd;
    uint32_t slm_size;
    bool autoswsb;

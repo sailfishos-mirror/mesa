@@ -417,7 +417,7 @@ genX(emit_execute)(const executor_run *run)
 #if GFX_VERx10 >= 200
       .MessageSIMD             = simd_size,
 #endif
-      .ThreadGroupIDXDimension = 1,
+      .ThreadGroupIDXDimension = run->thread_groups,
       .ThreadGroupIDYDimension = 1,
       .ThreadGroupIDZDimension = 1,
       .ExecutionMask           = 0xFFFFFFFF,
@@ -478,7 +478,7 @@ genX(emit_execute)(const executor_run *run)
    executor_batch_emit(GENX(GPGPU_WALKER), gw) {
       gw.SIMDSize = simd_size;
       gw.ThreadWidthCounterMaximum = run->hw_threads - 1;
-      gw.ThreadGroupIDXDimension = 1;
+      gw.ThreadGroupIDXDimension = run->thread_groups;
       gw.ThreadGroupIDYDimension = 1;
       gw.ThreadGroupIDZDimension = 1;
       gw.RightExecutionMask      = 0xFFFFFFFF;

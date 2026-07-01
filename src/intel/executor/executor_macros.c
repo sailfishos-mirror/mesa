@@ -364,17 +364,11 @@ executor_macro_barrier(executor_run *run,
 }
 
 static void
-executor_macro_id(executor_run *run, char **src, slice args)
+emit_local_id(executor_run *run, char **src, unsigned nr)
 {
-   parse_args_result r = parse_args(run->tmp_ctx, args);
-
-   if (r.count != 1)
-      failf("@id needs 1 argument, found %d", r.count);
-
    const unsigned slots = slots_per_grf(run);
    const unsigned operand_grfs = grfs_per_macro_operand(run);
    const char *swsb = executor_macro_swsb(run);
-   unsigned nr = parse_macro_grf(run, r.args[0]);
 
    ralloc_asprintf_append(src, "(W) mov (8) r127:uw 0x76543210:v {%s}\n", swsb);
    if (slots > 8)
@@ -396,6 +390,65 @@ executor_macro_id(executor_run *run, char **src, slice args)
       "(W) and (8) r126 %s 0xff:ud {%s}\n"
       "(W) shl (8) r126 r126 %u:ud {%s}\n",
       hw_thread_id_reg(run), swsb, shift, swsb);
+
+   for (unsigned i = 0; i < operand_grfs; i++)
+      ralloc_asprintf_append(src, "(W) add (%u) r%u r%u r126.0<0>:ud {%s}\n",
+                             slots, nr + i, nr + i, swsb);
+}
+
+static void
+executor_macro_id(executor_run *run,
+                  char **src, slice args)
+{
+   parse_args_result r = parse_args(run->tmp_ctx, args);
+
+   if (r.count != 1)
+      failf("@id needs 1 argument, found %d", r.count);
+
+   unsigned nr = parse_macro_grf(run, r.args[0]);
+   emit_local_id(run, src, nr);
+}
+
+static void
+executor_macro_tg(executor_run *run,
+                  char **src, slice args)
+{
+   parse_args_result r = parse_args(run->tmp_ctx, args);
+
+   if (r.count != 1)
+      failf("@tg needs 1 argument, found %d", r.count);
+
+   const unsigned slots = slots_per_grf(run);
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
+   const char *swsb = executor_macro_swsb(run);
+   unsigned nr = parse_macro_grf(run, r.args[0]);
+
+   for (unsigned i = 0; i < operand_grfs; i++)
+      ralloc_asprintf_append(src, "(W) mov (%u) r%u r0.1<0>:ud {%s}\n",
+                             slots, nr + i, swsb);
+}
+
+static void
+executor_macro_globalid(executor_run *run,
+                        char **src, slice args)
+{
+   parse_args_result r = parse_args(run->tmp_ctx, args);
+
+   if (r.count != 1)
+      failf("@globalid needs 1 argument, found %d", r.count);
+
+   unsigned nr = parse_macro_grf(run, r.args[0]);
+   emit_local_id(run, src, nr);
+   if (run->thread_groups <= 1)
+      return;
+
+   const unsigned slots = slots_per_grf(run);
+   const unsigned operand_grfs = grfs_per_macro_operand(run);
+   const char *swsb = executor_macro_swsb(run);
+   const uint32_t group_size = run->hw_threads * run->simd;
+
+   ralloc_asprintf_append(src, "(W) mul (8) r126 r0.1<0>:ud 0x%x:ud {%s}\n",
+                          group_size, swsb);
 
    for (unsigned i = 0; i < operand_grfs; i++)
       ralloc_asprintf_append(src, "(W) add (%u) r%u r%u r126.0<0>:ud {%s}\n",
@@ -613,6 +666,8 @@ executor_apply_macros(executor_run *run)
       { "@load",     executor_macro_load },
       { "@addr",     executor_macro_addr },
       { "@id",       executor_macro_id },
+      { "@tg",       executor_macro_tg },
+      { "@globalid", executor_macro_globalid },
       { "@barrier",  executor_macro_barrier },
       { "@param",    NULL },
       { "@syncnop",  executor_macro_syncnop },

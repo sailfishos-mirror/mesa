@@ -95,7 +95,7 @@ print_help()
       "SCRIPTING ENVIRONMENT:\n"
       "- alloc(SIZE_DWORDS|TABLE[, NAME|{name=STR, align=POWER_OF_TWO_BYTES, fill=VALUE}]) -> mem\n"
       "- surface_buffer(MEM, {format=STR}), surface_2d(MEM, opts), sampler(opts?), sampler_desc{...}\n"
-      "- execute(SRC|{src=SRC})\n"
+      "- execute(SRC|{src=SRC, thread_groups=N})\n"
       "- mem:fill(VALUE), mem:set(TABLE, offset?), mem:read(COUNT, offset?), mem:to_table()\n"
       "- mem:dump(COUNT, offset?), mem:offset(), mem:addr(), mem:name(), mem[IDX], #mem\n"
       "- surface:bti(), sampler:index()\n"
@@ -106,7 +106,7 @@ print_help()
       "ASSEMBLY MACROS:\n"
       "- @eot, @syncnop, @barrier\n"
       "- @mov REG IMM\n"
-      "- @id REG\n"
+      "- @id REG, @tg REG, @globalid REG\n"
       "- @addr DST_REG MEM [DWORD_INDEX|REG]\n"
       "- @load DST_REG ADDR_REG\n"
       "- @store ADDR_REG SRC_REG\n"
@@ -1249,6 +1249,16 @@ executor_parse_source_params(executor_run *run, slice src)
 }
 
 static void
+parse_execute_thread_groups(executor_run *run, lua_State *L, int idx)
+{
+   lua_Integer val = luaL_checkinteger(L, idx);
+   if (val < 1 || val > UINT32_MAX)
+      failf("execute() thread_groups must be in range 1..%u", UINT32_MAX);
+
+   run->thread_groups = (uint32_t)val;
+}
+
+static void
 parse_execute_args(executor_run *run, lua_State *L)
 {
    if (lua_gettop(L) != 1)
@@ -1281,6 +1291,8 @@ parse_execute_args(executor_run *run, lua_State *L)
          size_t len;
          const char *src = luaL_checklstring(L, val_idx, &len);
          run->original_src = (slice) { src, len };
+      } else if (!strcmp(key, "thread_groups")) {
+         parse_execute_thread_groups(run, L, val_idx);
       } else {
          failf("unknown parameter '%s' for execute()", key);
       }
@@ -2141,6 +2153,7 @@ l_execute(lua_State *L)
       .ec = ec,
       .tmp_ctx = ralloc_context(ec->mem_ctx),
       .hw_threads = 1,
+      .thread_groups = 1,
       .simd = executor_default_simd(ec->devinfo),
    };
    if (!run.tmp_ctx)

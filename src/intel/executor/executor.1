@@ -78,9 +78,10 @@ functions are available
   Build a sampler SEND descriptor for raw send.smpl assembly.
 
 - execute(SRC)
-- execute{src=SRC}
-  Assemble and execute SRC.  The shader source can use @param directives;
-  see the parameter list below.
+- execute{src=SRC, thread_groups=N}
+  Assemble and execute SRC.  thread_groups selects the number of 1D thread
+  groups to dispatch, defaulting to 1.  The shader source can use @param
+  directives; see the parameter list below.
 
 - mem:fill(VALUE)
   Fill all dwords with a constant value.
@@ -135,6 +136,13 @@ regions, or immediates).
   Write a linear local invocation index into REG.  The index is
   hw_thread_id * SIMD_WIDTH + lane_id.
 
+- @tg REG
+  Write the linear thread-group id into REG.
+
+- @globalid REG
+  Write a linear global invocation index into REG.  The index is
+  thread_group_id * hw_threads * SIMD_WIDTH + local_id.
+
 - @addr DST_REG MEM [DWORD_INDEX]
   Move the GPU byte address of MEM into DST_REG.  MEM is a memory name.
   DWORD_INDEX may be an immediate or register dword index.
@@ -146,9 +154,9 @@ regions, or immediates).
   Write dwords to the GPU byte address in ADDR_REG (a32).
 
 - @barrier
-  Synchronize multiple hardware threads in the execution.  If shared local
-  memory is reserved, also fence shared local memory.  Emits no code for a
-  single hardware thread.
+  Synchronize multiple hardware threads within each thread group in the
+  execution.  If shared local memory is reserved, also fence shared local
+  memory.  Emits no code for a single hardware thread.
 
 - @param hw_threads N
   Set the number of hardware threads for execute(SRC).
@@ -174,9 +182,10 @@ Compute shaders are dispatched with SIMD8 before Xe2 and SIMD16 on Xe2+
 by default.  Use @param simd WIDTH in the shader to select another
 supported SIMD width.  Xe2+ supports SIMD16 and SIMD32; earlier platforms
 support SIMD8/SIMD16/SIMD32.  By default one hardware thread is dispatched.
-Use @param hw_threads N in the shader to execute N hardware threads.  Use
-@param slm_size BYTES in the shader to reserve shared local memory for the
-execution.
+Use @param hw_threads N in the shader to execute N hardware threads per
+thread group.  Use thread_groups=N in the execute{} table to dispatch N
+linear thread groups.  Use @param slm_size BYTES in the shader to reserve
+shared local memory for the execution.
 Context allocations are sub-allocated from a data buffer bound at graphics
 address 0x30000000.  @addr produces a32 byte addresses for @load/@store
 messages.
