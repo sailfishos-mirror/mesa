@@ -1092,7 +1092,8 @@ get_device_properties(const struct v3dv_physical_device *device,
       .mipmapPrecisionBits                      = 8,
       .maxDrawIndexedIndexValue                 = device->devinfo.ver >= 71 ?
                                                   0xffffffff : 0x00ffffff,
-      .maxDrawIndirectCount                     = 0x7fffffff,
+      .maxDrawIndirectCount                     = device->vk.supported_features.multiDrawIndirect ?
+                                                  0x7fffffff : 1,
       .maxSamplerLodBias                        = 14.0f,
       .maxSamplerAnisotropy                     = 16.0f,
       .maxViewports                             = MAX_VIEWPORTS,
