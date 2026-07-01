@@ -74,13 +74,11 @@ enum SSARefInner {
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub struct SSARef {
-    v: SSARefInner,
-}
+pub struct SSARef(SSARefInner);
 
 impl SSARef {
     pub fn as_slice(&self) -> &[SSAValue] {
-        let slice = match &self.v {
+        let slice = match &self.0 {
             SSARefInner::Short(arr) => arr.as_slice(),
             SSARefInner::Long(arr) => {
                 Self::cold();
@@ -92,7 +90,7 @@ impl SSARef {
     }
 
     pub fn as_mut_slice(&mut self) -> &mut [SSAValue] {
-        let slice = match &mut self.v {
+        let slice = match &mut self.0 {
             SSARefInner::Short(arr) => arr.as_mut_slice(),
             SSARefInner::Long(arr) => {
                 Self::cold();
@@ -104,7 +102,7 @@ impl SSARef {
     }
 
     pub fn comps(&self) -> u8 {
-        match &self.v {
+        match &self.0 {
             SSARefInner::Short(arr) => arr.len() as u8,
             SSARefInner::Long(arr) => arr.len() as u8,
         }
@@ -139,7 +137,7 @@ impl SSARef {
             SSARefInner::Long(Box::new(it.map(|x| x.0).collect()))
         };
 
-        Self { v: inner }
+        SSARef(inner)
     }
 
     #[cold]
@@ -252,15 +250,11 @@ impl TryFrom<&[SSAValue]> for SSARef {
             let Ok(v) = lb_slice.try_into() else {
                 panic!("We already checked the array length");
             };
-            Ok(Self {
-                v: SSARefInner::Short(v),
-            })
+            Ok(SSARef(SSARefInner::Short(v)))
         } else {
             SSARef::cold();
             let v = lb_slice.try_into()?;
-            Ok(Self {
-                v: SSARefInner::Long(Box::new(v)),
-            })
+            Ok(SSARef(SSARefInner::Long(Box::new(v))))
         }
     }
 }
