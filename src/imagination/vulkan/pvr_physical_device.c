@@ -151,6 +151,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_maintenance3 = true,
       .KHR_maintenance4 = true,
       .KHR_maintenance5 = true,
+      .KHR_maintenance7 = true,
       .KHR_map_memory2 = true,
       .KHR_multiview = true,
       .KHR_pipeline_executable_properties = true,
@@ -354,6 +355,9 @@ static void pvr_physical_device_get_supported_features(
 
       /* Vulkan 1.4 / VK_KHR_maintenance5 */
       .maintenance5 = true,
+
+      /* VK_KHR_maintenance7 */
+      .maintenance7 = true,
 
       /* Vulkan 1.1 / VK_KHR_shader_draw_parameters */
       .shaderDrawParameters = true,
@@ -952,6 +956,16 @@ static bool pvr_physical_device_get_properties(
 
       /* VK_KHR_line_rasterization */
       .lineSubPixelPrecisionBits = line_sub_pixel_precision_bits,
+
+      /* VK_KHR_maintenance7 */
+      .robustFragmentShadingRateAttachmentAccess = false,
+      .separateDepthStencilAttachmentAccess = false,
+      .maxDescriptorSetTotalUniformBuffersDynamic = PVR_MAX_DESCRIPTOR_SET_UNIFORM_DYNAMIC_BUFFERS,
+      .maxDescriptorSetTotalStorageBuffersDynamic = PVR_MAX_DESCRIPTOR_SET_STORAGE_DYNAMIC_BUFFERS,
+      .maxDescriptorSetTotalBuffersDynamic = PVR_MAX_DYNAMIC_BUFFERS,
+      .maxDescriptorSetUpdateAfterBindTotalUniformBuffersDynamic = PVR_MAX_DESCRIPTOR_SET_UNIFORM_DYNAMIC_BUFFERS,
+      .maxDescriptorSetUpdateAfterBindTotalStorageBuffersDynamic = PVR_MAX_DESCRIPTOR_SET_STORAGE_DYNAMIC_BUFFERS,
+      .maxDescriptorSetUpdateAfterBindTotalBuffersDynamic = PVR_MAX_DYNAMIC_BUFFERS,
    };
 
    if (strlen(pdevice->instance->drirc.debug.force_vk_devicename) > 0) {

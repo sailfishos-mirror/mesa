@@ -1,1 +1,2 @@
 VK_IMG_filter_linear_2d on pvr
+VK_KHR_maintenance7 on pvr
