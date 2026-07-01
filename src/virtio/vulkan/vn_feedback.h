@@ -230,6 +230,12 @@ vn_sync_feedback_pollable(struct vn_sync_feedback *sfb)
    return sfb->pollable;
 }
 
+static inline bool
+vn_sync_feedback_enabled(struct vn_sync_feedback *sfb)
+{
+   return sfb->slot != NULL;
+}
+
 VkResult
 vn_sync_feedback_init(struct vn_device *dev,
                       struct vn_sync_feedback *sfb,
