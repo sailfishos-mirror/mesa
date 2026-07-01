@@ -23,6 +23,17 @@ fn copy(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
     });
 }
 
+fn imm_u8(b: &mut impl Builder, shift: u8) -> Src {
+    for sc in b.model().small_constants() {
+        for b in 0..4 {
+            if shift == ((sc.imm32 >> (b * 8)) as u8) {
+                return Src::from(FAURef::from(sc)).byte(b);
+            }
+        }
+    }
+    panic!("Failed to find small constant for shift: {shift}");
+}
+
 fn xor(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
     let bytes = dst_b.end - dst_b.start;
     debug_assert_eq!(src_b.end - src_b.start, bytes);
@@ -47,7 +58,7 @@ fn xor(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
         // The resulting XOR will leave everything in the destination alone
         // except the one byte we wish to modify, even though we do a full
         // 32-bit XOR.
-        let shift = Src::imm_u8(dst_byte * 8);
+        let shift = imm_u8(b, dst_byte * 8);
 
         b.push_op(OpShiftLop {
             dst: dst.into(),
