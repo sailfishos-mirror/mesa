@@ -28,6 +28,22 @@ commit_callback(struct mtl_feedback_data *data)
    }
 }
 
+static void
+rerecord_cmd_buffer(struct kk_cmd_buffer *cmd)
+{
+   struct kk_device *dev = kk_cmd_buffer_device(cmd);
+   kk_reset_cmd_buffer_internal(cmd);
+
+   vk_cmd_queue_execute(&cmd->vk.cmd_queue, kk_cmd_buffer_to_handle(cmd),
+                        &dev->vk.dispatch_table);
+
+   cs_end(cmd);
+   cs_end(cmd);
+
+   /* Need to ensure the new buffers allocated at record are resident. */
+   kk_device_make_resources_resident(dev);
+}
+
 static VkResult
 kk_queue_submit(struct vk_queue *vk_queue, struct vk_queue_submit *submit)
 {
@@ -45,37 +61,25 @@ kk_queue_submit(struct vk_queue *vk_queue, struct vk_queue_submit *submit)
       mtl_wait_for_event(queue->mtl_handle, sync->mtl_handle, wait->wait_value);
    }
 
+   /* Ensure any changes to residency are propagated before we submit any
+    * work. All resources should have been allocated before submission.
+    * Otherwise, users are playing with fire. */
+   kk_device_make_resources_resident(dev);
+
    for (uint32_t i = 0; i < submit->command_buffer_count; ++i) {
       struct kk_cmd_buffer *cmd_buffer =
          container_of(submit->command_buffers[i], struct kk_cmd_buffer, vk);
 
-      /* TODO_KOSMICKRISP Command buffer enqueueing does not record being/end
-       * commands, so they will not be replayed when we execute them. Ensure we
-       * fake the being before recording and end after it. For the begin case
-       * it's just resetting the command buffer. */
-      kk_reset_cmd_buffer_internal(cmd_buffer);
+      /* Submitted command buffers require re-recording since Metal does not
+       * support multiple submissions. */
+      if (cmd_buffer->submitted)
+         rerecord_cmd_buffer(cmd_buffer);
+      cmd_buffer->submitted = true;
 
-      vk_cmd_queue_execute(&cmd_buffer->vk.cmd_queue,
-                           kk_cmd_buffer_to_handle(cmd_buffer),
-                           &dev->vk.dispatch_table);
-
-      /* TODO_KOSMICKRISP For the end it's ensuring we don't have any command
-       * buffer active. */
-      cs_end(cmd_buffer);
-      cs_end(cmd_buffer);
-
-      /* TODO_KOSMICKRISP If we can ensure one time submission, we can just do
-       * the upload here and record live without having to replay at queue
-       * submission. */
       mtl_command_buffer **cmds =
          util_dynarray_begin(&cmd_buffer->submit_cmd_bufs);
       uint32_t count = util_dynarray_num_elements(&cmd_buffer->submit_cmd_bufs,
                                                   mtl_command_buffer *);
-
-      /* Ensure any changes to residency are propagated before we submit any
-       * work. All resources should have been allocated before submission.
-       * Otherwise, users are playing with fire. */
-      kk_device_make_resources_resident(dev);
 
       /* Metal complains with empty submissions. */
       if (count > 0u) {

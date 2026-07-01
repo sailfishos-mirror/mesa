@@ -16,6 +16,7 @@
 #include "kosmickrisp/bridge/mtl_bridge.h"
 #include "kosmickrisp/bridge/ns_process_info.h"
 
+#include "kk_dispatch_cmd.h"
 #include "vk_cmd_enqueue_entrypoints.h"
 #include "vk_common_entrypoints.h"
 
@@ -271,8 +272,7 @@ kk_CreateDevice(VkPhysicalDevice physicalDevice,
       return vk_error(pdev, VK_ERROR_OUT_OF_HOST_MEMORY);
 
    /* Fill the dispatch table we will expose to the users */
-   vk_device_dispatch_table_from_entrypoints(
-      &dev->exposed_dispatch_table, &vk_cmd_enqueue_device_entrypoints, true);
+   dev->exposed_dispatch_table = kk_device_cmd_trampolines;
    vk_device_dispatch_table_from_entrypoints(&dev->exposed_dispatch_table,
                                              &kk_device_entrypoints, false);
    vk_device_dispatch_table_from_entrypoints(&dev->exposed_dispatch_table,
@@ -288,14 +288,6 @@ kk_CreateDevice(VkPhysicalDevice physicalDevice,
    vk_device_dispatch_table_from_entrypoints(&dispatch_table,
                                              &wsi_device_entrypoints, false);
 
-   // /* Populate primary cmd_dispatch table */
-   // vk_device_dispatch_table_from_entrypoints(&dev->cmd_dispatch,
-   //                                           &kk_device_entrypoints, true);
-   // vk_device_dispatch_table_from_entrypoints(&dev->cmd_dispatch,
-   //                                           &wsi_device_entrypoints, false);
-   // vk_device_dispatch_table_from_entrypoints(
-   //    &dev->cmd_dispatch, &vk_common_device_entrypoints, false);
-
    result = vk_device_init(&dev->vk, &pdev->vk, &dispatch_table, pCreateInfo,
                            pAllocator);
    if (result != VK_SUCCESS)
@@ -305,7 +297,6 @@ kk_CreateDevice(VkPhysicalDevice physicalDevice,
    dev->mtl_handle = pdev->mtl_dev_handle;
    dev->vk.command_buffer_ops = &kk_cmd_buffer_ops;
    dev->vk.command_dispatch_table = &dev->vk.dispatch_table;
-   // dev->vk.command_dispatch_table = &dev->cmd_dispatch;
    dev->vk.get_timestamp = kk_get_timestamp;
 
    kk_parse_device_environment_options(dev);

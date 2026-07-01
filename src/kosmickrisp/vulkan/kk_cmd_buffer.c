@@ -90,15 +90,13 @@ kk_create_cmd_buffer(struct vk_command_pool *vk_pool,
    if (cmd == NULL)
       return vk_error(dev, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   result =
-      vk_command_buffer_init_with_params(
-         &cmd->vk,
-         &(struct vk_command_buffer_init_params) {
-            .pool = &pool->vk,
-            .ops = &kk_cmd_buffer_ops,
-            .level = level,
-            .needs_cmd_queue = true,
-         });
+   result = vk_command_buffer_init_with_params(
+      &cmd->vk, &(struct vk_command_buffer_init_params){
+                   .pool = &pool->vk,
+                   .ops = &kk_cmd_buffer_ops,
+                   .level = level,
+                   .needs_cmd_queue = true,
+                });
    if (result != VK_SUCCESS)
       goto alloc_fail;
 
@@ -176,6 +174,8 @@ kk_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer,
 
    vk_command_buffer_reset(&cmd->vk);
    kk_reset_cmd_buffer_internal(cmd);
+   cmd->submitted = false;
+   cmd->one_time_submit = false;
 }
 
 const struct vk_command_buffer_ops kk_cmd_buffer_ops = {
@@ -192,6 +192,8 @@ kk_BeginCommandBuffer(VkCommandBuffer commandBuffer,
 
    kk_reset_cmd_buffer(&cmd->vk, 0u);
    vk_command_buffer_begin(&cmd->vk, pBeginInfo);
+   cmd->one_time_submit =
+      pBeginInfo->flags & VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
    return VK_SUCCESS;
 }

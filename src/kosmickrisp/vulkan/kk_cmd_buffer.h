@@ -237,6 +237,12 @@ struct kk_cmd_buffer {
 
    /* Does the command buffer use the geometry heap? */
    bool uses_heap;
+   /* Set at vkBeginCommandBuffer. One-time-submit buffers skip command
+    * enqueueing in the trampolines since they can never be replayed. */
+   bool one_time_submit;
+   /* Metal command buffers are single-shot: a resubmission must re-record
+    * by replaying the enqueued commands (see rerecord_cmd_buffer). */
+   bool submitted;
 };
 
 VK_DEFINE_HANDLE_CASTS(kk_cmd_buffer, vk.base, VkCommandBuffer,
