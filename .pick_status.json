@@ -9524,7 +9524,7 @@
         "description": "nir/opt_copy_prop_vars: kill stale entries when source deref is written",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "731e9fd535a278d5d6f0a3954aaee6fa3b321b36",
         "notes": null
