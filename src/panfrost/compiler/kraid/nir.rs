@@ -832,7 +832,7 @@ impl<'a> ShaderFromNir<'a> {
                     offset: 0,
                 });
             }
-            nir_intrinsic_load_ssbo => {
+            nir_intrinsic_load_ssbo | nir_intrinsic_load_ubo => {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
                 let handle = self.get_src(&srcs[0]);
                 let offset = self.get_src(&srcs[1]);
