@@ -6,6 +6,7 @@ import argparse
 import sys
 
 VALID_COMMON_VK_OPTIONS = {
+    "force_vk_devicename",
 }
 
 

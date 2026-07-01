@@ -952,6 +952,7 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
    const unsigned *block_size = device->pscreen->compute_caps.max_block_size;
 
    const uint64_t max_render_targets = device->pscreen->caps.max_render_targets;
+   struct lvp_instance *instance = (struct lvp_instance *)device->vk.instance;
 
    int texel_buffer_alignment = device->pscreen->caps.texture_buffer_offset_alignment;
 
@@ -1403,7 +1404,12 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
 #endif
 
    /* Vulkan 1.0 */
-   strcpy(p->deviceName, device->pscreen->get_name(device->pscreen));
+   if (strlen(instance->drirc.debug.force_vk_devicename) > 0) {
+      snprintf(p->deviceName, sizeof(p->deviceName), "%s",
+               instance->drirc.debug.force_vk_devicename);
+   } else {
+      strcpy(p->deviceName, device->pscreen->get_name(device->pscreen));
+   }
    lvp_device_get_cache_uuid(p->pipelineCacheUUID);
 
    /* Vulkan 1.1 */
