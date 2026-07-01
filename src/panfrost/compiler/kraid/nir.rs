@@ -303,9 +303,9 @@ impl<'a> ShaderFromNir<'a> {
                     let Some(x) = srcs.next() else {
                         break;
                     };
-                    let y = srcs.next().unwrap_or(0.into());
-                    let z = srcs.next().unwrap_or(0.into());
-                    let w = srcs.next().unwrap_or(0.into());
+                    let y = srcs.next().unwrap_or(Src::imm_u8(0));
+                    let z = srcs.next().unwrap_or(Src::imm_u8(0));
+                    let w = srcs.next().unwrap_or(Src::imm_u8(0));
                     dst_vec.push(b.mkvec_v4i8(x, y, z, w));
                 }
             } else if src_bit_size == 16 {
@@ -314,7 +314,7 @@ impl<'a> ShaderFromNir<'a> {
                     let Some(x) = srcs.next() else {
                         break;
                     };
-                    let y = srcs.next().unwrap_or(0.into());
+                    let y = srcs.next().unwrap_or(Src::imm_u16(0));
                     dst_vec.push(b.mkvec_v2i16(x, y));
                 }
             } else if src_bit_size == 32 {
