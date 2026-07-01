@@ -2981,10 +2981,9 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
     * requirement).
     */
    device->expose_compression_control =
-      (instance->drirc.features.fake_image_compression_control_xe2_plus &&
-       device->info.ver >= 20) ||
-      (instance->drirc.features.compression_control_enabled &&
-       device->has_compression_control);
+      instance->drirc.features.compression_control_enabled &&
+      (device->info.ver < 20 ||
+       instance->drirc.features.fake_image_compression_control_xe2_plus);
 
    if (is_virtio) {
       struct util_sync_provider *sync = intel_virtio_sync_provider(fd);

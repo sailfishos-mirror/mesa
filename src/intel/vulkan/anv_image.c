@@ -3492,13 +3492,15 @@ anv_get_image_subresource_layout(struct anv_device *device,
    if (comp_props && device->physical->expose_compression_control) {
       comp_props->imageCompressionFixedRateFlags =
          VK_IMAGE_COMPRESSION_FIXED_RATE_NONE_EXT;
-      comp_props->imageCompressionFlags = VK_IMAGE_COMPRESSION_DISABLED_EXT;
-      for (uint32_t p = 0; p < image->n_planes; p++) {
-         if (image->planes[p].aux_usage != ISL_AUX_USAGE_NONE) {
-            comp_props->imageCompressionFlags = VK_IMAGE_COMPRESSION_DEFAULT_EXT;
-            break;
-         }
-      }
+      /* Even if decided to disable compression without
+       * VK_IMAGE_COMPRESSION_DISABLED_EXT, it's an internal decision and we
+       * assume this is the default. So for the query we only return what was
+       * specified by the application.
+       */
+      comp_props->imageCompressionFlags =
+         (image->vk.compr_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT) ?
+         VK_IMAGE_COMPRESSION_DISABLED_EXT :
+         VK_IMAGE_COMPRESSION_DEFAULT_EXT;
    }
 }
 
