@@ -1195,23 +1195,40 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
     * residencyNonResidentStrict guarantees. Due to the above, we need to make
     * these operations uncached.
     */
+
+   /* Skip L1 for coherent/volatile and URB access. */
+   bool bypass_l1 = volatile_access || coherent_access || urb;
+
+   /* Xe2 has a better L3 that can deal with null tiles. On older platforms,
+    * all caches have to be bypassed for volatile.
+    */
+   bool bypass_l3 = volatile_access && (devinfo->ver < 20);
+
+   /* Skip L3 for URB */
+   bypass_l3 |= urb;
+
+   /* Disable LSC data port L1 cache scheme for the TGM load/store for RT
+    * shaders (see HSD 18038444588).
+    */
+   bypass_l1 |= devinfo->ver >= 20 && sfid == GEN_SFID_TGM &&
+                mesa_shader_stage_is_rt(b->shader->stage);
+
+   unsigned atomic_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+   unsigned store_cache_mode = LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS);
+   unsigned load_cache_mode = LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
+
+   if (bypass_l3) {
+      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3UC);
+      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3UC);
+   } else if (bypass_l1) {
+      store_cache_mode = LSC_CACHE(devinfo, STORE, L1UC_L3WB);
+      load_cache_mode = LSC_CACHE(devinfo, LOAD, L1UC_L3C);
+   }
+
    unsigned cache =
-      urb ? LSC_CACHE(devinfo, STORE, L1UC_L3UC) :
-      lsc_opcode_is_atomic(op) ?
-            LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-      volatile_access ?
-            (devinfo->ver >= 20 ?
-                /* Xe2 has a better L3 that can deal with null tiles.*/
-                (!has_dest ? LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-                             LSC_CACHE(devinfo, LOAD, L1UC_L3C)) :
-                /* On older platforms, all caches have to be bypassed. */
-                (!has_dest ? LSC_CACHE(devinfo, STORE, L1UC_L3UC) :
-                             LSC_CACHE(devinfo, LOAD, L1UC_L3UC))) :
-            /* Skip L1 for coherent accesses */
-         coherent_access ? (!has_dest ? LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-                                        LSC_CACHE(devinfo, LOAD, L1UC_L3C)) :
-      !has_dest          ? LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS) :
-                           LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
+      lsc_opcode_is_atomic(op) ? atomic_cache_mode :
+      lsc_opcode_is_store(op) ? store_cache_mode :
+      load_cache_mode;
 
    ASSERTED const unsigned max_imm_bits =
       brw_max_immediate_offset_bits(surf_type);
