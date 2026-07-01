@@ -1752,6 +1752,14 @@ intrinsic("load_shader_output_pan", dest_comp=1, src_comp=[], bit_sizes=[32],
 system_value("raw_vertex_id", 1)
 system_value("raw_vertex_offset", 1)
 
+# 4x4 cooperative matrix multiply-accumulate (MMUL). The matrices are spread
+# across the subgroup with one element (or packed group) per lane, so each
+# source is one 32-bit register per lane: src0 = A, src1 = B, src2 = C,
+# result = A * B + C. src_type is the multiplicand (A/B) type and selects the
+# MMUL variant: float32 -> f32, float16 -> v2f16, int8 -> v4s8, uint8 -> v4u8.
+intrinsic("cmat_muladd_pan", src_comp=[1, 1, 1], dest_comp=1, bit_sizes=[32],
+          indices=[SRC_TYPE], flags=SUBGROUP_FLAGS)
+
 # Intrinsics used by the Midgard/Bifrost blend pipeline. These are defined
 # within a blend shader to read/write the raw value from the tile buffer,
 # without applying any format conversion in the process. If the shader needs
