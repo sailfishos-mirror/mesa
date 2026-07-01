@@ -178,7 +178,6 @@ drm_shim_driver_init(void)
 {
    radeon_get_device_id();
 
-   shim_device.driver_name = "radeon";
    shim_device.driver_ioctls = driver_ioctls;
    shim_device.driver_ioctl_count = ARRAY_SIZE(driver_ioctls);
 

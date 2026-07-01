@@ -876,6 +876,7 @@ drm_shim_pci_device_setup(uint16_t vendor_id, uint16_t device_id,
                           const char *pci_slot, const char *driver_name)
 {
    shim_device.bus_type = DRM_BUS_PCI;
+   shim_device.driver_name = driver_name;
    drm_shim_override_link("../../../../../bus/pci", "/sys/dev/char/%d:%d/device/subsystem",
                           DRM_MAJOR, render_node_minor);
 
@@ -928,6 +929,7 @@ void
 drm_shim_platform_device_setup(const char *driver_name, const char *fullname, const char *compatible)
 {
    shim_device.bus_type = DRM_BUS_PLATFORM;
+   shim_device.driver_name = driver_name;
    drm_shim_override_link("../../../../../bus/platform", "/sys/dev/char/%d:%d/device/subsystem",
                           DRM_MAJOR, render_node_minor);
 

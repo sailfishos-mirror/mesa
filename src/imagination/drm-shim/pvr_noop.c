@@ -543,7 +543,6 @@ void drm_shim_driver_init(void)
 {
    init_overrides();
 
-   shim_device.driver_name = "powervr";
    shim_device.driver_ioctls = driver_ioctls;
    shim_device.driver_ioctl_count = ARRAY_SIZE(driver_ioctls);
 

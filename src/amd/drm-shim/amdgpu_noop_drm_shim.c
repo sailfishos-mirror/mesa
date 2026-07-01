@@ -227,7 +227,6 @@ drm_shim_driver_init(void)
 
    drm_shim_amdgpu_select_device(gpu_id);
 
-   shim_device.driver_name = "amdgpu";
    shim_device.driver_ioctls = amdgpu_ioctls;
    shim_device.driver_ioctl_count = ARRAY_SIZE(amdgpu_ioctls);
 

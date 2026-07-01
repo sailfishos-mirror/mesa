@@ -440,7 +440,6 @@ nouveau_driver_get_device_info(void)
 void
 drm_shim_driver_init(void)
 {
-   shim_device.driver_name = "nouveau";
    shim_device.driver_ioctls = driver_ioctls;
    shim_device.driver_ioctl_count = ARRAY_SIZE(driver_ioctls);
 
