@@ -122,15 +122,16 @@ parse_args(void *mem_ctx, slice args)
 }
 
 static void
-executor_macro_mov(executor_context *ec, char **src, slice args)
+executor_macro_mov(executor_run *run, char **src, slice args)
 {
-   parse_args_result r = parse_args(ec->mem_ctx, args);
+   executor_context *ec = run->ec;
+   parse_args_result r = parse_args(run->tmp_ctx, args);
 
    if (r.count != 2)
       failf("@mov needs 2 arguments, found %d\n", r.count);
 
    unsigned reg = parse_macro_grf(r.args[0]);
-   char *value = slice_to_cstr(ec->mem_ctx, r.args[1]);
+   char *value = slice_to_cstr(run->tmp_ctx, r.args[1]);
    const unsigned width = ec->devinfo->ver >= 20 ? 16 : 8;
 
    if (strchr(value, '.')) {
@@ -184,14 +185,16 @@ executor_emit_syncnop(executor_context *ec, char **src)
 }
 
 static void
-executor_macro_syncnop(executor_context *ec, char **src, slice line)
+executor_macro_syncnop(executor_run *run, char **src, slice line)
 {
-   executor_emit_syncnop(ec, src);
+   executor_emit_syncnop(run->ec, src);
 }
 
 static void
-executor_macro_eot(executor_context *ec, char **src, slice line)
+executor_macro_eot(executor_run *run, char **src, slice line)
 {
+   executor_context *ec = run->ec;
+
    switch (ec->devinfo->verx10) {
    case 90:
    case 110: {
@@ -226,9 +229,10 @@ executor_macro_eot(executor_context *ec, char **src, slice line)
 }
 
 static void
-executor_macro_id(executor_context *ec, char **src, slice args)
+executor_macro_id(executor_run *run, char **src, slice args)
 {
-   parse_args_result r = parse_args(ec->mem_ctx, args);
+   executor_context *ec = run->ec;
+   parse_args_result r = parse_args(run->tmp_ctx, args);
 
    if (r.count != 1)
       failf("@id needs 1 argument, found %d", r.count);
@@ -276,9 +280,10 @@ executor_macro_id(executor_context *ec, char **src, slice args)
 }
 
 static void
-executor_macro_write(executor_context *ec, char **src, slice args)
+executor_macro_write(executor_run *run, char **src, slice args)
 {
-   parse_args_result r = parse_args(ec->mem_ctx, args);
+   executor_context *ec = run->ec;
+   parse_args_result r = parse_args(run->tmp_ctx, args);
 
    if (r.count != 2)
       failf("@write needs 2 arguments, found %d\n", r.count);
@@ -331,9 +336,10 @@ executor_macro_write(executor_context *ec, char **src, slice args)
 }
 
 static void
-executor_macro_read(executor_context *ec, char **src, slice args)
+executor_macro_read(executor_run *run, char **src, slice args)
 {
-   parse_args_result r = parse_args(ec->mem_ctx, args);
+   executor_context *ec = run->ec;
+   parse_args_result r = parse_args(run->tmp_ctx, args);
 
    if (r.count != 2)
       failf("@read needs 2 arguments, found %d\n", r.count);
@@ -407,16 +413,15 @@ match_macro_name(const char *name, slice line)
 const char *
 executor_apply_macros(executor_run *run)
 {
-   executor_context *ec = run->ec;
    slice remaining = run->original_src;
 
    /* Create a ralloc'ed empty string so can call append to it later. */
-   char *src = ralloc_strdup(ec->mem_ctx, "");
+   char *src = ralloc_strdup(run->tmp_ctx, "");
 
    /* TODO: Create a @send macro for common combinations of MsgDesc. */
    static const struct {
       const char *name;
-      void (*func)(executor_context *ec, char **output, slice line);
+      void (*func)(executor_run *run, char **output, slice line);
    } macros[] = {
       { "@eot",      executor_macro_eot },
       { "@mov",      executor_macro_mov },
@@ -442,7 +447,7 @@ executor_apply_macros(executor_run *run)
                slice args = slice_strip_prefix(macro, slice_from_cstr(macros[i].name));
                args = strip_spaces(args);
                if (macros[i].func)
-                  macros[i].func(ec, &src, args);
+                  macros[i].func(run, &src, args);
                found = true;
                break;
             }

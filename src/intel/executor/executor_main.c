@@ -1253,7 +1253,7 @@ executor_assemble(executor_run *run, const char *src)
       .devinfo = ec->devinfo,
       .text = src,
       .text_size = (int)strlen(src),
-      .mem_ctx = ec->mem_ctx,
+      .mem_ctx = run->tmp_ctx,
    };
 
    if (!gen_parse(&parse)) {
@@ -1282,10 +1282,10 @@ executor_assemble(executor_run *run, const char *src)
 
    gen_encode_params encode = {
       .devinfo = ec->devinfo,
-      .mem_ctx = ec->mem_ctx,
+      .mem_ctx = run->tmp_ctx,
       .insts = parse.insts,
       .num_insts = parse.num_insts,
-      .raw_bytes = rzalloc_size(ec->mem_ctx, raw_bytes_size),
+      .raw_bytes = rzalloc_size(run->tmp_ctx, raw_bytes_size),
       .raw_bytes_size = raw_bytes_size,
    };
 
@@ -1316,8 +1316,12 @@ l_execute(lua_State *L)
 
    executor_run run = {
       .ec = &ec,
+      .tmp_ctx = ralloc_context(ec.mem_ctx),
       .hw_threads = 1,
    };
+   if (!run.tmp_ctx)
+      failf("failed to allocate execute scratch context");
+
    executor_perf_create_query(&ec);
 
    {
@@ -1377,6 +1381,8 @@ l_execute(lua_State *L)
          lua_seti(L, -2, i);
       }
    }
+
+   ralloc_free(run.tmp_ctx);
 
    executor_context_teardown(&ec);
    ralloc_free(ec.mem_ctx);

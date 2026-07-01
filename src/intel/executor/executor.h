@@ -63,6 +63,7 @@ typedef struct {
 
 typedef struct {
    executor_context *ec;
+   void *tmp_ctx;
 
    slice original_src;
    uint32_t hw_threads;
