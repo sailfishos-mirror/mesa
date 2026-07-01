@@ -8264,7 +8264,7 @@
         "description": "gallium: remove PIPE_BARRIER_GLOBAL_BUFFER",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c4cb6fdb5afeab8cbe76d9aa0db73ee4aae7a48c",
         "notes": null
