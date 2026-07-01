@@ -337,14 +337,15 @@ impl<'a> ShaderFromNir<'a> {
         // things more ergonamic.
         let srcs = |i: usize| srcs_vec[i].clone();
         let src_type = |i, num_type| {
-            let comps = alu.src_components(i);
+            let comps = alu.src_components(i).next_power_of_two();
             let bits = alu.get_src(i.into()).bit_size();
             DataType::get(comps, num_type, bits)
         };
 
         let dst = self.alloc_ssa(b, &alu.def);
         let dst_type = |num_type| {
-            DataType::get(alu.def.num_components, num_type, alu.def.bit_size)
+            let comps = alu.def.num_components.next_power_of_two();
+            DataType::get(comps, num_type, alu.def.bit_size)
         };
 
         match alu.op {
