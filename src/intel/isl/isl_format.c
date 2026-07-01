@@ -1233,6 +1233,8 @@ bool
 isl_format_support_sampler_route_to_lsc(enum isl_format fmt)
 {
    switch (fmt) {
+   /* Bspec 57023 (r74473)
+    */
    case ISL_FORMAT_R8_UNORM:
    case ISL_FORMAT_R8G8_UNORM:
    case ISL_FORMAT_R16_UNORM:
@@ -1249,6 +1251,23 @@ isl_format_support_sampler_route_to_lsc(enum isl_format fmt)
    case ISL_FORMAT_R32G32B32A32_UINT:
    case ISL_FORMAT_R10G10B10A2_UNORM:
    case ISL_FORMAT_R11G11B10_FLOAT:
+   case ISL_FORMAT_R10G10B10A2_UINT:
+   case ISL_FORMAT_R16G16B16A16_SINT:
+   case ISL_FORMAT_R16G16B16A16_UINT:
+   case ISL_FORMAT_R16G16_SINT:
+   case ISL_FORMAT_R16G16_UINT:
+   case ISL_FORMAT_R16_SINT:
+   case ISL_FORMAT_R16_UINT:
+   case ISL_FORMAT_R32G32B32A32_SINT:
+   case ISL_FORMAT_R32G32_SINT:
+   case ISL_FORMAT_R32_SINT:
+   case ISL_FORMAT_R8G8B8A8_SINT:
+   case ISL_FORMAT_R8G8B8A8_UINT:
+   case ISL_FORMAT_R8G8B8A8_UNORM:
+   case ISL_FORMAT_R8G8_SINT:
+   case ISL_FORMAT_R8G8_UINT:
+   case ISL_FORMAT_R8_SINT:
+   case ISL_FORMAT_R8_UINT:
       return true;
    default:
       return false;
