@@ -8164,7 +8164,7 @@
         "description": "nvk: Fix DGC localsize computation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "662a346ce3a1f557a61d745b70116be1e16607e9",
         "notes": null
