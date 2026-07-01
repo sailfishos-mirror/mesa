@@ -1093,6 +1093,7 @@ v3dv_queue_driver_submit(struct vk_queue *vk_queue,
    struct v3dv_barrier_state pending_barrier = { 0 };
    struct v3dv_job *first_suspend_job = NULL;
    struct v3dv_job *current_suspend_job = NULL;
+   bool has_jobs = false;
    for (uint32_t i = 0; i < submit->command_buffer_count; i++) {
       struct v3dv_cmd_buffer *cmd_buffer =
          container_of(submit->command_buffers[i], struct v3dv_cmd_buffer, vk);
@@ -1133,6 +1134,7 @@ v3dv_queue_driver_submit(struct vk_queue *vk_queue,
             if (result != VK_SUCCESS)
                return result;
 
+            has_jobs = true;
             first_suspend_job = NULL;
          }
       }
@@ -1165,7 +1167,7 @@ v3dv_queue_driver_submit(struct vk_queue *vk_queue,
          src_syncobjs[src_count++] = queue->last_job_syncs.syncs[i];
 
       /* If we didn't submit any jobs, we need to merge wait dependencies */
-      if (src_count == 0 && submit->wait_count > 0) {
+      if (!has_jobs && submit->wait_count > 0) {
          for (uint32_t i = 0; i < submit->wait_count; i++)
             src_syncobjs[src_count++] = vk_sync_as_drm_syncobj(submit->waits[i].sync)->syncobj;
       }
