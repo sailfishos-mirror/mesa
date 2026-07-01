@@ -1391,19 +1391,13 @@ build_rt_header_and_srcs(struct nir_to_jay_state *nj, nir_intrinsic_instr *instr
     */
    jay_emit_rt_lsc_fence(nj, LSC_FENCE_LOCAL, LSC_FLUSH_TYPE_NONE);
 
-   /* Only dword 0-1 and 4 matter for the header. The rest of the GRF is
-    * defined as "reserved - must be zero". In practice, it doesn't matter and
-    * we pass garbage to avoid moves. In strict mode, we do the
-    * obvious/inefficient thing to comply with the bspec.
+   /*
+    * TODO: Look into efficient RA implications for moving all zeros
     */
-   bool strict = (jay_debug & JAY_DBG_STRICT);
-   jay_def reserved = strict ? jay_MOV_u32(b, 0) : jay_null();
-   unsigned length =
-      (strict || instr->intrinsic != nir_intrinsic_trace_ray_intel) ?
-      jay_ugpr_per_grf(nj->s) : 6;
+   unsigned length = jay_ugpr_per_grf(nj->s);
    jay_def ugprs[JAY_MAX_DEF_LENGTH] = {};
    for (unsigned i = 0; i < length; ++i) {
-      ugprs[i] = reserved;
+      ugprs[i] = jay_MOV_u32(b, 0);
    }
 
    if (instr->intrinsic == nir_intrinsic_trace_ray_intel ||
