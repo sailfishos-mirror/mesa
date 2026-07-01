@@ -29,7 +29,7 @@ fn lower_copy(copy: OpCopy) -> MappedInstrs {
                 logic_op: LogicOp::And,
                 not_result: false,
                 src0: dst_reg.into(),
-                shift: 0.into(),
+                shift: Src::imm_u8(0),
                 src2: (!mask).into(),
             };
             let or = OpShiftLop {
@@ -39,7 +39,7 @@ fn lower_copy(copy: OpCopy) -> MappedInstrs {
                 logic_op: LogicOp::Or,
                 not_result: false,
                 src0: dst_reg.into(),
-                shift: 0.into(),
+                shift: Src::imm_u8(0),
                 src2: (imm & mask).into(),
             };
             if imm == 0 {
