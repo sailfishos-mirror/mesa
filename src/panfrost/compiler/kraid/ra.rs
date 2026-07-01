@@ -426,15 +426,38 @@ impl LocalRegAlloc<'_> {
 
     fn choose_src_bytes(&self, op: &Op, src: &Src) -> Range<u16> {
         let vec = src.src_ref.as_ssa().unwrap();
-        let src_type = op.src_type(src);
         let bytes = vec.bytes();
 
-        let (align_mul, align_offsets) = if src_type.bits() == 64 {
-            // TODO: Allow W1
-            debug_assert!(bytes <= 8);
-            (8, 1)
-        } else {
+        let (align_mul, align_offsets) = if bytes > 4 {
             (bytes.next_power_of_two(), 1 << 0)
+        } else {
+            if matches!(op, Op::MkVecV2I8I16(_)) && vec[0].idx() == 66 {
+                println!("found it!");
+            }
+            let swizzles: &[(u8, Swizzle)] = match bytes {
+                1 => &[
+                    (0, Swizzle::B0000),
+                    (1, Swizzle::B1111),
+                    (2, Swizzle::B2222),
+                    (3, Swizzle::B3333),
+                ],
+                2 => &[(0, Swizzle::H00), (2, Swizzle::H11)],
+                4 => {
+                    &[(0, Swizzle::NONE), (0, Swizzle::W00), (2, Swizzle::W11)]
+                }
+                _ => panic!("Invalid SSA value size"),
+            };
+            let mut offsets = 0;
+            for (b, s) in swizzles {
+                if let Some(s) = (*s).swizzle(src.swizzle) {
+                    if self.model.op_src_supports_swizzle(op, src, s) {
+                        offsets |= 1 << *b;
+                    }
+                }
+            }
+            assert!(offsets != 0, "Cannot find a valid swizzle");
+            let src_bytes = op.src_type(src).total_bits() / 8;
+            (src_bytes.max(4), offsets)
         };
 
         let c = RegAllocConstraint {
