@@ -680,6 +680,31 @@ vn_sync_feedback_write(struct vn_sync_feedback *sfb, uint64_t counter)
    simple_mtx_unlock(&sfb->counter_mtx);
 }
 
+void
+vn_sync_feedback_suspend(struct vn_sync_feedback *sfb, uint64_t counter)
+{
+   simple_mtx_lock(&sfb->counter_mtx);
+   sfb->suspended_counter = counter;
+   sfb->pollable = false;
+   simple_mtx_unlock(&sfb->counter_mtx);
+}
+
+void
+vn_sync_feedback_try_resume(struct vn_sync_feedback *sfb, uint64_t counter)
+{
+   /* suspended_counter is immutable when feedback is suspended, and
+    * pollable status is resumed once the counter value has exceeded
+    * where it's suspended. Meanwhile, update signaled_counter upon
+    * resume to ensure monotonicity in the feedback counter query.
+    */
+   simple_mtx_lock(&sfb->counter_mtx);
+   if (!sfb->pollable && counter >= sfb->suspended_counter) {
+      sfb->signaled_counter = counter;
+      sfb->pollable = true;
+   }
+   simple_mtx_unlock(&sfb->counter_mtx);
+}
+
 VkResult
 vn_sync_feedback_init(struct vn_device *dev,
                       struct vn_sync_feedback *sfb,

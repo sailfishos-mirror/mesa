@@ -218,6 +218,18 @@ vn_sync_feedback_query(struct vn_device *dev,
 void
 vn_sync_feedback_write(struct vn_sync_feedback *sfb, uint64_t counter);
 
+void
+vn_sync_feedback_suspend(struct vn_sync_feedback *sfb, uint64_t counter);
+
+void
+vn_sync_feedback_try_resume(struct vn_sync_feedback *sfb, uint64_t counter);
+
+static inline bool
+vn_sync_feedback_pollable(struct vn_sync_feedback *sfb)
+{
+   return sfb->pollable;
+}
+
 VkResult
 vn_sync_feedback_init(struct vn_device *dev,
                       struct vn_sync_feedback *sfb,

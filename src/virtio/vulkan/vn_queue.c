@@ -438,10 +438,7 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit,
          } else {
             const uint64_t counter =
                vn_get_signal_semaphore_counter(submit, batch_index, i);
-            simple_mtx_lock(&sem->feedback.counter_mtx);
-            sem->feedback.suspended_counter = counter;
-            sem->feedback.pollable = false;
-            simple_mtx_unlock(&sem->feedback.counter_mtx);
+            vn_sync_feedback_suspend(&sem->feedback, counter);
          }
       }
    }
@@ -2155,7 +2152,7 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
 
    assert(payload->type == VN_SYNC_TYPE_DEVICE_ONLY);
 
-   if (sem->feedback.pollable) {
+   if (vn_sync_feedback_pollable(&sem->feedback)) {
       if (relax_state && vn_relax_warn(relax_state)) {
          /* Emit a synchronous vkGetSemaphoreCounterValue to catch renderer
           * device lost without tangling with sfb internals.
@@ -2204,20 +2201,8 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
       if (result != VK_SUCCESS)
          return result;
 
-      if (sem->feedback.slot) {
-         /* suspended_counter is immutable when feedback is suspended, and
-          * pollable status is resumed once the counter value has exceeded
-          * where it's suspended. Meanwhile, update signaled_counter upon
-          * resume to ensure monotonicity in the feedback counter query.
-          */
-         simple_mtx_lock(&sem->feedback.counter_mtx);
-         if (!sem->feedback.pollable &&
-             *out_value >= sem->feedback.suspended_counter) {
-            sem->feedback.signaled_counter = *out_value;
-            sem->feedback.pollable = true;
-         }
-         simple_mtx_unlock(&sem->feedback.counter_mtx);
-      }
+      if (sem->feedback.slot)
+         vn_sync_feedback_try_resume(&sem->feedback, *out_value);
    }
 
    return VK_SUCCESS;
