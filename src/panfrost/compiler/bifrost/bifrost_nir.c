@@ -277,7 +277,8 @@ bi_optimize_loop(nir_shader *nir, uint64_t gpu_id, bool allow_copies)
 
 static void
 bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
-                nir_variable_mode robust_modes)
+                nir_variable_mode robust_modes,
+                const struct pan_shader_info *info)
 {
    NIR_PASS(_, nir, nir_opt_shrink_stores, false /* shrink_image_store */);
    bi_optimize_loop(nir, gpu_id, false /* allow_copies */);
@@ -307,6 +308,8 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
       vectorize_opts.modes |= nir_var_mem_ssbo;
 
    NIR_PASS(_, nir, nir_opt_load_store_vectorize, &vectorize_opts);
+
+   NIR_PASS(_, nir, pan_nir_fuse_io_cvt, gpu_id, &info->varyings.formats);
 
    /* nir_lower_pack can generate split operations, execute algebraic again to
     * handle them */
@@ -964,7 +967,6 @@ bifrost_postprocess_nir(nir_shader *nir,
    NIR_PASS(_, nir, pan_nir_lower_tex, gpu_id);
    NIR_PASS(_, nir, pan_nir_lower_image, gpu_id);
 
-   NIR_PASS(_, nir, pan_nir_fuse_io_cvt, gpu_id, &info->varyings.formats);
    /* Our OpenCL compiler (src/panfrost/clc/pan_compile.c) has a very weird and
     * suboptimal optimization pipeline that results in a lot of unoptimized
     * memcpys and sparse scratch space.  That code is still being used for
@@ -1276,7 +1278,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    bifrost_init_debug_options();
 
-   bi_optimize_late(nir, inputs->gpu_id, inputs->robust_modes);
+   bi_optimize_late(nir, inputs->gpu_id, inputs->robust_modes, info);
 
    /* Lower constants to scalar but then immediately fold so we get minimum-
     * width vectors instead of scalars

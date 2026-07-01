@@ -53,7 +53,7 @@ op_supports_cvt_fusion(nir_intrinsic_instr *instr, uint64_t gpu_id)
 
 struct fuse_ctx {
    uint64_t gpu_id;
-   struct pan_varying_layout *layout;
+   const struct pan_varying_layout *layout;
 };
 
 static bool
@@ -116,7 +116,7 @@ fuse_io_instr(struct nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
 bool
 pan_nir_fuse_io_cvt(nir_shader *nir, uint64_t gpu_id,
-                    struct pan_varying_layout *layout)
+                    const struct pan_varying_layout *layout)
 {
    struct fuse_ctx ctx = {
       .gpu_id = gpu_id,
