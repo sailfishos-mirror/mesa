@@ -1,13 +1,12 @@
 /*
  * Copyright © 2024 Collabora Ltd.
+ * Copyright © 2026 NXP
  *
  * Derived from tu_cmd_buffer.c which is:
  * Copyright © 2016 Red Hat.
  * Copyright © 2016 Bas Nieuwenhuizen
  * Copyright © 2015 Intel Corporation
  *
- * Copyright 2026 NXP
- * 
  * SPDX-License-Identifier: MIT
  */
 
@@ -975,14 +974,8 @@ panvk_emit_tiler_dcd(struct panvk_cmd_buffer *cmdbuf,
    const struct vk_rasterization_state *rs =
       &cmdbuf->vk.dynamic_graphics_state.rs;
 
-   const VkPrimitiveTopology topology =
-      cmdbuf->vk.dynamic_graphics_state.ia.primitive_topology;
-   const bool non_polygon =
-      topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST ||
-      topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ||
-      topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP ||
-      topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY ||
-      topology == VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
+   enum mesa_prim reduced_prim = u_reduced_prim(draw->info.prim);
+   const bool non_polygon = reduced_prim != MESA_PRIM_TRIANGLES;
 
    pan_pack(dcd, DRAW, cfg) {
       cfg.front_face_ccw = rs->front_face == VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -1005,7 +998,7 @@ panvk_emit_tiler_dcd(struct panvk_cmd_buffer *cmdbuf,
        * be set to 0 and the provoking vertex is selected with the
        * PRIMITIVE.first_provoking_vertex field.
        */
-      if (u_reduced_prim(draw->info.prim) == MESA_PRIM_LINES)
+      if (reduced_prim == MESA_PRIM_LINES)
          cfg.flat_shading_vertex = true;
 
       /* In case of indirect draw, the descriptor will be patched at runtime */
