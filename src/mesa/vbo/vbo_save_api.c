@@ -924,15 +924,13 @@ compile_vertex_list(struct gl_context *ctx)
 
       /* No available bo found, allocate a new one. */
       bo = _mesa_bufferobj_alloc(ctx, VBO_BUF_ID + 1);
-      bool success = _mesa_bufferobj_data(ctx,
-                                          GL_ELEMENT_ARRAY_BUFFER_ARB,
-                                          size,
-                                          NULL,
-                                          GL_STATIC_DRAW_ARB, GL_MAP_WRITE_BIT |
-                                          MESA_GALLIUM_VERTEX_STATE_STORAGE,
-                                          bo);
-
-      if (!success) {
+      if (!bo || !_mesa_bufferobj_data(ctx,
+                                       GL_ELEMENT_ARRAY_BUFFER_ARB,
+                                       size,
+                                       NULL,
+                                       GL_STATIC_DRAW_ARB, GL_MAP_WRITE_BIT |
+                                       MESA_GALLIUM_VERTEX_STATE_STORAGE,
+                                       bo)) {
          _mesa_reference_buffer_object(ctx, &bo, NULL);
          _mesa_error(ctx, GL_OUT_OF_MEMORY, "IB allocation");
          save->out_of_memory = true;
@@ -973,31 +971,26 @@ compile_vertex_list(struct gl_context *ctx)
    }
 
    /* Then upload the indices. */
-   if (node->cold->bo) {
-      _mesa_bufferobj_subdata(ctx,
-                              upload_offset,
-                              idx * sizeof(uint32_t),
-                              indices,
-                              node->cold->bo);
-      upload_offset += idx * sizeof(uint32_t);
-      node->cold->bo_end = upload_offset;
+   _mesa_bufferobj_subdata(ctx,
+                           upload_offset,
+                           idx * sizeof(uint32_t),
+                           indices,
+                           node->cold->bo);
+   upload_offset += idx * sizeof(uint32_t);
+   node->cold->bo_end = upload_offset;
 
-      if (!reused_bo) {
-         upload_offset = align(upload_offset, VBO_SAVE_BUFFER_PER_BIT);
-         if (upload_offset < bo->Size) {
-            assert(shared_buffer);
-            reused_bo = _vbo_bo_add_to_free_list(ctx, bo, bo->Size - upload_offset);
-            reused_bo_range_start = 0;
-         }
+   if (!reused_bo) {
+      upload_offset = align(upload_offset, VBO_SAVE_BUFFER_PER_BIT);
+      if (upload_offset < bo->Size) {
+         assert(shared_buffer);
+         reused_bo = _vbo_bo_add_to_free_list(ctx, bo, bo->Size - upload_offset);
+         reused_bo_range_start = 0;
       }
-
-      if (reused_bo)
-         _vbo_bo_mark_range_as_used(ctx, reused_bo, reused_bo_range_start * VBO_SAVE_BUFFER_PER_BIT,
-                                    upload_offset);
-   } else {
-      node->cold->vertex_count = 0;
-      node->cold->prim_count = 0;
    }
+
+   if (reused_bo)
+      _vbo_bo_mark_range_as_used(ctx, reused_bo, reused_bo_range_start * VBO_SAVE_BUFFER_PER_BIT,
+                                 upload_offset);
 
    /* Prepare for DrawGallium */
    memset(&node->cold->info, 0, sizeof(struct pipe_draw_info));
@@ -1046,19 +1039,6 @@ compile_vertex_list(struct gl_context *ctx)
    free(merged_prims);
 
    node->draw_begins = node->cold->prims[0].begin;
-
-   if (bo == NULL) {
-      bo = _mesa_bufferobj_alloc(ctx, VBO_BUF_ID + 1);
-      bool success = _mesa_bufferobj_data(ctx,
-                                          GL_ELEMENT_ARRAY_BUFFER_ARB,
-                                          VBO_SAVE_BUFFER_SIZE,
-                                          NULL,
-                                          GL_STATIC_DRAW_ARB, GL_MAP_WRITE_BIT |
-                                          MESA_GALLIUM_VERTEX_STATE_STORAGE,
-                                          bo);
-      if (!success)
-         save->out_of_memory = true;
-   }
 
    GLuint offsets[VBO_ATTRIB_MAX];
    for (unsigned i = 0, offset = 0; i < VBO_ATTRIB_MAX; ++i) {
