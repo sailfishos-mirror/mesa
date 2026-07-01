@@ -8594,7 +8594,7 @@
         "description": "etnaviv: use buffer resource accessor for indirect draws",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d738b3ea2b78df138758dfd166262c1890e94c22",
         "notes": null
