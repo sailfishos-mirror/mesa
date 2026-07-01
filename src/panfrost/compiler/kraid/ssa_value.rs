@@ -127,17 +127,35 @@ impl SSARef {
         self.as_mut_slice().iter_mut()
     }
 
-    pub fn from_iter(it: impl ExactSizeIterator<Item = SSAValue>) -> Self {
-        let len = it.len();
+    fn try_from_iter(
+        iter: impl IntoIterator<Item = SSAValue>,
+    ) -> Result<Self, &'static str> {
+        let iter = iter.into_iter().map(|x| x.0);
+        let max = iter.size_hint().1;
 
-        let inner = if len <= SSARefInnerShort::MAX_LEN {
-            SSARefInner::Short(it.map(|x| x.0).collect())
+        let inner = if max.is_some_and(|m| m <= SSARefInnerShort::MAX_LEN) {
+            let inner: SSARefInnerShort = iter.collect();
+            if inner.is_empty() {
+                return Err("Empty SSARefs are not allowed");
+            }
+            SSARefInner::Short(inner)
         } else {
-            assert!(len <= SSARefInnerLong::MAX_LEN);
-            SSARefInner::Long(Box::new(it.map(|x| x.0).collect()))
+            // If we don't know how many components we have, collect into a
+            // temporary SSARefInnerLong.
+            let mut inner = SSARefInnerLong::new();
+            for ssa in iter {
+                inner.try_push(ssa)?;
+            }
+            if inner.is_empty() {
+                return Err("Empty SSARefs are not allowed");
+            } else if inner.len() <= SSARefInnerShort::MAX_LEN {
+                SSARefInner::Short(inner.into_iter().collect())
+            } else {
+                SSARefInner::Long(Box::new(inner))
+            }
         };
 
-        SSARef(inner)
+        Ok(SSARef(inner))
     }
 
     #[cold]
@@ -238,24 +256,17 @@ impl<const N: usize> From<[SSAValue; N]> for SSARef {
     }
 }
 
+impl FromIterator<SSAValue> for SSARef {
+    fn from_iter<T: IntoIterator<Item = SSAValue>>(iter: T) -> Self {
+        SSARef::try_from_iter(iter).unwrap()
+    }
+}
+
 impl TryFrom<&[SSAValue]> for SSARef {
     type Error = &'static str;
 
     fn try_from(arr: &[SSAValue]) -> Result<Self, &'static str> {
-        assert!(arr.len() > 0);
-        // SAFETY: SSAValue is reprt(transparent)
-        let lb_slice: &[SSAValueInner] = unsafe { std::mem::transmute(arr) };
-
-        if lb_slice.len() <= SSARefInnerShort::MAX_LEN {
-            let Ok(v) = lb_slice.try_into() else {
-                panic!("We already checked the array length");
-            };
-            Ok(SSARef(SSARefInner::Short(v)))
-        } else {
-            SSARef::cold();
-            let v = lb_slice.try_into()?;
-            Ok(SSARef(SSARefInner::Long(Box::new(v))))
-        }
+        SSARef::try_from_iter(arr.iter().copied())
     }
 }
 
