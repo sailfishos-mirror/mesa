@@ -1164,7 +1164,7 @@ get_device_properties(const struct v3dv_physical_device *device,
       .maxDescriptorSetUpdateAfterBindUniformBuffersDynamic = MAX_DYNAMIC_UNIFORM_BUFFERS,
       .maxDescriptorSetUpdateAfterBindStorageBuffers =
           V3DV_SUPPORTED_SHADER_STAGES * MAX_STORAGE_BUFFERS,
-      .maxDescriptorSetUpdateAfterBindStorageBuffersDynamic = MAX_DYNAMIC_UNIFORM_BUFFERS,
+      .maxDescriptorSetUpdateAfterBindStorageBuffersDynamic = MAX_DYNAMIC_STORAGE_BUFFERS,
       .maxDescriptorSetUpdateAfterBindSampledImages =
           V3DV_SUPPORTED_SHADER_STAGES * MAX_SAMPLED_IMAGES,
       .maxDescriptorSetUpdateAfterBindStorageImages =

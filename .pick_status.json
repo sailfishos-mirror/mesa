@@ -4774,7 +4774,7 @@
         "description": "v3dv: report the correct dynamic storage buffer UAB limit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "03554f18b31bd954867354a3354728e39635b8ff",
         "notes": null
