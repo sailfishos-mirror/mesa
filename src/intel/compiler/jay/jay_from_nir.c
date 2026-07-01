@@ -2919,7 +2919,7 @@ jay_emit_loop(struct nir_to_jay_state *nj, nir_loop *nloop)
 
    /* Emit the backedge */
    jay_inst *jump = jay_block_ending_jump(nj->current_block);
-   if (jump && jump->op == JAY_OPCODE_BREAK) {
+   if (jump && (jump->op == JAY_OPCODE_BREAK || jump->op == JAY_OPCODE_HALT)) {
       jump->op = JAY_OPCODE_LOOP_ONCE;
    } else {
       jay_block_add_successor(nj->current_block, loop_header, GPR);
