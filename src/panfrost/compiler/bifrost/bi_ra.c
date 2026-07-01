@@ -376,6 +376,23 @@ bi_mark_interference(bi_block *block, struct lcra_state *l, uint8_t *live,
          }
       }
 
+      /* MMUL must not write its result into a multiply operand, but the
+       * accumulator (src2) may be reused.
+       */
+      if (ins->op == BI_OPCODE_MMUL_F32 ||
+          ins->op == BI_OPCODE_MMUL_V2F16 ||
+          ins->op == BI_OPCODE_MMUL_V4S8 ||
+          ins->op == BI_OPCODE_MMUL_V4U8) {
+         const unsigned dnode = ins->dest[0].value;
+         const unsigned dmask = bi_writemask(ins, 0);
+
+         for (unsigned s = 0; s < 2; ++s) {
+            if (bi_is_ssa(ins->src[s]))
+               lcra_add_node_interference(l, dnode, dmask, ins->src[s].value,
+                                          dmask);
+         }
+      }
+
       /* Valhall needs >= 64-bit reads to be pair-aligned */
       if (aligned_sr) {
          bi_foreach_ssa_src(ins, s) {

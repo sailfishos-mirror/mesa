@@ -2019,6 +2019,30 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_mov_i32_to(b, dst, bi_fau(BIR_FAU_LANE_ID, false));
       break;
 
+   case nir_intrinsic_cmat_muladd_pan: {
+      bi_index a = bi_src_index(&instr->src[0]);
+      bi_index b_mat = bi_src_index(&instr->src[1]);
+      bi_index c = bi_src_index(&instr->src[2]);
+
+      switch (nir_intrinsic_src_type(instr)) {
+      case nir_type_float32:
+         bi_mmul_f32_to(b, dst, a, b_mat, c);
+         break;
+      case nir_type_float16:
+         bi_mmul_v2f16_to(b, dst, a, b_mat, c);
+         break;
+      case nir_type_int8:
+         bi_mmul_v4s8_to(b, dst, a, b_mat, c);
+         break;
+      case nir_type_uint8:
+         bi_mmul_v4u8_to(b, dst, a, b_mat, c);
+         break;
+      default:
+         UNREACHABLE("invalid cmat_muladd_pan type");
+      }
+      break;
+   }
+
    case nir_intrinsic_ballot:
    case nir_intrinsic_ballot_relaxed: {
       assert(instr->src[0].ssa->bit_size == 32);
