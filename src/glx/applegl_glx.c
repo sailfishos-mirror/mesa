@@ -38,6 +38,7 @@
 #include "glxclient.h"
 #include "apple/apple_glx_context.h"
 #include "apple/apple_glx.h"
+#include "dri_common.h"
 #include "glx_error.h"
 
 static void
@@ -152,17 +153,64 @@ applegl_create_context_attribs(struct glx_screen *psc,
    bool x11error;
    Display *dpy = psc->dpy;
    int screen = psc->scr;
+   struct dri_ctx_attribs dca;
+   int profile_mask;
 
    /* TODO: Integrate this with apple_glx_create_context and make
     * struct apple_glx_context inherit from struct glx_context. */
 
-   /* AppleGL ignores the attribs array.
-    * TODO: extend apple_glx_create_context to honor explicit version requests.
-    */
-   (void) num_attribs;
-   (void) attribs;
-
    if (!config) {
+      *error = GLXBadFBConfig;
+      return NULL;
+   }
+
+   /* dri_convert_glx_attribs() parses the GLX_ARB_create_context(_profile,
+    * _robustness, _no_error) attribs and applies the spec-defined defaults
+    * and cross-attrib validation (unknown attribs/flags, FORWARD_COMPATIBLE
+    * requiring GL 3.0+, no_error vs. debug/robust, etc).  CGL-specific
+    * capability checks are layered on top below.
+    */
+   *error = dri_convert_glx_attribs(num_attribs, attribs, &dca);
+   if (*error != Success)
+      return NULL;
+
+   if (!validate_renderType_against_config(config, dca.render_type)) {
+      *error = BadValue;
+      return NULL;
+   }
+
+   if (shareList && !!shareList->noError != !!dca.no_error) {
+      *error = BadMatch;
+      return NULL;
+   }
+
+   switch (dca.api) {
+   case __DRI_API_OPENGL_CORE:
+      profile_mask = GLX_CONTEXT_CORE_PROFILE_BIT_ARB;
+      break;
+   case __DRI_API_OPENGL:
+      profile_mask = GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
+      break;
+   default:
+      /* __DRI_API_GLES{,2,3}: CGL has no OpenGL ES support. */
+      *error = GLXBadProfileARB;
+      return NULL;
+   }
+
+   /* GLX_ARB_create_context: an OpenGL version and feature set that is not
+    * defined generates BadMatch.  Apple never shipped a 3.x/4.x
+    * compatibility profile.
+    */
+   if (profile_mask == GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB &&
+       (dca.major_ver > 2 || (dca.major_ver == 2 && dca.minor_ver > 1))) {
+      *error = BadMatch;
+      return NULL;
+   }
+
+   /* CGL only supports Legacy compat (<=2.1), 3.2 Core, and 4.1 Core.
+    * Anything past 4.1 is unsupported by the platform.
+    */
+   if (dca.major_ver >= 5 || (dca.major_ver == 4 && dca.minor_ver >= 2)) {
       *error = GLXBadFBConfig;
       return NULL;
    }
@@ -185,6 +233,8 @@ applegl_create_context_attribs(struct glx_screen *psc,
    /* TODO: darwin: Integrate with above to do indirect */
    if (apple_glx_create_context(&gc->driContext, dpy, screen, config,
                                 shareList ? shareList->driContext : NULL,
+                                dca.major_ver, dca.minor_ver,
+                                profile_mask, dca.flags,
                                 &errorcode, &x11error)) {
       *error = errorcode;
       gc->vtable->destroy(gc);
@@ -194,6 +244,8 @@ applegl_create_context_attribs(struct glx_screen *psc,
    gc->currentContextTag = -1;
    gc->config = config;
    gc->isDirect = GL_TRUE;
+   gc->renderType = dca.render_type;
+   gc->noError = dca.no_error;
    gc->xid = 1; /* Just something not None, so we know when to destroy
                  * it in MakeContextCurrent. */
 
@@ -207,10 +259,9 @@ applegl_create_context(struct glx_screen *psc,
 {
    struct glx_context *gc;
    unsigned error = 0;
+   uint32_t attribs[2] = { GLX_RENDER_TYPE, renderType };
 
-   (void) renderType;  /* AppleGL ignores renderType (CGL has no equivalent). */
-
-   gc = applegl_create_context_attribs(psc, config, shareList, 0, NULL, &error);
+   gc = applegl_create_context_attribs(psc, config, shareList, 1, attribs, &error);
    if (gc == NULL && error)
       __glXSendError(psc->dpy, error, 0, X_GLXCreateContext, false);
    return gc;

@@ -125,11 +125,22 @@ is_context_valid(struct apple_glx_context *ac)
 bool
 apple_glx_create_context(void **ptr, Display * dpy, int screen,
                          const void *mode, void *sharedContext,
+                         int major_version, int minor_version,
+                         int profile_mask, int flags,
                          int *errorptr, bool * x11errorptr)
 {
    struct apple_glx_context *ac;
    struct apple_glx_context *sharedac = sharedContext;
    CGLError error;
+
+   /* CGL has no equivalent for GLX_CONTEXT_FLAGS_ARB, so the caller-visible
+    * flags are informational only: GLX_CONTEXT_DEBUG_BIT_ARB and
+    * GLX_CONTEXT_ROBUST_ACCESS_BIT_ARB have no CGL analog, and
+    * GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB is implied by asking for the
+    * core profile.  Keep the parameter so we can validate / record it as
+    * requested behavior evolves.
+    */
+   (void) flags;
 
    *ptr = NULL;
 
@@ -159,8 +170,10 @@ apple_glx_create_context(void **ptr, Display * dpy, int screen,
    ac->is_current = false;
    ac->made_current = false;
    ac->last_surface_window = None;
+   ac->profile_mask = profile_mask;
 
    error = apple_visual_create_pfobj(&ac->pixel_format_obj, mode,
+                                     major_version, minor_version, profile_mask,
                                      &ac->double_buffered, &ac->uses_stereo,
                                      /*offscreen */ false);
 

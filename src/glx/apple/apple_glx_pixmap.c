@@ -163,8 +163,15 @@ apple_glx_pixmap_create(Display * dpy, int screen, Pixmap pixmap,
       return true;
    }
 
-   error = apple_visual_create_pfobj(&p->pixel_format_obj, mode, &double_buffered,
-                                     &uses_stereo, /*offscreen */ true);
+   /* GLX pixmap creation has no version/profile attribs; use whatever CGL
+    * chooses as the platform default (Legacy compatibility profile).
+    */
+   error = apple_visual_create_pfobj(&p->pixel_format_obj, mode,
+                                     1 /* major_version */,
+                                     0 /* minor_version */,
+                                     0 /* profile_mask */,
+                                     &double_buffered, &uses_stereo,
+                                     /*offscreen */ true);
 
    if (kCGLNoError != error) {
       d->unlock(d);

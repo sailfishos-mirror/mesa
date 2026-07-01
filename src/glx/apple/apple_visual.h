@@ -35,12 +35,15 @@
 #include "glxconfig.h"
 
 /*
- * Populate *pfobj with a CGLPixelFormatObj that matches the supplied glx_config.
- * Returns kCGLNoError on success; otherwise returns the CGLError from
- * CGLChoosePixelFormat (or kCGLBadPixelFormat if the platform returned no
- * matching pixel formats).  *pfobj is left NULL on failure.
+ * Populate *pfobj with a CGLPixelFormatObj that matches the supplied glx_config,
+ * requested OpenGL major/minor version, and profile_mask (a
+ * GLX_CONTEXT_*_PROFILE_BIT_ARB value).  Returns kCGLNoError on success;
+ * otherwise returns the CGLError from CGLChoosePixelFormat (or
+ * kCGLBadPixelFormat if the platform returned no matching pixel formats).
+ * *pfobj is left NULL on failure.
  */
 CGLError apple_visual_create_pfobj(CGLPixelFormatObj * pfobj, const struct glx_config * mode,
+                                   int major_version, int minor_version, int profile_mask,
                                    bool * double_buffered, bool * uses_stereo,
                                    bool offscreen);
 
