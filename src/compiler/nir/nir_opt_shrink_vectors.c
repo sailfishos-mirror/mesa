@@ -87,8 +87,8 @@ shrink_dest_to_read_mask(nir_def *def, bool shrink_start)
 
    unsigned mask = nir_def_components_read(def);
 
-   /* If nothing was read, leave it up to DCE. */
-   if (!mask)
+   /* If nothing was read, DCE.  If everything was read, early out. */
+   if (!mask || mask == nir_component_mask(def->num_components))
       return false;
 
    nir_intrinsic_instr *intr = NULL;
@@ -435,8 +435,8 @@ opt_shrink_vectors_load_const(nir_load_const_instr *instr)
 
    unsigned mask = nir_def_components_read(def);
 
-   /* If nothing was read, leave it up to DCE. */
-   if (!mask)
+   /* If nothing was read, DCE.  If everything was read, early out. */
+   if (!mask || mask == nir_component_mask(def->num_components))
       return false;
 
    uint8_t reswizzle[NIR_MAX_VEC_COMPONENTS] = { 0 };
@@ -532,12 +532,8 @@ opt_shrink_vectors_phi(nir_builder *b, nir_phi_instr *instr)
       }
    }
 
-   /* DCE will handle this. */
-   if (mask == 0)
-      return false;
-
-   /* Nothing to shrink? */
-   if (BITFIELD_MASK(def->num_components) == mask)
+   /* If nothing was read, DCE.  If everything was read, early out. */
+   if (!mask || mask == nir_component_mask(def->num_components))
       return false;
 
    /* Set up the reswizzles. */
