@@ -1972,7 +1972,7 @@ impl Kernel {
 
             ctx.clear_global_binding(globals.len() as u32);
 
-            ctx.memory_barrier(PIPE_BARRIER_GLOBAL_BUFFER);
+            ctx.memory_barrier(PIPE_BARRIER_SHADER_BUFFER);
 
             if let Some(printf_buf) = &printf_buf {
                 let tx = ctx
