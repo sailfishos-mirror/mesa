@@ -162,6 +162,7 @@ iris-apl-egl:
     PIGLIT_NO_WINDOW: 0
     HWCI_START_WESTON: 1
     DEQP_SUITE: iris-apl-egl
+  parallel: 2
 
 iris-glk-deqp:
   extends:
