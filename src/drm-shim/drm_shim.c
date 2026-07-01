@@ -925,7 +925,7 @@ drm_shim_pci_device_setup(uint16_t vendor_id, uint16_t device_id,
 }
 
 void
-drm_shim_platform_device_setup(const char *driver, const char *fullname, const char *compatible)
+drm_shim_platform_device_setup(const char *driver_name, const char *fullname, const char *compatible)
 {
    shim_device.bus_type = DRM_BUS_PLATFORM;
    drm_shim_override_link("../../../../../bus/platform", "/sys/dev/char/%d:%d/device/subsystem",
@@ -935,7 +935,7 @@ drm_shim_platform_device_setup(const char *driver, const char *fullname, const c
    nfasprintf(&uevent_content, "DRIVER=%s\n"
                           "OF_FULLNAME=%s\n"
                           "OF_COMPATIBLE_0=%s\n"
-                          "OF_COMPATIBLE_N=1\n", driver, fullname, compatible);
+                          "OF_COMPATIBLE_N=1\n", driver_name, fullname, compatible);
 
    drm_shim_override_file(uevent_content,
                           "/sys/dev/char/%d:%d/device/uevent", DRM_MAJOR, render_node_minor);
