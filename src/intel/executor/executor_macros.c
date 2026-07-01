@@ -405,9 +405,10 @@ match_macro_name(const char *name, slice line)
 }
 
 const char *
-executor_apply_macros(executor_context *ec, slice original_src)
+executor_apply_macros(executor_run *run)
 {
-   slice remaining = original_src;
+   executor_context *ec = run->ec;
+   slice remaining = run->original_src;
 
    /* Create a ralloc'ed empty string so can call append to it later. */
    char *src = ralloc_strdup(ec->mem_ctx, "");

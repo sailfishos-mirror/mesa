@@ -62,12 +62,14 @@ typedef struct {
 } executor_context;
 
 typedef struct {
+   executor_context *ec;
+
    slice original_src;
    uint32_t hw_threads;
 
    void *kernel_bin;
    uint32_t kernel_size;
-} executor_params;
+} executor_run;
 
 typedef struct {
    uint64_t offset;
@@ -91,7 +93,7 @@ slice strip_spaces(slice s);
 slice trim_comments(slice s);
 bool parse_int64(slice s, int64_t *value);
 
-const char *executor_apply_macros(executor_context *ec, slice original_src);
+const char *executor_apply_macros(executor_run *run);
 
 #ifdef genX
 #  include "executor_genx.h"

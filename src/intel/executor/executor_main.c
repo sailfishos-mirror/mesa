@@ -851,9 +851,9 @@ parse_execute_data(executor_context *ec, lua_State *L, int table_idx)
 }
 
 static void
-handle_param_hw_threads(executor_context *ec, executor_params *params,
-                        slice name, slice args)
+handle_param_hw_threads(executor_run *run, slice name, slice args)
 {
+   executor_context *ec = run->ec;
    slice_cut_result cut = slice_cut_any(args, " \t");
    slice value = cut.before;
    slice extra = strip_spaces(cut.after);
@@ -875,17 +875,15 @@ handle_param_hw_threads(executor_context *ec, executor_params *params,
    if (ec->devinfo->verx10 >= 125 && hw_threads > 16)
       failf("hw_threads > 16 not supported");
 
-   params->hw_threads = hw_threads;
+   run->hw_threads = hw_threads;
 }
 
 static void
-executor_parse_source_params(executor_context *ec, executor_params *params,
-                             slice src)
+executor_parse_source_params(executor_run *run, slice src)
 {
    static const struct {
       const char *name;
-      void (*handle)(executor_context *ec, executor_params *params,
-                     slice name, slice args);
+      void (*handle)(executor_run *run, slice name, slice args);
    } param_handlers[] = {
       { "hw_threads", handle_param_hw_threads },
    };
@@ -916,7 +914,7 @@ executor_parse_source_params(executor_context *ec, executor_params *params,
       bool found = false;
       for (int i = 0; i < ARRAY_SIZE(param_handlers); i++) {
          if (slice_equal_cstr(name, param_handlers[i].name)) {
-            param_handlers[i].handle(ec, params, name, args);
+            param_handlers[i].handle(run, name, args);
             found = true;
             break;
          }
@@ -928,7 +926,7 @@ executor_parse_source_params(executor_context *ec, executor_params *params,
 }
 
 static void
-parse_execute_args(executor_context *ec, lua_State *L, executor_params *params)
+parse_execute_args(executor_run *run, lua_State *L)
 {
    int opts = lua_gettop(L);
 
@@ -948,9 +946,9 @@ parse_execute_args(executor_context *ec, lua_State *L, executor_params *params)
       if (!strcmp(key, "src")) {
          size_t len;
          const char *src = luaL_checklstring(L, val_idx, &len);
-         params->original_src = (slice) { src, len };
+         run->original_src = (slice) { src, len };
       } else if (!strcmp(key, "data")) {
-         parse_execute_data(ec, L, val_idx);
+         parse_execute_data(run->ec, L, val_idx);
       } else {
          failf("unknown parameter '%s' for execute()", key);
       }
@@ -1246,8 +1244,9 @@ executor_print_gen_program(executor_context *ec,
 }
 
 static bool
-executor_assemble(executor_context *ec, const char *src, executor_params *params)
+executor_assemble(executor_run *run, const char *src)
 {
+   executor_context *ec = run->ec;
    const bool dump = INTEL_DEBUG(DEBUG_CS);
 
    gen_parse_params parse = {
@@ -1297,8 +1296,8 @@ executor_assemble(executor_context *ec, const char *src, executor_params *params
       return false;
    }
 
-   params->kernel_bin = encode.raw_bytes;
-   params->kernel_size = encode.raw_bytes_size;
+   run->kernel_bin = encode.raw_bytes;
+   run->kernel_size = encode.raw_bytes_size;
    return true;
 }
 
@@ -1315,7 +1314,8 @@ l_execute(lua_State *L)
 
    executor_context_setup(&ec);
 
-   executor_params params = {
+   executor_run run = {
+      .ec = &ec,
       .hw_threads = 1,
    };
    executor_perf_create_query(&ec);
@@ -1324,11 +1324,11 @@ l_execute(lua_State *L)
       if (lua_gettop(L) != 1)
          failf("execute() must have a single table argument");
 
-      parse_execute_args(&ec, L, &params);
+      parse_execute_args(&run, L);
 
-      executor_parse_source_params(&ec, &params, params.original_src);
+      executor_parse_source_params(&run, run.original_src);
 
-      const char *src = executor_apply_macros(&ec, params.original_src);
+      const char *src = executor_apply_macros(&run);
 
       if (INTEL_DEBUG(DEBUG_CS)) {
          printf("=== Processed assembly source ===\n"
@@ -1336,11 +1336,11 @@ l_execute(lua_State *L)
                 "=================================\n\n", src);
       }
 
-      if (!executor_assemble(&ec, src, &params))
+      if (!executor_assemble(&run, src))
          failf("assembler failure");
    }
 
-   genX_call(emit_execute, &ec, &params);
+   genX_call(emit_execute, &run);
 
    if (INTEL_DEBUG(DEBUG_BATCH)) {
       struct intel_batch_decode_ctx decoder;

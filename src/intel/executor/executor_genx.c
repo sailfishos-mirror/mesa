@@ -146,17 +146,18 @@ executor_perf_end(executor_context *ec)
 }
 
 void
-genX(emit_execute)(executor_context *ec, const executor_params *params)
+genX(emit_execute)(const executor_run *run)
 {
-   uint32_t *kernel = executor_alloc_bytes(&ec->bo.extra, params->kernel_size);
-   memcpy(kernel, params->kernel_bin, params->kernel_size);
+   executor_context *ec = run->ec;
+   uint32_t *kernel = executor_alloc_bytes(&ec->bo.extra, run->kernel_size);
+   memcpy(kernel, run->kernel_bin, run->kernel_size);
    executor_address kernel_addr = executor_address_of_ptr(&ec->bo.extra, kernel);
 
    /* TODO: Let SIMD be a parameter. */
 
    struct GENX(INTERFACE_DESCRIPTOR_DATA) desc = {
       .KernelStartPointer = kernel_addr.offset,
-      .NumberofThreadsinGPGPUThreadGroup = params->hw_threads,
+      .NumberofThreadsinGPGPUThreadGroup = run->hw_threads,
 #if GFX_VERx10 < 125
       .ConstantURBEntryReadOffset = 0,
       .ConstantURBEntryReadLength = 1,
@@ -199,7 +200,7 @@ genX(emit_execute)(executor_context *ec, const executor_params *params)
    executor_batch_emit(GENX(MEDIA_VFE_STATE), vfe) {
       vfe.NumberofURBEntries = 2;
       vfe.MaximumNumberofThreads = max_cs_threads - 1;
-      vfe.CURBEAllocationSize = align(params->hw_threads, 2);
+      vfe.CURBEAllocationSize = align(run->hw_threads, 2);
    }
 #endif
 
@@ -246,11 +247,11 @@ genX(emit_execute)(executor_context *ec, const executor_params *params)
     * hardware thread, with the id in the first dword.
     */
    const uint32_t curbe_size =
-      align(ec->devinfo->grf_size * params->hw_threads, 64);
+      align(ec->devinfo->grf_size * run->hw_threads, 64);
    void *curbe = executor_alloc_bytes_aligned(&ec->bo.extra, curbe_size, 64);
    memset(curbe, 0, curbe_size);
 
-   for (uint32_t t = 0; t < params->hw_threads; t++) {
+   for (uint32_t t = 0; t < run->hw_threads; t++) {
       uint32_t *record = (uint32_t *)((char *)curbe + t * ec->devinfo->grf_size);
       record[0] = t;
    }
@@ -265,7 +266,7 @@ genX(emit_execute)(executor_context *ec, const executor_params *params)
       executor_perf_begin(ec);
 
    executor_batch_emit(GENX(GPGPU_WALKER), gw) {
-      gw.ThreadWidthCounterMaximum = params->hw_threads - 1;
+      gw.ThreadWidthCounterMaximum = run->hw_threads - 1;
       gw.ThreadGroupIDXDimension = 1;
       gw.ThreadGroupIDYDimension = 1;
       gw.ThreadGroupIDZDimension = 1;
