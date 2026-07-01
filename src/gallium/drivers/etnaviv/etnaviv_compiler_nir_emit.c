@@ -118,6 +118,10 @@ static const struct etna_op_info etna_ops[] = {
    IOP(ishr, RSHIFT),
    UOP(ushr, RSHIFT),
    UOP(uclz, LEADZERO),
+   UOP(bitfield_reverse, BIT_REV),
+   UOP(bit_count, POPCOUNT),
+   UOP(ubitfield_extract, BIT_EXTRACT),
+   IOP(ibitfield_extract, BIT_EXTRACT),
 };
 
 void
