@@ -1216,18 +1216,8 @@ isl_format_rgbx_to_rgba(enum isl_format rgbx)
    }
 }
 
-/*
- * Xe2 allows route of LD messages from Sampler to LSC to improve performance
- * when some restrictions are met, here checking the format restrictions.
- *
- * RENDER_SURFACE_STATE::Enable Sampler Route to LSC:
- *   "The Surface Format is one of the following:
- *
- *     R8_UNORM, R8G8_UNORM, R16_UNORM, R16G16_UNORM, R16G16B16A16_UNORM
- *     R16_FLOAT, R16G16_FLOAT, R16G16B16A16_FLOAT
- *     R32_FLOAT, R32G32_FLOAT, R32G32B32A32_FLOAT, R32_UINT, R32G32_UINT, R32G32B32A32_UINT
- *     R10G10B10A2_UNORM, R11G11B10_FLOAT
- *   "
+/* Xe2+ allows route of LD messages from Sampler to LSC to improve
+ * performance when the format is supported.
  */
 bool
 isl_format_support_sampler_route_to_lsc(enum isl_format fmt)
