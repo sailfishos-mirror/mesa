@@ -72,6 +72,12 @@ is_only_used_by_alu(nir_def *def)
    return true;
 }
 
+static unsigned
+round_up_components_no_vec5(unsigned n)
+{
+   return (n > 4) ? util_next_power_of_two(n) : n;
+}
+
 static bool
 shrink_dest_to_read_mask(nir_def *def, bool shrink_start)
 {
@@ -106,8 +112,7 @@ shrink_dest_to_read_mask(nir_def *def, bool shrink_start)
    int first_bit = shrink_start ? (ffs(mask) - 1) : 0;
 
    const unsigned comps = last_bit - first_bit;
-   const unsigned rounded = nir_round_up_components(comps);
-   assert(rounded <= def->num_components);
+   const unsigned rounded = round_up_components_no_vec5(comps);
 
    if ((def->num_components > rounded) || first_bit > 0) {
       def->num_components = rounded;
