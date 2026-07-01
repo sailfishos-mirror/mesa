@@ -210,9 +210,13 @@ vn_sync_feedback_command(struct vn_device *dev,
                          uint32_t qfi,
                          uint64_t counter);
 
+bool
+vn_sync_feedback_query(struct vn_device *dev,
+                       struct vn_sync_feedback *sfb,
+                       uint64_t *out_counter);
+
 void
-vn_sync_feedback_cmd_free(struct vn_device *dev,
-                          struct vn_sync_feedback_cmd *sfb_cmd);
+vn_sync_feedback_write(struct vn_sync_feedback *sfb, uint64_t counter);
 
 VkResult
 vn_sync_feedback_init(struct vn_device *dev,

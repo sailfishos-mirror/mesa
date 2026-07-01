@@ -561,7 +561,7 @@ vn_sync_feedback_cmd_alloc(struct vn_device *dev,
    return sfb_cmd;
 }
 
-void
+static void
 vn_sync_feedback_cmd_free(struct vn_device *dev,
                           struct vn_sync_feedback_cmd *sfb_cmd)
 {
@@ -615,6 +615,69 @@ vn_sync_feedback_command(struct vn_device *dev,
    assert(sfb_cmd_handle != VK_NULL_HANDLE);
 
    return sfb_cmd_handle;
+}
+
+bool
+vn_sync_feedback_query(struct vn_device *dev,
+                       struct vn_sync_feedback *sfb,
+                       uint64_t *out_counter)
+{
+   bool signaled_counter_updated = false;
+
+   /* If we are here when feedback is suspended, signaled_counter has been
+    * updated to the suspended counter value which must be greater than the
+    * feedback counter read from the feedback slot.
+    */
+   simple_mtx_lock(&sfb->counter_mtx);
+   const uint64_t counter = vn_feedback_get_counter(sfb->slot);
+   if (sfb->signaled_counter < counter) {
+      /* search pending cmds for already signaled values */
+      simple_mtx_lock(&sfb->cmd_mtx);
+      list_for_each_entry_safe(struct vn_sync_feedback_cmd, sfb_cmd,
+                               &sfb->pending_cmds, head) {
+         if (counter >= vn_feedback_get_counter(sfb_cmd->src_slot)) {
+            /* avoid over-caching more than normal runtime usage */
+            if (sfb->free_cmd_count > 5) {
+               list_del(&sfb_cmd->head);
+               vn_sync_feedback_cmd_free(dev, sfb_cmd);
+            } else {
+               list_move_to(&sfb_cmd->head, &sfb->free_cmds);
+               sfb->free_cmd_count++;
+            }
+         }
+      }
+      simple_mtx_unlock(&sfb->cmd_mtx);
+
+      sfb->signaled_counter = counter;
+      signaled_counter_updated = true;
+   }
+
+   /* vn_SignalSemaphore writes the sfb signaled_counter without updating
+    * the slot. So the semaphore counter query here must consider both.
+    */
+   *out_counter = MAX2(counter, sfb->signaled_counter);
+   simple_mtx_unlock(&sfb->counter_mtx);
+
+   return signaled_counter_updated;
+}
+
+void
+vn_sync_feedback_write(struct vn_sync_feedback *sfb, uint64_t counter)
+{
+   /* Must not update the sfb dst slot here because there's no followed
+    * submission to flush the cache (implicit sync guarantee) before the
+    * pending sfb cmd to update the slot. Otherwise, the slot update can be
+    * written by the racy update here.
+    */
+   simple_mtx_lock(&sfb->counter_mtx);
+
+   /* Update async counters. Since we're signaling, we're aligned with the
+    * renderer.
+    */
+   sfb->signaled_counter = counter;
+   sfb->pollable = true;
+
+   simple_mtx_unlock(&sfb->counter_mtx);
 }
 
 VkResult

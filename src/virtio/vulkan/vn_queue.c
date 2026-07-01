@@ -2170,15 +2170,7 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
             return result;
       }
 
-      assert(sem->feedback.slot);
-
-      /* If we are here when feedback is suspended, signaled_counter has been
-       * updated to the suspended counter value which must be greater than the
-       * feedback counter read from the feedback slot.
-       */
-      simple_mtx_lock(&sem->feedback.counter_mtx);
-      uint64_t counter = vn_feedback_get_counter(sem->feedback.slot);
-      if (sem->feedback.signaled_counter < counter) {
+      if (vn_sync_feedback_query(dev, &sem->feedback, out_value)) {
          /* When the timeline semaphore feedback slot gets signaled, the real
           * semaphore signal operation follows after but the signaling isr can
           * be deferred or preempted. To avoid racing, we let the renderer
@@ -2200,39 +2192,12 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
             .flags = 0,
             .semaphoreCount = 1,
             .pSemaphores = &sem_handle,
-            .pValues = &counter,
+            .pValues = out_value,
          };
 
          vn_async_vkWaitSemaphores(dev->primary_ring, dev_handle, &wait_info,
                                    UINT64_MAX);
-
-         /* search pending cmds for already signaled values */
-         simple_mtx_lock(&sem->feedback.cmd_mtx);
-         list_for_each_entry_safe(struct vn_sync_feedback_cmd, sfb_cmd,
-                                  &sem->feedback.pending_cmds, head) {
-            if (counter >= vn_feedback_get_counter(sfb_cmd->src_slot)) {
-               /* avoid over-caching more than normal runtime usage */
-               if (sem->feedback.free_cmd_count > 5) {
-                  list_del(&sfb_cmd->head);
-                  vn_sync_feedback_cmd_free(dev, sfb_cmd);
-               } else {
-                  list_move_to(&sfb_cmd->head, &sem->feedback.free_cmds);
-                  sem->feedback.free_cmd_count++;
-               }
-            }
-         }
-         simple_mtx_unlock(&sem->feedback.cmd_mtx);
-
-         sem->feedback.signaled_counter = counter;
       }
-
-      /* vn_SignalSemaphore writes the sfb signaled_counter without updating
-       * the slot. So the semaphore counter query here must consider both.
-       */
-      counter = MAX2(counter, sem->feedback.signaled_counter);
-      simple_mtx_unlock(&sem->feedback.counter_mtx);
-
-      *out_value = counter;
    } else {
       VkResult result = vn_call_vkGetSemaphoreCounterValue(
          dev->primary_ring, dev_handle, sem_handle, out_value);
@@ -2279,22 +2244,8 @@ vn_SignalSemaphore(VkDevice device, const VkSemaphoreSignalInfo *pSignalInfo)
 
    vn_async_vkSignalSemaphore(dev->primary_ring, device, pSignalInfo);
 
-   if (sem->feedback.slot) {
-      /* Must not update the sfb dst slot here because there's no followed
-       * submission to flush the cache (implicit sync guarantee) before the
-       * pending sfb cmd to update the slot. Otherwise, the slot update can be
-       * written by the racy update here.
-       */
-      simple_mtx_lock(&sem->feedback.counter_mtx);
-
-      /* Update async counters. Since we're signaling, we're aligned with
-       * the renderer.
-       */
-      sem->feedback.signaled_counter = pSignalInfo->value;
-      sem->feedback.pollable = true;
-
-      simple_mtx_unlock(&sem->feedback.counter_mtx);
-   }
+   if (sem->feedback.slot)
+      vn_sync_feedback_write(&sem->feedback, pSignalInfo->value);
 
    return VK_SUCCESS;
 }
