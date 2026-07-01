@@ -2244,11 +2244,24 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
    struct vn_device *dev = vn_device_from_handle(dev_handle);
    struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
    ASSERTED struct vn_sync_payload *payload = sem->payload;
-   bool check_device_lost = false;
 
    assert(payload->type == VN_SYNC_TYPE_DEVICE_ONLY);
 
    if (sem->feedback.pollable) {
+      if (relax_state && vn_relax_warn(relax_state)) {
+         /* Emit a synchronous vkGetSemaphoreCounterValue to catch renderer
+          * device lost without tangling with sfb internals.
+          */
+         VkResult result = vn_call_vkGetSemaphoreCounterValue(
+            dev->primary_ring, dev_handle, sem_handle, out_value);
+         if (result == VK_ERROR_DEVICE_LOST) {
+            vn_log(dev->instance, "aborting on sfb device lost");
+            abort();
+         }
+         if (result != VK_SUCCESS)
+            return result;
+      }
+
       assert(sem->feedback.slot);
 
       /* If we are here when feedback is suspended, signaled_counter has been
@@ -2303,9 +2316,6 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
          simple_mtx_unlock(&sem->feedback.cmd_mtx);
 
          sem->feedback.signaled_counter = counter;
-      } else if (relax_state && vn_relax_warn(relax_state)) {
-         /* upon vn_relax warn order and when sfb doesn't progress */
-         check_device_lost = true;
       }
 
       /* vn_SignalSemaphore writes the sfb signaled_counter without updating
@@ -2313,21 +2323,6 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
        */
       counter = MAX2(counter, sem->feedback.signaled_counter);
       simple_mtx_unlock(&sem->feedback.counter_mtx);
-
-      if (check_device_lost) {
-         /* Emit a synchronous vkGetSemaphoreCounterValue to catch renderer
-          * device lost without tangling with sfb internals.
-          */
-         uint64_t tmp;
-         VkResult result = vn_call_vkGetSemaphoreCounterValue(
-            dev->primary_ring, dev_handle, sem_handle, &tmp);
-         if (result == VK_ERROR_DEVICE_LOST) {
-            vn_log(dev->instance, "aborting on sfb device lost");
-            abort();
-         }
-         if (result != VK_SUCCESS)
-            return result;
-      }
 
       *out_value = counter;
    } else {
