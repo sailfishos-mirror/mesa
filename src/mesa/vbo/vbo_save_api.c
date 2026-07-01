@@ -121,6 +121,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "util/u_prim.h"
 
 #include "gallium/include/pipe/p_state.h"
+#include "state_tracker/st_cb_flush.h"
+#include "state_tracker/st_context.h"
 
 #include "vbo_private.h"
 #include "api_exec_decl.h"
@@ -867,9 +869,19 @@ compile_vertex_list(struct gl_context *ctx)
    ASSERTED bool shared_buffer;
 
    if (save->free_bo_pool && total_bytes_needed < VBO_SAVE_SHARED_BUFFER_SIZE) {
-      uint32_t hole_bit_count = 0;
-      uint32_t reused_bo_start_in_bo;
+      struct bo_candidate {
+         struct free_bo_pool_entry *bo;
+         uint32_t hole_bit_count;
+         uint32_t range_start;
+         uint32_t start_in_bo;
+      };
 
+      struct bo_candidate no_wait_candidate = { 0 }, wait_candidate = { 0 };
+
+      uint32_t reused_bo_start_in_bo, frs, fre;
+      struct st_context *st = st_context(ctx);
+
+      /* Iterate on all BO and identify the best candidates. */
       for (int i = 0; i < save->free_bo_pool_n_entries; i++) {
          struct free_bo_pool_entry *entry = &save->free_bo_pool[i];
          unsigned range_start, range_end;
@@ -879,9 +891,6 @@ compile_vertex_list(struct gl_context *ctx)
 
          BITSET_FOREACH_RANGE(range_start, range_end, entry->free_mask, VBO_SAVE_BUFFER_N_BITS) {
             uint32_t s = range_end - range_start, start;
-            /* There's a better candidate already, so skip this one. */
-            if (reused_bo && s >= hole_bit_count)
-               continue;
 
             if (!is_vbo_storage_large_enough(entry,
                                              range_start * VBO_SAVE_BUFFER_PER_BIT,
@@ -890,12 +899,58 @@ compile_vertex_list(struct gl_context *ctx)
                                              &start))
                continue;
 
-            reused_bo = entry;
-            hole_bit_count = s;
-            reused_bo_range_start = range_start;
-            reused_bo_start_in_bo = start;
+            uint32_t r_end = (start + total_bytes_needed - 1) / VBO_SAVE_BUFFER_PER_BIT;
+
+            bool wait = entry->release_fence &&
+                        BITSET_TEST_RANGE(entry->dirty_mask, range_start, r_end);
+
+            if (wait) {
+               if (wait_candidate.bo && wait_candidate.hole_bit_count < s)
+                  continue;
+
+               wait_candidate.bo = entry;
+               wait_candidate.hole_bit_count = s;
+               wait_candidate.range_start = range_start;
+               wait_candidate.start_in_bo = start;
+            } else {
+               if (no_wait_candidate.bo && no_wait_candidate.hole_bit_count < s)
+                  continue;
+
+               no_wait_candidate.bo = entry;
+               no_wait_candidate.hole_bit_count = s;
+               no_wait_candidate.range_start = range_start;
+               no_wait_candidate.start_in_bo = start;
+            }
          }
       }
+
+      if (no_wait_candidate.bo) {
+         reused_bo = no_wait_candidate.bo;
+         reused_bo_start_in_bo = no_wait_candidate.start_in_bo;
+         reused_bo_range_start = no_wait_candidate.range_start;
+      } else if (wait_candidate.bo) {
+         st_flush(st, NULL, 0);
+
+         st->screen->fence_finish(st->screen, NULL, wait_candidate.bo->release_fence,
+                                  OS_TIMEOUT_INFINITE);
+         st->screen->fence_reference(st->screen, &wait_candidate.bo->release_fence, NULL);
+
+         /* Since we had to wait, clear dirty flags of signaled fences. */
+         for (int i = 0; i < save->free_bo_pool_n_entries; i++) {
+            struct free_bo_pool_entry *entry = &save->free_bo_pool[i];
+            if (entry->release_fence &&
+                st->screen->fence_finish(st->screen, NULL, entry->release_fence, 0)) {
+               BITSET_FOREACH_RANGE(frs, fre, entry->free_mask, VBO_SAVE_BUFFER_N_BITS)
+                  BITSET_CLEAR_RANGE(entry->dirty_mask, frs, fre);
+               st->screen->fence_reference(st->screen, &entry->release_fence, NULL);
+            }
+         }
+
+         reused_bo = wait_candidate.bo;
+         reused_bo_start_in_bo = wait_candidate.start_in_bo;
+         reused_bo_range_start = wait_candidate.range_start;
+      }
+
       if (reused_bo) {
          vbo_reuse_same_bo(reused_bo, node,
                            reused_bo_start_in_bo,
@@ -2190,8 +2245,9 @@ _vbo_bo_mark_range_as_used(struct gl_context *ctx, struct free_bo_pool_entry *en
                         (end_excl - 1) / VBO_SAVE_BUFFER_PER_BIT));
    BITSET_CLEAR_RANGE(entry->free_mask, start / VBO_SAVE_BUFFER_PER_BIT,
                                         (end_excl - 1) / VBO_SAVE_BUFFER_PER_BIT);
-   if (BITSET_IS_EMPTY(entry->free_mask))
-      _vbo_release_pool_entry(ctx, entry);
+   BITSET_SET_RANGE(entry->dirty_mask,
+                     start / VBO_SAVE_BUFFER_PER_BIT,
+                     (end_excl - 1) / VBO_SAVE_BUFFER_PER_BIT);
 }
 
 static struct free_bo_pool_entry *
@@ -2226,8 +2282,7 @@ _vbo_bo_add_to_free_list(struct gl_context *ctx, struct gl_buffer_object *bo,
             s += range_end - range_start;
             n_ranges++;
          }
-         /* Empty entries should have been removed already. */
-         assert(s > 0);
+
          /* Remember this entry if it's smaller or more fragmented. */
          if (s < best.total ||
              (s == best.total && n_ranges > best.n_ranges)) {
@@ -2244,6 +2299,7 @@ _vbo_bo_add_to_free_list(struct gl_context *ctx, struct gl_buffer_object *bo,
       /* Set the bo reference. */
       _mesa_reference_buffer_object(ctx, &e->bo, bo);
    }
+
    return e;
 }
 
@@ -2253,6 +2309,7 @@ vbo_save_release_bo(struct gl_context *ctx, struct gl_buffer_object **_bo,
                     uint32_t start, uint32_t end_excl)
 {
    struct vbo_save_context *save = &vbo_context(ctx)->save;
+   struct st_context *st = st_context(ctx);
    struct gl_buffer_object *bo = *_bo;
 
    assert(end_excl <= bo->Size);
@@ -2270,8 +2327,9 @@ vbo_save_release_bo(struct gl_context *ctx, struct gl_buffer_object **_bo,
 
    n_owners--;
 
+   struct free_bo_pool_entry *entry = NULL;
    for (int i = 0; i < save->free_bo_pool_n_entries; i++) {
-      struct free_bo_pool_entry *entry = &save->free_bo_pool[i];
+      entry = &save->free_bo_pool[i];
 
       if (bo == entry->bo) {
          unsigned pool_ref_cnt = 1;
@@ -2289,6 +2347,16 @@ vbo_save_release_bo(struct gl_context *ctx, struct gl_buffer_object **_bo,
 
          BITSET_SET_RANGE(entry->free_mask, start / VBO_SAVE_BUFFER_PER_BIT,
                                             (end_excl - 1) / VBO_SAVE_BUFFER_PER_BIT);
+
+         if (st->screen->caps.draw_vertex_state) {
+            /* pipe_vertex_state are immutable, so get a deferred fence for this bo.
+             * Past this fence, the free+dirty ranges of this BO can be reused.
+             */
+            BITSET_SET_RANGE(entry->dirty_mask, start / VBO_SAVE_BUFFER_PER_BIT,
+                                                (end_excl - 1) / VBO_SAVE_BUFFER_PER_BIT);
+
+            st_flush(st, &entry->release_fence, PIPE_FLUSH_DEFERRED);
+         }
          return;
       }
    }
