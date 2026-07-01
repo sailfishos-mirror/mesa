@@ -31,6 +31,7 @@
 
 #if GFX_VERx10 >= 125
 #include "h264_vdenc_tables.h"
+#include "h265_vdenc_tables.h"
 #endif
 
 static int
@@ -1507,6 +1508,7 @@ static const uint16_t hcp_transform_skip_lambda_tbl[52] =
    298, 298, 298, 298
 };
 
+#if GFX_VERx10 < 125
 static const uint32_t hevc_sad_qp_lambda_tbl[3][42] =
 {
    /* I-frame: QP 10-51 */
@@ -1537,6 +1539,7 @@ static const uint32_t hevc_sad_qp_lambda_tbl[3][42] =
       0x9214cd, 0xa41a35, 0xb82105, 0xce299a, 0xe8346a, 0x1044209, 0x1245333
    }
 };
+#endif
 
 #endif // GFX_VER >= 12
 
@@ -2210,6 +2213,44 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 #endif
    }
 
+#if GFX_VERx10 >= 125
+   bool is_intra =
+      anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) == 0;
+   uint32_t cmd1_qp = rc_disable ? frame_info->pNaluSliceSegmentEntries[0].constantQp :
+                      pps->init_qp_minus26 + 26;
+
+   /* TODO: handling low-delay / B-GOP weights for P/B frames. */
+   double weight = is_intra ? 0.60 : 0.65;
+   double num = weight * hevc_vdenc_cmd1_qp_scale[cmd1_qp - 1];
+   uint32_t par0 = MIN2(65535u, (uint32_t)(num * 4 + 0.5));
+   uint32_t par1 = MIN2(65535u, (uint32_t)(sqrt(num) * 4 + 0.5));
+
+   static const uint8_t par2[8]  = { 0, 2, 3, 5, 6, 8, 9, 11 };
+   static const uint8_t par3[12] = { 4, 12, 20, 28, 36, 44, 52, 60, 68, 76, 84, 92 };
+
+   uint32_t v[32] = { 0 };
+   for (unsigned i = 0; i < 8; i++)
+      v[i / 4] |= (uint32_t)par2[i] << (8 * (i % 4));
+   for (unsigned i = 0; i < 12; i++) {
+      v[2 + i / 4] |= (uint32_t)par3[i] << (8 * (i % 4));
+      v[5 + i / 4] |= (uint32_t)par3[i] << (8 * (i % 4));
+   }
+   v[12] = 4u << 16;
+   v[15] = (uint32_t)(is_intra ? 21 : 7) << 16 | (uint32_t)(is_intra ? 0 : 4) << 24;
+   v[18] = 20u << 16;
+   v[19] = v[20] = 0x0c0c0c0c;
+   v[21] = par0 | par1 << 16;
+   for (unsigned i = 22; i <= 29; i++)
+      v[i] = 0x10101010;
+   v[30] = (uint32_t)(is_intra ? 16 : 20) |
+           (uint32_t)(is_intra ? 16 : 20) << 8 |
+           (uint32_t)(is_intra ? 47 : 20) << 16;
+
+   anv_batch_emit(&cmd->batch, GENX(VDENC_CMD1), cmd1) {
+      for (unsigned i = 0; i < 32; i++)
+         cmd1.Values[i] = v[i];
+   }
+#else
    anv_batch_emit(&cmd->batch, GENX(VDENC_CMD1), cmd1) {
       /* Magic numbers taken from media-driver */
       cmd1.Values[0] = 0x5030200;
@@ -2261,6 +2302,7 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          cmd1.Values[29] = (cmd1.Values[29] & 0xff000000) | 0x232323;
       }
    }
+#endif
 
    uint32_t frame_width_in_min_cb = sps->pic_width_in_luma_samples >> (sps->log2_min_luma_coding_block_size_minus3 + 3);
    uint32_t frame_height_in_min_cb = sps->pic_height_in_luma_samples >> (sps->log2_min_luma_coding_block_size_minus3 + 3);
@@ -2347,17 +2389,43 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    }
 
    anv_batch_emit(&cmd->batch, GENX(VDENC_CMD2), cmd2) {
-      /* Magic numbers taken from media-driver */
-      cmd2.Values9 = (cmd2.Values9 & 0xffff) | 0x43840000;
+#if GFX_VERx10 >= 125
+      /* Target usage is fixed to 4 and low-delay is assumed.
+       *
+       * TODO: Target usage from the quality level;
+       * lowDelay / poc from the ref structure for hierarchical B;
+       * port the dw51/dw53 LUTs; derive data[19]/data[23] for inter.
+       */
+      uint32_t pic_type = anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type);
+      uint32_t target_usage = 4;
+      uint32_t low_delay = 1;
+      uint32_t num_l0_is0 = pic_type == 0 ? 1 : (ref_lists->num_ref_idx_l0_active_minus1 == 0);
+
+      cmd2.Values5  |= hevc_vdenc_cmd2_dw5[pic_type];
+      cmd2.Values7  |= hevc_vdenc_cmd2_dw7[pic_type][num_l0_is0][low_delay][0][1];
+      cmd2.Values9  |= hevc_vdenc_cmd2_dw9[pic_type][target_usage][low_delay][0][1];
+      cmd2.Values12 |= hevc_vdenc_cmd2_dw12[target_usage];
+      cmd2.Values19 |= 0x98000000;
+      cmd2.Values23 |= 0xcccc0000;
+      cmd2.Values53 |= hevc_vdenc_cmd2_dw52[target_usage];
+      cmd2.Values55 |= hevc_vdenc_cmd2_dw54[target_usage][0];
+      cmd2.Values52 |= pic_type == 0 ? 0x20003552 : 0x22223552;
+      cmd2.Values54 |= pic_type == 0 ? 0x80000000 : 0xff000000;
+#else
+      cmd2.Values5  = (cmd2.Values5 & 0xff83ffff) | 0x400000;
+      cmd2.Values9  = (cmd2.Values9 & 0xffff) | 0x43840000;
       cmd2.Values12 = 0xffffffff;
+      cmd2.Values14 = (cmd2.Values14 & 0xffff) | 0x7d00000;
       cmd2.Values15 = 0x4e201f40;
-      cmd2.Values16 = (cmd2.Values16 & 0xf0ff0000) | 0xf003300;
       cmd2.Values17 = (cmd2.Values17 & 0xfff00000) | 0x2710;
+      cmd2.Values18 = (cmd2.Values18 & 0xffff) | 0x600000;
       cmd2.Values19 = (cmd2.Values19 & 0x80ffffff) | 0x18000000;
-      cmd2.Values19 = (cmd2.Values19 & 0x80ffffff) | 0x18000000;
+      cmd2.Values20 &= 0xfffeffff;
       cmd2.Values21 &= 0xfffffff;
       cmd2.Values22 = 0x1f001102;
       cmd2.Values23 = 0xaaaa1f00;
+#endif
+      cmd2.Values16 = (cmd2.Values16 & 0xf0ff0000) | 0xf003300;
       cmd2.QpPrimeYAc = pps->init_qp_minus26 + 26;
 
       cmd2.FrameWidthInPixelsMinusOne = width_in_pix - 1;
@@ -2367,14 +2435,6 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
             anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) == 0 ?
             0 : sps->flags.sps_temporal_mvp_enabled_flag;
       cmd2.TransformSkip = pps->flags.transform_skip_enabled_flag;
-
-      cmd2.Values5 = (cmd2.Values5 & 0xff83ffff) | 0x400000;
-      cmd2.Values14 = (cmd2.Values14 & 0xffff) | 0x7d00000;
-      cmd2.Values15 = 0x4e201f40;
-      cmd2.Values17 = (cmd2.Values17 & 0xfff00000) | 0x2710;
-      cmd2.Values18 = (cmd2.Values18 & 0xffff) | 0x600000;
-      cmd2.Values19 = (cmd2.Values19 & 0xffff0000) | 0xc0;
-      cmd2.Values20 &= 0xfffeffff;
       cmd2.TilingEnable = pps->flags.tiles_enabled_flag;
 
       if (anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) != 0) {
@@ -2426,8 +2486,10 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          cmd2.SubPelMode = 3;
       }
 
+#if GFX_VERx10 < 125
       int tbl_idx = anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type);
       cmd2.Values26 = hevc_sad_qp_lambda_tbl[tbl_idx][pps->init_qp_minus26 + 26 - 10];
+#endif
    }
 
    for (uint32_t slice_id = 0; slice_id < frame_info->naluSliceSegmentEntryCount; slice_id++) {
@@ -2676,6 +2738,45 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          vdenc_offsets.WeightsForwardReference2 = 1;
          vdenc_offsets.HEVCVP9WeightsBackwardReference0 = 1;
       }
+
+#if GFX_VERx10 >= 125
+       /* TODO: Different setting according to the target usage;
+        * SCC (palette/IBC) and bit-depth > 8 adjustments;
+        * per-tile origin/size/offsets once multi-tile is supported.
+        */
+      uint32_t qp_idx = slice_qp <= 12 ? 0 : slice_qp <= 17 ? 1 : slice_qp <= 22 ? 2 :
+                        slice_qp <= 27 ? 3 : slice_qp <= 32 ? 4 : slice_qp <= 37 ? 5 :
+                        slice_qp <= 42 ? 6 : slice_qp <= 47 ? 7 : slice_qp <= 49 ? 8 : 9;
+      const uint32_t *param = h265_vdenc_hevc_tile_slice_params[1][qp_idx];
+
+      anv_batch_emit(&cmd->batch, GENX(VDENC_HEVC_VP9_TILE_SLICE_STATE), til) {
+         til.NumParEngine = 0;
+         til.TileWidth = width_in_pix - 1;
+         til.TileHeight = height_in_pix - 1;
+
+         til.TileSliceParam0  = 0;
+         til.TileSliceParam1  = param[7];
+         til.TileSliceParam2  = 0;
+         til.TileSliceParam3  = param[9];
+         til.TileSliceParam4  = param[8];
+         til.TileSliceParam5  = 1;
+         til.TileSliceParam6  = param[4];
+         til.TileSliceParam7  = param[2];
+         til.TileSliceParam8  = param[3];
+         til.TileSliceParam9  = param[1];
+         til.TileSliceParam10 = param[5];
+         til.TileSliceParam11 = 2;
+         til.TileSliceParam12 = 72;
+         til.TileSliceParam13 = 1;
+         til.TileSliceParam14 = 0;
+         til.TileSliceParam15 = param[0];
+         til.TileSliceParam16 = 63;
+         til.TileSliceParam17 = 63;
+         til.TileSliceParam18 = 63;
+         til.TileSliceParam19 = 6;
+         til.TileSliceParam20 = 0x5;
+      }
+#endif
 
       anv_batch_emit(&cmd->batch, GENX(VDENC_WALKER_STATE), vdenc_walker) {
          uint32_t slice_block_rows = DIV_ROUND_UP(height_in_pix, ANV_MAX_H265_CTB_SIZE);
