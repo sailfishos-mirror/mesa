@@ -154,7 +154,9 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_map_memory2 = true,
       .KHR_multiview = true,
       .KHR_pipeline_executable_properties = true,
+      .KHR_present_id = PVR_USE_WSI_PLATFORM,
       .KHR_present_id2 = PVR_USE_WSI_PLATFORM,
+      .KHR_present_wait = PVR_USE_WSI_PLATFORM,
       .KHR_present_wait2 = PVR_USE_WSI_PLATFORM,
       .KHR_relaxed_block_layout = true,
       .KHR_robustness2 = true,
@@ -477,6 +479,12 @@ static void pvr_physical_device_get_supported_features(
       /* Vulkan 1.3 / VK_EXT_subgroup_size_control */
       .subgroupSizeControl = true,
       .computeFullSubgroups = true,
+
+      /* VK_KHR_present_id */
+      .presentId = PVR_USE_WSI_PLATFORM,
+
+      /* VK_KHR_present_wait */
+      .presentWait = PVR_USE_WSI_PLATFORM,
 
       /* VK_KHR_present_id2 */
       .presentId2 = PVR_USE_WSI_PLATFORM,

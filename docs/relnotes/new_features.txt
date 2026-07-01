@@ -15,6 +15,8 @@ VK_KHR_maintenance11 on RADV
 OpenCL 3.1 support for rusticl on asahi, iris, radeonsi, llvmpipe and zink
 VK_KHR_workgroup_memory_explicit_layout on pvr
 VK_KHR_maintenance5 on pvr
+VK_KHR_present_id on pvr
+VK_KHR_present_wait on pvr
 VK_KHR_shader_fma on RADV
 VK_EXT_shader_split_barrier on RADV/GFX12
 VK_KHR_shader_fma on nvk
