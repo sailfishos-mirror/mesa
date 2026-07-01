@@ -8,14 +8,15 @@ dEQP-GLES3.functional.occlusion_query.conservative_scissor_depth_write_stencil_w
 dEQP-GLES3.functional.occlusion_query.conservative_stencil_clear
 dEQP-GLES3.functional.occlusion_query.conservative_stencil_write
 dEQP-GLES3.functional.occlusion_query.depth_clear
+dEQP-GLES3.functional.occlusion_query.depth_write_stencil_write
 dEQP-GLES3.functional.occlusion_query.scissor_depth_write_depth_clear_stencil_clear
 dEQP-GLES3.functional.occlusion_query.scissor_depth_write_stencil_clear
 dEQP-GLES3.functional.occlusion_query.scissor_depth_write_stencil_write
 dEQP-GLES3.functional.occlusion_query.scissor_stencil_write_stencil_clear
 dEQP-GLES3.functional.occlusion_query.stencil_clear
+dEQP-GLES3.functional.shaders.conversions.scalar_to_matrix.float_to_mat2x4_vertex
 dEQP-GLES31.functional.copy_image.mixed.viewclass_128_bits_mixed.rgba32f_srgb8_alpha8_astc_10x5_khr.cubemap_to_texture3d
 dEQP-GLES31.functional.synchronization.inter_invocation.ssbo_overwrite
-
 
 KHR-GL46.copy_image.functional_src_target_renderbuffer_src_format_r3_g3_b2_dst_target_texture_3d_dst_format_r3_g3_b2
 KHR-GL46.copy_image.functional_src_target_renderbuffer_src_format_rgb10_dst_target_texture_3d_dst_format_rgb10
@@ -26,6 +27,8 @@ KHR-GL46.copy_image.functional_src_target_texture_2d_array_src_format_rgb5_dst_t
 KHR-GL46.copy_image.functional_src_target_texture_2d_array_src_format_rgba4_dst_target_texture_rectangle_dst_format_rgba4
 KHR-GL46.copy_image.functional_src_target_texture_3d_src_format_r3_g3_b2_dst_target_texture_rectangle_dst_format_r3_g3_b2
 KHR-GL46.copy_image.functional_src_target_texture_3d_src_format_rgb5_dst_target_texture_rectangle_dst_format_rgb5
+KHR-GL46.copy_image.functional_src_target_texture_3d_src_format_rgba4_dst_target_texture_3d_dst_format_rgba4
+KHR-GL46.copy_image.functional_src_target_texture_rectangle_src_format_rgba2_dst_target_texture_2d_array_dst_format_rgba2
 KHR-GL46.gpu_shader_fp64.builtin.*
 KHR-GL46.gpu_shader_fp64.builtin.dot_dvec2
 KHR-GL46.gpu_shader_fp64.builtin.faceforward_dvec4
@@ -72,6 +75,7 @@ KHR-GL46.texture_buffer.texture_buffer_max_size
 KHR-GL46.texture_cube_map_array.stencil_attachments_mutable_nonlayered
 
 spec@!opengl 1.0@gl-1.0-front-invalidate-back
+spec@!opengl 1.0@gl-1.0-readpixsanity
 spec@!opengl 1.1@depthstencil-default_fb-copypixels
 spec@!opengl 1.1@draw-pixels
 spec@!opengl 1.1@draw-sync
