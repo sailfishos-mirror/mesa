@@ -107,19 +107,8 @@ struct vn_fence {
    struct vn_sync_payload permanent;
    struct vn_sync_payload temporary;
 
-   struct {
-      /* non-NULL if VN_PERF_NO_FENCE_FEEDBACK is disabled */
-      struct vn_feedback_slot *slot;
-      VkCommandBuffer *commands;
-
-      /* Indicate whether the fence status in the feedback slot is pollable.
-       * When pollable is false, the fence feedback has been suspended and the
-       * slot won't be signaled to VK_SUCCESS.
-       * - suspend: submit on queues not supporting feedback
-       * - resume: vn_ResetFences will reset pollable to true
-       */
-      bool pollable;
-   } feedback;
+   uint64_t signal_counter;
+   struct vn_sync_feedback feedback;
 
    bool is_external;
    struct vn_sync_payload_external external_payload;

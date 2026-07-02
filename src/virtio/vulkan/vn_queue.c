@@ -504,12 +504,11 @@ vn_queue_submission_prepare(struct vn_queue_submission *submit)
    struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
    struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
 
-   assert(!fence || !fence->is_external || !fence->feedback.slot);
-   if (fence && fence->feedback.slot) {
+   if (fence && vn_sync_feedback_enabled(&fence->feedback)) {
       if (queue->can_feedback)
          submit->feedback_types |= VN_FEEDBACK_TYPE_FENCE;
       else
-         fence->feedback.pollable = false;
+         vn_sync_feedback_suspend(&fence->feedback, fence->signal_counter);
    }
 
    if (submit->batch_type != VK_STRUCTURE_TYPE_BIND_SPARSE_INFO)
@@ -730,7 +729,7 @@ vn_queue_submission_add_semaphore_feedback(struct vn_queue_submission *submit,
    return VK_SUCCESS;
 }
 
-static void
+static VkResult
 vn_queue_submission_add_fence_feedback(struct vn_queue_submission *submit,
                                        uint32_t batch_index,
                                        uint32_t *new_cmd_count)
@@ -739,16 +738,14 @@ vn_queue_submission_add_fence_feedback(struct vn_queue_submission *submit,
    struct vn_device *dev = vn_device_from_vk(queue_vk->base.device);
    struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
 
-   VkCommandBuffer ffb_cmd_handle = VK_NULL_HANDLE;
-   for (uint32_t i = 0; i < dev->queue_family_count; i++) {
-      if (dev->queue_families[i] == queue_vk->queue_family_index) {
-         ffb_cmd_handle = fence->feedback.commands[i];
-         break;
-      }
-   }
-   assert(ffb_cmd_handle != VK_NULL_HANDLE);
+   VkCommandBuffer ffb_cmd_handle = vn_sync_feedback_command(
+      dev, &fence->feedback, queue_vk->queue_family_index,
+      fence->signal_counter);
+   if (ffb_cmd_handle == VK_NULL_HANDLE)
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
 
    vn_set_temp_cmd(submit, (*new_cmd_count)++, ffb_cmd_handle);
+   return VK_SUCCESS;
 }
 
 static VkResult
@@ -781,8 +778,10 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit,
    }
 
    if (feedback_types & VN_FEEDBACK_TYPE_FENCE) {
-      vn_queue_submission_add_fence_feedback(submit, batch_index,
-                                             &new_cmd_count);
+      result = vn_queue_submission_add_fence_feedback(submit, batch_index,
+                                                      &new_cmd_count);
+      if (result != VK_SUCCESS)
+         return result;
    }
 
    if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
@@ -1548,82 +1547,6 @@ vn_fence_init_payloads(struct vn_device *dev,
    return VK_SUCCESS;
 }
 
-static VkResult
-vn_fence_feedback_init(struct vn_device *dev,
-                       struct vn_fence *fence,
-                       bool signaled,
-                       const VkAllocationCallbacks *alloc)
-{
-   VkDevice dev_handle = vn_device_to_handle(dev);
-   struct vn_feedback_slot *slot;
-   VkCommandBuffer *cmd_handles;
-   VkResult result;
-
-   if (fence->is_external)
-      return VK_SUCCESS;
-
-   if (VN_PERF(NO_FENCE_FEEDBACK))
-      return VK_SUCCESS;
-
-   slot = vn_feedback_pool_alloc(&dev->feedback_pool, VN_FEEDBACK_TYPE_FENCE);
-   if (!slot)
-      return VK_ERROR_OUT_OF_HOST_MEMORY;
-
-   vn_feedback_set_status(slot, signaled ? VK_SUCCESS : VK_NOT_READY);
-
-   cmd_handles =
-      vk_zalloc(alloc, sizeof(*cmd_handles) * dev->queue_family_count,
-                VN_DEFAULT_ALIGN, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-   if (!cmd_handles) {
-      vn_feedback_pool_free(&dev->feedback_pool, slot);
-      return VK_ERROR_OUT_OF_HOST_MEMORY;
-   }
-
-   for (uint32_t i = 0; i < dev->queue_family_count; i++) {
-      result = vn_feedback_cmd_alloc(dev_handle, &dev->fb_cmd_pools[i], slot,
-                                     NULL, &cmd_handles[i]);
-      if (result != VK_SUCCESS) {
-         for (uint32_t j = 0; j < i; j++) {
-            vn_feedback_cmd_free(dev_handle, &dev->fb_cmd_pools[j],
-                                 cmd_handles[j]);
-         }
-         break;
-      }
-   }
-
-   if (result != VK_SUCCESS) {
-      vk_free(alloc, cmd_handles);
-      vn_feedback_pool_free(&dev->feedback_pool, slot);
-      return result;
-   }
-
-   fence->feedback.slot = slot;
-   fence->feedback.commands = cmd_handles;
-   fence->feedback.pollable = true;
-
-   return VK_SUCCESS;
-}
-
-static void
-vn_fence_feedback_fini(struct vn_device *dev,
-                       struct vn_fence *fence,
-                       const VkAllocationCallbacks *alloc)
-{
-   VkDevice dev_handle = vn_device_to_handle(dev);
-
-   if (!fence->feedback.slot)
-      return;
-
-   for (uint32_t i = 0; i < dev->queue_family_count; i++) {
-      vn_feedback_cmd_free(dev_handle, &dev->fb_cmd_pools[i],
-                           fence->feedback.commands[i]);
-   }
-
-   vn_feedback_pool_free(&dev->feedback_pool, fence->feedback.slot);
-
-   vk_free(alloc, fence->feedback.commands);
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 vn_CreateFence(VkDevice device,
                const VkFenceCreateInfo *pCreateInfo,
@@ -1652,9 +1575,12 @@ vn_CreateFence(VkDevice device,
    if (result != VK_SUCCESS)
       goto out_object_base_fini;
 
-   result = vn_fence_feedback_init(dev, fence, signaled, alloc);
-   if (result != VK_SUCCESS)
-      goto out_payloads_fini;
+   if (!fence->is_external && !VN_PERF(NO_FENCE_FEEDBACK)) {
+      fence->signal_counter = signaled ? 0 : 1;
+      result = vn_sync_feedback_init(dev, &fence->feedback, 0);
+      if (result != VK_SUCCESS)
+         goto out_payloads_fini;
+   }
 
    *pFence = vn_fence_to_handle(fence);
    vn_async_vkCreateFence(dev->primary_ring, device, pCreateInfo, NULL,
@@ -1688,7 +1614,7 @@ vn_DestroyFence(VkDevice device,
 
    vn_async_vkDestroyFence(dev->primary_ring, device, _fence, NULL);
 
-   vn_fence_feedback_fini(dev, fence, alloc);
+   vn_sync_feedback_fini(dev, &fence->feedback);
 
    vn_sync_payload_release(dev, &fence->permanent);
    vn_sync_payload_release(dev, &fence->temporary);
@@ -1714,9 +1640,9 @@ vn_ResetFences(VkDevice device, uint32_t fenceCount, const VkFence *pFences)
       assert(perm->type == VN_SYNC_TYPE_DEVICE_ONLY);
       fence->payload = perm;
 
-      if (fence->feedback.slot) {
-         vn_feedback_reset_status(fence->feedback.slot);
-         fence->feedback.pollable = true;
+      if (vn_sync_feedback_enabled(&fence->feedback)) {
+         vn_sync_feedback_try_resume(&fence->feedback,
+                                     fence->signal_counter++);
       }
    }
 
@@ -1735,7 +1661,7 @@ vn_get_fence_status(VkDevice dev_handle,
    VkResult result;
    switch (payload->type) {
    case VN_SYNC_TYPE_DEVICE_ONLY:
-      if (fence->feedback.pollable) {
+      if (vn_sync_feedback_pollable(&fence->feedback)) {
          if (relax_state && vn_relax_warn(relax_state)) {
             /* Upon vn_relax warn order, emit a synchronous vkGetFenceStatus
              * to catch renderer device lost.
@@ -1750,8 +1676,8 @@ vn_get_fence_status(VkDevice dev_handle,
                return result;
          }
 
-         result = vn_feedback_get_status(fence->feedback.slot);
-         if (result == VK_SUCCESS) {
+         uint64_t counter = 0;
+         if (vn_sync_feedback_query(dev, &fence->feedback, &counter)) {
             /* When fence feedback slot gets signaled, the real fence
              * signal operation follows after but the signaling isr can be
              * deferred or preempted. To avoid racing, we let the
@@ -1763,6 +1689,9 @@ vn_get_fence_status(VkDevice dev_handle,
             vn_async_vkWaitForFences(dev->primary_ring, dev_handle, 1,
                                      &fence_handle, VK_TRUE, UINT64_MAX);
          }
+
+         const bool signaled = counter == fence->signal_counter;
+         result = signaled ? VK_SUCCESS : VK_NOT_READY;
       } else {
          result = vn_call_vkGetFenceStatus(dev->primary_ring, dev_handle,
                                            fence_handle);
