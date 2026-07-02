@@ -908,6 +908,23 @@ vn_queue_submission_setup_batches(struct vn_queue_submission *submit)
 }
 
 static void
+vn_queue_submission_cleanup_fence_feedback(struct vn_queue_submission *submit)
+{
+   struct vk_queue *queue_vk = vk_queue_from_handle(submit->queue_handle);
+   VkDevice dev_handle = vk_device_to_handle(queue_vk->base.device);
+
+   if (submit->fence_handle == VK_NULL_HANDLE)
+      return;
+
+   struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
+   if (!vn_sync_feedback_enabled(&fence->feedback))
+      return;
+
+   /* sfb pending cmds are recycled when signaled counter is updated */
+   vn_GetFenceStatus(dev_handle, submit->fence_handle);
+}
+
+static void
 vn_queue_submission_cleanup_semaphore_feedback(
    struct vn_queue_submission *submit)
 {
@@ -947,6 +964,9 @@ vn_queue_submission_cleanup(struct vn_queue_submission *submit)
    /* TODO clean up pending src feedbacks on failure? */
    if (submit->feedback_types & VN_FEEDBACK_TYPE_SEMAPHORE)
       vn_queue_submission_cleanup_semaphore_feedback(submit);
+
+   if (submit->feedback_types & VN_FEEDBACK_TYPE_FENCE)
+      vn_queue_submission_cleanup_fence_feedback(submit);
 }
 
 static VkResult
