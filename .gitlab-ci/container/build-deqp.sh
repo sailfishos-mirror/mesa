@@ -90,21 +90,23 @@ vk_cts_commits_to_backport=(
   39ee33cd4be94216a9b657d089283b79767dc372
   # Wait for sparse memory binds to finish in host image copy tests
   976d729ae7982a32d117b0132e2bb8d3cd0df4d2
+  # android: Implement headless WSI fallback using AImageReader
+  6368ee8503dd9ca46eabfa2df293075d9034a214
 )
 
 # shellcheck disable=SC2034
 vk_cts_patch_files=(
-  build-deqp-android-Implement-headless-WSI-fallback-using-AImageR.patch
   build-deqp-Delay-SPIR-V-assembly-type-test-case-creation-to-ini.patch
 )
 
 # shellcheck disable=SC2034
 gl_cts_commits_to_backport=(
+  # android: Implement headless WSI fallback using AImageReader
+  6368ee8503dd9ca46eabfa2df293075d9034a214
 )
 
 # shellcheck disable=SC2034
 gl_cts_patch_files=(
-  build-deqp-android-Implement-headless-WSI-fallback-using-AImageR.patch  # We're only applying this avoid conflicts in the second patch
   build-deqp-gl_Build-Don-t-build-Vulkan-utilities-for-GL-builds.patch
   build-deqp-Fix-a-memory-leak-with-the-atomic-counter-tests.patch
   build-deqp-Fix-a-memory-leak-with-the-direct-state-access-textu.patch
@@ -119,11 +121,12 @@ gles_cts_commits_to_backport=(
   b5ed8718f19492781f8e9be3eb9d3346e961efa9
   # Fix glGetnUniform* error codes when bufSize < 0
   34259553e0cc77061465ae0c4bcd4c4658a0fb4a
+  # android: Implement headless WSI fallback using AImageReader
+  6368ee8503dd9ca46eabfa2df293075d9034a214
 )
 
 # shellcheck disable=SC2034
 gles_cts_patch_files=(
-  build-deqp-android-Implement-headless-WSI-fallback-using-AImageR.patch
   build-deqp-gl_Build-Don-t-build-Vulkan-utilities-for-GL-builds.patch
   build-deqp-Fix-a-memory-leak-with-the-atomic-counter-tests.patch
   build-deqp-Fix-a-memory-leak-with-the-direct-state-access-textu.patch
