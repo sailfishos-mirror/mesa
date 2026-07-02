@@ -563,6 +563,7 @@ nvk_compile_nir(struct nvk_device *dev, nir_shader *nir,
       return vk_errorf(pdev, VK_ERROR_UNKNOWN, "Internal compiler error in NAK");
 
    shader->info = shader->nak->info;
+   shader->asm_str = shader->nak->asm_str;
    shader->code_ptr = shader->nak->code;
    shader->code_size = shader->nak->code_size;
 
@@ -1089,6 +1090,7 @@ nvk_shader_destroy(struct vk_device *vk_dev,
    } else {
       /* This came from deserialize, just free it */
       free((void *)shader->code_ptr);
+      free((void *)shader->asm_str);
    }
 
    free((void *)shader->data_ptr);
@@ -1285,6 +1287,12 @@ nvk_deserialize_shader(struct vk_device *vk_dev,
 
    blob_copy_bytes(blob, (void *)shader->code_ptr, shader->code_size);
    blob_copy_bytes(blob, (void *)shader->data_ptr, shader->data_size);
+
+   const char *asm_str = blob_read_string(blob);
+   const char *nir_str = blob_read_string(blob);
+   shader->asm_str = (asm_str && asm_str[0]) ? strdup(asm_str) : NULL;
+   shader->nir_str = (nir_str && nir_str[0]) ? ralloc_strdup(NULL, nir_str) : NULL;
+
    if (blob->overrun) {
       nvk_shader_destroy(&dev->vk, &shader->vk, pAllocator);
       return vk_error(dev, VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT);
@@ -1318,10 +1326,6 @@ nvk_shader_serialize(struct vk_device *vk_dev,
 {
    struct nvk_shader *shader = container_of(vk_shader, struct nvk_shader, vk);
 
-   /* We can't currently cache assmbly */
-   if (shader->nak != NULL && shader->nak->asm_str != NULL)
-      return false;
-
    blob_write_bytes(blob, &shader->info, sizeof(shader->info));
    blob_write_bytes(blob, &shader->cbuf_map, sizeof(shader->cbuf_map));
    blob_write_bytes(blob, &shader->sample_shading_enable,
@@ -1333,6 +1337,9 @@ nvk_shader_serialize(struct vk_device *vk_dev,
    blob_write_uint32(blob, shader->data_size);
    blob_write_bytes(blob, shader->code_ptr, shader->code_size);
    blob_write_bytes(blob, shader->data_ptr, shader->data_size);
+
+   blob_write_string(blob, shader->asm_str ? shader->asm_str : "");
+   blob_write_string(blob, shader->nir_str ? shader->nir_str : "");
 
    return !blob->out_of_memory;
 }
@@ -1505,11 +1512,11 @@ nvk_shader_get_executable_internal_representations(
       }
    }
 
-   if (shader->nak != NULL && shader->nak->asm_str != NULL) {
+   if (shader->asm_str != NULL) {
       vk_outarray_append_typed(VkPipelineExecutableInternalRepresentationKHR, &out, ir) {
          WRITE_STR(ir->name, "NAK assembly");
          WRITE_STR(ir->description, "NAK assembly");
-         if (!write_ir_text(ir, shader->nak->asm_str))
+         if (!write_ir_text(ir, shader->asm_str))
             incomplete_text = true;
       }
    }
