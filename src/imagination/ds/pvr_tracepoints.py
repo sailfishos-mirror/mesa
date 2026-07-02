@@ -66,6 +66,18 @@ def define_tracepoints(args):
                  need_cs_param=True,
                  compute=True)
 
+    # Graphics (Geom/Frag) workload events
+    begin_end_tp('draw',
+                 tp_args=[obj_id_arg,
+                          Arg(type='enum pvr_draw_op', var='op', c_format='%s', to_prim_type='pvr_draw_op_to_str({})'),],
+                 need_cs_param=True)
+
+    # Transfer workload events
+    begin_end_tp('transfer',
+                 tp_args=[obj_id_arg,
+                          Arg(type='enum pvr_transfer_op', var='op', c_format='%s', to_prim_type='pvr_transfer_op_to_str({})'),],
+                 need_cs_param=True)
+
 
 def generate_code(args):
     from u_trace import utrace_generate

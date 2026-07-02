@@ -67,3 +67,38 @@ static void pvr_ds_end_marker(void)
    util_gpuvis_end();
 #endif
 }
+
+extern "C" {
+
+#define PVR_DS_BEGIN_MARKER_CB(name)                              \
+   void pvr_ds_begin_##name(UNUSED struct u_trace_context *utctx, \
+                            UNUSED void *cs,                      \
+                            UNUSED const char *fmt,               \
+                            ...)                                  \
+   {                                                              \
+      va_list ap;                                                 \
+      va_start(ap, fmt);                                          \
+      pvr_ds_begin_marker(fmt, ap);                               \
+      va_end(ap);                                                 \
+   }
+
+#define PVR_DS_END_MARKER_CB(name)                              \
+   void pvr_ds_end_##name(UNUSED struct u_trace_context *utctx, \
+                          UNUSED void *cs,                      \
+                          UNUSED const char *fmt,               \
+                          ...)                                  \
+   {                                                            \
+      pvr_ds_end_marker();                                      \
+   }
+
+PVR_DS_BEGIN_MARKER_CB(compute)
+PVR_DS_END_MARKER_CB(compute)
+PVR_DS_BEGIN_MARKER_CB(draw)
+PVR_DS_END_MARKER_CB(draw)
+PVR_DS_BEGIN_MARKER_CB(transfer)
+PVR_DS_END_MARKER_CB(transfer)
+
+#undef PVR_DS_BEGIN_MARKER_CB
+#undef PVR_DS_END_MARKER_CB
+
+} /* extern "C" */
