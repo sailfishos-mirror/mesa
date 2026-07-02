@@ -152,9 +152,9 @@ panvk_AllocateMemory(VkDevice _device,
       uint64_t alignment =
          pan_choose_gpu_va_alignment(device->kmod.vm, op.va.size);
       unsigned arch = pan_arch(device->kmod.dev->props.gpu_id);
-      /* For sizes bigger than 64k, align the VA on 64k to meet the requirement
-       * for interleaved_64k images (added in v10). */
-      if (arch >= 10 && op.va.size > 64 * 1024)
+      /* For sizes larger than or equal to 64k, align the VA on 64k to meet the
+       * requirement for interleaved_64k images (added in v10). */
+      if (arch >= 10 && op.va.size >= 64 * 1024)
          alignment = MAX2(alignment, 64 * 1024);
 
       if (unlikely(mem->vk.alloc_flags &
