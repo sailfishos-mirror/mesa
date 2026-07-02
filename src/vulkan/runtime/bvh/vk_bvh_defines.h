@@ -138,6 +138,18 @@ struct vk_ir_triangle_node {
    uint32_t geometry_id_and_flags;
 };
 
+#define VK_QUAD_TRIANGLE_ID_UNUSED 0xffffffff
+
+struct vk_ir_triangle_node_quad {
+   /*
+    * [0, 27]: primitive_id1
+    * [28,29]: triangle0_shared_edge
+    * [30,31]: triangle1_shared_edge
+    */
+   uint32_t triangle_id;
+   float coords[3];
+};
+
 struct vk_ir_instance_node {
    vk_ir_node base;
    /* See radv_bvh_instance_node */
@@ -373,6 +385,7 @@ TYPE(vk_ir_header, 4);
 TYPE(vk_ir_node, 4);
 TYPE(vk_ir_box_node, 4);
 TYPE(vk_ir_triangle_node, 4);
+TYPE(vk_ir_triangle_node_quad, 4);
 TYPE(vk_ir_aabb_node, 4);
 TYPE(vk_ir_instance_node, 8);
 
@@ -404,9 +417,11 @@ TYPE(AccelerationStructureInstance, 8);
 #define VK_BUILD_FLAG_ALWAYS_ACTIVE (1 << 0)
 #define VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS (1 << 1)
 #define VK_BUILD_FLAG_64BIT_KEYS (1 << 2)
-#define VK_BUILD_FLAG_COUNT 3
+#define VK_BUILD_FLAG_HAS_QUADS (1 << 3)
+#define VK_BUILD_FLAG_COUNT 4
 
-#define VK_LEAF_BUILD_FLAGS (VK_BUILD_FLAG_ALWAYS_ACTIVE | VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | VK_BUILD_FLAG_64BIT_KEYS)
+#define VK_LEAF_BUILD_FLAGS (VK_BUILD_FLAG_ALWAYS_ACTIVE | VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | \
+                             VK_BUILD_FLAG_64BIT_KEYS | VK_BUILD_FLAG_HAS_QUADS)
 
 struct leaf_args {
    VOID_REF bvh;

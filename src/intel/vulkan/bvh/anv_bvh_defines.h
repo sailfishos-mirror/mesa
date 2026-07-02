@@ -388,7 +388,7 @@ struct update_args {
    vk_bvh_geometry_data geom_data;
 };
 
-#define ANV_ENCODE_BUILD_FLAGS (ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE)
+#define ANV_ENCODE_BUILD_FLAGS (VK_BUILD_FLAG_HAS_QUADS | ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE)
 
 struct encode_args {
    /* Address within the IR BVH, marking the start of leaves/internal nodes. */

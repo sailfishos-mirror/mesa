@@ -253,6 +253,8 @@ vk_ir_node_size(VkGeometryTypeKHR geometry_type, uint32_t build_flags)
    uint32_t size = 0;
    if (geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
       size = sizeof(struct vk_ir_triangle_node);
+      if (build_flags & VK_BUILD_FLAG_HAS_QUADS)
+         size += sizeof(struct vk_ir_triangle_node_quad);
    } else if (geometry_type == VK_GEOMETRY_TYPE_AABBS_KHR) {
       size = sizeof(struct vk_ir_aabb_node);
    } else {

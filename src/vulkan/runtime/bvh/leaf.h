@@ -85,6 +85,11 @@ build_triangle(inout vk_aabb bounds, VOID_REF dst_ptr, vk_bvh_geometry_data geom
    DEREF(node).triangle_id = global_id;
    DEREF(node).geometry_id_and_flags = geom_data.geometry_id;
 
+   if (VK_TEST_BUILD_FLAG_HAS_QUADS) {
+      REF(vk_ir_triangle_node_quad) quad = vk_ir_triangle_node_get_quad_ref(node);
+      DEREF(quad).triangle_id = VK_QUAD_TRIANGLE_ID_UNUSED;
+   }
+
    return is_valid;
 }
 

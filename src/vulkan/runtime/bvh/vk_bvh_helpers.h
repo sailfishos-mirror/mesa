@@ -367,12 +367,32 @@ should_execute_phase()
 #define VK_TEST_BUILD_FLAG_64BIT_KEYS ((BUILD_FLAGS & VK_BUILD_FLAG_64BIT_KEYS) != 0)
 #endif
 
+REF(vk_ir_triangle_node_quad)
+vk_ir_triangle_node_get_quad_ref(REF(vk_ir_triangle_node) node)
+{
+   return REF(vk_ir_triangle_node_quad)(uint64_t(node) + SIZEOF(vk_ir_triangle_node));
+}
+
+#if ((VK_USED_BUILD_FLAGS & VK_BUILD_FLAG_HAS_QUADS) != 0)
+#define VK_TEST_BUILD_FLAG_HAS_QUADS ((BUILD_FLAGS & VK_BUILD_FLAG_HAS_QUADS) != 0)
+
+vk_ir_triangle_node_quad
+vk_ir_triangle_node_get_quad(REF(vk_ir_triangle_node) node)
+{
+   vk_ir_triangle_node_quad quad;
+   if (VK_TEST_BUILD_FLAG_HAS_QUADS)
+      quad = DEREF(vk_ir_triangle_node_get_quad_ref(node));
+   return quad;
+}
+
 uint32_t
 vk_ir_node_size(uint32_t geometry_type)
 {
    uint32_t size = 0;
    if (geometry_type == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
       size = SIZEOF(vk_ir_triangle_node);
+      if (VK_TEST_BUILD_FLAG_HAS_QUADS)
+         size += SIZEOF(vk_ir_triangle_node_quad);
    } else if (geometry_type == VK_GEOMETRY_TYPE_AABBS_KHR) {
       size = SIZEOF(vk_ir_aabb_node);
    } else {
@@ -380,5 +400,6 @@ vk_ir_node_size(uint32_t geometry_type)
    }
    return size;
 }
+#endif
 
 #endif
