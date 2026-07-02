@@ -431,9 +431,6 @@ impl LocalRegAlloc<'_> {
         let (align_mul, align_offsets) = if bytes > 4 {
             (bytes.next_power_of_two(), 1 << 0)
         } else {
-            if matches!(op, Op::MkVecV2I8I16(_)) && vec[0].idx() == 66 {
-                println!("found it!");
-            }
             let swizzles: &[(u8, Swizzle)] = match bytes {
                 1 => &[
                     (0, Swizzle::B0000),
