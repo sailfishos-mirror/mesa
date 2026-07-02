@@ -662,13 +662,6 @@ static void screenshot_DestroySwapchainKHR(
    destroy_swapchain_data(swapchain_data);
 }
 
-/* Convert long int to string */
-static void itoa(uint32_t integer, char *dest_str)
-{
-   // Our sizes are limited to uin32_t max value: 4,294,967,295 (10 digits)
-   sprintf(dest_str, "%u", integer);
-}
-
 static bool get_mem_type_from_properties(
    VkPhysicalDeviceMemoryProperties*         mem_properties,
    uint32_t                                  bits_type,
@@ -1312,7 +1305,7 @@ static VkResult screenshot_QueuePresentKHR(
          char filename[STANDARD_BUFFER_SIZE] = "";
          char frame_counter_str[11];
          bool rename_file = true;
-         itoa(frame_counter, frame_counter_str);
+         snprintf(frame_counter_str, ARRAY_SIZE(frame_counter_str), "%u", frame_counter);
 
          /* Check if we have an output directory given from the env options */
          if (instance_data->params.output_dir &&
