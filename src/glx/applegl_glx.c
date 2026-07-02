@@ -370,7 +370,7 @@ applegl_get_selected_event(Display *dpy, GLXDrawable drawable, unsigned long *ma
                   true);
 }
 
-static void
+static int
 applegl_query_drawable(Display *dpy, GLXDrawable drawable, int attribute,
                        unsigned int *value)
 {
@@ -379,10 +379,10 @@ applegl_query_drawable(Display *dpy, GLXDrawable drawable, int attribute,
    unsigned int width, height, bd, depth;
 
    if (apple_glx_pixmap_query(drawable, attribute, value))
-      return;                   /*done */
+      return 1;
 
    if (apple_glx_pbuffer_query(drawable, attribute, value))
-      return;                   /*done */
+      return 1;
 
    /*
     * The OpenGL spec states that we should report GLXBadDrawable if
@@ -400,13 +400,15 @@ applegl_query_drawable(Display *dpy, GLXDrawable drawable, int attribute,
       switch (attribute) {
       case GLX_WIDTH:
          *value = width;
-         break;
+         return 1;
 
       case GLX_HEIGHT:
          *value = height;
-         break;
+         return 1;
       }
    }
+
+   return 0;
 }
 
 static GLXPixmap

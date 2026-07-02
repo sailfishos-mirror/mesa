@@ -507,8 +507,8 @@ struct glx_drawable_vtable {
    void (*destroy_window)(Display *dpy, GLXWindow win);
    void (*select_event)(Display *dpy, GLXDrawable drawable, unsigned long mask);
    void (*get_selected_event)(Display *dpy, GLXDrawable drawable, unsigned long *mask);
-   void (*query_drawable)(Display *dpy, GLXDrawable drawable, int attribute,
-                          unsigned int *value);
+   int (*query_drawable)(Display *dpy, GLXDrawable drawable, int attribute,
+                         unsigned int *value);
    GLXPixmap (*create_glx_pixmap)(Display *dpy, XVisualInfo *vis, Pixmap pixmap);
    void (*destroy_glx_pixmap)(Display *dpy, GLXPixmap glxpixmap);
 };
@@ -718,8 +718,8 @@ extern void __glXSelectEvent(Display *dpy, GLXDrawable drawable,
                              unsigned long mask);
 extern void __glXGetSelectedEvent(Display *dpy, GLXDrawable drawable,
                                   unsigned long *mask);
-extern void __glXQueryDrawable(Display *dpy, GLXDrawable drawable,
-                               int attribute, unsigned int *value);
+extern int __glXQueryDrawable(Display *dpy, GLXDrawable drawable,
+                              int attribute, unsigned int *value);
 extern GLXPixmap __glXCreateGLXPixmap(Display *dpy, XVisualInfo *vis,
                                       Pixmap pixmap);
 extern void __glXDestroyGLXPixmap(Display *dpy, GLXPixmap glxpixmap);
@@ -849,8 +849,6 @@ indirect_create_context_attribs(struct glx_screen *base,
                                 unsigned *error);
 
 
-extern int __glXGetDrawableAttribute(Display * dpy, GLXDrawable drawable,
-                                     int attribute, unsigned int *value);
 
 #ifdef __cplusplus
 }

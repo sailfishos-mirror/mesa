@@ -239,8 +239,8 @@ kopper_get_buffer_age(__GLXDRIdrawable *pdraw);
  * capture the reply rather than always calling Xmalloc.
  */
 int
-__glXGetDrawableAttribute(Display * dpy, GLXDrawable drawable,
-                          int attribute, unsigned int *value)
+__glXQueryDrawable(Display * dpy, GLXDrawable drawable,
+                   int attribute, unsigned int *value)
 {
    struct glx_display *priv;
    xGLXGetDrawableAttributesReply reply;
@@ -724,14 +724,6 @@ glXQueryDrawable(Display * dpy, GLXDrawable drawable,
    any_screen(dpy)->drawable_vtable->query_drawable(dpy, drawable, attribute, value);
 }
 
-void
-__glXQueryDrawable(Display * dpy, GLXDrawable drawable,
-                   int attribute, unsigned int *value)
-{
-   __glXGetDrawableAttribute(dpy, drawable, attribute, value);
-}
-
-
 #ifndef GLX_USE_APPLEGL
 /**
  * Query an attribute of a pbuffer.
@@ -740,7 +732,7 @@ _GLX_PUBLIC void
 glXQueryGLXPbufferSGIX(Display * dpy, GLXPbufferSGIX drawable,
                        int attribute, unsigned int *value)
 {
-   __glXGetDrawableAttribute(dpy, drawable, attribute, value);
+   __glXQueryDrawable(dpy, drawable, attribute, value);
 }
 #endif
 
@@ -785,7 +777,7 @@ __glXGetSelectedEvent(Display * dpy, GLXDrawable drawable, unsigned long *mask)
     * we could just type-cast the pointer, but why?
     */
 
-   __glXGetDrawableAttribute(dpy, drawable, GLX_EVENT_MASK_SGIX, &value);
+   __glXQueryDrawable(dpy, drawable, GLX_EVENT_MASK_SGIX, &value);
    *mask = value;
 }
 
