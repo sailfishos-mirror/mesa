@@ -1006,6 +1006,12 @@ impl<'a> ShaderFromNir<'a> {
     ) {
         let srcs = intrin.srcs_as_slice();
         match intrin.intrinsic {
+            nir_intrinsic_lea_buf_pan => {
+                let handle = self.get_src(&srcs[0]);
+                let index = self.get_src(&srcs[1]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLeaBuf { dst, index, handle });
+            }
             nir_intrinsic_lea_tex_pan => {
                 let coords = self.get_src_ssa(&srcs[0]);
                 let handle = self.get_src(&srcs[1]);

@@ -1265,6 +1265,29 @@ impl fmt::Display for OpLdTex {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpLeaBuf {
+    #[dst_type(I64)]
+    pub dst: Dst,
+    #[src_type(I32)]
+    pub index: Src,
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpLeaBuf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = LEA_BUF {} {}",
+            &self.dst,
+            self.fmt_src(&self.index),
+            self.fmt_src(&self.handle),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpLeaPka {
     #[dst_type(I64)]
     pub dst: Dst,
@@ -1995,6 +2018,7 @@ pub enum Op {
     LdExp(Box<OpLdExp>),
     LdPka(Box<OpLdPka>),
     LdTex(Box<OpLdTex>),
+    LeaBuf(Box<OpLeaBuf>),
     LeaPka(Box<OpLeaPka>),
     LeaTex(Box<OpLeaTex>),
     Load(Box<OpLoad>),

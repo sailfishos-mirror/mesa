@@ -1353,6 +1353,27 @@ impl V9Instr for OpLdTex {
     }
 }
 
+impl V9Instr for OpLeaBuf {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LeaBuf::get_info((), arch),
+            src_map! {
+                src0: index,
+                src1: handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(LeaBuf {
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            src0: op_encode_src(self, &self.index),
+            src1: op_encode_src(self, &self.handle),
+        })
+    }
+}
+
 impl V9Instr for OpLeaPka {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -1814,6 +1835,7 @@ macro_rules! v9_op_match_else {
             Op::LdExp($x) => $y,
             Op::LdPka($x) => $y,
             Op::LdTex($x) => $y,
+            Op::LeaBuf($x) => $y,
             Op::LeaPka($x) => $y,
             Op::LeaTex($x) => $y,
             Op::Load($x) => $y,
