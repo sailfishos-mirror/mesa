@@ -517,12 +517,12 @@ vn_feedback_cmd_record(VkCommandBuffer cmd_handle,
    return vn_EndCommandBuffer(cmd_handle);
 }
 
-struct vn_semaphore_feedback_cmd *
-vn_semaphore_feedback_cmd_alloc(struct vn_device *dev,
-                                struct vn_feedback_slot *dst_slot)
+struct vn_sync_feedback_cmd *
+vn_sync_feedback_cmd_alloc(struct vn_device *dev,
+                           struct vn_feedback_slot *dst_slot)
 {
    const VkAllocationCallbacks *alloc = &dev->base.vk.alloc;
-   struct vn_semaphore_feedback_cmd *sfb_cmd;
+   struct vn_sync_feedback_cmd *sfb_cmd;
    VkCommandBuffer *cmd_handles;
 
    VK_MULTIALLOC(ma);
@@ -562,8 +562,8 @@ vn_semaphore_feedback_cmd_alloc(struct vn_device *dev,
 }
 
 void
-vn_semaphore_feedback_cmd_free(struct vn_device *dev,
-                               struct vn_semaphore_feedback_cmd *sfb_cmd)
+vn_sync_feedback_cmd_free(struct vn_device *dev,
+                          struct vn_sync_feedback_cmd *sfb_cmd)
 {
    const VkAllocationCallbacks *alloc = &dev->base.vk.alloc;
 
