@@ -3,6 +3,7 @@
 
 pub use crate::data_type::DataType;
 use crate::data_type::PartialDataType;
+use crate::debug::{DEBUG, DebugFlags};
 pub use crate::flow::FlowCtrl;
 pub use crate::model::Model;
 pub use crate::ops::Op;
@@ -17,6 +18,7 @@ use compiler::smallvec::*;
 use kraid_proc_macros::EnumAsU8;
 
 use std::fmt;
+use std::fmt::Write;
 use std::num::NonZeroU32;
 use std::ops::{Deref, DerefMut, Range};
 
@@ -1358,13 +1360,53 @@ impl Shader<'_> {
             b.map_instrs(|i| map(i, alloc));
         }
     }
+
+    pub fn run_pass(&mut self, name: &str, pass: impl FnOnce(&mut Self)) {
+        pass(self);
+        if DEBUG.contains(DebugFlags::PRINT) {
+            eprintln!("Kraid shader after {name}:\n{self}");
+        }
+        self.validate();
+    }
 }
 
 impl fmt::Display for Shader<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut buf = String::new();
         for b in &self.blocks {
-            write!(f, "{}\n\n", b.deref())?;
+            write!(buf, "{}\n\n", b.deref())?;
         }
+
+        // Pad to correct width
+        let max_eq = buf.lines().filter_map(|l| l.find('=')).max().unwrap_or(0);
+
+        for line in buf.lines() {
+            let line = line.trim_end();
+            if line.is_empty() {
+                writeln!(f)?;
+            } else if line.starts_with("__") {
+                writeln!(f, "{line}")?;
+            } else if let Some(pos) = line.find('=') {
+                writeln!(f, "{:pad$}{line}", "", pad = max_eq - pos)?;
+            } else {
+                writeln!(
+                    f,
+                    "{:pad$}{}",
+                    "",
+                    line.trim_start(),
+                    pad = max_eq + 2
+                )?;
+            }
+        }
+
         Ok(())
     }
 }
+
+macro_rules! pass {
+    ($s:ident . $method:ident ( $($args:tt)* )) => {
+        $s.run_pass(stringify!($method), |x| x.$method($($args)*))
+    };
+}
+
+pub(crate) use pass;

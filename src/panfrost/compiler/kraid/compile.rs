@@ -6,50 +6,6 @@ use crate::ir::*;
 use crate::model::model_for_gpu_id;
 use compiler::bindings::*;
 use kraid_bindings::*;
-use std::cmp::max;
-
-fn dump_shader(s: &Shader, suffix: &str) {
-    if !DEBUG.contains(DebugFlags::PRINT) {
-        return;
-    }
-
-    let s = format!("{s}");
-
-    let mut max_eq_pos = 0_usize;
-    for line in s.lines() {
-        if let Some(pos) = line.find("=") {
-            max_eq_pos = max(max_eq_pos, pos);
-        }
-    }
-
-    let mut out = String::new();
-    for line in s.lines() {
-        out.push_str("\n");
-
-        let line = line.trim_end();
-        if line.is_empty() {
-            continue;
-        }
-
-        if line.starts_with("__") {
-            out.push_str(line);
-        } else if let Some(pos) = line.find("=") {
-            debug_assert!(pos <= max_eq_pos);
-            for _ in 0..(max_eq_pos - pos) {
-                out.push_str(" ");
-            }
-            out.push_str(line);
-        } else {
-            let line = line.trim_start();
-            for _ in 0..(max_eq_pos + 2) {
-                out.push_str(" ");
-            }
-            out.push_str(line);
-        }
-    }
-
-    eprintln!("Kraid shader {suffix}:{out}");
-}
 
 fn dynarray_append_vec<T: Copy>(buf: &mut util_dynarray, vec: Vec<T>) {
     unsafe {
@@ -82,44 +38,17 @@ pub extern "C" fn kraid_compile_nir(
     }
 
     let mut s = Shader::from_nir(model.as_ref(), nir);
-    dump_shader(&s, "after translation from NIR");
-    s.validate();
+    s.run_pass("after translation from NIR", |_| {});
 
-    s.remat_constants();
-    dump_shader(&s, "after re-materializing constants");
-    s.validate();
-
-    s.widen_alu_ops();
-    dump_shader(&s, "after widening ALU ops");
-    s.validate();
-
-    s.legalize_src_swizzles();
-    dump_shader(&s, "after legalizing src swizzles");
-    s.validate();
-
-    s.lower_mkvec_swz();
-    dump_shader(&s, "after lowering MKVEC and SWIZ instructions");
-    s.validate();
-
-    s.lower_small_constants();
-    dump_shader(&s, "after lowering small constants");
-    s.validate();
-
-    s.legalize_immediates();
-    dump_shader(&s, "after legalizing immediates");
-    s.validate();
-
-    s.assign_registers();
-    dump_shader(&s, "after register assignment");
-    s.validate();
-
-    s.lower_copy();
-    dump_shader(&s, "after lowering copies");
-    s.validate();
-
-    s.assign_message_slots();
-    dump_shader(&s, "after message slot assignment");
-    s.validate();
+    pass!(s.remat_constants());
+    pass!(s.widen_alu_ops());
+    pass!(s.legalize_src_swizzles());
+    pass!(s.lower_mkvec_swz());
+    pass!(s.lower_small_constants());
+    pass!(s.legalize_immediates());
+    pass!(s.assign_registers());
+    pass!(s.lower_copy());
+    pass!(s.assign_message_slots());
 
     let bin = model.encode_shader(&s);
     dynarray_append_vec(binary, bin);

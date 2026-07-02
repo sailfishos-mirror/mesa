@@ -201,31 +201,16 @@ impl<'a> TestShaderBuilder<'a> {
             blocks: cfg.as_cfg(),
             info,
         };
-        //eprintln!("\nRIGHT AFTER CONSTR: {}", &s);
         s.validate();
 
-        s.widen_alu_ops();
-        s.validate();
+        pass!(s.widen_alu_ops());
+        pass!(s.legalize_src_swizzles());
+        pass!(s.lower_mkvec_swz());
+        pass!(s.lower_small_constants());
+        pass!(s.assign_registers());
+        pass!(s.lower_copy());
+        pass!(s.assign_message_slots());
 
-        s.legalize_src_swizzles();
-        s.validate();
-
-        s.lower_mkvec_swz();
-        s.validate();
-
-        s.lower_small_constants();
-        s.validate();
-
-        s.assign_registers();
-        s.validate();
-
-        s.lower_copy();
-        s.validate();
-
-        s.assign_message_slots();
-        s.validate();
-
-        //eprintln!("\nBEFORE ENCODE: {}", &s);
         let bin = model.encode_shader(&s);
 
         CompiledTestCase {
