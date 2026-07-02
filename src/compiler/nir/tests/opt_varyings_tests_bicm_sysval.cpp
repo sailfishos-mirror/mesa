@@ -88,7 +88,7 @@ nir_opt_varyings_test_bicm_sysval::test(mesa_shader_stage producer_stage,
    nir_def *value = nir_bcsel(b2, cond, load1, load2);
    store_output(b2, VARYING_SLOT_VAR0, 0, nir_type_int32, value, 0, false);
 
-   if (interp0 == INTERP_FLAT && interp1 == INTERP_FLAT &&
+   if (interp0 == interp1 &&
        sysval_movable_between_shaders(b2, sysval_op)) {
       ASSERT_EQ(opt_varyings(), (nir_progress_producer | nir_progress_consumer));
       ASSERT_FALSE(shader_contains_def(b2, load1));
@@ -129,6 +129,7 @@ TEST_F(nir_opt_varyings_test_bicm_sysval, \
 
 #define TEST_SYSVAL(producer_stage, consumer_stage) \
    TEST_SYSVAL1(producer_stage, consumer_stage, FLAT, FLAT) \
+   TEST_SYSVAL1(producer_stage, consumer_stage, FLAT, PERSP_PIXEL) \
    TEST_SYSVAL1(producer_stage, consumer_stage, PERSP_PIXEL, PERSP_PIXEL) \
    TEST_SYSVAL1(producer_stage, consumer_stage, PERSP_PIXEL, PERSP_CENTROID)
 
