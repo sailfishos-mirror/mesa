@@ -835,6 +835,59 @@ static enum pipe_format nir_type_to_pipe_format(nir_alu_type nir_type,
                                 pure_integer);
 }
 
+struct nonatomic_ctx {
+   unsigned desc_set;
+   unsigned binding;
+   bool has_nonatomic_io;
+};
+
+static bool check_nonatomic_io(nir_builder *b,
+                               nir_intrinsic_instr *intr,
+                               void *cb_data)
+{
+   switch (intr->intrinsic) {
+   case nir_intrinsic_image_deref_load:
+   case nir_intrinsic_image_deref_store:
+      break;
+
+   default:
+      return false;
+   }
+
+   struct nonatomic_ctx *ctx = cb_data;
+
+   nir_scalar scalar = nir_scalar_resolved(intr->src[0].ssa, 0);
+   unsigned desc_set = nir_scalar_as_uint(scalar);
+   if (desc_set != ctx->desc_set)
+      return false;
+
+   scalar = nir_scalar_resolved(intr->src[0].ssa, 1);
+   unsigned binding = nir_scalar_as_uint(scalar);
+   if (binding != ctx->binding)
+      return false;
+
+   ctx->has_nonatomic_io = true;
+
+   return false;
+}
+
+static bool
+image_desc_has_nonatomic_io(nir_shader *shader, unsigned desc_set, unsigned binding)
+{
+   struct nonatomic_ctx ctx = {
+      .desc_set = desc_set,
+      .binding = binding,
+      .has_nonatomic_io = false,
+   };
+
+   nir_shader_intrinsics_pass(shader,
+                              check_nonatomic_io,
+                              nir_metadata_none,
+                              &ctx);
+
+   return ctx.has_nonatomic_io;
+}
+
 static bool
 lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 {
@@ -1236,6 +1289,10 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
             .atomic_op = atomic_op);
          nir_def_rewrite_uses(&intr->def, atomic_swap);
          nir_instr_remove(&intr->instr);
+
+         if (image_desc_has_nonatomic_io(b->shader, desc_set, binding))
+            nir_dma_flush_pco(b, addr);
+
          return true;
       }
 
@@ -1252,6 +1309,10 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
                                .atomic_op = atomic_op);
       nir_def_rewrite_uses(&intr->def, atomic);
       nir_instr_remove(&intr->instr);
+
+      if (image_desc_has_nonatomic_io(b->shader, desc_set, binding))
+         nir_dma_flush_pco(b, addr);
+
       return true;
    }
 
