@@ -88,23 +88,22 @@ Every kernel uprev should update the following tag:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 - **KERNEL_TAG** to use the new kernel
 
-Development routine
--------------------
+Creating new kernel branches / updating the kernel
+--------------------------------------------------
 
 1. Compile the newer kernel locally for each platform.
 2. Compile device trees for ARM platforms
 3. Update Kconfigs. Are new Kconfigs necessary? Is CONFIG_XYZ_BLA deprecated? Does the ``merge_config.sh`` override an important config?
 4. Push a new development branch to `Kernel repository`_ based on the latest kernel tag used in GitLab CI
-5. Hack ``build-kernel.sh`` script to clone kernel from your development branch
-6. Update image tags. See `Updating image tags`_
-7. Run the entire CI pipeline, all the automatic jobs should be green. If some job is red or taking too long, you will need to investigate it and probably ask for help.
+5. Run the ``mesa-main`` manual job found in the generated pipeline
+6. Open merge requests to keep developing the branch
 
 When the Kernel uprev is stable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 1. Push a new tag to Mesa CI `Kernel repository`_
-2. Update KERNEL_URL ``debian/x86_test-gl`` job definition
-3. Open a merge request, if it is not opened yet
+2. Update ``KERNEL_TAG`` in Mesa's ``.gitlab-ci/image-tags.yml``
+3. Submit the change in a merge request
 
 Tips and Tricks
 ---------------
