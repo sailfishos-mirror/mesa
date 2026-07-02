@@ -891,9 +891,9 @@ nvk_cmd_copy_image_ce(struct nvk_cmd_buffer *cmd,
 }
 
 void
-nvk_cmd_fill_memory(struct nvk_cmd_buffer *cmd,
-                    uint64_t dst_addr, uint64_t size,
-                    uint32_t data)
+nvk_cmd_fill_memory_ce(struct nvk_cmd_buffer *cmd,
+                       uint64_t dst_addr, uint64_t size,
+                       uint32_t data)
 {
    uint32_t max_dim = 1 << 15;
 
@@ -966,7 +966,7 @@ nvk_CmdFillBuffer(VkCommandBuffer commandBuffer,
    uint64_t dst_addr = vk_buffer_address(&dst_buffer->vk, dstOffset);
    size = vk_buffer_range(&dst_buffer->vk, dstOffset, size);
 
-   nvk_cmd_fill_memory(cmd, dst_addr, size, data);
+   nvk_cmd_fill_memory_ce(cmd, dst_addr, size, data);
 }
 
 VKAPI_ATTR void VKAPI_CALL

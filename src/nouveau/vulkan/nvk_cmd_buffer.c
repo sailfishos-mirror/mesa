@@ -844,7 +844,7 @@ nvk_cmd_image_layout_transition(struct nvk_cmd_buffer *cmd,
           * data. Handle this by initializing the zcull data to zero.
           */
          if (image->zcull.nil.size_B > 0)
-            nvk_cmd_fill_memory(cmd, image->zcull.addr, image->zcull.nil.size_B, 0);
+            nvk_cmd_fill_memory_ce(cmd, image->zcull.addr, image->zcull.nil.size_B, 0);
       }
    }
 }

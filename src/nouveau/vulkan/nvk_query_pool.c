@@ -358,7 +358,7 @@ nvk_CmdResetQueryPool(VkCommandBuffer commandBuffer,
          UNREACHABLE("Unsupported query type");
 
       uint64_t addr = nvk_query_available_addr(pool, firstQuery);
-      nvk_cmd_fill_memory(cmd, addr, clear_size, 0);
+      nvk_cmd_fill_memory_ce(cmd, addr, clear_size, 0);
    } else {
       for (uint32_t i = 0; i < queryCount; i++) {
          uint64_t addr = nvk_query_available_addr(pool, firstQuery + i);
