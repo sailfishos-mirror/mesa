@@ -4794,7 +4794,7 @@
         "description": "util/tests: fix unused variable warnings in cache List test",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4c03d4735ea3b6b19ac67d5a52fbe7c9ebc05c11",
         "notes": null
