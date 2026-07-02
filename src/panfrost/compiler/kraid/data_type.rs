@@ -45,6 +45,7 @@ pub enum NumericType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, DataType)]
 pub enum PartialDataType {
     None,
+    A16,
     A32,
     F16,
     F32,
@@ -66,6 +67,7 @@ pub enum PartialDataType {
     U16,
     U32,
     U64,
+    V2A16,
     V2F16,
     V2I8,
     V2I16,
@@ -78,6 +80,7 @@ pub enum PartialDataType {
     V4U8,
     VNIN,
     VNI8,
+    V3A16,
     V3F16,
     V3S16,
     V3U16,
@@ -85,6 +88,7 @@ pub enum PartialDataType {
     V2F32,
     V2S32,
     V2U32,
+    V4A16,
     V4F16,
     V4S16,
     V4U16,
@@ -137,6 +141,7 @@ impl PartialDataType {
 /// Data type
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, DataType)]
 pub enum DataType {
+    A16,
     A32,
     F16,
     F32,
@@ -157,6 +162,7 @@ pub enum DataType {
     U16,
     U32,
     U64,
+    V2A16,
     V2F16,
     V2I8,
     V2I16,
@@ -167,6 +173,7 @@ pub enum DataType {
     V4I8,
     V4S8,
     V4U8,
+    V3A16,
     V3F16,
     V3S16,
     V3U16,
@@ -174,6 +181,7 @@ pub enum DataType {
     V2F32,
     V2S32,
     V2U32,
+    V4A16,
     V4F16,
     V4S16,
     V4U16,
@@ -299,9 +307,6 @@ mod tests {
         for comps in [1, 2, 3, 4] {
             for num_type in NUM_TYPES.iter().cloned() {
                 for bits in [16, 32] {
-                    if num_type == NumericType::Auto && bits != 32 {
-                        continue;
-                    }
                     PartialDataType::from_pieces(comps, Some(num_type), bits);
                     DataType::from_pieces(comps, Some(num_type), bits);
                 }
