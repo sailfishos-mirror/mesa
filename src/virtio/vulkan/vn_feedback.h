@@ -204,8 +204,11 @@ vn_event_feedback_cmd_record(VkCommandBuffer cmd_handle,
                              VkResult status,
                              bool sync2);
 
-struct vn_sync_feedback_cmd *
-vn_sync_feedback_cmd_get(struct vn_device *dev, struct vn_sync_feedback *sfb);
+VkCommandBuffer
+vn_sync_feedback_command(struct vn_device *dev,
+                         struct vn_sync_feedback *sfb,
+                         uint32_t qfi,
+                         uint64_t counter);
 
 void
 vn_sync_feedback_cmd_free(struct vn_device *dev,

@@ -576,8 +576,11 @@ vn_sync_feedback_cmd_free(struct vn_device *dev,
    vk_free(alloc, sfb_cmd);
 }
 
-struct vn_sync_feedback_cmd *
-vn_sync_feedback_cmd_get(struct vn_device *dev, struct vn_sync_feedback *sfb)
+VkCommandBuffer
+vn_sync_feedback_command(struct vn_device *dev,
+                         struct vn_sync_feedback *sfb,
+                         uint32_t qfi,
+                         uint64_t counter)
 {
    struct vn_sync_feedback_cmd *sfb_cmd = NULL;
 
@@ -592,13 +595,26 @@ vn_sync_feedback_cmd_get(struct vn_device *dev, struct vn_sync_feedback *sfb)
 
    if (!sfb_cmd) {
       sfb_cmd = vn_sync_feedback_cmd_alloc(dev, sfb->slot);
+      if (!sfb_cmd)
+         return VK_NULL_HANDLE;
 
       simple_mtx_lock(&sfb->cmd_mtx);
       list_add(&sfb_cmd->head, &sfb->pending_cmds);
       simple_mtx_unlock(&sfb->cmd_mtx);
    }
 
-   return sfb_cmd;
+   vn_feedback_set_counter(sfb_cmd->src_slot, counter);
+
+   VkCommandBuffer sfb_cmd_handle = VK_NULL_HANDLE;
+   for (uint32_t i = 0; i < dev->queue_family_count; i++) {
+      if (dev->queue_families[i] == qfi) {
+         sfb_cmd_handle = sfb_cmd->cmd_handles[i];
+         break;
+      }
+   }
+   assert(sfb_cmd_handle != VK_NULL_HANDLE);
+
+   return sfb_cmd_handle;
 }
 
 VkResult
