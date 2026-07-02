@@ -168,6 +168,20 @@ etna_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
                                  &etna_resource(info.dst.resource)->levels[info.dst.level]))
       info.dst.resource = dst->texture;
 
+   /* RS/BLT can only copy whole pixels, so a multisampled depth-stencil
+    * surface can not be resolved for depth or stencil alone.
+    * Promote the mask to the full format and resolve the whole pixel, like the
+    * blob does.
+    */
+   if (info.src.resource->nr_samples > 1 &&
+       info.src.format == info.dst.format &&
+       util_format_is_depth_and_stencil(info.dst.format)) {
+      unsigned format_mask = util_format_get_mask(info.dst.format);
+
+      if (info.mask & format_mask)
+         info.mask |= format_mask;
+   }
+
    if (ctx->blit(pctx, &info))
       goto success;
 
