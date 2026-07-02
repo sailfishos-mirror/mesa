@@ -272,6 +272,10 @@ impl DataType {
         self.num_type() == NumericType::Float
     }
 
+    pub fn is_int_type(&self) -> bool {
+        self.num_type() == NumericType::Integer
+    }
+
     pub fn total_bits(&self) -> u8 {
         let (comps, _, bits) = self.to_pieces();
         comps * bits

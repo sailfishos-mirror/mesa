@@ -432,6 +432,14 @@ impl Swizzle {
         Swizzle::from_words([word, word])
     }
 
+    pub const fn replicate_scalar(bits: u8) -> Swizzle {
+        match bits {
+            8 => Swizzle::B0000,
+            16 => Swizzle::H00,
+            _ => Swizzle::NONE,
+        }
+    }
+
     pub const fn widen_s8(byte: u8) -> Swizzle {
         // SAFETY: All byte/sign swizzles are valid
         unsafe {
@@ -712,6 +720,10 @@ impl Swizzle {
             && b1.is_some_and(SwizzleByte::is_byte_mod_idx_or_zero)
             && self.byte(2) == b0
             && self.byte(3) == b1
+    }
+
+    pub fn replicates_scalar(&self, bits: u8) -> bool {
+        *self == Swizzle::replicate_scalar(bits)
     }
 
     /// Composes two swizzles and produces a swizzle as if `self` were applied

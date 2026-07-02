@@ -585,6 +585,16 @@ impl SrcMod {
     }
 }
 
+/// An instruction source, consisting of a SrcRef referencing the actual data,
+/// a Swizzle which may shuffle the SrcRef data around, and a SrcMod which
+/// modifies the data before it is consumed by the instruction.
+///
+/// Logically, the swizzle is applied first and then the source modifier.  At
+/// the ISA level, it doesn't matter which is applied first because the ISA
+/// never allows incompatible source modifiers and swizzles so the source
+/// modifier can always be applied either before or after the swizzle without
+/// affecting everything.  Howver, because we represent a superset of the ISA,
+/// we need the order to be well-defined.
 #[derive(Clone)]
 pub struct Src {
     pub src_ref: SrcRef,
@@ -676,6 +686,31 @@ impl Src {
 
     pub fn is_zero(&self) -> bool {
         matches!(self.src_ref, SrcRef::Zero)
+    }
+
+    pub fn is_fneg_zero(&self, src_type: DataType) -> bool {
+        match self.src_ref {
+            SrcRef::Zero => {
+                matches!(self.src_mod, SrcMod::FNeg | SrcMod::FNegAbs)
+            }
+            SrcRef::Imm32(imm) => {
+                if let Some(imm) = self.src_mod.fold_u32(src_type, imm.into()) {
+                    match src_type {
+                        DataType::F16 => (imm as u16) == 0x8000,
+                        DataType::V2F16 => imm == 0x80008000,
+                        DataType::F32 => imm == 0x80000000,
+                        _ => false,
+                    }
+                } else {
+                    false
+                }
+            }
+            // We could possibly detect that an FAU is k0 but that requries
+            // digging into the small constant table in the model and it's
+            // generally not worth it.  We should just be using Zero when
+            // that's what we want.
+            _ => false,
+        }
     }
 
     pub fn replicates_byte(&self) -> bool {
