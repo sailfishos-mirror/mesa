@@ -394,7 +394,7 @@
         "description": "panfrost: clear shader image mask on trailing unbinds",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "72ff66c3d739af30d065ed08defb3aac1dcf3735",
         "notes": null
