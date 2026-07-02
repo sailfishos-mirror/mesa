@@ -35,7 +35,7 @@
 struct lower_io_state {
    void *dead_ctx;
    nir_builder builder;
-   int (*type_size)(const struct glsl_type *type, bool);
+   unsigned (*type_size)(const struct glsl_type *type, bool);
    nir_variable_mode modes;
    nir_lower_io_options options;
    struct set variable_names;
@@ -224,7 +224,7 @@ get_number_of_slots(struct lower_io_state *state,
 static nir_def *
 get_io_offset(nir_builder *b, nir_deref_instr *deref,
               nir_def **array_index,
-              int (*type_size)(const struct glsl_type *, bool),
+              unsigned (*type_size)(const struct glsl_type *, bool),
               unsigned *component, bool bts)
 {
    nir_deref_path path;
@@ -915,7 +915,7 @@ nir_lower_io_block(nir_block *block,
 static bool
 nir_lower_io_impl(nir_function_impl *impl,
                   nir_variable_mode modes,
-                  int (*type_size)(const struct glsl_type *, bool),
+                  unsigned (*type_size)(const struct glsl_type *, bool),
                   nir_lower_io_options options)
 {
    struct lower_io_state state;
@@ -956,7 +956,7 @@ nir_lower_io_impl(nir_function_impl *impl,
  */
 bool
 nir_lower_io(nir_shader *shader, nir_variable_mode modes,
-             int (*type_size)(const struct glsl_type *, bool),
+             unsigned (*type_size)(const struct glsl_type *, bool),
              nir_lower_io_options options)
 {
    bool progress = false;
@@ -1376,7 +1376,7 @@ nir_get_io_arrayed_index_src(nir_intrinsic_instr *instr)
    return idx >= 0 ? &instr->src[idx] : NULL;
 }
 
-static int
+static unsigned
 type_size_vec4(const struct glsl_type *type, bool bindless)
 {
    return glsl_count_attribute_slots(type, false);

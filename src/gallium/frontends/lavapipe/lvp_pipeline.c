@@ -158,7 +158,7 @@ lvp_needs_advanced_blend_lowering(struct lvp_pipeline *pipeline)
    return false;
 }
 
-static int
+static unsigned
 type_size_vec4(const struct glsl_type *type, bool bindless)
 {
    return glsl_count_attribute_slots(type, false);

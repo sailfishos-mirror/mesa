@@ -463,7 +463,7 @@ panfrost_bind_fs_state(struct pipe_context *pctx, void *hwcso)
    panfrost_update_shader_variant(ctx, MESA_SHADER_VERTEX);
 }
 
-static int
+static unsigned
 glsl_type_size(const struct glsl_type *type, bool bindless)
 {
    return glsl_count_attribute_slots(type, false);

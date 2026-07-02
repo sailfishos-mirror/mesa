@@ -233,7 +233,7 @@ lookup_ycbcr_conversion(const void *_state, uint32_t set, uint32_t binding,
              : NULL;
 }
 
-static int
+static unsigned
 type_size_vec4(const struct glsl_type *type, bool bindless)
 {
    return glsl_count_attribute_slots(type, false);

@@ -43,7 +43,7 @@ namespace {
 
 using namespace nv50_ir;
 
-int
+unsigned
 type_size(const struct glsl_type *type, bool bindless)
 {
    return glsl_count_attribute_slots(type, false);

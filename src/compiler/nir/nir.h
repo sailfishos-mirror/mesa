@@ -5605,7 +5605,7 @@ bool nir_remove_varying(nir_intrinsic_instr *intr, mesa_shader_stage next_shader
 bool nir_remove_sysval_output(nir_intrinsic_instr *intr, mesa_shader_stage next_shader);
 
 bool nir_lower_amul(nir_shader *shader,
-                    int (*type_size)(const struct glsl_type *, bool));
+                    unsigned (*type_size)(const struct glsl_type *, bool));
 
 bool nir_lower_ubo_vec4(nir_shader *shader);
 
@@ -5686,7 +5686,7 @@ typedef enum {
 } nir_lower_io_options;
 bool nir_lower_io(nir_shader *shader,
                   nir_variable_mode modes,
-                  int (*type_size)(const struct glsl_type *, bool),
+                  unsigned (*type_size)(const struct glsl_type *, bool),
                   nir_lower_io_options);
 
 void nir_lower_io_passes(nir_shader *nir, bool renumber_vs_inputs);

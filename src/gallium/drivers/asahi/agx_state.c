@@ -1695,7 +1695,7 @@ agx_get_shader_variant(struct agx_screen *screen, struct pipe_context *pctx,
    return compiled;
 }
 
-static int
+static unsigned
 glsl_type_size(const struct glsl_type *type, bool bindless)
 {
    return glsl_count_attribute_slots(type, false);

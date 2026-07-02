@@ -108,7 +108,7 @@ const nir_shader_compiler_options *pco_nir_options(void)
  * \param[in] bindless Whether the access is bindless.
  * \return The size.
  */
-static int glsl_type_size(const struct glsl_type *type, UNUSED bool bindless)
+static unsigned glsl_type_size(const struct glsl_type *type, UNUSED bool bindless)
 {
    return glsl_count_attribute_slots(type, false);
 }
@@ -841,7 +841,7 @@ static inline bool should_spill_shmem(const pco_ctx *ctx, unsigned shared_size)
 void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
 {
    bool internal = nir->info.internal;
-   
+
    NIR_PASS(_,
             nir,
             nir_opt_access,

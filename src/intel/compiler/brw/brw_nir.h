@@ -23,20 +23,20 @@ void
 brw_fill_tess_info_from_shader_info(struct brw_tess_info *brw_info,
                                     const shader_info *shader_info);
 
-int type_size_vec4(const struct glsl_type *type, bool bindless);
-int type_size_dvec4(const struct glsl_type *type, bool bindless);
+unsigned type_size_vec4(const struct glsl_type *type, bool bindless);
+unsigned type_size_dvec4(const struct glsl_type *type, bool bindless);
 
 struct brw_mem_access_cb_data {
    const struct intel_device_info *devinfo;
 };
 
-static inline int
+static inline unsigned
 type_size_scalar_bytes(const struct glsl_type *type, bool bindless)
 {
    return glsl_count_dword_slots(type, bindless) * 4;
 }
 
-static inline int
+static inline unsigned
 type_size_vec4_bytes(const struct glsl_type *type, bool bindless)
 {
    return type_size_vec4(type, bindless) * 16;

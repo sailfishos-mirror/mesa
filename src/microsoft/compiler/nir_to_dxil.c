@@ -6540,7 +6540,7 @@ allocate_sysvalues(struct ntd_context *ctx)
    return true;
 }
 
-static int
+static unsigned
 type_size_vec4(const struct glsl_type *type, bool bindless)
 {
    return glsl_count_attribute_slots(type, false);

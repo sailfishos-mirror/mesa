@@ -50,7 +50,7 @@
 typedef struct {
    nir_shader *shader;
 
-   int (*type_size)(const struct glsl_type *, bool);
+   unsigned (*type_size)(const struct glsl_type *, bool);
 
    /* Tables of UBOs and SSBOs mapping driver_location/base whether
     * they are too large to use imul24:
@@ -200,7 +200,7 @@ is_large(lower_state *state, nir_variable *var)
 
 bool
 nir_lower_amul(nir_shader *shader,
-               int (*type_size)(const struct glsl_type *, bool))
+               unsigned (*type_size)(const struct glsl_type *, bool))
 {
    assert(shader->options->has_imul24);
    assert(type_size);
