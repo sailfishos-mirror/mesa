@@ -803,6 +803,13 @@ emit_copy_mem_indirect_wg_count(struct panvk_cmd_buffer *cmdbuf,
       cs_load_to(b, cs_scratch_reg_tuple(b, 2, 2), cs_scratch_reg64(b, 0),
                  BITFIELD_MASK(2), 0);
       cs_flush_loads(b);
+#if PAN_ARCH >= 13
+      /* wg_count = DIV_ROUND_UP(size, COPY_MEM_INDIRECT_WG_BYTES) */
+      cs_add_imm64(b, cs_scratch_reg64(b, 2), cs_scratch_reg64(b, 2),
+                   COPY_MEM_INDIRECT_WG_BYTES - 1);
+      cs_rshift_imm_u64(b, cs_scratch_reg64(b, 2), cs_scratch_reg64(b, 2),
+                        util_logbase2(COPY_MEM_INDIRECT_WG_BYTES));
+#endif
       cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_X),
                    COPY_MEM_INDIRECT_MAX_WG);
       cs_umin32(b, cs_scratch_reg32(b, 2), cs_scratch_reg32(b, 2),
