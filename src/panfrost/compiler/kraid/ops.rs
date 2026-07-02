@@ -2379,4 +2379,11 @@ impl Op {
             _ => None,
         }
     }
+
+    pub fn can_eliminate(&self) -> bool {
+        !matches!(
+            self,
+            Op::Branch(_) | Op::RegOut(_) | Op::Store(_) | Op::StCvt(_)
+        )
+    }
 }

@@ -12,6 +12,7 @@ pub use crate::ssa_value::{SSARef, SSAValue};
 pub use crate::swizzle::Swizzle;
 use crate::swizzle::*;
 use compiler::as_slice::*;
+use compiler::bitset::IntoBitIndex;
 use compiler::cfg::CFG;
 use compiler::enum_as_u8::*;
 use compiler::smallvec::*;
@@ -1031,6 +1032,13 @@ impl fmt::Display for Phi {
             _ => panic!("Invalid SSA value bits"),
         };
         write!(f, "φ{}{m}", self.idx())
+    }
+}
+
+impl IntoBitIndex for Phi {
+    fn into_bit_index(self) -> usize {
+        // Indices are guaranteed unique by the allocator
+        self.idx().try_into().unwrap()
     }
 }
 

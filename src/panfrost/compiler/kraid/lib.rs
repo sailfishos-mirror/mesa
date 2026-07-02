@@ -21,6 +21,7 @@ mod message_slots;
 mod model;
 mod nir;
 mod ops;
+mod opt_dce;
 mod parallel_copy;
 mod ra;
 mod remat_constants;

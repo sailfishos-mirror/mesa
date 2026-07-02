@@ -44,6 +44,7 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.widen_alu_ops());
     pass!(s.legalize_src_swizzles());
     pass!(s.lower_mkvec_swz());
+    pass!(s.opt_dce());
     pass!(s.lower_small_constants());
     pass!(s.legalize_immediates());
     pass!(s.assign_registers());
