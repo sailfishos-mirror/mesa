@@ -2116,46 +2116,30 @@ event_blit_setup(struct tu_cs *cs,
                         .buffer_id = buffer_id));
 }
 
-struct event_blit_dst_view {
-   const struct fdl6_view *view;
-
-   uint32_t layer;
-};
-
-static event_blit_dst_view
-blt_view_from_tu_view(const struct tu_image_view *iview,
-                      uint32_t layer, bool separate_stencil)
-{
-   struct event_blit_dst_view blt_view;
-   blt_view.view = tu_image_view_fdl_view(iview, separate_stencil);
-   blt_view.layer = layer;
-
-   return blt_view;
-}
-
 template <chip CHIP>
 static void
 event_blit_run(struct tu_cmd_buffer *cmd,
                struct tu_cs *cs,
                const struct tu_render_pass_attachment *att,
-               const event_blit_dst_view *blt_view,
+               const struct fdl6_view *fdl_view,
+               uint32_t layer,
                bool separate_stencil)
 {
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_RESOLVE_SYSTEM_BUFFER_INFO, 4);
-   tu_cs_emit(cs, blt_view->view->RB_RESOLVE_SYSTEM_BUFFER_INFO);
-   tu_cs_image_ref_2d<CHIP>(cs, blt_view->view, blt_view->layer, false);
+   tu_cs_emit(cs, fdl_view->RB_RESOLVE_SYSTEM_BUFFER_INFO);
+   tu_cs_image_ref_2d<CHIP>(cs, fdl_view, layer, false);
 
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_RESOLVE_SYSTEM_FLAG_BUFFER_BASE, 3);
-   tu_cs_image_flag_ref(cs, blt_view->view, blt_view->layer);
+   tu_cs_image_flag_ref(cs, fdl_view, layer);
 
    if (att) {
       if (att->format == VK_FORMAT_D32_SFLOAT_S8_UINT && separate_stencil) {
          tu_cs_emit_regs(
             cs, A6XX_RB_RESOLVE_GMEM_BUFFER_BASE(tu_attachment_gmem_offset_stencil(
-                   cmd, att, blt_view->layer)));
+                   cmd, att, layer)));
       } else {
          tu_cs_emit_regs(cs, A6XX_RB_RESOLVE_GMEM_BUFFER_BASE(tu_attachment_gmem_offset(
-                                cmd, att, blt_view->layer)));
+                                cmd, att, layer)));
       }
    }
 
@@ -2176,6 +2160,7 @@ tu7_generic_layer_clear(struct tu_cmd_buffer *cmd,
    const struct tu_render_pass_attachment *att =
       &cmd->state.pass->attachments[a];
    const struct tu_image_view *iview = cmd->state.attachments[a];
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, separate_stencil);
 
    uint32_t clear_vals[4] = {};
    pack_blit_event_clear_value(value, format, clear_vals);
@@ -2183,10 +2168,8 @@ tu7_generic_layer_clear(struct tu_cmd_buffer *cmd,
    tu_cs_emit_pkt4(cs, REG_A6XX_RB_RESOLVE_CLEAR_COLOR_DW0, 4);
    tu_cs_emit_array(cs, clear_vals, 4);
 
-   event_blit_dst_view blt_view = blt_view_from_tu_view(iview, layer, separate_stencil);
-
    event_blit_setup(cs, buffer_id, att, BLIT_EVENT_CLEAR, clear_mask);
-   event_blit_run<A7XX>(cmd, cs, att, &blt_view, separate_stencil);
+   event_blit_run<A7XX>(cmd, cs, att, fdl_view, layer, separate_stencil);
 }
 
 
@@ -4008,13 +3991,7 @@ clear_image_event_blit(struct tu_cmd_buffer *cmd,
       tu_image_view_copy_blit<A7XX>(&dst, image, format, &subresource, 0, false);
 
       for (uint32_t layer = 0; layer < layer_count; layer++) {
-
-         struct event_blit_dst_view blt_view = {
-            .view = &dst,
-            .layer = layer,
-         };
-
-         event_blit_run<A7XX>(cmd, cs, NULL, &blt_view,
+         event_blit_run<A7XX>(cmd, cs, NULL, &dst, layer,
                               aspect_mask == VK_IMAGE_ASPECT_STENCIL_BIT);
       }
    }
@@ -5261,6 +5238,8 @@ tu_emit_blit(struct tu_cmd_buffer *cmd,
    uint32_t buffer_id = tu_resolve_group_include_buffer<CHIP>(resolve_group, format);
    event_blit_setup(cs, buffer_id, attachment, blit_event_type, clear_mask);
 
+   const struct fdl6_view *fdl_view = tu_image_view_fdl_view(iview, separate_stencil);
+
    for_each_layer(i, attachment->used_views, cmd->state.framebuffer->layers) {
       if (cmd->state.pass->has_fdm && cmd->state.fdm_subsampled) {
             struct apply_blit_scissor_state state = {
@@ -5273,8 +5252,7 @@ tu_emit_blit(struct tu_cmd_buffer *cmd,
       } else if (scissor_per_layer) {
          tu6_emit_blit_scissor(cmd, cs, i, align_scissor);
       }
-      event_blit_dst_view blt_view = blt_view_from_tu_view(iview, i, separate_stencil);
-      event_blit_run<CHIP>(cmd, cs, attachment, &blt_view, separate_stencil);
+      event_blit_run<CHIP>(cmd, cs, attachment, fdl_view, i, separate_stencil);
    }
 
    tu_flush_for_access(&cmd->state.cache, TU_ACCESS_BLIT_WRITE_GMEM,
