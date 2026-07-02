@@ -186,7 +186,7 @@ vk_acceleration_structure_build_state_init(struct vk_acceleration_structure_buil
    uint32_t lbvh_node_space = 0;
 
    if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_PLOC)
-      ploc_scratch_space = DIV_ROUND_UP(leaf_count, PLOC_WORKGROUP_SIZE) * sizeof(struct ploc_prefix_scan_partition);
+      ploc_scratch_space = DIV_ROUND_UP(leaf_count, PLOC_WORKGROUP_SIZE) * sizeof(struct vk_prefix_scan_partition);
    else if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_HPLOC)
       hploc_scratch_space = sizeof(uint32_t) * state->internal_node_count;
    else

@@ -192,6 +192,11 @@ struct key64_id_pair {
    uint32_t key_hi;
 };
 
+struct vk_prefix_scan_partition {
+   uint32_t aggregate;
+   uint32_t inclusive_sum;
+};
+
 #ifdef VULKAN
 
 #define VK_FORMAT_UNDEFINED                  0
@@ -402,6 +407,8 @@ struct AccelerationStructureInstance {
 };
 TYPE(AccelerationStructureInstance, 8);
 
+TYPE(vk_prefix_scan_partition, 4);
+
 #else
 
 #define REF(type) uint64_t
@@ -471,14 +478,7 @@ struct lbvh_generate_ir_args {
    uint32_t internal_node_base;
 };
 
-struct ploc_prefix_scan_partition {
-   uint32_t aggregate;
-   uint32_t inclusive_sum;
-};
-
 #define PLOC_WORKGROUP_SIZE 1024
-#define PLOC_SUBGROUPS_PER_WORKGROUP                                           \
-   (DIV_ROUND_UP(PLOC_WORKGROUP_SIZE, SUBGROUP_SIZE))
 
 #define VK_PLOC_BUILD_FLAGS (VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS | VK_BUILD_FLAG_64BIT_KEYS)
 

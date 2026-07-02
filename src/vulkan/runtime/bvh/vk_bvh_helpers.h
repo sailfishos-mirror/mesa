@@ -355,6 +355,94 @@ should_execute_phase()
    for (; task_index != TASK_INDEX_INVALID && should_execute_phase(); task_index = fetch_task(header, true))
 #endif
 
+#ifdef VK_WORKGROUP_SIZE
+#define VK_SUBGROUPS_PER_WORKGROUPS (DIV_ROUND_UP(VK_WORKGROUP_SIZE, SUBGROUP_SIZE))
+#endif
+
+#ifdef VK_USE_PREFIX_SCAN
+
+shared uint32_t exclusive_prefix_sum;
+shared uint32_t aggregate_sums[VK_SUBGROUPS_PER_WORKGROUPS];
+shared uint32_t aggregate_sums2[VK_SUBGROUPS_PER_WORKGROUPS];
+
+/*
+ * Global prefix scan over all workgroups to find out the index of the collapsed node to write.
+ * See https://research.nvidia.com/sites/default/files/publications/nvr-2016-002.pdf
+ * One partition = one workgroup in this case.
+ */
+uint32_t
+vk_prefix_scan(uvec4 ballot, REF(vk_prefix_scan_partition) partitions, uint32_t index)
+{
+   if (gl_LocalInvocationIndex == 0) {
+      exclusive_prefix_sum = 0;
+      if (index >= VK_WORKGROUP_SIZE) {
+         REF(vk_prefix_scan_partition) current_partition =
+            REF(vk_prefix_scan_partition)(INDEX(vk_prefix_scan_partition, partitions, index / VK_WORKGROUP_SIZE));
+
+         REF(vk_prefix_scan_partition) previous_partition = current_partition - 1;
+
+         while (true) {
+            /* See if this previous workgroup already set their inclusive sum */
+            if (atomicLoad(DEREF(previous_partition).inclusive_sum, gl_ScopeDevice,
+                           gl_StorageSemanticsBuffer,
+                           gl_SemanticsAcquire | gl_SemanticsMakeVisible) != 0xFFFFFFFF) {
+               atomicAdd(exclusive_prefix_sum, DEREF(previous_partition).inclusive_sum);
+               break;
+            } else {
+               atomicAdd(exclusive_prefix_sum, DEREF(previous_partition).aggregate);
+               previous_partition -= 1;
+            }
+         }
+         /* Set the inclusive sum for the next workgroups */
+         atomicStore(DEREF(current_partition).inclusive_sum,
+                     DEREF(current_partition).aggregate + exclusive_prefix_sum, gl_ScopeDevice,
+                     gl_StorageSemanticsBuffer, gl_SemanticsRelease | gl_SemanticsMakeAvailable);
+      }
+   }
+
+   if (subgroupElect())
+      aggregate_sums[gl_SubgroupID] = subgroupBallotBitCount(ballot);
+   barrier();
+
+   if (VK_SUBGROUPS_PER_WORKGROUPS <= SUBGROUP_SIZE) {
+      if (gl_LocalInvocationID.x < VK_SUBGROUPS_PER_WORKGROUPS) {
+         aggregate_sums[gl_LocalInvocationID.x] =
+            exclusive_prefix_sum + subgroupExclusiveAdd(aggregate_sums[gl_LocalInvocationID.x]);
+      }
+   } else {
+      /* If the length of aggregate_sums[] is larger than SUBGROUP_SIZE,
+       * the prefix scan can't be done simply by subgroupExclusiveAdd.
+       */
+      if (gl_LocalInvocationID.x < VK_SUBGROUPS_PER_WORKGROUPS)
+         aggregate_sums2[gl_LocalInvocationID.x] = aggregate_sums[gl_LocalInvocationID.x];
+      barrier();
+
+      /* Hillis Steele inclusive scan on aggregate_sums2 */
+      for (uint32_t stride = 1; stride < VK_SUBGROUPS_PER_WORKGROUPS; stride *= 2) {
+         uint32_t value = 0;
+         if (gl_LocalInvocationID.x >= stride && gl_LocalInvocationID.x < VK_SUBGROUPS_PER_WORKGROUPS)
+            value = aggregate_sums2[gl_LocalInvocationID.x - stride];
+         barrier();
+         if (gl_LocalInvocationID.x < VK_SUBGROUPS_PER_WORKGROUPS)
+            aggregate_sums2[gl_LocalInvocationID.x] += value;
+         barrier();
+      }
+
+      /* Adapt to exclusive and add the prefix_sum from previous workgroups */
+      if (gl_LocalInvocationID.x < VK_SUBGROUPS_PER_WORKGROUPS) {
+         if (gl_LocalInvocationID.x == 0)
+            aggregate_sums[gl_LocalInvocationID.x] = exclusive_prefix_sum;
+         else
+            aggregate_sums[gl_LocalInvocationID.x] = exclusive_prefix_sum + aggregate_sums2[gl_LocalInvocationID.x - 1];
+      }
+   }
+   barrier();
+
+   return aggregate_sums[gl_SubgroupID] + subgroupBallotExclusiveBitCount(ballot);
+}
+
+#endif
+
 #if ((VK_USED_BUILD_FLAGS & VK_BUILD_FLAG_ALWAYS_ACTIVE) != 0)
 #define VK_TEST_BUILD_FLAG_ALWAYS_ACTIVE ((BUILD_FLAGS & VK_BUILD_FLAG_ALWAYS_ACTIVE) != 0)
 #endif
