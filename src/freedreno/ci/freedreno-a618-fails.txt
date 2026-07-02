@@ -243,6 +243,7 @@ dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_counter_
 dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_counter_offset_244,Fail
 dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_counter_offset_508,Fail
 android-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_244,Fail
+asan-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_16,Fail
 asan-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_244,Fail
 gmem-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_16,Fail
 gmem-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_multiview_counter_offset_16,Fail
@@ -489,15 +490,20 @@ dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.fast_lib.
 dEQP-VK.renderpasses.renderpass1.custom_resolve.fast_lib.fdm_subsampled,Crash
 dEQP-VK.renderpasses.renderpass1.custom_resolve.monolithic.fdm_subsampled,Crash
 
-# VKCTS 1.4.4.2 -> 1.4.5.3 uprev
-dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_10,Fail
-dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_16,Fail
-dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_17,Fail
-dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_20,Fail
-dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_24,Fail
-gmem-dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_24,Fail
-
 # uprev Piglit in Mesa
 spec@!opengl 1.1@large-tex,Fail
 spec@!opengl 1.1@large-tex@test_image_load_store,Fail
 
+# VKCTS 1.4.5.3 -> 1.4.6.1 uprev
+# [  254.112811] *** gpu fault: ttbr0=000000010778d000 iova=00000000040fff00 dir=READ type=TRANSLATION source=TP|VFD (0,0,0,1)
+# Not entirely reliable -- which ones crash vs pass may flip around, so clear the flakes entry when it's fixed.
+dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.monolithic.fdm_nonsubsampled_large_fb_with_offset,Crash
+dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.monolithic.fdm_nonsubsampled_multilayer_with_offset,Fail
+dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.monolithic.fdm_nonsubsampled_with_offset,Fail
+dEQP-VK.renderpasses.renderpass2.custom_resolve.fast_lib.fdm_nonsubsampled_multilayer_large_fb_with_offset,Crash
+dEQP-VK.renderpasses.renderpass2.custom_resolve.fast_lib.fdm_nonsubsampled_multilayer_with_offset,Fail
+dEQP-VK.renderpasses.renderpass2.custom_resolve.fast_lib.fdm_nonsubsampled_multiview_large_fb_with_offset,Crash
+dEQP-VK.renderpasses.renderpass2.custom_resolve.monolithic.fdm_nonsubsampled_multiview_with_offset,Crash
+dEQP-VK.renderpasses.renderpass2.custom_resolve.monolithic.fdm_nonsubsampled_with_offset,Fail
+gmem-dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.fast_lib.fdm_nonsubsampled_with_offset,Fail
+gmem-dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.custom_resolve.monolithic.fdm_nonsubsampled_multilayer_with_offset,Fail
