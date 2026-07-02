@@ -230,7 +230,7 @@ struct radv_copy_image_key {
 
 static VkResult
 get_itoi_pipeline(struct radv_device *device, const struct radv_image *src_image, const struct radv_image *dst_image,
-                  int samples, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
+                  uint32_t samples, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
 {
    const bool src_3d = src_image->vk.image_type == VK_IMAGE_TYPE_3D;
    const bool dst_3d = dst_image->vk.image_type == VK_IMAGE_TYPE_3D;

@@ -83,7 +83,7 @@ struct radv_compute_resolve_key {
 };
 
 static VkResult
-get_compute_resolve_pipeline(struct radv_device *device, VkFormat format, int samples, VkImageAspectFlags aspects,
+get_compute_resolve_pipeline(struct radv_device *device, VkFormat format, uint8_t samples, VkImageAspectFlags aspects,
                              VkResolveModeFlagBits resolve_mode, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
