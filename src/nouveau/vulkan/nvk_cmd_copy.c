@@ -954,22 +954,6 @@ nvk_cmd_fill_memory_ce(struct nvk_cmd_buffer *cmd,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-nvk_CmdFillBuffer(VkCommandBuffer commandBuffer,
-                  VkBuffer dstBuffer,
-                  VkDeviceSize dstOffset,
-                  VkDeviceSize size,
-                  uint32_t data)
-{
-   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
-   VK_FROM_HANDLE(nvk_buffer, dst_buffer, dstBuffer);
-
-   uint64_t dst_addr = vk_buffer_address(&dst_buffer->vk, dstOffset);
-   size = vk_buffer_range(&dst_buffer->vk, dstOffset, size);
-
-   nvk_cmd_fill_memory_ce(cmd, dst_addr, size, data);
-}
-
-VKAPI_ATTR void VKAPI_CALL
 nvk_CmdUpdateBuffer(VkCommandBuffer commandBuffer,
                     VkBuffer dstBuffer,
                     VkDeviceSize dstOffset,
