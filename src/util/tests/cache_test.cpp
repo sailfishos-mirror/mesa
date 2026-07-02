@@ -1086,6 +1086,12 @@ TEST_F(Cache, Combined)
 
 TEST_F(Cache, List)
 {
+#ifndef ENABLE_SHADER_CACHE
+   GTEST_SKIP() << "ENABLE_SHADER_CACHE not defined.";
+#else
+#ifndef FOZ_DB_UTIL_DYNAMIC_LIST
+   GTEST_SKIP() << "FOZ_DB_UTIL_DYNAMIC_LIST not supported";
+#else
    const char *driver_id = "make_check";
    char blob[] = "This is a RO blob";
    uint8_t blob_key[BLAKE3_KEY_LEN];
@@ -1096,12 +1102,6 @@ TEST_F(Cache, List)
    char *result;
    size_t size;
 
-#ifndef ENABLE_SHADER_CACHE
-   GTEST_SKIP() << "ENABLE_SHADER_CACHE not defined.";
-#else
-#ifndef FOZ_DB_UTIL_DYNAMIC_LIST
-   GTEST_SKIP() << "FOZ_DB_UTIL_DYNAMIC_LIST not supported";
-#else
    os_set_option("MESA_DISK_CACHE_SINGLE_FILE", "true", true);
 
 #ifdef SHADER_CACHE_DISABLE_BY_DEFAULT
