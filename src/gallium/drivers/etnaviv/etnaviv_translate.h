@@ -287,6 +287,8 @@ translate_rs_format(enum pipe_format fmt)
    case PIPE_FORMAT_X8Z24_UNORM:
    case PIPE_FORMAT_S8_UINT_Z24_UNORM:
       return RS_FORMAT_D32;
+   case PIPE_FORMAT_S8_UINT:
+      return RS_FORMAT_S8;
    case PIPE_FORMAT_B4G4R4X4_UNORM:
       return RS_FORMAT_X4R4G4B4;
    case PIPE_FORMAT_B4G4R4A4_UNORM:
@@ -345,6 +347,7 @@ translate_blt_format(enum pipe_format fmt)
    case PIPE_FORMAT_R8G8_UNORM:
       return BLT_FORMAT_R8G8;
    case PIPE_FORMAT_A8_UNORM:
+   case PIPE_FORMAT_S8_UINT:
       return BLT_FORMAT_A8;
    case PIPE_FORMAT_L8_UNORM:
       return BLT_FORMAT_L8;
