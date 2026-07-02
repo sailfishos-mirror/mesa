@@ -17,18 +17,6 @@
 
 #define TU_MAX_PLANE_COUNT 3
 
-#define tu_fdl_view_stencil(view, x)                                         \
-   pkt_field_set(A6XX_##x##_COLOR_FORMAT, (view)->x, FMT6_8_UINT)
-
-#define tu_fdl_view_depth(view, x)                                           \
-   pkt_field_set(A6XX_##x##_COLOR_FORMAT, (view)->x, FMT6_32_FLOAT)
-
-#define tu_image_view_stencil(iview, x) \
-   tu_fdl_view_stencil(tu_image_view_fdl_view(iview, true), x)
-
-#define tu_image_view_depth(iview, x) \
-   tu_fdl_view_depth(tu_image_view_fdl_view(iview, false), x)
-
 struct tu_image
 {
    struct vk_image vk;
@@ -126,12 +114,6 @@ tu_layer_flag_address(const struct fdl6_view *iview, uint32_t layer);
 
 void
 tu_cs_image_flag_ref(struct tu_cs *cs, const struct fdl6_view *iview, uint32_t layer);
-
-void
-tu_cs_image_stencil_ref(struct tu_cs *cs, const struct tu_image_view *iview, uint32_t layer);
-
-void
-tu_cs_image_depth_ref(struct tu_cs *cs, const struct tu_image_view *iview, uint32_t layer);
 
 bool
 tiling_possible(VkFormat format);
