@@ -451,17 +451,26 @@ protocolDestroyDrawable(Display *dpy, GLXDrawable drawable, CARD32 glxCode)
 }
 
 /**
- * Create a non-pbuffer GLX drawable.
+ * Create a GLX drawable (window, pixmap, or pbuffer).
+ *
+ * For pbuffers, \c xDrawable is unused and a fresh XID is allocated for the
+ * pbuffer.  \c width, \c height and \c size_in_attribs are only consulted
+ * for pbuffers; \c size_in_attribs is GL_TRUE when the caller has already
+ * embedded GLX_PBUFFER_WIDTH / GLX_PBUFFER_HEIGHT in \c attrib_list (GLX 1.3
+ * glXCreatePbuffer) and GL_FALSE when the caller passes width/height as
+ * separate arguments (glXCreateGLXPbufferSGIX).
  */
 static GLXDrawable
 CreateDrawable(Display *dpy, struct glx_config *config,
-               Drawable drawable, int type, const int *attrib_list)
+               Drawable xDrawable, int type,
+               unsigned int width, unsigned int height,
+               const int *attrib_list, GLboolean size_in_attribs)
 {
-   xGLXCreateWindowReq *req;
-   struct glx_drawable *glxDraw;
+   struct glx_drawable *glxDraw = NULL;
    CARD32 *data;
    unsigned int i;
    CARD8 opcode;
+   CARD8 destroyCode;
    GLXDrawable xid;
 
    if (!config)
@@ -477,25 +486,61 @@ CreateDrawable(Display *dpy, struct glx_config *config,
    if (!opcode)
       return None;
 
-   glxDraw = malloc(sizeof(*glxDraw));
-   if (!glxDraw)
-      return None;
+   /* Only window/pixmap drawables carry a client-side struct glx_drawable
+    * (used to keep track of swap-buffer event serial numbers). */
+   if (type != GLX_PBUFFER_BIT) {
+      glxDraw = malloc(sizeof(*glxDraw));
+      if (!glxDraw)
+         return None;
+   }
 
    LockDisplay(dpy);
-   GetReqExtra(GLXCreateWindow, 8 * i, req);
-   data = (CARD32 *) (req + 1);
 
-   req->reqType = opcode;
-   req->screen = config->screen;
-   req->fbconfig = config->fbconfigID;
-   req->window = drawable;
-   req->glxwindow = xid = XAllocID(dpy);
-   req->numAttribs = i;
+   if (type == GLX_PBUFFER_BIT) {
+      xGLXCreatePbufferReq *req;
+      unsigned int extra = (size_in_attribs) ? 0 : 2;
 
-   if (type == GLX_WINDOW_BIT)
-      req->glxCode = X_GLXCreateWindow;
-   else
-      req->glxCode = X_GLXCreatePixmap;
+      xid = XAllocID(dpy);
+      GetReqExtra(GLXCreatePbuffer, (8 * (i + extra)), req);
+      data = (CARD32 *) (req + 1);
+
+      req->reqType = opcode;
+      req->glxCode = X_GLXCreatePbuffer;
+      req->screen = config->screen;
+      req->fbconfig = config->fbconfigID;
+      req->pbuffer = xid;
+      req->numAttribs = i + extra;
+
+      if (!size_in_attribs) {
+         data[(2 * i) + 0] = GLX_PBUFFER_WIDTH;
+         data[(2 * i) + 1] = width;
+         data[(2 * i) + 2] = GLX_PBUFFER_HEIGHT;
+         data[(2 * i) + 3] = height;
+         data += 4;
+      }
+
+      destroyCode = X_GLXDestroyPbuffer;
+   } else {
+      xGLXCreateWindowReq *req;
+
+      GetReqExtra(GLXCreateWindow, 8 * i, req);
+      data = (CARD32 *) (req + 1);
+
+      req->reqType = opcode;
+      req->screen = config->screen;
+      req->fbconfig = config->fbconfigID;
+      req->window = xDrawable;
+      req->glxwindow = xid = XAllocID(dpy);
+      req->numAttribs = i;
+
+      if (type == GLX_WINDOW_BIT) {
+         req->glxCode = X_GLXCreateWindow;
+         destroyCode = X_GLXDestroyWindow;
+      } else {
+         req->glxCode = X_GLXCreatePixmap;
+         destroyCode = X_GLXDestroyPixmap;
+      }
+   }
 
    if (attrib_list)
       memcpy(data, attrib_list, 8 * i);
@@ -503,19 +548,19 @@ CreateDrawable(Display *dpy, struct glx_config *config,
    UnlockDisplay(dpy);
    SyncHandle();
 
-   if (InitGLXDrawable(dpy, glxDraw, drawable, xid)) {
+   if (glxDraw && InitGLXDrawable(dpy, glxDraw, xDrawable, xid)) {
       free(glxDraw);
       return None;
    }
 
-   if (!CreateDRIDrawable(dpy, config, drawable, xid, type, attrib_list, i)) {
-      CARD8 glxCode;
-      if (type == GLX_PIXMAP_BIT)
-         glxCode = X_GLXDestroyPixmap;
-      else
-         glxCode = X_GLXDestroyWindow;
-      protocolDestroyDrawable(dpy, xid, glxCode);
-      DestroyGLXDrawable(dpy, xid);
+   /* The X server binds the pbuffer's XID to its own pixmap, so
+    * CreateDRIDrawable uses \c xid on both sides for pbuffers. */
+   if (!CreateDRIDrawable(dpy, config,
+                          (type == GLX_PBUFFER_BIT) ? xid : xDrawable,
+                          xid, type, attrib_list, i)) {
+      protocolDestroyDrawable(dpy, xid, destroyCode);
+      if (glxDraw)
+         DestroyGLXDrawable(dpy, xid);
       xid = None;
    }
 
@@ -524,7 +569,11 @@ CreateDrawable(Display *dpy, struct glx_config *config,
 
 
 /**
- * Destroy a non-pbuffer GLX drawable.
+ * Destroy a GLX drawable (window, pixmap, or pbuffer).
+ *
+ * DestroyGLXDrawable is safe on pbuffers because no client-side
+ * struct glx_drawable was registered for them; the underlying hash lookup
+ * returns NULL and free() is a no-op.
  */
 static void
 DestroyDrawable(Display * dpy, GLXDrawable drawable, CARD32 glxCode)
@@ -539,109 +588,6 @@ DestroyDrawable(Display * dpy, GLXDrawable drawable, CARD32 glxCode)
 
 
 /**
- * Create a pbuffer.
- *
- * This function is used to implement \c glXCreatePbuffer and
- * \c glXCreateGLXPbufferSGIX.
- */
-static GLXDrawable
-CreatePbuffer(Display * dpy, struct glx_config *config,
-              unsigned int width, unsigned int height,
-              const int *attrib_list, GLboolean size_in_attribs)
-{
-   struct glx_display *priv = __glXInitialize(dpy);
-   GLXDrawable id = 0;
-   CARD32 *data;
-   CARD8 opcode;
-   unsigned int i;
-
-   if (priv == NULL)
-      return None;
-
-   i = 0;
-   if (attrib_list) {
-      while (attrib_list[i * 2])
-         i++;
-   }
-
-   opcode = __glXSetupForCommand(dpy);
-   if (!opcode)
-      return None;
-
-   LockDisplay(dpy);
-   id = XAllocID(dpy);
-
-   xGLXCreatePbufferReq *req;
-   unsigned int extra = (size_in_attribs) ? 0 : 2;
-   GetReqExtra(GLXCreatePbuffer, (8 * (i + extra)), req);
-   data = (CARD32 *) (req + 1);
-
-   req->reqType = opcode;
-   req->glxCode = X_GLXCreatePbuffer;
-   req->screen = config->screen;
-   req->fbconfig = config->fbconfigID;
-   req->pbuffer = id;
-   req->numAttribs = i + extra;
-
-   if (!size_in_attribs) {
-      data[(2 * i) + 0] = GLX_PBUFFER_WIDTH;
-      data[(2 * i) + 1] = width;
-      data[(2 * i) + 2] = GLX_PBUFFER_HEIGHT;
-      data[(2 * i) + 3] = height;
-      data += 4;
-   }
-
-   (void) memcpy(data, attrib_list, sizeof(CARD32) * 2 * i);
-
-   UnlockDisplay(dpy);
-   SyncHandle();
-
-   /* xserver created a pixmap with the same id as pbuffer */
-   if (!CreateDRIDrawable(dpy, config, id, id, GLX_PBUFFER_BIT, attrib_list, i)) {
-      protocolDestroyDrawable(dpy, id, X_GLXDestroyPbuffer);
-      id = None;
-   }
-
-   return id;
-}
-
-/**
- * Destroy a pbuffer.
- *
- * This function is used to implement \c glXDestroyPbuffer and
- * \c glXDestroyGLXPbufferSGIX.
- */
-static void
-DestroyPbuffer(Display * dpy, GLXDrawable drawable)
-{
-   struct glx_display *priv = __glXInitialize(dpy);
-   CARD8 opcode;
-
-   if ((priv == NULL) || (dpy == NULL) || (drawable == 0)) {
-      return;
-   }
-
-   opcode = __glXSetupForCommand(dpy);
-   if (!opcode)
-      return;
-
-   LockDisplay(dpy);
-
-   xGLXDestroyPbufferReq *req;
-   GetReq(GLXDestroyPbuffer, req);
-   req->reqType = opcode;
-   req->glxCode = X_GLXDestroyPbuffer;
-   req->pbuffer = (GLXPbuffer) drawable;
-
-   UnlockDisplay(dpy);
-   SyncHandle();
-
-   DestroyDRIDrawable(dpy, drawable);
-
-   return;
-}
-
-/**
  * Create a new pbuffer.
  */
 _GLX_PUBLIC GLXPbufferSGIX
@@ -649,9 +595,10 @@ glXCreateGLXPbufferSGIX(Display * dpy, GLXFBConfigSGIX config,
                         unsigned int width, unsigned int height,
                         int *attrib_list)
 {
-   return (GLXPbufferSGIX) CreatePbuffer(dpy, (struct glx_config *) config,
-                                         width, height,
-                                         attrib_list, GL_FALSE);
+   return (GLXPbufferSGIX) CreateDrawable(dpy, (struct glx_config *) config,
+                                          None, GLX_PBUFFER_BIT,
+                                          width, height,
+                                          attrib_list, GL_FALSE);
 }
 
 
@@ -677,24 +624,9 @@ glXCreatePbuffer(Display * dpy, GLXFBConfig config, const int *attrib_list)
 GLXPbuffer
 __glXCreatePbuffer(Display * dpy, GLXFBConfig config, const int *attrib_list)
 {
-   int i, width, height;
-
-   width = 0;
-   height = 0;
-
-   for (i = 0; attrib_list[i * 2]; i++) {
-      switch (attrib_list[i * 2]) {
-      case GLX_PBUFFER_WIDTH:
-         width = attrib_list[i * 2 + 1];
-         break;
-      case GLX_PBUFFER_HEIGHT:
-         height = attrib_list[i * 2 + 1];
-         break;
-      }
-   }
-
-   return (GLXPbuffer) CreatePbuffer(dpy, (struct glx_config *) config,
-                                     width, height, attrib_list, GL_TRUE);
+   return (GLXPbuffer) CreateDrawable(dpy, (struct glx_config *) config,
+                                      None, GLX_PBUFFER_BIT,
+                                      0, 0, attrib_list, GL_TRUE);
 }
 
 
@@ -710,7 +642,7 @@ glXDestroyPbuffer(Display * dpy, GLXPbuffer pbuf)
 void
 __glXDestroyPbuffer(Display * dpy, GLXPbuffer pbuf)
 {
-   DestroyPbuffer(dpy, pbuf);
+   DestroyDrawable(dpy, pbuf, X_GLXDestroyPbuffer);
 }
 
 
@@ -804,7 +736,8 @@ __glXCreatePixmap(Display * dpy, GLXFBConfig config, Pixmap pixmap,
                   const int *attrib_list)
 {
    return CreateDrawable(dpy, (struct glx_config *) config,
-                         (Drawable) pixmap, GLX_PIXMAP_BIT, attrib_list);
+                         (Drawable) pixmap, GLX_PIXMAP_BIT,
+                         0, 0, attrib_list, GL_FALSE);
 }
 
 
@@ -830,7 +763,8 @@ __glXCreateWindow(Display * dpy, GLXFBConfig config, Window win,
                   const int *attrib_list)
 {
    return CreateDrawable(dpy, (struct glx_config *) config,
-                         (Drawable) win, GLX_WINDOW_BIT, attrib_list);
+                         (Drawable) win, GLX_WINDOW_BIT,
+                         0, 0, attrib_list, GL_FALSE);
 }
 
 
