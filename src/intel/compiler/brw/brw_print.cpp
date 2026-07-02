@@ -359,6 +359,7 @@ brw_instruction_name(const struct brw_isa_info *isa, const brw_inst *inst)
 
 /**
  * Pretty-print a source for a SHADER_OPCODE_MEMORY_LOGICAL instruction.
+ * Includes the leading ", " source separator.
  *
  * Returns true if the value is fully printed (i.e. an enum) and false if
  * we only printed a label, and the actual source value still needs printing.
@@ -369,21 +370,21 @@ print_memory_logical_source(FILE *file, const brw_inst *inst, unsigned i)
    switch (i) {
    case MEMORY_LOGICAL_BINDING: {
       lsc_addr_surface_type binding_type = inst->as_mem()->binding_type;
-      fprintf(file, " %s", brw_lsc_addr_surftype_to_string(binding_type));
+      fprintf(file, ", %s", brw_lsc_addr_surftype_to_string(binding_type));
       if (binding_type != LSC_ADDR_SURFTYPE_FLAT)
-         fprintf(file, ":");
+         fprintf(file, ": ");
       return inst->src[i].file == BAD_FILE;
    }
    case MEMORY_LOGICAL_ADDRESS:
-      fprintf(file, " addr: ");
+      fprintf(file, ", addr: ");
       return false;
    case MEMORY_LOGICAL_DATA0:
-      fprintf(file, " data0: ");
+      fprintf(file, ", data0: ");
       return false;
    case MEMORY_LOGICAL_DATA1:
       if (inst->src[i].file == BAD_FILE)
          return true;
-      fprintf(file, " data1: ");
+      fprintf(file, ", data1: ");
       return false;
    default:
       UNREACHABLE("invalid source");
@@ -538,9 +539,9 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
       if (mem) {
          if (print_memory_logical_source(file, inst, i))
             continue;
+      } else {
+         fprintf(file, ", ");
       }
-
-      fprintf(file, ", ");
 
       if (tex_payload) {
          switch (i) {
