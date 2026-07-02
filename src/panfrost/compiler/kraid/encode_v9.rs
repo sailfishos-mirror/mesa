@@ -1803,6 +1803,205 @@ impl V9Instr for OpStore {
     }
 }
 
+impl From<TexCoordMode> for TexCoordinateModeM {
+    fn from(coord_mode: TexCoordMode) -> Self {
+        match coord_mode {
+            TexCoordMode::F32 => TexCoordinateModeM::FloatCoordinates,
+            TexCoordMode::I32 => TexCoordinateModeM::IntegerCoordinates,
+        }
+    }
+}
+
+impl From<TexDim> for TexDimensionalityM {
+    fn from(dim: TexDim) -> Self {
+        match dim {
+            TexDim::Cube => TexDimensionalityM::Cube,
+            TexDim::Tex1D => TexDimensionalityM::Tex1d,
+            TexDim::Tex2D => TexDimensionalityM::Tex2d,
+            TexDim::Tex3D => TexDimensionalityM::Tex3d,
+        }
+    }
+}
+
+impl From<TexGatherComp> for TexGatherComponentM {
+    fn from(comp: TexGatherComp) -> Self {
+        match comp {
+            TexGatherComp::A => TexGatherComponentM::Gather4A,
+            TexGatherComp::B => TexGatherComponentM::Gather4B,
+            TexGatherComp::G => TexGatherComponentM::Gather4G,
+            TexGatherComp::R => TexGatherComponentM::Gather4R,
+        }
+    }
+}
+
+impl From<TexLodMode> for TexLodModeM {
+    fn from(lod_mode: TexLodMode) -> Self {
+        match lod_mode {
+            TexLodMode::None => TexLodModeM::None,
+            TexLodMode::Computed => TexLodModeM::Computed,
+            TexLodMode::ComputedForceDelta => TexLodModeM::ComputedForceDelta,
+            TexLodMode::Explicit => TexLodModeM::Explicit,
+            TexLodMode::ComputedBias => TexLodModeM::ComputedBias,
+            TexLodMode::ComputedBiasForceDelta => {
+                TexLodModeM::ComputedBiasForceDelta
+            }
+            TexLodMode::GradientDesc => TexLodModeM::Grdesc,
+        }
+    }
+}
+
+impl From<DataType> for TexWidthM {
+    fn from(dst_type: DataType) -> Self {
+        assert!(dst_type.num_type() == NumericType::Auto);
+        match dst_type.bits() {
+            16 => TexWidthM::Dst16,
+            32 => TexWidthM::Dst32,
+            _ => panic!("Invalid texture dst_type: {dst_type}"),
+        }
+    }
+}
+
+impl From<TexWriteMask> for TexWriteMaskM {
+    fn from(mask: TexWriteMask) -> Self {
+        TexWriteMaskM::try_decode(mask.to_bits(), 9).unwrap()
+    }
+}
+
+impl V9Instr for OpTexFetch {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            TexFetch::get_info((), arch),
+            src_map! {
+                sr_src: data,
+                src0: handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(TexFetch {
+            array_enable: self.array_enable.into(),
+            dimensionality: self.dim.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            register_width: self.dst_type.into(),
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.handle),
+            texel_offset: self.texel_offset.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
+impl V9Instr for OpTexGather {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            TexGather::get_info((), arch),
+            src_map! {
+                sr_src: data,
+                src0: handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(TexGather {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            coordinate_mode: self.coord_mode.into(),
+            dimensionality: self.dim.into(),
+            gather_component: self.gather_comp.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            register_width: self.dst_type.into(),
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.handle),
+            texel_offset: self.texel_offset.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
+impl From<TexGradientCoordMode> for TexCoordinateOrDerivativeM {
+    fn from(coord_mode: TexGradientCoordMode) -> Self {
+        match coord_mode {
+            TexGradientCoordMode::Coords => TexCoordinateOrDerivativeM::None,
+            TexGradientCoordMode::ForceDelta => {
+                TexCoordinateOrDerivativeM::ForceDelta
+            }
+            TexGradientCoordMode::Derivative => {
+                TexCoordinateOrDerivativeM::Derivative
+            }
+        }
+    }
+}
+
+impl V9Instr for OpTexGradient {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            TexGradient::get_info((), arch),
+            src_map! {
+                sr_src: data,
+                src0: handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(TexGradient {
+            coordinate_or_derivative: self.coord_mode.into(),
+            dimensionality: self.dim.into(),
+            lod_bias_disable: self.lod_bias_disable.into(),
+            lod_clamp_disable: self.lod_clamp_disable.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            register_width: TexGradientWidthM::Dst32,
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.handle),
+            wide_indices: self.wide_indices.into(),
+            write_mask: TexGradientWriteMaskM::Rg,
+        })
+    }
+}
+
+impl V9Instr for OpTexSingle {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            TexSingle::get_info((), arch),
+            src_map! {
+                sr_src: data,
+                src0: handle,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(TexSingle {
+            array_enable: self.array_enable.into(),
+            compare_enable: self.compare_enable.into(),
+            dimensionality: self.dim.into(),
+            lod_mode: self.lod_mode.into(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            projection_enable: self.projection_enable.into(),
+            register_width: self.dst_type.into(),
+            skip: self.skip.into(),
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.handle),
+            texel_offset: self.texel_offset.into(),
+            wide_indices: self.wide_indices.into(),
+            write_mask: self.write_mask.into(),
+        })
+    }
+}
+
 macro_rules! v9_op_match_else {
     ($op: expr, |$x: ident| $y: expr, $z: expr) => {
         match $op {
@@ -1848,6 +2047,9 @@ macro_rules! v9_op_match_else {
             Op::ShiftLop($x) => $y,
             Op::StCvt($x) => $y,
             Op::Store($x) => $y,
+            Op::TexFetch($x) => $y,
+            Op::TexGather($x) => $y,
+            Op::TexSingle($x) => $y,
             _ => $z,
         }
     };

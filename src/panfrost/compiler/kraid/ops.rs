@@ -1986,6 +1986,322 @@ impl VirtualOpcode for OpSwz {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum TexDim {
+    Cube,
+    Tex1D,
+    Tex2D,
+    Tex3D,
+}
+
+impl fmt::Display for TexDim {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TexDim::Cube => write!(f, ".cube"),
+            TexDim::Tex1D => write!(f, ".1d"),
+            TexDim::Tex2D => write!(f, ".2d"),
+            TexDim::Tex3D => write!(f, ".3d"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum TexCoordMode {
+    F32,
+    I32,
+}
+
+impl fmt::Display for TexCoordMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TexCoordMode::F32 => write!(f, ".float_coordinates"),
+            TexCoordMode::I32 => write!(f, ".integer_coordinates"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum TexGatherComp {
+    R,
+    G,
+    B,
+    A,
+}
+
+impl fmt::Display for TexGatherComp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TexGatherComp::R => write!(f, ".gather4_r"),
+            TexGatherComp::G => write!(f, ".gather4_g"),
+            TexGatherComp::B => write!(f, ".gather4_b"),
+            TexGatherComp::A => write!(f, ".gather4_a"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum TexLodMode {
+    #[default]
+    None,
+    Computed,
+    ComputedForceDelta,
+    Explicit,
+    ComputedBias,
+    ComputedBiasForceDelta,
+    GradientDesc,
+}
+
+impl TexLodMode {
+    pub fn force_delta(self) -> TexLodMode {
+        use TexLodMode::*;
+        match self {
+            Computed | ComputedForceDelta => ComputedForceDelta,
+            ComputedBias | ComputedBiasForceDelta => ComputedBiasForceDelta,
+            _ => panic!("No force_delta enum"),
+        }
+    }
+}
+
+impl fmt::Display for TexLodMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TexLodMode::None => Ok(()),
+            TexLodMode::Computed => write!(f, ".computed"),
+            TexLodMode::ComputedForceDelta => {
+                write!(f, ".computed_force_delta")
+            }
+            TexLodMode::Explicit => write!(f, ".explicit"),
+            TexLodMode::ComputedBias => write!(f, ".computed_bias"),
+            TexLodMode::ComputedBiasForceDelta => {
+                write!(f, ".computed_bias_force_delta")
+            }
+            TexLodMode::GradientDesc => write!(f, ".grdesc"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct TexWriteMask(u8);
+
+impl TexWriteMask {
+    pub fn new(mask: u8) -> TexWriteMask {
+        assert!(mask < 1 << 4);
+        TexWriteMask(mask)
+    }
+
+    pub fn to_bits(self) -> u8 {
+        self.0
+    }
+}
+
+impl fmt::Display for TexWriteMask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, c) in "rgba".chars().enumerate() {
+            if (self.0 & (1 << i)) != 0 {
+                write!(f, "{c}")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    A16, V2A16, V3A16, V4A16,
+    A32, V2A32, V3A32, V4A32,
+])]
+pub struct OpTexFetch {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub dim: TexDim,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub array_enable: bool,
+    pub texel_offset: bool,
+
+    #[src_type(SR)]
+    pub data: Src,
+    #[src_type(I64)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpTexFetch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = TEX_FETCH.{}{}{}{}{}{}{} {} {}",
+            &self.dst,
+            self.dst_type,
+            bool_as_mod_str!(self, skip),
+            self.dim,
+            self.write_mask,
+            bool_as_mod_str!(self, wide_indices),
+            bool_as_mod_str!(self, array_enable),
+            bool_as_mod_str!(self, texel_offset),
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.handle),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    A16, V2A16, V3A16, V4A16,
+    A32, V2A32, V3A32, V4A32,
+])]
+pub struct OpTexGather {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub array_enable: bool,
+    pub texel_offset: bool,
+    pub compare_enable: bool,
+    pub coord_mode: TexCoordMode,
+    pub gather_comp: TexGatherComp,
+
+    #[src_type(SR)]
+    pub data: Src,
+    #[src_type(I64)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpTexGather {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = TEX_GATHER.{}{}{}{}{}{}{}{}{}{}{} {} {}",
+            &self.dst,
+            self.dst_type,
+            bool_as_mod_str!(self, skip),
+            self.dim,
+            bool_as_mod_str!(self, projection_enable),
+            self.write_mask,
+            bool_as_mod_str!(self, wide_indices),
+            bool_as_mod_str!(self, array_enable),
+            bool_as_mod_str!(self, texel_offset),
+            bool_as_mod_str!(self, compare_enable),
+            self.coord_mode,
+            self.gather_comp,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.handle),
+        )
+    }
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum TexGradientCoordMode {
+    #[default]
+    Coords,
+    ForceDelta,
+    Derivative,
+}
+
+impl fmt::Display for TexGradientCoordMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TexGradientCoordMode::Coords => Ok(()),
+            TexGradientCoordMode::ForceDelta => write!(f, ".force_delta"),
+            TexGradientCoordMode::Derivative => write!(f, ".derivative"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpTexGradient {
+    #[dst_type(I64)]
+    pub dst: Dst,
+
+    pub skip: bool,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub wide_indices: bool,
+    pub coord_mode: TexGradientCoordMode,
+    pub lod_bias_disable: bool,
+    pub lod_clamp_disable: bool,
+
+    #[src_type(SR)]
+    pub data: Src,
+    #[src_type(I64)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpTexGradient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = TEX_GRADIENT.{}{}{}{}{}{}{} {} {}",
+            &self.dst,
+            bool_as_mod_str!(self, skip),
+            self.dim,
+            bool_as_mod_str!(self, projection_enable),
+            bool_as_mod_str!(self, wide_indices),
+            self.coord_mode,
+            bool_as_mod_str!(self, lod_bias_disable),
+            bool_as_mod_str!(self, lod_clamp_disable),
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.handle),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    A16, V2A16, V3A16, V4A16,
+    A32, V2A32, V3A32, V4A32,
+])]
+pub struct OpTexSingle {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    pub skip: bool,
+    pub dim: TexDim,
+    pub projection_enable: bool,
+    pub write_mask: TexWriteMask,
+    pub wide_indices: bool,
+    pub array_enable: bool,
+    pub texel_offset: bool,
+    pub compare_enable: bool,
+    pub lod_mode: TexLodMode,
+
+    #[src_type(SR)]
+    pub data: Src,
+    #[src_type(I64)]
+    pub handle: Src,
+}
+
+impl fmt::Display for OpTexSingle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = TEX_SINGLE.{}{}{}{}{}{}{}{}{}{} {} {}",
+            &self.dst,
+            self.dst_type,
+            bool_as_mod_str!(self, skip),
+            self.dim,
+            bool_as_mod_str!(self, projection_enable),
+            self.write_mask,
+            bool_as_mod_str!(self, wide_indices),
+            bool_as_mod_str!(self, array_enable),
+            bool_as_mod_str!(self, texel_offset),
+            bool_as_mod_str!(self, compare_enable),
+            self.lod_mode,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.handle),
+        )
+    }
+}
+
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     BitRev(Box<OpBitRev>),
@@ -2038,6 +2354,10 @@ pub enum Op {
     StCvt(Box<OpStCvt>),
     Store(Box<OpStore>),
     Swz(Box<OpSwz>),
+    TexFetch(Box<OpTexFetch>),
+    TexGather(Box<OpTexGather>),
+    TexGradient(Box<OpTexGradient>),
+    TexSingle(Box<OpTexSingle>),
 }
 
 #[cfg(target_arch = "aarch64")]
