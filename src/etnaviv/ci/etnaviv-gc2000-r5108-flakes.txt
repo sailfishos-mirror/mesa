@@ -476,7 +476,7 @@ spec@glsl-1.10@execution@samplers@in-parameter
 spec@glsl-1.10@execution@samplers@in-parameter-nested-struct
 spec@glsl-1.10@execution@samplers@uniform-structs
 
-shaders@glsl-derivs,Fail
+shaders@glsl-derivs
 shaders@glsl-vs-statechange-1
 spec@!opengl 1.1@fragment-center
 spec@!opengl 1.1@gl-1.1-drawarrays-vertex-count 100000 vbo gl_triangle_fan
@@ -488,7 +488,7 @@ spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH24_STENCIL8/GL_
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH24_STENCIL8/GL_UNSIGNED_SHORT
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH_COMPONENT32/GL_UNSIGNED_INT
 spec@ext_framebuffer_object@fbo-readpixels-depth-formats@GL_DEPTH_STENCIL/GL_UNSIGNED_INT
-spec@ext_texture_swizzle@ext_texture_swizzle-swizzle,Fail
+spec@ext_texture_swizzle@ext_texture_swizzle-swizzle
 spec@glsl-1.10@execution@built-in-functions@fs-ceil-float
 spec@glsl-1.10@execution@built-in-functions@fs-op-div-vec3-vec3
 spec@glsl-1.10@execution@built-in-functions@vs-op-add-float-mat3
