@@ -156,7 +156,7 @@
     - !reference [.panfrost-vk-manual-rules-common, rules]
 
 .panfrost-vk-manual-panthor-rules:
-  extends: .panfrost-vk-rules-common
+  extends: .panfrost-vk-manual-rules-common
   rules:
     - !reference [.enforce-hw-jobs-panvk-panthor-rules, rules]
     - !reference [.panfrost-vk-manual-rules-common, rules]
