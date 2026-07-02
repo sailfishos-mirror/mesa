@@ -2598,9 +2598,7 @@ zink_delete_texture_handle(struct pipe_context *pctx, uint64_t handle)
    util_dynarray_append(&ctx->bs->bindless_releases[0], h);
 
    pipe_resource_reference(&bd->pres, NULL);
-   if (!ds->is_buffer) {
-      pctx->delete_sampler_state(pctx, bd->sampler);
-   }
+   pctx->delete_sampler_state(pctx, bd->sampler);
    free(ds);
 }
 
