@@ -298,7 +298,7 @@ static void
 emit_blit_setup(fd_ncrb<CHIP> &ncrb, enum pipe_format pfmt,
                 bool scissor_enable, union pipe_color_union *color,
                 BITMASK_ENUM(fd_buffer_mask) buffers,
-                enum a6xx_rotation rotate)
+                enum a6xx_rotation rotate, bool src_half=false)
 {
    enum a6xx_format fmt = fd6_color_format(pfmt, TILE6_LINEAR);
    bool is_srgb = util_format_is_srgb(pfmt);
@@ -342,6 +342,7 @@ emit_blit_setup(fd_ncrb<CHIP> &ncrb, enum pipe_format pfmt,
     * that. It's certainly not tied to only the src format.
     */
    ncrb.add(SP_A2D_OUTPUT_INFO(CHIP,
+      .half_precision = src_half,
       .ifmt_type = output_ifmt_type,
       .color_format = fmt,
       .srgb = is_srgb,
@@ -738,8 +739,11 @@ emit_blit_texture_setup(fd_cs &cs, const struct pipe_blit_info *info)
       ));
    }
 
+   bool src_half_precision = util_format_is_float16(info->src.format) ||
+                             (info->src.format == PIPE_FORMAT_R11G11B10_FLOAT);
+
    emit_blit_setup<CHIP>(ncrb, info->dst.format, info->scissor_enable, NULL,
-                         FD_BUFFER_ALL, rotate);
+                         FD_BUFFER_ALL, rotate, src_half_precision);
 }
 
 template <chip CHIP>
