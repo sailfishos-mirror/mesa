@@ -1479,8 +1479,8 @@ static VkResult screenshot_CreateInstance(
 
    if (!globalLockInitialized) {
       loader_platform_thread_create_mutex(&globalLock);
-      globalLockInitialized = 1;
    }
+   globalLockInitialized++;
 
    return result;
 }
@@ -1493,6 +1493,10 @@ static void screenshot_DestroyInstance(
    instance_data_map_physical_devices(instance_data, false);
    instance_data->vtable.DestroyInstance(instance, pAllocator);
    destroy_instance_data(instance_data);
+
+   if (--globalLockInitialized == 0) {
+      loader_platform_thread_delete_mutex(&globalLock);
+   }
 }
 
 static const struct {
