@@ -244,10 +244,16 @@ brw_opt_fill_and_spill(brw_shader &s)
    /* Remove any left-over spill that has no fills.  This can
     * happen when RA decides to spill a value but the value remains
     * live for all its fills.
+    *
+    * Use the logical scratch offset here instead of the physical offset: the
+    * physical storage may be reused by non-interfering spilled values, so a
+    * remaining fill from the same physical byte range does not necessarily
+    * read this spill's value.
     */
    {
       /* Spills and fills operate on register granularity. */
-      const unsigned scratch_regs = DIV_ROUND_UP(s.last_scratch, REG_SIZE);
+      const unsigned scratch_regs =
+         DIV_ROUND_UP(s.last_logical_scratch, REG_SIZE);
       BITSET_WORD *covered =
          rzalloc_array(NULL, BITSET_WORD, BITSET_WORDS(scratch_regs));
 
@@ -256,9 +262,9 @@ brw_opt_fill_and_spill(brw_shader &s)
          if (inst->opcode != SHADER_OPCODE_LSC_FILL)
             continue;
          const brw_scratch_inst *fill = inst->as_scratch();
-         assert(fill->offset % REG_SIZE == 0 &&
+         assert(fill->logical_offset % REG_SIZE == 0 &&
                 fill->size_written % REG_SIZE == 0);
-         const unsigned first = fill->offset / REG_SIZE;
+         const unsigned first = fill->logical_offset / REG_SIZE;
          const unsigned end = first + fill->size_written / REG_SIZE;
          assert(end <= scratch_regs);
          BITSET_SET_RANGE(covered, first, end - 1);
@@ -270,8 +276,9 @@ brw_opt_fill_and_spill(brw_shader &s)
             continue;
          const brw_scratch_inst *spill = inst->as_scratch();
          const unsigned size = spill->size_read(devinfo, SPILL_SRC_PAYLOAD2);
-         assert(spill->offset % REG_SIZE == 0 && size % REG_SIZE == 0);
-         const unsigned first = spill->offset / REG_SIZE;
+         assert(spill->logical_offset % REG_SIZE == 0 &&
+                size % REG_SIZE == 0);
+         const unsigned first = spill->logical_offset / REG_SIZE;
          const unsigned end = first + size / REG_SIZE;
          assert(end <= scratch_regs);
          if (!BITSET_TEST_RANGE(covered, first, end - 1)) {

@@ -174,6 +174,7 @@ brw_shader::brw_shader(const brw_shader_params *params)
    this->first_non_payload_grf = 0;
 
    this->last_scratch = 0;
+   this->last_logical_scratch = 0;
 
    memset(&this->shader_stats, 0, sizeof(this->shader_stats));
 

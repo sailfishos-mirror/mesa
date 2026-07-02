@@ -20,6 +20,7 @@ brw_inst_kind_size(brw_inst_kind kind)
    STATIC_ASSERT(sizeof(brw_send_inst) >= sizeof(brw_load_payload_inst));
    STATIC_ASSERT(sizeof(brw_send_inst) >= sizeof(brw_urb_inst));
    STATIC_ASSERT(sizeof(brw_send_inst) >= sizeof(brw_fb_write_inst));
+   STATIC_ASSERT(sizeof(brw_send_inst) >= sizeof(brw_scratch_inst));
 
    /* To allow transforming from other non-BASE kinds to a SEND, make
     * it so that enough space is always allocated.
@@ -38,6 +39,7 @@ brw_inst_kind_align(brw_inst_kind kind)
    STATIC_ASSERT(alignof(brw_send_inst) >= alignof(brw_load_payload_inst));
    STATIC_ASSERT(alignof(brw_send_inst) >= alignof(brw_urb_inst));
    STATIC_ASSERT(alignof(brw_send_inst) >= alignof(brw_fb_write_inst));
+   STATIC_ASSERT(alignof(brw_send_inst) >= alignof(brw_scratch_inst));
 
    /* See brw_inst_kind_size(). */
 

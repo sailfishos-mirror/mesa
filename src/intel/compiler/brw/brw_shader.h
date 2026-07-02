@@ -140,6 +140,9 @@ public:
    /** Byte-offset for the next available spot in the scratch space buffer. */
    unsigned last_scratch;
 
+   /** Byte-offset for the next logical, non-reused spill slot. */
+   unsigned last_logical_scratch;
+
    brw_reg frag_depth;
    brw_reg frag_stencil;
    brw_reg sample_mask;
