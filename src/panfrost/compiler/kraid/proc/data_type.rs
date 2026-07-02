@@ -56,6 +56,17 @@ pub fn derive_data_type(input: TokenStream) -> TokenStream {
 
     for v in e.variants {
         let name = v.ident.to_string();
+        if name == "SR" {
+            to_cases.extend(quote! {
+                #enum_type::SR => (0, Some(NumericType::Auto), 32),
+            });
+            // from_cases is intentionally omitted
+            fmt_cases.extend(quote! {
+                #enum_type::SR => write!(f, "sr"),
+            });
+            continue;
+        }
+
         let (comps, num_type, bits) = parse_type_name(&name);
 
         // We need an actual ident for num_type

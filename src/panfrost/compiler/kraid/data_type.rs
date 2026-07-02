@@ -45,6 +45,7 @@ pub enum NumericType {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, DataType)]
 pub enum PartialDataType {
     None,
+    SR,
     A16,
     A32,
     F16,
@@ -126,6 +127,8 @@ impl PartialDataType {
     pub fn specialize(self, other: DataType) -> DataType {
         if self == PartialDataType::None {
             return other;
+        } else if self == PartialDataType::SR {
+            return DataType::SR;
         }
 
         let (comps, num_type, bits) = self.to_pieces();
@@ -141,6 +144,11 @@ impl PartialDataType {
 /// Data type
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, DataType)]
 pub enum DataType {
+    /// A special data type for staging registers.  This type does not allow
+    /// swizzles of any sort and takes however many registers it's given.  This
+    /// is used for texture and similar ops which need both a variable number
+    /// of source and destination registers.
+    SR,
     A16,
     A32,
     F16,

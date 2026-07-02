@@ -426,9 +426,13 @@ impl LocalRegAlloc<'_> {
 
     fn choose_src_bytes(&self, op: &Op, src: &Src) -> Range<u16> {
         let vec = src.src_ref.as_ssa().unwrap();
+        let src_type = op.src_type(src);
         let bytes = vec.bytes();
 
-        let (align_mul, align_offsets) = if bytes > 4 {
+        let (align_mul, align_offsets) = if src_type == DataType::SR {
+            assert!(src.swizzle.is_none());
+            (bytes.next_power_of_two(), 1 << 0)
+        } else if bytes > 4 {
             (bytes.next_power_of_two(), 1 << 0)
         } else {
             let swizzles: &[(u8, Swizzle)] = match bytes {
