@@ -755,11 +755,18 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0),
                 });
             }
-            nir_op_iadd => {
+            nir_op_iadd | nir_op_iadd_sat | nir_op_uadd_sat => {
+                let saturate = alu.op != nir_op_iadd;
+                let dst_type = match alu.op {
+                    nir_op_iadd => dst_type(NumericType::Integer),
+                    nir_op_iadd_sat => dst_type(NumericType::SignedInteger),
+                    nir_op_uadd_sat => dst_type(NumericType::UnsignedInteger),
+                    _ => unreachable!(),
+                };
                 b.push_op(OpIAdd {
                     dst: dst.into(),
-                    dst_type: dst_type(NumericType::Integer),
-                    saturate: false,
+                    dst_type,
+                    saturate,
                     srcs: [srcs(0), srcs(1)],
                 });
             }
@@ -771,11 +778,18 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
-            nir_op_isub => {
+            nir_op_isub | nir_op_isub_sat | nir_op_usub_sat => {
+                let saturate = alu.op != nir_op_isub;
+                let dst_type = match alu.op {
+                    nir_op_isub => dst_type(NumericType::Integer),
+                    nir_op_isub_sat => dst_type(NumericType::SignedInteger),
+                    nir_op_usub_sat => dst_type(NumericType::UnsignedInteger),
+                    _ => unreachable!(),
+                };
                 b.push_op(OpISub {
                     dst: dst.into(),
-                    dst_type: dst_type(NumericType::Integer),
-                    saturate: false,
+                    dst_type,
+                    saturate,
                     srcs: [srcs(0), srcs(1)],
                 });
             }
