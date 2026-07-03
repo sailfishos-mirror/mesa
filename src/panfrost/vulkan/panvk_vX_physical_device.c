@@ -119,6 +119,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_spirv_1_4 = true,
       .KHR_storage_buffer_storage_class = true,
 #ifdef PANVK_USE_WSI_PLATFORM
+      .KHR_incremental_present = true,
       .KHR_present_id = true,
       .KHR_present_id2 = true,
       .KHR_present_wait = true,
