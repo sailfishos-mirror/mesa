@@ -59,23 +59,28 @@ brw_lsc_data_size_to_string(unsigned s)
 }
 
 void
-brw_print_instructions(const brw_shader &s, FILE *file)
+brw_print_instructions(const brw_shader &s, FILE *file, unsigned flags)
 {
    if (s.cfg && s.grf_used == 0) {
-      const brw_def_analysis &defs = s.def_analysis.require();
+      const brw_def_analysis *defs =
+         (flags & BRW_PRINT_DEFS) ? &s.def_analysis.require() : NULL;
+      const bool with_blocks = flags & BRW_PRINT_BLOCKS;
       const brw_register_pressure *rp =
-         INTEL_DEBUG(DEBUG_REG_PRESSURE) ? &s.regpressure_analysis.require() : NULL;
+         (flags & BRW_PRINT_REG_PRESSURE) && INTEL_DEBUG(DEBUG_REG_PRESSURE) ?
+         &s.regpressure_analysis.require() : NULL;
 
       unsigned ip = 0, max_pressure = 0;
       unsigned cf_count = 0;
       foreach_block(block, s.cfg) {
-         fprintf(file, "START B%d", block->num);
-         brw_foreach_list_typed(bblock_link, link, link, &block->parents) {
-            fprintf(file, " <%cB%d",
-                    link->kind == bblock_link_logical ? '-' : '~',
-                    link->block->num);
+         if (with_blocks) {
+            fprintf(file, "START B%d", block->num);
+            brw_foreach_list_typed(bblock_link, link, link, &block->parents) {
+               fprintf(file, " <%cB%d",
+                       link->kind == bblock_link_logical ? '-' : '~',
+                       link->block->num);
+            }
+            fprintf(file, "\n");
          }
-         fprintf(file, "\n");
 
          foreach_inst_in_block(brw_inst, inst, block) {
             /* SHADER_OPCODE_FLOW ends a block, but it does not change the
@@ -94,20 +99,22 @@ brw_print_instructions(const brw_shader &s, FILE *file)
 
             for (unsigned i = 0; i < cf_count; i++)
                fprintf(file, "  ");
-            brw_print_instruction(s, inst, file, &defs);
+            brw_print_instruction(s, inst, file, defs);
             ip++;
 
             if (inst->is_control_flow_begin())
                cf_count += 1;
          }
 
-         fprintf(file, "END B%d", block->num);
-         brw_foreach_list_typed(bblock_link, link, link, &block->children) {
-            fprintf(file, " %c>B%d",
-                    link->kind == bblock_link_logical ? '-' : '~',
-                    link->block->num);
+         if (with_blocks) {
+            fprintf(file, "END B%d", block->num);
+            brw_foreach_list_typed(bblock_link, link, link, &block->children) {
+               fprintf(file, " %c>B%d",
+                       link->kind == bblock_link_logical ? '-' : '~',
+                       link->block->num);
+            }
+            fprintf(file, "\n");
          }
-         fprintf(file, "\n");
       }
       if (rp)
          fprintf(file, "Maximum %3d registers live at once.\n", max_pressure);
