@@ -2111,6 +2111,33 @@ pub fn v9_op_src_supports_swizzle(
     src_info.allowed_swizzles.contains(asw.into())
 }
 
+pub fn v9_op_src_supports_mod(
+    op: &Op,
+    src: &Src,
+    arch: u8,
+    src_mod: SrcMod,
+) -> bool {
+    let Some(info) = v9_op_info(op, arch) else {
+        return false;
+    };
+
+    let Some(src_info) = info.src_info(op.src_idx(src)) else {
+        return src_mod.is_none();
+    };
+
+    if src_info.has_abs || src_info.has_neg {
+        debug_assert!(op.src_type(src).is_float_type());
+    }
+
+    match src_mod {
+        SrcMod::None => true,
+        SrcMod::FAbs => src_info.has_abs,
+        SrcMod::FNeg => src_info.has_neg,
+        SrcMod::FNegAbs => src_info.has_abs && src_info.has_neg,
+        SrcMod::BNot => src_info.has_not,
+    }
+}
+
 pub fn v9_op_dst_is_staging_reg(op: &Op, arch: u8) -> bool {
     v9_op_info(op, arch)
         .and_then(|info| info.dst_info())

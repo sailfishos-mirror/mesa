@@ -1249,6 +1249,10 @@ pub trait VirtualOpcode {
         swizzle == Swizzle::NONE
     }
 
+    fn src_supports_mod(&self, _src: &Src, src_mod: SrcMod) -> bool {
+        src_mod.is_none()
+    }
+
     fn dst_is_staging_reg(&self) -> bool {
         false
     }
