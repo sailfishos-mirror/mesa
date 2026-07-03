@@ -10277,8 +10277,12 @@ get_rendering_attachment_flags(const VkRenderingInfo *rendering_info, const VkRe
        */
       VK_FROM_HANDLE(radv_image_view, iview, att_info->imageView);
 
-      if (iview->vk.usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)
+      /* Input attachment feedback loops are only allowed in GENERAL or RENDERING_LOCAL_READ layouts. */
+      if ((iview->vk.usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT) &&
+            (att_info->imageLayout == VK_IMAGE_LAYOUT_GENERAL ||
+             att_info->imageLayout == VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ)) {
          flags |= VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR;
+      }
    }
 
    return flags;
