@@ -7144,7 +7144,7 @@
         "description": "nir: fix f2u/f2i constant folding to poison NaN and out-of-range inputs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "045ae759a5482bfa441cf41d5e878affbb432e1c",
         "notes": null
