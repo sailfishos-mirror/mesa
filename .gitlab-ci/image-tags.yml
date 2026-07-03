@@ -19,7 +19,7 @@ include:
   - .gitlab-ci/conditional-build-image-tags.yml
 
 variables:
-  DEBIAN_BUILD_BASE_TAG: "20260621-sdl3"
+  DEBIAN_BUILD_BASE_TAG: "20260703-flatbuffers"
   DEBIAN_BUILD_TAG: "20260621-sdl3"
 
   DEBIAN_TEST_BASE_TAG: "20260621-sdl3"
@@ -30,7 +30,7 @@ variables:
 
   ALPINE_X86_64_BUILD_TAG: "20260604-rust196"
 
-  FEDORA_X86_64_BUILD_TAG: "20260621-sdl3"
+  FEDORA_X86_64_BUILD_TAG: "20260703-flatbuffers"
 
   KERNEL_TAG: "v6.19-mesa-712d"
   KERNEL_REPO: "gfx-ci/linux"

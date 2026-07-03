@@ -68,7 +68,6 @@ DEPS=(
     "pkgconfig(xfixes)"
     "pkgconfig(xrandr)"
     "pkgconfig(xshmfence)"
-    "pkgconfig(xtensor)"
     "pkgconfig(xxf86vm)"
     "pkgconfig(zlib)"
     procps-ng
