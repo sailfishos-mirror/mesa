@@ -70,6 +70,7 @@ pub enum PartialDataType {
     U64,
     V2A16,
     V2F16,
+    V2IN,
     V2I8,
     V2I16,
     V2S8,
@@ -87,6 +88,7 @@ pub enum PartialDataType {
     V3U16,
     V2A32,
     V2F32,
+    V2I32,
     V2S32,
     V2U32,
     V4A16,
@@ -102,6 +104,7 @@ pub enum PartialDataType {
     V4F32,
     V4S32,
     V4U32,
+    V2I64,
 }
 
 impl PartialDataType {
@@ -190,6 +193,7 @@ pub enum DataType {
     V3U16,
     V2A32,
     V2F32,
+    V2I32,
     V2S32,
     V2U32,
     V4A16,
@@ -205,6 +209,7 @@ pub enum DataType {
     V4F32,
     V4S32,
     V4U32,
+    V2I64,
 }
 
 impl DataType {

@@ -493,6 +493,147 @@ impl From<MemAccess> for AccessStoreM {
     }
 }
 
+impl V9Instr for OpACmpXchg {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Acmpxchg::get_info(self.data_type, arch),
+            src_map! {
+                sr_src: data,
+                src0: addr,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Acmpxchg {
+            variant: self.data_type.try_into().unwrap(),
+            message_slot_index: e.get_msg_slot_idx().unwrap(),
+            offset: self.offset,
+            sr_dst: op_encode_sr_write(self, &self.dst),
+            sr_src: op_encode_sr_read(self, &self.data),
+            src0: op_encode_src(self, &self.addr),
+        })
+    }
+}
+
+impl TryFrom<AtomOp> for AtomOperationM {
+    type Error = &'static str;
+
+    fn try_from(atom_op: AtomOp) -> Result<AtomOperationM, &'static str> {
+        match atom_op {
+            AtomOp::IAdd => Ok(AtomOperationM::Aadd),
+            AtomOp::SMin => Ok(AtomOperationM::Asmin),
+            AtomOp::SMax => Ok(AtomOperationM::Asmax),
+            AtomOp::UMin => Ok(AtomOperationM::Aumin),
+            AtomOp::UMax => Ok(AtomOperationM::Aumax),
+            AtomOp::And => Ok(AtomOperationM::Aand),
+            AtomOp::Or => Ok(AtomOperationM::Aor),
+            AtomOp::Xor => Ok(AtomOperationM::Axor),
+            AtomOp::Xchg => Err("Xchg is not a standard ATOM op"),
+        }
+    }
+}
+
+impl From<Atom1Op> for Atom1OperationM {
+    fn from(atom_op: Atom1Op) -> Atom1OperationM {
+        match atom_op {
+            Atom1Op::Dec => Atom1OperationM::Adec,
+            Atom1Op::Inc => Atom1OperationM::Ainc,
+            Atom1Op::Or1 => Atom1OperationM::Aor1,
+            Atom1Op::SMax1 => Atom1OperationM::Asmax1,
+            Atom1Op::UMax1 => Atom1OperationM::Aumax1,
+        }
+    }
+}
+
+impl V9Instr for OpAtom {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            if self.dst.dst_ref.is_none() {
+                assert_ne!(self.atom_op, AtomOp::Xchg);
+                Atom::get_info(self.data_type, arch)
+            } else if self.atom_op == AtomOp::Xchg {
+                Axchg::get_info(self.data_type, arch)
+            } else {
+                AtomReturn::get_info(self.data_type, arch)
+            },
+            src_map! {
+                sr_src: data,
+                src0: addr,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if self.dst.dst_ref.is_none() {
+            assert_ne!(self.atom_op, AtomOp::Xchg);
+            e.encode(Atom {
+                variant: self.data_type.try_into().unwrap(),
+                atom_opc: self.atom_op.try_into().unwrap(),
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                offset: self.offset,
+                sr_src: op_encode_sr_read(self, &self.data),
+                src0: op_encode_src(self, &self.addr),
+            })
+        } else if self.atom_op == AtomOp::Xchg {
+            e.encode(Axchg {
+                variant: self.data_type.try_into().unwrap(),
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                offset: self.offset,
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                sr_src: op_encode_sr_read(self, &self.data),
+                src0: op_encode_src(self, &self.addr),
+            })
+        } else {
+            e.encode(AtomReturn {
+                variant: self.data_type.try_into().unwrap(),
+                atom_opc: self.atom_op.try_into().unwrap(),
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                offset: self.offset,
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                sr_src: op_encode_sr_read(self, &self.data),
+                src0: op_encode_src(self, &self.addr),
+            })
+        }
+    }
+}
+
+impl V9Instr for OpAtom1 {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            if self.dst.dst_ref.is_none() {
+                Atom1::get_info(self.data_type, arch)
+            } else {
+                Atom1Return::get_info(self.data_type, arch)
+            },
+            src_map! {
+                src0: addr,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if self.dst.dst_ref.is_none() {
+            e.encode(Atom1 {
+                variant: self.data_type.try_into().unwrap(),
+                atom1_opc: self.atom_op.try_into().unwrap(),
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                offset: self.offset,
+                src0: op_encode_src(self, &self.addr),
+            })
+        } else {
+            e.encode(Atom1Return {
+                variant: self.data_type.try_into().unwrap(),
+                atom1_opc: self.atom_op.try_into().unwrap(),
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                offset: self.offset,
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.addr),
+            })
+        }
+    }
+}
+
 impl V9Instr for OpBranch {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(Branch::get_info((), arch), src_map! {src0: cond})
@@ -2011,6 +2152,9 @@ impl V9Instr for OpTexSingle {
 macro_rules! v9_op_match_else {
     ($op: expr, |$x: ident| $y: expr, $z: expr) => {
         match $op {
+            Op::ACmpXchg($x) => $y,
+            Op::Atom($x) => $y,
+            Op::Atom1($x) => $y,
             Op::BitRev($x) => $y,
             Op::Branch($x) => $y,
             Op::Clz($x) => $y,

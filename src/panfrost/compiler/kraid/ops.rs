@@ -38,6 +38,161 @@ macro_rules! bool_as_mod_str {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+#[variants(data_type in [I32, I64])]
+pub struct OpACmpXchg {
+    pub dst: Dst,
+    pub data_type: DataType,
+
+    #[src_type(V2IN)]
+    pub data: Src,
+
+    #[src_type(I64)]
+    pub addr: Src,
+    pub offset: u8,
+}
+
+impl fmt::Display for OpACmpXchg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = ACMPXCHG{} {} {} #{}",
+            self.dst,
+            self.data_type,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.addr),
+            self.offset
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum AtomOp {
+    // TODO: Model 64-bit atomics with 32-bit data
+    IAdd,
+    SMin,
+    SMax,
+    UMin,
+    UMax,
+    And,
+    Or,
+    Xor,
+    Xchg,
+}
+
+impl AtomOp {
+    pub fn as_atom1(self, data: i64) -> Option<Atom1Op> {
+        match (self, data) {
+            (AtomOp::IAdd, 1) => Some(Atom1Op::Inc),
+            (AtomOp::IAdd, -1) => Some(Atom1Op::Dec),
+            (AtomOp::Or, 1) => Some(Atom1Op::Or1),
+            (AtomOp::SMax, 1) => Some(Atom1Op::SMax1),
+            (AtomOp::UMax, 1) => Some(Atom1Op::UMax1),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for AtomOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AtomOp::IAdd => write!(f, ".iadd"),
+            AtomOp::SMin => write!(f, ".smin"),
+            AtomOp::SMax => write!(f, ".smax"),
+            AtomOp::UMin => write!(f, ".umin"),
+            AtomOp::UMax => write!(f, ".umax"),
+            AtomOp::And => write!(f, ".and"),
+            AtomOp::Or => write!(f, ".or"),
+            AtomOp::Xor => write!(f, ".xor"),
+            AtomOp::Xchg => write!(f, ".xchg"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum Atom1Op {
+    Inc,
+    Dec,
+    Or1,
+    SMax1,
+    UMax1,
+}
+
+impl fmt::Display for Atom1Op {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Atom1Op::Inc => write!(f, ".inc"),
+            Atom1Op::Dec => write!(f, ".dec"),
+            Atom1Op::Or1 => write!(f, ".or1"),
+            Atom1Op::SMax1 => write!(f, ".smax1"),
+            Atom1Op::UMax1 => write!(f, ".umax1"),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(data_type in [I32, I64])]
+pub struct OpAtom {
+    pub dst: Dst,
+    pub data_type: DataType,
+
+    pub atom_op: AtomOp,
+    pub data: Src,
+
+    #[src_type(I64)]
+    pub addr: Src,
+    pub offset: u8,
+}
+
+impl fmt::Display for OpAtom {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if !self.dst.dst_ref.is_none() {
+            write!(f, "{} = ", self.dst)?;
+        }
+        write!(
+            f,
+            "ATOM.{}{} {} {} #{}",
+            self.data_type,
+            self.atom_op,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.addr),
+            self.offset
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(data_type in [I32, I64])]
+pub struct OpAtom1 {
+    pub dst: Dst,
+    pub data_type: DataType,
+
+    pub atom_op: Atom1Op,
+
+    #[src_type(I64)]
+    pub addr: Src,
+    pub offset: u8,
+}
+
+impl fmt::Display for OpAtom1 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if !self.dst.dst_ref.is_none() {
+            write!(f, "{} = ", self.dst)?;
+        }
+        write!(
+            f,
+            "ATOM1.{}{} {} #{}",
+            self.data_type,
+            self.atom_op,
+            self.fmt_src(&self.addr),
+            self.offset
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpBitRev {
     #[dst_type(I32)]
     pub dst: Dst,
@@ -2304,6 +2459,9 @@ impl fmt::Display for OpTexSingle {
 
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
+    ACmpXchg(Box<OpACmpXchg>),
+    Atom(Box<OpAtom>),
+    Atom1(Box<OpAtom1>),
     BitRev(Box<OpBitRev>),
     Branch(Box<OpBranch>),
     Clz(Box<OpClz>),
@@ -2383,7 +2541,13 @@ impl Op {
     pub fn can_eliminate(&self) -> bool {
         !matches!(
             self,
-            Op::Branch(_) | Op::RegOut(_) | Op::Store(_) | Op::StCvt(_)
+            Op::ACmpXchg(_)
+                | Op::Atom(_)
+                | Op::Atom1(_)
+                | Op::Branch(_)
+                | Op::RegOut(_)
+                | Op::Store(_)
+                | Op::StCvt(_)
         )
     }
 }

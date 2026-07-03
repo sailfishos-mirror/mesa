@@ -1147,6 +1147,64 @@ impl<'a> ShaderFromNir<'a> {
     ) {
         let srcs = intrin.srcs_as_slice();
         match intrin.intrinsic {
+            nir_intrinsic_global_atomic => {
+                let atom_op = match intrin.atomic_op() {
+                    nir_atomic_op_iadd => AtomOp::IAdd,
+                    nir_atomic_op_imin => AtomOp::SMin,
+                    nir_atomic_op_umin => AtomOp::UMin,
+                    nir_atomic_op_imax => AtomOp::SMax,
+                    nir_atomic_op_umax => AtomOp::UMax,
+                    nir_atomic_op_iand => AtomOp::And,
+                    nir_atomic_op_ior => AtomOp::Or,
+                    nir_atomic_op_ixor => AtomOp::Xor,
+                    nir_atomic_op_xchg => AtomOp::Xchg,
+                    _ => panic!("Unknown nir_atomic_op"),
+                };
+                let dst = if intrin.def.components_read() == 0 {
+                    DstRef::None
+                } else {
+                    self.alloc_ssa(b, &intrin.def).into()
+                };
+
+                let addr = self.get_src(&srcs[0]);
+                let data = self.get_src(&srcs[1]);
+                if let Some(atom1_op) =
+                    srcs[1].as_int().and_then(|data| atom_op.as_atom1(data))
+                {
+                    b.push_op(OpAtom1 {
+                        dst: dst.into(),
+                        data_type: DataType::i(intrin.def.bit_size),
+                        atom_op: atom1_op,
+                        addr,
+                        offset: 0,
+                    });
+                } else {
+                    b.push_op(OpAtom {
+                        dst: dst.into(),
+                        data_type: DataType::i(intrin.def.bit_size),
+                        atom_op,
+                        data,
+                        addr,
+                        offset: 0,
+                    });
+                }
+            }
+            nir_intrinsic_global_atomic_swap => {
+                let addr = self.get_src(&srcs[0]);
+                let cmpr = self.get_src_ssa(&srcs[1]);
+                let data = self.get_src_ssa(&srcs[2]);
+                let data = SSARef::from_iter(
+                    data.iter().cloned().chain(cmpr.iter().cloned()),
+                );
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpACmpXchg {
+                    dst,
+                    data_type: DataType::i(intrin.def.bit_size),
+                    data: data.into(),
+                    addr,
+                    offset: 0,
+                });
+            }
             nir_intrinsic_lea_buf_pan => {
                 let handle = self.get_src(&srcs[0]);
                 let index = self.get_src(&srcs[1]);

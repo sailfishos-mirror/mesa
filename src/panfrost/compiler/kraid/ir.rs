@@ -798,6 +798,10 @@ impl DstRef {
         }
     }
 
+    pub fn is_none(&self) -> bool {
+        matches!(self, DstRef::None)
+    }
+
     pub fn bytes_written(&self) -> u8 {
         match self {
             DstRef::None => 0,

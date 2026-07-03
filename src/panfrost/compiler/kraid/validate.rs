@@ -66,6 +66,10 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
     }
 
     for (dst, dst_type) in instr.dsts_types() {
+        if dst.dst_ref.is_none() {
+            continue;
+        }
+
         let dst_type_bits = dst_type.bits();
         let dst_type_comps = dst_type.comps();
         if dst_type_bits >= 32 {
