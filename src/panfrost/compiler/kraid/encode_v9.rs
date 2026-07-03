@@ -1712,11 +1712,12 @@ impl V9Instr for OpShiftLop {
             return false;
         }
 
+        let variant = self.dst_type.u_as_i();
         match self.logic_op {
-            LogicOp::None => v9::OrImm::is_supported(self.dst_type, arch),
-            LogicOp::And => v9::AndImm::is_supported(self.dst_type, arch),
-            LogicOp::Or => v9::OrImm::is_supported(self.dst_type, arch),
-            LogicOp::Xor => v9::XorImm::is_supported(self.dst_type, arch),
+            LogicOp::None => v9::OrImm::is_supported(variant, arch),
+            LogicOp::And => v9::AndImm::is_supported(variant, arch),
+            LogicOp::Or => v9::OrImm::is_supported(variant, arch),
+            LogicOp::Xor => v9::XorImm::is_supported(variant, arch),
         }
     }
 
