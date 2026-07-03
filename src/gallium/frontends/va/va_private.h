@@ -415,7 +415,6 @@ typedef struct vlVaContext {
    struct set *buffers;
    unsigned slice_data_offset;
    bool have_slice_params;
-   mtx_t mutex;
 
    struct {
       struct util_dynarray buffers;

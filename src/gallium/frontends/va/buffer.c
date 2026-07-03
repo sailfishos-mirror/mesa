@@ -573,10 +573,16 @@ vlVaSyncBuffer(VADriverContextP ctx, VABufferID buf_id, uint64_t timeout_ns)
       return VA_STATUS_ERROR_INVALID_CONTEXT;
    }
 
-   mtx_lock(&context->mutex);
+   struct pipe_video_codec *tmp_codec = NULL;
+   pipe_video_codec_reference(&tmp_codec, context->decoder);
+
+   /* Unlock mutex while waiting */
    mtx_unlock(&drv->mutex);
-   int ret = context->decoder->fence_wait(context->decoder, buf->fence, timeout_ns);
-   mtx_unlock(&context->mutex);
+
+   int ret = tmp_codec->fence_wait(tmp_codec, buf->fence, timeout_ns);
+   mtx_lock(&drv->mutex);
+   pipe_video_codec_reference(&tmp_codec, NULL);
+   mtx_unlock(&drv->mutex);
    return ret ? VA_STATUS_SUCCESS : VA_STATUS_ERROR_TIMEDOUT;
 }
 #endif

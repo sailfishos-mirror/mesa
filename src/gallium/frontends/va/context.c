@@ -402,7 +402,6 @@ vlVaCreateContext(VADriverContextP ctx, VAConfigID config_id, int picture_width,
       break;
    }
 
-   mtx_init(&context->mutex, mtx_plain);
    context->surfaces = _mesa_set_create(NULL, _mesa_hash_pointer, _mesa_key_pointer_equal);
    context->buffers = _mesa_set_create(NULL, _mesa_hash_pointer, _mesa_key_pointer_equal);
 
@@ -422,6 +421,7 @@ vlVaCreateContext(VADriverContextP ctx, VAConfigID config_id, int picture_width,
          *context_id = VA_INVALID_ID;
          return VA_STATUS_ERROR_ALLOCATION_FAILED;
       }
+      pipe_reference_init(&context->decoder->reference, 1);
    }
 
    return VA_STATUS_SUCCESS;
@@ -446,8 +446,6 @@ vlVaDestroyContext(VADriverContextP ctx, VAContextID context_id)
       mtx_unlock(&drv->mutex);
       return VA_STATUS_ERROR_INVALID_CONTEXT;
    }
-
-   mtx_lock(&context->mutex);
 
    set_foreach(context->surfaces, entry) {
       vlVaSurface *surf = (vlVaSurface *)entry->key;
@@ -521,14 +519,11 @@ vlVaDestroyContext(VADriverContextP ctx, VAContextID context_id)
       break;
    }
 
-   if (context->decoder)
-      context->decoder->destroy(context->decoder);
+   pipe_video_codec_reference(&context->decoder, NULL);
    if (context->deint) {
       vl_deint_filter_cleanup(context->deint);
       FREE(context->deint);
    }
-   mtx_unlock(&context->mutex);
-   mtx_destroy(&context->mutex);
    FREE(context->desc.base.decrypt_key);
    util_dynarray_fini(&context->bs.buffers);
    util_dynarray_fini(&context->bs.sizes);
