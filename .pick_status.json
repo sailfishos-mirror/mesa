@@ -1334,7 +1334,7 @@
         "description": "pvr: setup all format fields for custom border color entries",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bf9c84991fc1475011eb3d5912071436559df0f8",
         "notes": null
