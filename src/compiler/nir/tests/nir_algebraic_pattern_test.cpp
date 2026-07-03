@@ -341,9 +341,21 @@ nir_algebraic_pattern_test::evaluate_expression(nir_instr *instr)
                       * outputs!  This handles (poorly) the expected inexactness
                       * of e.g. the pack_half_2x16_split ->
                       * pack_half_2x16_rtz_split transform.
+                      *
+                      * Integer bit patterns like INT64_MAX (0x7FFFFFFFFFFFFFFF)
+                      * are NaN when reinterpreted as float64, making the float
+                      * comparison meaningless.  Fall back to a relative integer
+                      * comparison in that case.
                       */
-                     if (compare_inexact(af, bf, bit_size))
+                     if (!is_float && (isnan(af) || isnan(bf))) {
+                        uint64_t diff = au > bu ? au - bu : bu - au;
+                        uint64_t scale = MAX2(au, bu);
+                        double tol = pow(0.5, bit_size / 4);
+                        if (scale > 0 && (double)diff / (double)scale > tol)
+                           return false;
+                     } else if (compare_inexact(af, bf, bit_size)) {
                         return false;
+                     }
                   }
                } else {
                   return false;
