@@ -392,24 +392,29 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
                  inst->flag_subreg % 2);
       }
    }
-   fprintf(file, "(%d) ", inst->exec_size);
+   fprintf(file, "(%d)", inst->exec_size);
 
    const brw_send_inst *send = inst->as_send();
 
    if (send && send->mlen) {
-      fprintf(file, "(mlen: %d) ", send->mlen);
+      fprintf(file, " (mlen: %d)", send->mlen);
    }
 
    if (send && send->ex_mlen) {
-      fprintf(file, "(ex_mlen: %d) ", send->ex_mlen);
+      fprintf(file, " (ex_mlen: %d)", send->ex_mlen);
    }
 
    if (inst->eot) {
-      fprintf(file, "(EOT) ");
+      fprintf(file, " (EOT)");
    }
 
    const bool is_send = inst->opcode == BRW_OPCODE_SEND ||
                         inst->opcode == SHADER_OPCODE_SEND;
+
+   const bool omit_dst = inst->dst.file == BAD_FILE && inst->sources == 0;
+
+   if (!omit_dst)
+      fprintf(file, " ");
 
    switch (inst->dst.file) {
    case VGRF:
@@ -424,7 +429,8 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
          fprintf(file, ".%d", inst->dst.subnr / brw_type_size_bytes(inst->dst.type));
       break;
    case BAD_FILE:
-      fprintf(file, "(null)");
+      if (!omit_dst)
+         fprintf(file, "(null)");
       break;
    case UNIFORM:
       fprintf(file, "***u%d***", inst->dst.nr);
@@ -472,7 +478,7 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
               inst->dst.offset % reg_size);
    }
 
-   if (!is_send) {
+   if (!is_send && !omit_dst) {
       if (inst->dst.stride != 1)
          fprintf(file, "<%u>", inst->dst.stride);
       fprintf(file, ":%s", brw_reg_type_to_letters(inst->dst.type));
@@ -752,4 +758,3 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
 
    fprintf(file, "\n");
 }
-
