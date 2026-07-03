@@ -54,7 +54,6 @@ struct pipe_video_codec
    unsigned width;
    unsigned height;
    unsigned max_references;
-   bool expect_chunked_decode;
    struct pipe_enc_two_pass_encoder_config two_pass;
 
    /**

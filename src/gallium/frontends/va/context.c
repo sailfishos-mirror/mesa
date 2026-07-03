@@ -310,7 +310,6 @@ vlVaCreateContext(VADriverContextP ctx, VAConfigID config_id, int picture_width,
    context->templat.chroma_format = PIPE_VIDEO_CHROMA_FORMAT_420;
    context->templat.width = picture_width;
    context->templat.height = picture_height;
-   context->templat.expect_chunked_decode = true;
    context->desc.base.profile = config->profile;
    context->desc.base.entry_point = config->entrypoint;
 
