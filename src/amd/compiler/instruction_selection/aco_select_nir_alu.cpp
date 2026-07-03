@@ -1796,14 +1796,30 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
       break;
    }
    case nir_op_imul_high: {
-      if (dst.regClass() == v1) {
-         emit_vop3a_instruction(ctx, instr, aco_opcode::v_mul_hi_i32, dst);
-      } else if (dst.regClass() == s1 && ctx->options->gfx_level >= GFX9) {
+      if (dst.regClass() == s1 && ctx->options->gfx_level >= GFX9) {
          emit_sop2_instruction(ctx, instr, aco_opcode::s_mul_hi_i32, dst, false);
-      } else if (dst.regClass() == s1) {
-         Temp tmp = bld.vop3(aco_opcode::v_mul_hi_i32, bld.def(v1), get_alu_src(ctx, instr->src[0]),
-                             as_vgpr(ctx, get_alu_src(ctx, instr->src[1])));
-         bld.pseudo(aco_opcode::p_as_uniform, Definition(dst), tmp);
+      } else if (dst.bytes() == 4) {
+         bool is_i24 = true;
+
+         for (unsigned i = 0; i < 2; i++) {
+            if (nir_src_is_const(instr->src[i].src)) {
+               int32_t constant = nir_src_as_int(instr->src[i].src);
+               is_i24 &= constant <= 0x7f'ffff && constant >= int32_t(0xff80'0000);
+            } else {
+               uint32_t uub = get_alu_src_ub(ctx, instr, i);
+               is_i24 &= uub <= 0x7f'ffff;
+            }
+         }
+
+         Temp tmp = dst.regClass() == s1 ? bld.tmp(v1) : dst;
+
+         if (is_i24)
+            emit_vop2_instruction(ctx, instr, aco_opcode::v_mul_hi_i32_i24, tmp, true);
+         else
+            emit_vop3a_instruction(ctx, instr, aco_opcode::v_mul_hi_i32, tmp);
+
+         if (dst.regClass() == s1)
+            bld.pseudo(aco_opcode::p_as_uniform, Definition(dst), tmp);
       } else {
          isel_err(&instr->instr, "Unimplemented NIR instr bit size");
       }
