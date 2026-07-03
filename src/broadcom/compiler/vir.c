@@ -2039,6 +2039,7 @@ v3d_attempt_compile(struct v3d_compile *c)
                 .lower_subgroup_masks = true,
                 .lower_relative_shuffle = true,
                 .lower_quad = true,
+                .lower_quad_vote = true,
                 .lower_reduce = true,
         };
         NIR_PASS(_, c->s, nir_lower_subgroups, &subgroup_opts);
