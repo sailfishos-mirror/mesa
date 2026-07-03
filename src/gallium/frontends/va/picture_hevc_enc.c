@@ -66,7 +66,8 @@ vlVaHandleVAEncPictureParameterBufferTypeHEVC(vlVaDriver *drv, vlVaContext *cont
          if (dpb->evict) {
             surf = handle_table_get(drv->htab, dpb->id);
             assert(surf);
-            surf->is_dpb = false;
+            surf->dpb_id = NULL;
+            surf->dpb_buffer = NULL;
             surf->buffer = NULL;
             /* Keep the buffer for reuse later */
             dpb->id = 0;
@@ -81,11 +82,10 @@ vlVaHandleVAEncPictureParameterBufferTypeHEVC(vlVaDriver *drv, vlVaContext *cont
 
    for (i = 0; i < ARRAY_SIZE(context->desc.h265enc.dpb); i++) {
       if (context->desc.h265enc.dpb[i].id == h265->decoded_curr_pic.picture_id) {
-         assert(surf->is_dpb);
+         assert(surf->dpb_id);
          break;
       }
-      if (!surf->is_dpb && !context->desc.h265enc.dpb[i].id) {
-         surf->is_dpb = true;
+      if (!surf->dpb_id && !context->desc.h265enc.dpb[i].id) {
          if (surf->buffer) {
             surf->buffer->destroy(surf->buffer);
             surf->buffer = NULL;
@@ -107,7 +107,8 @@ vlVaHandleVAEncPictureParameterBufferTypeHEVC(vlVaDriver *drv, vlVaContext *cont
                buffer = context->decoder->create_dpb_buffer(context->decoder, &context->desc.base, &surf->templat);
             surf->buffer = buffer;
          }
-         vlVaSetSurfaceContext(drv, surf, context);
+         surf->dpb_id = &context->desc.h265enc.dpb[i].id;
+         surf->dpb_buffer = &context->desc.h265enc.dpb[i].buffer;
          if (i == context->desc.h265enc.dpb_size)
             context->desc.h265enc.dpb_size++;
          break;

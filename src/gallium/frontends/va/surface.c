@@ -64,42 +64,6 @@ vlVaCreateSurfaces(VADriverContextP ctx, int width, int height, int format,
                               NULL, 0);
 }
 
-static void
-vlVaRemoveDpbSurface(vlVaSurface *surf, VASurfaceID id)
-{
-   assert(surf->ctx->templat.entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE);
-
-   switch (u_reduce_video_profile(surf->ctx->templat.profile)) {
-   case PIPE_VIDEO_FORMAT_MPEG4_AVC:
-      for (unsigned i = 0; i < surf->ctx->desc.h264enc.dpb_size; i++) {
-         if (surf->ctx->desc.h264enc.dpb[i].id == id) {
-            memset(&surf->ctx->desc.h264enc.dpb[i], 0, sizeof(surf->ctx->desc.h264enc.dpb[i]));
-            break;
-         }
-      }
-      break;
-   case PIPE_VIDEO_FORMAT_HEVC:
-      for (unsigned i = 0; i < surf->ctx->desc.h265enc.dpb_size; i++) {
-         if (surf->ctx->desc.h265enc.dpb[i].id == id) {
-            memset(&surf->ctx->desc.h265enc.dpb[i], 0, sizeof(surf->ctx->desc.h265enc.dpb[i]));
-            break;
-         }
-      }
-      break;
-   case PIPE_VIDEO_FORMAT_AV1:
-      for (unsigned i = 0; i < surf->ctx->desc.av1enc.dpb_size; i++) {
-         if (surf->ctx->desc.av1enc.dpb[i].id == id) {
-            memset(&surf->ctx->desc.av1enc.dpb[i], 0, sizeof(surf->ctx->desc.av1enc.dpb[i]));
-            break;
-         }
-      }
-      break;
-   default:
-      assert(false);
-      break;
-   }
-}
-
 void
 vlVaDestroySurface(vlVaDriver *drv, vlVaSurface *surf)
 {
@@ -107,16 +71,16 @@ vlVaDestroySurface(vlVaDriver *drv, vlVaSurface *surf)
       surf->buffer->destroy(surf->buffer);
    if (surf->pipe_fence)
       drv->pipe->screen->fence_reference(drv->pipe->screen, &surf->pipe_fence, NULL);
-   if (surf->ctx) {
-      assert(_mesa_set_search(surf->ctx->surfaces, surf));
-      _mesa_set_remove_key(surf->ctx->surfaces, surf);
-      if (surf->fence && surf->ctx->decoder && surf->ctx->decoder->destroy_fence) {
-         surf->ctx->decoder->destroy_fence(surf->ctx->decoder, surf->fence);
-         surf->fence = NULL;
-      }
+   if (surf->fence) {
+      assert(surf->codec && surf->codec->destroy_fence);
+      if (surf->codec && surf->codec->destroy_fence)
+         surf->codec->destroy_fence(surf->codec, surf->fence);
    }
-   if (surf->fence && drv->proc && drv->proc->destroy_fence)
-      drv->proc->destroy_fence(drv->proc, surf->fence);
+   pipe_video_codec_reference(&surf->codec, NULL);
+   if (surf->dpb_id)
+      *surf->dpb_id = 0;
+   if (surf->dpb_buffer)
+      *surf->dpb_buffer = NULL;
    if (surf->coded_buf)
       surf->coded_buf->coded_surf = NULL;
    util_dynarray_fini(&surf->subpics);
@@ -140,8 +104,6 @@ vlVaDestroySurfaces(VADriverContextP ctx, VASurfaceID *surface_list, int num_sur
          mtx_unlock(&drv->mutex);
          return VA_STATUS_ERROR_INVALID_SURFACE;
       }
-      if (surf->ctx && surf->is_dpb)
-         vlVaRemoveDpbSurface(surf, surface_list[i]);
       vlVaDestroySurface(drv, surf);
       handle_table_remove(drv->htab, surface_list[i]);
    }
@@ -154,8 +116,8 @@ static VAStatus
 _vlVaSyncSurface(VADriverContextP ctx, VASurfaceID render_target, uint64_t timeout_ns)
 {
    vlVaDriver *drv;
-   vlVaContext *context;
    vlVaSurface *surf;
+   struct pipe_video_codec *codec;
    struct pipe_fence_handle *fence;
 
    if (!ctx)
@@ -173,10 +135,10 @@ _vlVaSyncSurface(VADriverContextP ctx, VASurfaceID render_target, uint64_t timeo
    }
 
    if (surf->coded_buf) {
-      context = surf->coded_buf->ctx;
+      codec = surf->coded_buf->codec;
       fence = surf->coded_buf->fence;
    } else {
-      context = surf->ctx;
+      codec = surf->codec;
       fence = surf->fence;
    }
 
@@ -195,13 +157,13 @@ _vlVaSyncSurface(VADriverContextP ctx, VASurfaceID render_target, uint64_t timeo
       return VA_STATUS_SUCCESS;
    }
 
-   if (!context || !context->decoder) {
+   if (!codec) {
       mtx_unlock(&drv->mutex);
       return VA_STATUS_ERROR_INVALID_CONTEXT;
    }
 
    struct pipe_video_codec *tmp_codec = NULL;
-   pipe_video_codec_reference(&tmp_codec, context->decoder);
+   pipe_video_codec_reference(&tmp_codec, codec);
 
    /* Unlock mutex while waiting */
    mtx_unlock(&drv->mutex);
@@ -840,8 +802,10 @@ vlVaSwitchToProtectedContext(vlVaDriver *drv)
          .profile = PIPE_VIDEO_PROFILE_UNKNOWN,
          .entrypoint = PIPE_VIDEO_ENTRYPOINT_PROCESSING,
       };
-      drv->proc->destroy(drv->proc);
+      pipe_video_codec_reference(&drv->proc, NULL);
       drv->proc = vl_create_proc(drv->pipe, &templat);
+      if (drv->proc)
+         pipe_reference_init(&drv->proc->reference, 1);
    }
 }
 

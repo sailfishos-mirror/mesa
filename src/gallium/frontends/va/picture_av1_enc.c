@@ -224,7 +224,8 @@ VAStatus vlVaHandleVAEncPictureParameterBufferTypeAV1(vlVaDriver *drv, vlVaConte
       if (j == ARRAY_SIZE(av1->reference_frames)) {
          surf = handle_table_get(drv->htab, dpb->id);
          assert(surf);
-         surf->is_dpb = false;
+         surf->dpb_id = NULL;
+         surf->dpb_buffer = NULL;
          surf->buffer = NULL;
          /* Keep the buffer for reuse later */
          dpb->id = 0;
@@ -237,11 +238,10 @@ VAStatus vlVaHandleVAEncPictureParameterBufferTypeAV1(vlVaDriver *drv, vlVaConte
 
    for (i = 0; i < ARRAY_SIZE(context->desc.av1enc.dpb); i++) {
       if (context->desc.av1enc.dpb[i].id == av1->reconstructed_frame) {
-         assert(surf->is_dpb);
+         assert(surf->dpb_id);
          break;
       }
-      if (!surf->is_dpb && !context->desc.av1enc.dpb[i].id) {
-         surf->is_dpb = true;
+      if (!surf->dpb_id && !context->desc.av1enc.dpb[i].id) {
          if (surf->buffer) {
             surf->buffer->destroy(surf->buffer);
             surf->buffer = NULL;
@@ -263,7 +263,8 @@ VAStatus vlVaHandleVAEncPictureParameterBufferTypeAV1(vlVaDriver *drv, vlVaConte
                buffer = context->decoder->create_dpb_buffer(context->decoder, &context->desc.base, &surf->templat);
             surf->buffer = buffer;
          }
-         vlVaSetSurfaceContext(drv, surf, context);
+         surf->dpb_id = &context->desc.av1enc.dpb[i].id;
+         surf->dpb_buffer = &context->desc.av1enc.dpb[i].buffer;
          if (i == context->desc.av1enc.dpb_size)
             context->desc.av1enc.dpb_size++;
          break;

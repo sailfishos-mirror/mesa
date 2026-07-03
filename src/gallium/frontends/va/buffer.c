@@ -336,13 +336,13 @@ vlVaDestroyBuffer(VADriverContextP ctx, VABufferID buf_id)
       FREE(buf->data);
    }
 
-   if (buf->ctx) {
-      assert(_mesa_set_search(buf->ctx->buffers, buf));
-      _mesa_set_remove_key(buf->ctx->buffers, buf);
+   if (buf->fence) {
+      assert(buf->codec && buf->codec->destroy_fence);
       vlVaGetBufferFeedback(buf);
-      if (buf->fence && buf->ctx->decoder && buf->ctx->decoder->destroy_fence)
-         buf->ctx->decoder->destroy_fence(buf->ctx->decoder, buf->fence);
+      if (buf->codec && buf->codec->destroy_fence)
+         buf->codec->destroy_fence(buf->codec, buf->fence);
    }
+   pipe_video_codec_reference(&buf->codec, NULL);
 
    if (buf->coded_surf)
       buf->coded_surf->coded_buf = NULL;
@@ -544,7 +544,6 @@ VAStatus
 vlVaSyncBuffer(VADriverContextP ctx, VABufferID buf_id, uint64_t timeout_ns)
 {
    vlVaDriver *drv;
-   vlVaContext *context;
    vlVaBuffer *buf;
 
    if (!ctx)
@@ -567,14 +566,13 @@ vlVaSyncBuffer(VADriverContextP ctx, VABufferID buf_id, uint64_t timeout_ns)
       return VA_STATUS_SUCCESS;
    }
 
-   context = buf->ctx;
-   if (!context || !context->decoder) {
+   if (!buf->codec) {
       mtx_unlock(&drv->mutex);
       return VA_STATUS_ERROR_INVALID_CONTEXT;
    }
 
    struct pipe_video_codec *tmp_codec = NULL;
-   pipe_video_codec_reference(&tmp_codec, context->decoder);
+   pipe_video_codec_reference(&tmp_codec, buf->codec);
 
    /* Unlock mutex while waiting */
    mtx_unlock(&drv->mutex);
@@ -589,10 +587,10 @@ vlVaSyncBuffer(VADriverContextP ctx, VABufferID buf_id, uint64_t timeout_ns)
 
 void vlVaGetBufferFeedback(vlVaBuffer *buf)
 {
-   if (!buf->ctx || !buf->ctx->decoder || !buf->feedback)
+   if (!buf->codec || !buf->feedback)
       return;
 
-   buf->ctx->decoder->get_feedback(buf->ctx->decoder, buf->feedback,
-                                   &buf->coded_size, &buf->extended_metadata);
+   buf->codec->get_feedback(buf->codec, buf->feedback,
+                            &buf->coded_size, &buf->extended_metadata);
    buf->feedback = NULL;
 }
