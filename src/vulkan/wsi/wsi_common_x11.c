@@ -1977,12 +1977,6 @@ static VkResult x11_swapchain_read_status_atomic(struct x11_swapchain *chain)
  * Decides if an early wait on buffer fences before buffer submission is required.
  * That is for mailbox mode, as otherwise the latest image in the queue might not be fully rendered at
  * present time, which could lead to missing a frame. This is an Xorg issue.
- *
- * On Wayland compositors, this used to be a problem as well, but not anymore,
- * and this check assumes that Mesa is running on a reasonable compositor.
- * The wait behavior can be forced by setting the 'vk_xwayland_wait_ready' DRIConf option to true.
-
- *
  * On Wayland, we don't know at this point if tearing protocol is/can be used by Xwl,
  * so we have to make the MAILBOX assumption.
  */
@@ -1991,7 +1985,7 @@ x11_needs_wait_for_fences(const struct wsi_device *wsi_device,
                           struct wsi_x11_connection *wsi_conn,
                           VkPresentModeKHR present_mode)
 {
-   if (wsi_conn->is_xwayland && !wsi_device->x11.xwaylandWaitReady) {
+   if (wsi_conn->is_xwayland) {
       return false;
    }
 
@@ -3474,12 +3468,6 @@ wsi_x11_init_wsi(struct wsi_device *wsi_device,
          wsi_device->x11.ensure_minImageCount =
             driQueryOptionb(dri_options, "vk_x11_ensure_min_image_count");
       }
-      wsi_device->x11.xwaylandWaitReady = true;
-      if (driCheckOption(dri_options, "vk_xwayland_wait_ready", DRI_BOOL)) {
-         wsi_device->x11.xwaylandWaitReady =
-            driQueryOptionb(dri_options, "vk_xwayland_wait_ready");
-      }
-
       if (driCheckOption(dri_options, "vk_x11_ignore_suboptimal", DRI_BOOL)) {
          wsi_device->x11.ignore_suboptimal =
             driQueryOptionb(dri_options, "vk_x11_ignore_suboptimal");

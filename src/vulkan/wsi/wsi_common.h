@@ -130,11 +130,6 @@ struct wsi_device {
        */
       bool ensure_minImageCount;
 
-      /* Wait for fences before submitting buffers to Xwayland. Defaults to
-       * true.
-       */
-      bool xwaylandWaitReady;
-
       /* adds an extra minImageCount when running under xwayland */
       bool extra_xwayland_image;
 
