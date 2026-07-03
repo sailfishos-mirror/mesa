@@ -1733,10 +1733,12 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
                                   true /* commutative */, false, false, nuw_16bit, 0x3);
          } else if (nir_src_is_const(instr->src[0].src)) {
             bld.v_mul_imm(Definition(dst), get_alu_src(ctx, instr->src[1]),
-                          nir_src_as_uint(instr->src[0].src), false);
+                          nir_src_as_uint(instr->src[0].src), src1_ub <= 0xffffff,
+                          src1_ub <= 0x7fffff);
          } else if (nir_src_is_const(instr->src[1].src)) {
             bld.v_mul_imm(Definition(dst), get_alu_src(ctx, instr->src[0]),
-                          nir_src_as_uint(instr->src[1].src), false);
+                          nir_src_as_uint(instr->src[1].src), src0_ub <= 0xffffff,
+                          src0_ub <= 0x7fffff);
          } else {
             emit_vop3a_instruction(ctx, instr, aco_opcode::v_mul_lo_u32, dst);
          }
