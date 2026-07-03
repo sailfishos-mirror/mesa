@@ -1584,7 +1584,7 @@
         "description": "rusticl: abort compilation if the nir shader is not fully linked",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null

@@ -697,7 +697,7 @@ fn compile_nir_to_args(
     mut nir: NirShader,
     args: &[spirv::SPIRVKernelArg],
     lib_clc: &NirShader,
-) -> (Vec<KernelArg>, NirShader) {
+) -> Result<(Vec<KernelArg>, NirShader), &'static str> {
     // this is a hack until we support fp16 properly and check for denorms inside vstore/vload_half
     nir.preserve_fp16_denorms();
 
@@ -729,7 +729,9 @@ fn compile_nir_to_args(
         progress
     } {}
     nir.inline(lib_clc);
-    nir.cleanup_functions();
+    nir = nir
+        .cleanup_functions()
+        .ok_or("nir_shader not fully linked")?;
     // that should free up tons of memory
     nir.sweep_mem();
 
@@ -743,7 +745,7 @@ fn compile_nir_to_args(
 
     opt_nir(&mut nir, dev, false);
 
-    (KernelArg::from_spirv_nir(args, &mut nir), nir)
+    Ok((KernelArg::from_spirv_nir(args, &mut nir), nir))
 }
 
 fn compile_nir_prepare_for_variants(
@@ -1246,7 +1248,7 @@ pub(super) fn convert_spirv_to_nir(
                 nir.print();
             }
 
-            let (mut args, nir) = compile_nir_to_args(dev, nir, args, &dev.lib_clc);
+            let (mut args, nir) = compile_nir_to_args(dev, nir, args, &dev.lib_clc)?;
             let (default_build, optimized) = compile_nir_remaining(dev, nir, &args, name);
 
             for build in [Some(&default_build), optimized.as_ref()].into_iter() {
