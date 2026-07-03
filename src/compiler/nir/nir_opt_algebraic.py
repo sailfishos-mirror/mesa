@@ -3340,10 +3340,9 @@ optimizations += [(bitfield_reverse_cp2077('x@32'), ('bitfield_reverse', 'x'), '
 # Input is f32, output is u32 that has the f16 packed into its low bits.
 def vkd3d_proton_packed_f2f16_rtz_lo(a, abs_a):
     packed_half = ('pack_half_2x16_rtz_split', a, 0)
-    packed_half_minus1 = ('iadd', packed_half, 0xffffffff)
     f32_was_not_inf = ('fneu', abs_a, 0x7f800000)
     f16_is_now_inf = ('ieq', ('iand', packed_half, 0x7fff), 0x7c00)
-    return ('bcsel', ('iand', f32_was_not_inf, f16_is_now_inf), packed_half_minus1, packed_half)
+    return ('iadd', packed_half, ('ineg', ('b2i', ('iand', f32_was_not_inf, f16_is_now_inf))))
 
 optimizations += [
    (vkd3d_proton_packed_f2f16_rtz_lo('x', ('fabs', 'x')), ('pack_half_2x16_rtz_split', 'x', 0)),
