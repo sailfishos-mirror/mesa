@@ -469,6 +469,8 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
       if (inst->dst.stride != 1)
          fprintf(file, "<%u>", inst->dst.stride);
       fprintf(file, ":%s", brw_reg_type_to_letters(inst->dst.type));
+      if (inst->dst.is_scalar)
+         fprintf(file, ".scalar");
    }
 
    const brw_mem_inst *mem = inst->as_mem();
@@ -682,6 +684,8 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
          }
 
          fprintf(file, ":%s", brw_reg_type_to_letters(inst->src[i].type));
+         if (inst->src[i].is_scalar)
+            fprintf(file, ".scalar");
       }
 
       if (inst->opcode == SHADER_OPCODE_QUAD_SWAP && i == 1) {
