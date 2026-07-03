@@ -120,6 +120,9 @@ impl PartialDataType {
     }
 
     pub fn as_data_type(self) -> DataType {
+        if self == PartialDataType::SR {
+            return DataType::SR;
+        }
         let (comps, num_type, bits) = self.to_pieces();
         DataType::from_pieces(comps, num_type, bits)
     }
