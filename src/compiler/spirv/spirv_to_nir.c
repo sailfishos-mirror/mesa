@@ -870,7 +870,10 @@ vtn_handle_debug_printf(struct vtn_builder *b, SpvOp ext_opcode,
 
          int size = (int) arg->def->bit_size * arg->def->num_components / 8;
          info->arg_sizes[i] = size;
+
+         /* Match u_printf_impl, which 4-aligns each argument as it reads. */
          next_offset += size;
+         next_offset = align(next_offset, 4);
       }
 
       nir_variable *packed_args = nir_local_variable_create(
