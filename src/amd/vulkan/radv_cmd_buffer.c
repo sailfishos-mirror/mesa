@@ -10336,7 +10336,7 @@ radv_create_msrtss_transient_image_view(struct radv_cmd_buffer *cmd_buffer, stru
       .arrayLayers = src_image->vk.array_layers,
       .samples = samples,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
-      .usage = src_image->vk.usage,
+      .usage = orig->vk.usage,
       .flags = src_image->vk.create_flags & ~VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT,
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
       .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
