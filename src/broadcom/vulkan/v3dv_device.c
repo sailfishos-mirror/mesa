@@ -2902,7 +2902,7 @@ v3dv_CreateBuffer(VkDevice  _device,
    struct v3dv_buffer *buffer;
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
-   assert(pCreateInfo->usage != 0);
+   assert(vk_buffer_usage_flags(pCreateInfo) != 0);
 
    /* We don't support any flags for now */
    assert(pCreateInfo->flags == 0);
