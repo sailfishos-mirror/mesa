@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <float.h>
+#include <math.h>
+
 #include "brw_cfg.h"
 #include "brw_shader.h"
 #include "brw_private.h"
@@ -561,35 +564,53 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
          break;
       case IMM:
          switch (inst->src[i].type) {
+         /* NaN payload bits don't survive a round-trip through a decimal
+          * string, so print NaNs as their raw bits.
+          */
          case BRW_TYPE_HF:
-            fprintf(file, "%-ghf", _mesa_half_to_float(inst->src[i].ud & 0xffff));
+            if (isnan(_mesa_half_to_float(inst->src[i].ud & 0xffff))) {
+               fprintf(file, "0x%04x:HF /* %-g */", inst->src[i].ud & 0xffff,
+                       _mesa_half_to_float(inst->src[i].ud & 0xffff));
+            } else {
+               fprintf(file, "%-g:HF", _mesa_half_to_float(inst->src[i].ud & 0xffff));
+            }
             break;
          case BRW_TYPE_F:
-            fprintf(file, "%-gf", inst->src[i].f);
+            if (isnan(inst->src[i].f)) {
+               fprintf(file, "0x%08x:F /* %-g */", inst->src[i].ud,
+                       inst->src[i].f);
+            } else {
+               fprintf(file, "%.*g:F", FLT_DECIMAL_DIG, inst->src[i].f);
+            }
             break;
          case BRW_TYPE_DF:
-            fprintf(file, "%fdf", inst->src[i].df);
+            if (isnan(inst->src[i].df)) {
+               fprintf(file, "0x%016" PRIx64 ":DF /* %-g */", inst->src[i].u64,
+                       inst->src[i].df);
+            } else {
+               fprintf(file, "%.*g:DF", DBL_DECIMAL_DIG, inst->src[i].df);
+            }
             break;
          case BRW_TYPE_W:
-            fprintf(file, "%dw", (int)(int16_t)inst->src[i].d);
+            fprintf(file, "%d:W", (int)(int16_t)inst->src[i].d);
             break;
          case BRW_TYPE_D:
-            fprintf(file, "%dd", inst->src[i].d);
+            fprintf(file, "%d:D", inst->src[i].d);
             break;
          case BRW_TYPE_UW:
-            fprintf(file, "%duw", inst->src[i].ud & 0xffff);
+            fprintf(file, "%d:UW", inst->src[i].ud & 0xffff);
             break;
          case BRW_TYPE_UD:
-            fprintf(file, "%uu", inst->src[i].ud);
+            fprintf(file, "%u:UD", inst->src[i].ud);
             break;
          case BRW_TYPE_Q:
-            fprintf(file, "%" PRId64 "q", inst->src[i].d64);
+            fprintf(file, "%" PRId64 ":Q", inst->src[i].d64);
             break;
          case BRW_TYPE_UQ:
-            fprintf(file, "%" PRIu64 "uq", inst->src[i].u64);
+            fprintf(file, "%" PRIu64 ":UQ", inst->src[i].u64);
             break;
          case BRW_TYPE_VF:
-            fprintf(file, "[%-gF, %-gF, %-gF, %-gF]",
+            fprintf(file, "[%-g, %-g, %-g, %-g]:VF",
                     brw_vf_to_float((inst->src[i].ud >>  0) & 0xff),
                     brw_vf_to_float((inst->src[i].ud >>  8) & 0xff),
                     brw_vf_to_float((inst->src[i].ud >> 16) & 0xff),
@@ -597,7 +618,7 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
             break;
          case BRW_TYPE_V:
          case BRW_TYPE_UV:
-            fprintf(file, "%08x%s", inst->src[i].ud,
+            fprintf(file, "%08x:%s", inst->src[i].ud,
                     inst->src[i].type == BRW_TYPE_V ? "V" : "UV");
             break;
          default:
@@ -720,5 +741,4 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
 
    fprintf(file, "\n");
 }
-
 
