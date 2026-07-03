@@ -81,14 +81,9 @@ vlVaBeginPicture(VADriverContextP ctx, VAContextID context_id, VASurfaceID rende
    if (context->templat.entrypoint != PIPE_VIDEO_ENTRYPOINT_ENCODE)
       context->needs_begin_frame = true;
 
-   if (!context->decoder) {
-      mtx_unlock(&drv->mutex);
-      return VA_STATUS_SUCCESS;
-   }
-
    /* meta data and seis are per picture basis, it needs to be
     * cleared before rendering the picture. */
-   if (context->decoder->entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE) {
+   if (context->templat.entrypoint == PIPE_VIDEO_ENTRYPOINT_ENCODE) {
       switch (u_reduce_video_profile(context->templat.profile)) {
          case PIPE_VIDEO_FORMAT_AV1:
             context->desc.av1enc.metadata_flags.value = 0;
@@ -252,7 +247,7 @@ vlVaEndPicture(VADriverContextP ctx, VAContextID context_id)
 
    mtx_lock(&drv->mutex);
    context = handle_table_get(drv->htab, context_id);
-   if (!context) {
+   if (!context || !context->decoder) {
       mtx_unlock(&drv->mutex);
       return VA_STATUS_ERROR_INVALID_CONTEXT;
    }
@@ -264,17 +259,6 @@ vlVaEndPicture(VADriverContextP ctx, VAContextID context_id)
 
    output_id = context->target_id;
    context->target_id = 0;
-
-   if (!context->decoder) {
-      if (context->templat.profile != PIPE_VIDEO_PROFILE_UNKNOWN) {
-         mtx_unlock(&drv->mutex);
-         return VA_STATUS_ERROR_INVALID_CONTEXT;
-      }
-
-      /* VPP */
-      mtx_unlock(&drv->mutex);
-      return VA_STATUS_SUCCESS;
-   }
 
    if (context->needs_begin_frame) {
       mtx_unlock(&drv->mutex);
