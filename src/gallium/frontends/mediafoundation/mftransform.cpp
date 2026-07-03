@@ -911,7 +911,6 @@ CDX12EncHMFT::InitializeEncoder( pipe_video_profile videoProfile, UINT32 Width, 
       encoderSettings.profile = videoProfile;
       encoderSettings.level = m_uiLevel;
       encoderSettings.entrypoint = PIPE_VIDEO_ENTRYPOINT_ENCODE;
-      encoderSettings.chroma_format = ConvertAVEncVProfileToPipeVideoChromaFormat( m_uiProfile, m_Codec );
       encoderSettings.width = Width;
       encoderSettings.height = Height;
       encoderSettings.max_references = m_uiMaxNumRefFrame;
