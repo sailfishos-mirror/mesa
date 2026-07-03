@@ -4832,7 +4832,7 @@ radv_gfx11_emit_fb_ds_state(struct radv_cmd_buffer *cmd_buffer, const struct rad
       gfx11_set_context_reg(R_028010_DB_RENDER_OVERRIDE2, ds->db_render_override2);
       gfx11_set_context_reg(R_028014_DB_HTILE_DATA_BASE, ds->ac.u.gfx6.db_htile_data_base);
       gfx11_set_context_reg(R_02801C_DB_DEPTH_SIZE_XY, ds->ac.db_depth_size);
-      gfx11_set_context_reg(R_028040_DB_Z_INFO, ds->ac.db_z_info);
+      gfx11_opt_set_context_reg(R_028040_DB_Z_INFO, AC_TRACKED_DB_Z_INFO, ds->ac.db_z_info);
       gfx11_set_context_reg(R_028044_DB_STENCIL_INFO, ds->ac.db_stencil_info);
       gfx11_set_context_reg(R_028048_DB_Z_READ_BASE, ds->ac.db_depth_base);
       gfx11_set_context_reg(R_02804C_DB_STENCIL_READ_BASE, ds->ac.db_stencil_base);
@@ -4851,8 +4851,8 @@ radv_gfx11_emit_fb_ds_state(struct radv_cmd_buffer *cmd_buffer, const struct rad
       radeon_set_context_reg(R_028010_DB_RENDER_OVERRIDE2, ds->db_render_override2);
       radeon_set_context_reg(R_028014_DB_HTILE_DATA_BASE, ds->ac.u.gfx6.db_htile_data_base);
       radeon_set_context_reg(R_02801C_DB_DEPTH_SIZE_XY, ds->ac.db_depth_size);
-      radeon_set_context_reg_seq(R_028040_DB_Z_INFO, 6);
-      radeon_emit(ds->ac.db_z_info);
+      radeon_opt_set_context_reg(R_028040_DB_Z_INFO, AC_TRACKED_DB_Z_INFO, ds->ac.db_z_info);
+      radeon_set_context_reg_seq(R_028044_DB_STENCIL_INFO, 5);
       radeon_emit(ds->ac.db_stencil_info);
       radeon_emit(ds->ac.db_depth_base);
       radeon_emit(ds->ac.db_stencil_base);
@@ -4995,26 +4995,17 @@ radv_gfx11_emit_null_ds_state(struct radv_cmd_buffer *cmd_buffer)
 
    radv_gfx11_set_db_render_control(device, 1, &db_render_control);
 
-   /* On GFX11+, the hw intentionally looks at DB_Z_INFO.NUM_SAMPLES when there is no bound
-    * depth/stencil buffer and it clamps the number of samples like MIN2(DB_Z_INFO.NUM_SAMPLES,
-    * PA_SC_AA_CONFIG.MSAA_EXPOSED_SAMPLES). Use 8x for DB_Z_INFO.NUM_SAMPLES to make sure it's not
-    * the constraining factor. This affects VRS, occlusion queries and POPS.
-    */
-   const uint32_t num_samples = 3;
+   /* Note: DB_Z_INFO for null DS is emitted in radv_emit_msaa_state for GFX11.x. */
 
    radeon_begin(cs);
    if (pdev->info.has_set_context_pairs_packed) {
       gfx11_begin_packed_context_regs();
-      gfx11_set_context_reg(R_028040_DB_Z_INFO,
-                            S_028040_FORMAT(V_028040_Z_INVALID) | S_028040_NUM_SAMPLES(num_samples));
       gfx11_set_context_reg(R_028044_DB_STENCIL_INFO, S_028044_FORMAT(V_028044_STENCIL_INVALID));
       gfx11_set_context_reg(R_028000_DB_RENDER_CONTROL, db_render_control);
       gfx11_set_context_reg(R_028010_DB_RENDER_OVERRIDE2, S_028010_CENTROID_COMPUTATION_MODE(1));
       gfx11_end_packed_context_regs();
    } else {
-      radeon_set_context_reg_seq(R_028040_DB_Z_INFO, 2);
-      radeon_emit(S_028040_FORMAT(V_028040_Z_INVALID) | S_028040_NUM_SAMPLES(num_samples));
-      radeon_emit(S_028044_FORMAT(V_028044_STENCIL_INVALID));
+      radeon_set_context_reg(R_028044_DB_STENCIL_INFO, S_028044_FORMAT(V_028044_STENCIL_INVALID));
       radeon_set_context_reg(R_028000_DB_RENDER_CONTROL, db_render_control);
       radeon_set_context_reg(R_028010_DB_RENDER_OVERRIDE2, S_028010_CENTROID_COMPUTATION_MODE(1));
    }
@@ -13075,6 +13066,21 @@ radv_emit_msaa_state(struct radv_cmd_buffer *cmd_buffer)
 
    db_alpha_to_mask |= S_028B70_ALPHA_TO_MASK_ENABLE(d->vk.ms.alpha_to_coverage_enable);
 
+   /* On GFX11.x, the hw intentionally looks at DB_Z_INFO.NUM_SAMPLES when there is no bound
+    * depth/stencil buffer and it clamps the number of samples to MIN2(DB_Z_INFO.NUM_SAMPLES,
+    * PA_SC_AA_CONFIG.MSAA_EXPOSED_SAMPLES). This affects VRS, occlusion queries and POPS.
+    *
+    * The reason we can't set it to 3 is because unnecessarily large numbers also reduce pixel
+    * throughput without a depth buffer. For example, NUM_SAMPLES=3 reduces pixel throughput
+    * for 1 sample to 71%. Note that RB+ is 100% and VRS 2x2 is 200% pixel throughput, which are
+    * both clamped to 71% with NUM_SAMPLES=3 in the HW. (observed on Navi33)
+    *
+    * That's why we set it to the number of rasterization samples here.
+    */
+   const bool gfx11_emit_null_ds =
+      pdev->info.gfx_level >= GFX11 && pdev->info.gfx_level < GFX12 && render->ds_att.format == VK_FORMAT_UNDEFINED;
+   const uint32_t gfx11_null_db_z_info = S_028040_FORMAT(V_028040_Z_INVALID) | S_028040_NUM_SAMPLES(log_samples);
+
    radeon_begin(cmd_buffer->cs);
    if (pdev->info.gfx_level >= GFX12) {
       gfx12_begin_context_regs();
@@ -13105,6 +13111,8 @@ radv_emit_msaa_state(struct radv_cmd_buffer *cmd_buffer)
       gfx11_opt_set_context_reg(R_028804_DB_EQAA, AC_TRACKED_DB_EQAA, db_eqaa);
       gfx11_opt_set_context_reg(R_028C4C_PA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
                                 AC_TRACKED_PA_SC_CONSERVATIVE_RASTERIZATION_CNTL, pa_sc_conservative_rast);
+      if (gfx11_emit_null_ds)
+         gfx11_opt_set_context_reg(R_028040_DB_Z_INFO, AC_TRACKED_DB_Z_INFO, gfx11_null_db_z_info);
       gfx11_end_packed_context_regs();
    } else {
       radeon_opt_set_context_reg2(R_028C38_PA_SC_AA_MASK_X0Y0_X1Y0, AC_TRACKED_PA_SC_AA_MASK_X0Y0_X1Y0, sample_mask,
@@ -13120,6 +13128,8 @@ radv_emit_msaa_state(struct radv_cmd_buffer *cmd_buffer)
       if (pdev->info.gfx_level >= GFX9)
          radeon_opt_set_context_reg(R_028C4C_PA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
                                     AC_TRACKED_PA_SC_CONSERVATIVE_RASTERIZATION_CNTL, pa_sc_conservative_rast);
+      if (gfx11_emit_null_ds)
+         radeon_opt_set_context_reg(R_028040_DB_Z_INFO, AC_TRACKED_DB_Z_INFO, gfx11_null_db_z_info);
    }
    radeon_end();
 }
