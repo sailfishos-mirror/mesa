@@ -10184,7 +10184,7 @@ get_rendering_attachment_flags(const VkRenderingInfo *rendering_info, const VkRe
        */
       VK_FROM_HANDLE(radv_image_view, iview, att_info->imageView);
 
-      if (iview->image->vk.usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)
+      if (iview->vk.usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)
          flags |= VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR;
    }
 
