@@ -52,3 +52,4 @@ GL_ARB_shader_bit_encoding on etnaviv/HALTI2
 GL_ARB_texture_rgb10_a2ui on etnaviv/HALTI2
 VK_EXT_primitive_topology_list_restart on pvr
 VK_KHR_incremental_present on panvk
+VK_EXT_swapchain_colorspace on panvk
