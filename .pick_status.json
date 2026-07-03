@@ -5574,7 +5574,7 @@
         "description": "anv: Initialize shader debug archive key size",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6c90a9c8e384f60465b13f43b02188c532a46e32",
         "notes": null
