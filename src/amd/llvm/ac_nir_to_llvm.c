@@ -3127,6 +3127,7 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
       break;
    }
    case nir_intrinsic_load_scalar_arg_amd:
+   case nir_intrinsic_load_scalar_arg_wg_div_amd:
    case nir_intrinsic_load_vector_arg_amd: {
       assert(nir_intrinsic_base(instr) < AC_MAX_ARGS);
       struct ac_arg arg;

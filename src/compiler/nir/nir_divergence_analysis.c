@@ -208,7 +208,9 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_warp_id_nv:
    case nir_intrinsic_load_warp_id_arm:
    case nir_intrinsic_load_ttmp_register_amd:
+   case nir_intrinsic_load_ttmp_register_wg_div_amd:
    case nir_intrinsic_load_scalar_arg_amd:
+   case nir_intrinsic_load_scalar_arg_wg_div_amd:
       /* VS/TES/GS invocations of the same primitive can be in different
        * subgroups, so subgroup ops are always divergent between vertices of
        * the same primitive.

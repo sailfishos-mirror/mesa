@@ -4770,20 +4770,22 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
                  bld.def(s1, scc), Operand::c32(nir_intrinsic_call_idx(instr)));
       break;
    }
-   case nir_intrinsic_load_ttmp_register_amd: {
+   case nir_intrinsic_load_ttmp_register_amd:
+   case nir_intrinsic_load_ttmp_register_wg_div_amd:{
       assert(ctx->options->gfx_level >= GFX12);
       Temp dst = get_ssa_temp(ctx, &instr->def);
       bld.copy(Definition(dst), Operand(PhysReg(108 + nir_intrinsic_base(instr)), s1));
       break;
    }
    case nir_intrinsic_load_scalar_arg_amd:
+   case nir_intrinsic_load_scalar_arg_wg_div_amd:
    case nir_intrinsic_load_vector_arg_amd: {
       assert(nir_intrinsic_base(instr) < ctx->args->arg_count);
       Temp dst = get_ssa_temp(ctx, &instr->def);
       Temp src = ctx->arg_temps[nir_intrinsic_base(instr)];
       assert(src.id());
-      assert(src.type() == (instr->intrinsic == nir_intrinsic_load_scalar_arg_amd ? RegType::sgpr
-                                                                                  : RegType::vgpr));
+      assert(src.type() == (instr->intrinsic == nir_intrinsic_load_vector_arg_amd ? RegType::vgpr
+                                                                                  : RegType::sgpr));
       bld.copy(Definition(dst), src);
       emit_split_vector(ctx, dst, dst.size());
       break;
