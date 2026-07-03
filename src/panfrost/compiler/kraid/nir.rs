@@ -1163,7 +1163,7 @@ impl<'a> ShaderFromNir<'a> {
                     handle,
                 });
             }
-            nir_intrinsic_load_global => {
+            nir_intrinsic_load_global | nir_intrinsic_load_global_constant => {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
                 let addr = self.get_src(&srcs[0]);
                 let dst = self.alloc_ssa(b, &intrin.def).into();
