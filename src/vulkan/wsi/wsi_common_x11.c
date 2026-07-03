@@ -1981,8 +1981,7 @@ static VkResult x11_swapchain_read_status_atomic(struct x11_swapchain *chain)
  * On Wayland compositors, this used to be a problem as well, but not anymore,
  * and this check assumes that Mesa is running on a reasonable compositor.
  * The wait behavior can be forced by setting the 'vk_xwayland_wait_ready' DRIConf option to true.
- * Some drivers, like e.g. Venus may still want to require wait_ready by default,
- * so the option is kept around for now.
+
  *
  * On Wayland, we don't know at this point if tearing protocol is/can be used by Xwl,
  * so we have to make the MAILBOX assumption.
