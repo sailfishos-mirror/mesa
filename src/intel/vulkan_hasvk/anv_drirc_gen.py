@@ -50,8 +50,7 @@ def declare_options():
 
     drirc_gen.add_common_vk_options(debug_options, [], misc_options,
                                     valid_options=VALID_COMMON_VK_OPTIONS)
-    drirc_gen.add_common_vk_wsi_options(debug_options, performance_options,
-                                        defaults={"vk_xwayland_wait_ready": True})
+    drirc_gen.add_common_vk_wsi_options(debug_options, performance_options);
 
     return [
         drirc_gen.DrircSection("Debugging", debug_options, c_name="debug"),
