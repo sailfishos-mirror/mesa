@@ -1570,18 +1570,27 @@ void genX(CmdEndQueryIndexedEXT)(
 #endif
 
    case VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR: {
-      uint32_t reg_addr;
-
+      struct mi_value val;
       if (pool->codec & VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR) {
-         reg_addr = MFC_BITSTREAM_BYTECOUNT_FRAME_REG;
+         val = mi_reg32(MFC_BITSTREAM_BYTECOUNT_FRAME_REG);
       } else if (pool->codec & VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR) {
-         reg_addr = HCP_BITSTREAM_BYTECOUNT_FRAME_REG;
+         val = mi_reg32(HCP_BITSTREAM_BYTECOUNT_FRAME_REG);
+      } else if (pool->codec & VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR) {
+         /* AV1 BITSTREAM_BYTECOUNT_TILE is per-tile; the frame total (all
+          * tiles) is the running sum accumulated into the encode scratch
+          * dword during CmdEncodeVideoKHR. */
+         struct anv_video_session *vid = cmd_buffer->video.vid;
+         struct anv_address scratch = {
+            vid->vid_mem[ANV_VID_MEM_AV1_ENCODE_TILE_BITSTREAM_ACCUM].mem->bo,
+            vid->vid_mem[ANV_VID_MEM_AV1_ENCODE_TILE_BITSTREAM_ACCUM].offset
+         };
+         val = mi_mem32(scratch);
       } else {
          UNREACHABLE("Invalid codec operation");
       }
-
-      mi_store(&b, mi_mem64(anv_address_add(query_addr, 8)), mi_reg32(reg_addr));
+      mi_store(&b, mi_mem64(anv_address_add(query_addr, 8)), val);
       emit_query_mi_availability(&b, query_addr, true);
+
       break;
    }
    default:

@@ -40,7 +40,8 @@ genX(CmdBeginVideoCodingKHR)(VkCommandBuffer commandBuffer,
    cmd_buffer->video.vid = vid;
    cmd_buffer->video.params = params;
 
-   if (vid->vk.op != VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR)
+   if (vid->vk.op != VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR &&
+       vid->vk.op != VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR)
       return;
 
    if (!vid->cdf_initialized) {
