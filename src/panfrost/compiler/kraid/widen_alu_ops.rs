@@ -6,6 +6,11 @@ use crate::ir::*;
 use crate::ops::*;
 
 fn widen_op_pre_ra(b: &mut impl SSABuilder, op: &mut Op) {
+    if b.model().op_is_message(op) {
+        // Don't try to widen messages
+        return;
+    }
+
     assert!(op.dsts().len() <= 1);
     let Some((dst, dst_raw_type)) = op.dsts_raw_types().next() else {
         // We can only widen things with destinations
