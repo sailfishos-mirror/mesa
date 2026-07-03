@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -325,8 +326,8 @@ print_supported_chips_and_abort(const char *unrecognized_env)
    fprintf(stderr, "%s unrecognized, shim supports:\n", unrecognized_env);
 
    for (int i = 1; i < ARRAY_SIZE(device_infos); i++) {
-      fprintf(stderr, "- gpu_id=%d, chip_id=0x%lx\n", device_infos[i].gpu_id,
-              device_infos[i].chip_id);
+      fprintf(stderr, "- gpu_id=%" PRIu32 ", chip_id=0x%" PRIx64 "\n",
+              device_infos[i].gpu_id, device_infos[i].chip_id);
    }
 
    abort();
