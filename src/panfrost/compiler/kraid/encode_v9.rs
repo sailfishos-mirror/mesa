@@ -2049,6 +2049,7 @@ macro_rules! v9_op_match_else {
             Op::Store($x) => $y,
             Op::TexFetch($x) => $y,
             Op::TexGather($x) => $y,
+            Op::TexGradient($x) => $y,
             Op::TexSingle($x) => $y,
             _ => $z,
         }
