@@ -1803,6 +1803,7 @@ static VkResult pvr_sub_cmd_gfx_job_init(const struct pvr_device_info *dev_info,
             .height = u_minify(ds_plane->physical_extent.height,
                                ds_iview->vk.base_mip_level),
          };
+         job->ds.base_array_layer = ds_iview->vk.base_array_layer;
          job->ds.layer_size = ds_plane->layer_size;
 
          job->ds_clear_value = default_ds_clear_value;
