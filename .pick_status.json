@@ -7134,7 +7134,7 @@
         "description": "nir: use i2f32 for patterns with signed-extraction opcodes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b30c0d82642d74ac84d59d646630e06d235c5dd4",
         "notes": null
