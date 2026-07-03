@@ -47,6 +47,7 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.opt_dce());
     pass!(s.lower_small_constants());
     pass!(s.legalize_immediates());
+    pass!(s.legalize_vec_srcs());
     pass!(s.assign_registers());
     pass!(s.lower_copy());
     pass!(s.assign_message_slots());

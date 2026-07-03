@@ -14,6 +14,7 @@ mod ir;
 mod isa;
 mod legalize_imm;
 mod legalize_src_swizzles;
+mod legalize_vec_srcs;
 mod liveness;
 mod lower_copy;
 mod lower_mkvec_swz;

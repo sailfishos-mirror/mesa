@@ -52,6 +52,12 @@ pub trait SSABuilder: Builder + AllocSSA {
         def
     }
 
+    fn copy_ssa(&mut self, src: SSAValue) -> SSAValue {
+        let def = self.alloc_ssa(src.bits());
+        self.copy_to(def.into(), DataType::i(src.bits()), src.into());
+        def
+    }
+
     fn mkvec_v2i8(&mut self, x: Src, y: Src) -> SSAValue {
         let def = self.alloc_ssa(16);
         self.push_op(OpMkVecV2I8 {

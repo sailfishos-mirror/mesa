@@ -393,6 +393,13 @@ impl SrcRef {
         }
     }
 
+    pub fn as_mut_ssa(&mut self) -> Option<&mut SSARef> {
+        match self {
+            SrcRef::SSA(ssa) => Some(ssa),
+            _ => None,
+        }
+    }
+
     pub fn as_reg(&self) -> Option<&RegRef> {
         match self {
             SrcRef::Reg(reg) => Some(reg),
