@@ -7124,7 +7124,7 @@
         "description": "nir: fix pack_uvec4_to_uint to mask input components to 8 bits",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9b8786eba95532d53c45d52059a44abd7ee93530",
         "notes": null
