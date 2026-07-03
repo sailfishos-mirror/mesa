@@ -386,7 +386,35 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       alu_funclike(ctx, instr, "log2");
       break;
    case nir_op_flrp:
-      alu_funclike(ctx, instr, "mix");
+      /* Metal defines mix as "a + (b – a) * c" OR "a * (1 - c) + b * c". The
+       * former preserves signed zeroes while the latter does for cases like
+       * a = b = c = -0.0f
+       *
+       * former: b - a       = (-0) + (+0) = +0
+       *         c * (b - a) = (-0) * (+0) = -0
+       *         a + (-0)    = (-0) + (-0) = -0
+       *
+       * latter: a * (1 - c) = (-0) *  1   = -0
+       *         b * c       = (-0) * (-0) = +0
+       *         (-0) + (+0)               = +0
+       *
+       * This means that we need to manually do the lerp when we have to
+       * preserve signed zeroes...
+       *
+       * Test that caught the issue:
+       * dEQP-VK.spirv_assembly.instruction.compute.float_controls2.fp*.input_args.reflect_testedWithout_NSZ_arg1_minusZero_arg2_one_res_minusZero_*
+       */
+      if (nir_alu_instr_is_signed_zero_preserve(instr)) {
+         alu_src_to_msl(ctx, instr, 0);
+         P(ctx, " + (");
+         alu_src_to_msl(ctx, instr, 1);
+         P(ctx, " - ");
+         alu_src_to_msl(ctx, instr, 0);
+         P(ctx, ") * ");
+         alu_src_to_msl(ctx, instr, 2);
+      } else {
+         alu_funclike(ctx, instr, "mix");
+      }
       break;
    case nir_op_fmax:
       alu_funclike(ctx, instr, "fmax");
