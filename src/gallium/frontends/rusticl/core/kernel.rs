@@ -1223,16 +1223,18 @@ pub(super) fn convert_spirv_to_nir(
     args: &[spirv::SPIRVKernelArg],
     spec_constants: &mut HashMap<u32, Vec<u8>>,
     dev: &'static Device,
-) -> Option<SPIRVToNirResult> {
+) -> Result<SPIRVToNirResult, &'static CStr> {
     let cache = dev.screen().shader_cache();
     let key = build.hash_key(cache.as_ref(), name, spec_constants);
     let spirv_info = build.kernel_info(name).unwrap();
 
-    cache
+    match cache
         .as_ref()
         .and_then(|cache| cache.get(&mut key?))
         .and_then(|entry| SPIRVToNirResult::deserialize(&entry, dev, spirv_info))
-        .or_else(|| {
+    {
+        Some(entry) => Ok(entry),
+        None => {
             let nir = build.to_nir(name, dev, spec_constants)?;
 
             if Platform::dbg().nir {
@@ -1266,14 +1268,15 @@ pub(super) fn convert_spirv_to_nir(
                 }
             }
 
-            Some(SPIRVToNirResult::new(
+            Ok(SPIRVToNirResult::new(
                 dev,
                 spirv_info,
                 args,
                 default_build,
                 optimized,
             ))
-        })
+        }
+    }
 }
 
 fn extract<'a, const S: usize>(buf: &'a mut &[u8]) -> &'a [u8; S] {
