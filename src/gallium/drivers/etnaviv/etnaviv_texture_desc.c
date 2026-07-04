@@ -268,9 +268,9 @@ error:
 }
 
 static void
-etna_sampler_view_update_descriptor(struct etna_context *ctx,
-                                    struct etna_cmd_stream *stream,
-                                    struct etna_sampler_view_desc *sv)
+etna_sampler_view_desc_ref_bo(struct etna_context *ctx,
+                              struct etna_cmd_stream *stream,
+                              struct etna_sampler_view_desc *sv)
 {
    struct etna_resource *res = etna_resource(sv->base.texture);
 
@@ -486,7 +486,7 @@ etna_emit_texture_desc(struct etna_context *ctx)
 
       emit_desc_sampler_state(stream, hw, SAMP_CTRL0, ss, sv);
       if (emit_addr) {
-         etna_sampler_view_update_descriptor(ctx, stream, sv);
+         etna_sampler_view_desc_ref_bo(ctx, stream, sv);
          etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(hw), &sv->DESC_ADDR);
          updated_mask |= 1u << hw;
       }
