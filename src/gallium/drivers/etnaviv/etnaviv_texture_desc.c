@@ -65,6 +65,8 @@ struct etna_sampler_view_desc {
    uint32_t SAMP_CTRL0_MASK;
    uint32_t SAMP_CTRL1;
    bool has_rb_swap;
+   uint32_t templ[TEXTURE_DESC_SIZE / sizeof(uint32_t)];
+   uint32_t native_format;   /* CONFIG0 format for native byte order, 0 if n/a */
 
    struct pipe_resource *res;
    struct etna_reloc DESC_ADDR[4];  /* [0] = seamless disabled
@@ -211,12 +213,7 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
 {
    struct etna_sampler_view_desc *sv = CALLOC_STRUCT(etna_sampler_view_desc);
    struct etna_context *ctx = etna_context(pctx);
-   uint32_t format = translate_texture_format(so->format, ctx->screen);
-
-   /* For RB_SWAP formats, pre-compute the alternative texture format for when
-    * shared resources hold data in native byte order (RGBA). */
    bool rb_swap = translate_pe_format_rb_swap(so->format);
-   uint32_t native_format = rb_swap ? remap_texture_format_rb_swap(format) : 0;
    unsigned suballoc_offset;
 
    if (!sv)
@@ -238,6 +235,14 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
    pipe_resource_reference(&sv->base.texture, prsc);
    sv->base.context = pctx;
    sv->SAMP_CTRL0_MASK = 0xffffffff;
+
+   /* For RB_SWAP formats, pre-compute the alternative texture format for when
+    * shared resources hold data in native byte order (RGBA).
+    */
+   if (rb_swap) {
+      uint32_t format = translate_texture_format(so->format, ctx->screen);
+      sv->native_format = remap_texture_format_rb_swap(format);
+   }
 
    /* Texture descriptor sampler bits */
    if (util_format_is_srgb(so->format))
@@ -266,7 +271,8 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
       sv->SAMP_CTRL0 |= VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_DEPTH_STENCIL_MODE_STENCIL;
    }
 
-   etna_texture_desc_fill(ctx, sv, res, buf);
+   etna_texture_desc_fill(ctx, sv, res, sv->templ);
+   memcpy(buf, sv->templ, TEXTURE_DESC_SIZE);
 
    /* Copy first descriptor and enable seamless cube map. */
    uint32_t *seamless = buf + (TEXTURE_DESC_SIZE / sizeof(uint32_t));
@@ -316,7 +322,7 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
       memcpy(native, buf, TEXTURE_DESC_SIZE);
       native[(TEXDESC_CONFIG0) >> 2] = (native[(TEXDESC_CONFIG0) >> 2] &
                                          ~VIVS_TE_SAMPLER_CONFIG0_FORMAT__MASK) |
-                                        VIVS_TE_SAMPLER_CONFIG0_FORMAT(native_format);
+                                        VIVS_TE_SAMPLER_CONFIG0_FORMAT(sv->native_format);
 
       uint32_t *native_seamless = native + (TEXTURE_DESC_SIZE / sizeof(uint32_t));
       memcpy(native_seamless, native, TEXTURE_DESC_SIZE);
