@@ -297,7 +297,7 @@ radv_get_build_config(VkDevice _device, struct vk_acceleration_structure_build_s
 
    if (state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR) {
       state->config.internal_type = VK_INTERNAL_BUILD_TYPE_HPLOC;
-      state->config.u64_keys = pdev->info.gfx_level < GFX12;
+      state->config.u64_keys = true;
    }
 
    state->config.build_flags = radv_default_build_flags(pdev);
