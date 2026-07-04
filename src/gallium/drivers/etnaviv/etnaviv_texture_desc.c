@@ -135,11 +135,80 @@ etna_delete_sampler_state_desc(struct pipe_context *pctx, void *ss)
    FREE(ss);
 }
 
+static void
+etna_texture_desc_fill(struct etna_context *ctx,
+                       const struct etna_sampler_view_desc *sv,
+                       struct etna_resource *res,
+                       uint32_t *buf)
+{
+   const struct util_format_description *desc =
+      util_format_description(sv->base.format);
+   uint32_t format = translate_texture_format(sv->base.format, ctx->screen);
+   const bool ext = !!(format & EXT_FORMAT);
+   const bool astc = !!(format & ASTC_FORMAT);
+   const uint32_t swiz = get_texture_swiz(sv->base.format, sv->base.swizzle_r,
+                                          sv->base.swizzle_g, sv->base.swizzle_b,
+                                          sv->base.swizzle_a);
+   uint32_t target_hw = translate_texture_target(sv->base.target);
+
+   /** GC7000 needs the size of the BASELOD level */
+   uint32_t base_width = u_minify(res->base.width0, sv->base.u.tex.first_level);
+   uint32_t base_height = u_minify(res->base.height0, sv->base.u.tex.first_level);
+   uint32_t base_depth = u_minify(res->base.depth0, sv->base.u.tex.first_level);
+   bool is_array = false;
+   bool sint = util_format_is_pure_sint(sv->base.format);
+
+   switch(sv->base.target) {
+   case PIPE_TEXTURE_1D:
+      target_hw = TEXTURE_TYPE_2D;
+      break;
+   case PIPE_TEXTURE_1D_ARRAY:
+      is_array = true;
+      base_height = res->base.array_size;
+      break;
+   case PIPE_TEXTURE_2D_ARRAY:
+      is_array = true;
+      base_depth = res->base.array_size;
+      break;
+   default:
+      break;
+   }
+
+#define DESC_SET(x, y) buf[(TEXDESC_##x)>>2] = (y)
+   DESC_SET(CONFIG0, COND(!ext && !astc, VIVS_TE_SAMPLER_CONFIG0_FORMAT(format))
+                   | VIVS_TE_SAMPLER_CONFIG0_TYPE(target_hw) |
+                   COND(res->layout == ETNA_LAYOUT_LINEAR && !util_format_is_compressed(sv->base.format),
+                        VIVS_TE_SAMPLER_CONFIG0_ADDRESSING_MODE(TEXTURE_ADDRESSING_MODE_LINEAR)));
+   DESC_SET(CONFIG1, COND(ext, VIVS_TE_SAMPLER_CONFIG1_FORMAT_EXT(format)) |
+                     COND(astc, VIVS_TE_SAMPLER_CONFIG1_FORMAT_EXT(TEXTURE_FORMAT_EXT_ASTC)) |
+                     COND(is_array, VIVS_TE_SAMPLER_CONFIG1_TEXTURE_ARRAY) |
+                     VIVS_TE_SAMPLER_CONFIG1_HALIGN(res->halign) | swiz);
+   DESC_SET(CONFIG2, 0x00030000 |
+         COND(sint && desc->channel[0].size == 8, TE_SAMPLER_CONFIG2_SIGNED_INT8) |
+         COND(sint && desc->channel[0].size == 16, TE_SAMPLER_CONFIG2_SIGNED_INT16));
+   DESC_SET(LINEAR_STRIDE, res->levels[0].stride);
+   DESC_SET(VOLUME, etna_log2_fixp88(base_depth));
+   DESC_SET(SLICE, res->levels[0].layer_stride);
+   DESC_SET(3D_CONFIG, VIVS_TE_SAMPLER_3D_CONFIG_DEPTH(base_depth));
+   DESC_SET(ASTC0, COND(astc, VIVS_NTE_SAMPLER_ASTC0_ASTC_FORMAT(format)) |
+                   VIVS_NTE_SAMPLER_ASTC0_UNK8(0xc) |
+                   VIVS_NTE_SAMPLER_ASTC0_UNK16(0xc) |
+                   VIVS_NTE_SAMPLER_ASTC0_UNK24(0xc));
+   DESC_SET(BASELOD, TEXDESC_BASELOD_BASELOD(sv->base.u.tex.first_level) |
+                     TEXDESC_BASELOD_MAXLOD(MIN2(sv->base.u.tex.last_level, res->base.last_level)));
+   DESC_SET(LOG_SIZE_EXT, TEXDESC_LOG_SIZE_EXT_WIDTH(etna_log2_fixp88(base_width)) |
+                          TEXDESC_LOG_SIZE_EXT_HEIGHT(etna_log2_fixp88(base_height)));
+   DESC_SET(SIZE, VIVS_TE_SAMPLER_SIZE_WIDTH(base_width) |
+                  VIVS_TE_SAMPLER_SIZE_HEIGHT(base_height));
+   for (int lod = 0; lod <= res->base.last_level; ++lod)
+      DESC_SET(LOD_ADDR(lod), etna_bo_gpu_va(res->bo) + res->levels[lod].offset);
+#undef DESC_SET
+}
+
 static struct pipe_sampler_view *
 etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *prsc,
                          const struct pipe_sampler_view *so)
 {
-   const struct util_format_description *desc = util_format_description(so->format);
    struct etna_sampler_view_desc *sv = CALLOC_STRUCT(etna_sampler_view_desc);
    struct etna_context *ctx = etna_context(pctx);
    uint32_t format = translate_texture_format(so->format, ctx->screen);
@@ -148,20 +217,13 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
     * shared resources hold data in native byte order (RGBA). */
    bool rb_swap = translate_pe_format_rb_swap(so->format);
    uint32_t native_format = rb_swap ? remap_texture_format_rb_swap(format) : 0;
-
-   const bool ext = !!(format & EXT_FORMAT);
-   const bool astc = !!(format & ASTC_FORMAT);
-   const uint32_t swiz = get_texture_swiz(so->format, so->swizzle_r,
-                                          so->swizzle_g, so->swizzle_b,
-                                          so->swizzle_a);
    unsigned suballoc_offset;
 
    if (!sv)
       return NULL;
 
    /* Determine whether target supported */
-   uint32_t target_hw = translate_texture_target(so->target);
-   if (target_hw == ETNA_NO_MATCH) {
+   if (translate_texture_target(so->target) == ETNA_NO_MATCH) {
       BUG("Unhandled texture target");
       goto error;
    }
@@ -193,29 +255,9 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
 
    uint32_t *buf = etna_bo_map(etna_buffer_resource(sv->res)->bo) + suballoc_offset;
 
-   /** GC7000 needs the size of the BASELOD level */
-   uint32_t base_width = u_minify(res->base.width0, sv->base.u.tex.first_level);
-   uint32_t base_height = u_minify(res->base.height0, sv->base.u.tex.first_level);
-   uint32_t base_depth = u_minify(res->base.depth0, sv->base.u.tex.first_level);
-   bool is_array = false;
-   bool sint = util_format_is_pure_sint(so->format);
-
-   switch(sv->base.target) {
-   case PIPE_TEXTURE_1D:
-      target_hw = TEXTURE_TYPE_2D;
+   if (sv->base.target == PIPE_TEXTURE_1D) {
       sv->SAMP_CTRL0_MASK = ~VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_VWRAP__MASK;
       sv->SAMP_CTRL0 = VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_VWRAP(TEXTURE_WRAPMODE_REPEAT);
-      break;
-   case PIPE_TEXTURE_1D_ARRAY:
-      is_array = true;
-      base_height = res->base.array_size;
-      break;
-   case PIPE_TEXTURE_2D_ARRAY:
-      is_array = true;
-      base_depth = res->base.array_size;
-      break;
-   default:
-      break;
    }
 
    if (so->format == PIPE_FORMAT_S8X24_UINT ||
@@ -224,35 +266,7 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
       sv->SAMP_CTRL0 |= VIVS_NTE_DESCRIPTOR_SAMP_CTRL0_DEPTH_STENCIL_MODE_STENCIL;
    }
 
-#define DESC_SET(x, y) buf[(TEXDESC_##x)>>2] = (y)
-   DESC_SET(CONFIG0, COND(!ext && !astc, VIVS_TE_SAMPLER_CONFIG0_FORMAT(format))
-                   | VIVS_TE_SAMPLER_CONFIG0_TYPE(target_hw) |
-                   COND(res->layout == ETNA_LAYOUT_LINEAR && !util_format_is_compressed(so->format),
-                        VIVS_TE_SAMPLER_CONFIG0_ADDRESSING_MODE(TEXTURE_ADDRESSING_MODE_LINEAR)));
-   DESC_SET(CONFIG1, COND(ext, VIVS_TE_SAMPLER_CONFIG1_FORMAT_EXT(format)) |
-                     COND(astc, VIVS_TE_SAMPLER_CONFIG1_FORMAT_EXT(TEXTURE_FORMAT_EXT_ASTC)) |
-                     COND(is_array, VIVS_TE_SAMPLER_CONFIG1_TEXTURE_ARRAY) |
-                     VIVS_TE_SAMPLER_CONFIG1_HALIGN(res->halign) | swiz);
-   DESC_SET(CONFIG2, 0x00030000 |
-         COND(sint && desc->channel[0].size == 8, TE_SAMPLER_CONFIG2_SIGNED_INT8) |
-         COND(sint && desc->channel[0].size == 16, TE_SAMPLER_CONFIG2_SIGNED_INT16));
-   DESC_SET(LINEAR_STRIDE, res->levels[0].stride);
-   DESC_SET(VOLUME, etna_log2_fixp88(base_depth));
-   DESC_SET(SLICE, res->levels[0].layer_stride);
-   DESC_SET(3D_CONFIG, VIVS_TE_SAMPLER_3D_CONFIG_DEPTH(base_depth));
-   DESC_SET(ASTC0, COND(astc, VIVS_NTE_SAMPLER_ASTC0_ASTC_FORMAT(format)) |
-                   VIVS_NTE_SAMPLER_ASTC0_UNK8(0xc) |
-                   VIVS_NTE_SAMPLER_ASTC0_UNK16(0xc) |
-                   VIVS_NTE_SAMPLER_ASTC0_UNK24(0xc));
-   DESC_SET(BASELOD, TEXDESC_BASELOD_BASELOD(sv->base.u.tex.first_level) |
-                     TEXDESC_BASELOD_MAXLOD(MIN2(sv->base.u.tex.last_level, res->base.last_level)));
-   DESC_SET(LOG_SIZE_EXT, TEXDESC_LOG_SIZE_EXT_WIDTH(etna_log2_fixp88(base_width)) |
-                          TEXDESC_LOG_SIZE_EXT_HEIGHT(etna_log2_fixp88(base_height)));
-   DESC_SET(SIZE, VIVS_TE_SAMPLER_SIZE_WIDTH(base_width) |
-                  VIVS_TE_SAMPLER_SIZE_HEIGHT(base_height));
-   for (int lod = 0; lod <= res->base.last_level; ++lod)
-      DESC_SET(LOD_ADDR(lod), etna_bo_gpu_va(res->bo) + res->levels[lod].offset);
-#undef DESC_SET
+   etna_texture_desc_fill(ctx, sv, res, buf);
 
    /* Copy first descriptor and enable seamless cube map. */
    uint32_t *seamless = buf + (TEXTURE_DESC_SIZE / sizeof(uint32_t));
