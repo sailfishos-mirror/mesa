@@ -10,7 +10,7 @@ use std::num::NonZeroU16;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum ByteMod {
+pub enum ByteMod {
     // There is no zero value by design
     Byte = 1,
     Sign = 2,
@@ -104,7 +104,7 @@ impl SwizzleByte {
         self.is_byte_mod_idx() || matches!(self, SwizzleByte::Zero)
     }
 
-    const fn byte_mod(self) -> Option<ByteMod> {
+    pub const fn byte_mod(self) -> Option<ByteMod> {
         if self.is_byte_mod_idx() {
             // SAFETY: Every 2-bit raw mod value other than 0 is a ByteMod
             Some(unsafe { std::mem::transmute(self.byte_mod_raw()) })
@@ -119,6 +119,20 @@ impl SwizzleByte {
         } else {
             None
         }
+    }
+
+    pub fn modify(self, byte_mod: ByteMod) -> Option<SwizzleByte> {
+        let self_byte_mod = self.byte_mod()?;
+        let self_byte_idx = self.byte_idx()?;
+
+        use ByteMod::*;
+        let m = match (byte_mod, self_byte_mod) {
+            (Byte, Byte | Sign) => self_byte_mod,
+            (Sign, Byte | Sign) => Sign,
+            (Fext, Byte) => Fext,
+            _ => return None,
+        };
+        Some(SwizzleByte::from_byte_mod_idx(m, self_byte_idx))
     }
 }
 
@@ -782,25 +796,8 @@ impl Swizzle {
                 bytes[usize::from(i)] = if ob == SwizzleByte::Zero {
                     SwizzleByte::Zero
                 } else {
-                    let obi = ob.byte_idx()?;
-                    let sb = self.byte(obi).unwrap();
-                    if sb == SwizzleByte::Zero {
-                        SwizzleByte::Zero
-                    } else {
-                        let sbi = sb.byte_idx()?;
-                        let obm = ob.byte_mod()?;
-                        let sbm = sb.byte_mod()?;
-
-                        use ByteMod::*;
-
-                        let m = match (obm, sbm) {
-                            (Byte, Byte | Sign) => sbm,
-                            (Sign, Byte | Sign) => Sign,
-                            (Fext, Byte) => Fext,
-                            _ => return None,
-                        };
-                        SwizzleByte::from_byte_mod_idx(m, sbi)
-                    }
+                    let sb = self.byte(ob.byte_idx()?).unwrap();
+                    sb.modify(ob.byte_mod()?)?
                 };
             }
             Swizzle::from_swizzle_bytes(bytes)
