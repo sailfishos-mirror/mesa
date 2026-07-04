@@ -2282,6 +2282,14 @@ typedef struct nir_io_xfb {
    } out[4];
 } nir_io_xfb;
 
+typedef struct nir_ps_input_info_amd {
+   unsigned slot : 5;         /* The index into SPI_PS_INPUT_CNTL_[0-31]. */
+   unsigned component : 2;
+   unsigned high_16bits : 1;  /* Only for load_interpolated_input_amd. */
+   unsigned vertex_index : 2; /* Only for load_input_vertex_amd (selects P0, P1, P2). */
+   unsigned padding : 22;
+} nir_ps_input_info_amd;
+
 unsigned
 nir_instr_xfb_write_mask(nir_intrinsic_instr *instr);
 

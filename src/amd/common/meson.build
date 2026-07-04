@@ -171,6 +171,7 @@ if with_gfx_compute
     'nir/ac_nir_create_gs_copy_shader.c',
     'nir/ac_nir_fixup_smem_loads_null_prt.c',
     'nir/ac_nir_lower_esgs_io_to_mem.c',
+    'nir/ac_nir_lower_fs_input_loads.c',
     'nir/ac_nir_lower_global_access.c',
     'nir/ac_nir_lower_image_opcodes_cdna.c',
     'nir/ac_nir_lower_image_tex.c',

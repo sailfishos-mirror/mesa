@@ -522,6 +522,9 @@ ac_nir_assign_fs_input_locations(nir_shader *nir);
 bool
 ac_nir_fixup_smem_loads_null_prt(nir_shader *shader, uint8_t address_prt_wa_control_bit);
 
+bool
+ac_nir_lower_fs_input_loads(nir_shader *nir, const struct ac_shader_args *args);
+
 #ifdef __cplusplus
 }
 #endif

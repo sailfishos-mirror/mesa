@@ -305,6 +305,9 @@ index("mesa_scope", "execution_scope")
 # Semantics of an IO instruction
 index("struct nir_io_semantics", "io_semantics", size = 2)
 
+# For load_interpolated_input_amd, load_input_vertex_amd.
+index("struct nir_ps_input_info_amd", "ps_input_info_amd")
+
 # Transform feedback info
 index("struct nir_io_xfb", "io_xfb", size = 2)
 
@@ -2370,6 +2373,12 @@ system_value("lds_ngg_gs_out_vertex_base_amd", 1)
 # FLAGS = AC_EXP_FLAG_*
 intrinsic("export_amd", [0], indices=[TARGET, ENABLED_CHANNELS, FLAGS])
 intrinsic("export_row_amd", [0, 1], indices=[TARGET, ENABLED_CHANNELS, FLAGS])
+
+# PS input loads
+# src[] = { m0 }.
+intrinsic("load_input_vertex_amd", [1], 1, [PS_INPUT_INFO_AMD], [CAN_ELIMINATE, CAN_REORDER], bit_sizes=[32])
+# src[] = { barycoord, m0 }.
+intrinsic("load_interpolated_input_amd", [2, 1], 1, [PS_INPUT_INFO_AMD], [CAN_ELIMINATE, CAN_REORDER], bit_sizes=[16, 32])
 
 # Export dual source blend outputs with swizzle operation
 # src[] = { mrt0, mrt1 }
