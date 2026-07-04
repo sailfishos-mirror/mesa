@@ -71,7 +71,7 @@ ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
 
 nir_def *
 ac_nir_load_arg_at_offset(nir_builder *b, const struct ac_shader_args *ac_args,
-                          struct ac_arg arg, unsigned relative_index);
+                          struct ac_arg arg, unsigned relative_index, bool scalar_wg_div);
 
 nir_def *
 ac_nir_load_arg(nir_builder *b, const struct ac_shader_args *ac_args, struct ac_arg arg);
@@ -86,6 +86,10 @@ void ac_nir_store_arg(nir_builder *b, const struct ac_shader_args *ac_args, stru
 nir_def *
 ac_nir_unpack_arg(nir_builder *b, const struct ac_shader_args *ac_args, struct ac_arg arg,
                   unsigned rshift, unsigned bitwidth);
+
+nir_def *
+ac_nir_unpack_arg_wg_div(nir_builder *b, const struct ac_shader_args *ac_args, struct ac_arg arg,
+                         unsigned rshift, unsigned bitwidth);
 
 nir_def *
 ac_nir_load_smem(nir_builder *b, unsigned num_components, nir_def *addr, nir_def *offset,
