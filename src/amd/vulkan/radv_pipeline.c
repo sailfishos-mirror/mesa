@@ -464,6 +464,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
       }
 
       NIR_PASS(_, stage->nir, ac_nir_lower_ps_late, &late_options);
+      NIR_PASS(_, stage->nir, ac_nir_lower_fs_input_loads, &stage->args.ac);
    }
 
    if (radv_shader_should_clear_lds(compiler_info, stage->nir)) {

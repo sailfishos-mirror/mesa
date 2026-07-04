@@ -1261,25 +1261,22 @@ visit_store_output(isel_context* ctx, nir_intrinsic_instr* instr)
 }
 
 void
-visit_load_interpolated_input(isel_context* ctx, nir_intrinsic_instr* instr)
+visit_load_interpolated_input(Builder& bld, isel_context* ctx, nir_intrinsic_instr* instr)
 {
    Temp dst = get_ssa_temp(ctx, &instr->def);
    Temp coords = get_ssa_temp(ctx, instr->src[0].ssa);
-   unsigned idx = nir_intrinsic_base(instr);
-   unsigned component = nir_intrinsic_component(instr);
-   bool high_16bits = nir_intrinsic_io_semantics(instr).high_16bits;
-   Temp prim_mask = get_arg(ctx, ctx->args->prim_mask);
-
-   assert(nir_src_is_const(instr->src[1]) && !nir_src_as_uint(instr->src[1]));
+   Temp prim_mask = bld.as_uniform(get_ssa_temp(ctx, instr->src[1].ssa));
+   nir_ps_input_info_amd info = nir_intrinsic_ps_input_info_amd(instr);
 
    if (instr->def.num_components == 1) {
-      emit_interp_instr(ctx, idx, component, coords, dst, prim_mask, high_16bits);
+      emit_interp_instr(ctx, info.slot, info.component, coords, dst, prim_mask, info.high_16bits);
    } else {
       aco_ptr<Instruction> vec(create_instruction(aco_opcode::p_create_vector, Format::PSEUDO,
                                                   instr->def.num_components, 1));
       for (unsigned i = 0; i < instr->def.num_components; i++) {
          Temp tmp = ctx->program->allocateTmp(instr->def.bit_size == 16 ? v2b : v1);
-         emit_interp_instr(ctx, idx, component + i, coords, tmp, prim_mask, high_16bits);
+         emit_interp_instr(ctx, info.slot, info.component + i, coords, tmp, prim_mask,
+                           info.high_16bits);
          vec->operands[i] = Operand(tmp);
       }
       vec->definitions[0] = Definition(dst);
@@ -1406,41 +1403,10 @@ visit_load_fs_input(isel_context* ctx, nir_intrinsic_instr* instr)
 {
    Builder bld(ctx->program, ctx->block);
    Temp dst = get_ssa_temp(ctx, &instr->def);
-   nir_src offset = *nir_get_io_offset_src(instr);
+   Temp prim_mask = bld.as_uniform(get_ssa_temp(ctx, instr->src[0].ssa));
+   nir_ps_input_info_amd info = nir_intrinsic_ps_input_info_amd(instr);
 
-   if (!nir_src_is_const(offset) || nir_src_as_uint(offset))
-      isel_err(nir_def_instr(offset.ssa),
-               "Unimplemented non-zero nir_intrinsic_load_input offset");
-
-   Temp prim_mask = get_arg(ctx, ctx->args->prim_mask);
-
-   nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
-   unsigned idx = nir_intrinsic_base(instr);
-   unsigned component = nir_intrinsic_component(instr);
-   bool high_16bits = sem.high_16bits;
-   unsigned vertex_id = 0; /* P0 */
-
-   if (instr->intrinsic == nir_intrinsic_load_input_vertex)
-      vertex_id = nir_src_as_uint(instr->src[0]);
-
-   if (instr->def.num_components == 1 && instr->def.bit_size != 64) {
-      emit_interp_mov_instr(ctx, idx, component, vertex_id, dst, prim_mask, high_16bits);
-   } else {
-      unsigned num_components = instr->def.num_components;
-      if (instr->def.bit_size == 64)
-         num_components *= 2;
-      aco_ptr<Instruction> vec{
-         create_instruction(aco_opcode::p_create_vector, Format::PSEUDO, num_components, 1)};
-      for (unsigned i = 0; i < num_components; i++) {
-         unsigned chan_component = (component + i) % 4;
-         unsigned chan_idx = idx + (component + i) / 4;
-         vec->operands[i] = Operand(bld.tmp(instr->def.bit_size == 16 ? v2b : v1));
-         emit_interp_mov_instr(ctx, chan_idx, chan_component, vertex_id, vec->operands[i].getTemp(),
-                               prim_mask, high_16bits);
-      }
-      vec->definitions[0] = Definition(dst);
-      bld.insert(std::move(vec));
-   }
+   emit_interp_mov_instr(ctx, info.slot, info.component, info.vertex_index, dst, prim_mask);
 }
 
 void
@@ -4016,15 +3982,13 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
 {
    Builder bld(ctx->program, ctx->block);
    switch (instr->intrinsic) {
-   case nir_intrinsic_load_interpolated_input: visit_load_interpolated_input(ctx, instr); break;
+   case nir_intrinsic_load_interpolated_input_amd:
+      visit_load_interpolated_input(bld, ctx, instr);
+      break;
    case nir_intrinsic_store_output: visit_store_output(ctx, instr); break;
-   case nir_intrinsic_load_input:
-   case nir_intrinsic_load_per_primitive_input:
-   case nir_intrinsic_load_input_vertex:
-      if (ctx->program->stage == fragment_fs)
-         visit_load_fs_input(ctx, instr);
-      else
-         isel_err(&instr->instr, "Shader inputs should have been lowered in NIR.");
+   case nir_intrinsic_load_input_vertex_amd:
+      assert(ctx->program->stage == fragment_fs);
+      visit_load_fs_input(ctx, instr);
       break;
    case nir_intrinsic_load_per_vertex_input: visit_load_per_vertex_input(ctx, instr); break;
    case nir_intrinsic_load_ubo: visit_load_ubo(ctx, instr); break;

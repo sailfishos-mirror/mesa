@@ -2563,11 +2563,10 @@ static LLVMValueRef visit_var_atomic(struct ac_nir_context *ctx, const nir_intri
 }
 
 static LLVMValueRef load_interpolated_input(struct ac_nir_context *ctx, LLVMValueRef interp_param,
-                                            unsigned index, unsigned comp_start,
-                                            unsigned num_components, unsigned bitsize,
-                                            bool high_16bits)
+                                            LLVMValueRef prim_mask, nir_ps_input_info_amd info,
+                                            unsigned bitsize)
 {
-   LLVMValueRef attr_number = LLVMConstInt(ctx->ac.i32, index, false);
+   LLVMValueRef attr_number = LLVMConstInt(ctx->ac.i32, info.slot, false);
    LLVMValueRef interp_param_f;
 
    interp_param_f = LLVMBuildBitCast(ctx->ac.builder, interp_param, ctx->ac.v2f32, "");
@@ -2581,65 +2580,47 @@ static LLVMValueRef load_interpolated_input(struct ac_nir_context *ctx, LLVMValu
       _mesa_hash_table_insert(ctx->verified_interp, interp_param, interp_param);
    }
 
-   LLVMValueRef values[4];
    assert(bitsize == 16 || bitsize == 32);
-   for (unsigned comp = 0; comp < num_components; comp++) {
-      LLVMValueRef llvm_chan = LLVMConstInt(ctx->ac.i32, comp_start + comp, false);
-      if (bitsize == 16) {
-         values[comp] = ac_build_fs_interp_f16(&ctx->ac, llvm_chan, attr_number,
-                                               ac_get_arg(&ctx->ac, ctx->args->prim_mask), i, j,
-                                               high_16bits);
-      } else {
-         values[comp] = ac_build_fs_interp(&ctx->ac, llvm_chan, attr_number,
-                                           ac_get_arg(&ctx->ac, ctx->args->prim_mask), i, j);
-      }
+   LLVMValueRef llvm_chan = LLVMConstInt(ctx->ac.i32, info.component, false);
+   LLVMValueRef value;
+
+   if (bitsize == 16) {
+      value = ac_build_fs_interp_f16(&ctx->ac, llvm_chan, attr_number, prim_mask, i, j,
+                                         info.high_16bits);
+   } else {
+      value = ac_build_fs_interp(&ctx->ac, llvm_chan, attr_number, prim_mask, i, j);
    }
 
-   return ac_to_integer(&ctx->ac, ac_build_gather_values(&ctx->ac, values, num_components));
+   return ac_to_integer(&ctx->ac, value);
 }
 
 static LLVMValueRef visit_load_input(struct ac_nir_context *ctx, nir_intrinsic_instr *instr)
 {
-   nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
-   unsigned component = nir_intrinsic_component(instr);
-   ASSERTED nir_src offset = *nir_get_io_offset_src(instr);
-
    assert(instr->def.bit_size == 16 || instr->def.bit_size == 32);
-   /* No indirect indexing allowed. */
-   assert(nir_src_is_const(offset) && nir_src_as_uint(offset) == 0);
 
    /* This is used to load TCS inputs from VGPRs in radeonsi. */
    if (ctx->stage == MESA_SHADER_TESS_CTRL) {
+      unsigned component = nir_intrinsic_component(instr);
+      nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
+      nir_src offset = *nir_get_io_offset_src(instr);
+
+      /* No indirect indexing allowed. */
+      assert(nir_src_is_const(offset) && nir_src_as_uint(offset) == 0);
+
+
       return ctx->abi->load_tess_varyings(ctx->abi, instr->def.num_components,
                                           instr->def.bit_size, sem.location,
                                           component, sem.high_16bits);
    }
 
    assert(ctx->stage == MESA_SHADER_FRAGMENT);
-   unsigned vertex_id = 0; /* P0 */
+   nir_ps_input_info_amd info = nir_intrinsic_ps_input_info_amd(instr);
 
-   if (instr->intrinsic == nir_intrinsic_load_input_vertex)
-      vertex_id = nir_src_as_uint(instr->src[0]);
-
-   unsigned base = nir_intrinsic_base(instr);
-   LLVMValueRef attr_number = LLVMConstInt(ctx->ac.i32, base, false);
-   LLVMTypeRef dest_type = get_def_type(ctx, &instr->def);
-   LLVMValueRef values[8];
-
-   for (unsigned chan = 0; chan < instr->def.num_components; chan++) {
-      LLVMValueRef llvm_chan = LLVMConstInt(ctx->ac.i32, (component + chan) % 4, false);
-      values[chan] = ac_build_fs_interp_mov(&ctx->ac, vertex_id, llvm_chan, attr_number,
-                                            ac_get_arg(&ctx->ac, ctx->args->prim_mask));
-      values[chan] = LLVMBuildBitCast(ctx->ac.builder, values[chan], ctx->ac.i32, "");
-      if (instr->def.bit_size == 16 && sem.high_16bits)
-         values[chan] = LLVMBuildLShr(ctx->ac.builder, values[chan], LLVMConstInt(ctx->ac.i32, 16, 0), "");
-      values[chan] =
-         LLVMBuildTruncOrBitCast(ctx->ac.builder, values[chan],
-                                 instr->def.bit_size == 16 ? ctx->ac.i16 : ctx->ac.i32, "");
-   }
-
-   LLVMValueRef result = ac_build_gather_values(&ctx->ac, values, instr->def.num_components);
-   return LLVMBuildBitCast(ctx->ac.builder, result, dest_type, "");
+   LLVMValueRef attr_number = LLVMConstInt(ctx->ac.i32, info.slot, false);
+   LLVMValueRef llvm_chan = LLVMConstInt(ctx->ac.i32, info.component, false);
+   LLVMValueRef value = ac_build_fs_interp_mov(&ctx->ac, info.vertex_index, llvm_chan, attr_number,
+                                               get_src(ctx, instr->src[0]));
+   return LLVMBuildBitCast(ctx->ac.builder, value, get_def_type(ctx, &instr->def), "");
 }
 
 static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *instr)
@@ -2732,9 +2713,7 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
    case nir_intrinsic_load_ubo:
       result = visit_load_ubo_buffer(ctx, instr);
       break;
-   case nir_intrinsic_load_input:
-   case nir_intrinsic_load_per_primitive_input:
-   case nir_intrinsic_load_input_vertex:
+   case nir_intrinsic_load_input_vertex_amd:
    case nir_intrinsic_load_per_vertex_input:
       result = visit_load_input(ctx, instr);
       break;
@@ -2803,18 +2782,11 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
       result = visit_var_atomic(ctx, instr, ptr, 1);
       break;
    }
-   case nir_intrinsic_load_interpolated_input: {
-      /* We assume any indirect loads have been lowered away */
-      ASSERTED nir_const_value *offset = nir_src_as_const_value(instr->src[1]);
-      assert(offset);
-      assert(offset[0].i32 == 0);
-
+   case nir_intrinsic_load_interpolated_input_amd: {
       LLVMValueRef interp_param = get_src(ctx, instr->src[0]);
-      unsigned index = nir_intrinsic_base(instr);
-      unsigned component = nir_intrinsic_component(instr);
-      result = load_interpolated_input(ctx, interp_param, index, component,
-                                       instr->def.num_components, instr->def.bit_size,
-                                       nir_intrinsic_io_semantics(instr).high_16bits);
+      LLVMValueRef prim_mask = get_src(ctx, instr->src[1]);
+      result = load_interpolated_input(ctx, interp_param, prim_mask,
+                                       nir_intrinsic_ps_input_info_amd(instr), instr->def.bit_size);
       break;
    }
    case nir_intrinsic_sendmsg_amd: {

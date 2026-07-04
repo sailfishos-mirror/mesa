@@ -1071,6 +1071,11 @@ static void si_postprocess_nir(struct si_nir_shader_ctx *ctx)
       NIR_PASS(progress, nir, ac_nir_lower_ps_late, &late_options);
    }
 
+   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      NIR_PASS(progress, nir, nir_lower_io_to_scalar, nir_var_shader_in, NULL, NULL);
+      NIR_PASS(progress, nir, ac_nir_lower_fs_input_loads, &ctx->args.ac);
+   }
+
    assert(shader->wave_size == 32 || shader->wave_size == 64);
 
    NIR_PASS(progress, nir, nir_lower_subgroups,
