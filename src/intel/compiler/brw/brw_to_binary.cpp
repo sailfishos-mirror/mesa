@@ -1527,6 +1527,22 @@ brw_generator::generate_code(const brw_shader &s,
          if (devinfo->ver == 9)
             current_state()->align16 = true;
 
+         if (devinfo->verx10 == 110 || devinfo->verx10 == 120) {
+            /* No supporting documentation has been found in the Bspec or
+             * the PRMs. However, the TGL simulator will produce the warning:
+             *
+             *    Source modifier is not allowed if source is an accumulator
+             *    for 3 src instructions.
+             *
+             * It has been experimentally determined that Gfx11 has the same
+             * restriction.
+             */
+            for (int i = 0; i < 3; i++) {
+               assert(!src[i].is_accumulator() ||
+                      (!src[i].abs && !src[i].negate));
+            }
+         }
+
          append(inst->opcode, dst, src[0], src[1], src[2]);
 	 break;
 
