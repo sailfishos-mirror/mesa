@@ -740,6 +740,10 @@ impl Swizzle {
         *self == Swizzle::replicate_scalar(bits)
     }
 
+    pub fn is_f16_widen(&self) -> bool {
+        *self == Swizzle::HF0 || *self == Swizzle::HF1
+    }
+
     /// Composes two swizzles and produces a swizzle as if `self` were applied
     /// first, followed by `other`.  If composing the two swizzles is not
     /// possible (such as if doing so would result in an invalid float widen),
