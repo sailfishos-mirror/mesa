@@ -188,6 +188,7 @@ struct radv_graphics_state_key {
       bool force_vrs_enabled;
       bool exports_mrtz_via_epilog;
       bool has_epilog;
+      bool mrt0_alpha_is_dead;
    } ps;
 };
 

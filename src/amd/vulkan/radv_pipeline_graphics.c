@@ -1749,6 +1749,10 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
       }
    }
 
+   /* Set whether alpha_to_one makes MRT0 alpha dead. */
+   key.ps.mrt0_alpha_is_dead = !alpha_to_one_unknown && !alpha_to_coverage_unknown && state->ms->alpha_to_one_enable &&
+                               !state->ms->alpha_to_coverage_enable;
+
    if (compiler_info->key.use_ngg) {
       VkShaderStageFlags ngg_stage;
 
@@ -2541,7 +2545,8 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
       if (!gfx_state->ps.has_epilog) {
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_remap_color_attachment, gfx_state);
 
-         NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_trim_fs_color_exports, &gfx_state->ps.epilog);
+         NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_trim_fs_color_exports, &gfx_state->ps.epilog,
+                  gfx_state->ps.mrt0_alpha_is_dead);
 
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_copy_prop);
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_dce);

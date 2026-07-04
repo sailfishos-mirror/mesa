@@ -11,6 +11,7 @@
 
 typedef struct {
    const struct radv_ps_epilog_key *epilog_key;
+   bool mrt0_alpha_is_dead;
 } trim_fs_color_exports_state;
 
 static bool
@@ -40,11 +41,13 @@ trim_fs_color_exports(nir_builder *b, nir_intrinsic_instr *intrin, void *_state)
       }
    }
 
-   const unsigned needed = (state->epilog_key->colors_needed >> (index * 4) & 0xf) >> nir_intrinsic_component(intrin);
+   uint8_t channels_needed = state->epilog_key->colors_needed >> (index * 4) & 0xf;
 
-   const unsigned write_mask = nir_intrinsic_write_mask(intrin);
+   if (index == 0 && state->mrt0_alpha_is_dead)
+      channels_needed &= ~BITFIELD_BIT(3);
 
-   const unsigned new_write_mask = write_mask & needed;
+   const uint8_t write_mask = nir_intrinsic_write_mask(intrin);
+   const uint8_t new_write_mask = write_mask & (channels_needed >> nir_intrinsic_component(intrin));
 
    if (new_write_mask == write_mask)
       return progress;
@@ -58,10 +61,11 @@ trim_fs_color_exports(nir_builder *b, nir_intrinsic_instr *intrin, void *_state)
 }
 
 bool
-radv_nir_trim_fs_color_exports(nir_shader *shader, const struct radv_ps_epilog_key *epilog_key)
+radv_nir_trim_fs_color_exports(nir_shader *shader, const struct radv_ps_epilog_key *epilog_key, bool mrt0_alpha_is_dead)
 {
    trim_fs_color_exports_state state = {
       .epilog_key = epilog_key,
+      .mrt0_alpha_is_dead = mrt0_alpha_is_dead,
    };
 
    return nir_shader_intrinsics_pass(shader, trim_fs_color_exports, nir_metadata_control_flow, &state);
