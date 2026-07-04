@@ -19,7 +19,6 @@
 #include "vn_command_buffer.h"
 #include "vn_device.h"
 #include "vn_feedback.h"
-#include "vn_instance.h"
 #include "vn_physical_device.h"
 #include "vn_query_pool.h"
 #include "vn_renderer.h"
@@ -49,7 +48,6 @@ struct vn_queue_submission {
    uint32_t feedback_types;
    uint32_t pnext_count;
    uint32_t dev_mask_count;
-   bool has_zink_sync_batch;
    struct vn_sync_payload_external external_payload;
 
    /* Temporary storage allocation for submission
@@ -256,62 +254,6 @@ vn_get_signal_semaphore_counter(struct vn_queue_submission *submit,
    }
 }
 
-static bool
-vn_has_zink_sync_batch(struct vn_queue_submission *submit)
-{
-   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
-   struct vn_device *dev = vn_device_from_vk(queue->base.vk.base.device);
-   struct vn_instance *instance = dev->instance;
-   const uint32_t last_batch_index = submit->batch_count - 1;
-
-   if (!instance->engine_is_zink)
-      return false;
-
-   if (!submit->batch_count || !last_batch_index ||
-       vn_get_cmd_count(submit, last_batch_index))
-      return false;
-
-   if (vn_get_wait_semaphore_count(submit, last_batch_index))
-      return false;
-
-   const uint32_t signal_count =
-      vn_get_signal_semaphore_count(submit, last_batch_index);
-   for (uint32_t i = 0; i < signal_count; i++) {
-      struct vn_semaphore *sem = vn_semaphore_from_handle(
-         vn_get_signal_semaphore(submit, last_batch_index, i));
-      if (vn_sync_feedback_enabled(&sem->feedback)) {
-         return true;
-      }
-   }
-   return false;
-}
-
-static bool
-vn_fix_batch_cmd_count_for_zink_sync(struct vn_queue_submission *submit,
-                                     uint32_t batch_index,
-                                     uint32_t new_cmd_count)
-{
-   /* If the last batch is a zink sync batch which is empty but contains
-    * feedback, append the feedback to the previous batch instead so that
-    * the last batch remains empty for perf.
-    */
-   if (batch_index == submit->batch_count - 1 &&
-       submit->has_zink_sync_batch) {
-      if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
-         VkSubmitInfo2 *batch =
-            &submit->temp.submit2_batches[batch_index - 1];
-         assert(batch->pCommandBufferInfos);
-         batch->commandBufferInfoCount += new_cmd_count;
-      } else {
-         VkSubmitInfo *batch = &submit->temp.submit_batches[batch_index - 1];
-         assert(batch->pCommandBuffers);
-         batch->commandBufferCount += new_cmd_count;
-      }
-      return true;
-   }
-   return false;
-}
-
 static void
 vn_fix_device_group_cmd_count(struct vn_queue_submission *submit,
                               uint32_t batch_index)
@@ -472,16 +414,8 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit,
          extra_cmd_count++;
       }
 
-      /* Space to copy the original cmds to append feedback to it.
-       * If the last batch is a zink sync batch which is an empty batch with
-       * sem  feedback, feedback will be appended to the second to last batch
-       * so also need to copy the second to last batch's original cmds even
-       * if it doesn't have feedback itself.
-       */
-      if (feedback_types || (batch_index == submit->batch_count - 2 &&
-                             submit->has_zink_sync_batch)) {
+      if (feedback_types)
          extra_cmd_count += cmd_count;
-      }
    }
 
    if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO &&
@@ -510,9 +444,6 @@ vn_queue_submission_prepare(struct vn_queue_submission *submit)
       else
          vn_sync_feedback_suspend(&fence->feedback, fence->signal_counter);
    }
-
-   if (submit->batch_type != VK_STRUCTURE_TYPE_BIND_SPARSE_INFO)
-      submit->has_zink_sync_batch = vn_has_zink_sync_batch(submit);
 
    submit->external_payload.ring_idx = queue->ring_idx;
 
@@ -772,9 +703,6 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit,
          if (result != VK_SUCCESS)
             return result;
       }
-      if (vn_fix_batch_cmd_count_for_zink_sync(submit, batch_index,
-                                               new_cmd_count))
-         return VK_SUCCESS;
    }
 
    if (feedback_types & VN_FEEDBACK_TYPE_FENCE) {
@@ -839,12 +767,8 @@ vn_queue_submission_setup_batch(struct vn_queue_submission *submit,
 
    /* If the batch has qfb, sfb or ffb, copy the original commands and append
     * feedback cmds.
-    * If this is the second to last batch and the last batch a zink sync batch
-    * which is empty but has feedback, also copy the original commands for
-    * this batch so that the last batch's feedback can be appended to it.
     */
-   if (feedback_types || (batch_index == submit->batch_count - 2 &&
-                          submit->has_zink_sync_batch)) {
+   if (feedback_types) {
       const size_t cmd_size = vn_get_cmd_size(submit);
       const size_t total_cmd_size = cmd_count * cmd_size;
       /* copy only needed for non-empty batches */
