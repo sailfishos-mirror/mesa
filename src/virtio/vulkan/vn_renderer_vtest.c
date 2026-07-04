@@ -79,7 +79,8 @@ vtest_connect_socket(struct vn_instance *instance, const char *path)
 
    sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
    if (sock < 0) {
-      vn_log(instance, "failed to create a socket");
+      if (VN_DEBUG(INIT))
+         vn_log(instance, "failed to create a socket");
       return -1;
    }
 
@@ -88,7 +89,10 @@ vtest_connect_socket(struct vn_instance *instance, const char *path)
    memcpy(un.sun_path, path, strlen(path));
 
    if (connect(sock, (struct sockaddr *)&un, sizeof(un)) == -1) {
-      vn_log(instance, "failed to connect to %s: %s", path, strerror(errno));
+      if (VN_DEBUG(INIT)) {
+         vn_log(instance, "failed to connect to %s: %s", path,
+                strerror(errno));
+      }
       close(sock);
       return -1;
    }
@@ -1073,6 +1077,9 @@ vn_renderer_create_vtest(struct vn_instance *instance,
    }
 
    *renderer = &vtest->base;
+
+   if (VN_DEBUG(INIT))
+      vn_log(vtest->instance, "vtest backend initialized");
 
    return VK_SUCCESS;
 }

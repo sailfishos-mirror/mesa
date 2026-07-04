@@ -1266,5 +1266,8 @@ vn_renderer_create_virtgpu(struct vn_instance *instance,
 
    *renderer = &gpu->base;
 
+   if (VN_DEBUG(INIT))
+      vn_log(gpu->instance, "virtgpu backend initialized");
+
    return VK_SUCCESS;
 }
