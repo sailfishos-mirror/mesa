@@ -999,6 +999,11 @@ vtest_init(struct vtest *vtest)
    util_sparse_array_init(&vtest->bo_array, sizeof(struct vtest_bo), 1024);
 
    mtx_init(&vtest->sock_mutex, mtx_plain);
+
+   /* disallow VTEST_DEFAULT_SOCKET_NAME on vtest fallback */
+   if (!VN_DEBUG(VTEST) && !socket_name)
+      return VK_ERROR_INITIALIZATION_FAILED;
+
    vtest->sock_fd = vtest_connect_socket(
       vtest->instance, socket_name ? socket_name : VTEST_DEFAULT_SOCKET_NAME);
    if (vtest->sock_fd < 0)

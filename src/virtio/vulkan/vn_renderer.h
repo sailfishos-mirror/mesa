@@ -240,13 +240,17 @@ vn_renderer_create(struct vn_instance *instance,
                    struct vn_renderer **renderer)
 {
 #ifdef HAVE_LIBDRM
+   VkResult result;
    if (VN_DEBUG(VTEST)) {
-      VkResult result = vn_renderer_create_vtest(instance, alloc, renderer);
-      if (result == VK_SUCCESS)
-         return VK_SUCCESS;
+      result = vn_renderer_create_vtest(instance, alloc, renderer);
+      if (result != VK_SUCCESS)
+         result = vn_renderer_create_virtgpu(instance, alloc, renderer);
+   } else {
+      result = vn_renderer_create_virtgpu(instance, alloc, renderer);
+      if (result != VK_SUCCESS)
+         result = vn_renderer_create_vtest(instance, alloc, renderer);
    }
-
-   return vn_renderer_create_virtgpu(instance, alloc, renderer);
+   return result;
 #else
    return vn_renderer_create_vtest(instance, alloc, renderer);
 #endif
