@@ -5474,7 +5474,7 @@
         "description": "etnaviv: Fix sampler view leak on unsupported texture target",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "eda73d71277a0dd9d7832da96c2aaca2dd513d4d",
         "notes": null
