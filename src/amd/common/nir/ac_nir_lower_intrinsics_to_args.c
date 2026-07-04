@@ -50,7 +50,7 @@ load_subgroup_id_lowered(lower_intrinsics_to_args_state *s, nir_builder *b)
    } else if (s->options->hw_stage == AC_HW_COMPUTE_SHADER) {
       if (s->options->gfx_level >= GFX12) {
          assert(!s->options->use_llvm);
-         nir_def *ttmp8 = nir_load_ttmp_register_amd(b, .base = 8);
+         nir_def *ttmp8 = nir_load_ttmp_register_wg_div_amd(b, .base = 8);
          return nir_ubfe_imm(b, ttmp8, 25, 5);
       } else if (s->options->gfx_level >= GFX10_3) {
          assert(s->args->tg_size.used);
