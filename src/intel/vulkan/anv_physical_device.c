@@ -1074,7 +1074,6 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_device_fault */
       .deviceFault = pdevice->can_get_vm_faults,
-      .imageCompressionControlSwapchain = pdevice->has_compression_control,
 
       /* VK_KHR_shader_fma */
       .shaderFmaFloat16 = true,
