@@ -365,7 +365,6 @@ api@clgetcommandqueueinfo,Fail
 api@clgetdeviceinfo,Fail
 api@clgetextensionfunctionaddressforplatform,Fail
 api@clgetkernelarginfo,Fail
-api@clgetmemobjectinfo,Fail
 api@cllinkprogram,Fail
 api@clsetkernelarg,Fail
 api@clsetkernelarg@Input checks,Fail
