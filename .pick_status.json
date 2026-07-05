@@ -5684,7 +5684,7 @@
         "description": "wsi/display: Actually fix vblank-less systems for VK_EXT_present_timing.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d7b23e9f3a95164429e4dbdb8e3b9d04572ce18f",
         "notes": null
