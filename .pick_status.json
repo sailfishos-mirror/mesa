@@ -6724,7 +6724,7 @@
         "description": "pco: use the source from src instead of io when building mappings",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4402649b011fd1a191c39be2dd0f2a252ac60acf",
         "notes": null
