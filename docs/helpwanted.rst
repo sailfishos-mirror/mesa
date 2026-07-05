@@ -14,11 +14,11 @@ specific ideas and areas where help would be appreciated:
 #. **Tasks up for grabs.** There are ideas for improvements which other
    developers would like to see someone take on, but are explicitly up for
    grabs, under the `difficulty: easy
-   <https://gitlab.freedesktop.org/mesa/mesa/-/work_items?sort=created_date&state=opened&label_name[]=difficulty%3A%20easy>`__,
+   <https://gitlab.freedesktop.org/mesa/mesa/-/work_items?sort=created_date&state=opened&label_name%5B%5D=difficulty%3A%20easy>`__,
    `difficulty: medium
-   <https://gitlab.freedesktop.org/mesa/mesa/-/work_items?sort=created_date&state=opened&label_name[]=difficulty%3A%20medium>`__,
+   <https://gitlab.freedesktop.org/mesa/mesa/-/work_items?sort=created_date&state=opened&label_name%5B%5D=difficulty%3A%20medium>`__,
    and `difficulty: hard
-   <https://gitlab.freedesktop.org/mesa/mesa/-/work_items?sort=created_date&state=opened&label_name[]=difficulty%3A%20hard>`__
+   <https://gitlab.freedesktop.org/mesa/mesa/-/work_items?sort=created_date&state=opened&label_name%5B%5D=difficulty%3A%20hard>`__
    labels.
 #. **Driver debugging.** There are plenty of open bugs in the `bug
    database <https://gitlab.freedesktop.org/mesa/mesa/-/work_items>`__.
