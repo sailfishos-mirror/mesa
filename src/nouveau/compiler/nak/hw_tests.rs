@@ -283,13 +283,13 @@ fn test_sanity() {
     let bin = b.compile();
     unsafe {
         run.run
-            .run_raw(RunConfig::new(
+            .run_raw([RunConfig::new(
                 &bin,
                 LOCAL_SIZE_X.into(),
                 0,
                 std::ptr::null_mut(),
                 0,
-            ))
+            )])
             .unwrap();
     }
 }
@@ -466,13 +466,13 @@ pub fn test_foldable_op_with(
 
     unsafe {
         run.run
-            .run_raw(RunConfig::new(
+            .run_raw([RunConfig::new(
                 &bin,
                 invocations.try_into().unwrap(),
                 (comps * 4).try_into().unwrap(),
                 data.as_mut_ptr().cast(),
                 data.len() * 4,
-            ))
+            )])
             .unwrap();
     }
 

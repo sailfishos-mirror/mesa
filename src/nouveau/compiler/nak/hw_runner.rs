@@ -404,15 +404,20 @@ pub struct Runner {
     qmd_heap: QMDHeap,
 }
 
-pub struct RunConfig<'n> {
+pub struct RunConfig<'n, 'q> {
     shader: &'n nak_shader_bin,
     invocations: u32,
     data_stride: u32,
     data: *mut std::os::raw::c_void,
     data_size: usize,
+
+    bo_shader_offset: usize,
+    bo_data_offset: usize,
+    bo_cb0_offset: usize,
+    qmd: Option<QMD<'q>>,
 }
 
-impl<'n> RunConfig<'n> {
+impl<'n, 'q> RunConfig<'n, 'q> {
     pub fn new(
         shader: &'n nak_shader_bin,
         invocations: u32,
@@ -426,6 +431,10 @@ impl<'n> RunConfig<'n> {
             data_stride,
             data,
             data_size,
+            bo_shader_offset: 0,
+            bo_data_offset: 0,
+            bo_cb0_offset: 0,
+            qmd: None,
         }
     }
 }
@@ -446,19 +455,10 @@ impl Runner {
         self.dev.dev_info()
     }
 
-    pub unsafe fn run_raw(&self, config: RunConfig) -> io::Result<()> {
-        let shader = config.shader;
-        let data_size = config.data_size;
-        let data = config.data;
-        let invocations = config.invocations;
-
-        let cs_info = unsafe {
-            assert!(shader.info.stage == MESA_SHADER_COMPUTE);
-            &shader.info.__bindgen_anon_1.cs
-        };
-        assert!(cs_info.local_size[1] == 1 && cs_info.local_size[2] == 1);
-        let local_size = cs_info.local_size[0];
-
+    pub unsafe fn run_raw<'q, 'n, const N: usize>(
+        &'q self,
+        mut configs: [RunConfig<'n, 'q>; N],
+    ) -> io::Result<()> {
         // Compute the needed size of the buffer
         let mut size = 0_usize;
 
@@ -466,84 +466,19 @@ impl Runner {
         let push_offset = size;
         size = push_offset + 4 * MAX_PUSH_DW;
 
-        let shader_offset = size.next_multiple_of(0x80);
-        size = shader_offset + usize::try_from(shader.code_size).unwrap();
+        for config in &mut configs {
+            config.bo_shader_offset = size.next_multiple_of(0x80);
+            size = config.bo_shader_offset
+                + usize::try_from(config.shader.code_size).unwrap();
 
-        let cb0_offset = size.next_multiple_of(256);
-        size = cb0_offset + size_of::<CB0>();
+            config.bo_cb0_offset = size.next_multiple_of(256);
+            size = config.bo_cb0_offset + size_of::<CB0>();
 
-        let data_offset = size.next_multiple_of(256);
-        size = data_offset + data_size;
+            config.bo_data_offset = size.next_multiple_of(256);
+            size = config.bo_data_offset + config.data_size;
+        }
 
         let bo = BO::new(self.dev.clone(), size.try_into().unwrap())?;
-
-        // Copy the data from the caller into our BO
-        let data_addr = bo.addr + u64::try_from(data_offset).unwrap();
-        unsafe {
-            let data_map = bo.map.byte_offset(data_offset.try_into().unwrap());
-            if data_size > 0 {
-                std::ptr::copy(data, data_map, data_size);
-            }
-        }
-
-        // Fill out cb0
-        let cb0_addr = bo.addr + u64::try_from(cb0_offset).unwrap();
-        unsafe {
-            let cb0_map = bo.map.byte_offset(cb0_offset.try_into().unwrap());
-            cb0_map.cast::<CB0>().write(CB0 {
-                data_addr_lo: data_addr as u32,
-                data_addr_hi: (data_addr >> 32) as u32,
-                data_stride: config.data_stride,
-                invocations,
-            });
-        }
-
-        // Upload the shader
-        let shader_addr = bo.addr + u64::try_from(shader_offset).unwrap();
-        unsafe {
-            let shader_map =
-                bo.map.byte_offset(shader_offset.try_into().unwrap());
-            std::ptr::copy(
-                shader.code,
-                shader_map,
-                shader.code_size.try_into().unwrap(),
-            );
-        }
-
-        // Populate and upload the QMD
-        let mut qmd_cbufs: [nak_qmd_cbuf; 8] = Default::default();
-        qmd_cbufs[0] = nak_qmd_cbuf {
-            index: 0,
-            size: size_of::<CB0>().next_multiple_of(256).try_into().unwrap(),
-            addr: cb0_addr,
-        };
-        let qmd_info = nak_qmd_info {
-            // Pre-Volta, we set the program region to the start of the bo
-            addr: if self.dev_info().cls_compute < VOLTA_COMPUTE_A {
-                shader_offset.try_into().unwrap()
-            } else {
-                shader_addr
-            },
-            smem_size: unsafe { shader.info.__bindgen_anon_1.cs }
-                .smem_size
-                .into(),
-            global_size: [invocations.div_ceil(local_size.into()), 1, 1],
-            num_cbufs: 1,
-            cbufs: qmd_cbufs,
-            dependence_counter: 0,
-            hw_dependence_counter: 0,
-        };
-
-        let qmd = self.qmd_heap.alloc_qmd()?;
-        unsafe {
-            nak_fill_qmd(
-                self.dev_info(),
-                &shader.info,
-                &qmd_info,
-                qmd.map,
-                self.qmd_heap.qmd_size_B.try_into().unwrap(),
-            );
-        }
 
         // Fill out the pushbuf
         let mut p = NvPush::new();
@@ -595,18 +530,113 @@ impl Runner {
             p.push_mthd(clb1c0::InvalidateSkedCaches { v: 0 });
         }
 
-        p.push_mthd(cla0c0::SendPcasA {
-            qmd_address_shifted8: (qmd.addr >> 8) as u32,
-        });
-        if self.dev_info().cls_compute >= AMPERE_COMPUTE_A {
-            p.push_mthd(clc6c0::SendSignalingPcas2B {
-                pcas_action: clc6c0::SendSignalingPcas2BPcasAction::InvalidateCopySchedule,
+        for config in &mut configs {
+            let data_size = config.data_size;
+            let data_offset = config.bo_data_offset;
+            let cb0_offset = config.bo_cb0_offset;
+            let shader_offset = config.bo_shader_offset;
+            let shader = config.shader;
+
+            // Copy the data from the caller into our BO
+            let data_addr = bo.addr + u64::try_from(data_offset).unwrap();
+            unsafe {
+                let data_map =
+                    bo.map.byte_offset(data_offset.try_into().unwrap());
+                if data_size > 0 {
+                    std::ptr::copy(config.data, data_map, data_size);
+                }
+            }
+
+            // Fill out cb0
+            let cb0_addr = bo.addr + u64::try_from(cb0_offset).unwrap();
+            unsafe {
+                let cb0_map =
+                    bo.map.byte_offset(cb0_offset.try_into().unwrap());
+                cb0_map.cast::<CB0>().write(CB0 {
+                    data_addr_lo: data_addr as u32,
+                    data_addr_hi: (data_addr >> 32) as u32,
+                    data_stride: config.data_stride,
+                    invocations: config.invocations,
+                });
+            }
+
+            // Upload the shader
+            let shader_addr = bo.addr + u64::try_from(shader_offset).unwrap();
+            unsafe {
+                let shader_map =
+                    bo.map.byte_offset(shader_offset.try_into().unwrap());
+                std::ptr::copy(
+                    shader.code,
+                    shader_map,
+                    shader.code_size.try_into().unwrap(),
+                );
+            }
+
+            // Populate and upload the QMD
+            let cs_info = unsafe {
+                assert!(shader.info.stage == MESA_SHADER_COMPUTE);
+                &shader.info.__bindgen_anon_1.cs
+            };
+            assert!(cs_info.local_size[1] == 1 && cs_info.local_size[2] == 1);
+            let local_size = cs_info.local_size[0];
+
+            let mut qmd_cbufs: [nak_qmd_cbuf; 8] = Default::default();
+            qmd_cbufs[0] = nak_qmd_cbuf {
+                index: 0,
+                size: size_of::<CB0>()
+                    .next_multiple_of(256)
+                    .try_into()
+                    .unwrap(),
+                addr: cb0_addr,
+            };
+
+            let qmd_info = nak_qmd_info {
+                // Pre-Volta, we set the program region to the start of the bo
+                addr: if self.dev_info().cls_compute < VOLTA_COMPUTE_A {
+                    shader_offset.try_into().unwrap()
+                } else {
+                    shader_addr
+                },
+                smem_size: unsafe { shader.info.__bindgen_anon_1.cs }
+                    .smem_size
+                    .into(),
+                global_size: [
+                    config.invocations.div_ceil(local_size.into()),
+                    1,
+                    1,
+                ],
+                num_cbufs: 1,
+                cbufs: qmd_cbufs,
+                dependence_counter: 0,
+                hw_dependence_counter: 0,
+            };
+
+            let qmd = self.qmd_heap.alloc_qmd()?;
+            unsafe {
+                nak_fill_qmd(
+                    self.dev_info(),
+                    &shader.info,
+                    &qmd_info,
+                    qmd.map,
+                    self.qmd_heap.qmd_size_B.try_into().unwrap(),
+                );
+            }
+
+            p.push_mthd(cla0c0::SendPcasA {
+                qmd_address_shifted8: (qmd.addr >> 8) as u32,
             });
-        } else {
-            p.push_mthd(cla0c0::SendSignalingPcasB {
-                invalidate: true,
-                schedule: true,
-            });
+            if self.dev_info().cls_compute >= AMPERE_COMPUTE_A {
+                p.push_mthd(clc6c0::SendSignalingPcas2B {
+                    pcas_action: clc6c0::SendSignalingPcas2BPcasAction::InvalidateCopySchedule,
+                });
+            } else {
+                p.push_mthd(cla0c0::SendSignalingPcasB {
+                    invalidate: true,
+                    schedule: true,
+                });
+            }
+
+            config.qmd = Some(qmd);
         }
 
         let push_addr = bo.addr + u64::try_from(push_offset).unwrap();
@@ -617,11 +647,15 @@ impl Runner {
 
         let res = self.ctx.exec(push_addr, (p.len() * 4).try_into().unwrap());
 
-        // Always copy the data back to the caller, even if exec fails
-        unsafe {
-            let data_map = bo.map.byte_offset(data_offset.try_into().unwrap());
-            if data_size > 0 {
-                std::ptr::copy(data_map, data, data_size);
+        for config in configs {
+            // Always copy the data back to the caller, even if exec fails
+            unsafe {
+                let data_map = bo
+                    .map
+                    .byte_offset(config.bo_data_offset.try_into().unwrap());
+                if config.data_size > 0 {
+                    std::ptr::copy(data_map, config.data, config.data_size);
+                }
             }
         }
 
@@ -635,13 +669,13 @@ impl Runner {
     ) -> io::Result<()> {
         unsafe {
             let stride = size_of::<T>();
-            self.run_raw(RunConfig::new(
+            self.run_raw([RunConfig::new(
                 shader,
                 data.len().try_into().unwrap(),
                 stride.try_into().unwrap(),
                 data.as_mut_ptr().cast(),
                 size_of_val(data),
-            ))
+            )])
         }
     }
 }
