@@ -635,7 +635,6 @@ spec@glsl-1.10@execution@variable-indexing@fs-input-array-vec2-index-rd,Fail
 
 # uprev Piglit in Mesa
 shaders@glsl-vs-texturematrix-1,Fail
-spec@!opengl 1.1@dlist-clear,Fail
 spec@!opengl 1.1@polygon-mode-offset@config 3: Expected blue pixel in center,Fail
 spec@!opengl 1.1@polygon-mode-offset@config 4: Expected blue pixel in center,Fail
 spec@!opengl 1.1@push-pop-color-material,Fail

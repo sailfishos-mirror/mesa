@@ -410,10 +410,8 @@ api@clgetcommandqueueinfo,Fail
 api@clgetextensionfunctionaddressforplatform,Fail
 api@clgetkernelarginfo,Fail
 api@cllinkprogram,Fail
-program@build@vector-data-types,Fail
 program@execute@amdgcn-f32-inline-immediates,Fail
 program@execute@amdgcn-f32-inline-immediates@add integer 64,Fail
-program@execute@amdgcn.sign_extend_inreg,Crash
 program@execute@builtin@builtin-float-nextafter-1.0.generated,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float1,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float16,Fail
@@ -426,13 +424,11 @@ program@execute@builtin@builtin-float-sign-1.0.generated@sign float16,Fail
 program@execute@builtin@builtin-float-sign-1.0.generated@sign float2,Fail
 program@execute@builtin@builtin-float-sign-1.0.generated@sign float4,Fail
 program@execute@builtin@builtin-float-sign-1.0.generated@sign float8,Fail
-program@execute@builtin@builtin-long-popcount-1.2.generated,Fail
 program@execute@builtin@builtin-long-popcount-1.2.generated@popcount long1,Fail
 program@execute@builtin@builtin-long-popcount-1.2.generated@popcount long16,Fail
 program@execute@builtin@builtin-long-popcount-1.2.generated@popcount long2,Fail
 program@execute@builtin@builtin-long-popcount-1.2.generated@popcount long4,Fail
 program@execute@builtin@builtin-long-popcount-1.2.generated@popcount long8,Fail
-program@execute@builtin@builtin-ulong-popcount-1.2.generated,Fail
 program@execute@builtin@builtin-ulong-popcount-1.2.generated@popcount ulong1,Fail
 program@execute@builtin@builtin-ulong-popcount-1.2.generated@popcount ulong16,Fail
 program@execute@builtin@builtin-ulong-popcount-1.2.generated@popcount ulong2,Fail
@@ -440,12 +436,6 @@ program@execute@builtin@builtin-ulong-popcount-1.2.generated@popcount ulong4,Fai
 program@execute@builtin@builtin-ulong-popcount-1.2.generated@popcount ulong8,Fail
 program@execute@global-offset,Fail
 program@execute@global-offset@3d- input dependent,Fail
-program@execute@scalar-arithmetic-long,Crash
-program@execute@scalar-arithmetic-ulong,Crash
-program@execute@scalar-comparison-long,Crash
-program@execute@scalar-comparison-ulong,Crash
-program@execute@scalar-load-long,Crash
-program@execute@scalar-load-ulong,Crash
 program@run kernel with max work item sizes,Fail
 
 # Bisected to 626ec83855a ("rusticl: implement CL 3.1 platform features")

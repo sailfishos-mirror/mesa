@@ -2,7 +2,7 @@ dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.n
 dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.non_multisample_buffer.sample_n_singlesample_rbo,Fail
 dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.non_multisample_buffer.sample_n_singlesample_texture,Fail
 
-glx@glx-make-current,Crash
+glx@glx-make-current,Fail
 glx@glx-multi-window-single-context,Fail
 glx@glx-swap-pixmap-bad,Fail
 glx@glx_arb_sync_control@swapbuffersmsc-divisor-zero,Fail
@@ -403,7 +403,6 @@ custom@buffer flags@in-0x8-out-0x10,Fail
 custom@buffer flags@in-0x8-out-0x20,Fail
 custom@buffer flags@in-0x8-out-0x30,Fail
 custom@buffer flags@in-0x8-out-0x8,Fail
-program@build@vector-data-types,Fail
 program@check predefined preprocessor macros@CL_VERSION_1_0 must be 100 if defined,Fail
 program@check predefined preprocessor macros@CL_VERSION_1_0 must be defined for OpenCL 1.1 and later,Fail
 program@check predefined preprocessor macros@CL_VERSION_1_1 must be 110 if defined,Fail
