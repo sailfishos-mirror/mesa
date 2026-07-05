@@ -1376,7 +1376,8 @@ get_device_properties(const struct v3dv_physical_device *device,
 
    /* VkPhysicalDeviceProperties */
    snprintf(properties->deviceName, sizeof(properties->deviceName),
-            "%s", device->name);
+            "%s", (strlen(instance->drirc.debug.force_vk_devicename) > 0) ?
+                  instance->drirc.debug.force_vk_devicename : device->name);
    memcpy(properties->pipelineCacheUUID,
             device->pipeline_cache_uuid, VK_UUID_SIZE);
 
