@@ -1845,11 +1845,13 @@ impl V9Instr for OpShiftLop {
     }
 
     fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
-        if !self.shift_op.is_none() {
+        // Immediates are only supported on src2 of plane (no shift) logic ops
+        if !self.shift_op.is_none() || !ptr_eq(src, &self.src2) {
             return false;
         }
 
-        if !ptr_eq(src, &self.src2) || self.not_result {
+        // We can't support a src0 swizzle or not_result with _IMM forms
+        if !self.src0.swizzle.is_none() || self.not_result {
             return false;
         }
 
