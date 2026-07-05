@@ -93,7 +93,14 @@ VK_DEFINE_NONDISP_HANDLE_CASTS(vn_event,
                                VkEvent,
                                VK_OBJECT_TYPE_EVENT)
 
+static inline bool
+vn_semaphore_is_imported(VkSemaphore sem_handle)
+{
+   struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
+   return sem->payload->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD;
+}
+
 bool
-vn_semaphore_wait_external(struct vn_device *dev, struct vn_semaphore *sem);
+vn_semaphore_wait_imported(VkDevice dev_handle, VkSemaphore sem_handle);
 
 #endif /* VN_SYNC_H */

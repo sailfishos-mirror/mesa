@@ -11,7 +11,6 @@
 #include "vn_queue.h"
 
 #include "venus-protocol/vn_protocol_driver_queue.h"
-#include "venus-protocol/vn_protocol_driver_semaphore.h"
 
 #include "vn_command_buffer.h"
 #include "vn_device.h"
@@ -329,30 +328,14 @@ vn_queue_submission_fix_batch_semaphores(struct vn_queue_submission *submit,
 {
    struct vk_queue *queue_vk = vk_queue_from_handle(submit->queue_handle);
    VkDevice dev_handle = vk_device_to_handle(queue_vk->base.device);
-   struct vn_device *dev = vn_device_from_handle(dev_handle);
 
    const uint32_t wait_count =
       vn_get_wait_semaphore_count(submit, batch_index);
    for (uint32_t i = 0; i < wait_count; i++) {
       VkSemaphore sem_handle = vn_get_wait_semaphore(submit, batch_index, i);
-      struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
-      const struct vn_sync_payload *payload = sem->payload;
-
-      if (payload->type != VN_SYNC_TYPE_IMPORTED_SYNC_FD)
-         continue;
-
-      if (!vn_semaphore_wait_external(dev, sem))
+      if (vn_semaphore_is_imported(sem_handle) &&
+          !vn_semaphore_wait_imported(dev_handle, sem_handle))
          return VK_ERROR_DEVICE_LOST;
-
-      assert(dev->physical_device->renderer_sync_fd.semaphore_importable);
-
-      const VkImportSemaphoreResourceInfoMESA res_info = {
-         .sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_RESOURCE_INFO_MESA,
-         .semaphore = sem_handle,
-         .resourceId = 0,
-      };
-      vn_async_vkImportSemaphoreResourceMESA(dev->primary_ring, dev_handle,
-                                             &res_info);
    }
 
    return VK_SUCCESS;

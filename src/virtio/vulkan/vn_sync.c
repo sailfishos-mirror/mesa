@@ -431,19 +431,32 @@ vn_GetFenceFdKHR(VkDevice device,
 /* semaphore commands */
 
 bool
-vn_semaphore_wait_external(struct vn_device *dev, struct vn_semaphore *sem)
+vn_semaphore_wait_imported(VkDevice dev_handle, VkSemaphore sem_handle)
 {
-   struct vn_sync_payload *temp = &sem->temporary;
+   struct vn_device *dev = vn_device_from_handle(dev_handle);
+   struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
+   const struct vn_sync_payload *payload = sem->payload;
 
-   assert(temp->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD);
+   assert(payload->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD &&
+          payload == &sem->temporary);
 
-   if (temp->fd >= 0) {
-      if (sync_wait(temp->fd, -1))
+   if (payload->fd >= 0) {
+      if (sync_wait(payload->fd, -1))
          return false;
    }
 
    vn_sync_payload_release(dev, &sem->temporary);
    sem->payload = &sem->permanent;
+
+   assert(dev->physical_device->renderer_sync_fd.semaphore_importable);
+
+   const VkImportSemaphoreResourceInfoMESA res_info = {
+      .sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_RESOURCE_INFO_MESA,
+      .semaphore = sem_handle,
+      .resourceId = 0,
+   };
+   vn_async_vkImportSemaphoreResourceMESA(dev->primary_ring, dev_handle,
+                                          &res_info);
 
    return true;
 }
