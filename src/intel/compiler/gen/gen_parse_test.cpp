@@ -62,6 +62,16 @@ struct GenParseTest : public ::testing::Test {
    }
 };
 
+TEST_F(GenParseTest, ParsesEmptyAnnotation)
+{
+   set_devinfo("skl");
+
+   ASSERT_TRUE(parse("mov (1) r2 0x0 {}\n")) << first_error();
+
+   ASSERT_EQ(num_insts, 1);
+   EXPECT_EQ(insts[0].opcode, GEN_OP_MOV);
+}
+
 TEST_F(GenParseTest, ParsesDpasFunctionControl)
 {
    set_devinfo("mtl");

@@ -1994,6 +1994,12 @@ struct gen_parser {
       if (!consume('{'))
          return true;
 
+      skip_ws();
+      if (consume('}')) {
+         skip_ws();
+         return true;
+      }
+
       while (true) {
          skip_ws();
          if (!parse_option())
