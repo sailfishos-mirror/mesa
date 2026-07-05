@@ -11,12 +11,13 @@ struct WordCopy {
 }
 
 impl WordCopy {
-    fn as_ssa(&self) -> Option<SSAValue> {
+    fn as_ssa(&self, bytes: u8) -> Option<SSAValue> {
         let vec = self.src.src_ref.as_ssa()?;
         debug_assert!(vec.comps() == 1);
         let ssa = vec[0];
 
-        if self.src.src_mod.is_none()
+        if ssa.bytes() == bytes
+            && self.src.src_mod.is_none()
             && self.src.swizzle.replicates_scalar(ssa.bits())
         {
             Some(ssa)
@@ -112,12 +113,12 @@ impl WordCopies<'_> {
         };
 
         for src_ssa in src_vec {
-            if let Some(copy_ssa) =
-                self.copies.get(src_ssa).and_then(|copy| copy.as_ssa())
+            if let Some(copy_ssa) = self
+                .copies
+                .get(src_ssa)
+                .and_then(|copy| copy.as_ssa(src_ssa.bytes()))
             {
-                if copy_ssa.bits() == src_ssa.bits() {
-                    *src_ssa = copy_ssa;
-                }
+                *src_ssa = copy_ssa;
             }
         }
     }
@@ -137,7 +138,7 @@ impl WordCopies<'_> {
         };
 
         // Short-cut if it happens to be an SSA copy
-        if let Some(copy_ssa) = copy.as_ssa() {
+        if let Some(copy_ssa) = copy.as_ssa(src_ssa.bytes()) {
             instr.srcs_mut()[src_idx].src_ref = copy_ssa.into();
             return;
         };
