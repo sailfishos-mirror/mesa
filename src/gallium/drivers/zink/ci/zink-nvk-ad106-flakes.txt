@@ -16,6 +16,7 @@ dEQP-GLES3.functional.occlusion_query.scissor_stencil_write_stencil_clear
 dEQP-GLES3.functional.occlusion_query.stencil_clear
 dEQP-GLES3.functional.shaders.conversions.scalar_to_matrix.float_to_mat2x4_vertex
 dEQP-GLES31.functional.copy_image.mixed.viewclass_128_bits_mixed.rgba32f_srgb8_alpha8_astc_10x5_khr.cubemap_to_texture3d
+dEQP-GLES31.functional.shaders.builtin_functions.integer.findlsb.uint_lowp_tess_eval
 dEQP-GLES31.functional.synchronization.inter_invocation.ssbo_overwrite
 
 KHR-GL46.copy_image.functional_src_target_renderbuffer_src_format_r3_g3_b2_dst_target_texture_3d_dst_format_r3_g3_b2
