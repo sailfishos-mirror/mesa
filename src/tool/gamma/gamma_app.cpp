@@ -42,8 +42,7 @@ gamma_app_init(gamma_app *app)
 
    SDL_Init(SDL_INIT_VIDEO);
 
-   app->window = SDL_CreateWindow("Ray tracing inspector", 720, 400,
-                                  SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
+   app->window = SDL_CreateWindow("gamma", 720, 400, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
    if (app->window == NULL) {
       fprintf(stderr, "gamma: Failed to create window: %s\n", SDL_GetError());
       gamma_app_finish(app);
