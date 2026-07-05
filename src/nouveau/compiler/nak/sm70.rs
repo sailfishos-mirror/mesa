@@ -175,6 +175,7 @@ impl ShaderModel for ShaderModel70 {
                     5
                 }
             }
+            Op::Nanosleep(_) => 5,
             Op::CCtl(_op) => {
                 // CCTL.C needs 8, CCTL.I needs 11
                 11

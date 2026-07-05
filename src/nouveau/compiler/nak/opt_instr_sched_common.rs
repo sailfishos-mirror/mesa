@@ -216,7 +216,8 @@ pub fn side_effect_type(op: &Op) -> SideEffect {
         | Op::Isbewr(_)
         | Op::ViLd(_)
         | Op::Kill(_)
-        | Op::S2R(_) => SideEffect::Barrier,
+        | Op::S2R(_)
+        | Op::Nanosleep(_) => SideEffect::Barrier,
         Op::PixLd(_) | Op::Vote(_) | Op::Match(_) => SideEffect::None,
         Op::Nop(OpNop { label, .. }) => {
             if label.is_none() {

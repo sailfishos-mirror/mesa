@@ -8012,6 +8012,20 @@ impl DisplayOp for OpOutFinal {
 }
 impl_display_for_op!(OpOutFinal);
 
+#[repr(C)]
+#[derive(SrcsAsSlice, DstsAsSlice)]
+pub struct OpNanosleep {
+    #[src_type(SSA)]
+    pub time: Src,
+}
+
+impl DisplayOp for OpNanosleep {
+    fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "nanosleep {}", self.time)
+    }
+}
+impl_display_for_op!(OpNanosleep);
+
 /// Describes an annotation on an instruction.
 #[repr(C)]
 #[derive(SrcsAsSlice, DstsAsSlice)]
@@ -8163,6 +8177,7 @@ pub enum Op {
     RegOut(Box<OpRegOut>),
     Out(Box<OpOut>),
     OutFinal(Box<OpOutFinal>),
+    Nanosleep(Box<OpNanosleep>),
     Annotate(Box<OpAnnotate>),
 }
 impl_display_for_op!(Op);
@@ -8334,7 +8349,8 @@ impl Op {
             | Op::Kill(_)
             | Op::PixLd(_)
             | Op::S2R(_)
-            | Op::Match(_) => false,
+            | Op::Match(_)
+            | Op::Nanosleep(_) => false,
             Op::Nop(_) | Op::Vote(_) => true,
 
             // Virtual ops
@@ -8370,6 +8386,7 @@ impl Op {
                 | Op::Cont(_)
                 | Op::PCnt(_)
                 | Op::Bra(_)
+                | Op::Nanosleep(_)
                 | Op::Exit(_)
         )
     }
@@ -8519,7 +8536,8 @@ impl Op {
             | Op::S2R(_)
             | Op::Match(_)
             | Op::Nop(_)
-            | Op::Vote(_) => false,
+            | Op::Vote(_)
+            | Op::Nanosleep(_) => false,
 
             // Virtual ops
             Op::Undef(_)
@@ -8909,6 +8927,7 @@ impl Instr {
             | Op::Out(_)
             | Op::OutFinal(_)
             | Op::Isbewr(_)
+            | Op::Nanosleep(_)
             | Op::Annotate(_) => false,
             Op::BMov(op) => !op.clear,
             _ => true,
@@ -8923,7 +8942,7 @@ impl Instr {
     }
 
     pub fn needs_yield(&self) -> bool {
-        matches!(&self.op, Op::Bar(_) | Op::BSync(_))
+        matches!(&self.op, Op::Bar(_) | Op::BSync(_) | Op::Nanosleep(_))
     }
 
     fn fmt_pred(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -9067,6 +9086,7 @@ impl Instr {
             | Op::RegOut(_)
             | Op::Out(_)
             | Op::OutFinal(_)
+            | Op::Nanosleep(_)
             | Op::Annotate(_) => false,
         }
     }

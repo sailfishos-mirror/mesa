@@ -198,6 +198,7 @@ impl RegLatencySM75 {
             Op::LdTram(_) => Decoupled,
             Op::Shfl(_) => Decoupled,
             Op::Ldsm(_) => Decoupled,
+            Op::Nanosleep(_) => Decoupled,
             x => {
                 panic!("Illegal instuction in reg category {}", x);
             }

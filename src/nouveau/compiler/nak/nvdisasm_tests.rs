@@ -1101,3 +1101,54 @@ pub fn test_mufu() {
         c.check(sm);
     }
 }
+
+#[test]
+pub fn test_nanosleep() {
+    let r3 = RegRef::new(RegFile::GPR, 3, 1);
+    let ur2_4 = RegRef::new(RegFile::UGPR, 2, 2);
+
+    for &sm in sm_list() {
+        if sm < 70 {
+            continue;
+        }
+
+        let mut c = DisasmCheck::new();
+
+        let mut srcs = vec![
+            (0.into(), "rz"),
+            (0x87654321.into(), "0x87654321"),
+            (SrcRef::Reg(r3).into(), "r3"),
+        ];
+
+        if sm < 100 {
+            srcs.push((
+                CBufRef {
+                    buf: CBuf::Binding(5),
+                    offset: 0x100,
+                }
+                .into(),
+                "c[0x5][0x100]",
+            ));
+            srcs.push((
+                CBufRef {
+                    buf: CBuf::BindlessUGPR(ur2_4),
+                    offset: 0x100,
+                }
+                .into(),
+                "cx[ur2][0x100]",
+            ))
+        }
+
+        for (src, src_str) in srcs {
+            let mut instr: Instr = OpNanosleep { time: src }.into();
+
+            // Delay can't be the deafult value otherwise nvdisasm is unappy
+            instr.deps.delay = 1;
+
+            let disasm = format!("nanosleep {src_str} ;");
+            c.push(instr, disasm);
+        }
+
+        c.check(sm);
+    }
+}

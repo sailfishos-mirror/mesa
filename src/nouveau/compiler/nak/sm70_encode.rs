@@ -4439,6 +4439,21 @@ impl SM70Op for OpMovm {
     }
 }
 
+impl SM70Op for OpNanosleep {
+    fn legalize(&mut self, b: &mut LegalizeBuilder) {
+        b.copy_src_if_uniform(&mut self.time);
+    }
+
+    fn encode(&self, e: &mut SM70Encoder<'_>) {
+        e.encode_alu(0x15d, None, None, Some(&self.time), None);
+        e.set_bit(83, false); // .CLEAR, SM80+
+        e.set_bit(85, false); // .WARP
+        e.set_bit(86, false); // .RAND
+        e.set_pred_src(87..90, 90, &true.into());
+        e.set_field(106..112, 0x3fu8);
+    }
+}
+
 macro_rules! sm70_op_match {
     ($op: expr, |$x: ident| $y: expr) => {
         match $op {
@@ -4533,6 +4548,7 @@ macro_rules! sm70_op_match {
             Op::Hmma($x) => $y,
             Op::Imma($x) => $y,
             Op::Ldsm($x) => $y,
+            Op::Nanosleep($x) => $y,
             _ => panic!("Unsupported op: {}", $op),
         }
     };
