@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::api::{GetDebugFlags, ShaderBin, DEBUG};
-use crate::hw_runner::{Context, Runner, BO, CB0};
+use crate::hw_runner::{Context, RunConfig, Runner, BO, CB0};
 use crate::ir::*;
 
 use acorn::Acorn;
@@ -283,7 +283,13 @@ fn test_sanity() {
     let bin = b.compile();
     unsafe {
         run.run
-            .run_raw(&bin, LOCAL_SIZE_X.into(), 0, std::ptr::null_mut(), 0)
+            .run_raw(RunConfig::new(
+                &bin,
+                LOCAL_SIZE_X.into(),
+                0,
+                std::ptr::null_mut(),
+                0,
+            ))
             .unwrap();
     }
 }
@@ -460,13 +466,13 @@ pub fn test_foldable_op_with(
 
     unsafe {
         run.run
-            .run_raw(
+            .run_raw(RunConfig::new(
                 &bin,
                 invocations.try_into().unwrap(),
                 (comps * 4).try_into().unwrap(),
                 data.as_mut_ptr().cast(),
                 data.len() * 4,
-            )
+            ))
             .unwrap();
     }
 

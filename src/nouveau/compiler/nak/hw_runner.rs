@@ -404,6 +404,32 @@ pub struct Runner {
     qmd_heap: QMDHeap,
 }
 
+pub struct RunConfig<'n> {
+    shader: &'n nak_shader_bin,
+    invocations: u32,
+    data_stride: u32,
+    data: *mut std::os::raw::c_void,
+    data_size: usize,
+}
+
+impl<'n> RunConfig<'n> {
+    pub fn new(
+        shader: &'n nak_shader_bin,
+        invocations: u32,
+        data_stride: u32,
+        data: *mut std::os::raw::c_void,
+        data_size: usize,
+    ) -> Self {
+        Self {
+            shader,
+            invocations,
+            data_stride,
+            data,
+            data_size,
+        }
+    }
+}
+
 impl Runner {
     pub fn new(dev_id: Option<usize>) -> Runner {
         let dev = Device::new(dev_id).expect("Failed to create nouveau device");
@@ -420,14 +446,12 @@ impl Runner {
         self.dev.dev_info()
     }
 
-    pub unsafe fn run_raw(
-        &self,
-        shader: &nak_shader_bin,
-        invocations: u32,
-        data_stride: u32,
-        data: *mut std::os::raw::c_void,
-        data_size: usize,
-    ) -> io::Result<()> {
+    pub unsafe fn run_raw(&self, config: RunConfig) -> io::Result<()> {
+        let shader = config.shader;
+        let data_size = config.data_size;
+        let data = config.data;
+        let invocations = config.invocations;
+
         let cs_info = unsafe {
             assert!(shader.info.stage == MESA_SHADER_COMPUTE);
             &shader.info.__bindgen_anon_1.cs
@@ -469,7 +493,7 @@ impl Runner {
             cb0_map.cast::<CB0>().write(CB0 {
                 data_addr_lo: data_addr as u32,
                 data_addr_hi: (data_addr >> 32) as u32,
-                data_stride,
+                data_stride: config.data_stride,
                 invocations,
             });
         }
@@ -611,13 +635,13 @@ impl Runner {
     ) -> io::Result<()> {
         unsafe {
             let stride = size_of::<T>();
-            self.run_raw(
+            self.run_raw(RunConfig::new(
                 shader,
                 data.len().try_into().unwrap(),
                 stride.try_into().unwrap(),
                 data.as_mut_ptr().cast(),
                 size_of_val(data),
-            )
+            ))
         }
     }
 }
