@@ -241,7 +241,7 @@ vn_get_signal_semaphore_counter(struct vn_queue_submission *submit,
 {
    switch (submit->batch_type) {
    case VK_STRUCTURE_TYPE_SUBMIT_INFO: {
-      const struct VkTimelineSemaphoreSubmitInfo *timeline_sem_info =
+      const VkTimelineSemaphoreSubmitInfo *timeline_sem_info =
          vk_find_struct_const(submit->submit_batches[batch_index].pNext,
                               TIMELINE_SEMAPHORE_SUBMIT_INFO);
       return timeline_sem_info->pSignalSemaphoreValues[sem_index];
@@ -250,6 +250,12 @@ vn_get_signal_semaphore_counter(struct vn_queue_submission *submit,
       return submit->submit2_batches[batch_index]
          .pSignalSemaphoreInfos[sem_index]
          .value;
+   case VK_STRUCTURE_TYPE_BIND_SPARSE_INFO: {
+      const VkTimelineSemaphoreSubmitInfo *timeline_sem_info =
+         vk_find_struct_const(submit->sparse_batches[batch_index].pNext,
+                              TIMELINE_SEMAPHORE_SUBMIT_INFO);
+      return timeline_sem_info->pSignalSemaphoreValues[sem_index];
+   }
    default:
       UNREACHABLE("unexpected batch type");
    }
@@ -1217,6 +1223,10 @@ vn_queue_bind_sparse_submit(struct vn_queue_submission *submit)
    struct vn_instance *instance = dev->instance;
    VkResult result;
 
+   /* skip no-op submit */
+   if (!submit->batch_count && submit->fence_handle == VK_NULL_HANDLE)
+      return VK_SUCCESS;
+
    if (VN_PERF(NO_ASYNC_QUEUE_SUBMIT)) {
       result = vn_call_vkQueueBindSparse(
          dev->primary_ring, submit->queue_handle, submit->batch_count,
@@ -1232,155 +1242,6 @@ vn_queue_bind_sparse_submit(struct vn_queue_submission *submit)
       if (!ring_submit.ring_seqno_valid)
          return vn_error(instance, VK_ERROR_DEVICE_LOST);
    }
-
-   return VK_SUCCESS;
-}
-
-static VkResult
-vn_queue_bind_sparse_submit_batch(struct vn_queue_submission *submit,
-                                  uint32_t batch_index)
-{
-   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
-   VkDevice dev_handle = vk_device_to_handle(queue->base.vk.base.device);
-   const VkBindSparseInfo *sparse_info = &submit->sparse_batches[batch_index];
-   const VkSemaphore *signal_sem = sparse_info->pSignalSemaphores;
-   uint32_t signal_sem_count = sparse_info->signalSemaphoreCount;
-   VkResult result;
-
-   struct vn_queue_submission sparse_batch = {
-      .batch_type = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO,
-      .queue_handle = submit->queue_handle,
-      .batch_count = 1,
-      .fence_handle = VK_NULL_HANDLE,
-      .can_feedback = vn_queue_can_feedback(submit->queue_handle),
-   };
-
-   /* lazily create sparse semaphore */
-   if (queue->sparse_semaphore == VK_NULL_HANDLE) {
-      queue->sparse_semaphore_counter = 1;
-      const VkSemaphoreTypeCreateInfo sem_type_create_info = {
-         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-         .pNext = NULL,
-         /* This must be timeline type to adhere to mesa's requirement
-          * not to mix binary semaphores with wait-before-signal.
-          */
-         .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-         .initialValue = 1,
-      };
-      const VkSemaphoreCreateInfo create_info = {
-         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-         .pNext = &sem_type_create_info,
-         .flags = 0,
-      };
-
-      result = vn_CreateSemaphore(dev_handle, &create_info, NULL,
-                                  &queue->sparse_semaphore);
-      if (result != VK_SUCCESS)
-         return result;
-   }
-
-   /* Setup VkTimelineSemaphoreSubmitInfo's for our queue sparse semaphore
-    * so that the vkQueueSubmit waits on the vkQueueBindSparse signal.
-    */
-   queue->sparse_semaphore_counter++;
-   struct VkTimelineSemaphoreSubmitInfo wait_timeline_sem_info = { 0 };
-   wait_timeline_sem_info.sType =
-      VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-   wait_timeline_sem_info.signalSemaphoreValueCount = 1;
-   wait_timeline_sem_info.pSignalSemaphoreValues =
-      &queue->sparse_semaphore_counter;
-
-   struct VkTimelineSemaphoreSubmitInfo signal_timeline_sem_info = { 0 };
-   signal_timeline_sem_info.sType =
-      VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-   signal_timeline_sem_info.waitSemaphoreValueCount = 1;
-   signal_timeline_sem_info.pWaitSemaphoreValues =
-      &queue->sparse_semaphore_counter;
-
-   /* Split up the original wait and signal semaphores into its respective
-    * vkTimelineSemaphoreSubmitInfo
-    */
-   const struct VkTimelineSemaphoreSubmitInfo *timeline_sem_info =
-      vk_find_struct_const(sparse_info->pNext,
-                           TIMELINE_SEMAPHORE_SUBMIT_INFO);
-   if (timeline_sem_info) {
-      if (timeline_sem_info->waitSemaphoreValueCount) {
-         wait_timeline_sem_info.waitSemaphoreValueCount =
-            timeline_sem_info->waitSemaphoreValueCount;
-         wait_timeline_sem_info.pWaitSemaphoreValues =
-            timeline_sem_info->pWaitSemaphoreValues;
-      }
-
-      if (timeline_sem_info->signalSemaphoreValueCount) {
-         signal_timeline_sem_info.signalSemaphoreValueCount =
-            timeline_sem_info->signalSemaphoreValueCount;
-         signal_timeline_sem_info.pSignalSemaphoreValues =
-            timeline_sem_info->pSignalSemaphoreValues;
-      }
-   }
-
-   /* Attach the original VkDeviceGroupBindSparseInfo if it exists */
-   struct VkDeviceGroupBindSparseInfo batch_device_group_info;
-   const struct VkDeviceGroupBindSparseInfo *device_group_info =
-      vk_find_struct_const(sparse_info->pNext, DEVICE_GROUP_BIND_SPARSE_INFO);
-   if (device_group_info) {
-      memcpy(&batch_device_group_info, device_group_info,
-             sizeof(*device_group_info));
-      batch_device_group_info.pNext = NULL;
-
-      wait_timeline_sem_info.pNext = &batch_device_group_info;
-   }
-
-   /* Copy the original batch VkBindSparseInfo modified to signal
-    * our sparse semaphore.
-    */
-   VkBindSparseInfo batch_sparse_info;
-   memcpy(&batch_sparse_info, sparse_info, sizeof(*sparse_info));
-
-   batch_sparse_info.pNext = &wait_timeline_sem_info;
-   batch_sparse_info.signalSemaphoreCount = 1;
-   batch_sparse_info.pSignalSemaphores = &queue->sparse_semaphore;
-
-   /* Set up the SubmitInfo to wait on our sparse semaphore before sending
-    * feedback and signaling the original semaphores/fence
-    *
-    * Even if this VkBindSparse batch does not have feedback semaphores,
-    * we still glue all the batches together to ensure the feedback
-    * fence occurs after.
-    */
-   VkPipelineStageFlags stage_masks = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-   VkSubmitInfo batch_submit_info = {
-      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-      .pNext = &signal_timeline_sem_info,
-      .waitSemaphoreCount = 1,
-      .pWaitSemaphores = &queue->sparse_semaphore,
-      .pWaitDstStageMask = &stage_masks,
-      .signalSemaphoreCount = signal_sem_count,
-      .pSignalSemaphores = signal_sem,
-   };
-
-   /* Set the possible fence if on the last batch */
-   VkFence fence_handle = VK_NULL_HANDLE;
-   if ((submit->feedback_types & VN_FEEDBACK_TYPE_FENCE) &&
-       batch_index == (submit->batch_count - 1)) {
-      fence_handle = submit->fence_handle;
-   }
-
-   sparse_batch.sparse_batches = &batch_sparse_info;
-   result = vn_queue_bind_sparse_submit(&sparse_batch);
-   if (result != VK_SUCCESS)
-      return result;
-
-   result = vn_queue_submit(&(struct vn_queue_submission){
-      .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-      .queue_handle = submit->queue_handle,
-      .batch_count = 1,
-      .submit_batches = &batch_submit_info,
-      .fence_handle = fence_handle,
-      .can_feedback = vn_queue_can_feedback(submit->queue_handle),
-   });
-   if (result != VK_SUCCESS)
-      return result;
 
    return VK_SUCCESS;
 }
@@ -1402,40 +1263,14 @@ vn_QueueBindSparse(VkQueue queue,
       .batch_count = bindInfoCount,
       .sparse_batches = pBindInfo,
       .fence_handle = fence,
-      .can_feedback = vn_queue_can_feedback(queue),
+      .can_feedback = false,
    };
 
    result = vn_queue_submission_prepare(&submit);
    if (result != VK_SUCCESS)
       return result;
 
-   if (!submit.batch_count) {
-      /* skip no-op submit */
-      if (submit.fence_handle == VK_NULL_HANDLE)
-         return VK_SUCCESS;
-
-      /* if empty batch, just send a vkQueueSubmit with the fence */
-      result = vn_queue_submit(&(struct vn_queue_submission){
-         .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-         .queue_handle = submit.queue_handle,
-         .fence_handle = submit.fence_handle,
-         .can_feedback = vn_queue_can_feedback(submit.queue_handle),
-      });
-      if (result != VK_SUCCESS)
-         return result;
-   }
-
-   /* if feedback isn't used in the batch, can directly submit */
-   if (!submit.feedback_types)
-      return vn_queue_bind_sparse_submit(&submit);
-
-   for (uint32_t i = 0; i < submit.batch_count; i++) {
-      result = vn_queue_bind_sparse_submit_batch(&submit, i);
-      if (result != VK_SUCCESS)
-         return result;
-   }
-
-   return VK_SUCCESS;
+   return vn_queue_bind_sparse_submit(&submit);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL

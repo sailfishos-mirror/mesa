@@ -30,12 +30,6 @@ struct vn_queue {
    /* wait fence used for vn_QueueWaitIdle */
    VkFence wait_fence;
 
-   /* semaphore for gluing vkQueueSubmit feedback commands to
-    * vkQueueBindSparse
-    */
-   VkSemaphore sparse_semaphore;
-   uint64_t sparse_semaphore_counter;
-
    /* for vn_queue_submission storage */
    struct vn_cached_storage storage;
 
