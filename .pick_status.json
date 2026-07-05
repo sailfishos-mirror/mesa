@@ -274,7 +274,7 @@
         "description": "pco: allow fence ops to be legalized if they come last in a block",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "75dc7ef8fd57b3707b517b7c380a71eb6e9d1f45",
         "notes": null
