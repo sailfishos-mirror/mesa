@@ -678,6 +678,24 @@ impl Runner {
             )])
         }
     }
+
+    pub fn run_multi<T, const N: usize>(
+        &self,
+        configs: [(&nak_shader_bin, &mut [T]); N],
+    ) -> io::Result<()> {
+        let configs = configs.map(|(shader, data)| {
+            let stride = size_of::<T>();
+            RunConfig::new(
+                shader,
+                data.len().try_into().unwrap(),
+                stride.try_into().unwrap(),
+                data.as_mut_ptr().cast(),
+                size_of_val(data),
+            )
+        });
+
+        unsafe { self.run_raw(configs) }
+    }
 }
 
 unsafe impl Sync for Runner {}

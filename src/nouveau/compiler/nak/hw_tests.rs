@@ -9,6 +9,7 @@ use acorn::Acorn;
 use compiler::bindings::MESA_SHADER_COMPUTE;
 use compiler::cfg::CFGBuilder;
 use nak_bindings::*;
+use nvidia_headers::classes::clc5c0::TURING_COMPUTE_A;
 use rustc_hash::FxBuildHasher;
 use std::cell::RefCell;
 use std::io;
@@ -2130,4 +2131,145 @@ fn test_op_f2i_immediate_nan() {
     // TODO: Make the expected result depend on the QMD setting for
     //       `FP32_F2I_NAN_BEHAVIOR`
     assert!([0, 0x80000000].contains(&data[0]));
+}
+
+#[test]
+fn test_simple_multi_run() {
+    let run = &RunSingleton::get();
+    let mut b = TestShaderBuilder::new(&run.sm);
+
+    let v0 = b.copy(5.into());
+    let v1 = b.copy(10.into());
+
+    b.st_test_data(0, MemType::B32, v0.into());
+    b.st_test_data(4, MemType::B32, v1.into());
+
+    let bin = b.compile();
+    let mut data0 = Vec::new();
+    data0.push([0u32, 0u32]);
+    let mut data1 = data0.clone();
+
+    run.run
+        .run_multi([(&bin, &mut data0), (&bin, &mut data1)])
+        .unwrap();
+
+    assert_eq!(data0[0][0], 5);
+    assert_eq!(data0[0][1], 10);
+    assert_eq!(data1[0][0], 5);
+    assert_eq!(data1[0][1], 10);
+}
+
+#[test]
+fn test_parallel_qmd_dispatch() -> io::Result<()> {
+    let run = &RunSingleton::get();
+    let dev = run.run.device();
+
+    if dev.dev_info().cls_compute < TURING_COMPUTE_A {
+        return Ok(());
+    }
+
+    let shader_fast = {
+        let mut b = TestShaderBuilder::new(&run.sm);
+        let addr: Src = b.ld_test_data(0, MemType::B64).into();
+        let val = b.copy(5.into());
+
+        let access = MemAccess {
+            mem_type: MemType::B32,
+            space: MemSpace::Global(MemAddrType::A64),
+            order: MemOrder::Strong(MemScope::System),
+            eviction_priority: MemEvictionPriority::Normal,
+        };
+        b.push_op(OpSt {
+            addr: addr.clone().into(),
+            uniform_addr: Src::ZERO,
+            data: val.into(),
+            offset: 0,
+            access: access,
+            stride: OffsetStride::X1,
+        });
+        let one = b.copy(1.into());
+        b.push_op(OpAtom {
+            addr: addr.into(),
+            uniform_address: Src::ZERO,
+            addr_offset: 4,
+            addr_stride: OffsetStride::X1,
+            atom_op: AtomOp::Add,
+            atom_type: AtomType::U32,
+            cmpr: Src::ZERO,
+            data: one.into(),
+            dst: Dst::None,
+            mem_space: MemSpace::Global(MemAddrType::A64),
+            mem_order: MemOrder::Strong(MemScope::System),
+            mem_eviction_priority: MemEvictionPriority::Normal,
+        });
+
+        b.compile()
+    };
+
+    let shader_slow = {
+        let mut b = TestShaderBuilder::new(&run.sm);
+        let addr: Src = b.ld_test_data(0, MemType::B64).into();
+
+        // There is no guarantee the sleep actually waits that long, but it's
+        // good enough for testing.
+        b.push_op(OpNanosleep {
+            time: 0xffffffff.into(),
+        });
+
+        let val = b.copy(500.into());
+
+        let access = MemAccess {
+            mem_type: MemType::B32,
+            space: MemSpace::Global(MemAddrType::A64),
+            order: MemOrder::Strong(MemScope::System),
+            eviction_priority: MemEvictionPriority::Normal,
+        };
+        b.push_op(OpSt {
+            addr: addr.clone().into(),
+            uniform_addr: Src::ZERO,
+            data: val.into(),
+            offset: 0,
+            access: access,
+            stride: OffsetStride::X1,
+        });
+        let one = b.copy(1.into());
+        b.push_op(OpAtom {
+            addr: addr.into(),
+            uniform_address: Src::ZERO,
+            addr_offset: 4,
+            addr_stride: OffsetStride::X1,
+            atom_op: AtomOp::Add,
+            atom_type: AtomType::U32,
+            cmpr: Src::ZERO,
+            data: one.into(),
+            dst: Dst::None,
+            mem_space: MemSpace::Global(MemAddrType::A64),
+            mem_order: MemOrder::Strong(MemScope::System),
+            mem_eviction_priority: MemEvictionPriority::Normal,
+        });
+
+        b.compile()
+    };
+
+    // Allocate a bo for shared data
+    let bo = BO::new(dev.clone(), 0x1000)?;
+
+    let mut data_fast = vec![bo.addr];
+    let mut data_slow = data_fast.clone();
+
+    run.run
+        .run_multi([
+            (&shader_slow, &mut data_slow),
+            (&shader_fast, &mut data_fast),
+        ])
+        .unwrap();
+
+    let written_data =
+        unsafe { std::slice::from_raw_parts(bo.map.cast::<u32>(), 0x1000 / 4) };
+    assert_eq!(written_data[1], 2);
+    // Even though the slow shader gets dispatched first, we see the write from
+    // it instead of from the fast and second one.
+    assert_eq!(written_data[0], 500);
+
+    Ok(())
 }
