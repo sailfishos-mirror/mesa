@@ -6,6 +6,7 @@ import argparse
 import sys
 
 VALID_COMMON_VK_OPTIONS = {
+    "force_vk_devicename",
     "force_vk_vendor",
     "vk_lower_terminate_to_discard",
     "vk_require_astc",
