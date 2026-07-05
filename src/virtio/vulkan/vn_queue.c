@@ -43,6 +43,7 @@ struct vn_queue_submission {
       const VkBindSparseInfo *sparse_batches;
    };
    VkFence fence_handle;
+   bool can_feedback;
 
    uint32_t cmd_count;
    uint32_t feedback_types;
@@ -364,7 +365,6 @@ static void
 vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit,
                                          uint32_t batch_index)
 {
-   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
    const uint32_t signal_count =
       vn_get_signal_semaphore_count(submit, batch_index);
    uint32_t extra_cmd_count = 0;
@@ -374,7 +374,7 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit,
       struct vn_semaphore *sem = vn_semaphore_from_handle(
          vn_get_signal_semaphore(submit, batch_index, i));
       if (vn_sync_feedback_enabled(&sem->feedback)) {
-         if (queue->can_feedback) {
+         if (submit->can_feedback) {
             feedback_types |= VN_FEEDBACK_TYPE_SEMAPHORE;
             extra_cmd_count++;
          } else {
@@ -439,7 +439,7 @@ vn_queue_submission_prepare(struct vn_queue_submission *submit)
    struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
 
    if (fence && vn_sync_feedback_enabled(&fence->feedback)) {
-      if (queue->can_feedback)
+      if (submit->can_feedback)
          submit->feedback_types |= VN_FEEDBACK_TYPE_FENCE;
       else
          vn_sync_feedback_suspend(&fence->feedback, fence->signal_counter);
@@ -734,7 +734,6 @@ static VkResult
 vn_queue_submission_setup_batch(struct vn_queue_submission *submit,
                                 uint32_t batch_index)
 {
-   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
    uint32_t feedback_types = 0;
    uint32_t extra_cmd_count = 0;
 
@@ -743,7 +742,7 @@ vn_queue_submission_setup_batch(struct vn_queue_submission *submit,
    for (uint32_t i = 0; i < signal_count; i++) {
       struct vn_semaphore *sem = vn_semaphore_from_handle(
          vn_get_signal_semaphore(submit, batch_index, i));
-      if (vn_sync_feedback_enabled(&sem->feedback) && queue->can_feedback) {
+      if (vn_sync_feedback_enabled(&sem->feedback) && submit->can_feedback) {
          feedback_types |= VN_FEEDBACK_TYPE_SEMAPHORE;
          extra_cmd_count++;
       }
@@ -1001,6 +1000,13 @@ vn_queue_submit(struct vn_queue_submission *submit)
    return VK_SUCCESS;
 }
 
+static inline bool
+vn_queue_can_feedback(VkQueue queue_handle)
+{
+   struct vn_queue *queue = vn_queue_from_handle(queue_handle);
+   return queue->can_feedback;
+}
+
 VKAPI_ATTR VkResult VKAPI_CALL
 vn_QueueSubmit(VkQueue queue,
                uint32_t submitCount,
@@ -1018,6 +1024,7 @@ vn_QueueSubmit(VkQueue queue,
       .batch_count = submitCount,
       .submit_batches = pSubmits,
       .fence_handle = fence,
+      .can_feedback = vn_queue_can_feedback(queue),
    };
 
    return vn_queue_submit(&submit);
@@ -1143,6 +1150,7 @@ vn_queue_submit_2_to_1(struct vn_device *dev,
       .batch_count = 1,
       .submit_batches = &_submit,
       .fence_handle = fence_handle,
+      .can_feedback = vn_queue_can_feedback(queue_handle),
    });
 
    STACK_ARRAY_FINISH(_wait_sem_handles);
@@ -1181,6 +1189,7 @@ vn_QueueSubmit2(VkQueue _queue,
          .batch_count = submitCount,
          .submit2_batches = pSubmits,
          .fence_handle = fence,
+         .can_feedback = vn_queue_can_feedback(_queue),
       };
       result = vn_queue_submit(&submit);
       if (result != VK_SUCCESS)
@@ -1243,6 +1252,7 @@ vn_queue_bind_sparse_submit_batch(struct vn_queue_submission *submit,
       .queue_handle = submit->queue_handle,
       .batch_count = 1,
       .fence_handle = VK_NULL_HANDLE,
+      .can_feedback = vn_queue_can_feedback(submit->queue_handle),
    };
 
    /* lazily create sparse semaphore */
@@ -1367,6 +1377,7 @@ vn_queue_bind_sparse_submit_batch(struct vn_queue_submission *submit,
       .batch_count = 1,
       .submit_batches = &batch_submit_info,
       .fence_handle = fence_handle,
+      .can_feedback = vn_queue_can_feedback(submit->queue_handle),
    });
    if (result != VK_SUCCESS)
       return result;
@@ -1391,6 +1402,7 @@ vn_QueueBindSparse(VkQueue queue,
       .batch_count = bindInfoCount,
       .sparse_batches = pBindInfo,
       .fence_handle = fence,
+      .can_feedback = vn_queue_can_feedback(queue),
    };
 
    result = vn_queue_submission_prepare(&submit);
@@ -1407,6 +1419,7 @@ vn_QueueBindSparse(VkQueue queue,
          .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO,
          .queue_handle = submit.queue_handle,
          .fence_handle = submit.fence_handle,
+         .can_feedback = vn_queue_can_feedback(submit.queue_handle),
       });
       if (result != VK_SUCCESS)
          return result;
@@ -1455,6 +1468,7 @@ vn_QueueWaitIdle(VkQueue _queue)
       .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO,
       .queue_handle = _queue,
       .fence_handle = queue->wait_fence,
+      .can_feedback = vn_queue_can_feedback(_queue),
    });
    if (result != VK_SUCCESS)
       return result;
