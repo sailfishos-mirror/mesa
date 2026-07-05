@@ -686,7 +686,7 @@ build_load_storage_3d_image_depth(nir_builder *b,
 {
    const struct intel_device_info *devinfo = &state->pdevice->info;
 
-   if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT) {
+   if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT) {
       return build_load_descriptor_mem_from_res_index(
          b, res_index,
          offsetof(struct anv_storage_image_descriptor, image_depth),
@@ -723,12 +723,12 @@ build_descriptor_set_bti(nir_builder *b,
 {
    if (state->pdevice->info.has_lsc) {
       nir_def *surface_handle =
-         (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT ||
-          state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_UNKNOWN) ?
+         (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT ||
+          state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_UNKNOWN) ?
          nir_imm_int(b, 0xdeaddead) :
          nir_load_reloc_const_intel(
             b,
-            state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER ?
+            state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_BUFFER ?
             BRW_SHADER_RELOC_DESCRIPTORS_BUFFERS_VIEW_HANDLE :
             BRW_SHADER_RELOC_DESCRIPTORS_VIEW_HANDLE);
 
@@ -769,12 +769,12 @@ build_descriptor_set_base_address(nir_builder *b,
 
    if (state->pdevice->info.has_lsc) {
       reloc_id =
-         state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER ?
+         state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_BUFFER ?
          BRW_SHADER_RELOC_DESCRIPTORS_BUFFER_ADDR_HIGH :
          BRW_SHADER_RELOC_DESCRIPTORS_ADDR_HIGH;
    } else {
       reloc_id =
-         state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER ?
+         state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_BUFFER ?
          is_push_set ? BRW_SHADER_RELOC_PUSH_DESCRIPTORS_BUFFER_ADDR_HIGH :
          BRW_SHADER_RELOC_DESCRIPTORS_BUFFER_ADDR_HIGH :
          BRW_SHADER_RELOC_DESCRIPTORS_ADDR_HIGH;
@@ -921,7 +921,7 @@ binding_descriptor_offset(const struct apply_pipeline_layout_state *state,
                           bool sampler)
 {
    if (sampler &&
-       state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_DIRECT)
+       state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY)
       return bind_layout->descriptor_sampler_offset;
 
    return bind_layout->descriptor_surface_offset;
@@ -933,7 +933,7 @@ binding_descriptor_stride(const struct apply_pipeline_layout_state *state,
                           bool sampler)
 {
    if (sampler &&
-       state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_DIRECT)
+       state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY)
       return bind_layout->descriptor_sampler_stride;
 
    return bind_layout->descriptor_surface_stride;
@@ -958,7 +958,7 @@ build_surface_index_for_binding(nir_builder *b,
 
    nir_def *set_offset, *surface_index;
    if (is_bindless) {
-      if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT) {
+      if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT) {
          set_offset = nir_imm_int(b, 0xdeaddead);
 
          uint32_t final_offset = 0;
@@ -1047,7 +1047,7 @@ build_sampler_handle_for_binding(nir_builder *b,
          b, BRW_SHADER_RELOC_EMBEDDED_SAMPLER_HANDLE +
          state->set[set].binding[binding].embedded_sampler_index);
    } else if (is_bindless) {
-      if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT) {
+      if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT) {
          set_offset = nir_imm_int(b, 0xdeaddead);
 
          uint32_t final_offset = 0;
@@ -1241,7 +1241,7 @@ build_buffer_addr_for_res_index(nir_builder *b,
                                 nir_address_format addr_format,
                                 struct apply_pipeline_layout_state *state)
 {
-   if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT)
+   if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT)
       return build_indirect_buffer_addr_for_res_index(b, res_index, addr_format, state);
    else
       return build_direct_buffer_addr_for_res_index(b, res_index, addr_format, state);
@@ -1437,7 +1437,7 @@ try_lower_direct_buffer_intrinsic(nir_builder *b,
        * descriptors, we'll use A64 messages. This is handled in the main
        * lowering path.
        */
-      if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT &&
+      if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT &&
           !descriptor_has_bti(desc, state))
          return false;
    } else {
@@ -1451,7 +1451,7 @@ try_lower_direct_buffer_intrinsic(nir_builder *b,
        * descriptor set base address + offset. There is no indirect data to
        * fetch.
        */
-      if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT &&
+      if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT &&
           bind_layout->type != VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK &&
           !descriptor_has_bti(desc, state))
          return false;
@@ -1634,7 +1634,7 @@ lower_get_ssbo_size(nir_builder *b, nir_intrinsic_instr *intrin,
                                     intrin->src[0].ssa,
                                     addr_format, state);
    nir_def *desc_range;
-   if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT) {
+   if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT) {
       /* Load the anv_address_range_descriptor */
       desc_range = build_load_descriptor_mem_from_res_index(b, res_index, 0, 4, 32, state);
    } else {
@@ -1675,7 +1675,7 @@ lower_image_load_intel_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
 
    nir_def *desc;
 
-   if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT) {
+   if (state->bind_map->binding_mode == ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT) {
       switch (nir_intrinsic_base(intrin)) {
       case ISL_SURF_PARAM_BASE_ADDRESSS:
          desc = build_load_descriptor_mem_from_res_index(

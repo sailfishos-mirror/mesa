@@ -112,6 +112,14 @@
 #define ANV_DESCRIPTOR_SET_DESCRIPTORS        (UINT8_MAX - 1)
 #define ANV_DESCRIPTOR_SET_COLOR_ATTACHMENTS   UINT8_MAX
 
+enum anv_shader_binding_mode {
+   ANV_SHADER_BINDING_MODE_UNKNOWN,
+   ANV_SHADER_BINDING_MODE_LEGACY,
+   ANV_SHADER_BINDING_MODE_LEGACY_INDIRECT,
+   ANV_SHADER_BINDING_MODE_BUFFER,
+   ANV_SHADER_BINDING_MODE_HEAP,
+};
+
 struct anv_push_constants {
    /** Push constant data provided by the client through vkPushConstants */
    uint8_t client_data[MAX_PUSH_CONSTANTS_SIZE];

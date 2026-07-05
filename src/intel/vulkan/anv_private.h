@@ -999,8 +999,7 @@ struct anv_pipeline_binding {
    /** Offset in the descriptor buffer
     *
     * Relative to anv_descriptor_set::desc_addr. This is useful for
-    * ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_DIRECT, to generate the binding
-    * table entry.
+    * ANV_SHADER_BINDING_MODE_LEGACY, to generate the binding table entry.
     */
    uint32_t set_offset;
 
@@ -1096,8 +1095,8 @@ struct anv_pipeline_bind_map {
    unsigned char                                sampler_blake3[BLAKE3_KEY_LEN];
    unsigned char                                push_blake3[BLAKE3_KEY_LEN];
 
-   /* enum anv_descriptor_set_layout_type */
-   uint16_t layout_type;
+   /* enum anv_shader_binding_mode */
+   uint16_t binding_mode;
    /* enum anv_pipeline_bind_mask */
    uint16_t binding_mask;
 
@@ -3694,18 +3693,11 @@ struct anv_descriptor_set_binding_layout {
    struct anv_descriptor_set_layout_sampler *samplers;
 };
 
-enum anv_descriptor_set_layout_type {
-   ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_UNKNOWN,
-   ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_INDIRECT,
-   ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_DIRECT,
-   ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER,
-};
-
 struct anv_descriptor_set_layout {
    struct vk_descriptor_set_layout vk;
 
-   /* Type of descriptor set layout */
-   enum anv_descriptor_set_layout_type type;
+   /* Binding mode */
+   enum anv_shader_binding_mode binding_mode;
 
    /* Number of bindings in this descriptor set */
    uint32_t binding_count;
@@ -4523,7 +4515,26 @@ struct anv_simple_shader {
  * per-stage array in anv_cmd_state.
  */
 struct anv_bind_point_state {
+   /**
+    * Binding mode used by the currently bound shaders
+    */
+   enum anv_shader_binding_mode binding_mode;
+   /**
+    * Bound descriptors in ANV_SHADER_BINDING_MODE_LEGACY
+    */
    struct anv_descriptor_set *descriptors[MAX_SETS];
+   /**
+    * Highest number of descriptor bound in descriptors[]
+    */
+   uint32_t max_bound_descriptors;
+   /**
+    * Push descriptor, only used in ANV_SHADER_BINDING_MODE_LEGACY &
+    * ANV_SHADER_BINDING_MODE_BUFFER modes.
+    */
+   struct anv_push_descriptor_set push_descriptor;
+   /**
+    * State associated with ANV_SHADER_BINDING_MODE_BUFFER mode.
+    */
    struct {
       bool             bound;
       /**
@@ -4544,7 +4555,6 @@ struct anv_bind_point_state {
        */
       struct anv_state state;
    } descriptor_buffers[MAX_SETS];
-   struct anv_push_descriptor_set push_descriptor;
 
    struct anv_push_constants push_constants;
 
@@ -4749,13 +4759,6 @@ struct anv_cmd_ray_tracing_state {
    bool trace_rays_active;
 };
 
-enum anv_cmd_descriptor_buffer_mode {
-   ANV_CMD_DESCRIPTOR_BUFFER_MODE_UNKNOWN,
-   ANV_CMD_DESCRIPTOR_BUFFER_MODE_LEGACY,
-   ANV_CMD_DESCRIPTOR_BUFFER_MODE_BUFFER,
-   ANV_CMD_DESCRIPTOR_BUFFER_MODE_HEAP,
-};
-
 enum anv_color_aux_op_class {
    /* Non color related operation class or rendering */
    ANV_COLOR_AUX_OP_CLASS_NONE,
@@ -4818,13 +4821,13 @@ struct anv_cmd_state {
     * anv_device::dynamic_state_pool or anv_device::dynamic_state_pool_db for
     * the dynamic state heap.
     */
-   enum anv_cmd_descriptor_buffer_mode          current_db_mode;
+   enum anv_shader_binding_mode                 current_binding_mode;
 
    /**
     * Whether the command buffer has pending descriptor buffers bound it. This
-    * variable changes before anv_device::current_db_mode.
+    * variable changes before anv_device::current_binding_mode.
     */
-   enum anv_cmd_descriptor_buffer_mode          pending_db_mode;
+   enum anv_shader_binding_mode                 pending_binding_mode;
 
    struct {
       /**
@@ -4861,11 +4864,17 @@ struct anv_cmd_state {
    VkShaderStageFlags                           push_constants_dirty;
 
    struct {
+      bool                                      dirty;
       uint64_t                                  surfaces_address;
       uint64_t                                  samplers_address;
+   }                                            descriptor_heap;
+
+   struct {
       bool                                      dirty;
       VkShaderStageFlags                        offsets_dirty;
       uint64_t                                  address[MAX_SETS];
+      int8_t                                    surfaces_buffer;
+      int8_t                                    samplers_buffer;
    }                                            descriptor_buffers;
 
    /* Last programmed 3DSTATE_BINDING_TABLE_POOL_ALLOC address */

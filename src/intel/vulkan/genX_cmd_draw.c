@@ -185,7 +185,7 @@ get_push_range_address(struct anv_cmd_buffer *cmd_buffer,
 
    switch (range->set) {
    case ANV_DESCRIPTOR_SET_DESCRIPTORS:
-      if (shader->bind_map.layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) {
+      if (shader->bind_map.binding_mode == ANV_SHADER_BINDING_MODE_BUFFER) {
          return anv_address_from_u64(
             anv_cmd_buffer_descriptor_buffer_address(
                cmd_buffer,
@@ -269,7 +269,7 @@ get_push_range_bound_size(struct anv_cmd_buffer *cmd_buffer,
 
    switch (range->set) {
    case ANV_DESCRIPTOR_SET_DESCRIPTORS:
-      if (shader->bind_map.layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) {
+      if (shader->bind_map.binding_mode == ANV_SHADER_BINDING_MODE_BUFFER) {
          /* It's hard to bound a reference to a descriptor buffer because we
           * don't have an actual buffer, only an address. So just return the
           * maximum size of the heap (which bounds the largest buffer size).
@@ -818,7 +818,7 @@ cmd_buffer_flush_gfx_state(struct anv_cmd_buffer *cmd_buffer)
 
    genX(cmd_buffer_emit_hashing_mode)(cmd_buffer, UINT_MAX, UINT_MAX, 1);
 
-   genX(flush_descriptor_buffers)(cmd_buffer, bind_state, gfx->active_stages);
+   genX(flush_binding_mode)(cmd_buffer, bind_state, gfx->active_stages);
 
    genX(flush_pipeline_select_3d)(cmd_buffer);
 
