@@ -364,6 +364,10 @@ etna_sampler_view_desc_compose(struct etna_context *ctx,
    if (key == sv->composed_key)
       return false;
 
+   if (sv->composed_key != ~0u)
+      perf_debug_ctx(ctx, "Recomposing texture descriptor (key %x -> %x)",
+                     sv->composed_key, key);
+
    if (res->texture)
       res = etna_resource(res->texture);
 
