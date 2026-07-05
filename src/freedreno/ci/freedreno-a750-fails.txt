@@ -1,4 +1,3 @@
-KHR-GL46.copy_image.smoke_test,Fail
 KHR-GL46.shader_image_size.basic-nonMS-tes-int,Fail
 KHR-GL46.tessellation_shader.tessellation_control_to_tessellation_evaluation.gl_tessLevel,Fail
 KHR-GL46.tessellation_shader.tessellation_shader_tessellation.TES,Fail
