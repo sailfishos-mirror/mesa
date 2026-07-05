@@ -1901,3 +1901,10 @@ void virgl_encoder_get_layout(struct virgl_context *ctx,
    virgl_encoder_write_res(ctx, out_res);
    virgl_encoder_write_res(ctx, res);
 }
+
+void virgl_encoder_query_gbm_format_modifier(struct virgl_context *ctx,
+                                             struct virgl_resource *res)
+{
+   virgl_encoder_write_cmd_dword(ctx, VIRGL_CMD0(VIRGL_CCMD_QUERY_GBM_FORMAT_MODIFIER, 0, VIRGL_QUERY_FORMAT_MODIFIER_SIZE));
+   virgl_encoder_write_res(ctx, res);
+}
