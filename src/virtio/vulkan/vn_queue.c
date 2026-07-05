@@ -996,7 +996,7 @@ vn_QueueSubmit(VkQueue queue,
    VN_TRACE_FUNC();
 
    vn_tls_set_async_pipeline_create();
-   vn_wsi_flush(vn_queue_from_handle(queue));
+   vn_wsi_flush(queue);
 
    struct vn_queue_submission submit = {
       .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -1147,16 +1147,15 @@ vn_queue_submit_2_to_1(struct vn_device *dev,
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
-vn_QueueSubmit2(VkQueue _queue,
+vn_QueueSubmit2(VkQueue queue,
                 uint32_t submitCount,
                 const VkSubmitInfo2 *pSubmits,
                 VkFence fence)
 {
    VN_TRACE_FUNC();
 
-   VK_FROM_HANDLE(vk_queue, queue_vk, _queue);
+   VK_FROM_HANDLE(vk_queue, queue_vk, queue);
    struct vn_device *dev = vn_device_from_vk(queue_vk->base.device);
-   struct vn_queue *queue = vn_queue_from_handle(_queue);
    VkResult result;
 
    vn_tls_set_async_pipeline_create();
@@ -1165,11 +1164,11 @@ vn_QueueSubmit2(VkQueue _queue,
    if (dev->has_sync2) {
       struct vn_queue_submission submit = {
          .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-         .queue_handle = _queue,
+         .queue_handle = queue,
          .batch_count = submitCount,
          .submit2_batches = pSubmits,
          .fence_handle = fence,
-         .can_feedback = vn_queue_can_feedback(_queue),
+         .can_feedback = vn_queue_can_feedback(queue),
       };
       result = vn_queue_submit(&submit);
       if (result != VK_SUCCESS)
@@ -1179,14 +1178,14 @@ vn_QueueSubmit2(VkQueue _queue,
 
       for (uint32_t i = 0; i < submitCount; i++) {
          result = vn_queue_submit_2_to_1(
-            dev, _queue, &pSubmits[i],
+            dev, queue, &pSubmits[i],
             i == submitCount - 1 ? fence : VK_NULL_HANDLE);
          if (result != VK_SUCCESS)
             return result;
       }
    }
 
-   return vn_wsi_fence_wait(dev, queue);
+   return vn_wsi_fence_wait(queue);
 }
 
 static VkResult
@@ -1229,7 +1228,7 @@ vn_QueueBindSparse(VkQueue queue,
    VN_TRACE_FUNC();
    VkResult result;
 
-   vn_wsi_flush(vn_queue_from_handle(queue));
+   vn_wsi_flush(queue);
 
    struct vn_queue_submission submit = {
       .batch_type = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO,
@@ -1256,7 +1255,7 @@ vn_QueueWaitIdle(VkQueue _queue)
    struct vn_device *dev = vn_device_from_handle(dev_handle);
    VkResult result;
 
-   vn_wsi_flush(queue);
+   vn_wsi_flush(_queue);
 
    /* lazily create queue wait fence for queue idle waiting */
    if (queue->wait_fence == VK_NULL_HANDLE) {
