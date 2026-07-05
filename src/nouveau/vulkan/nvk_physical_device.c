@@ -1331,7 +1331,10 @@ nvk_get_device_properties(const struct nvk_instance *instance,
    };
 
    /* Add the driver to the device name (like other Mesa drivers do) */
-   if (!strcmp(info->device_name, info->chipset_name)) {
+   if (strlen(instance->drirc.debug.force_vk_devicename) > 0) {
+      snprintf(properties->deviceName, sizeof(properties->deviceName),
+               "%s", instance->drirc.debug.force_vk_devicename);
+   } else if (!strcmp(info->device_name, info->chipset_name)) {
       snprintf(properties->deviceName, sizeof(properties->deviceName),
                "NVK %s", info->device_name);
    } else {
