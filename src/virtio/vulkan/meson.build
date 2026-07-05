@@ -89,6 +89,7 @@ libvn_files = files(
   'vn_ring.c',
   'vn_renderer_internal.c',
   'vn_renderer_util.c',
+  'vn_sync.c',
 )
 
 vn_incs = [

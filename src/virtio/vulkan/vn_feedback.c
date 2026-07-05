@@ -10,6 +10,7 @@
 #include "vn_physical_device.h"
 #include "vn_query_pool.h"
 #include "vn_queue.h"
+#include "vn_sync.h"
 
 static uint32_t
 vn_get_memory_type_index(const VkPhysicalDeviceMemoryProperties *mem_props,
