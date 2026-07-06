@@ -55,6 +55,7 @@
     CI_TRON_INITRAMFS__GPU__FORMAT__0__ARCHIVE__KEEP__0__REWRITE: '\1'
     CI_TRON_KERNEL_CMDLINE__LOAD_MODULES: 'modules_load=powervr'
   tags:
+    - farm:$RUNNER_FARM_LOCATION
     - ci-tron:priority:$CI_TRON_JOB_PRIORITY
     - $GPU_VENDOR_TAG
     - $GPU_MODEL_TAG
