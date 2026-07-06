@@ -6224,7 +6224,7 @@
         "description": "loader: move variable to correct scope",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3c977f55f5afd8b34c233df895a4936e9d1770a8",
         "notes": null

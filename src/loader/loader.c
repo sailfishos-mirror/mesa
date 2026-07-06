@@ -234,7 +234,6 @@ loader_open_render_node_platform_devices(const char * const drivers[],
    drmDevicePtr devices[MAX_DRM_DEVICES], device;
    int num_devices, fd = -1;
    int i, j;
-   bool found = false;
    int *result;
 
    num_devices = drmGetDevices2(0, devices, MAX_DRM_DEVICES);
@@ -252,6 +251,7 @@ loader_open_render_node_platform_devices(const char * const drivers[],
       if ((device->available_nodes & (1 << DRM_NODE_RENDER)) &&
           (device->bustype == DRM_BUS_PLATFORM)) {
          drmVersionPtr version;
+         bool found = false;
 
          fd = loader_open_device(device->nodes[DRM_NODE_RENDER]);
          if (fd < 0)
