@@ -57,6 +57,7 @@ jay_op_starts_block(enum jay_opcode op)
 {
    return op == JAY_OPCODE_PHI_DST ||
           op == JAY_OPCODE_PRELOAD ||
+          op == JAY_OPCODE_INIT_HELPERS ||
           op == JAY_OPCODE_ELSE;
 }
 
