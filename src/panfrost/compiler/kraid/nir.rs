@@ -1181,6 +1181,15 @@ impl<'a> ShaderFromNir<'a> {
     ) {
         let srcs = intrin.srcs_as_slice();
         match intrin.intrinsic {
+            nir_intrinsic_ballot | nir_intrinsic_ballot_relaxed => {
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                let subgroup = self.model.subgroup_size().try_into().unwrap();
+                b.push_op(OpWMask {
+                    dst,
+                    subgroup,
+                    src: self.get_src(&srcs[0]),
+                });
+            }
             nir_intrinsic_barrier => {
                 match intrin.execution_scope() {
                     SCOPE_NONE | SCOPE_SUBGROUP => {

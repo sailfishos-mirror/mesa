@@ -25,8 +25,9 @@
 use crate::data_type::{NumericType, PartialDataType};
 use crate::foldable::{FoldDataView, Foldable, PerCompFoldable};
 use crate::ir::*;
+use compiler::enum_as_u8::EnumAsU8;
 use compiler::float16::F16;
-use kraid_proc_macros::{FromVariants, Opcode, variants};
+use kraid_proc_macros::{EnumAsU8, FromVariants, Opcode, variants};
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -2467,6 +2468,44 @@ impl fmt::Display for OpTexSingle {
     }
 }
 
+#[repr(u8)]
+#[derive(Clone, Copy, EnumAsU8, PartialEq)]
+pub enum SubgroupSize {
+    Subgroup2 = 2,
+    Subgroup4 = 4,
+    Subgroup8 = 8,
+    Subgroup16 = 16,
+}
+
+impl fmt::Display for SubgroupSize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sz = *self as u8;
+        write!(f, ".subgroup{sz}")
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpWMask {
+    #[dst_type(I32)]
+    pub dst: Dst,
+    pub subgroup: SubgroupSize,
+    #[src_type(I32)]
+    pub src: Src,
+}
+
+impl fmt::Display for OpWMask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = WMASK{} {}",
+            &self.dst,
+            self.subgroup,
+            self.fmt_src(&self.src),
+        )
+    }
+}
+
 #[derive(Clone, FromVariants, Opcode)]
 pub enum Op {
     ACmpXchg(Box<OpACmpXchg>),
@@ -2527,6 +2566,7 @@ pub enum Op {
     TexGather(Box<OpTexGather>),
     TexGradient(Box<OpTexGradient>),
     TexSingle(Box<OpTexSingle>),
+    WMask(Box<OpWMask>),
 }
 
 #[cfg(target_arch = "aarch64")]

@@ -2238,6 +2238,36 @@ impl V9Instr for OpTexSingle {
     }
 }
 
+impl From<SubgroupSize> for ClperSubgroupSizeM {
+    fn from(sg_size: SubgroupSize) -> ClperSubgroupSizeM {
+        match sg_size {
+            SubgroupSize::Subgroup2 => ClperSubgroupSizeM::Subgroup2,
+            SubgroupSize::Subgroup4 => ClperSubgroupSizeM::Subgroup4,
+            SubgroupSize::Subgroup8 => ClperSubgroupSizeM::Subgroup8,
+            SubgroupSize::Subgroup16 => ClperSubgroupSizeM::Subgroup16,
+        }
+    }
+}
+
+impl V9Instr for OpWMask {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Wmask::get_info((), arch),
+            src_map! {
+                src0: src,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Wmask {
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.src),
+            subgroup: self.subgroup.try_into().unwrap(),
+        })
+    }
+}
+
 macro_rules! v9_op_match_else {
     ($op: expr, |$x: ident| $y: expr, $z: expr) => {
         match $op {
@@ -2291,6 +2321,7 @@ macro_rules! v9_op_match_else {
             Op::TexGather($x) => $y,
             Op::TexGradient($x) => $y,
             Op::TexSingle($x) => $y,
+            Op::WMask($x) => $y,
             _ => $z,
         }
     };

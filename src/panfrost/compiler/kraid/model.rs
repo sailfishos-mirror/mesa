@@ -40,6 +40,10 @@ pub trait Model {
     fn special_fau(&self, preload: SpecialFAU) -> Option<FAURef>;
 
     fn preload_reg(&self, preload: PreloadReg) -> Option<RegRef>;
+
+    fn subgroup_size(&self) -> u8 {
+        unsafe { pan_subgroup_size(self.arch().into()).try_into().unwrap() }
+    }
 }
 
 struct ValhallModel {
