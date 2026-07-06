@@ -1602,8 +1602,8 @@ impl<'a> ShaderFromNir<'a> {
 
         preloaded
             .into_iter()
-            .map(|(reg, ssa)| {
-                let reg = RegRef::from_preload_reg(self.model, reg);
+            .map(|(preload, ssa)| {
+                let reg = self.model.preload_reg(preload).unwrap();
                 self.info.register_preload |= 1 << reg.idx;
                 Instr::from(OpRegIn {
                     dst: ssa.into(),

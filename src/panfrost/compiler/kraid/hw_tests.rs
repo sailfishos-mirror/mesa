@@ -103,8 +103,7 @@ impl<'a> TestShaderBuilder<'a> {
         let data_stride = FAURef::user_i32(2);
 
         let invoc_id: SSAValue = b.alloc_ssa(32);
-        let global_id_reg =
-            RegRef::from_preload_reg(model, PreloadReg::GlobalId0);
+        let global_id_reg = model.preload_reg(PreloadReg::GlobalId0).unwrap();
         info.register_preload |= 1 << global_id_reg.idx;
         b.push_op(OpRegIn {
             dst: invoc_id.into(),

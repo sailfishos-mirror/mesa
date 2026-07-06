@@ -352,14 +352,6 @@ impl RegRef {
             self
         }
     }
-
-    pub fn from_preload_reg(m: &dyn Model, reg: PreloadReg) -> RegRef {
-        RegRef {
-            idx: m.preload_reg(reg),
-            range: RegRange::Regs(1),
-            preload: Some(reg),
-        }
-    }
 }
 
 #[derive(Clone, PartialEq)]

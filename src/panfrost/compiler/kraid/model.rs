@@ -37,7 +37,7 @@ pub trait Model {
 
     fn small_constants(&self) -> &[SmallConstant];
 
-    fn preload_reg(&self, reg: PreloadReg) -> u8;
+    fn preload_reg(&self, preload: PreloadReg) -> Option<RegRef>;
 }
 
 struct ValhallModel {
@@ -131,10 +131,10 @@ impl Model for ValhallModel {
         &self.sc_table
     }
 
-    fn preload_reg(&self, reg: PreloadReg) -> u8 {
+    fn preload_reg(&self, preload: PreloadReg) -> Option<RegRef> {
         use PreloadReg::*;
 
-        match reg {
+        let idx = match preload {
             LocalId01 => 55,
             LocalId2 => 56,
             WorkgroupId0 => 57,
@@ -155,7 +155,13 @@ impl Model for ValhallModel {
             RasterizerSampleCentroid => 61,
             FrameArgLow => 62,
             FrameArgHigh => 63,
-        }
+        };
+
+        Some(RegRef {
+            idx,
+            range: RegRange::Regs(1),
+            preload: Some(preload),
+        })
     }
 }
 
