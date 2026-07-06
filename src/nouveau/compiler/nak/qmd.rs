@@ -33,6 +33,14 @@ trait QMD {
         dev: &nv_device_info,
         info: &nak_shader_info,
     );
+
+    fn set_invalidate_texture_header(&mut self, value: bool);
+    fn set_invalidate_texture_samplers(&mut self, value: bool);
+    fn set_invalidate_texture_data(&mut self, value: bool);
+    fn set_invalidate_instruction_cache(&mut self, value: bool);
+    fn set_invalidate_shader_data(&mut self, value: bool);
+    fn set_invalidate_shader_constants(&mut self, value: bool);
+
     fn set_dependent_qmd_addr(&mut self, qmd_addr: u64);
     fn set_dependent_qmd_schedule(&mut self, schedule: bool);
     fn set_dependence_counter(&mut self, count: u16);
@@ -122,6 +130,36 @@ macro_rules! qmd_impl_common {
             set_field!(bv, $c, $s, CTA_THREAD_DIMENSION0, width);
             set_field!(bv, $c, $s, CTA_THREAD_DIMENSION1, height);
             set_field!(bv, $c, $s, CTA_THREAD_DIMENSION2, depth);
+        }
+
+        fn set_invalidate_texture_header(&mut self, value: bool) {
+            let mut bv = QMDBitView::new(&mut self.qmd);
+            set_field!(bv, $c, $s, INVALIDATE_TEXTURE_HEADER_CACHE, value);
+        }
+
+        fn set_invalidate_texture_samplers(&mut self, value: bool) {
+            let mut bv = QMDBitView::new(&mut self.qmd);
+            set_field!(bv, $c, $s, INVALIDATE_TEXTURE_SAMPLER_CACHE, value);
+        }
+
+        fn set_invalidate_texture_data(&mut self, value: bool) {
+            let mut bv = QMDBitView::new(&mut self.qmd);
+            set_field!(bv, $c, $s, INVALIDATE_TEXTURE_DATA_CACHE, value);
+        }
+
+        fn set_invalidate_instruction_cache(&mut self, value: bool) {
+            let mut bv = QMDBitView::new(&mut self.qmd);
+            set_field!(bv, $c, $s, INVALIDATE_INSTRUCTION_CACHE, value);
+        }
+
+        fn set_invalidate_shader_data(&mut self, value: bool) {
+            let mut bv = QMDBitView::new(&mut self.qmd);
+            set_field!(bv, $c, $s, INVALIDATE_SHADER_DATA_CACHE, value);
+        }
+
+        fn set_invalidate_shader_constants(&mut self, value: bool) {
+            let mut bv = QMDBitView::new(&mut self.qmd);
+            set_field!(bv, $c, $s, INVALIDATE_SHADER_CONSTANT_CACHE, value);
         }
     };
 }
@@ -900,6 +938,121 @@ pub extern "C" fn nak_set_dependent_qmd(
             set_dependent_qmd(qmd_out, dependent_qmd_addr, schedule);
         } else if dev.cls_compute >= cla0c0::KEPLER_COMPUTE_A {
             assert!(dependent_qmd_addr == 0);
+        } else {
+            panic!("Unknown shader model");
+        }
+    }
+}
+
+fn set_invalidate_shader_constants<Q: QMD>(
+    qmd: *mut Q,
+    texture_header: bool,
+    texture_samplers: bool,
+    texture_data: bool,
+    instruction_cache: bool,
+    shader_data: bool,
+    shader_constants: bool,
+) {
+    debug_assert!(!qmd.is_null());
+
+    unsafe {
+        (*qmd).set_invalidate_texture_header(texture_header);
+        (*qmd).set_invalidate_texture_samplers(texture_samplers);
+        (*qmd).set_invalidate_texture_data(texture_data);
+        (*qmd).set_invalidate_instruction_cache(instruction_cache);
+        (*qmd).set_invalidate_shader_data(shader_data);
+        (*qmd).set_invalidate_shader_constants(shader_constants);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn nak_set_invalidate_cache(
+    dev: *const nv_device_info,
+    qmd_out: *mut ::std::os::raw::c_void,
+    qmd_size: usize,
+    texture_header: bool,
+    texture_samplers: bool,
+    texture_data: bool,
+    instruction_cache: bool,
+    shader_data: bool,
+    shader_constants: bool,
+) {
+    assert!(!dev.is_null());
+    let dev = unsafe { &*dev };
+
+    unsafe {
+        if dev.cls_compute >= clcdc0::BLACKWELL_COMPUTE_A {
+            let qmd_out = qmd_out as *mut Qmd5_0;
+            assert!(qmd_size == size_of_val(&*qmd_out));
+            set_invalidate_shader_constants(
+                qmd_out,
+                texture_header,
+                texture_samplers,
+                texture_data,
+                instruction_cache,
+                shader_data,
+                shader_constants,
+            );
+        } else if dev.cls_compute >= clcbc0::HOPPER_COMPUTE_A {
+            let qmd_out = qmd_out as *mut Qmd4_0;
+            assert!(qmd_size == size_of_val(&*qmd_out));
+            set_invalidate_shader_constants(
+                qmd_out,
+                texture_header,
+                texture_samplers,
+                texture_data,
+                instruction_cache,
+                shader_data,
+                shader_constants,
+            );
+        } else if dev.cls_compute >= clc6c0::AMPERE_COMPUTE_A {
+            let qmd_out = qmd_out as *mut Qmd3_0;
+            assert!(qmd_size == size_of_val(&*qmd_out));
+            set_invalidate_shader_constants(
+                qmd_out,
+                texture_header,
+                texture_samplers,
+                texture_data,
+                instruction_cache,
+                shader_data,
+                shader_constants,
+            );
+        } else if dev.cls_compute >= clc3c0::VOLTA_COMPUTE_A {
+            let qmd_out = qmd_out as *mut Qmd2_2;
+            assert!(qmd_size == size_of_val(&*qmd_out));
+            set_invalidate_shader_constants(
+                qmd_out,
+                texture_header,
+                texture_samplers,
+                texture_data,
+                instruction_cache,
+                shader_data,
+                shader_constants,
+            );
+        } else if dev.cls_compute >= clc0c0::PASCAL_COMPUTE_A {
+            let qmd_out = qmd_out as *mut Qmd2_1;
+            assert!(qmd_size == size_of_val(&*qmd_out));
+            set_invalidate_shader_constants(
+                qmd_out,
+                texture_header,
+                texture_samplers,
+                texture_data,
+                instruction_cache,
+                shader_data,
+                shader_constants,
+            );
+        } else if dev.cls_compute >= cla0c0::KEPLER_COMPUTE_A {
+            let qmd_out = qmd_out as *mut Qmd0_6;
+            assert!(qmd_size == size_of_val(&*qmd_out));
+            set_invalidate_shader_constants(
+                qmd_out,
+                texture_header,
+                texture_samplers,
+                texture_data,
+                instruction_cache,
+                shader_data,
+                shader_constants,
+            );
         } else {
             panic!("Unknown shader model");
         }

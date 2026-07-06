@@ -316,6 +316,12 @@ void nak_fill_qmd(const struct nv_device_info *dev,
 void nak_set_dependent_qmd(const struct nv_device_info *dev, void *qmd,
                            size_t qmd_size, uint64_t dependent_qmd_addr,
                            bool schedule);
+void nak_set_invalidate_cache(const struct nv_device_info *dev, void *qmd,
+                              size_t qmd_size,
+                              bool texture_header, bool texture_samplers,
+                              bool texture_data,
+                              bool instruction_cache,
+                              bool shader_data, bool shader_constants);
 
 struct nak_qmd_dispatch_size_layout {
    uint16_t x_start, x_end;
