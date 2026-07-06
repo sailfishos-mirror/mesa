@@ -552,8 +552,6 @@ init_context(isel_context* ctx, nir_shader* shader)
                }
                RegType type = RegType::sgpr;
                switch (intrinsic->intrinsic) {
-               case nir_intrinsic_load_push_constant:
-               case nir_intrinsic_load_num_subgroups:
                case nir_intrinsic_vote_all:
                case nir_intrinsic_vote_any:
                case nir_intrinsic_read_first_invocation:
@@ -562,8 +560,6 @@ init_context(isel_context* ctx, nir_shader* shader)
                case nir_intrinsic_first_invocation:
                case nir_intrinsic_ballot:
                case nir_intrinsic_ballot_relaxed:
-               case nir_intrinsic_bindless_image_samples:
-               case nir_intrinsic_load_scalar_arg_amd:
                case nir_intrinsic_unit_test_uniform_input: type = RegType::sgpr; break;
                case nir_intrinsic_load_input:
                case nir_intrinsic_load_per_primitive_input:
