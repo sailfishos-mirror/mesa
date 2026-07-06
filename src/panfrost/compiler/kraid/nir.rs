@@ -1364,6 +1364,13 @@ impl<'a> ShaderFromNir<'a> {
                     handle,
                 });
             }
+            nir_intrinsic_load_subgroup_invocation => {
+                assert_eq!(intrin.def.bit_size, 32);
+                assert_eq!(intrin.def.num_components, 1);
+                let fau = self.model.special_fau(SpecialFAU::LaneId).unwrap();
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.copy_i32_to(dst, fau.word(0).into());
+            }
             nir_intrinsic_load_tex_pan => {
                 assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
                 assert_eq!(intrin.def.num_components, intrin.num_components);
