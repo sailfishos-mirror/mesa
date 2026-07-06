@@ -336,6 +336,23 @@ fn op_encode_sr_write(_op: &impl Opcode, dst: &Dst) -> v9::SrWrite {
     }
 }
 
+fn try_encode_res_table_index(handle: u32) -> Result<u32, &'static str> {
+    let table_idx = handle >> 24;
+    if !(table_idx <= 11 || (table_idx >= 60 && table_idx <= 63)) {
+        return Err("Cannot encode immediate resource table index");
+    }
+    Ok(table_idx & 15)
+}
+
+fn try_encode_res_index(handle: u32, bits: u8) -> Result<u8, &'static str> {
+    assert!(bits <= 8);
+    let res_idx = handle & 0xffffff;
+    if res_idx >= (1 << bits) {
+        return Err("Cannot encode immediate resource index");
+    }
+    Ok(res_idx as u8)
+}
+
 fn instr_fau_page(instr: &Instr) -> Option<u8> {
     let mut page = None;
     for src in instr.srcs() {
@@ -1486,16 +1503,43 @@ impl V9Instr for OpLdTex {
         )
     }
 
+    fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
+        ptr_eq(src, &self.handle)
+            && try_encode_res_index(imm, 4).is_ok()
+            && try_encode_res_table_index(imm).is_ok()
+    }
+
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        e.encode(LdTex {
-            register_format: self.dst_type.scalar_type().try_into().unwrap(),
-            vecsize: self.dst_type.comps().try_into().unwrap(),
-            message_slot_index: e.get_msg_slot_idx().unwrap(),
-            sr_dst: op_encode_sr_write(self, &self.dst),
-            src0: op_encode_src(self, &self.coords[0]),
-            src1: op_encode_src(self, &self.coords[1]),
-            src2: op_encode_src(self, &self.handle),
-        })
+        if let Ok(imm32) = u32::try_from(&self.handle.src_ref) {
+            e.encode(LdTexImm {
+                register_format: self
+                    .dst_type
+                    .scalar_type()
+                    .try_into()
+                    .unwrap(),
+                vecsize: self.dst_type.comps().try_into().unwrap(),
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.coords[0]),
+                src1: op_encode_src(self, &self.coords[1]),
+                texture_index: try_encode_res_index(imm32, 4).unwrap(),
+                texture_table_index: try_encode_res_table_index(imm32).unwrap(),
+            })
+        } else {
+            e.encode(LdTex {
+                register_format: self
+                    .dst_type
+                    .scalar_type()
+                    .try_into()
+                    .unwrap(),
+                vecsize: self.dst_type.comps().try_into().unwrap(),
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.coords[0]),
+                src1: op_encode_src(self, &self.coords[1]),
+                src2: op_encode_src(self, &self.handle),
+            })
+        }
     }
 }
 
@@ -1510,13 +1554,29 @@ impl V9Instr for OpLeaBuf {
         )
     }
 
+    fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
+        ptr_eq(src, &self.handle)
+            && try_encode_res_index(imm, 8).is_ok()
+            && try_encode_res_table_index(imm).is_ok()
+    }
+
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        e.encode(LeaBuf {
-            message_slot_index: e.get_msg_slot_idx().unwrap(),
-            sr_dst: op_encode_sr_write(self, &self.dst),
-            src0: op_encode_src(self, &self.index),
-            src1: op_encode_src(self, &self.handle),
-        })
+        if let Ok(imm32) = u32::try_from(&self.handle.src_ref) {
+            e.encode(LeaBufImm {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.index),
+                buffer_index: try_encode_res_index(imm32, 8).unwrap(),
+                buffer_table_index: try_encode_res_table_index(imm32).unwrap(),
+            })
+        } else {
+            e.encode(LeaBuf {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.index),
+                src1: op_encode_src(self, &self.handle),
+            })
+        }
     }
 }
 
@@ -1553,14 +1613,31 @@ impl V9Instr for OpLeaTex {
         )
     }
 
+    fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
+        ptr_eq(src, &self.handle)
+            && try_encode_res_index(imm, 4).is_ok()
+            && try_encode_res_table_index(imm).is_ok()
+    }
+
     fn encode(&self, e: V9Encoder) -> EncodedInstr {
-        e.encode(LeaTex {
-            message_slot_index: e.get_msg_slot_idx().unwrap(),
-            sr_dst: op_encode_sr_write(self, &self.dst),
-            src0: op_encode_src(self, &self.coords[0]),
-            src1: op_encode_src(self, &self.coords[1]),
-            src2: op_encode_src(self, &self.handle),
-        })
+        if let Ok(imm32) = u32::try_from(&self.handle.src_ref) {
+            e.encode(LeaTexImm {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.coords[0]),
+                src1: op_encode_src(self, &self.coords[1]),
+                texture_index: try_encode_res_index(imm32, 4).unwrap(),
+                texture_table_index: try_encode_res_table_index(imm32).unwrap(),
+            })
+        } else {
+            e.encode(LeaTex {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.coords[0]),
+                src1: op_encode_src(self, &self.coords[1]),
+                src2: op_encode_src(self, &self.handle),
+            })
+        }
     }
 }
 
