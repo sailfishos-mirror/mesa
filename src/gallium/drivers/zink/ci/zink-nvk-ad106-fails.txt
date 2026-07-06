@@ -34,13 +34,11 @@ spec@!opengl 1.1@polygon-mode-offset@config 5: Expected blue pixel in center,Fai
 spec@!opengl 1.1@polygon-mode-offset@config 6: Expected blue pixel in center,Fail
 spec@!opengl 1.1@polygon-mode-offset@config 6: Expected white pixel on right edge,Fail
 spec@!opengl 1.1@polygon-mode-offset@config 6: Expected white pixel on top edge,Fail
-spec@!opengl 1.2@copyteximage 3d,Fail
 spec@!opengl 2.1@pbo,Fail
 spec@!opengl 2.1@pbo@test_polygon_stip,Fail
 spec@!opengl 2.1@polygon-stipple-fs,Fail
 spec@!opengl 3.0@clearbuffer-depth-cs-probe,Fail
 spec@arb_framebuffer_object@fbo-blit-scaled-linear,Fail
-spec@arb_get_texture_sub_image@arb_get_texture_sub_image-get,Fail
 spec@arb_gpu_shader_fp64@execution@arb_gpu_shader_fp64-tf-separate,Fail
 spec@arb_sample_locations@test,Fail
 spec@arb_sample_locations@test@MSAA: 1- X: 0- Y: 0- Grid: false,Fail
@@ -332,7 +330,6 @@ spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgrad,Fail
 spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgradcube,Fail
 spec@arb_shading_language_packing@execution@built-in-functions@fs-packhalf2x16,Fail
 spec@arb_shading_language_packing@execution@built-in-functions@vs-packhalf2x16,Fail
-spec@arb_texture_cube_map_array@texsubimage cube_map_array,Fail
 spec@arb_transform_feedback_instanced@draw-auto instanced,Fail
 spec@egl 1.4@egl-ext_egl_image_storage,Crash
 spec@egl 1.4@eglterminate then unbind context,Fail
@@ -344,7 +341,6 @@ spec@egl_khr_surfaceless_context@viewport,Fail
 spec@egl_mesa_configless_context@basic,Fail
 spec@ext_external_objects@vk-image-overwrite,Crash
 spec@ext_external_objects@vk-ping-pong-multi-sem,Fail
-spec@ext_texture_array@texsubimage array,Fail
 spec@ext_transform_feedback2@draw-auto,Fail
 spec@ext_transform_feedback@tessellation quad_strip wireframe,Fail
 spec@ext_transform_feedback@tessellation quads wireframe,Fail
