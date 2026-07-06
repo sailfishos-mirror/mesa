@@ -321,7 +321,7 @@ impl fmt::Display for OpCopy {
 }
 
 impl VirtualOpcode for OpCopy {
-    fn src_supports_imm32(&self, _src: &Src) -> bool {
+    fn src_supports_imm32(&self, _src: &Src, _imm: u32) -> bool {
         true
     }
 
@@ -1590,7 +1590,7 @@ impl fmt::Display for OpMkVecV2I16 {
 }
 
 impl VirtualOpcode for OpMkVecV2I8 {
-    fn src_supports_imm32(&self, _src: &Src) -> bool {
+    fn src_supports_imm32(&self, _src: &Src, _imm: u32) -> bool {
         true
     }
 
@@ -1628,7 +1628,7 @@ impl fmt::Display for OpMkVecV4I8 {
 }
 
 impl VirtualOpcode for OpMkVecV4I8 {
-    fn src_supports_imm32(&self, _src: &Src) -> bool {
+    fn src_supports_imm32(&self, _src: &Src, _imm: u32) -> bool {
         true
     }
 

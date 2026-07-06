@@ -16,7 +16,7 @@ pub trait Model {
 
     fn op_src_is_staging_reg(&self, op: &Op, src: &Src) -> bool;
 
-    fn op_src_supports_imm32(&self, op: &Op, src: &Src) -> bool;
+    fn op_src_supports_imm32(&self, op: &Op, src: &Src, imm: u32) -> bool;
 
     fn op_src_supports_swizzle(
         &self,
@@ -82,11 +82,11 @@ impl Model for ValhallModel {
         }
     }
 
-    fn op_src_supports_imm32(&self, op: &Op, src: &Src) -> bool {
+    fn op_src_supports_imm32(&self, op: &Op, src: &Src, imm: u32) -> bool {
         if let Some(vop) = op.as_virtual() {
-            vop.src_supports_imm32(src)
+            vop.src_supports_imm32(src, imm)
         } else {
-            v9_op_src_supports_imm32(op, src, self.arch)
+            v9_op_src_supports_imm32(op, src, self.arch, imm)
         }
     }
 

@@ -10,8 +10,10 @@ use crate::ssa_value::AllocSSA;
 
 fn legalize_imm(b: &mut SSAInstrBuilder, op: &mut Op, src_idx: usize) {
     let src = &op.srcs()[src_idx];
-    let is_imm = matches!(src.src_ref, SrcRef::Imm32(_));
-    if !is_imm || b.model().op_src_supports_imm32(op, src) {
+    let SrcRef::Imm32(imm32) = &src.src_ref else {
+        return;
+    };
+    if b.model().op_src_supports_imm32(op, src, (*imm32).into()) {
         return;
     }
 

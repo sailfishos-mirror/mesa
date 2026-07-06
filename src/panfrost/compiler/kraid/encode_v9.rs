@@ -66,7 +66,7 @@ impl V9InstrInfo {
 trait V9Instr: Opcode {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo>;
 
-    fn src_supports_imm32(&self, _src: &Src, _arch: u8) -> bool {
+    fn src_supports_imm32(&self, _src: &Src, _arch: u8, _imm: u32) -> bool {
         false
     }
 
@@ -858,7 +858,7 @@ impl V9Instr for OpFAdd {
         )
     }
 
-    fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
+    fn src_supports_imm32(&self, src: &Src, arch: u8, _imm: u32) -> bool {
         ptr_eq(src, &self.srcs[1])
             && self.srcs[0].swizzle.is_none()
             && self.round == FRound::NearestEven
@@ -1237,7 +1237,7 @@ impl V9Instr for OpIAdd {
         )
     }
 
-    fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
+    fn src_supports_imm32(&self, src: &Src, arch: u8, _imm: u32) -> bool {
         ptr_eq(src, &self.srcs[1])
             && self.srcs[0].swizzle.is_none()
             && !self.saturate
@@ -1645,7 +1645,7 @@ impl V9Instr for OpMov {
         )
     }
 
-    fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
+    fn src_supports_imm32(&self, src: &Src, arch: u8, _imm: u32) -> bool {
         ptr_eq(src, &self.src) && MovImm::is_supported(self.dst_type, arch)
     }
 
@@ -1844,7 +1844,7 @@ impl V9Instr for OpShiftLop {
         }
     }
 
-    fn src_supports_imm32(&self, src: &Src, arch: u8) -> bool {
+    fn src_supports_imm32(&self, src: &Src, arch: u8, _imm: u32) -> bool {
         // Immediates are only supported on src2 of plane (no shift) logic ops
         if !self.shift_op.is_none() || !ptr_eq(src, &self.src2) {
             return false;
@@ -2231,8 +2231,13 @@ pub fn v9_op_src_is_staging_reg(op: &Op, src: &Src, arch: u8) -> bool {
         .is_some_and(|info| info.src_map[op.src_idx(src)] == V9InstrSrc::SrSrc)
 }
 
-pub fn v9_op_src_supports_imm32(op: &Op, src: &Src, arch: u8) -> bool {
-    v9_op_match!(op, |op| op.src_supports_imm32(src, arch))
+pub fn v9_op_src_supports_imm32(
+    op: &Op,
+    src: &Src,
+    arch: u8,
+    imm: u32,
+) -> bool {
+    v9_op_match!(op, |op| op.src_supports_imm32(src, arch, imm))
 }
 
 pub fn v9_op_src_supports_swizzle(

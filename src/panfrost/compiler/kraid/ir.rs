@@ -1280,7 +1280,7 @@ pub trait VirtualOpcode {
         false
     }
 
-    fn src_supports_imm32(&self, _src: &Src) -> bool {
+    fn src_supports_imm32(&self, _src: &Src, _imm: u32) -> bool {
         false
     }
 
