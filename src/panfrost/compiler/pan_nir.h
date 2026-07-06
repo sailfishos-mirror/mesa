@@ -247,6 +247,8 @@ static_assert(sizeof(struct pan_va_tex_flags) == 4, "Must fit in uint32_t");
 bool pan_nir_lower_tex(nir_shader *nir, uint64_t gpu_id);
 bool pan_nir_lower_image(nir_shader *nir, uint64_t gpu_id);
 
+bool pan_nir_lower_mem_to_global(nir_shader *nir);
+
 nir_alu_type
 pan_unpacked_type_for_format(const struct util_format_description *desc);
 
