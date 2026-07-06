@@ -198,7 +198,7 @@ impl<'a> TestShaderBuilder<'a> {
             model,
             ssa_alloc,
             phi_alloc: Default::default(),
-            blocks: cfg.as_cfg(),
+            blocks: cfg.as_cfg(true),
             info,
         };
         s.validate();

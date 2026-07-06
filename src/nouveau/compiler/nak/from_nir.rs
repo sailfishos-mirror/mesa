@@ -4606,7 +4606,7 @@ impl<'a> ShaderFromNir<'a> {
 
         self.parse_cf_list(&mut ssa_alloc, &mut phi_map, nfi.iter_body());
 
-        let cfg = std::mem::take(&mut self.cfg).as_cfg();
+        let cfg = std::mem::take(&mut self.cfg).as_cfg(true);
         assert!(cfg.len() > 0);
         for i in 0..cfg.len() {
             if cfg[i].falls_through() {
