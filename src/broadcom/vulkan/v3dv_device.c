@@ -212,6 +212,7 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .KHR_shader_quad_control              = device->devinfo.ver >= 71,
       .KHR_shader_relaxed_extended_instruction = true,
       .KHR_shader_subgroup_extended_types   = true,
+      .KHR_shader_subgroup_rotate           = device->devinfo.ver >= 71,
       .KHR_sampler_mirror_clamp_to_edge     = true,
       .KHR_sampler_ycbcr_conversion         = true,
       .KHR_spirv_1_4                        = true,
@@ -597,6 +598,10 @@ get_features(const struct v3dv_physical_device *physical_device,
 
       /* VK_KHR_shader_quad_control */
       .shaderQuadControl = physical_device->devinfo.ver >= 71,
+
+      /* VK_KHR_shader_subgroup_rotate */
+      .shaderSubgroupRotate = physical_device->devinfo.ver >= 71,
+      .shaderSubgroupRotateClustered = physical_device->devinfo.ver >= 71,
 
       /* VK_KHR_shader_relaxed_extended_instruction */
       .shaderRelaxedExtendedInstruction = true,
@@ -1001,7 +1006,9 @@ get_device_properties(const struct v3dv_physical_device *device,
                       VK_SUBGROUP_FEATURE_VOTE_BIT |
                       VK_SUBGROUP_FEATURE_QUAD_BIT |
                       VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
-                      VK_SUBGROUP_FEATURE_CLUSTERED_BIT;
+                      VK_SUBGROUP_FEATURE_CLUSTERED_BIT |
+                      VK_SUBGROUP_FEATURE_ROTATE_BIT |
+                      VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT;
    }
 
    /* FIXME: this will probably require an in-depth review */

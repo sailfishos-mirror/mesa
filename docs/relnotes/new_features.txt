@@ -67,3 +67,4 @@ VK_EXT_swapchain_colorspace on pvr
 VK_EXT_acquire_drm_display on pvr
 VK_KHR_unified_image_layouts on pvr
 VK_KHR_shader_quad_control on v3dv
+VK_KHR_shader_subgroup_rotate on v3dv
