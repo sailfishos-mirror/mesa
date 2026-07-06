@@ -1638,7 +1638,7 @@ impl<'a> ShaderFromNir<'a> {
                 nb,
             );
         }
-        let mut blocks = cfg.as_cfg(true);
+        let mut blocks = cfg.as_cfg(false);
 
         // If there are any preload registers, splice them before the
         // starting block
