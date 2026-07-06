@@ -1527,6 +1527,36 @@ brw_generator::generate_code(const brw_shader &s,
          if (devinfo->ver == 9)
             current_state()->align16 = true;
 
+         if (devinfo->verx10 == 90) {
+            /* On Gfx9, there are no bits in the instruction to store the
+             * destination register file. It must be GRF.
+             */
+            assert(dst.file == FIXED_GRF);
+         }
+
+         if (devinfo->verx10 == 110) {
+            /* On Gfx11, things are more complicated. Page 475 (page 481 of
+             * the PDF) of the Ice Lake PRM Volume 9: Render Engine says:
+             *
+             *    The 3-source instructions have the following restrictions:
+             *
+             *    - Only GRF registers can be sources and only GRF registers
+             *      can be the destination.
+             *
+             * Which is cool and all, but page 496 (page 502 of the PDF) of
+             * the Ice Lake PRM Volume 9: Render Engine says:
+             *
+             *    DstRegfile
+             *        0 - GRF
+             *        1 - ARF (Restriction : Only valid ARF type is Accumulator)
+             *
+             * The Bspec also shows examples of using MAD with accumulator
+             * source and destination as a replacement for PLN. In commit
+             * 432674ce93ce, this driver made use of this feature!
+             */
+            assert(dst.file == FIXED_GRF || inst->dst.is_accumulator());
+         }
+
          if (devinfo->verx10 == 110 || devinfo->verx10 == 120) {
             /* No supporting documentation has been found in the Bspec or
              * the PRMs. However, the TGL simulator will produce the warning:
