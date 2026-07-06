@@ -4904,7 +4904,7 @@
         "description": "radv/meta: fix restoring descriptor heaps",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f4f2a966e30e4c3c7b93d36fecc8e51643084648",
         "notes": null
