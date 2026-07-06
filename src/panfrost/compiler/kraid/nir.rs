@@ -1434,14 +1434,10 @@ impl<'a> ShaderFromNir<'a> {
 
                 let dsts = self.alloc_ssa(b, &intrin.def);
                 for (i, dst) in dsts.iter().copied().enumerate() {
+                    let word_idx = (word_idx + i as u64).try_into().unwrap();
                     b.copy_i32_to(
                         dst.into(),
-                        FAURef {
-                            page: FAUPage::User,
-                            idx: (word_idx + i as u64).try_into().unwrap(),
-                            load64: false,
-                        }
-                        .into(),
+                        FAURef::user_i32(word_idx).into(),
                     );
                 }
                 // TODO: update ShaderInfo to keep track of the highest push constant
