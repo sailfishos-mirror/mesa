@@ -26,7 +26,7 @@ emit_swsb(const intel_device_info *devinfo, FILE *fp, gen_swsb swsb,
 
    if (swsb.regdist) {
       const char *pipe = "";
-      if (devinfo && devinfo->verx10 >= 125) {
+      if (!devinfo || devinfo->verx10 >= 125) {
          pipe = gen_pipe_to_string(swsb.pipe);
          if (!pipe)
             pipe = "?";
