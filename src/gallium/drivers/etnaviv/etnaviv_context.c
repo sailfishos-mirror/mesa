@@ -295,6 +295,7 @@ etna_reset_gpu_state(struct etna_context *ctx)
    ctx->dirty_sampler_views = ~0L;
    ctx->dirty_samplers = ~0L;
    ctx->prev_active_samplers = ~0L;
+   ctx->prev_vs_sampler_base = ~0;
    ctx->needs_gpu_state_reset = false;
    ctx->alpha_coverage_dither_emitted = false;
 }

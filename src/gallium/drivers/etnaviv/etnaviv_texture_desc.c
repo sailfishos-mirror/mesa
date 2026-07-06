@@ -521,25 +521,34 @@ etna_emit_texture_desc(struct etna_context *ctx)
     * etna_sampler_hw_slot() is the identity for the legacy fixed split, so
     * the body below serves both.
     *
-    * The vertex base shifts with the fragment sampler count, so a slot can
-    * move between draws even when its own view did not change. The loops
-    * below therefore refresh the whole array under unified, not just the
-    * dirty slots.
+    * The vertex base shifts with the fragment sampler count, so all slots
+    * move when it changes and the whole array needs a refresh. As long as
+    * the base is stable only the dirty slots need to be re-emitted.
     */
-   if (unified)
-      etna_set_state(stream, VIVS_VS_SAMPLER_BASE, etna_vs_sampler_base(ctx));
+   const unsigned vs_base = etna_vs_sampler_base(ctx);
+   const bool remap = unified && vs_base != ctx->prev_vs_sampler_base;
+
+   if (remap) {
+      etna_set_state(stream, VIVS_VS_SAMPLER_BASE, vs_base);
+      ctx->prev_vs_sampler_base = vs_base;
+   }
 
    for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
       if (!((1 << x) & active_samplers))
          continue;
 
-      const unsigned hw = etna_sampler_hw_slot(ctx, x);
       struct etna_sampler_state_desc *ss = etna_sampler_state_desc(ctx->sampler[x]);
       struct etna_sampler_view_desc *sv = etna_sampler_view_desc(ctx->sampler_view[x]);
-      uint32_t SAMP_CTRL0 = emit_desc_sampler_ctrl0(ss, sv);
 
+      const uint32_t bit = 1u << x;
       const bool updated = etna_sampler_view_desc_compose(ctx, sv, ss);
-      const bool emit_addr = unified || updated || ((1 << x) & ctx->dirty_sampler_views);
+      const bool emit_addr = remap || updated || (bit & ctx->dirty_sampler_views);
+
+      if (!emit_addr && !(bit & ctx->dirty_samplers))
+         continue;
+
+      const unsigned hw = etna_sampler_hw_slot(ctx, x);
+      uint32_t SAMP_CTRL0 = emit_desc_sampler_ctrl0(ss, sv);
 
       emit_desc_sampler_state(stream, hw, SAMP_CTRL0, ss, sv);
       if (emit_addr) {
@@ -566,25 +575,34 @@ etna_emit_texture_desc(struct etna_context *ctx)
       }
    }
 
-   /* Dummy descriptors for the dirty slots not backed by a sampler/companion. */
-   for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
-      if (used_hw & (1u << x))
-         continue;
-      if (unified || ((1 << x) & ctx->dirty_sampler_views))
-         etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(x),
+   /* Dummy descriptors for the dirty slots not backed by a sampler/companion.
+    * On a remap every unused slot gets one. Otherwise map the dirty view
+    * index to its HW slot, the two only match on the legacy fixed split.
+    */
+   if (remap) {
+      u_foreach_bit(hw, ~used_hw) {
+         etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(hw),
                               &ctx->screen->dummy_desc_reloc);
+         updated_mask |= 1u << hw;
+      }
+   } else {
+      u_foreach_bit(x, ctx->dirty_sampler_views) {
+         const unsigned hw = etna_sampler_hw_slot(ctx, x);
+
+         if ((used_hw | updated_mask) & (1u << hw))
+            continue;
+
+         etna_set_state_reloc(stream, VIVS_NTE_DESCRIPTOR_ADDR(hw),
+                              &ctx->screen->dummy_desc_reloc);
+         updated_mask |= 1u << hw;
+      }
    }
 
-   if (unlikely(dirty & ETNA_DIRTY_SAMPLER_VIEWS) || updated_mask) {
-      /* Invalidate all dirty and re-addressed sampler views. */
-      for (int x = 0; x < PIPE_MAX_SAMPLERS; ++x) {
-         if (unified || ((1 << x) & ctx->dirty_sampler_views) ||
-             ((1u << x) & updated_mask)) {
-            etna_set_state(stream, VIVS_NTE_DESCRIPTOR_INVALIDATE,
-                  VIVS_NTE_DESCRIPTOR_INVALIDATE_UNK29 |
-                  VIVS_NTE_DESCRIPTOR_INVALIDATE_IDX(x));
-         }
-      }
+   /* Invalidate every slot whose DESC_ADDR was written. */
+   u_foreach_bit(x, updated_mask) {
+      etna_set_state(stream, VIVS_NTE_DESCRIPTOR_INVALIDATE,
+            VIVS_NTE_DESCRIPTOR_INVALIDATE_UNK29 |
+            VIVS_NTE_DESCRIPTOR_INVALIDATE_IDX(x));
    }
 
    ctx->prev_active_samplers = active_samplers;

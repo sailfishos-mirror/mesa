@@ -203,6 +203,7 @@ struct etna_context {
    unsigned num_fragment_samplers;
    uint32_t active_samplers;
    uint32_t prev_active_samplers;
+   unsigned prev_vs_sampler_base;
    struct pipe_sampler_state *sampler[PIPE_MAX_SAMPLERS];
    struct pipe_rasterizer_state *rasterizer;
    struct pipe_depth_stencil_alpha_state *zsa;
