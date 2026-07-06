@@ -870,4 +870,5 @@ etna_emit_state(struct etna_context *ctx)
 #undef EMIT_STATE_RELOC
    ctx->dirty = 0;
    ctx->dirty_sampler_views = 0;
+   ctx->dirty_samplers = 0;
 }
