@@ -34,7 +34,7 @@ variables:
 
   KERNEL_TAG: "v7.1-mesa-f165"
   KERNEL_REPO: "gfx-ci/linux"
-  PKG_REPO_REV: "69788eae"
+  PKG_REPO_REV: "f0340389"
   FIRMWARE_TAG: "ff46ce35"
   FIRMWARE_REPO: "gfx-ci/firmware"
 
