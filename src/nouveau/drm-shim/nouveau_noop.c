@@ -33,7 +33,48 @@
 #include "util/os_misc.h"
 #include "util/u_math.h"
 
-#include "../../gallium/drivers/nouveau/nv_object.xml.h"
+#include "nvtypes.h"
+
+#include "cl502d.h"
+#include "cl902d.h"
+
+#include "cl9039.h"
+#include "cla040.h"
+#include "cla140.h"
+
+#include "cl9097.h"
+#include "cl9197.h"
+#include "cl9297.h"
+#include "cla097.h"
+#include "cla197.h"
+#include "cla297.h"
+#include "clb097.h"
+#include "clb197.h"
+#include "clc097.h"
+#include "clc197.h"
+#include "clc397.h"
+#include "clc597.h"
+#include "clc797.h"
+
+#include "cla0b5.h"
+#include "clb0b5.h"
+#include "clc0b5.h"
+#include "clc1b5.h"
+#include "clc3b5.h"
+#include "clc5b5.h"
+#include "clc6b5.h"
+#include "clc7b5.h"
+
+#include "cl90c0.h"
+#include "cla0c0.h"
+#include "cla1c0.h"
+#include "clb0c0.h"
+#include "clb1c0.h"
+#include "clc0c0.h"
+#include "clc1c0.h"
+#include "clc3c0.h"
+#include "clc5c0.h"
+#include "clc7c0.h"
 
 struct nouveau_device {
    uint64_t next_offset;
@@ -262,13 +303,13 @@ nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
       case 0x110:
       case 0x100:
       case 0xf0:
-         sclass->sclass.oclass[idx].oclass = NVF0_P2MF_CLASS;
+         sclass->sclass.oclass[idx].oclass = KEPLER_INLINE_TO_MEMORY_B;
          break;
       case 0xe0:
-         sclass->sclass.oclass[idx].oclass = NVE4_P2MF_CLASS;
+         sclass->sclass.oclass[idx].oclass = KEPLER_INLINE_TO_MEMORY_A;
          break;
       default:
-         sclass->sclass.oclass[idx].oclass = NVC0_M2MF_CLASS;
+         sclass->sclass.oclass[idx].oclass = FERMI_MEMORY_TO_MEMORY_FORMAT_A;
          break;
       }
       sclass->sclass.oclass[idx].minver = -1;
@@ -305,9 +346,9 @@ nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
       /* 2d */
       if (device_info.chip_id >= 0x50) {
          if (device_info.chip_id <= 0xa0)
-            sclass->sclass.oclass[idx].oclass = NV50_2D_CLASS;
+            sclass->sclass.oclass[idx].oclass = NV50_TWOD;
          else
-            sclass->sclass.oclass[idx].oclass = NVC0_2D_CLASS;
+            sclass->sclass.oclass[idx].oclass = FERMI_TWOD_A;
 
          sclass->sclass.oclass[idx].minver = -1;
          sclass->sclass.oclass[idx].maxver = -1;
@@ -316,59 +357,59 @@ nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
       /* 3d */
       switch (device_info.chip_id & ~0xf) {
       case 0x170:
-         sclass->sclass.oclass[idx].oclass = GA102_3D_CLASS;
+         sclass->sclass.oclass[idx].oclass = AMPERE_B;
          break;
       case 0x160:
-         sclass->sclass.oclass[idx].oclass = TU102_3D_CLASS;
+         sclass->sclass.oclass[idx].oclass = TURING_A;
          break;
       case 0x140:
-         sclass->sclass.oclass[idx].oclass = GV100_3D_CLASS;
+         sclass->sclass.oclass[idx].oclass = VOLTA_A;
          break;
       case 0x130:
          switch (device_info.chip_id) {
          case 0x130:
          case 0x13b:
-            sclass->sclass.oclass[idx].oclass = GP100_3D_CLASS;
+            sclass->sclass.oclass[idx].oclass = PASCAL_A;
             break;
          default:
-            sclass->sclass.oclass[idx].oclass = GP102_3D_CLASS;
+            sclass->sclass.oclass[idx].oclass = PASCAL_B;
             break;
          }
          break;
       case 0x120:
-         sclass->sclass.oclass[idx].oclass = GM200_3D_CLASS;
+         sclass->sclass.oclass[idx].oclass = MAXWELL_B;
          break;
       case 0x110:
-         sclass->sclass.oclass[idx].oclass = GM107_3D_CLASS;
+         sclass->sclass.oclass[idx].oclass = MAXWELL_A;
          break;
       case 0x100:
       case 0xf0:
-         sclass->sclass.oclass[idx].oclass = NVF0_3D_CLASS;
+         sclass->sclass.oclass[idx].oclass = KEPLER_B;
          break;
       case 0xe0:
          switch (device_info.chip_id) {
          case 0xea:
-            sclass->sclass.oclass[idx].oclass = NVEA_3D_CLASS;
+            sclass->sclass.oclass[idx].oclass = KEPLER_C;
             break;
          default:
-            sclass->sclass.oclass[idx].oclass = NVE4_3D_CLASS;
+            sclass->sclass.oclass[idx].oclass = KEPLER_A;
             break;
          }
          break;
       case 0xd0:
-         sclass->sclass.oclass[idx].oclass = NVC8_3D_CLASS;
+         sclass->sclass.oclass[idx].oclass = FERMI_C;
          break;
       default:
       case 0xc0:
          switch (device_info.chip_id) {
          case 0xc8:
-            sclass->sclass.oclass[idx].oclass = NVC8_3D_CLASS;
+            sclass->sclass.oclass[idx].oclass = FERMI_C;
             break;
          case 0xc1:
-            sclass->sclass.oclass[idx].oclass = NVC1_3D_CLASS;
+            sclass->sclass.oclass[idx].oclass = FERMI_B;
             break;
          default:
-            sclass->sclass.oclass[idx].oclass = NVC0_3D_CLASS;
+            sclass->sclass.oclass[idx].oclass = FERMI_A;
             break;
          }
          break;
@@ -378,40 +419,40 @@ nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
       idx++;
       switch (device_info.chip_id & ~0xf) {
       case 0x170:
-         sclass->sclass.oclass[idx].oclass = GA102_COMPUTE_CLASS;
+         sclass->sclass.oclass[idx].oclass = AMPERE_COMPUTE_B;
          break;
       case 0x160:
-         sclass->sclass.oclass[idx].oclass = TU102_COMPUTE_CLASS;
+         sclass->sclass.oclass[idx].oclass = TURING_COMPUTE_A;
          break;
       case 0x140:
-         sclass->sclass.oclass[idx].oclass = GV100_COMPUTE_CLASS;
+         sclass->sclass.oclass[idx].oclass = VOLTA_COMPUTE_A;
          break;
       case 0x130:
          switch (device_info.chip_id) {
          case 0x130:
          case 0x13b:
-            sclass->sclass.oclass[idx].oclass = GP100_COMPUTE_CLASS;
+            sclass->sclass.oclass[idx].oclass = PASCAL_COMPUTE_A;
             break;
          default:
-            sclass->sclass.oclass[idx].oclass = GP104_COMPUTE_CLASS;
+            sclass->sclass.oclass[idx].oclass = PASCAL_COMPUTE_B;
             break;
          }
          break;
       case 0x120:
-         sclass->sclass.oclass[idx].oclass = GM200_COMPUTE_CLASS;
+         sclass->sclass.oclass[idx].oclass = MAXWELL_COMPUTE_B;
          break;
       case 0x110:
-         sclass->sclass.oclass[idx].oclass = GM107_COMPUTE_CLASS;
+         sclass->sclass.oclass[idx].oclass = MAXWELL_COMPUTE_A;
          break;
       case 0x100:
       case 0xf0:
-         sclass->sclass.oclass[idx].oclass = NVF0_COMPUTE_CLASS;
+         sclass->sclass.oclass[idx].oclass = KEPLER_COMPUTE_B;
          break;
       case 0xe0:
-         sclass->sclass.oclass[idx].oclass = NVE4_COMPUTE_CLASS;
+         sclass->sclass.oclass[idx].oclass = KEPLER_COMPUTE_A;
          break;
       default:
-         sclass->sclass.oclass[idx].oclass = NVC0_COMPUTE_CLASS;
+         sclass->sclass.oclass[idx].oclass = FERMI_COMPUTE_A;
          break;
       }
       sclass->sclass.oclass[idx].minver = -1;
