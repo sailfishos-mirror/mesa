@@ -194,6 +194,26 @@ nouveau_ioctl_get_param(int fd, unsigned long request, void *arg)
 }
 
 static int
+nouveau_ioctl_get_zcull_info(int fd, unsigned long request, void *arg)
+{
+   struct drm_nouveau_get_zcull_info *args = arg;
+
+   args->width_align_pixels = 224;
+   args->height_align_pixels = 32;
+   args->pixel_squares_by_aliquots = 3584;
+   args->aliquot_total = 5120;
+   args->zcull_region_byte_multiplier = 128;
+   args->zcull_region_header_size = 224;
+   args->zcull_subregion_header_size = 1344;
+   args->subregion_count = 16;
+   args->subregion_width_align_pixels = 224;
+   args->subregion_height_align_pixels = 64;
+   args->ctxsw_size = 657408;
+   args->ctxsw_align = 4096;
+   return 0;
+}
+
+static int
 nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
 {
    struct {
@@ -421,7 +441,7 @@ static ioctl_fn_t driver_ioctls[] = {
    [DRM_NOUVEAU_VM_INIT] = nouveau_ioctl_noop,
    [DRM_NOUVEAU_VM_BIND] = nouveau_ioctl_noop,
    [DRM_NOUVEAU_EXEC] = nouveau_ioctl_noop,
-   [DRM_NOUVEAU_GET_ZCULL_INFO] = nouveau_ioctl_noop,
+   [DRM_NOUVEAU_GET_ZCULL_INFO] = nouveau_ioctl_get_zcull_info,
 };
 
 static void
