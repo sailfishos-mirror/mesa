@@ -55,6 +55,10 @@
 #include "clc397.h"
 #include "clc597.h"
 #include "clc797.h"
+#include "clc997.h"
+#include "clcb97.h"
+#include "clcd97.h"
+#include "clce97.h"
 
 #include "cla0b5.h"
 #include "clb0b5.h"
@@ -64,6 +68,9 @@
 #include "clc5b5.h"
 #include "clc6b5.h"
 #include "clc7b5.h"
+#include "clc8b5.h"
+#include "clc9b5.h"
+#include "clcab5.h"
 
 #include "cl90c0.h"
 #include "cla0c0.h"
@@ -75,6 +82,10 @@
 #include "clc3c0.h"
 #include "clc5c0.h"
 #include "clc7c0.h"
+#include "clc9c0.h"
+#include "clcbc0.h"
+#include "clcdc0.h"
+#include "clcec0.h"
 
 struct nouveau_device {
    uint64_t next_offset;
@@ -295,6 +306,10 @@ nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
       int idx = 0;
       /* m2mf */
       switch (device_info.chip_id & ~0xf) {
+      case 0x1b0:
+      case 0x1a0:
+      case 0x190:
+      case 0x180:
       case 0x170:
       case 0x160:
       case 0x140:
@@ -317,8 +332,20 @@ nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
       idx++;
       if (device_info.chip_id >= 0xe0) {
          switch (device_info.chip_id & ~0xf) {
+         case 0x1b0:
+            sclass->sclass.oclass[idx].oclass = BLACKWELL_DMA_COPY_B;
+            break;
+         case 0x1a0:
+            sclass->sclass.oclass[idx].oclass = BLACKWELL_DMA_COPY_A;
+            break;
+         case 0x190:
+            sclass->sclass.oclass[idx].oclass = AMPERE_DMA_COPY_B;
+            break;
+         case 0x180:
+            sclass->sclass.oclass[idx].oclass = HOPPER_DMA_COPY_A;
+            break;
          case 0x170:
-            sclass->sclass.oclass[idx].oclass = AMPERE_DMA_COPY_A;
+            sclass->sclass.oclass[idx].oclass = AMPERE_DMA_COPY_B;
             break;
          case 0x160:
             sclass->sclass.oclass[idx].oclass = TURING_DMA_COPY_A;
@@ -356,6 +383,18 @@ nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
       }
       /* 3d */
       switch (device_info.chip_id & ~0xf) {
+      case 0x1b0:
+         sclass->sclass.oclass[idx].oclass = BLACKWELL_B;
+         break;
+      case 0x1a0:
+         sclass->sclass.oclass[idx].oclass = BLACKWELL_A;
+         break;
+      case 0x190:
+         sclass->sclass.oclass[idx].oclass = ADA_A;
+         break;
+      case 0x180:
+         sclass->sclass.oclass[idx].oclass = HOPPER_A;
+         break;
       case 0x170:
          sclass->sclass.oclass[idx].oclass = AMPERE_B;
          break;
@@ -418,6 +457,18 @@ nouveau_ioctl_nvif(int fd, unsigned long request, void *arg)
       sclass->sclass.oclass[idx].maxver = -1;
       idx++;
       switch (device_info.chip_id & ~0xf) {
+      case 0x1b0:
+         sclass->sclass.oclass[idx].oclass = BLACKWELL_COMPUTE_B;
+         break;
+      case 0x1a0:
+         sclass->sclass.oclass[idx].oclass = BLACKWELL_COMPUTE_A;
+         break;
+      case 0x190:
+         sclass->sclass.oclass[idx].oclass = ADA_COMPUTE_A;
+         break;
+      case 0x180:
+         sclass->sclass.oclass[idx].oclass = HOPPER_COMPUTE_A;
+         break;
       case 0x170:
          sclass->sclass.oclass[idx].oclass = AMPERE_COMPUTE_B;
          break;
