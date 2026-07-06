@@ -1067,6 +1067,13 @@ d3d12_video_encoder_update_current_encoder_config_state_av1(struct d3d12_video_e
    }
    pD3D12Enc->m_currentEncodeConfig.m_encoderCodecDesc = D3D12_VIDEO_ENCODER_CODEC_AV1;
 
+   // Iterate over the headers the app requested and set flags to emit those for this frame.
+   util_dynarray_foreach (&av1Pic->raw_headers, struct pipe_enc_raw_header, header) {
+      if (header->type == OBU_TEMPORAL_DELIMITER)
+         pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags |=
+            d3d12_video_encoder_config_dirty_flag_av1_temporal_delimiter_header;
+   }
+
    // Set input format
    DXGI_FORMAT targetFmt = d3d12_convert_pipe_video_profile_to_dxgi_format(pD3D12Enc->base.profile);
    if (pD3D12Enc->m_currentEncodeConfig.m_encodeFormatInfo.Format != targetFmt) {
@@ -1629,10 +1636,9 @@ d3d12_video_encoder_update_current_frame_pic_params_info_av1(struct d3d12_video_
       pAV1Pic->enable_frame_obu;
    pD3D12Enc->m_spEncodedFrameMetadata[current_metadata_slot].m_CodecSpecificData.AV1HeadersInfo.obu_has_size_field =
       (pAV1Pic->tg_obu_header.obu_has_size_field == 1);
-   // Disabling for now as the libva spec does not allow these but some apps send down anyway. It's possible in the future 
-   // the libva spec may be retro-fitted to allow this given existing apps in the wild doing it.
-   // pD3D12Enc->m_spEncodedFrameMetadata[current_metadata_slot]
-   //   .m_CodecSpecificData.AV1HeadersInfo.temporal_delim_rendered = pAV1Pic->temporal_delim_rendered;
+   pD3D12Enc->m_spEncodedFrameMetadata[current_metadata_slot].m_CodecSpecificData.AV1HeadersInfo.temporal_delim_rendered =
+      (pD3D12Enc->m_currentEncodeConfig.m_ConfigDirtyFlags &
+       d3d12_video_encoder_config_dirty_flag_av1_temporal_delimiter_header) != 0;
 
    if (pD3D12Enc->m_currentEncodeConfig.m_QuantizationMatrixDesc.CPUInput.AppRequested)
    {

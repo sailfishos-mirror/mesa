@@ -164,6 +164,7 @@ enum d3d12_video_encoder_config_dirty_flags
    d3d12_video_encoder_config_dirty_flag_sei_header             = 0x8000,
    d3d12_video_encoder_config_dirty_flag_svcprefix_slice_header = 0x10000,
    d3d12_video_encoder_config_dirty_flag_dirty_regions          = 0x20000,
+   d3d12_video_encoder_config_dirty_flag_av1_temporal_delimiter_header = 0x40000,
 };
 DEFINE_ENUM_FLAG_OPERATORS(d3d12_video_encoder_config_dirty_flags);
 
