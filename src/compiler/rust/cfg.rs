@@ -181,6 +181,10 @@ fn calc_dominance<N>(nodes: &mut Vec<CFGNode<N>>) {
         }
     }
 
+    for i in 1..nodes.len() {
+        assert!(nodes[i].dom < i);
+    }
+
     let mut dom_children = Vec::new();
     dom_children.resize(nodes.len(), Vec::new());
 
