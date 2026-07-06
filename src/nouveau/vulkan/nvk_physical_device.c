@@ -20,6 +20,7 @@
 #include "git_sha1.h"
 #include "util/detect_os.h"
 #include "util/disk_cache.h"
+#include "util/hex.h"
 #include "util/mesa-blake3.h"
 #include "util/os_misc.h"
 
@@ -1401,8 +1402,17 @@ nvk_physical_device_init_pipeline_cache(struct nvk_physical_device *pdev)
    blake3_hasher blake3_ctx;
    _mesa_blake3_init(&blake3_ctx);
 
+#ifdef NVK_BUILD_ID_OVERRIDE
+   {
+      unsigned size = strlen(NVK_BUILD_ID_OVERRIDE) / 2;
+      unsigned char *data = alloca(size);
+      mesa_hex_to_bytes(data, NVK_BUILD_ID_OVERRIDE, size);
+      _mesa_blake3_update(&blake3_ctx, data, size);
+   }
+#else
    _mesa_blake3_update(&blake3_ctx, instance->driver_build_sha,
                      sizeof(instance->driver_build_sha));
+#endif
 
    _mesa_blake3_update(&blake3_ctx, &pdev->info.chipset,
                      sizeof(pdev->info.chipset));

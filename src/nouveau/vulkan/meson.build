@@ -153,6 +153,11 @@ nvk_deps = [
 
 nvk_flags = []
 
+nvk_build_id = get_option('nvk-build-id')
+if nvk_build_id != ''
+  nvk_flags += '-DNVK_BUILD_ID_OVERRIDE="' + nvk_build_id + '"'
+endif
+
 if with_platform_android
   nvk_files += files('nvk_android.c')
 endif

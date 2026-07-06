@@ -7,6 +7,7 @@
 #include "nvk_cmd_buffer.h"
 #include "nvk_descriptor_set_layout.h"
 #include "nvk_device.h"
+#include "nvk_instance.h"
 #include "nvk_mme.h"
 #include "nvk_physical_device.h"
 #include "nvk_sampler.h"
@@ -1233,6 +1234,20 @@ nvk_compile_shaders(struct vk_device *vk_dev,
    return VK_SUCCESS;
 }
 
+static uint8_t
+nvk_shader_get_shader_version_override(const struct nvk_device *dev,
+                                       mesa_shader_stage stage)
+{
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+   const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
+
+   if (mesa_shader_stage_is_compute(stage))
+      return instance->drirc.misc.override_compute_shader_version;
+
+   assert(!mesa_shader_stage_is_rt(stage));
+   return instance->drirc.misc.override_graphics_shader_version;
+}
+
 static VkResult
 nvk_deserialize_shader(struct vk_device *vk_dev,
                        struct blob_reader *blob,
@@ -1255,6 +1270,13 @@ nvk_deserialize_shader(struct vk_device *vk_dev,
 
    float min_sample_shading;
    blob_copy_bytes(blob, &min_sample_shading, sizeof(min_sample_shading));
+
+   const uint8_t shader_version_override = blob_read_uint8(blob);
+   const uint8_t expected_shader_version_override =
+      nvk_shader_get_shader_version_override(dev, info.stage);
+
+   if (shader_version_override != expected_shader_version_override)
+      return vk_error(dev, VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT);
 
    const uint32_t code_size = blob_read_uint32(blob);
    const uint32_t data_size = blob_read_uint32(blob);
@@ -1324,6 +1346,7 @@ nvk_shader_serialize(struct vk_device *vk_dev,
                      const struct vk_shader *vk_shader,
                      struct blob *blob)
 {
+   const struct nvk_device *dev = container_of(vk_dev, struct nvk_device, vk);
    struct nvk_shader *shader = container_of(vk_shader, struct nvk_shader, vk);
 
    blob_write_bytes(blob, &shader->info, sizeof(shader->info));
@@ -1332,6 +1355,7 @@ nvk_shader_serialize(struct vk_device *vk_dev,
                     sizeof(shader->sample_shading_enable));
    blob_write_bytes(blob, &shader->min_sample_shading,
                     sizeof(shader->min_sample_shading));
+   blob_write_uint8(blob, nvk_shader_get_shader_version_override(dev, shader->info.stage));
 
    blob_write_uint32(blob, shader->code_size);
    blob_write_uint32(blob, shader->data_size);
