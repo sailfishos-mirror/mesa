@@ -1312,6 +1312,26 @@ impl<'a> ShaderFromNir<'a> {
                     offset: 0,
                 });
             }
+            nir_intrinsic_load_scratch_base_ptr => {
+                assert_eq!(intrin.def.bit_size, 64);
+                assert_eq!(intrin.def.num_components, 1);
+                let fau = self
+                    .model
+                    .special_fau(SpecialFAU::ThreadLocalPointer)
+                    .unwrap();
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.copy_i64_to(dst, fau.into());
+            }
+            nir_intrinsic_load_shared_base_ptr => {
+                assert_eq!(intrin.def.bit_size, 64);
+                assert_eq!(intrin.def.num_components, 1);
+                let fau = self
+                    .model
+                    .special_fau(SpecialFAU::WorkgroupLocalPointer)
+                    .unwrap();
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.copy_i64_to(dst, fau.into());
+            }
             nir_intrinsic_load_ssbo | nir_intrinsic_load_ubo => {
                 let bits = intrin.def.bit_size * intrin.def.num_components;
                 let handle = self.get_src(&srcs[0]);
