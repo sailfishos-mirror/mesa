@@ -4276,6 +4276,72 @@ compare_u32(const void* a, const void* b, void* _)
    return va - vb;
 }
 
+static const char *
+idvs_variant_suffix(enum bi_idvs_mode idvs)
+{
+   switch (idvs) {
+   case BI_IDVS_VARYING:
+      return "_var";
+   case BI_IDVS_POSITION:
+      return "_pos";
+   case BI_IDVS_ALL:
+      return "_all";
+   case BI_IDVS_NONE:
+      return "";
+   default:
+      return "invalid";
+   }
+}
+
+static void
+bi_dump_shader(bi_context *ctx, struct util_dynarray *binary,
+               enum bi_idvs_mode idvs, uint32_t offset, uint32_t size)
+{
+   const char *dump_dir = os_get_option_secure("BIFROST_MESA_DUMP_DIR");
+   if (dump_dir == NULL)
+      return;
+
+   bool has_src_blake3 = false;
+   for (uint32_t i = 0; i < BLAKE3_OUT_LEN && !has_src_blake3; ++i)
+      has_src_blake3 |= ctx->nir->info.source_blake3[i] != 0;
+
+   /* Only shaders with a unique source identifier can be dumped. */
+   if (!has_src_blake3) {
+      fprintf(
+         stderr,
+         "Warning: Skip dump of shader %s (stage=%s) without source hash\n",
+         ctx->nir->info.name ?: "<unnamed>",
+         _mesa_shader_stage_to_abbrev(ctx->stage));
+      return;
+   }
+
+   const char *id = NULL;
+   char blake3_str[BLAKE3_HEX_LEN] = {0};
+   _mesa_blake3_format(blake3_str, ctx->nir->info.source_blake3);
+   id = &blake3_str[0];
+
+   char path[PATH_MAX + 1] = {0};
+   snprintf(path, sizeof(path), "%s/%s.%s%s.bin", dump_dir, id,
+            _mesa_shader_stage_to_file_ext(ctx->stage),
+            idvs_variant_suffix(idvs));
+
+   FILE *dump_stream = fopen(path, "w");
+
+   unsigned written = 0;
+   if (dump_stream)
+      written = fwrite(binary->data, sizeof(char), size, dump_stream);
+
+   if (written == size) {
+      fprintf(stderr, "PAN: Dumped shader %s to %s\n",
+              ctx->nir->info.name ?: "<unnamed>", path);
+   } else {
+      fprintf(stderr, "PAN: Failed to dump %s to %s\n",
+              ctx->nir->info.name ?: "<unnamed>", path);
+   }
+
+   fclose(dump_stream);
+}
+
 static bi_context *
 bi_compile_variant_nir(nir_shader *nir,
                        const struct pan_compile_inputs *inputs,
@@ -4545,6 +4611,8 @@ bi_compile_variant_nir(nir_shader *nir,
    } else {
       bi_pack_valhall(ctx, binary);
    }
+
+   bi_dump_shader(ctx, binary, idvs, offset, binary->size - offset);
 
    if (bifrost_debug & BIFROST_DBG_SHADERS && !skip_internal) {
       if (ctx->arch <= 8) {
