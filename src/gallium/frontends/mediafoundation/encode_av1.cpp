@@ -333,6 +333,10 @@ CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext,
                             static_cast<uint16_t>( pDX12EncodeContext->pPipeVideoBuffer->width ),
                             static_cast<uint16_t>( pDX12EncodeContext->pPipeVideoBuffer->height ) );
 
+   // Always insert AV1 temporal delimiter OBU.
+   struct pipe_enc_raw_header header_temporal_delimiter = { /* type */ 2 /*OBU_TEMPORAL_DELIMITER*/ };
+   util_dynarray_append( &pPicInfo->raw_headers, header_temporal_delimiter );
+
    if( pDX12EncodeContext->bROI )
    {
       // Convert to pipe roi params semantics
