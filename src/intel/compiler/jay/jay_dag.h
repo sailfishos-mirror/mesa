@@ -110,6 +110,14 @@ jay_dag_take_head(struct jay_dag_iterator *it, uint32_t head)
 }
 
 static inline void
+jay_dag_iterator_reset(struct jay_dag_iterator *it)
+{
+   while (it->heads.size) {
+      jay_dag_take_head(it, util_dynarray_top(&it->heads, uint32_t));
+   }
+}
+
+static inline void
 jay_dag_print(struct jay_dag *dag)
 {
    for (unsigned i = 0; i < dag->node_count; ++i) {
