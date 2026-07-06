@@ -456,7 +456,7 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    }
 
    /* Update any derived state */
-   if (!etna_state_update(ctx))
+   if (ctx->dirty && !etna_state_update(ctx))
       return;
 
    /*

@@ -245,6 +245,10 @@ etna_emit_state(struct etna_context *ctx)
    struct etna_screen *screen = ctx->screen;
    unsigned ccw = ctx->rasterizer->front_ccw;
 
+   if (!ctx->dirty &&
+       !ctx->dirty_sampler_views &&
+       likely(!DBG_ENABLED(ETNA_DBG_CFLUSH_ALL)))
+      return;
 
    /* Pre-reserve the command buffer space which we are likely to need.
     * This must cover all the state emitted below, and the following
