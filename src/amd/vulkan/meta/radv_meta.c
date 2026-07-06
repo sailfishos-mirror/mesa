@@ -223,7 +223,7 @@ radv_meta_end(struct radv_cmd_buffer *cmd_buffer)
                                  state->graphics_descriptors.old_descriptor_set0, 0);
       }
       descriptors_state->descriptor_buffers[0] = state->graphics_descriptors.old_descriptor_buffer0;
-      descriptors_state->dirty_heaps = state->graphics_descriptors.old_descriptor_heaps_dirty;
+      descriptors_state->dirty_heaps |= state->graphics_descriptors.old_descriptor_heaps_dirty;
    }
 
    if (state->flags & RADV_META_SAVE_COMPUTE_DESCRIPTORS) {
@@ -234,7 +234,7 @@ radv_meta_end(struct radv_cmd_buffer *cmd_buffer)
                                  state->compute_descriptors.old_descriptor_set0, 0);
       }
       descriptors_state->descriptor_buffers[0] = state->compute_descriptors.old_descriptor_buffer0;
-      descriptors_state->dirty_heaps = state->compute_descriptors.old_descriptor_heaps_dirty;
+      descriptors_state->dirty_heaps |= state->compute_descriptors.old_descriptor_heaps_dirty;
    }
 
    if (state->flags & RADV_META_SAVE_CONSTANTS) {
