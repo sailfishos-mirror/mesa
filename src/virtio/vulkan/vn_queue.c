@@ -771,11 +771,11 @@ vn_queue_submission_setup_batch(struct vn_queue_submission *submit,
 static VkResult
 vn_queue_submission_setup_batches(struct vn_queue_submission *submit)
 {
-   assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2 ||
-          submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO);
-
    if (!submit->feedback_types)
       return VK_SUCCESS;
+
+   assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2 ||
+          submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO);
 
    /* For a submission that is:
     * - non-empty: copy batches for adding feedbacks
@@ -922,10 +922,14 @@ vn_queue_submit(struct vn_queue_submission *submit)
          result = vn_call_vkQueueSubmit2(
             dev->primary_ring, submit->queue_handle, submit->batch_count,
             submit->submit2_batches, submit->fence_handle);
-      } else {
+      } else if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
          result = vn_call_vkQueueSubmit(
             dev->primary_ring, submit->queue_handle, submit->batch_count,
             submit->submit_batches, submit->fence_handle);
+      } else {
+         result = vn_call_vkQueueBindSparse(
+            dev->primary_ring, submit->queue_handle, submit->batch_count,
+            submit->sparse_batches, submit->fence_handle);
       }
 
       if (result != VK_SUCCESS) {
@@ -938,10 +942,14 @@ vn_queue_submit(struct vn_queue_submission *submit)
          vn_submit_vkQueueSubmit2(
             dev->primary_ring, 0, submit->queue_handle, submit->batch_count,
             submit->submit2_batches, submit->fence_handle, &ring_submit);
-      } else {
+      } else if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
          vn_submit_vkQueueSubmit(dev->primary_ring, 0, submit->queue_handle,
                                  submit->batch_count, submit->submit_batches,
                                  submit->fence_handle, &ring_submit);
+      } else {
+         vn_submit_vkQueueBindSparse(
+            dev->primary_ring, 0, submit->queue_handle, submit->batch_count,
+            submit->sparse_batches, submit->fence_handle, &ring_submit);
       }
       if (!ring_submit.ring_seqno_valid) {
          vn_queue_submission_cleanup(submit);
@@ -1218,37 +1226,6 @@ vn_QueueSubmit2(VkQueue queue,
    return vn_wsi_fence_wait(queue);
 }
 
-static VkResult
-vn_queue_bind_sparse_submit(struct vn_queue_submission *submit)
-{
-   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
-   struct vn_device *dev = vn_device_from_vk(queue->base.vk.base.device);
-   struct vn_instance *instance = dev->instance;
-   VkResult result;
-
-   /* skip no-op submit */
-   if (!submit->batch_count && submit->fence_handle == VK_NULL_HANDLE)
-      return VK_SUCCESS;
-
-   if (VN_PERF(NO_ASYNC_QUEUE_SUBMIT)) {
-      result = vn_call_vkQueueBindSparse(
-         dev->primary_ring, submit->queue_handle, submit->batch_count,
-         submit->sparse_batches, submit->fence_handle);
-      if (result != VK_SUCCESS)
-         return vn_error(instance, result);
-   } else {
-      struct vn_ring_submit_command ring_submit;
-      vn_submit_vkQueueBindSparse(dev->primary_ring, 0, submit->queue_handle,
-                                  submit->batch_count, submit->sparse_batches,
-                                  submit->fence_handle, &ring_submit);
-
-      if (!ring_submit.ring_seqno_valid)
-         return vn_error(instance, VK_ERROR_DEVICE_LOST);
-   }
-
-   return VK_SUCCESS;
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 vn_QueueBindSparse(VkQueue queue,
                    uint32_t bindInfoCount,
@@ -1256,24 +1233,31 @@ vn_QueueBindSparse(VkQueue queue,
                    VkFence fence)
 {
    VN_TRACE_FUNC();
-   VkResult result;
 
    vn_wsi_flush(queue);
 
-   struct vn_queue_submission submit = {
-      .batch_type = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO,
-      .queue_handle = queue,
-      .batch_count = bindInfoCount,
-      .sparse_batches = pBindInfo,
-      .fence_handle = fence,
-      .can_feedback = false,
-   };
+   for (uint32_t i = 0; i < bindInfoCount; i++) {
+      struct vn_queue_submission submit = {
+         .batch_type = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO,
+         .queue_handle = queue,
+         .batch_count = 1,
+         .sparse_batches = &pBindInfo[i],
+         .fence_handle = i == bindInfoCount - 1 ? fence : VK_NULL_HANDLE,
+      };
+      VkResult result = vn_queue_submit(&submit);
+      if (result != VK_SUCCESS)
+         return result;
+   }
 
-   result = vn_queue_submission_prepare(&submit);
-   if (result != VK_SUCCESS)
-      return result;
+   if (!bindInfoCount) {
+      return vn_queue_submit(&(struct vn_queue_submission){
+         .batch_type = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO,
+         .queue_handle = queue,
+         .fence_handle = fence,
+      });
+   }
 
-   return vn_queue_bind_sparse_submit(&submit);
+   return VK_SUCCESS;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
