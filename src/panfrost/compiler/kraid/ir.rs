@@ -35,6 +35,71 @@ impl fmt::Display for SmallConstant {
     }
 }
 
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SpecialFAU {
+    WarpId,
+    FramebufferSize,
+    ATestDatum,
+    Sample,
+    BlendDescriptor0,
+    BlendDescriptor1,
+    BlendDescriptor2,
+    BlendDescriptor3,
+    BlendDescriptor4,
+    BlendDescriptor5,
+    BlendDescriptor6,
+    BlendDescriptor7,
+    ThreadLocalPointer,
+    WorkgroupLocalPointer,
+    ResourceTablePointer,
+    LaneId,
+    CoreId,
+    ShaderOutput,
+    PrepassState,
+    Pc,
+}
+
+impl SpecialFAU {
+    pub fn blend_descriptor(n: u8) -> SpecialFAU {
+        assert!(n < 8);
+        // SAFETY:
+        //
+        // We use repr(u8) and Rust guarantees that implicit discriminants are
+        // assigned by incrementing by one for each enum variant.
+        unsafe { std::mem::transmute(SpecialFAU::BlendDescriptor0 as u8 + n) }
+    }
+}
+
+impl fmt::Display for SpecialFAU {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use SpecialFAU::*;
+        let name = match &self {
+            WarpId => "warp_id",
+            FramebufferSize => "framebuffer_size",
+            ATestDatum => "atest_datum",
+            Sample => "sample",
+            BlendDescriptor0 => "blend_descriptor0",
+            BlendDescriptor1 => "blend_descriptor1",
+            BlendDescriptor2 => "blend_descriptor2",
+            BlendDescriptor3 => "blend_descriptor3",
+            BlendDescriptor4 => "blend_descriptor4",
+            BlendDescriptor5 => "blend_descriptor5",
+            BlendDescriptor6 => "blend_descriptor6",
+            BlendDescriptor7 => "blend_descriptor7",
+            ThreadLocalPointer => "thread_local_pointer",
+            WorkgroupLocalPointer => "workgroup_local_pointer",
+            ResourceTablePointer => "resource_table_pointer",
+            LaneId => "lane_id",
+            CoreId => "core_id",
+            ShaderOutput => "shader_output",
+            PrepassState => "prepass_state",
+            Pc => "pc",
+        };
+        write!(f, "{name}")
+    }
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum FAUPage {
     /// The user FAU table.  This assumes a single, flat table, unlike the
@@ -67,6 +132,11 @@ pub struct FAURef {
     /// zero.
     pub idx: u16,
 
+    /// If this FAU is a special FAU, this provides the semantic label which
+    /// says what that FAU contains.  This is only for pretty printing and has
+    /// no meaning beyond that.
+    pub special: Option<SpecialFAU>,
+
     /// Load 64 bytes
     pub load64: bool,
 }
@@ -76,6 +146,7 @@ impl FAURef {
         FAURef {
             page: FAUPage::User,
             idx,
+            special: None,
             load64: false,
         }
     }
@@ -85,6 +156,7 @@ impl FAURef {
         FAURef {
             page: FAUPage::User,
             idx,
+            special: None,
             load64: true,
         }
     }
@@ -100,12 +172,16 @@ impl fmt::Display for FAURef {
         let idx = self.idx >> 1;
         let w = self.idx % 2;
 
-        match self.page {
-            FAUPage::User => write!(f, "u{idx}")?,
-            FAUPage::Special0 => write!(f, "s0:{idx}")?,
-            FAUPage::Special1 => write!(f, "s1:{idx}")?,
-            FAUPage::Special3 => write!(f, "s3:{idx}")?,
-            FAUPage::SmallConst => panic!("Already handled"),
+        if let Some(special) = self.special {
+            write!(f, "{special}")?;
+        } else {
+            match self.page {
+                FAUPage::User => write!(f, "u{idx}")?,
+                FAUPage::Special0 => write!(f, "s0:{idx}")?,
+                FAUPage::Special1 => write!(f, "s1:{idx}")?,
+                FAUPage::Special3 => write!(f, "s3:{idx}")?,
+                FAUPage::SmallConst => panic!("Already handled"),
+            }
         }
 
         if self.load64 {
@@ -132,6 +208,7 @@ impl From<&SmallConstant> for FAURef {
         FAURef {
             page: FAUPage::SmallConst,
             idx: sc.idx.into(),
+            special: None,
             load64: false,
         }
     }

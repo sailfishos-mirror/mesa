@@ -37,6 +37,8 @@ pub trait Model {
 
     fn small_constants(&self) -> &[SmallConstant];
 
+    fn special_fau(&self, preload: SpecialFAU) -> Option<FAURef>;
+
     fn preload_reg(&self, preload: PreloadReg) -> Option<RegRef>;
 }
 
@@ -129,6 +131,55 @@ impl Model for ValhallModel {
 
     fn small_constants(&self) -> &[SmallConstant] {
         &self.sc_table
+    }
+
+    fn special_fau(&self, special: SpecialFAU) -> Option<FAURef> {
+        use SpecialFAU::*;
+
+        let (page, idx) = match special {
+            WarpId => (0, 0b0010),
+            FramebufferSize => (0, 0b0100),
+            ATestDatum => (0, 0b0101),
+            Sample => (0, 0b0110),
+            BlendDescriptor0 => (0, 0b1000 | 0),
+            BlendDescriptor1 => (0, 0b1000 | 1),
+            BlendDescriptor2 => (0, 0b1000 | 2),
+            BlendDescriptor3 => (0, 0b1000 | 3),
+            BlendDescriptor4 => (0, 0b1000 | 4),
+            BlendDescriptor5 => (0, 0b1000 | 5),
+            BlendDescriptor6 => (0, 0b1000 | 6),
+            BlendDescriptor7 => (0, 0b1000 | 7),
+            ThreadLocalPointer => (1, 0b0001),
+            WorkgroupLocalPointer => (1, 0b0011),
+            ResourceTablePointer => (1, 0b0111),
+            LaneId => (3, 0b0001),
+            CoreId => (3, 0b0011),
+            ShaderOutput => {
+                if self.arch < 12 {
+                    return None;
+                }
+                (3, 0b0100)
+            }
+            PrepassState => {
+                if self.arch < 13 {
+                    return None;
+                }
+                (3, 0b0101)
+            }
+            Pc => (3, 0b1111),
+        };
+
+        Some(FAURef {
+            page: match page {
+                0 => FAUPage::Special0,
+                1 => FAUPage::Special1,
+                3 => FAUPage::Special3,
+                _ => panic!("Invalid FAU special page"),
+            },
+            idx: idx << 1, // FAURef::idx is in units of 32-bit words
+            special: Some(special),
+            load64: true,
+        })
     }
 
     fn preload_reg(&self, preload: PreloadReg) -> Option<RegRef> {
