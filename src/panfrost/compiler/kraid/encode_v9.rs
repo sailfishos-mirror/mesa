@@ -651,6 +651,16 @@ impl V9Instr for OpAtom1 {
     }
 }
 
+impl V9Instr for OpBarrier {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(Barrier::get_info((), arch), src_map! {})
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Barrier {})
+    }
+}
+
 impl V9Instr for OpBranch {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(Branch::get_info((), arch), src_map! {src0: cond})
@@ -2234,6 +2244,7 @@ macro_rules! v9_op_match_else {
             Op::ACmpXchg($x) => $y,
             Op::Atom($x) => $y,
             Op::Atom1($x) => $y,
+            Op::Barrier($x) => $y,
             Op::BitRev($x) => $y,
             Op::Branch($x) => $y,
             Op::Clz($x) => $y,

@@ -1166,6 +1166,18 @@ impl<'a> ShaderFromNir<'a> {
     ) {
         let srcs = intrin.srcs_as_slice();
         match intrin.intrinsic {
+            nir_intrinsic_barrier => {
+                match intrin.execution_scope() {
+                    SCOPE_NONE | SCOPE_SUBGROUP => {
+                        // TODO: Scheduling barrier
+                    }
+                    SCOPE_WORKGROUP => {
+                        assert_eq!(self.nir.info.stage(), MESA_SHADER_COMPUTE);
+                        b.push_op(OpBarrier {});
+                    }
+                    _ => panic!("Unsupported barrier scope"),
+                }
+            }
             nir_intrinsic_global_atomic => {
                 let atom_op = match intrin.atomic_op() {
                     nir_atomic_op_iadd => AtomOp::IAdd,

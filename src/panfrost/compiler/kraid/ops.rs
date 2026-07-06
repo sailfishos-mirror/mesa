@@ -193,6 +193,16 @@ impl fmt::Display for OpAtom1 {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpBarrier {}
+
+impl fmt::Display for OpBarrier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BARRIER")
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpBitRev {
     #[dst_type(I32)]
     pub dst: Dst,
@@ -2462,6 +2472,7 @@ pub enum Op {
     ACmpXchg(Box<OpACmpXchg>),
     Atom(Box<OpAtom>),
     Atom1(Box<OpAtom1>),
+    Barrier(OpBarrier),
     BitRev(Box<OpBitRev>),
     Branch(Box<OpBranch>),
     Clz(Box<OpClz>),
@@ -2544,6 +2555,7 @@ impl Op {
             Op::ACmpXchg(_)
                 | Op::Atom(_)
                 | Op::Atom1(_)
+                | Op::Barrier(_)
                 | Op::Branch(_)
                 | Op::RegOut(_)
                 | Op::Store(_)
