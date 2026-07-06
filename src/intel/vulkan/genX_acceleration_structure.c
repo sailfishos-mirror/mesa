@@ -548,6 +548,7 @@ anv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct
       const struct encode_args args = {
          .batch_args = batch_args_addr,
          .batch_offset = num_batches++,
+         .start_node_offset = 0,
       };
       anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
 

@@ -421,6 +421,7 @@ TYPE(anv_batch_args, 4);
 struct encode_args {
    REF(anv_batch_args) batch_args;
    uint32_t batch_offset;
+   uint32_t start_node_offset;
 };
 
 struct header_args {
