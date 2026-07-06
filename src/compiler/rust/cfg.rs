@@ -337,7 +337,7 @@ pub struct CFG<N> {
 #[expect(clippy::len_without_is_empty)]
 impl<N> CFG<N> {
     /// Creates a new CFG from nodes and edges.
-    pub fn from_blocks_edges(
+    fn from_blocks_edges(
         nodes: impl IntoIterator<Item = N>,
         edges: impl IntoIterator<Item = (usize, usize)>,
     ) -> Self {
