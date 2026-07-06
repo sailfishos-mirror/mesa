@@ -5674,7 +5674,7 @@
         "description": "tu: Enable tu_dont_care_as_load for all Kex Engine games",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
