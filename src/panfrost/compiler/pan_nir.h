@@ -12,6 +12,9 @@
 
 struct util_format_description;
 
+#define PAN_NIR_SET_BLAKE3_INTERNAL(nir, key)                                  \
+   _mesa_blake3_compute(key, sizeof(*key), nir->info.source_blake3)
+
 static inline nir_def *
 pan_nir_tile_rt_sample(nir_builder *b, nir_def *rt, nir_def *sample)
 {

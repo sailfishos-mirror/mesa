@@ -12,6 +12,7 @@
 #include "nir_builder.h"
 
 #include "pan_encoder.h"
+#include "pan_nir.h"
 #include "pan_shader.h"
 
 #include "panvk_cmd_alloc.h"
@@ -344,6 +345,7 @@ panvk_meta_desc_copy_rsd(struct panvk_device *dev)
    nir_def *desc_copy_id =
       nir_channel(&b, nir_load_global_invocation_id(&b, 32), 0);
    single_desc_copy(&b, desc_copy_id);
+   PAN_NIR_SET_BLAKE3_INTERNAL(b.shader, &key);
 
    struct pan_compile_inputs inputs = {
       .gpu_id = phys_dev->kmod.dev->props.gpu_id,
