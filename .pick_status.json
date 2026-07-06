@@ -3254,7 +3254,7 @@
         "description": "freedreno/a6xx: Don't forget UBO driver params",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3a0b022136cea70151ed1422e08ff03f4b585bb5",
         "notes": null
