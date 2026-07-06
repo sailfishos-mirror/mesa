@@ -176,4 +176,4 @@ if __name__ == "__main__":
         for (key, val) in DISASM[driver]:
             env[key] = val
 
-    subprocess.call(command, env=env, shell=True)
+    sys.exit(subprocess.call(command, env=env, shell=True))
