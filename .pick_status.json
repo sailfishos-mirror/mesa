@@ -2584,7 +2584,7 @@
         "description": "vulkan/meta: Use z_off/scale for 2D array images as well",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cda469428da584a73413eba6140d8e08a7a5ebbb",
         "notes": null
