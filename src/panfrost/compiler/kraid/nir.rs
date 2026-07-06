@@ -1160,7 +1160,11 @@ impl<'a> ShaderFromNir<'a> {
                     nir_atomic_op_xchg => AtomOp::Xchg,
                     _ => panic!("Unknown nir_atomic_op"),
                 };
-                let dst = if intrin.def.components_read() == 0 {
+
+                // There is no no-return version of AXCHG
+                let dst = if atom_op != AtomOp::Xchg
+                    && intrin.def.components_read() == 0
+                {
                     DstRef::None
                 } else {
                     self.alloc_ssa(b, &intrin.def).into()
