@@ -1283,8 +1283,8 @@ impl fmt::Display for OpIToF32 {
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum MemAccess {
     None,
-    Istream,
-    Estream,
+    IStream,
+    EStream,
     Force,
 }
 
@@ -1292,8 +1292,8 @@ impl fmt::Display for MemAccess {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MemAccess::None => Ok(()),
-            MemAccess::Istream => write!(f, ".istream"),
-            MemAccess::Estream => write!(f, ".estream"),
+            MemAccess::IStream => write!(f, ".istream"),
+            MemAccess::EStream => write!(f, ".estream"),
             MemAccess::Force => write!(f, ".force"),
         }
     }

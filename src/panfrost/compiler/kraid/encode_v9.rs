@@ -492,8 +492,8 @@ impl From<MemAccess> for AccessLoadM {
     fn from(access: MemAccess) -> AccessLoadM {
         match access {
             MemAccess::None => AccessLoadM::None,
-            MemAccess::Istream => AccessLoadM::Istream,
-            MemAccess::Estream => AccessLoadM::Estream,
+            MemAccess::IStream => AccessLoadM::Istream,
+            MemAccess::EStream => AccessLoadM::Estream,
             MemAccess::Force => AccessLoadM::Force,
         }
     }
@@ -503,8 +503,8 @@ impl From<MemAccess> for AccessStoreM {
     fn from(access: MemAccess) -> AccessStoreM {
         match access {
             MemAccess::None => AccessStoreM::None,
-            MemAccess::Istream => AccessStoreM::Istream,
-            MemAccess::Estream => AccessStoreM::Estream,
+            MemAccess::IStream => AccessStoreM::Istream,
+            MemAccess::EStream => AccessStoreM::Estream,
             MemAccess::Force => AccessStoreM::Force,
         }
     }

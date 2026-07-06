@@ -66,6 +66,18 @@ impl<'a> PhiAllocMap<'a> {
     }
 }
 
+fn mem_access_from_nir(intrin: &nir_intrinsic_instr) -> MemAccess {
+    if (intrin.access() & ACCESS_INCLUDE_HELPERS) != 0 {
+        MemAccess::Force
+    } else if (intrin.access() & ACCESS_ISTREAM_PAN) != 0 {
+        MemAccess::IStream
+    } else if (intrin.access() & ACCESS_ESTREAM_PAN) != 0 {
+        MemAccess::EStream
+    } else {
+        MemAccess::None
+    }
+}
+
 struct ShaderFromNir<'a> {
     model: &'a dyn Model,
     nir: &'a nir_shader,
@@ -1263,7 +1275,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLoad {
                     dst,
                     dst_type: DataType::i(bits),
-                    access: MemAccess::None,
+                    access: mem_access_from_nir(intrin),
                     addr,
                     offset: 0,
                 });
@@ -1291,7 +1303,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLdCvt {
                     dst,
                     dst_type,
-                    access: MemAccess::None,
+                    access: mem_access_from_nir(intrin),
                     addr,
                     cvt,
                     offset: 0,
@@ -1305,7 +1317,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLdPka {
                     dst,
                     dst_type: DataType::i(bits),
-                    access: MemAccess::None,
+                    access: mem_access_from_nir(intrin),
                     offset,
                     handle,
                 });
@@ -1358,7 +1370,7 @@ impl<'a> ShaderFromNir<'a> {
                 let addr = self.get_src(&srcs[1]);
                 b.push_op(OpStore {
                     src_type: DataType::i(bits),
-                    access: MemAccess::None,
+                    access: mem_access_from_nir(intrin),
                     data,
                     addr,
                     offset: 0,
@@ -1392,7 +1404,7 @@ impl<'a> ShaderFromNir<'a> {
                 let cvt = self.get_src(&srcs[2]);
                 b.push_op(OpStCvt {
                     src_type,
-                    access: MemAccess::None,
+                    access: mem_access_from_nir(intrin),
                     data,
                     addr,
                     cvt,
