@@ -118,21 +118,25 @@ build_aabb(inout vk_aabb bounds, VOID_REF src_ptr, VOID_REF dst_ptr, uint32_t ge
    return is_valid;
 }
 
+mat3 mat_abs(mat3 in_mat) {
+    return mat3(abs(in_mat[0]), abs(in_mat[1]), abs(in_mat[2]));
+}
+
 vk_aabb
 calculate_instance_node_bounds(vk_aabb blas_aabb, mat3x4 otw_matrix)
 {
    vk_aabb aabb;
 
-   for (uint32_t comp = 0; comp < 3; ++comp) {
-      aabb.min[comp] = otw_matrix[comp][3];
-      aabb.max[comp] = otw_matrix[comp][3];
-      for (uint32_t col = 0; col < 3; ++col) {
-         aabb.min[comp] +=
-            min(otw_matrix[comp][col] * blas_aabb.min[col], otw_matrix[comp][col] * blas_aabb.max[col]);
-         aabb.max[comp] +=
-            max(otw_matrix[comp][col] * blas_aabb.min[col], otw_matrix[comp][col] * blas_aabb.max[col]);
-      }
-   }
+   /* https://zeux.io/2010/10/17/aabb-from-obb-with-component-wise-abs */
+   vec3 blas_aabb_center = (blas_aabb.min + blas_aabb.max) * 0.5;
+   vec3 blas_aabb_extent = (blas_aabb.max - blas_aabb.min) * 0.5;
+
+   vec3 new_center = vec4(blas_aabb_center, 1.0) * otw_matrix;
+   vec3 new_extent = blas_aabb_extent * mat_abs(mat3(otw_matrix));
+
+   aabb.min = new_center - new_extent;
+   aabb.max = new_center + new_extent;
+
    return aabb;
 }
 
