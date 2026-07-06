@@ -26,8 +26,10 @@ layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 #define NODE_OFFSET(node) (OFFSET(args.intermediate_bvh, ir_id_to_offset(node)))
 
 layout(push_constant) uniform CONSTS {
-   encode_args args;
+   encode_args push_args;
 };
+anv_batch_args args = DEREF(INDEX(anv_batch_args, push_args.batch_args,
+                                  push_args.batch_offset + gl_GlobalInvocationID.y));
 
 void
 debug_dump(uint32_t offset, uint32_t value)
