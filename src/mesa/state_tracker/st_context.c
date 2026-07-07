@@ -344,6 +344,7 @@ st_context_free_zombie_objects(struct st_context *st)
 static void
 st_destroy_context_priv(struct st_context *st, bool destroy_pipe)
 {
+   cso_unbind_context(st->cso_context);
    st_destroy_draw(st);
    st_destroy_clear(st);
    st_destroy_bitmap(st);
