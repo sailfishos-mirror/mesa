@@ -3064,7 +3064,7 @@
         "description": "dri3: Increment draw->send_sbc after waiting for last presentation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a6bf07e7c24529c082466c194d41a1065a1dd7d8",
         "notes": null
