@@ -149,8 +149,8 @@ op('send', 4, None, Props.SIDE_EFFECTS, [
     'bool skip_helpers',
     'enum jay_type type_0',
     'enum jay_type type_1',
+    'uint8_t mlen',
     'uint8_t ex_mlen',
-    'bool pad[1]',
     'uint32_t ex_desc_imm',
 ])
 
