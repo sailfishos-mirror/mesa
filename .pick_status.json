@@ -224,7 +224,7 @@
         "description": "broadcom/compiler: really enable GFXH-1625 TMUWT validation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "089c32eefd2f9afcbfc87349beacbdf9d005cfac",
         "notes": null
