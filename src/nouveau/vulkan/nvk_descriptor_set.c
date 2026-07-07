@@ -318,12 +318,7 @@ static union nvk_buffer_descriptor
 ssbo_desc(const struct nvk_physical_device *pdev,
           VkDeviceAddressRangeKHR addr_range)
 {
-   const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
-   const uint32_t min_ssbo_alignment = nvk_min_ssbo_alignment(instance);
    assert(addr_range.size <= UINT32_MAX);
-
-   addr_range.address = ROUND_DOWN_TO(addr_range.address, min_ssbo_alignment);
-   addr_range.size = align(addr_range.size, NVK_SSBO_BOUNDS_CHECK_ALIGNMENT);
 
    return (union nvk_buffer_descriptor) { .addr = {
       .base_addr = addr_range.address,
