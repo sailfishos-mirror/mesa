@@ -57,4 +57,5 @@ pub extern "C" fn kraid_compile_nir(
     dynarray_append_vec(binary, bin);
 
     write_back_info(&s.info, info);
+    unsafe { pan_shader_update_info(info, nir, inputs) };
 }
