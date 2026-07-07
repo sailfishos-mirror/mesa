@@ -4694,7 +4694,7 @@
         "description": "anv: fixup RT building barrier",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "37f26e346af5c110c19f2fdf3fbfeb3853f165b9",
         "notes": null
