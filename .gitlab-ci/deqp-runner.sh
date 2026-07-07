@@ -180,6 +180,11 @@ deqp-runner \
 
 { set +x; } 2>/dev/null
 
+# For external projects running the Mesa CI as a downstream pipeline.
+# For details, see https://gitlab.freedesktop.org/mesa/deqp-runner/-/work_items/82
+if [ "$ALLOW_IMPROVEMENTS_OVER_EXPECTATIONS" = "true" ] && [ $DEQP_EXITCODE -eq 2 ]; then
+  DEQP_EXITCODE=0
+fi
 
 section_switch test_post_process "deqp: post-processing test results"
 set -x

@@ -64,6 +64,15 @@ spec:
         # WARNING: This list is part of our interface with developers and
         # upstream pipelines, no renaming please!
 
+    allow_improvements_over_expectations:
+      description: >-
+        Normally, a test not matching its expected result fails the job.
+        This option allows `UnexpectedImprovement` to be considered as `Pass`,
+        and only regressions are marked as failures.
+      type: boolean
+      default: false
+
+
 ---
 
 # Types of CI pipelines:
@@ -231,6 +240,7 @@ variables:
   # NOTE: we prefix the variable with a space to make gitlab happy (variable definition must
   #       be either a string or a hash)
   INPUT_HW_JOBS: ' $[[ inputs.hw_jobs ]]'
+  ALLOW_IMPROVEMENTS_OVER_EXPECTATIONS: '$[[ inputs.allow_improvements_over_expectations ]]'
 
 default:
   timeout: 1m  # catch any jobs which don't specify a timeout
