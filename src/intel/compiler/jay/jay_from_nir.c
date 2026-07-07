@@ -3634,11 +3634,10 @@ jay_gather_stats(const jay_shader *s, struct genisa_stats *stats)
 
       stats->loops += I->op == JAY_OPCODE_WHILE;
       stats->sends += I->op == JAY_OPCODE_SEND;
-
-      /* XXX: Write a real cycle model */
-      stats->cycles++;
    }
 
+   /* It's unclear how to report cycle counts with multiple functions... */
+   stats->cycles = jay_estimate_cycles(jay_shader_get_entrypoint((void *) s));
    stats->spills = s->spills;
    stats->fills = s->fills;
    stats->sends -= (s->spills + s->fills);

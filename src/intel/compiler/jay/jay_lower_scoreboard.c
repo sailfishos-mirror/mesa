@@ -308,12 +308,6 @@ sync_sbids(jay_builder *b, uint32_t mask, gen_sbid_mode mode)
 }
 
 static inline bool
-jay_inst_is_unordered(const jay_inst *I)
-{
-   return I->op == JAY_OPCODE_SEND || I->op == JAY_OPCODE_DPAS;
-}
-
-static inline bool
 jay_inst_has_sbid(const jay_inst *I)
 {
    return jay_inst_is_unordered(I) &&
@@ -534,41 +528,6 @@ struct swsb_regdist_state {
    jay_inst *last_sync;
 };
 
-static gen_pipe
-inst_exec_pipe(const struct intel_device_info *devinfo, jay_inst *I)
-{
-   return jay_inst_is_unordered(I)       ? GEN_PIPE_NONE :
-          I->op == JAY_OPCODE_MATH       ? GEN_PIPE_MATH :
-          I->type == JAY_TYPE_F64        ? GEN_PIPE_LONG :
-          jay_type_is_any_float(I->type) ? GEN_PIPE_FLOAT :
-                                           GEN_PIPE_INT;
-}
-
-/**
- * Return the RegDist pipeline the hardware will synchronize with if no
- * pipeline information is provided in the SWSB annotation of an
- * instruction (e.g. when GEN_PIPE_NONE is specified in gen_swsb).
- */
-static gen_pipe
-inferred_sync_pipe(const struct intel_device_info *devinfo, const jay_inst *I)
-{
-   enum jay_type type = I->num_srcs ? jay_src_type(I, 0) : JAY_TYPE_UNTYPED;
-
-   if (I->op == JAY_OPCODE_SEND) {
-      return GEN_PIPE_NONE;
-   } else if (I->op == JAY_OPCODE_DPAS) {
-      return jay_type_is_any_float(jay_dpas_acc_type(I)) ? GEN_PIPE_FLOAT :
-                                                           GEN_PIPE_INT;
-   } else if (devinfo->verx10 >= 125 && type == JAY_TYPE_F64) {
-      /* Avoid emitting (RegDist, SWSB) annotations for long instructions on
-       * platforms where they are unordered as they may not be allowed.
-       */
-      return devinfo->has_64bit_float ? GEN_PIPE_LONG : GEN_PIPE_NONE;
-   } else {
-      return jay_type_is_any_float(type) ? GEN_PIPE_FLOAT : GEN_PIPE_INT;
-   }
-}
-
 /*
  * Return the maximum ALU distance to consider. Anything further is guaranteed
  * to have already written its result by the time we issue. These values are not
@@ -653,7 +612,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
       return;
    }
 
-   gen_pipe exec_pipe = inst_exec_pipe(func->shader->devinfo, I);
+   gen_pipe exec_pipe = jay_inst_exec_pipe(func->shader->devinfo, I);
    unsigned dep[GEN_NUM_PIPES] = { 0 };
    jay_def dsts[3] = { I->dst, I->cond_flag };
 
@@ -764,7 +723,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
    if (I->op == JAY_OPCODE_DPAS &&
        wait_pipes &&
        (!single_wait ||
-        last_pipe != inferred_sync_pipe(func->shader->devinfo, I))) {
+        last_pipe != jay_inferred_sync_pipe(func->shader->devinfo, I))) {
       assert(I->dep.regdist > 0);
       jay_builder b = jay_init_builder(func, jay_before_inst(I));
 
@@ -788,7 +747,7 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
        !I->predication &&
        !jay_simd_split(func->shader, I) &&
        (I->dep.regdist == 0 ||
-        inferred_sync_pipe(func->shader->devinfo, I) == I->dep.pipe)) {
+        jay_inferred_sync_pipe(func->shader->devinfo, I) == I->dep.pipe)) {
 
       assert(ctx->last_sync->dep.regdist == 0);
       assert(ctx->last_sync->dep.pipe == GEN_PIPE_NONE);

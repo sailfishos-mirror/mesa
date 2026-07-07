@@ -876,6 +876,12 @@ jay_is_send_like(const jay_inst *I)
       return I->op == JAY_OPCODE_SEND;
 }
 
+static inline bool
+jay_inst_is_unordered(const jay_inst *I)
+{
+   return I->op == JAY_OPCODE_SEND || I->op == JAY_OPCODE_DPAS;
+}
+
 /*
  * Returns whether an instruction contains cross-lane access.
  */

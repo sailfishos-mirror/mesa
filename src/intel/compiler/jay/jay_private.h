@@ -93,6 +93,14 @@ void jay_lower_scoreboard_trivial(jay_shader *s);
 void
 jay_lower_post_sched(jay_shader *shader, uint32_t api, uint32_t float_sizes);
 
+gen_pipe jay_inferred_sync_pipe(const struct intel_device_info *devinfo,
+                                const jay_inst *I);
+gen_pipe jay_inst_exec_pipe(const struct intel_device_info *devinfo,
+                            jay_inst *I);
+
+unsigned jay_latency(jay_shader *s, jay_inst *I);
+unsigned jay_estimate_cycles(jay_function *f);
+
 struct jay_shader_bin *jay_to_binary(jay_shader *s,
                                      void *const_data,
                                      size_t const_data_size,
