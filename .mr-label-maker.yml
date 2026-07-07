@@ -318,6 +318,8 @@ merge_requests:
         '^src/vulkan/wsi/wsi_common_metal': ['macOS']
         '^src/vulkan/wsi/wsi_common_wayland.c': ['wayland']
         '^src/vulkan/wsi/wsi_common_x11.c': ['X11']
+        '^subprojects/packagefiles/.*-rs/': ['Rust']
+        '^subprojects/.*-rs\.wrap$': ['Rust']
         '^VERSION$': ['mesa-release']
 
         'Android': ['android']
