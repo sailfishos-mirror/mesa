@@ -1833,6 +1833,7 @@ enum anv_debug {
    ANV_DEBUG_EXPERIMENTAL               = BITFIELD_BIT(12),
    ANV_DEBUG_DGC_DUMP                   = BITFIELD_BIT(13),
    ANV_DEBUG_NO_ALLOC_OVER_SUBSCRIPTION = BITFIELD_BIT(14),
+   ANV_DEBUG_SKIP_DISK_CACHE            = BITFIELD_BIT(15),
 };
 
 extern enum anv_debug anv_debug;

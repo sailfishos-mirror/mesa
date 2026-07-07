@@ -1103,7 +1103,10 @@ VkResult anv_CreateDevice(
          goto fail_trivial_batch_bo_and_scratch_pool;
    }
 
-   struct vk_pipeline_cache_create_info pcc_info = { .weak_ref = true, };
+   struct vk_pipeline_cache_create_info pcc_info = {
+      .weak_ref = true,
+      .skip_disk_cache = ANV_DEBUG(SKIP_DISK_CACHE),
+   };
    device->vk.mem_cache =
       vk_pipeline_cache_create(&device->vk, &pcc_info, NULL);
    if (!device->vk.mem_cache) {
@@ -1117,6 +1120,7 @@ VkResult anv_CreateDevice(
     * cache just for BLORP/RT that's forced to always be enabled.
     */
    struct vk_pipeline_cache_create_info internal_pcc_info = {
+      .skip_disk_cache = ANV_DEBUG(SKIP_DISK_CACHE),
       .force_enable = true,
       .weak_ref = false,
    };

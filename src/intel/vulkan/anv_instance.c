@@ -20,6 +20,7 @@ static const struct debug_control debug_control[] = {
    { "shader-dump",               ANV_DEBUG_SHADER_DUMP},
    { "shader-hash",               ANV_DEBUG_SHADER_HASH},
    { "shader-print",              ANV_DEBUG_SHADER_PRINT},
+   { "skip-disk-cache",           ANV_DEBUG_SKIP_DISK_CACHE},
    { NULL,    0 }
 };
 
