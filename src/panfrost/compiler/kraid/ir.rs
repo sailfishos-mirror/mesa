@@ -1228,7 +1228,7 @@ pub trait Opcode:
         }
     }
 
-    fn src_raw_types(&self) -> &[PartialDataType] {
+    fn raw_src_types(&self) -> &[PartialDataType] {
         AsSlice::<Src>::attrs(self)
     }
 
@@ -1238,7 +1238,7 @@ pub trait Opcode:
     }
 
     fn srcs_raw_types(&self) -> impl Iterator<Item = (&Src, PartialDataType)> {
-        let t = self.src_raw_types().iter().cloned();
+        let t = self.raw_src_types().iter().cloned();
         self.srcs().iter().zip(t)
     }
 
@@ -1305,7 +1305,7 @@ pub trait Opcode:
         }
     }
 
-    fn dst_raw_types(&self) -> &[PartialDataType] {
+    fn raw_dst_types(&self) -> &[PartialDataType] {
         AsSlice::<Dst>::attrs(self)
     }
 
@@ -1315,7 +1315,7 @@ pub trait Opcode:
     }
 
     fn dsts_raw_types(&self) -> impl Iterator<Item = (&Dst, PartialDataType)> {
-        let t = self.dst_raw_types().iter().cloned();
+        let t = self.raw_dst_types().iter().cloned();
         self.dsts().iter().zip(t)
     }
 
