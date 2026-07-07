@@ -103,11 +103,14 @@ bi_lower_bit_size(const nir_instr *instr, void *data)
    case nir_instr_type_intrinsic: {
       nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
 
-      /* We only support ballot on 32-bit types. */
       switch (intr->intrinsic) {
       case nir_intrinsic_ballot:
       case nir_intrinsic_ballot_relaxed:
+         /* We only support ballot on 32-bit types. */
          return (nir_src_bit_size(intr->src[0]) == 32) ? 0 : 32;
+      case nir_intrinsic_read_invocation:
+         /* CLPER only supports 32-bit types. */
+         return (intr->def.bit_size < 32) ? 32 : 0;
       default:
          return 0;
       }
