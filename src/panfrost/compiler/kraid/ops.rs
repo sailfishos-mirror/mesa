@@ -271,6 +271,158 @@ impl fmt::Display for OpBranch {
     }
 }
 
+#[repr(u8)]
+#[derive(Clone, Copy, EnumAsU8, PartialEq)]
+pub enum SubgroupSize {
+    Subgroup2 = 2,
+    Subgroup4 = 4,
+    Subgroup8 = 8,
+    Subgroup16 = 16,
+}
+
+impl fmt::Display for SubgroupSize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sz = *self as u8;
+        write!(f, ".subgroup{sz}")
+    }
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum ClperLaneOp {
+    #[default]
+    None,
+    Xor,
+    Accumulate,
+    Shift,
+    Rotate,
+    Low,
+    LowAlt,
+    Prefix,
+}
+
+impl fmt::Display for ClperLaneOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClperLaneOp::None => Ok(()),
+            ClperLaneOp::Xor => write!(f, ".xor"),
+            ClperLaneOp::Accumulate => write!(f, ".accumulate"),
+            ClperLaneOp::Shift => write!(f, ".shift"),
+            ClperLaneOp::Rotate => write!(f, ".rotate"),
+            ClperLaneOp::Low => write!(f, ".low"),
+            ClperLaneOp::LowAlt => write!(f, ".low_alt"),
+            ClperLaneOp::Prefix => write!(f, ".prefix"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum ClperInactiveResult {
+    Zero,
+    UMax,
+    I32_1,
+    V2I16_1,
+    S32Min,
+    S32Max,
+    V2S16Min,
+    V2S16Max,
+    V4S8Min,
+    V4S8Max,
+    F32_1,
+    V2F16_1,
+    F32NegInf,
+    F32Inf,
+    V2F16NegInf,
+    V2F16Inf,
+}
+
+impl ClperInactiveResult {
+    fn to_bits(self) -> u32 {
+        let v2i16 = |u: u16| {
+            let u = u32::from(u);
+            (u << 16) | u
+        };
+        let v2f16 = |f: F16| v2i16(f.to_bits());
+        let v4i8 = |u: u8| {
+            let u = u32::from(u);
+            (u << 24) | (u << 16) | (u << 8) | u
+        };
+
+        match self {
+            ClperInactiveResult::Zero => 0,
+            ClperInactiveResult::UMax => u32::MAX,
+            ClperInactiveResult::I32_1 => 1,
+            ClperInactiveResult::V2I16_1 => v2i16(1),
+            ClperInactiveResult::S32Min => i32::MIN as u32,
+            ClperInactiveResult::S32Max => i32::MAX as u32,
+            ClperInactiveResult::V2S16Min => v2i16(i16::MIN as u16),
+            ClperInactiveResult::V2S16Max => v2i16(i16::MAX as u16),
+            ClperInactiveResult::V4S8Min => v4i8(i8::MIN as u8),
+            ClperInactiveResult::V4S8Max => v4i8(i8::MAX as u8),
+            ClperInactiveResult::F32_1 => 1.0_f32.to_bits(),
+            ClperInactiveResult::V2F16_1 => v2f16(F16::from_f32_rtne(1.0)),
+            ClperInactiveResult::F32NegInf => f32::NEG_INFINITY.to_bits(),
+            ClperInactiveResult::F32Inf => f32::INFINITY.to_bits(),
+            ClperInactiveResult::V2F16NegInf => v2f16(F16::NEG_INFINITY),
+            ClperInactiveResult::V2F16Inf => v2f16(F16::INFINITY),
+        }
+    }
+}
+
+impl fmt::Display for ClperInactiveResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let modif = match self {
+            ClperInactiveResult::Zero => ".zero",
+            ClperInactiveResult::UMax => ".umax",
+            ClperInactiveResult::I32_1 => ".i32_1",
+            ClperInactiveResult::V2I16_1 => ".v2i16_1",
+            ClperInactiveResult::S32Min => ".s32_min",
+            ClperInactiveResult::S32Max => ".s32_max",
+            ClperInactiveResult::V2S16Min => ".v2s16_min",
+            ClperInactiveResult::V2S16Max => ".v2s16_max",
+            ClperInactiveResult::V4S8Min => ".v2s8_min",
+            ClperInactiveResult::V4S8Max => ".v2s8_max",
+            ClperInactiveResult::F32_1 => ".f32_1",
+            ClperInactiveResult::V2F16_1 => ".v2f16_1",
+            ClperInactiveResult::F32NegInf => ".f32_neg_inf",
+            ClperInactiveResult::F32Inf => ".f32_inf",
+            ClperInactiveResult::V2F16NegInf => ".v2f16_neg_inf",
+            ClperInactiveResult::V2F16Inf => ".v2f16_inf",
+        };
+        write!(f, "{modif}")
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpClper {
+    #[dst_type(I32)]
+    pub dst: Dst,
+
+    pub subgroup: SubgroupSize,
+    pub lane_op: ClperLaneOp,
+    pub inactive: ClperInactiveResult,
+
+    #[src_type(I32)]
+    pub data: Src,
+    #[src_type(I8)]
+    pub lane: Src,
+}
+
+impl fmt::Display for OpClper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = CLPER.{}{}{} {} {}",
+            &self.dst,
+            self.subgroup,
+            self.lane_op,
+            self.inactive,
+            self.fmt_src(&self.data),
+            self.fmt_src(&self.lane),
+        )
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 #[variants(src_type in [U8, V2U8, V4U8, U16, V2U16, U32])]
@@ -2468,22 +2620,6 @@ impl fmt::Display for OpTexSingle {
     }
 }
 
-#[repr(u8)]
-#[derive(Clone, Copy, EnumAsU8, PartialEq)]
-pub enum SubgroupSize {
-    Subgroup2 = 2,
-    Subgroup4 = 4,
-    Subgroup8 = 8,
-    Subgroup16 = 16,
-}
-
-impl fmt::Display for SubgroupSize {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let sz = *self as u8;
-        write!(f, ".subgroup{sz}")
-    }
-}
-
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpWMask {
@@ -2514,6 +2650,7 @@ pub enum Op {
     Barrier(OpBarrier),
     BitRev(Box<OpBitRev>),
     Branch(Box<OpBranch>),
+    Clper(Box<OpClper>),
     Clz(Box<OpClz>),
     Copy(Box<OpCopy>),
     CSel(Box<OpCSel>),

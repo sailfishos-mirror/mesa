@@ -719,6 +719,78 @@ impl V9Instr for OpBitRev {
     }
 }
 
+impl From<SubgroupSize> for ClperSubgroupSizeM {
+    fn from(sg_size: SubgroupSize) -> ClperSubgroupSizeM {
+        match sg_size {
+            SubgroupSize::Subgroup2 => ClperSubgroupSizeM::Subgroup2,
+            SubgroupSize::Subgroup4 => ClperSubgroupSizeM::Subgroup4,
+            SubgroupSize::Subgroup8 => ClperSubgroupSizeM::Subgroup8,
+            SubgroupSize::Subgroup16 => ClperSubgroupSizeM::Subgroup16,
+        }
+    }
+}
+
+impl From<ClperLaneOp> for ClperLaneOpM {
+    fn from(op: ClperLaneOp) -> ClperLaneOpM {
+        match op {
+            ClperLaneOp::None => ClperLaneOpM::None,
+            ClperLaneOp::Xor => ClperLaneOpM::Xor,
+            ClperLaneOp::Accumulate => ClperLaneOpM::Accumulate,
+            ClperLaneOp::Shift => ClperLaneOpM::Shift,
+            ClperLaneOp::Rotate => ClperLaneOpM::Rotate,
+            ClperLaneOp::Low => ClperLaneOpM::Low,
+            ClperLaneOp::LowAlt => ClperLaneOpM::LowAlt,
+            ClperLaneOp::Prefix => ClperLaneOpM::Prefix,
+        }
+    }
+}
+
+impl From<ClperInactiveResult> for ClperInactiveResultM {
+    fn from(res: ClperInactiveResult) -> ClperInactiveResultM {
+        match res {
+            ClperInactiveResult::Zero => ClperInactiveResultM::Zero,
+            ClperInactiveResult::UMax => ClperInactiveResultM::Umax,
+            ClperInactiveResult::I32_1 => ClperInactiveResultM::I1,
+            ClperInactiveResult::V2I16_1 => ClperInactiveResultM::V2i1,
+            ClperInactiveResult::S32Min => ClperInactiveResultM::Smin,
+            ClperInactiveResult::S32Max => ClperInactiveResultM::Smax,
+            ClperInactiveResult::V2S16Min => ClperInactiveResultM::V2smin,
+            ClperInactiveResult::V2S16Max => ClperInactiveResultM::V2smax,
+            ClperInactiveResult::V4S8Min => ClperInactiveResultM::V4smin,
+            ClperInactiveResult::V4S8Max => ClperInactiveResultM::V4smax,
+            ClperInactiveResult::F32_1 => ClperInactiveResultM::F1,
+            ClperInactiveResult::V2F16_1 => ClperInactiveResultM::V2f1,
+            ClperInactiveResult::F32NegInf => ClperInactiveResultM::Infn,
+            ClperInactiveResult::F32Inf => ClperInactiveResultM::Inf,
+            ClperInactiveResult::V2F16NegInf => ClperInactiveResultM::V2infn,
+            ClperInactiveResult::V2F16Inf => ClperInactiveResultM::V2inf,
+        }
+    }
+}
+
+impl V9Instr for OpClper {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Clper::get_info((), arch),
+            src_map! {
+                src0: data,
+                src1: lane,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Clper {
+            dst: op_encode_dst(self, &self.dst),
+            inactive_result: self.inactive.try_into().unwrap(),
+            lane_op: self.lane_op.try_into().unwrap(),
+            src0: op_encode_src(self, &self.data),
+            src1: op_encode_src(self, &self.lane),
+            subgroup: self.subgroup.try_into().unwrap(),
+        })
+    }
+}
+
 impl V9Instr for OpClz {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2238,17 +2310,6 @@ impl V9Instr for OpTexSingle {
     }
 }
 
-impl From<SubgroupSize> for ClperSubgroupSizeM {
-    fn from(sg_size: SubgroupSize) -> ClperSubgroupSizeM {
-        match sg_size {
-            SubgroupSize::Subgroup2 => ClperSubgroupSizeM::Subgroup2,
-            SubgroupSize::Subgroup4 => ClperSubgroupSizeM::Subgroup4,
-            SubgroupSize::Subgroup8 => ClperSubgroupSizeM::Subgroup8,
-            SubgroupSize::Subgroup16 => ClperSubgroupSizeM::Subgroup16,
-        }
-    }
-}
-
 impl V9Instr for OpWMask {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2277,6 +2338,7 @@ macro_rules! v9_op_match_else {
             Op::Barrier($x) => $y,
             Op::BitRev($x) => $y,
             Op::Branch($x) => $y,
+            Op::Clper($x) => $y,
             Op::Clz($x) => $y,
             Op::CSel($x) => $y,
             Op::F16ToF32($x) => $y,

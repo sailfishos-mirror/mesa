@@ -1398,6 +1398,21 @@ impl<'a> ShaderFromNir<'a> {
                     handle,
                 });
             }
+            nir_intrinsic_read_invocation => {
+                assert_eq!(intrin.def.bit_size * intrin.def.num_components, 32);
+                let data = self.get_src(&srcs[0]);
+                let lane = self.get_src(&srcs[1]).byte(0);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                let subgroup = self.model.subgroup_size().try_into().unwrap();
+                b.push_op(OpClper {
+                    dst,
+                    subgroup,
+                    lane_op: ClperLaneOp::None,
+                    inactive: ClperInactiveResult::Zero,
+                    data,
+                    lane,
+                });
+            }
             nir_intrinsic_store_global => {
                 let bits = srcs[0].bit_size() * srcs[0].num_components();
                 let mut data = self.get_src(&srcs[0]);
