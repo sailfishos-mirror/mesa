@@ -754,7 +754,11 @@ impl Src {
     }
 
     pub fn is_zero(&self) -> bool {
-        matches!(self.src_ref, SrcRef::Zero)
+        if matches!(self.src_mod, SrcMod::BNot) {
+            matches!(self.src_ref, SrcRef::Imm32(NonZeroU32::MAX))
+        } else {
+            matches!(self.src_ref, SrcRef::Zero)
+        }
     }
 
     pub fn is_fneg_zero(&self, src_type: DataType) -> bool {
