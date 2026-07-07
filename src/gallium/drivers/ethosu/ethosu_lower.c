@@ -341,6 +341,11 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
+   if (operation->pooling.type == ETHOSU_POOLING_TYPE_AVG) {
+      operation->ifm.zero_point = 0;
+      operation->ofm.zero_point = 0;
+   }
+
    operation->kernel.height = poperation->pooling.filter_height;
    operation->kernel.width = poperation->pooling.filter_width;
    operation->kernel.stride_y = poperation->pooling.stride_y;
