@@ -2297,6 +2297,9 @@ if with_platform_x11
     dep_xext = dependency('xext')
     dep_xcb_glx = dependency('xcb-glx', version : dep_xcb_glx_version)
     dep_xcb_shm = dependency('xcb-shm')
+    if with_gallium_zink
+      dep_xcb_present = dependency('xcb-present', version : dep_xcb_present_version)
+    endif
   elif with_gallium_rusticl
     # needed for GL sharing extension
     dep_x11 = dependency('x11', version : dep_xlib_version)
