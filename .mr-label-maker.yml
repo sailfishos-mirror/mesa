@@ -162,6 +162,7 @@ merge_requests:
         '^src/compiler/clc': ['OpenCL']
         '^src/compiler/glsl': ['GLSL']
         '^src/compiler/nir': ['NIR']
+        '^src/compiler/rust': ['Rust']
         '^src/compiler/spirv/': ['SPIR-V']
         '^src/egl/': ['EGL']
         '^src/egl/drivers/wgl/': ['wgl']
