@@ -285,6 +285,10 @@ impl DataType {
         let (comps, _, bits) = self.to_pieces();
         comps * bits
     }
+
+    pub fn total_bytes(&self) -> u8 {
+        self.total_bits() / 8
+    }
 }
 
 #[cfg(test)]

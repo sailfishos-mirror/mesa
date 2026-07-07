@@ -457,7 +457,7 @@ impl LocalRegAlloc<'_> {
                 }
             }
             assert!(offsets != 0, "Cannot find a valid swizzle");
-            let src_bytes = op.src_type(src).total_bits() / 8;
+            let src_bytes = op.src_type(src).total_bytes();
             (src_bytes.max(4), offsets)
         };
 
