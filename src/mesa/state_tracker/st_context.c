@@ -973,6 +973,7 @@ st_destroy_context(struct st_context *st)
    st_release_program(st, &st->mp);
 
    if (st->hw_select_shaders) {
+      st->pipe->bind_gs_state(st->pipe, NULL);
       hash_table_foreach(st->hw_select_shaders, entry)
          st->pipe->delete_gs_state(st->pipe, entry->data);
       _mesa_hash_table_destroy(st->hw_select_shaders, NULL);
