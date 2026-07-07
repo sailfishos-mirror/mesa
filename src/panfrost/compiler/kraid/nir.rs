@@ -104,7 +104,10 @@ impl<'a> ShaderFromNir<'a> {
             rtz_fp16,
             rtz_fp32,
             ftz_fp32,
-            info: ShaderInfo::default(),
+            info: ShaderInfo {
+                tls_size: nir.scratch_size,
+                ..ShaderInfo::default()
+            },
         }
     }
 

@@ -1459,6 +1459,8 @@ impl fmt::Display for BasicBlock {
 pub struct ShaderInfo {
     /// Number of registers used
     pub registers_used: u8,
+    /// Thread local storage size, in bytes
+    pub tls_size: u32,
     /// Bitset of preloaded registers
     pub register_preload: u64,
 }
