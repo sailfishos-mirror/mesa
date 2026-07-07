@@ -626,7 +626,7 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
 
       NIR_PASS(_, nir, nir_lower_vars_to_ssa);
 
-      NIR_PASS(_, nir, nir_propagate_invariant, compiler_info->key.invariant_geom);
+      NIR_PASS(_, nir, nir_propagate_invariant, true);
 
       nir_gather_clip_cull_distance_sizes_from_vars(nir);
       NIR_PASS(_, nir, nir_merge_clip_cull_distance_vars);
