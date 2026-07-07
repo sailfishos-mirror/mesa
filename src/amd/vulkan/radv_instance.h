@@ -59,6 +59,7 @@ struct radv_drirc {
       bool zero_vram;
       bool wait_for_vm_map_updates;
       bool no_implicit_varying_subgroup_size;
+      bool force_nan_preserve_min_max;
       bool rt_wave64;
       bool hide_rebar_on_dgpu;
       bool force_64_byte_sampled_image;

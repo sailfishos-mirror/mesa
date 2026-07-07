@@ -306,6 +306,7 @@ radv_physical_device_init_cache_key(struct radv_physical_device *pdev)
    key->use_ngg = pdev->use_ngg;
    key->use_ngg_culling = pdev->use_ngg_culling;
    key->no_implicit_varying_subgroup_size = instance->drirc.debug.no_implicit_varying_subgroup_size;
+   key->force_nan_preserve_min_max = instance->drirc.debug.force_nan_preserve_min_max;
    key->mitigate_smem_oob =
       pdev->info.compiler_info.has_smem_oob_access_bug && !(instance->debug_flags & RADV_DEBUG_NO_SMEM_MITIGATION);
    key->rt_cps = !!(instance->perftest_flags & RADV_PERFTEST_RT_CPS);
