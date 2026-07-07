@@ -184,6 +184,10 @@ impl SwizzleWord {
         }
     }
 
+    pub const fn is_zero(self) -> bool {
+        matches!(self, SwizzleWord::Zero)
+    }
+
     pub const fn is_word(self) -> bool {
         SwizzleByte::is_byte(unsafe { std::mem::transmute(self) })
     }
@@ -359,6 +363,12 @@ impl Swizzle {
     #[inline]
     pub const fn is_none(&self) -> bool {
         self.packed.get() == Swizzle::NONE.packed.get()
+    }
+
+    /// Returns true if this is a (non-trivial) byte swizzle.
+    #[inline]
+    pub const fn is_byte_swizzle(&self) -> bool {
+        !self.is_none() && !self.is_word_swizzle()
     }
 
     /// Returns true if this is a word swizzle.

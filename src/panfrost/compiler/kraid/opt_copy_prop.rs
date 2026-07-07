@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::data_type::NumericType;
 use crate::ir::*;
 use crate::ops::*;
 use crate::swizzle::*;
@@ -43,6 +44,7 @@ impl WordCopies<'_> {
 
     fn add_copy(&mut self, ssa: SSAValue, mut src: Src, src_type: DataType) {
         assert!(!matches!(src.src_ref, SrcRef::Reg(_)));
+        assert!(!src.swizzle.is_word_swizzle());
         // For zero copies, get rid of source modifiers and trivialize swizzles
         if src.is_zero() {
             src = match ssa.bits() {
@@ -116,8 +118,8 @@ impl WordCopies<'_> {
         }
     }
 
-    fn try_prop_to_ssa_src(&self, src: &mut Src) {
-        debug_assert!(src.src_mod.is_none());
+    fn try_prop_to_ssa_src(&self, instr: &mut Instr, src_idx: usize) {
+        let src = &mut instr.srcs_mut()[src_idx];
         let SrcRef::SSA(src_vec) = &mut src.src_ref else {
             return;
         };
@@ -260,10 +262,127 @@ impl WordCopies<'_> {
         self.try_set_src(instr, src_idx, new_src);
     }
 
+    fn try_chase_src64(&self, src: &Src) -> Option<Src> {
+        let src_vec = src.src_ref.as_ssa()?;
+        assert!(src_vec.comps() <= 2);
+
+        if src_vec.comps() == 1 {
+            let copy = self.copies.get(&src_vec[0])?;
+            if !copy.src.src_mod.is_none() {
+                return None;
+            }
+
+            debug_assert!(src.swizzle.bytes_read(8) < (1 << 4));
+            let widen = if copy.src.swizzle.is_none() {
+                src.swizzle
+            } else if src.swizzle.is_byte_swizzle() {
+                // Byte swizzles can be composed directly
+                copy.src.swizzle.swizzle(src.swizzle)?
+            } else if src.swizzle == Swizzle::widen_s32(0) {
+                // Byte swizzles are sign-extended when used with a 64-bit
+                // source so if the 64-bit swizzle is widen_s32(0), we can
+                // just take the 32-bit swizzle verbatim
+                copy.src.swizzle
+            } else {
+                return None;
+            };
+
+            let mut new_src = copy.src.clone();
+            new_src.swizzle = widen;
+            return Some(new_src);
+        }
+
+        // If we read multiple words, we must have a word or none swizzle
+        let swiz_words = src.swizzle.as_words().unwrap();
+
+        let mut words = [Src::from(0), Src::from(0)];
+        for i in 0..2 {
+            if let Some(w) = swiz_words[i].word_idx() {
+                if let Some(copy) = self.copies.get(&src_vec[usize::from(w)]) {
+                    if !copy.src.src_mod.is_none() {
+                        return None;
+                    }
+                    words[i] = copy.src.clone();
+                } else {
+                    // Default to our own src_ref so that we can handle cases
+                    // where one is a copy and the other isn't
+                    words[i] = src.src_ref.clone().word(w).into();
+                }
+            } else {
+                debug_assert!(swiz_words[i].is_zero());
+            }
+        }
+        let words = words;
+
+        // Check if it's justa 64-bit zero
+        if words[1].is_zero() && words[0].is_zero() {
+            return Some(0.into());
+        }
+
+        if src.swizzle.is_none() {
+            // Check for a 64-bit FAU
+            if let (SrcRef::FAU(fau0), SrcRef::FAU(fau1)) =
+                (&words[0].src_ref, &words[1].src_ref)
+            {
+                if (fau0.idx & 1) == 0 && fau1.idx == fau0.idx + 1 {
+                    let mut new_fau = *fau0;
+                    new_fau.load64 = true;
+                    return Some(new_fau.into());
+                }
+            }
+
+            // TODO: Check for 64-bit immediates as well
+        }
+
+        // In theory, we could construct a widen that sign-extends the bottom
+        // byte but nothing would ever acceptit so there's no point.
+        if !swiz_words[0].is_word() {
+            return None;
+        }
+
+        let widen = if words[1].is_zero() {
+            if words[0].swizzle.is_none() {
+                Swizzle::widen_u32(0)
+            } else if words[0].swizzle.byte(3)?.is_zero() {
+                // Sign-extension of something where we know the high bit is
+                // zero is zero extension
+                words[0].swizzle
+            } else {
+                return None;
+            }
+        } else if swiz_words[1].is_sign()
+            && words[1].src_ref == words[0].src_ref
+        {
+            if words[0].swizzle.is_none() {
+                Swizzle::widen_u32(0)
+            } else {
+                // Byte swizzles are sign-extended when used in 64-bit sources
+                debug_assert!(src.swizzle.is_byte_swizzle());
+                words[0].swizzle
+            }
+        } else {
+            return None;
+        };
+
+        let mut new_src = words[0].clone();
+        new_src.swizzle = widen;
+        Some(new_src)
+    }
+
     fn try_prop_to_src64(&self, instr: &mut Instr, src_idx: usize) {
-        // TODO: Do better for 64-bit
-        let src = &mut instr.srcs_mut()[src_idx];
-        self.try_prop_to_ssa_src(src);
+        // First, try to propagate raw SSA components.  This deals with the
+        // cases where we can copy-prop one half but not the other.
+        self.try_prop_to_ssa_src(instr, src_idx);
+
+        let src = &instr.srcs()[src_idx];
+        debug_assert!(src.src_mod.is_none());
+        let src_type = instr.src_type(src);
+        debug_assert_eq!(src_type.comps(), 1);
+        debug_assert_eq!(src_type.bits(), 64);
+
+        if let Some(new_src) = self.try_chase_src64(src) {
+            self.try_set_src(instr, src_idx, new_src);
+        }
     }
 
     fn try_prop_to_src(&self, instr: &mut Instr, src_idx: usize) {
@@ -272,12 +391,14 @@ impl WordCopies<'_> {
         let is_sr = self.model.op_src_is_staging_reg(&instr.op, src);
 
         if is_sr {
-            let src = &mut instr.srcs_mut()[src_idx];
-            self.try_prop_to_ssa_src(src);
-        } else if src_type.bits() == 64 {
+            debug_assert!(src.src_mod.is_none());
+            self.try_prop_to_ssa_src(instr, src_idx);
+        } else if src_type.total_bits() <= 32 {
+            self.try_prop_to_src32(instr, src_idx);
+        } else if src_type.bits() == 64 && src_type.comps() == 1 {
             self.try_prop_to_src64(instr, src_idx);
         } else {
-            self.try_prop_to_src32(instr, src_idx);
+            self.try_prop_to_ssa_src(instr, src_idx);
         }
     }
 }
