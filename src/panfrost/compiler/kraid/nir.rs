@@ -71,24 +71,26 @@ struct ShaderFromNir<'a> {
     nir: &'a nir_shader,
     ssa_map: FxHashMap<u32, Vec<SSAValue>>,
     preload_map: FxHashMap<PreloadReg, SSAValue>,
+    rtz_fp16: bool,
+    rtz_fp32: bool,
     ftz_fp32: bool,
     info: ShaderInfo,
 }
 
 impl<'a> ShaderFromNir<'a> {
     fn new(model: &'a dyn Model, nir: &'a nir_shader) -> Self {
-        let ftz_fp32 = unsafe {
-            nir_is_denorm_flush_to_zero(
-                nir.info.float_controls_execution_mode,
-                32,
-            )
-        };
+        let fc = nir.info.float_controls_execution_mode;
+        let rtz_fp16 = (fc & FLOAT_CONTROLS_ROUNDING_MODE_RTZ_FP16) != 0;
+        let rtz_fp32 = (fc & FLOAT_CONTROLS_ROUNDING_MODE_RTZ_FP32) != 0;
+        let ftz_fp32 = (fc & FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP32) != 0;
 
         ShaderFromNir {
             model,
             nir,
             ssa_map: Default::default(),
             preload_map: Default::default(),
+            rtz_fp16,
+            rtz_fp32,
             ftz_fp32,
             info: ShaderInfo::default(),
         }
@@ -166,6 +168,22 @@ impl<'a> ShaderFromNir<'a> {
                 .into()
             }
             bit_size => panic!("Unsupported bit size: {bit_size}"),
+        }
+    }
+
+    fn rtz(&self, bits: u8) -> bool {
+        match bits {
+            16 => self.rtz_fp16,
+            32 => self.rtz_fp32,
+            _ => panic!("Unsupported float bit size: {bits}"),
+        }
+    }
+
+    fn fround(&self, bits: u8) -> FRound {
+        if self.rtz(bits) {
+            FRound::TowardsZero
+        } else {
+            FRound::NearestEven
         }
     }
 
@@ -456,7 +474,8 @@ impl<'a> ShaderFromNir<'a> {
                     dst: dst.into(),
                     src: srcs(0),
                     round: match alu.op {
-                        nir_op_f2f16 | nir_op_f2f16_rtne => FRound::NearestEven,
+                        nir_op_f2f16 => self.fround(16),
+                        nir_op_f2f16_rtne => FRound::NearestEven,
                         nir_op_f2f16_rtz => FRound::TowardsZero,
                         _ => panic!("Invalid f2f16 op"),
                     },
@@ -554,7 +573,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpFAdd {
                     dst: dst.into(),
                     dst_type: dst_type(NumericType::Float),
-                    round: FRound::NearestEven,
+                    round: self.fround(alu.def.bit_size),
                     clamp: FClamp::None,
                     srcs: [srcs(0), srcs(1)],
                 });
@@ -647,7 +666,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpFma {
                     dst: dst.into(),
                     dst_type: dst_type(NumericType::Float),
-                    round: FRound::NearestEven,
+                    round: self.fround(alu.def.bit_size),
                     clamp: FClamp::None,
                     srcs: [srcs(0), srcs(1), srcs(2)],
                 });
