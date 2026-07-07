@@ -71,7 +71,8 @@ bool zink_tracing = false;
 #else
 #include <unistd.h>
 #if DETECT_OS_APPLE
-#define VK_LIBNAME "libvulkan.1.dylib"
+/* See the vulkan-loader-rpath meson option for how to specify rpath at build time. */
+#define VK_LIBNAME "@rpath/libvulkan.1.dylib"
 #elif DETECT_OS_ANDROID
 #define VK_LIBNAME "libvulkan.so"
 #else

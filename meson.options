@@ -307,6 +307,14 @@ option(
 )
 
 option(
+  'vulkan-loader-rpath',
+  type : 'string',
+  value : '/usr/local/lib',
+  description : 'The path where the vulkan loader (libvulkan.1.dylib) exists at runtime.' +
+                'Defaults to /usr/local/lib since that is where the Vulkan SDK installs it to by default.'
+)
+
+option(
   'vulkan-layers',
   type : 'array',
   value : [],
