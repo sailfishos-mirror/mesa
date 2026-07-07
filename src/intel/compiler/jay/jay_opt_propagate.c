@@ -393,6 +393,7 @@ propagate_backwards(jay_function *f)
             jay_num_isa_srcs(I) < 3))) {
 
          *(flag ? &I->cond_flag : &I->dst) = use->dst;
+         I->uniform = use->uniform;
          jay_remove_instruction(use);
          continue;
       }

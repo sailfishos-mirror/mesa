@@ -97,6 +97,12 @@ _jay_${OPCODE}(${signature(op, with_types = True)})
    inst->type = t;
 % if op.has_dest:
    inst->dst = dst;
+   inst->uniform = (jay_is_uniform(dst) && !jay_is_null(dst));
+% if op.name not in ['cast_canonical_to_flag']:
+   inst->uniform |= dst.file == FLAG;
+% endif
+% elif op.name in ['sync']:
+   inst->uniform = true;
 % endif
 % for i in range(num_srcs):
    inst->src[${i}] = src${i};

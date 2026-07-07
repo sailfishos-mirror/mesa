@@ -208,11 +208,10 @@ validate_def(struct validate_state *validate,
 
    CHECK(jay_num_values(def) == 1 || !jay_is_flag(def));
 
-   /* With some exceptions we cannot access GPRs from SIMD1 instructions */
-   CHECK((jay_is_null(def) ||
-          jay_is_uniform(def) ||
-          def.file == FLAG ||
-          jay_simd_width_logical(validate->func->shader, I) > 1) ||
+   /* With some exceptions we cannot access GPRs from uniform instructions */
+   CHECK(def.file != GPR ||
+         jay_is_null(def) ||
+         jay_simd_width_logical(validate->func->shader, I) > 1 ||
          I->op == JAY_OPCODE_SHUFFLE ||
          I->op == JAY_OPCODE_VECTOR_EXTRACT ||
          I->op == JAY_OPCODE_BROADCAST_IMM);
@@ -259,8 +258,13 @@ validate_inst(struct validate_state *validate, jay_inst *I)
           (I->op == JAY_OPCODE_CMP || I->op == JAY_OPCODE_MOV)));
 
    /* We cannot mix uniformness */
-   CHECK(I->cond_flag.file != UFLAG || I->dst.file != GPR);
-   CHECK(I->cond_flag.file != FLAG || I->dst.file != UGPR);
+   CHECK(!(!jay_is_null(I->dst) && I->dst.file == GPR && I->uniform));
+   CHECK(!(!jay_is_null(I->dst) &&
+           I->dst.file == UGPR &&
+           jay_num_values(I->dst) < 8 &&
+           !I->uniform));
+   CHECK(!(I->cond_flag.file == UFLAG && !I->uniform));
+   CHECK(!(I->cond_flag.file == FLAG && I->uniform));
 
    /* Standard modifiers only allowed on some instructions */
    CHECK(!I->saturate || opinfo->sat);

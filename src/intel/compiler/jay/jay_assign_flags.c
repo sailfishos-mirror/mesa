@@ -244,6 +244,9 @@ assign_block(struct flag_ra *ra)
          }
 
          I->type = JAY_TYPE_U32;
+         if (!jay_is_null(I->dst)) {
+            I->uniform = jay_is_uniform(I->dst);
+         }
       }
 
       if (I->op == JAY_OPCODE_CMP && I->predication) {

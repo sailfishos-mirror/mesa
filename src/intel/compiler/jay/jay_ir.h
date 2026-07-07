@@ -550,6 +550,12 @@ typedef struct jay_inst {
    uint8_t num_srcs;
 
    /**
+    * Indicates a uniform instruction executing on behalf of all active lanes.
+    * This is validated against the files of the operands for correctness.
+    */
+   bool uniform:1;
+
+   /**
     * Indicates a uniform instruction writing a UFLAG but no UGPR that expects
     * the flag to replicate for all SIMD lanes. This is okay in our data model
     * but cannot be inferred from the files, so we have this sideband bit.
@@ -566,7 +572,7 @@ typedef struct jay_inst {
     */
    bool replicate_dep:1;
    bool decrement_dep:1;
-   uint8_t padding   :4;
+   uint8_t padding   :3;
 
    enum jay_predication predication;
    gen_condition conditional_mod;
@@ -978,24 +984,12 @@ jay_dst_alignment(jay_shader *shader, const jay_inst *I)
    return jay_type_vector_length(jay_src_type(I, 0));
 }
 
-static inline bool
-jay_inst_is_uniform(const jay_inst *I)
-{
-   if (I->op == JAY_OPCODE_SEND)
-      return jay_send_uniform(I);
-
-   return (jay_is_uniform(I->dst) && !jay_is_null(I->dst)) ||
-          I->cond_flag.file == UFLAG ||
-          I->op == JAY_OPCODE_SYNC ||
-          (I->dst.file == FLAG && I->op != JAY_OPCODE_CAST_CANONICAL_TO_FLAG);
-}
-
 unsigned jay_simd_split(const jay_shader *s, const jay_inst *I);
 
 static inline unsigned
 jay_simd_width_logical(const jay_shader *s, const jay_inst *I)
 {
-   bool simd1 = jay_inst_is_uniform(I) && !I->broadcast_flag;
+   bool simd1 = I->uniform && !I->broadcast_flag;
    unsigned base = simd1 ? 1 : s->dispatch_width;
 
    /* Handle vectors-of-UGPR operations with special care for bitsizes */
@@ -1049,7 +1043,7 @@ jay_macro_length(const jay_inst *I)
 static inline bool
 jay_is_no_mask(const jay_inst *I)
 {
-   return jay_inst_is_uniform(I) ||
+   return I->uniform ||
           I->op == JAY_OPCODE_QUAD_SWIZZLE ||
           I->op == JAY_OPCODE_DESWIZZLE_EVEN ||
           I->op == JAY_OPCODE_DESWIZZLE_ODD ||
