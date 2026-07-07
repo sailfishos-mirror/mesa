@@ -1223,6 +1223,7 @@ radv_device_init_compiler_info(struct radv_device *device)
             .tex_non_uniform = instance->drirc.debug.tex_non_uniform,
             .lower_terminate_to_discard = instance->drirc.debug.lower_terminate_to_discard,
             .no_implicit_varying_subgroup_size = instance->drirc.debug.no_implicit_varying_subgroup_size,
+            .force_nan_preserve_min_max = instance->drirc.debug.force_nan_preserve_min_max,
             .nir_debug_info = !!(instance->debug_flags & RADV_DEBUG_NIR_DEBUG_INFO),
             .force_aniso = device->force_aniso,
             /* Use CHIP_UNKNOWN for increased compatiblity between caches. */

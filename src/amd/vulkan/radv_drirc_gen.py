@@ -87,6 +87,9 @@ def declare_options():
         B("radv_force_64_byte_sampled_image", False,
           "Force sampled images size to 64 bytes.",
           c_name="force_64_byte_sampled_image"),
+        B("radv_force_nan_preserve_min_max", False,
+          "Treat FMax/FMin/FClamp like NMax/NMin/NClamp.",
+          c_name="force_nan_preserve_min_max"),
     ]
 
     performance_options = [
