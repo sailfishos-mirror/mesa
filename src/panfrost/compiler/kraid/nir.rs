@@ -1482,6 +1482,7 @@ impl<'a> ShaderFromNir<'a> {
             } else {
                 debug_assert_eq!(phis.len(), ssa.len());
                 for (i, phi) in phis.iter().enumerate() {
+                    debug_assert_eq!(phi.bits(), ssa[i].bits());
                     b.push_op(OpPhiSrc {
                         phi: *phi,
                         src_type: DataType::i(phi.bits()),

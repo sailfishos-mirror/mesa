@@ -1098,9 +1098,27 @@ impl GlobalRegAlloc<'_> {
                 }
                 let dst_vec = phi_map.get_dst_ssa(&op.phi);
 
+                let swizzle_bytes = |bytes: Range<u16>, swizzle: Swizzle| {
+                    let swz_bytes = match swizzle {
+                        Swizzle::B0000 => 0..1,
+                        Swizzle::B1111 => 1..2,
+                        Swizzle::B2222 => 2..3,
+                        Swizzle::B3333 => 3..4,
+                        Swizzle::H00 => 0..2,
+                        Swizzle::H11 => 2..4,
+                        Swizzle::NONE => return bytes,
+                        _ => panic!("Invalid swizzle for PhiSrc:"),
+                    };
+                    let start = bytes.start + swz_bytes.start;
+                    let end = bytes.start + swz_bytes.end;
+                    debug_assert!(end <= bytes.end);
+                    start..end
+                };
+
                 let src_vec = op.src.src_ref.as_ssa();
-                let src_bytes =
-                    src_vec.and_then(|vec| self.local.ssa_ref_bytes(vec));
+                let src_bytes = src_vec
+                    .and_then(|vec| self.local.ssa_ref_bytes(vec))
+                    .map(|bytes| swizzle_bytes(bytes, op.src.swizzle));
                 let dst_bytes = self.choose_live_out_bytes(
                     chunk_bytes,
                     src_bytes,
@@ -1114,7 +1132,10 @@ impl GlobalRegAlloc<'_> {
                 {
                     if let Some(src_vec) = src_vec {
                         debug_assert_eq!(src_vec.len(), dst_vec.len());
-                        let src_bytes = self.local.idx_bytes(src_vec[i].idx());
+                        let src_bytes = swizzle_bytes(
+                            self.local.idx_bytes(src_vec[i].idx()),
+                            op.src.swizzle,
+                        );
                         pcopy.add_copy(
                             self.local.reg_for_bytes(dst_bytes.clone()),
                             self.local.reg_for_bytes(src_bytes).into(),
