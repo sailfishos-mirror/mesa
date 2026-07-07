@@ -151,6 +151,7 @@ merge_requests:
         '^include/vulkan/': ['vulkan']
         '^meson.options': ['meson']
         '^README.rst': ['docs']
+        '^rustfmt.toml': ['Rust']
         '^src/amd/addrlib/': ['AMD common']
         '^src/amd/common/': ['AMD common']
         '^src/amd/compiler/': ['ACO']
