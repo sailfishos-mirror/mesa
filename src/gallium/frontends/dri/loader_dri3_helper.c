@@ -1118,8 +1118,7 @@ loader_dri3_swap_buffers_msc(struct loader_dri3_drawable *draw,
                   break;
             }
          }
-         target_msc = draw->msc + abs(draw->swap_interval) *
-                      (draw->send_sbc + 1 - draw->recv_sbc);
+         target_msc = draw->msc + abs(draw->swap_interval);
       } else if (divisor == 0 && remainder > 0) {
          /* From the GLX_OML_sync_control spec:
           *     "If <divisor> = 0, the swap will occur when MSC becomes
