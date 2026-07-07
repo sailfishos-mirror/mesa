@@ -902,8 +902,10 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          ethosu_lower_convolution(subgraph, &poperations[i], input_tensor, &operation);
 
          if (padded_input) {
-            operation.pad.top = 1;
-            operation.pad.left = 1;
+            operation.pad.top += producer->pad.before_y;
+            operation.pad.bottom += producer->pad.after_y;
+            operation.pad.left += producer->pad.before_x;
+            operation.pad.right += producer->pad.after_x;
          }
 
          if (operation.conv.scales.size + operation.conv.weights.size <=
