@@ -41,8 +41,17 @@ impl WordCopies<'_> {
         }
     }
 
-    fn add_copy(&mut self, ssa: SSAValue, src: Src, src_type: DataType) {
+    fn add_copy(&mut self, ssa: SSAValue, mut src: Src, src_type: DataType) {
         assert!(!matches!(src.src_ref, SrcRef::Reg(_)));
+        // For zero copies, get rid of source modifiers and trivialize swizzles
+        if src.is_zero() {
+            src = match ssa.bits() {
+                8 => Src::imm_u8(0),
+                16 => Src::imm_u16(0),
+                32 => 0.into(),
+                _ => panic!("Invalid SSAValue bit size"),
+            };
+        }
         self.copies.insert(ssa, WordCopy { src_type, src });
     }
 
