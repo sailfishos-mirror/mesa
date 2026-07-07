@@ -1879,4 +1879,19 @@ void st_init_extensions(struct pipe_screen *screen,
       extensions->NV_copy_depth_to_color = true;
    if (screen->caps.device_protected_surface || screen->caps.device_protected_context)
       extensions->EXT_protected_textures = true;
+
+   /* GL_EXT_YUV_target extends TEXTURE_EXTERNAL_OES / samplerExternalOES with
+    * YUV-aware sampling and framebuffer attachment, so it only makes sense on
+    * top of OES_EGL_image_external, and needs the GLSL/ESSL version that
+    * samplerExternal2DY2YEXT relies on.
+    */
+   if (extensions->OES_EGL_image_external &&
+       (GLSLVersion >= 330 || ESSLVersion >= 300) &&
+       (screen->is_format_supported(screen, PIPE_FORMAT_NV12, PIPE_TEXTURE_2D,
+                                    0, 0,
+                                    PIPE_BIND_RENDER_TARGET | PIPE_BIND_SAMPLER_VIEW) ||
+        screen->is_format_supported(screen, PIPE_FORMAT_YUYV, PIPE_TEXTURE_2D,
+                                    0, 0,
+                                    PIPE_BIND_RENDER_TARGET | PIPE_BIND_SAMPLER_VIEW)))
+      extensions->EXT_YUV_target = GL_TRUE;
 }
