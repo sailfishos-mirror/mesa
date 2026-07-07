@@ -444,7 +444,7 @@ impl LocalRegAlloc<'_> {
                 ],
                 2 => &[(0, Swizzle::H00), (2, Swizzle::H11)],
                 4 => {
-                    &[(0, Swizzle::NONE), (0, Swizzle::W00), (2, Swizzle::W11)]
+                    &[(0, Swizzle::NONE), (0, Swizzle::W00), (4, Swizzle::W11)]
                 }
                 _ => panic!("Invalid SSA value size"),
             };
@@ -657,6 +657,9 @@ impl LocalRegAlloc<'_> {
                     if reg.range == RegRange::Regs(1) {
                         reg.idx &= !1;
                         swz = Swizzle::replicate_word(word);
+                        if word == 1 {
+                            reg.range = RegRange::Regs(2);
+                        }
                     } else {
                         debug_assert!(word == 0);
                     }
