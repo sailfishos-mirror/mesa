@@ -133,6 +133,61 @@ impl WordCopies<'_> {
         }
     }
 
+    fn try_set_src(&self, instr: &mut Instr, src_idx: usize, new_src: Src) {
+        let src_mod = new_src.src_mod;
+        let swizzle = new_src.swizzle;
+
+        let src = &instr.srcs()[src_idx];
+        if !self.model.op_src_supports_mod(&instr.op, src, src_mod) {
+            // If the source modifier isn't supported, there's nothing we can do
+            return;
+        }
+
+        if self.model.op_src_supports_swizzle(&instr.op, src, swizzle) {
+            instr.srcs_mut()[src_idx] = new_src;
+            return;
+        }
+
+        // If that doesn't work, try to change the variant to see if we can get
+        // it to accept the widen.
+
+        // First check to see if this source takes its numeric type from the
+        // variant.  If it doesn't, then changing the variant will do nothing.
+        if !instr.raw_src_types()[src_idx].num_type().is_none() {
+            return;
+        }
+
+        // If the source type depens on the variant then we must have a variant
+        let variant = instr.op.variant().unwrap();
+
+        // We can only rewrite signless integer types
+        if variant.num_type() != NumericType::Integer {
+            return;
+        }
+
+        for num_type in
+            [NumericType::SignedInteger, NumericType::UnsignedInteger]
+        {
+            let new_variant =
+                DataType::get(variant.comps(), num_type, variant.bits());
+            if !instr.is_valid_variant(new_variant) {
+                continue;
+            }
+
+            instr.set_variant(new_variant);
+
+            // Re-borrow because we just modified instr
+            let src = &instr.srcs()[src_idx];
+            if self.model.op_src_supports_swizzle(&instr.op, src, swizzle) {
+                instr.srcs_mut()[src_idx] = new_src;
+                return;
+            }
+        }
+
+        // If we got here, then none of the variants worked.  Set it back.
+        instr.set_variant(variant);
+    }
+
     fn try_prop_to_src32(&self, instr: &mut Instr, src_idx: usize) {
         let src = &instr.srcs()[src_idx];
         let src_type = instr.src_type(src);
@@ -202,11 +257,7 @@ impl WordCopies<'_> {
             last_use: false,
         };
 
-        if self.model.op_src_supports_swizzle(&instr.op, src, swizzle)
-            && self.model.op_src_supports_mod(&instr.op, src, src_mod)
-        {
-            instr.srcs_mut()[src_idx] = new_src;
-        }
+        self.try_set_src(instr, src_idx, new_src);
     }
 
     fn try_prop_to_src64(&self, instr: &mut Instr, src_idx: usize) {
