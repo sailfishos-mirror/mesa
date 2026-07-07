@@ -887,11 +887,60 @@ vk_meta_resolve_image(struct vk_command_buffer *cmd,
       dst_subres.layerCount =
          vk_image_subresource_layer_count(dst_image, &dst_subres);
 
+      assert(src_image->image_type != VK_IMAGE_TYPE_3D);
+
+      uint32_t layer_count;
+      if (dst_image->image_type == VK_IMAGE_TYPE_3D) {
+         /* For 2D images, baseArrayLayer is applied by the image view.  For
+          * 3D, we have to handle it by adjusting the layer and the Z xform.
+          */
+         dst_rect.layer = regions[r].dstOffset.z;
+         push.z_off = -(float)regions[r].dstOffset.z;
+
+         /* There is no separate destination extent.  The extent is specified
+          * in terms of source image pixels.  dstSubresource.layerCount is
+          * also useless since it's always 1.  Instead, we have to rely on
+          * src_subresource.layerCount.  To avoid rendering outside of the
+          * destination, be defensive and clamp to the destination image size.
+          */
+         VkExtent3D dst_extent =
+            vk_image_mip_level_extent(dst_image, dst_subres.mipLevel);
+         assert(regions[r].dstOffset.z < dst_extent.depth);
+         uint32_t dst_remaining_layers =
+            dst_extent.depth - regions[r].dstOffset.z;
+         layer_count = MIN2(dst_subres.layerCount, dst_remaining_layers);
+      } else {
+         /* From the Vulkan 1.4.354 spec:
+          *
+          *    VUID-VkImageResolve2-layerCount-08803
+          *
+          *    "If neither of the layerCount members of srcSubresource or
+          *    dstSubresource are VK_REMAINING_ARRAY_LAYERS, the layerCount
+          *    member of srcSubresource and dstSubresource must match"
+          *
+          *    VUID-VkImageResolve2-layerCount-08804
+          *
+          *    "If one of the layerCount members of srcSubresource or
+          *    dstSubresource is VK_REMAINING_ARRAY_LAYERS, the other member
+          *    must be either VK_REMAINING_ARRAY_LAYERS or equal to the
+          *    arrayLayers member of the VkImageCreateInfo used to create the
+          *    image minus baseArrayLayer"
+          *
+          * Technically, the second one may allow for images with two
+          * diferent layer counts to both use VK_REMAINING_ARRAY_LAYERS
+          * so we may have a mismatch.
+          *
+          * We defensively take the destination layer count so we don't
+          * render out-of-bounds in the destination.  If we end up out of
+          * bounds on the source image, the sampler will handle that.
+          */
+         layer_count = dst_subres.layerCount;
+      }
+
       do_blit(cmd, meta,
               src_image, src_format, src_image_layout, src_subres,
               dst_image, dst_format, dst_image_layout, dst_subres,
-              VK_NULL_HANDLE, &key, &push, &dst_rect,
-              dst_subres.layerCount);
+              VK_NULL_HANDLE, &key, &push, &dst_rect, layer_count);
    }
 }
 

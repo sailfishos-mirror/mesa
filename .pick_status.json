@@ -2574,7 +2574,7 @@
         "description": "vulkan/meta: Allow resolving a 2D MSAA image to a 3D image",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a9e0adc6790365930cc7d71c2d849df1d406b459",
         "notes": null
