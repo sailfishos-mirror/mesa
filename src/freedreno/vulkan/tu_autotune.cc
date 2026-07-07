@@ -813,7 +813,12 @@ tu_autotune::rp_key::rp_key(const struct tu_render_pass *pass,
     */
 
    struct PACKED packed_att_properties {
-      uint64_t iova;
+      /* Use img_id (stable monotonic creation counter) + view offset rather than
+       * IOVA, so that the hash is consistent across separate process runs of the
+       * same API call sequence (e.g. apitrace replay).
+       */
+      uint64_t img_id;
+      uint32_t view_offset;
       bool load;
       bool store;
       bool load_stencil;
@@ -827,8 +832,14 @@ tu_autotune::rp_key::rp_key(const struct tu_render_pass *pass,
       *ptr++ = framebuffer->layers;
 
       for (unsigned i = 0; i < pass->attachment_count; i++) {
+         /* Every image reaching a render pass must have an identity (see
+          * tu_image_id_mode); 0 means a new image path missed assigning one.
+          */
+         assert(cmd->state.attachments[i]->image->id != 0);
+
          packed_att_properties props = {
-            .iova = cmd->state.attachments[i]->image->iova + cmd->state.attachments[i]->view.offset,
+            .img_id = cmd->state.attachments[i]->image->id,
+            .view_offset = cmd->state.attachments[i]->view.offset,
             .load = pass->attachments[i].load,
             .store = pass->attachments[i].store,
             .load_stencil = pass->attachments[i].load_stencil,
@@ -847,7 +858,8 @@ tu_autotune::rp_key::rp_key(const struct tu_render_pass *pass,
     * cases, while only extreme cases need to allocate on the heap.
     */
    size_t data_count = 3 + (pass->attachment_count * sizeof(packed_att_properties) / sizeof(uint32_t));
-   constexpr size_t STACK_MAX_DATA_COUNT = 3 + (5 * 3); /* in u32 units. */
+   constexpr size_t STACK_MAX_DATA_COUNT =
+      3 + (5 * (sizeof(packed_att_properties) / sizeof(uint32_t))); /* in u32 units, up to 5 attachments. */
 
    if (data_count <= STACK_MAX_DATA_COUNT) {
       /* If the data is small enough, we can use the stack. */

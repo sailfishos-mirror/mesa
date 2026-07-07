@@ -3811,7 +3811,7 @@ tu_AllocateMemory(VkDevice _device,
 
       result = TU_CALLX(device, tu_image_init)(
          device, mem->image, mem->image->vk.android_deferred_create_info,
-         eci.drmFormatModifier, a_plane_layouts);
+         eci.drmFormatModifier, a_plane_layouts, TU_IMAGE_ID_ASSIGN);
       if (result != VK_SUCCESS) {
          vk_device_memory_destroy(&device->vk, pAllocator, &mem->vk);
          return result;
@@ -4077,7 +4077,8 @@ tu_init_msrtss_attachments(struct tu_device *device,
        */
       vk_image_init(&device->vk, &images[i].vk, &image_info);
 
-      TU_CALLX(device, tu_image_init)(device, &images[i], &image_info, DRM_FORMAT_MOD_INVALID, NULL);
+      TU_CALLX(device, tu_image_init)(device, &images[i], &image_info, DRM_FORMAT_MOD_INVALID, NULL,
+                                      TU_IMAGE_ID_INTERNAL);
 
       if (is_ds) {
          depth_size = align64(depth_size, images[i].layout[0].base_align);

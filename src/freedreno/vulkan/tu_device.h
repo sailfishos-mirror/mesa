@@ -495,6 +495,9 @@ struct tu_device
 
    uint32_t vis_stream_count;
    uint32_t vis_stream_size;
+
+   /* Monotonically increasing counter assigned to each tu_image at creation. */
+   uint64_t next_image_id;
 };
 VK_DEFINE_HANDLE_CASTS(tu_device, vk.base, VkDevice, VK_OBJECT_TYPE_DEVICE)
 
