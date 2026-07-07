@@ -2627,11 +2627,14 @@ emit_vsc_overflow_test(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
 template <chip CHIP>
 static void
 tu6_emit_binning_pass(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
-                      const VkOffset2D *fdm_offsets, bool use_cb)
+                      const VkOffset2D *fdm_offsets, bool use_cb,
+                      tu_autotune::rp_ctx_t rp_ctx)
 {
    struct tu_physical_device *phys_dev = cmd->device->physical_device;
    const struct tu_framebuffer *fb = cmd->state.framebuffer;
    const struct tu_tiling_config *tiling = cmd->state.tiling;
+
+   cmd->device->autotune->begin_binning(cs, rp_ctx);
 
    /* If this command buffer may be executed multiple times, then
     * viewports/scissor states may have been changed by previous executions
@@ -2768,6 +2771,8 @@ tu6_emit_binning_pass(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
 
    tu_cs_emit_pkt7(cs, CP_SET_MODE, 1);
    tu_cs_emit(cs, 0x0);
+
+   cmd->device->autotune->end_binning(cs, rp_ctx);
 }
 
 template <chip CHIP>
@@ -3284,7 +3289,8 @@ tu6_sysmem_render_begin(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
       tu_cs_emit_regs(cs, RB_BIN_FOVEAT(CHIP));
    }
 
-   cmd->device->autotune->begin_renderpass(cmd, cs, rp_ctx, true, 0);
+   cmd->device->autotune->init_renderpass(rp_ctx, true, 0);
+   cmd->device->autotune->begin_renderpass(cmd, cs, rp_ctx);
 
    tu_cs_sanity_check(cs);
 }
@@ -3490,6 +3496,9 @@ tu6_tile_render_begin(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
    const struct tu_vsc_config *vsc = tu_vsc_config(cmd, tiling);
    const struct tu_render_pass *pass = cmd->state.pass;
    bool use_binning = use_hw_binning(cmd);
+   uint32_t tile_count = vsc->tile_count.width * vsc->tile_count.height;
+
+   cmd->device->autotune->init_renderpass(rp_ctx, false, tile_count);
 
    /* User flushes should always be executed on BR. */
    tu_emit_cache_flush_ccu<CHIP>(cmd, cs, TU_CMD_CCU_GMEM);
@@ -3558,7 +3567,7 @@ tu6_tile_render_begin(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
 
       tu6_emit_render_cntl<CHIP>(cmd, cmd->state.subpass, cs, true);
 
-      tu6_emit_binning_pass<CHIP>(cmd, cs, fdm_offsets, use_cb);
+      tu6_emit_binning_pass<CHIP>(cmd, cs, fdm_offsets, use_cb, rp_ctx);
 
       /* Enable early return from CP_INDIRECT_BUFFER once the visibility stream
        * is done.  We don't enable this if there are stores in a non-final
@@ -3661,8 +3670,7 @@ tu6_tile_render_begin(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
    if (use_cb)
       tu_trace_start_render_pass(cmd);
 
-   uint32_t tile_count = vsc->tile_count.width * vsc->tile_count.height;
-   cmd->device->autotune->begin_renderpass(cmd, cs, rp_ctx, false, tile_count);
+   cmd->device->autotune->begin_renderpass(cmd, cs, rp_ctx);
 
    tu_cs_sanity_check(cs);
 }
