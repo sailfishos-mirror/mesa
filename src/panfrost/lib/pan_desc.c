@@ -113,7 +113,7 @@ pan_fb_color_attachment_should_crc(const struct pan_fb_color_attachment *rt,
       return true;
 
    /* Disallow CRC on sparse AFBC images */
-   if (!(mod & AFBC_FORMAT_MOD_SPARSE))
+   if (mod & AFBC_FORMAT_MOD_SPARSE)
       return false;
 
    /* AFBC render block size must fit in a single pass. */
