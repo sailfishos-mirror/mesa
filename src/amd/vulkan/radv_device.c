@@ -1218,7 +1218,6 @@ radv_device_init_compiler_info(struct radv_device *device)
             .disable_trunc_coord = instance->drirc.debug.disable_trunc_coord,
             .enable_mrt_output_nan_fixup = instance->drirc.debug.enable_mrt_output_nan_fixup,
             .emulate_rt = radv_emulate_rt(pdev),
-            .invariant_geom = instance->drirc.debug.invariant_geom,
             .split_fma = instance->drirc.debug.split_fma,
             .ssbo_non_uniform = instance->drirc.debug.ssbo_non_uniform,
             .tex_non_uniform = instance->drirc.debug.tex_non_uniform,
