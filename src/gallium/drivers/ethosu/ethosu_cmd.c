@@ -1404,6 +1404,13 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          }
          break;
       case ETHOSU_OPERATION_TYPE_CONVOLUTION:
+         if (ethosu_activation_is_lut(subgraph, operation->activation)) {
+            operation->read_accesses[4].region = ethosu_lut_region();
+            operation->read_accesses[4].address =
+               ethosu_lut_address(subgraph, operation->activation,
+                                  operation->lut.size);
+            operation->read_accesses[4].size = operation->lut.size;
+         }
          operation->read_accesses[2].region = operation->conv.scales.region;
          operation->read_accesses[2].address = operation->conv.scales.address;
          operation->read_accesses[2].size = operation->conv.scales.size;

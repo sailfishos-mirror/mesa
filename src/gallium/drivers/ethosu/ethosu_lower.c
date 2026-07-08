@@ -21,6 +21,11 @@ is_depthwise(const struct pipe_ml_operation *poperation)
           output_channels > 1;
 }
 
+static const struct pipe_ml_operation *
+ethosu_find_first_producer(const struct pipe_ml_operation *poperations,
+                           unsigned count,
+                           unsigned tensor_index);
+
 static unsigned
 needed_total_padding(unsigned input_size, unsigned output_size,
                      unsigned stride, unsigned filter_size)
@@ -109,6 +114,28 @@ ethosu_find_first_consumer(const struct pipe_ml_operation *poperations,
    return NULL;
 }
 
+static const struct pipe_ml_operation *
+ethosu_find_only_consumer(const struct pipe_ml_operation *poperations,
+                          unsigned count,
+                          unsigned tensor_index)
+{
+   const struct pipe_ml_operation *consumer = NULL;
+
+   for (unsigned i = 0; i < count; i++) {
+      const struct pipe_ml_operation *poperation = &poperations[i];
+      for (unsigned j = 0; j < poperation->input_count; j++) {
+         if (poperation->input_tensors[j]->index != tensor_index)
+            continue;
+
+         if (consumer)
+            return NULL;
+
+         consumer = poperation;
+      }
+   }
+
+   return consumer;
+}
 static bool
 ethosu_fc_needs_flatten(const struct pipe_ml_operation *poperation)
 {
@@ -330,6 +357,55 @@ ethosu_all_consumers_are_convolutions(const struct pipe_ml_operation *poperation
    }
 
    return found_consumer;
+}
+
+static bool
+ethosu_consumer_is_lut(const struct pipe_ml_operation *poperation)
+{
+   if (!poperation)
+      return false;
+
+   switch (poperation->type) {
+   case PIPE_ML_OPERATION_TYPE_LOGISTIC:
+   case PIPE_ML_OPERATION_TYPE_TANH:
+   case PIPE_ML_OPERATION_TYPE_HSWISH:
+   case PIPE_ML_OPERATION_TYPE_LEAKY_RELU:
+      return true;
+   default:
+      return false;
+   }
+}
+
+static const struct pipe_ml_operation *
+ethosu_find_fusible_lut(const struct pipe_ml_operation *poperations,
+                        unsigned count,
+                        unsigned tensor_index)
+{
+   const struct pipe_ml_operation *consumer =
+      ethosu_find_only_consumer(poperations, count, tensor_index);
+
+   if (ethosu_consumer_is_lut(consumer) &&
+       ethosu_find_first_consumer(poperations, count,
+                                  consumer->output_tensors[0]->index))
+      return consumer;
+
+   return NULL;
+}
+
+static bool
+ethosu_lut_is_fused(const struct pipe_ml_operation *poperations,
+                    unsigned count,
+                    const struct pipe_ml_operation *lut)
+{
+   const struct pipe_ml_operation *producer =
+      ethosu_find_first_producer(poperations, count,
+                                 lut->input_tensors[0]->index);
+
+   if (!producer || producer->type != PIPE_ML_OPERATION_TYPE_CONVOLUTION)
+      return false;
+
+   return ethosu_find_fusible_lut(
+             poperations, count, producer->output_tensors[0]->index) == lut;
 }
 
 unsigned
@@ -1583,6 +1659,50 @@ ethosu_lut_activation(struct ethosu_subgraph *subgraph,
 }
 
 static void
+ethosu_create_simple_lut(const struct pipe_ml_operation *poperation,
+                         struct ethosu_operation *operation,
+                         uint8_t *lut)
+{
+   switch (poperation->type) {
+   case PIPE_ML_OPERATION_TYPE_LOGISTIC:
+      ethos_create_lut(operation, lut, clamp_sigmoid8);
+      break;
+   case PIPE_ML_OPERATION_TYPE_TANH:
+      ethos_create_lut(operation, lut, tanh);
+      break;
+   case PIPE_ML_OPERATION_TYPE_HSWISH:
+      ethos_create_hswish_lut(operation, lut);
+      break;
+   case PIPE_ML_OPERATION_TYPE_LEAKY_RELU:
+      ethos_create_leakyrelu_lut(operation, lut, poperation->leakyrelu.alpha);
+      break;
+   default:
+      UNREACHABLE("Unsupported LUT operation type");
+   }
+}
+
+static void
+ethosu_fuse_lut(struct ethosu_subgraph *subgraph,
+                const struct pipe_ml_operation *lut_operation,
+                struct ethosu_operation *operation)
+{
+   struct ethosu_operation operation_lut = *operation;
+   uint8_t lut[LUT8_SIZE];
+
+   operation_lut.ifm = operation->ofm;
+   set_feature_map(subgraph, lut_operation->output_tensors[0],
+                   &operation_lut.ofm);
+
+   ethosu_create_simple_lut(lut_operation, &operation_lut, lut);
+
+   operation->activation =
+      ethosu_lut_activation(subgraph, &operation_lut.ifm,
+                            &operation_lut.ofm, LUT8_SIZE, false);
+   fill_lut(subgraph, operation, lut, LUT8_SIZE);
+   ethosu_sched_operation(subgraph, operation);
+}
+
+static void
 ethosu_lower_lut(struct ethosu_subgraph *subgraph,
                  const struct pipe_ml_operation *poperation,
                  struct ethosu_operation *operation, double (*func)(double))
@@ -2380,8 +2500,14 @@ register_tensors(struct ethosu_subgraph *subgraph,
                 !(consumer &&
                   (ethosu_softmax_requires_nhwc(poperation, consumer) ||
                    ethosu_reshape_feeds_softmax(poperations, count, consumer) ||
-                   ethosu_consumer_uses_depth_mean(consumer))))
-               tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+                   ethosu_consumer_uses_depth_mean(consumer)))) {
+               if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
+                    !ethosu_consumer_is_lut(poperation) &&
+                    !ethosu_consumer_is_lut(consumer)) ||
+                   (poperation->type == PIPE_ML_OPERATION_TYPE_CONCATENATION &&
+                    ethosu_consumer_is_lut(consumer)))
+                  tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+            }
          }
       }
    }
@@ -2416,6 +2542,9 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
          struct pipe_tensor *input_tensor = poperations[i].input_tensors[0];
          const struct pipe_ml_operation *producer = ethosu_find_first_producer(poperations, count, input_tensor->index);
+         const struct pipe_ml_operation *lut =
+            ethosu_find_fusible_lut(
+               poperations, count, poperations[i].output_tensors[0]->index);
          bool padded_input = producer && producer->type == PIPE_ML_OPERATION_TYPE_PAD;
 
          if (padded_input) {
@@ -2423,6 +2552,9 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          }
 
          ethosu_lower_convolution(subgraph, &poperations[i], input_tensor, &operation);
+
+         if (lut)
+            ethosu_fuse_lut(subgraph, lut, &operation);
 
          if (padded_input) {
             operation.pad.top += producer->pad.before_y;
@@ -2440,7 +2572,13 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
             util_dynarray_append(&subgraph->operations, dma_operation);
          }
+         if (lut) {
+            struct ethosu_operation dma_operation = {0};
 
+            ethosu_lower_lut_dma(subgraph, lut, &operation,
+                                 &dma_operation);
+            util_dynarray_append(&subgraph->operations, dma_operation);
+         }
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
@@ -2502,18 +2640,33 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       }
 
       case PIPE_ML_OPERATION_TYPE_LOGISTIC: {
+         if (ethosu_lut_is_fused(poperations, count, &poperations[i])) {
+            ethosu_lower_reshape(subgraph, &poperations[i], &operation);
+            continue;
+         }
+
          ethosu_lower_lut(subgraph, &poperations[i], &operation, clamp_sigmoid8);
          ethosu_append_lut_pool(subgraph, &poperations[i], &operation);
          break;
       }
 
       case PIPE_ML_OPERATION_TYPE_TANH: {
+         if (ethosu_lut_is_fused(poperations, count, &poperations[i])) {
+            ethosu_lower_reshape(subgraph, &poperations[i], &operation);
+            continue;
+         }
+
          ethosu_lower_lut(subgraph, &poperations[i], &operation, tanh);
          ethosu_append_lut_pool(subgraph, &poperations[i], &operation);
          break;
       }
 
       case PIPE_ML_OPERATION_TYPE_HSWISH: {
+         if (ethosu_lut_is_fused(poperations, count, &poperations[i])) {
+            ethosu_lower_reshape(subgraph, &poperations[i], &operation);
+            continue;
+         }
+
          ethosu_lower_hswish(subgraph, &poperations[i], &operation);
          ethosu_append_lut_pool(subgraph, &poperations[i], &operation);
          break;
@@ -2550,6 +2703,11 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       }
 
       case PIPE_ML_OPERATION_TYPE_LEAKY_RELU: {
+         if (ethosu_lut_is_fused(poperations, count, &poperations[i])) {
+            ethosu_lower_reshape(subgraph, &poperations[i], &operation);
+            continue;
+         }
+
          ethosu_lower_leakyrelu(subgraph, &poperations[i], &operation);
          ethosu_append_lut_pool(subgraph, &poperations[i], &operation);
          break;
