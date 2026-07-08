@@ -752,6 +752,9 @@ optimizations.extend([
    (('iand', ('ilt', a, b), ('ilt', b, a)), False),
    (('iand', ('ult', a, b), ('ult', b, a)), False),
 
+   (('ieq', 'a', ('inot', 'a')), False),
+   (('ine', 'a', ('inot', 'a')), True),
+
    # This helps some shaders because, after some optimizations, they end up
    # with patterns like (-a < -b) || (b < a).  In an ideal world, this sort of
    # matching would be handled by CSE.
