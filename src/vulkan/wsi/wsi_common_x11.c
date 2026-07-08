@@ -1385,14 +1385,13 @@ static void x11_present_update_refresh_cycle_estimate(struct x11_swapchain *swap
 
             /* Our refresh rates are only estimates, so expect some deviation (+/- 1us). */
             wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, refresh_ns, refresh_ns, 1000);
-         } else if (!flip) {
+         } else if (!flip || !swapchain->base.wsi->enable_adaptive_sync) {
             /* If we're not flipping, we're not getting VRR. If MSC estimate is unstable for whatever reason, fallback to randr query. */
             wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, randr_refresh_ns, randr_refresh_ns, 0);
          } else {
             /* If we have enabled adaptive sync, and we're seeing highly irregular MSC values, we assume
              * we're driving the display VRR. */
-            uint64_t refresh_interval = swapchain->base.wsi->enable_adaptive_sync ? UINT64_MAX : 0;
-            wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, randr_refresh_ns, refresh_interval, 0);
+            wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, randr_refresh_ns, UINT64_MAX, 0);
          }
       }
    }
