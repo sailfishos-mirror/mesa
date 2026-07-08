@@ -332,33 +332,39 @@ impl<'a> ShaderFromNir<'a> {
             // We flattened i64 to v2i32
             let src_bit_size = min(src_bit_size, 32);
 
-            let mut srcs = srcs.into_iter();
+            let mut srcs = srcs.into_iter().fuse();
             let mut dst_vec = Vec::new();
-            if srcs.len() == 1 && src_bit_size <= 16 {
-                let x = srcs.next().unwrap();
-                dst_vec.push(b.copy_i16(x));
-            } else if srcs.len() == 2 && src_bit_size == 8 {
-                let x = srcs.next().unwrap();
-                let y = srcs.next().unwrap();
-                dst_vec.push(b.mkvec_v2i8(x, y));
-            } else if src_bit_size == 8 {
-                loop {
-                    let Some(x) = srcs.next() else {
-                        break;
-                    };
-                    let y = srcs.next().unwrap_or(Src::imm_u8(0));
-                    let z = srcs.next().unwrap_or(Src::imm_u8(0));
-                    let w = srcs.next().unwrap_or(Src::imm_u8(0));
-                    dst_vec.push(b.mkvec_v4i8(x, y, z, w));
+            if src_bit_size == 8 {
+                if srcs.len() == 1 {
+                    let x = srcs.next().unwrap();
+                    dst_vec.push(b.copy_i8(x));
+                } else if srcs.len() == 2 {
+                    let x = srcs.next().unwrap();
+                    let y = srcs.next().unwrap();
+                    dst_vec.push(b.mkvec_v2i8(x, y));
+                } else {
+                    loop {
+                        let Some(x) = srcs.next() else {
+                            break;
+                        };
+                        let y = srcs.next().unwrap_or(Src::imm_u8(0));
+                        let z = srcs.next().unwrap_or(Src::imm_u8(0));
+                        let w = srcs.next().unwrap_or(Src::imm_u8(0));
+                        dst_vec.push(b.mkvec_v4i8(x, y, z, w));
+                    }
                 }
             } else if src_bit_size == 16 {
-                let mut srcs = srcs.into_iter();
-                loop {
-                    let Some(x) = srcs.next() else {
-                        break;
-                    };
-                    let y = srcs.next().unwrap_or(Src::imm_u16(0));
-                    dst_vec.push(b.mkvec_v2i16(x, y));
+                if srcs.len() == 1 {
+                    let x = srcs.next().unwrap();
+                    dst_vec.push(b.copy_i16(x));
+                } else {
+                    loop {
+                        let Some(x) = srcs.next() else {
+                            break;
+                        };
+                        let y = srcs.next().unwrap_or(Src::imm_u16(0));
+                        dst_vec.push(b.mkvec_v2i16(x, y));
+                    }
                 }
             } else if src_bit_size == 32 {
                 dst_vec = srcs.map(|src| b.copy_i32(src)).collect();
