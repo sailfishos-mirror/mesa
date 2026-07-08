@@ -369,6 +369,7 @@ impl LocalRegAlloc<'_> {
         // First, loop through unused registers in the hopes that one of them
         // ends up having cost 0
         let (align_mul, align_offset) = constraint.align();
+        let max = usize::from(self.bytes_avail) - usize::from(constraint.bytes);
         let mut start = 0;
         loop {
             let b = self.find_aligned_unused_unpinned_range(
@@ -377,7 +378,7 @@ impl LocalRegAlloc<'_> {
                 usize::from(align_mul),
                 usize::from(align_offset),
             );
-            if b >= usize::from(self.bytes_avail) {
+            if b > max {
                 break;
             }
             start = b + usize::from(align_mul);
@@ -405,7 +406,7 @@ impl LocalRegAlloc<'_> {
                 usize::from(align_mul),
                 usize::from(align_offset),
             );
-            if b >= usize::from(self.bytes_avail) {
+            if b > max {
                 break;
             }
             start = b + usize::from(align_mul);
