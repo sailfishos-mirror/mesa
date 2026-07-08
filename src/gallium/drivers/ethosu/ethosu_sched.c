@@ -70,6 +70,34 @@ try_block_config(struct ethosu_operation *operation, struct ethosu_block ofm_blo
    return true;
 }
 
+static bool
+prefer_wide_pointwise_block(const struct ethosu_operation *operation,
+                            struct ethosu_block block,
+                            struct ethosu_block best_block)
+{
+   if (operation->type != ETHOSU_OPERATION_TYPE_CONVOLUTION ||
+       operation->kernel.depthwise || operation->kernel.width != 1 ||
+       operation->kernel.height != 1)
+      return false;
+
+   if (operation->ofm.tensor->layout != ETHOSU_LAYOUT_NHWC ||
+       operation->ofm.shape.depth % ARCH_SPLIT_DEPTH == 0)
+      return false;
+
+   if (best_block.width == 0)
+      return true;
+
+   unsigned block_widths = DIV_ROUND_UP(operation->ofm.shape.width,
+                                        block.width);
+   unsigned best_widths = DIV_ROUND_UP(operation->ofm.shape.width,
+                                       best_block.width);
+
+   if (block_widths != best_widths)
+      return block_widths < best_widths;
+
+   return block.height < best_block.height;
+}
+
 static struct ethosu_block_config
 find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
@@ -166,7 +194,11 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
                      float coverage = (float)(operation->ifm.shape.width * operation->ifm.shape.height) /
                                       (float)MAX2(1, coverage_shape.width * coverage_shape.height);
 
-                     if (coverage < best_coverage) {
+                     if (prefer_wide_pointwise_block(operation, ofm_block,
+                                                     config.ofm_block)) {
+                        best_coverage = coverage;
+                        choose_this = true;
+                     } else if (coverage < best_coverage) {
                         best_coverage = coverage;
                         choose_this = true;
                      }
