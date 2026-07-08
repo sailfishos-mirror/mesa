@@ -624,6 +624,29 @@ impl DisplayOp for OpCubeFaceIdx {
     }
 }
 
+impl Foldable for OpCubeFaceIdx {
+    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let x = f32::from_bits(f.get_src(&self.coords[0]) as u32);
+        let y = f32::from_bits(f.get_src(&self.coords[1]) as u32);
+        let z = f32::from_bits(f.get_src(&self.coords[2]) as u32);
+
+        let max = x.abs().max(y.abs()).max(z.abs());
+        let is_inf = max.is_infinite();
+
+        let face = if x.is_nan() || y.is_nan() || z.is_nan() {
+            4
+        } else if z.abs() == max {
+            4 + ((z < 0.0) as u8)
+        } else if y.abs() == max {
+            2 + ((y < 0.0) as u8)
+        } else {
+            0 + ((x < 0.0) as u8)
+        };
+
+        f.set_dst(&self.dst, (face as u64) << 29 | (is_inf as u64) << 16);
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Opcode)]
 pub struct OpCubeFaceMax {
@@ -647,6 +670,22 @@ impl DisplayOp for OpCubeFaceMax {
             self.fmt_src(&self.coords[1]),
             self.fmt_src(&self.coords[2]),
         )
+    }
+}
+
+impl Foldable for OpCubeFaceMax {
+    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let x = f32::from_bits(f.get_src(&self.coords[0]) as u32);
+        let y = f32::from_bits(f.get_src(&self.coords[1]) as u32);
+        let z = f32::from_bits(f.get_src(&self.coords[2]) as u32);
+
+        let max = if x.is_nan() || y.is_nan() || z.is_nan() {
+            f32::NAN
+        } else {
+            x.abs().max(y.abs()).max(z.abs())
+        };
+
+        f.set_dst(&self.dst, max.to_bits().into());
     }
 }
 

@@ -822,6 +822,48 @@ fn test_op_csel() {
 }
 
 #[test]
+fn test_op_cubefaceidx() {
+    let op = OpCubeFaceIdx {
+        dst: DstRef::None.into(),
+        coords: [0.into(), 0.into(), 0.into()],
+    };
+
+    let mut a = Acorn::new();
+    test_foldable_op_with(op, Precision::Exact, |i| {
+        if i % 13 == 0 {
+            f32::NAN.to_bits()
+        } else if i % 11 == 0 {
+            f32::INFINITY.to_bits()
+        } else if i % 17 == 0 {
+            f32::NEG_INFINITY.to_bits()
+        } else {
+            sample_f32_range(&mut a, -150.0..150.0).to_bits()
+        }
+    });
+}
+
+#[test]
+fn test_op_cubefacemax() {
+    let op = OpCubeFaceMax {
+        dst: DstRef::None.into(),
+        coords: [0.into(), 0.into(), 0.into()],
+    };
+
+    let mut a = Acorn::new();
+    test_foldable_op_with(op, Precision::Ulp(1), |i| {
+        if i % 13 == 0 {
+            f32::NAN.to_bits()
+        } else if i % 11 == 0 {
+            f32::INFINITY.to_bits()
+        } else if i % 17 == 0 {
+            f32::NEG_INFINITY.to_bits()
+        } else {
+            sample_f32_range(&mut a, -150.0..150.0).to_bits()
+        }
+    });
+}
+
+#[test]
 fn test_op_fcmp() {
     const DATA_TYPES: &'static [DataType] = &[DataType::F32, DataType::V2F16];
 
