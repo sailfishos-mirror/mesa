@@ -696,9 +696,9 @@ global_next_use_distances(struct spill_ctx *ctx, void *memctx)
             u_sparse_bitset_set(&ctx->W, it->index);
          }
 
-         U_SPARSE_BITSET_FOREACH_SET(live, i) {
-            if (BITSET_TEST(ctx->in_file, i)) {
-               assert(u_sparse_bitset_test(&ctx->W, i));
+         U_SPARSE_BITSET_FOREACH_SET(live, it) {
+            if (BITSET_TEST(ctx->in_file, it)) {
+               assert(u_sparse_bitset_test(&ctx->W, it));
             }
          }
       }
