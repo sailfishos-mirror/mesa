@@ -266,6 +266,9 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
    const bool use_llvm = compiler_info->key.use_llvm;
    bool progress;
 
+   if (stage->nir->info.uses_printf)
+      NIR_PASS(_, stage->nir, radv_nir_lower_printf, compiler_info->debug.debug_nir);
+
    /* Wave and workgroup size should already be filled. */
    assert(stage->info.wave_size && stage->info.workgroup_size);
 

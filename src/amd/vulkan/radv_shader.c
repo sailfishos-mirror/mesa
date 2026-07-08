@@ -642,9 +642,6 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
       NIR_PASS(_, nir, nir_normalize_sin_cos);
    }
 
-   if (nir->info.uses_printf)
-      NIR_PASS(_, nir, radv_nir_lower_printf, compiler_info->debug.debug_nir);
-
    if (nir->info.uses_abort) {
       nir_lower_abort_options abort_options = {
          .buffer_addr = compiler_info->debug.shader_abort->buffer_addr,
