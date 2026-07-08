@@ -447,11 +447,18 @@ impl LocalRegAlloc<'_> {
         let src_type = op.src_type(src);
         let bytes = vec.bytes();
 
-        let (align_mul, align_offsets) = if src_type == DataType::SR {
+        if src_type == DataType::SR {
             assert!(src.swizzle.is_none());
-            (bytes.next_power_of_two(), 1 << 0)
-        } else if bytes > 4 {
-            (bytes.next_power_of_two(), 1 << 0)
+            assert!(bytes % 4 == 0);
+        }
+
+        let (align_mul, align_offsets) = if bytes > 4 {
+            // Valhall requires that 64-bit sources and staging registers
+            // reading more than a single register use an even register.
+            (8, 1 << 0)
+        } else if src_type == DataType::SR {
+            debug_assert!(bytes == 4);
+            (4, 1 << 0)
         } else {
             let swizzles: &[(u8, Swizzle)] = match bytes {
                 1 => &[
@@ -507,11 +514,13 @@ impl LocalRegAlloc<'_> {
         while !supported_lanes.contains(alloc_lanes) {
             alloc_lanes = widen_lanes(alloc_lanes);
         }
-
         let alloc_bytes = alloc_lanes.bytes(bytes);
+
         let (align_mul, align_offsets) = if bytes > 4 {
+            // Valhall requires that 64-bit destinations and staging registers
+            // writing more than a single register use an even register.
             debug_assert_eq!(alloc_lanes, DstLanes::All);
-            (bytes.next_power_of_two(), 1 << 0)
+            (8, 1 << 0)
         } else if self.model.op_dst_is_staging_reg(op) {
             // Staging register writes respect lanes in the sense that
             // that's where they put the data but they may not do

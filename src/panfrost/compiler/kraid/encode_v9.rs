@@ -301,7 +301,7 @@ fn op_encode_sr_read(op: &impl Opcode, src: &Src) -> v9::SrRead {
     let index = reg.idx;
     let count = reg.bytes().div_ceil(4);
 
-    assert_eq!(index % count.next_power_of_two(), 0);
+    assert!(count == 1 || (index % 2) == 0);
 
     v9::SrRead {
         index,
@@ -317,6 +317,8 @@ fn op_encode_sr_write(_op: &impl Opcode, dst: &Dst) -> v9::SrWrite {
 
     let index = reg.idx;
     let count = reg.bytes().div_ceil(4);
+
+    assert!(count == 1 || (index % 2) == 0);
 
     let lanes = match dst.lanes {
         ir::DstLanes::All => v9::DstLanes::None,
