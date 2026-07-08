@@ -79,6 +79,12 @@ gen_inst_num_sources(const struct intel_device_info *devinfo,
 }
 
 bool
+gen_inst_is_send(const gen_inst *inst)
+{
+   return gen_inst_format(inst->opcode) == GEN_FORMAT_SEND;
+}
+
+bool
 gen_has_uip(gen_opcode op)
 {
    return gen_opcode_has_prop(op, GEN_OPCODE_PROP_HAS_UIP);

@@ -21,6 +21,7 @@ extern "C" {
 
 unsigned gen_inst_num_sources(const struct intel_device_info *devinfo,
                               const gen_inst *inst);
+bool gen_inst_is_send(const gen_inst *inst);
 bool gen_has_uip(gen_opcode op);
 bool gen_has_jip(gen_opcode op);
 
