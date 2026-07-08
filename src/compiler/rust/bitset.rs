@@ -1368,27 +1368,52 @@ mod tests {
         }
     }
 
+    fn slow_find_aligned_unset_range(
+        bitset: &BitSet<usize>,
+        start: usize,
+        count: usize,
+        align_mul: usize,
+        align_offset: usize,
+    ) -> usize {
+        assert!(align_mul.is_power_of_two());
+        assert!(align_offset < align_mul);
+        let mut cur = ((start / align_mul) * align_mul) + align_offset;
+        if cur < start {
+            cur += align_mul
+        }
+        loop {
+            if bitset.all_unset_in_range(cur..(cur + count)) {
+                return cur;
+            }
+            cur += align_mul
+        }
+    }
+
     #[test]
     fn test_find_aligned_unset_range() {
         let a: BitSet =
             [0, 4, 5, 6, 7, 61, 128, 129, 130].into_iter().collect();
 
-        /* (start, count, align_mul, align_offset) */
-        assert_eq!(a.find_aligned_unset_range(0, 1, 1, 0), 1);
-        assert_eq!(a.find_aligned_unset_range(4, 1, 1, 0), 8);
-        assert_eq!(a.find_aligned_unset_range(128, 1, 1, 0), 131);
-        assert_eq!(a.find_aligned_unset_range(0, 4, 4, 0), 8);
-        assert_eq!(a.find_aligned_unset_range(128, 4, 4, 0), 132);
-        assert_eq!(a.find_aligned_unset_range(0, 3, 4, 1), 1);
-        assert_eq!(a.find_aligned_unset_range(0, 3, 8, 1), 1);
-        assert_eq!(a.find_aligned_unset_range(0, 4, 8, 1), 9);
-        assert_eq!(a.find_aligned_unset_range(0, 2, 2, 0), 2);
-        assert_eq!(a.find_aligned_unset_range(2, 2, 2, 0), 2);
-        assert_eq!(a.find_aligned_unset_range(3, 2, 2, 0), 8);
-        assert_eq!(a.find_aligned_unset_range(0, 2, 4, 2), 2);
-        assert_eq!(a.find_aligned_unset_range(3, 2, 4, 2), 10);
-        assert_eq!(a.find_aligned_unset_range(40, 16, 16, 0), 64);
-        assert_eq!(a.find_aligned_unset_range(1337, 1, 1, 0), 1337);
-        assert_eq!(a.find_aligned_unset_range(161, 1, 2, 0), 162);
+        for am in [1, 2, 4, 8, 16] {
+            for ao in [0, 1, 2, 3, 7, 15] {
+                if ao >= am {
+                    continue;
+                }
+                let rem = am - ao;
+
+                for c in [1, 2, 5, 9, rem, am] {
+                    if ao + c > am {
+                        continue;
+                    }
+                    let mut s = 0;
+                    while s < 300 {
+                        let i = a.find_aligned_unset_range(s, c, am, ao);
+                        let j = slow_find_aligned_unset_range(&a, s, c, am, ao);
+                        assert_eq!(i, j);
+                        s = i + 1;
+                    }
+                }
+            }
+        }
     }
 }
