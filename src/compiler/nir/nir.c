@@ -571,23 +571,14 @@ nir_find_sampler_variable_with_tex_index(nir_shader *shader,
    return NULL;
 }
 
-/* Annoyingly, qsort_r is not in the C standard library and, in particular, we
- * can't count on it on MSV and Android.  So we stuff the CMP function into
- * each array element.  It's a bit messy and burns more memory but the list of
- * variables should hever be all that long.
- */
-struct var_cmp {
-   nir_variable *var;
-   int (*cmp)(const nir_variable *, const nir_variable *);
-};
-
 static int
 var_sort_cmp(const void *_a, const void *_b, void *_cmp)
 {
-   const struct var_cmp *a = _a;
-   const struct var_cmp *b = _b;
-   assert(a->cmp == b->cmp);
-   return a->cmp(a->var, b->var);
+   const nir_variable *const *a = _a;
+   const nir_variable *const *b = _b;
+   int (*cmp)(const nir_variable *, const nir_variable *) = _cmp;
+
+   return cmp(*a, *b);
 }
 
 void
@@ -600,21 +591,18 @@ nir_sort_variables_with_modes(nir_shader *shader,
    nir_foreach_variable_with_modes(var, shader, modes) {
       ++num_vars;
    }
-   struct var_cmp *vars = ralloc_array(shader, struct var_cmp, num_vars);
+   nir_variable **vars = ralloc_array(shader, nir_variable *, num_vars);
    unsigned i = 0;
    nir_foreach_variable_with_modes_safe(var, shader, modes) {
       exec_node_remove(&var->node);
-      vars[i++] = (struct var_cmp){
-         .var = var,
-         .cmp = cmp,
-      };
+      vars[i++] = var;
    }
    assert(i == num_vars);
 
    util_qsort_r(vars, num_vars, sizeof(*vars), var_sort_cmp, cmp);
 
    for (i = 0; i < num_vars; i++)
-      exec_list_push_tail(&shader->variables, &vars[i].var->node);
+      exec_list_push_tail(&shader->variables, &vars[i]->node);
 
    ralloc_free(vars);
 }
