@@ -1505,6 +1505,13 @@ anv_cmd_write_buffer_cp(VkCommandBuffer commandBuffer,
                         uint32_t size)
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   /* Force pipeline selection to be GPGPU so that Blorp code path picks up
+    * compute path rather than fragment shader.
+    */
+   anv_genX(cmd_buffer->device->info, flush_pipeline_select_gpgpu)(cmd_buffer,
+                                                                   false);
+
    anv_genX(cmd_buffer->device->info, cmd_write_buffer_cp)(cmd_buffer, dstAddr,
                                                            data, size);
 }
@@ -1515,13 +1522,13 @@ anv_cmd_flush_buffer_write_cp(VkCommandBuffer commandBuffer)
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
 
    /* IR header would get written using BLORP code path, so we need to flush
-    * RT, HDC and untyped dataport cache because we don't know whether blorp
-    * will use the compute or 3d pipeline to write out the data.
+    * RT, HDC and untyped dataport cache. We alway force batch to use compute
+    * shader so we don't need to flush out RT cache flush. See
+    * anv_cmd_write_buffer_cp().
     */
    anv_add_pending_pipe_bits(cmd_buffer,
-                             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                              VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                             ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
                              ANV_PIPE_HDC_PIPELINE_FLUSH_BIT |
                              ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT,
                              "Flush buffer write cp");
