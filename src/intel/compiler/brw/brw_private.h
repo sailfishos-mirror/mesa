@@ -38,6 +38,8 @@ const unsigned *brw_compile_cs(const struct brw_compiler *compiler,
 const unsigned *brw_compile_bs(const struct brw_compiler *compiler,
                                struct brw_compile_bs_params *params);
 
+unsigned brw_geometry_stage_dispatch_width(const struct intel_device_info *devinfo);
+
 typedef struct brw_pass_tracker {
    nir_shader *nir;
    unsigned dispatch_width;
@@ -158,8 +160,6 @@ inline bool brw_simd_any_compiled(const brw_simd_selection_state &state)
 {
    return brw_simd_first_compiled(state) >= 0;
 }
-
-unsigned brw_geometry_stage_dispatch_width(const struct intel_device_info *devinfo);
 
 bool brw_simd_should_compile(brw_simd_selection_state &state, unsigned simd);
 
