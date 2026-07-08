@@ -1228,6 +1228,15 @@ impl<'a> ShaderFromNir<'a> {
     ) {
         let srcs = intrin.srcs_as_slice();
         match intrin.intrinsic {
+            nir_intrinsic_as_uniform => {
+                // This is a no-op for us
+                let src = self.get_src_ssa(&srcs[0]);
+                let dst = self.alloc_ssa(b, &intrin.def);
+                for (dst_ssa, src_ssa) in dst.iter().zip(src.iter()) {
+                    let copy_type = DataType::i(dst_ssa.bits());
+                    b.copy_to((*dst_ssa).into(), copy_type, (*src_ssa).into());
+                }
+            }
             nir_intrinsic_ballot | nir_intrinsic_ballot_relaxed => {
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 let subgroup = self.model.subgroup_size().try_into().unwrap();
