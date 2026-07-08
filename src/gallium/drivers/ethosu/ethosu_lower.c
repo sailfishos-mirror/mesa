@@ -22,12 +22,32 @@ is_depthwise(const struct pipe_ml_operation *poperation)
 }
 
 static unsigned
-needed_total_padding(int input_size, int stride, int filter_size)
+needed_total_padding(unsigned input_size, unsigned output_size,
+                     unsigned stride, unsigned filter_size)
 {
-   if (input_size % stride == 0)
-      return MAX2(filter_size - stride, 0);
+   int total = (output_size - 1) * stride + filter_size - input_size;
 
-   return MAX2(filter_size - (input_size % stride), 0);
+   return MAX2(total, 0);
+}
+
+static void
+trim_padding_to_output(struct ethosu_operation *operation,
+                       const struct pipe_tensor *input,
+                       const struct pipe_tensor *output)
+{
+   unsigned total_y =
+      needed_total_padding(input->dims[1], output->dims[1],
+                           operation->kernel.stride_y,
+                           operation->kernel.height);
+   unsigned total_x =
+      needed_total_padding(input->dims[2], output->dims[2],
+                           operation->kernel.stride_x,
+                           operation->kernel.width);
+
+   operation->pad.top = MIN2(operation->pad.top, total_y);
+   operation->pad.bottom = total_y - operation->pad.top;
+   operation->pad.left = MIN2(operation->pad.left, total_x);
+   operation->pad.right = total_x - operation->pad.left;
 }
 
 static void
@@ -936,6 +956,8 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
             operation.pad.bottom += producer->pad.after_y;
             operation.pad.left += producer->pad.before_x;
             operation.pad.right += producer->pad.after_x;
+            trim_padding_to_output(&operation, input_tensor,
+                                   poperations[i].output_tensors[0]);
          }
 
          if (operation.conv.scales.size + operation.conv.weights.size <=
