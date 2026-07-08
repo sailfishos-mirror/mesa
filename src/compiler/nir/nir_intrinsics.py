@@ -1736,14 +1736,14 @@ intrinsic("load_var_special_pan", src_comp=[2], dest_comp=0, bit_sizes=[32],
 intrinsic("load_shader_output_pan", dest_comp=1, src_comp=[], bit_sizes=[32],
           indices=[], flags=[CAN_REORDER, CAN_ELIMINATE])
 
-# Panfrost-specific intrinsics for accessing the raw vertex ID and the
-# associated offset such that
-#   vertex_id = raw_vertex_id_pan + raw_vertex_offset_pan
-# The raw vertex ID differs from the zero-based vertex ID in that, in an index
-# draw, it is offset by the minimum vertex ID in the index buffer range
-# covered by the draw
-system_value("raw_vertex_id_pan", 1)
-system_value("raw_vertex_offset_pan", 1)
+# The hardware-native vertex ID and the associated offset such that
+#   vertex_id = raw_vertex_id + raw_vertex_offset
+# For a non-indexed draw the raw vertex ID is the zero-based position of the
+# vertex within the draw. How it differs from the zero-based vertex ID in an
+# indexed draw is hardware-specific, e.g. on Mali it is offset by the minimum
+# vertex ID in the index buffer range covered by the draw
+system_value("raw_vertex_id", 1)
+system_value("raw_vertex_offset", 1)
 
 # Intrinsics used by the Midgard/Bifrost blend pipeline. These are defined
 # within a blend shader to read/write the raw value from the tile buffer,

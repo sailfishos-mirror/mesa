@@ -22,7 +22,7 @@ lower_xfb_output(nir_builder *b, nir_intrinsic_instr *intr,
 
    nir_def *index = nir_iadd(
       b, nir_imul(b, nir_load_instance_id(b), nir_load_num_vertices(b)),
-      nir_load_raw_vertex_id_pan(b));
+      nir_load_raw_vertex_id(b));
 
    BITSET_SET(b->shader->info.system_values_read,
               SYSTEM_VALUE_VERTEX_ID_ZERO_BASE);
@@ -48,8 +48,8 @@ lower_xfb(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *data)
    if (intr->intrinsic == nir_intrinsic_load_vertex_id) {
       b->cursor = nir_instr_remove(&intr->instr);
 
-      nir_def *repl = nir_iadd(b, nir_load_raw_vertex_id_pan(b),
-                               nir_load_raw_vertex_offset_pan(b));
+      nir_def *repl = nir_iadd(b, nir_load_raw_vertex_id(b),
+                               nir_load_raw_vertex_offset(b));
 
       nir_def_rewrite_uses(&intr->def, repl);
       return true;
