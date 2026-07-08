@@ -1934,7 +1934,7 @@
         "description": "nak/sm20: fix immediate encoding for F2I and F2F",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
