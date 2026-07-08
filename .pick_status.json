@@ -1914,7 +1914,7 @@
         "description": "nouveau: fix data race in nouveau_fence_ref",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f2af3a9cae22f5e644c55a3c75513fbf726d8004",
         "notes": null
