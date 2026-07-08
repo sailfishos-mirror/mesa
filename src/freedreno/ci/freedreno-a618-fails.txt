@@ -9,7 +9,6 @@ spec@!opengl 1.1@getteximage-depth,Fail
 spec@!opengl 1.1@getteximage-depth@GL_TEXTURE_1D-GL_DEPTH_COMPONENT16,Fail
 spec@!opengl 1.1@getteximage-depth@GL_TEXTURE_1D-GL_DEPTH_COMPONENT32,Fail
 spec@!opengl 1.1@getteximage-depth@GL_TEXTURE_1D_ARRAY-GL_DEPTH_COMPONENT16,Fail
-spec@!opengl 1.1@getteximage-depth@GL_TEXTURE_1D_ARRAY-GL_DEPTH_COMPONENT32,Fail
 
 spec@arb_depth_buffer_float@fbo-generatemipmap-formats,Fail
 spec@arb_depth_buffer_float@fbo-generatemipmap-formats@GL_DEPTH_COMPONENT32F,Fail
@@ -209,6 +208,8 @@ spec@arb_base_instance@arb_base_instance-baseinstance-doesnt-affect-gl-instance-
 spec@arb_base_instance@arb_base_instance-drawarrays,Fail
 spec@ext_base_instance@arb_base_instance-baseinstance-doesnt-affect-gl-instance-id_gles3,Fail
 spec@ext_base_instance@arb_base_instance-drawarrays_gles3,Fail
+vulkan@shaders@cmat-uniform-ctor,Fail
+spec@!opengl 1.1@getteximage-depth@GL_TEXTURE_1D_ARRAY-GL_DEPTH_COMPONENT32,Fail
 
 # New failures appeared after Piglit uprev to 28d1349844eacda869f0f82f551bcd4ac0c4edfe
 spec@arb_gl_spirv@execution@vs-instance-id,Fail
@@ -276,14 +277,6 @@ nobin-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_24
 nobin-dEQP-VK.transform_feedback.simple_fast_gpl.draw_indirect_counter_offset_508,Fail
 nobin-dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_counter_offset_508,Fail
 
-# OpenCL tests below
-#
-## rusticl-core issues:
-#
-#Unexpected CL error: CL_SUCCESS 0
-#Expected CL error: CL_KERNEL_ARG_INFO_NOT_AVAILABLE -19
-api@clgetkernelarginfo,Fail
-
 #Unexpected CL error: CL_SUCCESS 0
 #Expected CL error: CL_INVALID_LINKER_OPTIONS -67
 #Failed (error code: CL_SUCCESS): Trigger CL_INVALID_LINKER_OPTIONS if the linker options specified by options are invalid.
@@ -316,9 +309,6 @@ api@clgetextensionfunctionaddressforplatform,Fail
 # CL_DEVICE_MAX_READ_IMAGE_ARGS: failed, expected at least 128, got 16
 api@clgetdeviceinfo,Fail
 
-# CL_QUEUE_SIZE Unexpected CL error: CL_INVALID_COMMAND_QUEUE -36
-api@clgetcommandqueueinfo,Fail
-
 # broken piglit test (doesn't account for FTZ)
 program@execute@builtin@builtin-float-nextafter-1.0.generated,Fail
 program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float1,Fail
@@ -329,10 +319,6 @@ program@execute@builtin@builtin-float-nextafter-1.0.generated@nextafter float8,F
 
 # (file=input,line=0,column=0,index=0): Unresolved external reference to "_Z21convert_char4_sat_rteDv4_i".
 program@execute@vector-conversion,Fail
-
-# Piglit checks the pre 3.1 behavior
-api@clsetkernelarg,Fail
-api@clsetkernelarg@Input checks,Fail
 
 # piles of new fails since updating skqp; to be re-evaluated with new upstream
 gl_all_bitmap_configs,Fail

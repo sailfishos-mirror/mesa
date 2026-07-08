@@ -124,12 +124,6 @@ spec@ext_external_objects@vk-image-overwrite@RGBA 8 UINT optimal: Failed to crea
 spec@ext_external_objects@vk-image-overwrite@RGBA 8 UNORM optimal: Failed to create texture from GL memory object.,Fail
 spec@ext_external_objects@vk-semaphores,Fail
 spec@ext_external_objects@vk-semaphores-2,Fail
-spec@ext_framebuffer_multisample@accuracy 2 srgb depthstencil linear,Fail
-spec@ext_framebuffer_multisample@accuracy 2 srgb depthstencil,Fail
-spec@ext_framebuffer_multisample@accuracy 4 srgb depthstencil linear,Fail
-spec@ext_framebuffer_multisample@accuracy 4 srgb depthstencil,Fail
-spec@ext_framebuffer_multisample@accuracy all_samples srgb depthstencil linear,Fail
-spec@ext_framebuffer_multisample@accuracy all_samples srgb depthstencil,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-dual-src-blend 2,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-dual-src-blend 4,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 2,Fail
@@ -196,4 +190,5 @@ spec@khr_texture_compression_astc@sliced-3d-miptree-gles srgb-fp@sRGB decode ful
 glx@glx-make-current,Fail
 spec@!opengl 1.1@large-tex,Fail
 spec@!opengl 1.1@large-tex@test_image_load_store,Fail
+vulkan@shaders@cmat-uniform-ctor,Fail
 

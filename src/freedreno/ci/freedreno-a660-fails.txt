@@ -53,18 +53,6 @@ nobin-dEQP-VK.transform_feedback.simple_optimized_gpl.draw_indirect_multiview_co
 # it should use separate buffers per plane:
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yvu420,Fail
 
-# OpenCL tests below
-#
-## rusticl-core issues:
-#
-#Unexpected CL error: CL_SUCCESS 0
-#Expected CL error: CL_KERNEL_ARG_INFO_NOT_AVAILABLE -19
-api@clgetkernelarginfo,Fail
-
-# Piglit checks the pre 3.1 behavior
-api@clsetkernelarg,Fail
-api@clsetkernelarg@Input checks,Fail
-
 #Unexpected CL error: CL_SUCCESS 0
 #Expected CL error: CL_INVALID_LINKER_OPTIONS -67
 #Failed (error code: CL_SUCCESS): Trigger CL_INVALID_LINKER_OPTIONS if the linker options specified by options are invalid.
@@ -96,9 +84,6 @@ api@clgetextensionfunctionaddressforplatform,Fail
 #
 # CL_DEVICE_MAX_READ_IMAGE_ARGS: failed, expected at least 128, got 16
 api@clgetdeviceinfo,Fail
-
-# CL_QUEUE_SIZE Unexpected CL error: CL_INVALID_COMMAND_QUEUE -36
-api@clgetcommandqueueinfo,Fail
 
 # broken piglit test (doesn't account for FTZ)
 program@execute@builtin@builtin-float-nextafter-1.0.generated,Fail
