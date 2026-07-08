@@ -1180,10 +1180,10 @@ pub trait HasVariants {
 
     fn variant(&self) -> DataType;
 
-    fn set_variant(&mut self, data_type: DataType);
+    fn set_variant(&mut self, variant: DataType);
 
-    fn is_valid_variant(&self) -> bool {
-        Self::VARIANTS.contains(&self.variant())
+    fn is_valid_variant(variant: DataType) -> bool {
+        Self::VARIANTS.contains(&variant)
     }
 }
 
@@ -1211,7 +1211,7 @@ pub trait Opcode:
 {
     fn variant(&self) -> Option<DataType>;
     fn set_variant(&mut self, data_type: DataType);
-    fn is_valid_variant(&self) -> bool;
+    fn is_valid_variant(&self, data_type: DataType) -> bool;
 
     fn srcs(&self) -> &[Src] {
         self.as_slice()
@@ -1397,7 +1397,9 @@ impl DerefMut for Instr {
 impl<T: Into<Op>> From<T> for Instr {
     fn from(op: T) -> Instr {
         let op = op.into();
-        assert!(op.is_valid_variant());
+        if let Some(variant) = op.variant() {
+            assert!(op.is_valid_variant(variant));
+        }
         Instr {
             op,
             flow: Default::default(),

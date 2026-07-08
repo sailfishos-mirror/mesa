@@ -153,12 +153,12 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
                             Some(<Self as HasVariants>::variant(self))
                         }
 
-                        fn set_variant(&mut self, data_type: DataType) {
-                            <Self as HasVariants>::set_variant(self, data_type)
+                        fn set_variant(&mut self, variant: DataType) {
+                            <Self as HasVariants>::set_variant(self, variant)
                         }
 
-                        fn is_valid_variant(&self) -> bool {
-                            <Self as HasVariants>::is_valid_variant(self)
+                        fn is_valid_variant(&self, variant: DataType) -> bool {
+                            <Self as HasVariants>::is_valid_variant(variant)
                         }
                     }
                 }
@@ -174,8 +174,8 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
                             panic!(#set_variant_err);
                         }
 
-                        fn is_valid_variant(&self) -> bool {
-                            true
+                        fn is_valid_variant(&self, _variant: DataType) -> bool {
+                            false
                         }
                     }
                 }
@@ -209,14 +209,14 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
                     #ident::#case(x) => {
                         use std::borrow::BorrowMut;
                         let b: &mut #v_type = x.borrow_mut();
-                        Opcode::set_variant(b, data_type)
+                        Opcode::set_variant(b, variant)
                     }
                 });
                 val_cases.extend(quote! {
                     #ident::#case(x) => {
                         use std::borrow::Borrow;
                         let b: &#v_type = x.borrow();
-                        Opcode::is_valid_variant(b)
+                        Opcode::is_valid_variant(b, variant)
                     }
                 });
                 fmt_cases.extend(quote! {
@@ -232,13 +232,13 @@ pub fn derive_opcode(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    fn set_variant(&mut self, data_type: DataType) {
+                    fn set_variant(&mut self, variant: DataType) {
                         match self {
                             #set_cases
                         }
                     }
 
-                    fn is_valid_variant(&self) -> bool {
+                    fn is_valid_variant(&self, variant: DataType) -> bool {
                         match self {
                             #val_cases
                         }
