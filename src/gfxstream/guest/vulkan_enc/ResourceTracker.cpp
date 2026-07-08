@@ -4834,6 +4834,7 @@ VkResult ResourceTracker::on_vkResetFences(void* context, VkResult, VkDevice dev
     // on fence reset, close the fence fd
     // and act like we need to GetFenceFdKHR/ImportFenceFdKHR again
     std::lock_guard<std::recursive_mutex> lock(mLock);
+#if DETECT_OS_LINUX
     for (uint32_t i = 0; i < fenceCount; ++i) {
         VkFence fence = pFences[i];
         auto it = info_VkFence.find(fence);
@@ -4846,11 +4847,11 @@ VkResult ResourceTracker::on_vkResetFences(void* context, VkResult, VkDevice dev
 #if GFXSTREAM_ENABLE_GUEST_GOLDFISH
             goldfish_sync_signal(*info.syncFd);
 #endif
-
             mSyncHelper->close(*info.syncFd);
         }
         info.syncFd.reset();
     }
+#endif
 
     return res;
 }
