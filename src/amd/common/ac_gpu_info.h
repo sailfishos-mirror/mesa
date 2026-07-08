@@ -114,6 +114,7 @@ struct ac_compiler_info {
    uint32_t min_wave64_vgpr_alloc;
    uint32_t max_vgpr_alloc;
    uint32_t wave64_vgpr_alloc_granularity;
+   uint32_t wave64_vgpr_encode_granularity;
 
    uint32_t hs_offchip_workgroup_dw_size;
 

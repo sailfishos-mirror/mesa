@@ -74,7 +74,7 @@
         "description": "ac: fix a GPU hang with LLVM due to incorrect VGPRS decoding of LLVM output",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "749c619c4586eec4f57d5591204f27d899eeeff3",
         "notes": null

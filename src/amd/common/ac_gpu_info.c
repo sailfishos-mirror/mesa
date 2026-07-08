@@ -238,7 +238,7 @@ static bool handle_env_var_force_family(struct radeon_info *info)
 void
 ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)
 {
-   STATIC_ASSERT(sizeof(struct ac_compiler_info) == 52);
+   STATIC_ASSERT(sizeof(struct ac_compiler_info) == 56);
 
    struct ac_compiler_info *out = &info->compiler_info;
 
@@ -294,12 +294,16 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
          out->num_physical_wave64_vgprs_per_simd = 256;
       }
    }
-   if (info->gfx_level >= GFX10_3)
+   if (info->gfx_level >= GFX10_3) {
       out->wave64_vgpr_alloc_granularity = out->num_physical_wave64_vgprs_per_simd / 64;
-   else if (info->gfx_level == GFX9 && info->family >= CHIP_MI200)
+      out->wave64_vgpr_encode_granularity = 4;
+   } else if (info->gfx_level == GFX9 && info->family >= CHIP_MI200) {
       out->wave64_vgpr_alloc_granularity = 8;
-   else
+      out->wave64_vgpr_encode_granularity = 8;
+   } else {
       out->wave64_vgpr_alloc_granularity = 4;
+      out->wave64_vgpr_encode_granularity = 4;
+   }
    out->min_wave64_vgpr_alloc = out->wave64_vgpr_alloc_granularity;
    out->max_vgpr_alloc = 256;
 
