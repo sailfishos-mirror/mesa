@@ -886,6 +886,83 @@ impl V9Instr for OpCSel {
     }
 }
 
+impl V9Instr for OpCubeFaceIdx {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Cubeface2::get_info((), arch),
+            src_map! {
+                src0: coords[0],
+                src1: coords[1],
+                src2: coords[2],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Cubeface2 {
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.coords[0]),
+            src1: op_encode_src(self, &self.coords[1]),
+            src2: op_encode_src(self, &self.coords[2]),
+        })
+    }
+}
+
+impl V9Instr for OpCubeFaceMax {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Cubeface1::get_info((), arch),
+            src_map! {
+                src0: coords[0],
+                src1: coords[1],
+                src2: coords[2],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(Cubeface1 {
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.coords[0]),
+            src1: op_encode_src(self, &self.coords[1]),
+            src2: op_encode_src(self, &self.coords[2]),
+        })
+    }
+}
+
+impl V9Instr for OpCubeSel {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            match self.coord {
+                CubeSelCoord::S => CubeSsel::get_info((), arch),
+                CubeSelCoord::T => CubeTsel::get_info((), arch),
+            },
+            src_map! {
+                src0: coords[0],
+                src1: coords[1],
+                src2: idx,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        match self.coord {
+            CubeSelCoord::S => e.encode(CubeSsel {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.coords[0]),
+                src1: op_encode_src(self, &self.coords[1]),
+                src2: op_encode_src(self, &self.idx),
+            }),
+            CubeSelCoord::T => e.encode(CubeTsel {
+                dst: op_encode_dst(self, &self.dst),
+                src0: op_encode_src(self, &self.coords[0]),
+                src1: op_encode_src(self, &self.coords[1]),
+                src2: op_encode_src(self, &self.idx),
+            }),
+        }
+    }
+}
+
 impl V9Instr for OpF16ToF32 {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2651,6 +2728,9 @@ macro_rules! v9_op_match_else {
             Op::Clper($x) => $y,
             Op::Clz($x) => $y,
             Op::CSel($x) => $y,
+            Op::CubeFaceIdx($x) => $y,
+            Op::CubeFaceMax($x) => $y,
+            Op::CubeSel($x) => $y,
             Op::F16ToF32($x) => $y,
             Op::F32ToF16($x) => $y,
             Op::F32ToI32($x) => $y,

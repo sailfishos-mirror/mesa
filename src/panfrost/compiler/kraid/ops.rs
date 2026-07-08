@@ -600,6 +600,99 @@ impl PerCompFoldable for OpCSel {
 
 #[repr(C)]
 #[derive(Clone, Opcode)]
+pub struct OpCubeFaceIdx {
+    #[dst_type(I32)]
+    pub dst: Dst,
+
+    #[src_type(F32)]
+    pub coords: [Src; 3],
+}
+
+impl DisplayOp for OpCubeFaceIdx {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CUBE_FACE_IDX")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {} {} {}",
+            self.fmt_src(&self.coords[0]),
+            self.fmt_src(&self.coords[2]),
+            self.fmt_src(&self.coords[2]),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpCubeFaceMax {
+    #[dst_type(F32)]
+    pub dst: Dst,
+
+    #[src_type(F32)]
+    pub coords: [Src; 3],
+}
+
+impl DisplayOp for OpCubeFaceMax {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CUBE_FACE_MAX")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {} {} {}",
+            self.fmt_src(&self.coords[0]),
+            self.fmt_src(&self.coords[1]),
+            self.fmt_src(&self.coords[2]),
+        )
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum CubeSelCoord {
+    S,
+    T,
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+pub struct OpCubeSel {
+    #[dst_type(F32)]
+    pub dst: Dst,
+
+    pub coord: CubeSelCoord,
+
+    #[src_type(F32)]
+    pub coords: [Src; 2],
+
+    #[src_type(I32)]
+    pub idx: Src,
+}
+
+impl DisplayOp for OpCubeSel {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let coord = match self.coord {
+            CubeSelCoord::S => "S",
+            CubeSelCoord::T => "T",
+        };
+        write!(f, "CUBE_{coord}SEL")
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            " {} {} {}",
+            self.fmt_src(&self.coords[0]),
+            self.fmt_src(&self.coords[1]),
+            self.fmt_src(&self.idx),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
 pub struct OpF16ToF32 {
     #[dst_type(F32)]
     pub dst: Dst,
@@ -3174,6 +3267,9 @@ pub enum Op {
     Clz(Box<OpClz>),
     Copy(Box<OpCopy>),
     CSel(Box<OpCSel>),
+    CubeFaceIdx(Box<OpCubeFaceIdx>),
+    CubeFaceMax(Box<OpCubeFaceMax>),
+    CubeSel(Box<OpCubeSel>),
     F16ToF32(Box<OpF16ToF32>),
     F32ToF16(Box<OpF32ToF16>),
     F32ToI32(Box<OpF32ToI32>),

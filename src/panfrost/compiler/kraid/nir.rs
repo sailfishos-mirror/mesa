@@ -1471,6 +1471,36 @@ impl<'a> ShaderFromNir<'a> {
                     _ => panic!("Unsupported barrier scope"),
                 }
             }
+            nir_intrinsic_cubeface_pan => {
+                let x = self.get_src(&srcs[0]);
+                let y = self.get_src(&srcs[1]);
+                let z = self.get_src(&srcs[2]);
+                let dst = self.alloc_ssa(b, &intrin.def);
+                b.push_op(OpCubeFaceMax {
+                    dst: dst[0].into(),
+                    coords: [x.clone(), y.clone(), z.clone()],
+                });
+                b.push_op(OpCubeFaceIdx {
+                    dst: dst[1].into(),
+                    coords: [x.clone(), y.clone(), z.clone()],
+                });
+            }
+            nir_intrinsic_cube_ssel_pan | nir_intrinsic_cube_tsel_pan => {
+                let x = self.get_src(&srcs[0]);
+                let y = self.get_src(&srcs[1]);
+                let idx = self.get_src(&srcs[2]);
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpCubeSel {
+                    dst,
+                    coord: match intrin.intrinsic {
+                        nir_intrinsic_cube_ssel_pan => CubeSelCoord::S,
+                        nir_intrinsic_cube_tsel_pan => CubeSelCoord::T,
+                        _ => unreachable!(),
+                    },
+                    coords: [x, y],
+                    idx,
+                });
+            }
             nir_intrinsic_global_atomic => {
                 let atom_op = match intrin.atomic_op() {
                     nir_atomic_op_iadd => AtomOp::IAdd,
