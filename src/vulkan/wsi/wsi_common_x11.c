@@ -2431,8 +2431,9 @@ x11_present_compute_target_msc(struct x11_swapchain *chain,
        * Effectively, we will need to adjust the report UST up if we somehow end up seeing a timestamp too early.
        * The relative refresh will feed off this adjustment in a tight loop, so this should be pretty solid
        * for both VRR and FRR. Present timing can only be used with FIFO modes, i.e. we will not overwrite this
-       * until the present is actually complete. */
-      chain->next_present_ust_lower_bound = target_ns / 1000;
+       * until the present is actually complete.  Skip the assignment if we are definitely FRR on a vblank-less setup. */
+      if (chain->base.wsi->enable_adaptive_sync || !chain->has_reliable_msc)
+         chain->next_present_ust_lower_bound = target_ns / 1000;
 
       /* We also need to pull back the sleep a bit to account for X.org roundtrip delays.
        * If we sleep until targetTime we will most certainly introduce a lot of jitter.
