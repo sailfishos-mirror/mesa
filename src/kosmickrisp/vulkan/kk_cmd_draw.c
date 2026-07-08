@@ -905,7 +905,7 @@ kk_flush_render_pass(struct kk_cmd_buffer *cmd)
    }
    /* If render pass state changes and the pass is currently active, end the
     * current encoder and prepare to restart it */
-   bool active_render = cmd->cs.gfx;
+   bool active_render = cmd->gfx.encoder != NULL;
    if (needs_restart && active_render) {
       cs_end(cmd);
       kk_cmd_buffer_dirty_all_gfx(cmd);

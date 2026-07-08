@@ -54,6 +54,16 @@ kk_cmd_release_resources(struct kk_device *dev, struct kk_cmd_buffer *cmd)
 }
 
 static void
+kk_destroy_encoder_state(struct kk_encoder_state *es)
+{
+   assert(es->encoder == NULL);
+   assert(es->cmd_buf == NULL);
+
+   mtl_release(es->allocator);
+   es->allocator = NULL;
+}
+
+static void
 kk_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
 {
    struct kk_cmd_buffer *cmd =
@@ -61,9 +71,9 @@ kk_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
    struct kk_cmd_pool *pool = kk_cmd_buffer_pool(cmd);
 
    mtl_release(cmd->argument_table);
-   mtl_release(cmd->cs.allocator_post_gfx);
-   mtl_release(cmd->cs.allocator_gfx);
-   mtl_release(cmd->cs.allocator_pre_gfx);
+   kk_destroy_encoder_state(&cmd->cmp[0]);
+   kk_destroy_encoder_state(&cmd->cmp[1]);
+   kk_destroy_encoder_state(&cmd->gfx);
 
    vk_command_buffer_finish(&cmd->vk);
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
@@ -73,6 +83,13 @@ kk_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
    util_dynarray_fini(&cmd->large_bos);
 
    vk_free(&pool->vk.alloc, cmd);
+}
+
+static bool
+kk_init_encoder_state(struct kk_encoder_state *es, mtl_device *handle)
+{
+   es->allocator = mtl_new_command_allocator(handle);
+   return es->allocator != NULL;
 }
 
 static VkResult
@@ -100,15 +117,17 @@ kk_create_cmd_buffer(struct vk_command_pool *vk_pool,
    if (result != VK_SUCCESS)
       goto alloc_fail;
 
-   cmd->cs.allocator_pre_gfx = mtl_new_command_allocator(dev->mtl_handle);
-   if (!cmd->cs.allocator_pre_gfx)
+   cmd->pre_gfx = &cmd->cmp[0];
+   cmd->post_gfx = &cmd->cmp[1];
+   if (!kk_init_encoder_state(cmd->pre_gfx, dev->mtl_handle))
       goto pre_gfx_allocator_fail;
-   cmd->cs.allocator_gfx = mtl_new_command_allocator(dev->mtl_handle);
-   if (!cmd->cs.allocator_gfx)
+
+   if (!kk_init_encoder_state(&cmd->gfx, dev->mtl_handle))
       goto gfx_allocator_fail;
-   cmd->cs.allocator_post_gfx = mtl_new_command_allocator(dev->mtl_handle);
-   if (!cmd->cs.allocator_post_gfx)
+
+   if (!kk_init_encoder_state(cmd->post_gfx, dev->mtl_handle))
       goto post_gfx_allocator_fail;
+
    {
       mtl_argument_table_descriptor *desc = mtl_new_argument_table_descriptor();
       /* Root at 0, samplers at 1 and per draw data at 2 */
@@ -132,15 +151,21 @@ kk_create_cmd_buffer(struct vk_command_pool *vk_pool,
    return VK_SUCCESS;
 
 post_gfx_allocator_fail:
-   mtl_release(cmd->cs.allocator_gfx);
+   kk_destroy_encoder_state(&cmd->gfx);
 gfx_allocator_fail:
-   mtl_release(cmd->cs.allocator_pre_gfx);
+   kk_destroy_encoder_state(cmd->pre_gfx);
 pre_gfx_allocator_fail:
    vk_command_buffer_finish(&cmd->vk);
    result = VK_ERROR_OUT_OF_DEVICE_MEMORY;
 alloc_fail:
    vk_free(&pool->vk.alloc, cmd);
    return result;
+}
+
+static void
+kk_reset_encoder_state(struct kk_encoder_state *es)
+{
+   mtl_command_allocator_reset(es->allocator);
 }
 
 void
@@ -154,9 +179,9 @@ kk_reset_cmd_buffer_internal(struct kk_cmd_buffer *cmd)
    cs_end(cmd);
    kk_cmd_release_resources(dev, cmd);
 
-   mtl_command_allocator_reset(cmd->cs.allocator_pre_gfx);
-   mtl_command_allocator_reset(cmd->cs.allocator_gfx);
-   mtl_command_allocator_reset(cmd->cs.allocator_post_gfx);
+   kk_reset_encoder_state(cmd->pre_gfx);
+   kk_reset_encoder_state(&cmd->gfx);
+   kk_reset_encoder_state(cmd->post_gfx);
 
    cmd->uploader.bo = NULL;
    cmd->uploader.offset = 0;
@@ -226,15 +251,14 @@ void
 cs_start_render(struct kk_cmd_buffer *cmd)
 {
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
-   struct kk_cs *cs = &cmd->cs;
    struct kk_graphics_state *state = &cmd->state.gfx;
    uint32_t view_mask = state->render.view_mask;
    assert(state->render_pass_descriptor);
 
-   cs->cmd_buf_gfx = mtl_new_command_buffer(dev->mtl_handle);
-   mtl_begin_command_buffer(cs->cmd_buf_gfx, cs->allocator_gfx);
-   cs->gfx = mtl_new_render_command_encoder_with_descriptor(
-      cs->cmd_buf_gfx, state->render_pass_descriptor);
+   cmd->gfx.cmd_buf = mtl_new_command_buffer(dev->mtl_handle);
+   mtl_begin_command_buffer(cmd->gfx.cmd_buf, cmd->gfx.allocator);
+   cmd->gfx.encoder = mtl_new_render_command_encoder_with_descriptor(
+      cmd->gfx.cmd_buf, state->render_pass_descriptor);
 
    uint32_t layer_ids[KK_MAX_MULTIVIEW_VIEW_COUNT] = {};
    uint32_t count = 0u;
@@ -243,11 +267,11 @@ cs_start_render(struct kk_cmd_buffer *cmd)
    if (view_mask == 0u) {
       layer_ids[count++] = 0;
    }
-   mtl_set_vertex_amplification_count(cs->gfx, layer_ids, count);
+   mtl_set_vertex_amplification_count(cmd->gfx.encoder, layer_ids, count);
 
    /* Argument table won't ever change */
    mtl_render_set_argument_table(
-      cs->gfx, cmd->argument_table,
+      cmd->gfx.encoder, cmd->argument_table,
       MTL_RENDER_STAGE_VERTEX | MTL_RENDER_STAGE_FRAGMENT);
 
    kk_cmd_buffer_dirty_all_gfx(cmd);
@@ -266,88 +290,83 @@ cs_get_render(struct kk_cmd_buffer *cmd)
       cs_start_render(cmd);
    }
 
-   return cmd->cs.gfx;
+   return cmd->gfx.encoder;
+}
+
+static void
+kk_start_compute_encoder(struct kk_encoder_state *es, mtl_device *handle,
+                         mtl_argument_table *argument_table)
+{
+   es->cmd_buf = mtl_new_command_buffer(handle);
+   mtl_begin_command_buffer(es->cmd_buf, es->allocator);
+   es->encoder = mtl_new_compute_command_encoder(es->cmd_buf);
+
+   /* Argument table won't ever change */
+   mtl_compute_set_argument_table(es->encoder, argument_table);
 }
 
 mtl_compute_encoder *
 cs_get_compute(struct kk_cmd_buffer *cmd, bool pre_gfx)
 {
    struct kk_device *dev = kk_cmd_buffer_device(cmd);
-   struct kk_cs *cs = &cmd->cs;
    mtl_compute_encoder *encoder;
    /* If we are not inside a render, we can just take pre_gfx. */
-   if (!cs->gfx || pre_gfx) {
-      if (!cs->pre_gfx) {
-         cs->cmd_buf_pre_gfx = mtl_new_command_buffer(dev->mtl_handle);
-         mtl_begin_command_buffer(cs->cmd_buf_pre_gfx, cs->allocator_pre_gfx);
-         cs->pre_gfx = mtl_new_compute_command_encoder(cs->cmd_buf_pre_gfx);
-
-         /* Argument table won't ever change */
-         mtl_compute_set_argument_table(cs->pre_gfx, cmd->argument_table);
+   if (!cmd->gfx.encoder || pre_gfx) {
+      if (!cmd->pre_gfx->encoder) {
+         kk_start_compute_encoder(cmd->pre_gfx, dev->mtl_handle,
+                                  cmd->argument_table);
       }
-      encoder = cs->pre_gfx;
+      encoder = cmd->pre_gfx->encoder;
    } else {
-      if (!cs->post_gfx) {
-         cs->cmd_buf_post_gfx = mtl_new_command_buffer(dev->mtl_handle);
-         mtl_begin_command_buffer(cs->cmd_buf_post_gfx, cs->allocator_post_gfx);
-         cs->post_gfx = mtl_new_compute_command_encoder(cs->cmd_buf_post_gfx);
-
-         /* Argument table won't ever change */
-         mtl_compute_set_argument_table(cs->post_gfx, cmd->argument_table);
+      if (!cmd->post_gfx->encoder) {
+         kk_start_compute_encoder(cmd->post_gfx, dev->mtl_handle,
+                                  cmd->argument_table);
       }
-      encoder = cs->post_gfx;
+      encoder = cmd->post_gfx->encoder;
    }
 
    return encoder;
+}
+
+static void
+kk_stop_encoder(struct kk_cmd_buffer *cmd, struct kk_encoder_state *es)
+{
+   /* TODO_KOSMICKRISP This is probably overkill */
+   mtl_barrier_after_stages(es->encoder, MTL_STAGE_ALL, MTL_STAGE_ALL);
+   mtl_end_encoding(es->encoder);
+   mtl_release(es->encoder);
+   es->encoder = NULL;
+
+   mtl_end_command_buffer(es->cmd_buf);
+
+   util_dynarray_append(&cmd->submit_cmd_bufs, es->cmd_buf);
+   es->cmd_buf = NULL;
 }
 
 void
 cs_end(struct kk_cmd_buffer *cmd)
 {
    assert(cmd);
-   struct kk_cs *cs = &cmd->cs;
 
-   if (cs->pre_gfx) {
-      /* TODO_KOSMICKRISP This is probably overkill */
-      mtl_barrier_after_stages(cs->pre_gfx, MTL_STAGE_ALL, MTL_STAGE_ALL);
-      mtl_end_encoding(cs->pre_gfx);
-      mtl_release(cs->pre_gfx);
-      mtl_end_command_buffer(cs->cmd_buf_pre_gfx);
-
+   if (cmd->pre_gfx->encoder) {
       /* Submit pre_gfx now that its encoder is closed. Command buffers are
        * appended here (rather than at creation) so submit_cmd_bufs stays in
        * encode order: pre_gfx first, then gfx below. post_gfx is promoted into
        * the pre_gfx slot with its encoder still open, so it is submitted by a
        * later cs_end() and therefore always ends up after gfx. This is why
        * every flush site calls cs_end() twice. */
-      util_dynarray_append(&cmd->submit_cmd_bufs, cs->cmd_buf_pre_gfx);
-      cs->cmd_buf_pre_gfx = cs->cmd_buf_post_gfx;
-      cs->cmd_buf_post_gfx = NULL;
-      cs->pre_gfx = cs->post_gfx;
-      cs->post_gfx = NULL;
-      SWAP(cs->allocator_pre_gfx, cs->allocator_post_gfx);
-   } else if (cs->post_gfx) {
+      kk_stop_encoder(cmd, cmd->pre_gfx);
+
+      SWAP(cmd->pre_gfx, cmd->post_gfx);
+   } else if (cmd->post_gfx->encoder) {
       /* No pre_gfx, but a post_gfx exists (e.g. compute issued during a render
        * pass). Promote it so a later cs_end() closes and submits it after the
        * gfx command buffer appended below. */
-      cs->cmd_buf_pre_gfx = cs->cmd_buf_post_gfx;
-      cs->cmd_buf_post_gfx = NULL;
-      cs->pre_gfx = cs->post_gfx;
-      cs->post_gfx = NULL;
-      SWAP(cs->allocator_pre_gfx, cs->allocator_post_gfx);
+      SWAP(cmd->pre_gfx, cmd->post_gfx);
    }
 
-   if (cs->gfx) {
-      /* TODO_KOSMICKRISP This is probably overkill */
-      mtl_barrier_after_stages(cs->gfx, MTL_STAGE_ALL, MTL_STAGE_ALL);
-      mtl_end_encoding(cs->gfx);
-      mtl_release(cs->gfx);
-      mtl_end_command_buffer(cs->cmd_buf_gfx);
-
-      /* Same as above: register after the encoder is closed. */
-      util_dynarray_append(&cmd->submit_cmd_bufs, cs->cmd_buf_gfx);
-      cs->cmd_buf_gfx = NULL;
-      cs->gfx = NULL;
+   if (cmd->gfx.encoder) {
+      kk_stop_encoder(cmd, &cmd->gfx);
    }
 }
 
@@ -368,14 +387,14 @@ kk_CmdPipelineBarrier2(VkCommandBuffer commandBuffer,
     * barrier. This requires to read directly from the framebuffer which
     * requires not reading input attachments as textures.
     */
-   if (cmd->cs.gfx) {
+   if (cmd->gfx.encoder) {
       cs_end(cmd);
       cs_start_render(cmd);
-   } else if (cmd->cs.pre_gfx) {
+   } else if (cmd->pre_gfx->encoder) {
       /* We chain encoders, so an intra-encoder barrier is enough here:
        * no need to tear down and recreate the encoder.
        */
-      mtl_barrier_after_encoder_stages(cmd->cs.pre_gfx,
+      mtl_barrier_after_encoder_stages(cmd->pre_gfx->encoder,
                                        MTL_STAGE_DISPATCH | MTL_STAGE_BLIT,
                                        MTL_STAGE_DISPATCH | MTL_STAGE_BLIT);
    }
@@ -732,10 +751,9 @@ kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct kk_grid grid,
 void
 kk_cmd_write(struct kk_cmd_buffer *cmd, struct libkk_imm_write write)
 {
-   struct kk_cs *cs = &cmd->cs;
-
    /* If we are mid render, it must go to post_gfx */
-   libkk_write_u32(cmd, kk_grid_1d(1), !cs->gfx, write.address, write.value);
+   libkk_write_u32(cmd, kk_grid_1d(1), !cmd->gfx.encoder, write.address,
+                   write.value);
 }
 
 VKAPI_ATTR void VKAPI_CALL

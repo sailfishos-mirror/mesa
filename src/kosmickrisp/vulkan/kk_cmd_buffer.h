@@ -197,22 +197,22 @@ struct kk_uploader {
    uint32_t offset;
 };
 
-struct kk_cs {
-   mtl_command_allocator *allocator_pre_gfx;
-   mtl_command_buffer *cmd_buf_pre_gfx;
-   mtl_compute_encoder *pre_gfx;
-   mtl_command_allocator *allocator_gfx;
-   mtl_command_buffer *cmd_buf_gfx;
-   mtl_render_encoder *gfx;
-   mtl_command_allocator *allocator_post_gfx;
-   mtl_command_buffer *cmd_buf_post_gfx;
-   mtl_compute_encoder *post_gfx;
+struct kk_encoder_state {
+   /* either a mtl_compute_encoder or a mtl_render_encoder */
+   mtl_command_encoder *encoder;
+   mtl_command_allocator *allocator;
+   mtl_command_buffer *cmd_buf;
 };
 
 struct kk_cmd_buffer {
    struct vk_command_buffer vk;
 
-   struct kk_cs cs;
+   struct kk_encoder_state gfx;
+   /* pre and post gfx encoder states swap after every gfx encoder is committed */
+   struct kk_encoder_state cmp[2];
+   struct kk_encoder_state *pre_gfx;
+   struct kk_encoder_state *post_gfx;
+
    void *drawable;
    mtl_argument_table *argument_table;
 
