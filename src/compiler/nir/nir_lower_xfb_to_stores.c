@@ -14,18 +14,26 @@
  *    xfb_address(buffer) + (instance_id * num_vertices + raw_vertex_id)
  *                          * stride + offset
  *
- * The resulting shader is meant to run as a separate vertex-shader variant
- * over the draw's vertex range whenever streamout is active, with the
- * driver providing the xfb_address and num_vertices system values.
+ * The driver provides the xfb_address and num_vertices system values.
  * load_vertex_id is rewritten to raw_vertex_id + raw_vertex_offset since
  * transform feedback programs consume the zero-based hardware vertex ID.
+ *
+ * options->address_format selects the format of the store_global address -
+ * a plain 32-bit or 64-bit global. When options->keep_outputs is false, the
+ * store_output is removed
+ * once its captures are emitted - for shader variants that run as a separate
+ * capture-only job. Drivers that rasterize and capture in the same draw keep
+ * the outputs.
  */
 
 static void
 lower_xfb_output(nir_builder *b, nir_intrinsic_instr *intr,
                  unsigned start_component, unsigned num_components,
-                 unsigned buffer, unsigned offset_words)
+                 unsigned buffer, unsigned offset_words,
+                 nir_address_format address_format)
 {
+   unsigned address_bit_size = nir_address_format_bit_size(address_format);
+
    assert(buffer < MAX_XFB_BUFFERS);
    assert(nir_intrinsic_component(intr) == 0); // TODO
 
@@ -43,10 +51,10 @@ lower_xfb_output(nir_builder *b, nir_intrinsic_instr *intr,
               SYSTEM_VALUE_VERTEX_ID_ZERO_BASE);
    BITSET_SET(b->shader->info.system_values_read, SYSTEM_VALUE_INSTANCE_ID);
 
-   nir_def *buf = nir_load_xfb_address(b, 64, .base = buffer);
-   nir_def *addr = nir_iadd(
-      b, buf,
-      nir_u2u64(b, nir_iadd_imm(b, nir_imul_imm(b, index, stride), offset)));
+   nir_def *buf = nir_load_xfb_address(b, address_bit_size, .base = buffer);
+   nir_def *word_offset = nir_iadd_imm(b, nir_imul_imm(b, index, stride),
+                                       offset);
+   nir_def *addr = nir_iadd(b, buf, nir_u2uN(b, word_offset, address_bit_size));
 
    nir_def *src = intr->src[0].ssa;
    nir_component_mask_t mask = nir_component_mask(num_components);
@@ -55,8 +63,10 @@ lower_xfb_output(nir_builder *b, nir_intrinsic_instr *intr,
 }
 
 static bool
-lower_xfb(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *data)
+lower_xfb(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 {
+   const nir_lower_xfb_to_stores_options *options = data;
+
    /* In transform feedback programs, vertex ID becomes zero-based, so apply
     * that lowering even on Valhall.
     */
@@ -83,17 +93,23 @@ lower_xfb(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *data)
          continue;
 
       lower_xfb_output(b, intr, i, xfb.out[i].num_components,
-                        xfb.out[i].buffer, xfb.out[i].offset);
+                        xfb.out[i].buffer, xfb.out[i].offset,
+                        options->address_format);
       progress = true;
    }
 
-   nir_instr_remove(&intr->instr);
+   if (!options->keep_outputs)
+      nir_instr_remove(&intr->instr);
+
    return progress;
 }
 
 bool
-nir_lower_xfb_to_stores(nir_shader *nir)
+nir_lower_xfb_to_stores(nir_shader *nir, const nir_lower_xfb_to_stores_options *options)
 {
+   assert(options->address_format == nir_address_format_32bit_global ||
+          options->address_format == nir_address_format_64bit_global);
+
    return nir_shader_intrinsics_pass(
-      nir, lower_xfb, nir_metadata_control_flow, NULL);
+      nir, lower_xfb, nir_metadata_control_flow, (void *)options);
 }

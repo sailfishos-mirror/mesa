@@ -125,9 +125,13 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       inputs.no_idvs = s->info.has_transform_feedback_varyings;
 
       if (s->info.has_transform_feedback_varyings) {
+         static const nir_lower_xfb_to_stores_options xfb_options = {
+            .address_format = nir_address_format_64bit_global,
+         };
+
          NIR_PASS(_, s, nir_opt_constant_folding);
          NIR_PASS(_, s, nir_io_add_intrinsic_xfb_info);
-         NIR_PASS(_, s, nir_lower_xfb_to_stores);
+         NIR_PASS(_, s, nir_lower_xfb_to_stores, &xfb_options);
       }
    }
 

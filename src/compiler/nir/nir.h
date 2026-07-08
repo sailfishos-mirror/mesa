@@ -5789,7 +5789,19 @@ bool nir_lower_io(nir_shader *shader,
 
 void nir_lower_io_passes(nir_shader *nir, bool renumber_vs_inputs);
 bool nir_io_add_intrinsic_xfb_info(nir_shader *nir);
-bool nir_lower_xfb_to_stores(nir_shader *nir);
+
+typedef struct {
+   /* Address format of the store_global addresses. Must be a plain global
+    * format (nir_address_format_32bit_global or _64bit_global).
+    */
+   nir_address_format address_format;
+   /* Keep the lowered store_output intrinsics instead of removing them,
+    * for drivers that rasterize and capture in the same draw.
+    */
+   bool keep_outputs;
+} nir_lower_xfb_to_stores_options;
+
+bool nir_lower_xfb_to_stores(nir_shader *nir, const nir_lower_xfb_to_stores_options *options);
 bool nir_lower_io_indirect_loads(nir_shader *nir, nir_variable_mode modes,
                                  bool lower_indirect_vertex_index);
 bool nir_remove_outputs(nir_shader *shader, mesa_shader_stage next_stage,
