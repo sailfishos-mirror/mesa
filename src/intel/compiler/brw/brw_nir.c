@@ -2312,6 +2312,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       .lower_vote = jay,
       .lower_vote_feq = jay,
       .lower_vote_ieq = jay,
+      .lower_boolean_shuffle = jay,
       /* TODO: jay supports quad broadcast and should(?) do swaphorizontal */
       .lower_quad = jay,
       .lower_quad_vote = jay,
