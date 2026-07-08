@@ -242,22 +242,27 @@ vn_get_signal_semaphore_counter(struct vn_queue_submission *submit,
 }
 
 static void
-vn_fix_device_group_cmd_count(struct vn_queue_submission *submit)
+vn_queue_submission_init_pnext(struct vn_queue_submission *submit)
 {
    VK_FROM_HANDLE(vn_queue, queue, submit->queue_handle);
    struct vn_device *dev = vn_device_from_vk(queue->base.vk.base.device);
 
-   struct vn_queue_submission_pnext *pnext_fix = submit->temp.pnext;
-   VkBaseOutStructure *dst = (void *)submit->temp.submit_batch;
+   const VkDeviceGroupSubmitInfo *device_group = vk_find_struct_const(
+      submit->submit_batch->pNext, DEVICE_GROUP_SUBMIT_INFO);
+   if (!device_group)
+      return;
+
+   struct vn_queue_submission_pnext *pnext = submit->temp.pnext;
+   VkBaseOutStructure *cur = (void *)submit->temp.submit_batch;
    uint32_t new_cmd_count = submit->temp.submit_batch->commandBufferCount;
 
    vk_foreach_struct_const(src, submit->submit_batch->pNext) {
-      void *pnext = NULL;
+      void *next = NULL;
       switch (src->sType) {
       case VK_STRUCTURE_TYPE_DEVICE_GROUP_SUBMIT_INFO: {
          uint32_t orig_cmd_count = 0;
 
-         memcpy(&pnext_fix->group, src, sizeof(pnext_fix->group));
+         memcpy(&pnext->group, src, sizeof(pnext->group));
 
          VkDeviceGroupSubmitInfo *src_device_group =
             (VkDeviceGroupSubmitInfo *)src;
@@ -273,18 +278,18 @@ vn_fix_device_group_cmd_count(struct vn_queue_submission *submit)
             submit->temp.dev_masks[i] = dev->device_mask;
          }
 
-         pnext_fix->group.commandBufferCount = new_cmd_count;
-         pnext_fix->group.pCommandBufferDeviceMasks = submit->temp.dev_masks;
-         pnext = &pnext_fix->group;
+         pnext->group.commandBufferCount = new_cmd_count;
+         pnext->group.pCommandBufferDeviceMasks = submit->temp.dev_masks;
+         next = &pnext->group;
          break;
       }
       case VK_STRUCTURE_TYPE_PROTECTED_SUBMIT_INFO:
-         memcpy(&pnext_fix->protected, src, sizeof(pnext_fix->protected));
-         pnext = &pnext_fix->protected;
+         memcpy(&pnext->protected, src, sizeof(pnext->protected));
+         next = &pnext->protected;
          break;
       case VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO:
-         memcpy(&pnext_fix->timeline, src, sizeof(pnext_fix->timeline));
-         pnext = &pnext_fix->timeline;
+         memcpy(&pnext->timeline, src, sizeof(pnext->timeline));
+         next = &pnext->timeline;
          break;
       default:
          /* The following structs are not supported by venus so are not
@@ -297,9 +302,9 @@ vn_fix_device_group_cmd_count(struct vn_queue_submission *submit)
          break;
       }
 
-      if (pnext) {
-         dst->pNext = pnext;
-         dst = pnext;
+      if (next) {
+         cur->pNext = next;
+         cur = next;
       }
    }
 }
@@ -661,11 +666,6 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit)
    } else {
       submit->temp.submit_batch->pCommandBuffers = submit->temp.cmd_handles;
       submit->temp.submit_batch->commandBufferCount = new_cmd_count;
-
-      const VkDeviceGroupSubmitInfo *device_group = vk_find_struct_const(
-         submit->submit_batch->pNext, DEVICE_GROUP_SUBMIT_INFO);
-      if (device_group)
-         vn_fix_device_group_cmd_count(submit);
    }
 
    return VK_SUCCESS;
@@ -719,6 +719,8 @@ vn_queue_submission_init(struct vn_queue_submission *submit)
    VkResult result = vn_queue_submission_init_cmds(submit);
    if (result != VK_SUCCESS)
       return result;
+
+   vn_queue_submission_init_pnext(submit);
 
    submit->batch = submit->temp.batch;
 
