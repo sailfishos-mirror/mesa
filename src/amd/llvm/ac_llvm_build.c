@@ -458,12 +458,6 @@ LLVMValueRef ac_build_ballot(struct ac_llvm_context *ctx, LLVMValueRef value)
    const char *name = ctx->wave_size == 64 ? "llvm.amdgcn.ballot.i64" : "llvm.amdgcn.ballot.i32";
 
    assert(LLVMTypeOf(value) == ctx->i1);
-
-   /* We currently have no other way to prevent LLVM from lifting the ballot to a dominating basic
-    * block.
-    */
-   ac_build_optimization_barrier(ctx, &value, false);
-
    return ac_build_intrinsic(ctx, name, ctx->iN_wavemask, &value, 1, 0);
 }
 
