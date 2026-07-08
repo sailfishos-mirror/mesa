@@ -3874,9 +3874,6 @@ brw_nir_apply_key(brw_pass_tracker *pt,
       .lower_subgroup_masks = true,
    };
    OPT(nir_lower_subgroups, &subgroups_options);
-
-   if (pt->progress)
-      brw_nir_optimize(pt);
 }
 
 enum brw_conditional_mod
