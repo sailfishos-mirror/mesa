@@ -1333,7 +1333,7 @@ v3d_nir_lower_fs_late(struct v3d_compile *c)
         NIR_PASS(_, c->s, nir_lower_io_to_scalar, nir_var_shader_in, NULL, NULL);
 }
 
-static uint32_t
+uint32_t
 vir_get_max_temps(struct v3d_compile *c)
 {
         int max_ip = 0;

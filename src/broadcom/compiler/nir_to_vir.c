@@ -5104,9 +5104,19 @@ v3d_nir_to_vir(struct v3d_compile *c)
                 vir_dumpi(c);
         }
 
-        /* Stash the pre-RA thrsw state for v3d_nir_to_vir_finish(). */
+        /* Pressure-probe split: stash the pre-RA thrsw state. In probe-only
+         * mode, compute the pre-spill register pressure and stop before
+         * register allocation; the caller picks the lowest-pressure strategy
+         * and resumes it via v3d_nir_to_vir_finish().
+         */
         c->restore_last_thrsw = restore_last_thrsw;
         c->restore_scoreboard_lock = restore_scoreboard_lock;
+
+        if (c->probe_only) {
+                vir_calculate_live_intervals(c);
+                c->max_pressure = vir_get_max_temps(c);
+                return;
+        }
 
         v3d_nir_to_vir_finish(c);
 }
@@ -5114,6 +5124,7 @@ v3d_nir_to_vir(struct v3d_compile *c)
 void
 v3d_nir_to_vir_finish(struct v3d_compile *c)
 {
+        assert(!c->probe_only);
         /* Attempt to allocate registers for the temporaries.  If we fail,
          * reduce thread count and try again.
          */
