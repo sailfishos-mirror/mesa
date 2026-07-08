@@ -2174,7 +2174,7 @@
         "description": "wsi/display: Don't update connector last_frame/nsec in vkGetSwapchainCounterEXT.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f7fb4dd5ff5264737293231b758025b4291f1695",
         "notes": null

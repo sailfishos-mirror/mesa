@@ -4542,15 +4542,12 @@ wsi_GetSwapchainCounterEXT(VkDevice _device,
       return VK_SUCCESS;
    }
 
-   uint64_t nsec;
+   /* Note: Resist the urge to use query results to update connector->last_nsec/last_frame,
+    * it will lead to races with page_flip_handler2 and potentially wrong present timestamps! */
    int ret = drmCrtcGetSequence(wsi->fd, connector->crtc_id,
-                                pCounterValue, &nsec);
-   if (ret) {
+                                pCounterValue, NULL);
+   if (ret)
       *pCounterValue = 0;
-   } else {
-      connector->last_frame = *pCounterValue;
-      connector->last_nsec = nsec;
-   }
 
    return VK_SUCCESS;
 }
