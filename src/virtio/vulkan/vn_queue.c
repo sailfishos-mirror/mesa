@@ -19,7 +19,7 @@
 #include "vn_sync.h"
 #include "vn_wsi.h"
 
-struct vn_submit_info_pnext_fix {
+struct vn_queue_submission_pnext {
    VkDeviceGroupSubmitInfo group;
    VkProtectedSubmitInfo protected;
    VkTimelineSemaphoreSubmitInfo timeline;
@@ -39,7 +39,7 @@ struct vn_queue_submission {
 
    uint32_t cmd_count;
    uint32_t feedback_types;
-   uint32_t pnext_count;
+   bool fix_pnext;
    uint32_t dev_mask_count;
    struct vn_sync_payload_external external_payload;
 
@@ -56,10 +56,12 @@ struct vn_queue_submission {
     *  - a single cmd for query feedback (qfb)
     *  - one cmd for each signal semaphore that has feedback (sfb)
     *  - if last batch, a single cmd for ffb
+    * pnext
+    *  - a single pnext if batch pnext need fix
+    * dev_masks
+    *  - for device group submit to append new mask for new cmds
     */
    struct {
-      void *storage;
-
       union {
          void *batch;
          VkSubmitInfo *submit_batch;
@@ -72,7 +74,7 @@ struct vn_queue_submission {
          VkCommandBufferSubmitInfo *cmd_infos;
       };
 
-      struct vn_submit_info_pnext_fix *pnext;
+      struct vn_queue_submission_pnext *pnext;
       uint32_t *dev_masks;
    } temp;
 };
@@ -245,7 +247,7 @@ vn_fix_device_group_cmd_count(struct vn_queue_submission *submit)
    VK_FROM_HANDLE(vn_queue, queue, submit->queue_handle);
    struct vn_device *dev = vn_device_from_vk(queue->base.vk.base.device);
 
-   struct vn_submit_info_pnext_fix *pnext_fix = submit->temp.pnext;
+   struct vn_queue_submission_pnext *pnext_fix = submit->temp.pnext;
    VkBaseOutStructure *dst = (void *)submit->temp.submit_batch;
    uint32_t new_cmd_count = submit->temp.submit_batch->commandBufferCount;
 
@@ -378,7 +380,7 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
       const VkDeviceGroupSubmitInfo *device_group = vk_find_struct_const(
          submit->submit_batch->pNext, DEVICE_GROUP_SUBMIT_INFO);
       if (device_group) {
-         submit->pnext_count++;
+         submit->fix_pnext = true;
          submit->dev_mask_count = extra_cmd_count;
       }
    }
@@ -414,33 +416,31 @@ vn_queue_submission_prepare(struct vn_queue_submission *submit)
 static VkResult
 vn_queue_submission_alloc_storage(struct vn_queue_submission *submit)
 {
-   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
-
    if (!submit->feedback_types)
       return VK_SUCCESS;
 
-   /* for original batch or a new batch to hold feedback fence cmd */
-   const size_t total_batch_size = vn_get_batch_size(submit);
-   /* for fence, timeline semaphore and query feedback cmds */
-   const size_t total_cmd_size =
-      vn_get_cmd_size(submit) * MAX2(submit->cmd_count, 1);
-   /* for fixing command buffer counts in device group info, if it exists */
-   const size_t total_pnext_size =
-      submit->pnext_count * sizeof(struct vn_submit_info_pnext_fix);
-   const size_t total_dev_mask_size =
-      submit->dev_mask_count * sizeof(uint32_t);
-   submit->temp.storage = vn_cached_storage_get(
-      &queue->storage, total_batch_size + total_cmd_size + total_pnext_size +
-                          total_dev_mask_size);
-   if (!submit->temp.storage)
+   size_t total = 0;
+   struct {
+      size_t batch;
+      size_t cmds;
+      size_t pnext;
+      size_t dev_masks;
+   } size = { 0 };
+
+   total += size.batch = vn_get_batch_size(submit);
+   total += size.cmds = submit->cmd_count * vn_get_cmd_size(submit);
+   total += size.pnext = submit->fix_pnext ? sizeof(*submit->temp.pnext) : 0;
+   total += size.dev_masks = submit->dev_mask_count * sizeof(uint32_t);
+
+   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
+   uint8_t *storage = vn_cached_storage_get(&queue->storage, total);
+   if (!storage)
       return VK_ERROR_OUT_OF_HOST_MEMORY;
 
-   submit->temp.batch = submit->temp.storage;
-   submit->temp.cmds = submit->temp.storage + total_batch_size;
-   submit->temp.pnext =
-      submit->temp.storage + total_batch_size + total_cmd_size;
-   submit->temp.dev_masks = submit->temp.storage + total_batch_size +
-                            total_cmd_size + total_pnext_size;
+   submit->temp.batch = (void *)storage;
+   submit->temp.cmds = (void *)(storage += size.batch);
+   submit->temp.pnext = (void *)(storage += size.cmds);
+   submit->temp.dev_masks = (void *)(storage += size.pnext);
 
    return VK_SUCCESS;
 }
