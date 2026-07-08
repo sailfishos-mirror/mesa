@@ -72,6 +72,14 @@ impl WordCopies<'_> {
                     }
                 }
             }
+            Op::F16ToF32(op) => {
+                if let DstRef::SSA(vec) = &op.dst.dst_ref {
+                    debug_assert_eq!(vec.comps(), 1);
+                    let ssa = vec[0];
+                    let src = op.src.clone().swizzle(Swizzle::HF0);
+                    self.add_copy(ssa, src, DataType::F32);
+                }
+            }
             Op::FAdd(op) => {
                 if let DstRef::SSA(vec) = &op.dst.dst_ref {
                     debug_assert_eq!(vec.comps(), 1);
