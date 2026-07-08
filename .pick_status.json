@@ -3104,7 +3104,7 @@
         "description": "broadcom/compiler: don't leak the compile on assembly allocation failure",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ade416d02369cc0942d53ad3cce601d66344f9c3",
         "notes": null
