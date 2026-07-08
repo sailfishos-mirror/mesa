@@ -127,7 +127,7 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       if (s->info.has_transform_feedback_varyings) {
          NIR_PASS(_, s, nir_opt_constant_folding);
          NIR_PASS(_, s, nir_io_add_intrinsic_xfb_info);
-         NIR_PASS(_, s, pan_nir_lower_xfb);
+         NIR_PASS(_, s, nir_lower_xfb_to_stores);
       }
    }
 

@@ -244,6 +244,7 @@ else
   'nir_lower_wpos_center.c',
   'nir_lower_wpos_ytransform.c',
   'nir_lower_wrmasks.c',
+  'nir_lower_xfb_to_stores.c',
   'nir_lower_bit_size.c',
   'nir_lower_ubo_vec4.c',
   'nir_lower_uniforms_to_ubo.c',

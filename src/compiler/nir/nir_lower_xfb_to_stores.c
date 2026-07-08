@@ -3,8 +3,23 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "compiler/nir/nir_builder.h"
-#include "pan_nir.h"
+#include "nir.h"
+#include "nir_builder.h"
+
+/*
+ * Software transform feedback: lower store_output intrinsics that carry
+ * io_xfb information (attached by nir_io_add_intrinsic_xfb_info) into
+ * store_global writes at
+ *
+ *    xfb_address(buffer) + (instance_id * num_vertices + raw_vertex_id)
+ *                          * stride + offset
+ *
+ * The resulting shader is meant to run as a separate vertex-shader variant
+ * over the draw's vertex range whenever streamout is active, with the
+ * driver providing the xfb_address and num_vertices system values.
+ * load_vertex_id is rewritten to raw_vertex_id + raw_vertex_offset since
+ * transform feedback programs consume the zero-based hardware vertex ID.
+ */
 
 static void
 lower_xfb_output(nir_builder *b, nir_intrinsic_instr *intr,
@@ -77,7 +92,7 @@ lower_xfb(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *data)
 }
 
 bool
-pan_nir_lower_xfb(nir_shader *nir)
+nir_lower_xfb_to_stores(nir_shader *nir)
 {
    return nir_shader_intrinsics_pass(
       nir, lower_xfb, nir_metadata_control_flow, NULL);

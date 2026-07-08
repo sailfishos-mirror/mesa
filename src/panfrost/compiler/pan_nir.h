@@ -203,7 +203,6 @@ bool pan_nir_lower_fs_inputs(nir_shader *shader, uint64_t gpu_id,
 
 bool pan_nir_lower_helper_invocation(nir_shader *shader);
 bool pan_nir_lower_sample_pos(nir_shader *shader);
-bool pan_nir_lower_xfb(nir_shader *nir);
 
 bool pan_nir_lower_image_index(nir_shader *shader,
                                unsigned vs_img_attrib_offset);
