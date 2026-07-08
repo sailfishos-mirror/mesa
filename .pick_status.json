@@ -974,7 +974,7 @@
         "description": "util/blitter: fix blitting multiple array layers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b92b67c94170cf5b11d03e0edae11fe637a099fd",
         "notes": null
