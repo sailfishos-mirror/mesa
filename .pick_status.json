@@ -3074,7 +3074,7 @@
         "description": "anv: fill min_array_element with indirect descriptors",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "be89a173d5000483ba08ef42f8a544b0789bc011",
         "notes": null
