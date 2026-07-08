@@ -5104,6 +5104,16 @@ v3d_nir_to_vir(struct v3d_compile *c)
                 vir_dumpi(c);
         }
 
+        /* Stash the pre-RA thrsw state for v3d_nir_to_vir_finish(). */
+        c->restore_last_thrsw = restore_last_thrsw;
+        c->restore_scoreboard_lock = restore_scoreboard_lock;
+
+        v3d_nir_to_vir_finish(c);
+}
+
+void
+v3d_nir_to_vir_finish(struct v3d_compile *c)
+{
         /* Attempt to allocate registers for the temporaries.  If we fail,
          * reduce thread count and try again.
          */
@@ -5150,8 +5160,8 @@ v3d_nir_to_vir(struct v3d_compile *c)
         /* If we didn't spill, then remove the last thread switch we injected
          * artificially (if any) and restore the previous one.
          */
-        if (!c->spills && c->last_thrsw != restore_last_thrsw)
-                vir_restore_last_thrsw(c, restore_last_thrsw, restore_scoreboard_lock);
+        if (!c->spills && c->last_thrsw != c->restore_last_thrsw)
+                vir_restore_last_thrsw(c, c->restore_last_thrsw, c->restore_scoreboard_lock);
 
         if (c->spills &&
             (V3D_DBG(VIR) ||

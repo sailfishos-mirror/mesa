@@ -846,6 +846,12 @@ struct v3d_compile {
         /* Shader-db stats */
         uint32_t spills, fills, loops;
 
+        /* Pre-RA thrsw state, stashed by v3d_nir_to_vir() for
+         * v3d_nir_to_vir_finish().
+         */
+        struct qinst *restore_last_thrsw;
+        bool restore_scoreboard_lock;
+
         /* Whether we are in the process of spilling registers for
          * register allocation
          */
@@ -1249,6 +1255,7 @@ void v3d_vir_to_qpu(struct v3d_compile *c, struct qpu_reg *temp_registers);
 uint32_t v3d_qpu_schedule_instructions(struct v3d_compile *c);
 void qpu_validate(struct v3d_compile *c);
 struct qpu_reg *v3d_register_allocate(struct v3d_compile *c);
+void v3d_nir_to_vir_finish(struct v3d_compile *c);
 bool vir_init_reg_sets(struct v3d_compiler *compiler);
 
 int v3d_shaderdb_dump(struct v3d_compile *c, char **shaderdb_str);
