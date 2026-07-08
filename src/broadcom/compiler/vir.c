@@ -2393,8 +2393,7 @@ compile_2t_strategies(const struct v3d_compiler *compiler,
                                debug_output_data, program_id, variant_id,
                                first);
 
-        if (p0->max_pressure <= V3D_PROBE_HEAVY_PRESSURE ||
-            V3D_DBG(OPT_COMPILE_TIME)) {
+        if (p0->max_pressure <= V3D_PROBE_HEAVY_PRESSURE) {
                 /* Light register pressure: compile all 2-thread strategies
                  * assuming full RA loop is relatively cheap, choose the one
                  * with the least spills.
@@ -2429,8 +2428,7 @@ compile_2t_strategies(const struct v3d_compiler *compiler,
                         }
                         if (c->compilation_result != V3D_COMPILATION_SUCCEEDED)
                                 continue;
-                        /* With OPT_COMPILE_TIME we stop at the first success */
-                        if (c->spills == 0 || V3D_DBG(OPT_COMPILE_TIME)) {
+                        if (c->spills == 0) {
                                 chosen = c;
                                 break;
                         }
