@@ -88,6 +88,20 @@ static T vk_make_orphan_copy(const T& vk_struct) {
     return copy;
 }
 
+template <class T>
+T* vk_extract_struct(void* start, VkStructureType sType) {
+    auto* curr = reinterpret_cast<VkBaseOutStructure*>(start);
+    while (curr && curr->pNext) {
+        if (curr->pNext->sType == sType) {
+            auto* extracted = curr->pNext;
+            curr->pNext = extracted->pNext;
+            extracted->pNext = nullptr;
+            return reinterpret_cast<T*>(extracted);
+        }
+        curr = curr->pNext;
+    }
+    return nullptr;
+}
 
 namespace gfxstream {
 namespace vk {
@@ -2186,57 +2200,49 @@ void ResourceTracker::on_vkGetPhysicalDeviceProperties2(void* context,
         return;
     }
 
-    void* pNextOriginal = pProperties->pNext;
-    VkPhysicalDeviceProperties2 localProps = *pProperties;
-
-    if (vk_find_struct(&localProps, PHYSICAL_DEVICE_DRM_PROPERTIES_EXT)) {
-        vk_filter_struct(&localProps, PHYSICAL_DEVICE_DRM_PROPERTIES_EXT);
-    }
-
-    if (vk_find_struct(&localProps, PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT)) {
-        vk_filter_struct(&localProps, PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT);
-    }
-
-    if (vk_find_struct(&localProps, PHYSICAL_DEVICE_DRIVER_PROPERTIES)) {
-        vk_filter_struct(&localProps, PHYSICAL_DEVICE_DRIVER_PROPERTIES);
-    }
-
-    if (vk_find_struct(&localProps, PHYSICAL_DEVICE_ID_PROPERTIES)) {
-        vk_filter_struct(&localProps, PHYSICAL_DEVICE_ID_PROPERTIES);
-    }
-
+    // Safely extract guest-only structures from the pNext chain before calling the host encoder.
+    auto* drmProps = vk_extract_struct<VkPhysicalDeviceDrmPropertiesEXT>(
+        pProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRM_PROPERTIES_EXT);
+    auto* pciProps = vk_extract_struct<VkPhysicalDevicePCIBusInfoPropertiesEXT>(
+        pProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT);
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
-    if (vk_find_struct(&localProps, PHYSICAL_DEVICE_PRESENTATION_PROPERTIES_ANDROID)) {
-        vk_filter_struct(&localProps, PHYSICAL_DEVICE_PRESENTATION_PROPERTIES_ANDROID);
+    auto* presentationProps = vk_extract_struct<VkPhysicalDevicePresentationPropertiesANDROID>(
+        pProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENTATION_PROPERTIES_ANDROID);
+#endif
+
+    // Always request VkPhysicalDeviceDriverProperties to name the driver correctly
+    VkPhysicalDeviceDriverProperties driverPropsLocal = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+    VkPhysicalDeviceDriverProperties* hostDriverProps =
+        vk_find_struct(pProperties, PHYSICAL_DEVICE_DRIVER_PROPERTIES);
+    if (!hostDriverProps) {
+        hostDriverProps = &driverPropsLocal;
+        __vk_append_struct(pProperties, &driverPropsLocal);
+    }
+
+    enc->vkGetPhysicalDeviceProperties2(physicalDevice, pProperties, false /* no lock */);
+
+    // Filter driver properties from the pNext chain if it was appended locally
+    if (hostDriverProps == &driverPropsLocal) {
+        vk_filter_struct(pProperties, PHYSICAL_DEVICE_DRIVER_PROPERTIES);
+    }
+
+    // Re-append extracted guest-only structures
+    if (drmProps) {
+        __vk_append_struct(pProperties, drmProps);
+    }
+    if (pciProps) {
+        __vk_append_struct(pProperties, pciProps);
+    }
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+    if (presentationProps) {
+        __vk_append_struct(pProperties, presentationProps);
     }
 #endif
 
-    enc->vkGetPhysicalDeviceProperties2(physicalDevice, &localProps, false /* no lock */);
-
-    *pProperties = localProps;
-    pProperties->pNext = pNextOriginal;
-
-    if (pProperties->properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
-        pProperties->properties.deviceType = VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU;
-    }
-
+    // Overwrite device type and driver properties
+    pProperties->properties.deviceType = VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU;
     pProperties->properties.driverVersion = vk_get_driver_version();
-    VkPhysicalDeviceVulkan12Properties* vulkan12Props =
-        vk_find_struct(pProperties, PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES);
-    if (vulkan12Props) {
-        snprintf(vulkan12Props->driverName, sizeof(vulkan12Props->driverName), "gfxstream");
-        snprintf(vulkan12Props->driverInfo, sizeof(vulkan12Props->driverInfo),
-                 "Mesa " PACKAGE_VERSION MESA_GIT_SHA1);
-    }
-
-    VkPhysicalDeviceDriverProperties* driverProps =
-        vk_find_struct(pProperties, PHYSICAL_DEVICE_DRIVER_PROPERTIES);
-    if (driverProps) {
-        driverProps->driverID = VK_DRIVER_ID_MESA_GFXSTREAM;
-        snprintf(driverProps->driverName, sizeof(driverProps->driverName), "gfxstream");
-        snprintf(driverProps->driverInfo, sizeof(driverProps->driverInfo),
-                 "Mesa " PACKAGE_VERSION MESA_GIT_SHA1);
-    }
 
     const char* transport_name = instance ? "Virtio-GPU GFXStream" : "Goldfish GFXStream";
     char device_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
@@ -2248,39 +2254,95 @@ void ResourceTracker::on_vkGetPhysicalDeviceProperties2(void* context,
     }
     memcpy(pProperties->properties.deviceName, device_name, device_name_len + 1);
 
-    VkPhysicalDeviceDrmPropertiesEXT* drmProps =
-        vk_find_struct(pProperties, PHYSICAL_DEVICE_DRM_PROPERTIES_EXT);
-    if (instance && drmProps) {
-        VirtGpuDrmInfo drmInfo;
-        if (instance->getDrmInfo(&drmInfo)) {
-            drmProps->hasPrimary = drmInfo.hasPrimary;
-            drmProps->hasRender = drmInfo.hasRender;
-            drmProps->primaryMajor = drmInfo.primaryMajor;
-            drmProps->primaryMinor = drmInfo.primaryMinor;
-            drmProps->renderMajor = drmInfo.renderMajor;
-            drmProps->renderMinor = drmInfo.renderMinor;
-        } else {
-            mesa_logd(
-                "%s: encountered VkPhysicalDeviceDrmPropertiesEXT in pProperties::pNext chain, "
-                "but failed to query DrmInfo from the VirtGpuDevice",
-                __func__);
-        }
-    }
+    char gfxstreamDriverName[VK_MAX_DRIVER_NAME_SIZE] = "";
+    snprintf(gfxstreamDriverName, sizeof(gfxstreamDriverName), "gfxstream (%s)",
+             hostDriverProps->driverName);
+    gfxstreamDriverName[VK_MAX_DRIVER_NAME_SIZE - 1] = '\0';
 
-    VkPhysicalDevicePCIBusInfoPropertiesEXT* pciBusInfoProps =
-        vk_find_struct(pProperties, PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT);
-    if (instance && pciBusInfoProps) {
-        VirtGpuPciBusInfo pciBusInfo;
-        if (instance->getPciBusInfo(&pciBusInfo)) {
-            pciBusInfoProps->pciDomain = pciBusInfo.domain;
-            pciBusInfoProps->pciBus = pciBusInfo.bus;
-            pciBusInfoProps->pciDevice = pciBusInfo.device;
-            pciBusInfoProps->pciFunction = pciBusInfo.function;
-        } else {
-            mesa_logd(
-                "%s: encountered VkPhysicalDevicePCIBusInfoPropertiesEXT in pProperties::pNext "
-                "chain, but failed to query PciBusInfo from the VirtGpuDevice",
-                __func__);
+    auto overwrite_id_props = [](auto* props) {
+        memset(props->deviceUUID, 0, sizeof(props->deviceUUID));
+        memset(props->driverUUID, 0, sizeof(props->driverUUID));
+        memset(props->deviceLUID, 0, sizeof(props->deviceLUID));
+        props->deviceNodeMask = 0;
+        props->deviceLUIDValid = VK_FALSE;
+    };
+
+    auto overwrite_driver_props = [&](auto* props) {
+        props->driverID = VK_DRIVER_ID_MESA_GFXSTREAM;
+        memcpy(props->driverName, gfxstreamDriverName, sizeof(props->driverName));
+        snprintf(props->driverInfo, sizeof(props->driverInfo),
+                 "Mesa " PACKAGE_VERSION MESA_GIT_SHA1);
+    };
+
+    auto overwrite_drm_props = [](VirtGpuDevice* instance, auto* props) {
+        if (instance) {
+            VkPhysicalDeviceDrmPropertiesEXT* drmProps =
+                reinterpret_cast<VkPhysicalDeviceDrmPropertiesEXT*>(props);
+            VirtGpuDrmInfo drmInfo;
+            if (instance->getDrmInfo(&drmInfo)) {
+                drmProps->hasPrimary = drmInfo.hasPrimary;
+                drmProps->hasRender = drmInfo.hasRender;
+                drmProps->primaryMajor = drmInfo.primaryMajor;
+                drmProps->primaryMinor = drmInfo.primaryMinor;
+                drmProps->renderMajor = drmInfo.renderMajor;
+                drmProps->renderMinor = drmInfo.renderMinor;
+            } else {
+                mesa_logd(
+                    "%s: encountered VkPhysicalDeviceDrmPropertiesEXT in pProperties::pNext chain, "
+                    "but failed to query DrmInfo from the VirtGpuDevice",
+                    __func__);
+            }
+        }
+    };
+
+    auto overwrite_pci_bus_info_props = [](VirtGpuDevice* instance, auto* props) {
+        if (instance) {
+            VkPhysicalDevicePCIBusInfoPropertiesEXT* pciBusInfoProps =
+                reinterpret_cast<VkPhysicalDevicePCIBusInfoPropertiesEXT*>(props);
+            VirtGpuPciBusInfo pciBusInfo;
+            if (instance->getPciBusInfo(&pciBusInfo)) {
+                pciBusInfoProps->pciDomain = pciBusInfo.domain;
+                pciBusInfoProps->pciBus = pciBusInfo.bus;
+                pciBusInfoProps->pciDevice = pciBusInfo.device;
+                pciBusInfoProps->pciFunction = pciBusInfo.function;
+            } else {
+                mesa_logd(
+                    "%s: encountered VkPhysicalDevicePCIBusInfoPropertiesEXT in pProperties::pNext "
+                    "chain, but failed to query PciBusInfo from the VirtGpuDevice",
+                    __func__);
+            }
+        }
+    };
+
+    // Overwrite all of the properties with gfxstream driver info.
+    vk_foreach_struct(ext, pProperties) {
+        switch (ext->sType) {
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES: {
+                overwrite_id_props(reinterpret_cast<VkPhysicalDeviceVulkan11Properties*>(ext));
+                break;
+            }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES: {
+                overwrite_id_props(reinterpret_cast<VkPhysicalDeviceIDProperties*>(ext));
+                break;
+            }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES: {
+                overwrite_driver_props(reinterpret_cast<VkPhysicalDeviceVulkan12Properties*>(ext));
+                break;
+            }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES: {
+                overwrite_driver_props(reinterpret_cast<VkPhysicalDeviceDriverProperties*>(ext));
+                break;
+            }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRM_PROPERTIES_EXT: {
+                overwrite_drm_props(instance, ext);
+                break;
+            }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT: {
+                overwrite_pci_bus_info_props(instance, ext);
+                break;
+            }
+            default:
+                break;
         }
     }
 }
