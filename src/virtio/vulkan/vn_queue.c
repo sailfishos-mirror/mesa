@@ -627,19 +627,18 @@ vn_queue_submission_add_fence_feedback(struct vn_queue_submission *submit,
 }
 
 static VkResult
-vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit,
-                                      uint32_t feedback_types)
+vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit)
 {
    VkResult result;
    uint32_t new_cmd_count = vn_get_cmd_count(submit);
 
-   if (feedback_types & VN_FEEDBACK_TYPE_QUERY) {
+   if (submit->feedback_types & VN_FEEDBACK_TYPE_QUERY) {
       result = vn_queue_submission_add_query_feedback(submit, &new_cmd_count);
       if (result != VK_SUCCESS)
          return result;
    }
 
-   if (feedback_types & VN_FEEDBACK_TYPE_SEMAPHORE) {
+   if (submit->feedback_types & VN_FEEDBACK_TYPE_SEMAPHORE) {
       const uint32_t signal_count = vn_get_signal_semaphore_count(submit);
       for (uint32_t i = 0; i < signal_count; i++) {
          result = vn_queue_submission_add_semaphore_feedback(submit, i,
@@ -649,7 +648,7 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit,
       }
    }
 
-   if (feedback_types & VN_FEEDBACK_TYPE_FENCE) {
+   if (submit->feedback_types & VN_FEEDBACK_TYPE_FENCE) {
       result = vn_queue_submission_add_fence_feedback(submit, &new_cmd_count);
       if (result != VK_SUCCESS)
          return result;
@@ -673,74 +672,15 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit,
 }
 
 static VkResult
-vn_queue_submission_setup_batch(struct vn_queue_submission *submit)
+vn_queue_submission_init_cmds(struct vn_queue_submission *submit)
 {
-   uint32_t feedback_types = 0;
-   uint32_t extra_cmd_count = 0;
-
-   const uint32_t signal_count = vn_get_signal_semaphore_count(submit);
-   for (uint32_t i = 0; i < signal_count; i++) {
-      struct vn_semaphore *sem =
-         vn_semaphore_from_handle(vn_get_signal_semaphore(submit, i));
-      if (vn_sync_feedback_enabled(&sem->feedback) && submit->can_feedback) {
-         feedback_types |= VN_FEEDBACK_TYPE_SEMAPHORE;
-         extra_cmd_count++;
-      }
-   }
-
-   const uint32_t cmd_count = vn_get_cmd_count(submit);
-   for (uint32_t i = 0; i < cmd_count; i++) {
-      struct vn_command_buffer *cmd = vn_get_cmd(submit, i);
-      if (!list_is_empty(&cmd->builder.query_records)) {
-         feedback_types |= VN_FEEDBACK_TYPE_QUERY;
-         extra_cmd_count++;
-         break;
-      }
-   }
-
-   if (submit->feedback_types & VN_FEEDBACK_TYPE_FENCE) {
-      feedback_types |= VN_FEEDBACK_TYPE_FENCE;
-      extra_cmd_count++;
-   }
-
-   /* If the batch has qfb, sfb or ffb, copy the original commands and append
-    * feedback cmds.
-    */
-   if (feedback_types) {
-      const size_t cmd_size = vn_get_cmd_size(submit);
-      const size_t total_cmd_size = cmd_count * cmd_size;
-      /* copy only needed for non-empty batch */
-      if (total_cmd_size)
-         memcpy(submit->temp.cmds, vn_get_cmds(submit), total_cmd_size);
-
-      VkResult result =
-         vn_queue_submission_add_feedback_cmds(submit, feedback_types);
-      if (result != VK_SUCCESS)
-         return result;
-
-      /* advance the temp cmds for working on next batch cmds */
-      submit->temp.cmds += total_cmd_size + (extra_cmd_count * cmd_size);
-   }
-
-   return VK_SUCCESS;
-}
-
-static VkResult
-vn_queue_submission_init(struct vn_queue_submission *submit)
-{
-   if (!submit->feedback_types)
-      return VK_SUCCESS;
-
    assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2 ||
           submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO);
 
    /* For a submission that is:
-    * - non-empty: copy batch for adding feedbacks
     * - empty: initialize a batch for fence feedback
     */
-   if (submit->batch) {
-      memcpy(submit->temp.batch, submit->batch, vn_get_batch_size(submit));
-   } else {
+   if (!submit->batch) {
       assert(submit->feedback_types & VN_FEEDBACK_TYPE_FENCE);
       if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
          *submit->temp.submit2_batch = (VkSubmitInfo2){
@@ -754,7 +694,29 @@ vn_queue_submission_init(struct vn_queue_submission *submit)
       submit->batch = submit->temp.batch;
    }
 
-   VkResult result = vn_queue_submission_setup_batch(submit);
+   /* If the batch has qfb, sfb or ffb, copy the original commands and append
+    * feedback cmds. Copy is only needed for non-empty batch.
+    */
+   const size_t cmd_size = vn_get_cmd_count(submit) * vn_get_cmd_size(submit);
+   if (cmd_size)
+      memcpy(submit->temp.cmds, vn_get_cmds(submit), cmd_size);
+
+   return vn_queue_submission_add_feedback_cmds(submit);
+}
+
+static VkResult
+vn_queue_submission_init(struct vn_queue_submission *submit)
+{
+   if (!submit->feedback_types)
+      return VK_SUCCESS;
+
+   /* For a submission that is:
+    * - non-empty: copy batch for adding feedbacks
+    */
+   if (submit->batch)
+      memcpy(submit->temp.batch, submit->batch, vn_get_batch_size(submit));
+
+   VkResult result = vn_queue_submission_init_cmds(submit);
    if (result != VK_SUCCESS)
       return result;
 
