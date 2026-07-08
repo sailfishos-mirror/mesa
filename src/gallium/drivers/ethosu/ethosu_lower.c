@@ -791,20 +791,36 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
 
    set_feature_maps(subgraph, poperation->input_tensors[input_idx], poperation->output_tensors[0], operation);
    operation->ofm.shape = operation->ifm.shape;
-   if (poperation->conc.axis == 1)
-      operation->ofm.stride = operation->ifm.stride;
 
    allocate_feature_maps(subgraph, operation);
    for (unsigned i = 0; i < input_idx; i++) {
-      if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHWC)
-         if (poperation->conc.axis == 1)
-            operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[3] * poperation->input_tensors[i]->dims[2] * poperation->input_tensors[i]->dims[1];
-         else
-            operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[3];
-      else if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHCWB16)
-         operation->ofm.tiles.addresses[0] += poperation->input_tensors[i]->dims[2] * align(poperation->input_tensors[i]->dims[3], 16);
-      else
+      switch (poperation->conc.axis) {
+      case 1:
+         operation->ofm.tiles.addresses[0] +=
+            poperation->input_tensors[i]->dims[1] * operation->ofm.stride.y;
+         break;
+      case 2:
+         operation->ofm.tiles.addresses[0] +=
+            poperation->input_tensors[i]->dims[2] * operation->ofm.stride.x;
+         break;
+      case 3:
+         if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHWC) {
+            operation->ofm.tiles.addresses[0] +=
+               poperation->input_tensors[i]->dims[3] * operation->ofm.stride.c;
+         } else if (operation->ofm.tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
+            unsigned depth = poperation->input_tensors[i]->dims[3];
+            unsigned elem_size = 1 << operation->ofm.precision;
+
+            operation->ofm.tiles.addresses[0] +=
+               (depth / 16) * operation->ofm.stride.c +
+               (depth % 16) * elem_size;
+         } else {
+            assert(0 && "Unsupported layout");
+         }
+         break;
+      default:
          assert(0 && "Unsupported layout");
+      }
    }
 
    ethosu_sched_operation(subgraph, operation);
