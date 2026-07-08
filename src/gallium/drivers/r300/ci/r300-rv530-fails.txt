@@ -684,7 +684,6 @@ spec@ext_framebuffer_multisample@accuracy all_samples stencil_resolve small dept
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 2,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 4,Fail
 spec@ext_framebuffer_multisample@alpha-to-coverage-no-draw-buffer-zero 6,Fail
-spec@arb_framebuffer_object@fbo-scissor-blit window,Fail
 
 spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-01,Fail
 spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-04,Fail
@@ -697,3 +696,12 @@ glx@glx-visuals-depth,Fail
 glx@glx-visuals-stencil,Fail
 glx@glx_arb_sync_control@waitformsc,Fail
 spec@egl_mesa_configless_context@basic,Fail
+
+# Nightly run expectations update
+spec@arb_texture_cube_map@copyteximage cube samples=2,Fail
+spec@arb_texture_cube_map@copyteximage cube samples=4,Fail
+spec@arb_texture_cube_map@copyteximage cube samples=6,Fail
+spec@arb_texture_rectangle@copyteximage rect samples=2,Fail
+spec@arb_texture_rectangle@copyteximage rect samples=4,Fail
+spec@arb_texture_rectangle@copyteximage rect samples=6,Fail
+

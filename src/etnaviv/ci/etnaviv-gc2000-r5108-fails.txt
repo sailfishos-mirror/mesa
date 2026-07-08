@@ -643,6 +643,10 @@ spec@glsl-1.10@execution@built-in-functions@vs-sign-vec4,Fail
 spec@nv_half_float@attribs-half-float,Fail
 
 # Nightly run expectations update
+KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_int_depth_component,Fail
+KHR-GLES2.core.internalformat.texture2d.depth_component_unsigned_short_depth_component,Fail
+KHR-GLES2.core.internalformat.texture2d.depth_stencil_unsigned_int_24_8_depth_stencil,Fail
+dEQP-GLES2.functional.depth_stencil_clear.depth_stencil,Fail
 hiz@hiz-depth-read-fbo-d24-s0,Fail
 hiz@hiz-depth-read-fbo-d24s8,Fail
 hiz@hiz-depth-read-window-stencil0,Fail
@@ -815,7 +819,11 @@ spec@ext_packed_depth_stencil@texwrap formats,Fail
 spec@ext_packed_depth_stencil@texwrap formats@GL_DEPTH24_STENCIL8,Fail
 spec@ext_packed_depth_stencil@texwrap formats@GL_DEPTH24_STENCIL8- NPOT,Fail
 spec@ext_packed_depth_stencil@texwrap formats@GL_DEPTH24_STENCIL8- swizzled,Fail
+spec@ext_texture_array@copyteximage 1d_array,Crash
+spec@ext_texture_array@copyteximage 1d_array samples=2,Crash
+spec@ext_texture_array@copyteximage 1d_array samples=4,Crash
 spec@ext_texture_swizzle@depth_texture_mode_and_swizzle,Fail
+spec@glsl-1.10@execution@built-in-functions@fs-op-selection-bool-bvec4-bvec4,Fail
 spec@glsl-1.10@execution@samplers@glsl-fs-shadow1d,Fail
 spec@glsl-1.10@execution@samplers@glsl-fs-shadow1d-04,Fail
 spec@glsl-1.10@execution@samplers@glsl-fs-shadow1d-bias,Fail

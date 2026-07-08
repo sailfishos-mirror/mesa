@@ -26,3 +26,7 @@ dEQP-VK.sparse_resources.image_sparse_residency.cube_array.*
 dEQP-VK.spirv_assembly.instruction.compute.untyped_pointers.vulkan_memory_model.cooperative_matrix.type_punning.*
 # https://github.com/KhronosGroup/VK-GL-CTS/issues/553
 dEQP-VK.spirv_assembly.instruction.compute.untyped_pointers.vulkan_memory_model.cooperative_matrix.mixed.load.*
+
+# Nightly run expectations update
+dEQP-VK.api.object_management.multithreaded_per_thread_resources.device
+

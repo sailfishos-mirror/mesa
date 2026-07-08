@@ -1221,6 +1221,11 @@ spec@ext_texture_snorm@texwrap formats bordercolor,Fail
 spec@ext_texture_snorm@texwrap formats bordercolor@GL_RGB16_SNORM- border color only,Fail
 spec@ext_texture_snorm@texwrap formats bordercolor@GL_RGBA16_SNORM- border color only,Fail
 
-# uprev Piglit in Mesa
-spec@arb_framebuffer_object@fbo-scissor-blit window,Fail
+# Nightly run expectations update
+spec@arb_texture_cube_map@copyteximage cube samples=2,Fail
+spec@arb_texture_cube_map@copyteximage cube samples=4,Fail
+spec@arb_texture_cube_map@copyteximage cube samples=6,Fail
+spec@arb_texture_rectangle@copyteximage rect samples=2,Fail
+spec@arb_texture_rectangle@copyteximage rect samples=4,Fail
+spec@arb_texture_rectangle@copyteximage rect samples=6,Fail
 

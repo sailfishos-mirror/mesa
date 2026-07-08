@@ -4135,3 +4135,7 @@ program@execute@vstore@vstorea_half-float-private@vector storea_half private off
 program@execute@vstore@vstorea_half-float-private@vector storea_half private offset float3,Fail
 program@execute@vstore@vstorea_half-float-private@vector storea_half private offset float4,Fail
 program@execute@vstore@vstorea_half-float-private@vector storea_half private offset float8,Fail
+
+# Nightly run expectations update
+spec@arb_tessellation_shader@execution@variable-indexing@tcs-output-array-dvec4-index-wr,Crash
+

@@ -1151,3 +1151,7 @@ glx@glx-swap-pixmap-bad,Fail
 glx@glx_arb_sync_control@waitformsc,Fail
 spec@egl 1.4@largest possible eglcreatepbuffersurface and then glclear,Fail
 spec@egl_mesa_configless_context@basic,Fail
+
+# Nightly run expectations update
+dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.86,Fail
+

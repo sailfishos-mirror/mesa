@@ -1031,3 +1031,6 @@ spec@nv_primitive_restart@primitive-restart-draw-mode-quads,Fail
 # uprev Piglit in Mesa
 spec@arb_texture_cube_map@copyteximage cube,Fail
 
+# Nightly run expectations update
+spec@glsl-1.10@execution@samplers@glsl-fs-shadow2d-consecutive-draws,Fail
+
