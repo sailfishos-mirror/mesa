@@ -488,6 +488,47 @@ impl<'a> ShaderFromNir<'a> {
                     src: srcs(0).swizzle(swz),
                 });
             }
+            nir_op_insert_u8 => {
+                assert!(alu.def.bit_size == 32);
+                assert!(alu.def.num_components == 1);
+
+                let sel = alu
+                    .get_src(1)
+                    .comp_as_uint(0)
+                    .expect("nir_op_insert.src[1] should be constant");
+                assert!(sel < 4);
+
+                let mut bytes = [
+                    Src::imm_u8(0),
+                    Src::imm_u8(0),
+                    Src::imm_u8(0),
+                    Src::imm_u8(0),
+                ];
+                bytes[sel as usize] = srcs(0).byte(0);
+
+                b.push_op(OpMkVecV4I8 {
+                    dst: dst.into(),
+                    srcs: bytes,
+                });
+            }
+            nir_op_insert_u16 => {
+                assert!(alu.def.bit_size == 32);
+                assert!(alu.def.num_components == 1);
+
+                let sel = alu
+                    .get_src(1)
+                    .comp_as_uint(0)
+                    .expect("nir_op_insert.src[1] should be constant");
+                assert!(sel < 2);
+
+                let mut halves = [Src::imm_u16(0), Src::imm_u16(0)];
+                halves[sel as usize] = srcs(0).half(0);
+
+                b.push_op(OpMkVecV2I16 {
+                    dst: dst.into(),
+                    srcs: halves,
+                });
+            }
             nir_op_f2f16 | nir_op_f2f16_rtz | nir_op_f2f16_rtne => {
                 assert!(alu.get_src(0).bit_size() == 32);
                 assert!(alu.def.num_components == 1);
