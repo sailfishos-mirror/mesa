@@ -1174,6 +1174,7 @@ do_comparison(linear_ctx *linalloc, int operation, ir_rvalue *op0, ir_rvalue *op
    case GLSL_TYPE_UINT:
    case GLSL_TYPE_INT:
    case GLSL_TYPE_BOOL:
+   case GLSL_TYPE_YUV_CSC_STANDARD_EXT:
    case GLSL_TYPE_DOUBLE:
    case GLSL_TYPE_UINT64:
    case GLSL_TYPE_INT64:
