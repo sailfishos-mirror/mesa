@@ -16,9 +16,9 @@
 #define SPILLED_VGPRS 0x8
 
 /* Parse configuration data in .AMDGPU.config section format. */
-void ac_parse_shader_binary_config(const char *data, size_t nbytes, unsigned wave_size,
-                                   const struct ac_compiler_info *compiler_info,
-                                   struct ac_shader_config *conf)
+void ac_parse_llvm_binary_config(const char *data, size_t nbytes, unsigned wave_size,
+                                 const struct ac_compiler_info *compiler_info,
+                                 struct ac_shader_config *conf)
 {
    for (size_t i = 0; i < nbytes; i += 8) {
       unsigned reg = util_le32_to_cpu(*(uint32_t *)(data + i));
