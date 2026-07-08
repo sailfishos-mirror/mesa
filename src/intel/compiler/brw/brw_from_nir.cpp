@@ -4207,48 +4207,35 @@ brw_from_nir_emit_cs_intrinsic(nir_to_brw_state &ntb,
       const brw_reg_type src_type =
          brw_type_for_base_type(nir_intrinsic_src_base_type(instr));
 
+      /* ACM PRM, Vol 2a, "Dot Product Accumulate Systolic" says
+       *
+       *     When Src0 is specified as null, it is treated as an
+       *     immediate value of +0.
+       */
+      bool src0_use_null = true;
+      for (unsigned c = 0; c < nir_src_num_components(instr->src[0]); c++)
+         src0_use_null &= nir_scalar_is_zero(nir_scalar_resolved(instr->src[0].ssa, c));
+
       brw_reg src[3] = {};
       for (unsigned i = 0; i < ARRAY_SIZE(src); i++) {
          nir_src nsrc = instr->src[i];
+         brw_reg val = get_nir_src(ntb, nsrc, 0);
 
-         if (!nir_src_is_const(nsrc)) {
-            src[i] = get_nir_src(ntb, nsrc, 0);
-            continue;
-         }
-
-         /* A single constant value can be used to fill the entire
-          * cooperative matrix.  In this case get_nir_src() would give a
-          * uniform value (with stride 0), but DPAS can't use regioning,
-          * it needs the full data available in the register.
-          *
-          * So when a source is a constant, allocate the space necessary
-          * and fill it with the constant value.  Except for
-          *
-          *     When Src0 is specified as null, it is treated as an
-          *     immediate value of +0.
-          *
-          * documented in ACM PRM, Vol 2a, "Dot Product Accumulate Systolic".
-          */
-         const unsigned num_components = nir_src_num_components(nsrc);
-         const unsigned bit_size = nir_src_bit_size(nsrc);
-         const nir_const_value *nval = nir_src_as_const_value(nsrc);
-
-         assert(bit_size <= 32);
-         for (unsigned j = 1; j < num_components; j++)
-            assert(nval[0].u32 == nval[j].u32);
-         uint32_t val = nval[0].u32;
-
-         if (i == 0 && val == 0) {
+         if (i == 0 && src0_use_null) {
             src[i] = brw_null_reg();
-
+         } else if (!is_uniform(val)) {
+            src[i] = val;
          } else {
-            unsigned size = bit_size * num_components;
-            unsigned count = size / 32;
-            assert(size % 32 == 0);
+            /* DPAS can't use regioning, so broadcast the uniform value in the
+             * registers to be consumed by it.
+             */
+            assert(nir_src_bit_size(nsrc) == 32);
+            const unsigned num_components = nir_src_num_components(nsrc);
 
-            src[i] = bld.vgrf(BRW_TYPE_UD, count);
-            for (unsigned j = 0; j < count; j++)
-               bld.exec_all().MOV(offset(src[i], bld, j), brw_imm_ud(val));
+            src[i] = bld.vgrf(BRW_TYPE_UD, num_components);
+            const brw_reg scalar = retype(component(val, 0), BRW_TYPE_UD);
+            for (unsigned j = 0; j < num_components; j++)
+               bld.exec_all().MOV(offset(src[i], bld, j), scalar);
          }
       }
 
