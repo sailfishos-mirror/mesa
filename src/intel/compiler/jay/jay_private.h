@@ -22,7 +22,6 @@ extern "C" {
 extern int jay_debug;
 
 bool jay_nir_lower_bool(nir_shader *nir);
-bool jay_nir_opt_sel_zero(nir_shader *nir);
 bool jay_nir_lower_fsign(nir_shader *nir);
 bool jay_nir_lower_bfloat_math(nir_shader *nir);
 
@@ -83,6 +82,7 @@ void jay_opt_predicate(jay_shader *s);
 
 void jay_schedule_pressure(jay_shader *s);
 
+void jay_lower_flags(jay_shader *s);
 void jay_lower_pre_ra(jay_shader *s);
 void jay_lower_post_ra(jay_shader *s);
 void jay_lower_helpers(jay_shader *s);

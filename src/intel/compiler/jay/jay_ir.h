@@ -55,10 +55,16 @@ enum PACKED jay_file {
    JAY_NUM_SSA_FILES = J_ADDRESS + 1,
 
    /* Set of files that the main RA (and not eg flag RA) allocates. */
-   JAY_NUM_RA_FILES = MEM + 1,
+   JAY_NUM_RA_FILES = UFLAG + 1,
    JAY_NUM_GRF_FILES = UGPR + 1,
 };
 static_assert(JAY_FILE_LAST <= 0b1111, "must fit in 4 bits (see jay_def)");
+
+static inline enum jay_file
+jay_normalize_uflag(enum jay_file x)
+{
+   return x == UFLAG ? FLAG : x;
+}
 
 #define jay_foreach_ssa_file(file)                                             \
    for (enum jay_file file = 0; file < JAY_NUM_SSA_FILES; ++file)
@@ -554,11 +560,25 @@ typedef struct jay_inst {
    bool uniform:1;
 
    /**
-    * Indicates a uniform instruction writing a UFLAG but no UGPR that expects
+    * Indicates a uniform instruction writing a flag but no UGPR that expects
     * the flag to replicate for all SIMD lanes. This is okay in our data model
     * but cannot be inferred from the files, so we have this sideband bit.
     */
    bool broadcast_flag:1;
+
+   /**
+    * Indicates a non-uniform instruction reading a flag that is known to be
+    * uniform (defined in lane 0). Used for post-RA predication.
+    */
+   bool reads_uniform_flag:1;
+
+   /**
+    * Indicates an instruction writing a flag that must write 0 to bits for
+    * inactive lanes (otherwise, inactive lanes get zeroes written). Lowered
+    * post-RA, used to accelerate ballots.
+    */
+   bool zero_inactive:1;
+
    bool saturate      :1;
 
    /**
@@ -570,7 +590,7 @@ typedef struct jay_inst {
     */
    bool replicate_dep:1;
    bool decrement_dep:1;
-   uint8_t padding   :3;
+   uint8_t padding   :1;
 
    enum jay_predication predication;
    gen_condition conditional_mod;
@@ -668,9 +688,6 @@ jay_src_type(const jay_inst *I, unsigned s)
          return s == 3 ? jay_send_type_1(I) : jay_send_type_0(I);
    }
 
-   if (I->op == JAY_OPCODE_CAST_CANONICAL_TO_FLAG)
-      return JAY_TYPE_U32;
-
    /* Shifts are always small even with 64-bit destinations */
    if ((I->op == JAY_OPCODE_SHL ||
         I->op == JAY_OPCODE_SHR ||
@@ -681,6 +698,8 @@ jay_src_type(const jay_inst *I, unsigned s)
    /* TODO: Do we want to allow zero-extension generally? */
    if (I->op == JAY_OPCODE_AND_U32_U16)
       return JAY_TYPE_U16;
+   else if (I->op == JAY_OPCODE_AND_S32_SN && s == 1)
+      return jay_type(JAY_TYPE_S, jay_and_s32_sN_n(I));
 
    /* Mixed-signedness integer dot product opcode */
    if (I->op == JAY_OPCODE_DP4A_SU && s == 2)
@@ -1104,10 +1123,6 @@ jay_num_regs(jay_shader *shader, enum jay_file file)
 
    if (file < JAY_NUM_RA_FILES)
       return shader->num_regs[file];
-   else if (file == FLAG)
-      return shader->dispatch_width == 32 ? 4 : 8;
-   else if (file == UFLAG)
-      return 0;
    else
       return 1 /* TODO: We don't have address or accumulator RA yet */;
 }

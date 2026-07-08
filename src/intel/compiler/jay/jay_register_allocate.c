@@ -328,7 +328,9 @@ mov(jay_builder *b, jay_def dst, jay_def src, struct jay_temp_regs temps)
       pop_temp(b, temp, backing);
    } else {
       jay_MOV(b, dst, src)->type =
-         (acc_src || acc_dst) ? JAY_TYPE_F32 : JAY_TYPE_U32;
+         (acc_src || acc_dst) ? JAY_TYPE_F32 :
+         dst.file == FLAG     ? JAY_TYPE_U | b->shader->dispatch_width :
+                                JAY_TYPE_U32;
    }
 }
 
@@ -664,11 +666,21 @@ pick_regs_from_block(jay_ra_state *ra,
       if (tied ? !may_tie : BITSET_TEST_COUNT(ra->pinned[file], r, size))
          continue;
 
-      /* Try to tie predicated default values, otherwise post-RA lowering needs
-       * to insert a predicated-MOV or SEL.
+      /* Try to tie predicated default values (and forcibly tie flags),
+       * otherwise post-RA lowering needs to insert a predicated-MOV or SEL.
        */
-      if (I->predication == JAY_PREDICATED_DEFAULT && !is_src)
-         cost += jay_inst_get_default(I)->reg != r;
+      if (I->predication && !is_src) {
+         if (var.file == FLAG && jay_inst_get_predicate(I)->reg != r) {
+            continue;
+         } else if (I->predication == JAY_PREDICATED_DEFAULT &&
+                    jay_inst_get_default(I)->reg != r) {
+            cost++;
+         }
+      }
+
+      /* Any move we can coalesce, we should */
+      if (I->op == JAY_OPCODE_MOV)
+         cost += !tied;
 
       /* If there are stricter alignment requirements later, model the cost of
        * inserting copies for that.
@@ -904,6 +916,10 @@ assign_regs_for_inst(jay_ra_state *ra, jay_inst *I)
       vars[nr_vars++] = &I->dst;
    }
 
+   if (!jay_is_null(I->cond_flag) && I->cond_flag.file < JAY_NUM_RA_FILES) {
+      vars[nr_vars++] = &I->cond_flag;
+   }
+
    /* Sort variables by size in descending order. We use insertion sort
     * because it is stable, adaptive, and faster than mergesort for small n.
     *
@@ -1118,15 +1134,15 @@ local_ra(jay_ra_state *ra, jay_block *block)
       }
 
       /* Release registers for destinations that are immediately killed */
-      jay_foreach_index(I->dst, _, index) {
+      jay_foreach_dst_index(I, _, index) {
          if (BITSET_TEST(ra->b.func->dead_defs, index)) {
             release_reg(ra, current_reg(ra, index));
          }
       }
 
       if (jay_debug & JAY_DBG_PRINTDEMAND) {
-         printf("(RA) [G:%u\tU:%u] ", register_demand(ra, GPR),
-                register_demand(ra, UGPR));
+         printf("(RA) [G:%u\tU:%u\tF:%u] ", register_demand(ra, GPR),
+                register_demand(ra, UGPR), register_demand(ra, FLAG));
          jay_print_inst(stdout, I);
       }
    }

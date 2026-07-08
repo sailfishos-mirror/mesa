@@ -102,6 +102,7 @@ build_partition(jay_shader *shader, struct jay_partition_builder *b, unsigned n)
       .units_x16[UGPR] = jay_ugpr_per_grf(shader) * 16,
       .units_x16[GPR] = 16 / jay_grf_per_gpr(shader),
       .units_x16[MEM] = 16 / jay_grf_per_gpr(shader),
+      .units_x16[FLAG] = 16 / jay_grf_per_gpr(shader),
    };
 
    /* Drop empty blocks and merge the resulting neighbours. This avoids needless
@@ -263,10 +264,18 @@ jay_partition_grf(jay_shader *shader)
    unsigned demand[JAY_NUM_GRF_FILES] = { 0 };
    struct instruction_req instr_req = analyze_per_inst(shader);
    unsigned ugpr_limit = register_limit(shader, UGPR, 1024);
+   unsigned hw_flags = 8 / jay_grf_per_gpr(shader);
+   unsigned flag_limit = hw_flags - shader->helpers_tracked;
 
    jay_foreach_function(shader, f) {
       jay_compute_liveness(f);
       jay_calculate_register_demands(f);
+
+      if (f->demand[FLAG] > flag_limit) {
+         jay_spill(f, FLAG, flag_limit);
+         jay_compute_liveness(f);
+         jay_calculate_register_demands(f);
+      }
 
       if (f->demand[UGPR] > ugpr_limit) {
          jay_spill(f, UGPR, ugpr_limit);
@@ -434,7 +443,10 @@ jay_partition_grf(jay_shader *shader)
 
       /* Accumulator block */
       { GPR, JAY_STRIDE_4, mapped_accums * grf_per_gpr, JAY_BLOCK_ACCUM },
+      { FLAG, 0, flag_limit * jay_grf_per_gpr(shader) },
    };
+
+   shader->num_regs[FLAG] = hw_flags;
 
    build_partition(shader, blocks, ARRAY_SIZE(blocks));
 
@@ -468,14 +480,18 @@ jay_partition_grf(jay_shader *shader)
 #define ANSI_BOLD   "\033[1m"
 #define ANSI_ITALIC "\033[3m"
 
+static const char *jay_files[JAY_NUM_RA_FILES] = {
+   [GPR] = "GPR", [UGPR] = "UGPR", [MEM] = "MEM", [FLAG] = "FLAG"
+};
+
 void
 jay_print_partition(struct jay_partition *p)
 {
    jay_foreach_ra_file(file) {
       if (p->nr_blocks[file]) {
-         const char *files[JAY_NUM_RA_FILES] = { "GPR", "UGPR", "MEM" };
          printf("%s" ANSI_BOLD "    GRF      %s%s" ANSI_END "\n",
-                file ? "\n" : "", files[file], file == GPR ? "    Stride" : "");
+                file ? "\n" : "", jay_files[file],
+                file == GPR ? "    Stride" : "");
       }
 
       for (unsigned b = 0; b < p->nr_blocks[file]; ++b) {

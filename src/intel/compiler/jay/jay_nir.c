@@ -241,6 +241,41 @@ lower_fragment_outputs(nir_function_impl *impl,
    }
 }
 
+static inline bool
+nir_phi_merges_divergent_control_flow(nir_phi_instr *phi)
+{
+   nir_cf_node *prev = nir_cf_node_prev(&phi->instr.block->cf_node);
+
+   if (!prev) {
+      /* Continues are already lowered, so loop headers always return false */
+      assert(phi->instr.block->cf_node.parent->type == nir_cf_node_loop);
+      return false;
+   } else if (prev->type == nir_cf_node_if) {
+      return nir_src_is_divergent(&nir_cf_node_as_if(prev)->condition);
+   } else {
+      return nir_loop_is_divergent(nir_cf_node_as_loop(prev));
+   }
+}
+
+static bool
+lower_1bit_phi(nir_builder *b, nir_phi_instr *phi, void *_)
+{
+   if (phi->def.bit_size == 1 && nir_phi_merges_divergent_control_flow(phi)) {
+      nir_foreach_phi_src(src, phi) {
+         b->cursor = nir_after_block_before_jump(src->pred);
+         nir_src_rewrite(&src->src, nir_b2b32(b, src->src.ssa));
+      }
+
+      b->cursor = nir_before_block_after_phis(phi->instr.block);
+      phi->def.bit_size = 32;
+      nir_def *repl = nir_b2b1(b, &phi->def);
+      nir_def_rewrite_uses_after(&phi->def, repl);
+      return true;
+   }
+
+   return false;
+}
+
 unsigned
 jay_process_nir(const struct intel_device_info *devinfo,
                 nir_shader *nir,
@@ -478,12 +513,17 @@ jay_process_nir(const struct intel_device_info *devinfo,
       JAY_NIR_PASS(brw_nir_lower_fs_config_intel, &key->fs, &prog_data->fs);
    }
 
+   JAY_NIR_PASS(nir_opt_phi_to_bool);
    brw_postprocess_nir_opts(pt);
 
    JAY_NIR_PASS(nir_shader_intrinsics_pass, jay_nir_lower_simd,
                 nir_metadata_control_flow, &simd_width);
    JAY_NIR_PASS(nir_opt_algebraic_late);
    JAY_NIR_PASS(intel_nir_opt_peephole_imul32x16);
+
+   nir_divergence_analysis(nir);
+   JAY_NIR_PASS(nir_shader_phi_pass, lower_1bit_phi, nir_metadata_control_flow,
+                NULL);
 
    /* Late postprocess while remaining in SSA */
    /* Run fsign lowering again after the last time brw_nir_optimize is called.
@@ -495,7 +535,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
    JAY_NIR_PASS(jay_nir_lower_bool);
    JAY_NIR_PASS(nir_opt_cse);
    JAY_NIR_PASS(nir_opt_dce);
-   JAY_NIR_PASS(jay_nir_opt_sel_zero);
 
    /* Run nir_split_conversions only after the last tiem
     * brw_nir_optimize is called. Various optimizations invoked there can
@@ -522,6 +561,10 @@ jay_process_nir(const struct intel_device_info *devinfo,
     * required divergent 1-source phi after the loop.
     */
    JAY_NIR_PASS(nir_convert_to_lcssa, true, true);
+   nir_divergence_analysis(nir);
+   JAY_NIR_PASS(nir_shader_phi_pass, lower_1bit_phi, nir_metadata_control_flow,
+                NULL);
+   JAY_NIR_PASS(jay_nir_lower_bool);
 
    /* Run divergence analysis at the end */
    nir_sweep(nir);

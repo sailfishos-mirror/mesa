@@ -175,18 +175,19 @@ process_block(struct ctx *ctx, jay_builder *b, jay_block *block)
             jay_block_add_successor(split, jay_last_block(b->func), GPR);
             return;
          }
-      } else if (I->op == JAY_OPCODE_HELPER_SEL) {
-         jay_SEL(b, JAY_TYPE_U32, I->dst, I->src[0], I->src[1],
-                 ctx->helper_flag);
+      } else if (I->op == JAY_OPCODE_IS_HELPER) {
+         jay_inst *mov = jay_MOV(b, I->dst, ctx->helper_flag);
+         mov->uniform = true;
+         mov->type = JAY_TYPE_U | b->shader->dispatch_width;
          jay_remove_instruction(I);
       } else if (I->op == JAY_OPCODE_SEND && jay_send_skip_helpers(I)) {
          if (jay_is_no_mask(I)) {
-            /* jay_assign_flags ensured this is free for us, see logic there */
-            jay_def t = jay_bare_reg(UFLAG, 0);
+            /* I->cond_flag has been reserved for our use */
             jay_inst *not = jay_NOT(b, jay_null(), ctx->helper_flag);
             not->type = JAY_TYPE_U | b->shader->dispatch_width;
-            jay_set_conditional_mod(b, not, t, GEN_CONDITION_NE);
-            jay_add_predicate(b, I, t);
+            not->uniform = true;
+            jay_set_conditional_mod(b, not, I->cond_flag, GEN_CONDITION_NE);
+            jay_add_predicate(b, I, I->cond_flag);
          } else {
             jay_add_predicate(b, I, jay_negate(ctx->helper_flag));
          }

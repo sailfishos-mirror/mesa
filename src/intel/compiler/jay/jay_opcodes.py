@@ -169,6 +169,7 @@ op('zip_ugpr16', 2, 'u32')
 op('extract_byte_per_8lanes', 2, 'u32')
 op('shr_odd_subspans_by_4', 1, 'u16')
 op('and_u32_u16', 2, 'u32')
+op('and_s32_sN', 2, 's32', 0, ['unsigned n'])
 
 # Pixel coord calculations. expand_quad replicates out the per-2x2 values from
 # its source g0.[10...13] and - in the case of SIMD32 - g1.[10...13] into a
@@ -214,10 +215,8 @@ op('unit_test', 1, 'u32', Props.NO_DEST)
 op('undef', 0, 'u1 u32')
 
 op('not', 1, 'u1 u32', Props.CMOD)
-op('cast_canonical_to_flag', 1, 'u1')
 
 op('mov_imm64', 0, 'u64', 0, ['uint64_t imm'])
-op('zero_flag', 0, 'u1', Props.NO_DEST, ['unsigned reg'])
 
 # Cross-lane shuffle. src0=data, src1=offset in bytes. Clobbers an address reg.
 op('shuffle', 2, 'u1 u32')
@@ -251,8 +250,8 @@ op('init_helpers', 2, 'u16', Props.NO_DEST)
 # Compare the arguments and demote based on the result.
 op('demote', 2, 'u1 u16 u32 u64 s16 s32 s64 f16 f32 f64', Props.NEGATE | Props.NO_DEST)
 
-# Equivalent to NIR bcsel(@is_helper_invocation, source 0, source 1)
-op('helper_sel', 2, 'u1 u32')
+# Copy the is_helper flag.
+op('is_helper', 0, 'u1 u32')
 
 OPCODES = _opcodes
 

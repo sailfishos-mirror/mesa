@@ -252,10 +252,7 @@ validate_inst(struct validate_state *validate, jay_inst *I)
     * required to ensure correctness with the lane masking.
     */
    CHECK(!I->broadcast_flag ||
-         (!jay_is_null(I->cond_flag) &&
-          jay_is_null(I->dst) &&
-          I->cond_flag.file == UFLAG &&
-          (I->op == JAY_OPCODE_CMP || I->op == JAY_OPCODE_MOV)));
+         (!jay_is_null(I->cond_flag) && jay_is_null(I->dst) && I->uniform));
 
    /* We cannot mix uniformness */
    CHECK(!(!jay_is_null(I->dst) && I->dst.file == GPR && I->uniform));
@@ -264,13 +261,16 @@ validate_inst(struct validate_state *validate, jay_inst *I)
            jay_num_values(I->dst) < 8 &&
            !I->uniform));
    CHECK(!(I->cond_flag.file == UFLAG && !I->uniform));
-   CHECK(!(I->cond_flag.file == FLAG && I->uniform));
 
    /* Standard modifiers only allowed on some instructions */
    CHECK(!I->saturate || opinfo->sat);
    CHECK(!I->conditional_mod ||
          (I->op == JAY_OPCODE_CSEL || I->op == JAY_OPCODE_DEMOTE) ||
          (!jay_is_null(I->cond_flag) && opinfo->cmod));
+
+   /* We should not be clobbering multiple flags in SIMD16 with a mov.u32 */
+   CHECK(!(I->dst.file == FLAG && jay_type_size_bits(I->type) >
+                                     validate->func->shader->dispatch_width));
 
    unsigned num_srcs = I->num_srcs;
 
@@ -279,7 +279,8 @@ validate_inst(struct validate_state *validate, jay_inst *I)
 
       if (jay_inst_has_default(I)) {
          jay_def dst = jay_is_null(I->dst) ? I->cond_flag : I->dst;
-         CHECK(jay_inst_get_default(I)->file == dst.file);
+         CHECK(jay_normalize_uflag(jay_inst_get_default(I)->file) ==
+               jay_normalize_uflag(dst.file));
       }
 
       CHECK(jay_is_flag(*jay_inst_get_predicate(I)));
@@ -312,6 +313,15 @@ validate_inst(struct validate_state *validate, jay_inst *I)
 
       CHECK(!I->src[s].negate || jay_has_src_mods(I, s));
    }
+
+   CHECK(!I->zero_inactive || !jay_is_null(I->cond_flag));
+
+   /* Pure flag operations must be bitwise for our lowering to work */
+   CHECK(I->type != JAY_TYPE_U1 ||
+         (I->op == JAY_OPCODE_PHI_DST || I->op == JAY_OPCODE_UNDEF) ||
+         (I->op == JAY_OPCODE_MOV || I->op == JAY_OPCODE_NOT) ||
+         (I->op >= JAY_OPCODE_AND || I->op == JAY_OPCODE_XOR) ||
+         (I->op == JAY_OPCODE_DEMOTE || I->op == JAY_OPCODE_IS_HELPER));
 
    if (I->op == JAY_OPCODE_DPAS) {
       CHECK(jay_num_values(I->dst) == get_src_words(validate, I, 0));

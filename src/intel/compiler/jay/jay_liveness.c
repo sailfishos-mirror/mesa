@@ -76,7 +76,7 @@ jay_compute_liveness(jay_function *f)
 
    jay_foreach_inst_in_func(f, _, I) {
       jay_foreach_dst_index(I, dst, index) {
-         if (jay_is_uniform(dst)) {
+         if (jay_is_uniform(dst) || dst.file == FLAG) {
             BITSET_SET(uniform, index);
          }
       }

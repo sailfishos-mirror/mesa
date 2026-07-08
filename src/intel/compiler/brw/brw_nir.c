@@ -2313,6 +2313,18 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       .lower_vote_feq = jay,
       .lower_vote_ieq = jay,
       .lower_boolean_shuffle = jay,
+
+      /* Jay does not implement boolean read_first_invocation, so we lower. The
+       * lowering is harmless for non-booleans so we don't have a specific
+       * lower_boolean_read_first_invocation flag.
+       *
+       * Note that nir_lower_non_uniform_access creates new non-boolean
+       * read_first_invocation so Jay simultaneously requests
+       * read_first_invocation lowering while still implementing (non-boolean)
+       * read_first_invocation.
+       */
+      .lower_read_first_invocation = jay,
+
       /* TODO: jay supports quad broadcast and should(?) do swaphorizontal */
       .lower_quad = jay,
       .lower_quad_vote = jay,

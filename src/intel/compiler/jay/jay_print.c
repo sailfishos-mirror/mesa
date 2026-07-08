@@ -131,6 +131,10 @@ jay_print_inst(FILE *fp, jay_inst *I)
       jay_print_def(fp, I, -2);
    }
 
+   if (I->zero_inactive) {
+      fprintf(fp, " (balloted)");
+   }
+
    if (!jay_is_null(I->dst) || !jay_is_null(I->cond_flag)) {
       fprintf(fp, " = ");
    }

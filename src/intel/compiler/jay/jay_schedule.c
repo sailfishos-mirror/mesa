@@ -123,7 +123,7 @@ populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
           I->op == JAY_OPCODE_SCHEDULE_BARRIER ||
           I->op == JAY_OPCODE_INIT_HELPERS ||
           I->op == JAY_OPCODE_DEMOTE ||
-          I->op == JAY_OPCODE_HELPER_SEL ||
+          I->op == JAY_OPCODE_IS_HELPER ||
           (I->op == JAY_OPCODE_SEND &&
            ctx->func->shader->helpers_tracked &&
            jay_send_skip_helpers(I))) {
@@ -148,16 +148,8 @@ populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
 static signed
 weighted_demand(struct sched_ctx *ctx, signed *demands)
 {
-   signed weighted = 0;
-
-   jay_foreach_ssa_file(file) {
-      signed scale = file == J_ADDRESS  ? 0 :
-                     file & JAY_UNIFORM ? 1 :
-                                          ctx->func->shader->dispatch_width;
-      weighted += demands[file] * scale;
-   }
-
-   return weighted;
+   return (demands[GPR] * ctx->func->shader->dispatch_width) +
+          (demands[UGPR] + demands[FLAG]);
 }
 
 /*
@@ -360,17 +352,13 @@ pass(jay_function *f)
       gather_block_info(&sctx, block, memctx);
 
       /* Do pressure-only scheduling only on blocks that might spill, to
-       * minimize harm. We conservatively use 104 GRFs as the threshold instead
-       * of 128 to leave wiggle room for flag RA and late lowerings.
-       *
-       * We treat flags as GPR demand conservatively since they spill to GPRs.
+       * minimize harm. We use a conservative threshold to leave wiggle room for
+       * late lowerings.
        */
-      unsigned demand_ugpr = block->demand_max[UGPR];
-      unsigned demand_gpr = block->demand_max[GPR] +
-                            block->demand_max[FLAG] +
-                            block->demand_max[UFLAG];
+      unsigned demand_ugpr = block->demand_max[UGPR] + block->demand_max[FLAG];
+      unsigned demand_gpr = block->demand_max[GPR];
 
-      if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (104 * ugpr_per_grf)) {
+      if (((demand_gpr * ugpr_per_gpr) + demand_ugpr) >= (120 * ugpr_per_grf)) {
          f->prioritize_pressure = true;
          schedule_block(block, &sctx, memctx);
       }

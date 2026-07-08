@@ -15,6 +15,7 @@
 #include "intel/dev/intel_debug.h"
 #include "mda/debug_archiver.h"
 #include "util/bitscan.h"
+#include "util/bitset.h"
 #include "util/lut.h"
 #include "util/macros.h"
 #include "util/u_math.h"
@@ -91,6 +92,9 @@ struct nir_to_jay_state {
    jay_builder bld;
    jay_block *current_block, *after_block, *break_block, *exit_block;
 
+   /* Bitset of defs optimized for ballots */
+   BITSET_WORD *zero_inactive;
+
    unsigned indent;
    bool needs_final_halt;
 
@@ -139,7 +143,10 @@ emit_active_lane_mask(struct nir_to_jay_state *nj)
    /* Note that we don't use mask0 since it needs fixups. Just ballot(true). */
    if (jay_is_null(nj->active_lane_mask)) {
       nj->active_lane_mask = jay_alloc_def(&nj->bld, FLAG, 1);
-      jay_MOV(&nj->bld, nj->active_lane_mask, 1);
+      jay_inst *mov = jay_MOV(&nj->bld, jay_null(), 1);
+      jay_set_conditional_mod(&nj->bld, mov, nj->active_lane_mask,
+                              GEN_CONDITION_NE);
+      mov->zero_inactive = true;
    }
 
    return nj->active_lane_mask;
@@ -194,7 +201,8 @@ static jay_def
 emit_uniformize(struct nir_to_jay_state *nj, jay_def x)
 {
    jay_builder *b = &nj->bld;
-   if (x.file != GPR && x.file != FLAG) {
+   if (x.file != GPR) {
+      assert(!jay_is_flag(x));
       return x;
    }
 
@@ -202,9 +210,7 @@ emit_uniformize(struct nir_to_jay_state *nj, jay_def x)
       nj->active_lane_x4 = jay_SHL_u32(b, emit_active_lane(nj), 2);
    }
 
-   jay_def u = jay_alloc_def(b, x.file == FLAG ? UFLAG : UGPR, 1);
-   jay_SHUFFLE(b, u, x, nj->active_lane_x4);
-   return u;
+   return jay_SHUFFLE(b, jay_alloc_def(b, UGPR, 1), x, nj->active_lane_x4)->dst;
 }
 
 static jay_block *jay_emit_cf_list(struct nir_to_jay_state *nj,
@@ -310,6 +316,22 @@ lower_bf(jay_builder *b, jay_inst *I)
    }
 }
 
+static inline void
+optimize_ballot(struct nir_to_jay_state *nj, jay_inst *I, nir_def *def)
+{
+   nir_foreach_use(src, def) {
+      nir_instr *use = nir_src_use_instr(src);
+      if (use->type == nir_instr_type_intrinsic &&
+          nir_instr_as_intrinsic(use)->intrinsic == nir_intrinsic_ballot &&
+          use->block == nir_def_block(def)) {
+
+         BITSET_SET(nj->zero_inactive, jay_index(I->cond_flag));
+         I->zero_inactive = true;
+         return;
+      }
+   }
+}
+
 static void
 jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 {
@@ -329,10 +351,12 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
    switch (alu->op) {
 #define CMP(op, cmod)                                                          \
-   case nir_op_##op:                                                           \
-      jay_CMP(b, jay_alu_source_type(alu, 0), GEN_CONDITION_##cmod, dst,       \
-              src[0], src[1]);                                                 \
-      break;
+   case nir_op_##op: {                                                         \
+      jay_inst *I = jay_CMP(b, jay_alu_source_type(alu, 0),                    \
+                            GEN_CONDITION_##cmod, dst, src[0], src[1]);        \
+      optimize_ballot(nj, I, &alu->def);                                       \
+      break;                                                                   \
+   }
 
 #define UNOP(nir, jay_op)                                                      \
    case nir_op_##nir:                                                          \
@@ -384,7 +408,6 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
       UNOP_UNTYPED(mov, copy)
       UNOP_UNTYPED(unpack_32_2x16_split_x, MOV)
-      UNOP_UNTYPED(b2b1, CAST_CANONICAL_TO_FLAG)
       UNOP_UNTYPED(inot, NOT)
       UNOP_UNTYPED(bitfield_reverse, BFREV)
       UNOP_UNTYPED(bit_count, CBIT)
@@ -442,6 +465,16 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
 
    case nir_op_bfm:
       jay_BFI1(b, dst, src[0], src[1]);
+      break;
+
+   case nir_op_b2b1:
+      if (dst.file == UFLAG) {
+         jay_MOV(b, dst, src[0])->type = JAY_TYPE_U | b->shader->dispatch_width;
+      } else {
+         jay_inst *I =
+            jay_CMP(b, JAY_TYPE_U32, GEN_CONDITION_NE, dst, src[0], 0);
+         optimize_ballot(nj, I, &alu->def);
+      }
       break;
 
    case nir_op_b2f64:
@@ -1836,7 +1869,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_helper_invocation:
    case nir_intrinsic_is_helper_invocation:
-      jay_HELPER_SEL(b, dst, 1, 0);
+      jay_IS_HELPER(b, dst);
       break;
 
    case nir_intrinsic_ddx:
@@ -1868,22 +1901,25 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_MOV(b, dst, emit_uniformize(nj, nj_src(intr->src[0])));
       break;
 
-   case nir_intrinsic_ballot:
-   case nir_intrinsic_ballot_relaxed: {
+   case nir_intrinsic_ballot: {
       jay_def val = nj_src(intr->src[0]);
-      if (nir_src_is_const(intr->src[0]) && nir_src_as_bool(intr->src[0])) {
-         val = emit_active_lane_mask(nj);
-      } else if (val.file == UFLAG) {
-         /* Move to a FLAG temporary so we can ballot it. */
-         val = jay_MOV(b, jay_alloc_def(b, FLAG, 1), val)->dst;
-      } else {
-         assert(val.file == FLAG);
-      }
-
       assert(intr->def.bit_size == b->shader->dispatch_width);
-      jay_MOV(b, dst, val);
+
+      if (nir_src_is_const(intr->src[0]) && nir_src_as_bool(intr->src[0])) {
+         jay_MOV(b, dst, emit_active_lane_mask(nj));
+      } else if (BITSET_TEST(nj->zero_inactive, jay_index(val)) &&
+                 nir_def_block(intr->src[0].ssa) == intr->instr.block) {
+         jay_MOV(b, dst, val);
+      } else {
+         jay_AND(b, JAY_TYPE_U32, dst, val, emit_active_lane_mask(nj));
+      }
       break;
    }
+
+   case nir_intrinsic_ballot_relaxed:
+      assert(intr->def.bit_size == b->shader->dispatch_width);
+      jay_MOV(b, dst, nj_src(intr->src[0]));
+      break;
 
    /* We prefer to inverse_ballot by copying a UGPR to the flag. If we have a
     * GPR input, behaviour is undefined for non-uniform inputs. TODO: a lowered
@@ -3618,12 +3654,14 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
    }
 
    nj.exit_block = jay_create_block(&nj);
+   nj.zero_inactive = BITSET_CALLOC(f->ssa_alloc);
    jay_emit_cf_list(&nj, &impl->body);
    jay_block_add_successor(nj.current_block, nj.exit_block, GPR);
 
    list_addtail(&nj.exit_block->link, &f->blocks);
    jay_emit_eot(&nj);
    jay_remove_unreachable_blocks(f);
+   free(nj.zero_inactive);
 }
 
 static void
@@ -3712,13 +3750,15 @@ jay_compile(const struct intel_device_info *devinfo,
       jay_print(stdout, s);
    }
 
-   if (!(jay_debug & JAY_DBG_NOSCHED)) {
-      JAY_PASS(s, jay_schedule_pressure);
-   }
-
-   JAY_PASS(s, jay_assign_flags);
    if (!(jay_debug & JAY_DBG_NOOPT)) {
       JAY_PASS(s, jay_opt_dead_code);
+   }
+
+   JAY_PASS(s, jay_lower_flags);
+   JAY_PASS(s, jay_opt_dead_code);
+
+   if (!(jay_debug & JAY_DBG_NOSCHED)) {
+      JAY_PASS(s, jay_schedule_pressure);
    }
 
    JAY_PASS(s, jay_lower_pre_ra);

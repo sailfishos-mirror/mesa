@@ -188,7 +188,7 @@ to_gen_operand(
       if (simd_width == 1) {
          R = gen_restride(R, 0, 1, 0);
       }
-   } else if (jay_is_flag(d)) {
+   } else if (d.file == FLAG) {
       /* Explicit flags act like UGPRs. As sources they broadcast to all lanes,
        * so we may ignore the SIMD offset. As destinations, they are written by
        * SIMD1 instructions and are never SIMD split.
@@ -247,6 +247,7 @@ static const struct {
    OP(ADD, ADD, 2),
    OP(AND, AND, 2),
    OP(AND_U32_U16, AND, 2),
+   OP(AND_S32_SN, AND, 2),
    OP(ASR, ASR, 2),
    OP(AVG, AVG, 2),
    OP(BFE, BFE, 3),
