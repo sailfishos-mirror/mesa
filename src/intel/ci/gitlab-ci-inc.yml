@@ -399,6 +399,7 @@
     DRIVER_NAME: anv
     VK_DRIVER: intel
     ANV_DEBUG: "video-decode,video-encode"
+    vk_require_astc: 'true'
 
 .iris-test:
   extends:
@@ -422,6 +423,7 @@
     - .test-angle
   variables:
     VK_DRIVER: intel
+    vk_require_astc: 'true'
 
 ## Iris only
 .iris-apl-test:
