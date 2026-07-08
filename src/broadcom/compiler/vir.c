@@ -2288,10 +2288,85 @@ log_strategy_fallback(struct v3d_compile *c)
                      c->program_id, c->variant_id);
 }
 
+static void
+log_compile_failed(struct v3d_compile *c)
+{
+        mesa_loge("Failed to compile %s prog %d/%d with strategy %d",
+                  vir_get_stage_name(c), c->program_id,
+                  c->variant_id, c->compile_strategy_idx);
+}
+
+/* A 2-thread compile has an allocation budget of ~64 registers and the
+ * pre-spill pressure (max simultaneously-live temps) is an accurate
+ * predictor: shaders at/under the budget allocate with little or no spilling,
+ * while shaders far above it spill on every 2-thread strategy. The latter are
+ * routed to the pressure-probe (one spill loop instead of one per strategy);
+ * the rest take the normal ladder, which is cheap for them and stops at the
+ * first 0-spill compile. The cutoff is set well above the budget so only
+ * heavily-spilling shaders, where the probe actually pays off, are diverted.
+ */
+#define V3D_PROBE_HEAVY_PRESSURE (2 * 64)
+
+/* In the heavy path, besides the lowest-pressure strategy we also finish any
+ * whose pressure is within this margin of it: a small tie in pre-spill pressure
+ * does not reliably predict which strategy spills least.
+ */
+#define V3D_PROBE_PRESSURE_MARGIN 8
+
+static struct v3d_compile *
+probe_strategy(const struct v3d_compiler *compiler, struct v3d_key *key,
+               nir_shader *s,
+               void (*debug_output)(const char *, void *),
+               void *debug_output_data, int program_id, int variant_id,
+               int32_t strategy)
+{
+        struct v3d_compile *p =
+                vir_compile_init(compiler, key, s, debug_output,
+                                 debug_output_data, program_id, variant_id,
+                                 strategy, &strategies[strategy],
+                                 strategy == ARRAY_SIZE(strategies) - 1);
+        p->probe_only = true;
+        v3d_attempt_compile(p);
+        return p;
+}
+
+static void
+finish_strategy(struct v3d_compile *p)
+{
+        assert(p->probe_only);
+        p->probe_only = false;
+        v3d_nir_to_vir_finish(p);
+}
+
+/* qsort comparator: order by pre-spill pressure, breaking ties on the strategy
+ * index so the pressure-order walk below selects the same strategy the ladder
+ * (which tries them in index order) would.
+ */
+static int
+cmp_candidate_pressure(const void *pa, const void *pb)
+{
+        const struct v3d_compile *a = *(const struct v3d_compile **)pa;
+        const struct v3d_compile *b = *(const struct v3d_compile **)pb;
+        if (a->max_pressure != b->max_pressure)
+                return a->max_pressure < b->max_pressure ? -1 : 1;
+        if (a->compile_strategy_idx != b->compile_strategy_idx)
+                return a->compile_strategy_idx < b->compile_strategy_idx ? -1 : 1;
+        return 0;
+}
+
 /* Compile with the 2-thread strategies, from index "first" on, and return
- * the best compile (callers must check its compilation_result): compile
- * strategies in order, stop at the first 0-spill success, otherwise keep
- * the lowest spill+fill.
+ * the best compile (callers must check its compilation_result).
+ *
+ * The first strategy is probed (VIR built up to the point of register
+ * allocation, measuring the pre-spill pressure) to route between two paths:
+ *
+ * "Light" shaders: compile all 2-thread strategies assuming the full RA loop
+ * is relatively cheap, choose the one with the least spills. Skip early if we
+ * find one which doesn't spill.
+ *
+ * "Heavy" shaders (which will spill on every strategy, paying a full spill
+ * loop per attempt) probe every strategy first and run the spill loop only
+ * on the lowest-pressure candidate(s).
  */
 static struct v3d_compile *
 compile_2t_strategies(const struct v3d_compiler *compiler,
@@ -2308,51 +2383,173 @@ compile_2t_strategies(const struct v3d_compiler *compiler,
         int num_candidates = 0;
         struct v3d_compile *chosen = NULL;
 
-        uint32_t best_spill_fill_count = UINT32_MAX;
-        struct v3d_compile *prev = NULL;
         assert(first > 0 && first < nstrat);
-        for (int32_t strat = first; strat < nstrat; strat++) {
-                assert(strategies[strat].max_threads == 2);
-                if (prev && skip_compile_strategy(prev, strat))
-                        continue;
-                struct v3d_compile *c =
-                        vir_compile_init(compiler, key, s, debug_output,
-                                         debug_output_data,
-                                         program_id, variant_id,
-                                         strat, &strategies[strat],
-                                         strat == nstrat - 1);
-                candidates[num_candidates++] = c;
-                log_strategy_fallback(c);
-                v3d_attempt_compile(c);
-                prev = c;
+        /* Route on the first 2-thread strategy's pre-spill pressure. */
+        assert(strategies[first].max_threads == 2);
+        struct v3d_compile *p0 =
+                probe_strategy(compiler, key, s, debug_output,
+                               debug_output_data, program_id, variant_id,
+                               first);
 
-                /* Broken shader or driver bug */
-                if (c->compilation_result == V3D_COMPILATION_FAILED)
-                        mesa_logw("Failed to compile %s prog %d/%d with strategy %d",
-                                  vir_get_stage_name(c), c->program_id,
-                                  c->variant_id, strat);
-                        continue;
-                if (c->compilation_result != V3D_COMPILATION_SUCCEEDED)
-                        continue;
-                /* With OPT_COMPILE_TIME we stop at the first success */
-                if (c->spills == 0 || V3D_DBG(OPT_COMPILE_TIME)) {
-                        chosen = c;
-                        break;
+        if (p0->max_pressure <= V3D_PROBE_HEAVY_PRESSURE ||
+            V3D_DBG(OPT_COMPILE_TIME)) {
+                /* Light register pressure: compile all 2-thread strategies
+                 * assuming full RA loop is relatively cheap, choose the one
+                 * with the least spills.
+                 */
+                uint32_t best_spill_fill_count = UINT32_MAX;
+                struct v3d_compile *prev = NULL;
+                for (int32_t strat = first; strat < nstrat; strat++) {
+                        assert(strategies[strat].max_threads == 2);
+                        struct v3d_compile *c;
+                        if (strat == first) {
+                                c = p0;
+                                finish_strategy(c);
+                        } else {
+                                if (skip_compile_strategy(prev, strat))
+                                        continue;
+                                c = vir_compile_init(compiler, key, s,
+                                                     debug_output,
+                                                     debug_output_data,
+                                                     program_id, variant_id,
+                                                     strat, &strategies[strat],
+                                                     strat == nstrat - 1);
+                                v3d_attempt_compile(c);
+                        }
+                        candidates[num_candidates++] = c;
+                        log_strategy_fallback(c);
+                        prev = c;
+
+                        /* Broken shader or driver bug */
+                        if (c->compilation_result == V3D_COMPILATION_FAILED) {
+                                log_compile_failed(c);
+                                continue;
+                        }
+                        if (c->compilation_result != V3D_COMPILATION_SUCCEEDED)
+                                continue;
+                        /* With OPT_COMPILE_TIME we stop at the first success */
+                        if (c->spills == 0 || V3D_DBG(OPT_COMPILE_TIME)) {
+                                chosen = c;
+                                break;
+                        }
+                        if (c->spills + c->fills < best_spill_fill_count) {
+                                best_spill_fill_count = c->spills + c->fills;
+                                chosen = c;
+                        }
+
+                        log_strategy(c, "Compiled %s prog %d/%d with %d "
+                                     "spills and %d fills. Will try more "
+                                     "strategies.",
+                                     vir_get_stage_name(c),
+                                     c->program_id, c->variant_id,
+                                     c->spills, c->fills);
                 }
-                if (c->spills + c->fills < best_spill_fill_count) {
-                        best_spill_fill_count = c->spills + c->fills;
-                        chosen = c;
+        } else {
+                /* Heavy path: probe the remaining strategies, then run
+                 * the spill loop only on a small candidate set and keep
+                 * the minimum spill+fill:
+                 *  - the lowest-pressure strategy and any within
+                 *    V3D_PROBE_PRESSURE_MARGIN of it (pre-spill pressure
+                 *    ties don't reliably predict the min-spill strategy),
+                 *  - the fallback scheduler also within a wider band (up to
+                 *    2x the minimum pressure): its pressure runs higher for
+                 *    comparable spilling, but far beyond the band its spill
+                 *    loop is the most expensive of all strategies and never
+                 *    wins.
+                 * Escalate to the remaining strategies in pressure order if
+                 * every candidate failed register allocation.
+                 */
+                candidates[num_candidates++] = p0;
+                for (int32_t strat = first + 1; strat < nstrat; strat++) {
+                        if (skip_compile_strategy(candidates[num_candidates - 1], strat))
+                                continue;
+                        candidates[num_candidates++] =
+                                probe_strategy(compiler, key, s, debug_output,
+                                               debug_output_data, program_id,
+                                               variant_id, strat);
                 }
 
-                log_strategy(c, "Compiled %s prog %d/%d with %d "
-                             "spills and %d fills. Will try more "
-                             "strategies.",
-                             vir_get_stage_name(c),
-                             c->program_id, c->variant_id,
-                             c->spills, c->fills);
+                /* Sort candidates by pre-spill pressure */
+                qsort(candidates, num_candidates, sizeof(*candidates),
+                      cmp_candidate_pressure);
+
+                uint32_t min_pressure = candidates[0]->max_pressure;
+                bool finished[ARRAY_SIZE(strategies)] = { false };
+                for (int rank = 0; rank < num_candidates; rank++) {
+                        struct v3d_compile *p = candidates[rank];
+                        /* The fallback scheduler optimises its own NIR-level
+                         * pressure estimate, which diverges from the pre-spill
+                         * pressure measured on the VIR, so its probe runs high
+                         * for comparable spilling; give it a wider, relative
+                         * band (up to 2x the minimum) rather than the small
+                         * fixed margin the other strategies use. Measured over
+                         * fossilize captures, shader-db and CTS, every fallback
+                         * win was below 1.6x the minimum probed pressure, while
+                         * from ~2.4x on it always lost with the most expensive
+                         * spill loop of all strategies (up to ~50x slower).
+                         */
+                        if (p->compile_strategy_idx == nstrat - 1) {
+                                if (p->max_pressure > 2 * min_pressure)
+                                        continue;
+                        } else if (p->max_pressure >
+                                   min_pressure + V3D_PROBE_PRESSURE_MARGIN) {
+                                continue;
+                        }
+                        log_strategy_fallback(p);
+                        finish_strategy(p);
+                        finished[rank] = true;
+
+                        /* Broken shader or driver bug */
+                        if (p->compilation_result == V3D_COMPILATION_FAILED) {
+                                log_compile_failed(p);
+                                continue;
+                        }
+                        if (p->compilation_result != V3D_COMPILATION_SUCCEEDED)
+                                continue;
+                        /* Keep the minimum spill+fill; break ties on the
+                         * strategy index so we select the same strategy the
+                         * ladder (which tries them in index order) would.
+                         */
+                        if (!chosen ||
+                            p->spills + p->fills <
+                            chosen->spills + chosen->fills ||
+                            (p->spills + p->fills ==
+                             chosen->spills + chosen->fills &&
+                             p->compile_strategy_idx <
+                             chosen->compile_strategy_idx)) {
+                                chosen = p;
+                                /* Nothing can beat a 0-spill compile */
+                                if (p->spills == 0)
+                                        break;
+                        }
+                }
+                /* If no candidate succeeded, escalate through the remaining
+                 * strategies in pressure order (this is a register allocation
+                 * failure: spilling is unrestricted in 2-thread strategies,
+                 * but RA can still fail).
+                 */
+                for (int rank = 0; rank < num_candidates && !chosen; rank++) {
+                        if (finished[rank])
+                                continue;
+                        struct v3d_compile *p = candidates[rank];
+                        log_strategy_fallback(p);
+                        finish_strategy(p);
+                        finished[rank] = true;
+                        /* Stop at the first success. A hard failure (broken
+                         * shader or driver bug) is logged but, like a register
+                         * allocation failure, keeps escalating.
+                         */
+                        if (p->compilation_result == V3D_COMPILATION_SUCCEEDED) {
+                                chosen = p;
+                                break;
+                        }
+                        if (p->compilation_result == V3D_COMPILATION_FAILED)
+                                log_compile_failed(p);
+                }
         }
-        /* We only get here without a chosen strategy if they all failed to RA.
-         * In that case it doesn't matter which one we return.
+        /* No strategy succeeded (all failed register allocation, or hit a
+         * broken shader / driver bug). It doesn't matter which one we return;
+         * every candidate has been finished by now, so return the last one.
          */
         if (!chosen)
                 chosen = candidates[num_candidates - 1];
@@ -2428,9 +2625,7 @@ uint64_t *v3d_compile(const struct v3d_compiler *compiler,
 
                 /* Broken shader or driver bug */
                 if (c->compilation_result == V3D_COMPILATION_FAILED) {
-                        mesa_logw("Failed to compile %s prog %d/%d with strategy %d",
-                                  vir_get_stage_name(c), c->program_id,
-                                  c->variant_id, strat);
+                        log_compile_failed(c);
                         continue;
                 }
                 if (c->compilation_result == V3D_COMPILATION_SUCCEEDED) {
@@ -2445,22 +2640,20 @@ uint64_t *v3d_compile(const struct v3d_compiler *compiler,
         if (best_c && c != best_c)
                 set_best_compile(&c, best_c);
 
-        if (c->compilation_result !=
-            V3D_COMPILATION_FAILED_REGISTER_ALLOCATION &&
-            c->spills > 0) {
-                log_strategy(c, "Compiled %s prog %d/%d with %d spills "
-                             "and %d fills",
-                             vir_get_stage_name(c),
-                             c->program_id, c->variant_id,
-                             c->spills, c->fills);
-        }
-
         if (c->compilation_result != V3D_COMPILATION_SUCCEEDED) {
                 mesa_loge("Failed to compile %s prog %d/%d with any strategy",
                           vir_get_stage_name(c), c->program_id, c->variant_id);
 
                 vir_compile_destroy(c);
                 return NULL;
+        }
+
+        if (c->spills > 0) {
+                log_strategy(c, "Compiled %s prog %d/%d with %d spills "
+                             "and %d fills",
+                             vir_get_stage_name(c),
+                             c->program_id, c->variant_id,
+                             c->spills, c->fills);
         }
 
         struct v3d_prog_data *prog_data;
