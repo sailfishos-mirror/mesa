@@ -1544,6 +1544,8 @@ zink_set_vertex_buffers_internal(struct pipe_context *pctx,
          assert(ctx->vertex_buffers[b].buffer.resource);
 #endif
    }
+   /* avoid potential overdraw conflicts */
+   ctx->can_promote_depth_op = false;
    ctx->vertex_buffers_count = num_buffers;
    ctx->vertex_buffers_dirty = num_buffers > 0;
 }
@@ -3531,6 +3533,7 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
 
    VKCTX(CmdBeginRendering)(ctx->bs->cmdbuf, &ctx->dynamic_fb.info);
    ctx->in_rp = true;
+   ctx->can_promote_depth_op = ctx->fb_state.zsbuf.texture && ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR;
    if (formats_changed) {
       for (unsigned i = 0; i < ctx->fb_state.nr_cbufs; i++)
          ctx->fb_state.cbufs[i].format = pformats[i];
@@ -3633,6 +3636,7 @@ zink_batch_rp(struct zink_context *ctx)
       if (ctx->render_condition.query)
          zink_start_conditional_render(ctx);
       zink_clear_framebuffer(ctx, clear_buffers);
+      zink_update_depth_state(ctx);
    }
    /* unable to previously determine that queries didn't split renderpasses: ensure queries start inside renderpass */
    if (!ctx->queries_disabled && maybe_has_query_ends && !list_is_empty(&ctx->suspended_queries)) {

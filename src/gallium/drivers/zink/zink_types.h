@@ -2009,6 +2009,8 @@ struct zink_context {
    bool rp_tc_info_updated : 1;
    bool last_work_was_compute : 1;
    bool needs_transfer_sync : 1;
+   bool can_promote_depth_op : 1;
+   bool depth_op_promoted : 1;
 };
 
 static inline struct zink_context *
