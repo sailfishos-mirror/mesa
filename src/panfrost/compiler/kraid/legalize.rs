@@ -3,7 +3,10 @@
 
 use crate::builder::*;
 use crate::ir::*;
+use crate::model::FAUModel;
 use compiler::bitset::BitSet;
+use compiler::enum_as_u8::EnumAsU8;
+use kraid_proc_macros::EnumAsU8;
 
 fn move_src_to_tmp(b: &mut impl SSABuilder, src: &mut Src) {
     // SrcRef::bytes() isn't totally accurate for zero but that's okay since
@@ -107,9 +110,148 @@ fn legalize_vec_srcs(
     ssa_used.clear();
 }
 
+#[repr(u8)]
+#[derive(Clone, Copy, EnumAsU8, PartialEq)]
+enum HWFAUPage {
+    User0,
+    User1,
+    User2,
+    User3,
+    Special0,
+    Special1,
+    Special3,
+    // This one has to go last
+    SmallConst,
+}
+
+fn hw_fau_page(fau_model: &FAUModel, fau: &FAURef) -> HWFAUPage {
+    match fau.page {
+        FAUPage::User => match fau_model.user_page_idx(fau.idx) {
+            0 => HWFAUPage::User0,
+            1 => HWFAUPage::User1,
+            2 => HWFAUPage::User2,
+            3 => HWFAUPage::User3,
+            _ => panic!("Invalid user FAU page"),
+        },
+        FAUPage::Special0 => HWFAUPage::Special0,
+        FAUPage::Special1 => HWFAUPage::Special1,
+        FAUPage::Special3 => HWFAUPage::Special3,
+        FAUPage::SmallConst => HWFAUPage::SmallConst,
+    }
+}
+
+/// Legalizes FAU sources by ensuring the following
+///
+///  1. The combined amount of FAU (including small constants) is at most
+///     64 bits, not including k0.
+///
+///  2. All FAUs come from the same page
+///
+///  3. Message instructions are not allowed to read from LaneId or anything
+///     in FAUPage::Special3.
+///
+fn legalize_fau_srcs(
+    b: &mut impl SSABuilder,
+    fau_model: &FAUModel,
+    op: &mut Op,
+) {
+    // Deal with the message special cases first
+    if b.model().op_is_message(op) {
+        for src in op.srcs_mut() {
+            if let SrcRef::FAU(fau) = &src.src_ref {
+                let is_warp_id =
+                    fau.page == FAUPage::Special0 && fau.idx == 0b0010;
+                if fau.page == FAUPage::Special3 || is_warp_id {
+                    move_src_to_tmp(b, src);
+                }
+            }
+        }
+    }
+
+    const _: () = {
+        // SmallConst has to come last
+        assert!(HWFAUPage::MAX_DISCRIMINANT == (HWFAUPage::SmallConst as u8));
+    };
+
+    let mut total_words_read = 0_u8;
+    let mut pages_read = <HWFAUPage as EnumAsU8>::VariantSet::new();
+    let mut page_words_read = [0_u8; HWFAUPage::SmallConst as u8 as usize];
+    for src in op.srcs() {
+        if let SrcRef::FAU(fau) = &src.src_ref {
+            let page = hw_fau_page(fau_model, fau);
+            let words = 1 + (fau.load64 as u8);
+            total_words_read += words;
+            if page != HWFAUPage::SmallConst {
+                pages_read.insert(page);
+                page_words_read[usize::from(page.as_u8())] += words;
+            }
+        }
+    }
+
+    if total_words_read <= 2 && pages_read.len() == 1 {
+        return;
+    }
+
+    // Select the page with the most words used
+    let mut page = 0;
+    for i in 1..usize::from(HWFAUPage::SmallConst.as_u8()) {
+        if page_words_read[i] > page_words_read[page] {
+            page = i;
+        }
+    }
+    let page = page as u8;
+
+    // Figure out what sources to keep
+    let mut fau_srcs = 0_u8;
+    let mut fau_words_read = 0_u8;
+    for (i, src) in op.srcs().iter().enumerate() {
+        if let SrcRef::FAU(fau) = &src.src_ref {
+            if hw_fau_page(fau_model, fau).as_u8() == page {
+                // We prioritize 64-bit sources
+                if fau.load64 {
+                    fau_srcs = 1 << i;
+                    fau_words_read = 2;
+                    break;
+                } else {
+                    fau_srcs |= 1 << i;
+                    fau_words_read += 1;
+                    if fau_words_read == 2 {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    debug_assert!(fau_words_read <= 2);
+
+    if fau_words_read < 2 {
+        for (i, src) in op.srcs().iter().enumerate() {
+            if let SrcRef::FAU(fau) = &src.src_ref {
+                if fau.page == FAUPage::SmallConst {
+                    fau_srcs |= 1 << i;
+                    fau_words_read += 1;
+                    if fau_words_read == 2 {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    debug_assert!(fau_words_read <= 2);
+
+    for (i, src) in op.srcs_mut().iter_mut().enumerate() {
+        if matches!(&src.src_ref, SrcRef::FAU(_)) {
+            if ((fau_srcs >> i) & 1) == 0 {
+                move_src_to_tmp(b, src);
+            }
+        }
+    }
+}
+
 impl Shader<'_> {
     pub fn legalize(&mut self) {
         let model = self.model;
+        let fau = model.fau();
         let mut ssa_used = SSAValueSet::new();
         self.map_instrs(|mut instr, ssa_alloc| {
             let mut b = SSAInstrBuilder::new(model, ssa_alloc);
@@ -117,6 +259,7 @@ impl Shader<'_> {
             for src_idx in 0..instr.srcs().len() {
                 legalize_imm_src(&mut b, &mut instr, src_idx)
             }
+            legalize_fau_srcs(&mut b, fau, &mut instr);
             b.push_instr(instr);
             b.into_mapped()
         });

@@ -17,11 +17,18 @@ impl<'a> IntoIterator for &'a SmallConstantTable {
 }
 
 pub struct FAUModel {
+    user_fau_page_words: u16,
     pub small_constants: SmallConstantTable,
     special_fn: Box<dyn Fn(SpecialFAU) -> Option<FAURef> + Send + Sync>,
 }
 
 impl FAUModel {
+    pub fn user_page_idx(&self, word_idx: u16) -> u8 {
+        let page = word_idx / self.user_fau_page_words;
+        assert!(page < 4);
+        page as u8
+    }
+
     pub fn special(&self, special: SpecialFAU) -> Option<FAURef> {
         (self.special_fn)(special)
     }
@@ -76,6 +83,7 @@ impl ValhallModel {
         use crate::isa::{SmallConstantTable, v9};
         let sc_table = SmallConstantTable(v9::SmallConstantT::collect(arch));
         let fau = FAUModel {
+            user_fau_page_words: 64,
             small_constants: sc_table,
             special_fn: Box::new(move |special| {
                 ValhallModel::special_fau(special, arch)
