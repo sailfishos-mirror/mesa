@@ -734,10 +734,12 @@ impl<'a> ShaderFromNir<'a> {
                 });
             }
             nir_op_fmul => {
-                b.push_op(OpFMul {
+                b.push_op(OpFma {
                     dst: dst.into(),
                     dst_type: dst_type(NumericType::Float),
-                    srcs: [srcs(0), srcs(1)],
+                    round: self.fround(alu.def.bit_size),
+                    clamp: FClamp::None,
+                    srcs: [srcs(0), srcs(1), Src::fneg_zero(alu.def.bit_size)],
                 });
             }
             nir_op_frcp => {
