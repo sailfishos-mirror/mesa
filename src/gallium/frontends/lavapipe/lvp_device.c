@@ -1195,6 +1195,7 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
       .pCopyDstLayouts = lvp_host_copy_image_layouts,
       .copyDstLayoutCount = ARRAY_SIZE(lvp_host_copy_image_layouts),
       .identicalMemoryTypeRequirements = VK_FALSE,
+      .dynamicRenderingLocalReadDepthStencilAttachments = true,
 
       /* VK_EXT_blend_operation_advanced */
       .advancedBlendMaxColorAttachments = device->pscreen->caps.max_render_targets,
