@@ -2534,7 +2534,7 @@
         "description": "anv: fixup max push data delivered to shaders",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "eda938dc6f3d9a28f5453aff97902406d49284ff",
         "notes": null
