@@ -5924,7 +5924,7 @@
         "description": "glx/apple: silence OpenGL deprecation warnings in libglx",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "68bef96fa70bbc5fe66a3edd53c40385ceef5f3d",
         "notes": null
