@@ -2621,6 +2621,7 @@ brw_from_nir_emit_vs_intrinsic(nir_to_brw_state &ntb,
    case nir_intrinsic_load_base_vertex:
       UNREACHABLE("should be lowered by nir_lower_system_values()");
 
+   case nir_intrinsic_load_urb_input_handle_intel:
    case nir_intrinsic_load_urb_output_handle_intel:
       bld.MOV(retype(dest, BRW_TYPE_UD), s.vs_payload().urb_handles);
       break;

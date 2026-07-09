@@ -2176,7 +2176,16 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_load_attribute_payload_intel:
       assert(intr->def.bit_size == 32);
 
-      if (s->stage == MESA_SHADER_TESS_EVAL) {
+      if (nir_intrinsic_vector_payload_intel(intr)) {
+         assert(intr->def.bit_size == 32 && "todo");
+
+         assert(nir_src_is_const(intr->src[0]));
+         unsigned offs =
+            nir_src_as_uint(intr->src[0]) / (4 * jay_ugpr_per_grf(nj->s));
+         jay_copy(b, dst,
+                  jay_collect_vectors(b, nj->payload.vs.attributes + offs,
+                                      intr->def.num_components));
+      } else if (s->stage == MESA_SHADER_TESS_EVAL) {
          assert(nir_src_is_const(intr->src[0]));
          unsigned offs = nir_src_as_uint(intr->src[0]) / 4;
          jay_copy(b, dst,

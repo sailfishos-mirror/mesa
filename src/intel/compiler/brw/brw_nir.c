@@ -1342,7 +1342,8 @@ brw_nir_lower_vs_inputs(nir_shader *nir,
                         const struct intel_device_info *devinfo,
                         const struct brw_vs_prog_key *prog_key,
                         struct brw_vs_prog_data *prog_data,
-                        unsigned *out_nr_input_components)
+                        unsigned *out_nr_input_components,
+                        unsigned *out_urb_read_length)
 {
    /* Start with the location of the variable's base. */
    nir_foreach_shader_in_variable(var, nir)
@@ -1509,6 +1510,34 @@ brw_nir_lower_vs_inputs(nir_shader *nir,
 
    *out_nr_input_components = prog_key->vf_component_packing ?
                               nr_packed_input_components : (4 * nr_input_slots);
+
+   /* Now that we've packed the VF components that are written into the URB
+    * and loaded in the payload register, we can decide whether to reduce the
+    * payload size if it goes over a certain portion of the register file.
+    */
+   int max_size = brw_register_file_size(devinfo);
+
+   /* reserve 2 registers for spilling */
+   max_size -= 2 * REG_SIZE * reg_unit(devinfo);
+   /* reserve space for the R0 & R1 header */
+   max_size -= 2 * REG_SIZE * reg_unit(devinfo);
+   /* reserve space for push constants */
+   for (uint32_t i = 0; i < ARRAY_SIZE(prog_data->base.base.push_sizes); i++)
+      max_size -= prog_data->base.base.push_sizes[i];
+
+   const unsigned max_push_bytes = MAX2(max_size, 0);
+
+   /* Each pair of vec4s from the URB takes up 8 registers */
+   const unsigned bytes_per_read = 8 * REG_SIZE * reg_unit(devinfo);
+
+   const struct brw_lower_urb_cb_data cb_data = {
+      .devinfo = devinfo,
+      .vec4_access = true,
+      .vector_payload = true,
+      .max_urb_read_length = max_push_bytes / bytes_per_read,
+      .out_urb_read_length = out_urb_read_length,
+   };
+   NIR_PASS(_, nir, brw_nir_lower_inputs_to_urb_intrinsics, &cb_data);
 }
 
 void

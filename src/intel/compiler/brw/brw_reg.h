@@ -242,6 +242,9 @@ typedef struct brw_reg {
 #endif /* __cplusplus */
 } brw_reg;
 
+uint32_t
+brw_register_file_size(const struct intel_device_info *devinfo);
+
 static inline unsigned
 phys_file(const struct brw_reg reg)
 {

@@ -554,7 +554,8 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
       unsigned nr_input_components;
       brw_nir_lower_vs_inputs(nir, devinfo, &key->vs, &prog_data->vs,
-                              &nr_input_components);
+                              &nr_input_components,
+                              &prog_data->vue.urb_read_length);
       brw_nir_lower_vue_outputs(nir);
       JAY_NIR_SNAPSHOT("after_lower_io");
 
@@ -575,7 +576,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
          MAX2(DIV_ROUND_UP(nr_input_components, 4),
               (unsigned) prog_data->vue.vue_map.num_slots);
 
-      prog_data->vue.urb_read_length = DIV_ROUND_UP(nr_input_components, 8);
       prog_data->vue.urb_entry_size = DIV_ROUND_UP(vue_entries, 4);
    } else if (stage == MESA_SHADER_TESS_CTRL) {
       nir->info.outputs_written = key->tcs.outputs_written;

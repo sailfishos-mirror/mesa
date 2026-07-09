@@ -97,7 +97,8 @@ brw_compile_vs(const struct brw_compiler *compiler,
 
    unsigned nr_input_components = 0;
    brw_nir_lower_vs_inputs(nir, compiler->devinfo, key, prog_data,
-                           &nr_input_components);
+                           &nr_input_components,
+                           &prog_data->base.urb_read_length);
    brw_nir_lower_vue_outputs(nir);
    BRW_NIR_SNAPSHOT("after_lower_io");
 
@@ -123,8 +124,6 @@ brw_compile_vs(const struct brw_compiler *compiler,
 
    if (BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_DRAW_ID))
       prog_data->uses_drawid = true;
-
-   prog_data->base.urb_read_length = DIV_ROUND_UP(nr_input_components, 8);
 
    /* Since vertex shaders reuse the same VUE entry for inputs and outputs
     * (overwriting the original contents), we need to make sure the size is
