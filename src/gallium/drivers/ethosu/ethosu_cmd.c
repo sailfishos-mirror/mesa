@@ -238,7 +238,8 @@ emit_ofm_precision(struct ethosu_subgraph *subgraph, struct ethosu_operation *op
       prec |= NPU_SET_OFM_PRECISION_SCALE_MODE(1);
    }
 
-   prec |= NPU_SET_OFM_PRECISION_ROUND_MODE(operation->round_mode);
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      prec |= NPU_SET_OFM_PRECISION_ROUND_MODE(operation->round_mode);
 
    EMIT0(NPU_SET_OFM_PRECISION, prec);
 }
@@ -280,18 +281,30 @@ emit_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation
 static void
 emit_activation(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   int min = 0;
-   int max;
+   unsigned min = 0;
+   unsigned max;
+   unsigned activation = 0;
+
+   if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE)
+      min = operation->eltwise.activation_min;
 
    if (operation->type == ETHOSU_OPERATION_TYPE_POOLING)
-      EMIT0(NPU_SET_ACTIVATION, operation->pooling.activation);
-   else
-      EMIT0(NPU_SET_ACTIVATION, 0x0);
+      activation = operation->pooling.activation;
+
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65 &&
+       !activation && operation->ofm.precision > 1)
+      activation = ETHOSU_U85_ACTIVATION_CLIP_RANGE_NONE;
+
+   EMIT0(NPU_SET_ACTIVATION, activation);
 
    if (operation->ofm.is_signed) {
       if (operation->ofm.precision == 0) {
          min = INT8_MIN;
          max = INT8_MAX;
+      } else if (!ethosu_ml_device(subgraph->base.device)->is_u65 &&
+                 (activation & ETHOSU_U85_ACTIVATION_CLIP_RANGE_NONE)) {
+         min = INT16_MIN;
+         max = UINT16_MAX;
       } else {
          min = INT16_MIN;
          max = INT16_MAX;

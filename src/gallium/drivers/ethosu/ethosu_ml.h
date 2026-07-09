@@ -181,6 +181,7 @@ enum ethosu_pooling_type {
 };
 
 #define ETHOSU_POOLING_ACTIVATION_LUT(n)  (0x10 | (n))
+#define ETHOSU_U85_ACTIVATION_CLIP_RANGE_NONE (1 << 12)
 
 #define MAX_MEMORY_ACCESSES 5 /* IFM, IFM2, Scales, Weights, LUT*/
 
