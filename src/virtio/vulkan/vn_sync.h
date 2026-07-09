@@ -94,6 +94,13 @@ VK_DEFINE_NONDISP_HANDLE_CASTS(vn_event,
                                VK_OBJECT_TYPE_EVENT)
 
 static inline bool
+vn_semaphore_is_timeline(VkSemaphore sem_handle)
+{
+   struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
+   return sem->type == VK_SEMAPHORE_TYPE_TIMELINE;
+}
+
+static inline bool
 vn_semaphore_is_imported(VkSemaphore sem_handle)
 {
    struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
