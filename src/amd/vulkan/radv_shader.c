@@ -282,8 +282,7 @@ radv_optimize_nir_algebraic_early(nir_shader *nir)
 void
 radv_optimize_nir_algebraic_late(nir_shader *nir)
 {
-   if (nir->info.stage != MESA_SHADER_VERTEX && nir->info.stage != MESA_SHADER_GEOMETRY)
-      NIR_PASS(_, nir, nir_opt_reassociate_for_fma);
+   NIR_PASS(_, nir, nir_opt_reassociate_for_fma);
 
    /* Do late algebraic optimization to turn add(a,
     * neg(b)) back into subs, then the mandatory cleanup
