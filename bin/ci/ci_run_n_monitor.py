@@ -608,8 +608,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=REFRESH_WAIT_JOBS,
         help=f"Specify the waiting seconds between monitor loops. (Default: {REFRESH_WAIT_JOBS})",
-     )
-
+    )
 
     mutex_group1 = parser.add_mutually_exclusive_group()
     mutex_group1.add_argument(
