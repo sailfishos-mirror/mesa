@@ -198,7 +198,7 @@ impl<'a> ShaderFromNir<'a> {
     }
 
     fn special_fau(&self, special: SpecialFAU) -> FAURef {
-        self.model.special_fau(special).unwrap()
+        self.model.fau().special(special).unwrap()
     }
 
     fn rtz(&self, bits: u8) -> bool {

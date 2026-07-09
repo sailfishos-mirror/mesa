@@ -24,7 +24,7 @@ fn copy(b: &mut impl Builder, dst_b: Range<u16>, src_b: Range<u16>) {
 }
 
 fn imm_u8(b: &mut impl Builder, shift: u8) -> Src {
-    for sc in b.model().small_constants() {
+    for sc in &b.model().fau().small_constants {
         for b in 0..4 {
             if shift == ((sc.imm32 >> (b * 8)) as u8) {
                 return Src::from(FAURef::from(sc)).byte(b);

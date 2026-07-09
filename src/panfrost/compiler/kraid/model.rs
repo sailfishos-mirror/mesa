@@ -5,8 +5,32 @@ use crate::encode_v9::*;
 use crate::ir::*;
 use kraid_bindings::*;
 
+pub struct SmallConstantTable(Vec<SmallConstant>);
+
+impl<'a> IntoIterator for &'a SmallConstantTable {
+    type Item = &'a SmallConstant;
+    type IntoIter = std::slice::Iter<'a, SmallConstant>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+pub struct FAUModel {
+    pub small_constants: SmallConstantTable,
+    special_fn: Box<dyn Fn(SpecialFAU) -> Option<FAURef> + Send + Sync>,
+}
+
+impl FAUModel {
+    pub fn special(&self, special: SpecialFAU) -> Option<FAURef> {
+        (self.special_fn)(special)
+    }
+}
+
 pub trait Model {
     fn arch(&self) -> u8;
+
+    fn fau(&self) -> &FAUModel;
 
     fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32>;
 
@@ -35,10 +59,6 @@ pub trait Model {
         self.op_dst_supported_lanes(op).contains(lanes)
     }
 
-    fn small_constants(&self) -> &[SmallConstant];
-
-    fn special_fau(&self, preload: SpecialFAU) -> Option<FAURef>;
-
     fn preload_reg(&self, preload: PreloadReg) -> Option<RegRef>;
 
     fn subgroup_size(&self) -> u8 {
@@ -48,20 +68,80 @@ pub trait Model {
 
 struct ValhallModel {
     arch: u8,
-    sc_table: Vec<SmallConstant>,
+    fau: FAUModel,
 }
 
 impl ValhallModel {
     fn new(arch: u8) -> ValhallModel {
         use crate::isa::{SmallConstantTable, v9};
-        let sc_table = v9::SmallConstantT::collect(arch);
-        ValhallModel { arch, sc_table }
+        let sc_table = SmallConstantTable(v9::SmallConstantT::collect(arch));
+        let fau = FAUModel {
+            small_constants: sc_table,
+            special_fn: Box::new(move |special| {
+                ValhallModel::special_fau(special, arch)
+            }),
+        };
+        ValhallModel { arch, fau }
+    }
+
+    #[inline]
+    fn special_fau(special: SpecialFAU, arch: u8) -> Option<FAURef> {
+        use SpecialFAU::*;
+
+        let (page, idx) = match special {
+            WarpId => (0, 0b0010),
+            FramebufferSize => (0, 0b0100),
+            ATestDatum => (0, 0b0101),
+            Sample => (0, 0b0110),
+            BlendDescriptor0 => (0, 0b1000 | 0),
+            BlendDescriptor1 => (0, 0b1000 | 1),
+            BlendDescriptor2 => (0, 0b1000 | 2),
+            BlendDescriptor3 => (0, 0b1000 | 3),
+            BlendDescriptor4 => (0, 0b1000 | 4),
+            BlendDescriptor5 => (0, 0b1000 | 5),
+            BlendDescriptor6 => (0, 0b1000 | 6),
+            BlendDescriptor7 => (0, 0b1000 | 7),
+            ThreadLocalPointer => (1, 0b0001),
+            WorkgroupLocalPointer => (1, 0b0011),
+            ResourceTablePointer => (1, 0b0111),
+            LaneId => (3, 0b0001),
+            CoreId => (3, 0b0011),
+            ShaderOutput => {
+                if arch < 12 {
+                    return None;
+                }
+                (3, 0b0100)
+            }
+            PrepassState => {
+                if arch < 13 {
+                    return None;
+                }
+                (3, 0b0101)
+            }
+            Pc => (3, 0b1111),
+        };
+
+        Some(FAURef {
+            page: match page {
+                0 => FAUPage::Special0,
+                1 => FAUPage::Special1,
+                3 => FAUPage::Special3,
+                _ => panic!("Invalid FAU special page"),
+            },
+            idx: idx << 1, // FAURef::idx is in units of 32-bit words
+            special: Some(special),
+            load64: true,
+        })
     }
 }
 
 impl Model for ValhallModel {
     fn arch(&self) -> u8 {
         self.arch
+    }
+
+    fn fau(&self) -> &FAUModel {
+        &self.fau
     }
 
     fn encode_shader(&self, s: &Shader<'_>) -> Vec<u32> {
@@ -131,59 +211,6 @@ impl Model for ValhallModel {
         } else {
             v9_op_dst_supported_lanes(op, self.arch)
         }
-    }
-
-    fn small_constants(&self) -> &[SmallConstant] {
-        &self.sc_table
-    }
-
-    fn special_fau(&self, special: SpecialFAU) -> Option<FAURef> {
-        use SpecialFAU::*;
-
-        let (page, idx) = match special {
-            WarpId => (0, 0b0010),
-            FramebufferSize => (0, 0b0100),
-            ATestDatum => (0, 0b0101),
-            Sample => (0, 0b0110),
-            BlendDescriptor0 => (0, 0b1000 | 0),
-            BlendDescriptor1 => (0, 0b1000 | 1),
-            BlendDescriptor2 => (0, 0b1000 | 2),
-            BlendDescriptor3 => (0, 0b1000 | 3),
-            BlendDescriptor4 => (0, 0b1000 | 4),
-            BlendDescriptor5 => (0, 0b1000 | 5),
-            BlendDescriptor6 => (0, 0b1000 | 6),
-            BlendDescriptor7 => (0, 0b1000 | 7),
-            ThreadLocalPointer => (1, 0b0001),
-            WorkgroupLocalPointer => (1, 0b0011),
-            ResourceTablePointer => (1, 0b0111),
-            LaneId => (3, 0b0001),
-            CoreId => (3, 0b0011),
-            ShaderOutput => {
-                if self.arch < 12 {
-                    return None;
-                }
-                (3, 0b0100)
-            }
-            PrepassState => {
-                if self.arch < 13 {
-                    return None;
-                }
-                (3, 0b0101)
-            }
-            Pc => (3, 0b1111),
-        };
-
-        Some(FAURef {
-            page: match page {
-                0 => FAUPage::Special0,
-                1 => FAUPage::Special1,
-                3 => FAUPage::Special3,
-                _ => panic!("Invalid FAU special page"),
-            },
-            idx: idx << 1, // FAURef::idx is in units of 32-bit words
-            special: Some(special),
-            load64: true,
-        })
     }
 
     fn preload_reg(&self, preload: PreloadReg) -> Option<RegRef> {
