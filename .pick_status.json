@@ -3304,7 +3304,7 @@
         "description": "panfrost: cleanup precomp_cache on screen destroy",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8adede1d44e8039d6c82d452e6959d8e2fcba1da",
         "notes": null
