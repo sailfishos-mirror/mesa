@@ -23,19 +23,22 @@ struct find_config_common {
    struct ethosu_block ublock;
    struct ethosu_block granule;
    int acc_bits;
+   int ifm_bits;
    int ifm_block_depth;
    bool is_pooling;
 };
 
 /* Forward declarations */
 static struct ethosu_block calc_ifm_au_size_u85(int ifm_block_depth,
+                                                int ifm_bits,
                                                 struct ethosu_block ofm_ublock,
                                                 int macs);
 static bool try_block_config_u85(enum ethosu_operation_type op_type,
                                  struct ethosu_block ofm_block,
                                  struct ethosu_block ifm_block,
                                  struct ethosu_block ifm_shape,
-                                 int acc_bits, int ifm_space, int acc_space,
+                                 int ifm_bits, int acc_bits,
+                                 int ifm_space, int acc_space,
                                  int ifm_au_depth, int num_blocks_in_ram,
                                  bool is_equal_depth_op);
 
@@ -195,7 +198,8 @@ area_fit_u85(struct find_config_common common,
 
       int width = 0, height = 0;
       int fit_acc = acc_elements;
-      struct ethosu_block ifm_alloc_unit = calc_ifm_au_size_u85(depth, common.ublock, macs);
+      struct ethosu_block ifm_alloc_unit =
+         calc_ifm_au_size_u85(depth, common.ifm_bits, common.ublock, macs);
       int ifm_depth_granule = ifm_alloc_unit.depth;
 
       /* Round IFM shape to allocation unit */
@@ -324,9 +328,10 @@ find_elementwise_config_u85(struct ethosu_operation *operation,
    ofm_block_limit.height = MIN2(ofm_shape.height, common.ofm_block_max.height);
    ofm_block_limit.depth = MIN2(ofm_shape.depth, common.ofm_block_max.depth);
 
-   const bool is_scalar = false; /* TODO: Check if IFM2 is scalar */
-   const int cb_bricks = (cb_ram_size / CB_SLOTS) / (BRICK_ELEMENTS * (8 / 8));
-   const int ob_elements = (ob_ram_size * 8) / 8;
+   const bool is_scalar = operation->ifm.has_scalar || operation->ifm2.has_scalar;
+   const int cb_bricks =
+      (cb_ram_size / CB_SLOTS) / (BRICK_ELEMENTS * (common.ifm_bits / 8));
+   const int ob_elements = (ob_ram_size * 8) / common.ifm_bits;
    const int ob_width_units = ob_elements / common.granule.depth;
    const int cb_width_units = cb_bricks / common.ublock.height;
 
@@ -400,7 +405,7 @@ find_depthwise_config_u85(struct ethosu_operation *operation,
    ofm_block_limit.depth = MIN2(ofm_shape.depth, common.ofm_block_max.depth);
 
    const int acc_elements = (acc_ram_size * 8) / common.acc_bits;
-   const int ib_elements = ifm_ram_size;
+   const int ib_elements = (ifm_ram_size * 8) / common.ifm_bits;
 
    struct ethosu_block fit_shape = area_fit_u85(common, ofm_shape, ofm_block_limit,
                                                 ifm_shape, operation,
@@ -418,7 +423,9 @@ find_depthwise_config_u85(struct ethosu_operation *operation,
    /* Read-buffering optimization */
    while (true) {
       int ifm_depth_for_au = common.ifm_block_depth ? common.ifm_block_depth : depth;
-      ifm_alloc_unit = calc_ifm_au_size_u85(ifm_depth_for_au, common.ublock, macs);
+      ifm_alloc_unit = calc_ifm_au_size_u85(ifm_depth_for_au,
+                                            common.ifm_bits,
+                                            common.ublock, macs);
       int depth_granule = ifm_alloc_unit.depth;
 
       struct ethosu_block ofm_block = {width, height, depth};
@@ -478,10 +485,11 @@ find_depthwise_config_u85(struct ethosu_operation *operation,
 /* Calculate IFM allocation unit size for U85 */
 static struct ethosu_block
 calc_ifm_au_size_u85(int ifm_block_depth,
+                     int ifm_bits,
                      struct ethosu_block ofm_ublock, int macs)
 {
    struct ethosu_block result;
-   int ifm_depth_bits = ifm_block_depth * 8;
+   int ifm_depth_bits = ifm_block_depth * ifm_bits;
 
    /* Determine IFMU index based on depth*bits */
    int ifmu = 0;
@@ -550,7 +558,7 @@ calc_ifm_au_size_u85(int ifm_block_depth,
    }
 
    /* Scale depth by 128/ifm_bits */
-   result.depth = result.depth * 128 / 8;
+   result.depth = result.depth * 128 / ifm_bits;
 
    return result;
 }
@@ -561,12 +569,13 @@ try_block_config_u85(enum ethosu_operation_type op_type,
                      struct ethosu_block ofm_block,
                      struct ethosu_block ifm_block,
                      struct ethosu_block ifm_shape,
-                     int acc_bits,
+                     int ifm_bits, int acc_bits,
                      int ifm_space, int acc_space,
                      int ifm_au_depth, int num_blocks_in_ram,
                      bool is_equal_depth_op)
 {
    assert(acc_bits > 0);
+   assert(ifm_bits >= 8 && ifm_bits % 8 == 0);
 
    /* Elementwise and Resize don't use IB/AB */
    if (op_type == ETHOSU_OPERATION_TYPE_ELTWISE) {
@@ -577,7 +586,8 @@ try_block_config_u85(enum ethosu_operation_type op_type,
    int ifm_align_depth = ifm_au_depth;
    int ifm_block_depth = is_equal_depth_op ? ofm_block.depth : MIN2(ifm_block.depth, ifm_shape.depth);
    ifm_block_depth = round_away(ifm_block_depth, ifm_align_depth);
-   int ifm_bytes = ifm_block.width * ifm_block.height * ifm_block_depth * num_blocks_in_ram;
+   int ifm_bytes = ifm_block.width * ifm_block.height * ifm_block_depth *
+                   (ifm_bits / 8) * num_blocks_in_ram;
 
    /* Accumulator space calculation */
    int ofm_block_depth = round_away(ofm_block.depth, ACC_DEPTH_GRANULE_U85);
@@ -634,6 +644,9 @@ find_ublock(struct ethosu_operation *operation, bool is_part_kernel)
    bool is_memory_copy_pooling = is_pooling &&
                                  operation->kernel.width == 1 &&
                                  operation->kernel.height == 1;
+   bool is_reduce_sum =
+      is_pooling && operation->pooling.type == ETHOSU_POOLING_TYPE_REDUCE_SUM;
+   unsigned ifm_bits = 8 << operation->ifm.precision;
 
    /* For memory-copy pooling (1x1 pooling), always use 2x1x16 ublock
     * to match Vela's behavior and avoid waste-based selection issues */
@@ -656,30 +669,22 @@ find_ublock(struct ethosu_operation *operation, bool is_part_kernel)
          continue; /* Skip 2x1x16 for part-kernel 1x1 */
       }
 
-      /* U85-256 ublock-to-operation validity for 8-bit IFM
-       * (from Vela's _uBlockToOpTable in ethos_u85.cpp):
-       *
-       *   {2,2,8}  / Shape(2,2,8):  conv, matmul, vectorprod, reducesum, eltwise, resize
-       *   {4,1,8}  / Shape(1,4,8):  conv, matmul, vectorprod, reducesum, eltwise, resize
-       *   {2,1,16} / Shape(1,2,16): depthwise, pool, eltwise, reduceminmax, argmax, resize
-       *
-       * So for 8-bit IFM:
-       *  - depthwise/pooling can ONLY use {2,1,16}
-       *  - convolution (non-depthwise) CANNOT use {2,1,16}
-       */
+      if (ifm_bits == 8) {
+         /* Skip {2,1,16} for 8-bit non-depthwise convolutions. */
+         if (ublk.width == 2 && ublk.height == 1 && ublk.depth == 16 &&
+             operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION &&
+             !is_depthwise)
+            continue;
 
-      /* Skip {2,1,16} for 8-bit non-depthwise convolutions */
-      if (ublk.width == 2 && ublk.height == 1 && ublk.depth == 16 &&
-          operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION &&
-          !is_depthwise) {
-         continue;
-      }
-
-      /* Skip {4,1,8} and {2,2,8} for 8-bit depthwise/pooling —
-       * only {2,1,16} is valid for these operations at 8-bit */
-      if (!(ublk.width == 2 && ublk.height == 1 && ublk.depth == 16) &&
-          (is_depthwise || is_pooling)) {
-         continue;
+         /* For 8-bit depthwise/pooling, only {2,1,16} is valid. */
+         if (!(ublk.width == 2 && ublk.height == 1 && ublk.depth == 16) &&
+             (is_depthwise || is_pooling))
+            continue;
+      } else if (is_reduce_sum) {
+         /* For 16/32-bit ReduceSum on U85-256, Regor permits
+          * {4,1,8} and {2,2,8}, but not {2,1,16}. */
+         if (ublk.width == 2 && ublk.height == 1 && ublk.depth == 16)
+            continue;
       }
 
       /* Minimum waste is better than aspect correct */
@@ -745,6 +750,7 @@ find_block_config_u85(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    /* Setup common search parameters */
    struct find_config_common common;
    common.acc_bits = 32; /* TODO: Determine from operation */
+   common.ifm_bits = 8 << operation->ifm.precision;
 
    /* Find microblock */
    struct ethosu_block ofm_ublock = find_ublock(operation, is_part_kernel);
@@ -832,15 +838,16 @@ find_block_config_u85(struct ethosu_subgraph *subgraph, struct ethosu_operation 
       depth = round_away(depth, OFM_SPLIT_DEPTH);
    }
 
-   struct ethosu_block ifm_alloc_unit = calc_ifm_au_size_u85(ifm_block_depth,
-                                                             ofm_ublock, macs);
+   struct ethosu_block ifm_alloc_unit =
+      calc_ifm_au_size_u85(ifm_block_depth, common.ifm_bits, ofm_ublock, macs);
    int num_blocks_in_ram = 2;
 
    /* Block search loop */
    while (depth <= search_space_end.depth) {
       if (is_equal_depth_op) {
          ifm_block_depth = depth;
-         struct ethosu_block new_au = calc_ifm_au_size_u85(depth, ofm_ublock, macs);
+         struct ethosu_block new_au =
+            calc_ifm_au_size_u85(depth, common.ifm_bits, ofm_ublock, macs);
          if (new_au.depth != ifm_alloc_unit.depth ||
              new_au.width != ifm_alloc_unit.width ||
              new_au.height != ifm_alloc_unit.height) {
@@ -862,7 +869,8 @@ find_block_config_u85(struct ethosu_subgraph *subgraph, struct ethosu_operation 
 
             /* Test if blocks fit in RAM */
             if (try_block_config_u85(operation->type, ofm_block, ifm_block,
-                                     ifm_shape, common.acc_bits,
+                                     ifm_shape, common.ifm_bits,
+                                     common.acc_bits,
                                      ifm_ram_size_bytes, acc_ram_size_bytes,
                                      ifm_alloc_unit.depth, num_blocks_in_ram,
                                      is_equal_depth_op)) {
