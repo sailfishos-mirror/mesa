@@ -121,7 +121,7 @@ pub enum FAUPage {
     SmallConst,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy)]
 pub struct FAURef {
     pub page: FAUPage,
 
@@ -139,6 +139,15 @@ pub struct FAURef {
 
     /// Load 64 bytes
     pub load64: bool,
+}
+
+impl PartialEq for FAURef {
+    fn eq(&self, other: &FAURef) -> bool {
+        // special is intentionally missing
+        self.page.eq(&other.page)
+            && self.idx.eq(&other.idx)
+            && self.load64.eq(&other.load64)
+    }
 }
 
 impl FAURef {
@@ -358,12 +367,19 @@ impl From<RegRange> for Swizzle {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy)]
 pub struct RegRef {
     pub idx: u8,
     pub range: RegRange,
     /// Optional preload origin for pretty printing
     pub preload: Option<PreloadReg>,
+}
+
+impl PartialEq for RegRef {
+    fn eq(&self, other: &RegRef) -> bool {
+        // preload is intentionally missing
+        self.idx.eq(&other.idx) && self.range.eq(&other.range)
+    }
 }
 
 impl fmt::Display for RegRef {
