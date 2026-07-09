@@ -470,6 +470,12 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
    uint64_t os_page_size = 4096;
    os_get_page_size(&os_page_size);
 
+   // Queries the frequency of the GPU timestamp in ticks per second.
+   uint64_t timestamp_frequency =
+      mtl_device_timestamp_frequency(pdev->mtl_dev_handle);
+   float timestamp_period =
+      timestamp_frequency ? (1000000000.0f / (float)timestamp_frequency) : 1.0f;
+
    *properties = (struct vk_properties){
       .apiVersion = kk_get_vk_version(),
       .driverVersion = vk_get_driver_version(),
@@ -574,8 +580,8 @@ kk_get_device_properties(const struct kk_physical_device *pdev,
       .sampledImageStencilSampleCounts = sample_counts,
       .storageImageSampleCounts = sample_counts,
       .maxSampleMaskWords = 1,
-      .timestampComputeAndGraphics = false,
-      .timestampPeriod = 1,
+      .timestampComputeAndGraphics = true,
+      .timestampPeriod = timestamp_period,
       .maxClipDistances = 8,
       .maxCullDistances = 8,
       .maxCombinedClipAndCullDistances = 8,
@@ -1237,8 +1243,7 @@ kk_GetPhysicalDeviceQueueFamilyProperties2(
       {
          p->queueFamilyProperties.queueFlags = queue_family->queue_flags;
          p->queueFamilyProperties.queueCount = queue_family->queue_count;
-         p->queueFamilyProperties.timestampValidBits =
-            0; /* TODO_KOSMICKRISP Timestamp queries */
+         p->queueFamilyProperties.timestampValidBits = 64;
          p->queueFamilyProperties.minImageTransferGranularity =
             (VkExtent3D){1, 1, 1};
 

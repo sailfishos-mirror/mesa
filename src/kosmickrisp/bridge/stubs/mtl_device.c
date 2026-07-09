@@ -90,6 +90,18 @@ mtl_device_get_gpu_timestamp(mtl_device *dev)
    return 0u;
 }
 
+uint64_t
+mtl_device_timestamp_frequency(mtl_device *dev)
+{
+   return 0u;
+}
+
+mtl_counter_heap *
+mtl_new_timestamp_counter_heap(mtl_device *dev, uint32_t count)
+{
+   return NULL;
+}
+
 /* Resource queries */
 void
 mtl_heap_buffer_size_and_align_with_length(mtl_device *device, uint64_t *size_B,

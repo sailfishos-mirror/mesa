@@ -46,6 +46,7 @@ typedef void mtl_compiler;
 typedef void mtl_argument_table_descriptor;
 typedef void mtl_argument_table;
 typedef void mtl_commit_options;
+typedef void mtl_counter_heap;
 
 struct mtl_feedback_data;
 typedef void (*mtl_feedback_handler_callback)(struct mtl_feedback_data *data);

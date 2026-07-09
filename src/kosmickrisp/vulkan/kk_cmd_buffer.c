@@ -13,6 +13,9 @@
 #include "kk_entrypoints.h"
 
 #include "kosmickrisp/bridge/mtl_bridge.h"
+#include "kosmickrisp/bridge/mtl_command_buffer.h"
+#include "kosmickrisp/bridge/mtl_device.h"
+#include "kosmickrisp/bridge/mtl_encoder.h"
 
 #include "vk_alloc.h"
 #include "vk_pipeline_layout.h"
@@ -61,6 +64,8 @@ kk_destroy_encoder_state(struct kk_encoder_state *es)
 
    mtl_release(es->allocator);
    es->allocator = NULL;
+
+   util_dynarray_fini(&es->ts_resolves);
 }
 
 static void
@@ -89,6 +94,7 @@ static bool
 kk_init_encoder_state(struct kk_encoder_state *es, mtl_device *handle)
 {
    es->allocator = mtl_new_command_allocator(handle);
+   es->ts_resolves = UTIL_DYNARRAY_INIT;
    return es->allocator != NULL;
 }
 
@@ -336,6 +342,14 @@ kk_stop_encoder(struct kk_cmd_buffer *cmd, struct kk_encoder_state *es)
    mtl_end_encoding(es->encoder);
    mtl_release(es->encoder);
    es->encoder = NULL;
+
+   /* Fold the pending timestamp counter-heap resolves into `cmd_buf` */
+   util_dynarray_foreach(&es->ts_resolves, struct kk_ts_resolve, r) {
+      mtl_command_resolve_counter_heap(es->cmd_buf, r->heap, r->index, 1u,
+                                       r->dst_addr);
+   }
+
+   util_dynarray_clear(&es->ts_resolves);
 
    mtl_end_command_buffer(es->cmd_buf);
 

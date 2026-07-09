@@ -14,6 +14,7 @@
 #include "kk_shader.h"
 
 #include "kosmickrisp/bridge/mtl_bridge.h"
+#include "kosmickrisp/bridge/mtl_device.h"
 #include "kosmickrisp/bridge/ns_process_info.h"
 
 #include "kk_dispatch_cmd.h"
@@ -253,7 +254,11 @@ kk_get_timestamp(struct vk_device *device, uint64_t *timestamp)
 {
    struct kk_device *dev = container_of(device, struct kk_device, vk);
 
-   *timestamp = mtl_device_get_gpu_timestamp(dev->mtl_handle);
+   uint64_t gpu_ns = mtl_device_get_gpu_timestamp(dev->mtl_handle);
+   uint64_t frequency = mtl_device_timestamp_frequency(dev->mtl_handle);
+
+   *timestamp =
+      (uint64_t)(((unsigned __int128)gpu_ns * frequency) / 1000000000ull);
    return VK_SUCCESS;
 }
 

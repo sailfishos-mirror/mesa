@@ -197,11 +197,21 @@ struct kk_uploader {
    uint32_t offset;
 };
 
+/* A pending resolve of one timestamp counter-heap entry into a query pool BO.
+ * Recorded by vkCmdWriteTimestamp2 and flushed on the GPU timeline at cs_end. */
+struct kk_ts_resolve {
+   mtl_counter_heap *heap;
+   uint32_t index;
+   uint64_t dst_addr;
+};
+
 struct kk_encoder_state {
    /* either a mtl_compute_encoder or a mtl_render_encoder */
    mtl_command_encoder *encoder;
    mtl_command_allocator *allocator;
    mtl_command_buffer *cmd_buf;
+   /* Pending timestamp resolves (struct kk_ts_resolve), flushed at cs_end. */
+   struct util_dynarray ts_resolves;
 };
 
 struct kk_cmd_buffer {
