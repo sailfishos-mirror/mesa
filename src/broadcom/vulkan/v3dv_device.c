@@ -2037,7 +2037,7 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
          result = queue_init(device, &device->queues[device->queue_count],
                              &pCreateInfo->pQueueCreateInfos[i], j);
          if (result != VK_SUCCESS)
-            goto fail;
+            goto fail_queues_init;
 
          device->queue_count++;
       }
@@ -2098,6 +2098,12 @@ v3dv_CreateDevice(VkPhysicalDevice physicalDevice,
    return VK_SUCCESS;
 
 fail:
+   destroy_device_meta(device);
+   v3dv_pipeline_cache_finish(&device->default_pipeline_cache);
+   v3dv_event_free_resources(device);
+   v3dv_query_free_resources(device);
+   v3dv_bo_free(device, device->null_bo);
+fail_queues_init:
    for (uint32_t i = 0; i < device->queue_count; i++)
       queue_finish(&device->queues[i]);
    vk_free2(&device->vk.alloc, pAllocator, device->queues);
@@ -2105,11 +2111,6 @@ fail_queues_alloc:
    cnd_destroy(&device->query_ended);
    mtx_destroy(&device->query_mutex);
    mtx_destroy(&device->queue_mutex);
-   destroy_device_meta(device);
-   v3dv_pipeline_cache_finish(&device->default_pipeline_cache);
-   v3dv_event_free_resources(device);
-   v3dv_query_free_resources(device);
-   v3dv_bo_free(device, device->null_bo);
    vk_device_finish(&device->vk);
    vk_free(&device->vk.alloc, device);
 
