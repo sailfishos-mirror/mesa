@@ -1915,6 +1915,11 @@ if system_has_kms_drm
     'libdrm', version : '>=' + _drm_ver,
     required : with_dri2 or with_dri or with_gbm,
     allow_fallback: allow_fallback_for_libdrm,
+    default_options : {
+      'auto_features' : 'disabled',
+      'intel' : _libdrm_checks[0][1] ? 'enabled' : 'disabled',
+      'amdgpu' : _libdrm_checks[1][1] ? 'enabled' : 'disabled',
+    },
   )
 else
   # We should prevent libdrm from being available when the target doesn't have it to avoid transitive
