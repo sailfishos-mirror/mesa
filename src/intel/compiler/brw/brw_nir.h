@@ -226,7 +226,11 @@ bool brw_nir_lower_deferred_urb_writes(nir_shader *nir,
 
 void brw_nir_opt_vectorize_urb(struct brw_pass_tracker *pt);
 
-void brw_nir_lower_vs_inputs(nir_shader *nir);
+void brw_nir_lower_vs_inputs(nir_shader *nir,
+                             const struct intel_device_info *devinfo,
+                             const struct brw_vs_prog_key *prog_key,
+                             struct brw_vs_prog_data *prog_data,
+                             unsigned *out_nr_packed_regs);
 void brw_nir_lower_gs_inputs(nir_shader *nir,
                              const struct intel_device_info *devinfo,
                              const struct intel_vue_map *vue_map,
@@ -459,8 +463,6 @@ brw_nir_frag_convert_attrs_prim_to_vert_indirect(struct nir_shader *nir,
 unsigned
 brw_nir_vs_compute_payload_size(nir_shader *nir,
                                 const struct intel_device_info *devinfo);
-unsigned
-brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data);
 
 bool brw_nir_opt_divergent_atomics(nir_shader *shader, enum brw_divergent_atomics_flags flags);
 

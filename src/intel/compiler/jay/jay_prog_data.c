@@ -487,26 +487,9 @@ populate_vs_prog_data(nir_shader *nir,
                       const struct intel_device_info *devinfo,
                       const struct brw_vs_prog_key *key,
                       struct brw_vs_prog_data *prog_data,
-                      unsigned nr_packed_regs)
+                      unsigned nr_input_components)
 {
-   unsigned nr_attribute_slots = util_bitcount64(prog_data->inputs_read);
    BITSET_WORD *sysvals = nir->info.system_values_read;
-
-   /* gl_VertexID and gl_InstanceID are system values, but arrive via an
-    * incoming vertex attribute.  So, add an extra slot.
-    */
-   if (BITSET_TEST(sysvals, SYSTEM_VALUE_FIRST_VERTEX) ||
-       BITSET_TEST(sysvals, SYSTEM_VALUE_BASE_INSTANCE) ||
-       BITSET_TEST(sysvals, SYSTEM_VALUE_VERTEX_ID_ZERO_BASE) ||
-       BITSET_TEST(sysvals, SYSTEM_VALUE_INSTANCE_ID)) {
-      nr_attribute_slots++;
-   }
-
-   /* gl_DrawID and IsIndexedDraw share its very own vec4 */
-   if (BITSET_TEST(sysvals, SYSTEM_VALUE_DRAW_ID) ||
-       BITSET_TEST(sysvals, SYSTEM_VALUE_IS_INDEXED_DRAW)) {
-      nr_attribute_slots++;
-   }
 
    const struct {
       bool *data;
@@ -524,20 +507,13 @@ populate_vs_prog_data(nir_shader *nir,
       *bool_sysvals[i].data = BITSET_TEST(sysvals, bool_sysvals[i].val);
    }
 
-   unsigned nr_attribute_regs;
-   if (key->vf_component_packing) {
-      prog_data->base.urb_read_length = DIV_ROUND_UP(nr_packed_regs, 8);
-      nr_attribute_regs = nr_packed_regs;
-   } else {
-      prog_data->base.urb_read_length = DIV_ROUND_UP(nr_attribute_slots, 2);
-      nr_attribute_regs = 4 * nr_attribute_slots;
-   }
+   prog_data->base.urb_read_length = DIV_ROUND_UP(nr_input_components, 8);
 
    /* Since vertex shaders reuse the same VUE entry for inputs and outputs
     * (overwriting the original contents), we need to make sure the size is
     * the larger of the two.
     */
-   const unsigned vue_entries = MAX2(DIV_ROUND_UP(nr_attribute_regs, 4),
+   const unsigned vue_entries = MAX2(DIV_ROUND_UP(nr_input_components, 4),
                                      prog_data->base.vue_map.num_slots);
    prog_data->base.urb_entry_size = DIV_ROUND_UP(vue_entries, 4);
    prog_data->base.dispatch_mode = INTEL_DISPATCH_MODE_SIMD8;
@@ -627,11 +603,11 @@ jay_populate_prog_data(const struct intel_device_info *devinfo,
                        nir_shader *nir,
                        union brw_any_prog_data *prog_data,
                        union brw_any_prog_key *key,
-                       unsigned nr_packed_regs)
+                       unsigned nr_input_components)
 {
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       populate_vs_prog_data(nir, devinfo, &key->vs, &prog_data->vs,
-                            nr_packed_regs);
+                            nr_input_components);
    } else if (nir->info.stage == MESA_SHADER_TESS_CTRL) {
       populate_tcs_prog_data(nir, &key->tcs, &prog_data->tcs);
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {

@@ -481,7 +481,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
 {
    enum mesa_shader_stage stage = nir->info.stage;
    struct brw_compiler compiler = { .devinfo = devinfo };
-   unsigned nr_packed_regs = 0;
+   unsigned nr_input_components = 0;
 
    prog_data->base.ray_queries = nir->info.ray_queries;
    prog_data->base.stage = stage;
@@ -553,15 +553,10 @@ jay_process_nir(const struct intel_device_info *devinfo,
       prog_data->vs.double_inputs_read = nir->info.vs.double_inputs;
       prog_data->vs.no_vf_slot_compaction = key->vs.no_vf_slot_compaction;
 
-      brw_nir_lower_vs_inputs(nir);
+      brw_nir_lower_vs_inputs(nir, devinfo, &key->vs, &prog_data->vs,
+                              &nr_input_components);
       brw_nir_lower_vue_outputs(nir);
       JAY_NIR_SNAPSHOT("after_lower_io");
-
-      memset(prog_data->vs.vf_component_packing, 0,
-             sizeof(prog_data->vs.vf_component_packing));
-      if (key->vs.vf_component_packing) {
-         nr_packed_regs = brw_nir_pack_vs_input(nir, &prog_data->vs);
-      }
 
       /* Get constant offsets out of the way for proper clip/cull handling */
       JAY_NIR_PASS(nir_lower_io_to_scalar, nir_var_shader_out, NULL, NULL);
@@ -890,7 +885,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       };
       JAY_NIR_PASS(nir_opt_load_skip_helpers, &skip_helpers);
    } else {
-      jay_populate_prog_data(devinfo, nir, prog_data, key, nr_packed_regs);
+      jay_populate_prog_data(devinfo, nir, prog_data, key, nr_input_components);
    }
 
    /* This must be the very last pass since nir_print itself will reindex! */
