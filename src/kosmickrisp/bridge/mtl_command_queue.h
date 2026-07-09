@@ -36,6 +36,9 @@ void mtl_command_queue_commit(mtl_command_queue *queue,
                               mtl_command_buffer **command_buffers,
                               uint32_t count, mtl_commit_options *options);
 
+void mtl_command_queue_wait_for_drawable(mtl_command_queue *queue,
+                                         void *drawable);
+
 void mtl_command_queue_signal_drawable(mtl_command_queue *queue,
                                        void *drawable);
 
