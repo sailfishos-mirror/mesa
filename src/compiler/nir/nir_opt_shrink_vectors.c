@@ -440,8 +440,8 @@ opt_shrink_vectors_load_const(nir_load_const_instr *instr)
 
    unsigned mask = nir_def_components_read(def);
 
-   /* If nothing was read, DCE.  If everything was read, early out. */
-   if (!mask || mask == nir_component_mask(def->num_components))
+   /* If nothing was read, DCE. */
+   if (!mask)
       return false;
 
    uint8_t reswizzle[NIR_MAX_VEC_COMPONENTS] = { 0 };
