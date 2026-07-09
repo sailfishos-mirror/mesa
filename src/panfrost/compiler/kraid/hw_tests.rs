@@ -767,6 +767,46 @@ fn test_op_icmp() {
 }
 
 #[test]
+fn test_op_idpadd() {
+    let model = RunSingleton::get().model.as_ref();
+
+    const SRC_TYPES: &'static [DataType] = &[DataType::V4S8, DataType::V4U8];
+
+    for saturate in [false, true] {
+        let op = OpIDpAdd {
+            dst: DstRef::None.into(),
+            dst_type: DataType::U32,
+            saturate,
+            src_types: [DataType::V4U8; 2],
+            srcs: [0.into(), 0.into()],
+            accum: 0.into(),
+        };
+        test_foldable_op(op);
+    }
+
+    for &src0_type in SRC_TYPES {
+        for &src1_type in SRC_TYPES {
+            let src_types = [src0_type, src1_type];
+            if model.arch() < 14 && src_types != [DataType::V4S8; 2] {
+                continue;
+            }
+
+            for saturate in [false, true] {
+                let op = OpIDpAdd {
+                    dst: DstRef::None.into(),
+                    dst_type: DataType::S32,
+                    saturate,
+                    src_types,
+                    srcs: [0.into(), 0.into()],
+                    accum: 0.into(),
+                };
+                test_foldable_op(op);
+            }
+        }
+    }
+}
+
+#[test]
 fn test_op_imul() {
     const DATA_TYPES: &'static [DataType] = &[
         DataType::V2S16,

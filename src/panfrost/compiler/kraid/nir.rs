@@ -544,6 +544,42 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: halves,
                 });
             }
+            nir_op_sdot_4x8_iadd
+            | nir_op_sdot_4x8_iadd_sat
+            | nir_op_sudot_4x8_iadd
+            | nir_op_sudot_4x8_iadd_sat
+            | nir_op_udot_4x8_uadd
+            | nir_op_udot_4x8_uadd_sat => {
+                let (src0_type, src1_type, dst_type) = match alu.op {
+                    nir_op_sdot_4x8_iadd | nir_op_sdot_4x8_iadd_sat => {
+                        (DataType::V4S8, DataType::V4S8, DataType::S32)
+                    }
+                    nir_op_sudot_4x8_iadd | nir_op_sudot_4x8_iadd_sat => {
+                        (DataType::V4S8, DataType::V4U8, DataType::S32)
+                    }
+                    nir_op_udot_4x8_uadd | nir_op_udot_4x8_uadd_sat => {
+                        (DataType::V4U8, DataType::V4U8, DataType::U32)
+                    }
+                    _ => unreachable!(),
+                };
+                let saturate = match alu.op {
+                    nir_op_sdot_4x8_iadd
+                    | nir_op_sudot_4x8_iadd
+                    | nir_op_udot_4x8_uadd => false,
+                    nir_op_sdot_4x8_iadd_sat
+                    | nir_op_sudot_4x8_iadd_sat
+                    | nir_op_udot_4x8_uadd_sat => true,
+                    _ => unreachable!(),
+                };
+                b.push_op(OpIDpAdd {
+                    dst: dst.into(),
+                    dst_type,
+                    saturate,
+                    src_types: [src0_type, src1_type],
+                    srcs: [srcs(0), srcs(1)],
+                    accum: srcs(2),
+                });
+            }
             nir_op_f2f16 | nir_op_f2f16_rtz | nir_op_f2f16_rtne => {
                 assert!(alu.get_src(0).bit_size() == 32);
                 assert!(alu.def.num_components == 1);

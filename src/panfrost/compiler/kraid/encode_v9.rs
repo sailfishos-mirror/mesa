@@ -1427,6 +1427,53 @@ impl V9Instr for OpICmp {
     }
 }
 
+impl OpIDpAdd {
+    fn v9_variant(&self) -> IdpaddVariant {
+        match self.dst_type {
+            DataType::S32 => IdpaddVariant::V4S8,
+            DataType::U32 => IdpaddVariant::V4U8,
+            _ => panic!("Invalid OpIDpAdd::dst_type"),
+        }
+    }
+}
+
+impl V9Instr for OpIDpAdd {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            Idpadd::get_info(self.v9_variant(), arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+                src2: accum,
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        let variant = self.v9_variant();
+        let (unsigned0, unsigned1) = match variant {
+            IdpaddVariant::V4S8 => (
+                (self.src_types[0] == DataType::V4U8).into(),
+                (self.src_types[1] == DataType::V4U8).into(),
+            ),
+            IdpaddVariant::V4U8 => {
+                assert!(self.src_types == [DataType::V4U8; 2]);
+                (V4u8M::None, V4u8M::None)
+            }
+        };
+        e.encode(Idpadd {
+            variant,
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            src2: op_encode_src(self, &self.accum),
+            saturate: self.saturate.into(),
+            unsigned0,
+            unsigned1,
+        })
+    }
+}
+
 impl V9Instr for OpIMul {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2361,6 +2408,7 @@ macro_rules! v9_op_match_else {
             Op::IAbs($x) => $y,
             Op::IAdd($x) => $y,
             Op::ICmp($x) => $y,
+            Op::IDpAdd($x) => $y,
             Op::IMul($x) => $y,
             Op::ISub($x) => $y,
             Op::IToF32($x) => $y,

@@ -1294,6 +1294,78 @@ impl PerCompFoldable for OpICmp {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [S32, U32])]
+pub struct OpIDpAdd {
+    pub dst: Dst,
+    pub dst_type: DataType,
+    pub saturate: bool,
+    pub src_types: [DataType; 2],
+    #[src_type(V4I8)]
+    pub srcs: [Src; 2],
+    pub accum: Src,
+}
+
+impl fmt::Display for OpIDpAdd {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sat = if self.saturate { ".sat" } else { "" };
+        write!(
+            f,
+            "{} = IDPADD.{}.{}.{}{sat} {} {} {}",
+            &self.dst,
+            self.dst_type,
+            self.src_types[0],
+            self.src_types[1],
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+            self.fmt_src(&self.accum),
+        )
+    }
+}
+
+impl Foldable for OpIDpAdd {
+    fn fold(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let srcs = [
+            (f.get_src(&self.srcs[0]) as u32).to_le_bytes(),
+            (f.get_src(&self.srcs[1]) as u32).to_le_bytes(),
+        ];
+        let accum = f.get_src(&self.accum) as u32;
+
+        let src_comp = |i: usize, comp: usize| match self.src_types[i] {
+            DataType::V4S8 => i32::from(srcs[i][comp] as i8),
+            DataType::V4U8 => i32::from(srcs[i][comp] as u8),
+            _ => panic!("Invalid OpIDpAdd::srcs_type"),
+        };
+
+        let mut sum = 0_i32;
+        for comp in 0..4 {
+            sum += src_comp(0, comp) * src_comp(1, comp);
+        }
+
+        let dst = match self.dst_type {
+            DataType::S32 => {
+                if self.saturate {
+                    (accum as i32).saturating_add(sum) as u32
+                } else {
+                    (accum as i32).wrapping_add(sum) as u32
+                }
+            }
+            DataType::U32 => {
+                let sum = u32::try_from(sum).unwrap();
+                if self.saturate {
+                    accum.saturating_add(sum)
+                } else {
+                    accum.wrapping_add(sum)
+                }
+            }
+            _ => panic!("Invalid OpIDpAdd::dst_type"),
+        };
+
+        f.set_dst(&self.dst, dst.into());
+    }
+}
+
 // TODO: S64 & U64, they don't support the NONE swizzle
 #[repr(C)]
 #[derive(Clone, Opcode)]
@@ -2672,6 +2744,7 @@ pub enum Op {
     IAbs(Box<OpIAbs>),
     IAdd(Box<OpIAdd>),
     ICmp(Box<OpICmp>),
+    IDpAdd(Box<OpIDpAdd>),
     IMul(Box<OpIMul>),
     ISub(Box<OpISub>),
     IToF32(Box<OpIToF32>),
