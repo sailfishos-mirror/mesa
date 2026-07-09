@@ -2554,7 +2554,7 @@
         "description": "zink: fix the fix for ZINK_RENDERDOC=all",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e0641fdac7a38a882c57d68282b020096902829d",
         "notes": null
