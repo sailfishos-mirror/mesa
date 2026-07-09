@@ -323,11 +323,10 @@ vn_device_fix_create_info(const struct vn_device *dev,
       }
    }
 
-   /* see vn_queue_submission_count_batch_semaphores */
-   if (!app_exts->KHR_external_semaphore_fd && has_wsi) {
-      assert(physical_dev->renderer_sync_fd.semaphore_importable);
+   /* vn_physical_device_get_native_extensions */
+   if (has_wsi && renderer_exts->KHR_external_semaphore_fd &&
+       !app_exts->KHR_external_semaphore_fd)
       extra_exts[extra_count++] = VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME;
-   }
 
    /* see vn_cmd_set_external_acquire_unmodified */
    if (VN_PRESENT_SRC_INTERNAL_LAYOUT != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR &&

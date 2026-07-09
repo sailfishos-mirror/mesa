@@ -1147,9 +1147,6 @@ vn_physical_device_init_external_semaphore_handles(
       physical_dev->renderer_sync_fd.semaphore_exportable =
          props.externalSemaphoreFeatures &
          VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT;
-      physical_dev->renderer_sync_fd.semaphore_importable =
-         props.externalSemaphoreFeatures &
-         VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT;
    }
 
    physical_dev->external_binary_semaphore_handles = 0;
@@ -1190,17 +1187,13 @@ vn_physical_device_get_native_extensions(
       exts->ANDROID_external_memory_android_hardware_buffer = true;
 
       /* For wsi, we require renderer:
-       * - semaphore sync fd import for queue submission to skip scrubbing the
-       *   wsi wait semaphores.
        * - fence sync fd export for QueueSignalReleaseImageANDROID to export a
        *   sync fd.
        *
        * TODO: relax these requirements by:
-       * - properly scrubbing wsi wait semaphores
        * - not creating external fence but exporting sync fd directly
        */
-      if (physical_dev->renderer_sync_fd.semaphore_importable &&
-          physical_dev->renderer_sync_fd.fence_exportable)
+      if (physical_dev->renderer_sync_fd.fence_exportable)
          exts->ANDROID_native_buffer = true;
    }
 #else  /* VK_USE_PLATFORM_ANDROID_KHR */
@@ -1213,20 +1206,19 @@ vn_physical_device_get_native_extensions(
 #endif /* VK_USE_PLATFORM_ANDROID_KHR */
 
 #ifdef VN_USE_WSI_PLATFORM
-   if (physical_dev->renderer_sync_fd.semaphore_importable) {
-      exts->KHR_incremental_present = true;
+   exts->KHR_incremental_present = true;
+   exts->KHR_swapchain = true;
+   exts->KHR_swapchain_maintenance1 = true;
+   exts->KHR_swapchain_mutable_format = true;
+   exts->EXT_hdr_metadata = true;
+   exts->EXT_swapchain_maintenance1 = true;
+
 #ifndef VK_USE_PLATFORM_WIN32_KHR
-      exts->KHR_present_id = true;
-      exts->KHR_present_id2 = true;
-      exts->KHR_present_wait = true;
-      exts->KHR_present_wait2 = true;
+   exts->KHR_present_id = true;
+   exts->KHR_present_id2 = true;
+   exts->KHR_present_wait = true;
+   exts->KHR_present_wait2 = true;
 #endif /* VK_USE_PLATFORM_WIN32_KHR */
-      exts->KHR_swapchain = true;
-      exts->KHR_swapchain_maintenance1 = true;
-      exts->KHR_swapchain_mutable_format = true;
-      exts->EXT_hdr_metadata = true;
-      exts->EXT_swapchain_maintenance1 = true;
-   }
 
    /* VK_EXT_pci_bus_info is required by common wsi to decide whether native
     * image or prime blit is used. Meanwhile, venus must stay on native image
@@ -1262,17 +1254,6 @@ vn_physical_device_get_passthrough_extensions(
    struct vk_device_extension_table *exts)
 {
    struct vn_renderer *renderer = physical_dev->instance->renderer;
-
-#if defined(VK_USE_PLATFORM_ANDROID_KHR) || defined(VN_USE_WSI_PLATFORM)
-   /* WSI support currently requires semaphore sync fd import for
-    * VK_KHR_synchronization2 for code simplicity. This requirement can be
-    * dropped by implementing external semaphore purely on the driver side
-    * (aka no corresponding renderer side object).
-    */
-   const bool can_sync2 = physical_dev->renderer_sync_fd.semaphore_importable;
-#else
-   static const bool can_sync2 = true;
-#endif
 
    *exts = (struct vk_device_extension_table){
       /* promoted to VK_VERSION_1_1 */
@@ -1329,7 +1310,7 @@ vn_physical_device_get_passthrough_extensions(
       .KHR_shader_integer_dot_product = true,
       .KHR_shader_non_semantic_info = true,
       .KHR_shader_terminate_invocation = true,
-      .KHR_synchronization2 = can_sync2,
+      .KHR_synchronization2 = true,
       .KHR_zero_initialize_workgroup_memory = true,
       .EXT_4444_formats = true,
       .EXT_extended_dynamic_state = true,

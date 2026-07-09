@@ -121,7 +121,6 @@ struct vn_physical_device {
    struct {
       bool fence_exportable;
       bool semaphore_exportable;
-      bool semaphore_importable;
    } renderer_sync_fd;
 
    VkExternalFenceHandleTypeFlags external_fence_handles;

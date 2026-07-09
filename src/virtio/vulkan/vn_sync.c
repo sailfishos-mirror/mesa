@@ -448,16 +448,6 @@ vn_semaphore_wait_imported(VkDevice dev_handle, VkSemaphore sem_handle)
    vn_sync_payload_release(dev, &sem->temporary);
    sem->payload = &sem->permanent;
 
-   assert(dev->physical_device->renderer_sync_fd.semaphore_importable);
-
-   const VkImportSemaphoreResourceInfoMESA res_info = {
-      .sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_RESOURCE_INFO_MESA,
-      .semaphore = sem_handle,
-      .resourceId = 0,
-   };
-   vn_async_vkImportSemaphoreResourceMESA(dev->primary_ring, dev_handle,
-                                          &res_info);
-
    return true;
 }
 
