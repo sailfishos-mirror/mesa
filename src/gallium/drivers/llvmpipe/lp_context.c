@@ -111,8 +111,6 @@ llvmpipe_destroy(struct pipe_context *pipe)
 
    llvmpipe_destroy_fs_funcs(llvmpipe);
 
-   llvmpipe_sampler_matrix_destroy(llvmpipe);
-
    lp_context_destroy(&llvmpipe->context);
 
    align_free(llvmpipe);
@@ -311,7 +309,7 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
    llvmpipe_init_context_resource_funcs(&llvmpipe->pipe);
    llvmpipe_init_surface_functions(llvmpipe);
 
-   llvmpipe_init_sampler_matrix(llvmpipe);
+   llvmpipe_init_texture_handle_funcs(llvmpipe);
 
 #ifdef HAVE_LIBDRM
    llvmpipe_init_fence_funcs(&llvmpipe->pipe);

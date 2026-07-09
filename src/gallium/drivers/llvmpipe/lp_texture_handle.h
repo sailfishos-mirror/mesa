@@ -25,6 +25,7 @@
 #define LP_SAMPLER_MATRIX
 
 #include "util/bitset.h"
+#include "gallivm/lp_bld.h"
 #include "util/u_atomic.h"
 #include "util/u_dynarray.h"
 #include "util/format/u_format.h"
@@ -81,12 +82,14 @@ struct lp_sampler_matrix {
    struct util_dynarray trash;
 };
 
-void llvmpipe_init_sampler_matrix(struct llvmpipe_context *ctx);
+void llvmpipe_init_texture_handle_funcs(struct llvmpipe_context *ctx);
 
-void llvmpipe_sampler_matrix_destroy(struct llvmpipe_context *ctx);
+void llvmpipe_init_sampler_matrix(struct llvmpipe_screen *screen);
+
+void llvmpipe_sampler_matrix_destroy(struct llvmpipe_screen *screen);
 
 void llvmpipe_register_shader(struct pipe_context *ctx, const struct pipe_shader_state *shader);
 
-void llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx);
+void llvmpipe_clear_sample_functions_cache(struct llvmpipe_screen *screen);
 
 #endif /* LP_SAMPLER_MATRIX */

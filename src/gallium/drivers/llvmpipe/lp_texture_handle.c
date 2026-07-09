@@ -52,7 +52,7 @@ llvmpipe_register_sampler(struct lp_sampler_matrix *matrix, struct lp_static_sam
 static uint64_t
 llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_view *view, const struct pipe_sampler_state *sampler)
 {
-   struct lp_sampler_matrix *matrix = &llvmpipe_context(pctx)->sampler_matrix;
+   struct lp_sampler_matrix *matrix = &llvmpipe_screen(pctx->screen)->sampler_matrix;
 
    struct lp_texture_handle *handle = calloc(1, sizeof(struct lp_texture_handle));
 
@@ -115,7 +115,7 @@ llvmpipe_delete_texture_handle(struct pipe_context *pctx, uint64_t handle)
 static uint64_t
 llvmpipe_create_image_handle(struct pipe_context *pctx, const struct pipe_image_view *view)
 {
-   struct lp_sampler_matrix *matrix = &llvmpipe_context(pctx)->sampler_matrix;
+   struct lp_sampler_matrix *matrix = &llvmpipe_screen(pctx->screen)->sampler_matrix;
 
    struct lp_texture_handle *handle = calloc(1, sizeof(struct lp_texture_handle));
 
@@ -226,19 +226,23 @@ lp_function_cache_init(struct lp_function_cache *cache, struct hash_table *initi
 }
 
 void
-llvmpipe_init_sampler_matrix(struct llvmpipe_context *ctx)
+llvmpipe_init_texture_handle_funcs(struct llvmpipe_context *ctx)
 {
    ctx->pipe.create_texture_handle = llvmpipe_create_texture_handle;
    ctx->pipe.delete_texture_handle = llvmpipe_delete_texture_handle;
    ctx->pipe.create_image_handle = llvmpipe_create_image_handle;
    ctx->pipe.delete_image_handle = llvmpipe_delete_image_handle;
+}
 
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
+void
+llvmpipe_init_sampler_matrix(struct llvmpipe_screen *screen)
+{
+   struct lp_sampler_matrix *matrix = &screen->sampler_matrix;
 
    matrix->gallivms = UTIL_DYNARRAY_INIT;
    matrix->trash = UTIL_DYNARRAY_INIT;
 
-   matrix->screen = llvmpipe_screen(ctx->pipe.screen);
+   matrix->screen = screen;
 
    matrix->compile_sample_function = get_sample_function;
    matrix->compile_fetch_function = get_fetch_function;
@@ -255,9 +259,9 @@ llvmpipe_init_sampler_matrix(struct llvmpipe_context *ctx)
 }
 
 void
-llvmpipe_sampler_matrix_destroy(struct llvmpipe_context *ctx)
+llvmpipe_sampler_matrix_destroy(struct llvmpipe_screen *screen)
 {
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
+   struct lp_sampler_matrix *matrix = &screen->sampler_matrix;
 
    simple_mtx_destroy(&matrix->lock);
 
@@ -1481,13 +1485,13 @@ llvmpipe_register_shader(struct pipe_context *ctx, const struct pipe_shader_stat
 {
    if (shader->type == PIPE_SHADER_IR_NIR)
       nir_shader_instructions_pass(shader->ir.nir, register_instr, nir_metadata_all,
-                                   &llvmpipe_context(ctx)->sampler_matrix);
+                                   &llvmpipe_screen(ctx->screen)->sampler_matrix);
 }
 
 void
-llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx)
+llvmpipe_clear_sample_functions_cache(struct llvmpipe_screen *screen)
 {
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
+   struct lp_sampler_matrix *matrix = &screen->sampler_matrix;
 
    /* If the cache is empty, there is nothing to do. */
    bool has_cache_entry = false;

@@ -66,7 +66,7 @@ llvmpipe_flush(struct pipe_context *pipe,
    if (fence && (!*fence))
       *fence = (struct pipe_fence_handle *)lp_fence_create(0);
 
-   llvmpipe_clear_sample_functions_cache(llvmpipe);
+   llvmpipe_clear_sample_functions_cache(screen);
 
    /* Enable to dump BMPs of the color/depth buffers each frame */
    if (0) {

@@ -81,7 +81,6 @@ struct llvmpipe_context {
    struct lp_compute_shader *tss;
    struct lp_compute_shader *mhs;
 
-   struct lp_sampler_matrix sampler_matrix;
 
    /** Other rendering state */
    unsigned sample_mask;
