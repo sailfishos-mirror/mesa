@@ -1,31 +1,30 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
-use std::mem;
-
 use crate::builder::*;
 use crate::ir::*;
-use crate::ops::OpMov;
 use compiler::bitset::BitSet;
+
+fn move_src_to_tmp(b: &mut impl SSABuilder, src: &mut Src) {
+    // SrcRef::bytes() isn't totally accurate for zero but that's okay since
+    // we should never copy it anyway.
+    assert!(!matches!(&src.src_ref, SrcRef::Zero));
+
+    let bytes = src.src_ref.bytes_read();
+    debug_assert!(bytes <= 8);
+    let tmp = b.alloc_ref((bytes * 8).into());
+    let src_ref = std::mem::replace(&mut src.src_ref, tmp.clone().into());
+    b.copy_to(tmp.into(), DataType::i(bytes * 8), src_ref.into());
+}
 
 fn legalize_imm_src(b: &mut impl SSABuilder, op: &mut Op, src_idx: usize) {
     let src = &op.srcs()[src_idx];
     let SrcRef::Imm32(imm32) = &src.src_ref else {
         return;
     };
-    if b.model().op_src_supports_imm32(op, src, (*imm32).into()) {
-        return;
+    if !b.model().op_src_supports_imm32(op, src, (*imm32).into()) {
+        move_src_to_tmp(b, &mut op.srcs_mut()[src_idx]);
     }
-
-    let ssa = b.alloc_ssa(32);
-    let src = &mut op.srcs_mut()[src_idx];
-    let src_ref = mem::replace(&mut src.src_ref, ssa.into());
-
-    b.push_op(OpMov {
-        dst: ssa.into(),
-        dst_type: DataType::I32,
-        src: src_ref.into(),
-    });
 }
 
 #[derive(Default)]
