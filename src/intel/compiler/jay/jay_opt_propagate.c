@@ -389,7 +389,8 @@ propagate_backwards(jay_function *f)
           use->op == JAY_OPCODE_MOV &&
           use->dst.file != J_ADDRESS &&
           (!jay_is_flag(use->dst) ||
-           def_block[jay_base_index(use->dst)] == block->index)) {
+           (def_block[jay_base_index(use->dst)] == block->index &&
+            jay_num_isa_srcs(I) < 3))) {
 
          *(flag ? &I->cond_flag : &I->dst) = use->dst;
          jay_remove_instruction(use);
