@@ -95,7 +95,7 @@ lower(jay_builder *b, jay_inst *I)
 
    case JAY_OPCODE_ZERO_FLAG: {
       jay_MOV(b, jay_bare_reg(FLAG, jay_zero_flag_reg(I)), 0)->type =
-         JAY_TYPE_U32;
+         JAY_TYPE_U | b->shader->dispatch_width;
       return true;
    }
 
