@@ -619,7 +619,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type: dst_type(NumericType::Float),
                     round: FRound::NearestEven,
                     clamp: FClamp::None,
-                    srcs: [srcs(0).fabs(), Src::from(0).fneg()],
+                    srcs: [Src::fneg_zero(alu.def.bit_size), srcs(0).fabs()],
                 });
             }
             nir_op_fneg => {
@@ -628,7 +628,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type: dst_type(NumericType::Float),
                     round: FRound::NearestEven,
                     clamp: FClamp::None,
-                    srcs: [srcs(0).fneg(), Src::from(0).fneg()],
+                    srcs: [Src::fneg_zero(alu.def.bit_size), srcs(0).fneg()],
                 });
             }
             nir_op_fadd => {
@@ -646,7 +646,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type: dst_type(NumericType::Float),
                     round: FRound::NearestEven,
                     clamp: FClamp::ZeroToOne,
-                    srcs: [Src::from(0).fneg(), srcs(0)],
+                    srcs: [Src::fneg_zero(alu.def.bit_size), srcs(0)],
                 });
             }
             nir_op_fsat_signed => {
@@ -655,7 +655,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type: dst_type(NumericType::Float),
                     round: FRound::NearestEven,
                     clamp: FClamp::NegOneToOne,
-                    srcs: [Src::from(0).fneg(), srcs(0)],
+                    srcs: [Src::fneg_zero(alu.def.bit_size), srcs(0)],
                 });
             }
             nir_op_fclamp_pos => {
@@ -664,7 +664,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type: dst_type(NumericType::Float),
                     round: FRound::NearestEven,
                     clamp: FClamp::ZeroToInf,
-                    srcs: [Src::from(0).fneg(), srcs(0)],
+                    srcs: [Src::fneg_zero(alu.def.bit_size), srcs(0)],
                 });
             }
             nir_op_feq_pan | nir_op_fge_pan | nir_op_flt_pan

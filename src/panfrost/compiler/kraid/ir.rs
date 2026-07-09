@@ -736,6 +736,15 @@ impl Src {
         Src::from(u32::from(u)).half(0)
     }
 
+    pub fn fneg_zero(bits: u8) -> Src {
+        let zero = match bits {
+            16 => Src::imm_u16(0),
+            32 => Src::from(0),
+            _ => panic!("Invalid float bit size"),
+        };
+        zero.fneg()
+    }
+
     pub fn modify(mut self, src_mod: SrcMod) -> Src {
         self.src_mod = self.src_mod.modify(src_mod);
         self
