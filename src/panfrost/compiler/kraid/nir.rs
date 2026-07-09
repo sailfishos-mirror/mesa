@@ -186,6 +186,21 @@ impl<'a> ShaderFromNir<'a> {
         }
     }
 
+    fn preload(
+        &mut self,
+        b: &mut impl SSABuilder,
+        reg: PreloadReg,
+    ) -> SSAValue {
+        *self
+            .preload_map
+            .entry(reg)
+            .or_insert_with(|| b.alloc_ssa(32))
+    }
+
+    fn special_fau(&self, special: SpecialFAU) -> FAURef {
+        self.model.special_fau(special).unwrap()
+    }
+
     fn rtz(&self, bits: u8) -> bool {
         match bits {
             16 => self.rtz_fp16,
@@ -1072,17 +1087,6 @@ impl<'a> ShaderFromNir<'a> {
         }
     }
 
-    fn preload(
-        &mut self,
-        b: &mut impl SSABuilder,
-        reg: PreloadReg,
-    ) -> SSAValue {
-        *self
-            .preload_map
-            .entry(reg)
-            .or_insert_with(|| b.alloc_ssa(32))
-    }
-
     fn parse_tex(&mut self, b: &mut impl SSABuilder, tex: &nir_tex_instr) {
         let mut tex_h = None;
         let mut sr: [&[SSAValue]; 2] = [&[], &[]];
@@ -1382,20 +1386,14 @@ impl<'a> ShaderFromNir<'a> {
             nir_intrinsic_load_scratch_base_ptr => {
                 assert_eq!(intrin.def.bit_size, 64);
                 assert_eq!(intrin.def.num_components, 1);
-                let fau = self
-                    .model
-                    .special_fau(SpecialFAU::ThreadLocalPointer)
-                    .unwrap();
+                let fau = self.special_fau(SpecialFAU::ThreadLocalPointer);
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 b.copy_i64_to(dst, fau.into());
             }
             nir_intrinsic_load_shared_base_ptr => {
                 assert_eq!(intrin.def.bit_size, 64);
                 assert_eq!(intrin.def.num_components, 1);
-                let fau = self
-                    .model
-                    .special_fau(SpecialFAU::WorkgroupLocalPointer)
-                    .unwrap();
+                let fau = self.special_fau(SpecialFAU::WorkgroupLocalPointer);
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 b.copy_i64_to(dst, fau.into());
             }
@@ -1425,7 +1423,7 @@ impl<'a> ShaderFromNir<'a> {
             nir_intrinsic_load_subgroup_invocation => {
                 assert_eq!(intrin.def.bit_size, 32);
                 assert_eq!(intrin.def.num_components, 1);
-                let fau = self.model.special_fau(SpecialFAU::LaneId).unwrap();
+                let fau = self.special_fau(SpecialFAU::LaneId);
                 let dst = self.alloc_ssa(b, &intrin.def).into();
                 b.copy_i32_to(dst, fau.word(0).into());
             }
