@@ -1917,15 +1917,50 @@ jump_instr_to_msl(struct nir_to_msl_ctx *ctx, nir_jump_instr *jump)
    }
 }
 
+static const char *
+alu_fp_math_mode_pragma(const nir_alu_instr *alu)
+{
+   unsigned fp_math_ctrl = alu->fp_math_ctrl;
+
+   /* TODO_KOSMICKRISP Investigate why bcsel do not have inf nan preserve */
+   if (alu->op == nir_op_bcsel) {
+      for (unsigned i = 0; i < 3; i++) {
+         const nir_instr *parent = nir_def_instr(alu->src[i].src.ssa);
+         if (parent->type == nir_instr_type_alu) {
+            const nir_alu_instr *src_alu = nir_instr_as_alu(parent);
+            fp_math_ctrl |= src_alu->fp_math_ctrl;
+         }
+      }
+   }
+
+   if (fp_math_ctrl & nir_fp_no_contract)
+      return "safe";
+
+   /* TODO_KOSMICKRISP nir_fp_preserve_signed_zero should be preserved even if
+    * fast math, but we are just being overly cautious here, probably not
+    * needed. */
+   if (fp_math_ctrl & (nir_fp_preserve_inf | nir_fp_preserve_nan |
+                       nir_fp_preserve_signed_zero))
+      return "relaxed";
+   return NULL;
+}
+
 static void
 instr_to_msl(struct nir_to_msl_ctx *ctx, nir_instr *instr)
 {
    switch (instr->type) {
    case nir_instr_type_alu: {
       nir_alu_instr *alu = nir_instr_as_alu(instr);
+      const char *math_mode = alu_fp_math_mode_pragma(alu);
+      if (math_mode) {
+         P_IND(ctx, "{\n");
+         P_IND(ctx, "#pragma METAL fp math_mode(%s)\n", math_mode);
+      }
       P_IND(ctx, "t%d = ", alu->def.index);
       alu_to_msl(ctx, alu);
       P(ctx, ";\n");
+      if (math_mode)
+         P_IND(ctx, "}\n");
       break;
    }
    case nir_instr_type_deref:
