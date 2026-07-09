@@ -459,6 +459,16 @@ impl<const W: usize, K> ConstBitSet<W, K> {
         }
         true
     }
+
+    pub const fn len(&self) -> usize {
+        let mut count = 0;
+        let mut w = 0_usize;
+        while w < W {
+            count += self.words[w].count_ones() as usize;
+            w += 1;
+        }
+        count
+    }
 }
 
 macro_rules! impl_const_bit_set_binop {
