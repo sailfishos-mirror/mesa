@@ -442,3 +442,26 @@ TEST(FinishStructuredCF, ControlFlowEndsWithENDIF)
    EXPECT_EQ(if1.uip(), endif1.ip);
    EXPECT_EQ(if1.jip(), endif1.ip);
 }
+
+TEST(FinishStructuredCF, ControlFlowLoopStartsWithIF)
+{
+   gen_inst_vector v;
+
+   auto if1 = v.IF();
+      auto brk = v.BREAK();
+   auto endif1 = v.ENDIF();
+   auto while1 = v.WHILE(if1);
+
+   bool ok = gen_finish_structured_cf(v.data(), v.size(), -1);
+   ASSERT_TRUE(ok);
+
+   EXPECT_EQ(if1.uip(), endif1.ip);
+   EXPECT_EQ(if1.jip(), endif1.ip);
+
+   EXPECT_EQ(brk.uip(), while1.ip);
+   EXPECT_EQ(brk.jip(), endif1.ip);
+
+   EXPECT_EQ(endif1.jip(), while1.ip);
+
+   EXPECT_EQ(while1.jip(), if1.ip);
+}

@@ -250,6 +250,9 @@ gen_finish_structured_cf(gen_inst *insts, int num_insts, int final_halt_idx)
     * as relative byte offsets.
     */
    for (auto &info : infos) {
+      if (info.is_loop_header())
+         continue;
+
       gen_inst *inst = info.inst;
       const int idx = info.idx;
 
