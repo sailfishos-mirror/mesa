@@ -72,17 +72,18 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
    b->cursor = nir_after_instr(&intr->instr);
    unsigned simd_width = *((unsigned *) simd_);
 
-   /* mask & -mask isolates the lowest set bit in the mask. */
-   if (intr->intrinsic == nir_intrinsic_elect) {
+   switch (intr->intrinsic) {
+   case nir_intrinsic_elect: {
+      /* mask & -mask isolates the lowest set bit in the mask. */
       nir_def *mask = nir_ballot(b, 1, simd_width, nir_imm_true(b));
       mask = nir_iand(b, mask, nir_ineg(b, mask));
       nir_def_replace(&intr->def, nir_inverse_ballot(b, mask));
       return true;
    }
 
-   /* Ballots must match the SIMD size */
-   if (intr->intrinsic == nir_intrinsic_ballot ||
-       intr->intrinsic == nir_intrinsic_ballot_relaxed) {
+   case nir_intrinsic_ballot:
+   case nir_intrinsic_ballot_relaxed: {
+      /* Ballots must match the SIMD size */
       unsigned old_bitsize = intr->def.bit_size;
       intr->def.bit_size = simd_width;
       nir_def *u2uN = nir_u2uN(b, &intr->def, old_bitsize);
@@ -90,25 +91,29 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
       return true;
    }
 
-   /* Just a constant */
-   if (intr->intrinsic == nir_intrinsic_load_simd_width_intel) {
+   case nir_intrinsic_load_simd_width_intel:
+      /* Just a constant */
       nir_def_replace(&intr->def, nir_imm_int(b, simd_width));
       return true;
-   }
 
    /* Note: we don't treat read_invocation specially because there's little
     * benefit but doing so would require expensive uniformizing in some cases.
     */
-   if (intr->intrinsic != nir_intrinsic_shuffle &&
-       intr->intrinsic != nir_intrinsic_read_invocation)
-      return false;
+   case nir_intrinsic_shuffle:
+   case nir_intrinsic_read_invocation: {
+      nir_def *data = intr->src[0].ssa;
+      assert(data->num_components == 1 && data->bit_size <= 32 && "scalarized");
 
-   nir_def *data = intr->src[0].ssa;
-   assert(data->num_components == 1 && data->bit_size <= 32 && "scalarized");
+      nir_def *offset_B = nir_imul_imm(b, intr->src[1].ssa, 4);
+      nir_def_replace(&intr->def, nir_shuffle_intel(b, 1, data, offset_B));
+      return true;
+   }
 
-   nir_def *offset_B = nir_imul_imm(b, intr->src[1].ssa, 4);
-   nir_def_replace(&intr->def, nir_shuffle_intel(b, 1, data, offset_B));
-   return true;
+   default:
+      break;
+   }
+
+   return false;
 }
 
 struct frag_out_ctx {
