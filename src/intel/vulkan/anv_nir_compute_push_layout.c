@@ -669,7 +669,7 @@ anv_nir_compute_push_layout(nir_shader *nir,
       brw_nir_vs_compute_payload_size(nir, devinfo) : 0;
    const unsigned max_push_size =
       MIN2(compiler->register_file_size - payload_size,
-           devinfo->grf_size * (needs_padding_per_primitive ? 63 : 64));
+           32 * (needs_padding_per_primitive ? 63 : 64));
 
    for (unsigned i = 0; i < 4; i++) {
       struct anv_push_range *candidate_range = &analysis_ranges[i];
