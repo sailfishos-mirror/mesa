@@ -96,6 +96,15 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
       nir_def_replace(&intr->def, nir_imm_int(b, simd_width));
       return true;
 
+   case nir_intrinsic_load_subgroup_id:
+      /* If the whole workgroup fits in one thread, load_subgroup_id is 0. */
+      if (!b->shader->info.workgroup_size_variable &&
+          nir_static_workgroup_size(b->shader) <= simd_width) {
+         nir_def_replace(&intr->def, nir_imm_int(b, 0));
+         return true;
+      }
+      break;
+
    /* Note: we don't treat read_invocation specially because there's little
     * benefit but doing so would require expensive uniformizing in some cases.
     */
