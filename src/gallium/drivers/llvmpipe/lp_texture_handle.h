@@ -44,6 +44,9 @@ enum lp_function_cache_type {
    LP_FUNCTION_CACHE_COUNT,
 };
 
+struct llvmpipe_context;
+struct llvmpipe_screen;
+
 struct lp_sampler_matrix {
    struct lp_texture_functions **textures;
    struct lp_static_sampler_state *samplers;
@@ -65,7 +68,7 @@ struct lp_sampler_matrix {
 
    simple_mtx_t lock;
 
-   struct llvmpipe_context *ctx;
+   struct llvmpipe_screen *screen;
 
    /* Use a separate LLVMContext since it is not thread safe but can be accessed by shaders. */
    lp_context_ref context;

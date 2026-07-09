@@ -44,16 +44,15 @@ static const char *jit_fetch_function_base_hash = "8cc6d433304c6e2f24581f4712167
 static const char *jit_size_function_base_hash = "ecf7edd7cc56cad4a6f0a4622bce3794b7ea2883273a5482727ab62549400155";
 
 static void
-llvmpipe_register_texture(struct llvmpipe_context *ctx, struct lp_texture_handle_state *state, bool sampled);
+llvmpipe_register_texture(struct lp_sampler_matrix *matrix, struct lp_texture_handle_state *state, bool sampled);
 
 static void
-llvmpipe_register_sampler(struct llvmpipe_context *ctx, struct lp_static_sampler_state *state);
+llvmpipe_register_sampler(struct lp_sampler_matrix *matrix, struct lp_static_sampler_state *state);
 
 static uint64_t
 llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_view *view, const struct pipe_sampler_state *sampler)
 {
-   struct llvmpipe_context *ctx = llvmpipe_context(pctx);
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
+   struct lp_sampler_matrix *matrix = &llvmpipe_context(pctx)->sampler_matrix;
 
    struct lp_texture_handle *handle = calloc(1, sizeof(struct lp_texture_handle));
 
@@ -70,7 +69,7 @@ llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_vi
       if (state.static_state.tiled)
          state.dynamic_state.residency = NULL;
 
-      llvmpipe_register_texture(ctx, &state, true);
+      llvmpipe_register_texture(matrix, &state, true);
 
       bool found = false;
       for (uint32_t i = 0; i < matrix->texture_count; i++) {
@@ -87,7 +86,7 @@ llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_vi
       struct lp_static_sampler_state state;
       lp_sampler_static_sampler_state(&state, sampler);
 
-      llvmpipe_register_sampler(ctx, &state);
+      llvmpipe_register_sampler(matrix, &state);
 
       bool found = false;
       for (uint32_t i = 0; i < matrix->sampler_count; i++) {
@@ -112,8 +111,7 @@ llvmpipe_delete_texture_handle(struct pipe_context *pctx, uint64_t handle)
 static uint64_t
 llvmpipe_create_image_handle(struct pipe_context *pctx, const struct pipe_image_view *view)
 {
-   struct llvmpipe_context *ctx = llvmpipe_context(pctx);
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
+   struct lp_sampler_matrix *matrix = &llvmpipe_context(pctx)->sampler_matrix;
 
    struct lp_texture_handle *handle = calloc(1, sizeof(struct lp_texture_handle));
 
@@ -149,7 +147,7 @@ llvmpipe_create_image_handle(struct pipe_context *pctx, const struct pipe_image_
          state.static_state.target = PIPE_TEXTURE_CUBE;
    }
 
-   llvmpipe_register_texture(ctx, &state, false);
+   llvmpipe_register_texture(matrix, &state, false);
 
    bool found = false;
    for (uint32_t i = 0; i < matrix->texture_count; i++) {
@@ -180,7 +178,7 @@ static uint64_t
 get_size_function(uint64_t _matrix, uint64_t _texture_functions, uint32_t samples);
 
 static void *
-compile_jit_size_function(struct llvmpipe_context *ctx, bool samples);
+compile_jit_size_function(struct lp_sampler_matrix *matrix, bool samples);
 
 struct sample_function_cache_key {
    struct lp_texture_functions *texture_functions;
@@ -233,7 +231,7 @@ llvmpipe_init_sampler_matrix(struct llvmpipe_context *ctx)
 
    matrix->gallivms = UTIL_DYNARRAY_INIT;
 
-   matrix->ctx = ctx;
+   matrix->screen = llvmpipe_screen(ctx->pipe.screen);
 
    matrix->compile_sample_function = get_sample_function;
    matrix->compile_fetch_function = get_fetch_function;
@@ -245,8 +243,8 @@ llvmpipe_init_sampler_matrix(struct llvmpipe_context *ctx)
 
    simple_mtx_init(&matrix->lock, mtx_plain);
 
-   matrix->jit_size_functions[0] = compile_jit_size_function(ctx, false);
-   matrix->jit_size_functions[1] = compile_jit_size_function(ctx, true);
+   matrix->jit_size_functions[0] = compile_jit_size_function(matrix, false);
+   matrix->jit_size_functions[1] = compile_jit_size_function(matrix, true);
 }
 
 void
@@ -296,9 +294,8 @@ llvmpipe_sampler_matrix_destroy(struct llvmpipe_context *ctx)
 }
 
 static lp_context_ref *
-get_llvm_context(struct llvmpipe_context *ctx)
+get_llvm_context(struct lp_sampler_matrix *matrix)
 {
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
 
    if (!matrix->context.ref)
       lp_context_create(&matrix->context);
@@ -307,7 +304,7 @@ get_llvm_context(struct llvmpipe_context *ctx)
 }
 
 static void *
-compile_function(struct llvmpipe_context *ctx, struct gallivm_state *gallivm, LLVMValueRef function,
+compile_function(struct lp_sampler_matrix *matrix, struct gallivm_state *gallivm, LLVMValueRef function,
                  const char *func_name,
                  bool needs_caching,
                  uint8_t cache_key[BLAKE3_KEY_LEN])
@@ -318,17 +315,17 @@ compile_function(struct llvmpipe_context *ctx, struct gallivm_state *gallivm, LL
    void *function_ptr = func_to_pointer(gallivm_jit_function(gallivm, function, func_name));
 
    if (needs_caching)
-      lp_disk_cache_insert_shader(llvmpipe_screen(ctx->pipe.screen), gallivm->cache, cache_key);
+      lp_disk_cache_insert_shader(matrix->screen, gallivm->cache, cache_key);
 
    gallivm_free_ir(gallivm);
 
-   util_dynarray_append(&ctx->sampler_matrix.gallivms, gallivm);
+   util_dynarray_append(&matrix->gallivms, gallivm);
 
    return function_ptr;
 }
 
 static void *
-compile_image_function(struct llvmpipe_context *ctx, struct lp_static_texture_state *texture, uint32_t op)
+compile_image_function(struct lp_sampler_matrix *matrix, struct lp_static_texture_state *texture, uint32_t op)
 {
    const struct util_format_description *desc = util_format_description(texture->format);
    if (desc->colorspace != UTIL_FORMAT_COLORSPACE_ZS && !lp_storage_render_image_format_supported(texture->format))
@@ -383,10 +380,10 @@ compile_image_function(struct llvmpipe_context *ctx, struct lp_static_texture_st
    _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
-   lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
+   lp_disk_cache_find_shader(matrix->screen, &cached, cache_key);
    bool needs_caching = !cached.data_size;
 
-   struct gallivm_state *gallivm = gallivm_create("image_function", get_llvm_context(ctx), &cached);
+   struct gallivm_state *gallivm = gallivm_create("image_function", get_llvm_context(matrix), &cached);
 
    struct lp_image_static_state state = {
       .image_state = local_texture,
@@ -471,11 +468,11 @@ compile_image_function(struct llvmpipe_context *ctx, struct lp_static_texture_st
 
    free(image_soa);
 
-   return compile_function(ctx, gallivm, function, "image", needs_caching, cache_key);
+   return compile_function(matrix, gallivm, function, "image", needs_caching, cache_key);
 }
 
 static void *
-compile_sample_function(struct llvmpipe_context *ctx, struct lp_texture_handle_state *texture,
+compile_sample_function(struct lp_sampler_matrix *matrix, struct lp_texture_handle_state *texture,
                         struct lp_static_sampler_state *sampler, uint32_t sample_key)
 {
    enum lp_sampler_lod_control lod_control = (sample_key & LP_SAMPLER_LOD_CONTROL_MASK) >> LP_SAMPLER_LOD_CONTROL_SHIFT;
@@ -527,7 +524,8 @@ compile_sample_function(struct llvmpipe_context *ctx, struct lp_texture_handle_s
          return NULL;
 
       uint32_t bind = op_type == LP_SAMPLER_OP_FETCH ? PIPE_BIND_CONSTANT_BUFFER : PIPE_BIND_SAMPLER_VIEW;
-      if (!ctx->pipe.screen->is_format_supported(ctx->pipe.screen, texture->static_state.format, texture->static_state.target, 0, 0, bind))
+      struct pipe_screen *pscreen = &matrix->screen->base;
+      if (!pscreen->is_format_supported(pscreen, texture->static_state.format, texture->static_state.target, 0, 0, bind))
          supported = false;
    }
 
@@ -541,10 +539,10 @@ compile_sample_function(struct llvmpipe_context *ctx, struct lp_texture_handle_s
    _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
-   lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
+   lp_disk_cache_find_shader(matrix->screen, &cached, cache_key);
    bool needs_caching = !cached.data_size;
 
-   struct gallivm_state *gallivm = gallivm_create("sample_function", get_llvm_context(ctx), &cached);
+   struct gallivm_state *gallivm = gallivm_create("sample_function", get_llvm_context(matrix), &cached);
 
    struct lp_sampler_static_state state = {
       .texture_state = texture->static_state,
@@ -637,11 +635,11 @@ compile_sample_function(struct llvmpipe_context *ctx, struct lp_texture_handle_s
 
    free(sampler_soa);
 
-   return compile_function(ctx, gallivm, function, "sample", needs_caching, cache_key);
+   return compile_function(matrix, gallivm, function, "sample", needs_caching, cache_key);
 }
 
 static void *
-compile_size_function(struct llvmpipe_context *ctx, struct lp_texture_handle_state *texture, bool samples)
+compile_size_function(struct lp_sampler_matrix *matrix, struct lp_texture_handle_state *texture, bool samples)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
@@ -652,10 +650,10 @@ compile_size_function(struct llvmpipe_context *ctx, struct lp_texture_handle_sta
    _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
-   lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
+   lp_disk_cache_find_shader(matrix->screen, &cached, cache_key);
    bool needs_caching = !cached.data_size;
 
-   struct gallivm_state *gallivm = gallivm_create("size_function", get_llvm_context(ctx), &cached);
+   struct gallivm_state *gallivm = gallivm_create("size_function", get_llvm_context(matrix), &cached);
 
    struct lp_sampler_static_state state = {
       .texture_state = texture->static_state,
@@ -723,7 +721,7 @@ compile_size_function(struct llvmpipe_context *ctx, struct lp_texture_handle_sta
 
    free(sampler_soa);
 
-   return compile_function(ctx, gallivm, function, "size", needs_caching, cache_key);
+   return compile_function(matrix, gallivm, function, "size", needs_caching, cache_key);
 }
 
 static uint64_t
@@ -755,7 +753,7 @@ get_sample_function(uint64_t _matrix, uint64_t _texture_functions, uint64_t _sam
       struct hash_entry *entry = _mesa_hash_table_search(current_cache, &key);
       result = entry ? entry->data : NULL;
       if (!result) {
-         result = compile_sample_function(matrix->ctx, &texture_functions->state, matrix->samplers + sampler_index, sample_key);
+         result = compile_sample_function(matrix, &texture_functions->state, matrix->samplers + sampler_index, sample_key);
          struct sample_function_cache_key *allocated_key = malloc(sizeof(struct sample_function_cache_key));
          *allocated_key = key;
          /* RCU style update: swap in an updated copy of the cache.
@@ -797,7 +795,7 @@ get_fetch_function(uint64_t _matrix, uint64_t _texture_functions, uint32_t sampl
       result = entry ? entry->data : NULL;
       if (!result) {
          struct lp_static_sampler_state dummy_sampler = { 0 };
-         result = compile_sample_function(matrix->ctx, &texture_functions->state, &dummy_sampler, sample_key);
+         result = compile_sample_function(matrix, &texture_functions->state, &dummy_sampler, sample_key);
          struct sample_function_cache_key *allocated_key = malloc(sizeof(struct sample_function_cache_key));
          *allocated_key = key;
          /* RCU style update: swap in an updated copy of the cache.
@@ -838,7 +836,7 @@ get_size_function(uint64_t _matrix, uint64_t _texture_functions, uint32_t sample
       struct hash_entry *entry = _mesa_hash_table_search(current_cache, &key);
       result = entry ? entry->data : NULL;
       if (!result) {
-         result = compile_size_function(matrix->ctx, &texture_functions->state, samples);
+         result = compile_size_function(matrix, &texture_functions->state, samples);
          struct size_function_cache_key *allocated_key = malloc(sizeof(struct size_function_cache_key));
          *allocated_key = key;
          /* RCU style update: swap in an updated copy of the cache.
@@ -868,7 +866,7 @@ lp_build_compile_sample_function_type(struct gallivm_state *gallivm)
 }
 
 static void *
-compile_jit_sample_function(struct llvmpipe_context *ctx, uint32_t sample_key)
+compile_jit_sample_function(struct lp_sampler_matrix *matrix, uint32_t sample_key)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
@@ -878,10 +876,10 @@ compile_jit_sample_function(struct llvmpipe_context *ctx, uint32_t sample_key)
    _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
-   lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
+   lp_disk_cache_find_shader(matrix->screen, &cached, cache_key);
    bool needs_caching = !cached.data_size;
 
-   struct gallivm_state *gallivm = gallivm_create("jit_sample_function", get_llvm_context(ctx), &cached);
+   struct gallivm_state *gallivm = gallivm_create("jit_sample_function", get_llvm_context(matrix), &cached);
 
    struct lp_type type;
    memset(&type, 0, sizeof type);
@@ -972,7 +970,7 @@ compile_jit_sample_function(struct llvmpipe_context *ctx, uint32_t sample_key)
    LLVMDisposeBuilder(gallivm->builder);
    gallivm->builder = old_builder;
 
-   return compile_function(ctx, gallivm, function, "sample", needs_caching, cache_key);
+   return compile_function(matrix, gallivm, function, "sample", needs_caching, cache_key);
 }
 
 static LLVMTypeRef
@@ -989,7 +987,7 @@ lp_build_compile_fetch_function_type(struct gallivm_state *gallivm)
 }
 
 static void *
-compile_jit_fetch_function(struct llvmpipe_context *ctx, uint32_t sample_key)
+compile_jit_fetch_function(struct lp_sampler_matrix *matrix, uint32_t sample_key)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
@@ -999,10 +997,10 @@ compile_jit_fetch_function(struct llvmpipe_context *ctx, uint32_t sample_key)
    _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
-   lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
+   lp_disk_cache_find_shader(matrix->screen, &cached, cache_key);
    bool needs_caching = !cached.data_size;
 
-   struct gallivm_state *gallivm = gallivm_create("jit_fetch_function", get_llvm_context(ctx), &cached);
+   struct gallivm_state *gallivm = gallivm_create("jit_fetch_function", get_llvm_context(matrix), &cached);
 
    struct lp_type type;
    memset(&type, 0, sizeof type);
@@ -1091,7 +1089,7 @@ compile_jit_fetch_function(struct llvmpipe_context *ctx, uint32_t sample_key)
    LLVMDisposeBuilder(gallivm->builder);
    gallivm->builder = old_builder;
 
-   return compile_function(ctx, gallivm, function, "fetch", needs_caching, cache_key);
+   return compile_function(matrix, gallivm, function, "fetch", needs_caching, cache_key);
 }
 
 static LLVMTypeRef
@@ -1108,7 +1106,7 @@ lp_build_compile_size_function_type(struct gallivm_state *gallivm)
 }
 
 static void *
-compile_jit_size_function(struct llvmpipe_context *ctx, bool samples)
+compile_jit_size_function(struct lp_sampler_matrix *matrix, bool samples)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
@@ -1118,10 +1116,10 @@ compile_jit_size_function(struct llvmpipe_context *ctx, bool samples)
    _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
-   lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
+   lp_disk_cache_find_shader(matrix->screen, &cached, cache_key);
    bool needs_caching = !cached.data_size;
 
-   struct gallivm_state *gallivm = gallivm_create("jit_size_function", get_llvm_context(ctx), &cached);
+   struct gallivm_state *gallivm = gallivm_create("jit_size_function", get_llvm_context(matrix), &cached);
 
    struct lp_type type;
    memset(&type, 0, sizeof type);
@@ -1215,14 +1213,13 @@ compile_jit_size_function(struct llvmpipe_context *ctx, bool samples)
    LLVMDisposeBuilder(gallivm->builder);
    gallivm->builder = old_builder;
 
-   return compile_function(ctx, gallivm, function, "size", needs_caching, cache_key);
+   return compile_function(matrix, gallivm, function, "size", needs_caching, cache_key);
 }
 
 static void
-compile_sample_functions(struct llvmpipe_context *ctx, struct lp_texture_handle_state *texture,
+compile_sample_functions(struct lp_sampler_matrix *matrix, struct lp_texture_handle_state *texture,
                         struct lp_static_sampler_state *sampler, void **functions)
 {
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
 
    /* There is nothing to do if this texture+sampler combination uses the "default" functions. */
    if (functions == matrix->jit_sample_functions || functions == matrix->jit_fetch_functions)
@@ -1248,15 +1245,14 @@ compile_sample_functions(struct llvmpipe_context *ctx, struct lp_texture_handle_
          else if (op_type == LP_SAMPLER_OP_FETCH)
             functions[sample_key] = matrix->jit_fetch_functions[sample_key];
          else if (texture->static_state.format == PIPE_FORMAT_NONE)
-            functions[sample_key] = compile_sample_function(ctx, texture, sampler, sample_key);
+            functions[sample_key] = compile_sample_function(matrix, texture, sampler, sample_key);
       }
    }
 }
 
 static void
-llvmpipe_register_texture(struct llvmpipe_context *ctx, struct lp_texture_handle_state *state, bool sampled)
+llvmpipe_register_texture(struct lp_sampler_matrix *matrix, struct lp_texture_handle_state *state, bool sampled)
 {
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
 
    bool packed = true;
    uint32_t dst_index = matrix->texture_count;
@@ -1302,7 +1298,7 @@ llvmpipe_register_texture(struct llvmpipe_context *ctx, struct lp_texture_handle
 
          if (state->static_state.format == PIPE_FORMAT_NONE) {
             entry->sample_functions[0] = calloc(LP_SAMPLE_KEY_COUNT, sizeof(void *));
-            compile_sample_functions(ctx, state, NULL, entry->sample_functions[0]);
+            compile_sample_functions(matrix, state, NULL, entry->sample_functions[0]);
             for (uint32_t i = 1; i < matrix->sampler_count; i++)
                entry->sample_functions[i] = entry->sample_functions[0];
          } else {
@@ -1325,16 +1321,15 @@ llvmpipe_register_texture(struct llvmpipe_context *ctx, struct lp_texture_handle
       uint32_t image_op;
       BITSET_FOREACH_SET (image_op, matrix->image_ops, LP_TOTAL_IMAGE_OP_COUNT)
          if (!entry->image_functions[image_op])
-            entry->image_functions[image_op] = compile_image_function(ctx, &state->static_state, image_op);
+            entry->image_functions[image_op] = compile_image_function(matrix, &state->static_state, image_op);
    }
 
    simple_mtx_unlock(&matrix->lock);
 }
 
 static void
-llvmpipe_register_sampler(struct llvmpipe_context *ctx, struct lp_static_sampler_state *state)
+llvmpipe_register_sampler(struct lp_sampler_matrix *matrix, struct lp_static_sampler_state *state)
 {
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
    for (uint32_t i = 0; i < matrix->sampler_count; i++)
       if (!memcmp(matrix->samplers + i, state, sizeof(struct lp_static_sampler_state)))
          return;
@@ -1357,7 +1352,7 @@ llvmpipe_register_sampler(struct llvmpipe_context *ctx, struct lp_static_sampler
       if (texture->state.static_state.format == PIPE_FORMAT_NONE)  {
          if (matrix->sampler_count == 1) {
             texture->sample_functions[0] = calloc(LP_SAMPLE_KEY_COUNT, sizeof(void *));
-            compile_sample_functions(ctx, &texture->state, NULL, texture->sample_functions[0]);
+            compile_sample_functions(matrix, &texture->state, NULL, texture->sample_functions[0]);
          } else {
             texture->sample_functions[matrix->sampler_count - 1] = texture->sample_functions[0];
          }
@@ -1371,9 +1366,8 @@ llvmpipe_register_sampler(struct llvmpipe_context *ctx, struct lp_static_sampler
 }
 
 static void
-register_sample_key(struct llvmpipe_context *ctx, uint32_t sample_key)
+register_sample_key(struct lp_sampler_matrix *matrix, uint32_t sample_key)
 {
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
    if (BITSET_TEST(matrix->sample_keys, sample_key))
       return;
 
@@ -1383,9 +1377,9 @@ register_sample_key(struct llvmpipe_context *ctx, uint32_t sample_key)
 
    enum lp_sampler_op_type op_type = (sample_key & LP_SAMPLER_OP_TYPE_MASK) >> LP_SAMPLER_OP_TYPE_SHIFT;
    if (op_type == LP_SAMPLER_OP_FETCH)
-      matrix->jit_fetch_functions[sample_key] = compile_jit_fetch_function(ctx, sample_key);
+      matrix->jit_fetch_functions[sample_key] = compile_jit_fetch_function(matrix, sample_key);
    else
-      matrix->jit_sample_functions[sample_key] = compile_jit_sample_function(ctx, sample_key);
+      matrix->jit_sample_functions[sample_key] = compile_jit_sample_function(matrix, sample_key);
 
    for (uint32_t texture_index = 0; texture_index < matrix->texture_count; texture_index++) {
       struct lp_texture_functions *texture = matrix->textures[texture_index];
@@ -1402,7 +1396,7 @@ register_sample_key(struct llvmpipe_context *ctx, uint32_t sample_key)
       if (texture->state.static_state.format == PIPE_FORMAT_NONE) {
          if (matrix->sampler_count) {
             struct lp_static_sampler_state dummy_sampler = { 0 };
-            texture->sample_functions[0][sample_key] = compile_sample_function(ctx, &texture->state, &dummy_sampler, sample_key);
+            texture->sample_functions[0][sample_key] = compile_sample_function(matrix, &texture->state, &dummy_sampler, sample_key);
          }
          continue;
       }
@@ -1415,9 +1409,8 @@ register_sample_key(struct llvmpipe_context *ctx, uint32_t sample_key)
 }
 
 static void
-register_image_op(struct llvmpipe_context *ctx, uint32_t op)
+register_image_op(struct lp_sampler_matrix *matrix, uint32_t op)
 {
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
    if (BITSET_TEST(matrix->image_ops, op))
       return;
 
@@ -1428,7 +1421,7 @@ register_image_op(struct llvmpipe_context *ctx, uint32_t op)
    for (uint32_t texture_index = 0; texture_index < matrix->texture_count; texture_index++) {
       struct lp_texture_functions *texture = matrix->textures[texture_index];
       if (texture->storage)
-         texture->image_functions[op] = compile_image_function(ctx, &texture->state.static_state, op);
+         texture->image_functions[op] = compile_image_function(matrix, &texture->state.static_state, op);
    }
 
    simple_mtx_unlock(&matrix->lock);
@@ -1437,19 +1430,19 @@ register_image_op(struct llvmpipe_context *ctx, uint32_t op)
 static bool
 register_instr(nir_builder *b, nir_instr *instr, void *data)
 {
-   struct llvmpipe_context *ctx = data;
+   struct lp_sampler_matrix *matrix = data;
 
    if (instr->type == nir_instr_type_tex) {
       nir_tex_instr *tex = nir_instr_as_tex(instr);
       uint32_t sample_key = lp_build_nir_sample_key(b->shader->info.stage, tex);
 
-      register_sample_key(ctx, sample_key);
+      register_sample_key(matrix, sample_key);
    } else if (instr->type == nir_instr_type_intrinsic) {
       nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
 
       uint32_t op = lp_packed_img_op_from_intrinsic(intrin);
       if (op != -1)
-         register_image_op(ctx, op);
+         register_image_op(matrix, op);
    }
 
    return false;
@@ -1459,16 +1452,17 @@ void
 llvmpipe_register_shader(struct pipe_context *ctx, const struct pipe_shader_state *shader)
 {
    if (shader->type == PIPE_SHADER_IR_NIR)
-      nir_shader_instructions_pass(shader->ir.nir, register_instr, nir_metadata_all, ctx);
+      nir_shader_instructions_pass(shader->ir.nir, register_instr, nir_metadata_all,
+                                   &llvmpipe_context(ctx)->sampler_matrix);
 }
 
 void
 llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx, struct pipe_fence_handle **fence)
 {
+   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
+
    if (!fence)
       return;
-
-   struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
 
    /* If the cache is empty, there is nothing to do. */
    bool has_cache_entry = false;
