@@ -59,4 +59,12 @@ wsi_metal_layer_blit_and_present(struct wsi_metal_layer_blit_context *context,
 void
 wsi_metal_layer_present(CAMetalDrawable **drawable_ptr);
 
+void
+wsi_metal_layer_make_queue_resident(const CAMetalLayer *metal_layer,
+   void *mtl4_command_queue);
+
+void
+wsi_metal_layer_remove_queue_resident(const CAMetalLayer *metal_layer,
+   void *mtl4_command_queue);
+
 #endif // WSI_COMMON_METAL_LAYER_H

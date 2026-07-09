@@ -820,6 +820,13 @@ wsi_metal_swapchain_destroy(struct wsi_swapchain *wsi_chain,
       wsi_destroy_metal_layer_blit_context(chain->blit_context);
 
    wsi_metal_release_present_info(chain->present_info);
+
+   if (chain->base.wsi->metal.get_mtl4_command_queue) {
+      void *mtl4_queue = chain->base.wsi->metal.get_mtl4_command_queue(chain->base.device);
+      if (mtl4_queue)
+         wsi_metal_layer_remove_queue_resident(chain->surface->pLayer, mtl4_queue);
+   }
+
    wsi_swapchain_finish(&chain->base);
 
    vk_free(pAllocator, chain);
@@ -898,6 +905,12 @@ wsi_metal_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    if (chain->present_info == NULL) {
       result = VK_ERROR_OUT_OF_HOST_MEMORY;
       goto fail_present_info;
+   }
+
+   if (wsi_device->metal.get_mtl4_command_queue) {
+      void *mtl4_queue = wsi_device->metal.get_mtl4_command_queue(chain->base.device);
+      if (mtl4_queue)
+         wsi_metal_layer_make_queue_resident(metal_surface->pLayer, mtl4_queue);
    }
 
    uint32_t created_image_count = 0;
