@@ -850,7 +850,6 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_bindless_resource_ir3:
    case nir_intrinsic_ray_intersection_ir3:
    case nir_intrinsic_resbase_ir3:
-   case nir_intrinsic_load_attribute_payload_intel:
    case nir_intrinsic_load_urb_vec4_intel:
    case nir_intrinsic_load_urb_lsc_intel:
    case nir_intrinsic_load_buffer_ptr_kk:
@@ -866,6 +865,21 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
          if (src_divergent(instr->src[i], state)) {
             is_divergent = true;
             break;
+         }
+      }
+      break;
+   }
+
+   case nir_intrinsic_load_attribute_payload_intel: {
+      if (nir_intrinsic_vector_payload_intel(instr)) {
+         is_divergent = true;
+      } else {
+         unsigned num_srcs = nir_intrinsic_infos[instr->intrinsic].num_srcs;
+         for (unsigned i = 0; i < num_srcs; i++) {
+            if (src_divergent(instr->src[i], state)) {
+               is_divergent = true;
+               break;
+            }
          }
       }
       break;

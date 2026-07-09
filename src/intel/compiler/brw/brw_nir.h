@@ -175,6 +175,11 @@ struct brw_lower_urb_cb_data {
    /** Input URB read length (returned by lowering) */
    unsigned *out_urb_read_length;
 
+   /* True if push inputs are divergent (where each lane reads from a
+    * different URB entry, and so a vec4 in the URB takes up 4 registers).
+    */
+   bool vector_payload;
+
    /* If true, all access is guaranteed to be vec4 (128-bit) aligned.
     * offset and base are in units of 128-bit vec4 slots.
     *

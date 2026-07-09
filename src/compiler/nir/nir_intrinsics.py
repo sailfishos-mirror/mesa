@@ -397,6 +397,9 @@ index("nir_preamble_class", "preamble_class")
 # Like nir_alu_instr::fp_math_ctrl, but for intrinsics
 index("unsigned", "fp_math_ctrl")
 
+# Whether to read multi component payload as vector elements
+index("bool", "vector_payload_intel")
+
 intrinsic("nop", flags=[CAN_ELIMINATE])
 
 # Uses a value and cannot be eliminated.
@@ -2691,7 +2694,8 @@ system_value("pixel_coord_intel", 1, bit_sizes=[32])
 
 # Read the attribute thread payload at a given byte offset
 # src[] = { offset }
-load("attribute_payload_intel", [1], flags=[CAN_ELIMINATE, CAN_REORDER])
+load("attribute_payload_intel", [1], indices=[VECTOR_PAYLOAD_INTEL],
+     flags=[CAN_ELIMINATE, CAN_REORDER])
 
 # Populate the per-primitive payload at an offset
 # src[] = { value, offset }

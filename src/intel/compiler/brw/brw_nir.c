@@ -426,11 +426,13 @@ store_urb(nir_builder *b,
 }
 
 static nir_def *
-load_push_input(nir_builder *b, nir_intrinsic_instr *io, unsigned byte_offset)
+load_push_input(nir_builder *b, nir_intrinsic_instr *io, unsigned byte_offset,
+                bool vector_payload)
 {
    return nir_load_attribute_payload_intel(b, io->def.num_components,
                                            io->def.bit_size,
-                                           nir_imm_int(b, byte_offset));
+                                           nir_imm_int(b, byte_offset),
+                                           .vector_payload_intel = vector_payload);
 }
 
 static nir_def *
@@ -474,7 +476,14 @@ try_load_push_input(nir_builder *b,
       return &io->def;
    }
 
-   return load_push_input(b, io, byte_offset);
+   /* byte_offset above is in terms of the URB entry, but our intrinsic
+    * wants an offset into the register file.  Each unit of URB read length
+    * (2x vec4) corresponds to 8 registers, so scale up accordingly.
+    */
+   const unsigned scale =
+      cb_data->vector_payload ? (8 * reg_unit(cb_data->devinfo)) : 1;
+
+   return load_push_input(b, io, byte_offset * scale, cb_data->vector_payload);
 }
 
 static bool
@@ -830,15 +839,15 @@ remap_tess_levels_legacy(nir_builder *b,
 
       nir_def *result;
       if (inner && prim == TESS_PRIMITIVE_TRIANGLES) {
-         result = load_push_input(b, intrin, 4 * sizeof(uint32_t));
+         result = load_push_input(b, intrin, 4 * sizeof(uint32_t), false);
       } else if (prim == TESS_PRIMITIVE_ISOLINES) {
-         result = load_push_input(b, intrin, 6 * sizeof(uint32_t));
+         result = load_push_input(b, intrin, 6 * sizeof(uint32_t), false);
       } else {
          const unsigned start =
             (inner ? 4 : 8) - nir_intrinsic_component(intrin)
                             - intrin->def.num_components;
 
-         nir_def *tmp = load_push_input(b, intrin, start * sizeof(uint32_t));
+         nir_def *tmp = load_push_input(b, intrin, start * sizeof(uint32_t), false);
 
          unsigned reverse[NIR_MAX_VEC_COMPONENTS];
          for (unsigned i = 0; i < tmp->num_components; ++i)
