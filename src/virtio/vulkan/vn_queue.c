@@ -20,7 +20,11 @@
 #include "vn_wsi.h"
 
 struct vn_queue_submission_pnext {
+   /* intercepted structs */
    VkDeviceGroupSubmitInfo group;
+
+   /* forwarded structs */
+   VkDeviceGroupBindSparseInfo sparse;
    VkProtectedSubmitInfo protected;
    VkTimelineSemaphoreSubmitInfo timeline;
 };
@@ -66,6 +70,7 @@ struct vn_queue_submission {
          void *batch;
          VkSubmitInfo *submit_batch;
          VkSubmitInfo2 *submit2_batch;
+         VkBindSparseInfo *sparse_batch;
       };
 
       union {
@@ -148,11 +153,16 @@ vn_get_signal_semaphore(struct vn_queue_submission *submit, uint32_t index)
 static inline size_t
 vn_get_batch_size(struct vn_queue_submission *submit)
 {
-   assert((submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) ||
-          (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2));
-   return submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO
-             ? sizeof(VkSubmitInfo)
-             : sizeof(VkSubmitInfo2);
+   switch (submit->batch_type) {
+   case VK_STRUCTURE_TYPE_SUBMIT_INFO:
+      return sizeof(VkSubmitInfo);
+   case VK_STRUCTURE_TYPE_SUBMIT_INFO_2:
+      return sizeof(VkSubmitInfo2);
+   case VK_STRUCTURE_TYPE_BIND_SPARSE_INFO:
+      return sizeof(VkBindSparseInfo);
+   default:
+      UNREACHABLE("unexpected batch type");
+   }
 }
 
 static inline size_t
@@ -283,6 +293,10 @@ vn_queue_submission_init_pnext(struct vn_queue_submission *submit)
          next = &pnext->group;
          break;
       }
+      case VK_STRUCTURE_TYPE_DEVICE_GROUP_BIND_SPARSE_INFO:
+         memcpy(&pnext->sparse, src, sizeof(pnext->sparse));
+         next = &pnext->sparse;
+         break;
       case VK_STRUCTURE_TYPE_PROTECTED_SUBMIT_INFO:
          memcpy(&pnext->protected, src, sizeof(pnext->protected));
          next = &pnext->protected;
