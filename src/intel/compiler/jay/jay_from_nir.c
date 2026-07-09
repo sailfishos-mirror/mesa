@@ -1865,6 +1865,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_read_first_invocation:
+   case nir_intrinsic_as_uniform:
       jay_MOV(b, dst, emit_uniformize(nj, nj_src(intr->src[0])));
       break;
 
