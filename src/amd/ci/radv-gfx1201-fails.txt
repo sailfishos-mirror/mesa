@@ -531,13 +531,3 @@ GStreamer-VP9-Vulkan@vp93-2-20-10bit-yuv422.webm,Crash
 GStreamer-VP9-Vulkan@vp93-2-20-10bit-yuv444.webm,Crash
 GStreamer-VP9-Vulkan@vp93-2-20-12bit-yuv422.webm,Crash
 GStreamer-VP9-Vulkan@vp93-2-20-12bit-yuv444.webm,Crash
-
-# CTS is missing -frounding-math: https://gitlab.khronos.org/Tracker/vk-gl-cts/-/issues/6580
-dEQP-VK.spirv_assembly.instruction.compute.opfma.fp64.scalar.rte.denorm_flush.directed,Fail
-dEQP-VK.spirv_assembly.instruction.compute.opfma.fp64.scalar.rte.denorm_flush.float_controls,Fail
-dEQP-VK.spirv_assembly.instruction.compute.opfma.fp64.vec2.rte.denorm_flush.directed,Fail
-dEQP-VK.spirv_assembly.instruction.compute.opfma.fp64.vec2.rte.denorm_flush.float_controls,Fail
-dEQP-VK.spirv_assembly.instruction.compute.opfma.fp64.vec3.rte.denorm_flush.directed,Fail
-dEQP-VK.spirv_assembly.instruction.compute.opfma.fp64.vec3.rte.denorm_flush.float_controls,Fail
-dEQP-VK.spirv_assembly.instruction.compute.opfma.fp64.vec4.rte.denorm_flush.directed,Fail
-dEQP-VK.spirv_assembly.instruction.compute.opfma.fp64.vec4.rte.denorm_flush.float_controls,Fail

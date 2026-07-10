@@ -38,6 +38,8 @@ DEQP_GLES_VERSION=3.2.14.0
 main_cts_commits_to_backport=(
   # If you find yourself wanting to add something in here, consider whether
   # bumping DEQP_MAIN_COMMIT is not a better solution :)
+  # Use -frounding-math by default with GCC
+  ded32883bf36e5bdf7ac6b0512d5314adc0849d4
 )
 
 # shellcheck disable=SC2034
@@ -52,6 +54,8 @@ vk_cts_commits_to_backport=(
   541ed0874565d642069c59fe3b31fc42f495a470
   # Enable VK_KHR_display when needed in compression control tests
   629745a58d31bc5c810f014c0975e176e2791ae0
+  # Use -frounding-math by default with GCC
+  ded32883bf36e5bdf7ac6b0512d5314adc0849d4
 )
 
 # shellcheck disable=SC2034
