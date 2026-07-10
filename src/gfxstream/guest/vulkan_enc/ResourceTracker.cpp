@@ -311,7 +311,7 @@ VkDescriptorImageInfo ResourceTracker::filterNonexistentSampler(
     return res;
 }
 
-void ResourceTracker::emitDeviceMemoryReport(VkDevice_Info info,
+void ResourceTracker::emitDeviceMemoryReport(const VkDevice_Info& info,
                                              VkDeviceMemoryReportEventTypeEXT type,
                                              uint64_t memoryObjectId, VkDeviceSize size,
                                              VkObjectType objectType, uint64_t objectHandle,
@@ -1335,8 +1335,8 @@ void ResourceTracker::setInstanceInfo(VkInstance instance, uint32_t enabledExten
 }
 
 void ResourceTracker::setDeviceInfo(VkDevice device, VkPhysicalDevice physdev,
-                                    VkPhysicalDeviceProperties props,
-                                    VkPhysicalDeviceMemoryProperties memProps,
+                                    const VkPhysicalDeviceProperties& props,
+                                    const VkPhysicalDeviceMemoryProperties& memProps,
                                     uint32_t enabledExtensionCount,
                                     const char* const* ppEnabledExtensionNames, const void* pNext) {
     std::lock_guard<std::recursive_mutex> lock(mLock);
@@ -6247,29 +6247,44 @@ VkResult ResourceTracker::vkQueueSubmitEnc(VkEncoder* enc, VkQueue queue, uint32
     }
 }
 
-static void pruneWaitSemaphores(const std::vector<VkSemaphore> toRemove,
-    VkSubmitInfo& submitInfo,
-    const VkTimelineSemaphoreSubmitInfo* currTssi,
-    std::vector<VkSemaphore>& newSemList,
-    std::vector<VkPipelineStageFlags>& newWaitDstStageMaskList,
-    VkTimelineSemaphoreSubmitInfo& newTssi,
-    std::vector<uint64_t>& newSemValueList)
-{
+static void pruneWaitSemaphores(const std::vector<VkSemaphore>& toRemove, VkSubmitInfo& submitInfo,
+                                const VkTimelineSemaphoreSubmitInfo* currTssi,
+                                std::vector<VkSemaphore>& newSemList,
+                                std::vector<VkPipelineStageFlags>& newWaitDstStageMaskList,
+                                VkTimelineSemaphoreSubmitInfo& newTssi,
+                                std::vector<uint64_t>& newSemValueList) {
     newSemList.clear();
     newSemValueList.clear();
+    newWaitDstStageMaskList.clear();
+
+    if (!submitInfo.pWaitSemaphores) {
+        submitInfo.waitSemaphoreCount = 0;
+        submitInfo.pWaitSemaphores = nullptr;
+        submitInfo.pWaitDstStageMask = nullptr;
+        return;
+    }
+
     for (uint32_t i = 0; i < submitInfo.waitSemaphoreCount; i++) {
         auto it = std::find(toRemove.begin(), toRemove.end(), submitInfo.pWaitSemaphores[i]);
         if (it == toRemove.end()) {
             newSemList.push_back(submitInfo.pWaitSemaphores[i]);
-            newWaitDstStageMaskList.push_back(submitInfo.pWaitDstStageMask[i]);
-            if (currTssi) {
+
+            if (submitInfo.pWaitDstStageMask) {
+                newWaitDstStageMaskList.push_back(submitInfo.pWaitDstStageMask[i]);
+            }
+
+            if (currTssi && currTssi->pWaitSemaphoreValues &&
+                i < currTssi->waitSemaphoreValueCount) {
                 newSemValueList.push_back(currTssi->pWaitSemaphoreValues[i]);
             }
         }
     }
+
     submitInfo.waitSemaphoreCount = static_cast<uint32_t>(newSemList.size());
-    submitInfo.pWaitSemaphores = newSemList.data();
-    submitInfo.pWaitDstStageMask = newWaitDstStageMaskList.data();
+    submitInfo.pWaitSemaphores = newSemList.empty() ? nullptr : newSemList.data();
+    submitInfo.pWaitDstStageMask =
+        newWaitDstStageMaskList.empty() ? nullptr : newWaitDstStageMaskList.data();
+
     if (newSemValueList.size() > 0) {
         newTssi.waitSemaphoreValueCount = static_cast<uint32_t>(newSemValueList.size());
         newTssi.pWaitSemaphoreValues = newSemValueList.data();
@@ -6277,14 +6292,12 @@ static void pruneWaitSemaphores(const std::vector<VkSemaphore> toRemove,
     }
 }
 
-static void pruneWaitSemaphores(const std::vector<VkSemaphore> toRemove,
-    VkSubmitInfo2& submitInfo,
-    const VkTimelineSemaphoreSubmitInfo* currTssi,
-    std::vector<VkSemaphoreSubmitInfo>& newSemList,
-    std::vector<VkPipelineStageFlags>& newWaitDstStageMaskList,
-    VkTimelineSemaphoreSubmitInfo& newTssi,
-    std::vector<uint64_t>& newSemValueList)
-{
+static void pruneWaitSemaphores(const std::vector<VkSemaphore>& toRemove, VkSubmitInfo2& submitInfo,
+                                const VkTimelineSemaphoreSubmitInfo* currTssi,
+                                std::vector<VkSemaphoreSubmitInfo>& newSemList,
+                                std::vector<VkPipelineStageFlags>& newWaitDstStageMaskList,
+                                VkTimelineSemaphoreSubmitInfo& newTssi,
+                                std::vector<uint64_t>& newSemValueList) {
     // All of this info is contained in VkSubmitInfo2, so goes unused in this implementation
     // of pruneWaitSemaphores
     (void)newWaitDstStageMaskList;
@@ -6292,7 +6305,8 @@ static void pruneWaitSemaphores(const std::vector<VkSemaphore> toRemove,
     (void)newSemValueList;
     newSemList.clear();
     for (uint32_t i = 0; i < submitInfo.waitSemaphoreInfoCount; i++) {
-        auto it = std::find(toRemove.begin(), toRemove.end(), submitInfo.pWaitSemaphoreInfos[i].semaphore);
+        auto it = std::find(toRemove.begin(), toRemove.end(),
+                            submitInfo.pWaitSemaphoreInfos[i].semaphore);
         if (it == toRemove.end()) {
             newSemList.push_back(submitInfo.pWaitSemaphoreInfos[i]);
         }
@@ -6301,26 +6315,36 @@ static void pruneWaitSemaphores(const std::vector<VkSemaphore> toRemove,
     submitInfo.pWaitSemaphoreInfos = newSemList.data();
 }
 
-static void pruneSignalSemaphores(const std::vector<VkSemaphore> toRemove,
-    VkSubmitInfo& submitInfo,
-    const VkTimelineSemaphoreSubmitInfo* currTssi,
-    std::vector<VkSemaphore>& newSemList,
-    VkTimelineSemaphoreSubmitInfo& newTssi,
-    std::vector<uint64_t>& newSemValueList)
-{
+static void pruneSignalSemaphores(const std::vector<VkSemaphore>& toRemove,
+                                  VkSubmitInfo& submitInfo,
+                                  const VkTimelineSemaphoreSubmitInfo* currTssi,
+                                  std::vector<VkSemaphore>& newSemList,
+                                  VkTimelineSemaphoreSubmitInfo& newTssi,
+                                  std::vector<uint64_t>& newSemValueList) {
     newSemList.clear();
     newSemValueList.clear();
+
+    if (!submitInfo.pSignalSemaphores) {
+        submitInfo.signalSemaphoreCount = 0;
+        submitInfo.pSignalSemaphores = nullptr;
+        return;
+    }
+
     for (uint32_t i = 0; i < submitInfo.signalSemaphoreCount; i++) {
         auto it = std::find(toRemove.begin(), toRemove.end(), submitInfo.pSignalSemaphores[i]);
         if (it == toRemove.end()) {
             newSemList.push_back(submitInfo.pSignalSemaphores[i]);
-            if (currTssi) {
+
+            if (currTssi && currTssi->pSignalSemaphoreValues &&
+                i < currTssi->signalSemaphoreValueCount) {
                 newSemValueList.push_back(currTssi->pSignalSemaphoreValues[i]);
             }
         }
     }
+
     submitInfo.signalSemaphoreCount = static_cast<uint32_t>(newSemList.size());
-    submitInfo.pSignalSemaphores = newSemList.data();
+    submitInfo.pSignalSemaphores = newSemList.empty() ? nullptr : newSemList.data();
+
     if (newSemValueList.size() > 0) {
         newTssi.signalSemaphoreValueCount = static_cast<uint32_t>(newSemValueList.size());
         newTssi.pSignalSemaphoreValues = newSemValueList.data();
@@ -6328,20 +6352,20 @@ static void pruneSignalSemaphores(const std::vector<VkSemaphore> toRemove,
     }
 }
 
-static void pruneSignalSemaphores(const std::vector<VkSemaphore> toRemove,
-    VkSubmitInfo2& submitInfo,
-    const VkTimelineSemaphoreSubmitInfo* currTssi,
-    std::vector<VkSemaphoreSubmitInfo>& newSemList,
-    VkTimelineSemaphoreSubmitInfo& newTssi,
-    std::vector<uint64_t>& newSemValueList)
-{
+static void pruneSignalSemaphores(const std::vector<VkSemaphore>& toRemove,
+                                  VkSubmitInfo2& submitInfo,
+                                  const VkTimelineSemaphoreSubmitInfo* currTssi,
+                                  std::vector<VkSemaphoreSubmitInfo>& newSemList,
+                                  VkTimelineSemaphoreSubmitInfo& newTssi,
+                                  std::vector<uint64_t>& newSemValueList) {
     // All of this info is contained in VkSubmitInfo2, so goes unused in this implementation
     // of pruneSignalSemaphores
     (void)newTssi;
     (void)newSemValueList;
     newSemList.clear();
     for (uint32_t i = 0; i < submitInfo.signalSemaphoreInfoCount; i++) {
-        auto it = std::find(toRemove.begin(), toRemove.end(), submitInfo.pSignalSemaphoreInfos[i].semaphore);
+        auto it = std::find(toRemove.begin(), toRemove.end(),
+                            submitInfo.pSignalSemaphoreInfos[i].semaphore);
         if (it == toRemove.end()) {
             newSemList.push_back(submitInfo.pSignalSemaphoreInfos[i]);
         }
@@ -7896,7 +7920,6 @@ const VkPhysicalDeviceMemoryProperties& ResourceTracker::getPhysicalDeviceMemory
 
         VkPhysicalDeviceMemoryProperties properties;
         enc->vkGetPhysicalDeviceMemoryProperties(physicalDevice, &properties, true /* no lock */);
-
         mCachedPhysicalDeviceMemoryProps.emplace(std::move(properties));
     }
     return *mCachedPhysicalDeviceMemoryProps;
