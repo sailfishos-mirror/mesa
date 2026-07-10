@@ -712,6 +712,8 @@ physical_device_finish(struct v3dv_physical_device *device)
    close(device->render_fd);
    if (device->display_fd >= 0)
       close(device->display_fd);
+   if (device->primary_fd >= 0)
+      close(device->primary_fd);
 
    free(device->name);
 
@@ -1655,6 +1657,8 @@ enumerate_devices(struct vk_instance *vk_instance)
    if (render_fd < 0 || primary_fd < 0) {
       if (display_fd != -1)
          close(display_fd);
+      if (primary_fd != -1)
+         close(primary_fd);
       result = VK_ERROR_INCOMPATIBLE_DRIVER;
    } else
       result = create_physical_device(instance, primary_fd, render_fd, display_fd);

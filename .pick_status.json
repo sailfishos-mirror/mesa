@@ -394,7 +394,7 @@
         "description": "v3dv: close the primary node fd on physical device destruction",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "451a0bd49002713d64c4a70a292ceadcad29f943",
         "notes": null
