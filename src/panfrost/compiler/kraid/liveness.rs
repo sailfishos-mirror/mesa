@@ -41,8 +41,8 @@ impl LiveSet {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = SSAValue> + use<'_> {
-        self.set.iter().cloned()
+    pub fn iter(&self) -> impl Iterator<Item = &SSAValue> + use<'_> {
+        self.set.iter()
     }
 
     pub fn remove(&mut self, ssa: &SSAValue) -> bool {
@@ -52,6 +52,36 @@ impl LiveSet {
         } else {
             false
         }
+    }
+
+    pub fn insert_instr_top_down<L: BlockLiveness>(
+        &mut self,
+        ip: usize,
+        instr: &Instr,
+        bl: &L,
+    ) -> u32 {
+        let mut extra = 0;
+        for ssa in instr.iter_ssa_defs() {
+            if bl.is_live_after_ip(ssa, ip) {
+                // For sub-register destinations, we assume that they
+                // instantaneously use an entire register.  See also
+                // BlockLiveness::get_instr_pressure().
+                extra += 4_u32.saturating_sub(ssa.bytes().into());
+                self.insert(*ssa);
+            } else {
+                extra += 4;
+            }
+        }
+
+        let live = self.bytes + extra;
+
+        for ssa in instr.iter_ssa_uses() {
+            if !bl.is_live_after_ip(ssa, ip) {
+                self.remove(ssa);
+            }
+        }
+
+        live
     }
 }
 
@@ -101,11 +131,13 @@ pub trait BlockLiveness {
         let mut bytes = 0_u8;
         for dst in instr.dsts() {
             if let DstRef::SSA(vec) = &dst.dst_ref {
-                if vec.comps() > 1 {
-                    for ssa in vec.iter() {
-                        bytes += ssa.bytes();
-                    }
-                }
+                // For sub-register destinations, we assume that they
+                // instantaneously use an entire register.  This restriction is
+                // only really needed for message instructions but the increase
+                // in pressure of 1/2 or 3/4 of a register isn't important and
+                // we have don't have access to the model here to be able to
+                // tell the difference.
+                bytes += vec.comps() * 4;
             }
         }
         bytes
@@ -116,6 +148,37 @@ pub trait Liveness {
     type PerBlock: BlockLiveness;
 
     fn block(&self, idx: usize) -> &Self::PerBlock;
+
+    fn calc_max_live_bytes(&self, s: &Shader) -> u32 {
+        let mut max_live = 0_u32;
+        let mut block_live_out: Vec<LiveSet> = Vec::new();
+
+        for (bi, bb) in s.blocks.iter().enumerate() {
+            let bl = self.block(bi);
+            let mut live = LiveSet::new();
+
+            // Predecessors are added block order so we can just grab the first
+            // one (if any) and it will be a block we've processed.
+            if let Some(pred_idx) = s.blocks.pred_indices(bi).first() {
+                let pred_out = &block_live_out[*pred_idx];
+                live = pred_out
+                    .iter()
+                    .cloned()
+                    .filter(|ssa| bl.is_live_in(ssa))
+                    .collect();
+            }
+
+            for (ip, instr) in bb.instrs.iter().enumerate() {
+                let live_at_instr = live.insert_instr_top_down(ip, instr, bl);
+                max_live = max_live.max(live_at_instr);
+            }
+
+            assert!(block_live_out.len() == bi);
+            block_live_out.push(live);
+        }
+
+        max_live
+    }
 }
 
 #[derive(Default)]
