@@ -46,10 +46,10 @@ list_partition(struct list_head *src,
 }
 
 /*
- * If the fragment shader halts, we need a halt target to run EOT. Try to pluck
- * out the last instruction and use it for EOT in the case where we are fully
- * halted. This breaks SSA dominance invariants but that's why this is a
- * post-RA, post-sched pass. Only SWSB has to deal with the resulting mess.
+ * We need the exit block to run EOT. Try to pluck out the last instruction and
+ * use it for EOT in the case where we are fully halted. This breaks SSA
+ * dominance invariants but that's why this is a post-RA, post-sched pass. Only
+ * SWSB has to deal with the resulting mess.
  *
  * If there is at least one lane that does not halt, the penultimate block will
  * execute filling out any registers required by the send. The only case where
@@ -67,10 +67,8 @@ list_partition(struct list_head *src,
  * a slight i-cache inflation and uglier asm.
  */
 static void
-insert_halt_target(jay_builder *b, struct ctx *ctx)
+setup_exit_block(jay_builder *b, struct ctx *ctx)
 {
-   jay_HALT_TARGET(b);
-
    jay_inst *send = jay_last_inst(jay_last_source_block(b->func));
    if ((send && send->op == JAY_OPCODE_SEND && jay_send_eot(send)) &&
        (jay_is_imm(send->src[0]) && jay_is_imm(send->src[1]))) {
@@ -214,8 +212,10 @@ jay_lower_helpers(jay_shader *shader)
       process_block(&ctx, &b, block);
    }
 
+   b.cursor = jay_after_block(exit_block);
    if (ctx.halted) {
-      b.cursor = jay_after_block(exit_block);
-      insert_halt_target(&b, &ctx);
+      jay_HALT_TARGET(&b);
    }
+
+   setup_exit_block(&b, &ctx);
 }
