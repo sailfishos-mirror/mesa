@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 mali_perf_gpus = {
-  'g1': 'database/hardwarelayout/Mali G1.xml',
+  'g1': 'database/hardwarelayout/Mali-G1.xml',
   'g31': 'database/hardwarelayout/Mali-G31.xml',
   'g51': 'database/hardwarelayout/Mali-G51.xml',
   'g52': 'database/hardwarelayout/Mali-G52.xml',
