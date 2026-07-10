@@ -1213,7 +1213,9 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data,
       bool impl_packed = false;
 
       nir_foreach_block(block, impl) {
-         nir_foreach_instr(instr, block) {
+         nir_builder _b = nir_builder_create(impl), *b = &_b;
+
+         nir_foreach_instr_safe(instr, block) {
             if (instr->type != nir_instr_type_intrinsic)
                continue;
 
@@ -1221,8 +1223,7 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data,
             if (intrin->intrinsic != nir_intrinsic_load_input)
                continue;
 
-            struct nir_io_semantics io = nir_intrinsic_io_semantics(intrin);
-
+            nir_io_semantics io = nir_intrinsic_io_semantics(intrin);
             unsigned slot = attributes[io.location].reg_offset / 4;
             unsigned slot_component =
                attributes[io.location].reg_offset % 4 +
@@ -1236,14 +1237,35 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data,
             impl_packed |= nir_intrinsic_base(intrin) != slot ||
                            nir_intrinsic_component(intrin) != slot_component;
 
-            nir_intrinsic_set_base(intrin, slot);
-            nir_intrinsic_set_component(intrin, slot_component);
-
-            /* The code above generates load_input with
-             * "component + num_component > 4", which is theoretically illegal.
-             */
-            io.no_validate = 1;
-            nir_intrinsic_set_io_semantics(intrin, io);
+            if (slot_component + intrin->def.num_components > 4) {
+               b->cursor = nir_before_instr(&intrin->instr);
+               nir_def *v1 = nir_load_input(
+                  b,
+                  4 - slot_component,
+                  intrin->def.bit_size,
+                  intrin->src[0].ssa,
+                  .base = slot,
+                  .component = slot_component,
+                  .io_semantics = nir_intrinsic_io_semantics(intrin));
+               nir_def *v2 = nir_load_input(
+                  b,
+                  intrin->def.num_components - v1->num_components,
+                  intrin->def.bit_size,
+                  intrin->src[0].ssa,
+                  .base = slot + 1,
+                  .component = 0,
+                  .io_semantics = nir_intrinsic_io_semantics(intrin));
+               nir_def *comps[4];
+               for (unsigned i = 0; i < v1->num_components; i++)
+                  comps[i] = nir_channel(b, v1, i);
+               for (unsigned i = 0; i < v2->num_components; i++)
+                  comps[v1->num_components + i] = nir_channel(b, v2, i);
+               nir_def *vec = nir_vec(b, comps, intrin->def.num_components);
+               nir_def_replace(&intrin->def, vec);
+            } else {
+               nir_intrinsic_set_base(intrin, slot);
+               nir_intrinsic_set_component(intrin, slot_component);
+            }
          }
       }
 
