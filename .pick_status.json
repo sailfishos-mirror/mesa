@@ -1214,7 +1214,7 @@
         "description": "v3d: fix blake3 key truncated to 20 bytes in shader cache",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "102d41799b9053302565f071bbf31c89e5bd91f3",
         "notes": null
