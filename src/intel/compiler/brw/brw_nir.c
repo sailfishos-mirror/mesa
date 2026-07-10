@@ -1108,11 +1108,11 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data,
                       unsigned *out_nr_packed_input_components)
 {
    struct vf_attribute {
-      unsigned reg_offset;
+      uint16_t reg_offset;
       uint8_t  component_mask;
       bool     is_64bit:1;
       bool     is_used:1;
-   } attributes[MAX_HW_VERT_ATTRIB] = {};
+   } *attributes = rzalloc_array(NULL, struct vf_attribute, MAX_HW_VERT_ATTRIB);
 
    /* IO lowering is going to break dmat inputs into a location each, so we
     * need to reproduce the 64bit nature of the variable into each slot.
@@ -1198,7 +1198,7 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data,
 
    /* Compute the register offsets */
    unsigned reg_offset = 0;
-   for (unsigned a = 0; a < ARRAY_SIZE(attributes); a++) {
+   for (unsigned a = 0; a < MAX_HW_VERT_ATTRIB; a++) {
       if (!attributes[a].is_used)
          continue;
 
@@ -1254,7 +1254,7 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data,
     * attribute : VERT_ATTRIB_GENERIC0
     */
    unsigned vf_element_count = 0;
-   for (unsigned a = VERT_ATTRIB_GENERIC0; a < ARRAY_SIZE(attributes) && vf_element_count < 32; a++) {
+   for (unsigned a = VERT_ATTRIB_GENERIC0; a < MAX_HW_VERT_ATTRIB && vf_element_count < 32; a++) {
       /* Consider all attributes used when no slot compaction is active */
       if (!attributes[a].is_used && !prog_data->no_vf_slot_compaction)
          continue;
@@ -1281,6 +1281,8 @@ brw_nir_pack_vs_input(nir_shader *nir, struct brw_vs_prog_data *prog_data,
    }
 
    *out_nr_packed_input_components = reg_offset;
+
+   ralloc_free(attributes);
 
    return progress;
 }
