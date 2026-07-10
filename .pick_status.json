@@ -6864,7 +6864,7 @@
         "description": "pco: fix ra emit_copies sidecases",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4927d2274c779e46975b9a717295a093f1f47ea7",
         "notes": null
