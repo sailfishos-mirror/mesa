@@ -246,6 +246,15 @@ emit_zero_queries(struct kk_cmd_buffer *cmd, struct kk_query_pool *pool,
    libkk_reset_query_struct(cmd, kk_grid_1d(num_queries), false, info);
 }
 
+static uint32_t
+kk_mv_query_count(struct kk_cmd_buffer *cmd)
+{
+   struct kk_rendering_state *render = &cmd->state.gfx.render;
+   return cmd->gfx.encoder && render->view_mask
+             ? util_bitcount(render->view_mask)
+             : 1;
+}
+
 VKAPI_ATTR void VKAPI_CALL
 kk_CmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool,
                      uint32_t firstQuery, uint32_t queryCount)
@@ -288,8 +297,23 @@ kk_CmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool,
 
    /* Make the query available */
    if (kk_has_available(pool)) {
+      /* The Vulkan spec states:
+       * If queries are used while executing a render pass instance that has
+       * multiview enabled, the query uses N consecutive query indices in the
+       * query pool (starting at query) where N is the number of bits set in the
+       * view mask in the subpass the query is used in. How the numerical
+       * results of the query are distributed among the queries is
+       * implementation-dependent.
+       * ...
+       * Queries used with multiview rendering must not span subpasses, i.e.
+       * they must begin and end in the same subpass.
+       */
       uint64_t addr = kk_query_available_addr(pool, query);
-      kk_cmd_write(cmd, (struct libkk_imm_write){addr, true});
+      uint32_t count = kk_mv_query_count(cmd);
+      for (uint32_t i = 0; i < count; i++) {
+         kk_cmd_write(cmd, (struct libkk_imm_write){addr, true});
+         addr += sizeof(uint32_t);
+      }
    }
 }
 
