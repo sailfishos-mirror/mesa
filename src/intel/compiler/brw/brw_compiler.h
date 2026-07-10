@@ -111,14 +111,6 @@ struct brw_compiler {
    int spilling_rate;
 
    /**
-    * Register file size
-    *
-    * Useful to calculate the amount of push data to deliver to a given
-    * shader.
-    */
-   unsigned register_file_size;
-
-   /**
     * We perform a quick register pressure estimate at the NIR level before
     * attempting backend compilation at various SIMD widths.  If the estimated
     * register pressure for a given SIMD width is beyond this threshold, we
