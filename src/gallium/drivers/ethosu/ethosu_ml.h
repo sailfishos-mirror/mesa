@@ -265,6 +265,7 @@ struct ethosu_subgraph {
 
    struct pipe_resource *io_rsrc;
    unsigned io_used;
+   bool failed;
 
    uint8_t *coefs;
    struct pipe_resource *coefs_rsrc;

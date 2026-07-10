@@ -34,16 +34,27 @@ enum ethosu_microblock {
    MICROBLOCK_U2X1 = 6, /* U85 elementwise ublock */
 };
 
-static void
+static bool
 ethosu_ensure_cmdstream(struct ethosu_subgraph *subgraph)
 {
    if ((subgraph->cursor - subgraph->cmdstream) < (subgraph->cmdstream_used - 2))
-      return;
+      return true;
 
    unsigned cur_size = subgraph->cursor - subgraph->cmdstream;
-   subgraph->cmdstream = realloc(subgraph->cmdstream, (subgraph->cmdstream_used + 32) * sizeof(*subgraph->cmdstream));
+   uint32_t *cmdstream = realloc(subgraph->cmdstream,
+                                 (subgraph->cmdstream_used + 32) *
+                                 sizeof(*subgraph->cmdstream));
+   if (!cmdstream) {
+      mesa_loge("ethosu: failed to grow command stream to %u words",
+                subgraph->cmdstream_used + 32);
+      subgraph->failed = true;
+      return false;
+   }
+
+   subgraph->cmdstream = cmdstream;
    subgraph->cursor = subgraph->cmdstream + cur_size;
    subgraph->cmdstream_used += 32;
+   return true;
 }
 
 /* Check if a CMD0 register value has changed - returns true if should emit */
@@ -89,7 +100,8 @@ ethosu_is_op_cmd(uint16_t cmd)
    do {                                                                                 \
       uint16_t _value = (param) & 0xFFFF;                                               \
       if (ethosu_is_op_cmd(cmd) || ethosu_cmd0_changed(subgraph, cmd, _value)) {        \
-         ethosu_ensure_cmdstream(subgraph);                                             \
+         if (!ethosu_ensure_cmdstream(subgraph))                                        \
+            break;                                                                       \
          *(subgraph->cursor++) = cmd | ((uint32_t)_value << 16);                        \
          if (DBG_ENABLED(ETHOSU_DBG_MSGS))                                              \
             fprintf(stderr, "emit0(%s, 0x%x);\n", ethosu_get_cmd_name(0, cmd), _value); \
@@ -100,7 +112,8 @@ ethosu_is_op_cmd(uint16_t cmd)
    do {                                                                                                                \
       uint64_t _value = (((uint64_t)(param) & 0xFFFF) << 32) | ((uint64_t)(offset) & 0xFFFFFFFF);                      \
       if (ethosu_cmd1_changed(subgraph, cmd, _value)) {                                                                \
-         ethosu_ensure_cmdstream(subgraph);                                                                            \
+         if (!ethosu_ensure_cmdstream(subgraph))                                                                       \
+            break;                                                                                                      \
          *(subgraph->cursor++) = cmd | 0x4000 | (((param) & 0xFFFF) << 16);                                            \
          *(subgraph->cursor++) = (offset) & 0xFFFFFFFF;                                                                \
          if (DBG_ENABLED(ETHOSU_DBG_MSGS))                                                                             \
@@ -1287,6 +1300,13 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 
    subgraph->cmdstream_used = 32;
    subgraph->cmdstream = calloc(subgraph->cmdstream_used, sizeof(*subgraph->cmdstream));
+   if (!subgraph->cmdstream) {
+      mesa_loge("ethosu: failed to allocate command stream");
+      subgraph->failed = true;
+      util_dynarray_fini(&outstanding_dma_ops);
+      util_dynarray_fini(&outstanding_npu_ops);
+      return;
+   }
    subgraph->cursor = subgraph->cmdstream;
 
    fill_memory_accesses(subgraph);
