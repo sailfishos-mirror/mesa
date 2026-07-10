@@ -2256,6 +2256,38 @@ set_best_compile(struct v3d_compile **best, struct v3d_compile *c)
    *best = c;
 }
 
+/* Emits a compile-strategy message through the compile's debug_output
+ * callback and the log, only with V3D_DEBUG=perf.
+ */
+static void PRINTFLIKE(2, 3)
+log_strategy(struct v3d_compile *c, const char *fmt, ...)
+{
+        if (!V3D_DBG(PERF))
+                return;
+
+        va_list args;
+        char *msg;
+
+        va_start(args, fmt);
+        int ret = vasprintf(&msg, fmt, args);
+        va_end(args);
+        if (ret < 0)
+                return;
+
+        mesa_logi("%s", msg);
+        c->debug_output(msg, c->debug_output_data);
+        free(msg);
+}
+
+static void
+log_strategy_fallback(struct v3d_compile *c)
+{
+        log_strategy(c, "Falling back to strategy '%s' for %s prog %d/%d",
+                     strategies[c->compile_strategy_idx].name,
+                     vir_get_stage_name(c),
+                     c->program_id, c->variant_id);
+}
+
 uint64_t *v3d_compile(const struct v3d_compiler *compiler,
                       struct v3d_key *key,
                       struct v3d_prog_data **out_prog_data,
@@ -2279,22 +2311,6 @@ uint64_t *v3d_compile(const struct v3d_compiler *compiler,
                         if (skip_compile_strategy(c, strat))
                                 continue;
 
-                        char *debug_msg;
-                        int ret = asprintf(&debug_msg,
-                                           "Falling back to strategy '%s' "
-                                           "for %s prog %d/%d",
-                                           strategies[strat].name,
-                                           vir_get_stage_name(c),
-                                           c->program_id, c->variant_id);
-
-                        if (ret >= 0) {
-                                if (V3D_DBG(PERF))
-                                        mesa_logi("%s", debug_msg);
-
-                                c->debug_output(debug_msg, c->debug_output_data);
-                                free(debug_msg);
-                        }
-
                         if (c != best_c)
                                 vir_compile_destroy(c);
                 }
@@ -2304,6 +2320,9 @@ uint64_t *v3d_compile(const struct v3d_compiler *compiler,
                                      program_id, variant_id,
                                      strat, &strategies[strat],
                                      strat == ARRAY_SIZE(strategies) - 1);
+
+                if (strat > 0)
+                        log_strategy_fallback(c);
 
                 v3d_attempt_compile(c);
 
@@ -2330,21 +2349,12 @@ uint64_t *v3d_compile(const struct v3d_compiler *compiler,
                                 best_spill_fill_count = c->spills + c->fills;
                         }
 
-                        if (V3D_DBG(PERF)) {
-                                char *debug_msg;
-                                int ret = asprintf(&debug_msg,
-                                                   "Compiled %s prog %d/%d with %d "
-                                                   "spills and %d fills. Will try "
-                                                   "more strategies.",
-                                                   vir_get_stage_name(c),
-                                                   c->program_id, c->variant_id,
-                                                   c->spills, c->fills);
-                                if (ret >= 0) {
-                                        mesa_logi("%s", debug_msg);
-                                        c->debug_output(debug_msg, c->debug_output_data);
-                                        free(debug_msg);
-                                }
-                        }
+                        log_strategy(c, "Compiled %s prog %d/%d with %d "
+                                     "spills and %d fills. Will try more "
+                                     "strategies.",
+                                     vir_get_stage_name(c),
+                                     c->program_id, c->variant_id,
+                                     c->spills, c->fills);
                 }
 
                 /* Only try next streategy if we failed to register allocate
@@ -2359,23 +2369,14 @@ uint64_t *v3d_compile(const struct v3d_compiler *compiler,
         if (best_c && c != best_c)
                 set_best_compile(&c, best_c);
 
-        if (V3D_DBG(PERF) &&
-            c->compilation_result !=
+        if (c->compilation_result !=
             V3D_COMPILATION_FAILED_REGISTER_ALLOCATION &&
             c->spills > 0) {
-                char *debug_msg;
-                int ret = asprintf(&debug_msg,
-                                   "Compiled %s prog %d/%d with %d "
-                                   "spills and %d fills",
-                                   vir_get_stage_name(c),
-                                   c->program_id, c->variant_id,
-                                   c->spills, c->fills);
-                mesa_logi("%s", debug_msg);
-
-                if (ret >= 0) {
-                        c->debug_output(debug_msg, c->debug_output_data);
-                        free(debug_msg);
-                }
+                log_strategy(c, "Compiled %s prog %d/%d with %d spills "
+                             "and %d fills",
+                             vir_get_stage_name(c),
+                             c->program_id, c->variant_id,
+                             c->spills, c->fills);
         }
 
         if (c->compilation_result != V3D_COMPILATION_SUCCEEDED) {
