@@ -191,7 +191,7 @@ struct brw_rt_raygen_trampoline_params {
 
 #define BRW_RT_ASYNC_STACK_STRIDE \
    ALIGN_POT(BRW_RT_OFFSETOF_HIT_ATTRIB_DATA + \
-             BRW_RT_SIZEOF_HIT_ATTRIB_DATA, 64)
+             (BRW_RT_SIZEOF_HIT_ATTRIB_DATA * 2), 64)
 
 static inline void
 brw_rt_compute_scratch_layout(struct brw_rt_scratch_layout *layout,
