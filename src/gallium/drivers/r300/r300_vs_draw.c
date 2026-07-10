@@ -40,6 +40,7 @@ r300_draw_add_zero_output(nir_shader *nir, nir_builder *b, unsigned location,
     nir_variable *var = nir_variable_create(nir, nir_var_shader_out,
                                             glsl_vec4_type(), name);
     var->data.location = location;
+    var->data.driver_location = nir->num_outputs++;
     var->data.interpolation = INTERP_MODE_NOPERSPECTIVE;
     nir_store_var(b, var, nir_imm_zero(b, 4, 32), 0xf);
 }

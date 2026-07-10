@@ -218,6 +218,8 @@ r300_optimize_nir(struct nir_shader *s, struct r300_screen *screen)
                var->data.driver_location--;
             }
          }
+         assert(s->num_outputs > 0);
+         s->num_outputs--;
          NIR_PASS(_, s, nir_remove_dead_variables, nir_var_shader_out, NULL);
          fprintf(stderr, "r300: no HW support for clip vertex, expect misrendering.\n");
 #if !UTIL_ARCH_BIG_ENDIAN
@@ -367,6 +369,7 @@ r300_nir_add_wpos(nir_shader *nir, nir_variable **wpos_var_out)
    nir_variable *wpos_var = nir_variable_create(nir, nir_var_shader_out,
                                                 glsl_vec4_type(), "r300_wpos");
    wpos_var->data.location = VARYING_SLOT_VAR0 + last_var + 1;
+   wpos_var->data.driver_location = nir->num_outputs++;
    wpos_var->data.interpolation = INTERP_MODE_SMOOTH;
 
    if (wpos_var_out)
