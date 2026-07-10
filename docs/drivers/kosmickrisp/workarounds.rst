@@ -49,6 +49,21 @@ info on what was updated.
 Workarounds
 ===========
 
+KK_WORKAROUND_14
+----------------
+| macOS version: 26.5, 27.0 beta 1
+| Metal ticket status: Not reported
+| CTS test failure: dEQP-VK.spirv_assembly.instruction.*.float_controls2.fp*
+| Comments:
+
+Metal compiler will fold "NAN * 0.0" to "0.0" and "0.0 < abs(NAN)" to "true"
+even under blocks with pragma relaxed when the "0.0" value is constant even
+if relaxed mode preserves NAN values. Work around this by adding an always
+true conditional for multiplies such that "(false value) ? 1.0 : NAN * 0.0"
+and checking for NAN in conditionals such that "!isnan(x) && !isnan(y) && x == y"
+for less than, greater equal than and equal, while using OR and removing
+negation for not equal.
+
 KK_WORKAROUND_13
 ----------------
 | macOS version: 26.5, 27.0 beta 1

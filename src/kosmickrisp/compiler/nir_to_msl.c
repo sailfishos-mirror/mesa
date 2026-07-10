@@ -234,16 +234,44 @@ alu_funclike(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr, const char *name)
 }
 
 static void
-alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
+alu_funclike_precise(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr,
+                     const char *name)
 {
+   if (nir_alu_instr_is_inf_preserve(instr) ||
+       nir_alu_instr_is_nan_preserve(instr))
+      P(ctx, "precise::");
+
+   alu_funclike(ctx, instr, name);
+}
 
 #define ALU_BINOP(op)                                                          \
    do {                                                                        \
       alu_src_to_msl(ctx, instr, 0);                                           \
       P(ctx, " %s ", op);                                                      \
       alu_src_to_msl(ctx, instr, 1);                                           \
-   } while (0);
+   } while (0)
 
+static void
+alu_fcmp_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr,
+                const char *op)
+{
+   /* KK_WORKAROUND_14 Since comparison operations must always preserve NANs,
+    * this is always applied */
+   if (!(ctx->disabled_workarounds & BITFIELD64_BIT(14))) {
+      /* fneu is unordered (true on NaN), the others are ordered. */
+      bool ordered = instr->op != nir_op_fneu;
+      for (unsigned i = 0; i < 2; i++) {
+         P(ctx, ordered ? "!isnan(" : "isnan(");
+         alu_src_to_msl(ctx, instr, i);
+         P(ctx, ordered ? ") && " : ") || ");
+      }
+   }
+   ALU_BINOP(op);
+}
+
+static void
+alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
+{
    switch (instr->op) {
    case nir_op_isign:
       alu_src_to_msl(ctx, instr, 0);
@@ -265,6 +293,10 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       break;
    case nir_op_imul:
    case nir_op_fmul:
+      if (!(ctx->disabled_workarounds & BITFIELD64_BIT(14)) &&
+          (nir_alu_instr_is_inf_preserve(instr) ||
+           nir_alu_instr_is_nan_preserve(instr)))
+         P(ctx, "!&buf0.contents[0] ? 1 : ")
       ALU_BINOP("*");
       break;
    case nir_op_idiv:
@@ -284,13 +316,17 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       break;
    case nir_op_ige:
    case nir_op_uge:
-   case nir_op_fge:
       ALU_BINOP(">=");
+      break;
+   case nir_op_fge:
+      alu_fcmp_to_msl(ctx, instr, ">=");
       break;
    case nir_op_ilt:
    case nir_op_ult:
+      ALU_BINOP("<");
+      break;
    case nir_op_flt:
-      ALU_BINOP("<")
+      alu_fcmp_to_msl(ctx, instr, "<");
       break;
    case nir_op_iand:
       ALU_BINOP("&");
@@ -327,7 +363,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, ")");
       } else
-         ALU_BINOP("==");
+         alu_fcmp_to_msl(ctx, instr, "==");
       break;
    case nir_op_ine:
       ALU_BINOP("!=");
@@ -339,7 +375,7 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, ")");
       } else
-         ALU_BINOP("!=");
+         alu_fcmp_to_msl(ctx, instr, "!=");
       break;
    case nir_op_umax:
    case nir_op_imax:
@@ -373,13 +409,13 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
    /* Functions from <metal_math> */
    case nir_op_iabs:
    case nir_op_fabs:
-      alu_funclike(ctx, instr, "abs");
+      alu_funclike_precise(ctx, instr, "abs");
       break;
    case nir_op_fceil:
-      alu_funclike(ctx, instr, "ceil");
+      alu_funclike_precise(ctx, instr, "ceil");
       break;
    case nir_op_fcos:
-      alu_funclike(ctx, instr, "cos");
+      alu_funclike_precise(ctx, instr, "cos");
       break;
    case nir_op_fdot2:
    case nir_op_fdot3:
@@ -387,19 +423,26 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       alu_funclike(ctx, instr, "dot");
       break;
    case nir_op_fexp2:
-      alu_funclike(ctx, instr, "exp2");
+      alu_funclike_precise(ctx, instr, "exp2");
       break;
    case nir_op_ffloor:
-      alu_funclike(ctx, instr, "floor");
+      alu_funclike_precise(ctx, instr, "floor");
       break;
    case nir_op_ffma:
-      alu_funclike(ctx, instr, "fma");
+      alu_funclike_precise(ctx, instr, "fma");
       break;
    case nir_op_ffract:
-      alu_funclike(ctx, instr, "fract");
+      /* Metal's fract returns values [0, 1] disregarding INFs and NANs */
+      if (nir_alu_instr_is_inf_preserve(instr) ||
+          nir_alu_instr_is_nan_preserve(instr)) {
+         alu_src_to_msl(ctx, instr, 0);
+         P(ctx, " - ");
+         alu_funclike(ctx, instr, "floor");
+      } else
+         alu_funclike(ctx, instr, "fract");
       break;
    case nir_op_flog2:
-      alu_funclike(ctx, instr, "log2");
+      alu_funclike_precise(ctx, instr, "log2");
       break;
    case nir_op_flrp:
       /* Metal defines mix as "a + (b – a) * c" OR "a * (1 - c) + b * c". The
@@ -420,47 +463,75 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
        * Test that caught the issue:
        * dEQP-VK.spirv_assembly.instruction.compute.float_controls2.fp*.input_args.reflect_testedWithout_NSZ_arg1_minusZero_arg2_one_res_minusZero_*
        */
-      if (nir_alu_instr_is_signed_zero_preserve(instr)) {
+      if (nir_alu_instr_is_signed_zero_preserve(instr) ||
+          nir_alu_instr_is_inf_preserve(instr) ||
+          nir_alu_instr_is_nan_preserve(instr)) {
          alu_src_to_msl(ctx, instr, 0);
          P(ctx, " + (");
          alu_src_to_msl(ctx, instr, 1);
          P(ctx, " - ");
          alu_src_to_msl(ctx, instr, 0);
-         P(ctx, ") * ");
+         P(ctx, ") * (");
+         if (!(ctx->disabled_workarounds & BITFIELD64_BIT(14)) &&
+             (nir_alu_instr_is_inf_preserve(instr) ||
+              nir_alu_instr_is_nan_preserve(instr)))
+            P(ctx, "!&buf0.contents[0] ? 1 : ")
          alu_src_to_msl(ctx, instr, 2);
+         P(ctx, ")");
       } else {
          alu_funclike(ctx, instr, "mix");
       }
       break;
    case nir_op_fmax:
-      alu_funclike(ctx, instr, "fmax");
+   case nir_op_fmin: {
+      /* Metal does not preserve signed zeroes for min/max, do that ourselves
+       * by convertin min(x, y) to:
+       * "x == y ? as_type<floatT>(uintT(as_type<uintT>(x) | as_type<uintT>(y)))
+       *         : fmin(x, y)"
+       * and max(x, y) to:
+       * "x == y ? as_type<floatT>(uintT(as_type<uintT>(x) & as_type<uintT>(y)))
+       *         : fmax(x, y)"
+       *
+       * The "uintT(bitwise OR/AND)" is needed otherwise Metal will promote the
+       * value to int which then won't be able to demote for 16-bit values...
+       */
+      const bool is_min = instr->op == nir_op_fmin;
+      if (nir_alu_instr_is_signed_zero_preserve(instr)) {
+         const char *ftype = msl_type_for_def(ctx->types, &instr->def);
+         const char *utype = msl_uint_type(instr->def.bit_size, 1);
+         alu_fcmp_to_msl(ctx, instr, "==");
+         P(ctx, " ? as_type<%s>(%s(as_type<%s>(", ftype, utype, utype);
+         alu_src_to_msl(ctx, instr, 0);
+         P(ctx, ") %s as_type<%s>(", is_min ? "|" : "&", utype);
+         alu_src_to_msl(ctx, instr, 1);
+         P(ctx, "))) : ");
+      }
+      alu_funclike_precise(ctx, instr, is_min ? "fmin" : "fmax");
       break;
-   case nir_op_fmin:
-      alu_funclike(ctx, instr, "fmin");
-      break;
+   }
    case nir_op_frem:
-      alu_funclike(ctx, instr, "fmod");
+      alu_funclike_precise(ctx, instr, "fmod");
       break;
    case nir_op_fpow:
-      alu_funclike(ctx, instr, "pow");
+      alu_funclike_precise(ctx, instr, "pow");
       break;
    case nir_op_fround_even:
       alu_funclike(ctx, instr, "rint");
       break;
    case nir_op_frsq:
-      alu_funclike(ctx, instr, "rsqrt");
+      alu_funclike_precise(ctx, instr, "rsqrt");
       break;
    case nir_op_fsign:
       alu_funclike(ctx, instr, "sign");
       break;
    case nir_op_fsqrt:
-      alu_funclike(ctx, instr, "sqrt");
+      alu_funclike_precise(ctx, instr, "sqrt");
       break;
    case nir_op_fsin:
-      alu_funclike(ctx, instr, "sin");
+      alu_funclike_precise(ctx, instr, "sin");
       break;
    case nir_op_ldexp:
-      alu_funclike(ctx, instr, "ldexp");
+      alu_funclike_precise(ctx, instr, "ldexp");
       break;
    case nir_op_ftrunc:
       alu_funclike(ctx, instr, "trunc");
@@ -563,6 +634,8 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
       P(ctx, "ALU %s", nir_op_infos[instr->op].name);
    }
 }
+
+#undef ALU_BINOP
 
 static const char *
 texture_dim(enum glsl_sampler_dim dim)
