@@ -384,13 +384,8 @@ bi_optimize_late(nir_shader *nir, uint64_t gpu_id,
 
    /* Backend scheduler is purely local, so do some global optimizations
     * to reduce register pressure. */
-   nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo |
-                               nir_move_load_input | nir_move_load_frag_coord |
-                               nir_move_comparisons | nir_move_copies |
-                               nir_move_load_ssbo;
-
-   NIR_PASS(_, nir, nir_opt_sink, move_all);
-   NIR_PASS(_, nir, nir_opt_move, move_all);
+   NIR_PASS(_, nir, nir_opt_sink, nir_move_all);
+   NIR_PASS(_, nir, nir_opt_move, nir_move_all);
 
    /* We might lower attribute, varying, and image indirects. Use the
     * gathered info to skip the extra analysis in the happy path. */
@@ -829,12 +824,8 @@ bifrost_postprocess_nir(nir_shader *nir,
    NIR_PASS(_, nir, pan_nir_lower_buf_image_access, gpu_arch);
 
    /* We assume that UBO and SSBO were lowered, let's move things around. */
-   nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo |
-                               nir_move_comparisons | nir_move_copies |
-                               nir_move_load_ssbo;
-
-   NIR_PASS(_, nir, nir_opt_sink, move_all);
-   NIR_PASS(_, nir, nir_opt_move, move_all);
+   NIR_PASS(_, nir, nir_opt_sink, nir_move_all);
+   NIR_PASS(_, nir, nir_opt_move, nir_move_all);
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       NIR_PASS(_, nir, nir_lower_is_helper_invocation);
