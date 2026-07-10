@@ -72,6 +72,16 @@ pan_get_nir_shader_compiler_options(unsigned arch,
                                     mesa_shader_stage stage,
                                     bool merge_wg)
 {
+#ifdef WITH_PANFROST_RUST
+   /* Only return the Kraid options if we're also using it for internal
+    * shaders.  We have no internal/external flag here so we have to assume
+    * the worst case.  Kraid can generally handle Bifrost NIR but Bifrost
+    * can't handle Kraid NIR.
+    */
+   if (pan_use_kraid(arch, stage, false) && pan_use_kraid(arch, stage, true))
+      return kraid_get_nir_shader_compiler_options(arch, merge_wg);
+#endif
+
    switch (arch) {
    case 4:
    case 5:
