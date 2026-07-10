@@ -234,6 +234,7 @@ libvulkan_panfrost = shared_library(
   ],
   c_args : [no_override_init_args, panvk_flags, soong_compat_c_args],
   link_args : [vulkan_icd_link_args, ld_args_bsymbolic, ld_args_gc_sections, ld_args_build_id],
+  link_depends: vulkan_icd_link_depends,
   gnu_symbol_visibility : 'hidden',
   install : true,
 )
