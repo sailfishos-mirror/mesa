@@ -1946,13 +1946,8 @@ vn_GetFenceFdKHR(VkDevice device,
       fd = payload->fd;
       payload->fd = -1;
 
-      /* reset host fence in case in signaled state before import */
-      result = vn_ResetFences(device, 1, &pGetFdInfo->fence);
-      if (result != VK_SUCCESS) {
-         /* transfer sync fd ownership back on error */
-         payload->fd = fd;
-         return result;
-      }
+      vn_sync_payload_release(dev, payload);
+      fence->payload = &fence->permanent;
    }
 
    *pFd = fd;
