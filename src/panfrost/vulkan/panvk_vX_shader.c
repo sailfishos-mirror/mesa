@@ -407,12 +407,10 @@ panvk_buffer_ssbo_addr_format(VkPipelineRobustnessBufferBehaviorEXT robustness)
 
 static const nir_shader_compiler_options *
 panvk_get_nir_options(UNUSED struct vk_physical_device *vk_pdev,
-                      UNUSED mesa_shader_stage stage,
+                      mesa_shader_stage stage,
                       UNUSED const struct vk_pipeline_robustness_state *rs)
 {
-   struct panvk_physical_device *phys_dev = to_panvk_physical_device(vk_pdev);
-   return pan_get_nir_shader_compiler_options(
-      pan_arch(phys_dev->kmod.dev->props.gpu_id), false);
+   return pan_get_nir_shader_compiler_options(PAN_ARCH, stage, false);
 }
 
 static struct spirv_to_nir_options
@@ -1527,7 +1525,8 @@ panvk_compile_shader(struct panvk_device *dev,
        * options to take into account that threads from different workgroups
        * may be in the same subgroup */
       if (variant->info.cs.allow_merging_workgroups) {
-         nir->options = pan_get_nir_shader_compiler_options(PAN_ARCH, true);
+         nir->options = pan_get_nir_shader_compiler_options(
+            PAN_ARCH, MESA_SHADER_COMPUTE, true);
          /* Invalidate the old divergence analysis */
          nir_foreach_function_impl(impl, nir)
             nir_progress(true, impl, ~nir_metadata_divergence);

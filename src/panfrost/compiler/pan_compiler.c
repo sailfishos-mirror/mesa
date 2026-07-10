@@ -34,7 +34,9 @@ pan_want_debug_info(unsigned arch)
 }
 
 const nir_shader_compiler_options *
-pan_get_nir_shader_compiler_options(unsigned arch, bool merge_wg)
+pan_get_nir_shader_compiler_options(unsigned arch,
+                                    mesa_shader_stage stage,
+                                    bool merge_wg)
 {
    switch (arch) {
    case 4:
