@@ -294,7 +294,15 @@ struct brw_vs_prog_key {
     */
    bool no_vf_slot_compaction : 1;
 
-   uint32_t padding:30;
+   /** Percentage of the register file that should be used for the payload
+    *
+    * Limit the number of vector registers delivered to the payload by
+    * adjusting the VF input data delivered (it'll be fetch from the URB
+    * instead). Range [0, 100].
+    */
+   unsigned max_payload_percent : 8;
+
+   uint32_t padding:22;
 };
 
 /** The program key for Tessellation Control Shaders. */

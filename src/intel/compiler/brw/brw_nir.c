@@ -11,6 +11,7 @@
 #include "compiler/nir/nir_builder.h"
 #include "dev/intel_debug.h"
 #include "dev/intel_device_info.h"
+#include "util/macros.h"
 #include "util/sparse_bitset.h"
 #include "intel_nir.h"
 #include "nir.h"
@@ -1515,7 +1516,8 @@ brw_nir_lower_vs_inputs(nir_shader *nir,
     * and loaded in the payload register, we can decide whether to reduce the
     * payload size if it goes over a certain portion of the register file.
     */
-   int max_size = brw_register_file_size(devinfo);
+   int max_size =
+      (prog_key->max_payload_percent * brw_register_file_size(devinfo)) / 100;
 
    /* reserve 2 registers for spilling */
    max_size -= 2 * REG_SIZE * reg_unit(devinfo);

@@ -412,6 +412,7 @@ populate_vs_prog_key(struct brw_vs_prog_key *key,
    populate_base_gfx_prog_key(&key->base, device, rs, state, link_stages);
 
    key->vf_component_packing = pdevice->instance->drirc.perf.vf_comp_packing;
+   key->max_payload_percent = 100.0f * pdevice->instance->drirc.perf.max_vs_payload;
 }
 
 static void

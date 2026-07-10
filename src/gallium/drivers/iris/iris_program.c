@@ -534,6 +534,7 @@ iris_to_brw_vs_key(const struct iris_screen *screen,
 {
    return (struct brw_vs_prog_key) {
       BRW_KEY_INIT(key->vue.base, key->vue.layout),
+      .max_payload_percent = 90,
    };
 }
 
