@@ -1799,7 +1799,6 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
    }
 }
 
-#if PAN_ARCH <= 13
 static struct pan_ptr
 csf_emit_fullscreen_dcd(struct panfrost_batch *batch,
                         struct pan_ptr vertex_array, uint64_t resources,
@@ -1860,14 +1859,12 @@ csf_emit_fullscreen_dcd(struct panfrost_batch *batch,
 
    return dcd;
 }
-#endif
 
 void
 GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
                                  enum blitter_attrib_type type,
                                  const struct blitter_attrib *attrib)
 {
-#if PAN_ARCH <= 13
    PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
 
    struct cs_builder *b = batch->csf.cs.builder;
@@ -1890,7 +1887,11 @@ GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
    struct mali_primitive_flags_packed primitive_flags;
    pan_pack(&primitive_flags, PRIMITIVE_FLAGS, cfg) {
       cfg.scissor_array_enable = false;
+#if PAN_ARCH >= 14
+      cfg.layer_index = 0;
+#else
       cfg.view_mask = 0;
+#endif
    }
 
    /* Set input staging registers. */
@@ -1900,7 +1901,7 @@ GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
    cs_move64_to(b, cs_sr_reg64(b, FULLSCREEN, SCISSOR_BOX), *sbd);
    cs_move32_to(b, cs_sr_reg32(b, FULLSCREEN, TILER_FLAGS),
                 primitive_flags.opaque[0]);
-#if PAN_ARCH == 13
+#if PAN_ARCH >= 13
    struct mali_dcd_flags_0_packed dcd_flags0;
    struct mali_dcd_flags_1_packed dcd_flags1;
    MALI_DCD_FLAGS_0_pack(&dcd_flags0, &dcd_flags0_unpacked);
@@ -1916,9 +1917,6 @@ GENX(csf_launch_draw_fullscreen)(struct panfrost_batch *batch,
    struct cs_index dcd_pointer = cs_reg64(b, 64);
    cs_move64_to(b, dcd_pointer, dcd.gpu);
    cs_run_fullscreen(b, 0, dcd_pointer);
-#else
-   UNREACHABLE("Unsupported architecture!");
-#endif
 }
 
 #define POSITION_FIFO_SIZE (64 * 1024)
