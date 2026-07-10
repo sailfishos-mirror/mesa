@@ -77,9 +77,9 @@ nvk_physical_device_compiler_flags(const struct nvk_physical_device *pdev)
 
    assert(nak_flags <= UINT16_MAX);
 
-   return ((uint64_t)no_cbufs << 12)
-      | ((uint64_t)use_edb_buffer_views << 13)
-      | ((uint64_t)instance->drirc.misc.ssbo_align_4b << 14)
+   return (no_cbufs ? 1 << 12 : 0)
+      | (use_edb_buffer_views ? 1 << 13 : 0)
+      | (instance->drirc.misc.ssbo_align_4b ? 1 << 14 : 0)
       | (nak_flags << 48);
 }
 
