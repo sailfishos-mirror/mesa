@@ -208,6 +208,7 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .KHR_shader_expect_assume             = true,
       .KHR_shader_float16_int8              = device->devinfo.ver >= 71,
       .KHR_shader_float_controls            = true,
+      .KHR_shader_maximal_reconvergence     = true,
       .KHR_shader_non_semantic_info         = true,
       .KHR_shader_quad_control              = device->devinfo.ver >= 71,
       .KHR_shader_relaxed_extended_instruction = true,
@@ -595,6 +596,9 @@ get_features(const struct v3dv_physical_device *physical_device,
       /* VK_KHR_present_wait2 */
       .presentWait2 = true,
 #endif
+
+      /* VK_KHR_shader_maximal_reconvergence */
+      .shaderMaximalReconvergence = true,
 
       /* VK_KHR_shader_quad_control */
       .shaderQuadControl = physical_device->devinfo.ver >= 71,
