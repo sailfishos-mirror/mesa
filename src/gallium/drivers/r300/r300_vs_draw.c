@@ -7,9 +7,9 @@
 /* Vertex shader setup for the swtcl (draw-based) path.
  *
  * NIR transforms applied before handing to the draw module:
- * 1) Secondary color output requires primary color — insert zero primary if absent.
- * 2) Any back-face color requires all 4 color outputs — insert zeros for missing ones.
- * 3) Append a generic output containing a copy of gl_Position, used as WPOS
+ * 1) Regular variants expand color outputs to satisfy r300 hardware layout rules.
+ *    FACE variants skip this because Draw consumes their synthetic back color.
+ * 2) Append a generic output containing a copy of gl_Position, used as WPOS
  *    by the hardware fragment shader.
  */
 
@@ -164,9 +164,12 @@ r300_draw_init_vertex_shader(struct r300_context *r300,
     nir_shader *nir = nir_shader_clone(NULL, vs->state.ir.nir);
     ntr_fixup_varying_slots(nir, nir_var_shader_out);
 
-    NIR_PASS(_, nir, r300_nir_add_missing_color_outputs);
+    if (vs->shader->key.frontface)
+        NIR_PASS(_, nir, r300_nir_lower_frontface);
+    else
+        NIR_PASS(_, nir, r300_nir_add_missing_color_outputs);
     nir_variable *wpos_var = NULL;
-    if (vs->shader->wpos)
+    if (vs->shader->key.wpos)
         NIR_PASS(_, nir, r300_nir_add_wpos, &wpos_var);
 
     /* Fill in the r300 rasterizer outputs and assign driver locations. */

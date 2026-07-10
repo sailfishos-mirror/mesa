@@ -79,7 +79,7 @@ static void set_vertex_inputs_outputs(struct r300_vertex_program_compiler * c)
     }
 
     /* WPOS. */
-    if (vs->wpos)
+    if (vs->key.wpos)
         c->code->outputs[outputs->wpos] = reg++;
 }
 
@@ -127,8 +127,11 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     r300_setup_vs_compiler(r300, &compiler, vs);
 
     nir_shader *clone = nir_shader_clone(NULL, shader->state.ir.nir);
+    if (vs->key.frontface)
+        NIR_PASS(_, clone, r300_nir_lower_frontface);
+
     nir_variable *wpos_var = NULL;
-    if (vs->wpos)
+    if (vs->key.wpos)
         NIR_PASS(_, clone, r300_nir_add_wpos, &wpos_var);
 
     int wpos_output = wpos_var ? wpos_var->data.driver_location : ATTR_UNUSED;

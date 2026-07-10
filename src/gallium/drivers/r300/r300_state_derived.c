@@ -67,10 +67,12 @@ static void r300_draw_emit_all_attribs(struct r300_context* r300)
         }
     }
 
-    /* Back-face colors. */
-    for (i = 0; i < ATTR_COLOR_COUNT; i++) {
-        if (vs_outputs->bcolor[i] != ATTR_UNUSED) {
-            r300_draw_emit_attrib(r300, EMIT_4F, TGSI_SEMANTIC_BCOLOR, i);
+    /* Draw selects the synthetic FACE marker into COLOR0 per primitive. */
+    if (!vs->key.frontface) {
+        for (i = 0; i < ATTR_COLOR_COUNT; i++) {
+            if (vs_outputs->bcolor[i] != ATTR_UNUSED) {
+                r300_draw_emit_attrib(r300, EMIT_4F, TGSI_SEMANTIC_BCOLOR, i);
+            }
         }
     }
 
@@ -302,6 +304,12 @@ static void r300_update_rs_block(struct r300_context *r300)
     void (*rX00_rs_tex_write)(struct r300_rs_block*, int, int);
     bool any_bcolor_used = vs_outputs->bcolor[0] != ATTR_UNUSED ||
                            vs_outputs->bcolor[1] != ATTR_UNUSED;
+    bool frontface_emul = vs->key.frontface;
+    /* Draw resolves the synthetic COLOR0/BCOLOR0 pair, so the hardware must
+     * not perform two-sided color selection again. */
+    bool draw_frontface_emul = frontface_emul && r300->draw;
+    bool hw_two_sided_color = !draw_frontface_emul &&
+                              (r300->two_sided_color || frontface_emul);
     int *stream_loc_notcl = r300->stream_loc_notcl;
     uint32_t stuffing_enable = 0;
 
@@ -336,8 +344,9 @@ static void r300_update_rs_block(struct r300_context *r300)
 
     /* Set up and rasterize colors. */
     for (i = 0; i < ATTR_COLOR_COUNT; i++) {
-        if (vs_outputs->color[i] != ATTR_UNUSED || any_bcolor_used ||
-            vs_outputs->color[1] != ATTR_UNUSED) {
+        if (vs_outputs->color[i] != ATTR_UNUSED ||
+            (!draw_frontface_emul &&
+             (any_bcolor_used || vs_outputs->color[1] != ATTR_UNUSED))) {
             /* Set up the color in VAP. */
             rs.vap_vsm_vtx_assm |= R300_INPUT_CNTL_COLOR;
             rs.vap_out_vtx_fmt[0] |=
@@ -372,8 +381,8 @@ static void r300_update_rs_block(struct r300_context *r300)
 
     /* Set up back-face colors. The rasterizer will do the color selection
      * automatically. */
-    if (any_bcolor_used) {
-        if (r300->two_sided_color) {
+    if (any_bcolor_used && !draw_frontface_emul) {
+        if (hw_two_sided_color) {
             /* Rasterize as back-face colors. */
             for (i = 0; i < ATTR_COLOR_COUNT; i++) {
                 rs.vap_vsm_vtx_assm |= R300_INPUT_CNTL_COLOR;
@@ -406,8 +415,13 @@ static void r300_update_rs_block(struct r300_context *r300)
      * with shaders 2.0 only, while gl_FrontFacing can be used
      * with shaders 3.0 only. The hardware apparently hasn't been designed
      * to support both at the same time. */
-    if (r300->screen->caps.is_r500 && fs_inputs->face != ATTR_UNUSED &&
-        !(any_bcolor_used && r300->two_sided_color)) {
+    if (frontface_emul && fs_inputs->face != ATTR_UNUSED) {
+        assert(fs_inputs->color[0] == ATTR_UNUSED);
+        rX00_rs_col_write(&rs, 0, fp_offset, WRITE_COLOR);
+        fp_offset++;
+        DBG(r300, DBG_RS, "r300: Rasterized emulated FACE written to FS.\n");
+    } else if (r300->screen->caps.is_r500 && fs_inputs->face != ATTR_UNUSED &&
+        !(any_bcolor_used && hw_two_sided_color)) {
         rX00_rs_col(&rs, col_count, col_count, SWIZ_XYZW);
         rX00_rs_col_write(&rs, col_count, fp_offset, WRITE_FACE);
         fp_offset++;
@@ -1048,26 +1062,51 @@ static void r300_validate_fragment_shader(struct r300_context *r300)
     }
 }
 
+static bool r300_need_frontface_emulation(struct r300_context *r300,
+                                          struct r300_vertex_shader *vs,
+                                          struct r300_fragment_shader *fs)
+{
+    if (r300->screen->caps.is_r500 ||
+        fs->shader->inputs.face == ATTR_UNUSED ||
+        !vs->can_emulate_frontface)
+        return false;
+
+    if (fs->shader->inputs.color[0] != ATTR_UNUSED)
+        return false;
+
+    return true;
+}
+
 static void r300_pick_vertex_shader(struct r300_context *r300)
 {
     struct r300_vertex_shader_code *ptr;
     struct r300_vertex_shader *vs = r300_vs(r300);
 
     if (r300->vs_state.state) {
-        bool wpos = r300_fs(r300)->shader->inputs.wpos != ATTR_UNUSED;
+        struct r300_fragment_shader *fs = r300_fs(r300);
 
-        /* Pick the vertex shader based on whether we need wpos */
-        if (vs->first->wpos != wpos) {
-            if (vs->first->next && vs->first->next->wpos == wpos) {
-                ptr = vs->first->next;
-                vs->first->next = NULL;
-                ptr->next = vs->first;
-                vs->first = vs->shader = ptr;
+        /* The active FS determines which synthetic VS outputs are required. */
+        struct r300_vertex_shader_key key = {
+            .wpos = fs->shader->inputs.wpos != ATTR_UNUSED,
+            .frontface = r300_need_frontface_emulation(r300, vs, fs),
+        };
+
+        if (memcmp(&vs->shader->key, &key, sizeof(key)) != 0) {
+            /* Search for the requested variant. */
+            ptr = vs->first;
+            while (ptr) {
+                if (memcmp(&ptr->key, &key, sizeof(key)) == 0)
+                    break;
+                ptr = ptr->next;
+            }
+
+            if (ptr) {
+                vs->shader = ptr;
             } else {
                 ptr = CALLOC_STRUCT(r300_vertex_shader_code);
+                ptr->key = key;
                 ptr->next = vs->first;
                 vs->first = vs->shader = ptr;
-                vs->shader->wpos = wpos;
                 if (r300->screen->caps.has_tcl)
                     r300_translate_vertex_shader(r300, vs);
                 else

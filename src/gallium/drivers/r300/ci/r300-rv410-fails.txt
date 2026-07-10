@@ -31,7 +31,6 @@ dEQP-GLES2.functional.fragment_ops.random.77,Fail
 
 dEQP-GLES2.functional.rasterization.primitives.line_loop_wide,Fail
 dEQP-GLES2.functional.rasterization.primitives.line_strip_wide,Fail
-dEQP-GLES2.functional.shaders.builtin_variable.frontfacing,Fail
 dEQP-GLES2.functional.shaders.conversions.vector_combine.vec2_bool_to_ivec3_fragment,Fail
 dEQP-GLES2.functional.shaders.conversions.vector_combine.vec2_bvec2_to_ivec4_fragment,Fail
 dEQP-GLES2.functional.shaders.conversions.vector_combine.vec2_ivec2_to_ivec4_fragment,Fail
@@ -696,7 +695,6 @@ spec@ext_framebuffer_object@fbo-alphatest-formats@GL_RGB16,Fail
 spec@ext_framebuffer_object@fbo-alphatest-formats@GL_RGBA12,Fail
 spec@ext_framebuffer_object@fbo-alphatest-formats@GL_RGBA16,Fail
 spec@ext_framebuffer_object@fbo-depth-sample-compare,Fail
-spec@ext_framebuffer_object@fbo-fragcoord2,Fail
 spec@ext_framebuffer_object@getteximage-formats init-by-clear-and-render,Fail
 spec@ext_framebuffer_object@getteximage-formats init-by-rendering,Fail
 
@@ -963,11 +961,6 @@ spec@glsl-1.10@execution@derivatives@glsl-derivs-sign,Fail
 spec@glsl-1.10@execution@derivatives@glsl-derivs-swizzle,Fail
 spec@glsl-1.10@execution@derivatives@glsl-derivs-varyings,Fail
 spec@glsl-1.10@execution@discard@glsl-fs-discard-04,Fail
-spec@glsl-1.10@execution@fs-frontfacing-ternary-0.0-neg-1.0,Fail
-spec@glsl-1.10@execution@fs-frontfacing-ternary-1-neg-1,Fail
-spec@glsl-1.10@execution@fs-frontfacing-ternary-1.0-neg-1.0,Fail
-spec@glsl-1.10@execution@fs-frontfacing-ternary-neg-1.0-1.0,Fail
-spec@glsl-1.10@execution@fs-frontfacing-ternary-neg-1.0-1.0-alt,Fail
 spec@glsl-1.10@execution@fs-sign-times-abs,Fail
 spec@glsl-1.10@execution@fs-sign-times-neg,Fail
 spec@glsl-1.10@execution@fs-sign-times-neg-abs,Fail
@@ -1174,7 +1167,6 @@ spec@glsl-1.20@execution@built-in-functions@fs-op-sub-mat3x2-float,Fail
 spec@glsl-1.20@execution@built-in-functions@fs-outerproduct-vec4-vec4,Fail
 spec@glsl-1.20@execution@fs-underflow-mul-compare-zero,Fail
 spec@glsl-1.20@execution@fs-vec4-const-array-indirect-access-256-elements,Fail
-spec@glsl-1.20@execution@glsl-fs-frontfacing,Fail
 spec@glsl-1.20@execution@uniform-initializer@fs-mat4-array,Fail
 
 spec@intel_performance_query@intel_performance_query-issue_2235,Fail

@@ -1638,7 +1638,10 @@ static void r300_bind_rs_state(struct pipe_context* pipe, void* state)
     bool last_scissor_enabled = r300->scissor_enabled;
 
     if (r300->draw && rs) {
-        draw_set_rasterizer_state(r300->draw, &rs->rs_draw, state);
+        bool frontface_emul = r300->vs_state.state &&
+                              r300_vs(r300)->shader->key.frontface;
+        rs->rs_draw.light_twoside = rs->rs.light_twoside || frontface_emul;
+        draw_set_rasterizer_state(r300->draw, &rs->rs_draw, rs);
     }
 
     if (rs) {
@@ -2207,6 +2210,8 @@ static void r300_delete_vertex_elements_state(struct pipe_context *pipe, void *s
     FREE(state);
 }
 
+static bool r300_can_emulate_frontface(nir_shader *nir);
+
 static void* r300_create_vs_state(struct pipe_context* pipe,
                                   const struct pipe_shader_state* shader)
 {
@@ -2237,6 +2242,8 @@ static void* r300_create_vs_state(struct pipe_context* pipe,
         }
     }
 
+    vs->can_emulate_frontface = r300_can_emulate_frontface(vs->state.ir.nir);
+
     vs->first = vs->shader = CALLOC_STRUCT(r300_vertex_shader_code);
     if (r300->screen->caps.has_tcl) {
         r300_translate_vertex_shader(r300, vs);
@@ -2258,6 +2265,25 @@ static void* r300_create_vs_state(struct pipe_context* pipe,
     }
 
     return vs;
+}
+
+static bool r300_can_emulate_frontface(nir_shader *nir)
+{
+    /* FACE emulation uses the two-sided color path, so it cannot coexist
+     * with regular front/back color outputs. */
+    nir_foreach_shader_out_variable(var, nir) {
+        switch (var->data.location) {
+        case VARYING_SLOT_COL0:
+        case VARYING_SLOT_COL1:
+        case VARYING_SLOT_BFC0:
+        case VARYING_SLOT_BFC1:
+            return false;
+        default:
+            break;
+        }
+    }
+
+    return true;
 }
 
 void r300_mark_vs_code_dirty(struct r300_context *r300)
@@ -2288,6 +2314,16 @@ void r300_bind_vertex_shader_variant(struct r300_context *r300)
     } else {
         draw_bind_vertex_shader(r300->draw,
                 (struct draw_vertex_shader*)r300_vs(r300)->shader->draw_vs);
+
+        struct r300_rs_state *rs = r300->rs_state.state;
+        bool frontface_emul = r300_vs(r300)->shader->key.frontface;
+        bool light_twoside = rs &&
+            (rs->rs.light_twoside || frontface_emul);
+
+        if (rs && rs->rs_draw.light_twoside != light_twoside) {
+            rs->rs_draw.light_twoside = light_twoside;
+            draw_set_rasterizer_state(r300->draw, &rs->rs_draw, rs);
+        }
     }
 }
 

@@ -344,6 +344,33 @@ r300_check_control_flow(nir_shader *s)
    return NULL;
 }
 
+bool
+r300_nir_lower_frontface(nir_shader *nir)
+{
+   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
+   nir_builder b = nir_builder_create(impl);
+   b.cursor = nir_after_impl(impl);
+
+   /* Emit FACE as 1 for front-facing fragments and 0 for back-facing. */
+   nir_variable *color = nir_variable_create(nir, nir_var_shader_out,
+                                             glsl_vec4_type(),
+                                             "r300_frontface_color");
+   color->data.location = VARYING_SLOT_COL0;
+   color->data.driver_location = nir->num_outputs++;
+   color->data.interpolation = INTERP_MODE_NOPERSPECTIVE;
+   nir_store_var(&b, color, nir_imm_vec4(&b, 1, 1, 1, 1), 0xf);
+
+   nir_variable *bcolor = nir_variable_create(nir, nir_var_shader_out,
+                                              glsl_vec4_type(),
+                                              "r300_frontface_bcolor");
+   bcolor->data.location = VARYING_SLOT_BFC0;
+   bcolor->data.driver_location = nir->num_outputs++;
+   bcolor->data.interpolation = INTERP_MODE_NOPERSPECTIVE;
+   nir_store_var(&b, bcolor, nir_imm_zero(&b, 4, 32), 0xf);
+
+   return nir_progress(true, impl, nir_metadata_control_flow);
+}
+
 /* Add a generic output that mirrors gl_Position, is placed in the first free VAR slot
  * and used as WPOS by the r300 fragment shader.
  */

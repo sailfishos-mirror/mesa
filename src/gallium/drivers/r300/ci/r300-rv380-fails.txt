@@ -1,6 +1,5 @@
 dEQP-GLES2.functional.fbo.completeness.renderable.texture.color0.rgb_half_float_oes,Fail
 
-dEQP-GLES2.functional.shaders.builtin_variable.frontfacing,Fail
 dEQP-GLES2.functional.shaders.conversions.vector_combine.vec2_bool_to_ivec3_fragment,Fail
 dEQP-GLES2.functional.shaders.conversions.vector_combine.vec2_bvec2_to_ivec4_fragment,Fail
 dEQP-GLES2.functional.shaders.conversions.vector_combine.vec2_ivec2_to_ivec4_fragment,Fail
@@ -902,9 +901,6 @@ spec@glsl-1.10@execution@derivatives@glsl-derivs-sign,Fail
 spec@glsl-1.10@execution@derivatives@glsl-derivs-swizzle,Fail
 spec@glsl-1.10@execution@derivatives@glsl-derivs-varyings,Fail
 spec@glsl-1.10@execution@discard@glsl-fs-discard-04,Fail
-spec@glsl-1.10@execution@fs-frontfacing-ternary-0.0-neg-1.0,Fail
-spec@glsl-1.10@execution@fs-frontfacing-ternary-1-neg-1,Fail
-spec@glsl-1.10@execution@fs-frontfacing-ternary-1.0-neg-1.0,Fail
 spec@glsl-1.10@execution@fs-sign-times-abs,Fail
 spec@glsl-1.10@execution@fs-sign-times-neg,Fail
 spec@glsl-1.10@execution@fs-sign-times-neg-abs,Fail
@@ -1134,7 +1130,6 @@ spec@glsl-1.20@execution@fs-underflow-mul-compare-zero,Fail
 spec@glsl-1.20@execution@fs-vec4-const-array-indirect-access-064-elements,Fail
 spec@glsl-1.20@execution@fs-vec4-const-array-indirect-access-128-elements,Fail
 spec@glsl-1.20@execution@fs-vec4-const-array-indirect-access-256-elements,Fail
-spec@glsl-1.20@execution@glsl-fs-frontfacing,Fail
 spec@glsl-1.20@execution@uniform-initializer@fs-mat3-array,Fail
 spec@glsl-1.20@execution@uniform-initializer@fs-mat4-array,Fail
 spec@glsl-1.20@execution@variable-indexing@fs-temp-array-mat4-index-col-row-wr,Fail
@@ -1211,7 +1206,6 @@ spec@ext_framebuffer_multisample@interpolation 0 centroid-deriv,Fail
 spec@ext_framebuffer_multisample@interpolation 0 centroid-deriv-disabled,Fail
 spec@ext_framebuffer_multisample@interpolation 0 non-centroid-deriv,Fail
 spec@ext_framebuffer_multisample@interpolation 0 non-centroid-deriv-disabled,Fail
-spec@ext_framebuffer_object@fbo-fragcoord2,Fail
 spec@ext_framebuffer_object@getteximage-formats init-by-clear-and-render,Fail
 spec@ext_framebuffer_object@getteximage-formats init-by-rendering,Fail
 spec@ext_texture_compression_s3tc@s3tc-targeted,Fail
