@@ -21,7 +21,6 @@ struct nvk_instance {
 
    uint8_t driver_build_sha[BLAKE3_KEY_LEN];
    uint32_t force_vk_vendor;
-   bool ssbo_align_4b;
 };
 
 VK_DEFINE_HANDLE_CASTS(nvk_instance, vk.base, VkInstance, VK_OBJECT_TYPE_INSTANCE)
@@ -29,7 +28,7 @@ VK_DEFINE_HANDLE_CASTS(nvk_instance, vk.base, VkInstance, VK_OBJECT_TYPE_INSTANC
 static inline uint32_t
 nvk_min_ssbo_alignment(const struct nvk_instance *instance)
 {
-   return instance->ssbo_align_4b ? 4 : 16;
+   return instance->drirc.misc.ssbo_align_4b ? 4 : 16;
 }
 
 #endif

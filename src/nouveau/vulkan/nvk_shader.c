@@ -79,7 +79,7 @@ nvk_physical_device_compiler_flags(const struct nvk_physical_device *pdev)
 
    return ((uint64_t)no_cbufs << 12)
       | ((uint64_t)use_edb_buffer_views << 13)
-      | ((uint64_t)instance->ssbo_align_4b << 14)
+      | ((uint64_t)instance->drirc.misc.ssbo_align_4b << 14)
       | (nak_flags << 48);
 }
 
