@@ -2281,6 +2281,16 @@ void r300_mark_vs_code_dirty(struct r300_context *r300)
     r300_mark_atom_dirty(r300, &r300->pvs_flush);
 }
 
+void r300_bind_vertex_shader_variant(struct r300_context *r300)
+{
+    if (r300->screen->caps.has_tcl) {
+        r300_mark_vs_code_dirty(r300);
+    } else {
+        draw_bind_vertex_shader(r300->draw,
+                (struct draw_vertex_shader*)r300_vs(r300)->shader->draw_vs);
+    }
+}
+
 static void r300_bind_vs_state(struct pipe_context* pipe, void* shader)
 {
     struct r300_context* r300 = r300_context(pipe);
@@ -2298,32 +2308,28 @@ static void r300_bind_vs_state(struct pipe_context* pipe, void* shader)
     /* The majority of the RS block bits is dependent on the vertex shader. */
     r300_mark_atom_dirty(r300, &r300->rs_block_state); /* Will be updated before the emission. */
 
-    if (r300->screen->caps.has_tcl) {
-        r300_mark_vs_code_dirty(r300);
-    } else {
-        draw_bind_vertex_shader(r300->draw,
-                (struct draw_vertex_shader*)vs->draw_vs);
-    }
+    r300_bind_vertex_shader_variant(r300);
 }
 
 static void r300_delete_vs_state(struct pipe_context* pipe, void* shader)
 {
     struct r300_context* r300 = r300_context(pipe);
     struct r300_vertex_shader* vs = (struct r300_vertex_shader*)shader;
+    struct r300_vertex_shader_code *code;
 
-    if (r300->screen->caps.has_tcl) {
-        while (vs->shader) {
-            rc_constants_destroy(&vs->shader->code.constants);
-            FREE(vs->shader->code.constants_remap_table);
-            free(vs->shader->error);
-            vs->shader = vs->shader->next;
-            FREE(vs->first);
-            vs->first = vs->shader;
-	}
-    } else {
-        draw_delete_vertex_shader(r300->draw,
-                (struct draw_vertex_shader*)vs->draw_vs);
-        FREE(vs->first);
+    while ((code = vs->first)) {
+        vs->first = code->next;
+
+        if (r300->screen->caps.has_tcl) {
+            rc_constants_destroy(&code->code.constants);
+            FREE(code->code.constants_remap_table);
+        } else {
+            draw_delete_vertex_shader(r300->draw,
+                    (struct draw_vertex_shader*)code->draw_vs);
+        }
+
+        free(code->error);
+        FREE(code);
     }
 
     ralloc_free(vs->state.ir.nir);

@@ -35,6 +35,9 @@ struct r300_vertex_shader_code {
     /* Machine code (if translated) */
     struct r300_vertex_program_code code;
 
+    /* SWTCL-specific. */
+    void *draw_vs;
+
     struct r300_vertex_shader_code *next;
 
     /* Error message in case compilation failed. */
@@ -50,9 +53,6 @@ struct r300_vertex_shader {
 
     /* List of the same shaders compiled with different states. */
     struct r300_vertex_shader_code *first;
-
-    /* SWTCL-specific. */
-    void *draw_vs;
 };
 
 void r300_translate_vertex_shader(struct r300_context *r300,

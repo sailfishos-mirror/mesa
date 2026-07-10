@@ -1068,10 +1068,13 @@ static void r300_pick_vertex_shader(struct r300_context *r300)
                 ptr->next = vs->first;
                 vs->first = vs->shader = ptr;
                 vs->shader->wpos = wpos;
-                r300_translate_vertex_shader(r300, vs);
+                if (r300->screen->caps.has_tcl)
+                    r300_translate_vertex_shader(r300, vs);
+                else
+                    r300_draw_init_vertex_shader(r300, vs);
             }
-            if (!vs->first->dummy) {
-                r300_mark_vs_code_dirty(r300);
+            if (!vs->shader->dummy) {
+                r300_bind_vertex_shader_variant(r300);
                 r300_mark_atom_dirty(r300, &r300->rs_block_state);
             }
         }
@@ -1086,8 +1089,7 @@ void r300_update_derived_state(struct r300_context* r300)
     }
 
     r300_validate_fragment_shader(r300);
-    if (r300->screen->caps.has_tcl)
-        r300_pick_vertex_shader(r300);
+    r300_pick_vertex_shader(r300);
 
     if (r300->rs_block_state.dirty) {
         r300_update_rs_block(r300);

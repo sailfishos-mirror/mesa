@@ -166,7 +166,8 @@ r300_draw_init_vertex_shader(struct r300_context *r300,
 
     NIR_PASS(_, nir, r300_nir_add_missing_color_outputs);
     nir_variable *wpos_var = NULL;
-    NIR_PASS(_, nir, r300_nir_add_wpos, &wpos_var);
+    if (vs->shader->wpos)
+        NIR_PASS(_, nir, r300_nir_add_wpos, &wpos_var);
 
     /* Fill in the r300 rasterizer outputs and assign driver locations. */
     r300_draw_fill_vs_outputs(nir, wpos_var, vs->shader);
@@ -176,5 +177,5 @@ r300_draw_init_vertex_shader(struct r300_context *r300,
         .type = PIPE_SHADER_IR_NIR,
         .ir.nir = nir,
     };
-    vs->draw_vs = draw_create_vertex_shader(r300->draw, &new_vs);
+    vs->shader->draw_vs = draw_create_vertex_shader(r300->draw, &new_vs);
 }
