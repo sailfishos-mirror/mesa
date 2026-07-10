@@ -4198,29 +4198,6 @@ d3d12_video_encoder_encode_bitstream_impl(struct pipe_video_codec *codec,
                      return;
                   }
                }
-               else if (pD3D12Enc->m_spEncodedFrameMetadata[current_metadata_slot].ppSubregionFenceValues[i] > 0)
-               {
-                  // The ID3D12Fence objects in pspSubregionFences are reused across frames, but the
-                  // d3d12_fence wrappers (pSubregionPipeFences) are recreated each frame via
-                  // d3d12_create_fence_raw which calls SetEventOnCompletion. When a fence was never
-                  // GPU-signaled (e.g. AUTO slice mode in prev frame produced fewer slices than allocated),
-                  // the previous SetEventOnCompletion registration remains orphaned inside the ID3D12Fence.
-                  // CloseHandle on the event handle (in destroy_fence) does NOT unregister it.
-                  // CPU-signal to (new_value - 1) to flush any stale registration without
-                  // satisfying the upcoming new one.
-                  // At this point, the previous frame is guaranteed to be completed since when
-                  // reusing current_metadata_slot, we only pick slots for frames that are already
-                  // fully completed signaled (i.e. completed) as per the logic in d3d12_video_encoder_begin_frame.
-                  hr = pD3D12Enc->m_spEncodedFrameMetadata[current_metadata_slot].pspSubregionFences[i]->Signal(
-                     pD3D12Enc->m_spEncodedFrameMetadata[current_metadata_slot].ppSubregionFenceValues[i] - 1);
-                  if (FAILED(hr)) {
-                     debug_printf("ID3D12Fence::Signal failed with HR %x\n", (unsigned)hr);
-                     pD3D12Enc->m_inflightResourcesPool[d3d12_video_encoder_pool_current_index(pD3D12Enc)].encode_result = PIPE_VIDEO_FEEDBACK_METADATA_ENCODE_FLAG_FAILED;
-                     pD3D12Enc->m_spEncodedFrameMetadata[d3d12_video_encoder_metadata_current_index(pD3D12Enc)].encode_result = PIPE_VIDEO_FEEDBACK_METADATA_ENCODE_FLAG_FAILED;
-                     assert(false);
-                     return;
-                  }
-               }
                pD3D12Enc->m_spEncodedFrameMetadata[current_metadata_slot].ppSubregionFences[i] = pD3D12Enc->m_spEncodedFrameMetadata[current_metadata_slot].pspSubregionFences[i].Get();
             }
 
