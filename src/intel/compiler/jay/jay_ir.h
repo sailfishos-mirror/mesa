@@ -7,8 +7,6 @@
 
 #include "compiler/brw/brw_compiler.h"
 #include "compiler/brw/brw_eu.h"
-#include "compiler/brw/brw_eu_defines.h"
-#include "compiler/gen/gen_helpers.h"
 #include "compiler/shader_enums.h"
 #include "util/bitset.h"
 #include "util/list.h"
