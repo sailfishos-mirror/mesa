@@ -258,6 +258,20 @@ brw_nir_lower_intersection_shader(nir_shader *intersection,
                                          t_addr);
                      }
 
+                     /* Now that the hit is accepted, copy the HitAttribute
+                      * data from the pending region to the committed one that
+                      * the closest-hit shader will see.
+                      */
+                     nir_def *potential_hit_attrib_addr =
+                        brw_nir_rt_hit_attrib_data_addr(b, false, devinfo);
+                     nir_def *committed_hit_attrib_addr =
+                        brw_nir_rt_hit_attrib_data_addr(b, true, devinfo);
+
+                     brw_nir_memcpy_global(b,
+                                           committed_hit_attrib_addr, 64,
+                                           potential_hit_attrib_addr, 64,
+                                           BRW_RT_SIZEOF_HIT_ATTRIB_DATA);
+
                      /* There may be multiple reportIntersection() calls in
                       * the shader, so if terminateOnFirstHit was requested,
                       * accept the hit now. The lowering of
