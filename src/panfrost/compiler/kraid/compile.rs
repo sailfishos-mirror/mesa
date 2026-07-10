@@ -7,6 +7,130 @@ use crate::model::model_for_gpu_id;
 use compiler::bindings::*;
 use kraid_bindings::*;
 
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+fn nir_opts(arch: u8, merge_wg: bool) -> nir_shader_compiler_options {
+    nir_shader_compiler_options {
+        lower_scmp: true,
+        lower_flrp16: true,
+        lower_flrp32: true,
+        lower_flrp64: true,
+        lower_ffract: arch < 11,
+        lower_fmod: true,
+        lower_fdiv: true,
+        lower_isign: true,
+        lower_find_lsb: true,
+        lower_ifind_msb: true,
+        lower_fdph: true,
+        lower_fsqrt: true,
+
+        lower_fsign: true,
+
+        lower_bitfield_insert: true,
+        lower_bitfield_extract: true,
+        lower_bitfield_extract8: true,
+        lower_bitfield_extract16: true,
+        lower_insert_byte: true,
+        has_bitfield_select: true,
+
+        lower_pack_64_4x16: true,
+        lower_pack_half_2x16: true,
+        lower_pack_unorm_2x16: true,
+        lower_pack_snorm_2x16: true,
+        lower_pack_unorm_4x8: true,
+        lower_pack_snorm_4x8: true,
+        lower_unpack_half_2x16: true,
+        lower_unpack_unorm_2x16: true,
+        lower_unpack_snorm_2x16: true,
+        lower_unpack_unorm_4x8: true,
+        lower_unpack_snorm_4x8: true,
+        has_pack_32_4x8: true,
+
+        lower_doubles_options: nir_lower_dmod,
+        lower_int64_options: !(nir_lower_iadd64),
+        lower_mul_high: true,
+        lower_fisnormal: true,
+        lower_uadd_carry: true,
+        lower_usub_borrow: true,
+
+        has_ldexp: true,
+        has_isub: true,
+        vectorize_vec2_16bit: true,
+        float_mul_add16: nir_float_muladd_support_has_ffma
+            | nir_float_muladd_support_fuse,
+        float_mul_add32: nir_float_muladd_support_has_ffma
+            | nir_float_muladd_support_fuse,
+        float_mul_add64: nir_float_muladd_support_has_ffma
+            | nir_float_muladd_support_fuse,
+
+        lower_uniforms_to_ubo: true,
+
+        has_cs_global_id: true,
+        lower_cs_local_index_to_id: true,
+        lower_device_index_to_zero: true,
+        max_unroll_iterations: 32,
+        max_samples: 16,
+        force_indirect_unrolling: (nir_var_shader_in
+            | nir_var_shader_out
+            | nir_var_function_temp),
+        force_indirect_unrolling_sampler: true,
+        scalarize_ddx: true,
+        support_indirect_inputs: (1 << MESA_SHADER_TESS_CTRL)
+            | (1 << MESA_SHADER_TESS_EVAL)
+            | (1 << MESA_SHADER_FRAGMENT),
+        lower_hadd: arch >= 11,
+        discard_is_demote: true,
+        has_udot_4x8: true,
+        has_udot_4x8_sat: true,
+        has_sdot_4x8: true,
+        has_sdot_4x8_sat: true,
+
+        divergence_analysis_options: if merge_wg {
+            nir_divergence_across_subgroups
+                | nir_divergence_multiple_workgroup_per_compute_subgroup
+        } else {
+            0
+        },
+        ..Default::default()
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn kraid_get_nir_shader_compiler_options(
+    arch: u8,
+    merge_wg: bool,
+) -> *const nir_shader_compiler_options {
+    static OPTS: OnceLock<
+        HashMap<
+            (u8, bool),
+            // Somebody did something silly and put a callback in
+            // nir_shader_compiler_options and now it's not Send so
+            // we can't put it in a OnceLock.  Work around that by
+            // stashing a u8 array instead
+            [u8; std::mem::size_of::<nir_shader_compiler_options>()],
+        >,
+    > = OnceLock::new();
+
+    let opts = OPTS
+        .get_or_init(|| {
+            let mut map = HashMap::new();
+            for arch in 9..=15 {
+                for merge_wg in [false, true] {
+                    let opts = unsafe {
+                        std::mem::transmute(nir_opts(arch, merge_wg))
+                    };
+                    map.insert((arch, merge_wg), opts);
+                }
+            }
+            map
+        })
+        .get(&(arch, merge_wg))
+        .expect("Unsupported GPU arch");
+
+    unsafe { std::mem::transmute(opts) }
+}
+
 fn dynarray_append_vec<T: Copy>(buf: &mut util_dynarray, vec: Vec<T>) {
     unsafe {
         let p = util_dynarray_grow_bytes(
