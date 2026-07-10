@@ -49,7 +49,7 @@ libpanfrost_compiler = static_library(
   include_directories : [inc_include, inc_src, inc_valhall],
   dependencies: [idep_nir, idep_mesautil, idep_valhall_enums_h, idep_bi_opcodes_h],
   link_with: libpanfrost_compiler_link_with,
-  c_args : [no_override_init_args],
+  c_args : libpanfrost_compiler_c_args,
   gnu_symbol_visibility : 'hidden',
   build_by_default : false,
 )
