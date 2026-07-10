@@ -2288,6 +2288,83 @@ log_strategy_fallback(struct v3d_compile *c)
                      c->program_id, c->variant_id);
 }
 
+/* Compile with the 2-thread strategies, from index "first" on, and return
+ * the best compile (callers must check its compilation_result): compile
+ * strategies in order, stop at the first 0-spill success, otherwise keep
+ * the lowest spill+fill.
+ */
+static struct v3d_compile *
+compile_2t_strategies(const struct v3d_compiler *compiler,
+                      struct v3d_key *key,
+                      nir_shader *s,
+                      void (*debug_output)(const char *msg,
+                                           void *debug_output_data),
+                      void *debug_output_data,
+                      int program_id, int variant_id,
+                      int32_t first)
+{
+        const int nstrat = ARRAY_SIZE(strategies);
+        struct v3d_compile *candidates[ARRAY_SIZE(strategies)] = { NULL };
+        int num_candidates = 0;
+        struct v3d_compile *chosen = NULL;
+
+        uint32_t best_spill_fill_count = UINT32_MAX;
+        struct v3d_compile *prev = NULL;
+        assert(first > 0 && first < nstrat);
+        for (int32_t strat = first; strat < nstrat; strat++) {
+                assert(strategies[strat].max_threads == 2);
+                if (prev && skip_compile_strategy(prev, strat))
+                        continue;
+                struct v3d_compile *c =
+                        vir_compile_init(compiler, key, s, debug_output,
+                                         debug_output_data,
+                                         program_id, variant_id,
+                                         strat, &strategies[strat],
+                                         strat == nstrat - 1);
+                candidates[num_candidates++] = c;
+                log_strategy_fallback(c);
+                v3d_attempt_compile(c);
+                prev = c;
+
+                /* Broken shader or driver bug */
+                if (c->compilation_result == V3D_COMPILATION_FAILED)
+                        mesa_logw("Failed to compile %s prog %d/%d with strategy %d",
+                                  vir_get_stage_name(c), c->program_id,
+                                  c->variant_id, strat);
+                        continue;
+                if (c->compilation_result != V3D_COMPILATION_SUCCEEDED)
+                        continue;
+                /* With OPT_COMPILE_TIME we stop at the first success */
+                if (c->spills == 0 || V3D_DBG(OPT_COMPILE_TIME)) {
+                        chosen = c;
+                        break;
+                }
+                if (c->spills + c->fills < best_spill_fill_count) {
+                        best_spill_fill_count = c->spills + c->fills;
+                        chosen = c;
+                }
+
+                log_strategy(c, "Compiled %s prog %d/%d with %d "
+                             "spills and %d fills. Will try more "
+                             "strategies.",
+                             vir_get_stage_name(c),
+                             c->program_id, c->variant_id,
+                             c->spills, c->fills);
+        }
+        /* We only get here without a chosen strategy if they all failed to RA.
+         * In that case it doesn't matter which one we return.
+         */
+        if (!chosen)
+                chosen = candidates[num_candidates - 1];
+
+        for (int i = 0; i < num_candidates; i++) {
+                if (candidates[i] != chosen)
+                        vir_compile_destroy(candidates[i]);
+        }
+
+        return chosen;
+}
+
 uint64_t *v3d_compile(const struct v3d_compiler *compiler,
                       struct v3d_key *key,
                       struct v3d_prog_data **out_prog_data,
@@ -2299,18 +2376,41 @@ uint64_t *v3d_compile(const struct v3d_compiler *compiler,
                       uint32_t *final_assembly_size)
 {
         struct v3d_compile *c = NULL;
-        uint32_t best_spill_fill_count = UINT32_MAX;
         struct v3d_compile *best_c = NULL;
 
         MESA_TRACE_FUNC();
 
         for (int32_t strat = 0; strat < ARRAY_SIZE(strategies); strat++) {
-                /* Fallback strategy */
+                /* Once the 4-thread strategies are exhausted
+                 * compile_2t_strategies() will choose the best 2-thread
+                 * strategy.
+                 */
+                if (strategies[strat].min_threads != 4) {
+                        /* All previous strategies failed register allocation
+                         * (a success breaks out of the loop and best_c is
+                         * only set then), so the last 4-thread compile is no
+                         * longer needed.
+                         */
+                        assert(!best_c);
+                        if (c)
+                                vir_compile_destroy(c);
+
+                        c = compile_2t_strategies(compiler, key, s,
+                                                  debug_output,
+                                                  debug_output_data,
+                                                  program_id, variant_id,
+                                                  strat);
+                        set_best_compile(&best_c, c);
+                        break;
+                }
+
+                /* 4-thread strategy: no spilling allowed, so it either
+                 * succeeds with 0 spills or fails register allocation.
+                 */
                 if (strat > 0) {
                         assert(c);
                         if (skip_compile_strategy(c, strat))
                                 continue;
-
                         if (c != best_c)
                                 vir_compile_destroy(c);
                 }
@@ -2327,42 +2427,18 @@ uint64_t *v3d_compile(const struct v3d_compiler *compiler,
                 v3d_attempt_compile(c);
 
                 /* Broken shader or driver bug */
-                if (c->compilation_result == V3D_COMPILATION_FAILED)
-                        break;
-
-                /* If we compiled without spills, choose this.
-                 * Otherwise if this is a 4-thread compile, choose this (these
-                 * have a very low cap on the allowed TMU spills so we assume
-                 * it will be better than a 2-thread compile without spills).
-                 * Otherwise, keep going while tracking the strategy with the
-                 * lowest spill count.
-                 */
-                if (c->compilation_result == V3D_COMPILATION_SUCCEEDED) {
-                        if (c->spills == 0 ||
-                            strategies[strat].min_threads == 4 ||
-                            V3D_DBG(OPT_COMPILE_TIME)) {
-                                set_best_compile(&best_c, c);
-                                break;
-                        } else if (c->spills + c->fills <
-                                   best_spill_fill_count) {
-                                set_best_compile(&best_c, c);
-                                best_spill_fill_count = c->spills + c->fills;
-                        }
-
-                        log_strategy(c, "Compiled %s prog %d/%d with %d "
-                                     "spills and %d fills. Will try more "
-                                     "strategies.",
-                                     vir_get_stage_name(c),
-                                     c->program_id, c->variant_id,
-                                     c->spills, c->fills);
+                if (c->compilation_result == V3D_COMPILATION_FAILED) {
+                        mesa_logw("Failed to compile %s prog %d/%d with strategy %d",
+                                  vir_get_stage_name(c), c->program_id,
+                                  c->variant_id, strat);
+                        continue;
                 }
-
-                /* Only try next streategy if we failed to register allocate
-                 * or we had to spill.
-                 */
+                if (c->compilation_result == V3D_COMPILATION_SUCCEEDED) {
+                        set_best_compile(&best_c, c);
+                        break;
+                }
                 assert(c->compilation_result ==
-                       V3D_COMPILATION_FAILED_REGISTER_ALLOCATION ||
-                       c->spills > 0);
+                       V3D_COMPILATION_FAILED_REGISTER_ALLOCATION);
         }
 
         /* If the best strategy was not the last, choose that */
