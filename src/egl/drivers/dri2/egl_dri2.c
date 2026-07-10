@@ -1,5 +1,6 @@
 /*
  * Copyright © 2010 Intel Corporation
+ * Copyright © 2026 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -420,6 +421,21 @@ dri2_add_config(_EGLDisplay *disp, const struct dri_config *dri_config,
 
    base.RenderableType = disp->ClientAPIs;
    base.Conformant = disp->ClientAPIs;
+
+   /* Configs where any color channel exceeds 8 bits (e.g. RGBA16161616,
+    * RGB101010A2) are not usable with a GLES1 context in practice:
+    * glCopyTexImage2D(internalFormat=GL_RGBA) raises GL_INVALID_VALUE
+    * because Mesa has no defined copy path from a >8bpc framebuffer
+    * into a GLES1 texture format.
+    * Strip EGL_OPENGL_ES_BIT from such configs so eglGetConfigs /
+    * eglChooseConfig does not return them for a GLES1 context.
+    */
+
+   if (base.RedSize > 8 || base.GreenSize > 8 ||
+       base.BlueSize > 8 || base.AlphaSize > 8) {
+      base.RenderableType &= ~EGL_OPENGL_ES_BIT;
+      base.Conformant     &= ~EGL_OPENGL_ES_BIT;
+   }
 
    base.MinSwapInterval = dri2_dpy->min_swap_interval;
    base.MaxSwapInterval = dri2_dpy->max_swap_interval;
