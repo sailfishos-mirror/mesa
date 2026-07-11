@@ -364,9 +364,7 @@ FD_GENX2(fd6_build_user_consts, fd6_pipeline_type, HAS_TESS_GS);
 template <chip CHIP>
 static inline void
 emit_driver_params(const struct ir3_shader_variant *v, fd_cs &dpconstobj,
-                   struct fd_context *ctx, const struct pipe_draw_info *info,
-                   const struct pipe_draw_indirect_info *indirect,
-                   const struct ir3_driver_params_vs *vertex_params)
+                   struct fd_context *ctx, const struct ir3_driver_params_vs *vertex_params)
 {
    if (fd6_load_shader_consts_via_preamble<CHIP>(v)) {
       const struct ir3_const_state *const_state = ir3_const_state(v);
@@ -376,7 +374,7 @@ emit_driver_params(const struct ir3_shader_variant *v, fd_cs &dpconstobj,
                                  dword_sizeof(*vertex_params),
                                  vertex_params);
    } else {
-      ir3_emit_driver_params(v, dpconstobj, ctx, info, indirect, vertex_params);
+      ir3_emit_driver_params(v, dpconstobj, ctx, vertex_params);
    }
 }
 
@@ -439,12 +437,12 @@ fd6_build_driver_params(struct fd6_emit *emit)
 
    /* VS still works the old way*/
    if (emit->vs->need_driver_params) {
-      ir3_emit_driver_params(emit->vs, dpconstobj, ctx, emit->info, emit->indirect, &p);
+      ir3_emit_driver_params(emit->vs, dpconstobj, ctx, &p);
    }
 
    if (PIPELINE == HAS_TESS_GS) {
       if (emit->gs && emit->gs->need_driver_params) {
-         emit_driver_params<CHIP>(emit->gs, dpconstobj, ctx, emit->info, emit->indirect, &p);
+         emit_driver_params<CHIP>(emit->gs, dpconstobj, ctx, &p);
       }
 
       if (emit->hs && emit->hs->need_driver_params) {
@@ -452,7 +450,7 @@ fd6_build_driver_params(struct fd6_emit *emit)
       }
 
       if (emit->ds && emit->ds->need_driver_params) {
-         emit_driver_params<CHIP>(emit->ds, dpconstobj, ctx, emit->info, emit->indirect, &p);
+         emit_driver_params<CHIP>(emit->ds, dpconstobj, ctx, &p);
       }
    }
 
