@@ -424,14 +424,27 @@ impl<'a> ShaderFromNir<'a> {
                 });
             }
             nir_op_bitfield_select => {
-                b.push_op(OpMux {
-                    dst: dst.into(),
-                    dst_type: dst_type(NumericType::Integer),
-                    mux_op: MuxOp::Bit,
-                    src0: srcs(1),
-                    src1: srcs(2),
-                    sel: srcs(0),
-                });
+                if alu.def.bit_size == 64 {
+                    for w in 0..2 {
+                        b.push_op(OpMux {
+                            dst: dst[usize::from(w)].into(),
+                            dst_type: DataType::I32,
+                            mux_op: MuxOp::Bit,
+                            src0: srcs(1).word(w),
+                            src1: srcs(2).word(w),
+                            sel: srcs(0).word(w),
+                        });
+                    }
+                } else {
+                    b.push_op(OpMux {
+                        dst: dst.into(),
+                        dst_type: dst_type(NumericType::Integer),
+                        mux_op: MuxOp::Bit,
+                        src0: srcs(1),
+                        src1: srcs(2),
+                        sel: srcs(0),
+                    });
+                }
             }
             nir_op_extract_i8 | nir_op_extract_u8 => {
                 assert!(alu.def.bit_size >= 16);
