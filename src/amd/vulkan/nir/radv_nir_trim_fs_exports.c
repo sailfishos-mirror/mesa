@@ -15,7 +15,7 @@ typedef struct {
 } trim_fs_color_exports_state;
 
 static bool
-trim_fs_color_exports(nir_builder *b, nir_intrinsic_instr *intrin, void *_state)
+trim_fs_exports(nir_builder *b, nir_intrinsic_instr *intrin, void *_state)
 {
    const trim_fs_color_exports_state *state = (const trim_fs_color_exports_state *)_state;
 
@@ -61,12 +61,12 @@ trim_fs_color_exports(nir_builder *b, nir_intrinsic_instr *intrin, void *_state)
 }
 
 bool
-radv_nir_trim_fs_color_exports(nir_shader *shader, const struct radv_ps_epilog_key *epilog_key, bool mrt0_alpha_is_dead)
+radv_nir_trim_fs_exports(nir_shader *shader, const struct radv_ps_epilog_key *epilog_key, bool mrt0_alpha_is_dead)
 {
    trim_fs_color_exports_state state = {
       .epilog_key = epilog_key,
       .mrt0_alpha_is_dead = mrt0_alpha_is_dead,
    };
 
-   return nir_shader_intrinsics_pass(shader, trim_fs_color_exports, nir_metadata_control_flow, &state);
+   return nir_shader_intrinsics_pass(shader, trim_fs_exports, nir_metadata_control_flow, &state);
 }
