@@ -1621,6 +1621,10 @@ radv_pipeline_generate_ps_epilog_key(const struct radv_compiler_info *compiler_i
       (state->ds && !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_TEST_ENABLE) &&
        !state->ds->stencil.test_enable);
 
+   ps_epilog.lower_1bit_sample_mask_to_discard =
+      state->ms && !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES) &&
+      state->ms->rasterization_samples == 1;
+
    for (uint32_t i = 0; i < MAX_RTS; i++) {
       ps_epilog.color_attachment_mappings[i] = state->cal ? state->cal->color_map[i] : i;
    }

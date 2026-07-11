@@ -38,6 +38,22 @@ trim_fs_exports(nir_builder *b, nir_intrinsic_instr *intrin, void *_state)
          return true;
       }
       return false;
+
+   case FRAG_RESULT_SAMPLE_MASK:
+      if (state->epilog_key->lower_1bit_sample_mask_to_discard) {
+         nir_instr_remove(&intrin->instr);
+
+         /* We expect the store to be in the last block, which means its srcs dominate
+          * the end of the function, so we can just use the srcs at the end.
+          */
+         assert(intrin->instr.block == nir_impl_last_block(b->impl));
+
+         /* At the end of the shader, demote if bit 0 of the sample mask is 0. */
+         b->cursor = nir_after_impl(b->impl);
+         nir_demote_if(b, nir_ieq_imm(b, nir_iand_imm(b, nir_channel(b, intrin->src[0].ssa, 0), 0x1), 0));
+         return true;
+      }
+      return false;
    }
 
    int index = mesa_frag_result_get_color_index(io_sem.location);
