@@ -1531,7 +1531,8 @@ radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info, cons
 
    z_format = ac_get_spi_shader_z_format(state->has_depth_output && !state->ignore_depth_output,
                                          state->has_stencil_output && !state->ignore_stencil_output,
-                                         state->has_sample_mask_output, state->alpha_to_coverage_via_mrtz);
+                                         state->has_sample_mask_output && !state->lower_1bit_sample_mask_to_discard,
+                                         state->alpha_to_coverage_via_mrtz);
 
    key.spi_shader_col_format = col_format;
    key.color_is_int8 = compiler_info->ac->has_cb_lt16bit_int_clamp_bug ? is_int8 : 0;
@@ -1548,6 +1549,7 @@ radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info, cons
    key.alpha_to_one = state->alpha_to_one;
    key.ignore_depth_output = state->ignore_depth_output;
    key.ignore_stencil_output = state->ignore_stencil_output;
+   key.lower_1bit_sample_mask_to_discard = state->lower_1bit_sample_mask_to_discard;
 
    return key;
 }

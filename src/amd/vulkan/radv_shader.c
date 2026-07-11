@@ -3766,7 +3766,8 @@ radv_create_ps_epilog(struct radv_device *device, const struct radv_ps_epilog_ke
    binary->info.db_shader_control =
       S_02880C_Z_EXPORT_ENABLE(key->has_depth_output && !key->ignore_depth_output) |
       S_02880C_STENCIL_TEST_VAL_EXPORT_ENABLE(key->has_stencil_output && !key->ignore_stencil_output) |
-      S_02880C_MASK_EXPORT_ENABLE(key->has_sample_mask_output);
+      S_02880C_MASK_EXPORT_ENABLE(key->has_sample_mask_output && !key->lower_1bit_sample_mask_to_discard) |
+      S_02880C_KILL_ENABLE(key->lower_1bit_sample_mask_to_discard);
    binary->info.spi_shader_z_format = key->spi_shader_z_format;
 
    epilog = radv_shader_part_create(device, binary, info.wave_size);
