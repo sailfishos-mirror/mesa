@@ -1529,8 +1529,8 @@ radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info, cons
       no_signed_zero |= 0x2;
    }
 
-   z_format = ac_get_spi_shader_z_format(state->export_depth, state->export_stencil, state->export_sample_mask,
-                                         state->alpha_to_coverage_via_mrtz);
+   z_format = ac_get_spi_shader_z_format(state->has_depth_output, state->has_stencil_output,
+                                         state->has_sample_mask_output, state->alpha_to_coverage_via_mrtz);
 
    key.spi_shader_col_format = col_format;
    key.color_is_int8 = compiler_info->ac->has_cb_lt16bit_int_clamp_bug ? is_int8 : 0;
@@ -1539,9 +1539,9 @@ radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info, cons
    key.no_signed_zero = no_signed_zero;
    key.colors_written = state->colors_written;
    key.mrt0_is_dual_src = state->mrt0_is_dual_src && key.colors_needed & 0xf;
-   key.export_depth = state->export_depth;
-   key.export_stencil = state->export_stencil;
-   key.export_sample_mask = state->export_sample_mask;
+   key.has_depth_output = state->has_depth_output;
+   key.has_stencil_output = state->has_stencil_output;
+   key.has_sample_mask_output = state->has_sample_mask_output;
    key.alpha_to_coverage_via_mrtz = state->alpha_to_coverage_via_mrtz;
    key.spi_shader_z_format = z_format;
    key.alpha_to_one = state->alpha_to_one;

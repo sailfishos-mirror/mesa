@@ -6392,9 +6392,9 @@ lookup_ps_epilog(struct radv_cmd_buffer *cmd_buffer)
       const bool export_z_stencil_samplemask =
          ps->info.ps.writes_z || ps->info.ps.writes_stencil || ps->info.ps.writes_sample_mask;
 
-      state.export_depth = ps->info.ps.writes_z;
-      state.export_stencil = ps->info.ps.writes_stencil;
-      state.export_sample_mask = ps->info.ps.writes_sample_mask;
+      state.has_depth_output = ps->info.ps.writes_z;
+      state.has_stencil_output = ps->info.ps.writes_stencil;
+      state.has_sample_mask_output = ps->info.ps.writes_sample_mask;
 
       if (d->vk.ms.alpha_to_coverage_enable) {
          /* We need coverage-to-mask when alpha-to-one is also enabled. On GFX11, it's always

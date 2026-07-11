@@ -117,9 +117,9 @@ struct radv_ps_epilog_key {
    uint8_t color_map[MAX_RTS];
    uint8_t spi_shader_z_format : 4;
    bool mrt0_is_dual_src : 1;
-   bool export_depth : 1;
-   bool export_stencil : 1;
-   bool export_sample_mask : 1;
+   bool has_depth_output : 1;
+   bool has_stencil_output : 1;
+   bool has_sample_mask_output : 1;
    bool alpha_to_coverage_via_mrtz : 1;
    bool alpha_to_one : 1;
    uint32_t reserved : 22;
