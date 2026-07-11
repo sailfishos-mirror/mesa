@@ -89,6 +89,7 @@ pub trait SmallConstantTable: TryDecode<u8> {
 
 pub struct InstructionSrcInfo<S: EnumAsU8> {
     pub allowed_swizzles: U8EnumSet<S, 2>,
+    pub is_src64: bool,
     pub has_abs: bool,
     pub has_neg: bool,
     pub has_not: bool,

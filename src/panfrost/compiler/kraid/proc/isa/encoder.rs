@@ -637,6 +637,7 @@ fn valid_field_values(
 struct InstrVariantSrcInfo {
     exists: bool,
     allowed_swizzles: Vec<EnumLiteral>,
+    is_src64: bool,
     has_abs: bool,
     has_neg: bool,
     has_not: bool,
@@ -654,6 +655,9 @@ impl InstrVariantSrcInfo {
             SrcField::EncodedSrc | SrcField::SrIndex => {
                 assert!(!self.exists);
                 self.exists = true;
+                if matches!(field_type, FieldType::Source64) {
+                    self.is_src64 = true;
+                }
             }
             SrcField::SrcSwizzle => {
                 assert!(self.allowed_swizzles.is_empty());
@@ -678,6 +682,7 @@ impl InstrVariantSrcInfo {
 impl ToTokens for InstrVariantSrcInfo {
     fn to_tokens(&self, ts: &mut TokenStream2) {
         let InstrVariantSrcInfo {
+            is_src64,
             has_abs,
             has_neg,
             has_not,
@@ -700,6 +705,7 @@ impl ToTokens for InstrVariantSrcInfo {
                 allowed_swizzles: unsafe {
                     U8EnumSet::from_u8_array([#swizzles_ts])
                 },
+                is_src64: #is_src64,
                 has_abs: #has_abs,
                 has_neg: #has_neg,
                 has_not: #has_not,

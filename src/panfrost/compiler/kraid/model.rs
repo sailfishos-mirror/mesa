@@ -47,6 +47,8 @@ pub trait Model {
 
     fn op_src_is_staging_reg(&self, op: &Op, src: &Src) -> bool;
 
+    fn op_src_is_64bit(&self, op: &Op, src: &Src) -> bool;
+
     fn op_src_supports_imm32(&self, op: &Op, src: &Src, imm: u32) -> bool;
 
     fn op_src_supports_swizzle(
@@ -173,6 +175,14 @@ impl Model for ValhallModel {
             vop.src_is_staging_reg(src)
         } else {
             v9_op_src_is_staging_reg(op, src, self.arch)
+        }
+    }
+
+    fn op_src_is_64bit(&self, op: &Op, src: &Src) -> bool {
+        if let Some(vop) = op.as_virtual() {
+            vop.src_is_64bit(src)
+        } else {
+            v9_op_src_is_64bit(op, src, self.arch)
         }
     }
 

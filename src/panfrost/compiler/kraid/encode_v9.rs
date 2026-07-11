@@ -2462,6 +2462,12 @@ pub fn v9_op_src_is_staging_reg(op: &Op, src: &Src, arch: u8) -> bool {
         .is_some_and(|info| info.src_map[op.src_idx(src)] == V9InstrSrc::SrSrc)
 }
 
+pub fn v9_op_src_is_64bit(op: &Op, src: &Src, arch: u8) -> bool {
+    v9_op_info(op, arch)
+        .and_then(|info| info.src_info(op.src_idx(src)))
+        .is_some_and(|src_info| src_info.is_src64)
+}
+
 pub fn v9_op_src_supports_imm32(
     op: &Op,
     src: &Src,

@@ -1378,6 +1378,10 @@ pub trait VirtualOpcode {
         false
     }
 
+    fn src_is_64bit(&self, _src: &Src) -> bool {
+        false
+    }
+
     fn src_supports_imm32(&self, _src: &Src, _imm: u32) -> bool {
         false
     }
