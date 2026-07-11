@@ -76,6 +76,7 @@ struct aco_ps_epilog_info {
    bool kill_depth;
    bool kill_stencil;
    bool kill_samplemask;
+   bool lower_1bit_sample_mask_to_discard;
    uint8_t spi_shader_z_format;
 
    struct ac_arg alpha_reference;

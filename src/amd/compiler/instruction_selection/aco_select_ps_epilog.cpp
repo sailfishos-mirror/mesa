@@ -410,9 +410,26 @@ select_ps_epilog(Program* program, void* pinfo, ac_shader_config* config,
       emit_clamp_alpha_test(&ctx, einfo, colors[i], i);
    }
 
+   assert(einfo->samplemask.used ||
+          (!einfo->kill_samplemask && !einfo->lower_1bit_sample_mask_to_discard));
+   assert(einfo->kill_samplemask + einfo->lower_1bit_sample_mask_to_discard <= 1);
+
+   if (einfo->samplemask.used && einfo->lower_1bit_sample_mask_to_discard) {
+      Temp samplemask = get_arg(&ctx, einfo->samplemask);
+
+      /* Discard if (samplemask & 0x1) == 0. */
+      samplemask = bld.vop2(aco_opcode::v_and_b32, bld.def(v1), Operand::c32(1), samplemask);
+      Temp cond = bld.vopc(aco_opcode::v_cmp_eq_u32, bld.def(bld.lm), Operand::c32(0), samplemask);
+
+      bld.pseudo(aco_opcode::p_discard_if, cond);
+      ctx.block->kind |= block_kind_uses_discard;
+      ctx.program->needs_exact = true;
+   }
+
    bool has_mrtz_depth = einfo->depth.used && !einfo->kill_depth;
    bool has_mrtz_stencil = einfo->stencil.used && !einfo->kill_stencil;
-   bool has_mrtz_samplemask = einfo->samplemask.used && !einfo->kill_samplemask;
+   bool has_mrtz_samplemask = einfo->samplemask.used && !einfo->kill_samplemask &&
+                              !einfo->lower_1bit_sample_mask_to_discard;
    bool has_mrtz_export =
       has_mrtz_depth || has_mrtz_stencil || has_mrtz_samplemask || has_mrtz_alpha;
    if (has_mrtz_export) {
