@@ -2518,6 +2518,7 @@ get_alu_num_lsb(struct analysis_state *state, struct scalar_query q, uint32_t *r
    case nir_op_iadd:
    case nir_op_iand:
    case nir_op_imul:
+   case nir_op_pack_64_2x32_split:
       if (!q.head.pushed_queries) {
          push_scalar_query(state, nir_scalar_chase_alu_src(q.scalar, 0));
          push_scalar_query(state, nir_scalar_chase_alu_src(q.scalar, 1));
@@ -2525,6 +2526,7 @@ get_alu_num_lsb(struct analysis_state *state, struct scalar_query q, uint32_t *r
       }
       break;
    case nir_op_ishl:
+   case nir_op_u2u64:
       if (!q.head.pushed_queries) {
          push_scalar_query(state, nir_scalar_chase_alu_src(q.scalar, 0));
          return;
@@ -2580,6 +2582,15 @@ get_alu_num_lsb(struct analysis_state *state, struct scalar_query q, uint32_t *r
    }
    case nir_op_bcsel: {
       *result = MIN2(src[0], src[1]);
+      break;
+   }
+   case nir_op_u2u64: {
+      nir_scalar src0 = nir_scalar_chase_alu_src(q.scalar, 0);
+      *result = src[0] == src0.def->bit_size ? 64 : src[0];
+      break;
+   }
+   case nir_op_pack_64_2x32_split: {
+      *result = src[0] < 32 ? src[0] : 32 + src[1];
       break;
    }
    default:
