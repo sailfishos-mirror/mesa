@@ -544,7 +544,7 @@
         "description": "r300: fix swtcl per-vertex point size",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6f05eba0204a9f1371bb1ae5cdb0f71bb819eb28",
         "notes": null
