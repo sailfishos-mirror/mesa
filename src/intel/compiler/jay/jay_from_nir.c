@@ -3805,6 +3805,8 @@ jay_compile(const struct intel_device_info *devinfo,
       prog_data->cs.prog_spilled = s->scratch_size > 0; /* XXX */
    } else if (brw_shader_stage_is_bindless(s->stage)) {
       prog_data->bs.simd_size = simd_width;
+      prog_data->bs.max_stack_size = MAX2(prog_data->bs.max_stack_size,
+                                          nir->scratch_size);
    }
 
    prog_data->base.program_size = bin->size;
