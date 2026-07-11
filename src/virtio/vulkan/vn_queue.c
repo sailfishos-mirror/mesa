@@ -41,8 +41,18 @@ struct vn_queue_submission {
    VkFence fence_handle;
    bool can_feedback;
 
+   union {
+      /* Bitmask exists for testing if any field is set. */
+      uint32_t fix_mask;
+
+      struct {
+         bool ffb : 1;
+         bool sfb : 1;
+         bool qfb : 1;
+      } fix;
+   };
+
    uint32_t cmd_count;
-   uint32_t feedback_types;
    bool fix_pnext;
    uint32_t dev_mask_count;
    uint32_t dev_index_count;
@@ -100,6 +110,10 @@ struct vn_queue_submission {
       uint64_t *sem_vals;
    } temp;
 };
+
+static_assert(sizeof(((struct vn_queue_submission *)0)->fix_mask) >=
+                 sizeof(((struct vn_queue_submission *)0)->fix),
+              "vn_queue_submission::fix_mask is too small");
 
 static inline size_t
 vn_get_sem_size(struct vn_queue_submission *submit)
@@ -436,9 +450,6 @@ vn_queue_submission_count_wait_semaphores(struct vn_queue_submission *submit)
 static void
 vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
 {
-   uint32_t extra_cmd_count = 0;
-   uint32_t feedback_types = 0;
-
    const uint32_t signal_count = vn_get_signal_semaphore_count(submit);
    for (uint32_t i = 0; i < signal_count; i++) {
       struct vn_semaphore *sem =
@@ -447,8 +458,8 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
          continue;
 
       if (submit->can_feedback) {
-         feedback_types |= VN_FEEDBACK_TYPE_SEMAPHORE;
-         extra_cmd_count++;
+         submit->fix.sfb = true;
+         submit->cmd_count++;
       } else {
          const uint64_t counter = vn_get_signal_semaphore_counter(submit, i);
          vn_sync_feedback_suspend(&sem->feedback, counter);
@@ -460,7 +471,7 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
       for (uint32_t i = 0; i < cmd_count; i++) {
          struct vn_command_buffer *cmd = vn_get_cmd(submit, i);
          if (!list_is_empty(&cmd->builder.query_records))
-            feedback_types |= VN_FEEDBACK_TYPE_QUERY;
+            submit->fix.qfb = true;
 
          /* If a cmd that was submitted previously and already has a feedback
           * cmd linked, as long as
@@ -475,30 +486,25 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
             cmd->linked_qfb_cmd = NULL;
          }
       }
-      if (feedback_types & VN_FEEDBACK_TYPE_QUERY)
-         extra_cmd_count++;
+      if (submit->fix.qfb)
+         submit->cmd_count++;
 
-      if (submit->feedback_types & VN_FEEDBACK_TYPE_FENCE) {
-         feedback_types |= VN_FEEDBACK_TYPE_FENCE;
-         extra_cmd_count++;
-      }
+      if (submit->fix.ffb)
+         submit->cmd_count++;
 
-      if (feedback_types)
-         extra_cmd_count += cmd_count;
+      if (submit->cmd_count)
+         submit->cmd_count += cmd_count;
    }
 
    if (submit->batch && submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO &&
-       extra_cmd_count) {
+       submit->cmd_count) {
       const VkDeviceGroupSubmitInfo *device_group = vk_find_struct_const(
          submit->submit_batch->pNext, DEVICE_GROUP_SUBMIT_INFO);
       if (device_group) {
          submit->fix_pnext = true;
-         submit->dev_mask_count = extra_cmd_count;
+         submit->dev_mask_count = submit->cmd_count;
       }
    }
-
-   submit->feedback_types = feedback_types;
-   submit->cmd_count = extra_cmd_count;
 }
 
 static void
@@ -509,7 +515,7 @@ vn_queue_submission_prepare(struct vn_queue_submission *submit)
 
    if (fence && vn_sync_feedback_enabled(&fence->feedback)) {
       if (submit->can_feedback)
-         submit->feedback_types |= VN_FEEDBACK_TYPE_FENCE;
+         submit->fix.ffb = true;
       else
          vn_sync_feedback_suspend(&fence->feedback, fence->signal_counter);
    }
@@ -524,7 +530,7 @@ vn_queue_submission_prepare(struct vn_queue_submission *submit)
 static VkResult
 vn_queue_submission_alloc_storage(struct vn_queue_submission *submit)
 {
-   if (!submit->feedback_types && !submit->wait_sem_count)
+   if (!submit->cmd_count && !submit->wait_sem_count)
       return VK_SUCCESS;
 
    size_t total = 0;
@@ -749,13 +755,13 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit)
    VkResult result;
    uint32_t new_cmd_count = vn_get_cmd_count(submit);
 
-   if (submit->feedback_types & VN_FEEDBACK_TYPE_QUERY) {
+   if (submit->fix.qfb) {
       result = vn_queue_submission_add_query_feedback(submit, &new_cmd_count);
       if (result != VK_SUCCESS)
          return result;
    }
 
-   if (submit->feedback_types & VN_FEEDBACK_TYPE_SEMAPHORE) {
+   if (submit->fix.sfb) {
       const uint32_t signal_count = vn_get_signal_semaphore_count(submit);
       for (uint32_t i = 0; i < signal_count; i++) {
          result = vn_queue_submission_add_semaphore_feedback(submit, i,
@@ -765,7 +771,7 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit)
       }
    }
 
-   if (submit->feedback_types & VN_FEEDBACK_TYPE_FENCE) {
+   if (submit->fix.ffb) {
       result = vn_queue_submission_add_fence_feedback(submit, &new_cmd_count);
       if (result != VK_SUCCESS)
          return result;
@@ -786,7 +792,7 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit)
 static VkResult
 vn_queue_submission_init_cmds(struct vn_queue_submission *submit)
 {
-   if (!submit->feedback_types)
+   if (!submit->cmd_count)
       return VK_SUCCESS;
 
    assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2 ||
@@ -796,7 +802,7 @@ vn_queue_submission_init_cmds(struct vn_queue_submission *submit)
     * - empty: initialize a batch for fence feedback
     */
    if (!submit->batch) {
-      assert(submit->feedback_types & VN_FEEDBACK_TYPE_FENCE);
+      assert(submit->fix.ffb);
       if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
          *submit->temp.submit2_batch = (VkSubmitInfo2){
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
@@ -954,10 +960,10 @@ static void
 vn_queue_submission_cleanup(struct vn_queue_submission *submit)
 {
    /* TODO clean up pending src feedbacks on failure? */
-   if (submit->feedback_types & VN_FEEDBACK_TYPE_SEMAPHORE)
+   if (submit->fix.sfb)
       vn_queue_submission_cleanup_semaphore_feedback(submit);
 
-   if (submit->feedback_types & VN_FEEDBACK_TYPE_FENCE)
+   if (submit->fix.ffb)
       vn_queue_submission_cleanup_fence_feedback(submit);
 }
 
