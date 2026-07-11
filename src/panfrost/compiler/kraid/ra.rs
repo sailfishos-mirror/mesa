@@ -482,8 +482,11 @@ impl LocalRegAlloc<'_> {
                 }
             }
             assert!(offsets != 0, "Cannot find a valid swizzle");
-            let src_bytes = op.src_type(src).total_bytes();
-            (src_bytes.max(4), offsets)
+            if self.model.op_src_is_64bit(op, src) {
+                (8, offsets)
+            } else {
+                (4, offsets)
+            }
         };
 
         let c = RegAllocConstraint {
