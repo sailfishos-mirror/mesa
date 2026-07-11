@@ -46,6 +46,8 @@ struct vn_queue_submission {
       uint32_t fix_mask;
 
       struct {
+         /* for submit batch */
+         bool batch : 1;
          /* for pNext chain */
          bool pnext : 1;
 
@@ -430,6 +432,7 @@ vn_queue_submission_count_wait_semaphores(struct vn_queue_submission *submit)
       return;
 
    submit->wait_sem_count = wait_count;
+   submit->fix.batch = true;
 
    if (submit->batch_type != VK_STRUCTURE_TYPE_SUBMIT_INFO_2 &&
        has_timeline_semaphore) {
@@ -492,8 +495,10 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
       if (submit->fix.ffb)
          submit->cmd_count++;
 
-      if (submit->cmd_count)
+      if (submit->cmd_count) {
          submit->cmd_count += cmd_count;
+         submit->fix.batch = true;
+      }
    }
 
    if (submit->batch && submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO &&
@@ -530,9 +535,6 @@ vn_queue_submission_prepare(struct vn_queue_submission *submit)
 static VkResult
 vn_queue_submission_alloc_storage(struct vn_queue_submission *submit)
 {
-   if (!submit->cmd_count && !submit->wait_sem_count)
-      return VK_SUCCESS;
-
    size_t total = 0;
    struct {
       size_t batch;
@@ -544,7 +546,7 @@ vn_queue_submission_alloc_storage(struct vn_queue_submission *submit)
       size_t wait_sems;
    } size = { 0 };
 
-   total += size.batch = vn_get_batch_size(submit);
+   total += size.batch = submit->fix.batch ? vn_get_batch_size(submit) : 0;
    total += size.pnext = submit->fix.pnext ? sizeof(*submit->temp.pnext) : 0;
    total += size.cmds = submit->cmd_count * vn_get_cmd_size(submit);
    total += size.dev_masks = submit->dev_mask_count * sizeof(uint32_t);
@@ -880,13 +882,10 @@ vn_queue_submission_init_wait_semaphores(struct vn_queue_submission *submit)
 static VkResult
 vn_queue_submission_init(struct vn_queue_submission *submit)
 {
-   if (!submit->temp.batch)
-      return VK_SUCCESS;
-
-   /* For a submission that is:
+   /* For a submission that fixes the batch::
     * - non-empty: copy batch for adding feedbacks or dropping semaphores
     */
-   if (submit->batch)
+   if (submit->fix.batch && submit->batch)
       memcpy(submit->temp.batch, submit->batch, vn_get_batch_size(submit));
 
    VkResult result = vn_queue_submission_init_cmds(submit);
@@ -902,7 +901,8 @@ vn_queue_submission_init(struct vn_queue_submission *submit)
    if (result != VK_SUCCESS)
       return result;
 
-   submit->batch = submit->temp.batch;
+   if (submit->fix.batch)
+      submit->batch = submit->temp.batch;
 
    return VK_SUCCESS;
 }
@@ -971,6 +971,10 @@ static VkResult
 vn_queue_submission_prepare_submit(struct vn_queue_submission *submit)
 {
    vn_queue_submission_prepare(submit);
+
+   /* early return if there's nothing to fix */
+   if (!submit->fix_mask)
+      return VK_SUCCESS;
 
    VkResult result = vn_queue_submission_alloc_storage(submit);
    if (result != VK_SUCCESS)
