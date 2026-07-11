@@ -2490,6 +2490,15 @@ get_intrinsic_num_lsb(struct analysis_state *state, struct scalar_query q, uint3
          *result = src[0];
       }
       break;
+   case nir_intrinsic_load_param:
+   case nir_intrinsic_load_ttmp_register_amd:
+   case nir_intrinsic_load_ttmp_register_wg_div_amd:
+   case nir_intrinsic_load_scalar_arg_amd:
+   case nir_intrinsic_load_scalar_arg_wg_div_amd:
+   case nir_intrinsic_load_vector_arg_amd: {
+      *result = nir_intrinsic_arg_num_lsb_zero(intrin);
+      break;
+   }
    default:
       break;
    }

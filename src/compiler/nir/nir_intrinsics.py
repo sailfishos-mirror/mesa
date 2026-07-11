@@ -283,6 +283,9 @@ index("bool", "st64")
 # When set, range analysis will use it for nir_unsigned_upper_bound
 index("unsigned", "arg_upper_bound_u32_amd")
 
+# When set, range analysis will use it for nir_def_num_lsb_zero
+index("unsigned", "arg_num_lsb_zero")
+
 # Separate source/dest access flags for copies
 index("enum gl_access_qualifier", "dst_access")
 index("enum gl_access_qualifier", "src_access")
@@ -405,7 +408,7 @@ intrinsic("convert_alu_types", dest_comp=0, src_comp=[0],
           indices=[SRC_TYPE, DEST_TYPE, ROUNDING_MODE, SATURATE, FP_MATH_CTRL],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 
-intrinsic("load_param", dest_comp=0, indices=[PARAM_IDX], flags=[CAN_ELIMINATE])
+intrinsic("load_param", dest_comp=0, indices=[PARAM_IDX, ARG_NUM_LSB_ZERO], flags=[CAN_ELIMINATE])
 
 # Store a scalar value to be used as a return value. Usually store_deref is used
 # for this, but vtn_bindgen needs to lower derefs.
@@ -2199,25 +2202,25 @@ intrinsic("load_force_vrs_rates_amd", dest_comp=1, bit_sizes=[32], flags=[CAN_EL
 # Loads a TTMP SGPR that is guaranteed to be workgroup uniform
 # but may differ accross workgroups of the same dispatch.
 intrinsic("load_ttmp_register_amd", dest_comp=1, bit_sizes=[32],
-          indices=[BASE, ARG_UPPER_BOUND_U32_AMD],
+          indices=[BASE, ARG_UPPER_BOUND_U32_AMD, ARG_NUM_LSB_ZERO],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 # Loads a TTMP SGPR that is guaranteed to be subgroup uniform but
 # not workgroup uniform
 intrinsic("load_ttmp_register_wg_div_amd", dest_comp=1, bit_sizes=[32],
-          indices=[BASE, ARG_UPPER_BOUND_U32_AMD],
+          indices=[BASE, ARG_UPPER_BOUND_U32_AMD, ARG_NUM_LSB_ZERO],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 # Loads a SGPR arg that is guaranteed to be workgroup uniform
 # but may differ accross workgroups of the same dispatch.
 intrinsic("load_scalar_arg_amd", dest_comp=0, bit_sizes=[32],
-          indices=[BASE, ARG_UPPER_BOUND_U32_AMD],
+          indices=[BASE, ARG_UPPER_BOUND_U32_AMD, ARG_NUM_LSB_ZERO],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 # Loads a SGPR arg that is guaranteed to be subgroup uniform but
 # not workgroup uniform
 intrinsic("load_scalar_arg_wg_div_amd", dest_comp=0, bit_sizes=[32],
-          indices=[BASE, ARG_UPPER_BOUND_U32_AMD],
+          indices=[BASE, ARG_UPPER_BOUND_U32_AMD, ARG_NUM_LSB_ZERO],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 intrinsic("load_vector_arg_amd", dest_comp=0, bit_sizes=[32],
-          indices=[BASE, ARG_UPPER_BOUND_U32_AMD],
+          indices=[BASE, ARG_UPPER_BOUND_U32_AMD, ARG_NUM_LSB_ZERO],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 store("scalar_arg_amd", [], [BASE])
 store("vector_arg_amd", [], [BASE])
