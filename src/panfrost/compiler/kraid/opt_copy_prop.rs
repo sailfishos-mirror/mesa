@@ -97,19 +97,18 @@ impl WordCopies<'_> {
                     }
                 }
             }
-            Op::ShiftLop(op) => {
+            Op::ShiftLop(op)
+                if op.shift_op == ShiftOp::None
+                    && op.logic_op == LogicOp::None =>
+            {
                 if let DstRef::SSA(vec) = &op.dst.dst_ref {
-                    debug_assert_eq!(vec.comps(), 1);
-                    let ssa = vec[0];
-
-                    if op.shift_op == ShiftOp::None
-                        && op.logic_op == LogicOp::None
-                    {
-                        let mut src = op.src0.clone();
+                    for w in 0..vec.comps() {
+                        let ssa = vec[usize::from(w)];
+                        let mut src = op.src0.clone().word(w);
                         if op.not_result {
                             src = src.bnot();
                         }
-                        self.add_copy(ssa, src, op.dst_type);
+                        self.add_copy(ssa, src, DataType::i(ssa.bits()));
                     }
                 }
             }
