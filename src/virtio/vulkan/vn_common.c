@@ -169,8 +169,6 @@ vn_relax_reason_string(enum vn_relax_reason reason)
       return "tls ring seqno";
    case VN_RELAX_REASON_RING_SPACE:
       return "ring space";
-   case VN_RELAX_REASON_FENCE:
-      return "fence";
    case VN_RELAX_REASON_SEMAPHORE:
       return "semaphore";
    case VN_RELAX_REASON_QUERY:
@@ -206,7 +204,6 @@ vn_relax_get_profile(enum vn_relax_reason reason)
       };
    case VN_RELAX_REASON_TLS_RING_SEQNO:
    case VN_RELAX_REASON_RING_SPACE:
-   case VN_RELAX_REASON_FENCE:
    case VN_RELAX_REASON_SEMAPHORE:
    case VN_RELAX_REASON_QUERY:
       /* warn every 1024 iters after having already slept ~3.5s:

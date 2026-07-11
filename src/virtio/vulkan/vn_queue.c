@@ -304,8 +304,7 @@ vn_get_signal_semaphore_counter(struct vn_queue_submission *submit,
 static bool
 vn_is_batch_empty(struct vn_queue_submission *submit)
 {
-   if (submit->fence_handle != VK_NULL_HANDLE)
-      return false;
+   assert(submit->fence_handle == VK_NULL_HANDLE);
 
    if (!submit->batch)
       return true;
@@ -544,11 +543,22 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
    }
 }
 
+static inline void
+vn_queue_submission_count_fence(struct vn_queue_submission *submit)
+{
+   if (submit->fence_handle == VK_NULL_HANDLE)
+      return;
+
+   submit->fix.sync_fence = true;
+   submit->sync_count++;
+}
+
 static void
 vn_queue_submission_prepare(struct vn_queue_submission *submit)
 {
    vn_queue_submission_count_wait_semaphores(submit);
    vn_queue_submission_count_batch_feedback(submit);
+   vn_queue_submission_count_fence(submit);
 }
 
 static VkResult
@@ -867,10 +877,22 @@ static void
 vn_queue_submission_init_syncs(struct vn_queue_submission *submit)
 {
    /* TODO handle below:
-    * - fence
     * - external semaphore
     * - timeline semaphore
     */
+   uint32_t sync_index = 0;
+
+   if (submit->fence_handle != VK_NULL_HANDLE) {
+      VK_FROM_HANDLE(vn_fence, fence, submit->fence_handle);
+
+      assert(fence->payload->type == VN_SYNC_TYPE_SYNC);
+
+      submit->temp.syncs[sync_index] = fence->payload->sync;
+      submit->temp.sync_vals[sync_index] = 1;
+
+      /* fence is backed by renderer sync without renderer object */
+      submit->fence_handle = VK_NULL_HANDLE;
+   }
 }
 
 static VkResult
@@ -1057,7 +1079,6 @@ vn_queue_submit(struct vn_queue_submission *submit)
     *
     * We enforce above via an asynchronous vkQueueSubmit(2) via ring followed
     * by an asynchronous renderer submission to wait for the ring submission:
-    * - fence is an external fence
     * - has an external signal semaphore
     */
    result = vn_queue_submission_prepare_submit(submit);
@@ -1071,22 +1092,6 @@ vn_queue_submit(struct vn_queue_submission *submit)
    result = vn_queue_submission_signal_syncs(submit);
    if (result != VK_SUCCESS)
       goto out_cleanup;
-
-   /* If external fence, track the submission's ring_idx to facilitate
-    * sync_file export.
-    *
-    * Imported syncs don't need a proxy renderer sync on subsequent export,
-    * because an fd is already available.
-    */
-   struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
-   if (fence && fence->is_external) {
-      assert(fence->payload->type == VN_SYNC_TYPE_DEVICE_ONLY);
-      fence->external_payload = (struct vn_sync_payload_external){
-         .ring_idx = queue->ring_idx,
-         .ring_seqno_valid = queue->ring_seqno_valid,
-         .ring_seqno = queue->ring_seqno,
-      };
-   }
 
    if (submit->batch) {
       const uint32_t signal_count = vn_get_signal_semaphore_count(submit);
