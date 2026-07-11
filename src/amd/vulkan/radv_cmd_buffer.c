@@ -6395,10 +6395,14 @@ lookup_ps_epilog(struct radv_cmd_buffer *cmd_buffer)
 
       state.ignore_depth_output =
          state.has_depth_output && !(render->ds_att_aspects & VK_IMAGE_ASPECT_DEPTH_BIT && d->vk.ds.depth.test_enable);
+      state.ignore_stencil_output =
+         state.has_stencil_output &&
+         !(render->ds_att_aspects & VK_IMAGE_ASPECT_STENCIL_BIT && d->vk.ds.stencil.test_enable);
 
       if (d->vk.ms.alpha_to_coverage_enable) {
          const bool export_z_stencil_samplemask = (state.has_depth_output && !state.ignore_depth_output) ||
-                                                  state.has_stencil_output || state.has_sample_mask_output;
+                                                  (state.has_stencil_output && !state.ignore_stencil_output) ||
+                                                  state.has_sample_mask_output;
 
          /* We need coverage-to-mask when alpha-to-one is also enabled. On GFX11, it's always
           * enabled if there's a mrtz export.
@@ -13362,6 +13366,13 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
       const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
 
       if (ps && ps->info.ps.writes_z)
+         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_EPILOG_SHADER;
+   }
+
+   if (dynamic_states & RADV_DYNAMIC_STENCIL_TEST_ENABLE) {
+      const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
+
+      if (ps && ps->info.ps.writes_stencil)
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_EPILOG_SHADER;
    }
 

@@ -634,6 +634,7 @@ struct radv_ps_epilog_state {
    bool has_stencil_output;
    bool has_sample_mask_output;
    bool ignore_depth_output;
+   bool ignore_stencil_output;
    bool alpha_to_coverage_via_mrtz;
    bool alpha_to_one;
    uint8_t need_src_alpha;
