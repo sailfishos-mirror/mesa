@@ -24,6 +24,15 @@ trim_fs_exports(nir_builder *b, nir_intrinsic_instr *intrin, void *_state)
 
    nir_io_semantics io_sem = nir_intrinsic_io_semantics(intrin);
 
+   switch (io_sem.location) {
+   case FRAG_RESULT_DEPTH:
+      if (state->epilog_key->ignore_depth_output) {
+         nir_instr_remove(&intrin->instr);
+         return true;
+      }
+      return false;
+   }
+
    int index = mesa_frag_result_get_color_index(io_sem.location);
 
    if (index < 0)
