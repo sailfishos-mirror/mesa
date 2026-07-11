@@ -98,17 +98,24 @@ load_desc_ptr(nir_builder *b, lower_descriptors_state *state, unsigned set)
    }
 
    assert(state->args->descriptors[set].used);
-   return get_scalar_arg(b, 1, state->args->descriptors[set]);
+   nir_def *res = get_scalar_arg(b, 1, state->args->descriptors[set]);
+   nir_intrinsic_set_arg_num_lsb_zero(nir_def_as_intrinsic(res), 2);
+   return res;
 }
 
 static nir_def *
 load_heap_ptr(nir_builder *b, lower_descriptors_state *state, unsigned heap_idx)
 {
-   if (mesa_shader_stage_is_rt(b->shader->info.stage))
-      return nir_load_param(b, heap_idx == RADV_HEAP_RESOURCE ? RT_ARG_HEAP_RESOURCE : RT_ARG_HEAP_SAMPLER);
+   nir_def *res;
+   if (mesa_shader_stage_is_rt(b->shader->info.stage)) {
+      res = nir_load_param(b, heap_idx == RADV_HEAP_RESOURCE ? RT_ARG_HEAP_RESOURCE : RT_ARG_HEAP_SAMPLER);
+   } else {
+      assert(state->args->descriptors[heap_idx].used);
+      res = get_scalar_arg(b, 1, state->args->descriptors[heap_idx]);
+   }
 
-   assert(state->args->descriptors[heap_idx].used);
-   return get_scalar_arg(b, 1, state->args->descriptors[heap_idx]);
+   nir_intrinsic_set_arg_num_lsb_zero(nir_def_as_intrinsic(res), 2);
+   return res;
 }
 
 static void
