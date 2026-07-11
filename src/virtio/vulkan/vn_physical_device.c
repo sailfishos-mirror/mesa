@@ -1102,8 +1102,10 @@ vn_physical_device_init_external_fence_handles(
 
    if (physical_dev->instance->renderer->info.has_external_sync) {
 #if !DETECT_OS_WINDOWS
-      physical_dev->external_fence_handles =
-         VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT;
+      if (physical_dev->renderer_sync_fd.fence_exportable) {
+         physical_dev->external_fence_handles =
+            VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT;
+      }
 #endif
    }
 }
@@ -1155,8 +1157,10 @@ vn_physical_device_init_external_semaphore_handles(
 
    if (physical_dev->instance->renderer->info.has_external_sync) {
 #if !DETECT_OS_WINDOWS
-      physical_dev->external_binary_semaphore_handles =
-         VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
+      if (physical_dev->renderer_sync_fd.semaphore_exportable) {
+         physical_dev->external_binary_semaphore_handles =
+            VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
+      }
 #endif
    }
 }
@@ -1171,21 +1175,13 @@ vn_physical_device_get_native_extensions(
 
    memset(exts, 0, sizeof(*exts));
 
-   if (physical_dev->instance->renderer->info.has_external_sync &&
-       physical_dev->renderer_sync_fd.fence_exportable) {
-      if (physical_dev->external_fence_handles ==
-          VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT) {
-         exts->KHR_external_fence_fd = true;
-      }
-   }
+   if (physical_dev->external_fence_handles ==
+       VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT)
+      exts->KHR_external_fence_fd = true;
 
-   if (physical_dev->instance->renderer->info.has_external_sync &&
-       physical_dev->renderer_sync_fd.semaphore_exportable) {
-      if (physical_dev->external_binary_semaphore_handles ==
-          VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT) {
-         exts->KHR_external_semaphore_fd = true;
-      }
-   }
+   if (physical_dev->external_binary_semaphore_handles ==
+       VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT)
+      exts->KHR_external_semaphore_fd = true;
 
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
    if (physical_dev->external_memory.renderer_handle_type &&
