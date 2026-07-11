@@ -9044,6 +9044,16 @@ radv_bind_ps_epilog(struct radv_cmd_buffer *cmd_buffer)
    radv_cs_add_buffer(device->ws, cs->b, ps_epilog->bo);
 
    cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_EPILOG_STATE;
+
+   /* The PS epilog might eliminate these outputs depending on dynamic states. Even if mrtz is fully eliminated,
+    * we still need to update DB_SHADER_CONTROL to disable those outputs.
+    *
+    * These flags only indicate that the PS epilog is responsible for handling mrtz. The flags don't mean that
+    * mrtz is present.
+    */
+   if (ps_epilog->key.ps.has_depth_output || ps_epilog->key.ps.has_stencil_output ||
+       ps_epilog->key.ps.has_sample_mask_output || ps_epilog->key.ps.alpha_to_coverage_via_mrtz)
+      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_DB_SHADER_CONTROL;
 }
 
 /* This function binds/unbinds a shader to the cmdbuffer state. */
@@ -12611,6 +12621,9 @@ radv_emit_db_shader_control(struct radv_cmd_buffer *cmd_buffer)
 
    if (ps) {
       db_shader_control = ps->regs.ps.db_shader_control;
+
+      if (ps->info.ps.exports_mrtz_via_epilog)
+         db_shader_control |= cmd_buffer->state.ps_epilog->db_shader_control;
    } else {
       db_shader_control = S_02880C_CONSERVATIVE_Z_EXPORT(V_02880C_EXPORT_ANY_Z) |
                           S_02880C_Z_ORDER(V_02880C_EARLY_Z_THEN_LATE_Z) |
