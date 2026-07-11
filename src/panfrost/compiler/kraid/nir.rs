@@ -935,6 +935,28 @@ impl<'a> ShaderFromNir<'a> {
                     srcs: [srcs(0), srcs(1)],
                 });
             }
+            nir_op_imul_2x32_64 => {
+                b.push_op(OpIMul {
+                    dst: dst.into(),
+                    dst_type: DataType::S64,
+                    saturate: false,
+                    srcs: [
+                        srcs(0).swizzle(Swizzle::widen_s32(0)),
+                        srcs(1).swizzle(Swizzle::widen_s32(0)),
+                    ],
+                });
+            }
+            nir_op_umul_2x32_64 => {
+                b.push_op(OpIMul {
+                    dst: dst.into(),
+                    dst_type: DataType::U64,
+                    saturate: false,
+                    srcs: [
+                        srcs(0).swizzle(Swizzle::widen_u32(0)),
+                        srcs(1).swizzle(Swizzle::widen_u32(0)),
+                    ],
+                });
+            }
             nir_op_isub | nir_op_isub_sat | nir_op_usub_sat => {
                 let saturate = alu.op != nir_op_isub;
                 let dst_type = match alu.op {

@@ -51,8 +51,8 @@ fn nir_opts(arch: u8, merge_wg: bool) -> nir_shader_compiler_options {
         lower_int64_options: !(nir_lower_iadd64
             | nir_lower_ineg64
             | nir_lower_logic64
-            | nir_lower_shift64),
-        lower_mul_high: true,
+            | nir_lower_shift64
+            | nir_lower_imul_2x32_64),
         lower_fisnormal: true,
         lower_uadd_carry: true,
         lower_usub_borrow: true,

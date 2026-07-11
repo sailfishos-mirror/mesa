@@ -179,6 +179,14 @@ algebraic_late += [
     (('uror', a, b), ('rrot_or_pan', a, ('u2u8', b), 0), 'is_kraid'),
 ]
 
+# Kraid doesn't have [iu]mul_high but it does have [iu]mul_2x32_64
+algebraic_late += [
+    (('imul_high', 'a@32', 'b@32'),
+     ('unpack_64_2x32_split_y', ('imul_2x32_64', a, b)), 'is_kraid'),
+    (('umul_high', 'a@32', 'b@32'),
+     ('unpack_64_2x32_split_y', ('umul_2x32_64', a, b)), 'is_kraid'),
+]
+
 # Bifrost LDEXP.v2f16 takes i16 exponent, while nir_op_ldexp takes i32. Lower
 # to nir_op_ldexp16_pan.
 #
