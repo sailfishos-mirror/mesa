@@ -120,9 +120,10 @@ struct radv_ps_epilog_key {
    bool has_depth_output : 1;
    bool has_stencil_output : 1;
    bool has_sample_mask_output : 1;
+   bool ignore_depth_output : 1;
    bool alpha_to_coverage_via_mrtz : 1;
    bool alpha_to_one : 1;
-   uint32_t reserved : 22;
+   uint32_t reserved : 21;
 };
 
 struct radv_spirv_to_nir_options {
