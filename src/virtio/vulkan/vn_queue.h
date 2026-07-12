@@ -25,6 +25,12 @@ struct vn_queue {
    /* only used if renderer supports multiple timelines */
    uint32_t ring_idx;
 
+   /* valid when NO_ASYNC_QUEUE_SUBMIT perf option is not used */
+   bool ring_seqno_valid;
+
+   /* ring seqno of the last queue submission */
+   uint32_t ring_seqno;
+
    /* wait fence used for vn_QueueWaitIdle */
    VkFence wait_fence;
 
