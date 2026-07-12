@@ -61,7 +61,6 @@ spec@arb_shader_storage_buffer_object@max-ssbo-size@vs
 spec@arb_shader_storage_buffer_object@max-ssbo-size@vsexceed
 
 # uprev Piglit in Mesa
-spec@!opengl 1.1@depthstencil-default_fb-blit samples=16
 spec@!opengl 1.1@depthstencil-default_fb-blit samples=6
 spec@!opengl 1.1@depthstencil-default_fb-blit samples=8
 spec@arb_query_buffer_object@.*CPU_READ_BEFORE.*

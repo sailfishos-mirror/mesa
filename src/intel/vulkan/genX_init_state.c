@@ -1227,7 +1227,6 @@ genX(emit_sample_pattern)(struct anv_batch *batch,
       INTEL_SAMPLE_POS_2X_ARRAY(sp._2xSample, sample_locations(sl, 2));
       INTEL_SAMPLE_POS_4X_ARRAY(sp._4xSample, sample_locations(sl, 4));
       INTEL_SAMPLE_POS_8X_ARRAY(sp._8xSample, sample_locations(sl, 8));
-      INTEL_SAMPLE_POS_16X_ARRAY(sp._16xSample, sample_locations(sl, 16));
    }
 }
 

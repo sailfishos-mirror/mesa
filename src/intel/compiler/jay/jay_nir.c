@@ -286,7 +286,7 @@ collect_fragment_output(nir_builder *b, nir_intrinsic_instr *intr, void *ctx_)
       ctx->outputs[loc] = intr->src[0].ssa;
 
       /* Remove SampleMask writes that don't mask out any samples */
-      const unsigned all_samples = BITFIELD_MASK(16);
+      const unsigned all_samples = BITFIELD_MASK(8);
       if (loc == FRAG_RESULT_SAMPLE_MASK &&
           nir_src_is_const(intr->src[0]) &&
           (nir_src_as_uint(intr->src[0]) & all_samples) == all_samples)
