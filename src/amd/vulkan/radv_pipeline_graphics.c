@@ -158,8 +158,8 @@ format_ignores_signed_zero(VkFormat format)
 }
 
 static bool
-radv_pipeline_needs_ps_epilog(const struct vk_graphics_pipeline_state *state,
-                              VkGraphicsPipelineLibraryFlagBitsEXT lib_flags)
+color_outputs_need_ps_epilog(const struct vk_graphics_pipeline_state *state,
+                             VkGraphicsPipelineLibraryFlagBitsEXT lib_flags)
 {
    /* Use a PS epilog when the fragment shader is compiled without the fragment output interface. */
    if ((state->shader_stages & VK_SHADER_STAGE_FRAGMENT_BIT) &&
@@ -1753,9 +1753,7 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
    if (key.vrs_may_be_enabled && compiler_info->ac->has_vrs_frag_pos_z_bug)
       key.adjust_frag_coord_z = true;
 
-   if (radv_pipeline_needs_ps_epilog(state, lib_flags))
-      key.ps.has_epilog = true;
-
+   key.ps.color_outputs_need_epilog = color_outputs_need_ps_epilog(state, lib_flags);
    key.ps.epilog = radv_pipeline_generate_ps_epilog_key(compiler_info, state);
 
    /* Set whether alpha_to_one makes MRT0 alpha dead. */
@@ -2575,7 +2573,7 @@ radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, st
           gfx_state->smooth_lines_may_be_enabled)
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_poly_line_smooth, RADV_NUM_SMOOTH_AA_SAMPLES);
 
-      if (!gfx_state->ps.has_epilog) {
+      if (!gfx_state->ps.color_outputs_need_epilog) {
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_remap_color_attachment, gfx_state);
 
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_trim_fs_color_exports, &gfx_state->ps.epilog,

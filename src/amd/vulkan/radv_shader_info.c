@@ -853,7 +853,7 @@ gather_shader_info_fs(enum amd_gfx_level gfx_level, const nir_shader *nir,
    /* If the PS epilog is present, it always executes all required exports (mrtz and mrt0-7
     * if needed).
     */
-   info->ps.has_epilog = gfx_state->ps.has_epilog && info->ps.colors_written;
+   info->ps.has_epilog = gfx_state->ps.color_outputs_need_epilog && info->ps.colors_written;
 
    if (!info->ps.has_epilog) {
       info->ps.mrt0_is_dual_src = gfx_state->ps.epilog.mrt0_is_dual_src;

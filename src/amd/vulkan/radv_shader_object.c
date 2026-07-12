@@ -181,7 +181,7 @@ radv_shader_object_init_graphics(struct radv_shader_object *shader_obj, struct r
    struct radv_graphics_state_key gfx_state = {0};
 
    gfx_state.vs.has_prolog = true;
-   gfx_state.ps.has_epilog = true;
+   gfx_state.ps.color_outputs_need_epilog = true;
    gfx_state.dynamic_rasterization_samples = true;
    gfx_state.dynamic_provoking_vtx_mode = true;
    gfx_state.smooth_lines_may_be_enabled = true;
@@ -444,7 +444,7 @@ radv_shader_object_create_linked(VkDevice _device, uint32_t createInfoCount, con
    struct radv_graphics_state_key gfx_state = {0};
 
    gfx_state.vs.has_prolog = true;
-   gfx_state.ps.has_epilog = true;
+   gfx_state.ps.color_outputs_need_epilog = true;
    gfx_state.dynamic_rasterization_samples = true;
    gfx_state.dynamic_provoking_vtx_mode = true;
    gfx_state.smooth_lines_may_be_enabled = true;
