@@ -153,6 +153,11 @@ struct r300_fragment_program_external_state {
        * and right before texture fetch. The scaling factor is given by
        * RC_STATE_R300_TEXSCALE_FACTOR. */
       unsigned clamp_and_scale_before_fetch : 1;
+
+      /**
+       * Transform cube coordinates so that a logical NPOT face addresses
+       * the corresponding subregion of its physical POT face. */
+      unsigned scale_cube_coords_before_fetch : 1;
    } unit[16];
 
    unsigned alpha_to_one : 1;

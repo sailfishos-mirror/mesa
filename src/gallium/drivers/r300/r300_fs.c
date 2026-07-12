@@ -90,23 +90,29 @@ void r300_fragment_program_get_external_state(
 
         /* XXX this should probably take into account STR, not just S. */
         if (t->tex.is_npot) {
-            switch (s->state.wrap_s) {
-            case PIPE_TEX_WRAP_REPEAT:
-                state->unit[i].wrap_mode = RC_WRAP_REPEAT;
-                break;
+            if (t->b.target == PIPE_TEXTURE_CUBE) {
+                /* Cube coordinates are directions, so the generic STR wrap
+                 * lowering cannot be applied to them. */
+                state->unit[i].scale_cube_coords_before_fetch = true;
+            } else {
+                switch (s->state.wrap_s) {
+                case PIPE_TEX_WRAP_REPEAT:
+                    state->unit[i].wrap_mode = RC_WRAP_REPEAT;
+                    break;
 
-            case PIPE_TEX_WRAP_MIRROR_REPEAT:
-                state->unit[i].wrap_mode = RC_WRAP_MIRRORED_REPEAT;
-                break;
+                case PIPE_TEX_WRAP_MIRROR_REPEAT:
+                    state->unit[i].wrap_mode = RC_WRAP_MIRRORED_REPEAT;
+                    break;
 
-            case PIPE_TEX_WRAP_MIRROR_CLAMP:
-            case PIPE_TEX_WRAP_MIRROR_CLAMP_TO_EDGE:
-            case PIPE_TEX_WRAP_MIRROR_CLAMP_TO_BORDER:
-                state->unit[i].wrap_mode = RC_WRAP_MIRRORED_CLAMP;
-                break;
+                case PIPE_TEX_WRAP_MIRROR_CLAMP:
+                case PIPE_TEX_WRAP_MIRROR_CLAMP_TO_EDGE:
+                case PIPE_TEX_WRAP_MIRROR_CLAMP_TO_BORDER:
+                    state->unit[i].wrap_mode = RC_WRAP_MIRRORED_CLAMP;
+                    break;
 
-            default:
-                state->unit[i].wrap_mode = RC_WRAP_NONE;
+                default:
+                    state->unit[i].wrap_mode = RC_WRAP_NONE;
+                }
             }
 
             if (t->b.target == PIPE_TEXTURE_3D)

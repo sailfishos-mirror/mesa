@@ -1695,6 +1695,55 @@ ntr_lower_backend_tex_wrap(nir_builder *b, nir_def *coord, rc_wrap_mode wrapmode
    return ntr_tex_coord_replace_xyz(b, coord, xyz);
 }
 
+/* Map a cube direction addressing a logical NPOT face into the top-left
+ * subregion of the physical POT face without changing the selected face.
+ *
+ * Let a = logical_size / physical_size and M = max(abs(coord)). For each
+ * face, adding (1 - a) * M in the appropriate signed directions maps the
+ * face-local S and T coordinates from [0, 1] to [0, a], while preserving
+ * the original major component.
+ *
+ * The face basis vectors are +X=(+,+,+), -X=(-,+,-), +Y=(-,+,-),
+ * -Y=(-,-,+), +Z=(-,+,+), and -Z=(+,+,-).
+ */
+static nir_def *
+ntr_lower_backend_tex_cube(nir_builder *b, nir_def *coord, nir_def *factor)
+{
+   assert(coord->num_components >= 3);
+
+   nir_def *scale = nir_channel(b, factor, 0);
+   nir_def *xyz = nir_trim_vector(b, coord, 3);
+   nir_def *abs_xyz = nir_fabs(b, xyz);
+   nir_def *ax = nir_channel(b, abs_xyz, 0);
+   nir_def *ay = nir_channel(b, abs_xyz, 1);
+   nir_def *az = nir_channel(b, abs_xyz, 2);
+   nir_def *one = nir_imm_float(b, 1.0f);
+   nir_def *neg_one = nir_imm_float(b, -1.0f);
+   nir_def *sign = nir_fcsel_ge(b, xyz, one, neg_one);
+   nir_def *sx = nir_channel(b, sign, 0);
+   nir_def *sy = nir_channel(b, sign, 1);
+   nir_def *sz = nir_channel(b, sign, 2);
+
+   /* Match the conventional X, then Y, then Z cube face tie-breaking. */
+   nir_def *max_yz = nir_fmax(b, ay, az);
+   nir_def *max_xz = nir_fmax(b, ax, az);
+   nir_def *face_x = nir_fsub(b, ax, max_yz);
+   nir_def *face_y = nir_fsub(b, ay, max_xz);
+
+   nir_def *basis_x = nir_vec3(b, sx, one, sx);
+   nir_def *basis_y = nir_vec3(b, neg_one, sy, nir_fneg(b, sy));
+   nir_def *basis_z = nir_vec3(b, nir_fneg(b, sz), one, sz);
+   nir_def *basis =
+      nir_fcsel_ge(b, face_x, basis_x,
+                   nir_fcsel_ge(b, face_y, basis_y, basis_z));
+   nir_def *major = nir_fmax(b, ax, max_yz);
+   nir_def *offset = nir_fmul(b, major, nir_fsub(b, one, scale));
+   nir_def *lowered = nir_fadd(b, nir_fmul(b, xyz, scale),
+                              nir_fmul(b, basis, offset));
+
+   return ntr_tex_coord_replace_xyz(b, coord, lowered);
+}
+
 static bool
 ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
 {
@@ -1710,7 +1759,11 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
    const rc_wrap_mode wrapmode = state->fs_state->unit[sampler].wrap_mode;
    const bool clamp_scale =
       state->fs_state->unit[sampler].clamp_and_scale_before_fetch;
+   const bool scale_cube =
+      state->fs_state->unit[sampler].scale_cube_coords_before_fetch;
    const bool is_rect = tex->sampler_dim == GLSL_SAMPLER_DIM_RECT;
+
+   assert(!scale_cube || tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE);
 
    b->cursor = nir_before_instr(&tex->instr);
    nir_def *coord = nir_get_tex_src(tex, nir_tex_src_coord);
@@ -1731,7 +1784,7 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
     * before that emulation.
     */
    if (wrapmode == RC_WRAP_REPEAT || wrapmode == RC_WRAP_MIRRORED_REPEAT ||
-       clamp_scale) {
+       clamp_scale || scale_cube) {
       nir_def *projector = nir_steal_tex_src(tex, nir_tex_src_projector);
       if (projector) {
          coord = nir_fmul(b, coord, nir_frcp(b, projector));
@@ -1753,6 +1806,14 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
          ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXSCALE_FACTOR,
                                  sampler, coord->num_components);
       coord = nir_fmul(b, coord, factor);
+      progress = true;
+   }
+
+   if (scale_cube) {
+      nir_def *factor =
+         ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXSCALE_FACTOR,
+                                 sampler, 1);
+      coord = ntr_lower_backend_tex_cube(b, coord, factor);
       progress = true;
    }
 
