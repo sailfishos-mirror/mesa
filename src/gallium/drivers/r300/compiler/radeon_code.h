@@ -141,12 +141,14 @@ struct r300_fragment_program_external_state {
       unsigned compare_mode_enabled : 1;
 
       /**
-       * This field specifies wrapping modes for the sampler.
+       * These fields specify the wrapping mode for each sampler coordinate.
        *
-       * If this field is \ref RC_WRAP_NONE (aka 0), no wrapping maths
-       * will be performed on the coordinates.
+       * If a field is \ref RC_WRAP_NONE (aka 0), no wrapping maths will be
+       * performed on that coordinate.
        */
-      unsigned wrap_mode : 3;
+      rc_wrap_mode wrap_mode_s : 3;
+      rc_wrap_mode wrap_mode_t : 3;
+      rc_wrap_mode wrap_mode_r : 3;
 
       /**
        * The coords are scaled after applying the wrap mode emulation

@@ -53,6 +53,25 @@ static void allocate_hardware_inputs(
     }
 }
 
+static rc_wrap_mode r300_get_npot_wrap_mode(enum pipe_tex_wrap wrap)
+{
+    switch (wrap) {
+    case PIPE_TEX_WRAP_REPEAT:
+        return RC_WRAP_REPEAT;
+
+    case PIPE_TEX_WRAP_MIRROR_REPEAT:
+        return RC_WRAP_MIRRORED_REPEAT;
+
+    case PIPE_TEX_WRAP_MIRROR_CLAMP:
+    case PIPE_TEX_WRAP_MIRROR_CLAMP_TO_EDGE:
+    case PIPE_TEX_WRAP_MIRROR_CLAMP_TO_BORDER:
+        return RC_WRAP_MIRRORED_CLAMP;
+
+    default:
+        return RC_WRAP_NONE;
+    }
+}
+
 void r300_fragment_program_get_external_state(
     struct r300_context* r300,
     struct r300_fragment_program_external_state* state)
@@ -88,31 +107,18 @@ void r300_fragment_program_get_external_state(
                                 v->swizzle[2], v->swizzle[3]);
         }
 
-        /* XXX this should probably take into account STR, not just S. */
         if (t->tex.is_npot) {
             if (t->b.target == PIPE_TEXTURE_CUBE) {
                 /* Cube coordinates are directions, so the generic STR wrap
                  * lowering cannot be applied to them. */
                 state->unit[i].scale_cube_coords_before_fetch = true;
             } else {
-                switch (s->state.wrap_s) {
-                case PIPE_TEX_WRAP_REPEAT:
-                    state->unit[i].wrap_mode = RC_WRAP_REPEAT;
-                    break;
-
-                case PIPE_TEX_WRAP_MIRROR_REPEAT:
-                    state->unit[i].wrap_mode = RC_WRAP_MIRRORED_REPEAT;
-                    break;
-
-                case PIPE_TEX_WRAP_MIRROR_CLAMP:
-                case PIPE_TEX_WRAP_MIRROR_CLAMP_TO_EDGE:
-                case PIPE_TEX_WRAP_MIRROR_CLAMP_TO_BORDER:
-                    state->unit[i].wrap_mode = RC_WRAP_MIRRORED_CLAMP;
-                    break;
-
-                default:
-                    state->unit[i].wrap_mode = RC_WRAP_NONE;
-                }
+                state->unit[i].wrap_mode_s =
+                    r300_get_npot_wrap_mode(s->state.wrap_s);
+                state->unit[i].wrap_mode_t =
+                    r300_get_npot_wrap_mode(s->state.wrap_t);
+                state->unit[i].wrap_mode_r =
+                    r300_get_npot_wrap_mode(s->state.wrap_r);
             }
 
             if (t->b.target == PIPE_TEXTURE_3D)

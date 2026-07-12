@@ -1756,7 +1756,11 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
    unsigned sampler = tex->sampler_index;
    assert(sampler < ARRAY_SIZE(state->fs_state->unit));
 
-   const rc_wrap_mode wrapmode = state->fs_state->unit[sampler].wrap_mode;
+   const rc_wrap_mode wrapmode[3] = {
+      state->fs_state->unit[sampler].wrap_mode_s,
+      state->fs_state->unit[sampler].wrap_mode_t,
+      state->fs_state->unit[sampler].wrap_mode_r,
+   };
    const bool clamp_scale =
       state->fs_state->unit[sampler].clamp_and_scale_before_fetch;
    const bool scale_cube =
@@ -1767,11 +1771,20 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
 
    b->cursor = nir_before_instr(&tex->instr);
    nir_def *coord = nir_get_tex_src(tex, nir_tex_src_coord);
+   bool emulate_wrap = false;
+   bool project_wrap = false;
+
+   for (unsigned i = 0;
+        i < MIN2(coord->num_components, ARRAY_SIZE(wrapmode)); i++) {
+      emulate_wrap |= wrapmode[i] != RC_WRAP_NONE;
+      project_wrap |= wrapmode[i] == RC_WRAP_REPEAT ||
+                      wrapmode[i] == RC_WRAP_MIRRORED_REPEAT;
+   }
 
    /* R300 cannot sample from rectangles, and the wrap fallback needs
     * normalized coordinates even on R500.
     */
-   if (is_rect && (!state->is_r500 || wrapmode != RC_WRAP_NONE)) {
+   if (is_rect && (!state->is_r500 || emulate_wrap)) {
       nir_def *factor =
          ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXRECT_FACTOR,
                                  sampler, coord->num_components);
@@ -1783,8 +1796,7 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
    /* When we emulate wrap or clamp/scale in ALU, projection has to happen
     * before that emulation.
     */
-   if (wrapmode == RC_WRAP_REPEAT || wrapmode == RC_WRAP_MIRRORED_REPEAT ||
-       clamp_scale || scale_cube) {
+   if (project_wrap || clamp_scale || scale_cube) {
       nir_def *projector = nir_steal_tex_src(tex, nir_tex_src_projector);
       if (projector) {
          coord = nir_fmul(b, coord, nir_frcp(b, projector));
@@ -1792,8 +1804,17 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
       }
    }
 
-   if (wrapmode != RC_WRAP_NONE) {
-      coord = ntr_lower_backend_tex_wrap(b, coord, wrapmode);
+   if (emulate_wrap) {
+      nir_def *components[4];
+
+      assert(coord->num_components <= ARRAY_SIZE(components));
+      for (unsigned i = 0; i < coord->num_components; i++) {
+         components[i] = nir_channel(b, coord, i);
+         if (i < ARRAY_SIZE(wrapmode) && wrapmode[i] != RC_WRAP_NONE)
+            components[i] =
+               ntr_lower_backend_tex_wrap(b, components[i], wrapmode[i]);
+      }
+      coord = nir_vec(b, components, coord->num_components);
       progress = true;
    }
 
