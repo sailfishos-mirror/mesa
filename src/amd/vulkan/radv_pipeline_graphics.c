@@ -1758,19 +1758,6 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
 
    key.ps.epilog = radv_pipeline_generate_ps_epilog_key(compiler_info, state);
 
-   /* Alpha to coverage is exported via MRTZ when depth/stencil/samplemask are also exported.
-    * Though, when a PS epilog is needed and the MS state is NULL (with dynamic rendering), it's not
-    * possible to know the info at compile time and MRTZ needs to be exported in the epilog.
-    */
-   if (key.ps.has_epilog) {
-      if (compiler_info->ac->gfx_level >= GFX11) {
-         key.ps.exports_mrtz_via_epilog = alpha_to_coverage_unknown;
-      } else {
-         key.ps.exports_mrtz_via_epilog =
-            (alpha_to_coverage_unknown && alpha_to_one_enabled) || (alpha_to_one_unknown && alpha_to_coverage_enabled);
-      }
-   }
-
    /* Set whether alpha_to_one makes MRT0 alpha dead. */
    key.ps.mrt0_alpha_is_dead = !alpha_to_one_unknown && !alpha_to_coverage_unknown && state->ms->alpha_to_one_enable &&
                                !state->ms->alpha_to_coverage_enable;

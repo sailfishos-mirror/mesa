@@ -2001,7 +2001,7 @@ radv_precompute_registers_hw_fs(struct radv_device *device, struct radv_shader *
       S_02880C_EXEC_ON_HIER_FAIL(info->ps.writes_memory) | S_02880C_EXEC_ON_NOOP(info->ps.writes_memory) |
       S_02880C_DUAL_QUAD_DISABLE(disable_rbplus) | S_02880C_PRIMITIVE_ORDERED_PIXEL_SHADER(info->ps.pops);
 
-   if (!info->ps.exports_mrtz_via_epilog) {
+   if (!info->ps.has_epilog) {
       regs->ps.db_shader_control |= S_02880C_Z_EXPORT_ENABLE(info->ps.writes_z) |
                                     S_02880C_STENCIL_TEST_VAL_EXPORT_ENABLE(info->ps.writes_stencil) |
                                     S_02880C_MASK_EXPORT_ENABLE(mask_export_enable);

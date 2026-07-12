@@ -448,7 +448,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
          .uses_discard = stage->info.ps.can_discard,
          .dcc_decompress_gfx11 = gfx_state->dcc_decompress_gfx11,
          .no_color_export = stage->info.ps.has_epilog,
-         .no_depth_export = stage->info.ps.exports_mrtz_via_epilog,
+         .no_depth_export = stage->info.ps.has_epilog,
 
       };
 

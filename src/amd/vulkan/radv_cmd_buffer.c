@@ -6388,7 +6388,7 @@ lookup_ps_epilog(struct radv_cmd_buffer *cmd_buffer)
    state.alpha_to_one = d->vk.ms.alpha_to_one_enable;
    state.colors_written = ps->info.ps.colors_written;
 
-   if (ps->info.ps.exports_mrtz_via_epilog) {
+   if (ps->info.ps.has_epilog) {
       const bool export_z_stencil_samplemask =
          ps->info.ps.writes_z || ps->info.ps.writes_stencil || ps->info.ps.writes_sample_mask;
 
@@ -8712,8 +8712,7 @@ radv_bind_fragment_output_state(struct radv_cmd_buffer *cmd_buffer, const struct
 
    if (ps) {
       col_format = ps_epilog ? ps_epilog->spi_shader_col_format : ps->info.ps.spi_shader_col_format;
-      z_format = ps_epilog && ps->info.ps.exports_mrtz_via_epilog ? ps_epilog->spi_shader_z_format
-                                                                  : ps->regs.ps.spi_shader_z_format;
+      z_format = ps_epilog ? ps_epilog->spi_shader_z_format : ps->regs.ps.spi_shader_z_format;
       cb_shader_mask = ps_epilog ? ps_epilog->cb_shader_mask : ps->info.ps.cb_shader_mask;
    }
 
@@ -12622,7 +12621,7 @@ radv_emit_db_shader_control(struct radv_cmd_buffer *cmd_buffer)
    if (ps) {
       db_shader_control = ps->regs.ps.db_shader_control;
 
-      if (ps->info.ps.exports_mrtz_via_epilog)
+      if (ps->info.ps.has_epilog)
          db_shader_control |= cmd_buffer->state.ps_epilog->db_shader_control;
    } else {
       db_shader_control = S_02880C_CONSERVATIVE_Z_EXPORT(V_02880C_EXPORT_ANY_Z) |
