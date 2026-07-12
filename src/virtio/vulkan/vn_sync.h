@@ -48,9 +48,6 @@ struct vn_fence {
    struct vn_sync_payload permanent;
    struct vn_sync_payload temporary;
 
-   uint64_t signal_counter;
-   struct vn_sync_feedback feedback;
-
    bool is_external;
    struct vn_sync_payload_external external_payload;
 };

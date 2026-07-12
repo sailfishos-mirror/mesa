@@ -66,14 +66,10 @@ vn_CreateFence(VkDevice device,
    fence->is_external = export_info && export_info->handleTypes;
 
    result = vn_fence_init_payloads(dev, fence, signaled, alloc);
-   if (result != VK_SUCCESS)
-      goto out_object_base_fini;
-
-   if (!fence->is_external && !VN_PERF(NO_FENCE_FEEDBACK)) {
-      fence->signal_counter = signaled ? 0 : 1;
-      result = vn_sync_feedback_init(dev, &fence->feedback, 0);
-      if (result != VK_SUCCESS)
-         goto out_payloads_fini;
+   if (result != VK_SUCCESS) {
+      vn_object_base_fini(&fence->base);
+      vk_free(alloc, fence);
+      return vn_error(dev->instance, result);
    }
 
    *pFence = vn_fence_to_handle(fence);
@@ -81,15 +77,6 @@ vn_CreateFence(VkDevice device,
                           pFence);
 
    return VK_SUCCESS;
-
-out_payloads_fini:
-   vn_sync_payload_release(dev, &fence->permanent);
-   vn_sync_payload_release(dev, &fence->temporary);
-
-out_object_base_fini:
-   vn_object_base_fini(&fence->base);
-   vk_free(alloc, fence);
-   return vn_error(dev->instance, result);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -107,8 +94,6 @@ vn_DestroyFence(VkDevice device,
       return;
 
    vn_async_vkDestroyFence(dev->primary_ring, device, _fence, NULL);
-
-   vn_sync_feedback_fini(dev, &fence->feedback);
 
    vn_sync_payload_release(dev, &fence->permanent);
    vn_sync_payload_release(dev, &fence->temporary);
@@ -133,11 +118,6 @@ vn_ResetFences(VkDevice device, uint32_t fenceCount, const VkFence *pFences)
 
       assert(perm->type == VN_SYNC_TYPE_DEVICE_ONLY);
       fence->payload = perm;
-
-      if (vn_sync_feedback_enabled(&fence->feedback)) {
-         vn_sync_feedback_try_resume(&fence->feedback,
-                                     fence->signal_counter++);
-      }
    }
 
    return VK_SUCCESS;
@@ -155,44 +135,8 @@ vn_get_fence_status(VkDevice dev_handle,
    VkResult result;
    switch (payload->type) {
    case VN_SYNC_TYPE_DEVICE_ONLY:
-      if (vn_sync_feedback_pollable(&fence->feedback)) {
-         if (relax_state && vn_relax_warn(relax_state)) {
-            /* Upon vn_relax warn order, emit a synchronous vkGetFenceStatus
-             * to catch renderer device lost.
-             */
-            result = vn_call_vkGetFenceStatus(dev->primary_ring, dev_handle,
-                                              fence_handle);
-            if (result == VK_ERROR_DEVICE_LOST) {
-               vn_log(dev->instance, "aborting on ffb device lost");
-               abort();
-            }
-            if (result != VK_SUCCESS)
-               return result;
-         }
-
-         uint64_t counter = 0;
-         if (vn_sync_feedback_query(dev, &fence->feedback, &counter)) {
-            /* When fence feedback slot gets signaled, the real fence
-             * signal operation follows after but the signaling isr can be
-             * deferred or preempted. To avoid racing, we let the
-             * renderer wait for the fence. This also helps resolve
-             * synchronization validation errors, because the layer no
-             * longer sees any fence status checks and falsely believes the
-             * caller does not sync.
-             */
-            vn_async_vkWaitForFences(dev->primary_ring, dev_handle, 1,
-                                     &fence_handle, VK_TRUE, UINT64_MAX);
-
-            /* Recycle idle cmds after async fence wait. */
-            vn_sync_feedback_cmd_recycle(dev, &fence->feedback);
-         }
-
-         const bool signaled = counter == fence->signal_counter;
-         result = signaled ? VK_SUCCESS : VK_NOT_READY;
-      } else {
-         result = vn_call_vkGetFenceStatus(dev->primary_ring, dev_handle,
-                                           fence_handle);
-      }
+      result = vn_call_vkGetFenceStatus(dev->primary_ring, dev_handle,
+                                        fence_handle);
       break;
    case VN_SYNC_TYPE_IMPORTED_SYNC_FD:
       if (payload->fd < 0 || sync_wait(payload->fd, 0) == 0)

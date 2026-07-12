@@ -52,7 +52,6 @@ struct vn_queue_submission {
          bool pnext : 1;
 
          /* for sync feedback */
-         bool ffb : 1;
          bool sfb : 1;
          bool qfb : 1;
       } fix;
@@ -71,13 +70,11 @@ struct vn_queue_submission {
     * are set as below:
     *
     * batch
-    *  - non-empty submission: copy of original batch
-    *  - empty submission: a single batch for fence feedback (ffb)
+    *  - copy of original batch
     * cmds
     *  - copy of original batch cmds
     *  - a single cmd for query feedback (qfb)
     *  - one cmd for each signal semaphore that has feedback (sfb)
-    *  - if last batch, a single cmd for ffb
     * pnext
     *  - a single pnext if batch pnext need fix
     * dev_masks
@@ -504,7 +501,7 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
    submit->cmd_count += cmd_count;
    submit->fix.batch = true;
 
-   if (submit->batch && submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
+   if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
       const VkDeviceGroupSubmitInfo *device_group = vk_find_struct_const(
          submit->submit_batch->pNext, DEVICE_GROUP_SUBMIT_INFO);
       if (device_group) {
@@ -518,21 +515,9 @@ static void
 vn_queue_submission_prepare(struct vn_queue_submission *submit)
 {
    struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
-   struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
-
-   if (fence && vn_sync_feedback_enabled(&fence->feedback)) {
-      if (submit->can_feedback) {
-         submit->fix.ffb = true;
-         submit->cmd_count++;
-      } else {
-         vn_sync_feedback_suspend(&fence->feedback, fence->signal_counter);
-      }
-   }
 
    submit->external_payload.ring_idx = queue->ring_idx;
-
    vn_queue_submission_count_wait_semaphores(submit);
-
    vn_queue_submission_count_batch_feedback(submit);
 }
 
@@ -738,24 +723,6 @@ vn_queue_submission_add_semaphore_feedback(struct vn_queue_submission *submit,
 }
 
 static VkResult
-vn_queue_submission_add_fence_feedback(struct vn_queue_submission *submit,
-                                       uint32_t *new_cmd_count)
-{
-   VK_FROM_HANDLE(vk_queue, queue_vk, submit->queue_handle);
-   struct vn_device *dev = vn_device_from_vk(queue_vk->base.device);
-   struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
-
-   VkCommandBuffer ffb_cmd_handle = vn_sync_feedback_command(
-      dev, &fence->feedback, queue_vk->queue_family_index,
-      fence->signal_counter);
-   if (ffb_cmd_handle == VK_NULL_HANDLE)
-      return VK_ERROR_OUT_OF_HOST_MEMORY;
-
-   vn_set_temp_cmd(submit, (*new_cmd_count)++, ffb_cmd_handle);
-   return VK_SUCCESS;
-}
-
-static VkResult
 vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit)
 {
    VkResult result;
@@ -775,12 +742,6 @@ vn_queue_submission_add_feedback_cmds(struct vn_queue_submission *submit)
          if (result != VK_SUCCESS)
             return result;
       }
-   }
-
-   if (submit->fix.ffb) {
-      result = vn_queue_submission_add_fence_feedback(submit, &new_cmd_count);
-      if (result != VK_SUCCESS)
-         return result;
    }
 
    if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
@@ -804,24 +765,7 @@ vn_queue_submission_init_cmds(struct vn_queue_submission *submit)
    assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2 ||
           submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO);
 
-   /* For a submission that is:
-    * - empty: initialize a batch for fence feedback
-    */
-   if (!submit->batch) {
-      assert(submit->fix.ffb);
-      if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
-         *submit->temp.submit2_batch = (VkSubmitInfo2){
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-         };
-      } else {
-         *submit->temp.submit_batch = (VkSubmitInfo){
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-         };
-      }
-      submit->batch = submit->temp.batch;
-   }
-
-   /* If the batch has qfb, sfb or ffb, copy the original commands and append
+   /* If the batch has sync feedback, copy the original commands and append
     * feedback cmds. Copy is only needed for non-empty batch.
     */
    const size_t cmd_size = vn_get_cmd_count(submit) * vn_get_cmd_size(submit);
@@ -886,10 +830,10 @@ vn_queue_submission_init_wait_semaphores(struct vn_queue_submission *submit)
 static VkResult
 vn_queue_submission_init(struct vn_queue_submission *submit)
 {
-   /* For a submission that fixes the batch::
-    * - non-empty: copy batch for adding feedbacks or dropping semaphores
+   /* For a submission that fixes the batch, copy batch for adding feedbacks
+    * or dropping semaphores.
     */
-   if (submit->fix.batch && submit->batch)
+   if (submit->fix.batch)
       memcpy(submit->temp.batch, submit->batch, vn_get_batch_size(submit));
 
    VkResult result = vn_queue_submission_init_cmds(submit);
@@ -909,23 +853,6 @@ vn_queue_submission_init(struct vn_queue_submission *submit)
       submit->batch = submit->temp.batch;
 
    return VK_SUCCESS;
-}
-
-static void
-vn_queue_submission_cleanup_fence_feedback(struct vn_queue_submission *submit)
-{
-   struct vk_queue *queue_vk = vk_queue_from_handle(submit->queue_handle);
-   VkDevice dev_handle = vk_device_to_handle(queue_vk->base.device);
-
-   if (submit->fence_handle == VK_NULL_HANDLE)
-      return;
-
-   struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
-   if (!vn_sync_feedback_enabled(&fence->feedback))
-      return;
-
-   /* sfb pending cmds are recycled when signaled counter is updated */
-   vn_GetFenceStatus(dev_handle, submit->fence_handle);
 }
 
 static void
@@ -966,9 +893,6 @@ vn_queue_submission_cleanup(struct vn_queue_submission *submit)
    /* TODO clean up pending src feedbacks on failure? */
    if (submit->fix.sfb)
       vn_queue_submission_cleanup_semaphore_feedback(submit);
-
-   if (submit->fix.ffb)
-      vn_queue_submission_cleanup_fence_feedback(submit);
 }
 
 static VkResult
