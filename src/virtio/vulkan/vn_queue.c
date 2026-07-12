@@ -62,7 +62,6 @@ struct vn_queue_submission {
    uint32_t dev_index_count;
    uint32_t sem_val_count;
    uint32_t wait_sem_count;
-   struct vn_sync_payload_external external_payload;
 
    /* Temporary storage allocation for submission
     *
@@ -535,9 +534,6 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
 static void
 vn_queue_submission_prepare(struct vn_queue_submission *submit)
 {
-   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
-
-   submit->external_payload.ring_idx = queue->ring_idx;
    vn_queue_submission_count_wait_semaphores(submit);
    vn_queue_submission_count_batch_feedback(submit);
 }
@@ -981,8 +977,8 @@ vn_queue_submission_do_submit(struct vn_queue_submission *submit)
    if (!ring_submit.ring_seqno_valid)
       return VK_ERROR_DEVICE_LOST;
 
-   submit->external_payload.ring_seqno_valid = true;
-   submit->external_payload.ring_seqno = ring_submit.ring_seqno;
+   queue->ring_seqno_valid = true;
+   queue->ring_seqno = ring_submit.ring_seqno;
 
    return VK_SUCCESS;
 }
@@ -1022,7 +1018,11 @@ vn_queue_submit(struct vn_queue_submission *submit)
    struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
    if (fence && fence->is_external) {
       assert(fence->payload->type == VN_SYNC_TYPE_DEVICE_ONLY);
-      fence->external_payload = submit->external_payload;
+      fence->external_payload = (struct vn_sync_payload_external){
+         .ring_idx = queue->ring_idx,
+         .ring_seqno_valid = queue->ring_seqno_valid,
+         .ring_seqno = queue->ring_seqno,
+      };
    }
 
    if (submit->batch) {
@@ -1032,7 +1032,11 @@ vn_queue_submit(struct vn_queue_submission *submit)
             vn_semaphore_from_handle(vn_get_signal_semaphore(submit, i));
          if (sem->is_external) {
             assert(sem->payload->type == VN_SYNC_TYPE_DEVICE_ONLY);
-            sem->external_payload = submit->external_payload;
+            sem->external_payload = (struct vn_sync_payload_external){
+               .ring_idx = queue->ring_idx,
+               .ring_seqno_valid = queue->ring_seqno_valid,
+               .ring_seqno = queue->ring_seqno,
+            };
          }
       }
    }
