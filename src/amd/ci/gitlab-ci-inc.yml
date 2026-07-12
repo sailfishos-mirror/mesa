@@ -318,6 +318,7 @@
     GPU_VERSION: radeonsi-stoney
     DRIVER_NAME: radeonsi
     PIGLIT_PLATFORM: mixed_glx_egl
+    ACO_DEBUG: validateir,validatera
 
 .radv-stoney-test:x86_64:
   extends:
@@ -335,6 +336,7 @@
     GPU_VERSION: radeonsi-raven
     DRIVER_NAME: radeonsi
     LAVA_FIRMWARE: amdgpu-lava
+    ACO_DEBUG: validateir,validatera
 
 .radv-raven-test:x86_64:
   extends:
@@ -353,6 +355,7 @@
     GPU_VERSION: amd-raven
     VK_DRIVER: radeon
     LAVA_FIRMWARE: amdgpu-lava
+    ACO_DEBUG: validateir,validatera
 
 .radv-cezanne-test:x86_64:
   extends:

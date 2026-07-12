@@ -148,6 +148,7 @@ radeonsi-mendocino-glcts-piglit:
     DEQP_SUITE: radeonsi-mendocino
     GPU_VERSION: radeonsi-mendocino
     HWCI_START_WESTON: 1
+    ACO_DEBUG: validateir,validatera
 
 radv-cezanne-vkcts-asan:
   extends:
@@ -280,6 +281,7 @@ radeonsi-vangogh-glcts:
     DEQP_SUITE: radeonsi-vangogh
     DEQP_FRACTION: 6
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 17
+    ACO_DEBUG: validateir,validatera
 
 radeonsi-vangogh-glcts-full:
   extends:
