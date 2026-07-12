@@ -1,7 +1,3 @@
-# Requires SSBO/tex aliasing and triming descriptors to fit the UAV counter (fixed on descriptor heap MR)
-test_uav_counter_null_behavior_dxbc,Crash
-test_uav_counter_null_behavior_dxil,Crash
-
 # With 32-bit handles, we only have 12-bit to fit the sampler index so this will break after 4096 border colors.
 # We should start using 64-bit handles to fix this.
 test_custom_border_color_limits,Fail
@@ -9,9 +5,3 @@ test_custom_border_color_limits,Fail
 # NVIDIA hardware isn't conformant with D3D11.3 16.8.2
 # Upstream vkd3d-proton skips the non conformant cases for NVK now.
 test_derivative_hoisting_dxil,Fail
-
-# Requires SSBO/tex aliasing (fixed on descriptor heap MR)
-test_undefined_structured_raw_alias_dxbc,Fail
-test_undefined_structured_raw_alias_dxil,Fail
-test_undefined_structured_raw_read_typed_dxbc,Fail
-test_undefined_structured_raw_read_typed_dxil,Fail
