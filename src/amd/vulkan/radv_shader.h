@@ -189,6 +189,7 @@ struct radv_graphics_state_key {
       bool color_outputs_need_epilog;
       bool depth_output_needs_epilog;
       bool stencil_output_needs_epilog;
+      bool sample_mask_output_needs_epilog;
       bool mrt0_alpha_is_dead;
    } ps;
 };
