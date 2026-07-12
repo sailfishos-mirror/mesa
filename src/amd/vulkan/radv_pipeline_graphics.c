@@ -1776,9 +1776,13 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
    key.ps.color_outputs_need_epilog = color_outputs_need_ps_epilog(state, lib_flags);
    key.ps.epilog = radv_pipeline_generate_ps_epilog_key(compiler_info, state);
 
-   /* Use the PS epilog if a FS depth output is present and could be eliminated based on dynamic state. */
+   /* Use the PS epilog if a FS depth/stencil output is present and could be eliminated based on dynamic state. */
    key.ps.depth_output_needs_epilog = !key.ps.epilog.ignore_depth_output &&
                                       (!state->rp || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_DEPTH_TEST_ENABLE));
+
+   key.ps.stencil_output_needs_epilog =
+      !key.ps.epilog.ignore_stencil_output &&
+      (!state->rp || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_TEST_ENABLE));
 
    /* Set whether alpha_to_one makes MRT0 alpha dead. */
    key.ps.mrt0_alpha_is_dead = !alpha_to_one_unknown && !alpha_to_coverage_unknown && state->ms->alpha_to_one_enable &&

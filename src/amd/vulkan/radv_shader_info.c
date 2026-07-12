@@ -854,7 +854,8 @@ gather_shader_info_fs(enum amd_gfx_level gfx_level, const nir_shader *nir,
     * if needed).
     */
    info->ps.has_epilog = (gfx_state->ps.color_outputs_need_epilog && info->ps.colors_written) ||
-                         (gfx_state->ps.depth_output_needs_epilog && info->ps.writes_z);
+                         (gfx_state->ps.depth_output_needs_epilog && info->ps.writes_z) ||
+                         (gfx_state->ps.stencil_output_needs_epilog && info->ps.writes_stencil);
 
    if (!info->ps.has_epilog) {
       info->ps.mrt0_is_dual_src = gfx_state->ps.epilog.mrt0_is_dual_src;
