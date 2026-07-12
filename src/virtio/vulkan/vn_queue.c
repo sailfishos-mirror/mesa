@@ -469,40 +469,42 @@ vn_queue_submission_count_batch_feedback(struct vn_queue_submission *submit)
       }
    }
 
-   if (submit->batch_type != VK_STRUCTURE_TYPE_BIND_SPARSE_INFO) {
-      const uint32_t cmd_count = vn_get_cmd_count(submit);
-      for (uint32_t i = 0; i < cmd_count; i++) {
-         struct vn_command_buffer *cmd = vn_get_cmd(submit, i);
-         if (!list_is_empty(&cmd->builder.query_records))
-            submit->fix.qfb = true;
+   /* can early return after sync feedbacks have been suspended */
+   if (!submit->can_feedback)
+      return;
 
-         /* If a cmd that was submitted previously and already has a feedback
-          * cmd linked, as long as
-          * VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT was not set we can
-          * assume it has completed execution and is no longer in the pending
-          * state so its safe to recycle the old feedback command.
-          */
-         if (cmd->linked_qfb_cmd) {
-            assert(!cmd->builder.is_simultaneous);
+   assert(submit->batch_type != VK_STRUCTURE_TYPE_BIND_SPARSE_INFO);
 
-            vn_query_feedback_cmd_free(cmd->linked_qfb_cmd);
-            cmd->linked_qfb_cmd = NULL;
-         }
-      }
-      if (submit->fix.qfb)
-         submit->cmd_count++;
+   const uint32_t cmd_count = vn_get_cmd_count(submit);
+   for (uint32_t i = 0; i < cmd_count; i++) {
+      struct vn_command_buffer *cmd = vn_get_cmd(submit, i);
+      if (!list_is_empty(&cmd->builder.query_records))
+         submit->fix.qfb = true;
 
-      if (submit->fix.ffb)
-         submit->cmd_count++;
+      /* If a cmd that was submitted previously and already has a feedback
+       * cmd linked, as long as
+       * VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT was not set we can
+       * assume it has completed execution and is no longer in the pending
+       * state so its safe to recycle the old feedback command.
+       */
+      if (cmd->linked_qfb_cmd) {
+         assert(!cmd->builder.is_simultaneous);
 
-      if (submit->cmd_count) {
-         submit->cmd_count += cmd_count;
-         submit->fix.batch = true;
+         vn_query_feedback_cmd_free(cmd->linked_qfb_cmd);
+         cmd->linked_qfb_cmd = NULL;
       }
    }
+   if (submit->fix.qfb)
+      submit->cmd_count++;
 
-   if (submit->batch && submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO &&
-       submit->cmd_count) {
+   /* no sync feedback cmds to be added */
+   if (!submit->cmd_count)
+      return;
+
+   submit->cmd_count += cmd_count;
+   submit->fix.batch = true;
+
+   if (submit->batch && submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
       const VkDeviceGroupSubmitInfo *device_group = vk_find_struct_const(
          submit->submit_batch->pNext, DEVICE_GROUP_SUBMIT_INFO);
       if (device_group) {
@@ -519,10 +521,12 @@ vn_queue_submission_prepare(struct vn_queue_submission *submit)
    struct vn_fence *fence = vn_fence_from_handle(submit->fence_handle);
 
    if (fence && vn_sync_feedback_enabled(&fence->feedback)) {
-      if (submit->can_feedback)
+      if (submit->can_feedback) {
          submit->fix.ffb = true;
-      else
+         submit->cmd_count++;
+      } else {
          vn_sync_feedback_suspend(&fence->feedback, fence->signal_counter);
+      }
    }
 
    submit->external_payload.ring_idx = queue->ring_idx;
