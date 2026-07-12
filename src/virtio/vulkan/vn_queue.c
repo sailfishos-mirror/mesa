@@ -289,6 +289,27 @@ vn_get_signal_semaphore_counter(struct vn_queue_submission *submit,
    }
 }
 
+static bool
+vn_is_batch_empty(struct vn_queue_submission *submit)
+{
+   if (submit->fence_handle != VK_NULL_HANDLE)
+      return false;
+
+   if (!submit->batch)
+      return true;
+
+   if (submit->batch_type == VK_STRUCTURE_TYPE_BIND_SPARSE_INFO) {
+      return !submit->sparse_batch->waitSemaphoreCount &&
+             !submit->sparse_batch->bufferBindCount &&
+             !submit->sparse_batch->imageOpaqueBindCount &&
+             !submit->sparse_batch->imageBindCount &&
+             !submit->sparse_batch->pSignalSemaphores;
+   }
+
+   return !vn_get_wait_semaphore_count(submit) && !vn_get_cmd_count(submit) &&
+          !vn_get_signal_semaphore_count(submit);
+}
+
 static void
 vn_queue_submission_init_pnext(struct vn_queue_submission *submit)
 {
@@ -923,8 +944,7 @@ vn_queue_submission_do_submit(struct vn_queue_submission *submit)
    VK_FROM_HANDLE(vn_queue, queue, submit->queue_handle);
    struct vn_device *dev = vn_device_from_vk(queue->base.vk.base.device);
 
-   /* skip no-op submit */
-   if (!submit->batch && submit->fence_handle == VK_NULL_HANDLE)
+   if (vn_is_batch_empty(submit))
       return VK_SUCCESS;
 
    const uint32_t batch_count = submit->batch ? 1 : 0;
