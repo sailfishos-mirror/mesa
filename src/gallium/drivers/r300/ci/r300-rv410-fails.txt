@@ -57,13 +57,9 @@ dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.struct_in_arr
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_repeat_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_repeat_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_repeat_repeat,Fail
-KHR-GLES2.texture_3d.filtering.combinations.linear_linear_mirror_clamp_clamp,Fail
-KHR-GLES2.texture_3d.filtering.combinations.linear_linear_mirror_mirror_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_mirror_repeat_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_mirror_repeat_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_mirror_repeat_repeat,Fail
-KHR-GLES2.texture_3d.filtering.combinations.linear_linear_repeat_clamp_clamp,Fail
-KHR-GLES2.texture_3d.filtering.combinations.linear_linear_repeat_mirror_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_repeat_repeat_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_repeat_repeat_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_repeat_repeat_repeat,Fail
@@ -174,17 +170,12 @@ KHR-GLES2.texture_3d.filtering.combinations.linear_mipmap_nearest_nearest_repeat
 KHR-GLES2.texture_3d.filtering.combinations.linear_mipmap_nearest_nearest_repeat_repeat_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_mipmap_nearest_nearest_repeat_repeat_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_mipmap_nearest_nearest_repeat_repeat_repeat,Fail
-KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_clamp_clamp_clamp,Fail
-KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_clamp_mirror_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_clamp_repeat_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_clamp_repeat_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_clamp_repeat_repeat,Fail
-KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_mirror_clamp_clamp,Fail
-KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_mirror_mirror_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_mirror_repeat_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_mirror_repeat_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_mirror_repeat_repeat,Fail
-KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_repeat_clamp_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_repeat_repeat_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_repeat_repeat_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.nearest_linear_repeat_repeat_repeat,Fail
@@ -387,10 +378,6 @@ spec@!opengl 1.1@texwrap formats bordercolor@GL_RGBA16- border color only,Fail
 
 spec@!opengl 1.2@lodclamp-between,Fail
 spec@!opengl 1.2@lodclamp-between-max,Fail
-spec@!opengl 1.2@texwrap 3d,Fail
-spec@!opengl 1.2@texwrap 3d@GL_RGBA8- NPOT,Fail
-spec@!opengl 1.2@texwrap 3d proj,Fail
-spec@!opengl 1.2@texwrap 3d proj@GL_RGBA8- NPOT- projected,Fail
 
 spec@!opengl 1.4@gl-1.4-polygon-offset,Fail
 spec@!opengl 1.4@triangle-rasterization,Fail

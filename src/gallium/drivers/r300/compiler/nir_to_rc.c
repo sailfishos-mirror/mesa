@@ -1763,6 +1763,11 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
    };
    const bool clamp_scale =
       state->fs_state->unit[sampler].clamp_and_scale_before_fetch;
+   const bool clamp_to_edge[] = {
+      state->fs_state->unit[sampler].clamp_to_edge_s,
+      state->fs_state->unit[sampler].clamp_to_edge_t,
+      state->fs_state->unit[sampler].clamp_to_edge_r,
+   };
    const bool scale_cube =
       state->fs_state->unit[sampler].scale_cube_coords_before_fetch;
    const bool is_rect = tex->sampler_dim == GLSL_SAMPLER_DIM_RECT;
@@ -1819,14 +1824,35 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
    }
 
    if (clamp_scale) {
+      unsigned coord_components = MIN2(coord->num_components, 3);
       nir_def *xyz =
-         nir_channels(b, coord, nir_component_mask(MIN2(coord->num_components, 3)));
-      coord = ntr_tex_coord_replace_xyz(b, coord, nir_fsat(b, xyz));
+         nir_channels(b, coord, nir_component_mask(coord_components));
+      xyz = nir_fsat(b, xyz);
 
       nir_def *factor =
          ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXSCALE_FACTOR,
-                                 sampler, coord->num_components);
-      coord = nir_fmul(b, coord, factor);
+                                 sampler, coord_components);
+      xyz = nir_fmul(b, xyz, factor);
+
+      if (clamp_to_edge[0] || clamp_to_edge[1] || clamp_to_edge[2]) {
+         nir_def *components[3];
+         nir_def *upper =
+            ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXSCALE_UPPER,
+                                    sampler, coord_components);
+         nir_def *clamped = nir_fmin(b, xyz, upper);
+
+         /* The hardware clamps against the physical POT allocation. Linear
+          * filtering at the logical upper edge would therefore include the
+          * first padding texel. Stop at the last logical texel center for
+          * coordinates which use CLAMP_TO_EDGE. */
+         for (unsigned i = 0; i < coord_components; i++) {
+            components[i] = nir_channel(
+               b, clamp_to_edge[i] ? clamped : xyz, i);
+         }
+         xyz = nir_vec(b, components, coord_components);
+      }
+
+      coord = ntr_tex_coord_replace_xyz(b, coord, xyz);
       progress = true;
    }
 

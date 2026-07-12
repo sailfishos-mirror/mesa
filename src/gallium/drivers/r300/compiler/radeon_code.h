@@ -47,6 +47,7 @@ enum {
 enum {
    RC_STATE_R300_TEXRECT_FACTOR = 0,
    RC_STATE_R300_TEXSCALE_FACTOR,
+   RC_STATE_R300_TEXSCALE_UPPER,
    RC_STATE_R300_VIEWPORT_SCALE,
    RC_STATE_R300_VIEWPORT_OFFSET
 };
@@ -149,6 +150,14 @@ struct r300_fragment_program_external_state {
       rc_wrap_mode wrap_mode_s : 3;
       rc_wrap_mode wrap_mode_t : 3;
       rc_wrap_mode wrap_mode_r : 3;
+
+      /**
+       * Coordinates using CLAMP_TO_EDGE which need their upper bound
+       * adjusted to the logical edge of an NPOT 3D texture.
+       */
+      unsigned clamp_to_edge_s : 1;
+      unsigned clamp_to_edge_t : 1;
+      unsigned clamp_to_edge_r : 1;
 
       /**
        * The coords are scaled after applying the wrap mode emulation

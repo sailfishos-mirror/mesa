@@ -72,6 +72,12 @@ static rc_wrap_mode r300_get_npot_wrap_mode(enum pipe_tex_wrap wrap)
     }
 }
 
+static bool r300_npot_wrap_clamps_to_edge(enum pipe_tex_wrap wrap)
+{
+    return wrap == PIPE_TEX_WRAP_CLAMP_TO_EDGE ||
+           wrap == PIPE_TEX_WRAP_MIRROR_CLAMP_TO_EDGE;
+}
+
 void r300_fragment_program_get_external_state(
     struct r300_context* r300,
     struct r300_fragment_program_external_state* state)
@@ -121,8 +127,15 @@ void r300_fragment_program_get_external_state(
                     r300_get_npot_wrap_mode(s->state.wrap_r);
             }
 
-            if (t->b.target == PIPE_TEXTURE_3D)
+            if (t->b.target == PIPE_TEXTURE_3D) {
                 state->unit[i].clamp_and_scale_before_fetch = true;
+                state->unit[i].clamp_to_edge_s =
+                    r300_npot_wrap_clamps_to_edge(s->state.wrap_s);
+                state->unit[i].clamp_to_edge_t =
+                    r300_npot_wrap_clamps_to_edge(s->state.wrap_t);
+                state->unit[i].clamp_to_edge_r =
+                    r300_npot_wrap_clamps_to_edge(s->state.wrap_r);
+            }
         }
     }
 }
