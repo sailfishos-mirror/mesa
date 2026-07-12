@@ -918,11 +918,60 @@ vn_queue_submission_prepare_submit(struct vn_queue_submission *submit)
 }
 
 static VkResult
+vn_queue_submission_do_submit(struct vn_queue_submission *submit)
+{
+   VK_FROM_HANDLE(vn_queue, queue, submit->queue_handle);
+   struct vn_device *dev = vn_device_from_vk(queue->base.vk.base.device);
+
+   /* skip no-op submit */
+   if (!submit->batch && submit->fence_handle == VK_NULL_HANDLE)
+      return VK_SUCCESS;
+
+   const uint32_t batch_count = submit->batch ? 1 : 0;
+   if (VN_PERF(NO_ASYNC_QUEUE_SUBMIT)) {
+      if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
+         return vn_call_vkQueueSubmit2(
+            dev->primary_ring, submit->queue_handle, batch_count,
+            submit->submit2_batch, submit->fence_handle);
+      } else if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
+         return vn_call_vkQueueSubmit(dev->primary_ring, submit->queue_handle,
+                                      batch_count, submit->submit_batch,
+                                      submit->fence_handle);
+      } else {
+         return vn_call_vkQueueBindSparse(
+            dev->primary_ring, submit->queue_handle, batch_count,
+            submit->sparse_batch, submit->fence_handle);
+      }
+   }
+
+   struct vn_ring_submit_command ring_submit;
+   if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
+      vn_submit_vkQueueSubmit2(dev->primary_ring, 0, submit->queue_handle,
+                               batch_count, submit->submit2_batch,
+                               submit->fence_handle, &ring_submit);
+   } else if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
+      vn_submit_vkQueueSubmit(dev->primary_ring, 0, submit->queue_handle,
+                              batch_count, submit->submit_batch,
+                              submit->fence_handle, &ring_submit);
+   } else {
+      vn_submit_vkQueueBindSparse(dev->primary_ring, 0, submit->queue_handle,
+                                  batch_count, submit->sparse_batch,
+                                  submit->fence_handle, &ring_submit);
+   }
+   if (!ring_submit.ring_seqno_valid)
+      return VK_ERROR_DEVICE_LOST;
+
+   submit->external_payload.ring_seqno_valid = true;
+   submit->external_payload.ring_seqno = ring_submit.ring_seqno;
+
+   return VK_SUCCESS;
+}
+
+static VkResult
 vn_queue_submit(struct vn_queue_submission *submit)
 {
-   struct vn_queue *queue = vn_queue_from_handle(submit->queue_handle);
+   VK_FROM_HANDLE(vn_queue, queue, submit->queue_handle);
    struct vn_device *dev = vn_device_from_vk(queue->base.vk.base.device);
-   struct vn_instance *instance = dev->instance;
    VkResult result;
 
    /* To ensure external components waiting on the correct fence payload,
@@ -936,53 +985,12 @@ vn_queue_submit(struct vn_queue_submission *submit)
     */
    result = vn_queue_submission_prepare_submit(submit);
    if (result != VK_SUCCESS)
-      return vn_error(instance, result);
+      return vn_error(dev->instance, result);
 
-   /* skip no-op submit */
-   if (!submit->batch && submit->fence_handle == VK_NULL_HANDLE)
-      return VK_SUCCESS;
-
-   const uint32_t batch_count = submit->batch ? 1 : 0;
-   if (VN_PERF(NO_ASYNC_QUEUE_SUBMIT)) {
-      if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
-         result = vn_call_vkQueueSubmit2(
-            dev->primary_ring, submit->queue_handle, batch_count,
-            submit->submit2_batch, submit->fence_handle);
-      } else if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
-         result = vn_call_vkQueueSubmit(
-            dev->primary_ring, submit->queue_handle, batch_count,
-            submit->submit_batch, submit->fence_handle);
-      } else {
-         result = vn_call_vkQueueBindSparse(
-            dev->primary_ring, submit->queue_handle, batch_count,
-            submit->sparse_batch, submit->fence_handle);
-      }
-
-      if (result != VK_SUCCESS) {
-         vn_queue_submission_cleanup(submit);
-         return vn_error(instance, result);
-      }
-   } else {
-      struct vn_ring_submit_command ring_submit;
-      if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
-         vn_submit_vkQueueSubmit2(dev->primary_ring, 0, submit->queue_handle,
-                                  batch_count, submit->submit2_batch,
-                                  submit->fence_handle, &ring_submit);
-      } else if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
-         vn_submit_vkQueueSubmit(dev->primary_ring, 0, submit->queue_handle,
-                                 batch_count, submit->submit_batch,
-                                 submit->fence_handle, &ring_submit);
-      } else {
-         vn_submit_vkQueueBindSparse(
-            dev->primary_ring, 0, submit->queue_handle, batch_count,
-            submit->sparse_batch, submit->fence_handle, &ring_submit);
-      }
-      if (!ring_submit.ring_seqno_valid) {
-         vn_queue_submission_cleanup(submit);
-         return vn_error(instance, VK_ERROR_DEVICE_LOST);
-      }
-      submit->external_payload.ring_seqno_valid = true;
-      submit->external_payload.ring_seqno = ring_submit.ring_seqno;
+   result = vn_queue_submission_do_submit(submit);
+   if (result != VK_SUCCESS) {
+      vn_queue_submission_cleanup(submit);
+      return vn_error(dev->instance, result);
    }
 
    /* If external fence, track the submission's ring_idx to facilitate
