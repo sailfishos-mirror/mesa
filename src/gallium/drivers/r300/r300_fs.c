@@ -118,6 +118,9 @@ void r300_fragment_program_get_external_state(
                 /* Cube coordinates are directions, so the generic STR wrap
                  * lowering cannot be applied to them. */
                 state->unit[i].scale_cube_coords_before_fetch = true;
+                state->unit[i].clamp_cube_coords_before_fetch =
+                    s->state.min_img_filter == PIPE_TEX_FILTER_LINEAR ||
+                    s->state.mag_img_filter == PIPE_TEX_FILTER_LINEAR;
             } else {
                 state->unit[i].wrap_mode_s =
                     r300_get_npot_wrap_mode(s->state.wrap_s);

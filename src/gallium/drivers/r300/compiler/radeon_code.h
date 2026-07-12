@@ -169,6 +169,9 @@ struct r300_fragment_program_external_state {
        * Transform cube coordinates so that a logical NPOT face addresses
        * the corresponding subregion of its physical POT face. */
       unsigned scale_cube_coords_before_fetch : 1;
+
+      /** Clamp linearly filtered NPOT cube coordinates to the logical edge. */
+      unsigned clamp_cube_coords_before_fetch : 1;
    } unit[16];
 
    unsigned alpha_to_one : 1;

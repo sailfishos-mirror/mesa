@@ -1707,7 +1707,8 @@ ntr_lower_backend_tex_wrap(nir_builder *b, nir_def *coord, rc_wrap_mode wrapmode
  * -Y=(-,-,+), +Z=(-,+,+), and -Z=(+,+,-).
  */
 static nir_def *
-ntr_lower_backend_tex_cube(nir_builder *b, nir_def *coord, nir_def *factor)
+ntr_lower_backend_tex_cube(nir_builder *b, nir_def *coord, nir_def *factor,
+                           nir_def *upper_factor)
 {
    assert(coord->num_components >= 3);
 
@@ -1741,6 +1742,20 @@ ntr_lower_backend_tex_cube(nir_builder *b, nir_def *coord, nir_def *factor)
    nir_def *lowered = nir_fadd(b, nir_fmul(b, xyz, scale),
                               nir_fmul(b, basis, offset));
 
+   if (upper_factor) {
+      nir_def *upper = nir_channel(b, upper_factor, 0);
+
+      /* Keep linear filtering inside the logical face by clamping its minor
+       * coordinates to the last texel center. The major coordinate is
+       * unchanged. */
+      nir_def *edge =
+         nir_fmul(b, major,
+                  nir_fsub(b, one, nir_fmul_imm(b, upper, 2.0f)));
+      nir_def *oriented = nir_fmul(b, basis, lowered);
+      oriented = nir_fmax(b, oriented, edge);
+      lowered = nir_fmul(b, basis, oriented);
+   }
+
    return ntr_tex_coord_replace_xyz(b, coord, lowered);
 }
 
@@ -1770,9 +1785,12 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
    };
    const bool scale_cube =
       state->fs_state->unit[sampler].scale_cube_coords_before_fetch;
+   const bool clamp_cube =
+      state->fs_state->unit[sampler].clamp_cube_coords_before_fetch;
    const bool is_rect = tex->sampler_dim == GLSL_SAMPLER_DIM_RECT;
 
    assert(!scale_cube || tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE);
+   assert(!clamp_cube || scale_cube);
 
    b->cursor = nir_before_instr(&tex->instr);
    nir_def *coord = nir_get_tex_src(tex, nir_tex_src_coord);
@@ -1860,7 +1878,12 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
       nir_def *factor =
          ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXSCALE_FACTOR,
                                  sampler, 1);
-      coord = ntr_lower_backend_tex_cube(b, coord, factor);
+      nir_def *upper =
+         clamp_cube ? ntr_load_state_constant(state->c, b,
+                                              RC_STATE_R300_TEXSCALE_UPPER,
+                                              sampler, 1)
+                    : NULL;
+      coord = ntr_lower_backend_tex_cube(b, coord, factor, upper);
       progress = true;
    }
 
