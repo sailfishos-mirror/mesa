@@ -4604,7 +4604,7 @@
         "description": "broadcom/compiler: fill the old value when spilling a partial write",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "98420408d0bd0d339c723d6de544a668b2b8f9b6",
         "notes": null
