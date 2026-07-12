@@ -1645,6 +1645,8 @@ void st_init_extensions(struct pipe_screen *screen,
    unsigned max_fb_fetch_rts = screen->caps.fbfetch;
    bool coherent_fb_fetch = screen->caps.fbfetch_coherent;
 
+   consts->NativeAdvancedBlendModes = screen->caps.blend_equation_advanced;
+
    if ((screen->caps.blend_equation_advanced &
         PIPE_ADVANCED_BLEND_KHR_MODES_MASK) == PIPE_ADVANCED_BLEND_KHR_MODES_MASK)
       extensions->KHR_blend_equation_advanced = true;
