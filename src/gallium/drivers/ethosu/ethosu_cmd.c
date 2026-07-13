@@ -688,6 +688,17 @@ emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
    EMIT0(NPU_SET_IFM2_BROADCAST, ifm2_broadcast);
 }
 
+static bool
+eltwise_has_ifm2(struct ethosu_operation *operation)
+{
+   switch (operation->eltwise.type) {
+   case ETHOSU_ELTWISE_TYPE_CLZ:
+      return false;
+   default:
+      return operation->ifm2.tensor || operation->ifm2.has_scalar;
+   }
+}
+
 /*
  * Advanced elementwise ADD/SUB scaling for different input scales.
  * Based on ethos-u-vela scaling.py advanced_elementwise_add_sub_scale().
@@ -857,6 +868,7 @@ eltwise_emit_ofm_scaling_u85(
 static void
 emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
+   bool has_ifm2 = eltwise_has_ifm2(operation);
    bool has_ifm_scalar = operation->ifm.has_scalar;
    bool has_ifm2_scalar = operation->ifm2.has_scalar;
    bool has_scalar = has_ifm_scalar || has_ifm2_scalar;
@@ -901,15 +913,21 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 
    emit_common(subgraph, operation, op_to_scale);
 
-   if (!ethosu_ml_device(subgraph->base.device)->is_u65)
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65 && has_ifm2)
       emit_ifm2_precision(subgraph, operation, has_ifm2_scalar);
 
-   emit_ifm2(subgraph, operation, has_ifm2_scalar);
+   if (has_ifm2)
+      emit_ifm2(subgraph, operation, has_ifm2_scalar);
 
-   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+   if (ethosu_ml_device(subgraph->base.device)->is_u65 && has_ifm2)
       emit_ifm_precision(subgraph, &operation->ifm2, OP_NONE, NPU_SET_IFM2_PRECISION);
 
-   emit_ifm2_broadcast(subgraph, operation, has_scalar);
+   if (has_ifm2)
+      emit_ifm2_broadcast(subgraph, operation, has_scalar);
+   else if (!ethosu_ml_device(subgraph->base.device)->is_u65) {
+      emit_ifm_broadcast(subgraph, operation, has_scalar);
+      EMIT0(NPU_SET_IFM2_BROADCAST, 0);
+   }
 
    emit_block_config(subgraph, operation);
    if (ethosu_ml_device(subgraph->base.device)->is_u65)
