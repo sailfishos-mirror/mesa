@@ -1267,6 +1267,37 @@ static int d3d12_fence_wait_multiple(struct pipe_screen *screen,
    assert(screen);
    assert(fences);
 
+   if (wait_all) {
+      bool all_completed = true;
+      for (unsigned i = 0; i < num_fences; ++i) {
+         struct d3d12_fence *f = (struct d3d12_fence *)fences[i];
+         const uint64_t completed = f->cmdqueue_fence->GetCompletedValue();
+         if (completed == UINT64_MAX) {
+            debug_printf("[d3d12_fence_wait_multiple] Fence %u reports device removal (GetCompletedValue == UINT64_MAX)\n", i);
+            return -1;
+         }
+         if (completed < f->value) {
+            all_completed = false;
+            break;
+         }
+      }
+      if (all_completed) {
+         return 0;
+      }
+   } else {
+      for (unsigned i = 0; i < num_fences; ++i) {
+         struct d3d12_fence *f = (struct d3d12_fence *)fences[i];
+         const uint64_t completed = f->cmdqueue_fence->GetCompletedValue();
+         if (completed == UINT64_MAX) {
+            debug_printf("[d3d12_fence_wait_multiple] Fence %u reports device removal (GetCompletedValue == UINT64_MAX)\n", i);
+            return -1;
+         }
+         if (completed >= f->value) {
+            return i;
+         }
+      }
+   }
+
    std::vector<ID3D12Fence *> d3d12_fences(num_fences);
    std::vector<uint64_t> fence_values(num_fences);
    for (unsigned i = 0; i < num_fences; ++i) {
@@ -1290,7 +1321,6 @@ static int d3d12_fence_wait_multiple(struct pipe_screen *screen,
 
    for (unsigned i = 0; i < num_fences; ++i) {
       if (d3d12_fences[i]->GetCompletedValue() >= fence_values[i]) {
-         debug_printf("[d3d12_fence_wait_multiple] Fence %u is first completed fence\n", i);
          return i;
       }
    }
