@@ -392,6 +392,16 @@ vn_get_next_obj_id(void)
 uint32_t
 vn_extension_get_spec_version(const char *name);
 
+static inline int
+vn_timeout_to_poll_timeout(uint64_t timeout)
+{
+   const uint64_t ns_per_ms = 1000000;
+   const uint64_t ms = (timeout + ns_per_ms - 1) / ns_per_ms;
+   if (!ms && timeout)
+      return -1;
+   return ms <= INT_MAX ? ms : -1;
+}
+
 static inline void
 vn_watchdog_init(struct vn_watchdog *watchdog)
 {
