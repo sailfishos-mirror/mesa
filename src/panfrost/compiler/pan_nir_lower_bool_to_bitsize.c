@@ -176,6 +176,14 @@ lower_alu_instr(nir_builder *b, nir_alu_instr *alu)
       assert(nir_src_bit_size(alu->src[0].src) ==
              nir_src_bit_size(alu->src[1].src));
       alu->def.bit_size = nir_src_bit_size(alu->src[0].src);
+
+      /* We don't want to keep 64-bit booleans around */
+      if (alu->def.bit_size == 64) {
+         b->cursor = nir_after_instr(&alu->instr);
+         nir_def *b32 = nir_u2u32(b, &alu->def);
+         nir_def_rewrite_uses_after(&alu->def, b32);
+      }
+
       return true;
 
    default:
