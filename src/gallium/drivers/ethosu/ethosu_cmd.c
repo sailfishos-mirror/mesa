@@ -1135,9 +1135,13 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          operation->read_accesses[0].address = operation->ifm.tiles.addresses[0];
          operation->read_accesses[0].size = operation->ifm.shape.height * operation->ifm.shape.width * operation->ifm.shape.depth;
 
-         operation->read_accesses[1].region = IO_REGION;
-         operation->read_accesses[1].address = operation->ifm2.tiles.addresses[0];
-         operation->read_accesses[1].size = operation->ifm2.shape.height * operation->ifm2.shape.width * operation->ifm2.shape.depth;
+         if (!operation->ifm2.has_scalar) {
+            operation->read_accesses[1].region = operation->ifm2.region;
+            operation->read_accesses[1].address =
+               operation->ifm2.tiles.addresses[0];
+            operation->read_accesses[1].size =
+               operation->ifm2.tensor ? operation->ifm2.tensor->size : 0;
+         }
 
          operation->write_accesses[0].region = IO_REGION;
          operation->write_accesses[0].address = operation->ofm.tiles.addresses[0];
