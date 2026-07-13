@@ -36,30 +36,45 @@ fd6_emit_driver_ubo(fd_cs &cs, const struct ir3_shader_variant *v,
 /* A helper to upload driver-params to a UBO, for the case where constants are
  * loaded by shader preamble rather than ST6_CONSTANTS
  */
-static void
-fd6_upload_emit_driver_ubo(struct fd_context *ctx, fd_cs &cs,
-                           const struct ir3_shader_variant *v, int base,
-                           uint32_t sizedwords, const void *dwords)
+static struct pipe_resource *
+fd6_upload_driver_ubo(struct fd_context *ctx, fd_cs &cs,
+                      const struct ir3_shader_variant *v,
+                      uint32_t sizedwords, const void *dwords,
+                      unsigned *buffer_offset)
 {
    struct pipe_context *pctx = &ctx->base;
 
    assert(FD_CALLX(ctx->screen->info, fd6_load_shader_consts_via_preamble)(v));
 
-   if (!sizedwords || (base < 0))
-      return;
-
-   unsigned buffer_offset;
    struct pipe_resource *buffer = NULL;
    u_upload_data_ref(pctx->const_uploader, 0, sizedwords * sizeof(uint32_t),
-                 16, dwords,  &buffer_offset, &buffer);
+                 16, dwords,  buffer_offset, &buffer);
    if (!buffer)
-      return;  /* nothing good will come of this.. */
+      return NULL;  /* nothing good will come of this.. */
 
    /* The backing BO may otherwise not be tracked by the resource, as
     * this allocation happens outside of the context of batch resource
     * tracking.
     */
    cs.attach_bo(fd_resource(buffer)->bo);
+
+   return buffer;
+}
+
+static void
+fd6_upload_emit_driver_ubo(struct fd_context *ctx, fd_cs &cs,
+                           const struct ir3_shader_variant *v, int base,
+                           uint32_t sizedwords, const void *dwords)
+{
+   struct pipe_resource *buffer;
+   unsigned buffer_offset;
+
+   if (!sizedwords || (base < 0))
+      return;
+
+   buffer = fd6_upload_driver_ubo(ctx, cs, v, sizedwords, dwords, &buffer_offset);
+   if (!buffer)
+      return;
 
    fd6_emit_driver_ubo(cs, v, base, sizedwords, buffer_offset,
                        fd_resource(buffer)->bo);
