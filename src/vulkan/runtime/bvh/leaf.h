@@ -23,6 +23,12 @@
 
 #include "vk_build_interface.h"
 
+#define SpvCapabilitySignedZeroInfNanPreserve 4466
+#define SpvExecutionModeSignedZeroInfNanPreserve 4461
+spirv_execution_mode(extensions = ["SPV_KHR_float_controls"],
+                     capabilities = [SpvCapabilitySignedZeroInfNanPreserve],
+                     SpvExecutionModeSignedZeroInfNanPreserve, 32);
+
 layout(local_size_x_id = SUBGROUP_SIZE_ID, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform CONSTS {
