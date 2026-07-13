@@ -2410,9 +2410,10 @@ agx_get_cl_cts_version(struct pipe_screen *pscreen)
    struct agx_device *dev = agx_device(pscreen);
 
    /* https://www.khronos.org/conformance/adopters/conformant-products/opencl#submission_433
+    * https://www.khronos.org/conformance/adopters/conformant-products/opencl#submission_471
     */
    if (dev->params.gpu_generation < 15)
-      return "v2024-08-08-00";
+      return "v2026-03-25-00";
 
    return NULL;
 }
