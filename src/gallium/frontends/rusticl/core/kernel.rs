@@ -837,10 +837,25 @@ fn compile_nir_variant(
     let global_address_format;
     let shared_address_format;
 
+    let nir_options = unsafe {
+        &*dev
+            .screen
+            .nir_shader_compiler_options(mesa_shader_stage::MESA_SHADER_COMPUTE)
+    };
+
     if dev.address_bits() == 64 {
         address_bits_ptr_type = unsafe { glsl_uint64_t_type() };
         address_bits_base_type = glsl_base_type::GLSL_TYPE_UINT64;
-        global_address_format = nir_address_format::nir_address_format_64bit_global;
+
+        // When load/store_global_offset is supported by the backend, we should use the
+        // 64bit_global_32bit_offset format to get the most efficient lowering from
+        // nir_lower_explicit_io.
+        global_address_format = if nir_options.has_global_offset {
+            nir_address_format::nir_address_format_64bit_global_32bit_offset
+        } else {
+            nir_address_format::nir_address_format_64bit_global
+        };
+
         shared_address_format = nir_address_format::nir_address_format_32bit_offset_as_64bit;
     } else {
         address_bits_ptr_type = unsafe { glsl_uint_type() };
@@ -848,12 +863,6 @@ fn compile_nir_variant(
         global_address_format = nir_address_format::nir_address_format_32bit_global;
         shared_address_format = nir_address_format::nir_address_format_32bit_offset;
     }
-
-    let nir_options = unsafe {
-        &*dev
-            .screen
-            .nir_shader_compiler_options(mesa_shader_stage::MESA_SHADER_COMPUTE)
-    };
 
     if variant == NirKernelVariant::Optimized {
         let wgsh = nir.workgroup_size_hint();
@@ -1020,6 +1029,18 @@ fn compile_nir_variant(
             | nir_variable_mode::nir_var_mem_generic,
         Some(glsl_get_cl_type_size_align),
     );
+
+    if global_address_format == nir_address_format::nir_address_format_64bit_global_32bit_offset {
+        // We ingest global addresses as 64bit_global from SPIR-V so convert to the requested
+        // format.
+        nir_pass!(
+            nir,
+            nir_convert_address_format,
+            nir_variable_mode::nir_var_mem_global | nir_variable_mode::nir_var_mem_constant,
+            nir_address_format::nir_address_format_64bit_global,
+            global_address_format,
+        );
+    }
 
     nir_pass!(
         nir,
