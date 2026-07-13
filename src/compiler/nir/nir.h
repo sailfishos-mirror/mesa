@@ -4853,6 +4853,18 @@ nir_const_value *nir_src_as_const_value(nir_src src);
 
 const char *nir_src_as_string(nir_src src);
 
+#define NIR_SRC_AS_SRC_(name)                                                  \
+   static inline nir_##name##_src *                                            \
+   nir_src_as_##name##_src(nir_src *src)                                       \
+   {                                                                           \
+      assert(src && nir_src_use_instr(src)->type == nir_instr_type_##name);    \
+      return container_of(src, nir_##name##_src, src);                         \
+   }
+
+NIR_SRC_AS_SRC_(alu);
+NIR_SRC_AS_SRC_(phi);
+NIR_SRC_AS_SRC_(tex);
+
 bool nir_src_is_always_uniform(nir_src src);
 bool nir_srcs_equal(nir_src src1, nir_src src2);
 bool nir_instrs_equal(const nir_instr *instr1, const nir_instr *instr2);
