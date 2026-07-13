@@ -850,7 +850,7 @@ eltwise_emit_ofm_scaling_u85(
 static void
 emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   bool has_scalar = operation->ifm2.scalar != 0;
+   bool has_scalar = operation->ifm2.has_scalar;
    enum ethosu_op_to_scale op_to_scale = OP_NONE;
 
    switch (operation->eltwise.type) {

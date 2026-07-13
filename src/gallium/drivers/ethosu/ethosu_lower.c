@@ -844,9 +844,10 @@ ethosu_lower_eltwise(struct ethosu_subgraph *subgraph,
    if (poperation->input_tensors[ifm2_idx]->data) {
       if (operation->ifm2.shape.width == 1 &&
           operation->ifm2.shape.height == 1 &&
-          operation->ifm2.shape.depth == 1)
+          operation->ifm2.shape.depth == 1) {
          operation->ifm2.scalar = *poperation->input_tensors[ifm2_idx]->data;
-      else {
+         operation->ifm2.has_scalar = true;
+      } else {
          size_t size = operation->ifm2.shape.height * operation->ifm2.shape.width *
                        operation->ifm2.shape.depth * poperation->input_tensors[ifm2_idx]->type_size;
 

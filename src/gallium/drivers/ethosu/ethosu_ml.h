@@ -113,6 +113,7 @@ struct ethosu_feature_map {
    unsigned zero_point;
    float scale;
    uint16_t scalar;
+   bool has_scalar;
    uint8_t region;
 };
 
