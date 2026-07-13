@@ -665,7 +665,7 @@ tu_get_features(struct tu_physical_device *pdevice,
    /* VK_EXT_extended_dynamic_state2 */
    features->extendedDynamicState2 = true;
    features->extendedDynamicState2LogicOp = true;
-   features->extendedDynamicState2PatchControlPoints = true;
+   features->extendedDynamicState2PatchControlPoints = !pdevice->info->props.is_a702;
 
    /* VK_EXT_extended_dynamic_state3 */
    features->extendedDynamicState3PolygonMode = true;

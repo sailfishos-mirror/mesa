@@ -1174,7 +1174,7 @@
         "description": "tu: Disable VK_EXT_extended_dynamic_state2 patch control points on A702",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "639d7946c71f9ff2340a17456ba11313ed543960",
         "notes": null
