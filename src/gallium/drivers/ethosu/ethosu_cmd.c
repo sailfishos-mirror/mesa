@@ -158,7 +158,13 @@ emit_strides(
 static void
 emit_ifm(struct ethosu_subgraph *subgraph, struct ethosu_feature_map *feature_map)
 {
-   EMIT0(NPU_SET_IFM_REGION, IO_REGION);
+   if (feature_map->has_scalar) {
+      EMIT1(NPU_SET_OP_SCALAR, 0, feature_map->scalar);
+      EMIT0(NPU_SET_IFM_ZERO_POINT, feature_map->zero_point);
+      return;
+   }
+
+   EMIT0(NPU_SET_IFM_REGION, feature_map->region);
    emit_addresses(
       subgraph,
       feature_map,
@@ -189,6 +195,9 @@ emit_ifm_precision(struct ethosu_subgraph *subgraph,
 
    if (feature_map->is_signed)
       prec |= NPU_SET_IFM_PRECISION_ACTIVATION(1); // signed activation
+
+   if (feature_map->has_scalar)
+      prec |= 3 << 14; /* U85 ACTIVATION_STORAGE_NONE */
 
    if (ethosu_ml_device(subgraph->base.device)->is_u65)
       prec |= NPU_SET_IFM_PRECISION_SCALE_MODE(op_to_scale);
@@ -604,10 +613,8 @@ emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, 
    if (has_scalar) {
       if (ethosu_ml_device(subgraph->base.device)->is_u65)
          EMIT0(NPU_SET_IFM2_SCALAR, operation->ifm2.scalar);
-      else {
-         emit_ifm2_precision(subgraph, operation, true);
+      else
          EMIT1(NPU_SET_OP_SCALAR, 0, operation->ifm2.scalar);
-      }
    } else {
       EMIT0(NPU_SET_IFM2_REGION, operation->ifm2.region);
       emit_addresses(subgraph, &operation->ifm2, NPU_SET_IFM2_BASE0, NPU_SET_IFM2_BASE1, NPU_SET_IFM2_BASE2, NPU_SET_IFM2_BASE3);
@@ -620,7 +627,7 @@ emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, 
 static void
 emit_ifm_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, bool has_scalar)
 {
-   unsigned ifm_broadcast = 0;
+   unsigned ifm_broadcast = operation->ifm.has_scalar ? 8 : 0;
 
    EMIT0(NPU_SET_IFM_BROADCAST, ifm_broadcast);
 }
@@ -667,8 +674,8 @@ emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
       unsigned ifm_mode, ifm2_mode;
 
       if (has_scalar) {
-         ifm_mode = 0;
-         ifm2_mode = 8; /* SCALAR */
+         ifm_mode = operation->ifm.has_scalar ? 8 : 0;
+         ifm2_mode = operation->ifm2.has_scalar ? 8 : 0;
       } else {
          ifm_mode = calc_broadcast_mode(&operation->ifm.shape, &operation->ofm.shape);
          ifm2_mode = calc_broadcast_mode(&operation->ifm2.shape, &operation->ofm.shape);
@@ -850,7 +857,9 @@ eltwise_emit_ofm_scaling_u85(
 static void
 emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   bool has_scalar = operation->ifm2.has_scalar;
+   bool has_ifm_scalar = operation->ifm.has_scalar;
+   bool has_ifm2_scalar = operation->ifm2.has_scalar;
+   bool has_scalar = has_ifm_scalar || has_ifm2_scalar;
    enum ethosu_op_to_scale op_to_scale = OP_NONE;
 
    switch (operation->eltwise.type) {
@@ -892,12 +901,13 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 
    emit_common(subgraph, operation, op_to_scale);
 
-   emit_ifm2(subgraph, operation, has_scalar);
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65)
+      emit_ifm2_precision(subgraph, operation, has_ifm2_scalar);
+
+   emit_ifm2(subgraph, operation, has_ifm2_scalar);
 
    if (ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_ifm_precision(subgraph, &operation->ifm2, OP_NONE, NPU_SET_IFM2_PRECISION);
-   else
-      emit_ifm2_precision(subgraph, operation, has_scalar);
 
    emit_ifm2_broadcast(subgraph, operation, has_scalar);
 
