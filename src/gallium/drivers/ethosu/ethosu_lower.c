@@ -149,6 +149,23 @@ allocate_feature_maps(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    operation->ifm.tiles.width_0 = operation->ifm.shape.width;
 }
 
+static int32_t
+ethosu_read_scalar(const struct pipe_tensor *tensor)
+{
+   assert(tensor->data);
+
+   if (tensor->type_size == 1)
+      return tensor->is_signed ? *(int8_t *)tensor->data :
+                                 *(uint8_t *)tensor->data;
+
+   if (tensor->type_size == 2)
+      return tensor->is_signed ? *(int16_t *)tensor->data :
+                                 *(uint16_t *)tensor->data;
+
+   assert(tensor->type_size == 4);
+   return *(int32_t *)tensor->data;
+}
+
 static void
 operation_set_defaults(struct ethosu_operation *operation)
 {
@@ -845,7 +862,8 @@ ethosu_lower_eltwise(struct ethosu_subgraph *subgraph,
       if (operation->ifm2.shape.width == 1 &&
           operation->ifm2.shape.height == 1 &&
           operation->ifm2.shape.depth == 1) {
-         operation->ifm2.scalar = *poperation->input_tensors[ifm2_idx]->data;
+         operation->ifm2.scalar =
+            ethosu_read_scalar(poperation->input_tensors[ifm2_idx]);
          operation->ifm2.has_scalar = true;
       } else {
          size_t size = operation->ifm2.shape.height * operation->ifm2.shape.width *
