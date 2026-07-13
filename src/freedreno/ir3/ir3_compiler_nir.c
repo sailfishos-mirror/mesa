@@ -2909,10 +2909,12 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
       ir3_split_dest(b, dst, ctx->tess_coord, 0, 2);
       break;
 
+   case nir_intrinsic_store_global:
    case nir_intrinsic_store_global_ir3:
    case nir_intrinsic_store_global_offset:
       ctx->funcs->emit_intrinsic_store_global_ir3(ctx, intr);
       break;
+   case nir_intrinsic_load_global:
    case nir_intrinsic_load_global_ir3:
    case nir_intrinsic_load_global_offset:
       ctx->funcs->emit_intrinsic_load_global_ir3(ctx, intr, dst);

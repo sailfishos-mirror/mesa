@@ -1559,12 +1559,11 @@ ir3_nir_lower_variant(struct ir3_shader_variant *so,
    nir_lower_mem_access_bit_sizes_options mem_bit_size_options = {
       .modes = nir_var_mem_constant | nir_var_mem_ubo |
                nir_var_mem_global | nir_var_mem_shared |
-               nir_var_function_temp | nir_var_mem_ssbo,
+               nir_var_function_temp | nir_var_mem_ssbo | nir_var_mem_global,
       .callback = ir3_mem_access_size_align,
    };
 
    progress |= OPT(s, nir_lower_mem_access_bit_sizes, &mem_bit_size_options);
-   progress |= OPT(s, ir3_nir_lower_64b_global);
    progress |= OPT(s, ir3_nir_lower_64b_undef);
    progress |= OPT(s, ir3_nir_lower_64b_image);
    progress |= OPT(s, nir_lower_int64);
