@@ -1174,26 +1174,33 @@ explicit_io_offset_from_deref(nir_builder *b, nir_deref_instr *deref,
 
       if (stride_shift < shift) {
          /* The stride isn't aligned enough to fully shift right. Try to apply
-          * the leftover shift to the index. We can only do this (without
-          * losing precision) if the index is constant.
+          * the leftover shift to the index.
           */
-         assert(nir_src_is_const(deref->arr.index));
-
          unsigned index_shift = shift - stride_shift;
-         int64_t const_index = nir_src_as_int(deref->arr.index);
 
-         if (!util_is_aligned(const_index, (uintmax_t)1 << index_shift)) {
-            assert(leftover);
+         if (nir_src_is_const(deref->arr.index)) {
+            int64_t const_index = nir_src_as_int(deref->arr.index);
 
-            /* The index isn't aligned enough either. Just put the full offset
-             * in `leftover` and return zero.
+            if (!util_is_aligned(const_index, (uintmax_t)1 << index_shift)) {
+               assert(leftover);
+
+               /* The index isn't aligned enough either. Just put the full
+                * offset in `leftover` and return zero.
+                */
+               *leftover = stride * const_index;
+               return nir_imm_intN_t(b, 0, deref->arr.index.ssa->bit_size);
+            }
+
+            index = nir_imm_intN_t(b, const_index >> index_shift,
+                                   deref->arr.index.ssa->bit_size);
+         } else {
+            /* If the index isn't constant, the only thing we can do is simply
+             * right-shift it. Fortunately, this should be rare, and mostly
+             * happens when, for example, a u8 array deref is casted to
+             * something with a larger alignment.
              */
-            *leftover = stride * const_index;
-            return nir_imm_intN_t(b, 0, deref->arr.index.ssa->bit_size);
+            index = nir_ushr_imm(b, index, index_shift);
          }
-
-         index = nir_imm_intN_t(b, const_index >> index_shift,
-                                deref->arr.index.ssa->bit_size);
       }
 
       stride >>= stride_shift;
