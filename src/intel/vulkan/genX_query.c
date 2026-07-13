@@ -2031,43 +2031,6 @@ copy_query_results_with_shader(struct anv_cmd_buffer *cmd_buffer,
    trace_intel_end_query_copy_shader(&cmd_buffer->trace, query_count);
 }
 
-void genX(CmdCopyQueryPoolResults)(
-    VkCommandBuffer                             commandBuffer,
-    VkQueryPool                                 queryPool,
-    uint32_t                                    firstQuery,
-    uint32_t                                    queryCount,
-    VkBuffer                                    destBuffer,
-    VkDeviceSize                                destOffset,
-    VkDeviceSize                                destStride,
-    VkQueryResultFlags                          flags)
-{
-   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   ANV_FROM_HANDLE(anv_query_pool, pool, queryPool);
-   ANV_FROM_HANDLE(anv_buffer, buffer, destBuffer);
-   struct anv_device *device = cmd_buffer->device;
-   const struct anv_physical_device *pdevice = device->physical;
-   const struct anv_instance *instance = pdevice->instance;
-
-   if (queryCount > instance->drirc.perf.query_copy_with_shader_threshold &&
-       anv_cmd_buffer_is_render_or_compute_queue(cmd_buffer)) {
-      copy_query_results_with_shader(cmd_buffer, pool,
-                                     anv_address_add(buffer->address,
-                                                     destOffset),
-                                     destStride,
-                                     firstQuery,
-                                     queryCount,
-                                     flags);
-   } else {
-      copy_query_results_with_cs(cmd_buffer, pool,
-                                 anv_address_add(buffer->address,
-                                                 destOffset),
-                                 destStride,
-                                 firstQuery,
-                                 queryCount,
-                                 flags);
-   }
-}
-
 void genX(CmdCopyQueryPoolResultsToMemoryKHR)(
     VkCommandBuffer                             commandBuffer,
     VkQueryPool                                 queryPool,
