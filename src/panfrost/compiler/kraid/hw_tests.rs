@@ -767,6 +767,52 @@ fn test_op_icmp() {
 }
 
 #[test]
+fn test_op_icmp_multi() {
+    const DATA_TYPES: &'static [DataType] = &[DataType::S32, DataType::U32];
+
+    const CMP_OPS: &'static [CmpOp] = &[
+        CmpOp::Eq,
+        CmpOp::Gt,
+        CmpOp::Ge,
+        CmpOp::Ne,
+        CmpOp::Lt,
+        CmpOp::Le,
+    ];
+
+    const RES_TYPES: &'static [CmpResultType] = &[
+        CmpResultType::I1,
+        CmpResultType::F1,
+        CmpResultType::M1,
+        CmpResultType::C,
+    ];
+
+    let mut a = Acorn::new();
+    for &src_type in DATA_TYPES {
+        for &cmp_op in CMP_OPS {
+            for &res_type in RES_TYPES {
+                if res_type == CmpResultType::C && src_type == DataType::S32 {
+                    continue;
+                }
+
+                let op = OpICmpMulti {
+                    dst: DstRef::None.into(),
+                    src_type,
+                    res_type,
+                    cmp_op,
+                    srcs: [0.into(), 0.into()],
+                    accum: 0.into(),
+                };
+                // Accum should be 0, 1, or -1
+                test_foldable_op_with(op, |i| match i {
+                    2 => (a.get_u32() % 3) - 1,
+                    _ => a.get_u32(),
+                });
+            }
+        }
+    }
+}
+
+#[test]
 fn test_op_idpadd() {
     let model = RunSingleton::get().model.as_ref();
 

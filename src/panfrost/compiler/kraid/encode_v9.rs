@@ -998,6 +998,7 @@ impl From<CmpResultType> for CmpResultTypeM {
             CmpResultType::I1 => CmpResultTypeM::I1,
             CmpResultType::F1 => CmpResultTypeM::F1,
             CmpResultType::M1 => CmpResultTypeM::M1,
+            CmpResultType::C => CmpResultTypeM::C,
         }
     }
 }
@@ -1424,6 +1425,30 @@ impl V9Instr for OpICmp {
                 result_type: self.res_type.into(),
             }),
         }
+    }
+}
+
+impl V9Instr for OpICmpMulti {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            IcmpMulti::get_info(self.src_type, arch),
+            src_map! {
+                src0: srcs[0],
+                src1: srcs[1],
+            },
+        )
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        e.encode(IcmpMulti {
+            variant: self.src_type.try_into().unwrap(),
+            dst: op_encode_dst(self, &self.dst),
+            src0: op_encode_src(self, &self.srcs[0]),
+            src1: op_encode_src(self, &self.srcs[1]),
+            src2: op_encode_src(self, &self.accum),
+            cmpf: self.cmp_op.try_into().unwrap(),
+            result_type: self.res_type.into(),
+        })
     }
 }
 
@@ -2408,6 +2433,7 @@ macro_rules! v9_op_match_else {
             Op::IAbs($x) => $y,
             Op::IAdd($x) => $y,
             Op::ICmp($x) => $y,
+            Op::ICmpMulti($x) => $y,
             Op::IDpAdd($x) => $y,
             Op::IMul($x) => $y,
             Op::ISub($x) => $y,

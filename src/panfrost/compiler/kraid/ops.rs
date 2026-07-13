@@ -718,6 +718,7 @@ pub enum CmpResultType {
     I1,
     F1,
     M1,
+    C,
 }
 
 impl fmt::Display for CmpResultType {
@@ -726,6 +727,7 @@ impl fmt::Display for CmpResultType {
             CmpResultType::I1 => write!(f, ".i1"),
             CmpResultType::F1 => write!(f, ".f1"),
             CmpResultType::M1 => write!(f, ".m1"),
+            CmpResultType::C => write!(f, ".c"),
         }
     }
 }
@@ -743,6 +745,7 @@ impl CmpResultType {
             }
             (CmpResultType::F1, _) => panic!("Invalid float length"),
             (CmpResultType::M1, _) => 0xFFFF_FFFF,
+            (CmpResultType::C, _) => panic!("Not a boolean result type"),
         }
     }
 }
@@ -1302,6 +1305,55 @@ impl PerCompFoldable for OpICmp {
         let c = self.res_type.fold(c, self.src_type.bits());
 
         f.set_dst(&self.dst, c as u64);
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(src_type in [S32, U32])]
+pub struct OpICmpMulti {
+    pub dst: Dst,
+
+    pub src_type: DataType,
+    pub res_type: CmpResultType,
+    pub cmp_op: CmpOp,
+
+    pub srcs: [Src; 2],
+    #[src_type(S32)]
+    pub accum: Src,
+}
+
+impl fmt::Display for OpICmpMulti {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} = ICMP_MULTI.{}{}{} {} {} {}",
+            &self.dst,
+            self.src_type,
+            self.res_type,
+            self.cmp_op,
+            self.fmt_src(&self.srcs[0]),
+            self.fmt_src(&self.srcs[1]),
+            self.fmt_src(&self.accum),
+        )
+    }
+}
+
+impl PerCompFoldable for OpICmpMulti {
+    fn fold_comp(&self, _model: &dyn Model, f: &mut impl FoldDataView) {
+        let ca = f.get_src(&self.srcs[0]);
+        let cb = f.get_src(&self.srcs[1]);
+        let accum = f.get_src(&self.accum) as i32;
+
+        let ord = cmp_data(self.src_type, ca, cb).then(accum.cmp(&0));
+        let res = if matches!(self.res_type, CmpResultType::C) {
+            ord as i8 as u32
+        } else {
+            let c = self.cmp_op.fold_ordering(Some(ord));
+            self.res_type.fold(c, self.src_type.bits())
+        };
+
+        f.set_dst(&self.dst, res.into());
     }
 }
 
@@ -2754,6 +2806,7 @@ pub enum Op {
     IAbs(Box<OpIAbs>),
     IAdd(Box<OpIAdd>),
     ICmp(Box<OpICmp>),
+    ICmpMulti(Box<OpICmpMulti>),
     IDpAdd(Box<OpIDpAdd>),
     IMul(Box<OpIMul>),
     ISub(Box<OpISub>),
