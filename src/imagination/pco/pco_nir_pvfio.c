@@ -34,13 +34,6 @@ struct pfo_state {
    /* Src for depth feedback (NULL if unused). */
    nir_def *depth_feedback_src;
 
-   nir_def *discard_cond_reg;
-   bool has_discards;
-
-   nir_intrinsic_instr *last_discard_store;
-
-   /* nir_instr *terminate; */
-
    pco_fs_data *fs; /** Fragment-specific data. */
 };
 
@@ -472,23 +465,6 @@ static bool lower_pfo(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
    case nir_intrinsic_load_output:
       return lower_pfo_load(b, intr, state);
 
-   case nir_intrinsic_demote:
-      state->has_discards = true;
-      state->last_discard_store =
-         nir_build_store_reg(b, nir_imm_true(b), state->discard_cond_reg);
-      nir_instr_remove(&intr->instr);
-      return true;
-
-   case nir_intrinsic_demote_if: {
-      state->has_discards = true;
-      nir_def *val = nir_load_reg(b, state->discard_cond_reg);
-      val = nir_ior(b, val, intr->src[0].ssa);
-      state->last_discard_store =
-         nir_build_store_reg(b, val, state->discard_cond_reg);
-      nir_instr_remove(&intr->instr);
-      return true;
-   }
-
    default:
       break;
    }
@@ -539,16 +515,16 @@ bool pco_nir_lower_sample_mask_out(nir_shader *shader)
 
 static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
 {
-   bool has_depth_feedback = !!state->depth_feedback_src;
-   if (b->shader->info.writes_memory && !has_depth_feedback) {
-      nir_variable *var_pos = nir_get_variable_with_location(b->shader,
+   nir_shader *shader = b->shader;
+   if (shader->info.writes_memory && !state->depth_feedback_src) {
+      nir_variable *var_pos = nir_get_variable_with_location(shader,
                                                              nir_var_shader_in,
                                                              VARYING_SLOT_POS,
                                                              glsl_vec4_type());
       var_pos->data.interpolation = INTERP_MODE_NOPERSPECTIVE;
 
       b->cursor = nir_before_block(
-         nir_start_block(nir_shader_get_entrypoint(b->shader)));
+         nir_start_block(nir_shader_get_entrypoint(shader)));
 
       state->depth_feedback_src =
          nir_load_input(b,
@@ -561,8 +537,6 @@ static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
                            .location = VARYING_SLOT_POS,
                            .num_slots = 1,
                         });
-
-      has_depth_feedback = true;
    }
 
    /* Insert isp feedback instruction before the first store,
@@ -573,18 +547,18 @@ static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
          &(*(nir_intrinsic_instr **)util_dynarray_begin(&state->stores))->instr);
    else
       b->cursor = nir_after_block(
-         nir_impl_last_block(nir_shader_get_entrypoint(b->shader)));
+         nir_impl_last_block(nir_shader_get_entrypoint(shader)));
 
    nir_def *undef = nir_undef(b, 1, 32);
 
-   nir_isp_feedback_pco(
-      b,
-      state->has_discards ? nir_i2b(b, nir_load_reg(b, state->discard_cond_reg))
-                          : undef,
-      has_depth_feedback ? state->depth_feedback_src : undef);
+   nir_def *discard_cond = nir_is_helper_invocation(b, 1);
 
-   state->fs->uses.discard = state->has_discards;
-   state->fs->uses.depth_feedback = has_depth_feedback;
+   nir_isp_feedback_pco(b,
+         discard_cond ? discard_cond : undef,
+         state->depth_feedback_src ? state->depth_feedback_src : undef);
+
+   state->fs->uses.discard = !!discard_cond;
+   state->fs->uses.depth_feedback = !!state->depth_feedback_src;
 
    return true;
 }
@@ -802,10 +776,7 @@ bool pco_nir_pfo(nir_shader *shader, pco_fs_data *fs)
 
    struct pfo_state state = {
       .fs = fs,
-      .discard_cond_reg = nir_decl_reg(&b, 1, 1, 0),
    };
-   state.last_discard_store =
-      nir_build_store_reg(&b, nir_imm_false(&b), state.discard_cond_reg);
 
    state.loads = UTIL_DYNARRAY_INIT;
    state.stores = UTIL_DYNARRAY_INIT;
@@ -1080,6 +1051,12 @@ lower_fs_intr(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *cb_data)
 
    case nir_intrinsic_load_sample_mask_in:
       return lower_sample_mask_in(b, intr);
+
+   /* Drop these, already handled by nir_lower_is_helper_invocation. */
+   case nir_intrinsic_demote:
+   case nir_intrinsic_demote_if:
+      nir_instr_remove(&intr->instr);
+      return true;
 
    default:
       break;

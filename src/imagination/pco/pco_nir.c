@@ -594,8 +594,8 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
       };
       NIR_PASS(_, nir, nir_lower_sysvals_to_varyings, &sysvals_to_varyings);
       NIR_PASS(_, nir, nir_lower_system_values);
-      NIR_PASS(_, nir, nir_lower_helper_writes, true);
-      NIR_PASS(_, nir, nir_lower_is_helper_invocation);
+      if (!nir->info.internal)
+         NIR_PASS(_, nir, nir_lower_helper_writes, true);
       NIR_PASS(_, nir, nir_lower_terminate_to_demote);
       NIR_PASS(_, nir, nir_lower_halt_to_return);
       NIR_PASS(_, nir, nir_lower_returns);
@@ -1043,6 +1043,7 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
       if (!internal)
          NIR_PASS(_, nir, pco_nir_lower_sample_mask_out);
       NIR_PASS(_, nir, pco_nir_pfo, &data->fs);
+      NIR_PASS(_, nir, nir_lower_is_helper_invocation);
       NIR_PASS(_, nir, pco_nir_lower_fs_intrinsics);
    } else if (nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_,
