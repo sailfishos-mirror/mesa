@@ -109,6 +109,7 @@ const extern struct nak_constant_offset_info nak_const_offsets_turing_graphics;
 #define NAK_CAN_PRINTF true
 #endif
 
+void nak_lower_nir_before_linking(nir_shader *nir, const struct nak_compiler *nak);
 void nak_postprocess_nir(nir_shader *nir, const struct nak_compiler *nak,
                          nir_variable_mode robust2_modes,
                          const struct nak_fs_key *fs_key,

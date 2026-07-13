@@ -515,6 +515,9 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
          NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
       }
    }
+
+   nak_lower_nir_before_linking(nir, pdev->nak);
+   nir->info.io_lowered = true;
 }
 
 #ifndef NDEBUG

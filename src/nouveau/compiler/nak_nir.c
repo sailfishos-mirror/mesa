@@ -1551,18 +1551,38 @@ nak_nir_gather_mesh_outputs(nir_shader *nir, struct lower_mesh_intrinsics_ctx *c
 }
 
 void
-nak_postprocess_nir(nir_shader *nir,
-                    const struct nak_compiler *nak,
-                    nir_variable_mode robust2_modes,
-                    const struct nak_fs_key *fs_key,
-                    bool has_task_shader)
+nak_lower_nir_before_linking(nir_shader *nir, const struct nak_compiler *nak)
 {
    UNUSED bool progress = false;
 
-   const bool is_mesh_stage = nir->info.stage == MESA_SHADER_TASK ||
-                              nir->info.stage == MESA_SHADER_MESH;
+   switch (nir->info.stage) {
+   case MESA_SHADER_VERTEX:
+   case MESA_SHADER_TESS_CTRL:
+   case MESA_SHADER_TESS_EVAL:
+   case MESA_SHADER_GEOMETRY:
+   case MESA_SHADER_MESH:
+      OPT(nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
+          type_size_vec4, nir_lower_io_lower_64bit_to_32);
+      break;
 
-   if (is_mesh_stage) {
+   case MESA_SHADER_FRAGMENT:
+      OPT(nir, nir_lower_indirect_derefs_to_if_else_trees,
+          nir_var_shader_in | nir_var_shader_out, UINT32_MAX);
+      OPT(nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
+          type_size_vec4, nir_lower_io_lower_64bit_to_32_new |
+          nir_lower_io_use_interpolated_input_intrinsics);
+      break;
+
+   case MESA_SHADER_COMPUTE:
+   case MESA_SHADER_KERNEL:
+   case MESA_SHADER_TASK:
+      break;
+
+   default:
+      UNREACHABLE("Unsupported shader stage");
+   }
+
+   if (mesa_shader_stage_is_mesh(nir->info.stage)) {
       const uint32_t wg_size = nir->info.workgroup_size[0] *
                                nir->info.workgroup_size[1] *
                                nir->info.workgroup_size[2];
@@ -1581,9 +1601,22 @@ nak_postprocess_nir(nir_shader *nir,
          nak_optimize_nir(nir, nak);
          nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
       }
-
-      OPT(nir, nak_nir_lower_mesh_stages_shared_atomics);
    }
+}
+
+void
+nak_postprocess_nir(nir_shader *nir,
+                    const struct nak_compiler *nak,
+                    nir_variable_mode robust2_modes,
+                    const struct nak_fs_key *fs_key,
+                    bool has_task_shader)
+{
+   assert(nir->info.io_lowered);
+
+   UNUSED bool progress = false;
+
+   if (mesa_shader_stage_is_mesh(nir->info.stage))
+      OPT(nir, nak_nir_lower_mesh_stages_shared_atomics);
 
    nak_optimize_nir(nir, nak);
 
@@ -1637,8 +1670,8 @@ nak_postprocess_nir(nir_shader *nir,
    nir_lower_mem_access_bit_sizes_options mem_bit_size_options = {
       .modes = nir_var_mem_constant | nir_var_mem_ubo | nir_var_mem_generic |
                nir_var_mem_task_payload,
-      .callback = is_mesh_stage ? nak_mesh_mem_access_size_align
-                                : nak_mem_access_size_align,
+      .callback = mesa_shader_stage_is_mesh(nir->info.stage) ? nak_mesh_mem_access_size_align
+                                                             : nak_mem_access_size_align,
    };
    OPT(nir, nir_lower_mem_access_bit_sizes, &mem_bit_size_options);
    OPT(nir, nir_lower_bit_size, lower_bit_size_cb, (void *)nak);
@@ -1685,34 +1718,26 @@ nak_postprocess_nir(nir_shader *nir,
 
    OPT(nir, nak_nir_lower_system_values, nak);
 
+   /* system value lowering can leave constant address chains around */
+   OPT(nir, nir_opt_constant_folding);
+
    switch (nir->info.stage) {
    case MESA_SHADER_VERTEX:
    case MESA_SHADER_TESS_CTRL:
    case MESA_SHADER_TESS_EVAL:
    case MESA_SHADER_GEOMETRY:
-      OPT(nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
-          type_size_vec4, nir_lower_io_lower_64bit_to_32);
-      OPT(nir, nir_opt_constant_folding);
       OPT(nir, nak_nir_lower_vtg_io, nak);
       if (nir->info.stage == MESA_SHADER_GEOMETRY)
          OPT(nir, nak_nir_lower_gs_intrinsics);
       break;
 
    case MESA_SHADER_FRAGMENT:
-      OPT(nir, nir_lower_indirect_derefs_to_if_else_trees,
-          nir_var_shader_in | nir_var_shader_out, UINT32_MAX);
-      OPT(nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
-          type_size_vec4, nir_lower_io_lower_64bit_to_32_new |
-          nir_lower_io_use_interpolated_input_intrinsics);
-      OPT(nir, nir_opt_constant_folding);
       OPT(nir, nak_nir_lower_fs_inputs, nak, fs_key);
       OPT(nir, nak_nir_lower_fs_outputs);
       break;
 
    case MESA_SHADER_COMPUTE:
    case MESA_SHADER_KERNEL:
-      /* system value lowering can leave constant address chains around */
-      OPT(nir, nir_opt_constant_folding);
       break;
 
    case MESA_SHADER_TASK: {
@@ -1721,10 +1746,6 @@ nak_postprocess_nir(nir_shader *nir,
       break;
    }
    case MESA_SHADER_MESH: {
-      OPT(nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
-          type_size_vec4, nir_lower_io_lower_64bit_to_32);
-      OPT(nir, nir_opt_constant_folding);
-
       OPT(nir, nak_nir_lower_mesh_emulated_attributes);
 
       struct lower_mesh_intrinsics_ctx ctx = {
