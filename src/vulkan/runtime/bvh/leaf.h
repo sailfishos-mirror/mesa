@@ -256,10 +256,12 @@ main(void)
    if (subgroupElect())
       atomicAdd(DEREF(args.header).active_leaf_count, subgroupBallotBitCount(ballot));
 
-   atomicMin(DEREF(args.header).min_bounds[0], to_emulated_float(bounds.min.x));
-   atomicMin(DEREF(args.header).min_bounds[1], to_emulated_float(bounds.min.y));
-   atomicMin(DEREF(args.header).min_bounds[2], to_emulated_float(bounds.min.z));
-   atomicMax(DEREF(args.header).max_bounds[0], to_emulated_float(bounds.max.x));
-   atomicMax(DEREF(args.header).max_bounds[1], to_emulated_float(bounds.max.y));
-   atomicMax(DEREF(args.header).max_bounds[2], to_emulated_float(bounds.max.z));
+   if (is_active) {
+      atomicMin(DEREF(args.header).min_bounds[0], to_emulated_float(bounds.min.x));
+      atomicMin(DEREF(args.header).min_bounds[1], to_emulated_float(bounds.min.y));
+      atomicMin(DEREF(args.header).min_bounds[2], to_emulated_float(bounds.min.z));
+      atomicMax(DEREF(args.header).max_bounds[0], to_emulated_float(bounds.max.x));
+      atomicMax(DEREF(args.header).max_bounds[1], to_emulated_float(bounds.max.y));
+      atomicMax(DEREF(args.header).max_bounds[2], to_emulated_float(bounds.max.z));
+   }
 }
