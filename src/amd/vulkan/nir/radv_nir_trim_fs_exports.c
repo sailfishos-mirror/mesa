@@ -31,6 +31,13 @@ trim_fs_exports(nir_builder *b, nir_intrinsic_instr *intrin, void *_state)
          return true;
       }
       return false;
+
+   case FRAG_RESULT_STENCIL:
+      if (state->epilog_key->ignore_stencil_output) {
+         nir_instr_remove(&intrin->instr);
+         return true;
+      }
+      return false;
    }
 
    int index = mesa_frag_result_get_color_index(io_sem.location);

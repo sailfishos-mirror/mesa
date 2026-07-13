@@ -1611,9 +1611,15 @@ radv_pipeline_generate_ps_epilog_key(const struct radv_compiler_info *compiler_i
       ps_epilog.alpha_to_one = state->ms->alpha_to_one_enable;
 
    const bool may_have_depth_attachment = !state->rp || state->rp->depth_attachment_format != VK_FORMAT_UNDEFINED;
+   const bool may_have_stencil_attachment = !state->rp || state->rp->stencil_attachment_format != VK_FORMAT_UNDEFINED;
+
    ps_epilog.ignore_depth_output =
       !may_have_depth_attachment || (state->ds && !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_DEPTH_TEST_ENABLE) &&
                                      !state->ds->depth.test_enable);
+   ps_epilog.ignore_stencil_output =
+      !may_have_stencil_attachment ||
+      (state->ds && !BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_DS_STENCIL_TEST_ENABLE) &&
+       !state->ds->stencil.test_enable);
 
    for (uint32_t i = 0; i < MAX_RTS; i++) {
       ps_epilog.color_attachment_mappings[i] = state->cal ? state->cal->color_map[i] : i;
