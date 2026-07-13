@@ -1003,21 +1003,48 @@ impl<'a> ShaderFromNir<'a> {
                     ALUType::UINT => NumericType::UnsignedInteger,
                     _ => panic!("Invalid integer base type"),
                 };
-                b.push_op(OpICmp {
-                    dst: dst.into(),
-                    src_type: src_type(0, num_type),
-                    res_type: CmpResultType::M1,
-                    cmp_op: match alu.op {
-                        nir_op_ieq_pan => CmpOp::Eq,
-                        nir_op_ige_pan | nir_op_uge_pan => CmpOp::Ge,
-                        nir_op_ilt_pan | nir_op_ult_pan => CmpOp::Lt,
-                        nir_op_ine_pan => CmpOp::Ne,
-                        _ => panic!("Usupported integer comparison"),
-                    },
-                    srcs: [srcs(0), srcs(1)],
-                    accum: 0.into(),
-                    accum_op: CmpAccumOp::None,
-                });
+                let cmp_op = match alu.op {
+                    nir_op_ieq_pan => CmpOp::Eq,
+                    nir_op_ige_pan | nir_op_uge_pan => CmpOp::Ge,
+                    nir_op_ilt_pan | nir_op_ult_pan => CmpOp::Lt,
+                    nir_op_ine_pan => CmpOp::Ne,
+                    _ => panic!("Usupported integer comparison"),
+                };
+                if alu.def.bit_size == 64 {
+                    assert_eq!(alu.def.num_components, 1);
+                    let accum = b.alloc_ssa(32);
+                    b.push_op(OpICmpMulti {
+                        dst: accum.into(),
+                        // All but the last comparison in the chain have to be
+                        // U32.  ICMP_MULTI.s32.c doesn't exist.
+                        src_type: DataType::U32,
+                        res_type: CmpResultType::C,
+                        cmp_op,
+                        srcs: [srcs(0).word(0), srcs(1).word(0)],
+                        accum: 0.into(),
+                    });
+                    b.push_op(OpICmpMulti {
+                        dst: dst[0].into(),
+                        src_type: DataType::get(1, num_type, 32),
+                        res_type: CmpResultType::M1,
+                        cmp_op,
+                        srcs: [srcs(0).word(1), srcs(1).word(1)],
+                        accum: accum.into(),
+                    });
+                    // Replicate to satisfy NIR.  Hopefully, copy-prop will
+                    // clean this up in almost all cases.
+                    b.copy_i32_to(dst[1].into(), dst[0].into());
+                } else {
+                    b.push_op(OpICmp {
+                        dst: dst.into(),
+                        src_type: src_type(0, num_type),
+                        res_type: CmpResultType::M1,
+                        cmp_op,
+                        srcs: [srcs(0), srcs(1)],
+                        accum: 0.into(),
+                        accum_op: CmpAccumOp::None,
+                    });
+                }
             }
             nir_op_imin | nir_op_imax | nir_op_umin | nir_op_umax => {
                 let num_type = match alu.input_type(0).base_type() {

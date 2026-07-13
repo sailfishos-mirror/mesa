@@ -49,6 +49,7 @@ fn nir_opts(arch: u8, merge_wg: bool) -> nir_shader_compiler_options {
 
         lower_doubles_options: nir_lower_dmod,
         lower_int64_options: !(nir_lower_iadd64
+            | nir_lower_icmp64
             | nir_lower_ineg64
             | nir_lower_logic64
             | nir_lower_shift64
