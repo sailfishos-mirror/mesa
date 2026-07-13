@@ -430,6 +430,7 @@ ir3_nir_allow_base_offset_wrap(nir_intrinsic_instr *intrin, const void *data)
 unsigned
 ir3_nir_max_offset_shift(nir_intrinsic_instr *intr, const void *data)
 {
+   const struct ir3_compiler *compiler = data;
    nir_deref_instr *deref = nir_src_as_deref(intr->src[0]);
    assert(util_bitcount(deref->modes) == 1);
 
@@ -440,6 +441,14 @@ ir3_nir_max_offset_shift(nir_intrinsic_instr *intr, const void *data)
        * to build accesses across bit sizes.  We'll legalize the shift for the
        * actual access size at the end.
        */
+      return 2;
+
+   case nir_var_mem_global:
+      if (compiler->gen >= 7 || intr->intrinsic == nir_intrinsic_deref_atomic ||
+          intr->intrinsic == nir_intrinsic_deref_atomic_swap) {
+         return 0;
+      }
+
       return 2;
 
    default:

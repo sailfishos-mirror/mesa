@@ -3296,8 +3296,11 @@ tu_lower_nir(struct tu_device *dev,
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_ubo | nir_var_mem_ssbo,
             nir_address_format_vec2_index_32bit_offset);
 
+   NIR_PASS(_, nir, nir_convert_address_format, nir_var_mem_global,
+            nir_address_format_64bit_global,
+            nir_address_format_64bit_global_32bit_offset);
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global,
-            nir_address_format_64bit_global);
+            nir_address_format_64bit_global_32bit_offset);
 
    if (nir->info.stage == MESA_SHADER_COMPUTE) {
       NIR_PASS(_, nir, nir_lower_vars_to_explicit_types,
