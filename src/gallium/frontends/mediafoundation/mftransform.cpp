@@ -442,17 +442,10 @@ CDX12EncHMFT::OnInputTypeChanged()
       CHECKHR_GOTO( hr, done );
    }
 
-   // when input type changes, clear m_spVideoSampleAllocator so we can recreate it later.
-   if( m_spVideoSampleAllocator )
-   {
-      m_spVideoSampleAllocator->UninitializeSampleAllocator();
-      m_spVideoSampleAllocator = nullptr;
-   }
-
 done:
    if( hr != S_OK )
    {
-      CleanupEncoder();
+      CleanupEncoder( true );
    }
    return hr;
 }
@@ -548,7 +541,7 @@ CDX12EncHMFT::OnOutputTypeChanged()
 
    if( bResolutionChange )
    {
-      CleanupEncoder();
+      CleanupEncoder( true );
    }
 
    if( m_gpuFeatureFlags.m_bDisableAsync )
@@ -644,7 +637,7 @@ CDX12EncHMFT::OnDrain()
    std::unique_lock<std::mutex> lock( m_lock );
    m_bDraining = true;
 
-   if( m_EncodingQueue.unsafe_size() )
+   if( m_EncodingQueue.unsafe_size() || m_bProcessDX12Context )
    {
       m_eventHaveInput.set();
       lock.unlock();
@@ -668,7 +661,7 @@ CDX12EncHMFT::OnFlush()
    m_bFlushing = true;
    m_bDraining = true;
 
-   if( m_EncodingQueue.unsafe_size() )
+   if( m_EncodingQueue.unsafe_size() || m_bProcessDX12Context )
    {
       m_eventHaveInput.set();
       lock.unlock();
@@ -994,19 +987,27 @@ done:
 
 // internal function to clean up adn destroy the encoder
 void
-CDX12EncHMFT::CleanupEncoder( void )
+CDX12EncHMFT::CleanupEncoder( bool apiLocked )
 {
    if( m_hThread )
    {
       m_bExitThread = true;
       m_eventHaveInput.set();
-      WaitForSingleObject( m_hThread, INFINITE );
+      if (apiLocked) {
+         m_lock.unlock();
+         WaitForSingleObject( m_hThread, INFINITE );
+         m_lock.lock();
+      } else {
+         WaitForSingleObject( m_hThread, INFINITE );
+      }
       m_eventHaveInput.reset();
       CloseHandle( m_hThread );
       m_hThread = NULL;
       m_dwThreadId = 0;
       m_bExitThread = false;
    }
+
+   ReleaseAllocators();
 
    if( m_pPipeFenceHandle )
    {
@@ -1464,6 +1465,7 @@ CDX12EncHMFT::FinalizeAndEmitOutputSample( LPDX12EncodeContext pDX12EncodeContex
 
 HRESULT
 CDX12EncHMFT::ProcessDX12EncodeContext( CDX12EncHMFT *pThis,
+                                        bool bFlushing,
                                         LPDX12EncodeContext pDX12EncodeContext,
                                         pipe_enc_feedback_metadata &metadata,
                                         DWORD &dwReceivedInput,
@@ -1480,7 +1482,7 @@ CDX12EncHMFT::ProcessDX12EncodeContext( CDX12EncHMFT *pThis,
 
       // If sliced fences supported, we asynchronously copy here every slice as it is ready
       // Otherwise, let's copy all the sliced together here after full frame completion (see below)
-      if( !pThis->m_bFlushing &&
+      if( !bFlushing &&
           ( pDX12EncodeContext->sliceNotificationMode == D3D12_VIDEO_ENCODER_COMPRESSED_BITSTREAM_NOTIFICATION_MODE_SUBREGIONS ) )
       {
          //
@@ -1873,14 +1875,18 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
          CloseHandle( fence_handle );
 
          {
+            bool bFlushing = pThis->m_bFlushing;
+            pThis->m_bProcessDX12Context = true;
             apiLock.unlock();
             HRESULT hr = pThis->ProcessDX12EncodeContext( pThis,
+                                                          bFlushing,
                                                           pDX12EncodeContext,
                                                           metadata,
                                                           dwReceivedInput,
                                                           ResolveStatsCompletionFenceValue,
                                                           encoded_bitstream_bytes );
             apiLock.lock();
+            pThis->m_bProcessDX12Context = false;
             if( FAILED( hr ) )
             {
                pThis->QueueEvent( MEError, GUID_NULL, E_FAIL, nullptr );
@@ -2265,7 +2271,7 @@ CDX12EncHMFT::SetOutputType( DWORD dwOutputStreamIndex, IN IMFMediaType *pType, 
 
    if( !pType )
    {
-      CleanupEncoder();
+      CleanupEncoder( true );
       m_spOutputType.Reset();
       goto done;
    }
@@ -2498,7 +2504,7 @@ CDX12EncHMFT::ProcessMessage( MFT_MESSAGE_TYPE eMessage, ULONG_PTR ulParam )
       case MFT_MESSAGE_SET_D3D_MANAGER:
       {
          std::lock_guard<std::mutex> lock( m_lock );
-         CleanupEncoder();
+         CleanupEncoder( true );
          CHECKHR_GOTO( xOnSetD3DManager( ulParam ), done );
          if( m_pPipeContext )
          {

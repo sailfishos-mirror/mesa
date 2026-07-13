@@ -376,7 +376,7 @@ class __declspec( uuid( HMFT_GUID ) ) CDX12EncHMFT : CMFD3DManager,
  private:
    ~CDX12EncHMFT();
    HRESULT InitializeEncoder( pipe_video_profile VideoProfile, UINT32 Width, UINT32 Height );
-   void CleanupEncoder();
+   void CleanupEncoder( bool apiLocked );
    HRESULT CreateGOPTracker( uint32_t textureWidth, uint32_t textureHeight );
 
    event m_eventHaveInput;
@@ -429,6 +429,7 @@ class __declspec( uuid( HMFT_GUID ) ) CDX12EncHMFT : CMFD3DManager,
                                      uint64_t ResolveStatsCompletionFenceValue );
 
    HRESULT ProcessDX12EncodeContext( CDX12EncHMFT *pThis,
+                                     bool bFlushing,
                                      LPDX12EncodeContext pDX12EncodeContext,
                                      pipe_enc_feedback_metadata &metadata,
                                      DWORD &dwReceivedInput,
@@ -610,6 +611,7 @@ class __declspec( uuid( HMFT_GUID ) ) CDX12EncHMFT : CMFD3DManager,
    bool m_bStreaming = false;
    bool m_bDraining = false;
    bool m_bFlushing = false;
+   bool m_bProcessDX12Context = false;
    event m_eventInputDrained;
    DWORD m_dwNeedInputCount = 0;
    DWORD m_dwProcessInputCount = 0;

@@ -145,6 +145,7 @@ class CMFD3DManager
    HRESULT xReopenDeviceManager( bool bNewDevice );
    HRESULT GetDeviceInfo();
    void UpdateGPUFeatureFlags();
+   void ReleaseAllocators();
 
    ComPtr<IMFDXGIDeviceManager> m_spDeviceManager;
    ComPtr<ID3D11Device5> m_spDevice11;
