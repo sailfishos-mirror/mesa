@@ -275,7 +275,8 @@ lower_offset_for_global(nir_builder *b, nir_intrinsic_instr *intr,
       return false;
    }
 
-   unsigned bit_size = intr->intrinsic == nir_intrinsic_load_global_ir3
+   unsigned bit_size = (intr->intrinsic == nir_intrinsic_load_global_ir3 ||
+                        intr->intrinsic == nir_intrinsic_load_global_offset)
                           ? intr->def.bit_size
                           : intr->src[0].ssa->bit_size;
 
@@ -341,7 +342,9 @@ lower_io_offsets_block(nir_block *block, nir_builder *b, void *mem_ctx,
       }
 
       if (intr->intrinsic == nir_intrinsic_load_global_ir3 ||
-          intr->intrinsic == nir_intrinsic_store_global_ir3) {
+          intr->intrinsic == nir_intrinsic_store_global_ir3 ||
+          intr->intrinsic == nir_intrinsic_load_global_offset ||
+          intr->intrinsic == nir_intrinsic_store_global_offset) {
          progress |= lower_offset_for_global(b, intr, c);
       }
    }
