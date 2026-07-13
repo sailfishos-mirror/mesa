@@ -3167,8 +3167,11 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
             else
                ctx->dynamic_fb.attachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
          }
-         if (ctx->dynamic_fb.attachments[i].loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+         if (ctx->dynamic_fb.attachments[i].loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
             attachment_shadow_mask |= BITFIELD_BIT(i);
+            if (res->base.b.nr_samples > 1 && zink_debug & ZINK_DEBUG_PERFINFO)
+               mesa_loge("zink: perf warning: MSAA attachment[COLOR%d] %s uses loadOp=LOAD (use CLEAR or discard)\n", i, util_format_name(res->base.b.format));
+         }
          pformats[i] = ctx->fb_state.cbufs[i].format;
       }
 
@@ -3194,6 +3197,13 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
                ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             else
                ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+         }
+
+         if (res->base.b.nr_samples > 1 && zink_debug & ZINK_DEBUG_PERFINFO) {
+            if (ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+               mesa_loge("zink: perf warning: MSAA attachment[DEPTHSTENCIL] %s uses loadOp=LOAD (use CLEAR or discard)\n", util_format_name(res->base.b.format));
+            if (ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].storeOp == VK_ATTACHMENT_STORE_OP_STORE)
+               mesa_loge("zink: perf warning: MSAA attachment[DEPTHSTENCIL] %s uses storeOp=STORE (use discard with resolves)\n", util_format_name(res->base.b.format));
          }
 
          /* maybe TODO but also not handled by legacy rp...

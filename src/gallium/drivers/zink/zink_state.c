@@ -479,6 +479,9 @@ zink_create_depth_stencil_alpha_state(struct pipe_context *pctx,
 
    cso->hw_state.depth_write = depth_stencil_alpha->depth_writemask;
 
+   if (cso->hw_state.depth_test && cso->hw_state.depth_write && cso->hw_state.depth_compare_op == VK_COMPARE_OP_ALWAYS && zink_debug & ZINK_DEBUG_PERFINFO)
+      mesa_loge("zink: perf warning: depth test enabled with depth write and compareOp=ALWAYS may disable depth buffer compression\n");
+
    return cso;
 }
 
