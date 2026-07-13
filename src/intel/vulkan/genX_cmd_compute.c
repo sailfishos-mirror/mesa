@@ -369,6 +369,26 @@ compute_store_indirect_params(struct anv_cmd_buffer *cmd_buffer,
 }
 
 static inline void
+cmd_buffer_pre_dispatch_wa(struct anv_cmd_buffer *cmd_buffer, bool rt)
+{
+#if GFX_VERx10 >= 125
+   const struct anv_instance *instance = cmd_buffer->device->physical->instance;
+
+   if (!rt &&
+       cmd_buffer->state.internal_compute_command == 0 &&
+       cmd_buffer->state.last_cmd_type == ANV_CMD_TYPE_DISPATCH &&
+       instance->drirc.debug.b2b_dispatch_dataport_flush) {
+      anv_add_pending_pipe_bits(cmd_buffer,
+                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT |
+                                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
+                                "back to back dispatch dataport flush workaround");
+   }
+#endif
+}
+
+static inline void
 cmd_buffer_post_dispatch_wa(struct anv_cmd_buffer *cmd_buffer, bool rt)
 {
    genX(cmd_buffer_post_dispatch_wa)(cmd_buffer);
@@ -766,6 +786,8 @@ void genX(CmdDispatchBase)(
 
    trace_intel_begin_compute(&cmd_buffer->trace);
 
+   cmd_buffer_pre_dispatch_wa(cmd_buffer, false);
+
    cmd_buffer_flush_compute_state(cmd_buffer, NULL);
 
    if (cmd_buffer->state.conditional_render_enabled)
@@ -838,6 +860,8 @@ genX(cmd_dispatch_unaligned)(
 
    trace_intel_begin_compute(&cmd_buffer->trace);
 
+   cmd_buffer_pre_dispatch_wa(cmd_buffer, false);
+
    assert((bind_map->binding_mask &
            ANV_PIPELINE_BIND_MASK_NUM_WORKGROUP) == 0);
    cmd_buffer_flush_compute_state(cmd_buffer, NULL);
@@ -888,6 +912,8 @@ genX(cmd_buffer_dispatch_indirect)(struct anv_cmd_buffer *cmd_buffer,
                         0);
 
    trace_intel_begin_compute_indirect(&cmd_buffer->trace);
+
+   cmd_buffer_pre_dispatch_wa(cmd_buffer, false);
 
    cmd_buffer_flush_compute_state(cmd_buffer, NULL);
 
@@ -1604,6 +1630,8 @@ genX(CmdTraceRaysKHR)(
       },
    };
 
+   cmd_buffer_pre_dispatch_wa(cmd_buffer, true);
+
    cmd_buffer_flush_rt_state(cmd_buffer, cmd_buffer->state.rt.scratch_size);
    cmd_buffer_trace_rays(cmd_buffer, &params);
 }
@@ -1628,6 +1656,8 @@ genX(CmdTraceRaysIndirectKHR)(
       .launch_size_addr        = indirectDeviceAddress,
    };
 
+   cmd_buffer_pre_dispatch_wa(cmd_buffer, true);
+
    cmd_buffer_flush_rt_state(cmd_buffer, cmd_buffer->state.rt.scratch_size);
    cmd_buffer_trace_rays(cmd_buffer, &params);
 }
@@ -1645,6 +1675,8 @@ genX(CmdTraceRaysIndirect2KHR)(
       .launch_size_addr        = indirectDeviceAddress +
                                  offsetof(VkTraceRaysIndirectCommand2KHR, width),
    };
+
+   cmd_buffer_pre_dispatch_wa(cmd_buffer, true);
 
    cmd_buffer_flush_rt_state(cmd_buffer, cmd_buffer->state.rt.scratch_size);
    cmd_buffer_trace_rays(cmd_buffer, &params);

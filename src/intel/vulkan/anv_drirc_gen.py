@@ -134,6 +134,9 @@ def declare_options(android_version):
         B("intel_enable_wa_14024015672_msaa", False,
           "Workaround for RHWO MSAA",
           c_name="wa_14024015672_msaa"),
+        B("anv_back_to_back_dispatch_dataport_flush", False,
+          "Add a flush between back to back dispatch operations",
+          c_name="b2b_dispatch_dataport_flush"),
 
         # Workaround command emission, shader specific
         B("force_vk_typed_barrier_after_dispatch_to_compute", False,
