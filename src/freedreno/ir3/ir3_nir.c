@@ -594,7 +594,8 @@ lower_shader_clock(struct nir_builder *b, nir_intrinsic_instr *instr, void *data
    if (instr->intrinsic != nir_intrinsic_shader_clock)
       return false;
 
-   uint64_t uche_trap_base = *(uint64_t *)data;
+   struct ir3_compiler *compiler = data;
+   uint64_t uche_trap_base = compiler->options.uche_trap_base;
 
    b->cursor = nir_before_instr(&instr->instr);
    nir_def *clock, *undef;
@@ -603,11 +604,22 @@ lower_shader_clock(struct nir_builder *b, nir_intrinsic_instr *instr, void *data
    {
       /* ALWAYSON counter is mapped to this address. */
       nir_def *base_addr = nir_imm_int64(b, uche_trap_base);
-      /* Reading _LO first presumably latches _HI making the read atomic. */
-      nir_def *clock_lo =
-         nir_load_global_ir3(b, 1, 32, base_addr, nir_imm_int(b, 0));
-      nir_def *clock_hi =
-         nir_load_global_ir3(b, 1, 32, base_addr, nir_imm_int(b, 4));
+
+      nir_io_offset offset_lo =
+         ir3_nir_get_global_offset(b, compiler, nir_imm_int(b, 0), 2);
+      nir_io_offset offset_hi =
+         ir3_nir_get_global_offset(b, compiler, nir_imm_int(b, 1), 2);
+
+      /* Reading _LO first presumably latches _HI making the read atomic. Note
+       * that we mark the accesses volatile to prevent vectorization and
+       * reordering.
+       */
+      nir_def *clock_lo = nir_load_global_offset(
+         b, 1, 32, base_addr, offset_lo.def, .offset_shift = offset_lo.shift,
+         .access = ACCESS_VOLATILE);
+      nir_def *clock_hi = nir_load_global_offset(
+         b, 1, 32, base_addr, offset_hi.def, .offset_shift = offset_hi.shift,
+         .access = ACCESS_VOLATILE);
       clock = nir_vec2(b, clock_lo, clock_hi);
    }
    nir_push_else(b, NULL);
@@ -622,10 +634,10 @@ lower_shader_clock(struct nir_builder *b, nir_intrinsic_instr *instr, void *data
 }
 
 static bool
-ir3_nir_lower_shader_clock(nir_shader *shader, uint64_t uche_trap_base)
+ir3_nir_lower_shader_clock(nir_shader *shader, struct ir3_compiler *compiler)
 {
    return nir_shader_intrinsics_pass(shader, lower_shader_clock,
-                                     nir_metadata_none, &uche_trap_base);
+                                     nir_metadata_none, compiler);
 }
 
 static bool
@@ -776,7 +788,7 @@ ir3_finalize_nir(struct ir3_compiler *compiler,
    OPT(s, ir3_nir_lower_image_processing);
 
    if (compiler->gen >= 6) {
-      OPT(s, ir3_nir_lower_shader_clock, compiler->options.uche_trap_base);
+      OPT(s, ir3_nir_lower_shader_clock, compiler);
    }
 
    OPT(s, nir_lower_is_helper_invocation);
