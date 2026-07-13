@@ -237,8 +237,9 @@ static void
 alu_funclike_precise(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr,
                      const char *name)
 {
-   if (nir_alu_instr_is_inf_preserve(instr) ||
-       nir_alu_instr_is_nan_preserve(instr))
+   /* Metal's precise:: functions are fp32 only */
+   if (instr->def.bit_size == 32 && (nir_alu_instr_is_inf_preserve(instr) ||
+                                     nir_alu_instr_is_nan_preserve(instr)))
       P(ctx, "precise::");
 
    alu_funclike(ctx, instr, name);
