@@ -451,39 +451,58 @@ emit_convolution(struct ethosu_subgraph *subgraph, struct ethosu_operation *oper
       emit_acc_format(subgraph, operation);
 }
 
-static unsigned
-quantise_pooling_scale(unsigned nr_kernel_elements, unsigned rescale_bits, int32_t *out_shift)
+static int
+int_log2_double(double x)
 {
-   int k = 0;
-   long long N = 0;
+   uint64_t n;
 
-   frexp(nr_kernel_elements - 1, &k);
-   N = 31 - rescale_bits;
-   *out_shift = N + k;
+   if (x <= 0.0)
+      return 0;
 
-   return ((1LL << (N + k)) + (1LL << k)) / nr_kernel_elements;
+   n = ceil(x);
+   return 63 - __builtin_clzll(n);
 }
 
-static unsigned
-pooling_emit_ofm_scaling(
-   double input1_scale,
-   double output_scale,
-   unsigned kernel_height,
-   unsigned kernel_width,
-   int32_t *out_shift)
+static uint32_t
+quantise_pooling_scale(int kernel_elements,
+                       double rescale,
+                       int rescale_bits,
+                       int32_t *out_shift,
+                       int scale_bits)
 {
-   double rescale = input1_scale / output_scale;
-   unsigned rescale_bits = 0;
-   unsigned scale;
+   int exp;
+   int n;
+   uint64_t value;
 
-   if (kernel_height == 1 && kernel_width == 1) {
-      if (rescale > 1.0)
-         rescale_bits = 32 - __builtin_clz(ceil(rescale)) + 1;
-      else if (rescale < 1.0)
-         rescale_bits = -(32 - __builtin_clz(ceil(1 / rescale))) - 1;
-   }
-   scale = quantise_pooling_scale(kernel_height * kernel_width, rescale_bits, out_shift);
-   scale = ceil(scale * rescale);
+   frexp((float)(kernel_elements - 1), &exp);
+   n = (scale_bits - 1) - rescale_bits;
+   *out_shift = n + exp;
+
+   assert((unsigned)*out_shift < 64);
+
+   value = ((1ULL << (n + exp)) + (1ULL << exp)) / kernel_elements;
+   return ceil(rescale * (double)value);
+}
+
+static uint32_t
+pooling_emit_ofm_scaling(double input1_scale,
+                         double output_scale,
+                         unsigned kernel_height,
+                         unsigned kernel_width,
+                         int32_t *out_shift)
+{
+   int kernel_elements = kernel_height * kernel_width;
+   double rescale = input1_scale / output_scale;
+   int rescale_bits = 0;
+
+   if (rescale > 1.0)
+      rescale_bits = int_log2_double(rescale) + 2;
+   else if (rescale < 1.0)
+      rescale_bits = -int_log2_double(1.0 / rescale);
+
+   uint32_t scale = quantise_pooling_scale(kernel_elements, rescale,
+                                           rescale_bits, out_shift, 31);
+
    return scale;
 }
 
@@ -493,20 +512,14 @@ sum_emit_ofm_scaling(double input1_scale, double output_scale, unsigned kernel_h
    int kernel_elements = kernel_height * kernel_width;
    double rescale = input1_scale / output_scale;
    int rescale_bits = 0;
-   int N = 31;
-   int exp;
 
-   frexp((double)(kernel_elements - 1), &exp);
+   if (rescale > 1.0)
+      rescale_bits = int_log2_double(rescale) + 2;
+   else if (rescale < 1.0)
+      rescale_bits = -int_log2_double(1.0 / rescale);
 
-   int n = (N - 1) - rescale_bits;
-   uint64_t numerator = (1ULL << (n + exp)) + (1ULL << exp);
-   uint32_t scale = (uint32_t)ceil(rescale * (double)numerator / kernel_elements);
-   int shift = n + exp;
-
-   assert(shift >= 0 && shift < 64);
-
-   *out_shift = shift;
-   return scale;
+   return quantise_pooling_scale(kernel_elements, rescale, rescale_bits,
+                                 out_shift, 31);
 }
 
 static void
