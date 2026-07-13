@@ -693,6 +693,8 @@ enum memory_flags {
     *  with other loads.
     */
    MEMORY_FLAG_CAN_REORDER = 1 << 5,
+   /** Whether memory access is marked non-temporal by GLSL/SPIR-V. */
+   MEMORY_FLAG_NON_TEMPORAL = 1 << 6,
 };
 
 enum rt_logical_srcs {
