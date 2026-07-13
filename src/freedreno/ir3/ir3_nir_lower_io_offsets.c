@@ -398,6 +398,8 @@ ir3_nir_max_imm_offset(nir_intrinsic_instr *intrin, const void *data)
       return 127; /* stib.b */
    case nir_intrinsic_load_global_ir3:
    case nir_intrinsic_store_global_ir3:
+   case nir_intrinsic_load_global_offset:
+   case nir_intrinsic_store_global_offset:
       /* The immediate offset field is larger for ldg/stg than for their .a
        * versions. Return the max for .a. If the offset src itself turns out to
        * be constant and doesn't fit in BASE, but does fit in ldg/stg, we can
@@ -417,6 +419,8 @@ ir3_nir_allow_base_offset_wrap(nir_intrinsic_instr *intrin, const void *data)
    switch (intrin->intrinsic) {
    case nir_intrinsic_load_global_ir3:
    case nir_intrinsic_store_global_ir3:
+   case nir_intrinsic_load_global_offset:
+   case nir_intrinsic_store_global_offset:
       return false;
    default:
       return true;
