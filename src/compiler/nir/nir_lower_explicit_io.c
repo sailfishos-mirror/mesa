@@ -148,13 +148,18 @@ build_addr_for_var(nir_builder *b, nir_variable *var,
                             nir_var_shader_temp | nir_var_function_temp |
                             nir_var_mem_push_const | nir_var_mem_constant));
 
-   const unsigned num_comps = nir_address_format_num_components(addr_format);
-   const unsigned bit_size = nir_address_format_bit_size(addr_format);
+   const nir_address_format base_addr_format =
+      addr_format == nir_address_format_64bit_global_32bit_offset
+         ? nir_address_format_64bit_global
+         : addr_format;
+   const unsigned num_comps = nir_address_format_num_components(base_addr_format);
+   const unsigned bit_size = nir_address_format_bit_size(base_addr_format);
 
    switch (addr_format) {
    case nir_address_format_2x32bit_global:
    case nir_address_format_32bit_global:
-   case nir_address_format_64bit_global: {
+   case nir_address_format_64bit_global:
+   case nir_address_format_64bit_global_32bit_offset: {
       nir_def *base_addr;
       switch (var->data.mode) {
       case nir_var_shader_temp:
@@ -179,6 +184,11 @@ build_addr_for_var(nir_builder *b, nir_variable *var,
 
       default:
          UNREACHABLE("Unsupported variable mode");
+      }
+
+      if (base_addr_format != addr_format) {
+         base_addr = nir_build_convert_address_format(
+            b, base_addr, base_addr_format, addr_format);
       }
 
       return nir_build_addr_iadd_imm(b, base_addr, addr_format, var->data.mode,
