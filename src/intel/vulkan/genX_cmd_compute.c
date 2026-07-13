@@ -462,9 +462,9 @@ compute_update_async_threads_limit(struct anv_cmd_buffer *cmd_buffer,
    uint8_t pixel_async_compute_thread_limit, z_pass_async_compute_thread_limit,
            np_z_async_throttle_settings;
    bool slm_or_barrier_enabled = prog_data->base.total_shared != 0 || prog_data->uses_barrier;
+   const bool has_vrt = devinfo->verx10 >= 300 && !INTEL_DEBUG(DEBUG_NO_VRT);
 
-   if (cmd_buffer->queue_family->engine_class != INTEL_ENGINE_CLASS_COMPUTE ||
-       GFX_VERx10 >= 300)
+   if (cmd_buffer->queue_family->engine_class != INTEL_ENGINE_CLASS_COMPUTE || has_vrt)
       return;
 
    intel_compute_engine_async_threads_limit(devinfo, dispatch->threads,
