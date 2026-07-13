@@ -302,6 +302,11 @@ export_fs_mrtz(isel_context* ctx, const struct aco_ps_epilog_info* info, Temp de
    const unsigned format =
       ac_get_spi_shader_z_format(depth.id(), stencil.id(), samplemask.id(), alpha.id());
    assert(format != V_028710_SPI_SHADER_ZERO);
+   /* The chosen format must be the same as the caller's format if the caller knows it.
+    * (radeonsi doesn't)
+    */
+   assert(info->spi_shader_z_format == ACO_SPI_SHADER_Z_FORMAT_UNKNOWN ||
+          info->spi_shader_z_format == format);
 
    /* Both stencil and sample mask only need 16-bits. */
    if (format == V_028710_SPI_SHADER_UINT16_ABGR) {
