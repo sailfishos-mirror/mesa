@@ -4766,6 +4766,24 @@ enum anv_dgc_state {
    ANV_DGC_STATE_GRAPHIC = BITFIELD_BIT(1),
 };
 
+enum anv_cmd_type {
+   ANV_CMD_TYPE_NONE,
+   /* vkCmdDraw* commands */
+   ANV_CMD_TYPE_DRAW,
+   /* vkCmdDispatch* commands */
+   ANV_CMD_TYPE_DISPATCH,
+   /* vkCmdTraceRays* commands */
+   ANV_CMD_TYPE_RAY_TRACE,
+   /* Transfer commands */
+   ANV_CMD_TYPE_TRANSFER,
+   /* Query commands */
+   ANV_CMD_TYPE_QUERY,
+   /* vkCmdPreprocessGeneratedCommandsEXT/vkCmdExecuteGeneratedCommandsEXT commands */
+   ANV_CMD_TYPE_DGC,
+   /* Internal commands like ASTC decompression or BVH building */
+   ANV_CMD_TYPE_DISPATCH_INTERNAL,
+};
+
 /** State required while building cmd buffer */
 struct anv_cmd_state {
    /* PIPELINE_SELECT.PipelineSelection */
@@ -4906,6 +4924,18 @@ struct anv_cmd_state {
     * Sync" field for utrace timestamp emission.
     */
    void                                        *last_indirect_dispatch;
+
+   /** Last emitted command type
+    *
+    * Used to implement missing barriers workarounds
+    */
+   enum anv_cmd_type                            last_cmd_type;
+
+   /** Whether the currently CmdDispatch calls are internal commands
+    *
+    * Used to implement missing barriers workarounds
+    */
+   uint32_t                                     internal_compute_command;
 };
 
 #define ANV_MIN_CMD_BUFFER_BATCH_SIZE 8192

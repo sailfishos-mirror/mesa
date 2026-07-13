@@ -704,6 +704,8 @@ void genX(CmdPreprocessGeneratedCommandsEXT)(
       UNREACHABLE("Invalid layout bind point");
       break;
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_DGC;
 }
 
 void genX(CmdExecuteGeneratedCommandsEXT)(
@@ -1114,4 +1116,6 @@ void genX(CmdExecuteGeneratedCommandsEXT)(
    default:
       UNREACHABLE("Invalid layout binding point");
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_DGC;
 }

@@ -1418,6 +1418,7 @@ anv_cmd_buffer_save_state(struct anv_cmd_buffer *cmd_buffer,
                           uint32_t flags,
                           struct anv_cmd_saved_state *state)
 {
+   cmd_buffer->state.internal_compute_command++;
    state->flags = flags;
 
    /* we only support the compute pipeline at the moment */
@@ -1496,6 +1497,8 @@ anv_cmd_buffer_restore_state(struct anv_cmd_buffer *cmd_buffer,
       };
       anv_CmdPushConstants2(cmd_buffer_, &push_info);
    }
+
+   cmd_buffer->state.internal_compute_command--;
 }
 
 void

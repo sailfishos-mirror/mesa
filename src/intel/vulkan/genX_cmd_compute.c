@@ -417,6 +417,10 @@ cmd_buffer_post_dispatch_wa(struct anv_cmd_buffer *cmd_buffer, bool rt)
       }
    }
 #endif /* GFX_VERx10 >= 125 */
+
+   cmd_buffer->state.last_cmd_type =
+      cmd_buffer->state.internal_compute_command > 0 ? ANV_CMD_TYPE_DISPATCH_INTERNAL :
+      rt ? ANV_CMD_TYPE_RAY_TRACE : ANV_CMD_TYPE_DISPATCH;
 }
 
 #if GFX_VERx10 >= 125

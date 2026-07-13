@@ -1275,6 +1275,8 @@ cmd_buffer_post_draw_wa(struct anv_cmd_buffer *cmd_buffer,
    update_dirty_vbs_for_gfx8_vb_flush(cmd_buffer, access_type);
 
    genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, false);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_DRAW;
 }
 
 #if GFX_VER >= 11

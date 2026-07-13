@@ -764,6 +764,8 @@ void anv_CmdCopyImage2(
          }
       }
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 static void
@@ -927,6 +929,8 @@ void anv_CmdCopyMemoryToImageKHR(
          }
       }
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 static void
@@ -987,6 +991,8 @@ void anv_CmdCopyImageToMemoryKHR(
 
       anv_blorp_batch_finish(&batch);
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 static bool
@@ -1168,6 +1174,8 @@ void anv_CmdBlitImage2(
     */
    tex_cache_flush_hack(cmd_buffer, true);
    anv_blorp_batch_finish(&batch);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 /* This is maximum possible width/height our HW can handle */
@@ -1245,6 +1253,8 @@ void anv_CmdCopyMemoryKHR(
    anv_add_buffer_write_pending_bits(cmd_buffer, "after copy buffer");
 
    anv_blorp_batch_finish(&batch);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 void
@@ -1332,6 +1342,8 @@ void anv_CmdUpdateMemoryKHR(
    anv_cmd_buffer_update_addr(cmd_buffer,
                               anv_address_from_range_flags(*pDstRange, dstFlags),
                               pDstRange->size, pData);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 void
@@ -1418,6 +1430,8 @@ void anv_CmdFillMemoryKHR(
                             size, data);
 
    anv_add_buffer_write_pending_bits(cmd_buffer, "after fill buffer");
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 static void
@@ -1656,6 +1670,8 @@ void anv_CmdClearColorImage(
 
       anv_blorp_batch_finish(&batch);
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 void anv_CmdClearDepthStencilImage(
@@ -1743,6 +1759,8 @@ void anv_CmdClearDepthStencilImage(
    }
 
    anv_blorp_batch_finish(&batch);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 VkResult
@@ -2275,6 +2293,8 @@ void anv_CmdClearAttachments(
    }
 
    anv_blorp_batch_finish(&batch);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 static void
@@ -2632,6 +2652,8 @@ void anv_CmdResolveImage2(
                     &pResolveImageInfo->pRegions[r],
                     res_info);
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 void
@@ -2869,6 +2891,8 @@ anv_CmdCopyMemoryIndirectKHR(
    blorp_copy_memory_indirect(&batch, indirect_buf_addr, copy_count, stride);
 
    anv_blorp_batch_finish(&batch);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 void
@@ -2965,4 +2989,6 @@ anv_CmdCopyMemoryToImageIndirectKHR(
    }
 
    anv_blorp_batch_finish(&batch);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }

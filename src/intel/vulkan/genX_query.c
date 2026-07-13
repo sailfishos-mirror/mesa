@@ -978,6 +978,8 @@ void genX(CmdResetQueryPool)(
    }
 
    trace_intel_end_query_clear_cs(&cmd_buffer->trace, queryCount);
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_QUERY;
 }
 
 void genX(ResetQueryPool)(
@@ -1319,6 +1321,8 @@ void genX(CmdBeginQueryIndexedEXT)(
    default:
       UNREACHABLE("");
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_QUERY;
 }
 
 void genX(CmdEndQueryIndexedEXT)(
@@ -1558,6 +1562,8 @@ void genX(CmdEndQueryIndexedEXT)(
       if (num_queries > 1)
          emit_zero_queries(cmd_buffer, &b, pool, query + 1, num_queries - 1);
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_QUERY;
 }
 
 #define TIMESTAMP 0x2358
@@ -1636,6 +1642,8 @@ void genX(CmdWriteTimestamp2)(
       if (num_queries > 1)
          emit_zero_queries(cmd_buffer, &b, pool, query + 1, num_queries - 1);
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_QUERY;
 }
 
 #define MI_PREDICATE_SRC0    0x2400
@@ -2064,6 +2072,8 @@ void genX(CmdCopyQueryPoolResultsToMemoryKHR)(
                                  queryCount,
                                  queryResultFlags);
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_TRANSFER;
 }
 
 #if GFX_VERx10 >= 125 && ANV_SUPPORT_RT
@@ -2148,5 +2158,7 @@ genX(CmdWriteAccelerationStructuresPropertiesKHR)(
       mi_builder_set_write_check(&b1, (i == (accelerationStructureCount - 1)));
       emit_query_mi_availability(&b1, anv_query_address(pool, firstQuery + i), true);
    }
+
+   cmd_buffer->state.last_cmd_type = ANV_CMD_TYPE_QUERY;
 }
 #endif /* GFX_VERx10 >= 125 && ANV_SUPPORT_RT */
