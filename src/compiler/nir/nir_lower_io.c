@@ -168,8 +168,24 @@ nir_set_io_offset(nir_intrinsic_instr *intr, nir_io_offset offset)
    }
 
    if (nir_intrinsic_has_offset_shift(intr)) {
-      /* TODO add support for adjusting the base index. */
-      assert(!nir_intrinsic_has_base(intr) || nir_intrinsic_base(intr) == 0);
+      if (nir_intrinsic_has_base(intr)) {
+         unsigned cur_shift = nir_intrinsic_offset_shift(intr);
+         int cur_base = nir_intrinsic_base(intr);
+         int base;
+
+         if (cur_shift > offset.shift) {
+            base = cur_base << (cur_shift - offset.shift);
+         } else {
+            unsigned base_shift = offset.shift - cur_shift;
+
+            assert(util_is_aligned(cur_base, 1ull << base_shift));
+            assert(cur_base >= 0);
+
+            base = cur_base >> base_shift;
+         }
+
+         nir_intrinsic_set_base(intr, base);
+      }
 
       nir_intrinsic_set_offset_shift(intr, offset.shift);
    } else {
