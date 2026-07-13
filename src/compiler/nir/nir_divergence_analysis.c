@@ -665,6 +665,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_global:
    case nir_intrinsic_load_global_intel:
    case nir_intrinsic_load_global_2x32:
+   case nir_intrinsic_load_global_offset:
    case nir_intrinsic_load_global_ir3:
    case nir_intrinsic_load_global_nv:
    case nir_intrinsic_load_deref: {

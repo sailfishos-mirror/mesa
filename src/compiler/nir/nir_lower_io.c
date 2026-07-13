@@ -1044,6 +1044,7 @@ nir_get_io_offset_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_load_global_constant_offset:
    case nir_intrinsic_load_global_constant_bounded:
    case nir_intrinsic_load_global_ir3:
+   case nir_intrinsic_load_global_offset:
    case nir_intrinsic_store_output:
    case nir_intrinsic_store_pixel_local:
    case nir_intrinsic_store_shared:
@@ -1085,6 +1086,7 @@ nir_get_io_offset_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_store_per_vertex_output:
    case nir_intrinsic_store_per_view_output:
    case nir_intrinsic_store_per_primitive_output:
+   case nir_intrinsic_store_global_offset:
    case nir_intrinsic_load_attribute_pan:
    case nir_intrinsic_store_ssbo_block_intel:
    case nir_intrinsic_store_urb_vec4_intel:

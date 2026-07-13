@@ -1348,6 +1348,9 @@ load("global_bounded", [1, 1, 1], [ACCESS, ALIGN_MUL, ALIGN_OFFSET],
      [CAN_ELIMINATE])
 # src[] = { address }.
 load("global_2x32", [2], [ACCESS, ALIGN_MUL, ALIGN_OFFSET], [CAN_ELIMINATE])
+# src[] = { base_address, offset }.
+load("global_offset", [1, 1], [BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET, OFFSET_SHIFT, RANGE],
+     [CAN_ELIMINATE])
 # src[] = { address }.
 load("global_constant", [1], [ACCESS, ALIGN_MUL, ALIGN_OFFSET],
      [CAN_ELIMINATE, CAN_REORDER])
@@ -1395,6 +1398,8 @@ store("task_payload", [1], [BASE, ACCESS, WRITE_MASK, ALIGN_MUL, ALIGN_OFFSET])
 store("global", [1], [WRITE_MASK, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
 # src[] = { value, address }.
 store("global_2x32", [2], [WRITE_MASK, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
+# src[] = { base_address, offset }.
+store("global_offset", [1, 1], [BASE, WRITE_MASK, ACCESS, ALIGN_MUL, ALIGN_OFFSET, OFFSET_SHIFT])
 # src[] = { value, offset }.
 store("scratch", [1], [ALIGN_MUL, ALIGN_OFFSET, WRITE_MASK])
 
