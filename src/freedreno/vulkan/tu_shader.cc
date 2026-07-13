@@ -1099,7 +1099,7 @@ lower_inline_ubo(nir_builder *b, nir_intrinsic_instr *intrin, void *cb_data)
    for (unsigned i = 0; i < const_state->num_inline_ubos; i++) {
       if (const_state->ubos[i].base == binding.desc_set &&
           const_state->ubos[i].offset == binding_layout->offset) {
-         range = const_state->ubos[i].size_vec4 * 4;
+         range = const_state->ubos[i].size_vec4 * 16;
          if (use_ldg_k) {
             base = i * 2;
          } else {
@@ -1135,18 +1135,12 @@ lower_inline_ubo(nir_builder *b, nir_intrinsic_instr *intrin, void *cb_data)
          base_addr =
             nir_load_const_ir3(b, 2, 32, nir_imm_int(b, 0), .base = base);
       }
-      val = nir_load_global_ir3(b, intrin->num_components,
-                                intrin->def.bit_size,
-                                nir_pack_64_2x32(b, base_addr),
-                                offset,
-                                .access =
-                                 (enum gl_access_qualifier)(
-                                    (enum gl_access_qualifier)(ACCESS_NON_WRITEABLE | ACCESS_CAN_REORDER) |
-                                    ACCESS_CAN_SPECULATE),
-                                .align_mul = 16,
-                                .align_offset = 0,
-                                .range_base = 0,
-                                .range = range * 4);
+      val = nir_load_global_offset(
+         b, intrin->num_components, intrin->def.bit_size,
+         nir_pack_64_2x32(b, base_addr), offset,
+         .access = (enum gl_access_qualifier)(
+            ACCESS_NON_WRITEABLE | ACCESS_CAN_REORDER | ACCESS_CAN_SPECULATE),
+         .align_mul = 16, .align_offset = 0, .range = range);
    } else {
       val =
          nir_load_const_ir3(b, intrin->num_components, intrin->def.bit_size,
