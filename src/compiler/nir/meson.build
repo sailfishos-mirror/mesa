@@ -106,6 +106,7 @@ else
   'nir_builtin_builder.c',
   'nir_builtin_builder.h',
   'nir_conversion_builder.h',
+  'nir_convert_address_format.c',
   'nir_clip_cull_distance_io_utils.c',
   'nir_clone.c',
   'nir_constant_expressions.h',

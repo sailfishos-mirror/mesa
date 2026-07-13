@@ -5771,6 +5771,12 @@ bool nir_lower_explicit_io(nir_shader *shader,
                            nir_variable_mode modes,
                            nir_address_format);
 
+bool nir_convert_address_format(nir_shader *shader, nir_variable_mode modes,
+                                nir_address_format from, nir_address_format to);
+nir_def *nir_build_convert_address_format(nir_builder *b, nir_def *addr,
+                                          nir_address_format from,
+                                          nir_address_format to);
+
 typedef enum {
    /* Use open-coded funnel shifts for each component. */
    nir_mem_access_shift_method_scalar,
