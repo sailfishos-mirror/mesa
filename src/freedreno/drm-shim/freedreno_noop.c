@@ -205,6 +205,7 @@ static ioctl_fn_t driver_ioctls[] = {
    [DRM_MSM_SUBMITQUEUE_CLOSE] = msm_ioctl_noop,
    [DRM_MSM_SUBMITQUEUE_QUERY] = msm_ioctl_noop,
    [DRM_MSM_VM_BIND] = msm_ioctl_vm_bind,
+   [DRM_MSM_PERFCNTR_CONFIG] = msm_ioctl_noop,
 };
 
 #define CHIPID(maj, min, rev, pat)                                             \
