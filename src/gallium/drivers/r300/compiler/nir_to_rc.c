@@ -1708,9 +1708,10 @@ ntr_lower_backend_tex_wrap(nir_builder *b, nir_def *coord, rc_wrap_mode wrapmode
  */
 static nir_def *
 ntr_lower_backend_tex_cube(nir_builder *b, nir_def *coord, nir_def *factor,
-                           nir_def *upper_factor)
+                           nir_def *upper_factor, nir_def **edge_delta)
 {
    assert(coord->num_components >= 3);
+   assert(!edge_delta || upper_factor);
 
    nir_def *scale = nir_channel(b, factor, 0);
    nir_def *xyz = nir_trim_vector(b, coord, 3);
@@ -1752,6 +1753,13 @@ ntr_lower_backend_tex_cube(nir_builder *b, nir_def *coord, nir_def *factor,
          nir_fmul(b, major,
                   nir_fsub(b, one, nir_fmul_imm(b, upper, 2.0f)));
       nir_def *oriented = nir_fmul(b, basis, lowered);
+      if (edge_delta) {
+         nir_def *min_oriented =
+            nir_fmin(b, nir_channel(b, oriented, 0),
+                     nir_fmin(b, nir_channel(b, oriented, 1),
+                              nir_channel(b, oriented, 2)));
+         *edge_delta = nir_fsub(b, min_oriented, edge);
+      }
       oriented = nir_fmax(b, oriented, edge);
       lowered = nir_fmul(b, basis, oriented);
    }
@@ -1787,10 +1795,15 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
       state->fs_state->unit[sampler].scale_cube_coords_before_fetch;
    const bool clamp_cube =
       state->fs_state->unit[sampler].clamp_cube_coords_before_fetch;
+   const bool bias_cube_lod =
+      state->fs_state->unit[sampler].bias_cube_lod_at_edge;
    const bool is_rect = tex->sampler_dim == GLSL_SAMPLER_DIM_RECT;
+   const bool correct_cube_lod =
+      bias_cube_lod && (tex->op == nir_texop_tex || tex->op == nir_texop_txb);
 
    assert(!scale_cube || tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE);
    assert(!clamp_cube || scale_cube);
+   assert(!bias_cube_lod || clamp_cube);
 
    b->cursor = nir_before_instr(&tex->instr);
    nir_def *coord = nir_get_tex_src(tex, nir_tex_src_coord);
@@ -1875,6 +1888,7 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
    }
 
    if (scale_cube) {
+      nir_def *edge_delta = NULL;
       nir_def *factor =
          ntr_load_state_constant(state->c, b, RC_STATE_R300_TEXSCALE_FACTOR,
                                  sampler, 1);
@@ -1883,7 +1897,26 @@ ntr_lower_backend_tex_instr(nir_builder *b, nir_tex_instr *tex, void *data)
                                               RC_STATE_R300_TEXSCALE_UPPER,
                                               sampler, 1)
                     : NULL;
-      coord = ntr_lower_backend_tex_cube(b, coord, factor, upper);
+      coord = ntr_lower_backend_tex_cube(
+         b, coord, factor, upper, correct_cube_lod ? &edge_delta : NULL);
+
+      if (correct_cube_lod) {
+         /* r300 applies a global +1/32 LOD correction. The piecewise cube
+          * transform can make helper pixels across the logical upper edge
+          * push a magnified edge pixel into minification. Cancel that one
+          * step only where the edge clamp activates. */
+         nir_def *bias = nir_fcsel_ge(b, edge_delta,
+                                      nir_imm_float(b, 0.0f),
+                                      nir_imm_float(b, -1.0f / 32.0f));
+         nir_def *original_bias =
+            nir_steal_tex_src(tex, nir_tex_src_bias);
+
+         if (original_bias)
+            bias = nir_fadd(b, original_bias, bias);
+         else
+            tex->op = nir_texop_txb;
+         nir_tex_instr_add_src(tex, nir_tex_src_bias, bias);
+      }
       progress = true;
    }
 

@@ -6,10 +6,6 @@ dEQP-GLES2.functional.shaders.loops.do_while_dynamic_iterations.mixed_break_cont
 dEQP-GLES2.functional.texture.mipmap.cube.basic.nearest_nearest,Fail
 dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_nearest,Fail
 
-# Looks like minor sampling location errors for the NPOT case.
-dEQP-GLES2.functional.texture.size.cube.15x15_rgb888,Fail
-dEQP-GLES2.functional.texture.size.cube.15x15_rgba8888,Fail
-
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_repeat_clamp,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_repeat_mirror,Fail
 KHR-GLES2.texture_3d.filtering.combinations.linear_linear_clamp_repeat_repeat,Fail

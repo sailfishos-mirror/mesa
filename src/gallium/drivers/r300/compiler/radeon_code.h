@@ -172,6 +172,9 @@ struct r300_fragment_program_external_state {
 
       /** Clamp linearly filtered NPOT cube coordinates to the logical edge. */
       unsigned clamp_cube_coords_before_fetch : 1;
+
+      /** Correct implicit LOD selection at the logical NPOT cube edge. */
+      unsigned bias_cube_lod_at_edge : 1;
    } unit[16];
 
    unsigned alpha_to_one : 1;

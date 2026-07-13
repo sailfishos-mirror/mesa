@@ -121,6 +121,8 @@ void r300_fragment_program_get_external_state(
                 state->unit[i].clamp_cube_coords_before_fetch =
                     s->state.min_img_filter == PIPE_TEX_FILTER_LINEAR ||
                     s->state.mag_img_filter == PIPE_TEX_FILTER_LINEAR;
+                state->unit[i].bias_cube_lod_at_edge =
+                    s->state.min_img_filter != s->state.mag_img_filter;
             } else {
                 state->unit[i].wrap_mode_s =
                     r300_get_npot_wrap_mode(s->state.wrap_s);
