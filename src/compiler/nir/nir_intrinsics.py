@@ -1624,24 +1624,6 @@ store("shared_ir3", [1], [BASE, ALIGN_MUL, ALIGN_OFFSET])
 # src[] = { offset }.
 load("shared_ir3", [1], [BASE, ALIGN_MUL, ALIGN_OFFSET], [CAN_ELIMINATE])
 
-# IR3-specific load/store global intrinsics. They take a 64-bit base address
-# and a 32-bit offset.  The hardware will add the base and the offset, which
-# saves us from doing 64-bit math on the base address.
-
-# src[] = { value, address(vec2 of hi+lo uint32_t), offset }.
-# const_index[] = { write_mask, align_mul, align_offset }
-# Final address is calculated as `address + ((offset + BASE) << OFFSET_SHIFT)
-# `offset` is sign-extended to 64-bits first so the offset calculation does not
-# cause 32-bit overflows.
-# a6xx has another shift field which only applies to `offset`; this is not
-# represented here.
-store("global_ir3", [1, 1], indices=[ACCESS, ALIGN_MUL, ALIGN_OFFSET, OFFSET_SHIFT, BASE])
-# src[] = { address(vec2 of hi+lo uint32_t), offset }.
-# const_index[] = { access, align_mul, align_offset }
-# the alignment applies to the base address
-# Final address is calculated as for @store_global_ir3
-load("global_ir3", [1, 1], indices=[ACCESS, ALIGN_MUL, ALIGN_OFFSET, RANGE_BASE, RANGE, OFFSET_SHIFT, BASE], flags=[CAN_ELIMINATE])
-
 # Etnaviv-specific load/glboal intrinsics. They take a 32-bit base address and
 # a 32-bit offset, which doesn't need to be an immediate.
 # src[] = { value, address, 32-bit offset }.

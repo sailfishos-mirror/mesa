@@ -275,8 +275,7 @@ lower_offset_for_global(nir_builder *b, nir_intrinsic_instr *intr,
       return false;
    }
 
-   unsigned bit_size = (intr->intrinsic == nir_intrinsic_load_global_ir3 ||
-                        intr->intrinsic == nir_intrinsic_load_global_offset)
+   unsigned bit_size = intr->intrinsic == nir_intrinsic_load_global_offset
                           ? intr->def.bit_size
                           : intr->src[0].ssa->bit_size;
 
@@ -341,9 +340,7 @@ lower_io_offsets_block(nir_block *block, nir_builder *b, void *mem_ctx,
          progress = true;
       }
 
-      if (intr->intrinsic == nir_intrinsic_load_global_ir3 ||
-          intr->intrinsic == nir_intrinsic_store_global_ir3 ||
-          intr->intrinsic == nir_intrinsic_load_global_offset ||
+      if (intr->intrinsic == nir_intrinsic_load_global_offset ||
           intr->intrinsic == nir_intrinsic_store_global_offset) {
          progress |= lower_offset_for_global(b, intr, c);
       }
@@ -396,8 +393,6 @@ ir3_nir_max_imm_offset(nir_intrinsic_instr *intrin, const void *data)
       if (!compiler->info->props.has_ssbo_imm_offsets)
          return 0;
       return 127; /* stib.b */
-   case nir_intrinsic_load_global_ir3:
-   case nir_intrinsic_store_global_ir3:
    case nir_intrinsic_load_global_offset:
    case nir_intrinsic_store_global_offset:
       /* The immediate offset field is larger for ldg/stg than for their .a
@@ -417,8 +412,6 @@ bool
 ir3_nir_allow_base_offset_wrap(nir_intrinsic_instr *intrin, const void *data)
 {
    switch (intrin->intrinsic) {
-   case nir_intrinsic_load_global_ir3:
-   case nir_intrinsic_store_global_ir3:
    case nir_intrinsic_load_global_offset:
    case nir_intrinsic_store_global_offset:
       return false;

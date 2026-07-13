@@ -174,7 +174,6 @@ is_intrinsic_store(nir_intrinsic_op op)
    case nir_intrinsic_store_ssbo:
    case nir_intrinsic_store_shared:
    case nir_intrinsic_store_global:
-   case nir_intrinsic_store_global_ir3:
       return true;
    default:
       return false;
@@ -191,7 +190,6 @@ is_intrinsic_load(nir_intrinsic_op op)
    case nir_intrinsic_load_ubo:
    case nir_intrinsic_load_shared:
    case nir_intrinsic_load_global:
-   case nir_intrinsic_load_global_ir3:
    case nir_intrinsic_load_const_ir3:
       return true;
    default:
