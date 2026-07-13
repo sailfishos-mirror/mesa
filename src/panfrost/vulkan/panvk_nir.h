@@ -12,4 +12,7 @@
 bool panvk_nir_lower_cooperative_matrix(nir_shader *nir,
                                         unsigned subgroup_size);
 
+bool panvk_nir_lower_tile_image(nir_shader *nir, uint32_t *color_read_out,
+                                bool *z_read_out, bool *s_read_out);
+
 #endif
