@@ -2724,6 +2724,8 @@ struct vk_rt_shader_group {
 struct vk_rt_pipeline {
    struct vk_pipeline base;
 
+   struct vk_pipeline_layout *layout;
+
    uint32_t group_count;
    struct vk_rt_shader_group *groups;
 
@@ -2782,6 +2784,8 @@ vk_rt_pipeline_destroy(struct vk_device *device,
       vk_rt_shader_group_destroy(device, &rt_pipeline->groups[i]);
    for (uint32_t i = 0; i < rt_pipeline->stage_count; i++)
       vk_pipeline_stage_finish(device, &rt_pipeline->stages[i]);
+   if (rt_pipeline->layout != NULL)
+      vk_pipeline_layout_unref(device, rt_pipeline->layout);
    vk_pipeline_free(device, pAllocator, pipeline);
 }
 
@@ -2797,6 +2801,7 @@ vk_rt_pipeline_cmd_bind(struct vk_command_buffer *cmd_buffer,
          container_of(pipeline, struct vk_rt_pipeline, base);
 
       ops->cmd_set_rt_state(cmd_buffer,
+                            rt_pipeline->layout,
                             rt_pipeline->scratch_size,
                             rt_pipeline->ray_queries,
                             rt_pipeline->dynamic_descriptor_offsets);
@@ -3812,6 +3817,9 @@ vk_create_rt_pipeline(struct vk_device *device,
       if (pipeline->stack_size == 0)
          pipeline->stack_size = 1;
    }
+
+   if (pipeline_layout != NULL)
+      pipeline->layout = vk_pipeline_layout_ref(pipeline_layout);
 
    vk_release_rt_pipeline_compile_info(&compile_info, device, pAllocator);
 

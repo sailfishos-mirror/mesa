@@ -1350,6 +1350,7 @@ void anv_CmdPushDescriptorSetWithTemplate2(
 
 void
 anv_cmd_buffer_set_rt_state(struct vk_command_buffer *vk_cmd_buffer,
+                            struct vk_pipeline_layout *vk_pipeline_layout,
                             VkDeviceSize scratch_size,
                             uint32_t ray_queries,
                             const uint8_t *dynamic_descriptor_offsets)
