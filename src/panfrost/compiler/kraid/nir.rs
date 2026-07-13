@@ -890,19 +890,23 @@ impl<'a> ShaderFromNir<'a> {
                 let swz = match (dst_bits, src_bits) {
                     (8, 8) => Swizzle::NONE,
                     (8, 16) => Swizzle::from_bytes([0, 2, 0, 2]),
-                    (8, 32) => Swizzle::replicate_byte(0),
+                    (8, 32 | 64) => Swizzle::replicate_byte(0),
                     (16, 8) => Swizzle::widen_v2s8(0, 1),
                     (16, 16) => Swizzle::NONE,
-                    (16, 32) => Swizzle::replicate_half(0),
+                    (16, 32 | 64) => Swizzle::replicate_half(0),
                     (32, 8) => Swizzle::widen_s8(0),
                     (32, 16) => Swizzle::widen_s16(0),
-                    (32, 32) => Swizzle::NONE,
-                    (d, s) => panic!("u{s}_to_u{d} unsupported"),
+                    (32, 32 | 64) => Swizzle::NONE,
+                    (d, s) => panic!("s{s}_to_s{d} unsupported"),
                 };
                 b.push_op(OpSwz {
                     dst: dst.into(),
                     src_type: dst_type(NumericType::SignedInteger),
-                    src: srcs(0).swizzle(swz),
+                    src: if src_bits == 64 {
+                        srcs(0).word(0).swizzle(swz)
+                    } else {
+                        srcs(0).swizzle(swz)
+                    },
                 });
             }
             nir_op_iabs => {
@@ -1149,19 +1153,23 @@ impl<'a> ShaderFromNir<'a> {
                 let swz = match (dst_bits, src_bits) {
                     (8, 8) => Swizzle::NONE,
                     (8, 16) => Swizzle::from_bytes([0, 2, 0, 2]),
-                    (8, 32) => Swizzle::replicate_byte(0),
+                    (8, 32 | 64) => Swizzle::replicate_byte(0),
                     (16, 8) => Swizzle::widen_v2u8(0, 1),
                     (16, 16) => Swizzle::NONE,
-                    (16, 32) => Swizzle::replicate_half(0),
+                    (16, 32 | 64) => Swizzle::replicate_half(0),
                     (32, 8) => Swizzle::widen_u8(0),
                     (32, 16) => Swizzle::widen_u16(0),
-                    (32, 32) => Swizzle::NONE,
+                    (32, 32 | 64) => Swizzle::NONE,
                     (d, s) => panic!("u{s}_to_u{d} unsupported"),
                 };
                 b.push_op(OpSwz {
                     dst: dst.into(),
                     src_type: dst_type(NumericType::UnsignedInteger),
-                    src: srcs(0).swizzle(swz),
+                    src: if src_bits == 64 {
+                        srcs(0).word(0).swizzle(swz)
+                    } else {
+                        srcs(0).swizzle(swz)
+                    },
                 });
             }
             nir_op_unpack_32_2x16 | nir_op_unpack_32_4x8 => {
