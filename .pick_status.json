@@ -954,7 +954,7 @@
         "description": "radeonsi: fix truncated cache key",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d4831aaf5fc983d29d063a1efe23de9393e3fc9d",
         "notes": null
