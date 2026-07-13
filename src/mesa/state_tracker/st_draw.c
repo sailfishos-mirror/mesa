@@ -101,6 +101,9 @@ st_draw_gallium(struct gl_context *ctx,
 
    struct st_context *st = st_context(ctx);
 
+   ST_PIPELINE_RENDER_STATE_MASK(mask);
+   st_prepare_draw(ctx, mask);
+
    cso_draw_vbo(st->cso_context, info, drawid_offset, indirect, draws, num_draws);
 }
 
@@ -115,6 +118,9 @@ st_draw_gallium_multimode(struct gl_context *ctx,
 
    unsigned i, first;
    struct cso_context *cso = st->cso_context;
+
+   ST_PIPELINE_RENDER_STATE_MASK(mask);
+   st_prepare_draw(ctx, mask);
 
    /* Find consecutive draws where mode doesn't vary. */
    for (i = 0, first = 0; i <= num_draws; i++) {
@@ -160,8 +166,6 @@ st_indirect_draw_vbo(struct gl_context *ctx,
       return;
 
    assert(stride);
-   ST_PIPELINE_RENDER_STATE_MASK(mask);
-   st_prepare_draw(ctx, mask);
 
    memset(&indirect, 0, sizeof(indirect));
    util_draw_init_info(&info);
@@ -374,6 +378,9 @@ st_hw_select_draw_gallium(struct gl_context *ctx,
    struct pipe_resource *releasebuf = NULL;
    enum mesa_prim old_mode = info->mode;
 
+   ST_PIPELINE_RENDER_STATE_MASK(mask);
+   st_prepare_draw(ctx, mask);
+
    if (st_draw_hw_select_prepare_common(ctx, &releasebuf) &&
        /* Removing "const" is fine because we restore the changed mode
         * at the end. */
@@ -396,6 +403,9 @@ st_hw_select_draw_gallium_multimode(struct gl_context *ctx,
 {
    struct st_context *st = st_context(ctx);
    struct pipe_resource *releasebuf = NULL;
+
+   ST_PIPELINE_RENDER_STATE_MASK(mask);
+   st_prepare_draw(ctx, mask);
 
    if (!st_draw_hw_select_prepare_common(ctx, &releasebuf))
       goto out;

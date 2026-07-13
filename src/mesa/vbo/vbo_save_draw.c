@@ -378,9 +378,6 @@ vbo_save_playback_vertex_list(struct gl_context *ctx, void *data, bool copy_to_c
 
    struct pipe_draw_info *info = (struct pipe_draw_info *) &node->cold->info;
 
-   ST_PIPELINE_RENDER_STATE_MASK(mask);
-   st_prepare_draw(ctx, mask);
-
    if (node->modes) {
       ctx->Driver.DrawGalliumMultiMode(ctx, info,
                                        node->start_counts,
