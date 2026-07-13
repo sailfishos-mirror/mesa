@@ -672,8 +672,10 @@ build_explicit_io_load(nir_builder *b, nir_intrinsic_instr *intrin,
       case nir_var_mem_global:
          assert(addr_format_is_global(addr_format, mode));
 
-         if (nir_intrinsic_has_access(intrin) &&
-             (nir_intrinsic_access(intrin) & ACCESS_CAN_REORDER))
+         if (b->shader->options->has_global_offset)
+            op = nir_intrinsic_load_global_offset;
+         else if (nir_intrinsic_has_access(intrin) &&
+                  (nir_intrinsic_access(intrin) & ACCESS_CAN_REORDER))
             op = get_load_global_constant_op_from_addr_format(addr_format);
          else
             op = get_load_global_op_from_addr_format(addr_format);
@@ -709,7 +711,10 @@ build_explicit_io_load(nir_builder *b, nir_intrinsic_instr *intrin,
             op = nir_intrinsic_load_constant;
          } else {
             assert(addr_format_is_global(addr_format, mode));
-            op = get_load_global_constant_op_from_addr_format(addr_format);
+            if (b->shader->options->has_global_offset)
+               op = nir_intrinsic_load_global_offset;
+            else
+               op = get_load_global_constant_op_from_addr_format(addr_format);
          }
          break;
       default:
@@ -749,7 +754,8 @@ build_explicit_io_load(nir_builder *b, nir_intrinsic_instr *intrin,
 
    nir_intrinsic_instr *load = nir_intrinsic_instr_create(b->shader, op);
 
-   if (op == nir_intrinsic_load_global_constant_offset) {
+   if (op == nir_intrinsic_load_global_constant_offset ||
+       op == nir_intrinsic_load_global_offset) {
       assert(addr_format == nir_address_format_64bit_global_32bit_offset);
       load->src[0] = nir_src_for_ssa(
          nir_pack_64_2x32(b, nir_trim_vector(b, addr, 2)));
@@ -922,7 +928,10 @@ build_explicit_io_store(nir_builder *b, nir_intrinsic_instr *intrin,
          break;
       case nir_var_mem_global:
          assert(addr_format_is_global(addr_format, mode));
-         op = get_store_global_op_from_addr_format(addr_format);
+         if (b->shader->options->has_global_offset)
+            op = nir_intrinsic_store_global_offset;
+         else
+            op = get_store_global_op_from_addr_format(addr_format);
          break;
       case nir_var_mem_shared:
          assert(addr_format_is_offset(addr_format, mode));
@@ -989,7 +998,12 @@ build_explicit_io_store(nir_builder *b, nir_intrinsic_instr *intrin,
    }
 
    store->src[0] = nir_src_for_ssa(value);
-   if (addr_format_is_global(addr_format, mode)) {
+   if (op == nir_intrinsic_store_global_offset) {
+      assert(addr_format == nir_address_format_64bit_global_32bit_offset);
+      store->src[1] = nir_src_for_ssa(
+         nir_pack_64_2x32(b, nir_trim_vector(b, addr, 2)));
+      store->src[2] = nir_src_for_ssa(nir_channel(b, addr, 3));
+   } else if (addr_format_is_global(addr_format, mode)) {
       store->src[1] = nir_src_for_ssa(addr_to_global(b, addr, addr_format));
    } else if (addr_format_is_offset(addr_format, mode)) {
       assert(addr->num_components == 1);
