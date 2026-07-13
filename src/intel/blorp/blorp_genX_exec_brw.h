@@ -1992,39 +1992,39 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
                                 &push_const_offset, &push_const_size);
 
 #if GFX_VERx10 >= 125
+   const bool has_vrt = devinfo->verx10 >= 300 && !INTEL_DEBUG(DEBUG_NO_VRT);
 
-/* Not need with VRT enabled */
-#if GFX_VERx10 < 300
-   uint8_t pixel_async_compute_thread_limit, z_pass_async_compute_thread_limit,
-           np_z_async_throttle_settings;
-   bool slm_or_barrier_enabled = prog_data->total_shared != 0 || cs_prog_data->uses_barrier;
+   if (!has_vrt) {
+      uint8_t pixel_async_compute_thread_limit, z_pass_async_compute_thread_limit,
+            np_z_async_throttle_settings;
+      bool slm_or_barrier_enabled = prog_data->total_shared != 0 || cs_prog_data->uses_barrier;
 
-   intel_compute_engine_async_threads_limit(devinfo, dispatch.threads,
-                                            slm_or_barrier_enabled,
-                                            cs_prog_data->uses_fence,
-                                            &pixel_async_compute_thread_limit,
-                                            &z_pass_async_compute_thread_limit,
-                                            &np_z_async_throttle_settings);
-   blorp_emit(batch, GENX(STATE_COMPUTE_MODE), cm) {
+      intel_compute_engine_async_threads_limit(devinfo, dispatch.threads,
+                                             slm_or_barrier_enabled,
+                                             cs_prog_data->uses_fence,
+                                             &pixel_async_compute_thread_limit,
+                                             &z_pass_async_compute_thread_limit,
+                                             &np_z_async_throttle_settings);
+      blorp_emit(batch, GENX(STATE_COMPUTE_MODE), cm) {
 #if GFX_VER >= 20
-      cm.AsyncComputeThreadLimit = pixel_async_compute_thread_limit;
-      cm.ZPassAsyncComputeThreadLimit = z_pass_async_compute_thread_limit;
-      cm.ZAsyncThrottlesettings = np_z_async_throttle_settings;
-      cm.AsyncComputeThreadLimitMask = 0x7;
-      cm.ZPassAsyncComputeThreadLimitMask = 0x7;
-      cm.ZAsyncThrottlesettingsMask = 0x3;
-#else
-      cm.PixelAsyncComputeThreadLimit = pixel_async_compute_thread_limit;
-      cm.ZPassAsyncComputeThreadLimit = z_pass_async_compute_thread_limit;
-      cm.PixelAsyncComputeThreadLimitMask = 0x7;
-      cm.ZPassAsyncComputeThreadLimitMask = 0x7;
-      if (intel_device_info_is_mtl_or_arl(devinfo)) {
+         cm.AsyncComputeThreadLimit = pixel_async_compute_thread_limit;
+         cm.ZPassAsyncComputeThreadLimit = z_pass_async_compute_thread_limit;
          cm.ZAsyncThrottlesettings = np_z_async_throttle_settings;
+         cm.AsyncComputeThreadLimitMask = 0x7;
+         cm.ZPassAsyncComputeThreadLimitMask = 0x7;
          cm.ZAsyncThrottlesettingsMask = 0x3;
-      }
+#else
+         cm.PixelAsyncComputeThreadLimit = pixel_async_compute_thread_limit;
+         cm.ZPassAsyncComputeThreadLimit = z_pass_async_compute_thread_limit;
+         cm.PixelAsyncComputeThreadLimitMask = 0x7;
+         cm.ZPassAsyncComputeThreadLimitMask = 0x7;
+         if (intel_device_info_is_mtl_or_arl(devinfo)) {
+            cm.ZAsyncThrottlesettings = np_z_async_throttle_settings;
+            cm.ZAsyncThrottlesettingsMask = 0x3;
+         }
 #endif
+      }
    }
-#endif /* GFX_VERx10 < 300 */
 
    struct GENX(COMPUTE_WALKER_BODY) body = {
       .SIMDSize                       = dispatch.simd_size / 16,
