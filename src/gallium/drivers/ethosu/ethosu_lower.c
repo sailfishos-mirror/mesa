@@ -341,6 +341,8 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
                      const struct pipe_ml_operation *poperation,
                      struct ethosu_operation *operation)
 {
+   bool avg_pool = poperation->pooling.type == PIPE_ML_POOLING_TYPE_AVG;
+
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
 
    switch (poperation->pooling.type) {
@@ -361,9 +363,10 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
 
    set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
-   if (operation->pooling.type == ETHOSU_POOLING_TYPE_AVG) {
+   if (avg_pool) {
       operation->ifm.zero_point = 0;
       operation->ofm.zero_point = 0;
+      operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    }
 
    operation->kernel.height = poperation->pooling.filter_height;
