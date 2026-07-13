@@ -1924,7 +1924,7 @@
         "description": "virgl: Close winsys fd after destroying screen",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "250fffac152f3cbdbea505fc642e5f023c3f3b7e",
         "notes": null
