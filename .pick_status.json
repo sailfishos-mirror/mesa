@@ -2364,7 +2364,7 @@
         "description": "vulkan/runtime: reindex internal bits",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
@@ -2487,7 +2487,7 @@
         "resolution": 2,
         "main_sha": null,
         "because_sha": "be5b0e08fa4fda9c747901a19d86b1862eecf6cd",
-        "notes": "https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/43529#note_3609684"
+        "notes": null
     },
     {
         "sha": "cec4f4dfb4c305b121443eaf5b4048e5fac7eabd",
