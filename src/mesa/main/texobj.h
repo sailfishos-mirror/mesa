@@ -33,6 +33,7 @@
 
 
 #include "util/glheader.h"
+#include "context.h"
 #include "samplerobj.h"
 #include "teximage.h"
 
@@ -113,11 +114,11 @@ _mesa_unlock_texture(struct gl_context *ctx, struct gl_texture_object *texObj)
 }
 
 
-/** Is the texture "complete" with respect to the given sampler state? */
+/** Is the texture "complete" in the given context and sampler state? */
 static inline GLboolean
-_mesa_is_texture_complete(const struct gl_texture_object *texObj,
-                          const struct gl_sampler_object *sampler,
-                          bool linear_as_nearest_for_int_tex)
+_mesa_is_texture_complete(const struct gl_context *ctx,
+                          const struct gl_texture_object *texObj,
+                          const struct gl_sampler_object *sampler)
 {
    struct gl_texture_image *img = _mesa_base_tex_image(texObj);
    bool isMultisample = img && img->NumSamples >= 2;
@@ -154,7 +155,7 @@ _mesa_is_texture_complete(const struct gl_texture_object *texObj,
        */
       if ((texObj->_IsIntegerFormat ||
            (texObj->StencilSampling && img->_BaseFormat == GL_DEPTH_STENCIL)) &&
-          linear_as_nearest_for_int_tex) {
+          ctx->Const.ForceIntegerTexNearest) {
          /* Skip return */
       } else {
          return GL_FALSE;
