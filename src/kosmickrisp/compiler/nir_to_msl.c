@@ -2022,7 +2022,7 @@ alu_fp_math_mode_pragma(const nir_alu_instr *alu)
       }
    }
 
-   if (fp_math_ctrl & nir_fp_no_contract)
+   if (fp_math_ctrl & (nir_fp_no_contract | nir_fp_no_reassoc))
       return "safe";
 
    /* TODO_KOSMICKRISP nir_fp_preserve_signed_zero should be preserved even if
