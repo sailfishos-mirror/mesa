@@ -123,6 +123,33 @@ _mesa_is_texture_complete(const struct gl_context *ctx,
    struct gl_texture_image *img = _mesa_base_tex_image(texObj);
    bool isMultisample = img && img->NumSamples >= 2;
 
+   /* Section 3.8.2 (Shader Execution) of the OpenGL ES 2.0 spec:
+    *
+    *  "Calling a sampler from a fragment shader will return (R, G, B, A) =
+    *  (0, 0, 0, 1) if any of the following conditions are true:
+    *
+    *  [...]
+    *
+    *  A two-dimensional sampler is called, the corresponding texture image
+    *  is a non-power-of-two image (as described in the Mipmapping discussion
+    *  of section 3.7.7), and either the texture wrap mode is not
+    *  CLAMP_TO_EDGE, or the minification filter is neither NEAREST nor
+    *  LINEAR."
+    *
+    * The same restriction applies to cube map samplers. OES_texture_3D says:
+    *
+    *  "Mip-mapping and texture wrap modes other than CLAMP_TO_EDGE are not
+    *  supported for non-power of two 3D textures."
+    */
+   if (_mesa_is_gles2(ctx) && !_mesa_has_OES_texture_npot(ctx) &&
+       !_mesa_is_power_of_two_texture(img) &&
+       (_mesa_is_mipmap_filter(sampler) ||
+        sampler->Attrib.WrapS != GL_CLAMP_TO_EDGE ||
+        sampler->Attrib.WrapT != GL_CLAMP_TO_EDGE ||
+        (texObj->Target == GL_TEXTURE_3D &&
+         sampler->Attrib.WrapR != GL_CLAMP_TO_EDGE)))
+      return GL_FALSE;
+
    /*
     * According to ARB_stencil_texturing, NEAREST_MIPMAP_NEAREST would
     * be forbidden, however it is allowed per GL 4.5 rules, allow it

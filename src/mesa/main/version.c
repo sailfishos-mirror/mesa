@@ -481,7 +481,6 @@ compute_version_es2(const struct gl_extensions *extensions,
    /* OpenGL ES 2.0 is derived from OpenGL 2.0 */
    const bool ver_2_0 = (extensions->ARB_vertex_shader &&
                          extensions->ARB_fragment_shader &&
-                         extensions->ARB_texture_non_power_of_two &&
                          extensions->EXT_blend_equation_separate);
    /* FINISHME: This list isn't quite right. */
    const bool ver_3_0 = (extensions->ARB_half_float_vertex &&
@@ -491,6 +490,7 @@ compute_version_es2(const struct gl_extensions *extensions,
                          extensions->OES_texture_float &&
                          extensions->OES_texture_half_float &&
                          extensions->OES_texture_half_float_linear &&
+                         extensions->ARB_texture_non_power_of_two &&
                          extensions->ARB_texture_rg &&
                          extensions->ARB_depth_buffer_float &&
                          extensions->ARB_framebuffer_object &&
