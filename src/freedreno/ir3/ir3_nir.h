@@ -105,6 +105,7 @@ bool ir3_nir_lower_load_constant(nir_shader *nir, struct ir3_shader_variant *v);
 void ir3_nir_analyze_ubo_ranges(nir_shader *nir, struct ir3_shader_variant *v);
 bool ir3_nir_lower_ubo_loads(nir_shader *nir, struct ir3_shader_variant *v);
 bool ir3_nir_lower_const_global_loads(nir_shader *nir, struct ir3_shader_variant *v);
+bool ir3_nir_can_lower_to_ldg_k(nir_intrinsic_instr *intrin);
 bool ir3_nir_fixup_load_const_ir3(nir_shader *nir);
 bool ir3_nir_opt_preamble(nir_shader *nir, struct ir3_shader_variant *v);
 bool ir3_nir_opt_prefetch_descriptors(nir_shader *nir, struct ir3_shader_variant *v);

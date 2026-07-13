@@ -180,6 +180,15 @@ instr_cost(nir_instr *instr, const void *data)
          return 8;
       }
 
+      case nir_intrinsic_load_global_offset: {
+         /* If we can lower this to ldg.k, that should be preferred as it can
+          * use shared sources.
+          */
+         if (ir3_nir_can_lower_to_ldg_k(intrin))
+            return 0;
+         return 8;
+      }
+
       case nir_intrinsic_load_ssbo:
       case nir_intrinsic_load_ssbo_ir3:
       case nir_intrinsic_get_ssbo_size:

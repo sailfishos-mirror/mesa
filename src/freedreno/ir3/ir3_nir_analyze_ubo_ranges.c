@@ -473,16 +473,10 @@ instr_is_load_ubo(nir_instr *instr)
    return op == nir_intrinsic_load_ubo;
 }
 
-static bool
-instr_is_load_const(nir_instr *instr)
+bool
+ir3_nir_can_lower_to_ldg_k(nir_intrinsic_instr *intrin)
 {
-   if (instr->type != nir_instr_type_intrinsic)
-      return false;
-
-   nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
-   nir_intrinsic_op op = intrin->intrinsic;
-
-   if (op != nir_intrinsic_load_global_offset)
+   if (intrin->intrinsic != nir_intrinsic_load_global_offset)
       return false;
 
    /* TODO handle non-aligned accesses */
@@ -492,6 +486,16 @@ instr_is_load_const(nir_instr *instr)
 
    enum gl_access_qualifier access = nir_intrinsic_access(intrin);
    return (access & ACCESS_NON_WRITEABLE) && (access & ACCESS_CAN_SPECULATE);
+}
+
+static bool
+instr_is_load_const(nir_instr *instr)
+{
+   if (instr->type != nir_instr_type_intrinsic)
+      return false;
+
+   nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+   return ir3_nir_can_lower_to_ldg_k(intrin);
 }
 
 /* For now, everything we upload is accessed statically and thus will be
