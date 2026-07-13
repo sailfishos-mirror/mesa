@@ -2271,7 +2271,7 @@ v3d_optimize_nir(struct v3d_compile *c, struct nir_shader *s)
                 NIR_PASS(progress, s, nir_opt_if, false);
                 if (c && !c->disable_gcm) {
                         bool local_progress = false;
-                        NIR_PASS(local_progress, s, nir_opt_gcm, false);
+                        NIR_PASS(local_progress, s, nir_opt_gcm, false, true);
                         c->gcm_progress |= local_progress;
                         progress |= local_progress;
                 }

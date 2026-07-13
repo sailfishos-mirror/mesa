@@ -115,7 +115,7 @@ tu_spirv_to_nir_library(struct tu_device *dev,
    NIR_PASS(_, nir, nir_opt_copy_prop);
    NIR_PASS(_, nir, nir_opt_dce);
    NIR_PASS(_, nir, nir_opt_cse);
-   NIR_PASS(_, nir, nir_opt_gcm, true);
+   NIR_PASS(_, nir, nir_opt_gcm, true, true);
 
    nir_opt_peephole_select_options peephole_select_options = {};
    peephole_select_options.limit = 1;

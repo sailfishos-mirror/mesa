@@ -6879,7 +6879,8 @@ bool nir_opt_find_array_copies(nir_shader *shader);
 bool nir_def_is_frag_coord_z(nir_def *def);
 bool nir_opt_fragdepth(nir_shader *shader);
 
-bool nir_opt_gcm(nir_shader *shader, bool value_number);
+bool nir_opt_gcm(nir_shader *shader, bool value_number,
+                 bool hoist_tex_from_loops);
 
 bool nir_opt_generate_bfi(nir_shader *shader);
 
