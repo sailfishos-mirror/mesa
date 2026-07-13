@@ -1247,9 +1247,6 @@ vk_pipeline_to_shader_flags(VkPipelineCreateFlags2KHR pipeline_flags,
    if (pipeline_flags & VK_PIPELINE_CREATE_2_INDIRECT_BINDABLE_BIT_EXT)
       shader_flags |= VK_SHADER_CREATE_INDIRECT_BINDABLE_BIT_EXT;
 
-   if (pipeline_flags & VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT)
-      shader_flags |= VK_SHADER_CREATE_DESCRIPTOR_HEAP_BIT_EXT;
-
    if (stage == MESA_SHADER_FRAGMENT) {
       if (pipeline_flags & VK_PIPELINE_CREATE_2_RENDERING_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR)
          shader_flags |= VK_SHADER_CREATE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_EXT;
@@ -1264,6 +1261,24 @@ vk_pipeline_to_shader_flags(VkPipelineCreateFlags2KHR pipeline_flags,
 
       if (pipeline_flags & VK_PIPELINE_CREATE_2_UNALIGNED_DISPATCH_BIT_MESA)
          shader_flags |= VK_SHADER_CREATE_UNALIGNED_DISPATCH_BIT_MESA;
+   }
+
+   /* Binding model information */
+   if (pipeline_flags & VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT) {
+      shader_flags |= VK_SHADER_CREATE_DESCRIPTOR_HEAP_BIT_EXT;
+   } else if (pipeline_flags & VK_PIPELINE_CREATE_2_DESCRIPTOR_BUFFER_BIT_EXT) {
+      shader_flags |= VK_SHADER_CREATE_DESCRIPTOR_BUFFER_BIT_MESA;
+   } else if (pipeline_layout != NULL) {
+      for (uint32_t i = 0; i < pipeline_layout->set_count; i++) {
+         if (pipeline_layout->set_layouts[i] != NULL) {
+            shader_flags |=
+               (pipeline_layout->set_layouts[i]->flags &
+                VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT) ?
+               VK_SHADER_CREATE_DESCRIPTOR_BUFFER_BIT_MESA :
+               VK_SHADER_CREATE_DESCRIPTOR_LEGACY_BIT_MESA;
+            break;
+         }
+      }
    }
 
    /* Independent sets has no impact on compute shaders since there is only
