@@ -9077,8 +9077,6 @@ iris_upload_compute_walker(struct iris_context *ice,
       }
    }
 
-/* Not need with VRT enabled */
-#if GFX_VERx10 < 300
    uint8_t pixel_async_compute_thread_limit, z_pass_async_compute_thread_limit,
            np_z_async_throttle_settings;
    bool slm_or_barrier_enabled = total_shared != 0 || cs_data->uses_barrier;
@@ -9118,7 +9116,6 @@ iris_upload_compute_walker(struct iris_context *ice,
 #endif
       }
    }
-#endif /* GFX_VERx10 < 300 */
 
    struct GENX(INTERFACE_DESCRIPTOR_DATA) idd = {};
    idd.KernelStartPointer =
