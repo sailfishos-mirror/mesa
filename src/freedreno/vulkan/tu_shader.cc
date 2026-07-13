@@ -1619,7 +1619,7 @@ build_ssbo_global_addr(nir_builder *b,
    nir_def *descriptor_offset = nir_iadd_imm(
       b, nir_imul_imm(b, bindless->src[0].ssa, FDL6_TEX_CONST_DWORDS * 4),
       11 * 4);
-   nir_def *descriptor_words = nir_load_global_ir3(
+   nir_def *descriptor_words = nir_load_global_offset(
       b, 2, 32, nir_pack_64_2x32(b, set_base), descriptor_offset,
       .access = (enum gl_access_qualifier)(
          ACCESS_NON_WRITEABLE | ACCESS_CAN_REORDER | ACCESS_CAN_SPECULATE),
@@ -1668,16 +1668,15 @@ lower_ssbo_address_size(nir_builder *b, nir_intrinsic_instr *intr, void *data)
             break;
          }
          case nir_intrinsic_load_global: {
-            nir_def *load = nir_load_global_ir3(
+            nir_def *load = nir_load_global_offset(
                b, use_intr->def.num_components, use_intr->def.bit_size, base,
                offset, .access = nir_intrinsic_access(use_intr));
             nir_def_replace(&use_intr->def, load);
             break;
          }
          case nir_intrinsic_store_global: {
-            nir_store_global_ir3(b, nir_get_io_data_src(use_intr)->ssa, base,
-                                 offset,
-                                 .access = nir_intrinsic_access(use_intr));
+            nir_store_global_offset(b, nir_get_io_data_src(use_intr)->ssa, base, offset,
+                                    .access = nir_intrinsic_access(use_intr));
             nir_instr_remove(use_instr);
             break;
          }
