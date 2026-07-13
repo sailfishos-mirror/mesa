@@ -133,6 +133,11 @@ build_addr_ushr_imm(nir_builder *b, nir_def *addr,
       return nir_vector_insert_imm(
          b, addr, nir_ushr_imm(b, nir_channel(b, addr, 1), shift), 1);
 
+   case nir_address_format_64bit_global_32bit_offset:
+      assert(addr->num_components == 4);
+      return nir_vector_insert_imm(
+         b, addr, nir_ushr_imm(b, nir_channel(b, addr, 3), shift), 3);
+
    default:
       UNREACHABLE("Unsupported address format");
    }
