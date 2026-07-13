@@ -547,7 +547,8 @@ impl PerCompFoldable for OpCSel {
         let ca = f.get_src(&self.cmp_srcs[0]);
         let cb = f.get_src(&self.cmp_srcs[1]);
 
-        let res = if self.cmp_op.fold(self.cmp_type.scalar_type(), ca, cb) {
+        let c = self.cmp_op.fold_data(self.cmp_type.scalar_type(), ca, cb);
+        let res = if c {
             f.get_src(&self.sel_srcs[0])
         } else {
             f.get_src(&self.sel_srcs[1])
@@ -773,53 +774,63 @@ impl fmt::Display for CmpOp {
     }
 }
 
-impl CmpOp {
-    /// Simulates a hardware comparison for a single scalar component
-    pub fn fold(self, scalar_type: DataType, a: u64, b: u64) -> bool {
-        assert!(scalar_type.comps() == 1);
-        macro_rules! cmp {
-            (float, $a:expr, $b:expr) => {{
-                let (a, b) = ($a, $b);
-                match self {
-                    CmpOp::Eq => a == b,
-                    CmpOp::Gt => a > b,
-                    CmpOp::Ge => a >= b,
-                    CmpOp::Ne => a != b,
-                    CmpOp::Lt => a < b,
-                    CmpOp::Le => a <= b,
-                    CmpOp::GtLt => (a < b) || (a > b),
-                    CmpOp::Total => a.total_cmp(&b) == Ordering::Less,
-                }
-            }};
-            (int, $a:expr, $b:expr) => {{
-                let (a, b) = ($a, $b);
-                match self {
-                    CmpOp::Eq => a == b,
-                    CmpOp::Gt => a > b,
-                    CmpOp::Ge => a >= b,
-                    CmpOp::Ne => a != b,
-                    CmpOp::Lt => a < b,
-                    CmpOp::Le => a <= b,
-                    _ => panic!("Invalid CmpOp for integer"),
-                }
-            }};
-        }
+fn cmp_data(data_type: DataType, a: u64, b: u64) -> Ordering {
+    match data_type {
+        DataType::S8 => (a as i8).cmp(&(b as i8)),
+        DataType::S16 => (a as i16).cmp(&(b as i16)),
+        DataType::S32 => (a as i32).cmp(&(b as i32)),
+        DataType::S64 => (a as i64).cmp(&(b as i64)),
+        DataType::U8 => (a as u8).cmp(&(b as u8)),
+        DataType::U16 => (a as u16).cmp(&(b as u16)),
+        DataType::U32 => (a as u32).cmp(&(b as u32)),
+        DataType::U64 => a.cmp(&b),
+        _ => panic!("Cannot compare {data_type} data"),
+    }
+}
 
-        match scalar_type {
-            DataType::U64 | DataType::U32 | DataType::U16 | DataType::U8 => {
-                cmp!(int, a, b)
-            }
-            DataType::S64 => cmp!(int, a as i64, b as i64),
-            DataType::S32 => cmp!(int, a as i32, b as i32),
-            DataType::S16 => cmp!(int, a as i16, b as i16),
-            DataType::S8 => cmp!(int, a as i8, b as i8),
-            DataType::F32 => {
-                cmp!(float, f32::from_bits(a as u32), f32::from_bits(b as u32))
-            }
-            DataType::F16 => {
-                cmp!(float, F16::from_bits(a as u16), F16::from_bits(b as u16))
-            }
-            _ => panic!("Invalid DataType"),
+fn partial_cmp_data(data_type: DataType, a: u64, b: u64) -> Option<Ordering> {
+    match data_type {
+        DataType::F16 => {
+            F16::from_bits(a as u16).partial_cmp(&F16::from_bits(b as u16))
+        }
+        DataType::F32 => {
+            f32::from_bits(a as u32).partial_cmp(&f32::from_bits(b as u32))
+        }
+        _ => Some(cmp_data(data_type, a, b)),
+    }
+}
+
+fn total_cmp_data(data_type: DataType, a: u64, b: u64) -> Ordering {
+    match data_type {
+        DataType::F16 => {
+            F16::from_bits(a as u16).total_cmp(&F16::from_bits(b as u16))
+        }
+        DataType::F32 => {
+            f32::from_bits(a as u32).total_cmp(&f32::from_bits(b as u32))
+        }
+        _ => panic!("Cannot total compare {data_type} data"),
+    }
+}
+
+impl CmpOp {
+    pub fn fold_ordering(self, ord: Option<Ordering>) -> bool {
+        match self {
+            CmpOp::Eq => ord.is_some_and(|ord| ord.is_eq()),
+            CmpOp::Gt => ord.is_some_and(|ord| ord.is_gt()),
+            CmpOp::Ge => ord.is_some_and(|ord| ord.is_ge()),
+            CmpOp::Ne => !ord.is_some_and(|ord| ord.is_eq()),
+            CmpOp::Lt => ord.is_some_and(|ord| ord.is_lt()),
+            CmpOp::Le => ord.is_some_and(|ord| ord.is_le()),
+            CmpOp::GtLt => ord.is_some_and(|ord| !ord.is_eq()),
+            CmpOp::Total => panic!("Cannot fold .total"),
+        }
+    }
+
+    pub fn fold_data(self, data_type: DataType, a: u64, b: u64) -> bool {
+        if matches!(self, CmpOp::Total) {
+            total_cmp_data(data_type, a, b).is_lt()
+        } else {
+            self.fold_ordering(partial_cmp_data(data_type, a, b))
         }
     }
 }
@@ -868,7 +879,7 @@ impl PerCompFoldable for OpFCmp {
         let cb = f.get_src(&self.srcs[1]);
         let accum = f.get_src(&self.accum);
 
-        let c = self.cmp_op.fold(self.src_type.scalar_type(), ca, cb);
+        let c = self.cmp_op.fold_data(self.src_type.scalar_type(), ca, cb);
         let c = self.accum_op.fold(c, accum != 0);
         let c = self.res_type.fold(c, self.src_type.bits());
 
@@ -1286,7 +1297,7 @@ impl PerCompFoldable for OpICmp {
         let cb = f.get_src(&self.srcs[1]);
         let accum = f.get_src(&self.accum);
 
-        let c = self.cmp_op.fold(self.src_type.scalar_type(), ca, cb);
+        let c = self.cmp_op.fold_data(self.src_type.scalar_type(), ca, cb);
         let c = self.accum_op.fold(c, accum != 0);
         let c = self.res_type.fold(c, self.src_type.bits());
 
