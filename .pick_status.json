@@ -2214,7 +2214,7 @@
         "description": "brw: Handle empty top block in brw_nir_move_interpolation_to_top",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3037603b703f68d184057df475f78069d6d0221f",
         "notes": null
