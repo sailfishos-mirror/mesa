@@ -1034,6 +1034,10 @@ bifrost_postprocess_nir(nir_shader *nir,
    };
    NIR_PASS(_, nir, nir_lower_mem_access_bit_sizes, &mem_size_options);
 
+   /* The divergent scratch lowering must come after mem access bit lowering */
+   nir_divergence_analysis(nir);
+   NIR_PASS(_, nir, pan_nir_lower_divergent_scratch, gpu_arch);
+
    if (bi_use_kraid(nir, gpu_id))
       NIR_PASS(_, nir, pan_nir_lower_mem_to_global);
 
