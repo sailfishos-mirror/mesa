@@ -674,14 +674,16 @@ impl LocalRegAlloc<'_> {
                 let mut swz = Swizzle::from(reg.range);
                 if src_type.bits() == 64 {
                     let word = reg.idx & 1;
-                    if reg.range == RegRange::Regs(1) {
+                    if reg.range == RegRange::Regs(1)
+                        && !src.swizzle.is_byte_swizzle()
+                    {
                         reg.idx &= !1;
                         swz = Swizzle::replicate_word(word);
                         if word == 1 {
                             reg.range = RegRange::Regs(2);
                         }
                     } else {
-                        debug_assert!(word == 0);
+                        debug_assert!(word == 0 || !src.swizzle.is_none());
                     }
                 }
                 let src = &mut instr.srcs_mut()[idx];
