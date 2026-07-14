@@ -1231,13 +1231,12 @@ impl GlobalRegAlloc<'_> {
         cfg[bi].instrs = instrs;
     }
 
-    fn alloc_regs(&mut self, s: &mut Shader) {
-        let live = SimpleLiveness::for_shader(s);
+    fn alloc_regs(&mut self, s: &mut Shader, live: &impl Liveness) {
         let phi_map = PhiMap::for_shader(s);
 
         self.live_out.resize_with(s.blocks.len(), Default::default);
         for bi in 0..s.blocks.len() {
-            self.alloc_regs_block(&mut s.blocks, &live, bi, &phi_map);
+            self.alloc_regs_block(&mut s.blocks, live, bi, &phi_map);
         }
     }
 }
@@ -1425,8 +1424,13 @@ impl Shader<'_> {
             return ra_trivial(self);
         }
 
+        let live = SimpleLiveness::for_shader(self);
+        let max_live = live.calc_max_live_bytes(self);
+        if max_live > 64 * 4 {
+            panic!("Not enough registers: max_live = {max_live}");
+        }
         let mut ra = GlobalRegAlloc::new(self.model, 64);
-        ra.alloc_regs(self);
+        ra.alloc_regs(self, &live);
         self.info.registers_used = 64;
     }
 }
