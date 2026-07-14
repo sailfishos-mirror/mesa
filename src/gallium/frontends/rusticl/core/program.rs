@@ -654,11 +654,15 @@ impl Program {
         }))
     }
 
-    pub fn from_spirv(context: Arc<Context>, spirv: &[u8]) -> Arc<Program> {
-        let builds = Self::create_default_builds(&context.devs);
+    pub fn from_spirv_with_devs(
+        devs: Vec<&'static Device>,
+        context: Arc<Context>,
+        spirv: &[u8],
+    ) -> Arc<Program> {
+        let builds = Self::create_default_builds(&devs);
         Arc::new(Self {
             base: CLObjectBase::new(RusticlTypes::Program),
-            devs: context.devs.clone(),
+            devs: devs,
             context: context,
             src: ProgramSourceType::Il(SPIRVBin::from_bin(spirv)),
             build: Mutex::new(ProgramBuild {
@@ -668,6 +672,10 @@ impl Program {
                 kernel_info: HashMap::new(),
             }),
         })
+    }
+
+    pub fn from_spirv(context: Arc<Context>, spirv: &[u8]) -> Arc<Program> {
+        Self::from_spirv_with_devs(context.devs.clone(), context, spirv)
     }
 
     pub fn build_info(&self) -> MutexGuard<'_, ProgramBuild> {
