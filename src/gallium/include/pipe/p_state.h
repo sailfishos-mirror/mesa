@@ -1055,6 +1055,10 @@ struct pipe_tensor {
     * Whether the tensor contains data in INT8 or UINT8 format.
     */
    bool is_signed;
+   /**
+    * Whether the tensor is exported from the current ML subgraph.
+    */
+   bool is_external_output;
    uint8_t type_size;
 };
 
