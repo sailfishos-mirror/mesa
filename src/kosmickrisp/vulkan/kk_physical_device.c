@@ -143,6 +143,12 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .KHR_maintenance8 = true,
       .KHR_maintenance9 = true,
       .KHR_maintenance10 = true,
+#ifdef KK_USE_WSI_PLATFORM
+      .KHR_present_id = true,
+      .KHR_present_id2 = true,
+      .KHR_present_wait = true,
+      .KHR_present_wait2 = true,
+#endif
       .KHR_robustness2 = true,
       .KHR_shader_fma = true,
       .KHR_shader_maximal_reconvergence = true,
@@ -354,6 +360,20 @@ kk_get_device_features(
 
       /* VK_KHR_maintenance10 */
       .maintenance10 = true,
+
+#ifdef KK_USE_WSI_PLATFORM
+      /* VK_KHR_present_id */
+      .presentId = true,
+
+      /* VK_KHR_present_id2 */
+      .presentId2 = true,
+
+      /* VK_KHR_present_wait */
+      .presentWait = true,
+
+      /* VK_KHR_present_wait2 */
+      .presentWait2 = true,
+#endif
 
       /* VK_KHR_robustness2 */
       .robustBufferAccess2 = true,
