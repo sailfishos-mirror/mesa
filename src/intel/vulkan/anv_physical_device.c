@@ -2958,8 +2958,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       device->flush_astc_ldr_void_extent_denorms =
          device->has_astc_ldr && !device->emu_astc_ldr;
    }
-   device->disable_fcv = device->info.verx10 >= 125 ||
-                         instance->drirc.debug.disable_fcv;
    device->brw_disable_subgroup_size_control =
       !intel_use_jay(&device->info, MESA_SHADER_COMPUTE) &&
       instance->drirc.debug.disable_subgroup_size_control;
