@@ -398,6 +398,10 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_test_fs_config_intel:
    case nir_intrinsic_load_ttmp_register_amd:
    case nir_intrinsic_load_scalar_arg_amd:
+   case nir_intrinsic_load_ro_sink_address_poly:
+   case nir_intrinsic_load_noperspective_varyings_pan:
+   case nir_intrinsic_load_multisampled_pan:
+   case nir_intrinsic_load_rt_conversion_pan:
       is_divergent = false;
       break;
 
