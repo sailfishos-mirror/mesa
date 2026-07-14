@@ -15,7 +15,7 @@ rusticl_kernels_spv64_rs = custom_target(
     '-I' + join_paths(meson.current_source_dir(), '.'),
     cl_args,
     ],
-  depfile : 'rusticl_shaders.h.d',
+  depfile : 'rusticl_shaders_64.h.d',
 )
 
 rusticl_kernels_spv32_rs = custom_target(
@@ -28,7 +28,7 @@ rusticl_kernels_spv32_rs = custom_target(
     '-I' + join_paths(meson.current_source_dir(), '.'),
     cl_args,
     ],
-  depfile : 'rusticl_shaders.h.d',
+  depfile : 'rusticl_shaders_32.h.d',
 )
 
 rusticl_kernels_spv = static_library(
