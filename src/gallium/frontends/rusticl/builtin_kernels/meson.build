@@ -5,9 +5,9 @@ rusticl_kernels_files = files(
   'copy.cl'
 )
 
-rusticl_kernels_spv_rs = custom_target(
+rusticl_kernels_spv64_rs = custom_target(
   input : rusticl_kernels_files,
-  output : 'rusticl_kernels.spv',
+  output : 'rusticl_kernels.spv64',
   command : [
     prog_mesa_clc, '-o', '@OUTPUT@', '--depfile', '@DEPFILE@',
     rusticl_kernels_files, '--',
@@ -23,7 +23,7 @@ rusticl_kernels_spv = static_library(
   structured_sources(
     'lib.rs',
     {
-      'gen/' : [rusticl_kernels_spv_rs],
+      'gen/' : [rusticl_kernels_spv64_rs],
     },
   ),
   gnu_symbol_visibility : 'hidden',
