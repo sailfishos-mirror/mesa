@@ -24,6 +24,7 @@ mod ops;
 mod opt_copy_prop;
 mod opt_dce;
 mod parallel_copy;
+mod phi;
 mod ra;
 mod remat_constants;
 mod small_constants;

@@ -7,6 +7,7 @@ use crate::builder::*;
 use crate::data_type::*;
 use crate::ir::*;
 use crate::ops::*;
+use crate::phi::PhiAllocator;
 use crate::ssa_value::SSAValueAllocator;
 use compiler::bindings::*;
 use compiler::cfg::*;
