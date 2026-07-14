@@ -622,10 +622,16 @@ partition_init(TfLiteContext *tf_context, const char *buffer, size_t length)
    if (debug_get_option_debug_teflon() & TEFLON_DEBUG_VERBOSE)
       dump_graph(delegate->tensors, tf_context->tensors_size, operations, params->nodes_to_replace->size);
 
+   for (int i = 0; i < params->output_tensors->size; i++)
+      delegate->tensors[params->output_tensors->data[i]].is_external_output = true;
+
    struct pipe_ml_subgraph *subgraph;
    subgraph = delegate->ml_dev->ml_subgraph_create(delegate->ml_dev,
                                                    operations,
                                                    params->nodes_to_replace->size);
+
+   for (int i = 0; i < params->output_tensors->size; i++)
+      delegate->tensors[params->output_tensors->data[i]].is_external_output = false;
 
    struct teflon_subgraph *tsubgraph = calloc(1, sizeof(*tsubgraph));
    tsubgraph->base = subgraph;
@@ -644,7 +650,6 @@ partition_init(TfLiteContext *tf_context, const char *buffer, size_t length)
    tsubgraph->output_tensors = malloc(params->output_tensors->size * sizeof(*tsubgraph->output_tensors));
    memcpy(tsubgraph->output_tensors, params->output_tensors->data,
           params->output_tensors->size * sizeof(*tsubgraph->output_tensors));
-
    if (unlikely(debug_get_option_debug_teflon() & TEFLON_DEBUG_VERBOSE)) {
       struct timespec time;
       clock_gettime(CLOCK_MONOTONIC, &time);
