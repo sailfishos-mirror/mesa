@@ -1884,7 +1884,7 @@
         "description": "radv: don't expose memory types from AMD_device_coherent_memory without the ext",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7fa1b48755647b9468f5c603810260edea9de996",
         "notes": null
