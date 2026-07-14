@@ -57,8 +57,16 @@ struct teflon_delegate {
    unsigned tensor_count;
 };
 
+struct teflon_node {
+   TfLiteNode node;
+   TfLiteRegistration registration;
+};
+
 struct teflon_subgraph {
    struct pipe_ml_subgraph *base;
+
+   struct teflon_node *nodes;
+   unsigned node_count;
 
    unsigned *input_tensors;
    unsigned input_count;
@@ -492,6 +500,16 @@ tensor_data_size(TfLiteTensor tensor)
 }
 
 static void
+fill_tensor_dims(struct pipe_tensor *tensor, const TfLiteTensor *tf_tensor)
+{
+   for (int out_dim = 0; out_dim < 4; out_dim++) {
+      int in_dim = tf_tensor->dims->size - 4 + out_dim;
+
+      tensor->dims[out_dim] = in_dim >= 0 ? tf_tensor->dims->data[in_dim] : 1;
+   }
+}
+
+static void
 fill_tensor(struct teflon_delegate *delegate, TfLiteContext *tf_context, struct pipe_tensor *tensor, unsigned index)
 {
    TfLiteTensor tf_tensor = tf_context->tensors[index];
@@ -507,13 +525,7 @@ fill_tensor(struct teflon_delegate *delegate, TfLiteContext *tf_context, struct 
 
    tensor->type_size = tf_format_to_size(tf_tensor.type);
    tensor->index = index;
-   for (int out_dim = 0; out_dim < 4; out_dim++) {
-      int in_dim = tf_tensor.dims->size - 4 + out_dim;
-      if (in_dim >= 0)
-         tensor->dims[out_dim] = tf_tensor.dims->data[in_dim];
-      else
-         tensor->dims[out_dim] = 1;
-   }
+   fill_tensor_dims(tensor, &tf_tensor);
 
    if (tf_tensor.quantization.type == kTfLiteAffineQuantization) {
       const TfLiteAffineQuantization *quant = (const TfLiteAffineQuantization *)tf_tensor.quantization.params;
@@ -687,15 +699,98 @@ free_operation(struct pipe_ml_operation *operation)
    free(operation->output_tensors);
 }
 
+static struct pipe_ml_subgraph *
+create_subgraph(struct teflon_delegate *delegate, TfLiteContext *tf_context,
+                const struct teflon_node *nodes,
+                const unsigned *output_tensors, unsigned output_count,
+                unsigned node_count, bool dump)
+{
+   struct pipe_ml_operation *operations = calloc(node_count, sizeof(*operations));
+   struct pipe_ml_subgraph *subgraph;
+
+   if (!operations)
+      return NULL;
+
+   for (unsigned i = 0; i < node_count; i++) {
+      bool ret = fill_operation(delegate, tf_context, (TfLiteNode *)&nodes[i].node,
+                                (TfLiteRegistration *)&nodes[i].registration,
+                                &operations[i]);
+      assert(ret);
+   }
+
+   if (dump && (debug_get_option_debug_teflon() & TEFLON_DEBUG_VERBOSE))
+      dump_graph(delegate->tensors, tf_context->tensors_size, operations, node_count);
+
+   for (unsigned i = 0; i < output_count; i++)
+      delegate->tensors[output_tensors[i]].is_external_output = true;
+
+   subgraph = delegate->ml_dev->ml_subgraph_create(delegate->ml_dev,
+                                                   operations,
+                                                   node_count);
+
+   for (unsigned i = 0; i < output_count; i++)
+      delegate->tensors[output_tensors[i]].is_external_output = false;
+
+   for (unsigned i = 0; i < node_count; i++)
+      free_operation(&operations[i]);
+   free(operations);
+
+   return subgraph;
+}
+
+static TfLiteIntArray *
+copy_int_array(const TfLiteIntArray *src)
+{
+   TfLiteIntArray *dst;
+
+   if (!src)
+      return NULL;
+
+   dst = malloc(sizeof(*dst) + src->size * sizeof(*dst->data));
+   if (!dst)
+      return NULL;
+
+   memcpy(dst, src, sizeof(*dst) + src->size * sizeof(*dst->data));
+   return dst;
+}
+
+static bool
+copy_node(TfLiteContext *tf_context, int node_index,
+          struct teflon_node *destination)
+{
+   TfLiteNode *source_node;
+   TfLiteRegistration *source_registration;
+
+   tf_context->GetNodeAndRegistration(tf_context, node_index, &source_node,
+                                      &source_registration);
+   destination->node = *source_node;
+   destination->registration = *source_registration;
+   destination->node.inputs = copy_int_array(source_node->inputs);
+   destination->node.outputs = copy_int_array(source_node->outputs);
+
+   if ((source_node->inputs && !destination->node.inputs) ||
+       (source_node->outputs && !destination->node.outputs)) {
+      free(destination->node.inputs);
+      free(destination->node.outputs);
+      return false;
+   }
+
+   return true;
+}
+
+static void
+free_node(struct teflon_node *node)
+{
+   free(node->node.inputs);
+   free(node->node.outputs);
+}
+
 static void *
 partition_init(TfLiteContext *tf_context, const char *buffer, size_t length)
 {
    const TfLiteDelegateParams *params = (const TfLiteDelegateParams *)buffer;
    struct teflon_delegate *delegate = (struct teflon_delegate *)params->delegate;
-   struct pipe_ml_operation operations[params->nodes_to_replace->size];
    long start = 0, end = 0;
-
-   memset(operations, 0, sizeof(operations));
 
    if (unlikely(debug_get_option_debug_teflon() & TEFLON_DEBUG_VERBOSE)) {
       struct timespec time;
@@ -703,33 +798,37 @@ partition_init(TfLiteContext *tf_context, const char *buffer, size_t length)
       start = (long)time.tv_sec * 1000 + (long)time.tv_nsec / 1000000;
    }
 
-   for (int i = 0; i < params->nodes_to_replace->size; i++) {
-      const int node_index = params->nodes_to_replace->data[i];
-      TfLiteNode *delegated_node = NULL;
-      TfLiteRegistration *delegated_node_registration = NULL;
-      tf_context->GetNodeAndRegistration(tf_context, node_index, &delegated_node,
-                                         &delegated_node_registration);
-
-      bool ret = fill_operation(delegate, tf_context, delegated_node, delegated_node_registration, &operations[i]);
-      assert(ret);
-   }
-
-   if (debug_get_option_debug_teflon() & TEFLON_DEBUG_VERBOSE)
-      dump_graph(delegate->tensors, tf_context->tensors_size, operations, params->nodes_to_replace->size);
-
-   for (int i = 0; i < params->output_tensors->size; i++)
-      delegate->tensors[params->output_tensors->data[i]].is_external_output = true;
-
-   struct pipe_ml_subgraph *subgraph;
-   subgraph = delegate->ml_dev->ml_subgraph_create(delegate->ml_dev,
-                                                   operations,
-                                                   params->nodes_to_replace->size);
-
-   for (int i = 0; i < params->output_tensors->size; i++)
-      delegate->tensors[params->output_tensors->data[i]].is_external_output = false;
-
    struct teflon_subgraph *tsubgraph = calloc(1, sizeof(*tsubgraph));
-   tsubgraph->base = subgraph;
+   tsubgraph->node_count = params->nodes_to_replace->size;
+   tsubgraph->nodes = malloc(tsubgraph->node_count * sizeof(*tsubgraph->nodes));
+   for (unsigned i = 0; i < tsubgraph->node_count; i++) {
+      if (!copy_node(tf_context, params->nodes_to_replace->data[i],
+                     &tsubgraph->nodes[i])) {
+         for (unsigned j = 0; j < i; j++)
+            free_node(&tsubgraph->nodes[j]);
+         free(tsubgraph->nodes);
+         free(tsubgraph);
+         return NULL;
+      }
+   }
+   tsubgraph->output_count = params->output_tensors->size;
+   tsubgraph->output_tensors =
+      malloc(tsubgraph->output_count * sizeof(*tsubgraph->output_tensors));
+   for (unsigned i = 0; i < tsubgraph->output_count; i++)
+      tsubgraph->output_tensors[i] = params->output_tensors->data[i];
+   tsubgraph->base = create_subgraph(delegate, tf_context, tsubgraph->nodes,
+                                     tsubgraph->output_tensors,
+                                     tsubgraph->output_count,
+                                     tsubgraph->node_count, true);
+
+   if (!tsubgraph->base) {
+      for (unsigned i = 0; i < tsubgraph->node_count; i++)
+         free_node(&tsubgraph->nodes[i]);
+      free(tsubgraph->nodes);
+      free(tsubgraph->output_tensors);
+      free(tsubgraph);
+      return NULL;
+   }
 
    tsubgraph->input_tensors = malloc(params->input_tensors->size * sizeof(*tsubgraph->input_tensors));
    for (int i = 0; i < params->input_tensors->size; i++) {
@@ -741,19 +840,11 @@ partition_init(TfLiteContext *tf_context, const char *buffer, size_t length)
       tsubgraph->input_count++;
    }
 
-   tsubgraph->output_count = params->output_tensors->size;
-   tsubgraph->output_tensors = malloc(params->output_tensors->size * sizeof(*tsubgraph->output_tensors));
-   memcpy(tsubgraph->output_tensors, params->output_tensors->data,
-          params->output_tensors->size * sizeof(*tsubgraph->output_tensors));
    if (unlikely(debug_get_option_debug_teflon() & TEFLON_DEBUG_VERBOSE)) {
       struct timespec time;
       clock_gettime(CLOCK_MONOTONIC, &time);
       end = (long)time.tv_sec * 1000 + (long)time.tv_nsec / 1000000;
       teflon_debug("teflon: compiled graph, took %ld ms\n", (end - start));
-   }
-
-   for (int i = 0; i < params->nodes_to_replace->size; i++) {
-      free_operation(&operations[i]);
    }
 
    return tsubgraph;
@@ -775,9 +866,56 @@ partition_free(TfLiteContext *tf_context, void *buffer)
    struct pipe_ml_subgraph *subgraph = tsubgraph->base;
 
    subgraph->device->ml_subgraph_destroy(subgraph->device, subgraph);
+   for (unsigned i = 0; i < tsubgraph->node_count; i++)
+      free_node(&tsubgraph->nodes[i]);
+   free(tsubgraph->nodes);
    free(tsubgraph->input_tensors);
    free(tsubgraph->output_tensors);
    free(tsubgraph);
+}
+
+static bool
+update_partition_shapes(struct teflon_delegate *delegate,
+                        TfLiteContext *tf_context,
+                        const struct teflon_subgraph *tsubgraph)
+{
+   bool changed = false;
+
+   for (unsigned i = 0; i < tsubgraph->node_count; i++) {
+      TfLiteNode *delegated_node = &tsubgraph->nodes[i].node;
+
+      for (unsigned j = 0; j < delegated_node->inputs->size; j++) {
+         int tensor_idx = delegated_node->inputs->data[j];
+
+         if (tensor_idx < 0)
+            continue;
+
+         struct pipe_tensor updated = delegate->tensors[tensor_idx];
+         fill_tensor_dims(&updated, &tf_context->tensors[tensor_idx]);
+         if (memcmp(updated.dims, delegate->tensors[tensor_idx].dims,
+                    sizeof(updated.dims))) {
+            delegate->tensors[tensor_idx] = updated;
+            changed = true;
+         }
+      }
+
+      for (unsigned j = 0; j < delegated_node->outputs->size; j++) {
+         int tensor_idx = delegated_node->outputs->data[j];
+
+         if (tensor_idx < 0)
+            continue;
+
+         struct pipe_tensor updated = delegate->tensors[tensor_idx];
+         fill_tensor_dims(&updated, &tf_context->tensors[tensor_idx]);
+         if (memcmp(updated.dims, delegate->tensors[tensor_idx].dims,
+                    sizeof(updated.dims))) {
+            delegate->tensors[tensor_idx] = updated;
+            changed = true;
+         }
+      }
+   }
+
+   return changed;
 }
 
 static TfLiteStatus
@@ -788,6 +926,22 @@ partition_invoke(TfLiteContext *tf_context, TfLiteNode *node)
    struct pipe_ml_subgraph *subgraph = tsubgraph->base;
    struct pipe_context *context = delegate->screen->context_create(delegate->screen, NULL, PIPE_CONTEXT_COMPUTE_ONLY);
    long start = 0, end = 0;
+
+   if (update_partition_shapes(delegate, tf_context, tsubgraph)) {
+      struct pipe_ml_subgraph *updated =
+         create_subgraph(delegate, tf_context, tsubgraph->nodes,
+                         tsubgraph->output_tensors, tsubgraph->output_count,
+                         tsubgraph->node_count, false);
+
+      if (!updated) {
+         context->destroy(context);
+         return kTfLiteError;
+      }
+
+      subgraph->device->ml_subgraph_destroy(subgraph->device, subgraph);
+      tsubgraph->base = updated;
+      subgraph = updated;
+   }
 
    if (unlikely(debug_get_option_debug_teflon() & TEFLON_DEBUG_VERBOSE)) {
       struct timespec time;
