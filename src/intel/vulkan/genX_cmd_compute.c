@@ -727,6 +727,8 @@ emit_cs_walker(struct anv_cmd_buffer *cmd_buffer,
                    mi_imm(prog_data->base.source_hash));
    }
 
+   genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, true);
+
 #if GFX_VERx10 >= 125
    /* For unaligned dispatch, we need to tweak the dispatch value with
     * MI_MATH, so we can't use indirect HW instructions.
@@ -735,22 +737,23 @@ emit_cs_walker(struct anv_cmd_buffer *cmd_buffer,
        cmd_buffer->device->info->has_indirect_unroll) {
       emit_indirect_compute_walker(cmd_buffer, prog_data,
                                    indirect_addr);
-      return;
-   }
+   } else
 #endif
-
-   if (is_indirect) {
-      compute_load_indirect_params(cmd_buffer, indirect_addr,
-                                   is_unaligned_size_x);
-   }
-
+   {
+      if (is_indirect) {
+         compute_load_indirect_params(cmd_buffer, indirect_addr,
+                                      is_unaligned_size_x);
+      }
 #if GFX_VERx10 >= 125
-   emit_compute_walker(cmd_buffer, indirect_addr, prog_data,
-                       dispatch, base_wg, num_wg,
-                       unaligned_invocations_x);
+      emit_compute_walker(cmd_buffer, indirect_addr, prog_data,
+                          dispatch, base_wg, num_wg,
+                          unaligned_invocations_x);
 #else
-   emit_gpgpu_walker(cmd_buffer, is_indirect, prog_data, num_wg);
+      emit_gpgpu_walker(cmd_buffer, is_indirect, prog_data, num_wg);
 #endif
+   }
+
+   genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, false);
 }
 
 void genX(CmdDispatchBase)(
@@ -793,15 +796,11 @@ void genX(CmdDispatchBase)(
    if (cmd_buffer->state.conditional_render_enabled)
       genX(cmd_emit_conditional_render_predicate)(cmd_buffer);
 
-   genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, true);
-
    emit_cs_walker(cmd_buffer, prog_data, dispatch,
                   ANV_NULL_ADDRESS /* no indirect data */,
                   (uint32_t[]){ baseGroupX, baseGroupY, baseGroupZ },
                   (uint32_t[]){ groupCountX, groupCountY, groupCountZ },
                   false, 0);
-
-   genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, false);
 
    trace_intel_end_compute(&cmd_buffer->trace,
                            groupCountX, groupCountY, groupCountZ,
@@ -868,15 +867,11 @@ genX(cmd_dispatch_unaligned)(
    if (cmd_buffer->state.conditional_render_enabled)
       genX(cmd_emit_conditional_render_predicate)(cmd_buffer);
 
-   genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, true);
-
    emit_cs_walker(cmd_buffer, prog_data, dispatch,
                   ANV_NULL_ADDRESS /* no indirect data */,
                   (uint32_t[]) { 0, 0, 0 },
                   (uint32_t[]) { groupCountX, groupCountY, groupCountZ },
                   false, invocations_x);
-
-   genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, false);
 
    trace_intel_end_compute(&cmd_buffer->trace,
                            groupCountX, groupCountY, groupCountZ,
@@ -920,14 +915,10 @@ genX(cmd_buffer_dispatch_indirect)(struct anv_cmd_buffer *cmd_buffer,
    if (cmd_buffer->state.conditional_render_enabled)
       genX(cmd_emit_conditional_render_predicate)(cmd_buffer);
 
-   genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, true);
-
    emit_cs_walker(cmd_buffer, prog_data, dispatch, indirect_addr,
                   (uint32_t[]){0, 0, 0},
                   (uint32_t[]){0, 0, 0},
                   is_unaligned_size_x, 0);
-
-   genX(emit_breakpoint)(&cmd_buffer->batch, cmd_buffer->device, false);
 
    trace_intel_end_compute_indirect(&cmd_buffer->trace,
                                     anv_address_utrace(indirect_addr),
