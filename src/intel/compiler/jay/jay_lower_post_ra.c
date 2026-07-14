@@ -104,6 +104,11 @@ lower(jay_builder *b, jay_inst *I)
       jay_WHILE(b);
       return true;
 
+   case JAY_OPCODE_LOOP_ONCE_HALT:
+      jay_HALT(b, false);
+      jay_WHILE(b);
+      return true;
+
    default:
       return false;
    }

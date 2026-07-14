@@ -133,7 +133,7 @@ op('schedule_barrier', 0, None, Props.NO_DEST)
 
 for n in ['brd', 'illegal', 'goto', 'join', 'if', 'else',
           'endif', 'while', 'break', 'cont', 'call', 'calla', 'jmpi', 'ret',
-          'loop_once', 'halt_target']:
+          'loop_once', 'halt_target', 'loop_once_halt']:
     op(n, 0, None, Props.NO_DEST)
 
 op('halt', 0, None, Props.NO_DEST, ['bool predicate_all'])
