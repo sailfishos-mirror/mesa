@@ -4159,10 +4159,17 @@ unbind_fb_surface(struct zink_context *ctx, const struct pipe_surface *surf, uns
       if (ctx->track_renderpasses && !ctx->blitting && res->obj->access & VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT) {
          pre_sync_transfer_barrier(ctx, res, false);
       }
-      if (!general_layout && res->sampler_bind_count[0]) {
-         update_res_sampler_layouts(ctx, res);
-         if (res->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && !ctx->blitting)
-            _mesa_set_add(ctx->need_barriers[0], res);
+      if (res->sampler_bind_count[0] || res->image_bind_count[0]) {
+         /* force sync after unbind */
+         if (general_layout) {
+            if (!ctx->blitting)
+               zink_screen(ctx->base.screen)->image_barrier(ctx, res, VK_IMAGE_LAYOUT_GENERAL, res->barrier_access[0], res->gfx_barrier);
+         } else {
+            update_res_sampler_layouts(ctx, res);
+            VkImageLayout layout = zink_descriptor_util_image_layout_eval(ctx, res, false);
+            if (res->layout != layout && !ctx->blitting)
+               _mesa_set_add(ctx->need_barriers[0], res);
+         }
       }
    }
 }
