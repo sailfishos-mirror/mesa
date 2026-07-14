@@ -202,11 +202,14 @@ impl<'a> TestShaderBuilder<'a> {
         };
         s.validate();
 
+        pass!(s.remat_constants());
         pass!(s.widen_alu_ops());
         pass!(s.legalize_src_swizzles());
+        pass!(s.opt_copy_prop());
         pass!(s.lower_mkvec_swz());
         pass!(s.opt_dce());
         pass!(s.lower_small_constants());
+        pass!(s.legalize());
         pass!(s.assign_registers());
         pass!(s.lower_copy());
         pass!(s.assign_message_slots());
