@@ -368,6 +368,56 @@ compute_store_indirect_params(struct anv_cmd_buffer *cmd_buffer,
    mi_store(&b, size_z, mi_reg32(GENX(GPGPU_DISPATCHDIMZ_num)));
 }
 
+static inline void
+cmd_buffer_post_dispatch_wa(struct anv_cmd_buffer *cmd_buffer, bool rt)
+{
+   genX(cmd_buffer_post_dispatch_wa)(cmd_buffer);
+
+#if GFX_VERx10 >= 125
+   struct anv_cmd_compute_state *comp_state = &cmd_buffer->state.compute;
+   const struct anv_shader *shader = comp_state->shader;
+   const struct anv_instance *instance = cmd_buffer->device->physical->instance;
+
+   if (!rt) {
+      /* Workaround WaW hazards in applications that clear a buffer and start
+       * writing to it immediately without a barrier between the clear & write
+       * operations.
+       */
+      if ((instance->drirc.debug.barrier_post_typed_clear_shader &&
+           (shader->bind_map.inferred_behavior & ANV_PIPELINE_BEHAVIOR_CLEAR_TYPED)) ||
+          shader->workaround.force_typed_barrier_after_dispatch_to_top) {
+         anv_add_pending_pipe_bits(cmd_buffer,
+                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                   ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
+                                   "clear shader typed L1 flush app wa");
+      } else if (shader->workaround.force_typed_barrier_after_dispatch_to_compute) {
+         anv_add_pending_pipe_bits(cmd_buffer,
+                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                   ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
+                                   "clear shader typed L1 flush app wa");
+      }
+      if ((instance->drirc.debug.barrier_post_untyped_clear_shader &&
+           (comp_state->shader->bind_map.inferred_behavior & ANV_PIPELINE_BEHAVIOR_CLEAR_UNTYPED)) ||
+          shader->workaround.force_untyped_barrier_after_dispatch_to_top) {
+         anv_add_pending_pipe_bits(cmd_buffer,
+                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                   ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT |
+                                   ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
+                                   "clear shader untyped L1 flush app wa");
+      } else if (shader->workaround.force_untyped_barrier_after_dispatch_to_compute) {
+         anv_add_pending_pipe_bits(cmd_buffer,
+                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                   ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT |
+                                   ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
+                                   "clear shader untyped L1 flush app wa");
+      }
+   }
+#endif /* GFX_VERx10 >= 125 */
+}
 
 #if GFX_VERx10 >= 125
 
@@ -468,53 +518,6 @@ fill_inline_params(uint32_t *compute_walker_inline_data,
 }
 
 static inline void
-cmd_buffer_post_dispatch_wa(struct anv_cmd_buffer *cmd_buffer)
-{
-   genX(cmd_buffer_post_dispatch_wa)(cmd_buffer);
-
-   struct anv_cmd_compute_state *comp_state = &cmd_buffer->state.compute;
-   const struct anv_shader *shader = comp_state->shader;
-   const struct anv_instance *instance = cmd_buffer->device->physical->instance;
-
-   /* Workaround WaW hazards in applications that clear a buffer and start
-    * writing to it immediately without a barrier between the clear & write
-    * operations.
-    */
-   if ((instance->drirc.debug.barrier_post_typed_clear_shader &&
-        (shader->bind_map.inferred_behavior & ANV_PIPELINE_BEHAVIOR_CLEAR_TYPED)) ||
-       shader->workaround.force_typed_barrier_after_dispatch_to_top) {
-      anv_add_pending_pipe_bits(cmd_buffer,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
-                                "clear shader typed L1 flush app wa");
-   } else if (shader->workaround.force_typed_barrier_after_dispatch_to_compute) {
-      anv_add_pending_pipe_bits(cmd_buffer,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
-                                "clear shader typed L1 flush app wa");
-   }
-   if ((instance->drirc.debug.barrier_post_untyped_clear_shader &&
-        (comp_state->shader->bind_map.inferred_behavior & ANV_PIPELINE_BEHAVIOR_CLEAR_UNTYPED)) ||
-       shader->workaround.force_untyped_barrier_after_dispatch_to_top) {
-      anv_add_pending_pipe_bits(cmd_buffer,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                                ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT |
-                                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
-                                "clear shader untyped L1 flush app wa");
-   } else if (shader->workaround.force_untyped_barrier_after_dispatch_to_compute) {
-      anv_add_pending_pipe_bits(cmd_buffer,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT |
-                                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
-                                "clear shader untyped L1 flush app wa");
-   }
-}
-
-static inline void
 emit_indirect_compute_walker(struct anv_cmd_buffer *cmd_buffer,
                              const struct brw_cs_prog_data *prog_data,
                              struct anv_address indirect_addr)
@@ -573,7 +576,7 @@ emit_indirect_compute_walker(struct anv_cmd_buffer *cmd_buffer,
                                                                indirect_addr.bo, 0)),
       );
 
-   cmd_buffer_post_dispatch_wa(cmd_buffer);
+   cmd_buffer_post_dispatch_wa(cmd_buffer, false);
 }
 
 static inline void
@@ -643,7 +646,7 @@ emit_compute_walker(struct anv_cmd_buffer *cmd_buffer,
 #endif
       );
 
-   cmd_buffer_post_dispatch_wa(cmd_buffer);
+   cmd_buffer_post_dispatch_wa(cmd_buffer, false);
 }
 
 #else /* #if GFX_VERx10 >= 125 */
@@ -675,6 +678,8 @@ emit_gpgpu_walker(struct anv_cmd_buffer *cmd_buffer,
    }
 
    anv_batch_emit(&cmd_buffer->batch, GENX(MEDIA_STATE_FLUSH), msf);
+
+   cmd_buffer_post_dispatch_wa(cmd_buffer, false);
 }
 
 #endif /* #if GFX_VERx10 >= 125 */
@@ -1561,7 +1566,7 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
          .body                     = body,
       );
 
-   genX(cmd_buffer_post_dispatch_wa)(cmd_buffer);
+   cmd_buffer_post_dispatch_wa(cmd_buffer, true);
 
    trace_intel_end_rays(&cmd_buffer->trace,
                         params->launch_size[0],
