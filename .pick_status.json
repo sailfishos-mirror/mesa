@@ -2874,7 +2874,7 @@
         "description": "nv50_ir_ra: align B96 spill slots to vec4",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d12e16fc3b5217613aa077f5f3418f16cf5cb824",
         "notes": null
