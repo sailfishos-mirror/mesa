@@ -209,7 +209,12 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
        */
       if (operation->conv.dilation_width_factor == 1 &&
           operation->conv.dilation_height_factor == 1 &&
-          operation->conv.stride_x <= 3 && operation->conv.stride_y <= 3)
+          ((operation->conv.stride_x <= 3 &&
+            operation->conv.stride_y <= 3) ||
+           (operation->conv.padding_top == 0 &&
+            operation->conv.padding_bottom == 0 &&
+            operation->conv.padding_left == 0 &&
+            operation->conv.padding_right == 0)))
          supported = true;
 
       break;

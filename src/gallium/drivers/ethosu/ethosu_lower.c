@@ -683,6 +683,64 @@ ethosu_append_operation(struct ethosu_subgraph *subgraph,
    util_dynarray_append(&subgraph->operations, *operation);
 }
 
+static bool
+ethosu_needs_strided_conv_unroll(const struct ethosu_operation *operation)
+{
+   return operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION &&
+          (operation->kernel.stride_x > 3 || operation->kernel.stride_y > 3);
+}
+
+static void
+ethosu_append_strided_conv_unroll(struct ethosu_subgraph *subgraph,
+                                  struct ethosu_operation *operation)
+{
+   const struct ethosu_block ifm_shape = operation->ifm.shape;
+   const struct ethosu_block ofm_shape = operation->ofm.shape;
+
+   assert(operation->pad.top == 0 && operation->pad.bottom == 0);
+   assert(operation->pad.left == 0 && operation->pad.right == 0);
+   assert(operation->kernel.dilation_x == 1 &&
+          operation->kernel.dilation_y == 1);
+
+   for (unsigned y = 0; y < ofm_shape.height; y++) {
+      for (unsigned x = 0; x < ofm_shape.width; x++) {
+         struct ethosu_operation unrolled = *operation;
+         unsigned ifm_y = y * operation->kernel.stride_y;
+         unsigned ifm_x = x * operation->kernel.stride_x;
+
+         assert(ifm_y + operation->kernel.height <= ifm_shape.height);
+         assert(ifm_x + operation->kernel.width <= ifm_shape.width);
+
+         unrolled.ifm.shape.height = operation->kernel.height;
+         unrolled.ifm.shape.width = operation->kernel.width;
+         unrolled.ifm.tiles.addresses[0] += ifm_y * unrolled.ifm.stride.y +
+                                            ifm_x * unrolled.ifm.stride.x;
+         unrolled.ifm.tiles.height_0 = unrolled.ifm.shape.height;
+         unrolled.ifm.tiles.height_1 = unrolled.ifm.shape.height;
+         unrolled.ifm.tiles.width_0 = unrolled.ifm.shape.width;
+
+         unrolled.ofm.shape.height = 1;
+         unrolled.ofm.shape.width = 1;
+         unrolled.ofm.tiles.addresses[0] += y * unrolled.ofm.stride.y +
+                                            x * unrolled.ofm.stride.x;
+         unrolled.ofm.tiles.height_0 = 1;
+         unrolled.ofm.tiles.height_1 = 1;
+         unrolled.ofm.tiles.width_0 = 1;
+
+         unrolled.kernel.stride_x = 1;
+         unrolled.kernel.stride_y = 1;
+
+         /* The first command owns the per-channel quantization arrays. */
+         if (x || y) {
+            unrolled.kernel.scales = NULL;
+            unrolled.kernel.zero_points = NULL;
+         }
+
+         util_dynarray_append(&subgraph->operations, unrolled);
+      }
+   }
+}
+
 static void
 ethosu_prepare_feature_map(struct ethosu_subgraph *subgraph,
                            struct ethosu_feature_map *fm)
@@ -2563,6 +2621,27 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
             operation.pad.right += producer->pad.after_x;
             trim_padding_to_output(&operation, input_tensor,
                                    poperations[i].output_tensors[0]);
+         }
+
+         if (ethosu_needs_strided_conv_unroll(&operation)) {
+            if (operation.conv.scales.size + operation.conv.weights.size <=
+                ethosu_ml_device(subgraph->base.device)->sram_size) {
+               struct ethosu_operation dma_operation = {0};
+
+               ethosu_lower_dma(subgraph, &poperations[i], &operation,
+                                &dma_operation);
+               util_dynarray_append(&subgraph->operations, dma_operation);
+            }
+            if (lut) {
+               struct ethosu_operation dma_operation = {0};
+
+               ethosu_lower_lut_dma(subgraph, lut, &operation,
+                                    &dma_operation);
+               util_dynarray_append(&subgraph->operations, dma_operation);
+            }
+
+            ethosu_append_strided_conv_unroll(subgraph, &operation);
+            break;
          }
 
          if (operation.conv.scales.size + operation.conv.weights.size <=
