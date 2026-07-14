@@ -829,48 +829,40 @@ impl fmt::Display for Swizzle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_none() {
             Ok(())
-        } else if self.is_word_swizzle() {
-            let mut is_words = true;
-            for i in 0..4 {
-                if self.word(i).unwrap().word_mod() != Some(ByteMod::Byte) {
-                    is_words = false;
-                    break;
-                }
-            }
+        } else if let Some(words) = self.as_words() {
+            let is_words =
+                words.iter().all(|w| w.word_mod() == Some(ByteMod::Byte));
 
             if is_words {
                 write!(f, ".w")?;
-                for i in 0..4 {
-                    write!(f, "{}", self.word(i).unwrap().word_idx().unwrap())?;
+                for w in words {
+                    write!(f, "{}", w.word_idx().unwrap())?;
                 }
             } else {
                 write!(f, ".")?;
-                for i in 0..4 {
-                    write!(f, "{}", self.word(i).unwrap())?;
+                for w in words {
+                    write!(f, "{w}")?;
+                }
+            }
+            Ok(())
+        } else if let Some(bytes) = self.as_bytes() {
+            let is_bytes =
+                bytes.iter().all(|b| b.byte_mod() == Some(ByteMod::Byte));
+
+            if is_bytes {
+                write!(f, ".b")?;
+                for b in bytes {
+                    write!(f, "{}", b.byte_idx().unwrap())?;
+                }
+            } else {
+                write!(f, ".")?;
+                for b in bytes {
+                    write!(f, "{b}")?;
                 }
             }
             Ok(())
         } else {
-            let mut is_bytes = true;
-            for i in 0..4 {
-                if self.byte(i).unwrap().byte_mod() != Some(ByteMod::Byte) {
-                    is_bytes = false;
-                    break;
-                }
-            }
-
-            if is_bytes {
-                write!(f, ".b")?;
-                for i in 0..4 {
-                    write!(f, "{}", self.byte(i).unwrap().byte_idx().unwrap())?;
-                }
-            } else {
-                write!(f, ".")?;
-                for i in 0..4 {
-                    write!(f, "{}", self.byte(i).unwrap())?;
-                }
-            }
-            Ok(())
+            panic!("Invalid swizzle");
         }
     }
 }
