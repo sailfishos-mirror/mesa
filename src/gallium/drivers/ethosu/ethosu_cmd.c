@@ -818,7 +818,11 @@ elementwise_mul_scale(
    double output_rescale;
    int32_t ofm_scale, ofm_shift;
 
-   output_rescale = (input1_scale * input2_scale) / output_scale;
+   /* Match Regor: multiply input scales at single precision. */
+   float input1_scale_f = input1_scale;
+   float input2_scale_f = input2_scale;
+
+   output_rescale = (input1_scale_f * input2_scale_f) / output_scale;
    ofm_scale = ethosu_quantize_scale(output_rescale, &ofm_shift, false);
 
    /* OFM_SCALE: output scale with shift */
