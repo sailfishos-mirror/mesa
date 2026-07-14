@@ -104,7 +104,6 @@ IMFDXGISchedulerClient : public IUnknown
 
 using namespace Microsoft::WRL;
 using Microsoft::WRL::ComPtr;
-using namespace std;
 
 typedef union
 {
