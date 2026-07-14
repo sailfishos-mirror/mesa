@@ -1228,6 +1228,101 @@ bifrost_nir_lower_vs_atomics(nir_shader *shader)
                                      nir_metadata_none, NULL);
 }
 
+/* This creates the inital rough shape of a unified IDVS shader:
+ *
+ * %0 = @load_shader_output_pan
+ * if %0 & VA_SHADER_OUTPUT_POSITON_BIT {
+ *    <substituted copy of input impl>
+ * }
+ * if %0 & VA_SHADER_OUTPUT_ATTRIB_BIT {
+ *    <substituted copy of input impl>
+ * }
+ * if %0 & VA_SHADER_OUTPUT_VARY_BIT {
+ *    <substituted copy of input impl>
+ * }
+ *
+ * It needs to be followed by other passes for cleaning up.
+ */
+static bool
+bifrost_make_unified_idvs_shader(nir_shader *nir)
+{
+   nir_function_impl *impl = nir_shader_get_entrypoint(nir);
+
+   nir_cf_list old_blocks;
+   nir_cf_extract(&old_blocks, nir_before_impl(impl), nir_after_impl(impl));
+
+   /* Make a new main block. */
+   nir_cf_node_insert_begin(&impl->body, &nir_block_create(impl)->cf_node);
+
+   nir_builder builder = nir_builder_create(impl);
+   nir_builder *b = &builder;
+   b->cursor = nir_before_impl(impl);
+   nir_def *shader_output = nir_load_shader_output_pan(b);
+
+   nir_block *out_blocks[VA_SHADER_OUTPUT_COUNT] = {NULL};
+
+   for (enum va_shader_output out = 0; out < VA_SHADER_OUTPUT_COUNT; ++out) {
+      nir_def *cond =
+         nir_i2b(b, nir_iand_imm(b, shader_output, BITFIELD_BIT(out)));
+      nir_if *nif = nir_push_if(b, cond);
+      nir_cf_list_clone_and_reinsert(&old_blocks, &nif->cf_node, b->cursor,
+                                     NULL);
+      nir_pop_if(b, NULL);
+
+      out_blocks[out] = nir_if_first_then_block(nif);
+   }
+
+   /* After messing around with the CFG, reindex blocks. */
+   nir_index_blocks(impl);
+
+   /* This is more or less what nir_inline_sysval does, except that it uses a
+    * different constant depending on which of the out_blocks the intrinsic
+    * instruction is in.
+    */
+   for (enum va_shader_output out = 0; out < VA_SHADER_OUTPUT_COUNT; ++out) {
+      nir_block *out_block = out_blocks[out];
+      assert(out_block);
+
+      nir_foreach_block_in_cf_node_safe(block, &out_block->cf_node) {
+         nir_foreach_instr_safe(instr, block) {
+            if (instr->type != nir_instr_type_intrinsic)
+               continue;
+
+            nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
+            if (intr->intrinsic != nir_intrinsic_load_shader_output_pan)
+               continue;
+
+            b->cursor = nir_before_instr(&intr->instr);
+            nir_def_replace(&intr->def, nir_imm_intN_t(b, BITFIELD_BIT(out),
+                                                       intr->def.bit_size));
+         }
+      }
+   }
+
+   nir_progress(true, impl, nir_metadata_none);
+
+   return true;
+}
+
+static void
+bifrost_handle_unified_idvs_shader(nir_shader *nir)
+{
+   NIR_PASS(_, nir, bifrost_make_unified_idvs_shader);
+
+   /* Clean up from specializing inside the previous pass. */
+   bool progress = true;
+   while (progress) {
+      progress = false;
+      NIR_PASS(progress, nir, nir_opt_constant_folding);
+      NIR_PASS(progress, nir, nir_opt_dce);
+      NIR_PASS(progress, nir, nir_opt_dead_cf);
+      NIR_PASS(progress, nir, nir_opt_cse);
+   }
+
+   /* Hoist common values before the predicated blocks. */
+   NIR_PASS(_, nir, nir_opt_gcm, true, true);
+}
+
 void
 bifrost_compile_shader_nir(nir_shader *nir,
                            const struct pan_compile_inputs *inputs,
@@ -1237,6 +1332,13 @@ bifrost_compile_shader_nir(nir_shader *nir,
    MESA_TRACE_FUNC();
 
    bifrost_init_debug_options();
+
+   /* Apply special transformation to IDVS_ALL shaders before late
+    * optimization loop. */
+   if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs &&
+       (pan_arch(inputs->gpu_id) >= 12)) {
+      bifrost_handle_unified_idvs_shader(nir);
+   }
 
    bi_optimize_late(nir, inputs->gpu_id, info);
 
