@@ -927,7 +927,8 @@ static void pvr_pipeline_finish(struct pvr_device *device,
 
 static void pvr_early_init_shader_data(pco_data *data,
                                        nir_shader *nir,
-                                       const void *pCreateInfo);
+                                       const void *pCreateInfo,
+                                       struct pvr_device *const device);
 
 static void
 pvr_preprocess_shader_data(pco_data *data,
@@ -1022,7 +1023,7 @@ static VkResult pvr_compute_pipeline_compile(
    if (result != VK_SUCCESS)
       goto err_free_build_context;
 
-   pvr_early_init_shader_data(&shader_data, nir, pCreateInfo);
+   pvr_early_init_shader_data(&shader_data, nir, pCreateInfo, device);
    pco_preprocess_nir(pco_ctx, nir, &shader_data);
    pvr_preprocess_shader_data(&shader_data,
                               nir,
@@ -2453,15 +2454,6 @@ static void pvr_init_descriptors(pco_data *data,
                                  nir_shader *nir,
                                  struct vk_pipeline_layout *layout)
 {
-   const struct pvr_device *device = vk_to_pvr_device(layout->base.device);
-   data->common.robust_buffer_access =
-      device->vk.enabled_features.robustBufferAccess;
-
-   data->common.null_descriptor = device->vk.enabled_features.nullDescriptor;
-
-   data->common.image_2d_view_of_3d =
-      device->vk.enabled_features.image2DViewOf3D;
-
    for (unsigned desc_set = 0; desc_set < layout->set_count; ++desc_set) {
       const struct pvr_descriptor_set_layout *set_layout =
          vk_to_pvr_descriptor_set_layout(layout->set_layouts[desc_set]);
@@ -2789,9 +2781,18 @@ static void pvr_postprocess_shader_data(pco_data *data,
 
 static void pvr_early_init_shader_data(pco_data *data,
                                        nir_shader *nir,
-                                       const void *pCreateInfo)
+                                       const void *pCreateInfo,
+                                       struct pvr_device *const device)
 {
    const VkGraphicsPipelineCreateInfo *pGraphicsCreateInfo = pCreateInfo;
+
+   data->common.robust_buffer_access =
+      device->vk.enabled_features.robustBufferAccess;
+
+   data->common.null_descriptor = device->vk.enabled_features.nullDescriptor;
+
+   data->common.image_2d_view_of_3d =
+      device->vk.enabled_features.image2DViewOf3D;
 
    switch (nir->info.stage) {
    case MESA_SHADER_VERTEX:
@@ -2938,7 +2939,8 @@ pvr_graphics_pipeline_compile(struct pvr_device *const device,
 
       pvr_early_init_shader_data(&shader_data[stage],
                                  nir_shaders[stage],
-                                 pCreateInfo);
+                                 pCreateInfo,
+                                 device);
       pco_preprocess_nir(pco_ctx, nir_shaders[stage], &shader_data[stage]);
    }
 
