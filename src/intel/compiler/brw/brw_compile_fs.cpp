@@ -1668,7 +1668,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
          if (devinfo->ver >= 20 && max_polygons >= 4 &&
              dispatch_width_limit >= 32 && !beyond_threshold[2] &&
              4 * prog_data->num_varying_inputs <= MAX_VARYING &&
-             INTEL_SIMD(FS, 4X8)) {
+             INTEL_SIMD_FORCE(4X8)) {
             /* Try a quad-SIMD8 compile */
             brw_shader_params shader_params = base_shader_params;
             shader_params.dispatch_width = 32;
@@ -1688,7 +1688,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
          if (!vmulti && devinfo->ver >= 20 &&
              dispatch_width_limit >= 32 && !beyond_threshold[2] &&
              2 * prog_data->num_varying_inputs <= MAX_VARYING &&
-             INTEL_SIMD(FS, 2X16)) {
+             INTEL_SIMD_FORCE(2X16)) {
             /* Try a dual-SIMD16 compile */
             brw_shader_params shader_params = base_shader_params;
             shader_params.dispatch_width = 32;
@@ -1707,7 +1707,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
 
          if (!vmulti && dispatch_width_limit >= 16 && !beyond_threshold[1] &&
              2 * prog_data->num_varying_inputs <= MAX_VARYING &&
-             INTEL_SIMD(FS, 2X8)) {
+             INTEL_SIMD_FORCE(2X8)) {
             /* Try a dual-SIMD8 compile */
             brw_shader_params shader_params = base_shader_params;
             shader_params.dispatch_width = 16;
