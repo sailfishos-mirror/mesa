@@ -29,6 +29,7 @@ mod ra;
 mod remat_constants;
 mod repair_ssa;
 mod small_constants;
+mod spill;
 mod ssa_value;
 mod swizzle;
 mod validate;
@@ -39,6 +40,7 @@ mod debug {
         pub struct DebugFlags: u32 {
             const PRINT = 1 << 0;
             const VALIDATE = 1 << 1;
+            const SPILL = 1 << 2;
         }
     }
 
@@ -53,6 +55,7 @@ mod debug {
             match flag.trim() {
                 "print" => flags |= DebugFlags::PRINT,
                 "validate" => flags |= DebugFlags::VALIDATE,
+                "spill" => flags |= DebugFlags::SPILL,
                 unk => eprintln!("Unknown {debug_var} flag \"{}\"", unk),
             }
         }

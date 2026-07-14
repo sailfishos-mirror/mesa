@@ -177,7 +177,8 @@ pub extern "C" fn kraid_compile_nir(
     pass!(s.opt_dce());
     pass!(s.lower_small_constants());
     pass!(s.legalize());
-    pass!(s.assign_registers());
+    // Shader::assign_registers() uses pass!() internally
+    s.assign_registers();
     pass!(s.lower_copy());
     pass!(s.assign_message_slots());
 

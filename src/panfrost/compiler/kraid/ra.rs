@@ -1,6 +1,7 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::debug::*;
 use crate::ir::*;
 use crate::liveness::*;
 use crate::ops::{OpBranch, OpPhiSrc, OpRegOut};
@@ -1700,16 +1701,61 @@ impl Shader<'_> {
             return ra_trivial(self);
         }
 
-        let live = SimpleLiveness::for_shader(self);
+        let mut reg_limit: u16 = if DEBUG.contains(DebugFlags::SPILL) {
+            16 * 4
+        } else if self.model.arch() >= 15 {
+            128 * 4
+        } else if self.model.arch() >= 9 {
+            64 * 4
+        } else {
+            panic!("Unknown GPU generation");
+        };
+
+        let mut live = SimpleLiveness::for_shader(self);
         let max_live = live.calc_max_live_bytes(self);
         assert_eq!(max_live.mem, 0);
-        if max_live.reg > 64 * 4 {
-            panic!("Not enough registers: max_live = {}", max_live.reg);
+        if max_live.reg > u32::from(reg_limit) {
+            // If we spill, we have to reduce registers by 2 to make room for
+            // parallel copying memory
+            reg_limit -= 8;
+
+            self.spill_values(live, reg_limit.into());
+            if DEBUG.contains(DebugFlags::PRINT) {
+                eprintln!("Kraid shader after spill_values:\n{self}");
+            }
+            // We don't validate before SSA repair
+
+            pass!(self.repair_ssa());
+
+            live = SimpleLiveness::for_shader(self)
         }
-        let reg_arena =
-            Arena::new_reg(self.model, max_live.reg.try_into().unwrap());
-        let mut ra = GlobalRegAlloc::new(self.model, &reg_arena);
-        ra.alloc_regs(self, &live);
+
+        let max_live = live.calc_max_live_bytes(self);
+        assert!(
+            max_live.reg <= u32::from(reg_limit),
+            "Not enough registers: max_live = {}",
+            max_live.reg
+        );
+
+        if max_live.mem > 0 {
+            let mem_arena = Arena::new_mem(
+                self.model,
+                self.info.tls_size.try_into().unwrap(),
+            );
+            self.run_pass("allocating spills", |s| {
+                let mut ra = GlobalRegAlloc::new(self.model, &mem_arena);
+                ra.alloc_regs(s, live);
+            });
+            self.info.tls_size = mem_arena.bytes_used().into();
+
+            live = SimpleLiveness::for_shader(self)
+        }
+
+        let reg_arena = Arena::new_reg(self.model, reg_limit);
+        self.run_pass("allocating registers", |s| {
+            let mut ra = GlobalRegAlloc::new(self.model, &reg_arena);
+            ra.alloc_regs(s, live);
+        });
         self.info.registers_used = reg_arena.regs_used();
     }
 }
