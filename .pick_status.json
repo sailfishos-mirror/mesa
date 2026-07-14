@@ -5604,7 +5604,7 @@
         "description": "ethosu: Fix flattened fully connected inputs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a6fcdf93bf48972fe4a27e27270fb367ec16432c",
         "notes": null
