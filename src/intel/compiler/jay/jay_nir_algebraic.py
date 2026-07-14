@@ -28,6 +28,13 @@ lower_fsign = [
     (('i2f32', ('extract_i8', a, 0)), ('i2f32', ('i2i8', a))),
     (('i2f32', ('extract_i16', a, 0)), ('i2f32', ('i2i16', a))),
 
+    # Late multiplication handling
+    (('iadd', ('imul_32x16(is_only_used_by_iadd)', a, b), c),
+     ('imad_32x16_intel', a, b, c)),
+
+    (('iadd', ('umul_32x16(is_only_used_by_iadd)', a, b), c),
+     ('umad_32x16_intel', a, b, c)),
+
     (('pack_half_2x16_split', a, b),
      ('pack_32_2x16_split', ('f2f16', a), ('f2f16', b))),
 ]
