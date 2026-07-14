@@ -7043,6 +7043,15 @@ typedef enum {
    /* The following options only impact load_global/ubo/ssbo. */
    nir_move_only_convergent =          BITFIELD_BIT(30),
    nir_move_only_divergent =           BITFIELD_BIT(31),
+
+   nir_move_all =
+      nir_move_const_undef | nir_move_alu | nir_move_copies |
+      nir_move_comparisons | nir_move_tex_sample | nir_move_tex_load |
+      nir_move_tex_load_fragment_mask | nir_move_tex_lod | nir_move_tex_query |
+      nir_move_load_image | nir_move_load_image_fragment_mask |
+      nir_move_query_image | nir_move_load_input | nir_move_load_global |
+      nir_move_load_ubo | nir_move_load_ssbo | nir_move_load_uniform |
+      nir_move_load_buffer_amd | nir_move_load_frag_coord,
 } nir_move_options;
 
 bool nir_can_move_instr(nir_instr *instr, nir_move_options options);
