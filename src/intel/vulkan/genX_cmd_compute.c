@@ -1596,8 +1596,6 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
          .body                     = body,
       );
 
-   cmd_buffer_post_dispatch_wa(cmd_buffer, true);
-
    trace_intel_end_rays(&cmd_buffer->trace,
                         params->launch_size[0],
                         params->launch_size[1],
@@ -1634,6 +1632,8 @@ genX(CmdTraceRaysKHR)(
 
    cmd_buffer_flush_rt_state(cmd_buffer, cmd_buffer->state.rt.scratch_size);
    cmd_buffer_trace_rays(cmd_buffer, &params);
+
+   cmd_buffer_post_dispatch_wa(cmd_buffer, true);
 }
 
 void
@@ -1660,6 +1660,8 @@ genX(CmdTraceRaysIndirectKHR)(
 
    cmd_buffer_flush_rt_state(cmd_buffer, cmd_buffer->state.rt.scratch_size);
    cmd_buffer_trace_rays(cmd_buffer, &params);
+
+   cmd_buffer_post_dispatch_wa(cmd_buffer, true);
 }
 
 void
@@ -1680,6 +1682,8 @@ genX(CmdTraceRaysIndirect2KHR)(
 
    cmd_buffer_flush_rt_state(cmd_buffer, cmd_buffer->state.rt.scratch_size);
    cmd_buffer_trace_rays(cmd_buffer, &params);
+
+   cmd_buffer_post_dispatch_wa(cmd_buffer, true);
 }
 
 #endif /* GFX_VERx10 >= 125 */
