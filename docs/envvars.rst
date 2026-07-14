@@ -2266,6 +2266,9 @@ PowerVR driver environment variables
    ``ra_skip_opt``
       Skip attempting to allocate temps with the optimal amount during RA.
 
+   ``no_dma_cache``
+      Disable DMA cache.
+
 .. envvar:: PCO_SKIP_PASSES
 
    A comma-separated list of passes to skip.
