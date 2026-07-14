@@ -987,7 +987,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
          struct pipe_tensor *ptensor = poperation->output_tensors[j];
          ethosu_register_tensor(subgraph, ptensor);
 
-         if (!DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16)) {
+         if (!ptensor->is_external_output &&
+             !DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16)) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
             if (tensor->shape.depth % 16 == 0) {
                const struct pipe_ml_operation *consumer =
