@@ -678,10 +678,13 @@ jay_src_type(const jay_inst *I, unsigned s)
       return jay_cvt_src_type(I);
 
    /* 16-bit operand */
-   if ((I->op == JAY_OPCODE_MUL_32X16 ||
-        (I->op == JAY_OPCODE_MAD && !jay_type_is_any_float(I->type))) &&
-       s == 1)
-      return jay_type_resize(I->type, jay_type_size_bits(I->type) / 2);
+   if (!jay_type_is_any_float(I->type)) {
+      if (((I->op == JAY_OPCODE_MUL_32X16 || I->op == JAY_OPCODE_MAD) &&
+           s == 1) ||
+          (I->op == JAY_OPCODE_MAD_SWAP && s == 2)) {
+         return jay_type_resize(I->type, jay_type_size_bits(I->type) / 2);
+      }
+   }
 
    if (I->op == JAY_OPCODE_SEND) {
       if (s < 2)

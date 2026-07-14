@@ -281,6 +281,7 @@ static const struct {
    OP(LZD, LZD, 1),
    OP(MAC, MAC, 2),
    OP(MAD, MAD, 3),
+   OP(MAD_SWAP, MAD, 3),
    OP(MATH, MATH, 1),
    OP(MAX, SEL, 2),
    OP(MIN, SEL, 2),
