@@ -35,6 +35,10 @@ lower_fsign = [
     (('iadd', ('umul_32x16(is_only_used_by_iadd)', a, b), c),
      ('umad_32x16_intel', a, b, c)),
 
+    (('iadd', ('imul(is_used_once)', 'a@32', '#b'), c),
+     ('umad_32x16_intel', a, ('iand', b, 0xffff),
+                          ('umad_32x16_intel', ('iand', b, 0xffff0000), a, c))),
+
     (('imul', 'a@32', '#b'),
      ('umad_32x16_intel', a, ('iand', b, 0xffff),
                           ('umul_32x16', ('iand', b, 0xffff0000), a))),
