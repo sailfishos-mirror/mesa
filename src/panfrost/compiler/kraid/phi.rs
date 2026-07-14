@@ -1,7 +1,9 @@
 // Copyright © 2026 Collabora, Ltd.
 // SPDX-License-Identifier: MIT
 
+use crate::ir::*;
 use compiler::bitset::IntoBitIndex;
+use rustc_hash::FxHashMap;
 
 use std::fmt;
 
@@ -61,5 +63,39 @@ impl PhiAllocator {
         let idx = self.count;
         self.count += 1;
         Phi::new(idx, bits)
+    }
+}
+
+pub struct PhiMap {
+    phi_dst_ssa: FxHashMap<Phi, SSARef>,
+}
+
+impl PhiMap {
+    pub fn for_shader(s: &Shader) -> PhiMap {
+        let mut map = PhiMap {
+            phi_dst_ssa: Default::default(),
+        };
+
+        for bb in &s.blocks {
+            let mut is_preamble = true;
+            for instr in &bb.instrs {
+                if let Op::PhiDst(op) = &instr.op {
+                    debug_assert!(is_preamble);
+                    let ssa = op.dst.dst_ref.as_ssa().unwrap();
+                    map.phi_dst_ssa.insert(op.phi, ssa.clone());
+                } else if !matches!(&instr.op, Op::Nop(_)) {
+                    if cfg!(debug_assertions) {
+                        is_preamble = false;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        map
+    }
+
+    pub fn get_dst_ssa(&self, phi: &Phi) -> &SSARef {
+        self.phi_dst_ssa.get(phi).unwrap()
     }
 }
