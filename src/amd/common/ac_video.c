@@ -424,6 +424,12 @@ vcn_enc_caps(struct radeon_info *info)
    cap->formats.nv12 = 1;
    cap->min_qp = info->vcn_ip_version >= VCN_5_0_0 ? 0 : 1;
    cap->max_qp = 51;
+   /* VCN5 AVC has a FW bug on avg qp */
+   cap->feedback.avg_qp = info->vcn_ip_version < VCN_5_0_0;
+   /* VCN5 AVC does not produce accurate min/max qp */
+   cap->feedback.minmax_qp = info->vcn_ip_version < VCN_5_0_0;
+   cap->feedback.skipped_pixels = true;
+   cap->feedback.partition_count = info->vcn_ip_version >= VCN_2_0_0;
 
    /* HEVC Encode */
    cap = &info->video_caps.enc[AC_VIDEO_CODEC_HEVC];
@@ -469,6 +475,10 @@ vcn_enc_caps(struct radeon_info *info)
    cap->formats.p010 = cap->hevc.main10 ? 1 : 0;
    cap->min_qp = 0;
    cap->max_qp = 51;
+   cap->feedback.avg_qp = true;
+   cap->feedback.minmax_qp = true;
+   cap->feedback.skipped_pixels = true;
+   cap->feedback.partition_count = info->vcn_ip_version >= VCN_2_0_0;
 
    /* AV1 Encode */
    cap = &info->video_caps.enc[AC_VIDEO_CODEC_AV1];
@@ -519,6 +529,11 @@ vcn_enc_caps(struct radeon_info *info)
                  info->vcn_ip_version == VCN_4_0_5 ||
                  info->vcn_ip_version == VCN_4_0_6 ? 8 : 1;
    cap->max_qp = 255;
+   cap->feedback.avg_qp = true;
+   cap->feedback.minmax_qp = true;
+   /* VCN5 has different semantics for skipped pixels */
+   cap->feedback.skipped_pixels = info->vcn_ip_version < VCN_5_0_0;
+   cap->feedback.partition_count = true;
 }
 
 static void
