@@ -3892,6 +3892,7 @@ jay_compile(const struct intel_device_info *devinfo,
 
    JAY_PASS(s, jay_register_allocate);
    JAY_PASS(s, jay_lower_post_ra);
+   JAY_PASS(s, jay_schedule);
    JAY_PASS(s, jay_lower_post_sched, nir->info.float_controls_execution_mode,
             nir->info.bit_sizes_float);
 

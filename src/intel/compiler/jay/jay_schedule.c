@@ -93,6 +93,18 @@ struct sched_ctx {
     * pressure.
     */
    unsigned aggression;
+
+   /* Pooled allocations used for DAG construction */
+   union {
+      struct {
+         uint32_t *def;
+      } prera;
+
+      struct {
+         uint32_t *writer;
+         struct util_dynarray *readers;
+      } postra;
+   };
 };
 
 /* Cut down version of the function in jay_liveness.c */
@@ -109,9 +121,17 @@ liveness_update(struct u_sparse_bitset *live, jay_inst *I)
 }
 
 static void
-populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
+add_edge(struct sched_ctx *ctx, uint32_t edge, uint32_t first_node)
 {
-   uint32_t first_node_in_this_block = ctx->dag.node;
+   if (edge && edge >= first_node) {
+      jay_dag_add_edge(&ctx->dag, edge);
+   }
+}
+
+static void
+populate_dag(struct sched_ctx *ctx, jay_block *block)
+{
+   uint32_t first_node = ctx->dag.node;
 
    /* TODO: Reorder memory instructions */
    uint32_t sidefx = 0, address = 0;
@@ -123,15 +143,55 @@ populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
          break;
       }
 
-      /* Uses depend on definitions. SSA form forbids WaR and WaW hazards */
-      jay_foreach_src_index(I, s, c, index) {
-         if (def[index] && def[index] >= first_node_in_this_block) {
-            jay_dag_add_edge(&ctx->dag, def[index]);
+      if (ctx->phase < POSTRA) {
+         /* Uses depend on definitions. SSA form forbids WaR and WaW hazards */
+         jay_foreach_src_index(I, s, c, index) {
+            add_edge(ctx, ctx->prera.def[index], first_node);
          }
-      }
 
-      jay_foreach_dst_index(I, d, index) {
-         def[index] = ctx->dag.node;
+         jay_foreach_dst_index(I, d, index) {
+            ctx->prera.def[index] = ctx->dag.node;
+         }
+      } else {
+         jay_def dsts[3] = { I->dst, I->cond_flag };
+
+         /* MUL_32 is a macro implicitly clobbering acc0/acc1. TODO: Duplicate.
+          */
+         if (I->op == JAY_OPCODE_MUL_32) {
+            unsigned n = ctx->func->shader->dispatch_width < 32 ? 2 : 1;
+            dsts[2] = jay_bare_regs(ACCUM, 0, n);
+         }
+
+         for (unsigned d = 0; d < ARRAY_SIZE(dsts); ++d) {
+            struct jay_range key = jay_def_to_range(ctx->func, I, dsts[d]);
+            for (unsigned i = 0; i < key.width; ++i) {
+               /* Write-after-write */
+               add_edge(ctx, ctx->postra.writer[key.base + i], first_node);
+               ctx->postra.writer[key.base + i] = ctx->dag.node;
+
+               /* Write-after-read */
+               util_dynarray_foreach(&ctx->postra.readers[key.base + i],
+                                     uint32_t, it) {
+                  add_edge(ctx, *it, first_node);
+               }
+
+               util_dynarray_clear(&ctx->postra.readers[key.base + i]);
+            }
+         }
+
+         jay_foreach_src(I, s) {
+            struct jay_range key = jay_def_to_range(ctx->func, I, I->src[s]);
+            for (unsigned i = 0; i < key.width; ++i) {
+               /* Read-after-write */
+               add_edge(ctx, ctx->postra.writer[key.base + i], first_node);
+
+               /* Track for write-after-read but do not add a dependency, we
+                * want to reorder readers freely.
+                */
+               util_dynarray_append(&ctx->postra.readers[key.base + i],
+                                    ctx->dag.node);
+            }
+         }
       }
 
       /* Serialize address register access until we have an address RA */
@@ -170,7 +230,7 @@ populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
       jay_dag_next_node(&ctx->dag);
    }
 
-   ctx->blocks[block->index].first = first_node_in_this_block;
+   ctx->blocks[block->index].first = first_node;
    ctx->blocks[block->index].last = ctx->dag.node - 1;
 }
 
@@ -502,8 +562,10 @@ pass(jay_function *f)
       return;
    }
 
-   jay_compute_liveness(f);
-   jay_calculate_register_demands(f);
+   struct sched_ctx sctx = { .func = f };
+   sctx.phase = f->shader->post_ra                ? POSTRA :
+                f->shader->partition.units_x16[0] ? POSTSPILL :
+                                                    EARLY;
 
    void *memctx = ralloc_context(NULL);
    void *linctx = linear_context(memctx);
@@ -513,25 +575,34 @@ pass(jay_function *f)
       ++nr_inst;
    }
 
-   BITSET_WORD *seen = BITSET_LINEAR_ZALLOC(linctx, f->ssa_alloc);
-   struct sched_ctx sctx = { .seen = seen, .func = f };
-   uint32_t *def = linear_zalloc_array(linctx, uint32_t, f->ssa_alloc);
+   if (sctx.phase >= POSTRA) {
+      uint32_t keys = jay_range_base(f->shader, ~0);
+      sctx.postra.writer = linear_zalloc_array(linctx, uint32_t, keys);
+      sctx.postra.readers =
+         linear_zalloc_array(linctx, struct util_dynarray, keys);
+
+      for (unsigned i = 0; i < keys; ++i) {
+         util_dynarray_init(&sctx.postra.readers[i], memctx);
+      }
+   } else {
+      jay_compute_liveness(f);
+      jay_calculate_register_demands(f);
+      sctx.seen = BITSET_LINEAR_ZALLOC(linctx, f->ssa_alloc);
+      sctx.prera.def = linear_zalloc_array(linctx, uint32_t, f->ssa_alloc);
+   }
+
    sctx.insts = linear_alloc_array(linctx, jay_inst *, nr_inst);
    sctx.cycle_ready = linear_zalloc_array(linctx, uint32_t, nr_inst);
    sctx.blocks = linear_zalloc_array(linctx, struct sched_block, f->num_blocks);
    jay_dag_init(&sctx.dag, memctx, nr_inst);
    jay_dag_iterator_init(&sctx.it, &sctx.dag);
 
-   sctx.phase = f->shader->post_ra                ? POSTRA :
-                f->shader->partition.units_x16[0] ? POSTSPILL :
-                                                    EARLY;
-
    unsigned ugpr_per_grf = jay_ugpr_per_grf(f->shader);
    unsigned ugpr_per_gpr = jay_grf_per_gpr(f->shader) * ugpr_per_grf;
 
    /* Build the DAG for the whole program and transpose it */
    jay_foreach_block(f, block) {
-      populate_dag(&sctx, block, def);
+      populate_dag(&sctx, block);
    }
 
    jay_dag_transpose(&sctx.dag_t, &sctx.dag);
@@ -589,6 +660,8 @@ pass(jay_function *f)
                sctx.aggression--;
             }
          }
+      } else {
+         schedule_block(block, &sctx, memctx, LATENCY);
       }
    }
 
