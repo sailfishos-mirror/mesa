@@ -833,7 +833,7 @@ typedef struct jay_shader {
 static inline jay_shader *
 jay_new_shader(void *memctx, mesa_shader_stage stage)
 {
-   jay_shader *s = rzalloc(NULL, jay_shader);
+   jay_shader *s = rzalloc(memctx, jay_shader);
    s->stage = stage;
    s->lin_ctx = linear_context(s);
    list_inithead(&s->functions);
