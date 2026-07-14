@@ -366,7 +366,8 @@ kk_GetPhysicalDeviceImageFormatProperties2(
        pImageFormatInfo->type == VK_IMAGE_TYPE_2D && ycbcr_info == NULL &&
        (features & (VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT |
                     VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT)) &&
-       !(pImageFormatInfo->flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)) {
+       !(pImageFormatInfo->flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) &&
+       !(pImageFormatInfo->usage & VK_IMAGE_USAGE_STORAGE_BIT)) {
       sampleCounts = pdev->supported_sample_counts;
    }
 
