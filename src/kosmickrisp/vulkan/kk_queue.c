@@ -92,7 +92,6 @@ kk_queue_submit(struct vk_queue *vk_queue, struct vk_queue_submit *submit)
       if (cmd_buffer->drawable) {
          mtl_command_queue_signal_drawable(queue->mtl_handle,
                                            cmd_buffer->drawable);
-         mtl_drawable_present(cmd_buffer->drawable);
          cmd_buffer->drawable = NULL;
       }
    }

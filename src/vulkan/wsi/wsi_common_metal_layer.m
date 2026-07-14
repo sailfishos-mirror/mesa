@@ -281,6 +281,19 @@ wsi_metal_release_drawable(CAMetalDrawable *drawable_ptr)
    [(id<CAMetalDrawable>)drawable_ptr release];
 }
 
+void
+wsi_metal_layer_add_presented_handler(CAMetalDrawable *drawable_ptr,
+                                      void (*presented_handler)(void *, uint64_t),
+                                      void *present_info_ptr, uint64_t present_id)
+{
+   @autoreleasepool {
+      id<CAMetalDrawable> drawable = (id<CAMetalDrawable>)drawable_ptr;
+      [drawable addPresentedHandler: ^(id<MTLDrawable> mtlDrwbl) {
+         presented_handler(present_info_ptr, present_id);
+      }];
+   }
+}
+
 struct wsi_metal_layer_blit_context {
    id<MTLDevice> device;
    id<MTLCommandQueue> commandQueue;
@@ -339,6 +352,17 @@ wsi_metal_layer_blit_and_present(struct wsi_metal_layer_blit_context *context,
       [commandEncoder endEncoding];
       [commandBuffer presentDrawable:drawable];
       [commandBuffer commit];
+
+      *drawable_ptr = nil;
+   }
+}
+
+void
+wsi_metal_layer_present(CAMetalDrawable **drawable_ptr)
+{
+   @autoreleasepool {
+      id<CAMetalDrawable> drawable = [(id<CAMetalDrawable>)*drawable_ptr autorelease];
+      [drawable present];
 
       *drawable_ptr = nil;
    }
