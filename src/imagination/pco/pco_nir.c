@@ -444,6 +444,23 @@ static bool should_vectorize_mem_cb(unsigned align_mul,
                                     nir_intrinsic_instr *high,
                                     void *data)
 {
+   /* Don't bother with derefs, only try to vectorize after we're lowered. */
+   switch (low->intrinsic) {
+   case nir_intrinsic_global_atomic:
+   case nir_intrinsic_ssbo_atomic:
+
+   case nir_intrinsic_load_global:
+   case nir_intrinsic_load_ssbo:
+   case nir_intrinsic_load_ubo:
+
+   case nir_intrinsic_store_global:
+   case nir_intrinsic_store_ssbo:
+      break;
+
+   default:
+      return false;
+   }
+
    if (bit_size > 32 || hole_size > 0)
       return false;
 
@@ -525,6 +542,10 @@ static void pco_nir_opt(pco_ctx *ctx, nir_shader *nir, pco_data *data, bool alge
          .callback = should_vectorize_mem_cb,
          .cb_data = &data->common,
       };
+
+      if (data->common.robust_buffer_access)
+         vectorize_opts.robust_modes = nir_var_mem_ubo | nir_var_mem_ssbo;
+
       NIR_PASS(progress, nir, nir_opt_load_store_vectorize, &vectorize_opts);
 
       NIR_PASS(progress, nir, nir_opt_shrink_stores, false);
