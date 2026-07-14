@@ -2287,7 +2287,7 @@ get_line_width(const struct pipe_rasterizer_state *state)
    if (!state->multisample && !state->line_smooth)
       line_width = roundf(state->line_width);
 
-   if (!state->multisample && state->line_smooth && line_width < 1.5f) {
+   if (!state->multisample && line_width < 1.5f) {
       /* For 1 pixel line thickness or less, the general anti-aliasing
        * algorithm gives up, and a garbage line is generated.  Setting a
        * Line Width of 0.0 specifies the rasterization of the "thinnest"
