@@ -884,7 +884,7 @@
         "description": "nvk: Do not take base into account when lowering emulated attributes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cdb0dea462e201f7fafe1eff47f034a609007ad4",
         "notes": null
