@@ -17,23 +17,29 @@ pub struct SSAValue(SSAValueInner);
 
 impl SSAValue {
     /// Returns an SSA value with the given register file and index
-    fn new(idx: u32, bits: u8) -> SSAValue {
-        assert!(idx < (1 << 30) - u32::from(SSAValueInner::MIN));
+    fn new(idx: u32, bits: u8, is_mem: bool) -> SSAValue {
+        assert!(idx < (1 << 29) - u32::from(SSAValueInner::MIN));
         let packed = idx + u32::from(SSAValueInner::MIN);
         let mut packed = LowerBoundedU32::new(packed).unwrap();
         assert!(bits == 8 || bits == 16 || bits == 32);
+        packed |= u32::from(is_mem) << 29;
         packed |= (bits.ilog2() - 3) << 30;
         SSAValue(packed)
     }
 
     /// Returns the index of this SSA value
     pub fn idx(&self) -> u32 {
-        (self.0.get() & 0x3fffffff) - u32::from(SSAValueInner::MIN)
+        (self.0.get() & 0x1fffffff) - u32::from(SSAValueInner::MIN)
+    }
+
+    /// Returns the index of this SSA value
+    pub fn is_mem(&self) -> bool {
+        self.0.get() & (1 << 29) != 0
     }
 
     /// Returns the number of bits in this SSA value
     pub fn bits(&self) -> u8 {
-        8 << (self.0.get() >> 30)
+        8 * self.bytes()
     }
 
     /// Returns the number of bytes in this SSA value
@@ -51,13 +57,20 @@ impl IntoBitIndex for SSAValue {
 
 impl fmt::Display for SSAValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let m = match self.bits() {
-            8 => ":b",
-            16 => ":h",
+        let idx = self.idx();
+        let bh = match self.bits() {
+            8 => "b",
+            16 => "h",
             32 => "",
             _ => panic!("Invalid SSA value bits"),
         };
-        write!(f, "%{}{m}", self.idx())
+        if self.is_mem() {
+            write!(f, "%{idx}:m{bh}")
+        } else if !bh.is_empty() {
+            write!(f, "%{idx}:{bh}")
+        } else {
+            write!(f, "%{idx}")
+        }
     }
 }
 
@@ -117,6 +130,14 @@ impl SSARef {
             }
             self.comps() * 4
         }
+    }
+
+    pub fn is_mem(&self) -> bool {
+        let is_mem = self[0].is_mem();
+        for ssa in self {
+            debug_assert_eq!(ssa.is_mem(), is_mem);
+        }
+        is_mem
     }
 
     pub fn iter(&self) -> std::slice::Iter<'_, SSAValue> {
@@ -277,7 +298,17 @@ const _: () = {
 
 pub trait AllocSSA {
     /// Allocates an SSA value.
-    fn alloc_ssa(&mut self, bits: u8) -> SSAValue;
+    fn alloc_ssa_value(&mut self, bits: u8, is_mem: bool) -> SSAValue;
+
+    /// Allocates an SSA value.
+    fn alloc_ssa(&mut self, bits: u8) -> SSAValue {
+        self.alloc_ssa_value(bits, false)
+    }
+
+    /// Allocates a memory SSA value.
+    fn alloc_mem(&mut self, bits: u8) -> SSAValue {
+        self.alloc_ssa_value(bits, true)
+    }
 
     /// Allocates a vector of SSA values that can hold `bits` bits
     fn alloc_ref(&mut self, bits: u16) -> SSARef {
@@ -301,10 +332,10 @@ pub struct SSAValueAllocator {
 }
 
 impl AllocSSA for SSAValueAllocator {
-    fn alloc_ssa(&mut self, bits: u8) -> SSAValue {
+    fn alloc_ssa_value(&mut self, bits: u8, is_mem: bool) -> SSAValue {
         let idx = self.count;
         self.count += 1;
-        SSAValue::new(idx, bits)
+        SSAValue::new(idx, bits, is_mem)
     }
 }
 
@@ -315,26 +346,41 @@ mod tests {
     #[test]
     fn test_ssa_queries() {
         for bits in [8, 16, 32] {
-            let ssa = SSAValue::new(42, bits);
-            assert_eq!(ssa.idx(), 42);
-            assert_eq!(ssa.bits(), bits);
-            assert_eq!(ssa.bytes(), bits / 8);
+            for is_mem in [false, true] {
+                let ssa = SSAValue::new(42, bits, is_mem);
+                assert_eq!(ssa.idx(), 42);
+                assert_eq!(ssa.is_mem(), is_mem);
+                assert_eq!(ssa.bits(), bits);
+                assert_eq!(ssa.bytes(), bits / 8);
+            }
         }
     }
 
     #[test]
     fn test_ssa_print() {
-        let ssa = SSAValue::new(42, 8);
+        let ssa = SSAValue::new(42, 8, false);
         assert_eq!(format!("{}", ssa), format!("%42:b"));
         assert_eq!(format!("{:?}", ssa), format!("%42:b"));
 
-        let ssa = SSAValue::new(42, 16);
+        let ssa = SSAValue::new(42, 16, false);
         assert_eq!(format!("{}", ssa), format!("%42:h"));
         assert_eq!(format!("{:?}", ssa), format!("%42:h"));
 
-        let ssa = SSAValue::new(42, 32);
+        let ssa = SSAValue::new(42, 32, false);
         assert_eq!(format!("{}", ssa), format!("%42"));
         assert_eq!(format!("{:?}", ssa), format!("%42"));
+
+        let ssa = SSAValue::new(42, 8, true);
+        assert_eq!(format!("{}", ssa), format!("%42:mb"));
+        assert_eq!(format!("{:?}", ssa), format!("%42:mb"));
+
+        let ssa = SSAValue::new(42, 16, true);
+        assert_eq!(format!("{}", ssa), format!("%42:mh"));
+        assert_eq!(format!("{:?}", ssa), format!("%42:mh"));
+
+        let ssa = SSAValue::new(42, 32, true);
+        assert_eq!(format!("{}", ssa), format!("%42:m"));
+        assert_eq!(format!("{:?}", ssa), format!("%42:m"));
     }
 
     #[test]
@@ -343,9 +389,15 @@ mod tests {
         let ssa1 = alloc.alloc_ssa(8);
         let ssa2 = alloc.alloc_ssa(16);
         let ssa3 = alloc.alloc_ssa(32);
+        let ssa4 = alloc.alloc_mem(8);
+        let ssa5 = alloc.alloc_mem(16);
+        let ssa6 = alloc.alloc_mem(32);
         assert_eq!(format!("{}", ssa1), "%0:b");
         assert_eq!(format!("{}", ssa2), "%1:h");
         assert_eq!(format!("{}", ssa3), "%2");
+        assert_eq!(format!("{}", ssa4), "%3:mb");
+        assert_eq!(format!("{}", ssa5), "%4:mh");
+        assert_eq!(format!("{}", ssa6), "%5:m");
     }
 
     #[test]

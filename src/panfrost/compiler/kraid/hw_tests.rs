@@ -243,8 +243,8 @@ impl Builder for TestShaderBuilder<'_> {
 }
 
 impl AllocSSA for TestShaderBuilder<'_> {
-    fn alloc_ssa(&mut self, bits: u8) -> SSAValue {
-        self.ssa_alloc.alloc_ssa(bits)
+    fn alloc_ssa_value(&mut self, bits: u8, is_mem: bool) -> SSAValue {
+        self.ssa_alloc.alloc_ssa_value(bits, is_mem)
     }
 }
 
