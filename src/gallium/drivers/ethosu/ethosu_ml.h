@@ -269,6 +269,7 @@ struct ethosu_tensor {
    unsigned offset;
    unsigned size;
    unsigned required_size;
+   unsigned batches;
    uint8_t type_size;
    struct ethosu_block shape;
    enum ethosu_layout layout;
@@ -284,6 +285,8 @@ struct ethosu_subgraph {
 
    struct util_dynarray operations; /* ethosu_operation */
    struct util_dynarray tensors;    /* ethosu_tensor */
+
+   unsigned batches;
 
    unsigned cmdstream_used;
    uint32_t *cmdstream;

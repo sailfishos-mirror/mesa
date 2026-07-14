@@ -458,12 +458,15 @@ static unsigned
 ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph,
                             struct ethosu_feature_map *fm)
 {
-   unsigned size = ethosu_feature_map_span(fm);
+   unsigned span = ethosu_feature_map_span(fm);
    struct ethosu_tensor *tensor = fm->tensor;
+   uint64_t size;
 
    assert(tensor);
 
-   size = MAX2(size, tensor->required_size);
+   span = MAX2(span, tensor->required_size);
+   size = (uint64_t)span * tensor->batches;
+   assert(size <= UINT_MAX);
 
    if (tensor->size > 0) {
       assert(size <= tensor->size);
@@ -612,6 +615,7 @@ ethosu_add_internal_tensor(struct ethosu_subgraph *subgraph,
                   util_dynarray_num_elements(&subgraph->tensors, struct ethosu_tensor);
    tensor.shape = shape;
    tensor.layout = ETHOSU_LAYOUT_NHWC;
+   tensor.batches = subgraph->batches;
    tensor.type_size = type_size;
 
    util_dynarray_append(&subgraph->tensors, tensor);
@@ -2601,16 +2605,32 @@ register_tensors(struct ethosu_subgraph *subgraph,
                  const struct pipe_ml_operation *poperations,
                  unsigned count)
 {
+   subgraph->batches = 1;
+   for (unsigned i = 0; i < count; i++) {
+      const struct pipe_ml_operation *poperation = &poperations[i];
+
+      for (unsigned j = 0; j < poperation->input_count; j++) {
+         const struct pipe_tensor *ptensor = poperation->input_tensors[j];
+
+         /* Reshapes may use any leading dimension, unlike graph inputs. */
+         if (!ptensor->data &&
+             !ethosu_find_first_producer(poperations, count, ptensor->index))
+            subgraph->batches = MAX2(subgraph->batches, ptensor->dims[0]);
+      }
+   }
+
    for (unsigned i = 0; i < count; i++) {
       const struct pipe_ml_operation *poperation = &poperations[i];
 
       for (unsigned j = 0; j < poperation->input_count; j++) {
          struct pipe_tensor *ptensor = poperation->input_tensors[j];
+
          ethosu_register_tensor(subgraph, ptensor);
       }
 
       for (unsigned j = 0; j < poperation->output_count; j++) {
          struct pipe_tensor *ptensor = poperation->output_tensors[j];
+
          ethosu_register_tensor(subgraph, ptensor);
 
          if (!ptensor->is_external_output &&
@@ -2634,6 +2654,42 @@ register_tensors(struct ethosu_subgraph *subgraph,
                   tensor->layout = ETHOSU_LAYOUT_NHCWB16;
             }
          }
+      }
+   }
+}
+
+static void
+ethosu_offset_feature_map_batch(struct ethosu_feature_map *fm, unsigned batch)
+{
+   unsigned span;
+
+   if (fm->region != IO_REGION || !fm->tensor || fm->tensor->batches <= 1)
+      return;
+
+   span = fm->tensor->size / fm->tensor->batches;
+   for (unsigned i = 0; i < ARRAY_SIZE(fm->tiles.addresses); i++)
+      fm->tiles.addresses[i] += batch * span;
+}
+
+static void
+ethosu_duplicate_batch_operations(struct ethosu_subgraph *subgraph)
+{
+   unsigned operation_count =
+      util_dynarray_num_elements(&subgraph->operations, struct ethosu_operation);
+
+   for (unsigned batch = 1; batch < subgraph->batches; batch++) {
+      for (unsigned i = 0; i < operation_count; i++) {
+         struct ethosu_operation operation =
+            *util_dynarray_element(&subgraph->operations,
+                                   struct ethosu_operation, i);
+
+         ethosu_offset_feature_map_batch(&operation.ifm, batch);
+         ethosu_offset_feature_map_batch(&operation.ifm2, batch);
+         ethosu_offset_feature_map_batch(&operation.ofm, batch);
+
+         operation.kernel.scales = NULL;
+         operation.kernel.zero_points = NULL;
+         util_dynarray_append(&subgraph->operations, operation);
       }
    }
 }
@@ -2906,4 +2962,6 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          UNREACHABLE("Unsupported ML operation type");
       }
    }
+
+   ethosu_duplicate_batch_operations(subgraph);
 }

@@ -72,6 +72,7 @@ ethosu_register_tensor(struct ethosu_subgraph *subgraph,
    new_tensor.shape.width = ptensor->dims[2];
    new_tensor.shape.depth = ptensor->dims[3];
    new_tensor.layout = ETHOSU_LAYOUT_NHWC;
+   new_tensor.batches = subgraph->batches;
    new_tensor.type_size = ptensor->type_size;
    util_dynarray_append(&subgraph->tensors, new_tensor);
 }
