@@ -2415,6 +2415,13 @@ compile_2t_strategies(const struct v3d_compiler *compiler,
                                                      program_id, variant_id,
                                                      strat, &strategies[strat],
                                                      strat == nstrat - 1);
+                                /* Cap the spill budget at the best result so
+                                 * far so a strictly-worse spill loop aborts
+                                 * early. best_spill_fill_count is UINT32_MAX
+                                 * until a strategy succeeds, so this is a
+                                 * no-op until then.
+                                 */
+                                c->max_tmu_spills = best_spill_fill_count;
                                 v3d_attempt_compile(c);
                         }
                         candidates[num_candidates++] = c;
@@ -2495,6 +2502,17 @@ compile_2t_strategies(const struct v3d_compiler *compiler,
                                    min_pressure + V3D_PROBE_PRESSURE_MARGIN) {
                                 continue;
                         }
+                        /* A candidate that spills more than the best result
+                         * so far can never be selected, so cap its spill
+                         * budget at that count: register allocation aborts
+                         * (reported as a spill failure) once it is exceeded,
+                         * skipping the rest of the unsuccessful spill loop. The
+                         * budget is the exact count, so a candidate can still
+                         * tie it and win the strategy-index tie-break below;
+                         * only strictly-worse spilling is cut short.
+                         */
+                        if (chosen)
+                                p->max_tmu_spills = chosen->spills + chosen->fills;
                         log_strategy_fallback(p);
                         finish_strategy(p);
                         finished[rank] = true;
