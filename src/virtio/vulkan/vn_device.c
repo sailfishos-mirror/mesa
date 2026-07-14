@@ -292,13 +292,6 @@ vn_device_fix_create_info(const struct vn_device *dev,
       }
 
       if (app_exts->ANDROID_native_buffer) {
-         /* see vn_QueueSignalReleaseImageANDROID */
-         if (!app_exts->KHR_external_fence_fd) {
-            assert(physical_dev->renderer_sync_fd.fence_exportable);
-            extra_exts[extra_count++] =
-               VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME;
-         }
-
          block_exts[block_count++] = VK_ANDROID_NATIVE_BUFFER_EXTENSION_NAME;
       }
 
@@ -334,6 +327,11 @@ vn_device_fix_create_info(const struct vn_device *dev,
        !app_exts->EXT_external_memory_acquire_unmodified && has_wsi) {
       extra_exts[extra_count++] =
          VK_EXT_EXTERNAL_MEMORY_ACQUIRE_UNMODIFIED_EXTENSION_NAME;
+   }
+
+   if (app_exts->KHR_external_fence_fd) {
+      /* see vn_physical_device_get_native_extensions */
+      block_exts[block_count++] = VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME;
    }
 
    if (app_exts->KHR_map_memory2) {

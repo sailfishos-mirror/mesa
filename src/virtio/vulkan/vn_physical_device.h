@@ -119,7 +119,6 @@ struct vn_physical_device {
    } external_memory;
 
    struct {
-      bool fence_exportable;
       bool semaphore_exportable;
    } renderer_sync_fd;
 
