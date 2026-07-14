@@ -729,6 +729,8 @@ ethosu_lower_quantize(struct ethosu_subgraph *subgraph,
                       const struct pipe_ml_operation *poperation,
                       struct ethosu_operation *operation)
 {
+   struct pipe_tensor *input = poperation->input_tensors[0];
+
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
    operation->round_mode = ETHOSU_ROUNDING_DOUBLE;
    operation->pooling.nop = true;
@@ -738,7 +740,19 @@ ethosu_lower_quantize(struct ethosu_subgraph *subgraph,
    else
       operation->pooling.type = ETHOSU_POOLING_TYPE_SUM;
 
-   set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   set_feature_maps(subgraph, input, poperation->output_tensors[0], operation);
+
+   if (input->data) {
+      unsigned size = input->dims[1] * input->dims[2] * input->dims[3] *
+         input->type_size;
+
+      operation->ifm.region = COEFS_REGION;
+      operation->ifm.tiles.addresses[0] =
+         ethosu_add_constant(subgraph, input->data, size);
+      operation->ifm.tiles.height_0 = operation->ifm.shape.height;
+      operation->ifm.tiles.height_1 = operation->ifm.shape.height;
+      operation->ifm.tiles.width_0 = operation->ifm.shape.width;
+   }
 
    allocate_feature_maps(subgraph, operation);
    ethosu_sched_operation(subgraph, operation);
