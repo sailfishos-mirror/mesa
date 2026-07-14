@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ffi::CString, sync::Arc};
 
 use mesa_rust_util::properties::Properties;
-use rusticl_kernels::RUSTICL_BUILTIN_KERNELS_SPV;
+use rusticl_kernels::RUSTICL_BUILTIN_KERNELS_SPV64;
 use rusticl_opencl_gen::*;
 
 use crate::{
@@ -22,7 +22,7 @@ pub struct Meta {
 
 impl Meta {
     pub fn new(devs: &'static [Device]) -> Self {
-        let spirv = RUSTICL_BUILTIN_KERNELS_SPV;
+        let spirv = RUSTICL_BUILTIN_KERNELS_SPV64;
         let devs = devs.iter().collect::<Vec<_>>();
         let ctx = Context::new(devs.clone(), Properties::default(), None);
         let prog = Program::from_spirv(ctx, spirv);
