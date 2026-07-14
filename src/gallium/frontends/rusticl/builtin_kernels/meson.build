@@ -18,12 +18,25 @@ rusticl_kernels_spv64_rs = custom_target(
   depfile : 'rusticl_shaders.h.d',
 )
 
+rusticl_kernels_spv32_rs = custom_target(
+  input : rusticl_kernels_files,
+  output : 'rusticl_kernels.spv32',
+  command : [
+    prog_mesa_clc, '--32bit', '-o', '@OUTPUT@', '--depfile', '@DEPFILE@',
+    rusticl_kernels_files, '--',
+    '-I' + join_paths(meson.project_source_root(), 'src/compiler/libcl'),
+    '-I' + join_paths(meson.current_source_dir(), '.'),
+    cl_args,
+    ],
+  depfile : 'rusticl_shaders.h.d',
+)
+
 rusticl_kernels_spv = static_library(
   'rusticl_kernels',
   structured_sources(
     'lib.rs',
     {
-      'gen/' : [rusticl_kernels_spv64_rs],
+      'gen/' : [rusticl_kernels_spv64_rs, rusticl_kernels_spv32_rs],
     },
   ),
   gnu_symbol_visibility : 'hidden',
