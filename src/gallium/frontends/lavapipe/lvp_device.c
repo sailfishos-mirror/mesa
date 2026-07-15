@@ -22,6 +22,7 @@
  */
 
 #include "lvp_private.h"
+#include "lp_texture_handle.h"
 #include "lvp_conv.h"
 #include "lvp_acceleration_structure.h"
 
@@ -2043,9 +2044,9 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateDevice(
       .seamless_cube_map = 1,
       .max_lod = 0.25,
    };
-   device->null_texture_handle = (void *)(uintptr_t)device->queue.ctx->create_texture_handle(device->queue.ctx,
+   device->null_texture_handle = llvmpipe_create_texture_handle(device->pscreen,
       &(struct pipe_sampler_view){ 0 }, &null_sampler);
-   device->null_image_handle = (void *)(uintptr_t)device->queue.ctx->create_image_handle(device->queue.ctx,
+   device->null_image_handle = llvmpipe_create_image_handle(device->pscreen,
       &(struct pipe_image_view){ 0 });
 
    device->bda_texture_handles = UTIL_DYNARRAY_INIT;
@@ -2076,17 +2077,17 @@ VKAPI_ATTR void VKAPI_CALL lvp_DestroyDevice(
    vk_meta_device_finish(&device->vk, &device->meta);
 
    util_dynarray_foreach(&device->bda_texture_handles, struct lp_texture_handle *, handle)
-      device->queue.ctx->delete_texture_handle(device->queue.ctx, (uint64_t)(uintptr_t)*handle);
+      llvmpipe_delete_texture_handle(device->pscreen, *handle);
 
    util_dynarray_fini(&device->bda_texture_handles);
 
    util_dynarray_foreach(&device->bda_image_handles, struct lp_texture_handle *, handle)
-      device->queue.ctx->delete_image_handle(device->queue.ctx, (uint64_t)(uintptr_t)*handle);
+      llvmpipe_delete_image_handle(device->pscreen, *handle);
 
    util_dynarray_fini(&device->bda_image_handles);
 
-   device->queue.ctx->delete_texture_handle(device->queue.ctx, (uint64_t)(uintptr_t)device->null_texture_handle);
-   device->queue.ctx->delete_image_handle(device->queue.ctx, (uint64_t)(uintptr_t)device->null_image_handle);
+   llvmpipe_delete_texture_handle(device->pscreen, device->null_texture_handle);
+   llvmpipe_delete_image_handle(device->pscreen, device->null_image_handle);
 
    device->queue.ctx->delete_fs_state(device->queue.ctx, device->noop_fs);
 
@@ -2766,9 +2767,9 @@ lvp_sampler_init(struct lvp_device *device, struct lp_sampler_descriptor *desc, 
    memcpy(&state.border_color, &vk_state->border_color_value, sizeof(vk_state->border_color_value));
 
    simple_mtx_lock(&device->queue.lock);
-   struct lp_texture_handle *texture_handle = (void *)(uintptr_t)device->queue.ctx->create_texture_handle(device->queue.ctx, NULL, &state);
+   struct lp_texture_handle *texture_handle = llvmpipe_create_texture_handle(device->pscreen, NULL, &state);
    desc->sampler_index = texture_handle->sampler_index;
-   device->queue.ctx->delete_texture_handle(device->queue.ctx, (uint64_t)(uintptr_t)texture_handle);
+   llvmpipe_delete_texture_handle(device->pscreen, texture_handle);
    simple_mtx_unlock(&device->queue.lock);
 
    lp_jit_sampler_from_pipe(&desc->jit, &state);

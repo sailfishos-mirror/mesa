@@ -49,10 +49,10 @@ llvmpipe_register_texture(struct lp_sampler_matrix *matrix, struct lp_texture_ha
 static void
 llvmpipe_register_sampler(struct lp_sampler_matrix *matrix, struct lp_static_sampler_state *state);
 
-static uint64_t
-llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_view *view, const struct pipe_sampler_state *sampler)
+struct lp_texture_handle *
+llvmpipe_create_texture_handle(struct pipe_screen *pscreen, struct pipe_sampler_view *view, const struct pipe_sampler_state *sampler)
 {
-   struct lp_sampler_matrix *matrix = &llvmpipe_screen(pctx->screen)->sampler_matrix;
+   struct lp_sampler_matrix *matrix = &llvmpipe_screen(pscreen)->sampler_matrix;
 
    struct lp_texture_handle *handle = calloc(1, sizeof(struct lp_texture_handle));
 
@@ -103,19 +103,19 @@ llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_vi
       simple_mtx_unlock(&matrix->lock);
    }
 
-   return (uint64_t)(uintptr_t)handle;
+   return handle;
 }
 
-static void
-llvmpipe_delete_texture_handle(struct pipe_context *pctx, uint64_t handle)
+void
+llvmpipe_delete_texture_handle(struct pipe_screen *pscreen, struct lp_texture_handle *handle)
 {
-   free((void *)(uintptr_t)handle);
+   free(handle);
 }
 
-static uint64_t
-llvmpipe_create_image_handle(struct pipe_context *pctx, const struct pipe_image_view *view)
+struct lp_texture_handle *
+llvmpipe_create_image_handle(struct pipe_screen *pscreen, const struct pipe_image_view *view)
 {
-   struct lp_sampler_matrix *matrix = &llvmpipe_screen(pctx->screen)->sampler_matrix;
+   struct lp_sampler_matrix *matrix = &llvmpipe_screen(pscreen)->sampler_matrix;
 
    struct lp_texture_handle *handle = calloc(1, sizeof(struct lp_texture_handle));
 
@@ -165,13 +165,13 @@ llvmpipe_create_image_handle(struct pipe_context *pctx, const struct pipe_image_
    assert(found);
    simple_mtx_unlock(&matrix->lock);
 
-   return (uint64_t)(uintptr_t)handle;
+   return handle;
 }
 
-static void
-llvmpipe_delete_image_handle(struct pipe_context *pctx, uint64_t handle)
+void
+llvmpipe_delete_image_handle(struct pipe_screen *pscreen, struct lp_texture_handle *handle)
 {
-   free((void *)(uintptr_t)handle);
+   free(handle);
 }
 
 static uint64_t
@@ -223,15 +223,6 @@ lp_function_cache_init(struct lp_function_cache *cache, struct hash_table *initi
 {
    p_atomic_set(&cache->latest_cache.value, (uint64_t)(uintptr_t)initial_cache);
    cache->trash_caches = UTIL_DYNARRAY_INIT;
-}
-
-void
-llvmpipe_init_texture_handle_funcs(struct llvmpipe_context *ctx)
-{
-   ctx->pipe.create_texture_handle = llvmpipe_create_texture_handle;
-   ctx->pipe.delete_texture_handle = llvmpipe_delete_texture_handle;
-   ctx->pipe.create_image_handle = llvmpipe_create_image_handle;
-   ctx->pipe.delete_image_handle = llvmpipe_delete_image_handle;
 }
 
 void

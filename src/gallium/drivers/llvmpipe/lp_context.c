@@ -309,8 +309,6 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
    llvmpipe_init_context_resource_funcs(&llvmpipe->pipe);
    llvmpipe_init_surface_functions(llvmpipe);
 
-   llvmpipe_init_texture_handle_funcs(llvmpipe);
-
 #ifdef HAVE_LIBDRM
    llvmpipe_init_fence_funcs(&llvmpipe->pipe);
 #endif

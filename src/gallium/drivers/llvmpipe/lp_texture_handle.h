@@ -82,7 +82,13 @@ struct lp_sampler_matrix {
    struct util_dynarray trash;
 };
 
-void llvmpipe_init_texture_handle_funcs(struct llvmpipe_context *ctx);
+struct lp_texture_handle *llvmpipe_create_texture_handle(struct pipe_screen *pscreen, struct pipe_sampler_view *view, const struct pipe_sampler_state *sampler);
+
+void llvmpipe_delete_texture_handle(struct pipe_screen *pscreen, struct lp_texture_handle *handle);
+
+struct lp_texture_handle *llvmpipe_create_image_handle(struct pipe_screen *pscreen, const struct pipe_image_view *view);
+
+void llvmpipe_delete_image_handle(struct pipe_screen *pscreen, struct lp_texture_handle *handle);
 
 void llvmpipe_init_sampler_matrix(struct llvmpipe_screen *screen);
 
