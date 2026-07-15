@@ -650,8 +650,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
                           nir->info.outputs_written, key->base.vue_layout,
                           pos_slots);
 
-      brw_nir_apply_key(pt, &key->base, simd_width);
-
       brw_nir_lower_gs_inputs(nir, compiler.devinfo, &input_vue_map,
                               &prog_data->vue.urb_read_length);
 
