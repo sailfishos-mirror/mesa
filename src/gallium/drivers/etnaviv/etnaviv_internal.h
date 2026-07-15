@@ -44,6 +44,7 @@
 #define ETNA_MAX_UNIFORMS (256)
 #define ETNA_MAX_CONST_BUF 16
 #define ETNA_MAX_PIXELPIPES 2
+#define ETNA_MAX_SAMPLES 4
 
 /* 128-bit color emulation reserves the upper half of the render targets for
  * companion targets, so at most this many color RTs can be bound (and be
