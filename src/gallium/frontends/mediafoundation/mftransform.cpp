@@ -1593,7 +1593,9 @@ CDX12EncHMFT::ProcessDX12EncodeContext( CDX12EncHMFT *pThis,
                //
 
                pipe_fence_handle *fences[] = {pDX12EncodeContext->pSliceFences[slice_idx], pDX12EncodeContext->pLastSliceFence};
+               HMFT_ETW_EVENT_START( "GPUSliceFenceWaitMultiple", pThis );
                const int firstCompletedFenceIdx = pThis->m_pPipeContext->screen->fence_wait_multiple( pThis->m_pPipeContext->screen, fences, 2, false);
+               HMFT_ETW_EVENT_STOP( "GPUSliceFenceWaitMultiple", pThis );
 
                if( firstCompletedFenceIdx == 0 /* slice fence signaled */ )
                {
