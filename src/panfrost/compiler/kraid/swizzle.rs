@@ -122,6 +122,10 @@ impl SwizzleByte {
     }
 
     pub fn modify(self, byte_mod: ByteMod) -> Option<SwizzleByte> {
+        if self.is_zero() {
+            return Some(SwizzleByte::Zero);
+        }
+
         let self_byte_mod = self.byte_mod()?;
         let self_byte_idx = self.byte_idx()?;
 
@@ -205,6 +209,10 @@ impl SwizzleWord {
     }
 
     fn modify(self, word_mod: ByteMod) -> Option<SwizzleWord> {
+        if self.is_zero() {
+            return Some(SwizzleWord::Zero);
+        }
+
         let self_word_mod = self.word_mod()?;
         let self_word_idx = self.word_idx()?;
 
@@ -276,6 +284,9 @@ impl Swizzle {
     /// 64-bit sources.
     pub const NONE: Swizzle = Swizzle::from_bytes([0, 1, 2, 3]);
 
+    /// A swizzle that always computes zero.  This is not very useful on its
+    /// own, but can happen when merging swizzles, e.g.
+    /// `Swizzle::widen_u16(0).swizzle(Swizzle::S3) == Some(Swizzle::ZERO)`.
     pub const ZERO: Swizzle = unsafe {
         Swizzle::from_swizzle_bytes_unchecked([
             SwizzleByte::Zero,
@@ -959,4 +970,21 @@ pub enum AsmSwizzleWiden {
     // 32-bit swizzles
     W0,
     W1,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_zero_from_merge() {
+        assert_eq!(
+            Swizzle::widen_u16(0).swizzle(Swizzle::S3),
+            Some(Swizzle::ZERO)
+        );
+        assert_eq!(
+            Swizzle::widen_u32(0).swizzle(Swizzle::W11),
+            Some(Swizzle::ZERO)
+        );
+    }
 }
