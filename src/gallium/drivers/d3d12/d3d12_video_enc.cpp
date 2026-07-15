@@ -1838,8 +1838,25 @@ bool d3d12_video_encoder_negotiate_requested_features_and_d3d12_driver_caps(stru
 
       /* Try fallback for multi-slice/tile not supported with single subregion mode */
       if ((capEncoderSupportData.ValidationFlags & D3D12_VIDEO_ENCODER_VALIDATION_FLAG_SUBREGION_LAYOUT_MODE_NOT_SUPPORTED) != 0) {
-         pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_FULL_FRAME;
-         debug_printf("[d3d12_video_encoder] WARNING: Requested slice/tile mode not supported by driver, will continue encoding with single subregion encoding.\n");
+         // First try FULL_FRAME as the natural single-subregion fallback for multi-slice/tile modes.
+         // If FULL_FRAME itself is not supported, fall back further to AUTO
+         if (d3d12_video_encoder_check_subregion_mode_support(
+               pD3D12Enc, D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_FULL_FRAME)) {
+            pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode =
+               D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_FULL_FRAME;
+            debug_printf("[d3d12_video_encoder] WARNING: Requested slice/tile mode not supported by driver, "
+                         "falling back to FULL_FRAME single subregion encoding.\n");
+         } else if (d3d12_video_encoder_check_subregion_mode_support(
+                     pD3D12Enc, D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_AUTO)) {
+            pD3D12Enc->m_currentEncodeConfig.m_encoderSliceConfigMode =
+               D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_AUTO;
+            debug_printf("[d3d12_video_encoder] WARNING: Requested slice/tile mode not supported by driver, "
+                         " FULL_FRAME subregion mode not supported by driver either, "
+                         " falling back to AUTO subregion mode.\n");
+         } else {
+            debug_printf("[d3d12_video_encoder] WARNING: Neither FULL_FRAME nor AUTO subregion modes are "
+                         "supported, subregion mode fallback unavailable.\n");
+         }
       }
 
       ///
