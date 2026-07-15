@@ -227,8 +227,25 @@ mtl_render_write_timestamp(mtl_render_encoder *encoder,
                            uint32_t index)
 {
 }
+
 void
 mtl_compute_write_timestamp(mtl_compute_encoder *encoder,
                             mtl_counter_heap *heap, uint32_t index)
+{
+}
+
+void mtl_render_set_color_store_action(mtl_render_encoder *encoder,
+                                       enum mtl_store_action action,
+                                       uint32_t index)
+{
+}
+
+void mtl_render_set_depth_store_action(mtl_render_encoder *encoder,
+                                       enum mtl_store_action action)
+{
+}
+
+void mtl_render_set_stencil_store_action(mtl_render_encoder *encoder,
+                                       enum mtl_store_action action)
 {
 }

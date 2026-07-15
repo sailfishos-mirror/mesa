@@ -469,3 +469,34 @@ mtl_render_write_timestamp(mtl_render_encoder *encoder,
                                  atIndex:index];
    }
 }
+
+
+void
+mtl_render_set_color_store_action(mtl_render_encoder *encoder,
+                                  enum mtl_store_action action,
+                                  uint32_t index)
+{
+    @autoreleasepool {
+        id<MTL4RenderCommandEncoder> enc = (id<MTL4RenderCommandEncoder>)encoder;
+        [enc setColorStoreAction:(MTLStoreAction)action
+                         atIndex:index];
+    }
+}
+
+void mtl_render_set_depth_store_action(mtl_render_encoder *encoder,
+                                       enum mtl_store_action action)
+{
+    @autoreleasepool {
+        id<MTL4RenderCommandEncoder> enc = (id<MTL4RenderCommandEncoder>)encoder;
+        [enc setDepthStoreAction:(MTLStoreAction)action];
+    }
+}
+
+void mtl_render_set_stencil_store_action(mtl_render_encoder *encoder,
+                                       enum mtl_store_action action)
+{
+    @autoreleasepool {
+        id<MTL4RenderCommandEncoder> enc = (id<MTL4RenderCommandEncoder>)encoder;
+        [enc setStencilStoreAction:(MTLStoreAction)action];
+    }
+}
