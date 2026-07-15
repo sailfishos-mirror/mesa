@@ -72,12 +72,12 @@ fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    memset(*scales, 0, *scales_size);
 
    for (unsigned i = 0; i < operation->ofm.shape.depth; i++) {
-      double kernel_scale = (operation->kernel.scales != NULL) ?
-                             operation->kernel.scales[i] : operation->kernel.scale;
+      float kernel_scale = (operation->kernel.scales != NULL) ?
+                           operation->kernel.scales[i] : operation->kernel.scale;
       double conv_scale;
 
-      if (!operation->ifm.is_signed) {
-         /* UInt8 path: multiply as float first, then cast to double */
+      if (!operation->ifm.is_signed || operation->kernel.scale_as_float) {
+         /* Multiply as float first, then cast to double. */
          conv_scale = (double)(ifm_scale * kernel_scale) / (double)ofm_scale;
       } else {
          /* Int8 path: cast to double before multiply for higher precision */

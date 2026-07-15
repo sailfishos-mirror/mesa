@@ -131,6 +131,7 @@ struct ethosu_kernel {
    /* Per-channel quantization (NULL for per-tensor) */
    float *scales;
    int *zero_points;
+   bool scale_as_float;
 };
 
 struct ethosu_padding {

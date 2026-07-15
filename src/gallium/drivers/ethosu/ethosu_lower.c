@@ -283,6 +283,8 @@ ethosu_lower_fully_connected(struct ethosu_subgraph *subgraph,
    operation->kernel.scale = poperation->fcon.weight_tensor->scale;
    operation->kernel.zero_point = poperation->fcon.weight_tensor->zero_point;
    operation->kernel.is_signed = poperation->fcon.weight_tensor->is_signed;
+   operation->kernel.scale_as_float =
+      poperation->fcon.weight_tensor->scales == NULL;
 
    lower_conv_common(subgraph, &conv_operation, &flat_input,
                      weight,
