@@ -173,10 +173,13 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
                        !jay_type_is_any_float(I->type) &&
                        jay_as_uint(I->src[s]) <= UINT16_MAX;
 
-            /* Some instructions on some platforms can have at most one
-             * immediate source. TODO: Refine.
-             */
-            allowed &= ((s == 0) || !jay_is_imm(I->src[0]));
+            /* MAD/DP4A can have at most one immediate source on Gfx11 */
+            allowed &= (ver >= 12 || s == 0 || !jay_is_imm(I->src[0])) ||
+                       !(I->op == JAY_OPCODE_MAD ||
+                         I->op == JAY_OPCODE_MAD_SWAP ||
+                         I->op == JAY_OPCODE_DP4A_SS ||
+                         I->op == JAY_OPCODE_DP4A_SU ||
+                         I->op == JAY_OPCODE_DP4A_UU);
          }
 
          /* SENDs have immediate messages descriptors but not payloads */
