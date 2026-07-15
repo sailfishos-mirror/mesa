@@ -2744,7 +2744,7 @@
         "description": "intel: Fix operator precedence in intel_simd_overridden",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "baf2f0ea4a9911553ca2acac56dbd6333e507c11",
         "notes": null
