@@ -2394,7 +2394,7 @@ pipeline_add_multiview_gs(struct v3dv_pipeline *pipeline,
 
    pipeline->has_gs = true;
    pipeline->stages[BROADCOM_SHADER_GEOMETRY] = p_stage;
-   pipeline->active_stages |= MESA_SHADER_GEOMETRY;
+   pipeline->active_stages |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
    pipeline->stages[BROADCOM_SHADER_GEOMETRY_BIN] =
       pipeline_stage_create_binning(p_stage, pAllocator);

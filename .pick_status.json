@@ -2994,7 +2994,7 @@
         "description": "v3dv: record the multiview geometry shader with its Vulkan stage bit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5872c7ca7ba79f5e5bf8824ee474b30fa9c12948",
         "notes": null
