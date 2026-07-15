@@ -12,6 +12,7 @@ use std::cmp::{Ord, Ordering};
 pub struct LiveSet {
     bytes: u32,
     set: FxHashSet<SSAValue>,
+    bit_set: BitSet<u32>,
 }
 
 impl LiveSet {
@@ -19,13 +20,18 @@ impl LiveSet {
         Default::default()
     }
 
+    pub fn as_bit_set(&self) -> &BitSet<u32> {
+        &self.bit_set
+    }
+
     pub fn clear(&mut self) {
         self.bytes = 0;
         self.set.clear();
+        self.bit_set.clear();
     }
 
     pub fn contains(&self, ssa: &SSAValue) -> bool {
-        self.set.contains(ssa)
+        self.bit_set.contains(ssa.idx())
     }
 
     pub fn bytes(&self) -> u32 {
@@ -33,7 +39,9 @@ impl LiveSet {
     }
 
     pub fn insert(&mut self, ssa: SSAValue) -> bool {
-        if self.set.insert(ssa) {
+        if self.bit_set.insert(ssa.idx()) {
+            let inserted = self.set.insert(ssa);
+            debug_assert!(inserted);
             self.bytes += u32::from(ssa.bytes());
             true
         } else {
@@ -46,7 +54,9 @@ impl LiveSet {
     }
 
     pub fn remove(&mut self, ssa: &SSAValue) -> bool {
-        if self.set.remove(ssa) {
+        if self.bit_set.remove(ssa.idx()) {
+            let removed = self.set.remove(ssa);
+            debug_assert!(removed);
             self.bytes -= u32::from(ssa.bytes());
             true
         } else {
