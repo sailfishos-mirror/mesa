@@ -251,6 +251,8 @@ ethosu_lower_fully_connected(struct ethosu_subgraph *subgraph,
                      (int32_t *)poperation->fcon.bias_tensor->data,
                      operation);
    set_full_activation_range(operation);
+   if (poperation->fcon.relu)
+      operation->conv.activation_min = operation->ofm.zero_point;
 }
 
 static void
