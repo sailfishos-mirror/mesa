@@ -134,6 +134,8 @@ anv_drirc_shader_cb(const void *hash_data,
       workaround->force_typed_barrier_after_dispatch_to_top = true;
    else if (strcmp(option->name, "force_vk_untyped_barrier_after_dispatch_to_top") == 0)
       workaround->force_untyped_barrier_after_dispatch_to_top = true;
+   else if (strcmp(option->name, "brw_prefer_simd32_fs") == 0)
+      workaround->prefer_simd32_fs = true;
    else
       UNREACHABLE("invalid shader option");
 }

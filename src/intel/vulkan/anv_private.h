@@ -1251,6 +1251,8 @@ struct anv_shader_workaround {
    bool force_typed_barrier_after_dispatch_to_top:1;
    bool force_untyped_barrier_after_dispatch_to_compute:1;
    bool force_untyped_barrier_after_dispatch_to_top:1;
+
+   bool prefer_simd32_fs:1;
 };
 
 struct anv_shader {

@@ -1923,6 +1923,14 @@ anv_shader_compile(struct vk_device *vk_device,
       shader_data->source_hash = ((uint64_t*)info->nir->info.source_blake3)[0];
       shader_data->key_size = brw_prog_key_size(info->stage);
 
+      /* Resolve now; shader->workaround exists only after brw_compile. */
+      struct anv_instance *instance = device->physical->instance;
+      if (instance->shader_workarounds != NULL) {
+         shader_data->workaround =
+            _mesa_hash_table_u64_search(instance->shader_workarounds,
+                                        shader_data->source_hash);
+      }
+
       for (uint32_t i = 0; i < info->set_layout_count; i++) {
          shader_data->dynamic_descriptors[i] =
             info->set_layouts[i] != NULL ?
@@ -1973,6 +1981,9 @@ anv_shader_compile(struct vk_device *vk_device,
       case MESA_SHADER_FRAGMENT:
          populate_fs_prog_key(&shader_data->key.fs, vk_device->physical,
                               info->robustness, state, stages);
+         shader_data->key.fs.prefer_simd32 =
+            shader_data->workaround != NULL &&
+            shader_data->workaround->prefer_simd32_fs;
          break;
       case MESA_SHADER_COMPUTE:
          populate_cs_prog_key(&shader_data->key.cs, vk_device->physical,

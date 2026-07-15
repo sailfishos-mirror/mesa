@@ -144,6 +144,9 @@ def declare_options(android_version):
           "Insert a barrier for typed resources after dispatch of a shader for any other shader"),
         B("force_vk_untyped_barrier_after_dispatch_to_top", False,
           "Insert a barrier for untyped resources after dispatch of a shader for any other shader"),
+        B("brw_prefer_simd32_fs", False,
+          "Keep this fragment shader's SIMD32 variant even if the throughput "
+          "model ties it"),
     ]
 
     perf_options = [
