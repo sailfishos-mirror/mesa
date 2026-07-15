@@ -3004,7 +3004,7 @@
         "description": "v3dv: record the no-op fragment shader with its Vulkan stage bit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "02de1d9ab16f4818a9da29f96d222f19b11a106b",
         "notes": null
