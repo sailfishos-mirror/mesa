@@ -32,6 +32,11 @@ def_to_regdist_key(jay_function *func, jay_inst *I, jay_def x)
          func->shader->num_regs[GPR] + func->shader->num_regs[UGPR];
 
       return (struct key) { base + (x.reg / 2), jay_num_values(x) };
+   } else if (x.file == FLAG) {
+      unsigned base =
+         func->shader->num_regs[GPR] + func->shader->num_regs[UGPR] + 4;
+
+      return (struct key){ base + x.reg, jay_num_values(x) };
    } else {
       return (struct key) { 0, 0 };
    }
@@ -635,18 +640,19 @@ lower_regdist(jay_function *func, jay_inst *I, struct swsb_regdist_state *ctx)
       }
    }
 
-   /* Read-after-write. The hardware scoreboards accumulators within a pipe, so
-    * we set except_pipe for that to omit those annotations. The hardware does
-    * *not* scoreboard accumulators across pipes so we can't just ignore
-    * accumulators when scoreboarding. For example, the I@1 annotation is
-    * required in the following code:
+   /* Read-after-write. The hardware scoreboards accumulators/flags within a
+    * pipe, so we set except_pipe for that to omit those annotations. The
+    * hardware does *not* scoreboard accumulator/flags  across pipes so we can't
+    * just ignore accumulator/flags when scoreboarding. For example, the I@1
+    * annotation is required in the following code:
     *
     * (16)        mul.s32 acc0, g26, g24<16,8,2>:u16                  │
     * (32)        mad.f32 acc0, u8.6, u8.8, g20                       │ I@1
     */
    jay_foreach_src(I, s) {
+      bool except_pipe = I->src[s].file == ACCUM || I->src[s].file == FLAG;
       depend_on_writer(ctx, def_to_regdist_key(func, I, I->src[s]), dep,
-                       exec_pipe, I->src[s].file == ACCUM /* except_pipe */);
+                       exec_pipe, except_pipe);
    }
 
    /* If dependency P implies dependency Q, drop dependency Q to avoid
@@ -821,8 +827,9 @@ void
 jay_lower_scoreboard(jay_shader *shader)
 {
    unsigned accums = 4;
+   unsigned flags = 8;
    uint32_t nr_regdist_keys =
-      shader->num_regs[GPR] + shader->num_regs[UGPR] + accums;
+      shader->num_regs[GPR] + shader->num_regs[UGPR] + accums + flags;
    u32_per_pipe *regdists = malloc(sizeof(*regdists) * nr_regdist_keys);
 
    unsigned max_blocks = 0;
