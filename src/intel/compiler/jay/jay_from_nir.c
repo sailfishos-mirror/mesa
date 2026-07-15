@@ -2972,9 +2972,14 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
    if (!jay_block_ending_jump(else_last))
       jay_block_add_successor(else_last, after_block, GPR);
 
-   /* For a non-uniform IF, we fall through both sides in the physical CFG */
    if (!uniform) {
+      /* For a non-uniform IF, we fall through both sides in the physical CFG */
       jay_block_add_successor(then_last, else_first, UGPR);
+
+      /* Even if the else block logically ends in an unconditional jump,
+       * physically we will still reconverge. Add the physical edge.
+       */
+      jay_block_add_successor(else_last, after_block, UGPR);
    }
 
    nj->after_block = after_block;
