@@ -69,6 +69,7 @@ llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_vi
       if (state.static_state.tiled)
          state.dynamic_state.residency = NULL;
 
+      simple_mtx_lock(&matrix->lock);
       llvmpipe_register_texture(matrix, &state, true);
 
       bool found = false;
@@ -80,12 +81,14 @@ llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_vi
          }
       }
       assert(found);
+      simple_mtx_unlock(&matrix->lock);
    }
 
    if (sampler) {
       struct lp_static_sampler_state state;
       lp_sampler_static_sampler_state(&state, sampler);
 
+      simple_mtx_lock(&matrix->lock);
       llvmpipe_register_sampler(matrix, &state);
 
       bool found = false;
@@ -97,6 +100,7 @@ llvmpipe_create_texture_handle(struct pipe_context *pctx, struct pipe_sampler_vi
          }
       }
       assert(found);
+      simple_mtx_unlock(&matrix->lock);
    }
 
    return (uint64_t)(uintptr_t)handle;
@@ -147,6 +151,7 @@ llvmpipe_create_image_handle(struct pipe_context *pctx, const struct pipe_image_
          state.static_state.target = PIPE_TEXTURE_CUBE;
    }
 
+   simple_mtx_lock(&matrix->lock);
    llvmpipe_register_texture(matrix, &state, false);
 
    bool found = false;
@@ -158,6 +163,7 @@ llvmpipe_create_image_handle(struct pipe_context *pctx, const struct pipe_image_
       }
    }
    assert(found);
+   simple_mtx_unlock(&matrix->lock);
 
    return (uint64_t)(uintptr_t)handle;
 }
@@ -1253,6 +1259,7 @@ compile_sample_functions(struct lp_sampler_matrix *matrix, struct lp_texture_han
 static void
 llvmpipe_register_texture(struct lp_sampler_matrix *matrix, struct lp_texture_handle_state *state, bool sampled)
 {
+   simple_mtx_assert_locked(&matrix->lock);
 
    bool packed = true;
    uint32_t dst_index = matrix->texture_count;
@@ -1289,8 +1296,6 @@ llvmpipe_register_texture(struct lp_sampler_matrix *matrix, struct lp_texture_ha
    else
       entry->storage = true;
 
-   simple_mtx_lock(&matrix->lock);
-
    if (entry->sampled) {
       entry->sampler_count = matrix->sampler_count;
       if (matrix->sampler_count && !entry->sample_functions) {
@@ -1323,13 +1328,13 @@ llvmpipe_register_texture(struct lp_sampler_matrix *matrix, struct lp_texture_ha
          if (!entry->image_functions[image_op])
             entry->image_functions[image_op] = compile_image_function(matrix, &state->static_state, image_op);
    }
-
-   simple_mtx_unlock(&matrix->lock);
 }
 
 static void
 llvmpipe_register_sampler(struct lp_sampler_matrix *matrix, struct lp_static_sampler_state *state)
 {
+   simple_mtx_assert_locked(&matrix->lock);
+
    for (uint32_t i = 0; i < matrix->sampler_count; i++)
       if (!memcmp(matrix->samplers + i, state, sizeof(struct lp_static_sampler_state)))
          return;
@@ -1338,8 +1343,6 @@ llvmpipe_register_sampler(struct lp_sampler_matrix *matrix, struct lp_static_sam
    matrix->samplers = realloc(matrix->samplers, matrix->sampler_count * sizeof(struct lp_static_sampler_state));
 
    matrix->samplers[matrix->sampler_count - 1] = *state;
-
-   simple_mtx_lock(&matrix->lock);
 
    for (uint32_t i = 0; i < matrix->texture_count; i++) {
       struct lp_texture_functions *texture = matrix->textures[i];
@@ -1361,19 +1364,19 @@ llvmpipe_register_sampler(struct lp_sampler_matrix *matrix, struct lp_static_sam
 
       texture->sample_functions[matrix->sampler_count - 1] = matrix->jit_sample_functions;
    }
-
-   simple_mtx_unlock(&matrix->lock);
 }
 
 static void
 register_sample_key(struct lp_sampler_matrix *matrix, uint32_t sample_key)
 {
-   if (BITSET_TEST(matrix->sample_keys, sample_key))
+   simple_mtx_lock(&matrix->lock);
+
+   if (BITSET_TEST(matrix->sample_keys, sample_key)) {
+      simple_mtx_unlock(&matrix->lock);
       return;
+   }
 
    BITSET_SET(matrix->sample_keys, sample_key);
-
-   simple_mtx_lock(&matrix->lock);
 
    enum lp_sampler_op_type op_type = (sample_key & LP_SAMPLER_OP_TYPE_MASK) >> LP_SAMPLER_OP_TYPE_SHIFT;
    if (op_type == LP_SAMPLER_OP_FETCH)
@@ -1411,12 +1414,14 @@ register_sample_key(struct lp_sampler_matrix *matrix, uint32_t sample_key)
 static void
 register_image_op(struct lp_sampler_matrix *matrix, uint32_t op)
 {
-   if (BITSET_TEST(matrix->image_ops, op))
+   simple_mtx_lock(&matrix->lock);
+
+   if (BITSET_TEST(matrix->image_ops, op)) {
+      simple_mtx_unlock(&matrix->lock);
       return;
+   }
 
    BITSET_SET(matrix->image_ops, op);
-
-   simple_mtx_lock(&matrix->lock);
 
    for (uint32_t texture_index = 0; texture_index < matrix->texture_count; texture_index++) {
       struct lp_texture_functions *texture = matrix->textures[texture_index];
