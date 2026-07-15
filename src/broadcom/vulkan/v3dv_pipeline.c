@@ -2531,7 +2531,7 @@ pipeline_compile_graphics(struct v3dv_pipeline *pipeline,
          p_atomic_inc_return(&physical_device->next_program_id);
 
       pipeline->stages[BROADCOM_SHADER_FRAGMENT] = p_stage;
-      pipeline->active_stages |= MESA_SHADER_FRAGMENT;
+      pipeline->active_stages |= VK_SHADER_STAGE_FRAGMENT_BIT;
    }
 
    /* If multiview is enabled, we inject a custom passthrough geometry shader
