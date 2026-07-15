@@ -1813,7 +1813,8 @@ pipeline_lower_nir(struct v3dv_pipeline *pipeline,
     * shader doesn't need any other samplers, get rid of them so we can
     * recognize that this program doesn't use any samplers at all.
     */
-   if (!needs_default_sampler_state && maps->sampler_map.num_desc == 2)
+   if (!needs_default_sampler_state &&
+       maps->sampler_map.num_desc == V3DV_NUM_NO_SAMPLER_IDX)
       maps->sampler_map.num_desc = 0;
 
    p_stage->feedback.duration += os_time_get_nano() - stage_start;
