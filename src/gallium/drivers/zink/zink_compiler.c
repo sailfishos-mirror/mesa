@@ -2613,6 +2613,27 @@ assign_track_slot_mask(struct io_slot_map *io, nir_variable *var, unsigned slot,
    }
 }
 
+/* varyings which are handled out of band and never assigned a slot */
+static bool
+is_unassigned_slot(unsigned location)
+{
+   switch (location) {
+   case VARYING_SLOT_POS:
+   case VARYING_SLOT_PSIZ:
+   case VARYING_SLOT_LAYER:
+   case VARYING_SLOT_PRIMITIVE_ID:
+   case VARYING_SLOT_CLIP_DIST0:
+   case VARYING_SLOT_CULL_DIST0:
+   case VARYING_SLOT_VIEWPORT:
+   case VARYING_SLOT_FACE:
+   case VARYING_SLOT_TESS_LEVEL_OUTER:
+   case VARYING_SLOT_TESS_LEVEL_INNER:
+      return true;
+   default:
+      return false;
+   }
+}
+
 static void
 assign_slot_io(mesa_shader_stage stage, struct io_slot_map *io, nir_variable *var, unsigned slot)
 {
@@ -2636,26 +2657,13 @@ static void
 assign_producer_var_io(mesa_shader_stage stage, nir_variable *var, struct io_slot_map *io)
 {
    unsigned slot = var->data.location;
-   switch (slot) {
-   case -1:
+   if (slot == -1)
       UNREACHABLE("there should be no UINT32_MAX location variables!");
-      break;
-   case VARYING_SLOT_POS:
-   case VARYING_SLOT_PSIZ:
-   case VARYING_SLOT_LAYER:
-   case VARYING_SLOT_PRIMITIVE_ID:
-   case VARYING_SLOT_CLIP_DIST0:
-   case VARYING_SLOT_CULL_DIST0:
-   case VARYING_SLOT_VIEWPORT:
-   case VARYING_SLOT_FACE:
-   case VARYING_SLOT_TESS_LEVEL_OUTER:
-   case VARYING_SLOT_TESS_LEVEL_INNER:
+
+   if (is_unassigned_slot(slot)) {
       /* use a sentinel value to avoid counting later */
       var->data.driver_location = UINT32_MAX;
       return;
-
-   default:
-      break;
    }
    if (var->data.patch) {
       assert(slot >= VARYING_SLOT_PATCH0);
@@ -2680,22 +2688,10 @@ static bool
 assign_consumer_var_io(mesa_shader_stage stage, nir_variable *var, struct io_slot_map *io)
 {
    unsigned slot = var->data.location;
-   switch (slot) {
-   case VARYING_SLOT_POS:
-   case VARYING_SLOT_PSIZ:
-   case VARYING_SLOT_LAYER:
-   case VARYING_SLOT_PRIMITIVE_ID:
-   case VARYING_SLOT_CLIP_DIST0:
-   case VARYING_SLOT_CULL_DIST0:
-   case VARYING_SLOT_VIEWPORT:
-   case VARYING_SLOT_FACE:
-   case VARYING_SLOT_TESS_LEVEL_OUTER:
-   case VARYING_SLOT_TESS_LEVEL_INNER:
+   if (is_unassigned_slot(slot)) {
       /* use a sentinel value to avoid counting later */
       var->data.driver_location = UINT_MAX;
       return true;
-   default:
-      break;
    }
    if (var->data.patch) {
       assert(slot >= VARYING_SLOT_PATCH0);
