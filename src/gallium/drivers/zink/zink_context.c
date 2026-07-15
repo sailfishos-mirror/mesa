@@ -4475,7 +4475,7 @@ zink_flush(struct pipe_context *pctx,
    VkSemaphore export_sem = VK_NULL_HANDLE;
 
    /* triggering clears will force state->has_work */
-   if (!deferred && ctx->clears_enabled) {
+   if (!deferred && ctx->clears_enabled && !(flags & PIPE_FLUSH_INTERMEDIATE)) {
       /* if fbfetch outputs are active, disable them when flushing clears */
       unsigned fbfetch_outputs = ctx->fbfetch_outputs;
       if (fbfetch_outputs) {
