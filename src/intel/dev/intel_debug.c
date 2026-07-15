@@ -260,16 +260,16 @@ process_intel_debug_variable_once(void)
     * are allowed, except FS currently disables multipolygon modes by default.
     */
    intel_simd_overridden =
-      (intel_simd & DEBUG_FS_SIMD) ? (1 << MESA_SHADER_FRAGMENT) : 0 |
-      (intel_simd & DEBUG_CS_SIMD) ? (1 << MESA_SHADER_COMPUTE)  : 0 |
-      (intel_simd & DEBUG_TS_SIMD) ? (1 << MESA_SHADER_TASK)     : 0 |
-      (intel_simd & DEBUG_MS_SIMD) ? (1 << MESA_SHADER_MESH)     : 0 |
-      (intel_simd & DEBUG_RT_SIMD) ? (1 << MESA_SHADER_RAYGEN |
-                                      1 << MESA_SHADER_ANY_HIT |
-                                      1 << MESA_SHADER_CLOSEST_HIT |
-                                      1 << MESA_SHADER_MISS |
-                                      1 << MESA_SHADER_INTERSECTION |
-                                      1 << MESA_SHADER_CALLABLE) : 0;
+      ((intel_simd & DEBUG_FS_SIMD) ? (1 << MESA_SHADER_FRAGMENT) : 0) |
+      ((intel_simd & DEBUG_CS_SIMD) ? (1 << MESA_SHADER_COMPUTE)  : 0) |
+      ((intel_simd & DEBUG_TS_SIMD) ? (1 << MESA_SHADER_TASK)     : 0) |
+      ((intel_simd & DEBUG_MS_SIMD) ? (1 << MESA_SHADER_MESH)     : 0) |
+      ((intel_simd & DEBUG_RT_SIMD) ? (1 << MESA_SHADER_RAYGEN |
+                                       1 << MESA_SHADER_ANY_HIT |
+                                       1 << MESA_SHADER_CLOSEST_HIT |
+                                       1 << MESA_SHADER_MISS |
+                                       1 << MESA_SHADER_INTERSECTION |
+                                       1 << MESA_SHADER_CALLABLE) : 0);
 
    if (!(intel_simd & DEBUG_FS_SIMD))
       intel_simd |=   DEBUG_FS_SIMD8 | DEBUG_FS_SIMD16 | DEBUG_FS_SIMD32;
