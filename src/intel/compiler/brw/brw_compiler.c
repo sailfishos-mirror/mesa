@@ -254,6 +254,8 @@ brw_get_compiler_config_value(const struct brw_compiler *compiler)
 
    insert_u64_bit(&config, compiler->precise_trig);
    bits++;
+   insert_u64_bit(&config, compiler->limit_trig_input_range);
+   bits++;
    insert_u64_bit(&config, compiler->lower_dpas);
    bits++;
    insert_u64_bit(&config, compiler->optimistic_simd_heuristic);

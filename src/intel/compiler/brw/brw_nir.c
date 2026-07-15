@@ -2506,6 +2506,9 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
        !(devinfo->ver >= 10 || devinfo->platform == INTEL_PLATFORM_KBL))
       OPT(brw_nir_apply_trig_workarounds);
 
+   if (compiler->limit_trig_input_range)
+      OPT(brw_nir_limit_trig_input_range_workaround);
+
    /* This workaround existing for performance reasons. Since it requires not
     * setting RENDER_SURFACE_STATE::SurfaceArray when the array length is 1,
     * we're loosing the HW robustness feature in that case.
@@ -3841,7 +3844,7 @@ brw_nir_api_subgroup_size(const nir_shader *nir,
 
 void
 brw_nir_apply_key(brw_pass_tracker *pt,
-                  const struct brw_base_prog_key *key,
+                  UNUSED const struct brw_base_prog_key *key,
                   unsigned max_subgroup_size)
 {
    nir_shader *nir = pt->nir;
@@ -3871,9 +3874,6 @@ brw_nir_apply_key(brw_pass_tracker *pt,
       .lower_subgroup_masks = true,
    };
    OPT(nir_lower_subgroups, &subgroups_options);
-
-   if (key->limit_trig_input_range)
-      OPT(brw_nir_limit_trig_input_range_workaround);
 
    if (pt->progress)
       brw_nir_optimize(pt);

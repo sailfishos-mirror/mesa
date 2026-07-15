@@ -74,6 +74,11 @@ struct brw_compiler {
    bool precise_trig;
 
    /**
+    * Whether to limit sin/cos inputs to [-2pi, 2pi] to improve accuracy.
+    */
+   bool limit_trig_input_range;
+
+   /**
     * Should DPAS instructions be lowered?
     *
     * This will be set for all platforms before Gfx12.5. It may also be set
@@ -223,16 +228,9 @@ struct brw_base_prog_key {
 
    enum intel_vue_layout vue_layout:2;
 
-   /**
-    * Apply workarounds for SIN and COS input range problems.
-    * This limits input range for SIN and COS to [-2p : 2p] to
-    * avoid precision issues.
-    */
-   bool limit_trig_input_range:1;
-
    enum brw_divergent_atomics_flags divergent_atomics_flags:2;
 
-   uint32_t padding:24;
+   uint32_t padding:25;
 };
 
 /**

@@ -3054,6 +3054,8 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    device->compiler->shader_debug_log = compiler_debug_log;
    device->compiler->shader_perf_log = compiler_perf_log;
    device->compiler->spilling_rate = instance->drirc.debug.shader_spilling_rate;
+   device->compiler->limit_trig_input_range =
+      instance->drirc.debug.limit_trig_input_range;
 
    isl_device_init(&device->isl_dev, &device->info);
    device->isl_dev.buffer_length_in_aux_addr = !intel_needs_workaround(device->isl_dev.info, 14019708328);

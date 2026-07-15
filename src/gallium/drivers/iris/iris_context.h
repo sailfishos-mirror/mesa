@@ -195,7 +195,7 @@ PRAGMA_DIAGNOSTIC_ERROR(-Wpadded)
  */
 struct iris_base_prog_key {
    unsigned program_string_id;
-   bool limit_trig_input_range;
+   bool the_field_formerly_known_as_limit_trig_input_range;
    unsigned padding:24;
 };
 

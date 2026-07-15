@@ -620,6 +620,8 @@ crocus_screen_create(int fd, const struct pipe_screen_config *config)
    screen->compiler->shader_perf_log = crocus_shader_perf_log;
    screen->compiler->supports_shader_constants = false;
    screen->compiler->constant_buffer_0_is_relative = true;
+   screen->compiler->limit_trig_input_range =
+      screen->driconf.limit_trig_input_range;
 
    if (screen->devinfo.ver >= 7) {
       screen->l3_config_3d = crocus_get_default_l3_config(&screen->devinfo, false);
