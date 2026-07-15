@@ -5519,7 +5519,7 @@ tc_batch_execute(void *job, UNUSED void *gdata, int thread_index)
        */
       unsigned half_ring = TC_MAX_BUFFER_LISTS / 2;
       if (batch->buffer_list_index % half_ring == half_ring - 1)
-         pipe->flush(pipe, NULL, PIPE_FLUSH_ASYNC);
+         pipe->flush(pipe, NULL, PIPE_FLUSH_ASYNC | PIPE_FLUSH_INTERMEDIATE);
    } else {
       util_queue_fence_signal(fence);
    }
