@@ -253,13 +253,19 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       break;
    }
    case kTfLiteBuiltinFullyConnected: {
+      TfLiteFullyConnectedParams *params = node->builtin_data;
+
       if (tf_context->tensors[node->inputs->data[0]].type != kTfLiteInt8 &&
           tf_context->tensors[node->inputs->data[0]].type != kTfLiteUInt8)
+         return false;
+      if (params->activation != kTfLiteActNone &&
+          params->activation != kTfLiteActRelu)
          return false;
 
       operation->type = PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED;
       operation->fcon.weight_tensor = &tensors[node->inputs->data[1]];
       operation->fcon.bias_tensor = &tensors[node->inputs->data[2]];
+      operation->fcon.relu = params->activation == kTfLiteActRelu;
       break;
    }
    case kTfLiteBuiltinReshape: {
