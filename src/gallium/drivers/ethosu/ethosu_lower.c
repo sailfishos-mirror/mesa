@@ -2323,6 +2323,69 @@ ethosu_lower_reshape(struct ethosu_subgraph *subgraph,
 }
 
 static void
+ethosu_lower_split(struct ethosu_subgraph *subgraph,
+                   const struct pipe_ml_operation *poperation,
+                   unsigned output_idx,
+                   struct ethosu_operation *operation)
+{
+   unsigned input_span;
+   unsigned address_offset = 0;
+
+   operation->type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation->round_mode = ETHOSU_ROUNDING_NATURAL;
+   operation->pooling.nop = true;
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
+      operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+   } else {
+      operation->pooling.type = ETHOSU_POOLING_TYPE_SUM;
+   }
+
+   set_feature_maps(subgraph, poperation->input_tensors[0],
+                    poperation->output_tensors[output_idx], operation);
+
+   /* SPLIT copies quantized values without requantizing them. */
+   operation->ofm.scale = operation->ifm.scale;
+   operation->ofm.zero_point = operation->ifm.zero_point;
+
+   input_span = ethosu_feature_map_span(&operation->ifm);
+   operation->ifm.tensor->required_size =
+      MAX2(operation->ifm.tensor->required_size, input_span);
+
+   allocate_feature_maps(subgraph, operation);
+   operation->ifm.shape = operation->ofm.shape;
+
+   for (unsigned i = 0; i < output_idx; i++) {
+      unsigned extent = poperation->output_tensors[i]->dims[poperation->split.axis];
+
+      switch (poperation->split.axis) {
+      case 1:
+         address_offset += extent * operation->ifm.stride.y;
+         break;
+      case 2:
+         address_offset += extent * operation->ifm.stride.x;
+         break;
+      case 3:
+         if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHWC) {
+            address_offset += extent * operation->ifm.stride.c;
+         } else if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
+            unsigned elem_size = 1 << operation->ifm.precision;
+
+            address_offset += (extent / 16) * operation->ifm.stride.c +
+                              (extent % 16) * elem_size;
+         } else {
+            UNREACHABLE("Unsupported layout");
+         }
+         break;
+      default:
+         UNREACHABLE("Unsupported split axis");
+      }
+   }
+
+   operation->ifm.tiles.addresses[0] += address_offset;
+   ethosu_sched_operation(subgraph, operation);
+}
+
+static void
 ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
                            const struct pipe_ml_operation *poperation,
                            unsigned input_idx,
@@ -2645,7 +2708,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                   (ethosu_softmax_requires_nhwc(poperation, consumer) ||
                    ethosu_reshape_feeds_softmax(poperations, count, consumer) ||
                    ethosu_consumer_uses_depth_mean(consumer) ||
-                   ethosu_eltwise_fuses_lut(poperations, count, consumer)))) {
+                   ethosu_eltwise_fuses_lut(poperations, count, consumer) ||
+                   consumer->type == PIPE_ML_OPERATION_TYPE_SPLIT))) {
                if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                     !ethosu_consumer_is_lut(poperation) &&
                     !ethosu_consumer_is_lut(consumer)) ||
@@ -2908,6 +2972,15 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          for (int j = poperations[i].input_count - 1; j >= 0; j--) {
             operation_set_defaults(&operation);
             ethosu_lower_concatenation(subgraph, &poperations[i], j, &operation);
+            util_dynarray_append(&subgraph->operations, operation);
+         }
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_SPLIT: {
+         for (unsigned j = 0; j < poperations[i].output_count; j++) {
+            operation_set_defaults(&operation);
+            ethosu_lower_split(subgraph, &poperations[i], j, &operation);
             util_dynarray_append(&subgraph->operations, operation);
          }
          break;

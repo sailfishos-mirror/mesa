@@ -267,6 +267,31 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                   input->dims[3] <= SOFTMAX_MAX_DEPTH;
       break;
    }
+   case PIPE_ML_OPERATION_TYPE_SPLIT: {
+      struct pipe_tensor *input = operation->input_tensors[0];
+
+      if (operation->split.axis < 1 || operation->split.axis > 3 ||
+          !operation->output_count ||
+          input->dims[operation->split.axis] % operation->output_count)
+         break;
+
+      supported = true;
+      for (unsigned i = 0; i < operation->output_count; i++) {
+         struct pipe_tensor *output = operation->output_tensors[i];
+
+         if (output->type_size != input->type_size ||
+             output->is_signed != input->is_signed)
+            supported = false;
+
+         for (unsigned axis = 0; axis < 4; axis++) {
+            unsigned expected = axis == operation->split.axis ? input->dims[axis] / operation->output_count : input->dims[axis];
+
+            if (output->dims[axis] != expected)
+               supported = false;
+         }
+      }
+      break;
+   }
    case PIPE_ML_OPERATION_TYPE_MEAN: {
       struct pipe_tensor *input = operation->input_tensors[0];
       struct pipe_tensor *output = operation->output_tensors[0];
