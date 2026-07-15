@@ -412,7 +412,7 @@ print_tiling_layouts(const struct amdgpu_device *dev)
             unsigned mode = swizzle_mode & ~DISPLAYABLE;
             bool display = swizzle_mode & DISPLAYABLE;
 
-            printf("%-17s| bpe %2u| sw%*s%u| %3ux%-3u| {", name, bpp / 8,
+            printf("%-17s| bpe %2u| am%*s%u| %3ux%-3u| {", name, bpp / 8,
                    mode < 10 ? 2 : 1, display ? "D" : "", mode, tile_width, tile_height);
          }
 
