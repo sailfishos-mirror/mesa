@@ -243,7 +243,7 @@ pass(jay_function *func)
             last_use_ip[I->dst.reg] = 0;
          }
 
-         if (I->dst.file == ACCUM || I->dst.file == UACCUM) {
+         if (I->dst.file == ACCUM) {
             pre_live &= ~BITFIELD_BIT(I->dst.reg / 2);
          }
 
@@ -263,7 +263,7 @@ pass(jay_function *func)
                }
             }
 
-            if (I->src[s].file == ACCUM || I->src[s].file == UACCUM) {
+            if (I->src[s].file == ACCUM) {
                pre_live |= BITFIELD_BIT(I->src[s].reg / 2);
             }
          }

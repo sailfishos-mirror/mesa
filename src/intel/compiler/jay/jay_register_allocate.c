@@ -278,8 +278,10 @@ push_temp(jay_builder *b,
    jay_def new = def_from_reg(make_reg(file, r));
 
    /* Put accumulators down the float pipe - it's still a raw move. */
-   *backing = jay_bare_reg(file == UGPR ? UACCUM : ACCUM, outer * 2);
-   jay_MOV(b, *backing, new)->type = JAY_TYPE_F32;
+   *backing = jay_bare_reg(ACCUM, outer * 2);
+   jay_inst *mov = jay_MOV(b, *backing, new);
+   mov->type = JAY_TYPE_F32;
+   mov->uniform = file == UGPR;
    return new;
 }
 
@@ -287,7 +289,7 @@ static void
 pop_temp(jay_builder *b, jay_def temp, jay_def backing)
 {
    if (!jay_is_null(backing)) {
-      assert(backing.file == ACCUM || backing.file == UACCUM);
+      assert(backing.file == ACCUM);
       jay_MOV(b, temp, backing)->type = JAY_TYPE_F32;
    }
 }

@@ -27,7 +27,7 @@ def_to_regdist_key(jay_function *func, jay_inst *I, jay_def x)
    if (x.file == GPR || x.file == UGPR) {
       unsigned base = x.file == UGPR ? func->shader->num_regs[GPR] : 0;
       return (struct key) { base + x.reg, jay_num_values(x) };
-   } else if (x.file == ACCUM || x.file == UACCUM) {
+   } else if (x.file == ACCUM) {
       unsigned base =
          func->shader->num_regs[GPR] + func->shader->num_regs[UGPR];
 

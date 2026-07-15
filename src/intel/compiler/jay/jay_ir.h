@@ -40,7 +40,6 @@ enum PACKED jay_file {
 
    /** Accumulators: 32-bits values (per SIMT lane or uniform) */
    ACCUM = 8,
-   UACCUM = ACCUM | JAY_UNIFORM,
 
    /** Inputs within Jay unit tests */
    TEST_FILE = 10,

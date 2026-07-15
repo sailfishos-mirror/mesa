@@ -258,7 +258,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
       }
 
       jay_foreach_src(I, s) {
-         if (I->src[s].file == ACCUM || I->src[s].file == UACCUM) {
+         if (I->src[s].file == ACCUM) {
             dep_cycles = MAX2(dep_cycles, acc[I->src[s].reg]);
          } else if (jay_is_flag(I->src[s])) {
             dep_cycles = MAX2(dep_cycles, flag[I->src[s].reg]);
@@ -269,7 +269,7 @@ estimate_block_cycles(jay_function *f, jay_block *block)
       unsigned ready_cycle = cycles + jay_latency(shader, I);
       fifo_add(&alu[jay_inst_exec_pipe(shader->devinfo, I)], ready_cycle);
 
-      if (I->dst.file == ACCUM || I->dst.file == UACCUM) {
+      if (I->dst.file == ACCUM) {
          acc[I->dst.reg] = ready_cycle;
       } else if (jay_is_flag(I->dst)) {
          flag[I->dst.reg] = ready_cycle;

@@ -103,7 +103,7 @@ to_gen_operand(
       R = gen_imm_ud(jay_as_uint(d));
    } else if (jay_is_null(d)) {
       R = gen_null();
-   } else if (d.file == UGPR || d.file == UACCUM) {
+   } else if (d.file == UGPR || (d.file == ACCUM && I->uniform)) {
       grf += (reg / jay_ugpr_per_grf(f->shader));
       offset_B = (reg % jay_ugpr_per_grf(f->shader)) * 4;
 
