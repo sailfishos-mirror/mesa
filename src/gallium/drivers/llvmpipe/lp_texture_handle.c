@@ -236,6 +236,7 @@ llvmpipe_init_sampler_matrix(struct llvmpipe_context *ctx)
    struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
 
    matrix->gallivms = UTIL_DYNARRAY_INIT;
+   matrix->trash = UTIL_DYNARRAY_INIT;
 
    matrix->screen = llvmpipe_screen(ctx->pipe.screen);
 
@@ -294,6 +295,11 @@ llvmpipe_sampler_matrix_destroy(struct llvmpipe_context *ctx)
       gallivm_destroy(*gallivm);
 
    util_dynarray_fini(&matrix->gallivms);
+
+   util_dynarray_foreach (&matrix->trash, void *, mem)
+      free(*mem);
+
+   util_dynarray_fini(&matrix->trash);
 
    if (matrix->context.ref)
       lp_context_destroy(&matrix->context);
@@ -1349,20 +1355,28 @@ llvmpipe_register_sampler(struct lp_sampler_matrix *matrix, struct lp_static_sam
       if (!texture->sampled)
          continue;
 
-      texture->sampler_count = matrix->sampler_count;
-      texture->sample_functions = realloc(texture->sample_functions, matrix->sampler_count * sizeof(void **));
+      /* JIT code loads from sample_functions without taking the lock, so the
+       * old array has to stay valid; publish a grown copy and keep the old
+       * one in the trash. */
+      void ***functions = malloc(matrix->sampler_count * sizeof(void **));
+      if (texture->sample_functions)
+         memcpy(functions, texture->sample_functions, texture->sampler_count * sizeof(void **));
 
       if (texture->state.static_state.format == PIPE_FORMAT_NONE)  {
          if (matrix->sampler_count == 1) {
-            texture->sample_functions[0] = calloc(LP_SAMPLE_KEY_COUNT, sizeof(void *));
-            compile_sample_functions(matrix, &texture->state, NULL, texture->sample_functions[0]);
+            functions[0] = calloc(LP_SAMPLE_KEY_COUNT, sizeof(void *));
+            compile_sample_functions(matrix, &texture->state, NULL, functions[0]);
          } else {
-            texture->sample_functions[matrix->sampler_count - 1] = texture->sample_functions[0];
+            functions[matrix->sampler_count - 1] = functions[0];
          }
-         continue;
+      } else {
+         functions[matrix->sampler_count - 1] = matrix->jit_sample_functions;
       }
 
-      texture->sample_functions[matrix->sampler_count - 1] = matrix->jit_sample_functions;
+      if (texture->sample_functions)
+         util_dynarray_append(&matrix->trash, (void *)texture->sample_functions);
+      texture->sample_functions = functions;
+      texture->sampler_count = matrix->sampler_count;
    }
 }
 

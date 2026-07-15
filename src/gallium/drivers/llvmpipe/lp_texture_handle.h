@@ -74,6 +74,10 @@ struct lp_sampler_matrix {
    lp_context_ref context;
 
    struct util_dynarray gallivms;
+
+   /* Old per-texture sample_functions arrays. Replaced arrays are kept
+    * alive here because JIT code may still load from them. */
+   struct util_dynarray trash;
 };
 
 void llvmpipe_init_sampler_matrix(struct llvmpipe_context *ctx);
