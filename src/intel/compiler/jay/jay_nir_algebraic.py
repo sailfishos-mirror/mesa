@@ -47,6 +47,12 @@ lower_fsign = [
      ('pack_32_2x16_split', ('f2f16', a), ('f2f16', b))),
 ]
 
+for i in range(2, 15):
+    lower_fsign.extend([
+        (('iadd', ('ishl(is_only_used_by_iadd)', 'b@32', i), c),
+        ('umad_32x16_intel', b, 1 << i, c)),
+    ])
+
 
 lower_bool = [
     # Try to use conditional modifiers more
