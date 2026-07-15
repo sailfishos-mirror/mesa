@@ -74,7 +74,7 @@
         "description": "llvmpipe: emit FS input vertex attributes in driver location order",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dbbb46aa38c2e20296fa5a8147ba5f50b424a84d",
         "notes": null
