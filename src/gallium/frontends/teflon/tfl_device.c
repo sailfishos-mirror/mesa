@@ -233,10 +233,37 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->conc.axis = 4 - input_rank + axis;
       break;
    }
-   case kTfLiteBuiltinSplit:
+   case kTfLiteBuiltinSplit: {
+      TfLiteSplitParams *params = node->builtin_data;
+      TfLiteTensor *axis_tensor;
+      TfLiteTensor *input_tensor;
+      int input_rank;
+      int axis;
+
+      if (node->inputs->size != 2 || !params ||
+          node->outputs->size != params->num_splits)
+         return false;
+
+      axis_tensor = &tf_context->tensors[node->inputs->data[0]];
+      input_tensor = &tf_context->tensors[node->inputs->data[1]];
+      input_rank = input_tensor->dims->size;
+      if (axis_tensor->type != kTfLiteInt32 || !axis_tensor->data.i32 ||
+          axis_tensor->bytes < sizeof(*axis_tensor->data.i32) ||
+          input_rank < 1 || input_rank > 4)
+         return false;
+
+      axis = axis_tensor->data.i32[0];
+      if (axis < 0)
+         axis += input_rank;
+      if (axis < 0 || axis >= input_rank)
+         return false;
+
       operation->type = PIPE_ML_OPERATION_TYPE_SPLIT;
-      operation->split.axis = tf_context->tensors[node->inputs->data[0]].data.i32[0];
+      operation->input_tensors[0] = operation->input_tensors[1];
+      operation->input_count = 1;
+      operation->split.axis = 4 - input_rank + axis;
       break;
+   }
    case kTfLiteBuiltinPad: {
       TfLiteTensor *padding_tensor = &tf_context->tensors[node->inputs->data[1]];
       int input_rank = tf_context->tensors[node->inputs->data[0]].dims->size;
