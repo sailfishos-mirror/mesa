@@ -1083,7 +1083,7 @@
     <enum name="LIST_BIT"                                 value="0x00020000"/>
     <enum name="TEXTURE_BIT"                              value="0x00040000"/>
     <enum name="SCISSOR_BIT"                              value="0x00080000"/>
-    <enum name="ALL_ATTRIB_BITS"                          value="0x000FFFFF"/>
+    <enum name="ALL_ATTRIB_BITS"                          value="0xFFFFFFFF"/>
 
     <type name="double"  size="8"  float="true"    glx_name="FLOAT64"/>
     <type name="clampd"  size="8"  float="true"    glx_name="FLOAT64"/>
