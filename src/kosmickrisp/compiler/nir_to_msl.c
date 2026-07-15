@@ -2177,6 +2177,12 @@ msl_preprocess_nir(struct nir_shader *nir)
    NIR_PASS(_, nir, nir_opt_deref);
    nir_remove_non_entrypoints(nir);
 
+   /* nir_lower_io_to_temporaries is required before nir_lower_blend since the
+    * blending pass sinks writes to the end of the block where we may have a
+    * jump, which is illegal.
+    */
+   NIR_PASS(_, nir, nir_lower_io_vars_to_temporaries,
+            nir_shader_get_entrypoint(nir), nir_var_shader_out);
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
    NIR_PASS(_, nir, nir_split_var_copies);
    NIR_PASS(_, nir, nir_split_struct_vars, nir_var_function_temp);
