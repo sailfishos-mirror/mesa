@@ -2683,7 +2683,7 @@ compute_vpm_config(struct v3dv_pipeline *pipeline)
    struct v3dv_shader_variant *vs_variant =
       pipeline->shared_data->variants[BROADCOM_SHADER_VERTEX];
    struct v3dv_shader_variant *vs_bin_variant =
-      pipeline->shared_data->variants[BROADCOM_SHADER_VERTEX];
+      pipeline->shared_data->variants[BROADCOM_SHADER_VERTEX_BIN];
    struct v3d_vs_prog_data *vs = vs_variant->prog_data.vs;
    struct v3d_vs_prog_data *vs_bin =vs_bin_variant->prog_data.vs;
 

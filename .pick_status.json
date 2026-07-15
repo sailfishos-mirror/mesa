@@ -3024,7 +3024,7 @@
         "description": "v3dv: use the binning VS variant for the binning VPM config",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9e7d9a6efb6714848ea05209950e910fd7efe446",
         "notes": null
