@@ -4134,10 +4134,10 @@
         "description": "v3dv: fix crash on device creation failure before meta initialization",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "b78fd50e90c700466213e4b3b40ce10547b1e14e",
-        "notes": null
+        "notes": "https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/42907#note_3569537"
     },
     {
         "sha": "ed497037e6c1c20d313146fd7b611c6ebe69bc4d",
