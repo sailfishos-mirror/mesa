@@ -44,13 +44,12 @@ restrict_mixed_strides(jay_inst *I, unsigned s)
     *
     * Therefore, ban mixed-strides in these cases.
     *
-    * Similarly, SENDs cannot do any regioning so restrict that too.
+    * Similarly, SEND/DPAS cannot do any regioning so restrict that too.
     */
    return jay_type_is_any_float(I->type) ||
           jay_type_size_bits(I->type) == 64 ||
-          jay_is_send_like(I) ||
-          I->op == JAY_OPCODE_MUL_32X16 ||
-          I->op == JAY_OPCODE_MUL_32 ||
+          (I->op == JAY_OPCODE_MUL_32X16 || I->op == JAY_OPCODE_MUL_32) ||
+          (jay_is_send_like(I) || I->op == JAY_OPCODE_DPAS) ||
           s == 2;
 }
 
