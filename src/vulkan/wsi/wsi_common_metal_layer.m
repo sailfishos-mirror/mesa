@@ -166,7 +166,8 @@ wsi_metal_layer_configure(const CAMetalLayer *metal_layer,
       /* So we can blit to the drawable */
       metal_layer.framebufferOnly = NO;
 
-      metal_layer.maximumDrawableCount = image_count;
+      /* Force recommended 3 drawables for smoother presentation */
+      metal_layer.maximumDrawableCount = 3u;
       metal_layer.drawableSize = (CGSize){.width = width, .height = height};
       metal_layer.opaque = enable_opaque;
       metal_layer.displaySyncEnabled = !enable_immediate;
