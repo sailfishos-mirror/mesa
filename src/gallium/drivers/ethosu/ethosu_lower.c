@@ -150,6 +150,20 @@ allocate_feature_maps(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    operation->ifm.tiles.width_0 = operation->ifm.shape.width;
 }
 
+static unsigned
+ethosu_add_constant(struct ethosu_subgraph *subgraph,
+                    const void *data,
+                    unsigned size)
+{
+   unsigned address = subgraph->coefs_used;
+
+   subgraph->coefs_used += ALIGN_POT(size, 16);
+   subgraph->coefs = realloc(subgraph->coefs, subgraph->coefs_used);
+   memcpy(subgraph->coefs + address, data, size);
+
+   return address;
+}
+
 static int32_t
 ethosu_read_scalar(const struct pipe_tensor *tensor)
 {
@@ -873,9 +887,8 @@ ethosu_lower_eltwise(struct ethosu_subgraph *subgraph,
                        operation->ifm2.shape.depth * poperation->input_tensors[ifm2_idx]->type_size;
 
          operation->ifm2.region = COEFS_REGION;
-         operation->ifm2.tiles.addresses[0] = subgraph->coefs_used;
-         subgraph->coefs_used += size;
-         subgraph->coefs = realloc(subgraph->coefs, subgraph->coefs_used);
+         operation->ifm2.tiles.addresses[0] =
+            ethosu_allocate_coefs(subgraph, size);
          memcpy(subgraph->coefs + operation->ifm2.tiles.addresses[0],
                 poperation->input_tensors[ifm2_idx]->data, size);
       }
