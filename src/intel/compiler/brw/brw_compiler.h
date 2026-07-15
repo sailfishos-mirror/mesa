@@ -404,7 +404,11 @@ struct brw_fs_prog_key {
 
    bool ignore_sample_mask_out:1;
    bool coarse_pixel:1;
-   unsigned pad:13;
+
+   /* Keep the SIMD32 variant even if the throughput model ties it. */
+   bool prefer_simd32:1;
+
+   unsigned pad:12;
 };
 
 static inline bool
