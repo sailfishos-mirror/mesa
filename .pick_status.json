@@ -3034,7 +3034,7 @@
         "description": "v3dv: make room in the descriptor map for the no-sampler entries",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fc17231b2b4eb2e24506db289cf89978779d9204",
         "notes": null
