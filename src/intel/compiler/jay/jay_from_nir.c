@@ -3713,25 +3713,21 @@ jay_remove_unreachable_blocks(jay_function *func)
       progress = false;
 
       jay_foreach_block(func, pred) {
-         if (pred != jay_first_block(func) &&
-             jay_num_predecessors(pred, GPR) == 0 &&
-             jay_num_successors(pred, GPR) > 0) {
+         if (pred != jay_first_block(func)) {
+            for (unsigned cfg = GPR; cfg <= UGPR; ++cfg) {
+               if (jay_num_predecessors(pred, cfg) == 0 &&
+                   jay_num_successors(pred, cfg) > 0) {
 
-            jay_foreach_successor(pred, succ, GPR) {
-               util_dynarray_delete_unordered(&succ->logical_preds, jay_block *,
-                                              pred);
+                  jay_foreach_successor(pred, succ, cfg) {
+                     util_dynarray_delete_unordered(jay_predecessors(succ, cfg),
+                                                    jay_block *, pred);
+                  }
+
+                  jay_successors(pred, cfg)[0] = NULL;
+                  jay_successors(pred, cfg)[1] = NULL;
+                  progress = true;
+               }
             }
-
-            jay_foreach_successor(pred, succ, UGPR) {
-               util_dynarray_delete_unordered(&succ->physical_preds,
-                                              jay_block *, pred);
-            }
-
-            pred->logical_succs[0] = NULL;
-            pred->logical_succs[1] = NULL;
-            pred->physical_succs[0] = NULL;
-            pred->physical_succs[1] = NULL;
-            progress = true;
          }
       }
    } while (progress);
