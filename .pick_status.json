@@ -5574,7 +5574,7 @@
         "description": "vtn: don't fail at uniformity decorations on variables and OpBufferPointer",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f35839a6bc5effb04c06ef9ef3e568062521cd94",
         "notes": null
