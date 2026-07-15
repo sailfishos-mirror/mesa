@@ -2073,13 +2073,21 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
                                jay_SHL_u32(b, nj_src(intr->src[0]), 6));
          }
       } else if (gs) {
-         if (nir_src_is_const(intr->src[0])) {
-            jay_copy(b, dst,
-                     jay_extract(gs->icp_handles,
-                                 nir_src_as_uint(intr->src[0])));
-         } else if (s->prog_data->gs.invocations == 1) {
-            jay_VECTOR_EXTRACT(b, JAY_TYPE_U32, dst, gs->icp_handles,
-                               jay_SHL_u32(b, nj_src(intr->src[0]), 6u));
+         if (s->prog_data->gs.invocations == 1) {
+            if (nir_src_is_const(intr->src[0])) {
+               jay_copy(b, dst,
+                        jay_extract(gs->icp_handles,
+                                    nir_src_as_uint(intr->src[0])));
+            } else {
+
+               jay_def addr = jay_SHL_u32(b, nj_src(intr->src[0]), 6u);
+
+               if (nj_src(intr->src[0]).file == GPR) {
+                  addr = jay_ADD_u32(b, addr, jay_SHL_u32(b, lane_id(b), 2u));
+               }
+
+               jay_VECTOR_EXTRACT(b, JAY_TYPE_U32, dst, gs->icp_handles, addr);
+            }
 
          } else {
             assert(s->prog_data->gs.invocations > 1);

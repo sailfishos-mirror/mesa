@@ -277,7 +277,7 @@ emit_gs_vertex(nir_builder *b,
       nir_def *should_push_vertex = nir_ieq_imm(
          b,
          nir_iand_imm(b, vertex_count_src->ssa,
-                      32u - calc_control_data_bits_per_vertex(progdata) - 1),
+                      (1 << (6 - calc_control_data_bits_per_vertex(progdata))) - 1),
          0);
       nir_push_if(b, should_push_vertex);
       {
@@ -293,6 +293,28 @@ emit_gs_vertex(nir_builder *b,
          nir_store_var(b, control_data_bits, nir_imm_int(b, 0u), ~0);
       }
       nir_pop_if(b, NULL);
+   }
+
+   /* When doing transform feedback we need to emit
+    * stream control bits so it knows what stream
+    * the vertex is going to.
+    */
+   if (progdata->control_data_header_size_hwords > 0 &&
+       progdata->control_data_format == GFX7_GS_CONTROL_DATA_FORMAT_GSCTL_SID) {
+      unsigned sid = nir_intrinsic_stream_id(intr);
+      assert(sid < 4);
+
+      /* The variable is zeroed already; no need to emit this. */
+      if (sid == 0)
+         return;
+
+      nir_def *shift =
+         nir_ishl_imm(b, nir_iand_imm(b, vertex_count_src->ssa, 0b1111), 1);
+
+      nir_store_var(b, control_data_bits,
+                    nir_ior(b, nir_load_var(b, control_data_bits),
+                            nir_ishl(b, nir_imm_int(b, sid), shift)),
+                    ~0);
    }
 }
 
@@ -603,6 +625,11 @@ jay_process_nir(const struct intel_device_info *devinfo,
       nir_variable *final_gs_vertex_count =
          nir_variable_create(nir, nir_var_shader_temp, glsl_uint_type(),
                              "final_gs_vertex_count");
+
+      nir_builder at_start = nir_builder_at(nir_before_impl(
+         nir_shader_get_entrypoint(nir)
+      ));
+      nir_store_var(&at_start, control_data_bits, nir_imm_int(&at_start, 0), ~0);
 
       struct intel_vue_map input_vue_map = { 0 };
       brw_compute_vue_map(devinfo, &input_vue_map, nir->info.inputs_read,
