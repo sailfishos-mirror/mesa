@@ -342,7 +342,7 @@ DEFINE_CODECAPI_GUID( AVEncVideoRateControlFramePreAnalysisExternalReconDownscal
 #define AVC_LOG2_MAX_FRAME_NUM_MINUS4 4
 #elif MFT_CODEC_H265ENC
 #define HMFT_GUID "e7ffb8eb-fa0b-4fb0-acdf-1202f663cde5"
-#define HEVC_LOG2_MAX_PIC_ORDER_CNT_LSB_MINUS4 12
+#define HEVC_LOG2_MAX_PIC_ORDER_CNT_LSB_MINUS4 10
 #elif MFT_CODEC_AV1ENC
 #define HMFT_GUID "1a6f3150-b121-4ce9-9497-50fedb3dcb70"
 #endif
