@@ -26,11 +26,10 @@
 #include "nir_deref.h"
 #include "nir_phi_builder.h"
 
-/* This pass optimizes workgroup shared memory access to subgroup operations
- * in single subgroup workgroups.
+/* This pass optimizes workgroup shared memory access to subgroup operations.
  *
  * The only currently implemented optimization handles constant index access,
- * which can always be lowered to subgroup operations.
+ * in single subgroup workgroups which can always be lowered to subgroup operations.
  * The general idea is to replace loads with the value that was previously
  * stored to the same memory position.
  * For this, we have to:
@@ -67,9 +66,9 @@ struct shared_u32 {
    struct nir_phi_builder_value *val;
 };
 
-struct var_to_subgroup_state {
+struct var_to_uniform_state {
    void *mem_ctx;
-   struct hash_table *shared_var_infos;
+   struct hash_table *uniform_var_infos;
 
    unsigned ballot_num_components;
    unsigned ballot_size;
@@ -83,29 +82,29 @@ struct var_to_subgroup_state {
    unsigned values_len;
 };
 
-struct shared_var_info {
+struct uniform_var_info {
    unsigned offset;
 };
 
-static struct shared_var_info *
-get_shared_var_info(struct var_to_subgroup_state *state, nir_variable *var)
+static struct uniform_var_info *
+get_uniform_var_info(struct var_to_uniform_state *state, nir_variable *var)
 {
    struct hash_entry *entry =
-      _mesa_hash_table_search(state->shared_var_infos, var);
+      _mesa_hash_table_search(state->uniform_var_infos, var);
    return entry ? entry->data : NULL;
 }
 
 static void
-remove_shared_var_info(struct var_to_subgroup_state *state, nir_variable *var)
+remove_uniform_var_info(struct var_to_uniform_state *state, nir_variable *var)
 {
    if (var->data.aliased_shared_memory) {
-      hash_table_foreach(state->shared_var_infos, entry) {
+      hash_table_foreach(state->uniform_var_infos, entry) {
          nir_variable *iter_var = (nir_variable *)entry->key;
          if (iter_var->data.aliased_shared_memory)
-            _mesa_hash_table_remove(state->shared_var_infos, entry);
+            _mesa_hash_table_remove(state->uniform_var_infos, entry);
       }
    } else {
-      _mesa_hash_table_remove_key(state->shared_var_infos, var);
+      _mesa_hash_table_remove_key(state->uniform_var_infos, var);
    }
 }
 
@@ -149,7 +148,7 @@ explict_deref_offset(nir_deref_instr *deref)
 }
 
 static unsigned
-get_shared_deref_offset(struct var_to_subgroup_state *state, nir_deref_instr *deref)
+get_shared_deref_offset(struct var_to_uniform_state *state, nir_deref_instr *deref)
 {
    if (!nir_deref_mode_may_be(deref, nir_var_mem_shared))
       return UINT32_MAX;
@@ -158,7 +157,7 @@ get_shared_deref_offset(struct var_to_subgroup_state *state, nir_deref_instr *de
    if (!var)
       return UINT32_MAX;
 
-   struct shared_var_info *info = get_shared_var_info(state, var);
+   struct uniform_var_info *info = get_uniform_var_info(state, var);
    if (!info)
       return UINT32_MAX;
 
@@ -227,7 +226,7 @@ read_invocation_cond(nir_builder *b,
 }
 
 static void
-uniformize_block_def(struct var_to_subgroup_state *state, struct shared_u32 *value, nir_block *block)
+uniformize_block_def(struct var_to_uniform_state *state, struct shared_u32 *value, nir_block *block)
 {
    /* This block can only have a phi if it is a loop-header which is always uniform. */
    if (nir_cf_node_is_first(&block->cf_node))
@@ -303,14 +302,14 @@ uniformize_block_def(struct var_to_subgroup_state *state, struct shared_u32 *val
 }
 
 static void
-uniformize_vars(struct var_to_subgroup_state *state, nir_block *block)
+uniformize_vars(struct var_to_uniform_state *state, nir_block *block)
 {
    for (unsigned i = 0; i < state->values_len; i++)
       uniformize_block_def(state, &state->values[i], block);
 }
 
 static nir_def *
-read_shared_data(struct var_to_subgroup_state *state, unsigned offset, unsigned bit_size)
+read_shared_data_uniform(struct var_to_uniform_state *state, unsigned offset, unsigned bit_size)
 {
    if (offset >= state->values_len * 4)
       return nir_undef(&state->b, 1, bit_size);
@@ -334,7 +333,7 @@ read_shared_data(struct var_to_subgroup_state *state, unsigned offset, unsigned 
 }
 
 static void
-write_shared_data(struct var_to_subgroup_state *state, unsigned offset, nir_def *data)
+write_shared_data_uniform(struct var_to_uniform_state *state, unsigned offset, nir_def *data)
 {
    if (offset >= state->values_len * 4)
       return;
@@ -396,7 +395,7 @@ write_shared_data(struct var_to_subgroup_state *state, unsigned offset, nir_def 
 }
 
 static void
-lower_shared_access(struct var_to_subgroup_state *state, nir_instr *instr)
+lower_shared_access_uniform(struct var_to_uniform_state *state, nir_instr *instr)
 {
    /* Clean up dead derefs, to allows us to safely remove variables. */
    if (instr->type == nir_instr_type_deref)
@@ -427,7 +426,7 @@ lower_shared_access(struct var_to_subgroup_state *state, nir_instr *instr)
 
       nir_def *comps[NIR_MAX_VEC_COMPONENTS];
       for (unsigned i = 0; i < intr->def.num_components; i++) {
-         comps[i] = read_shared_data(state, offset + i * bit_size / 8, bit_size);
+         comps[i] = read_shared_data_uniform(state, offset + i * bit_size / 8, bit_size);
 
          if (intr->def.bit_size == 1)
             comps[i] = nir_i2b(&state->b, comps[i]);
@@ -453,7 +452,7 @@ lower_shared_access(struct var_to_subgroup_state *state, nir_instr *instr)
              */
             write = nir_read_first_invocation(&state->b, write);
          }
-         write_shared_data(state, offset + i * bit_size / 8, write);
+         write_shared_data_uniform(state, offset + i * bit_size / 8, write);
       }
       nir_instr_remove(instr);
       break;
@@ -470,14 +469,14 @@ lower_shared_access(struct var_to_subgroup_state *state, nir_instr *instr)
          unsigned comp_offset = offset + i * bit_size / 8;
 
          nir_def *data = nir_channel(&state->b, intr->src[1].ssa, i);
-         nir_def *load = read_shared_data(state, comp_offset, bit_size);
+         nir_def *load = read_shared_data_uniform(state, comp_offset, bit_size);
 
          nir_def *reduce = NULL;
          reduce_data(&state->b, op, data, &reduce, combined_scan_reduce ? &comps[i] : NULL, load);
          if (!combined_scan_reduce && return_prev)
             reduce_data(&state->b, op, data, NULL, &comps[i], load);
 
-         write_shared_data(state, comp_offset, reduce);
+         write_shared_data_uniform(state, comp_offset, reduce);
       }
 
       if (return_prev) {
@@ -496,7 +495,7 @@ lower_shared_access(struct var_to_subgroup_state *state, nir_instr *instr)
 }
 
 static bool
-deref_can_be_optimized(nir_deref_instr *deref)
+deref_is_uniformizable(nir_deref_instr *deref)
 {
    nir_foreach_use_including_if(use_src, &deref->def) {
       if (nir_src_is_if(use_src))
@@ -526,7 +525,7 @@ deref_can_be_optimized(nir_deref_instr *deref)
             return false;
          }
 
-         if (!deref_can_be_optimized(use_deref))
+         if (!deref_is_uniformizable(use_deref))
             return false;
 
          continue;
@@ -581,7 +580,9 @@ deref_can_be_optimized(nir_deref_instr *deref)
 }
 
 static void
-check_complex_uses_instr(nir_instr *instr, struct var_to_subgroup_state *state, bool inside_call)
+check_non_uniformizable_uses_instr(nir_instr *instr,
+                                   struct var_to_uniform_state *state,
+                                   bool inside_call)
 {
    if (instr->type != nir_instr_type_deref)
       return;
@@ -593,30 +594,28 @@ check_complex_uses_instr(nir_instr *instr, struct var_to_subgroup_state *state, 
    if (!(deref->var->data.mode & nir_var_mem_shared))
       return;
 
-   if (!get_shared_var_info(state, deref->var))
+   if (!get_uniform_var_info(state, deref->var))
       return;
 
-   if (inside_call || !deref_can_be_optimized(deref))
-      remove_shared_var_info(state, deref->var);
+   if (inside_call || !deref_is_uniformizable(deref))
+      remove_uniform_var_info(state, deref->var);
 }
 
 static void
-check_complex_uses(struct var_to_subgroup_state *state)
+check_non_uniformizable_uses(struct var_to_uniform_state *state)
 {
    nir_foreach_function_impl(impl, state->b.shader) {
       nir_foreach_block(block, impl) {
          nir_foreach_instr(instr, block) {
-            check_complex_uses_instr(instr, state, impl != state->impl);
+            bool is_call = impl != state->impl;
+            check_non_uniformizable_uses_instr(instr, state, is_call);
          }
       }
-
-      if (impl != state->impl)
-         nir_no_progress(impl);
    }
 }
 
 static void
-calculate_var_offsets(struct var_to_subgroup_state *state)
+calculate_uniform_var_offsets(struct var_to_uniform_state *state)
 {
    /* Iterate over the shader variable list instead of the hash table
     * for determinism.
@@ -625,7 +624,7 @@ calculate_var_offsets(struct var_to_subgroup_state *state)
    bool has_aliased = false;
    bool explicit_layout = state->b.shader->info.shared_memory_explicit_layout;
    nir_foreach_variable_with_modes(var, state->b.shader, nir_var_mem_shared) {
-      struct shared_var_info *info = get_shared_var_info(state, var);
+      struct uniform_var_info *info = get_uniform_var_info(state, var);
 
       if (!info)
          continue;
@@ -654,7 +653,7 @@ calculate_var_offsets(struct var_to_subgroup_state *state)
          if (!var->data.aliased_shared_memory)
             continue;
 
-         struct shared_var_info *info = get_shared_var_info(state, var);
+         struct uniform_var_info *info = get_uniform_var_info(state, var);
 
          if (!info)
             continue;
@@ -673,7 +672,7 @@ calculate_var_offsets(struct var_to_subgroup_state *state)
 }
 
 static void
-gather_val_write_instr(nir_instr *instr, struct var_to_subgroup_state *state)
+gather_uniform_write_instr(nir_instr *instr, struct var_to_uniform_state *state)
 {
    if (instr->type != nir_instr_type_intrinsic)
       return;
@@ -715,7 +714,7 @@ gather_val_write_instr(nir_instr *instr, struct var_to_subgroup_state *state)
 }
 
 static void
-gather_val_write_blocks(struct var_to_subgroup_state *state)
+gather_uniform_write_blocks(struct var_to_uniform_state *state)
 {
    unsigned num_blk_words = BITSET_WORDS(state->impl->num_blocks);
    for (unsigned i = 0; i < state->values_len; i++) {
@@ -725,7 +724,7 @@ gather_val_write_blocks(struct var_to_subgroup_state *state)
 
    nir_foreach_block(block, state->impl) {
       nir_foreach_instr(instr, block) {
-         gather_val_write_instr(instr, state);
+         gather_uniform_write_instr(instr, state);
       }
    }
 }
@@ -737,7 +736,7 @@ gather_val_write_blocks(struct var_to_subgroup_state *state)
  *    breaks before the next time remaining loop control flow converges
  */
 static bool
-linearize_write_cfg(struct exec_list *list, struct var_to_subgroup_state *state)
+linearize_write_cfg(struct exec_list *list, struct var_to_uniform_state *state)
 {
    bool progress = false;
    foreach_list_typed(nir_cf_node, node, node, list) {
@@ -891,11 +890,11 @@ linearize_write_cfg(struct exec_list *list, struct var_to_subgroup_state *state)
 }
 
 static void
-init_shared_values(struct var_to_subgroup_state *state)
+init_shared_values(struct var_to_uniform_state *state)
 {
    bool explicit_layout = state->b.shader->info.shared_memory_explicit_layout;
-   hash_table_foreach(state->shared_var_infos, entry) {
-      struct shared_var_info *info = entry->data;
+   hash_table_foreach(state->uniform_var_infos, entry) {
+      struct uniform_var_info *info = entry->data;
       const nir_variable *var = entry->key;
 
       if (!var->constant_initializer)
@@ -926,8 +925,8 @@ init_shared_values(struct var_to_subgroup_state *state)
    state->b.cursor = nir_before_block(nir_start_block(state->impl));
    nir_def *zero = NULL;
 
-   hash_table_foreach(state->shared_var_infos, entry) {
-      struct shared_var_info *info = entry->data;
+   hash_table_foreach(state->uniform_var_infos, entry) {
+      struct uniform_var_info *info = entry->data;
       const nir_variable *var = entry->key;
 
       if (!var->constant_initializer)
@@ -955,55 +954,45 @@ init_shared_values(struct var_to_subgroup_state *state)
    }
 }
 
-bool
-nir_opt_shared_vars_to_subgroup(nir_shader *shader,
-                                unsigned ballot_num_components,
-                                unsigned ballot_size)
+static bool
+has_single_subgroup_workgroup(nir_shader *shader)
 {
-   if (!mesa_shader_stage_uses_workgroup(shader->info.stage)) {
-      nir_shader_preserve_all_metadata(shader);
+   if (shader->info.workgroup_size_variable)
       return false;
-   }
 
-   if (shader->info.workgroup_size_variable) {
-      nir_shader_preserve_all_metadata(shader);
+   return nir_static_workgroup_size(shader) <= shader->info.min_subgroup_size;
+}
+
+static bool
+optimize_constant_access_to_uniform(nir_shader *shader,
+                                    const nir_opt_shared_vars_to_subgroup_options *options)
+{
+   if (!has_single_subgroup_workgroup(shader))
       return false;
-   }
 
-   unsigned workgroup_size = shader->info.workgroup_size[0] *
-                             shader->info.workgroup_size[1] *
-                             shader->info.workgroup_size[2];
-
-   if (workgroup_size > shader->info.min_subgroup_size) {
-      nir_shader_preserve_all_metadata(shader);
-      return false;
-   }
-
-   struct var_to_subgroup_state state = {0};
+   struct var_to_uniform_state state = { 0 };
    state.mem_ctx = ralloc_context(NULL);
-   state.ballot_num_components = ballot_num_components;
-   state.ballot_size = ballot_size;
+   state.ballot_num_components = options->ballot_num_components;
+   state.ballot_size = options->ballot_size;
    state.impl = nir_shader_get_entrypoint(shader);
    state.b = nir_builder_create(state.impl);
-   state.shared_var_infos = _mesa_pointer_hash_table_create(state.mem_ctx);
+   state.uniform_var_infos = _mesa_pointer_hash_table_create(state.mem_ctx);
 
    nir_foreach_variable_with_modes(var, shader, nir_var_mem_shared) {
-      struct shared_var_info *info = rzalloc(state.mem_ctx, struct shared_var_info);
+      struct uniform_var_info *info = rzalloc(state.mem_ctx, struct uniform_var_info);
 
-      _mesa_hash_table_insert(state.shared_var_infos, var, info);
+      _mesa_hash_table_insert(state.uniform_var_infos, var, info);
    }
 
-   if (_mesa_hash_table_num_entries(state.shared_var_infos) == 0) {
-      nir_shader_preserve_all_metadata(shader);
+   if (_mesa_hash_table_num_entries(state.uniform_var_infos) == 0) {
       ralloc_free(state.mem_ctx);
       return false;
    }
 
-   /* Check which (if any) variables can be optimized by this pass. */
-   check_complex_uses(&state);
+   /* Check which (if any) variables can be optimized by this path. */
+   check_non_uniformizable_uses(&state);
 
-   if (_mesa_hash_table_num_entries(state.shared_var_infos) == 0) {
-      nir_shader_preserve_all_metadata(shader);
+   if (_mesa_hash_table_num_entries(state.uniform_var_infos) == 0) {
       ralloc_free(state.mem_ctx);
       return false;
    }
@@ -1011,12 +1000,12 @@ nir_opt_shared_vars_to_subgroup(nir_shader *shader,
    /* For each variable, assign an offset in the value
     * array where the data is stored.
     */
-   calculate_var_offsets(&state);
+   calculate_uniform_var_offsets(&state);
 
    /* Gather where each value is written, both for control flow handling
     * and the phi builder.
     */
-   gather_val_write_blocks(&state);
+   gather_uniform_write_blocks(&state);
 
    nir_metadata_require(state.impl, nir_metadata_block_index | nir_metadata_dominance | nir_metadata_divergence);
 
@@ -1034,7 +1023,7 @@ nir_opt_shared_vars_to_subgroup(nir_shader *shader,
       nir_metadata_require(state.impl, nir_metadata_block_index | nir_metadata_dominance | nir_metadata_divergence);
 
       /* We need to do this again because written_in_blks needs to consider new blocks. */
-      gather_val_write_blocks(&state);
+      gather_uniform_write_blocks(&state);
    }
 
    /* Create phi builder values, handle zero init. */
@@ -1048,14 +1037,14 @@ nir_opt_shared_vars_to_subgroup(nir_shader *shader,
          /* Lower any access to the shared variables to replace
           * them with uniform registers.
           */
-         lower_shared_access(&state, instr);
+         lower_shared_access_uniform(&state, instr);
       }
    }
 
    nir_phi_builder_finish(state.pb);
 
    /* Remove the variables that we optimized. */
-   hash_table_foreach(state.shared_var_infos, entry) {
+   hash_table_foreach(state.uniform_var_infos, entry) {
       nir_variable *var = (void *)entry->key;
       exec_node_remove(&var->node);
    }
@@ -1063,4 +1052,29 @@ nir_opt_shared_vars_to_subgroup(nir_shader *shader,
    ralloc_free(state.mem_ctx);
 
    return nir_progress(true, state.impl, nir_metadata_control_flow);
+}
+
+bool
+nir_opt_shared_vars_to_subgroup(nir_shader *shader,
+                                const nir_opt_shared_vars_to_subgroup_options *options)
+{
+   assert(mesa_shader_stage_uses_workgroup(shader->info.stage));
+
+   bool progress = false;
+
+   if (options->optimize_constant_access_to_uniform)
+      progress |= optimize_constant_access_to_uniform(shader, options);
+
+   if (progress) {
+      nir_function_impl *entry = nir_shader_get_entrypoint(shader);
+
+      nir_foreach_function_impl(impl, shader) {
+         if (impl != entry)
+            nir_no_progress(impl);
+      }
+   } else {
+      nir_shader_preserve_all_metadata(shader);
+   }
+
+   return progress;
 }
