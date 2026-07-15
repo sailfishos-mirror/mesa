@@ -262,7 +262,16 @@ llvmpipe_sampler_matrix_destroy(struct llvmpipe_context *ctx)
    simple_mtx_destroy(&matrix->lock);
 
    for (uint32_t i = 0; i < ARRAY_SIZE(matrix->caches); i++) {
-      _mesa_hash_table_destroy(acquire_latest_function_cache(&matrix->caches[i]), NULL);
+      /* The latest cache holds the keys that were not yet moved into the
+       * tables; moved keys sit in the matrix trash. The trash tables are
+       * older clones that only share key pointers.
+       */
+      struct hash_table *cache = acquire_latest_function_cache(&matrix->caches[i]);
+
+      hash_table_foreach (cache, entry)
+         free((void *)entry->key);
+      _mesa_hash_table_destroy(cache, NULL);
+
       util_dynarray_foreach (&matrix->caches[i].trash_caches, struct hash_table *, trash)
          _mesa_hash_table_destroy(*trash, NULL);
       util_dynarray_fini(&matrix->caches[i].trash_caches);
@@ -1476,12 +1485,9 @@ llvmpipe_register_shader(struct pipe_context *ctx, const struct pipe_shader_stat
 }
 
 void
-llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx, struct pipe_fence_handle **fence)
+llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx)
 {
    struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
-
-   if (!fence)
-      return;
 
    /* If the cache is empty, there is nothing to do. */
    bool has_cache_entry = false;
@@ -1494,46 +1500,63 @@ llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx, struct pipe_
    if (!has_cache_entry)
       return;
 
-   ctx->pipe.screen->fence_finish(ctx->pipe.screen, NULL, *fence, OS_TIMEOUT_INFINITE);
+   simple_mtx_lock(&matrix->lock);
 
-   /* All work is finished, it's safe to move cache entries into the table. */
-   hash_table_foreach_remove(acquire_latest_function_cache(&matrix->caches[LP_FUNCTION_CACHE_SAMPLE]), entry) {
+   /* JIT code may search the caches and load from the tables at any time, so
+    * every table update has to be a valid publish: new arrays are filled
+    * completely before their pointer is installed and replaced memory stays
+    * alive until the matrix is destroyed. The keys cannot be freed either
+    * because the retired cache clones share them.
+    */
+   hash_table_foreach (acquire_latest_function_cache(&matrix->caches[LP_FUNCTION_CACHE_SAMPLE]), entry) {
       struct sample_function_cache_key *key = (void *)entry->key;
+      struct lp_texture_functions *texture = key->texture_functions;
 
-      if (key->texture_functions->sample_functions[key->sampler_index] == matrix->jit_sample_functions) {
-         key->texture_functions->sample_functions[key->sampler_index] = malloc(LP_SAMPLE_KEY_COUNT * sizeof(void *));
-         memcpy(key->texture_functions->sample_functions[key->sampler_index], matrix->jit_sample_functions,
-                LP_SAMPLE_KEY_COUNT * sizeof(void *));
+      if (texture->sample_functions[key->sampler_index] == matrix->jit_sample_functions) {
+         void **functions = malloc(LP_SAMPLE_KEY_COUNT * sizeof(void *));
+         memcpy(functions, matrix->jit_sample_functions, LP_SAMPLE_KEY_COUNT * sizeof(void *));
+         functions[key->sample_key] = entry->data;
+         p_atomic_set(&texture->sample_functions[key->sampler_index], functions);
+      } else {
+         p_atomic_set(&texture->sample_functions[key->sampler_index][key->sample_key], entry->data);
       }
 
-      key->texture_functions->sample_functions[key->sampler_index][key->sample_key] = entry->data;
-      free(key);
+      util_dynarray_append(&matrix->trash, (void *)key);
    }
 
-   hash_table_foreach_remove(acquire_latest_function_cache(&matrix->caches[LP_FUNCTION_CACHE_FETCH]), entry) {
+   hash_table_foreach (acquire_latest_function_cache(&matrix->caches[LP_FUNCTION_CACHE_FETCH]), entry) {
       struct sample_function_cache_key *key = (void *)entry->key;
+      struct lp_texture_functions *texture = key->texture_functions;
 
-      if (key->texture_functions->fetch_functions == matrix->jit_fetch_functions) {
-         key->texture_functions->fetch_functions = malloc(LP_SAMPLE_KEY_COUNT * sizeof(void *));
-         memcpy(key->texture_functions->fetch_functions, matrix->jit_fetch_functions, LP_SAMPLE_KEY_COUNT * sizeof(void *));
+      if (texture->fetch_functions == matrix->jit_fetch_functions) {
+         void **functions = malloc(LP_SAMPLE_KEY_COUNT * sizeof(void *));
+         memcpy(functions, matrix->jit_fetch_functions, LP_SAMPLE_KEY_COUNT * sizeof(void *));
+         functions[key->sample_key] = entry->data;
+         p_atomic_set(&texture->fetch_functions, functions);
+      } else {
+         p_atomic_set(&texture->fetch_functions[key->sample_key], entry->data);
       }
 
-      key->texture_functions->fetch_functions[key->sample_key] = entry->data;
-      free(key);
+      util_dynarray_append(&matrix->trash, (void *)key);
    }
 
-   hash_table_foreach_remove(acquire_latest_function_cache(&matrix->caches[LP_FUNCTION_CACHE_SIZE]), entry) {
+   hash_table_foreach (acquire_latest_function_cache(&matrix->caches[LP_FUNCTION_CACHE_SIZE]), entry) {
       struct size_function_cache_key *key = (void *)entry->key;
+
       if (key->samples)
-         key->texture_functions->samples_function = entry->data;
+         p_atomic_set(&key->texture_functions->samples_function, entry->data);
       else
-         key->texture_functions->size_function = entry->data;
-      free(key);
+         p_atomic_set(&key->texture_functions->size_function, entry->data);
+
+      util_dynarray_append(&matrix->trash, (void *)key);
    }
 
-   for (uint32_t i = 0; i < ARRAY_SIZE(matrix->caches); i++) {
-      util_dynarray_foreach (&matrix->caches[i].trash_caches, struct hash_table *, trash)
-         _mesa_hash_table_destroy(*trash, NULL);
-      util_dynarray_clear(&matrix->caches[i].trash_caches);
-   }
+   /* Readers may still search the emptied caches, so retire them to the
+    * trash instead of destroying them.
+    */
+   replace_function_cache_locked(&matrix->caches[LP_FUNCTION_CACHE_SAMPLE], sample_function_cache_key_table_create(NULL));
+   replace_function_cache_locked(&matrix->caches[LP_FUNCTION_CACHE_FETCH], sample_function_cache_key_table_create(NULL));
+   replace_function_cache_locked(&matrix->caches[LP_FUNCTION_CACHE_SIZE], size_function_cache_key_table_create(NULL));
+
+   simple_mtx_unlock(&matrix->lock);
 }

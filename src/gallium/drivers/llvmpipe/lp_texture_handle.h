@@ -75,8 +75,9 @@ struct lp_sampler_matrix {
 
    struct util_dynarray gallivms;
 
-   /* Old per-texture sample_functions arrays. Replaced arrays are kept
-    * alive here because JIT code may still load from them. */
+   /* Memory that lock-free readers may still access: replaced per-texture
+    * sample_functions arrays and promoted cache keys. Freed when the
+    * matrix is destroyed. */
    struct util_dynarray trash;
 };
 
@@ -86,6 +87,6 @@ void llvmpipe_sampler_matrix_destroy(struct llvmpipe_context *ctx);
 
 void llvmpipe_register_shader(struct pipe_context *ctx, const struct pipe_shader_state *shader);
 
-void llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx, struct pipe_fence_handle **fence);
+void llvmpipe_clear_sample_functions_cache(struct llvmpipe_context *ctx);
 
 #endif /* LP_SAMPLER_MATRIX */
