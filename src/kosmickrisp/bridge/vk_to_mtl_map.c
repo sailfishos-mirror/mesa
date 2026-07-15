@@ -108,9 +108,8 @@ vk_attachment_store_op_to_mtl_store_action(enum VkAttachmentStoreOp op)
    case VK_ATTACHMENT_STORE_OP_STORE:
       return MTL_STORE_ACTION_STORE;
    case VK_ATTACHMENT_STORE_OP_DONT_CARE:
-      return MTL_STORE_ACTION_DONT_CARE;
    case VK_ATTACHMENT_STORE_OP_NONE:
-      return MTL_STORE_ACTION_UNKNOWN;
+      return MTL_STORE_ACTION_DONT_CARE;
    default:
       assert(false && "Unsupported VkAttachmentStoreOp");
       return MTL_STORE_ACTION_UNKNOWN;

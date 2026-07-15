@@ -117,6 +117,7 @@ struct kk_rendering_state {
    bool sample_locations_enable;
    uint32_t sample_locations_count;
    VkSampleLocationEXT sample_locations[KK_MAX_SAMPLES];
+   bool force_attachment_store;
 };
 
 /* Dirty tracking bits for state not tracked by vk_dynamic_graphics_state or
@@ -330,6 +331,8 @@ uint64_t kk_upload_descriptor_root(struct kk_cmd_buffer *cmd,
 
 void kk_cmd_buffer_flush_push_descriptors(struct kk_cmd_buffer *cmd,
                                           struct kk_descriptor_state *desc);
+
+void kk_apply_attachment_store_ops(struct kk_cmd_buffer *cmd, bool force_store);
 
 enum kk_grid_mode {
    KK_GRID_DIRECT = 0u,
