@@ -180,7 +180,8 @@ intel_debug_flag_for_shader_stage(mesa_shader_stage stage)
    return flags[stage];
 }
 
-#define DEBUG_FS_SIMD  BITFIELD_MASK(DEBUG_CS_SIMD8)
+#define DEBUG_FS_SIMD  (DEBUG_FS_SIMD8   | DEBUG_FS_SIMD16  | DEBUG_FS_SIMD32 | \
+                        DEBUG_FS_SIMD2X8 | DEBUG_FS_SIMD4X8 | DEBUG_FS_SIMD2X16)
 #define DEBUG_CS_SIMD  (DEBUG_CS_SIMD8  | DEBUG_CS_SIMD16  | DEBUG_CS_SIMD32)
 #define DEBUG_TS_SIMD  (DEBUG_TS_SIMD8  | DEBUG_TS_SIMD16  | DEBUG_TS_SIMD32)
 #define DEBUG_MS_SIMD  (DEBUG_MS_SIMD8  | DEBUG_MS_SIMD16  | DEBUG_MS_SIMD32)

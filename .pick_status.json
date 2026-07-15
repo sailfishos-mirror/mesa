@@ -2754,7 +2754,7 @@
         "description": "intel: Fix DEBUG_FS_SIMD mask",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1728c055d4b92e62aaaeb199aeb95c69a8c4b2f8",
         "notes": null
