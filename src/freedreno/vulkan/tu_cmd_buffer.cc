@@ -6215,6 +6215,10 @@ tu_restore_suspended_pass(struct tu_cmd_buffer *cmd,
    cmd->state.tiling = tu_framebuffer_get_tiling_config(cmd->state.framebuffer, cmd->device, cmd->state.pass,
                                                         cmd->state.gmem_layout, cmd->state.gmem_layout_divisor);
    cmd->state.lrz = suspended->state.suspended_pass.lrz;
+
+#ifdef HAVE_PERFETTO
+   cmd->vk.dynamic_graphics_state.vp = suspended->vk.dynamic_graphics_state.vp;
+#endif
 }
 
 /* Take the saved pre-chain in "secondary" and copy its commands to "cmd",
