@@ -2934,13 +2934,6 @@ jay_create_block(struct nir_to_jay_state *nj)
    return block;
 }
 
-static jay_inst *
-jay_block_ending_unconditional_jump(jay_block *block)
-{
-   jay_inst *jump = jay_block_ending_jump(block);
-   return jump && !jump->predication ? jump : NULL;
-}
-
 static void
 jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
 {
@@ -2973,10 +2966,10 @@ jay_emit_if(struct nir_to_jay_state *nj, nir_if *nif)
    jay_block_add_successor(before_block, then_first, GPR);
    jay_block_add_successor(before_block, else_first, GPR);
 
-   if (!jay_block_ending_unconditional_jump(then_last))
+   if (!jay_block_ending_jump(then_last))
       jay_block_add_successor(then_last, after_block, GPR);
 
-   if (!jay_block_ending_unconditional_jump(else_last))
+   if (!jay_block_ending_jump(else_last))
       jay_block_add_successor(else_last, after_block, GPR);
 
    /* For a non-uniform IF, we fall through both sides in the physical CFG */
