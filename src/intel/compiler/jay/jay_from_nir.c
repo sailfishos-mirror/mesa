@@ -1349,7 +1349,11 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       desc |=
          ((uint64_t) gen_lsc_ex_desc_encode(devinfo, &gen_ex_desc, NULL) << 32);
    } else if (!jay_is_null(bti_indirect)) {
-      ex_desc = bti_indirect;
+      /* Non-uniform bindless handles are expected to be lowered to waterfall
+       * loops in NIR, but we can sometimes get here with GPR bti_indirect due
+       * to application's creative use of Uniform decorations. Uniformize.
+       */
+      ex_desc = emit_uniformize(nj, bti_indirect);
 
       if (surf_type == LSC_ADDR_SURFTYPE_SS ||
           surf_type == LSC_ADDR_SURFTYPE_BSS) {
