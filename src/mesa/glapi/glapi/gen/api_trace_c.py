@@ -19,6 +19,7 @@ header = """
 
 #include "glapi/glapi/glapi.h"
 #include "main/api_trace_helpers.h"
+#include "main/glthread_marshal.h"
 #include "main/context.h"
 #include "main/enums.h"
 #include "main/errors.h"
@@ -99,6 +100,10 @@ def array_count_expr(p):
         return '(size_t){0} * {1}'.format(p.counter, scale)
     if p.count and p.count >= 2:
         return str(p.count)
+
+    if p.marshal_count:
+        return '(size_t)({0})'.format(p.marshal_count)
+
     return None
 
 
