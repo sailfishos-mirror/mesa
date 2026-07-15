@@ -86,3 +86,6 @@ dEQP-VK.subgroups.*
 
 # See this entry in the VKCTS 1.4.5.3 -> 1.4.6.1 uprev fails list.
 dEQP-VK.synchronization2.internally_synchronized_queues.*
+
+# See Mesa bug #15880 ("panfrost: incomplete glCopyPixels() with feedback loop")
+spec@!opengl 1.4@copy-pixels
