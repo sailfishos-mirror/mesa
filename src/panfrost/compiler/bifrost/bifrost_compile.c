@@ -89,6 +89,12 @@ bi_emit_jump(bi_builder *b, nir_jump_instr *instr)
    switch (instr->type) {
    case nir_jump_break:
       branch->branch_target = b->shader->break_block;
+
+      /* We need branch reconvergence in the break block of a loop unless
+       * the loop is warp-invariant.
+       * TODO: check for warp-invariance
+       */
+      b->shader->current_block->needs_reconvergence_on_exit = true;
       break;
    case nir_jump_continue:
       branch->branch_target = b->shader->continue_block;
