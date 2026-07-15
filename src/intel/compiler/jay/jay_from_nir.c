@@ -1730,6 +1730,23 @@ load_push_data(struct nir_to_jay_state *nj,
    }
 }
 
+static jay_def
+lane_id(jay_builder *b)
+{
+   jay_shader *s = b->shader;
+   jay_def lid16 = jay_alloc_def(b, UGPR, s->dispatch_width / 2);
+   jay_LANE_ID_8(b, jay_extract_range(lid16, 0, 4));
+
+   for (unsigned i = 8; i < s->dispatch_width; i *= 2) {
+      jay_ADD(b, JAY_TYPE_U16, jay_extract_range(lid16, i / 2, i / 2),
+              jay_extract_range(lid16, 0, i / 2), i);
+   }
+
+   jay_def lid = jay_alloc_def(b, GPR, 1);
+   jay_CVT(b, JAY_TYPE_U32, lid, lid16, JAY_TYPE_U16, JAY_ROUND, 0);
+   return lid;
+}
+
 static void
 jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 {
@@ -1858,16 +1875,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_subgroup_invocation: {
-      jay_def lid = jay_alloc_def(b, UGPR, s->dispatch_width / 2);
-      jay_LANE_ID_8(b, jay_extract_range(lid, 0, 4));
-
-      for (unsigned i = 8; i < s->dispatch_width; i *= 2) {
-         jay_ADD(b, JAY_TYPE_U16, jay_extract_range(lid, i / 2, i / 2),
-                 jay_extract_range(lid, 0, i / 2), i);
-      }
-
-      /* TODO: Lower this in NIR? */
-      jay_CVT(b, JAY_TYPE_U32, dst, lid, JAY_TYPE_U16, JAY_ROUND, 0);
+      jay_MOV(b, dst, lane_id(b));
       break;
    }
 
