@@ -2285,7 +2285,7 @@ multiview_gs_output_primitive_from_pipeline(struct v3dv_pipeline *pipeline)
    }
 }
 
-static bool
+static VkResult
 pipeline_add_multiview_gs(struct v3dv_pipeline *pipeline,
                           struct v3dv_pipeline_cache *cache,
                           const VkAllocationCallbacks *pAllocator)
@@ -2379,7 +2379,7 @@ pipeline_add_multiview_gs(struct v3dv_pipeline *pipeline,
 
    if (p_stage == NULL) {
       ralloc_free(nir);
-      return false;
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
 
    p_stage->pipeline = pipeline;
@@ -2399,9 +2399,9 @@ pipeline_add_multiview_gs(struct v3dv_pipeline *pipeline,
    pipeline->stages[BROADCOM_SHADER_GEOMETRY_BIN] =
       pipeline_stage_create_binning(p_stage, pAllocator);
    if (pipeline->stages[BROADCOM_SHADER_GEOMETRY_BIN] == NULL)
-      return false;
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
 
-   return true;
+   return VK_SUCCESS;
 }
 
 static void
@@ -2537,12 +2537,15 @@ pipeline_compile_graphics(struct v3dv_pipeline *pipeline,
    /* If multiview is enabled, we inject a custom passthrough geometry shader
     * to broadcast draw calls to the appropriate views.
     */
+   VkResult vk_result;
+
    const uint32_t view_mask = pipeline->multiview_info.view_mask;
    assert(!view_mask ||
           (!pipeline->has_gs && !pipeline->stages[BROADCOM_SHADER_GEOMETRY]));
    if (view_mask) {
-      if (!pipeline_add_multiview_gs(pipeline, cache, pAllocator))
-         return VK_ERROR_OUT_OF_HOST_MEMORY;
+      vk_result = pipeline_add_multiview_gs(pipeline, cache, pAllocator);
+      if (vk_result != VK_SUCCESS)
+         return vk_result;
    }
 
    /* First we try to get the variants from the pipeline cache (unless we are
@@ -2631,7 +2634,6 @@ pipeline_compile_graphics(struct v3dv_pipeline *pipeline,
    lower_vs_io(p_stage_vs->nir);
 
    /* Compiling to vir */
-   VkResult vk_result;
 
    /* We should have got all the variants or no variants from the cache */
    assert(!pipeline->shared_data->variants[BROADCOM_SHADER_FRAGMENT]);
