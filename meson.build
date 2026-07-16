@@ -1063,7 +1063,13 @@ with_poly = [
 
 dep_clc = null_dep
 if with_gallium_rusticl or with_microsoft_clc
-  dep_clc = dependency('libclc')
+  dep_clc = dependency('mesa-libclc', required : false,
+    not_found_message :
+    'mesa-libclc not found. Build will fall back to upstream libclc, however ' +
+    'this is not recommended for most use cases.')
+  if not dep_clc.found()
+    dep_clc = dependency('libclc')
+  endif
 endif
 
 with_gfx_compute = [
