@@ -135,7 +135,10 @@ populate_dag(struct sched_ctx *ctx, jay_block *block, uint32_t *def)
           I->op == JAY_OPCODE_IS_HELPER ||
           (I->op == JAY_OPCODE_SEND &&
            ctx->func->shader->helpers_tracked &&
-           jay_send_skip_helpers(I))) {
+           jay_send_skip_helpers(I)) ||
+          (I->op == JAY_OPCODE_MOV &&
+           I->src[0].file == J_ARF &&
+           jay_base_index(I->src[0]) == GEN_ARF_TIMESTAMP)) {
 
          jay_dag_add_edge(&ctx->dag, sidefx);
          sidefx = ctx->dag.node;
