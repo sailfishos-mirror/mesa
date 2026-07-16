@@ -102,25 +102,6 @@ dEQP-VK.info.device_extension_dependencies,Fail
 # missing deps for VK_KHR_surface_protected_capabilities
 dEQP-VK.info.instance_extension_dependencies,Fail
 
-# deqp-vk: ../src/freedreno/ir3/ir3_spill.c:823: limit: Assertion `ctx->cur_pressure.full <= ctx->limit_pressure.full' failed.
-# A702's current reg_size_vec4 is too small, fixed with https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/43038
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroup_memory.1,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroup_memory.128,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroup_memory.16,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroup_memory.2,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroup_memory.4,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroup_memory.64,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroups.x,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroups.y,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroups.z,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.specialize_workgroup.7_7_8,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.specialize_workgroup.7_8_7,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.specialize_workgroup.7_8_8,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.specialize_workgroup.8_7_7,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.specialize_workgroup.8_7_8,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.specialize_workgroup.8_8_7,Crash
-dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.specialize_workgroup.8_8_8,Crash
-
 dEQP-VK.conditional_rendering.draw_clear.draw.update_with_rendering_discard_host_memory,Crash
 dEQP-VK.conditional_rendering.draw_clear.draw.update_with_rendering_discard_local_memory,Crash
 dEQP-VK.conditional_rendering.draw_clear.draw.update_with_rendering_no_discard_host_memory,Crash
