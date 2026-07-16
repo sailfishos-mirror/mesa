@@ -304,7 +304,8 @@ validate_inst(struct validate_state *validate, jay_inst *I)
          unsigned expected = get_src_words(validate, I, s);
          unsigned words = jay_num_values(I->src[s]);
          if ((I->op != JAY_OPCODE_SEND || s < 2) &&
-             I->op != JAY_OPCODE_VECTOR_EXTRACT) {
+             I->op != JAY_OPCODE_VECTOR_EXTRACT &&
+             I->op != JAY_OPCODE_BROADCAST_IMM) {
             CHECK(expected == words);
          }
 
