@@ -383,12 +383,20 @@ ethosu_find_fusible_lut(const struct pipe_ml_operation *poperations,
 {
    const struct pipe_ml_operation *consumer =
       ethosu_find_only_consumer(poperations, count, tensor_index);
+   bool has_external_output;
 
-   if (consumer && consumer->type == PIPE_ML_OPERATION_TYPE_RESHAPE)
+   if (!consumer)
+      return NULL;
+
+   has_external_output = consumer->input_tensors[0]->is_external_output;
+
+   if (consumer->type == PIPE_ML_OPERATION_TYPE_RESHAPE) {
+      has_external_output |= consumer->output_tensors[0]->is_external_output;
       consumer = ethosu_find_only_consumer(poperations, count,
                                            consumer->output_tensors[0]->index);
+   }
 
-   if (ethosu_consumer_is_lut(consumer) &&
+   if (!has_external_output && ethosu_consumer_is_lut(consumer) &&
        ethosu_find_first_consumer(poperations, count,
                                   consumer->output_tensors[0]->index))
       return consumer;
@@ -409,7 +417,13 @@ ethosu_lut_is_fused(const struct pipe_ml_operation *poperations,
       producer = ethosu_find_first_producer(poperations, count,
                                             producer->input_tensors[0]->index);
 
-   if (!producer || producer->type != PIPE_ML_OPERATION_TYPE_CONVOLUTION)
+   if (!producer ||
+       (producer->type != PIPE_ML_OPERATION_TYPE_CONVOLUTION &&
+        producer->type != PIPE_ML_OPERATION_TYPE_ADD &&
+        producer->type != PIPE_ML_OPERATION_TYPE_MUL &&
+        producer->type != PIPE_ML_OPERATION_TYPE_SUBTRACT &&
+        producer->type != PIPE_ML_OPERATION_TYPE_MAXIMUM &&
+        producer->type != PIPE_ML_OPERATION_TYPE_MINIMUM))
       return false;
 
    return ethosu_find_fusible_lut(
@@ -1765,7 +1779,6 @@ ethosu_fuse_lut(struct ethosu_subgraph *subgraph,
       ethosu_lut_activation(subgraph, &operation_lut.ifm,
                             &operation_lut.ofm, LUT8_SIZE, false);
    fill_lut(subgraph, operation, lut, LUT8_SIZE);
-   ethosu_sched_operation(subgraph, operation);
 }
 
 static void
@@ -2520,6 +2533,29 @@ ethosu_lower_eltwise(struct ethosu_subgraph *subgraph,
 }
 
 static void
+ethosu_lower_eltwise_with_lut(struct ethosu_subgraph *subgraph,
+                              const struct pipe_ml_operation *poperation,
+                              const struct pipe_ml_operation *lut,
+                              enum ethosu_eltwise_type type,
+                              struct ethosu_operation *operation)
+{
+   ethosu_lower_eltwise(subgraph, poperation, operation);
+   operation->eltwise.type = type;
+
+   if (lut) {
+      struct ethosu_operation dma_operation;
+
+      ethosu_fuse_lut(subgraph, lut, operation);
+      operation_set_defaults(&dma_operation);
+      ethosu_lower_lut_dma(subgraph, lut, operation, &dma_operation);
+      util_dynarray_append(&subgraph->operations, dma_operation);
+   }
+
+   allocate_feature_maps(subgraph, operation);
+   ethosu_sched_operation(subgraph, operation);
+}
+
+static void
 ethosu_lower_dma(struct ethosu_subgraph *subgraph,
                  const struct pipe_ml_operation *poperation,
                  struct ethosu_operation *conv_operation,
@@ -2536,6 +2572,27 @@ ethosu_lower_dma(struct ethosu_subgraph *subgraph,
 
    conv_operation->conv.weights.region = SCRATCH_REGION;
    conv_operation->conv.weights.address = conv_operation->conv.scales.size;
+}
+
+static bool
+ethosu_eltwise_fuses_lut(const struct pipe_ml_operation *poperations,
+                         unsigned count,
+                         const struct pipe_ml_operation *operation)
+{
+   if (!operation)
+      return false;
+
+   switch (operation->type) {
+   case PIPE_ML_OPERATION_TYPE_ADD:
+   case PIPE_ML_OPERATION_TYPE_MUL:
+   case PIPE_ML_OPERATION_TYPE_SUBTRACT:
+   case PIPE_ML_OPERATION_TYPE_MAXIMUM:
+   case PIPE_ML_OPERATION_TYPE_MINIMUM:
+      return ethosu_find_fusible_lut(
+         poperations, count, operation->output_tensors[0]->index);
+   default:
+      return false;
+   }
 }
 
 static void
@@ -2566,7 +2623,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                 !(consumer &&
                   (ethosu_softmax_requires_nhwc(poperation, consumer) ||
                    ethosu_reshape_feeds_softmax(poperations, count, consumer) ||
-                   ethosu_consumer_uses_depth_mean(consumer)))) {
+                   ethosu_consumer_uses_depth_mean(consumer) ||
+                   ethosu_eltwise_fuses_lut(poperations, count, consumer)))) {
                if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                     !ethosu_consumer_is_lut(poperation) &&
                     !ethosu_consumer_is_lut(consumer)) ||
@@ -2671,46 +2729,56 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       }
 
       case PIPE_ML_OPERATION_TYPE_ADD: {
-         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
-         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_ADD;
-         allocate_feature_maps(subgraph, &operation);
-         ethosu_sched_operation(subgraph, &operation);
+         const struct pipe_ml_operation *lut =
+            ethosu_find_fusible_lut(poperations, count,
+                                    poperations[i].output_tensors[0]->index);
+
+         ethosu_lower_eltwise_with_lut(subgraph, &poperations[i], lut,
+                                       ETHOSU_ELTWISE_TYPE_ADD, &operation);
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
 
       case PIPE_ML_OPERATION_TYPE_MUL: {
-         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
-         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_MUL;
-         allocate_feature_maps(subgraph, &operation);
-         ethosu_sched_operation(subgraph, &operation);
+         const struct pipe_ml_operation *lut =
+            ethosu_find_fusible_lut(poperations, count,
+                                    poperations[i].output_tensors[0]->index);
+
+         ethosu_lower_eltwise_with_lut(subgraph, &poperations[i], lut,
+                                       ETHOSU_ELTWISE_TYPE_MUL, &operation);
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
 
       case PIPE_ML_OPERATION_TYPE_SUBTRACT: {
-         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
-         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_SUB;
-         allocate_feature_maps(subgraph, &operation);
-         ethosu_sched_operation(subgraph, &operation);
+         const struct pipe_ml_operation *lut =
+            ethosu_find_fusible_lut(poperations, count,
+                                    poperations[i].output_tensors[0]->index);
+
+         ethosu_lower_eltwise_with_lut(subgraph, &poperations[i], lut,
+                                       ETHOSU_ELTWISE_TYPE_SUB, &operation);
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
 
       case PIPE_ML_OPERATION_TYPE_MAXIMUM: {
-         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
-         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_MAX;
-         allocate_feature_maps(subgraph, &operation);
-         ethosu_sched_operation(subgraph, &operation);
+         const struct pipe_ml_operation *lut =
+            ethosu_find_fusible_lut(poperations, count,
+                                    poperations[i].output_tensors[0]->index);
+
+         ethosu_lower_eltwise_with_lut(subgraph, &poperations[i], lut,
+                                       ETHOSU_ELTWISE_TYPE_MAX, &operation);
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
 
       case PIPE_ML_OPERATION_TYPE_MINIMUM: {
-         ethosu_lower_eltwise(subgraph, &poperations[i], &operation);
-         operation.eltwise.type = ETHOSU_ELTWISE_TYPE_MIN;
-         allocate_feature_maps(subgraph, &operation);
-         ethosu_sched_operation(subgraph, &operation);
+         const struct pipe_ml_operation *lut =
+            ethosu_find_fusible_lut(poperations, count,
+                                    poperations[i].output_tensors[0]->index);
+
+         ethosu_lower_eltwise_with_lut(subgraph, &poperations[i], lut,
+                                       ETHOSU_ELTWISE_TYPE_MIN, &operation);
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
