@@ -2294,7 +2294,7 @@
         "description": "venus: recycle idle sfb cmds only after async wait",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f4a3d6941fd06b65c7da38dc5144e56e474fb9bd",
         "notes": null

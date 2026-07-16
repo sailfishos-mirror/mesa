@@ -216,6 +216,10 @@ vn_sync_feedback_query(struct vn_device *dev,
                        uint64_t *out_counter);
 
 void
+vn_sync_feedback_cmd_recycle(struct vn_device *dev,
+                             struct vn_sync_feedback *sfb);
+
+void
 vn_sync_feedback_write(struct vn_sync_feedback *sfb, uint64_t counter);
 
 void

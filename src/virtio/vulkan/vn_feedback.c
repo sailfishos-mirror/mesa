@@ -632,23 +632,6 @@ vn_sync_feedback_query(struct vn_device *dev,
    simple_mtx_lock(&sfb->counter_mtx);
    const uint64_t counter = vn_feedback_get_counter(sfb->slot);
    if (sfb->signaled_counter < counter) {
-      /* search pending cmds for already signaled values */
-      simple_mtx_lock(&sfb->cmd_mtx);
-      list_for_each_entry_safe(struct vn_sync_feedback_cmd, sfb_cmd,
-                               &sfb->pending_cmds, head) {
-         if (counter >= vn_feedback_get_counter(sfb_cmd->src_slot)) {
-            /* avoid over-caching more than normal runtime usage */
-            if (sfb->free_cmd_count > 5) {
-               list_del(&sfb_cmd->head);
-               vn_sync_feedback_cmd_free(dev, sfb_cmd);
-            } else {
-               list_move_to(&sfb_cmd->head, &sfb->free_cmds);
-               sfb->free_cmd_count++;
-            }
-         }
-      }
-      simple_mtx_unlock(&sfb->cmd_mtx);
-
       sfb->signaled_counter = counter;
       signaled_counter_updated = true;
    }
@@ -660,6 +643,29 @@ vn_sync_feedback_query(struct vn_device *dev,
    simple_mtx_unlock(&sfb->counter_mtx);
 
    return signaled_counter_updated;
+}
+
+void
+vn_sync_feedback_cmd_recycle(struct vn_device *dev,
+                             struct vn_sync_feedback *sfb)
+{
+   /* search pending cmds for already signaled values */
+   simple_mtx_lock(&sfb->cmd_mtx);
+   list_for_each_entry_safe(struct vn_sync_feedback_cmd, sfb_cmd,
+                            &sfb->pending_cmds, head) {
+      const uint64_t cmd_counter = vn_feedback_get_counter(sfb_cmd->src_slot);
+      if (sfb->signaled_counter >= cmd_counter) {
+         /* avoid over-caching more than normal runtime usage */
+         if (sfb->free_cmd_count > 5) {
+            list_del(&sfb_cmd->head);
+            vn_sync_feedback_cmd_free(dev, sfb_cmd);
+         } else {
+            list_move_to(&sfb_cmd->head, &sfb->free_cmds);
+            sfb->free_cmd_count++;
+         }
+      }
+   }
+   simple_mtx_unlock(&sfb->cmd_mtx);
 }
 
 void
