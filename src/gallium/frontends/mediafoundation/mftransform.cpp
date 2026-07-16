@@ -815,7 +815,6 @@ CalculateMaxOutputBitstreamSize( UINT uiWidth, UINT uiHeight, enum pipe_format f
 
    const UINT MIN_BUFFER_SIZE = 128 * 128 * 2;       // Minimum buffer size for very small frames: 128x128 pixels at 2 bytes/pixel
    const UINT MAX_BUFFER_SIZE = 20 * 1024 * 1024;    // Maximum buffer size of 20MB
-   const float EXPECTED_COMPRESSION_FACTOR = 2.0f;   // Assume 50% of calculated size after compression of raw pixel sizes
 
    UINT alignedWidth = ( uiWidth + 15 ) & ~15;
    UINT alignedHeight = ( uiHeight + 15 ) & ~15;
@@ -839,9 +838,6 @@ CalculateMaxOutputBitstreamSize( UINT uiWidth, UINT uiHeight, enum pipe_format f
          bufferSize = ( ( ( alignedHeight ) * ( alignedWidth ) * 15 ) >> 3 );
          break;
    }
-
-   // Apply EXPECTED_COMPRESSION_FACTOR constant (% of calculated size)
-   bufferSize = static_cast<UINT>( std::ceil( bufferSize / EXPECTED_COMPRESSION_FACTOR ) );
 
    // Clamp buffer size between minimum and maximum limits
    bufferSize = std::max( MIN_BUFFER_SIZE, std::min( bufferSize, MAX_BUFFER_SIZE ) );
