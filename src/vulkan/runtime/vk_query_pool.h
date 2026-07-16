@@ -44,6 +44,16 @@ struct vk_query_pool {
     */
    VkQueryPipelineStatisticFlags pipeline_statistics;
 
+   /* The properties from the chained VkVideoProfileInfoKHR.
+    * May be present for VK_QUERY_TYPE_RESULT_STATUS_ONLY_KHR or
+    * VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR. */
+   struct {
+      VkVideoCodecOperationFlagsKHR op;
+      VkVideoChromaSubsamplingFlagsKHR chroma_subsampling;
+      VkVideoComponentBitDepthFlagsKHR luma_bit_depth;
+      VkVideoComponentBitDepthFlagsKHR chroma_bit_depth;
+   } video_profile;
+
    /** VkQueryPoolVideoEncodeFeedbackCreateInfoKHR::encodeFeedbackFlags
     *
     * If query_type != VK_QUERY_TYPE_VIDEO_ENCODE_FEEDBACK_KHR, this will be
