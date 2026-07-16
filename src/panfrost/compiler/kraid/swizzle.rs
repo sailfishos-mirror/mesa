@@ -203,6 +203,19 @@ impl SwizzleWord {
     fn word_mod(self) -> Option<ByteMod> {
         SwizzleByte::byte_mod(unsafe { std::mem::transmute(self) })
     }
+
+    fn modify(self, word_mod: ByteMod) -> Option<SwizzleWord> {
+        let self_word_mod = self.word_mod()?;
+        let self_word_idx = self.word_idx()?;
+
+        use ByteMod::*;
+        let m = match (word_mod, self_word_mod) {
+            (Byte, Byte | Sign) => self_word_mod,
+            (Sign, Byte | Sign) => Sign,
+            _ => return None,
+        };
+        Some(SwizzleWord::from_word_mod_idx(m, self_word_idx))
+    }
 }
 
 /// Represents a swizzle as an arrangements of either bytes or words.
@@ -773,28 +786,12 @@ impl Swizzle {
 
             let mut words = [SwizzleWord::Zero; 2];
             for i in 0..2 {
-                let ob = other.word(i).unwrap();
-                words[usize::from(i)] = if ob == SwizzleWord::Zero {
+                let ow = other.word(i).unwrap();
+                words[usize::from(i)] = if ow == SwizzleWord::Zero {
                     SwizzleWord::Zero
                 } else {
-                    let obi = ob.word_idx()?;
-                    let sb = self.word(obi).unwrap();
-                    if sb == SwizzleWord::Zero {
-                        SwizzleWord::Zero
-                    } else {
-                        let sbi = sb.word_idx()?;
-                        let obm = ob.word_mod()?;
-                        let sbm = sb.word_mod()?;
-
-                        use ByteMod::*;
-
-                        let m = match (obm, sbm) {
-                            (Byte, Byte | Sign) => sbm,
-                            (Sign, Byte | Sign) => Sign,
-                            _ => return None,
-                        };
-                        SwizzleWord::from_word_mod_idx(m, sbi)
-                    }
+                    let sw = self.word(ow.word_idx()?).unwrap();
+                    sw.modify(ow.word_mod()?)?
                 };
             }
             Some(Swizzle::from_swizzle_words(words))
