@@ -172,15 +172,17 @@ io_component(nir_intrinsic_instr *io,
       c += (offset % 16) / 4;
    } else if (nir_intrinsic_has_io_semantics(io)) {
       const nir_io_semantics sem = nir_intrinsic_io_semantics(io);
-      /* The VUE header stores Primitive Shading Rate (.x), Layer (.y),
-       * Viewport (.z), and Point Size (.w) in a single vec4.
-       */
-      if (sem.location == VARYING_SLOT_LAYER)
-         c += 1;
-      else if (sem.location == VARYING_SLOT_VIEWPORT)
-         c += 2;
-      else if (sem.location == VARYING_SLOT_PSIZ)
-         c += 3;
+      if (cb_data->varying_to_slot) {
+         /* The VUE header stores Primitive Shading Rate (.x), Layer (.y),
+          * Viewport (.z), and Point Size (.w) in a single vec4.
+          */
+         if (sem.location == VARYING_SLOT_LAYER)
+            c += 1;
+         else if (sem.location == VARYING_SLOT_VIEWPORT)
+            c += 2;
+         else if (sem.location == VARYING_SLOT_PSIZ)
+            c += 3;
+      }
    }
 
    return c;
@@ -206,10 +208,15 @@ io_base_slot(nir_intrinsic_instr *io,
    } else if (cb_data->per_primitive_byte_offsets &&
               io_sem.location == VARYING_SLOT_PRIMITIVE_COUNT) {
       return 0;
-   } else {
+   } else if (cb_data->varying_to_slot != NULL) {
       const int slot = cb_data->varying_to_slot[io_sem.location];
       assert(slot != -1);
       return slot + cb_data->per_vertex_offset / 16;
+   } else {
+      /* For vertex the slot into the data has been lower to base already, use
+       * that.
+       */
+      return nir_intrinsic_base(io);
    }
 }
 
@@ -630,6 +637,9 @@ brw_nir_lower_deferred_urb_writes(nir_shader *nir,
                                   unsigned extra_urb_slot_offset,
                                   unsigned gs_vertex_stride)
 {
+   struct brw_lower_urb_cb_data cb_data = {
+      .varying_to_slot = vue_map->varying_to_slot,
+   };
    nir_scalar *outputs = calloc(vue_map->num_slots, 4 * sizeof(nir_scalar));
 
    nir_function_impl *impl = nir_shader_get_entrypoint(nir);
@@ -651,7 +661,7 @@ brw_nir_lower_deferred_urb_writes(nir_shader *nir,
                vue_map->varying_to_slot[sem.location] +
                (view_index ? nir_src_as_uint(*view_index) : 0) +
                nir_src_as_uint(*offset);
-            const unsigned c = io_component(intrin, NULL);
+            const unsigned c = io_component(intrin, &cb_data);
             const unsigned mask = nir_intrinsic_write_mask(intrin);
             assert(slot != -1);
             assert(c < 4);

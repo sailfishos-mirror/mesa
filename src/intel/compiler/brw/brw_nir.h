@@ -183,7 +183,10 @@ struct brw_lower_urb_cb_data {
     */
    bool vec4_access;
 
-   /** Map from VARYING_SLOT_* to a vec4 slot index */
+   /* Map from VARYING_SLOT_* to a vec4 slot index
+    *
+    * If NULL we're dealing gl_vert_attrib semantic.
+    */
    const int8_t *varying_to_slot;
 
    /** Stride in bytes between each vertex's worth of per-vertex varyings */
