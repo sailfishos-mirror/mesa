@@ -762,29 +762,26 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
    NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 
-   bool gfx7minus = compiler_info->ac->gfx_level <= GFX7;
-   bool use_llvm = compiler_info->key.use_llvm;
-
-   NIR_PASS(_, nir, nir_lower_subgroups,
-            &(struct nir_lower_subgroups_options){
-               .subgroup_size = nir->info.api_subgroup_size,
-               .ballot_bit_size = nir->info.api_subgroup_size,
-               .ballot_components = 1,
-               .lower_to_scalar = 1,
-               .lower_subgroup_masks = 1,
-               .lower_relative_shuffle = 1,
-               .lower_rotate_to_shuffle = use_llvm,
-               .lower_shuffle_to_32bit = 1,
-               .lower_vote_feq = 1,
-               .lower_vote_ieq = 1,
-               .lower_vote_bool_eq = 1,
-               .lower_quad_broadcast_dynamic = 1,
-               .lower_quad_broadcast_dynamic_to_const = gfx7minus,
-               .lower_shuffle_to_swizzle_amd = 1,
-               .lower_ballot_bit_count_to_mbcnt_amd = 1,
-               .lower_boolean_reduce = !use_llvm,
-               .lower_boolean_shuffle = true,
-            });
+   nir_lower_subgroups_options lower_subgroup_options = {
+      .subgroup_size = nir->info.api_subgroup_size,
+      .ballot_bit_size = nir->info.api_subgroup_size,
+      .ballot_components = 1,
+      .lower_to_scalar = 1,
+      .lower_subgroup_masks = 1,
+      .lower_relative_shuffle = 1,
+      .lower_rotate_to_shuffle = compiler_info->key.use_llvm,
+      .lower_shuffle_to_32bit = 1,
+      .lower_vote_feq = 1,
+      .lower_vote_ieq = 1,
+      .lower_vote_bool_eq = 1,
+      .lower_quad_broadcast_dynamic = 1,
+      .lower_quad_broadcast_dynamic_to_const = compiler_info->ac->gfx_level <= GFX7,
+      .lower_shuffle_to_swizzle_amd = 1,
+      .lower_ballot_bit_count_to_mbcnt_amd = 1,
+      .lower_boolean_reduce = !compiler_info->key.use_llvm,
+      .lower_boolean_shuffle = true,
+   };
+   NIR_PASS(_, nir, nir_lower_subgroups, &lower_subgroup_options);
 
    NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
    NIR_PASS(_, nir, nir_opt_shrink_stores, !compiler_info->key.disable_shrink_image_store);
@@ -851,11 +848,19 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
 
       nir_opt_shared_vars_to_subgroup_options shared_to_subgroup_options = {
          .optimize_constant_access_to_uniform = true,
+         .optimize_divergent_access_to_shuffle = compiler_info->ac->gfx_level >= GFX8,
+         .linear_workgroup_ids = nir->info.derivative_group != DERIVATIVE_GROUP_QUADS,
          .ballot_num_components = 1,
          .ballot_size = nir->info.max_subgroup_size,
       };
 
-      NIR_PASS(_, nir, nir_opt_shared_vars_to_subgroup, &shared_to_subgroup_options);
+      bool shared_to_subgroup = false;
+      NIR_PASS(shared_to_subgroup, nir, nir_opt_shared_vars_to_subgroup, &shared_to_subgroup_options);
+      if (shared_to_subgroup) {
+         NIR_PASS(_, nir, nir_opt_dead_write_vars);
+         NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_mem_shared, NULL);
+         NIR_PASS(_, nir, nir_lower_subgroups, &lower_subgroup_options);
+      }
 
       NIR_PASS(_, nir, nir_lower_vars_to_explicit_types, var_modes, shared_var_info);
       NIR_PASS(_, nir, nir_lower_explicit_io, var_modes, nir_address_format_32bit_offset);
