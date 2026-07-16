@@ -182,6 +182,9 @@ vn_get_fence_status(VkDevice dev_handle,
              */
             vn_async_vkWaitForFences(dev->primary_ring, dev_handle, 1,
                                      &fence_handle, VK_TRUE, UINT64_MAX);
+
+            /* Recycle idle cmds after async fence wait. */
+            vn_sync_feedback_cmd_recycle(dev, &fence->feedback);
          }
 
          const bool signaled = counter == fence->signal_counter;
@@ -607,6 +610,9 @@ vn_get_semaphore_counter_value(VkDevice dev_handle,
 
          vn_async_vkWaitSemaphores(dev->primary_ring, dev_handle, &wait_info,
                                    UINT64_MAX);
+
+         /* Recycle idle cmds after async semaphore wait. */
+         vn_sync_feedback_cmd_recycle(dev, &sem->feedback);
       }
    } else {
       VkResult result = vn_call_vkGetSemaphoreCounterValue(
