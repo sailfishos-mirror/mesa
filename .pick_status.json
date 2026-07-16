@@ -2604,7 +2604,7 @@
         "description": "ac/nir/ngg: track uniformity with multiple set_vertex_and_primitive_count",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "863fdcf51968807d55b67c1c70ff59cfac116ed4",
         "notes": null
