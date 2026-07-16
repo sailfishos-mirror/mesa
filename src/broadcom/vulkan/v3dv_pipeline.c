@@ -371,9 +371,14 @@ preprocess_nir(nir_shader *nir)
    v3d_optimize_nir(NULL, nir);
 }
 
-static nir_shader *
+/* Returns the stage's NIR in nir_out on success. Otherwise it returns
+ * VK_ERROR_OUT_OF_HOST_MEMORY for allocation failures or VK_ERROR_UNKNOWN for
+ * compile errors.
+ */
+static VkResult
 shader_module_compile_to_nir(struct v3dv_device *device,
-                             struct v3dv_pipeline_stage *stage)
+                             struct v3dv_pipeline_stage *stage,
+                             nir_shader **nir_out)
 {
    assert(stage->module || stage->module_info);
 
@@ -403,7 +408,7 @@ shader_module_compile_to_nir(struct v3dv_device *device,
                                                      nir_options,
                                                      NULL, &nir);
    if (result != VK_SUCCESS)
-      return NULL;
+      return result;
    assert(nir->info.stage == gl_stage);
 
    if (V3D_DBG(SHADERDB) && (!stage->module || stage->module->nir == NULL)) {
@@ -421,7 +426,9 @@ shader_module_compile_to_nir(struct v3dv_device *device,
 
    preprocess_nir(nir);
 
-   return nir;
+   *nir_out = nir;
+
+   return VK_SUCCESS;
 }
 
 static unsigned
@@ -1841,10 +1848,11 @@ get_ucp_enable_mask(struct v3dv_pipeline_stage *p_stage)
    return 0;
 }
 
-static nir_shader *
-pipeline_stage_get_nir(struct v3dv_pipeline_stage *p_stage,
-                       struct v3dv_pipeline *pipeline,
-                       struct v3dv_pipeline_cache *cache)
+/* Sets p_stage->nir from the cache or by compiling the shader module. */
+static VkResult
+pipeline_stage_init_nir(struct v3dv_pipeline_stage *p_stage,
+                        struct v3dv_pipeline *pipeline,
+                        struct v3dv_pipeline_cache *cache)
 {
    int64_t stage_start = os_time_get_nano();
 
@@ -1866,33 +1874,36 @@ pipeline_stage_get_nir(struct v3dv_pipeline_stage *p_stage,
 
       p_stage->feedback.duration += os_time_get_nano() - stage_start;
 
-      return nir;
+      p_stage->nir = nir;
+
+      return VK_SUCCESS;
    }
 
-   nir = shader_module_compile_to_nir(pipeline->device, p_stage);
+   VkResult result =
+      shader_module_compile_to_nir(pipeline->device, p_stage, &nir);
+   if (result != VK_SUCCESS)
+      return result;
+   assert(nir);
 
-   if (nir) {
-      struct v3dv_pipeline_cache *default_cache =
-         &pipeline->device->default_pipeline_cache;
+   struct v3dv_pipeline_cache *default_cache =
+      &pipeline->device->default_pipeline_cache;
 
-      v3dv_pipeline_cache_upload_nir(pipeline, cache, nir,
+   v3dv_pipeline_cache_upload_nir(pipeline, cache, nir,
+                                  p_stage->shader_blake3);
+
+   /* Ensure that the variant is on the default cache, as cmd_buffer could
+    * need to change the current variant
+    */
+   if (default_cache != cache) {
+      v3dv_pipeline_cache_upload_nir(pipeline, default_cache, nir,
                                      p_stage->shader_blake3);
-
-      /* Ensure that the variant is on the default cache, as cmd_buffer could
-       * need to change the current variant
-       */
-      if (default_cache != cache) {
-         v3dv_pipeline_cache_upload_nir(pipeline, default_cache, nir,
-                                        p_stage->shader_blake3);
-      }
-
-      p_stage->feedback.duration += os_time_get_nano() - stage_start;
-
-      return nir;
    }
 
-   /* FIXME: this shouldn't happen, raise error? */
-   return NULL;
+   p_stage->feedback.duration += os_time_get_nano() - stage_start;
+
+   p_stage->nir = nir;
+
+   return VK_SUCCESS;
 }
 
 static VkResult
@@ -2292,7 +2303,11 @@ pipeline_add_multiview_gs(struct v3dv_pipeline *pipeline,
 {
    /* Create the passthrough GS from the VS output interface */
    struct v3dv_pipeline_stage *p_stage_vs = pipeline->stages[BROADCOM_SHADER_VERTEX];
-   p_stage_vs->nir = pipeline_stage_get_nir(p_stage_vs, pipeline, cache);
+
+   VkResult vk_result = pipeline_stage_init_nir(p_stage_vs, pipeline, cache);
+   if (vk_result != VK_SUCCESS)
+      return vk_result;
+
    nir_shader *vs_nir = p_stage_vs->nir;
 
    const nir_shader_compiler_options *options =
@@ -2607,12 +2622,21 @@ pipeline_compile_graphics(struct v3dv_pipeline *pipeline,
    p_stage_fs->feedback.flags |=
       VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT;
 
-   if (!p_stage_vs->nir)
-      p_stage_vs->nir = pipeline_stage_get_nir(p_stage_vs, pipeline, cache);
-   if (p_stage_gs && !p_stage_gs->nir)
-      p_stage_gs->nir = pipeline_stage_get_nir(p_stage_gs, pipeline, cache);
-   if (!p_stage_fs->nir)
-      p_stage_fs->nir = pipeline_stage_get_nir(p_stage_fs, pipeline, cache);
+   if (!p_stage_vs->nir) {
+      vk_result = pipeline_stage_init_nir(p_stage_vs, pipeline, cache);
+      if (vk_result != VK_SUCCESS)
+         return vk_result;
+   }
+   if (p_stage_gs && !p_stage_gs->nir) {
+      vk_result = pipeline_stage_init_nir(p_stage_gs, pipeline, cache);
+      if (vk_result != VK_SUCCESS)
+         return vk_result;
+   }
+   if (!p_stage_fs->nir) {
+      vk_result = pipeline_stage_init_nir(p_stage_fs, pipeline, cache);
+      if (vk_result != VK_SUCCESS)
+         return vk_result;
+   }
 
    /* Linking + pipeline lowerings */
    if (p_stage_gs) {
@@ -3259,14 +3283,13 @@ pipeline_compile_compute(struct v3dv_pipeline *pipeline,
    p_stage->feedback.flags |= VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT;
 
    /* If not found on cache, compile it */
-   p_stage->nir = pipeline_stage_get_nir(p_stage, pipeline, cache);
-   assert(p_stage->nir);
+   VkResult result = pipeline_stage_init_nir(p_stage, pipeline, cache);
+   if (result != VK_SUCCESS)
+      return result;
 
    v3d_optimize_nir(NULL, p_stage->nir);
    pipeline_lower_nir(pipeline, p_stage, pipeline->layout);
    lower_compute(p_stage->nir);
-
-   VkResult result = VK_SUCCESS;
 
    struct v3d_key key;
    memset(&key, 0, sizeof(key));
