@@ -31,7 +31,7 @@ propagate_cmod(jay_function *func, jay_inst *I, jay_inst **defs)
 
    /* Pattern match `cmp ssa, 0` or `cmp 0, ssa`. */
    jay_foreach_ssa_src(I, s) {
-      if (jay_is_zero(I->src[1 - s])) {
+      if (jay_is_zero(I->src[1 - s]) && jay_num_values(I->src[s]) == 1) {
          def = defs[jay_base_index(I->src[s])];
 
          /* Canonicalize the cmod to have the zero second */
