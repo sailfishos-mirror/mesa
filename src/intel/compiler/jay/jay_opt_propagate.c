@@ -212,6 +212,13 @@ propagate_forwards(jay_function *f)
                  !(I->src[s].file == FLAG) &&
                  !(def->src[0].file == J_ARF && s != 0) &&
                  !(jay_is_imm(def->src[0]) && I->src[s].negate) &&
+                 (jay_num_values(I->src[s]) == jay_num_values(def->src[0]) ||
+                  I->src[s].file != GPR ||
+                  def->src[0].file != UGPR ||
+                  (jay_type_size_bits(jay_src_type(I, s)) ==
+                      jay_type_size_bits(def->type) &&
+                   def->type == I->type &&
+                   !jay_is_shuffle_like(I))) &&
                  !(jay_is_imm(def->src[0]) &&
                    jay_type_size_bits(jay_src_type(I, s)) == 8))) {
 
@@ -354,6 +361,7 @@ propagate_backwards(jay_function *f)
           !I->predication &&
           use->op == JAY_OPCODE_MOV &&
           use->dst.file != J_ADDRESS &&
+          jay_num_values(use->dst) == jay_num_values(use->src[0]) &&
           (!jay_is_flag(use->dst) || jay_num_isa_srcs(I) < 3)) {
 
          *(flag ? &I->cond_flag : &I->dst) = use->dst;
