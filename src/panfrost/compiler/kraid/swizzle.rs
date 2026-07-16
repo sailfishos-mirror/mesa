@@ -326,14 +326,7 @@ impl Swizzle {
     pub const W11: Swizzle = Swizzle::replicate_word(1);
 
     /// A swizzle which sign-extends byte3 out to 32 bits.
-    pub const S3: Swizzle = unsafe {
-        Swizzle::from_swizzle_bytes_unchecked([
-            SwizzleByte::Sign3,
-            SwizzleByte::Sign3,
-            SwizzleByte::Sign3,
-            SwizzleByte::Sign3,
-        ])
-    };
+    pub const S3: Swizzle = Swizzle::sign_of_s8(3);
 
     const unsafe fn from_swizzle_bytes_unchecked(
         bytes: [SwizzleByte; 4],
@@ -507,6 +500,18 @@ impl Swizzle {
             8 => Swizzle::B0000,
             16 => Swizzle::H00,
             _ => Swizzle::NONE,
+        }
+    }
+
+    pub const fn sign_of_s8(byte: u8) -> Swizzle {
+        // SAFETY: All byte/sign swizzles are valid
+        unsafe {
+            Swizzle::from_swizzle_bytes_unchecked([
+                SwizzleByte::sign(byte),
+                SwizzleByte::sign(byte),
+                SwizzleByte::sign(byte),
+                SwizzleByte::sign(byte),
+            ])
         }
     }
 
@@ -800,6 +805,19 @@ impl Swizzle {
         *self == Swizzle::HF0 || *self == Swizzle::HF1
     }
 
+    fn swizzle_with_word(self, sw: SwizzleWord) -> Option<Swizzle> {
+        debug_assert!(!self.is_word_swizzle());
+        match sw {
+            SwizzleWord::Zero => Some(Swizzle::ZERO),
+            SwizzleWord::Word0 => Some(self),
+            SwizzleWord::Sign0 => {
+                let b = self.byte(3)?.modify(ByteMod::Sign)?;
+                Swizzle::from_swizzle_bytes([b, b, b, b])
+            }
+            _ => return None,
+        }
+    }
+
     /// Composes two swizzles and produces a swizzle as if `self` were applied
     /// first, followed by `other`.  If composing the two swizzles is not
     /// possible (such as if doing so would result in an invalid float widen),
@@ -830,12 +848,25 @@ impl Swizzle {
                 };
             }
             Some(Swizzle::from_swizzle_words(words))
-        } else {
-            // We can't swizzle a byte swizzle by a word swizzle
-            if other.is_word_swizzle() {
-                return None;
-            }
+        } else if other.is_word_swizzle() {
+            let low = self.swizzle_with_word(other.word(0)?)?;
+            let high = self.swizzle_with_word(other.word(1)?)?;
 
+            // The only way low can be NONE is if self were NONE and we've
+            // already handled that case at the top.
+            debug_assert!(!low.is_none());
+
+            // Byte swizzles get sign-extended so the high word has to be a
+            // sign extension of the low word
+            let low_b3 = low.byte(3).unwrap();
+            let is_sext = if low_b3 == SwizzleByte::Zero {
+                high == Swizzle::ZERO
+            } else {
+                let low_b3_idx = low_b3.byte_idx().unwrap();
+                high == Swizzle::sign_of_s8(low_b3_idx)
+            };
+            if is_sext { Some(low) } else { None }
+        } else {
             let mut bytes = [SwizzleByte::Zero; 4];
             for i in 0..4 {
                 let ob = other.byte(i).unwrap();
@@ -985,6 +1016,50 @@ mod tests {
         assert_eq!(
             Swizzle::widen_u32(0).swizzle(Swizzle::W11),
             Some(Swizzle::ZERO)
+        );
+    }
+
+    #[test]
+    fn test_widen_to_64() {
+        assert_eq!(
+            Swizzle::NONE.swizzle(Swizzle::widen_u32(0)),
+            Some(Swizzle::widen_u32(0)),
+        );
+        assert_eq!(
+            Swizzle::NONE.swizzle(Swizzle::widen_s32(0)),
+            Some(Swizzle::widen_s32(0)),
+        );
+        assert_eq!(
+            Swizzle::ZERO.swizzle(Swizzle::widen_u32(0)),
+            Some(Swizzle::ZERO),
+        );
+        assert_eq!(
+            Swizzle::ZERO.swizzle(Swizzle::widen_s32(0)),
+            Some(Swizzle::ZERO),
+        );
+        assert_eq!(
+            Swizzle::widen_u8(0).swizzle(Swizzle::widen_u32(0)),
+            Some(Swizzle::widen_u8(0)),
+        );
+        assert_eq!(
+            Swizzle::widen_s8(0).swizzle(Swizzle::widen_s32(0)),
+            Some(Swizzle::widen_s8(0)),
+        );
+
+        // And with some other word/byte
+        assert_eq!(
+            Swizzle::widen_u16(1).swizzle(Swizzle::widen_u32(0)),
+            Some(Swizzle::widen_u16(1)),
+        );
+        assert_eq!(
+            Swizzle::widen_s16(1).swizzle(Swizzle::widen_s32(0)),
+            Some(Swizzle::widen_s16(1)),
+        );
+
+        // This is nonsense but representible
+        assert_eq!(
+            Swizzle::widen_v2s8(0, 2).swizzle(Swizzle::widen_s32(0)),
+            Some(Swizzle::widen_v2s8(0, 2)),
         );
     }
 }

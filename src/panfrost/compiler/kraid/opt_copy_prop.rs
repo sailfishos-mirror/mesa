@@ -300,23 +300,12 @@ impl WordCopies<'_> {
                 return None;
             }
 
-            debug_assert!(src.swizzle.bytes_read(8) < (1 << 4));
-            let widen = if copy.src.swizzle.is_none() {
-                src.swizzle
-            } else if src.swizzle.is_byte_swizzle() {
-                // Byte swizzles can be composed directly
-                copy.src.swizzle.swizzle(src.swizzle)?
-            } else if src.swizzle == Swizzle::widen_s32(0) {
-                // Byte swizzles are sign-extended when used with a 64-bit
-                // source so if the 64-bit swizzle is widen_s32(0), we can
-                // just take the 32-bit swizzle verbatim
-                copy.src.swizzle
-            } else {
+            let Some(swizzle) = copy.src.swizzle.swizzle(src.swizzle) else {
                 return None;
             };
 
             let mut new_src = copy.src.clone();
-            new_src.swizzle = widen;
+            new_src.swizzle = swizzle;
             return Some(new_src);
         }
 
