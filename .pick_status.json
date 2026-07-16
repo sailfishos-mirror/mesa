@@ -2694,7 +2694,7 @@
         "description": "zink: fix swap interval changes being dropped",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "db9dbcbec0002ed87e825927983b841d1e90f163",
         "notes": null
