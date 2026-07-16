@@ -2544,7 +2544,7 @@
         "description": "pan: Fix BIFROST_MESA_DUMP_DIR",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "712ebaa4b1a9f3e2f05ac436f456c080b9bb30c4",
         "notes": null
