@@ -1259,17 +1259,29 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       break;
    }
    case nir_intrinsic_load_output: {
-      unsigned idx = nir_src_as_uint(instr->src[0]);
+      /* Should have been constant folded by now to 0 */
+      assert(nir_src_as_uint(instr->src[0]) == 0u);
+
       nir_io_semantics io = nir_intrinsic_io_semantics(instr);
-      nir_alu_type type = nir_intrinsic_dest_type(instr);
       bool needs_padding =
          FRAG_RESULT_DATA0 <= io.location && io.location <= FRAG_RESULT_DATA7;
       if (needs_padding) {
-         P(ctx, "%s4(", tex_type_name(type));
+         const char *type = tex_type_name(nir_intrinsic_dest_type(instr));
+         uint32_t num_components =
+            ctx->outputs_info[io.location].num_components;
+         if (num_components == 1) {
+            P(ctx, "%s4(as_type<%s>(", type, type);
+         } else {
+            P(ctx, "%s4(as_type<%s%d>(", type, type, num_components);
+         }
       }
-      msl_output_name(ctx, io.location + idx, 0);
+
+      uint64_t output_mask = 1 << (io.location);
+      bool load_from_input = !(output_mask & ctx->shader->info.outputs_written);
+      msl_output_name(ctx, io.location, 0, load_from_input);
 
       if (needs_padding) {
+         P(ctx, ")");
          for (uint32_t i = ctx->outputs_info[io.location].num_components;
               i < 4u; ++i)
             P(ctx, ", %c", "0001"[i]);
@@ -1287,8 +1299,7 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       uint32_t dst_num_components = msl_output_num_components(ctx, location);
       uint32_t num_components = instr->num_components;
 
-      P_IND(ctx, "%s", "");
-      msl_output_name(ctx, location, component);
+      msl_output_name(ctx, location, component, false);
       if (dst_num_components > 1u) {
          P(ctx, ".");
          for (unsigned i = 0; i < num_components; i++)

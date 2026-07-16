@@ -11,6 +11,8 @@
 #define MSL_MAX_SAMPLERS 4096
 
 enum pipe_format;
+struct vk_input_attachment_location_state;
+struct vk_color_attachment_location_state;
 
 struct nir_to_msl_options {
    void *mem_ctx;
@@ -68,6 +70,11 @@ bool msl_nir_vs_remove_point_size_write(nir_builder *b,
 
 bool msl_nir_fs_remove_depth_write(nir_shader *s);
 
+/* Needs to be called before msl_lower_texture since it will generate texture
+ * loads for depth/stencil and multisample. */
+void msl_nir_lower_input_attachments(
+   nir_shader *nir, const struct vk_input_attachment_location_state *ial,
+   const struct vk_color_attachment_location_state *cal);
 bool msl_lower_textures(nir_shader *s);
 
 bool msl_lower_robustness2_images(nir_shader *s);
