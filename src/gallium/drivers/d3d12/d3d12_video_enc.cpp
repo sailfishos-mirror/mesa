@@ -5222,11 +5222,6 @@ d3d12_video_encoder_fence_wait(struct pipe_video_codec *codec,
    assert(fence);
 
    bool wait_res = d3d12_fence_finish(fence, timeout);
-   if (wait_res) {
-      // Opportunistically reset batches
-      for (uint32_t i = 0; i < pD3D12Enc->m_MaxQueueAsyncDepth; ++i)
-         d3d12_video_encoder_sync_completion(codec, i, 0);
-   }
 
    // Return semantics based on p_video_codec interface
    // ret == 0 -> Encode in progress
