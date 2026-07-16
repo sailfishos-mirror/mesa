@@ -2040,20 +2040,20 @@ struct anv_gfx_dynamic_state {
 
    /* 3DSTATE_URB_ALLOC_TASK */
    struct {
-      uint32_t TASKURBEntryAllocationSize;
-      uint32_t TASKNumberofURBEntriesSlice0;
-      uint32_t TASKNumberofURBEntriesSliceN;
-      uint32_t TASKURBStartingAddressSlice0;
-      uint32_t TASKURBStartingAddressSliceN;
+      uint16_t TASKURBEntryAllocationSize;
+      uint16_t TASKNumberofURBEntriesSlice0;
+      uint16_t TASKNumberofURBEntriesSliceN;
+      uint16_t TASKURBStartingAddressSlice0;
+      uint16_t TASKURBStartingAddressSliceN;
    } urb_task;
 
    /* 3DSTATE_URB_ALLOC_TASK */
    struct {
-      uint32_t MESHURBEntryAllocationSize;
-      uint32_t MESHNumberofURBEntriesSlice0;
-      uint32_t MESHNumberofURBEntriesSliceN;
-      uint32_t MESHURBStartingAddressSlice0;
-      uint32_t MESHURBStartingAddressSliceN;
+      uint16_t MESHURBEntryAllocationSize;
+      uint16_t MESHNumberofURBEntriesSlice0;
+      uint16_t MESHNumberofURBEntriesSliceN;
+      uint16_t MESHURBStartingAddressSlice0;
+      uint16_t MESHURBStartingAddressSliceN;
    } urb_mesh;
 
    /* 3DSTATE_BLEND_STATE_POINTERS */
@@ -2068,20 +2068,20 @@ struct anv_gfx_dynamic_state {
          bool     WriteDisableGreen;
          bool     WriteDisableBlue;
 
-         uint32_t LogicOpFunction;
+         uint8_t  LogicOpFunction;
          bool     LogicOpEnable;
 
          bool     ColorBufferBlendEnable;
-         uint32_t ColorClampRange;
+         uint8_t  ColorClampRange;
          bool     SimpleFloatBlendEnable;
          bool     PreBlendColorClampEnable;
          bool     PostBlendColorClampEnable;
-         uint32_t SourceBlendFactor;
-         uint32_t DestinationBlendFactor;
-         uint32_t ColorBlendFunction;
-         uint32_t SourceAlphaBlendFactor;
-         uint32_t DestinationAlphaBlendFactor;
-         uint32_t AlphaBlendFunction;
+         uint8_t  SourceBlendFactor;
+         uint8_t  DestinationBlendFactor;
+         uint8_t  ColorBlendFunction;
+         uint8_t  SourceAlphaBlendFactor;
+         uint8_t  DestinationAlphaBlendFactor;
+         uint8_t  AlphaBlendFunction;
       } rts[MAX_RTS];
 
       struct anv_state state;
@@ -2099,30 +2099,30 @@ struct anv_gfx_dynamic_state {
 
    /* 3DSTATE_CLIP */
    struct {
-      uint32_t APIMode;
-      uint32_t ViewportXYClipTestEnable;
-      uint32_t MaximumVPIndex;
-      uint32_t TriangleStripListProvokingVertexSelect;
-      uint32_t LineStripListProvokingVertexSelect;
-      uint32_t TriangleFanProvokingVertexSelect;
-      uint32_t TriangleStripOddProvokingVertexSelect;
+      uint8_t  APIMode;
+      bool     ViewportXYClipTestEnable;
+      uint8_t  MaximumVPIndex;
+      uint8_t  TriangleStripListProvokingVertexSelect;
+      uint8_t  LineStripListProvokingVertexSelect;
+      uint8_t  TriangleFanProvokingVertexSelect;
+      uint8_t  TriangleStripOddProvokingVertexSelect;
       bool     ForceZeroRTAIndexEnable;
-      uint32_t NonPerspectiveBarycentricEnable;
+      bool     NonPerspectiveBarycentricEnable;
    } clip;
 
    /* 3DSTATE_COARSE_PIXEL */
    struct {
-      uint32_t    CPSizeX;
-      uint32_t    CPSizeY;
-      uint32_t    CPSizeCombiner0Opcode;
-      uint32_t    CPSizeCombiner1Opcode;
+      uint16_t    CPSizeX;
+      uint16_t    CPSizeY;
+      uint8_t     CPSizeCombiner0Opcode;
+      uint8_t     CPSizeCombiner1Opcode;
       bool        DisableCPSPointers;
    } coarse_pixel;
 
    /* 3DSTATE_CPS/3DSTATE_CPS_POINTERS */
    struct {
       /* Gfx11 */
-      uint32_t CoarsePixelShadingMode;
+      uint8_t  CoarsePixelShadingMode;
       float    MinCPSizeX;
       float    MinCPSizeY;
       /* Gfx12+ */
@@ -2138,32 +2138,30 @@ struct anv_gfx_dynamic_state {
 
    /* 3DSTATE_GS */
    struct {
-      uint32_t ReorderMode;
+      uint8_t  ReorderMode;
    } gs;
 
    /* 3DSTATE_LINE_STIPPLE */
    struct {
-      uint32_t LineStipplePattern;
       float    LineStippleInverseRepeatCount;
-      uint32_t LineStippleRepeatCount;
+      uint16_t LineStipplePattern;
+      uint16_t LineStippleRepeatCount;
    } ls;
 
    /* 3DSTATE_MULTISAMPLE */
    struct {
-      uint32_t NumberofMultisamples;
+      uint8_t  NumberofMultisamples;
    } ms;
 
    /* 3DSTATE_PRIMITIVE_REPLICATION */
    struct {
-      uint32_t ReplicaMask;
-      uint32_t ReplicationCount;
-      uint32_t RTAIOffset[16];
+      uint16_t ReplicaMask;
+      uint8_t  ReplicationCount;
+      uint8_t  RTAIOffset[16];
    } pr;
 
    /* 3DSTATE_PS */
    struct {
-      uint32_t PositionXYOffsetSelect;
-
       uint32_t KernelStartPointer0;
       uint32_t KernelStartPointer1;
       uint32_t KernelStartPointer2;
@@ -2171,6 +2169,8 @@ struct anv_gfx_dynamic_state {
       uint32_t DispatchGRFStartRegisterForConstantSetupData0;
       uint32_t DispatchGRFStartRegisterForConstantSetupData1;
       uint32_t DispatchGRFStartRegisterForConstantSetupData2;
+
+      uint8_t  PositionXYOffsetSelect;
 
       /* Pre-Gfx20 only */
       bool     _8PixelDispatchEnable;
@@ -2180,30 +2180,30 @@ struct anv_gfx_dynamic_state {
       /* Gfx20+ only */
       bool     Kernel0Enable;
       bool     Kernel1Enable;
-      uint32_t Kernel0SIMDWidth;
-      uint32_t Kernel1SIMDWidth;
-      uint32_t Kernel0PolyPackingPolicy;
-      uint32_t Kernel0MaximumPolysperThread;
+      uint8_t  Kernel0SIMDWidth;
+      uint8_t  Kernel1SIMDWidth;
+      uint8_t  Kernel0PolyPackingPolicy;
+      uint8_t  Kernel0MaximumPolysperThread;
    } ps;
 
    /* 3DSTATE_PS_EXTRA */
    struct {
-      bool PixelShaderHasUAV;
-      bool PixelShaderIsPerSample;
-      bool PixelShaderKillsPixel;
-      bool PixelShaderIsPerCoarsePixel;
-      bool EnablePSDependencyOnCPsizeChange;
-      uint32_t InputCoverageMaskState;
+      bool     PixelShaderHasUAV;
+      bool     PixelShaderIsPerSample;
+      bool     PixelShaderKillsPixel;
+      bool     PixelShaderIsPerCoarsePixel;
+      bool     EnablePSDependencyOnCPsizeChange;
+      uint8_t  InputCoverageMaskState;
    } ps_extra;
 
    /* 3DSTATE_PS_BLEND */
    struct {
       bool     HasWriteableRT;
       bool     ColorBufferBlendEnable;
-      uint32_t SourceAlphaBlendFactor;
-      uint32_t DestinationAlphaBlendFactor;
-      uint32_t SourceBlendFactor;
-      uint32_t DestinationBlendFactor;
+      uint8_t  SourceAlphaBlendFactor;
+      uint8_t  DestinationAlphaBlendFactor;
+      uint8_t  SourceBlendFactor;
+      uint8_t  DestinationBlendFactor;
       bool     AlphaTestEnable;
       bool     IndependentAlphaBlendEnable;
       bool     AlphaToCoverageEnable;
@@ -2211,19 +2211,19 @@ struct anv_gfx_dynamic_state {
 
    /* 3DSTATE_RASTER */
    struct {
-      uint32_t APIMode;
-      bool     DXMultisampleRasterizationEnable;
-      bool     AntialiasingEnable;
-      uint32_t CullMode;
-      uint32_t FrontWinding;
-      bool     GlobalDepthOffsetEnableSolid;
-      bool     GlobalDepthOffsetEnableWireframe;
-      bool     GlobalDepthOffsetEnablePoint;
       float    GlobalDepthOffsetConstant;
       float    GlobalDepthOffsetScale;
       float    GlobalDepthOffsetClamp;
-      uint32_t FrontFaceFillMode;
-      uint32_t BackFaceFillMode;
+      uint8_t  APIMode;
+      bool     DXMultisampleRasterizationEnable;
+      bool     AntialiasingEnable;
+      uint8_t  CullMode;
+      uint8_t  FrontWinding;
+      bool     GlobalDepthOffsetEnableSolid;
+      bool     GlobalDepthOffsetEnableWireframe;
+      bool     GlobalDepthOffsetEnablePoint;
+      uint8_t  FrontFaceFillMode;
+      uint8_t  BackFaceFillMode;
       bool     ViewportZFarClipTestEnable;
       bool     ViewportZNearClipTestEnable;
       bool     ConservativeRasterizationEnable;
@@ -2232,84 +2232,85 @@ struct anv_gfx_dynamic_state {
 
    /* 3DSTATE_SCISSOR_STATE_POINTERS */
    struct {
-      uint32_t count;
+      uint8_t count;
       struct {
-         uint32_t ScissorRectangleYMin;
-         uint32_t ScissorRectangleXMin;
-         uint32_t ScissorRectangleYMax;
-         uint32_t ScissorRectangleXMax;
+         uint16_t ScissorRectangleYMin;
+         uint16_t ScissorRectangleXMin;
+         uint16_t ScissorRectangleYMax;
+         uint16_t ScissorRectangleXMax;
       } elem[MAX_SCISSORS];
    } scissor;
 
    /* 3DSTATE_SBE */
    struct {
       bool     AttributeSwizzleEnable;
+      uint8_t  PointSpriteTextureCoordinateOrigin;
       uint32_t PointSpriteTextureCoordinateEnable;
-      uint32_t PointSpriteTextureCoordinateOrigin;
-      uint32_t NumberofSFOutputAttributes;
+      uint8_t  NumberofSFOutputAttributes;
       uint32_t ConstantInterpolationEnable;
-      uint32_t VertexURBEntryReadOffset;
-      uint32_t VertexURBEntryReadLength;
+      uint8_t  VertexURBEntryReadOffset;
+      uint8_t  VertexURBEntryReadLength;
       bool     VertexAttributesBypass;
-      uint32_t PrimitiveIDOverrideAttributeSelect;
+      uint8_t  PrimitiveIDOverrideAttributeSelect;
       bool     PrimitiveIDOverrideComponentX;
       bool     PrimitiveIDOverrideComponentY;
       bool     PrimitiveIDOverrideComponentZ;
       bool     PrimitiveIDOverrideComponentW;
    } sbe;
 
+   /* 3DSTATE_SBE_MESH */
    struct {
-      uint32_t PerVertexURBEntryOutputReadOffset;
-      uint32_t PerVertexURBEntryOutputReadLength;
-      uint32_t PerPrimitiveURBEntryOutputReadOffset;
-      uint32_t PerPrimitiveURBEntryOutputReadLength;
+      uint8_t  PerVertexURBEntryOutputReadOffset;
+      uint8_t  PerVertexURBEntryOutputReadLength;
+      uint8_t  PerPrimitiveURBEntryOutputReadOffset;
+      uint8_t  PerPrimitiveURBEntryOutputReadLength;
    } sbe_mesh;
 
    /* 3DSTATE_SBE_SWIZ */
    struct {
       struct {
-         uint32_t SourceAttribute;
+         uint8_t SourceAttribute;
       } Attribute[16];
    } sbe_swiz;
 
    /* 3DSTATE_SF */
    struct {
-      uint32_t DerefBlockSize;
-      uint32_t PointWidthSource;
+      uint8_t  DerefBlockSize;
+      uint8_t  PointWidthSource;
       bool     LastPixelEnable;
       float    LineWidth;
-      uint32_t TriangleStripListProvokingVertexSelect;
-      uint32_t LineStripListProvokingVertexSelect;
-      uint32_t TriangleFanProvokingVertexSelect;
-      uint32_t TriangleStripOddProvokingVertexSelect;
+      uint8_t  TriangleStripListProvokingVertexSelect;
+      uint8_t  LineStripListProvokingVertexSelect;
+      uint8_t  TriangleFanProvokingVertexSelect;
+      uint8_t  TriangleStripOddProvokingVertexSelect;
       bool     LegacyGlobalDepthBiasEnable;
    } sf;
 
    /* 3DSTATE_STREAMOUT */
    struct {
       bool     RenderingDisable;
-      uint32_t RenderStreamSelect;
-      uint32_t ReorderMode;
-      uint32_t ForceRendering;
+      uint8_t  RenderStreamSelect;
+      uint8_t  ReorderMode;
+      uint8_t  ForceRendering;
    } so;
 
    /* 3DSTATE_SAMPLE_MASK */
    struct {
-      uint32_t SampleMask;
+      uint16_t SampleMask;
    } sm;
 
    /* 3DSTATE_DS */
    struct {
-      bool ComputeWCoordinateEnable;
+      bool     ComputeWCoordinateEnable;
    } ds;
 
    /* 3DSTATE_TE */
    struct {
-      uint32_t TEDomain;
-      uint32_t PatchHeaderLayout;
-      uint32_t Partitioning;
-      uint32_t OutputTopology;
-      uint32_t TessellationDistributionMode;
+      uint8_t  TEDomain;
+      uint8_t  PatchHeaderLayout;
+      uint8_t  Partitioning;
+      uint8_t  OutputTopology;
+      uint8_t  TessellationDistributionMode;
    } te;
 
    /* 3DSTATE_VF */
@@ -2320,15 +2321,15 @@ struct anv_gfx_dynamic_state {
 
    /* 3DSTATE_VFG */
    struct {
-      uint32_t DistributionGranularity;
-      uint32_t DistributionMode;
+      uint8_t  DistributionGranularity;
+      uint8_t  DistributionMode;
       bool     GranularityThresholdDisable;
       bool     ListCutIndexEnable;
    } vfg;
 
    /* 3DSTATE_VF_TOPOLOGY */
    struct {
-      uint32_t PrimitiveTopologyType;
+      uint8_t  PrimitiveTopologyType;
    } vft;
 
    /* 3DSTATE_VS */
@@ -2338,7 +2339,7 @@ struct anv_gfx_dynamic_state {
 
    /* 3DSTATE_VIEWPORT_STATE_POINTERS_CC */
    struct {
-      uint32_t count;
+      uint8_t count;
       struct {
          float MinimumDepth;
          float MaximumDepth;
@@ -2371,41 +2372,41 @@ struct anv_gfx_dynamic_state {
    /* 3DSTATE_WM */
    struct {
       bool     LineStippleEnable;
-      uint32_t BarycentricInterpolationMode;
+      uint8_t  BarycentricInterpolationMode;
    } wm;
 
    /* 3DSTATE_WM_DEPTH_STENCIL */
    struct {
       bool     DoubleSidedStencilEnable;
-      uint32_t StencilTestMask;
-      uint32_t StencilWriteMask;
-      uint32_t BackfaceStencilTestMask;
-      uint32_t BackfaceStencilWriteMask;
-      uint32_t StencilReferenceValue;
-      uint32_t BackfaceStencilReferenceValue;
+      uint8_t  StencilTestMask;
+      uint8_t  StencilWriteMask;
+      uint8_t  BackfaceStencilTestMask;
+      uint8_t  BackfaceStencilWriteMask;
+      uint8_t  StencilReferenceValue;
+      uint8_t  BackfaceStencilReferenceValue;
       bool     DepthTestEnable;
       bool     DepthBufferWriteEnable;
-      uint32_t DepthTestFunction;
+      uint8_t  DepthTestFunction;
       bool     StencilTestEnable;
       bool     StencilBufferWriteEnable;
-      uint32_t StencilFailOp;
-      uint32_t StencilPassDepthPassOp;
-      uint32_t StencilPassDepthFailOp;
-      uint32_t StencilTestFunction;
-      uint32_t BackfaceStencilFailOp;
-      uint32_t BackfaceStencilPassDepthPassOp;
-      uint32_t BackfaceStencilPassDepthFailOp;
-      uint32_t BackfaceStencilTestFunction;
+      uint8_t  StencilFailOp;
+      uint8_t  StencilPassDepthPassOp;
+      uint8_t  StencilPassDepthFailOp;
+      uint8_t  StencilTestFunction;
+      uint8_t  BackfaceStencilFailOp;
+      uint8_t  BackfaceStencilPassDepthPassOp;
+      uint8_t  BackfaceStencilPassDepthFailOp;
+      uint8_t  BackfaceStencilTestFunction;
    } wm_ds;
 
    /* 3DSTATE_TBIMR_TILE_PASS_INFO */
    struct {
-      unsigned TileRectangleHeight;
-      unsigned TileRectangleWidth;
-      unsigned VerticalTileCount;
-      unsigned HorizontalTileCount;
-      unsigned TBIMRBatchSize;
-      unsigned TileBoxCheck;
+      uint16_t TileRectangleHeight;
+      uint16_t TileRectangleWidth;
+      uint16_t VerticalTileCount;
+      uint16_t HorizontalTileCount;
+      uint8_t  TBIMRBatchSize;
+      uint8_t  TileBoxCheck;
    } tbimr;
    bool use_tbimr;
 

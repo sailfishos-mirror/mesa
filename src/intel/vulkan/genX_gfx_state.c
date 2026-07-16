@@ -2671,13 +2671,12 @@ cmd_buffer_repack_gfx_state(struct anv_gfx_dynamic_state *hw_state,
    .name = hw_state->category.name
 #define SET(s, category, name) \
    s.name = hw_state->category.name
-#define SET_ARRAY(s, category, name)            \
-   do {                                         \
-      assert(sizeof(s.name) ==                  \
-             sizeof(hw_state->category.name));  \
-      memcpy(&s.name,                           \
-             &hw_state->category.name,          \
-             sizeof(s.name));                   \
+#define SET_ARRAY(s, category, name)                             \
+   do {                                                          \
+      assert(ARRAY_SIZE(s.name) ==                               \
+             ARRAY_SIZE(hw_state->category.name));               \
+      for (uint32_t __i = 0; __i < ARRAY_SIZE(s.name); __i++)    \
+         s.name[__i] = hw_state->category.name[__i];             \
    } while (0)
 #define IS_DIRTY(name) BITSET_TEST(hw_state->pack_dirty, ANV_GFX_STATE_##name)
 
