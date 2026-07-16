@@ -1,34 +1,5 @@
 dEQP-GLES2.functional.fbo.completeness.renderable.texture.color0.rgb_half_float_oes,Fail
 
-# This bunch is not reproducible outside of CI
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.8,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.20,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.32,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.35,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.43,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.45,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.46,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.62,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.63,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.64,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.74,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.77,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.86,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.88,Fail
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.94,Fail
-dEQP-GLES2.functional.fragment_ops.random.6,Fail
-dEQP-GLES2.functional.fragment_ops.random.9,Fail
-dEQP-GLES2.functional.fragment_ops.random.19,Fail
-dEQP-GLES2.functional.fragment_ops.random.31,Fail
-dEQP-GLES2.functional.fragment_ops.random.34,Fail
-dEQP-GLES2.functional.fragment_ops.random.41,Fail
-dEQP-GLES2.functional.fragment_ops.random.61,Fail
-dEQP-GLES2.functional.fragment_ops.random.63,Fail
-dEQP-GLES2.functional.fragment_ops.random.64,Fail
-dEQP-GLES2.functional.fragment_ops.random.66,Fail
-dEQP-GLES2.functional.fragment_ops.random.81,Fail
-dEQP-GLES2.functional.fragment_ops.random.77,Fail
-
 dEQP-GLES2.functional.rasterization.primitives.line_loop_wide,Fail
 dEQP-GLES2.functional.rasterization.primitives.line_strip_wide,Fail
 dEQP-GLES2.functional.shaders.conversions.vector_combine.vec2_bool_to_ivec3_fragment,Fail

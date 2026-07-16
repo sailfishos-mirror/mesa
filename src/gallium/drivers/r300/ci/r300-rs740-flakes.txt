@@ -1,7 +1,4 @@
 dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.17
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.35
-dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.88
-dEQP-GLES2.functional.fragment_ops.random.77
 dEQP-GLES2.functional.fragment_ops.scissor.contained_point
 
 glx@glx-buffer-age

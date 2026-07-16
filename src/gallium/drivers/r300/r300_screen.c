@@ -217,8 +217,8 @@ util_format_is_rgba1010102_variant(const struct util_format_description *desc)
    return true;
 }
 
-static bool r300_is_blending_supported(struct r300_screen *rscreen,
-                                       enum pipe_format format)
+bool r300_is_blending_supported(struct r300_screen *rscreen,
+                                enum pipe_format format)
 {
     int c;
     const struct util_format_description *desc =
