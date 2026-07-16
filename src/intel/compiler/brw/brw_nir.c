@@ -484,8 +484,17 @@ lower_urb_inputs(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
 
       nir_def *load = try_load_push_input(b, cb_data, intrin, offset);
       if (!load) {
-         load = load_urb(b, cb_data, intrin, input_handle(b, intrin), offset,
-                         ACCESS_CAN_REORDER | ACCESS_NON_WRITEABLE);
+         enum gl_access_qualifier qualifiers = 0;
+         /* Vertex shaders are reading & writing the same location for URB
+          * inputs/outputs, so prevent reorder on that stage so it doesn't
+          * reorder input loads beyond output stores.
+          */
+         if (b->shader->info.stage != MESA_SHADER_VERTEX)
+            qualifiers |= ACCESS_CAN_REORDER | ACCESS_NON_WRITEABLE;
+
+         load = load_urb(b, cb_data, intrin,
+                         input_handle(b, intrin),
+                         offset, qualifiers);
       }
       if (load != &intrin->def)
          nir_def_replace(&intrin->def, load);
