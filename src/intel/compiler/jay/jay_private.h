@@ -29,12 +29,19 @@ void jay_populate_prog_data(const struct intel_device_info *devinfo,
                             nir_shader *nir,
                             union brw_any_prog_data *prog_data,
                             union brw_any_prog_key *key);
-unsigned jay_process_nir(const struct intel_device_info *devinfo,
-                         nir_shader *nir,
-                         union brw_any_prog_data *prog_data,
-                         union brw_any_prog_key *key,
-                         debug_archiver *archiver,
-                         bool *track_helpers);
+void jay_process_nir(const struct intel_device_info *devinfo,
+                     nir_shader *nir,
+                     union brw_any_prog_data *prog_data,
+                     union brw_any_prog_key *key,
+                     debug_archiver *archiver);
+unsigned jay_select_simd(const struct intel_device_info *, nir_shader *nir);
+void jay_process_nir_for_simd(const struct intel_device_info *devinfo,
+                              nir_shader *nir,
+                              unsigned simd_width,
+                              union brw_any_prog_data *prog_data,
+                              union brw_any_prog_key *key,
+                              debug_archiver *archiver,
+                              bool *track_helpers);
 
 void jay_compute_liveness(jay_function *f);
 void jay_calculate_register_demands(jay_function *f);

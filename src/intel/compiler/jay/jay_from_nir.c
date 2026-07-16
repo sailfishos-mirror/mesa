@@ -4017,9 +4017,13 @@ jay_compile(const struct intel_device_info *devinfo,
       INTEL_DEBUG(intel_debug_flag_for_shader_stage(nir->info.stage)) &&
       (!nir->info.internal || NIR_DEBUG(PRINT_INTERNAL));
 
+   jay_process_nir(devinfo, nir, prog_data, key, archiver);
+
+   unsigned simd_width = jay_select_simd(devinfo, nir);
+
    bool track_helpers = false;
-   unsigned simd_width =
-      jay_process_nir(devinfo, nir, prog_data, key, archiver, &track_helpers);
+   jay_process_nir_for_simd(devinfo, nir, simd_width, prog_data, key, archiver,
+                            &track_helpers);
 
    if (debug) {
       /* We can't use nir_print_shader since it reindexes SSA defs. */

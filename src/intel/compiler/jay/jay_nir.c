@@ -611,13 +611,15 @@ lower_1bit_phi(nir_builder *b, nir_phi_instr *phi, void *_)
    return false;
 }
 
-unsigned
+/**
+ * Do NIR processing that can be shared across all SIMD width variants.
+ */
+void
 jay_process_nir(const struct intel_device_info *devinfo,
                 nir_shader *nir,
                 union brw_any_prog_data *prog_data,
                 union brw_any_prog_key *key,
-                debug_archiver *archiver,
-                bool *track_helpers)
+                debug_archiver *archiver)
 {
    enum mesa_shader_stage stage = nir->info.stage;
    struct brw_compiler compiler = { .devinfo = devinfo };
@@ -628,37 +630,10 @@ jay_process_nir(const struct intel_device_info *devinfo,
    // prog_data->base.source_hash = params->source_hash;
    prog_data->base.total_shared = nir->info.shared_size;
 
-   /* TODO: Real heuristic */
-   bool do_simd32 = stage == MESA_SHADER_FRAGMENT ? INTEL_SIMD(FS, 32) :
-                    stage == MESA_SHADER_COMPUTE  ? INTEL_SIMD(CS, 32) :
-                    stage == MESA_SHADER_MESH     ? INTEL_SIMD(MS, 32) :
-                    stage == MESA_SHADER_TASK     ? INTEL_SIMD(TS, 32) :
-                                                    false;
-
-   /* The 'Render Target Write message' section of the docs says:
-    *
-    *    "Output Stencil is not supported with SIMD16 Render Target
-    *     Write Messages."
-    *
-    * Likewise for Xe2 at SIMD32.
-    */
-   if (stage == MESA_SHADER_FRAGMENT &&
-       (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL)))
-      do_simd32 = false;
-
-   if (stage == MESA_SHADER_FRAGMENT && nir->info.fs.color_is_dual_source)
-      do_simd32 = false;
-
-   /* SIMD splitting of ray queries is inefficient, avoid it when possible */
-   if (prog_data->base.ray_queries && nir->info.min_subgroup_size < 32)
-      do_simd32 = false;
-
-   unsigned simd_width = do_simd32 ? (nir->info.api_subgroup_size ?: 32) : 16;
-
    brw_pass_tracker pt_ = {
       .nir = nir,
       .key = &key->base,
-      .dispatch_width = simd_width,
+      .dispatch_width = 0,
       .compiler = &compiler,
       .archiver = archiver,
    }, *pt = &pt_;
@@ -1046,6 +1021,62 @@ jay_process_nir(const struct intel_device_info *devinfo,
    }
 
    brw_postprocess_nir_opts(pt);
+}
+
+unsigned
+jay_select_simd(const struct intel_device_info *devinfo, nir_shader *nir)
+{
+   /* TODO: Real heuristic */
+   bool do_simd32 = stage == MESA_SHADER_FRAGMENT ? INTEL_SIMD(FS, 32) :
+                    stage == MESA_SHADER_COMPUTE  ? INTEL_SIMD(CS, 32) :
+                    stage == MESA_SHADER_MESH     ? INTEL_SIMD(MS, 32) :
+                    stage == MESA_SHADER_TASK     ? INTEL_SIMD(TS, 32) :
+                                                    false;
+
+   /* The 'Render Target Write message' section of the docs says:
+    *
+    *    "Output Stencil is not supported with SIMD16 Render Target
+    *     Write Messages."
+    *
+    * Likewise for Xe2 at SIMD32.
+    */
+   if (nir->info.stage == MESA_SHADER_FRAGMENT &&
+       (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL)))
+      do_simd32 = false;
+
+   if (nir->info.stage == MESA_SHADER_FRAGMENT &&
+       nir->info.fs.color_is_dual_source)
+      do_simd32 = false;
+
+   /* SIMD splitting of ray queries is inefficient, avoid it when possible */
+   if (nir->info.ray_queries && nir->info.min_subgroup_size < 32)
+      do_simd32 = false;
+
+   unsigned simd_width = do_simd32 ? (nir->info.api_subgroup_size ?: 32) : 16;
+
+   return simd_width;
+}
+
+/**
+ * Finish processing the cloned NIR for the given SIMD width.
+ */
+void
+jay_process_nir_for_simd(const struct intel_device_info *devinfo,
+                         nir_shader *nir,
+                         unsigned simd_width,
+                         union brw_any_prog_data *prog_data,
+                         union brw_any_prog_key *key,
+                         debug_archiver *archiver,
+                         bool *track_helpers)
+{
+   struct brw_compiler compiler = { .devinfo = devinfo };
+   brw_pass_tracker pt_ = {
+      .nir = nir,
+      .key = &key->base,
+      .dispatch_width = simd_width,
+      .compiler = &compiler,
+      .archiver = archiver,
+   }, *pt = &pt_;
 
    brw_nir_apply_key(pt, &key->base, simd_width);
 
@@ -1082,7 +1113,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
    JAY_NIR_PASS(nir_split_conversions, &split_conv_opts);
 
    /* Do this only after the last opt_gcm. GCM will undo this lowering. */
-   if (stage == MESA_SHADER_FRAGMENT) {
+   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       JAY_NIR_PASS(intel_nir_lower_non_uniform_barycentric_at_sample);
    }
 
@@ -1106,7 +1137,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
    nir_sweep(nir);
    nir_divergence_analysis(nir);
 
-   if (stage == MESA_SHADER_FRAGMENT) {
+   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       /* Certain features require tracking helpers for correctness */
       nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
       *track_helpers |= nir->info.fs.uses_discard || nir->info.writes_memory;
@@ -1130,5 +1161,4 @@ jay_process_nir(const struct intel_device_info *devinfo,
 
    /* This must be the very last pass since nir_print itself will reindex! */
    nj_index_ssa_defs(nir);
-   return simd_width;
 }
