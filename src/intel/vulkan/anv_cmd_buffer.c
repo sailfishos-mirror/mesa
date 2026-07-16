@@ -975,7 +975,7 @@ void anv_CmdBindVertexBuffers3KHR(
    const VkBindVertexBuffer3InfoKHR*           pBindingInfos)
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   struct anv_vertex_binding *vb = cmd_buffer->state.vertex_bindings;
+   struct anv_vertex_binding *vb = cmd_buffer->state.gfx.vertex_bindings;
 
    /* We have to defer setting up vertex buffer since we need the buffer
     * stride from the pipeline. */
@@ -1035,7 +1035,7 @@ void anv_CmdBindTransformFeedbackBuffers2EXT(
     const VkBindTransformFeedbackBuffer2InfoEXT* pBindingInfos)
 {
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   struct anv_xfb_binding *xfb = cmd_buffer->state.xfb_bindings;
+   struct anv_xfb_binding *xfb = cmd_buffer->state.gfx.xfb_bindings;
 
    /* We have to defer setting up vertex buffer since we need the buffer
     * stride from the pipeline. */

@@ -4634,6 +4634,16 @@ struct anv_cmd_graphics_state {
     */
    uint8_t color_output_mapping[MAX_RTS];
 
+   /* For Gen 9, this allocation is 2 greater than the maximum allowed number
+    * of vertex buffers; see comment on get_max_vbs definition. Specializing
+    * this allocation seems needlessly complicated when we can enforce the VB
+    * limit elsewhere.
+    */
+   struct anv_vertex_binding vertex_bindings[HW_MAX_VBS];
+   bool                      xfb_enabled;
+   struct anv_xfb_binding    xfb_bindings[MAX_XFB_BUFFERS];
+
+
    anv_cmd_dirty_mask_t dirty;
    uint32_t vb_dirty;
 
@@ -4862,14 +4872,6 @@ struct anv_cmd_state {
    /* Last programmed 3DSTATE_BINDING_TABLE_POOL_ALLOC address */
    struct anv_address                           btp;
 
-   /* For Gen 9, this allocation is 2 greater than the maximum allowed
-    * number of vertex buffers; see comment on get_max_vbs definition.
-    * Specializing this allocation seems needlessly complicated when we can
-    * enforce the VB limit elsewhere.
-    */
-   struct anv_vertex_binding                    vertex_bindings[HW_MAX_VBS];
-   bool                                         xfb_enabled;
-   struct anv_xfb_binding                       xfb_bindings[MAX_XFB_BUFFERS];
    struct anv_state                             binding_tables[MESA_VULKAN_SHADER_STAGES];
    struct anv_state                             samplers[MESA_VULKAN_SHADER_STAGES];
 

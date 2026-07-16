@@ -760,7 +760,7 @@ cmd_buffer_flush_vertex_buffers(struct anv_cmd_buffer *cmd_buffer,
    uint32_t i = 0;
    u_foreach_bit(vb, vb_emit) {
       const struct anv_vertex_binding *binding =
-         &cmd_buffer->state.vertex_bindings[vb];
+         &cmd_buffer->state.gfx.vertex_bindings[vb];
 
       struct GENX(VERTEX_BUFFER_STATE) state;
       if (binding->size > 0) {
@@ -892,7 +892,7 @@ cmd_buffer_flush_gfx_state(struct anv_cmd_buffer *cmd_buffer)
        * allowed to bind different XFB buffers while XFB is enabled.
        */
       for (unsigned idx = 0; idx < MAX_XFB_BUFFERS; idx++) {
-         struct anv_xfb_binding *xfb = &cmd_buffer->state.xfb_bindings[idx];
+         struct anv_xfb_binding *xfb = &cmd_buffer->state.gfx.xfb_bindings[idx];
          anv_batch_emit(&cmd_buffer->batch, GENX(3DSTATE_SO_BUFFER), sob) {
 #if GFX_VER < 12
             sob.SOBufferIndex = idx;
@@ -901,7 +901,7 @@ cmd_buffer_flush_gfx_state(struct anv_cmd_buffer *cmd_buffer)
             sob._3DCommandSubOpcode = SO_BUFFER_INDEX_0_CMD + idx;
 #endif
 
-            if (cmd_buffer->state.xfb_enabled &&
+            if (cmd_buffer->state.gfx.xfb_enabled &&
                 xfb->addr != 0 && xfb->size != 0) {
                sob.MOCS = xfb->mocs;
                sob.SurfaceBaseAddress = anv_address_from_u64(xfb->addr);
@@ -2451,7 +2451,7 @@ void genX(CmdBeginTransformFeedback2EXT)(
       }
    }
 
-   cmd_buffer->state.xfb_enabled = true;
+   cmd_buffer->state.gfx.xfb_enabled = true;
    cmd_buffer->state.gfx.dirty |= ANV_CMD_DIRTY_XFB_ENABLE;
 }
 
@@ -2504,7 +2504,7 @@ void genX(CmdEndTransformFeedback2EXT)(
 end_xfb:
    trace_intel_end_xfb(&cmd_buffer->trace);
 
-   cmd_buffer->state.xfb_enabled = false;
+   cmd_buffer->state.gfx.xfb_enabled = false;
    cmd_buffer->state.gfx.dirty |= ANV_CMD_DIRTY_XFB_ENABLE;
 }
 
