@@ -939,6 +939,16 @@ jay_src_alignment(jay_shader *shader, const jay_inst *I, unsigned s)
       return jay_ugpr_per_grf(shader);
    }
 
+   /* Float and 64-bit source regions must preserve the LSB channel bit location
+    * unless using scalar broadcast.
+    */
+   if ((jay_type_is_any_float(I->type) ||
+        jay_type_size_bits(jay_src_type(I, s)) == 64) &&
+       I->src[s].file == UGPR &&
+       jay_num_values(I->src[s]) > jay_type_vector_length(jay_src_type(I, s))) {
+      return jay_ugpr_per_grf(shader);
+   }
+
    /* Undocumented HW restriction: All operands to an operation involving
     * bfloats must be GRF-aligned. 
     */
@@ -979,6 +989,15 @@ jay_dst_alignment(jay_shader *shader, const jay_inst *I)
                                I->op == JAY_OPCODE_MUL_32 ||
                                I->op == JAY_OPCODE_COARSE_PIXEL_CORNERS)) {
 
+      return jay_ugpr_per_grf(shader);
+   }
+
+   /* Float and 64-bit source regions must preserve the LSB channel bit location
+    * unless using scalar broadcast.
+    */
+   if ((jay_type_is_any_float(I->type) || jay_type_size_bits(I->type) == 64) &&
+       I->uniform &&
+       jay_num_values(I->dst) > jay_type_vector_length(I->type)) {
       return jay_ugpr_per_grf(shader);
    }
 
