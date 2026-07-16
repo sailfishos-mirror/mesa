@@ -2170,7 +2170,7 @@ nir_load_reg(nir_builder *b, nir_def *reg)
 }
 
 #undef nir_store_reg
-static inline void
+static inline nir_intrinsic_instr *
 nir_store_reg(nir_builder *b, nir_def *value, nir_def *reg)
 {
    ASSERTED nir_intrinsic_instr *decl = nir_reg_get_decl(reg);
@@ -2180,7 +2180,7 @@ nir_store_reg(nir_builder *b, nir_def *value, nir_def *reg)
    assert(value->num_components == num_components);
    assert(value->bit_size == bit_size);
 
-   nir_build_store_reg(b, value, reg);
+   return nir_build_store_reg(b, value, reg);
 }
 
 static inline nir_tex_src
