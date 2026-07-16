@@ -2523,7 +2523,6 @@ UINT d3d12_video_encoder_calculate_max_output_compressed_bitstream_size(
 
    const UINT MIN_BUFFER_SIZE = 256 * 1024; // 256KB minimum buffer size
    const UINT MAX_BUFFER_SIZE = 20 * 1024 * 1024; // Maximum buffer size of 20MB
-   const float EXPECTED_COMPRESSION_FACTOR = 2.0f; // Assume 50% of calculated size after compression of raw pixel sizes
 
    UINT alignedWidth = (uiWidth + 15) & ~15;
    UINT alignedHeight = (uiHeight + 15) & ~15;
@@ -2546,9 +2545,6 @@ UINT d3d12_video_encoder_calculate_max_output_compressed_bitstream_size(
          bufferSize = (((alignedHeight) * (alignedWidth) * 15) >> 3);
          break;
    }
-
-   // Apply EXPECTED_COMPRESSION_FACTOR constant (% of calculated size)
-   bufferSize = static_cast<UINT>(std::ceil(bufferSize / EXPECTED_COMPRESSION_FACTOR));
 
    // Clamp buffer size between minimum and maximum limits
    bufferSize = std::max(MIN_BUFFER_SIZE, std::min(bufferSize, MAX_BUFFER_SIZE));
