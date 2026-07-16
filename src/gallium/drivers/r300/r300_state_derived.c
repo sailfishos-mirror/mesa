@@ -702,11 +702,18 @@ static uint32_t r300_get_border_color(enum pipe_format format,
             util_pack_color(border_swizzled, PIPE_FORMAT_R8G8B8A8_UNORM, &uc);
             return uc.ui[0];
         case PIPE_FORMAT_DXT1_SRGB:
+            /* The sampler doesn't apply the implicit alpha=1 to borders. */
+            border_swizzled[3] = 1.0f;
+            FALLTHROUGH;
         case PIPE_FORMAT_DXT1_SRGBA:
         case PIPE_FORMAT_DXT3_SRGBA:
         case PIPE_FORMAT_DXT5_SRGBA:
             util_pack_color(border_swizzled, PIPE_FORMAT_B8G8R8A8_SRGB, &uc);
             return uc.ui[0];
+        case PIPE_FORMAT_DXT1_RGB:
+            /* The sampler doesn't apply the implicit alpha=1 to borders. */
+            border_swizzled[3] = 1.0f;
+            FALLTHROUGH;
         default:
             util_pack_color(border_swizzled, PIPE_FORMAT_B8G8R8A8_UNORM, &uc);
             return uc.ui[0];
