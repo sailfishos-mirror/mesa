@@ -274,6 +274,7 @@ fuse_flag_op(jay_function *f, jay_inst *I, jay_inst *use, BITSET_WORD *defined)
 {
    if (I->op != JAY_OPCODE_CMP ||
        !(use->op == JAY_OPCODE_AND || use->op == JAY_OPCODE_OR) ||
+       use->type != JAY_TYPE_U1 ||
        (use->src[0].negate || use->src[1].negate)) {
       return false;
    }
