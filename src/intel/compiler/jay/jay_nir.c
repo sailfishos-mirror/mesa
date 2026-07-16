@@ -159,6 +159,13 @@ jay_nir_lower_simd(nir_builder *b, nir_intrinsic_instr *intr, void *simd_)
    unsigned simd_width = *((unsigned *) simd_);
 
    switch (intr->intrinsic) {
+   case nir_intrinsic_last_invocation: {
+      nir_def *mask = nir_ballot(b, 1, simd_width, nir_imm_true(b));
+      nir_def *msb_rev = nir_ufind_msb_rev(b, nir_u2u32(b, mask));
+      nir_def_replace(&intr->def, nir_iadd_imm(b, nir_ineg(b, msb_rev), 31));
+      return true;
+   }
+
    case nir_intrinsic_elect: {
       /* mask & -mask isolates the lowest set bit in the mask. */
       nir_def *mask = nir_ballot(b, 1, simd_width, nir_imm_true(b));
