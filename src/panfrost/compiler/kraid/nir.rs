@@ -1848,6 +1848,36 @@ impl<'a> ShaderFromNir<'a> {
                 ];
                 self.set_ssa(&intrin.def, ssa);
             }
+            nir_intrinsic_load_attr_pan => {
+                assert_eq!(intrin.def.bit_size, intrin.dest_type().bit_size());
+                assert_eq!(intrin.def.num_components, intrin.num_components);
+
+                let num_type = match intrin.dest_type().base_type() {
+                    ALUType::FLOAT => NumericType::Float,
+                    ALUType::INT => NumericType::SignedInteger,
+                    ALUType::UINT => NumericType::UnsignedInteger,
+                    ALUType::INVALID => NumericType::Auto,
+                    _ => panic!("Invalid NIR ALU type"),
+                };
+                let dst_type = DataType::get(
+                    intrin.def.num_components,
+                    num_type,
+                    intrin.def.bit_size,
+                );
+
+                let vertex_index = self.get_src(&srcs[0]);
+                let instance_index = self.get_src(&srcs[1]);
+                let handle = self.get_src(&srcs[2]);
+
+                let dst = self.alloc_ssa(b, &intrin.def).into();
+                b.push_op(OpLdAttr {
+                    dst,
+                    dst_type,
+                    vertex_index,
+                    instance_index,
+                    handle,
+                });
+            }
             nir_intrinsic_load_vertex_id
             | nir_intrinsic_load_raw_vertex_id
             | nir_intrinsic_load_instance_id

@@ -65,6 +65,7 @@ fn get_va_stats(s: &Shader) -> valhall_stats {
                     | Op::LeaBuf(_)
                     | Op::LeaPka(_)
                     | Op::LeaTex(_)
+                    | Op::LdAttr(_)
                     | Op::LdCvt(_)
                     | Op::LdGClk(_)
                     | Op::LdPka(_)

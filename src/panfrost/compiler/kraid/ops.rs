@@ -2306,6 +2306,45 @@ impl fmt::Display for MemAccess {
     S32, V2S32, V3S32, V4S32,
     U32, V2U32, V3U32, V4U32,
 ])]
+pub struct OpLdAttr {
+    pub dst: Dst,
+    pub dst_type: DataType,
+
+    #[src_type(I32)]
+    pub vertex_index: Src,
+    #[src_type(I32)]
+    pub instance_index: Src,
+    #[src_type(I32)]
+    pub handle: Src,
+}
+
+impl DisplayOp for OpLdAttr {
+    fn fmt_name(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LD_ATTR.{}", self.dst_type)
+    }
+
+    fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} {} {}",
+            self.fmt_src(&self.vertex_index),
+            self.fmt_src(&self.instance_index),
+            self.fmt_handle_src(&self.handle),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Opcode)]
+#[variants(dst_type in [
+    F16, V2F16, V3F16, V4F16,
+    S16, V2S16, V3S16, V4S16,
+    U16, V2U16, V3U16, V4U16,
+    F32, V2F32, V3F32, V4F32,
+    A32, V2A32, V3A32, V4A32,
+    S32, V2S32, V3S32, V4S32,
+    U32, V2U32, V3U32, V4U32,
+])]
 pub struct OpLdCvt {
     pub dst: Dst,
     pub dst_type: DataType,
@@ -3644,6 +3683,7 @@ pub enum Op {
     IMul(Box<OpIMul>),
     ISub(Box<OpISub>),
     IToF32(Box<OpIToF32>),
+    LdAttr(Box<OpLdAttr>),
     LdCvt(Box<OpLdCvt>),
     LdExp(Box<OpLdExp>),
     LdGClk(Box<OpLdGClk>),

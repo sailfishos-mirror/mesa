@@ -1864,6 +1864,45 @@ impl V9Instr for OpIToF32 {
     }
 }
 
+impl V9Instr for OpLdAttr {
+    fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
+        V9InstrInfo::from_isa(
+            LdAttr::get_info((), arch),
+            src_map! {
+                src0: vertex_index,
+                src1: instance_index,
+                src2: handle,
+            },
+        )
+    }
+
+    fn src_supports_imm32(&self, src: &Src, _arch: u8, imm: u32) -> bool {
+        ptr_eq(src, &self.handle) && ResHandle::from_bits(imm).fits_imm_op(4)
+    }
+
+    fn encode(&self, e: V9Encoder) -> EncodedInstr {
+        if let Ok(attr) = ResHandle::try_from(&self.handle) {
+            assert!(attr.fits_imm_op(4));
+            e.encode(LdAttrImm {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.vertex_index),
+                src1: op_encode_src(self, &self.instance_index),
+                attribute_index: attr.index as u8,
+                attribute_table_index: attr.table,
+            })
+        } else {
+            e.encode(LdAttr {
+                message_slot_index: e.get_msg_slot_idx().unwrap(),
+                sr_dst: op_encode_sr_write(self, &self.dst),
+                src0: op_encode_src(self, &self.vertex_index),
+                src1: op_encode_src(self, &self.instance_index),
+                src2: op_encode_src(self, &self.handle),
+            })
+        }
+    }
+}
+
 impl V9Instr for OpLdCvt {
     fn get_info(&self, arch: u8) -> Option<V9InstrInfo> {
         V9InstrInfo::from_isa(
@@ -2759,6 +2798,7 @@ macro_rules! v9_op_match_else {
             Op::IMul($x) => $y,
             Op::ISub($x) => $y,
             Op::IToF32($x) => $y,
+            Op::LdAttr($x) => $y,
             Op::LdCvt($x) => $y,
             Op::LdExp($x) => $y,
             Op::LdGClk($x) => $y,
