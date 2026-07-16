@@ -446,8 +446,11 @@ try_load_push_input(nir_builder *b,
    const uint32_t byte_end_offset =
       byte_offset + (io->def.bit_size / 8) * io->def.num_components;
 
-   if (byte_end_offset > cb_data->max_push_bytes)
+   if (byte_end_offset > cb_data->max_urb_read_length * 32)
       return NULL;
+
+   *cb_data->out_urb_read_length = MAX2(*cb_data->out_urb_read_length,
+                                        DIV_ROUND_UP(byte_end_offset, 32));
 
    if (stage == MESA_SHADER_GEOMETRY) {
       /* GS vertex index isn't part of the offset */
@@ -463,9 +466,6 @@ try_load_push_input(nir_builder *b,
       nir_intrinsic_set_component(io, io_component(io, cb_data));
       return &io->def;
    }
-
-   *cb_data->push_input_read_length = MAX2(*cb_data->push_input_read_length,
-                                           DIV_ROUND_UP(byte_end_offset, 32));
 
    return load_push_input(b, io, byte_offset);
 }
@@ -1262,12 +1262,9 @@ brw_nir_lower_gs_inputs(nir_shader *nir,
    /* Fold constant offset srcs for IO. */
    NIR_PASS(_, nir, nir_opt_constant_folding);
 
-   unsigned urb_read_length = 0;
+   unsigned max_urb_read_length = 0;
 
    if (nir->info.gs.invocations == 1) {
-      /* URB read length is in 256-bit units, which is two vec4s. */
-      urb_read_length = DIV_ROUND_UP(vue_map->num_slots, 2);
-
       /* Because we're operating in scalar mode, the two vec4s take
        * up 8 registers.  Additionally, the GS reads URB Read Length
        * for each vertex being processed, each unit of read length
@@ -1276,19 +1273,14 @@ brw_nir_lower_gs_inputs(nir_shader *nir,
       const unsigned regs_per_read = 8 * nir->info.gs.vertices_in;
 
       /* Limit to 24 registers worth of pushed inputs */
-      const unsigned max_push_regs = 24;
-
-      if (urb_read_length * regs_per_read > max_push_regs)
-         urb_read_length = max_push_regs / regs_per_read;
+      max_urb_read_length = 24 / regs_per_read;
    }
-
-   *out_urb_read_length = urb_read_length;
 
    const struct brw_lower_urb_cb_data cb_data = {
       .devinfo = devinfo,
       .vec4_access = true,
-      /* pushed bytes per vertex */
-      .max_push_bytes = urb_read_length * 8 * sizeof(uint32_t),
+      .max_urb_read_length = max_urb_read_length,
+      .out_urb_read_length = out_urb_read_length,
       .varying_to_slot = vue_map->varying_to_slot,
    };
    NIR_PASS(_, nir, brw_nir_lower_inputs_to_urb_intrinsics, &cb_data);
@@ -1322,8 +1314,8 @@ brw_nir_lower_tes_inputs(nir_shader *nir,
    const struct brw_lower_urb_cb_data cb_data = {
       .devinfo = devinfo,
       .vec4_access = true,
-      .push_input_read_length = out_urb_read_length,
-      .max_push_bytes = 32 * 16, /* 32 vec4s */
+      .max_urb_read_length = 16, /* 32 vec4s */
+      .out_urb_read_length = out_urb_read_length,
       .varying_to_slot = vue_map->varying_to_slot,
       .per_vertex_stride = vue_map->num_per_vertex_slots * 16,
       .dynamic_tes = vue_map->layout == INTEL_VUE_LAYOUT_SEPARATE,

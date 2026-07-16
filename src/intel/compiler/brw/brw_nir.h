@@ -166,11 +166,14 @@ bool brw_nir_lower_fully_covered(nir_shader *nir);
 struct brw_lower_urb_cb_data {
    const struct intel_device_info *devinfo;
 
-   /** Input URB read length (returned by lowering) */
-   unsigned *push_input_read_length;
+   /* Maximum URB Read Length in 256-bit units (pairs of vec4 slots).
+    *
+    * Any inputs beyond this range will be loaded via URB read messages.
+    */
+   unsigned max_urb_read_length;
 
-   /** Maximum amount of pushed data in bytes */
-   unsigned max_push_bytes;
+   /** Input URB read length (returned by lowering) */
+   unsigned *out_urb_read_length;
 
    /* If true, all access is guaranteed to be vec4 (128-bit) aligned.
     * offset and base are in units of 128-bit vec4 slots.
