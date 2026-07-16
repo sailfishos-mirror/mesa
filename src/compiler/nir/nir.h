@@ -7161,7 +7161,12 @@ bool nir_opt_uniform_subgroup(nir_shader *shader,
 
 typedef struct nir_opt_shared_vars_to_subgroup_options {
    bool optimize_constant_access_to_uniform;
+   bool optimize_divergent_access_to_shuffle;
 
+   /* Whether workgroup ids are assigned in linear order inside
+    * the subgroups.
+    */
+   bool linear_workgroup_ids;
    unsigned ballot_num_components;
    unsigned ballot_size;
 } nir_opt_shared_vars_to_subgroup_options;
