@@ -1848,6 +1848,48 @@ impl<'a> ShaderFromNir<'a> {
                 ];
                 self.set_ssa(&intrin.def, ssa);
             }
+            nir_intrinsic_load_vertex_id
+            | nir_intrinsic_load_raw_vertex_id
+            | nir_intrinsic_load_instance_id
+            | nir_intrinsic_load_draw_id
+            | nir_intrinsic_load_layer_id
+            | nir_intrinsic_load_idvs_output_buf_index_pan => {
+                assert_eq!(intrin.def.bit_size, 32);
+                assert_eq!(intrin.def.num_components, 1);
+
+                let reg = match intrin.intrinsic {
+                    nir_intrinsic_load_vertex_id => PreloadReg::VertexId,
+                    nir_intrinsic_load_raw_vertex_id => PreloadReg::VertexId,
+                    nir_intrinsic_load_instance_id => PreloadReg::InstanceId,
+                    nir_intrinsic_load_draw_id => PreloadReg::DrawId,
+                    nir_intrinsic_load_layer_id => PreloadReg::FrameArgLow,
+                    nir_intrinsic_load_idvs_output_buf_index_pan => {
+                        PreloadReg::InternalId
+                    }
+                    _ => unreachable!(),
+                };
+                let ssa = self.preload(b, reg);
+                self.set_ssa(&intrin.def, vec![ssa]);
+            }
+            nir_intrinsic_load_view_index => {
+                // v14+ is the only architecture supporting multiview directly
+                // others lower VS multiview in NIR
+                let reg = if self.nir.info.stage() == MESA_SHADER_VERTEX {
+                    assert!(b.arch() >= 14);
+                    PreloadReg::ViewId
+                } else {
+                    PreloadReg::FrameArgLow
+                };
+                let ssa = self.preload(b, reg);
+                self.set_ssa(&intrin.def, vec![ssa]);
+            }
+            nir_intrinsic_load_shader_output_pan => {
+                assert_eq!(intrin.def.bit_size, 32);
+                assert_eq!(intrin.def.num_components, 1);
+                let fau = self.special_fau(SpecialFAU::ShaderOutput);
+                let dst = b.copy_i32(fau.word(0).into());
+                self.set_ssa(&intrin.def, vec![dst]);
+            }
             nir_intrinsic_load_push_constant => {
                 assert!(intrin.base() == 0);
                 assert!(intrin.range() == 0);
