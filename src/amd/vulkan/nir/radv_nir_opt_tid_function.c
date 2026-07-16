@@ -331,10 +331,22 @@ try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct fotid_context *ctx)
    unsigned copy = NIR_MAX_SUBGROUP_SIZE - 1;
    unsigned invert = NIR_MAX_SUBGROUP_SIZE - 1;
 
+   /* Because we prefer non-zero and_mask we need to special case
+    * broadcasts. Otherwise we might end up not matching if only
+    * a few invocations matter.
+    */
+   bool all_equal = true;
+   int first_valid = -1;
+
    for (unsigned i = 0; i < ctx->options->hw_subgroup_size; i++) {
       unsigned read = ctx->src_invoc[i];
       if (read >= ctx->options->hw_subgroup_size)
          continue; /* undefined result */
+
+      if (first_valid < 0)
+         first_valid = i;
+      else if (read != ctx->src_invoc[first_valid])
+         all_equal = false;
 
       copy &= ~(read ^ i);
       invert &= read ^ i;
@@ -355,14 +367,19 @@ try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct fotid_context *ctx)
    assert(false);
 #endif
 
-   if ((and_mask & (ctx->options->hw_subgroup_size - 1)) == 0) {
-      return nir_read_invocation(b, def, nir_imm_int(b, xor_mask));
+   if (all_equal && first_valid < 0) {
+      return nir_undef(b, def->num_components, def->bit_size);
    } else if (and_mask == 0x7f && xor_mask == 0) {
       return def;
    } else if (ctx->options->use_shuffle_xor && and_mask == 0x7f) {
       return nir_shuffle_xor(b, def, nir_imm_int(b, xor_mask));
    } else if (ctx->options->use_masked_swizzle_amd && (and_mask & 0x60) == 0x60 && xor_mask <= 0x1f) {
       return nir_masked_swizzle_amd(b, def, (xor_mask << 10) | (and_mask & 0x1f), .fetch_inactive = true);
+   } else if (all_equal) {
+      /* Oddly enough, we do this last. This is because of there is a DPP pattern,
+       * we should prefer it - after all, DPP can be fused into VALU, but not readlane.
+       */
+      return nir_read_invocation(b, def, nir_imm_int(b, ctx->src_invoc[first_valid]));
    }
 
    return NULL;
@@ -437,6 +454,8 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
    const radv_nir_opt_tid_function_options *options = _options;
    if (instr->intrinsic != nir_intrinsic_shuffle)
       return false;
+   if (nir_src_is_const(instr->src[1]))
+      return false; /* Leave obvious broadcasts alone */
    if (!nir_def_instr(instr->src[1].ssa)->pass_flags)
       return false;
 
