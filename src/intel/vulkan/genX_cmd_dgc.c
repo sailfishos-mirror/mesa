@@ -1107,7 +1107,7 @@ void genX(CmdExecuteGeneratedCommandsEXT)(
       if (pGeneratedCommandsInfo->sequenceCountAddress != 0)
          mi_goto_target(&b, &t);
 
-      cmd_buffer->state.compute.trace_rays_active = true;
+      cmd_buffer->state.rt.trace_rays_active = true;
 
       break;
    }

@@ -2090,11 +2090,11 @@ genX(emit_apply_pipe_flushes)(struct anv_cmd_buffer *cmd_buffer,
     *
     * XXX - use WA framework with Wa_14026570320.
     */
-   if (cmd_buffer->state.compute.trace_rays_active &&
+   if (cmd_buffer->state.rt.trace_rays_active &&
        (bits & ANV_PIPE_STATE_CACHE_INVALIDATE_BIT)) {
       src_stages |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
       dst_stages |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-      cmd_buffer->state.compute.trace_rays_active = false;
+      cmd_buffer->state.rt.trace_rays_active = false;
    }
 
    if (can_use_resource_barrier(device->info, batch->engine_class,
@@ -4432,8 +4432,8 @@ genX(CmdExecuteCommands)(
       if (!anv_address_is_null(secondary->state.btp))
          container->state.btp = secondary->state.btp;
 
-      container->state.compute.trace_rays_active |=
-         secondary->state.compute.trace_rays_active;
+      container->state.rt.trace_rays_active |=
+         secondary->state.rt.trace_rays_active;
 
       /* For each GFX instruction emitted in the secondary, mark it dirty in
        * the container, so it's reemited. Even though Vulkan spec says that
