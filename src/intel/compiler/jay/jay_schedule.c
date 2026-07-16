@@ -498,6 +498,10 @@ schedule_block(jay_block *block,
 static void
 pass(jay_function *f)
 {
+   if (jay_debug & JAY_DBG_NOSCHED) {
+      return;
+   }
+
    jay_compute_liveness(f);
    jay_calculate_register_demands(f);
 

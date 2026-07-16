@@ -3879,10 +3879,7 @@ jay_compile(const struct intel_device_info *devinfo,
 
    JAY_PASS(s, jay_lower_flags);
    JAY_PASS(s, jay_opt_dead_code);
-
-   if (!(jay_debug & JAY_DBG_NOSCHED)) {
-      JAY_PASS(s, jay_schedule);
-   }
+   JAY_PASS(s, jay_schedule);
 
    JAY_PASS(s, jay_lower_pre_ra);
    JAY_PASS(s, jay_partition_grf);
