@@ -65,6 +65,12 @@ kk_acquire_compiler(struct kk_device *dev)
       }
 
       compiler->handle = mtl_new_compiler(dev->mtl_handle);
+      if (compiler->handle == NULL) {
+         ralloc_free(compiler);
+         simple_mtx_unlock(&compilers_ht_lock);
+         return NULL;
+      }
+
       compiler->refcount = 1;
       _mesa_hash_table_insert(&compilers_ht, dev->mtl_handle, compiler);
    } else {
