@@ -432,24 +432,12 @@ try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct fotid_context *ctx)
 }
 
 static bool
-opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, const radv_nir_opt_tid_function_options *options,
-                  bool revist_bcsel)
+opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
 {
+   const radv_nir_opt_tid_function_options *options = _options;
    if (instr->intrinsic != nir_intrinsic_shuffle)
       return false;
    if (!nir_def_instr(instr->src[1].ssa)->pass_flags)
-      return false;
-
-   unsigned src_idx = 0;
-   nir_alu_instr *bcsel = get_singluar_user_bcsel(&instr->def, &src_idx);
-   /* Skip this shuffle, it will be revisited later when
-    * the function of tid mask is set on the bcsel.
-    */
-   if (bcsel && !revist_bcsel)
-      return false;
-
-   /* We already tried (and failed) to optimize this shuffle. */
-   if (!bcsel && revist_bcsel)
       return false;
 
    struct fotid_context ctx = {
@@ -462,6 +450,9 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, const radv_nir_opt
 
    if (!gather_read_invocation_shuffle(instr->src[1].ssa, &ctx))
       return false;
+
+   unsigned src_idx = 0;
+   nir_alu_instr *bcsel = get_singluar_user_bcsel(&instr->def, &src_idx);
 
    /* Generalize src_invoc by taking into account which invocations
     * do not use the shuffle result because of bcsel.
@@ -486,9 +477,12 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, const radv_nir_opt
 
    if (can_remove_bcsel && options->use_dpp16_shift_amd) {
       res = try_opt_dpp16_shift(b, instr->src[0].ssa, &ctx);
+
       if (res) {
-         nir_def_rewrite_uses(&bcsel->def, res);
-         return true;
+         /* Rewrite the bcsel as a move, we are not allowed to remove the
+          * bcsel because it could break the safe instruction iteration.
+          */
+         nir_alu_src_rewrite_scalar(&bcsel->src[3 - src_idx], nir_get_scalar(res, 0));
       }
    }
 
@@ -536,40 +530,30 @@ opt_fotid_bool(nir_builder *b, nir_alu_instr *instr, const radv_nir_opt_tid_func
    return true;
 }
 
+struct fotid_init_state {
+   const radv_nir_opt_tid_function_options *options;
+   bool has_shuffle;
+};
+
 static bool
-visit_instr(nir_builder *b, nir_instr *instr, void *params)
+init_fotid_mask(nir_builder *b, nir_instr *instr, void *params)
 {
-   const radv_nir_opt_tid_function_options *options = params;
-   update_fotid_instr(b, instr, options);
+   struct fotid_init_state *state = params;
+   update_fotid_instr(b, instr, state->options);
 
    switch (instr->type) {
    case nir_instr_type_alu: {
       nir_alu_instr *alu = nir_instr_as_alu(instr);
-
-      if (alu->op == nir_op_bcsel && alu->def.bit_size != 1) {
-         /* revist shuffles that we skipped previously */
-         bool progress = false;
-         for (unsigned i = 1; i < 3; i++) {
-            nir_instr *src_instr = nir_def_instr(alu->src[i].src.ssa);
-            if (src_instr->type == nir_instr_type_intrinsic) {
-               nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(src_instr);
-               progress |= opt_fotid_shuffle(b, intrin, options, true);
-               if (list_is_empty(&alu->def.uses))
-                  break;
-            }
-         }
-         return progress;
-      }
-
-      if (!options->hw_ballot_bit_size || !options->hw_ballot_num_comp)
+      if (!state->options->hw_ballot_bit_size || !state->options->hw_ballot_num_comp)
          return false;
       if (alu->def.bit_size != 1 || alu->def.num_components > 1 || !instr->pass_flags)
          return false;
-      return opt_fotid_bool(b, alu, options);
+      return opt_fotid_bool(b, alu, state->options);
    }
    case nir_instr_type_intrinsic: {
       nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
-      return opt_fotid_shuffle(b, intrin, options, false);
+      state->has_shuffle |= intrin->intrinsic == nir_intrinsic_shuffle;
+      return false;
    }
    default:
       return false;
@@ -579,5 +563,21 @@ visit_instr(nir_builder *b, nir_instr *instr, void *params)
 bool
 radv_nir_opt_tid_function(nir_shader *shader, const radv_nir_opt_tid_function_options *options)
 {
-   return nir_shader_instructions_pass(shader, visit_instr, nir_metadata_control_flow, (void *)options);
+   bool progress = false;
+
+   struct fotid_init_state state = {
+      .options = options,
+      .has_shuffle = false,
+   };
+
+   /* The pass is split in two steps because the shuffle optimization needs the function of tid mask
+    * on instruction that come after the shuffle. The first set also optimizes booleans to inverse_ballot
+    * to reduce work during the second step.
+    */
+   progress |= nir_shader_instructions_pass(shader, init_fotid_mask, nir_metadata_control_flow, &state);
+   if (state.has_shuffle) {
+      progress |= nir_shader_intrinsics_pass(shader, opt_fotid_shuffle, nir_metadata_control_flow, (void *)options);
+   }
+
+   return progress;
 }
