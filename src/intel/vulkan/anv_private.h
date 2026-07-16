@@ -4872,12 +4872,12 @@ struct anv_cmd_state {
    /* Last programmed 3DSTATE_BINDING_TABLE_POOL_ALLOC address */
    struct anv_address                           btp;
 
-   struct anv_state                             binding_tables[MESA_VULKAN_SHADER_STAGES];
-   struct anv_state                             samplers[MESA_VULKAN_SHADER_STAGES];
+   struct anv_state                             binding_tables[MESA_SHADER_MESH_STAGES];
+   struct anv_state                             samplers[MESA_SHADER_MESH_STAGES];
 
-   unsigned char                                sampler_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
-   unsigned char                                surface_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
-   unsigned char                                push_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                sampler_blake3s[MESA_SHADER_MESH_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                surface_blake3s[MESA_SHADER_MESH_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                push_blake3s[MESA_SHADER_MESH_STAGES][BLAKE3_KEY_LEN];
 
    /**
     * DGC states .

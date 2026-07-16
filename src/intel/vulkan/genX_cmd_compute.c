@@ -1516,9 +1516,6 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
       }
    }
 
-   const mesa_shader_stage s = MESA_SHADER_RAYGEN;
-   struct anv_state *surfaces = &cmd_buffer->state.binding_tables[s];
-   struct anv_state *samplers = &cmd_buffer->state.samplers[s];
    struct brw_rt_raygen_trampoline_params trampoline_params = {
       .rt_disp_globals_addr = anv_address_physical(rtdg_addr),
       .raygen_bsr_addr =
@@ -1557,10 +1554,6 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
 
       .InterfaceDescriptor = (struct GENX(INTERFACE_DESCRIPTOR_DATA)) {
          .KernelStartPointer = device->rt_trampoline->kernel.offset,
-         .SamplerStatePointer = samplers->offset,
-         /* i965: DIV_ROUND_UP(CLAMP(stage_state->sampler_count, 0, 16), 4), */
-         .SamplerCount = 0,
-         .BindingTablePointer = surfaces->offset,
          .NumberofThreadsinGPGPUThreadGroup = 1,
          .ThreadGroupDispatchSize =
             intel_compute_threads_group_dispatch_size(dispatch.threads),
