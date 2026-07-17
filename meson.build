@@ -1062,7 +1062,7 @@ with_poly = [
 ].contains(true)
 
 dep_clc = null_dep
-if with_clc
+if with_gallium_rusticl or with_microsoft_clc
   dep_clc = dependency('libclc')
 endif
 
