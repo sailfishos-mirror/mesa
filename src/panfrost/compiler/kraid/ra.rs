@@ -104,53 +104,56 @@ fn widen_lanes(lanes: DstLanes) -> DstLanes {
     }
 }
 
-struct RegAllocConstraint {
-    /// Number of bytes to allocate
-    bytes: u8,
+/// A register alignment constraint, specified as an 8-bit bitfield of possible
+/// offsets from an even register.  For registers which do not need to be even-
+/// aligned, they simply repeat the constraint in both halves of the u8.
+#[derive(Default)]
+struct RegAlignConstraint(u8);
 
-    /// Multiplicative alignment
-    align_mul: u8,
+impl RegAlignConstraint {
+    fn new() -> Self {
+        Default::default()
+    }
 
-    /// Bitfield of allowed offsets from the aligned multiple.  For each bit
-    /// index b in `align_offsets`, `N * align_mul + b` is a valid alignment.
-    align_offsets: u8,
-}
+    fn for_align(mul: u8, offset: u8) -> Self {
+        let mask = match mul {
+            1 => 0xff,
+            2 => 0x55 << offset,
+            4 => 0x11 << offset,
+            8 => 0x01 << offset,
+            _ => panic!("Invalid register alignment multiplier"),
+        };
+        RegAlignConstraint(mask)
+    }
 
-impl RegAllocConstraint {
-    /// Return an alignment pair (mul, offset) which every value which
+    fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
+    /// Return the maximal alignment pair (mul, offset) which every value which
     /// satisfies this constraint will also satisfy.
-    fn align(&self) -> (u8, u8) {
-        debug_assert!(self.align_mul.is_power_of_two());
-        debug_assert!(self.align_mul > 0);
-        debug_assert!(self.align_offsets != 0);
-        if self.align_offsets.is_power_of_two() {
-            return (self.align_mul, self.align_offsets.trailing_zeros() as u8);
-        }
-
-        // Non-trivial offsets require align_mul <= 8
-        debug_assert!(self.align_mul <= 8);
-        if self.align_mul < 8 {
-            debug_assert!(self.align_offsets < (1 << self.align_mul));
-        }
-
-        if self.align_offsets == 0b10001 {
-            (4, 0)
-        } else if self.align_offsets == 0b101 || self.align_offsets == 0b1010101
-        {
-            (2, 0)
+    fn max_align(&self) -> (u8, u8) {
+        assert!(!self.is_empty());
+        let first_log2 = self.0.trailing_zeros().try_into().unwrap();
+        if self.0 == (1_u8 << first_log2) {
+            (8, first_log2)
+        } else if (self.0 & !(0x11 << first_log2)) == 0 {
+            (4, first_log2 % 4)
+        } else if (self.0 & !(0x55 << first_log2)) == 0 {
+            (2, first_log2 % 2)
         } else {
             (1, 0)
         }
     }
 
     fn satisfied(&self, b: usize) -> bool {
-        let off = b % usize::from(self.align_mul);
-        if self.align_offsets == 1 {
-            off == 0
-        } else {
-            debug_assert!(self.align_mul <= 8);
-            self.align_offsets & (1 << off) != 0
-        }
+        (self.0 & (1 << (b % 8))) != 0
+    }
+}
+
+impl std::ops::BitOrAssign for RegAlignConstraint {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0
     }
 }
 
@@ -361,20 +364,21 @@ impl LocalRegAlloc<'_> {
 
     fn find_unpinned_bytes(
         &self,
-        constraint: RegAllocConstraint,
+        bytes: u8,
+        align: RegAlignConstraint,
         cost: impl Fn(u16) -> u8,
     ) -> Option<u16> {
         let mut best = (u16::MAX, u8::MAX);
 
         // First, loop through unused registers in the hopes that one of them
         // ends up having cost 0
-        let (align_mul, align_offset) = constraint.align();
-        let max = usize::from(self.bytes_avail) - usize::from(constraint.bytes);
+        let (align_mul, align_offset) = align.max_align();
+        let max = usize::from(self.bytes_avail) - usize::from(bytes);
         let mut start = 0;
         loop {
             let b = self.find_aligned_unused_unpinned_range(
                 start,
-                usize::from(constraint.bytes),
+                usize::from(bytes),
                 usize::from(align_mul),
                 usize::from(align_offset),
             );
@@ -383,7 +387,7 @@ impl LocalRegAlloc<'_> {
             }
             start = b + usize::from(align_mul);
 
-            if !constraint.satisfied(b) {
+            if !align.satisfied(b) {
                 continue;
             }
 
@@ -402,7 +406,7 @@ impl LocalRegAlloc<'_> {
         loop {
             let b = self.pinned.find_aligned_unset_range(
                 start,
-                usize::from(constraint.bytes),
+                usize::from(bytes),
                 usize::from(align_mul),
                 usize::from(align_offset),
             );
@@ -411,7 +415,7 @@ impl LocalRegAlloc<'_> {
             }
             start = b + usize::from(align_mul);
 
-            if !constraint.satisfied(b) {
+            if !align.satisfied(b) {
                 continue;
             }
 
@@ -430,14 +434,9 @@ impl LocalRegAlloc<'_> {
     }
 
     fn choose_aligned_bytes(&self, bytes: u8) -> Range<u16> {
-        debug_assert!(bytes.is_power_of_two());
-        let c = RegAllocConstraint {
-            bytes,
-            align_mul: bytes,
-            align_offsets: 1,
-        };
+        let align = RegAlignConstraint::for_align(bytes, 0);
         let b = self
-            .find_unpinned_bytes(c, |_| 0)
+            .find_unpinned_bytes(bytes, align, |_| 0)
             .expect("Out of registers!");
         b..(b + u16::from(bytes))
     }
@@ -452,13 +451,13 @@ impl LocalRegAlloc<'_> {
             assert!(bytes % 4 == 0);
         }
 
-        let (align_mul, align_offsets) = if bytes > 4 {
+        let align = if bytes > 4 {
             // Valhall requires that 64-bit sources and staging registers
             // reading more than a single register use an even register.
-            (8, 1 << 0)
+            RegAlignConstraint::for_align(8, 0)
         } else if src_type == DataType::SR {
             debug_assert!(bytes == 4);
-            (4, 1 << 0)
+            RegAlignConstraint::for_align(4, 0)
         } else {
             let swizzles: &[(u8, Swizzle)] = match bytes {
                 1 => &[
@@ -473,38 +472,34 @@ impl LocalRegAlloc<'_> {
                 }
                 _ => panic!("Invalid SSA value size"),
             };
-            let mut offsets = 0;
-            for (b, s) in swizzles {
-                if let Some(s) = (*s).swizzle(src.swizzle) {
+
+            let align_mul = if self.model.op_src_is_64bit(op, src) {
+                8
+            } else {
+                4
+            };
+
+            let mut align = RegAlignConstraint::new();
+            for &(b, s) in swizzles {
+                if let Some(s) = s.swizzle(src.swizzle) {
                     if self.model.op_src_supports_swizzle(op, src, s) {
-                        offsets |= 1 << *b;
+                        align |= RegAlignConstraint::for_align(align_mul, b);
                     }
                 }
             }
-            assert!(offsets != 0, "Cannot find a valid swizzle");
-            if self.model.op_src_is_64bit(op, src) {
-                (8, offsets)
-            } else {
-                (4, offsets)
-            }
-        };
-
-        let c = RegAllocConstraint {
-            bytes,
-            align_mul,
-            align_offsets,
+            align
         };
 
         // Common case: Try to re-choose the old value
         if let Some(vec_bytes) = self.ssa_ref_bytes(vec) {
-            if c.satisfied(vec_bytes.start.into())
+            if align.satisfied(vec_bytes.start.into())
                 && self.bytes_are_unpinned(vec_bytes.clone())
             {
                 return vec_bytes;
             }
         }
 
-        let b = self.find_unpinned_bytes(c, |_| 0).unwrap();
+        let b = self.find_unpinned_bytes(bytes, align, |_| 0).unwrap();
         b..(b + u16::from(bytes))
     }
 
@@ -519,49 +514,44 @@ impl LocalRegAlloc<'_> {
         }
         let alloc_bytes = alloc_lanes.bytes(bytes);
 
-        let (align_mul, align_offsets) = if bytes > 4 {
+        let align = if bytes > 4 {
             // Valhall requires that 64-bit destinations and staging registers
             // writing more than a single register use an even register.
             debug_assert_eq!(alloc_lanes, DstLanes::All);
-            (8, 1 << 0)
+            RegAlignConstraint::for_align(8, 0)
         } else if self.model.op_dst_is_staging_reg(op) {
             // Staging register writes respect lanes in the sense that
             // that's where they put the data but they may not do
             // partial writes correctly.
-            (4, 1 << 0)
+            RegAlignConstraint::for_align(4, 0)
         } else if alloc_lanes == DstLanes::AnyB {
-            let mut offsets = 0;
+            let mut align = RegAlignConstraint::new();
             for lanes in
                 [DstLanes::B0, DstLanes::B1, DstLanes::B2, DstLanes::B3]
             {
                 if supported_lanes.contains(lanes) {
                     let (align_mul, align_off) = lanes.align();
                     debug_assert_eq!(align_mul, 4);
-                    offsets |= 1 << align_off;
+                    align |= RegAlignConstraint::for_align(4, align_off);
                 }
             }
-            (4, offsets)
+            align
         } else if alloc_lanes == DstLanes::AnyH {
-            let mut offsets = 0;
+            let mut align = RegAlignConstraint::new();
             for lanes in [DstLanes::H0, DstLanes::H1] {
                 if supported_lanes.contains(lanes) {
                     let (align_mul, align_off) = lanes.align();
                     debug_assert_eq!(align_mul, 4);
-                    offsets |= 1 << align_off;
+                    align |= RegAlignConstraint::for_align(4, align_off);
                 }
             }
-            (4, offsets)
+            align
         } else {
             let (align_mul, align_off) = alloc_lanes.align();
-            (align_mul, 1 << align_off)
+            RegAlignConstraint::for_align(align_mul, align_off)
         };
 
-        let c = RegAllocConstraint {
-            bytes: alloc_bytes,
-            align_mul,
-            align_offsets,
-        };
-        let b = self.find_unpinned_bytes(c, |_| 0).unwrap();
+        let b = self.find_unpinned_bytes(alloc_bytes, align, |_| 0).unwrap();
         let bytes = b..(b + u16::from(alloc_bytes));
 
         // Sanity check the allocation against lanes
@@ -911,12 +901,8 @@ impl GlobalRegAlloc<'_> {
             }
         }
 
-        let c = RegAllocConstraint {
-            bytes,
-            align_mul: bytes,
-            align_offsets: (1 << 0),
-        };
-        let b = self.local.find_unpinned_bytes(c, |b| {
+        let align = RegAlignConstraint::for_align(bytes, 0);
+        let b = self.local.find_unpinned_bytes(bytes, align, |b| {
             let bytes = b..(b + u16::from(bytes));
             let bytes = bytes.start.into()..bytes.end.into();
             debug_assert!(bytes.len() <= 8);
