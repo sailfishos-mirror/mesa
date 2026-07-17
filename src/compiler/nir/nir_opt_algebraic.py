@@ -1459,6 +1459,8 @@ optimizations.extend([
     )
    ),
 
+   (('bcsel', ('ine', ('iand@32', a, '#b(is_pos_power_of_two)'), 0), b, 0), ('iand', a, b)),
+
    (('b2i32', ('ine', ('iand', 'a@32', '#b(is_pos_power_of_two)'), 0)),
     ('ushr', ('iand', a, b), ('find_lsb', b)), '!options->lower_bitops'),
 
