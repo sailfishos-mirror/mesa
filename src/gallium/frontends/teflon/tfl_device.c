@@ -393,6 +393,9 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
    case kTfLiteBuiltinTanh:
       operation->type = PIPE_ML_OPERATION_TYPE_TANH;
       break;
+   case kTfLiteBuiltinRsqrt:
+      operation->type = PIPE_ML_OPERATION_TYPE_RSQRT;
+      break;
    case kTfLiteBuiltinHardSwish:
       operation->type = PIPE_ML_OPERATION_TYPE_HSWISH;
       break;
@@ -693,6 +696,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_TANH:
          teflon_debug("%-15s ", "TANH");
+         break;
+      case PIPE_ML_OPERATION_TYPE_RSQRT:
+         teflon_debug("%-15s ", "RSQRT");
          break;
       case PIPE_ML_OPERATION_TYPE_HSWISH:
          teflon_debug("%-15s ", "HSWISH");
@@ -1112,6 +1118,8 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "LOG";
    case kTfLiteBuiltinTanh:
       return "TANH";
+   case kTfLiteBuiltinRsqrt:
+      return "RSQRT";
    case kTfLiteBuiltinSub:
       return "SUB";
    case kTfLiteBuiltinTranspose:
