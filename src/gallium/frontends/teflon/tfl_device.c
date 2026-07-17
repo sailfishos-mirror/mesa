@@ -233,6 +233,29 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->conc.axis = 4 - input_rank + axis;
       break;
    }
+   case kTfLiteBuiltinPack: {
+      TfLitePackParams *params = node->builtin_data;
+      int input_rank;
+      int axis;
+
+      if (!params || node->inputs->size != params->values_count ||
+          node->outputs->size != 1)
+         return false;
+
+      input_rank = tf_context->tensors[node->inputs->data[0]].dims->size;
+      if (input_rank < 1 || input_rank >= 4)
+         return false;
+
+      axis = params->axis;
+      if (axis < 0)
+         axis += input_rank + 1;
+      if (axis < 0 || axis > input_rank)
+         return false;
+
+      operation->type = PIPE_ML_OPERATION_TYPE_PACK;
+      operation->conc.axis = 3 - input_rank + axis;
+      break;
+   }
    case kTfLiteBuiltinSplit: {
       TfLiteSplitParams *params = node->builtin_data;
       TfLiteTensor *axis_tensor;
@@ -261,6 +284,29 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->type = PIPE_ML_OPERATION_TYPE_SPLIT;
       operation->input_tensors[0] = operation->input_tensors[1];
       operation->input_count = 1;
+      operation->split.axis = 4 - input_rank + axis;
+      break;
+   }
+   case kTfLiteBuiltinUnpack: {
+      TfLiteUnpackParams *params = node->builtin_data;
+      int input_rank;
+      int axis;
+
+      if (!params || node->inputs->size != 1 ||
+          node->outputs->size != params->num)
+         return false;
+
+      input_rank = tf_context->tensors[node->inputs->data[0]].dims->size;
+      if (input_rank < 2 || input_rank > 4)
+         return false;
+
+      axis = params->axis;
+      if (axis < 0)
+         axis += input_rank;
+      if (axis < 0 || axis >= input_rank)
+         return false;
+
+      operation->type = PIPE_ML_OPERATION_TYPE_UNPACK;
       operation->split.axis = 4 - input_rank + axis;
       break;
    }
@@ -667,11 +713,17 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
       case PIPE_ML_OPERATION_TYPE_CONCATENATION:
          teflon_debug("%-15s ", "CONCAT");
          break;
+      case PIPE_ML_OPERATION_TYPE_PACK:
+         teflon_debug("%-15s ", "PACK");
+         break;
       case PIPE_ML_OPERATION_TYPE_POOLING:
          teflon_debug("%-15s ", "POOL");
          break;
       case PIPE_ML_OPERATION_TYPE_SPLIT:
          teflon_debug("%-15s ", "SPLIT");
+         break;
+      case PIPE_ML_OPERATION_TYPE_UNPACK:
+         teflon_debug("%-15s ", "UNPACK");
          break;
       case PIPE_ML_OPERATION_TYPE_PAD:
          teflon_debug("%-15s ", "PAD");
@@ -1070,6 +1122,8 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "ADD";
    case kTfLiteBuiltinConcatenation:
       return "CONCAT";
+   case kTfLiteBuiltinPack:
+      return "PACK";
    case kTfLiteBuiltinAveragePool2d:
       return "AVGPOOL";
    case kTfLiteBuiltinMaxPool2d:
@@ -1110,6 +1164,8 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "RESIZE";
    case kTfLiteBuiltinSplit:
       return "SPLIT";
+   case kTfLiteBuiltinUnpack:
+      return "UNPACK";
    case kTfLiteBuiltinRelu:
       return "RELU";
    case kTfLiteBuiltinAbs:
