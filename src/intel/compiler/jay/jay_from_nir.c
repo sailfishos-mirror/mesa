@@ -906,8 +906,19 @@ jay_emit_derivative(jay_builder *b,
    assert(intr->def.bit_size == 32 && "todo");
    jay_def val = nj_src(intr->src[0]);
 
-   jay_ADD(b, JAY_TYPE_F32, dst, jay_QUAD_SWIZZLE_u32(b, val, swz1),
-           jay_negate(jay_QUAD_SWIZZLE_u32(b, val, swz0)));
+   /* dFdyfine gets split down to SIMD4 which requires UGPR vector temporaries
+    * for correctness (to get NoMask in non-uniform control flow).
+    */
+   bool split = swz0 == JAY_QUAD_SWIZZLE_XYXY;
+   enum jay_file tmpfile = split ? UGPR : GPR;
+   unsigned tmp_nr =
+      split ? jay_ugpr_per_grf(b->shader) * jay_grf_per_gpr(b->shader) : 1;
+   jay_def v0 = jay_alloc_def(b, tmpfile, tmp_nr);
+   jay_def v1 = jay_alloc_def(b, tmpfile, tmp_nr);
+
+   jay_QUAD_SWIZZLE(b, v0, val, swz0);
+   jay_QUAD_SWIZZLE(b, v1, val, swz1);
+   jay_ADD(b, JAY_TYPE_F32, dst, v1, jay_negate(v0));
 }
 
 static inline jay_def
