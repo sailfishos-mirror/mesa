@@ -222,6 +222,68 @@ ethosu_transpose_supported(const struct pipe_ml_operation *operation)
    return true;
 }
 
+static bool
+ethosu_pack_supported(const struct pipe_ml_operation *operation)
+{
+   const struct pipe_tensor *output;
+   int axis = operation->conc.axis;
+
+   if (axis < 1 || axis > 3 || !operation->input_count ||
+       operation->output_count != 1)
+      return false;
+
+   output = operation->output_tensors[0];
+
+   for (unsigned i = 0; i < operation->input_count; i++) {
+      const struct pipe_tensor *pack_input = operation->input_tensors[i];
+
+      if (pack_input->type_size != output->type_size ||
+          pack_input->is_signed != output->is_signed ||
+          pack_input->scale != output->scale ||
+          pack_input->zero_point != output->zero_point)
+         return false;
+
+      for (unsigned dim = 0; dim < 4; dim++) {
+         if (dim != axis && pack_input->dims[dim] != output->dims[dim])
+            return false;
+      }
+   }
+
+   return output->dims[axis] == operation->input_count;
+}
+
+static bool
+ethosu_unpack_supported(const struct pipe_ml_operation *operation)
+{
+   const struct pipe_tensor *input;
+   int axis = operation->split.axis;
+
+   if (axis < 1 || axis > 3 || operation->input_count != 1 ||
+       !operation->output_count)
+      return false;
+
+   input = operation->input_tensors[0];
+   if (input->dims[axis] != operation->output_count)
+      return false;
+
+   for (unsigned i = 0; i < operation->output_count; i++) {
+      const struct pipe_tensor *output = operation->output_tensors[i];
+
+      if (input->type_size != output->type_size ||
+          input->is_signed != output->is_signed ||
+          input->scale != output->scale ||
+          input->zero_point != output->zero_point || output->dims[axis] != 1)
+         return false;
+
+      for (unsigned dim = 0; dim < 4; dim++) {
+         if (dim != axis && input->dims[dim] != output->dims[dim])
+            return false;
+      }
+   }
+
+   return true;
+}
+
 bool
 ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                               const struct pipe_ml_operation *operation)
@@ -256,6 +318,12 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    }
    case PIPE_ML_OPERATION_TYPE_BATCH_MATMUL:
       supported = ethosu_batch_matmul_supported(operation);
+      break;
+   case PIPE_ML_OPERATION_TYPE_PACK:
+      supported = ethosu_pack_supported(operation);
+      break;
+   case PIPE_ML_OPERATION_TYPE_UNPACK:
+      supported = ethosu_unpack_supported(operation);
       break;
    case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
       /*

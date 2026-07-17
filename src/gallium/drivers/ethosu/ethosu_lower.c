@@ -2549,6 +2549,60 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
 }
 
 static void
+ethosu_lower_unpack(struct ethosu_subgraph *subgraph,
+                    const struct pipe_ml_operation *poperation,
+                    unsigned output_idx,
+                    struct ethosu_operation *operation)
+{
+   struct pipe_tensor *input = poperation->input_tensors[0];
+   unsigned input_span;
+
+   operation->type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation->round_mode = ETHOSU_ROUNDING_NATURAL;
+   operation->pooling.type = ethosu_ml_device(subgraph->base.device)->is_u65 ? ETHOSU_POOLING_TYPE_AVG : ETHOSU_POOLING_TYPE_SUM;
+   operation->pooling.nop = true;
+
+   set_feature_maps(subgraph, input, poperation->output_tensors[output_idx],
+                    operation);
+   input_span = ethosu_feature_map_span(&operation->ifm);
+   operation->ifm.tensor->required_size =
+      MAX2(operation->ifm.tensor->required_size, input_span);
+
+   allocate_feature_maps(subgraph, operation);
+   operation->ifm.shape = operation->ofm.shape;
+
+   switch (poperation->split.axis) {
+   case 1:
+      operation->ifm.tiles.addresses[0] +=
+         output_idx * operation->ifm.shape.height * operation->ifm.stride.y;
+      break;
+   case 2:
+      operation->ifm.tiles.addresses[0] +=
+         output_idx * operation->ifm.shape.width * operation->ifm.stride.x;
+      break;
+   case 3:
+      if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHWC) {
+         operation->ifm.tiles.addresses[0] +=
+            output_idx * operation->ifm.shape.depth * operation->ifm.stride.c;
+      } else if (operation->ifm.tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
+         unsigned depth = output_idx * operation->ifm.shape.depth;
+         unsigned elem_size = 1 << operation->ifm.precision;
+
+         operation->ifm.tiles.addresses[0] +=
+            (depth / 16) * operation->ifm.stride.c +
+            (depth % 16) * elem_size;
+      } else {
+         assert(0 && "Unsupported layout");
+      }
+      break;
+   default:
+      assert(0 && "Unsupported axis");
+   }
+
+   ethosu_sched_operation(subgraph, operation);
+}
+
+static void
 ethosu_lower_resize(struct ethosu_subgraph *subgraph,
                     const struct pipe_ml_operation *poperation,
                     struct ethosu_operation *operation)
@@ -3133,7 +3187,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                    ethosu_eltwise_fuses_lut(poperations, count, consumer) ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_SPLIT ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_BATCH_MATMUL ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_TRANSPOSE))) {
+                   consumer->type == PIPE_ML_OPERATION_TYPE_TRANSPOSE ||
+                   consumer->type == PIPE_ML_OPERATION_TYPE_UNPACK))) {
                if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                     !ethosu_consumer_is_lut(poperation) &&
                     !ethosu_consumer_is_lut(consumer)) ||
@@ -3413,7 +3468,8 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          break;
       }
 
-      case PIPE_ML_OPERATION_TYPE_CONCATENATION: {
+      case PIPE_ML_OPERATION_TYPE_CONCATENATION:
+      case PIPE_ML_OPERATION_TYPE_PACK: {
          for (int j = poperations[i].input_count - 1; j >= 0; j--) {
             operation_set_defaults(&operation);
             ethosu_lower_concatenation(subgraph, &poperations[i], j, &operation);
@@ -3426,6 +3482,15 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          for (unsigned j = 0; j < poperations[i].output_count; j++) {
             operation_set_defaults(&operation);
             ethosu_lower_split(subgraph, &poperations[i], j, &operation);
+            util_dynarray_append(&subgraph->operations, operation);
+         }
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_UNPACK: {
+         for (int j = poperations[i].output_count - 1; j >= 0; j--) {
+            operation_set_defaults(&operation);
+            ethosu_lower_unpack(subgraph, &poperations[i], j, &operation);
             util_dynarray_append(&subgraph->operations, operation);
          }
          break;
