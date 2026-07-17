@@ -4590,7 +4590,7 @@ struct anv_bind_point_state {
  * state which is graphics-specific.
  */
 struct anv_cmd_graphics_state {
-   struct anv_bind_point_state base;
+   struct anv_bind_point_state *base;
 
    /* Shaders bound */
    struct anv_shader *shaders[ANV_GRAPHICS_SHADER_STAGE_COUNT];
@@ -4715,7 +4715,7 @@ struct anv_cmd_graphics_state {
  * state which is compute-specific.
  */
 struct anv_cmd_compute_state {
-   struct anv_bind_point_state base;
+   struct anv_bind_point_state *base;
 
    struct anv_shader *shader;
 
@@ -4729,7 +4729,7 @@ struct anv_cmd_compute_state {
 };
 
 struct anv_cmd_ray_tracing_state {
-   struct anv_bind_point_state base;
+   struct anv_bind_point_state *base;
 
    bool pipeline_dirty;
 
@@ -5163,6 +5163,45 @@ anv_cmd_buffer_is_render_or_compute_queue(const struct anv_cmd_buffer *cmd_buffe
 {
    return anv_cmd_buffer_is_render_queue(cmd_buffer) ||
           anv_cmd_buffer_is_compute_queue(cmd_buffer);
+}
+
+bool
+anv_cmd_buffer_alloc_bind_point_state(struct anv_cmd_buffer *cmd_buffer,
+                                      struct anv_bind_point_state **out_state);
+
+static inline bool
+anv_cmd_buffer_ensure_bind_point_state(struct anv_cmd_buffer *cmd_buffer,
+                                       struct anv_bind_point_state **out_state)
+{
+   if (*out_state != NULL)
+      return true;
+
+   return anv_cmd_buffer_alloc_bind_point_state(cmd_buffer, out_state);
+}
+
+static inline struct anv_bind_point_state *
+anv_cmd_buffer_get_bind_point_state(struct anv_cmd_buffer *cmd_buffer,
+                                    VkPipelineBindPoint bind_point)
+{
+   struct anv_bind_point_state **state;
+
+   switch (bind_point) {
+   case VK_PIPELINE_BIND_POINT_GRAPHICS:
+      state = &cmd_buffer->state.gfx.base;
+      break;
+   case VK_PIPELINE_BIND_POINT_COMPUTE:
+      state = &cmd_buffer->state.compute.base;
+      break;
+   case VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR:
+      state = &cmd_buffer->state.rt.base;
+      break;
+   default:
+      UNREACHABLE("invalid bind point");
+   }
+
+   anv_cmd_buffer_ensure_bind_point_state(cmd_buffer, state);
+
+   return *state;
 }
 
 static inline uint8_t

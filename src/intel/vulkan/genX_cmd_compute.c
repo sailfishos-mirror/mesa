@@ -89,10 +89,13 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer,
                                struct anv_indirect_execution_set *indirect_set)
 {
    struct anv_device *device = cmd_buffer->device;
-   struct anv_cmd_compute_state *comp_state = &cmd_buffer->state.compute;
    const UNUSED struct intel_device_info *devinfo = cmd_buffer->device->info;
-
+   struct anv_cmd_compute_state *comp_state = &cmd_buffer->state.compute;
    assert(comp_state->shader || indirect_set);
+   struct anv_bind_point_state *bind_state = anv_cmd_buffer_get_bind_point_state(
+      cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
+   if (anv_batch_has_error(&cmd_buffer->batch))
+      return;
 
    genX(cmd_buffer_config_l3)(cmd_buffer,
                               (indirect_set != NULL ||
@@ -101,7 +104,7 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer,
 
    genX(cmd_buffer_update_color_aux_op)(cmd_buffer, ANV_COLOR_AUX_OP_CLASS_NONE);
 
-   genX(flush_descriptor_buffers)(cmd_buffer, &comp_state->base,
+   genX(flush_descriptor_buffers)(cmd_buffer, bind_state,
                                   VK_SHADER_STAGE_COMPUTE_BIT);
 
    const bool uses_systolic = get_cs_prog_data(comp_state)->uses_systolic;
@@ -175,13 +178,12 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer,
        * changes.
        */
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_COMPUTE_BIT;
-      comp_state->base.push_constants_state = ANV_STATE_NULL;
+      bind_state->push_constants_state = ANV_STATE_NULL;
    }
 
    anv_cmd_buffer_dirty_descriptors(
       cmd_buffer,
-      genX(cmd_buffer_flush_push_descriptors)(cmd_buffer,
-                                              &cmd_buffer->state.compute.base),
+      genX(cmd_buffer_flush_push_descriptors)(cmd_buffer, bind_state),
       "dirty compute descriptor");
 
    if (cmd_buffer->state.descriptors_dirty & VK_SHADER_STAGE_COMPUTE_BIT) {
@@ -193,8 +195,7 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer,
       } else {
          cmd_buffer->state.descriptors_pointers_dirty |=
             genX(cmd_buffer_flush_descriptor_sets)(
-               cmd_buffer,
-               &cmd_buffer->state.compute.base,
+               cmd_buffer, bind_state,
                VK_SHADER_STAGE_COMPUTE_BIT,
                (const struct anv_shader **)&comp_state->shader, 1);
       }
@@ -230,16 +231,16 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer,
 
    if (indirect_set == NULL &&
        (cmd_buffer->state.push_constants_dirty & VK_SHADER_STAGE_COMPUTE_BIT)) {
-      if (comp_state->base.push_constants_state.alloc_size == 0) {
-         comp_state->base.push_constants_state =
+      if (bind_state->push_constants_state.alloc_size == 0) {
+         bind_state->push_constants_state =
             anv_cmd_buffer_cs_push_constants(cmd_buffer);
       }
 
 #if GFX_VERx10 < 125
-      if (comp_state->base.push_constants_state.alloc_size) {
+      if (bind_state->push_constants_state.alloc_size) {
          anv_batch_emit(&cmd_buffer->batch, GENX(MEDIA_CURBE_LOAD), curbe) {
-            curbe.CURBETotalDataLength    = comp_state->base.push_constants_state.alloc_size;
-            curbe.CURBEDataStartAddress   = comp_state->base.push_constants_state.offset;
+            curbe.CURBETotalDataLength    = bind_state->push_constants_state.alloc_size;
+            curbe.CURBEDataStartAddress   = bind_state->push_constants_state.offset;
          }
       }
 #endif
@@ -282,8 +283,8 @@ anv_cmd_buffer_push_driver_values(struct anv_cmd_buffer *cmd_buffer,
       }                                         \
    } while(0)
 
-   struct anv_push_constants *push =
-      &cmd_buffer->state.compute.base.push_constants;
+   struct anv_bind_point_state *bind_state = cmd_buffer->state.compute.base;
+   struct anv_push_constants *push = &bind_state->push_constants;
    bool updated = false;
    if (bind_map->binding_mask & ANV_PIPELINE_BIND_MASK_BASE_WORKGROUP) {
       UPDATE_PUSH(push->cs.base_workgroup[0], baseGroupX);
@@ -311,7 +312,7 @@ anv_cmd_buffer_push_driver_values(struct anv_cmd_buffer *cmd_buffer,
 
    if (updated) {
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_COMPUTE_BIT;
-      cmd_buffer->state.compute.base.push_constants_state = ANV_STATE_NULL;
+      bind_state->push_constants_state = ANV_STATE_NULL;
    }
 
 #undef UPDATE_PUSH
@@ -555,12 +556,13 @@ emit_indirect_compute_walker(struct anv_cmd_buffer *cmd_buffer,
 
    uint64_t indirect_addr64 = anv_address_physical(indirect_addr);
 
+   struct anv_bind_point_state *bind_state = comp_state->base;
    uint64_t push_addr64 = anv_address_physical(
       anv_state_pool_state_address(anv_device_get_general_state_pool(cmd_buffer->device),
-                                   comp_state->base.push_constants_state));
+                                   bind_state->push_constants_state));
    struct compute_walker_inline_params_val inline_value = {
       .bind_map = &comp_state->shader->bind_map,
-      .push_data = (const uint32_t *)&comp_state->base.push_constants,
+      .push_data = (const uint32_t *)&bind_state->push_constants,
       .push_addr64 = push_addr64,
       .base_wg = {0, 0, 0},
       .num_wg = {
@@ -610,16 +612,17 @@ emit_compute_walker(struct anv_cmd_buffer *cmd_buffer,
                     uint32_t unaligned_invocations_x)
 {
    const struct anv_cmd_compute_state *comp_state = &cmd_buffer->state.compute;
+   const struct anv_bind_point_state *bind_state = comp_state->base;
    const bool predicate = cmd_buffer->state.conditional_render_enabled;
 
    compute_update_async_threads_limit(cmd_buffer, prog_data, &dispatch);
 
    uint64_t push_addr64 = anv_address_physical(
       anv_state_pool_state_address(anv_device_get_general_state_pool(cmd_buffer->device),
-                                   comp_state->base.push_constants_state));
+                                   bind_state->push_constants_state));
    struct compute_walker_inline_params_val inline_value = {
       .bind_map = &comp_state->shader->bind_map,
-      .push_data = (const uint32_t *)&comp_state->base.push_constants,
+      .push_data = (const uint32_t *)&bind_state->push_constants,
       .push_addr64 = push_addr64,
       .base_wg = {
          base_wg[0],
@@ -1298,6 +1301,8 @@ cmd_buffer_flush_rt_state(struct anv_cmd_buffer *cmd_buffer,
 {
    struct anv_device *device = cmd_buffer->device;
    struct anv_cmd_ray_tracing_state *rt = &cmd_buffer->state.rt;
+   struct anv_bind_point_state *bind_state = anv_cmd_buffer_get_bind_point_state(
+      cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
 
    if (anv_batch_has_error(&cmd_buffer->batch))
       return;
@@ -1306,8 +1311,7 @@ cmd_buffer_flush_rt_state(struct anv_cmd_buffer *cmd_buffer,
 
    genX(cmd_buffer_update_color_aux_op)(cmd_buffer, ANV_COLOR_AUX_OP_CLASS_NONE);
 
-   genX(flush_descriptor_buffers)(cmd_buffer, &rt->base,
-                                  ANV_RT_STAGE_BITS);
+   genX(flush_descriptor_buffers)(cmd_buffer, bind_state, ANV_RT_STAGE_BITS);
 
    genX(flush_pipeline_select_gpgpu)(cmd_buffer, false);
 
@@ -1315,8 +1319,7 @@ cmd_buffer_flush_rt_state(struct anv_cmd_buffer *cmd_buffer,
 
    genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
 
-   genX(cmd_buffer_flush_push_descriptors)(cmd_buffer,
-                                           &cmd_buffer->state.rt.base);
+   genX(cmd_buffer_flush_push_descriptors)(cmd_buffer, bind_state);
 
    #if GFX_VERx10 == 125
    /* Wa_14014427904 - We need additional invalidate/flush when
@@ -1406,6 +1409,8 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
                       struct trace_params *params)
 {
    struct anv_device *device = cmd_buffer->device;
+   struct anv_bind_point_state *bind_state = cmd_buffer->state.rt.base;
+   assert(bind_state != NULL);
 
    if (INTEL_DEBUG(DEBUG_RT_NO_TRACE))
       return;
@@ -1435,7 +1440,7 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
    assert(GENX(RT_DISPATCH_GLOBALS_length) * 4 <= BRW_RT_PUSH_CONST_OFFSET);
    /* Push constants go after the RT_DISPATCH_GLOBALS */
    memcpy(rtdg_state.map + BRW_RT_PUSH_CONST_OFFSET,
-          &cmd_buffer->state.rt.base.push_constants,
+          &bind_state->push_constants,
           sizeof(struct anv_push_constants));
 
    struct anv_address rtdg_addr =

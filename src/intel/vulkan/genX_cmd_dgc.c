@@ -54,10 +54,14 @@ preprocess_gfx_sequences(struct anv_cmd_buffer *cmd_buffer,
 
    struct anv_device *device = cmd_buffer->device;
    struct anv_cmd_graphics_state *gfx = &cmd_buffer_state->state.gfx;
+   struct anv_bind_point_state *bind_state = anv_cmd_buffer_get_bind_point_state(
+      cmd_buffer_state, VK_PIPELINE_BIND_POINT_GRAPHICS);
+   if (bind_state == NULL)
+      return NULL;
 
    /* Allocate push constants with the cmd_buffer_state data. */
    struct anv_state push_constants_state =
-      emit_push_constants(cmd_buffer, &cmd_buffer_state->state.gfx.base);
+      emit_push_constants(cmd_buffer, gfx->base);
    if (push_constants_state.alloc_size == 0)
       return NULL;
 
@@ -138,8 +142,7 @@ preprocess_gfx_sequences(struct anv_cmd_buffer *cmd_buffer,
       .const_addr = anv_address_physical(
          anv_cmd_buffer_temporary_state_address(
             cmd_buffer, push_constants_state)),
-      .const_size =
-         cmd_buffer_state->state.gfx.base.push_constants_client_size,
+      .const_size = gfx->base->push_constants_client_size,
 
       .driver_const_addr = anv_address_physical(
          anv_address_add(
@@ -226,7 +229,11 @@ preprocess_cs_sequences(struct anv_cmd_buffer *cmd_buffer,
 
    struct anv_device *device = cmd_buffer->device;
    struct anv_cmd_compute_state *comp_state = &cmd_buffer_state->state.compute;
-   struct anv_bind_point_state *bind_state = &comp_state->base;
+   struct anv_bind_point_state *bind_state = anv_cmd_buffer_get_bind_point_state(
+      cmd_buffer_state, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+   if (bind_state == NULL)
+      return NULL;
 
    struct anv_state push_constants_state =
       emit_push_constants(cmd_buffer, bind_state);
@@ -475,7 +482,7 @@ preprocess_rt_sequences(struct anv_cmd_buffer *cmd_buffer,
 
    struct anv_device *device = cmd_buffer->device;
    struct anv_cmd_ray_tracing_state *rt_state = &cmd_buffer_state->state.rt;
-   struct anv_bind_point_state *bind_state = &rt_state->base;
+   struct anv_bind_point_state *bind_state = rt_state->base;
 
    struct anv_state push_constants_state =
       emit_push_constants(cmd_buffer, bind_state);
@@ -1006,7 +1013,7 @@ void genX(CmdExecuteGeneratedCommandsEXT)(
 #if GFX_VERx10 >= 125
    case VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR: {
       struct anv_cmd_ray_tracing_state *rt_state = &cmd_buffer->state.rt;
-      struct anv_bind_point_state *bind_state = &rt_state->base;
+      struct anv_bind_point_state *bind_state = rt_state->base;
 
       genX(flush_pipeline_select_gpgpu)(cmd_buffer, false);
 
@@ -1014,8 +1021,7 @@ void genX(CmdExecuteGeneratedCommandsEXT)(
 
       genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
 
-      genX(cmd_buffer_flush_push_descriptors)(cmd_buffer,
-                                              &cmd_buffer->state.rt.base);
+      genX(cmd_buffer_flush_push_descriptors)(cmd_buffer, bind_state);
 
       if (pGeneratedCommandsInfo->sequenceCountAddress != 0) {
          struct anv_address seq_count_addr =

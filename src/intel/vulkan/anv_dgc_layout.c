@@ -376,7 +376,7 @@ anv_dgc_fill_gfx_state(struct anv_dgc_gfx_state *state,
    struct anv_device *device = cmd_buffer->device;
    const struct vk_indirect_command_layout *vk_layout = &layout->vk;
    struct anv_cmd_graphics_state *gfx = &cmd_buffer->state.gfx;
-   const struct anv_bind_point_state *bind_state = &gfx->base;
+   const struct anv_bind_point_state *bind_state = gfx->base;
 
    if (vk_layout->dgc_info & (BITFIELD_BIT(MESA_VK_DGC_PC) |
                               BITFIELD_BIT(MESA_VK_DGC_SI))) {
@@ -398,8 +398,8 @@ anv_dgc_fill_gfx_state(struct anv_dgc_gfx_state *state,
                   state->push_constants.stages[gen_stage].addresses[i] =
                      anv_cmd_buffer_descriptor_buffer_address(
                         cmd_buffer,
-                        gfx->base.descriptor_buffers[range->index].buffer_index) +
-                     gfx->base.descriptor_buffers[range->index].buffer_offset;
+                        bind_state->descriptor_buffers[range->index].buffer_index) +
+                     bind_state->descriptor_buffers[range->index].buffer_offset;
                } else {
                   struct anv_descriptor_set *set = bind_state->descriptors[range->index];
                   state->push_constants.stages[gen_stage].addresses[i] = anv_address_physical(

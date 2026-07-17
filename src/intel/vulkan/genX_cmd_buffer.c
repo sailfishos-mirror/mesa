@@ -2966,7 +2966,11 @@ void
 genX(cmd_buffer_flush_indirect_cs_descriptor_sets)(struct anv_cmd_buffer *cmd_buffer,
                                                    const struct anv_pipeline_bind_map *bind_map)
 {
-   struct anv_bind_point_state *bind_state = &cmd_buffer->state.compute.base;
+   struct anv_bind_point_state *bind_state = anv_cmd_buffer_get_bind_point_state(
+      cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
+   if (anv_batch_has_error(&cmd_buffer->batch))
+      return;
+
    /* Assume all descriptors are used */
    struct anv_push_descriptor_info push_desc_info = {
       .used_descriptors = 0xffffffff,
