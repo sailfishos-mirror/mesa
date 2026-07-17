@@ -400,14 +400,21 @@ pub fn test_foldable_op_with(
         let data = b.ld_test_data(offset_words * 4, words * 32);
         offset_words += u16::from(words);
 
-        let src_type_swizzle = match read_bits {
-            8 => Swizzle::replicate_byte(0),
-            16 => Swizzle::replicate_half(0),
-            _ => Swizzle::NONE,
+        let swiz_src = if src.swizzle.is_none() {
+            // We always load words.  If there's no swizzle, we need to at
+            // least trim it down to fit inside the source type.
+            let src_type_swizzle = match read_bits {
+                8 => Swizzle::replicate_byte(0),
+                16 => Swizzle::replicate_half(0),
+                _ => Swizzle::NONE,
+            };
+            Src::from(data).swizzle(src_type_swizzle)
+        } else {
+            Src::from(data).swizzle(src.swizzle)
         };
+        src.src_ref = swiz_src.src_ref;
+        src.swizzle = swiz_src.swizzle;
 
-        src.src_ref = data.into();
-        src.swizzle = src.swizzle.swizzle(src_type_swizzle).unwrap();
         word_bits.extend(iter::repeat_n(read_bits.min(32), words as usize));
     }
     let src_words = usize::from(offset_words);
