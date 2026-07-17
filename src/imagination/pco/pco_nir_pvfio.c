@@ -453,7 +453,7 @@ static bool lower_pfo(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 
       if (sem.location == FRAG_RESULT_DEPTH) {
          assert(!state->depth_feedback_src);
-         state->depth_feedback_src = nir_fsat(b, intr->src[0].ssa);
+         state->depth_feedback_src = intr->src[0].ssa;
 
          nir_instr_remove(&intr->instr);
          return true;
@@ -516,7 +516,8 @@ bool pco_nir_lower_sample_mask_out(nir_shader *shader)
 static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
 {
    nir_shader *shader = b->shader;
-   if (shader->info.writes_memory && !state->depth_feedback_src) {
+   if ((shader->info.writes_memory || state->fs->z_replicate != ~0u) &&
+       !state->depth_feedback_src) {
       nir_variable *var_pos = nir_get_variable_with_location(shader,
                                                              nir_var_shader_in,
                                                              VARYING_SLOT_POS,
@@ -557,6 +558,9 @@ static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
    if (shader->info.fs.early_fragment_tests) {
       state->depth_feedback_src = NULL;
       discard_cond = NULL;
+   } else if (state->depth_feedback_src) {
+      /* Clamp depth to [0..1] */
+      state->depth_feedback_src = nir_fsat(b, state->depth_feedback_src);
    }
 
    if (discard_cond || state->depth_feedback_src) {
@@ -657,28 +661,7 @@ static bool z_replicate(nir_shader *shader, struct pfo_state *state)
                                      state->fs->z_replicate,
                                      glsl_float_type());
 
-   if (!state->depth_feedback_src) {
-      nir_variable *var_pos = nir_get_variable_with_location(shader,
-                                                             nir_var_shader_in,
-                                                             VARYING_SLOT_POS,
-                                                             glsl_vec4_type());
-      var_pos->data.interpolation = INTERP_MODE_NOPERSPECTIVE;
-
-      nir_builder b = nir_builder_at(
-         nir_before_block(nir_start_block(nir_shader_get_entrypoint(shader))));
-
-      state->depth_feedback_src =
-         nir_load_input(&b,
-                        1,
-                        32,
-                        nir_imm_int(&b, 0),
-                        .component = 2,
-                        .dest_type = nir_type_float32,
-                        .io_semantics = (nir_io_semantics){
-                           .location = VARYING_SLOT_POS,
-                           .num_slots = 1,
-                        });
-   }
+   assert(state->depth_feedback_src);
 
    nir_builder b = nir_builder_at(
       nir_after_block(nir_impl_last_block(nir_shader_get_entrypoint(shader))));
