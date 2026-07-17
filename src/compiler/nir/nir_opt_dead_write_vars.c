@@ -210,6 +210,20 @@ remove_dead_write_vars_local(nir_shader *shader, nir_block *block,
          break;
       }
 
+      case nir_intrinsic_memcpy_deref: {
+         /* memcpy reads its source and writes its destination, so a store
+          * feeding it must not be eliminated by a later store to the same
+          * deref.  Since memcpy is a sized copy that walks the derefs in a
+          * loop it can touch memory beyond the src/dst deref itself, so a
+          * deref comparison is not sufficient - conservatively clear all
+          * unused writes in the accessed modes.
+          */
+         nir_deref_instr *dst = nir_src_as_deref(intrin->src[0]);
+         nir_deref_instr *src = nir_src_as_deref(intrin->src[1]);
+         clear_unused_for_modes(unused_writes, src->modes | dst->modes);
+         break;
+      }
+
       case nir_intrinsic_store_deref: {
          nir_deref_instr *dst = nir_src_as_deref(intrin->src[0]);
 
