@@ -222,6 +222,12 @@ jay_partition_grf(jay_shader *shader)
       payload_4[1] = shader->prog_data->vue.urb_read_length * 8;
       payload_u[1] = shader->push_grfs;
       eot_4 = 16;
+   } else if (shader->stage == MESA_SHADER_TASK ||
+              shader->stage == MESA_SHADER_MESH) {
+      payload_u[0] = 3 * grf_per_gpr;
+      payload_4[0] = 2;
+      eot_4 = 16;
+      eot_u = 1;
    } else if (shader->stage == MESA_SHADER_TESS_CTRL) {
       payload_4[0] =
          1 +

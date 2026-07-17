@@ -50,6 +50,11 @@ static const struct debug_named_value jay_debug_options[] = {
 DEBUG_GET_ONCE_FLAGS_OPTION(jay_debug, "JAY_DEBUG", jay_debug_options, 0)
 int jay_debug = 0;
 
+typedef struct jay_task_mesh_payload {
+   jay_def local_invocation_ids;
+   jay_def inline_parameter;
+} jay_task_mesh_payload;
+
 typedef struct jay_vs_payload {
    /* "the maximum limit is 30 elements per vertex" (bspec 56124) */
    jay_def attributes[30 * 4];
@@ -134,6 +139,7 @@ struct nir_to_jay_state {
          jay_cs_payload cs;
          jay_fs_payload fs;
          jay_gs_payload gs;
+         jay_task_mesh_payload task_mesh;
       };
    } payload;
 };
@@ -1786,6 +1792,10 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       s->stage == MESA_SHADER_TESS_EVAL ? &nj->payload.tes : NULL;
    jay_gs_payload *gs =
       s->stage == MESA_SHADER_GEOMETRY ? &nj->payload.gs : NULL;
+   jay_task_mesh_payload *task_mesh =
+      s->stage == MESA_SHADER_TASK || s->stage == MESA_SHADER_MESH ?
+         &nj->payload.task_mesh :
+         NULL;
 
    const bool has_dest = nir_intrinsic_infos[intr->intrinsic].has_dest;
    jay_def dst = has_dest ? nj_def(&intr->def) : jay_null();
@@ -1837,7 +1847,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_inline_data_intel:
-      assert(cs && f->is_entrypoint && "todo: this needs ABI");
+      assert((cs || task_mesh) && f->is_entrypoint && "todo: this needs ABI");
       load_push_data(nj, intr, nj->payload.inline_data);
       break;
 
@@ -1861,7 +1871,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       }
 
       if (nir_intrinsic_execution_scope(intr) == SCOPE_WORKGROUP &&
-          ((cs && !jay_workgroup_is_one_subgroup(b, nj->nir)) ||
+          (((cs || task_mesh) && !jay_workgroup_is_one_subgroup(b, nj->nir)) ||
            (tcs && s->prog_data->tcs.instances != 1))) {
          jay_emit_signal_barrier(b, nj);
          s->prog_data->cs.uses_barrier = true;
@@ -2121,8 +2131,12 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_urb_input_handle_intel:
-      assert(tes);
-      jay_MOV(b, dst, jay_extract(nj->payload.u0, 0));
+      assert(tes || (nj->s->stage == MESA_SHADER_MESH));
+      if (tes) {
+         jay_MOV(b, dst, jay_extract(nj->payload.u0, 0));
+      } else if (nj->s->stage == MESA_SHADER_MESH) {
+         jay_MOV(b, dst, jay_extract(nj->payload.u0, 7));
+      }
       break;
 
    case nir_intrinsic_load_urb_output_handle_intel:
@@ -2276,7 +2290,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_load_subgroup_id:
-      assert(cs && f->is_entrypoint && "todo: this needs ABI");
+      assert((cs || task_mesh) && f->is_entrypoint && "todo: this needs ABI");
       /* Subgroup ID in Thread Group is u0.2 bits 7:0 */
       jay_AND(b, JAY_TYPE_U32, dst, jay_extract(nj->payload.u0, 2), 0xFF);
       break;
@@ -2348,6 +2362,31 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_convert_cmat_intel:
       jay_emit_convert_cmat(nj, intr);
+      break;
+
+   case nir_intrinsic_load_workgroup_index:
+      jay_MOV(b, dst, jay_extract(nj->payload.u0, 1));
+      break;
+
+   case nir_intrinsic_load_num_workgroups:
+      jay_SHR(b, JAY_TYPE_U32, jay_extract(dst, 0),
+              jay_extract(nj->payload.u0, 6), 16);
+      jay_AND(b, JAY_TYPE_U32, jay_extract(dst, 1),
+              jay_extract(nj->payload.u0, 4), 0xffff);
+      jay_SHR(b, JAY_TYPE_U32, jay_extract(dst, 2),
+              jay_extract(nj->payload.u0, 4), 16);
+      break;
+
+   case nir_intrinsic_load_draw_id:
+      assert(task_mesh);
+      jay_MOV(b, dst, jay_extract(nj->payload.u0, 3));
+      break;
+
+   case nir_intrinsic_load_local_invocation_index:
+   case nir_intrinsic_load_local_invocation_index_intel:
+      jay_def inv_idx_u16 =
+         jay_extract_range(nj->payload.u1, 0, s->dispatch_width / 2);
+      jay_CVT(b, JAY_TYPE_U32, dst, inv_idx_u16, JAY_TYPE_U16, JAY_ROUND, 0);
       break;
 
    default:
@@ -3170,6 +3209,16 @@ jay_emit_cf_list(struct nir_to_jay_state *nj, struct exec_list *list)
 }
 
 static void
+jay_emit_task_mesh_fence_workaround(struct nir_to_jay_state *nj)
+{
+   if (nj->nir->info.stage == MESA_SHADER_MESH ||
+       nj->nir->info.stage == MESA_SHADER_TASK) {
+      /* HSD-22014129519 workaround */
+      emit_lsc_fence(nj, GEN_SFID_URB, LSC_FENCE_GPU, LSC_FLUSH_TYPE_NONE);
+   }
+}
+
+static void
 jay_emit_eot(struct nir_to_jay_state *nj)
 {
    jay_builder *b = &nj->bld;
@@ -3185,7 +3234,9 @@ jay_emit_eot(struct nir_to_jay_state *nj)
    }
 
    if (mesa_shader_stage_is_compute(nj->nir->info.stage) ||
-       mesa_shader_stage_is_rt(nj->nir->info.stage)) {
+       mesa_shader_stage_is_rt(nj->nir->info.stage) ||
+       nj->nir->info.stage == MESA_SHADER_MESH ||
+       nj->nir->info.stage == MESA_SHADER_TASK) {
       jay_def u0 = nj->payload.u0;
 
       /* Vectorized copy into the EOT register. Not necessary for correctness
@@ -3322,6 +3373,20 @@ setup_vertex_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
       assert(i < ARRAY_SIZE(nj->payload.vs.attributes));
       nj->payload.vs.attributes[i] = read_payload(p, GPR);
    }
+}
+
+static void
+setup_task_mesh_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
+{
+   nj->payload.u1 = read_vector_payload(p, UGPR, jay_ugpr_per_grf(nj->s));
+
+   for (unsigned i = 0; i < jay_ugpr_per_grf(nj->s); ++i) {
+      nj->payload.inline_data[i] = read_payload(p, UGPR);
+   }
+
+   nj->payload.urb_handle = jay_extract(nj->payload.u0, 8);
+
+   setup_payload_dispatch_start(nj, p);
 }
 
 static void
@@ -3692,6 +3757,10 @@ jay_setup_payload(struct nir_to_jay_state *nj)
    case MESA_SHADER_VERTEX:
       setup_vertex_payload(nj, &p);
       break;
+   case MESA_SHADER_TASK:
+   case MESA_SHADER_MESH:
+      setup_task_mesh_payload(nj, &p);
+      break;
    case MESA_SHADER_TESS_CTRL:
       setup_tess_ctrl_payload(nj, &p);
       break;
@@ -3797,6 +3866,7 @@ jay_from_nir_function(const struct intel_device_info *devinfo,
    jay_block_add_successor(nj.current_block, nj.exit_block, GPR);
 
    list_addtail(&nj.exit_block->link, &f->blocks);
+   jay_emit_task_mesh_fence_workaround(&nj);
    jay_emit_eot(&nj);
    jay_remove_unreachable_blocks(f);
    free(nj.zero_inactive);
@@ -3977,7 +4047,9 @@ jay_compile(const struct intel_device_info *devinfo,
          prog_data->fs.prog_offset_32 = 0;
       }
 
-   } else if (mesa_shader_stage_is_compute(s->stage)) {
+   } else if (mesa_shader_stage_is_compute(s->stage) ||
+              s->stage == MESA_SHADER_MESH ||
+              s->stage == MESA_SHADER_TASK) {
       unsigned i = simd_width == 8 ? 0 : simd_width == 16 ? 1 : 2;
       prog_data->cs.prog_offset[i] = 0;
       prog_data->cs.prog_mask = BITFIELD_BIT(i);

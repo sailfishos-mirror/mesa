@@ -285,8 +285,10 @@ process_intel_debug_variable_once(void)
 
 static const struct debug_named_value use_jay_options[] = {
    { "vs",  BITFIELD_BIT(MESA_SHADER_VERTEX),    "Use jay for vertex shaders"   },
+   { "task",  BITFIELD_BIT(MESA_SHADER_TASK),   "Use jay for task shaders"  },
    { "tcs", BITFIELD_BIT(MESA_SHADER_TESS_CTRL), "Use jay for tessellation control shaders" },
    { "tes", BITFIELD_BIT(MESA_SHADER_TESS_EVAL), "Use jay for tessellation evaluation shaders" },
+   { "mesh",  BITFIELD_BIT(MESA_SHADER_MESH),   "Use jay for mesh shaders"  },
    { "fs",  BITFIELD_BIT(MESA_SHADER_FRAGMENT),  "Use jay for fragment shaders" },
    { "gs",  BITFIELD_BIT(MESA_SHADER_GEOMETRY),  "Use jay for geometry shaders" },
    { "cs",  BITFIELD_BIT(MESA_SHADER_COMPUTE),   "Use jay for compute shaders"  },
@@ -296,8 +298,7 @@ static const struct debug_named_value use_jay_options[] = {
    { "miss",  BITFIELD_BIT(MESA_SHADER_MISS),          "Use jay for miss shaders"  },
    { "isec",  BITFIELD_BIT(MESA_SHADER_INTERSECTION),  "Use jay for intersection shaders"  },
    { "call",  BITFIELD_BIT(MESA_SHADER_CALLABLE),      "Use jay for callable shaders"  },
-   { "all", ~(BITFIELD_BIT(MESA_SHADER_MESH) |
-              BITFIELD_BIT(MESA_SHADER_TASK)),         "Use jay for supported shader stages" },
+   { "all", ~0,         "Use jay for supported shader stages" },
    DEBUG_NAMED_VALUE_END
 };
 
