@@ -737,36 +737,6 @@ static bool lower_alpha_to_one(nir_builder *b,
    return true;
 }
 
-static bool is_load_sample_mask(const nir_instr *instr,
-                                UNUSED const void *cb_data)
-{
-   if (instr->type != nir_instr_type_intrinsic)
-      return false;
-
-   nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
-   return intr->intrinsic == nir_intrinsic_load_sample_mask_in;
-}
-
-static bool lower_load_sample_mask(nir_builder *b,
-                                   nir_intrinsic_instr *intr,
-                                   UNUSED void *cb_data)
-{
-   if (intr->intrinsic != nir_intrinsic_load_sample_mask_in)
-      return false;
-
-   b->cursor = nir_before_instr(&intr->instr);
-
-   nir_def *smp_msk =
-      nir_ubitfield_extract_imm(b,
-                                nir_load_fs_meta_pco(b),
-                                PVR_FS_META_SAMPLE_MASK_OFFSET,
-                                PVR_FS_META_SAMPLE_MASK_LENGTH);
-   smp_msk = nir_iand(b, smp_msk, nir_load_savmsk_vm_pco(b));
-   nir_def_rewrite_uses(&intr->def, smp_msk);
-   nir_instr_remove(&intr->instr);
-   return true;
-}
-
 static bool lower_color_write_enable(nir_builder *b,
                                      nir_intrinsic_instr *intr,
                                      UNUSED void *cb_data)
@@ -874,11 +844,6 @@ bool pco_nir_pfo(nir_shader *shader, pco_fs_data *fs)
 
    if (!shader->info.internal)
       progress |= z_replicate(shader, &state);
-
-   progress |= nir_shader_intrinsics_pass(shader,
-                                          lower_load_sample_mask,
-                                          nir_metadata_control_flow,
-                                          NULL);
 
    util_dynarray_fini(&state.stores);
    util_dynarray_fini(&state.loads);
@@ -1091,13 +1056,31 @@ static bool lower_front_face(nir_builder *b, nir_intrinsic_instr *intr)
    return true;
 }
 
+static bool lower_sample_mask_in(nir_builder *b, nir_intrinsic_instr *intr)
+{
+   nir_def *mask =
+      nir_ubitfield_extract_imm(b,
+                                nir_load_fs_meta_pco(b),
+                                PVR_FS_META_SAMPLE_MASK_OFFSET,
+                                PVR_FS_META_SAMPLE_MASK_LENGTH);
+   mask = nir_iand(b, mask, nir_load_savmsk_vm_pco(b));
+   nir_def_rewrite_uses(&intr->def, mask);
+   nir_instr_remove(&intr->instr);
+   return true;
+}
+
 static bool
 lower_fs_intr(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *cb_data)
 {
+   b->cursor = nir_before_instr(&intr->instr);
+
    switch (intr->intrinsic) {
    case nir_intrinsic_load_front_face:
-      b->cursor = nir_before_instr(&intr->instr);
       return lower_front_face(b, intr);
+
+   case nir_intrinsic_load_sample_mask_in:
+      return lower_sample_mask_in(b, intr);
+
    default:
       break;
    }
