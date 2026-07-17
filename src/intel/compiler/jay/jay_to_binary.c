@@ -119,6 +119,16 @@ to_gen_operand(
          R = gen_restride(R, 8, 8, 1);
       }
 
+      /* Handle SIMD split of vectorized uniform code */
+      if (jay_num_values(d) > jay_type_vector_length(type) && I->uniform) {
+         unsigned simd_width = jay_simd_width_physical(f->shader, I);
+         uint32_t type_bits = jay_type_size_bits(type);
+         unsigned stride_bits = type_bits;
+
+         R = gen_byte_offset(devinfo, R,
+                             simd_offs * simd_width * stride_bits / 8);
+      }
+
       /* Some operations have special restrictions on the destination stride,
        * but if we write a single UGPR the stride is ignored..  Specify
        * whatever stride is needed to satisfy the rules.
