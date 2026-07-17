@@ -659,7 +659,6 @@ impl LocalRegAlloc<'_> {
         // stable so this also ensures that sources get processed first.
         srcs_dsts.sort_by_key(|a| std::cmp::Reverse(a.bytes));
 
-        let mut killed = Vec::new();
         for src_dst in &srcs_dsts {
             let bytes = if src_dst.is_src {
                 self.choose_src_bytes(&src_dst.vec, src_dst.align)
@@ -715,7 +714,7 @@ impl LocalRegAlloc<'_> {
 
                 // Check if it's killed
                 if !bl.is_live_after_ip(ssa, ip) {
-                    killed.push(bytes.clone());
+                    self.free_bytes(bytes);
                 }
             }
 
@@ -806,11 +805,6 @@ impl LocalRegAlloc<'_> {
 
         // Clean up by unpinning everything
         self.pinned.clear();
-
-        // Kill anything that is no longer live after this ip
-        for bytes in killed {
-            self.free_bytes(bytes);
-        }
     }
 }
 
