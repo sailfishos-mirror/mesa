@@ -390,6 +390,14 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    case PIPE_ML_OPERATION_TYPE_TRANSPOSE:
       supported = ethosu_transpose_supported(operation);
       break;
+   case PIPE_ML_OPERATION_TYPE_RSQRT: {
+      struct pipe_tensor *input = operation->input_tensors[0];
+      struct pipe_tensor *output = operation->output_tensors[0];
+
+      supported = input->type_size == 1 && output->type_size == 1 &&
+                  input->is_signed && output->is_signed;
+      break;
+   }
    default:
       supported = false;
    }
