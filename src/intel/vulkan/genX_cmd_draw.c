@@ -233,9 +233,9 @@ get_push_range_address(struct anv_cmd_buffer *cmd_buffer,
       } else {
          assert(desc->type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
          if (desc->buffer) {
-            const struct anv_cmd_pipeline_state *pipe_state = &gfx_state->base;
+            const struct anv_bind_point_state *bind_state = &gfx_state->base;
             uint32_t dynamic_offset =
-               pipe_state->dynamic_offsets[
+               bind_state->dynamic_offsets[
                   range->set].offsets[range->dynamic_offset_index];
             return anv_address_add(desc->buffer->address,
                                    desc->offset + dynamic_offset);
@@ -315,9 +315,9 @@ get_push_range_bound_size(struct anv_cmd_buffer *cmd_buffer,
 
          assert(desc->type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
          /* Compute the offset within the buffer */
-         const struct anv_cmd_pipeline_state *pipe_state = &gfx_state->base;
+         const struct anv_bind_point_state *bind_state = &gfx_state->base;
          uint32_t dynamic_offset =
-            pipe_state->dynamic_offsets[
+            bind_state->dynamic_offsets[
                range->set].offsets[range->dynamic_offset_index];
          uint64_t offset = desc->offset + dynamic_offset;
          /* Clamp to the buffer size */

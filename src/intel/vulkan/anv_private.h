@@ -4519,7 +4519,7 @@ struct anv_simple_shader {
  * binding table offsets and push constants is tracked generically with a
  * per-stage array in anv_cmd_state.
  */
-struct anv_cmd_pipeline_state {
+struct anv_bind_point_state {
    struct anv_descriptor_set *descriptors[MAX_SETS];
    struct {
       bool             bound;
@@ -4587,13 +4587,13 @@ struct anv_cmd_pipeline_state {
 
 /** State tracking for graphics pipeline
  *
- * This has anv_cmd_pipeline_state as a base struct to track things which get
+ * This has anv_bind_point_state as a base struct to track things which get
  * bound to a graphics pipeline.  Along with general pipeline bind point state
- * which is in the anv_cmd_pipeline_state base struct, it also contains other
+ * which is in the anv_bind_point_state base struct, it also contains other
  * state which is graphics-specific.
  */
 struct anv_cmd_graphics_state {
-   struct anv_cmd_pipeline_state base;
+   struct anv_bind_point_state base;
 
    /* Shaders bound */
    struct anv_shader *shaders[ANV_GRAPHICS_SHADER_STAGE_COUNT];
@@ -4712,13 +4712,13 @@ struct anv_cmd_graphics_state {
 
 /** State tracking for compute pipeline
  *
- * This has anv_cmd_pipeline_state as a base struct to track things which get
+ * This has anv_bind_point_state as a base struct to track things which get
  * bound to a compute pipeline.  Along with general pipeline bind point state
- * which is in the anv_cmd_pipeline_state base struct, it also contains other
+ * which is in the anv_bind_point_state base struct, it also contains other
  * state which is compute-specific.
  */
 struct anv_cmd_compute_state {
-   struct anv_cmd_pipeline_state base;
+   struct anv_bind_point_state base;
 
    struct anv_shader *shader;
 
@@ -4732,7 +4732,7 @@ struct anv_cmd_compute_state {
 };
 
 struct anv_cmd_ray_tracing_state {
-   struct anv_cmd_pipeline_state base;
+   struct anv_bind_point_state base;
 
    bool pipeline_dirty;
 
