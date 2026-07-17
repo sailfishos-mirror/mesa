@@ -709,8 +709,24 @@ impl fmt::Display for FmtSrc<'_> {
 }
 
 impl Src {
+    /// Swizzles a `Src` by the given `swizzle`.  This helper is intended to be
+    /// used in cases where you know what you're doing, such as when building
+    /// some IR.  It's up to the caller to guarantee that the resulting swizzle
+    /// is valid and non-zero.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the composed swizzle is invalid or zero.
     pub fn swizzle(mut self, swizzle: Swizzle) -> Src {
         self.swizzle = self.swizzle.swizzle(swizzle).unwrap();
+        assert!(!self.swizzle.is_zero());
+
+        // If the new swizzle only reads the first word, make sure we only
+        // reference the first word.
+        if self.swizzle.bytes_read(8) <= 0xf {
+            self.src_ref = self.src_ref.word(0);
+        }
+
         self
     }
 
