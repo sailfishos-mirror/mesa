@@ -72,7 +72,7 @@ struct vn_semaphore {
 
    struct vn_sync_feedback feedback;
 
-   bool is_external;
+   bool sync_fd_export;
    struct vn_sync_payload_external external_payload;
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(vn_semaphore,
@@ -102,13 +102,13 @@ vn_semaphore_is_timeline(VkSemaphore sem_handle)
 }
 
 static inline bool
-vn_semaphore_is_imported(VkSemaphore sem_handle)
+vn_semaphore_is_sync_fd(VkSemaphore sem_handle)
 {
    struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
    return sem->payload->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD;
 }
 
 bool
-vn_semaphore_wait_imported(VkDevice dev_handle, VkSemaphore sem_handle);
+vn_semaphore_wait_sync_fd(VkDevice dev_handle, VkSemaphore sem_handle);
 
 #endif /* VN_SYNC_H */
