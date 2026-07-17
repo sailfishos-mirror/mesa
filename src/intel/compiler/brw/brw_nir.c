@@ -1020,6 +1020,18 @@ brw_nir_should_vectorize_urb(unsigned align_mul, unsigned align_offset,
                              nir_intrinsic_instr *high,
                              void *data)
 {
+   brw_pass_tracker *pt = data;
+
+   /* Jay does not yet SIMD split SENDs, so we cannot SIMD split illegal 
+    * SIMD32x8 SENDs in Jay, like BRW does. Instead we just limit URB
+    * vectorization to x4 here. 
+    */
+   if (
+      intel_use_jay(pt->compiler->devinfo, pt->nir->info.stage) && 
+      pt->dispatch_width == 32 && num_components > 4) {
+      return false;
+   }
+
    if (bit_size != 32 || num_components > 8)
       return false;
 
@@ -1061,6 +1073,7 @@ brw_nir_opt_vectorize_urb(brw_pass_tracker *pt)
       .round_up_components =
          devinfo->ver >= 20 ? lsc_urb_round_up_components :
                               vec4_urb_round_up_components,
+      .cb_data = pt
    };
    BRW_NIR_PASS(nir_opt_load_store_vectorize, &options);
 }
