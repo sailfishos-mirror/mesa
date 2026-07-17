@@ -342,7 +342,7 @@ vn_GetFenceFdKHR(VkDevice device,
 /* semaphore commands */
 
 bool
-vn_semaphore_wait_imported(VkDevice dev_handle, VkSemaphore sem_handle)
+vn_semaphore_wait_sync_fd(VkDevice dev_handle, VkSemaphore sem_handle)
 {
    struct vn_device *dev = vn_device_from_handle(dev_handle);
    struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
@@ -405,7 +405,9 @@ vn_CreateSemaphore(VkDevice device,
 
    const struct VkExportSemaphoreCreateInfo *export_info =
       vk_find_struct_const(pCreateInfo->pNext, EXPORT_SEMAPHORE_CREATE_INFO);
-   sem->is_external = export_info && export_info->handleTypes;
+   sem->sync_fd_export =
+      export_info && (export_info->handleTypes &
+                      VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT);
 
    VkResult result = vn_semaphore_init_payloads(dev, sem, initial_val, alloc);
    if (result != VK_SUCCESS)
@@ -413,7 +415,7 @@ vn_CreateSemaphore(VkDevice device,
 
    if (sem->type == VK_SEMAPHORE_TYPE_TIMELINE &&
        !VN_PERF(NO_SEMAPHORE_FEEDBACK)) {
-      assert(!sem->is_external);
+      assert(!sem->sync_fd_export);
 
       result = vn_sync_feedback_init(dev, &sem->feedback, initial_val);
       if (result != VK_SUCCESS)
