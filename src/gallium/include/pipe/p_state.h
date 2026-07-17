@@ -1074,6 +1074,7 @@ enum pipe_ml_operation_type {
    PIPE_ML_OPERATION_TYPE_SPLIT,
    PIPE_ML_OPERATION_TYPE_PAD,
    PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED,
+   PIPE_ML_OPERATION_TYPE_BATCH_MATMUL,
    PIPE_ML_OPERATION_TYPE_RESHAPE,
    PIPE_ML_OPERATION_TYPE_RELU,
    PIPE_ML_OPERATION_TYPE_ABSOLUTE,
@@ -1266,6 +1267,11 @@ struct pipe_ml_operation
           */
          bool relu;
       } add;
+
+      struct {
+         bool adj_x;
+         bool adj_y;
+      } batch_matmul;
 
       struct {
          /**
