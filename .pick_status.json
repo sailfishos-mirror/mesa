@@ -2634,7 +2634,7 @@
         "description": "pan/kraid: Fix 32bit hw_runner builds",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1d171a4174454045385986b52c872bac31052f8b",
         "notes": null
