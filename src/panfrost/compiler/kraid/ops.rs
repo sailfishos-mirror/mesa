@@ -228,11 +228,16 @@ impl Foldable for OpBitRev {
 
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 pub enum BranchCombineOp {
+    /// Branch if != 0
     #[default]
     None,
+    /// Branch if .h0 is != 0
     H0,
+    /// Branch if .h1 is != 0
     H1,
+    /// Branch if == 0xFFFFFFFF
     And,
+    /// Branch if 3..20 are not either all 0s or all 1s
     LowBits,
 }
 
