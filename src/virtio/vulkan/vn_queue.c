@@ -1266,7 +1266,7 @@ vn_queue_submit_2(VkQueue queue_handle,
 
    assert(batch);
 
-   if (!dev->has_sync2) {
+   if (!dev->base.vk.enabled_features.synchronization2) {
       VN_TRACE_SCOPE("2->1");
       return vn_queue_submit_2_to_1(dev, queue_handle, batch, fence_handle);
    }
