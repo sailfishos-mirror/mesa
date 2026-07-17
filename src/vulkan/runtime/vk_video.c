@@ -2864,17 +2864,17 @@ vk_video_encode_h265_slice_header(const StdVideoEncodeH265PictureInfo *pic_info,
    }
 
    if (slice_header->slice_type != STD_VIDEO_H265_SLICE_TYPE_I) {
-      unsigned num_ref_idx_l0_active = pps->num_ref_idx_l0_default_active_minus1 + 1;
-      unsigned num_ref_idx_l1_active = pps->num_ref_idx_l1_default_active_minus1 + 1;
+      unsigned num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
+      unsigned num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
 
       vl_bitstream_put_bits(&enc, 1, slice_header->flags.num_ref_idx_active_override_flag);
       if (slice_header->flags.num_ref_idx_active_override_flag) {
          vl_bitstream_exp_golomb_ue(&enc, pic_info->pRefLists->num_ref_idx_l0_active_minus1);
-         num_ref_idx_l0_active = pic_info->pRefLists->num_ref_idx_l0_active_minus1 + 1;
+         num_ref_idx_l0_active_minus1 = pic_info->pRefLists->num_ref_idx_l0_active_minus1;
 
          if (slice_header->slice_type == STD_VIDEO_H265_SLICE_TYPE_B) {
             vl_bitstream_exp_golomb_ue(&enc, pic_info->pRefLists->num_ref_idx_l1_active_minus1);
-            num_ref_idx_l1_active = pic_info->pRefLists->num_ref_idx_l1_active_minus1 + 1;
+            num_ref_idx_l1_active_minus1 = pic_info->pRefLists->num_ref_idx_l1_active_minus1;
          }
       }
 
@@ -2884,7 +2884,7 @@ vk_video_encode_h265_slice_header(const StdVideoEncodeH265PictureInfo *pic_info,
          vl_bitstream_put_bits(&enc, 1, pic_info->pRefLists->flags.ref_pic_list_modification_flag_l0);
          if (pic_info->pRefLists->flags.ref_pic_list_modification_flag_l0) {
 
-            for (int i = 0; i < num_ref_idx_l0_active - 1; i++) {
+            for (int i = 0; i <= num_ref_idx_l0_active_minus1; i++) {
                vl_bitstream_put_bits(&enc, num_pic_bits,
                      pic_info->pRefLists->list_entry_l0[i]);
             }
@@ -2894,7 +2894,7 @@ vk_video_encode_h265_slice_header(const StdVideoEncodeH265PictureInfo *pic_info,
             vl_bitstream_put_bits(&enc, 1, pic_info->pRefLists->flags.ref_pic_list_modification_flag_l1);
 
             if (pic_info->pRefLists->flags.ref_pic_list_modification_flag_l1) {
-               for (int i = 0; i < num_ref_idx_l1_active - 1; i++) {
+               for (int i = 0; i <= num_ref_idx_l1_active_minus1; i++) {
                   vl_bitstream_put_bits(&enc, num_pic_bits,
                         pic_info->pRefLists->list_entry_l1[i]);
                }
@@ -2914,9 +2914,9 @@ vk_video_encode_h265_slice_header(const StdVideoEncodeH265PictureInfo *pic_info,
             vl_bitstream_put_bits(&enc, 1, slice_header->flags.collocated_from_l0_flag);
          }
 
-         if (slice_header->flags.collocated_from_l0_flag && num_ref_idx_l0_active > 1)
+         if (slice_header->flags.collocated_from_l0_flag && num_ref_idx_l0_active_minus1)
             vl_bitstream_exp_golomb_ue(&enc, slice_header->collocated_ref_idx);
-         else if (!slice_header->flags.collocated_from_l0_flag && num_ref_idx_l1_active > 1)
+         else if (!slice_header->flags.collocated_from_l0_flag && num_ref_idx_l1_active_minus1)
             vl_bitstream_exp_golomb_ue(&enc, slice_header->collocated_ref_idx);
 
       }
