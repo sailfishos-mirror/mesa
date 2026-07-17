@@ -410,6 +410,9 @@ panfrost_blitter_resource_copy_region(struct pipe_context *pipe,
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
    struct panfrost_context *ctx = pan_context(pipe);
+   const enum pan_save_state states =
+      PAN_SAVE_TEXTURES | PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE |
+      PAN_SAVE_RENDER_COND;
 
    /* Sufficiently large, 4-byte-aligned, contiguous buffer->buffer copies are
     * done on the GPU via the libpan copy compute kernel. Small copies (below
@@ -432,9 +435,42 @@ panfrost_blitter_resource_copy_region(struct pipe_context *pipe,
           */
          util_range_add(dst, &pdst->valid_buffer_range, dst_x, dst_x + size);
          return;
+      } else {
+         goto fallback;
       }
    }
 
+   /* XXX Some tests are failing with these formats:
+    * - dEQP-GLES31.functional.copy_image.mixed.viewclass_128_bits_mixed.rgba32f_rgba_astc_*
+    * - dEQP-GLES31.functional.copy_image.mixed.viewclass_128_bits_mixed.rgba32f_srgb8_alpha8_astc_*
+    * - dEQP-GLES31.functional.copy_image.non_compressed.viewclass_16_bits.rg8_snorm_*
+    * - dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgba8_snorm_*
+    */
+   if (dst->format == PIPE_FORMAT_R32G32B32A32_FLOAT ||
+       dst->format == PIPE_FORMAT_R8G8B8A8_SNORM ||
+       dst->format == PIPE_FORMAT_R8G8_SNORM)
+      goto fallback;
+
+   if (!util_blitter_is_copy_supported(ctx->blitter, dst, src))
+      goto fallback;
+
+   if (dst->format != src->format &&
+       !util_is_format_compatible(util_format_description(dst->format),
+                                  util_format_description(src->format)))
+      goto fallback;
+
+   pan_legalize_format(ctx, pan_resource(dst),
+                       util_format_linear(dst->format), true, false);
+   pan_legalize_format(ctx, pan_resource(src),
+                       util_format_linear(src->format), false, false);
+   panfrost_blitter_save(ctx, states);
+   ctx->has_blit_loop = dst == src;
+   util_blitter_copy_texture(ctx->blitter, dst, dst_level, dst_x, dst_y,
+                             dst_z, src, src_level, src_box);
+   ctx->has_blit_loop = false;
+   return;
+
+ fallback:
    /* Map resources and memcpy() on the CPU. */
    perf_debug(ctx, "Software fallback for resource_copy_region()");
    util_resource_copy_region(pipe, dst, dst_level, dst_x, dst_y, dst_z, src,
