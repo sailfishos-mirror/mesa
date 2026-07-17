@@ -2624,7 +2624,7 @@
         "description": "pan/perf: Fix 32bit build of panquick",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5c15ef5057b7ebc8cb8771acb4ffb2ed602d3665",
         "notes": null
