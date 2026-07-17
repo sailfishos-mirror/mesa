@@ -403,6 +403,28 @@ vn_queue_submission_init_pnext(struct vn_queue_submission *submit)
                submit->temp.wait_indices;
          }
 
+         /* drop the dev indices for the dropped signal semaphores */
+         if (submit->sig_index_count) {
+            assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO ||
+                   submit->batch_type == VK_STRUCTURE_TYPE_BIND_SPARSE_INFO);
+            assert(submit->sig_index_count ==
+                   vn_get_signal_semaphore_count(submit));
+
+            uint32_t j = 0;
+            for (uint32_t i = 0; i < submit->sig_index_count; i++) {
+               VkSemaphore sem_handle = vn_get_signal_semaphore(submit, i);
+               if (vn_semaphore_is_sync_fd(sem_handle))
+                  continue;
+
+               submit->temp.sig_indices[j++] =
+                  group->pSignalSemaphoreDeviceIndices[i];
+            }
+
+            pnext->group.signalSemaphoreCount = j;
+            pnext->group.pSignalSemaphoreDeviceIndices =
+               submit->temp.sig_indices;
+         }
+
          break;
       }
       case VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO: {
@@ -430,6 +452,29 @@ vn_queue_submission_init_pnext(struct vn_queue_submission *submit)
 
             pnext->timeline.waitSemaphoreValueCount = j;
             pnext->timeline.pWaitSemaphoreValues = submit->temp.wait_vals;
+         }
+
+         /* drop the sem vals for the dropped signal semaphores */
+         if (submit->sig_val_count) {
+            VkTimelineSemaphoreSubmitInfo *timeline = (void *)src;
+
+            assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO ||
+                   submit->batch_type == VK_STRUCTURE_TYPE_BIND_SPARSE_INFO);
+            assert(submit->sig_val_count ==
+                   vn_get_signal_semaphore_count(submit));
+
+            uint32_t j = 0;
+            for (uint32_t i = 0; i < submit->sig_val_count; i++) {
+               VkSemaphore sem_handle = vn_get_signal_semaphore(submit, i);
+               if (vn_semaphore_is_sync_fd(sem_handle))
+                  continue;
+
+               submit->temp.sig_vals[j++] =
+                  timeline->pSignalSemaphoreValues[i];
+            }
+
+            pnext->timeline.signalSemaphoreValueCount = j;
+            pnext->timeline.pSignalSemaphoreValues = submit->temp.sig_vals;
          }
 
          break;
@@ -922,13 +967,71 @@ vn_queue_submission_init_wait_semaphores(struct vn_queue_submission *submit)
 }
 
 static void
+vn_queue_submission_init_signal_semaphores(struct vn_queue_submission *submit)
+{
+   if (!submit->sig_sem_count)
+      return;
+
+   uint32_t j = 0;
+   const uint32_t sig_count = vn_get_signal_semaphore_count(submit);
+   for (uint32_t i = 0; i < sig_count; i++) {
+      VkSemaphore sem_handle = vn_get_signal_semaphore(submit, i);
+      if (vn_semaphore_is_sync_fd(sem_handle)) {
+         /* drop the sync fd semaphore */
+         continue;
+      }
+
+      if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
+         submit->temp.sig_sem_infos[j++] =
+            submit->submit2_batch->pSignalSemaphoreInfos[i];
+      } else if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
+         submit->temp.sig_sem_handles[j++] =
+            submit->submit_batch->pSignalSemaphores[i];
+      } else {
+         assert(submit->batch_type == VK_STRUCTURE_TYPE_BIND_SPARSE_INFO);
+         submit->temp.sig_sem_handles[j++] =
+            submit->sparse_batch->pSignalSemaphores[i];
+      }
+   }
+
+   if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
+      submit->temp.submit2_batch->pSignalSemaphoreInfos =
+         submit->temp.sig_sem_infos;
+      submit->temp.submit2_batch->signalSemaphoreInfoCount = j;
+   } else if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
+      submit->temp.submit_batch->pSignalSemaphores =
+         submit->temp.sig_sem_handles;
+      submit->temp.submit_batch->signalSemaphoreCount = j;
+   } else {
+      assert(submit->batch_type == VK_STRUCTURE_TYPE_BIND_SPARSE_INFO);
+      submit->temp.sparse_batch->pSignalSemaphores =
+         submit->temp.sig_sem_handles;
+      submit->temp.sparse_batch->signalSemaphoreCount = j;
+   }
+}
+
+static void
 vn_queue_submission_init_syncs(struct vn_queue_submission *submit)
 {
    /* TODO handle below:
-    * - external semaphore
     * - timeline semaphore
     */
    uint32_t sync_index = 0;
+
+   const uint32_t sig_count = vn_get_signal_semaphore_count(submit);
+   for (uint32_t i = 0; i < sig_count; i++) {
+      VkSemaphore sem_handle = vn_get_signal_semaphore(submit, i);
+      if (!vn_semaphore_is_sync_fd(sem_handle))
+         continue;
+
+      VK_FROM_HANDLE(vn_semaphore, sem, sem_handle);
+
+      assert(sem->payload->type == VN_SYNC_TYPE_SYNC);
+
+      submit->temp.syncs[sync_index] = sem->payload->sync;
+      submit->temp.sync_vals[sync_index] = 1;
+      sync_index++;
+   }
 
    if (submit->fence_handle != VK_NULL_HANDLE) {
       VK_FROM_HANDLE(vn_fence, fence, submit->fence_handle);
@@ -966,6 +1069,9 @@ vn_queue_submission_init(struct vn_queue_submission *submit)
       return result;
 
    vn_queue_submission_init_syncs(submit);
+
+   /* signal semaphore are initialized after syncs are extracted */
+   vn_queue_submission_init_signal_semaphores(submit);
 
    if (submit->fix.batch)
       submit->batch = submit->temp.batch;
