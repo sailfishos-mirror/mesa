@@ -219,7 +219,7 @@ tu_spirv_to_nir(struct tu_device *dev,
    nir->info.num_ubos = 0;
    nir->info.num_ssbos = 0;
 
-   if (TU_DEBUG(COMPUTE_ROUND_ROBIN)) {
+   if (dev->physical_device->compiler_options.compute_round_robin) {
       nir->info.occupancy_bounded_workgroup_fairness = true;
    }
 
@@ -451,7 +451,7 @@ lower_ssbo_ubo_intrinsic(struct tu_device *dev,
    nir_def *descriptor_idx = nir_channel(b, intrin->src[buffer_src].ssa, 1);
 
    if (intrin->intrinsic == nir_intrinsic_load_ubo &&
-       dev->instance->drirc.misc.allow_oob_indirect_ubo_loads) {
+       dev->physical_device->compiler_options.allow_oob_indirect_ubo_loads) {
       nir_scalar offset = nir_scalar_resolved(intrin->src[1].ssa, 0);
       if (!nir_scalar_is_const(offset)) {
          nir_intrinsic_set_range(intrin, ~0);
@@ -685,7 +685,7 @@ lower_image_deref(struct tu_device *dev, nir_builder *b,
    nir_rewrite_image_intrinsic(instr, bindless,
                                nir_image_intrinsic_type_bindless);
 
-   if (dev->physical_device->enable_texel_buffer_emulation &&
+   if (dev->physical_device->compiler_options.enable_texel_buffer_emulation &&
        nir_intrinsic_image_dim(instr) == GLSL_SAMPLER_DIM_BUF) {
       lower_texel_buffers_to_image(b, instr, bindless);
    }
@@ -1008,7 +1008,7 @@ lower_tex_impl(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
          tex->src[tex_src_idx].src_type = nir_tex_src_texture_offset;
    }
 
-   if (dev->physical_device->enable_texel_buffer_emulation &&
+   if (dev->physical_device->compiler_options.enable_texel_buffer_emulation &&
        tex->sampler_dim == GLSL_SAMPLER_DIM_BUF) {
       lower_tex_texel_buffer_to_image(b, tex, tex_src_idx);
    }
@@ -1362,7 +1362,7 @@ tu_lower_io(nir_shader *shader, struct tu_device *dev,
 
    ir3_const_alloc(const_allocs, IR3_CONST_ALLOC_INLINE_UNIFORM_ADDRS, ldgk_consts, 1);
 
-   if (dev->physical_device->enable_ssbo_emulation) {
+   if (dev->physical_device->compiler_options.enable_ssbo_emulation) {
       const_state->num_bindless_base_addresses = layout->num_sets;
       const_state->bindless_base_const_offset_vec4 = const_allocs->max_const_offset_vec4;
 
@@ -3400,7 +3400,7 @@ tu_shader_create(struct tu_device *dev,
     */
    NIR_PASS(_, nir, tu_nir_lower_ssbo_descriptor, dev);
 
-   if (dev->physical_device->enable_ssbo_emulation) {
+   if (dev->physical_device->compiler_options.enable_ssbo_emulation) {
       nir_lower_ssbo_options options = {
          .native_offset = true,
          .min_ssbo_size = dev->compiler->info->props.max_storage_buffer_range_bytes,

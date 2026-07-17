@@ -74,18 +74,41 @@ tu_device_get_build_id(blake3_hasher *ctx)
 #endif
 }
 
-static int
-tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
+static void
+tu_physical_device_compiler_options_init(struct tu_physical_device *device,
+                                         struct tu_instance *instance)
 {
-   blake3_hasher ctx;
-   unsigned char blake3[BLAKE3_KEY_LEN];
+   /* D3D12 texel buffer range emulation requires the resbase instruction, which appeared in 7xx. */
+   if (fd_dev_gen(&device->dev_id) >= 7) {
+      if (device->info->props.max_texel_buffer_range_elements < TU_D3D12_MAX_TEXEL_BUFFER_ELEMENTS) {
+         assert(fd_dev_gen(&device->dev_id) == 7);
+         device->compiler_options.enable_texel_buffer_emulation =
+            instance->drirc.misc.enable_texel_buffer_emulation;
+      }
+      if (device->info->props.max_storage_buffer_range_bytes < TU_D3D12_MAX_STORAGE_BUFFER_RANGE_BYTES) {
+         assert(fd_dev_gen(&device->dev_id) == 7);
+         device->compiler_options.enable_ssbo_emulation =
+            instance->drirc.misc.enable_ssbo_emulation;
+      }
+   }
+
+   device->compiler_options.allow_oob_indirect_ubo_loads =
+      device->instance->drirc.misc.allow_oob_indirect_ubo_loads;
+
    /* Note: IR3_SHADER_DEBUG also affects compilation, but it's not
     * initialized until after compiler creation so we have to add it to the
     * shader hash instead, since the compiler is only created with the logical
     * device.
     */
-   uint64_t driver_flags = TU_DEBUG(NOMULTIPOS) |
-      (TU_DEBUG(COMPUTE_ROUND_ROBIN) << 1u);
+   device->compiler_options.no_multi_pos = TU_DEBUG(NOMULTIPOS);
+   device->compiler_options.compute_round_robin = TU_DEBUG(COMPUTE_ROUND_ROBIN);
+}
+
+static int
+tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
+{
+   blake3_hasher ctx;
+   unsigned char blake3[BLAKE3_KEY_LEN];
 
    /* Note: we intentionally drop the upper 32 bits since they contain fuse
     * values that don't affect compilation.
@@ -99,14 +122,9 @@ tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
       return -1;
 
    _mesa_blake3_update(&ctx, &chip_id, sizeof(chip_id));
-   _mesa_blake3_update(&ctx, &driver_flags, sizeof(driver_flags));
    _mesa_blake3_update(&ctx, &device->uche_trap_base, sizeof(device->uche_trap_base));
-   _mesa_blake3_update(&ctx, &device->instance->drirc.misc.allow_oob_indirect_ubo_loads,
-                       sizeof(device->instance->drirc.misc.allow_oob_indirect_ubo_loads));
-   _mesa_blake3_update(&ctx, &device->enable_texel_buffer_emulation,
-                       sizeof(device->enable_texel_buffer_emulation));
-   _mesa_blake3_update(&ctx, &device->enable_ssbo_emulation,
-                       sizeof(device->enable_ssbo_emulation));
+   _mesa_blake3_update(&ctx, &device->compiler_options,
+                       sizeof(device->compiler_options));
    _mesa_blake3_final(&ctx, blake3);
 
    memcpy(uuid, blake3, VK_UUID_SIZE);
@@ -1157,12 +1175,12 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->maxImageDimension3D = (1 << 11);
    props->maxImageDimensionCube = (1 << 14);
    props->maxImageArrayLayers = (1 << (pdevice->info->props.is_a702 ? 8 : 11));
-   props->maxTexelBufferElements = pdevice->enable_texel_buffer_emulation
+   props->maxTexelBufferElements = pdevice->compiler_options.enable_texel_buffer_emulation
                                       ? TU_D3D12_MAX_TEXEL_BUFFER_ELEMENTS
                                       : pdevice->info->props.max_texel_buffer_range_elements;
    props->maxUniformBufferRange = MAX_UNIFORM_BUFFER_RANGE;
    props->maxStorageBufferRange =
-      pdevice->enable_ssbo_emulation
+      pdevice->compiler_options.enable_ssbo_emulation
          ? TU_D3D12_MAX_STORAGE_BUFFER_RANGE_BYTES
          : pdevice->info->props.max_storage_buffer_range_bytes;
    props->maxPushConstantsSize = MAX_PUSH_CONSTANTS_SIZE;
@@ -1737,17 +1755,7 @@ tu_physical_device_init(struct tu_physical_device *device,
       goto fail_free_name;
    }
 
-   /* D3D12 texel buffer range emulation requires the resbase instruction, which appeared in 7xx. */
-   if (fd_dev_gen(&device->dev_id) >= 7) {
-      if (device->info->props.max_texel_buffer_range_elements < TU_D3D12_MAX_TEXEL_BUFFER_ELEMENTS) {
-         assert(fd_dev_gen(&device->dev_id) == 7);
-         device->enable_texel_buffer_emulation = instance->drirc.misc.enable_texel_buffer_emulation;
-      }
-      if (device->info->props.max_storage_buffer_range_bytes < TU_D3D12_MAX_STORAGE_BUFFER_RANGE_BYTES) {
-         assert(fd_dev_gen(&device->dev_id) == 7);
-         device->enable_ssbo_emulation = instance->drirc.misc.enable_ssbo_emulation;
-      }
-   }
+   tu_physical_device_compiler_options_init(device, instance);
 
    if (tu_device_get_cache_uuid(device, device->cache_uuid)) {
       result = vk_startup_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,

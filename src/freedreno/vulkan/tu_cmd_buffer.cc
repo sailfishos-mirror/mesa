@@ -4754,7 +4754,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
       descriptors_state->set_iova[idx] = set ?
          (set->va | BINDLESS_DESCRIPTOR_64B) : 0;
 
-      if (cmd->device->physical_device->enable_ssbo_emulation)
+      if (cmd->device->physical_device->compiler_options.enable_ssbo_emulation)
          cmd->state.dirty |= TU_CMD_DIRTY_SHADER_CONSTS;
 
       if (!set)
@@ -4823,7 +4823,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                         va += desc_offset << offset_shift;
                         va += offset;
 
-                        if (cmd->device->physical_device->enable_ssbo_emulation) {
+                        if (cmd->device->physical_device->compiler_options.enable_ssbo_emulation) {
                            dst_desc[11] = va;
                            dst_desc[12] = va >> 32;
                         }
@@ -4930,7 +4930,7 @@ tu_set_descriptor_buffer_offsets(
           info->pOffsets[i]) |
          BINDLESS_DESCRIPTOR_64B;
 
-      if (cmd->device->physical_device->enable_ssbo_emulation ||
+      if (cmd->device->physical_device->compiler_options.enable_ssbo_emulation ||
           set_layout->has_inline_uniforms)
          cmd->state.dirty |= TU_CMD_DIRTY_SHADER_CONSTS;
    }
