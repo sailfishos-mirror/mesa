@@ -434,7 +434,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
       break;
 
    case nir_intrinsic_load_urb_input_handle_intel:
-      is_divergent = stage != MESA_SHADER_TESS_EVAL;
+      is_divergent = stage != MESA_SHADER_TESS_EVAL && stage != MESA_SHADER_MESH;
       break;
 
    case nir_intrinsic_decl_reg:
