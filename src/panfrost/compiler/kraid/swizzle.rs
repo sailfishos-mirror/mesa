@@ -867,6 +867,17 @@ impl fmt::Display for Swizzle {
     }
 }
 
+impl fmt::Debug for Swizzle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_none() {
+            write!(f, "Swizzle::NONE")
+        } else {
+            let s = format!("{}", self).to_uppercase();
+            write!(f, "Swizzle::{}", &s[1..])
+        }
+    }
+}
+
 /// Swizzles and widens as they appear in the shader assembly.  These are used
 /// both for final codegen and for pretty printing.
 #[repr(u8)]
