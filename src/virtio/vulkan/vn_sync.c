@@ -348,6 +348,24 @@ vn_semaphore_wait_sync_fd(VkDevice dev_handle, VkSemaphore sem_handle)
    struct vn_semaphore *sem = vn_semaphore_from_handle(sem_handle);
    const struct vn_sync_payload *payload = sem->payload;
 
+   if (payload->type == VN_SYNC_TYPE_SYNC) {
+      assert(sem->sync_fd_export && payload == &sem->permanent);
+
+      const uint64_t sync_val = 1;
+      const struct vn_renderer_wait wait = {
+         .timeout = UINT64_MAX,
+         .syncs = &payload->sync,
+         .sync_values = &sync_val,
+         .sync_count = 1,
+      };
+      VkResult result = vn_renderer_wait(dev->renderer, &wait);
+      if (result != VK_SUCCESS)
+         return false;
+
+      result = vn_renderer_sync_reset(dev->renderer, payload->sync);
+      return result == VK_SUCCESS;
+   }
+
    assert(payload->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD &&
           payload == &sem->temporary);
 
