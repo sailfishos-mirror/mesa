@@ -794,7 +794,7 @@
         "description": "venus: properly check sync2 enablement",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "07cee75c39c243d915c4745d91338887aeee637c",
         "notes": null
