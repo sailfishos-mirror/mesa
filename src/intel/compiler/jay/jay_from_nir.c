@@ -3995,6 +3995,8 @@ jay_compile(const struct intel_device_info *devinfo,
    }
 
    if (!(jay_debug & JAY_DBG_NOOPT)) {
+      JAY_PASS(s, jay_opt_postra_vectorize);
+
       /* jay_assign_accumulators uses a conservative liveness analysis for
        * predication, so assign accumulators before predicating for better
        * results.

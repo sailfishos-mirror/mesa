@@ -78,6 +78,7 @@ void jay_opt_propagate_forwards(jay_shader *s);
 void jay_opt_propagate_backwards(jay_shader *s);
 void jay_opt_dead_code(jay_shader *s);
 void jay_opt_predicate(jay_shader *s);
+void jay_opt_postra_vectorize(jay_shader *s);
 
 void jay_schedule(jay_shader *s);
 
