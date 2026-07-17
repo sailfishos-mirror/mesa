@@ -129,8 +129,45 @@ ethosu_fc_needs_flatten(const struct pipe_ml_operation *poperation)
            output->dims[2] != input->dims[1] * input->dims[2]);
 }
 
+static unsigned
+ethosu_fc_batch_width(unsigned rows)
+{
+   unsigned width = 1;
+
+   while (width * width < rows)
+      width++;
+
+   width = MAX2(rows / 16, width);
+   while (rows % width)
+      width++;
+
+   return width;
+}
+
+static unsigned
+ethosu_fc_batch_rows(const struct pipe_ml_operation *poperation)
+{
+   const struct pipe_tensor *input = poperation->input_tensors[0];
+   const struct pipe_tensor *weight = poperation->fcon.weight_tensor;
+
+   if (ethosu_fc_needs_flatten(poperation))
+      return input->dims[1] * input->dims[2] * input->dims[3] /
+             weight->dims[3];
+
+   return input->dims[1] * input->dims[2];
+}
+
 static bool
-ethosu_has_flattened_fc_consumer(const struct pipe_ml_operation *poperations,
+ethosu_fc_uses_batched_shape(const struct ethosu_subgraph *subgraph,
+                             const struct pipe_ml_operation *poperation)
+{
+   return poperation->type == PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED &&
+          ethosu_fc_batch_rows(poperation) > 1;
+}
+
+static bool
+ethosu_has_non_nhcwb_fc_consumer(const struct ethosu_subgraph *subgraph,
+                                 const struct pipe_ml_operation *poperations,
                                  unsigned count, unsigned tensor_index)
 {
    for (unsigned i = 0; i < count; i++) {
@@ -138,7 +175,8 @@ ethosu_has_flattened_fc_consumer(const struct pipe_ml_operation *poperations,
 
       for (unsigned j = 0; j < poperation->input_count; j++) {
          if (poperation->input_tensors[j]->index == tensor_index &&
-             ethosu_fc_needs_flatten(poperation))
+             (ethosu_fc_needs_flatten(poperation) ||
+              ethosu_fc_uses_batched_shape(subgraph, poperation)))
             return true;
       }
    }
@@ -378,6 +416,17 @@ ethosu_lower_fully_connected(struct ethosu_subgraph *subgraph,
       spatial_output.dims[1] = input_tensor->dims[1];
       spatial_output.dims[2] = input_tensor->dims[2];
       spatial_output.dims[3] = weight->dims[2];
+      output_tensors[0] = &spatial_output;
+   }
+
+   if (ethosu_fc_uses_batched_shape(subgraph, poperation)) {
+      unsigned rows = ethosu_fc_batch_rows(poperation);
+      unsigned width = ethosu_fc_batch_width(rows);
+
+      flat_input.dims[1] = rows / width;
+      flat_input.dims[2] = width;
+      spatial_output.dims[1] = flat_input.dims[1];
+      spatial_output.dims[2] = width;
       output_tensors[0] = &spatial_output;
    }
 
@@ -1084,7 +1133,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                   ethosu_find_first_consumer(poperations, count, ptensor->index);
                if (consumer && consumer->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                    !ethosu_fc_needs_flatten(poperation) &&
-                   !ethosu_has_flattened_fc_consumer(poperations, count,
+                   !ethosu_fc_uses_batched_shape(subgraph, poperation) &&
+                   !ethosu_has_non_nhcwb_fc_consumer(subgraph, poperations, count,
                                                      ptensor->index))
                   tensor->layout = ETHOSU_LAYOUT_NHCWB16;
             }
