@@ -175,7 +175,7 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer,
        * changes.
        */
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_COMPUTE_BIT;
-      comp_state->base.push_constants_data_dirty = true;
+      comp_state->base.push_constants_state = ANV_STATE_NULL;
    }
 
    anv_cmd_buffer_dirty_descriptors(
@@ -230,11 +230,9 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer,
 
    if (indirect_set == NULL &&
        (cmd_buffer->state.push_constants_dirty & VK_SHADER_STAGE_COMPUTE_BIT)) {
-      if (comp_state->base.push_constants_state.alloc_size == 0 ||
-          comp_state->base.push_constants_data_dirty) {
+      if (comp_state->base.push_constants_state.alloc_size == 0) {
          comp_state->base.push_constants_state =
             anv_cmd_buffer_cs_push_constants(cmd_buffer);
-         comp_state->base.push_constants_data_dirty = false;
       }
 
 #if GFX_VERx10 < 125
@@ -313,7 +311,7 @@ anv_cmd_buffer_push_driver_values(struct anv_cmd_buffer *cmd_buffer,
 
    if (updated) {
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_COMPUTE_BIT;
-      cmd_buffer->state.compute.base.push_constants_data_dirty = true;
+      cmd_buffer->state.compute.base.push_constants_state = ANV_STATE_NULL;
    }
 
 #undef UPDATE_PUSH

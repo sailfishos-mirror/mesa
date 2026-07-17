@@ -3685,7 +3685,7 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
       push_consts->gfx.tess_config = hw_state->tess_config;
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT |
                                                 VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-      gfx->base.push_constants_data_dirty = true;
+      gfx->base.push_constants_state = ANV_STATE_NULL;
    }
 
 #if INTEL_WA_14024997852_GFX_VER
@@ -3698,7 +3698,7 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
    if (IS_DIRTY(FS_CONFIG)) {
       push_consts->gfx.fs_config = hw_state->fs_config;
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_FRAGMENT_BIT;
-      gfx->base.push_constants_data_dirty = true;
+      gfx->base.push_constants_state = ANV_STATE_NULL;
    }
 
 #if INTEL_WA_18019110168_GFX_VER
@@ -3706,7 +3706,7 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
       push_consts->gfx.wa_18019110168 = hw_state->wa_18019110168;
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_MESH_BIT_EXT |
                                                 VK_SHADER_STAGE_FRAGMENT_BIT;
-      gfx->base.push_constants_data_dirty = true;
+      gfx->base.push_constants_state = ANV_STATE_NULL;
    }
 #endif
 

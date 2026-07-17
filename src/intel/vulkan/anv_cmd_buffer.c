@@ -517,7 +517,7 @@ anv_cmd_buffer_set_rt_query_buffer(struct anv_cmd_buffer *cmd_buffer,
    pipeline_state->push_constants.ray_query_globals =
       anv_address_physical(ray_query_globals_addr);
    cmd_buffer->state.push_constants_dirty |= stages;
-   pipeline_state->push_constants_data_dirty = true;
+   pipeline_state->push_constants_state = ANV_STATE_NULL;
 }
 
 static void
@@ -733,7 +733,7 @@ anv_cmd_buffer_bind_descriptor_set(struct anv_cmd_buffer *cmd_buffer,
    else
       anv_cmd_buffer_dirty_descriptors(cmd_buffer, dirty_stages, "descriptor bind");
    cmd_buffer->state.push_constants_dirty |= dirty_stages;
-   bind_state->push_constants_data_dirty = true;
+   bind_state->push_constants_state = ANV_STATE_NULL;
 }
 
 void anv_CmdBindDescriptorSets2(
@@ -934,7 +934,7 @@ void anv_CmdPushDataEXT(
 
       memcpy(bind_state->push_constants.client_data + pPushDataInfo->offset,
              pPushDataInfo->data.address, pPushDataInfo->data.size);
-      bind_state->push_constants_data_dirty = true;
+      bind_state->push_constants_state = ANV_STATE_NULL;
       bind_state->push_constants_client_size = MAX2(
          bind_state->push_constants_client_size,
          pPushDataInfo->offset + pPushDataInfo->data.size);
@@ -947,7 +947,7 @@ void anv_CmdPushDataEXT(
 
       memcpy(cs_state->push_constants.client_data + pPushDataInfo->offset,
              pPushDataInfo->data.address, pPushDataInfo->data.size);
-      cs_state->push_constants_data_dirty = true;
+      cs_state->push_constants_state = ANV_STATE_NULL;
       cs_state->push_constants_client_size = MAX2(
          cs_state->push_constants_client_size,
          pPushDataInfo->offset + pPushDataInfo->data.size);
@@ -959,7 +959,7 @@ void anv_CmdPushDataEXT(
             &cmd_buffer->state.rt.base;
          memcpy(rt_state->push_constants.client_data + pPushDataInfo->offset,
                 pPushDataInfo->data.address, pPushDataInfo->data.size);
-         rt_state->push_constants_data_dirty = true;
+         rt_state->push_constants_state = ANV_STATE_NULL;
          rt_state->push_constants_client_size = MAX2(
             rt_state->push_constants_client_size,
             pPushDataInfo->offset + pPushDataInfo->data.size);
@@ -1213,7 +1213,7 @@ void anv_CmdPushConstants2(
 
       memcpy(bind_state->push_constants.client_data + pInfo->offset,
              pInfo->pValues, pInfo->size);
-      bind_state->push_constants_data_dirty = true;
+      bind_state->push_constants_state = ANV_STATE_NULL;
       bind_state->push_constants_client_size = MAX2(
          bind_state->push_constants_client_size, pInfo->offset + pInfo->size);
    }
@@ -1223,7 +1223,7 @@ void anv_CmdPushConstants2(
 
       memcpy(bind_state->push_constants.client_data + pInfo->offset,
              pInfo->pValues, pInfo->size);
-      bind_state->push_constants_data_dirty = true;
+      bind_state->push_constants_state = ANV_STATE_NULL;
       bind_state->push_constants_client_size = MAX2(
          bind_state->push_constants_client_size, pInfo->offset + pInfo->size);
    }
@@ -1233,7 +1233,7 @@ void anv_CmdPushConstants2(
 
       memcpy(bind_state->push_constants.client_data + pInfo->offset,
              pInfo->pValues, pInfo->size);
-      bind_state->push_constants_data_dirty = true;
+      bind_state->push_constants_state = ANV_STATE_NULL;
       bind_state->push_constants_client_size = MAX2(
          bind_state->push_constants_client_size, pInfo->offset + pInfo->size);
    }
@@ -1355,7 +1355,7 @@ anv_cmd_buffer_set_rt_state(struct vk_command_buffer *vk_cmd_buffer,
    if (maybe_update_dynamic_buffers_indices(&rt->base,
                                             dynamic_descriptor_offsets)) {
       cmd_buffer->state.push_constants_dirty |= ANV_RT_STAGE_BITS;
-      rt->base.push_constants_data_dirty = true;
+      rt->base.push_constants_state = ANV_STATE_NULL;
    }
 }
 
@@ -1813,7 +1813,7 @@ bind_graphics_shaders(struct anv_cmd_buffer *cmd_buffer,
    if (maybe_update_dynamic_buffers_indices(&gfx->base,
                                             dynamic_descriptor_offsets)) {
       cmd_buffer->state.push_constants_dirty |= gfx->active_stages;
-      gfx->base.push_constants_data_dirty = true;
+      gfx->base.push_constants_state = ANV_STATE_NULL;
    }
 
    if (ray_queries > 0) {

@@ -492,7 +492,7 @@ cmd_buffer_flush_gfx_push_constants(struct anv_cmd_buffer *cmd_buffer,
             push->gfx.push_reg_mask[stage][r] = range_mask;
             cmd_buffer->state.push_constants_dirty |=
                mesa_to_vk_shader_stage(stage);
-            gfx->base.push_constants_data_dirty = true;
+            gfx->base.push_constants_state = ANV_STATE_NULL;
          }
       }
    }
@@ -504,7 +504,7 @@ cmd_buffer_flush_gfx_push_constants(struct anv_cmd_buffer *cmd_buffer,
     * Always reallocate on gfx9, gfx11 to fix push constant related flaky tests.
     * See https://gitlab.freedesktop.org/mesa/mesa/-/issues/11064
     */
-   if (gfx->base.push_constants_data_dirty || GFX_VER < 12)
+   if (GFX_VER < 12)
       gfx->base.push_constants_state = ANV_STATE_NULL;
 
 #if GFX_VERx10 >= 125
@@ -594,7 +594,6 @@ cmd_buffer_flush_gfx_push_constants(struct anv_cmd_buffer *cmd_buffer,
 #endif
 
    cmd_buffer->state.push_constants_dirty &= ~flushed;
-   gfx->base.push_constants_data_dirty = false;
 }
 
 #if GFX_VERx10 >= 125

@@ -3473,7 +3473,7 @@ genX(flush_descriptor_buffers)(struct anv_cmd_buffer *cmd_buffer,
          anv_physical_device_get_dynamic_state_pool_va(cmd_buffer->device->physical)->addr;
       cmd_buffer->state.push_constants_dirty |=
          (cmd_buffer->state.descriptor_buffers.offsets_dirty & active_stages);
-      bind_state->push_constants_data_dirty = true;
+      bind_state->push_constants_state = ANV_STATE_NULL;
    } else if (cmd_buffer->state.current_db_mode == ANV_CMD_DESCRIPTOR_BUFFER_MODE_BUFFER &&
        (cmd_buffer->state.descriptor_buffers.dirty ||
         (active_stages & cmd_buffer->state.descriptor_buffers.offsets_dirty) != 0)) {
@@ -3497,7 +3497,7 @@ genX(flush_descriptor_buffers)(struct anv_cmd_buffer *cmd_buffer,
 
       cmd_buffer->state.push_constants_dirty |=
          (cmd_buffer->state.descriptor_buffers.offsets_dirty & active_stages);
-      bind_state->push_constants_data_dirty = true;
+      bind_state->push_constants_state = ANV_STATE_NULL;
       cmd_buffer->state.descriptor_buffers.offsets_dirty &= ~active_stages;
    }
 
@@ -3951,7 +3951,6 @@ genX(BeginCommandBuffer)(
     * flag them dirty here to make sure they get emitted.
     */
    cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_ALL_GRAPHICS;
-   cmd_buffer->state.gfx.base.push_constants_data_dirty = true;
 
    if (cmd_buffer->usage_flags &
        VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT) {

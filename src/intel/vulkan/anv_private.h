@@ -4548,9 +4548,6 @@ struct anv_bind_point_state {
    /** Amount of data written to anv_push_constants::client_data */
    uint16_t push_constants_client_size;
 
-   /** Tracks whether the push constant data has changed and need to be reemitted */
-   bool                                         push_constants_data_dirty;
-
    /* Push constant state allocated when flushing push constants. */
    struct anv_state          push_constants_state;
 
