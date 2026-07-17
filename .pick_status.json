@@ -764,7 +764,7 @@
         "description": "vulkan/video: Fix coding AV1 operating points",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null

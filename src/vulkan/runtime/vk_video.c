@@ -604,6 +604,19 @@ vk_video_session_parameters_create(struct vk_device *device,
          vk_video_deep_copy_av1_seq_hdr(&params->av1_enc.seq_hdr,
                                         av1_create->pStdSequenceHeader);
 
+         if (av1_create->stdOperatingPointCount && av1_create->pStdOperatingPoints) {
+            if (av1_create->stdOperatingPointCount > 32) {
+               vk_video_session_parameters_destroy(device, alloc, params);
+               return NULL;
+            }
+            memcpy(params->av1_enc.op_points, av1_create->pStdOperatingPoints,
+                   av1_create->stdOperatingPointCount * sizeof(StdVideoEncodeAV1OperatingPointInfo));
+            params->av1_enc.num_op_points = av1_create->stdOperatingPointCount;
+         } else {
+            params->av1_enc.op_points[0].seq_level_idx = STD_VIDEO_AV1_LEVEL_6_1;
+            params->av1_enc.num_op_points = 1;
+         }
+
          if (av1_create->pStdDecoderModelInfo) {
             memcpy(&params->av1_enc.decoder_model, av1_create->pStdDecoderModelInfo,
                    sizeof(StdVideoEncodeAV1DecoderModelInfo));
@@ -3017,20 +3030,6 @@ static void vk_video_encode_av1_code_leb128(uint8_t *buf, uint32_t num_bytes, ui
    } while((leb128_byte & 0x80));
 }
 
-static StdVideoEncodeAV1OperatingPointInfo default_av1_operating_point = {
-   .flags = {
-      .decoder_model_present_for_this_op = 0,
-      .low_delay_mode_flag = 0,
-      .initial_display_delay_present_for_this_op = 0,
-   },
-   .operating_point_idc = 0,
-   .seq_level_idx = STD_VIDEO_AV1_LEVEL_6_1,
-   .seq_tier = 0,
-   .decoder_buffer_delay = 0,
-   .encoder_buffer_delay = 0,
-   .initial_display_delay_minus_1 = 0,
-};
-
 VkResult
 vk_video_encode_av1_seq_hdr(const struct vk_video_session_parameters *params,
                             size_t size_limit,
@@ -3051,9 +3050,8 @@ vk_video_encode_av1_seq_hdr(const struct vk_video_session_parameters *params,
    const StdVideoAV1SequenceHeader *seq_hdr = &params->av1_enc.seq_hdr.base;
    uint8_t decoder_model_present_flag = 0;
    const StdVideoEncodeAV1DecoderModelInfo *decoder_model = params->av1_enc.pStdDecoderModelInfo;
-   int num_op_points = MAX2(params->av1_enc.num_op_points, 1);
-   const StdVideoEncodeAV1OperatingPointInfo* op_points = params->av1_enc.num_op_points ?
-      params->av1_enc.op_points : &default_av1_operating_point;
+   uint32_t num_op_points = params->av1_enc.num_op_points;
+   const StdVideoEncodeAV1OperatingPointInfo *op_points = params->av1_enc.op_points;
 
    assert(params->op == VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR);
 
