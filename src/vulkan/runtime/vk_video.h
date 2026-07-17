@@ -186,6 +186,7 @@ struct vk_video_session_parameters {
          StdVideoEncodeAV1DecoderModelInfo decoder_model;
          uint32_t num_op_points;
          const StdVideoEncodeAV1OperatingPointInfo* op_points;
+         const StdVideoEncodeAV1DecoderModelInfo *pStdDecoderModelInfo;
       } av1_enc;
    };
 };

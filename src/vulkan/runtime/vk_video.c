@@ -603,6 +603,12 @@ vk_video_session_parameters_create(struct vk_device *device,
       if (av1_create) {
          vk_video_deep_copy_av1_seq_hdr(&params->av1_enc.seq_hdr,
                                         av1_create->pStdSequenceHeader);
+
+         if (av1_create->pStdDecoderModelInfo) {
+            memcpy(&params->av1_enc.decoder_model, av1_create->pStdDecoderModelInfo,
+                   sizeof(StdVideoEncodeAV1DecoderModelInfo));
+            params->av1_enc.pStdDecoderModelInfo = &params->av1_enc.decoder_model;
+         }
       }
       break;
    }
@@ -3044,7 +3050,7 @@ vk_video_encode_av1_seq_hdr(const struct vk_video_session_parameters *params,
    const StdVideoAV1TimingInfo* timing_info = &params->av1_enc.seq_hdr.timing_info;
    const StdVideoAV1SequenceHeader *seq_hdr = &params->av1_enc.seq_hdr.base;
    uint8_t decoder_model_present_flag = 0;
-   const StdVideoEncodeAV1DecoderModelInfo* decoder_model = &params->av1_enc.decoder_model;
+   const StdVideoEncodeAV1DecoderModelInfo *decoder_model = params->av1_enc.pStdDecoderModelInfo;
    int num_op_points = MAX2(params->av1_enc.num_op_points, 1);
    const StdVideoEncodeAV1OperatingPointInfo* op_points = params->av1_enc.num_op_points ?
       params->av1_enc.op_points : &default_av1_operating_point;
