@@ -496,6 +496,12 @@ impl LocalRegAlloc<'_> {
             vec: SSARef,
         }
 
+        struct Evicted {
+            is_src: bool,
+            bytes: Range<u16>,
+            idx: u32,
+        }
+
         let mut evicted = VecDeque::new();
         let mut srcs_dsts: Vec<SrcDst> = Vec::new();
         for (i, src) in instr.srcs().iter().enumerate() {
@@ -571,7 +577,11 @@ impl LocalRegAlloc<'_> {
                 // ensure we copy it back into place.
                 for ssa in vec {
                     let ssa_bytes = self.ssa_bytes(ssa);
-                    evicted.push_back((ssa.idx(), ssa_bytes.clone()));
+                    evicted.push_back(Evicted {
+                        is_src: true,
+                        bytes: ssa_bytes.clone(),
+                        idx: ssa.idx(),
+                    });
                     self.free_bytes(ssa_bytes);
                 }
 
@@ -665,7 +675,11 @@ impl LocalRegAlloc<'_> {
             for b in bytes.clone() {
                 if let Some(idx) = self.byte_idx(b) {
                     let idx_bytes = self.idx_bytes(idx);
-                    evicted.push_back((idx, idx_bytes.clone()));
+                    evicted.push_back(Evicted {
+                        is_src: false,
+                        bytes: idx_bytes.clone(),
+                        idx,
+                    });
                     self.free_bytes(idx_bytes);
                 }
             }
@@ -749,44 +763,44 @@ impl LocalRegAlloc<'_> {
         }
 
         loop {
-            let Some((idx, bytes)) = evicted.pop_front() else {
+            let Some(e) = evicted.pop_front() else {
                 break;
             };
 
-            // First check to see if it's already been assigned
-            let mut dst_bytes = self.idx_bytes(idx);
-            if self.byte_idx(dst_bytes.start) == Some(idx) {
-                debug_assert_eq!(bytes.len(), dst_bytes.len());
-                for b in dst_bytes.clone() {
-                    debug_assert_eq!(self.byte_idx(b), Some(idx));
-                }
-                debug_assert!(self.bytes_are_pinned(dst_bytes.clone()));
-
-                // There's nothing to evict since the destination has already
-                // been assigned.  Just emit the copy.
+            let dst_bytes = if e.is_src {
+                // If it's a source, it's already been placed.  Just look it up.
+                let idx_bytes = self.idx_bytes(e.idx);
+                debug_assert_eq!(idx_bytes.len(), e.bytes.len());
+                idx_bytes
             } else {
-                let nr_bytes = bytes.len().try_into().unwrap();
-                dst_bytes = self.choose_aligned_bytes(nr_bytes);
+                let nr_bytes = e.bytes.len().try_into().unwrap();
+                let bytes = self.choose_aligned_bytes(nr_bytes);
 
                 // Evict anything that might happen to be in dst_bytes
-                for b in dst_bytes.clone() {
+                for b in bytes.clone() {
                     if let Some(idx) = self.byte_idx(b) {
                         let idx_bytes = self.idx_bytes(idx);
-                        evicted.push_back((idx, idx_bytes.clone()));
+                        evicted.push_back(Evicted {
+                            is_src: false,
+                            bytes: idx_bytes.clone(),
+                            idx,
+                        });
                         self.free_bytes(idx_bytes);
                     }
                 }
 
                 // Pin dst_bytes so we don't try to re-use it
-                self.pin_bytes(dst_bytes.clone());
+                self.pin_bytes(bytes.clone());
 
                 // Assign the evicted idx to the new location
-                self.assign_idx_bytes(idx, dst_bytes.clone());
-            }
+                self.assign_idx_bytes(e.idx, bytes.clone());
+
+                bytes
+            };
 
             pcopy.add_copy(
                 self.reg_for_bytes(dst_bytes),
-                self.reg_for_bytes(bytes).into(),
+                self.reg_for_bytes(e.bytes).into(),
             );
         }
 
