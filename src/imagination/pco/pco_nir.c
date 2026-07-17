@@ -1040,6 +1040,8 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
       };
       NIR_PASS(_, nir, nir_opt_peephole_select, &peep_opts);
       NIR_PASS(_, nir, pco_nir_lower_interpolation, &data->fs);
+      if (!internal)
+         NIR_PASS(_, nir, pco_nir_lower_sample_mask_out);
       NIR_PASS(_, nir, pco_nir_pfo, &data->fs);
       NIR_PASS(_, nir, pco_nir_lower_fs_intrinsics);
    } else if (nir->info.stage == MESA_SHADER_VERTEX) {

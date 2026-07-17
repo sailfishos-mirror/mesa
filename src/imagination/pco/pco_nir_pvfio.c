@@ -39,8 +39,6 @@ struct pfo_state {
 
    nir_intrinsic_instr *last_discard_store;
 
-   bool has_sample_check;
-
    /* nir_instr *terminate; */
 
    pco_fs_data *fs; /** Fragment-specific data. */
@@ -468,25 +466,7 @@ static bool lower_pfo(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
          return true;
       }
 
-      if (sem.location == FRAG_RESULT_SAMPLE_MASK) {
-         nir_def *smp_msk =
-            nir_ishl(b, nir_imm_int(b, 1), nir_load_sample_id(b));
-
-         smp_msk = nir_iand(b, smp_msk, nir_load_sample_mask_in(b));
-         smp_msk = nir_iand(b, smp_msk, intr->src[0].ssa);
-         nir_def *cond = nir_ieq_imm(b, smp_msk, 0);
-
-         state->has_discards = true;
-         state->has_sample_check = true;
-         nir_def *val = nir_load_reg(b, state->discard_cond_reg);
-         val = nir_ior(b, val, cond);
-         state->last_discard_store =
-            nir_build_store_reg(b, val, state->discard_cond_reg);
-         nir_instr_remove(&intr->instr);
-         return true;
-      }
-
-      UNREACHABLE("");
+      UNREACHABLE("Unhandled fragment output location.");
    }
 
    case nir_intrinsic_load_output:
@@ -516,6 +496,47 @@ static bool lower_pfo(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
    return false;
 }
 
+static inline void insert_sample_check(nir_builder *b, nir_def *sample_mask_out)
+{
+   nir_def *mask = nir_ishl(b, nir_imm_int(b, 1), nir_load_sample_id(b));
+   mask = nir_iand(b, mask, nir_load_sample_mask_in(b));
+   if (sample_mask_out)
+      mask = nir_iand(b, mask, sample_mask_out);
+
+   nir_discard_if(b, nir_ieq_imm(b, mask, 0));
+}
+
+static bool lower_sample_mask_out(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *cb_data)
+{
+   b->cursor = nir_before_instr(&intr->instr);
+
+   if (intr->intrinsic != nir_intrinsic_store_output)
+      return false;
+
+   if (nir_intrinsic_io_semantics(intr).location != FRAG_RESULT_SAMPLE_MASK)
+      return false;
+
+   insert_sample_check(b, intr->src[0].ssa);
+   nir_instr_remove(&intr->instr);
+
+   return true;
+}
+
+bool pco_nir_lower_sample_mask_out(nir_shader *shader)
+{
+   bool progress = nir_shader_intrinsics_pass(shader, lower_sample_mask_out, nir_metadata_control_flow, NULL);
+   if (progress)
+      return true;
+
+   /* If the sample check isn't present, then add one ourselves. */
+   nir_builder b = nir_builder_at(
+      nir_before_block(nir_start_block(nir_shader_get_entrypoint(shader))));
+
+   insert_sample_check(&b, NULL);
+
+   return true;
+}
+
 static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
 {
    bool has_depth_feedback = !!state->depth_feedback_src;
@@ -542,22 +563,6 @@ static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
                         });
 
       has_depth_feedback = true;
-   }
-
-   if (!state->has_sample_check) {
-      b->cursor = nir_after_instr(&state->last_discard_store->instr);
-
-      nir_def *smp_msk = nir_ishl(b, nir_imm_int(b, 1), nir_load_sample_id(b));
-      smp_msk = nir_iand(b, smp_msk, nir_load_sample_mask_in(b));
-      nir_def *cond = nir_ieq_imm(b, smp_msk, 0);
-
-      nir_def *val = nir_load_reg(b, state->discard_cond_reg);
-      val = nir_ior(b, val, cond);
-      state->last_discard_store =
-         nir_build_store_reg(b, val, state->discard_cond_reg);
-
-      state->has_sample_check = true;
-      state->has_discards = true;
    }
 
    /* Insert isp feedback instruction before the first store,
