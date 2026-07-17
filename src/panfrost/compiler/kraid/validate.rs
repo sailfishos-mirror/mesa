@@ -12,8 +12,11 @@ fn validate_instr(instr: &Instr, ssa_vals: &mut FxHashSet<SSAValue>) {
             }
         }
 
+        assert_ne!(src.swizzle, Swizzle::ZERO);
         if src.swizzle.is_word_swizzle() {
             assert_eq!(src_type.bits(), 64);
+        } else if src.swizzle.is_byte_swizzle() {
+            assert!(src.src_ref.bytes_read() <= 4);
         }
 
         if src_type.comps() == 1 {
