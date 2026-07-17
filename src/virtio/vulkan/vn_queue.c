@@ -64,8 +64,8 @@ struct vn_queue_submission {
 
    uint32_t cmd_count;
    uint32_t dev_mask_count;
-   uint32_t dev_index_count;
-   uint32_t sem_val_count;
+   uint32_t wait_index_count;
+   uint32_t wait_val_count;
    uint32_t wait_sem_count;
    uint32_t sync_count;
 
@@ -84,9 +84,9 @@ struct vn_queue_submission {
     *  - a single pnext if batch pnext need fix
     * dev_masks
     *  - for device group submit to append new mask for new cmds
-    * dev_indices
-    *  - fix dev indices in the pNext chain
-    * sem_vals
+    * wait_indices
+    *  - fix wait dev indices in the pNext chain
+    * wait_vals
     *  - fix timeline wait values in the pNext chain
     * wait_sems
     *  - fix semaphore handles or infos for dropped wait semaphores
@@ -109,13 +109,13 @@ struct vn_queue_submission {
          VkCommandBufferSubmitInfo *cmd_infos;
       };
       uint32_t *dev_masks;
-      uint32_t *dev_indices;
+      uint32_t *wait_indices;
       union {
          void *wait_sems;
          VkSemaphore *wait_sem_handles;
          VkSemaphoreSubmitInfo *wait_sem_infos;
       };
-      uint64_t *sem_vals;
+      uint64_t *wait_vals;
       struct vn_renderer_sync **syncs;
       uint64_t *sync_vals;
    } temp;
@@ -365,25 +365,25 @@ vn_queue_submission_init_pnext(struct vn_queue_submission *submit)
          }
 
          /* drop the dev indices for the dropped wait semaphores */
-         if (submit->dev_index_count) {
+         if (submit->wait_index_count) {
             assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO ||
                    submit->batch_type == VK_STRUCTURE_TYPE_BIND_SPARSE_INFO);
-            assert(submit->dev_index_count ==
+            assert(submit->wait_index_count ==
                    vn_get_wait_semaphore_count(submit));
 
             uint32_t j = 0;
-            for (uint32_t i = 0; i < submit->dev_index_count; i++) {
+            for (uint32_t i = 0; i < submit->wait_index_count; i++) {
                VkSemaphore sem_handle = vn_get_wait_semaphore(submit, i);
                if (vn_semaphore_is_sync_fd(sem_handle))
                   continue;
 
-               submit->temp.dev_indices[j++] =
+               submit->temp.wait_indices[j++] =
                   group->pWaitSemaphoreDeviceIndices[i];
             }
 
             pnext->group.waitSemaphoreCount = j;
             pnext->group.pWaitSemaphoreDeviceIndices =
-               submit->temp.dev_indices;
+               submit->temp.wait_indices;
          }
 
          break;
@@ -393,25 +393,26 @@ vn_queue_submission_init_pnext(struct vn_queue_submission *submit)
          next = &pnext->timeline;
 
          /* drop the sem vals for the dropped wait semaphores */
-         if (submit->sem_val_count) {
+         if (submit->wait_val_count) {
             VkTimelineSemaphoreSubmitInfo *timeline = (void *)src;
 
             assert(submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO ||
                    submit->batch_type == VK_STRUCTURE_TYPE_BIND_SPARSE_INFO);
-            assert(submit->sem_val_count ==
+            assert(submit->wait_val_count ==
                    vn_get_wait_semaphore_count(submit));
 
             uint32_t j = 0;
-            for (uint32_t i = 0; i < submit->sem_val_count; i++) {
+            for (uint32_t i = 0; i < submit->wait_val_count; i++) {
                VkSemaphore sem_handle = vn_get_wait_semaphore(submit, i);
                if (vn_semaphore_is_sync_fd(sem_handle))
                   continue;
 
-               submit->temp.sem_vals[j++] = timeline->pWaitSemaphoreValues[i];
+               submit->temp.wait_vals[j++] =
+                  timeline->pWaitSemaphoreValues[i];
             }
 
             pnext->timeline.waitSemaphoreValueCount = j;
-            pnext->timeline.pWaitSemaphoreValues = submit->temp.sem_vals;
+            pnext->timeline.pWaitSemaphoreValues = submit->temp.wait_vals;
          }
 
          break;
@@ -466,7 +467,7 @@ vn_queue_submission_count_wait_semaphores(struct vn_queue_submission *submit)
    if (submit->batch_type != VK_STRUCTURE_TYPE_SUBMIT_INFO_2 &&
        has_timeline_semaphore) {
       submit->fix.pnext = true;
-      submit->sem_val_count = wait_count;
+      submit->wait_val_count = wait_count;
    }
 
    if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO) {
@@ -474,7 +475,7 @@ vn_queue_submission_count_wait_semaphores(struct vn_queue_submission *submit)
          submit->submit_batch->pNext, DEVICE_GROUP_SUBMIT_INFO);
       if (device_group) {
          submit->fix.pnext = true;
-         submit->dev_index_count = wait_count;
+         submit->wait_index_count = wait_count;
       }
    }
 }
@@ -570,8 +571,8 @@ vn_queue_submission_alloc_storage(struct vn_queue_submission *submit)
       size_t cmds;
       size_t pnext;
       size_t dev_masks;
-      size_t dev_indices;
-      size_t sem_vals;
+      size_t wait_indices;
+      size_t wait_vals;
       size_t wait_sems;
       size_t syncs;
       size_t sync_vals;
@@ -581,8 +582,8 @@ vn_queue_submission_alloc_storage(struct vn_queue_submission *submit)
    total += size.pnext = submit->fix.pnext ? sizeof(*submit->temp.pnext) : 0;
    total += size.cmds = submit->cmd_count * vn_get_cmd_size(submit);
    total += size.dev_masks = submit->dev_mask_count * sizeof(uint32_t);
-   total += size.dev_indices = submit->dev_index_count * sizeof(uint32_t);
-   total += size.sem_vals = submit->sem_val_count * sizeof(uint64_t);
+   total += size.wait_indices = submit->wait_index_count * sizeof(uint32_t);
+   total += size.wait_vals = submit->wait_val_count * sizeof(uint64_t);
    total += size.wait_sems = submit->wait_sem_count * vn_get_sem_size(submit);
    total += size.syncs = submit->sync_count * sizeof(void *);
    total += size.sync_vals = submit->sync_count * sizeof(uint64_t);
@@ -596,9 +597,9 @@ vn_queue_submission_alloc_storage(struct vn_queue_submission *submit)
    submit->temp.pnext = (void *)(storage += size.batch);
    submit->temp.cmds = (void *)(storage += size.pnext);
    submit->temp.dev_masks = (void *)(storage += size.cmds);
-   submit->temp.dev_indices = (void *)(storage += size.dev_masks);
-   submit->temp.sem_vals = (void *)(storage += size.dev_indices);
-   submit->temp.wait_sems = (void *)(storage += size.sem_vals);
+   submit->temp.wait_indices = (void *)(storage += size.dev_masks);
+   submit->temp.wait_vals = (void *)(storage += size.wait_indices);
+   submit->temp.wait_sems = (void *)(storage += size.wait_vals);
    submit->temp.syncs = (void *)(storage += size.wait_sems);
    submit->temp.sync_vals = (void *)(storage += size.syncs);
 
