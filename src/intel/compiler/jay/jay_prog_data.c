@@ -486,8 +486,7 @@ static void
 populate_vs_prog_data(nir_shader *nir,
                       const struct intel_device_info *devinfo,
                       const struct brw_vs_prog_key *key,
-                      struct brw_vs_prog_data *prog_data,
-                      unsigned nr_input_components)
+                      struct brw_vs_prog_data *prog_data)
 {
    BITSET_WORD *sysvals = nir->info.system_values_read;
 
@@ -507,15 +506,6 @@ populate_vs_prog_data(nir_shader *nir,
       *bool_sysvals[i].data = BITSET_TEST(sysvals, bool_sysvals[i].val);
    }
 
-   prog_data->base.urb_read_length = DIV_ROUND_UP(nr_input_components, 8);
-
-   /* Since vertex shaders reuse the same VUE entry for inputs and outputs
-    * (overwriting the original contents), we need to make sure the size is
-    * the larger of the two.
-    */
-   const unsigned vue_entries = MAX2(DIV_ROUND_UP(nr_input_components, 4),
-                                     prog_data->base.vue_map.num_slots);
-   prog_data->base.urb_entry_size = DIV_ROUND_UP(vue_entries, 4);
    prog_data->base.dispatch_mode = INTEL_DISPATCH_MODE_SIMD8;
 }
 
@@ -602,12 +592,10 @@ void
 jay_populate_prog_data(const struct intel_device_info *devinfo,
                        nir_shader *nir,
                        union brw_any_prog_data *prog_data,
-                       union brw_any_prog_key *key,
-                       unsigned nr_input_components)
+                       union brw_any_prog_key *key)
 {
    if (nir->info.stage == MESA_SHADER_VERTEX) {
-      populate_vs_prog_data(nir, devinfo, &key->vs, &prog_data->vs,
-                            nr_input_components);
+      populate_vs_prog_data(nir, devinfo, &key->vs, &prog_data->vs);
    } else if (nir->info.stage == MESA_SHADER_TESS_CTRL) {
       populate_tcs_prog_data(nir, &key->tcs, &prog_data->tcs);
    } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {

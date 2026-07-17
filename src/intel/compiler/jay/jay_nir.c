@@ -481,7 +481,6 @@ jay_process_nir(const struct intel_device_info *devinfo,
 {
    enum mesa_shader_stage stage = nir->info.stage;
    struct brw_compiler compiler = { .devinfo = devinfo };
-   unsigned nr_input_components = 0;
 
    prog_data->base.ray_queries = nir->info.ray_queries;
    prog_data->base.stage = stage;
@@ -553,6 +552,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       prog_data->vs.double_inputs_read = nir->info.vs.double_inputs;
       prog_data->vs.no_vf_slot_compaction = key->vs.no_vf_slot_compaction;
 
+      unsigned nr_input_components;
       brw_nir_lower_vs_inputs(nir, devinfo, &key->vs, &prog_data->vs,
                               &nr_input_components);
       brw_nir_lower_vue_outputs(nir);
@@ -566,6 +566,17 @@ jay_process_nir(const struct intel_device_info *devinfo,
       JAY_NIR_PASS(intel_nir_lower_shading_rate_output);
       JAY_NIR_PASS(brw_nir_lower_deferred_urb_writes, devinfo,
                    &prog_data->vue.vue_map, 0, 0);
+
+      /* Since vertex shaders reuse the same VUE entry for inputs and outputs
+       * (overwriting the original contents), we need to make sure the size is
+       * the larger of the two.
+       */
+      const unsigned vue_entries =
+         MAX2(DIV_ROUND_UP(nr_input_components, 4),
+              (unsigned) prog_data->vue.vue_map.num_slots);
+
+      prog_data->vue.urb_read_length = DIV_ROUND_UP(nr_input_components, 8);
+      prog_data->vue.urb_entry_size = DIV_ROUND_UP(vue_entries, 4);
    } else if (stage == MESA_SHADER_TESS_CTRL) {
       nir->info.outputs_written = key->tcs.outputs_written;
       nir->info.patch_outputs_written = key->tcs.patch_outputs_written;
@@ -650,7 +661,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       brw_nir_opt_vectorize_urb(pt);
       nir_lower_gs_intrinsics(nir, 0);
 
-      jay_populate_prog_data(devinfo, nir, prog_data, key, 0);
+      jay_populate_prog_data(devinfo, nir, prog_data, key);
 
       /* Get constant offsets out of the way for proper clip/cull handling */
       JAY_NIR_PASS(nir_lower_io_to_scalar, nir_var_shader_out, NULL, NULL);
@@ -798,7 +809,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       /* Do this before lower_fs_config_intel so that the pass has the right
        * information.
        */
-      jay_populate_prog_data(devinfo, nir, prog_data, key, 0);
+      jay_populate_prog_data(devinfo, nir, prog_data, key);
 
       if (prog_data->fs.coarse_pixel_dispatch)
          JAY_NIR_PASS(brw_nir_lower_frag_coord_z, devinfo);
@@ -885,7 +896,7 @@ jay_process_nir(const struct intel_device_info *devinfo,
       };
       JAY_NIR_PASS(nir_opt_load_skip_helpers, &skip_helpers);
    } else {
-      jay_populate_prog_data(devinfo, nir, prog_data, key, nr_input_components);
+      jay_populate_prog_data(devinfo, nir, prog_data, key);
    }
 
    /* This must be the very last pass since nir_print itself will reindex! */
