@@ -314,6 +314,7 @@ merge_requests:
         '^src/util/': ['util']
         '^src/.*/00-.*-defaults.conf': ['drirc']
         '^src/vulkan/': ['vulkan']
+        '^src/vulkan/runtime/vk_video': ['video']
         '^src/vulkan/wsi/': ['wsi']
         '^src/vulkan/wsi/wsi_common_metal': ['macOS']
         '^src/vulkan/wsi/wsi_common_wayland.c': ['wayland']
