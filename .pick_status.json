@@ -784,7 +784,7 @@
         "description": "venus: host image copy to scrub present_src layout if needed",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c13da1c744ab0940433e4660f1c166bcb0e1da40",
         "notes": null
