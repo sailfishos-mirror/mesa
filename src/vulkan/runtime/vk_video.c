@@ -3122,8 +3122,9 @@ vk_video_encode_av1_seq_hdr(const struct vk_video_session_parameters *params,
          if (decoder_model_present_flag) {
             vl_bitstream_put_bits(&enc, 1, op_point_info->flags.decoder_model_present_for_this_op);
             if (op_point_info->flags.decoder_model_present_for_this_op) {
-               vl_bitstream_put_uvlc(&enc, op_point_info->decoder_buffer_delay);
-               vl_bitstream_put_uvlc(&enc, op_point_info->encoder_buffer_delay);
+               uint32_t length = decoder_model->buffer_delay_length_minus_1 + 1;
+               vl_bitstream_put_bits(&enc, length, op_point_info->decoder_buffer_delay);
+               vl_bitstream_put_bits(&enc, length, op_point_info->encoder_buffer_delay);
                vl_bitstream_put_bits(&enc, 1, op_point_info->flags.low_delay_mode_flag);
             }
          }
