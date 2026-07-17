@@ -2243,7 +2243,7 @@ encode_rps(struct vl_bitstream_encoder *enc,
       const StdVideoH265ShortTermRefPicSet *rps_ref = &sps->pShortTermRefPicSet[ref_rps_idx];
       int num_delta_pocs = rps_ref->num_negative_pics + rps_ref->num_positive_pics;
 
-      for (int j = 0; j < num_delta_pocs; j++) {
+      for (int j = 0; j <= num_delta_pocs; j++) {
          vl_bitstream_put_bits(enc, 1, !!(rps->used_by_curr_pic_flag & (1 << j)));
          if (!(rps->used_by_curr_pic_flag & (1 << j))) {
             vl_bitstream_put_bits(enc, 1, !!(rps->use_delta_flag & (1 << j)));
@@ -2329,8 +2329,8 @@ vk_video_encode_h265_sps(const StdVideoH265SequenceParameterSet *sps,
    if (sps->flags.pcm_enabled_flag) {
       vl_bitstream_put_bits(&enc, 4, sps->bit_depth_luma_minus8 + 7);
       vl_bitstream_put_bits(&enc, 4, sps->bit_depth_chroma_minus8 + 7);
-      vl_bitstream_exp_golomb_ue(&enc, sps->log2_min_luma_coding_block_size_minus3);
-      vl_bitstream_exp_golomb_ue(&enc, sps->log2_diff_max_min_luma_coding_block_size);
+      vl_bitstream_exp_golomb_ue(&enc, sps->log2_min_pcm_luma_coding_block_size_minus3);
+      vl_bitstream_exp_golomb_ue(&enc, sps->log2_diff_max_min_pcm_luma_coding_block_size);
       vl_bitstream_put_bits(&enc, 1, sps->flags.pcm_loop_filter_disabled_flag);
    }
 
@@ -2343,7 +2343,7 @@ vk_video_encode_h265_sps(const StdVideoH265SequenceParameterSet *sps,
       vl_bitstream_exp_golomb_ue(&enc, sps->num_long_term_ref_pics_sps);
       for (int i = 0; i < sps->num_long_term_ref_pics_sps; i++) {
          vl_bitstream_put_bits(&enc, sps->log2_max_pic_order_cnt_lsb_minus4 + 4, sps->pLongTermRefPicsSps->lt_ref_pic_poc_lsb_sps[i]);
-         vl_bitstream_put_bits(&enc, 1, sps->pLongTermRefPicsSps->used_by_curr_pic_lt_sps_flag);
+         vl_bitstream_put_bits(&enc, 1, !!(sps->pLongTermRefPicsSps->used_by_curr_pic_lt_sps_flag & (1 << i)));
       }
    }
 
