@@ -736,10 +736,17 @@ impl Src {
             }
         } else {
             // In this case, it's a byte swizzle that we sign-extend
+            debug_assert!(self.swizzle.is_byte_swizzle());
+            debug_assert!(self.src_ref.bytes_read() <= 4);
             if word == 0 {
                 self
             } else {
-                self.swizzle(Swizzle::S3)
+                let swizzle = self.swizzle.swizzle(Swizzle::S3).unwrap();
+                if swizzle.is_zero() {
+                    0.into()
+                } else {
+                    Src { swizzle, ..self }
+                }
             }
         }
     }
