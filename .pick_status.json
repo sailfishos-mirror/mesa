@@ -874,7 +874,7 @@
         "description": "tu: Fix resetting command streams with writeable BOs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ebb8e104a566714574126365adde93b43fffefe0",
         "notes": null
