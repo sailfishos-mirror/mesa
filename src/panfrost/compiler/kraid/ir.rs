@@ -121,6 +121,19 @@ pub enum FAUPage {
     SmallConst,
 }
 
+impl FAUPage {
+    pub fn is_small_const(&self) -> bool {
+        *self == FAUPage::SmallConst
+    }
+
+    pub fn is_special(&self) -> bool {
+        matches!(
+            self,
+            FAUPage::Special0 | FAUPage::Special1 | FAUPage::Special3
+        )
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct FAURef {
     pub page: FAUPage,
