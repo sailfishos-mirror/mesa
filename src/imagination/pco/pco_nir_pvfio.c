@@ -666,13 +666,9 @@ static bool lower_demote_samples(nir_builder *b,
       return false;
 
    b->cursor = nir_before_instr(&intr->instr);
-   nir_def *to_keep = nir_u2u32(b, nir_inot(b, intr->src[0].ssa));
-   nir_def *sample_mask = nir_load_savmsk_vm_pco(b);
-   nir_def *current_mask =
-      nir_ishl(b, nir_imm_int(b, 1), nir_load_sample_id(b));
-   nir_def *cond = nir_iand(b, to_keep, nir_iand(b, sample_mask, current_mask));
-   nir_demote_if(b, nir_ieq_imm(b, cond, 0));
 
+   nir_def *to_keep = nir_u2u32(b, nir_inot(b, intr->src[0].ssa));
+   insert_sample_check(b, to_keep);
    nir_instr_remove(&intr->instr);
 
    return true;
