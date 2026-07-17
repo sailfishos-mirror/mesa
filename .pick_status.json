@@ -984,7 +984,7 @@
         "description": "panfrost/midgard: Fix fau max not initialized",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d1247f5579010c4ba9dcc447b4303cc24927a8b4",
         "notes": null
