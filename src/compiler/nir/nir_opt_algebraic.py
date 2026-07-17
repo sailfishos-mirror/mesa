@@ -2229,6 +2229,9 @@ optimizations.extend([
    (('ior', ('ishl', a, 16), ('u2u32', 'b@16')), ('pack_32_2x16_split', b, ('u2u16', a)), '!options->lower_pack_32_2x16_split && !options->lower_pack_split'),
    (('ior', ('ishl', a, 32), ('u2u64', 'b@32')), ('pack_64_2x32_split', b, ('u2u32', a)), '!options->lower_pack_64_2x32_split'),
 
+   (('ior', ('pack_32_2x16_split', a, 0), ('pack_32_2x16_split', 0, b)), ('pack_32_2x16_split', a, b)),
+   (('ior', ('pack_64_2x32_split', a, 0), ('pack_64_2x32_split', 0, b)), ('pack_64_2x32_split', a, b)),
+
    # Mixed 16-bit/8-bit loads vectorized to 8-bit vector load and then lowered to 32-bit
    (('ior', ('u2u16', ('unpack_32_4x8', a)), ('ishl', ('u2u16', ('unpack_32_4x8.y', a)), 8)),
     ('unpack_32_2x16_split_x', a), '!options->lower_unpack_32_2x16_split'),
@@ -2300,6 +2303,8 @@ optimizations.extend([
 
    (('iadd', ('pack_half_2x16_rtz_split', a, 0), ('pack_half_2x16_rtz_split', 0, b)), ('pack_half_2x16_rtz_split', a, b)),
    (('ior',  ('pack_half_2x16_rtz_split', a, 0), ('pack_half_2x16_rtz_split', 0, b)), ('pack_half_2x16_rtz_split', a, b)),
+   (('ior', ('pack_32_2x16_split', a, 0), ('pack_half_2x16_rtz_split', 0, b)), ('pack_32_2x16_split', a, ('f2f16_rtz', b))),
+   (('ior',  ('pack_half_2x16_rtz_split', a, 0), ('pack_32_2x16_split', 0, b)), ('pack_32_2x16_split', ('f2f16_rtz', a), b)),
 
    (('pack_uint_2x16', ('vec2', ('pack_half_2x16_rtz_split', a, 0), ('pack_half_2x16_rtz_split', b, 0))), ('pack_half_2x16_rtz_split', a, b)),
 
