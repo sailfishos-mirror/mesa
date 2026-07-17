@@ -355,6 +355,18 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->fcon.relu = params->activation == kTfLiteActRelu;
       break;
    }
+   case kTfLiteBuiltinBatchMatmul: {
+      TfLiteBatchMatMulParams *params = node->builtin_data;
+
+      if (node->inputs->size != 2 || node->outputs->size != 1 || !params ||
+          params->asymmetric_quantize_inputs)
+         return false;
+
+      operation->type = PIPE_ML_OPERATION_TYPE_BATCH_MATMUL;
+      operation->batch_matmul.adj_x = params->adj_x;
+      operation->batch_matmul.adj_y = params->adj_y;
+      break;
+   }
    case kTfLiteBuiltinReshape: {
       int32_t *shape = tf_context->tensors[node->inputs->data[1]].data.data;
 
@@ -641,6 +653,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED:
          teflon_debug("%-15s ", "FCON");
+         break;
+      case PIPE_ML_OPERATION_TYPE_BATCH_MATMUL:
+         teflon_debug("%-15s ", "BATCH_MATMUL");
          break;
       case PIPE_ML_OPERATION_TYPE_RESHAPE:
          teflon_debug("%-15s ", "RESHAPE");
@@ -1057,6 +1072,8 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "SQUEEZE";
    case kTfLiteBuiltinFullyConnected:
       return "FC";
+   case kTfLiteBuiltinBatchMatmul:
+      return "BATCH_MATMUL";
    case kTfLiteBuiltinMean:
       return "MEAN";
    case kTfLiteBuiltinStridedSlice:
