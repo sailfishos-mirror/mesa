@@ -4607,22 +4607,19 @@ struct anv_cmd_graphics_state {
    /* Bitfield of valid entries in the shaders array */
    VkShaderStageFlags active_stages;
 
-   /* Pipeline information */
-   uint32_t instance_multiplier;
-
-   bool kill_pixel;
-   bool uses_xfb;
-
    /* Shader stage in base.shaders[] responsible for streamout */
    mesa_shader_stage streamout_stage;
+
+   /* Pipeline information */
+   uint32_t instance_multiplier;
 
    /* Render pass information */
    VkRenderingFlags rendering_flags;
    VkRect2D render_area;
-   uint32_t layer_count;
-   uint32_t samples;
    uint32_t view_mask;
-   uint32_t color_att_count;
+   uint16_t layer_count;
+   uint8_t samples;
+   uint8_t color_att_count;
    struct anv_state att_states;
    struct anv_attachment color_att[MAX_RTS];
    struct anv_attachment depth_att;
@@ -4656,50 +4653,59 @@ struct anv_cmd_graphics_state {
 
    VkShaderStageFlags push_constant_stages;
 
-   bool used_task_shader;
-
    uint64_t index_addr;
    uint32_t index_mocs;
    VkIndexType index_type;
    uint32_t index_size;
 
-   uint32_t indirect_data_stride;
-   enum u_tristate indirect_data_stride_aligned;
-
    struct vk_vertex_input_state vertex_input;
    struct vk_sample_locations_state sample_locations;
 
-   bool object_preemption;
-   bool has_uint_rt;
+   struct intel_urb_config urb_cfg;
+
+   uint32_t indirect_data_stride;
+   enum u_tristate indirect_data_stride_aligned : 2;
+
+
+   bool kill_pixel : 1;
+   bool uses_xfb : 1;
+   bool used_task_shader : 1;
+
+   bool object_preemption : 1;
+   bool has_uint_rt : 1;
 
    /* State tracking for Wa_14018912822. */
-   bool color_blend_zero;
-   bool alpha_blend_zero;
+   bool color_blend_zero : 1;
+   bool alpha_blend_zero : 1;
 
    /**
     * State tracking for Wa_18020335297.
     */
-   bool                                         viewport_set;
-
-   struct intel_urb_config urb_cfg;
-
-   uint32_t n_occlusion_queries;
+   bool viewport_set : 1;
 
    /**
     * Whether or not the gfx8 PMA fix is enabled.  We ensure that, at the top
     * of any command buffer it is disabled by disabling it in EndCommandBuffer
     * and before invoking the secondary in ExecuteCommands.
     */
-   bool                                         pma_fix_enabled;
+   bool pma_fix_enabled : 1;
+
+   /**
+    * Track COMMON_SLICE_CHICKEN1::HIZPlaneOptimizationdisablebit
+    */
+   enum u_tristate hiz_planes_disabled : 2;
 
    /**
     * The HiZ usage for the current subpass.  If, for whatever reason, we are
     * unsure as to whether HiZ is enabled or not, this will be NONE.
     */
-   enum isl_aux_usage                           hiz_usage;
+   enum isl_aux_usage hiz_usage;
 
-   /* Track COMMON_SLICE_CHICKEN1::HIZPlaneOptimizationdisablebit */
-   enum u_tristate                              hiz_planes_disabled;
+   /**
+    * Track the active occlusion queries for state programming (when active we
+    * need to force thread dispatch to have accurate counts).
+    */
+   uint32_t n_occlusion_queries;
 
    struct anv_gfx_dynamic_state dyn_state;
 
