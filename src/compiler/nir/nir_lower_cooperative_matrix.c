@@ -976,9 +976,9 @@ nir_lower_cooperative_matrix_flexible_dimensions(nir_shader *shader, unsigned m_
    if (!shader->info.cs.has_cooperative_matrix)
       return false;
 
-   struct nir_function *func = (struct nir_function *)exec_list_get_head_const(&shader->functions);
+   nir_function_impl *impl = nir_shader_get_entrypoint(shader);
 
-   progress |= lower_dimensions(shader, func->impl, m_gran, n_gran, k_gran);
+   progress |= lower_dimensions(shader, impl, m_gran, n_gran, k_gran);
 
    nir_foreach_function_impl(fnim, shader)
       nir_progress(progress, fnim, 0);
