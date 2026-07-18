@@ -316,11 +316,6 @@ vn_device_fix_create_info(const struct vn_device *dev,
       }
    }
 
-   /* vn_physical_device_get_native_extensions */
-   if (has_wsi && renderer_exts->KHR_external_semaphore_fd &&
-       !app_exts->KHR_external_semaphore_fd)
-      extra_exts[extra_count++] = VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME;
-
    /* see vn_cmd_set_external_acquire_unmodified */
    if (VN_PRESENT_SRC_INTERNAL_LAYOUT != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR &&
        renderer_exts->EXT_external_memory_acquire_unmodified &&
@@ -332,6 +327,11 @@ vn_device_fix_create_info(const struct vn_device *dev,
    if (app_exts->KHR_external_fence_fd) {
       /* see vn_physical_device_get_native_extensions */
       block_exts[block_count++] = VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME;
+   }
+
+   if (app_exts->KHR_external_semaphore_fd) {
+      /* see vn_physical_device_get_native_extensions */
+      block_exts[block_count++] = VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME;
    }
 
    if (app_exts->KHR_map_memory2) {
