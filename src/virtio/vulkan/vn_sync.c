@@ -230,47 +230,6 @@ out_stack_arr_fini:
    return vn_result(dev->instance, result);
 }
 
-static VkResult
-vn_create_sync_file(struct vn_device *dev,
-                    struct vn_sync_payload_external *external_payload,
-                    int *out_fd)
-{
-   struct vn_renderer_sync *sync;
-   VkResult result = vn_renderer_sync_create(dev->renderer, 0,
-                                             VN_RENDERER_SYNC_BINARY, &sync);
-   if (result != VK_SUCCESS)
-      return vn_error(dev->instance, result);
-
-   struct vn_renderer_submit_batch batch = {
-      .syncs = &sync,
-      .sync_values = &(const uint64_t){ 1 },
-      .sync_count = 1,
-      .ring_idx = external_payload->ring_idx,
-   };
-
-   uint32_t local_data[8];
-   struct vn_cs_encoder local_enc =
-      VN_CS_ENCODER_INITIALIZER_LOCAL(local_data, sizeof(local_data));
-   if (external_payload->ring_seqno_valid) {
-      const uint64_t ring_id = vn_ring_get_id(dev->primary_ring);
-      vn_encode_vkWaitRingSeqnoMESA(&local_enc, 0, ring_id,
-                                    external_payload->ring_seqno);
-      batch.cs_data = local_data;
-      batch.cs_size = vn_cs_encoder_get_len(&local_enc);
-   }
-
-   result = vn_renderer_submit(dev->renderer, &batch);
-   if (result != VK_SUCCESS) {
-      vn_renderer_sync_destroy(dev->renderer, sync);
-      return vn_error(dev->instance, result);
-   }
-
-   *out_fd = vn_renderer_sync_export_syncobj(dev->renderer, sync, true);
-   vn_renderer_sync_destroy(dev->renderer, sync);
-
-   return *out_fd >= 0 ? VK_SUCCESS : VK_ERROR_TOO_MANY_OBJECTS;
-}
-
 static inline bool
 vn_sync_valid_fd(int fd)
 {
@@ -383,12 +342,18 @@ vn_semaphore_wait_sync_fd(VkDevice dev_handle, VkSemaphore sem_handle)
 static VkResult
 vn_semaphore_init_payloads(struct vn_device *dev,
                            struct vn_semaphore *sem,
-                           uint64_t initial_val,
-                           const VkAllocationCallbacks *alloc)
+                           uint64_t initial_val)
 {
    sem->permanent.type = VN_SYNC_TYPE_DEVICE_ONLY;
    sem->temporary.type = VN_SYNC_TYPE_INVALID;
    sem->payload = &sem->permanent;
+
+   if (sem->sync_fd_export) {
+      sem->permanent.type = VN_SYNC_TYPE_SYNC;
+      return vn_renderer_sync_create(dev->renderer, initial_val,
+                                     VN_RENDERER_SYNC_BINARY,
+                                     &sem->payload->sync);
+   }
 
    return VK_SUCCESS;
 }
@@ -427,7 +392,7 @@ vn_CreateSemaphore(VkDevice device,
       export_info && (export_info->handleTypes &
                       VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT);
 
-   VkResult result = vn_semaphore_init_payloads(dev, sem, initial_val, alloc);
+   VkResult result = vn_semaphore_init_payloads(dev, sem, initial_val);
    if (result != VK_SUCCESS)
       goto out_object_base_fini;
 
@@ -441,8 +406,10 @@ vn_CreateSemaphore(VkDevice device,
    }
 
    VkSemaphore sem_handle = vn_semaphore_to_handle(sem);
-   vn_async_vkCreateSemaphore(dev->primary_ring, device, pCreateInfo, NULL,
-                              &sem_handle);
+   if (!sem->sync_fd_export) {
+      vn_async_vkCreateSemaphore(dev->primary_ring, device, pCreateInfo, NULL,
+                                 &sem_handle);
+   }
 
    *pSemaphore = sem_handle;
 
@@ -472,7 +439,9 @@ vn_DestroySemaphore(VkDevice device,
    if (!sem)
       return;
 
-   vn_async_vkDestroySemaphore(dev->primary_ring, device, semaphore, NULL);
+   if (!sem->sync_fd_export) {
+      vn_async_vkDestroySemaphore(dev->primary_ring, device, semaphore, NULL);
+   }
 
    if (sem->type == VK_SEMAPHORE_TYPE_TIMELINE)
       vn_sync_feedback_fini(dev, &sem->feedback);
@@ -707,13 +676,13 @@ vn_GetSemaphoreFdKHR(VkDevice device,
    struct vn_sync_payload *payload = sem->payload;
 
    assert(sync_file);
-   assert(dev->physical_device->renderer_sync_fd.semaphore_exportable);
 
    int fd = -1;
-   if (payload->type == VN_SYNC_TYPE_DEVICE_ONLY) {
-      VkResult result = vn_create_sync_file(dev, &sem->external_payload, &fd);
-      if (result != VK_SUCCESS)
-         return vn_error(dev->instance, result);
+   if (payload->type == VN_SYNC_TYPE_SYNC) {
+      assert(sem->sync_fd_export);
+      fd = vn_renderer_sync_export_syncobj(dev->renderer, payload->sync,
+                                           sync_file);
+      vn_renderer_sync_reset(dev->renderer, payload->sync);
 
       vn_wsi_sync_wait(dev, fd);
    } else {
@@ -722,16 +691,10 @@ vn_GetSemaphoreFdKHR(VkDevice device,
       /* transfer ownership of imported sync fd to save a dup */
       fd = payload->fd;
       payload->fd = -1;
-   }
 
-   /* no need to wait for renderer side semaphore for imported sync */
-   if (payload->type != VN_SYNC_TYPE_IMPORTED_SYNC_FD) {
-      vn_async_vkWaitSemaphoreResourceMESA(dev->primary_ring, device,
-                                           pGetFdInfo->semaphore);
+      vn_sync_payload_release(dev, &sem->temporary);
+      sem->payload = &sem->permanent;
    }
-
-   vn_sync_payload_release(dev, &sem->temporary);
-   sem->payload = &sem->permanent;
 
    *pFd = fd;
    return VK_SUCCESS;

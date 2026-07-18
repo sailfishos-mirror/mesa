@@ -1238,14 +1238,6 @@ vn_queue_submit(struct vn_queue_submission *submit)
    struct vn_device *dev = vn_device_from_vk(queue->base.vk.base.device);
    VkResult result;
 
-   /* To ensure external components waiting on the correct fence payload,
-    * below sync primitives must be installed after the submission:
-    * - explicit fencing: sync file export
-    *
-    * We enforce above via an asynchronous vkQueueSubmit(2) via ring followed
-    * by an asynchronous renderer submission to wait for the ring submission:
-    * - has an external signal semaphore
-    */
    result = vn_queue_submission_prepare_submit(submit);
    if (result != VK_SUCCESS)
       return vn_error(dev->instance, result);
@@ -1255,24 +1247,6 @@ vn_queue_submit(struct vn_queue_submission *submit)
       goto out_cleanup;
 
    result = vn_queue_submission_signal_syncs(submit);
-   if (result != VK_SUCCESS)
-      goto out_cleanup;
-
-   if (submit->batch) {
-      const uint32_t signal_count = vn_get_signal_semaphore_count(submit);
-      for (uint32_t i = 0; i < signal_count; i++) {
-         struct vn_semaphore *sem =
-            vn_semaphore_from_handle(vn_get_signal_semaphore(submit, i));
-         if (sem->sync_fd_export) {
-            assert(sem->payload->type == VN_SYNC_TYPE_DEVICE_ONLY);
-            sem->external_payload = (struct vn_sync_payload_external){
-               .ring_idx = queue->ring_idx,
-               .ring_seqno_valid = queue->ring_seqno_valid,
-               .ring_seqno = queue->ring_seqno,
-            };
-         }
-      }
-   }
 
 out_cleanup:
    vn_queue_submission_cleanup(submit);
