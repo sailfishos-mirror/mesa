@@ -25,11 +25,23 @@ struct vn_queue {
    /* only used if renderer supports multiple timelines */
    uint32_t ring_idx;
 
-   /* valid when NO_ASYNC_QUEUE_SUBMIT perf option is not used */
+   /* Ensure fence submission via the virtqueue is executed AFTER the queue
+    * submission via the ring.
+    *
+    * 1. driver submit queue batch via the ring
+    * 2. driver submit via vq to wait for ring and then submit queue fences
+    */
    bool ring_seqno_valid;
-
-   /* ring seqno of the last queue submission */
    uint32_t ring_seqno;
+
+   /* Ensure fence submission via the virtqueue is executed BEFORE the next
+    * queue submission via the ring.
+    *
+    * 1. driver submit via vq to update vq seqno
+    * 2. driver submit via ring to wait for vq and then submit queue batch
+    */
+   bool roundtrip_seqno_valid;
+   uint64_t roundtrip_seqno;
 
    /* wait fence used for vn_QueueWaitIdle */
    VkFence wait_fence;
