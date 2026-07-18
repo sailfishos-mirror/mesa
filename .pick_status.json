@@ -984,7 +984,7 @@
         "description": "nir/range_analysis: handle msad_4x8 in unsigned upper bound",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0477421f7db6007e9490fba449655af9f107918b",
         "notes": null
