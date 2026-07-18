@@ -100,7 +100,6 @@ struct vn_renderer_submit_batch {
 
    /* syncs to update when the timeline is signaled */
    struct vn_renderer_sync *const *syncs;
-   /* TODO allow NULL when syncs are all binary? */
    const uint64_t *sync_values;
    uint32_t sync_count;
 };
@@ -110,7 +109,6 @@ struct vn_renderer_wait {
    uint64_t timeout;
 
    struct vn_renderer_sync *const *syncs;
-   /* TODO allow NULL when syncs are all binary? */
    const uint64_t *sync_values;
    uint32_t sync_count;
 };
@@ -176,15 +174,9 @@ struct vn_renderer_bo_ops {
                       VkDeviceSize size);
 };
 
-enum vn_renderer_sync_flags {
-   VN_RENDERER_SYNC_SHAREABLE = 1u << 0,
-   VN_RENDERER_SYNC_BINARY = 1u << 1,
-};
-
 struct vn_renderer_sync_ops {
    VkResult (*create)(struct vn_renderer *renderer,
                       uint64_t initial_val,
-                      uint32_t flags,
                       struct vn_renderer_sync **out_sync);
 
    VkResult (*create_from_syncobj)(struct vn_renderer *renderer,
@@ -411,10 +403,9 @@ vn_renderer_bo_invalidate(struct vn_renderer *renderer,
 static inline VkResult
 vn_renderer_sync_create(struct vn_renderer *renderer,
                         uint64_t initial_val,
-                        uint32_t flags,
                         struct vn_renderer_sync **out_sync)
 {
-   return renderer->sync_ops.create(renderer, initial_val, flags, out_sync);
+   return renderer->sync_ops.create(renderer, initial_val, out_sync);
 }
 
 static inline VkResult

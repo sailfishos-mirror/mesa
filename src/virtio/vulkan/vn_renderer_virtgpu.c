@@ -384,14 +384,9 @@ virtgpu_sync_create_from_syncobj(struct vn_renderer *renderer,
 static VkResult
 virtgpu_sync_create(struct vn_renderer *renderer,
                     uint64_t initial_val,
-                    uint32_t flags,
                     struct vn_renderer_sync **out_sync)
 {
    struct virtgpu *gpu = (struct virtgpu *)renderer;
-
-   /* TODO */
-   if (flags & VN_RENDERER_SYNC_SHAREABLE)
-      return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 
    uint32_t syncobj_handle;
    if (renderer->info.has_timeline_sync) {
