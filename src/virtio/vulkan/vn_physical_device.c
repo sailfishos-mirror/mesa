@@ -1074,48 +1074,20 @@ vn_physical_device_init_external_semaphore_handles(
 {
    /* The current code manipulates the host-side VkSemaphore directly.  It
     * works very well for binary semaphores because there is no CPU operation.
-    * But for timeline semaphores, the situation is similar to that of fences.
-    * vkWaitSemaphores is translated to repeated vkGetSemaphoreCounterValue.
+    * But for timeline semaphores, vkWaitSemaphores is translated to repeated
+    * vkGetSemaphoreCounterValue.
     *
-    * External semaphore is not possible currently.  Instead, we cheat when
-    * the semaphore is binary and the handle type is sync file. We do an empty
-    * renderer submission for the out fence, along with a venus protocol
-    * command to fix renderer side semaphore payload.
-    *
-    * We would like to create a vn_renderer_sync from a host-side VkSemaphore,
-    * similar to how a vn_renderer_bo is created from a host-side
-    * VkDeviceMemory.  The reasoning is the same as that for fences.
-    * Additionally, we would like the sync file exported from the
-    * vn_renderer_sync to carry the necessary information to identify the
-    * host-side VkSemaphore.  That would allow the consumers to wait on the
-    * host side rather than the guest side.
+    * SYNC_FD semaphore is implemented on top of driver side vn_renderer_sync.
+    * If such semaphore isn't exported but waited, currently we resolve the
+    * wait on the driver side.
     */
-   if (physical_dev->renderer_extensions.KHR_external_semaphore_fd) {
-      struct vn_ring *ring = physical_dev->instance->ring.ring;
-      const VkPhysicalDeviceExternalSemaphoreInfo info = {
-         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO,
-         .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT,
-      };
-      VkExternalSemaphoreProperties props = {
-         .sType = VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES,
-      };
-      vn_call_vkGetPhysicalDeviceExternalSemaphoreProperties(
-         ring, vn_physical_device_to_handle(physical_dev), &info, &props);
-
-      physical_dev->renderer_sync_fd.semaphore_exportable =
-         props.externalSemaphoreFeatures &
-         VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT;
-   }
-
    physical_dev->external_binary_semaphore_handles = 0;
    physical_dev->external_timeline_semaphore_handles = 0;
 
    if (physical_dev->instance->renderer->info.has_external_sync) {
 #if !DETECT_OS_WINDOWS
-      if (physical_dev->renderer_sync_fd.semaphore_exportable) {
-         physical_dev->external_binary_semaphore_handles =
-            VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
-      }
+      physical_dev->external_binary_semaphore_handles =
+         VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
 #endif
    }
 }
