@@ -200,11 +200,13 @@ encode_internal_node(uint32_t child, uint32_t child_block_offset_from_internal_n
          DEREF(dst_node).exp_z = exp_i8[2];
          DEREF(dst_node).node_mask = uint8_t(0xff);
          DEREF(dst_node).node_type = node_type;
+         DEREF(dst_node).pad = uint8_t(0);
 
-         /* Note: This is not a real field, it's unused byte padding, which is not
-          * required to be MBZ. We're just using it to store the child count.
-          */
-         DEREF(dst_node).child_count = uint8_t(child_count);
+         if (ANV_TEST_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE &&
+             args.parent_child_count_map != 0) {
+            DEREF(INDEX(uint8_t, args.parent_child_count_map, bvh_block_offset)) =
+               uint8_t(child_count);
+         }
       }
 
       child_aabb = conservative_aabb(child_aabb);

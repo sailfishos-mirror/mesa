@@ -320,6 +320,10 @@ get_bvh_layout(const struct vk_acceleration_structure_build_state *state,
       uint64_t leaf_block_offset_size = leaf_count * sizeof(uint32_t);
       layout->leaf_block_map_offset = offset;
       offset += leaf_block_offset_size;
+
+      uint64_t parent_child_count_map_size = internal_count * sizeof(uint8_t);
+      layout->parent_child_count_map_offset = offset;
+      offset += parent_child_count_map_size;
    }
 
    layout->size = align64(offset, 64);
@@ -473,6 +477,9 @@ anv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struct
          .leaf_block_offset_map = bvh_layout.leaf_block_map_offset != 0 ?
                                   (vk_acceleration_structure_get_va(dst) +
                                    bvh_layout.leaf_block_map_offset) : 0,
+         .parent_child_count_map = bvh_layout.parent_child_count_map_offset != 0 ?
+                                   (vk_acceleration_structure_get_va(dst) +
+                                    bvh_layout.parent_child_count_map_offset) : 0,
       };
       anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
 
@@ -652,7 +659,8 @@ anv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
       anv_get_update_scratch_layout(device, state, &update_layout);
 
       assert(bvh_layout.parent_child_map_offset != 0 &&
-             bvh_layout.leaf_block_map_offset != 0);
+             bvh_layout.leaf_block_map_offset != 0 &&
+             bvh_layout.parent_child_count_map_offset != 0);
 
       struct update_args update_consts = {
          .internal_ready_count = state->build_info->scratchData.deviceAddress +
@@ -664,6 +672,8 @@ anv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
                              bvh_layout.parent_child_map_offset,
          .leaf_block_offset_map = vk_acceleration_structure_get_va(dst) +
                                   bvh_layout.leaf_block_map_offset,
+         .parent_child_count_map = vk_acceleration_structure_get_va(dst) +
+                                    bvh_layout.parent_child_count_map_offset,
          .output_bvh = vk_acceleration_structure_get_va(dst) + bvh_layout.bvh_offset,
          .output_bvh_offset = bvh_layout.bvh_offset,
       };
