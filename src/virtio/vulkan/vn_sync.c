@@ -40,7 +40,6 @@ vn_fence_init_payloads(struct vn_device *dev,
    fence->permanent.type = VN_SYNC_TYPE_SYNC;
    fence->payload = &fence->permanent;
    return vn_renderer_sync_create(dev->renderer, signaled,
-                                  VN_RENDERER_SYNC_BINARY,
                                   &fence->payload->sync);
 }
 
@@ -351,7 +350,6 @@ vn_semaphore_init_payloads(struct vn_device *dev,
    if (sem->sync_fd_export) {
       sem->permanent.type = VN_SYNC_TYPE_SYNC;
       return vn_renderer_sync_create(dev->renderer, initial_val,
-                                     VN_RENDERER_SYNC_BINARY,
                                      &sem->payload->sync);
    }
 

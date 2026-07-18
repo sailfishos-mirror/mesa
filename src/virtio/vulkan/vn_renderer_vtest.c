@@ -591,7 +591,6 @@ vtest_sync_destroy(struct vn_renderer *renderer,
 static VkResult
 vtest_sync_create(struct vn_renderer *renderer,
                   uint64_t initial_val,
-                  uint32_t flags,
                   struct vn_renderer_sync **out_sync)
 {
    struct vtest *vtest = (struct vtest *)renderer;
