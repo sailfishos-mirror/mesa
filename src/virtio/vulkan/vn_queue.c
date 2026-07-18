@@ -1150,6 +1150,9 @@ vn_queue_submission_do_submit(struct vn_queue_submission *submit)
    if (vn_is_batch_empty(submit))
       return VK_SUCCESS;
 
+   if (queue->roundtrip_seqno_valid)
+      vn_ring_wait_roundtrip(dev->primary_ring, queue->roundtrip_seqno);
+
    const uint32_t batch_count = submit->batch ? 1 : 0;
    if (VN_PERF(NO_ASYNC_QUEUE_SUBMIT)) {
       if (submit->batch_type == VK_STRUCTURE_TYPE_SUBMIT_INFO_2) {
@@ -1217,7 +1220,15 @@ vn_queue_submission_signal_syncs(struct vn_queue_submission *submit)
       batch.cs_size = vn_cs_encoder_get_len(&local_enc);
    }
 
-   return vn_renderer_submit(dev->renderer, &batch);
+   VkResult result = vn_renderer_submit(dev->renderer, &batch);
+   if (result != VK_SUCCESS)
+      return result;
+
+   result =
+      vn_ring_submit_roundtrip(dev->primary_ring, &queue->roundtrip_seqno);
+   queue->roundtrip_seqno_valid = result == VK_SUCCESS;
+
+   return result;
 }
 
 static VkResult
