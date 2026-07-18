@@ -6275,6 +6275,13 @@ attachment_initial_layout(const VkRenderingAttachmentInfo *att)
    return att->imageLayout;
 }
 
+struct anv_attachment_clear {
+   union isl_color_value clear_color;
+   VkClearRect image_clear_rect;
+   bool clear : 1;
+   bool fast_clear : 1;
+};
+
 void genX(CmdBeginRendering)(
     VkCommandBuffer                             commandBuffer,
     const VkRenderingInfo*                      pRenderingInfo)
@@ -6531,10 +6538,13 @@ void genX(CmdBeginRendering)(
       }
    }
 
+   STACK_ARRAY(struct anv_attachment_clear, color_att_clears, gfx->color_att_count);
+
    /* Now deal with color attachments layout transitions */
    UNUSED bool render_target_change = false;
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
       struct anv_attachment *att = &gfx->color_att[i];
+      struct anv_attachment_clear *att_clear = &color_att_clears[i];
 
       if (pRenderingInfo->pColorAttachments[i].imageView == VK_NULL_HANDLE) {
          render_target_change |= att->iview != NULL;
@@ -6543,9 +6553,9 @@ void genX(CmdBeginRendering)(
          att->iview = NULL;
          att->layout = VK_IMAGE_LAYOUT_UNDEFINED;
          att->aux_usage = ISL_AUX_USAGE_NONE;
-         att->clear = false;
-         att->fast_clear = false;
          att->skip_srgb_decode = false;
+         att_clear->clear = false;
+         att_clear->fast_clear = false;
          continue;
       }
 
@@ -6590,30 +6600,30 @@ void genX(CmdBeginRendering)(
          att->resolve_layout = vk_att->resolveImageLayout;
       }
 
-      att->clear = false;
-      att->fast_clear = false;
+      att_clear->clear = false;
+      att_clear->fast_clear = false;
 
       if (vk_att->loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR &&
           !(gfx->rendering_flags & VK_RENDERING_RESUMING_BIT)) {
-         att->clear = true;
-         att->clear_color =
+         att_clear->clear = true;
+         att_clear->clear_color =
             vk_to_isl_color_with_format(vk_att->clearValue.color,
                                         iview->planes[0].isl.format);
-         att->image_clear_rect = (VkClearRect) {
+         att_clear->image_clear_rect = (VkClearRect) {
             .rect = render_area,
             .baseArrayLayer = iview->vk.base_array_layer,
             .layerCount = layers,
          };
 
-         att->fast_clear = gfx->view_mask <= 1 &&
+         att_clear->fast_clear = gfx->view_mask <= 1 &&
             anv_can_fast_clear_color(cmd_buffer, iview->image,
                                      iview->vk.aspects,
                                      iview->vk.base_mip_level,
-                                     &att->image_clear_rect,
+                                     &att_clear->image_clear_rect,
                                      vk_att->imageLayout,
                                      iview->planes[0].isl.format,
                                      iview->planes[0].isl.swizzle,
-                                     att->clear_color);
+                                     att_clear->clear_color);
 
          if (vk_att->imageLayout != initial_layout) {
             assert(render_area.offset.x == 0 && render_area.offset.y == 0 &&
@@ -6629,7 +6639,7 @@ void genX(CmdBeginRendering)(
                                           initial_layout, vk_att->imageLayout,
                                           VK_QUEUE_FAMILY_IGNORED,
                                           VK_QUEUE_FAMILY_IGNORED,
-                                          att->fast_clear,
+                                          att_clear->fast_clear,
                                           false /* acquire_unmodified */);
                }
             } else {
@@ -6641,7 +6651,7 @@ void genX(CmdBeginRendering)(
                                        initial_layout, vk_att->imageLayout,
                                        VK_QUEUE_FAMILY_IGNORED,
                                        VK_QUEUE_FAMILY_IGNORED,
-                                       att->fast_clear,
+                                       att_clear->fast_clear,
                                        false /* acquire_unmodified */);
             }
          }
@@ -6662,7 +6672,9 @@ void genX(CmdBeginRendering)(
    /* Do fast clearing */
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
       struct anv_attachment *att = &gfx->color_att[i];
-      if (!att->fast_clear)
+      struct anv_attachment_clear *att_clear = &color_att_clears[i];
+
+      if (!att_clear->fast_clear)
          continue;
 
       if (att->iview->image->vk.samples == 1) {
@@ -6670,37 +6682,39 @@ void genX(CmdBeginRendering)(
                           att->iview->planes[0].isl.format,
                           att->iview->planes[0].isl.swizzle,
                           att->iview->vk.aspects, 0,
-                          att->image_clear_rect.baseArrayLayer,
-                          att->image_clear_rect.layerCount,
+                          att_clear->image_clear_rect.baseArrayLayer,
+                          att_clear->image_clear_rect.layerCount,
                           ISL_AUX_OP_FAST_CLEAR,
-                          &att->clear_color,
+                          &att_clear->clear_color,
                           false);
       } else {
          anv_image_mcs_op(cmd_buffer, att->iview->image,
                           att->iview->planes[0].isl.format,
                           att->iview->planes[0].isl.swizzle,
                           att->iview->vk.aspects,
-                          att->image_clear_rect.baseArrayLayer,
-                          att->image_clear_rect.layerCount,
+                          att_clear->image_clear_rect.baseArrayLayer,
+                          att_clear->image_clear_rect.layerCount,
                           ISL_AUX_OP_FAST_CLEAR,
-                          &att->clear_color,
+                          &att_clear->clear_color,
                           false);
       }
 #if GFX_VER < 20
       set_image_compressed_bit(cmd_buffer, att->iview->image,
                                att->iview->vk.aspects, 0,
-                               att->image_clear_rect.baseArrayLayer,
-                               att->image_clear_rect.layerCount, true);
+                               att_clear->image_clear_rect.baseArrayLayer,
+                               att_clear->image_clear_rect.layerCount, true);
       genX(set_fast_clear_state)(cmd_buffer, att->iview->image,
                                  att->iview->planes[0].isl.format,
                                  att->iview->planes[0].isl.swizzle,
-                                 att->clear_color);
+                                 att_clear->clear_color);
 #endif
    }
 
    /* Fill surfaces, load clear colors and do slow clears */
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
       struct anv_attachment *att = &gfx->color_att[i];
+      struct anv_attachment_clear *att_clear = &color_att_clears[i];
+
       if (att->iview == NULL) {
          isl_null_fill_state(&cmd_buffer->device->isl_dev,
                              att->surface_state.state.map,
@@ -6722,7 +6736,7 @@ void genX(CmdBeginRendering)(
                                    att->iview->vk.aspects,
                                    &isl_view,
                                    ISL_SURF_USAGE_RENDER_TARGET_BIT,
-                                   att->aux_usage, &att->clear_color,
+                                   att->aux_usage, &att_clear->clear_color,
                                    0, /* anv_image_view_state_flags */
                                    &att->surface_state);
 
@@ -6741,7 +6755,7 @@ void genX(CmdBeginRendering)(
          genX(cmd_buffer_load_clear_color)(cmd_buffer, surf_state, att->iview);
       }
 
-      if (att->clear && !att->fast_clear) {
+      if (att_clear->clear && !att_clear->fast_clear) {
          if (is_multiview) {
             u_foreach_bit(view, pRenderingInfo->viewMask) {
                anv_image_clear_color(cmd_buffer, att->iview->image,
@@ -6751,7 +6765,7 @@ void genX(CmdBeginRendering)(
                                      att->iview->planes[0].isl.swizzle,
                                      att->iview->vk.base_mip_level,
                                      att->iview->vk.base_array_layer + view, 1,
-                                     render_area, att->clear_color);
+                                     render_area, att_clear->clear_color);
             }
          } else {
             anv_image_clear_color(cmd_buffer, att->iview->image,
@@ -6760,12 +6774,14 @@ void genX(CmdBeginRendering)(
                                   att->iview->planes[0].isl.format,
                                   att->iview->planes[0].isl.swizzle,
                                   att->iview->vk.base_mip_level,
-                                  att->image_clear_rect.baseArrayLayer,
-                                  att->image_clear_rect.layerCount,
-                                  render_area, att->clear_color);
+                                  att_clear->image_clear_rect.baseArrayLayer,
+                                  att_clear->image_clear_rect.layerCount,
+                                  render_area, att_clear->clear_color);
          }
       }
    }
+
+   STACK_ARRAY_FINISH(color_att_clears);
 
    /****** We can now start emitting code to begin the render pass ******/
 
