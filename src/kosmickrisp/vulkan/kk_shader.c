@@ -923,6 +923,7 @@ nir_opts(nir_shader *nir, void *data)
       NIR_PASS(progress, nir, nir_opt_if, 0);
       NIR_PASS(progress, nir, nir_opt_dead_cf);
       NIR_PASS(progress, nir, nir_opt_cse);
+      NIR_PASS(progress, nir, nir_opt_licm, NULL);
 
       NIR_PASS(progress, nir, nir_opt_peephole_select,
                &(nir_opt_peephole_select_options){

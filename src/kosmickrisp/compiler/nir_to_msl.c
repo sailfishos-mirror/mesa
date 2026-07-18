@@ -2283,6 +2283,7 @@ msl_optimize_nir(struct nir_shader *nir)
       NIR_PASS(progress, nir, nir_opt_if, 0);
       NIR_PASS(progress, nir, nir_opt_remove_phis);
       NIR_PASS(progress, nir, nir_opt_loop);
+      NIR_PASS(progress, nir, nir_opt_licm, NULL);
       NIR_PASS(progress, nir, nir_lower_pack);
       NIR_PASS(progress, nir, nir_lower_alu_to_scalar, kk_scalarize_filter,
                NULL);
