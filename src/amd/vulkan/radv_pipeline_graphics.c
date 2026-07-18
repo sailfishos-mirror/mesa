@@ -171,7 +171,6 @@ color_outputs_need_ps_epilog(const struct vk_graphics_pipeline_state *state,
    if (BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_CB_BLEND_ENABLES) ||
        BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_CB_WRITE_MASKS) ||
        BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_CB_BLEND_EQUATIONS) ||
-       BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_ALPHA_TO_COVERAGE_ENABLE) ||
        BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_ALPHA_TO_ONE_ENABLE))
       return true;
 
@@ -1705,17 +1704,25 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
    if (state->ts)
       key.ts.patch_control_points = state->ts->patch_control_points;
 
-   const bool alpha_to_coverage_unknown =
-      !state->ms || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_ALPHA_TO_COVERAGE_ENABLE);
-   const bool alpha_to_coverage_enabled = alpha_to_coverage_unknown || state->ms->alpha_to_coverage_enable;
-   const bool alpha_to_one_unknown = !state->ms || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_ALPHA_TO_ONE_ENABLE);
-   const bool alpha_to_one_enabled = alpha_to_one_unknown || state->ms->alpha_to_one_enable;
-
-   /* alpha-to-coverage is always exported via MRTZ on GFX11 but it's also using MRTZ when
-    * alpha-to-one is enabled (alpha to MRTZ.a and one to MRT0.a).
+   /* On GFX11+, DB always reads alpha-to-coverage from the first export but also mrtz must be
+    * the first export if it's present. That means alpha-to-coverage comes from mrtz.w if it's
+    * present, else it comes from mrt0.w. That's because the first export (mrtz or mrt0) is always
+    * forwarded to DB, and DB uses it to determine the final coverage.
+    *
+    * Additionally if alpha-to-one is enabled, alpha-to-coverage must be exported via mrtz.w on all
+    * generations because alpha-to-one forces mrt0.w to 1 and there is no other way to export alpha
+    * for coverage. Pre-GFX11 HW can optionally export 2 alpha values for mrt0:
+    * - via mrtz.w, which is only used for alpha-to-coverage (it's the color 0 output alpha value
+    *   if alpha-to-one is enabled)
+    * - via mrt0.w, which is only used by blending or written to color attachment 0 (1 if alpha-to-one
+    *   is enabled)
     */
-   key.ms.alpha_to_coverage_via_mrtz =
-      alpha_to_coverage_enabled && (compiler_info->ac->gfx_level >= GFX11 || alpha_to_one_enabled);
+   bool alpha_to_one_unknown = !state->ms || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_ALPHA_TO_ONE_ENABLE);
+
+   key.ms.alpha_to_coverage_unknown =
+      !state->ms || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_ALPHA_TO_COVERAGE_ENABLE);
+   key.ms.alpha_to_coverage_enable = !key.ms.alpha_to_coverage_unknown && state->ms->alpha_to_coverage_enable;
+   key.ms.alpha_to_one_enable = !alpha_to_one_unknown && state->ms->alpha_to_one_enable;
 
    if (state->ms) {
       key.ms.sample_shading_enable = state->ms->sample_shading_enable;
@@ -1791,8 +1798,8 @@ radv_generate_graphics_state_key(const struct radv_compiler_info *compiler_info,
       (!state->ms || BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES));
 
    /* Set whether alpha_to_one makes MRT0 alpha dead. */
-   key.ps.mrt0_alpha_is_dead = !alpha_to_one_unknown && !alpha_to_coverage_unknown && state->ms->alpha_to_one_enable &&
-                               !state->ms->alpha_to_coverage_enable;
+   key.ps.mrt0_alpha_is_dead = !alpha_to_one_unknown && !key.ms.alpha_to_coverage_unknown &&
+                               key.ms.alpha_to_one_enable && !key.ms.alpha_to_coverage_enable;
 
    if (compiler_info->key.use_ngg) {
       VkShaderStageFlags ngg_stage;

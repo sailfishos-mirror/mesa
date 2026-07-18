@@ -452,7 +452,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
 
       };
 
-      if (!late_options.no_color_export) {
+      if (!stage->info.ps.has_epilog) {
          late_options.dual_src_blend = gfx_state->ps.epilog.mrt0_is_dual_src;
          late_options.color_is_int8 = gfx_state->ps.epilog.color_is_int8;
          late_options.color_is_int10 = gfx_state->ps.epilog.color_is_int10;
@@ -462,15 +462,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
          late_options.spi_shader_col_format =
             gfx_state->ps.epilog.spi_shader_col_format & stage->info.ps.colors_written;
          late_options.alpha_to_one = gfx_state->ps.epilog.alpha_to_one;
-      }
-
-      if (!late_options.no_depth_export) {
-         /* Compared to gfx_state.ps.alpha_to_coverage_via_mrtz,
-          * radv_shader_info.ps.writes_mrt0_alpha need any depth/stencil/sample_mask exist.
-          * ac_nir_lower_ps() require this field to reflect whether alpha via mrtz is really
-          * present.
-          */
-         late_options.alpha_to_coverage_via_mrtz = stage->info.ps.writes_mrt0_alpha;
+         late_options.alpha_to_coverage_via_mrtz = stage->info.ps.writes_mrt0_alpha_to_mrtz;
       }
 
       NIR_PASS(_, stage->nir, ac_nir_lower_ps_late, &late_options);
@@ -979,7 +971,7 @@ radv_GetPipelineExecutableStatisticsKHR(VkDevice _device, const VkPipelineExecut
    case MESA_SHADER_FRAGMENT:
       stats.outputs += DIV_ROUND_UP(util_bitcount(shader->info.ps.colors_written), 4) + !!shader->info.ps.writes_z +
                        !!shader->info.ps.writes_stencil + !!shader->info.ps.writes_sample_mask +
-                       !!shader->info.ps.writes_mrt0_alpha;
+                       !!shader->info.ps.writes_mrt0_alpha_to_mrtz;
       break;
 
    default:
