@@ -250,7 +250,8 @@ struct radv_llvm_compiler_options {
 #define PS_STATE_LINE_RAST_MODE__SHIFT          4
 #define PS_STATE_LINE_RAST_MODE__MASK           0x3
 #define PS_STATE_PS_ITER_MASK__SHIFT            6
-#define PS_STATE_PS_ITER_MASK__MASK             0xffff
+#define PS_STATE_PS_ITER_MASK__MASK             0xff
+/* gap: bits 14:21 */
 #define PS_STATE_RAST_PRIM__SHIFT               22
 #define PS_STATE_RAST_PRIM__MASK                0x3
 #define PS_STATE_USE_FLOAT_FRAG_COORD_XY__SHIFT 24
