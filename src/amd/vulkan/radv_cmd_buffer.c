@@ -1988,15 +1988,7 @@ radv_get_line_mode(const struct radv_cmd_buffer *cmd_buffer)
 {
    const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
 
-   const unsigned vgt_outprim_type = cmd_buffer->state.vgt_outprim_type;
-
-   const bool draw_lines =
-      (radv_vgt_outprim_is_line(vgt_outprim_type) && !radv_polygon_mode_is_point(d->vk.rs.polygon_mode)) ||
-      (radv_polygon_mode_is_line(d->vk.rs.polygon_mode) && !radv_vgt_outprim_is_point(vgt_outprim_type));
-   if (draw_lines)
-      return d->vk.rs.line.mode;
-
-   return VK_LINE_RASTERIZATION_MODE_DEFAULT;
+   return radv_raster_prim_is_line(cmd_buffer) ? d->vk.rs.line.mode : VK_LINE_RASTERIZATION_MODE_DEFAULT;
 }
 
 static ALWAYS_INLINE unsigned
