@@ -11709,11 +11709,11 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    const unsigned rasterization_samples = cmd_buffer->state.num_rast_samples;
    const unsigned ps_iter_samples = radv_get_ps_iter_samples(cmd_buffer);
    const uint16_t ps_iter_mask = ac_get_ps_iter_mask(ps_iter_samples);
-   const unsigned vgt_outprim_type = cmd_buffer->state.vgt_outprim_type;
+   const unsigned raster_prim = radv_get_raster_prim(cmd_buffer);
    const unsigned ps_state = SET_SGPR_FIELD(PS_STATE_NUM_SAMPLES, rasterization_samples) |
                              SET_SGPR_FIELD(PS_STATE_PS_ITER_MASK, ps_iter_mask) |
                              SET_SGPR_FIELD(PS_STATE_LINE_RAST_MODE, line_rast_mode) |
-                             SET_SGPR_FIELD(PS_STATE_RAST_PRIM, vgt_outprim_type);
+                             SET_SGPR_FIELD(PS_STATE_RAST_PRIM, raster_prim);
 
    radeon_begin(cmd_buffer->cs);
    if (pdev->info.gfx_level >= GFX12) {
@@ -12833,6 +12833,13 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
         RADV_DYNAMIC_DEPTH_BIAS_ENABLE | RADV_DYNAMIC_POLYGON_MODE | RADV_DYNAMIC_PROVOKING_VERTEX_MODE |
         RADV_DYNAMIC_RASTERIZER_DISCARD_ENABLE | RADV_DYNAMIC_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE))
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_RASTER_STATE;
+
+   if (dynamic_states & RADV_DYNAMIC_POLYGON_MODE) {
+      const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
+
+      if (ps && ps->info.ps.load_rasterization_prim)
+         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_STATE;
+   }
 
    if (dynamic_states &
        (RADV_DYNAMIC_LINE_STIPPLE_ENABLE | RADV_DYNAMIC_CONSERVATIVE_RAST_MODE | RADV_DYNAMIC_SAMPLE_LOCATIONS |
