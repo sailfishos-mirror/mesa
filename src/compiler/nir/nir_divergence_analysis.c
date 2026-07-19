@@ -364,6 +364,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_use_quad_pos_amd:
    case nir_intrinsic_load_ps_iter_mask_amd:
    case nir_intrinsic_load_use_sample_mask_in_amd:
+   case nir_intrinsic_load_front_face_select_amd:
    case nir_intrinsic_load_tcs_mem_attrib_stride:
    case nir_intrinsic_load_printf_buffer_address:
    case nir_intrinsic_load_printf_buffer_size:

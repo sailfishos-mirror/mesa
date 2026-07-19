@@ -12096,6 +12096,8 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
    bool use_float_frag_coord_xy = false;
    bool use_quad_pos = false;
    bool use_sample_mask_in = false;
+   int front_face_select = 0;
+   unsigned raster_prim = 0;
 
    if (ps->info.ps.selects_frag_coord_xy_dynamically || ps->info.ps.selects_quad_pos_dynamically) {
       /* Whether VRS can be other than 1x1. */
@@ -12142,6 +12144,19 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
          spi_ps_input_ena &= C_0286CC_SAMPLE_COVERAGE_ENA;
    }
 
+   if (ps->info.ps.load_rasterization_prim || ps->info.ps.selects_front_face_dynamically)
+      raster_prim = radv_get_raster_prim(cmd_buffer);
+
+   if (ps->info.ps.selects_front_face_dynamically) {
+      if (raster_prim != V_030998_TRISTRIP || cmd_buffer->state.dynamic.vk.rs.cull_mode == VK_CULL_MODE_BACK_BIT)
+         front_face_select = 1;
+      else if (cmd_buffer->state.dynamic.vk.rs.cull_mode == VK_CULL_MODE_FRONT_BIT)
+         front_face_select = -1;
+
+      if (front_face_select)
+         spi_ps_input_ena &= C_0286CC_FRONT_FACE_ENA;
+   }
+
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radeon_begin(cs);
@@ -12157,14 +12172,14 @@ radv_emit_ps_state(struct radv_cmd_buffer *cmd_buffer)
       const unsigned rasterization_samples = cmd_buffer->state.num_rast_samples;
       const unsigned ps_iter_samples = radv_get_ps_iter_samples(cmd_buffer);
       const uint16_t ps_iter_mask = ac_get_ps_iter_mask(ps_iter_samples);
-      const unsigned raster_prim = radv_get_raster_prim(cmd_buffer);
       const unsigned ps_state = SET_SGPR_FIELD(PS_STATE_NUM_SAMPLES, rasterization_samples) |
                                 SET_SGPR_FIELD(PS_STATE_PS_ITER_MASK, ps_iter_mask) |
                                 SET_SGPR_FIELD(PS_STATE_LINE_RAST_MODE, line_rast_mode) |
                                 SET_SGPR_FIELD(PS_STATE_RAST_PRIM, raster_prim) |
                                 SET_SGPR_FIELD(PS_STATE_USE_FLOAT_FRAG_COORD_XY, use_float_frag_coord_xy) |
                                 SET_SGPR_FIELD(PS_STATE_USE_QUAD_POS, use_quad_pos) |
-                                SET_SGPR_FIELD(PS_STATE_USE_SAMPLE_MASK_IN, use_sample_mask_in);
+                                SET_SGPR_FIELD(PS_STATE_USE_SAMPLE_MASK_IN, use_sample_mask_in) |
+                                SET_SGPR_FIELD(PS_STATE_FRONT_FACE_SELECT, front_face_select);
 
       if (pdev->info.gfx_level >= GFX12) {
          gfx12_push_sh_reg(ps_state_offset, ps_state);
@@ -13307,7 +13322,14 @@ radv_validate_dynamic_states(struct radv_cmd_buffer *cmd_buffer, uint64_t dynami
    if (dynamic_states & RADV_DYNAMIC_POLYGON_MODE) {
       const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
 
-      if (ps && ps->info.ps.load_rasterization_prim)
+      if (ps && (ps->info.ps.load_rasterization_prim || ps->info.ps.selects_front_face_dynamically))
+         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_STATE;
+   }
+
+   if (dynamic_states & RADV_DYNAMIC_CULL_MODE) {
+      const struct radv_shader *ps = cmd_buffer->state.shaders[MESA_SHADER_FRAGMENT];
+
+      if (ps && ps->info.ps.selects_front_face_dynamically)
          cmd_buffer->state.dirty |= RADV_CMD_DIRTY_PS_STATE;
    }
 

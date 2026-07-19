@@ -259,6 +259,9 @@ struct radv_llvm_compiler_options {
 #define PS_STATE_USE_QUAD_POS__MASK             0x1
 #define PS_STATE_USE_SAMPLE_MASK_IN__SHIFT      26
 #define PS_STATE_USE_SAMPLE_MASK_IN__MASK       0x1
+/* gap: bits 27:29 */
+#define PS_STATE_FRONT_FACE_SELECT__SHIFT 30 /* 0=sysval, 1=front, -1=back; sign-extended */
+#define PS_STATE_FRONT_FACE_SELECT__MASK  0x3
 
 struct radv_shader_layout {
    uint32_t num_sets;

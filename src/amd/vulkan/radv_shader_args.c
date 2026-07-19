@@ -421,7 +421,7 @@ radv_ps_needs_state_sgpr(const struct radv_shader_info *info, const struct radv_
       return true;
 
    if (info->ps.selects_frag_coord_xy_dynamically || info->ps.selects_quad_pos_dynamically ||
-       info->ps.selects_sample_mask_in_dynamically)
+       info->ps.selects_sample_mask_in_dynamically || info->ps.selects_front_face_dynamically)
       return true;
 
    return false;

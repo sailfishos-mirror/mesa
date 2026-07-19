@@ -1169,6 +1169,10 @@ intrinsic("load_use_sample_mask_in_amd", dest_comp=1, bit_sizes=[1],
 intrinsic("load_ps_iter_mask_amd", dest_comp=1, bit_sizes=[32],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 
+# 0=sysval, 1=front, -1=back
+intrinsic("load_front_face_select_amd", dest_comp=1, bit_sizes=[32],
+          flags=[CAN_ELIMINATE, CAN_REORDER])
+
 # Loads for gl_Color, for radeonsi which interpolates these in the shader
 # prolog to handle flatshading and front/back color selection without
 # recompiles and therefore doesn't handle them like normal varyings.
