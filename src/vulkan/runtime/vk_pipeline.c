@@ -4548,7 +4548,7 @@ vk_common_GetPipelineBinaryDataKHR(
    pPipelineBinaryKey->keySize = sizeof(binary->key);
    memcpy(pPipelineBinaryKey->key, binary->key, sizeof(binary->key));
 
-   if (*pPipelineBinaryDataSize == 0) {
+   if (pPipelineBinaryData == NULL) {
       *pPipelineBinaryDataSize = binary->size;
       return VK_SUCCESS;
    }
