@@ -485,8 +485,8 @@ cmd_buffer_flush_gfx_push_constants(struct anv_cmd_buffer *cmd_buffer,
          }
 
          /* Update the pushed bound length constant if it changed */
-         if (range_mask != push->gfx.push_reg_mask[stage][r]) {
-            push->gfx.push_reg_mask[stage][r] = range_mask;
+         if (range_mask != push->drv_data.gfx.push_reg_mask[stage][r]) {
+            push->drv_data.gfx.push_reg_mask[stage][r] = range_mask;
             cmd_buffer->state.push_constants_dirty |=
                mesa_to_vk_shader_stage(stage);
             bind_state->push_constants_state = ANV_STATE_NULL;

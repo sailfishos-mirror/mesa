@@ -1331,7 +1331,7 @@ genX(write_cs_descriptor)(struct anv_dgc_cs_descriptor *desc,
    desc->gfx9.cross_thread_push_size = prog_data->push.cross_thread.size;
    desc->gfx9.per_thread_push_size = prog_data->push.per_thread.size;
    desc->gfx9.subgroup_id_offset =
-      offsetof(struct anv_push_constants, cs.subgroup_id) -
+      offsetof(struct anv_push_constants, subgroup_id) -
       (32 * push_range->start + prog_data->push.cross_thread.size);
 
    GENX(GPGPU_WALKER_pack)(NULL, desc->gfx9.gpgpu_walker,

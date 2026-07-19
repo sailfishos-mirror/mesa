@@ -521,7 +521,7 @@ anv_cmd_buffer_set_rt_query_buffer(struct anv_cmd_buffer *cmd_buffer,
    /* Fill the push constants & mark them dirty. */
    struct anv_address ray_query_globals_addr =
       anv_genX(device->info, cmd_buffer_ray_query_globals)(cmd_buffer);
-   pipeline_state->push_constants.ray_query_globals =
+   pipeline_state->push_constants.drv_data.ray_query_globals =
       anv_address_physical(ray_query_globals_addr);
    cmd_buffer->state.push_constants_dirty |= stages;
    pipeline_state->push_constants_state = ANV_STATE_NULL;
@@ -1090,9 +1090,9 @@ anv_cmd_buffer_gfx_push_constants(struct anv_cmd_buffer *cmd_buffer)
 
    memcpy(state.map, data->client_data,
           cmd_buffer->state.gfx.base->push_constants_client_size);
-   memcpy(state.map + sizeof(data->client_data),
-          &data->desc_surface_offsets,
-          sizeof(struct anv_push_constants) - sizeof(data->client_data));
+   memcpy(state.map + offsetof(struct anv_push_constants, drv_data),
+          &data->drv_data,
+          sizeof(struct anv_push_constants) - offsetof(struct anv_push_constants, drv_data));
 
    return state;
 }
@@ -1144,7 +1144,7 @@ anv_cmd_buffer_cs_push_constants(struct anv_cmd_buffer *cmd_buffer)
          memcpy(dst, src, cs_prog_data->push.per_thread.size);
 
          uint32_t *subgroup_id = dst +
-            offsetof(struct anv_push_constants, cs.subgroup_id) -
+            offsetof(struct anv_push_constants, subgroup_id) -
             (range->start * 32 + cs_prog_data->push.cross_thread.size);
          *subgroup_id = t;
 

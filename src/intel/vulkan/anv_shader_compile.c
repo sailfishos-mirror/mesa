@@ -991,7 +991,8 @@ wa_18019110168_load_provoking_vertex(nir_builder *b, void *data)
    nir_def *val = NULL;
 
    for (uint32_t i = 0; i < bind_map->inline_dwords_count; i++) {
-      if (bind_map->inline_dwords[i] == anv_drv_const_dword(gfx.wa_18019110168)) {
+      if (bind_map->inline_dwords[i] ==
+          anv_drv_const_dword(drv_data.gfx.wa_18019110168)) {
          val = nir_load_inline_data_intel(
             b, 1, 32, nir_imm_int(b, 0),
             .base = i * 4);
@@ -1001,9 +1002,9 @@ wa_18019110168_load_provoking_vertex(nir_builder *b, void *data)
 
    if (val == NULL) {
       val = nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
-                                     .base = anv_drv_const_offset(gfx.wa_18019110168) -
+                                     .base = anv_drv_const_offset(drv_data.gfx.wa_18019110168) -
                                              bind_map->push_ranges[0].start * 32,
-                                     .range = anv_drv_const_size(gfx.wa_18019110168));
+                                     .range = anv_drv_const_size(drv_data.gfx.wa_18019110168));
    }
 
    return nir_iand_imm(b, val, ANV_WA_18019110168_PROVOKING_VERTEX_MASK);
@@ -1016,9 +1017,9 @@ wa_18019110168_load_per_primitive_remap_table(nir_builder *b, void *data)
    nir_def *val = NULL;
 
    val = nir_load_push_data_intel(b, 1, 32, nir_imm_int(b, 0),
-                                  .base = anv_drv_const_offset(gfx.wa_18019110168) -
+                                  .base = anv_drv_const_offset(drv_data.gfx.wa_18019110168) -
                                           bind_map->push_ranges[0].start * 32,
-                                  .range = anv_drv_const_size(gfx.wa_18019110168));
+                                  .range = anv_drv_const_size(drv_data.gfx.wa_18019110168));
 
    return nir_iand_imm(b, val, ANV_WA_18019110168_PER_PRIMITIVE_REMAP_TABLE_OFFSET_MASK);
 }
