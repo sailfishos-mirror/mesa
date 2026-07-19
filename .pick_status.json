@@ -264,7 +264,7 @@
         "description": "vulkan/runtime: Fix bad assumption in GetPipelineBinaryDataKHR",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5c47ac640b21c40c30f29600997a9337ba399916",
         "notes": null
