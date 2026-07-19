@@ -6834,7 +6834,7 @@
         "description": "pco: skip propagating access for derefs without vars",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "534db7da1d009ba6ad85108aab74dbe38163eb9d",
         "notes": null
