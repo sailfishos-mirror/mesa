@@ -1089,6 +1089,7 @@ enum pipe_ml_operation_type {
    PIPE_ML_OPERATION_TYPE_STRIDED_SLICE,
    PIPE_ML_OPERATION_TYPE_RESIZE,
    PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR,
+   PIPE_ML_OPERATION_TYPE_ARGMAX,
    PIPE_ML_OPERATION_TYPE_MUL,
    PIPE_ML_OPERATION_TYPE_LEAKY_RELU,
    PIPE_ML_OPERATION_TYPE_QUANTIZE,
@@ -1306,6 +1307,10 @@ struct pipe_ml_operation
          bool align_corners;
          bool half_pixel_centers;
       } resize_bilinear;
+
+      struct {
+         int axis;
+      } argmax;
 
       struct {
          int begin[4];
