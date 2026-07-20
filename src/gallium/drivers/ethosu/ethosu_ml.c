@@ -172,6 +172,32 @@ ethosu_subtract_supported(struct pipe_ml_device *pdevice,
    return true;
 }
 
+static bool
+ethosu_batch_matmul_supported(const struct pipe_ml_operation *operation)
+{
+   const struct pipe_tensor *input = operation->input_tensors[0];
+   const struct pipe_tensor *input2 = operation->input_tensors[1];
+   const struct pipe_tensor *output = operation->output_tensors[0];
+   unsigned rows;
+   unsigned depth;
+   unsigned columns;
+
+   if (operation->batch_matmul.adj_x || input->dims[0] != 1 ||
+       input2->dims[0] != 1 || output->dims[0] != 1 ||
+       input->dims[1] != input2->dims[1] ||
+       output->dims[1] != input->dims[1] || input->type_size != 1 ||
+       input2->type_size != 1 || output->type_size != 1 ||
+       !input->is_signed || !input2->is_signed || !output->is_signed)
+      return false;
+
+   rows = input->dims[2];
+   depth = input->dims[3];
+   columns = operation->batch_matmul.adj_y ? input2->dims[2] : input2->dims[3];
+
+   return depth == (operation->batch_matmul.adj_y ? input2->dims[3] : input2->dims[2]) &&
+          output->dims[2] == rows && output->dims[3] == columns;
+}
+
 bool
 ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                               const struct pipe_ml_operation *operation)
@@ -204,6 +230,9 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                                     weight->dims[2];
       break;
    }
+   case PIPE_ML_OPERATION_TYPE_BATCH_MATMUL:
+      supported = ethosu_batch_matmul_supported(operation);
+      break;
    case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
       /*
        * Dilation is not yet implemented.

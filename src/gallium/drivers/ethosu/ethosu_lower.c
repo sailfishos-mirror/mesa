@@ -2458,6 +2458,119 @@ ethosu_lower_resize(struct ethosu_subgraph *subgraph,
 }
 
 static void
+ethosu_lower_batch_matmul(struct ethosu_subgraph *subgraph,
+                          const struct pipe_ml_operation *poperation)
+{
+   struct pipe_tensor *input = poperation->input_tensors[0];
+   struct pipe_tensor *input2 = poperation->input_tensors[1];
+   struct pipe_tensor *output = poperation->output_tensors[0];
+   unsigned batches = input->dims[1];
+   unsigned rows = input->dims[2];
+   unsigned depth = input->dims[3];
+   unsigned columns = output->dims[3];
+   struct ethosu_block product_shape = {rows, batches, depth};
+   struct ethosu_tensor *product_tensor;
+   struct ethosu_tensor *input2_transposed_tensor;
+   struct ethosu_feature_map input_fm = {0};
+   struct ethosu_feature_map input2_fm = {0};
+   struct ethosu_feature_map input2_transposed_fm = {0};
+   struct ethosu_feature_map product_fm = {0};
+   struct ethosu_feature_map output_fm = {0};
+   struct ethosu_feature_map output_full_fm = {0};
+   float product_scale = input->scale * input2->scale;
+
+   product_tensor = ethosu_add_internal_tensor(subgraph, product_shape, 4);
+
+   set_feature_map(subgraph, input, &input_fm);
+   set_feature_map(subgraph, input2, &input2_fm);
+   /* Allocate the complete tensor before narrowing this to one column. */
+   input2_fm.tensor->required_size =
+      MAX2(input2_fm.tensor->required_size,
+           ethosu_feature_map_span(&input2_fm));
+
+   if (!poperation->batch_matmul.adj_y) {
+      input2_transposed_tensor =
+         ethosu_add_internal_tensor(subgraph,
+                                    (struct ethosu_block){columns, batches,
+                                                          depth},
+                                    input2->type_size);
+      set_internal_feature_map(input2_transposed_tensor,
+                               (struct ethosu_block){columns, batches,
+                                                     depth},
+                               input2->scale,
+                               input2->zero_point, input2->is_signed,
+                               &input2_transposed_fm);
+      input2_transposed_fm.tensor->required_size =
+         MAX2(input2_transposed_fm.tensor->required_size,
+              ethosu_feature_map_span(&input2_transposed_fm));
+
+      for (unsigned column = 0; column < columns; column++) {
+         struct ethosu_feature_map source_fm = input2_fm;
+         struct ethosu_feature_map target_fm = input2_transposed_fm;
+
+         /* U65 ignores non-unit IFM2 channel strides for elementwise MUL. */
+         source_fm.shape = (struct ethosu_block){depth, batches, 1};
+         source_fm.stride.y = depth * columns * input2->type_size;
+         source_fm.stride.x = columns * input2->type_size;
+         source_fm.stride.c = input2->type_size;
+         source_fm.tiles.addresses[0] = column * input2->type_size;
+         target_fm.shape = source_fm.shape;
+         target_fm.stride.y = columns * depth * input2->type_size;
+         target_fm.stride.x = input2->type_size;
+         target_fm.stride.c = input2->type_size;
+         target_fm.tiles.addresses[0] =
+            column * depth * input2->type_size;
+
+         ethosu_append_pool_nop(subgraph, &source_fm, &target_fm);
+      }
+
+      input2_fm = input2_transposed_fm;
+   }
+
+   /* Select one right-hand matrix column with a strided feature map. */
+   input2_fm.shape.height = batches;
+   input2_fm.shape.width = 1;
+   input2_fm.shape.depth = depth;
+   input2_fm.stride.y = columns * depth * input2->type_size;
+   input2_fm.stride.x = input2->type_size;
+   input2_fm.stride.c = input2->type_size;
+   input2_fm.tiles.height_0 = input2_fm.shape.height;
+   input2_fm.tiles.height_1 = input2_fm.shape.height;
+   input2_fm.tiles.width_0 = input2_fm.shape.width;
+
+   set_internal_feature_map(product_tensor, product_shape, product_scale, 0,
+                            true, &product_fm);
+   /* An odd int32 depth gets an even-depth stride, as Vela lays it out. */
+   product_fm.stride.x = ALIGN_POT(depth, 2) * product_tensor->type_size;
+   product_fm.stride.y = rows * product_fm.stride.x;
+   set_feature_map(subgraph, output, &output_full_fm);
+   output_full_fm.tensor->required_size =
+      MAX2(output_full_fm.tensor->required_size,
+           ethosu_feature_map_span(&output_full_fm));
+
+   for (unsigned column = 0; column < columns; column++) {
+      set_feature_map(subgraph, output, &output_fm);
+      output_fm.shape = (struct ethosu_block){rows, batches, 1};
+      output_fm.stride.y = rows * columns * output->type_size;
+      output_fm.stride.x = columns * output->type_size;
+      output_fm.stride.c = output->type_size;
+      output_fm.tiles.addresses[0] = column * output->type_size;
+      output_fm.tiles.height_0 = output_fm.shape.height;
+      output_fm.tiles.height_1 = output_fm.shape.height;
+      output_fm.tiles.width_0 = output_fm.shape.width;
+
+      ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_MUL, &input_fm,
+                            &input2_fm, &product_fm,
+                            ETHOSU_ROUNDING_DOUBLE, false, 1, 0);
+      ethosu_append_pool(subgraph, ETHOSU_POOLING_TYPE_REDUCE_SUM,
+                         &product_fm, &output_fm, 1,
+                         ETHOSU_ROUNDING_DOUBLE);
+
+      input2_fm.tiles.addresses[0] += depth * input2->type_size;
+   }
+}
+
+static void
 ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
                            const struct pipe_ml_operation *poperation,
                            struct ethosu_operation *operation)
@@ -2698,6 +2811,7 @@ register_tensors(struct ethosu_subgraph *subgraph,
 
          if (!ptensor->is_external_output &&
              !DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16) &&
+             poperation->type != PIPE_ML_OPERATION_TYPE_BATCH_MATMUL &&
              poperation->type != PIPE_ML_OPERATION_TYPE_PAD) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
             const struct pipe_ml_operation *consumer =
@@ -2709,7 +2823,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                    ethosu_reshape_feeds_softmax(poperations, count, consumer) ||
                    ethosu_consumer_uses_depth_mean(consumer) ||
                    ethosu_eltwise_fuses_lut(poperations, count, consumer) ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_SPLIT))) {
+                   consumer->type == PIPE_ML_OPERATION_TYPE_SPLIT ||
+                   consumer->type == PIPE_ML_OPERATION_TYPE_BATCH_MATMUL))) {
                if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                     !ethosu_consumer_is_lut(poperation) &&
                     !ethosu_consumer_is_lut(consumer)) ||
@@ -2794,6 +2909,10 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
+
+      case PIPE_ML_OPERATION_TYPE_BATCH_MATMUL:
+         ethosu_lower_batch_matmul(subgraph, &poperations[i]);
+         break;
 
       case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
          struct pipe_tensor *input_tensor = poperations[i].input_tensors[0];
