@@ -198,6 +198,30 @@ ethosu_batch_matmul_supported(const struct pipe_ml_operation *operation)
           output->dims[2] == rows && output->dims[3] == columns;
 }
 
+static bool
+ethosu_transpose_supported(const struct pipe_ml_operation *operation)
+{
+   const struct pipe_tensor *input = operation->input_tensors[0];
+   const struct pipe_tensor *output = operation->output_tensors[0];
+   const unsigned *perm = operation->transpose.perm;
+   unsigned axes = 0;
+
+   if (perm[0] != 0 || output->type_size != input->type_size ||
+       output->is_signed != input->is_signed ||
+       output->scale != input->scale ||
+       output->zero_point != input->zero_point)
+      return false;
+
+   for (unsigned i = 0; i < 4; i++) {
+      if (perm[i] >= 4 || (axes & BITFIELD_BIT(perm[i])) ||
+          output->dims[i] != input->dims[perm[i]])
+         return false;
+      axes |= BITFIELD_BIT(perm[i]);
+   }
+
+   return true;
+}
+
 bool
 ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                               const struct pipe_ml_operation *operation)
@@ -362,6 +386,9 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    }
    case PIPE_ML_OPERATION_TYPE_CONCATENATION:
       supported = operation->conc.axis <= 3 && operation->conc.axis >= -1;
+      break;
+   case PIPE_ML_OPERATION_TYPE_TRANSPOSE:
+      supported = ethosu_transpose_supported(operation);
       break;
    default:
       supported = false;
