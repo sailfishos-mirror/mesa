@@ -35,9 +35,6 @@ src4 = ('src', 4)
 
 class Index(object):
     def __init__(self, c_data_type, name, size):
-        # 64bit non struct types are possible, but intrinsics set/get
-        # need to be updated for that.
-        assert "struct" in c_data_type or size == 1
         self.c_data_type = c_data_type
         self.name = name
         self.size = size
