@@ -568,12 +568,10 @@ vtest_sync_read(struct vn_renderer *renderer,
 }
 
 static VkResult
-vtest_sync_reset(struct vn_renderer *renderer,
-                 struct vn_renderer_sync *sync,
-                 uint64_t initial_val)
+vtest_sync_reset(struct vn_renderer *renderer, struct vn_renderer_sync *sync)
 {
    /* same as write */
-   return vtest_sync_write(renderer, sync, initial_val);
+   return vtest_sync_write(renderer, sync, 0);
 }
 
 static void

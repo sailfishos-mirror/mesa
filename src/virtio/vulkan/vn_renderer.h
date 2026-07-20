@@ -198,10 +198,9 @@ struct vn_renderer_sync_ops {
                          struct vn_renderer_sync *sync,
                          bool sync_file);
 
-   /* reset the counter */
+   /* reset the counter to zero */
    VkResult (*reset)(struct vn_renderer *renderer,
-                     struct vn_renderer_sync *sync,
-                     uint64_t initial_val);
+                     struct vn_renderer_sync *sync);
 
    /* read the current value from the counter */
    VkResult (*read)(struct vn_renderer *renderer,
@@ -445,10 +444,9 @@ vn_renderer_sync_export_syncobj(struct vn_renderer *renderer,
 
 static inline VkResult
 vn_renderer_sync_reset(struct vn_renderer *renderer,
-                       struct vn_renderer_sync *sync,
-                       uint64_t initial_val)
+                       struct vn_renderer_sync *sync)
 {
-   return renderer->sync_ops.reset(renderer, sync, initial_val);
+   return renderer->sync_ops.reset(renderer, sync);
 }
 
 static inline VkResult
