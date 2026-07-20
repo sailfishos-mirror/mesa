@@ -493,6 +493,18 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->type = PIPE_ML_OPERATION_TYPE_RESIZE;
       break;
    }
+   case kTfLiteBuiltinResizeBilinear: {
+      TfLiteResizeBilinearParams *params = node->builtin_data;
+
+      if (!params || node->inputs->size != 2 || node->outputs->size != 1)
+         return false;
+
+      operation->type = PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR;
+      operation->resize_bilinear.align_corners = params->align_corners;
+      operation->resize_bilinear.half_pixel_centers =
+         params->half_pixel_centers;
+      break;
+   }
    case kTfLiteBuiltinQuantize: {
       operation->type = PIPE_ML_OPERATION_TYPE_QUANTIZE;
       break;
@@ -766,6 +778,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_RESIZE:
          teflon_debug("%-15s ", "RESIZE");
+         break;
+      case PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR:
+         teflon_debug("%-15s ", "RESIZE_BILINEAR");
          break;
       case PIPE_ML_OPERATION_TYPE_MAXIMUM:
          teflon_debug("%-15s ", "MAX");
@@ -1162,6 +1177,8 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "STRIDED_SLICE";
    case kTfLiteBuiltinResizeNearestNeighbor:
       return "RESIZE";
+   case kTfLiteBuiltinResizeBilinear:
+      return "RESIZE_BILINEAR";
    case kTfLiteBuiltinSplit:
       return "SPLIT";
    case kTfLiteBuiltinUnpack:
