@@ -284,7 +284,7 @@
         "description": "v3d: save fragment constants on sand8/sand30 blit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a69aaadec1bd46b12a6cf4cb9e6c7e3789ef7a6b",
         "notes": null
