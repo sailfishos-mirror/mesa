@@ -134,7 +134,7 @@
         "description": "radv/bvh: Fix updating acceleration structures containing AABBs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "405c93c665e99d4928391690dd72ceeb6b359868",
         "notes": null
