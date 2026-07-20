@@ -674,7 +674,7 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
    case nir_op_ffma:
    case nir_op_imad_32x16_intel:
    case nir_op_umad_32x16_intel:
-      jay_MAD(b, type, dst, src[2], src[1], src[0]);
+      jay_MAD(b, type, dst, src[2], src[0], src[1]);
       break;
 
    case nir_op_fcsel:

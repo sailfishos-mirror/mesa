@@ -139,13 +139,7 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
    if ((other < I->num_srcs && jay_is_imm(I->src[other])) &&
        !_mesa_hash_table_u64_search(constants, jay_as_uint(I->src[other]))) {
 
-      if (I->op == JAY_OPCODE_MAD && !jay_type_is_any_float(I->type)) {
-         /* src0 accumulates, but we can swap src1/src2 instead */
-         SWAP(I->src[1], I->src[2]);
-         I->op = JAY_OPCODE_MAD_SWAP;
-      } else {
-         try_swap_src01(I);
-      }
+      try_swap_src01(I);
    }
 
    /* Immediates allowed only in certain cases, lower the rest */
@@ -162,7 +156,6 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
             allowed &= I->op == JAY_OPCODE_BFN ||
                        I->op == JAY_OPCODE_ADD3 ||
                        I->op == JAY_OPCODE_MAD ||
-                       I->op == JAY_OPCODE_MAD_SWAP ||
                        I->op == JAY_OPCODE_DP4A_SS ||
                        I->op == JAY_OPCODE_DP4A_SU ||
                        I->op == JAY_OPCODE_DP4A_UU ||
@@ -176,7 +169,6 @@ lower_immediates(jay_builder *b, jay_inst *I, struct hash_table_u64 *constants)
             /* MAD/DP4A can have at most one immediate source on Gfx11 */
             allowed &= (ver >= 12 || s == 0 || !jay_is_imm(I->src[0])) ||
                        !(I->op == JAY_OPCODE_MAD ||
-                         I->op == JAY_OPCODE_MAD_SWAP ||
                          I->op == JAY_OPCODE_DP4A_SS ||
                          I->op == JAY_OPCODE_DP4A_SU ||
                          I->op == JAY_OPCODE_DP4A_UU);

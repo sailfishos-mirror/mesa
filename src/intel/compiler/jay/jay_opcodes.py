@@ -98,7 +98,6 @@ op('lzd',        1, 'u32')
 op('frc',        1, 'f32 f64', Props.NEGATE | Props.CMOD)
 op('mad',        3, 'u32 s32 u16 s16 f32 f64 f16 bf16',
    Props.NEGATE | Props.SAT | Props.CMOD)
-op('mad_swap',   3, 'u32 s32', Props.NEGATE | Props.SAT | Props.CMOD)
 op('mac',        3, 'f32', Props.NEGATE | Props.SAT | Props.CMOD |
    Props.COMMUTATIVE)
 op('max',        2, 'u32 s32 u64 s64 u16 s16 f32 f64 f16 bf16',
