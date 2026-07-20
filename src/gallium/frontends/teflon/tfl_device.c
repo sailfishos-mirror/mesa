@@ -505,6 +505,35 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
          params->half_pixel_centers;
       break;
    }
+   case kTfLiteBuiltinArgMax: {
+      TfLiteArgMaxParams *params = node->builtin_data;
+      TfLiteTensor *axis_tensor;
+      int input_rank;
+      int axis;
+
+      if (!params || node->inputs->size != 2 || node->outputs->size != 1 ||
+          params->output_type != kTfLiteInt32)
+         return false;
+
+      axis_tensor = &tf_context->tensors[node->inputs->data[1]];
+      input_rank = tf_context->tensors[node->inputs->data[0]].dims->size;
+      if (axis_tensor->type != kTfLiteInt32 || !axis_tensor->data.i32 ||
+          axis_tensor->bytes < sizeof(*axis_tensor->data.i32) ||
+          input_rank < 1 || input_rank > 4)
+         return false;
+
+      axis = axis_tensor->data.i32[0];
+      if (axis < 0)
+         axis += input_rank;
+      if (axis < 0 || axis >= input_rank)
+         return false;
+
+      operation->type = PIPE_ML_OPERATION_TYPE_ARGMAX;
+      operation->argmax.axis = 4 - input_rank + axis;
+      operation->input_tensors[1] = NULL;
+      operation->input_count = 1;
+      break;
+   }
    case kTfLiteBuiltinQuantize: {
       operation->type = PIPE_ML_OPERATION_TYPE_QUANTIZE;
       break;
@@ -781,6 +810,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR:
          teflon_debug("%-15s ", "RESIZE_BILINEAR");
+         break;
+      case PIPE_ML_OPERATION_TYPE_ARGMAX:
+         teflon_debug("%-15s ", "ARGMAX");
          break;
       case PIPE_ML_OPERATION_TYPE_MAXIMUM:
          teflon_debug("%-15s ", "MAX");
@@ -1179,6 +1211,8 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "RESIZE";
    case kTfLiteBuiltinResizeBilinear:
       return "RESIZE_BILINEAR";
+   case kTfLiteBuiltinArgMax:
+      return "ARGMAX";
    case kTfLiteBuiltinSplit:
       return "SPLIT";
    case kTfLiteBuiltinUnpack:
