@@ -712,6 +712,13 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
          EMIT1(NPU_SET_OFM_SCALE, ofm_scale_param, 1);
          break;
       }
+      case ETHOSU_POOLING_TYPE_ARGMAX_X:
+      case ETHOSU_POOLING_TYPE_ARGMAX_Y: {
+         assert(!ethosu_ml_device(subgraph->base.device)->is_u65);
+         EMIT1(NPU_SET_OFM_SCALE,
+               ofm_scale_param | NPU_SET_OFM_SCALE_SHIFT(16), 1);
+         break;
+      }
       case ETHOSU_POOLING_TYPE_AVG: {
          scale = pooling_emit_ofm_scaling(
             operation->ifm.scale,

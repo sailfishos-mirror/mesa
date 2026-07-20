@@ -814,6 +814,32 @@ ethosu_append_eltwise(struct ethosu_subgraph *subgraph,
                       unsigned shift);
 
 static void
+ethosu_append_pool(struct ethosu_subgraph *subgraph,
+                   enum ethosu_pooling_type type,
+                   struct ethosu_feature_map *ifm,
+                   struct ethosu_feature_map *ofm,
+                   unsigned kernel_width,
+                   enum ethosu_rounding_mode round_mode);
+
+static void
+ethosu_lower_lut_dma(struct ethosu_subgraph *subgraph,
+                     const struct pipe_ml_operation *poperation,
+                     struct ethosu_operation *pool_operation,
+                     struct ethosu_operation *operation);
+
+static void
+set_constant_tensor_feature_map(struct ethosu_subgraph *subgraph,
+                                struct pipe_tensor *tensor,
+                                struct ethosu_feature_map *fm);
+
+static unsigned
+ethosu_lut_activation(struct ethosu_subgraph *subgraph,
+                      struct ethosu_feature_map *ifm,
+                      struct ethosu_feature_map *ofm,
+                      unsigned size,
+                      bool force_int8_clip);
+
+static void
 operation_set_defaults(struct ethosu_operation *operation)
 {
    memset(operation, 0, sizeof(*operation));
@@ -1081,6 +1107,210 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
 
    allocate_feature_maps(subgraph, operation);
    ethosu_sched_operation(subgraph, operation);
+}
+
+static void
+ethosu_lower_argmax_u85(struct ethosu_subgraph *subgraph,
+                        const struct pipe_ml_operation *poperation)
+{
+   struct pipe_tensor *input = poperation->input_tensors[0];
+   struct pipe_tensor *output = poperation->output_tensors[0];
+   const unsigned channels = input->dims[3];
+   const unsigned elements = input->dims[1] * input->dims[2];
+   /* IFM and OFM height fields are 16 bits. */
+   const unsigned max_elements = 1 << 16;
+   unsigned input_span;
+   struct ethosu_operation operation;
+   struct ethosu_feature_map input_fm;
+   struct ethosu_feature_map output_fm;
+
+   operation_set_defaults(&operation);
+   set_feature_maps(subgraph, input, output, &operation);
+
+   input_fm = operation.ifm;
+   output_fm = operation.ofm;
+   input_span = ethosu_feature_map_span(&input_fm);
+   input_fm.tensor->required_size =
+      MAX2(input_fm.tensor->required_size, input_span);
+   output_fm.tensor->required_size =
+      MAX2(output_fm.tensor->required_size,
+           ethosu_feature_map_span(&output_fm));
+   output_fm.scale = 1.0f;
+   output_fm.zero_point = 0;
+
+   for (unsigned offset = 0; offset < elements; offset += max_elements) {
+      const unsigned count = MIN2(max_elements, elements - offset);
+      struct ethosu_feature_map chunk_input_fm = input_fm;
+      struct ethosu_feature_map chunk_output_fm = output_fm;
+
+      chunk_input_fm.shape = (struct ethosu_block){channels, count, 1};
+      chunk_input_fm.stride.y = channels * input->type_size;
+      chunk_input_fm.stride.x = input->type_size;
+      chunk_input_fm.stride.c = input->type_size;
+      chunk_input_fm.tiles.addresses[0] += offset * channels * input->type_size;
+
+      chunk_output_fm.shape = (struct ethosu_block){1, count, 1};
+      chunk_output_fm.stride.y = output->type_size;
+      chunk_output_fm.stride.x = output->type_size;
+      chunk_output_fm.stride.c = output->type_size;
+      chunk_output_fm.tiles.addresses[0] += offset * output->type_size;
+
+      ethosu_append_pool(subgraph, ETHOSU_POOLING_TYPE_ARGMAX_X,
+                         &chunk_input_fm, &chunk_output_fm, channels,
+                         ETHOSU_ROUNDING_TRUNCATE);
+   }
+}
+
+static void
+ethosu_lower_argmax_u65(struct ethosu_subgraph *subgraph,
+                        const struct pipe_ml_operation *poperation)
+{
+   struct pipe_tensor *input = poperation->input_tensors[0];
+   struct pipe_tensor *output = poperation->output_tensors[0];
+   const unsigned channels = input->dims[3];
+   const unsigned elements = input->dims[1] * input->dims[2];
+   const unsigned max_elements = 1 << 16;
+   const unsigned rows_per_chunk = max_elements / input->dims[2];
+   const unsigned max_chunk_elements = MIN2(elements,
+                                            rows_per_chunk * input->dims[2]);
+   const struct ethosu_block input_shape = {
+      input->dims[2],
+      input->dims[1],
+      channels,
+   };
+   const struct ethosu_block reduced_shape = {1, max_chunk_elements, 1};
+   struct ethosu_tensor *conv_tensor;
+   struct ethosu_tensor *max_tensor;
+   struct ethosu_tensor *lut_tensor;
+   struct ethosu_feature_map input_fm = {0};
+   struct ethosu_feature_map conv_fm = {0};
+   struct ethosu_feature_map max_fm = {0};
+   struct ethosu_feature_map lut_fm = {0};
+   struct ethosu_feature_map output_fm = {0};
+   struct ethosu_feature_map zero_fm = {0};
+   struct ethosu_feature_map prepared_ifm;
+   struct ethosu_feature_map prepared_ofm;
+   struct ethosu_operation operation;
+   struct ethosu_operation dma_operation;
+   struct pipe_tensor zero = {
+      .dims = {1, 1, 1, 1},
+      .scale = 1.0f,
+      .is_signed = true,
+      .type_size = 2,
+   };
+   uint8_t weights[channels];
+   int32_t biases[channels];
+   uint32_t lut[512];
+
+   set_feature_map(subgraph, input, &input_fm);
+   input_fm.scale = 1.0f;
+   input_fm.zero_point = 0;
+
+   conv_tensor = ethosu_add_internal_tensor(subgraph, input_shape, 2);
+   max_tensor = ethosu_add_internal_tensor(subgraph, reduced_shape, 2);
+   lut_tensor = ethosu_add_internal_tensor(subgraph, reduced_shape, 2);
+   set_internal_feature_map(conv_tensor, input_shape, 1.0f, 0, true, &conv_fm);
+   set_internal_feature_map(max_tensor, reduced_shape, 1.0f, 0, true, &max_fm);
+   set_internal_feature_map(lut_tensor, reduced_shape, 1.0f, 0, true, &lut_fm);
+   set_feature_map(subgraph, output, &output_fm);
+   /* Reserve the complete output before lowering it as row chunks. */
+   output_fm.shape = (struct ethosu_block){1, elements, 1};
+   output_fm.stride.y = output->type_size;
+   output_fm.stride.x = output->type_size;
+   output_fm.stride.c = output->type_size;
+   output_fm.tensor->required_size =
+      MAX2(output_fm.tensor->required_size, ethosu_feature_map_span(&output_fm));
+   output_fm.scale = 1.0f;
+   output_fm.zero_point = 0;
+   set_constant_tensor_feature_map(subgraph, &zero, &zero_fm);
+
+   memset(weights, 1 << 7, sizeof(weights));
+   for (unsigned i = 0; i < channels; i++)
+      biases[i] = channels - i - 1;
+
+   operation_set_defaults(&operation);
+   prepared_ifm = input_fm;
+   prepared_ofm = conv_fm;
+   ethosu_prepare_feature_map(subgraph, &prepared_ifm);
+   ethosu_prepare_feature_map(subgraph, &prepared_ofm);
+   operation.type = ETHOSU_OPERATION_TYPE_CONVOLUTION;
+   operation.ifm = prepared_ifm;
+   operation.ofm = prepared_ofm;
+   operation.conv.depthwise = true;
+   operation.kernel.depthwise = true;
+   operation.kernel.scale = 1.0f;
+   operation.kernel.zero_point = 0;
+   operation.kernel.is_signed = false;
+   set_full_activation_range(&operation);
+   ethosu_sched_operation(subgraph, &operation);
+   fill_coefs(subgraph, &operation, biases, weights, sizeof(weights));
+   util_dynarray_append(&subgraph->operations, operation);
+
+   for (unsigned i = 0; i < ARRAY_SIZE(lut); i++)
+      lut[i] = ((uint32_t)(uint16_t)-128 << 16) + channels - 1;
+
+   for (unsigned row = 0; row < input->dims[1]; row += rows_per_chunk) {
+      const unsigned rows = MIN2(rows_per_chunk, input->dims[1] - row);
+      const unsigned chunk_elements = rows * input->dims[2];
+      const unsigned offset = row * input->dims[2];
+      const struct ethosu_block vector_shape = {channels, chunk_elements, 1};
+      const struct ethosu_block chunk_shape = {1, chunk_elements, 1};
+      struct ethosu_feature_map vector_fm = conv_fm;
+      struct ethosu_feature_map chunk_max_fm = max_fm;
+      struct ethosu_feature_map chunk_lut_fm = lut_fm;
+      struct ethosu_feature_map chunk_output_fm = output_fm;
+
+      vector_fm.shape = vector_shape;
+      vector_fm.stride.y = channels * 2;
+      vector_fm.stride.x = 2;
+      vector_fm.stride.c = 2;
+      vector_fm.tiles.addresses[0] += offset * channels * 2;
+      chunk_max_fm.shape = chunk_shape;
+      chunk_lut_fm.shape = chunk_shape;
+      chunk_output_fm.shape = chunk_shape;
+      chunk_output_fm.stride.y = 4;
+      chunk_output_fm.stride.x = 4;
+      chunk_output_fm.stride.c = 4;
+      chunk_output_fm.tiles.addresses[0] += offset * 4;
+
+      ethosu_append_pool(subgraph, ETHOSU_POOLING_TYPE_MAX, &vector_fm,
+                         &chunk_max_fm, channels, ETHOSU_ROUNDING_DOUBLE);
+
+      operation_set_defaults(&operation);
+      prepared_ifm = chunk_max_fm;
+      prepared_ofm = chunk_lut_fm;
+      ethosu_prepare_feature_map(subgraph, &prepared_ifm);
+      ethosu_prepare_feature_map(subgraph, &prepared_ofm);
+      operation.type = ETHOSU_OPERATION_TYPE_POOLING;
+      operation.pooling.type = ETHOSU_POOLING_TYPE_AVG;
+      operation.round_mode = ETHOSU_ROUNDING_NATURAL;
+      operation.ifm = prepared_ifm;
+      operation.ofm = prepared_ofm;
+      operation.activation =
+         ethosu_lut_activation(subgraph, &operation.ifm, &operation.ofm,
+                               sizeof(lut), false);
+      fill_lut(subgraph, &operation, lut, sizeof(lut));
+      operation_set_defaults(&dma_operation);
+      ethosu_lower_lut_dma(subgraph, NULL, &operation, &dma_operation);
+      util_dynarray_append(&subgraph->operations, dma_operation);
+      ethosu_append_operation(subgraph, &operation);
+
+      ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_ADD,
+                            &chunk_lut_fm, &zero_fm, &chunk_output_fm,
+                            ETHOSU_ROUNDING_NATURAL, true, 0, 0);
+   }
+}
+
+static void
+ethosu_lower_argmax(struct ethosu_subgraph *subgraph,
+                    const struct pipe_ml_operation *poperation)
+{
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
+      ethosu_lower_argmax_u65(subgraph, poperation);
+      return;
+   }
+
+   ethosu_lower_argmax_u85(subgraph, poperation);
 }
 
 static void
@@ -3319,7 +3549,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                    consumer->type == PIPE_ML_OPERATION_TYPE_BATCH_MATMUL ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_TRANSPOSE ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_UNPACK ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR))) {
+                   consumer->type == PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR ||
+                   consumer->type == PIPE_ML_OPERATION_TYPE_ARGMAX))) {
                if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                     !ethosu_consumer_is_lut(poperation) &&
                     !ethosu_consumer_is_lut(consumer)) ||
@@ -3532,6 +3763,11 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       case PIPE_ML_OPERATION_TYPE_POOLING: {
          ethosu_lower_pooling(subgraph, &poperations[i], &operation);
          util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_ARGMAX: {
+         ethosu_lower_argmax(subgraph, &poperations[i]);
          break;
       }
 

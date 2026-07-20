@@ -313,6 +313,26 @@ ethosu_resize_bilinear_supported(const struct pipe_ml_operation *operation)
           scale_y <= 8;
 }
 
+static bool
+ethosu_argmax_supported(struct pipe_ml_device *pdevice,
+                        const struct pipe_ml_operation *operation)
+{
+   const struct pipe_tensor *input = operation->input_tensors[0];
+   const struct pipe_tensor *output = operation->output_tensors[0];
+
+   if (operation->argmax.axis != 3 || input->type_size != 1 ||
+       output->type_size != 4 || input->dims[0] != 1 ||
+       input->is_signed != output->is_signed || !input->dims[3] ||
+       !input->dims[1] || !input->dims[2] || input->dims[2] > (1 << 16) ||
+       (ethosu_ml_device(pdevice)->is_u65 && input->dims[3] > 127) ||
+       (!ethosu_ml_device(pdevice)->is_u65 && input->dims[3] > (1 << 15)))
+      return false;
+
+   return output->dims[0] == input->dims[0] && output->dims[1] == 1 &&
+          output->dims[2] == input->dims[1] &&
+          output->dims[3] == input->dims[2];
+}
+
 bool
 ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                               const struct pipe_ml_operation *operation)
@@ -320,7 +340,8 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    bool supported = false;
 
    if (operation->input_tensors[0]->type_size == 4 ||
-       operation->output_tensors[0]->type_size == 4)
+       (operation->output_tensors[0]->type_size == 4 &&
+        operation->type != PIPE_ML_OPERATION_TYPE_ARGMAX))
       return false;
 
    switch (operation->type) {
@@ -356,6 +377,9 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
       break;
    case PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR:
       supported = ethosu_resize_bilinear_supported(operation);
+      break;
+   case PIPE_ML_OPERATION_TYPE_ARGMAX:
+      supported = ethosu_argmax_supported(pdevice, operation);
       break;
    case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
       /*
