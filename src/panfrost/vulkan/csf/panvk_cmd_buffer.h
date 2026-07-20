@@ -174,6 +174,16 @@ struct panvk_cs_subqueue_context {
       uint64_t ir_descs[PANVK_IR_PASS_COUNT];
       uint32_t td_count;
       uint32_t layer_count;
+
+#if PAN_ARCH >= 11
+      /* Spill target and final regular target can differ for
+       * the same RT index and point to two different images. For CRC tracking,
+       * we need to store two CRC header addresses, one for the regular and one
+       * for the spill. */
+      uint32_t crc_header_addr_count;
+      uint64_t crc_header_addrs[PAN_MAX_RTS * 2];
+#endif
+
    } tiler_oom_ctx;
    struct {
       struct {

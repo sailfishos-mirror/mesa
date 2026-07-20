@@ -700,7 +700,7 @@ GENX(pan_fb_get_crc_rt_info)(const struct pan_fb_desc_info *info,
 bool
 GENX(pan_fb_needs_zs_crc_ext)(const struct pan_fb_desc_info *info)
 {
-   return pan_fb_has_zs(info->fb) ||
+   return info->force_zs_crc_ext || pan_fb_has_zs(info->fb) ||
           pan_fb_select_crc_rt(info, info->fb->tile_size_px) != -1;
 }
 
@@ -735,7 +735,7 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
       crc.write = true;
    }
 
-   const bool has_zs_crc_ext = pan_fb_has_zs(fb) || pan_crc_is_enabled(&crc);
+   const bool has_zs_crc_ext = GENX(pan_fb_needs_zs_crc_ext)(info);
 
    struct mali_framebuffer_packed fbd = {};
 

@@ -73,6 +73,14 @@ copy_fbd(struct cs_builder *b, bool has_zs_ext, uint32_t rt_count,
               BITFIELD_MASK(6), 8 * sizeof(uint32_t));
    cs_load64_to(b, cs_scratch_reg64(b, 6), src_tiler,
                 14 * sizeof(uint32_t));
+#if PAN_ARCH >= 11
+   /* IR processes only part of the original render and cannot maintain the
+    * full-frame CRC table, so disable CRC and ETE in copied FBDs.
+    */
+   struct cs_index mask = cs_scratch_reg32(b, 16);
+   cs_move32_to(b, mask, BITFIELD_MASK(28));
+   cs_and32(b, cs_scratch_reg32(b, 4), cs_scratch_reg32(b, 4), mask);
+#endif
    cs_store(b, cs_scratch_reg_tuple(b, 0, 8), dst, BITFIELD_MASK(8),
             8 * sizeof(uint32_t));
 #endif
@@ -104,6 +112,43 @@ copy_fbd(struct cs_builder *b, bool has_zs_ext, uint32_t rt_count,
                BITFIELD_MASK(8), rt_offset + (8 * sizeof(uint32_t)));
    }
 }
+
+#if PAN_ARCH >= 11
+static void
+invalidate_crc_addrs_from_oom_ctx(struct cs_builder *b,
+                                  struct cs_index subqueue_ctx)
+{
+   /* Reuse scratch offsets whose values are dead or reloaded after invalidation
+    * while preserving ir_count at offset 9. */
+   struct cs_index count = cs_scratch_reg32(b, 8);
+   struct cs_index addrs = cs_scratch_reg64(b, 10);
+   struct cs_index addr = cs_scratch_reg64(b, 12);
+   struct cs_index init = cs_scratch_reg32(b, 14);
+   struct cs_index mask = cs_scratch_reg32(b, 15);
+
+   cs_load32_to(b, count, subqueue_ctx,
+                TILER_OOM_CTX_FIELD_OFFSET(crc_header_addr_count));
+   cs_add_imm64(b, addrs, subqueue_ctx,
+                TILER_OOM_CTX_FIELD_OFFSET(crc_header_addrs));
+
+   cs_move32_to(b, mask, PAN_CRC_INIT_MASK);
+
+   cs_while(b, MALI_CS_CONDITION_GREATER, count) {
+      cs_load64_to(b, addr, addrs, 0);
+      cs_load32_to(b, init, addr, PAN_CRC_INIT_OFFSET);
+
+      cs_add_imm32(b, init, init, 1);
+      cs_and32(b, init, init, mask);
+      cs_store32(b, init, addr, PAN_CRC_INIT_OFFSET);
+
+      /* Required before reusing init as the next load destination. */
+      cs_flush_stores(b);
+
+      cs_add_imm64(b, addrs, addrs, sizeof(uint64_t));
+      cs_add_imm32(b, count, count, -1);
+   }
+}
+#endif
 
 static size_t
 generate_tiler_oom_handler(struct panvk_device *dev,
@@ -248,6 +293,9 @@ generate_tiler_oom_handler(struct panvk_device *dev,
        * to use the last IR config.
        */
       cs_if(&b, MALI_CS_CONDITION_EQUAL, ir_count) {
+#if PAN_ARCH >= 11
+         invalidate_crc_addrs_from_oom_ctx(&b, subqueue_ctx);
+#endif
          cs_load64_to(&b, current_fbd_ptr_reg, subqueue_ctx,
                       TILER_OOM_CTX_FIELD_OFFSET(layer_fbd_ptr));
          cs_load64_to(&b, ir_descs_ptr, subqueue_ctx,

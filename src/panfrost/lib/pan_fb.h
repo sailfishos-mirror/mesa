@@ -476,6 +476,9 @@ struct pan_fb_desc_info {
    bool provoking_vertex_first;
    bool allow_hsr_prepass;
 
+   /* Force identical descriptor layouts across regular and IR passes. */
+   bool force_zs_crc_ext;
+
    uint16_t layer;
 
    const struct pan_tls_info *tls;

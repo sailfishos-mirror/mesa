@@ -1601,6 +1601,7 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
       .fb = &render->fb.layout,
       .load = &render->fb.load,
       .store = &render->fb.store,
+      .force_zs_crc_ext = has_zs_crc_ext,
       .sample_pos_array_pointer = dev->sample_positions->addr.dev +
          pan_sample_positions_offset(pan_sample_pattern(sample_count)),
       .provoking_vertex_first = get_first_provoking_vertex(cmdbuf),
@@ -3827,17 +3828,18 @@ static uint32_t
 calc_tiler_oom_handler_idx(struct panvk_cmd_buffer *cmdbuf)
 {
    const struct pan_fb_layout *fb = &cmdbuf->state.gfx.render.fb.layout;
-   const bool has_zs_ext = pan_fb_has_zs(fb);
+   const bool has_zs_crc_ext = render_needs_zs_crc_ext(cmdbuf);
 
-   return get_tiler_oom_handler_idx(has_zs_ext, fb->rt_count);
+   return get_tiler_oom_handler_idx(has_zs_crc_ext, fb->rt_count);
 }
 
 static void
 setup_tiler_oom_ctx(struct panvk_cmd_buffer *cmdbuf)
 {
+   struct panvk_rendering_state *render = &cmdbuf->state.gfx.render;
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
 
-   uint32_t layer_count = cmdbuf->state.gfx.render.layer_count;
+   uint32_t layer_count = render->layer_count;
    uint32_t td_count = DIV_ROUND_UP(layer_count, MAX_LAYERS_PER_TILER_DESC);
 
    struct cs_index counter = cs_scratch_reg32(b, 1);
@@ -3849,18 +3851,75 @@ setup_tiler_oom_ctx(struct panvk_cmd_buffer *cmdbuf)
 #if PAN_ARCH >= 14
    cs_add_imm64(b, fbd_ptr_reg, cs_sr_reg64(b, FRAGMENT, FBD_POINTER), 0);
 #else
-   const struct pan_fb_layout *fb = &cmdbuf->state.gfx.render.fb.layout;
-   const bool has_zs_ext = pan_fb_has_zs(fb);
+   const struct pan_fb_layout *fb = &render->fb.layout;
+   const bool has_zs_crc_ext = render_needs_zs_crc_ext(cmdbuf);
 
    struct mali_framebuffer_pointer_packed fb_tag;
    pan_pack(&fb_tag, FRAMEBUFFER_POINTER, cfg) {
-      cfg.zs_crc_extension_present = has_zs_ext;
+      cfg.zs_crc_extension_present = has_zs_crc_ext;
       cfg.render_target_count = fb->rt_count;
    }
 
    cs_add_imm64(b, fbd_ptr_reg, cs_sr_reg64(b, FRAGMENT, FBD_POINTER),
                 -(int32_t)fb_tag.opaque[0]);
 #endif
+
+#if PAN_ARCH >= 11
+   /* The OOM handler may use both spill and final stores. Preserve every
+    * possible CRC state address so the first IR invocation can invalidate them
+    * all.
+    */
+   uint64_t crc_addrs[PAN_MAX_RTS * 2] = {};
+   uint32_t crc_addr_count = 0;
+
+   const struct pan_fb_store *stores[] = {
+      &render->fb.spill.store,
+      &render->fb.store,
+   };
+
+   for (uint32_t s = 0; s < ARRAY_SIZE(stores); s++) {
+      for (uint32_t rt = 0; rt < render->fb.layout.rt_count; rt++) {
+         const struct pan_fb_store_target *target = &stores[s]->rts[rt];
+         uint64_t addr = target->store ? target->crc_header_addr : 0;
+
+         if (!addr)
+            continue;
+
+         bool duplicate = false;
+         for (uint32_t i = 0; i < crc_addr_count; i++) {
+            if (crc_addrs[i] == addr) {
+               duplicate = true;
+               break;
+            }
+         }
+
+         if (!duplicate)
+            crc_addrs[crc_addr_count++] = addr;
+      }
+   }
+
+   assert(crc_addr_count <= ARRAY_SIZE(crc_addrs));
+
+   cs_move32_to(b, counter, crc_addr_count);
+   cs_store32(b, counter, cs_subqueue_ctx_reg(b),
+              TILER_OOM_CTX_FIELD_OFFSET(crc_header_addr_count));
+
+   static_assert(ARRAY_SIZE(crc_addrs) % 4 == 0,
+                 "crc_addrs must be a multiple of four");
+   struct cs_index addr_regs = cs_scratch_reg_tuple(b, 8, 8);
+
+   for (uint32_t base = 0; base < ARRAY_SIZE(crc_addrs); base += 4) {
+      for (uint32_t i = 0; i < 4; i++) {
+         cs_move64_to(b, cs_extract64(b, addr_regs, i * 2),
+                      crc_addrs[base + i]);
+      }
+
+      cs_store(b, addr_regs, cs_subqueue_ctx_reg(b), BITFIELD_MASK(8),
+               TILER_OOM_CTX_FIELD_OFFSET(crc_header_addrs) +
+                  base * sizeof(crc_addrs[0]));
+   }
+#endif
+
    cs_store64(b, fbd_ptr_reg, cs_subqueue_ctx_reg(b),
               TILER_OOM_CTX_FIELD_OFFSET(layer_fbd_ptr));
 
@@ -3869,7 +3928,7 @@ setup_tiler_oom_ctx(struct panvk_cmd_buffer *cmdbuf)
          TILER_OOM_CTX_FIELD_OFFSET(ir_descs) + (sizeof(uint64_t) * ir_pass);
       struct cs_index ir_fbds_reg = cs_scratch_reg64(b, 2);
 
-      cs_move64_to(b, ir_fbds_reg, cmdbuf->state.gfx.render.ir.fbds[ir_pass]);
+      cs_move64_to(b, ir_fbds_reg, render->ir.fbds[ir_pass]);
       cs_store64(b, ir_fbds_reg, cs_subqueue_ctx_reg(b), ir_descs_offset);
    }
 
