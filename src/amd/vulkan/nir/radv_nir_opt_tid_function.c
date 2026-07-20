@@ -314,36 +314,29 @@ get_singluar_user_bcsel(nir_def *def, unsigned *src_idx)
 static bool
 gather_invocation_uses(nir_alu_instr *bcsel, unsigned shuffle_idx, struct fotid_context *ctx)
 {
-   if (!alu_src_get_fotid_mask(bcsel, 0))
+   nir_scalar s = nir_get_scalar(bcsel->src[0].src.ssa, bcsel->src[0].swizzle[0]);
+
+   BITSET_WORD selects_other[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+
+   if (!bool_scalar_to_ballot(s, ctx->shader, selects_other))
       return false;
 
-   nir_scalar s = {bcsel->src[0].src.ssa, bcsel->src[0].swizzle[0]};
+   if (shuffle_idx == 1)
+      BITSET_NOT(selects_other);
 
    bool can_remove_bcsel =
       nir_src_is_const(bcsel->src[3 - shuffle_idx].src) && nir_src_as_uint(bcsel->src[3 - shuffle_idx].src) == 0;
 
-   /* Recursive constant folding for each invocation */
-   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
-      nir_const_value value;
-      if (!constant_fold_scalar(s, i, ctx->shader, &value, 0)) {
-         can_remove_bcsel = false;
-         continue;
-      }
-
+   unsigned i = 0;
+   BITSET_FOREACH_SET (i, selects_other, ctx->shader->info.max_subgroup_size) {
       /* If this invocation selects the other source,
-       * so we can read an undefined result. */
-      if (nir_const_value_as_bool(value, 1) == (shuffle_idx != 1)) {
-         ctx->src_invoc[i] = UINT8_MAX;
-         ctx->reads_zero[i] = can_remove_bcsel;
-      }
+       * so we can read an undefined result.
+       */
+      ctx->src_invoc[i] = UINT8_MAX;
+      ctx->reads_zero[i] = can_remove_bcsel;
    }
 
-   if (can_remove_bcsel) {
-      return true;
-   } else {
-      memset(ctx->reads_zero, 0, sizeof(ctx->reads_zero));
-      return false;
-   }
+   return can_remove_bcsel;
 }
 
 static nir_def *
