@@ -1222,11 +1222,6 @@ impl<'a> ShaderFromNir<'a> {
         let texel_offset = flags.texel_offset();
         let compare_enable = flags.compare_enable();
 
-        let dst_type = DataType::get(
-            tex.def.num_components,
-            NumericType::Auto,
-            tex.def.bit_size,
-        );
         let dim = match tex.sampler_dim.into() {
             GLSL_SAMPLER_DIM_1D | GLSL_SAMPLER_DIM_BUF => TexDim::Tex1D,
             GLSL_SAMPLER_DIM_2D
@@ -1239,8 +1234,6 @@ impl<'a> ShaderFromNir<'a> {
             GLSL_SAMPLER_DIM_CUBE => TexDim::Cube,
             _ => panic!("Unknown glsl_sampler_dim"),
         };
-        let write_mask =
-            TexWriteMask::new(tex.def.components_read().try_into().unwrap());
         let lod_mode = match flags.lod_mode() {
             BI_VA_LOD_MODE_ZERO_LOD => TexLodMode::None,
             BI_VA_LOD_MODE_COMPUTED_LOD => TexLodMode::Computed,
@@ -1249,12 +1242,20 @@ impl<'a> ShaderFromNir<'a> {
             BI_VA_LOD_MODE_GRDESC => TexLodMode::GradientDesc,
             _ => panic!("Unknown LOD mode: {}", flags.lod_mode()),
         };
+        let write_mask =
+            TexWriteMask::new(tex.def.components_read().try_into().unwrap());
 
-        let dst = self.alloc_ssa(b, &tex.def).into();
+        let dst_type = DataType::get(
+            write_mask.comps(),
+            NumericType::Auto,
+            tex.def.bit_size,
+        );
+        let tmp = b.alloc_ref(dst_type.total_bits().into());
+
         match tex.op {
             nir_texop_tex | nir_texop_txb | nir_texop_txl | nir_texop_txd => {
                 b.push_op(OpTexSingle {
-                    dst,
+                    dst: tmp.clone().into(),
                     dst_type,
                     skip,
                     dim,
@@ -1271,7 +1272,7 @@ impl<'a> ShaderFromNir<'a> {
             }
             nir_texop_txf | nir_texop_txf_ms => {
                 b.push_op(OpTexFetch {
-                    dst,
+                    dst: tmp.clone().into(),
                     dst_type,
                     skip,
                     dim,
@@ -1285,7 +1286,7 @@ impl<'a> ShaderFromNir<'a> {
             }
             nir_texop_tg4 => {
                 b.push_op(OpTexGather {
-                    dst,
+                    dst: tmp.clone().into(),
                     dst_type,
                     skip,
                     dim,
@@ -1318,7 +1319,7 @@ impl<'a> ShaderFromNir<'a> {
                     TexGradientCoordMode::Coords
                 };
                 b.push_op(OpTexGradient {
-                    dst,
+                    dst: tmp.clone().into(),
                     skip,
                     dim,
                     projection_enable: false,
@@ -1332,6 +1333,32 @@ impl<'a> ShaderFromNir<'a> {
             }
             _ => panic!("Unsupported tex instruction"),
         }
+
+        let mut comps = (0_u8..).into_iter();
+        let mut vec_srcs = Vec::new();
+        if tex.def.bit_size == 16 {
+            for i in 0..tex.def.num_components {
+                if write_mask.has_comp(i) {
+                    let c = comps.next().unwrap();
+                    let ssa = tmp[usize::from(c) / 2];
+                    vec_srcs.push(Src::from(ssa).half(c % 2));
+                } else {
+                    vec_srcs.push(Src::imm_u16(0));
+                }
+            }
+        } else {
+            assert_eq!(tex.def.bit_size, 32);
+            for i in 0..tex.def.num_components {
+                if write_mask.has_comp(i) {
+                    let c = comps.next().unwrap();
+                    let ssa = tmp[usize::from(c)];
+                    vec_srcs.push(Src::from(ssa));
+                } else {
+                    vec_srcs.push(Src::from(0_u32));
+                }
+            }
+        }
+        self.set_ssa(&tex.def, b.mkvec_vN(tex.def.bit_size, vec_srcs));
     }
 
     fn parse_intrinsic(

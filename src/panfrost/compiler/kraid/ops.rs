@@ -2541,6 +2541,15 @@ impl TexWriteMask {
         TexWriteMask(mask)
     }
 
+    pub fn comps(self) -> u8 {
+        self.0.count_ones() as u8
+    }
+
+    pub fn has_comp(self, c: u8) -> bool {
+        assert!(c < 4);
+        (self.0 & (1 << c)) != 0
+    }
+
     pub fn to_bits(self) -> u8 {
         self.0
     }
