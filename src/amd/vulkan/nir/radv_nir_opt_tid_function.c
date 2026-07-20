@@ -20,6 +20,7 @@
  */
 
 #define NIR_MAX_SUBGROUP_SIZE     128
+#define NIR_MAX_SUBGROUP_BITSET_WORDS BITSET_WORDS(NIR_MAX_SUBGROUP_SIZE)
 #define FOTID_MAX_RECURSION_DEPTH 16 /* totally arbitrary */
 
 static inline unsigned
@@ -240,6 +241,28 @@ constant_fold_scalar(nir_scalar s, unsigned invocation_id, nir_shader *shader, n
 
    UNREACHABLE("unhandled scalar type");
    return false;
+}
+
+static bool
+bool_scalar_to_ballot(nir_scalar s, nir_shader *shader, BITSET_WORD *mask)
+{
+   assert(s.def->bit_size == 1);
+
+   if ((nir_def_instr(s.def)->pass_flags & BITFIELD_BIT(s.comp)) == 0)
+      return false;
+
+   for (unsigned i = 0; i < shader->info.max_subgroup_size; i++) {
+      nir_const_value value;
+      if (!constant_fold_scalar(s, i, shader, &value, 0))
+         return false;
+
+      if (nir_const_value_as_bool(value, 1))
+         BITSET_SET(mask, i);
+      else
+         BITSET_CLEAR(mask, i);
+   }
+
+   return true;
 }
 
 struct fotid_context {
@@ -521,27 +544,26 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
 static bool
 opt_fotid_bool(nir_builder *b, nir_alu_instr *instr, const radv_nir_opt_tid_function_options *options)
 {
-   nir_scalar s = {&instr->def, 0};
+   nir_scalar s = nir_get_scalar(&instr->def, 0);
+
+   BITSET_WORD ballot_set[NIR_MAX_SUBGROUP_BITSET_WORDS] = {0};
+
+   if (!bool_scalar_to_ballot(s, b->shader, ballot_set))
+      return false;
 
    b->cursor = nir_after_instr(&instr->instr);
 
-   nir_def *ballot_comp[NIR_MAX_VEC_COMPONENTS];
+   nir_const_value ballot_comp[NIR_MAX_VEC_COMPONENTS];
 
-   for (unsigned comp = 0; comp < options->hw_ballot_num_comp; comp++) {
-      uint64_t cballot = 0;
-      for (unsigned i = 0; i < options->hw_ballot_bit_size; i++) {
-         unsigned invocation_id = comp * options->hw_ballot_bit_size + i;
-         if (invocation_id >= b->shader->info.max_subgroup_size)
-            break;
-         nir_const_value value;
-         if (!constant_fold_scalar(s, invocation_id, b->shader, &value, 0))
-            return false;
-         cballot |= nir_const_value_as_uint(value, 1) << i;
-      }
-      ballot_comp[comp] = nir_imm_intN_t(b, cballot, options->hw_ballot_bit_size);
+   for (unsigned i = 0; i < options->hw_ballot_num_comp; i++) {
+      unsigned bit_start = i * options->hw_ballot_bit_size;
+
+      uint64_t imm = BITSET_EXTRACT64(ballot_set, bit_start, options->hw_ballot_bit_size);
+
+      ballot_comp[i] = nir_const_value_for_uint(imm, options->hw_ballot_bit_size);
    }
 
-   nir_def *ballot = nir_vec(b, ballot_comp, options->hw_ballot_num_comp);
+   nir_def *ballot = nir_build_imm(b, options->hw_ballot_num_comp, options->hw_ballot_bit_size, ballot_comp);
    nir_def *res = nir_inverse_ballot(b, ballot);
    nir_def_instr(res)->pass_flags = 1;
 
