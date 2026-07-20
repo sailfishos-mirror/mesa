@@ -284,6 +284,35 @@ ethosu_unpack_supported(const struct pipe_ml_operation *operation)
    return true;
 }
 
+static bool
+ethosu_resize_bilinear_supported(const struct pipe_ml_operation *operation)
+{
+   const struct pipe_tensor *input = operation->input_tensors[0];
+   const struct pipe_tensor *output = operation->output_tensors[0];
+   unsigned scale_y;
+   unsigned scale_x;
+
+   if (input->type_size != 1 || output->type_size != 1 ||
+       input->is_signed != output->is_signed || input->scale != output->scale ||
+       input->zero_point != output->zero_point ||
+       operation->resize_bilinear.half_pixel_centers)
+      return false;
+
+   if (input->dims[1] == 1 && input->dims[2] == 1)
+      return true;
+
+   if (!operation->resize_bilinear.align_corners || input->dims[1] < 2 ||
+       input->dims[2] < 2 || output->dims[1] < 2 || output->dims[2] < 2 ||
+       (output->dims[1] - 1) % (input->dims[1] - 1) ||
+       (output->dims[2] - 1) % (input->dims[2] - 1))
+      return false;
+
+   scale_y = (output->dims[1] - 1) / (input->dims[1] - 1);
+   scale_x = (output->dims[2] - 1) / (input->dims[2] - 1);
+   return scale_y == scale_x && util_is_power_of_two_nonzero(scale_y) &&
+          scale_y <= 8;
+}
+
 bool
 ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                               const struct pipe_ml_operation *operation)
@@ -324,6 +353,9 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
       break;
    case PIPE_ML_OPERATION_TYPE_UNPACK:
       supported = ethosu_unpack_supported(operation);
+      break;
+   case PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR:
+      supported = ethosu_resize_bilinear_supported(operation);
       break;
    case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
       /*

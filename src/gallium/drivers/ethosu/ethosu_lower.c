@@ -1084,6 +1084,43 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
 }
 
 static void
+set_constant_tensor_feature_map(struct ethosu_subgraph *subgraph,
+                                struct pipe_tensor *tensor,
+                                struct ethosu_feature_map *fm)
+{
+   struct ethosu_block shape = {
+      tensor->dims[2],
+      tensor->dims[1],
+      tensor->dims[3],
+   };
+   unsigned elements = shape.height * shape.width * shape.depth;
+   unsigned size = elements * tensor->type_size;
+   uint8_t *data = malloc(size);
+   struct ethosu_tensor *ethosu_tensor;
+
+   if (tensor->type_size == 1) {
+      memset(data, tensor->zero_point, size);
+   } else {
+      int16_t *data16 = (int16_t *)data;
+
+      for (unsigned i = 0; i < elements; i++)
+         data16[i] = tensor->zero_point;
+   }
+
+   ethosu_tensor = ethosu_add_internal_tensor(subgraph, shape,
+                                              tensor->type_size);
+   set_internal_feature_map(ethosu_tensor, shape, tensor->scale,
+                            tensor->zero_point, tensor->is_signed, fm);
+   fm->region = COEFS_REGION;
+   fm->tiles.addresses[0] = ethosu_add_constant(subgraph, data, size);
+   fm->tiles.height_0 = shape.height;
+   fm->tiles.height_1 = shape.height;
+   fm->tiles.width_0 = shape.width;
+
+   free(data);
+}
+
+static void
 create_pad_constant(struct ethosu_subgraph *subgraph,
                     const struct pipe_tensor *tensor, unsigned elements,
                     struct ethosu_tensor **out_tensor, unsigned *out_address)
@@ -2039,6 +2076,31 @@ ethosu_append_pool(struct ethosu_subgraph *subgraph,
 }
 
 static void
+ethosu_append_resize_pool(struct ethosu_subgraph *subgraph,
+                          struct ethosu_feature_map *ifm,
+                          struct ethosu_feature_map *ofm,
+                          unsigned kernel_height,
+                          unsigned kernel_width)
+{
+   struct ethosu_operation operation;
+   struct ethosu_feature_map prepared_ifm = *ifm;
+   struct ethosu_feature_map prepared_ofm = *ofm;
+
+   operation_set_defaults(&operation);
+   ethosu_prepare_feature_map(subgraph, &prepared_ifm);
+   ethosu_prepare_feature_map(subgraph, &prepared_ofm);
+   operation.type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation.pooling.type = ETHOSU_POOLING_TYPE_AVG;
+   operation.round_mode = ETHOSU_ROUNDING_DOUBLE;
+   operation.kernel.height = kernel_height;
+   operation.kernel.width = kernel_width;
+   operation.upscale = ETHOSU_UPSCALE_NEAREST;
+   operation.ifm = prepared_ifm;
+   operation.ofm = prepared_ofm;
+   ethosu_append_operation(subgraph, &operation);
+}
+
+static void
 ethosu_append_eltwise(struct ethosu_subgraph *subgraph,
                       enum ethosu_eltwise_type type,
                       struct ethosu_feature_map *ifm,
@@ -2061,6 +2123,20 @@ ethosu_append_eltwise(struct ethosu_subgraph *subgraph,
       ethosu_prepare_feature_map(subgraph, &prepared_ifm2);
    }
    ethosu_prepare_feature_map(subgraph, &prepared_ofm);
+
+   /* Broadcast a single spatial vector without extending its allocation. */
+   if (!prepared_ifm.has_scalar && prepared_ifm.shape.height == 1 &&
+       prepared_ifm.shape.width == 1 &&
+       prepared_ifm.shape.depth == prepared_ofm.shape.depth &&
+       (prepared_ofm.shape.height != 1 || prepared_ofm.shape.width != 1)) {
+      prepared_ifm.shape.height = prepared_ofm.shape.height;
+      prepared_ifm.shape.width = prepared_ofm.shape.width;
+      prepared_ifm.stride.y = 0;
+      prepared_ifm.stride.x = 0;
+      prepared_ifm.tiles.height_0 = prepared_ifm.shape.height;
+      prepared_ifm.tiles.height_1 = prepared_ifm.shape.height;
+      prepared_ifm.tiles.width_0 = prepared_ifm.shape.width;
+   }
 
    operation.type = ETHOSU_OPERATION_TYPE_ELTWISE;
    operation.eltwise.type = type;
@@ -2616,6 +2692,60 @@ ethosu_lower_resize(struct ethosu_subgraph *subgraph,
 
    allocate_feature_maps(subgraph, operation);
    ethosu_sched_operation(subgraph, operation);
+}
+
+static void
+ethosu_lower_resize_bilinear(struct ethosu_subgraph *subgraph,
+                             const struct pipe_ml_operation *poperation)
+{
+   struct pipe_tensor *input = poperation->input_tensors[0];
+   struct pipe_tensor *output = poperation->output_tensors[0];
+   struct ethosu_feature_map ifm = {0}, ofm = {0};
+   unsigned scale;
+   unsigned kernel_scale;
+
+   set_feature_map(subgraph, input, &ifm);
+   set_feature_map(subgraph, output, &ofm);
+
+   if (input->dims[1] == 1 && input->dims[2] == 1) {
+      struct pipe_tensor scalar = {
+         .dims = {1, 1, 1, 1},
+         .scale = input->scale,
+         .zero_point = input->zero_point,
+         .is_signed = input->is_signed,
+         .type_size = input->type_size,
+      };
+      uint8_t value = input->zero_point;
+      struct ethosu_feature_map zero = {0};
+
+      scalar.data = &value;
+      set_constant_tensor_feature_map(subgraph, &scalar, &zero);
+      ethosu_append_eltwise(subgraph, ETHOSU_ELTWISE_TYPE_ADD, &ifm, &zero,
+                            &ofm, ETHOSU_ROUNDING_DOUBLE, false, 0, 0);
+      return;
+   }
+
+   scale = (output->dims[1] - 1) / (input->dims[1] - 1);
+   kernel_scale = scale;
+   while (scale > 2) {
+      struct ethosu_block shape = {
+         ifm.shape.width * 2,
+         ifm.shape.height * 2,
+         ifm.shape.depth,
+      };
+      struct ethosu_tensor *tensor =
+         ethosu_add_internal_tensor(subgraph, shape, input->type_size);
+      struct ethosu_feature_map intermediate = {0};
+
+      set_internal_feature_map(tensor, shape, input->scale, input->zero_point,
+                               input->is_signed, &intermediate);
+      ethosu_append_resize_pool(subgraph, &ifm, &intermediate, 1, 1);
+      ifm = intermediate;
+      scale /= 2;
+   }
+
+   ethosu_append_resize_pool(subgraph, &ifm, &ofm, kernel_scale,
+                             kernel_scale);
 }
 
 static void
@@ -3188,7 +3318,8 @@ register_tensors(struct ethosu_subgraph *subgraph,
                    consumer->type == PIPE_ML_OPERATION_TYPE_SPLIT ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_BATCH_MATMUL ||
                    consumer->type == PIPE_ML_OPERATION_TYPE_TRANSPOSE ||
-                   consumer->type == PIPE_ML_OPERATION_TYPE_UNPACK))) {
+                   consumer->type == PIPE_ML_OPERATION_TYPE_UNPACK ||
+                   consumer->type == PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR))) {
                if ((poperation->type != PIPE_ML_OPERATION_TYPE_RESHAPE &&
                     !ethosu_consumer_is_lut(poperation) &&
                     !ethosu_consumer_is_lut(consumer)) ||
@@ -3501,6 +3632,10 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
+
+      case PIPE_ML_OPERATION_TYPE_RESIZE_BILINEAR:
+         ethosu_lower_resize_bilinear(subgraph, &poperations[i]);
+         break;
 
       case PIPE_ML_OPERATION_TYPE_PAD: {
          if (ethosu_all_consumers_are_convolutions(
