@@ -7,6 +7,7 @@
 
 #include "kk_physical_device.h"
 
+#include "kk_debug.h"
 #include "kk_entrypoints.h"
 #include "kk_image.h"
 #include "kk_instance.h"
@@ -166,8 +167,10 @@ kk_get_device_extensions(const struct kk_instance *instance,
       .EXT_attachment_feedback_loop_layout = true,
       .EXT_attachment_feedback_loop_dynamic_state = true,
       .EXT_blend_operation_advanced = true,
+      .EXT_border_color_swizzle = KK_EXPERIMENTAL(CUSTOM_BORDER),
       .EXT_calibrated_timestamps = true,
       .EXT_conditional_rendering = true,
+      .EXT_custom_border_color = KK_EXPERIMENTAL(CUSTOM_BORDER),
       .EXT_custom_resolve = true,
       .EXT_debug_marker = true,
       .EXT_depth_clip_control = true,
@@ -425,9 +428,18 @@ kk_get_device_features(
       /* VK_EXT_blend_operation_advanced */
       .advancedBlendCoherentOperations = true,
 
+      /* VK_EXT_border_color_swizzle */
+      .borderColorSwizzle = supported_extensions->EXT_border_color_swizzle,
+      .borderColorSwizzleFromImage = false,
+
       /* VK_EXT_conditional_rendering */
       .conditionalRendering = true,
       .inheritedConditionalRendering = true,
+
+      /* VK_EXT_custom_border_color */
+      .customBorderColors = supported_extensions->EXT_custom_border_color,
+      .customBorderColorWithoutFormat =
+         supported_extensions->EXT_custom_border_color,
 
       /* VK_EXT_custom_resolve */
       .customResolve = true,

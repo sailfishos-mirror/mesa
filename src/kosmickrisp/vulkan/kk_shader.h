@@ -165,6 +165,11 @@ bool kk_nir_lower_textures(nir_shader *nir);
 bool kk_nir_lower_vs_multiview(nir_shader *nir, uint32_t view_mask);
 bool kk_nir_lower_fs_multiview(nir_shader *nir, uint32_t view_mask);
 
+/* Indicates that the sampler should be overridden to clamp to 0 instead of 1 */
+#define KK_TEXTURE_FLAG_CLAMP_TO_0 (1 << 0)
+
+bool kk_nir_lower_custom_border(nir_shader *nir);
+
 VkResult kk_compile_nir_shader(struct kk_device *dev, nir_shader *nir,
                                const VkAllocationCallbacks *alloc,
                                struct kk_shader **shader_out);

@@ -153,6 +153,22 @@ kk_populate_fs_key(struct kk_fs_key *key,
    key->has_depth = state->rp->depth_attachment_format != VK_FORMAT_UNDEFINED;
 }
 
+enum kk_feature_key {
+   KK_FEAT_CUSTOM_BORDER = BITFIELD_BIT(0),
+   KK_FEAT_NULL_DESCRIPTOR = BITFIELD_BIT(1),
+};
+
+static enum kk_feature_key
+kk_make_feature_key(const struct vk_features *feats)
+{
+   enum kk_feature_key key = 0;
+   if (feats->customBorderColors)
+      key |= KK_FEAT_CUSTOM_BORDER;
+   if (feats->nullDescriptor)
+      key |= KK_FEAT_NULL_DESCRIPTOR;
+   return key;
+}
+
 static void
 kk_hash_graphics_state(struct vk_physical_device *device,
                        const struct vk_graphics_pipeline_state *state,
@@ -177,8 +193,8 @@ kk_hash_graphics_state(struct vk_physical_device *device,
                           sizeof(state->mv->view_mask));
    }
 
-   _mesa_blake3_update(&blake3_ctx, &enabled_features->nullDescriptor,
-                       sizeof(enabled_features->nullDescriptor));
+   enum kk_feature_key feature_key = kk_make_feature_key(enabled_features);
+   _mesa_blake3_update(&blake3_ctx, &feature_key, sizeof(feature_key));
 
    _mesa_blake3_final(&blake3_ctx, blake3_out);
 }
@@ -502,7 +518,8 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
              const struct vk_pipeline_robustness_state *rs,
              uint32_t set_layout_count,
              struct vk_descriptor_set_layout *const *set_layouts,
-             const struct vk_graphics_pipeline_state *state)
+             const struct vk_graphics_pipeline_state *state,
+             enum kk_feature_key features)
 {
    if (nir->info.io_lowered)
       return;
@@ -604,6 +621,9 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
       kk_lower_fs(dev, nir, state);
    }
 
+   if (features & KK_FEAT_CUSTOM_BORDER)
+      NIR_PASS(_, nir, kk_nir_lower_custom_border);
+
    /* Descriptor lowering needs to happen after lowering blend since we will
     * generate a nir_intrinsic_load_blend_const_color_rgba which gets lowered by
     * the lower descriptor pass
@@ -620,7 +640,7 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir, bool emulated_stage,
 
    NIR_PASS(_, nir, kk_nir_lower_textures);
 
-   if (dev->vk.enabled_features.nullDescriptor)
+   if (features & KK_FEAT_NULL_DESCRIPTOR)
       NIR_PASS(_, nir, kk_nir_lower_null_images);
 
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
@@ -952,7 +972,8 @@ nir_opts(nir_shader *nir, void *data)
 
 static nir_shader *
 get_empty_nir(struct kk_device *dev, mesa_shader_stage stage,
-              const struct vk_graphics_pipeline_state *state)
+              const struct vk_graphics_pipeline_state *state,
+              enum kk_feature_key features)
 {
    nir_shader *nir = nir_shader_create(
       NULL, stage,
@@ -970,7 +991,7 @@ get_empty_nir(struct kk_device *dev, mesa_shader_stage stage,
       .null_uniform_buffer_descriptor = false,
       .null_storage_buffer_descriptor = false,
    };
-   kk_lower_nir(dev, nir, false, &no_robustness, 0u, NULL, state);
+   kk_lower_nir(dev, nir, false, &no_robustness, 0u, NULL, state, features);
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
    return nir;
@@ -1315,6 +1336,8 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
    VkResult result = VK_SUCCESS;
    struct kk_device *dev = container_of(device, struct kk_device, vk);
 
+   enum kk_feature_key features = kk_make_feature_key(enabled_features);
+
    /* Vulkan doesn't enforce a fragment shader to build pipelines. We may need
     * to create one. */
    nir_shader *nir_shaders[shader_count + 1u];
@@ -1344,7 +1367,7 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
 
       msl_preprocess_nir_workarounds(nir, dev->disabled_workarounds);
       kk_lower_nir(dev, nir, emulated_stage, info->robustness,
-                   info->set_layout_count, info->set_layouts, state);
+                   info->set_layout_count, info->set_layouts, state, features);
 
       if (nir->info.stage == MESA_SHADER_VERTEX)
          vertex_robustness = info->robustness;
@@ -1358,7 +1381,7 @@ kk_compile_shaders(struct vk_device *device, uint32_t shader_count,
    uint32_t total_shaders = shader_count;
    if (state && infos[shader_count - 1u].stage != MESA_SHADER_FRAGMENT) {
       nir_shaders[shader_count] =
-         get_empty_nir(dev, MESA_SHADER_FRAGMENT, state);
+         get_empty_nir(dev, MESA_SHADER_FRAGMENT, state, features);
       total_shaders += 1u;
    }
 
