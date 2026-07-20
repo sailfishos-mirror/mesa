@@ -406,8 +406,8 @@ virtgpu_sync_create(struct vn_renderer *renderer,
          return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 
       /* add a signaled fence chain with seqno initial_val */
-      if (gpu->sync->timeline_signal(gpu->sync, &syncobj_handle, &initial_val,
-                                     1)) {
+      if (initial_val && gpu->sync->timeline_signal(
+                            gpu->sync, &syncobj_handle, &initial_val, 1)) {
          gpu->sync->destroy(gpu->sync, syncobj_handle);
          return VK_ERROR_OUT_OF_DEVICE_MEMORY;
       }
