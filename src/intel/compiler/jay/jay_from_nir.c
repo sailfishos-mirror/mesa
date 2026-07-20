@@ -361,8 +361,27 @@ jay_emit_alu(struct nir_to_jay_state *nj, nir_alu_instr *alu)
    jay_def src[NIR_ALU_MAX_INPUTS];
    for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; i++) {
       unsigned len = nir_src_bit_size(alu->src[i].src) == 64 ? 2 : 1;
-      src[i] = jay_extract_range(nj_src(alu->src[i].src),
-                                 len * alu->src[i].swizzle[0], len);
+      jay_def chans[NIR_MAX_VEC_COMPONENTS];
+      unsigned nr_chans =
+         nir_op_is_vec_or_mov(alu->op) ? 1 : alu->def.num_components;
+      bool all_same = true;
+      for (unsigned c = 0; c < nr_chans; ++c) {
+         /* Optimize swizzles corresponding to dead channels */
+         if (c && !(nir_def_components_read(&alu->def) & BITFIELD_BIT(c))) {
+            chans[c] = jay_null();
+            continue;
+         }
+
+         chans[c] = jay_extract_range(nj_src(alu->src[i].src),
+                                      len * alu->src[i].swizzle[c], len);
+         all_same &= alu->src[i].swizzle[c] == alu->src[i].swizzle[0];
+      }
+
+      if (all_same && chans[0].file == UGPR) {
+         src[i] = chans[0];
+      } else {
+         src[i] = jay_collect_vectors(b, chans, nr_chans);
+      }
    }
 
    switch (alu->op) {
