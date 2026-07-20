@@ -78,10 +78,10 @@ update_fotid_intrinsic(nir_builder *b, nir_intrinsic_instr *instr, const radv_ni
          partial_size *= b->shader->info.workgroup_size[i];
 
          const bool quad_x = i == 0 && b->shader->info.derivative_group == DERIVATIVE_GROUP_QUADS;
-         if (partial_size * (quad_x ? 2 : 1) == options->hw_subgroup_size)
+         if (partial_size * (quad_x ? 2 : 1) == b->shader->info.max_subgroup_size)
             instr->instr.pass_flags = (uint8_t)BITFIELD_MASK(i + 1);
       }
-      if (partial_size <= options->hw_subgroup_size)
+      if (partial_size <= b->shader->info.max_subgroup_size)
          instr->instr.pass_flags = 0x7;
       break;
    }
@@ -91,7 +91,7 @@ update_fotid_intrinsic(nir_builder *b, nir_intrinsic_instr *instr, const radv_ni
          break;
       unsigned workgroup_size =
          b->shader->info.workgroup_size[0] * b->shader->info.workgroup_size[1] * b->shader->info.workgroup_size[2];
-      if (workgroup_size <= options->hw_subgroup_size)
+      if (workgroup_size <= b->shader->info.max_subgroup_size)
          instr->instr.pass_flags = 0x1;
       break;
    }
@@ -255,7 +255,7 @@ gather_read_invocation_shuffle(nir_def *src, struct fotid_context *ctx)
    nir_scalar s = {src, 0};
 
    /* Recursive constant folding for each invocation */
-   for (unsigned i = 0; i < ctx->options->hw_subgroup_size; i++) {
+   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
       nir_const_value value;
       if (!constant_fold_scalar(s, i, ctx->shader, &value, 0))
          return false;
@@ -300,7 +300,7 @@ gather_invocation_uses(nir_alu_instr *bcsel, unsigned shuffle_idx, struct fotid_
       nir_src_is_const(bcsel->src[3 - shuffle_idx].src) && nir_src_as_uint(bcsel->src[3 - shuffle_idx].src) == 0;
 
    /* Recursive constant folding for each invocation */
-   for (unsigned i = 0; i < ctx->options->hw_subgroup_size; i++) {
+   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
       nir_const_value value;
       if (!constant_fold_scalar(s, i, ctx->shader, &value, 0)) {
          can_remove_bcsel = false;
@@ -338,9 +338,9 @@ try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct fotid_context *ctx)
    bool all_equal = true;
    int first_valid = -1;
 
-   for (unsigned i = 0; i < ctx->options->hw_subgroup_size; i++) {
+   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
       unsigned read = ctx->src_invoc[i];
-      if (read >= ctx->options->hw_subgroup_size)
+      if (read >= ctx->shader->info.max_subgroup_size)
          continue; /* undefined result */
 
       if (first_valid < 0)
@@ -388,12 +388,12 @@ try_opt_bitwise_mask(nir_builder *b, nir_def *def, struct fotid_context *ctx)
 static nir_def *
 try_opt_rotate(nir_builder *b, nir_def *def, struct fotid_context *ctx)
 {
-   for (unsigned csize = 4; csize <= ctx->options->hw_subgroup_size; csize *= 2) {
+   for (unsigned csize = 4; csize <= ctx->shader->info.max_subgroup_size; csize *= 2) {
       unsigned cmask = csize - 1;
 
       unsigned delta = UINT_MAX;
-      for (unsigned i = 0; i < ctx->options->hw_subgroup_size; i++) {
-         if (ctx->src_invoc[i] >= ctx->options->hw_subgroup_size)
+      for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
+         if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
             continue;
 
          if (ctx->src_invoc[i] >= i)
@@ -407,8 +407,8 @@ try_opt_rotate(nir_builder *b, nir_def *def, struct fotid_context *ctx)
          continue;
 
       bool use_rotate = true;
-      for (unsigned i = 0; use_rotate && i < ctx->options->hw_subgroup_size; i++) {
-         if (ctx->src_invoc[i] >= ctx->options->hw_subgroup_size)
+      for (unsigned i = 0; use_rotate && i < ctx->shader->info.max_subgroup_size; i++) {
+         if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
             continue;
          use_rotate &= (((i + delta) & cmask) + (i & ~cmask)) == ctx->src_invoc[i];
       }
@@ -424,8 +424,8 @@ static nir_def *
 try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct fotid_context *ctx)
 {
    int delta = INT_MAX;
-   for (unsigned i = 0; i < ctx->options->hw_subgroup_size; i++) {
-      if (ctx->src_invoc[i] >= ctx->options->hw_subgroup_size)
+   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
+      if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
          continue;
       delta = ctx->src_invoc[i] - i;
       break;
@@ -434,12 +434,12 @@ try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct fotid_context *ctx)
    if (delta < -15 || delta > 15 || delta == 0)
       return NULL;
 
-   for (unsigned i = 0; i < ctx->options->hw_subgroup_size; i++) {
+   for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
       int read = i + delta;
       bool out_of_bounds = (read & ~0xf) != (i & ~0xf);
       if (ctx->reads_zero[i] && !out_of_bounds)
          return NULL;
-      if (ctx->src_invoc[i] >= ctx->options->hw_subgroup_size)
+      if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
          continue;
       if (read != ctx->src_invoc[i] || out_of_bounds)
          return NULL;
@@ -481,11 +481,11 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
       can_remove_bcsel = gather_invocation_uses(bcsel, src_idx, &ctx);
 
 #if 0
-   for (int i = 0; i < options->hw_subgroup_size; i++) {
+   for (int i = 0; i < b->shader->info.max_subgroup_size; i++) {
       fprintf(stderr, "invocation %d reads %d\n", i, ctx.src_invoc[i]);
    }
 
-   for (int i = 0; i < options->hw_subgroup_size; i++) {
+   for (int i = 0; i < b->shader->info.max_subgroup_size; i++) {
       fprintf(stderr, "invocation %d zero %d\n", i, ctx.reads_zero[i]);
    }
 #endif
@@ -531,7 +531,7 @@ opt_fotid_bool(nir_builder *b, nir_alu_instr *instr, const radv_nir_opt_tid_func
       uint64_t cballot = 0;
       for (unsigned i = 0; i < options->hw_ballot_bit_size; i++) {
          unsigned invocation_id = comp * options->hw_ballot_bit_size + i;
-         if (invocation_id >= options->hw_subgroup_size)
+         if (invocation_id >= b->shader->info.max_subgroup_size)
             break;
          nir_const_value value;
          if (!constant_fold_scalar(s, invocation_id, b->shader, &value, 0))
