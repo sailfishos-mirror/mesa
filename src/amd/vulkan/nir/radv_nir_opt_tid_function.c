@@ -268,7 +268,7 @@ bool_scalar_to_ballot(nir_scalar s, nir_shader *shader, BITSET_WORD *mask)
 struct fotid_context {
    const radv_nir_opt_tid_function_options *options;
    uint8_t src_invoc[NIR_MAX_SUBGROUP_SIZE];
-   bool reads_zero[NIR_MAX_SUBGROUP_SIZE];
+   BITSET_WORD reads_zero[NIR_MAX_SUBGROUP_BITSET_WORDS];
    nir_shader *shader;
 };
 
@@ -324,19 +324,20 @@ gather_invocation_uses(nir_alu_instr *bcsel, unsigned shuffle_idx, struct fotid_
    if (shuffle_idx == 1)
       BITSET_NOT(selects_other);
 
-   bool can_remove_bcsel =
-      nir_src_is_const(bcsel->src[3 - shuffle_idx].src) && nir_src_as_uint(bcsel->src[3 - shuffle_idx].src) == 0;
-
    unsigned i = 0;
    BITSET_FOREACH_SET (i, selects_other, ctx->shader->info.max_subgroup_size) {
       /* If this invocation selects the other source,
        * so we can read an undefined result.
        */
       ctx->src_invoc[i] = UINT8_MAX;
-      ctx->reads_zero[i] = can_remove_bcsel;
    }
 
-   return can_remove_bcsel;
+   if (nir_src_is_const(bcsel->src[3 - shuffle_idx].src) && nir_src_as_uint(bcsel->src[3 - shuffle_idx].src) == 0) {
+      __bitset_copy(ctx->reads_zero, selects_other, BITSET_WORDS(ctx->shader->info.max_subgroup_size));
+      return true;
+   } else {
+      return false;
+   }
 }
 
 static nir_def *
@@ -453,7 +454,7 @@ try_opt_dpp16_shift(nir_builder *b, nir_def *def, struct fotid_context *ctx)
    for (unsigned i = 0; i < ctx->shader->info.max_subgroup_size; i++) {
       int read = i + delta;
       bool out_of_bounds = (read & ~0xf) != (i & ~0xf);
-      if (ctx->reads_zero[i] && !out_of_bounds)
+      if (BITSET_TEST(ctx->reads_zero, i) && !out_of_bounds)
          return NULL;
       if (ctx->src_invoc[i] >= ctx->shader->info.max_subgroup_size)
          continue;
@@ -502,7 +503,7 @@ opt_fotid_shuffle(nir_builder *b, nir_intrinsic_instr *instr, void *_options)
    }
 
    for (int i = 0; i < b->shader->info.max_subgroup_size; i++) {
-      fprintf(stderr, "invocation %d zero %d\n", i, ctx.reads_zero[i]);
+      fprintf(stderr, "invocation %d zero %d\n", i, BITSET_TEST(ctx.reads_zero, i));
    }
 #endif
 
