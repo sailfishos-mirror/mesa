@@ -774,7 +774,7 @@
         "description": "kk: Fix Vulkan to Metal stage translation for timestamps",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ed807097ebdea0b490ce4d091619ca1c325e296c",
         "notes": null
