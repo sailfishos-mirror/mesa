@@ -478,7 +478,8 @@ GENX(pan_fb_get_clean_tile)(const struct pan_fb_desc_info *info)
 static void
 emit_zs_crc_desc(const struct pan_fb_desc_info *info,
                  const struct pan_fb_clean_tile ct,
-                 struct mali_zs_crc_extension_packed *zs_crc)
+                 struct mali_zs_crc_extension_packed *zs_crc,
+                 const struct pan_crc crc)
 {
    const struct pan_fb_layout *fb = info->fb;
    const struct pan_fb_store *store = info->store;
@@ -507,7 +508,22 @@ emit_zs_crc_desc(const struct pan_fb_desc_info *info,
 #endif
       }
 
-      /* TODO CRC */
+      if (crc.index != -1) {
+         const struct pan_image_view *rt = info->store->rts[crc.index].iview;
+         const struct pan_image_plane_ref pref =
+            pan_image_view_get_color_plane(rt);
+         const struct pan_image_plane *plane =
+            pref.image->planes[pref.plane_idx];
+         const struct pan_image_slice_layout *slice =
+            &plane->layout.slices[rt->first_level];
+
+         cfg.crc.base = plane->base + slice->crc.offset_B;
+         cfg.crc.row_stride = slice->crc.stride_B;
+#if PAN_ARCH >= 7
+         cfg.crc.render_target = crc.index;
+         cfg.crc.clear_color = crc.clear_color;
+#endif
+      }
    }
 
    if (store && store->zs.store) {
@@ -543,8 +559,6 @@ emit_zs_crc_desc(const struct pan_fb_desc_info *info,
       mod_handler->emit_s_attachment(&att, &s_part);
       pan_merge(zs_crc, &s_part, ZS_CRC_EXTENSION);
    }
-
-   /* TODO: CRC */
 }
 
 static void
@@ -643,13 +657,62 @@ emit_rts(const struct pan_fb_desc_info *info,
    assert(tile_rt_offset_B <= fb->tile_rt_alloc_B);
 }
 
+static bool
+pan_fb_store_target_should_crc(const struct pan_fb_layout *fb,
+                               const struct pan_fb_store_target *rt,
+                               unsigned tile_size)
+{
+   if (!rt->store || rt->crc_header_addr == 0 ||
+       !GENX(pan_image_view_can_crc)(rt->iview, tile_size))
+      return false;
+
+   return true;
+}
+
+static int
+pan_fb_select_crc_rt(const struct pan_fb_desc_info *info, unsigned tile_size)
+{
+   /* Hardware generates CRCs for only one color render target. Select the first
+    * eligible target; CRC state for other stored targets must be invalidated.
+    */
+   const int no_crc_rt = -1;
+   if (!info->store || tile_size < 16 * 16)
+      return no_crc_rt;
+
+   for (unsigned i = 0; i < info->fb->rt_count; i++)
+      if (pan_fb_store_target_should_crc(info->fb, &info->store->rts[i],
+                                         tile_size))
+         return i;
+
+   return no_crc_rt;
+}
+
+bool
+GENX(pan_fb_get_crc_rt_info)(const struct pan_fb_desc_info *info,
+                             struct pan_fb_crc_rt_info *out)
+{
+   out->rt = pan_fb_select_crc_rt(info, info->fb->tile_size_px);
+   out->header_addr =
+      out->rt != -1 ? info->store->rts[out->rt].crc_header_addr : 0;
+   return out->header_addr != 0;
+}
+
+bool
+GENX(pan_fb_needs_zs_crc_ext)(const struct pan_fb_desc_info *info)
+{
+   return pan_fb_has_zs(info->fb) ||
+          pan_fb_select_crc_rt(info, info->fb->tile_size_px) != -1;
+}
+
 #if PAN_ARCH >= 14
 uint32_t
 GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
                        const struct pan_fb_descs *out)
 {
+   struct pan_crc crc = {.index = -1};
    if (pan_fb_has_zs(info->fb)) {
-      emit_zs_crc_desc(info, GENX(pan_fb_get_clean_tile)(info), out->zs_crc);
+      emit_zs_crc_desc(info, GENX(pan_fb_get_clean_tile)(info), out->zs_crc,
+                       crc);
    }
 
    emit_rts(info, out->rts);
@@ -666,7 +729,13 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
    const struct pan_fb_store *store = info->store;
    const struct pan_fb_clean_tile ct = GENX(pan_fb_get_clean_tile)(info);
 
-   const bool has_zs_crc_ext = pan_fb_has_zs(fb);
+   struct pan_crc crc = {.index = pan_fb_select_crc_rt(info, fb->tile_size_px)};
+   if (crc.index != -1) {
+      crc.read = true;
+      crc.write = true;
+   }
+
+   const bool has_zs_crc_ext = pan_fb_has_zs(fb) || pan_crc_is_enabled(&crc);
 
    struct mali_framebuffer_packed fbd = {};
 
@@ -677,10 +746,13 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
 
    pan_section_pack(&fbd, FRAMEBUFFER, PARAMETERS, cfg) {
 #if PAN_ARCH >= 6
+      /* Pre-frame shaders that preload a CRC-enabled RT must run in ALWAYS
+       * mode. */
+      const bool force_clean_tile = ct.rts || ct.zs || ct.s || crc.index != -1;
       cfg.pre_frame_0 = pan_fix_frame_shader_mode(info->frame_shaders.modes[0],
-                                                  ct.rts || ct.zs || ct.s);
+                                                  force_clean_tile);
       cfg.pre_frame_1 = pan_fix_frame_shader_mode(info->frame_shaders.modes[1],
-                                                  ct.rts || ct.zs || ct.s);
+                                                  force_clean_tile);
       cfg.post_frame = info->frame_shaders.modes[2];
       cfg.frame_shader_dcds = info->frame_shaders.dcd_pointer;
 
@@ -767,6 +839,11 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
 
       cfg.has_zs_crc_extension = has_zs_crc_ext;
 
+      if (pan_crc_is_enabled(&crc)) {
+         cfg.crc_read_enable = crc.read;
+         cfg.crc_write_enable = crc.write;
+      }
+
 #if PAN_ARCH >= 6
       cfg.tiler = PAN_ARCH >= 9 ? info->tiler_ctx->valhall.desc
                                 : info->tiler_ctx->bifrost.desc;
@@ -784,7 +861,7 @@ GENX(pan_emit_fb_desc)(const struct pan_fb_desc_info *info,
    memcpy(out->fbd, &fbd, sizeof(fbd));
 
    if (has_zs_crc_ext) {
-      emit_zs_crc_desc(info, ct, out->zs_crc);
+      emit_zs_crc_desc(info, ct, out->zs_crc, crc);
    }
 
    emit_rts(info, out->rts);
