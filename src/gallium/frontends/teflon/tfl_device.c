@@ -534,6 +534,41 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->input_count = 1;
       break;
    }
+   case kTfLiteBuiltinSpaceToBatchNd:
+   case kTfLiteBuiltinBatchToSpaceNd: {
+      TfLiteTensor *block_tensor;
+      TfLiteTensor *padding_tensor;
+      int *block;
+      int *padding;
+
+      if (node->inputs->size != 3 || node->outputs->size != 1)
+         return false;
+
+      block_tensor = &tf_context->tensors[node->inputs->data[1]];
+      padding_tensor = &tf_context->tensors[node->inputs->data[2]];
+      if (block_tensor->type != kTfLiteInt32 ||
+          padding_tensor->type != kTfLiteInt32 || !block_tensor->data.i32 ||
+          !padding_tensor->data.i32 || block_tensor->bytes < 2 * sizeof(int) ||
+          padding_tensor->bytes < 4 * sizeof(int))
+         return false;
+
+      block = block_tensor->data.i32;
+      padding = padding_tensor->data.i32;
+      operation->type = node_registration->builtin_code ==
+                              kTfLiteBuiltinSpaceToBatchNd
+                           ? PIPE_ML_OPERATION_TYPE_SPACE_TO_BATCH
+                           : PIPE_ML_OPERATION_TYPE_BATCH_TO_SPACE;
+      operation->space_batch.block_y = block[0];
+      operation->space_batch.block_x = block[1];
+      operation->space_batch.before_y = padding[0];
+      operation->space_batch.after_y = padding[1];
+      operation->space_batch.before_x = padding[2];
+      operation->space_batch.after_x = padding[3];
+      operation->input_tensors[1] = NULL;
+      operation->input_tensors[2] = NULL;
+      operation->input_count = 1;
+      break;
+   }
    case kTfLiteBuiltinQuantize: {
       operation->type = PIPE_ML_OPERATION_TYPE_QUANTIZE;
       break;
@@ -813,6 +848,12 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_ARGMAX:
          teflon_debug("%-15s ", "ARGMAX");
+         break;
+      case PIPE_ML_OPERATION_TYPE_SPACE_TO_BATCH:
+         teflon_debug("%-15s ", "SPACE_TO_BATCH");
+         break;
+      case PIPE_ML_OPERATION_TYPE_BATCH_TO_SPACE:
+         teflon_debug("%-15s ", "BATCH_TO_SPACE");
          break;
       case PIPE_ML_OPERATION_TYPE_MAXIMUM:
          teflon_debug("%-15s ", "MAX");
@@ -1213,6 +1254,10 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "RESIZE_BILINEAR";
    case kTfLiteBuiltinArgMax:
       return "ARGMAX";
+   case kTfLiteBuiltinSpaceToBatchNd:
+      return "SPACE_TO_BATCH";
+   case kTfLiteBuiltinBatchToSpaceNd:
+      return "BATCH_TO_SPACE";
    case kTfLiteBuiltinSplit:
       return "SPLIT";
    case kTfLiteBuiltinUnpack:
